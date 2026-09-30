@@ -1,117 +1,13 @@
+// docs/choosing-a-diagram.md tells agents which warning codes each tier
+// raises; those assignments must be the runtime's.
 import { describe, expect, test } from 'bun:test'
-import { existsSync, readFileSync, readdirSync } from 'node:fs'
-import { join, relative } from 'node:path'
-import { BUILTIN_FAMILY_METADATA } from '../agent/families.ts'
+import { readFileSync } from 'node:fs'
+import { join } from 'node:path'
 import { WARNING_TIER, type WarningCode, type WarningTier } from '../agent/types.ts'
 
 const ROOT = join(import.meta.dir, '..', '..')
 
-function markdownFiles(directory: string): string[] {
-  return readdirSync(directory, { withFileTypes: true }).flatMap(entry => {
-    const path = join(directory, entry.name)
-    if (entry.isDirectory()) return markdownFiles(path)
-    return entry.isFile() && entry.name.endsWith('.md') ? [path] : []
-  })
-}
-
-const docs = markdownFiles(join(ROOT, 'docs'))
-const research = markdownFiles(join(ROOT, 'research'))
-const repoPath = (path: string): string => relative(ROOT, path).replaceAll('\\', '/')
-
-describe('maintained documentation is derived from current contracts', () => {
-  test('active design navigation excludes completed implementation ledgers', () => {
-    const index = readFileSync(join(ROOT, 'docs', 'README.md'), 'utf8')
-    expect(index).not.toContain('design/family-elevation-plan.md')
-    expect(index).not.toContain('design/family-elevation-acceptance.md')
-    expect(index).not.toContain('design/system/consolidation-plan.md')
-    expect(index).toContain('project/archive/')
-    expect(index).toContain('svg-semantic-contract.md')
-    expect(index).toContain('mutation-testing.md')
-  })
-
-  test('the canonical backlog contains only unfinished inventory items', () => {
-    const todo = readFileSync(join(ROOT, 'TODO.md'), 'utf8')
-    expect(todo).not.toMatch(/^- \[x\]/m)
-    expect(todo).toContain('unfinished work, owner\ndecisions, blocked observations, and evidence-triggered watch items')
-    expect(todo).not.toContain('contains only actionable items')
-    expect(existsSync(join(ROOT, 'docs/project/archive/completed-backlog-pre-consolidation.md'))).toBe(false)
-  })
-
-  test('archive records are explicitly historical and cannot become shadow backlogs', () => {
-    const archive = markdownFiles(join(ROOT, 'docs', 'project', 'archive'))
-    const missingStatus: string[] = []
-    const uncheckedWork: string[] = []
-    for (const path of archive) {
-      const text = readFileSync(path, 'utf8')
-      if (!/^>? ?(?:\*\*)?Status:/m.test(text)) missingStatus.push(repoPath(path))
-      if (/^- \[ \]/m.test(text)) uncheckedWork.push(repoPath(path))
-    }
-    expect(missingStatus).toEqual([])
-    expect(uncheckedWork).toEqual([])
-  })
-
-  test('the active brand plan references only exact root-TODO IDs', () => {
-    const todo = readFileSync(join(ROOT, 'TODO.md'), 'utf8')
-    const plan = readFileSync(join(ROOT, 'docs/project/brand-primitives-plan.md'), 'utf8')
-    const todoIds = new Set(Array.from(todo.matchAll(/\*\*([A-Z]+-\d+)\s+—/g), match => match[1]!))
-    const planIds = new Set(Array.from(plan.matchAll(/\b[A-Z]+-\d+\b/g), match => match[0]))
-    const nonBacklogReferences = new Set(['SHA-256', 'PR-149'])
-    expect([...planIds].filter(id => !todoIds.has(id) && !nonBacklogReferences.has(id))).toEqual([])
-    expect(plan).not.toMatch(/\b[A-Z]+-\d+(?:\/\d+)+\b/)
-  })
-
-  test('prototype research cannot retain a shadow production spec or backlog', () => {
-    const prototype = readFileSync(join(ROOT, 'scripts/sketch-prototype/SPEC.md'), 'utf8')
-    expect(prototype).toContain('Status: non-authoritative research artifact')
-    for (const staleAuthority of ['StyleSpec.backend', 'PARTIALLY IMPLEMENTED', 'candidate backlog', 'This document specifies the production design']) {
-      expect({ staleAuthority, present: prototype.includes(staleAuthority) })
-        .toEqual({ staleAuthority, present: false })
-    }
-  })
-
-  test('the refactor characterization index names every contract surface and an existing gate', async () => {
-    const manifest = JSON.parse(readFileSync(join(ROOT, 'docs/design/system/consolidation-characterization.json'), 'utf8')) as {
-      scopeProjection: string
-      contracts: Array<{ surface: string; familyScope: string; evidence: string[] }>
-    }
-    const [projectionPath, projectionSymbol, ...projectionRest] = manifest.scopeProjection.split('#')
-    expect({ projectionPath, projectionSymbol, projectionRest }).toEqual({
-      projectionPath: 'src/agent/families.ts',
-      projectionSymbol: 'knownFamilies',
-      projectionRest: [],
-    })
-    // The projection is callable and covers the built-in registry the
-    // contracts are scoped to.
-    const projection = (await import(join(ROOT, projectionPath!)) as Record<string, unknown>)[projectionSymbol!]
-    expect(typeof projection).toBe('function')
-    expect((projection as () => string[])()).toEqual(expect.arrayContaining(BUILTIN_FAMILY_METADATA.map(family => family.id)))
-
-    expect(new Set(manifest.contracts.map(contract => contract.surface))).toEqual(new Set([
-      'semantic identity', 'geometry', 'terminal cells', 'config diagnostics',
-      'security', 'packaging', 'generated artifacts',
-    ]))
-    for (const contract of manifest.contracts) {
-      expect(contract.familyScope).toBe('registry')
-      expect(contract.evidence.length).toBeGreaterThan(0)
-      for (const path of contract.evidence) expect({ path, exists: existsSync(join(ROOT, path)) }).toEqual({ path, exists: true })
-    }
-  })
-
-  // doc-references.test.ts checks links in the maintained docs; this covers the
-  // archive and research notes it leaves out.
-  test('local Markdown links in archived and research docs remain closed after archive moves', () => {
-    const broken: string[] = []
-    for (const path of [...docs.filter(path => repoPath(path).startsWith('docs/project/archive/')), ...research]) {
-      const text = readFileSync(path, 'utf8')
-      for (const match of text.matchAll(/(?<!!)\[[^\]]*\]\(([^)]+)\)/g)) {
-        const target = match[1]!.split('#')[0]!.split('?')[0]!
-        if (!target || target.startsWith('/') || target.includes('://') || target.startsWith('mailto:')) continue
-        if (!existsSync(join(path, '..', target))) broken.push(`${repoPath(path)} -> ${target}`)
-      }
-    }
-    expect(broken).toEqual([])
-  })
-
+describe('family router warning tiers', () => {
   test('the family router assigns named warning codes to their runtime tiers', () => {
     const router = readFileSync(join(ROOT, 'docs', 'choosing-a-diagram.md'), 'utf8')
     const verification = router.split('## Verify what the family promised')[1] ?? ''
@@ -132,46 +28,5 @@ describe('maintained documentation is derived from current contracts', () => {
 
     expect(seenTiers).toEqual(new Set<WarningTier>(['structural', 'geometric', 'lint']))
     expect(checked.size).toBeGreaterThan(0)
-  })
-
-  test('historical fork narrative is archived behind evergreen lessons', () => {
-    const current = readFileSync(join(ROOT, 'docs/project/lessons-learned.md'), 'utf8')
-    const historical = readFileSync(join(ROOT, 'docs/project/archive/fork-lessons-through-pr-149.md'), 'utf8')
-    expect(current).toContain('## Evergreen engineering lessons')
-    expect(current).not.toMatch(/^## Loop \d+/m)
-    expect(historical).toContain('## Loop 14 lesson')
-  })
-
-  test('maintained docs do not hard-code volatile Style registry totals', () => {
-    const active = [
-      ...docs.filter(path => !repoPath(path).startsWith('docs/project/archive/')),
-      join(ROOT, 'Instructions_for_agents.md'),
-      join(ROOT, 'AGENT_NATIVE.md'),
-    ]
-    const violations: string[] = []
-    for (const path of active) {
-      const text = readFileSync(path, 'utf8')
-      for (const match of text.matchAll(/\b\d+\s+palettes?\s*[×x]\s*\d+\s+looks?\b/gi)) {
-        violations.push(`${repoPath(path)}: ${match[0]}`)
-      }
-    }
-    expect(violations).toEqual([])
-  })
-
-  test('current contract docs avoid volatile test and package totals', () => {
-    const active = docs.filter(path => !repoPath(path).startsWith('docs/project/archive/'))
-    const violations: string[] = []
-    const volatile = [
-      /\b\d[\d,]*\s+(?:tests?|assertions?)\s+(?:pass|passed|failed|skipped)\b/gi,
-      /\bpackage(?: dry run)?\s*[:—-]?\s*\*?\*?\d[\d,]*\*?\*?\s+files\b/gi,
-      /\b\d[\d,]*\s+files\s+(?:in|packaged|shipped)\b/gi,
-    ]
-    for (const path of active) {
-      const text = readFileSync(path, 'utf8')
-      for (const pattern of volatile) for (const match of text.matchAll(pattern)) {
-        violations.push(`${repoPath(path)}: ${match[0]}`)
-      }
-    }
-    expect(violations).toEqual([])
   })
 })

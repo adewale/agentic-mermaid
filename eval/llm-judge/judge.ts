@@ -4,9 +4,8 @@
 // asks a subagent to score readability 1-5 against a rubric. Aggregate
 // score gates a periodic eval run (nightly / pre-release).
 //
-// This script writes a request file the harness picks up. In CI the
-// scoring is mocked deterministically (see agent-llm-judge.test.ts). In
-// production it would invoke a subagent — see runWithJudge() below.
+// This script writes a request file the harness picks up. A run invokes a
+// subagent — see runWithJudge() below. It has no CI gate.
 
 import { readFileSync, writeFileSync, mkdirSync, existsSync } from 'node:fs'
 import { join, dirname } from 'node:path'

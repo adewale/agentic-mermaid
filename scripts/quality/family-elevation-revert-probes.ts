@@ -177,21 +177,21 @@ const probes: Probe[] = [
     file: 'src/mindmap/parser.ts',
     find: `    if (/^::icon\\b/i.test(trimmed)) {`,
     replace: `    if (/^::icon\\(/i.test(trimmed)) { // injected fault: allow reserved-prefix whitespace as a node`,
-    test: ['src/__tests__/mindmap-gitgraph-doc-parity.test.ts', '-t', 'reserved decorations'],
+    test: ['src/__tests__/mindmap-gitgraph-grammar.test.ts', '-t', 'reserved decorations'],
   },
   {
     name: 'GitGraph cherry-pick rejects commits already reachable through inherited history',
     file: 'src/gitgraph/parser.ts',
     find: `      if (reachableFrom(current.head, source.id, commitById)) throw new GitGraphParseError(\`Cherry-pick source '\${source.id}' is already reachable from current branch '\${currentBranch}'.\`, index + 1)`,
     replace: `      if (source.branch === currentBranch) throw new GitGraphParseError(\`Cherry-pick source '\${source.id}' is already on current branch '\${currentBranch}'.\`, index + 1)`,
-    test: ['src/__tests__/mindmap-gitgraph-doc-parity.test.ts', '-t', 'already reachable'],
+    test: ['src/__tests__/mindmap-gitgraph-grammar.test.ts', '-t', 'already reachable'],
   },
   {
     name: 'GitGraph layout cannot emit duplicate coincident parent relations',
     file: 'src/gitgraph/layout.ts',
     find: `    for (const [index, parentId] of [...new Set(commit.parents)].entries()) {`,
     replace: `    for (const [index, parentId] of commit.parents.entries()) { // injected fault: duplicate parents`,
-    test: ['src/__tests__/mindmap-gitgraph-doc-parity.test.ts', '-t', 'one semantic parent relation'],
+    test: ['src/__tests__/mindmap-gitgraph-grammar.test.ts', '-t', 'one semantic parent relation'],
   },
   {
     name: 'Delimiter-bearing relation endpoints retain injective semantic IDs',
@@ -200,7 +200,7 @@ const probes: Probe[] = [
     ? \`\${from}->\${to}\`
     : \`relation:\${JSON.stringify([from, to])}\``,
     replace: `  const body = \`\${from}->\${to}\` // injected fault: delimiter-ambiguous identity`,
-    test: ['src/__tests__/mindmap-gitgraph-doc-parity.test.ts', '-t', 'relation identities remain injective'],
+    test: ['src/__tests__/mindmap-gitgraph-grammar.test.ts', '-t', 'relation identities remain injective'],
   },
   {
     name: 'State concurrency separators remain continuous between region boxes',

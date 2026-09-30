@@ -78,7 +78,7 @@ whether it gates per-PR, and what it does *not* prove.
 families. **Tier-2** (geometric) and **Tier-3** (lint) are advisory.
 
 Alongside it sit the **contract gates**: `am capabilities --json` schema
-tests, `doc-sync`/`agent-doc-sync` tests, and the diagram-family
+tests, the `agent-doc-sync` tests, and the diagram-family
 citizenship matrix. For an agent-native product the docs, schemas, CLI
 help, and `llms.txt` *are* runtime surface (Loop 14), so they are tested
 like code, not treated as prose.
@@ -248,10 +248,8 @@ mutating process-global configuration).
 
 - Reproduce a specific roll: `AM_FC_SEED=<int> bun test <file>`.
 - Finder mode (deliberate randomness): `AM_FC_SEED=random bun run test`.
-- The policy is itself gated: `fc-seed-policy.test.ts` fails if the preload is
-  unwired and source-checks every test file so suite-specific seeds cannot use
-  process-global overrides. That source check is the guard: CI runs files in
-  parallel processes, so no test can observe another file's runtime state.
+- A suite that needs its own regression seed passes it to `fc.assert`
+  options; process-global configuration belongs to the preload alone.
 
 Pinning is for *holding* known ground; randomness is for *finding* new
 counterexamples ("an invariant enforced by a random property is a lottery,
@@ -368,21 +366,15 @@ match a human designer's eye; they catch the worst regressions"
   layout/rendering changes (`contributing/visual-review-evidence.md`).
 
 **Runs:** the real LLM judge is **periodic / pre-release only** — model
-spend plus nondeterminism make it unfit for a per-PR gate. In CI it is
-replaced by a deterministic mock.
-**Protocol hardening (Move 1):** the readability/aesthetics axes of the CI
-mock are still derived from the perceptual metrics (it is a wiring stub), but
-the **faithfulness** axis now comes from `independentFaithfulness()` — a
+spend plus nondeterminism make it unfit for a per-PR gate, and it has no CI
+stand-in. Its **faithfulness** axis comes from `independentFaithfulness()` — a
 structural parse → serialize → re-parse count check that does *not* consult
-`measureQuality`, removing the circularity on that axis. The real judge has
+`measureQuality`. The judge has
 primitives for the documented LLM-judge biases (Zheng et al., NeurIPS 2023):
 `judgePairwiseDebiased` scores both orders and trusts only an agreeing verdict
 (position bias), `assertJudgeIndependence` refuses a judge from the same model
 family that authored the diagram (self-enhancement), and `JudgeReference`
 threads a golden anchor (reference-guided scoring).
-**Known limitation:** the mock's readability/aesthetics axes remain
-metric-derived, so they cannot independently validate those metrics — only a
-real judge run can.
 
 ## What runs where
 
@@ -483,6 +475,21 @@ reason, cheaply, and says clearly what broke.
    rasterization, a website build) is done once per file and shared.
 10. **It reads as arrange, act, assert**, with many cases as a table.
 
+Shared helpers carry the common arrangements: `src/__tests__/helpers/temp-dir.ts`
+for temporary directories that are removed after the file,
+`src/__tests__/helpers/cli-capture.ts` for in-process CLI output, and
+`src/__tests__/helpers/complexity.ts` for growth checks in place of wall-clock
+ceilings.
+
+A test protects observable behaviour or an independent public contract
+(API, package contents, security, protocol, config, shipped bytes, and the
+agent-facing runtime docs: `llms.txt`, CLI help, MCP instructions,
+`am --agent-instructions`). There are no tests of tests: no lint over test
+source, no grep over production source, no check that a doc's prose or a
+second list matches the code, and no test of an eval or CI helper for its own
+sake. Determinism is proven on output (`agent-determinism.test.ts`,
+`ascii-determinism.test.ts`), not by banning tokens in source.
+
 Files worth copying: `src/__tests__/property-upstream-flowchart.test.ts`
 (grammar-generated differential against pinned upstream),
 `src/__tests__/property-er-model.test.ts` (model-based test with a shadow
@@ -515,9 +522,8 @@ These are real today and are the natural targets for *enhancing* existing
 gates rather than adding new machinery:
 
 1. The per-PR aesthetic signal is still the weakest gate; the metrics are
-   admittedly rough. The CI LLM mock's readability/aesthetics axes remain
-   metric-derived (only its faithfulness axis is now independent), so it
-   cannot validate those metrics — only a real periodic judge run can.
+   admittedly rough, and nothing per-PR validates them independently — only a
+   real periodic judge run can.
 2. Automatic mutation assurance is deliberately narrow: PR feedback uses the
    fast incremental faithfulness-counter lane plus nine focused sabotage probes;
    diff-scoped mutation of each PR's changed lines is tracked in issue #355.

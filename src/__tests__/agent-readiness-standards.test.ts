@@ -456,6 +456,11 @@ describe('agent-readiness standards syntax', () => {
     expect(mcpEntry.capabilities).toEqual(card.tools.map((tool: any) => tool.name))
   })
 
+  test('the committed llms.txt names the published package version', () => {
+    const packageJson = JSON.parse(readFileSync(join(REPO, 'package.json'), 'utf8'))
+    expect(readFileSync(join(REPO, 'llms.txt'), 'utf8')).toContain(`\nVersion: ${packageJson.version}\n`)
+  })
+
   test('official MCP Registry metadata matches the npm package and hosted server', () => {
     const packageJson = JSON.parse(readFileSync(join(REPO, 'package.json'), 'utf8'))
     const registry = JSON.parse(readFileSync(join(REPO, 'server.json'), 'utf8'))

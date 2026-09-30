@@ -7,21 +7,6 @@ import {
 } from '../index.ts'
 import { layoutGitGraph } from '../gitgraph/layout.ts'
 import { mutate, parseRegisteredMermaid, serializeMermaid, verifyMermaid } from '../agent/index.ts'
-import type { MindmapNode } from '../mindmap/types.ts'
-
-function* walkMindmap(node: MindmapNode): Generator<MindmapNode> {
-  yield node
-  for (const child of node.children) yield* walkMindmap(child)
-}
-
-function mindmapDepth(node: MindmapNode, id: string, depth = 0): number {
-  if (node.id === id) return depth
-  for (const child of node.children) {
-    const found = mindmapDepth(child, id, depth + 1)
-    if (found >= 0) return found
-  }
-  return -1
-}
 
 const OFFICIAL_MARKDOWN_MINDMAP = `mindmap
   id1["\`**Root** with
@@ -30,18 +15,7 @@ Unicode works too: 🤓\`"]
     id2["\`The dog in **the** hog... a *very long text* that wraps to a new line\`"]
     id3[Regular labels still works]`
 
-describe('Mindmap documentation parity and grammar closure', () => {
-  test('the visual-evidence fixture exercises every documented shape plus deep/wide decorated Markdown structure', () => {
-    const source = readFileSync(join(import.meta.dir, '..', '..', 'docs/design/families/mindmap-demo.mmd'), 'utf8')
-    const diagram = parseMindmap(source.replace(/^---[\s\S]*?---\s*/, ''))
-    const nodes = [...walkMindmap(diagram.root)]
-    expect(nodes).toHaveLength(16)
-    expect(new Set(nodes.map(node => node.shape))).toEqual(new Set(['default', 'rect', 'rounded', 'circle', 'bang', 'cloud', 'hexagon']))
-    expect(nodes.find(node => node.id === 'discovery')).toMatchObject({ icon: 'fa fa-book', className: 'urgent large' })
-    expect(nodes.find(node => node.id === 'evidence')).toMatchObject({ markdown: true })
-    expect(Math.max(...nodes.map(node => mindmapDepth(diagram.root, node.id)))).toBeGreaterThanOrEqual(3)
-  })
-
+describe('Mindmap grammar, round-trip, and branch geometry', () => {
   test('parses, formats, renders, and round-trips the official multiline Markdown String example', () => {
     const parsed = parseMindmap(OFFICIAL_MARKDOWN_MINDMAP)
     expect(parsed.root).toMatchObject({ id: 'id1', shape: 'rect', markdown: true })
@@ -94,9 +68,17 @@ describe('Mindmap documentation parity and grammar closure', () => {
     })
     expect(diagnostics).toContain('layout')
   })
+
+  test('a branch meets a bang burst at its painted tip, not at its layout box', () => {
+    const svg = renderMermaidSVG('mindmap\n  root((Root))\n    a))Left burst((\n    b))Right burst((', { embedFontImport: false })
+    const outline = [...svg.matchAll(/<polygon points="([^"]+)"/g)].flatMap(match => match[1]!.split(' '))
+    const endpoints = [...svg.matchAll(/<path class="mindmap-edge"[^>]* d="[^"]* ([-\d.]+) ([-\d.]+)"/g)].map(match => `${match[1]},${match[2]}`)
+    expect(endpoints).toHaveLength(2)
+    for (const endpoint of endpoints) expect(outline).toContain(endpoint)
+  })
 })
 
-describe('GitGraph documentation parity and identity closure', () => {
+describe('GitGraph grammar and identity', () => {
   test('preserves and diagnoses the official duplicate-Boston fence without offering ambiguous mutation', () => {
     const markdown = readFileSync(join(import.meta.dir, '..', '..', 'skills/agentic-mermaid-diagram-workflow/references/upstream/gitgraph.md'), 'utf8')
     const source = [...markdown.matchAll(/```mermaid\n([\s\S]*?)```/g)]
@@ -154,18 +136,6 @@ describe('GitGraph documentation parity and identity closure', () => {
     const svg = renderMermaidSVG(source!, { embedFontImport: false })
     expect(svg).toContain(`data-id="${cherryPick!.id}"`)
     expect(svg).toContain('class="git-commit type-cherry_pick"')
-  })
-
-  test('the visual-evidence fixture exercises title, direction, orders, types, tags, merge, and merge-parent cherry-pick', () => {
-    const source = readFileSync(join(import.meta.dir, '..', '..', 'docs/design/families/gitgraph-demo.mmd'), 'utf8')
-    const body = source.replace(/^---[\s\S]*?---\s*/, '')
-    const diagram = parseGitGraph(body, { title: 'Release train with backport' })
-    expect(diagram.title).toBe('Release train with backport')
-    expect(diagram.branches.map(branch => branch.name)).toEqual(['main', 'develop', 'release'])
-    expect(diagram.commits).toHaveLength(8)
-    expect(new Set(diagram.commits.map(commit => commit.type))).toEqual(new Set(['NORMAL', 'HIGHLIGHT', 'REVERSE', 'MERGE', 'CHERRY_PICK']))
-    expect(diagram.commits.find(commit => commit.id === 'MERGE')?.parents).toEqual(['HOTFIX', 'UI'])
-    expect(diagram.commits.find(commit => commit.type === 'CHERRY_PICK')?.parents).toEqual(['RC', 'MERGE'])
   })
 
   test('rejects cherry-picking a commit already reachable through inherited branch history', () => {

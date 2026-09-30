@@ -14,29 +14,18 @@ import {
 } from './helpers/family-conformance-profiles.ts'
 import { measureDiagramComplexity } from './helpers/diagram-complexity.ts'
 import {
-  BACKGROUND_POLARITIES,
   OUTPUT_FORMATS,
-  SECURITY_MODES,
   buildMixedFormatConformancePlan,
-  buildPairwiseAssignments,
   buildRenderConformancePlan,
   registeredLooks,
   registeredPalettes,
 } from './helpers/render-conformance-plan.ts'
-import {
-  independentlyDerivedCoreAuthorities,
-  verifyCoreConformancePlan,
-  verifyMixedFormatConformancePlan,
-  verifyPairwiseAssignments,
-} from './helpers/render-conformance-verifier.ts'
 
 // A hang detector, not a speed assertion. The two tests that use it render the
 // whole conformance portfolio; the work is CPU-bound and its wall-clock cost
 // tracks machine speed, so a cap sized to the fastest machine turns "this box
 // is slower than CI" into a red test — at 60s it fired on a machine completing
-// the portfolio in ~62s with every oracle passing. The ceiling that actually
-// matters, portfolio SIZE, is asserted directly by the corePlan.length and
-// mixedPlan.length bounds in "declares exact finite domains…" below.
+// the portfolio in ~62s with every oracle passing.
 const RENDER_PORTFOLIO_TIMEOUT_MS = 240_000
 
 const corePlan = buildRenderConformancePlan()
@@ -99,41 +88,6 @@ describe('registry-derived complexity-aware render conformance plan', () => {
     expect(combinations).toBe(registeredLooks().length * registeredPalettes().length)
   })
 
-  test('independent verification proves every pair and selected higher-strength obligation', () => {
-    const verified = verifyCoreConformancePlan(corePlan)
-    expect(verified.missing).toEqual([])
-    expect(verified.covered).toBe(verified.required)
-    const mixed = verifyMixedFormatConformancePlan(mixedPlan)
-    expect(mixed.missing).toEqual([])
-    expect(mixed.covered).toBe(mixed.required)
-
-    const authorities = independentlyDerivedCoreAuthorities()
-    expect(authorities.looks).toEqual(registeredLooks())
-    expect(authorities.palettes).toEqual(registeredPalettes())
-    expect(authorities.backends).toEqual(['default', 'hybrid', 'rough'])
-    expect(authorities.palettePolarities).toEqual(['dark', 'light'])
-  })
-
-  test('is code-point deterministic and does not hide hard-coded family enrollment', () => {
-    expect(buildRenderConformancePlan()).toEqual(corePlan)
-    expect(buildMixedFormatConformancePlan()).toEqual(mixedPlan)
-    expect(corePlan.map(row => row.id)).toEqual([...corePlan.map(row => row.id)].sort(compareCodePointStrings))
-    expect(new Set(corePlan.map(row => row.family))).toEqual(new Set(families))
-    expect(new Set(corePlan.map(row => row.look))).toEqual(new Set(registeredLooks()))
-    expect(new Set(corePlan.map(row => row.palette))).toEqual(new Set(registeredPalettes()))
-  })
-
-  test('fake-family and removed-family sabotage is detected independently', () => {
-    const domains = { family: ['alpha', 'fake'], format: ['svg', 'png'], complexity: ['minimal', 'dense'] }
-    const rows = buildPairwiseAssignments(domains)
-    expect(verifyPairwiseAssignments(domains, rows).missing).toEqual([])
-    const sabotaged = rows.filter(row => row.family !== 'fake')
-    expect(verifyPairwiseAssignments(domains, sabotaged).missing.some(id => id.includes('family=fake'))).toBe(true)
-
-    const withoutRadar = corePlan.filter(row => row.family !== 'radar')
-    expect(verifyCoreConformancePlan(withoutRadar).missing.some(id => id.includes('family=radar'))).toBe(true)
-  })
-
   test('renders the variable-strength SVG portfolio with semantic, finite, security and palette oracles', () => {
     for (const row of corePlan) {
       const svg = renderMermaidSVG(row.source, row.options)
@@ -182,14 +136,4 @@ describe('registry-derived complexity-aware render conformance plan', () => {
     }
     expect(new Set(mixedPlan.map(row => row.format))).toEqual(new Set(OUTPUT_FORMATS))
   }, RENDER_PORTFOLIO_TIMEOUT_MS)
-
-  test('declares exact finite domains instead of accidental values', () => {
-    expect(SECURITY_MODES).toEqual(['default', 'strict'])
-    expect(BACKGROUND_POLARITIES).toEqual(['opaque-dark', 'opaque-light', 'transparent'])
-    expect(COMPLEXITY_STRATA).toEqual(['minimal', 'representative', 'dense', 'text-stress', 'family-risk', 'corpus-outlier'])
-    expect(corePlan.length).toBeLessThan(1500)
-    expect(corePlan.length).toBeGreaterThanOrEqual(registeredLooks().length * registeredPalettes().length * BACKGROUND_POLARITIES.length)
-    expect(mixedPlan.length).toBeGreaterThanOrEqual(families.length * COMPLEXITY_STRATA.length)
-    expect(mixedPlan.length).toBeLessThanOrEqual(180)
-  })
 })

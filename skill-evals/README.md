@@ -7,7 +7,7 @@ This directory contains the `skill-eval-harness` manifest for the repository’s
 The public tune split now includes:
 
 - Diagram families: every registry-declared built-in, via the manifest's
-  `family:*` tags (enforced by the doc-sync test rather than copied here).
+  `family:*` tags (read the manifest rather than a copy here).
 - Channels: library, CLI, hosted MCP direct tools, and MCP Code Mode.
 - Hosted MCP routing: direct `verify`/`describe`/`mutate`/`build` cases whose
   proposed JSON requests are executed locally against the production tool

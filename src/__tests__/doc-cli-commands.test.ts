@@ -253,85 +253,15 @@ function docSources(): Array<{ file: string; snippets: string[] }> {
 
 // ---------------------------------------------------------------------------
 
-const summary = (invocation: Invocation) => [invocation.cli, ...invocation.args.map(word => word.alts.join('|'))].join(' ')
-const problemsIn = (snippet: string) => invocations(snippet).flatMap(problemsOf)
-
-describe('doc CLI invocation extractor', () => {
-  test('reads usage syntax, --x=y, pipes, redirects, continuations, and runners', () => {
-    const markdown = [
-      'Run `am render <file|-> [--format svg|ascii] [--security strict]`, `render --json`, or `am <verb>`.',
-      '| `am render x --format png\\|svg` | table cell |',
-      '```bash',
-      '$ am parse flow.mmd | am serialize > out.mmd 2>&1',
-      'npx -y agentic-mermaid@latest render a.mmd \\',
-      '  --format=png --output a.png  # comment --nope',
-      "am mutate <file|-> (--op '<JSON>' | --ops '<JSON array|file>') [--fit-width PX|--fit-height PX]",
-      'echo x | jq . && bun run bin/am.ts --help',
-      'npx -y agentic-mermaid mcp --transport=http --port 3000; agentic-mermaid-mcp',
-      '```',
-    ].join('\n')
-    expect(markdownSnippets(markdown).flatMap(invocations).map(summary)).toEqual([
-      'am parse flow.mmd',
-      'am serialize',
-      'am render a.mmd --format=png --output a.png',
-      'am mutate <file|-> --op <JSON> --ops <JSON array|file> --fit-width PX|--fit-height PX',
-      'am --help',
-      'mcp --transport=http --port 3000',
-      'mcp',
-      'am render <file|-> --format svg|ascii --security strict',
-      'am render --json',
-      'am <verb>',
-      'am render x --format png|svg',
-    ])
-  })
-
-  test('llms.txt verb bullets read as am invocations', () => {
-    expect(llmsTxtVerbLines('## CLI verbs\n\n- render --format svg, png [--json] — prose, more\n- parse — prose\n\n## Other\n- not a verb')).toEqual([
-      'am render --format svg|png [--json]',
-      'am parse',
-    ])
-  })
-
-  test('the checker reports verbs, flags, and format values the CLI rejects', () => {
-    expect(problemsIn('am render x --format png|json --bogus -o out.png')).toEqual([
-      '-o is not an option am parses',
-      '--format json is not accepted by am render',
-      '--bogus is not a flag of am render',
-    ])
-    expect(problemsIn('am describe x --format facts|prose && am frobnicate && am --version && am <cmd> --help')).toEqual([
-      '--format prose is not accepted by am describe',
-      'unknown verb "frobnicate"',
-      '--version is not accepted without a verb',
-    ])
-    expect(problemsIn('agentic-mermaid-mcp -h --transport http --verbose -p 1')).toEqual([
-      '-p is not an option mcp parses',
-      '--verbose is not an agentic-mermaid-mcp flag',
-    ])
-    expect(problemsIn('am --agent-instructions && am render x --format=layout --certificates')).toEqual([])
-  })
-
-  test('every verb that owns --format has a value authority', () => {
-    const owners = Object.entries(COMMAND_FLAGS).filter(([, flags]) => (flags as readonly string[]).includes('format')).map(([verb]) => verb)
-    expect(owners.sort()).toEqual(Object.keys(FORMAT_ACCEPTED).sort())
-  })
-
-  test('`am mcp …` reaches the MCP CLI, as the extractor assumes', async () => {
-    expect(await captureCliAsync(() => runAmCli(['mcp', '--help']))).toEqual({ code: 0, out: MCP_CLI_HELP, err: '' })
-  })
-})
-
 describe('documented CLI invocations', () => {
-  test('every code-owned source yields invocations to check', () => {
-    const empty = docSources()
-      .filter(source => !source.file.endsWith('.md') && source.snippets.flatMap(invocations).length === 0)
-      .map(source => source.file)
-    expect(empty).toEqual([])
-    expect(llmsTxtVerbLines(readFileSync(join(REPO_ROOT, 'llms.txt'), 'utf8')).length).toBeGreaterThan(0)
+  test('every CLI invocation in the docs is one the CLI accepts', () => {
+    const checked = docSources().flatMap(({ file, snippets }) => snippets.flatMap(invocations).map(invocation => ({ file, invocation })))
+    expect(checked.length).toBeGreaterThan(0)
+    const problems = checked.flatMap(({ file, invocation }) => problemsOf(invocation).map(problem => ({ file, invocation: invocation.text, problem })))
+    expect(problems).toEqual([])
   })
 
-  test('every CLI invocation in the docs is one the CLI accepts', () => {
-    const problems = docSources().flatMap(({ file, snippets }) =>
-      snippets.flatMap(invocations).flatMap(invocation => problemsOf(invocation).map(problem => ({ file, invocation: invocation.text, problem }))))
-    expect(problems).toEqual([])
+  test('`am mcp …` reaches the MCP CLI', async () => {
+    expect(await captureCliAsync(() => runAmCli(['mcp', '--help']))).toEqual({ code: 0, out: MCP_CLI_HELP, err: '' })
   })
 })

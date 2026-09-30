@@ -10,6 +10,10 @@ describe('package exports', () => {
   it('uses the Agentic Mermaid npm package name', () => {
     expect(packageJson.name).toBe('agentic-mermaid')
   })
+
+  it('publishes publicly with npm provenance', () => {
+    expect(packageJson.publishConfig).toMatchObject({ access: 'public', provenance: true })
+  })
   // Loop 7 A2: yhatt#74 — catches accidental removal of conditional-export
   // fallbacks during package.json edits.
   it('defines a default export fallback for runtimes resolving conditional exports', () => {

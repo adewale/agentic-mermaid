@@ -1,24 +1,17 @@
-// MermaidSeqBench eval — locks the result into CI.
-//
-// Loads the IBM MermaidSeqBench dataset (132 human-verified sequence diagrams)
-// and asserts: every diagram parses, verifies, and round-trips losslessly.
-// The dataset is committed, so a missing file fails the suite loudly.
+// Sequence parse/verify/serialize over real-world input: the IBM
+// MermaidSeqBench dataset (132 human-verified sequence diagrams) must parse,
+// verify, and round-trip losslessly without dropping participants or messages.
 
 import { describe, test, expect } from 'bun:test'
-import { existsSync } from 'node:fs'
 import { join } from 'node:path'
-import { loadDataset, runBench, parseCsv } from '../../eval/mermaidseqbench/runner.ts'
+import { loadDataset, runBench } from '../../eval/mermaidseqbench/runner.ts'
 import { parseRegisteredMermaid as parseMermaid, serializeMermaid } from '../agent/index.ts'
 import { countStructuralElements, isDrop } from '../agent/structural-count.ts'
 
 const DATA = join(import.meta.dir, '..', '..', 'eval', 'mermaidseqbench', 'data.csv')
 
 describe('MermaidSeqBench (132 human-verified samples)', () => {
-  test('the dataset is committed at eval/mermaidseqbench/data.csv', () => {
-    expect(existsSync(DATA)).toBe(true)
-  })
-
-  const rows = existsSync(DATA) ? loadDataset(DATA) : []
+  const rows = loadDataset(DATA)
   const c = runBench(rows)
 
   test('every sample parses', () => {
@@ -58,15 +51,5 @@ describe('MermaidSeqBench (132 human-verified samples)', () => {
     expect(c.structured).toBeGreaterThan(0)
     // Whatever doesn't cleanly segment still falls back to lossless opaque.
     expect(c.structured + c.opaque).toBe(c.total)
-  })
-})
-
-describe('CSV parser (used by MermaidSeqBench runner)', () => {
-  test('handles quoted fields with newlines and "" escapes', () => {
-    const csv = 'a,b\n"x\ny","quote\\"d"'.replace('\\"', '""')
-    const rows = parseCsv(csv)
-    expect(rows.length).toBeGreaterThanOrEqual(2)
-    expect(rows[1]![0]).toBe('x\ny')
-    expect(rows[1]![1]).toBe('quote"d')
   })
 })

@@ -104,10 +104,9 @@ by `live.ts` when model credentials are available:
 
 `safePathRate` counts all acceptable task routes; `structuredPathRate` counts only cases where typed mutation is required. `baseline.json` records the deterministic stored-script baseline. Committed
 `pi-subagent-2026-05-26` and `pi-subagent-release-2026-06-10` transcript sets
-capture live subagent-backed passes and replay through the deterministic oracle
-in `agent-usage-live.test.ts`. Direct API-backed Anthropic/OpenAI-compatible
-transcripts remain on-demand because they require credentials and are
-nondeterministic; PR CI keeps deterministic replay checks.
+capture live subagent-backed passes as archival evidence. Direct API-backed
+Anthropic/OpenAI-compatible transcripts remain on-demand because they require
+credentials and are nondeterministic; PR CI runs the stored Code Mode scripts.
 
 ## Comparing prompt variants (is a change better or worse?)
 

@@ -4,6 +4,7 @@ import { describe, test, expect } from 'bun:test'
 import { readFileSync, existsSync } from 'node:fs'
 import { join } from 'node:path'
 import { buildLlmsTxt, buildCapabilities, COMMAND_FLAGS } from '../cli/index.ts'
+import { AGENTS_SNIPPET, INIT_SKILL_MD } from '../cli/init-agent.ts'
 import { knownStyleDescriptors } from '../scene/style-registry.ts'
 
 const REPO = join(import.meta.dir, '..', '..')
@@ -31,6 +32,18 @@ describe('#6430 llms.txt', () => {
     const txt = buildLlmsTxt()
     for (const f of buildCapabilities().families) {
       expect(txt).toContain(f.id)
+    }
+  })
+
+  test('llms.txt and the init-agent bundle name the narrower of every family capabilities advertises', () => {
+    const narrowers = buildCapabilities().families.flatMap(family => family.narrower ? [family.narrower] : [])
+    expect(narrowers.length).toBeGreaterThan(0)
+    for (const [surface, text] of [
+      ['llms.txt', buildLlmsTxt()],
+      ['init-agent AGENTS.md snippet', AGENTS_SNIPPET],
+      ['init-agent skill bundle', INIT_SKILL_MD],
+    ] as const) {
+      expect({ surface, missing: narrowers.filter(narrower => !text.includes(narrower)) }).toEqual({ surface, missing: [] })
     }
   })
 

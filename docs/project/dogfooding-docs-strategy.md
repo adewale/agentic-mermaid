@@ -38,9 +38,9 @@ Two regeneration shapes, both gated by `UPDATE_GOLDEN=1 bun test <file>`:
 These join the repo's existing doc-sync guarantees, which already follow the same philosophy:
 
 - `Instructions_for_agents.md` is byte-identical to `am --agent-instructions` (doc-sync test).
-- `package.json` keywords, `llms.txt`, editor examples, and CLI capabilities are checked projections
-  of the family descriptors (`doc-sync.test.ts`, `diagram-family-citizenship.test.ts`).
-- Every `LayoutWarning` code and `MutationOp` kind must appear in `AGENT_NATIVE.md` (doc-sync).
+- `llms.txt`, editor examples, and CLI capabilities are checked projections of the family
+  descriptors (`cli-llms-txt.test.ts`, `editor-examples.test.ts`, `cli-capabilities.test.ts`).
+- Every `MutationOp` kind and warning code is in the Code Mode SDK declaration (`agent-doc-sync.test.ts`).
 
 ## How to add a dogfooded doc
 

@@ -108,12 +108,6 @@ describe('command positional arity', () => {
 })
 
 describe('parseArgs: a boolean flag before a positional keeps the positional', () => {
-  test('--canonical-wrapper before the file does not swallow it', () => {
-    const a = parseArgs(['format', '--canonical-wrapper', 'diagram.mmd'])
-    expect(a.flags['canonical-wrapper']).toBe(true)
-    expect(a.positional).toContain('diagram.mmd')
-  })
-
   test('every boolean flag preserves a following positional', () => {
     for (const name of BOOLEAN_FLAGS) {
       if (name === 'help' || name === 'agent-instructions') continue
@@ -121,5 +115,24 @@ describe('parseArgs: a boolean flag before a positional keeps the positional', (
       expect({ name, flag: a.flags[name], hasFile: a.positional.includes('file.mmd') })
         .toEqual({ name, flag: true, hasFile: true })
     }
+  })
+})
+
+describe('command help', () => {
+  test('every command answers --help with its own usage', () => {
+    for (const command of Object.keys(COMMAND_FLAGS)) {
+      const result = captureCli(() => runCli([command, '--help']))
+      expect({ command, code: result.code, err: result.err }).toEqual({ command, code: 0, err: '' })
+      expect(result.out, command).toContain(`am ${command}`)
+    }
+  })
+
+  test('help names the preview, batch-mutation, edit-policy, and skill-bundle affordances', () => {
+    const help = (command: string) => captureCli(() => runCli([command, '--help'])).out
+    expect(help('mutate')).toContain('--ops')
+    expect(help('preview')).toContain('--open')
+    expect(help('batch')).toContain('"mutate"')
+    expect(help('capabilities')).toContain('editPolicy')
+    expect(help('init-agent')).toContain('skills/agentic-mermaid-diagram-workflow/SKILL.md')
   })
 })
