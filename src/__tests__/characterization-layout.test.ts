@@ -188,10 +188,9 @@ describe('characterisation · Tier A · universal invariants', () => {
     )
   })
 
-  // P2 (determinism) is enforced statically: agent-substrate-lint bans
-  // Math.random / Date.now / performance.now / process.env in src/ascii, and
-  // ascii-determinism.test.ts re-renders the docs corpus and the tie-break
-  // fixtures. A reordered (but still deterministic) tie-break is P2-invisible;
+  // P2 (determinism) is observed on output: ascii-determinism.test.ts
+  // re-renders the docs corpus and the tie-break fixtures. A reordered (but
+  // still deterministic) tie-break is P2-invisible;
   // ascii-pathfinder-determinism pins the FIFO route exactly.
 
   // P3. Orthogonality. No diagonal connector glyphs: every edge is Manhattan

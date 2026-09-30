@@ -7,9 +7,7 @@
  * four escapeAttr copies dropped the apostrophe escape, two luminance formulas
  * disagreed). The shared behaviour is checked here on rendered output for
  * every family (label escaping, measured-vs-drawn boxes; the SVG root
- * accessibility wiring is svg-a11y-conformance.test.ts). Duplication with no
- * cheap rendered oracle (hex colour math, luma weights, the family union) is
- * a rule in source-lint.test.ts.
+ * accessibility wiring is svg-a11y-conformance.test.ts).
  */
 import { describe, it, expect } from 'bun:test'
 import { decodeXML } from 'entities'
