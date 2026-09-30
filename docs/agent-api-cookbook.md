@@ -290,7 +290,7 @@ Tier 1 warnings are reliable structural/source checks. Do not suppress Tier 1 er
 | `OFF_CANVAS` | error | Node or edge segment lies outside the canvas |
 | `GROUP_BREACH` | error | Member node lies outside its group's bounds |
 | `UNKNOWN_SHAPE` | warning | Shape name unrecognized; default used |
-| `LABEL_OVERFLOW` | warning | A label's longest rendered line exceeds the character cap (default 40, `labelCharCap`): `<br>` and `\n` split lines, XML entities count as one character, and formatting tags are stripped. Payload includes `charCount` and `limit`. Character-based, no font-table dependency. |
+| `LABEL_OVERFLOW` | warning | A label's longest rendered line exceeds the character cap (default 40, `labelCharCap`): `<br>` and `\n` split lines, XML entities count as one character, and formatting tags are stripped. Families that draw text literally (Pie, Timeline, Gantt, XYChart, GitGraph, Radar) count `<br>` and tags as characters, as drawn. Payload includes `charCount` and `limit`. Character-based, no font-table dependency. |
 | `UNRESOLVABLE_SCHEDULE` | error | The diagram parses and round-trips but its semantics cannot resolve, so rendering will fail loudly. Emitted for structured gantt bodies whose scheduler raises a named `GANTT_*` error (unknown task reference, bad calendar date, dependency cycle, everything-excluded calendar); the payload's `reason` carries that error. |
 | `RENDER_FAILED` | error | Any family: the source parses but the strict render parser, layout, or theme colors reject it, so rendering would fail. Generalizes `UNRESOLVABLE_SCHEDULE`'s seam-closing — a clean verify proves the diagram actually renders; the payload's `reason` carries the renderer error. |
 <!-- END GENERATED: warning-table:structural -->

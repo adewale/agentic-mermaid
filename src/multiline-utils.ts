@@ -7,7 +7,7 @@
 // ============================================================================
 
 import { LINE_HEIGHT_RATIO } from './text-metrics.ts'
-import { HAS_FORMAT_TAGS, parseInlineFormatting } from './shared/inline-format.ts'
+import { HAS_FORMAT_TAGS, parseInlineFormatting, plainTextFromInlineFormatting } from './shared/inline-format.ts'
 
 /**
  * Normalize label text: strip surrounding quotes, convert <br> tags and
@@ -15,8 +15,8 @@ import { HAS_FORMAT_TAGS, parseInlineFormatting } from './shared/inline-format.t
  * but preserves formatting tags (<b>, <i>, <u>, <s>) for SVG rendering, and
  * maps markdown-lite emphasis (`**b**`, `*i*`, `~~s~~`) to those tags.
  */
-export function normalizeBrTags(label: string): string {
-  return normalizePlainLabel(label)
+export function normalizeBrTags(label: string, escapedLineBreaks = true): string {
+  return normalizePlainLabel(label, escapedLineBreaks)
     // Markdown formatting → HTML tags (order matters: ** before *)
     .replace(/\*\*(.+?)\*\*/g, '<b>$1</b>')
     .replace(/(?<!\*)\*([^\s*](?:[^*]*[^\s*])?)\*(?!\*)/g, '<i>$1</i>')
@@ -26,23 +26,49 @@ export function normalizeBrTags(label: string): string {
 /**
  * normalizeBrTags without the markdown-lite emphasis: `*` and `~` stay
  * literal. Flowchart plain labels use it, because upstream formats emphasis
- * only inside markdown strings ("`…`").
+ * only inside markdown strings ("`…`"). `escapedLineBreaks: false` keeps a
+ * `\n` sequence literal, as upstream's markdown strings do (since 11.13).
  */
-export function normalizePlainLabel(label: string): string {
+export function normalizePlainLabel(label: string, escapedLineBreaks = true): string {
   // Strip surrounding double quotes (Mermaid uses them for special chars in labels)
   const unquoted = label.startsWith('"') && label.endsWith('"') ? label.slice(1, -1) : label
-  return unquoted
-    .replace(/<br\s*\/?>/gi, '\n')
-    .replace(/\\n/g, '\n')
+  const broken = breakLineTags(unquoted)
+  return (escapedLineBreaks ? broken.replace(/\\n/g, '\n') : broken)
     .replace(/<\/?(?:sub|sup|small|mark)\s*>/gi, '')
 }
 
+/** Upstream's line-break spellings (`common.lineBreakRegex`): `<br>`, `<br/>`,
+ * `<br />`, in any case. */
+const LINE_BREAK_TAG = /<br\s*\/?>/gi
+
 /**
- * Strip all inline formatting tags from text, keeping only plain text.
- * Used for text measurement where tag characters shouldn't affect width.
+ * Turn every `<br>` spelling into a newline and leave all other text as
+ * written. The one line-break rule: the label normalizers use it, and so do
+ * contexts that are otherwise literal (Gantt section titles).
  */
-export function stripFormattingTags(text: string): string {
-  return text.replace(/<\/?(?:b|strong|i|em|u|s|del)\s*>/gi, '')
+export function breakLineTags(text: string): string {
+  return text.replace(LINE_BREAK_TAG, '\n')
+}
+
+/**
+ * How a context displays a normalized label. In both, `\n` breaks the line
+ * and tag-like text other than the formatting tags (`a<c>d`) is text.
+ * - `formatted`: the formatting tags (<b>/<strong>, <i>/<em>, <u>, <s>/<del>)
+ *   style runs and are not text (renderMultilineText's default).
+ * - `literal`: every character is text, formatting tags included (Pie,
+ *   Timeline, Gantt, XYChart and GitGraph draw labels as written).
+ */
+export type LabelDisplay = 'formatted' | 'literal'
+
+/**
+ * The characters a normalized label shows, one `\n` per line break. This is
+ * the one display interpretation of label text: SVG text, ASCII/Unicode
+ * cells, the ASCII meta `projectedText`, label metrics and the Scene fidelity
+ * check all read labels through it, so they cannot disagree about which tags
+ * are formatting and which are text.
+ */
+export function displayText(label: string, display: LabelDisplay = 'formatted'): string {
+  return display === 'literal' ? label : plainTextFromInlineFormatting(label)
 }
 
 /**
@@ -71,12 +97,14 @@ export function escapeAttr(text: string): string {
 // ============================================================================
 
 /**
- * Render a line's content as SVG, with inline formatting applied as tspan attributes.
- * Returns raw SVG content (no wrapping tspan — caller provides positioning).
+ * Render one line of a label as SVG text content under its display
+ * interpretation (see displayText): `formatted` applies the formatting tags as
+ * tspan attributes, `literal` escapes every character as text. Returns raw SVG
+ * content (no wrapping tspan — caller provides positioning).
  */
-function renderLineContent(line: string): string {
-  // Fast path: no formatting tags
-  if (!HAS_FORMAT_TAGS.test(line)) return escapeXml(line)
+export function renderDisplayLine(line: string, display: LabelDisplay = 'formatted'): string {
+  // Fast path: literal text, or no formatting tags
+  if (display === 'literal' || !HAS_FORMAT_TAGS.test(line)) return escapeXml(line)
 
   const segments = parseInlineFormatting(line)
   if (segments.length === 0) return ''
@@ -131,7 +159,7 @@ export function renderMultilineText(
   literalText = false,
 ): string {
   const lines = text.split('\n')
-  const renderLine = literalText ? escapeXml : renderLineContent
+  const renderLine = (line: string) => renderDisplayLine(line, literalText ? 'literal' : 'formatted')
 
   // Single line — simple text element
   if (lines.length === 1) {

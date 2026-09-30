@@ -5,7 +5,7 @@ import { BUILTIN_FAMILY_METADATA } from '../agent/families.ts'
 import { asArchitecture, asClass, asEr, asFlowchart, asGantt, asGitGraph, asJourney, asMindmap, asPie, asQuadrant, asRadar, asSankey, asSequence, asState, asTimeline, asXyChart, layoutMermaid, parseRegisteredMermaid as parseMermaid, serializeMermaid, verifyMermaid } from '../agent/index.ts'
 import { countStructuralElements, isDrop } from '../agent/structural-count.ts'
 import type { DiagramKind, ParsedDiagram, ValidDiagram } from '../agent/types.ts'
-import { stripFormattingTags } from '../multiline-utils.ts'
+import { displayText } from '../multiline-utils.ts'
 import { compareCodePointStrings } from '../shared/deterministic-order.ts'
 
 interface BenchCase {
@@ -123,7 +123,7 @@ function layoutLabels(layout: ReturnType<typeof layoutMermaid>): string[] {
   for (const n of layout.nodes) if (n.label) labels.push(n.label)
   for (const e of layout.edges) if (e.label?.text) labels.push(e.label.text)
   for (const g of layout.groups) if (g.label) labels.push(g.label)
-  return labels.map(stripFormattingTags)
+  return labels.map(label => displayText(label))
 }
 
 function safeVerifyOk(diagram: ParsedDiagram): boolean {

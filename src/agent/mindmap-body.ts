@@ -4,7 +4,7 @@ import type {
 import { err, ok } from './types.ts'
 import type { MindmapNode, MindmapShape } from '../mindmap/types.ts'
 import { parseMindmap, serializeMindmap } from '../mindmap/parser.ts'
-import { labelOverflowCollector } from './body-utils.ts'
+import { labelOverflowCollector, setOptionalField } from './body-utils.ts'
 import { unknownOpMessage } from './mutation-ops.ts'
 
 export function parseMindmapBody(source: string): MindmapBody {
@@ -182,22 +182,18 @@ export function mutateMindmap(body: MindmapBody, op: MindmapMutationOp): Result<
       }
       return ok(next)
     }
-    case 'set_accessibility_title':
-      if (op.title === null) delete next.accessibilityTitle
-      else {
-        const value = validText(op.title, 'accessibility title'); if (!value.ok) return value
-        next.accessibilityTitle = value.value
-        if (!stableBodySyntax(next)) return err({ code: 'INVALID_OP', message: `Mindmap accessibility title '${value.value}' is not serialization-stable` })
-      }
+    case 'set_accessibility_title': {
+      const title = setOptionalField(next, 'accessibilityTitle', op.title, value => validText(value, 'accessibility title'))
+      if (!title.ok) return title
+      if (next.accessibilityTitle !== undefined && !stableBodySyntax(next)) return err({ code: 'INVALID_OP', message: `Mindmap accessibility title '${next.accessibilityTitle}' is not serialization-stable` })
       return ok(next)
-    case 'set_accessibility_description':
-      if (op.description === null) delete next.accessibilityDescription
-      else {
-        const value = validText(op.description, 'accessibility description'); if (!value.ok) return value
-        next.accessibilityDescription = value.value
-        if (!stableBodySyntax(next)) return err({ code: 'INVALID_OP', message: `Mindmap accessibility description '${value.value}' is not serialization-stable` })
-      }
+    }
+    case 'set_accessibility_description': {
+      const description = setOptionalField(next, 'accessibilityDescription', op.description, value => validText(value, 'accessibility description'))
+      if (!description.ok) return description
+      if (next.accessibilityDescription !== undefined && !stableBodySyntax(next)) return err({ code: 'INVALID_OP', message: `Mindmap accessibility description '${next.accessibilityDescription}' is not serialization-stable` })
       return ok(next)
+    }
     default:
       return err({ code: 'INVALID_OP', message: unknownOpMessage('mindmap', op) })
   }

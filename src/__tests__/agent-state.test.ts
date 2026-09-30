@@ -14,7 +14,10 @@ import fc from 'fast-check'
 import { parseRegisteredMermaid as parseMermaid } from '../agent/parse.ts'
 import { serializeMermaid } from '../agent/serialize.ts'
 import { mutate } from '../agent/mutate.ts'
-import { verifyMermaid } from '../agent/verify.ts'
+import { graphGeometryWarnings, verifyMermaid } from '../agent/verify.ts'
+import { positionFamilyArtifact } from '../agent/family-layouts.ts'
+import { stateBodyToGraph } from '../agent/state-body.ts'
+import type { PositionedGraph } from '../types.ts'
 import { asState, asFlowchart } from '../agent/types.ts'
 import type { LayoutWarning, StateValidDiagram, StateMutationOp, StateNode, StateTransition, MutationError } from '../agent/types.ts'
 import { parseMermaid as parseLegacy } from '../parser.ts'
@@ -418,11 +421,11 @@ describe('state verify — geometric Tier 2 projection (parity with flowchart)',
   })
 
   test('state runs the flowchart graph verifier: graph-path warnings match the flowchart projection', () => {
-    // Real layouts never overlap, so NODE_OVERLAP / ROUTE_SELF_CROSS cannot be
-    // forced from source. DUPLICATE_EDGE and UNREACHABLE_NODE are emitted only
-    // by the flowchart graph verifier (the same pass that holds the Tier 2
-    // geometric checks), so seeing them on a state diagram proves the state
-    // path runs it, and suppressing one of them proves suppression is honored.
+    // DUPLICATE_EDGE and UNREACHABLE_NODE are emitted only by the flowchart
+    // graph verifier (the same pass that runs graphGeometryWarnings), so seeing
+    // them on a state diagram proves the state path runs it, and suppressing
+    // one of them proves suppression is honored. The geometric checks
+    // themselves are proven on a doctored state layout below.
     const body = '  [*] --> A\n  A --> B\n  A --> B\n  C --> D\n  D --> C'
     const expected: LayoutWarning[] = [
       { code: 'DUPLICATE_EDGE', edge: 'A->B#2', duplicateOf: 'A->B#1', from: 'A', to: 'B' },
@@ -434,12 +437,30 @@ describe('state verify — geometric Tier 2 projection (parity with flowchart)',
     expect(verifyMermaid(`stateDiagram-v2\n${body}`, { suppress: ['DUPLICATE_EDGE'] }).warnings).toEqual(expected.slice(1))
   })
 
+  test('the geometric checks fire on a doctored state layout (graphGeometryWarnings, the pass verify runs)', () => {
+    const r = parseMermaid('stateDiagram-v2\n  [*] --> A\n  A --> B')
+    if (!r.ok || r.value.body.kind !== 'state') throw new Error('expected a state body')
+    const graph = stateBodyToGraph(r.value.body)
+    const positioned = positionFamilyArtifact(r.value)!.positioned as PositionedGraph
+    const moved = (id: string, box: Partial<PositionedGraph['nodes'][number]>): PositionedGraph =>
+      ({ ...positioned, nodes: positioned.nodes.map(n => (n.id === id ? { ...n, ...box } : n)) })
+    const a = positioned.nodes.find(n => n.id === 'A')!
+    const [first, second] = positioned.nodes.filter(n => n.id === 'A' || n.id === 'B').map(n => n.id) as [string, string]
+
+    expect(graphGeometryWarnings(positioned, graph)).toEqual([])
+    expect(graphGeometryWarnings(moved('A', { x: -10, y: -10 }), graph)).toEqual([
+      { code: 'OFF_CANVAS', target: 'A', axis: 'x' },
+      { code: 'OFF_CANVAS', target: 'A', axis: 'y' },
+    ])
+    expect(graphGeometryWarnings(moved('B', { x: a.x, y: a.y, width: a.width, height: a.height }), graph)).toEqual([
+      { code: 'NODE_OVERLAP', a: first, b: second, areaPx: Math.round(a.width * a.height) },
+    ])
+  })
+
   test('dense state source: geometric path runs and lays out every state', () => {
-    // ELK is robust enough that a real NODE_OVERLAP is layout-dependent, so we
-    // prove the geometric Tier 2 path RUNS for state by checking the projection
-    // produces a real geometric layout (positioned nodes for every modeled
-    // state) — only the geometric path does this; the empty-layout fallback
-    // would yield zero nodes.
+    // Verify returns the real positioned layout for state (positioned nodes
+    // for every modeled state); the empty-layout fallback would yield zero
+    // nodes.
     const dense = `stateDiagram-v2
   [*] --> A
   A --> B

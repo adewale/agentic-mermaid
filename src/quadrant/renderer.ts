@@ -2,7 +2,7 @@ import type { PositionedQuadrantChart, PositionedQuadrantPoint } from './types.t
 import type { RenderContext } from '../types.ts'
 import type { DiagramColors } from '../theme.ts'
 import { svgOpenTag, buildStyleBlock, buildShadowDefs } from '../theme.ts'
-import { renderMultilineText, escapeXml } from '../multiline-utils.ts'
+import { renderMultilineText, renderDisplayLine, escapeXml } from '../multiline-utils.ts'
 import { quadrantStyleDefaults } from './layout.ts'
 import { applyTextTransform, resolveRenderStyle } from '../styles.ts'
 import type { ResolvedRenderStyle } from '../styles.ts'
@@ -281,8 +281,8 @@ export function lowerQuadrantScene(
     const rotation = isYAxis ? { kind: 'rotate' as const, angle: -90, cx: axis.x, cy: axis.y } : undefined
     const transform = rotation ? ` transform="rotate(${rotation.angle} ${rotation.cx} ${rotation.cy})"` : ''
     const textMarkup = lines.length === 1
-      ? escapeXml(label)
-      : lines.map((line, index) => `<tspan x="${axis.x}" dy="${index === 0 ? 0 : '1.1em'}">${escapeXml(line)}</tspan>`).join('')
+      ? renderDisplayLine(label)
+      : lines.map((line, index) => `<tspan x="${axis.x}" dy="${index === 0 ? 0 : '1.1em'}">${renderDisplayLine(line)}</tspan>`).join('')
     parts.push(marks.text(
       {
         id: `axis:${axis.text}`,

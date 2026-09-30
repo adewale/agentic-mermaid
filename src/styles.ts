@@ -14,6 +14,7 @@ import * as marks from './scene/marks.ts'
 import { measureMonospaceTextWidth, measureMultilineText, measureTextWidth } from './text-metrics'
 import type { InternalStyleFace, StyleInput } from './scene/style-registry.ts'
 import type { TextTransform } from './types.ts'
+import { FORMAT_TAG_SOURCE } from './shared/inline-format.ts'
 
 /** Average character width in px at the given font size and weight (proportional font) */
 export function estimateTextWidth(text: string, fontSize: number, fontWeight: number): number {
@@ -244,7 +245,8 @@ function textTransform(...values: Array<string | undefined>): TextTransform | un
   return undefined
 }
 
-const INLINE_FORMAT_TAG = /(<\/?(?:b|strong|i|em|u|s|del)\s*>)/gi
+const INLINE_FORMAT_TAG = new RegExp(`(${FORMAT_TAG_SOURCE})`, 'gi')
+const WHOLE_FORMAT_TAG = new RegExp(`^${FORMAT_TAG_SOURCE}$`, 'i')
 
 export function applyTextTransform(text: string, transform: TextTransform | undefined): string {
   if (!transform) return text
@@ -260,7 +262,7 @@ export function applyTextTransform(text: string, transform: TextTransform | unde
   }
   return text
     .split(INLINE_FORMAT_TAG)
-    .map(part => /^<\/?(?:b|strong|i|em|u|s|del)\s*>$/i.test(part) ? part : transformPlain(part))
+    .map(part => WHOLE_FORMAT_TAG.test(part) ? part : transformPlain(part))
     .join('')
 }
 

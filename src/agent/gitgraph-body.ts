@@ -4,7 +4,7 @@ import type {
 import { err, ok } from './types.ts'
 import type { GitGraphCommit } from '../gitgraph/types.ts'
 import { GitGraphParseError, parseGitGraph, serializeGitGraph } from '../gitgraph/parser.ts'
-import { labelOverflowCollector } from './body-utils.ts'
+import { labelOverflowCollector, setOptionalField } from './body-utils.ts'
 import { unknownOpMessage } from './mutation-ops.ts'
 
 export function parseGitGraphBody(source: string, options: import('../gitgraph/parser.ts').GitGraphParseOptions = {}): GitGraphBody {
@@ -116,14 +116,14 @@ export function mutateGitGraph(body: GitGraphBody, op: GitGraphMutationOp): Resu
       }
       return ok(next)
     }
-    case 'set_accessibility_title':
-      if (op.title === null) delete next.accessibilityTitle
-      else { const title = validName(op.title, 'accessibility title'); if (!title.ok) return title; next.accessibilityTitle = title.value }
-      return ok(next)
-    case 'set_accessibility_description':
-      if (op.description === null) delete next.accessibilityDescription
-      else { const description = validName(op.description, 'accessibility description'); if (!description.ok) return description; next.accessibilityDescription = description.value }
-      return ok(next)
+    case 'set_accessibility_title': {
+      const title = setOptionalField(next, 'accessibilityTitle', op.title, value => validName(value, 'accessibility title'))
+      return title.ok ? ok(next) : title
+    }
+    case 'set_accessibility_description': {
+      const description = setOptionalField(next, 'accessibilityDescription', op.description, value => validName(value, 'accessibility description'))
+      return description.ok ? ok(next) : description
+    }
     default:
       return err({ code: 'INVALID_OP', message: unknownOpMessage('gitgraph', op) })
   }
@@ -132,7 +132,9 @@ export function mutateGitGraph(body: GitGraphBody, op: GitGraphMutationOp): Resu
 export function verifyGitGraph(body: GitGraphBody, opts: VerifyOptions): LayoutWarning[] {
   const warnings: LayoutWarning[] = []
   const ids = new Set(body.commits.map(commit => commit.id))
-  const overflow = labelOverflowCollector(warnings, opts)
+  // Labels are drawn as written (upstream sets them as text), so they are
+  // measured literally.
+  const overflow = labelOverflowCollector(warnings, opts, undefined, 'literal')
   for (const commit of body.commits) {
     overflow(commit.id, commit.message || commit.id)
     for (const parent of commit.parents) if (!ids.has(parent)) warnings.push({ code: 'EDGE_MISANCHORED', edge: `${parent}->${commit.id}`, to: commit.id })

@@ -18,6 +18,10 @@ import fc from 'fast-check'
 import { asFlowchart, type FlowchartMutationOp, mutate, parseRegisteredMermaid, serializeMermaid } from '../agent/index.ts'
 import { countStructuralElements } from '../agent/structural-count.ts'
 import type { MermaidEdge, MermaidGraph, MermaidSubgraph } from '../types.ts'
+import { breakLineTags } from '../multiline-utils.ts'
+import { FORMAT_TAG_SOURCE } from '../shared/inline-format.ts'
+import { toEntityMarkers } from '../shared/mermaid-entities.ts'
+import { projectEntityMarkers } from '../shared/mermaid-entity-display.ts'
 import { startUpstreamMermaid, type UpstreamMermaid, type UpstreamParse } from './helpers/upstream-mermaid.ts'
 
 // ---------------------------------------------------------------------------
@@ -32,6 +36,7 @@ type Statement =
   | { kind: 'node'; node: NodeRef; semicolon: boolean }
   | { kind: 'chain'; head: NodeRef; tail: Array<{ link: Link; node: NodeRef }>; semicolon: boolean }
   | { kind: 'subgraph'; title?: Label; direction?: Direction; body: Statement[] }
+  | { kind: 'style'; id: string }
 type Flowchart = { header: 'flowchart' | 'graph'; direction: Direction; body: Statement[] }
 
 // Our shape name → [open, close] delimiters and upstream's vertex type.
@@ -50,10 +55,26 @@ type ShapeName = keyof typeof SHAPES
 const DIRECTIONS: Direction[] = ['TB', 'TD', 'BT', 'RL', 'LR']
 // Node ids never collide with subgraph ids (S0, S1, …) or grammar keywords.
 const NODE_IDS = ['A', 'B', 'C', 'D', 'E', 'n1', 'n_2', 'Node3', 'k-1']
-const WORDS = ['alpha', 'Beta', 'gamma', 'D4', 'echo', 'Fox', 'go', 'ok', 'x9', 'Zed']
+// Shape text, pipe labels and text-arrow labels hold `;` and a lone backtick
+// as text.
+const WORDS = ['alpha', 'Beta', 'gamma', 'D4', 'echo', 'Fox', 'go', 'ok', 'x9', 'Zed', 'a;b', 'a`b']
 // Upstream's quoted strings have no escapes: `\` is literal, and a label
-// spells `"` as the `#quot;` entity code (a bare one closes the string).
-const QUOTED_CHARS = [...'abcXYZ019 ()[]{}<>:,.!?-_/&=+\'*~;\\'.split(''), '#quot;']
+// spells `"` as the `#quot;` entity code (a bare one closes the string). A
+// quoted label masks `@{`; entity codes show as upstream's browser shows
+// them; `\n` breaks a plain label's line.
+const QUOTED_CHARS = [
+  ...'abcXYZ019 ()[]{}<>:,.!?-_/&=+\'*~;\\@`'.split(''),
+  '#quot;', '@{', '#9829;', '#35;', '#amp;', '#lt;', '#gt;', '#92;', '\\n',
+]
+const FORMAT_TAGS = new RegExp(FORMAT_TAG_SOURCE, 'gi')
+
+/** Entity codes that spell a formatting tag (`#lt;b#gt;`): upstream shows the
+ *  tag's text, but the label model holds no literal formatting tag, so our
+ *  label keeps those codes (BUG-19's recorded limit, pinned below). */
+function spellsTagWithEntities(text: string): boolean {
+  const tags = (value: string) => value.match(FORMAT_TAGS)?.length ?? 0
+  return tags(projectEntityMarkers(toEntityMarkers(text))) > tags(text)
+}
 // Edge operators with a fixed spelling; labelled forms are built below.
 const ARROWS = ['-->', '---', '-.->', '==>', '-.-', '===', '--o', '--x', '<-->']
 
@@ -62,7 +83,12 @@ const labelArb: fc.Arbitrary<Label> = fc.oneof(
   wordsArb.map(text => ({ text, quoted: false })),
   fc
     .array(fc.constantFrom(...QUOTED_CHARS), { minLength: 1, maxLength: 12 })
-    .map(chars => ({ text: chars.join(''), quoted: true })),
+    .map(chars => ({ text: chars.join(''), quoted: true }))
+    // `"` and a backtick open a markdown string, which this grammar does not
+    // generate (typed bodies keep them opaque). `&#35;` is an HTML character
+    // reference, which the render path decodes before any grammar and our
+    // parser keeps as written; upstream reads its `#35;` as an entity code.
+    .filter(label => !label.text.startsWith('`') && !spellsTagWithEntities(label.text) && !/&#\d+;/.test(label.text)),
 )
 const nodeRefArb: fc.Arbitrary<NodeRef> = fc.oneof(
   fc.constantFrom(...NODE_IDS).map(id => ({ id })),
@@ -80,6 +106,8 @@ const { flowchart: flowchartArb } = fc.letrec<{ statement: Statement; subgraph: 
     { maxDepth: 3, depthIdentifier: 'flowchart-subgraph' },
     fc.record({ kind: fc.constant('chain' as const), head: nodeRefArb, tail: fc.array(fc.record({ link: linkArb, node: nodeRefArb }), { minLength: 1, maxLength: 3 }), semicolon: fc.boolean() }),
     fc.record({ kind: fc.constant('node' as const), node: nodeRefArb, semicolon: fc.boolean() }),
+    // A styled id is a mention that creates the node (BUG-29).
+    fc.record({ kind: fc.constant('style' as const), id: fc.constantFrom(...NODE_IDS) }),
     tie('subgraph'),
   ),
   subgraph: fc.record(
@@ -127,6 +155,10 @@ function printFlowchart(chart: Flowchart): string {
         lines.push(`${indent}end`)
         continue
       }
+      if (statement.kind === 'style') {
+        lines.push(`${indent}style ${statement.id} fill:#f00`)
+        continue
+      }
       const text = statement.kind === 'node'
         ? printNode(statement.node)
         : [printNode(statement.head), ...statement.tail.map(({ link, node }) => `${printLink(link)} ${printNode(node)}`)].join(' ')
@@ -171,6 +203,13 @@ function flattenSubgraphs(subgraphs: MermaidSubgraph[]): MermaidSubgraph[] {
   return subgraphs.flatMap(subgraph => [subgraph, ...flattenSubgraphs(subgraph.children)])
 }
 
+/** Node ids that more than one subgraph lists. Upstream lists each node in
+ *  one subgraph at most (`makeUniq`), and so must we. */
+function sharedMembers(graph: MermaidGraph): string[] {
+  const members = flattenSubgraphs(graph.subgraphs).flatMap(subgraph => subgraph.nodeIds)
+  return [...new Set(members.filter((id, index) => members.indexOf(id) !== index))]
+}
+
 function ours(graph: MermaidGraph): Projection {
   return {
     vertices: [...graph.nodes.values()].map(node => `${node.id} ${node.shape} : ${node.label}`).sort(),
@@ -181,10 +220,11 @@ function ours(graph: MermaidGraph): Projection {
 
 const UPSTREAM_TYPE_TO_OURS = Object.fromEntries(Object.entries(SHAPES).map(([name, shape]) => [shape.upstream, name]))
 
-/** Upstream's DB keeps an entity code as a placeholder that its renderer
- *  turns into the entity (`#quot;` → `ﬂ°quot¶ß` → `&quot;`); compare the `"`
- *  it displays, which our parser decodes. */
-const displayed = (text: string): string => text.replace(/ﬂ°quot¶ß/g, '"')
+/** What upstream shows for a plain label its DB holds: the renderer breaks
+ *  the line at `\n` and `<br>`, then the browser resolves each entity
+ *  placeholder (`#9829;` → `ﬂ°°9829¶ß` → `&#9829;` → ♥), which our parser
+ *  decodes. */
+const displayed = (text: string): string => projectEntityMarkers(breakLineTags(text).replace(/\\n/g, '\n'))
 
 function theirs(parsed: Extract<UpstreamParse, { ok: true }>): Projection {
   const db = parsed.flowchart
@@ -234,6 +274,11 @@ describe('flowchart grammar differential against pinned upstream Mermaid', () =>
       'quoted label with `;`': /"[^"\n]*;[^"\n]*"/,
       'quoted label with `\\`': /"[^"\n]*\\[^"\n]*"/,
       'quoted label with `#quot;`': /"[^"\n]*#quot;[^"\n]*"/,
+      'quoted label with `@{`': /"[^"\n]*@\{[^"\n]*"/,
+      'quoted label with an entity code': /"[^"\n]*#(?:9829|35|amp|lt|gt|92);[^"\n]*"/,
+      'quoted label with `\\n`': /"[^"\n]*\\n[^"\n]*"/,
+      'label with a backtick': /[[(>|][^\n]*`/,
+      'asymmetric label with bare `;`': /\w>[^"\]\n]*;[^\]\n]*\]/,
       'quoted label with boundary whitespace': /"(?: [^"\n]*|[^"\n]* )"/,
       'unquoted label': /\w\[[a-zA-Z]/,
       '-->': / --> /,
@@ -246,6 +291,7 @@ describe('flowchart grammar differential against pinned upstream Mermaid', () =>
       'subgraph with title': /^\s+subgraph S\d+ \[/m,
       'subgraph direction': /^\s+direction (?:TB|TD|BT|RL|LR)$/m,
       'nested subgraph': /^ {4,}subgraph /m,
+      'style statement': /^\s+style \S+ fill:#f00$/m,
     }
     const missing = Object.entries(constructs).filter(([, pattern]) => !pattern.test(sources)).map(([name]) => name)
     expect(missing).toEqual([])
@@ -278,6 +324,7 @@ describe('flowchart grammar differential against pinned upstream Mermaid', () =>
         // the faithfulness counter reports upstream's counts.
         const expected = theirs(upstreamParse)
         expect({ source, ...ours(graph) }).toEqual({ source, ...expected })
+        expect({ source, shared: sharedMembers(graph) }).toEqual({ source, shared: [] })
         const parsed = parseRegisteredMermaid(source)
         if (!parsed.ok) return
         expect({ source, count: countStructuralElements(parsed.value) }).toEqual({
@@ -290,7 +337,6 @@ describe('flowchart grammar differential against pinned upstream Mermaid', () =>
         const reparsed = parseRegisteredMermaid(serialized)
         expect(reparsed.ok && countStructuralElements(reparsed.value)).toEqual(countStructuralElements(parsed.value))
         // (v) the serialized source is Mermaid that upstream reads the same way.
-        if (rewrittenByUpstreamPreprocess(serialized)) return
         const upstreamReparse = await upstream.parse(serialized)
         expect({ serialized, upstream: upstreamReparse.ok ? theirs(upstreamReparse) : upstreamReparse.error })
           .toEqual({ serialized, upstream: expected })
@@ -351,6 +397,127 @@ describe('flowchart grammar differential against pinned upstream Mermaid', () =>
     expect(title.split('\n')).toContain('  subgraph S0["};a"]')
   })
 
+  test('what upstream rejects, our parser rejects', async () => {
+    for (const source of [
+      // BUG-39: `--` and `-.` open a link, so no node id holds them. What
+      // the author meant (an id, or a link label) is unclear.
+      'flowchart TB\n  A--a --> A--a',
+      'flowchart TB\n  foo--bar\n  foo',
+      'flowchart TB\n  A--a["x"]',
+      'flowchart TB\n  A--b@{ label: "y" }',
+      'flowchart TB\n  A:::c--d',
+    ]) {
+      const upstreamParse = await upstream.parse(source)
+      const ours = parseRegisteredMermaid(source)
+      expect({ source, upstream: upstreamParse.ok, ours: ours.ok }).toEqual({ source, upstream: false, ours: false })
+    }
+  })
+
+  test('BUG-29: `style X` creates node X where it stands, in no subgraph, as upstream does', async () => {
+    for (const source of [
+      'flowchart TB\n  style Z fill:#f00\n  A --> Z',
+      'flowchart TB\n  subgraph S\n    style X fill:#f00\n    Y\n  end',
+    ]) {
+      const upstreamParse = await upstream.parse(source)
+      if (!upstreamParse.ok) throw new Error(`upstream rejected:\n${source}`)
+      const graph = parseOurs(source)
+      expect({
+        source,
+        order: [...graph.nodes.keys()],
+        members: flattenSubgraphs(graph.subgraphs).map(subgraph => `${subgraph.id}: ${subgraph.nodeIds.join(' ')}`),
+      }).toEqual({
+        source,
+        order: upstreamParse.flowchart!.vertices.map(vertex => vertex.id),
+        members: upstreamParse.flowchart!.subgraphs.map(subgraph => `${subgraph.id}: ${subgraph.nodes.join(' ')}`),
+      })
+    }
+  })
+
+  test('BUG-27: a node listed by two subgraphs belongs to the first to close, once', async () => {
+    // Upstream's own lists (getSubGraphs), less nested subgraph ids.
+    const membership = async (source: string) => {
+      const upstreamParse = await upstream.parse(source)
+      if (!upstreamParse.ok) throw new Error(`upstream rejected:\n${source}`)
+      const subgraphIds = new Set(upstreamParse.flowchart!.subgraphs.map(subgraph => subgraph.id))
+      return {
+        source,
+        ours: flattenSubgraphs(parseOurs(source).subgraphs).map(subgraph => `${subgraph.id}: ${subgraph.nodeIds.join(' ')}`).sort(),
+        upstream: upstreamParse.flowchart!.subgraphs
+          .map(subgraph => `${subgraph.id}: ${subgraph.nodes.filter(id => !subgraphIds.has(id)).join(' ')}`).sort(),
+      }
+    }
+    for (const source of [
+      'flowchart TB\n  subgraph S0\n    A[x]\n  end\n  subgraph S1\n    A[y]\n    B\n  end\n  A --> B',
+      'flowchart TB\n  subgraph Outer\n    A[x] --> B\n    subgraph Inner\n      A[y]\n    end\n  end',
+    ]) {
+      const result = await membership(source)
+      expect(result.ours).toEqual(result.upstream)
+    }
+  })
+
+  test('BUG-21: `>…]` is shape text, so a `;` in an asymmetric label is text', async () => {
+    await agreesWithUpstream('flowchart TB\n  A>x;y] --> B; B --> C', {
+      vertices: ['A asymmetric : x;y', 'B rectangle : B', 'C rectangle : C'],
+      edges: ['A B normal arrow_point : ', 'B C normal arrow_point : '],
+    })
+  })
+
+  test('BUG-22: a quoted label masks `@{`, in the gate and across lines', async () => {
+    await agreesWithUpstream('flowchart TB\n  A["x a@{y}"] --> B\n  B --> C', {
+      vertices: ['A rectangle : x a@{y}', 'B rectangle : B', 'C rectangle : C'],
+    })
+    await agreesWithUpstream('flowchart TB\n  A["x @{y"] --> B\n  B -->|"z@{"| C', {
+      vertices: ['A rectangle : x @{y', 'B rectangle : B', 'C rectangle : C'],
+      edges: ['A B normal arrow_point : ', 'B C normal arrow_point : z@{'],
+    })
+  })
+
+  test('a text-arrow label closes with any link of its stroke, as upstream\'s edge-text states close', async () => {
+    await agreesWithUpstream('flowchart TB\n  A-.b-.->B\n  B -. c .- C\n  E -- f --o F\n  F -. g ..-> G\n  G == h ===> H', {
+      edges: [
+        'A B dotted arrow_point : b', 'B C dotted arrow_open : c', 'E F normal arrow_circle : f',
+        'F G dotted arrow_point : g', 'G H thick arrow_point : h',
+      ],
+    })
+  })
+
+  test('a text-arrow label runs to its closing link, `;` included, spaced or compact', async () => {
+    await agreesWithUpstream('flowchart TB\n  A--a;b-->B; B -- c;d --> C', {
+      edges: ['A B normal arrow_point : a;b', 'B C normal arrow_point : c;d'],
+    })
+  })
+
+  test('BUG-19: entity codes in node, edge and subgraph labels show as upstream shows them', async () => {
+    const serialized = await agreesWithUpstream('flowchart TB\n  A["I #9829; you"] -->|#35;1 #amp; #lt;x#gt;| B[#quot;q#quot;]\n  subgraph S0 [t #9829; #32;]\n    C@{ label: "c#35;" }\n  end', {
+      vertices: ['A rectangle : I ♥ you', 'B rectangle : "q"', 'C rectangle : c#'],
+      edges: ['A B normal arrow_point : #1 & <x>'],
+      subgraphs: ['S0 : t ♥  '],
+    })
+    expect(serialized.split('\n')).toContain('  A[I ♥ you] -->|#1 & #lt;x>| B["#quot;q#quot;"]')
+  })
+
+  test('an HTML character reference is the render path\'s: the parser keeps it, and so does the writer', () => {
+    // The render path decodes `&#x3C;` to `<` before any grammar
+    // (render-contract.ts); a parsed body keeps it as written, so parse →
+    // serialize → render still shows `<`. Upstream reads its `#x3C;` as an
+    // entity code and shows `&&x3C;`: a recorded divergence, not an upstream match.
+    const source = 'flowchart TB\n  A["Map&#x3C;K,V&#x3E; &#60;"] --> B'
+    const label = parseOurs(source).nodes.get('A')?.label
+    const parsed = parseRegisteredMermaid(source)
+    if (!parsed.ok) throw new Error('our parser rejected the source')
+    const serialized = serializeMermaid(parsed.value)
+    expect({ label, reparsed: parseOurs(serialized).nodes.get('A')?.label })
+      .toEqual({ label: 'Map&#x3C;K,V&#x3E; &#60;', reparsed: 'Map&#x3C;K,V&#x3E; &#60;' })
+  })
+
+  test('BUG-19 limit: entity codes that would spell a tag stay codes, never markup', () => {
+    // Upstream shows `<b>x` here; our label model holds no literal tag, so the
+    // label keeps its codes rather than turning text into bold markup. A
+    // regression guard for the chosen limit, not an upstream match.
+    const graph = parseOurs('flowchart TB\n  A["#lt;b#gt;x"] --> B["y#lt;/i#gt;z"] --> C["#lt;br#gt;"]')
+    expect([...graph.nodes.values()].map(node => node.label)).toEqual(['#lt;b#gt;x', 'y#lt;/i#gt;z', '<br>'])
+  })
+
   test('quoted labels have no escapes: `\\` stays literal and `"` is written `#quot;`', async () => {
     // A `\` before the closing quote used to escape it and `\\` read as one
     // backslash, while the serializer wrote `\"`, which upstream rejects.
@@ -400,7 +567,11 @@ describe('flowchart grammar differential against pinned upstream Mermaid', () =>
     const parsed = parseRegisteredMermaid('flowchart TB\n  A --> B')
     const start = parsed.ok ? asFlowchart(parsed.value) : undefined
     if (!start) throw new Error('the starting flowchart did not parse')
-    for (const label of ['say "hi"', 'a|b\\', '(x\\', 'x"};a', '/lean/', '-dash', '~~~t', 'user@example.com', '"']) {
+    // BUG-23: a literal backslash-n, the text `#quot;` or any entity-shaped
+    // text, a literal `<br>` and a leading backtick are written as upstream's
+    // entity codes (`#92;n`, `#35;quot;`, `#lt;br>`, `#96;`).
+    for (const label of ['say "hi"', 'a|b\\', '(x\\', 'x"};a', '/lean/', '-dash', '~~~t', 'user@example.com', '"',
+      'a\\nb', '#quot;', 'I #9829; you', 'a<br>b', '<i>x</i> < y', '`x(y)', 'x\\\\n', 'ﬂ°amp¶ß', '&"', '&#quot;']) {
       let diagram = start
       const ops: FlowchartMutationOp[] = [
         { kind: 'set_label', target: 'A', label },

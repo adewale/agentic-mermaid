@@ -99,7 +99,7 @@ Derived from parsed structure or character-level source properties. Deterministi
 | `OFF_CANVAS` | error | Node or edge segment lies outside the canvas |
 | `GROUP_BREACH` | error | Member node lies outside its group's bounds |
 | `UNKNOWN_SHAPE` | warning | Shape name unrecognized; default used |
-| `LABEL_OVERFLOW` | warning | A label's longest rendered line exceeds the character cap (default 40, `labelCharCap`): `<br>` and `\n` split lines, XML entities count as one character, and formatting tags are stripped. Payload includes `charCount` and `limit`. Character-based, no font-table dependency. |
+| `LABEL_OVERFLOW` | warning | A label's longest rendered line exceeds the character cap (default 40, `labelCharCap`): `<br>` and `\n` split lines, XML entities count as one character, and formatting tags are stripped. Families that draw text literally (Pie, Timeline, Gantt, XYChart, GitGraph, Radar) count `<br>` and tags as characters, as drawn. Payload includes `charCount` and `limit`. Character-based, no font-table dependency. |
 | `UNRESOLVABLE_SCHEDULE` | error | The diagram parses and round-trips but its semantics cannot resolve, so rendering will fail loudly. Emitted for structured gantt bodies whose scheduler raises a named `GANTT_*` error (unknown task reference, bad calendar date, dependency cycle, everything-excluded calendar); the payload's `reason` carries that error. |
 | `RENDER_FAILED` | error | Any family: the source parses but the strict render parser, layout, or theme colors reject it, so rendering would fail. Generalizes `UNRESOLVABLE_SCHEDULE`'s seam-closing — a clean verify proves the diagram actually renders; the payload's `reason` carries the renderer error. |
 <!-- END GENERATED: warning-table:structural -->
@@ -392,7 +392,7 @@ MermaidSeqBench is wired as an external corpus signal; live model transcript eva
 - **Sequence parsing is lossless** — segment-preserving structured body (BUILD-18): Note/alt/loop/etc. ride along verbatim as opaque-block segments while the structured ops stay live; only un-segmentable input falls back to whole-body opaque; never silently drops constructs.
 - **Substrate enforcement is a real grep test** that runs under `bun test`, not an ESLint config that was never installed.
 - **`synthesizeFromGraph`** lets `am parse | am serialize` round-trip without `canonicalSource` on the wire.
-- **`LABEL_OVERFLOW` is a rendered-line char-count check** (Tier 1, reliable), not a font-metric heuristic: the cap applies to the longest displayed line (XML entities decode, `<br>` splits lines, formatting tags strip), not raw source chars.
+- **`LABEL_OVERFLOW` is a rendered-line char-count check** (Tier 1, reliable), not a font-metric heuristic: the cap applies to the longest displayed line (XML entities decode, `<br>` splits lines, formatting tags strip), not raw source chars. Families that draw text literally (Pie, Timeline, Gantt, XYChart, GitGraph, Radar) count `<br>` and tags as characters, because that is what they draw.
 - **`Finite` branded type** enforced at every coordinate emission.
 - **Deliverable completeness:** CHANGELOG entry, README section, an `examples/` script, per-verb CLI `--help`, and a [`docs/fork-differences.md`](./docs/fork-differences.md) mention all ship with the code.
 - **Test honesty:** the tautological seed-variance test is gone; a fault-injection pass proves the suite has teeth.

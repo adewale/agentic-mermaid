@@ -25,6 +25,7 @@ import type {
 import { terminalConnectorCapabilityClaims } from './scene/capabilities.ts'
 import type { PrimitiveCapabilityClaim } from './scene/capabilities.ts'
 import type { RoleStyleSpec } from './scene/style-spec.ts'
+import { visitSceneNodes } from './scene/walk.ts'
 
 export const TERMINAL_STYLE_VERSION = 1 as const
 
@@ -268,10 +269,7 @@ function reportTerminalControlReplacement(diagnostics: TerminalProjectionDiagnos
 
 function connectorMarks(nodes: readonly SceneNode[]): ConnectorMark[] {
   const result: ConnectorMark[] = []
-  for (const node of nodes) {
-    if (node.kind === 'connector') result.push(node)
-    else if (node.kind === 'group') result.push(...connectorMarks(node.children.map(child => child.node)))
-  }
+  visitSceneNodes(nodes, node => { if (node.kind === 'connector') result.push(node) })
   return result
 }
 

@@ -129,10 +129,10 @@ config:
       }}%%
       %% generated sample
       architecture-beta
-      group edge(cloud)[Edge<br/>Layer]
-      service api(server)[API & <Gateway>] in edge
+      group edge(cloud)["Edge<br/>Layer"]
+      service api(server)["API & <Gateway>"] in edge
       service db(database)[Primary DB]
-      api:R -[reads <records>]-> L:db`)
+      api:R -["reads <records>"]-> L:db`)
 
     expect(svg).toContain('class="architecture-group"')
     expect(svg).toContain('--bg:#0b1120')

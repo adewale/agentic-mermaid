@@ -8,7 +8,7 @@
 import { parseJourneyDiagram } from '../journey/parser.ts'
 import type { JourneyDiagram } from '../journey/types.ts'
 import { preprocessMermaidLines } from '../mermaid-source.ts'
-import { stripFormattingTags } from '../multiline-utils.ts'
+import { displayText } from '../multiline-utils.ts'
 import { colorizeLine, DEFAULT_ASCII_THEME } from './ansi.ts'
 import type { AsciiConfig, AsciiTheme, CharRole, ColorMode } from './types.ts'
 import { visualWidth } from './width.ts'
@@ -95,7 +95,7 @@ export function renderJourneyAscii(
   }
 
   if (diagram.title) {
-    for (const line of wrapText(stripFormattingTags(diagram.title), maxWidth)) {
+    for (const line of wrapText(displayText(diagram.title), maxWidth)) {
       pushLine([{ text: line, role: 'text' }])
     }
     pushLine()
@@ -129,7 +129,7 @@ export function renderJourneyAscii(
         : cue === 'double-line' ? (useAscii ? '= ' : '║ ')
         : cue === 'pattern' ? (useAscii ? '# ' : '░ ')
         : ''
-      const labelLines = wrapText(stripFormattingTags(section.label).replace(/\n/g, ' / '), maxWidth ? Math.max(1, maxWidth - 2 - cueMarker.length) : undefined)
+      const labelLines = wrapText(displayText(section.label).replace(/\n/g, ' / '), maxWidth ? Math.max(1, maxWidth - 2 - cueMarker.length) : undefined)
       labelLines.forEach((line, index) => {
         const segments: StyledSegment[] = [
           { text: index === 0 ? cueMarker : ' '.repeat(cueMarker.length), role: cueMarker ? 'arrow' : null },
@@ -149,7 +149,7 @@ export function renderJourneyAscii(
       const scoreWidth = 5
       const taskPrefixWidth = scoreWidth + 1
       const exactScore = Number.isInteger(task.score) ? '' : ` (score ${task.score})`
-      const taskLines = wrapText(stripFormattingTags(task.text) + exactScore, maxWidth ? Math.max(1, maxWidth - taskPrefixWidth) : undefined)
+      const taskLines = wrapText(displayText(task.text) + exactScore, maxWidth ? Math.max(1, maxWidth - taskPrefixWidth) : undefined)
 
       pushLine([
         ...scoreSegments,
@@ -165,7 +165,7 @@ export function renderJourneyAscii(
 
       if (task.actors.length > 0) {
         const actorPrefix = '  by '
-        const actorLines = wrapText(task.actors.map(stripFormattingTags).join(', '), maxWidth ? Math.max(1, maxWidth - visualWidth(actorPrefix)) : undefined)
+        const actorLines = wrapText(task.actors.map(label => displayText(label)).join(', '), maxWidth ? Math.max(1, maxWidth - visualWidth(actorPrefix)) : undefined)
         actorLines.forEach((line, index) => {
           pushLine([
             { text: index === 0 ? '  ' : ' '.repeat(visualWidth(actorPrefix)), role: null },

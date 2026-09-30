@@ -21,7 +21,7 @@ describe('renderMermaidSVG – architecture snapshots', () => {
       junction bus in app
       service db(database)[Primary DB]
       api:R --> L:db
-      api:B -[async fan-out]-> T:bus`)
+      api:B -["async fan-out"]-> T:bus`)
 
     const expected = readFileSync(join(snapshotDir, 'architecture-representative.svg'), 'utf-8')
     expect(normalizeSvg(actual)).toBe(normalizeSvg(expected))
@@ -54,10 +54,10 @@ config:
   }
 }}%%
     architecture-beta
-    group edge(cloud)[Edge<br/>Layer]
-    service api(server)[API & <Gateway>] in edge
+    group edge(cloud)["Edge<br/>Layer"]
+    service api(server)["API & <Gateway>"] in edge
     service db(database)[Primary DB]
-    api:R -[reads <records>]-> L:db`)
+    api:R -["reads <records>"]-> L:db`)
 
     const expected = readFileSync(join(snapshotDir, 'architecture-themed-config.svg'), 'utf-8')
     expect(normalizeSvg(actual)).toBe(normalizeSvg(expected))

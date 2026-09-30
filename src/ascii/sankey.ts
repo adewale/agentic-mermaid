@@ -29,6 +29,7 @@ import { colorizeText } from './ansi.ts'
 import type { AsciiConfig, AsciiTheme, ColorMode } from './types.ts'
 import { padEndToVisualWidth, visualWidth } from './width.ts'
 import { wrapText } from './wrap.ts'
+import { displayText } from '../multiline-utils.ts'
 
 /** Maximum bar length in characters (the largest flow fills this). */
 const MAX_BAR = 20
@@ -72,13 +73,14 @@ export function renderSankeyAscii(lines: string[], config: AsciiConfig, colorMod
   const labelBudget = targetWidth ? Math.max(1, targetWidth - fixedWidth) : undefined
 
   const out: string[] = []
-  if (diagram.title) out.push(...wrapText(diagram.title, targetWidth), '')
+  // Labels draw their display text, as the SVG node labels do.
+  if (diagram.title) out.push(...wrapText(displayText(diagram.title), targetWidth), '')
 
   const sources = diagram.nodes.filter(label => outgoing.has(label))
   const wrappedTargets = new Map<string, string[]>()
   for (const link of diagram.links) {
     if (!wrappedTargets.has(link.target)) {
-      wrappedTargets.set(link.target, wrapText(link.target, labelBudget))
+      wrappedTargets.set(link.target, wrapText(displayText(link.target), labelBudget))
     }
   }
   const labelWidth = Math.max(0, ...[...wrappedTargets.values()].flat().map(visualWidth))
@@ -86,7 +88,7 @@ export function renderSankeyAscii(lines: string[], config: AsciiConfig, colorMod
   sources.forEach((source, sourceIndex) => {
     const links = outgoing.get(source)!
     const headerValue = visual.showValues ? `  ${formatSankeyValue(nodeTotal.get(source) ?? 0, visual)}` : ''
-    const headerLines = wrapText(source, targetWidth)
+    const headerLines = wrapText(displayText(source), targetWidth)
     for (let i = 0; i < headerLines.length - 1; i++) out.push(headerLines[i]!)
     out.push(`${headerLines.at(-1) ?? ''}${headerValue}`)
 

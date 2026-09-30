@@ -36,6 +36,7 @@ import {
   type BrandConstraint,
   type BrandConstraintFieldDescriptor,
 } from './brand-constraint-contract.ts'
+import { deepFreeze, isPlainRecord } from '../shared/plain-data.ts'
 export { BRAND_CONSTRAINT_DESCRIPTORS, BRAND_CONSTRAINT_KINDS } from './brand-constraint-contract.ts'
 export type { BrandConstraint, BrandConstraintAction, BrandConstraintKind } from './brand-constraint-contract.ts'
 
@@ -101,12 +102,6 @@ type StyleFieldDescriptor =
   | SemanticSlotsField
   | BindingsField
   | ConstraintsField
-
-function deepFreeze<T>(value: T): T {
-  if (typeof value !== 'object' || value === null || Object.isFrozen(value)) return value
-  for (const child of Object.values(value as Record<string, unknown>)) deepFreeze(child)
-  return Object.freeze(value)
-}
 
 /**
  * One authority for the public palette vocabulary. The runtime validator,
@@ -279,12 +274,6 @@ type DescriptorValue<Descriptor> =
 /** A partial, composable public description of how diagrams look. */
 export type StyleSpec = {
   -readonly [Key in keyof typeof STYLE_SPEC_FIELD_DESCRIPTORS]?: DescriptorValue<(typeof STYLE_SPEC_FIELD_DESCRIPTORS)[Key]>
-}
-
-function isPlainRecord(value: unknown): value is Record<string, unknown> {
-  if (typeof value !== 'object' || value === null || Array.isArray(value)) return false
-  const prototype = Object.getPrototypeOf(value)
-  return prototype === Object.prototype || prototype === null
 }
 
 function numberIsValid(value: unknown, descriptor: Pick<NumberField, 'minimum' | 'exclusiveMinimum' | 'maximum'> & { kind?: string }): value is number {

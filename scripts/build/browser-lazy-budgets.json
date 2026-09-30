@@ -8,7 +8,7 @@
     "sequence": { "requests": 24, "raw": 604000, "gzip": 185500, "brotli": 164000 },
     "timeline": { "requests": 24, "raw": 585000, "gzip": 180000, "brotli": 159000 },
     "class": { "requests": 28, "raw": 2316000, "gzip": 708000, "brotli": 569000 },
-    "er": { "requests": 27, "raw": 2311000, "gzip": 707500, "brotli": 568500 },
+    "er": { "requests": 27, "raw": 2311000, "gzip": 707500, "brotli": 570500 },
     "journey": { "requests": 26, "raw": 606000, "gzip": 188000, "brotli": 166000 },
     "architecture": { "requests": 25, "raw": 2318000, "gzip": 707500, "brotli": 568500 },
     "xychart": { "requests": 25, "raw": 612000, "gzip": 189000, "brotli": 167000 },

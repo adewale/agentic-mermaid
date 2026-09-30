@@ -34,6 +34,7 @@ import type { GanttModel, GanttSchedule, ScheduledGanttTask, EpochMs } from '../
 import type { MermaidFrontmatterMap } from '../mermaid-source.ts'
 import { colorizeLine, DEFAULT_ASCII_THEME } from './ansi.ts'
 import { padEndToVisualWidth, truncateToVisualWidth, visualWidth } from './width.ts'
+import { breakLineTags } from '../multiline-utils.ts'
 import type { AsciiConfig, AsciiTheme, CharRole, ColorMode } from './types.ts'
 import { resolveRoleStyle, type InternalStyleFace } from '../scene/style-registry.ts'
 
@@ -132,8 +133,12 @@ export function renderGanttAscii(
     }
   }
   for (const t of vertTasks) labelWidth = Math.max(labelWidth, visualWidth(TASK_INDENT + t.label))
+  // Upstream breaks a section title at `<br>` (its task text stays literal).
+  const sectionLines = (label: string): string[] => breakLineTags(label).split('\n')
   for (const s of model.sections) {
-    if (s.label !== undefined) labelWidth = Math.max(labelWidth, visualWidth(SECTION_INDENT + s.label))
+    if (s.label !== undefined) {
+      for (const line of sectionLines(s.label)) labelWidth = Math.max(labelWidth, visualWidth(SECTION_INDENT + line))
+    }
   }
   const gutters = rowTasks.map(t => dateGutter(t, schedule).replace('→', arrow))
   const gutterWidth = Math.max(0, ...gutters.map(visualWidth))
@@ -223,7 +228,9 @@ export function renderGanttAscii(
     const sectionTasks = rowTasks.filter(t => t.sectionIndex === si)
     if (sectionTasks.length === 0 && section.label === undefined) continue
     if (section.label !== undefined) {
-      pushLine([{ text: SECTION_INDENT + truncateToWidth(section.label, labelWidth - 2), role: 'border' }])
+      for (const line of sectionLines(section.label)) {
+        pushLine([{ text: SECTION_INDENT + truncateToWidth(line, labelWidth - 2), role: 'border' }])
+      }
     }
     if (compact && sectionTasks.length > 0) {
       // Compact mode: tasks pack into shared lanes; each lane renders the

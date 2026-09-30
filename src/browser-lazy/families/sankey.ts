@@ -1,22 +1,5 @@
 import descriptorData from '../generated/descriptors/sankey.ts'
-import { createBrowserFamilyDescriptor, layoutResult, scene } from '../family.ts'
-import { resolveSankeyVisualConfig } from '../../sankey/config.ts'
-import { layoutSankeyDiagram } from '../../sankey/layout.ts'
-import { parseSankeyDiagram } from '../../sankey/parser.ts'
-import { lowerSankeyScene } from '../../sankey/renderer.ts'
+import { createBrowserFamilyDescriptor } from '../family.ts'
+import { SANKEY_SVG_HOOKS } from '../../svg-family-hooks/sankey.ts'
 
-export default createBrowserFamilyDescriptor(descriptorData, {
-  normalizeRequest: ctx => ({
-    familyConfig: { visual: resolveSankeyVisualConfig(ctx.source.frontmatter) },
-  }),
-  layout: ctx => layoutResult(layoutSankeyDiagram(
-    parseSankeyDiagram(ctx.source.familyLines, {
-      title: typeof ctx.source.frontmatter.title === 'string' ? ctx.source.frontmatter.title : undefined,
-    }),
-    ctx.renderOptions,
-    (ctx.familyConfig as { visual?: ReturnType<typeof resolveSankeyVisualConfig> } | undefined)?.visual
-      ?? resolveSankeyVisualConfig(ctx.source.frontmatter),
-    ctx.styleFace,
-  )),
-  lowerScene: scene(lowerSankeyScene),
-})
+export default createBrowserFamilyDescriptor(descriptorData, SANKEY_SVG_HOOKS)

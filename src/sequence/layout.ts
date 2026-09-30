@@ -183,7 +183,13 @@ export function layoutSequenceDiagram(
 
   // 2. Position actors at the top. `box … end` groups draw a title band above
   //    the actor boxes, so boxed diagrams reserve extra headroom for it.
-  const boxGroups = (diagram.boxes ?? []).filter(b => b.actorIds.some(id => actorIndex.has(id)))
+  //    A box frames the actors upstream places in it (`Actor.box`), which
+  //    includes an actor created before the box that a bare declaration
+  //    inside it placed.
+  const boxGroups = (diagram.boxes ?? []).flatMap((box, index) => {
+    const memberIdxs = diagram.actors.flatMap((actor, i) => actor.box === index ? [i] : [])
+    return memberIdxs.length > 0 ? [{ box, memberIdxs }] : []
+  })
   const actorY = padY + (boxGroups.length > 0 ? SEQ.boxTitleSpace + 6 : 0)
   const actors: PositionedActor[] = diagram.actors.map((a, i) => ({
     id: a.id,
@@ -510,10 +516,7 @@ export function layoutSequenceDiagram(
   //     and run from the title band above the actor boxes to just below the
   //     lifeline ends, so the group visibly owns its lifelines.
   const lifelineBottom = messageY // lifelines end here (see step 7)
-  const boxes: PositionedBoxGroup[] = boxGroups.map(box => {
-    const memberIdxs = box.actorIds
-      .map(id => actorIndex.get(id))
-      .filter((i): i is number => i !== undefined)
+  const boxes: PositionedBoxGroup[] = boxGroups.map(({ box, memberIdxs }) => {
     const left = Math.min(...memberIdxs.map(i => actorCenterX[i]! - actorWidths[i]! / 2)) - SEQ.boxPadX
     let right = Math.max(...memberIdxs.map(i => actorCenterX[i]! + actorWidths[i]! / 2)) + SEQ.boxPadX
     // A title wider than the member span widens the frame so it can't clip

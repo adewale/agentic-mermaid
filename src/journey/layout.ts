@@ -10,7 +10,7 @@ import type { RenderOptions } from '../types.ts'
 import { measureMultilineText, measureTextWidth } from '../text-metrics.ts'
 import { STROKE_WIDTHS, applyTextTransform, resolveRenderStyle } from '../styles.ts'
 import type { RenderStyleDefaults, ResolvedRenderStyle } from '../styles.ts'
-import { stripFormattingTags } from '../multiline-utils.ts'
+import { displayText } from '../multiline-utils.ts'
 import { wrapLabelToWidth } from '../shared/label-wrap.ts'
 import type { JourneyRuntimeConfig } from '../mermaid-source.ts'
 import { resolveRoleStyle, type InternalStyleFace } from '../scene/style-registry.ts'
@@ -196,7 +196,7 @@ export function layoutJourneyDiagram(
   const actorIndex = new Map(actorLabels.map((actor, index) => [actor.raw, index]))
 
   const legendLabelMetrics = actorLabels.map(actor =>
-    measureMultilineText(stripFormattingTags(actor.label), style.edgeLabelFontSize, style.edgeLabelFontWeight),
+    measureMultilineText(displayText(actor.label), style.edgeLabelFontSize, style.edgeLabelFontWeight),
   )
   const legendWidth = actorLabels.length > 0
     ? Math.max(

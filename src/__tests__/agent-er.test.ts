@@ -56,7 +56,9 @@ describe('ER — parse', () => {
     expect(d.body.kind).toBe('er')
     if (d.body.kind !== 'er') return
     expect(d.body.entities[0]!.id).toBe('Entity<br>Name')
-    expect(d.body.entities[0]!.label).toBe('Entity\nName')
+    // A quoted name is the entity's identity, not an alias (upstream's alias
+    // is empty); its `<br>` is display, which the renderer draws.
+    expect(d.body.entities[0]!.label).toBeUndefined()
     const canonical = serializeMermaid(d)
     expect(canonical).toContain('"Entity<br>Name" {')
     expect(parse(canonical).body.kind).toBe('er')

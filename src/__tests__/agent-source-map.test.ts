@@ -35,6 +35,35 @@ describe('flowchart SourceMap', () => {
     expect(parsed.value.source.edges.get('edge#1:B->A')).toEqual({ line: 7, col: 1 })
   })
 
+  test('BUG-26: spans read `\'` as text and `\\` as no escape, as the parser does', () => {
+    // An apostrophe opens no string, so it cannot hide the `;` that ends its
+    // statement; a `\` before a closing `"` escapes nothing.
+    const source = 'flowchart LR\n  A[it\'s] --> B; C["x\\\\"] --> D; E --> F'
+    const parsed = parseMermaid(source)
+    expect(parsed.ok).toBe(true)
+    if (!parsed.ok) return
+    const spans = parsed.value.source.spans!
+    expect({
+      edges: ['edge#0:A->B', 'edge#1:C->D', 'edge#2:E->F'].map(key => textAt(source, spans.edges.get(key))),
+      labels: ['node:A', 'node:C'].map(key => textAt(source, spans.labels.get(key))),
+      nodeC: parsed.value.source.nodes.get('C'),
+    }).toEqual({
+      edges: ['A[it\'s] --> B', 'C["x\\\\"] --> D', 'E --> F'],
+      labels: ['it\'s', 'x\\\\'],
+      nodeC: { line: 2, col: 16 },
+    })
+  })
+
+  test('maps a label spelled with entity codes to its authored text', () => {
+    const source = 'flowchart LR\n  A["I #9829; you"] -->|#35;1<br>x| B((#lt;b))\n  subgraph S[t #amp; u]\n    C\n  end'
+    const parsed = parseMermaid(source)
+    expect(parsed.ok).toBe(true)
+    if (!parsed.ok) return
+    const labels = parsed.value.source.spans!.labels
+    expect(['node:A', 'edge#0:A->B', 'node:B', 'group:S'].map(key => textAt(source, labels.get(key))))
+      .toEqual(['I #9829; you', '#35;1<br>x', '#lt;b', 't #amp; u'])
+  })
+
   test('maps a label whose `"` is spelled `#quot;` to its authored text', () => {
     const source = 'flowchart LR\n  A["say #quot;hi#quot;"] -->|"e #quot;q#quot;"| B\n  subgraph S["t #quot;x#quot;"]\n    C\n  end'
     const parsed = parseMermaid(source)
@@ -484,11 +513,14 @@ accDescr: {
       expect(parsed.value.source.nodes.get(expected[0])?.line).toBe(2)
     }
 
-    const hyphenated = 'flowchart LR\nfoo--bar\nfoo\nbar'
+    // A single hyphen joins an id; `--` always opens a link, so `foo--bar`
+    // is no id (upstream rejects it: its link label never closes).
+    expect(parseMermaid('flowchart LR\nfoo--bar\nfoo\nbar').ok).toBe(false)
+    const hyphenated = 'flowchart LR\nfoo-bar\nfoo\nbar'
     const hyphenatedParsed = parseMermaid(hyphenated)
     expect(hyphenatedParsed.ok).toBe(true)
     if (hyphenatedParsed.ok) {
-      expect(hyphenatedParsed.value.source.nodes.get('foo--bar')).toEqual({ line: 2, col: 1 })
+      expect(hyphenatedParsed.value.source.nodes.get('foo-bar')).toEqual({ line: 2, col: 1 })
       expect(hyphenatedParsed.value.source.nodes.get('foo')).toEqual({ line: 3, col: 1 })
       expect(hyphenatedParsed.value.source.nodes.get('bar')).toEqual({ line: 4, col: 1 })
       expect(textAt(hyphenated, hyphenatedParsed.value.source.spans!.nodes.get('bar'))).toBe('bar')
@@ -571,7 +603,7 @@ lab`
     for (const source of [
       'flowchart LR\nA[--foo-->]-->B',
       'flowchart LR\nA["|foo|"]-->B',
-      'flowchart LR\nA@{label:"--foo-->"}-->B',
+      'flowchart LR\nA@{label: "--foo-->"}-->B',
     ]) {
       const parsed = parseMermaid(source)
       expect(parsed.ok).toBe(true)
@@ -663,13 +695,16 @@ A -->|lab| B`
   })
 
   test('keeps compact labels inside statement and grammar boundaries', () => {
+    // Upstream's `--` opens a text-arrow label wherever it is not a link, and
+    // the label runs to the closing link, `;` included: one edge foo→B
+    // labelled "bar; A" (pinned Mermaid 11.16).
     const packed = 'flowchart LR\nfoo--bar; A-->B'
     const packedParsed = parseMermaid(packed)
     expect(packedParsed.ok).toBe(true)
     if (packedParsed.ok) {
-      expect(packedParsed.value.source.nodes.get('A')).toEqual({ line: 2, col: 11 })
-      expect(packedParsed.value.source.edges.get('edge#0:A->B')).toEqual({ line: 2, col: 11 })
-      expect(textAt(packed, packedParsed.value.source.spans!.edges.get('edge#0:A->B'))).toBe('A-->B')
+      expect([...packedParsed.value.source.nodes.keys()].sort()).toEqual(['B', 'foo'])
+      expect(textAt(packed, packedParsed.value.source.spans!.edges.get('edge#0:foo->B'))).toBe('foo--bar; A-->B')
+      expect(textAt(packed, packedParsed.value.source.spans!.labels.get('edge#0:foo->B'))).toBe('bar; A')
     }
 
     for (const [statement, id] of [

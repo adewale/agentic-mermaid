@@ -681,7 +681,9 @@ function isNonRenderableSourceScaffold(source: string, diagram: ValidDiagram): b
   if (diagram.kind === 'timeline' && /^timeline$/i.test(lines[0]!)) {
     return lines.slice(1).length > 0 && lines.slice(1).every(line => /^section\b/i.test(line))
   }
-  return false
+  // A declaration-only source (a state classDef, radar options with no axes)
+  // parses as its family's typed empty body, which verify reports as empty.
+  return safeVerify(diagram).warnings?.some(warning => warning.code === 'EMPTY_DIAGRAM') === true
 }
 
 function isDeclarationOnlyFlowchartSource(source: string, diagram: ValidDiagram): boolean {
@@ -719,7 +721,7 @@ function localBehavior(source: string, family: Family): Exclusion['ours'] {
   }
 }
 
-function safeVerify(diagram: ParsedDiagram): { ok: boolean } {
+function safeVerify(diagram: ParsedDiagram): { ok: boolean; warnings?: ReturnType<typeof verifyMermaid>['warnings'] } {
   try {
     return verifyMermaid(diagram)
   } catch {
@@ -848,7 +850,10 @@ function unquote(raw: string): string {
 }
 
 function isNegativeTest(body: string): boolean {
-  return /\.(?:toThrow|toThrowError)\s*\(|rejects\.|throws/.test(body) && !/not\.toThrow/.test(body)
+  if (/\.(?:toThrow|toThrowError)\s*\(|rejects\.|throws/.test(body) && !/not\.toThrow/.test(body)) return true
+  // `let error = false; try { … } catch { error = true } expect(error).toBe(true)`
+  const flag = body.match(/catch\s*(?:\([^)]*\))?\s*\{\s*(\w+)\s*=\s*true;?\s*\}/)
+  return flag !== null && new RegExp(`expect\\(\\s*${flag[1]}\\s*\\)\\.toBe\\(true\\)`).test(body)
 }
 
 function uniqueCaseId(cases: Map<string, BenchCase>, base: string): string {

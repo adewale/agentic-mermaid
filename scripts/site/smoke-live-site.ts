@@ -123,6 +123,7 @@ export async function runSiteSmoke(options: SiteSmokeOptions = {}) {
   const examples = await json('/examples/index.json')
   nonEmptyArray(examples.examples, '/examples/index.json examples')
   nonEmptyArray(examples.richExamples, '/examples/index.json rich examples')
+  nonEmptyArray(examples.stylePaletteExamples, '/examples/index.json style × palette examples')
   const examplesGenerated = generatedFrom(examples, '/examples/index.json')
 
   const manifest = await json('/.well-known/mcp.json')

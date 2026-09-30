@@ -186,7 +186,8 @@ describe('parseJourneyDiagram', () => {
       title Empty`).title).toBe('Empty')
   })
 
-  it('still throws when the diagram carries nothing at all', () => {
-    expect(() => parse(`journey`)).toThrow('Journey diagram must include at least one scored task, a section, or a title')
+  it('reads a bare header as the empty journey Mermaid 11.16 accepts', () => {
+    const d = parse(`journey`)
+    expect({ title: d.title, sections: d.sections }).toEqual({ title: undefined, sections: [] })
   })
 })

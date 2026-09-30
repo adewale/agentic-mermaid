@@ -22,7 +22,7 @@ import type {
   MutationError, Result, LayoutWarning, VerifyOptions,
 } from './types.ts'
 import { ok, err, DEFAULT_LABEL_CHAR_CAP } from './types.ts'
-import { indexedIdAllocator, labelOverflowCollector } from './body-utils.ts'
+import { indexedIdAllocator, labelOverflowCollector, resolveInsertIndex, setOptionalField } from './body-utils.ts'
 import {
   walkJourneyLines, normalizeJourneyText, normalizeJourneyActor,
   isValidJourneyScore, hasJourneyStatementDelimiter, JOURNEY_ACTOR_COLOR_LIMIT, type JourneyParseIssue,
@@ -81,15 +81,6 @@ export function parseJourneyBody(lines: string[], accessibility: import('./types
   })
 
   if (firstIssue) return { ok: false, issue: firstIssue }
-
-  // Upstream parity: title/acc metadata-only journeys are renderable header
-  // furniture. A truly empty journey still stays opaque for source fidelity.
-  if (body.sections.length === 0 && body.sections.every(s => s.tasks.length === 0) && !body.title && !body.accessibilityTitle && !body.accessibilityDescription) {
-    return {
-      ok: false,
-      issue: { code: 'empty_journey', lineIndex: 0, statement: '', detail: 'Journey has no title, sections, or scored tasks' },
-    }
-  }
 
   return { ok: true, body }
 }
@@ -155,14 +146,6 @@ function normalizeOpText(value: string, field: string, opts: { allowColon?: bool
   return ok(normalized)
 }
 
-function resolveInsertIndex(index: number | undefined, length: number): Result<number, MutationError> {
-  if (index === undefined) return ok(length)
-  if (!Number.isInteger(index) || index < 0 || index > length) {
-    return err({ code: 'INVALID_OP', message: `Journey insert index ${index} out of range (0..${length})` })
-  }
-  return ok(index)
-}
-
 /** Accessibility text is line-oriented free text, but `;` terminates a
  * journey statement and `{`/`}` delimit the accDescr block form — text
  * carrying them would not survive serialize → re-parse. null clears. */
@@ -201,18 +184,14 @@ export function mutateJourney(body: JourneyBody, op: JourneyMutationOp): Result<
 
   switch (op.kind) {
     case 'set_title': {
-      if (op.title === null) delete next.title
-      else {
-        const title = normalizeOpText(op.title, 'title', { allowColon: true })
-        if (!title.ok) return title
-        next.title = title.value
-      }
+      const title = setOptionalField(next, 'title', op.title, value => normalizeOpText(value, 'title', { allowColon: true }))
+      if (!title.ok) return title
       break
     }
     case 'add_section': {
       const label = normalizeOpText(op.label, 'section label')
       if (!label.ok) return label
-      const index = resolveInsertIndex(op.index, next.sections.length)
+      const index = resolveInsertIndex(op.index, next.sections.length, 'Journey')
       if (!index.ok) return index
       next.sections.splice(index.value, 0, { id: nextId('section'), label: label.value, tasks: [] })
       break
@@ -238,7 +217,7 @@ export function mutateJourney(body: JourneyBody, op: JourneyMutationOp): Result<
       if (!isValidJourneyScore(op.score)) return err({ code: 'INVALID_OP', message: `Journey score must be a finite number 1..5, got ${op.score}` })
       const actors = normalizeActors(op.actors)
       if (!actors.ok) return actors
-      const index = resolveInsertIndex(op.index, s.tasks.length)
+      const index = resolveInsertIndex(op.index, s.tasks.length, 'Journey')
       if (!index.ok) return index
       s.tasks.splice(index.value, 0, { id: nextId('task'), text: text.value, score: op.score, actors: actors.value })
       break

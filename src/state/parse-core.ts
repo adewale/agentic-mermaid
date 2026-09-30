@@ -14,6 +14,8 @@
 //   --                                   — concurrency region separator
 // ============================================================================
 
+import { normalizeBrTags } from '../multiline-utils.ts'
+
 export type StateNoteSide = 'left' | 'right'
 
 export interface StateNoteLineMatch {
@@ -75,6 +77,13 @@ export function matchNoteOpen(line: string): StateNoteOpenMatch | null {
   const m = line.match(NOTE_OPEN_RE)
   if (!m) return null
   return { side: m[1]!.toLowerCase() as StateNoteSide, target: m[2]! }
+}
+
+/** A note's text from its body lines (one for a single-line note). Note text
+ *  is a label like any other: `<br>` breaks it and markdown-lite emphasis
+ *  formats it, as upstream's note nodes do, whichever form wrote it. */
+export function stateNoteText(bodyLines: readonly string[]): string {
+  return normalizeBrTags(bodyLines.join('\n'))
 }
 
 /** `end note` — closes a block note. */

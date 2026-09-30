@@ -103,7 +103,6 @@ describe('architecture structured-or-opaque fallback', () => {
     ['unknown in-parent group', 'architecture-beta\n  service db(database)[DB] in nowhere'],
     ['edge to undeclared item', 'architecture-beta\n  service api(server)[API]\n  api:R --> L:ghost'],
     ['header suffix', 'architecture-beta EXTRA\n  service api(server)[API]'],
-    ['empty diagram (header only)', 'architecture-beta'],
   ]
   for (const [name, src] of opaqueCases) {
     test(`${name} falls back to opaque and round-trips verbatim`, () => {

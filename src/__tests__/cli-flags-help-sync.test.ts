@@ -1,15 +1,17 @@
-// Flag/registry consistency. BOOLEAN_FLAGS is derived from FLAG_SPECS; the
-// guards below keep that classification consistent with how flags are actually
-// READ in the CLI source (the direct guard the `--canonical-wrapper` bug needed)
-// and with the global help text. (The per-command usage-bracket cross-check was
-// dropped as redundant belt-and-suspenders.)
+// Flag/registry consistency. BOOLEAN_FLAGS is derived from FLAG_SPECS, and the
+// CLI reads every flag through flagEnabled/flagValue, whose name types admit
+// only switches or only value flags. The guards below prove those accessors
+// hold the classification (the direct guard the `--canonical-wrapper` bug
+// needed: a flag read as a switch but parsed as taking a value swallowed the
+// file) and keep the help text in step with it.
 
 import { describe, test, expect } from 'bun:test'
-import { readFileSync } from 'node:fs'
-import { join } from 'node:path'
-import { BOOLEAN_FLAGS, COMMAND_FLAGS, COMMAND_POSITIONALS, FLAG_SPECS, GLOBAL_USAGE, parseArgs, runCli } from '../cli/index.ts'
-import { parseFlagsBlock, booleanFlagReads } from './helpers/cli-flag-parsing.ts'
+import { BOOLEAN_FLAGS, COMMAND_FLAGS, COMMAND_HELP, COMMAND_POSITIONALS, FLAG_SPECS, flagEnabled, flagValue, GLOBAL_USAGE, parseArgs, runCli } from '../cli/index.ts'
+import { parseFlagsBlock } from './helpers/cli-flag-parsing.ts'
 import { captureCli } from './helpers/cli-capture.ts'
+import { useTempDirs } from './helpers/temp-dir.ts'
+
+const temp = useTempDirs('am-flags-')
 
 /** runCli with stdout and stderr captured together (diagnostics go to either). */
 function capture(argv: string[]): { code: number; output: string } {
@@ -31,23 +33,44 @@ describe('FLAG_SPECS is the single source for flag classification', () => {
       expect({ name: f.name, takesArg: f.takesArg }).toEqual({ name: f.name, takesArg: Boolean(FLAG_SPECS[f.name]!.arg) })
     }
   })
+
+  test('every switch a command accepts is documented in its help or the global Flags block', () => {
+    const globalSwitches = new Set(parseFlagsBlock(GLOBAL_USAGE).filter(flag => !flag.takesArg).map(flag => flag.name))
+    const undocumented = Object.entries(COMMAND_FLAGS).flatMap(([command, flags]) => flags
+      .filter(name => BOOLEAN_FLAGS.has(name) && !globalSwitches.has(name))
+      .filter(name => !new RegExp(`--${name}(?![\\w-])`).test(COMMAND_HELP[command] ?? ''))
+      .map(name => `am ${command} --${name}`))
+    expect(undocumented).toEqual([])
+  })
 })
 
-describe('code reads ↔ BOOLEAN_FLAGS', () => {
-  const cliSource = readFileSync(join(import.meta.dir, '..', 'cli', 'index.ts'), 'utf8')
-
-  test('every flag read in a boolean context is registered boolean', () => {
-    // A flag used as `flags.x ?` / `=== true` / `Boolean(...)` / `if (flags.x)`
-    // MUST be in BOOLEAN_FLAGS regardless of how it was documented — the direct
-    // guard for the --canonical-wrapper bug class.
-    const used = booleanFlagReads(cliSource)
-    expect([...used].filter(n => !BOOLEAN_FLAGS.has(n))).toEqual([])
+describe('flags are read through typed accessors', () => {
+  test('flagEnabled reads a switch given before a positional; flagValue reads a value', () => {
+    const format = parseArgs(['format', '--canonical-wrapper', 'diagram.mmd'])
+    expect({ wrapper: flagEnabled(format, 'canonical-wrapper'), positional: format.positional })
+      .toEqual({ wrapper: true, positional: ['diagram.mmd'] })
+    expect(flagEnabled(parseArgs(['format', 'diagram.mmd']), 'canonical-wrapper')).toBe(false)
+    const render = parseArgs(['render', '--style', 'hand-drawn', 'diagram.mmd'])
+    expect({ style: flagValue(render, 'style'), seed: flagValue(render, 'seed') }).toEqual({ style: 'hand-drawn', seed: undefined })
   })
 
-  test('the detector actually finds the known boolean reads', () => {
-    const used = booleanFlagReads(cliSource)
-    expect(used.has('canonical-wrapper')).toBe(true)
-    expect(used.has('ascii')).toBe(true)
+  test('a value flag cannot be read as a switch, nor a switch as a value', () => {
+    const args = parseArgs(['render', '--style', 'hand-drawn', '--json', 'diagram.mmd'])
+    // @ts-expect-error --style takes a value: reading it as a switch is the --canonical-wrapper bug
+    expect(() => flagEnabled(args, 'style')).toThrow('--style is not a boolean flag')
+    // @ts-expect-error --json takes no value
+    expect(() => flagValue(args, 'json')).toThrow('--json is not a value flag')
+    // @ts-expect-error an unregistered flag has no accessor
+    expect(() => flagValue(args, 'gantt-toady')).toThrow('--gantt-toady is not a value flag')
+  })
+
+  test('am format --canonical-wrapper <file> reads the file and canonicalizes its wrapper', () => {
+    const file = temp.file('wrapped.mmd', '%%{init: {"theme": "dark"}}%%\nflowchart TD\n  A --> B\n')
+    expect(captureCli(() => runCli(['format', '--canonical-wrapper', file]))).toEqual({
+      code: 0,
+      out: '---\nconfig:\n  theme: dark\n---\nflowchart TD\n  A --> B\n',
+      err: '',
+    })
   })
 })
 

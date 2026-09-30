@@ -79,6 +79,13 @@ describe('markdown strings — explicit line breaks', () => {
     expect(graph.nodes.get('A')!.label).toBe('Line one\nLine two')
   })
 
+  it('a `\\n` sequence stays literal in a markdown string and breaks a plain label, as upstream since 11.13', () => {
+    // Upstream's markdownToHTML leaves `\n` as text; nonMarkdownToHTML turns
+    // it into <br /> (mermaid 11.13 CHANGELOG, `rendering-util/handle-markdown-text.ts`).
+    const graph = parseGraph('flowchart LR\n  A["`a\\nb`"] --> B["a\\nb"]\n')
+    expect([graph.nodes.get('A')!.label, graph.nodes.get('B')!.label]).toEqual(['a\\nb', 'a\nb'])
+  })
+
   it('renders one tspan per explicit line', () => {
     const svg = renderMermaidSVG('flowchart LR\n  A["`Line one\n  Line two`"] --> B\n')
     const nodeText = svg.split('data-id="A"')[1]!.split('</g>')[0]!

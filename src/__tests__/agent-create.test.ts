@@ -1,9 +1,14 @@
-import { describe, expect, test } from 'bun:test'
+import { afterAll, describe, expect, test } from 'bun:test'
 import {
-  createMermaid, buildMermaid, mutate, parseRegisteredMermaid as parseMermaid, serializeMermaid, verifyMermaid,
+  createMermaid, buildMermaid, mutate, parseRegisteredMermaid as parseMermaid, renderMermaidSVG, serializeMermaid, verifyMermaid,
 } from '../agent/core.ts'
 import { BUILTIN_FAMILY_METADATA, type BuiltinFamilyId } from '../agent/families.ts'
 import type { DiagramKind } from '../agent/types.ts'
+import { startUpstreamMermaid } from './helpers/upstream-mermaid.ts'
+
+// One long-lived pinned-Mermaid child is the oracle for every blank below.
+const upstream = startUpstreamMermaid()
+afterAll(() => upstream.close())
 
 // Derived from the registry, so a new family is enrolled here automatically.
 const ALL_KINDS: BuiltinFamilyId[] = BUILTIN_FAMILY_METADATA.map(f => f.id)
@@ -19,11 +24,7 @@ const BLANK_VERIFY = {
 
 describe('createMermaid', () => {
   for (const kind of ALL_KINDS) {
-    // Known product bug BUG-40 (TODO.md): a zero-commit gitGraph verifies clean
-    // with an empty layout, although the EMPTY_DIAGRAM catalog entry says a bare
-    // header fires it.
-    const pin = kind === 'gitgraph' ? test.failing : test
-    pin(`returns a blank STRUCTURED ${kind} body that verify reports as ${BLANK_VERIFY[kind]}`, () => {
+    test(`returns a blank STRUCTURED ${kind} body that verify reports as ${BLANK_VERIFY[kind]}`, () => {
       const d = createMermaid(kind)
       expect({ kind: d.kind, body: d.body.kind }).toEqual({ kind, body: kind })
       const codes = verifyMermaid(d).warnings.map(w => w.code)
@@ -48,6 +49,54 @@ describe('createMermaid', () => {
   })
   test('unknown kind fails loudly', () => {
     expect(() => createMermaid('nonsense' as DiagramKind)).toThrow(/unknown diagram kind/)
+  })
+})
+
+function renders(source: string): boolean {
+  try {
+    renderMermaidSVG(source)
+    return true
+  } catch {
+    return false
+  }
+}
+
+// A saved blank must read back the way pinned Mermaid reads it: typed and
+// renderable where Mermaid accepts the bare header, and rejected through the
+// family's opaque fallback where Mermaid rejects it (a Sankey needs a link).
+// Registered deviation, not a bug: a Gantt with no tasks has no time range to
+// draw, so ours diagnoses it where Mermaid draws an empty chart (the same
+// deviation official-fence-corpus.test.ts records for gantt.md#6).
+const BLANK_RENDER_DEVIATIONS: ReadonlySet<BuiltinFamilyId> = new Set(['gantt'])
+// Read generously: Mermaid rejects a bare class header, but its meaning (an
+// empty class diagram) is clear, so ours reads it typed and draws it, and
+// verify says Mermaid rejects it (upstream-rejection-parity.test.ts).
+const BLANK_GENEROUS_READS: ReadonlySet<BuiltinFamilyId> = new Set(['class'])
+
+describe('a blank diagram survives a save wherever Mermaid accepts it', () => {
+  for (const kind of ALL_KINDS) {
+    test(`${kind}: serialize -> parse -> render agrees with Mermaid on the blank`, async () => {
+      const source = serializeMermaid(createMermaid(kind))
+      const read = (await upstream.parse(source)).ok || BLANK_GENEROUS_READS.has(kind)
+      const reparsed = parseMermaid(source)
+      expect({ source, reparsed: reparsed.ok && reparsed.value.body.kind, renders: renders(source) })
+        .toEqual({ source, reparsed: read ? kind : 'opaque', renders: read && !BLANK_RENDER_DEVIATIONS.has(kind) })
+    })
+  }
+
+  // Header furniture is not content: these blanks carry a header tail or a
+  // title and still have nothing to plot.
+  test.each<[BuiltinFamilyId, string]>([
+    ['pie', 'pie showData\n'],
+    ['pie', 'pie title Pets\n'],
+    ['xychart', 'xychart-beta horizontal\n'],
+    ['xychart', 'xychart-beta\n  title Sales\n'],
+    ['radar', 'radar-beta\n  title Skills\n'],
+    ['state', 'stateDiagram-v2\n  direction LR\n'],
+  ])('%s blank %j that Mermaid accepts parses typed and renders', async (kind, source) => {
+    const reparsed = parseMermaid(source)
+    expect({ upstream: (await upstream.parse(source)).ok, reparsed: reparsed.ok && reparsed.value.body.kind, renders: renders(source) })
+      .toEqual({ upstream: true, reparsed: kind, renders: true })
   })
 })
 

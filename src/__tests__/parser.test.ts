@@ -14,6 +14,7 @@ import fc from 'fast-check'
 import { spawnSync } from 'node:child_process'
 import { join } from 'node:path'
 import { parseMermaid } from '../parser.ts'
+import { parseRegisteredMermaid, renderMermaidSVG, verifyMermaid } from '../agent/index.ts'
 
 // ============================================================================
 // Graph header parsing
@@ -817,6 +818,37 @@ describe('parseMermaid – edge cases', () => {
     const ids = [...g.nodes.keys()]
     expect(ids[0]).toBe('Z')
     expect(ids[1]).toBe('A')
+  })
+
+  it('names the construct when rejecting an id holding `--`', () => {
+    // Upstream rejects it too (property-upstream-flowchart.test.ts). Whether
+    // `A--a` is an id or a link label is unclear, so ours rejects it.
+    expect(() => parseMermaid('graph TD\n  A--a --> A--a')).toThrow(/"--a" opens a link label that no link closes/)
+  })
+
+  // Mermaid rejects each of these, but what it means is clear, so ours reads
+  // it, draws it, and verify reports it: a linkStyle index past the links
+  // above it, a text-arrow label closed by a link of another stroke, and a
+  // space before or inside `@{`.
+  // [construct, source, text the render draws, syntax verify reports, its line]
+  const FLOWCHART_READ_GENEROUSLY: ReadonlyArray<readonly [string, string, string, string, number]> = [
+    ['a linkStyle index that names no link', 'flowchart TD\n  A --> B\n  linkStyle 99 stroke:#ff0000', '>B<', 'flowchart_link_style_index', 3],
+    ['a linkStyle before the link it styles', 'flowchart TD\n  linkStyle 0 stroke:#ff0000\n  A --> B', '#ff0000', 'flowchart_link_style_index', 2],
+    ['a solid label closed by a thick link', 'flowchart LR\n  A -- b ==> B', '>b<', 'flowchart_mixed_link_label', 2],
+    ['a dotted label closed by a solid link', 'flowchart LR\n  A-.b --> B', '>b<', 'flowchart_mixed_link_label', 2],
+    ['a thick label closed by a solid link', 'flowchart LR\n  A == b --> B', '>b<', 'flowchart_mixed_link_label', 2],
+    ['a space inside @{', 'flowchart LR\n  A@ {label: "Start"}', '>Start<', 'flowchart_metadata_spacing', 2],
+    ['a space before @{', 'flowchart LR\n  A @{label: "Start"} --> B', '>Start<', 'flowchart_metadata_spacing', 2],
+    ['a space between a shape and @{', 'flowchart LR\n  A[a] @{ label: b }', '>b<', 'flowchart_metadata_spacing', 2],
+  ]
+
+  it.each(FLOWCHART_READ_GENEROUSLY)('%s is read, drawn and reported', (_construct, source, drawn, syntax, line) => {
+    const parsed = parseRegisteredMermaid(source)
+    expect({
+      typed: parsed.ok && parsed.value.body.kind,
+      draws: renderMermaidSVG(source).includes(drawn),
+      reported: verifyMermaid(source).warnings.flatMap(warning => warning.code === 'UNSUPPORTED_SYNTAX' ? [`${warning.syntax}@${warning.line}`] : []),
+    }).toEqual({ typed: 'flowchart', draws: true, reported: expect.arrayContaining([`${syntax}@${line}`]) })
   })
 })
 

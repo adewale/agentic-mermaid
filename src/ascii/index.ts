@@ -53,6 +53,7 @@ import {
 } from '../terminal-security.ts'
 import { AsciiWidthError } from './width-error.ts'
 import { parsePieChart } from '../pie/parser.ts'
+import { architectureTitleSource } from '../architecture/parser.ts'
 import { safePieTerminalText } from './pie.ts'
 
 // Re-export types for external use
@@ -215,7 +216,7 @@ export function renderMermaidASCIIWithReceipt(
   // authored grammar body through the decoded envelope would merge distinct
   // entity-spelled source keys before first-wins section parsing.
   const normalizedSource = widthBudget && family.id !== 'pie'
-    ? projectLabelsInNormalizedSource(terminalSource.source, widthBudget, outputPolicy.targetWidth !== undefined)
+    ? projectLabelsInNormalizedSource(terminalSource.source, widthBudget, outputPolicy.targetWidth !== undefined, family.id)
     : terminalSource.source
   // Source admission sees the authored `\\r` / `\\t` bytes, not the control
   // characters created by Pie's grammar. Reflect the family-owned terminal
@@ -371,10 +372,13 @@ function projectLabelsInNormalizedSource(
   source: NormalizedMermaidSource,
   width: number,
   hard: boolean,
+  familyId: string,
 ): NormalizedMermaidSource {
+  // Mermaid's architecture grammar reads `<br/>` in a [title] only quoted.
+  const bracketText = familyId === 'architecture' ? architectureTitleSource : undefined
   const body = source.body
     .split(/\r?\n/)
-    .map(line => /^\s*%%/.test(line) ? line : wrapLabelsInSource(line, width, hard))
+    .map(line => /^\s*%%/.test(line) ? line : wrapLabelsInSource(line, width, hard, bracketText))
     .join('\n')
   if (body === source.body) return source
   const lines = toMermaidLines(body)
@@ -423,9 +427,10 @@ export function wrapLabel(text: string, maxLineWidth: number): string {
  * Walk Mermaid source and wrap bracket-quoted labels (`["..."]`, `[...]`,
  * `(...)`, `{...}`, `((...))`) whose contents exceed `maxWidth / 3` columns.
  * Family-agnostic — works on flowchart node labels, sequence message text,
- * class members, etc.
+ * class members, etc. — except that `bracketText`, when given, writes a
+ * wrapped unquoted `[…]` label for a grammar that reads `<br/>` only quoted.
  */
-function wrapLabelsInSource(source: string, maxWidth: number, hard = false): string {
+function wrapLabelsInSource(source: string, maxWidth: number, hard = false, bracketText?: (text: string) => string): string {
   const perLabel = Math.max(hard ? 1 : 8, Math.floor(maxWidth / 3))
   // Match bracket-quoted labels: ["text"], [text], (text), {text}, ((text))
   // Skip already-wrapped labels (those containing <br/>) and identifier-only labels.
@@ -439,6 +444,7 @@ function wrapLabelsInSource(source: string, maxWidth: number, hard = false): str
       // Don't wrap identifier-like content (no spaces, looks like a variable)
       if (!inner.includes(' ')) return full
       const wrapped = hard ? wrapText(inner, perLabel).join('<br/>') : wrapLabel(inner, perLabel)
+      if (bracketText && open === '[' && quote === '' && close === ']') return `[${bracketText(wrapped)}]`
       return open + quote + wrapped + quote + close
     })
 }

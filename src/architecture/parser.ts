@@ -2,6 +2,7 @@ import type { MermaidGraph, MermaidSubgraph, Direction } from '../types.ts'
 import { normalizeBrTags } from '../multiline-utils.ts'
 import { syntaxError } from '../shared/syntax-error.ts'
 import { requireClosedAccessibility, scanAccessibilityDirectives } from '../shared/accessibility-directives.ts'
+import { stripTrailingComment } from '../shared/trailing-comment.ts'
 import { ALIGN_DIRECTIVE_RE, parseAlignDirective } from './align.ts'
 import { ARCHITECTURE_GROUP_ICON_TITLE_OFFSET } from './config.ts'
 import type { ArchitectureAlignment } from './align.ts'
@@ -29,20 +30,114 @@ import type {
 //   align row|column id id ...     (parsed + preserved; see align.ts)
 // ============================================================================
 
+// The statement shapes, shared with the typed body (src/agent/architecture-body.ts).
+// They admit a loose id, (icon) and [title]; the terminals below say which
+// ones Mermaid's lexer rejects.
 const IDENT = '[\\w-]+'
 const ICON = '\\(([^)]+)\\)'
 const LABEL = '\\[(.+)\\]'
 
-const GROUP_RE = new RegExp(`^group\\s+(${IDENT})(?:${ICON})?(?:${LABEL})?(?:\\s+in\\s+(${IDENT}))?\\s*$`)
-const SERVICE_RE = new RegExp(`^service\\s+(${IDENT})(?:${ICON})?(?:${LABEL})?(?:\\s+in\\s+(${IDENT}))?\\s*$`)
-const JUNCTION_RE = new RegExp(`^junction\\s+(${IDENT})(?:\\s+in\\s+(${IDENT}))?\\s*$`)
-const SOURCE_RE = new RegExp(`^(${IDENT})(\\{group\\})?:(L|R|T|B)$`)
-const TARGET_RE = new RegExp(`^(L|R|T|B):(${IDENT})(\\{group\\})?$`)
+export const GROUP_RE = new RegExp(`^group\\s+(${IDENT})(?:${ICON})?(?:${LABEL})?(?:\\s+in\\s+(${IDENT}))?\\s*$`)
+export const SERVICE_RE = new RegExp(`^service\\s+(${IDENT})(?:${ICON})?(?:${LABEL})?(?:\\s+in\\s+(${IDENT}))?\\s*$`)
+export const JUNCTION_RE = new RegExp(`^junction\\s+(${IDENT})(?:\\s+in\\s+(${IDENT}))?\\s*$`)
+export const SOURCE_RE = new RegExp(`^(${IDENT})(\\{group\\})?:(L|R|T|B)$`)
+export const TARGET_RE = new RegExp(`^(L|R|T|B):(${IDENT})(\\{group\\})?$`)
+export const LABELED_ARROW_RE = /^(<)?-\[(.*)\]-(>)?$/
+const EDGE_RE = /^(\S+)\s+(.+)\s+(\S+)$/
+
+// Mermaid's architecture lexer terminals. An id is word characters with
+// dashes only inside (ID); an icon is word characters, `-` and `:`
+// (ARCH_ICON); a [title] is words and spaces, or one "…" or '…' string with
+// backslash escapes, which Mermaid reads without its quotes (ARCH_TITLE).
+// `\w` is ASCII here, as in Mermaid's lexer. Both parsers read the looser
+// statement shapes above as written, verify reports what these terminals
+// reject (architectureTerminalRejections), and the typed serializer and
+// mutator write titles, ids and icons only in a form they accept.
+const ID_TERMINAL_RE = /^\w(?:[\w-]*\w)?$/
+const ICON_TERMINAL_RE = /^[\w:-]+$/
+const UNQUOTED_TITLE_RE = /^[\w ]+$/
+const QUOTED_TITLE_RE = /^(?:"(?:[^"\\]|\\.)*"|'(?:[^'\\]|\\.)*')$/
+
+/** The syntax error Mermaid's lexer raises for an id, if any. */
+export function architectureIdError(id: string): Error | undefined {
+  return ID_TERMINAL_RE.test(id) ? undefined : syntaxError({
+    what: `Architecture id "${id}" must start and end with a letter, digit or _`,
+    expectedForm: 'letters, digits and _, with - only between them',
+    example: id.replace(/^-+|-+$/g, '') || 'api',
+  })
+}
+
+/** The syntax error Mermaid's lexer raises for an icon name, if any. */
+export function architectureIconError(icon: string): Error | undefined {
+  return ICON_TERMINAL_RE.test(icon) ? undefined : syntaxError({
+    what: `Architecture icon (${icon}) has a character an icon name cannot hold`,
+    expectedForm: 'letters, digits, _, - and : only',
+    example: '(logos:aws-lambda)',
+  })
+}
+
+/** A [title]'s content as ours reads it: one quoted string without its quotes
+ * and escapes, as Mermaid reads it; anything else as written. */
+export function architectureTitle(content: string): string {
+  if (QUOTED_TITLE_RE.test(content)) return content.slice(1, -1).replace(/\\"/g, '"').replace(/\\'/g, "'").trim()
+  return content.trim()
+}
+
+/** A title as [bracket] content Mermaid reads back: bare words and spaces, else a "…" string. */
+export function architectureTitleSource(title: string): string {
+  return UNQUOTED_TITLE_RE.test(title) ? title : `"${title.replace(/"/g, '\\"')}"`
+}
+
+/** A group or service declaration: its id, icon, title (the id when it has
+ * none) and parent, read as written. */
+export function architectureDeclaration(match: RegExpMatchArray): { id: string; icon?: string; title: string; parentId?: string } {
+  const [, id, rawIcon, content, parentId] = match
+  const icon = rawIcon?.trim() || undefined
+  const title = content === undefined ? id! : architectureTitle(content)
+  return { id: id!, ...(icon !== undefined ? { icon } : {}), title, ...(parentId !== undefined ? { parentId } : {}) }
+}
+
+export type ArchitectureTerminal = 'id' | 'icon' | 'title'
+
+/** Each id, (icon) and [title] on one statement line that ours reads but
+ * Mermaid's lexer terminals reject, with what ours reads there. */
+export function architectureTerminalRejections(statement: string): Array<{ terminal: ArchitectureTerminal; what: string }> {
+  const line = stripTrailingComment(statement.trim())
+  const rejections: Array<{ terminal: ArchitectureTerminal; what: string }> = []
+  const id = (value: string | undefined): void => {
+    if (value !== undefined && architectureIdError(value)) rejections.push({ terminal: 'id', what: `Architecture id "${value}" starts or ends with "-" and is read as written` })
+  }
+  const title = (content: string | undefined): void => {
+    if (content !== undefined && !UNQUOTED_TITLE_RE.test(content) && !QUOTED_TITLE_RE.test(content)) {
+      rejections.push({ terminal: 'title', what: `Architecture title [${content}] is neither words and spaces nor one quoted string, and is read as written` })
+    }
+  }
+  const declaration = line.match(GROUP_RE) ?? line.match(SERVICE_RE)
+  if (declaration) {
+    const [, declared, icon, content, parentId] = declaration
+    id(declared)
+    const name = icon?.trim()
+    if (name && architectureIconError(name)) rejections.push({ terminal: 'icon', what: `Architecture icon (${name}) has a character an icon name cannot hold, and is read as written` })
+    title(content)
+    id(parentId)
+    return rejections
+  }
+  const junction = line.match(JUNCTION_RE)
+  if (junction) {
+    id(junction[1])
+    id(junction[2])
+    return rejections
+  }
+  const edge = line.match(EDGE_RE)
+  if (edge) title(edge[2]!.trim().match(LABELED_ARROW_RE)?.[2])
+  return rejections
+}
 
 export function parseArchitectureDiagram(lines: string[]): ArchitectureDiagram {
   const accessibility = scanAccessibilityDirectives(lines)
   requireClosedAccessibility(accessibility)
-  lines = accessibility.familyLines
+  // Mermaid's Architecture grammar ends every statement at a `%%` comment.
+  lines = accessibility.familyLines.map(stripTrailingComment)
   if (lines.length === 0) {
     throw new Error('Empty mermaid diagram')
   }
@@ -76,10 +171,9 @@ export function parseArchitectureDiagram(lines: string[]): ArchitectureDiagram {
 
     const groupMatch = line.match(GROUP_RE)
     if (groupMatch) {
-      const id = groupMatch[1]!
-      const icon = groupMatch[2]?.trim() || undefined
-      const label = normalizeBrTags(groupMatch[3] ?? id)
-      const parentId = groupMatch[4] ?? undefined
+      const declared = architectureDeclaration(groupMatch)
+      const { id, icon, parentId } = declared
+      const label = normalizeBrTags(declared.title)
       ensureIdentifierAvailable(id, groups, services, junctions)
       const group: ArchitectureGroup = { id, label, icon, parentId, children: [] }
       ensureParentGroup(parentId, groups, line)
@@ -90,10 +184,9 @@ export function parseArchitectureDiagram(lines: string[]): ArchitectureDiagram {
 
     const serviceMatch = line.match(SERVICE_RE)
     if (serviceMatch) {
-      const id = serviceMatch[1]!
-      const icon = serviceMatch[2]?.trim() || undefined
-      const label = normalizeBrTags(groupMatchSafe(serviceMatch[3], id))
-      const parentId = serviceMatch[4] ?? undefined
+      const declared = architectureDeclaration(serviceMatch)
+      const { id, icon, parentId } = declared
+      const label = normalizeBrTags(declared.title)
       ensureIdentifierAvailable(id, groups, services, junctions)
       const service: ArchitectureService = { id, label, icon, parentId }
       ensureParentGroup(parentId, groups, line)
@@ -173,10 +266,6 @@ function parseAlignmentLine(
   return parsed.alignment
 }
 
-function groupMatchSafe(value: string | undefined, fallback: string): string {
-  return value ?? fallback
-}
-
 function ensureIdentifierAvailable(
   id: string,
   groups: Map<string, ArchitectureGroup>,
@@ -226,7 +315,7 @@ function parseArchitectureEdge(
   services: Map<string, ArchitectureService>,
   junctions: Map<string, ArchitectureJunction>,
 ): ArchitectureEdge {
-  const match = line.match(/^(\S+)\s+(.+)\s+(\S+)$/)
+  const match = line.match(EDGE_RE)
   if (!match) {
     throw syntaxError({
       what: `Invalid architecture edge: "${line}"`,
@@ -279,7 +368,7 @@ function parseEdgeOperator(token: string): Pick<ArchitectureEdge, 'label' | 'has
   if (trimmed === '<--') return { hasArrowStart: true, hasArrowEnd: false }
   if (trimmed === '--') return { hasArrowStart: false, hasArrowEnd: false }
 
-  const labelMatch = trimmed.match(/^(<)?-\[(.*)\]-(>)?$/)
+  const labelMatch = trimmed.match(LABELED_ARROW_RE)
   if (!labelMatch) {
     throw syntaxError({
       what: `Invalid architecture edge operator "${token}"`,
@@ -288,7 +377,7 @@ function parseEdgeOperator(token: string): Pick<ArchitectureEdge, 'label' | 'has
     })
   }
 
-  const label = normalizeBrTags(labelMatch[2] ?? '').trim() || undefined
+  const label = normalizeBrTags(architectureTitle(labelMatch[2]!)).trim() || undefined
   return {
     label,
     hasArrowStart: Boolean(labelMatch[1]),

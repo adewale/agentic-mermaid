@@ -3318,7 +3318,7 @@
       ]
     },
     "assertions": {
-      "expectStructured": false,
+      "expectStructured": true,
       "nodeCount": 2,
       "edgeCount": 1,
       "groupCount": 0,
@@ -3424,10 +3424,10 @@
     },
     "assertions": {
       "expectStructured": true,
-      "nodeCount": 2,
+      "nodeCount": 3,
       "edgeCount": 1,
       "groupCount": 0,
-      "minNodes": 2,
+      "minNodes": 3,
       "minEdges": 1,
       "labelsContain": [
         "A",
@@ -7394,10 +7394,10 @@
     },
     "assertions": {
       "expectStructured": true,
-      "nodeCount": 3,
+      "nodeCount": 4,
       "edgeCount": 0,
       "groupCount": 0,
-      "minNodes": 3,
+      "minNodes": 4,
       "labelsContain": [
         "Test",
         "C"
@@ -7629,10 +7629,10 @@
     },
     "assertions": {
       "expectStructured": true,
-      "nodeCount": 2,
+      "nodeCount": 3,
       "edgeCount": 1,
       "groupCount": 0,
-      "minNodes": 2,
+      "minNodes": 3,
       "minEdges": 1,
       "labelsContain": [
         "AA",
@@ -8559,26 +8559,6 @@
     }
   },
   {
-    "id": "radar-upstream-should-handle-a-radar-diagram-with-options",
-    "family": "radar",
-    "source": "radar-beta\n    ticks 10\n    showLegend false\n    graticule polygon\n    min 1\n    max 10",
-    "upstream": {
-      "repo": "mermaid-js/mermaid",
-      "files": [
-        "packages/mermaid/src/diagrams/radar/radar.spec.ts"
-      ],
-      "blocks": [
-        "packages/mermaid/src/diagrams/radar/radar.spec.ts :: should handle a radar diagram with options"
-      ]
-    },
-    "assertions": {
-      "expectStructured": false,
-      "nodeCount": 0,
-      "edgeCount": 0,
-      "groupCount": 0
-    }
-  },
-  {
     "id": "radar-upstream-should-handle-a-simple-radar-definition",
     "family": "radar",
     "source": "radar-beta\n    axis A,B,C\n    curve mycurve{1,2,3}",
@@ -9321,78 +9301,6 @@
     }
   },
   {
-    "id": "sequence-upstream-should-fail-for-malformed-json-in-participant-definition",
-    "family": "sequence",
-    "source": "sequenceDiagram\n      participant D@{ \"type: \"entity\" }\n      participant E@{ \"type\": \"dat\n      abase }",
-    "upstream": {
-      "repo": "mermaid-js/mermaid",
-      "files": [
-        "packages/mermaid/src/diagrams/sequence/sequenceDiagram.spec.js"
-      ],
-      "blocks": [
-        "packages/mermaid/src/diagrams/sequence/sequenceDiagram.spec.js :: should fail for malformed JSON in participant definition"
-      ]
-    },
-    "assertions": {
-      "expectStructured": true,
-      "nodeCount": 0,
-      "edgeCount": 0,
-      "groupCount": 0
-    }
-  },
-  {
-    "id": "sequence-upstream-should-fail-for-missing-closing-brace",
-    "family": "sequence",
-    "source": "sequenceDiagram\n      participant E@{ \"type\": \"entity\"\n      E ->> E: process",
-    "upstream": {
-      "repo": "mermaid-js/mermaid",
-      "files": [
-        "packages/mermaid/src/diagrams/sequence/sequenceDiagram.spec.js"
-      ],
-      "blocks": [
-        "packages/mermaid/src/diagrams/sequence/sequenceDiagram.spec.js :: should fail for missing closing brace"
-      ]
-    },
-    "assertions": {
-      "expectStructured": true,
-      "nodeCount": 1,
-      "edgeCount": 1,
-      "groupCount": 0,
-      "minNodes": 1,
-      "minEdges": 1,
-      "labelsContain": [
-        "E",
-        "process"
-      ]
-    }
-  },
-  {
-    "id": "sequence-upstream-should-fail-for-missing-colon-separator",
-    "family": "sequence",
-    "source": "sequenceDiagram\n      participant C@{ \"type\" \"control\" }\n      C ->> C: action",
-    "upstream": {
-      "repo": "mermaid-js/mermaid",
-      "files": [
-        "packages/mermaid/src/diagrams/sequence/sequenceDiagram.spec.js"
-      ],
-      "blocks": [
-        "packages/mermaid/src/diagrams/sequence/sequenceDiagram.spec.js :: should fail for missing colon separator"
-      ]
-    },
-    "assertions": {
-      "expectStructured": true,
-      "nodeCount": 1,
-      "edgeCount": 1,
-      "groupCount": 0,
-      "minNodes": 1,
-      "minEdges": 1,
-      "labelsContain": [
-        "C",
-        "action"
-      ]
-    }
-  },
-  {
     "id": "sequence-upstream-should-handle-a-sequencediagram-definition-with-a-accessibility-title-and-description-accd",
     "family": "sequence",
     "source": "sequenceDiagram\ntitle: Diagram Title\naccTitle: This is the title\naccDescr: Accessibility Description\nAlice->Bob:Hello Bob, how are you?",
@@ -10014,57 +9922,6 @@
         "Hello Bob, how are - you?",
         "I am good thanks!"
       ]
-    }
-  },
-  {
-    "id": "sequence-upstream-should-handle-fail-parsing-when-activating-an-inactive-participant",
-    "family": "sequence",
-    "source": "sequenceDiagram\n      participant user as End User\n      participant Server as Server\n      participant System as System\n      participant System2 as System2\n\n      user->>+Server: Test\n      user->>+Server: Test2\n      user->>System: Test\n      Server->>-user: Test\n      Server->>-user: Test2\n\n      %% The following deactivation of Server will fail\n      Server->>-user: Test3",
-    "upstream": {
-      "repo": "mermaid-js/mermaid",
-      "files": [
-        "packages/mermaid/src/diagrams/sequence/sequenceDiagram.spec.js"
-      ],
-      "blocks": [
-        "packages/mermaid/src/diagrams/sequence/sequenceDiagram.spec.js :: should handle fail parsing when activating an inactive participant"
-      ]
-    },
-    "assertions": {
-      "expectStructured": true,
-      "nodeCount": 4,
-      "edgeCount": 6,
-      "groupCount": 0,
-      "minNodes": 4,
-      "minEdges": 6,
-      "labelsContain": [
-        "End User",
-        "Server",
-        "System",
-        "System2",
-        "Test",
-        "Test2",
-        "Test3"
-      ]
-    }
-  },
-  {
-    "id": "sequence-upstream-should-handle-fail-parsing-when-alias-token-causes-conflicts-in-participant-definition",
-    "family": "sequence",
-    "source": "sequenceDiagram\n        participant SAS MyServiceWithMoreThan20Chars <br> service decription",
-    "upstream": {
-      "repo": "mermaid-js/mermaid",
-      "files": [
-        "packages/mermaid/src/diagrams/sequence/sequenceDiagram.spec.js"
-      ],
-      "blocks": [
-        "packages/mermaid/src/diagrams/sequence/sequenceDiagram.spec.js :: should handle fail parsing when alias token causes conflicts in participant definition"
-      ]
-    },
-    "assertions": {
-      "expectStructured": true,
-      "nodeCount": 0,
-      "edgeCount": 0,
-      "groupCount": 0
     }
   },
   {
@@ -11413,35 +11270,6 @@
     }
   },
   {
-    "id": "sequence-upstream-should-not-allow-sequence-numbers-to-have-decimals-to-the-thousandths-place-or-greater",
-    "family": "sequence",
-    "source": "sequenceDiagram\n      autonumber 10.001\n      Alice->Bob:Hello Bob, how are you?\n      Note right of Bob: Bob thinks\n      Bob-->Alice: I am good thanks!",
-    "upstream": {
-      "repo": "mermaid-js/mermaid",
-      "files": [
-        "packages/mermaid/src/diagrams/sequence/sequenceDiagram.spec.js"
-      ],
-      "blocks": [
-        "packages/mermaid/src/diagrams/sequence/sequenceDiagram.spec.js :: should not allow sequence numbers to have decimals to the thousandths place or greater"
-      ]
-    },
-    "assertions": {
-      "expectStructured": true,
-      "nodeCount": 3,
-      "edgeCount": 2,
-      "groupCount": 0,
-      "minNodes": 3,
-      "minEdges": 2,
-      "labelsContain": [
-        "Alice",
-        "Bob",
-        "Bob thinks",
-        "10.001. Hello Bob, how are you?",
-        "11. I am good thanks!"
-      ]
-    }
-  },
-  {
     "id": "sequence-upstream-should-not-break-existing-parsing-without-central-connections",
     "family": "sequence",
     "source": "sequenceDiagram\n        participant Alice\n        participant Bob\n        Alice ->> Bob: Normal message\n        Bob -->> Alice: Normal dotted message\n        Alice -x Bob: Normal cross message",
@@ -11563,10 +11391,10 @@
     "assertions": {
       "expectStructured": true,
       "nodeCount": 2,
-      "edgeCount": 1,
+      "edgeCount": 2,
       "groupCount": 0,
       "minNodes": 2,
-      "minEdges": 1,
+      "minEdges": 2,
       "labelsContain": [
         "Bob",
         "Alice",
@@ -12339,46 +12167,6 @@
     }
   },
   {
-    "id": "state-upstream-an-attribute-can-have-a-dot-in-the-style",
-    "family": "state",
-    "source": "stateDiagram-v2\n classDef exampleStyleClass background:#bbb,border:1.5px solid red;",
-    "upstream": {
-      "repo": "mermaid-js/mermaid",
-      "files": [
-        "packages/mermaid/src/diagrams/state/parser/state-style.spec.js"
-      ],
-      "blocks": [
-        "packages/mermaid/src/diagrams/state/parser/state-style.spec.js :: an attribute can have a dot in the style"
-      ]
-    },
-    "assertions": {
-      "expectStructured": false,
-      "nodeCount": 0,
-      "edgeCount": 0,
-      "groupCount": 0
-    }
-  },
-  {
-    "id": "state-upstream-an-attribute-can-have-a-space-in-the-style",
-    "family": "state",
-    "source": "stateDiagram-v2\n classDef exampleStyleClass background:  #bbb,border:1.5px solid red;",
-    "upstream": {
-      "repo": "mermaid-js/mermaid",
-      "files": [
-        "packages/mermaid/src/diagrams/state/parser/state-style.spec.js"
-      ],
-      "blocks": [
-        "packages/mermaid/src/diagrams/state/parser/state-style.spec.js :: an attribute can have a space in the style"
-      ]
-    },
-    "assertions": {
-      "expectStructured": false,
-      "nodeCount": 0,
-      "edgeCount": 0,
-      "groupCount": 0
-    }
-  },
-  {
     "id": "state-upstream-assemble-assemblies-state-assemble-state-assemblies",
     "family": "state",
     "source": "stateDiagram-v2\n      assemble\n      assemblies\n      state assemble\n      state assemblies",
@@ -12394,26 +12182,6 @@
     "assertions": {
       "expectStructured": false,
       "nodeCount": 2,
-      "edgeCount": 0,
-      "groupCount": 0
-    }
-  },
-  {
-    "id": "state-upstream-can-define-multiple-attributes-separated-by-commas",
-    "family": "state",
-    "source": "stateDiagram-v2\n classDef exampleClass background:#bbb, font-weight:bold, font-style:italic;",
-    "upstream": {
-      "repo": "mermaid-js/mermaid",
-      "files": [
-        "packages/mermaid/src/diagrams/state/parser/state-style.spec.js"
-      ],
-      "blocks": [
-        "packages/mermaid/src/diagrams/state/parser/state-style.spec.js :: can define multiple attributes separated by commas"
-      ]
-    },
-    "assertions": {
-      "expectStructured": false,
-      "nodeCount": 0,
       "edgeCount": 0,
       "groupCount": 0
     }
@@ -12441,26 +12209,6 @@
         "id1",
         "id2"
       ]
-    }
-  },
-  {
-    "id": "state-upstream-can-have-proto-or-constructor-as-a-class-name",
-    "family": "state",
-    "source": "stateDiagram-v2\n classDef __proto__ background:#bbb,border:1.5px solid red;\n classDef constructor background:#bbb,border:1.5px solid red;",
-    "upstream": {
-      "repo": "mermaid-js/mermaid",
-      "files": [
-        "packages/mermaid/src/diagrams/state/parser/state-style.spec.js"
-      ],
-      "blocks": [
-        "packages/mermaid/src/diagrams/state/parser/state-style.spec.js :: can have __proto__ or constructor as a class name"
-      ]
-    },
-    "assertions": {
-      "expectStructured": false,
-      "nodeCount": 0,
-      "edgeCount": 0,
-      "groupCount": 0
     }
   },
   {
@@ -12635,26 +12383,6 @@
       "labelsContain": [
         "as"
       ]
-    }
-  },
-  {
-    "id": "state-upstream-has-classdef-as-a-keyword-an-id-and-can-set-a-css-style-attribute",
-    "family": "state",
-    "source": "stateDiagram-v2\n classDef exampleClass background:#bbb;",
-    "upstream": {
-      "repo": "mermaid-js/mermaid",
-      "files": [
-        "packages/mermaid/src/diagrams/state/parser/state-style.spec.js"
-      ],
-      "blocks": [
-        "packages/mermaid/src/diagrams/state/parser/state-style.spec.js :: has \"classDef\" as a keyword, an id, and can set a css style attribute"
-      ]
-    },
-    "assertions": {
-      "expectStructured": false,
-      "nodeCount": 0,
-      "edgeCount": 0,
-      "groupCount": 0
     }
   },
   {
@@ -14612,7 +14340,7 @@
       ]
     },
     "assertions": {
-      "expectStructured": false,
+      "expectStructured": true,
       "nodeCount": 0,
       "edgeCount": 0,
       "groupCount": 1,
@@ -14904,7 +14632,7 @@
       ]
     },
     "assertions": {
-      "expectStructured": false,
+      "expectStructured": true,
       "nodeCount": 0,
       "edgeCount": 0,
       "groupCount": 1,
@@ -14925,7 +14653,7 @@
       ]
     },
     "assertions": {
-      "expectStructured": false,
+      "expectStructured": true,
       "nodeCount": 0,
       "edgeCount": 0,
       "groupCount": 1,
@@ -14946,7 +14674,7 @@
       ]
     },
     "assertions": {
-      "expectStructured": false,
+      "expectStructured": true,
       "nodeCount": 0,
       "edgeCount": 0,
       "groupCount": 1,
@@ -14967,7 +14695,7 @@
       ]
     },
     "assertions": {
-      "expectStructured": false,
+      "expectStructured": true,
       "nodeCount": 0,
       "edgeCount": 0,
       "groupCount": 1,
@@ -14988,7 +14716,7 @@
       ]
     },
     "assertions": {
-      "expectStructured": false,
+      "expectStructured": true,
       "nodeCount": 0,
       "edgeCount": 0,
       "groupCount": 1,
@@ -15009,7 +14737,7 @@
       ]
     },
     "assertions": {
-      "expectStructured": false,
+      "expectStructured": true,
       "nodeCount": 0,
       "edgeCount": 0,
       "groupCount": 1,
@@ -15030,7 +14758,7 @@
       ]
     },
     "assertions": {
-      "expectStructured": false,
+      "expectStructured": true,
       "nodeCount": 0,
       "edgeCount": 0,
       "groupCount": 1,
@@ -15051,7 +14779,7 @@
       ]
     },
     "assertions": {
-      "expectStructured": false,
+      "expectStructured": true,
       "nodeCount": 0,
       "edgeCount": 0,
       "groupCount": 1,
@@ -15072,7 +14800,7 @@
       ]
     },
     "assertions": {
-      "expectStructured": false,
+      "expectStructured": true,
       "nodeCount": 0,
       "edgeCount": 0,
       "groupCount": 1,
@@ -15093,7 +14821,7 @@
       ]
     },
     "assertions": {
-      "expectStructured": false,
+      "expectStructured": true,
       "nodeCount": 0,
       "edgeCount": 0,
       "groupCount": 1,
@@ -15114,7 +14842,7 @@
       ]
     },
     "assertions": {
-      "expectStructured": false,
+      "expectStructured": true,
       "nodeCount": 0,
       "edgeCount": 0,
       "groupCount": 1,
@@ -15135,7 +14863,7 @@
       ]
     },
     "assertions": {
-      "expectStructured": false,
+      "expectStructured": true,
       "nodeCount": 0,
       "edgeCount": 0,
       "groupCount": 1,
@@ -15156,7 +14884,7 @@
       ]
     },
     "assertions": {
-      "expectStructured": false,
+      "expectStructured": true,
       "nodeCount": 0,
       "edgeCount": 0,
       "groupCount": 1,
@@ -15177,7 +14905,7 @@
       ]
     },
     "assertions": {
-      "expectStructured": false,
+      "expectStructured": true,
       "nodeCount": 0,
       "edgeCount": 0,
       "groupCount": 1,
@@ -15198,7 +14926,7 @@
       ]
     },
     "assertions": {
-      "expectStructured": false,
+      "expectStructured": true,
       "nodeCount": 0,
       "edgeCount": 0,
       "groupCount": 1,
@@ -15219,7 +14947,7 @@
       ]
     },
     "assertions": {
-      "expectStructured": false,
+      "expectStructured": true,
       "nodeCount": 0,
       "edgeCount": 0,
       "groupCount": 1,
@@ -15240,7 +14968,7 @@
       ]
     },
     "assertions": {
-      "expectStructured": false,
+      "expectStructured": true,
       "nodeCount": 0,
       "edgeCount": 0,
       "groupCount": 1,
@@ -15261,7 +14989,7 @@
       ]
     },
     "assertions": {
-      "expectStructured": false,
+      "expectStructured": true,
       "nodeCount": 0,
       "edgeCount": 0,
       "groupCount": 1,
@@ -15282,7 +15010,7 @@
       ]
     },
     "assertions": {
-      "expectStructured": false,
+      "expectStructured": true,
       "nodeCount": 0,
       "edgeCount": 0,
       "groupCount": 1,
@@ -15303,7 +15031,7 @@
       ]
     },
     "assertions": {
-      "expectStructured": false,
+      "expectStructured": true,
       "nodeCount": 0,
       "edgeCount": 0,
       "groupCount": 1,
@@ -15324,7 +15052,7 @@
       ]
     },
     "assertions": {
-      "expectStructured": false,
+      "expectStructured": true,
       "nodeCount": 0,
       "edgeCount": 0,
       "groupCount": 1,

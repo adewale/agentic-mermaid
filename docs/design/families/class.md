@@ -63,6 +63,15 @@ belongs to the label, matching Mermaid. A
 bounded scanner locates the operator and comment boundary outside backtick IDs,
 generic parameters, and quoted cardinalities.
 
+Where a `%%` comment may appear follows Mermaid's class lexer, through one
+rule both parsers share (`classCommentStart` and `classStatement` in
+`src/class/parser.ts`). The comment consumes its line break, so Mermaid accepts
+a trailing comment only on the diagram's last statement; after `class …`, on or
+inside a namespace, and after a closing `}` it is rejected outright, and ours
+rejects the same sources. A bare `classDiagram` header with no statement is
+rejected too, as in Mermaid; `accTitle`, `accDescr` and `direction` count as
+statements.
+
 The bare-link parser rejects Mermaid-reserved unescaped endpoint tokens (`o`,
 relation keywords, and dollar-bearing IDs) instead of manufacturing native
 edges. Malformed bare labels and incomplete links now fail loudly rather than

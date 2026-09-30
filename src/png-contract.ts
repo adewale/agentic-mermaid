@@ -10,6 +10,7 @@ import {
   transformSvgAttributes,
   type SvgStartTagToken,
 } from './svg-structure.ts'
+import { deepFreeze, isPlainRecord } from './shared/plain-data.ts'
 /** Logical PNG projection policy shared by every first-party raster adapter. */
 export const PNG_DEFAULT_SCALE = 2 as const
 export const PNG_DEFAULT_FONT_FAMILY = 'Inter' as const
@@ -59,12 +60,6 @@ export interface PngOutputOptionFieldDescriptor {
   readonly description: string
   readonly schema?: Readonly<Record<string, unknown>>
   readonly runtimeValidator?: 'portablePngBackground'
-}
-
-function deepFreeze<T>(value: T): T {
-  if (typeof value !== 'object' || value === null || Object.isFrozen(value)) return value
-  for (const child of Object.values(value as Record<string, unknown>)) deepFreeze(child)
-  return Object.freeze(value)
 }
 
 const POSITIVE_NUMBER_SCHEMA = {
@@ -318,7 +313,7 @@ export function svgIntrinsicDimensions(svg: string): { readonly width: number; r
 /** Compute conservative final integer dimensions before a rasterizer allocates. */
 export function pngRasterDimensions(svg: string, output: PngRasterBudgetPolicy): PngRasterDimensions {
   const bounds = svgIntrinsicDimensions(svg)
-  if (typeof output !== 'number' && !isPlainObject(output)) {
+  if (typeof output !== 'number' && !isPlainRecord(output)) {
     throw new RangeError('PNG raster policy must be a positive scale or resolved policy object')
   }
   if (typeof output === 'number' && (!Number.isFinite(output) || output <= 0)) {
@@ -326,7 +321,7 @@ export function pngRasterDimensions(svg: string, output: PngRasterBudgetPolicy):
   }
   if (typeof output !== 'number') {
     if (typeof output.scale !== 'number' || !Number.isFinite(output.scale) || output.scale <= 0
-      || !isPlainObject(output.fitTo)
+      || !isPlainRecord(output.fitTo)
       || !['zoom', 'width', 'height'].includes(String(output.fitTo.mode))
       || typeof output.fitTo.value !== 'number' || !Number.isFinite(output.fitTo.value) || output.fitTo.value <= 0) {
       throw new RangeError('PNG raster policy must contain a positive finite scale and fitTo mode/value')
@@ -417,7 +412,7 @@ export function assertPngRasterBudget(svg: string, output: PngRasterBudgetPolicy
 
 /** Hosted pre-allocation gate layered over the substrate-neutral dimensions. */
 export function assertHostedPngRasterBudget(dimensions: PngRasterDimensions): PngRasterDimensions {
-  const admitted = isPlainObject(dimensions)
+  const admitted = isPlainRecord(dimensions)
   const width = admitted ? dimensions.width : Number.NaN
   const height = admitted ? dimensions.height : Number.NaN
   const pixels = admitted ? dimensions.pixels : Number.NaN
@@ -442,18 +437,12 @@ const BUNDLED_FONT_RESOURCES = Object.freeze(
   HOSTED_FONT_RESOURCES.map(resource => `${resource.identity.id}@${resource.identity.version}#sha256:${resource.sha256}`),
 )
 
-function isPlainObject(value: unknown): value is Record<PropertyKey, unknown> {
-  if (typeof value !== 'object' || value === null || Array.isArray(value)) return false
-  const prototype = Object.getPrototypeOf(value)
-  return prototype === Object.prototype || prototype === null
-}
-
 function assertClosedPlainObject(
   value: unknown,
   allowedFields: readonly string[],
   label: string,
 ): asserts value is Record<string, unknown> {
-  if (!isPlainObject(value)) throw new TypeError(`${label} must be a plain object`)
+  if (!isPlainRecord(value)) throw new TypeError(`${label} must be a plain object`)
   const allowed = new Set(allowedFields)
   for (const key of Reflect.ownKeys(value)) {
     if (typeof key !== 'string' || !allowed.has(key)) {

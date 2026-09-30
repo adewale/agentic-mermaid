@@ -7,7 +7,7 @@ import type {
 } from './types.ts'
 import type { ArchitectureVisualConfig } from './config.ts'
 import { ARCHITECTURE_GROUP_ICON_TITLE_OFFSET, DEFAULT_ARCHITECTURE_VISUAL } from './config.ts'
-import { ARCHITECTURE_TITLE_FONT_SIZE, ARCHITECTURE_TITLE_FONT_WEIGHT } from './layout.ts'
+import { ARCHITECTURE_TITLE_FONT_SIZE, ARCHITECTURE_TITLE_FONT_WEIGHT, edgeMidpoint } from './layout.ts'
 import type { Point, RenderContext } from '../types.ts'
 import { svgOpenTag, buildStyleBlock, resolvedColorValue, type DiagramColors } from '../theme.ts'
 import { toneOnFill } from '../color-resolver.ts'
@@ -627,37 +627,6 @@ const ARCHITECTURE_MARKERS: readonly MarkerDescriptor[] = [
     paint: ARCHITECTURE_MARKER_PAINT,
   },
 ]
-
-function edgeMidpoint(points: Point[]): Point {
-  if (points.length === 0) return { x: 0, y: 0 }
-  if (points.length === 1) return points[0]!
-
-  let total = 0
-  for (let i = 1; i < points.length; i++) {
-    total += segmentLength(points[i - 1]!, points[i]!)
-  }
-
-  let remaining = total / 2
-  for (let i = 1; i < points.length; i++) {
-    const start = points[i - 1]!
-    const end = points[i]!
-    const length = segmentLength(start, end)
-    if (remaining <= length) {
-      const ratio = length === 0 ? 0 : remaining / length
-      return {
-        x: start.x + (end.x - start.x) * ratio,
-        y: start.y + (end.y - start.y) * ratio,
-      }
-    }
-    remaining -= length
-  }
-
-  return points[points.length - 1]!
-}
-
-function segmentLength(a: Point, b: Point): number {
-  return Math.abs(b.x - a.x) + Math.abs(b.y - a.y)
-}
 
 function letterAttr(value: number): string {
   return value !== 0 ? ` letter-spacing="${value}"` : ''

@@ -103,6 +103,8 @@ This fork supports Mermaid-style source wrappers before diagram headers, includi
 
 These are merged with `options.mermaidConfig` where supported. XY chart and architecture rendering use this to honor Mermaid-compatible theme/config fields.
 
+Frontmatter is read as Mermaid reads it, with js-yaml's `JSON_SCHEMA` rules, and frontmatter that is not valid YAML rejects the diagram, as in Mermaid. `%%{init}%%` directives keep their lenient reader, because Mermaid reads them with `JSON.parse` rather than YAML.
+
 ## Showcase and editor discovery
 
 Users can discover fork features through:

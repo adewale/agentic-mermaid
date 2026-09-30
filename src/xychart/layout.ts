@@ -183,8 +183,8 @@ function layoutVertical(chart: XYChart, config: ResolvedXYChartConfig, measure: 
   }))
 
   const colorMap = chart.series.map((_, index) => index)
-  const bars = layoutVerticalBars(chart, xPoint, xPointSpacing, yScale, yRange, categoryLabels, colorMap)
-  const lines = layoutVerticalLines(chart, xPoint, yScale, categoryLabels, colorMap)
+  const bars = layoutBars(chart, xPoint, xPointSpacing, yScale, yRange, categoryLabels, colorMap, false)
+  const lines = layoutLines(chart, xPoint, yScale, categoryLabels, colorMap, false)
 
   return {
     width: totalW,
@@ -291,8 +291,8 @@ function layoutHorizontal(chart: XYChart, config: ResolvedXYChartConfig, measure
   }))
 
   const colorMap = chart.series.map((_, index) => index)
-  const bars = layoutHorizontalBars(chart, categoryPoint, categorySpacing, valueScale, yRange, categoryLabels, colorMap)
-  const lines = layoutHorizontalLines(chart, categoryPoint, valueScale, categoryLabels, colorMap)
+  const bars = layoutBars(chart, categoryPoint, categorySpacing, valueScale, yRange, categoryLabels, colorMap, true)
+  const lines = layoutLines(chart, categoryPoint, valueScale, categoryLabels, colorMap, true)
 
   return {
     width: totalW,
@@ -371,11 +371,16 @@ function fitChartTitle(title: string | undefined, config: ResolvedXYChartConfig,
   return required <= budget ? required : 0
 }
 
-function fitHorizontalAxisConfig(
+/** Fit an axis into `budget` greedily — line, labels, ticks, then title —
+ * dropping each part that no longer fits. `labelExtent` is the label band's
+ * depth across the axis: one line for a horizontal axis, the widest label
+ * for a vertical one. */
+function fitAxisConfig(
   config: ResolvedXYAxisRenderConfig,
   title: string | undefined,
   labels: string[],
   budget: number,
+  labelExtent: () => number,
 ): { config: ResolvedXYAxisRenderConfig; size: number } {
   let remaining = budget
   const fitted: ResolvedXYAxisRenderConfig = { ...config, showAxisLine: false, showLabel: false, showTick: false, showTitle: false }
@@ -384,9 +389,9 @@ function fitHorizontalAxisConfig(
     fitted.showAxisLine = true
     remaining -= config.axisLineWidth
   }
-  if (config.showLabel) {
-    const required = config.labelFontSize + config.labelPadding * 2
-    if (required <= remaining && labels.length > 0) {
+  if (config.showLabel && labels.length > 0) {
+    const required = labelExtent() + config.labelPadding * 2
+    if (required <= remaining) {
       fitted.showLabel = true
       remaining -= required
     }
@@ -404,6 +409,15 @@ function fitHorizontalAxisConfig(
   }
 
   return { config: fitted, size: budget - remaining }
+}
+
+function fitHorizontalAxisConfig(
+  config: ResolvedXYAxisRenderConfig,
+  title: string | undefined,
+  labels: string[],
+  budget: number,
+): { config: ResolvedXYAxisRenderConfig; size: number } {
+  return fitAxisConfig(config, title, labels, budget, () => config.labelFontSize)
 }
 
 function fitTopAxisConfig(
@@ -422,34 +436,7 @@ function fitVerticalAxisConfig(
   budget: number,
   measure: XYTextMeasure,
 ): { config: ResolvedXYAxisRenderConfig; size: number } {
-  let remaining = budget
-  const fitted: ResolvedXYAxisRenderConfig = { ...config, showAxisLine: false, showLabel: false, showTick: false, showTitle: false }
-
-  if (config.showAxisLine && remaining > config.axisLineWidth) {
-    fitted.showAxisLine = true
-    remaining -= config.axisLineWidth
-  }
-  if (config.showLabel && labels.length > 0) {
-    const maxLabelWidth = Math.max(...labels.map(label => measure.tick(label, config.labelFontSize)))
-    const required = maxLabelWidth + config.labelPadding * 2
-    if (required <= remaining) {
-      fitted.showLabel = true
-      remaining -= required
-    }
-  }
-  if (config.showTick && remaining >= config.tickLength) {
-    fitted.showTick = true
-    remaining -= config.tickLength
-  }
-  if (config.showTitle && title) {
-    const required = config.titleFontSize + config.titlePadding * 2
-    if (required <= remaining) {
-      fitted.showTitle = true
-      remaining -= required
-    }
-  }
-
-  return { config: fitted, size: budget - remaining }
+  return fitAxisConfig(config, title, labels, budget, () => Math.max(...labels.map(label => measure.tick(label, config.labelFontSize))))
 }
 
 function buildBottomAxisTicks<T extends string | number>(
@@ -716,27 +703,31 @@ function planBarDataLabels(
   return { dataLabels, unlabeledBars }
 }
 
-function layoutVerticalBars(
+/** Bars along the category axis: each category's band holds one bar per bar
+ * series, and a bar spans from the value baseline to its (clamped) value.
+ * `horizontal` puts the category axis on y and the value axis on x. */
+function layoutBars(
   chart: XYChart,
-  xPoint: (index: number) => number,
+  categoryPoint: (index: number) => number,
   pointSpacing: number,
-  yScale: (value: number) => number,
+  valueScale: (value: number) => number,
   valueRange: { min: number; max: number },
   labels: string[],
   colorMap: number[],
+  horizontal: boolean,
 ): PositionedBar[] {
   const barSeries = chart.series.filter(series => series.type === 'bar')
   const barCount = barSeries.length
   if (barCount === 0) return []
 
-  const usableWidth = pointSpacing * (1 - BAR_PADDING_PERCENT)
-  const barWidth = usableWidth / Math.max(1, barCount)
+  const usableBand = pointSpacing * (1 - BAR_PADDING_PERCENT)
+  const barThickness = usableBand / Math.max(1, barCount)
   const bars: PositionedBar[] = []
 
   let barSeriesIndex = 0
   let seriesArrayIndex = 0
   // Both ends clamp into the axis range, so a bar never leaves the plot.
-  const baselineY = yScale(barBaselineValue(valueRange))
+  const baseline = valueScale(barBaselineValue(valueRange))
 
   for (const series of chart.series) {
     if (series.type !== 'bar') {
@@ -744,13 +735,15 @@ function layoutVerticalBars(
       continue
     }
     for (let i = 0; i < series.data.length; i++) {
-      const x = xPoint(i) - usableWidth / 2 + barSeriesIndex * barWidth
-      const valueY = yScale(clampToAxisRange(valueRange, series.data[i]!))
+      const bandStart = categoryPoint(i) - usableBand / 2 + barSeriesIndex * barThickness
+      const value = valueScale(clampToAxisRange(valueRange, series.data[i]!))
+      const valueStart = Math.min(value, baseline)
+      const valueLength = Math.abs(baseline - value)
       bars.push({
-        x,
-        y: Math.min(valueY, baselineY),
-        width: barWidth,
-        height: Math.abs(baselineY - valueY),
+        x: horizontal ? valueStart : bandStart,
+        y: horizontal ? bandStart : valueStart,
+        width: horizontal ? valueLength : barThickness,
+        height: horizontal ? barThickness : valueLength,
         value: series.data[i]!,
         label: labels[i]!,
         seriesIndex: barSeriesIndex,
@@ -764,60 +757,15 @@ function layoutVerticalBars(
   return bars
 }
 
-function layoutHorizontalBars(
+/** One polyline per line series, a point per category at its value.
+ * `horizontal` puts the category axis on y and the value axis on x. */
+function layoutLines(
   chart: XYChart,
-  yPoint: (index: number) => number,
-  pointSpacing: number,
-  xScale: (value: number) => number,
-  valueRange: { min: number; max: number },
+  categoryPoint: (index: number) => number,
+  valueScale: (value: number) => number,
   labels: string[],
   colorMap: number[],
-): PositionedBar[] {
-  const barSeries = chart.series.filter(series => series.type === 'bar')
-  const barCount = barSeries.length
-  if (barCount === 0) return []
-
-  const usableHeight = pointSpacing * (1 - BAR_PADDING_PERCENT)
-  const barHeight = usableHeight / Math.max(1, barCount)
-  const bars: PositionedBar[] = []
-
-  let barSeriesIndex = 0
-  let seriesArrayIndex = 0
-  // Both ends clamp into the axis range, so a bar never leaves the plot.
-  const baselineX = xScale(barBaselineValue(valueRange))
-
-  for (const series of chart.series) {
-    if (series.type !== 'bar') {
-      seriesArrayIndex++
-      continue
-    }
-    for (let i = 0; i < series.data.length; i++) {
-      const y = yPoint(i) - usableHeight / 2 + barSeriesIndex * barHeight
-      const valueX = xScale(clampToAxisRange(valueRange, series.data[i]!))
-      bars.push({
-        x: Math.min(valueX, baselineX),
-        y,
-        width: Math.abs(valueX - baselineX),
-        height: barHeight,
-        value: series.data[i]!,
-        label: labels[i]!,
-        seriesIndex: barSeriesIndex,
-        colorIndex: colorMap[seriesArrayIndex]!,
-      })
-    }
-    barSeriesIndex++
-    seriesArrayIndex++
-  }
-
-  return bars
-}
-
-function layoutVerticalLines(
-  chart: XYChart,
-  xPoint: (index: number) => number,
-  yScale: (value: number) => number,
-  labels: string[],
-  colorMap: number[],
+  horizontal: boolean,
 ): PositionedLine[] {
   const lines: PositionedLine[] = []
   let lineSeriesIndex = 0
@@ -829,47 +777,17 @@ function layoutVerticalLines(
       continue
     }
     lines.push({
-      points: series.data.map((value, index) => ({
-        x: xPoint(index),
-        y: yScale(value),
-        value,
-        label: labels[index]!,
-        ...(series.pointLabels?.[index] !== undefined ? { textLabel: series.pointLabels[index] } : {}),
-      })),
-      seriesIndex: lineSeriesIndex,
-      colorIndex: colorMap[seriesArrayIndex]!,
-    })
-    lineSeriesIndex++
-    seriesArrayIndex++
-  }
-
-  return lines
-}
-
-function layoutHorizontalLines(
-  chart: XYChart,
-  yPoint: (index: number) => number,
-  xScale: (value: number) => number,
-  labels: string[],
-  colorMap: number[],
-): PositionedLine[] {
-  const lines: PositionedLine[] = []
-  let lineSeriesIndex = 0
-  let seriesArrayIndex = 0
-
-  for (const series of chart.series) {
-    if (series.type !== 'line') {
-      seriesArrayIndex++
-      continue
-    }
-    lines.push({
-      points: series.data.map((value, index) => ({
-        x: xScale(value),
-        y: yPoint(index),
-        value,
-        label: labels[index]!,
-        ...(series.pointLabels?.[index] !== undefined ? { textLabel: series.pointLabels[index] } : {}),
-      })),
+      points: series.data.map((value, index) => {
+        const category = categoryPoint(index)
+        const position = valueScale(value)
+        return {
+          x: horizontal ? position : category,
+          y: horizontal ? category : position,
+          value,
+          label: labels[index]!,
+          ...(series.pointLabels?.[index] !== undefined ? { textLabel: series.pointLabels[index] } : {}),
+        }
+      }),
       seriesIndex: lineSeriesIndex,
       colorIndex: colorMap[seriesArrayIndex]!,
     })

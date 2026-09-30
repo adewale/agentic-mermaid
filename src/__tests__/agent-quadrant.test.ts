@@ -75,12 +75,13 @@ describe('quadrant structured parse', () => {
     expect(serializeMermaid(d2)).toBe(out)
   })
 
+  // Mermaid reads `<br/>` only inside quoted text (a title runs to the end of its line).
   test('serializes parser-normalized line breaks as one Mermaid statement', () => {
     const d = quadrant(`quadrantChart
   title Reach<br/>map
-  x-axis Low<br/>reach --> High<br/>reach
-  quadrant-1 Do<br/>first
-  Quick<br/>win: [0.2, 0.8]`)
+  x-axis "Low<br/>reach" --> "High<br/>reach"
+  quadrant-1 "Do<br/>first"
+  "Quick<br/>win": [0.2, 0.8]`)
     expect(d.body).toMatchObject({
       title: 'Reach\nmap',
       xAxis: { near: 'Low\nreach', far: 'High\nreach' },
@@ -89,8 +90,9 @@ describe('quadrant structured parse', () => {
     })
     const out = serializeMermaid(d)
     expect(out).toContain('title Reach<br/>map')
-    expect(out).toContain('x-axis Low<br/>reach --> High<br/>reach')
-    expect(out).toContain('Quick<br/>win: [0.2, 0.8]')
+    expect(out).toContain('x-axis "Low<br/>reach" --> "High<br/>reach"')
+    expect(out).toContain('quadrant-1 "Do<br/>first"')
+    expect(out).toContain('"Quick<br/>win": [0.2, 0.8]')
     expect(quadrant(out).body).toEqual(d.body)
   })
 })

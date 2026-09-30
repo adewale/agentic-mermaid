@@ -32,8 +32,8 @@ function drawnText(svg: string): string {
 describe('Scene text fidelity with a break in the first word', () => {
   // Regression guard for #318: the render must not be rejected, and the words on
   // both sides of the break must still be drawn. Whether `<br>` then displays as
-  // a line break is a separate per-family display question (several of these
-  // families draw it literally today; see CONS-46), not asserted here.
+  // a line break is per context, as pinned upstream draws it; that is asserted
+  // in label-line-break-display.test.ts, not here.
   for (const [position, source] of Object.entries(sources)) {
     it(`renders ${position} without a false text-loss error`, () => {
       const drawn = drawnText(renderMermaidSVG(source))

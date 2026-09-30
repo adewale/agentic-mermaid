@@ -3,6 +3,7 @@ import type {
   GitGraphDirection, GitGraphStatement,
 } from './types.ts'
 import { scanAccessibilityDirectives } from '../shared/accessibility-directives.ts'
+import { stripTrailingComment } from '../shared/trailing-comment.ts'
 
 export class GitGraphParseError extends Error {
   constructor(message: string, readonly line?: number) { super(message); this.name = 'GitGraphParseError' }
@@ -20,7 +21,8 @@ export function parseGitGraph(source: string, options: GitGraphParseOptions = {}
   if (scanned.unclosedIndex !== undefined) {
     throw new GitGraphParseError('Unclosed accDescr block', scanned.unclosedIndex + 1)
   }
-  const lines = scanned.familyLines
+  // Mermaid's GitGraph grammar ends every statement at a `%%` comment.
+  const lines = scanned.familyLines.map(stripTrailingComment)
   const headerIndex = lines.findIndex(line => /^\s*gitgraph\b/i.test(line))
   if (headerIndex < 0) throw new GitGraphParseError('gitGraph source must start with a gitGraph header')
   const header = lines[headerIndex]!.trim().match(/^gitGraph(?:\s+(LR|TB|BT))?\s*:?[ \t]*$/i)

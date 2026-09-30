@@ -131,15 +131,17 @@ const familyFiles = Object.fromEntries(MEASURED_FAMILY_IDS.map(id => [
 
 const observedElkFamilies = MEASURED_FAMILY_IDS.filter(id => familyFiles[id].includes(elkOutput))
 if (!MEASURE_ONLY) {
-  // Pie alone needs the complete HTML5 named-reference table. Keep that data
-  // out of initial download and every other family's transfer closure.
+  // Only the families whose labels show Mermaid entity codes need the
+  // complete HTML5 named-reference table (shared/mermaid-entity-display.ts).
+  // State shares src/parser.ts with Flowchart. Keep that data out of initial
+  // download and every other family's transfer closure.
+  const entityDisplayFamilies = new Set<BrowserBuiltinFamilyId>(['pie', 'er', 'flowchart', 'state'])
   const htmlEntityOutputs = outputNames.filter(path =>
     Object.keys(metafile.outputs[path]!.inputs).some(input =>
       input.includes('entities/dist/') && input.endsWith('/generated/decode-data-html.js')))
-  if (htmlEntityOutputs.length !== 1 || !familyFiles.pie.includes(htmlEntityOutputs[0]!)
-    || initialFiles.includes(htmlEntityOutputs[0]!)
-    || BROWSER_BUILTIN_FAMILY_IDS.some(id => id !== 'pie' && familyFiles[id].includes(htmlEntityOutputs[0]!))) {
-    throw new Error('HTML5 named-reference table must load with Pie only')
+  if (htmlEntityOutputs.length !== 1 || initialFiles.includes(htmlEntityOutputs[0]!)
+    || BROWSER_BUILTIN_FAMILY_IDS.some(id => entityDisplayFamilies.has(id) !== familyFiles[id].includes(htmlEntityOutputs[0]!))) {
+    throw new Error(`HTML5 named-reference table must load with ${[...entityDisplayFamilies].join(', ')} only`)
   }
   // Source-level tests do not exercise the build-only CJS alias. Execute the
   // emitted ESM entry so a broken split decoder fails this mandatory build gate.

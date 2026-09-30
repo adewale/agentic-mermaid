@@ -209,7 +209,7 @@ describe('flowchart parser conformance safety floor (issue #36)', () => {
 
     // The multiline block (the form Mermaid's docs use) behaves like the
     // single-line form: documented shapes are modeled with native semantic geometry.
-    const multiline = verifyMermaid('flowchart TD\n  C@{\n    shape: delay,\n    label: "Wait"\n  }\n  C --> D\n')
+    const multiline = verifyMermaid('flowchart TD\n  C@{\n    shape: delay\n    label: "Wait"\n  }\n  C --> D\n')
     expect(multiline.ok).toBe(true)
     expect(multiline.warnings).not.toContainEqual(expect.objectContaining({ code: 'UNSUPPORTED_SYNTAX', syntax: 'flowchart_node_metadata' }))
     expect(multiline.warnings).not.toContainEqual(expect.objectContaining({ syntax: 'flowchart_shape_substitution' }))

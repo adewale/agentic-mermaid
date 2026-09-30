@@ -9,8 +9,13 @@ export interface StyledSegment {
   strikethrough: boolean
 }
 
+/** The formatting tags, opening or closing: <b>/<strong>, <i>/<em>, <u>,
+ * <s>/<del>, in any case. The one definition of which tags are formatting;
+ * every other tag-like text in a label is text. */
+export const FORMAT_TAG_SOURCE = '<\\/?(?:b|strong|i|em|u|s|del)\\s*>'
+/** FORMAT_TAG_SOURCE with a capture group per style. */
 const FORMAT_TAG_REGEX = /<(\/)?(?:(b|strong)|(i|em)|(u)|(s|del))\s*>/gi
-export const HAS_FORMAT_TAGS = /<\/?(?:b|strong|i|em|u|s|del)\s*>/i
+export const HAS_FORMAT_TAGS = new RegExp(FORMAT_TAG_SOURCE, 'i')
 
 /** Parse one line into styled runs. Unclosed opening tags intentionally keep
  * their style through end-of-line, matching SVG's normalized line model. */

@@ -161,6 +161,10 @@ whole-chart/point-level ops beyond the series-level set:
 
 ## Verification Expectations
 
+`verify` reports `EMPTY_DIAGRAM` only for a chart with no series, no title and
+no authored axis. As in Quadrant, a title or an axis is chart furniture Mermaid
+draws on its own, so a titled or axis-only chart is not empty.
+
 XY chart changes should keep the following layers covered:
 
 - parser tests for stable/beta headers, quoted labels, comments, and frontmatter

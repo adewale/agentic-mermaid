@@ -57,6 +57,8 @@ describe('deterministic offline Architecture Iconify registry (B11/A5)', () => {
     }
   })
 
+  // Mermaid's icon terminal rejects this name; ours reads it (verify reports
+  // architecture_icon), so the source route must escape it.
   test('escapes hostile unknown names and falls back to a bounded text badge', () => {
     const hostile = 'evil:<script-onload=alert-1>'
     const svg = renderMermaidSVG(sourceFor(hostile))

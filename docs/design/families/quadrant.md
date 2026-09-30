@@ -23,6 +23,15 @@ Faithfulness contract: malformed lines — out-of-range coordinates, missing
 brackets, unknown statements, malformed or unknown style metadata — ERROR
 LOUDLY. Nothing is silently dropped.
 
+Unquoted text follows Mermaid's quadrant lexer: point labels, axis text and
+quadrant labels may not contain `<>()[]{}|@^~`, a control character, `:`, or a
+`"` after the text begins, and such a source is rejected, as in Mermaid. Quote
+the text instead (`"A < B": [0.2, 0.4]`). Titles keep Mermaid's wider title
+rule. The typed body writes text quoted exactly when Mermaid needs the quotes,
+so a typed edit never produces source Mermaid rejects. Per-point styles are
+the one deliberate extension: Mermaid rejects `rgb()`/`hsl()`/`var()` colours
+and fractional radii that we accept (BUG-58 in [#363](https://github.com/adewale/agentic-mermaid/issues/363)).
+
 ## Per-point styling (upstream #5173)
 
 The style grammar and the precedence rule live in ONE module,

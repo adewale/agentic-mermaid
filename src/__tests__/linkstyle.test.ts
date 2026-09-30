@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'bun:test'
 import { parseMermaid } from '../parser.ts'
 import { renderMermaidSVG } from '../index.ts'
+import { parseRegisteredMermaid, serializeMermaid } from '../agent/index.ts'
 
 describe('linkStyle – parser', () => {
   it('parses linkStyle with single index', () => {
@@ -24,12 +25,15 @@ describe('linkStyle – parser', () => {
     expect(g.linkStyles.get(0)).toEqual({ stroke: '#00ff00' })
   })
 
-  // Known-difference pin BUG-36 (#363): upstream Mermaid rejects an out-of-range
-  // index; we store it with no diagnostic. When #363 decides BUG-36, this pin flips.
-  it('BUG-36 pin: an out-of-range linkStyle index is stored silently, without a diagnostic', () => {
-    const g = parseMermaid('graph TD\n  A --> B\n  linkStyle 99 stroke:#ff0000')
-    expect(g.linkStyles.get(99)).toEqual({ stroke: '#ff0000' })
-    expect(g.edges).toHaveLength(1)
+  // BUG-36: upstream's `updateLink` rejects an index past the links defined
+  // above the linkStyle line. Ours reads it and verify reports it (parser.test.ts):
+  // an index naming a link defined later styles that link, one naming no
+  // link styles nothing, and the typed serializer writes only an index that
+  // names a link, after the links.
+  it('BUG-36: a linkStyle before its link styles it; one naming no link is not written back', () => {
+    expect(parseMermaid('graph TD\n  linkStyle 0 stroke:#ff0000\n  A --> B').linkStyles.get(0)).toEqual({ stroke: '#ff0000' })
+    const parsed = parseRegisteredMermaid('flowchart TD\n  A --> B\n  linkStyle 0,99 stroke:#ff0000')
+    expect(parsed.ok && serializeMermaid(parsed.value)).toBe('flowchart TD\n  A --> B\n  linkStyle 0 stroke:#ff0000\n')
   })
 
   it('strips trailing semicolons from style values', () => {

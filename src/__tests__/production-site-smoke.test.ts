@@ -60,7 +60,7 @@ beforeAll(() => {
         return json({ families: ['flowchart'], outputFormats: ['svg'], generatedFrom: generatedFrom() })
       }
       if (url.pathname === '/examples/index.json') {
-        return json({ examples: [{ id: 'flowchart' }], richExamples: [{ id: 'rich' }], generatedFrom: generatedFrom() })
+        return json({ examples: [{ id: 'flowchart' }], richExamples: [{ id: 'rich' }], stylePaletteExamples: [{ id: 'style-palette-flowchart' }], generatedFrom: generatedFrom() })
       }
       if (url.pathname === '/.well-known/mcp.json') {
         return json({

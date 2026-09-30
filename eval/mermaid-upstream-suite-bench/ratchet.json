@@ -2,8 +2,8 @@
   "version": 1,
   "upstreamRevision": "a2d9686451df7c4644a3eeca20535bbd4c5776b0",
   "budgets": {
-    "importedCaseFloor": 746,
-    "importedBlockFloor": 756,
+    "importedCaseFloor": 742,
+    "importedBlockFloor": 752,
     "localGaps": {
       "totalBlocks": 0,
       "byReason": {},
@@ -16,8 +16,8 @@
     }
   },
   "observed": {
-    "importedCases": 754,
-    "importedBlocks": 764,
+    "importedCases": 742,
+    "importedBlocks": 752,
     "localGaps": {
       "totalBlocks": 0,
       "byReason": {},

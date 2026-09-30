@@ -1,3 +1,5 @@
+import { scanMetadataBlock } from '../shared/metadata-block-scan.ts'
+
 /**
  * Mermaid Sequence accepts semicolons in place of physical line breaks. Keep
  * this lexical boundary shared by the render and agent projections so neither
@@ -31,9 +33,6 @@ export function splitSequenceStatementLines(lines: readonly string[]): string[] 
       inAccessibilityDescription = false
     }
     let start = 0
-    let braceDepth = 0
-    let quote: '"' | "'" | null = null
-    let escaped = false
     let finished = false
     let firstHashIndex = -1
     for (let index = 0; index < line.length; index++) {
@@ -63,20 +62,11 @@ export function splitSequenceStatementLines(lines: readonly string[]): string[] 
         }
       }
       const char = line[index]!
-      if (braceDepth > 0) {
-        if (quote) {
-          if (escaped) escaped = false
-          else if (char === '\\') escaped = true
-          else if (char === quote) quote = null
-        } else if (char === '"' || char === "'") quote = char
-        else if (char === '{') braceDepth++
-        else if (char === '}') braceDepth--
-        continue
-      }
-
       if (char === '@' && line[index + 1] === '{' && /^(?:participant|actor)\b/i.test(line.slice(start, index).trimStart())) {
-        braceDepth = 1
-        index++
+        // Upstream's CONFIG lexer: the block's semicolons are metadata text,
+        // and its first `}`, quoted or not, ends it.
+        const block = scanMetadataBlock(line, index + 1, 'sequence')
+        index = block.kind === 'closed' ? block.end : block.kind === 'unclosed' ? line.length : index + 1
         continue
       }
       if (char === '#' && firstHashIndex < 0) firstHashIndex = index

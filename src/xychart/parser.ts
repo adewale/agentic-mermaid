@@ -14,6 +14,7 @@ import type {
 } from './types.ts'
 import { scanAccessibilityDirectives } from '../shared/accessibility-directives.ts'
 import { splitCssColorList } from '../shared/css-color.ts'
+import { stripTrailingComment } from '../shared/trailing-comment.ts'
 
 // ============================================================================
 // XY Chart parser
@@ -587,7 +588,9 @@ function expandXYChartStatements(lines: string[], strict: boolean): string[] {
       continue
     }
 
-    const parts = splitSemicolonStatements(line, strict)
+    // Mermaid's XYChart grammar ends a statement at a `%%` comment; only
+    // accessibility text reads it as text.
+    const parts = splitSemicolonStatements(/^acc(?:Title|Descr)\b/i.test(line) ? line : stripTrailingComment(line), strict)
     for (const part of parts) {
       statements.push(part)
       const block = part.match(/^accDescr\s*:?\s*\{(.*)$/i)
