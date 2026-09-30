@@ -9,15 +9,7 @@
       "packages/mermaid/src/diagrams/**/**Detector.ts",
       "packages/mermaid/src/config.schema.yaml",
       "https://mermaid.ai/open-source/syntax/",
-      "skills/agentic-mermaid-diagram-workflow/references/upstream/*.md",
-      "eval/mermaid-docs-corpus/corpus.json",
-      "eval/mermaid-doc-showcase/manifest.json",
-      "eval/mermaid-upstream-suite-bench/manifest.json",
-      "eval/mermaid-upstream-suite-bench/cases.json",
-      "eval/mermaid-upstream-suite-bench/exclusions.json",
-      "eval/mermaid-upstream-suite-bench/mindmap-gitgraph-f3dea583.json",
-      "eval/mermaid-gantt-bench/cases.json",
-      "eval/mermaid-gantt-bench/exclusions.json"
+      "skills/agentic-mermaid-diagram-workflow/references/upstream/*.md"
     ]
   },
   "officialSyntaxPages": {

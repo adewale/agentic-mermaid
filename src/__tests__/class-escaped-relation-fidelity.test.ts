@@ -195,7 +195,7 @@ describe('Class escaped relationship IDs', () => {
     }
   })
 
-  test('escaped two-ended/lollipop and tilde identities remain diagnosed until modeled', async () => {
+  test('escaped two-ended/lollipop, tilde, and unescaped hyphenated identities remain diagnosed until modeled', async () => {
     const diagnosed = [
       '`A B` <|--|> `C D`',
       '`A B` *..* `C D`',
@@ -208,6 +208,7 @@ describe('Class escaped relationship IDs', () => {
       '`A~B` .. C',
       'A -- `A~B`',
       'A .. `A~B`',
+      'A-B --> C',
     ]
     expect(await upstreamLinks(diagnosed)).toEqual([
       { from: 'A B', to: 'C D', lineType: 0 },
@@ -221,6 +222,7 @@ describe('Class escaped relationship IDs', () => {
       { from: 'A', to: 'C', lineType: 1 },
       { from: 'A', to: 'A', lineType: 0 },
       { from: 'A', to: 'A', lineType: 1 },
+      { from: 'A-B', to: 'C', lineType: 0 },
     ])
     for (const statement of diagnosed) {
       expect(parseClassRelationship(statement)).toBeNull()

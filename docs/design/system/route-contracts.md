@@ -771,39 +771,7 @@ shipped.
 
 The diagram above is the conceptual sketch. The **authoritative** post-ELK pass
 order is the `LAYOUT_PIPELINE` manifest in `src/layout-engine.ts` (reified per the
-layout-pass-pipeline design doc), reproduced here and kept
-in sync by `src/__tests__/layout-pass-docsync.test.ts` (regenerate with
-`UPDATE_DOCS=1 bun test src/__tests__/layout-pass-docsync.test.ts`):
-
-<!-- LAYOUT-PIPELINE:start -->
-
-1. `extractEdgesRecursively` - flatten ELK edges to absolute coords (+orthogonalize cross-hierarchy)
-2. `alignLayerNodes` - snap same-layer nodes onto a shared flow-axis line
-3. `equalizePeerNodeDimensions` - equalize peer box sizes + pack layers so symmetry is visible downstream
-4. `alignForkRejoinPeerCenters` - center fork/rejoin hubs on their peer barycenter
-5. `alignPortLanes` - slide one endpoint node so a floating-straight edge becomes port-exact (Ruegg GD15)
-6. `centerPeerBarycenters` - center peer fan-in/fan-out trunks over peer barycenters (#57/#61)
-7. `honorLinkRankDistance` - shove target sub-DAG to honor variable-length link rank distance; push ahead anything the shove lands on and rebuild blocked reconnect routes through free channels (#81)
-8. `alignLabeledSourcePort` - slide a single-outgoing labelled source onto the lane the straightener will use so the exit stays mid-port (alignPortLanes excludes labelled edges)
-9. `bundleEdgePaths` - bundle fan-out/fan-in edges into shared trunks (when mergeEdges)
-10. `markCorankFanInBundles` - re-route + mark co-ranked mixed-label fan-in spokes bundle-owned (justified symmetric-convergence bend)
-11. `clipEdgeToShape` - clip edge endpoints to real (non-rect) shape outlines
-12. `applySymmetricFanoutEmissions` - re-route small equivalent fan-outs symmetrically; mark bundle-owned
-13. `applySymmetricParallelEdgeLanes` - separate parallel edges into symmetric non-crossing lanes
-14. `applyParallelDuplicateLanes` - split exact duplicate edges into separated lanes
-15. `collapseTinyBundledHitches` - remove sub-perceptual hitches introduced by bundling
-16. `reassignBundledSiblingLabels` - re-home labels onto the correct bundled sibling segment
-17. `applyRouteContracts` - classify -> simplify -> straighten (fixed-point) -> certify; FREEZES node geometry
-18. `reanchorOffOutlineEndpoints` - re-route an edge whose endpoint dangles off a moved node onto that node's flow port (edge-only, freeze-safe)
-19. `rerouteEdgesThroughNodes` - re-route an edge left running through a node by a node-mover (honorLinkRankDistance/alignPortLanes) around the obstacle (edge-only, freeze-safe)
-20. `repairLabelsOnSharedTrunks` - re-slot a labeled edge whose pill sits on a trunk shared with another edge (label-only, freeze-safe)
-21. `repairLabelsOffOwnRoute` - re-slot a labeled edge whose pill sits off its OWN route onto it — ELK offset placement on an already-straight edge (label-only, freeze-safe)
-22. `separateEdgeLabelPills` - slide colliding edge-label pills along their own routes into clear slots — parallel/reciprocal lane labels stack at midpoints (label-only, freeze-safe)
-23. `closeRouteContracts` - re-prove settled final routes and re-certify only auditor-proven hitches; each scan monotonically removes bends (edge-only)
-24. `translateGeometryToNonNegativeOrigin` - shift whole graph to a non-negative origin (allowed after freeze)
-25. `placeStateNotes` - place state-diagram note boxes on their declared side, clear of nodes/groups/routes (state diagrams only; translate-only)
-
-<!-- LAYOUT-PIPELINE:end -->
+layout-pass-pipeline design doc); each entry carries its own one-line `doc`.
 
 ## 9. Testing strategy (per testing-best-practices)
 

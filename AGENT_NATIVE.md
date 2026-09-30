@@ -34,7 +34,7 @@ D2 has a better language than Mermaid. The Beautiful Mermaid renderer foundation
 
 ## Honest scope
 
-The checked family roster, capability states, edit policies, narrowers, and mutation operations are generated from `FamilyDescriptor`: read [`docs/project/section-a-capability-report.md`](./docs/project/section-a-capability-report.md) or `am capabilities --json`, and use `describeOps(family)` for exact operation schemas. This rationale deliberately does not copy that live inventory.
+The checked family roster, capability states, edit policies, narrowers, and mutation operations are generated from `FamilyDescriptor`: read `am capabilities --json`, and use `describeOps(family)` for exact operation schemas. This rationale deliberately does not copy that live inventory.
 
 The generated edit policy decides where typed mutation is available. For an opaque fallback, the agent's tool surface is *parse → verify → render → serialize*, not *parse → mutate → verify → serialize*. Cross-cutting edits on those bodies happen at the preserved source level (`body.source` for opaque bodies), not at the typed mutation layer. Code Mode opportunity #1 covers this for the cases where it matters.
 

@@ -1,5 +1,5 @@
 import { existsSync, readFileSync, readdirSync, writeFileSync } from 'node:fs'
-import { join, relative } from 'node:path'
+import { join } from 'node:path'
 import { BUILTIN_FAMILY_METADATA } from '../../src/agent/families.ts'
 
 export const FAMILY_QUOTA = 4
@@ -104,11 +104,6 @@ if (import.meta.main) {
     [join(import.meta.dir, 'corpus.json'), `${JSON.stringify(portfolio, null, 2)}\n`],
     [join(import.meta.dir, 'provenance.json'), `${JSON.stringify(portfolioProvenance(portfolio), null, 2)}\n`],
   ] as const
-  const check = process.argv.includes('--check')
-  for (const [path, content] of outputs) {
-    if (check) {
-      if (!existsSync(path) || readFileSync(path, 'utf8') !== content) throw new Error(`${relative(repo, path)} is stale; run bun run eval:family-portfolio`)
-    } else writeFileSync(path, content)
-  }
-  console.log(`${check ? 'Verified' : 'Wrote'} ${portfolio.length} examples (${FAMILY_QUOTA} × ${BUILTIN_FAMILY_METADATA.length} registered families)`)
+  for (const [path, content] of outputs) writeFileSync(path, content)
+  console.log(`Wrote ${portfolio.length} examples (${FAMILY_QUOTA} × ${BUILTIN_FAMILY_METADATA.length} registered families)`)
 }

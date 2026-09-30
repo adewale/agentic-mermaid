@@ -1,9 +1,6 @@
 import { afterAll, describe, expect, test } from 'bun:test'
-import { readFileSync } from 'node:fs'
-import { join } from 'node:path'
 import { asJourney, mutate, parseRegisteredMermaid, serializeMermaid, verifyMermaid } from '../agent/index.ts'
 import { parseJourneyDiagram } from '../journey/parser.ts'
-import { observeJourneyExtensionReceipt } from './journey-extension-receipt.ts'
 import { startUpstreamMermaid } from './helpers/upstream-mermaid.ts'
 
 const source = 'journey\n  A: 5: Me; B: 3: Me'
@@ -13,24 +10,6 @@ const upstream = startUpstreamMermaid()
 afterAll(() => upstream.close())
 
 describe('Journey semicolon statements are a diagnosed Agentic extension', () => {
-  test('cross-surface extension receipt stays separate from upstream-native feature claims', () => {
-    const projectRoot = join(import.meta.dir, '..', '..')
-    const receipt = JSON.parse(readFileSync(join(projectRoot, 'docs/project/agentic-extension-receipts.json'), 'utf8'))
-    expect(receipt).toEqual({ schemaVersion: 1, extensions: [observeJourneyExtensionReceipt()] })
-    const extension = receipt.extensions[0]
-    expect(extension.classification).toBe('agentic-extension')
-    expect(extension.upstreamFeatureId).toBeNull()
-    expect(extension.capabilityProjection).toBe('excluded-from-mermaid-native-features')
-    expect(extension.upstream).toMatchObject({ acceptsSource: false, parseError: true })
-    expect(extension.surfaces.agent).toMatchObject({ disposition: 'diagnosed-extension', tasks: ['A:5', 'B:3'], warningCode: 'UNSUPPORTED_SYNTAX', warningLine: 2 })
-    expect(extension.surfaces.render).toMatchObject({ disposition: 'rendered-extension', markerScores: [5, 3], taskLabelsVisible: true })
-    expect(extension.surfaces.serialize).toMatchObject({ disposition: 'portable-newline-output', tasks: ['A:5', 'B:3'], extensionWarningCleared: true })
-    expect(extension.surfaces.mutate).toMatchObject({ disposition: 'portable-newline-output', tasks: ['A:5', 'B:4'] })
-    const official = JSON.parse(readFileSync(join(projectRoot, 'docs/project/fidelity-capability-report.json'), 'utf8'))
-    expect(official.features.flatMap((feature: { caseIds: string[] }) => feature.caseIds)).not.toContain(extension.id)
-    expect(official.features.find((feature: { featureId: string }) => feature.featureId === 'official-doc:journey:section:user-journey-diagram').disposition).toBe('absent')
-  })
-
   test('pinned Mermaid 11.16 rejects a joined task line that both local parsers retain', async () => {
     const verdict = await upstream.parse(source)
     expect({ ok: verdict.ok, error: verdict.ok ? '' : verdict.error }).toEqual({ ok: false, error: expect.stringContaining('Parse error') })

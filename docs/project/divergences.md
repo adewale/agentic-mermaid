@@ -19,7 +19,7 @@ Current implementation decisions that differ from, or materially narrow, the bro
 
 ### Mutation surface is intentionally narrower than Mermaid syntax
 
-Structured mutation is exposed for every built-in renderable family, but only when that body's parser/IR/serializer/verifier can preserve the modeled semantics. The family roster, edit policies, and mutation operations are generated from `FamilyDescriptor`: read [`section-a-capability-report.md`](./section-a-capability-report.md) or `am capabilities --json` rather than a copied list here. Two family-specific notes:
+Structured mutation is exposed for every built-in renderable family, but only when that body's parser/IR/serializer/verifier can preserve the modeled semantics. The family roster, edit policies, and mutation operations are generated from `FamilyDescriptor`: read `am capabilities --json` rather than a copied list here. Two family-specific notes:
 
 - sequence (BUILD-18 — segment-preserving: participants, top-level messages, and direct-message `alt`/`opt`/`loop`/`par` fragments are typed; Note/critical/box/activate/autonumber/title plus nested or unmodeled fragment content ride along verbatim as opaque-block segments; only un-segmentable input such as an unbalanced `end` falls back to whole-body opaque);
 - architecture mutation includes group-boundary semantics.

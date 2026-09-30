@@ -14,8 +14,8 @@
 //     (sequence / class / er). Chart and list families emit ragged rows by
 //     design — asserting rectangularity there would be false, so we don't.
 //
-// See docs/layout-characterization/contact-sheet-families.md for the coverage
-// matrix and per-family layout strategies. Changes no implementation code.
+// scripts/characterization/contact-sheet-families.ts generates the coverage
+// matrix and per-family layout strategies on demand. Changes no implementation code.
 // ============================================================================
 
 import { describe, expect, it } from 'bun:test'

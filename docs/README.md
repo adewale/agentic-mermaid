@@ -13,7 +13,7 @@ This directory holds the long-form documentation. The root README is intentional
 | [`theming.md`](./theming.md) | Two-color themes, built-in themes, custom themes, Shiki import. |
 | [`style-authoring.md`](./style-authoring.md) | Style model, stack semantics, field reference, rubric, and validation commands. |
 | [`custom-style-cookbook.md`](./custom-style-cookbook.md) | Complete custom style JSON files, screenshots, schema usage, CLI commands, and the documentation-only Cupertino-, Vercel-, and Cloudflare Workers-inspired prototypes. |
-| [`design/families/style-switch-contact-sheet.html`](https://github.com/adewale/agentic-mermaid/blob/main/docs/design/families/style-switch-contact-sheet.html) | Self-contained interactive contact sheet for every registered family and every built-in Look/Palette Style resource. |
+| `design/families/style-switch-contact-sheet.html` | Self-contained interactive contact sheet for every registered family and every built-in Look/Palette Style resource; no longer committed, generate it with `bun run gallery:style-switch`. |
 | [`custom-fonts.md`](./custom-fonts.md) | How custom Styles select and resolve fonts across SVG, PNG, browser, and MCP surfaces. |
 | [`react.md`](./react.md) | Browser-safe React rendering with CSS variables. |
 | [`browser.md`](./browser.md) | Framework-neutral pre-rendering, Alpine and plain-JS adapters, the classic `<script src>` bundle, and the shipped lazy all-family browser renderer. |

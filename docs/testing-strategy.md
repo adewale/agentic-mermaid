@@ -9,11 +9,9 @@ flattering one.
 For the *definition* of "good looking" and the determinism guarantees, see
 [`quality.md`](./quality.md). For the layout/visual
 contracts, see [`layout-characterization/README.md`](./layout-characterization/README.md).
-The current measured complexity-aware and registry-derived interaction
-portfolio is specified in
+The complexity-aware and registry-derived interaction portfolio is specified in
 [`project/complexity-aware-test-portfolio-plan.md`](./project/complexity-aware-test-portfolio-plan.md);
-its immutable before and measured candidate reports live under
-`eval/test-portfolio/`.
+its measured before/candidate reports are no longer published.
 
 ## Local CI parity
 
@@ -29,8 +27,8 @@ Committed galleries and before/after sheets are dated review snapshots, not
 gates: regenerate one with its `gallery:*` command when the rendering is
 reviewed again. Where an evidence script carried a real assertion, the unit
 suite now runs it against current code (for example the issue #87 link-rank
-gaps, the palette rollout and harmony reports, and the Section B sheet, which
-is regenerated in memory and byte-compared). Committed text/JSON generated
+gaps and the Section B sheet, which is regenerated in memory and
+byte-compared). Committed text/JSON generated
 from source is refreshed with `bun run generate`, and its unit test fails when
 it is stale. There are no input-hash receipts.
 
@@ -76,8 +74,8 @@ whether it gates per-PR, and what it does *not* prove.
 families. **Tier-2** (geometric) and **Tier-3** (lint) are advisory.
 
 Alongside it sit the **contract gates**: `am capabilities --json` schema
-tests, the `agent-doc-sync` tests, and the diagram-family
-citizenship matrix. For an agent-native product the docs, schemas, CLI
+tests, the `agent-doc-sync` tests, and the behavioural
+diagram-family citizenship loop. For an agent-native product the docs, schemas, CLI
 help, and `llms.txt` *are* runtime surface (Loop 14), so they are tested
 like code, not treated as prose.
 
@@ -110,10 +108,9 @@ Chromium/server hooks cannot overlap and exhaust a constrained hosted runner. Th
 package and CI both invoke `e2e/run-browser-contracts.ts`, whose canonical file
 list also fails if any contract executes zero positive tests, while independent
 lanes run the CLI/single-binary, dist-artifact, and tarball-consumer suites.
-Broad contact-sheet rendering is periodic/triggered rather than a per-PR sweep;
-the committed citizenship manifest and pending review state remain cheap
-per-PR contracts. Structured human review is recommended for visual releases
-and remains hash-bound when recorded, but it is advisory rather than a package-publication gate.
+Broad contact-sheet rendering is periodic/triggered rather than a per-PR sweep.
+Human review is recommended for visual releases, but it is advisory rather than
+a package-publication gate.
 **Does not prove:** that a *changed* golden is an improvement — only that
 change was noticed. Judging the change still needs a human or the
 before/after harness (`eval/layout-compare`).
@@ -160,17 +157,13 @@ sources we did not write:
   `f3dea583…` compatibility revision and account for all 26/69 official spec
   blocks in a dedicated executable oracle.
 - **Official-fence corpus** (`official-fence-corpus.test.ts`) — every one of
-  the 481 official syntax fences on the 31 pinned upstream pages, matched to
-  the manifest by digest. The 331 fences of rendered families must parse to a
+  the 481 official syntax fences on the 31 pinned upstream pages named by the
+  upstream policy. The 331 fences of rendered families must parse to a
   structured body, verify, render, and keep their structural counts through
   serialize → re-parse; the 150 fences of unrendered families must be
   diagnosed `UNSUPPORTED_FAMILY` with their bytes preserved. Deviations live in
   one small expectations table (`id [ outcomes ] # reason`); a new deviation
   and an unexpected pass both fail, so the table cannot go stale.
-- **Construct fidelity cases** (`fidelity-receipts.test.ts`) — classify pinned
-  constructs per surface with semantic oracles (shapes, measured text widths,
-  marks inside the viewBox), and regenerate the shipped capability report in
-  memory. No raw-observation receipt or whole-SVG hash is committed.
 - **Grammar-based differentials** (`property-upstream-flowchart.test.ts`,
   `property-upstream-sequence.test.ts`) — recursive `fc.letrec` grammars
   generate sources that pinned upstream Mermaid 11.16 must accept; ours must

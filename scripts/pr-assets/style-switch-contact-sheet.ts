@@ -1,5 +1,5 @@
 #!/usr/bin/env bun
-import { existsSync, readFileSync, writeFileSync } from 'node:fs'
+import { writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { EDITOR_EXAMPLES } from '../../editor/examples.ts'
 import { knownBuiltinFamilies } from '../../src/agent/families.ts'
@@ -147,15 +147,6 @@ window.__styleContactSheet={data:DATA,render};</script>
 </body>
 </html>
 `
-
-if (process.argv.includes('--check')) {
-  if (!existsSync(OUTPUT) || readFileSync(OUTPUT, 'utf8') !== html) {
-    process.stderr.write(`${OUTPUT} is stale; run bun run gallery:style-switch\n`)
-    process.exit(1)
-  }
-  console.log(`Style-switch contact sheet is synchronized (${styles.length} Styles × ${examples.length} families)`)
-  process.exit(0)
-}
 
 writeFileSync(OUTPUT, html)
 console.log(`wrote ${OUTPUT} (${styles.length} Styles × ${examples.length} families)`)

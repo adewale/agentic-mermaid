@@ -1,6 +1,6 @@
 # Diagram-family citizenship ratchet
 
-Issue: #41. Status: enforced checklist + checked matrix.
+Issue: #41. Status: reviewer checklist; `src/__tests__/diagram-family-citizenship.test.ts` exercises the behavioural surfaces for every registered family.
 
 A diagram family is a **good citizen** when it is faithful before it is ubiquitous: it accounts for Mermaid's documented stable syntax, preserves the recognizable domain metaphor, and is then integrated into every runtime, documentation, agent, editor, eval, and distribution surface that teaches users or agents what Agentic Mermaid supports. Rendering is not enough: a family must be discoverable, safely editable, verifiable, represented in examples/evals, syntax-audited, and visually recognizable.
 
@@ -8,9 +8,9 @@ A diagram family is a **good citizen** when it is faithful before it is ubiquito
 
 The `FamilyDescriptor` registry in `src/agent/families.ts` is the canonical runtime authority for identity, detection, discovery metadata, and behavioral hooks. The built-in `DiagramKind` union stays closed and exhaustive; namespaced `family:<owner/name>` extensions are open and collision-checked. `BUILTIN_FAMILY_METADATA` is a frozen compatibility projection of the built-in descriptors, not a second registry. Tests project that authority into CLI capabilities, MCP/Code Mode, docs, editor examples, eval fixtures, package keywords, and generated discovery docs.
 
-The version-pinned upstream inventory lives at [`upstream-mermaid-manifest.json`](../project/upstream-mermaid-manifest.json). It records every public Mermaid family/header separately from native Agentic Mermaid support, including unsupported and inventory-only dialects. Every family owns exactly one hashed official syntax page, heading-level feature inventory, deduplicated official example inventory, and explicit introduction/deprecation accounting (`declared` or `not-declared`). Upgrade work must regenerate its provenance/hash and review the machine-readable diff before changing any native claim; an upstream header is never silently treated as Flowchart. Runtime detection imports only the generated compact family index, never the semantic corpus.
+The version-pinned upstream family index, [`src/upstream-mermaid-family-index.json`](../../src/upstream-mermaid-family-index.json), records every public Mermaid family/header separately from native Agentic Mermaid support, including unsupported and inventory-only dialects; an upstream header is never silently treated as Flowchart. On a Mermaid upgrade, update [`upstream-mermaid-policy.json`](../project/upstream-mermaid-policy.json) and rerun `bun run upstream-family-index`, which checks the policy against the installed package and rewrites the index. (The full upstream manifest and its hash inventory are no longer published.)
 
-The checked citizenship matrix lives at [`diagram-family-citizenship.matrix.json`](./diagram-family-citizenship.matrix.json). It is intentionally separate from the registry: the registry says “this family ships”; the matrix says “these citizenship surfaces are satisfied, these Mermaid/Wikipedia fidelity claims are evidenced, and these remaining gaps are tracked.” Its `mermaidSyntaxParity` cells are generated from the public [`fidelity-capability-report.json`](../project/fidelity-capability-report.json): a pinned feature without a passing native construct receipt or a named, tested security/offline divergence makes that family an explicit #248 exception. The human-readable registry-wide audit is [`mermaid-family-fidelity-audit.md`](../design/mermaid-family-fidelity-audit.md).
+The citizenship matrix and the fidelity capability report behind its `mermaidSyntaxParity` cells are no longer published. The human-readable registry-wide audit is [`mermaid-family-fidelity-audit.md`](../design/mermaid-family-fidelity-audit.md).
 
 ## Semantic correctness vs. system citizenship
 
@@ -25,7 +25,7 @@ A new family can be semantically good and still fail citizenship if an agent dis
 
 ## Checklist surfaces
 
-The matrix has one cell per family for each surface below. A cell is either `satisfied` with concrete evidence paths, or `exception` with a tracked TODO/issue reference. CI fails if a registered family is missing a row, a surface, evidence, or exception tracking.
+Review each surface below for every family; a gap is closed or tracked as a TODO/issue.
 
 | Surface | Contract |
 |---|---|
@@ -48,7 +48,7 @@ The matrix has one cell per family for each surface below. A cell is either `sat
 | `mermaidSyntaxParity` | The pinned Mermaid docs inventory is complete; every stable construct is natively semantic or a named, tested security/offline divergence. Parser acceptance alone does not satisfy this cell. |
 | `domainProperties` | Family-specific invariants/properties exist beyond “renders without throwing.” |
 | `familyVisualMetaphor` | Mermaid plus a Wikipedia/domain reference define a hallmark protected by independent geometry/semantic tests and a reviewer-visible artifact. |
-| `chartHonesty` | Every text the family draws, in every registered style, passes the pixel oracle in [`chart-honesty.md`](../design/system/chart-honesty.md): legible against its surround, on the canvas, drawn or reported by `verify`, and read the same in every style. The cell cites the `chart-honesty-text-<part>.test.ts` partition that checks the family, which the citizenship test derives from the registry. |
+| `chartHonesty` | Every text the family draws, in every registered style, passes the pixel oracle in [`chart-honesty.md`](../design/system/chart-honesty.md): legible against its surround, on the canvas, drawn or reported by `verify`, and read the same in every style. The `chart-honesty-text-<part>.test.ts` partitions check every registered family. |
 | `goldensEvidence` | Text/SVG/visual evidence exists where reviewer judgment needs artifacts. |
 | `generatedSite` | Site samples/gallery/generated docs include the family or have explicit exceptions. |
 | `distributionPackage` | Package exports/files/consumer init artifacts include the public family surface. |
@@ -74,17 +74,17 @@ XY chart proves the checklist works for an older family that was promoted after 
 - stable region citizenship is satisfied through `src/__tests__/agent-ascii-meta.test.ts`;
 - upstream-docs harvest/divergence citizenship is satisfied through the regenerated `eval/mermaid-docs-corpus/corpus.json`, executable `divergences.json` ledger, `eval/mermaid-gantt-bench/`, and the fully accounted cross-family parser/DB bench in `eval/mermaid-upstream-suite-bench/`.
 
-This is the intended ratchet shape: historical gaps are either closed or represented by a live checked cell. System-integration surfaces retain the BUILD-22 zero-exception ratchet. Syntax parity now fails closed: the receipt generator marks `mermaidSyntaxParity` as a tracked #248 exception until every pinned feature for that family has a passing native receipt or a named, tested security/offline divergence for every diagnosed case/surface, and automatically restores `satisfied` only when that condition is true.
+This is the intended ratchet shape: historical gaps are either closed or tracked.
 
 ## Review workflow
 
 When adding or changing a family:
 
-1. Add/update the built-in `FamilyDescriptor` seed first; `BUILTIN_FAMILY_METADATA` derives automatically. External families use a validated `family:<owner/name>` id and `registerFamily`. Update the pinned upstream manifest only when the upstream inventory or support classification changes.
+1. Add/update the built-in `FamilyDescriptor` seed first; `BUILTIN_FAMILY_METADATA` derives automatically. External families use a validated `family:<owner/name>` id and `registerFamily`. Update the upstream policy and rerun `bun run upstream-family-index` only when the upstream inventory or support classification changes.
 2. Add/update parser, renderer, agent body, mutation ops, verify behavior, and examples.
-3. Map the family to exactly one pinned official Mermaid syntax page. The generator accounts for all headings/examples; promote every stable construct claimed native to executable fixtures, and do not count parse-only or opaque preservation as support.
-4. Cite Mermaid and a Wikipedia/domain reference, name the family hallmark, add an independent invariant, commit a generated PNG/SVG under `docs/design/families/` as the row's `fidelity.visualArtifact`, and attach captioned renders to the PR (not new files under `docs/pr-assets/`).
-5. Update the citizenship matrix row—including `familyVisualMetaphor` and its `fidelity` record—in the same PR, and add construct receipts for the family. `mermaidSyntaxParity` is generated from those receipts and cannot be asserted by editing the matrix manually. These two surfaces cannot be deferred for a newly registered family.
-6. Add the family's `HONESTY_SAMPLES` and cite its chart-honesty partition in the `chartHonesty` cell. Fix a violation with the shared mechanisms in [`chart-honesty.md`](../design/system/chart-honesty.md), not by exempting the family.
+3. Map the family to exactly one pinned official Mermaid syntax page in the policy; `src/__tests__/official-fence-corpus.test.ts` exercises every fence on it. Promote every stable construct claimed native to executable fixtures, and do not count parse-only or opaque preservation as support.
+4. Cite Mermaid and a Wikipedia/domain reference, name the family hallmark, add an independent invariant, commit a generated PNG/SVG under `docs/design/families/`, and attach captioned renders to the PR (not new files under `docs/pr-assets/`).
+5. Add the family to `FAMILY_COUNT_FIXTURES` so the behavioural citizenship loop exercises it.
+6. Add the family's `HONESTY_SAMPLES`. Fix a violation with the shared mechanisms in [`chart-honesty.md`](../design/system/chart-honesty.md), not by exempting the family.
 7. Run `bun test src/__tests__/diagram-family-citizenship.test.ts src/__tests__/agent-doc-sync.test.ts src/__tests__/editor-examples.test.ts src/__tests__/cli-capabilities.test.ts` before wider validation.
-8. For any other matrix exception introduced by the PR, add a follow-up issue or `TODO.md` entry before merge.
+8. For any citizenship gap introduced by the PR, add a follow-up issue or `TODO.md` entry before merge.

@@ -15,7 +15,6 @@ import { MermaidFamilyDetectionError } from '../family-detection.ts'
 import { renderMermaidPNG } from '../agent/png.ts'
 import { renderMermaidPNGInBrowserWithReceipt } from '../browser-png.ts'
 import { executeInSandbox } from '../mcp/sandbox.ts'
-import { createSectionACapabilityReport } from '../section-a-capability-report.ts'
 
 const CASES = [
   {
@@ -191,15 +190,8 @@ describe('forward-compatible unregistered family envelopes', () => {
     expect(layoutMermaidWithReceipt(encoded).layout).toEqual(layoutMermaidWithReceipt(decoded).layout)
   })
 
-  test('runtime preservation and diagnostics match both capability projections', () => {
+  test('runtime preservation and diagnostics match the unregistered capability states', () => {
     const source = 'swimlane-beta\n  lane A\n'
-    const report = createSectionACapabilityReport()
-    const family = report.matrices.families.find(row => row.id === 'swimlane')!
-    const processing = report.matrices.syntax.families.find(row =>
-      row.familyId === family.id && row.dimensionId === 'processing')!
-
-    expect(family.capabilities).toEqual(UNREGISTERED_FAMILY_CAPABILITY_STATES)
-    expect(processing.processing).toEqual(UNREGISTERED_FAMILY_CAPABILITY_STATES)
     expect(UNREGISTERED_FAMILY_CAPABILITY_STATES).toMatchObject({
       detection: 'diagnosed',
       'source-preservation': 'source-preserved',

@@ -1,6 +1,4 @@
 import { describe, expect, test } from 'bun:test'
-import { createHash } from 'node:crypto'
-import { spawnSync } from 'node:child_process'
 import { writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 import {
@@ -18,20 +16,12 @@ import { ok, toFinite } from '../agent/types.ts'
 import type { ExternalFamilyId, FamilyId } from '../agent/types.ts'
 import { detectDiagramType, detectDiagramTypeFromFirstLine } from '../mermaid-source.ts'
 import { MermaidFamilyDetectionError } from '../family-detection.ts'
-import { UPSTREAM_MERMAID_FAMILY_INDEX } from '../upstream-family-index.ts'
+import { findUpstreamFamilyByHeader, UPSTREAM_MERMAID_FAMILY_INDEX } from '../upstream-family-index.ts'
 import { renderMermaidASCII, renderMermaidSVG } from '../index.ts'
 import { canonicalExtensionId, createExtensionIdentity, ExtensionCollisionError } from '../shared/extension-identity.ts'
 import { explicitFamilyConfigDiagnostics } from '../shared/family-config-diagnostics.ts'
 import { runCli } from '../cli/index.ts'
 import { captureCli } from './helpers/cli-capture.ts'
-import {
-  UPSTREAM_MERMAID_MANIFEST,
-  canonicalUpstreamInventory,
-  diffUpstreamMermaidManifests,
-  findUpstreamFamilyByHeader,
-  validateUpstreamMermaidManifest,
-  type UpstreamMermaidManifest,
-} from '../upstream-mermaid-manifest.ts'
 import { useTempDirs } from './helpers/temp-dir.ts'
 
 const temp = useTempDirs()
@@ -92,86 +82,10 @@ function syntheticFamily(localId: string, header: string): FamilyDescriptor {
   }
 }
 
-describe('pinned Mermaid public-family manifest', () => {
-  test('pins the audited family policy and watch entries', () => {
-    expect(validateUpstreamMermaidManifest()).toEqual([])
-    expect(UPSTREAM_MERMAID_MANIFEST.provenance).toMatchObject({
-      version: '11.16.0',
-      tag: 'mermaid@11.16.0',
-      commit: 'f3dea58385fd5c7dd1f4e9c9c1876751ae6943cc',
-    })
-    expect(UPSTREAM_MERMAID_MANIFEST.families.filter(family => family.source === 'external-first-party').map(family => family.id)).toEqual(['zenuml'])
-    expect(UPSTREAM_MERMAID_MANIFEST.watchEntries.map(entry => entry.id).sort()).toEqual(['error', 'frontmatter', 'info'])
-    expect(Object.values(UPSTREAM_MERMAID_MANIFEST.semanticInventory).every(entries => entries.length > 0)).toBe(true)
-    const officialArtifacts = new Set(UPSTREAM_MERMAID_MANIFEST.semanticInventory.sourceArtifacts
-      .filter(artifact => artifact.kind === 'official-doc')
-      .map(artifact => artifact.id))
-    const inventoriedFamilies = new Set(UPSTREAM_MERMAID_MANIFEST.semanticInventory.syntaxFeatures
-      .filter(feature => officialArtifacts.has(feature.artifact))
-      .flatMap(feature => feature.families))
-    const exampleFamilies = new Set(UPSTREAM_MERMAID_MANIFEST.semanticInventory.examples
-      .filter(example => example.artifacts.some(artifact => officialArtifacts.has(artifact)))
-      .map(example => example.family))
-    expect(officialArtifacts.size).toBe(UPSTREAM_MERMAID_MANIFEST.families.length)
-    expect(inventoriedFamilies).toEqual(new Set(UPSTREAM_MERMAID_MANIFEST.families.map(family => family.id)))
-    expect(exampleFamilies).toEqual(new Set(UPSTREAM_MERMAID_MANIFEST.families.map(family => family.id)))
-    expect(UPSTREAM_MERMAID_MANIFEST.families.find(family => family.id === 'sankey')?.lifecycle.introduction).toEqual({
-      status: 'declared', version: '10.3.0', evidence: 'official-title',
-    })
-    expect(UPSTREAM_MERMAID_MANIFEST.families.every(family => family.officialSyntaxPage.url.startsWith('https://mermaid.ai/open-source/syntax/'))).toBe(true)
-  })
-
-  test('the committed inventory hash covers the complete ordered inventory', () => {
-    const hash = createHash('sha256').update(canonicalUpstreamInventory()).digest('hex')
-    expect(hash).toBe(UPSTREAM_MERMAID_MANIFEST.provenance.inventorySha256)
-  })
-
-  test('runtime detection uses a compact projection instead of shipping the semantic audit corpus', () => {
-    expect(UPSTREAM_MERMAID_FAMILY_INDEX).toEqual({
-      schemaVersion: 1,
-      provenance: {
-        version: UPSTREAM_MERMAID_MANIFEST.provenance.version,
-        commit: UPSTREAM_MERMAID_MANIFEST.provenance.commit,
-        inventorySha256: UPSTREAM_MERMAID_MANIFEST.provenance.inventorySha256,
-      },
-      families: UPSTREAM_MERMAID_MANIFEST.families,
-    })
-    expect('semanticInventory' in UPSTREAM_MERMAID_FAMILY_INDEX).toBe(false)
-  })
-
-  test('the deterministic installed-package generator is fresh', () => {
-    const result = spawnSync(process.execPath, ['run', 'scripts/generate-upstream-mermaid-manifest.ts', '--check'], {
-      cwd: new URL('../..', import.meta.url),
-      encoding: 'utf8',
-    })
-    expect({ status: result.status, stderr: result.stderr }).toEqual({ status: 0, stderr: '' })
-  })
-
-  test('validation rejects forged provenance and incomplete package or semantic inventories', () => {
-    const stale = structuredClone(UPSTREAM_MERMAID_MANIFEST) as UpstreamMermaidManifest
-    stale.provenance.packageJsonSha256 = '0'.repeat(64)
-    stale.provenance.tag = 'mermaid@0.0.0'
-    stale.surfaces = stale.surfaces.slice(1)
-    stale.semanticInventory.examples = []
-    stale.semanticInventory.syntaxFeatures[0]!.families = ['invented-family']
-    ;(stale.semanticInventory.syntaxFeatures[0] as { status: string }).status = 'invented-status'
-    stale.families[0]!.officialSyntaxPage.artifact = 'missing-official-doc'
-    ;(stale.families[0]!.lifecycle.introduction as { status: string }).status = 'invented-status'
-    expect(validateUpstreamMermaidManifest(stale)).toEqual(expect.arrayContaining([
-      'provenance tag does not match version',
-      'packageJsonSha256 is invalid',
-      'surface inventory is incomplete or out of order',
-      'example inventory is empty',
-      `syntax feature ${stale.semanticInventory.syntaxFeatures[0]!.id} has invalid families`,
-      `syntax feature ${stale.semanticInventory.syntaxFeatures[0]!.id} has invalid status`,
-      `family ${stale.families[0]!.id} has invalid official syntax page`,
-      `family ${stale.families[0]!.id} has invalid lifecycle accounting`,
-    ]))
-  })
-
+describe('pinned Mermaid public-family index', () => {
   test('native header claims are exactly the headers claimed by built-in descriptors', () => {
     const nativeFamilies = new Set<string>()
-    for (const family of UPSTREAM_MERMAID_MANIFEST.families) {
+    for (const family of UPSTREAM_MERMAID_FAMILY_INDEX.families) {
       for (const header of family.headers.filter(candidate => candidate.agenticStatus === 'native')) {
         nativeFamilies.add(family.id)
         expect(detectDiagramTypeFromFirstLine(header.value)).toBe(family.id as FamilyId)
@@ -179,99 +93,11 @@ describe('pinned Mermaid public-family manifest', () => {
     }
     expect(nativeFamilies).toEqual(new Set(BUILTIN_FAMILY_METADATA.map(family => family.id)))
   })
-
-  test('upgrade diffs expose families and semantic syntax, example, config, and theme changes', () => {
-    const next = structuredClone(UPSTREAM_MERMAID_MANIFEST) as UpstreamMermaidManifest
-    next.provenance.version = '11.17.0'
-    next.families = next.families.filter(family => family.id !== 'zenuml')
-    next.families.push({
-      id: 'future', label: 'Future', source: 'core', maturity: 'beta', upstreamDetectorIds: ['future'],
-      headers: [{ value: 'future-beta', agenticStatus: 'unsupported' }],
-      officialSyntaxPage: {
-        path: 'skills/agentic-mermaid-diagram-workflow/references/upstream/future.md',
-        url: 'https://mermaid.ai/open-source/syntax/future.html',
-        artifact: 'official-doc:future',
-      },
-      lifecycle: { introduction: { status: 'not-declared' }, deprecation: { status: 'not-declared' } },
-    })
-    next.families.find(family => family.id === 'flowchart')!.headers.push({ value: 'flowchart-next', agenticStatus: 'unsupported' })
-    next.families.find(family => family.id === 'timeline')!.maturity = 'stable'
-    next.watchEntries.push({ id: 'probe', kind: 'internal', headers: ['probe'] })
-    next.surfaces.find(surface => surface.id === 'configuration')!.sha256 = 'a'.repeat(64)
-    next.semanticInventory.sourceArtifacts.find(artifact => artifact.id === 'suite-cases')!.sha256 = 'b'.repeat(64)
-    const changedSyntaxId = next.semanticInventory.syntaxFeatures[0]!.id
-    next.semanticInventory.syntaxFeatures[0]!.fingerprint = '1'.repeat(64)
-    const removedSyntaxId = next.semanticInventory.syntaxFeatures.pop()!.id
-    next.semanticInventory.syntaxFeatures.push({
-      id: 'suite-cases:future-syntax', artifact: 'suite-cases', families: ['flowchart'], status: 'executable',
-      fingerprint: 'c'.repeat(64), sourceSha256: 'd'.repeat(64),
-    })
-    const changedExampleId = next.semanticInventory.examples[0]!.id
-    next.semanticInventory.examples[0]!.sourceSha256 = '2'.repeat(64)
-    const removedExampleId = next.semanticInventory.examples.pop()!.id
-    next.semanticInventory.examples.push({
-      id: 'flowchart:syntax/flowchart.md#999', family: 'flowchart', origin: 'syntax/flowchart.md', index: 999,
-      sourceSha256: 'e'.repeat(64), artifacts: ['docs-corpus'],
-    })
-    const changedConfigId = next.semanticInventory.configKeys[0]!.id
-    next.semanticInventory.configKeys[0]!.type = 'number'
-    const removedConfigId = next.semanticInventory.configKeys.pop()!.id
-    next.semanticInventory.configKeys.push({ id: 'future.enabled', type: 'boolean', optional: true })
-    const changedThemeId = next.semanticInventory.themeVariables[0]!.id
-    next.semanticInventory.themeVariables[0]!.defaultSha256 = '3'.repeat(64)
-    const removedThemeId = next.semanticInventory.themeVariables.pop()!.id
-    next.semanticInventory.themeVariables.push({ id: 'futureAccent', type: 'string', defaultSha256: 'f'.repeat(64) })
-
-    expect(diffUpstreamMermaidManifests(UPSTREAM_MERMAID_MANIFEST, UPSTREAM_MERMAID_MANIFEST)).toEqual({
-      fromVersion: '11.16.0', toVersion: '11.16.0',
-      addedFamilies: [], removedFamilies: [], changedFamilies: [],
-      addedWatchEntries: [], removedWatchEntries: [], changedWatchEntries: [],
-      addedSurfaces: [], removedSurfaces: [], changedSurfaces: [],
-      addedSemanticSources: [], removedSemanticSources: [], changedSemanticSources: [],
-      addedSyntaxFeatures: [], removedSyntaxFeatures: [], changedSyntaxFeatures: [],
-      addedExamples: [], removedExamples: [], changedExamples: [],
-      addedConfigKeys: [], removedConfigKeys: [], changedConfigKeys: [],
-      addedThemeVariables: [], removedThemeVariables: [], changedThemeVariables: [],
-    })
-    const diff = diffUpstreamMermaidManifests(UPSTREAM_MERMAID_MANIFEST, next)
-    expect(diff).toMatchObject({
-      fromVersion: '11.16.0', toVersion: '11.17.0',
-      addedFamilies: ['future'], removedFamilies: ['zenuml'], addedWatchEntries: ['probe'],
-    })
-    expect(diff.changedFamilies).toEqual([
-      { id: 'flowchart', fields: ['headers'] },
-      { id: 'timeline', fields: ['maturity'] },
-    ])
-    expect(diff.changedSurfaces).toEqual([{ id: 'configuration', fields: ['sha256'] }])
-    expect(diff.changedSemanticSources).toEqual([{ id: 'suite-cases', fields: ['sha256'] }])
-    expect(diff.addedSyntaxFeatures).toEqual(['suite-cases:future-syntax'])
-    expect(diff.removedSyntaxFeatures).toEqual([removedSyntaxId])
-    expect(diff.changedSyntaxFeatures).toEqual([{ id: changedSyntaxId, fields: ['fingerprint'] }])
-    expect(diff.addedExamples).toEqual(['flowchart:syntax/flowchart.md#999'])
-    expect(diff.removedExamples).toEqual([removedExampleId])
-    expect(diff.changedExamples).toEqual([{ id: changedExampleId, fields: ['sourceSha256'] }])
-    expect(diff.addedConfigKeys).toEqual(['future.enabled'])
-    expect(diff.removedConfigKeys).toEqual([removedConfigId])
-    expect(diff.changedConfigKeys).toEqual([{ id: changedConfigId, fields: ['type'] }])
-    expect(diff.addedThemeVariables).toEqual(['futureAccent'])
-    expect(diff.removedThemeVariables).toEqual([removedThemeId])
-    expect(diff.changedThemeVariables).toEqual([{ id: changedThemeId, fields: ['defaultSha256'] }])
-  })
-
-  test('diff identifiers use Unicode code-point order rather than UTF-16 order', () => {
-    const next = structuredClone(UPSTREAM_MERMAID_MANIFEST)
-    next.semanticInventory.configKeys.push(
-      { id: '\u{10000}', type: 'string', optional: true },
-      { id: '\uE000', type: 'string', optional: true },
-    )
-    expect(diffUpstreamMermaidManifests(UPSTREAM_MERMAID_MANIFEST, next).addedConfigKeys)
-      .toEqual(['\uE000', '\u{10000}'])
-  })
 })
 
 describe('forward-compatible family classification', () => {
   test('every official unsupported dialect is classified and never routed to Flowchart', () => {
-    const unsupported = UPSTREAM_MERMAID_MANIFEST.families.flatMap(family =>
+    const unsupported = UPSTREAM_MERMAID_FAMILY_INDEX.families.flatMap(family =>
       family.headers
         .filter(header => header.agenticStatus !== 'native')
         .map(header => ({ family, header })))

@@ -17,13 +17,13 @@ That is necessary, but not sufficient for this repo. Agentic Mermaid also needs 
 
 - Verify the diagram is already supported by Mermaid.
 - Verify it is not already represented by a `FamilyDescriptor` in `src/agent/families.ts`.
-- Reconcile the target with the version-pinned [`upstream-mermaid-manifest.json`](../project/upstream-mermaid-manifest.json). Map it to one official syntax page; the generator must account for every page, heading, example, lifecycle declaration, core detector, and first-party external family. Regenerate provenance/hash and review the upgrade diff if the pin changed; presence in this inventory is never a native-support claim.
+- Reconcile the target with the version-pinned [`upstream-mermaid-policy.json`](../project/upstream-mermaid-policy.json): map it to one official syntax page and mark its headers `native`, then rerun `bun run upstream-family-index`. Presence in the upstream inventory is never a native-support claim.
 - Add a built-in `FamilyDescriptor` seed in `src/agent/families.ts` first. The reviewer-facing `BUILTIN_FAMILY_METADATA` list is a derived compatibility projection with compile-time coverage against the closed `DiagramKind` union. Host extensions instead use a collision-checked `family:<owner/name>` identity and `registerFamily`.
-- Update the [diagram-family citizenship matrix](./diagram-family-citizenship.md) in the same PR: every manually owned citizenship surface must be marked `satisfied` with evidence or `exception` with a tracked follow-up. Add construct receipts for syntax claims; the generator owns `mermaidSyntaxParity` and fails it closed until all pinned family features are native or carry a narrowly validated, named security/offline divergence.
+- Walk the [diagram-family citizenship checklist](./diagram-family-citizenship.md) in the same PR: every citizenship surface is satisfied or has a tracked follow-up.
 - Prefer Mermaid's stable header if Mermaid supports both stable and beta forms.
 - Pin the Mermaid version and syntax page being implemented. Inventory every stable documented construct before coding; parser acceptance or source preservation alone does not count as rendered support.
 - Choose a Wikipedia/domain reference for the diagram form and write one sentence naming its recognizable visual hallmark (for example, a Mindmap has a central idea with radiating hierarchy).
-- Record both in [`mermaid-family-fidelity-audit.md`](../design/mermaid-family-fidelity-audit.md), executable construct receipts, and the matrix's `familyVisualMetaphor` cell. The receipt generator owns `mermaidSyntaxParity`. A missing stable Mermaid construct blocks registration unless it is an unavoidable security/offline divergence with a named diagnostic and executable test.
+- Record both in [`mermaid-family-fidelity-audit.md`](../design/mermaid-family-fidelity-audit.md), backed by executable tests. A missing stable Mermaid construct blocks registration unless it is an unavoidable security/offline divergence with a named diagnostic and executable test.
 
 ## 2. Start From Mermaid's Own Example
 
@@ -79,9 +79,9 @@ Before merge, verify that the new diagram is **syntax-complete** for the pinned 
 Before merge, verify that it is **Visual-metaphor complete**:
 
 - Mermaid's rendered example and a Wikipedia/domain reference are both cited;
-- the family's recognizable hallmark is stated in the matrix (central idea for Mindmap, lifelines for Sequence, time-scaled bars for Gantt, and so on);
+- the family's recognizable hallmark is stated in the fidelity audit (central idea for Mindmap, lifelines for Sequence, time-scaled bars for Gantt, and so on);
 - at least one independent semantic/geometry assertion proves that hallmark rather than snapshotting implementation bytes;
-- a representative generated PNG/SVG is committed under `docs/design/families/` as the matrix row's `fidelity.visualArtifact` (the committed visual the citizenship test requires), and captioned renders are attached to the PR;
+- a representative generated PNG/SVG is committed under `docs/design/families/`, and captioned renders are attached to the PR;
 - SVG and terminal output are reviewed separately: surface availability does not prove visual fidelity.
 
 See [`mermaid-family-fidelity-audit.md`](../design/mermaid-family-fidelity-audit.md) for the current registry-derived standard.
@@ -100,8 +100,8 @@ New diagram support should normally include most of these layers:
 - Regression tests for easy-to-break behavior such as ordering, escaping, markers, label normalization, or routing
 - Sample coverage in `scripts/site/samples-data.ts` when the feature should appear on the visual samples page
 - Live editor coverage in `editor/js/examples.js`: add one basic example under the `Supported diagrams` category, add an explicit picker glyph, and let `src/__tests__/editor-examples.test.ts` prove it parses and renders. This is required for every registered built-in family, not just marketing-worthy ones.
-- Citizenship matrix coverage in `docs/contributing/diagram-family-citizenship.matrix.json`, including `mermaidSyntaxParity` and `familyVisualMetaphor` evidence: pinned Mermaid docs/upstream harvest, a Wikipedia/domain reference, a named signature, an independent invariant test, and a committed renderer artifact.
-- Chart-honesty samples in `HONESTY_SAMPLES` (`src/__tests__/helpers/chart-honesty.ts`; the family does not typecheck without them): long titles, long group titles, authored fills, labels on data marks, text declared after first use, and a frontmatter `title:` the family must draw. The registry-partitioned pixel tests then hold every text the family draws, in every style, to the [chart-honesty contract](../design/system/chart-honesty.md): legible against its surround, on the canvas, drawn or reported by `verify`, and read the same in every style. Build on the shared mechanisms that doc lists (theme tones, `legibleInk`, halos, the shared title band, style-aware measurement) rather than patching one family, and cite the partition file in the matrix's `chartHonesty` cell.
+- Syntax-parity and visual-metaphor evidence: pinned Mermaid docs/upstream harvest, a Wikipedia/domain reference, a named signature, an independent invariant test, and a committed renderer artifact.
+- Chart-honesty samples in `HONESTY_SAMPLES` (`src/__tests__/helpers/chart-honesty.ts`; the family does not typecheck without them): long titles, long group titles, authored fills, labels on data marks, text declared after first use, and a frontmatter `title:` the family must draw. The registry-partitioned pixel tests then hold every text the family draws, in every style, to the [chart-honesty contract](../design/system/chart-honesty.md): legible against its surround, on the canvas, drawn or reported by `verify`, and read the same in every style. Build on the shared mechanisms that doc lists (theme tones, `legibleInk`, halos, the shared title band, style-aware measurement) rather than patching one family.
 - README updates for the new supported diagram type and any intentional compatibility gaps
 
 Use the existing naming pattern where possible:
@@ -124,7 +124,6 @@ Run the checks that fit the change:
 - `bun run typecheck`
 - `bun test src/__tests__/ascii.test.ts` if you added or changed ASCII/Unicode fixtures
 - `bun run build`
-- `bun test src/__tests__/characterization-generated-artifacts.test.ts` if you added or changed characterization output
 - `bun run bench` if the diagram type adds meaningful layout or rendering cost
 
 ## 7. Agent-Native Typed Mutation (Required)
@@ -135,9 +134,8 @@ Typed mutation is part of the definition of done for a new family, not a follow-
 - Body + op types in `src/agent/types.ts` (e.g. `PieBody`, `PieMutationOp`), added to the `DiagramBody`, `AnyMutationOp`, and `MutableValidDiagram` unions, plus a narrower `as<Type>` and its `<Type>ValidDiagram` alias.
 - Structured hooks registered in `src/agent/families-builtin.ts` (replace any source-level-only registration), the narrower exported from `src/agent/index.ts`, and a `mutate` overload in `src/agent/mutate.ts`.
 - One complete `FamilyDescriptor`, including its operation schemas, capability
-  evidence, example, and hooks. Run the family/SDK/report generators; CLI,
-  Code Mode, MCP discovery, the capability report, and SDK declarations are
-  projections of that descriptor. Add hand-written prose only for genuinely
+  evidence, example, and hooks. Run the family/SDK generators; CLI, Code Mode,
+  MCP discovery, and SDK declarations are projections of that descriptor. Add hand-written prose only for genuinely
   family-specific semantics, plus editor and benchmark examples where useful;
   do not copy the roster or operation menu into another table.
 - Tests: parse/narrow/mutate/verify/serialize, structured-or-opaque fallback cases (table-driven sad paths), a fast-check round-trip property test, and a differential test against the legacy renderer parser proving the canonical source you emit re-parses identically.

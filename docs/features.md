@@ -26,12 +26,8 @@ What Agentic Mermaid can do, organized by capability area. The npm import paths 
 The canonical `FamilyDescriptor` registry owns headers, discovery, examples,
 operations, rendering hooks, positioned projections, semantic roles, and
 capability evidence. Run `am capabilities --json` for the current roster and
-per-family operation shapes. The generated Section A matrix is repository
-tooling, not part of `am capabilities`; it records native, source-preserved,
-diagnosed, and not-applicable capabilities without a copied table. `absent`
-belongs to the validation vocabulary but is rejected from the shipped syntax
-ledger:
-[`project/section-a-capability-report.md`](./project/section-a-capability-report.md).
+per-family operation shapes. (The Section A capability report is no longer
+published.)
 
 **Structured-or-opaque rule:** every family either has a structured body
 or preserves source verbatim. Constructs are never silently dropped.

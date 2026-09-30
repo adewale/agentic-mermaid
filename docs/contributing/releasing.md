@@ -112,13 +112,9 @@ client-side exact-identity check.
 
 ### Optional visual review
 
-For releases with visual changes, generate the citizenship sheet with
-`bun run contact:sheet:test-portfolio --kind citizenship --output-dir eval/test-portfolio/contact-sheets`
-and inspect affected/high-risk cells at native size. The structured
-`citizenship-review.json` record and `bun run contact:sheet:test-portfolio:review`
-remain available when a reviewer wants hash-bound evidence, but they are advisory
-and do not block package publication. Never invent reviewer identity, duration,
-row IDs, or findings.
+For releases with visual changes, inspect the affected renders at native size.
+This review is advisory and does not block package publication. Never invent
+reviewer identity, duration, or findings.
 
 ## The "published" flip
 

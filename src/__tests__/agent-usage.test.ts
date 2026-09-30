@@ -365,22 +365,13 @@ describe('stored agent-usage eval', () => {
     }
   })
 
-  test('default Code Mode transcripts pass task and trace checks and meet baseline.json', async () => {
-    const baseline = JSON.parse(readFileSync(join(REPO, 'eval/agent-usage/baseline.json'), 'utf8')) as {
-      total: number
-      minPassed: number
-      minSafePathRate: number
-      minStructuredPathRate: number
-    }
+  test('default Code Mode transcripts pass task and trace checks', async () => {
     const summary = await runAgentUsageEval()
     expect(summary.ok).toBe(true)
+    expect(summary.total).toBe(18)
     expect(summary.passed).toBe(summary.total)
     expect(summary.safePathRate).toBe(1)
     expect(summary.structuredPathRate).toBe(1)
-    expect(summary.total).toBe(baseline.total)
-    expect(summary.passed).toBeGreaterThanOrEqual(baseline.minPassed)
-    expect(summary.safePathRate).toBeGreaterThanOrEqual(baseline.minSafePathRate)
-    expect(summary.structuredPathRate).toBeGreaterThanOrEqual(baseline.minStructuredPathRate)
   })
 
   test('new-diagram source authoring passes without structured mutation', async () => {

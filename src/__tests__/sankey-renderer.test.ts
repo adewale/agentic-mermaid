@@ -115,6 +115,17 @@ describe('sankey SVG renderer · config wiring', () => {
     expect(verifyNoExternalRefs(svg)).toEqual({ ok: true, refs: [] })
   })
 
+  test('each gradient runs from its ribbon source end to its target end', () => {
+    const svg = renderMermaidSVG(BASIC)
+    const gradients = new Map([...svg.matchAll(/<linearGradient id="([^"]+)" gradientUnits="userSpaceOnUse" x1="([^"]+)" y1="([^"]+)" x2="([^"]+)" y2="([^"]+)">/g)]
+      .map(m => [m[1]!, [m[2], m[3], m[4], m[5]].map(Number)]))
+    const ribbons = [...svg.matchAll(/<path class="sankey-link" d="M (\S+) (\S+) C [^"]*, (\S+) (\S+)" [^>]*stroke="url\(#([^)]+)\)"/g)]
+    expect(ribbons).toHaveLength(4)
+    for (const [, sx, sy, tx, ty, id] of ribbons) {
+      expect(gradients.get(id!)).toEqual([sx, sy, tx, ty].map(Number))
+    }
+  })
+
   test('gradient resources and references are namespaced together', () => {
     const svg = renderMermaidSVG(BASIC, { idPrefix: 'diagram-7-' })
     expect(svg).toContain('id="diagram-7-sankey-gradient-1"')

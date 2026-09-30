@@ -4,7 +4,7 @@ Agentic Mermaid supports Mermaid's common diagram families through a split pipel
 
 ## Capability authority
 
-The checked roster and per-family capability states are generated from `FamilyDescriptor` in the [Section A capability report](./project/section-a-capability-report.md). Agents can discover the live roster and operation shapes through `am capabilities --json`. Library and Code Mode callers can use `describeOps(family)` for the exact mutation schema. This guide keeps examples and family-specific caveats, not a second inventory.
+The roster and per-family capability states come from the `FamilyDescriptor` registry. Agents can discover the live roster and operation shapes through `am capabilities --json`. Library and Code Mode callers can use `describeOps(family)` for the exact mutation schema. This guide keeps examples and family-specific caveats, not a second inventory.
 
 Opaque fallback preserves source without claiming native semantics. Some bodies can still render; for XY Chart, unknown nonblank statements now fail verification/rendering rather than producing a plausible partial diagram. Other families have their own documented dispositions. Agents should edit preserved source deliberately instead of calling `mutate`.
 

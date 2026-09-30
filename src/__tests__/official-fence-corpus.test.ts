@@ -19,10 +19,9 @@ import {
 } from '../agent/index.ts'
 import { countStructuralElements, countsEqual } from '../agent/structural-count.ts'
 import { compareCodePointStrings } from '../shared/deterministic-order.ts'
-import { UPSTREAM_MERMAID_MANIFEST } from '../upstream-mermaid-manifest.ts'
-import { extractMermaidFences, sha256 } from './fidelity/case-helpers.ts'
 
 const ROOT = join(import.meta.dir, '..', '..')
+const UPSTREAM_DOCS = join(ROOT, 'skills', 'agentic-mermaid-diagram-workflow', 'references', 'upstream')
 
 /** Outcomes that deviate from the default rule, named per observation. */
 const REGISTERED_DEVIATIONS = [
@@ -45,7 +44,7 @@ type Deviation = (typeof REGISTERED_DEVIATIONS)[number] | (typeof UNSUPPORTED_DE
 /** Diagnostics that mean the parser did not understand authored syntax. */
 const SYNTAX_LOSS = new Set(['UNSUPPORTED_SYNTAX', 'CONTENT_DROPPED_ON_ROUNDTRIP', 'UNKNOWN_SHAPE'])
 
-// `<manifest example id> [ <deviations> ] # <reason>`. Only deviations are
+// `<fence id> [ <deviations> ] # <reason>`. Only deviations are
 // listed: registered families default to [ Pass ], unsupported families to a
 // diagnosed UNSUPPORTED_FAMILY. Remove a line when its fence starts passing.
 const EXPECTATIONS = `
@@ -115,24 +114,26 @@ interface OfficialFence {
   source: string
 }
 
-const officialPages = UPSTREAM_MERMAID_MANIFEST.semanticInventory.sourceArtifacts
-  .filter(artifact => artifact.kind === 'official-doc')
+/** The reviewed family -> official syntax page mapping. */
+const officialPages = Object.entries((JSON.parse(readFileSync(join(ROOT, 'docs', 'project', 'upstream-mermaid-policy.json'), 'utf8')) as {
+  officialSyntaxPages: Record<string, string>
+}).officialSyntaxPages)
 
-/** Extract fences independently of the manifest, then name them the way the
- * manifest generator does: `<family>:official-syntax/<page>#<index>`. */
-function extractOfficialCorpus(): { fences: OfficialFence[]; digests: Map<string, string> } {
-  const fences: OfficialFence[] = []
-  const digests = new Map<string, string>()
-  for (const page of officialPages) {
-    const family = page.id.replace(/^official-doc:/, '')
-    const file = page.path.split('/').at(-1)!
-    for (const [index, source] of extractMermaidFences(readFileSync(join(ROOT, page.path), 'utf8')).entries()) {
-      const id = `${family}:official-syntax/${file}#${index}`
-      fences.push({ id, family, source })
-      digests.set(id, sha256(source))
-    }
+/** Distinct Mermaid fences of a markdown page in first-occurrence order. */
+function extractMermaidFences(markdown: string): string[] {
+  const sources: string[] = []
+  for (const match of markdown.matchAll(/^```mermaid(?:-example)?[^\S\r\n]*\r?\n([\s\S]*?)\r?\n```[^\S\r\n]*$/gm)) {
+    const source = match[1]!.trim()
+    if (source && !sources.includes(source)) sources.push(source)
   }
-  return { fences, digests }
+  return sources
+}
+
+/** Every fence, named `<family>:official-syntax/<page>#<index>`. */
+function extractOfficialCorpus(): OfficialFence[] {
+  return officialPages.flatMap(([family, file]) =>
+    extractMermaidFences(readFileSync(join(UPSTREAM_DOCS, file), 'utf8'))
+      .map((source, index) => ({ id: `${family}:official-syntax/${file}#${index}`, family, source })))
 }
 
 function deviationsOf(fence: OfficialFence): Deviation[] {
@@ -174,14 +175,12 @@ function deviationsOf(fence: OfficialFence): Deviation[] {
 
 const expectations = parseExpectations(EXPECTATIONS)
 const corpus = extractOfficialCorpus()
-const manifestOfficialExamples = UPSTREAM_MERMAID_MANIFEST.semanticInventory.examples
-  .filter(example => example.origin.startsWith('official-syntax/'))
 
 // Bounded groups keep each test far below the per-test timeout, even when the
 // suite runs files in parallel.
 const GROUP_SIZE = 40
-const groups = [...new Set(corpus.fences.map(fence => fence.family))].sort(compareCodePointStrings).flatMap(family => {
-  const fences = corpus.fences.filter(fence => fence.family === family)
+const groups = [...new Set(corpus.map(fence => fence.family))].sort(compareCodePointStrings).flatMap(family => {
+  const fences = corpus.filter(fence => fence.family === family)
   return Array.from({ length: Math.ceil(fences.length / GROUP_SIZE) }, (_, chunk) => ({
     label: fences.length > GROUP_SIZE ? `${family} ${chunk * GROUP_SIZE + 1}-${Math.min(fences.length, (chunk + 1) * GROUP_SIZE)}` : family,
     fences: fences.slice(chunk * GROUP_SIZE, (chunk + 1) * GROUP_SIZE),
@@ -189,20 +188,8 @@ const groups = [...new Set(corpus.fences.map(fence => fence.family))].sort(compa
 })
 
 describe('official Mermaid syntax fence corpus', () => {
-  test('extraction finds exactly the manifest official-syntax examples', () => {
-    const pageDrift = officialPages
-      .filter(page => sha256(readFileSync(join(ROOT, page.path), 'utf8')) !== page.sha256)
-      .map(page => page.path)
-    expect(pageDrift).toEqual([])
-    const extracted = [...corpus.digests.entries()].map(([id, digest]) => `${id} ${digest}`).sort(compareCodePointStrings)
-    const manifest = manifestOfficialExamples.map(example => `${example.id} ${example.sourceSha256}`).sort(compareCodePointStrings)
-    expect(extracted).toEqual(manifest)
-    const families = new Map(manifestOfficialExamples.map(example => [example.id, example.family]))
-    expect(corpus.fences.filter(fence => families.get(fence.id) !== fence.family).map(fence => fence.id)).toEqual([])
-  })
-
   test('every expectation names a corpus fence with outcomes its family can produce', () => {
-    const families = new Map(corpus.fences.map(fence => [fence.id, fence.family]))
+    const families = new Map(corpus.map(fence => [fence.id, fence.family]))
     const invalid = [...expectations.entries()].flatMap(([id, expectation]) => {
       const family = families.get(id)
       if (family === undefined) return [`${id}: not an official fence`]

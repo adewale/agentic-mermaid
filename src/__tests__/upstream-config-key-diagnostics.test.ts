@@ -1,7 +1,7 @@
-// Config diagnostics must tell the truth about Mermaid's own keys. Every key in
-// the pinned upstream config inventory is official, so a diagnostic may call it
-// ineffective (the renderer ignores it) or invalid (wrong value type), but never
-// unknown or undocumented. Before this suite 17 official keys across sequence,
+// Config diagnostics must tell the truth about Mermaid's own keys. Every key of
+// the pinned package's MermaidConfig type is official, so a diagnostic may call
+// it ineffective (the renderer ignores it) or invalid (wrong value type), but
+// never unknown or undocumented. Before this suite 17 official keys across sequence,
 // xychart, gantt, mindmap, and gitgraph were reported as possible misspellings.
 import { describe, expect, it } from 'bun:test'
 import fc from 'fast-check'
@@ -10,11 +10,11 @@ import { BUILTIN_FAMILY_METADATA } from '../agent/families.ts'
 import { getInstalledFamilyDescriptor } from '../agent/family-router.ts'
 import type { DiagramKind } from '../agent/types.ts'
 import { familyConfigDiagnostics } from '../shared/family-config-diagnostics.ts'
-import { UPSTREAM_MERMAID_MANIFEST } from '../upstream-mermaid-manifest.ts'
+import { mermaidConfigKeys } from './helpers/mermaid-config-keys.ts'
 
 const MISSPELLING = /unknown|documented [a-z-]+ field/
 
-const CONFIG_KEYS = UPSTREAM_MERMAID_MANIFEST.semanticInventory.configKeys
+const CONFIG_KEYS = mermaidConfigKeys()
 
 /** A value of the key's declared type, so only the key itself can be faulted. */
 function sampleValue(type: string): unknown {

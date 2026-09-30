@@ -176,10 +176,9 @@ Rules:
 
 ## Supported diagram families
 
-Family support and its executable evidence are projected from the
-`FamilyDescriptor` registry into the generated
-[Section A capability report](https://github.com/adewale/agentic-mermaid/blob/main/docs/project/section-a-capability-report.md).
-See [diagram families](./docs/diagram-families.md) for syntax examples and
+Family support is projected from the `FamilyDescriptor` registry; run
+`am capabilities --json` for the live roster. (The Section A capability report
+is no longer published.) See [diagram families](./docs/diagram-families.md) for syntax examples and
 compatibility notes.
 
 ## More documentation

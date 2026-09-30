@@ -11,9 +11,8 @@ Agentic Mermaid exposes these library surfaces:
   surface without the native PNG dependency; use this entry in browser and
   workerd bundles.
 
-Capability reports, the pinned upstream manifest, and trusted Node-host
-resource resolution remain repository audit/host tooling rather than published
-runtime entry points.
+Trusted Node-host resource resolution remains host tooling rather than a
+published runtime entry point.
 
 Use `agentic-mermaid/agent` when you want one import path for agents.
 Use `agentic-mermaid/agent/core` when the target runtime cannot load Node native
@@ -358,14 +357,9 @@ Opaque fallback bodies (any unmodeled syntax) are source-level-only: edit source
 
 ## Capability and extension discovery
 
-Repository audit tooling can import `createSectionACapabilityReport()` from
-`src/section-a-capability-report.ts`. It returns the JSON-safe, registry-derived
-request/backend/output/family/Scene matrix. Validate a stored snapshot with
-`validateSectionACapabilityReport(report)`. The generated human projection is
-[`project/section-a-capability-report.md`](./project/section-a-capability-report.md).
-Neither the library entries nor the `am` and MCP bins import this audit
-surface, so the full characterization and upstream syntax corpora stay out of
-the published package; `am capabilities --json` reports only the live registry.
+`am capabilities --json` reports the live family registry. (The Section A
+capability report and its `createSectionACapabilityReport()` audit module are no
+longer published.)
 
 Canonical extension identities are kind-qualified (`look:`, `palette:`,
 `backend:`, `family:`, `role:`, and `resource:`), versioned, provenance-bearing,

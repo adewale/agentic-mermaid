@@ -10,6 +10,5 @@ every built-in theme at 7..24 categories, with the production `{1,2,3}` floors
 as non-negotiable controls.
 
 ```sh
-bun run gallery:palette-harmony
-bun test src/__tests__/palette-harmony-experiment.test.ts  # report matches a fresh computation
+bun run scripts/pr-assets/palette-harmony-experiment.ts  # writes the gitignored report.json
 ```
