@@ -82,6 +82,9 @@ and files production code imports at runtime.
 
 ### Change shape
 
+- Work comes from issues filed by the owner or users. A PR closes an issue or
+  delivers a stated contract; findings made along the way are filed as issues,
+  not fixed unasked in the same PR.
 - One coherent change per commit, at the owning boundary: all the sites of one
   rule together, not one commit per bug.
 - Locally run typecheck, lint and the tests that exercise what you changed. The
