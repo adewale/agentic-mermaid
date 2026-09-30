@@ -12,8 +12,11 @@ import { decodeHTML } from 'entities/decode'
 /** Thrown by the lazy build when a named code is displayed before the table
  * has loaded. It carries the loader, so a caller can load and render again. */
 export class HtmlEntityTableNotLoadedError extends Error {
-  constructor(reference: string, readonly loadHtmlEntityTable: () => Promise<void>) {
+  readonly loadHtmlEntityTable: () => Promise<void>
+
+  constructor(reference: string, loadHtmlEntityTable: () => Promise<void>) {
     super(`${reference} needs the HTML entity table, which has not loaded`)
+    this.loadHtmlEntityTable = loadHtmlEntityTable
   }
 }
 

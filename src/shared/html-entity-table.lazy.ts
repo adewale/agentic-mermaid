@@ -17,8 +17,11 @@ async function loadHtmlEntityTable(): Promise<void> {
 }
 
 export class HtmlEntityTableNotLoadedError extends Error {
-  constructor(reference: string, readonly loadHtmlEntityTable: () => Promise<void>) {
+  readonly loadHtmlEntityTable: () => Promise<void>
+
+  constructor(reference: string, loadHtmlEntityTable: () => Promise<void>) {
     super(`${reference} needs the HTML entity table, which has not loaded`)
+    this.loadHtmlEntityTable = loadHtmlEntityTable
   }
 }
 
