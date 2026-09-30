@@ -169,7 +169,6 @@
     "eval:skill:bundle-evidence": "bun run scripts/eval/bundle-skill-evidence.ts",
     "eval:skill:materialize-codex-output": "bun run scripts/eval/materialize-codex-output.ts",
     "eval:skill:summarize-evidence": "bun run scripts/eval/summarize-skill-evidence.ts",
-    "eval:skill:sabotage": "bun run scripts/ci/skill-eval-sabotage.ts",
     "eval:family-portfolio": "bun run eval/mermaid-family-portfolio/build.ts",
     "eval:degenerate-routes": "bun run eval/degenerate-etn/enumerate.ts",
     "rubric:visual": "bun run eval/visual-rubric/run.ts",
