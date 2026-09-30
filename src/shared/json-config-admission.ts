@@ -5,6 +5,7 @@
  */
 
 import { boundedUtf8ByteLength } from './utf8.ts'
+import { isPlainRecord } from './plain-data.ts'
 
 export const JSON_CONFIG_ADMISSION_LIMITS = Object.freeze({
   maxDepth: 64,
@@ -55,12 +56,6 @@ type ExitFrame = {
 }
 
 type AdmissionFrame = VisitFrame | ExitFrame
-
-function plainJsonObject(value: unknown): value is Record<string, unknown> {
-  if (typeof value !== 'object' || value === null || Array.isArray(value)) return false
-  const prototype = Object.getPrototypeOf(value)
-  return prototype === Object.prototype || prototype === null
-}
 
 function nonJsonValueMessage(value: unknown): string {
   if (typeof value === 'number') return 'must be a finite number'
@@ -199,7 +194,7 @@ export function validateJsonConfigAdmission(
       continue
     }
 
-    if (!plainJsonObject(current)) {
+    if (!isPlainRecord(current)) {
       addProblem('JSON_NON_PLAIN_OBJECT', frame.path, 'must be a plain JSON object')
       continue
     }

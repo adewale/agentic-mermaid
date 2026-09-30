@@ -38,8 +38,10 @@ Look/Palette pair; exhausts the pure stack and Look/Palette/background
 contracts; exercises six complexity strata; and retains focused fault probes.
 A faster plan with weaker fault sensitivity would not have been accepted.
 
-The styled-output suite separately hash-pins every registered non-default Look
-over the layout fixture corpus, verifies deterministic seed behavior, exercises
+The styled-output suite separately pins a normalised SVG golden for every
+built-in family, each paired with one non-default Look so every Look is covered
+(`src/__tests__/testdata/styled/`), renders every Look over the layout fixture
+corpus, verifies deterministic seed behavior, exercises
 default/rough/hybrid backends, and tests user-color precedence. Exact bytes
 remain focused rather than becoming the interaction planner's oracle.
 

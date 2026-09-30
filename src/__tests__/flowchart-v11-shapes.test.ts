@@ -203,7 +203,7 @@ describe('v11 shapes — structured agent body + authored round-trip', () => {
   })
 
   it('multiline metadata round-trips through the canonical single-line form', () => {
-    const source = 'flowchart TD\n  C@{\n    shape: delay,\n    label: "Wait"\n  }\n  C --> D\n'
+    const source = 'flowchart TD\n  C@{\n    shape: delay\n    label: "Wait"\n  }\n  C --> D\n'
     const diagram = parseAgent(source)
     expect(diagram.body.kind).toBe('flowchart')
     const serialized = serializeMermaid(diagram)

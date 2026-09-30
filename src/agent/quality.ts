@@ -24,7 +24,7 @@
 import type { RenderedLayout, RenderedLayoutNode, RenderedLayoutEdge } from './types.ts'
 import { measureMultilineText } from '../text-metrics.ts'
 import { FONT_SIZES, FONT_WEIGHTS } from '../styles.ts'
-import { tryParseCssColor } from '../shared/color-math.ts'
+import { luminanceContrastRatio, srgbRelativeLuminance, tryParseCssColor } from '../shared/color-math.ts'
 import { compareCodePointStrings } from '../shared/deterministic-order.ts'
 
 export interface QualityMetrics {
@@ -374,17 +374,8 @@ function cssRgba(value: string): Rgba | undefined {
   return tryParseCssColor(value) ?? undefined
 }
 
-function relativeLuminance(rgb: Rgb): number {
-  const channels = rgb.map(channel => {
-    const value = channel / 255
-    return value <= 0.04045 ? value / 12.92 : ((value + 0.055) / 1.055) ** 2.4
-  })
-  return channels[0]! * 0.2126 + channels[1]! * 0.7152 + channels[2]! * 0.0722
-}
-
 function contrastRatio(a: Rgb, b: Rgb): number {
-  const [lighter, darker] = [relativeLuminance(a), relativeLuminance(b)].sort((x, y) => y - x)
-  return (lighter! + 0.05) / (darker! + 0.05)
+  return luminanceContrastRatio(srgbRelativeLuminance(a), srgbRelativeLuminance(b))
 }
 
 function composite(foreground: Rgba, background: Rgb): Rgb {

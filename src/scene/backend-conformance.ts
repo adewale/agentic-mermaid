@@ -50,6 +50,7 @@ import {
   text,
 } from './marks.ts'
 import { sceneNodeSerialization } from './serialization.ts'
+import { deepFreeze } from '../shared/plain-data.ts'
 
 export const BACKEND_CONFORMANCE_VERSION = 4 as const
 export const BACKEND_CONFORMANCE_FIXTURE_ID = 'backend-claim-matrix@4' as const
@@ -140,12 +141,6 @@ interface ConformanceFixture {
   readonly context: StyleBackendContext
   readonly probes: readonly ConformanceProbe[]
   readonly nodes: ConformanceNodes
-}
-
-function deepFreeze<T>(value: T): T {
-  if (typeof value !== 'object' || value === null || Object.isFrozen(value)) return value
-  for (const child of Object.values(value as Record<string, unknown>)) deepFreeze(child)
-  return Object.freeze(value)
 }
 
 function createFixture(): ConformanceFixture {

@@ -1,4 +1,7 @@
 import { describe, expect, it } from 'bun:test'
+import { readFileSync } from 'node:fs'
+import { join } from 'node:path'
+import fc from 'fast-check'
 
 import { BUILTIN_FAMILY_METADATA } from '../agent/families.ts'
 import { parseRegisteredMermaid } from '../agent/parse.ts'
@@ -12,6 +15,7 @@ import {
   preprocessMermaidSource,
   stripMermaidInitDirectives,
 } from '../mermaid-source.ts'
+import { mermaidFirstLine } from '../mermaid-source-wrapper.ts'
 
 describe('preprocessMermaidSource', () => {
   it('parses real YAML frontmatter, including anchors, lists, and block scalars', () => {
@@ -152,6 +156,40 @@ flowchart TD
     expect(() => normalizeMermaidSource(`%%{init: &root { safe: true, self: *root }}%%
 flowchart TD
   A --> B`)).toThrow('must be acyclic')
+  })
+})
+
+// The lazy browser entry reads the family header with mermaidFirstLine so it
+// loads no YAML; the family's render then normalizes the whole source. The two
+// must name the same line, or detection loads the wrong family.
+describe('mermaidFirstLine is normalizeMermaidSource(…).firstLine without parsing the wrapper', () => {
+  const agree = (source: string) => {
+    let firstLine: string
+    try {
+      firstLine = normalizeMermaidSource(source).firstLine
+    } catch {
+      return
+    }
+    expect({ source, header: mermaidFirstLine(source) }).toEqual({ source, header: firstLine })
+  }
+
+  it('on every upstream bench source', () => {
+    const cases = JSON.parse(readFileSync(join(import.meta.dir, '..', '..', 'eval/mermaid-upstream-suite-bench/cases.json'), 'utf8')) as Array<{ source: string }>
+    expect(cases.length).toBeGreaterThan(500)
+    for (const { source } of cases) agree(source)
+  })
+
+  it('on generated wrappers: BOM, CRLF, frontmatter, init directives, comments and blank lines', () => {
+    const line = fc.constantFrom('', '   ', '%% a comment', '%%{init: {"theme": "dark"}}%%', '%%{ initialize: { "look": "handDrawn" } }%%', '%%{init: {\n  "theme": "base"\n}}%%')
+    const frontmatter = fc.constantFrom('', '---\ntitle: T\n---\n', '---\nconfig:\n  theme: forest\n---\n', '  ---\na: 1\n  ---\n')
+    const header = fc.constantFrom('flowchart TD', 'Graph LR', 'sequenceDiagram', 'stateDiagram-v2', 'pie showData', 'xychart-beta', '  erDiagram  ')
+    fc.assert(fc.property(
+      fc.boolean(), fc.boolean(), frontmatter, fc.array(line, { maxLength: 4 }), header, fc.array(line, { maxLength: 2 }),
+      (bom, crlf, front, before, head, after) => {
+        const text = `${bom ? '\uFEFF' : ''}${front}${[...before, head, ...after, '  A --> B'].join('\n')}`
+        agree(crlf ? text.replace(/\n/g, '\r\n') : text)
+      },
+    ))
   })
 })
 

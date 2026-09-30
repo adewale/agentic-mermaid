@@ -55,7 +55,7 @@ import { normalizeBrTags } from '../multiline-utils.ts'
 import {
   matchNoteLine, matchNoteOpen, isNoteEnd, matchStereotypeDecl,
   matchTransitionLine, isConcurrencySeparator, isHistoryEndpoint, matchHistoryEndpoint,
-  isStateNodeId, stereotypeMarker, stripStateComment, matchStateClassAssignment,
+  isStateNodeId, stereotypeMarker, stripStateComment, matchStateClassAssignment, stateNoteText,
 } from '../state/parse-core.ts'
 import { parseClassShorthandStatement } from '../shared/mermaid-identifiers.ts'
 
@@ -107,8 +107,8 @@ function ensureState(scope: ParseScope, id: string): StateNode {
  * Parse state body lines (header excluded). Returns a structured body only if
  * EVERY non-blank, non-comment line is a modeled directive (transition /
  * description / alias / composite / direction). Otherwise returns null
- * (opaque fallback). An empty body (no states, no transitions) returns null so
- * the opaque path keeps the header-only diagram lossless.
+ * (opaque fallback). A header-only body is the empty typed diagram, as it is
+ * in Mermaid; verify reports it as EMPTY_DIAGRAM.
  */
 export function parseStateBody(lines: string[]): StateBody | null {
   const root = newScope()
@@ -154,7 +154,7 @@ export function parseStateBody(lines: string[]): StateBody | null {
     // --- open block note: collect body lines until `end note` ---
     if (openNote) {
       if (isNoteEnd(line)) {
-        pushNote(scope, openNote.target, openNote.side, normalizeBrTags(openNote.lines.join('\n')))
+        pushNote(scope, openNote.target, openNote.side, stateNoteText(openNote.lines))
         openNote = null
       } else {
         openNote.lines.push(line)
@@ -165,7 +165,7 @@ export function parseStateBody(lines: string[]): StateBody | null {
     // --- notes (before the ::: gate: note TEXT may legally contain :::) ---
     const noteLine = matchNoteLine(line)
     if (noteLine) {
-      pushNote(scope, noteLine.target, noteLine.side, normalizeBrTags(noteLine.text))
+      pushNote(scope, noteLine.target, noteLine.side, stateNoteText([noteLine.text]))
       continue
     }
     const noteOpen = matchNoteOpen(line)
@@ -407,8 +407,6 @@ export function parseStateBody(lines: string[]): StateBody | null {
     ...(Object.keys(classDefs).length > 0 ? { classDefs } : {}),
     ...(defaultTransitionStyle ? { defaultTransitionStyle } : {}),
   }
-  // Header-only / empty bodies stay opaque so they round-trip verbatim.
-  if (body.states.length === 0 && body.transitions.length === 0 && notes.length === 0) return null
   return body
 }
 

@@ -36,7 +36,7 @@ const ISSUE_29_CASES = [
   },
   {
     name: 'multiline metadata block',
-    source: 'flowchart TD\n  A@{\n    shape: delay,\n    label: "Wait"\n  }\n  A --> B\n',
+    source: 'flowchart TD\n  A@{\n    shape: delay\n    label: "Wait"\n  }\n  A --> B\n',
     expectedNodes: ['A', 'B'],
     expectedEdges: [['A', 'B']],
     labels: { A: 'Wait', B: 'B' },
@@ -107,7 +107,7 @@ describe('flowchart @{...} node metadata preservation (issue #29)', () => {
     fc.assert(
       fc.property(idArb, shapeArb, labelArb, fc.boolean(), (id, shape, label, multiline) => {
         const metadata = multiline
-          ? `${id}@{\n    shape: ${shape},\n    label: "${label}"\n  }`
+          ? `${id}@{\n    shape: ${shape}\n    label: "${label}"\n  }`
           : `${id}@{ shape: ${shape}, label: "${label}" }`
         const source = `flowchart TD\n  ${metadata}\n  ${id} --> B[OK]\n`
         const graph = parseGraph(source)

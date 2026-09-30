@@ -26,22 +26,19 @@ import type {
   MutationError, Result, LayoutWarning, VerifyOptions,
 } from './types.ts'
 import { ok, err } from './types.ts'
-import { labelOverflowCollector } from './body-utils.ts'
+import { labelOverflowCollector, setOptionalField } from './body-utils.ts'
+import { appendAccessibilityLines } from './accessibility-envelope.ts'
 import { resolveArchitectureIcon } from '../architecture/icons.ts'
-import { scanAccessibilityDirectives } from '../shared/accessibility-directives.ts'
+import { parseAccessibilityDirective, scanAccessibilityDirectives } from '../shared/accessibility-directives.ts'
+import { stripTrailingComment } from '../shared/trailing-comment.ts'
+import {
+  GROUP_RE, JUNCTION_RE, LABELED_ARROW_RE, SERVICE_RE, SOURCE_RE, TARGET_RE,
+  architectureDeclaration, architectureIconError, architectureIdError, architectureTerminalRejections, architectureTitle, architectureTitleSource,
+} from '../architecture/parser.ts'
 
 // ---- Parser -----------------------------------------------------------------
-
-const IDENT = '[\\w-]+'
-const ICON = '\\(([^)]+)\\)'
-const LABEL = '\\[(.+)\\]'
-
-const GROUP_RE = new RegExp(`^group\\s+(${IDENT})(?:${ICON})?(?:${LABEL})?(?:\\s+in\\s+(${IDENT}))?\\s*$`)
-const SERVICE_RE = new RegExp(`^service\\s+(${IDENT})(?:${ICON})?(?:${LABEL})?(?:\\s+in\\s+(${IDENT}))?\\s*$`)
-const JUNCTION_RE = new RegExp(`^junction\\s+(${IDENT})(?:\\s+in\\s+(${IDENT}))?\\s*$`)
-// Endpoints: id[{group}]:SIDE on the source, SIDE:id[{group}] on the target.
-const SOURCE_RE = new RegExp(`^(${IDENT})(\\{group\\})?:(L|R|T|B)$`)
-const TARGET_RE = new RegExp(`^(L|R|T|B):(${IDENT})(\\{group\\})?$`)
+// The statement shapes and Mermaid's id, icon and title terminals are the
+// renderer parser's (src/architecture/parser.ts), so the surfaces cannot drift.
 
 const SIDES = new Set<ArchitectureSide>(['L', 'R', 'T', 'B'])
 
@@ -56,9 +53,9 @@ function parseArrow(token: string): { label?: string; hasArrowStart: boolean; ha
   if (t === '-->') return { hasArrowStart: false, hasArrowEnd: true }
   if (t === '<--') return { hasArrowStart: true, hasArrowEnd: false }
   if (t === '--') return { hasArrowStart: false, hasArrowEnd: false }
-  const m = t.match(/^(<)?-\[(.*)\]-(>)?$/)
+  const m = t.match(LABELED_ARROW_RE)
   if (!m) return null
-  const label = normalizeText(m[2] ?? '') || undefined
+  const label = normalizeText(architectureTitle(m[2]!)) || undefined
   // A label that contains the bracket delimiter would not round-trip; reject.
   if (label && (label.includes('[') || label.includes(']'))) return null
   return { label, hasArrowStart: Boolean(m[1]), hasArrowEnd: Boolean(m[3]) }
@@ -102,7 +99,8 @@ export function parseArchitectureBody(
 ): ArchitectureBody | null {
   const scanned = scanAccessibilityDirectives(lines)
   if (scanned.unclosedIndex !== undefined) return null
-  lines = scanned.familyLines
+  // The same `%%` statement ending as the renderer grammar (architecture/parser.ts).
+  lines = scanned.familyLines.map(stripTrailingComment)
   let title: string | undefined
   const accessibilityTitle = scanned.accessibility.title ?? accessibility.title
   const accessibilityDescription = scanned.accessibility.descr ?? accessibility.descr
@@ -131,13 +129,12 @@ export function parseArchitectureBody(
 
     const gm = line.match(GROUP_RE)
     if (gm) {
-      const id = gm[1]!
+      const declared = architectureDeclaration(gm)
+      const { id, icon, parentId } = declared
       if (ids.has(id)) return null
       ids.add(id)
       groupIds.add(id)
-      const icon = gm[2]?.trim() || undefined
-      const label = normalizeText(gm[3] ?? id)
-      const parentId = gm[4] ?? undefined
+      const label = normalizeText(declared.title)
       if (parentId) pendingParents.push({ parent: parentId })
       groups.push({ id, label, icon, parentId })
       continue
@@ -145,13 +142,12 @@ export function parseArchitectureBody(
 
     const sm = line.match(SERVICE_RE)
     if (sm) {
-      const id = sm[1]!
+      const declared = architectureDeclaration(sm)
+      const { id, icon, parentId } = declared
       if (ids.has(id)) return null
       ids.add(id)
       endpointIds.add(id)
-      const icon = sm[2]?.trim() || undefined
-      const label = normalizeText(sm[3] ?? id)
-      const parentId = sm[4] ?? undefined
+      const label = normalizeText(declared.title)
       if (parentId) pendingParents.push({ parent: parentId })
       services.push({ id, label, icon, parentId })
       continue
@@ -214,11 +210,6 @@ export function parseArchitectureBody(
     }
   }
 
-  // A visible title is renderable furniture on its own; without one, retain
-  // the historical non-empty architecture floor.
-  if (groups.length === 0 && services.length === 0 && junctions.length === 0
-    && title === undefined && accessibilityTitle === undefined && accessibilityDescription === undefined) return null
-
   return {
     kind: 'architecture',
     title,
@@ -236,14 +227,14 @@ export function parseArchitectureBody(
 
 function renderNode(keyword: 'group' | 'service', id: string, label: string, icon?: string, parentId?: string): string {
   const iconPart = icon ? `(${icon})` : ''
-  const labelPart = `[${label}]`
+  const labelPart = `[${architectureTitleSource(label)}]`
   const inPart = parentId ? ` in ${parentId}` : ''
   return `  ${keyword} ${id}${iconPart}${labelPart}${inPart}`
 }
 
 function renderArrow(edge: ArchitectureEdge): string {
   if (edge.label !== undefined) {
-    return `${edge.hasArrowStart ? '<' : ''}-[${edge.label}]-${edge.hasArrowEnd ? '>' : ''}`
+    return `${edge.hasArrowStart ? '<' : ''}-[${architectureTitleSource(edge.label)}]-${edge.hasArrowEnd ? '>' : ''}`
   }
   if (edge.hasArrowStart && edge.hasArrowEnd) return '<-->'
   if (edge.hasArrowEnd) return '-->'
@@ -254,16 +245,7 @@ function renderArrow(edge: ArchitectureEdge): string {
 export function renderArchitecture(body: ArchitectureBody): string {
   const lines: string[] = ['architecture-beta']
   if (body.title !== undefined) lines.push(`  title ${body.title}`)
-  if (body.accessibilityTitle !== undefined) lines.push(`  accTitle: ${body.accessibilityTitle}`)
-  if (body.accessibilityDescription !== undefined) {
-    if (body.accessibilityDescription.includes('\n')) {
-      lines.push('  accDescr {')
-      for (const line of body.accessibilityDescription.split(/\r?\n/)) lines.push(`    ${line.trim()}`)
-      lines.push('  }')
-    } else {
-      lines.push(`  accDescr: ${body.accessibilityDescription}`)
-    }
-  }
+  appendAccessibilityLines(lines, body)
   for (const g of body.groups) lines.push(renderNode('group', g.id, g.label, g.icon, g.parentId))
   for (const s of body.services) lines.push(renderNode('service', s.id, s.label, s.icon, s.parentId))
   for (const j of body.junctions) {
@@ -328,13 +310,22 @@ function allIds(b: ArchitectureBody): Set<string> {
   return s
 }
 
-const ID_RE = /^[\w-]+$/
-
 function validId(value: unknown, field: string): Result<string, MutationError> {
-  if (typeof value !== 'string' || !ID_RE.test(value)) {
-    return err({ code: 'INVALID_OP', message: `Architecture ${field} must match [A-Za-z0-9_-]+, got ${JSON.stringify(value)}` })
+  const error = typeof value === 'string' ? architectureIdError(value) : undefined
+  if (typeof value !== 'string' || error) {
+    return err({ code: 'INVALID_OP', message: `Architecture ${field} must be letters, digits and _, with - only between them, got ${JSON.stringify(value)}` })
   }
   return ok(value)
+}
+
+/** An icon name Mermaid's lexer reads, or undefined for none. */
+function validIcon(value: unknown, field: string): Result<string | undefined, MutationError> {
+  if (value === undefined || value === null) return ok(undefined)
+  const icon = typeof value === 'string' ? value.trim() : undefined
+  if (icon === undefined || (icon !== '' && architectureIconError(icon))) {
+    return err({ code: 'INVALID_OP', message: `Architecture ${field} must be letters, digits, _, - and :, got ${JSON.stringify(value)}` })
+  }
+  return ok(icon || undefined)
 }
 
 function normalizeLabel(value: string, field: string): Result<string, MutationError> {
@@ -343,6 +334,11 @@ function normalizeLabel(value: string, field: string): Result<string, MutationEr
   // Labels are rendered inside [...]; a bracket would break round-trip.
   if (!normalized || normalized.includes('[') || normalized.includes(']')) {
     return err({ code: 'INVALID_OP', message: `Architecture ${field} must be non-empty and must not contain [ or ]` })
+  }
+  // A label that is not words and spaces is written quoted, where Mermaid
+  // reads a backslash as an escape.
+  if (normalized.includes('\\')) {
+    return err({ code: 'INVALID_OP', message: `Architecture ${field} must not contain a backslash` })
   }
   return ok(normalized)
 }
@@ -401,21 +397,13 @@ export function mutateArchitecture(body: ArchitectureBody, op: ArchitectureMutat
       break
     }
     case 'set_accessibility_title': {
-      if (op.title === null) delete next.accessibilityTitle
-      else {
-        const title = normalizeAccessibilityText(op.title, 'accessibility title', false)
-        if (!title.ok) return title
-        next.accessibilityTitle = title.value
-      }
+      const title = setOptionalField(next, 'accessibilityTitle', op.title, value => normalizeAccessibilityText(value, 'accessibility title', false))
+      if (!title.ok) return title
       break
     }
     case 'set_accessibility_description': {
-      if (op.description === null) delete next.accessibilityDescription
-      else {
-        const description = normalizeAccessibilityText(op.description, 'accessibility description', true)
-        if (!description.ok) return description
-        next.accessibilityDescription = description.value
-      }
+      const description = setOptionalField(next, 'accessibilityDescription', op.description, value => normalizeAccessibilityText(value, 'accessibility description', true))
+      if (!description.ok) return description
       break
     }
     case 'add_service': {
@@ -424,13 +412,9 @@ export function mutateArchitecture(body: ArchitectureBody, op: ArchitectureMutat
       if (allIds(next).has(id.value)) return err({ code: 'INVALID_OP', message: `Identifier "${id.value}" already exists` })
       const label = normalizeLabel(op.label ?? id.value, 'service label')
       if (!label.ok) return label
-      let icon: string | undefined
-      if (op.icon !== undefined && op.icon !== null) {
-        if (typeof op.icon !== 'string' || op.icon.includes('(') || op.icon.includes(')')) {
-          return err({ code: 'INVALID_OP', message: 'Architecture service icon must be a string without parentheses' })
-        }
-        icon = op.icon.trim() || undefined
-      }
+      const validatedIcon = validIcon(op.icon, 'service icon')
+      if (!validatedIcon.ok) return validatedIcon
+      const icon = validatedIcon.value
       if (op.group !== undefined && op.group !== null) {
         const g = validId(op.group, 'group id')
         if (!g.ok) return g
@@ -482,12 +466,10 @@ export function mutateArchitecture(body: ArchitectureBody, op: ArchitectureMutat
       const svc = next.services.find(s => s.id === op.id)
       if (!svc) return err({ code: 'SERVICE_NOT_FOUND', message: `No service "${op.id}"` })
       if (op.icon === null) { delete svc.icon; break }
-      if (typeof op.icon !== 'string' || op.icon.includes('(') || op.icon.includes(')')) {
-        return err({ code: 'INVALID_OP', message: 'Architecture service icon must be a string without parentheses' })
-      }
-      const icon = op.icon.trim()
-      if (!icon) return err({ code: 'INVALID_OP', message: 'Architecture service icon must be non-empty (use null to clear)' })
-      svc.icon = icon
+      const icon = validIcon(op.icon, 'service icon')
+      if (!icon.ok) return icon
+      if (!icon.value) return err({ code: 'INVALID_OP', message: 'Architecture service icon must be non-empty (use null to clear)' })
+      svc.icon = icon.value
       break
     }
     case 'move_service': {
@@ -566,13 +548,9 @@ export function mutateArchitecture(body: ArchitectureBody, op: ArchitectureMutat
       if (allIds(next).has(id.value)) return err({ code: 'INVALID_OP', message: `Identifier "${id.value}" already exists` })
       const label = normalizeLabel(op.label ?? id.value, 'group label')
       if (!label.ok) return label
-      let icon: string | undefined
-      if (op.icon !== undefined && op.icon !== null) {
-        if (typeof op.icon !== 'string' || op.icon.includes('(') || op.icon.includes(')')) {
-          return err({ code: 'INVALID_OP', message: 'Architecture group icon must be a string without parentheses' })
-        }
-        icon = op.icon.trim() || undefined
-      }
+      const validatedIcon = validIcon(op.icon, 'group icon')
+      if (!validatedIcon.ok) return validatedIcon
+      const icon = validatedIcon.value
       let parentId: string | undefined
       if (op.parent !== undefined && op.parent !== null) {
         const p = validId(op.parent, 'group id')
@@ -719,6 +697,39 @@ function unknownArchitectureIcon(target: string, icon?: string): LayoutWarning |
   return icon && !NATIVE_ARCHITECTURE_ICONS.has(icon.trim().toLowerCase()) && resolveArchitectureIcon(icon) === null
     ? { code: 'UNKNOWN_SHAPE', node: target, shape: `architecture-icon:${icon}` }
     : null
+}
+
+const ARCHITECTURE_PORTABLE_FORM = {
+  id: 'start and end an id with a letter, digit or _, with - only between them',
+  icon: 'name an icon with letters, digits, _, - and : only',
+  title: 'put the whole title in double quotes',
+} as const
+
+/** Architecture source ours reads where Mermaid 11.16 rejects it, each on its
+ * canonical line: an id, (icon) or [title] outside Mermaid's lexer terminal is
+ * read as written. */
+export function architectureUnsupportedSyntaxWarnings(canonicalSource: string): LayoutWarning[] {
+  const lines = canonicalSource.split(/\r?\n/)
+  const header = lines.findIndex(line => /^architecture(?:-beta)?\b/i.test(line.trim()))
+  if (header < 0) return []
+  const warnings: LayoutWarning[] = []
+  for (let index = header + 1; index < lines.length; index++) {
+    const directive = parseAccessibilityDirective(lines, index)
+    if (directive === undefined) break
+    if (directive !== null) {
+      index = directive.endIndex
+      continue
+    }
+    for (const { terminal, what } of architectureTerminalRejections(lines[index]!)) {
+      warnings.push({
+        code: 'UNSUPPORTED_SYNTAX',
+        syntax: `architecture_${terminal}`,
+        line: index + 1,
+        message: `${what}. Mermaid 11.16 rejects this; ${ARCHITECTURE_PORTABLE_FORM[terminal]}.`,
+      })
+    }
+  }
+  return warnings
 }
 
 /** Source-level diagnostic used when otherwise-renderable architecture syntax

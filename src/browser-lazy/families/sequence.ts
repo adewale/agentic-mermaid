@@ -1,25 +1,5 @@
 import descriptorData from '../generated/descriptors/sequence.ts'
-import { createBrowserFamilyDescriptor, layoutResult, scene } from '../family.ts'
-import { resolveSequenceConfig } from '../../sequence/config.ts'
-import { layoutSequenceDiagram } from '../../sequence/layout.ts'
-import { parseSequenceDiagram } from '../../sequence/parser.ts'
-import { lowerSequenceScene } from '../../sequence/renderer.ts'
-import { withAccessibilityFields } from '../../shared/accessibility-directives.ts'
-import { withFrontmatterTitle } from '../../mermaid-source.ts'
+import { createBrowserFamilyDescriptor } from '../family.ts'
+import { SEQUENCE_SVG_HOOKS } from '../../svg-family-hooks/sequence.ts'
 
-export default createBrowserFamilyDescriptor(descriptorData, {
-  normalizeRequest: ctx => ({
-    familyConfig: { sequence: resolveSequenceConfig(ctx.source.frontmatter) },
-  }),
-  layout: ctx => {
-    const seqConfig = (ctx.familyConfig as {
-      sequence?: ReturnType<typeof resolveSequenceConfig>
-    } | undefined)?.sequence ?? {}
-    const diagram = withFrontmatterTitle(withAccessibilityFields(
-      parseSequenceDiagram(ctx.source.familyLines, seqConfig),
-      ctx.source.accessibility,
-    ), ctx.source.frontmatter)
-    return layoutResult(layoutSequenceDiagram(diagram, ctx.renderOptions, seqConfig, ctx.styleFace))
-  },
-  lowerScene: scene(lowerSequenceScene),
-})
+export default createBrowserFamilyDescriptor(descriptorData, SEQUENCE_SVG_HOOKS)

@@ -225,6 +225,114 @@ function applyClassAnnotation(node: ClassNode, annotation: string): void {
   node.annotation = annotation
 }
 
+/** Mermaid's class grammar is `classDiagram NEWLINE statements EOF`, so
+ * Mermaid rejects a header alone; ours draws it as an empty diagram and
+ * verify reports the difference. Any statement in `bodyLines` (the lines
+ * after the header, accTitle/accDescr included) lifts that floor. */
+export function classDiagramHasStatement(bodyLines: readonly string[]): boolean {
+  return bodyLines.some(line => {
+    const statement = line.trim()
+    return statement.length > 0 && !statement.startsWith('%%')
+  })
+}
+
+// ---- Trailing `%%` comments -------------------------------------------------
+// Both parsers read a trailing `%%` after a class statement as a comment. A
+// "string", a `backtick` name, a ~generic~, `: label` text, callback
+// `(arguments)`, a declaration's `{members}` and the bare link destination this
+// repo also reads keep `%%` as text.
+//
+// Mermaid's class lexer reads `%%` as a comment only in its default state:
+// after a relationship, note, link, style, classDef, cssClass or separate
+// annotation. That comment also swallows the line break, so the next statement
+// would join this one: Mermaid accepts it only on the diagram's last
+// statement. In a `class …` statement, anywhere in a namespace and after a
+// closing `}`, the lexer reads `%` as punctuation no rule accepts. A
+// `direction` line is one token to the line end. classCommentRejections holds
+// that rule, and verify reports where Mermaid rejects a comment ours reads.
+
+const BARE_LINK_DESTINATION_RE = /(?:https?:\/\/|mailto:)\S*/iy
+const CLASS_TEXT_CLOSERS: Readonly<Record<string, string>> = { '"': '"', '`': '`', '~': '~', '(': ')' }
+
+/** Offset of the `%%` that starts a trailing comment on one class statement
+ * line, by the class lexer's text rules above, or -1. */
+export function classCommentStart(line: string): number {
+  const declaration = /^class\b/.test(line)
+  for (let index = 0; index < line.length - 1; index++) {
+    const char = line[index]!
+    const closer = CLASS_TEXT_CLOSERS[char] ?? (declaration && char === '{' ? '}' : undefined)
+    if (closer !== undefined) {
+      const end = line.indexOf(closer, index + 1)
+      if (end < 0) return -1
+      index = end
+      continue
+    }
+    if (char === ':') {
+      // `: label` text runs to the end of the line; `:::` names a style class.
+      if (!line.startsWith(':::', index)) return -1
+      index += 2
+      continue
+    }
+    if (index === 0 || /\s/.test(line[index - 1]!)) {
+      BARE_LINK_DESTINATION_RE.lastIndex = index
+      if (BARE_LINK_DESTINATION_RE.test(line)) {
+        index = BARE_LINK_DESTINATION_RE.lastIndex - 1
+        continue
+      }
+    }
+    if (char === '%' && line[index + 1] === '%') return index
+  }
+  return -1
+}
+
+/** A class statement line without its trailing `%%` comment. Member lines
+ * inside a class body are text, not statements. */
+export function classStatement(line: string): string {
+  const start = classCommentStart(line)
+  return start < 0 ? line : line.slice(0, start).trimEnd()
+}
+
+/** Each body line (after the `classDiagram` header, accTitle/accDescr
+ * included) whose trailing `%%` comment Mermaid's class grammar rejects,
+ * walked as the parsers walk it: its index in `bodyLines` and what ours reads
+ * there. */
+export function classCommentRejections(bodyLines: readonly string[]): Array<{ index: number; what: string }> {
+  // An accTitle/accDescr is a statement whose text keeps `%%` (text '').
+  const statements: Array<{ text: string; index: number }> = []
+  for (let index = 0; index < bodyLines.length; index++) {
+    const directive = parseAccessibilityDirective(bodyLines, index)
+    if (directive === undefined) break
+    if (directive !== null) {
+      statements.push({ text: '', index })
+      index = directive.endIndex
+      continue
+    }
+    for (const text of expandInlineNamespaceStatement(bodyLines[index]!.trim())) {
+      if (text.length > 0 && !text.startsWith('%%')) statements.push({ text, index })
+    }
+  }
+  const rejections: Array<{ index: number; what: string }> = []
+  let namespaces = 0
+  let inClassBody = false
+  statements.forEach(({ text, index }, at) => {
+    // A member keeps `%%` as text; its closing brace is a statement again.
+    if (text === '' || (inClassBody && !text.startsWith('}'))) return
+    const start = classCommentStart(text)
+    const statement = start < 0 ? text : text.slice(0, start).trimEnd()
+    if (start >= 0 && (namespaces > 0 || /^(?:class|namespace)\b/.test(text) || text.startsWith('}'))) {
+      rejections.push({ index, what: 'A %% comment after a class declaration, a namespace or a statement inside one, or a closing brace is read as a comment' })
+    } else if (start >= 0 && at < statements.length - 1 && parseDirectionStatement(statement) === undefined) {
+      rejections.push({ index, what: 'A trailing %% comment on a statement that another statement follows is read as a comment' })
+    }
+    if (inClassBody) {
+      if (statement === '}') inClassBody = false
+    } else if (parseNamespaceHeader(statement)) namespaces++
+    else if (statement === '}' && namespaces > 0) namespaces--
+    else if (parseClassDeclaration(statement)?.opensBody) inClassBody = true
+  })
+  return rejections
+}
+
 /** Shared safe-link grammar for renderer and agent class parsers. */
 const CLASS_COMMENT_START_RE = /(?:%|&#(?:0*37|x0*25);){2}/iy
 
@@ -420,12 +528,14 @@ export function parseClassDiagram(lines: string[], authoredLines?: string[]): Cl
   const namespaceFrameSizes: number[] = []
 
   for (let i = 1; i < lines.length; i++) {
-    const line = lines[i]!
-    if (!line || line.startsWith('%%')) continue
+    const source = lines[i]!
+    if (!source || source.startsWith('%%')) continue
 
     // --- Inside a class body block ---
     if (currentClass && braceDepth > 0) {
-      if (line === '}') {
+      // A member keeps `%%` as text; its closing brace is a statement again.
+      const closing = source.startsWith('}') ? classStatement(source) : source
+      if (closing === '}') {
         braceDepth--
         if (braceDepth === 0) {
           currentClass = null
@@ -434,14 +544,14 @@ export function parseClassDiagram(lines: string[], authoredLines?: string[]): Cl
       }
 
       // Check for annotation like <<interface>>
-      const annotation = parseClassBodyAnnotationToken(line)
+      const annotation = parseClassBodyAnnotationToken(source)
       if (annotation !== null) {
         applyClassAnnotation(currentClass, annotation)
         continue
       }
 
       // Parse member: visibility, name, type, optional parens for method
-      const member = parseMember(line)
+      const member = parseMember(source)
       if (member) {
         if (member.isMethod) {
           currentClass.methods.push(member.member)
@@ -452,14 +562,17 @@ export function parseClassDiagram(lines: string[], authoredLines?: string[]): Cl
       continue
     }
 
-    // --- Safe class links. Callback forms remain inert and unmodeled. ---
+    const line = classStatement(source)
+
+    // --- Safe class links. Callback forms remain inert and unmodeled. The
+    // link grammar reads its own trailing comment from the authored bytes. ---
     const candidate = authoredExpanded?.[i]
-    const authoredLine = candidate !== undefined && decodeXML(candidate).trim() === line
+    const authoredLine = candidate !== undefined && decodeXML(candidate).trim() === source
       ? candidate
       : undefined
     const interaction = authoredLine !== undefined
       ? parseClassInteractionWithAuthored(authoredLine)
-      : authoredLines === undefined ? parseAuthoredClassInteraction(line) : null
+      : authoredLines === undefined ? parseAuthoredClassInteraction(source) : null
     if (interaction) {
       const cls = ensureClass(classMap, interaction.id, interaction.generic)
       cls.href = interaction.href
@@ -472,7 +585,9 @@ export function parseClassDiagram(lines: string[], authoredLines?: string[]): Cl
     if (note) {
       const target = note[1] ? parseClassReference(note[1]) : null
       if (note[1] && target) ensureClass(classMap, target.id, target.generic)
-      diagram.notes.push({ text: note[2]!.replace(/\\(["\\])/g, '$1'), ...(target ? { for: target.id } : {}) })
+      // Note text is a label like any other: `<br>` breaks it and markdown-lite
+      // emphasis formats it, as upstream's note nodes do.
+      diagram.notes.push({ text: normalizeBrTags(note[2]!.replace(/\\(["\\])/g, '$1')), ...(target ? { for: target.id } : {}) })
       continue
     }
 
@@ -727,6 +842,10 @@ function parseMember(line: string): { member: ClassMember; isMethod: boolean } |
 
 /** Parse a relationship line into a ClassRelationship */
 export function parseClassRelationship(line: string): (ClassRelationship & { fromGeneric?: string; toGeneric?: string }) | null {
+  // A trailing `%%` comment is not part of the relationship; where Mermaid
+  // accepts one is classCommentRejections' rule.
+  const comment = classCommentStart(line)
+  if (comment >= 0) line = line.slice(0, comment).trimEnd()
   const markerless = parseMarkerlessClassRelationship(line)
   if (markerless) return markerless
   const marked = parseMarkedClassRelationship(line)
@@ -823,9 +942,8 @@ function parseMarkedClassRelationship(line: string): (ClassRelationship & { from
     if (char === '`') { inBacktick = true; continue }
     if (char === '"') { inQuote = true; continue }
     if (char === '~') { inGeneric = true; continue }
-    // After the label separator, `%%` is label text rather than a comment.
+    // Arrow-looking bytes after the label separator are label text.
     if (char === ':' && operator >= 0) break
-    if (char === '%' && line[i + 1] === '%') { line = line.slice(0, i).trimEnd(); break }
     const found = MARKED_ONE_WAY_ARROWS.find(token => line.startsWith(token, i))
     if (!found) continue
     // In `Foo-->B`, the final `o` of Foo overlaps `o--` but the complete
@@ -897,27 +1015,6 @@ function parseMarkedClassRelationship(line: string): (ClassRelationship & { from
  * Locate one operator outside IDs/cardinalities in linear time; the existing
  * arrow grammar below remains responsible for marked relationships. */
 function parseMarkerlessClassRelationship(line: string): (ClassRelationship & { fromGeneric?: string; toGeneric?: string }) | null {
-  // Class inline `%%` comments are legal after a relationship. Do not let the
-  // comment become part of an endpoint or label; a quoted cardinality, generic,
-  // or escaped ID can contain the same bytes without starting a comment.
-  let commentBacktick = false
-  let commentQuote = false
-  let commentGeneric = false
-  let inLabel = false
-  for (let i = 0; i < line.length - 1; i++) {
-    const char = line[i]!
-    if (commentBacktick) { if (char === '`') commentBacktick = false; continue }
-    if (commentQuote) { if (char === '"') commentQuote = false; continue }
-    if (commentGeneric) { if (char === '~') commentGeneric = false; continue }
-    if (char === '`') { commentBacktick = true; continue }
-    if (char === '"') { commentQuote = true; continue }
-    if (char === '~') { commentGeneric = true; continue }
-    // Mermaid treats `%%` after the label separator as label text, not a
-    // comment. Before the separator it is an inert trailing comment.
-    if (char === ':') { inLabel = true; continue }
-    if (!inLabel && char === '%' && line[i + 1] === '%') { line = line.slice(0, i).trimEnd(); break }
-  }
-
   const operator = findMarkerlessRelationshipOperator(line)
   if (operator < 0) return null
 

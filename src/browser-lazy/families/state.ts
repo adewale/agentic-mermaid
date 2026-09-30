@@ -1,33 +1,5 @@
-import type { ResolvedStateVisualConfig } from '../../state/config.ts'
 import descriptorData from '../generated/descriptors/state.ts'
-import { createBrowserFamilyDescriptor, layoutResult, scene } from '../family.ts'
-import { layoutGraphSync } from '../../layout-engine.ts'
-import { parseMermaid } from '../../parser.ts'
-import { lowerGraphScene } from '../../renderer.ts'
-import { frontmatterTitle } from '../../mermaid-source.ts'
-import { resolveStateRenderOptions } from '../../state/config.ts'
-import { checkAllGraphAuthoredStyles } from '../../shared/style-props.ts'
+import { createBrowserFamilyDescriptor } from '../family.ts'
+import { STATE_SVG_HOOKS } from '../../svg-family-hooks/state.ts'
 
-export default createBrowserFamilyDescriptor(descriptorData, {
-  normalizeRequest: ctx => {
-    const resolved = resolveStateRenderOptions(ctx.source.frontmatter, ctx.renderOptions)
-    const { stateVisual, ...renderOptions } = resolved
-    return {
-      renderOptions,
-      ...(stateVisual ? { appearance: { family: { visual: stateVisual } } } : {}),
-    }
-  },
-  layout: ctx => {
-    const stateVisual = (ctx.familyAppearance as { visual?: ResolvedStateVisualConfig } | undefined)?.visual
-    const diagramTitle = frontmatterTitle(ctx.source.frontmatter)
-    const graph = parseMermaid(ctx.source.familyText)
-    checkAllGraphAuthoredStyles(graph)
-    return layoutResult(layoutGraphSync(graph, {
-      ...ctx.renderOptions,
-      ...(ctx.styleFace ? { styleFace: ctx.styleFace } : {}),
-      ...(stateVisual ? { stateVisual } : {}),
-      ...(diagramTitle ? { diagramTitle } : {}),
-    }))
-  },
-  lowerScene: scene(lowerGraphScene),
-})
+export default createBrowserFamilyDescriptor(descriptorData, STATE_SVG_HOOKS)

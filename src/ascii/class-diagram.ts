@@ -18,6 +18,7 @@ import { drawMultiBox } from './draw.ts'
 import { visualWidth } from './width.ts'
 import { wrapText } from './wrap.ts'
 import { splitLines } from './multiline-utils.ts'
+import { displayText } from '../multiline-utils.ts'
 import { compareCodePointStrings } from '../shared/deterministic-order.ts'
 import { checkAllClassLikeAuthoredStyles } from '../shared/style-props.ts'
 
@@ -44,8 +45,9 @@ function buildClassSections(cls: ClassNode, maxTextWidth?: number): string[][] {
   // Header section: optional annotation + class name (may be multi-line)
   const header: string[] = []
   if (cls.annotation) header.push(`<<${cls.annotation}>>`)
-  // Support multi-line class names
-  const nameLines = splitLines(cls.label)
+  // Support multi-line class names. Labels draw their display text (the
+  // formatting tags style the SVG runs); members stay literal source text.
+  const nameLines = splitLines(displayText(cls.label))
   header.push(...nameLines)
 
   const wrap = (lines: string[]): string[] => maxTextWidth
@@ -326,7 +328,7 @@ export function renderClassAscii(text: string, config: AsciiConfig, colorMode?: 
         ...children.map(item => ({ x1: item.x, y1: item.y, x2: item.x + item.width - 1, y2: item.y + item.height - 1 })),
       ]
       if (bounds.length === 0) return undefined
-      const label = namespace.label ?? namespace.name
+      const label = displayText(namespace.label ?? namespace.name)
       const x = Math.min(...bounds.map(bound => bound.x1)) - 2
       const y = Math.min(...bounds.map(bound => bound.y1)) - 2
       const right = Math.max(Math.max(...bounds.map(bound => bound.x2)) + 2, x + visualWidth(label) + 3)
@@ -684,7 +686,7 @@ export function renderClassAscii(text: string, config: AsciiConfig, colorMode?: 
     // Draw relationship label at midpoint if present (supports multi-line)
     // Add padding around the label for readability
     if (rel.label) {
-      const lines = splitLines(rel.label)
+      const lines = splitLines(displayText(rel.label))
       const maxLabelWidth = Math.max(...lines.map(visualWidth)) + 2 // +2 for padding
 
       // Calculate ideal label position based on routing direction
@@ -780,7 +782,7 @@ export function renderClassAscii(text: string, config: AsciiConfig, colorMode?: 
   // boxes below the class graph and connect attached notes to their class.
   let noteY = (canvas[0]?.length ?? 0) + 1
   for (const note of diagram.notes) {
-    const noteLines = note.text.split(/\r?\n/)
+    const noteLines = displayText(note.text).split(/\r?\n/)
     const noteWidth = Math.max(10, ...noteLines.map(line => visualWidth(line) + 4))
     const noteHeight = noteLines.length + 2
     const target = note.for ? placed.get(note.for) : undefined

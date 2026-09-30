@@ -26,19 +26,62 @@ import {
   parseErAttribute,
   parseErEntityId,
   parseErEntityReference,
-  parseErClassAssignment,
   recordErClassNames,
-  parseErGroupHeader,
-  parseErRelationshipSyntax,
   parseErCardinality,
+  hasErTrailingComment,
+  readErStatement,
 } from '../er/parser.ts'
-import { parseDirectionStatement } from '../shared/direction-statement.ts'
-import { parseMutableStyleProps, parseStyleProps, serializeStyleProps, unsafeStylePaintError } from '../shared/style-props.ts'
+import { createErCreationFold, type ErCreationFold } from '../er/creation.ts'
+import { decodeErText, writeErName, writeErRelationLabel, writeErTitle } from '../er/text.ts'
+import { parseAccessibilityDirective } from '../shared/accessibility-directives.ts'
+import { parseMutableStyleProps, serializeStyleProps, unsafeStylePaintError } from '../shared/style-props.ts'
+import { stripTrailingComment } from '../shared/trailing-comment.ts'
 
-/** ER subgraphs are rendered natively; ordered opaque segments keep their
- * exact source on the mutation surface until group-specific operations exist. */
-export function erUnsupportedSyntaxWarnings(_canonicalSource: string): LayoutWarning[] {
-  return []
+/** ER source ours reads where Mermaid 11.16 rejects it, each on its canonical
+ * line: a trailing `%%` comment after a statement is a comment, and quoted
+ * text Mermaid's lexer refuses is read generously (src/er/text.ts). */
+export function erUnsupportedSyntaxWarnings(canonicalSource: string): LayoutWarning[] {
+  const lines = canonicalSource.split(/\r?\n/)
+  const header = lines.findIndex(line => /^erDiagram\b/i.test(line.trim()))
+  if (header < 0) return []
+  const warnings: LayoutWarning[] = []
+  const warn = (index: number, syntax: string, what: string, portable: string): void => {
+    warnings.push({ code: 'UNSUPPORTED_SYNTAX', syntax, line: index + 1, message: `${what}. Mermaid 11.16 rejects this; ${portable}.` })
+  }
+  let inBlock = false
+  let groups = 0
+  for (let index = header + 1; index < lines.length; index++) {
+    const directive = parseAccessibilityDirective(lines, index)
+    if (directive === undefined) break
+    if (directive !== null) {
+      index = directive.endIndex
+      continue
+    }
+    const line = lines[index]!.trim()
+    if (!line || line.startsWith('%%')) continue
+    if (hasErTrailingComment(line)) warn(index, 'er_trailing_comment', 'A trailing %% comment after an ER statement is read as a comment', 'put the comment on a line of its own')
+    if (inBlock) {
+      if (stripTrailingComment(line) === '}') inBlock = false
+      continue
+    }
+    try {
+      const statement = readErStatement(line, groups > 0, (what, portable) => warn(index, 'er_quoted_text', what, portable))
+      if (statement?.kind === 'block-open') inBlock = true
+      else if (statement?.kind === 'group-open') groups++
+      else if (statement?.kind === 'end') groups--
+    } catch {
+      // A statement ours cannot read fails the render; verify reports that.
+    }
+  }
+  return warnings
+}
+
+/** Whether the serializer can write `id` as a Mermaid ER name: bare, or one
+ * quoted name without `"`, `%` or `\`. Ours reads others (verify reports
+ * them), and the typed body leaves such a diagram opaque, as written: an id is
+ * identity, so it is not re-spelled with entity codes as text is. */
+function writableErId(id: string): boolean {
+  return parseErEntityId(id) !== null || (id !== '' && !/["%\\\r\n]/.test(id))
 }
 
 // ---- Parser ---------------------------------------------------------------
@@ -47,19 +90,27 @@ const AGENT_CARDINALITY: Record<NonNullable<ReturnType<typeof parseErCardinality
   one: 'one-only', 'zero-one': 'zero-or-one', many: 'one-or-many', 'zero-many': 'zero-or-many',
 }
 
+/** The typed body of an ER source, or null (opaque) when a line is not one
+ * this body models or the shared ER grammar refuses it. */
 export function parseErBody(lines: string[]): ErBody | null {
+  try {
+    return readErBody(lines)
+  } catch {
+    return null
+  }
+}
+
+function readErBody(lines: string[]): ErBody | null {
   const statements: ErStatement[] = []
   const body: ErBody = { kind: 'er', entities: [], relations: [], groups: [], statements }
   const entityMap = new Map<string, ErEntity>()
   const classNamesByEntity = new Map<string, string[]>()
-  const upsert = (id: string, label?: string, className?: string): ErEntity => {
+  const upsert = (id: string, className?: string): ErEntity => {
     let e = entityMap.get(id)
     if (!e) {
-      e = { id, ...(label !== undefined ? { label } : {}), attributes: [] }
+      if (!writableErId(id)) throw new Error(`ER entity id ${JSON.stringify(id)} has no Mermaid spelling`)
+      e = { id, attributes: [] }
       entityMap.set(id, e)
-      body.entities.push(e)
-    } else {
-      if (label !== undefined) e.label = label
     }
     if (className) recordErClassNames(classNamesByEntity, id, className.split(' '))
     return e
@@ -69,130 +120,129 @@ export function parseErBody(lines: string[]): ErBody | null {
     if (!declaredEntities.has(id)) { declaredEntities.add(id); statements.push({ kind: 'entity', id }) }
   }
 
-  const groupStack: ErGroup[] = []
-  const groupIds = new Set<string>()
+  // Which statement creates each entity, and which subgraph keeps it.
+  const fold = createErCreationFold()
+  const groupById = new Map<string, ErGroup>()
   let i = 0
   while (i < lines.length) {
     const raw = lines[i]!.trim()
     i++
     if (!raw || raw.startsWith('%%')) continue
 
-    const groupHeader = parseErGroupHeader(raw)
-    if (groupHeader) {
-      if (groupIds.has(groupHeader.id)) return null
-      const parentId = groupStack.at(-1)?.id
-      const group: ErGroup = { ...groupHeader, ...(parentId ? { parentId } : {}) }
-      body.groups!.push(group)
-      groupIds.add(group.id)
-      groupStack.push(group)
-      statements.push({ kind: 'group-open', id: group.id })
-      continue
-    }
-    if (raw === 'end' && groupStack.length > 0) {
-      const group = groupStack.pop()!
-      statements.push({ kind: 'group-close', id: group.id })
-      continue
-    }
-    const direction = parseDirectionStatement(raw)
-    if (direction) {
-      const group = groupStack.at(-1)
-      if (group) group.direction = direction
-      else body.direction = direction
-      statements.push({ kind: 'direction', ...(group ? { groupId: group.id } : {}) })
-      continue
-    }
-
-    const classDef = raw.match(/^classDef\s+([\w,-]+)\s+(.+)$/i)
-    if (classDef) {
-      const props = parseStyleProps(classDef[2]!)
-      if (Object.keys(props).length === 0) return null
-      if (!body.classDefs) body.classDefs = {}
-      for (const name of classDef[1]!.split(',').map(value => value.trim()).filter(Boolean)) body.classDefs[name] = { ...props }
-      continue
-    }
-    const classAssignment = parseErClassAssignment(raw)
-    if (classAssignment) {
-      for (const id of classAssignment.ids) {
-        // Upstream ignores class assignments before an entity exists.
-        if (entityMap.has(id)) recordErClassNames(classNamesByEntity, id, classAssignment.classNames)
+    const statement = readErStatement(raw, fold.innermost !== undefined)
+    if (!statement) return null
+    switch (statement.kind) {
+      case 'direction': {
+        const group = fold.innermost !== undefined ? groupById.get(fold.innermost) : undefined
+        if (group) group.direction = statement.direction
+        else body.direction = statement.direction
+        statements.push({ kind: 'direction', ...(group ? { groupId: group.id } : {}) })
+        break
       }
-      continue
-    }
-    const inlineStyle = raw.match(/^style\s+(.+?)\s+(.+)$/i)
-    if (inlineStyle) {
-      const ids = inlineStyle[1]!.split(',').map(value => parseErEntityReference(value.trim())?.id).filter((value): value is string => value !== undefined)
-      const props = parseStyleProps(inlineStyle[2]!)
-      if (ids.length === 0 || Object.keys(props).length === 0) return null
-      for (const id of ids) {
-        const entity = upsert(id)
-        entity.style = { ...entity.style, ...props }
+      case 'group-open': {
+        if (!writableErId(statement.id) || statement.title === '') return null
+        fold.open(statement.id)
+        const group: ErGroup = { id: statement.id, label: decodeErText(statement.title ?? statement.id) }
+        body.groups!.push(group)
+        groupById.set(group.id, group)
+        statements.push({ kind: 'group-open', id: group.id })
+        break
       }
-      continue
-    }
-
-    const relation = parseErRelationshipSyntax(raw)
-    if (relation) {
-      const left = parseErCardinality(relation.leftToken)
-      const right = parseErCardinality(relation.rightToken)
-      if (!left || !right) return null
-      const lc = AGENT_CARDINALITY[left]
-      const rc = AGENT_CARDINALITY[right]
-      const relationIndex = body.relations.length
-      body.relations.push({
-        from: relation.entity1.id,
-        to: relation.entity2.id,
-        leftCard: lc,
-        rightCard: rc,
-        dashed: !relation.identifying,
-        label: relation.label || undefined,
-      })
-      if (!groupIds.has(relation.entity1.id)) {
-        const entity = upsert(relation.entity1.id, relation.entity1.label, relation.entity1.className)
-        if (groupStack.length > 0 && !entity.groupId) entity.groupId = groupStack.at(-1)!.id
+      case 'end':
+        statements.push({ kind: 'group-close', id: fold.innermost! })
+        fold.close()
+        break
+      case 'class-def':
+        if (Object.keys(statement.props).length === 0) return null
+        if (!body.classDefs) body.classDefs = {}
+        for (const name of statement.names) body.classDefs[name] = { ...statement.props }
+        break
+      case 'class':
+        for (const id of statement.ids) {
+          // Upstream ignores class assignments before an entity exists.
+          if (entityMap.has(id)) recordErClassNames(classNamesByEntity, id, statement.classNames)
+        }
+        break
+      case 'style':
+        if (statement.ids.length === 0 || Object.keys(statement.props).length === 0) return null
+        for (const id of statement.ids) {
+          fold.style(id)
+          const entity = upsert(id)
+          entity.style = { ...entity.style, ...statement.props }
+        }
+        break
+      case 'relation': {
+        const { relation } = statement
+        const left = parseErCardinality(relation.leftToken)
+        const right = parseErCardinality(relation.rightToken)
+        if (!left || !right) return null
+        const relationIndex = body.relations.length
+        body.relations.push({
+          from: relation.entity1.id,
+          to: relation.entity2.id,
+          leftCard: AGENT_CARDINALITY[left],
+          rightCard: AGENT_CARDINALITY[right],
+          dashed: !relation.identifying,
+          label: decodeErText(relation.label) || undefined,
+        })
+        for (const end of [relation.entity1, relation.entity2]) {
+          if (fold.relationEnd(end.id, end.alias)) upsert(end.id, end.className)
+        }
+        statements.push({ kind: 'relation', ref: relationIndex })
+        break
       }
-      if (!groupIds.has(relation.entity2.id)) {
-        const entity = upsert(relation.entity2.id, relation.entity2.label, relation.entity2.className)
-        if (groupStack.length > 0 && !entity.groupId) entity.groupId = groupStack.at(-1)!.id
-      }
-      statements.push({ kind: 'relation', ref: relationIndex })
-      continue
-    }
-
-    // Entity with attribute block. The reference may carry a display alias.
-    if (raw.endsWith('{')) {
-      const reference = parseErEntityReference(raw.slice(0, -1).trim())
-      if (reference) {
-        const e = upsert(reference.id, reference.label, reference.className)
-        if (groupStack.length > 0) e.groupId = groupStack.at(-1)!.id
+      case 'block-open': {
+        // Entity with attribute block. The reference may carry a display alias.
+        const { reference } = statement
+        fold.declare(reference.id, reference.alias)
+        const e = upsert(reference.id, reference.className)
         declareEntityStatement(reference.id)
         let closed = false
         while (i < lines.length) {
           const al = lines[i]!.trim()
           i++
           if (!al || al.startsWith('%%')) continue
-          if (al === '}') { closed = true; break }
-          if (!parseErAttribute(al)) return null
-          e.attributes.push({ text: al })
+          // A trailing `%%` comment is dropped, as the render parser drops it.
+          const attribute = stripTrailingComment(al)
+          if (attribute === '}') { closed = true; break }
+          if (!parseErAttribute(attribute)) return null
+          e.attributes.push({ text: attribute })
         }
         if (!closed) return null
-        continue
+        break
+      }
+      case 'entity': {
+        // Bare or aliased entity declaration (no attributes).
+        const { reference } = statement
+        fold.declare(reference.id, reference.alias)
+        upsert(reference.id, reference.className)
+        declareEntityStatement(reference.id)
+        break
       }
     }
-
-    // Bare or aliased entity declaration (no attributes).
-    const bare = parseErEntityReference(raw)
-    if (bare) {
-      const entity = upsert(bare.id, bare.label, bare.className)
-      if (groupStack.length > 0) entity.groupId = groupStack.at(-1)!.id
-      declareEntityStatement(bare.id)
-      continue
-    }
-
-    return null
   }
 
-  if (groupStack.length > 0) return null
+  const placement = fold.finish()
+  // An empty alias has no Mermaid spelling either (writableErId).
+  if ([...placement.alias.values()].includes('')) return null
   for (const [id, names] of classNamesByEntity) entityMap.get(id)!.className = names.join(' ')
+  body.entities = placement.order.map(id => {
+    const { attributes, ...paint } = entityMap.get(id)!
+    // The typed body keeps the first alias as written, its entity codes read;
+    // markdown and `<br>` are the renderer's display.
+    const alias = placement.alias.get(id)
+    const owner = placement.owner.get(id)
+    return {
+      ...paint,
+      ...(alias !== undefined ? { label: decodeErText(alias) } : {}),
+      attributes,
+      ...(owner !== undefined ? { groupId: owner } : {}),
+    }
+  })
+  for (const group of body.groups!) {
+    const parentId = placement.owner.get(group.id)
+    if (parentId !== undefined) group.parentId = parentId
+  }
   return body
 }
 
@@ -205,18 +255,12 @@ const RIGHT_GLYPH: Record<ErCardinality, string> = {
   'one-only': '||', 'zero-or-one': 'o|', 'zero-or-many': 'o{', 'one-or-many': '|{',
 }
 
-function quoteErText(value: string): string {
-  return `"${value.replace(/\\/g, '\\\\').replace(/"/g, '\\"')}"`
-}
-
 function renderErEntityReference(entity: ErEntity): string {
-  const renderedId = parseErEntityId(entity.id) ? entity.id : quoteErText(entity.id)
-  if (entity.label === undefined || entity.label === entity.id || entity.label === normalizeErQuotedIdLabel(entity.id)) return renderedId
-  return `${renderedId}[${quoteErText(entity.label)}]`
-}
-
-function normalizeErQuotedIdLabel(id: string): string {
-  return id.replace(/<br\s*\/?>/gi, '\n')
+  const bare = parseErEntityId(entity.id) !== null
+  // A quoted id is kept as written, and a quoted name cannot hold `"`, `%`
+  // or `\`, so it needs no encoding.
+  const renderedId = bare ? entity.id : `"${entity.id}"`
+  return entity.label === undefined ? renderedId : `${renderedId}[${writeErName(entity.label)}]`
 }
 
 /** A trailing `style` line re-creates an entity by itself only when there is
@@ -226,24 +270,40 @@ function styleCreatesErEntity(entity: ErEntity): boolean {
     && renderErEntityReference(entity) === renderErEntityReference({ ...entity, label: undefined })
 }
 
-/** The subgraph parseErBody gives each entity the statements name: that of its
- * last declaration inside one, else that of its first relation inside one. */
-function statementErGroups(body: ErBody): Map<string, string> {
-  const declared = new Map<string, string>()
-  const related = new Map<string, string>()
-  const openGroups: string[] = []
-  for (const statement of body.statements ?? []) {
-    if (statement.kind === 'group-open') openGroups.push(statement.id)
-    else if (statement.kind === 'group-close') openGroups.pop()
-    const group = openGroups.at(-1)
-    if (group === undefined) continue
-    if (statement.kind === 'entity') declared.set(statement.id, group)
-    else if (statement.kind === 'relation') {
-      const relation = body.relations[statement.ref]
-      for (const id of relation ? [relation.from, relation.to] : []) if (!related.has(id)) related.set(id, group)
-    }
+/** The subgraph re-reading the body's statements alone gives each entity
+ * they name: the shared creation fold (src/er/creation.ts) over them. */
+function statementErGroups(body: ErBody): ReadonlyMap<string, string> {
+  const fold = createErCreationFold()
+  for (const statement of body.statements ?? []) foldErStatement(fold, body, statement)
+  return fold.finish().owner
+}
+
+/** Feed one typed statement to the creation fold, as re-reading it would. */
+function foldErStatement(fold: ErCreationFold, body: ErBody, statement: ErStatement): void {
+  if (statement.kind === 'group-open') fold.open(statement.id)
+  else if (statement.kind === 'group-close') fold.close()
+  else if (statement.kind === 'entity') fold.declare(statement.id)
+  else if (statement.kind === 'relation') {
+    const relation = body.relations[statement.ref]
+    if (relation) { fold.relationEnd(relation.from); fold.relationEnd(relation.to) }
   }
-  return new Map([...related, ...declared])
+}
+
+/**
+ * Insert `statement`, which names entity `id`, right after the statement that
+ * creates `id` (its first mention, by the shared fold), or last when no
+ * statement names it. There the entity already exists, and the new statement
+ * sits in the subgraph of the one that named it, so re-reading keeps both
+ * the creation order and the placement.
+ */
+function insertAfterCreatingStatement(body: ErBody, id: string, statement: ErStatement): void {
+  const statements = ensureErStatements(body)
+  const fold = createErCreationFold()
+  const at = statements.findIndex(candidate => {
+    foldErStatement(fold, body, candidate)
+    return fold.created(id)
+  })
+  statements.splice(at < 0 ? statements.length : at + 1, 0, statement)
 }
 
 export function renderEr(body: ErBody): string {
@@ -264,11 +324,12 @@ export function renderEr(body: ErBody): string {
     const right = RIGHT_GLYPH[relation.rightCard]
     const link = relation.dashed ? '..' : '--'
     const label = relation.label ?? ''
+    // Mermaid reads an alias only on a declaration, never on a relation end.
     const from = entityById.get(relation.from)
     const to = entityById.get(relation.to)
-    const fromRef = from ? renderErEntityReference(from) : relation.from
-    const toRef = to ? renderErEntityReference(to) : relation.to
-    lines.push(`  ${fromRef} ${left}${link}${right} ${toRef} : ${label === '' || label.includes(' ') ? quoteErText(label) : label}`)
+    const fromRef = from ? renderErEntityReference({ ...from, label: undefined }) : relation.from
+    const toRef = to ? renderErEntityReference({ ...to, label: undefined }) : relation.to
+    lines.push(`  ${fromRef} ${left}${link}${right} ${toRef} : ${writeErRelationLabel(label)}`)
   }
 
   const styleCreated = new Set<string>()
@@ -288,6 +349,7 @@ export function renderEr(body: ErBody): string {
     // Entities whose declaration, attributes included, is already written; a
     // later declaration only places the entity in its subgraph.
     const declared = new Set<string>()
+    const declaredByStatement = new Set(statements.flatMap(statement => statement.kind === 'entity' ? [statement.id] : []))
     const openGroups: string[] = []
     const declare = (entity: ErEntity): void => {
       if (declared.has(entity.id)) lines.push(`  ${renderErEntityReference(entity)}`)
@@ -344,6 +406,15 @@ export function renderEr(body: ErBody): string {
         if (relation) {
           creates([relation.from, relation.to])
           pushRelation(relation)
+          // An aliased end no declaration statement names gets its alias
+          // right after the relation, which already named it here.
+          for (const id of [relation.from, relation.to]) {
+            const end = entityById.get(id)
+            if (end?.label !== undefined && !declared.has(id) && !declaredByStatement.has(id) && renderErEntityReference(end) !== renderErEntityReference({ ...end, label: undefined })) {
+              pushEntity(end)
+              declared.add(id)
+            }
+          }
         }
       } else if (statement.kind === 'direction') {
         const direction = statement.groupId ? groupById.get(statement.groupId)?.direction : body.direction
@@ -352,8 +423,8 @@ export function renderEr(body: ErBody): string {
         declareBefore(firstCreatedWithin(index))
         const group = groupById.get(statement.id)
         if (group) {
-          const id = /\s/.test(group.id) ? quoteErText(group.id) : group.id
-          lines.push(`  subgraph ${id}${group.label !== group.id ? ` [${group.label}]` : ''}`)
+          const id = /\s/.test(group.id) ? `"${group.id}"` : group.id
+          lines.push(`  subgraph ${id}${group.label !== decodeErText(group.id) ? ` [${writeErTitle(group.label)}]` : ''}`)
         }
         openGroups.push(statement.id)
       } else if (statement.kind === 'group-close') {
@@ -523,13 +594,8 @@ export function mutateEr(body: ErBody, op: ErMutationOp): Result<ErBody, Mutatio
       if (!e) return err({ code: 'ENTITY_NOT_FOUND', message: `entity ${op.entity} not found` })
       if (!parseErAttribute(op.text)) return err({ code: 'INVALID_OP', message: 'ER attribute must use: type name [PK, FK, UK] ["comment"]' })
       e.attributes.push({ text: op.text })
-      const statements = ensureErStatements(b)
-      if (!statements.some(statement => statement.kind === 'entity' && statement.id === e.id)) {
-        const relationAt = statements.findIndex(statement => statement.kind === 'relation' && (() => {
-          const relation = b.relations[statement.ref]
-          return relation?.from === e.id || relation?.to === e.id
-        })())
-        statements.splice(relationAt >= 0 ? relationAt : statements.length, 0, { kind: 'entity', id: e.id })
+      if (!ensureErStatements(b).some(statement => statement.kind === 'entity' && statement.id === e.id)) {
+        insertAfterCreatingStatement(b, e.id, { kind: 'entity', id: e.id })
       }
       return ok(b)
     }

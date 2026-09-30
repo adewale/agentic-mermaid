@@ -142,6 +142,18 @@ export function createTracingMermaid(trace?: ExecutionTraceCall[], makeSandboxEr
     if ('value' in desc) return { ...desc, value: harden(desc.value) }
     return { ...desc, get: desc.get ? harden(desc.get) : undefined, set: desc.set ? harden(readonly) : undefined }
   }
+  /** The traps every membrane proxy shares: each write, prototype change or
+   * extension lock throws the read-only error, and descriptors and prototypes
+   * are reported (hardened) for `source`, the proxied target by default. */
+  const readonlyTraps = <T extends object>(source?: object) => ({
+    set: readonly,
+    deleteProperty: readonly,
+    defineProperty: readonly,
+    setPrototypeOf: readonly,
+    preventExtensions: readonly,
+    getOwnPropertyDescriptor: (target: T, prop: string | symbol) => descriptorFor(source ?? target, prop),
+    getPrototypeOf: (target: T) => protoFor(source ?? target),
+  })
   const isDiagramLike = (value: unknown): value is object => Boolean(value && typeof value === 'object' && 'body' in value && 'canonicalSource' in value)
   const idOf = (value: unknown): number | undefined => {
     value = rawOf(value)
@@ -196,27 +208,7 @@ export function createTracingMermaid(trace?: ExecutionTraceCall[], makeSandboxEr
           const got = hostCall(() => Reflect.get(target, prop, target))
           return typeof got === 'function' ? undefined : harden(got)
         },
-        set() {
-          return readonly()
-        },
-        deleteProperty() {
-          return readonly()
-        },
-        defineProperty() {
-          return readonly()
-        },
-        setPrototypeOf() {
-          return readonly()
-        },
-        getOwnPropertyDescriptor(target, prop) {
-          return descriptorFor(target, prop)
-        },
-        preventExtensions() {
-          return readonly()
-        },
-        getPrototypeOf(target) {
-          return protoFor(target)
-        },
+        ...readonlyTraps(),
       })
       hardened.set(obj, proxy)
       return rememberRaw(proxy, value) as T
@@ -239,27 +231,7 @@ export function createTracingMermaid(trace?: ExecutionTraceCall[], makeSandboxEr
           const got = hostCall(() => Reflect.get(target, prop, target))
           return typeof got === 'function' ? undefined : harden(got)
         },
-        set() {
-          return readonly()
-        },
-        deleteProperty() {
-          return readonly()
-        },
-        defineProperty() {
-          return readonly()
-        },
-        setPrototypeOf() {
-          return readonly()
-        },
-        getOwnPropertyDescriptor(target, prop) {
-          return descriptorFor(target, prop)
-        },
-        preventExtensions() {
-          return readonly()
-        },
-        getPrototypeOf(target) {
-          return protoFor(target)
-        },
+        ...readonlyTraps(),
       })
       hardened.set(obj, proxy)
       return rememberRaw(proxy, value) as T
@@ -277,27 +249,7 @@ export function createTracingMermaid(trace?: ExecutionTraceCall[], makeSandboxEr
           if (!Reflect.getOwnPropertyDescriptor(original, prop)) return undefined
           return harden(hostCall(() => Reflect.get(original, prop, receiver)))
         },
-        set() {
-          return readonly()
-        },
-        deleteProperty() {
-          return readonly()
-        },
-        defineProperty() {
-          return readonly()
-        },
-        setPrototypeOf() {
-          return readonly()
-        },
-        getOwnPropertyDescriptor(_target, prop) {
-          return descriptorFor(original, prop)
-        },
-        preventExtensions() {
-          return readonly()
-        },
-        getPrototypeOf() {
-          return protoFor(original)
-        },
+        ...readonlyTraps(original),
       })
       hardened.set(obj, proxy)
       return rememberRaw(proxy, value) as T
@@ -374,29 +326,9 @@ export function createTracingMermaid(trace?: ExecutionTraceCall[], makeSandboxEr
         const got = hostCall(() => Reflect.get(target, prop, receiver))
         return typeof got === 'function' ? undefined : harden(got)
       },
-      set() {
-        return readonly()
-      },
-      deleteProperty() {
-        return readonly()
-      },
-      defineProperty() {
-        return readonly()
-      },
-      setPrototypeOf() {
-        return readonly()
-      },
+      ...readonlyTraps(),
       has(target, prop) {
         return forbidden(prop) ? false : Reflect.has(target, prop)
-      },
-      getOwnPropertyDescriptor(target, prop) {
-        return descriptorFor(target, prop)
-      },
-      preventExtensions() {
-        return readonly()
-      },
-      getPrototypeOf(target) {
-        return protoFor(target)
       },
     })
     hardened.set(obj, proxy)
@@ -545,27 +477,7 @@ export function createTracingMermaid(trace?: ExecutionTraceCall[], makeSandboxEr
               if (forbidden(verifyProp)) return undefined
               return harden(hostCall(() => Reflect.get(verifyTarget, verifyProp, verifyReceiver)))
             },
-            set() {
-              return readonly()
-            },
-            deleteProperty() {
-              return readonly()
-            },
-            defineProperty() {
-              return readonly()
-            },
-            setPrototypeOf() {
-              return readonly()
-            },
-            getOwnPropertyDescriptor(target, prop) {
-              return descriptorFor(target, prop)
-            },
-            preventExtensions() {
-              return readonly()
-            },
-            getPrototypeOf(target) {
-              return protoFor(target)
-            },
+            ...readonlyTraps(),
           }),
         )
       })
@@ -719,28 +631,11 @@ export function createTracingMermaid(trace?: ExecutionTraceCall[], makeSandboxEr
     get(target, prop) {
       return sdkValue(target, prop)
     },
-    set() {
-      return readonly()
-    },
-    deleteProperty() {
-      return readonly()
-    },
-    defineProperty() {
-      return readonly()
-    },
-    setPrototypeOf() {
-      return readonly()
-    },
+    ...readonlyTraps(),
     getOwnPropertyDescriptor(target, prop) {
       if (!sdkProps.has(prop) || forbidden(prop)) return undefined
       const desc = Reflect.getOwnPropertyDescriptor(target, prop)
       return desc && 'value' in desc ? { ...desc, value: sdkValue(target, prop) } : undefined
-    },
-    preventExtensions() {
-      return readonly()
-    },
-    getPrototypeOf(target) {
-      return protoFor(target)
     },
     has(_target, prop) {
       return sdkProps.has(prop) && !forbidden(prop)

@@ -1,26 +1,5 @@
 import descriptorData from '../generated/descriptors/flowchart.ts'
-import { createBrowserFamilyDescriptor, layoutResult, scene } from '../family.ts'
-import { resolveFlowchartRenderOptions, applyFlowchartLabelWrapping } from '../../flowchart-config.ts'
-import { layoutGraphSync } from '../../layout-engine.ts'
-import { parseMermaid } from '../../parser.ts'
-import { lowerGraphScene } from '../../renderer.ts'
-import { frontmatterTitle } from '../../mermaid-source.ts'
-import { checkAllGraphAuthoredStyles } from '../../shared/style-props.ts'
+import { createBrowserFamilyDescriptor } from '../family.ts'
+import { FLOWCHART_SVG_HOOKS } from '../../svg-family-hooks/flowchart.ts'
 
-export default createBrowserFamilyDescriptor(descriptorData, {
-  normalizeRequest: ctx => ({
-    renderOptions: resolveFlowchartRenderOptions(ctx.source.frontmatter, ctx.renderOptions),
-  }),
-  layout: ctx => {
-    const graph = parseMermaid(ctx.source.familyText)
-    checkAllGraphAuthoredStyles(graph)
-    applyFlowchartLabelWrapping(graph, ctx.renderOptions, ctx.styleFace)
-    const diagramTitle = frontmatterTitle(ctx.source.frontmatter)
-    return layoutResult(layoutGraphSync(graph, {
-      ...ctx.renderOptions,
-      ...(ctx.styleFace ? { styleFace: ctx.styleFace } : {}),
-      ...(diagramTitle ? { diagramTitle } : {}),
-    }))
-  },
-  lowerScene: scene(lowerGraphScene),
-})
+export default createBrowserFamilyDescriptor(descriptorData, FLOWCHART_SVG_HOOKS)

@@ -54,3 +54,21 @@ describe('flowchart LABEL_OVERFLOW', () => {
     expect(markdown.warnings.filter(warning => warning.code === 'LABEL_OVERFLOW')).toEqual([])
   })
 })
+
+// Families that draw labels as written (upstream sets them with d3 `.text()`)
+// measure them as written: `<br/>` and formatting tags are characters there.
+// Gantt section titles are the exception upstream breaks at `<br>`.
+describe('literal-label LABEL_OVERFLOW', () => {
+  const long = `${'x'.repeat(36)}<br/>y`
+  test.each([
+    ['XYChart title', `xychart-beta\n  title "${long}"\n  x-axis [a, b]\n  bar [1, 2]`, [42]],
+    ['GitGraph commit', `gitGraph\n  commit id: "${long}"`, [42]],
+    ['Gantt task', `gantt\n  dateFormat YYYY-MM-DD\n  section s\n    ${long} :a1, 2024-01-01, 1d`, [42]],
+    ['Gantt section title', `gantt\n  dateFormat YYYY-MM-DD\n  section ${long}\n    t :a1, 2024-01-01, 1d`, []],
+    ['Timeline event', `timeline\n  2024 : ${long}`, [42]],
+  ] as const)('%s', (context, source, charCounts) => {
+    const overflow = verifyMermaid(source).warnings.flatMap(warning =>
+      warning.code === 'LABEL_OVERFLOW' && 'charCount' in warning ? [warning.charCount] : [])
+    expect({ context, overflow }).toEqual({ context, overflow: [...charCounts] })
+  })
+})

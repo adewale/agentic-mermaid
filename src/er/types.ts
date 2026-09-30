@@ -28,7 +28,7 @@ export interface ErDiagram {
   classDefs: Map<string, Record<string, string>>
   /** Relationships between entities or subgraph boundaries. */
   relationships: ErRelationship[]
-  /** Nested ER subgraphs from Mermaid 11.16. */
+  /** Nested ER subgraphs (upstream 11.17; pinned 11.16 has none). */
   groups: ErGroup[]
 }
 

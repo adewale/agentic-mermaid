@@ -18,6 +18,7 @@ import { DAY_MS, dayOfWeek, WEEKDAY_INDEX, formatGanttInstant, ganttDependencyEd
 import { applyTextTransform, estimateTextWidth, resolveRenderStyle, STROKE_WIDTHS } from '../styles.ts'
 import type { RenderStyleDefaults, ResolvedRenderStyle } from '../styles.ts'
 import { wrapLabelToWidth } from '../shared/label-wrap.ts'
+import { breakLineTags, displayText } from '../multiline-utils.ts'
 import type { RenderOptions } from '../types.ts'
 import type { InternalStyleFace } from '../scene/style-registry.ts'
 
@@ -114,8 +115,6 @@ interface TickPlan {
   format: string
 }
 
-const INLINE_FORMAT_TAG = /<\/?(?:b|strong|i|em|u|s|del)\s*>/gi
-
 export function resolveGanttRenderStyle(
   options: RenderOptions = {},
   styleFace?: Readonly<InternalStyleFace>,
@@ -146,10 +145,12 @@ export function ganttMeasureTextWidth(
   fontWeight: number,
   letterSpacing = 0,
 ): number {
-  const plain = text.replace(INLINE_FORMAT_TAG, '')
-  const codepoints = [...plain].length
+  // Gantt draws its labels as written (formatting tags included, as upstream
+  // does), so it measures them as written.
+  const drawn = displayText(text, 'literal')
+  const codepoints = [...drawn].length
   const tracking = Math.max(0, codepoints - 1) * letterSpacing
-  return Math.max(0, estimateTextWidth(plain, fontSize, fontWeight) + tracking)
+  return Math.max(0, estimateTextWidth(drawn, fontSize, fontWeight) + tracking)
 }
 
 function ganttTitleHeight(style: ResolvedRenderStyle): number {
@@ -535,11 +536,15 @@ function wrapColumnLabel(
 ): WrappedColumnLabel {
   const label = applyTextTransform(raw, transform)
   const width = ganttMeasureTextWidth(label, fontSize, fontWeight, letterSpacing)
-  if (width <= GANTT_LABEL_WRAP_BUDGET) return { lines: [label], width }
+  if (!label.includes('\n') && width <= GANTT_LABEL_WRAP_BUDGET) return { lines: [label], width }
   // Shared wrap machinery (measured pixels, grapheme-safe CJK breaks). It
   // measures without letter-spacing; non-zero tracking can overshoot the
-  // budget by a few px, which the labelGap margin absorbs.
-  const lines = wrapLabelToWidth(label, GANTT_LABEL_WRAP_BUDGET, fontSize, fontWeight).split('\n')
+  // budget by a few px, which the labelGap margin absorbs. A newline is a
+  // hard break; each line wraps on its own.
+  const lines = label.split('\n').flatMap(line =>
+    ganttMeasureTextWidth(line, fontSize, fontWeight, letterSpacing) <= GANTT_LABEL_WRAP_BUDGET
+      ? [line]
+      : wrapLabelToWidth(line, GANTT_LABEL_WRAP_BUDGET, fontSize, fontWeight).split('\n'))
   return {
     lines,
     width: Math.max(...lines.map(l => ganttMeasureTextWidth(l, fontSize, fontWeight, letterSpacing))),
@@ -575,7 +580,8 @@ export function layoutGantt(model: GanttModel, schedule: GanttSchedule, options:
   for (let si = 0; si < model.sections.length; si++) {
     const s = model.sections[si]!
     if (s.label) {
-      const wrapped = wrapColumnLabel(s.label, style.groupTextTransform, style.groupHeaderFontSize, style.groupHeaderFontWeight, style.groupLetterSpacing)
+      // Upstream breaks a section title at `<br>` (its task text stays literal).
+      const wrapped = wrapColumnLabel(breakLineTags(s.label), style.groupTextTransform, style.groupHeaderFontSize, style.groupHeaderFontWeight, style.groupLetterSpacing)
       sectionWraps.set(si, wrapped)
       labelColumnWidth = Math.max(labelColumnWidth, wrapped.width)
     }

@@ -82,6 +82,20 @@ describe('renderArchitectureSvg', () => {
     expect(svg).not.toContain('API & <Gateway>')
   })
 
+  it('escapes a hostile icon name and falls back to a bounded text badge', () => {
+    const hostile = 'evil:<script-onload=alert-1>'
+    const diagram = makeDiagram()
+    const svg = renderArchitectureSvg({
+      positioned: { ...diagram, services: diagram.services.map(service => service.id === 'api' ? { ...service, icon: hostile } : service) },
+      colors: lightColors,
+      resolved: { renderOptions: {} },
+    })
+    expect(svg).not.toContain('<script')
+    expect(svg).not.toMatch(/\sonload=/)
+    expect(svg).toContain('data-icon="evil:&lt;script-onload=alert-1&gt;"')
+    expect(svg).toContain('architecture-icon-glyph')
+  })
+
   it('emits architecture-specific markers, classes, and theme tokens', () => {
     const svg = renderArchitectureSvg({ positioned: makeDiagram(), colors: lightColors, resolved: { renderOptions: {} } })
 

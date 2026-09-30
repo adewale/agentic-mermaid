@@ -4,6 +4,7 @@ import {
   type ExtensionIdentity,
   type ExtensionProvenance,
 } from './shared/extension-identity.ts'
+import { isPlainRecord } from './shared/plain-data.ts'
 
 export const RESOURCE_MANIFEST_VERSION = 1 as const
 
@@ -38,12 +39,6 @@ export type ResourceMediaTypeVerifier = (bytes: Uint8Array) => boolean
 interface ResourceManifestInspection {
   readonly errors: readonly string[]
   readonly snapshot?: ResourceManifest
-}
-
-function isPlainRecord(value: unknown): value is Record<string, unknown> {
-  if (typeof value !== 'object' || value === null || Array.isArray(value)) return false
-  const prototype = Object.getPrototypeOf(value)
-  return prototype === Object.prototype || prototype === null
 }
 
 function errorMessage(error: unknown): string {

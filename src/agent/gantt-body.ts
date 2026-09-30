@@ -27,7 +27,8 @@ import type {
   GanttStatement, GanttMutationOp, MutationError, Result, VerifyOptions, LayoutWarning,
 } from './types.ts'
 import { ok, err } from './types.ts'
-import { indexedIdAllocator, labelOverflowCollector } from './body-utils.ts'
+import { indexedIdAllocator, labelOverflowCollector, resolveInsertIndex } from './body-utils.ts'
+import { breakLineTags } from '../multiline-utils.ts'
 import { parseGanttTaskMeta, renderGanttTaskMeta, GANTT_TASK_TAGS, type ParsedTaskMeta } from '../gantt/parser.ts'
 import { appendOpaqueSegment } from './opaque-segments.ts'
 import { parseAccessibilityDirective } from '../shared/accessibility-directives.ts'
@@ -274,14 +275,6 @@ function allTaskIds(body: GanttBody): Set<string> {
   return ids
 }
 
-function resolveInsertIndex(index: number | undefined, length: number): Result<number, MutationError> {
-  if (index === undefined) return ok(length)
-  if (!Number.isInteger(index) || index < 0 || index > length) {
-    return err({ code: 'INVALID_OP', message: `Gantt insert index ${index} out of range (0..${length})` })
-  }
-  return ok(index)
-}
-
 /** Tasks in flat serialization order — statement order IS source order, and
  *  source order IS gantt scheduling semantics (implicit starts chain from the
  *  previous task in this order, across section boundaries). */
@@ -428,7 +421,7 @@ export function mutateGantt(input: GanttBody, op: GanttMutationOp): Result<Gantt
       if (op.taskId !== undefined && allTaskIds(body).has(op.taskId)) {
         return err({ code: 'DUPLICATE_TASK', message: `Task id "${op.taskId}" already exists` })
       }
-      const index = resolveInsertIndex(op.index, s.tasks.length)
+      const index = resolveInsertIndex(op.index, s.tasks.length, 'Gantt')
       if (!index.ok) return index
       const task: GanttBodyTask = {
         id: nextTaskId(),
@@ -726,10 +719,11 @@ export function verifyGantt(body: GanttBody, opts: VerifyOptions): LayoutWarning
     return [{ code: 'EMPTY_DIAGRAM' }]
   }
 
-  const overflow = labelOverflowCollector(warnings, opts, cap)
+  // Gantt draws its text as written; only section titles break at `<br>`.
+  const overflow = labelOverflowCollector(warnings, opts, cap, 'literal')
   if (body.title !== undefined) overflow('title', body.title)
   for (const s of body.sections) {
-    if (s.label !== undefined) overflow(s.id, s.label)
+    if (s.label !== undefined) overflow(s.id, breakLineTags(s.label))
     for (const t of s.tasks) overflow(t.id, t.label)
   }
 

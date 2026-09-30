@@ -25,6 +25,7 @@ import {
   validateJsonConfigAdmission,
 } from '../shared/json-config-admission.ts'
 import type { RenderOptions } from '../types.ts'
+import { isPlainRecord } from '../shared/plain-data.ts'
 
 export interface McpToolDefinition {
   name: string
@@ -150,14 +151,8 @@ interface SchemaProblem { path: SchemaPath; message: string }
 
 const FORBIDDEN_JSON_KEYS = new Set(['__proto__', 'prototype', 'constructor'])
 
-function plainJsonObject(value: unknown): value is Record<string, unknown> {
-  if (typeof value !== 'object' || value === null || Array.isArray(value)) return false
-  const prototype = Object.getPrototypeOf(value)
-  return prototype === Object.prototype || prototype === null
-}
-
 function schemaRecord(value: unknown): JsonSchema | undefined {
-  return plainJsonObject(value) ? value : undefined
+  return isPlainRecord(value) ? value : undefined
 }
 
 function dereferenceSchema(schema: JsonSchema, root: JsonSchema): JsonSchema | undefined {
@@ -165,7 +160,7 @@ function dereferenceSchema(schema: JsonSchema, root: JsonSchema): JsonSchema | u
   if (typeof reference !== 'string' || !reference.startsWith('#/')) return undefined
   let cursor: unknown = root
   for (const encoded of reference.slice(2).split('/')) {
-    if (!plainJsonObject(cursor)) return undefined
+    if (!isPlainRecord(cursor)) return undefined
     cursor = cursor[encoded.replaceAll('~1', '/').replaceAll('~0', '~')]
   }
   return schemaRecord(cursor)
@@ -229,7 +224,7 @@ function validateSchemaValue(
     || (type === 'integer' && typeof value === 'number' && Number.isFinite(value) && Number.isInteger(value))
     || (type === 'boolean' && typeof value === 'boolean')
     || (type === 'array' && Array.isArray(value))
-    || (type === 'object' && plainJsonObject(value))
+    || (type === 'object' && isPlainRecord(value))
   if (!typeIsValid) {
     const expected = type === 'number' ? 'a finite number'
       : type === 'integer' ? 'a finite integer'
@@ -289,7 +284,7 @@ function validateSchemaValue(
     }
   }
 
-  if (plainJsonObject(value) && (type === 'object'
+  if (isPlainRecord(value) && (type === 'object'
     || schema.properties !== undefined
     || schema.required !== undefined
     || schema.additionalProperties !== undefined)) {
@@ -362,7 +357,7 @@ function formatSchemaPath(path: SchemaPath): string {
 
 /** Runtime-check one tool's arguments against the exact schema advertised by tools/list. */
 export function validateMcpToolArguments(tool: McpToolDefinition, value: unknown): string[] {
-  if (!plainJsonObject(value)) return ['arguments must be a plain JSON object']
+  if (!isPlainRecord(value)) return ['arguments must be a plain JSON object']
   const admissionProblems = validateJsonConfigAdmission(value)
   if (admissionProblems.length > 0) {
     return limitJsonConfigDiagnostics(admissionProblems.map(problem =>
@@ -395,7 +390,7 @@ function discoverResult<Context>(surface: McpServerSurface<Context>, supportedVe
 }
 
 function initializeParamsProblems(params: unknown): string[] {
-  if (!plainJsonObject(params)) return ['params is required and must be an object']
+  if (!isPlainRecord(params)) return ['params is required and must be an object']
   const problems: string[] = []
   if (typeof params.protocolVersion !== 'string') {
     problems.push('params.protocolVersion is required and must be a string')
@@ -460,7 +455,7 @@ export async function dispatchAdmittedMcpRequest<Context>(message: AdmittedMcpMe
       : unknownMethod(id, req.method); break
     case 'tools/list': response = reply(id, { tools: surface.tools }); break
     case 'tools/call': {
-      if (!plainJsonObject(req.params)) {
+      if (!isPlainRecord(req.params)) {
         response = rpcError(id, -32602, 'Invalid params: tools/call requires an object')
         break
       }
@@ -528,8 +523,8 @@ const CACHEABLE_METHODS = new Set(['server/discover', 'tools/list'])
  * Errors are left alone: caching hints and `resultType` live on results.
  */
 export function decorateMcpResult(response: JsonRpcResponse | null, method: string, era: ProtocolEra, serverName: string): JsonRpcResponse | null {
-  if (era !== 'modern' || !response || !plainJsonObject(response.result)) return response
-  const existingMeta = plainJsonObject(response.result._meta) ? response.result._meta : {}
+  if (era !== 'modern' || !response || !isPlainRecord(response.result)) return response
+  const existingMeta = isPlainRecord(response.result._meta) ? response.result._meta : {}
   const result: Record<string, unknown> = {
     resultType: 'complete',
     ...response.result,
@@ -549,9 +544,9 @@ export function decorateMcpResult(response: JsonRpcResponse | null, method: stri
  * shared compute cache. Cache hits are decorated again for the current request,
  * so a legacy fill can never dictate a modern envelope (or vice versa). */
 export function protocolNeutralMcpResult(result: unknown): unknown {
-  if (!plainJsonObject(result)) return result
+  if (!isPlainRecord(result)) return result
   const { resultType: _resultType, ttlMs: _ttlMs, cacheScope: _cacheScope, _meta, ...neutral } = result
-  if (plainJsonObject(_meta)) {
+  if (isPlainRecord(_meta)) {
     const { [META_SERVER_INFO]: _serverInfo, ...retainedMeta } = _meta
     if (Object.keys(retainedMeta).length > 0) neutral._meta = retainedMeta
   }

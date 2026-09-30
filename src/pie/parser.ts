@@ -1,7 +1,9 @@
 import type { PieChart, PieEntry } from './types.ts'
 import { scanAccessibilityDirectives } from '../shared/accessibility-directives.ts'
 import { syntaxError } from '../shared/syntax-error.ts'
-import { decodeHTML } from 'entities/decode'
+import { stripTrailingComment } from '../shared/trailing-comment.ts'
+import { mermaidEntityPrepass, TERMINAL_CONTROL_RE, toEntityMarkers } from '../shared/mermaid-entities.ts'
+import { projectEntityMarkers, type EntityRefusal } from '../shared/mermaid-entity-display.ts'
 
 // ============================================================================
 // Pie chart parser
@@ -37,7 +39,8 @@ const XML_DISALLOWED_CONTROL_RE = /[\u0000-\u0008\u000b\u000c\u000e-\u001f]/
  *   - an unquoted label
  */
 export function parsePieChart(lines: string[]): PieChart {
-  lines = scanAccessibilityDirectives(lines).familyLines
+  // Mermaid's Pie grammar ends every statement at a `%%` comment.
+  lines = scanAccessibilityDirectives(lines).familyLines.map(stripTrailingComment)
   if (lines.length === 0) {
     throw new Error('Pie chart is empty')
   }
@@ -126,13 +129,13 @@ export function parsePieChart(lines: string[]): PieChart {
       // Mermaid runs encodeEntities over source before the Pie grammar and
       // keys its DB with that preprocessed STRING. Decimal entity spellings
       // therefore collide with their literal internal-marker spelling.
-      const preprocessedLine = mermaidPieEntityPrepass(line)
+      const preprocessedLine = mermaidEntityPrepass(line)
       const preprocessedLabel = ENTRY_RE.exec(preprocessedLine)?.[1] ?? entryMatch[1]!
-      const sourceKey = decodeEscapes(mermaidPieSourceKey(preprocessedLabel))
+      const sourceKey = decodeEscapes(toEntityMarkers(preprocessedLabel))
       // Mermaid's grammar consumes source escapes while entity markers are
       // still opaque tokens. Expand those markers only afterward: a backslash
       // produced by #92; is visible text, not a new source escape.
-      const projectedLabel = projectPieEntityDisplay(decodeEscapes(mermaidPieSourceKey(preprocessedLabel)))
+      const projectedLabel = projectEntityMarkers(sourceKey, PIE_ENTITY_REFUSAL)
       if (hasNewTerminalControl(label, projectedLabel)) {
         throw syntaxError({
           what: 'Pie entity projection creates a terminal control character after escape decoding',
@@ -177,10 +180,6 @@ export function parsePieChart(lines: string[]): PieChart {
     })
   }
 
-  if (entries.length === 0) {
-    throw new Error('Pie chart must include at least one "label" : value entry')
-  }
-
   return {
     title, showData, entries,
     ...(displayTitle !== title || (title !== undefined && needsPieLiteralText(title)) ? { displayTitle } : {}),
@@ -217,7 +216,7 @@ function projectPieTitleDisplay(authoredTitle: string): string {
   // the renderer-facing title after the source prepass. Authored markup-like
   // text is literal in Pie too; do not apply other families' <br>/Markdown
   // normalization before or after expanding entity markers.
-  const display = projectPieEntityDisplay(mermaidPieSourceKey(mermaidPieEntityPrepass(authoredTitle)))
+  const display = projectEntityMarkers(toEntityMarkers(mermaidEntityPrepass(authoredTitle)), PIE_ENTITY_REFUSAL)
   if (XML_DISALLOWED_CONTROL_RE.test(display)) {
     throw syntaxError({
       what: 'Pie title display contains an XML-disallowed control character',
@@ -228,99 +227,27 @@ function projectPieTitleDisplay(authoredTitle: string): string {
   return display
 }
 
-function mermaidPieEntityPrepass(line: string): string {
-  // These two substitutions precede encodeEntities in pinned Mermaid. They
-  // can occur inside an otherwise valid quoted Pie label, so identity must
-  // observe them even though the source/display spelling remains authored.
-  // The upstream greedy regex backtracks catastrophically on repeated
-  // keyword/hash text. Its effect on one physical line is simply to strip
-  // the last semicolon if a qualifying keyword/colon/hash chain exists.
-  // JavaScript's `.` stops at all four line terminators, including U+2028
-  // and U+2029 that can appear inside a quoted label without a physical LF.
-  return line.replace(/[^\r\n\u2028\u2029]+/g, segment =>
-    stripEntityPrepassSemicolon(stripEntityPrepassSemicolon(segment, 'style'), 'classDef'))
-}
-
-function stripEntityPrepassSemicolon(line: string, keyword: string): string {
-  const lastSemicolon = line.lastIndexOf(';')
-  if (lastSemicolon < 0 || !line.includes(keyword)) return line
-  const viableFrom = new Uint8Array(line.length + 1)
-  let nextHash = -1
-  let viable = false
-  for (let i = line.length - 1; i >= 0; i--) {
-    const character = line[i]!
-    if (/\s/.test(character)) nextHash = -1
-    else if (character === '#') nextHash = i
-    if (character === ':' && nextHash >= 0 && nextHash < lastSemicolon) viable = true
-    viableFrom[i] = viable ? 1 : 0
-  }
-  for (let start = line.indexOf(keyword); start >= 0; start = line.indexOf(keyword, start + keyword.length)) {
-    if (viableFrom[start + keyword.length] === 1) {
-      return line.slice(0, lastSemicolon) + line.slice(lastSemicolon + 1)
-    }
-  }
-  return line
-}
-
-function mermaidPieSourceKey(label: string): string {
-  return label.replace(/#\w+;/g, token => {
-    const inner = token.slice(1, -1)
-    return /^\+?\d+$/.test(inner) ? `ﬂ°°${inner}¶ß` : `ﬂ°${inner}¶ß`
-  })
-}
-
-/** Pinned Mermaid expands the Pie preprocessor's markers in final SVG. DOM
- * parsing resolves valid HTML references within those markers while the
- * source's leading ampersand remains literal. Keep display separate from
- * the authored label used for IDs, mutation, and source provenance. */
-const windows1252 = new TextDecoder('windows-1252')
-const PROJECTED_TERMINAL_CONTROL_RE = /[\u0000-\u001f\u007f-\u009f]/
+/** Pinned Mermaid expands the preprocessor's entity markers in final SVG
+ * (shared/mermaid-entities.ts). Keep display separate from the authored
+ * label used for IDs, mutation, and source provenance. */
+const PIE_ENTITY_REFUSAL: EntityRefusal = { subject: 'Pie entity', example: '"Alpha&#35;" : 10' }
 
 function hasNewTerminalControl(authoredLabel: string, displayLabel: string): boolean {
-  if (!PROJECTED_TERMINAL_CONTROL_RE.test(displayLabel)) return false
+  if (!TERMINAL_CONTROL_RE.test(displayLabel)) return false
   const authoredCounts = new Uint32Array(160)
   for (const character of authoredLabel) {
     const code = character.charCodeAt(0)
-    if (code < 160 && PROJECTED_TERMINAL_CONTROL_RE.test(character)) {
+    if (code < 160 && TERMINAL_CONTROL_RE.test(character)) {
       authoredCounts[code] = authoredCounts[code]! + 1
     }
   }
   for (const character of displayLabel) {
     const code = character.charCodeAt(0)
-    if (code >= 160 || !PROJECTED_TERMINAL_CONTROL_RE.test(character)) continue
+    if (code >= 160 || !TERMINAL_CONTROL_RE.test(character)) continue
     if (authoredCounts[code] === 0) return true
     authoredCounts[code] = authoredCounts[code]! - 1
   }
   return false
-}
-
-function projectPieEntityDisplay(label: string): string {
-  return label.replace(/ﬂ°°(\d+)¶ß|ﬂ°(\w+)¶ß/g, (_token, numeric: string | undefined, named: string | undefined) => {
-    const inner = numeric ?? named!
-    let decoded: string
-    if (numeric !== undefined) {
-      const codePoint = Number(inner)
-      decoded = codePoint === 0 || codePoint > 0x10ffff || (codePoint >= 0xd800 && codePoint <= 0xdfff)
-        ? '\ufffd'
-        : codePoint >= 0x80 && codePoint <= 0x9f
-          ? windows1252.decode(Uint8Array.of(codePoint))
-          : String.fromCodePoint(codePoint)
-    } else {
-      // Mermaid expands every #name; marker as an HTML character reference
-      // in the final browser SVG, including legacy prefix matches such as
-      // #notit; → ¬it;. The full HTML5 table is already in our `entities`
-      // dependency; unknown names remain literal.
-      decoded = decodeHTML(`&${inner};`)
-    }
-    if (PROJECTED_TERMINAL_CONTROL_RE.test(decoded)) {
-      throw syntaxError({
-        what: 'Pie entity projects a terminal control character',
-        expectedForm: 'an entity that displays printable text',
-        example: '"Alpha&#35;" : 10',
-      })
-    }
-    return decoded
-  })
 }
 
 function decodeEscapes(raw: string): string {

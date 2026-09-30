@@ -61,6 +61,7 @@ import type {
 } from './style-spec.ts'
 import type { SemanticChannels } from './ir.ts'
 import { SCENE_ROLE_DESCRIPTORS, type BuiltinSceneRole } from './roles.ts'
+import { isPlainRecord } from '../shared/plain-data.ts'
 
 /** Private renderer defaults for built-in looks. This is intentionally not
  *  part of the public StyleSpec schema, registerStyle boundary, or docs. */
@@ -165,12 +166,6 @@ function withStyleAdmission<T>(admit: () => T): T {
   }
 }
 
-function plainDeclarativeRecord(value: unknown): value is Record<string, unknown> {
-  if (typeof value !== 'object' || value === null || Array.isArray(value)) return false
-  const prototype = Object.getPrototypeOf(value)
-  return prototype === Object.prototype || prototype === null
-}
-
 /**
  * Materialize caller-owned declarative data once. Object.entries invokes each
  * enumerable accessor once; recursive snapshots ensure nested colors (and any
@@ -220,7 +215,7 @@ function snapshotDeclarativeStyleValue(value: unknown): unknown {
       return Object.freeze(copy)
     }
 
-    if (!plainDeclarativeRecord(candidate)) return candidate
+    if (!isPlainRecord(candidate)) return candidate
     const entries = Object.entries(candidate)
     if (entries.length > JSON_CONFIG_ADMISSION_LIMITS.maxItemsPerContainer) {
       throw new TypeError(`Style object must contain at most ${JSON_CONFIG_ADMISSION_LIMITS.maxItemsPerContainer} properties`)
@@ -257,7 +252,7 @@ function validatedStyleSpecSnapshot(spec: StyleSpec): StyleSpec {
 
 function styleRegistrationOptionsSnapshot(options: StyleRegistrationOptions): StyleRegistrationOptions {
   const snapshot = snapshotDeclarativeStyleValue(options)
-  if (!plainDeclarativeRecord(snapshot)) {
+  if (!isPlainRecord(snapshot)) {
     throw new TypeError('registerStyle options must be a plain object')
   }
   return snapshot as StyleRegistrationOptions

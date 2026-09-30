@@ -9,6 +9,7 @@
 
 import { normalizeMermaidSource } from '../mermaid-source.ts'
 import { stripStateComment } from '../state/comment.ts'
+import { trailingCommentStart } from '../shared/trailing-comment.ts'
 import { splitAuthoredPieTitleLine } from '../pie/source-title.ts'
 import { decodeXML } from 'entities'
 import {
@@ -27,7 +28,7 @@ import type {
 import { ok, err } from './types.ts'
 import { assertJsonConfigAdmission } from '../shared/json-config-admission.ts'
 import { isBuiltinFamilyId } from './families.ts'
-import { attachSourceMapSpans } from './source-map-spans.ts'
+import { attachSourceMapSpans, type SourceSpanGrammar } from './source-map-spans.ts'
 
 // Re-exports for callers/tests that used the previous in-tree parser homes.
 export { parseSequenceBody } from './sequence-body.ts'
@@ -189,8 +190,8 @@ export function parseRegisteredMermaid(source: string): Result<ParsedDiagram, Pa
     familyLine.authoredHeader || semanticHeader,
     familyLineBoundary,
   )
-  const tracedSourceMap = (map: SourceMap): SourceMap =>
-    attachSourceMapSpans(map, canonicalSource, source, documentSpans)
+  const tracedSourceMap = (map: SourceMap, grammar?: SourceSpanGrammar): SourceMap =>
+    attachSourceMapSpans(map, canonicalSource, source, documentSpans, grammar)
   // Opaque and extension bodies own the exact authored bytes AFTER the leading
   // wrapper. The wrapper is retained separately in meta.wrapperSource, so
   // deriving this value from the preprocessed body would leave leading
@@ -311,7 +312,10 @@ export function parseRegisteredMermaid(source: string): Result<ParsedDiagram, Pa
       }])
     }
     attachUniversalAccessibility(parsed.value, meta)
-    const sourceMap = tracedSourceMap(plugin.buildSourceMap?.(parsed.value, sourceMapCanonicalSource) ?? emptySourceMap())
+    const sourceMap = tracedSourceMap(
+      plugin.buildSourceMap?.(parsed.value, sourceMapCanonicalSource) ?? emptySourceMap(),
+      kind === 'flowchart' ? 'flowchart' : 'generic',
+    )
     const diagram: ValidDiagram = { kind, meta, body: parsed.value, source: sourceMap, canonicalSource }
     markDroppedComments(diagram, source)
     return ok(diagram)
@@ -347,13 +351,30 @@ function attachUniversalAccessibility(body: import('./types.ts').DiagramBody, me
  * everything and never reach here.
  */
 function markDroppedComments(diagram: ValidDiagram, authoredSource: string): void {
-  const comments = diagram.meta.comments
   // Structured Sequence bodies keep comments as source-preserved segments;
   // whole-body opaque Sequence and wrapper comments are preserved as before.
-  if (diagram.kind === 'sequence' || diagram.body.kind === 'opaque' || comments.length === 0) return
+  if (diagram.kind === 'sequence' || diagram.body.kind === 'opaque') return
 
   const sourceLines = authoredSource.split(/\r?\n/).map(line => line.trim())
-  const serializedLines = serializeMermaid(diagram).split(/\r?\n/).map(line => line.trim())
+  // A `%%` comment after a statement is a comment only where the family's
+  // grammar ends that statement there; elsewhere it is text the serializer
+  // keeps. So a trailing comment counts as dropped when its bytes are gone.
+  const commentLines = new Set(diagram.meta.comments.map(comment => comment.line))
+  const trailing = sourceLines.flatMap((line, index) => {
+    const start = trailingCommentStart(line)
+    return start > 0 && !commentLines.has(index + 1) ? [{ line: index + 1, comment: line.slice(start) }] : []
+  })
+  if (diagram.meta.comments.length === 0 && trailing.length === 0) return
+
+  const serialized = serializeMermaid(diagram)
+  const serializedLines = serialized.split(/\r?\n/).map(line => line.trim())
+  const comments = [
+    ...diagram.meta.comments,
+    ...trailing
+      .filter(({ comment }) => !serialized.includes(comment))
+      .map(({ line, comment }) => ({ text: comment.slice(2).trim(), line })),
+  ].sort((a, b) => a.line - b.line)
+  if (comments.length === 0) return
   const keptSourceLines = longestCommonSubsequenceIndices(sourceLines, serializedLines)
   const keptCommentLines = new Set<number>()
   for (const sourceIndex of keptSourceLines) {

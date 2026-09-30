@@ -101,8 +101,8 @@ function applyOneMutation(
     const sameRepresentation = reparsed.value.body.kind === r.value.kind
     // Blank-slate builders deliberately admit a narrow intermediate state:
     // the typed body may remain structured while it is still below the
-    // family's source grammar floor (for example, an XY title before its first
-    // series). Keep that exception family-owned and structural. A descriptor
+    // family's source grammar floor (for example, a Sankey diagram before its
+    // first link, which Mermaid rejects). Keep that exception family-owned and structural. A descriptor
     // must identify the candidate as EMPTY_DIAGRAM; every non-empty mutation
     // must close back through the shared parser to the same representation.
     const verifiedEmptyScaffold = !sameRepresentation

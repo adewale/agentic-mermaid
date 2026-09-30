@@ -29,6 +29,8 @@ import {
 import { DEFAULT_ASCII_THEME } from './ansi.ts'
 import { getPath, mergePath } from './pathfinder.ts'
 import { visualWidth } from './width.ts'
+import { displayText } from '../multiline-utils.ts'
+import { oneRowDisplayText } from './multiline-utils.ts'
 import { compareCodePointStrings } from '../shared/deterministic-order.ts'
 
 interface CellBox {
@@ -195,7 +197,7 @@ export function renderArchitectureAscii(
   const labelBoxes: CellBox[] = []
   for (const { edge, points } of edgePaths) {
     if (!edge.label) continue
-    const text = `[${edge.label.replace(/\n/g, ' ')}]`
+    const text = `[${oneRowDisplayText(edge.label)}]`
     const placement = placeEdgeLabel(text, points, [...allBoxes, ...labelBoxes])
     drawText(canvas, placement, text, true)
     for (let x = placement.x; x < placement.x + visualWidth(text); x++) setRole(roleCanvas, x, placement.y, 'text')
@@ -348,7 +350,7 @@ export function renderArchitectureAscii(
 }
 
 function serviceLabelLines(label: string, icon: string | undefined): string[] {
-  const lines = label.split(/\r?\n/).map(line => line.trim()).filter(Boolean)
+  const lines = displayText(label).split(/\r?\n/).map(line => line.trim()).filter(Boolean)
   const out = lines.length > 0 ? lines : ['']
   if (icon) out[0] = `[${icon}]${out[0] ? ` ${out[0]}` : ''}`
   return out
@@ -389,7 +391,7 @@ function buildGroupBoxes(
   const ordered = [...diagram.groups].sort((a, b) => groupDepth(diagram, b.id) - groupDepth(diagram, a.id))
   for (const group of ordered) {
     const source = positioned.get(group.id)!
-    const header = `${group.icon ? `(${group.icon}) ` : ''}${group.label.replace(/\n/g, ' ')}`
+    const header = `${group.icon ? `(${group.icon}) ` : ''}${oneRowDisplayText(group.label)}`
     let x = projectX(source.x)
     let y = projectY(source.y)
     let width = Math.max(8, visualWidth(header) + 4, Math.ceil(source.width / xScale))

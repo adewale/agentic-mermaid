@@ -17,6 +17,7 @@ import { drawMultiBox } from './draw.ts'
 import { visualWidth } from './width.ts'
 import { wrapText } from './wrap.ts'
 import { splitLines } from './multiline-utils.ts'
+import { displayText } from '../multiline-utils.ts'
 import { checkAllClassLikeAuthoredStyles } from '../shared/style-props.ts'
 
 /** Classify a character from a box drawing as 'border' or 'text'. */
@@ -38,7 +39,7 @@ function formatAttribute(attr: ErAttribute): string {
 /** Build sections for an entity box: [header], [attributes] */
 function buildEntitySections(entity: ErEntity, maxTextWidth?: number): string[][] {
   // Support multi-line entity names
-  const header = splitLines(entity.label)
+  const header = splitLines(displayText(entity.label))
   const attrs = entity.attributes.flatMap(attr => wrapText(formatAttribute(attr), maxTextWidth))
   if (attrs.length === 0) return [header]
   return [header, attrs]
@@ -169,12 +170,12 @@ export function renderErAscii(text: string, config: AsciiConfig, colorMode?: Col
   const useAscii = config.useAscii
   const maxRelationshipLabelWidth = Math.max(
     0,
-    ...diagram.relationships.flatMap(rel => rel.label ? splitLines(rel.label).map(visualWidth) : [0]),
+    ...diagram.relationships.flatMap(rel => rel.label ? splitLines(displayText(rel.label)).map(visualWidth) : [0]),
   )
   const hGap = Math.max(6, maxRelationshipLabelWidth + 2)  // horizontal gap between entity boxes, wide enough for labels
   const maxRelationshipLabelLines = Math.max(
     0,
-    ...diagram.relationships.map(rel => rel.label ? splitLines(rel.label).length : 0),
+    ...diagram.relationships.map(rel => rel.label ? splitLines(displayText(rel.label)).length : 0),
   )
   const vGap = Math.max(4, maxRelationshipLabelLines + 3) // detours + labels stay between rows
   const componentGap = 6  // vertical gap between disconnected components
@@ -357,7 +358,7 @@ export function renderErAscii(text: string, config: AsciiConfig, colorMode?: Col
       for (let i = 0; i < rightChars.length; i++) setC(endX - rightChars.length + 1 + i, lineY, rightChars[i]!, 'arrow')
 
       if (rel.label) {
-        const lines = splitLines(rel.label)
+        const lines = splitLines(displayText(rel.label))
         const gapMid = Math.floor((startX + endX) / 2)
         for (let lineIdx = 0; lineIdx < lines.length; lineIdx++) {
           const line = lines[lineIdx]!
@@ -422,7 +423,7 @@ export function renderErAscii(text: string, config: AsciiConfig, colorMode?: Col
       // We expand the canvas as needed since labels can extend beyond the initial bounds.
       // Supports multi-line labels.
       if (rel.label) {
-        const lines = splitLines(rel.label)
+        const lines = splitLines(displayText(rel.label))
         const midY = Math.floor((startY + endY) / 2)
         // Center lines vertically around midY
         const startLabelY = midY - Math.floor((lines.length - 1) / 2)
@@ -445,6 +446,6 @@ export function renderErAscii(text: string, config: AsciiConfig, colorMode?: Col
 
   const rendered = canvasToString(canvas, { roleCanvas: rc, colorMode, theme })
   if (diagram.groups.length === 0) return rendered
-  const groupLines = diagram.groups.map(group => `${group.parentId ? '  ' : ''}[${group.label}] (${group.entityIds.join(', ')})`)
+  const groupLines = diagram.groups.map(group => `${group.parentId ? '  ' : ''}[${displayText(group.label)}] (${group.entityIds.join(', ')})`)
   return `${groupLines.join('\n')}\n${rendered}`
 }

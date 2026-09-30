@@ -36,7 +36,7 @@ import type {
 } from './types.ts'
 import { ok, err } from './types.ts'
 import { labelOverflowCollector } from './body-utils.ts'
-import { expandInlineNamespaceStatement, isBareClassRelationshipCandidate, isEscapedMarkedClassRelationshipCandidate, isMarkedClassRelationshipCandidate, parseClassInteractionWithAuthored, parseClassAnnotationStatement, parseClassBodyAnnotationToken, parseClassDeclaration, parseClassReference, parseClassRelationship, parseNamespaceHeader, supportedRelationEndpoint } from '../class/parser.ts'
+import { classCommentRejections, classDiagramHasStatement, classStatement, expandInlineNamespaceStatement, isBareClassRelationshipCandidate, isEscapedMarkedClassRelationshipCandidate, isMarkedClassRelationshipCandidate, parseClassInteractionWithAuthored, parseClassAnnotationStatement, parseClassBodyAnnotationToken, parseClassDeclaration, parseClassReference, parseClassRelationship, parseNamespaceHeader, supportedRelationEndpoint } from '../class/parser.ts'
 import { parseMutableStyleProps, parseStyleProps, serializeStyleProps, unsafeStylePaintError } from '../shared/style-props.ts'
 
 // ---- Parser ---------------------------------------------------------------
@@ -137,9 +137,11 @@ export function parseClassBody(lines: string[]): ClassBody | null {
 
   let i = 0
   while (i < lines.length) {
-    const raw = lines[i]!.trim()
+    const source = lines[i]!.trim()
     i++
-    if (!raw || raw.startsWith('%%')) continue
+    if (!source || source.startsWith('%%')) continue
+    // A trailing `%%` comment is dropped, as the render parser drops it.
+    const raw = classStatement(source)
 
     // Title
     const tm = raw.match(TITLE_RE)
@@ -206,7 +208,7 @@ export function parseClassBody(lines: string[]): ClassBody | null {
       continue
     }
 
-    const interaction = parseClassInteractionWithAuthored(raw)
+    const interaction = parseClassInteractionWithAuthored(source)
     if (interaction) {
       const node = upsert(interaction.id, undefined, interaction.generic)
       node.href = interaction.href
@@ -238,7 +240,9 @@ export function parseClassBody(lines: string[]): ClassBody | null {
           const ml = lines[i]!.trim()
           i++
           if (!ml || ml.startsWith('%%')) continue
-          if (ml === '}') break
+          // A member keeps `%%` as text; its closing brace is a statement again.
+          const closing = ml.startsWith('}') ? classStatement(ml) : ml
+          if (closing === '}') break
           if (parseClassBodyAnnotationToken(ml) !== null && node.members.some(member => parseClassBodyAnnotationToken(member) !== null)) return null
           node.members.push(ml)
         }
@@ -570,6 +574,34 @@ export function mutateClass(body: ClassBody, op: ClassMutationOp): Result<ClassB
 }
 
 // ---- Verifier -------------------------------------------------------------
+
+/** Class source ours reads where Mermaid 11.16 rejects it, each on its
+ * canonical line: a bare header draws an empty diagram, and a trailing `%%`
+ * where Mermaid's class grammar does not end the statement is a comment. */
+export function classUnsupportedSyntaxWarnings(canonicalSource: string): LayoutWarning[] {
+  const lines = canonicalSource.split(/\r?\n/)
+  const header = lines.findIndex(line => /^classDiagram(?:-v2)?\b/.test(line.trim()))
+  if (header < 0) return []
+  const bodyLines = lines.slice(header + 1)
+  const warnings: LayoutWarning[] = []
+  if (!classDiagramHasStatement(bodyLines)) {
+    warnings.push({
+      code: 'UNSUPPORTED_SYNTAX',
+      syntax: 'class_empty_diagram',
+      line: header + 1,
+      message: 'A "classDiagram" header with no statement after it draws an empty class diagram. Mermaid 11.16 rejects this; add a class, relationship, note or other statement.',
+    })
+  }
+  for (const { index, what } of classCommentRejections(bodyLines)) {
+    warnings.push({
+      code: 'UNSUPPORTED_SYNTAX',
+      syntax: 'class_trailing_comment',
+      line: header + 2 + index,
+      message: `${what}. Mermaid 11.16 rejects this; put the comment on a line of its own.`,
+    })
+  }
+  return warnings
+}
 
 export function verifyClass(body: ClassBody, opts: VerifyOptions): LayoutWarning[] {
   const warnings: LayoutWarning[] = []

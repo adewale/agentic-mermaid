@@ -131,19 +131,30 @@ const familyFiles = Object.fromEntries(MEASURED_FAMILY_IDS.map(id => [
 
 const observedElkFamilies = MEASURED_FAMILY_IDS.filter(id => familyFiles[id].includes(elkOutput))
 if (!MEASURE_ONLY) {
-  // Pie alone needs the complete HTML5 named-reference table. Keep that data
-  // out of initial download and every other family's transfer closure.
+  // The complete HTML5 named-reference table (~23 KB gzip) is fetched on
+  // demand (shared/html-entity-table.lazy.ts), only for a diagram that uses a
+  // named code beyond XML's five. Keep it out of the initial download and out
+  // of every family's static transfer closure.
   const htmlEntityOutputs = outputNames.filter(path =>
     Object.keys(metafile.outputs[path]!.inputs).some(input =>
       input.includes('entities/dist/') && input.endsWith('/generated/decode-data-html.js')))
-  if (htmlEntityOutputs.length !== 1 || !familyFiles.pie.includes(htmlEntityOutputs[0]!)
-    || initialFiles.includes(htmlEntityOutputs[0]!)
-    || BROWSER_BUILTIN_FAMILY_IDS.some(id => id !== 'pie' && familyFiles[id].includes(htmlEntityOutputs[0]!))) {
-    throw new Error('HTML5 named-reference table must load with Pie only')
+  if (htmlEntityOutputs.length !== 1 || initialFiles.includes(htmlEntityOutputs[0]!)
+    || BROWSER_BUILTIN_FAMILY_IDS.some(id => familyFiles[id].includes(htmlEntityOutputs[0]!))) {
+    throw new Error('HTML5 named-reference table must load only on demand, never with the initial download or a family')
   }
-  // Source-level tests do not exercise the build-only CJS alias. Execute the
-  // emitted ESM entry so a broken split decoder fails this mandatory build gate.
+  // Source-level tests do not exercise the build-only CJS alias or the lazy
+  // table swap. Execute the emitted ESM entry so a broken on-demand decoder
+  // fails this mandatory build gate.
   const { renderMermaidSVGAsync } = await import(pathToFileURL(join(ROOT, 'dist/browser-lazy/index.js')).href)
+  // The first render starts with the table unloaded, so it proves the fetch.
+  for (const [family, source] of [
+    ['flowchart', 'flowchart LR\n  A["x#hearts;y"] --> B'],
+    ['er', 'erDiagram\n  A ||--o{ B : "x#hearts;y"'],
+  ] as const) {
+    if (!(await renderMermaidSVGAsync(source)).includes('>x♥y<')) {
+      throw new Error(`Built ${family} lazy decoder failed HTML5 named reference #hearts;`)
+    }
+  }
   for (const [name, displayed] of [['NotEqualTilde', '≂̸'], ['notit', '¬it;']] as const) {
     const svg = await renderMermaidSVGAsync(`pie\n  "A#${name};B" : 1\n`)
     if (!svg.includes(`>A${displayed}B (100.0%)</text>`)) {

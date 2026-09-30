@@ -176,8 +176,9 @@ describe('parseTimelineDiagram', () => {
       title Empty`).title).toBe('Empty')
   })
 
-  it('still throws when the diagram carries nothing at all', () => {
-    expect(() => parse(`timeline`)).toThrow('Timeline diagram must include at least one period, section, or title')
+  it('reads a bare header as the empty timeline Mermaid 11.16 accepts', () => {
+    const d = parse(`timeline`)
+    expect({ title: d.title, sections: d.sections }).toEqual({ title: undefined, sections: [] })
   })
 })
 

@@ -20,10 +20,10 @@
 // ============================================================================
 
 import { findSankeyCycle, parseSankeyDiagram } from '../sankey/parser.ts'
-import { labelOverflowWarning } from './label-metrics.ts'
+import { labelOverflowCollector } from './body-utils.ts'
 import { unknownOpMessage } from './mutation-ops.ts'
 import type { LayoutWarning, MutationError, Result, SankeyBody, SankeyMutationOp, VerifyOptions } from './types.ts'
-import { DEFAULT_LABEL_CHAR_CAP, err, ok } from './types.ts'
+import { err, ok } from './types.ts'
 
 const HEADER_RE = /^sankey(?:-beta)?\s*:?\s*$/i
 
@@ -223,16 +223,15 @@ export function mutateSankey(body: SankeyBody, op: SankeyMutationOp): Result<San
 // ---- Verifier (FamilyPlugin.verify hook) ------------------------------------
 
 export function verifySankey(body: SankeyBody, opts: VerifyOptions): LayoutWarning[] {
-  const cap = opts.labelCharCap ?? DEFAULT_LABEL_CHAR_CAP
   const warnings: LayoutWarning[] = []
+  const overflow = labelOverflowCollector(warnings, opts)
   if (body.links.length === 0) warnings.push({ code: 'EMPTY_DIAGRAM' })
   const seen = new Set<string>()
   for (const link of body.links) {
     for (const label of [link.source, link.target]) {
       if (seen.has(label)) continue
       seen.add(label)
-      const w = labelOverflowWarning(label, label, cap)
-      if (w) warnings.push(w)
+      overflow(label, label)
     }
   }
   // Conservation (FLOW_IMBALANCE): an intermediate node should pass its

@@ -1,10 +1,12 @@
 import type { MermaidGraph, MermaidNode, MermaidEdge, MermaidSubgraph, Direction, NodeShape, EdgeStyle, EdgeMarker } from './types.ts'
-import { normalizeBrTags, normalizePlainLabel } from './multiline-utils.ts'
+import { normalizeBrTags } from './multiline-utils.ts'
+import { parseFlowchartLabel } from './flowchart-labels.ts'
+import { createSubgraphMembership } from './shared/subgraph-membership.ts'
 import { normalizeV11Shape } from './flowchart-shapes.ts'
 import {
   matchNoteLine, matchNoteOpen, isNoteEnd, matchStereotypeDecl,
   isConcurrencySeparator, isStateNodeId, matchHistoryEndpoint, matchTransitionLine, historyLabel,
-  stripStateComment, matchStateClassAssignment,
+  stripStateComment, matchStateClassAssignment, stateNoteText,
 } from './state/parse-core.ts'
 import { parseStyleProps } from './shared/style-props.ts'
 export { parseStyleProps } from './shared/style-props.ts'
@@ -15,9 +17,18 @@ import {
   isMermaidIdentifier,
   parseClassShorthandStatement,
 } from './shared/mermaid-identifiers.ts'
+import { metadataText, readMetadataBlock } from './shared/metadata-yaml.ts'
+import { syntaxError } from './shared/syntax-error.ts'
 import { classifyMermaidFamilyFromFirstLine } from './family-detection.ts'
 import { detectCompatibilityGraphFamilyFromFirstLine } from './agent/family-router.ts'
-import { flowchartTextArrowLabelRanges } from './flowchart-statement-labels.ts'
+import {
+  coalesceFlowchartMetadataLines,
+  flowchartRegionAt,
+  flowchartStatementSpans,
+  matchFlowchartLink,
+  matchTextArrow,
+  scanFlowchart,
+} from './flowchart-lexer.ts'
 
 // ============================================================================
 // Mermaid parser — flowcharts and state diagrams
@@ -73,8 +84,12 @@ export function parseMermaid(text: string): MermaidGraph {
 
 function expandInlineHeaderStatements(lines: string[]): string[] {
   if (lines.length === 0 || !lines[0]!.includes(';')) return lines
-  if (!/^(?:graph|flowchart|swimlane|stateDiagram(?:-v2)?)(?:\b|\s)/i.test(lines[0]!)) return lines
-  return [...splitFlowchartStatements(lines[0]!), ...lines.slice(1)]
+  // The header's direction (`graph >`) is not a statement: split after it.
+  const header = lines[0]!.match(/^(?:(?:graph|flowchart|swimlane)(?:[ \t]+(?:TD|TB|LR|BT|RL|[<>^v])(?![\w-]))?|stateDiagram(?:-v2)?)(?=$|[\s;])/i)
+  if (!header) return lines
+  const rest = lines[0]!.slice(header[0].length).trim()
+  if (!rest.startsWith(';')) return lines
+  return [header[0], ...splitFlowchartStatements(rest), ...lines.slice(1)]
 }
 
 /**
@@ -82,64 +97,20 @@ function expandInlineHeaderStatements(lines: string[]): string[] {
  * legacy parser is line-oriented; without this coalescing pass, multiline
  * metadata keys such as `shape:` and `label:` are treated as standalone node
  * statements. Keep the whole metadata object attached to its node token so the
- * node consumer can handle it as one unit.
+ * node consumer can handle it as one unit (flowchart-lexer.ts joins the lines
+ * as upstream's lexer reads them).
  */
 function coalesceMetadataLines(lines: string[]): string[] {
-  const out: string[] = []
-  let current: string[] | null = null
-  let balance = 0
-
-  for (const line of lines) {
-    if (current) {
-      current.push(line.trim())
-      balance += metadataBraceDelta(line)
-      if (balance <= 0) {
-        out.push(current.join(' '))
-        current = null
-        balance = 0
-      }
-      continue
-    }
-
-    if (/@\s*\{/.test(line)) {
-      balance = metadataBraceDelta(line)
-      if (balance > 0) current = [line.trim()]
-      else out.push(line)
-      continue
-    }
-
-    out.push(line)
-  }
-
-  if (current) out.push(current.join(' '))
-  return out
-}
-
-function metadataBraceDelta(text: string): number {
-  let delta = 0
-  let quote: '"' | "'" | null = null
-  let escaped = false
-  for (const ch of text) {
-    if (escaped) { escaped = false; continue }
-    if (ch === '\\') { escaped = true; continue }
-    if (quote) {
-      if (ch === quote) quote = null
-      continue
-    }
-    if (ch === '"' || ch === "'") { quote = ch; continue }
-    if (ch === '{') delta++
-    else if (ch === '}') delta--
-  }
-  return delta
+  return coalesceFlowchartMetadataLines(lines).map(group => group.text)
 }
 
 /**
  * Mermaid markdown strings ("`…`") may contain literal newlines as explicit
- * line breaks. The parser is line-oriented, so an open backtick string (an
- * odd number of backticks on a line) joins the following lines until the
+ * line breaks. The parser is line-oriented, so a line that ends inside a
+ * markdown string (flowchart-lexer.ts) joins the following lines until the
  * string closes. The break is joined as '<br>' — the label pipeline's
  * canonical line-break token — so the single-line shape grammars keep
- * matching and markdownStringToFormattedText/normalizeBrTags restore '\n'.
+ * matching and the label normalizer restores '\n'.
  * Comment lines outside an open string pass through untouched.
  */
 function coalesceMarkdownStringLines(lines: string[]): string[] {
@@ -148,14 +119,14 @@ function coalesceMarkdownStringLines(lines: string[]): string[] {
   for (const line of lines) {
     if (current) {
       current.push(line.trim())
-      if (countBackticks(line) % 2 === 1) {
+      if (!endsInsideMarkdownString(current.join('<br>'))) {
         out.push(current.join('<br>'))
         current = null
       }
       continue
     }
     if (line.trim().startsWith('%%')) { out.push(line); continue }
-    if (countBackticks(line) % 2 === 1) {
+    if (endsInsideMarkdownString(line)) {
       current = [line]
       continue
     }
@@ -165,60 +136,8 @@ function coalesceMarkdownStringLines(lines: string[]): string[] {
   return out
 }
 
-function countBackticks(line: string): number {
-  let count = 0
-  let escaped = false
-  for (const ch of line) {
-    if (escaped) { escaped = false; continue }
-    if (ch === '\\') { escaped = true; continue }
-    if (ch === '`') count++
-  }
-  return count
-}
-
-/**
- * Normalize Mermaid markdown-string content (repo #102): backticks are
- * consumed by the caller, explicit breaks become newlines, and the shared
- * inline-text pipeline maps bold/italic markers to styled SVG tspan runs.
- */
-function markdownStringToFormattedText(inner: string): string {
-  return normalizeBrTags(inner)
-}
-
-interface ParsedLabelText {
-  text: string
-  markdown: boolean
-}
-
-/**
- * ONE label normalization for node, edge and subgraph labels: a quoted
- * backtick string ("`…`") is a Mermaid markdown string — backticks consumed,
- * styling retained as formatted runs — while everything else is plain text
- * whose `*`/`~` stay literal, as upstream keeps them. Both trim boundary
- * whitespace like upstream's flowchart DB, and typed mutations trim to match
- * (flowchart-body.ts). Upstream keeps it in a `@{ label }` value, which renders
- * the same; trimming there too lets the serializer's bracket form re-parse to
- * the same label.
- * Upstream's quoted strings have no escapes: a `"` always closes one and `\`
- * is literal. A label spells `"` as Mermaid's `#quot;` entity code, decoded
- * here (after quote stripping, so it never reads as a delimiter); the
- * serializer writes `"` the same way.
- * `alreadyUnquoted` marks callers whose grammar consumed the double quotes
- * (consumeQuotedShapeNode, applyNodeMetadata).
- */
-function parseLabelText(raw: string, alreadyUnquoted = false): ParsedLabelText {
-  const unquoted = !alreadyUnquoted && raw.length >= 2 && raw.startsWith('"') && raw.endsWith('"')
-    ? raw.slice(1, -1)
-    : raw
-  const quoteConsumed = alreadyUnquoted || unquoted !== raw
-  if (quoteConsumed && unquoted.length >= 2 && unquoted.startsWith('`') && unquoted.endsWith('`')) {
-    return { text: decodeQuotEntity(markdownStringToFormattedText(unquoted.slice(1, -1).trim())), markdown: true }
-  }
-  return { text: decodeQuotEntity(normalizePlainLabel(unquoted.trim())), markdown: false }
-}
-
-function decodeQuotEntity(text: string): string {
-  return text.replace(/#quot;/g, '"')
+function endsInsideMarkdownString(text: string): boolean {
+  return text.includes('"`') && scanFlowchart(text).openAtEnd.includes('markdown')
 }
 
 function parseFlowchartSubgraphDeclaration(rest: string): { id: string; label: string } {
@@ -231,9 +150,9 @@ function parseFlowchartSubgraphDeclaration(rest: string): { id: string; label: s
     if (!isMermaidIdentifier(id)) {
       throw new Error(`Invalid flowchart subgraph identifier ${JSON.stringify(id)}`)
     }
-    return { id, label: parseLabelText(rest.slice(labelStart + 1, -1)).text }
+    return { id, label: parseFlowchartLabel(rest.slice(labelStart + 1, -1)).text }
   }
-  const label = parseLabelText(rest).text
+  const label = parseFlowchartLabel(rest).text
   // Mermaid identifiers are Unicode-aware everywhere else in this parser.
   // Preserve non-Latin letters/numbers when deriving the implicit container id
   // instead of silently collapsing a CJK title to an empty string.
@@ -241,44 +160,11 @@ function parseFlowchartSubgraphDeclaration(rest: string): { id: string; label: s
   return { id, label }
 }
 
-/** Shared statement splitter for renderer and source-side action analysis.
- *  As upstream's lexer, it has no `'` strings and no `\` escapes: an
- *  apostrophe is label text, and the next `"` closes a quoted label. */
+/** Shared statement splitter for renderer and source-side action analysis:
+ *  a `;` ends a statement where the flowchart lexer (flowchart-lexer.ts)
+ *  reads it at statement level. */
 export function splitFlowchartStatements(line: string): string[] {
-  const out: string[] = []
-  const textArrowLabelRanges = flowchartTextArrowLabelRanges(line)
-  let textArrowRangeIndex = 0
-  let start = 0
-  let depth = 0
-  let quote: '"' | '`' | null = null
-  let inPipeLabel = false
-
-  for (let i = 0; i < line.length; i++) {
-    const ch = line[i]!
-    if (quote) {
-      if (ch === quote) quote = null
-      continue
-    }
-    if (ch === '"' || ch === '`') { quote = ch; continue }
-    if (ch === '|' && depth === 0) { inPipeLabel = !inPipeLabel; continue }
-    if (inPipeLabel) continue
-    if (ch === '[' || ch === '(' || ch === '{') depth++
-    else if (ch === ']' || ch === ')' || ch === '}') depth = Math.max(0, depth - 1)
-    else if (ch === ';' && depth === 0) {
-      while (textArrowLabelRanges[textArrowRangeIndex]
-        && textArrowLabelRanges[textArrowRangeIndex]!.end <= i) textArrowRangeIndex++
-      const range = textArrowLabelRanges[textArrowRangeIndex]
-      if (!range || i < range.start || i >= range.end) {
-        const part = line.slice(start, i).trim()
-        if (part) out.push(part)
-        start = i + 1
-      }
-    }
-  }
-
-  const tail = line.slice(start).trim()
-  if (tail) out.push(tail)
-  return out
+  return flowchartStatementSpans(line).map(statement => statement.text)
 }
 
 function isFlowchartInteractionDirective(line: string): boolean {
@@ -294,25 +180,42 @@ function applyFlowchartInteraction(graph: MermaidGraph, line: string): void {
   if (node) node.href = href
 }
 
-function metadataText(value: string | undefined): string | undefined {
-  if (value === undefined) return undefined
-  const trimmed = value.trim()
-  const unquoted = trimmed.length >= 2 && ((trimmed.startsWith('"') && trimmed.endsWith('"')) || (trimmed.startsWith("'") && trimmed.endsWith("'")))
-    ? trimmed.slice(1, -1).replace(/\\(["'\\])/g, '$1')
-    : trimmed
-  return unquoted || undefined
+/** Upstream's metadata token is exactly `@{`, right after its id. Ours also
+ * reads a space before `@` or inside `@{`; verify reports it. */
+const METADATA_OPEN_SOURCE = String.raw`\s*@\s*\{`
+
+/** Read the `@{…}` block whose `{` is at `open` as upstream does (YAML under
+ * upstream's lexer, shared/metadata-yaml.ts); a block upstream rejects is a
+ * syntax error here too. */
+function readFlowchartMetadata(statement: string, open: number): { end: number; entries: ReadonlyMap<string, unknown> } {
+  const block = readMetadataBlock(statement, open, 'flowchart')
+  if (!block.ok) {
+    throw syntaxError({
+      what: `Invalid @{} metadata in "${statement}": ${block.message}`,
+      expectedForm: 'a YAML mapping with "double-quoted" strings (a single-quoted one may not hold `"` or `}`)',
+      example: 'A@{ shape: rect, label: "Start: a}b" }',
+    })
+  }
+  return block
 }
 
-function applyFlowchartEdgeMetadata(graph: MermaidGraph, line: string): void {
-  const match = line.trim().match(/^([\w-]+)@\s*\{([\s\S]*)\}\s*$/)
-  if (!match) return
-  const edge = graph.edges.find(candidate => candidate.id === match[1])
+/** A metadata text field: upstream reads only a truthy value. */
+function metadataField(entries: ReadonlyMap<string, unknown>, key: string): string | undefined {
+  return metadataText(entries.get(key))?.trim() || undefined
+}
+
+interface MetadataStatement {
+  id: string
+  entries: ReadonlyMap<string, unknown>
+}
+
+function applyFlowchartEdgeMetadata(graph: MermaidGraph, { id, entries }: MetadataStatement): void {
+  const edge = graph.edges.find(candidate => candidate.id === id)
   if (!edge) return
-  const entries = parseMetadataEntries(match[2]!)
-  const curve = metadataText(entries.get('curve'))
+  const curve = metadataField(entries, 'curve')
   if (curve && /^[a-z][a-z0-9-]*$/i.test(curve)) edge.curve = curve
-  const animate = metadataText(entries.get('animate'))?.toLowerCase()
-  const animation = metadataText(entries.get('animation'))?.toLowerCase()
+  const animate = metadataField(entries, 'animate')?.toLowerCase()
+  const animation = metadataField(entries, 'animation')?.toLowerCase()
   if (animate === 'true' || animate === 'fast' || animate === 'slow' || animation === 'fast' || animation === 'slow') {
     edge.animate = true
     const speed = animate === 'fast' || animate === 'slow' ? animate : animation
@@ -320,15 +223,20 @@ function applyFlowchartEdgeMetadata(graph: MermaidGraph, line: string): void {
   }
 }
 
-function isEdgeMetadataLine(graph: MermaidGraph, line: string): boolean {
-  const match = line.trim().match(/^([\w-]+)@\s*\{([\s\S]*)\}\s*$/)
-  if (!match) return false
-  if (graph.edges.some(edge => edge.id === match[1])) return true
-  // Node metadata is modeled (documented shapes) or label-preserved; edge
-  // metadata has animate/curve semantics only Mermaid itself understands.
-  const entries = parseMetadataEntries(match[2]!)
-  return !entries.has('shape') && !entries.has('label') && !entries.has('icon') && !entries.has('img')
+/** A whole `id@{…}` statement that addresses an edge, or null. Ours also
+ * reads `id @{…}` and `id@ {…}` (METADATA_OPEN_SOURCE). */
+function edgeMetadataStatement(graph: MermaidGraph, line: string): MetadataStatement | null {
+  const statement = line.trim()
+  const head = statement.match(new RegExp(`^([\\w-]+)${METADATA_OPEN_SOURCE}`))
+  if (!head) return null
+  const { end, entries } = readFlowchartMetadata(statement, head[0].length - 1)
+  if (statement.slice(end + 1).trim() !== '') return null
+  const id = head[1]!
+  // As upstream's `addVertex`: the block addresses an edge declared so far
+  // with that id; otherwise it declares (or refines) a node.
+  return graph.edges.some(edge => edge.id === id) ? { id, entries } : null
 }
+
 
 // ============================================================================
 // Flowchart parser
@@ -356,6 +264,8 @@ function parseFlowchart(lines: string[]): MermaidGraph {
   // Subgraph stack for nested subgraphs.
   const subgraphStack: MermaidSubgraph[] = []
   const declaredSubgraphIds = collectDeclaredFlowchartSubgraphIds(lines.slice(1))
+  // Upstream's membership rule: the first subgraph to close keeps a node.
+  const membership = createSubgraphMembership()
 
   for (let i = 1; i < lines.length; i++) {
     for (const line of splitFlowchartStatements(lines[i]!)) {
@@ -364,8 +274,9 @@ function parseFlowchart(lines: string[]): MermaidGraph {
         applyFlowchartInteraction(graph, line)
         continue
       }
-      if (isEdgeMetadataLine(graph, line)) {
-        applyFlowchartEdgeMetadata(graph, line)
+      const edgeMetadata = edgeMetadataStatement(graph, line)
+      if (edgeMetadata) {
+        applyFlowchartEdgeMetadata(graph, edgeMetadata)
         continue
       }
 
@@ -393,7 +304,10 @@ function parseFlowchart(lines: string[]): MermaidGraph {
       // --- style statement: `style A,B fill:#f00,stroke:#333` ---
       const styleMatch = line.match(/^style\s+([\w,-]+)\s+(.+)$/)
       if (styleMatch) {
-        const nodeIds = styleMatch[1]!.split(',').map(s => s.trim())
+        const nodeIds = styleMatch[1]!.split(',').map(s => s.trim()).filter(Boolean)
+        // A styled id is a mention: it creates the node, as upstream's
+        // `addVertex` does, though a `style` line makes no subgraph member.
+        for (const id of nodeIds) mentionNode(graph, id, declaredSubgraphIds)
         const props = parseStyleProps(styleMatch[2]!)
         if (Object.keys(props).length === 0) continue
         for (const id of nodeIds) {
@@ -406,17 +320,17 @@ function parseFlowchart(lines: string[]): MermaidGraph {
       const linkStyleMatch = line.match(/^linkStyle\s+(default|[\d,\s]+)\s+(.+)$/)
       if (linkStyleMatch) {
         const target = linkStyleMatch[1]!.trim()
+        const indices = target === 'default' ? [] : target.split(',').map(s => parseInt(s.trim(), 10)).filter(idx => !isNaN(idx))
+        // Upstream's `updateLink` rejects an index past the links defined
+        // above the line. Ours styles that link wherever it is defined, and a
+        // style whose index names no link draws nothing; verify reports both
+        // (agent/flowchart-unsupported.ts).
         const props = parseStyleProps(linkStyleMatch[2]!)
         if (Object.keys(props).length === 0) continue
         if (target === 'default') {
           graph.linkStyles.set('default', { ...graph.linkStyles.get('default'), ...props })
         } else {
-          const indices = target.split(',').map(s => parseInt(s.trim(), 10))
-          for (const idx of indices) {
-            if (!isNaN(idx)) {
-              graph.linkStyles.set(idx, { ...graph.linkStyles.get(idx), ...props })
-            }
-          }
+          for (const idx of indices) graph.linkStyles.set(idx, { ...graph.linkStyles.get(idx), ...props })
         }
         continue
       }
@@ -444,6 +358,7 @@ function parseFlowchart(lines: string[]): MermaidGraph {
       if (line === 'end') {
         const completed = subgraphStack.pop()
         if (completed) {
+          completed.nodeIds = membership.close(completed.id, completed.nodeIds)
           if (subgraphStack.length > 0) {
             subgraphStack[subgraphStack.length - 1]!.children.push(completed)
           } else {
@@ -455,13 +370,25 @@ function parseFlowchart(lines: string[]): MermaidGraph {
 
       // --- Edge/node definitions ---
       const parsed = parseEdgeLine(line, graph, subgraphStack, declaredSubgraphIds)
-      if (!parsed.ok) {
-        throw new Error(`Invalid flowchart statement "${line}": could not fully consume ${parsed.reason}; remaining input: "${parsed.remaining}"`)
-      }
+      if (!parsed.ok) throw invalidFlowchartStatement(line, parsed)
     }
   }
 
   return graph
+}
+
+/** The error for a statement the edge grammar could not consume, naming the
+ * construct upstream rejects there when there is one. */
+function invalidFlowchartStatement(line: string, parsed: Extract<EdgeLineParseResult, { ok: false }>): Error {
+  const where = `Invalid flowchart statement "${line}"`
+  if (/^<?(?:-{2,}|-\.+|={2,})/.test(parsed.remaining)) {
+    return syntaxError({
+      what: `${where}: "${parsed.remaining}" opens a link label that no link closes (\`--\` and \`-.\` always open a link, so a node id cannot hold them)`,
+      expectedForm: 'a label closed by a link of the same stroke, or an id without `--`',
+      example: 'A -- label --> B, A == label ==> B or A -. label .-> B',
+    })
+  }
+  return new Error(`${where}: could not fully consume ${parsed.reason}; remaining input: "${parsed.remaining}"`)
 }
 
 function collectDeclaredFlowchartSubgraphIds(lines: string[]): Set<string> {
@@ -582,7 +509,7 @@ function parseStateDiagram(lines: string[]): MermaidGraph {
     // --- open block note: collect body lines verbatim until `end note` ---
     if (openNote) {
       if (isNoteEnd(line)) {
-        addNote(openNote.target, openNote.side, openNote.lines.join('\n'))
+        addNote(openNote.target, openNote.side, stateNoteText(openNote.lines))
         openNote = null
       } else {
         openNote.lines.push(line)
@@ -593,7 +520,7 @@ function parseStateDiagram(lines: string[]): MermaidGraph {
     // --- notes: `note left|right of X : text` / `note left|right of X` ---
     const noteLine = matchNoteLine(line)
     if (noteLine) {
-      addNote(noteLine.target, noteLine.side, normalizeBrTags(noteLine.text))
+      addNote(noteLine.target, noteLine.side, stateNoteText([noteLine.text]))
       continue
     }
     const noteOpen = matchNoteOpen(line)
@@ -896,32 +823,19 @@ function ensureStateNode(
  * greedy dash run would swallow a marker/arrow prefix and mangle the line.
  *
  * Optional label: -->|label text|
+ *
+ * The operator (flowchart-lexer.ts `matchFlowchartLink`), the pipe label and
+ * the text-arrow label are delimited by the one flowchart lexer, so the
+ * statement splitter and this parser read the same extents.
  */
-const ARROW_REGEX = /^(<)?(~{3,}|-\.+->|-\.+-|={2,}>|={3,}|o-{2,}o|o-{2,}x|x-{2,}o|x-{2,}x|-{2,}[ox]|-{2,}>|-{3,})/
 
-function closingWholePipeLabelQuote(text: string): number {
-  const open = text.slice(1).search(/\S/) + 1
-  if (open < 1 || text[open] !== '"') return -1
-  for (let index = open + 1; index < text.length; index++) {
-    if (text[index] === '"' && /^\s*\|/.test(text.slice(index + 1))) return index
-  }
-  return -1
-}
-
+/** A `|label|` after an operator: the lexer's pipe region (a `"…"` string
+ * inside it masks a `|`). */
 function consumePipeLabel(text: string): { rawLabel: string; consumed: number } | null {
-  if (!text.startsWith('|')) return null
-  const quotedClose = closingWholePipeLabelQuote(text)
-  for (let index = 1; index < text.length; index++) {
-    if (quotedClose >= 0 && index < quotedClose && text[index] === '|') continue
-    if (text[index] === '|') return { rawLabel: text.slice(1, index), consumed: index + 1 }
-  }
-  return null
+  const pipe = flowchartRegionAt(text, 0)
+  if (pipe?.kind !== 'pipe' || !pipe.closed) return null
+  return { rawLabel: text.slice(pipe.contentStart, pipe.contentEnd), consumed: pipe.end }
 }
-
-/** Quote-aware consumer for `-- label -->`, `-. label .->`, and `== label ==>`.
- * Closer-shaped text inside a Mermaid double-quoted label is paint, not syntax. */
-const TEXT_ARROW_OPEN_REGEX = /^(<)?(-{2,}|-\.+|={2,})/
-const TEXT_ARROW_CLOSE_REGEX = /^(-{2,}[>ox]|-{3,}|\.+->|-\.+-|={2,}>|={3,})/
 
 interface ConsumedTextArrow {
   hasArrowStart: boolean
@@ -931,35 +845,19 @@ interface ConsumedTextArrow {
   consumed: number
 }
 
-function closingWholeTextArrowLabelQuote(text: string, start: number): number {
-  const relativeOpen = text.slice(start).search(/\S/)
-  const open = relativeOpen < 0 ? -1 : start + relativeOpen
-  if (open < start || text[open] !== '"') return -1
-  for (let index = open + 1; index < text.length; index++) {
-    if (text[index] === '"' && /^\s*(?:-{2,}[>ox]|-{3,}|\.+->|-\.+-|={2,}>|={3,})/.test(text.slice(index + 1))) return index
-  }
-  return -1
-}
-
+/** `-- label -->`, `-. label .->`, and `== label ==>` (flowchart-lexer.ts
+ * `matchTextArrow`): closer-shaped text inside a wholly quoted label is paint,
+ * not syntax. */
 function consumeTextArrow(text: string): ConsumedTextArrow | null {
-  const opener = text.match(TEXT_ARROW_OPEN_REGEX)
-  if (!opener) return null
-  const quotedClose = closingWholeTextArrowLabelQuote(text, opener[0].length)
-  for (let index = opener[0].length; index < text.length; index++) {
-    if (quotedClose >= 0 && index < quotedClose) continue
-    const closer = text.slice(index).match(TEXT_ARROW_CLOSE_REGEX)
-    if (!closer) continue
-    const rawLabel = text.slice(opener[0].length, index).trim()
-    if (rawLabel.length === 0) continue
-    return {
-      hasArrowStart: Boolean(opener[1]),
-      openOp: opener[2]!,
-      rawLabel,
-      closeOp: closer[1]!,
-      consumed: index + closer[0].length,
-    }
+  const arrow = matchTextArrow(text, 0)
+  if (!arrow) return null
+  return {
+    hasArrowStart: arrow.hasArrowStart,
+    openOp: arrow.openOp,
+    rawLabel: text.slice(arrow.labelStart, arrow.labelEnd),
+    closeOp: arrow.closeOp,
+    consumed: arrow.end,
   }
-  return null
 }
 
 /**
@@ -992,27 +890,26 @@ const NODE_PATTERNS: Array<{ regex: RegExp; shape: NodeShape }> = [
   { regex: flowchartNodeRegex(String.raw`\{(.+?)\}`), shape: 'diamond' },
 ]
 
+/**
+ * How much of the identifier run at the start of `text` (`length`
+ * characters) is one node id, by upstream's rule (`flow.jison` NODE_STRING):
+ * a `-` belongs to an id only when neither `-` nor `.` follows it, since `--`
+ * and `-.` always open a link (`A--a --> B` is A, a text-arrow label, B), and
+ * an id ends where a link begins (`Go--xH` is G o--x H).
+ */
+function flowchartIdLength(text: string, length: number): number {
+  for (let index = 1; index < length; index++) {
+    if (text[index] === '-' && (text[index + 1] === '-' || text[index + 1] === '.')) return index
+    if (matchFlowchartLink(text, index)) return index
+  }
+  return length
+}
+
 function consumeBareNodeId(text: string): { id: string; length: number } | null {
   const whole = consumeMermaidIdentifier(text)
   if (!whole) return null
-  const max = whole.length
-  let end = 0
-  for (let i = 0; i < max; i++) {
-    if (i > 0 && startsFlowchartArrow(text.slice(i))) break
-    end = i + 1
-  }
-  return end > 0 ? { id: text.slice(0, end), length: end } : null
-}
-
-function startsFlowchartArrow(text: string): boolean {
-  return ARROW_REGEX.test(text) || consumeTextArrow(text) !== null
-}
-
-function nodePatternSwallowedArrow(text: string, idLength: number): boolean {
-  for (let i = 1; i < idLength; i++) {
-    if (startsFlowchartArrow(text.slice(i))) return true
-  }
-  return false
+  const length = flowchartIdLength(text, whole.length)
+  return { id: text.slice(0, length), length }
 }
 
 const EDGE_ID_PREFIX_REGEX = /^([\w-]+)@\s*(?=(?:<)?(?:~{3,}|-\.+->|-\.+-|={2,}>|={3,}|o-{2,}[ox]|x-{2,}[ox]|-{2,}[ox]|-{2,}>|-{3,}|(?:-{2,}|-\.+|={2,})\s+))/
@@ -1021,11 +918,7 @@ function consumeClassShorthand(text: string): { className: string; length: numbe
   const parsed = consumeClassShorthandPrefix(text)
   if (!parsed) return null
   const rest = text.slice(3)
-  const max = parsed.className.length
-  let end = max
-  for (let i = 1; i < max; i++) {
-    if (startsFlowchartArrow(rest.slice(i))) { end = i; break }
-  }
+  const end = flowchartIdLength(rest, parsed.className.length)
   return { className: rest.slice(0, end), length: 3 + end }
 }
 
@@ -1078,21 +971,21 @@ function parseEdgeLine(
     const edgeId = edgeIdMatch?.[1]
     if (edgeIdMatch) remaining = remaining.slice(edgeIdMatch[0].length).trim()
 
-    const arrowMatch = remaining.match(ARROW_REGEX)
+    const arrowMatch = matchFlowchartLink(remaining, 0)
     if (arrowMatch) {
-      const arrowOp = arrowMatch[2]!
-      let consumed = arrowMatch[0].length
+      const arrowOp = arrowMatch.op
+      let consumed = arrowMatch.end
       const labelSuffix = remaining.slice(consumed)
       if (labelSuffix.startsWith('|')) {
         const pipeLabel = consumePipeLabel(labelSuffix)
         if (!pipeLabel) return { ok: false, remaining: labelSuffix, reason: 'expected edge target' }
-        edgeLabel = parseLabelText(pipeLabel.rawLabel.trim()).text || undefined
+        edgeLabel = parseFlowchartLabel(pipeLabel.rawLabel.trim()).text || undefined
         consumed += pipeLabel.consumed
       }
       remaining = remaining.slice(consumed).trim()
       style = arrowStyleFromOp(arrowOp)
       length = arrowLengthFromOp(arrowOp)
-      startMarker = startMarkerForOp(arrowOp, Boolean(arrowMatch[1]))
+      startMarker = startMarkerForOp(arrowOp, arrowMatch.hasArrowStart)
       endMarker = endMarkerForOp(arrowOp)
       hasArrowStart = startMarker !== undefined
       hasArrowEnd = endMarker !== undefined
@@ -1101,7 +994,7 @@ function parseEdgeLine(
       const textArrow = consumeTextArrow(remaining)
       if (!textArrow) return { ok: false, remaining, reason: 'expected edge operator' }
       hasArrowStart = textArrow.hasArrowStart
-      edgeLabel = parseLabelText(textArrow.rawLabel).text || undefined
+      edgeLabel = parseFlowchartLabel(textArrow.rawLabel).text || undefined
       remaining = remaining.slice(textArrow.consumed).trim()
       style = textArrowStyleFromOps(textArrow.openOp, textArrow.closeOp)
       length = textArrowLengthFromOps(textArrow.openOp, textArrow.closeOp)
@@ -1184,38 +1077,37 @@ function consumeMetadataNode(
   graph: MermaidGraph,
   subgraphStack: MermaidSubgraph[]
 ): ConsumedNode | null {
-  const start = text.match(new RegExp(`^(${MERMAID_IDENTIFIER_SOURCE})@\\s*\\{`, 'u'))
-  if (!start) return null
+  const start = text.match(new RegExp(`^(${MERMAID_IDENTIFIER_SOURCE})${METADATA_OPEN_SOURCE}`, 'u'))
+  if (!start || flowchartIdLength(text, start[1]!.length) < start[1]!.length) return null
   const id = start[1]!
-  const objectStart = text.indexOf('{', start[0].indexOf('@'))
-  const objectEnd = findMetadataObjectEnd(text, objectStart)
-  if (objectEnd < 0) return null
-
-  applyNodeMetadata(id, text.slice(objectStart + 1, objectEnd), graph, subgraphStack)
-  return { id, remaining: text.slice(objectEnd + 1) }
+  const { end, entries } = readFlowchartMetadata(text, start[0].length - 1)
+  applyNodeMetadata(id, entries, graph, subgraphStack)
+  return { id, remaining: text.slice(end + 1) }
 }
 
 /** Apply one metadata object whether authored as `A@{...}` or `A[Label]@{...}`. */
 function applyNodeMetadata(
   id: string,
-  metadata: string,
+  entries: ReadonlyMap<string, unknown>,
   graph: MermaidGraph,
   subgraphStack: MermaidSubgraph[],
 ): void {
-  const entries = parseMetadataEntries(metadata)
-  const label = entries.get('label')
-  const parsedLabel = label !== undefined ? parseLabelText(label, true) : undefined
+  // Upstream reads a truthy `label` only; an explicit empty label stays empty
+  // here, the spelling a label-less shape (`sm-circ`) is written with.
+  const rawLabel = entries.get('label')
+  const label = rawLabel === '' ? '' : metadataText(rawLabel)
+  const parsedLabel = label !== undefined ? parseFlowchartLabel(label, true) : undefined
   // v11 typed shapes (repo #44): documented `@{ shape: ... }` names normalize
   // through the ONE table in src/flowchart-shapes.ts to a semantic shape id +
   // rendering geometry; the authored spelling is preserved for round-trip.
   // Undocumented names keep the #29 safety floor (labeled rectangle).
-  const shapeName = entries.get('shape')
+  const shapeName = metadataField(entries, 'shape')
   const v11 = shapeName !== undefined ? normalizeV11Shape(shapeName) : null
-  const icon = metadataText(entries.get('icon'))
-  const image = metadataText(entries.get('img'))
-  const form = metadataText(entries.get('form'))
+  const icon = metadataField(entries, 'icon')
+  const image = metadataField(entries, 'img')
+  const form = metadataField(entries, 'form')
   const iconForm: MermaidNode['iconForm'] = form === 'circle' || form === 'rounded' || form === 'square' ? form : undefined
-  const shapeFields = v11 ? { shape: v11.geometry, semanticShape: v11.canonical, authoredShape: shapeName!.trim() }
+  const shapeFields = v11 ? { shape: v11.geometry, semanticShape: v11.canonical, authoredShape: shapeName! }
     : icon || image ? { shape: iconForm === 'circle' ? 'circle' as const : iconForm === 'rounded' ? 'rounded' as const : 'rectangle' as const, semanticShape: icon ? 'icon' : 'image' }
     : {}
   const mediaFields = { ...(icon ? { icon } : {}), ...(image ? { image } : {}), ...(iconForm ? { iconForm } : {}) }
@@ -1246,84 +1138,13 @@ function consumeNodeMetadataSuffix(
   graph: MermaidGraph,
   subgraphStack: MermaidSubgraph[],
 ): string | null {
-  const start = text.match(/^@\s*\{/)
+  const start = text.match(new RegExp(`^${METADATA_OPEN_SOURCE}`))
   if (!start) return null
-  const objectStart = text.indexOf('{')
-  const objectEnd = findMetadataObjectEnd(text, objectStart)
-  if (objectEnd < 0) return null
-  applyNodeMetadata(id, text.slice(objectStart + 1, objectEnd), graph, subgraphStack)
-  return text.slice(objectEnd + 1)
+  const { end, entries } = readFlowchartMetadata(text, start[0].length - 1)
+  applyNodeMetadata(id, entries, graph, subgraphStack)
+  return text.slice(end + 1)
 }
 
-function findMetadataObjectEnd(text: string, start: number): number {
-  if (start < 0 || text[start] !== '{') return -1
-  let depth = 0
-  let quote: '"' | "'" | null = null
-  let escaped = false
-  for (let i = start; i < text.length; i++) {
-    const ch = text[i]!
-    if (escaped) { escaped = false; continue }
-    if (ch === '\\') { escaped = true; continue }
-    if (quote) {
-      if (ch === quote) quote = null
-      continue
-    }
-    if (ch === '"' || ch === "'") { quote = ch; continue }
-    if (ch === '{') depth++
-    else if (ch === '}') {
-      depth--
-      if (depth === 0) return i
-    }
-  }
-  return -1
-}
-
-/**
- * THE `@{ ... }` metadata-entry grammar (one table, two consumers: this
- * parser's node consumption and the agent-side modeled/opaque gate in
- * flowchart-unsupported.ts). Entries separate on top-level commas OR
- * whitespace (upstream's multiline YAML-ish form joins to spaces); quoted
- * values never split. Keys lowercase; values unquoted/unescaped.
- */
-export function parseMetadataEntries(metadata: string): Map<string, string> {
-  // Mask quoted spans so key detection never fires inside a value.
-  let masked = ''
-  let quote: '"' | "'" | null = null
-  let escaped = false
-  for (const ch of metadata) {
-    if (escaped) { escaped = false; masked += ' '; continue }
-    if (ch === '\\') { masked += ' '; escaped = true; continue }
-    if (quote) {
-      if (ch === quote) quote = null
-      masked += ' '
-      continue
-    }
-    if (ch === '"' || ch === "'") { quote = ch; masked += ' '; continue }
-    masked += ch
-  }
-
-  const keyRe = /(^|[,\s])([\w-]+)\s*:/g
-  const found: Array<{ key: string; keyStart: number; valueStart: number }> = []
-  let match: RegExpExecArray | null
-  while ((match = keyRe.exec(masked)) !== null) {
-    found.push({ key: match[2]!.toLowerCase(), keyStart: match.index + match[1]!.length, valueStart: match.index + match[0].length })
-  }
-
-  const entries = new Map<string, string>()
-  for (let i = 0; i < found.length; i++) {
-    const end = i + 1 < found.length ? found[i + 1]!.keyStart : metadata.length
-    const raw = metadata.slice(found[i]!.valueStart, end).trim().replace(/,\s*$/, '').trim()
-    entries.set(found[i]!.key, unquoteMetadataValue(raw))
-  }
-  return entries
-}
-
-function unquoteMetadataValue(raw: string): string {
-  if (raw.length >= 2 && ((raw.startsWith('"') && raw.endsWith('"')) || (raw.startsWith("'") && raw.endsWith("'")))) {
-    return raw.slice(1, -1).replace(/\\([\\"'])/g, '$1')
-  }
-  return raw
-}
 
 const QUOTED_SHAPE_DELIMITERS: Array<{ open: string; close: string; shape: NodeShape }> = [
   { open: '(((', close: ')))', shape: 'doublecircle' },
@@ -1350,14 +1171,14 @@ function consumeQuotedShapeNode(
   subgraphStack: MermaidSubgraph[],
 ): ConsumedNode | null {
   const identifier = consumeMermaidIdentifier(text)
-  if (!identifier) return null
+  if (!identifier || flowchartIdLength(text, identifier.length) < identifier.length) return null
   const suffix = text.slice(identifier.length)
   for (const spec of QUOTED_SHAPE_DELIMITERS) {
     if (!suffix.startsWith(`${spec.open}"`)) continue
     const quoteStart = spec.open.length
     const quoteEnd = suffix.indexOf('"', quoteStart + 1)
     if (quoteEnd < 0 || !suffix.startsWith(spec.close, quoteEnd + 1)) continue
-    const parsed = parseLabelText(suffix.slice(quoteStart + 1, quoteEnd), true)
+    const parsed = parseFlowchartLabel(suffix.slice(quoteStart + 1, quoteEnd), true)
     defineNode(graph, subgraphStack, {
       id: identifier.id,
       label: parsed.text,
@@ -1412,9 +1233,9 @@ function consumeNode(
   for (const { regex, shape } of NODE_PATTERNS) {
     const match = text.match(regex)
     if (match) {
-      if (nodePatternSwallowedArrow(text, match[1]!.length)) continue
+      if (flowchartIdLength(text, match[1]!.length) < match[1]!.length) continue
       id = match[1]!
-      const { text: label, markdown } = parseLabelText(match[2]!)
+      const { text: label, markdown } = parseFlowchartLabel(match[2]!)
       defineNode(graph, subgraphStack, { id, label, shape, ...(markdown ? { markdownLabel: true as const } : {}) })
       remaining = text.slice(match[0].length)
       break
@@ -1422,15 +1243,14 @@ function consumeNode(
   }
 
   // Bare node reference — only register if node doesn't exist yet.
-  // If it already exists, do NOT track it in the current subgraph;
-  // nodes belong to the subgraph where they're first defined.
+  // If it already exists, do NOT track it in the current subgraph: a bare
+  // reference never claims a node (first-defined-wins, docs/fork-differences.md).
+  // Among the subgraphs that do list a node, the first to close keeps it.
   if (id === null) {
     const bare = consumeBareNodeId(text)
     if (bare) {
       id = bare.id
-      if (!graph.nodes.has(id) && !declaredSubgraphIds.has(id)) {
-        registerNode(graph, subgraphStack, { id, label: id, shape: 'rectangle' })
-      }
+      if (mentionNode(graph, id, declaredSubgraphIds)) trackInSubgraph(subgraphStack, id)
       remaining = text.slice(bare.length)
     }
   }
@@ -1467,6 +1287,15 @@ function defineNode(
   const { markdownLabel: _markdown, semanticShape: _semantic, authoredShape: _authored, ...kept } = existing
   graph.nodes.set(node.id, { ...kept, label: node.label, shape: node.shape, ...(node.markdownLabel ? { markdownLabel: true as const } : {}) })
   trackInSubgraph(subgraphStack, node.id)
+}
+
+/** Mermaid's first mention creates a node: a rectangle labelled by its id
+ * (upstream's `addVertex`). A declared subgraph id names the subgraph, not a
+ * node. Returns whether the node was created. */
+function mentionNode(graph: MermaidGraph, id: string, declaredSubgraphIds: ReadonlySet<string>): boolean {
+  if (graph.nodes.has(id) || declaredSubgraphIds.has(id)) return false
+  graph.nodes.set(id, { id, label: id, shape: 'rectangle' })
+  return true
 }
 
 /** Register a node in the graph and track it in the current subgraph */

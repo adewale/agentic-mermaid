@@ -25,6 +25,7 @@ import { type JourneyParseIssue, walkJourneyLines } from '../journey/parse-core.
 import { splitPointClassSuffix } from '../quadrant/point-style.ts'
 import { parseDirectionStatement } from '../shared/direction-statement.ts'
 import { splitAuthoredPieTitleLine } from '../pie/source-title.ts'
+import { stripTrailingComment } from '../shared/trailing-comment.ts'
 import { isTimelineCommentLine, parseTimelineHeader } from '../timeline/parse-core.ts'
 import { mutateArchitecture, parseArchitectureBody, renderArchitecture, verifyArchitecture, verifyOpaqueArchitectureIcons } from './architecture-body.ts'
 import { mutateClass, parseClassBody, parseClassRelationSyntax, renderClass, verifyClass } from './class-body.ts'
@@ -508,12 +509,14 @@ function buildErSourceMap(body: DiagramBody, canonicalSource: string): SourceMap
 
   for (const source of located) {
     if (!source.trimmed || source.trimmed.startsWith('%%')) continue
+    // Both ER parsers read a trailing `%%` comment as a comment.
+    const text = stripTrailingComment(source.trimmed)
     if (openEntity) {
-      if (source.trimmed === '}') {
+      if (text === '}') {
         openEntity = undefined
         continue
       }
-      const key = `${openEntity}\u0000${source.trimmed}`
+      const key = `${openEntity}\u0000${text}`
       const entries = attributeSources.get(key) ?? []
       entries.push(loc(source.lineIndex + 1, source.start + 1))
       attributeSources.set(key, entries)
@@ -524,29 +527,29 @@ function buildErSourceMap(body: DiagramBody, canonicalSource: string): SourceMap
     // relationship is mapped to that relationship, not to the family header
     // or a surrounding subgraph delimiter.
     if (source.lineIndex === 0 && /^erDiagram\s*$/i.test(source.trimmed)) continue
-    if (parseErGroupHeader(source.trimmed)) {
+    if (parseErGroupHeader(text)) {
       openGroups++
       continue
     }
-    if (source.trimmed === 'end' && openGroups > 0) {
+    if (text === 'end' && openGroups > 0) {
       openGroups--
       continue
     }
-    if (parseDirectionStatement(source.trimmed)) continue
-    const relation = parseErRelationshipSyntax(source.trimmed)
+    if (parseDirectionStatement(text)) continue
+    const relation = parseErRelationshipSyntax(text)
     if (relation) {
       relationSources.push({ source, relation })
       continue
     }
-    if (source.trimmed.endsWith('{')) {
-      const entity = parseErEntityReference(source.trimmed.slice(0, -1).trim())
+    if (text.endsWith('{')) {
+      const entity = parseErEntityReference(text.slice(0, -1).trim())
       if (entity) {
         nodeDeclarations.set(entity.id, loc(source.lineIndex + 1, source.start + 1))
         openEntity = entity.id
         continue
       }
     }
-    const entity = parseErEntityReference(source.trimmed)
+    const entity = parseErEntityReference(text)
     if (entity) nodeDeclarations.set(entity.id, loc(source.lineIndex + 1, source.start + 1))
   }
 
@@ -1042,7 +1045,7 @@ const PIE_AGENT_HOOKS = {
   verify: (body, opts) => (body.kind === 'pie' ? verifyPie(body, opts) : []),
   buildSourceMap: buildChartSourceMap,
   parse: ({ lines, opaqueSource }) => {
-    const header = parsePieHeader(lines[0]?.trim() ?? '')
+    const header = parsePieHeader(stripTrailingComment(lines[0]?.trim() ?? ''))
     const bodyLines = lines.slice(1).map(line => {
       const title = splitAuthoredPieTitleLine(line, 'body')
       return title ? title.decodedPrefix + title.authoredTitle : line
@@ -1153,7 +1156,7 @@ const QUADRANT_AGENT_HOOKS = {
   verify: (body, opts) => (body.kind === 'quadrant' ? verifyQuadrant(body, opts) : body.kind === 'opaque' ? verifyOpaqueQuadrant(body) : []),
   buildSourceMap: buildChartSourceMap,
   ...structuredFamilyHooks('quadrant', {
-    headerOk: h => /^quadrant(?:chart)?\s*$/i.test(h),
+    headerOk: h => /^quadrant(?:chart)?\s*$/i.test(stripTrailingComment(h)),
     parseBody: parseQuadrantBody,
     serialize: renderQuadrant,
     mutate: mutateQuadrant,
@@ -1210,7 +1213,7 @@ const GANTT_AGENT_HOOKS = {
   verify: (body, opts) => (body.kind === 'gantt' ? verifyGantt(body, opts) : []),
   buildSourceMap: buildGanttSourceMap,
   parse: ({ source, lines, opaqueSource }) => {
-    const headerOk = /^gantt\s*$/i.test(lines[0]?.trim() ?? '')
+    const headerOk = /^gantt\s*$/i.test(stripTrailingComment(lines[0]?.trim() ?? ''))
     const body = headerOk ? parseGanttBody(lines.slice(1), ganttRawBodyLines(source.familyBody)) : null
     return ok(body ?? { kind: 'opaque', family: 'gantt', source: opaqueSource })
   },
@@ -1248,7 +1251,7 @@ const ARCHITECTURE_AGENT_HOOKS = {
   // edges, unmodeled syntax) keep the universal label-extraction path.
   verify: (body, opts) => (body.kind === 'architecture' ? verifyArchitecture(body, opts) : body.kind === 'opaque' ? verifyOpaqueArchitectureIcons(body.source) : []),
   ...structuredFamilyHooks('architecture', {
-    headerOk: h => /^architecture(?:-beta)?\s*$/i.test(h),
+    headerOk: h => /^architecture(?:-beta)?\s*$/i.test(stripTrailingComment(h)),
     parseBody: parseArchitectureBody,
     serialize: renderArchitecture,
     mutate: mutateArchitecture,
@@ -1325,7 +1328,7 @@ const GITGRAPH_AGENT_HOOKS = {
 // radar-beta header; `title`; `axis id["Label"], …`; `curve id["Label"]{…}`;
 // `min/max/ticks/graticule/showLegend`. Radar is structured-when-narrowed: the
 // body parses to a RadarBody or falls back to opaque (accTitle/accDescr,
-// malformed lines, zero axes). Labels are the title, axis labels, and curve
+// malformed lines, curves without axes). Labels are the title, axis labels, and curve
 // labels.
 function extractRadarLabels(source: string): ExtractedLabel[] {
   const out: ExtractedLabel[] = []
@@ -1353,7 +1356,7 @@ const RADAR_AGENT_HOOKS = {
   verify: (body, opts) => (body.kind === 'radar' ? verifyRadar(body, opts) : []),
   buildSourceMap: buildChartSourceMap,
   ...structuredFamilyHooks('radar', {
-    headerOk: h => /^radar-beta\s*:?\s*$/i.test(h),
+    headerOk: h => /^radar-beta\s*:?\s*$/i.test(stripTrailingComment(h)),
     parseBody: parseRadarBody,
     serialize: renderRadar,
     mutate: mutateRadar,

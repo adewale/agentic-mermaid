@@ -39,10 +39,11 @@ import type {
   MutationError, Result, LayoutWarning, VerifyOptions,
 } from './types.ts'
 import { ok, err } from './types.ts'
-import { labelOverflowCollector } from './body-utils.ts'
+import { labelOverflowCollector, setOptionalField } from './body-utils.ts'
 import { appendAccessibilityLines } from './accessibility-envelope.ts'
 import { renderPointStyleEntries } from '../quadrant/point-style.ts'
-import { parseQuadrantChart } from '../quadrant/parser.ts'
+import { parseQuadrantChart, quadrantTextRejections, quadrantTextSource, quadrantTextWritable } from '../quadrant/parser.ts'
+import { parseAccessibilityDirective } from '../shared/accessibility-directives.ts'
 
 // ---- Number format ----------------------------------------------------------
 
@@ -94,9 +95,14 @@ function encodeMultilineText(text: string): string {
   return text.replace(/\r?\n/g, '<br/>')
 }
 
+/** Label, axis or quadrant text, quoted where Mermaid reads it only quoted. */
+function renderText(text: string): string {
+  return quadrantTextSource(encodeMultilineText(text))
+}
+
 function renderAxis(keyword: 'x-axis' | 'y-axis', axis: QuadrantAxis): string {
-  const far = axis.far !== undefined ? ` --> ${encodeMultilineText(axis.far)}` : ''
-  return `  ${keyword} ${encodeMultilineText(axis.near)}${far}`
+  const far = axis.far !== undefined ? ` --> ${renderText(axis.far)}` : ''
+  return `  ${keyword} ${renderText(axis.near)}${far}`
 }
 
 export function renderQuadrant(body: QuadrantBody): string {
@@ -109,12 +115,12 @@ export function renderQuadrant(body: QuadrantBody): string {
     const label = body.quadrants[i]
     // JSON round-trips sparse/undefined tuple slots as null. Treat both forms
     // as an absent optional label at the untrusted synthesis boundary.
-    if (label != null) lines.push(`  quadrant-${i + 1} ${encodeMultilineText(label)}`)
+    if (label != null) lines.push(`  quadrant-${i + 1} ${renderText(label)}`)
   }
   for (const p of body.points) {
     const cls = p.className !== undefined ? `:::${p.className}` : ''
     const tail = renderPointStyleEntries(p.style)
-    lines.push(`  ${encodeMultilineText(p.label)}${cls}: [${formatNumber(p.x)}, ${formatNumber(p.y)}]${tail ? ` ${tail}` : ''}`)
+    lines.push(`  ${renderText(p.label)}${cls}: [${formatNumber(p.x)}, ${formatNumber(p.y)}]${tail ? ` ${tail}` : ''}`)
   }
   // classDefs after points (the upstream docs' canonical order).
   for (const [name, style] of Object.entries(body.classDefs ?? {})) {
@@ -166,12 +172,16 @@ function cloneQuadrant(b: QuadrantBody): QuadrantBody {
 }
 
 /** A label that round-trips through the canonical serializer: non-empty, no
- *  newline, and (for points) no `:` / `[` that would re-parse as syntax. */
-function validLabel(value: unknown, field: string, opts: { point?: boolean } = {}): Result<string, MutationError> {
+ *  newline, writable as quadrant text (titles run to the end of their line),
+ *  and (for points) no `:` / `[` that would re-parse as syntax. */
+function validLabel(value: unknown, field: string, opts: { point?: boolean; title?: boolean } = {}): Result<string, MutationError> {
   if (typeof value !== 'string') return err({ code: 'INVALID_OP', message: `Quadrant ${field} must be a string` })
   const trimmed = value.trim()
   if (!trimmed || trimmed.includes('\n')) {
     return err({ code: 'INVALID_OP', message: `Quadrant ${field} must be non-empty single-line text` })
+  }
+  if (!opts.title && !quadrantTextWritable(trimmed)) {
+    return err({ code: 'INVALID_OP', message: `Quadrant ${field} ${JSON.stringify(trimmed)} needs quoting for Mermaid, and a quoted string cannot hold a double quote` })
   }
   if (opts.point && (trimmed.includes(':') || trimmed.includes('[') || trimmed.includes(']'))) {
     return err({ code: 'INVALID_OP', message: `Quadrant ${field} must not contain ':' or brackets` })
@@ -205,10 +215,8 @@ export function mutateQuadrant(body: QuadrantBody, op: QuadrantMutationOp): Resu
 
   switch (op.kind) {
     case 'set_title': {
-      if (op.title === null) { delete next.title; break }
-      const t = validLabel(op.title, 'title')
-      if (!t.ok) return t
-      next.title = t.value
+      const title = setOptionalField(next, 'title', op.title, value => validLabel(value, 'title', { title: true }))
+      if (!title.ok) return title
       break
     }
     case 'set_axis_labels': {
@@ -300,6 +308,33 @@ export function mutateQuadrant(body: QuadrantBody, op: QuadrantMutationOp): Resu
 }
 
 // ---- Verifier (FamilyDescriptor.verify hook) --------------------------------
+
+/** Quadrant source ours reads where Mermaid 11.16 rejects it, each on its
+ * canonical line: unquoted text holding a character Mermaid's quadrant lexer
+ * does not read as text is read as written. */
+export function quadrantUnsupportedSyntaxWarnings(canonicalSource: string): LayoutWarning[] {
+  const lines = canonicalSource.split(/\r?\n/)
+  const header = lines.findIndex(line => /^quadrant(?:Chart)?\b/i.test(line.trim()))
+  if (header < 0) return []
+  const warnings: LayoutWarning[] = []
+  for (let index = header + 1; index < lines.length; index++) {
+    const directive = parseAccessibilityDirective(lines, index)
+    if (directive === undefined) break
+    if (directive !== null) {
+      index = directive.endIndex
+      continue
+    }
+    for (const what of quadrantTextRejections(lines[index]!.trim())) {
+      warnings.push({
+        code: 'UNSUPPORTED_SYNTAX',
+        syntax: 'quadrant_unquoted_text',
+        line: index + 1,
+        message: `${what}, and is read as written. Mermaid 11.16 rejects this; put the whole text in double quotes.`,
+      })
+    }
+  }
+  return warnings
+}
 
 export function verifyQuadrant(body: QuadrantBody, opts: VerifyOptions): LayoutWarning[] {
   const warnings: LayoutWarning[] = []

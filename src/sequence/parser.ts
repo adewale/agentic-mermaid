@@ -3,7 +3,10 @@ import { normalizeBrTags } from '../multiline-utils.ts'
 import { scanAccessibilityDirectives } from '../shared/accessibility-directives.ts'
 import { isCssColorToken, sequenceRectColor } from './colors.ts'
 import { splitSequenceStatementLines } from './statements.ts'
-import { continuationBelongsToBlock, parseSequenceBlockContinuation, parseSequenceBlockOpener } from './block-keywords.ts'
+import { metadataText, readMetadataBlock } from '../shared/metadata-yaml.ts'
+import { syntaxError } from '../shared/syntax-error.ts'
+import { continuationBelongsToBlock, parseSequenceBlockContinuation, parseSequenceBlockOpener, type SequenceBlockContinuation, type SequenceBlockOpener } from './block-keywords.ts'
+import { SequenceParticipantFold, type ParticipantEvent } from './participants.ts'
 
 // Mermaid's half-arrow heads have multi-character spellings. Keep complete
 // tokens here, longest first in the regex, so a prefix cannot leak into an
@@ -87,8 +90,10 @@ export function parseSequenceMessageLine(line: string): ParsedSequenceMessageLin
   const colon = tail.indexOf(':')
   if (colon < 1) return null
   const to = tail.slice(0, colon).trimEnd()
+  // The text may be empty (`A->>B:`), as upstream's; so it is when a `#`
+  // comment follows the colon (`A->>B: #a#`).
   const label = tail.slice(colon + 1).trimStart()
-  if (!to || /\s/.test(to) || !label) return null
+  if (!to || /\s/.test(to)) return null
   if (spacedMatch && (
     /[+<>]/.test(to)
     || to.includes('()')
@@ -155,12 +160,13 @@ export function parseSequenceDiagram(lines: string[], opts: { showSequenceNumber
       : {}),
   }
 
-  // Track actor IDs to auto-create actors referenced in messages
-  const actorIds = new Set<string>()
+  // The participants, created and named by the shared creation rules.
+  const participants = new SequenceParticipantFold()
+  // Lifecycle bindings (`create X` / `destroy X`), by actor id.
+  const createdAt = new Map<string, number>()
+  const destroyedAt = new Map<string, number>()
   // Track block nesting with a stack
   const blockStack: Array<{ type: Block['type']; label: string; color?: string; startIndex: number; dividers: Block['dividers'] }> = []
-  // Open `box … end` group (boxes never nest; they only wrap participant lines)
-  let openBox: SequenceBoxGroup | null = null
   // Active autonumber state; null = numbering off
   let autonumber: { next: number; step: number } | null = opts.showSequenceNumbers === true ? { next: 1, step: 1 } : null
   // Actors awaiting their binding message (`create X` / `destroy X` directives
@@ -168,28 +174,23 @@ export function parseSequenceDiagram(lines: string[], opts: { showSequenceNumber
   const pendingCreates: string[] = []
   const pendingDestroys: string[] = []
 
-  // Shared handler for the two message regex branches, so autonumber and
-  // create/destroy binding cannot drift between them.
-  const pushMessage = (from: string, arrow: string, activationMark: string | undefined, to: string, rawLabel: string, centralStart = false, centralEnd = false): void => {
-    // Ensure both actors exist
-    ensureActor(diagram, actorIds, from)
-    ensureActor(diagram, actorIds, to)
-
-    const endpoint = parseMessageArrow(arrow)
+  const pushMessage = (message: ParsedSequenceMessageLine): void => {
+    const { from, to } = message
+    const endpoint = parseMessageArrow(message.arrow)
     const msg: Message = {
       from,
       to,
-      label: normalizeBrTags(rawLabel.trim()),
+      label: normalizeBrTags(message.label.trim()),
       lineStyle: endpoint.lineStyle,
       startHead: endpoint.startHead,
       endHead: endpoint.endHead,
-      centralStart,
-      centralEnd,
+      centralStart: message.centralStart,
+      centralEnd: message.centralEnd,
     }
 
     // Activation/deactivation via +/- prefix on target
-    if (activationMark === '+') msg.activate = true
-    if (activationMark === '-') msg.deactivate = true
+    if (message.activationMark === '+') msg.activate = true
+    if (message.activationMark === '-') msg.deactivate = true
 
     if (autonumber) {
       msg.number = autonumber.next
@@ -201,70 +202,46 @@ export function parseSequenceDiagram(lines: string[], opts: { showSequenceNumber
     // Bind pending create/destroy directives to this message when it involves
     // the actor (upstream ties creation to the message the actor receives and
     // destruction to the next message it sends or receives).
-    bindLifecycle(pendingCreates, id => id === to, diagram, actor => { actor.createMessageIndex = diagram.messages.length })
-    bindLifecycle(pendingDestroys, id => id === from || id === to, diagram, actor => { actor.destroyMessageIndex = diagram.messages.length })
+    bindLifecycle(pendingCreates, id => id === to, id => createdAt.set(id, diagram.messages.length))
+    bindLifecycle(pendingDestroys, id => id === from || id === to, id => destroyedAt.set(id, diagram.messages.length))
 
     diagram.messages.push(msg)
   }
 
   for (let i = 1; i < lines.length; i++) {
     const line = lines[i]!
+    const statement = parseSequenceStatement(line)
+    if (!statement) continue
+    participants.applyAll(participantEventsOf(statement))
 
-    // --- Participant / Actor declaration, including Mermaid 11 metadata. ---
-    const actorDeclaration = parseActorDeclaration(line)
-    if (actorDeclaration) {
-      const { id, label, type } = actorDeclaration
-      if (!actorIds.has(id)) {
-        actorIds.add(id)
-        diagram.actors.push({ id, label, type })
-      } else if (actorDeclaration.aliased) {
-        // As in Mermaid, re-declaring a participant with an alias renames it
-        // and sets its type (`participant A` in a box, then `participant A as
-        // Alice`); a bare re-declaration changes nothing, even its type.
-        const actor = diagram.actors.find(candidate => candidate.id === id)!
-        actor.label = label
-        actor.type = type
-      }
-      if (openBox && !openBox.actorIds.includes(id)) openBox.actorIds.push(id)
-      continue
+    switch (statement.kind) {
+    // --- Participant / Actor declaration, including Mermaid 11 metadata;
+    //     `create participant|actor X` binds at the next message X receives. ---
+    case 'declaration':
+    case 'create': {
+      if (statement.kind === 'create') pendingCreates.push(statement.declaration.id)
+      break
     }
 
-    // --- Safe actor menus (`link` and JSON `links`). ---
-    const actorLinks = parseActorLinks(line)
-    if (actorLinks) {
-      ensureActor(diagram, actorIds, actorLinks.actorId)
-      const actor = diagram.actors.find(candidate => candidate.id === actorLinks.actorId)!
-      actor.links = { ...actor.links, ...actorLinks.links }
-      continue
-    }
+    // --- Safe actor menus (`link` and JSON `links`) and undrawn actor data
+    //     (`properties`, `details`): the fold records what they create. ---
+    case 'links':
+    case 'actor-data':
+      break
 
     // --- title <text> (Mermaid's sequence title statement) ---
-    const titleMatch = line.match(/^title(?:\s*:\s*|\s+)(.+)$/i)
-    if (titleMatch) {
-      diagram.title = normalizeBrTags(titleMatch[1]!.trim())
-      continue
-    }
+    case 'title':
+      diagram.title = normalizeBrTags(statement.text)
+      break
 
     // --- autonumber [off | <start> [<step>]] ---
-    const autoMatch = line.match(/^autonumber(?:\s+(.*))?$/i)
-    if (autoMatch) {
-      const rest = autoMatch[1]?.trim() ?? ''
-      if (/^off$/i.test(rest)) {
-        autonumber = null
-      } else {
-        const nums = rest.match(/^(\d+(?:\.\d+)?)(?:\s+(\d+(?:\.\d+)?))?$/)
-        autonumber = {
-          next: nums ? Number.parseFloat(nums[1]!) : 1,
-          step: nums?.[2] !== undefined ? Number.parseFloat(nums[2]) : 1,
-        }
-      }
-      continue
-    }
+    case 'autonumber':
+      autonumber = statement.numbering
+      break
 
     // --- box [<color>] [Label] … end ---
-    const boxMatch = line.match(/^box(?:\s+(.*))?$/i)
-    if (boxMatch) {
-      const rest = boxMatch[1]?.trim() ?? ''
+    case 'box': {
+      const rest = statement.text
       const box: SequenceBoxGroup = { actorIds: [] }
       // The leading token is a color when it IS one (color functions may
       // contain spaces, so match them before splitting on whitespace);
@@ -283,48 +260,33 @@ export function parseSequenceDiagram(lines: string[], opts: { showSequenceNumber
         }
       }
       if (label) box.label = normalizeBrTags(label)
+      // Boxes never nest; the fold places the actors of the statements
+      // inside (upstream's `currentBox`).
       diagram.boxes!.push(box)
-      openBox = box
-      continue
+      participants.openBox(box)
+      break
     }
 
-    // --- create / destroy lifecycle directives ---
-    const created = parseSequenceCreateLine(line)
-    if (created) {
-      const { id, label, type } = created
-      if (!actorIds.has(id)) {
-        actorIds.add(id)
-        diagram.actors.push({ id, label, type })
-      }
-      pendingCreates.push(id)
-      continue
-    }
-    const destroyMatch = line.match(/^destroy\s+(\S+)$/i)
-    if (destroyMatch) {
-      pendingDestroys.push(destroyMatch[1]!)
-      continue
-    }
+    // --- destroy lifecycle directive ---
+    case 'destroy':
+      pendingDestroys.push(statement.actorId)
+      break
 
     // --- Note ---
-    const note = parseSequenceNoteLine(line)
-    if (note) {
-      // Ensure actors exist
-      for (const aid of note.actorIds) {
-        ensureActor(diagram, actorIds, aid)
-      }
-
+    case 'note': {
+      const { note } = statement
       diagram.notes.push({
         actorIds: note.actorIds,
         text: normalizeBrTags(note.text),
         position: note.position,
         afterIndex: diagram.messages.length - 1,
       })
-      continue
+      break
     }
 
     // --- Block start: loop, alt, opt, par, critical, break, rect ---
-    const opener = parseSequenceBlockOpener(line)
-    if (opener && opener.type !== 'box') {
+    case 'block': {
+      const { opener } = statement
       // Keep the pre-existing `par_over` render disposition until that
       // separate upstream construct receives its own semantic slice.
       const blockType = opener.type === 'par_over' ? 'par' : opener.type
@@ -349,64 +311,158 @@ export function parseSequenceDiagram(lines: string[], opts: { showSequenceNumber
         startIndex: diagram.messages.length,
         dividers: [],
       })
-      continue
+      break
     }
 
     // --- Block divider: else, and, option (only on their owning blocks) ---
-    const continuation = parseSequenceBlockContinuation(line)
-    if (continuation && blockStack.length > 0
-      && continuationBelongsToBlock(continuation.type, blockStack[blockStack.length - 1]!.type)) {
-      const label = normalizeBrTags(continuation.label)
-      blockStack[blockStack.length - 1]!.dividers.push({
-        index: diagram.messages.length,
-        label,
-      })
-      continue
+    case 'continuation': {
+      const top = blockStack[blockStack.length - 1]
+      if (top && continuationBelongsToBlock(statement.continuation.type, top.type)) {
+        top.dividers.push({ index: diagram.messages.length, label: normalizeBrTags(statement.continuation.label) })
+      }
+      break
     }
 
-    // --- Block end ---
-    if (line === 'end' && blockStack.length > 0) {
-      const completed = blockStack.pop()!
-      diagram.blocks.push({
-        type: completed.type,
-        label: completed.label,
-        ...(completed.color ? { color: completed.color } : {}),
-        startIndex: completed.startIndex,
-        endIndex: Math.max(diagram.messages.length - 1, completed.startIndex),
-        dividers: completed.dividers,
-      })
-      continue
-    }
-
-    // --- Box end (boxes only wrap participant declarations, so any `end`
-    //     with no open block closes the open box) ---
-    if (line === 'end' && openBox) {
-      openBox = null
-      continue
+    // --- Block end, else box end (boxes only wrap participant
+    //     declarations, so an `end` with no open block closes the open box) ---
+    case 'end': {
+      const completed = blockStack.pop()
+      if (completed) {
+        diagram.blocks.push({
+          type: completed.type,
+          label: completed.label,
+          ...(completed.color ? { color: completed.color } : {}),
+          startIndex: completed.startIndex,
+          endIndex: Math.max(diagram.messages.length - 1, completed.startIndex),
+          dividers: completed.dividers,
+        })
+      } else {
+        participants.closeBox()
+      }
+      break
     }
 
     // --- Message. Full recognition keeps endpoint semantics out of actor IDs. ---
-    const parsedMessage = parseSequenceMessageLine(line)
-    if (parsedMessage) {
-      pushMessage(parsedMessage.from, parsedMessage.arrow, parsedMessage.activationMark, parsedMessage.to, parsedMessage.label, parsedMessage.centralStart, parsedMessage.centralEnd)
-      continue
-    }
+    case 'message':
+      pushMessage(statement.message)
+      break
 
-    // --- activate / deactivate explicit commands ---
-    const activationMatch = line.match(/^(activate|deactivate)\s+(\S+)$/i)
-    if (activationMatch) {
-      const actorId = activationMatch[2]!
-      ensureActor(diagram, actorIds, actorId)
+    // --- activate / deactivate explicit commands (they create no actor) ---
+    case 'activation':
       diagram.activationEvents!.push({
-        actorId,
-        kind: activationMatch[1]!.toLowerCase() as 'activate' | 'deactivate',
+        actorId: statement.actorId,
+        kind: statement.activate ? 'activate' : 'deactivate',
         messageIndex: diagram.messages.length,
       })
-      continue
+      break
     }
   }
 
+  diagram.actors = participants.list().map(({ id, label, type, links, box }) => ({
+    id, label, type,
+    ...(links ? { links } : {}),
+    ...(box !== undefined ? { box } : {}),
+    ...(createdAt.has(id) ? { createMessageIndex: createdAt.get(id)! } : {}),
+    ...(destroyedAt.has(id) ? { destroyMessageIndex: destroyedAt.get(id)! } : {}),
+  }))
   return diagram
+}
+
+/** One sequence statement, classified by the grammar the renderer parser and
+ * the typed body both read. Context (which block is open) is the caller's. */
+export type SequenceStatementSyntax =
+  | { kind: 'declaration'; declaration: ParsedActorDeclaration }
+  | { kind: 'create'; declaration: Pick<Actor, 'id' | 'label' | 'type'> }
+  | { kind: 'destroy'; actorId: string }
+  | { kind: 'links'; actorId: string; links: Record<string, string> }
+  /** `properties A: {…}` / `details A: <element id>`: actor data the
+   * renderer does not draw, but the statement still creates the actor. */
+  | { kind: 'actor-data'; actorId: string }
+  | { kind: 'title'; text: string }
+  | { kind: 'autonumber'; numbering: { next: number; step: number } | null }
+  | { kind: 'box'; text: string }
+  | { kind: 'note'; note: Pick<Note, 'actorIds' | 'text' | 'position'> }
+  | { kind: 'block'; opener: { type: Exclude<SequenceBlockOpener, 'box'>; label: string } }
+  | { kind: 'continuation'; continuation: { type: SequenceBlockContinuation; label: string } }
+  | { kind: 'end' }
+  | { kind: 'message'; message: ParsedSequenceMessageLine }
+  | { kind: 'activation'; actorId: string; activate: boolean }
+
+/** Classify one trimmed statement line, or null when it is no sequence
+ * statement. */
+export function parseSequenceStatement(line: string): SequenceStatementSyntax | null {
+  const declaration = parseActorDeclaration(line)
+  if (declaration) return { kind: 'declaration', declaration }
+  const links = parseActorLinks(line)
+  if (links) return { kind: 'links', ...links }
+  const actorData = line.match(/^(?:properties|details)\s+(\S+)\s*:/i)
+  if (actorData) return { kind: 'actor-data', actorId: actorData[1]! }
+  const title = line.match(/^title(?:\s*:\s*|\s+)(.+)$/i)
+  if (title) return { kind: 'title', text: title[1]!.trim() }
+  const autonumber = line.match(/^autonumber(?:\s+(.*))?$/i)
+  if (autonumber) {
+    const rest = autonumber[1]?.trim() ?? ''
+    if (/^off$/i.test(rest)) return { kind: 'autonumber', numbering: null }
+    const nums = rest.match(/^(\d+(?:\.\d+)?)(?:\s+(\d+(?:\.\d+)?))?$/)
+    return {
+      kind: 'autonumber',
+      numbering: {
+        next: nums ? Number.parseFloat(nums[1]!) : 1,
+        step: nums?.[2] !== undefined ? Number.parseFloat(nums[2]) : 1,
+      },
+    }
+  }
+  const box = line.match(/^box(?:\s+(.*))?$/i)
+  if (box) return { kind: 'box', text: box[1]?.trim() ?? '' }
+  const created = parseSequenceCreateLine(line)
+  if (created) return { kind: 'create', declaration: created }
+  const destroy = line.match(/^destroy\s+(\S+)$/i)
+  if (destroy) return { kind: 'destroy', actorId: destroy[1]! }
+  const note = parseSequenceNoteLine(line)
+  if (note) return { kind: 'note', note }
+  const opener = parseSequenceBlockOpener(line)
+  if (opener && opener.type !== 'box') return { kind: 'block', opener: { type: opener.type, label: opener.label } }
+  const continuation = parseSequenceBlockContinuation(line)
+  if (continuation) return { kind: 'continuation', continuation }
+  if (line === 'end') return { kind: 'end' }
+  const message = parseSequenceMessageLine(line)
+  if (message) return { kind: 'message', message }
+  const activation = line.match(/^(activate|deactivate)\s+(\S+)$/i)
+  if (activation) return { kind: 'activation', actorId: activation[2]!, activate: activation[1]!.toLowerCase() === 'activate' }
+  return null
+}
+
+/** What a classified statement does to the participants, in upstream's
+ * order (see ./participants.ts): a message mentions its sender, then its
+ * receiver; a note its actors; `link`/`links`/`properties`/`details` its
+ * actor. `activate`, `deactivate` and `destroy` create nothing. */
+export function participantEventsOf(statement: SequenceStatementSyntax | null): ParticipantEvent[] {
+  switch (statement?.kind) {
+    case 'declaration': {
+      const { id, label, type, keyword, aliased } = statement.declaration
+      return [{ kind: 'declare', id, keyword, type, ...(aliased ? { label } : {}) }]
+    }
+    case 'create': {
+      // Creating a known participant is an upstream error, never a rename.
+      const { id, label, type } = statement.declaration
+      return [{ kind: 'declare', id, keyword: type === 'actor' ? 'actor' : 'participant', type, label, create: true }]
+    }
+    case 'links':
+      return [{ kind: 'mention', id: statement.actorId }, { kind: 'links', id: statement.actorId, links: statement.links }]
+    case 'actor-data':
+      return [{ kind: 'mention', id: statement.actorId }]
+    case 'note':
+      return statement.note.actorIds.map(id => ({ kind: 'mention', id }))
+    case 'message':
+      return [{ kind: 'mention', id: statement.message.from }, { kind: 'mention', id: statement.message.to }]
+    default:
+      return []
+  }
+}
+
+/** The participant events of one statement line (see participantEventsOf). */
+export function sequenceParticipantEvents(line: string): ParticipantEvent[] {
+  return participantEventsOf(parseSequenceStatement(line.trim()))
 }
 
 const ACTOR_TYPES = new Set<SequenceActorType>(['participant', 'actor', 'boundary', 'control', 'entity', 'database', 'collections', 'queue'])
@@ -414,39 +470,44 @@ const ACTOR_TYPES = new Set<SequenceActorType>(['participant', 'actor', 'boundar
 /** A `participant`/`actor` declaration. `aliased` records whether it names the
  *  actor (`as …` or a metadata alias): Mermaid lets only a naming declaration
  *  change an actor that already exists. */
-export type ParsedActorDeclaration = Pick<Actor, 'id' | 'label' | 'type'> & { aliased: boolean }
+export type ParsedActorDeclaration = Pick<Actor, 'id' | 'label' | 'type'> & { keyword: 'participant' | 'actor'; aliased: boolean }
 
 export function parseActorDeclaration(line: string): ParsedActorDeclaration | null {
-  const metadata = line.match(/^(participant|actor)\s+([^\s@]+)@\{([\s\S]+)\}(?:\s+as\s+(.+))?$/i)
+  const metadata = line.match(/^(participant|actor)\s+([^\s@]+)@\{/i)
   if (metadata) {
     const baseType = metadata[1]!.toLowerCase() as 'participant' | 'actor'
     const id = metadata[2]!
-    let values: Record<string, unknown> = {}
-    try { values = JSON.parse(`{${metadata[3]}}`) as Record<string, unknown> } catch {
-      // Mermaid also accepts identifier-style keys and single-quoted string
-      // values. Normalize only those documented JSON-like extensions;
-      // malformed metadata still fails closed instead of being guessed.
-      const normalized = metadata[3]!
-        .replace(/(^|[,{])(\s*)([A-Za-z][\w-]*)\s*:/g, '$1$2"$3":')
-        .replace(/'([^'\\]*(?:\\.[^'\\]*)*)'/g, (_whole, value: string) => JSON.stringify(value.replace(/\\'/g, "'")))
-      try { values = JSON.parse(`{${normalized}}`) as Record<string, unknown> } catch { return null }
+    // Upstream's CONFIG lexer and YAML reader (shared/metadata-yaml.ts): the
+    // first `}` ends the block, and a block YAML rejects rejects the diagram.
+    const block = readMetadataBlock(line, metadata[0].length - 1, 'sequence')
+    const tail = block.ok ? line.slice(block.end + 1) : ''
+    const naming = tail.match(/^\s+as(?:\s+(.*))?$/i)
+    if (!block.ok || (tail.trim() !== '' && !naming)) {
+      throw syntaxError({
+        what: `Invalid participant metadata in "${line}": ${block.ok ? `unexpected "${tail.trim()}" after it` : block.message}`,
+        expectedForm: 'a YAML mapping in @{…} with no "}" inside, then optionally `as <label>`',
+        example: 'participant DB@{ "type": "database", "alias": "Orders" }',
+      })
     }
-    const requested = typeof values.type === 'string' ? values.type.toLowerCase() : baseType
+    // `as` with no text names the actor "" upstream; keep that line unmodeled.
+    const asText = naming ? naming[1]?.trim() || null : undefined
+    if (asText === null) return null
+    const { entries } = block
+    const requestedType = entries.get('type')
+    const requested = typeof requestedType === 'string' ? requestedType.toLowerCase() : baseType
     if (!ACTOR_TYPES.has(requested as SequenceActorType)) throw new Error(`Unknown sequence actor type '${requested}'`)
     const type = requested as SequenceActorType
-    // Upstream gives an explicit external `as` alias precedence over inline
-    // metadata so the authored presentation name remains visible. An empty
-    // metadata alias names nothing there.
-    const alias = metadata[4]?.trim() ?? (typeof values.alias === 'string' && values.alias ? values.alias : undefined)
-    return { id, label: normalizeBrTags(alias ?? id), type, aliased: alias !== undefined }
+    // Upstream's `addActor`: a truthy metadata alias names the actor unless
+    // `as` gives a text other than the id (`B@{ "alias": "Y" } as B` is Y).
+    const metadataAlias = metadataText(entries.get('alias'))
+    const alias = metadataAlias !== undefined && (asText === undefined || asText === id) ? metadataAlias : asText
+    return { id, label: normalizeBrTags(alias ?? id), type, keyword: baseType, aliased: alias !== undefined }
   }
   const ordinary = line.match(/^(participant|actor)\s+(\S+?)(?:\s+as\s+(.+))?$/i)
   if (!ordinary) return null
   const id = ordinary[2]!
-  return {
-    id, label: normalizeBrTags(ordinary[3]?.trim() ?? id),
-    type: ordinary[1]!.toLowerCase() as 'participant' | 'actor', aliased: ordinary[3] !== undefined,
-  }
+  const keyword = ordinary[1]!.toLowerCase() as 'participant' | 'actor'
+  return { id, label: normalizeBrTags(ordinary[3]?.trim() ?? id), type: keyword, keyword, aliased: ordinary[3] !== undefined }
 }
 
 /** One `create participant|actor X [as Label]` grammar shared by renderer and
@@ -477,7 +538,7 @@ export function parseActorLinks(line: string): { actorId: string; links: Record<
 /** One note-line grammar shared by renderer and agent parsers:
  *  "Note left of A: text" / "Note right of A: text" / "Note over A,B: text". */
 export function parseSequenceNoteLine(line: string): Pick<Note, 'actorIds' | 'text' | 'position'> | null {
-  const match = line.match(/^Note\s+(left of|right of|over)\s+([^:]+):\s*(.+)$/i)
+  const match = line.match(/^Note\s+(left of|right of|over)\s+([^:]+):\s*(.*)$/i)
   if (!match) return null
   const placement = match[1]!.toLowerCase()
   return {
@@ -497,28 +558,18 @@ function parseMessageArrow(arrow: string): { lineStyle: 'solid' | 'dashed'; star
   return { lineStyle, startHead, endHead }
 }
 
-/** Ensure an actor exists, creating a default participant if not */
-function ensureActor(diagram: SequenceDiagram, actorIds: Set<string>, id: string): void {
-  if (!actorIds.has(id)) {
-    actorIds.add(id)
-    diagram.actors.push({ id, label: id, type: 'participant' })
-  }
-}
-
 /** Bind any pending create/destroy directive whose actor participates in the
  *  message being parsed; unmatched directives stay pending (and stay inert if
  *  no later message ever involves the actor). */
 function bindLifecycle(
   pending: string[],
   matches: (id: string) => boolean,
-  diagram: SequenceDiagram,
-  assign: (actor: Actor) => void,
+  bind: (id: string) => void,
 ): void {
   for (let i = pending.length - 1; i >= 0; i--) {
     const id = pending[i]!
     if (!matches(id)) continue
-    const actor = diagram.actors.find(a => a.id === id)
-    if (actor) assign(actor)
+    bind(id)
     pending.splice(i, 1)
   }
 }

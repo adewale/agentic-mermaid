@@ -68,6 +68,8 @@ The renderer must accept Mermaid source wrappers already supported by Agentic Me
 - Mermaid comments before the header;
 - `accTitle:` and `accDescr:` inline or block directives.
 
+A trailing `%% comment` ends a header or keyword statement (`dateFormat`, `axisFormat`, `excludes`, …), as in Mermaid. On a task line Mermaid folds it into the task data; see BUG-34 in [#363](https://github.com/adewale/agentic-mermaid/issues/363).
+
 ## First-release syntax matrix
 
 Legend: “parse” means recognized and preserved by the family parser. “render” means it affects SVG/ASCII output in the first Gantt release. “preserve” means source-level round-trip keeps the text even when the renderer ignores the semantic effect.

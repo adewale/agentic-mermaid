@@ -17,6 +17,8 @@ import { colorizeText } from './ansi.ts'
 import { graphemes } from '../shared/graphemes.ts'
 import { truncateToVisualWidth, visualWidth, WIDE_CHAR_CONTINUATION } from './width.ts'
 import { wrapText } from './wrap.ts'
+import { oneRowDisplayText as oneRow } from './multiline-utils.ts'
+import { displayText } from '../multiline-utils.ts'
 
 /** Interior plot dimensions in cells (odd so the dividers land cleanly). */
 const GRID_W = 41
@@ -78,7 +80,7 @@ export function renderQuadrantAscii(
   // Frame the grid with a border, with axis labels on the edges.
   const out: string[] = []
   if (chart.title) {
-    for (const line of wrapText(chart.title, targetWidth)) out.push(centerText(line, GRID_W + 2))
+    for (const line of wrapText(displayText(chart.title), targetWidth)) out.push(centerText(line, GRID_W + 2))
   }
 
   out.push(ch.tl + ch.h.repeat(GRID_W) + ch.tr)
@@ -92,12 +94,12 @@ export function renderQuadrantAscii(
 
   // x-axis labels under the grid (left + right).
   if (chart.xAxis) {
-    out.push(...wrapText(edgeAxisRow(chart.xAxis.near, chart.xAxis.far, GRID_W + 2), targetWidth))
+    out.push(...wrapText(edgeAxisRow(oneRow(chart.xAxis.near), chart.xAxis.far === undefined ? undefined : oneRow(chart.xAxis.far), GRID_W + 2), targetWidth))
   }
   // y-axis labels as a separate annotated line.
   if (chart.yAxis) {
-    const top = chart.yAxis.far ? `top: ${chart.yAxis.far}` : ''
-    const bottom = `bottom: ${chart.yAxis.near}`
+    const top = chart.yAxis.far ? `top: ${oneRow(chart.yAxis.far)}` : ''
+    const bottom = `bottom: ${oneRow(chart.yAxis.near)}`
     out.push(...wrapText(`y-axis  ${bottom}${top ? `  |  ${top}` : ''}`, targetWidth))
   }
 
@@ -107,7 +109,7 @@ export function renderQuadrantAscii(
     const pointGlyph = colorMode === 'none' ? ch.point : colorizeText(ch.point, pointColor(theme), colorMode)
     for (const p of chart.points) {
       const suffix = `: [${fmt(p.x)}, ${fmt(p.y)}]`
-      const labelLines = wrapText(p.label, targetWidth ? Math.max(1, targetWidth - visualWidth(suffix) - 2) : undefined)
+      const labelLines = wrapText(displayText(p.label), targetWidth ? Math.max(1, targetWidth - visualWidth(suffix) - 2) : undefined)
       for (let index = 0; index < labelLines.length - 1; index++) out.push(`${pointGlyph} ${labelLines[index]!}`)
       out.push(`${pointGlyph} ${labelLines.at(-1) ?? ''}${suffix}`)
     }
@@ -143,7 +145,7 @@ function placeLabel(
   const regionW = colEnd - colStart
   const regionH = rowEnd - rowStart
   if (regionW <= 0 || regionH <= 0) return
-  const text = truncateToVisualWidth(label, regionW)
+  const text = truncateToVisualWidth(oneRow(label), regionW)
   const row = top ? rowStart + 1 : rowStart + Math.floor(regionH / 2)
   let col = colStart + Math.max(0, Math.floor((regionW - visualWidth(text)) / 2))
   for (const cluster of graphemes(text)) {

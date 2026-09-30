@@ -20,7 +20,7 @@ import {
   normalizeTimelineBreaks,
   splitTimelineEvents,
 } from '../timeline/parse-core.ts'
-import { indexedIdAllocator } from './body-utils.ts'
+import { indexedIdAllocator, resolveInsertIndex, setOptionalField } from './body-utils.ts'
 import { scanAccessibilityDirectives } from '../shared/accessibility-directives.ts'
 
 // ---- Parser -----------------------------------------------------------------
@@ -282,16 +282,6 @@ function normalizeTimelineAccessibilityText(
   return ok(normalized)
 }
 
-/** Prescriptive insert-position resolution (journey resolveInsertIndex
- *  convention): omitted = append; otherwise 0..length inclusive. */
-function resolveTimelineInsertIndex(index: number | undefined, length: number): Result<number, MutationError> {
-  if (index === undefined) return ok(length)
-  if (!Number.isInteger(index) || index < 0 || index > length) {
-    return err({ code: 'INVALID_OP', message: `Timeline insert index ${index} out of range (0..${length})` })
-  }
-  return ok(index)
-}
-
 /** "(valid: 0..N-1)" suffix for not-found errors, so a wrong index teaches the
  *  legal range instead of forcing a re-read of the whole diagram. */
 function indexRangeHint(count: number): string {
@@ -319,12 +309,8 @@ export function mutateTimeline(input: TimelineBody, op: TimelineMutationOp): Res
 
   switch (op.kind) {
     case 'set_title': {
-      if (op.title === null) delete body.title
-      else {
-        const title = normalizeTimelineTitleOpText(op.title)
-        if (!title.ok) return title
-        body.title = title.value
-      }
+      const title = setOptionalField(body, 'title', op.title, value => normalizeTimelineTitleOpText(value))
+      if (!title.ok) return title
       break
     }
     case 'set_accessibility_title': {
@@ -344,7 +330,7 @@ export function mutateTimeline(input: TimelineBody, op: TimelineMutationOp): Res
     case 'add_section': {
       const label = normalizeTimelineOpText(op.label, { field: 'section label' })
       if (!label.ok) return label
-      const index = resolveTimelineInsertIndex(op.index, body.sections.length)
+      const index = resolveInsertIndex(op.index, body.sections.length, 'Timeline')
       if (!index.ok) return index
       body.sections.splice(index.value, 0, { id: nextTimelineId('section'), label: label.value, periods: [] })
       break
@@ -373,7 +359,7 @@ export function mutateTimeline(input: TimelineBody, op: TimelineMutationOp): Res
         if (!text.ok) return text
         events.push({ id: nextTimelineId('event'), text: text.value })
       }
-      const index = resolveTimelineInsertIndex(op.index, s.periods.length)
+      const index = resolveInsertIndex(op.index, s.periods.length, 'Timeline')
       if (!index.ok) return index
       const period: TimelinePeriod = {
         id: nextTimelineId('period'),
@@ -404,7 +390,7 @@ export function mutateTimeline(input: TimelineBody, op: TimelineMutationOp): Res
       if (!p) return periodNotFound(op.sectionIndex, op.periodIndex)
       const text = normalizeTimelineEventOpText(op.text)
       if (!text.ok) return text
-      const index = resolveTimelineInsertIndex(op.index, p.events.length)
+      const index = resolveInsertIndex(op.index, p.events.length, 'Timeline')
       if (!index.ok) return index
       p.events.splice(index.value, 0, { id: nextTimelineId('event'), text: text.value })
       break

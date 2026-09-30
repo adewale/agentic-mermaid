@@ -111,7 +111,6 @@ describe('pie structured-or-opaque fallback', () => {
     ['negative value', 'pie\n  "A" : -3'],
     ['zero value', 'pie\n  "A" : 0'],
     ['non-numeric value', 'pie\n  "A" : lots'],
-    ['no entries', 'pie title Empty'],
     ['header EXTRA suffix', 'pie EXTRA\n  "A" : 1'],
   ]
   for (const [name, src] of opaqueCases) {
@@ -209,7 +208,7 @@ describe('pie verify + render', () => {
     expect(serializeMermaid(d)).toContain('"Fish" : 7')
   })
 
-  test('EMPTY_DIAGRAM fires on a header-only (opaque) chart', () => {
+  test('EMPTY_DIAGRAM fires on a header-only chart', () => {
     const v = verifyMermaid('pie')
     expect(v.warnings.map(w => w.code)).toContain('EMPTY_DIAGRAM')
     expect(v.ok).toBe(false)

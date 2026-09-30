@@ -19,6 +19,7 @@ import { layoutSequenceDiagram } from '../sequence/layout.ts'
 import { renderMermaidSVG } from '../index.ts'
 import { parseSequenceBody } from '../agent/sequence-body.ts'
 import { parseRegisteredMermaid as parseMermaid } from '../agent/parse.ts'
+import { verifyMermaid } from '../agent/verify.ts'
 import { serializeMermaid } from '../agent/serialize.ts'
 import { mutate } from '../agent/mutate.ts'
 import { asSequence } from '../agent/types.ts'
@@ -160,6 +161,53 @@ describe('parseSequenceDiagram – box groups', () => {
     expect(d.boxes![0]!.color).toBeUndefined()
     expect(d.boxes![0]!.label).toBeUndefined()
     expect(d.boxes![0]!.actorIds).toEqual(['A'])
+  })
+
+  // BUG-17: upstream's `addActor` sets `A.box` for an actor a box statement
+  // meets, but pushes onto the box's `actorKeys` only when it creates or
+  // renames the actor. Expected values are pinned Mermaid 11.16's DB
+  // (`getActors()` / `getBoxes()`; its box parsing needs a DOM this harness
+  // lacks, so the probe ran with a CSS color check).
+  it('BUG-17: a box places an actor created before it without listing it; the frame still draws it', () => {
+    const cases = [
+      { source: 'sequenceDiagram\n  A->>B: hi\n  box Grp\n    participant A\n  end', keys: [], boxOf: { A: 'Grp', B: null } },
+      { source: 'sequenceDiagram\n  A->>B: hi\n  box Grp\n    participant A as X\n  end', keys: ['A'], boxOf: { A: 'Grp', B: null } },
+      { source: 'sequenceDiagram\n  box Grp\n    participant A as x\n    participant A as y\n  end', keys: ['A', 'A'], boxOf: { A: 'Grp' } },
+    ]
+    for (const { source, keys, boxOf } of cases) {
+      const d = parse(source)
+      const actualBoxOf = Object.fromEntries(d.actors.map(actor => [actor.id, actor.box === undefined ? null : d.boxes![actor.box]!.label]))
+      expect({ source, keys: d.boxes![0]!.actorIds, boxOf: actualBoxOf }).toEqual({ source, keys, boxOf })
+      // The frame spans the actors upstream places in the box.
+      const p = layoutSequenceDiagram(d)
+      const a = p.actors.find(actor => actor.id === 'A')!
+      expect(p.boxes).toHaveLength(1)
+      expect(p.boxes[0]!.x).toBeLessThanOrEqual(a.x - a.width / 2)
+      expect(p.boxes[0]!.x + p.boxes[0]!.width).toBeGreaterThanOrEqual(a.x + a.width / 2)
+    }
+  })
+
+  // Mermaid rejects a participant defined in two boxes, but what it means is
+  // clear: ours keeps it in the box that first placed it, draws it, and
+  // verify reports the second box's declaration.
+  // [second declaration, text the render draws]
+  it.each([
+    ['participant A', '>A<'],
+    ['participant A as X', '>X<'],
+  ])('a participant a second box declares (%s) stays in its first box, and verify reports it', (second, drawn) => {
+    const source = `sequenceDiagram\n  box G\n    participant A\n  end\n  box H\n    ${second}\n    participant B\n  end`
+    const d = parse(source)
+    expect({
+      boxOf: Object.fromEntries(d.actors.map(actor => [actor.id, actor.box === undefined ? null : d.boxes![actor.box]!.label])),
+      keys: d.boxes!.map(box => box.actorIds),
+      draws: renderMermaidSVG(source).includes(drawn),
+      reported: verifyMermaid(source).warnings.flatMap(warning => warning.code === 'UNSUPPORTED_SYNTAX' ? [`${warning.syntax}@${warning.line}`] : []),
+    }).toEqual({
+      boxOf: { A: 'G', B: 'H' },
+      keys: [['A'], ['B']],
+      draws: true,
+      reported: expect.arrayContaining(['sequence_participant_in_two_boxes@6']),
+    })
   })
 
   it('box end does not interfere with block end', () => {

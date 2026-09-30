@@ -152,8 +152,8 @@ config:
 
   it('honors hard display-cell width without splitting CJK or ZWJ graphemes', () => {
     const source = `architecture-beta
-      service a(server)[入口 👩🏽‍💻]
-      service b(database)[資料庫]
+      service a(server)["入口 👩🏽‍💻"]
+      service b(database)["資料庫"]
       service c(cloud)[Cloud]
       a:R --> L:b
       b:R --> L:c`

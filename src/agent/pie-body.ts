@@ -30,7 +30,7 @@ import type {
   MutationError, Result, LayoutWarning, VerifyOptions,
 } from './types.ts'
 import { ok, err } from './types.ts'
-import { indexedIdAllocator, labelOverflowCollector } from './body-utils.ts'
+import { indexedIdAllocator, labelOverflowCollector, setOptionalField } from './body-utils.ts'
 import { appendAccessibilityLines } from './accessibility-envelope.ts'
 import { parsePieChart } from '../pie/parser.ts'
 
@@ -67,8 +67,8 @@ function encodeMultilineText(text: string): string {
  * title / showData / entry directive with a positive numeric value and a
  * quoted label that round-trips. Otherwise returns null (opaque fallback).
  *
- * A structured body must contain at least one slice (the legacy renderer needs
- * data to render).
+ * A body with no slices is the empty typed pie: Mermaid draws it (title only),
+ * and verify reports it as EMPTY_DIAGRAM.
  */
 export function parsePieBody(lines: string[], header: { showData: boolean; title?: string }): PieBody | null {
   const tail = `${header.showData ? ' showData' : ''}${header.title === undefined ? '' : ` title ${header.title}`}`
@@ -148,10 +148,8 @@ export function mutatePie(body: PieBody, op: PieMutationOp): Result<PieBody, Mut
 
   switch (op.kind) {
     case 'set_title': {
-      if (op.title === null) { delete next.title; break }
-      const t = validLabel(op.title, 'title')
-      if (!t.ok) return t
-      next.title = t.value
+      const title = setOptionalField(next, 'title', op.title, value => validLabel(value, 'title'))
+      if (!title.ok) return title
       break
     }
     case 'set_show_data': {
@@ -231,7 +229,9 @@ export function mutatePie(body: PieBody, op: PieMutationOp): Result<PieBody, Mut
 
 export function verifyPie(body: PieBody, opts: VerifyOptions): LayoutWarning[] {
   const warnings: LayoutWarning[] = []
-  const overflow = labelOverflowCollector(warnings, opts)
+  // Labels are drawn as written (upstream sets them as text), so they are
+  // measured literally.
+  const overflow = labelOverflowCollector(warnings, opts, undefined, 'literal')
   if (body.slices.length === 0) warnings.push({ code: 'EMPTY_DIAGRAM' })
   if (body.title !== undefined) overflow('title', body.title)
   for (const s of body.slices) overflow(s.id, s.label)

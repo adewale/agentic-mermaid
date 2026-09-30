@@ -8,7 +8,9 @@ import { parseRegisteredMermaid as parseMermaid } from '../agent/parse.ts'
 import { serializeMermaid, synthesizeFromGraph } from '../agent/serialize.ts'
 import type { FlowchartMutationOp, FlowchartValidDiagram, SequenceValidDiagram } from '../agent/types.ts'
 import { asFlowchart, asSequence, asState, toFinite, WARNING_TIER } from '../agent/types.ts'
-import { verifyMermaid } from '../agent/verify.ts'
+import { graphGeometryWarnings, verifyMermaid } from '../agent/verify.ts'
+import { positionFamilyArtifact } from '../agent/family-layouts.ts'
+import type { PositionedGraph } from '../types.ts'
 
 function parse(src: string) {
   const r = parseMermaid(src)
@@ -983,6 +985,43 @@ describe('synthesizeFromGraph', () => {
     expect(out).toContain('class A hot')
     expect(out).toContain('style B stroke:#0f0')
     expect(out).toContain('linkStyle 0 stroke:#00f')
+  })
+})
+
+describe('flowchart geometry tripwires (graphGeometryWarnings, the pass verify runs)', () => {
+  // ELK never places a node off-canvas, on another node or outside its
+  // subgraph, so on real layouts these stay silent; doctored layouts prove
+  // each check can fire (a validator nothing can trigger is dead code).
+  const d = parse('flowchart LR\n  A --> B\n  subgraph S\n    C\n  end\n  B --> C')
+  if (d.body.kind !== 'flowchart') throw new Error('expected a flowchart body')
+  const graph = d.body.graph
+  const positioned = positionFamilyArtifact(d)!.positioned as PositionedGraph
+  const node = (id: string) => positioned.nodes.find(n => n.id === id)!
+  const moved = (id: string, box: Partial<PositionedGraph['nodes'][number]>): PositionedGraph =>
+    ({ ...positioned, nodes: positioned.nodes.map(n => (n.id === id ? { ...n, ...box } : n)) })
+
+  test('the real layout raises none', () => {
+    expect(graphGeometryWarnings(positioned, graph)).toEqual([])
+  })
+
+  test('a node at negative x and y raises OFF_CANVAS on each axis', () => {
+    expect(graphGeometryWarnings(moved('A', { x: -20, y: -20 }), graph)).toEqual([
+      { code: 'OFF_CANVAS', target: 'A', axis: 'x' },
+      { code: 'OFF_CANVAS', target: 'A', axis: 'y' },
+    ])
+  })
+
+  test('a node laid on another raises NODE_OVERLAP with the shared area', () => {
+    const a = node('A')
+    expect(graphGeometryWarnings(moved('B', { x: a.x, y: a.y, width: a.width, height: a.height }), graph)).toEqual([
+      { code: 'NODE_OVERLAP', a: 'A', b: 'B', areaPx: Math.round(a.width * a.height) },
+    ])
+  })
+
+  test('a member outside its subgraph raises GROUP_BREACH', () => {
+    const a = node('A')
+    expect(graphGeometryWarnings(moved('C', { x: a.x, y: a.y + a.height + 400 }), graph))
+      .toContainEqual({ code: 'GROUP_BREACH', group: 'S', member: 'C' })
   })
 })
 

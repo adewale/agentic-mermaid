@@ -6,6 +6,7 @@ import {
   requireClosedAccessibility,
   scanAccessibilityDirectives,
 } from '../shared/accessibility-directives.ts'
+import { stripTrailingComment } from '../shared/trailing-comment.ts'
 
 // ============================================================================
 // Radar chart parser
@@ -100,34 +101,6 @@ function decodeQuotedString(raw: string, context: string): string {
   return out
 }
 
-/** Mermaid's hidden SINGLE_LINE_COMMENT token applies everywhere outside a
- * quoted string, including title/accessibility free text and multiline curve
- * blocks. Preserve newlines so title/accessibility terminals retain their
- * line boundary. */
-function stripComments(source: string): string {
-  let out = ''
-  let quote: '"' | "'" | null = null
-  let escaped = false
-  for (let i = 0; i < source.length; i++) {
-    const ch = source[i]!
-    if (escaped) { out += ch; escaped = false; continue }
-    if (quote && ch === '\\') { out += ch; escaped = true; continue }
-    if (ch === '"' || ch === "'") {
-      if (quote === ch) quote = null
-      else if (quote === null) quote = ch
-      out += ch
-      continue
-    }
-    if (!quote && ch === '%' && source[i + 1] === '%') {
-      while (i < source.length && source[i] !== '\n') i++
-      if (i < source.length) out += '\n'
-      continue
-    }
-    out += ch
-  }
-  return out
-}
-
 const STATEMENT_KEYWORDS = [
   'showLegend', 'graticule', 'accTitle', 'accDescr',
   'title', 'ticks', 'curve', 'axis', 'max', 'min',
@@ -146,8 +119,7 @@ function statementKeywordAt(source: string, index: number): string | undefined {
  * ordinary statements, while a following top-level keyword also starts a new
  * statement on the same line (`axis A,B curve x{1,2}`). Title/accessibility
  * terminals deliberately consume the remainder of their line as free text. */
-function bodyStatements(rawSource: string): string[] {
-  const source = stripComments(rawSource)
+function bodyStatements(source: string): string[] {
   const out: string[] = []
   let i = 0
   while (i < source.length) {
@@ -305,9 +277,10 @@ function parseCurveItem(item: string, axes: RadarAxis[]): RadarCurve {
 
 /** Parse Mermaid radar source after wrapper normalization/comment extraction. */
 export function parseRadarChart(lines: string[], options: RadarParseOptions = {}): RadarChart {
-  // Radar has an unusually broad inline-comment token. Apply that family
-  // rule first, then let the universal scanner own accessibility grammar.
-  const scanned = scanAccessibilityDirectives(stripComments(lines.join('\n')).split(/\r?\n/))
+  // Mermaid's hidden SINGLE_LINE_COMMENT token applies after every statement,
+  // including title/accessibility free text and multiline curve blocks. Apply
+  // that family rule first, then let the universal scanner own accessibility.
+  const scanned = scanAccessibilityDirectives(lines.join('\n').split(/\r?\n/).map(stripTrailingComment))
   requireClosedAccessibility(scanned)
   const source = scanned.familyLines.join('\n').trimStart()
   if (!source) throw new Error('Radar chart is empty')

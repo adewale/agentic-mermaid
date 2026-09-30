@@ -8,7 +8,7 @@ import type {
   ValidDiagramPayload, ParseError, Result,
 } from './types.ts'
 import { ok, err } from './types.ts'
-import YAML from 'yaml'
+import { stringifyMermaidYaml } from '../shared/mermaid-yaml.ts'
 import { getFamily, knownFamilies } from './families.ts'
 import { parseRegisteredMermaid } from './parse.ts'
 import { ensureAccessibilityLines } from './accessibility-envelope.ts'
@@ -135,7 +135,7 @@ export function renderMeta(meta: ValidDiagramMeta): string {
     }
     const doc: Record<string, unknown> = { ...top }
     if (Object.keys(config).length > 0) doc.config = config
-    parts.push(`---\n${YAML.stringify(doc).trimEnd()}\n---\n`)
+    parts.push(`---\n${stringifyMermaidYaml(doc).trimEnd()}\n---\n`)
   }
   for (const d of meta.initDirectives) {
     if (Object.keys(d.parsed).length > 0) continue

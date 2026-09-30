@@ -1,20 +1,5 @@
 import descriptorData from '../generated/descriptors/journey.ts'
-import { withFrontmatterTitle } from '../../mermaid-source.ts'
-import { createBrowserFamilyDescriptor, layoutResult, scene } from '../family.ts'
-import { layoutJourneyDiagram, resolveJourneyRequestAppearance } from '../../journey/layout.ts'
-import { parseJourneyDiagram } from '../../journey/parser.ts'
-import { lowerJourneyScene } from '../../journey/renderer.ts'
+import { createBrowserFamilyDescriptor } from '../family.ts'
+import { JOURNEY_SVG_HOOKS } from '../../svg-family-hooks/journey.ts'
 
-export default createBrowserFamilyDescriptor(descriptorData, {
-  normalizeRequest: ctx => ({
-    appearance: { family: resolveJourneyRequestAppearance(ctx.renderOptions) as unknown as Record<string, unknown> },
-  }),
-  layout: ctx => layoutResult(layoutJourneyDiagram(
-    withFrontmatterTitle(parseJourneyDiagram(ctx.source.familyLines, ctx.source.accessibility), ctx.source.frontmatter),
-    (ctx.familyAppearance as ReturnType<typeof resolveJourneyRequestAppearance> | undefined)
-      ?? resolveJourneyRequestAppearance(ctx.renderOptions),
-    ctx.renderOptions,
-    ctx.styleFace,
-  )),
-  lowerScene: scene(lowerJourneyScene),
-})
+export default createBrowserFamilyDescriptor(descriptorData, JOURNEY_SVG_HOOKS)

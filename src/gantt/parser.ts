@@ -20,6 +20,7 @@ import { GanttError } from './types.ts'
 import type { MermaidFrontmatterMap } from '../mermaid-source.ts'
 import { getFrontmatterMap, getFrontmatterScalar } from '../mermaid-source.ts'
 import { scanAccessibilityDirectives } from '../shared/accessibility-directives.ts'
+import { stripTrailingComment } from '../shared/trailing-comment.ts'
 
 export const GANTT_TASK_TAGS: readonly GanttTaskTag[] = ['active', 'done', 'crit', 'milestone', 'vert']
 
@@ -123,7 +124,7 @@ export function parseGanttModel(lines: string[]): GanttModel {
     throw new GanttError('GANTT_BAD_DIRECTIVE', 'Unclosed accDescr block', accessibility.unclosedIndex + 1)
   }
   lines = accessibility.familyLines
-  const header = (lines[0] ?? '').trim()
+  const header = stripTrailingComment((lines[0] ?? '').trim())
   if (!/^gantt\s*$/i.test(header)) {
     throw new GanttError('GANTT_BAD_DIRECTIVE', `Expected "gantt" header, got "${header}"`, 1)
   }
@@ -167,8 +168,12 @@ export function parseGanttModel(lines: string[]): GanttModel {
       if (tm) model.tickInterval = { count: Number(tm[1]), unit: tm[2] as GanttTickUnit }
       continue
     }
-    if (/^inclusiveEndDates\s*$/i.test(line)) { model.inclusiveEndDates = true; continue }
-    if (/^topAxis\s*$/i.test(line)) { model.topAxis = true; continue }
+    // Mermaid's Gantt grammar ends a keyword statement at a `%%` comment, but
+    // reads `%%` as text wherever a statement runs to the end of its line
+    // (title, section, dateFormat, a task's label and metadata).
+    const keyword = stripTrailingComment(line)
+    if (/^inclusiveEndDates\s*$/i.test(keyword)) { model.inclusiveEndDates = true; continue }
+    if (/^topAxis\s*$/i.test(keyword)) { model.topAxis = true; continue }
     if ((m = line.match(DIRECTIVE_RES.excludes))) {
       // Multiple excludes lines accumulate (mermaid PR #7772).
       model.excludes.push(...parseCalendarTokens(m[1]!.trim()))
@@ -183,7 +188,7 @@ export function parseGanttModel(lines: string[]): GanttModel {
       model.todayMarker = v.toLowerCase() === 'off' ? { off: true } : { off: false, style: v }
       continue
     }
-    if ((m = line.match(DIRECTIVE_RES.weekday))) {
+    if ((m = keyword.match(DIRECTIVE_RES.weekday))) {
       const day = m[1]!.trim().toLowerCase()
       if (!(WEEKDAYS as readonly string[]).includes(day)) {
         throw new GanttError('GANTT_BAD_DIRECTIVE', `Invalid weekday "${m[1]!.trim()}"`, lineNo)
@@ -191,7 +196,7 @@ export function parseGanttModel(lines: string[]): GanttModel {
       model.weekStart = day as GanttWeekday
       continue
     }
-    if ((m = line.match(DIRECTIVE_RES.weekend))) {
+    if ((m = keyword.match(DIRECTIVE_RES.weekend))) {
       const day = m[1]!.trim().toLowerCase()
       if (day !== 'friday' && day !== 'saturday') {
         throw new GanttError('GANTT_BAD_DIRECTIVE', `Invalid weekend "${m[1]!.trim()}" (friday or saturday)`, lineNo)

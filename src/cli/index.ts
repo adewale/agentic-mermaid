@@ -87,7 +87,7 @@ export interface ParsedArgs {
 // `arg` is the usage placeholder shown in `[--flag <arg>]`. BOOLEAN_FLAGS is
 // DERIVED from this, so the parser's boolean classification cannot drift from
 // the documented usage.
-export const FLAG_SPECS: Record<string, { arg?: string }> = {
+const FLAG_SPEC_TABLE = {
   // booleans
   'agent-instructions': {},
   ascii: {},
@@ -123,9 +123,37 @@ export const FLAG_SPECS: Record<string, { arg?: string }> = {
   'fit-height': { arg: 'PX' },
   'min-label-px': { arg: 'PX' },
   o: { arg: 'FILE' },
-}
+} as const satisfies Record<string, { readonly arg?: string }>
+
+export const FLAG_SPECS: Readonly<Record<string, { readonly arg?: string }>> = FLAG_SPEC_TABLE
 
 export const BOOLEAN_FLAGS = new Set(Object.keys(FLAG_SPECS).filter(name => !FLAG_SPECS[name]!.arg))
+
+type FlagName = keyof typeof FLAG_SPEC_TABLE
+/** A flag that takes no value, so the parser never lets it consume the next argument. */
+export type BooleanFlagName = { [Name in FlagName]: (typeof FLAG_SPEC_TABLE)[Name] extends { readonly arg: string } ? never : Name }[FlagName]
+/** A flag whose value is the next argument (or follows `=`). */
+export type ValueFlagName = Exclude<FlagName, BooleanFlagName>
+
+/**
+ * Whether switch `name` was given. Every CLI read of a switch goes through
+ * here: the name type admits only arg-less FLAG_SPECS entries, so the code can
+ * never treat as a switch a flag the parser lets swallow the next positional
+ * (the `--canonical-wrapper` bug), and the runtime check holds the same line
+ * for untyped callers.
+ */
+export function flagEnabled(args: ParsedArgs, name: BooleanFlagName): boolean {
+  if (!BOOLEAN_FLAGS.has(name)) throw new Error(`--${name} is not a boolean flag`)
+  return Boolean(args.flags[name])
+}
+
+/** The value given for value flag `name`, if any. runCli rejects a value
+ * flag given without a value before any command reads it. */
+export function flagValue(args: ParsedArgs, name: ValueFlagName): string | undefined {
+  if (!(name in FLAG_SPECS) || BOOLEAN_FLAGS.has(name)) throw new Error(`--${name} is not a value flag`)
+  const value = args.flags[name]
+  return typeof value === 'string' ? value : undefined
+}
 
 /**
  * Explicit projection from the canonical PNG option authority to CLI syntax.
@@ -385,7 +413,7 @@ Emits a single JSON object describing the SDK's capability surface:
     outputFormats: ${JSON.stringify(CLI_RENDER_FORMATS)} }
 editPolicy is "structured-when-narrowed" or "source-level-only". Use this to
 introspect what the CLI can do without running every command.`,
-  batch: `am batch  (reads JSONL from stdin)
+  batch: `am batch [--jsonl]  (reads JSONL from stdin; --jsonl names that mode)
 Each line: { op: "render"|"verify"|"parse"|"serialize"|"mutate", source: string,
 options?: {}, mutation?: MutationOp, mutations?: MutationOp[] }. Emits one JSON
 envelope per line: { ok, op, data?, error? }. Malformed JSON or unknown ops
@@ -408,18 +436,18 @@ the AGENTS.md section is always appended only once, guarded by a marker.`,
 
 export function runCli(argv: string[]): number {
   const args = parseArgs(argv)
-  const json = Boolean(args.flags.json)
+  const json = flagEnabled(args, 'json')
   const argError = (message: string): number => {
     if (json) process.stdout.write(JSON.stringify({ ok: false, error: { code: 'ARG', message } }) + '\n')
     process.stderr.write(`${message}\n`)
     return EXIT_ARG_ERROR
   }
   if (args.errors.length > 0) return argError(args.errors.join(' '))
-  if (args.flags['agent-instructions']) {
+  if (flagEnabled(args, 'agent-instructions')) {
     process.stdout.write(AGENT_INSTRUCTIONS)
     return EXIT_OK
   }
-  if (args.flags.help && !args.command) {
+  if (flagEnabled(args, 'help') && !args.command) {
     process.stdout.write(GLOBAL_USAGE)
     return EXIT_OK
   }
@@ -427,7 +455,7 @@ export function runCli(argv: string[]): number {
     process.stdout.write(GLOBAL_USAGE)
     return EXIT_ARG_ERROR
   }
-  if (args.flags.help) {
+  if (flagEnabled(args, 'help')) {
     process.stdout.write((COMMAND_HELP[args.command] ?? GLOBAL_USAGE) + '\n')
     return EXIT_OK
   }
@@ -515,24 +543,30 @@ export function runCli(argv: string[]): number {
 }
 
 function cmdRender(args: ParsedArgs, json: boolean): number {
-  const format = typeof args.flags.format === 'string' ? args.flags.format : DEFAULT_CLI_RENDER_FORMAT
-  const security = args.flags.security === 'strict' ? ('strict' as const) : undefined
+  const numeric = (name: ValueFlagName): number | undefined => {
+    const value = flagValue(args, name)
+    return value === undefined ? undefined : Number(value)
+  }
+  const format = flagValue(args, 'format') ?? DEFAULT_CLI_RENDER_FORMAT
+  const securityFlag = flagValue(args, 'security')
+  const security = securityFlag === 'strict' ? ('strict' as const) : undefined
   // Explicit gantt clock (rendering never reads wall-clock time).
-  const ganttToday = typeof args.flags['gantt-today'] === 'string' ? args.flags['gantt-today'] : undefined
-  const targetWidth = typeof args.flags['target-width'] === 'string' ? Number(args.flags['target-width']) : undefined
+  const ganttToday = flagValue(args, 'gantt-today')
+  const targetWidth = numeric('target-width')
   if (!isCliRenderFormat(format)) {
     process.stderr.write(`am render: unsupported --format ${format}; expected ${CLI_RENDER_FORMATS.join(', ')}\n`)
     return EXIT_ARG_ERROR
   }
   const output = renderOutputForCliFormat(format)!
-  if (args.flags.security !== undefined && args.flags.security !== 'strict') {
+  if (securityFlag !== undefined && securityFlag !== 'strict') {
     process.stderr.write('am render --security accepts only strict\n')
     return EXIT_ARG_ERROR
   }
   let advancedOptions: RenderOptions = {}
-  if (typeof args.flags.options === 'string') {
+  const optionsFlag = flagValue(args, 'options')
+  if (optionsFlag !== undefined) {
     try {
-      advancedOptions = parseRenderOptionsFlag(args.flags.options)
+      advancedOptions = parseRenderOptionsFlag(optionsFlag)
     } catch (error) {
       process.stderr.write(`am render --options: ${error instanceof Error ? error.message : String(error)}\n`)
       return EXIT_ARG_ERROR
@@ -551,11 +585,13 @@ function cmdRender(args: ParsedArgs, json: boolean): number {
     process.stderr.write(`am render: ${pngOnly.map(name => `--${name}`).join(', ')} ${pngOnly.length > 1 ? 'are' : 'is'} valid only with --format png\n`)
     return EXIT_ARG_ERROR
   }
-  if (args.flags.certificates && output.id !== 'layout') {
+  const certificates = flagEnabled(args, 'certificates')
+  const watch = flagEnabled(args, 'watch')
+  if (certificates && output.id !== 'layout') {
     process.stderr.write('am render: --certificates is valid only with --format layout\n')
     return EXIT_ARG_ERROR
   }
-  if (args.flags.watch && args.positional.length > 1) {
+  if (watch && args.positional.length > 1) {
     process.stderr.write('am render --watch accepts exactly one input file\n')
     return EXIT_ARG_ERROR
   }
@@ -563,16 +599,17 @@ function cmdRender(args: ParsedArgs, json: boolean): number {
   // --style: a stack of names and/or .json spec files; fail fast (exit 2) on
   // unknown names or invalid specs instead of surfacing an internal error.
   let style: StyleInput[] | undefined
-  if (typeof args.flags.style === 'string') {
+  const styleFlag = flagValue(args, 'style')
+  if (styleFlag !== undefined) {
     try {
-      style = parseStyleFlag(args.flags.style)
+      style = parseStyleFlag(styleFlag)
       resolveStyleStack(style)
     } catch (e) {
       process.stderr.write(`am render --style: ${e instanceof Error ? e.message : String(e)}\n`)
       return EXIT_ARG_ERROR
     }
   }
-  const seed = typeof args.flags.seed === 'string' ? Number(args.flags.seed) : undefined
+  const seed = numeric('seed')
   if (seed !== undefined && !Number.isFinite(seed)) {
     process.stderr.write('am render --seed expects a finite number\n')
     return EXIT_ARG_ERROR
@@ -583,7 +620,7 @@ function cmdRender(args: ParsedArgs, json: boolean): number {
     ...(style === undefined ? {} : { style }),
     ...(seed === undefined ? {} : { seed }),
     ...(ganttToday === undefined ? {} : { ganttToday }),
-    certificates: args.flags.certificates === true,
+    certificates,
     targetWidth,
   }
 
@@ -619,11 +656,11 @@ function cmdRender(args: ParsedArgs, json: boolean): number {
   }
 
   // #930: watch mode — re-render on file change.
-  if (args.flags.watch && output.id === 'png') {
+  if (watch && output.id === 'png') {
     process.stderr.write('am render --format png does not support --watch; run non-watch PNG renders with --output <file.png>\n')
     return EXIT_ARG_ERROR
   }
-  if (args.flags.watch && typeof args.positional[0] === 'string' && args.positional[0] !== '-') {
+  if (watch && typeof args.positional[0] === 'string' && args.positional[0] !== '-') {
     return cmdRenderWatch(args.positional[0], format, args, json, formatOptions)
   }
 
@@ -641,20 +678,20 @@ function cmdRender(args: ParsedArgs, json: boolean): number {
 
   const configWarnings = configWarningsForMermaid(source)
 
+  const outFile = flagValue(args, 'o') ?? flagValue(args, 'output') ?? ''
   if (output.id === 'png') {
-    const outFile = typeof args.flags.o === 'string' ? args.flags.o : typeof args.flags.output === 'string' ? args.flags.output : ''
     if (!outFile) {
       process.stderr.write('am render --format png requires --output <file.png> (PNG bytes corrupt terminals if piped to stdout)\n')
       return EXIT_ARG_ERROR
     }
-    const scale = typeof args.flags.scale === 'string' ? Number(args.flags.scale) : PNG_DEFAULT_SCALE
+    const scale = numeric('scale') ?? PNG_DEFAULT_SCALE
     if (!Number.isFinite(scale) || scale <= 0) {
       process.stderr.write('am render --scale expects a positive finite number\n')
       return EXIT_ARG_ERROR
     }
-    const background = typeof args.flags.bg === 'string' ? args.flags.bg : undefined
-    const fitWidth = typeof args.flags['fit-width'] === 'string' ? Number(args.flags['fit-width']) : undefined
-    const fitHeight = typeof args.flags['fit-height'] === 'string' ? Number(args.flags['fit-height']) : undefined
+    const background = flagValue(args, 'bg')
+    const fitWidth = numeric('fit-width')
+    const fitHeight = numeric('fit-height')
     if (fitWidth !== undefined && fitHeight !== undefined) {
       process.stderr.write('am render PNG fitting accepts --fit-width or --fit-height, not both\n')
       return EXIT_ARG_ERROR
@@ -664,19 +701,16 @@ function cmdRender(args: ParsedArgs, json: boolean): number {
       return EXIT_ARG_ERROR
     }
     const fitTo = fitWidth !== undefined ? { width: fitWidth } : fitHeight !== undefined ? { height: fitHeight } : undefined
-    const minLabelPx = typeof args.flags['min-label-px'] === 'string' ? Number(args.flags['min-label-px']) : undefined
+    const minLabelPx = numeric('min-label-px')
     if (minLabelPx !== undefined && (!Number.isFinite(minLabelPx) || minLabelPx < 0)) {
       process.stderr.write('am render --min-label-px expects a non-negative finite number\n')
       return EXIT_ARG_ERROR
     }
-    const fontDirs =
-      typeof args.flags['font-dirs'] === 'string'
-        ? args.flags['font-dirs']
-            .split(',')
-            .map(s => s.trim())
-            .filter(Boolean)
-        : undefined
-    const loadSystemFonts = args.flags['system-fonts'] === true
+    const fontDirs = flagValue(args, 'font-dirs')
+      ?.split(',')
+      .map(s => s.trim())
+      .filter(Boolean)
+    const loadSystemFonts = flagEnabled(args, 'system-fonts')
     // PNG render is native-sync via resvg; keep bytes off stdout and write the
     // raster artifact explicitly to the requested output path.
     const { certificates: _certificates, targetWidth: _targetWidth, ...sharedOptions } = formatOptions
@@ -690,7 +724,6 @@ function cmdRender(args: ParsedArgs, json: boolean): number {
   // --output writes the artifact for every single-shot format, matching the
   // documented `am render --format svg --output diagram.svg` (it was png-only,
   // silently ignored elsewhere — the docs' samples produced no file).
-  const outFile = typeof args.flags.o === 'string' ? args.flags.o : typeof args.flags.output === 'string' ? args.flags.output : ''
   const text = typeof out === 'string' ? (json ? JSON.stringify({ [format]: out, receipt: rendered.receipt, warnings: configWarnings }) + '\n' : out.endsWith('\n') ? out : out + '\n') : JSON.stringify({ ...out, receipt: rendered.receipt, ...(configWarnings.length > 0 ? { warnings: configWarnings } : {}) }) + '\n'
   if (outFile) {
     writeFileSync(outFile, text)
@@ -821,7 +854,7 @@ export function watchPathForChanges(file: string, onChange: () => void, debounce
 }
 
 function cmdRenderWatch(file: string, format: string, args: ParsedArgs, json: boolean, opts: RenderFormatOptions = {}): number {
-  const outFile = typeof args.flags.output === 'string' ? args.flags.output : ''
+  const outFile = flagValue(args, 'output') ?? ''
   if (outFile && resolve(outFile) === resolve(file)) {
     process.stderr.write('am render --watch output must differ from the input file\n')
     return EXIT_ARG_ERROR
@@ -882,13 +915,9 @@ function renderPngSync(source: string, opts: PngOptions, outFile: string, json: 
 
 function cmdVerify(args: ParsedArgs): number {
   const source = readSourceArg(args.positional[0])
-  const suppressFlag = args.flags.suppress
+  const suppressFlag = flagValue(args, 'suppress')
   let suppress: WarningCode[] | undefined
   if (suppressFlag !== undefined) {
-    if (typeof suppressFlag !== 'string') {
-      process.stderr.write('am verify --suppress requires a comma-separated list of warning codes\n')
-      return EXIT_ARG_ERROR
-    }
     const values = suppressFlag
       .split(',')
       .map(value => value.trim())
@@ -900,10 +929,10 @@ function cmdVerify(args: ParsedArgs): number {
     }
     suppress = values as WarningCode[]
   }
-  const labelCapFlag = args.flags['label-cap']
+  const labelCapFlag = flagValue(args, 'label-cap')
   let labelCharCap: number | undefined
   if (labelCapFlag !== undefined) {
-    if (typeof labelCapFlag !== 'string' || !/^[1-9]\d*$/.test(labelCapFlag.trim())) {
+    if (!/^[1-9]\d*$/.test(labelCapFlag.trim())) {
       process.stderr.write('am verify --label-cap must be a positive safe integer\n')
       return EXIT_ARG_ERROR
     }
@@ -914,9 +943,10 @@ function cmdVerify(args: ParsedArgs): number {
     }
   }
   let style: StyleInput[] | undefined
-  if (typeof args.flags.style === 'string') {
+  const styleFlag = flagValue(args, 'style')
+  if (styleFlag !== undefined) {
     try {
-      style = parseStyleFlag(args.flags.style)
+      style = parseStyleFlag(styleFlag)
       resolveStyleStack(style)
     } catch (error) {
       process.stderr.write(`am verify --style: ${error instanceof Error ? error.message : String(error)}\n`)
@@ -972,8 +1002,8 @@ type CliMutationError = MutationError | { code: 'UNSUPPORTED_FAMILY' | 'VERIFY_F
 type MutationRunResult = { ok: true; source: string; verify: ReturnType<typeof verifyMermaid> } | { ok: false; error: CliMutationError; verify?: ReturnType<typeof verifyMermaid> }
 
 function parseMutationOpsFlag(args: ParsedArgs): Result<AnyMutationOp[], CliMutationError> {
-  const opStr = typeof args.flags.op === 'string' ? args.flags.op : ''
-  const opsStr = typeof args.flags.ops === 'string' ? args.flags.ops : ''
+  const opStr = flagValue(args, 'op') ?? ''
+  const opsStr = flagValue(args, 'ops') ?? ''
   if (opStr && opsStr) return { ok: false, error: { code: 'INVALID_OP', message: 'mutate accepts either --op or --ops, not both' } }
   if (!opStr && !opsStr) return { ok: false, error: { code: 'INVALID_OP', message: 'mutate requires --op <JSON> or --ops <JSON array|file.json>' } }
   try {
@@ -1108,7 +1138,8 @@ export function openPreviewFile(path: string): { ok: true } | { ok: false; error
 function cmdPreview(args: ParsedArgs, json: boolean): number {
   const source = readSourceArg(args.positional[0])
   const security = 'strict' as const
-  if (args.flags.security !== undefined && args.flags.security !== 'strict') {
+  const securityFlag = flagValue(args, 'security')
+  if (securityFlag !== undefined && securityFlag !== 'strict') {
     process.stderr.write('am preview --security accepts only strict\n')
     return EXIT_ARG_ERROR
   }
@@ -1117,13 +1148,14 @@ function cmdPreview(args: ParsedArgs, json: boolean): number {
     process.stdout.write(JSON.stringify({ ok: false, error: html.error }) + '\n')
     return EXIT_ARG_ERROR
   }
-  let outFile = typeof args.flags.output === 'string' ? args.flags.output : ''
-  if (!outFile && args.flags.open) outFile = join(mkdtempSync(join(tmpdir(), 'am-preview-')), 'preview.html')
+  const open = flagEnabled(args, 'open')
+  let outFile = flagValue(args, 'output') ?? ''
+  if (!outFile && open) outFile = join(mkdtempSync(join(tmpdir(), 'am-preview-')), 'preview.html')
   if (outFile) {
     const path = resolve(outFile)
     writeFileSync(path, html.value)
     let opened = false
-    if (args.flags.open) {
+    if (open) {
       const openedResult = openPreviewFile(path)
       if (!openedResult.ok) {
         process.stderr.write(`am preview --open: ${openedResult.error}\n`)
@@ -1145,14 +1177,14 @@ function cmdFormat(args: ParsedArgs): number {
     process.stderr.write(`format: parse failed: ${JSON.stringify(r.error)}\n`)
     return EXIT_ARG_ERROR
   }
-  const wrapper = args.flags['canonical-wrapper'] ? ('canonical' as const) : ('verbatim' as const)
+  const wrapper = flagEnabled(args, 'canonical-wrapper') ? ('canonical' as const) : ('verbatim' as const)
   process.stdout.write(serializeMermaid(r.value, { wrapper }))
   return EXIT_OK
 }
 
 function cmdDescribe(args: ParsedArgs, json: boolean): number {
   const source = readSourceArg(args.positional[0])
-  const rawFormat = args.flags.format
+  const rawFormat = flagValue(args, 'format')
   const format = rawFormat === undefined ? 'text' : isDescribeFormat(rawFormat) ? rawFormat : undefined
   if (!format) {
     process.stderr.write(`am describe --format must be one of: ${DESCRIBE_FORMATS.join(', ')}\n`)
@@ -1519,8 +1551,9 @@ function cmdLlmsTxt(): number {
 }
 
 function cmdInitAgent(args: ParsedArgs, json: boolean): number {
-  const dir = typeof args.flags.dir === 'string' ? resolve(args.flags.dir) : process.cwd()
-  const force = Boolean(args.flags.force)
+  const dirFlag = flagValue(args, 'dir')
+  const dir = dirFlag === undefined ? process.cwd() : resolve(dirFlag)
+  const force = flagEnabled(args, 'force')
   const result = initAgentFiles({ dir, force })
   if (json) {
     process.stdout.write(JSON.stringify({ ok: true, ...result }) + '\n')
@@ -1577,7 +1610,7 @@ export function renderMarkdownBlocks(md: string, format: 'svg' | 'ascii' = 'svg'
 
 function cmdRenderMarkdown(args: ParsedArgs): number {
   const md = readSourceArg(args.positional[0])
-  const format = args.flags.ascii ? ('ascii' as const) : ('svg' as const)
+  const format = flagEnabled(args, 'ascii') ? ('ascii' as const) : ('svg' as const)
   const results = renderMarkdownBlocks(md, format)
   process.stdout.write(JSON.stringify({ ok: true, blocks: results }) + '\n')
   // Per-block failures don't fail the command (#543) — exit OK.

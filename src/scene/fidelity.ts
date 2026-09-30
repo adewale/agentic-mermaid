@@ -11,6 +11,7 @@
 import type { Geometry, SceneDoc, SceneNode, SceneTransform } from './ir.ts'
 import { hasDomSvgIdentityRole } from './identity.ts'
 import { sceneNodeSerialization } from './serialization.ts'
+import { breakLineTags, displayText } from '../multiline-utils.ts'
 
 /** Parse the top-level SVG elements out of a crisp chunk (self-closed or
  *  paired), ignoring nested content. Good enough for our own emitters. */
@@ -228,14 +229,12 @@ export function nodeProblems(node: SceneNode, path: string, problems: string[]):
         problems.push(`${path}(text:${node.id}).y: semantic ${node.y} != crisp ${ty}`)
       }
       // The semantic text must appear in the crisp chunk. Both sides are
-      // normalized the way the text emitter normalizes labels (markdown
-      // backticks, <b>/<i>/<u>/<s> emphasis tags, whitespace), so formatted
-      // labels don't false-positive.
-      // Crisp contains owned SVG tags, while Pie and Timeline may contain
-      // literal angle-bracket text that the emitter escapes as entities.
-      // Preserve those owned literal projections; other families keep their
-      // established formatting normalization and diagnostics.
-      const hasStyledTspan = /<tspan\b[^>]*(?:font-weight="bold"|font-style="italic"|text-decoration=)/.test(serialized)
+      // compared as the characters they show, read through the one display
+      // interpretation (displayText): an emitter draws the formatting tags
+      // either as styled runs or, in literal contexts (Pie, Timeline, Gantt,
+      // XYChart, GitGraph), as text, so both sides drop them; any other
+      // tag-like text (`a<c>d`) is text on both sides. Line breaks, markdown
+      // markers and whitespace runs compare as one space.
       const timelineTextMark = /class="timeline-(?:title|section-label|period-text|event-text)"/.test(serialized)
       const timelineText = timelineTextMark ? timelineLiteralText(serialized) : undefined
       if (timelineTextMark) {
@@ -244,19 +243,14 @@ export function nodeProblems(node: SceneNode, path: string, problems: string[]):
           return
         }
       }
-      const literalPieText = !hasStyledTspan && (
-        (node.role === 'legend' && serialized.includes('class="pie-legend-text"'))
-        || (node.role === 'title' && serialized.includes('class="pie-title"')
-          && /&lt;|&gt;/.test(serialized))
-      )
       const literalTimelineText = timelineTextMark
-      const normalize = (s: string, fromSvg: boolean) => (fromSvg ? unescapeXml(s
-        .replace(/<br\s*\/?>/gi, ' ')
-        .replace(/<[^>]+>/g, '')
-      ) : literalPieText || literalTimelineText ? s : s.replace(/<br\s*\/?>/gi, ' ').replace(/<[^>]+>/g, ''))
+      const shown = (s: string) => displayText(breakLineTags(s))
         .replace(/[`*_]/g, '')
         .replace(/\s+/g, ' ')
         .trim()
+      // Crisp markup is the emitter's own SVG elements; authored text in it is
+      // entity-escaped, so dropping the elements leaves exactly the drawn text.
+      const drawn = (svg: string) => shown(unescapeXml(svg.replace(/<[^>]+>/g, '')))
       if (node.role === 'member') {
         // Class members are literal source text, not emphasis markup. Compare
         // their entire visible string so a lost type argument (including
@@ -276,8 +270,8 @@ export function nodeProblems(node: SceneNode, path: string, problems: string[]):
           problems.push(`${path}(text:${node.id}): literal text "${node.text.slice(0, 40)}" not found in crisp`)
         }
       } else {
-        const wantText = normalize(node.text, false)
-        if (wantText && !normalize(serialized, true).includes(wantText.split(' ')[0]!)) {
+        const wantText = shown(node.text)
+        if (wantText && !drawn(serialized).includes(wantText.split(' ')[0]!)) {
           problems.push(`${path}(text:${node.id}): text "${wantText.slice(0, 40)}" not found in crisp`)
         }
       }

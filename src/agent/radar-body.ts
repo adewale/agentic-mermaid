@@ -27,7 +27,7 @@ import type {
   MutationError, Result, LayoutWarning, VerifyOptions,
 } from './types.ts'
 import { ok, err } from './types.ts'
-import { labelOverflowCollector } from './body-utils.ts'
+import { labelOverflowCollector, setOptionalField } from './body-utils.ts'
 import { MAX_RADAR_TICKS, parseRadarChart } from '../radar/parser.ts'
 import { resolveRadarScale } from '../radar/scale.ts'
 import { normalizeBrTags } from '../multiline-utils.ts'
@@ -62,7 +62,7 @@ export function parseRadarBody(lines: string[]): RadarBody | null {
       graticule: chart.graticule,
       showLegend: chart.showLegend,
     }
-    return radarBodyProblem(body, false) === null ? body : null
+    return radarBodyProblem(body, true) === null ? body : null
   } catch {
     return null
   }
@@ -180,10 +180,8 @@ export function mutateRadar(body: RadarBody, op: RadarMutationOp): Result<RadarB
 
   switch (op.kind) {
     case 'set_title': {
-      if (op.title === null) { delete next.title; break }
-      const t = validLabel(op.title, 'title')
-      if (!t.ok) return t
-      next.title = t.value
+      const title = setOptionalField(next, 'title', op.title, value => validLabel(value, 'title'))
+      if (!title.ok) return title
       break
     }
     case 'add_axis': {
@@ -364,7 +362,9 @@ function reorder(len: number, from: unknown, to: unknown, what: string): Result<
 
 export function verifyRadar(body: RadarBody, opts: VerifyOptions): LayoutWarning[] {
   const warnings: LayoutWarning[] = []
-  const overflow = labelOverflowCollector(warnings, opts)
+  // Labels are drawn as written (upstream sets them as text), so they are
+  // measured literally.
+  const overflow = labelOverflowCollector(warnings, opts, undefined, 'literal')
   if (body.axes.length === 0 && body.curves.length === 0) warnings.push({ code: 'EMPTY_DIAGRAM' })
   if (body.title !== undefined) overflow('title', body.title)
   for (const a of body.axes) overflow(a.id, a.label)

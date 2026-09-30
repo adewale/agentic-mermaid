@@ -1,23 +1,5 @@
 import descriptorData from '../generated/descriptors/mindmap.ts'
-import { createBrowserFamilyDescriptor, layoutResult, scene } from '../family.ts'
-import { parseMindmap } from '../../mindmap/parser.ts'
-import { positionMindmap, resolveMindmapPositionConfig } from '../../mindmap/position.ts'
-import { lowerMindmapScene } from '../../mindmap/renderer.ts'
-import { withAccessibilityFields } from '../../shared/accessibility-directives.ts'
-import { withFrontmatterTitle } from '../../mermaid-source.ts'
-import { resolveRenderStyle } from '../../styles.ts'
+import { createBrowserFamilyDescriptor } from '../family.ts'
+import { MINDMAP_SVG_HOOKS } from '../../svg-family-hooks/mindmap.ts'
 
-export default createBrowserFamilyDescriptor(descriptorData, {
-  normalizeRequest: ctx => ({
-    familyConfig: {
-      position: resolveMindmapPositionConfig(ctx.source.config.mindmap, ctx.source.config.layout),
-    },
-  }),
-  layout: ctx => layoutResult(positionMindmap(
-    withFrontmatterTitle(withAccessibilityFields(parseMindmap(ctx.source.familyBody), ctx.source.accessibility), ctx.source.frontmatter),
-    (ctx.familyConfig as { position?: ReturnType<typeof resolveMindmapPositionConfig> } | undefined)?.position
-      ?? resolveMindmapPositionConfig(undefined, undefined),
-    resolveRenderStyle(ctx.renderOptions, undefined, ctx.styleFace),
-  ), { injectAccessibility: false }),
-  lowerScene: scene(lowerMindmapScene),
-})
+export default createBrowserFamilyDescriptor(descriptorData, MINDMAP_SVG_HOOKS)

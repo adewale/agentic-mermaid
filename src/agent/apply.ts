@@ -24,6 +24,7 @@ import { verifyMermaid } from './verify.ts'
 import { hasOpSchema, type OpFamily, type OpValidationError } from './op-schema.ts'
 import type { MutableValidDiagram, VerifyResult, DiagramKind, MutationError, Result } from './types.ts'
 import { ok, err } from './types.ts'
+import { isPlainRecord } from '../shared/plain-data.ts'
 
 // ---- Canonical result envelope --------------------------------------------
 
@@ -136,11 +137,7 @@ export function applyOps(input: ApplyOpsInput): OpEnvelope {
   let family: unknown
   let ops: unknown
   try {
-    if (!input || typeof input !== 'object' || Array.isArray(input)) {
-      return { ok: false, family: null, error: { code: 'INVALID_OP', message: 'applyOps input must be a plain object' } }
-    }
-    const prototype = Object.getPrototypeOf(input)
-    if (prototype !== Object.prototype && prototype !== null) {
+    if (!isPlainRecord(input)) {
       return { ok: false, family: null, error: { code: 'INVALID_OP', message: 'applyOps input must be a plain object' } }
     }
     ;({ source, family, ops } = input)
