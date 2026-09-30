@@ -370,6 +370,12 @@ table here, which would drift. In broad strokes:
   protectable result that cannot turn green early.
 - **Nightly (`nightly-finder.yml`):** random-seed sweeps of every property
   suite; failures become an issue, never a blocked PR.
+- **Daily (`production-freshness.yml`):** compares the build
+  agentic-mermaid.dev serves with the newest `main` commit that passed CI and
+  fails once `main` has held undeployed commits for more than three days. A
+  deploy run proves only the deploys that ran; this proves deploys are still
+  reaching production. **Does not prove:** that the served build works (the
+  deploy's candidate probes do that).
 - **Manual / periodic:** `layout-compare` before/after, the benchmark vs competitors, and the real
   LLM-as-judge run.
 

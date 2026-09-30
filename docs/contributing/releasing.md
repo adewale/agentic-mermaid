@@ -110,6 +110,26 @@ client-side exact-identity check.
    "Require two-factor authentication and disallow tokens" — trusted publishing
    keeps working, and token-based publishing is locked out.
 
+### Between the version bump and the publish
+
+The site deploys only published bytes:
+[`deploy-cloudflare.yml`](../../.github/workflows/deploy-cloudflare.yml) builds
+from the exact npm package, so while `package.json` names a version that is not
+on npm, every deploy run skips with a warning and ends green, and production
+keeps serving its previous build. That gap is expected between steps 4 and 5.
+
+[`production-freshness.yml`](../../.github/workflows/production-freshness.yml)
+puts a deadline on it. Every day it compares the build that
+`https://agentic-mermaid.dev/capabilities.json` reports (`generatedFrom.gitSha`)
+with the newest `main` commit that passed CI, and fails once `main` has held
+undeployed commits for more than three days (`MAX_DRIFT_DAYS` in the workflow).
+To clear it, publish the pending version (steps 5 and 6); the publish run
+triggers the deploy. If that version is already on npm, the deploy itself is
+failing: read the latest "Deploy website to Cloudflare" run. The check is
+read-only; it never deploys or publishes. (0.4.2 was bumped on 2026-08-03 and
+not published, and production stayed on 0.4.1 for eight weeks while every
+deploy run was green.)
+
 ### Optional visual review
 
 For releases with visual changes, inspect the affected renders at native size.
