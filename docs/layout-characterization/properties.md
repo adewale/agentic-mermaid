@@ -243,9 +243,7 @@ avoid duplicating them.
   whole framing: pin actual behaviour, review diffs, approve changes.
 - **Bartocci et al. (2023), property-based mutation testing.** The "load-bearing
   = kills a unique mutant" criterion used in [§ Minimality](#minimality);
-  Stryker (`characterization` profile for selected ranges, `ascii` for the
-  broader run) is one tool that can explore
-  it.
+  the criterion is checked by hand: break a range and see which property fails.
 
 Both characterization configs are opt-in diagnostics without break floors or
 acceptance authority. A survivor can inform deliberate follow-up, but the report
@@ -269,10 +267,4 @@ bun run scripts/characterization/visual-quality.ts
 
 # CI-friendly generated-artifact drift check
 bun test src/__tests__/characterization-generated-artifacts.test.ts
-
-# Quick mutation evidence for the load-bearing ranges
-bun run mutation-test -- characterization
-
-# Exhaustive but slow: mutates the whole ASCII layout core
-bun run mutation-test -- ascii
 ```

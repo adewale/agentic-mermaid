@@ -1082,8 +1082,8 @@ describe('toFinite', () => {
   })
 })
 
-describe('asFlowchart / asSequence return null on the wrong family (close mutation gap)', () => {
-  // Stryker survivor: an always-true mutant of the conditional was undetected
+describe('asFlowchart / asSequence return null on the wrong family', () => {
+  // An always-true conditional once went unnoticed
   // because tests went through `parse(...).body.kind` not through asFlowchart
   // on a non-flowchart input. These tests exercise the negative branch.
   test('asFlowchart returns null for sequence body', () => {

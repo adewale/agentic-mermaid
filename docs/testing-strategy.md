@@ -7,8 +7,7 @@ than it looks, this document says so — an honest map is more useful than a
 flattering one.
 
 For the *definition* of "good looking" and the determinism guarantees, see
-[`quality.md`](./quality.md). For mutation specifics, see
-[`mutation-testing.md`](./mutation-testing.md). For the layout/visual
+[`quality.md`](./quality.md). For the layout/visual
 contracts, see [`layout-characterization/README.md`](./layout-characterization/README.md).
 The current measured complexity-aware and registry-derived interaction
 portfolio is specified in
@@ -64,7 +63,6 @@ audit-clean").
 | **Derived (golden)** | Output matches a previously-blessed artifact | ASCII goldens, SVG snapshots, contact sheets, screenshot baselines |
 | **Derived (differential)** | Our output agrees with an external reference corpus | mermaid-docs corpus, MermaidSeqBench, upstream-suite bench |
 | **Metamorphic** | Related inputs produce related outputs (no ground truth needed) | round-trip idempotence, cross-process/cross-runtime determinism |
-| **Pseudo / fault sensitivity** | Selected seeded faults make the intended tests fail | incremental Stryker gate, sabotage suite |
 | **Heuristic / perceptual** | Geometry falls inside human-plausible bounds | `measureQuality`/`checkQuality`, ugly-detector, layout rubric, heuristic-tracker |
 | **Human / model** | Subjective quality on the axis nothing else covers | LLM-as-judge (periodic), manual visual review |
 
@@ -276,33 +274,15 @@ repeatable from the same knob.
 
 ## 5. Pseudo-oracles — do selected seeded faults make the suite fail?
 
-Tests can be green while missing faults. Two bounded gates challenge selected
-behaviors:
+Tests can be green while missing faults. The red-green-refactor cycle is the
+defence: write the test, watch it fail for the right reason, then fix.
 
-- **Incremental mutation testing (Stryker)** — mutates the small, pure
-  faithfulness counter on every PR. A full run takes about one minute and its
-  measured floor is enforced. Broader ASCII, route, and family configs remain
-  available as opt-in survivor harvests, not scheduled gates. A *survived*
-  mutant is a test gap until classified; the historical catalogs record
-  reviewed performance guards and unreachable-by-convention cases. Mutation
-  testing has earned its keep when focused: it falsified an audit assumption
-  and found dead code the unit tests couldn't.
-- **Sabotage suite** (`eval/sabotage/route-regressions.ts`) — deliberately
-  reverts a fixed bug in a detached worktree and asserts the suite goes
-  **red**, proving nine named route/link regression tests actually bite.
 - **Red → green** (`scripts/ci/red-green.ts`, the `red-green` CI job) — when a
   pull request changes production source and tests, at least one changed test
   must fail against the base branch's production code. This mechanically
   checks the "tests that fail when the fix is reverted" rule for every PR,
   instead of a hand-written probe per fix. Pure refactors opt out with the
   `no-red-green` label.
-
-The broad scheduled mutation matrix was retired after 26 consecutive scheduled
-runs produced no success and its final repair grew to 39 coverage workers (41
-jobs total). The configs still
-emit useful local scores and JSON reports, but have no break floors and carry no
-acceptance authority. `docs/mutation-testing.md` records the commands, survivor
-history, retained operational evidence, and re-enrollment criteria.
 
 **Why this matters:** line coverage is reported per-PR as one merged LCOV
 artifact assembled from the three unit shards, but it is a weak
@@ -397,8 +377,7 @@ table here, which would drift. In broad strokes:
   protectable result that cannot turn green early.
 - **Nightly (`nightly-finder.yml`):** random-seed sweeps of every property
   suite; failures become an issue, never a blocked PR.
-- **Manual / periodic:** opt-in broad Stryker survivor harvests,
-  `layout-compare` before/after, the benchmark vs competitors, and the real
+- **Manual / periodic:** `layout-compare` before/after, the benchmark vs competitors, and the real
   LLM-as-judge run.
 
 ## Boundary-contract matrix — lessons applied from the 2026-07 agent audit
