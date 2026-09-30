@@ -138,6 +138,10 @@ This changelog tracks user-facing changes for **Agentic Mermaid**, a fork of `lu
   so `const x = 5; x` yields 5 instead of `null`; previously only a script that
   was one bare expression returned a value without an explicit `return`
   ([#274](https://github.com/adewale/agentic-mermaid/issues/274)).
+- Passing an op array to `mutate()` no longer points Code Mode callers at
+  `applyOps`, which Code Mode does not expose. The error now says to loop over
+  the ops calling `mutate(d, op)`, or to author with `buildMermaid(kind, ops)`
+  ([#275](https://github.com/adewale/agentic-mermaid/issues/275)).
 
 ### Added
 - Added a `BELOW_READABLE_SIZE` raster-legibility warning: when `fitTo` or an
