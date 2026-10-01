@@ -154,8 +154,9 @@ jobs:
         run: bun run eval:mcp-conformance
 
   # CLAUDE.md good-pr dimension 4, checked mechanically: when a PR changes
-  # production code and tests, at least one changed test must fail against the
-  # base branch's production code. Pure refactors opt out with the
+  # production code and tests, a changed test must produce an assertion failure
+  # attributed to a test location against base production (not merely a failing
+  # process). Assertion meaning still needs review. Pure refactors opt out with the
   # `no-red-green` label, which approves only the head it was applied to
   # (scripts/ci/label-approval.ts); re-running the job after labelling works.
   red-green:

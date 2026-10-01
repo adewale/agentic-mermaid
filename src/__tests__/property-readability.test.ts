@@ -79,7 +79,7 @@ describe('node-link and edge-label readability ratchet (corpus + fuzzed families
   test('total occluded/clipped labels does not exceed the ceiling', () => {
     const offenders: string[] = []
     let total = 0
-    const tally = (id: string, src: string) => {
+    const tally = (id: string, src: string): boolean => {
       const p = parseMermaid(src)
       expect(p.ok, `${id}: source must parse; failed parsing cannot improve readability`).toBe(true)
       if (!p.ok) throw new Error(`${id}: parse failed`)
@@ -94,14 +94,15 @@ describe('node-link and edge-label readability ratchet (corpus + fuzzed families
         layout = layoutMermaid(p.value)
       } catch (error) {
         const codes = verifyMermaid(p.value).warnings.map(warning => warning.code)
-        if (codes.includes('EMPTY_DIAGRAM') || codes.includes('UNRESOLVABLE_SCHEDULE')) return
+        if (codes.includes('EMPTY_DIAGRAM') || codes.includes('UNRESOLVABLE_SCHEDULE')) return false
         // Unsafe authored CSS is refused before there is any positioned text
         // to measure; do not relax security just to audit the docs example.
-        if (error instanceof Error && error.message.startsWith('Raw Mermaid themeCSS is not allowed in default security mode')) return
+        if (error instanceof Error && error.message.startsWith('Raw Mermaid themeCSS is not allowed in default security mode')) return false
         throw error
       }
       const n = auditReadability(layout).length
       if (n > 0) { total += n; offenders.push(`${id}×${n}`) }
+      return true
     }
 
     const corpus = JSON.parse(
@@ -110,7 +111,9 @@ describe('node-link and edge-label readability ratchet (corpus + fuzzed families
     for (const ent of corpus) tally(`corpus/${ent.family}/${ent.index}`, ent.source)
 
     for (const fam of Object.values(METAMORPHIC_FAMILIES)) {
-      fc.sample(srcArb(fam), { numRuns: 40, seed: SEED }).forEach((src, i) => tally(`fuzz/${fam.family}/${i}`, src))
+      const measured = fc.sample(srcArb(fam), { numRuns: 40, seed: SEED })
+        .filter((src, i) => tally(`fuzz/${fam.family}/${i}`, src)).length
+      expect(measured, `${fam.family}: skipped layouts cannot prove readable labels`).toBeGreaterThan(0)
     }
 
     if (total > RATCHET) {

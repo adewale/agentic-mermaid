@@ -5,8 +5,8 @@
  * relationships (all 6 types), cardinality, labels, inline attributes.
  */
 import { describe, it, expect } from 'bun:test'
-import { parseClassDiagram, readClassStatements } from '../class/parser.ts'
-import { asClass, parseRegisteredMermaid } from '../agent/index.ts'
+import { parseClassDiagram } from '../class/parser.ts'
+import { asClass, mutate, parseRegisteredMermaid, renderMermaidSVG, serializeMermaid } from '../agent/index.ts'
 import { expectNearLinearGrowth } from './helpers/complexity.ts'
 
 /** Helper to parse — preprocesses text the same way index.ts does */
@@ -59,26 +59,37 @@ describe('parseClassDiagram – class definitions', () => {
     expect(() => parse(`classDiagram\n${source}`)).toThrow(reason)
   })
 
-  it('retains member ownership, comments, raw text and physical source spans', () => {
-    const lines = ['namespace Outer {', '  class A {', '    %% explanation', '    +String name %% literal', '  }', '}', 'future statement']
-    const tree = readClassStatements(lines)
-    expect(tree.source).toBe(lines.join('\n'))
-    const namespace = tree.statements[0]!
-    const declaration = namespace.children![0]!
-    const member = declaration.children![1]!
-    const start = lines.slice(0, 3).join('\n').length + 1
-    expect(member).toEqual({
-      raw: '    +String name %% literal', text: '+String name %% literal',
-      source: { line: 4, column: 1, start, end: start + lines[3]!.length },
-      value: { kind: 'member', text: '+String name %% literal' },
-    })
-    expect(declaration.children![0]!.raw).toBe('    %% explanation')
-    expect(declaration.closing!.raw).toBe('  }')
-    expect(namespace.closing!.raw).toBe('}')
-    expect(tree.diagnostics).toEqual([{
-      reason: 'Unrecognized class statement "future statement"',
-      source: { line: 7, column: 1, start: lines.slice(0, 6).join('\n').length + 1, end: lines.join('\n').length },
-    }])
+  it('nested members keep literal percent pairs, source ownership, and meaning after an edit', () => {
+    const source = 'classDiagram\nnamespace Outer {\n  class A {\n    %% explanation\n    +String name %% literal\n  }\n}\nclass B'
+    const parsed = parseRegisteredMermaid(source)
+    if (!parsed.ok) throw new Error(JSON.stringify(parsed.error))
+    const diagram = asClass(parsed.value)
+    if (!diagram) throw new Error('expected editable Class body')
+    expect(diagram.body.classes.map(({ id, namespace, members }) => ({ id, namespace, members }))).toEqual([
+      { id: 'A', namespace: 'Outer', members: ['+String name %% literal'] },
+      { id: 'B', namespace: undefined, members: [] },
+    ])
+    // Legacy locations address canonical text (standalone comments removed);
+    // exact spans address the authored document instead.
+    expect(diagram.source.labels.get('class:A:member#0')).toEqual({ line: 4, col: 1 })
+    const member = diagram.source.spans?.labels.get('class:A:member#0')
+    expect(member).toBeDefined()
+    expect(member!.start.line).toBe(5)
+    expect(source.slice(member!.start.offset, member!.end.offset)).toBe('+String name %% literal')
+    const edited = mutate(diagram, { kind: 'add_member', class: 'A', text: '+int count' })
+    if (!edited.ok) throw new Error(JSON.stringify(edited.error))
+    const serialized = serializeMermaid(edited.value)
+    const reloaded = parseRegisteredMermaid(serialized)
+    if (!reloaded.ok) throw new Error(JSON.stringify(reloaded.error))
+    expect(asClass(reloaded.value)?.body.classes.map(({ id, namespace, members }) => ({ id, namespace, members }))).toEqual([
+      { id: 'A', namespace: 'Outer', members: ['+String name %% literal', '+int count'] },
+      { id: 'B', namespace: undefined, members: [] },
+    ])
+    for (const renderedSource of [source, serialized]) {
+      const svg = renderMermaidSVG(renderedSource)
+      expect(svg).toMatch(/<tspan\b[^>]*>String name %% literal<\/tspan>/)
+      expect(svg).not.toContain('explanation')
+    }
   })
 
   it('parses a class block with attributes and methods', () => {

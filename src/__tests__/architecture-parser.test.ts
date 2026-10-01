@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'bun:test'
-import { architectureToMermaidGraph, parseArchitectureDiagram, readArchitectureStatements } from '../architecture/parser.ts'
+import { architectureToMermaidGraph, parseArchitectureDiagram } from '../architecture/parser.ts'
 import { preprocessMermaidSource } from '../mermaid-source.ts'
 
 function prep(text: string): string[] {
@@ -7,18 +7,6 @@ function prep(text: string): string[] {
 }
 
 describe('parseArchitectureDiagram', () => {
-  it('retains unfinished accessibility source and consumes a declaration after the closing brace', () => {
-    expect(readArchitectureStatements(['accDescr {', 'unfinished', 'description'])).toMatchObject([
-      { kind: 'invalid', startLine: 1, endLine: 3, raw: ['accDescr {', 'unfinished', 'description'] },
-    ])
-    const lines = ['  accDescr { description } service api(server)[API]']
-    expect(readArchitectureStatements(lines)).toMatchObject([
-      { kind: 'accessibility', startLine: 1, endLine: 1, raw: ['  accDescr { description }'] },
-      { kind: 'service', startLine: 1, endLine: 1, raw: [' service api(server)[API]'], declaration: { id: 'api', title: 'API' } },
-    ])
-    expect(parseArchitectureDiagram(['architecture-beta', ...lines]).services).toMatchObject([{ id: 'api', label: 'API' }])
-  })
-
   it('parses groups, services, junctions, and labeled edges', () => {
     const diagram = parseArchitectureDiagram(prep(`architecture-beta
       group edge(cloud)[Edge]

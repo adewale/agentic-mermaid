@@ -2,7 +2,7 @@
 
 import { describe, test, expect } from 'bun:test'
 import { parseRegisteredMermaid as parseMermaid, asClass, mutate, serializeMermaid, verifyMermaid } from '../agent/index.ts'
-import { classCommentRejections, parseClassDiagram } from '../class/parser.ts'
+import { parseClassDiagram } from '../class/parser.ts'
 import { classUnsupportedSyntaxWarnings } from '../agent/class-body.ts'
 
 const parse = (s: string) => {
@@ -24,7 +24,6 @@ describe('class — parse', () => {
     ])
     expect(diagram.source.nodes.get('A')).toEqual({ line: depth + 2, col: 7 })
     expect(parseClassDiagram(['classDiagram', ...lines]).classes.map(node => node.id)).toEqual(['A'])
-    expect(classCommentRejections(lines)).toEqual([])
     expect(classUnsupportedSyntaxWarnings(source)).toEqual([])
   })
 

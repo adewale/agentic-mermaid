@@ -15,10 +15,10 @@ import { mutate } from '../agent/mutate.ts'
 import { verifyMermaid } from '../agent/verify.ts'
 import { describeMermaid } from '../agent/describe.ts'
 import { asGantt } from '../agent/types.ts'
-import type { GanttValidDiagram, GanttMutationOp } from '../agent/types.ts'
+import type { GanttValidDiagram, GanttMutationOp, GanttBodyTaskTag } from '../agent/types.ts'
 import { parseGanttModel } from '../gantt/parser.ts'
 import { normalizeMermaidSource } from '../mermaid-source.ts'
-import { layoutMermaid, renderMermaidASCIIWithMeta } from '../agent/index.ts'
+import { layoutMermaid, renderMermaidASCIIWithMeta, renderMermaidSVG } from '../agent/index.ts'
 import { ganttGeometryWarnings } from '../agent/family-layouts.ts'
 import { resolveGanttSchedule } from '../gantt/schedule.ts'
 
@@ -63,6 +63,49 @@ function shape(d: GanttValidDiagram) {
 }
 
 describe('gantt structured parse', () => {
+  test.each(['alien content', 'topAxis :2024-01-01, 2d'])('preserves unsupported %s during an edit without drawing it as a task', unsupported => {
+    const source = `gantt\n  Build :build, 2024-01-01, 2d\n  %% keep this note\n  ${unsupported}\n  Ship :ship, after build, 1d\n`
+    const diagram = gantt(source)
+    expect(diagram.body.sections.flatMap(section => section.tasks).map(task => task.label)).toEqual(['Build', 'Ship'])
+    const edited = apply(diagram, { kind: 'rename_task', sectionIndex: 0, taskIndex: 1, label: 'Release' })
+    const canonical = serializeMermaid(edited)
+    expect(canonical).toContain(`  %% keep this note\n  ${unsupported}\n  Release :ship, after build, 1d\n`)
+    expect(gantt(canonical).body.sections[0]!.tasks.map(task => task.label)).toEqual(['Build', 'Release'])
+    expect(() => renderMermaidSVG(canonical)).toThrow(`Unrecognized gantt line "${unsupported}"`)
+    const verified = verifyMermaid(edited)
+    expect(verified.ok).toBe(false)
+    expect(verified.warnings).toContainEqual(expect.objectContaining({
+      code: 'UNRESOLVABLE_SCHEDULE', reason: expect.stringContaining(`Unrecognized gantt line "${unsupported}"`),
+    }))
+  })
+
+  test.each([
+    ['task', '  accDescr { description } Ship :ship, 2024-01-01, 2d', undefined],
+    ['section', '  accDescr { description } section Delivery\n  Ship :ship, 2024-01-01, 2d', 'Delivery'],
+  ] as const)('consumes an accessibility-block suffix %s through the public render and edit paths', (_kind, body, sectionLabel) => {
+    const source = `gantt\n${body}\n`
+    const diagram = gantt(source)
+    expect(diagram.body.sections.map(section => section.label)).toEqual([sectionLabel])
+    expect(diagram.body.sections[0]!.tasks).toMatchObject([{ label: 'Ship', taskId: 'ship', start: '2024-01-01', end: '2d' }])
+    const svg = renderMermaidSVG(source)
+    expect(svg).toMatch(/<text\b[^>]*>Ship<\/text>/)
+    expect(svg).toContain('<desc')
+    expect(svg).toContain('description</desc>')
+    if (sectionLabel) {
+      // Legacy maps use normalized columns; exact spans use authored offsets.
+      expect(diagram.source.groups.get('section-0')).toEqual({ line: 2, col: 34 })
+      expect(diagram.source.labels.get('gantt:section-0:label')).toEqual({ line: 2, col: 34 })
+      const span = diagram.source.spans?.labels.get('gantt:section-0:label')
+      expect(span).toBeDefined()
+      expect(source.slice(span!.start.offset, span!.end.offset)).toBe('Delivery')
+    }
+    const edited = apply(diagram, { kind: 'rename_task', sectionIndex: 0, taskIndex: 0, label: 'Release' })
+    const serialized = serializeMermaid(edited)
+    expect(gantt(serialized).body.sections[0]!.tasks[0]!.label).toBe('Release')
+    expect(renderMermaidSVG(serialized)).toMatch(/<text\b[^>]*>Release<\/text>/)
+    expect(verifyMermaid(edited).ok).toBe(true)
+  })
+
   test('inline task comments do not change dates, and survive a neighboring task edit', () => {
     const source = 'gantt\n  Build :build, 2024-01-01, 2d %% duration, not a date\n  Ship :ship, after build, 1d\n'
     const d = gantt(source)
@@ -526,30 +569,37 @@ describe('gantt round-trip property (generated diagrams)', () => {
     if (title) lines.push(`  title ${title}`)
     lines.push('  dateFormat YYYY-MM-DD')
     const seen = new Set<string>()
-    for (const s of sections) {
+    const expectedSections = sections.map(s => {
       lines.push(`  section ${s.label}`)
+      const tasks: Array<{ label: string; taskId: string; tags: GanttBodyTaskTag[]; start: string; end: string }> = []
       for (const t of s.tasks) {
         if (seen.has(t.id)) continue
         seen.add(t.id)
+        const start = `2024-01-${String(t.day).padStart(2, '0')}`
         const tags = t.tags.length ? `${t.tags.join(', ')}, ` : ''
-        lines.push(`  ${t.label} :${tags}${t.id}, 2024-01-${String(t.day).padStart(2, '0')}, ${t.dur}`)
+        lines.push(`  ${t.label} :${tags}${t.id}, ${start}, ${t.dur}`)
+        tasks.push({ label: t.label, taskId: t.id, tags: [...t.tags], start, end: t.dur })
       }
-    }
-    return lines.join('\n') + '\n'
+      return { label: s.label, tasks }
+    })
+    return { source: lines.join('\n') + '\n', expected: { title, sections: expectedSections } }
   })
 
-  test('parse → serialize → parse is body-identical and serialize-idempotent', () => {
-    fc.assert(fc.property(diagramArb, src => {
-      const r = parseMermaid(src)
-      expect(r.ok).toBe(true)
-      if (!r.ok) return
-      expect(r.value.body.kind).toBe('gantt')
-      const s1 = serializeMermaid(r.value)
-      const r2 = parseMermaid(s1)
-      expect(r2.ok).toBe(true)
-      if (!r2.ok) return
-      expect(serializeMermaid(r2.value)).toBe(s1)
-      expect(r2.value.body).toEqual(r.value.body)
+  test('parse and serialized read-back preserve independently generated task meaning', () => {
+    const meaning = (diagram: GanttValidDiagram) => ({
+      title: diagram.body.title,
+      sections: diagram.body.sections.map(section => ({
+        label: section.label,
+        tasks: section.tasks.map(({ label, taskId, tags, start, end }) => ({ label, taskId, tags, start, end })),
+      })),
+    })
+    fc.assert(fc.property(diagramArb, ({ source, expected }) => {
+      const diagram = gantt(source)
+      expect(meaning(diagram)).toEqual(expected)
+      const serialized = serializeMermaid(diagram)
+      const reloaded = gantt(serialized)
+      expect(meaning(reloaded)).toEqual(expected)
+      expect(serializeMermaid(reloaded)).toBe(serialized)
     }), { numRuns: 60 })
   })
 })

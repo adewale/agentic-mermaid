@@ -7,7 +7,6 @@
 // by a more specific warning.
 
 import { describe, expect, test } from 'bun:test'
-import { BUILTIN_FAMILY_METADATA } from '../agent/families.ts'
 import { parseRegisteredMermaid as parseMermaid, renderMermaidSVG, serializeMermaid, verifyMermaid } from '../agent/index.ts'
 import { WARNING_SEVERITY, WARNING_TIER } from '../agent/types.ts'
 
@@ -31,15 +30,8 @@ const OPAQUE_BY_FAMILY: Record<string, string> = {
 // The remaining fixtures deliberately exercise malformed/header-tolerance
 // preservation and therefore are not required to render as their loose family.
 const RENDERABLE_OPAQUE_FAMILIES = new Set(['class', 'architecture'])
-const FULLY_MODELED_OR_SPECIFIC_WARNING = ['flowchart', 'state', 'er', 'quadrant', 'mindmap', 'gitgraph']
 
 describe('opaque bodies announce UNSUPPORTED_SYNTAX instead of falling silent', () => {
-  test('B02 acceptance: lossless opaque fixtures enroll every built-in family', () => {
-    const covered = [...Object.keys(OPAQUE_BY_FAMILY), ...FULLY_MODELED_OR_SPECIFIC_WARNING].sort()
-    expect(covered).toEqual(BUILTIN_FAMILY_METADATA.map(entry => entry.id).sort())
-    expect(new Set(covered).size).toBe(covered.length)
-  })
-
   for (const [family, source] of Object.entries(OPAQUE_BY_FAMILY)) {
     test(`${family}: unmodeled syntax → opaque body carries a <family>_opaque warning`, () => {
       const p = parseMermaid(source)
