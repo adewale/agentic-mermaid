@@ -501,17 +501,18 @@ describe('state fast-check round-trip property', () => {
   const id = fc.string({ minLength: 1, maxLength: 4 }).filter(s => /^[A-Za-z][A-Za-z0-9]*$/.test(s))
 
   const shape = (states: StateNode[], transitions: StateTransition[]): unknown => ({
-    states: states.map(s => ({ id: s.id, children: s.states ? shape(s.states, s.transitions ?? []) : null })),
-    transitions: transitions.map(t => `${t.from}->${t.to}`),
+    states: states.map(s => ({ id: s.id, label: s.label, children: s.states ? shape(s.states, s.transitions ?? []) : null })),
+    transitions: transitions.map(t => ({ from: t.from, to: t.to, label: t.label })),
   })
   // `state()` throws unless the source parses to a structured state body, so a
   // regression to opaque fails the property instead of passing it vacuously.
-  const roundTripsAsState = (src: string): void => {
+  const roundTripsAsState = (src: string, expected: unknown): void => {
     const d = state(src)
+    expect(shape(d.body.states, d.body.transitions)).toEqual(expected)
     const s1 = serializeMermaid(d)
     const d2 = state(s1)
     expect({ src, reserialized: serializeMermaid(d2), shape: shape(d2.body.states, d2.body.transitions) })
-      .toEqual({ src, reserialized: s1, shape: shape(d.body.states, d.body.transitions) })
+      .toEqual({ src, reserialized: s1, shape: expected })
   }
 
   const simpleMachine = fc.record({
@@ -524,12 +525,17 @@ describe('state fast-check round-trip property', () => {
     })
   })
 
-  test('generated simple machines round-trip stably', () => {
+  test('generated simple machines retain every declared state and labeled transition', () => {
     fc.assert(fc.property(simpleMachine, ({ states, transitions }) => {
       const lines = ['stateDiagram-v2']
-      for (const t of transitions) lines.push(`  ${t.from} --> ${t.to}`)
+      // Emit every generated state, including states no transition references.
+      for (const id of states) lines.push(`  state "${id} label" as ${id}`)
+      for (const [i, t] of transitions.entries()) lines.push(`  ${t.from} --> ${t.to} : step ${i}`)
       const src = lines.join('\n') + '\n'
-      return roundTripsAsState(src)
+      return roundTripsAsState(src, {
+        states: states.map(id => ({ id, label: `${id} label`, children: null })),
+        transitions: transitions.map((t, i) => ({ ...t, label: `step ${i}` })),
+      })
     }), { numRuns: 200 })
   })
 
@@ -545,7 +551,20 @@ describe('state fast-check round-trip property', () => {
       lines.push(`    ${inner[inner.length - 1]} --> [*]`)
       lines.push('  }')
       const src = lines.join('\n') + '\n'
-      return roundTripsAsState(src)
+      return roundTripsAsState(src, {
+        states: [{
+          id: outer, label: undefined,
+          children: {
+            states: inner.map(id => ({ id, label: undefined, children: null })),
+            transitions: [
+              { from: '[*]', to: inner[0], label: undefined },
+              ...inner.slice(0, -1).map((from, i) => ({ from, to: inner[i + 1], label: undefined })),
+              { from: inner.at(-1), to: '[*]', label: undefined },
+            ],
+          },
+        }],
+        transitions: [],
+      })
     }), { numRuns: 100 })
   })
 })
