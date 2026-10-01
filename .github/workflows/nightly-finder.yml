@@ -62,3 +62,24 @@ jobs:
           else
             gh issue create --title "$title" --body-file finder-body.md
           fi
+
+      # A finder that cannot run searches nothing while its schedule looks
+      # alive: a failed checkout or install, or a timeout, used to leave only a
+      # red scheduled run, which is how 26 scheduled mutation runs failed
+      # unnoticed. Report it as an issue too; this step needs no checkout.
+      - name: Report a sweep that did not run to completion
+        if: ${{ always() && steps.sweep.outcome != 'success' && steps.sweep.outcome != 'failure' }}
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          SWEEP_OUTCOME: ${{ steps.sweep.outcome }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: |
+          title='Nightly finder: the random-seed sweep did not run to completion'
+          body="The random-seed property sweep ended as \`${SWEEP_OUTCOME:-not started}\` (\`skipped\` means an earlier step failed; \`cancelled\` usually means the 60-minute timeout), so it searched nothing. Run: $RUN_URL"
+          existing=$(gh issue list --state open --search "\"$title\" in:title" --json number --jq '.[0].number // empty')
+          if [ -n "$existing" ]; then
+            gh issue comment "$existing" --body "$body"
+          else
+            gh issue create --title "$title" --body "$body"
+          fi

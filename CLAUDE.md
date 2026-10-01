@@ -117,7 +117,8 @@ The seven dimensions:
    CI's `red-green` job checks this: at least one changed test must fail against
    the base branch's production code. It skips itself when no `src/`/`bin/`
    production file or no test changed; label `no-red-green` only a pure
-   refactor that changes both.
+   refactor that changes both. A label approves only the head it was applied
+   to: CI removes it when new commits arrive, so re-apply it after a push.
 5. **Scoped and safe** — one concern, minimal diff, full test suite run, risks flagged.
 6. **Standalone description** — what / why / how / testing / risk, understandable
    without reading the diff.

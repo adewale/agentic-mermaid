@@ -275,7 +275,9 @@ defence: write the test, watch it fail for the right reason, then fix.
   must fail against the base branch's production code. This mechanically
   checks the "tests that fail when the fix is reverted" rule for every PR,
   instead of a hand-written probe per fix. Pure refactors opt out with the
-  `no-red-green` label.
+  `no-red-green` label. Like `payload-growth-approved`, it approves only the
+  head it was applied to (`scripts/ci/label-approval.ts`): CI ignores a label
+  applied before the latest push and removes it when new commits arrive.
 
 **Why this matters:** line coverage is reported per-PR as one merged LCOV
 artifact assembled from the three unit shards, but it is a weak

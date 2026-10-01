@@ -433,8 +433,9 @@ filename:
 - initial and per-family request-count, raw, gzip, and Brotli budgets are
   recorded separately.
 
-`bun run build:browser:lazy` generates the exhaustive catalog, builds the
-chunks, and fails on dependency or size drift. `bun test
+`bun run build:browser:lazy` generates the exhaustive catalog and builds the
+chunks; `bun run check:browser-lazy`, which `bun run quality:check` runs once
+per CI run, fails on dependency or size drift. `bun test
 src/__tests__/browser-lazy.test.ts` proves all-family byte parity in-process;
 `bun test e2e/browser-bundle.e2e.test.ts --timeout 600000` proves the emitted
 HTTP module graph, strict-mode parity, non-ELK exclusion, and shared ELK caching
