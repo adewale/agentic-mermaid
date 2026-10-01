@@ -12,41 +12,69 @@ import { decodeXML } from 'entities'
 // (src/agent/class-body.ts) both parse namespace headers through
 // parseNamespaceHeader, so membership cannot drift between the surfaces (C1).
 
-/** `namespace A.B.C {` / `namespace X["Display label"] {` */
-const NAMESPACE_OPEN_RE = /^namespace\s+([\w$]+(?:\.[\w$]+)*)(?:\s*\[\s*"?([^\]"]*)"?\s*\])?\s*\{$/
+/** Namespace path atoms may be bare identifiers or backtick-quoted names. */
+const NAMESPACE_OPEN_RE = /^namespace\s+((?:`[^`\r\n]+`|[\w$]+)(?:\.(?:`[^`\r\n]+`|[\w$]+))*)(?:\s*\[\s*"?([^\]"]*)"?\s*\])?\s*\{/
 
 /** Parse a `namespace … {` opener into its dot path + optional label. */
 export function parseNamespaceHeader(line: string): { path: string[]; label?: string } | null {
   const m = line.match(NAMESPACE_OPEN_RE)
-  if (!m) return null
-  return { path: m[1]!.split('.'), label: m[2] || undefined }
+  if (!m || m[0].length !== line.length) return null
+  const path = [...m[1]!.matchAll(/`[^`]+`|[\w$]+/g)].map(atom => atom[0].startsWith('`') ? atom[0].slice(1, -1) : atom[0])
+  return { path, label: m[2] || undefined }
 }
 
-/** Expand upstream's compact `namespace X { class A; class B }` form into
- * the same statements consumed by both render and agent parsers. Class member
- * bodies retain their multiline grammar; this compact form intentionally owns
- * only brace-free statements. */
+/** Expand compact namespace boundaries, even when the first statement shares
+ * the opener line and the closing brace occurs on a later physical line.
+ * Quotes protect authored punctuation; class member braces stay with their
+ * declaration rather than being confused with a namespace close. */
 export function expandInlineNamespaceStatement(line: string): string[] {
-  const match = line.match(/^(namespace\s+.+?)\s*\{\s*([^{}]*)\s*\}$/)
-  if (!match) return [line]
-  const opener = `${match[1]} {`
-  if (!parseNamespaceHeader(opener)) return [line]
-  const body: string[] = []
+  return scanInlineNamespaceStatement(line).map(fragment => fragment.text)
+}
+
+interface ClassStatementFragment {
+  text: string
+  followsNamespaceCloseOnSameLine?: true
+  compactSemicolon?: true
+}
+
+/** Retain delimiter provenance while expanding, so the shared reader can
+ * diagnose statements after a namespace close on the same physical line. */
+function scanInlineNamespaceStatement(line: string): ClassStatementFragment[] {
+  const match = line.match(NAMESPACE_OPEN_RE)
+  if (!match) return [{ text: line }]
+  const opener = match[0]
+  const tail = line.slice(opener.length).trim()
+  if (!tail || tail.startsWith('%%')) return [{ text: line }]
+  const body: ClassStatementFragment[] = []
   let start = 0
   let quote: string | undefined
-  for (let index = 0; index < match[2]!.length; index++) {
-    const character = match[2]![index]!
+  let braces = 0
+  let followsClose = false
+  let compactSemicolon = false
+  const append = (text: string): void => {
+    text = text.trim()
+    if (text) body.push({ text, ...(followsClose ? { followsNamespaceCloseOnSameLine: true } : {}) })
+  }
+  for (let index = 0; index < tail.length; index++) {
+    const character = tail[index]!
     if (quote) {
       if (character === '\\' && quote === '"') { index++; continue }
       if (character === quote) quote = undefined
     } else if (character === '"' || character === '`' || character === '~') quote = character
-    else if (character === ';') {
-      body.push(match[2]!.slice(start, index).trim())
+    else if (character === '{') braces++
+    else if (character === '}' && braces > 0) braces--
+    else if (braces === 0 && character === '%' && tail[index + 1] === '%'
+      && classCommentStart(tail.slice(start)) === index - start) break
+    else if (braces === 0 && (character === ';' || character === '}')) {
+      append(tail.slice(start, index))
+      if (character === ';' && !followsClose) compactSemicolon = true
+      if (character === '}') body.push({ text: '}' })
+      if (character === '}') followsClose = true
       start = index + 1
     }
   }
-  body.push(match[2]!.slice(start).trim())
-  return [opener, ...body.filter(Boolean), '}']
+  append(tail.slice(start))
+  return [{ text: opener, ...(compactSemicolon ? { compactSemicolon: true } : {}) }, ...body]
 }
 
 /** Split entity-created physical lines while retaining every other authored
@@ -335,6 +363,10 @@ export interface ClassStatementNode {
   text: string
   source: { line: number; column: number; start: number; end: number }
   value: ClassSyntaxValue
+  /** A readable compact extension that Mermaid requires a newline for. */
+  followsNamespaceCloseOnSameLine?: true
+  /** A semicolon used as syntax rather than protected quoted data. */
+  compactSemicolon?: true
   children?: ClassStatementNode[]
   closing?: ClassStatementNode
 }
@@ -430,7 +462,8 @@ export function readClassStatements(lines: readonly string[], authoredLines?: re
     const span = { line: lineIndex + 1, column: 1, start: offset, end: offset + raw.length }
     offset += raw.length + 1
     const authored = authoredLines ? authoredLines[lineIndex] : raw
-    const parts = expandInlineNamespaceStatement(raw.trim())
+    const fragments = scanInlineNamespaceStatement(raw.trim())
+    const parts = fragments.map(fragment => fragment.text)
     const authoredParts = authored === undefined ? [] : expandInlineNamespaceStatement(authored.trim())
     for (let partIndex = 0; partIndex < parts.length; partIndex++) {
       const source = parts[partIndex]!
@@ -444,6 +477,8 @@ export function readClassStatements(lines: readonly string[], authoredLines?: re
         value = annotation === null ? { kind: 'member', text } : { kind: 'body-annotation', text: annotation }
       } else value = classifyClassStatement(text, authoredParts.length === parts.length ? authoredParts[partIndex] : undefined)
       const node: ClassStatementNode = { raw: parts.length === 1 ? raw : source, text, source: span, value }
+      if (fragments[partIndex]!.followsNamespaceCloseOnSameLine) node.followsNamespaceCloseOnSameLine = true
+      if (fragments[partIndex]!.compactSemicolon) node.compactSemicolon = true
       if (value.kind === 'close') {
         if (owner) { owner.closing = node; stack.pop() }
         else {
@@ -685,6 +720,13 @@ export function parseClassDiagram(lines: string[], authoredLines?: string[]): Cl
     for (const segment of segments) {
       path = path ? `${path}.${segment}` : segment
       let namespace = namespaces.get(path)
+      if (namespace && namespace.name !== segment) {
+        throw syntaxError({
+          what: `Class namespace path collision "${path}" between a quoted literal name and a dotted hierarchy`,
+          expectedForm: 'distinct namespace names that do not flatten to the same path',
+          example: 'namespace `Literal A.B` { class First }',
+        })
+      }
       if (!namespace) {
         namespace = { name: segment, classIds: [], children: [] }
         children.push(namespace)

@@ -10,6 +10,7 @@ import { describe, it, expect } from 'bun:test'
 import { parseSequenceDiagram } from '../sequence/parser.ts'
 import { layoutSequenceDiagram } from '../sequence/layout.ts'
 import { renderMermaidSVG, renderMermaidASCII } from '../index.ts'
+import { parseRegisteredMermaid, serializeMermaid, verifyMermaid } from '../agent/index.ts'
 
 function parse(text: string) {
   const lines = text.split('\n').map(l => l.trim()).filter(l => l.length > 0 && !l.startsWith('%%'))
@@ -59,6 +60,22 @@ describe('parseSequenceDiagram – autonumber', () => {
     expect(d.messages.map(m => m.number)).toEqual([10, 12, 14])
   })
 
+  it.each([
+    ['10.1 .01', [10.1, 10.11, 10.12]],
+    ['10.01 .01', [10.01, 10.02, 10.03]],
+    ['10.1 .1', [10.1, 10.2, 10.3]],
+    ['.1 .01', [0.1, 0.11, 0.12]],
+  ] as const)('keeps authored decimal numbering %s instead of resetting to default', (numbering, expected) => {
+    const source = `sequenceDiagram\n  autonumber ${numbering}\n  A->>B: one\n  B->>A: two\n  A->>B: three`
+    expect(parse(source).messages.map(message => message.number)).toEqual([...expected])
+    const parsed = parseRegisteredMermaid(source)
+    expect(parsed.ok).toBe(true)
+    if (!parsed.ok) throw new Error(JSON.stringify(parsed.error))
+    expect(parse(serializeMermaid(parsed.value)).messages.map(message => message.number)).toEqual([...expected])
+    const svg = renderMermaidSVG(source)
+    for (const [index, label] of ['one', 'two', 'three'].entries()) expect(svg).toContain(`${expected[index]}. ${label}`)
+  })
+
   it('numbering resumes with a fresh autonumber after off', () => {
     const d = parse(`sequenceDiagram
       autonumber
@@ -68,6 +85,18 @@ describe('parseSequenceDiagram – autonumber', () => {
       autonumber 5
       A->>B: five`)
     expect(d.messages.map(m => m.number)).toEqual([1, undefined, 5])
+  })
+
+  it.each(['.001 .001', '.001 .01', '.01 .001', '0.001 0.001'])('refuses unsupported decimal precision %s rather than drawing backwards numbering', numbering => {
+    const source = `sequenceDiagram\n  autonumber ${numbering}\n  A->>B: one\n  A->>B: two\n  A->>B: three`
+    expect(() => renderMermaidSVG(source)).toThrow('SEQUENCE_UNSUPPORTED_STATEMENT')
+    const verified = verifyMermaid(source)
+    expect(verified.ok).toBe(false)
+    expect(verified.warnings.map(warning => warning.code)).toContain('RENDER_FAILED')
+    const parsed = parseRegisteredMermaid(source)
+    expect(parsed.ok).toBe(true)
+    if (!parsed.ok) throw new Error(JSON.stringify(parsed.error))
+    expect(serializeMermaid(parsed.value)).toContain(`autonumber ${numbering}`)
   })
 })
 

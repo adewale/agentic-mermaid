@@ -580,8 +580,9 @@ export const KNOWLEDGE_CASES: AgentUsageEvalCase[] = [
       const r1 = mermaid.parseRegisteredMermaid(edited)
       if (!r1.ok) return { error: 'reparse' }
       const verify = mermaid.verifyMermaid(r1.value)
-      if (!verify.ok) return { error: 'verify', warnings: verify.warnings }
-      return { source: mermaid.serializeMermaid(r1.value) }
+      // The user's malformed end is preserved, not declared renderable.
+      if (verify.ok || !verify.warnings.some(w => w.code === 'UNSUPPORTED_SYNTAX' && w.syntax === 'sequence_block_boundary')) return { error: 'expected block-boundary diagnostic', warnings: verify.warnings }
+      return { source: edited, warnings: verify.warnings }
     `,
   },
 ]
@@ -702,13 +703,14 @@ function checkSourceAuthoringTrace(trace: SdkCall[]): boolean {
 function checkOpaqueFallbackTrace(trace: SdkCall[]): boolean {
   // Source-level fallback on an opaque body: no structured mutation may run;
   // the edited source must be re-parsed and that diagram's verify result
-  // inspected before returning. Serialize is allowed — opaque serialization
-  // is the preserved source.
+  // inspected before returning the exact source edit with its diagnostics.
   if (trace.some(c => c.verb === 'mutate')) return false
   const parses = trace.filter((c): c is Extract<SdkCall, { verb: 'parse' }> => c.verb === 'parse')
   const last = parses[parses.length - 1]
   if (!last || last.diagram === undefined) return false
-  return trace.some(c => c.verb === 'verify' && c.diagram === last.diagram && c.ok === true) && trace.some(c => c.verb === 'verify_inspect' && c.diagram === last.diagram)
+  // This fixture deliberately retains an unmatched end: verification must
+  // fail, and the source-level fallback reports that failure to the caller.
+  return trace.some(c => c.verb === 'verify' && c.diagram === last.diagram && c.ok === false) && trace.some(c => c.verb === 'verify_inspect' && c.diagram === last.diagram)
 }
 
 function checkTrace(id: string, input: string | undefined, trace: SdkCall[]): boolean {
@@ -930,8 +932,8 @@ function checkTask(id: string, input: string | undefined, value: unknown, trace:
     return serializeMermaid(parsed.value).trim() === source.trim()
   }
   if (id === 'stray_end_source_fallback') {
-    const source = serializedSource(value, trace)
-    if (!source) return false
+    const source = (value as { source?: unknown } | undefined)?.source
+    if (typeof source !== 'string') return false
     const lines = source
       .split('\n')
       .map(l => l.trim())

@@ -79,8 +79,12 @@ export function parseClassBody(lines: string[]): ClassBody | null {
     return cls
   }
   const namespaces: ClassNamespaceDecl[] = []
-  const claim = (node: ClassNode, path: string): void => {
+  const claim = (node: ClassNode, path: string): boolean => {
+    // One typed membership cannot replay claims in multiple namespaces,
+    // including the otherwise empty groups. Keep the authored source instead.
+    if (path && node.namespace !== undefined && node.namespace !== path) return false
     if (path && node.namespace === undefined) node.namespace = path
+    return true
   }
   const addAnnotation = (node: ClassNode, annotation: string): boolean => {
     if (node.members.some(member => parseClassBodyAnnotationToken(member) !== null)) return false
@@ -99,6 +103,9 @@ export function parseClassBody(lines: string[]): ClassBody | null {
         case 'header': case 'trivia': case 'close': break
         case 'direction': case 'unknown': case 'source-only': return false // no typed slot; whole-body opaque is lossless
         case 'namespace': {
+          // The typed model uses dotted paths, so a literal dot inside one
+          // quoted atom has no lossless typed representation.
+          if (value.path.some(segment => segment.includes('.'))) return false
           const namespacePath = [path, ...value.path].filter(Boolean).join('.')
           let namespace = namespaces.find(candidate => candidate.name === namespacePath)
           if (!namespace) {
@@ -112,7 +119,7 @@ export function parseClassBody(lines: string[]): ClassBody | null {
           const declaration = value.declaration
           const cls = upsert(declaration.id, declaration.label, declaration.generic)
           if (declaration.className !== undefined) cls.className = declaration.className
-          claim(cls, path)
+          if (!claim(cls, path)) return false
           if (node.children) frames.push({ nodes: node.children, path, owner: cls, index: 0 })
           break
         }
@@ -127,14 +134,14 @@ export function parseClassBody(lines: string[]): ClassBody | null {
           if (annotation.placement === 'separate' && !classMap.has(annotation.id)) return false
           const cls = upsert(annotation.id, annotation.label, annotation.generic)
           if (!addAnnotation(cls, annotation.annotation)) return false
-          claim(cls, path)
+          if (!claim(cls, path)) return false
           break
         }
         case 'interaction': {
           const cls = upsert(value.interaction.id, undefined, value.interaction.generic)
           cls.href = value.interaction.href
           if (value.interaction.tooltip !== undefined) cls.tooltip = value.interaction.tooltip
-          claim(cls, path)
+          if (!claim(cls, path)) return false
           break
         }
         case 'note':
@@ -162,7 +169,7 @@ export function parseClassBody(lines: string[]): ClassBody | null {
             const cls = upsert(reference.id, undefined, reference.generic)
             if (value.kind === 'assignment') cls.className = value.name
             else cls.style = { ...cls.style, ...value.props }
-            claim(cls, path)
+            if (!claim(cls, path)) return false
           }
           break
       }
@@ -234,9 +241,21 @@ export function renderClass(body: ClassBody): string {
     const members = body.classes.filter(c => c.namespace === ns.name)
     const hasRegisteredDescendant = registryPaths.some(p => p.startsWith(`${ns.name}.`))
     if (members.length === 0 && ns.label === undefined && hasRegisteredDescendant) continue
-    lines.push(`  namespace ${ns.name}${ns.label !== undefined ? `["${ns.label}"]` : ''} {`)
-    for (const c of members) pushClassLines(lines, c, '    ')
-    lines.push(`  }`)
+    const segments = ns.name.split('.')
+    if (segments.every(segment => /^[\w$]+$/.test(segment))) {
+      lines.push(`  namespace ${ns.name}${ns.label !== undefined ? `["${ns.label}"]` : ''} {`)
+      for (const c of members) pushClassLines(lines, c, '    ')
+      lines.push('  }')
+    } else {
+      // Preserve each path atom: quoting the entire dotted path would turn a
+      // nested namespace into one flat name.
+      segments.forEach((segment, index) => {
+        const label = index === segments.length - 1 && ns.label !== undefined ? `["${ns.label}"]` : ''
+        lines.push(`${'  '.repeat(index + 1)}namespace ${quoteIfNeeded(segment)}${label} {`)
+      })
+      for (const c of members) pushClassLines(lines, c, '  '.repeat(segments.length + 1))
+      for (let index = segments.length; index > 0; index--) lines.push(`${'  '.repeat(index)}}`)
+    }
   }
   // Classes claimed by a namespace the registry doesn't know (possible only
   // through hand-built bodies) fall back to top level rather than vanishing.
@@ -447,6 +466,9 @@ export function mutateClass(body: ClassBody, op: ClassMutationOp): Result<ClassB
       return ok(b)
     }
     case 'add_note': {
+      if (typeof op.text !== 'string' || /[\r\n]/.test(op.text)) {
+        return err({ code: 'INVALID_OP', message: 'Class note text must be a single line; use <br/> for displayed line breaks' })
+      }
       if (op.for && !findClass(op.for)) return err({ code: 'CLASS_NOT_FOUND', message: `class ${op.for} not found` })
       b.notes.push({ text: op.text, for: op.for })
       return ok(b)
@@ -488,10 +510,26 @@ export function classUnsupportedSyntaxWarnings(canonicalSource: string): LayoutW
       message: `${what}. Mermaid 11.16 rejects this; put the comment on a line of its own.`,
     })
   }
-  const noteWarnings = (nodes: ClassStatementNode[]): void => {
+  const extensionWarnings = (nodes: ClassStatementNode[]): void => {
     const pending = [...nodes].reverse()
+    const semicolonLines = new Set<number>()
     while (pending.length) {
       const node = pending.pop()!
+      if (node.followsNamespaceCloseOnSameLine && node.value.kind === 'trivia' && node.raw.startsWith('%%')) warnings.push({
+        code: 'UNSUPPORTED_SYNTAX', syntax: 'class_trailing_comment', line: header + 1 + node.source.line,
+        message: 'A %% comment after a namespace closing brace is read as a comment. Mermaid 11.16 rejects this; put the comment on a line of its own.',
+      })
+      else if (node.followsNamespaceCloseOnSameLine && node.value.kind !== 'trivia' && node.value.kind !== 'close') warnings.push({
+        code: 'UNSUPPORTED_SYNTAX', syntax: 'class_statement_after_namespace_close', line: header + 1 + node.source.line,
+        message: 'A Class statement after a namespace closing brace on the same line is read as a separate statement. Mermaid 11.16 rejects this, even with a semicolon; put the statement on a new line.',
+      })
+      if (node.compactSemicolon && !semicolonLines.has(node.source.line)) {
+        semicolonLines.add(node.source.line)
+        warnings.push({
+          code: 'UNSUPPORTED_SYNTAX', syntax: 'class_compact_semicolon_statement_extension', line: header + 1 + node.source.line,
+          message: 'Semicolon-separated statements inside a compact Class namespace are read as separate statements. Mermaid 11.16 rejects this source; put each statement on its own line.',
+        })
+      }
       if (node.value.kind === 'note' && node.value.escapedQuotes) warnings.push({
         code: 'UNSUPPORTED_SYNTAX', syntax: 'class_escaped_note_quotes', line: header + 1 + node.source.line,
         message: 'Backslash-escaped quotes in Class notes are read as text. Mermaid 11.16 rejects this; use &quot; inside the quoted note.',
@@ -499,7 +537,7 @@ export function classUnsupportedSyntaxWarnings(canonicalSource: string): LayoutW
       if (node.children) for (let index = node.children.length - 1; index >= 0; index--) pending.push(node.children[index]!)
     }
   }
-  noteWarnings(readClassStatements(bodyLines).statements)
+  extensionWarnings(readClassStatements(bodyLines).statements)
   return warnings
 }
 

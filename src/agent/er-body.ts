@@ -204,6 +204,9 @@ function readErBody(lines: string[]): ErBody | null {
   }
 
   const placement = source.placement
+  // An unknown-only source has no editable ER content. Preserve it as a whole
+  // opaque body rather than advertise an empty structured schema as support.
+  if (placement.order.length === 0 && source.statements.some(entry => entry.syntax.kind === 'unknown')) return null
   // An empty alias has no Mermaid spelling either (writableErId).
   if ([...placement.alias.values()].includes('')) return null
   for (const [id, names] of classNamesByEntity) entityMap.get(id)!.className = names.join(' ')

@@ -6,6 +6,9 @@
  */
 import { describe, it, expect } from 'bun:test'
 import { parseSequenceDiagram } from '../sequence/parser.ts'
+import { parseRegisteredMermaid, asSequence, mutate, serializeMermaid } from '../agent/index.ts'
+import { renderMermaidSVG } from '../index.ts'
+import { verifyMermaid } from '../agent/verify.ts'
 
 /** Helper to parse — preprocesses text the same way index.ts does */
 function parse(text: string) {
@@ -27,6 +30,31 @@ describe('parseSequenceDiagram – actors', () => {
     expect(d.actors[0]!.id).toBe('A')
     expect(d.actors[0]!.label).toBe('Alice')
     expect(d.actors[0]!.type).toBe('participant')
+  })
+
+  it('keeps the actor and label when as is immediately followed by alias text', () => {
+    const source = 'sequenceDiagram\n  participant X_AutoPublishable asAAAAAAAAAAAAA:AAAAAAAAAAAAA'
+    const expected = [{ id: 'X_AutoPublishable', label: 'AAAAAAAAAAAAA:AAAAAAAAAAAAA', type: 'participant' as const }]
+    expect(parse(source).actors).toEqual(expected)
+    const parsed = parseRegisteredMermaid(source)
+    expect(parsed.ok).toBe(true)
+    if (!parsed.ok) throw new Error(JSON.stringify(parsed.error))
+    const sequence = asSequence(parsed.value)
+    expect(sequence).not.toBeNull()
+    if (!sequence) throw new Error(`Expected sequence, got ${parsed.value.body.kind}`)
+    expect(sequence.body.participants).toEqual([{ id: 'X_AutoPublishable', label: 'AAAAAAAAAAAAA:AAAAAAAAAAAAA', kind: 'participant' }])
+    const edited = mutate(sequence, { kind: 'set_participant_label', id: 'X_AutoPublishable', label: 'Updated' })
+    expect(edited.ok).toBe(true)
+    if (!edited.ok) throw new Error(JSON.stringify(edited.error))
+    expect(parse(serializeMermaid(edited.value)).actors).toEqual([{ ...expected[0]!, label: 'Updated' }])
+    const svg = renderMermaidSVG(source)
+    expect(svg).toContain('data-id="X_AutoPublishable"')
+    expect(svg).toContain('AAAAAAAAAAAAA:AAAAAAAAAAAAA')
+    expect(verifyMermaid(source).warnings).toContainEqual(expect.objectContaining({ code: 'UNSUPPORTED_SYNTAX', syntax: 'sequence_unspaced_alias', line: 2 }))
+    const canonical = serializeMermaid(sequence)
+    expect(canonical).toContain('participant X_AutoPublishable as AAAAAAAAAAAAA:AAAAAAAAAAAAA')
+    expect(parse(canonical).actors).toEqual(expected)
+    expect(verifyMermaid(canonical).warnings.map(warning => warning.code === 'UNSUPPORTED_SYNTAX' ? warning.syntax : warning.code)).not.toContain('sequence_unspaced_alias')
   })
 
   it('parses actor declarations (stick figures)', () => {

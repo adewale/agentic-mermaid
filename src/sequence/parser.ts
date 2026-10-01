@@ -445,6 +445,8 @@ export function readSequenceStatements(lines: readonly string[]): { statements: 
       }
     } else if (syntax.kind === 'declaration' && syntax.declaration.unmodeledMetadata?.length) {
       issue(entry, 'sequence_participant_metadata', `Participant metadata fields ${syntax.declaration.unmodeledMetadata.join(', ')} are not modeled; the declaration is preserved as source`)
+    } else if (syntax.kind === 'declaration' && syntax.declaration.unspacedAlias) {
+      issue(entry, 'sequence_unspaced_alias', 'Participant text immediately following as is read as its alias. Mermaid 11.16 can reject this or read it as part of the ID; write as <label> with a separating space')
     }
   }
   for (const index of stack) issue(statements[index]!, 'sequence_block_boundary', 'Sequence block or box is never closed by end')
@@ -466,7 +468,9 @@ export function parseSequenceStatement(line: string): SequenceStatementSyntax | 
   if (autonumber) {
     const rest = autonumber[1]?.trim() ?? ''
     if (/^off$/i.test(rest)) return { kind: 'autonumber', numbering: null }
-    const nums = rest.match(/^(\d+(?:\.\d+)?)(?:\s+(\d+(?:\.\d+)?))?$/)
+    // The numbering fold represents hundredths; accepting finer precision
+    // would silently round an increment away or make the labels go backwards.
+    const nums = rest.match(/^((?:\d+(?:\.\d{1,2})?|\.\d{1,2}))(?:\s+((?:\d+(?:\.\d{1,2})?|\.\d{1,2})))?$/)
     if (rest && !nums) return null
     if (nums && (!Number.isFinite(Number(nums[1])) || (nums[2] !== undefined && !Number.isFinite(Number(nums[2]))))) return null
     return {
@@ -535,7 +539,7 @@ const ACTOR_TYPES = new Set<SequenceActorType>(['participant', 'actor', 'boundar
 /** A `participant`/`actor` declaration. `aliased` records whether it names the
  *  actor (`as …` or a metadata alias): Mermaid lets only a naming declaration
  *  change an actor that already exists. */
-export type ParsedActorDeclaration = Pick<Actor, 'id' | 'label' | 'type'> & { keyword: 'participant' | 'actor'; aliased: boolean; unmodeledMetadata?: string[] }
+export type ParsedActorDeclaration = Pick<Actor, 'id' | 'label' | 'type'> & { keyword: 'participant' | 'actor'; aliased: boolean; unmodeledMetadata?: string[]; unspacedAlias?: boolean }
 
 export function parseActorDeclaration(line: string): ParsedActorDeclaration | null {
   const metadata = line.match(/^(participant|actor)\s+([^\s@]+)@\{/i)
@@ -573,11 +577,14 @@ export function parseActorDeclaration(line: string): ParsedActorDeclaration | nu
     }
   }
   if (line.includes('@{')) return null
-  const ordinary = line.match(/^(participant|actor)\s+(\S+?)(?:\s+as\s+(.+))?$/i)
+  const ordinary = line.match(/^(participant|actor)\s+(\S+?)(?:\s+as(\s*)(.+))?$/i)
   if (!ordinary) return null
   const id = ordinary[2]!
   const keyword = ordinary[1]!.toLowerCase() as 'participant' | 'actor'
-  return { id, label: normalizeBrTags(ordinary[3]?.trim() ?? id), type: keyword, keyword, aliased: ordinary[3] !== undefined }
+  return {
+    id, label: normalizeBrTags(ordinary[4]?.trim() ?? id), type: keyword, keyword, aliased: ordinary[4] !== undefined,
+    ...(ordinary[3] === '' ? { unspacedAlias: true } : {}),
+  }
 }
 
 /** One `create participant|actor X [as Label]` grammar shared by renderer and

@@ -10,7 +10,7 @@ import { verifyMermaid } from '../agent/index.ts'
  *    Now surfaced as UNSUPPORTED_SYNTAX (flowchart_unclosed_*).
  * 2. A sequence whose only content is a malformed message (`Alice->>` with no
  *    target) lays out a 0x0 canvas with zero participants — an empty render —
- *    yet verify returned ok with zero warnings. Now EMPTY_DIAGRAM.
+ *    yet verify returned ok with zero warnings. Now a named render failure.
  */
 describe('verify — unclosed flowchart delimiters are reported, not silent', () => {
   const syntaxes = (source: string): string[] =>
@@ -56,15 +56,11 @@ describe('verify — unclosed flowchart delimiters are reported, not silent', ()
 describe('verify — empty layouts never verify clean', () => {
   test('sequence with only a malformed message is empty (the audit repro)', () => {
     const r = verifyMermaid('sequenceDiagram\n  Alice->>')
-    // Advisory: the source carries (unparseable) content, so ok is preserved —
-    // the upstream-suite bench pins content-bearing-but-unrenderable ok:true —
-    // and the announcement is UNSUPPORTED_SYNTAX (warning severity, consistent
-    // with ok:true), never an appended EMPTY_DIAGRAM whose declared severity
-    // is error and would contradict the verdict for ok-gating callers.
-    expect(r.ok).toBe(true)
+    // Preserving malformed source does not make its empty drawing successful.
+    expect(r.ok).toBe(false)
     expect(r.warnings.map(w => w.code)).not.toContain('EMPTY_DIAGRAM')
-    const announced = r.warnings.find(w => w.code === 'UNSUPPORTED_SYNTAX' && (w as { syntax?: string }).syntax === 'empty_layout')
-    expect(Boolean(announced)).toBe(true)
+    expect(r.warnings.map(w => w.code)).toContain('RENDER_FAILED')
+    expect(r.warnings.some(w => w.code === 'UNSUPPORTED_SYNTAX' && 'syntax' in w && w.syntax === 'sequence_statement')).toBe(true)
   })
 
   test('a truly content-less sequence stays a hard error', () => {

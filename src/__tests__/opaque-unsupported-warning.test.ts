@@ -66,8 +66,9 @@ describe('opaque bodies announce UNSUPPORTED_SYNTAX instead of falling silent', 
       const v = verifyMermaid(p.value)
       const unsupported = v.warnings.filter(w => w.code === 'UNSUPPORTED_SYNTAX')
       expect(unsupported.length).toBeGreaterThanOrEqual(1)
-      expect(unsupported.some(w => 'syntax' in w && w.syntax === (family === 'timeline' ? 'timeline_header_direction' : `${family}_opaque`))).toBe(true)
-      if (family === 'xychart') {
+      const syntax = family === 'timeline' ? 'timeline_header_direction' : family === 'sequence' ? 'sequence_block_boundary' : `${family}_opaque`
+      expect(unsupported.some(w => 'syntax' in w && w.syntax === syntax)).toBe(true)
+      if (family === 'xychart' || family === 'sequence') {
         expect(v.ok).toBe(false)
         expect(v.warnings.map(warning => warning.code)).toContain('RENDER_FAILED')
       }

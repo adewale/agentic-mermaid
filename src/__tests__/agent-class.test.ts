@@ -162,6 +162,18 @@ note for A "A \"quote\" and \\ path"`)
 })
 
 describe('class — mutate', () => {
+  test.each(['\n', '\r', '\r\n'])('refuses an unsupported multiline note without changing the diagram: %j', lineBreak => {
+    const original = parse('classDiagram\nclass A')
+    const typed = asClass(original)
+    if (!typed) throw new Error('expected editable Class body')
+    const result = mutate(typed, { kind: 'add_note', for: 'A', text: `Before${lineBreak}after` })
+    expect(result).toEqual({ ok: false, error: {
+      code: 'INVALID_OP', message: 'Class note text must be a single line; use <br/> for displayed line breaks',
+    } })
+    expect(typed.body.notes).toEqual([])
+    expect(serializeMermaid(typed)).toBe('classDiagram\n  class A\n')
+  })
+
   test('add_class + add_relation', () => {
     const d0 = parse('classDiagram\n  class Animal')
     const c = asClass(d0)!

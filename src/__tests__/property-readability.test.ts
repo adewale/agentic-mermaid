@@ -95,6 +95,9 @@ describe('node-link and edge-label readability ratchet (corpus + fuzzed families
       } catch (error) {
         const codes = verifyMermaid(p.value).warnings.map(warning => warning.code)
         if (codes.includes('EMPTY_DIAGRAM') || codes.includes('UNRESOLVABLE_SCHEDULE')) return
+        // Unsafe authored CSS is refused before there is any positioned text
+        // to measure; do not relax security just to audit the docs example.
+        if (error instanceof Error && error.message.startsWith('Raw Mermaid themeCSS is not allowed in default security mode')) return
         throw error
       }
       const n = auditReadability(layout).length

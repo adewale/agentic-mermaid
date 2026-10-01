@@ -13,7 +13,7 @@
 import { describe, test, expect } from 'bun:test'
 import { parseClassDiagram } from '../class/parser.ts'
 import type { ClassNamespace } from '../class/types.ts'
-import { parseRegisteredMermaid as parseMermaid, serializeMermaid, mutate, asClass, describeMermaidFacts } from '../agent/index.ts'
+import { parseRegisteredMermaid as parseMermaid, serializeMermaid, mutate, asClass, describeMermaidFacts, renderMermaidSVG, verifyMermaid } from '../agent/index.ts'
 import type { ClassValidDiagram, ClassMutationOp } from '../agent/types.ts'
 import { startUpstreamMermaid } from './helpers/upstream-mermaid.ts'
 
@@ -86,6 +86,197 @@ describe('class labeled declaration conformance', () => {
 })
 
 describe('class namespaces — structured agent body (#118)', () => {
+  test('repeated declarations across namespaces preserve authored source and every rendered group', async () => {
+    const source = `classDiagram
+namespace First { class Shared }
+namespace Second { class Shared
+}
+namespace Third {
+class Shared {
++String name
+}
+class Other
+}`
+    const parsed = parseMermaid(source)
+    if (!parsed.ok) throw new Error(JSON.stringify(parsed.error))
+    expect(parsed.value.body.kind).toBe('opaque')
+    expect(serializeMermaid(parsed.value).trimEnd()).toBe(source)
+    const native = renderParse(source)
+    expect(native.classes.map(node => node.id)).toEqual(['Shared', 'Other'])
+    expect([...membershipByPath(native.namespaces)]).toEqual([['First', ['Shared']], ['Second', []], ['Third', ['Other']]])
+    expect(native.classes[0]!.attributes.map(member => member.name)).toEqual(['name'])
+    const upstream = startUpstreamMermaid()
+    try {
+      expect(await upstream.accepts(source)).toBe(true)
+    } finally {
+      await upstream.close()
+    }
+  })
+
+  test('repeated declarations within the same namespace remain editable', () => {
+    const diagram = classDiagram('classDiagram\nnamespace First { class Shared }\nnamespace First { class Shared }')
+    expect(diagram.body.classes.map(node => ({ id: node.id, namespace: node.namespace }))).toEqual([{ id: 'Shared', namespace: 'First' }])
+  })
+
+  test.each([
+    ['class Shared', 'class Shared hot'],
+    ['class Shared hot', 'class Shared'],
+  ])('a style/declaration claim across namespaces stays source-preserved in either order: %s then %s', async (first, second) => {
+    const source = `classDiagram\nnamespace First { ${first} }\nnamespace Second { ${second} }\nclassDef hot fill:red`
+    const parsed = parseMermaid(source)
+    if (!parsed.ok) throw new Error(JSON.stringify(parsed.error))
+    expect(parsed.value.body.kind).toBe('opaque')
+    expect(serializeMermaid(parsed.value).trimEnd()).toBe(source)
+    const native = renderParse(source)
+    expect([...membershipByPath(native.namespaces)]).toEqual([['First', ['Shared']], ['Second', []]])
+    expect(native.classes.map(node => ({ id: node.id, className: node.className }))).toEqual([{ id: 'Shared', className: 'hot' }])
+    const upstream = startUpstreamMermaid()
+    try {
+      expect(await upstream.accepts(source)).toBe(true)
+    } finally {
+      await upstream.close()
+    }
+  })
+
+  test.each([' class Free', 'class Free', '; class Free', ';class Free', '\nclass Free'])('a statement after a compact namespace retains meaning and diagnoses nonportable separation: %j', async suffix => {
+    const source = `classDiagram\nnamespace Outer { class First }${suffix}`
+    const diagram = classDiagram(source)
+    const expected = [{ id: 'First', namespace: 'Outer' }, { id: 'Free', namespace: undefined }]
+    expect(diagram.body.classes.map(node => ({ id: node.id, namespace: node.namespace }))).toEqual(expected)
+    const svg = renderMermaidSVG(source)
+    expect(svg).toMatch(/<text\b[^>]*>First<\/text>/)
+    expect(svg).toMatch(/<text\b[^>]*>Free<\/text>/)
+    expect(verifyMermaid(source).warnings.filter(warning => warning.code === 'UNSUPPORTED_SYNTAX')).toEqual(
+      suffix.startsWith('\n') ? [] : [expect.objectContaining({ syntax: 'class_statement_after_namespace_close', line: 2 })],
+    )
+    const serialized = serializeMermaid(diagram)
+    expect(classDiagram(serialized).body.classes.map(node => ({ id: node.id, namespace: node.namespace }))).toEqual(expected)
+    expect(verifyMermaid(serialized).warnings.filter(warning => warning.code === 'UNSUPPORTED_SYNTAX')).toEqual([])
+    const upstream = startUpstreamMermaid()
+    try {
+      expect(await upstream.accepts(source)).toBe(suffix.startsWith('\n'))
+      expect(await upstream.accepts(serialized)).toBe(true)
+    } finally {
+      await upstream.close()
+    }
+  })
+
+  test.each([
+    { body: 'class First; class Second', ids: ['First', 'Second'], unsupported: true },
+    { body: 'class First;', ids: ['First'], unsupported: true },
+    { body: '; class First', ids: ['First'], unsupported: true },
+    { body: ';; class First', ids: ['First'], unsupported: true },
+    { body: 'class First["before; after"]', ids: ['First'], unsupported: false },
+    { body: 'class First', ids: ['First'], unsupported: false },
+  ])('compact namespace semicolons are diagnosed as syntax, not quoted data: $body', async ({ body, ids, unsupported }) => {
+    const source = `classDiagram\nnamespace Outer { ${body} }`
+    const diagram = classDiagram(source)
+    expect(diagram.body.classes.map(node => ({ id: node.id, namespace: node.namespace }))).toEqual(ids.map(id => ({ id, namespace: 'Outer' })))
+    expect(verifyMermaid(source).warnings.filter(warning => warning.code === 'UNSUPPORTED_SYNTAX')).toEqual(
+      unsupported ? [expect.objectContaining({ syntax: 'class_compact_semicolon_statement_extension', line: 2 })] : [],
+    )
+    const serialized = serializeMermaid(diagram)
+    expect(verifyMermaid(serialized).warnings.filter(warning => warning.code === 'UNSUPPORTED_SYNTAX')).toEqual([])
+    const upstream = startUpstreamMermaid()
+    try {
+      expect(await upstream.accepts(source)).toBe(!unsupported)
+      expect(await upstream.accepts(serialized)).toBe(true)
+    } finally {
+      await upstream.close()
+    }
+  })
+
+  test('an empty separator inside a namespace is diagnosed even without an adjacent statement', async () => {
+    const source = 'classDiagram\nnamespace Outer { ; }'
+    expect(classDiagram(source).body.namespaces).toEqual([{ name: 'Outer' }])
+    expect(verifyMermaid(source).warnings).toContainEqual(expect.objectContaining({
+      code: 'UNSUPPORTED_SYNTAX', syntax: 'class_compact_semicolon_statement_extension', line: 2,
+    }))
+    const upstream = startUpstreamMermaid()
+    try {
+      expect(await upstream.accepts(source)).toBe(false)
+    } finally {
+      await upstream.close()
+    }
+    // Empty namespace serialization has an existing portability limitation;
+    // this case protects the separator diagnostic, not a portable writer claim.
+  })
+
+  test('a trailing comment after a compact namespace is diagnosed for portability', async () => {
+    const source = 'classDiagram\nnamespace Outer { class First } %% tail'
+    expect(classDiagram(source).body.classes.map(node => ({ id: node.id, namespace: node.namespace }))).toEqual([{ id: 'First', namespace: 'Outer' }])
+    expect(verifyMermaid(source).warnings).toContainEqual(expect.objectContaining({
+      code: 'UNSUPPORTED_SYNTAX', syntax: 'class_trailing_comment', line: 2,
+    }))
+    const upstream = startUpstreamMermaid()
+    try {
+      expect(await upstream.accepts(source)).toBe(false)
+      const serialized = serializeMermaid(classDiagram(source))
+      expect(await upstream.accepts(serialized)).toBe(true)
+      expect(verifyMermaid(serialized).warnings.filter(warning => warning.code === 'UNSUPPORTED_SYNTAX')).toEqual([])
+    } finally {
+      await upstream.close()
+    }
+  })
+
+  test.each([
+    {
+      name: 'a quoted name is one namespace atom, not a hierarchy',
+      source: 'classDiagram\nnamespace `A::B` {\nclass `IPC::Sender`\n}',
+      classes: [{ id: 'IPC::Sender', namespace: 'A::B' }],
+      membership: [['A::B', ['IPC::Sender']]],
+    },
+    {
+      name: 'a statement may follow its namespace opener on the same physical line',
+      source: 'classDiagram\nnamespace Domain { class First\nclass Second\n}\nclass Free',
+      classes: [{ id: 'First', namespace: 'Domain' }, { id: 'Second', namespace: 'Domain' }, { id: 'Free', namespace: undefined }],
+      membership: [['Domain', ['First', 'Second']]],
+    },
+    {
+      name: 'a nested quoted atom remains a child namespace after serialization',
+      source: 'classDiagram\nnamespace Outer {\nnamespace `A::B` { class `IPC::Sender`\n}\n}',
+      classes: [{ id: 'IPC::Sender', namespace: 'Outer.A::B' }],
+      membership: [['Outer', []], ['Outer.A::B', ['IPC::Sender']]],
+    },
+  ])('$name', async ({ source, classes, membership }) => {
+    const diagram = classDiagram(source)
+    const expectedMembership: Array<[string, string[]]> = membership.map(([path, ids]) => [path, [...ids]])
+    expect(diagram.body.classes.map(node => ({ id: node.id, namespace: node.namespace }))).toEqual([...classes])
+    expect([...membershipByPath(renderParse(source).namespaces)]).toEqual(expectedMembership)
+    const edited = apply(diagram, { kind: 'add_member', class: classes[0]!.id, text: '+String name' })
+    const serialized = serializeMermaid(edited)
+    const upstream = startUpstreamMermaid()
+    try {
+      expect(await upstream.accepts(serialized)).toBe(true)
+    } finally {
+      await upstream.close()
+    }
+    expect([...membershipByPath(renderParse(serialized).namespaces)]).toEqual(expectedMembership)
+    expect(classDiagram(serialized).body.classes.map(node => ({ id: node.id, namespace: node.namespace }))).toEqual([...classes])
+    expect(classDiagram(serialized).body.classes[0]!.members).toEqual(['+String name'])
+  })
+
+  test('a literal dot in a quoted namespace remains source-preserved when the typed path cannot represent it', () => {
+    const source = 'classDiagram\nnamespace `A.B` {\nclass First\n}'
+    const parsed = parseMermaid(source)
+    if (!parsed.ok) throw new Error(JSON.stringify(parsed.error))
+    expect(parsed.value.body.kind).toBe('opaque')
+    expect(serializeMermaid(parsed.value).trimEnd()).toBe(source)
+    expect(renderParse(source).namespaces).toEqual([{ name: 'A.B', classIds: ['First'], children: [] }])
+  })
+
+  test.each([
+    'namespace `A.B` { class First }\nnamespace A.B { class Second }',
+    'namespace A.B { class Second }\nnamespace `A.B` { class First }',
+  ])('rejects a quoted-name/hierarchy collision rather than placing a class in the wrong namespace: %s', body => {
+    const source = `classDiagram\n${body}`
+    const parsed = parseMermaid(source)
+    if (!parsed.ok) throw new Error(JSON.stringify(parsed.error))
+    expect(parsed.value.body.kind).toBe('opaque')
+    expect(serializeMermaid(parsed.value).trimEnd()).toBe(source)
+    expect(() => renderParse(source)).toThrow('Class namespace path collision "A.B"')
+  })
+
   test('namespaced source parses structured, not opaque', () => {
     const d = classDiagram(NAMESPACED)
     expect(d.body.classes.map(c => c.id).sort()).toEqual(['Free', 'Square', 'Triangle'])

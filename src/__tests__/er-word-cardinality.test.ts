@@ -51,6 +51,8 @@ describe('ER word-form relationship aliases (Mermaid 11.16.0)', () => {
       ['CAR 1 to zero or more NAMED-DRIVER : allows', true, 'one', 'zero-many'],
       ['PERSON many(0) optionally to 0+ NAMED-DRIVER : is', false, 'zero-many', 'zero-many'],
       ['CUSTOMER 1--one or more DELIVERY-ADDRESS : has', true, 'one', 'many'],
+      ['CUSTOMER 1.-one or more DELIVERY-ADDRESS : has', false, 'one', 'many'],
+      ['CUSTOMER 1-.one or more DELIVERY-ADDRESS : has', false, 'one', 'many'],
       ['A one or many optionally to zero or one B : has', false, 'many', 'zero-one'],
     ] as const
     for (const [statement, identifying, left, right] of cases) {
@@ -88,6 +90,8 @@ describe('ER word-form relationship aliases (Mermaid 11.16.0)', () => {
     for (const [statement, cardA, cardB, relType] of [
       ['CAR 1 to zero or more DRIVER : allows', 'ZERO_OR_MORE', 'ONLY_ONE', 'IDENTIFYING'],
       ['PERSON many(0) optionally to 0+ DRIVER : is', 'ZERO_OR_MORE', 'ZERO_OR_MORE', 'NON_IDENTIFYING'],
+      ['CUSTOMER 1.-one or more DELIVERY-ADDRESS : has', 'ONE_OR_MORE', 'ONLY_ONE', 'NON_IDENTIFYING'],
+      ['CUSTOMER 1-.one or more DELIVERY-ADDRESS : has', 'ONE_OR_MORE', 'ONLY_ONE', 'NON_IDENTIFYING'],
     ] as const) {
       const upstream = await mermaid.mermaidAPI.getDiagramFromText(`erDiagram\n${statement}\n`)
       const db = upstream.db as unknown as { getRelationships(): Array<{ relSpec: { cardA: string; cardB: string; relType: string } }> }

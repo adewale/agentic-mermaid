@@ -40,6 +40,7 @@ describe('typed ER styling and ordered opaque segments (B09)', () => {
     ['an unclosed attribute block', 'erDiagram\nA {\n  int id PK', 'ER_UNCLOSED_ENTITY'],
     ['an unknown attribute qualifier', 'erDiagram\nA {\n  int id FUTURE\n}', 'ER_UNSUPPORTED_STATEMENT'],
     ['a partly invalid style target list', 'erDiagram\nA\nstyle A,? fill:red', 'Invalid ER style assignment'],
+    ['an unmodeled parent cardinality', 'erDiagram\nPROJECT u--o{ TEAM_MEMBER : "parent"', 'ER_UNSUPPORTED_STATEMENT'],
   ])('rejects %s rather than silently discarding authored syntax', (_name, source, error) => {
     expect(() => renderMermaidSVG(source)).toThrow(error)
     const parsed = parseMermaid(source)

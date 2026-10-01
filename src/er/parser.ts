@@ -32,7 +32,7 @@ const ER_CARDINALITY_SOURCE = String.raw`(?:one or zero|zero or one|one or more|
 const ER_GLYPH_SOURCE = String.raw`(?:\|\||\|o|o\||\}o|o\{|\}\||\|\{)`
 const ER_RELATIONSHIP_RE = new RegExp(
   `^(${ER_ENTITY_REFERENCE_SOURCE})(?:[ \\t]+(${ER_CARDINALITY_SOURCE})|(${ER_GLYPH_SOURCE}))` +
-  `(?:([ \\t]*(?:--|\\.\\.)[ \\t]*)|([ \\t]+(?:optionally to|to)[ \\t]+))` +
+  `(?:([ \\t]*(?:--|\\.\\.|\\.-|-\\.)[ \\t]*)|([ \\t]+(?:optionally to|to)[ \\t]+))` +
   `(?:(${ER_CARDINALITY_SOURCE})[ \\t]+|(${ER_GLYPH_SOURCE}))(${ER_ENTITY_REFERENCE_SOURCE})(?:[ \\t]*:[ \\t]*(.*))?$`,
   'i',
 )
