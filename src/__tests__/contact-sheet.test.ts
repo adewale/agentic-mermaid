@@ -12,8 +12,8 @@
 // Regenerate after an INTENTIONAL geometry change, then review the golden diff
 // against the contact sheet:
 //   UPDATE_CONTACT_SHEET_GEOMETRY=1 bun test src/__tests__/contact-sheet.test.ts
-// The golden lives under src/__tests__/testdata/, so the golden-drift CI gate
-// requires an [approve-goldens] commit line.
+// List each changed golden under src/__tests__/testdata/ and why it changed
+// in the PR description for review.
 import { describe, expect, it } from 'bun:test'
 import { readFileSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
@@ -110,7 +110,7 @@ describe('contact sheet — pinned geometry (re-pin deliberately, review the she
       `${problems.length === 0 ? 'the golden file is not in canonical form' : `${problems.length} contact-sheet scenario(s) diverged from the geometry golden`}:\n` +
       `${problems.slice(0, 10).join('\n')}${more}\n\n` +
       'If intentional: UPDATE_CONTACT_SHEET_GEOMETRY=1 bun test src/__tests__/contact-sheet.test.ts, ' +
-      'review the golden diff against the contact sheet, and approve it with an [approve-goldens] commit line.',
+      'review the golden diff against the contact sheet, and list each changed golden and why in the PR description.',
     )
   })
 })
