@@ -1,6 +1,8 @@
+import { isDeepStrictEqual } from 'node:util'
 import { type CheckMermaidSpec, checkMermaidSource } from '../../src/agent/facts.ts'
 import { parseRegisteredMermaid as parseMermaid } from '../../src/agent/parse.ts'
 import { serializeMermaid } from '../../src/agent/serialize.ts'
+import { verifyMermaid } from '../../src/agent/verify.ts'
 import { asArchitecture, asClass, asEr, asFlowchart, asGantt, asGitGraph, asJourney, asMindmap, asPie, asQuadrant, asRadar, asSankey, asSequence, asState, asTimeline, asXyChart, type DiagramKind, type ParsedDiagram } from '../../src/agent/types.ts'
 import { executeInSandbox } from '../../src/mcp/sandbox.ts'
 import { type AntiPattern, lintAgentTrace, type SdkCall } from './harness.ts'
@@ -819,7 +821,7 @@ function sourceSatisfiesFacts(source: string, spec: CheckMermaidSpec): boolean {
 
 export function checkAgentUsageTaskSource(id: string, source: string): boolean {
   const fakeSerializeTrace = [{ verb: 'serialize', diagram: 'final', source }] as SdkCall[]
-  return checkTask(id, defaultInput(id), { source }, fakeSerializeTrace)
+  return checkTask(id, defaultInput(id), { source }, fakeSerializeTrace, true)
 }
 
 // Per-family authoring oracles: the returned source must model the described
@@ -892,7 +894,7 @@ const CREATE_ORACLES: Record<string, (source: string) => boolean> = {
   },
 }
 
-function checkTask(id: string, input: string | undefined, value: unknown, trace: SdkCall[]): boolean {
+function checkTask(id: string, input: string | undefined, value: unknown, trace: SdkCall[], sourceOnly = false): boolean {
   const createOracle = CREATE_ORACLES[id]
   if (createOracle) {
     const source = (value as { source?: unknown } | undefined)?.source
@@ -943,7 +945,16 @@ function checkTask(id: string, input: string | undefined, value: unknown, trace:
     // stray `end` a regenerating agent would "fix" — plus the appended
     // message, and nothing else.
     if (lines.length !== expected.length || !expected.every((l, i) => lines[i] === l)) return false
-    return parseMermaid(source).ok
+    const parsed = parseMermaid(source)
+    if (!parsed.ok) return false
+    // The source-only oracle cannot judge what diagnostics a response returned.
+    if (sourceOnly) return true
+    const verified = verifyMermaid(parsed.value)
+    const warnings = (value as { warnings?: unknown }).warnings
+    // Inspecting a failed verification internally does not inform the caller.
+    // Require the returned response to carry its complete diagnostics too.
+    return !verified.ok && Array.isArray(warnings) && warnings.length === verified.warnings.length
+      && verified.warnings.every(expected => warnings.some(actual => isDeepStrictEqual(actual, expected)))
   }
   if (id === 'timeline_add_event') {
     const source = serializedSource(value, trace)
