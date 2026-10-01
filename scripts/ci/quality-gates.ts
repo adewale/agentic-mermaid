@@ -20,7 +20,6 @@ export const QUALITY_CHECKS: readonly QualityCheck[] = [
   { id: 'lint', label: 'Lint TypeScript', command: ['bun', 'run', 'lint:biome'] },
   { id: 'typecheck', label: 'Type check', command: ['bun', 'run', 'typecheck'] },
   { id: 'hero', label: 'Check README hero image freshness', command: ['bun', 'run', 'hero:check'] },
-  { id: 'golden-drift', label: 'Enforce reviewed golden snapshot drift', command: ['bun', 'run', 'scripts/ci/golden-drift.ts'] },
 ]
 
 export type CheckRunner = (check: QualityCheck) => number

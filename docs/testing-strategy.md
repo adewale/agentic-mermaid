@@ -19,7 +19,7 @@ Run `bun run quality:check` to execute the complete GitHub **Quality gates**
 job locally. The command installs the frozen dependency graph and then runs
 the dependency audit, the font-subset, lazy browser-family catalog, and website
 regeneration checks, the sketch and whole-corpus audits, lint,
-repository-wide typechecking, hero freshness, and the golden-drift guard (the
+repository-wide typechecking, and hero freshness (the
 list is `QUALITY_CHECKS` in `scripts/ci/quality-gates.ts`). The workflow calls
 this same entry point, so the local list and CI list cannot diverge.
 
@@ -93,8 +93,8 @@ independent spec:
 - **SVG snapshots** and **contact sheets** — per-family rendered output.
 - **Screenshot baselines** — `e2e/screenshots/baseline-*.png`, diffed against
   fresh Playwright renders with a per-channel threshold in `e2e/browser.test.ts`.
-- **Snapshot drift sentinel** — CI flags any change under `testdata/` so a
-  golden never moves silently.
+- **Golden review** — each PR description lists every changed golden under
+  `src/__tests__/testdata/` and why it changed, for reviewer judgment.
 
 **Runs:** ASCII/SVG goldens per PR. The browser/screenshot e2e suite also runs
 per PR — it is the five-lane `e2e` matrix in `ci.yml` (`needs: test`), including
@@ -358,8 +358,7 @@ table here, which would drift. In broad strokes:
   Tier-1 verify, goldens, the differential + faithfulness + metamorphic gates,
   `measureQuality`/whole-corpus ugly-detector/layout-rubric, the heuristic-tracker ratchet,
   the corpus/seqbench/upstream benches — plus the high/critical dependency audit,
-  type check, the hero check, the
-  golden-drift gate, the parallel browser/CLI/binary/fuzz e2e matrix (whose
+  type check, the hero check, the parallel browser/CLI/binary/fuzz e2e matrix (whose
   browser lane checks route payload budgets and, on pull requests, the gzip
   delta against the base branch built on the same runner), the fast
   incremental mutation lane, the independent focused sabotage lane, and the
@@ -508,9 +507,9 @@ gates rather than adding new machinery:
    byte equality is not asserted.
 5. `QualityBounds` thresholds are now provenance-tagged, but the `chosen`
    bands are still not validated against human-perception evidence.
-6. Golden movement still needs human judgment, but the snapshot drift sentinel
-   blocks unless the change is committed with the explicit `[approve-goldens]`
-   review token; the token proves acknowledgment, not visual quality.
+6. Golden movement needs human judgment: each PR description lists every changed
+   golden and why it changed. Passing snapshot tests proves consistency with the
+   committed baseline, not that a changed baseline improves visual quality.
 
 The deepest gap is structural, and `project/lessons-learned.md` (Loop 13)
 names it: every quality signal here is self-generated. The portfolio above

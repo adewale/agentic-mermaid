@@ -430,8 +430,8 @@ because a peer team lost time to their absence (§8).
 `src/__tests__/mcp-response-corpus.test.ts` records both servers' wire output —
 handshake, every tool's description/annotations/schema, instructions, and a
 fixed set of deterministic call and error payloads — to a baseline under
-`src/__tests__/testdata/`, which puts it behind the `[approve-goldens]`
-golden-drift gate. Every protocol change in §6 lands as a reviewable diff to
+`src/__tests__/testdata/`; the PR description lists each changed golden and
+why it changed. Every protocol change in §6 lands as a reviewable diff to
 that corpus rather than as an invisible behaviour change. Red-green verified
 against three perturbations: reworded description, added schema property,
 reworded instructions.

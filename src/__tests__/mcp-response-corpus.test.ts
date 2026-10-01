@@ -13,8 +13,8 @@
 //
 // Regenerate after an INTENTIONAL surface change:
 //   UPDATE_MCP_CORPUS=1 bun test src/__tests__/mcp-response-corpus.test.ts
-// The baseline lives under testdata/, so the [approve-goldens] golden-drift
-// review applies (scripts/ci/golden-drift.ts, GOLDEN_DIR).
+// Review the diff and list each changed golden under testdata/ and why it
+// changed in the PR description.
 //
 // Fidelity, stated honestly: descriptions, instructions, annotations, and
 // handshake fields are recorded VERBATIM. Input schemas are recorded as a
