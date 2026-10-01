@@ -63,10 +63,13 @@ function scanInlineNamespaceStatement(line: string): ClassStatementFragment[] {
     } else if (character === '"' || character === '`' || character === '~') quote = character
     else if (character === '{') braces++
     else if (character === '}' && braces > 0) braces--
-    else if (braces === 0 && character === '%' && tail[index + 1] === '%'
-      && classCommentStart(tail.slice(start)) === index - start) break
     else if (braces === 0 && (character === ';' || character === '}')) {
-      append(tail.slice(start, index))
+      const fragment = tail.slice(start, index)
+      // Class text rules protect percent pairs in URLs and callback arguments.
+      // Classify comments once per bounded fragment, not once per percent pair.
+      // A delimiter inside a real comment belongs to the remaining raw text.
+      if (classCommentStart(fragment) >= 0) break
+      append(fragment)
       if (character === ';' && !followsClose) compactSemicolon = true
       if (character === '}') body.push({ text: '}' })
       if (character === '}') followsClose = true

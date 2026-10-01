@@ -6,6 +6,8 @@
  */
 import { describe, it, expect } from 'bun:test'
 import { parseClassDiagram, readClassStatements } from '../class/parser.ts'
+import { asClass, parseRegisteredMermaid } from '../agent/index.ts'
+import { expectNearLinearGrowth } from './helpers/complexity.ts'
 
 /** Helper to parse — preprocesses text the same way index.ts does */
 function parse(text: string) {
@@ -18,6 +20,20 @@ function parse(text: string) {
 // ============================================================================
 
 describe('parseClassDiagram – class definitions', () => {
+  it('compact namespace URL percent pairs retain meaning with near-linear parse cost', () => {
+    for (const manyLinks of [false, true]) {
+      expectNearLinearGrowth(manyLinks ? 'many compact links' : 'one long compact link', size => {
+        const href = `https://example.com/${manyLinks ? '%%%%' : '%%'.repeat(size)}`
+        const links = Array<string>(manyLinks ? Math.max(1, Math.floor(size / 16)) : 1).fill(`link A ${href}`).join('; ')
+        const parsed = parseRegisteredMermaid(`classDiagram\nnamespace N { class A; ${links} }`)
+        if (!parsed.ok) throw new Error(JSON.stringify(parsed.error))
+        expect(asClass(parsed.value)?.body.classes).toEqual([
+          { id: 'A', namespace: 'N', members: [], href },
+        ])
+      }, 16_000, 16)
+    }
+  })
+
   it('keeps semicolons inside quoted labels in compact namespaces', () => {
     const diagram = parse('classDiagram\nnamespace Domain { class A["Before; after"]; class B }')
     expect(diagram.classes.map(node => ({ id: node.id, label: node.label }))).toEqual([
