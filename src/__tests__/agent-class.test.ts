@@ -2,6 +2,8 @@
 
 import { describe, test, expect } from 'bun:test'
 import { parseRegisteredMermaid as parseMermaid, asClass, mutate, serializeMermaid, verifyMermaid } from '../agent/index.ts'
+import { classCommentRejections, parseClassDiagram } from '../class/parser.ts'
+import { classUnsupportedSyntaxWarnings } from '../agent/class-body.ts'
 
 const parse = (s: string) => {
   const r = parseMermaid(s)
@@ -10,10 +12,90 @@ const parse = (s: string) => {
 }
 
 describe('class — parse', () => {
+  test('deeply nested namespaces retain the class and source identity without exhausting the call stack', () => {
+    const depth = 15000
+    const lines = [...Array<string>(depth).fill('namespace N {'), 'class A', ...Array<string>(depth).fill('}')]
+    const source = `classDiagram\n${lines.join('\n')}`
+    const diagram = parse(source)
+    if (diagram.body.kind !== 'class') throw new Error('expected editable nested Class body')
+    expect(diagram.body.namespaces).toHaveLength(depth)
+    expect(diagram.body.classes.map(node => ({ id: node.id, namespace: node.namespace }))).toEqual([
+      { id: 'A', namespace: `${'N.'.repeat(depth - 1)}N` },
+    ])
+    expect(diagram.source.nodes.get('A')).toEqual({ line: depth + 2, col: 7 })
+    expect(parseClassDiagram(['classDiagram', ...lines]).classes.map(node => node.id)).toEqual(['A'])
+    expect(classCommentRejections(lines)).toEqual([])
+    expect(classUnsupportedSyntaxWarnings(source)).toEqual([])
+  })
+
+  test.each([
+    'class A\nfuture statement',
+    'class A {\n+String name',
+    'namespace Domain {\nclass A',
+    'class A\n}',
+    'class A\nclass A,bad-id hot',
+    'note "A &#10; B"',
+    'note for A "A &#13; B"',
+  ])('preserves source rather than exposing a partial editable model: %s', body => {
+    const source = `classDiagram\n${body}`
+    const diagram = parse(source)
+    expect(diagram.body.kind).toBe('opaque')
+    expect(serializeMermaid(diagram).trimEnd()).toBe(source)
+    expect(verifyMermaid(diagram).warnings).toContainEqual(expect.objectContaining({ code: 'UNSUPPORTED_SYNTAX' }))
+  })
+
+  test('compact namespaces keep quoted semicolons through editing and reload', () => {
+    const diagram = parse('classDiagram\nnamespace Domain { class A["Before; after"]; class B }')
+    const typed = asClass(diagram)
+    expect(typed).not.toBeNull()
+    if (!typed) throw new Error('expected editable Class body')
+    expect(typed.body.classes.map(node => ({ id: node.id, label: node.label, namespace: node.namespace }))).toEqual([
+      { id: 'A', label: 'Before; after', namespace: 'Domain' },
+      { id: 'B', label: undefined, namespace: 'Domain' },
+    ])
+    const changed = mutate(typed, { kind: 'add_member', class: 'A', text: '+String name' })
+    if (!changed.ok) throw new Error(JSON.stringify(changed.error))
+    const reloaded = asClass(parse(serializeMermaid(changed.value)))
+    expect(reloaded?.body.classes).toEqual([
+      expect.objectContaining({ id: 'A', label: 'Before; after', namespace: 'Domain', members: ['+String name'] }),
+      expect.objectContaining({ id: 'B', namespace: 'Domain', members: [] }),
+    ])
+  })
+
+  test('quoted notes create their target and survive escaping on reload', () => {
+    const diagram = parse(String.raw`classDiagram
+note for A "A \"quote\" and \\ path"`)
+    const typed = asClass(diagram)
+    expect(typed).not.toBeNull()
+    if (!typed) throw new Error('expected editable Class body')
+    expect(typed.body.classes.map(node => node.id)).toEqual(['A'])
+    expect(typed.body.notes).toEqual([{ for: 'A', text: 'A "quote" and \\ path' }])
+    expect(verifyMermaid(diagram).warnings).toContainEqual(expect.objectContaining({
+      code: 'UNSUPPORTED_SYNTAX', syntax: 'class_escaped_note_quotes', line: 2,
+    }))
+    expect(asClass(parse(serializeMermaid(diagram)))?.body.notes).toEqual([{ for: 'A', text: 'A "quote" and \\ path' }])
+  })
+
+  test('declaration shorthand stays editable and its member source belongs to the declared class', () => {
+    const diagram = parse('classDiagram\nclass A:::hot\nclass B:::cold {\n+int count\n}\nclassDef hot fill:red\nclassDef cold fill:blue')
+    const typed = asClass(diagram)
+    expect(typed).not.toBeNull()
+    if (!typed) throw new Error('expected editable Class body')
+    const expected = [
+      { id: 'A', className: 'hot', members: [] }, { id: 'B', className: 'cold', members: ['+int count'] },
+    ]
+    const facts = (body: typeof typed.body) => body.classes.map(node => ({ id: node.id, className: node.className, members: node.members }))
+    expect(facts(typed.body)).toEqual(expected)
+    expect(diagram.source.labels.get('class:B:member#0')).toEqual({ line: 4, col: 1 })
+    const reloaded = asClass(parse(serializeMermaid(diagram)))
+    if (!reloaded) throw new Error('reload lost the editable Class body')
+    expect(facts(reloaded.body)).toEqual(expected)
+  })
+
   test('basic class with members', () => {
     const d = parse('classDiagram\n  class Animal {\n    +String name\n    +eat()\n  }')
     expect(d.body.kind).toBe('class')
-    if (d.body.kind !== 'class') return
+    if (d.body.kind !== 'class') throw new Error('expected editable Class body')
     expect(d.body.classes).toEqual([{ id: 'Animal', label: undefined, members: ['+String name', '+eat()'] }])
   })
 
@@ -146,7 +228,15 @@ describe('class — round-trip', () => {
     const src = `classDiagram\n  class Animal {\n    +String name\n    +eat()\n  }\n  class Dog\n  Animal <|-- Dog`
     const d = parse(src)
     const out1 = serializeMermaid(d)
-    const out2 = serializeMermaid(parse(out1))
+    const reloaded = parse(out1)
+    const typed = asClass(reloaded)
+    expect(typed).not.toBeNull()
+    if (!typed) throw new Error('round-trip lost the editable Class model')
+    expect(typed.body.classes.map(node => ({ id: node.id, members: node.members }))).toEqual([
+      { id: 'Animal', members: ['+String name', '+eat()'] }, { id: 'Dog', members: [] },
+    ])
+    expect(typed.body.relations).toEqual([{ from: 'Animal', to: 'Dog', kind: 'inheritance', markerAt: 'from' }])
+    const out2 = serializeMermaid(reloaded)
     expect(out2).toBe(out1)
   })
 })

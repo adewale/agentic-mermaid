@@ -5,7 +5,7 @@
  * relationships (all 6 types), cardinality, labels, inline attributes.
  */
 import { describe, it, expect } from 'bun:test'
-import { parseClassDiagram } from '../class/parser.ts'
+import { parseClassDiagram, readClassStatements } from '../class/parser.ts'
 
 /** Helper to parse — preprocesses text the same way index.ts does */
 function parse(text: string) {
@@ -18,6 +18,53 @@ function parse(text: string) {
 // ============================================================================
 
 describe('parseClassDiagram – class definitions', () => {
+  it('keeps semicolons inside quoted labels in compact namespaces', () => {
+    const diagram = parse('classDiagram\nnamespace Domain { class A["Before; after"]; class B }')
+    expect(diagram.classes.map(node => ({ id: node.id, label: node.label }))).toEqual([
+      { id: 'A', label: 'Before; after' }, { id: 'B', label: 'B' },
+    ])
+    expect(diagram.namespaces[0]!.classIds).toEqual(['A', 'B'])
+  })
+
+  it('declaration shorthand styles the declared identity and its members', () => {
+    const diagram = parse('classDiagram\nclass A:::hot\nclass B:::cold {\n+int count\n}\nclassDef hot fill:red\nclassDef cold fill:blue')
+    expect(diagram.classes.map(node => ({ id: node.id, className: node.className, attributes: node.attributes.map(member => member.sourceText) }))).toEqual([
+      { id: 'A', className: 'hot', attributes: [] }, { id: 'B', className: 'cold', attributes: ['+int count'] },
+    ])
+  })
+
+  it.each([
+    ['unknown authored statement', 'class A\nfuture statement', 'Unrecognized class statement "future statement"'],
+    ['unterminated class body', 'class A {\n+String name', 'Unclosed class block'],
+    ['unterminated namespace', 'namespace Domain {\nclass A', 'Unclosed namespace block'],
+    ['extra close', 'class A\n}', 'Unexpected closing brace'],
+    ['partially invalid class assignment', 'class A\nclass A,bad-id hot', 'Unrecognized class statement'],
+  ])('refuses a partial drawing for %s', (_name, source, reason) => {
+    expect(() => parse(`classDiagram\n${source}`)).toThrow(reason)
+  })
+
+  it('retains member ownership, comments, raw text and physical source spans', () => {
+    const lines = ['namespace Outer {', '  class A {', '    %% explanation', '    +String name %% literal', '  }', '}', 'future statement']
+    const tree = readClassStatements(lines)
+    expect(tree.source).toBe(lines.join('\n'))
+    const namespace = tree.statements[0]!
+    const declaration = namespace.children![0]!
+    const member = declaration.children![1]!
+    const start = lines.slice(0, 3).join('\n').length + 1
+    expect(member).toEqual({
+      raw: '    +String name %% literal', text: '+String name %% literal',
+      source: { line: 4, column: 1, start, end: start + lines[3]!.length },
+      value: { kind: 'member', text: '+String name %% literal' },
+    })
+    expect(declaration.children![0]!.raw).toBe('    %% explanation')
+    expect(declaration.closing!.raw).toBe('  }')
+    expect(namespace.closing!.raw).toBe('}')
+    expect(tree.diagnostics).toEqual([{
+      reason: 'Unrecognized class statement "future statement"',
+      source: { line: 7, column: 1, start: lines.slice(0, 6).join('\n').length + 1, end: lines.join('\n').length },
+    }])
+  })
+
   it('parses a class block with attributes and methods', () => {
     const d = parse(`classDiagram
       class Animal {
@@ -28,8 +75,12 @@ describe('parseClassDiagram – class definitions', () => {
       }`)
     expect(d.classes).toHaveLength(1)
     expect(d.classes[0]!.id).toBe('Animal')
-    expect(d.classes[0]!.attributes).toHaveLength(2)
-    expect(d.classes[0]!.methods).toHaveLength(2)
+    expect(d.classes[0]!.attributes.map(member => ({ name: member.name, type: member.type, visibility: member.visibility }))).toEqual([
+      { name: 'name', type: 'String', visibility: '+' }, { name: 'age', type: 'int', visibility: '+' },
+    ])
+    expect(d.classes[0]!.methods.map(member => ({ name: member.name, type: member.type, visibility: member.visibility }))).toEqual([
+      { name: 'eat', type: 'void', visibility: '+' }, { name: 'sleep', type: undefined, visibility: '+' },
+    ])
   })
 
   it('parses attribute visibility (+ - # ~)', () => {

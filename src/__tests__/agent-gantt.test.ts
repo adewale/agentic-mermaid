@@ -20,6 +20,7 @@ import { parseGanttModel } from '../gantt/parser.ts'
 import { normalizeMermaidSource } from '../mermaid-source.ts'
 import { layoutMermaid, renderMermaidASCIIWithMeta } from '../agent/index.ts'
 import { ganttGeometryWarnings } from '../agent/family-layouts.ts'
+import { resolveGanttSchedule } from '../gantt/schedule.ts'
 
 const SRC = `gantt
   title Release plan
@@ -62,6 +63,28 @@ function shape(d: GanttValidDiagram) {
 }
 
 describe('gantt structured parse', () => {
+  test('inline task comments do not change dates, and survive a neighboring task edit', () => {
+    const source = 'gantt\n  Build :build, 2024-01-01, 2d %% duration, not a date\n  Ship :ship, after build, 1d\n'
+    const d = gantt(source)
+    expect(d.body.sections[0]!.tasks.map(({ taskId, start, end }) => ({ taskId, start, end }))).toEqual([
+      { taskId: 'build', start: '2024-01-01', end: '2d' },
+      { taskId: 'ship', start: 'after build', end: '1d' },
+    ])
+    const model = parseGanttModel(normalizeMermaidSource(source).lines)
+    expect(model.tasks[0]!.end).toEqual({ kind: 'duration', raw: '2d' })
+    expect(verifyMermaid(d).warnings).toContainEqual(expect.objectContaining({
+      code: 'UNSUPPORTED_SYNTAX', syntax: 'gantt_inline_task_comment', line: 2,
+    }))
+    const schedule = resolveGanttSchedule(model)
+    expect(schedule.tasks.map(task => task.end - task.start)).toEqual([2 * 86_400_000, 86_400_000])
+    const edited = apply(d, { kind: 'rename_task', sectionIndex: 0, taskIndex: 1, label: 'Release' })
+    const canonical = serializeMermaid(edited)
+    expect(canonical).toContain('  Build :build, 2024-01-01, 2d\n%% duration, not a date\n  Release :ship, after build, 1d\n')
+    expect(gantt(canonical).body.sections[0]!.tasks[0]!.end).toBe('2d')
+    expect(verifyMermaid(edited).ok).toBe(true)
+    expect(verifyMermaid(edited).warnings.map(warning => warning.code)).not.toContain('UNSUPPORTED_SYNTAX')
+  })
+
   test('detects kind gantt and models title/sections/tasks', () => {
     const d = gantt()
     expect(d.kind).toBe('gantt')

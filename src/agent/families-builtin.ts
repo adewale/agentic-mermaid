@@ -18,8 +18,8 @@
 // ============================================================================
 
 import { decodeXML } from 'entities'
-import { expandInlineNamespaceStatement, parseClassDeclaration, parseClassReference } from '../class/parser.ts'
-import { parseErEntityReference, parseErGroupHeader, parseErRelationshipSyntax } from '../er/parser.ts'
+import { readClassStatements, type ClassStatementNode } from '../class/parser.ts'
+import { readErStatements, type ParsedErRelationshipSyntax } from '../er/parser.ts'
 import { GitGraphDuplicateCommitError } from '../gitgraph/parser.ts'
 import { type JourneyParseIssue, walkJourneyLines } from '../journey/parse-core.ts'
 import { splitPointClassSuffix } from '../quadrant/point-style.ts'
@@ -28,7 +28,9 @@ import { splitAuthoredPieTitleLine } from '../pie/source-title.ts'
 import { stripTrailingComment } from '../shared/trailing-comment.ts'
 import { isTimelineCommentLine, parseTimelineHeader } from '../timeline/parse-core.ts'
 import { mutateArchitecture, parseArchitectureBody, renderArchitecture, verifyArchitecture, verifyOpaqueArchitectureIcons } from './architecture-body.ts'
-import { mutateClass, parseClassBody, parseClassRelationSyntax, renderClass, verifyClass } from './class-body.ts'
+import { readArchitectureStatements } from '../architecture/parser.ts'
+import { readGanttStatements } from '../gantt/parser.ts'
+import { mutateClass, parseClassBody, renderClass, verifyClass } from './class-body.ts'
 import { mutateEr, parseErBody, renderEr, verifyErBody } from './er-body.ts'
 import type { ExtractedLabel, FamilyOperations } from './families.ts'
 import { extractLabelsGeneric } from './family-labels.ts'
@@ -58,7 +60,7 @@ function structuredFamilyHooks<K extends DiagramBody['kind'] & DiagramKind>(
   kind: K,
   opts: {
     headerOk?: (header: string) => boolean
-    parseBody: (lines: string[], accessibility: import('./types.ts').Accessibility) => Extract<DiagramBody, { kind: K }> | null
+    parseBody: (lines: string[], accessibility: import('./types.ts').Accessibility, rawBodyLines: string[]) => Extract<DiagramBody, { kind: K }> | null
     serialize: (body: Extract<DiagramBody, { kind: K }>) => string
     mutate: (body: Extract<DiagramBody, { kind: K }>, op: never) => Result<Extract<DiagramBody, { kind: K }>, MutationError>
   },
@@ -68,7 +70,9 @@ function structuredFamilyHooks<K extends DiagramBody['kind'] & DiagramKind>(
       const lines = ctx.lines
       const { opaqueSource } = ctx
       const headerOk = opts.headerOk?.(lines[0]?.trim() ?? '') ?? true
-      const body = headerOk ? opts.parseBody(lines.slice(1), ctx.meta.accessibility) : null
+      const raw = ctx.source.familyBody.split(/\r?\n/)
+      const headerAt = raw.findIndex(line => line.trim() === lines[0]?.trim())
+      const body = headerOk ? opts.parseBody(lines.slice(1), ctx.meta.accessibility, raw.slice(headerAt + 1)) : null
       return ok(body ?? { kind: 'opaque', family: kind, source: opaqueSource })
     },
     serialize: body => {
@@ -366,24 +370,6 @@ function locatedSourceLines(lines: readonly string[]): LocatedSourceLine[] {
   }))
 }
 
-/** Preserve physical offsets while following the class parser's compact
- * `namespace X { class A; ... }` expansion. The source-map scanner only needs
- * the brace-free body statements; namespace ownership remains in the parsed
- * body and layout projection. */
-function locatedClassSourceStatements(lines: readonly string[]): LocatedSourceLine[] {
-  return locatedSourceLines(lines).flatMap(source => {
-    const expanded = expandInlineNamespaceStatement(source.trimmed)
-    if (expanded.length === 1) return [source]
-    let cursor = source.start
-    return expanded.slice(1, -1).flatMap(trimmed => {
-      const start = source.line.indexOf(trimmed, cursor)
-      if (start < 0) return []
-      cursor = start + trimmed.length
-      return [{ ...source, trimmed, start }]
-    })
-  })
-}
-
 function pieSliceSourceLocations(lines: readonly string[]): Array<{ label: string; location: { line: number; col: number } }> {
   return lines.flatMap((line, lineIndex) => {
     const match = line.match(/^\s*"((?:[^"\\]|\\.)*)"\s*:/)
@@ -411,50 +397,61 @@ function buildClassSourceMap(body: DiagramBody, canonicalSource: string): Source
   if (body.kind !== 'class') return map
   const b = body as ClassBody
   const lines = canonicalSource.split(/\r?\n/)
-  const located = locatedClassSourceStatements(lines)
+  const tree = readClassStatements(lines)
   const nodeDeclarations = new Map<string, { line: number; col: number }>()
   const memberSources = new Map<string, Array<{ line: number; col: number }>>()
-  const relationSources: Array<{ source: LocatedSourceLine; relation: NonNullable<ReturnType<typeof parseClassRelationSyntax>> }> = []
-  let openClass: string | undefined
-
-  const addMember = (id: string, text: string, line: number, col: number): void => {
+  const relationSources: LocatedSourceLine[] = []
+  const cursors = new Map<number, number>()
+  const locate = (node: ClassStatementNode): LocatedSourceLine => {
+    const lineIndex = node.source.line - 1
+    const line = lines[lineIndex]!
+    const index = line.indexOf(node.text, cursors.get(lineIndex) ?? 0)
+    const start = index >= 0 ? index : line.length - line.trimStart().length
+    cursors.set(lineIndex, start + node.text.length)
+    return { line, lineIndex, start, trimmed: node.text }
+  }
+  const addMember = (id: string, text: string, source: LocatedSourceLine): void => {
     const key = `${id}\u0000${text}`
     const entries = memberSources.get(key) ?? []
-    entries.push(loc(line, col))
+    const index = source.line.indexOf(text, source.start)
+    entries.push(loc(source.lineIndex + 1, (index >= 0 ? index : source.start) + 1))
     memberSources.set(key, entries)
   }
-
-  for (const source of located) {
-    if (!source.trimmed || source.trimmed.startsWith('%%')) continue
-    if (openClass) {
-      if (source.trimmed === '}') {
-        openClass = undefined
-        continue
+  const declare = (id: string, source: LocatedSourceLine): void => {
+    const index = source.line.indexOf(id, source.start)
+    nodeDeclarations.set(id, loc(source.lineIndex + 1, (index >= 0 ? index : source.start) + 1))
+  }
+  const visit = (nodes: ClassStatementNode[], owner?: string): void => {
+    const frames = [{ nodes, owner, index: 0 }]
+    while (frames.length) {
+      const frame = frames.at(-1)!
+      if (frame.index === frame.nodes.length) { frames.pop(); continue }
+      const node = frame.nodes[frame.index++]!
+      const { owner } = frame
+      const source = locate(node)
+      const value = node.value
+      if (value.kind === 'class') {
+        declare(value.declaration.id, source)
+        if (node.children) frames.push({ nodes: node.children, owner: value.declaration.id, index: 0 })
+      } else if (value.kind === 'namespace') frames.push({ nodes: node.children!, owner: undefined, index: 0 })
+      else if (value.kind === 'relationship') relationSources.push(source)
+      else if (value.kind === 'member') {
+        const id = value.reference?.id ?? owner!
+        addMember(id, value.text, source)
+        if (value.reference && !nodeDeclarations.has(id)) declare(id, source)
+      } else if (value.kind === 'body-annotation') addMember(owner!, node.text, source)
+      else if (value.kind === 'annotation') {
+        if (!nodeDeclarations.has(value.annotation.id)) declare(value.annotation.id, source)
+        addMember(value.annotation.id, `<<${value.annotation.annotation}>>`, source)
+      } else if (value.kind === 'interaction' || value.kind === 'note') {
+        const id = value.kind === 'interaction' ? value.interaction.id : value.reference?.id
+        if (id && !nodeDeclarations.has(id)) declare(id, source)
+      } else if (value.kind === 'style' || value.kind === 'assignment') {
+        for (const reference of value.references) if (!nodeDeclarations.has(reference.id)) declare(reference.id, source)
       }
-      addMember(openClass, source.trimmed, source.lineIndex + 1, source.start + 1)
-      continue
-    }
-    const declaration = parseClassDeclaration(source.trimmed)
-    if (declaration) {
-      const idStart = source.line.indexOf(declaration.id, source.start)
-      nodeDeclarations.set(declaration.id, loc(source.lineIndex + 1, (idStart >= 0 ? idStart : source.start) + 1))
-      if (declaration.opensBody) openClass = declaration.id
-      continue
-    }
-    const relation = parseClassRelationSyntax(source.trimmed)
-    if (relation) {
-      relationSources.push({ source, relation })
-      continue
-    }
-    const inlineMember = source.trimmed.match(/^(\S+?)\s*:\s*(.+)$/)
-    const reference = inlineMember ? parseClassReference(inlineMember[1]!) : null
-    if (inlineMember && reference) {
-      const member = inlineMember[2]!.trim()
-      const memberStart = source.line.indexOf(member, source.start + inlineMember[1]!.length)
-      addMember(reference.id, member, source.lineIndex + 1, (memberStart >= 0 ? memberStart : source.start) + 1)
-      if (!nodeDeclarations.has(reference.id)) nodeDeclarations.set(reference.id, loc(source.lineIndex + 1, source.start + 1))
     }
   }
+  visit(tree.statements)
 
   for (const c of b.classes) {
     const declared = nodeDeclarations.get(c.id)
@@ -470,7 +467,7 @@ function buildClassSourceMap(body: DiagramBody, canonicalSource: string): Source
   b.relations.forEach((r, index) => {
     const locatedRelation = relationSources[index]
     if (!locatedRelation) return
-    const { source } = locatedRelation
+    const source = locatedRelation
     const key = `rel#${index}:${r.from}->${r.to}`
     const relationLocation = loc(source.lineIndex + 1, source.start + 1)
     map.edges.set(key, relationLocation)
@@ -500,57 +497,27 @@ function buildErSourceMap(body: DiagramBody, canonicalSource: string): SourceMap
   if (body.kind !== 'er') return map
   const b = body as ErBody
   const lines = canonicalSource.split(/\r?\n/)
-  const located = locatedSourceLines(lines)
   const nodeDeclarations = new Map<string, { line: number; col: number }>()
   const attributeSources = new Map<string, Array<{ line: number; col: number }>>()
-  const relationSources: Array<{ source: LocatedSourceLine; relation: NonNullable<ReturnType<typeof parseErRelationshipSyntax>> }> = []
-  let openEntity: string | undefined
-  let openGroups = 0
-
-  for (const source of located) {
-    if (!source.trimmed || source.trimmed.startsWith('%%')) continue
-    // Both ER parsers read a trailing `%%` comment as a comment.
-    const text = stripTrailingComment(source.trimmed)
-    if (openEntity) {
-      if (text === '}') {
-        openEntity = undefined
-        continue
-      }
-      const key = `${openEntity}\u0000${text}`
+  const relationSources: Array<{ source: LocatedSourceLine; relation: ParsedErRelationshipSyntax }> = []
+  const headerAt = lines.findIndex(line => /^erDiagram\s*$/i.test(line.trim()))
+  const tree = readErStatements(lines.slice(headerAt + 1))
+  for (const entry of tree.statements) {
+    const source: LocatedSourceLine = {
+      line: entry.raw, trimmed: entry.raw.trim(), lineIndex: headerAt + entry.line + 1,
+      start: entry.raw.length - entry.raw.trimStart().length,
+    }
+    const syntax = entry.syntax
+    if (syntax.kind === 'attribute') {
+      const key = `${entry.entityId}\u0000${syntax.text}`
       const entries = attributeSources.get(key) ?? []
       entries.push(loc(source.lineIndex + 1, source.start + 1))
       attributeSources.set(key, entries)
-      continue
+    } else if (syntax.kind === 'relation') {
+      relationSources.push({ source, relation: syntax.relation })
+    } else if (syntax.kind === 'entity' || syntax.kind === 'block-open') {
+      nodeDeclarations.set(syntax.reference.id, loc(source.lineIndex + 1, source.start + 1))
     }
-    // Grammar control lines can also be valid bare ER identifiers. Exclude
-    // them before entity-reference parsing so an entity introduced later by a
-    // relationship is mapped to that relationship, not to the family header
-    // or a surrounding subgraph delimiter.
-    if (source.lineIndex === 0 && /^erDiagram\s*$/i.test(source.trimmed)) continue
-    if (parseErGroupHeader(text)) {
-      openGroups++
-      continue
-    }
-    if (text === 'end' && openGroups > 0) {
-      openGroups--
-      continue
-    }
-    if (parseDirectionStatement(text)) continue
-    const relation = parseErRelationshipSyntax(text)
-    if (relation) {
-      relationSources.push({ source, relation })
-      continue
-    }
-    if (text.endsWith('{')) {
-      const entity = parseErEntityReference(text.slice(0, -1).trim())
-      if (entity) {
-        nodeDeclarations.set(entity.id, loc(source.lineIndex + 1, source.start + 1))
-        openEntity = entity.id
-        continue
-      }
-    }
-    const entity = parseErEntityReference(text)
-    if (entity) nodeDeclarations.set(entity.id, loc(source.lineIndex + 1, source.start + 1))
   }
 
   for (const e of b.entities) {
@@ -674,18 +641,16 @@ function buildGanttSourceMap(body: DiagramBody, canonicalSource: string): Source
   if (body.kind !== 'gantt') return map
   const b = body as GanttBody
   const lines = canonicalSource.split(/\r?\n/)
+  const statements = readGanttStatements(lines)
   const taskOccurrences = new Map<string, number>()
   const sectionOccurrences = new Map<string, number>()
   for (const section of b.sections) {
     if (section.label) {
       const wanted = nextOccurrence(sectionOccurrences, section.label)
       let seen = 0
-      for (let lineIndex = 0; lineIndex < lines.length; lineIndex++) {
-        const match = lines[lineIndex]!.match(/^\s*section\s+(.+?)\s*$/i)
-        if (!match || match[1]!.trim() !== section.label || seen++ !== wanted) continue
-        const keyword = lines[lineIndex]!.match(/^\s*section\s+/i)!
-        const labelStart = lines[lineIndex]!.indexOf(match[1]!, keyword[0].length)
-        const location = loc(lineIndex + 1, labelStart + 1)
+      for (const statement of statements) {
+        if (statement.kind !== 'section' || statement.value !== section.label || seen++ !== wanted) continue
+        const location = loc(statement.startLine, statement.valueColumn!)
         map.groups.set(section.id, location)
         map.labels.set(`gantt:${section.id}:label`, location)
         break
@@ -696,12 +661,12 @@ function buildGanttSourceMap(body: DiagramBody, canonicalSource: string): Source
       const signature = `${task.label}\u0000${task.end}`
       const wanted = nextOccurrence(taskOccurrences, signature)
       let seen = 0
-      for (let lineIndex = 0; lineIndex < lines.length; lineIndex++) {
-        const line = lines[lineIndex]!
-        const colon = line.indexOf(':')
-        if (colon < 0 || line.slice(0, colon).trim() !== task.label || !line.slice(colon + 1).includes(task.end)) continue
+      for (const statement of statements) {
+        if (statement.kind !== 'task' || statement.label !== task.label) continue
+        const end = statement.meta.end.kind === 'until' ? `until ${statement.meta.end.refs.join(' ')}` : statement.meta.end.raw
+        if (end !== task.end) continue
         if (seen++ !== wanted) continue
-        const location = loc(lineIndex + 1, firstIndex(line, task.label))
+        const location = loc(statement.startLine, firstIndex(statement.raw[0]!, task.label))
         map.nodes.set(stableId, location)
         map.labels.set(`gantt:task:${stableId}`, location)
         break
@@ -776,7 +741,7 @@ const ER_AGENT_HOOKS = {
     // tolerated by the renderer but unmodeled here: keep the body opaque so
     // the clause round-trips verbatim instead of being dropped on serialize.
     headerOk: h => /^erdiagram\s*$/i.test(h),
-    parseBody: parseErBody,
+    parseBody: (lines, _accessibility, rawBodyLines) => parseErBody(lines, rawBodyLines),
     serialize: renderEr,
     mutate: mutateEr,
   }),
@@ -1170,28 +1135,11 @@ const QUADRANT_AGENT_HOOKS = {
 function extractGanttLabels(source: string): ExtractedLabel[] {
   const out: ExtractedLabel[] = []
   const lines = source.split(/\r?\n/)
-  for (let i = 0; i < lines.length; i++) {
-    const raw = lines[i]!.trim()
-    if (!raw || raw.startsWith('%%')) continue
-    const target = `line${i + 1}`
-    let m
-    if (/^gantt\s*$/i.test(raw)) continue
-    if ((m = raw.match(/^(?:title|section)\s+(.+)$/i))) {
-      out.push({ text: m[1]!.trim(), target })
-      continue
-    }
-    if ((m = raw.match(/^acc(?:Title|Descr)\s*:\s*(.+)$/i))) {
-      out.push({ text: m[1]!.trim(), target })
-      continue
-    }
-    // Directive lines carry config values, not labels.
-    if (/^(dateFormat|axisFormat|tickInterval|inclusiveEndDates|topAxis|excludes|includes|todayMarker|weekday|weekend|click|accDescr)\b/i.test(raw)) continue
-    // Task line: the label is everything before the first colon.
-    const colon = raw.indexOf(':')
-    if (colon > 0) {
-      const text = raw.slice(0, colon).trim()
-      if (text) out.push({ text, target })
-    }
+  for (const statement of readGanttStatements(lines)) {
+    const target = `line${statement.startLine}`
+    if (statement.kind === 'title' || statement.kind === 'section') out.push({ text: statement.value, target })
+    else if (statement.kind === 'task') out.push({ text: statement.label, target })
+    else if (statement.kind === 'accessibility') out.push({ text: statement.directive.value, target })
   }
   return out
 }
@@ -1232,14 +1180,10 @@ const GANTT_AGENT_HOOKS = {
 function extractArchitectureLabels(source: string): ExtractedLabel[] {
   const out: ExtractedLabel[] = []
   const lines = source.split(/\r?\n/)
-  for (let i = 0; i < lines.length; i++) {
-    const raw = lines[i]!.trim()
-    if (!raw || raw.startsWith('%%')) continue
-    const title = raw.match(/^title\s+(.+)$/i)
-    if (title) out.push({ text: title[1]!.trim(), target: 'title' })
-    for (const m of raw.matchAll(/\[([^\]]+)\]/g)) {
-      out.push({ text: m[1]!, target: `line${i + 1}` })
-    }
+  for (const statement of readArchitectureStatements(lines)) {
+    if (statement.kind === 'title') out.push({ text: statement.value, target: 'title' })
+    else if (statement.kind === 'group' || statement.kind === 'service') out.push({ text: statement.declaration.title, target: `line${statement.startLine}` })
+    else if (statement.kind === 'edge' && statement.edge.label !== undefined) out.push({ text: statement.edge.label, target: `line${statement.startLine}` })
   }
   return out
 }

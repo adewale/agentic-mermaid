@@ -5,7 +5,7 @@ import { requireClosedAccessibility, scanAccessibilityDirectives } from '../shar
 import { parseDirectionStatement } from '../shared/direction-statement.ts'
 import { parseStyleProps } from '../shared/style-props.ts'
 import { stripTrailingComment, trailingCommentStart } from '../shared/trailing-comment.ts'
-import { createErCreationFold } from './creation.ts'
+import { createErCreationFold, type ErPlacement } from './creation.ts'
 import { decodeErText, erDisplayText, type ErQuotedTextReport, readErQuotedName, readErRelationLabel } from './text.ts'
 
 // Mermaid ER accepts ordinary names, numeric/decimal names, and fully quoted
@@ -202,7 +202,9 @@ export function readErStatement(source: string, inGroup: boolean, report?: ErQuo
   if (/^class(?:[ \t]|$)/i.test(line)) throw new Error(`Invalid ER class assignment: ${line}`)
   const inlineStyle = line.match(/^style\s+(.+?)\s+(.+)$/i)
   if (inlineStyle) {
-    const ids = inlineStyle[1]!.split(',').map(value => parseErEntityReference(value.trim(), report)?.id).filter((value): value is string => value !== undefined)
+    const references = inlineStyle[1]!.split(',').map(value => parseErEntityReference(value.trim(), report))
+    if (references.some(reference => reference === null)) throw new Error(`Invalid ER style assignment: ${line}`)
+    const ids = references.map(reference => reference!.id)
     return { kind: 'style', ids, props: parseStyleProps(inlineStyle[2]!) }
   }
 
@@ -221,6 +223,66 @@ export function readErStatement(source: string, inGroup: boolean, report?: ErQuo
 }
 
 const ER_BLOCK_OPEN_RE = new RegExp(`^(${ER_ENTITY_REFERENCE_SOURCE})\\s*\\{$`)
+
+export interface ErSourceStatement {
+  raw: string
+  /** Zero-based line in the supplied grammar view. */
+  line: number
+  column: number
+  endColumn: number
+  groupId?: string
+  entityId?: string
+  relationEntityIds?: string[]
+  syntax: ErStatementLine
+    | { kind: 'attribute'; attribute: ErAttribute; text: string }
+    | { kind: 'block-close' }
+    | { kind: 'unknown' | 'comment' | 'blank' }
+}
+
+/** The lossless ER grammar view. Scope and creation are decided here, before
+ * either consumer projects statements into its own model. */
+export function readErStatements(lines: readonly string[], report?: (what: string, portable: string, line: number) => void): { statements: ErSourceStatement[]; placement: ErPlacement } {
+  const statements: ErSourceStatement[] = []
+  const fold = createErCreationFold()
+  let entityId: string | undefined
+  for (let line = 0; line < lines.length; line++) {
+    const raw = lines[line]!
+    const text = raw.trim()
+    const context = { raw, line, column: 0, endColumn: raw.length, ...(fold.innermost !== undefined ? { groupId: fold.innermost } : {}), ...(entityId !== undefined ? { entityId } : {}) }
+    if (!text || text.startsWith('%%')) {
+      statements.push({ ...context, syntax: { kind: text ? 'comment' : 'blank' } })
+      continue
+    }
+    if (entityId !== undefined) {
+      const attributeText = stripTrailingComment(text)
+      if (attributeText === '}') {
+        statements.push({ ...context, syntax: { kind: 'block-close' } })
+        entityId = undefined
+      } else {
+        const attribute = parseErAttribute(attributeText)
+        statements.push({ ...context, syntax: attribute ? { kind: 'attribute', attribute, text: attributeText } : { kind: 'unknown' } })
+      }
+      continue
+    }
+    const syntax = readErStatement(text, fold.innermost !== undefined,
+      report ? (what, portable) => report(what, portable, line) : undefined) ?? { kind: 'unknown' as const }
+    const entry: ErSourceStatement = { ...context, syntax }
+    statements.push(entry)
+    switch (syntax.kind) {
+      case 'group-open': fold.open(syntax.id); break
+      case 'end': fold.close(); break
+      case 'block-open': entityId = syntax.reference.id; fold.declare(entityId, syntax.reference.alias); break
+      case 'entity': fold.declare(syntax.reference.id, syntax.reference.alias); break
+      case 'relation':
+        entry.relationEntityIds = [syntax.relation.entity1, syntax.relation.entity2]
+          .filter(end => fold.relationEnd(end.id, end.alias)).map(end => end.id)
+        break
+      case 'style': for (const id of syntax.ids) fold.style(id); break
+    }
+  }
+  if (entityId !== undefined) throw new Error(`ER_UNCLOSED_ENTITY: entity '${entityId}' needs a closing }`)
+  return { statements, placement: fold.finish() }
+}
 
 /**
  * Parse a Mermaid ER diagram.
@@ -244,7 +306,7 @@ export function parseErDiagram(lines: string[]): ErDiagram {
   }
 
   // Which statement creates each entity, and which subgraph keeps it.
-  const fold = createErCreationFold()
+  const source = readErStatements(lines.slice(1))
   // Entity records by id; their order and subgraphs come from the fold.
   const entityMap = new Map<string, ErEntity>()
   // Keep repeated assignments linear; materialize the public string once.
@@ -255,46 +317,28 @@ export function parseErDiagram(lines: string[]): ErDiagram {
     return entity
   }
   const declare = (reference: ParsedErEntityReference): ErEntity => {
-    fold.declare(reference.id, reference.alias)
     return ensureStyledEntity(reference.id, reference.className)
   }
   // Subgraph labels and scoped directions; nesting and members come from the fold.
   const groupById = new Map<string, Omit<ErDiagram['groups'][number], 'entityIds'>>()
-  let currentEntity: ErEntity | null = null
-
-  for (let i = 1; i < lines.length; i++) {
-    const line = lines[i]!
-
-    // --- Inside entity body ---
-    if (currentEntity) {
-      const statement = stripTrailingComment(line)
-      if (statement === '}') {
-        currentEntity = null
-        continue
-      }
-
-      // Attribute line: type name [PK|FK|UK] ["comment"]
-      const attr = parseErAttribute(statement)
-      if (attr) {
-        currentEntity.attributes.push(attr)
-      }
-      continue
-    }
-
-    const statement = readErStatement(line, fold.innermost !== undefined)
-    switch (statement?.kind) {
+  for (const entry of source.statements) {
+    const statement = entry.syntax
+    switch (statement.kind) {
+      case 'unknown':
+        throw new Error(`ER_UNSUPPORTED_STATEMENT: line ${entry.line + 2}: ${entry.raw.trim()}`)
+      case 'attribute':
+        entityMap.get(entry.entityId!)!.attributes.push(statement.attribute)
+        break
       case 'direction': {
-        const group = fold.innermost !== undefined ? groupById.get(fold.innermost) : undefined
+        const group = entry.groupId !== undefined ? groupById.get(entry.groupId) : undefined
         if (group) group.direction = statement.direction
         else diagram.direction = statement.direction
         break
       }
       case 'group-open':
-        fold.open(statement.id)
         groupById.set(statement.id, { id: statement.id, label: erDisplayText(statement.title ?? statement.id) })
         break
       case 'end':
-        fold.close()
         break
       case 'class-def':
         for (const name of statement.names) diagram.classDefs.set(name, { ...statement.props })
@@ -307,19 +351,18 @@ export function parseErDiagram(lines: string[]): ErDiagram {
         break
       case 'style':
         for (const id of statement.ids) {
-          fold.style(id)
           const entity = ensureEntity(entityMap, id)
           entity.inlineStyle = { ...entity.inlineStyle, ...statement.props }
         }
         break
       case 'block-open':
-        currentEntity = declare(statement.reference)
+        declare(statement.reference)
         break
       case 'relation': {
-        diagram.relationships.push(relationshipFrom(statement.relation, line))
+        diagram.relationships.push(relationshipFrom(statement.relation, entry.raw))
         // Group endpoints retain group identity instead of minting phantom entities.
         for (const end of [statement.relation.entity1, statement.relation.entity2]) {
-          if (fold.relationEnd(end.id, end.alias)) ensureStyledEntity(end.id, end.className)
+          if (entry.relationEntityIds!.includes(end.id)) ensureStyledEntity(end.id, end.className)
         }
         break
       }
@@ -330,7 +373,7 @@ export function parseErDiagram(lines: string[]): ErDiagram {
     }
   }
 
-  const placement = fold.finish()
+  const placement = source.placement
   for (const [id, names] of classNamesByEntity) entityMap.get(id)!.className = names.join(' ')
   diagram.entities = placement.order.map(id => {
     const entity = entityMap.get(id)!
@@ -384,7 +427,7 @@ export function parseErAttribute(line: string): ErAttribute | null {
     const upper = part.toUpperCase()
     if (upper === 'PK' || upper === 'FK' || upper === 'UK') {
       keys.push(upper as 'PK' | 'FK' | 'UK')
-    }
+    } else if (part) return null
   }
 
   return { type, name, keys, comment }

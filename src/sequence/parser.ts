@@ -2,7 +2,7 @@ import type { SequenceDiagram, Actor, Message, Block, Note, SequenceBoxGroup, Se
 import { normalizeBrTags } from '../multiline-utils.ts'
 import { scanAccessibilityDirectives } from '../shared/accessibility-directives.ts'
 import { isCssColorToken, sequenceRectColor } from './colors.ts'
-import { splitSequenceStatementLines } from './statements.ts'
+import { isSequenceCommentLine, scanSequenceStatementLines, splitSequenceStatementLines, type SequenceSourceSpan } from './statements.ts'
 import { metadataText, readMetadataBlock } from '../shared/metadata-yaml.ts'
 import { syntaxError } from '../shared/syntax-error.ts'
 import { continuationBelongsToBlock, parseSequenceBlockContinuation, parseSequenceBlockOpener, type SequenceBlockContinuation, type SequenceBlockOpener } from './block-keywords.ts'
@@ -165,8 +165,11 @@ export function parseSequenceDiagram(lines: string[], opts: { showSequenceNumber
   // Lifecycle bindings (`create X` / `destroy X`), by actor id.
   const createdAt = new Map<string, number>()
   const destroyedAt = new Map<string, number>()
-  // Track block nesting with a stack
-  const blockStack: Array<{ type: Block['type']; label: string; color?: string; startIndex: number; dividers: Block['dividers'] }> = []
+  const source = readSequenceStatements(lines.slice(1))
+  const boundaryIssue = source.issues.find(issue => issue.syntax === 'sequence_block_boundary')
+  if (boundaryIssue) throw new Error(`SEQUENCE_BLOCK_BOUNDARY: line ${boundaryIssue.line + 2}: ${boundaryIssue.message}`)
+  // Render data is keyed by shared statement identity, not another scope parser.
+  const blocks = new Map<number, { type: Block['type']; label: string; color?: string; startIndex: number; dividers: Block['dividers'] }>()
   // Active autonumber state; null = numbering off
   let autonumber: { next: number; step: number } | null = opts.showSequenceNumbers === true ? { next: 1, step: 1 } : null
   // Actors awaiting their binding message (`create X` / `destroy X` directives
@@ -208,10 +211,18 @@ export function parseSequenceDiagram(lines: string[], opts: { showSequenceNumber
     diagram.messages.push(msg)
   }
 
-  for (let i = 1; i < lines.length; i++) {
-    const line = lines[i]!
-    const statement = parseSequenceStatement(line)
-    if (!statement) continue
+  for (const [index, entry] of source.statements.entries()) {
+    const line = entry.raw.trim()
+    if (entry.error) throw entry.error
+    const statement = entry.syntax
+    if (!statement) {
+      // Sequence's existing generous universal-directive policy keeps valid
+      // messages after an unclosed accDescr opener; verify diagnoses the
+      // preserved opener rather than treating it as family syntax.
+      if (accessibility.unclosedIndex !== undefined && line === accessibility.familyLines[accessibility.unclosedIndex]?.trim()) continue
+      if (line && !isSequenceCommentLine(line)) throw new Error(`SEQUENCE_UNSUPPORTED_STATEMENT: line ${entry.line + 2}: ${line}`)
+      continue
+    }
     participants.applyAll(participantEventsOf(statement))
 
     switch (statement.kind) {
@@ -304,7 +315,7 @@ export function parseSequenceDiagram(lines: string[], opts: { showSequenceNumber
       if (opener.type === 'rect' && rectArgument && !color) {
         throw new Error('SEQUENCE_RECT_COLOR_UNSUPPORTED: rect requires a safe concrete CSS color')
       }
-      blockStack.push({
+      blocks.set(index, {
         type: blockType,
         label,
         ...(color ? { color } : {}),
@@ -316,8 +327,8 @@ export function parseSequenceDiagram(lines: string[], opts: { showSequenceNumber
 
     // --- Block divider: else, and, option (only on their owning blocks) ---
     case 'continuation': {
-      const top = blockStack[blockStack.length - 1]
-      if (top && continuationBelongsToBlock(statement.continuation.type, top.type)) {
+      const top = entry.parent !== undefined ? blocks.get(entry.parent) : undefined
+      if (top) {
         top.dividers.push({ index: diagram.messages.length, label: normalizeBrTags(statement.continuation.label) })
       }
       break
@@ -326,7 +337,7 @@ export function parseSequenceDiagram(lines: string[], opts: { showSequenceNumber
     // --- Block end, else box end (boxes only wrap participant
     //     declarations, so an `end` with no open block closes the open box) ---
     case 'end': {
-      const completed = blockStack.pop()
+      const completed = blocks.get(entry.closes!)
       if (completed) {
         diagram.blocks.push({
           type: completed.type,
@@ -388,6 +399,58 @@ export type SequenceStatementSyntax =
   | { kind: 'message'; message: ParsedSequenceMessageLine }
   | { kind: 'activation'; actorId: string; activate: boolean }
 
+export interface SequenceSourceStatement extends SequenceSourceSpan {
+  syntax: SequenceStatementSyntax | null
+  /** Statement index of the containing block/box and matching boundaries. */
+  parent?: number
+  endIndex?: number
+  closes?: number
+  error?: unknown
+}
+
+export interface SequenceReadIssue {
+  line: number
+  syntax: string
+  message: string
+}
+
+/** A lossless, scope-aware grammar view shared by both projections. The
+ * parser alone decides which opener owns an end or branch continuation. */
+export function readSequenceStatements(lines: readonly string[]): { statements: SequenceSourceStatement[]; issues: SequenceReadIssue[] } {
+  const statements: SequenceSourceStatement[] = scanSequenceStatementLines(lines).map(span => {
+    if (!span.raw.trim() || isSequenceCommentLine(span.raw)) return { ...span, syntax: null }
+    try { return { ...span, syntax: parseSequenceStatement(span.raw.trim()) } }
+    catch (error) { return { ...span, syntax: null, error } }
+  })
+  const stack: number[] = []
+  const issues: SequenceReadIssue[] = []
+  const issue = (entry: SequenceSourceStatement, syntax: string, message: string): void => { issues.push({ line: entry.line, syntax, message }) }
+  for (const [index, entry] of statements.entries()) {
+    const { syntax } = entry
+    if (stack.length) entry.parent = stack.at(-1)!
+    if (!syntax) {
+      if (entry.raw.trim() && !isSequenceCommentLine(entry.raw)) issue(entry, 'sequence_statement', `Sequence statement is preserved in source but not drawn: ${entry.raw.trim()}`)
+      continue
+    }
+    if (syntax.kind === 'block' || syntax.kind === 'box') {
+      stack.push(index)
+    } else if (syntax.kind === 'end') {
+      const closes = stack.pop()
+      if (closes === undefined) issue(entry, 'sequence_block_boundary', 'Sequence end has no open block or box')
+      else { entry.closes = closes; statements[closes]!.endIndex = index }
+    } else if (syntax.kind === 'continuation') {
+      const parent = entry.parent !== undefined ? statements[entry.parent]!.syntax : null
+      if (parent?.kind !== 'block' || !continuationBelongsToBlock(syntax.continuation.type, parent.opener.type)) {
+        issue(entry, 'sequence_block_boundary', `Sequence ${syntax.continuation.type} does not belong to the enclosing block`)
+      }
+    } else if (syntax.kind === 'declaration' && syntax.declaration.unmodeledMetadata?.length) {
+      issue(entry, 'sequence_participant_metadata', `Participant metadata fields ${syntax.declaration.unmodeledMetadata.join(', ')} are not modeled; the declaration is preserved as source`)
+    }
+  }
+  for (const index of stack) issue(statements[index]!, 'sequence_block_boundary', 'Sequence block or box is never closed by end')
+  return { statements, issues }
+}
+
 /** Classify one trimmed statement line, or null when it is no sequence
  * statement. */
 export function parseSequenceStatement(line: string): SequenceStatementSyntax | null {
@@ -404,6 +467,8 @@ export function parseSequenceStatement(line: string): SequenceStatementSyntax | 
     const rest = autonumber[1]?.trim() ?? ''
     if (/^off$/i.test(rest)) return { kind: 'autonumber', numbering: null }
     const nums = rest.match(/^(\d+(?:\.\d+)?)(?:\s+(\d+(?:\.\d+)?))?$/)
+    if (rest && !nums) return null
+    if (nums && (!Number.isFinite(Number(nums[1])) || (nums[2] !== undefined && !Number.isFinite(Number(nums[2]))))) return null
     return {
       kind: 'autonumber',
       numbering: {
@@ -470,7 +535,7 @@ const ACTOR_TYPES = new Set<SequenceActorType>(['participant', 'actor', 'boundar
 /** A `participant`/`actor` declaration. `aliased` records whether it names the
  *  actor (`as …` or a metadata alias): Mermaid lets only a naming declaration
  *  change an actor that already exists. */
-export type ParsedActorDeclaration = Pick<Actor, 'id' | 'label' | 'type'> & { keyword: 'participant' | 'actor'; aliased: boolean }
+export type ParsedActorDeclaration = Pick<Actor, 'id' | 'label' | 'type'> & { keyword: 'participant' | 'actor'; aliased: boolean; unmodeledMetadata?: string[] }
 
 export function parseActorDeclaration(line: string): ParsedActorDeclaration | null {
   const metadata = line.match(/^(participant|actor)\s+([^\s@]+)@\{/i)
@@ -501,8 +566,13 @@ export function parseActorDeclaration(line: string): ParsedActorDeclaration | nu
     // `as` gives a text other than the id (`B@{ "alias": "Y" } as B` is Y).
     const metadataAlias = metadataText(entries.get('alias'))
     const alias = metadataAlias !== undefined && (asText === undefined || asText === id) ? metadataAlias : asText
-    return { id, label: normalizeBrTags(alias ?? id), type, keyword: baseType, aliased: alias !== undefined }
+    const unmodeledMetadata = [...entries.keys()].filter(key => key !== 'type' && key !== 'alias')
+    return {
+      id, label: normalizeBrTags(alias ?? id), type, keyword: baseType, aliased: alias !== undefined,
+      ...(unmodeledMetadata.length ? { unmodeledMetadata } : {}),
+    }
   }
+  if (line.includes('@{')) return null
   const ordinary = line.match(/^(participant|actor)\s+(\S+?)(?:\s+as\s+(.+))?$/i)
   if (!ordinary) return null
   const id = ordinary[2]!

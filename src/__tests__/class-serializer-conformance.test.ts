@@ -15,6 +15,7 @@ import { parseClassDiagram } from '../class/parser.ts'
 import type { ClassNamespace } from '../class/types.ts'
 import { parseRegisteredMermaid as parseMermaid, serializeMermaid, mutate, asClass, describeMermaidFacts } from '../agent/index.ts'
 import type { ClassValidDiagram, ClassMutationOp } from '../agent/types.ts'
+import { startUpstreamMermaid } from './helpers/upstream-mermaid.ts'
 
 function classDiagram(src: string): ClassValidDiagram {
   const r = parseMermaid(src)
@@ -35,6 +36,20 @@ function renderParse(source: string) {
   const lines = source.split('\n').map(l => l.trim()).filter(l => l.length > 0 && !l.startsWith('%%'))
   return parseClassDiagram(lines)
 }
+
+test('note edits write valid Mermaid while keeping literal quotes, backslashes and entity text', async () => {
+  const text = 'A "quote", \\ path, and literal &quot;'
+  const edited = apply(classDiagram('classDiagram\nclass A'), { kind: 'add_note', for: 'A', text })
+  const source = serializeMermaid(edited)
+  const upstream = startUpstreamMermaid()
+  try {
+    expect(await upstream.accepts(source)).toBe(true)
+  } finally {
+    await upstream.close()
+  }
+  expect(classDiagram(source).body.notes).toEqual([{ for: 'A', text }])
+  expect(renderParse(source).notes).toEqual([{ for: 'A', text }])
+})
 
 /** Flatten a namespace tree to { path → classIds } for structural equality. */
 function membershipByPath(namespaces: ClassNamespace[], prefix = ''): Map<string, string[]> {

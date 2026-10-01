@@ -29,17 +29,23 @@ import type {
 import { ok, err } from './types.ts'
 import { indexedIdAllocator, labelOverflowCollector, resolveInsertIndex } from './body-utils.ts'
 import { breakLineTags } from '../multiline-utils.ts'
-import { parseGanttTaskMeta, renderGanttTaskMeta, GANTT_TASK_TAGS, type ParsedTaskMeta } from '../gantt/parser.ts'
+import { readGanttStatements, renderGanttTaskMeta, GANTT_TASK_TAGS, type ParsedTaskMeta } from '../gantt/parser.ts'
 import { appendOpaqueSegment } from './opaque-segments.ts'
-import { parseAccessibilityDirective } from '../shared/accessibility-directives.ts'
 
-// Directive openers that are NEVER task lines even though they may contain `:`.
-const DIRECTIVE_LINE_RE = /^(dateFormat|axisFormat|tickInterval|inclusiveEndDates|topAxis|excludes|includes|todayMarker|weekday|weekend|click)\b/i
-const TITLE_RE = /^title\s+(.+)$/i
-const SECTION_RE = /^section\s+(.+)$/i
 const TASK_ID_RE = /^[\w-]+$/
 
 // ---- Parser -----------------------------------------------------------------
+
+/** Inline metadata comments are read generously, then written on their own
+ * line: Mermaid's Gantt lexer otherwise absorbs them into the end date. */
+export function ganttUnsupportedSyntaxWarnings(source: string): LayoutWarning[] {
+  const statements = readGanttStatements(source.split(/\r?\n/))
+  return statements.flatMap((statement, index) => statement.kind === 'comment'
+    && statements[index - 1]?.kind === 'task' && statements[index - 1]!.endLine === statement.startLine
+    ? [{ code: 'UNSUPPORTED_SYNTAX' as const, syntax: 'gantt_inline_task_comment', line: statement.startLine,
+      message: 'Inline task metadata comments are read as comments. Mermaid 11.16 reads them into the end date; put %% comments on their own line for portability.' }]
+    : [])
+}
 
 /**
  * Parse gantt body lines into a segment-preserving structured body.
@@ -65,77 +71,43 @@ export function parseGanttBody(trimmedLines: string[], rawLines?: string[]): Gan
     return currentSection
   }
 
-  let i = 0
-  while (i < raw.length) {
-    const rawLine = raw[i]!
-    const line = rawLine.trim()
-    if (!line || line.startsWith('%%')) {
-      // Comments are unmodeled lines: preserve them verbatim in position.
-      if (line.startsWith('%%')) appendOpaqueSegment(statements, [rawLine], ganttOpaqueBlock)
-      i++
-      continue
-    }
-
-    const accessibility = parseAccessibilityDirective(raw, i)
-    if (accessibility === undefined) return null
-    if (accessibility !== null) {
-      appendOpaqueSegment(statements, raw.slice(i, accessibility.endIndex + 1), ganttOpaqueBlock)
-      i = accessibility.endIndex + 1
-      continue
-    }
-
-    if (DIRECTIVE_LINE_RE.test(line)) {
-      appendOpaqueSegment(statements, [rawLine], ganttOpaqueBlock)
-      i++
-      continue
-    }
-
-    let m: RegExpMatchArray | null
-    if ((m = line.match(TITLE_RE))) {
-      body.title = m[1]!.trim()
+  for (const syntax of readGanttStatements(raw)) {
+    if (syntax.kind === 'blank') continue
+    if (syntax.kind === 'invalid' && syntax.structural) return null
+    if (syntax.kind === 'title') {
+      body.title = syntax.value
       // Re-declared titles keep their statement position (last wins for the value).
       statements.push({ kind: 'title' })
-      i++
       continue
     }
-
-    if ((m = line.match(SECTION_RE))) {
-      body.sections.push({ id: `section-${sIdx++}`, label: m[1]!.trim(), tasks: [] })
+    if (syntax.kind === 'section') {
+      body.sections.push({ id: `section-${sIdx++}`, label: syntax.value, tasks: [] })
       currentSection = body.sections.length - 1
       statements.push({ kind: 'section', ref: currentSection })
-      i++
       continue
     }
-
-    // Task line: `<label> : <metadata>`.
-    const colon = line.indexOf(':')
-    if (colon > 0 && colon < line.length - 1) {
-      const label = line.slice(0, colon).trim()
-      const meta = parseGanttTaskMeta(line.slice(colon + 1).trim())
-      if (label && meta) {
-        if (meta.id !== undefined) {
-          if (seenTaskIds.has(meta.id)) return null // duplicate ids → identity unsafe
-          seenTaskIds.add(meta.id)
-        }
-        const section = implicitSection()
-        const task: GanttBodyTask = {
-          id: `task-${tIdx++}`,
-          taskId: meta.id,
-          label,
-          tags: canonicalTags(meta.tags),
-          start: meta.start ? (meta.start.kind === 'after' ? `after ${meta.start.refs.join(' ')}` : meta.start.raw) : undefined,
-          end: meta.end.kind === 'until' ? `until ${meta.end.refs.join(' ')}` : meta.end.raw,
-        }
-        body.sections[section]!.tasks.push(task)
-        statements.push({ kind: 'task', section, ref: body.sections[section]!.tasks.length - 1 })
-        i++
-        continue
+    if (syntax.kind === 'task') {
+      const { label, meta } = syntax
+      if (meta.id !== undefined) {
+        if (seenTaskIds.has(meta.id)) return null // duplicate ids → identity unsafe
+        seenTaskIds.add(meta.id)
       }
+      const section = implicitSection()
+      const task: GanttBodyTask = {
+        id: `task-${tIdx++}`,
+        taskId: meta.id,
+        label,
+        tags: canonicalTags(meta.tags),
+        start: meta.start ? (meta.start.kind === 'after' ? `after ${meta.start.refs.join(' ')}` : meta.start.raw) : undefined,
+        end: meta.end.kind === 'until' ? `until ${meta.end.refs.join(' ')}` : meta.end.raw,
+      }
+      body.sections[section]!.tasks.push(task)
+      statements.push({ kind: 'task', section, ref: body.sections[section]!.tasks.length - 1 })
+      continue
     }
 
     // Any other unmodeled line rides along verbatim.
-    appendOpaqueSegment(statements, [rawLine], ganttOpaqueBlock)
-    i++
+    appendOpaqueSegment(statements, syntax.raw, ganttOpaqueBlock)
   }
 
   return body
@@ -246,10 +218,10 @@ function validateTask(task: GanttBodyTask): MutationError | null {
   }
   if (!task.end) return { code: 'INVALID_OP', message: 'Gantt task end (date, duration, or "until id") is required' }
   const line = renderTaskLine(task).trim()
-  const colon = line.indexOf(':')
-  const label = colon > 0 ? line.slice(0, colon).trim() : ''
-  const meta = colon > 0 ? parseGanttTaskMeta(line.slice(colon + 1).trim()) : null
-  const reparsesAsDirective = TITLE_RE.test(line) || SECTION_RE.test(line) || DIRECTIVE_LINE_RE.test(line)
+  const statement = readGanttStatements([line])[0]!
+  const label = statement.kind === 'task' ? statement.label : ''
+  const meta = statement.kind === 'task' ? statement.meta : null
+  const reparsesAsDirective = statement.kind !== 'task'
   if (!meta || label !== task.label || reparsesAsDirective) {
     return { code: 'INVALID_OP', message: `Gantt task does not round-trip through its canonical line ("${line}")` }
   }
@@ -265,7 +237,8 @@ function validateSectionLabel(label: string): MutationError | null {
     return { code: 'INVALID_OP', message: 'Gantt section label must be non-empty and must not contain ":" or newlines' }
   }
   const line = `section ${label.trim()}`
-  if (!SECTION_RE.test(line)) return { code: 'INVALID_OP', message: 'Gantt section label does not round-trip' }
+  const statement = readGanttStatements([line])[0]!
+  if (statement.kind !== 'section' || statement.value !== label.trim()) return { code: 'INVALID_OP', message: 'Gantt section label does not round-trip' }
   return null
 }
 

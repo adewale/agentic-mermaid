@@ -52,10 +52,6 @@ const EXPECTATIONS = `
 class:official-syntax/classDiagram.md#25 [ Opaque Unsupported ] # class-level 'direction RL' statement is not modelled
 class:official-syntax/classDiagram.md#28 [ Opaque Unsupported ] # 'callback' / 'click ... call' interaction lines are not modelled (callbacks never run offline)
 class:official-syntax/classDiagram.md#29 [ Opaque Unsupported ] # 'callback' / 'click ... call' interaction lines are not modelled (callbacks never run offline)
-class:official-syntax/classDiagram.md#31 [ Opaque Unsupported ] # 'class Name:::cssClass' shorthand is not modelled
-class:official-syntax/classDiagram.md#32 [ Opaque Unsupported ] # 'class Name:::cssClass { ... }' shorthand is not modelled
-class:official-syntax/classDiagram.md#33 [ Opaque Unsupported ] # 'class Name:::cssClass' shorthand is not modelled
-class:official-syntax/classDiagram.md#34 [ Opaque Unsupported ] # 'class Name:::cssClass' shorthand is not modelled
 # Flowchart
 flowchart:official-syntax/flowchart.md#3 [ Opaque Unsupported ] # markdown strings render styled runs but stay source-preserved
 flowchart:official-syntax/flowchart.md#66 [ Opaque Unsupported ] # '@{ icon: ... }' icon shapes are not modelled
@@ -66,7 +62,7 @@ flowchart:official-syntax/flowchart.md#101 [ Opaque Unsupported ] # click callba
 flowchart:official-syntax/flowchart.md#102 [ Opaque Unsupported ] # click hrefs with link targets are preserved but never executable
 # Gantt
 gantt:official-syntax/gantt.md#6 [ VerifyError RenderError ] # settings-only snippet has no tasks: diagnosed EMPTY_DIAGRAM where Mermaid draws an empty chart
-gantt:official-syntax/gantt.md#10 [ VerifyError RenderError ] # BUG-34 (#363, needs an owner decision): Mermaid 11.16 also reads the trailing '%%' on these task lines into the end date, then silently draws a zero-length task (its docs say gantt comments must be on their own line); ours rejects the invalid end date (GANTT_BAD_DATE)
+gantt:official-syntax/gantt.md#10 [ Unsupported VerifyError RenderError ] # inline task comments are diagnosed and canonicalized onto their own line; the undocumented workaround tag still becomes an invalid date
 # GitGraph
 gitgraph:official-syntax/gitgraph.md#14 [ Opaque Unsupported VerifyError RenderError ] # duplicate commit id "Boston" is rejected by design (receipt gitgraph.official.main-branch-duplicate-id-diagnosed)
 # Sequence: structured bodies with source-preserved opaque segments.

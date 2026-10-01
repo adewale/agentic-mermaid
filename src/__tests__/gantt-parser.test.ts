@@ -7,13 +7,63 @@
 
 import { describe, test, expect } from 'bun:test'
 import { Gantt } from 'mermaid-ast'
-import { parseGanttModel, parseGanttTaskMeta, renderGanttTaskMeta, applyGanttFrontmatterConfig } from '../gantt/parser.ts'
+import { parseGanttModel, parseGanttTaskMeta, renderGanttTaskMeta, applyGanttFrontmatterConfig, readGanttStatements } from '../gantt/parser.ts'
+import { parseGanttBody, renderGantt } from '../agent/gantt-body.ts'
 import { GanttError } from '../gantt/types.ts'
 import { normalizeMermaidSource } from '../mermaid-source.ts'
 
 function modelOf(src: string) {
   return parseGanttModel(normalizeMermaidSource(src).lines)
 }
+
+describe('Gantt source consumption', () => {
+  test('physical spans and raw unknown lines survive the shared statement reader', () => {
+    const lines = ['  %% keep', '  section Build', '  accDescr {', '    two lines', '  }', '  alien content', '  Ship :ship, 2024-01-01, 2d']
+    const statements = readGanttStatements(lines)
+    expect(statements.map(({ kind, startLine, endLine, raw }) => ({ kind, startLine, endLine, raw }))).toEqual([
+      { kind: 'comment', startLine: 1, endLine: 1, raw: [lines[0]!] },
+      { kind: 'section', startLine: 2, endLine: 2, raw: [lines[1]!] },
+      { kind: 'accessibility', startLine: 3, endLine: 5, raw: lines.slice(2, 5) },
+      { kind: 'invalid', startLine: 6, endLine: 6, raw: [lines[5]!] },
+      { kind: 'task', startLine: 7, endLine: 7, raw: [lines[6]!] },
+    ])
+    const body = parseGanttBody(lines)
+    expect(body).not.toBeNull()
+    const edited = renderGantt(body!)
+    expect(edited).toContain('  alien content\n')
+    expect(edited).toContain('  Ship :ship, 2024-01-01, 2d')
+    expect(() => parseGanttModel(['gantt', ...lines])).toThrow('Unrecognized gantt line "alien content"')
+  })
+
+  test('a statement after an accessibility block is consumed by both projections', () => {
+    const lines = ['accDescr { description } Ship :ship, 2024-01-01, 2d']
+    const body = parseGanttBody(lines)
+    expect(body).not.toBeNull()
+    expect(body!.sections.flatMap(section => section.tasks).map(task => task.label)).toEqual(['Ship'])
+    expect(parseGanttModel(['gantt', ...lines]).tasks.map(task => task.label)).toEqual(['Ship'])
+    expect(renderGantt(body!)).toContain('  Ship :ship, 2024-01-01, 2d')
+  })
+
+  test('malformed reserved directives cannot become apparently valid tasks', () => {
+    const line = 'topAxis :2024-01-01, 2d'
+    const body = parseGanttBody([line])
+    expect(body).not.toBeNull()
+    expect(body!.sections).toEqual([])
+    expect(renderGantt(body!)).toContain(line)
+    expect(() => parseGanttModel(['gantt', line])).toThrow('Unrecognized gantt line')
+  })
+
+  test('unclosed blocks retain the entire source range and suffix labels use physical columns', () => {
+    expect(readGanttStatements(['  accDescr {', '    unfinished', '    description'])).toMatchObject([
+      { kind: 'invalid', startLine: 1, endLine: 3, raw: ['  accDescr {', '    unfinished', '    description'] },
+    ])
+    const line = '  accDescr { description } section Delivery'
+    expect(readGanttStatements([line])[1]).toMatchObject({
+      kind: 'section', value: 'Delivery', startLine: 1, endLine: 1,
+      raw: [' section Delivery'], valueColumn: line.indexOf('Delivery') + 1,
+    })
+  })
+})
 
 // The two examples agents are most likely to try first, taken from
 // https://mermaid.js.org/syntax/gantt.html (docs as fixtures).

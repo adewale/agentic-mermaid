@@ -31,8 +31,22 @@ export function expandInlineNamespaceStatement(line: string): string[] {
   if (!match) return [line]
   const opener = `${match[1]} {`
   if (!parseNamespaceHeader(opener)) return [line]
-  const body = match[2]!.split(';').map(statement => statement.trim()).filter(Boolean)
-  return [opener, ...body, '}']
+  const body: string[] = []
+  let start = 0
+  let quote: string | undefined
+  for (let index = 0; index < match[2]!.length; index++) {
+    const character = match[2]![index]!
+    if (quote) {
+      if (character === '\\' && quote === '"') { index++; continue }
+      if (character === quote) quote = undefined
+    } else if (character === '"' || character === '`' || character === '~') quote = character
+    else if (character === ';') {
+      body.push(match[2]!.slice(start, index).trim())
+      start = index + 1
+    }
+  }
+  body.push(match[2]!.slice(start).trim())
+  return [opener, ...body.filter(Boolean), '}']
 }
 
 /** Split entity-created physical lines while retaining every other authored
@@ -97,12 +111,13 @@ function authoredClassStatements(lines: string[]): Array<string | undefined> {
 // Shared class declaration grammar. The structured serializer emits bracket
 // labels, so the renderer and agent parser must resolve them to the same
 // logical ID instead of treating `A["Label"]` as an identifier.
-const CLASS_DECLARATION_RE = /^class\s+(`[^`]+`|[\w$]+)(?:\s*~([^~]+)~)?(?:\s*\[\s*"([^"]*)"\s*\])?(?:\s+as\s+"([^"]+)")?(?:\s+~([^~]+)~)?\s*(\{\s*\}|\{)?\s*$/
+const CLASS_DECLARATION_RE = /^class\s+(`[^`]+`|[\w$]+)(?:\s*~([^~]+)~)?(?:\s*\[\s*"([^"]*)"\s*\])?(?:\s+as\s+"([^"]+)")?(?:\s+~([^~]+)~)?(?:\s*:::([\w-]+))?\s*(\{\s*\}|\{)?\s*$/
 
 export interface ParsedClassDeclaration {
   id: string
   label?: string
   generic?: string
+  className?: string
   opensBody: boolean
 }
 
@@ -114,7 +129,8 @@ export function parseClassDeclaration(line: string): ParsedClassDeclaration | nu
     id: rawId.startsWith('`') ? rawId.slice(1, -1) : rawId,
     generic: (match[2] ?? match[5])?.trim(),
     label: match[3] ?? match[4],
-    opensBody: match[6] === '{',
+    ...(match[6] ? { className: match[6] } : {}),
+    opensBody: match[7] === '{',
   }
 }
 
@@ -292,6 +308,165 @@ export function classStatement(line: string): string {
   return start < 0 ? line : line.slice(0, start).trimEnd()
 }
 
+type ClassReference = NonNullable<ReturnType<typeof parseClassReference>>
+type ClassSyntaxValue =
+  | { kind: 'header' | 'trivia' | 'close' }
+  | { kind: 'namespace'; path: string[]; label?: string }
+  | { kind: 'class'; declaration: ParsedClassDeclaration }
+  | { kind: 'member'; reference?: ClassReference; text: string }
+  | { kind: 'annotation'; annotation: ParsedClassAnnotationStatement }
+  | { kind: 'body-annotation'; text: string }
+  | { kind: 'relationship'; relationship: NonNullable<ReturnType<typeof parseClassRelationship>> }
+  | { kind: 'interaction'; interaction: NonNullable<ReturnType<typeof parseClassInteraction>> }
+  | { kind: 'note'; text: string; reference?: ClassReference; escapedQuotes?: boolean }
+  | { kind: 'direction'; direction: NonNullable<ReturnType<typeof parseDirectionStatement>> }
+  | { kind: 'title'; text: string }
+  | { kind: 'classDef'; names: string[]; props: Record<string, string> }
+  | { kind: 'assignment'; references: ClassReference[]; name: string }
+  | { kind: 'style'; references: ClassReference[]; props: Record<string, string> }
+  | { kind: 'unknown'; reason: string }
+  | { kind: 'source-only'; reason: string }
+
+/** A lossless syntax tree, before either renderer or typed-model projection.
+ * Offsets address the supplied lines joined with LF; line/column are one-based.
+ * Compact namespace fragments retain the containing physical line's span. */
+export interface ClassStatementNode {
+  raw: string
+  text: string
+  source: { line: number; column: number; start: number; end: number }
+  value: ClassSyntaxValue
+  children?: ClassStatementNode[]
+  closing?: ClassStatementNode
+}
+
+export interface ClassStatementTree {
+  /** Exact supplied source, including compact syntax, whitespace and comments. */
+  source: string
+  statements: ClassStatementNode[]
+  diagnostics: Array<{ reason: string; source: ClassStatementNode['source'] }>
+}
+
+/** Class-specific statement classification. Block ownership is handled only
+ * by readClassStatements; consumers never decide whether a line is a member. */
+function classifyClassStatement(text: string, authored: string | undefined): ClassSyntaxValue {
+  if (/^classDiagram\s*$/i.test(text)) return { kind: 'header' }
+  if (!text || text.startsWith('%%')) return { kind: 'trivia' }
+  if (text === '}') return { kind: 'close' }
+  const interaction = authored !== undefined ? parseClassInteractionWithAuthored(authored) : null
+  if (interaction) return { kind: 'interaction', interaction }
+  // These actions have an established inert sidecar surface. They remain
+  // opaque to editing, but rendering their target is safe and intentional.
+  if (/^callback\s+(?:`[^`]+`|[\w$]+)(?:~[^~]+~)?\s+"[^"\r\n]+"(?:\s+"[^"\r\n]*")?\s*$/i.test(text)
+    || /^click\s+(?:`[^`]+`|[\w$]+)(?:~[^~]+~)?\s+call\s+.+$/i.test(text)
+    || /^(?:click|link)\s+(?:`[^`]+`|[\w$]+)(?:~[^~]+~)?\s+(?:href\s+)?"(?!(?:https?:\/\/|mailto:))[^"\r\n]*"(?:\s+"[^"\r\n]*")?\s*$/i.test(text)) {
+    return { kind: 'source-only', reason: 'Class callback or unsafe/relative link is retained as inert source-only action metadata' }
+  }
+  // Validate note delimiters against authored bytes, then decode content.
+  // Entity quotes are text, not fresh syntax introduced by render normalization.
+  const note = classStatement((authored ?? text).trim()).match(/^note(?:\s+for\s+(\S+))?\s+"((?:\\.|[^"\\])*)"\s*$/i)
+  if (note) {
+    const reference = note[1] ? parseClassReference(decodeXML(note[1])) : undefined
+    if (!note[1] || reference) return {
+      kind: 'note', text: decodeXML(note[2]!.replace(/\\(["\\])/g, '$1')),
+      ...(reference ? { reference } : {}), ...(note[2]!.includes('\\"') ? { escapedQuotes: true } : {}),
+    }
+  }
+  const title = text.match(/^title\s+(.+)$/i)
+  if (title) return { kind: 'title', text: title[1]!.trim() }
+  const direction = parseDirectionStatement(text)
+  if (direction) return { kind: 'direction', direction }
+  const namespace = parseNamespaceHeader(text)
+  if (namespace) return { kind: 'namespace', ...namespace }
+  const references = (raw: string): ClassReference[] | null => {
+    const refs = raw.replace(/^"|"$/g, '').split(',').map(value => parseClassReference(value.trim()))
+    return refs.every((ref): ref is ClassReference => ref !== null) ? refs : null
+  }
+  const classDef = text.match(/^classDef\s+([\w,-]+)\s+(.+)$/)
+  if (classDef) {
+    const props = parseStyleProps(classDef[2]!)
+    if (Object.keys(props).length > 0) return { kind: 'classDef', names: classDef[1]!.split(',').filter(Boolean), props }
+  }
+  const assignment = text.match(/^(?:class|cssClass)\s+(.+?)\s+([\w-]+)$/)
+  if (assignment && !text.includes('{') && !text.includes('[') && !text.includes(' as ')) {
+    const refs = references(assignment[1]!)
+    if (refs) return { kind: 'assignment', references: refs, name: assignment[2]! }
+  }
+  const style = text.match(/^style\s+(.+?)\s+(.+)$/)
+  if (style) {
+    const refs = references(style[1]!)
+    const props = parseStyleProps(style[2]!)
+    if (refs && Object.keys(props).length > 0) return { kind: 'style', references: refs, props }
+  }
+  const annotation = parseClassAnnotationStatement(text)
+  if (annotation) return { kind: 'annotation', annotation }
+  const declaration = parseClassDeclaration(text)
+  if (declaration) return { kind: 'class', declaration }
+  const shorthand = text.match(/^(.+?):::([\w-]+)$/)
+  if (shorthand) {
+    const reference = parseClassReference(shorthand[1]!)
+    if (reference) return { kind: 'assignment', references: [reference], name: shorthand[2]! }
+  }
+  const member = text.match(/^(\S+?)\s*:\s*(.+)$/)
+  if (member) {
+    const reference = parseClassReference(member[1]!)
+    if (reference) return { kind: 'member', reference, text: member[2]!.trim() }
+  }
+  const relationship = parseClassRelationship(text)
+  if (relationship) return { kind: 'relationship', relationship }
+  const form = text.includes('<<') || text.includes('>>') ? 'annotation'
+    : isBareClassRelationshipCandidate(text) || isMarkedClassRelationshipCandidate(text) || isEscapedMarkedClassRelationshipCandidate(text) ? 'relationship'
+    : /^(?:click|link)\b/i.test(text) ? 'link' : ''
+  return { kind: 'unknown', reason: `Unrecognized class${form ? ` ${form}` : ''} statement "${text}"` }
+}
+
+/** Single owner of namespace and class-body boundaries, classification and
+ * malformed/unknown disposition. Retain unknown nodes for lossless callers;
+ * renderers must refuse diagnostics instead of drawing a partial diagram. */
+export function readClassStatements(lines: readonly string[], authoredLines?: readonly (string | undefined)[]): ClassStatementTree {
+  const tree: ClassStatementTree = { source: lines.join('\n'), statements: [], diagnostics: [] }
+  const stack: ClassStatementNode[] = []
+  let offset = 0
+  lines.forEach((raw, lineIndex) => {
+    const span = { line: lineIndex + 1, column: 1, start: offset, end: offset + raw.length }
+    offset += raw.length + 1
+    const authored = authoredLines ? authoredLines[lineIndex] : raw
+    const parts = expandInlineNamespaceStatement(raw.trim())
+    const authoredParts = authored === undefined ? [] : expandInlineNamespaceStatement(authored.trim())
+    for (let partIndex = 0; partIndex < parts.length; partIndex++) {
+      const source = parts[partIndex]!
+      const owner = stack[stack.length - 1]
+      const inClass = owner?.value.kind === 'class'
+      const text = inClass && !source.startsWith('}') ? source : classStatement(source)
+      let value: ClassSyntaxValue
+      if (!source || source.startsWith('%%')) value = { kind: 'trivia' }
+      else if (inClass && text !== '}') {
+        const annotation = parseClassBodyAnnotationToken(text)
+        value = annotation === null ? { kind: 'member', text } : { kind: 'body-annotation', text: annotation }
+      } else value = classifyClassStatement(text, authoredParts.length === parts.length ? authoredParts[partIndex] : undefined)
+      const node: ClassStatementNode = { raw: parts.length === 1 ? raw : source, text, source: span, value }
+      if (value.kind === 'close') {
+        if (owner) { owner.closing = node; stack.pop() }
+        else {
+          tree.statements.push(node)
+          tree.diagnostics.push({ reason: 'Unexpected closing brace in class diagram', source: span })
+        }
+        continue
+      }
+      const siblings = owner ? owner.children! : tree.statements
+      siblings.push(node)
+      if (value.kind === 'unknown') tree.diagnostics.push({ reason: value.reason, source: span })
+      if (value.kind === 'namespace' || (value.kind === 'class' && value.declaration.opensBody)) {
+        node.children = []
+        stack.push(node)
+      }
+    }
+  })
+  for (const owner of stack) tree.diagnostics.push({
+    reason: `Unclosed ${owner.value.kind === 'namespace' ? 'namespace' : 'class'} block`, source: owner.source,
+  })
+  return tree
+}
+
 /** Each body line (after the `classDiagram` header, accTitle/accDescr
  * included) whose trailing `%%` comment Mermaid's class grammar rejects,
  * walked as the parsers walk it: its index in `bodyLines` and what ours reads
@@ -312,24 +487,39 @@ export function classCommentRejections(bodyLines: readonly string[]): Array<{ in
     }
   }
   const rejections: Array<{ index: number; what: string }> = []
-  let namespaces = 0
-  let inClassBody = false
-  statements.forEach(({ text, index }, at) => {
+  const tree = readClassStatements(statements.map(statement => statement.text))
+  const check = (node: ClassStatementNode, namespaces: number, inClassBody: boolean): void => {
+    const at = node.source.line - 1
+    const { text, index } = statements[at]!
     // A member keeps `%%` as text; its closing brace is a statement again.
     if (text === '' || (inClassBody && !text.startsWith('}'))) return
     const start = classCommentStart(text)
-    const statement = start < 0 ? text : text.slice(0, start).trimEnd()
     if (start >= 0 && (namespaces > 0 || /^(?:class|namespace)\b/.test(text) || text.startsWith('}'))) {
       rejections.push({ index, what: 'A %% comment after a class declaration, a namespace or a statement inside one, or a closing brace is read as a comment' })
-    } else if (start >= 0 && at < statements.length - 1 && parseDirectionStatement(statement) === undefined) {
+    } else if (start >= 0 && at < statements.length - 1 && node.value.kind !== 'direction') {
       rejections.push({ index, what: 'A trailing %% comment on a statement that another statement follows is read as a comment' })
     }
-    if (inClassBody) {
-      if (statement === '}') inClassBody = false
-    } else if (parseNamespaceHeader(statement)) namespaces++
-    else if (statement === '}' && namespaces > 0) namespaces--
-    else if (parseClassDeclaration(statement)?.opensBody) inClassBody = true
-  })
+  }
+  const visit = (nodes: ClassStatementNode[], namespaces = 0, inClassBody = false): void => {
+    const frames: Array<{ nodes: ClassStatementNode[]; namespaces: number; inClassBody: boolean; index: number; closing?: ClassStatementNode }> = [{ nodes, namespaces, inClassBody, index: 0 }]
+    while (frames.length) {
+      const frame = frames.at(-1)!
+      if (frame.index === frame.nodes.length) {
+        if (frame.closing) check(frame.closing, frame.namespaces, frame.inClassBody)
+        frames.pop()
+        continue
+      }
+      const node = frame.nodes[frame.index++]!
+      const { namespaces, inClassBody } = frame
+      check(node, namespaces, inClassBody)
+      if (node.children) {
+        const childNamespaces = namespaces + (node.value.kind === 'namespace' ? 1 : 0)
+        const classBody = node.value.kind === 'class'
+        frames.push({ nodes: node.children, namespaces: childNamespaces, inClassBody: classBody, index: 0, closing: node.closing })
+      }
+    }
+  }
+  visit(tree.statements)
   return rejections
 }
 
@@ -463,299 +653,125 @@ export function parseAuthoredClassInteraction(line: string): ReturnType<typeof p
 export function parseClassDiagram(lines: string[], authoredLines?: string[]): ClassDiagram {
   const accessibility = scanAccessibilityDirectives(lines)
   requireClosedAccessibility(accessibility)
-  lines = accessibility.familyLines.flatMap(expandInlineNamespaceStatement)
+  const familyLines = accessibility.familyLines
   const authoredExpanded = authoredLines ? authoredClassStatements(authoredLines) : undefined
+  // Align compact authored fragments before reading, preserving link quote
+  // provenance while the reader owns the namespace expansion and blocks.
+  const expanded = familyLines.flatMap(expandInlineNamespaceStatement)
+  const tree = readClassStatements(expanded, authoredExpanded)
+  if (tree.diagnostics.length > 0) {
+    const diagnostic = tree.diagnostics[0]!
+    throw syntaxError({
+      what: `${diagnostic.reason} at line ${diagnostic.source.line}`,
+      expectedForm: 'supported class statements and balanced class/namespace blocks',
+      example: 'class A\nA --> B : linked',
+    })
+  }
   const diagram: ClassDiagram = {
-    classes: [],
-    classDefs: new Map(),
-    relationships: [],
-    notes: [],
-    namespaces: [],
+    classes: [], classDefs: new Map(), relationships: [], notes: [], namespaces: [],
     ...(accessibility.accessibility.title !== undefined
-      ? { accessibilityTitle: normalizeBrTags(accessibility.accessibility.title) }
-      : {}),
+      ? { accessibilityTitle: normalizeBrTags(accessibility.accessibility.title) } : {}),
     ...(accessibility.accessibility.descr !== undefined
-      ? { accessibilityDescription: normalizeBrTags(accessibility.accessibility.descr) }
-      : {}),
+      ? { accessibilityDescription: normalizeBrTags(accessibility.accessibility.descr) } : {}),
   }
-
-  // Track classes by ID for deduplication
   const classMap = new Map<string, ClassNode>()
-  // Namespace registry by full dot path (dot notation and re-opened blocks
-  // share one node) + the currently-open nesting stack.
-  const namespaceByPath = new Map<string, ClassNamespace>()
-  const namespaceStack: ClassNamespace[] = []
-  const pathStack: string[] = []
-  // A class belongs to exactly one namespace: the first block that declares it.
-  const claimedClasses = new Set<string>()
-
-  /** Resolve (creating as needed) the namespace chain for a dot path relative
-   *  to the current stack, and return the final node. */
-  const openNamespace = (segments: string[], label: string | undefined): ClassNamespace => {
-    let parentPath = pathStack.join('.')
-    let parentChildren = namespaceStack.length > 0
-      ? namespaceStack[namespaceStack.length - 1]!.children
-      : diagram.namespaces
-    let node: ClassNamespace | undefined
+  const namespaces = new Map<string, ClassNamespace>()
+  const claimed = new Set<string>()
+  const claim = (id: string, path: string): void => {
+    if (path && !claimed.has(id)) { namespaces.get(path)!.classIds.push(id); claimed.add(id) }
+  }
+  const openNamespace = (path: string, segments: string[], label?: string): string => {
+    let children = path ? namespaces.get(path)!.children : diagram.namespaces
     for (const segment of segments) {
-      const fullPath = parentPath ? `${parentPath}.${segment}` : segment
-      node = namespaceByPath.get(fullPath)
-      if (!node) {
-        node = { name: segment, classIds: [], children: [] }
-        namespaceByPath.set(fullPath, node)
-        parentChildren.push(node)
+      path = path ? `${path}.${segment}` : segment
+      let namespace = namespaces.get(path)
+      if (!namespace) {
+        namespace = { name: segment, classIds: [], children: [] }
+        children.push(namespace)
+        namespaces.set(path, namespace)
       }
-      parentPath = fullPath
-      parentChildren = node.children
-      pathStack.push(segment)
-      namespaceStack.push(node)
+      children = namespace.children
     }
-    if (label && node) node.label = label
-    return node!
+    if (label !== undefined) namespaces.get(path)!.label = label
+    return path
   }
-
-  const claimClass = (id: string): void => {
-    if (namespaceStack.length === 0 || claimedClasses.has(id)) return
-    claimedClasses.add(id)
-    namespaceStack[namespaceStack.length - 1]!.classIds.push(id)
+  const addMember = (node: ClassNode, text: string): void => {
+    const member = parseMember(text)
+    if (member) (member.isMethod ? node.methods : node.attributes).push(member.member)
   }
-
-  // Track class body parsing
-  let currentClass: ClassNode | null = null
-  let braceDepth = 0
-  // How many stack levels each open `namespace` line pushed (dot paths push
-  // several segments that one closing `}` must pop together).
-  const namespaceFrameSizes: number[] = []
-
-  for (let i = 1; i < lines.length; i++) {
-    const source = lines[i]!
-    if (!source || source.startsWith('%%')) continue
-
-    // --- Inside a class body block ---
-    if (currentClass && braceDepth > 0) {
-      // A member keeps `%%` as text; its closing brace is a statement again.
-      const closing = source.startsWith('}') ? classStatement(source) : source
-      if (closing === '}') {
-        braceDepth--
-        if (braceDepth === 0) {
-          currentClass = null
+  const visit = (nodes: ClassStatementNode[], path = '', owner?: ClassNode): void => {
+    const frames = [{ nodes, path, owner, index: 0 }]
+    while (frames.length) {
+      const frame = frames.at(-1)!
+      if (frame.index === frame.nodes.length) { frames.pop(); continue }
+      const node = frame.nodes[frame.index++]!
+      const { path, owner } = frame
+      const value = node.value
+      switch (value.kind) {
+        case 'header': case 'trivia': case 'close': case 'source-only': break
+        case 'namespace': frames.push({ nodes: node.children!, path: openNamespace(path, value.path, value.label), owner: undefined, index: 0 }); break
+        case 'class': {
+          const declaration = value.declaration
+          const cls = ensureClass(classMap, declaration.id, declaration.generic)
+          if (declaration.label !== undefined) cls.label = normalizeBrTags(declaration.label)
+          if (declaration.className !== undefined) cls.className = declaration.className
+          claim(cls.id, path)
+          if (node.children) frames.push({ nodes: node.children, path, owner: cls, index: 0 })
+          break
         }
-        continue
-      }
-
-      // Check for annotation like <<interface>>
-      const annotation = parseClassBodyAnnotationToken(source)
-      if (annotation !== null) {
-        applyClassAnnotation(currentClass, annotation)
-        continue
-      }
-
-      // Parse member: visibility, name, type, optional parens for method
-      const member = parseMember(source)
-      if (member) {
-        if (member.isMethod) {
-          currentClass.methods.push(member.member)
-        } else {
-          currentClass.attributes.push(member.member)
+        case 'member': {
+          const cls = value.reference ? ensureClass(classMap, value.reference.id, value.reference.generic) : owner!
+          addMember(cls, value.text)
+          break
         }
-      }
-      continue
-    }
-
-    const line = classStatement(source)
-
-    // --- Safe class links. Callback forms remain inert and unmodeled. The
-    // link grammar reads its own trailing comment from the authored bytes. ---
-    const candidate = authoredExpanded?.[i]
-    const authoredLine = candidate !== undefined && decodeXML(candidate).trim() === source
-      ? candidate
-      : undefined
-    const interaction = authoredLine !== undefined
-      ? parseClassInteractionWithAuthored(authoredLine)
-      : authoredLines === undefined ? parseAuthoredClassInteraction(source) : null
-    if (interaction) {
-      const cls = ensureClass(classMap, interaction.id, interaction.generic)
-      cls.href = interaction.href
-      if (interaction.tooltip !== undefined) cls.tooltip = interaction.tooltip
-      continue
-    }
-
-    // --- UML notes ---
-    const note = line.match(/^note(?:\s+for\s+(\S+))?\s+"((?:\\.|[^"\\])*)"\s*$/i)
-    if (note) {
-      const target = note[1] ? parseClassReference(note[1]) : null
-      if (note[1] && target) ensureClass(classMap, target.id, target.generic)
-      // Note text is a label like any other: `<br>` breaks it and markdown-lite
-      // emphasis formats it, as upstream's note nodes do.
-      diagram.notes.push({ text: normalizeBrTags(note[2]!.replace(/\\(["\\])/g, '$1')), ...(target ? { for: target.id } : {}) })
-      continue
-    }
-
-    // --- Direction statement ---
-    const direction = parseDirectionStatement(line)
-    if (direction) {
-      diagram.direction = direction
-      continue
-    }
-
-    // --- Namespace block start (supports nesting, dot paths, labels) ---
-    const nsHeader = parseNamespaceHeader(line)
-    if (nsHeader) {
-      openNamespace(nsHeader.path, nsHeader.label)
-      namespaceFrameSizes.push(nsHeader.path.length)
-      continue
-    }
-
-    // --- Namespace end ---
-    if (line === '}' && namespaceFrameSizes.length > 0) {
-      const frame = namespaceFrameSizes.pop()!
-      namespaceStack.length -= frame
-      pathStack.length -= frame
-      continue
-    }
-
-    // --- Class paint directives ---
-    const classDef = line.match(/^classDef\s+([\w,-]+)\s+(.+)$/)
-    if (classDef) {
-      const props = parseStyleProps(classDef[2]!)
-      for (const name of classDef[1]!.split(',').map(value => value.trim()).filter(Boolean)) diagram.classDefs.set(name, { ...props })
-      continue
-    }
-    const classAssignment = line.match(/^(?:class|cssClass)\s+(.+?)\s+([\w-]+)$/)
-    if (classAssignment && !line.includes('{') && !line.includes('[') && !line.includes(' as ')) {
-      const refs = classAssignment[1]!.replace(/^"|"$/g, '').split(',').map(value => parseClassReference(value.trim())).filter((value): value is { id: string; generic?: string } => value !== null)
-      if (refs.length > 0) {
-        for (const ref of refs) {
-          const cls = ensureClass(classMap, ref.id, ref.generic)
-          cls.className = classAssignment[2]!
-          claimClass(cls.id)
-        }
-        continue
-      }
-    }
-    const inlineStyle = line.match(/^style\s+(.+?)\s+(.+)$/)
-    if (inlineStyle) {
-      const refs = inlineStyle[1]!.replace(/^"|"$/g, '').split(',').map(value => parseClassReference(value.trim())).filter((value): value is { id: string; generic?: string } => value !== null)
-      const props = parseStyleProps(inlineStyle[2]!)
-      if (refs.length > 0 && Object.keys(props).length > 0) {
-        for (const ref of refs) {
-          const cls = ensureClass(classMap, ref.id, ref.generic)
-          cls.inlineStyle = { ...cls.inlineStyle, ...props }
-          claimClass(cls.id)
-        }
-        continue
-      }
-    }
-
-    // --- Class annotation, in either official placement or a one-line body. ---
-    const annotationStatement = parseClassAnnotationStatement(line)
-    if (annotationStatement) {
-      if (annotationStatement.placement === 'separate' && !classMap.has(annotationStatement.id)) {
-        throw syntaxError({
-          what: `Annotation targets undeclared class "${annotationStatement.id}"`,
-          expectedForm: 'declare the class before a separate annotation',
-          example: `class ${annotationStatement.id}\n<<${annotationStatement.annotation}>> ${annotationStatement.id}`,
-        })
-      }
-      const cls = ensureClass(classMap, annotationStatement.id, annotationStatement.generic)
-      if (annotationStatement.label !== undefined) cls.label = normalizeBrTags(annotationStatement.label)
-      applyClassAnnotation(cls, annotationStatement.annotation)
-      claimClass(cls.id)
-      continue
-    }
-
-    // --- Class declaration (standalone or opening a member block) ---
-    const declaration = parseClassDeclaration(line)
-    if (declaration) {
-      const cls = ensureClass(classMap, declaration.id, declaration.generic)
-      if (declaration.label !== undefined) cls.label = normalizeBrTags(declaration.label)
-      if (declaration.opensBody) {
-        currentClass = cls
-        braceDepth = 1
-      }
-      claimClass(declaration.id)
-      continue
-    }
-
-    // --- Class shorthand: `ClassName:::style` ---
-    // The suffix decorates the stable class identity; it is never a member.
-    const classShorthand = line.match(/^(.+?):::([\w-]+)$/)
-    if (classShorthand) {
-      const reference = parseClassReference(classShorthand[1]!)
-      if (reference) {
-        const cls = ensureClass(classMap, reference.id, reference.generic)
-        cls.className = classShorthand[2]!
-        claimClass(reference.id)
-        continue
-      }
-    }
-
-    // --- Inline attribute: `ClassName : +String name` ---
-    const inlineAttrMatch = line.match(/^(\S+?)\s*:\s*(.+)$/)
-    if (inlineAttrMatch) {
-      const rest = inlineAttrMatch[2]!
-      // A valid class reference before ':' makes this an inline member even
-      // when its text contains link-looking punctuation. A relationship has
-      // both endpoints before ':', so its prefix cannot parse as one ref.
-      const ref = parseClassReference(inlineAttrMatch[1]!)
-      if (ref) {
-        const cls = ensureClass(classMap, ref.id, ref.generic)
-        const member = parseMember(rest)
-        if (member) {
-          if (member.isMethod) {
-            cls.methods.push(member.member)
-          } else {
-            cls.attributes.push(member.member)
+        case 'body-annotation': applyClassAnnotation(owner!, value.text); break
+        case 'annotation': {
+          const annotation = value.annotation
+          if (annotation.placement === 'separate' && !classMap.has(annotation.id)) {
+            throw syntaxError({ what: `Annotation targets undeclared class "${annotation.id}"`,
+              expectedForm: 'declare the class before a separate annotation',
+              example: `class ${annotation.id}\n<<${annotation.annotation}>> ${annotation.id}` })
           }
+          const cls = ensureClass(classMap, annotation.id, annotation.generic)
+          if (annotation.label !== undefined) cls.label = normalizeBrTags(annotation.label)
+          applyClassAnnotation(cls, annotation.annotation)
+          claim(cls.id, path)
+          break
         }
-        continue
+        case 'interaction': {
+          const cls = ensureClass(classMap, value.interaction.id, value.interaction.generic)
+          cls.href = value.interaction.href
+          if (value.interaction.tooltip !== undefined) cls.tooltip = value.interaction.tooltip
+          claim(cls.id, path)
+          break
+        }
+        case 'note':
+          if (value.reference) ensureClass(classMap, value.reference.id, value.reference.generic)
+          diagram.notes.push({ text: normalizeBrTags(value.text), ...(value.reference ? { for: value.reference.id } : {}) })
+          break
+        case 'title': diagram.title = value.text; break
+        case 'direction': diagram.direction = value.direction; break
+        case 'relationship': {
+          const { fromGeneric, toGeneric, ...relationship } = value.relationship
+          ensureClass(classMap, relationship.from, fromGeneric)
+          ensureClass(classMap, relationship.to, toGeneric)
+          diagram.relationships.push(relationship)
+          break
+        }
+        case 'classDef': for (const name of value.names) diagram.classDefs.set(name, { ...value.props }); break
+        case 'assignment': case 'style':
+          for (const reference of value.references) {
+            const cls = ensureClass(classMap, reference.id, reference.generic)
+            if (value.kind === 'assignment') cls.className = value.name
+            else cls.inlineStyle = { ...cls.inlineStyle, ...value.props }
+            claim(cls.id, path)
+          }
+          break
+        case 'unknown': break // diagnostics above refuse partial rendering
       }
     }
-
-    // --- Relationship ---
-    // Pattern: [FROM] ["card"] ARROW ["card"] [TO] [: label]
-    // Arrows: <|--, *--, o--, -->, ..|>, ..>
-    // Can also be reversed: --o, --*, --|>
-    const rel = parseClassRelationship(line)
-    if (rel) {
-      // Ensure both classes exist
-      ensureClass(classMap, rel.from, rel.fromGeneric)
-      ensureClass(classMap, rel.to, rel.toGeneric)
-      const { fromGeneric: _fromGeneric, toGeneric: _toGeneric, ...relationship } = rel
-      diagram.relationships.push(relationship)
-      continue
-    }
-
-    // An annotation-like statement that misses the shared grammar must not
-    // disappear from an otherwise plausible class diagram.
-    if (line.includes('<<') || line.includes('>>')) {
-      throw syntaxError({
-        what: `Unrecognized class annotation statement "${line}"`,
-        expectedForm: 'class Name <<annotation>> or <<annotation>> Name',
-        example: 'class Shape <<interface>>',
-      })
-    }
-    // A malformed relationship cannot be silently omitted from an otherwise
-    // plausible diagram. Ignore delimiter-looking text inside IDs/generics.
-    if (isBareClassRelationshipCandidate(line) || isMarkedClassRelationshipCandidate(line) || isEscapedMarkedClassRelationshipCandidate(line)) {
-      throw syntaxError({
-        what: `Unrecognized class relationship statement "${line}"`,
-        expectedForm: 'A .. B, A -- B, or A --> B, optionally with a label',
-        example: 'A --> B : linked',
-      })
-    }
-    // A safe URL followed by unmodeled tooltip/target/trailing syntax must
-    // not be accepted as an invisible statement. Unsafe links and callbacks
-    // remain source-only rather than becoming executable output.
-    if (/^(?:click|link)\s+(?:`[^`]+`(?:~[^~]+~)?|[\w$]+(?:~[^~]+~)?)\s+(?:href\s+)?"?(?:https?:\/\/|mailto:)/i.test(line)) {
-      throw syntaxError({
-        what: `Unrecognized class link statement "${line}"`,
-        expectedForm: 'link Name "https://example.com" "optional tooltip"',
-        example: 'click Name href "https://example.com" "Documentation"',
-      })
-    }
   }
-
+  visit(tree.statements)
   diagram.classes = [...classMap.values()]
   return diagram
 }

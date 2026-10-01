@@ -31,24 +31,14 @@ import type {
   SequenceStatement, SequenceMutationOp, SequenceFragment, MutationError, Result, LayoutWarning,
 } from './types.ts'
 import { ok, err } from './types.ts'
-import { parseActorDeclaration, parseActorLinks, parseSequenceMessageLine, parseSequenceStatement, participantEventsOf, sequenceParticipantEvents, type ParsedActorDeclaration } from '../sequence/parser.ts'
+import { parseSequenceMessageLine, participantEventsOf, readSequenceStatements, sequenceParticipantEvents, type SequenceSourceStatement } from '../sequence/parser.ts'
 import { parseAccessibilityDirective } from '../shared/accessibility-directives.ts'
 import { SequenceParticipantFold, type ParticipantEvent, type SequenceParticipantFoldOptions, type SequenceParticipantRecord } from '../sequence/participants.ts'
 import { isSequenceCommentLine, splitSequenceStatementLines } from '../sequence/statements.ts'
-import { continuationBelongsToBlock, parseSequenceBlockContinuation, parseSequenceBlockOpener } from '../sequence/block-keywords.ts'
 import { appendOpaqueSegment } from './opaque-segments.ts'
 
 // ---- Parser -----------------------------------------------------------------
 
-
-// Keywords that OPEN a nestable block (closed by a matching `end`). `box`
-// belongs here: its `end` used to hit the stray-`end` rule below and collapse
-// EVERY boxed diagram to the whole-body opaque fallback; as a preserved
-// segment the box rides along verbatim while the rest of the
-// diagram keeps its typed ops. Declarations inside a box stay part of the
-// segment, though the participants they declare are typed. Direct-message
-// alt/opt/loop/par blocks are promoted to typed fragments below.
-const BLOCK_END_RE = /^end\b/i
 
 /**
  * Parse the body lines of a sequence diagram into a segment-preserving
@@ -72,19 +62,19 @@ export function parseSequenceBody(trimmedLines: string[], rawLines?: string[]): 
   // Align raw (indented) lines with trimmed lines. `rawLines` has the same
   // logical content but keeps indentation/blank lines; we walk it in lockstep
   // by skipping its blank/comment lines, which `trimmedLines` already drops.
-  const raw = splitSequenceStatementLines(rawLines ?? trimmedLines)
-
-  // Participants that preserved lines declare or name (a box's declarations,
-  // a note, a message inside an opaque block) are typed all the same.
-  const declarePreserved = (line: string) => fold.applyAll(preservedLineEvents(line))
+  const source = readSequenceStatements(rawLines ?? trimmedLines)
+  if (source.issues.some(issue => issue.syntax === 'sequence_block_boundary')) return null
+  const raw = source.statements
 
   // Walk the raw lines so opaque segments capture original indentation. Track a
   // parallel index into trimmedLines is unnecessary: we trim each raw line for
   // structural matching but store the raw text in opaque segments.
   let i = 0
   while (i < raw.length) {
-    const rawLine = raw[i]!
+    const entry = raw[i]!
+    const rawLine = entry.raw
     const line = rawLine.trim()
+    const syntax = entry.syntax
     if (!line) { i++; continue }
     if (isSequenceCommentLine(line)) {
       appendOpaqueSegment(statements, [rawLine], sequenceOpaqueBlock)
@@ -92,71 +82,56 @@ export function parseSequenceBody(trimmedLines: string[], rawLines?: string[]): 
       continue
     }
 
-    if (/^(participant|actor)\b/i.test(line)) {
-      const declared = parseDeclarationLine(line)
+    if (syntax?.kind === 'declaration') {
+      const declared = syntax.declaration
+      if (declared.unmodeledMetadata?.length) {
+        fold.applyAll(participantEventsOf(syntax))
+        appendOpaqueSegment(statements, [rawLine], sequenceOpaqueBlock)
+        i++
+        continue
+      }
       // Mermaid ignores a bare re-declaration of a known participant, so keep
       // that line verbatim rather than re-render it from a participant it
       // does not change.
-      if (!declared || (fold.has(declared.id) && !declared.aliased)) {
+      if (fold.has(declared.id) && !declared.aliased) {
         appendOpaqueSegment(statements, [rawLine], sequenceOpaqueBlock); i++; continue
       }
-      fold.applyAll(participantEventsOf({ kind: 'declaration', declaration: declared }))
+      fold.applyAll(participantEventsOf(syntax))
       statements.push({ kind: 'participant', ref: fold.indexOf(declared.id) })
       i++
       continue
     }
 
-    if (/^links?\b/i.test(line)) {
-      const parsedLinks = parseActorLinks(line)
-      if (!parsedLinks) return null
-      fold.applyAll(participantEventsOf({ kind: 'links', ...parsedLinks }))
-      statements.push({ kind: 'actor-links', actorId: parsedLinks.actorId, links: { ...parsedLinks.links } })
+    if (syntax?.kind === 'links') {
+      fold.applyAll(participantEventsOf(syntax))
+      statements.push({ kind: 'actor-links', actorId: syntax.actorId, links: { ...syntax.links } })
       i++
       continue
     }
 
-    const opener = parseSequenceBlockOpener(line)
-    const continuation = parseSequenceBlockContinuation(line)
     // `par_over` remains a distinct upstream construct, not a typed `par`
     // fragment. Preserve the previous whole-body opaque disposition until
     // its own #264 projection is implemented.
-    if (opener?.type === 'par_over') return null
-    const msg = !opener && !continuation ? parseSequenceMessageLine(line) : null
-    if (msg) {
-      fold.applyAll(participantEventsOf({ kind: 'message', message: msg }))
-      messages.push(sequenceMessageFromParsed(msg))
+    if (syntax?.kind === 'block' && syntax.opener.type === 'par_over') return null
+    if (syntax?.kind === 'message') {
+      fold.applyAll(participantEventsOf(syntax))
+      messages.push(sequenceMessageFromParsed(syntax.message))
       statements.push({ kind: 'message', ref: messages.length - 1 })
       i++
       continue
     }
 
-    // A stray `end` or block-continuation with no open block can't be cleanly
-    // segmented → whole-body opaque fallback.
-    if (BLOCK_END_RE.test(line) || continuation) return null
-
-    if (opener) {
-      // Capture start → matching end as ONE opaque-block (verbatim, nested).
-      const blockLines: string[] = [rawLine]
-      let depth = 1
-      i++
-      while (i < raw.length && depth > 0) {
-        const inner = raw[i]!
-        const innerTrim = inner.trim()
-        if (innerTrim && !innerTrim.startsWith('%%')) {
-          if (parseSequenceBlockOpener(innerTrim)) depth++
-          else if (BLOCK_END_RE.test(innerTrim)) depth--
-        }
-        blockLines.push(inner)
-        i++
-      }
-      if (depth !== 0) return null // unclosed block → opaque fallback
-      const fragment = parseTypedFragment(blockLines)
+    if (syntax?.kind === 'block' || syntax?.kind === 'box') {
+      // The shared reader, not a second depth scanner, owns this boundary.
+      const block = raw.slice(i, entry.endIndex! + 1)
+      const blockLines = block.map(entry => entry.raw)
+      i = entry.endIndex! + 1
+      const fragment = parseTypedFragment(block)
+      for (const inner of block) fold.applyAll(participantEventsOf(inner.syntax))
       if (fragment) {
-        for (const line of blockLines) declarePreserved(line)
         statements.push({ kind: 'fragment', fragment })
       } else {
-        for (const blockLine of blockLines) declarePreserved(blockLine)
-        appendOpaqueSegment(statements, dropBlankEdges(blockLines), sequenceOpaqueBlock)
+        appendOpaqueSegment(statements, blockLines, sequenceOpaqueBlock)
       }
       continue
     }
@@ -164,7 +139,7 @@ export function parseSequenceBody(trimmedLines: string[], rawLines?: string[]): 
     // Any other unmodeled single line (Note…, create, activate/deactivate,
     // autonumber, title…) joins an adjacent opaque-block segment, kept
     // verbatim, and still declares the participants it names.
-    declarePreserved(line)
+    fold.applyAll(participantEventsOf(syntax))
     appendOpaqueSegment(statements, [rawLine], sequenceOpaqueBlock)
     i++
   }
@@ -182,16 +157,6 @@ function typedParticipant({ id, label, type: kind, keyword, links }: SequencePar
     ...(keyword && keyword !== kind ? { declaration: keyword } : {}),
     ...(links && Object.keys(links).length > 0 ? { links } : {}),
   }
-}
-
-/** A `participant`/`actor` line as a typed declaration, or null when it must
- * stay preserved source: malformed, an unknown type, or metadata outside the
- * closed grammar (never reinterpret `A@{` as an actor ID). */
-function parseDeclarationLine(line: string): ParsedActorDeclaration | null {
-  let part
-  try { part = parseActorDeclaration(line) } catch { return null }
-  if (!part || (line.includes('@{') && !/^\s*(?:participant|actor)\s+[^\s@]+@\{[\s\S]+\}(?:\s+as\s+.+)?$/i.test(line))) return null
-  return part
 }
 
 /** The participant events of a preserved line: the renderer's own (see
@@ -212,33 +177,32 @@ function sequenceMessageFromParsed(msg: ReturnType<typeof parseSequenceMessageLi
   }
 }
 
-function parseTypedFragment(lines: string[]): SequenceFragment | null {
-  const opener = parseSequenceBlockOpener(lines[0]?.trim() ?? '')
+function parseTypedFragment(entries: SequenceSourceStatement[]): SequenceFragment | null {
+  const syntax = entries[0]?.syntax
+  const opener = syntax?.kind === 'block' ? syntax.opener : undefined
   if (!opener || !['alt', 'opt', 'loop', 'par'].includes(opener.type)) return null
   const fragmentKind = opener.type as SequenceFragment['fragmentKind']
   const branches: SequenceFragment['branches'] = [{ messages: [] }]
-  for (let i = 1; i < lines.length - 1; i++) {
-    const line = lines[i]!.trim()
+  for (const entry of entries.slice(1, -1)) {
+    const line = entry.raw.trim()
     if (!line) continue
     // Editing a fragment that carries comments would otherwise discard them.
     // Keep the entire block opaque until comments gain their own typed model.
     if (line.startsWith('%%')) return null
-    const continuation = parseSequenceBlockContinuation(line)
-    if (continuation) {
-      if (!continuationBelongsToBlock(continuation.type, fragmentKind)) return null
+    const inner = entry.syntax
+    if (inner?.kind === 'continuation') {
+      const continuation = inner.continuation
       branches.push({ ...(continuation.label ? { label: continuation.label } : {}), messages: [] })
       continue
     }
-    if (parseSequenceBlockOpener(line) || BLOCK_END_RE.test(line)) return null
-    const parsed = parseSequenceMessageLine(line)
-    if (!parsed) return null
-    branches.at(-1)!.messages.push(sequenceMessageFromParsed(parsed))
+    if (inner?.kind !== 'message') return null
+    branches.at(-1)!.messages.push(sequenceMessageFromParsed(inner.message))
   }
   return {
     fragmentKind,
     ...(opener.label ? { label: opener.label } : {}),
     branches,
-    rawLines: [...lines],
+    rawLines: entries.map(entry => entry.raw),
   }
 }
 
@@ -284,14 +248,6 @@ export function sequenceMessages(body: SequenceBody): SequenceMessage[] {
 }
 
 
-// Trim trailing blank lines from a captured block (the matching `end` is the
-// real terminator); leading content already starts at the block keyword.
-function dropBlankEdges(lines: string[]): string[] {
-  const out = [...lines]
-  while (out.length && out[out.length - 1]!.trim() === '') out.pop()
-  return out
-}
-
 function styleForArrow(a: string): SequenceMessageStyle {
   switch (a) {
     case '->>': return 'sync'
@@ -323,25 +279,28 @@ export function sequenceUnsupportedSyntaxWarnings(canonicalSource: string): Layo
       message: `Participant "${id}" in a second box stays in the box that first placed it. Mermaid 11.16 rejects this; put each participant in one box only.`,
     }),
   })
-  // An `end` closes the innermost block, else the open box (as the renderer reads it).
-  let blocks = 0
+  const grammar = lines.slice(header + 1)
   for (let index = header + 1; index < lines.length; index++) {
     const directive = parseAccessibilityDirective(lines, index)
     if (directive === undefined) break
     if (directive !== null) {
+      for (let at = index; at <= directive.endIndex; at++) grammar[at - header - 1] = ''
+      if (directive.suffixLine) grammar[directive.endIndex - header - 1] = directive.suffixLine
       index = directive.endIndex
       continue
     }
-    line = index + 1
-    for (const text of splitSequenceStatementLines([lines[index]!])) {
-      const statement = parseSequenceStatement(text.trim())
-      fold.applyAll(participantEventsOf(statement))
-      if (statement?.kind === 'box') fold.openBox({ actorIds: [] })
-      else if (statement?.kind === 'block') blocks++
-      else if (statement?.kind === 'end') {
-        if (blocks > 0) blocks--
-        else fold.closeBox()
-      }
+  }
+  const source = readSequenceStatements(grammar)
+  for (const issue of source.issues) warnings.push({
+    code: 'UNSUPPORTED_SYNTAX', syntax: issue.syntax, line: header + issue.line + 2, message: issue.message,
+  })
+  for (const entry of source.statements) {
+    line = header + entry.line + 2
+    const statement = entry.syntax
+    fold.applyAll(participantEventsOf(statement))
+    if (statement?.kind === 'box') fold.openBox({ actorIds: [] })
+    else if (entry.closes !== undefined && source.statements[entry.closes]?.syntax?.kind === 'box') {
+      fold.closeBox()
     }
   }
   return warnings

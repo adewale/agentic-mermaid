@@ -70,6 +70,22 @@ describe('architecture structured parse', () => {
     const d = architecture()
     const out = serializeMermaid(d)
     const d2 = architecture(out)
+    // Authored facts are the oracle: two equally lossy parses would still be
+    // equal to each other and produce a stable canonical string.
+    for (const body of [d.body, d2.body]) {
+      expect(body.groups.map(({ id, label, icon }) => ({ id, label, icon }))).toEqual([
+        { id: 'api', label: 'API Layer', icon: 'cloud' },
+      ])
+      expect(body.services.map(({ id, label, parentId }) => ({ id, label, parentId }))).toEqual([
+        { id: 'gateway', label: 'Gateway', parentId: 'api' },
+        { id: 'db', label: 'Database', parentId: undefined },
+        { id: 'web', label: 'Web', parentId: undefined },
+      ])
+      expect(body.edges.map(({ source, target, label, hasArrowStart, hasArrowEnd }) => ({ source, target, label, hasArrowStart, hasArrowEnd }))).toEqual([
+        { source: { id: 'web', side: 'R' }, target: { id: 'gateway', side: 'L' }, label: undefined, hasArrowStart: false, hasArrowEnd: true },
+        { source: { id: 'gateway', side: 'B' }, target: { id: 'db', side: 'T' }, label: 'reads', hasArrowStart: false, hasArrowEnd: true },
+      ])
+    }
     expect(d2.body).toEqual(d.body)
     expect(serializeMermaid(d2)).toBe(out)
   })
@@ -99,6 +115,17 @@ describe('architecture structured parse', () => {
 })
 
 describe('architecture structured-or-opaque fallback', () => {
+  test.each([
+    ['parent declared later', 'architecture-beta\n  service api(server)[API] in g\n  group g(cloud)[G]\n'],
+    ['edge endpoint declared later', 'architecture-beta\n  service api(server)[API]\n  api:R --> L:db\n  service db(database)[DB]\n'],
+  ])('%s cannot be silently repaired by typed serialization', (_name, source) => {
+    const result = parseMermaid(source)
+    expect(result.ok).toBe(true)
+    if (!result.ok) throw new Error(JSON.stringify(result.error))
+    expect(result.value.body.kind).toBe('opaque')
+    expect(serializeMermaid(result.value)).toBe(source)
+    expect(verifyMermaid(result.value).warnings.map(warning => warning.code)).toContain('RENDER_FAILED')
+  })
   const opaqueCases: Array<[string, string]> = [
     ['unknown in-parent group', 'architecture-beta\n  service db(database)[DB] in nowhere'],
     ['edge to undeclared item', 'architecture-beta\n  service api(server)[API]\n  api:R --> L:ghost'],
