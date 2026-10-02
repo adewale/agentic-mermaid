@@ -36,255 +36,147 @@ import type {
 } from './types.ts'
 import { ok, err } from './types.ts'
 import { labelOverflowCollector } from './body-utils.ts'
-import { classCommentRejections, classDiagramHasStatement, classStatement, expandInlineNamespaceStatement, isBareClassRelationshipCandidate, isEscapedMarkedClassRelationshipCandidate, isMarkedClassRelationshipCandidate, parseClassInteractionWithAuthored, parseClassAnnotationStatement, parseClassBodyAnnotationToken, parseClassDeclaration, parseClassReference, parseClassRelationship, parseNamespaceHeader, supportedRelationEndpoint } from '../class/parser.ts'
-import { parseMutableStyleProps, parseStyleProps, serializeStyleProps, unsafeStylePaintError } from '../shared/style-props.ts'
+import { classCommentRejections, classDiagramHasStatement, parseClassBodyAnnotationToken, parseClassRelationship, readClassStatements } from '../class/parser.ts'
+import type { ClassStatementNode } from '../class/parser.ts'
+import { parseMutableStyleProps, serializeStyleProps, unsafeStylePaintError } from '../shared/style-props.ts'
 
 // ---- Parser ---------------------------------------------------------------
 
-const RELATION_TOKENS: Array<{ pat: RegExp; kind: ClassRelationKind; markerAt?: 'from' | 'to' | 'both'; fromKind?: ClassRelationKind; toKind?: ClassRelationKind }> = [
-  // Order matters: two-ended/lollipop forms before their one-ended prefixes.
-  { pat: /<\|--\|>/, kind: 'inheritance', markerAt: 'both', fromKind: 'inheritance', toKind: 'inheritance' },
-  { pat: /\(\)--/, kind: 'lollipop', markerAt: 'from' },
-  { pat: /--\(\)/, kind: 'lollipop', markerAt: 'to' },
-  { pat: /<\|--/, kind: 'inheritance' },
-  { pat: /--\|>/, kind: 'inheritance' },
-  { pat: /\.\.\|>/, kind: 'realization' },
-  { pat: /\*--/, kind: 'composition' },
-  { pat: /--\*/, kind: 'composition' },
-  { pat: /o--/, kind: 'aggregation' },
-  { pat: /--o/, kind: 'aggregation' },
-  { pat: /-->/, kind: 'association' },
-  { pat: /<--/, kind: 'association' },
-  { pat: /\.\.>/, kind: 'dependency' },
-  { pat: /<\.\./, kind: 'dependency' },
-  // Bare links are exclusively parsed by the shared scanner above. Keeping
-  // them here would re-admit malformed labels after that scanner rejects them.
-]
-
-const MEMBER_DECL_RE = /^(\S+)\s*:\s*(.+)$/
-const NOTE_RE = /^note(?:\s+for\s+(\S+))?\s+"([^"]+)"\s*$/
-const TITLE_RE = /^title\s+(.+)$/i
+function projectClassRelation(shared: NonNullable<ReturnType<typeof parseClassRelationship>>): ClassRelation & { fromGeneric?: string; toGeneric?: string } {
+  return {
+    from: shared.from, to: shared.to, kind: shared.type as ClassRelationKind,
+    ...(shared.label ? { label: shared.label } : {}),
+    ...(shared.fromCardinality ? { fromCardinality: shared.fromCardinality } : {}),
+    ...(shared.toCardinality ? { toCardinality: shared.toCardinality } : {}),
+    markerAt: shared.markerAt,
+    ...(shared.fromType ? { fromKind: shared.fromType as ClassRelationKind } : {}),
+    ...(shared.toType ? { toKind: shared.toType as ClassRelationKind } : {}),
+    ...(shared.fromGeneric ? { fromGeneric: shared.fromGeneric } : {}),
+    ...(shared.toGeneric ? { toGeneric: shared.toGeneric } : {}),
+  }
+}
 
 export function parseClassRelationSyntax(line: string): (ClassRelation & { fromGeneric?: string; toGeneric?: string }) | null {
   const shared = parseClassRelationship(line)
-  if (shared) {
-    return {
-      from: shared.from, to: shared.to, kind: shared.type as ClassRelationKind,
-      ...(shared.label ? { label: shared.label } : {}),
-      ...(shared.fromCardinality ? { fromCardinality: shared.fromCardinality } : {}),
-      ...(shared.toCardinality ? { toCardinality: shared.toCardinality } : {}),
-      markerAt: shared.markerAt,
-      ...(shared.fromType ? { fromKind: shared.fromType as ClassRelationKind } : {}),
-      ...(shared.toType ? { toKind: shared.toType as ClassRelationKind } : {}),
-      ...(shared.fromGeneric ? { fromGeneric: shared.fromGeneric } : {}),
-      ...(shared.toGeneric ? { toGeneric: shared.toGeneric } : {}),
-    }
-  }
-  if (isBareClassRelationshipCandidate(line) || isMarkedClassRelationshipCandidate(line) || isEscapedMarkedClassRelationshipCandidate(line)) return null
-  // The legacy no-space token fallback uses several regexes with ambiguous
-  // endpoint captures. Keep malformed full-size inputs from multiplying that
-  // work; supported long relationships already return through the shared
-  // linear parser above, while unmatched source remains opaque/diagnosed.
-  if (line.length > 2_048) return null
-  for (const { pat, kind, markerAt, fromKind, toKind } of RELATION_TOKENS) {
-    const m = line.match(new RegExp(`^(\\S+?)(?:\\s+"([^"]+)")?\\s*${pat.source}\\s*(?:"([^"]+)"\\s+)?(\\S+?)(?:\\s*:\\s*(.+))?$`))
-    if (!m) continue
-    const fromRef = parseClassReference(m[1]!)
-    const toRef = parseClassReference(m[4]!)
-    if (!fromRef || !toRef || !supportedRelationEndpoint(fromRef.id, m[1]!) || !supportedRelationEndpoint(toRef.id, m[4]!)) return null
-    const from = fromRef.id
-    const fromCardinality = m[2]
-    const toCardinality = m[3]
-    const to = toRef.id
-    const label = m[5]?.trim()
-    return {
-      from, to, kind, label, fromCardinality, toCardinality,
-      ...(markerAt ? { markerAt } : {}), ...(fromKind ? { fromKind } : {}), ...(toKind ? { toKind } : {}),
-      ...(fromRef.generic ? { fromGeneric: fromRef.generic } : {}),
-      ...(toRef.generic ? { toGeneric: toRef.generic } : {}),
-    }
-  }
-  return null
+  return shared ? projectClassRelation(shared) : null
 }
 
 export function parseClassBody(lines: string[]): ClassBody | null {
-  lines = lines.flatMap(expandInlineNamespaceStatement)
+  const tree = readClassStatements(lines)
+  if (tree.diagnostics.length > 0) return null
   const body: ClassBody = { kind: 'class', classes: [], relations: [], notes: [] }
   const classMap = new Map<string, ClassNode>()
   const upsert = (id: string, label?: string, generic?: string): ClassNode => {
-    let c = classMap.get(id)
-    if (!c) { c = { id, label, generic, members: [] }; classMap.set(id, c); body.classes.push(c) }
-    else {
-      if (label !== undefined && !c.label) c.label = label
-      if (generic !== undefined && !c.generic) c.generic = generic
+    let cls = classMap.get(id)
+    if (!cls) {
+      cls = { id, label, generic, members: [] }
+      classMap.set(id, cls)
+      body.classes.push(cls)
+    } else {
+      if (label !== undefined) cls.label = label
+      if (generic !== undefined && !cls.generic) cls.generic = generic
     }
-    return c
+    return cls
   }
-  // Open namespace nesting: segment stack + how many segments each
-  // `namespace` opener pushed (a dot path pushes several that one closing
-  // `}` pops together). Declared paths are registered in first-seen order.
-  const nsStack: string[] = []
-  const nsFrames: number[] = []
   const namespaces: ClassNamespaceDecl[] = []
-  const declareNamespace = (path: string, label?: string): void => {
-    const existing = namespaces.find(n => n.name === path)
-    if (!existing) namespaces.push(label !== undefined ? { name: path, label } : { name: path })
-    else if (label !== undefined && existing.label === undefined) existing.label = label
+  const claim = (node: ClassNode, path: string): boolean => {
+    // One typed membership cannot replay claims in multiple namespaces,
+    // including the otherwise empty groups. Keep the authored source instead.
+    if (path && node.namespace !== undefined && node.namespace !== path) return false
+    if (path && node.namespace === undefined) node.namespace = path
+    return true
   }
-  const claimClass = (node: ClassNode): void => {
-    if (nsStack.length > 0 && node.namespace === undefined) node.namespace = nsStack.join('.')
+  const addAnnotation = (node: ClassNode, annotation: string): boolean => {
+    if (node.members.some(member => parseClassBodyAnnotationToken(member) !== null)) return false
+    node.members.push(`<<${annotation}>>`)
+    return true
   }
-
-  let i = 0
-  while (i < lines.length) {
-    const source = lines[i]!.trim()
-    i++
-    if (!source || source.startsWith('%%')) continue
-    // A trailing `%%` comment is dropped, as the render parser drops it.
-    const raw = classStatement(source)
-
-    // Title
-    const tm = raw.match(TITLE_RE)
-    if (tm) { body.title = tm[1]!.trim(); continue }
-
-    // Namespace opener — the same grammar the render parser uses
-    // (src/class/parser.ts parseNamespaceHeader), so membership cannot drift.
-    const ns = parseNamespaceHeader(raw)
-    if (ns) {
-      nsStack.push(...ns.path)
-      nsFrames.push(ns.path.length)
-      declareNamespace(nsStack.join('.'), ns.label)
-      continue
-    }
-
-    // Namespace close
-    if (raw === '}' && nsFrames.length > 0) {
-      nsStack.length -= nsFrames.pop()!
-      continue
-    }
-
-    // Class paint directives — parsed before declarations so `class A hot`
-    // cannot be mistaken for a malformed class declaration.
-    const classDef = raw.match(/^classDef\s+([\w,-]+)\s+(.+)$/)
-    if (classDef) {
-      const props = parseStyleProps(classDef[2]!)
-      if (Object.keys(props).length === 0) return null
-      if (!body.classDefs) body.classDefs = {}
-      for (const name of classDef[1]!.split(',').map(value => value.trim()).filter(Boolean)) body.classDefs[name] = { ...props }
-      continue
-    }
-    const assignment = raw.match(/^(?:class|cssClass)\s+(.+?)\s+([\w-]+)$/)
-    if (assignment && !raw.includes('{') && !raw.includes('[') && !raw.includes(' as ')) {
-      const refs = assignment[1]!.replace(/^"|"$/g, '').split(',').map(value => parseClassReference(value.trim()))
-      if (refs.every(Boolean)) {
-        for (const ref of refs) {
-          const node = upsert(ref!.id, undefined, ref!.generic)
-          node.className = assignment[2]!
-          claimClass(node)
+  const visit = (nodes: ClassStatementNode[], path = '', owner?: ClassNode): boolean => {
+    const frames = [{ nodes, path, owner, index: 0 }]
+    while (frames.length) {
+      const frame = frames.at(-1)!
+      if (frame.index === frame.nodes.length) { frames.pop(); continue }
+      const node = frame.nodes[frame.index++]!
+      const { path, owner } = frame
+      const value = node.value
+      switch (value.kind) {
+        case 'header': case 'trivia': case 'close': break
+        case 'direction': case 'unknown': case 'source-only': return false // no typed slot; whole-body opaque is lossless
+        case 'namespace': {
+          // The typed model uses dotted paths, so a literal dot inside one
+          // quoted atom has no lossless typed representation.
+          if (value.path.some(segment => segment.includes('.'))) return false
+          const namespacePath = [path, ...value.path].filter(Boolean).join('.')
+          let namespace = namespaces.find(candidate => candidate.name === namespacePath)
+          if (!namespace) {
+            namespace = { name: namespacePath, ...(value.label !== undefined ? { label: value.label } : {}) }
+            namespaces.push(namespace)
+          } else if (value.label !== undefined) namespace.label = value.label
+          frames.push({ nodes: node.children!, path: namespacePath, owner: undefined, index: 0 })
+          break
         }
-        continue
+        case 'class': {
+          const declaration = value.declaration
+          const cls = upsert(declaration.id, declaration.label, declaration.generic)
+          if (declaration.className !== undefined) cls.className = declaration.className
+          if (!claim(cls, path)) return false
+          if (node.children) frames.push({ nodes: node.children, path, owner: cls, index: 0 })
+          break
+        }
+        case 'member': {
+          const cls = value.reference ? upsert(value.reference.id, undefined, value.reference.generic) : owner!
+          cls.members.push(value.text)
+          break
+        }
+        case 'body-annotation': if (!addAnnotation(owner!, value.text)) return false; break
+        case 'annotation': {
+          const annotation = value.annotation
+          if (annotation.placement === 'separate' && !classMap.has(annotation.id)) return false
+          const cls = upsert(annotation.id, annotation.label, annotation.generic)
+          if (!addAnnotation(cls, annotation.annotation)) return false
+          if (!claim(cls, path)) return false
+          break
+        }
+        case 'interaction': {
+          const cls = upsert(value.interaction.id, undefined, value.interaction.generic)
+          cls.href = value.interaction.href
+          if (value.interaction.tooltip !== undefined) cls.tooltip = value.interaction.tooltip
+          if (!claim(cls, path)) return false
+          break
+        }
+        case 'note':
+          // Decoded physical line breaks cannot be emitted inside a quoted
+          // Class note. Keep authored source rather than expose an unsafe edit.
+          if (/[\r\n]/.test(value.text)) return false
+          if (value.reference) upsert(value.reference.id, undefined, value.reference.generic)
+          body.notes.push({ text: value.text, for: value.reference?.id })
+          break
+        case 'title': body.title = value.text; break
+        case 'relationship': {
+          const relation = projectClassRelation(value.relationship)
+          upsert(relation.from, undefined, relation.fromGeneric)
+          upsert(relation.to, undefined, relation.toGeneric)
+          const { fromGeneric: _fromGeneric, toGeneric: _toGeneric, ...plain } = relation
+          body.relations.push(plain)
+          break
+        }
+        case 'classDef':
+          body.classDefs ??= {}
+          for (const name of value.names) body.classDefs[name] = { ...value.props }
+          break
+        case 'assignment': case 'style':
+          for (const reference of value.references) {
+            const cls = upsert(reference.id, undefined, reference.generic)
+            if (value.kind === 'assignment') cls.className = value.name
+            else cls.style = { ...cls.style, ...value.props }
+            if (!claim(cls, path)) return false
+          }
+          break
       }
     }
-    const styleLine = raw.match(/^style\s+(.+?)\s+(.+)$/)
-    if (styleLine) {
-      const refs = styleLine[1]!.replace(/^"|"$/g, '').split(',').map(value => parseClassReference(value.trim()))
-      const props = parseStyleProps(styleLine[2]!)
-      if (refs.every(Boolean) && Object.keys(props).length > 0) {
-        for (const ref of refs) {
-          const node = upsert(ref!.id, undefined, ref!.generic)
-          node.style = { ...node.style, ...props }
-          claimClass(node)
-        }
-        continue
-      }
-    }
-    const shorthand = raw.match(/^(.+?):::([\w-]+)$/)
-    if (shorthand) {
-      const ref = parseClassReference(shorthand[1]!)
-      if (!ref) return null
-      const node = upsert(ref.id, undefined, ref.generic)
-      node.className = shorthand[2]!
-      claimClass(node)
-      continue
-    }
-
-    const interaction = parseClassInteractionWithAuthored(source)
-    if (interaction) {
-      const node = upsert(interaction.id, undefined, interaction.generic)
-      node.href = interaction.href
-      if (interaction.tooltip !== undefined) node.tooltip = interaction.tooltip
-      claimClass(node)
-      continue
-    }
-
-    // The official inline and separate annotation forms project to the
-    // existing class-body member representation, which serializes as a block.
-    const annotation = parseClassAnnotationStatement(raw)
-    if (annotation) {
-      if (annotation.placement === 'separate' && !classMap.has(annotation.id)) return null
-      const node = upsert(annotation.id, annotation.label, annotation.generic)
-      if (node.members.some(member => parseClassBodyAnnotationToken(member) !== null)) return null
-      node.members.push(`<<${annotation.annotation}>>`)
-      claimClass(node)
-      continue
-    }
-
-    // Class declaration (with or without open brace)
-    const declaration = parseClassDeclaration(raw)
-    if (declaration) {
-      const node = upsert(declaration.id, declaration.label, declaration.generic)
-      claimClass(node)
-      if (declaration.opensBody) {
-        // Consume members until closing brace
-        while (i < lines.length) {
-          const ml = lines[i]!.trim()
-          i++
-          if (!ml || ml.startsWith('%%')) continue
-          // A member keeps `%%` as text; its closing brace is a statement again.
-          const closing = ml.startsWith('}') ? classStatement(ml) : ml
-          if (closing === '}') break
-          if (parseClassBodyAnnotationToken(ml) !== null && node.members.some(member => parseClassBodyAnnotationToken(member) !== null)) return null
-          node.members.push(ml)
-        }
-      }
-      continue
-    }
-
-    // Note (with or without target)
-    const nm = raw.match(NOTE_RE)
-    if (nm) {
-      const target = nm[1] ? parseClassReference(nm[1]) : null
-      if (nm[1] && !target) return null
-      body.notes.push({ text: nm[2]!, for: target?.id })
-      continue
-    }
-
-    // Relation — try this before member because relations may have `:` too
-    const rel = parseClassRelationSyntax(raw)
-    if (rel) {
-      upsert(rel.from, undefined, rel.fromGeneric)
-      upsert(rel.to, undefined, rel.toGeneric)
-      const { fromGeneric: _fromGeneric, toGeneric: _toGeneric, ...relation } = rel
-      body.relations.push(relation)
-      continue
-    }
-
-    // Member declaration (X : member)
-    const mm = raw.match(MEMBER_DECL_RE)
-    if (mm) {
-      const ref = parseClassReference(mm[1]!)
-      if (!ref) return null
-      const text = mm[2]!.trim()
-      upsert(ref.id, undefined, ref.generic).members.push(text)
-      continue
-    }
-
-    // Unmodeled line — bail to opaque.
-    return null
+    return true
   }
-  // A dangling namespace block (missing `}`) is malformed — keep it opaque
-  // rather than guessing where the block ends.
-  if (nsFrames.length > 0) return null
+  if (!visit(tree.statements)) return null
   if (namespaces.length > 0) body.namespaces = namespaces
   return body
 }
@@ -339,10 +231,6 @@ function pushClassLines(lines: string[], c: ClassNode, indent: string): void {
 export function renderClass(body: ClassBody): string {
   const lines: string[] = ['classDiagram']
   if (body.title) lines.push(`  title ${body.title}`)
-  for (const n of body.notes) {
-    if (n.for) lines.push(`  note for ${quoteIfNeeded(n.for)} "${n.text}"`)
-    else lines.push(`  note "${n.text}"`)
-  }
   // Namespace blocks (repo #118), canonicalized to dot-path form — the exact
   // production the render parser's namespace grammar accepts (P3). A parent
   // path without direct members is implied by its descendants' dot paths and
@@ -353,9 +241,21 @@ export function renderClass(body: ClassBody): string {
     const members = body.classes.filter(c => c.namespace === ns.name)
     const hasRegisteredDescendant = registryPaths.some(p => p.startsWith(`${ns.name}.`))
     if (members.length === 0 && ns.label === undefined && hasRegisteredDescendant) continue
-    lines.push(`  namespace ${ns.name}${ns.label !== undefined ? `["${ns.label}"]` : ''} {`)
-    for (const c of members) pushClassLines(lines, c, '    ')
-    lines.push(`  }`)
+    const segments = ns.name.split('.')
+    if (segments.every(segment => /^[\w$]+$/.test(segment))) {
+      lines.push(`  namespace ${ns.name}${ns.label !== undefined ? `["${ns.label}"]` : ''} {`)
+      for (const c of members) pushClassLines(lines, c, '    ')
+      lines.push('  }')
+    } else {
+      // Preserve each path atom: quoting the entire dotted path would turn a
+      // nested namespace into one flat name.
+      segments.forEach((segment, index) => {
+        const label = index === segments.length - 1 && ns.label !== undefined ? `["${ns.label}"]` : ''
+        lines.push(`${'  '.repeat(index + 1)}namespace ${quoteIfNeeded(segment)}${label} {`)
+      })
+      for (const c of members) pushClassLines(lines, c, '  '.repeat(segments.length + 1))
+      for (let index = segments.length; index > 0; index--) lines.push(`${'  '.repeat(index)}}`)
+    }
   }
   // Classes claimed by a namespace the registry doesn't know (possible only
   // through hand-built bodies) fall back to top level rather than vanishing.
@@ -363,6 +263,13 @@ export function renderClass(body: ClassBody): string {
   for (const c of body.classes) {
     if (c.namespace !== undefined && known.has(c.namespace)) continue
     pushClassLines(lines, c, '  ')
+  }
+  // Notes can introduce a class on read. Emit them after declarations so a
+  // reload cannot move their target ahead of the authored class identities.
+  for (const n of body.notes) {
+    const text = n.text.replace(/&/g, '&amp;').replace(/\\/g, '&#92;').replace(/"/g, '&quot;')
+    if (n.for) lines.push(`  note for ${quoteIfNeeded(n.for)} "${text}"`)
+    else lines.push(`  note "${text}"`)
   }
   for (const r of body.relations) {
     const arrow = arrowForRelation(r)
@@ -559,6 +466,9 @@ export function mutateClass(body: ClassBody, op: ClassMutationOp): Result<ClassB
       return ok(b)
     }
     case 'add_note': {
+      if (typeof op.text !== 'string' || /[\r\n]/.test(op.text)) {
+        return err({ code: 'INVALID_OP', message: 'Class note text must be a single line; use <br/> for displayed line breaks' })
+      }
       if (op.for && !findClass(op.for)) return err({ code: 'CLASS_NOT_FOUND', message: `class ${op.for} not found` })
       b.notes.push({ text: op.text, for: op.for })
       return ok(b)
@@ -600,6 +510,34 @@ export function classUnsupportedSyntaxWarnings(canonicalSource: string): LayoutW
       message: `${what}. Mermaid 11.16 rejects this; put the comment on a line of its own.`,
     })
   }
+  const extensionWarnings = (nodes: ClassStatementNode[]): void => {
+    const pending = [...nodes].reverse()
+    const semicolonLines = new Set<number>()
+    while (pending.length) {
+      const node = pending.pop()!
+      if (node.followsNamespaceCloseOnSameLine && node.value.kind === 'trivia' && node.raw.startsWith('%%')) warnings.push({
+        code: 'UNSUPPORTED_SYNTAX', syntax: 'class_trailing_comment', line: header + 1 + node.source.line,
+        message: 'A %% comment after a namespace closing brace is read as a comment. Mermaid 11.16 rejects this; put the comment on a line of its own.',
+      })
+      else if (node.followsNamespaceCloseOnSameLine && node.value.kind !== 'trivia' && node.value.kind !== 'close') warnings.push({
+        code: 'UNSUPPORTED_SYNTAX', syntax: 'class_statement_after_namespace_close', line: header + 1 + node.source.line,
+        message: 'A Class statement after a namespace closing brace on the same line is read as a separate statement. Mermaid 11.16 rejects this, even with a semicolon; put the statement on a new line.',
+      })
+      if (node.compactSemicolon && !semicolonLines.has(node.source.line)) {
+        semicolonLines.add(node.source.line)
+        warnings.push({
+          code: 'UNSUPPORTED_SYNTAX', syntax: 'class_compact_semicolon_statement_extension', line: header + 1 + node.source.line,
+          message: 'Semicolon-separated statements inside a compact Class namespace are read as separate statements. Mermaid 11.16 rejects this source; put each statement on its own line.',
+        })
+      }
+      if (node.value.kind === 'note' && node.value.escapedQuotes) warnings.push({
+        code: 'UNSUPPORTED_SYNTAX', syntax: 'class_escaped_note_quotes', line: header + 1 + node.source.line,
+        message: 'Backslash-escaped quotes in Class notes are read as text. Mermaid 11.16 rejects this; use &quot; inside the quoted note.',
+      })
+      if (node.children) for (let index = node.children.length - 1; index >= 0; index--) pending.push(node.children[index]!)
+    }
+  }
+  extensionWarnings(readClassStatements(bodyLines).statements)
   return warnings
 }
 

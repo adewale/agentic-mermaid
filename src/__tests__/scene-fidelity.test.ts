@@ -76,11 +76,10 @@ describe('scene fidelity', () => {
   })
 
   test('only the known-unrenderable corpus samples drop out before lowering', () => {
-    // gantt/6 has no tasks (GANTT_EMPTY, correct). gantt/10 is BUG-34: a task
-    // line with a trailing `%% comment` fails with GANTT_BAD_DATE. Its
-    // frontmatter also carries raw `themeCSS`, which the default security
-    // mode refuses; that frontmatter was ignored until it was read as Mermaid
-    // reads it (BUG-28), so fixing BUG-34 alone no longer makes it lower.
+    // gantt/6 has no tasks (GANTT_EMPTY, correct). gantt/10 still carries an
+    // undocumented workaround task tag and raw themeCSS, which default
+    // security refuses. Inline task comments now read generously, but do not
+    // make these other invalid/unsafe inputs lowerable.
     expect(dropped.map(sample => sample.id).sort()).toEqual(['corpus/gantt/10', 'corpus/gantt/6'])
   })
 

@@ -212,7 +212,7 @@ describe('radar agent surface', () => {
     })
   })
 
-  test('property: parse → serialize → parse → serialize is byte-stable', () => {
+  test('property: generated axes and every curve value survive parse and canonical round-trip', () => {
     const axisId = fc.stringMatching(/^[a-z][a-z0-9]{0,4}$/)
     fc.assert(fc.property(
       fc.uniqueArray(axisId, { minLength: 2, maxLength: 5 }),
@@ -225,16 +225,25 @@ describe('radar agent surface', () => {
           '  max 100',
         ].join('\n')
         const p = parseMermaid(src)
-        expect(p.ok).toBe(true)
-        if (!p.ok) return
-        expect(p.value.body.kind).toBe('radar')
-        if (p.value.body.kind !== 'radar') return
-        expect(p.value.body.axes.map(axis => axis.id)).toEqual(axes)
-        expect(p.value.body.curves.every(curve => curve.values.length === axes.length)).toBe(true)
-        const s1 = serializeMermaid(p.value)
-        const p2 = parseMermaid(s1)
-        expect(p2.ok).toBe(true)
-        if (p2.ok) expect(serializeMermaid(p2.value)).toBe(s1)
+        const parsed = expectOk(p)
+        const body = asRadar(parsed)?.body
+        if (!body) throw new Error(`not a structured radar: ${parsed.body.kind}`)
+        // These values come from the generated source, not a first parse of it:
+        // byte stability alone also passes when both parses lose the same curve.
+        const expected = {
+          axes: axes.map(id => ({ id, label: id })),
+          curves: curveValues.map((values, i) => ({
+            id: `c${i}`, label: `c${i}`,
+            values: axes.map((_axis, k) => values[k % values.length]!),
+          })),
+        }
+        expect({ axes: body.axes, curves: body.curves }).toEqual(expected)
+        const s1 = serializeMermaid(parsed)
+        const reparsed = expectOk(parseMermaid(s1))
+        const secondBody = asRadar(reparsed)?.body
+        if (!secondBody) throw new Error(`not a structured radar: ${reparsed.body.kind}`)
+        expect({ axes: secondBody.axes, curves: secondBody.curves }).toEqual(expected)
+        expect(serializeMermaid(reparsed)).toBe(s1)
       },
     ), { numRuns: 60 })
   })

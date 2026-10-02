@@ -1,7 +1,7 @@
 import type { MermaidGraph, MermaidSubgraph, Direction } from '../types.ts'
 import { normalizeBrTags } from '../multiline-utils.ts'
 import { syntaxError } from '../shared/syntax-error.ts'
-import { requireClosedAccessibility, scanAccessibilityDirectives } from '../shared/accessibility-directives.ts'
+import { parseAccessibilityDirective, type ParsedAccessibilityDirective } from '../shared/accessibility-directives.ts'
 import { stripTrailingComment } from '../shared/trailing-comment.ts'
 import { ALIGN_DIRECTIVE_RE, parseAlignDirective } from './align.ts'
 import { ARCHITECTURE_GROUP_ICON_TITLE_OFFSET } from './config.ts'
@@ -133,16 +133,87 @@ export function architectureTerminalRejections(statement: string): Array<{ termi
   return rejections
 }
 
+type ArchitectureSyntax =
+  | { kind: 'blank' | 'comment' }
+  | { kind: 'accessibility'; directive: ParsedAccessibilityDirective }
+  | { kind: 'title'; value: string }
+  | { kind: 'group' | 'service'; declaration: ReturnType<typeof architectureDeclaration> }
+  | { kind: 'junction'; id: string; parentId?: string }
+  | { kind: 'align'; alignment: ArchitectureAlignment }
+  | { kind: 'edge'; edge: ArchitectureEdge }
+  | { kind: 'invalid'; error: Error }
+
+export type ArchitectureSourceStatement = ArchitectureSyntax & {
+  raw: string[]
+  startLine: number
+  endLine: number
+}
+
+/** Lossless syntax, before renderer or agent projection and identity checks. */
+export function readArchitectureStatements(lines: readonly string[]): ArchitectureSourceStatement[] {
+  const out: ArchitectureSourceStatement[] = []
+  for (let index = 0; index < lines.length; index++) {
+    const start = index
+    const rawLine = lines[index]!
+    const append = (syntax: ArchitectureSyntax, raw = [rawLine]): void => {
+      out.push({ ...syntax, raw, startLine: start + 1, endLine: index + 1 })
+    }
+    const rawText = rawLine.trim()
+    if (!rawText || rawText.startsWith('%%')) {
+      append({ kind: rawText ? 'comment' : 'blank' })
+      continue
+    }
+    const accessibility = parseAccessibilityDirective(lines, index)
+    if (accessibility === undefined) {
+      const raw = lines.slice(index)
+      index = lines.length - 1
+      append({ kind: 'invalid', error: new Error('Unclosed accDescr block') }, raw)
+      break
+    }
+    if (accessibility !== null) {
+      index = accessibility.endIndex
+      const raw = lines.slice(start, index + 1)
+      if (accessibility.suffixLine) raw[raw.length - 1] = raw.at(-1)!.slice(0, raw.at(-1)!.indexOf('}') + 1)
+      append({ kind: 'accessibility', directive: accessibility }, raw)
+      if (accessibility.suffixLine) {
+        const closingLine = lines[index]!
+        const suffix = closingLine.slice(closingLine.indexOf('}') + 1)
+        out.push(...readArchitectureStatements([suffix]).map(statement => ({ ...statement, startLine: index + 1, endLine: index + 1 })))
+      }
+      continue
+    }
+    const line = stripTrailingComment(rawText)
+    try {
+      const title = line.match(/^title\s+(.+)$/i)
+      const group = line.match(GROUP_RE)
+      const service = line.match(SERVICE_RE)
+      const junction = line.match(JUNCTION_RE)
+      if (title) append({ kind: 'title', value: title[1]!.trim() })
+      else if (group) append({ kind: 'group', declaration: architectureDeclaration(group) })
+      else if (service) append({ kind: 'service', declaration: architectureDeclaration(service) })
+      else if (junction) append({ kind: 'junction', id: junction[1]!, parentId: junction[2] })
+      else if (ALIGN_DIRECTIVE_RE.test(line)) {
+        const parsed = parseAlignDirective(line)
+        if (!parsed.ok) throw syntaxError({ what: `Invalid architecture align directive "${line}" — ${parsed.reason}`, expectedForm: 'align row|column memberA memberB ..., listing at least two distinct services or junctions', example: 'align row db1 db2 db3' })
+        append({ kind: 'align', alignment: parsed.alignment })
+      } else {
+        const match = line.match(EDGE_RE)
+        if (!match) throw syntaxError({ what: `Invalid architecture edge: "${line}"`, expectedForm: 'source:SIDE <op> SIDE:target, where SIDE is L, R, T, or B', example: 'api:R --> L:db' })
+        append({ kind: 'edge', edge: { source: parseSourceEndpoint(match[1]!), target: parseTargetEndpoint(match[3]!), ...parseEdgeOperator(match[2]!) } })
+      }
+    } catch (error) {
+      append({ kind: 'invalid', error: error instanceof Error ? error : new Error(String(error)) })
+    }
+  }
+  return out
+}
+
 export function parseArchitectureDiagram(lines: string[]): ArchitectureDiagram {
-  const accessibility = scanAccessibilityDirectives(lines)
-  requireClosedAccessibility(accessibility)
-  // Mermaid's Architecture grammar ends every statement at a `%%` comment.
-  lines = accessibility.familyLines.map(stripTrailingComment)
   if (lines.length === 0) {
     throw new Error('Empty mermaid diagram')
   }
 
-  if (!/^architecture(?:-beta)?\s*$/i.test(lines[0]!)) {
+  if (!/^architecture(?:-beta)?\s*$/i.test(stripTrailingComment(lines[0]!))) {
     throw new Error(`Invalid mermaid header: "${lines[0]}". Expected "architecture" or "architecture-beta".`)
   }
 
@@ -153,25 +224,25 @@ export function parseArchitectureDiagram(lines: string[]): ArchitectureDiagram {
   const edges: ArchitectureEdge[] = []
   const alignments: ArchitectureAlignment[] = []
   let title: string | undefined
-  const accessibilityTitle = accessibility.accessibility.title === undefined
-    ? undefined
-    : normalizeBrTags(accessibility.accessibility.title)
-  const accessibilityDescription = accessibility.accessibility.descr === undefined
-    ? undefined
-    : normalizeBrTags(accessibility.accessibility.descr)
+  let accessibilityTitle: string | undefined
+  let accessibilityDescription: string | undefined
 
-  for (let i = 1; i < lines.length; i++) {
-    const line = lines[i]!
-
-    const titleMatch = line.match(/^title\s+(.+)$/i)
-    if (titleMatch) {
-      title = normalizeBrTags(titleMatch[1]!.trim())
+  for (const statement of readArchitectureStatements(lines.slice(1))) {
+    const line = stripTrailingComment(statement.raw.join('\n').trim())
+    if (statement.kind === 'invalid') throw statement.error
+    if (statement.kind === 'blank' || statement.kind === 'comment') continue
+    if (statement.kind === 'accessibility') {
+      if (statement.directive.title) accessibilityTitle = normalizeBrTags(statement.directive.value)
+      else accessibilityDescription = normalizeBrTags(statement.directive.value)
+      continue
+    }
+    if (statement.kind === 'title') {
+      title = normalizeBrTags(statement.value)
       continue
     }
 
-    const groupMatch = line.match(GROUP_RE)
-    if (groupMatch) {
-      const declared = architectureDeclaration(groupMatch)
+    if (statement.kind === 'group') {
+      const declared = statement.declaration
       const { id, icon, parentId } = declared
       const label = normalizeBrTags(declared.title)
       ensureIdentifierAvailable(id, groups, services, junctions)
@@ -182,9 +253,8 @@ export function parseArchitectureDiagram(lines: string[]): ArchitectureDiagram {
       continue
     }
 
-    const serviceMatch = line.match(SERVICE_RE)
-    if (serviceMatch) {
-      const declared = architectureDeclaration(serviceMatch)
+    if (statement.kind === 'service') {
+      const declared = statement.declaration
       const { id, icon, parentId } = declared
       const label = normalizeBrTags(declared.title)
       ensureIdentifierAvailable(id, groups, services, junctions)
@@ -195,10 +265,8 @@ export function parseArchitectureDiagram(lines: string[]): ArchitectureDiagram {
       continue
     }
 
-    const junctionMatch = line.match(JUNCTION_RE)
-    if (junctionMatch) {
-      const id = junctionMatch[1]!
-      const parentId = junctionMatch[2] ?? undefined
+    if (statement.kind === 'junction') {
+      const { id, parentId } = statement
       ensureIdentifierAvailable(id, groups, services, junctions)
       const junction: ArchitectureJunction = { id, parentId }
       ensureParentGroup(parentId, groups, line)
@@ -210,12 +278,16 @@ export function parseArchitectureDiagram(lines: string[]): ArchitectureDiagram {
     // `align` is a reserved word upstream, so a leading `align` token is
     // always a directive — never an edge whose source happens to be named
     // "align" (edge endpoints carry a `:SIDE` suffix and do not match).
-    if (ALIGN_DIRECTIVE_RE.test(line)) {
-      alignments.push(parseAlignmentLine(line, groups, services, junctions))
+    if (statement.kind === 'align') {
+      alignments.push(validateAlignment(statement.alignment, line, groups, services, junctions))
       continue
     }
 
-    edges.push(parseArchitectureEdge(line, services, junctions))
+    if (statement.kind === 'edge') {
+      validateEndpoint(statement.edge.source, services, junctions, line)
+      validateEndpoint(statement.edge.target, services, junctions, line)
+      edges.push({ ...statement.edge, label: statement.edge.label === undefined ? undefined : normalizeBrTags(statement.edge.label) })
+    }
   }
 
   return {
@@ -237,21 +309,14 @@ export function parseArchitectureDiagram(lines: string[]): ArchitectureDiagram {
  * this adds the declaration checks upstream applies at the DB level: every
  * member must be an already-declared service or junction, never a group.
  */
-function parseAlignmentLine(
+function validateAlignment(
+  alignment: ArchitectureAlignment,
   line: string,
   groups: Map<string, ArchitectureGroup>,
   services: Map<string, ArchitectureService>,
   junctions: Map<string, ArchitectureJunction>,
 ): ArchitectureAlignment {
-  const parsed = parseAlignDirective(line)
-  if (!parsed.ok) {
-    throw syntaxError({
-      what: `Invalid architecture align directive "${line}" — ${parsed.reason}`,
-      expectedForm: 'align row|column memberA memberB ..., listing at least two distinct services or junctions',
-      example: 'align row db1 db2 db3',
-    })
-  }
-  for (const member of parsed.alignment.members) {
+  for (const member of alignment.members) {
     if (services.has(member) || junctions.has(member)) continue
     if (groups.has(member)) {
       throw new Error(`Architecture align members must be services or junctions; "${member}" is a group in line "${line}"`)
@@ -263,7 +328,7 @@ function parseAlignmentLine(
       known: [...services.keys(), ...junctions.keys()],
     })
   }
-  return parsed.alignment
+  return alignment
 }
 
 function ensureIdentifierAvailable(
@@ -310,30 +375,6 @@ function attachChild(
   }
 }
 
-function parseArchitectureEdge(
-  line: string,
-  services: Map<string, ArchitectureService>,
-  junctions: Map<string, ArchitectureJunction>,
-): ArchitectureEdge {
-  const match = line.match(EDGE_RE)
-  if (!match) {
-    throw syntaxError({
-      what: `Invalid architecture edge: "${line}"`,
-      expectedForm: 'source:SIDE <op> SIDE:target, where SIDE is L, R, T, or B',
-      example: 'api:R --> L:db',
-    })
-  }
-
-  const source = parseSourceEndpoint(match[1]!)
-  const target = parseTargetEndpoint(match[3]!)
-  const { label, hasArrowStart, hasArrowEnd } = parseEdgeOperator(match[2]!)
-
-  validateEndpoint(source, services, junctions, line)
-  validateEndpoint(target, services, junctions, line)
-
-  return { source, target, label, hasArrowStart, hasArrowEnd }
-}
-
 function parseSourceEndpoint(token: string): ArchitectureEndpoint {
   const match = token.trim().match(SOURCE_RE)
   if (!match) {
@@ -377,7 +418,7 @@ function parseEdgeOperator(token: string): Pick<ArchitectureEdge, 'label' | 'has
     })
   }
 
-  const label = normalizeBrTags(architectureTitle(labelMatch[2]!)).trim() || undefined
+  const label = architectureTitle(labelMatch[2]!).trim() || undefined
   return {
     label,
     hasArrowStart: Boolean(labelMatch[1]),

@@ -324,10 +324,24 @@ describe('homepage prompt eval contract', () => {
     // preserved verbatim.
     const cleanedStray = 'sequenceDiagram\n  A->>B: hi\n  B-->>A: yo\n  B-->>A: ok'
     expect(checkAgentUsageTaskSource('stray_end_source_fallback', cleanedStray)).toBe(false)
+    expect(checkAgentUsageTaskSource('stray_end_source_fallback', 'sequenceDiagram\n  A->>B: hi\n  end\n  B-->>A: yo\n  B-->>A: ok')).toBe(true)
     // Knowledge cases are opt-in by explicit id and never dilute the default
     // sets that other suites iterate.
     const defaultIds = new Set(DEFAULT_CASES.map(c => c.id))
     for (const c of KNOWLEDGE_CASES) expect({ id: c.id, inDefaults: defaultIds.has(c.id) }).toEqual({ id: c.id, inDefaults: false })
+  })
+
+  test.each([
+    'return { source: edited }',
+    'return { source: edited, warnings: [] }',
+    'return { source: edited, warnings: [{ code: "UNSUPPORTED_SYNTAX", syntax: "sequence_block_boundary" }] }',
+  ])('opaque source fallback cannot hide failed verification: %s', async replacement => {
+    const fixture = KNOWLEDGE_CASES.find(c => c.id === 'stray_end_source_fallback')!
+    const script = fixture.script.replace('return { source: edited, warnings: verify.warnings }', replacement)
+    const summary = await runAgentUsageEval([{ ...fixture, script }])
+    expect(summary.results).toEqual([
+      { id: fixture.id, ok: false, taskOk: false, traceOk: true, findings: [], error: undefined },
+    ])
   })
 })
 

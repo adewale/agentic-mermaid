@@ -10,9 +10,8 @@
 //     int    age "comment"
 //   }
 //
-// Unmodeled (forces opaque):
-//   - non-standard cardinality glyphs
-//   - directives like `title`
+// Unmodeled outer statements ride along as opaque segments. Invalid grammar
+// and preserved lines inside attribute blocks force lossless whole-body opaque.
 // ============================================================================
 
 import { unknownOpMessage } from './mutation-ops.ts'
@@ -29,13 +28,12 @@ import {
   recordErClassNames,
   parseErCardinality,
   hasErTrailingComment,
-  readErStatement,
+  readErStatements,
 } from '../er/parser.ts'
 import { createErCreationFold, type ErCreationFold } from '../er/creation.ts'
 import { decodeErText, writeErName, writeErRelationLabel, writeErTitle } from '../er/text.ts'
 import { parseAccessibilityDirective } from '../shared/accessibility-directives.ts'
 import { parseMutableStyleProps, serializeStyleProps, unsafeStylePaintError } from '../shared/style-props.ts'
-import { stripTrailingComment } from '../shared/trailing-comment.ts'
 
 /** ER source ours reads where Mermaid 11.16 rejects it, each on its canonical
  * line: a trailing `%%` comment after a statement is a comment, and quoted
@@ -48,30 +46,28 @@ export function erUnsupportedSyntaxWarnings(canonicalSource: string): LayoutWarn
   const warn = (index: number, syntax: string, what: string, portable: string): void => {
     warnings.push({ code: 'UNSUPPORTED_SYNTAX', syntax, line: index + 1, message: `${what}. Mermaid 11.16 rejects this; ${portable}.` })
   }
-  let inBlock = false
-  let groups = 0
+  const grammar = lines.slice(header + 1)
   for (let index = header + 1; index < lines.length; index++) {
     const directive = parseAccessibilityDirective(lines, index)
     if (directive === undefined) break
     if (directive !== null) {
+      for (let at = index; at <= directive.endIndex; at++) grammar[at - header - 1] = ''
+      if (directive.suffixLine) grammar[directive.endIndex - header - 1] = directive.suffixLine
       index = directive.endIndex
       continue
     }
     const line = lines[index]!.trim()
     if (!line || line.startsWith('%%')) continue
     if (hasErTrailingComment(line)) warn(index, 'er_trailing_comment', 'A trailing %% comment after an ER statement is read as a comment', 'put the comment on a line of its own')
-    if (inBlock) {
-      if (stripTrailingComment(line) === '}') inBlock = false
-      continue
-    }
-    try {
-      const statement = readErStatement(line, groups > 0, (what, portable) => warn(index, 'er_quoted_text', what, portable))
-      if (statement?.kind === 'block-open') inBlock = true
-      else if (statement?.kind === 'group-open') groups++
-      else if (statement?.kind === 'end') groups--
-    } catch {
-      // A statement ours cannot read fails the render; verify reports that.
-    }
+  }
+  try {
+    const source = readErStatements(grammar, (what, portable, index) => warn(header + index + 1, 'er_quoted_text', what, portable))
+    for (const entry of source.statements) if (entry.syntax.kind === 'unknown') warnings.push({
+      code: 'UNSUPPORTED_SYNTAX', syntax: 'er_statement', line: header + entry.line + 2,
+      message: `ER statement is preserved in source but not drawn: ${entry.raw.trim()}`,
+    })
+  } catch {
+    // A statement ours cannot read fails the render; verify reports that.
   }
   return warnings
 }
@@ -90,11 +86,11 @@ const AGENT_CARDINALITY: Record<NonNullable<ReturnType<typeof parseErCardinality
   one: 'one-only', 'zero-one': 'zero-or-one', many: 'one-or-many', 'zero-many': 'zero-or-many',
 }
 
-/** The typed body of an ER source, or null (opaque) when a line is not one
- * this body models or the shared ER grammar refuses it. */
-export function parseErBody(lines: string[]): ErBody | null {
+/** Project the shared ER stream into the editable model. Unknown outer lines
+ * remain ordered source; syntax that cannot be safely segmented stays opaque. */
+export function parseErBody(lines: string[], rawLines?: string[]): ErBody | null {
   try {
-    return readErBody(lines)
+    return readErBody(rawLines ?? lines)
   } catch {
     return null
   }
@@ -121,19 +117,21 @@ function readErBody(lines: string[]): ErBody | null {
   }
 
   // Which statement creates each entity, and which subgraph keeps it.
-  const fold = createErCreationFold()
+  const source = readErStatements(lines)
   const groupById = new Map<string, ErGroup>()
-  let i = 0
-  while (i < lines.length) {
-    const raw = lines[i]!.trim()
-    i++
-    if (!raw || raw.startsWith('%%')) continue
-
-    const statement = readErStatement(raw, fold.innermost !== undefined)
-    if (!statement) return null
+  for (const entry of source.statements) {
+    const statement = entry.syntax
     switch (statement.kind) {
+      case 'unknown':
+      case 'comment':
+        // The attribute model cannot place preserved lines among attributes.
+        // Keep such a source wholly opaque rather than move or lose its text.
+        if (entry.entityId !== undefined) return null
+        statements.push({ kind: 'opaque', lines: [entry.raw] })
+        break
+      case 'attribute': entityMap.get(entry.entityId!)!.attributes.push({ text: statement.text }); break
       case 'direction': {
-        const group = fold.innermost !== undefined ? groupById.get(fold.innermost) : undefined
+        const group = entry.groupId !== undefined ? groupById.get(entry.groupId) : undefined
         if (group) group.direction = statement.direction
         else body.direction = statement.direction
         statements.push({ kind: 'direction', ...(group ? { groupId: group.id } : {}) })
@@ -141,7 +139,6 @@ function readErBody(lines: string[]): ErBody | null {
       }
       case 'group-open': {
         if (!writableErId(statement.id) || statement.title === '') return null
-        fold.open(statement.id)
         const group: ErGroup = { id: statement.id, label: decodeErText(statement.title ?? statement.id) }
         body.groups!.push(group)
         groupById.set(group.id, group)
@@ -149,8 +146,7 @@ function readErBody(lines: string[]): ErBody | null {
         break
       }
       case 'end':
-        statements.push({ kind: 'group-close', id: fold.innermost! })
-        fold.close()
+        statements.push({ kind: 'group-close', id: entry.groupId! })
         break
       case 'class-def':
         if (Object.keys(statement.props).length === 0) return null
@@ -166,7 +162,6 @@ function readErBody(lines: string[]): ErBody | null {
       case 'style':
         if (statement.ids.length === 0 || Object.keys(statement.props).length === 0) return null
         for (const id of statement.ids) {
-          fold.style(id)
           const entity = upsert(id)
           entity.style = { ...entity.style, ...statement.props }
         }
@@ -186,7 +181,7 @@ function readErBody(lines: string[]): ErBody | null {
           label: decodeErText(relation.label) || undefined,
         })
         for (const end of [relation.entity1, relation.entity2]) {
-          if (fold.relationEnd(end.id, end.alias)) upsert(end.id, end.className)
+          if (entry.relationEntityIds!.includes(end.id)) upsert(end.id, end.className)
         }
         statements.push({ kind: 'relation', ref: relationIndex })
         break
@@ -194,27 +189,13 @@ function readErBody(lines: string[]): ErBody | null {
       case 'block-open': {
         // Entity with attribute block. The reference may carry a display alias.
         const { reference } = statement
-        fold.declare(reference.id, reference.alias)
-        const e = upsert(reference.id, reference.className)
+        upsert(reference.id, reference.className)
         declareEntityStatement(reference.id)
-        let closed = false
-        while (i < lines.length) {
-          const al = lines[i]!.trim()
-          i++
-          if (!al || al.startsWith('%%')) continue
-          // A trailing `%%` comment is dropped, as the render parser drops it.
-          const attribute = stripTrailingComment(al)
-          if (attribute === '}') { closed = true; break }
-          if (!parseErAttribute(attribute)) return null
-          e.attributes.push({ text: attribute })
-        }
-        if (!closed) return null
         break
       }
       case 'entity': {
         // Bare or aliased entity declaration (no attributes).
         const { reference } = statement
-        fold.declare(reference.id, reference.alias)
         upsert(reference.id, reference.className)
         declareEntityStatement(reference.id)
         break
@@ -222,7 +203,10 @@ function readErBody(lines: string[]): ErBody | null {
     }
   }
 
-  const placement = fold.finish()
+  const placement = source.placement
+  // An unknown-only source has no editable ER content. Preserve it as a whole
+  // opaque body rather than advertise an empty structured schema as support.
+  if (placement.order.length === 0 && source.statements.some(entry => entry.syntax.kind === 'unknown')) return null
   // An empty alias has no Mermaid spelling either (writableErId).
   if ([...placement.alias.values()].includes('')) return null
   for (const [id, names] of classNamesByEntity) entityMap.get(id)!.className = names.join(' ')
@@ -437,7 +421,7 @@ export function renderEr(body: ErBody): string {
         openGroups.pop()
         lines.push('  end')
       } else {
-        for (const line of statement.lines) lines.push(`  ${line}`)
+        for (const line of statement.lines) lines.push(line)
       }
     })
     // Trailing `style` lines re-create the last entities by themselves.

@@ -15,6 +15,7 @@ interface BenchCase {
   upstream: { repo: string; files: string[]; blocks: string[] }
   assertions: {
     expectStructured?: boolean
+    renderError?: string
     nodeCount?: number
     edgeCount?: number
     groupCount?: number
@@ -312,6 +313,15 @@ describe('BUILD-20 Mermaid upstream parser/DB bench', () => {
       else expect(narrowed).not.toBeNull()
 
       const verification = verifyMermaid(parsed.value)
+      if (c.assertions.renderError) {
+        // Unsupported glyphs must remain source-preserved and fail explicitly,
+        // never count as a successful zero-node drawing.
+        expect(verification.ok).toBe(false)
+        expect(verification.warnings.map(w => w.code)).toContain('RENDER_FAILED')
+        expect(() => layoutMermaid(parsed.value)).toThrow(c.assertions.renderError)
+        expect(serializeMermaid(parsed.value)).toBe(c.source + '\n')
+        return
+      }
       expect(verification.ok, JSON.stringify(verification.warnings)).toBe(true)
 
       const layout = layoutMermaid(parsed.value)

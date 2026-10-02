@@ -19,7 +19,7 @@
 // ============================================================================
 
 import { unknownOpMessage } from './mutation-ops.ts'
-import { ALIGN_DIRECTIVE_RE, parseAlignDirective, serializeAlignDirective } from '../architecture/align.ts'
+import { serializeAlignDirective } from '../architecture/align.ts'
 import type {
   ArchitectureBody, ArchitectureGroup, ArchitectureService, ArchitectureJunction,
   ArchitectureEdge, ArchitectureAlignment, ArchitectureSide, ArchitectureMutationOp,
@@ -29,11 +29,9 @@ import { ok, err } from './types.ts'
 import { labelOverflowCollector, setOptionalField } from './body-utils.ts'
 import { appendAccessibilityLines } from './accessibility-envelope.ts'
 import { resolveArchitectureIcon } from '../architecture/icons.ts'
-import { parseAccessibilityDirective, scanAccessibilityDirectives } from '../shared/accessibility-directives.ts'
-import { stripTrailingComment } from '../shared/trailing-comment.ts'
+import { parseAccessibilityDirective } from '../shared/accessibility-directives.ts'
 import {
-  GROUP_RE, JUNCTION_RE, LABELED_ARROW_RE, SERVICE_RE, SOURCE_RE, TARGET_RE,
-  architectureDeclaration, architectureIconError, architectureIdError, architectureTerminalRejections, architectureTitle, architectureTitleSource,
+  readArchitectureStatements, architectureIconError, architectureIdError, architectureTerminalRejections, architectureTitleSource,
 } from '../architecture/parser.ts'
 
 // ---- Parser -----------------------------------------------------------------
@@ -44,46 +42,6 @@ const SIDES = new Set<ArchitectureSide>(['L', 'R', 'T', 'B'])
 
 function normalizeText(value: string): string {
   return value.split(/\r?\n/).map(part => part.trim()).filter(Boolean).join(' ')
-}
-
-/** Parse an edge operator, returning the modeled arrow forms or null. */
-function parseArrow(token: string): { label?: string; hasArrowStart: boolean; hasArrowEnd: boolean } | null {
-  const t = token.trim()
-  if (t === '<-->') return { hasArrowStart: true, hasArrowEnd: true }
-  if (t === '-->') return { hasArrowStart: false, hasArrowEnd: true }
-  if (t === '<--') return { hasArrowStart: true, hasArrowEnd: false }
-  if (t === '--') return { hasArrowStart: false, hasArrowEnd: false }
-  const m = t.match(LABELED_ARROW_RE)
-  if (!m) return null
-  const label = normalizeText(architectureTitle(m[2]!)) || undefined
-  // A label that contains the bracket delimiter would not round-trip; reject.
-  if (label && (label.includes('[') || label.includes(']'))) return null
-  return { label, hasArrowStart: Boolean(m[1]), hasArrowEnd: Boolean(m[3]) }
-}
-
-function parseEdge(line: string): ArchitectureEdge | null {
-  const m = line.match(/^(\S+)\s+(.+)\s+(\S+)$/)
-  if (!m) return null
-  const src = m[1]!.match(SOURCE_RE)
-  const tgt = m[3]!.match(TARGET_RE)
-  if (!src || !tgt) return null
-  const arrow = parseArrow(m[2]!)
-  if (!arrow) return null
-  return {
-    source: {
-      id: src[1]!,
-      side: src[3] as ArchitectureSide,
-      ...(src[2] ? { boundary: 'group' as const } : {}),
-    },
-    target: {
-      id: tgt[2]!,
-      side: tgt[1] as ArchitectureSide,
-      ...(tgt[3] ? { boundary: 'group' as const } : {}),
-    },
-    label: arrow.label,
-    hasArrowStart: arrow.hasArrowStart,
-    hasArrowEnd: arrow.hasArrowEnd,
-  }
 }
 
 /**
@@ -97,13 +55,9 @@ export function parseArchitectureBody(
   lines: string[],
   accessibility: import('./types.ts').Accessibility = {},
 ): ArchitectureBody | null {
-  const scanned = scanAccessibilityDirectives(lines)
-  if (scanned.unclosedIndex !== undefined) return null
-  // The same `%%` statement ending as the renderer grammar (architecture/parser.ts).
-  lines = scanned.familyLines.map(stripTrailingComment)
   let title: string | undefined
-  const accessibilityTitle = scanned.accessibility.title ?? accessibility.title
-  const accessibilityDescription = scanned.accessibility.descr ?? accessibility.descr
+  let accessibilityTitle = accessibility.title
+  let accessibilityDescription = accessibility.descr
   const groups: ArchitectureGroup[] = []
   const services: ArchitectureService[] = []
   const junctions: ArchitectureJunction[] = []
@@ -112,55 +66,49 @@ export function parseArchitectureBody(
   const ids = new Set<string>()
   const groupIds = new Set<string>()
   const endpointIds = new Set<string>() // services + junctions (valid edge endpoints)
-  const pendingParents: Array<{ parent: string }> = []
 
-  for (let lineIndex = 0; lineIndex < lines.length; lineIndex++) {
-    const line = lines[lineIndex]!.trim()
-    if (!line) continue
-    if (line.startsWith('%%')) continue
-
-    const titleMatch = line.match(/^title\s+(.+)$/i)
-    if (titleMatch) {
+  for (const statement of readArchitectureStatements(lines)) {
+    if (statement.kind === 'invalid') return null
+    if (statement.kind === 'blank' || statement.kind === 'comment') continue
+    if (statement.kind === 'accessibility') {
+      if (statement.directive.title) accessibilityTitle = statement.directive.value
+      else accessibilityDescription = statement.directive.value
+      continue
+    }
+    if (statement.kind === 'title') {
       if (title !== undefined) return null
-      title = normalizeText(titleMatch[1]!)
+      title = normalizeText(statement.value)
       if (!title) return null
       continue
     }
 
-    const gm = line.match(GROUP_RE)
-    if (gm) {
-      const declared = architectureDeclaration(gm)
+    if (statement.kind === 'group') {
+      const declared = statement.declaration
       const { id, icon, parentId } = declared
-      if (ids.has(id)) return null
+      if (ids.has(id) || (parentId && !groupIds.has(parentId))) return null
       ids.add(id)
       groupIds.add(id)
       const label = normalizeText(declared.title)
-      if (parentId) pendingParents.push({ parent: parentId })
       groups.push({ id, label, icon, parentId })
       continue
     }
 
-    const sm = line.match(SERVICE_RE)
-    if (sm) {
-      const declared = architectureDeclaration(sm)
+    if (statement.kind === 'service') {
+      const declared = statement.declaration
       const { id, icon, parentId } = declared
-      if (ids.has(id)) return null
+      if (ids.has(id) || (parentId && !groupIds.has(parentId))) return null
       ids.add(id)
       endpointIds.add(id)
       const label = normalizeText(declared.title)
-      if (parentId) pendingParents.push({ parent: parentId })
       services.push({ id, label, icon, parentId })
       continue
     }
 
-    const jm = line.match(JUNCTION_RE)
-    if (jm) {
-      const id = jm[1]!
-      if (ids.has(id)) return null
+    if (statement.kind === 'junction') {
+      const { id, parentId } = statement
+      if (ids.has(id) || (parentId && !groupIds.has(parentId))) return null
       ids.add(id)
       endpointIds.add(id)
-      const parentId = jm[2] ?? undefined
-      if (parentId) pendingParents.push({ parent: parentId })
       junctions.push({ id, parentId })
       continue
     }
@@ -169,19 +117,21 @@ export function parseArchitectureBody(
     // directive. Malformed directives (bad axis, <2 members, duplicates) fall
     // back to opaque — the legacy render parser rejects them, exactly like
     // upstream, and verify reports the render failure honestly.
-    if (ALIGN_DIRECTIVE_RE.test(line)) {
-      const parsed = parseAlignDirective(line)
-      if (!parsed.ok) return null
+    if (statement.kind === 'align') {
       // Renderer semantics are declaration-order-sensitive: align can only
       // reference endpoints already declared at this source position.
-      if (parsed.alignment.members.some(member => !endpointIds.has(member))) return null
-      alignments.push(parsed.alignment)
+      if (statement.alignment.members.some(member => !endpointIds.has(member))) return null
+      alignments.push(statement.alignment)
       continue
     }
 
-    const edge = parseEdge(line)
-    if (edge) {
-      edges.push(edge)
+    if (statement.kind === 'edge') {
+      const { edge } = statement
+      if (!endpointIds.has(edge.source.id) || !endpointIds.has(edge.target.id)) return null
+      const label = edge.label === undefined ? undefined : normalizeText(edge.label)
+      if (label && (label.includes('[') || label.includes(']'))) return null
+      const endpoint = (value: typeof edge.source): ArchitectureEdge['source'] => ({ id: value.id, side: value.side, ...(value.boundary === 'group' ? { boundary: 'group' as const } : {}) })
+      edges.push({ source: endpoint(edge.source), target: endpoint(edge.target), label, hasArrowStart: edge.hasArrowStart, hasArrowEnd: edge.hasArrowEnd })
       continue
     }
 
@@ -193,9 +143,6 @@ export function parseArchitectureBody(
   // and align member must be a declared service or junction. The legacy parser
   // rejects diagrams that violate these, so a structured body must satisfy
   // them to round-trip.
-  for (const { parent } of pendingParents) {
-    if (!groupIds.has(parent)) return null
-  }
   for (const edge of edges) {
     if (!endpointIds.has(edge.source.id) || !endpointIds.has(edge.target.id)) return null
     for (const endpoint of [edge.source, edge.target]) {

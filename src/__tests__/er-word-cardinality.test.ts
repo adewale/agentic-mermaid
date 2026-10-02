@@ -48,12 +48,14 @@ describe('ER word-form relationship aliases (Mermaid 11.16.0)', () => {
 
   test('identifying and non-identifying words and glyphs retain meaning and endpoint identity', () => {
     const cases = [
-      ['CAR 1 to zero or more NAMED-DRIVER : allows', true, 'one', 'zero-many'],
-      ['PERSON many(0) optionally to 0+ NAMED-DRIVER : is', false, 'zero-many', 'zero-many'],
-      ['CUSTOMER 1--one or more DELIVERY-ADDRESS : has', true, 'one', 'many'],
-      ['A one or many optionally to zero or one B : has', false, 'many', 'zero-one'],
+      ['CAR 1 to zero or more NAMED-DRIVER : allows', true, 'one', 'zero-many', 'CAR', 'NAMED-DRIVER', 'allows'],
+      ['PERSON many(0) optionally to 0+ NAMED-DRIVER : is', false, 'zero-many', 'zero-many', 'PERSON', 'NAMED-DRIVER', 'is'],
+      ['CUSTOMER 1--one or more DELIVERY-ADDRESS : has', true, 'one', 'many', 'CUSTOMER', 'DELIVERY-ADDRESS', 'has'],
+      ['CUSTOMER 1.-one or more DELIVERY-ADDRESS : has', false, 'one', 'many', 'CUSTOMER', 'DELIVERY-ADDRESS', 'has'],
+      ['CUSTOMER 1-.one or more DELIVERY-ADDRESS : has', false, 'one', 'many', 'CUSTOMER', 'DELIVERY-ADDRESS', 'has'],
+      ['A one or many optionally to zero or one B : has', false, 'many', 'zero-one', 'A', 'B', 'has'],
     ] as const
-    for (const [statement, identifying, left, right] of cases) {
+    for (const [statement, identifying, left, right, from, to, label] of cases) {
       const native = parseNative(statement)
       expect(native.relationships).toHaveLength(1)
       expect(native.relationships[0]).toMatchObject({ identifying, cardinality1: left, cardinality2: right })
@@ -64,8 +66,18 @@ describe('ER word-form relationship aliases (Mermaid 11.16.0)', () => {
       expect(body?.relations).toHaveLength(1)
       expect(body?.relations[0]?.dashed).toBe(!identifying)
       const canonical = serializeMermaid(parsed.value)
-      expect(parseErDiagram(canonical.split('\n').map(line => line.trim()).filter(Boolean)).relationships).toHaveLength(1)
-      expect(renderMermaidSVG(`erDiagram\n  ${statement}`)).toMatch(/class="er-relationship"/)
+      const expected = {
+        entity1: from, entity2: to, cardinality1: left, cardinality2: right, identifying, label,
+      }
+      expect(parseErDiagram(canonical.split('\n')).relationships).toEqual([expected])
+      for (const source of [`erDiagram\n  ${statement}`, canonical]) {
+        const relations = renderMermaidSVG(source).match(/<polyline class="er-relationship"[^>]*>/g) ?? []
+        expect(relations).toHaveLength(1)
+        for (const [attribute, value] of Object.entries({
+          'data-from': expected.entity1, 'data-to': expected.entity2,
+          'data-cardinality1': left, 'data-cardinality2': right, 'data-identifying': identifying,
+        })) expect(relations[0]).toContain(`${attribute}="${value}"`)
+      }
     }
   })
 
@@ -88,6 +100,8 @@ describe('ER word-form relationship aliases (Mermaid 11.16.0)', () => {
     for (const [statement, cardA, cardB, relType] of [
       ['CAR 1 to zero or more DRIVER : allows', 'ZERO_OR_MORE', 'ONLY_ONE', 'IDENTIFYING'],
       ['PERSON many(0) optionally to 0+ DRIVER : is', 'ZERO_OR_MORE', 'ZERO_OR_MORE', 'NON_IDENTIFYING'],
+      ['CUSTOMER 1.-one or more DELIVERY-ADDRESS : has', 'ONE_OR_MORE', 'ONLY_ONE', 'NON_IDENTIFYING'],
+      ['CUSTOMER 1-.one or more DELIVERY-ADDRESS : has', 'ONE_OR_MORE', 'ONLY_ONE', 'NON_IDENTIFYING'],
     ] as const) {
       const upstream = await mermaid.mermaidAPI.getDiagramFromText(`erDiagram\n${statement}\n`)
       const db = upstream.db as unknown as { getRelationships(): Array<{ relSpec: { cardA: string; cardB: string; relType: string } }> }

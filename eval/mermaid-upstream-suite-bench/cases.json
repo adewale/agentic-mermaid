@@ -488,10 +488,10 @@
       ]
     },
     "assertions": {
-      "expectStructured": false,
+      "expectStructured": true,
       "nodeCount": 1,
       "edgeCount": 0,
-      "groupCount": 0,
+      "groupCount": 1,
       "minNodes": 1,
       "labelsContain": [
         "IPC::Sender"
@@ -675,13 +675,14 @@
       "expectStructured": false,
       "nodeCount": 2,
       "edgeCount": 0,
-      "groupCount": 3,
+      "groupCount": 4,
       "minNodes": 2,
-      "minGroups": 3,
+      "minGroups": 4,
       "labelsContain": [
         "Class1",
         "Class2",
         "Namespace1",
+        "Namespace2",
         "Namespace3",
         "Namespace4"
       ]
@@ -891,14 +892,14 @@
       ]
     },
     "assertions": {
-      "expectStructured": false,
+      "expectStructured": true,
       "nodeCount": 2,
       "edgeCount": 1,
       "groupCount": 0,
       "minNodes": 2,
       "minEdges": 1,
       "labelsContain": [
-        "C1",
+        "Class 1 with text label",
         "C2"
       ]
     }
@@ -1053,15 +1054,15 @@
       ]
     },
     "assertions": {
-      "expectStructured": false,
+      "expectStructured": true,
       "nodeCount": 2,
       "edgeCount": 1,
       "groupCount": 0,
       "minNodes": 2,
       "minEdges": 1,
       "labelsContain": [
-        "C1",
-        "C2"
+        "Class 1 with text label",
+        "Class 2 !@#$%^&*() label"
       ]
     }
   },
@@ -1614,10 +1615,15 @@
       ]
     },
     "assertions": {
-      "expectStructured": false,
-      "nodeCount": 0,
-      "edgeCount": 0,
-      "groupCount": 0
+      "expectStructured": true,
+      "nodeCount": 2,
+      "edgeCount": 1,
+      "groupCount": 0,
+      "labelsContain": [
+        "CUSTOMER",
+        "DELIVERY-ADDRESS",
+        "has"
+      ]
     }
   },
   {
@@ -1634,10 +1640,15 @@
       ]
     },
     "assertions": {
-      "expectStructured": false,
-      "nodeCount": 0,
-      "edgeCount": 0,
-      "groupCount": 0
+      "expectStructured": true,
+      "nodeCount": 2,
+      "edgeCount": 1,
+      "groupCount": 0,
+      "labelsContain": [
+        "CUSTOMER",
+        "DELIVERY-ADDRESS",
+        "has"
+      ]
     }
   },
   {
@@ -2624,9 +2635,7 @@
     },
     "assertions": {
       "expectStructured": false,
-      "nodeCount": 0,
-      "edgeCount": 0,
-      "groupCount": 0
+      "renderError": "ER_UNSUPPORTED_STATEMENT"
     }
   },
   {
@@ -9034,8 +9043,8 @@
         "Alice",
         "Bob",
         "Bob thinks",
-        "1. Hello Bob, how are you?",
-        "2. I am good thanks!"
+        "10.1. Hello Bob, how are you?",
+        "10.11. I am good thanks!"
       ]
     }
   },
@@ -11234,9 +11243,9 @@
       "labelsContain": [
         "Alice",
         "Bob",
-        "1. Hello Bob, how are you?",
-        "2. I am good thanks!",
-        "3. Have a good day!"
+        "10.01. Hello Bob, how are you?",
+        "10.02. I am good thanks!",
+        "10.03. Have a good day!"
       ]
     }
   },
@@ -11263,9 +11272,9 @@
       "labelsContain": [
         "Alice",
         "Bob",
-        "1. Hello Bob, how are you?",
-        "2. I am good thanks!",
-        "3. Have a good day!"
+        "10.1. Hello Bob, how are you?",
+        "10.2. I am good thanks!",
+        "10.3. Have a good day!"
       ]
     }
   },
@@ -11313,9 +11322,12 @@
     },
     "assertions": {
       "expectStructured": true,
-      "nodeCount": 0,
+      "nodeCount": 1,
       "edgeCount": 0,
-      "groupCount": 0
+      "groupCount": 0,
+      "labelsContain": [
+        "AAAAAAAAAAAAA:AAAAAAAAAAAAA"
+      ]
     }
   },
   {

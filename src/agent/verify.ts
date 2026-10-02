@@ -28,6 +28,7 @@ import type { PositionedQuadrantChart } from '../quadrant/types.ts'
 import { ensureAccessibilityLines } from './accessibility-envelope.ts'
 import { architectureUnsupportedSyntaxWarnings } from './architecture-body.ts'
 import { classUnsupportedSyntaxWarnings } from './class-body.ts'
+import { ganttUnsupportedSyntaxWarnings } from './gantt-body.ts'
 import { erUnsupportedSyntaxWarnings } from './er-body.ts'
 import { builtinFamilyMetadata, extractLabelsGeneric, getFamily } from './families.ts'
 import { FamilyLayoutError, ganttGeometryWarnings, ganttScheduleWarning, layoutGeometryWarnings, type ProjectedFamilyArtifact, positionFamilyArtifact } from './family-layouts.ts'
@@ -320,6 +321,7 @@ const UPSTREAM_REJECTED_SYNTAX: Partial<Record<ValidDiagram['kind'], (canonicalS
   class: classUnsupportedSyntaxWarnings,
   er: erUnsupportedSyntaxWarnings,
   flowchart: flowchartUpstreamRejectedSyntaxWarnings,
+  gantt: ganttUnsupportedSyntaxWarnings,
   quadrant: quadrantUnsupportedSyntaxWarnings,
   sequence: sequenceUnsupportedSyntaxWarnings,
 }

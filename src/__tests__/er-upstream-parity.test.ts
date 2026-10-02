@@ -146,11 +146,15 @@ const ER_READ_GENEROUSLY: ReadonlyArray<readonly [string, 'er' | 'opaque', strin
 describe('ER source Mermaid rejects, read generously', () => {
   test.each(ER_READ_GENEROUSLY)('%j is read, drawn and reported', (source, typed, drawn, syntax, line) => {
     const parsed = parseRegisteredMermaid(source)
+    const warnings = verifyMermaid(source).warnings
     expect({
       typed: parsed.ok && parsed.value.body.kind,
       draws: renderMermaidSVG(source).includes(drawn),
-      reported: verifyMermaid(source).warnings.flatMap(warning => warning.code === 'UNSUPPORTED_SYNTAX' ? [`${warning.syntax}@${warning.line}`] : []),
+      reported: warnings.flatMap(warning => warning.code === 'UNSUPPORTED_SYNTAX' ? [`${warning.syntax}@${warning.line}`] : []),
     }).toEqual({ typed, draws: true, reported: expect.arrayContaining([`${syntax}@${line}`]) })
+    // Canonical typed output drops only the generous inline comment, not its
+    // statement. The existing public comment policy must account for that loss.
+    if (syntax === 'er_trailing_comment') expect(warnings).toContainEqual(expect.objectContaining({ code: 'COMMENT_DROPPED', count: 1, lines: [line] }))
   })
 })
 

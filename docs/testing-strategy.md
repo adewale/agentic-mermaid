@@ -272,12 +272,20 @@ defence: write the test, watch it fail for the right reason, then fix.
 
 - **Red → green** (`scripts/ci/red-green.ts`, the `red-green` CI job) — when a
   pull request changes production source and tests, at least one changed test
-  must fail against the base branch's production code. This mechanically
+  must produce an assertion failure attributed to a test location against base
+  production. Missing imports, non-assertion setup errors, unlocated suite-hook
+  assertions, timeouts and aborted runners are not
+  behavioral evidence; the gate reads the pinned Bun runner's JUnit report.
+  Unexpected production exceptions need an explicit `toThrow` / `not.toThrow`
+  assertion. This mechanically
   checks the "tests that fail when the fix is reverted" rule for every PR,
   instead of a hand-written probe per fix. Pure refactors opt out with the
   `no-red-green` label. Like `payload-growth-approved`, it approves only the
   head it was applied to (`scripts/ci/label-approval.ts`): CI ignores a label
   applied before the latest push and removes it when new commits arrive.
+  Bun's JUnit report cannot distinguish located per-test hook assertions from
+  test-body assertions. Review their meaning: this gate is fault evidence, not
+  a substitute for auditing whether each assertion exercises production behavior.
 
 **Why this matters:** line coverage is reported per-PR as one merged LCOV
 artifact assembled from the three unit shards, but it is a weak
@@ -362,12 +370,11 @@ table here, which would drift. In broad strokes:
   the corpus/seqbench/upstream benches — plus the high/critical dependency audit,
   type check, the hero check, the parallel browser/CLI/binary/fuzz e2e matrix (whose
   browser lane checks route payload budgets and, on pull requests, the gzip
-  delta against the base branch built on the same runner), the fast
-  incremental mutation lane, the independent focused sabotage lane, and the
+  delta against the base branch built on the same runner), and the
   red → green changed-test check. Each unit shard runs its files with
   `--parallel=2` (isolated worker processes), so a test file cannot depend on
   another file's imports. A final `CI complete` job waits for the required
-  test aggregate, every E2E matrix job, mutation, and red → green, providing one
+  test aggregate, every E2E matrix job and red → green, providing one
   protectable result that cannot turn green early.
 - **Nightly (`nightly-finder.yml`):** random-seed sweeps of every property
   suite; failures become an issue, never a blocked PR.
@@ -497,12 +504,11 @@ gates rather than adding new machinery:
 1. The per-PR aesthetic signal is still the weakest gate; the metrics are
    admittedly rough, and nothing per-PR validates them independently — only a
    real periodic judge run can.
-2. Automatic mutation assurance is deliberately narrow: PR feedback uses the
-   fast incremental faithfulness-counter lane plus nine focused sabotage probes;
-   diff-scoped mutation of each PR's changed lines is tracked in issue #355.
-   Broad mutation configs are manual diagnostics because the retired scheduled
-   matrix did not justify its runner and maintenance cost. Line coverage is
-   framed as a finder, not a headline score.
+2. There is no automatic mutation lane in the current PR workflow. Red → green
+   proves an assertion in a changed test file discriminates the base; it does not
+   prove every changed behavior is protected. Focused isolated faults can audit
+   weak oracles locally. Diff-scoped mutation is tracked in issue #355. Line
+   coverage remains a finder, not an adequacy score.
 3. The benchmark is not on the PR gate (timing variance). Browser/screenshot
    e2e and the heuristic-tracker ratchet now are.
 4. Determinism is proven Bun↔Node on one architecture; cross-architecture

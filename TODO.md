@@ -259,28 +259,15 @@ Status legend: `todo` | `blocked` | `owner-decision` | `parked`.
 
 ## Consolidation / dedup backlog
 
-- [ ] **CONS-26 — Finish agent/render grammar-authority convergence** (`todo`,
-  delivered as focused child work under
-  [#248](https://github.com/adewale/agentic-mermaid/issues/248)).
-  Flowchart, Pie, Quadrant, Mindmap, and GitGraph already project renderer-owned
-  ASTs; State, Timeline, and Journey share parse cores; XYChart now projects the
-  strict renderer AST and no longer owns a second grammar. Radar also projects
-  the strict renderer-owned `parseRadarChart()` result; it was incorrectly
-  retained in the old remainder list. Sankey projects the renderer-owned
-  `parseSankeyDiagram()` result from its first release. The remaining duplicated families are
-  [Class #260](https://github.com/adewale/agentic-mermaid/issues/260),
-  [ER #266](https://github.com/adewale/agentic-mermaid/issues/266),
-  [Sequence #264](https://github.com/adewale/agentic-mermaid/issues/264),
-  [Architecture #262](https://github.com/adewale/agentic-mermaid/issues/262),
-  and [Gantt #261](https://github.com/adewale/agentic-mermaid/issues/261).
-  Migrate one family at a time behind differential and unknown-line tests. For
-  Class/ER/Sequence/Gantt, do not project from a lossy final AST that discards
-  statement order or opaque segments; expose a shared statement parser/event
-  stream consumed by both surfaces instead. For Sequence and ER, that stream
-  carries creation events (create, name, place in group or box, links,
-  properties) folded once by both surfaces, and the serializer checks its output
-  by folding the events of its own re-parse. That closes the creation-order
-  defects BUG-9 and BUG-10.
+- [ ] **CONS-26 — Finish State/Timeline statement ownership** (`todo`,
+  [#368](https://github.com/adewale/agentic-mermaid/issues/368)). Class, ER,
+  Sequence, Architecture and Gantt now project from shared lossless statement
+  readers; the other nine families use a renderer-owned AST or shared parse
+  authority. State and Timeline still duplicate statement dispatch/scope despite
+  sharing lexical helpers: a Timeline period starting with `Timeline` vanishes
+  only in rendering, and State rendering silently ignores unknown statements
+  that editable parsing preserves and diagnoses. Keep each projection's
+  invariants separate, with independent meaning and source-loss regressions.
 - [ ] **CONS-30 — `agent/body-utils.ts` extraction** (`todo`, mostly done). `src/agent/body-utils.ts` now owns optional fields (`setOptionalField`), insert positions (`resolveInsertIndex`), label-overflow collection and accessibility serialization for the non-flowchart bodies. What remains differs on purpose (per-family validators, move-target error codes, seeded hashes stored in ids and goldens); unifying the insert-position error wording across families needs an owner decision. Mechanically
   deduplicate repeated LABEL_OVERFLOW, id-allocation, `set_title`, collection,
   source-map, label-extraction, seeded-hash, and CSS-mix helpers. Characterize
