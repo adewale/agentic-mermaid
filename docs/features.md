@@ -123,8 +123,9 @@ SHA-256 metadata.
 The hosted endpoint at `https://agentic-mermaid.dev/mcp` is stateless
 Streamable HTTP. It exposes bounded MCP JSON-RPC tools: `execute` in a
 Cloudflare Dynamic Worker isolate, pure `describe_sdk` / `render_svg` /
-`render_ascii` / `render_png` / `verify` / `describe`, and declarative `mutate` / `build` for
-structured edits. Hosted inputs are capped at 64 KB, PNG is base64-only, and the
+`render_ascii` / `render_png` / `verify` / `describe`, declarative `mutate` / `build` for
+structured edits, and `preview`, which hosts that support MCP Apps show as a
+read-only diagram view. Hosted inputs are capped at 64 KB, PNG is base64-only, and the
 endpoint is a convenience surface rather than a REST render API.
 
 ## Distribution

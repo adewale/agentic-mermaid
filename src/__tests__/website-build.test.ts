@@ -1521,7 +1521,7 @@ describe('Workers Static Assets website contract', () => {
     // single-source; a bump to one without the other tells clients we do not
     // support a version we in fact serve, or vice versa.
     expect(mcpCard.protocolVersions).toEqual([...SUPPORTED_PROTOCOL_VERSIONS])
-    expect(mcpCard.tools.map((tool: any) => tool.name)).toEqual(['execute', 'describe_sdk', 'render_svg', 'render_ascii', 'render_png', 'verify', 'describe', 'mutate', 'build'])
+    expect(mcpCard.tools.map((tool: any) => tool.name)).toEqual(HOSTED_TOOLS.map(tool => tool.name))
     expect(mcpCard.tools.every((tool: any) => typeof tool.title === 'string' && tool.title.trim().length > 0)).toBe(true)
     expect(mcpCard.tools.every((tool: any) => tool.annotations?.destructiveHint === false)).toBe(true)
     expect(mcpCard.tools.every((tool: any) => tool.parameters && typeof tool.parameters === 'object')).toBe(true)

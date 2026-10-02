@@ -35,6 +35,8 @@ import {
   type McpServerSurface,
 } from './tool-surface.ts'
 import { SDK_CORE_DECLARATION, createDescribeSdkTool, describeSdkPayload } from './sdk-discovery.ts'
+import { MCP_APP_RESOURCES, readMcpAppResource } from './resource-surface.ts'
+import { PREVIEW_VIEW_URI } from './apps/preview-view.ts'
 import { mcpDescribePayload, mcpVerificationSummary } from './describe-payload.ts'
 import { isDescribeFormat } from '../agent/describe.ts'
 import type { ExecuteResult } from './sandbox.ts'
@@ -94,7 +96,7 @@ export const SUPPORTED_PROTOCOL_VERSIONS = ['2025-03-26', '2025-06-18', '2025-11
 
 // Hosted server identity, distinct from the local stdio server's
 // MCP_SERVER_NAME: registries and clients cache tool lists by server identity,
-// and this surface (9 tools) must never shadow the local one (4 tools).
+// and this surface (10 tools) must never shadow the local one (4 tools).
 export const HOSTED_MCP_SERVER_NAME = 'agentic-mermaid-hosted'
 
 export const MAX_SOURCE_BYTES = 64 * 1024
@@ -222,9 +224,36 @@ Call \`describe_sdk\` for the family before authoring unfamiliar ops.`,
     },
     annotations: PURE_COMPUTE_ANNOTATIONS,
   },
+  {
+    name: 'preview',
+    title: 'Preview Mermaid diagram',
+    description: `Render and verify a Mermaid diagram so the user can see it. Returns
+{ ok, family, summary, warnings, svg } for valid diagrams and { ok: false, errors }
+for parse failures. \`ok\` is the verify verdict, so a diagram that fails
+verification still returns its svg. Hosts that support MCP Apps show the result
+as a read-only diagram view; every other host receives the same JSON. The hosted
+boundary forces security:'strict' and embedFontImport:false.`,
+    inputSchema: {
+      type: 'object',
+      additionalProperties: false,
+      properties: {
+        source: { type: 'string', description: 'Mermaid source.' },
+        ...mcpRenderOptionSchemaProperties(
+          `Shared advanced RenderOptions object. Styles accept a registered Look (${BUILTIN_LOOK_NAMES.join(', ')}), Palette (${BUILTIN_PALETTE_NAMES.join(', ')}), inline record, or left-to-right stack.`,
+        ),
+      },
+      required: ['source'],
+    },
+    annotations: PURE_COMPUTE_ANNOTATIONS,
+    // MCP Apps: UI-capable hosts render this result with the read-only view.
+    // The tool is listed unconditionally — this stateless transport cannot
+    // gate tools/list on per-session client capabilities, and the result is
+    // complete without the view (the spec's text-only fallback).
+    _meta: { ui: { resourceUri: PREVIEW_VIEW_URI } },
+  },
 ]
 
-const INSTRUCTIONS = `agentic-mermaid hosted MCP server (stateless). Direct tools render_svg, render_ascii, render_png, verify, and describe cover plain render/verify calls cheaply. Successful deterministic pure-tool results may be reused by a private server-side compute cache for up to 24 hours; execute, mutate, and build bypass it. HTTP /mcp responses themselves are cache-control: no-store, so clients must not infer response freshness from CDN headers. The x-agentic-mermaid-compute-cache response header reports hit, miss, mixed, bypass, or disabled. There is no layout seed — the library's optional style seed only re-rolls ink of styled looks. describe_sdk progressively discloses one family's version-matched mutation schema. Declarative mutate/build apply typed op lists and verify before emitting source; prefer them for straightforward structured edits. execute runs synchronous JavaScript against the typed mermaid.* SDK in an isolated on-demand sandbox for logic the ops don't express; async/await and Promise jobs are not supported, and network access is disabled. Inputs are capped at 64KB; for bigger diagrams, Code Mode artifacts, or file/URL PNG output, run the local stdio server (see https://agentic-mermaid.dev/docs/mcp/).`
+const INSTRUCTIONS = `agentic-mermaid hosted MCP server (stateless). Direct tools render_svg, render_ascii, render_png, verify, and describe cover plain render/verify calls cheaply; preview renders and verifies a diagram for the user to see, and hosts that support MCP Apps show it as a read-only diagram view. Successful deterministic pure-tool results may be reused by a private server-side compute cache for up to 24 hours; execute, mutate, and build bypass it. HTTP /mcp responses themselves are cache-control: no-store, so clients must not infer response freshness from CDN headers. The x-agentic-mermaid-compute-cache response header reports hit, miss, mixed, bypass, or disabled. There is no layout seed — the library's optional style seed only re-rolls ink of styled looks. describe_sdk progressively discloses one family's version-matched mutation schema. Declarative mutate/build apply typed op lists and verify before emitting source; prefer them for straightforward structured edits. execute runs synchronous JavaScript against the typed mermaid.* SDK in an isolated on-demand sandbox for logic the ops don't express; async/await and Promise jobs are not supported, and network access is disabled. Inputs are capped at 64KB; for bigger diagrams, Code Mode artifacts, or file/URL PNG output, run the local stdio server (see https://agentic-mermaid.dev/docs/mcp/).`
 
 const HOSTED_SURFACE: McpServerSurface<HostedMcpContext> = {
   // Historical fallback for callers that construct a surface without an
@@ -234,6 +263,8 @@ const HOSTED_SURFACE: McpServerSurface<HostedMcpContext> = {
   serverName: HOSTED_MCP_SERVER_NAME,
   supportedVersions: SUPPORTED_PROTOCOL_VERSIONS,
   tools: HOSTED_TOOLS,
+  resources: MCP_APP_RESOURCES,
+  readResource: readMcpAppResource,
   instructions: INSTRUCTIONS,
   handleToolCall,
 }
@@ -334,6 +365,31 @@ async function handleToolCall(id: number | string | null, params: unknown, conte
       // mismatch in the same result it was already going to read, without
       // having to know to call `describe` separately.
       return { ok: v.ok, family: parsed.value.kind, summary, warnings: v.warnings, layout: { bounds: v.layout.bounds, nodes: v.layout.nodes.length, edges: v.layout.edges.length } }
+    })
+    case 'preview': return sourceTool(id, args, source => {
+      const parsed = parseRegisteredMermaid(source)
+      if (!parsed.ok) {
+        const hint = familyExampleForSource(source)
+        return { ok: false as const, errors: parsed.error, ...(hint ?? {}) }
+      }
+      if (parsed.value.body.kind === 'preserved') {
+        throw new MermaidFamilyDetectionError(
+          familyDetectionDiagnosticFromPreservedBody(parsed.value.body),
+        )
+      }
+      // The view puts this SVG into an <img>; the strict-safety check still
+      // runs so a non-UI host never receives markup with external references.
+      const rendered = renderMermaidSVGWithReceipt(source, svgOptions(args))
+      const safety = verifyNoExternalRefs(rendered.svg)
+      if (!safety.ok) throw new Error(`strict SVG safety invariant failed: ${safety.refs.join(', ')}`)
+      const v = verifyMermaid(parsed.value)
+      return {
+        ok: v.ok,
+        family: parsed.value.kind,
+        summary: mcpVerificationSummary(parsed.value),
+        warnings: v.warnings,
+        svg: rendered.svg,
+      }
     })
     case 'describe': return sourceTool(id, args, source => mcpDescribePayload(source, args))
     case 'mutate': return handleApplyOps(id, args, 'source')
@@ -455,6 +511,8 @@ export function cacheKeyFor(name: string | undefined, args: Record<string, unkno
     }
     case 'verify':
       return typeof args.source === 'string' ? { t: 'verify', source: args.source } : null
+    case 'preview':
+      return typeof args.source === 'string' ? { t: 'preview', source: args.source, ...effectiveSvgArgs(args) } : null
     case 'describe': {
       if (typeof args.source !== 'string') return null
       const format = args.format ?? 'text'
