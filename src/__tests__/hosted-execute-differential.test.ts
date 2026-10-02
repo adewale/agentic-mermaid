@@ -150,6 +150,28 @@ describe('hosted execute ≡ vm sandbox', () => {
   })
 })
 
+// Issue #274: a statement-form script's trailing expression is its result, as
+// a bare single expression already was — on both runtimes, not just in parity.
+const TRAILING_EXPRESSION_CASES: Array<[label: string, code: string, value: unknown]> = [
+  ['const then a string expression', 'const x = "plain";\nx;', 'plain'],
+  ['const then a number expression, no semicolons', 'const x = 5\nx * 2', 10],
+  ['SDK read after a const', `${PARSE}; r.ok;`, true],
+  ['an early return that is not taken falls through to the trailing expression', 'if (false) return 1; "fallthrough"', 'fallthrough'],
+  ['a trailing mutate Result marshals to the canonical envelope', `${PARSE}; mermaid.mutate(r.value, { kind: 'add_node', id: 'C', label: 'New' })`,
+    { ok: true, family: 'flowchart', source: 'flowchart TD\n  A --> B\n  C[New]\n', verify: { ok: true, warnings: [] } }],
+  ['a trailing declaration still yields null', 'const a = 1; function f() { return a }', null],
+]
+
+describe('execute returns a trailing expression statement', () => {
+  for (const [label, code, value] of TRAILING_EXPRESSION_CASES) {
+    test(label, async () => {
+      for (const r of [await executeInSandbox(code), await executeHosted(code)]) {
+        expect(r).toEqual({ ok: true, value, logs: [] })
+      }
+    })
+  }
+})
+
 describe('hosted execute render policy', () => {
   const source = 'flowchart LR\n  A[Start] --> B[Finish]'
   const expected = renderMermaidSVGWithReceipt(source, {

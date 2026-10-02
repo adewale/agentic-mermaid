@@ -3,7 +3,7 @@
 // mermaid.* proxy, the sync-only code screen, and the expression-first code
 // wrapping. Must stay free of node:* imports so it bundles for workerd.
 
-import type { Node as AcornNode } from 'acorn'
+import type { FunctionDeclaration, Node as AcornNode, Program } from 'acorn'
 import { parse as parseJavaScript } from 'acorn'
 import * as mermaid from '../agent/core.ts'
 import { BUILTIN_FAMILY_METADATA } from '../agent/families.ts'
@@ -703,7 +703,7 @@ export function expressionFirstWraps(code: string): string[] {
   const t = code.trim()
   const stripped = t.replace(/;\s*$/, '') // drop a single trailing semicolon
   const expressionWrapped = `(() => { return (\n${stripped}\n) })()`
-  const statementWrapped = `(() => { ${code} })()`
+  const statementWrapped = `(() => { ${returnTrailingExpression(code)} })()`
   // Expression form handles bare expressions including objects/arrows/templates.
   // Pick it only if host parsing succeeds; never retry based on sandbox-thrown
   // values, because their getters/proxy traps are attacker-controlled.
@@ -714,6 +714,31 @@ export function expressionFirstWraps(code: string): string[] {
   } catch {
     return [statementWrapped]
   }
+}
+
+const STATEMENT_BODY_PREFIX = 'function __agent_code__(){\n'
+
+/**
+ * Statement-form code runs as a function body, which discards a script's
+ * completion value. Return a trailing top-level expression statement instead,
+ * so `const x = 5; x` yields 5 just as the bare expression `5` does. Code that
+ * does not parse as a function body is returned unchanged (the runtime owns the
+ * syntax error), as is code ending in anything but an expression statement.
+ * The rewrite only wraps one parsed statement's expression in `return (…)`, so
+ * it cannot change where the agent's code begins or ends.
+ */
+export function returnTrailingExpression(code: string): string {
+  let program: Program
+  try {
+    program = parseJavaScript(`${STATEMENT_BODY_PREFIX}${code}\n}`, { ecmaVersion: 'latest', sourceType: 'script' })
+  } catch {
+    return code
+  }
+  const last = (program.body[0] as FunctionDeclaration).body.body.at(-1)
+  if (last?.type !== 'ExpressionStatement') return code
+  const start = last.expression.start - STATEMENT_BODY_PREFIX.length
+  const end = last.expression.end - STATEMENT_BODY_PREFIX.length
+  return `${code.slice(0, start)}return (${code.slice(start, end)})${code.slice(end)}`
 }
 
 export function unsupportedCodeReason(code: string): string | undefined {
@@ -753,7 +778,7 @@ function parseCodeModeAst(code: string): AcornNode | undefined {
   const stripped = code.trim().replace(/;\s*$/, '')
   const candidates = [
     `(${stripped})`,
-    `function __agent_code__(){\n${code}\n}`,
+    `${STATEMENT_BODY_PREFIX}${code}\n}`,
     // Parse otherwise-invalid top-level await so it is rejected before an
     // isolate/CPU budget is allocated and telemetry remains truthful.
     `async function __agent_code__(){\n${code}\n}`,
