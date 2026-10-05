@@ -4,6 +4,7 @@ import { convertToAsciiGraph } from './converter.ts'
 import { createMapping } from './grid.ts'
 import { drawGraph, drawMultiBox } from './draw.ts'
 import { wrapText } from './wrap.ts'
+import { displayText } from '../multiline-utils.ts'
 import { canvasToString, flipCanvasVertically, flipRoleCanvasVertically, getCanvasSize, increaseRoleCanvasSize, increaseSize, mkCanvas, mkRoleCanvas, setRole } from './canvas.ts'
 
 interface Box { x: number; y: number; width: number; height: number }
@@ -26,7 +27,7 @@ function overlayNotes(graph: AsciiGraph, notes: StateNoteSpec[], targetWidth?: n
   const drawings = notes.map(note => ({
     note,
     canvas: drawMultiBox([
-      note.text.split(/\r?\n/).flatMap(line => noteLineWidth ? wrapText(line, noteLineWidth) : [line]),
+      displayText(note.text).split(/\r?\n/).flatMap(line => noteLineWidth ? wrapText(line, noteLineWidth) : [line]),
     ], graph.config.useAscii, 1),
   }))
   let shift = 0

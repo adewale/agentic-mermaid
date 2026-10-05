@@ -5,6 +5,12 @@
 // path the typed ops exist to replace. createMermaid returns an empty
 // structured diagram for any built-in family; buildMermaid folds a mutation
 // list over that empty diagram so a whole new diagram is one typed call.
+// Saved before it has content, an empty diagram is its bare family header:
+// verify reports EMPTY_DIAGRAM, and it re-parses typed wherever Mermaid
+// accepts that header. Mermaid rejects a bare Sankey header, so a saved blank
+// Sankey re-parses opaque and fails to render until it has a link. Mermaid
+// also rejects a bare class header; ours reads it as an empty class diagram,
+// and verify says Mermaid rejects it.
 // ============================================================================
 
 import type { Direction } from '../types.ts'

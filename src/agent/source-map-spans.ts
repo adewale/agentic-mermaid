@@ -1,4 +1,4 @@
-import { type FlowchartTextRange, flowchartTextArrowLabelRanges } from '../flowchart-statement-labels.ts'
+import { type FlowchartScan, type FlowchartTextRange, flowchartTextArrowLabelRanges, scanFlowchart } from '../flowchart-lexer.ts'
 import type { PreservedSourceSpans, SourceLocation, SourceMap, SourceMapSpans, SourceSpan, SourceSpanPoint } from './types.ts'
 
 interface PhysicalLine {
@@ -96,35 +96,57 @@ interface AuthoredLineAnalysis {
   readonly textArrowLabelRanges: readonly FlowchartTextRange[]
   readonly statementBounds: StatementBoundsIndex
   readonly enclosingDelimiters: EnclosingDelimiterIndex
+  /** Where the quoted text starting at `start` ends, or undefined when no
+   * quote opens right before `start`. */
+  readonly quoteEnd: (start: number, limit: number) => number | undefined
 }
+
+/** Which lexer reads a family's authored lines. Flowchart lines are read by
+ * the flowchart lexer (flowchart-lexer.ts), which the parser uses too; other
+ * families keep the generic line scanner below. */
+export type SourceSpanGrammar = 'flowchart' | 'generic'
 
 interface EnclosingDelimiterIndex {
   readonly openerAt: Int32Array
   readonly closerAt: Int32Array
 }
 
-/** Index the innermost matched delimiter enclosing every offset in one pass
- * after quote-aware delimiter matching. Label-span lookup can then answer in
- * constant time instead of rescanning a long same-line statement for every
- * shaped node. */
-function indexEnclosingDelimiters(line: string): EnclosingDelimiterIndex {
-  const matchingCloser = new Int32Array(line.length)
-  matchingCloser.fill(-1)
-  const matchStack: Array<{ opener: string; index: number }> = []
+/** The generic line rule for the families without their own lexer: `"`,
+ * `'` or a backtick opens a string that the same character closes, and `\`
+ * escapes the next character inside it. Marks every character from an
+ * opening quote through its closing quote. */
+function genericQuotedMask(line: string): Uint8Array {
+  const quoted = new Uint8Array(line.length)
   let quote: string | undefined
   let escaped = false
   for (let index = 0; index < line.length; index++) {
     const char = line[index]!
     if (quote) {
+      quoted[index] = 1
       if (escaped) escaped = false
       else if (char === '\\') escaped = true
       else if (char === quote) quote = undefined
       continue
     }
     if (char === '"' || char === "'" || char === '`') {
+      quoted[index] = 1
       quote = char
-      continue
     }
+  }
+  return quoted
+}
+
+/** Index the innermost matched delimiter enclosing every offset in one pass
+ * after quote-aware delimiter matching. Label-span lookup can then answer in
+ * constant time instead of rescanning a long same-line statement for every
+ * shaped node. */
+function indexEnclosingDelimiters(line: string, quoted: Uint8Array): EnclosingDelimiterIndex {
+  const matchingCloser = new Int32Array(line.length)
+  matchingCloser.fill(-1)
+  const matchStack: Array<{ opener: string; index: number }> = []
+  for (let index = 0; index < line.length; index++) {
+    const char = line[index]!
+    if (quoted[index]) continue
     if (char === '[' || char === '(' || char === '{') {
       matchStack.push({ opener: char, index })
       continue
@@ -147,22 +169,11 @@ function indexEnclosingDelimiters(line: string): EnclosingDelimiterIndex {
   closerAt.fill(-1)
   const stack: DelimiterFrame[] = []
   let nearestMatched: DelimiterFrame | undefined
-  quote = undefined
-  escaped = false
   for (let index = 0; index < line.length; index++) {
     openerAt[index] = nearestMatched?.index ?? -1
     closerAt[index] = nearestMatched?.closer ?? -1
     const char = line[index]!
-    if (quote) {
-      if (escaped) escaped = false
-      else if (char === '\\') escaped = true
-      else if (char === quote) quote = undefined
-      continue
-    }
-    if (char === '"' || char === "'" || char === '`') {
-      quote = char
-      continue
-    }
+    if (quoted[index]) continue
     if (char === '[' || char === '(' || char === '{') {
       const closer = matchingCloser[index]!
       const frame = { opener: char, index, closer, previousMatched: nearestMatched }
@@ -179,7 +190,42 @@ function indexEnclosingDelimiters(line: string): EnclosingDelimiterIndex {
   return { openerAt, closerAt }
 }
 
-function indexStatementBounds(line: string, textArrowLabelRanges: readonly FlowchartTextRange[]): StatementBoundsIndex {
+/** The innermost closed shape text enclosing every offset, from the
+ * flowchart lexer's regions: the opener itself is outside, its closer inside. */
+function indexFlowchartEnclosingDelimiters(line: string, scan: FlowchartScan): EnclosingDelimiterIndex {
+  const openerAt = new Int32Array(line.length + 1)
+  const closerAt = new Int32Array(line.length + 1)
+  openerAt.fill(-1)
+  closerAt.fill(-1)
+  // Regions open outermost first, so an inner region overwrites its parent.
+  for (const region of scan.regions) {
+    if (region.kind !== 'shape' || !region.closed) continue
+    openerAt.fill(region.start, region.start + 1, region.end)
+    closerAt.fill(region.end - 1, region.start + 1, region.end)
+  }
+  return { openerAt, closerAt }
+}
+
+/** The end of the flowchart string (or markdown string) whose text starts at
+ * an offset. */
+function flowchartQuoteEnds(scan: FlowchartScan): (start: number, limit: number) => number | undefined {
+  const ends = new Map<number, number>()
+  for (const region of scan.regions) {
+    if (region.kind === 'string' || region.kind === 'markdown') ends.set(region.contentStart, region.contentEnd)
+  }
+  return (start, limit) => {
+    const end = ends.get(start)
+    return end === undefined ? undefined : Math.min(end, limit)
+  }
+}
+
+function genericQuoteEnd(line: string, start: number, limit: number): number | undefined {
+  if (start === 0 || (line[start - 1] !== '"' && line[start - 1] !== "'")) return undefined
+  return closingQuote(line, start, line[start - 1]!, limit)
+}
+
+function indexStatementBounds(line: string, textArrowLabelRanges: readonly FlowchartTextRange[], lexed: { flowchart: FlowchartScan } | { quoted: Uint8Array }): StatementBoundsIndex {
+  const flowchart = 'flowchart' in lexed ? lexed.flowchart : undefined
   let prefixEnd = -1
   let inlineNamespace = false
   const inlineAccessibility = line.match(/^\s*accDescr\s*:?\s*\{/i)
@@ -194,23 +240,13 @@ function indexStatementBounds(line: string, textArrowLabelRanges: readonly Flowc
     prefixEnd = line.indexOf('}')
   }
   const separators: number[] = [prefixEnd]
+  if (flowchart) separators.push(...flowchart.separators.filter(index => index > prefixEnd))
   let textArrowRangeIndex = 0
   const stack: string[] = []
-  let quote: string | undefined
   let pipeLabel = false
-  let escaped = false
-  for (let index = 0; index < line.length; index++) {
+  for (let index = 0; 'quoted' in lexed && index < line.length; index++) {
     const char = line[index]!
-    if (quote) {
-      if (escaped) escaped = false
-      else if (char === '\\') escaped = true
-      else if (char === quote) quote = undefined
-      continue
-    }
-    if (char === '"' || char === "'" || char === '`') {
-      quote = char
-      continue
-    }
+    if (lexed.quoted[index]) continue
     if (char === '|' && stack.length === 0) {
       pipeLabel = !pipeLabel
       continue
@@ -333,10 +369,8 @@ function labelEnd(line: string, start: number, key: string, analysis: AuthoredLi
 
   // Most quoted Mermaid labels are mapped to the first character inside the
   // quotes. Preserve the content, not its syntax delimiters.
-  if (start > 0 && (line[start - 1] === '"' || line[start - 1] === "'")) {
-    const quote = line[start - 1]!
-    return closingQuote(line, start, quote, lineEnd)
-  }
+  const quoteEnd = analysis.quoteEnd(start, lineEnd)
+  if (quoteEnd !== undefined) return quoteEnd
   if (start > 0 && line[start - 1] === '|') {
     const closing = line.indexOf('|', start)
     if (closing >= 0 && closing <= lineEnd) return closing
@@ -382,7 +416,13 @@ function mapStatementSpans(locations: Map<string, SourceLocation>, lineStarts: r
 }
 
 /** Add exact authored spans without changing the legacy canonical locations. */
-export function attachSourceMapSpans(sourceMap: SourceMap, canonicalSource: string, authoredSource: string, preserved: PreservedSourceSpans): SourceMap {
+export function attachSourceMapSpans(
+  sourceMap: SourceMap,
+  canonicalSource: string,
+  authoredSource: string,
+  preserved: PreservedSourceSpans,
+  grammar: SourceSpanGrammar = 'generic',
+): SourceMap {
   const lineStarts = sourceLineStarts(authoredSource)
   const lines = authoredLineMap(canonicalSource, authoredSource, preserved)
   const canonicalLines = physicalLines(canonicalSource)
@@ -390,12 +430,22 @@ export function attachSourceMapSpans(sourceMap: SourceMap, canonicalSource: stri
   const analysisFor = (line: PhysicalLine): AuthoredLineAnalysis => {
     const cached = lineAnalysisCache.get(line.start)
     if (cached) return cached
-    const textArrowLabelRanges = flowchartTextArrowLabelRanges(line.text)
-    const analysis = {
-      textArrowLabelRanges,
-      statementBounds: indexStatementBounds(line.text, textArrowLabelRanges),
-      enclosingDelimiters: indexEnclosingDelimiters(line.text),
-    }
+    const flowchart = grammar === 'flowchart' ? scanFlowchart(line.text) : undefined
+    const textArrowLabelRanges = flowchartTextArrowLabelRanges(line.text, flowchart)
+    const quoted = flowchart ? undefined : genericQuotedMask(line.text)
+    const analysis: AuthoredLineAnalysis = flowchart
+      ? {
+          textArrowLabelRanges,
+          statementBounds: indexStatementBounds(line.text, textArrowLabelRanges, { flowchart }),
+          enclosingDelimiters: indexFlowchartEnclosingDelimiters(line.text, flowchart),
+          quoteEnd: flowchartQuoteEnds(flowchart),
+        }
+      : {
+          textArrowLabelRanges,
+          statementBounds: indexStatementBounds(line.text, textArrowLabelRanges, { quoted: quoted! }),
+          enclosingDelimiters: indexEnclosingDelimiters(line.text, quoted!),
+          quoteEnd: (start, limit) => genericQuoteEnd(line.text, start, limit),
+        }
     lineAnalysisCache.set(line.start, analysis)
     return analysis
   }

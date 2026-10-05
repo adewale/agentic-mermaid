@@ -16,7 +16,7 @@ import { parseClassDiagram } from '../class/parser.ts'
 import { parseErDiagram } from '../er/parser.ts'
 import { measureMultilineText, LINE_HEIGHT_RATIO, measureTextWidth } from '../text-metrics.ts'
 import { renderMermaidSVGAsync } from '../index.ts'
-import { normalizeBrTags, stripFormattingTags } from '../multiline-utils.ts'
+import { displayText, normalizeBrTags } from '../multiline-utils.ts'
 
 // ============================================================================
 // Parser: <br> tag normalization
@@ -645,25 +645,25 @@ describe('normalizeBrTags – tag handling', () => {
   })
 })
 
-describe('stripFormattingTags', () => {
+describe('displayText', () => {
   it('strips all formatting tags', () => {
-    expect(stripFormattingTags('<b>bold</b> and <i>italic</i>')).toBe('bold and italic')
+    expect(displayText('<b>bold</b> and <i>italic</i>')).toBe('bold and italic')
   })
 
   it('strips <strong> and <em>', () => {
-    expect(stripFormattingTags('<strong>bold</strong> <em>italic</em>')).toBe('bold italic')
+    expect(displayText('<strong>bold</strong> <em>italic</em>')).toBe('bold italic')
   })
 
   it('strips <u>, <s>, <del>', () => {
-    expect(stripFormattingTags('<u>under</u> <s>strike</s> <del>del</del>')).toBe('under strike del')
+    expect(displayText('<u>under</u> <s>strike</s> <del>del</del>')).toBe('under strike del')
   })
 
   it('handles nested tags', () => {
-    expect(stripFormattingTags('<b><i>nested</i></b>')).toBe('nested')
+    expect(displayText('<b><i>nested</i></b>')).toBe('nested')
   })
 
   it('returns plain text unchanged', () => {
-    expect(stripFormattingTags('no tags here')).toBe('no tags here')
+    expect(displayText('no tags here')).toBe('no tags here')
   })
 })
 
@@ -861,7 +861,7 @@ describe('measureMultilineText – properties over random labels', () => {
         if (m.lines.length !== lines.length) return false
         if (m.lineHeight !== fontSize * LINE_HEIGHT_RATIO) return false
         if (m.height !== lines.length * m.lineHeight) return false
-        const widest = Math.max(...lines.map(l => measureTextWidth(stripFormattingTags(l), fontSize, fontWeight)))
+        const widest = Math.max(...lines.map(l => measureTextWidth(displayText(l), fontSize, fontWeight)))
         if (Math.abs(m.width - widest) > 1e-6) return false
         return Number.isFinite(m.width) && Number.isFinite(m.height) && m.width >= 0 && m.height >= 0
       }),

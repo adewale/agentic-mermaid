@@ -5,6 +5,7 @@ import { mutate } from '../agent/mutate.ts'
 import { asEr, type ErMutationOp, type ErValidDiagram } from '../agent/types.ts'
 import { parseErDiagram } from '../er/parser.ts'
 import { renderMermaidSVG } from '../index.ts'
+import { verifyMermaid } from '../agent/verify.ts'
 
 function er(source: string): ErValidDiagram {
   const parsed = parseMermaid(source)
@@ -21,6 +22,43 @@ function apply(diagram: ErValidDiagram, op: ErMutationOp): ErValidDiagram {
 }
 
 describe('typed ER styling and ordered opaque segments (B09)', () => {
+  test('preserves outer comments and unknown source around a neighboring entity edit', () => {
+    const preserved = '  future A keep-this'
+    let diagram = er(`erDiagram\n  A\n  %% Keep this authored note\n${preserved}\n  B`)
+    diagram = apply(diagram, { kind: 'add_attribute', entity: 'B', text: 'int id PK' })
+    const serialized = serializeMermaid(diagram)
+    expect(serialized).toContain(`  %% Keep this authored note\n${preserved}\n  B {\n    int id PK\n  }`)
+    expect(er(serialized).body.entities.map(entity => ({ id: entity.id, attributes: entity.attributes }))).toEqual([
+      { id: 'A', attributes: [] }, { id: 'B', attributes: [{ text: 'int id PK' }] },
+    ])
+    expect(mutate(diagram, { kind: 'rename_entity', from: 'A', to: 'X' })).toMatchObject({ ok: false, error: { code: 'INVALID_OP' } })
+    expect(() => renderMermaidSVG(serialized)).toThrow('ER_UNSUPPORTED_STATEMENT')
+    expect(verifyMermaid(serialized).warnings).toContainEqual(expect.objectContaining({ code: 'UNSUPPORTED_SYNTAX', syntax: 'er_statement', line: 4 }))
+  })
+
+  test.each([
+    ['an unclosed attribute block', 'erDiagram\nA {\n  int id PK', 'ER_UNCLOSED_ENTITY'],
+    ['an unknown attribute qualifier', 'erDiagram\nA {\n  int id FUTURE\n}', 'ER_UNSUPPORTED_STATEMENT'],
+    ['a partly invalid style target list', 'erDiagram\nA\nstyle A,? fill:red', 'Invalid ER style assignment'],
+    ['an unmodeled parent cardinality', 'erDiagram\nPROJECT u--o{ TEAM_MEMBER : "parent"', 'ER_UNSUPPORTED_STATEMENT'],
+  ])('rejects %s rather than silently discarding authored syntax', (_name, source, error) => {
+    expect(() => renderMermaidSVG(source)).toThrow(error)
+    const parsed = parseMermaid(source)
+    expect(parsed.ok).toBe(true)
+    if (!parsed.ok) throw new Error(JSON.stringify(parsed.error))
+    expect(serializeMermaid(parsed.value).trim()).toBe(source)
+  })
+
+  test('keeps attribute-block comments in lossless opaque source instead of relocating them', () => {
+    const source = 'erDiagram\nA {\n  int before PK\n  %% between attributes\n  string after\n}\n'
+    const parsed = parseMermaid(source)
+    expect(parsed.ok).toBe(true)
+    if (!parsed.ok) throw new Error(JSON.stringify(parsed.error))
+    expect(parsed.value.body.kind).toBe('opaque')
+    expect(serializeMermaid(parsed.value)).toBe(source)
+    expect(parseErDiagram(source.split('\n')).entities[0]!.attributes.map(attribute => attribute.name)).toEqual(['before', 'after'])
+  })
+
   test('models classDef, class, style, and endpoint shorthand and renders their paint', () => {
     let diagram = er(`erDiagram
       CUSTOMER:::hot ||--o{ ORDER : places

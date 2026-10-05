@@ -87,9 +87,9 @@
       "family": "state",
       "status": "full-harvest-accounted",
       "consideredBlocks": 108,
-      "importedCases": 79,
-      "importedBlocks": 82,
-      "excludedBlocks": 26,
+      "importedCases": 74,
+      "importedBlocks": 77,
+      "excludedBlocks": 31,
       "deferredBlocks": 0,
       "files": [
         {
@@ -118,9 +118,9 @@
       "family": "sequence",
       "status": "full-harvest-accounted",
       "consideredBlocks": 139,
-      "importedCases": 126,
-      "importedBlocks": 127,
-      "excludedBlocks": 12,
+      "importedCases": 120,
+      "importedBlocks": 121,
+      "excludedBlocks": 18,
       "deferredBlocks": 0,
       "files": [
         {
@@ -306,9 +306,9 @@
       "family": "radar",
       "status": "full-harvest-accounted",
       "consideredBlocks": 19,
-      "importedCases": 10,
-      "importedBlocks": 10,
-      "excludedBlocks": 9,
+      "importedCases": 9,
+      "importedBlocks": 9,
+      "excludedBlocks": 10,
       "deferredBlocks": 0,
       "files": [
         {

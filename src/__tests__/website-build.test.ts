@@ -926,6 +926,7 @@ describe('Workers Static Assets website contract', () => {
   test('every Examples card Editor link reproduces its complete gallery SVG request', () => {
     const html = examplesCatalogHtml()
     const catalog = JSON.parse(read('examples/index.json'))
+    const catalogEntries = [...catalog.examples, ...catalog.richExamples, ...catalog.stylePaletteExamples]
     const articles = matches(html, /<article class="example-sample[^"]*" id="([^"]+)"[^>]*>([\s\S]*?)<\/article>/g)
     expect(articles).toHaveLength(EDITOR_EXAMPLES.length + BUILTIN_FAMILY_METADATA.length + RICH_EXAMPLES.length)
 
@@ -953,16 +954,16 @@ describe('Workers Static Assets website contract', () => {
       expect(removeWebsiteExampleAccessibleName(gallerySvg!), `${id}: exact Editor/gallery render parity`)
         .toBe(removeWebsiteExampleAccessibleName(editorSvg))
 
-      const catalogEntry = basic ?? catalog.richExamples.find((entry: any) => entry.id === id)
-      // The per-family Style + Palette cards are the only articles the JSON
-      // catalog does not list; every other card must be there, with its URL.
-      if (id.startsWith('style-palette-')) {
-        expect(catalogEntry, `${id}: style-palette cards are not in the JSON catalog`).toBeUndefined()
-        continue
-      }
-      expect(catalogEntry, `${id}: listed in the JSON catalog`).toBeDefined()
+      // Every rendered card is listed in the JSON catalog, with a renderUrl
+      // that lands on the page carrying the card and the card's Editor URL.
+      const catalogEntry = catalogEntries.find((entry: any) => entry.renderUrl.endsWith(`#${id}`))
+      expect({ id, listed: catalogEntry !== undefined }).toEqual({ id, listed: true })
+      const page = `${catalogEntry.renderUrl.slice(1, catalogEntry.renderUrl.indexOf('#'))}index.html`
+      const openingTag = articleMatch[0].slice(0, articleMatch[0].indexOf('>') + 1)
+      expect({ id, page, onPage: read(page).includes(openingTag) }).toEqual({ id, page, onPage: true })
       expect(catalogEntry.editorUrl, `${id}: HTML/JSON Editor URL parity`).toBe(href)
     }
+    expect(catalogEntries).toHaveLength(articles.length)
   })
 
   test('Examples keeps family proofs initial and projects exact retryable standalone fragments', () => {

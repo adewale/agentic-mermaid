@@ -10,6 +10,7 @@ import { serializeMermaid } from '../agent/serialize.ts'
 import { mutate } from '../agent/mutate.ts'
 import { verifyMermaid } from '../agent/verify.ts'
 import { asArchitecture } from '../agent/types.ts'
+import { renderMermaidSVG } from '../agent/index.ts'
 import type { ArchitectureValidDiagram, ArchitectureMutationOp } from '../agent/types.ts'
 
 const SRC = `architecture-beta
@@ -36,6 +37,22 @@ function apply(d: ArchitectureValidDiagram, op: ArchitectureMutationOp): Archite
 }
 
 describe('architecture structured parse', () => {
+  test('a service after an accessibility closing brace survives editing, reload, and rendering', () => {
+    const source = 'architecture-beta\n  accDescr { API traffic } service api(server)[API]'
+    const original = architecture(source)
+    expect(original.body.accessibilityDescription).toBe('API traffic')
+    expect(original.body.services).toEqual([{ id: 'api', label: 'API', icon: 'server', parentId: undefined }])
+    const edited = apply(original, { kind: 'set_service_label', id: 'api', label: 'Updated API' })
+    const reloaded = architecture(serializeMermaid(edited))
+    expect(reloaded.body.accessibilityDescription).toBe('API traffic')
+    expect(reloaded.body.services).toEqual([{ id: 'api', label: 'Updated API', icon: 'server', parentId: undefined }])
+    for (const [diagram, label] of [[original, 'API'], [reloaded, 'Updated API']] as const) {
+      const svg = renderMermaidSVG(diagram)
+      expect(svg).toMatch(/<desc\b[^>]*>API traffic<\/desc>/)
+      expect(svg).toMatch(new RegExp(`<text\\b[^>]*>${label}</text>`))
+    }
+  })
+
   test('models a standalone visible title, including a title-only diagram', () => {
     const d = architecture('architecture-beta\n  title Simple Architecture Diagram')
     expect(d.body.title).toBe('Simple Architecture Diagram')
@@ -70,6 +87,22 @@ describe('architecture structured parse', () => {
     const d = architecture()
     const out = serializeMermaid(d)
     const d2 = architecture(out)
+    // Authored facts are the oracle: two equally lossy parses would still be
+    // equal to each other and produce a stable canonical string.
+    for (const body of [d.body, d2.body]) {
+      expect(body.groups.map(({ id, label, icon }) => ({ id, label, icon }))).toEqual([
+        { id: 'api', label: 'API Layer', icon: 'cloud' },
+      ])
+      expect(body.services.map(({ id, label, parentId }) => ({ id, label, parentId }))).toEqual([
+        { id: 'gateway', label: 'Gateway', parentId: 'api' },
+        { id: 'db', label: 'Database', parentId: undefined },
+        { id: 'web', label: 'Web', parentId: undefined },
+      ])
+      expect(body.edges.map(({ source, target, label, hasArrowStart, hasArrowEnd }) => ({ source, target, label, hasArrowStart, hasArrowEnd }))).toEqual([
+        { source: { id: 'web', side: 'R' }, target: { id: 'gateway', side: 'L' }, label: undefined, hasArrowStart: false, hasArrowEnd: true },
+        { source: { id: 'gateway', side: 'B' }, target: { id: 'db', side: 'T' }, label: 'reads', hasArrowStart: false, hasArrowEnd: true },
+      ])
+    }
     expect(d2.body).toEqual(d.body)
     expect(serializeMermaid(d2)).toBe(out)
   })
@@ -99,11 +132,21 @@ describe('architecture structured parse', () => {
 })
 
 describe('architecture structured-or-opaque fallback', () => {
+  test.each([
+    ['parent declared later', 'architecture-beta\n  service api(server)[API] in g\n  group g(cloud)[G]\n'],
+    ['edge endpoint declared later', 'architecture-beta\n  service api(server)[API]\n  api:R --> L:db\n  service db(database)[DB]\n'],
+  ])('%s cannot be silently repaired by typed serialization', (_name, source) => {
+    const result = parseMermaid(source)
+    expect(result.ok).toBe(true)
+    if (!result.ok) throw new Error(JSON.stringify(result.error))
+    expect(result.value.body.kind).toBe('opaque')
+    expect(serializeMermaid(result.value)).toBe(source)
+    expect(verifyMermaid(result.value).warnings.map(warning => warning.code)).toContain('RENDER_FAILED')
+  })
   const opaqueCases: Array<[string, string]> = [
     ['unknown in-parent group', 'architecture-beta\n  service db(database)[DB] in nowhere'],
     ['edge to undeclared item', 'architecture-beta\n  service api(server)[API]\n  api:R --> L:ghost'],
     ['header suffix', 'architecture-beta EXTRA\n  service api(server)[API]'],
-    ['empty diagram (header only)', 'architecture-beta'],
   ]
   for (const [name, src] of opaqueCases) {
     test(`${name} falls back to opaque and round-trips verbatim`, () => {
@@ -425,7 +468,7 @@ describe('architecture round-trip property', () => {
   const iconArb = fc.constantFrom('server', 'database', 'cloud', 'disk')
   const sideArb = fc.constantFrom('L', 'R', 'T', 'B')
 
-  test('parse(serialize(parse(src))) is identity on generated architectures', () => {
+  test('generated service and edge meaning survives parsing and serialization', () => {
     fc.assert(
       fc.property(
         fc.uniqueArray(idArb, { minLength: 2, maxLength: 5 }),
@@ -434,6 +477,13 @@ describe('architecture round-trip property', () => {
         (ids, meta, rawEdges) => {
           const services = ids.map((id, i) => ({ id, ...(meta[i] ?? { label: id, icon: 'server' }) }))
           const lines = ['architecture-beta', ...services.map(s => `  service ${s.id}(${s.icon})[${s.label}]`)]
+          const expectedEdges = rawEdges.map(e => ({
+            source: { id: services[e.from % services.length]!.id, side: e.fromSide },
+            target: { id: services[e.to % services.length]!.id, side: e.toSide },
+            label: e.label,
+            hasArrowStart: false,
+            hasArrowEnd: true,
+          }))
           for (const e of rawEdges) {
             const from = services[e.from % services.length]!.id
             const to = services[e.to % services.length]!.id
@@ -443,7 +493,12 @@ describe('architecture round-trip property', () => {
           const d = architecture(lines.join('\n'))
           const out = serializeMermaid(d)
           const d2 = architecture(out)
-          expect(d2.body).toEqual(d.body)
+          for (const { body } of [d, d2]) {
+            expect(body.services.map(({ id, label, icon }) => ({ id, label, icon }))).toEqual(services)
+            expect(body.edges).toEqual(expectedEdges)
+            expect(body.groups).toEqual([])
+            expect(body.junctions).toEqual([])
+          }
           expect(serializeMermaid(d2)).toBe(out)
         },
       ),

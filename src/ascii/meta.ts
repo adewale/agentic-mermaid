@@ -40,14 +40,14 @@ import { stateBodyToGraph } from '../agent/state-body.ts'
 import type { ClassBody, ClassRelationKind } from '../agent/types.ts'
 import { prepareRenderInput } from '../agent/render-input.ts'
 import { ParsedDiagramFamilyMismatchError } from '../render-contract.ts'
-import { normalizeBrTags, normalizePlainLabel } from '../multiline-utils.ts'
-import { plainTextFromInlineFormatting } from '../shared/inline-format.ts'
+import { breakLineTags, displayText, normalizeBrTags } from '../multiline-utils.ts'
 import { compareCodePointStrings } from '../shared/deterministic-order.ts'
 import { graphemes } from '../shared/graphemes.ts'
 import { sanitizeTerminalText } from '../terminal-security.ts'
 import { decodeXML } from 'entities'
 import { parsePieChart } from '../pie/parser.ts'
 import { safePieTerminalText } from './pie.ts'
+import { oneRowDisplayText } from './multiline-utils.ts'
 import type { MermaidGraph } from '../types.ts'
 
 export type RegionKind = Exclude<RenderedRegionKind, 'canvas' | 'group'> | 'group' | 'subgraph'
@@ -162,9 +162,29 @@ function deriveWarnings(source: string, regions: AsciiRegion[]): AsciiWarning[] 
   return []
 }
 
-// `plainEmphasis`: flowchart labels draw `*` and `~` literally, so their
-// projection skips the markdown-lite step that other families render.
-interface Candidate { id: string; label: string; sourceLine?: number; kind?: RegionKind; preserveEntitySpelling?: true; plainEmphasis?: true }
+/** The characters a candidate's label is drawn as (before entity decoding).
+ * Every ASCII drawer reads labels through displayText, formatted or literal,
+ * so the projection applies the same display to say what was drawn. */
+type DrawnText = (label: string) => string
+/** A typed-body label its renderer normalizes (`normalizeBrTags`) and draws
+ * formatted: the default. */
+const drawnFormatted: DrawnText = label => displayText(normalizeBrTags(label))
+/** A label its renderer's own parser already normalized (flowchart, State). */
+const drawnNormalized: DrawnText = label => displayText(label)
+/** A label drawn as written (Timeline, XYChart, GitGraph, Gantt tasks, Radar). */
+const drawnLiteral: DrawnText = label => label
+/** A formatted label drawn in a one-row slot (a quadrant region or axis, an
+ * Architecture group header). */
+const drawnOneRow: DrawnText = label => oneRowDisplayText(normalizeBrTags(label))
+/** A Gantt section title: literal, but broken at `<br>` as upstream does. */
+const drawnLineBroken: DrawnText = label => breakLineTags(label)
+
+/** Give every candidate in `out` the same drawn-text projection. */
+function drawnAs(out: Candidate[], drawn: DrawnText): Candidate[] {
+  return out.map(candidate => ({ ...candidate, drawn }))
+}
+
+interface Candidate { id: string; label: string; sourceLine?: number; kind?: RegionKind; preserveEntitySpelling?: true; drawn?: DrawnText }
 
 function addCandidate(out: Candidate[], id: string, label: string | undefined, sourceLine?: number, kind: RegionKind = 'node', preserveEntitySpelling = false): void {
   const normalized = preserveEntitySpelling ? label : label?.trim()
@@ -190,7 +210,7 @@ function deriveRegions(ascii: string, source: string): AsciiRegion[] {
   for (const c of sorted) {
     const candidateKey = `${c.kind ?? 'node'}\u0000${c.id}`
     if (used.has(candidateKey)) continue
-    const match = matchProjectedLabel(lines, c.label, occupied, (c.kind ?? 'node') === 'node', c.preserveEntitySpelling === true, c.plainEmphasis === true)
+    const match = matchProjectedLabel(lines, c.label, occupied, (c.kind ?? 'node') === 'node', c.preserveEntitySpelling === true, c.drawn)
     if (!match) continue
     out.push({
       kind: c.kind ?? 'node',
@@ -200,7 +220,7 @@ function deriveRegions(ascii: string, source: string): AsciiRegion[] {
       canvasColStart: match.colStart,
       canvasColEnd: match.colEnd,
       ...(match.rowSpan > 1 ? { rowSpan: match.rowSpan } : {}),
-      projectedText: projectedLabelText(c.label, c.preserveEntitySpelling !== true, c.plainEmphasis === true),
+      projectedText: match.text,
       authoredTextCells: match.authoredTextCells,
     })
     used.add(candidateKey)
@@ -211,6 +231,8 @@ function deriveRegions(ascii: string, source: string): AsciiRegion[] {
 }
 
 interface ProjectedLabelMatch {
+  /** The text the region was matched from: what the canvas shows there. */
+  text: string
   row: number
   colStart: number
   colEnd: number
@@ -280,16 +302,16 @@ function preferredOccurrences(
     || a.colStart - b.colStart)
 }
 
-function projectedLabelText(label: string, decodeEntities = true, plainEmphasis = false): string {
+function projectedLabelText(label: string, decodeEntities = true, drawn: DrawnText = drawnFormatted): string {
   // Pie passes a final visible projection. Entity-produced tag lookalikes
   // are literal text and must not be stripped as authored formatting.
-  const normalize = plainEmphasis ? normalizePlainLabel : normalizeBrTags
-  const formatted = decodeEntities ? plainTextFromInlineFormatting(normalize(label)) : label
+  const formatted = decodeEntities ? drawn(label) : label
   const safe = sanitizeTerminalText(decodeEntities ? decodeXML(formatted) : formatted, true)
   return decodeEntities ? safe.replace(/^[`]|[`]$/g, '').trim() : safe
 }
 
 function claimOccurrences(
+  text: string,
   occurrences: TextOccurrence[],
   occupied: Map<number, Array<readonly [number, number]>>,
 ): ProjectedLabelMatch {
@@ -309,6 +331,7 @@ function claimOccurrences(
     })
   })
   return {
+    text,
     row: firstRow,
     colStart: Math.min(...occurrences.map(occurrence => occurrence.colStart)),
     colEnd: Math.max(...occurrences.map(occurrence => occurrence.colEnd)),
@@ -317,22 +340,24 @@ function claimOccurrences(
   }
 }
 
-/** Match the exact label first, then its terminal projection. Width-bounded
- * rendering inserts line breaks after parsing, while markdown/entity/<br>
- * normalization changes the visible spelling; the ordered-token fallback
- * maps those projected lines without falling back to an unrelated node id. */
+/** Match the label's terminal projection (what the drawer shows), then the
+ * label as written. Width-bounded rendering inserts line breaks after
+ * parsing, while markdown/entity/<br> normalization changes the visible
+ * spelling; the ordered-token fallback maps those projected lines without
+ * falling back to an unrelated node id. The match records the text it found,
+ * so `projectedText` never claims characters the canvas does not show. */
 function matchProjectedLabel(
   lines: string[],
   label: string,
   occupied: Map<number, Array<readonly [number, number]>>,
   preferNodeTextBand: boolean,
   preserveEntitySpelling = false,
-  plainEmphasis = false,
+  drawn: DrawnText = drawnFormatted,
 ): ProjectedLabelMatch | undefined {
-  const projected = projectedLabelText(label, !preserveEntitySpelling, plainEmphasis)
-  for (const text of new Set([label, projected])) {
+  const projected = projectedLabelText(label, !preserveEntitySpelling, drawn)
+  for (const text of new Set([projected, label])) {
     const occurrence = preferredOccurrences(lines, occurrencesOf(lines, text, occupied), preferNodeTextBand)[0]
-    if (occurrence) return claimOccurrences([occurrence], occupied)
+    if (occurrence) return claimOccurrences(text, [occurrence], occupied)
   }
 
   const tokens = projected.split(/\s+/).filter(Boolean)
@@ -369,7 +394,7 @@ function matchProjectedLabel(
       }
       previous = next
     }
-    if (complete) return claimOccurrences(matches, occupied)
+    if (complete) return claimOccurrences(projected, matches, occupied)
   }
   return undefined
 }
@@ -690,7 +715,7 @@ function candidatesForDiagram(source: string): Candidate[] {
       }
     }
     visit(graphBody.subgraphs)
-    return out.map(candidate => ({ ...candidate, plainEmphasis: true }))
+    return drawnAs(out, drawnNormalized)
   }
   if (d.kind === 'pie' && d.body.kind === 'opaque') {
     // Escaped terminal controls make the typed agent body opaque, while the
@@ -720,7 +745,7 @@ function candidatesForDiagram(source: string): Candidate[] {
       }
     }
     visit(topLevel)
-    return out
+    return drawnAs(out, drawnNormalized)
   }
   if (d.body.kind === 'sequence') {
     const out = d.body.participants.flatMap(p => {
@@ -762,7 +787,7 @@ function candidatesForDiagram(source: string): Candidate[] {
       addCandidate(out, s.id, s.label, undefined, 'band')
       for (const p of s.periods) addCandidate(out, p.id, p.label)
     }
-    return out
+    return drawnAs(out, drawnLiteral)
   }
   if (d.body.kind === 'journey') {
     const out: Candidate[] = []
@@ -774,8 +799,9 @@ function candidatesForDiagram(source: string): Candidate[] {
     return out
   }
   if (d.body.kind === 'architecture') {
-    const out: Candidate[] = []
-    for (const g of d.body.groups) addCandidateWithFallback(out, g.id, g.label || g.id, undefined, 'cluster')
+    const groups: Candidate[] = []
+    for (const g of d.body.groups) addCandidateWithFallback(groups, g.id, g.label || g.id, undefined, 'cluster')
+    const out = drawnAs(groups, drawnOneRow)
     for (const s of d.body.services) addCandidateWithFallback(out, s.id, s.label || s.id)
     return out
   }
@@ -786,7 +812,7 @@ function candidatesForDiagram(source: string): Candidate[] {
     addCandidate(out, 'y-axis', d.body.yAxis?.name)
     d.body.xAxis?.categories?.forEach((label, index) => addCandidate(out, `x-category-${index}`, label))
     for (const s of d.body.series) addCandidate(out, s.id, s.name)
-    return out
+    return drawnAs(out, drawnLiteral)
   }
   if (d.body.kind === 'pie') {
     const out: Candidate[] = []
@@ -802,15 +828,16 @@ function candidatesForDiagram(source: string): Candidate[] {
     return out
   }
   if (d.body.kind === 'quadrant') {
+    const oneRow: Candidate[] = []
+    addCandidate(oneRow, 'x-axis-near', d.body.xAxis?.near)
+    addCandidate(oneRow, 'x-axis-far', d.body.xAxis?.far)
+    addCandidate(oneRow, 'y-axis-near', d.body.yAxis?.near)
+    addCandidate(oneRow, 'y-axis-far', d.body.yAxis?.far)
+    d.body.quadrants.forEach((label, index) => addCandidate(oneRow, `quadrant-label#${index + 1}`, label, undefined, 'label'))
     const out: Candidate[] = []
     addCandidate(out, 'title', d.body.title)
-    addCandidate(out, 'x-axis-near', d.body.xAxis?.near)
-    addCandidate(out, 'x-axis-far', d.body.xAxis?.far)
-    addCandidate(out, 'y-axis-near', d.body.yAxis?.near)
-    addCandidate(out, 'y-axis-far', d.body.yAxis?.far)
-    d.body.quadrants.forEach((label, index) => addCandidate(out, `quadrant-label#${index + 1}`, label, undefined, 'label'))
     d.body.points.forEach((p, index) => addCandidate(out, `point-${index}`, p.label))
-    return out
+    return [...out, ...drawnAs(oneRow, drawnOneRow)]
   }
   if (d.body.kind === 'gantt') {
     // Issue #26 WS10: gantt tasks/sections as stable click-mappable regions.
@@ -822,13 +849,13 @@ function candidatesForDiagram(source: string): Candidate[] {
       addCandidate(out, `section-label#${index}`, s.label, undefined, 'label')
       for (const t of s.tasks) addCandidate(out, t.taskId ?? t.id, t.label)
     }
-    return out
+    return out.map(candidate => ({ ...candidate, drawn: candidate.kind === 'label' ? drawnLineBroken : drawnLiteral }))
   }
   if (d.body.kind === 'gitgraph') {
     const out: Candidate[] = []
     for (const branch of d.body.branches) addCandidate(out, `branch:${branch.name}`, branch.name, undefined, 'lane')
     for (const commit of d.body.commits) addCandidateWithFallback(out, commit.id, commit.message || commit.id)
-    return out
+    return drawnAs(out, drawnLiteral)
   }
   if (d.body.kind === 'mindmap') {
     const out: Candidate[] = []
@@ -843,7 +870,7 @@ function candidatesForDiagram(source: string): Candidate[] {
     const out: Candidate[] = []
     for (const axis of d.body.axes) addCandidateWithFallback(out, axis.id, axis.label || axis.id)
     for (const curve of d.body.curves) addCandidateWithFallback(out, curve.id, curve.label || curve.id)
-    return out
+    return drawnAs(out, drawnLiteral)
   }
   return []
 }

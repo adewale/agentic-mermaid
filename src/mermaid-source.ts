@@ -23,6 +23,11 @@ import {
   type MermaidAccessibility,
 } from './shared/accessibility-directives.ts'
 import { splitSequenceStatementLines } from './sequence/statements.ts'
+import { parseMermaidYaml } from './shared/mermaid-yaml.ts'
+import { syntaxError } from './shared/syntax-error.ts'
+import { FRONTMATTER_REGEX, INIT_DIRECTIVE_REGEX, toMermaidLines } from './mermaid-source-wrapper.ts'
+
+export { toMermaidLines }
 
 export type MermaidConfigScalar = string | number | boolean | null
 export type MermaidConfigValue = MermaidConfigScalar | MermaidConfigValue[] | MermaidConfigMap
@@ -424,11 +429,6 @@ export interface NormalizedMermaidSource {
   accessibility: MermaidSourceAccessibility
 }
 
-const FRONTMATTER_REGEX = /^\uFEFF?\s*---\s*\r?\n([\s\S]*?)\r?\n\s*---\s*(?:\r?\n|$)/
-// Outer whitespace is horizontal-only. Using `\s*` at either line boundary
-// consumes preceding blank lines or the next family's indentation because
-// `\s` includes CR/LF. The directive payload itself remains multiline.
-const INIT_DIRECTIVE_REGEX = /^[^\S\r\n]*%%\{\s*(?:init|initialize)\s*:\s*([\s\S]*?)\}\s*%%[^\S\r\n]*(?:\r?\n|$)?/gm
 const COMMENT_LINE_REGEX = /^\s*%%(?!\{)\s*(.*)\r?$/
 
 /**
@@ -637,13 +637,6 @@ export function preprocessMermaidSource(
   }
 }
 
-export function toMermaidLines(text: string): string[] {
-  return text
-    .replace(/^\uFEFF/, '')
-    .split(/\r?\n/)
-    .map(line => line.trim())
-    .filter(line => line.length > 0 && !line.startsWith('%%'))
-}
 
 export function mergeMermaidConfigs(...configs: MermaidRuntimeConfig[]): MermaidRuntimeConfig {
   const merged: MermaidFrontmatterMap = {}
@@ -855,16 +848,21 @@ function canonicalizeFrontmatterMap(raw: MermaidFrontmatterMap): MermaidFrontmat
   return configRoot ? mergeFrontmatterMaps(configRoot, topLevel) : topLevel
 }
 
+/** Frontmatter is read as upstream reads it (shared/metadata-yaml.ts): YAML
+ * that does not parse rejects the diagram; a document that parses but is not
+ * a mapping (a scalar, a list, nothing) is empty metadata. */
 function parseYamlDocument(text: string): MermaidFrontmatterMap {
   assertJsonConfigSourceTextAdmission(text, 'Mermaid frontmatter')
-  try {
-    const parsed: unknown = YAML.parse(text)
-    assertJsonConfigAdmission(parsed, 'Mermaid frontmatter')
-    return toFrontmatterMap(parsed) ?? {}
-  } catch (error) {
-    if (error instanceof JsonConfigAdmissionError) throw error
-    return {}
+  const parsed = parseMermaidYaml(text)
+  if (!parsed.ok) {
+    throw syntaxError({
+      what: `Mermaid frontmatter is not valid YAML: ${parsed.message}`,
+      expectedForm: 'a YAML mapping between the two `---` lines',
+      example: '---\ntitle: "Order flow: v2"\n---',
+    })
   }
+  assertJsonConfigAdmission(parsed.value, 'Mermaid frontmatter')
+  return toFrontmatterMap(parsed.value) ?? {}
 }
 
 function extractInitDirectives(text: string): { body: string; frontmatter: MermaidFrontmatterMap } {

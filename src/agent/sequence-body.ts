@@ -28,25 +28,17 @@
 import { unknownOpMessage } from './mutation-ops.ts'
 import type {
   SequenceBody, SequenceParticipant, SequenceMessage, SequenceMessageStyle,
-  SequenceStatement, SequenceMutationOp, SequenceFragment, MutationError, Result,
+  SequenceStatement, SequenceMutationOp, SequenceFragment, MutationError, Result, LayoutWarning,
 } from './types.ts'
 import { ok, err } from './types.ts'
-import { parseActorDeclaration, parseActorLinks, parseSequenceCreateLine, parseSequenceMessageLine, parseSequenceNoteLine } from '../sequence/parser.ts'
+import { parseSequenceMessageLine, participantEventsOf, readSequenceStatements, sequenceParticipantEvents, type SequenceSourceStatement } from '../sequence/parser.ts'
+import { parseAccessibilityDirective } from '../shared/accessibility-directives.ts'
+import { SequenceParticipantFold, type ParticipantEvent, type SequenceParticipantFoldOptions, type SequenceParticipantRecord } from '../sequence/participants.ts'
 import { isSequenceCommentLine, splitSequenceStatementLines } from '../sequence/statements.ts'
-import { continuationBelongsToBlock, parseSequenceBlockContinuation, parseSequenceBlockOpener } from '../sequence/block-keywords.ts'
 import { appendOpaqueSegment } from './opaque-segments.ts'
 
 // ---- Parser -----------------------------------------------------------------
 
-
-// Keywords that OPEN a nestable block (closed by a matching `end`). `box`
-// belongs here: its `end` used to hit the stray-`end` rule below and collapse
-// EVERY boxed diagram to the whole-body opaque fallback; as a preserved
-// segment the box rides along verbatim while the rest of the
-// diagram keeps its typed ops. Declarations inside a box stay part of the
-// segment, though the participants they declare are typed. Direct-message
-// alt/opt/loop/par blocks are promoted to typed fragments below.
-const BLOCK_END_RE = /^end\b/i
 
 /**
  * Parse the body lines of a sequence diagram into a segment-preserving
@@ -61,51 +53,28 @@ const BLOCK_END_RE = /^end\b/i
  * body.
  */
 export function parseSequenceBody(trimmedLines: string[], rawLines?: string[]): SequenceBody | null {
-  const participants: SequenceParticipant[] = []
   const messages: SequenceMessage[] = []
   const statements: SequenceStatement[] = []
-  const seen = new Set<string>()
+  // The participants, created and named by the renderer's creation rules
+  // (sequence/participants.ts): every statement's events, in source order.
+  const fold = new SequenceParticipantFold()
 
   // Align raw (indented) lines with trimmed lines. `rawLines` has the same
   // logical content but keeps indentation/blank lines; we walk it in lockstep
   // by skipping its blank/comment lines, which `trimmedLines` already drops.
-  const raw = splitSequenceStatementLines(rawLines ?? trimmedLines)
-
-  // NB: do NOT name this `declare` — that's a TypeScript keyword and bun's
-  // transpiler misparses `declare(x)` as an ambient declaration.
-  const ensureKnown = (id: string) => {
-    if (!seen.has(id)) { participants.push({ id, label: id, kind: 'participant' }); seen.add(id) }
-  }
-  // As in Mermaid, a declaration creates an unknown participant, while a known
-  // one changes only under a naming declaration, which replaces its label and
-  // kind in place.
-  const declareParticipant = ({ participant, aliased }: DeclaredParticipant): number => {
-    const index = participants.findIndex(p => p.id === participant.id)
-    if (index < 0) {
-      participants.push(participant); seen.add(participant.id)
-      return participants.length - 1
-    }
-    if (aliased) {
-      const renamed = { ...participants[index]!, ...participant }
-      if (!participant.declaration) delete renamed.declaration
-      participants[index] = renamed
-    }
-    return index
-  }
-  const declarePreserved = (line: string) => {
-    for (const named of preservedLineParticipants(line)) {
-      if (named.declared) declareParticipant(named.declared)
-      else ensureKnown(named.id)
-    }
-  }
+  const source = readSequenceStatements(rawLines ?? trimmedLines)
+  if (source.issues.some(issue => issue.syntax === 'sequence_block_boundary')) return null
+  const raw = source.statements
 
   // Walk the raw lines so opaque segments capture original indentation. Track a
   // parallel index into trimmedLines is unnecessary: we trim each raw line for
   // structural matching but store the raw text in opaque segments.
   let i = 0
   while (i < raw.length) {
-    const rawLine = raw[i]!
+    const entry = raw[i]!
+    const rawLine = entry.raw
     const line = rawLine.trim()
+    const syntax = entry.syntax
     if (!line) { i++; continue }
     if (isSequenceCommentLine(line)) {
       appendOpaqueSegment(statements, [rawLine], sequenceOpaqueBlock)
@@ -113,76 +82,56 @@ export function parseSequenceBody(trimmedLines: string[], rawLines?: string[]): 
       continue
     }
 
-    if (/^(participant|actor)\b/i.test(line)) {
-      const declared = parseDeclarationLine(line)
+    if (syntax?.kind === 'declaration') {
+      const declared = syntax.declaration
+      if (declared.unmodeledMetadata?.length) {
+        fold.applyAll(participantEventsOf(syntax))
+        appendOpaqueSegment(statements, [rawLine], sequenceOpaqueBlock)
+        i++
+        continue
+      }
       // Mermaid ignores a bare re-declaration of a known participant, so keep
       // that line verbatim rather than re-render it from a participant it
       // does not change.
-      if (!declared || (seen.has(declared.participant.id) && !declared.aliased)) {
+      if (fold.has(declared.id) && !declared.aliased) {
         appendOpaqueSegment(statements, [rawLine], sequenceOpaqueBlock); i++; continue
       }
-      statements.push({ kind: 'participant', ref: declareParticipant(declared) })
+      fold.applyAll(participantEventsOf(syntax))
+      statements.push({ kind: 'participant', ref: fold.indexOf(declared.id) })
       i++
       continue
     }
 
-    if (/^links?\b/i.test(line)) {
-      const parsedLinks = parseActorLinks(line)
-      if (!parsedLinks) return null
-      ensureKnown(parsedLinks.actorId)
-      const participant = participants.find(value => value.id === parsedLinks.actorId)!
-      participant.links = { ...participant.links, ...parsedLinks.links }
-      statements.push({ kind: 'actor-links', actorId: parsedLinks.actorId, links: { ...parsedLinks.links } })
+    if (syntax?.kind === 'links') {
+      fold.applyAll(participantEventsOf(syntax))
+      statements.push({ kind: 'actor-links', actorId: syntax.actorId, links: { ...syntax.links } })
       i++
       continue
     }
 
-    const opener = parseSequenceBlockOpener(line)
-    const continuation = parseSequenceBlockContinuation(line)
     // `par_over` remains a distinct upstream construct, not a typed `par`
     // fragment. Preserve the previous whole-body opaque disposition until
     // its own #264 projection is implemented.
-    if (opener?.type === 'par_over') return null
-    const msg = !opener && !continuation ? parseSequenceMessageLine(line) : null
-    if (msg) {
-      ensureKnown(msg.from)
-      ensureKnown(msg.to)
-      messages.push(sequenceMessageFromParsed(msg))
+    if (syntax?.kind === 'block' && syntax.opener.type === 'par_over') return null
+    if (syntax?.kind === 'message') {
+      fold.applyAll(participantEventsOf(syntax))
+      messages.push(sequenceMessageFromParsed(syntax.message))
       statements.push({ kind: 'message', ref: messages.length - 1 })
       i++
       continue
     }
 
-    // A stray `end` or block-continuation with no open block can't be cleanly
-    // segmented → whole-body opaque fallback.
-    if (BLOCK_END_RE.test(line) || continuation) return null
-
-    if (opener) {
-      // Capture start → matching end as ONE opaque-block (verbatim, nested).
-      const blockLines: string[] = [rawLine]
-      let depth = 1
-      i++
-      while (i < raw.length && depth > 0) {
-        const inner = raw[i]!
-        const innerTrim = inner.trim()
-        if (innerTrim && !innerTrim.startsWith('%%')) {
-          if (parseSequenceBlockOpener(innerTrim)) depth++
-          else if (BLOCK_END_RE.test(innerTrim)) depth--
-        }
-        blockLines.push(inner)
-        i++
-      }
-      if (depth !== 0) return null // unclosed block → opaque fallback
-      const fragment = parseTypedFragment(blockLines)
+    if (syntax?.kind === 'block' || syntax?.kind === 'box') {
+      // The shared reader, not a second depth scanner, owns this boundary.
+      const block = raw.slice(i, entry.endIndex! + 1)
+      const blockLines = block.map(entry => entry.raw)
+      i = entry.endIndex! + 1
+      const fragment = parseTypedFragment(block)
+      for (const inner of block) fold.applyAll(participantEventsOf(inner.syntax))
       if (fragment) {
-        for (const branch of fragment.branches) for (const message of branch.messages) {
-          ensureKnown(message.from)
-          ensureKnown(message.to)
-        }
         statements.push({ kind: 'fragment', fragment })
       } else {
-        for (const blockLine of blockLines) declarePreserved(blockLine)
-        appendOpaqueSegment(statements, dropBlankEdges(blockLines), sequenceOpaqueBlock)
+        appendOpaqueSegment(statements, blockLines, sequenceOpaqueBlock)
       }
       continue
     }
@@ -190,50 +139,33 @@ export function parseSequenceBody(trimmedLines: string[], rawLines?: string[]): 
     // Any other unmodeled single line (Note…, create, activate/deactivate,
     // autonumber, title…) joins an adjacent opaque-block segment, kept
     // verbatim, and still declares the participants it names.
-    declarePreserved(line)
+    fold.applyAll(participantEventsOf(syntax))
     appendOpaqueSegment(statements, [rawLine], sequenceOpaqueBlock)
     i++
   }
 
-  return { kind: 'sequence', participants, messages, statements }
+  return { kind: 'sequence', participants: fold.list().map(typedParticipant), messages, statements }
 }
 
 const sequenceOpaqueBlock = (lines: string[]): SequenceStatement => ({ kind: 'opaque-block', lines })
 
-interface DeclaredParticipant { participant: SequenceParticipant; aliased: boolean }
-
-/** A `participant`/`actor` line as a typed declaration, or null when it must
- * stay preserved source: malformed, an unknown type, or metadata outside the
- * closed grammar (never reinterpret `A@{` as an actor ID). */
-function parseDeclarationLine(line: string): DeclaredParticipant | null {
-  let part
-  try { part = parseActorDeclaration(line) } catch { return null }
-  if (!part || (line.includes('@{') && !/^\s*(?:participant|actor)\s+[^\s@]+@\{[\s\S]+\}(?:\s+as\s+.+)?$/i.test(line))) return null
-  const declaration = /^actor\b/i.test(line) ? 'actor' as const : 'participant' as const
-  const { id, label, type: kind } = part
-  return { participant: { id, label, kind, ...(kind === declaration ? {} : { declaration }) }, aliased: part.aliased }
+/** A folded participant as the typed body's participant; the declaration
+ * keyword is kept only where it differs from the visual type. */
+function typedParticipant({ id, label, type: kind, keyword, links }: SequenceParticipantRecord): SequenceParticipant {
+  return {
+    id, label, kind,
+    ...(keyword && keyword !== kind ? { declaration: keyword } : {}),
+    ...(links && Object.keys(links).length > 0 ? { links } : {}),
+  }
 }
 
-/** The participants a preserved line declares or names, in the order Mermaid
- * creates them. Checks follow the renderer's precedence; `activate` and
- * `destroy` create nothing upstream. */
-function preservedLineParticipants(rawLine: string): Array<{ id: string; declared?: DeclaredParticipant }> {
+/** The participant events of a preserved line: the renderer's own (see
+ * sequence/participants.ts). A line the renderer rejects creates nothing
+ * here; it stays verbatim source, and rendering reports it. */
+function preservedLineEvents(rawLine: string): ParticipantEvent[] {
   const line = rawLine.trim()
   if (!line || isSequenceCommentLine(line)) return []
-  if (/^(?:participant|actor)\b/i.test(line)) {
-    const declared = parseDeclarationLine(line)
-    return declared ? [{ id: declared.participant.id, declared }] : []
-  }
-  const links = parseActorLinks(line)
-  if (links) return [{ id: links.actorId }]
-  // Creating a known participant is an upstream error, never a rename.
-  const created = parseSequenceCreateLine(line)
-  if (created) return [{ id: created.id, declared: { participant: { id: created.id, label: created.label, kind: created.type }, aliased: false } }]
-  const note = parseSequenceNoteLine(line)
-  if (note) return note.actorIds.map(id => ({ id }))
-  if (parseSequenceBlockOpener(line) || parseSequenceBlockContinuation(line)) return []
-  const message = parseSequenceMessageLine(line)
-  return message ? [{ id: message.from }, { id: message.to }] : []
+  try { return sequenceParticipantEvents(line) } catch { return [] }
 }
 
 function sequenceMessageFromParsed(msg: ReturnType<typeof parseSequenceMessageLine> & {}): SequenceMessage {
@@ -245,33 +177,32 @@ function sequenceMessageFromParsed(msg: ReturnType<typeof parseSequenceMessageLi
   }
 }
 
-function parseTypedFragment(lines: string[]): SequenceFragment | null {
-  const opener = parseSequenceBlockOpener(lines[0]?.trim() ?? '')
+function parseTypedFragment(entries: SequenceSourceStatement[]): SequenceFragment | null {
+  const syntax = entries[0]?.syntax
+  const opener = syntax?.kind === 'block' ? syntax.opener : undefined
   if (!opener || !['alt', 'opt', 'loop', 'par'].includes(opener.type)) return null
   const fragmentKind = opener.type as SequenceFragment['fragmentKind']
   const branches: SequenceFragment['branches'] = [{ messages: [] }]
-  for (let i = 1; i < lines.length - 1; i++) {
-    const line = lines[i]!.trim()
+  for (const entry of entries.slice(1, -1)) {
+    const line = entry.raw.trim()
     if (!line) continue
     // Editing a fragment that carries comments would otherwise discard them.
     // Keep the entire block opaque until comments gain their own typed model.
     if (line.startsWith('%%')) return null
-    const continuation = parseSequenceBlockContinuation(line)
-    if (continuation) {
-      if (!continuationBelongsToBlock(continuation.type, fragmentKind)) return null
+    const inner = entry.syntax
+    if (inner?.kind === 'continuation') {
+      const continuation = inner.continuation
       branches.push({ ...(continuation.label ? { label: continuation.label } : {}), messages: [] })
       continue
     }
-    if (parseSequenceBlockOpener(line) || BLOCK_END_RE.test(line)) return null
-    const parsed = parseSequenceMessageLine(line)
-    if (!parsed) return null
-    branches.at(-1)!.messages.push(sequenceMessageFromParsed(parsed))
+    if (inner?.kind !== 'message') return null
+    branches.at(-1)!.messages.push(sequenceMessageFromParsed(inner.message))
   }
   return {
     fragmentKind,
     ...(opener.label ? { label: opener.label } : {}),
     branches,
-    rawLines: [...lines],
+    rawLines: entries.map(entry => entry.raw),
   }
 }
 
@@ -317,14 +248,6 @@ export function sequenceMessages(body: SequenceBody): SequenceMessage[] {
 }
 
 
-// Trim trailing blank lines from a captured block (the matching `end` is the
-// real terminator); leading content already starts at the block keyword.
-function dropBlankEdges(lines: string[]): string[] {
-  const out = [...lines]
-  while (out.length && out[out.length - 1]!.trim() === '') out.pop()
-  return out
-}
-
 function styleForArrow(a: string): SequenceMessageStyle {
   switch (a) {
     case '->>': return 'sync'
@@ -335,6 +258,52 @@ function styleForArrow(a: string): SequenceMessageStyle {
     case '--x': return 'lost-dashed'
     default: return 'sync'
   }
+}
+
+// ---- Verifier ---------------------------------------------------------------
+
+/** Sequence source ours reads where Mermaid 11.16 rejects it, each on its
+ * canonical line: a participant a second `box` meets stays in its first box
+ * (sequence/participants.ts). */
+export function sequenceUnsupportedSyntaxWarnings(canonicalSource: string): LayoutWarning[] {
+  const lines = canonicalSource.split(/\r?\n/)
+  const header = lines.findIndex(line => /^sequenceDiagram\b/.test(line.trim()))
+  if (header < 0) return []
+  const warnings: LayoutWarning[] = []
+  let line = header + 1
+  const fold = new SequenceParticipantFold({
+    onBoxConflict: id => warnings.push({
+      code: 'UNSUPPORTED_SYNTAX',
+      syntax: 'sequence_participant_in_two_boxes',
+      line,
+      message: `Participant "${id}" in a second box stays in the box that first placed it. Mermaid 11.16 rejects this; put each participant in one box only.`,
+    }),
+  })
+  const grammar = lines.slice(header + 1)
+  for (let index = header + 1; index < lines.length; index++) {
+    const directive = parseAccessibilityDirective(lines, index)
+    if (directive === undefined) break
+    if (directive !== null) {
+      for (let at = index; at <= directive.endIndex; at++) grammar[at - header - 1] = ''
+      if (directive.suffixLine) grammar[directive.endIndex - header - 1] = directive.suffixLine
+      index = directive.endIndex
+      continue
+    }
+  }
+  const source = readSequenceStatements(grammar)
+  for (const issue of source.issues) warnings.push({
+    code: 'UNSUPPORTED_SYNTAX', syntax: issue.syntax, line: header + issue.line + 2, message: issue.message,
+  })
+  for (const entry of source.statements) {
+    line = header + entry.line + 2
+    const statement = entry.syntax
+    fold.applyAll(participantEventsOf(statement))
+    if (statement?.kind === 'box') fold.openBox({ actorIds: [] })
+    else if (entry.closes !== undefined && source.statements[entry.closes]?.syntax?.kind === 'box') {
+      fold.closeBox()
+    }
+  }
+  return warnings
 }
 
 // ---- Serializer -------------------------------------------------------------
@@ -382,7 +351,9 @@ function renderFragment(fragment: SequenceFragment): string[] {
 
 function renderParticipant(p: SequenceParticipant, redeclared: boolean): string {
   const tag = p.declaration ?? (p.kind === 'actor' ? 'actor' : 'participant')
-  const metadata = p.kind !== 'participant' && p.kind !== 'actor' ? `@{ "type": "${p.kind}" }` : ''
+  // The keyword gives its own type; any other type (`actor A@{ "type":
+  // "participant" }` included) needs the metadata to survive a re-parse.
+  const metadata = p.kind !== tag ? `@{ "type": "${p.kind}" }` : ''
   const label = p.label.replace(/\r?\n/g, '<br/>')
   return `  ${tag} ${p.id}${metadata}${label !== p.id || redeclared ? ` as ${label}` : ''}`
 }
@@ -395,7 +366,7 @@ function statementParticipantIds(statement: SequenceStatement, participants: Seq
     case 'message': return endpoints(messages[statement.ref])
     case 'fragment': return statement.fragment.branches.flatMap(branch => branch.messages.flatMap(endpoints))
     case 'actor-links': return [statement.actorId]
-    case 'opaque-block': return statement.lines.flatMap(line => preservedLineParticipants(line).map(named => named.id))
+    case 'opaque-block': return statement.lines.flatMap(line => preservedLineEvents(line).map(event => event.id))
   }
 }
 
@@ -433,8 +404,11 @@ export function mutateSequence(body: SequenceBody, op: SequenceMutationOp): Resu
     case 'add_participant': {
       if (participants.some(p => p.id === op.id)) return err({ code: 'DUPLICATE_PARTICIPANT', message: `Participant "${op.id}" already exists` })
       participants.push({ id: op.id, label: op.label ?? op.id, kind: op.participantKind ?? 'participant' })
-      const ref = participants.length - 1
-      insertParticipantStatement(statements, { kind: 'participant', ref })
+      // A new participant comes after every existing one: declare it right
+      // after the statement that creates the last of them (at the top when
+      // no statement creates one), never ahead of a participant a later
+      // statement creates.
+      statements.splice(afterCreation(statements, participants, messages, participants.slice(0, -1).map(p => p.id)), 0, { kind: 'participant', ref: participants.length - 1 })
       break
     }
     case 'remove_participant': {
@@ -453,14 +427,14 @@ export function mutateSequence(body: SequenceBody, op: SequenceMutationOp): Resu
       messages.forEach((m, mi) => { if (m.from === op.id || m.to === op.id) removedMsgIdx.add(mi) })
       const keptMessages = messages.filter((_, mi) => !removedMsgIdx.has(mi))
       const rebuilt = rebuildStatements(statements, idx, removedMsgIdx, op.id)
-      return ok({ kind: 'sequence', participants, messages: keptMessages, statements: rebuilt })
+      return ok(refolded({ kind: 'sequence', participants, messages: keptMessages, statements: rebuilt }))
     }
     case 'add_message': {
       if (op.index !== undefined && (!Number.isInteger(op.index) || op.index < 0 || op.index > messages.length)) {
         return err({ code: 'INVALID_OP', message: `Sequence add_message index ${op.index} out of range (0..${messages.length})` })
       }
-      ensureParticipant(participants, statements, op.from)
-      ensureParticipant(participants, statements, op.to)
+      ensureParticipant(participants, op.from)
+      ensureParticipant(participants, op.to)
       const index = op.index ?? messages.length
       messages.splice(index, 0, { from: op.from, to: op.to, text: op.text, style: op.style ?? 'sync' })
       insertMessageStatement(statements, index)
@@ -497,8 +471,16 @@ export function mutateSequence(body: SequenceBody, op: SequenceMutationOp): Resu
       // statement creates first (`A->>B`, relabelling B).
       const ref = participants.indexOf(p)
       const naming = namingDeclaration(statements, ref, p.id)
-      if (naming === undefined) statements.splice(creatingStatement(statements, participants, messages, p.id) + 1, 0, { kind: 'participant', ref })
-      else if (naming.preserved) statements.splice(naming.index + 1, 0, { kind: 'participant', ref })
+      const at = naming === undefined ? creatingStatement(statements, participants, messages, p.id) + 1 : naming.preserved ? naming.index + 1 : undefined
+      if (at === undefined) break
+      statements.splice(at, 0, { kind: 'participant', ref })
+      // A naming declaration resets the links in Mermaid (ours keeps them):
+      // when it lands after statements that linked the participant, link it
+      // again right after, so Mermaid reads them too.
+      const reparsed = reparsedParticipants({ kind: 'sequence', participants, messages, statements }, { upstreamLinks: true }).find(record => record.id === p.id)
+      if (p.links && JSON.stringify(reparsed?.links ?? {}) !== JSON.stringify(p.links)) {
+        statements.splice(at + 1, 0, { kind: 'actor-links', actorId: p.id, links: { ...p.links } })
+      }
       break
     }
     case 'remove_message': {
@@ -574,8 +556,8 @@ export function mutateSequence(body: SequenceBody, op: SequenceMutationOp): Resu
       if (!branch.ok) return branch
       const index = op.index ?? branch.value.messages.length
       if (!Number.isInteger(index) || index < 0 || index > branch.value.messages.length) return err({ code: 'INVALID_OP', message: `Sequence fragment message index ${index} out of range` })
-      ensureParticipant(participants, statements, op.from)
-      ensureParticipant(participants, statements, op.to)
+      ensureParticipant(participants, op.from)
+      ensureParticipant(participants, op.to)
       delete target.statement.fragment.rawLines
       branch.value.messages.splice(index, 0, { from: op.from, to: op.to, text: op.text, style: op.style ?? 'sync' })
       break
@@ -606,18 +588,63 @@ export function mutateSequence(body: SequenceBody, op: SequenceMutationOp): Resu
       return err({ code: 'INVALID_OP', message: unknownOpMessage('sequence', _x) })
     }
   }
-  return ok({ kind: 'sequence', participants, messages, statements })
+  return ok(refolded({ kind: 'sequence', participants, messages, statements }))
+}
+
+/** Keep an edited body the fold of its own statements, which is what its
+ * serialization re-parses to (sequence/participants.ts): participants are
+ * listed in the order the statements create them (a message added ahead of
+ * the others creates its new participant there), with the label, type and
+ * links the statements give them (removing the message that created a
+ * participant lets a later declaration create it), and one that no
+ * statement creates any more (its only messages were removed) is gone, as it
+ * is from the diagram. */
+function refolded(body: SequenceBody): SequenceBody {
+  const participants = reparsedParticipants(body).map(typedParticipant)
+  if (JSON.stringify(participants) === JSON.stringify(body.participants)) return body
+  const newRef = new Map(participants.map((participant, at) => [participant.id, at]))
+  return {
+    kind: 'sequence',
+    participants,
+    messages: body.messages,
+    statements: body.statements.map(statement => statement.kind === 'participant' ? { kind: 'participant', ref: newRef.get(body.participants[statement.ref]!.id)! } : statement),
+  }
+}
+
+/** The statement index right after the one that creates the last of `ids`
+ * (0 when no statement creates any of them). */
+function afterCreation(statements: SequenceStatement[], participants: SequenceParticipant[], messages: SequenceMessage[], ids: readonly string[]): number {
+  const wanted = new Set(ids)
+  const created = new Set<string>()
+  let at = 0
+  statements.forEach((statement, index) => {
+    for (const id of statementParticipantIds(statement, participants, messages)) {
+      if (created.has(id)) continue
+      created.add(id)
+      if (wanted.has(id)) at = index + 1
+    }
+  })
+  return at
+}
+
+/** The participants the body's own serialization creates on re-parse: the
+ * shared creation rules folded over the serializer's output. */
+function reparsedParticipants(body: SequenceBody, options: SequenceParticipantFoldOptions = {}): SequenceParticipantRecord[] {
+  const fold = new SequenceParticipantFold(options)
+  for (const line of splitSequenceStatementLines(renderSequence(body).split('\n')).slice(1)) fold.applyAll(preservedLineEvents(line))
+  return fold.list()
 }
 
 /** The statement whose declaration names participant `id` last: its own
  * declaration statement, or a preserved line that declares it with an alias. */
 function namingDeclaration(statements: SequenceStatement[], ref: number, id: string): { index: number; preserved: boolean } | undefined {
-  const escaped = id.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
-  const aliased = new RegExp(`^\\s*(?:participant|actor)\\s+${escaped}(?:@\\{[^}]*\\})?\\s+as\\s`, 'i')
+  // One naming rule (`as …` or a metadata alias), the parser's.
+  const names = (line: string) => preservedLineEvents(line)
+    .some(event => event.kind === 'declare' && event.id === id && event.label !== undefined && !event.create)
   for (let index = statements.length - 1; index >= 0; index--) {
     const statement = statements[index]!
     if (statement.kind === 'participant' && statement.ref === ref) return { index, preserved: false }
-    if (statement.kind === 'opaque-block' && statement.lines.some(line => aliased.test(line))) return { index, preserved: true }
+    if (statement.kind === 'opaque-block' && statement.lines.some(names)) return { index, preserved: true }
   }
   return undefined
 }
@@ -632,8 +659,12 @@ function creatingStatement(statements: SequenceStatement[], participants: Sequen
 function opaqueBlocksReference(statements: SequenceStatement[], id: string): boolean {
   const escaped = id.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
   const token = new RegExp(`(^|[^A-Za-z0-9_])${escaped}(?=$|[^A-Za-z0-9_])`)
+  // A preserved line references the participant when the creation rules say
+  // it names it (`d1--xA` names A with no token boundary before it), or when
+  // the id appears in it as a token at all (`activate A`).
+  const names = (line: string) => preservedLineEvents(line).some(event => event.id === id)
   return statements.some(statement =>
-    (statement.kind === 'opaque-block' && statement.lines.some(line => !isSequenceCommentLine(line) && token.test(line)))
+    (statement.kind === 'opaque-block' && statement.lines.some(line => !isSequenceCommentLine(line) && (names(line) || token.test(line))))
     || (statement.kind === 'fragment' && statement.fragment.branches.some(branch => branch.messages.some(message => message.from === id || message.to === id))))
 }
 
@@ -663,20 +694,12 @@ function findFragmentBranch(statements: SequenceStatement[], fragmentIndex: numb
   return branch ? ok(branch) : err({ code: 'INVALID_OP', message: `No branch ${branchIndex} in sequence fragment ${fragmentIndex}` })
 }
 
-// Insert a participant declaration statement after the last participant
-// statement, or at the top of the body (before everything) when there is none.
-function insertParticipantStatement(statements: SequenceStatement[], st: SequenceStatement): void {
-  let lastPart = -1
-  for (let i = 0; i < statements.length; i++) if (statements[i]!.kind === 'participant') lastPart = i
-  if (lastPart >= 0) statements.splice(lastPart + 1, 0, st)
-  else statements.unshift(st)
-}
-
-function ensureParticipant(ps: SequenceParticipant[], statements: SequenceStatement[], id: string): void {
+function ensureParticipant(ps: SequenceParticipant[], id: string): void {
   if (ps.some(p => p.id === id)) return
   ps.push({ id, label: id, kind: 'participant' })
   // Implicit participants are not declared with their own line, so no
-  // statement entry is needed (the message line carries the participant id).
+  // statement entry is needed (the message line carries the participant id);
+  // refolded lists them where that message creates them.
 }
 
 // Remove the message statement for a removed top-level message and shift all

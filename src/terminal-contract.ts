@@ -1,6 +1,7 @@
 import { detectColorMode } from './ascii/ansi.ts'
 import type { AsciiTheme, ColorMode } from './ascii/types.ts'
 import { TERMINAL_OUTPUT_POLICY_VERSION } from './output-policy-versions.ts'
+import { isPlainRecord } from './shared/plain-data.ts'
 export { TERMINAL_OUTPUT_POLICY_VERSION } from './output-policy-versions.ts'
 
 /** Logical terminal projection policy shared by every ASCII/Unicode/HTML adapter. */
@@ -68,12 +69,6 @@ export class TerminalOutputPolicyError extends TypeError {
   }
 }
 
-function plainObject(value: unknown): value is Record<string, unknown> {
-  if (value === null || typeof value !== 'object' || Array.isArray(value)) return false
-  const proto = Object.getPrototypeOf(value)
-  return proto === Object.prototype || proto === null
-}
-
 function present(record: Record<string, unknown>, field: string): boolean {
   return Object.prototype.hasOwnProperty.call(record, field)
 }
@@ -104,7 +99,7 @@ function positiveInteger(value: unknown, field: string): number | undefined {
 
 function normalizeTheme(value: unknown): Readonly<Partial<AsciiTheme>> {
   if (value === undefined) return Object.freeze({})
-  if (!plainObject(value)) {
+  if (!isPlainRecord(value)) {
     throw new TerminalOutputPolicyError('INVALID_FIELD', 'terminal theme must be a plain object')
   }
   const unknownFields = Reflect.ownKeys(value).filter(field => typeof field !== 'string' || !THEME_FIELD_SET.has(field))
@@ -127,7 +122,7 @@ function normalizeTheme(value: unknown): Readonly<Partial<AsciiTheme>> {
 export function resolveTerminalOutputPolicy(
   input: TerminalOutputPolicyInput = {},
 ): ResolvedTerminalOutputPolicy {
-  if (!plainObject(input)) {
+  if (!isPlainRecord(input)) {
     throw new TerminalOutputPolicyError('INVALID_INPUT', 'terminal output policy must be a plain object')
   }
   const unknownFields = Reflect.ownKeys(input).filter(field => typeof field !== 'string' || !INPUT_FIELDS.has(field))

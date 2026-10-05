@@ -129,7 +129,7 @@
     "harvest:upstream:refresh-check": "bun run eval/mermaid-upstream-suite-bench/refresh-check.ts",
     "build": "tsup && bun run build:browser && bun run build:browser:lazy",
     "build:browser": "tsup --config tsup.browser.config.ts",
-    "build:browser:lazy": "bun run scripts/build/clean-browser-lazy.ts && bun run generate:browser-families && tsup --config tsup.browser-lazy.config.ts && bun run check:browser-lazy",
+    "build:browser:lazy": "bun run scripts/build/clean-browser-lazy.ts && bun run generate:browser-families && tsup --config tsup.browser-lazy.config.ts",
     "check:browser-lazy": "bun run scripts/build/browser-lazy-report.ts",
     "generate:browser-families": "bun run scripts/build/generate-browser-family-catalog.ts",
     "check:browser-families": "bun run scripts/build/generate-browser-family-catalog.ts --check",
@@ -152,6 +152,7 @@
     "upstream-family-index": "bun run scripts/generate-upstream-family-index.ts",
     "lint": "bun run lint:biome",
     "lint:biome": "biome lint .",
+    "lint:package": "publint --strict && attw --pack . --profile esm-only --exclude-entrypoints ./browser",
     "eval:agent-live": "bun run eval/agent-usage/live.ts",
     "eval:agent-subagent": "bun run eval/agent-usage/capture-subagent-prompt-eval.ts",
     "eval:mcp-conformance": "bun run scripts/ci/mcp-conformance.ts",
@@ -199,6 +200,7 @@
     "undici": "7.29.1"
   },
   "devDependencies": {
+    "@arethetypeswrong/cli": "0.18.5",
     "@biomejs/biome": "2.5.5",
     "@modelcontextprotocol/sdk": "1.29.0",
     "@resvg/resvg-wasm": "2.6.2",
@@ -210,6 +212,7 @@
     "mermaid-ast": "0.8.2",
     "perfect-freehand": "1.2.3",
     "playwright": "^1.58.2",
+    "publint": "0.3.24",
     "roughjs": "4.6.6",
     "shiki": "^3.19.0",
     "tsup": "^8.5.1",

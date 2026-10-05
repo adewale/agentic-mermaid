@@ -172,12 +172,5 @@ export function parseTimelineDiagram(
     })
   }
 
-  // Upstream parity: a timeline with a title or sections but no periods still
-  // renders (as its header/section furniture). Only a timeline with NOTHING
-  // is unrenderable.
-  if (diagram.sections.length === 0 && !diagram.title && !diagram.accessibilityTitle && !diagram.accessibilityDescription) {
-    throw new Error('Timeline diagram must include at least one period, section, or title')
-  }
-
   return diagram
 }

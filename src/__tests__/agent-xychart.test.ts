@@ -110,7 +110,6 @@ describe('xychart structured-or-opaque fallback', () => {
   const opaqueCases: Array<[string, string]> = [
     ['unmodeled token (curve)', 'xychart-beta\n  bar [1, 2]\n  curve basis'],
     ['non-numeric series value', 'xychart-beta\n  bar [1, two, 3]'],
-    ['no series', 'xychart-beta\n  title Only a title'],
     ['header EXTRA suffix', 'xychart-beta EXTRA\n  bar [1, 2]'],
   ]
   for (const [name, src] of opaqueCases) {
@@ -301,7 +300,7 @@ describe('xychart verify + render', () => {
     expect(serializeMermaid(d)).toContain('line Mobile [1, 2, 3]')
   })
 
-  test('EMPTY_DIAGRAM fires on a header-only (opaque) chart', () => {
+  test('EMPTY_DIAGRAM fires on a header-only chart', () => {
     const v = verifyMermaid('xychart-beta')
     expect(v.warnings.map(w => w.code)).toContain('EMPTY_DIAGRAM')
     expect(v.ok).toBe(false)

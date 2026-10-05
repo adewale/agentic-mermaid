@@ -1218,7 +1218,10 @@ function simplifyOrthogonalPoints(points: Point[]): Point[] {
   return simplified
 }
 
-function edgeMidpoint(points: Point[]): Point {
+/** The point halfway along an edge route, measuring each segment by its
+ * Manhattan length (routes are orthogonal). The renderer uses it too, for
+ * edges that reach it without a laid-out label position. */
+export function edgeMidpoint(points: Point[]): Point {
   if (points.length === 0) return { x: 0, y: 0 }
   if (points.length === 1) return points[0]!
 

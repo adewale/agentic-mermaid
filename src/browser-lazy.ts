@@ -5,7 +5,7 @@ import {
   detectBrowserBuiltinFamilyFromFirstLine,
   type BrowserBuiltinFamilyId,
 } from './browser-lazy/generated/catalog.ts'
-import { normalizeMermaidSource } from './mermaid-source.ts'
+import { mermaidFirstLine } from './mermaid-source-wrapper.ts'
 
 type FamilyModule = { default: FamilyDescriptor }
 type FamilyLoader = () => Promise<FamilyModule>
@@ -39,9 +39,11 @@ export class BrowserFamilyDetectionError extends Error {
 }
 
 function detectFamily(source: string): BrowserBuiltinFamilyId {
-  const normalized = normalizeMermaidSource(decodeXML(source))
-  const familyId = detectBrowserBuiltinFamilyFromFirstLine(normalized.firstLine)
-  if (!familyId) throw new BrowserFamilyDetectionError(normalized.firstLine)
+  // Only the header line is needed here; the family's render normalizes the
+  // whole source (frontmatter, directives) once its chunk has loaded.
+  const firstLine = mermaidFirstLine(decodeXML(source))
+  const familyId = detectBrowserBuiltinFamilyFromFirstLine(firstLine)
+  if (!familyId) throw new BrowserFamilyDetectionError(firstLine)
   return familyId
 }
 

@@ -69,7 +69,7 @@ export const FAMILY_CONFORMANCE_PROFILES: Readonly<Record<DiagramKind, FamilyCon
   },
   architecture: {
     family: 'architecture', riskFixture: 'architecture-align-demo.mmd', riskOptions: {},
-    textStressSource: 'architecture-beta\n  group g(cloud)[東京 café 👩‍💻]\n  service a(server)[שלום é] in g\n  service b(database)[مرحبا بالعالم] in g\n  a:R --> L:b',
+    textStressSource: 'architecture-beta\n  group g(cloud)["東京 café 👩‍💻"]\n  service a(server)["שלום é"] in g\n  service b(database)["مرحبا بالعالم"] in g\n  a:R --> L:b',
   },
   xychart: {
     family: 'xychart', riskFixture: 'xychart-legend-demo.mmd', riskOptions: {},

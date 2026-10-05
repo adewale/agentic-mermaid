@@ -152,7 +152,6 @@ describe('journey structured-or-opaque fallback', () => {
     ['out-of-range score', 'journey\n  Wake: 9: Me'],
     ['non-numeric score line', 'journey\n  Wake: high: Me'],
     ['header suffix', 'journey EXTRA\n  Alpha: 3: Me'],
-    ['no modeled content', 'journey\n  %% comment only'],
     ['unknown colonless body line', 'journey\n  section S\n  nonsense\n  Task: 3: Me'],
     ['section label with colon', 'journey\n  section A:B\n  Task: 3: Me'],
   ]

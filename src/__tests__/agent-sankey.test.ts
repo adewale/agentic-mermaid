@@ -1,6 +1,6 @@
 import { describe, expect, test } from 'bun:test'
 import type { SankeyBody, SankeyMutationOp, SankeyValidDiagram } from '../agent/index.ts'
-import { asSankey, buildMermaid, createMermaid, mutate, parseRegisteredMermaid as parseMermaid, serializeMermaid } from '../agent/index.ts'
+import { asSankey, buildMermaid, createMermaid, mutate, parseRegisteredMermaid as parseMermaid, renderMermaidSVG, serializeMermaid, verifyMermaid } from '../agent/index.ts'
 import type { SankeyRuntimeConfig } from '../index.ts'
 import { SDK_DECLARATION } from '../mcp/sdk-decl.ts'
 
@@ -51,13 +51,14 @@ describe('sankey agent surface · parse and narrow', () => {
   })
 
   test('malformed rows fall back to a lossless opaque body', () => {
-    for (const source of ['sankey-beta\nA,B', 'sankey-beta\nA,B,10\nB,A,2']) {
+    for (const source of ['sankey-beta\nA,B\n', 'sankey-beta\nA,B,10\nB,A,2\n']) {
       const p = parseMermaid(source)
-      expect(p.ok).toBe(true)
-      if (p.ok) {
-        expect(p.value.body.kind).toBe('opaque')
-        expect(asSankey(p.value)).toBeNull()
-      }
+      if (!p.ok) throw new Error(`parse failed: ${JSON.stringify(p.error)}`)
+      expect(p.value.body.kind, source).toBe('opaque')
+      expect(asSankey(p.value), source).toBeNull()
+      expect(serializeMermaid(p.value), source).toBe(source)
+      expect(() => renderMermaidSVG(p.value), source).toThrow()
+      expect(verifyMermaid(p.value).warnings.map(warning => warning.code), source).toContain('RENDER_FAILED')
     }
   })
 })

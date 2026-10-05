@@ -75,7 +75,6 @@ export type JourneyIssueCode =
   | 'empty_title'
   | 'unclosed_accdescr'
   | 'unrecognized_line'
-  | 'empty_journey'
 
 export interface JourneyParseIssue {
   code: JourneyIssueCode

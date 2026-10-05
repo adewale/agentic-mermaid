@@ -272,6 +272,17 @@ describe('ER typed editing API against a shadow model', () => {
     )
   })
 
+  test('add_attribute declares the entity after the statement that creates it', () => {
+    // BUG-9: declaring B before the relation that creates D and B re-parsed
+    // as B before D, once D's subgraph kept the serializer from moving it.
+    expectRoundTrip(
+      'erDiagram\n  D ||--o{ B : r\n  subgraph G\n    D ||--o{ B : s\n  end',
+      [{ kind: 'add_attribute', entity: 'B', text: 'int id' }],
+      'erDiagram\n  D ||--o{ B : r\n  B {\n    int id\n  }\n  subgraph G\n  D ||--o{ B : s\n  end\n',
+      ['D in G', 'B in G'],
+    )
+  })
+
   test('a class on an entity that only its style line creates survives serialization', () => {
     // `class` applies only to an entity that already exists, so it follows the `style` line.
     expectRoundTrip('erDiagram\n  style A fill:#f00\n  class A hot', [], 'erDiagram\n  style A fill:#f00\n  class A hot\n', ['A'])

@@ -5,6 +5,68 @@ This changelog tracks user-facing changes for **Agentic Mermaid**, a fork of `lu
 ## Unreleased
 
 ### Fixed
+- Flowchart and sequence `@{ … }` metadata is read as YAML, as Mermaid reads
+  it: escapes such as `\t`, `\x41` and `''` work, and metadata Mermaid rejects
+  (`'a}b;c'`, `\'`, unknown escapes, duplicate keys, an unquoted `^`, an empty
+  sequence `@{}`) is a syntax error. Keys are case-sensitive, and a multi-line
+  block is block YAML.
+- `participant B@{ "alias": "Y" } as B` is labelled Y, as in Mermaid. A typed
+  sequence diagram keeps `actor A@{ "type": "participant" }`, and relabelling a
+  participant named by a metadata alias inside a block sticks.
+- Frontmatter that is not valid YAML is rejected ("Mermaid frontmatter is not
+  valid YAML: …"; CLI exit 4) instead of being ignored. Frontmatter the old
+  reader dropped (a multi-line quoted value closed under its key) now applies.
+- A label with an unknown tag (`A[a<c>d]`), or a Gantt, XYChart, GitGraph or
+  Radar label containing `<b>`, renders instead of failing with
+  `RENDER_FAILED`; unknown tags are drawn as text.
+- Class notes, State block notes and Gantt section titles break at `<br>`, as
+  Mermaid does.
+- ASCII and Unicode output no longer shows `<b>`, `**`, `*…*` or `~~` markup in
+  formatted labels, and the layout meta's `projectedText` is the text the cells
+  show. A Quadrant label with `<br>` no longer breaks the terminal frame, and
+  Quadrant axis labels render their formatting instead of showing tags.
+- `LABEL_OVERFLOW` measures Pie, Timeline, Gantt, XYChart, GitGraph and Radar
+  labels as drawn, counting `<br>` and tags as characters.
+- A gitGraph with no commits verifies as `EMPTY_DIAGRAM`, like every other
+  family's bare header.
+- A blank diagram saved from `createMermaid` re-parses typed wherever Mermaid
+  11.16 accepts the bare header. Bare `pie`, `journey` and `timeline` headers
+  render the empty chart Mermaid draws instead of failing, and a titled or
+  axis-only XY chart is typed and no longer reported as empty. A blank Sankey
+  still fails, as in Mermaid.
+- A trailing `%%` comment is ignored where Mermaid's grammar ignores it: Pie,
+  XYChart, Quadrant (except titles), Radar, Architecture and GitGraph
+  statements, and Gantt headers and keyword statements. When typed
+  serialization drops such a comment, verify reports `COMMENT_DROPPED`.
+- Source whose meaning is clear but which Mermaid 11.16 rejects is drawn, and
+  `verify` reports `UNSUPPORTED_SYNTAX` on its line, naming the construct and
+  the spelling Mermaid reads: a bare `classDiagram` header (what a blank
+  `createMermaid('class')` saves); a `%%` comment after a class declaration, in
+  a namespace or after `}`; unquoted Quadrant text Mermaid's lexer does not
+  read as text; Architecture titles, icons and ids outside Mermaid's terminals;
+  a trailing `%%`, or `\"`, `\`, `%` or an empty name, in ER quoted text; a
+  `linkStyle` index past the links above it; `A @{…}` spacing and mixed-stroke
+  text arrows (`A -- b ==> B`); a participant declared in a second `box`.
+  Serializers write only what Mermaid reads, except a blank class diagram,
+  which has no Mermaid spelling. A flowchart node id holding `--` or `-.` is
+  still rejected, because its meaning is unclear.
+- Flowchart: a `;` inside an asymmetric label (`A>x;y]`) is label text, and
+  `@{` inside a quoted label no longer turns the diagram opaque.
+- ER relations written without spaces (`id1||--||id2 : label`) parse and draw.
+- A sequence message whose text is only a `#…#` comment (`A->>B: #a#`) draws
+  an empty message instead of an empty SVG.
+- A typed `add_participant` or indexed `add_message` no longer reorders
+  participants when the saved source is parsed again.
+- The renderer and the typed body now read participant, node and group
+  creation the same way, and follow Mermaid 11.16 where the order was a
+  tie-break: `activate` creates no participant; `properties` and `details`
+  lines create theirs; a box does not list an actor created before it (the
+  frame still draws it); `style X` creates node X where it stands, so a
+  style-only node is drawn; a node or ER entity listed by two subgraphs belongs
+  to the first to close and is drawn once. Issue #363 reviews these choices.
+- `examples/index.json` lists the 16 Style × Palette example cards as
+  `stylePaletteExamples`; they were the only rendered cards missing.
+- `am batch --help` documents `--jsonl`.
 - `llms.txt` lists `am serialize` among the CLI verbs.
 - Radar's emphasized outer ring draws with `stroke-width: 2.1` instead of
   `2.0999999999999996`.
@@ -92,6 +154,29 @@ This changelog tracks user-facing changes for **Agentic Mermaid**, a fork of `lu
   and its CI jobs are gone. The repository no longer commits generated reports,
   receipts, upstream-corpus hashes or eval evidence, and `CLAUDE.md` records
   how contributors decide what is a bug, what to test and what to commit.
+- Typed Quadrant and Architecture bodies quote titles and labels where
+  Mermaid needs the quotes, so a typed edit no longer writes source Mermaid
+  rejects. Typed Architecture labels are Mermaid's reading of the title
+  (`["API"]` gives `API`, not `"API"`). Architecture mutations validate ids and
+  icons with Mermaid's terminals and refuse a label with a backslash; Quadrant
+  mutations refuse a label that needs quoting and contains `"`.
+- A whole-statement `id@{ … }` for an id that is not a declared edge declares
+  node `id`, as Mermaid does; it used to be dropped when it carried no node
+  keys. `@{ label/icon/img }` values are written as YAML double-quoted strings.
+- The lazy browser renderer detects the family from the header line alone and
+  loads the source normalizer with the family. Its initial download falls from
+  42.2 KB to 4.4 KB gzip. The HTML5 named-entity table (about 23 KB gzip) is
+  fetched only when a diagram displays a named entity other than `#amp;`,
+  `#lt;`, `#gt;`, `#quot;` or `#apos;`, so Pie's download shrinks by about
+  21 KB and no family's grows by more than 1.6%.
+- Internal rules that had several copies now have one: a body-utils module for
+  optional fields, insert positions and label overflow; one plain-record
+  check, deep-freeze and Scene walk; one set of Code Mode membrane traps; one
+  XY chart layout for both orientations; one WCAG luminance and contrast
+  implementation; one capability-report cache check; one SVG-hooks module per
+  family shared by the sync and lazy renderers; one Mermaid entity codec, one
+  YAML reader, one label display rule and one trailing-comment rule. Rendered
+  output is unchanged except where an entry above says otherwise.
 - Docs that list every family, MCP tool, CLI verb, render format or warning
   code are generated from the registry or marked `<!-- complete: <registry> -->`;
   a marked list that misses any member fails the doc checks, so a change that

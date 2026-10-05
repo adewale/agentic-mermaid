@@ -3,6 +3,8 @@ import mermaid from 'mermaid'
 import { parseRegisteredMermaid } from '../agent/parse.ts'
 import { serializeMermaid } from '../agent/serialize.ts'
 import { asSequence } from '../agent/types.ts'
+import { mutate } from '../agent/mutate.ts'
+import { verifyMermaid } from '../agent/verify.ts'
 import { renderMermaidSVG } from '../index.ts'
 import { parseSequenceDiagram } from '../sequence/parser.ts'
 import { parseSequenceBlockContinuation, parseSequenceBlockOpener } from '../sequence/block-keywords.ts'
@@ -25,6 +27,71 @@ const EXPECTED_BLOCK: Block = {
 }
 
 describe('Sequence critical/option keyword boundary', () => {
+  test.each([
+    ['a stray end', 'A->>B: before\nend'],
+    ['an unclosed block', 'alt choice\nA->>B: inside'],
+    ['a continuation for the wrong owner', 'alt choice\nA->>B: inside\nand another\nB->>A: after\nend'],
+    ['a branch outside any block', 'A->>B: before\nelse alternative'],
+  ])('rejects %s instead of drawing a different control flow', (_name, body) => {
+    const source = `sequenceDiagram\n${body}\n`
+    expect(() => renderMermaidSVG(source)).toThrow('SEQUENCE_BLOCK_BOUNDARY')
+    const parsed = parseRegisteredMermaid(source)
+    expect(parsed.ok).toBe(true)
+    if (!parsed.ok) throw new Error(JSON.stringify(parsed.error))
+    expect(parsed.value.body.kind).toBe('opaque')
+    expect(serializeMermaid(parsed.value)).toBe(source)
+    expect(verifyMermaid(source).warnings).toContainEqual(expect.objectContaining({ code: 'UNSUPPORTED_SYNTAX', syntax: 'sequence_block_boundary' }))
+  })
+
+  test('keeps nested unmodeled statements byte-for-byte while editing the following message', () => {
+    const block = '  alt outer\n    loop nested\n      A->>B: inside\n      %% preserved note\n      future B keep-this\n    end\n  else alternate\n    B->>A: fallback\n  end'
+    const parsed = parseRegisteredMermaid(`sequenceDiagram\n${block}\n  A->>B: after\n`)
+    expect(parsed.ok).toBe(true)
+    if (!parsed.ok) throw new Error(JSON.stringify(parsed.error))
+    const diagram = asSequence(parsed.value)
+    expect(diagram).not.toBeNull()
+    if (!diagram) throw new Error(`Expected sequence, got ${parsed.value.body.kind}`)
+    expect(diagram.body.messages.map(message => message.text)).toEqual(['after'])
+    const edited = mutate(diagram, { kind: 'set_message_text', index: 0, text: 'edited' })
+    expect(edited.ok).toBe(true)
+    if (!edited.ok) throw new Error(JSON.stringify(edited.error))
+    const serialized = serializeMermaid(edited.value)
+    expect(serialized).toContain(`${block}\n  A->>B: edited`)
+    const reloaded = parseRegisteredMermaid(serialized)
+    expect(reloaded.ok).toBe(true)
+    if (!reloaded.ok) throw new Error(JSON.stringify(reloaded.error))
+    expect(asSequence(reloaded.value)?.body.messages.map(message => message.text)).toEqual(['edited'])
+    expect(() => renderMermaidSVG(serialized)).toThrow('SEQUENCE_UNSUPPORTED_STATEMENT')
+  })
+
+  test('does not silently replace an unknown autonumber argument with default numbering', () => {
+    const source = 'sequenceDiagram\nautonumber bananas\nA->>B: message\n'
+    expect(() => renderMermaidSVG(source)).toThrow('SEQUENCE_UNSUPPORTED_STATEMENT')
+    const parsed = parseRegisteredMermaid(source)
+    expect(parsed.ok).toBe(true)
+    if (!parsed.ok) throw new Error(JSON.stringify(parsed.error))
+    expect(serializeMermaid(parsed.value)).toContain('autonumber bananas')
+  })
+
+  test('retains unmodeled participant metadata while projecting known identity and editing a message', () => {
+    const declaration = '  participant A@{type: database, alias: Orders, future: keep-me}'
+    const source = `sequenceDiagram\n${declaration}\n  A->>B: before\n`
+    const parsed = parseRegisteredMermaid(source)
+    expect(parsed.ok).toBe(true)
+    if (!parsed.ok) throw new Error(JSON.stringify(parsed.error))
+    const diagram = asSequence(parsed.value)
+    if (!diagram) throw new Error(`Expected sequence, got ${parsed.value.body.kind}`)
+    expect(diagram.body.participants[0]).toMatchObject({ id: 'A', label: 'Orders', kind: 'database' })
+    const edited = mutate(diagram, { kind: 'set_message_text', index: 0, text: 'after' })
+    expect(edited.ok).toBe(true)
+    if (!edited.ok) throw new Error(JSON.stringify(edited.error))
+    const serialized = serializeMermaid(edited.value)
+    expect(serialized).toContain(`${declaration}\n  A->>B: after`)
+    expect(parseSequenceDiagram(serialized.split('\n')).actors[0]).toMatchObject({ id: 'A', label: 'Orders', type: 'database' })
+    expect(verifyMermaid(serialized).warnings).toContainEqual(expect.objectContaining({ code: 'UNSUPPORTED_SYNTAX', syntax: 'sequence_participant_metadata', line: 2 }))
+    expect(mutate(edited.value, { kind: 'remove_participant', id: 'A' })).toMatchObject({ ok: false, error: { code: 'INVALID_OP' } })
+  })
+
   test('native parser gives options to the critical block, not phantom opt blocks', () => {
     const diagram = parseSequenceDiagram(CRITICAL.split('\n'))
     expect(diagram.messages.map(message => message.label)).toEqual(['connect', 'log timeout', 'log rejection', 'after'])

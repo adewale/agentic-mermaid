@@ -259,29 +259,16 @@ Status legend: `todo` | `blocked` | `owner-decision` | `parked`.
 
 ## Consolidation / dedup backlog
 
-- [ ] **CONS-26 — Finish agent/render grammar-authority convergence** (`todo`,
-  delivered as focused child work under
-  [#248](https://github.com/adewale/agentic-mermaid/issues/248)).
-  Flowchart, Pie, Quadrant, Mindmap, and GitGraph already project renderer-owned
-  ASTs; State, Timeline, and Journey share parse cores; XYChart now projects the
-  strict renderer AST and no longer owns a second grammar. Radar also projects
-  the strict renderer-owned `parseRadarChart()` result; it was incorrectly
-  retained in the old remainder list. Sankey projects the renderer-owned
-  `parseSankeyDiagram()` result from its first release. The remaining duplicated families are
-  [Class #260](https://github.com/adewale/agentic-mermaid/issues/260),
-  [ER #266](https://github.com/adewale/agentic-mermaid/issues/266),
-  [Sequence #264](https://github.com/adewale/agentic-mermaid/issues/264),
-  [Architecture #262](https://github.com/adewale/agentic-mermaid/issues/262),
-  and [Gantt #261](https://github.com/adewale/agentic-mermaid/issues/261).
-  Migrate one family at a time behind differential and unknown-line tests. For
-  Class/ER/Sequence/Gantt, do not project from a lossy final AST that discards
-  statement order or opaque segments; expose a shared statement parser/event
-  stream consumed by both surfaces instead. For Sequence and ER, that stream
-  carries creation events (create, name, place in group or box, links,
-  properties) folded once by both surfaces, and the serializer checks its output
-  by folding the events of its own re-parse. That closes the creation-order
-  defects BUG-9, BUG-10 and BUG-13.
-- [ ] **CONS-30 — `agent/body-utils.ts` extraction** (`todo`). Mechanically
+- [ ] **CONS-26 — Finish State/Timeline statement ownership** (`todo`,
+  [#368](https://github.com/adewale/agentic-mermaid/issues/368)). Class, ER,
+  Sequence, Architecture and Gantt now project from shared lossless statement
+  readers; the other nine families use a renderer-owned AST or shared parse
+  authority. State and Timeline still duplicate statement dispatch/scope despite
+  sharing lexical helpers: a Timeline period starting with `Timeline` vanishes
+  only in rendering, and State rendering silently ignores unknown statements
+  that editable parsing preserves and diagnoses. Keep each projection's
+  invariants separate, with independent meaning and source-loss regressions.
+- [ ] **CONS-30 — `agent/body-utils.ts` extraction** (`todo`, mostly done). `src/agent/body-utils.ts` now owns optional fields (`setOptionalField`), insert positions (`resolveInsertIndex`), label-overflow collection and accessibility serialization for the non-flowchart bodies. What remains differs on purpose (per-family validators, move-target error codes, seeded hashes stored in ids and goldens); unifying the insert-position error wording across families needs an owner decision. Mechanically
   deduplicate repeated LABEL_OVERFLOW, id-allocation, `set_title`, collection,
   source-map, label-extraction, seeded-hash, and CSS-mix helpers. Characterize
   semantics first and extract one proven cluster at a time.
@@ -297,17 +284,17 @@ Status legend: `todo` | `blocked` | `owner-decision` | `parked`.
   transport schemas not already projected from the family, StyleSpec, or
   RenderOptions descriptors. Generate only proven duplicates while retaining
   transport-neutral `applyOps` and tool dispatch.
-- [ ] **CONS-46 — One text codec per grammar context** (`todo`). Most Known
-  defects are one codec re-implemented per stage (parse, serialize, render,
-  ASCII, meta, metrics, source map) and per family. Build, per grammar context
-  (flowchart bracket/pipe/title/`@{}`, sequence alias/message/note, ER quoted
-  text, class label), a `decode`/`encode` pair layered as lexical quoting, then
-  one shared Mermaid entity layer (port `src/pie/parser.ts`'s), then display
-  (`<br>`, `\n`, markdown only in markdown strings, never baked in at parse
-  time). Every surface consumes one displayed-text value per label. Guard with
-  `decode(encode(x)) === x` and "upstream reads `encode(x)` as `x`" over the
-  context's full alphabet. Closes BUG-19, 23, 24, 25, 30, 31, 32; `@{}` uses the
-  bundled `yaml` core schema, which gives upstream's answer on every BUG-24 case.
+- [ ] **CONS-46 — One text codec per grammar context** (`todo`, in progress). Most Known
+  defects were one codec re-implemented per stage (parse, serialize, render,
+  ASCII, meta, metrics, source map) and per family. Built so far: the shared
+  Mermaid entity layer (`src/shared/mermaid-entities.ts`, from Pie's), one YAML
+  reader for `@{}` metadata and frontmatter (`src/shared/mermaid-yaml.ts`, with
+  per-family block lexers), and one display rule for label text that SVG,
+  ASCII, meta and metrics all read (`displayText` in `src/multiline-utils.ts`).
+  What remains is adopting the entity layer and a `decode`/`encode` pair per
+  grammar context (flowchart bracket/pipe/title, sequence alias/message/note, ER
+  quoted text, class label), guarded by `decode(encode(x)) === x` and
+  "upstream reads `encode(x)` as `x`". Remaining members: BUG-19, 23, 30, 31, 32.
 - [ ] **CONS-47 — One flowchart tokenizer with source spans** (`todo`). At least
   17 hand-written quote/bracket scanners lex the flowchart line (parser,
   statement splitter, unsupported-syntax gate, analyze masks, source map), and a
@@ -348,31 +335,22 @@ investigation of the class rather than per-item fixes.
 
 - [ ] **BUG-9 — ER `add_attribute` can move an entity ahead of others** (`todo`). It inserts the declaration before the first relation naming the entity, so re-parse creates it before that relation's other end; the serializer compensates unless that end belongs to a subgraph (`D ||--o{ B`, then `subgraph G` / `D ||--o{ B` / `end`, `add_attribute B` re-parses as B before D). Inserting after that relation keeps the order.
 - [ ] **BUG-10 — ER order a declaration in the entity's own subgraph cannot keep** (`todo`). A top-level entity whose body position falls between two entities of one subgraph (`D ||--o{ C : r0` / `subgraph G0` / `D` / `E` / `end`, remove `r0` → D, E, C), or a `style`-created entity inside a subgraph, re-parses in a different position. About 0.6% of fuzzed edits.
-- [ ] **BUG-13 — Sequence `add_participant` or indexed `add_message` can reorder participants on re-parse** (`todo`). A new participant is declared or first used ahead of existing ones (`A->>B: hi`, `add_participant C` re-parses as C, A, B).
-- [ ] **BUG-14 — Sequence metadata alias precedence** (`todo`). `participant B@{ "alias": "Y" } as B` is labelled Y upstream but B in ours (renderer and typed body).
 - [ ] **BUG-19 — Entity codes stay literal in flowchart (other than `#quot;`), sequence and ER text** (`todo`). Upstream renders `#9829;` as ♥, `#35;` as `#` and `#amp;` as `&` in labels, aliases and messages; ours shows the code. Decoding `#lt;`/`#gt;` must not inject formatting tags. `src/pie/parser.ts` already implements upstream's full entity pipeline and has a browser oracle; reuse it.
 - [ ] **BUG-20 — Flowchart ellipse shape `A(-a-)` is unsupported** (`todo`). We read it as a rounded node labelled `-a-`.
-- [ ] **BUG-21 — Flowchart `A>x;y]` is rejected** (`todo`). Upstream treats the `;` as label text; our statement splitter does not treat `>…]` as a bracket.
-- [ ] **BUG-22 — Flowchart `@{` inside a quoted label makes the diagram opaque** (`todo`). The unsupported-syntax gate reads `A["x a@{y"]` as metadata, so typed labels containing `@{` re-parse as opaque.
 - [ ] **BUG-23 — Flowchart labels containing a literal backslash-n or `#quot;` don't round-trip** (`todo`). Upstream's DB keeps `\n` as two characters, but since 11.13 its renderer draws it as a line break in plain labels, as ours does. The display difference is in markdown strings, where upstream keeps `\n` literal and ours breaks the line. A typed label containing a literal backslash-n, or the text `#quot;`, re-parses differently; the serializer should write them with upstream's entities (`#92;n`, `#35;quot;`).
-- [ ] **BUG-24 — Flowchart `@{ label }` YAML escapes** (`todo`). We unescape only `\\`, `\"` and `\'`; upstream's YAML also handles `\t`, `\a`, `\x41` and `''`, and rejects `'a}b;c'`, which we accept.
-- [ ] **BUG-25 — ASCII draws formatting tags literally** (`todo`). Flowchart markdown strings, `<b>` labels and sequence/state emphasis are drawn with their tags in ASCII/Unicode output, while the meta projection strips them, so `projectedText` differs from the drawing there.
 - [ ] **BUG-26 — Flowchart source-map scanners still honour `\` escapes and `'` quotes** (`todo`). `flowchart-body.ts` and `source-map-spans.ts` disagree with the parser on those lines, so spans can be wrong.
-- [ ] **BUG-28 — Invalid YAML frontmatter is ignored silently** (`todo`). `---` / `title: [unclosed` / `---` renders, and `verify` returns `ok: true` with no warning; upstream rejects the diagram. `parseYamlDocument` in `src/mermaid-source.ts` swallows the error. Report it, at least as a warning.
 - [ ] **BUG-30 — ER quoted text accepts and writes `\"`** (`todo`). Upstream has no escapes in ER quoted strings and rejects `A["a\"b"]` and `A ||--o{ B : "l\"m"`; `src/er/parser.ts` unescapes them and `quoteErText` writes them, so serialized ER text containing `"` is source upstream can't read. Write `"` as `#quot;`, as flowchart does.
 - [ ] **BUG-31 — Sequence and ER aliases get markdown emphasis at parse time, and the serializer rewrites the source** (`todo`). Upstream stores `participant A as *x* y` and `A["p*q*"]` as written; ours stores `<i>x</i> y` and `p<i>q</i>`, so any typed edit writes `as <i>x</i> y` and `A["p<i>q</i>"]`.
 - [ ] **BUG-32 — Sequence message text differs between the renderer and the typed body** (`todo`). For `A->>B: m*a*n c\nd` the renderer draws `m<i>a</i>n` and a line break, while the typed body stores `m*a*n` and `c\nd`, as upstream's DB does.
-- [ ] **BUG-33 — ER relations written without spaces go opaque** (`todo`). `id1||--||id2 : label` parses upstream; ours falls back to an opaque body with `UNSUPPORTED_SYNTAX`. Pinned in `official-fence-corpus.test.ts`.
 - [ ] **BUG-35 — Contact-sheet case AJ routes an edge label onto a shared trunk** (`todo`). `ROUTE_LABEL_ON_SHARED_TRUNK` on `D->E` is allow-listed in `heuristic-tracker.test.ts`.
 - [ ] **BUG-37 — Architecture router sends an edge through a card** (`todo`). The nightly finder's seed `AM_FC_SEED=1102132276` in `architecture-layout.test.ts` routes `s0_0:T --> T:s0_1` through `s0_2` (three services in one group, each linked left to a service in a second group). Pinned as a fast-check example in that file.
-- [ ] **BUG-38 — An empty Pie, XYChart or Radar diagram does not survive a round trip** (`todo`). `createMermaid('pie')` serializes to a bare `pie` header, which re-parses as an opaque body, so typed mutation is lost after the first save. The same holds for `xychart-beta` and `radar-beta`; an empty flowchart stays typed.
-- [ ] **BUG-40 — A gitGraph with no commits verifies clean** (`todo`). `verifyMermaid(createMermaid('gitgraph'))` returns no warnings and an empty layout, although `EMPTY_DIAGRAM` is documented to fire for a bare header, as it does for every other family. Pinned in `agent-create.test.ts`.
-- [ ] **BUG-41 — An unknown inline tag in a label fails the SVG render** (`todo`). `graph TD` / `A[a<c>d] --> B` throws "Scene validation failed … not found in crisp" (`am render`: `RENDER_FAILED`); sequence, ER, journey, architecture and XYChart labels fail the same way, while ASCII draws the text. Present before #359. Pinned in `property-svg-wellformedness.test.ts`.
 - [ ] **BUG-42 — ELK throws on an edge between a nested subgraph's node and its enclosing subgraph** (`todo`). With `direction TB` overrides, `B --> Outer` or `Outer --> B` (B inside Inner inside Outer) raises `UnsupportedGraphException` and the render fails. Pinned in `subgraph-hierarchy-exhaustive.test.ts`.
 - [ ] **BUG-43 — Edges between a subgraph and its own contents break routing rules** (`todo`). Nine such pairs (for example `A --> Outer`, `Inner --> Outer`) render but leave an endpoint off the outline, route through a node, or misanchor on the container; `verify` reports them. Pinned in `subgraph-hierarchy-exhaustive.test.ts`.
-- [ ] **BUG-44 — A sequence message `#a#` renders an empty SVG** (`todo`). `A->>B: #a#` produces a 0×0 SVG; `verify` warns.
-- [ ] **BUG-45 — `<br>` is drawn as text outside flowchart** (`todo`). Class and state notes, Gantt, XYChart, GitGraph and Sankey draw `Line1<br/>Line2` literally; flowchart breaks the line, as upstream does everywhere. Part of CONS-46.
 - [ ] **BUG-46 — SVG output carries unrounded floats** (`todo`). The default style emits `36.900000000000006` (state) and `4.199999999999999` (timeline, pie), and hand-drawn styles emit `stroke-width="2.0999999999999996"`. Round once where numbers become SVG text, shared by Scene and SVG; goldens that pin these values change with the fix.
+- [ ] **BUG-47 — A Journey title, section or task that is only `<br/>` is rejected** (`todo`). Mermaid draws `<br/>` as text there; ours reports "Invalid user journey line". Pinned `it.failing` in `property-svg-wellformedness.test.ts`.
+- [ ] **BUG-48 — Terminal width wrapping writes `<br/>` into labels that draw it as text** (`todo`). `wrapLabelsInSource` in `src/ascii/index.ts` inserts `<br/>` into bracketed labels, so XYChart categories and Timeline events at a `targetWidth` show `<br/>` literally.
+- [ ] **BUG-52 — Mutators keep "don't empty" floors that predate renderable empty charts** (`todo`). `set_title` on `createMermaid('pie')` is refused ("Pie must keep at least one slice"); the Architecture and Journey mutators keep similar floors.
+- [ ] **BUG-60 — A YAML string whose first line is only spaces does not round-trip through frontmatter** (`todo`). The `yaml` writer turns ` \n` into a block scalar that reads back as `\n`. Pinned `test.failing` in `metadata-yaml.test.ts`.
 
 ## Non-goals
 

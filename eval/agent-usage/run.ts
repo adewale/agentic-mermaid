@@ -1,6 +1,8 @@
+import { isDeepStrictEqual } from 'node:util'
 import { type CheckMermaidSpec, checkMermaidSource } from '../../src/agent/facts.ts'
 import { parseRegisteredMermaid as parseMermaid } from '../../src/agent/parse.ts'
 import { serializeMermaid } from '../../src/agent/serialize.ts'
+import { verifyMermaid } from '../../src/agent/verify.ts'
 import { asArchitecture, asClass, asEr, asFlowchart, asGantt, asGitGraph, asJourney, asMindmap, asPie, asQuadrant, asRadar, asSankey, asSequence, asState, asTimeline, asXyChart, type DiagramKind, type ParsedDiagram } from '../../src/agent/types.ts'
 import { executeInSandbox } from '../../src/mcp/sandbox.ts'
 import { type AntiPattern, lintAgentTrace, type SdkCall } from './harness.ts'
@@ -580,8 +582,9 @@ export const KNOWLEDGE_CASES: AgentUsageEvalCase[] = [
       const r1 = mermaid.parseRegisteredMermaid(edited)
       if (!r1.ok) return { error: 'reparse' }
       const verify = mermaid.verifyMermaid(r1.value)
-      if (!verify.ok) return { error: 'verify', warnings: verify.warnings }
-      return { source: mermaid.serializeMermaid(r1.value) }
+      // The user's malformed end is preserved, not declared renderable.
+      if (verify.ok || !verify.warnings.some(w => w.code === 'UNSUPPORTED_SYNTAX' && w.syntax === 'sequence_block_boundary')) return { error: 'expected block-boundary diagnostic', warnings: verify.warnings }
+      return { source: edited, warnings: verify.warnings }
     `,
   },
 ]
@@ -702,13 +705,14 @@ function checkSourceAuthoringTrace(trace: SdkCall[]): boolean {
 function checkOpaqueFallbackTrace(trace: SdkCall[]): boolean {
   // Source-level fallback on an opaque body: no structured mutation may run;
   // the edited source must be re-parsed and that diagram's verify result
-  // inspected before returning. Serialize is allowed — opaque serialization
-  // is the preserved source.
+  // inspected before returning the exact source edit with its diagnostics.
   if (trace.some(c => c.verb === 'mutate')) return false
   const parses = trace.filter((c): c is Extract<SdkCall, { verb: 'parse' }> => c.verb === 'parse')
   const last = parses[parses.length - 1]
   if (!last || last.diagram === undefined) return false
-  return trace.some(c => c.verb === 'verify' && c.diagram === last.diagram && c.ok === true) && trace.some(c => c.verb === 'verify_inspect' && c.diagram === last.diagram)
+  // This fixture deliberately retains an unmatched end: verification must
+  // fail, and the source-level fallback reports that failure to the caller.
+  return trace.some(c => c.verb === 'verify' && c.diagram === last.diagram && c.ok === false) && trace.some(c => c.verb === 'verify_inspect' && c.diagram === last.diagram)
 }
 
 function checkTrace(id: string, input: string | undefined, trace: SdkCall[]): boolean {
@@ -817,7 +821,7 @@ function sourceSatisfiesFacts(source: string, spec: CheckMermaidSpec): boolean {
 
 export function checkAgentUsageTaskSource(id: string, source: string): boolean {
   const fakeSerializeTrace = [{ verb: 'serialize', diagram: 'final', source }] as SdkCall[]
-  return checkTask(id, defaultInput(id), { source }, fakeSerializeTrace)
+  return checkTask(id, defaultInput(id), { source }, fakeSerializeTrace, true)
 }
 
 // Per-family authoring oracles: the returned source must model the described
@@ -890,7 +894,7 @@ const CREATE_ORACLES: Record<string, (source: string) => boolean> = {
   },
 }
 
-function checkTask(id: string, input: string | undefined, value: unknown, trace: SdkCall[]): boolean {
+function checkTask(id: string, input: string | undefined, value: unknown, trace: SdkCall[], sourceOnly = false): boolean {
   const createOracle = CREATE_ORACLES[id]
   if (createOracle) {
     const source = (value as { source?: unknown } | undefined)?.source
@@ -930,8 +934,8 @@ function checkTask(id: string, input: string | undefined, value: unknown, trace:
     return serializeMermaid(parsed.value).trim() === source.trim()
   }
   if (id === 'stray_end_source_fallback') {
-    const source = serializedSource(value, trace)
-    if (!source) return false
+    const source = (value as { source?: unknown } | undefined)?.source
+    if (typeof source !== 'string') return false
     const lines = source
       .split('\n')
       .map(l => l.trim())
@@ -941,7 +945,16 @@ function checkTask(id: string, input: string | undefined, value: unknown, trace:
     // stray `end` a regenerating agent would "fix" — plus the appended
     // message, and nothing else.
     if (lines.length !== expected.length || !expected.every((l, i) => lines[i] === l)) return false
-    return parseMermaid(source).ok
+    const parsed = parseMermaid(source)
+    if (!parsed.ok) return false
+    // The source-only oracle cannot judge what diagnostics a response returned.
+    if (sourceOnly) return true
+    const verified = verifyMermaid(parsed.value)
+    const warnings = (value as { warnings?: unknown }).warnings
+    // Inspecting a failed verification internally does not inform the caller.
+    // Require the returned response to carry its complete diagnostics too.
+    return !verified.ok && Array.isArray(warnings) && warnings.length === verified.warnings.length
+      && verified.warnings.every(expected => warnings.some(actual => isDeepStrictEqual(actual, expected)))
   }
   if (id === 'timeline_add_event') {
     const source = serializedSource(value, trace)

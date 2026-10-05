@@ -143,6 +143,7 @@ Executable gates: `architecture-layout.test.ts`,
 ## Compatibility Notes
 
 - Both `architecture-beta` (Mermaid's current public header) and `architecture` are accepted — the family descriptor's `headers` in `src/agent/families.ts` and `parseArchitectureDiagram()` agree; structured serialization emits `architecture-beta`.
+- Ids, icons and unquoted titles follow Mermaid's lexer terminals: an unquoted title allows only ASCII letters, digits, `_` and spaces, an icon only word characters, `-` and `:`, and an id may contain `-` only in the middle. Anything else (`[Public<br/>API]`, `[Edge-Layer]`, `[Café]`) must be quoted, and an unquoted form is rejected, as in Mermaid. The typed body stores Mermaid's reading of a title (`["API"]` is `API`) and writes it quoted when needed.
 - Leading Mermaid comments (`%% ...`), YAML frontmatter, and Mermaid init directives before the header are stripped by the public SVG/PNG/ASCII/agent entrypoints before they call `parseArchitectureDiagram()`.
 - The public architecture renderers interpret the merged wrapper config for a focused subset of Mermaid semantics:
   `theme`, `themeVariables`, `fontFamily`, `fontSize`, and `architecture.padding` / `architecture.iconSize` / `architecture.fontSize` /

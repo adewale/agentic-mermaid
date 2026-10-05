@@ -14,7 +14,10 @@ import fc from 'fast-check'
 import { parseRegisteredMermaid as parseMermaid } from '../agent/parse.ts'
 import { serializeMermaid } from '../agent/serialize.ts'
 import { mutate } from '../agent/mutate.ts'
-import { verifyMermaid } from '../agent/verify.ts'
+import { graphGeometryWarnings, verifyMermaid } from '../agent/verify.ts'
+import { positionFamilyArtifact } from '../agent/family-layouts.ts'
+import { stateBodyToGraph } from '../agent/state-body.ts'
+import type { PositionedGraph } from '../types.ts'
 import { asState, asFlowchart } from '../agent/types.ts'
 import type { LayoutWarning, StateValidDiagram, StateMutationOp, StateNode, StateTransition, MutationError } from '../agent/types.ts'
 import { parseMermaid as parseLegacy } from '../parser.ts'
@@ -418,11 +421,11 @@ describe('state verify — geometric Tier 2 projection (parity with flowchart)',
   })
 
   test('state runs the flowchart graph verifier: graph-path warnings match the flowchart projection', () => {
-    // Real layouts never overlap, so NODE_OVERLAP / ROUTE_SELF_CROSS cannot be
-    // forced from source. DUPLICATE_EDGE and UNREACHABLE_NODE are emitted only
-    // by the flowchart graph verifier (the same pass that holds the Tier 2
-    // geometric checks), so seeing them on a state diagram proves the state
-    // path runs it, and suppressing one of them proves suppression is honored.
+    // DUPLICATE_EDGE and UNREACHABLE_NODE are emitted only by the flowchart
+    // graph verifier (the same pass that runs graphGeometryWarnings), so seeing
+    // them on a state diagram proves the state path runs it, and suppressing
+    // one of them proves suppression is honored. The geometric checks
+    // themselves are proven on a doctored state layout below.
     const body = '  [*] --> A\n  A --> B\n  A --> B\n  C --> D\n  D --> C'
     const expected: LayoutWarning[] = [
       { code: 'DUPLICATE_EDGE', edge: 'A->B#2', duplicateOf: 'A->B#1', from: 'A', to: 'B' },
@@ -434,12 +437,30 @@ describe('state verify — geometric Tier 2 projection (parity with flowchart)',
     expect(verifyMermaid(`stateDiagram-v2\n${body}`, { suppress: ['DUPLICATE_EDGE'] }).warnings).toEqual(expected.slice(1))
   })
 
+  test('the geometric checks fire on a doctored state layout (graphGeometryWarnings, the pass verify runs)', () => {
+    const r = parseMermaid('stateDiagram-v2\n  [*] --> A\n  A --> B')
+    if (!r.ok || r.value.body.kind !== 'state') throw new Error('expected a state body')
+    const graph = stateBodyToGraph(r.value.body)
+    const positioned = positionFamilyArtifact(r.value)!.positioned as PositionedGraph
+    const moved = (id: string, box: Partial<PositionedGraph['nodes'][number]>): PositionedGraph =>
+      ({ ...positioned, nodes: positioned.nodes.map(n => (n.id === id ? { ...n, ...box } : n)) })
+    const a = positioned.nodes.find(n => n.id === 'A')!
+    const [first, second] = positioned.nodes.filter(n => n.id === 'A' || n.id === 'B').map(n => n.id) as [string, string]
+
+    expect(graphGeometryWarnings(positioned, graph)).toEqual([])
+    expect(graphGeometryWarnings(moved('A', { x: -10, y: -10 }), graph)).toEqual([
+      { code: 'OFF_CANVAS', target: 'A', axis: 'x' },
+      { code: 'OFF_CANVAS', target: 'A', axis: 'y' },
+    ])
+    expect(graphGeometryWarnings(moved('B', { x: a.x, y: a.y, width: a.width, height: a.height }), graph)).toEqual([
+      { code: 'NODE_OVERLAP', a: first, b: second, areaPx: Math.round(a.width * a.height) },
+    ])
+  })
+
   test('dense state source: geometric path runs and lays out every state', () => {
-    // ELK is robust enough that a real NODE_OVERLAP is layout-dependent, so we
-    // prove the geometric Tier 2 path RUNS for state by checking the projection
-    // produces a real geometric layout (positioned nodes for every modeled
-    // state) — only the geometric path does this; the empty-layout fallback
-    // would yield zero nodes.
+    // Verify returns the real positioned layout for state (positioned nodes
+    // for every modeled state); the empty-layout fallback would yield zero
+    // nodes.
     const dense = `stateDiagram-v2
   [*] --> A
   A --> B
@@ -480,17 +501,18 @@ describe('state fast-check round-trip property', () => {
   const id = fc.string({ minLength: 1, maxLength: 4 }).filter(s => /^[A-Za-z][A-Za-z0-9]*$/.test(s))
 
   const shape = (states: StateNode[], transitions: StateTransition[]): unknown => ({
-    states: states.map(s => ({ id: s.id, children: s.states ? shape(s.states, s.transitions ?? []) : null })),
-    transitions: transitions.map(t => `${t.from}->${t.to}`),
+    states: states.map(s => ({ id: s.id, label: s.label, children: s.states ? shape(s.states, s.transitions ?? []) : null })),
+    transitions: transitions.map(t => ({ from: t.from, to: t.to, label: t.label })),
   })
   // `state()` throws unless the source parses to a structured state body, so a
   // regression to opaque fails the property instead of passing it vacuously.
-  const roundTripsAsState = (src: string): void => {
+  const roundTripsAsState = (src: string, expected: unknown): void => {
     const d = state(src)
+    expect(shape(d.body.states, d.body.transitions)).toEqual(expected)
     const s1 = serializeMermaid(d)
     const d2 = state(s1)
     expect({ src, reserialized: serializeMermaid(d2), shape: shape(d2.body.states, d2.body.transitions) })
-      .toEqual({ src, reserialized: s1, shape: shape(d.body.states, d.body.transitions) })
+      .toEqual({ src, reserialized: s1, shape: expected })
   }
 
   const simpleMachine = fc.record({
@@ -503,12 +525,17 @@ describe('state fast-check round-trip property', () => {
     })
   })
 
-  test('generated simple machines round-trip stably', () => {
+  test('generated simple machines retain every declared state and labeled transition', () => {
     fc.assert(fc.property(simpleMachine, ({ states, transitions }) => {
       const lines = ['stateDiagram-v2']
-      for (const t of transitions) lines.push(`  ${t.from} --> ${t.to}`)
+      // Emit every generated state, including states no transition references.
+      for (const id of states) lines.push(`  state "${id} label" as ${id}`)
+      for (const [i, t] of transitions.entries()) lines.push(`  ${t.from} --> ${t.to} : step ${i}`)
       const src = lines.join('\n') + '\n'
-      return roundTripsAsState(src)
+      return roundTripsAsState(src, {
+        states: states.map(id => ({ id, label: `${id} label`, children: null })),
+        transitions: transitions.map((t, i) => ({ ...t, label: `step ${i}` })),
+      })
     }), { numRuns: 200 })
   })
 
@@ -524,7 +551,20 @@ describe('state fast-check round-trip property', () => {
       lines.push(`    ${inner[inner.length - 1]} --> [*]`)
       lines.push('  }')
       const src = lines.join('\n') + '\n'
-      return roundTripsAsState(src)
+      return roundTripsAsState(src, {
+        states: [{
+          id: outer, label: undefined,
+          children: {
+            states: inner.map(id => ({ id, label: undefined, children: null })),
+            transitions: [
+              { from: '[*]', to: inner[0], label: undefined },
+              ...inner.slice(0, -1).map((from, i) => ({ from, to: inner[i + 1], label: undefined })),
+              { from: inner.at(-1), to: '[*]', label: undefined },
+            ],
+          },
+        }],
+        transitions: [],
+      })
     }), { numRuns: 100 })
   })
 })

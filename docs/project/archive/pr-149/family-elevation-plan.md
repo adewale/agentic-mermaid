@@ -111,7 +111,7 @@ parsing stops swallowing unknown flags silently.
 Golden regeneration launders bugs into baselines. Any PR that regenerates
 goldens must land invariant gates beside them (geometry, contrast, width
 budgets, containment) that would have caught the defect the goldens
-previously hid, and must carry the `[approve-goldens]` commit line.
+previously hid, and must list each changed golden and why in the PR description.
 
 ### P6. Shared primitives over per-family fixes
 
@@ -537,8 +537,8 @@ The pass added six Mindmaps (broad, deep, multilingual, organization/folder, off
 
 1. Red test from the provenance fixture, confirmed red, then green, then
    revert-proofed; counts stated in the PR.
-2. Any golden regeneration ships beside a new invariant gate and carries
-   `[approve-goldens]`.
+2. Any golden regeneration ships beside a new invariant gate; the PR description
+   lists each changed golden and why.
 3. Duplication touched by the fix is extracted, not copied a fourth time.
 4. Full suite + `tsc` + `website:check` + `bun run track` green; tracker
    baseline changes are deliberate and explained.

@@ -57,6 +57,7 @@ import {
 import { RENDER_OUTPUTS, type RenderOutput } from './render-outputs.ts'
 import { PNG_OUTPUT_POLICY_VERSION, TERMINAL_OUTPUT_POLICY_VERSION } from './output-policy-versions.ts'
 import { explicitFamilyConfigDiagnostics } from './shared/family-config-diagnostics.ts'
+import { deepFreeze, isPlainRecord } from './shared/plain-data.ts'
 export { RENDER_OUTPUTS } from './render-outputs.ts'
 export type { RenderOutput } from './render-outputs.ts'
 
@@ -449,12 +450,6 @@ const JSON_VALUE_SCHEMA = {
   'x-agentic-mermaid-validation-expectation': 'a finite, acyclic JSON value without prototype keys',
 } as const satisfies JsonSchemaNode
 
-function deepFreeze<T>(value: T): T {
-  if (typeof value !== 'object' || value === null || Object.isFrozen(value)) return value
-  for (const child of Object.values(value)) deepFreeze(child)
-  return Object.freeze(value)
-}
-
 const GRAPH_LAYOUT_OPTION_FAMILIES = [
   'flowchart', 'state', 'class', 'er', 'architecture',
 ] as const satisfies readonly DiagramKind[]
@@ -595,12 +590,6 @@ export function architectureVisualOverridesTypeScriptDeclaration(): string {
   return `interface ArchitectureVisualOverrides {\n${fields.join('\n')}\n}`
 }
 
-function plainJsonObject(value: unknown): value is Record<string, unknown> {
-  if (typeof value !== 'object' || value === null || Array.isArray(value)) return false
-  const proto = Object.getPrototypeOf(value)
-  return proto === Object.prototype || proto === null
-}
-
 const FORBIDDEN_PROTOTYPE_KEYS = new Set(['__proto__', 'prototype', 'constructor'])
 
 interface SchemaProblem {
@@ -611,13 +600,13 @@ interface SchemaProblem {
 }
 
 function schemaRecord(value: unknown): JsonSchemaNode | undefined {
-  return plainJsonObject(value) ? value : undefined
+  return isPlainRecord(value) ? value : undefined
 }
 
 function cloneSchema(schema: JsonSchemaNode): Record<string, unknown> {
   const cloneValue = (value: unknown): unknown => {
     if (Array.isArray(value)) return value.map(cloneValue)
-    if (plainJsonObject(value)) return Object.fromEntries(Object.entries(value).map(([key, child]) => [key, cloneValue(child)]))
+    if (isPlainRecord(value)) return Object.fromEntries(Object.entries(value).map(([key, child]) => [key, cloneValue(child)]))
     return value
   }
   return cloneValue(schema) as Record<string, unknown>
@@ -641,7 +630,7 @@ function dereferenceSchema(schema: JsonSchemaNode, root: JsonSchemaNode): JsonSc
   if (typeof reference !== 'string' || !reference.startsWith('#/')) return undefined
   let cursor: unknown = root
   for (const encoded of reference.slice(2).split('/')) {
-    if (!plainJsonObject(cursor)) return undefined
+    if (!isPlainRecord(cursor)) return undefined
     const key = encoded.replaceAll('~1', '/').replaceAll('~0', '~')
     cursor = cursor[key]
   }
@@ -660,7 +649,7 @@ function schemaMatchesRuntimeKind(value: unknown, schema: JsonSchemaNode, root: 
     case 'integer': return typeof value === 'number'
     case 'boolean': return typeof value === 'boolean'
     case 'array': return Array.isArray(value)
-    case 'object': return plainJsonObject(value)
+    case 'object': return isPlainRecord(value)
     default: return true
   }
 }
@@ -708,7 +697,7 @@ function validateSchemaValue(
     || (type === 'integer' && typeof value === 'number' && Number.isFinite(value) && Number.isInteger(value))
     || (type === 'boolean' && typeof value === 'boolean')
     || (type === 'array' && Array.isArray(value))
-    || (type === 'object' && plainJsonObject(value))
+    || (type === 'object' && isPlainRecord(value))
   if (!typeIsValid) {
     const expected = type === 'number' ? 'a finite number'
       : type === 'integer' ? 'a finite integer'
@@ -749,7 +738,7 @@ function validateSchemaValue(
     }
   }
 
-  if (plainJsonObject(value) && type === 'object') {
+  if (isPlainRecord(value) && type === 'object') {
     if (ancestors.has(value)) return [{ path, message: 'must be acyclic', generic: false }]
     ancestors.add(value)
     try {
@@ -799,7 +788,7 @@ function validateSchemaValue(
       return [{ path, message: `is invalid: ${error instanceof Error ? error.message : String(error)}`, generic: false }]
     }
   }
-  if (runtimeValidator === 'architectureVisual' && plainJsonObject(value)) {
+  if (runtimeValidator === 'architectureVisual' && isPlainRecord(value)) {
     const outer = value.junctionOuterRadius
     const inner = value.junctionInnerRadius
     // A sparse input can be checked here only when both sides are explicit.
@@ -818,7 +807,7 @@ function validateSchemaValue(
 
 /** Validate the shared advanced JSON object used by CLI/MCP/editor adapters. */
 export function validateSerializableRenderOptions(value: unknown): string[] {
-  if (!plainJsonObject(value)) return ['render options must be a plain JSON object']
+  if (!isPlainRecord(value)) return ['render options must be a plain JSON object']
   const admissionProblems = renderOptionsAdmissionMessages(value)
   if (admissionProblems.length > 0) return admissionProblems
   const problems: string[] = []
@@ -1317,7 +1306,7 @@ function omitUndefinedObjectFields(
       ancestors.delete(value)
     }
   }
-  if (!plainJsonObject(value)) return value
+  if (!isPlainRecord(value)) return value
 
   ancestors.add(value)
   try {
@@ -1343,7 +1332,7 @@ function normalizedFamilyData(
   label: 'config' | 'appearance',
 ): Readonly<Record<string, unknown>> | undefined {
   if (value === undefined) return undefined
-  if (!plainJsonObject(value)) {
+  if (!isPlainRecord(value)) {
     throw new TypeError(`Family "${family.id}" returned ${label} data that is not a plain object`)
   }
   let compact: unknown
@@ -1392,7 +1381,7 @@ function applyFamilyRequestNormalization(
       `Family "${family.id}" request normalizer returned invalid data: ${error instanceof Error ? error.message : String(error)}`,
     )
   }
-  if (!plainJsonObject(admitted)) {
+  if (!isPlainRecord(admitted)) {
     throw new TypeError(`Family "${family.id}" request normalizer must return a plain object`)
   }
   const unknownResultKey = Object.keys(admitted).find(key =>
@@ -1404,7 +1393,7 @@ function applyFamilyRequestNormalization(
   const appearance: FamilyAppearanceNormalization | undefined = result.appearance
   if (appearance !== undefined) {
     const appearanceValue: unknown = appearance
-    if (!plainJsonObject(appearanceValue)) {
+    if (!isPlainRecord(appearanceValue)) {
       throw new TypeError(`Family "${family.id}" request normalizer returned a non-object appearance`)
     }
     const unknownAppearanceKey = Object.keys(appearanceValue).find(key =>

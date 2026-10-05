@@ -16,9 +16,8 @@
 //
 // Regenerate after an INTENTIONAL geometry change:
 //   UPDATE_LAYOUT_BASELINE=1 bun test src/__tests__/layout-equivalence.test.ts
-// The baseline lives under src/__tests__/testdata/, so the golden-drift CI gate
-// (scripts/ci/golden-drift.ts) forces an [approve-goldens] commit line once the
-// diff has been reviewed — a geometry change can never land unnoticed.
+// Review the diff and list each changed golden under src/__tests__/testdata/
+// and why it changed in the PR description.
 
 import { describe, test, expect } from 'bun:test'
 import { readFileSync, writeFileSync, existsSync } from 'node:fs'
@@ -128,7 +127,7 @@ describe('layout-equivalence gate', () => {
       throw new Error(
         `${diffs.length} of ${current.size} diagram(s) diverged from the geometry baseline:\n  ${shown}${more}\n\n` +
         `If intentional: UPDATE_LAYOUT_BASELINE=1 bun test src/__tests__/layout-equivalence.test.ts, ` +
-        `review the golden diff, and approve it with an [approve-goldens] commit line.`,
+        `review the golden diff, and list each changed golden and why in the PR description.`,
       )
     }
   })

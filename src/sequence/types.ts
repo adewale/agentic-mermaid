@@ -42,6 +42,10 @@ export interface Actor {
   type: SequenceActorType
   /** Safe actor-menu links; callbacks and unsafe schemes are rejected. */
   links?: Record<string, string>
+  /** Index into `SequenceDiagram.boxes` of the box that frames this actor:
+   *  the one open when a statement first met it inside a box (upstream's
+   *  `actor.box`). */
+  box?: number
   /** Index of the message this actor is created at (`create participant …`);
    *  its header box + lifeline start there instead of the diagram top. */
   createMessageIndex?: number
@@ -57,7 +61,10 @@ export interface SequenceBoxGroup {
   /** Explicit CSS color from the source (named color, #hex, rgb()/rgba(),
    *  hsl()/hsla(), or 'transparent'). Absent = theme-derived fill. */
   color?: string
-  /** Declared participant ids inside the box, in declaration order. */
+  /** Upstream's `actorKeys`: each declaration inside the box that created or
+   *  renamed an actor, in order (a repeat naming declaration repeats the id).
+   *  A bare declaration of an actor created earlier places it in the box
+   *  (`Actor.box`) without listing it here. */
   actorIds: string[]
 }
 

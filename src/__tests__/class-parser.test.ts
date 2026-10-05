@@ -6,6 +6,8 @@
  */
 import { describe, it, expect } from 'bun:test'
 import { parseClassDiagram } from '../class/parser.ts'
+import { asClass, mutate, parseRegisteredMermaid, renderMermaidSVG, serializeMermaid } from '../agent/index.ts'
+import { expectNearLinearGrowth } from './helpers/complexity.ts'
 
 /** Helper to parse — preprocesses text the same way index.ts does */
 function parse(text: string) {
@@ -18,6 +20,78 @@ function parse(text: string) {
 // ============================================================================
 
 describe('parseClassDiagram – class definitions', () => {
+  it('compact namespace URL percent pairs retain meaning with near-linear parse cost', () => {
+    for (const manyLinks of [false, true]) {
+      expectNearLinearGrowth(manyLinks ? 'many compact links' : 'one long compact link', size => {
+        const href = `https://example.com/${manyLinks ? '%%%%' : '%%'.repeat(size)}`
+        const links = Array<string>(manyLinks ? Math.max(1, Math.floor(size / 16)) : 1).fill(`link A ${href}`).join('; ')
+        const parsed = parseRegisteredMermaid(`classDiagram\nnamespace N { class A; ${links} }`)
+        if (!parsed.ok) throw new Error(JSON.stringify(parsed.error))
+        expect(asClass(parsed.value)?.body.classes).toEqual([
+          { id: 'A', namespace: 'N', members: [], href },
+        ])
+      }, 16_000, 16)
+    }
+  })
+
+  it('keeps semicolons inside quoted labels in compact namespaces', () => {
+    const diagram = parse('classDiagram\nnamespace Domain { class A["Before; after"]; class B }')
+    expect(diagram.classes.map(node => ({ id: node.id, label: node.label }))).toEqual([
+      { id: 'A', label: 'Before; after' }, { id: 'B', label: 'B' },
+    ])
+    expect(diagram.namespaces[0]!.classIds).toEqual(['A', 'B'])
+  })
+
+  it('declaration shorthand styles the declared identity and its members', () => {
+    const diagram = parse('classDiagram\nclass A:::hot\nclass B:::cold {\n+int count\n}\nclassDef hot fill:red\nclassDef cold fill:blue')
+    expect(diagram.classes.map(node => ({ id: node.id, className: node.className, attributes: node.attributes.map(member => member.sourceText) }))).toEqual([
+      { id: 'A', className: 'hot', attributes: [] }, { id: 'B', className: 'cold', attributes: ['+int count'] },
+    ])
+  })
+
+  it.each([
+    ['unknown authored statement', 'class A\nfuture statement', 'Unrecognized class statement "future statement"'],
+    ['unterminated class body', 'class A {\n+String name', 'Unclosed class block'],
+    ['unterminated namespace', 'namespace Domain {\nclass A', 'Unclosed namespace block'],
+    ['extra close', 'class A\n}', 'Unexpected closing brace'],
+    ['partially invalid class assignment', 'class A\nclass A,bad-id hot', 'Unrecognized class statement'],
+  ])('refuses a partial drawing for %s', (_name, source, reason) => {
+    expect(() => parse(`classDiagram\n${source}`)).toThrow(reason)
+  })
+
+  it('nested members keep literal percent pairs, source ownership, and meaning after an edit', () => {
+    const source = 'classDiagram\nnamespace Outer {\n  class A {\n    %% explanation\n    +String name %% literal\n  }\n}\nclass B'
+    const parsed = parseRegisteredMermaid(source)
+    if (!parsed.ok) throw new Error(JSON.stringify(parsed.error))
+    const diagram = asClass(parsed.value)
+    if (!diagram) throw new Error('expected editable Class body')
+    expect(diagram.body.classes.map(({ id, namespace, members }) => ({ id, namespace, members }))).toEqual([
+      { id: 'A', namespace: 'Outer', members: ['+String name %% literal'] },
+      { id: 'B', namespace: undefined, members: [] },
+    ])
+    // Legacy locations address canonical text (standalone comments removed);
+    // exact spans address the authored document instead.
+    expect(diagram.source.labels.get('class:A:member#0')).toEqual({ line: 4, col: 1 })
+    const member = diagram.source.spans?.labels.get('class:A:member#0')
+    expect(member).toBeDefined()
+    expect(member!.start.line).toBe(5)
+    expect(source.slice(member!.start.offset, member!.end.offset)).toBe('+String name %% literal')
+    const edited = mutate(diagram, { kind: 'add_member', class: 'A', text: '+int count' })
+    if (!edited.ok) throw new Error(JSON.stringify(edited.error))
+    const serialized = serializeMermaid(edited.value)
+    const reloaded = parseRegisteredMermaid(serialized)
+    if (!reloaded.ok) throw new Error(JSON.stringify(reloaded.error))
+    expect(asClass(reloaded.value)?.body.classes.map(({ id, namespace, members }) => ({ id, namespace, members }))).toEqual([
+      { id: 'A', namespace: 'Outer', members: ['+String name %% literal', '+int count'] },
+      { id: 'B', namespace: undefined, members: [] },
+    ])
+    for (const renderedSource of [source, serialized]) {
+      const svg = renderMermaidSVG(renderedSource)
+      expect(svg).toMatch(/<tspan\b[^>]*>String name %% literal<\/tspan>/)
+      expect(svg).not.toContain('explanation')
+    }
+  })
+
   it('parses a class block with attributes and methods', () => {
     const d = parse(`classDiagram
       class Animal {
@@ -28,8 +102,12 @@ describe('parseClassDiagram – class definitions', () => {
       }`)
     expect(d.classes).toHaveLength(1)
     expect(d.classes[0]!.id).toBe('Animal')
-    expect(d.classes[0]!.attributes).toHaveLength(2)
-    expect(d.classes[0]!.methods).toHaveLength(2)
+    expect(d.classes[0]!.attributes.map(member => ({ name: member.name, type: member.type, visibility: member.visibility }))).toEqual([
+      { name: 'name', type: 'String', visibility: '+' }, { name: 'age', type: 'int', visibility: '+' },
+    ])
+    expect(d.classes[0]!.methods.map(member => ({ name: member.name, type: member.type, visibility: member.visibility }))).toEqual([
+      { name: 'eat', type: 'void', visibility: '+' }, { name: 'sleep', type: undefined, visibility: '+' },
+    ])
   })
 
   it('parses attribute visibility (+ - # ~)', () => {

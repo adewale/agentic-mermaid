@@ -32,7 +32,7 @@ import type {
   MutationError, Result, LayoutWarning, VerifyOptions,
 } from './types.ts'
 import { ok, err } from './types.ts'
-import { indexedIdAllocator, labelOverflowCollector } from './body-utils.ts'
+import { indexedIdAllocator, labelOverflowCollector, setOptionalField } from './body-utils.ts'
 import { appendAccessibilityLines } from './accessibility-envelope.ts'
 import { parseXYChart, renderXYChartText } from '../xychart/parser.ts'
 import { barBaselineValue } from '../xychart/axis-utils.ts'
@@ -89,7 +89,6 @@ function isBareText(value: string): boolean {
 export function parseXyChartBody(lines: readonly string[]): XyChartBody | null {
   try {
     const chart = parseXYChart([...lines], { strict: true })
-    if (chart.series.length === 0) return null
     const projectAxis = (axis: typeof chart.xAxis): XyChartAxis => ({
       ...(axis.title !== undefined ? { name: axis.title } : {}),
       ...(axis.categories !== undefined ? { categories: [...axis.categories] } : {}),
@@ -239,24 +238,18 @@ export function mutateXyChart(body: XyChartBody, op: XyChartMutationOp): Result<
 
   switch (op.kind) {
     case 'set_title': {
-      if (op.title === null) { delete next.title; break }
-      const t = validBareText(op.title, 'title')
-      if (!t.ok) return t
-      next.title = t.value
+      const title = setOptionalField(next, 'title', op.title, value => validBareText(value, 'title'))
+      if (!title.ok) return title
       break
     }
     case 'set_x_axis': {
-      if (op.axis === null) { delete next.xAxis; break }
-      const axis = buildAxis(op.axis, 'x')
+      const axis = setOptionalField(next, 'xAxis', op.axis, value => buildAxis(value, 'x'))
       if (!axis.ok) return axis
-      next.xAxis = axis.value
       break
     }
     case 'set_y_axis': {
-      if (op.axis === null) { delete next.yAxis; break }
-      const axis = buildAxis(op.axis, 'y')
+      const axis = setOptionalField(next, 'yAxis', op.axis, value => buildAxis(value, 'y'))
       if (!axis.ok) return axis
-      next.yAxis = axis.value
       break
     }
     case 'add_series': {
@@ -354,8 +347,14 @@ export function mutateXyChart(body: XyChartBody, op: XyChartMutationOp): Result<
 
 export function verifyXyChart(body: XyChartBody, opts: VerifyOptions): LayoutWarning[] {
   const warnings: LayoutWarning[] = []
-  const overflow = labelOverflowCollector(warnings, opts)
-  if (body.series.length === 0) warnings.push({ code: 'EMPTY_DIAGRAM' })
+  // Labels are drawn as written (upstream sets them as text), so they are
+  // measured literally.
+  const overflow = labelOverflowCollector(warnings, opts, undefined, 'literal')
+  // Like quadrant's, a title or an authored axis is chart furniture Mermaid
+  // draws without any series; only a chart with neither is empty.
+  const hasFurniture = body.title !== undefined || body.xAxis !== undefined || body.yAxis !== undefined
+    || body.accessibilityTitle !== undefined || body.accessibilityDescription !== undefined
+  if (body.series.length === 0 && !hasFurniture) warnings.push({ code: 'EMPTY_DIAGRAM' })
   if (body.title !== undefined) overflow('title', body.title)
   if (body.xAxis?.name !== undefined) overflow('x-axis', body.xAxis.name)
   for (const c of body.xAxis?.categories ?? []) overflow('x-axis', c)

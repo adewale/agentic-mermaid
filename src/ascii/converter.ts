@@ -13,6 +13,7 @@ import type {
 import { EMPTY_STYLE } from './types.ts'
 import { mkCanvas, mkRoleCanvas } from './canvas.ts'
 import { classifyRoutes } from '../route-contracts.ts'
+import { displayText } from '../multiline-utils.ts'
 
 /**
  * Convert a parsed MermaidGraph into an AsciiGraph ready for grid layout.
@@ -39,8 +40,10 @@ export function convertToAsciiGraph(parsed: MermaidGraph, config: AsciiConfig): 
       // Use the parser ID as the unique identity key to avoid collisions
       // when multiple nodes share the same label (e.g. A[Web Server], C[Web Server]).
       name: id,
-      // The label is used for rendering inside the box.
-      displayLabel: mNode.label,
+      // The label's display text is drawn inside the box: formatting tags
+      // style the SVG runs and are not characters, so the cells show what
+      // the SVG shows.
+      displayLabel: displayText(mNode.label),
       // Preserve shape from parser for shape-aware rendering
       shape: mNode.shape,
       index,
@@ -89,7 +92,7 @@ export function convertToAsciiGraph(parsed: MermaidGraph, config: AsciiConfig): 
       to,
       fromSubgraph,
       toSubgraph,
-      text: mEdge.label ?? '',
+      text: displayText(mEdge.label ?? ''),
       path: [],
       labelLine: [],
       startDir: { x: 0, y: 0 },
@@ -206,7 +209,7 @@ function convertSubgraph(
 
   const sg: AsciiSubgraph = {
     id: mSg.id,
-    name: mSg.label,
+    name: displayText(mSg.label),
     nodes: [],
     parent,
     children: [],

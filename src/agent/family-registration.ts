@@ -35,6 +35,7 @@ import {
 } from '../render-contract.ts'
 import { sceneNodePrimitives } from '../scene/capabilities.ts'
 import type { SceneDoc, SceneNode } from '../scene/ir.ts'
+import { visitSceneNodes } from '../scene/walk.ts'
 
 const WITNESS_RENDER_OPTIONS = Object.freeze({
   security: 'strict' as const,
@@ -107,13 +108,6 @@ function layoutWitness(descriptor: FamilyDescriptor): unknown {
   }
 }
 
-function visitScene(nodes: readonly SceneNode[], callback: (node: SceneNode) => void): void {
-  for (const node of nodes) {
-    callback(node)
-    if (node.kind === 'group') visitScene(node.children.map(child => child.node), callback)
-  }
-}
-
 function sceneWitness(descriptor: FamilyDescriptor): unknown {
   const request = resolveRenderRequestForExecution(
     descriptor.example,
@@ -123,7 +117,7 @@ function sceneWitness(descriptor: FamilyDescriptor): unknown {
   const layout = positionResolvedFamily(descriptor.id, request)
   const scene: SceneDoc = lowerPositionedFamilyScene(request, layout)
   const observed = new Set<string>()
-  visitScene(scene.parts, node => {
+  visitSceneNodes(scene.parts, node => {
     for (const primitive of sceneNodePrimitives(node)) observed.add(`${node.role}\u0000${primitive}`)
   })
   const missing = descriptor.scenePrimitiveEvidence

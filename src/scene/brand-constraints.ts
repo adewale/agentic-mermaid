@@ -7,15 +7,9 @@ import { STYLE_OWNED_PAINT_VARIABLES, type BrandConstraint } from './style-spec.
 import { BRAND_CONSTRAINT_DESCRIPTORS, BRAND_CONSTRAINT_WARNING_POLICY } from './brand-constraint-contract.ts'
 import { geometryBounds } from './bounds.ts'
 import type { SceneDoc, SceneNode } from './ir.ts'
+import { visitSceneNodes } from './walk.ts'
 
 type BrandWarning = Extract<LayoutWarning, { code: 'BRAND_CONSTRAINT_WARNING' | 'BRAND_CONSTRAINT_ERROR' }>
-
-function visit(nodes: readonly SceneNode[], fn: (node: SceneNode) => void): void {
-  for (const node of nodes) {
-    fn(node)
-    if (node.kind === 'group') visit(node.children.map(child => child.node), fn)
-  }
-}
 
 function mixOpaqueCss(foreground: string, background: string, percent: number): string | undefined {
   const fg = tryParseCssColor(foreground)
@@ -254,7 +248,7 @@ function accentAreaConstraint(
   })
   let total = 0
   let accented = 0
-  visit(scene.parts, node => {
+  visitSceneNodes(scene.parts, node => {
     if (node.kind !== 'shape' || node.role === 'chrome') return
     const fill = resolvedPaint(node.paint.fill, request)
     if (!fill || fill === 'none' || fill === 'transparent') return
@@ -283,7 +277,7 @@ function monoRoleConstraint(
   request: ResolvedRenderRequest,
 ): BrandWarning {
   const paints: Array<{ mark: string; value: string }> = []
-  visit(scene.parts, node => {
+  visitSceneNodes(scene.parts, node => {
     if (node.role !== constraint.role) return
     const values = node.kind === 'connector'
       ? [node.stroke.color]

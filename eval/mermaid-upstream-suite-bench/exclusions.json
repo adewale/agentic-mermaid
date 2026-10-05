@@ -8207,6 +8207,25 @@
     "summary": "The upstream block exercises parser database helper state, renderer DOM details, mocks, shape factories, or generated/table-driven inputs rather than a direct portable Mermaid source string."
   },
   {
+    "id": "radar-excluded-radar-spec-should-handle-a-radar-diagram-with-options",
+    "families": [
+      "radar"
+    ],
+    "reason": "api-internal",
+    "disposition": "WONTFIX",
+    "blockCount": 1,
+    "upstream": {
+      "repo": "mermaid-js/mermaid",
+      "files": [
+        "packages/mermaid/src/diagrams/radar/radar.spec.ts"
+      ],
+      "blocks": [
+        "packages/mermaid/src/diagrams/radar/radar.spec.ts :: should handle a radar diagram with options"
+      ]
+    },
+    "summary": "The upstream block exposes only a header, declaration, title, or section scaffold while asserting parser database helper state, not one renderable portable Mermaid source case."
+  },
+  {
     "id": "radar-excluded-radar-spec-should-handle-max-value",
     "families": [
       "radar"
@@ -8281,6 +8300,63 @@
       ]
     },
     "summary": "The upstream block exercises parser database helper state, renderer DOM details, mocks, shape factories, or generated/table-driven inputs rather than a direct portable Mermaid source string."
+  },
+  {
+    "id": "sequence-excluded-sequencediagram-spec-should-fail-for-malformed-json-in-participant-definition",
+    "families": [
+      "sequence"
+    ],
+    "reason": "upstream-negative",
+    "disposition": "WONTFIX",
+    "blockCount": 1,
+    "upstream": {
+      "repo": "mermaid-js/mermaid",
+      "files": [
+        "packages/mermaid/src/diagrams/sequence/sequenceDiagram.spec.js"
+      ],
+      "blocks": [
+        "packages/mermaid/src/diagrams/sequence/sequenceDiagram.spec.js :: should fail for malformed JSON in participant definition"
+      ]
+    },
+    "summary": "The upstream block asserts that this input throws or is rejected. BUILD-20 imports positive portable parser/DB behavior as cases and marks upstream negative coverage WONTFIX with Mermaid.js provenance."
+  },
+  {
+    "id": "sequence-excluded-sequencediagram-spec-should-fail-for-missing-closing-brace",
+    "families": [
+      "sequence"
+    ],
+    "reason": "upstream-negative",
+    "disposition": "WONTFIX",
+    "blockCount": 1,
+    "upstream": {
+      "repo": "mermaid-js/mermaid",
+      "files": [
+        "packages/mermaid/src/diagrams/sequence/sequenceDiagram.spec.js"
+      ],
+      "blocks": [
+        "packages/mermaid/src/diagrams/sequence/sequenceDiagram.spec.js :: should fail for missing closing brace"
+      ]
+    },
+    "summary": "The upstream block asserts that this input throws or is rejected. BUILD-20 imports positive portable parser/DB behavior as cases and marks upstream negative coverage WONTFIX with Mermaid.js provenance."
+  },
+  {
+    "id": "sequence-excluded-sequencediagram-spec-should-fail-for-missing-colon-separator",
+    "families": [
+      "sequence"
+    ],
+    "reason": "upstream-negative",
+    "disposition": "WONTFIX",
+    "blockCount": 1,
+    "upstream": {
+      "repo": "mermaid-js/mermaid",
+      "files": [
+        "packages/mermaid/src/diagrams/sequence/sequenceDiagram.spec.js"
+      ],
+      "blocks": [
+        "packages/mermaid/src/diagrams/sequence/sequenceDiagram.spec.js :: should fail for missing colon separator"
+      ]
+    },
+    "summary": "The upstream block asserts that this input throws or is rejected. BUILD-20 imports positive portable parser/DB behavior as cases and marks upstream negative coverage WONTFIX with Mermaid.js provenance."
   },
   {
     "id": "sequence-excluded-sequencediagram-spec-should-handle-a-loop-that-expands-the-area",
@@ -8378,6 +8454,44 @@
     "summary": "The upstream block exercises parser database helper state, renderer DOM details, mocks, shape factories, or generated/table-driven inputs rather than a direct portable Mermaid source string."
   },
   {
+    "id": "sequence-excluded-sequencediagram-spec-should-handle-fail-parsing-when-activating-an-inactive-participant",
+    "families": [
+      "sequence"
+    ],
+    "reason": "upstream-negative",
+    "disposition": "WONTFIX",
+    "blockCount": 1,
+    "upstream": {
+      "repo": "mermaid-js/mermaid",
+      "files": [
+        "packages/mermaid/src/diagrams/sequence/sequenceDiagram.spec.js"
+      ],
+      "blocks": [
+        "packages/mermaid/src/diagrams/sequence/sequenceDiagram.spec.js :: should handle fail parsing when activating an inactive participant"
+      ]
+    },
+    "summary": "The upstream block asserts that this input throws or is rejected. BUILD-20 imports positive portable parser/DB behavior as cases and marks upstream negative coverage WONTFIX with Mermaid.js provenance."
+  },
+  {
+    "id": "sequence-excluded-sequencediagram-spec-should-handle-fail-parsing-when-alias-token-causes-conflicts-in-participant-definition",
+    "families": [
+      "sequence"
+    ],
+    "reason": "upstream-negative",
+    "disposition": "WONTFIX",
+    "blockCount": 1,
+    "upstream": {
+      "repo": "mermaid-js/mermaid",
+      "files": [
+        "packages/mermaid/src/diagrams/sequence/sequenceDiagram.spec.js"
+      ],
+      "blocks": [
+        "packages/mermaid/src/diagrams/sequence/sequenceDiagram.spec.js :: should handle fail parsing when alias token causes conflicts in participant definition"
+      ]
+    },
+    "summary": "The upstream block asserts that this input throws or is rejected. BUILD-20 imports positive portable parser/DB behavior as cases and marks upstream negative coverage WONTFIX with Mermaid.js provenance."
+  },
+  {
     "id": "sequence-excluded-sequencediagram-spec-should-handle-in-arrow-messages",
     "families": [
       "sequence"
@@ -8473,6 +8587,25 @@
     "summary": "The upstream block exercises parser database helper state, renderer DOM details, mocks, shape factories, or generated/table-driven inputs rather than a direct portable Mermaid source string."
   },
   {
+    "id": "sequence-excluded-sequencediagram-spec-should-not-allow-sequence-numbers-to-have-decimals-to-the-thousandths-place-or-greater",
+    "families": [
+      "sequence"
+    ],
+    "reason": "upstream-negative",
+    "disposition": "WONTFIX",
+    "blockCount": 1,
+    "upstream": {
+      "repo": "mermaid-js/mermaid",
+      "files": [
+        "packages/mermaid/src/diagrams/sequence/sequenceDiagram.spec.js"
+      ],
+      "blocks": [
+        "packages/mermaid/src/diagrams/sequence/sequenceDiagram.spec.js :: should not allow sequence numbers to have decimals to the thousandths place or greater"
+      ]
+    },
+    "summary": "The upstream block asserts that this input throws or is rejected. BUILD-20 imports positive portable parser/DB behavior as cases and marks upstream negative coverage WONTFIX with Mermaid.js provenance."
+  },
+  {
     "id": "sequence-unextracted-dynamic-blocks",
     "families": [
       "sequence"
@@ -8563,6 +8696,44 @@
       ],
       "blocks": [
         "packages/mermaid/src/diagrams/state/parser/state-style.spec.js :: a comma separated list of states may or may not have spaces after commas"
+      ]
+    },
+    "summary": "The upstream block exposes only a header, declaration, title, or section scaffold while asserting parser database helper state, not one renderable portable Mermaid source case."
+  },
+  {
+    "id": "state-excluded-state-style-spec-an-attribute-can-have-a-dot-in-the-style",
+    "families": [
+      "state"
+    ],
+    "reason": "api-internal",
+    "disposition": "WONTFIX",
+    "blockCount": 1,
+    "upstream": {
+      "repo": "mermaid-js/mermaid",
+      "files": [
+        "packages/mermaid/src/diagrams/state/parser/state-style.spec.js"
+      ],
+      "blocks": [
+        "packages/mermaid/src/diagrams/state/parser/state-style.spec.js :: an attribute can have a dot in the style"
+      ]
+    },
+    "summary": "The upstream block exposes only a header, declaration, title, or section scaffold while asserting parser database helper state, not one renderable portable Mermaid source case."
+  },
+  {
+    "id": "state-excluded-state-style-spec-an-attribute-can-have-a-space-in-the-style",
+    "families": [
+      "state"
+    ],
+    "reason": "api-internal",
+    "disposition": "WONTFIX",
+    "blockCount": 1,
+    "upstream": {
+      "repo": "mermaid-js/mermaid",
+      "files": [
+        "packages/mermaid/src/diagrams/state/parser/state-style.spec.js"
+      ],
+      "blocks": [
+        "packages/mermaid/src/diagrams/state/parser/state-style.spec.js :: an attribute can have a space in the style"
       ]
     },
     "summary": "The upstream block exposes only a header, declaration, title, or section scaffold while asserting parser database helper state, not one renderable portable Mermaid source case."
@@ -8696,6 +8867,63 @@
       ],
       "blocks": [
         "packages/mermaid/src/diagrams/state/parser/state-style.spec.js :: can be applied to a state with an id containing _"
+      ]
+    },
+    "summary": "The upstream block exposes only a header, declaration, title, or section scaffold while asserting parser database helper state, not one renderable portable Mermaid source case."
+  },
+  {
+    "id": "state-excluded-state-style-spec-can-define-multiple-attributes-separated-by-commas",
+    "families": [
+      "state"
+    ],
+    "reason": "api-internal",
+    "disposition": "WONTFIX",
+    "blockCount": 1,
+    "upstream": {
+      "repo": "mermaid-js/mermaid",
+      "files": [
+        "packages/mermaid/src/diagrams/state/parser/state-style.spec.js"
+      ],
+      "blocks": [
+        "packages/mermaid/src/diagrams/state/parser/state-style.spec.js :: can define multiple attributes separated by commas"
+      ]
+    },
+    "summary": "The upstream block exposes only a header, declaration, title, or section scaffold while asserting parser database helper state, not one renderable portable Mermaid source case."
+  },
+  {
+    "id": "state-excluded-state-style-spec-can-have-proto-or-constructor-as-a-class-name",
+    "families": [
+      "state"
+    ],
+    "reason": "api-internal",
+    "disposition": "WONTFIX",
+    "blockCount": 1,
+    "upstream": {
+      "repo": "mermaid-js/mermaid",
+      "files": [
+        "packages/mermaid/src/diagrams/state/parser/state-style.spec.js"
+      ],
+      "blocks": [
+        "packages/mermaid/src/diagrams/state/parser/state-style.spec.js :: can have __proto__ or constructor as a class name"
+      ]
+    },
+    "summary": "The upstream block exposes only a header, declaration, title, or section scaffold while asserting parser database helper state, not one renderable portable Mermaid source case."
+  },
+  {
+    "id": "state-excluded-state-style-spec-has-classdef-as-a-keyword-an-id-and-can-set-a-css-style-attribute",
+    "families": [
+      "state"
+    ],
+    "reason": "api-internal",
+    "disposition": "WONTFIX",
+    "blockCount": 1,
+    "upstream": {
+      "repo": "mermaid-js/mermaid",
+      "files": [
+        "packages/mermaid/src/diagrams/state/parser/state-style.spec.js"
+      ],
+      "blocks": [
+        "packages/mermaid/src/diagrams/state/parser/state-style.spec.js :: has \"classDef\" as a keyword, an id, and can set a css style attribute"
       ]
     },
     "summary": "The upstream block exposes only a header, declaration, title, or section scaffold while asserting parser database helper state, not one renderable portable Mermaid source case."

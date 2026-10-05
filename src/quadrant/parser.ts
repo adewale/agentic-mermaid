@@ -3,6 +3,7 @@ import { normalizeBrTags } from '../multiline-utils.ts'
 import { syntaxError } from '../shared/syntax-error.ts'
 import { parsePointStyleEntries, parseClassDefTail, splitPointClassSuffix } from './point-style.ts'
 import { requireClosedAccessibility, scanAccessibilityDirectives } from '../shared/accessibility-directives.ts'
+import { stripTrailingComment } from '../shared/trailing-comment.ts'
 
 // ============================================================================
 // Quadrant chart parser
@@ -39,14 +40,65 @@ const QUADRANT_RE = /^quadrant-([1-4])\s+(.+)$/i
 const POINT_RE = /^(.+?)\s*:\s*\[\s*([^,\]]+)\s*,\s*([^,\]]+)\s*\]\s*(.*)$/
 const CLASSDEF_RE = /^classDef\s+(.+)$/i
 
+// Mermaid's quadrant lexer reads unquoted text only from letters, digits,
+// non-ASCII characters, whitespace and !#$%&'*+,-./;=?\_` (`;` ends the
+// statement). Any other character is a lexical error there (`<>()[]{}|@^~`,
+// control characters) or starts another token (`:`, or a `"` string once the
+// text has begun). A "…" string may open the text and holds anything but `"`.
+// A title runs to the end of its line and is not text in this sense. Ours
+// reads such text as written (`x-axis Low < High`); verify reports it, and the
+// serializer writes it quoted, as Mermaid reads it.
+const QUADRANT_STRING_RE = /^"[^"]*"/
+const NOT_QUADRANT_TEXT_RE = /[<>()[\]{}|@^~:"\x00-\x08\x0e-\x1f\x7f]/
+
+/** The first character that keeps `text` from being quadrant text Mermaid reads, if any. */
+function quadrantTextError(text: string): string | undefined {
+  return text.replace(QUADRANT_STRING_RE, '').match(NOT_QUADRANT_TEXT_RE)?.[0]
+}
+
+/** Quadrant text as source: bare where Mermaid reads it so, else one "…" string. */
+export function quadrantTextSource(text: string): string {
+  return quadrantTextError(text) === undefined ? text : `"${text}"`
+}
+
+/** Whether quadrantTextSource writes `text` as source Mermaid reads back:
+ * text that needs quoting cannot hold a `"`. */
+export function quadrantTextWritable(text: string): boolean {
+  return quadrantTextError(text) === undefined || !text.includes('"')
+}
+
+/** Where Mermaid's quadrant lexer rejects unquoted text: what it rejects. */
+export type QuadrantTextReport = (what: string) => void
+
+/** A point label, axis text or quadrant label, read as written; `report`
+ * hears where Mermaid's lexer rejects it. */
+function quadrantText(text: string, construct: string, report?: QuadrantTextReport): string {
+  const error = quadrantTextError(text)
+  if (error !== undefined) report?.(`Quadrant ${construct} ${JSON.stringify(text)} has ${JSON.stringify(error)} outside a quoted string`)
+  return normalizeBrTags(text)
+}
+
+/** What Mermaid's quadrant lexer rejects in one statement line's unquoted
+ * text, read by the parser's own statement grammar. */
+export function quadrantTextRejections(line: string): string[] {
+  const rejections: string[] = []
+  try {
+    parseQuadrantChart(['quadrantChart', line], what => rejections.push(what))
+  } catch {
+    // A statement the parser rejects fails the render; verify reports that.
+  }
+  return rejections
+}
+
 /**
  * Parse a Mermaid quadrant chart from preprocessed lines (trimmed,
  * comment-stripped). The first line is expected to be the `quadrantChart`
  * header.
  *
- * Throws on malformed input (see faithfulness contract above).
+ * Throws on malformed input (see faithfulness contract above). `report`
+ * hears the unquoted text Mermaid's lexer rejects (quadrantText).
  */
-export function parseQuadrantChart(lines: string[]): QuadrantChart {
+export function parseQuadrantChart(lines: string[], report?: QuadrantTextReport): QuadrantChart {
   const scanned = scanAccessibilityDirectives(lines)
   requireClosedAccessibility(scanned)
   lines = scanned.familyLines
@@ -54,7 +106,7 @@ export function parseQuadrantChart(lines: string[]): QuadrantChart {
     throw new Error('Quadrant chart is empty')
   }
 
-  const header = lines[0]!.trim()
+  const header = stripTrailingComment(lines[0]!.trim())
   if (!/^quadrant(?:Chart)?\b\s*$/i.test(header)) {
     throw new Error(`Quadrant chart must start with "quadrant" or "quadrantChart", got: "${header}"`)
   }
@@ -74,7 +126,10 @@ export function parseQuadrantChart(lines: string[]): QuadrantChart {
   const seenPointLabels = new Set<string>()
 
   for (let i = 1; i < lines.length; i++) {
-    const line = lines[i]!.trim()
+    // Mermaid's Quadrant grammar ends a statement at a `%%` comment, except a
+    // title, which runs to the end of its line.
+    const raw = lines[i]!.trim()
+    const line = TITLE_RE.test(raw) ? raw : stripTrailingComment(raw)
     if (line.length === 0 || line.startsWith('%%')) continue
 
     let m: RegExpMatchArray | null
@@ -95,7 +150,7 @@ export function parseQuadrantChart(lines: string[]): QuadrantChart {
     }
 
     if ((m = line.match(AXIS_RE))) {
-      const axis = parseAxis(m[2]!.trim(), m[1]!.toLowerCase())
+      const axis = parseAxis(m[2]!.trim(), m[1]!.toLowerCase(), report)
       if (m[1]!.toLowerCase() === 'x') xAxis = axis
       else yAxis = axis
       continue
@@ -103,13 +158,13 @@ export function parseQuadrantChart(lines: string[]): QuadrantChart {
 
     if ((m = line.match(QUADRANT_RE))) {
       const idx = Number.parseInt(m[1]!, 10) - 1
-      quadrants[idx] = normalizeBrTags(m[2]!.trim())
+      quadrants[idx] = quadrantText(m[2]!.trim(), `quadrant-${m[1]} label`, report)
       continue
     }
 
     if ((m = line.match(POINT_RE))) {
       const { label: rawLabel, className } = splitPointClassSuffix(m[1]!.trim())
-      const label = normalizeBrTags(rawLabel)
+      const label = quadrantText(rawLabel, 'point label', report)
       const styleTail = m[4]!.trim()
       const parsedStyle = parsePointStyleEntries(styleTail, `quadrant point ${label}`)
       if (!parsedStyle.ok) {
@@ -158,17 +213,17 @@ export function parseQuadrantChart(lines: string[]): QuadrantChart {
 }
 
 /** Parse an axis declaration tail (`<near> [--> <far>]`). */
-function parseAxis(tail: string, which: string): QuadrantAxis {
+function parseAxis(tail: string, which: string, report?: QuadrantTextReport): QuadrantAxis {
   const side = which === 'x' ? 'left' : 'bottom'
   const arrowIdx = tail.indexOf('-->')
   if (arrowIdx >= 0) {
-    const near = normalizeBrTags(tail.slice(0, arrowIdx).trim())
-    const far = normalizeBrTags(tail.slice(arrowIdx + 3).trim())
+    const near = quadrantText(tail.slice(0, arrowIdx).trim(), `${which}-axis text`, report)
+    const far = quadrantText(tail.slice(arrowIdx + 3).trim(), `${which}-axis text`, report)
     if (!near) throw new Error(`Quadrant ${which}-axis is missing its ${side} label: "${tail}"`)
     if (!far) throw new Error(`Quadrant ${which}-axis has "-->" but no far label: "${tail}"`)
     return { near, far }
   }
-  const near = normalizeBrTags(tail.trim())
+  const near = quadrantText(tail.trim(), `${which}-axis text`, report)
   if (!near) throw new Error(`Quadrant ${which}-axis is missing its ${side} label`)
   return { near }
 }

@@ -4,8 +4,8 @@
 //
 // Goldens: normalised SVGs under testdata/styled/, one row per built-in
 // family and per non-default look (see GOLDEN_CASES). Regenerate after an
-// INTENTIONAL styled-rendering change, review the diff, and commit it with an
-// [approve-goldens] line:
+// INTENTIONAL styled-rendering change, review the diff, and list each changed
+// golden and why in the PR description:
 //   UPDATE_STYLED_BASELINE=1 bun test src/__tests__/styled-output.test.ts
 // A missing or stale golden fails; only the update variable writes them.
 

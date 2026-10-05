@@ -18,6 +18,7 @@ import { splitLines, maxLineWidth, lineCount } from './multiline-utils.ts'
 import { visualWidth, truncateToVisualWidth, WIDE_CHAR_CONTINUATION } from './width.ts'
 import { graphemes } from '../shared/graphemes.ts'
 import { wrapText } from './wrap.ts'
+import { displayText } from '../multiline-utils.ts'
 
 /** Classify a box-drawing character as 'border' or 'text'. */
 function classifyBoxChar(ch: string): CharRole {
@@ -42,7 +43,9 @@ export function renderSequenceAscii(text: string, config: AsciiConfig, colorMode
   const useAscii = config.useAscii
 
   const labelBudget = targetWidth ? Math.max(1, Math.floor(targetWidth / 3)) : undefined
-  const wrapDisplay = (value: string): string => wrapText(value, labelBudget).join('\n')
+  // Labels draw their display text: formatting tags style the SVG runs and
+  // are not characters, so the cells show what the SVG shows.
+  const wrapDisplay = (value: string): string => wrapText(displayText(value), labelBudget).join('\n')
   const actorLabels = diagram.actors.map(actor => wrapDisplay(
     actor.type === 'participant' || actor.type === 'actor' ? actor.label : `«${actor.type}»\n${actor.label}`,
   ))
@@ -120,7 +123,7 @@ export function renderSequenceAscii(text: string, config: AsciiConfig, colorMode
   let curY = actorBoxH // start right below header boxes
 
   const positionNote = (note: SequenceDiagram['notes'][number], y: number) => {
-    const nLines = wrapText(note.text, labelBudget)
+    const nLines = wrapText(displayText(note.text), labelBudget)
     const nWidth = Math.max(...nLines.map(line => maxLineWidth(line)), 0) + 4
     const nHeight = nLines.length + 2
     const aIdx = actorIdx.get(note.actorIds[0]!) ?? 0
@@ -440,7 +443,7 @@ export function renderSequenceAscii(text: string, config: AsciiConfig, colorMode
     for (let x = bLeft + 1; x < bRight; x++) setC(x, topY, H, 'border')
     setC(bRight, topY, TR, 'border')
     // Write block header label over the top border (supports multi-line)
-    const hdrLabel = block.label ? `${block.type} [${block.label}]` : block.type
+    const hdrLabel = block.label ? `${block.type} [${displayText(block.label)}]` : block.type
     const hdrLines = splitLines(hdrLabel)
 
     for (let lineIdx = 0; lineIdx < hdrLines.length && topY + lineIdx < botY; lineIdx++) {
@@ -472,7 +475,7 @@ export function renderSequenceAscii(text: string, config: AsciiConfig, colorMode
       // Divider label
       const dLabel = block.dividers[d]!.label
       if (dLabel) {
-        const dStr = `[${dLabel}]`
+        const dStr = `[${displayText(dLabel)}]`
         for (let i = 0; i < dStr.length && bLeft + 1 + i < bRight; i++) {
           setC(bLeft + 1 + i, dY, dStr[i]!, 'text')
         }

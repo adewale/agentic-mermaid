@@ -6,7 +6,7 @@ import { FONT_SIZES, FONT_WEIGHTS, STROKE_WIDTHS, estimateTextWidth, TEXT_BASELI
 import type { RenderStyleDefaults, ResolvedRenderStyle } from '../styles.ts'
 import { ER_STYLE_DEFAULTS, erCommentColumnWidth, erCommentText } from './layout.ts'
 import { buildAccessibilityAttrs } from '../shared/svg-a11y.ts'
-import { renderMultilineText, escapeAttr, escapeXml as escapeXmlUtil } from '../multiline-utils.ts'
+import { breakLineTags, renderMultilineText, escapeAttr, escapeXml as escapeXmlUtil } from '../multiline-utils.ts'
 import { measureMultilineText } from '../text-metrics.ts'
 import { topRoundedRectPath } from '../svg-paths.ts'
 import type { Geometry, SceneDoc, SceneNode } from '../scene/ir.ts'
@@ -412,8 +412,8 @@ function renderAttribute(
   // Wrap in a group if there's a comment (for tooltip support)
   const hasComment = attr.comment && attr.comment.length > 0
   if (hasComment) {
-    // Replace <br> with newlines for tooltip display
-    const tooltipText = attr.comment!.replace(/<br\s*\/?>/gi, '\n')
+    // Line breaks become newlines for tooltip display
+    const tooltipText = breakLineTags(attr.comment!)
     return [marks.group({
       id: `${attrId}:row`,
       role: 'attribute',

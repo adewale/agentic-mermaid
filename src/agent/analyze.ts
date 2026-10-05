@@ -12,6 +12,7 @@ import type { DiagramActionRecord, DiagramAnalysis, ParseError, Result, ParsedDi
 import { err, ok } from './types.ts'
 import { classifyRoutes } from '../route-contracts.ts'
 import { parseMermaid as parseFlowchartLegacy, splitFlowchartStatements } from '../parser.ts'
+import { scanFlowchart } from '../flowchart-lexer.ts'
 import { stateBodyToGraph } from './state-body.ts'
 import { parseGanttModel, applyGanttFrontmatterConfig } from '../gantt/parser.ts'
 import { resolveGanttSchedule } from '../gantt/schedule.ts'
@@ -234,32 +235,21 @@ function collectSequenceActions(source: string): DiagramActionRecord[] {
 }
 
 /** Keep the statement text outside Mermaid markdown strings while masking
- * their prose. The renderer coalesces an open backtick string across physical
- * lines before parsing; action extraction must use the same lexical boundary
- * or prose such as `click A href ...` becomes a phantom action. */
+ * their prose. The renderer coalesces an open markdown string across physical
+ * lines before parsing; action extraction uses the same lexer
+ * (flowchart-lexer.ts) or prose such as `click A href ...` becomes a phantom
+ * action. */
 function maskMarkdownStringContent(line: string, initiallyOpen: boolean): { text: string; open: boolean } {
-  let open = initiallyOpen
-  let escaped = false
-  let text = ''
-  for (const character of line) {
-    if (escaped) {
-      text += open ? ' ' : character
-      escaped = false
-      continue
-    }
-    if (character === '\\') {
-      text += open ? ' ' : character
-      escaped = true
-      continue
-    }
-    if (character === '`') {
-      text += ' '
-      open = !open
-      continue
-    }
-    text += open ? ' ' : character
+  // A line that continues an open markdown string is lexed as if it opened
+  // one, so the string's end is found by the same rule.
+  const opener = initiallyOpen ? '"`' : ''
+  const scanned = `${opener}${line}`
+  const scan = scanFlowchart(scanned)
+  const characters = scanned.split('')
+  for (const region of scan.regions) {
+    if (region.kind === 'markdown') characters.fill(' ', region.start, region.end)
   }
-  return { text, open }
+  return { text: characters.join('').slice(opener.length), open: scan.openAtEnd.includes('markdown') }
 }
 
 function collectGanttActions(d: ParsedDiagram): DiagramActionRecord[] {

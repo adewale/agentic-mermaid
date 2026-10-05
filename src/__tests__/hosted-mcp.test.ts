@@ -13,7 +13,7 @@ import type { JsonRpcRequest } from '../mcp/protocol.ts'
 import { isLegacyProtocolVersion } from '../mcp/protocol-versions.ts'
 import pkg from '../../package.json'
 import { visualWidth } from '../ascii/width.ts'
-import { verifyNoExternalRefs } from '../index.ts'
+import { renderMermaidASCII, verifyNoExternalRefs } from '../index.ts'
 import { MAX_HOSTED_PNG_BYTES, PNG_WASM_RUNTIME } from '../png-contract.ts'
 
 const FLOW = 'flowchart TD\n  A[Start] --> B{OK?}\n  B -->|yes| C[Done]'
@@ -245,13 +245,15 @@ describe('hosted pure tools', () => {
     }
   })
 
-  test('render_ascii switches between Unicode and ASCII charsets', async () => {
-    const unicode = payloadOf(await handleHostedRequest(call('render_ascii', { source: 'flowchart LR\n  A --> B' }), makeContext()))
+  test('render_ascii returns the library drawing in the Unicode and ASCII charsets', async () => {
+    const source = 'flowchart LR\n  A[Start] --> B{OK?}'
+    const unicode = payloadOf(await handleHostedRequest(call('render_ascii', { source }), makeContext()))
     expect(unicode.ok).toBe(true)
+    expect(unicode.text).toBe(renderMermaidASCII(source, { colorMode: 'none' }))
     expect(unicode.text).toContain('┌')
-    const ascii = payloadOf(await handleHostedRequest(call('render_ascii', { source: 'flowchart LR\n  A --> B', useAscii: true }), makeContext()))
+    const ascii = payloadOf(await handleHostedRequest(call('render_ascii', { source, useAscii: true }), makeContext()))
+    expect(ascii.text).toBe(renderMermaidASCII(source, { useAscii: true, colorMode: 'none' }))
     expect(ascii.text).not.toContain('┌')
-    expect(ascii.text).toContain('+')
   })
 
   test('render_ascii keeps security and font-import policy host-owned', async () => {

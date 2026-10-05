@@ -5,7 +5,7 @@ architecture-beta
   junction bus in app
   service db(database)[Primary DB]
   api:R --> L:db
-  api:B -[async fan-out]-> T:bus
+  api:B -["async fan-out"]-> T:bus
 ---
   +-(cloud) Edge-+
   |-(server) Appl|cation----------------------------+

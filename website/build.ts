@@ -788,6 +788,9 @@ function styleThemeExamples(editorExamples: any[]) {
     return { ...pair, family, example, id: `style-palette-${family.id}` }
   })
 }
+// The Style × Palette cards the Examples pages render, and the list the JSON
+// catalog publishes: one computation for both.
+const STYLE_THEME_COMBOS = styleThemeExamples(EDITOR_EXAMPLES)
 
 function renderStyleThemeSvg(combo: ReturnType<typeof styleThemeExamples>[number]) {
   const request = styleThemeExampleRenderState(combo)
@@ -937,7 +940,7 @@ function examplesDeliveryProjection(): ExamplesDeliveryProjection {
     if (!groups.has(category)) groups.set(category, [])
     groups.get(category)!.push(example)
   }
-  const combos = styleThemeExamples(editorExamples)
+  const combos = STYLE_THEME_COMBOS
   const familySections = Array.from(groups, ([category, examples]) => `
 <section class="example-group" aria-labelledby="${escapeAttr(exampleCategoryId(category))}">
 <h2 id="${escapeAttr(exampleCategoryId(category))}">${escapeHtml(exampleCategoryLabel(category))}</h2>
@@ -2107,6 +2110,20 @@ const examples = {
     ...(sample.palettePeers ? { palettePeers: sample.palettePeers } : {}),
     renderUrl: `/examples/corpus/#${richExampleId(sample)}`,
     editorUrl: editorStateHref(richExampleRenderState(sample).editorState),
+  })),
+  // The per-family Style × Palette cards: the same combinations the
+  // /examples/style-palette/ page renders.
+  stylePaletteExamples: STYLE_THEME_COMBOS.map((combo) => ({
+    id: combo.id,
+    family: combo.family.id,
+    exampleId: combo.example.id,
+    label: `${combo.family.editorDiagramType}: ${displayStyleName(combo.look)} × ${displayStyleName(combo.theme)}`,
+    source: String(combo.example.source ?? '').trim(),
+    style: combo.look,
+    palette: combo.theme,
+    seed: combo.seed,
+    renderUrl: `/examples/style-palette/#${combo.id}`,
+    editorUrl: editorStateHref(styleThemeExampleRenderState(combo).editorState),
   })),
 }
 await emitJson('examples/index.json', examples)

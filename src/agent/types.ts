@@ -272,7 +272,8 @@ export interface ErEntity {
   attributes: ErAttribute[]
   className?: string
   style?: Record<string, string>
-  /** Owning Mermaid 11.16 subgraph, if declared inside one. */
+  /** The subgraph that keeps the entity: the first to close among those whose
+   * own body names it (upstream 11.17's ER subgraphs; src/er/creation.ts). */
   groupId?: string
 }
 

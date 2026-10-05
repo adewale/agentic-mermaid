@@ -9,6 +9,7 @@
 import type { Canvas } from './types.ts'
 import { drawText } from './canvas.ts'
 import { charVisualWidth, visualWidth } from './width.ts'
+import { displayText } from '../multiline-utils.ts'
 
 export { charVisualWidth, visualWidth }
 
@@ -18,6 +19,14 @@ export { charVisualWidth, visualWidth }
  */
 export function splitLines(label: string): string[] {
   return label.split('\n')
+}
+
+/**
+ * A label drawn in a one-row slot (a quadrant region, an axis row, a frame
+ * header): its display text, with each line break shown as a space.
+ */
+export function oneRowDisplayText(label: string): string {
+  return displayText(label).replace(/\n/g, ' ')
 }
 
 /**

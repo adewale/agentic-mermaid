@@ -25,14 +25,19 @@ import type { PositionedGraph } from '../types.ts'
 import { formatBarValue } from '../xychart/axis-utils.ts'
 import type { PositionedXYChart } from '../xychart/types.ts'
 import type { PositionedQuadrantChart } from '../quadrant/types.ts'
+import { ensureAccessibilityLines } from './accessibility-envelope.ts'
+import { architectureUnsupportedSyntaxWarnings } from './architecture-body.ts'
+import { classUnsupportedSyntaxWarnings } from './class-body.ts'
+import { ganttUnsupportedSyntaxWarnings } from './gantt-body.ts'
 import { erUnsupportedSyntaxWarnings } from './er-body.ts'
 import { builtinFamilyMetadata, extractLabelsGeneric, getFamily } from './families.ts'
 import { FamilyLayoutError, ganttGeometryWarnings, ganttScheduleWarning, layoutGeometryWarnings, type ProjectedFamilyArtifact, positionFamilyArtifact } from './family-layouts.ts'
-import { flowchartUnsupportedSyntaxWarnings } from './flowchart-unsupported.ts'
+import { flowchartUnsupportedSyntaxWarnings, flowchartUpstreamRejectedSyntaxWarnings } from './flowchart-unsupported.ts'
 import { labelOverflowWarning } from './label-metrics.ts'
 import { emptyRenderedLayout } from './layout-to-rendered.ts'
 import { parseRegisteredMermaid } from './parse.ts'
-import { sequenceMessages } from './sequence-body.ts'
+import { quadrantUnsupportedSyntaxWarnings } from './quadrant-body.ts'
+import { sequenceMessages, sequenceUnsupportedSyntaxWarnings } from './sequence-body.ts'
 import { authoredLineForCanonical } from './source-map-spans.ts'
 import { serializeMermaid } from './serialize.ts'
 import { stateBodyToGraph } from './state-body.ts'
@@ -48,7 +53,28 @@ function familyConfigShapeWarnings(d: ValidDiagram): LayoutWarning[] {
 
 const KNOWN_SHAPES = new Set(['rectangle', 'service', 'rounded', 'diamond', 'stadium', 'circle', 'subroutine', 'doublecircle', 'hexagon', 'cylinder', 'asymmetric', 'trapezoid', 'trapezoid-alt', 'lean-r', 'lean-l', 'state-start', 'state-end', 'state-fork', 'state-join', 'state-choice', 'state-history'])
 
-function opaqueSourceHasOnlyHeader(kind: ValidDiagram['kind'], source: string): boolean {
+/**
+ * The one bare-header verdict behind EMPTY_DIAGRAM's documented trigger ("a
+ * bare header ... a body containing only comments"). It reads the family's own
+ * body source — the preserved bytes of an opaque body, or the canonical
+ * serialization of a structured one — so every built-in family answers it the
+ * same way, whether or not its body verifier has an emptiness rule of its own.
+ * Universal accessibility metadata is document furniture, not emptiness.
+ */
+function hasOnlyHeader(d: ValidDiagram): boolean {
+  if (d.meta.accessibility.title !== undefined || d.meta.accessibility.descr !== undefined) return false
+  if (d.body.kind === 'opaque') return sourceHasOnlyHeader(d.kind, d.body.source)
+  const serialize = getFamily(d.kind)?.serialize
+  if (!serialize) return false
+  try {
+    return sourceHasOnlyHeader(d.kind, ensureAccessibilityLines(serialize(d.body), d.meta.accessibility))
+  } catch {
+    // A body its own serializer rejects is the round-trip gate's failure.
+    return false
+  }
+}
+
+function sourceHasOnlyHeader(kind: ValidDiagram['kind'], source: string): boolean {
   const statements = source
     .split(/[;\n]/)
     .map(part => part.trim())
@@ -287,6 +313,27 @@ function journeySemicolonExtensionWarnings(d: ValidDiagram): LayoutWarning[] {
   }))
 }
 
+/** Source this repo reads generously where Mermaid 11.16 rejects it: each
+ * family's rule reports UNSUPPORTED_SYNTAX on canonical lines, and verify
+ * names the authored line, as journeySemicolonExtensionWarnings does. */
+const UPSTREAM_REJECTED_SYNTAX: Partial<Record<ValidDiagram['kind'], (canonicalSource: string) => LayoutWarning[]>> = {
+  architecture: architectureUnsupportedSyntaxWarnings,
+  class: classUnsupportedSyntaxWarnings,
+  er: erUnsupportedSyntaxWarnings,
+  flowchart: flowchartUpstreamRejectedSyntaxWarnings,
+  gantt: ganttUnsupportedSyntaxWarnings,
+  quadrant: quadrantUnsupportedSyntaxWarnings,
+  sequence: sequenceUnsupportedSyntaxWarnings,
+}
+
+function upstreamRejectedSyntaxWarnings(d: ValidDiagram): LayoutWarning[] {
+  const rule = UPSTREAM_REJECTED_SYNTAX[d.kind]
+  if (!rule) return []
+  return rule(d.canonicalSource).map(warning => warning.code === 'UNSUPPORTED_SYNTAX' && warning.line !== undefined
+    ? { ...warning, line: authoredLineForCanonical(d.source, warning.line) }
+    : warning)
+}
+
 /** Preserve Mermaid-authored Radar paint exactly and diagnose measurable
  * contrast after request resolution. This consumes the same frozen visual
  * config and background as rendering, so verification never guesses from raw
@@ -406,10 +453,12 @@ function verifyStructure(parsed: ParsedDiagram, opts: VerifyOptions, positioned:
   }
 
   const d = parsed as ValidDiagram
-  const sourceWarnings = d.kind === 'flowchart' ? dedupedConcat(flowchartUnsupportedSyntaxWarnings(d.canonicalSource), flowchartShapeSubstitutionWarnings(d)) : d.kind === 'er' ? erUnsupportedSyntaxWarnings(d.canonicalSource) : d.kind === 'quadrant' ? quadrantInertStyleWarnings(d) : d.kind === 'journey' ? journeySemicolonExtensionWarnings(d) : []
+  const familySourceWarnings = d.kind === 'flowchart' ? dedupedConcat(flowchartUnsupportedSyntaxWarnings(d.canonicalSource), flowchartShapeSubstitutionWarnings(d)) : d.kind === 'quadrant' ? quadrantInertStyleWarnings(d) : d.kind === 'journey' ? journeySemicolonExtensionWarnings(d) : []
+  const sourceWarnings = dedupedConcat(familySourceWarnings, upstreamRejectedSyntaxWarnings(d))
   const faithfulnessWarnings = roundtripFaithfulnessWarnings(d)
   const configWarnings = configWarningsForDiagram(d)
-  let pluginWarnings = dedupedConcat(dedupedConcat(dedupedConcat(dedupedConcat(metaWarnings, dispatchedWarnings), sourceWarnings), faithfulnessWarnings), configWarnings)
+  const bareHeader = hasOnlyHeader(d)
+  let pluginWarnings = dedupedConcat(dedupedConcat(dedupedConcat(dedupedConcat(dedupedConcat(metaWarnings, dispatchedWarnings), sourceWarnings), faithfulnessWarnings), configWarnings), bareHeader ? [{ code: 'EMPTY_DIAGRAM' }] : [])
   // Mermaid treats universal accessibility metadata as renderable document
   // furniture. A classDiagram containing only accTitle/accDescr therefore is
   // not an empty source even though its structural layout has zero classes.
@@ -486,7 +535,7 @@ function verifyStructure(parsed: ParsedDiagram, opts: VerifyOptions, positioned:
   }
 
   if (d.body.kind === 'opaque') {
-    const isEmpty = opaqueSourceHasOnlyHeader(d.kind, d.body.source)
+    const isEmpty = bareHeader
     // Universal Tier 1 LABEL_OVERFLOW via family-specific (or generic) label
     // extraction. Closes the gap where opaque-body diagrams (class / ER /
     // journey / xychart / architecture / sequence-with-alt/etc.) never got
@@ -626,6 +675,34 @@ function verifyGraph(graph: import('../types.ts').MermaidGraph, d: ValidDiagram,
     const w = edge.label ? labelOverflowWarning(`${edge.source}->${edge.target}`, edge.label, cap, 'plain') : null
     if (w) warnings.push(w)
   }
+  // Tier 1 + Tier 2 — box and polyline geometry.
+  warnings.push(...graphGeometryWarnings(positioned, graph))
+
+  // Route-contract tripwires over FINAL geometry: the layout pipeline already
+  // upholds these invariants itself (straight clear lanes, border-anchored
+  // containers, on-shape endpoints, labels on their own lines), so any hit
+  // here means some pass mutated geometry after route certification.
+  // See docs/design/system/route-contracts.md.
+  for (const hitch of findRouteHitches(positioned, graph)) {
+    warnings.push({ code: 'ROUTE_HITCH', edge: hitch.edge, deviationPx: hitch.deviationPx })
+  }
+  warnings.push(...auditRouteContracts(positioned, graph))
+
+  // Tier 3 — advisory lint for common agent mistakes that still parse/render.
+  warnings.push(...lintFlowchartGraph(graph))
+
+  return { warnings, layout }
+}
+
+/**
+ * The box and polyline checks verifyGraph runs over a flowchart or state
+ * layout: Tier 1 OFF_CANVAS (per axis) and GROUP_BREACH, then Tier 2
+ * NODE_OVERLAP and ROUTE_SELF_CROSS. Pure over its inputs, so a test can hand
+ * it a doctored layout (like ganttGeometryWarnings); ELK never produces one
+ * that trips these.
+ */
+export function graphGeometryWarnings(positioned: PositionedGraph, graph: import('../types.ts').MermaidGraph): LayoutWarning[] {
+  const warnings: LayoutWarning[] = []
   for (const n of positioned.nodes) {
     // Report x and y independently so a node off-canvas on both axes surfaces
     // both, instead of masking the second behind an else-if.
@@ -659,20 +736,7 @@ function verifyGraph(graph: import('../types.ts').MermaidGraph, d: ValidDiagram,
     const c = countSelfCrossings(e.points)
     if (c > 0) warnings.push({ code: 'ROUTE_SELF_CROSS', edge: `${e.source}->${e.target}`, count: c })
   }
-  // Route-contract tripwires over FINAL geometry: the layout pipeline already
-  // upholds these invariants itself (straight clear lanes, border-anchored
-  // containers, on-shape endpoints, labels on their own lines), so any hit
-  // here means some pass mutated geometry after route certification.
-  // See docs/design/system/route-contracts.md.
-  for (const hitch of findRouteHitches(positioned, graph)) {
-    warnings.push({ code: 'ROUTE_HITCH', edge: hitch.edge, deviationPx: hitch.deviationPx })
-  }
-  warnings.push(...auditRouteContracts(positioned, graph))
-
-  // Tier 3 — advisory lint for common agent mistakes that still parse/render.
-  warnings.push(...lintFlowchartGraph(graph))
-
-  return { warnings, layout }
+  return warnings
 }
 
 function dedupedConcat(a: LayoutWarning[], b: LayoutWarning[]): LayoutWarning[] {
@@ -823,8 +887,9 @@ function verifyTimeline(d: ValidDiagram & { body: import('./types.ts').TimelineB
   // renders as header/section furniture. Only a timeline with NOTHING is empty.
   const hasContent = body.sections.length > 0 || body.title !== undefined || body.accessibilityTitle !== undefined || body.accessibilityDescription !== undefined
   if (!hasContent) return finalize([{ code: 'EMPTY_DIAGRAM' }], layout, opts)
+  // Timeline draws its text as written (an exact `<br>` is already a newline).
   const overflow = (target: string, text: string | undefined) => {
-    const w = text !== undefined ? labelOverflowWarning(target, text, cap) : null
+    const w = text !== undefined ? labelOverflowWarning(target, text, cap, 'literal') : null
     if (w) warnings.push(w)
   }
   overflow('title', body.title)

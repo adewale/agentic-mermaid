@@ -13,11 +13,12 @@ import { renderMermaidSVG } from '../index.ts'
 const PROPERTY_RUNS = 100
 
 // Label pieces that exercise XML escaping without tripping Mermaid syntax:
-// `&`, `<`, `>`, `'`, an already-escaped entity, and non-ASCII. `<`/`>` stay
-// space-separated so they never form a tag-like `<word>` (see the pinned
-// BUG below), and `#` is left out because Sequence reads `#…#` as an entity
-// boundary (a diagnosed limitation, not an escaping question).
-const LABEL_PIECES = ['a', 'Zed', '&', ' < ', ' > ', "'", 'ü', '😀', '&amp;', '&lt;', '42']
+// `&`, `<`, `>`, `'`, an already-escaped entity, and non-ASCII. Bare `<` and
+// `>` join neighbouring pieces into tag-like text (`a<c>d`), and the tag
+// pieces add formatting tags, unknown tags and line breaks; which of them a
+// family draws as styling or as text must not decide whether it renders.
+// A `#` can start a comment (Sequence), leaving an empty label.
+const LABEL_PIECES = ['a', 'Zed', '&', ' < ', ' > ', '<', '>', "'", 'ü', '😀', '&amp;', '&lt;', '42', 'c', '<b>', '</b>', '<c>', '<br/>', '#']
 
 const labelArb = fc
   .array(fc.constantFrom(...LABEL_PIECES), { minLength: 1, maxLength: 6 })
@@ -43,14 +44,23 @@ const FAMILY_SOURCES: ReadonlyArray<readonly [string, (label: string) => string]
   ['er', label => `erDiagram\n  CUSTOMER ||--o{ ORDER : "${label}"`],
   ['timeline', label => `timeline\n  title ${label}\n  2024 : ${label}`],
   ['journey', label => `journey\n  title ${label}\n  section ${label}\n  ${label}: 5: me`],
-  ['architecture', label => `architecture-beta\n  service api(server)[${label}]`],
+  // Mermaid reads architecture titles other than words and spaces only quoted.
+  ['architecture', label => `architecture-beta\n  service api(server)["${label}"]`],
   ['xychart', label => `xychart\n  title "${label}"\n  x-axis ["${label}", "b"]\n  bar [1, 2]`],
 ]
 
+// Known product bug (found by this generator, reported with the BUG-41 fix):
+// Journey rejects a title, section or task that is only a line break
+// ("Invalid user journey line"), where upstream draws the text `<br/>`. The
+// Journey property skips that one label shape; the pin below fails until the
+// parser accepts it.
+const onlyLineBreaks = (label: string): boolean => label.replace(/<br\/>/g, '').trim() === ''
+
 describe('SVG is well-formed XML for labels full of XML metacharacters', () => {
-  it.each(FAMILY_SOURCES)('%s', (_family, sourceFor) => {
+  it.each(FAMILY_SOURCES)('%s', (family, sourceFor) => {
     fc.assert(
       fc.property(labelArb, label => {
+        fc.pre(family !== 'journey' || !onlyLineBreaks(label))
         const source = sourceFor(label)
         expectWellFormedXml(renderMermaidSVG(source), source)
       }),
@@ -58,13 +68,13 @@ describe('SVG is well-formed XML for labels full of XML metacharacters', () => {
     )
   })
 
-  // Known product bug BUG-41 (TODO.md): an unknown inline tag between
-  // label text (`a<c>d`, `x<y>z`) makes SVG rendering throw "Scene validation
-  // failed: text … not found in crisp" (CLI: RENDER_FAILED) instead of
-  // rendering; ASCII renders it literally. When fixed, this starts passing:
-  // drop `.failing` and let the generator emit tag-like sequences.
-  it.failing('flowchart: a label with an unknown inline tag renders well-formed XML', () => {
+  it('flowchart: a label with an unknown inline tag renders well-formed XML', () => {
     const source = 'graph TD\n  A[a<c>d] --> B'
+    expectWellFormedXml(renderMermaidSVG(source), source)
+  })
+
+  it.failing('journey: a label that is only a line break renders well-formed XML', () => {
+    const source = 'journey\n  title t\n  section <br/>\n  task: 5: me'
     expectWellFormedXml(renderMermaidSVG(source), source)
   })
 })

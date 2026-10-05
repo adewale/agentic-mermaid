@@ -95,7 +95,6 @@ describe('pie parser — sad paths error loudly', () => {
     { name: 'non-numeric value', src: 'pie\n  "A" : five', match: /invalid value/i },
     { name: 'missing colon', src: 'pie\n  "A" 5', match: /Unrecognized pie chart line/i },
     { name: 'unquoted label', src: 'pie\n  A : 5', match: /Invalid pie entry/i },
-    { name: 'no entries', src: 'pie', match: /at least one/i },
     { name: 'wrong header', src: 'notpie\n  "A" : 5', match: /must start with "pie"/i },
   ]
 
@@ -108,6 +107,10 @@ describe('pie parser — sad paths error loudly', () => {
   it('a malformed entry in the middle is not silently dropped', () => {
     // The bad middle line must abort the whole parse, not yield 2 good slices.
     expect(() => parse('pie\n  "A" : 1\n  "B" : -2\n  "C" : 3')).toThrow(/non-negative numbers/i)
+  })
+
+  it('a bare header is the empty chart Mermaid 11.16 accepts, not an error', () => {
+    expect(parse('pie title Pets').entries).toEqual([])
   })
 
   it('a zero-value slice is legal (upstream parity): zero-width wedge, label kept', () => {

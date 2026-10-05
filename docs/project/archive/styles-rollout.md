@@ -177,7 +177,8 @@ byte-identical, corpus-gated):
   palette-only styles.
 - **Runtime dependencies**: `roughjs@4.6.6` and `perfect-freehand@1.2.3`,
   pinned exactly — seeded geometry must not shift under a bump; a bump is a
-  golden-fixture change (`[approve-goldens]`). They are `dependencies`
+  golden-fixture change (list each changed golden and why in the PR description).
+  They are `dependencies`
   because the `bun` export condition resolves raw `src/*.ts`; the Node dist
   bundles them (~80 KB minified). A `agentic-mermaid/styles` subpath split
   is the escape hatch if crisp-only weight ever matters.

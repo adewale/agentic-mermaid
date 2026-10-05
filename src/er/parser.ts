@@ -1,51 +1,70 @@
 import type { ErDiagram, ErEntity, ErAttribute, ErRelationship, Cardinality } from './types.ts'
+import type { Direction } from '../types.ts'
 import { normalizeBrTags } from '../multiline-utils.ts'
 import { requireClosedAccessibility, scanAccessibilityDirectives } from '../shared/accessibility-directives.ts'
 import { parseDirectionStatement } from '../shared/direction-statement.ts'
 import { parseStyleProps } from '../shared/style-props.ts'
+import { stripTrailingComment, trailingCommentStart } from '../shared/trailing-comment.ts'
+import { createErCreationFold, type ErPlacement } from './creation.ts'
+import { decodeErText, erDisplayText, type ErQuotedTextReport, readErQuotedName, readErRelationLabel } from './text.ts'
 
 // Mermaid ER accepts ordinary names, numeric/decimal names, and fully quoted
 // names (e.g. `1`, `2.5`, `"Entity<br>Name"`). Keep this grammar in one
 // place so declarations, blocks, relationships, and the agent body agree.
-const ER_BARE_ENTITY_ID_SOURCE = String.raw`[A-Za-z0-9_][\w.-]*`
-const ER_QUOTED_ENTITY_ID_SOURCE = String.raw`"(?:\\.|[^"\\])+"`
-const ER_ENTITY_ID_SOURCE = `(?:${ER_QUOTED_ENTITY_ID_SOURCE}|${ER_BARE_ENTITY_ID_SOURCE})`
+// A bare name ends where the lexer's word ends: `id1||--||id2` is two names.
+const ER_BARE_ENTITY_ID_SOURCE = String.raw`[A-Za-z0-9_][\w.-]*(?![\w.-])`
+// A quoted name as the lexer hands it over. A `\"` stays inside the token, and
+// readErQuotedName reads it as `"` (Mermaid ER quoted text has no escapes).
+const ER_QUOTED_NAME_SOURCE = String.raw`"(?:\\.|[^"\\])*"`
+const ER_QUOTED_NAME_RE = new RegExp(`^${ER_QUOTED_NAME_SOURCE}$`)
+const ER_ENTITY_ID_SOURCE = `(?:${ER_QUOTED_NAME_SOURCE}|${ER_BARE_ENTITY_ID_SOURCE})`
 const ER_ENTITY_ID_RE = new RegExp(`^${ER_BARE_ENTITY_ID_SOURCE}$`)
-const ER_ENTITY_REFERENCE_SOURCE = `${ER_ENTITY_ID_SOURCE}(?:\\[\\s*(?:"(?:\\\\.|[^"\\\\])*"|[^\\]"\\r\\n]+)\\s*\\])?(?::::[\\w-]+(?:,[\\w-]+)*)?`
+const ER_ENTITY_REFERENCE_SOURCE = String.raw`${ER_ENTITY_ID_SOURCE}(?:\[\s*(?:${ER_QUOTED_NAME_SOURCE}|[^\]"\r\n]+)\s*\])?(?::::[\w-]+(?:,[\w-]+)*)?`
+// The same reference with its id, quoted alias, bare alias and classes captured.
+const ER_ENTITY_REFERENCE_RE = new RegExp(String.raw`^(${ER_ENTITY_ID_SOURCE})(?:\[\s*(?:(${ER_QUOTED_NAME_SOURCE})|([^\]"\r\n]+))\s*\])?(?::::([\w-]+(?:,[\w-]+)*))?$`)
 // Mermaid 11.16.0 accepts word/numeric aliases for the same four crow's-foot
 // cardinalities. This is the single lexer vocabulary for renderer and agent.
 // Keep the glyph-candidate fallback so malformed crow's-foot tokens still reach
 // parseErCardinality and raise the existing fail-loud error.
 const ER_CARDINALITY_SOURCE = String.raw`(?:one or zero|zero or one|one or more|one or many|zero or more|zero or many|only one|many\(0\)|many\(1\)|1\+|0\+|many|one|1|[|o}{]+)`
+// A crow's-foot token needs no space to part it from a name (`id1||--||id2`);
+// a word or numeric alias does.
+const ER_GLYPH_SOURCE = String.raw`(?:\|\||\|o|o\||\}o|o\{|\}\||\|\{)`
 const ER_RELATIONSHIP_RE = new RegExp(
-  `^(${ER_ENTITY_REFERENCE_SOURCE})[ \\t]+(${ER_CARDINALITY_SOURCE})(?:([ \\t]*(?:--|\\.\\.)[ \\t]*)|([ \\t]+(?:optionally to|to)[ \\t]+))(${ER_CARDINALITY_SOURCE})[ \\t]+(${ER_ENTITY_REFERENCE_SOURCE})(?:[ \\t]*:[ \\t]*(.*))?$`,
+  `^(${ER_ENTITY_REFERENCE_SOURCE})(?:[ \\t]+(${ER_CARDINALITY_SOURCE})|(${ER_GLYPH_SOURCE}))` +
+  `(?:([ \\t]*(?:--|\\.\\.|\\.-|-\\.)[ \\t]*)|([ \\t]+(?:optionally to|to)[ \\t]+))` +
+  `(?:(${ER_CARDINALITY_SOURCE})[ \\t]+|(${ER_GLYPH_SOURCE}))(${ER_ENTITY_REFERENCE_SOURCE})(?:[ \\t]*:[ \\t]*(.*))?$`,
   'i',
 )
 
 export interface ParsedErEntityReference {
+  /** The entity's identity: a bare name, or a quoted name as written. */
   id: string
-  label?: string
+  /** The alias as written (`ID["Alias"]`, `ID[Alias]`), quotes removed. */
+  alias?: string
   /** Mermaid `:::class1,class2` styling in source order, space-separated. */
   className?: string
 }
 
-/** Shared renderer/agent grammar for bare and aliased ER entity references. */
-export function parseErEntityReference(value: string): ParsedErEntityReference | null {
-  const regex = new RegExp(`^(${ER_ENTITY_ID_SOURCE})(?:\\[\\s*(?:"((?:\\\\.|[^"\\\\])*)"|([^\\]"\\r\\n]+))\\s*\\])?(?::::([\\w-]+(?:,[\\w-]+)*))?$`)
-  const match = value.trim().match(regex)
+/** Shared renderer/agent grammar for bare and aliased ER entity references.
+ * `report` hears quoted text Mermaid rejects (src/er/text.ts). */
+export function parseErEntityReference(value: string, report?: ErQuotedTextReport): ParsedErEntityReference | null {
+  const match = value.trim().match(ER_ENTITY_REFERENCE_RE)
   if (!match) return null
-  const quotedId = match[1]!.startsWith('"')
-  const id = quotedId
-    ? match[1]!.slice(1, -1).replace(/\\(["\\])/g, '$1')
-    : match[1]!
-  const alias = (match[2] ?? match[3]?.trim())?.replace(/\\(["\\])/g, '$1')
+  const id = match[1]!.startsWith('"') ? readErQuotedName(match[1]!, 'ER entity name', report) : match[1]!
+  const alias = match[2] !== undefined ? readErQuotedName(match[2], 'ER entity alias', report) : match[3]?.trim()
   return {
     id,
-    ...(alias !== undefined
-      ? { label: formatErMarkdown(alias) }
-      : quotedId ? { label: formatErMarkdown(id) } : {}),
+    ...(alias !== undefined ? { alias } : {}),
     ...(match[4] ? { className: match[4].replaceAll(',', ' ') } : {}),
   }
+}
+
+/** The text the renderer draws for an entity: its alias, else its name. A
+ * quoted name is text (`"Entity<br>Name"`); a bare name is drawn as written. */
+function erEntityDisplayText(id: string, alias: string | undefined): string {
+  if (alias !== undefined) return erDisplayText(alias)
+  return ER_ENTITY_ID_RE.test(id) ? id : erDisplayText(id)
 }
 
 /** Shared renderer/agent grammar for a plain ER entity identifier. */
@@ -55,7 +74,7 @@ export function parseErEntityId(value: string): string | null {
 }
 
 /** Mermaid's `class id,id name,name` lists share one bounded lexer on both paths. */
-export function parseErClassAssignment(line: string): { ids: string[]; classNames: string[] } | null {
+export function parseErClassAssignment(line: string, report?: ErQuotedTextReport): { ids: string[]; classNames: string[] } | null {
   const prefix = /^class[ \t]+/i.exec(line)
   if (!prefix) return null
   const content = line.slice(prefix[0].length).trimEnd()
@@ -76,7 +95,7 @@ export function parseErClassAssignment(line: string): { ids: string[]; className
       continue
     }
     if (cursor === afterName || cursor === 0) return null
-    const refs = content.slice(0, cursor).split(',').map(value => parseErEntityReference(value.trim()))
+    const refs = content.slice(0, cursor).split(',').map(value => parseErEntityReference(value.trim(), report))
     if (refs.length === 0 || refs.some(value => value === null)) return null
     return { ids: refs.map(value => value!.id), classNames: reversedNames.reverse() }
   }
@@ -114,26 +133,161 @@ export function recordErClassNames(byEntity: Map<string, string[]>, id: string, 
 //   ..  non-identifying (dashed line)
 // ============================================================================
 
+const ER_GROUP_HEADER_RE = new RegExp(String.raw`^subgraph\s+(${ER_QUOTED_NAME_SOURCE}|\S+?)(?:\s*\[([^\]]+)\])?$`, 'i')
+
+/** A subgraph header: its id as written, and its bracketed title as written. */
+export function parseErGroupHeader(line: string, report?: ErQuotedTextReport): { id: string; title?: string } | null {
+  const explicit = line.match(ER_GROUP_HEADER_RE)
+  if (!explicit) return null
+  const id = explicit[1]!.startsWith('"') ? readErQuotedName(explicit[1]!, 'ER subgraph id', report) : explicit[1]!
+  const title = explicit[2]?.trim()
+  if (!title) return { id }
+  return { id, title: ER_QUOTED_NAME_RE.test(title) ? readErQuotedName(title, 'ER subgraph title', report) : title }
+}
+
+/** A `direction` statement. Upstream's lexer reads it to the end of its
+ * line, so a `%%` after it is not a comment but part of the statement. */
+export function readErDirection(line: string): Direction | undefined {
+  return parseDirectionStatement(stripTrailingComment(line))
+}
+
+/**
+ * Whether one ER body line carries a trailing `%%` comment. Mermaid ER has
+ * none: after any statement but a `direction`, `%%` is a syntax error
+ * upstream. Both parsers read it as a comment (stripTrailingComment) and
+ * verify reports it. (A whole-line `%%` comment is removed before the grammar
+ * runs, and `%%` inside a quoted relation label is text.)
+ */
+export function hasErTrailingComment(line: string): boolean {
+  return trailingCommentStart(line) >= 0 && readErDirection(line) === undefined
+}
+
+/** One ER body statement outside an attribute block, as both the renderer
+ * and the typed body read it. */
+export type ErStatementLine =
+  | { kind: 'direction'; direction: Direction }
+  | { kind: 'group-open'; id: string; title?: string }
+  | { kind: 'end' }
+  | { kind: 'class-def'; names: string[]; props: Record<string, string> }
+  | { kind: 'class'; ids: string[]; classNames: string[] }
+  | { kind: 'style'; ids: string[]; props: Record<string, string> }
+  | { kind: 'block-open'; reference: ParsedErEntityReference }
+  | { kind: 'relation'; relation: ParsedErRelationshipSyntax }
+  | { kind: 'entity'; reference: ParsedErEntityReference }
+
+/**
+ * Read one body line outside an attribute block, without its trailing `%%`
+ * comment: the statement it is, or null when it is none. Throws a syntax
+ * error for one ours cannot read. `end` closes a subgraph only while one is
+ * open; otherwise it names an entity. `report` hears quoted text Mermaid
+ * rejects (src/er/text.ts).
+ */
+export function readErStatement(source: string, inGroup: boolean, report?: ErQuotedTextReport): ErStatementLine | null {
+  const direction = readErDirection(source)
+  if (direction) return { kind: 'direction', direction }
+  const line = stripTrailingComment(source)
+
+  // --- ER subgraphs: identity, nesting and scoped direction. ---
+  const groupHeader = parseErGroupHeader(line, report)
+  if (groupHeader) return { kind: 'group-open', ...groupHeader }
+  if (line === 'end' && inGroup) return { kind: 'end' }
+
+  // --- Entity paint directives (upstream ER grammar) ---
+  const classDef = line.match(/^classDef\s+([\w,-]+)\s+(.+)$/i)
+  if (classDef) {
+    return { kind: 'class-def', names: classDef[1]!.split(',').map(value => value.trim()).filter(Boolean), props: parseStyleProps(classDef[2]!) }
+  }
+  const classAssignment = parseErClassAssignment(line, report)
+  if (classAssignment) return { kind: 'class', ...classAssignment }
+  if (/^class(?:[ \t]|$)/i.test(line)) throw new Error(`Invalid ER class assignment: ${line}`)
+  const inlineStyle = line.match(/^style\s+(.+?)\s+(.+)$/i)
+  if (inlineStyle) {
+    const references = inlineStyle[1]!.split(',').map(value => parseErEntityReference(value.trim(), report))
+    if (references.some(reference => reference === null)) throw new Error(`Invalid ER style assignment: ${line}`)
+    const ids = references.map(reference => reference!.id)
+    return { kind: 'style', ids, props: parseStyleProps(inlineStyle[2]!) }
+  }
+
+  // --- Entity block start: `ENTITY_NAME {` ---
+  const block = line.match(ER_BLOCK_OPEN_RE)
+  const blockReference = block ? parseErEntityReference(block[1]!, report) : null
+  if (blockReference) return { kind: 'block-open', reference: blockReference }
+
+  // --- Relationship: `ENTITY1 cardinality1--cardinality2 ENTITY2 : label` ---
+  const relation = parseErRelationshipSyntax(line, report)
+  if (relation) return { kind: 'relation', relation }
+
+  // A bare or aliased declaration, as the typed serializer writes one.
+  const reference = parseErEntityReference(line, report)
+  return reference ? { kind: 'entity', reference } : null
+}
+
+const ER_BLOCK_OPEN_RE = new RegExp(`^(${ER_ENTITY_REFERENCE_SOURCE})\\s*\\{$`)
+
+export interface ErSourceStatement {
+  raw: string
+  /** Zero-based line in the supplied grammar view. */
+  line: number
+  column: number
+  endColumn: number
+  groupId?: string
+  entityId?: string
+  relationEntityIds?: string[]
+  syntax: ErStatementLine
+    | { kind: 'attribute'; attribute: ErAttribute; text: string }
+    | { kind: 'block-close' }
+    | { kind: 'unknown' | 'comment' | 'blank' }
+}
+
+/** The lossless ER grammar view. Scope and creation are decided here, before
+ * either consumer projects statements into its own model. */
+export function readErStatements(lines: readonly string[], report?: (what: string, portable: string, line: number) => void): { statements: ErSourceStatement[]; placement: ErPlacement } {
+  const statements: ErSourceStatement[] = []
+  const fold = createErCreationFold()
+  let entityId: string | undefined
+  for (let line = 0; line < lines.length; line++) {
+    const raw = lines[line]!
+    const text = raw.trim()
+    const context = { raw, line, column: 0, endColumn: raw.length, ...(fold.innermost !== undefined ? { groupId: fold.innermost } : {}), ...(entityId !== undefined ? { entityId } : {}) }
+    if (!text || text.startsWith('%%')) {
+      statements.push({ ...context, syntax: { kind: text ? 'comment' : 'blank' } })
+      continue
+    }
+    if (entityId !== undefined) {
+      const attributeText = stripTrailingComment(text)
+      if (attributeText === '}') {
+        statements.push({ ...context, syntax: { kind: 'block-close' } })
+        entityId = undefined
+      } else {
+        const attribute = parseErAttribute(attributeText)
+        statements.push({ ...context, syntax: attribute ? { kind: 'attribute', attribute, text: attributeText } : { kind: 'unknown' } })
+      }
+      continue
+    }
+    const syntax = readErStatement(text, fold.innermost !== undefined,
+      report ? (what, portable) => report(what, portable, line) : undefined) ?? { kind: 'unknown' as const }
+    const entry: ErSourceStatement = { ...context, syntax }
+    statements.push(entry)
+    switch (syntax.kind) {
+      case 'group-open': fold.open(syntax.id); break
+      case 'end': fold.close(); break
+      case 'block-open': entityId = syntax.reference.id; fold.declare(entityId, syntax.reference.alias); break
+      case 'entity': fold.declare(syntax.reference.id, syntax.reference.alias); break
+      case 'relation':
+        entry.relationEntityIds = [syntax.relation.entity1, syntax.relation.entity2]
+          .filter(end => fold.relationEnd(end.id, end.alias)).map(end => end.id)
+        break
+      case 'style': for (const id of syntax.ids) fold.style(id); break
+    }
+  }
+  if (entityId !== undefined) throw new Error(`ER_UNCLOSED_ENTITY: entity '${entityId}' needs a closing }`)
+  return { statements, placement: fold.finish() }
+}
+
 /**
  * Parse a Mermaid ER diagram.
  * Expects the first line to be "erDiagram".
  */
-function formatErMarkdown(value: string): string {
-  return normalizeBrTags(value)
-    .replace(/\*\*([\s\S]+?)\*\*/g, '<b>$1</b>')
-    .replace(/_([^_\n]+)_/g, '<i>$1</i>')
-    .replace(/(?<!\*)\*([^*\n]+)\*(?!\*)/g, '<i>$1</i>')
-}
-
-export function parseErGroupHeader(line: string): { id: string; label: string } | null {
-  const explicit = line.match(/^subgraph\s+("(?:\\.|[^"])+"|\S+?)(?:\s*\[([^\]]+)\])?$/i)
-  if (!explicit) return null
-  const rawId = explicit[1]!
-  const quoted = rawId.startsWith('"')
-  const id = quoted ? rawId.slice(1, -1).replace(/\\(["\\])/g, '$1') : rawId
-  return { id, label: formatErMarkdown(explicit[2]?.trim() || id) }
-}
-
 export function parseErDiagram(lines: string[]): ErDiagram {
   const accessibility = scanAccessibilityDirectives(lines)
   requireClosedAccessibility(accessibility)
@@ -151,143 +305,107 @@ export function parseErDiagram(lines: string[]): ErDiagram {
       : {}),
   }
 
-  // Track entities by ID for deduplication
+  // Which statement creates each entity, and which subgraph keeps it.
+  const source = readErStatements(lines.slice(1))
+  // Entity records by id; their order and subgraphs come from the fold.
   const entityMap = new Map<string, ErEntity>()
   // Keep repeated assignments linear; materialize the public string once.
   const classNamesByEntity = new Map<string, string[]>()
-  const ensureStyledEntity = (id: string, label?: string, className?: string, groupId?: string): ErEntity => {
-    const entity = ensureEntity(entityMap, id, label, groupId)
+  const ensureStyledEntity = (id: string, className?: string): ErEntity => {
+    const entity = ensureEntity(entityMap, id)
     if (className) recordErClassNames(classNamesByEntity, id, className.split(' '))
     return entity
   }
-  // Track entity body parsing and typed nested subgraph ownership.
-  let currentEntity: ErEntity | null = null
-  const groupStack: string[] = []
-  const groupById = new Map<string, ErDiagram['groups'][number]>()
-  const currentGroup = () => groupStack.at(-1)
-
-  for (let i = 1; i < lines.length; i++) {
-    const line = lines[i]!
-
-    // --- Inside entity body ---
-    if (currentEntity) {
-      if (line === '}') {
-        currentEntity = null
-        continue
+  const declare = (reference: ParsedErEntityReference): ErEntity => {
+    return ensureStyledEntity(reference.id, reference.className)
+  }
+  // Subgraph labels and scoped directions; nesting and members come from the fold.
+  const groupById = new Map<string, Omit<ErDiagram['groups'][number], 'entityIds'>>()
+  for (const entry of source.statements) {
+    const statement = entry.syntax
+    switch (statement.kind) {
+      case 'unknown':
+        throw new Error(`ER_UNSUPPORTED_STATEMENT: line ${entry.line + 2}: ${entry.raw.trim()}`)
+      case 'attribute':
+        entityMap.get(entry.entityId!)!.attributes.push(statement.attribute)
+        break
+      case 'direction': {
+        const group = entry.groupId !== undefined ? groupById.get(entry.groupId) : undefined
+        if (group) group.direction = statement.direction
+        else diagram.direction = statement.direction
+        break
       }
-
-      // Attribute line: type name [PK|FK|UK] ["comment"]
-      const attr = parseErAttribute(line)
-      if (attr) {
-        currentEntity.attributes.push(attr)
+      case 'group-open':
+        groupById.set(statement.id, { id: statement.id, label: erDisplayText(statement.title ?? statement.id) })
+        break
+      case 'end':
+        break
+      case 'class-def':
+        for (const name of statement.names) diagram.classDefs.set(name, { ...statement.props })
+        break
+      case 'class':
+        for (const id of statement.ids) {
+          // Mermaid only applies `class` to entities that already exist.
+          if (entityMap.has(id)) recordErClassNames(classNamesByEntity, id, statement.classNames)
+        }
+        break
+      case 'style':
+        for (const id of statement.ids) {
+          const entity = ensureEntity(entityMap, id)
+          entity.inlineStyle = { ...entity.inlineStyle, ...statement.props }
+        }
+        break
+      case 'block-open':
+        declare(statement.reference)
+        break
+      case 'relation': {
+        diagram.relationships.push(relationshipFrom(statement.relation, entry.raw))
+        // Group endpoints retain group identity instead of minting phantom entities.
+        for (const end of [statement.relation.entity1, statement.relation.entity2]) {
+          if (entry.relationEntityIds!.includes(end.id)) ensureStyledEntity(end.id, end.className)
+        }
+        break
       }
-      continue
-    }
-
-    // --- Mermaid 11.16 ER subgraphs: identity, nesting and scoped direction. ---
-    const groupHeader = parseErGroupHeader(line)
-    if (groupHeader) {
-      if (groupById.has(groupHeader.id)) throw new Error(`Duplicate ER subgraph id '${groupHeader.id}'`)
-      const group = { ...groupHeader, ...(currentGroup() ? { parentId: currentGroup() } : {}), entityIds: [] }
-      groupById.set(group.id, group)
-      diagram.groups.push(group)
-      groupStack.push(group.id)
-      continue
-    }
-    if (line === 'end' && groupStack.length > 0) {
-      groupStack.pop()
-      continue
-    }
-
-    const direction = parseDirectionStatement(line)
-    if (direction) {
-      const group = currentGroup() ? groupById.get(currentGroup()!) : undefined
-      if (group) group.direction = direction
-      else diagram.direction = direction
-      continue
-    }
-
-    // --- Entity paint directives (upstream ER grammar) ---
-    const classDef = line.match(/^classDef\s+([\w,-]+)\s+(.+)$/i)
-    if (classDef) {
-      const props = parseStyleProps(classDef[2]!)
-      for (const name of classDef[1]!.split(',').map(value => value.trim()).filter(Boolean)) diagram.classDefs.set(name, { ...props })
-      continue
-    }
-    const classAssignment = parseErClassAssignment(line)
-    if (classAssignment) {
-      for (const id of classAssignment.ids) {
-        // Mermaid only applies `class` to entities that already exist.
-        if (entityMap.has(id)) recordErClassNames(classNamesByEntity, id, classAssignment.classNames)
-      }
-      continue
-    }
-    if (/^class(?:[ \t]|$)/i.test(line)) throw new Error(`Invalid ER class assignment: ${line}`)
-    const inlineStyle = line.match(/^style\s+(.+?)\s+(.+)$/i)
-    if (inlineStyle) {
-      const ids = inlineStyle[1]!.split(',').map(value => parseErEntityReference(value.trim())?.id).filter((value): value is string => value !== undefined)
-      const props = parseStyleProps(inlineStyle[2]!)
-      for (const id of ids) {
-        const entity = ensureEntity(entityMap, id)
-        entity.inlineStyle = { ...entity.inlineStyle, ...props }
-      }
-      continue
-    }
-
-    // --- Entity block start: `ENTITY_NAME {` ---
-    const entityBlockMatch = line.match(new RegExp(`^(${ER_ENTITY_REFERENCE_SOURCE})\\s*\\{$`))
-    if (entityBlockMatch) {
-      const reference = parseErEntityReference(entityBlockMatch[1]!)
-      if (!reference) continue
-      const entity = ensureStyledEntity(reference.id, reference.label, reference.className, currentGroup())
-      if (currentGroup()) groupById.get(currentGroup()!)?.entityIds.push(reference.id)
-      currentEntity = entity
-      continue
-    }
-
-    // --- Relationship: `ENTITY1 cardinality1--cardinality2 ENTITY2 : label` ---
-    const rel = parseRelationshipLine(line)
-    if (rel) {
-      // Group endpoints retain group identity instead of minting phantom entities.
-      if (!groupById.has(rel.entity1)) ensureStyledEntity(rel.entity1, rel.entity1Label, rel.entity1Class, currentGroup())
-      if (!groupById.has(rel.entity2)) ensureStyledEntity(rel.entity2, rel.entity2Label, rel.entity2Class, currentGroup())
-      diagram.relationships.push(rel)
-      continue
-    }
-
-    // Bare entities are emitted by the typed serializer. Delimiters,
-    // subgraph headers, and direction statements were consumed above, so this
-    // branch cannot mint phantom `end` or direction entities.
-    const bareEntity = parseErEntityReference(line)
-    if (bareEntity) {
-      ensureStyledEntity(bareEntity.id, bareEntity.label, bareEntity.className, currentGroup())
-      if (currentGroup()) groupById.get(currentGroup()!)?.entityIds.push(bareEntity.id)
+      case 'entity':
+        // Bare entities are emitted by the typed serializer.
+        declare(statement.reference)
+        break
     }
   }
 
+  const placement = source.placement
   for (const [id, names] of classNamesByEntity) entityMap.get(id)!.className = names.join(' ')
-  diagram.entities = [...entityMap.values()]
+  diagram.entities = placement.order.map(id => {
+    const entity = entityMap.get(id)!
+    entity.label = erEntityDisplayText(id, placement.alias.get(id))
+    const owner = placement.owner.get(id)
+    return owner !== undefined ? { ...entity, groupId: owner } : entity
+  })
+  diagram.groups = placement.groups.map(group => ({
+    ...groupById.get(group.id)!,
+    ...(group.parentId !== undefined ? { parentId: group.parentId } : {}),
+    entityIds: group.entityIds,
+  }))
   return diagram
 }
 
-/** Ensure an entity exists in the map */
-function ensureEntity(entityMap: Map<string, ErEntity>, id: string, label?: string, groupId?: string): ErEntity {
+/** Ensure an entity exists in the map; its label is set once the fold has
+ * its first alias. */
+function ensureEntity(entityMap: Map<string, ErEntity>, id: string): ErEntity {
   let entity = entityMap.get(id)
   if (!entity) {
-    entity = { id, label: label ?? id, attributes: [], ...(groupId ? { groupId } : {}) }
+    entity = { id, label: id, attributes: [] }
     entityMap.set(id, entity)
-  } else {
-    if (label !== undefined) entity.label = label
-    if (groupId !== undefined && entity.groupId === undefined) entity.groupId = groupId
   }
   return entity
 }
 
-/** Parse an attribute line inside an entity block */
+/** Parse an attribute line inside an entity block, without its trailing
+ * `%%` comment (hasErTrailingComment); one that still has one is none. */
 export function parseErAttribute(line: string): ErAttribute | null {
   // Format: type name [PK|FK|UK [...]] ["comment"]
   const match = line.match(/^(\S+)\s+(\S+)(?:\s+(.+))?$/)
-  if (!match) return null
+  if (!match || trailingCommentStart(line) >= 0) return null
 
   const type = match[1]!
   const name = match[2]!
@@ -297,10 +415,10 @@ export function parseErAttribute(line: string): ErAttribute | null {
   const keys: ErAttribute['keys'] = []
   let comment: string | undefined
 
-  // Extract quoted comment first (supports <br> tags)
+  // Extract quoted comment first (supports <br> tags and entity codes)
   const commentMatch = rest.match(/"([^"]*)"/)
   if (commentMatch) {
-    comment = normalizeBrTags(commentMatch[1]!)
+    comment = decodeErText(normalizeBrTags(commentMatch[1]!))
   }
 
   // Extract key constraints
@@ -309,7 +427,7 @@ export function parseErAttribute(line: string): ErAttribute | null {
     const upper = part.toUpperCase()
     if (upper === 'PK' || upper === 'FK' || upper === 'UK') {
       keys.push(upper as 'PK' | 'FK' | 'UK')
-    }
+    } else if (part) return null
   }
 
   return { type, name, keys, comment }
@@ -334,35 +452,34 @@ export interface ParsedErRelationshipSyntax {
   leftToken: string
   rightToken: string
   identifying: boolean
+  /** The label as written, quotes removed (src/er/text.ts reads it). */
   label: string
 }
 
 /** Shared relationship grammar. Alias text may contain spaces; entity styling
  * suffixes normalize to the same stable id instead of becoming phantom ids. */
-export function parseErRelationshipSyntax(line: string): ParsedErRelationshipSyntax | null {
+export function parseErRelationshipSyntax(line: string, report?: ErQuotedTextReport): ParsedErRelationshipSyntax | null {
   const match = line.match(ER_RELATIONSHIP_RE)
   if (!match) return null
+  const leftToken = match[2] ?? match[3]!
   // Mermaid's numeric `1` lexer recognizes a glyph operator only when it is
   // adjacent on the left. Other aliases may have whitespace before the glyph.
-  if (match[2] === '1' && /^[ \t]/.test(match[3] ?? '')) return null
-  const entity1 = parseErEntityReference(match[1]!)
-  const entity2 = parseErEntityReference(match[6]!)
+  if (leftToken === '1' && /^[ \t]/.test(match[4] ?? '')) return null
+  const entity1 = parseErEntityReference(match[1]!, report)
+  const entity2 = parseErEntityReference(match[8]!, report)
   if (!entity1 || !entity2) return null
-  const rawLabel = (match[7] ?? '').trim().replace(/^["']|["']$/g, '')
-  const operator = (match[3] ?? match[4]!).trim().replace(/[ \t]+/g, ' ').toLowerCase()
+  const operator = (match[4] ?? match[5]!).trim().replace(/[ \t]+/g, ' ').toLowerCase()
   return {
     entity1,
     entity2,
-    leftToken: match[2]!,
-    rightToken: match[5]!,
+    leftToken,
+    rightToken: match[6] ?? match[7]!,
     identifying: operator === '--' || operator === 'to',
-    label: formatErMarkdown(rawLabel),
+    label: readErRelationLabel(match[9] ?? '', report),
   }
 }
 
-function parseRelationshipLine(line: string): (ErRelationship & { entity1Label?: string; entity2Label?: string; entity1Class?: string; entity2Class?: string }) | null {
-  const syntax = parseErRelationshipSyntax(line)
-  if (!syntax) return null
+function relationshipFrom(syntax: ParsedErRelationshipSyntax, line: string): ErRelationship {
   const cardinality1 = parseErCardinality(syntax.leftToken)
   const cardinality2 = parseErCardinality(syntax.rightToken)
 
@@ -376,13 +493,9 @@ function parseRelationshipLine(line: string): (ErRelationship & { entity1Label?:
   return {
     entity1: syntax.entity1.id,
     entity2: syntax.entity2.id,
-    ...(syntax.entity1.label !== undefined ? { entity1Label: syntax.entity1.label } : {}),
-    ...(syntax.entity2.label !== undefined ? { entity2Label: syntax.entity2.label } : {}),
-    ...(syntax.entity1.className !== undefined ? { entity1Class: syntax.entity1.className } : {}),
-    ...(syntax.entity2.className !== undefined ? { entity2Class: syntax.entity2.className } : {}),
     cardinality1,
     cardinality2,
-    label: syntax.label,
+    label: erDisplayText(syntax.label),
     identifying: syntax.identifying,
   }
 }

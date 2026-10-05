@@ -25,7 +25,7 @@
 // the APCA-W3 0.1.9 constants.
 // ============================================================================
 
-import { tryParseHex, toHex } from './color-math.ts'
+import { srgbToLinear, tryParseHex, toHex } from './color-math.ts'
 
 export interface Oklab {
   /** Perceived lightness, ~0 (black) … ~1 (white). */
@@ -41,11 +41,6 @@ export interface Oklch {
   C: number
   /** Hue angle in degrees, 0 … 360. */
   h: number
-}
-
-/** sRGB channel (0..1) → linear-light. */
-function srgbToLinear(c: number): number {
-  return c <= 0.04045 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4
 }
 
 /** Linear-light channel → sRGB (0..1). */

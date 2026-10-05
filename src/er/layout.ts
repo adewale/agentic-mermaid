@@ -19,6 +19,7 @@ import { elkLayoutSync } from '../elk-instance.ts'
 import { directionToElk } from '../layout-engine.ts'
 import { checkedAuthoredStyle } from '../shared/style-props.ts'
 import { configSpacing } from '../class/layout.ts'
+import { breakLineTags } from '../multiline-utils.ts'
 
 /** Layout constants for ER diagrams */
 const ER = {
@@ -115,7 +116,7 @@ export function erCommentColumnWidth(attributes: readonly ErAttribute[]): number
 
 /** An attribute comment as drawn on its row: line breaks become spaces. */
 export function erCommentText(comment: string): string {
-  return comment.replace(/<br\s*\/?>/gi, ' ').replace(/\s+/g, ' ').trim()
+  return breakLineTags(comment).replace(/\s+/g, ' ').trim()
 }
 
 /** Build ELK graph and size map from an ER diagram. */

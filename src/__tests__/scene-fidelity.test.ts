@@ -28,11 +28,13 @@ interface Lowered {
 /** Mirror the built-in renderMermaidSVG dispatch through its sole graphical
  * waist (before the resolve() post-pass, which is scene-independent). */
 function lowerSample(source: string, options: RenderOptions = {}): { doc: SceneDoc } | { dropped: string } | undefined {
-  const request = resolveRenderRequest(source, options, 'svg')
-  const family = resolvedRenderExecutionPlanOf(request).family
-  if (!family?.layout || !family.lowerScene) return undefined
+  let request: ReturnType<typeof resolveRenderRequest>
+  let family: ReturnType<typeof resolvedRenderExecutionPlanOf>['family']
   let layout: ReturnType<typeof positionResolvedFamily>
   try {
+    request = resolveRenderRequest(source, options, 'svg')
+    family = resolvedRenderExecutionPlanOf(request).family
+    if (!family?.layout || !family.lowerScene) return undefined
     layout = positionResolvedFamily(family.id, request)
   } catch (error) {
     // Diagrams that legitimately fail are the equivalence gate's concern, but
@@ -74,9 +76,10 @@ describe('scene fidelity', () => {
   })
 
   test('only the known-unrenderable corpus samples drop out before lowering', () => {
-    // gantt/6 has no tasks (GANTT_EMPTY, correct). gantt/10 is BUG-34: a task
-    // line with a trailing `%% comment` fails with GANTT_BAD_DATE. When BUG-34
-    // is fixed, gantt/10 lowers and joins the fidelity corpus: drop it here.
+    // gantt/6 has no tasks (GANTT_EMPTY, correct). gantt/10 still carries an
+    // undocumented workaround task tag and raw themeCSS, which default
+    // security refuses. Inline task comments now read generously, but do not
+    // make these other invalid/unsafe inputs lowerable.
     expect(dropped.map(sample => sample.id).sort()).toEqual(['corpus/gantt/10', 'corpus/gantt/6'])
   })
 

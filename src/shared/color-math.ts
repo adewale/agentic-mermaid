@@ -57,15 +57,25 @@ export function mixHex(fg: string, bg: string, pct: number): string {
   )
 }
 
+/** sRGB channel (0..1) → linear light (the WCAG 2.x / CSS Color 4 transfer). */
+export function srgbToLinear(c: number): number {
+  return c <= 0.04045 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4
+}
+
+/** WCAG 2.x relative luminance of sRGB channels in 0..255 (alpha ignored). */
+export function srgbRelativeLuminance(rgb: readonly number[]): number {
+  return 0.2126 * srgbToLinear(rgb[0]! / 255) + 0.7152 * srgbToLinear(rgb[1]! / 255) + 0.0722 * srgbToLinear(rgb[2]! / 255)
+}
+
+/** WCAG 2.x contrast ratio (1..21) of two relative luminances. */
+export function luminanceContrastRatio(la: number, lb: number): number {
+  return (Math.max(la, lb) + 0.05) / (Math.min(la, lb) + 0.05)
+}
+
 /** WCAG 2.x relative luminance for a concrete CSS color. */
 export function relativeLuminance(color: string): number | null {
   const parsed = tryParseCssColor(color)
-  if (!parsed) return null
-  const linear = (channel: number): number => {
-    const value = channel / 255
-    return value <= 0.04045 ? value / 12.92 : ((value + 0.055) / 1.055) ** 2.4
-  }
-  return 0.2126 * linear(parsed[0]) + 0.7152 * linear(parsed[1]) + 0.0722 * linear(parsed[2])
+  return parsed ? srgbRelativeLuminance(parsed) : null
 }
 
 /** WCAG contrast ratio, or null when either color is unresolved CSS. */
@@ -73,7 +83,7 @@ export function contrastRatio(a: string, b: string): number | null {
   const la = relativeLuminance(a)
   const lb = relativeLuminance(b)
   if (la === null || lb === null) return null
-  return (Math.max(la, lb) + 0.05) / (Math.min(la, lb) + 0.05)
+  return luminanceContrastRatio(la, lb)
 }
 
 /**
@@ -272,12 +282,7 @@ export function compositeCssColor(color: string, background: string): [number, n
 /** WCAG 2.x relative luminance of an sRGB hex color. */
 export function wcagRelativeLuminance(hex: string): number | null {
   const rgb = tryParseHex(hex)
-  if (!rgb) return null
-  const lin = (channel: number): number => {
-    const c = channel / 255
-    return c <= 0.04045 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4
-  }
-  return 0.2126 * lin(rgb[0]) + 0.7152 * lin(rgb[1]) + 0.0722 * lin(rgb[2])
+  return rgb ? srgbRelativeLuminance(rgb) : null
 }
 
 /** WCAG 2.x contrast ratio between two hex colors (1..21), or null when
@@ -286,8 +291,7 @@ export function wcagContrastRatio(a: string, b: string): number | null {
   const la = wcagRelativeLuminance(a)
   const lb = wcagRelativeLuminance(b)
   if (la === null || lb === null) return null
-  const [hi, lo] = la > lb ? [la, lb] : [lb, la]
-  return (hi + 0.05) / (lo + 0.05)
+  return luminanceContrastRatio(la, lb)
 }
 
 /** Contrast for concrete CSS colors after alpha compositing. The background

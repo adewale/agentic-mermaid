@@ -34,6 +34,8 @@ export interface UpstreamSequenceActor {
   name: string
   description: string
   type: string
+  /** The actor's menu links (label → href), as upstream stores them. */
+  links: Record<string, string>
 }
 
 export interface UpstreamSequenceMessage {
@@ -118,14 +120,14 @@ function flowchart(db) {
 function sequence(db) {
   if (typeof db?.getActors !== 'function' || typeof db?.getMessages !== 'function') return undefined
   return {
-    actors: [...db.getActors().values()].map(a => ({ name: a.name, description: String(a.description ?? ''), type: String(a.type ?? '') })),
+    actors: [...db.getActors().values()].map(a => ({ name: a.name, description: String(a.description ?? ''), type: String(a.type ?? ''), links: { ...a.links } })),
     messages: db.getMessages().map(m => ({ from: m.from, to: m.to, message: String(m.message ?? ''), type: m.type })),
   }
 }
 const DB_GETTERS = ['getDiagramTitle', 'getAccTitle', 'getAccDescription', 'getSections', 'getShowData', 'getTasks',
   'getDateFormat', 'getAxisFormat', 'getTickInterval', 'getTodayMarker', 'topAxisEnabled', 'getDisplayMode', 'getIncludes',
   'getExcludes', 'getWeekday', 'getXYChartData', 'getQuadrantData', 'getAxes', 'getCurves', 'getOptions', 'getServices',
-  'getGroups', 'getJunctions', 'getEdges', 'getCommits', 'getBranches', 'getDirection']
+  'getGroups', 'getJunctions', 'getEdges', 'getCommits', 'getBranches', 'getDirection', 'getEntities', 'getRelationships']
 function plain(value, depth = 0) {
   if (depth > 8) return '...'
   if (value instanceof Map) return [...value].map(([key, entry]) => [key, plain(entry, depth + 1)])

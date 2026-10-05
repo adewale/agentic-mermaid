@@ -20,6 +20,15 @@ import { parseMermaid as parseFlowchartLegacy } from '../parser.ts'
 import { parseMutableStyleProps, unsafeStylePaintError } from '../shared/style-props.ts'
 import { unknownOpMessage } from './mutation-ops.ts'
 import { normalizeV11Shape } from '../flowchart-shapes.ts'
+import {
+  type FlowchartRegion,
+  type FlowchartScan,
+  flowchartStatementSpans,
+  flowchartTextArrowLabelRanges,
+  scanFlowchart,
+} from '../flowchart-lexer.ts'
+import { parseFlowchartLabel, writeFlowchartLabelText } from '../flowchart-labels.ts'
+import { quoteMetadataString } from '../shared/metadata-yaml.ts'
 import type { MermaidGraph, MermaidNode, MermaidEdge, MermaidSubgraph, NodeShape, Direction } from '../types.ts'
 import type {
   DiagramBody, FlowchartMutationOp, MutationError, ParseError, Result, SourceMap,
@@ -32,7 +41,13 @@ interface SourceStatementSegment {
   readonly text: string
   readonly start: number
   readonly line: number
-  readonly topLevel: boolean[]
+  /** The statement as flowchart-lexer.ts reads it. */
+  readonly scan: FlowchartScan
+  /** The outermost region opening at each offset. */
+  readonly regionsByStart: ReadonlyMap<number, FlowchartRegion>
+  /** Closed statement-level pipe labels, in source order. */
+  readonly pipeLabels: readonly FlowchartRegion[]
+  readonly topLevel: readonly boolean[]
   readonly textLabelRanges: TextRange[]
   readonly operatorRanges: ReadonlyArray<{ start: number; end: number }>
   readonly operatorStarts: ReadonlySet<number>
@@ -56,13 +71,19 @@ export function buildFlowchartSourceMap(body: FlowchartBody, canonicalSource: st
   const map: SourceMap = { nodes: new Map(), edges: new Map(), groups: new Map(), labels: new Map() }
   const lines = canonicalSource.split(/\r?\n/)
   const sourceSegments: SourceStatementSegment[] = lines.flatMap((line, lineIndex) =>
-    sourceStatementSegments(line).map(segment => {
-      const topLevel = topLevelMask(segment.text)
-      const textLabelRanges = bareTextArrowLabelRanges(segment.text, topLevel)
+    flowchartStatementSpans(line).map(segment => {
+      const scan = scanFlowchart(segment.text)
+      const regionsByStart = new Map<number, FlowchartRegion>()
+      for (const region of scan.regions) if (!regionsByStart.has(region.start)) regionsByStart.set(region.start, region)
+      const topLevel = scan.topLevel
+      const textLabelRanges = flowchartTextArrowLabelRanges(segment.text, scan)
       const operatorRanges = compactOperatorRanges(segment.text, topLevel)
       return {
         ...segment,
         line: lineIndex + 1,
+        scan,
+        regionsByStart,
+        pipeLabels: scan.regions.filter(region => region.kind === 'pipe' && region.closed && region.parent === -1),
         topLevel,
         textLabelRanges,
         operatorRanges,
@@ -90,7 +111,7 @@ export function buildFlowchartSourceMap(body: FlowchartBody, canonicalSource: st
       if (map.nodes.has(id)) continue
       map.nodes.set(id, { line: segment.line, col: segment.start + column + 1 })
       const node = body.graph.nodes.get(id)
-      const labelCol = node ? nodeLabelColumn(segment.text, node.label, column + id.length) : -1
+      const labelCol = node ? nodeLabelColumn(segment, node.label, column + id.length) : -1
       if (labelCol >= 0) map.labels.set(`node:${id}`, { line: segment.line, col: segment.start + labelCol + 1 })
     }
   }
@@ -122,13 +143,7 @@ export function buildFlowchartSourceMap(body: FlowchartBody, canonicalSource: st
         )
         return mentions.flatMap(mention => {
           const sourceEnd = mention.sourceCol + edge.source.length
-          const labelRanges = edgeIntervalLabelRanges(
-            segment.text,
-            segment.topLevel,
-            segment.textLabelRanges,
-            sourceEnd,
-            mention.targetCol,
-          )
+          const labelRanges = edgeIntervalLabelRanges(segment, sourceEnd, mention.targetCol)
           if (!edge.label) return labelRanges.length > 0 ? [] : [{ segment, sourceCol: mention.sourceCol, labelCol: -1 }]
           const labelCol = labelColumnInRanges(segment.text, edge.label, labelRanges)
           return labelCol >= 0 ? [{ segment, sourceCol: mention.sourceCol, labelCol }] : []
@@ -153,188 +168,63 @@ export function buildFlowchartSourceMap(body: FlowchartBody, canonicalSource: st
   return map
 }
 
-function sourceStatementSegments(line: string): Array<{ text: string; start: number }> {
-  const out: Array<{ text: string; start: number }> = []
-  const textArrowLabelRanges = bareTextArrowLabelRanges(line, topLevelMask(line))
-  let textArrowRangeIndex = 0
-  let segmentStart = 0
-  const stack: string[] = []
-  let quote: string | undefined
-  let pipeLabel = false
-  let escaped = false
-  const push = (end: number): void => {
-    const raw = line.slice(segmentStart, end)
-    const leading = raw.length - raw.trimStart().length
-    const text = raw.trim()
-    if (text) out.push({ text, start: segmentStart + leading })
-    segmentStart = end + 1
-  }
-  for (let index = 0; index < line.length; index++) {
-    const char = line[index]!
-    if (quote) {
-      if (escaped) escaped = false
-      else if (char === '\\') escaped = true
-      else if (char === quote) quote = undefined
-      continue
-    }
-    if (char === '"' || char === "'" || char.charCodeAt(0) === 96) { quote = char; continue }
-    if (char === '|' && stack.length === 0) { pipeLabel = !pipeLabel; continue }
-    if (char === '[' || char === '(' || char === '{') { stack.push(char); continue }
-    if (char === ']' || char === ')' || char === '}') { stack.pop(); continue }
-    if (char === ';' && stack.length === 0 && !pipeLabel) {
-      while (textArrowLabelRanges[textArrowRangeIndex]
-        && textArrowLabelRanges[textArrowRangeIndex]!.end <= index) textArrowRangeIndex++
-      const range = textArrowLabelRanges[textArrowRangeIndex]
-      if (!range || index < range.start || index >= range.end) push(index)
-    }
-  }
-  push(line.length)
-  return out
-}
-
 interface TextRange { start: number; end: number }
-interface TextArrowRange extends TextRange { closeEnd: number }
 
-/** Locate bare text-arrow labels without relying on either endpoint text.
- * Endpoint ids are legal label text, so searching for the target first makes
- * `A -- B --> B` look unlabeled. */
-function bareTextArrowLabelRanges(line: string, topLevel = topLevelMask(line)): TextRange[] {
+/** The pipe labels (`-->|label|`) of a statement that lie between `from` and
+ * `to`, as the lexer delimits them (sorted by opening pipe). */
+function pipeLabelRanges(segment: SourceStatementSegment, from: number, to: number): TextRange[] {
   const ranges: TextRange[] = []
-  const lastCloser = lastTextArrowCloserIndex(line)
-  if (lastCloser < 0) return ranges
-  for (let index = 0; index < lastCloser; index++) {
-    if (!topLevel[index]) continue
-    const range = textArrowLabelRangeAt(line, index, lastCloser)
-    if (!range || ranges.some(existing => existing.start === range.start && existing.end === range.end)) continue
-    ranges.push(range)
-    index = range.closeEnd - 1
+  const pipes = segment.pipeLabels
+  let low = 0
+  let high = pipes.length
+  while (low < high) {
+    const middle = low + Math.floor((high - low) / 2)
+    if (pipes[middle]!.start < from) low = middle + 1
+    else high = middle
+  }
+  for (let index = low; index < pipes.length && pipes[index]!.start < to; index++) {
+    const pipe = pipes[index]!
+    if (pipe.contentEnd < to && pipe.contentEnd > pipe.contentStart) ranges.push({ start: pipe.contentStart, end: pipe.contentEnd })
   }
   return ranges
 }
 
-const TEXT_ARROW_OPEN_RE = /(?:<)?(?:-{2,}|-\.+|={2,})/y
-const TEXT_ARROW_CLOSE_RE = /(?:-{2,}[>ox]|-{3,}|\.+->|-\.+-|={2,}>|={3,})/y
-
-function matchLengthAt(expression: RegExp, line: string, index: number): number {
-  expression.lastIndex = index
-  return expression.exec(line)?.[0].length ?? 0
-}
-
-function lastTextArrowCloserIndex(line: string): number {
-  let last = -1
-  for (let index = 0; index < line.length; index++) {
-    if (!/[-.=]/.test(line[index]!)) continue
-    if (matchLengthAt(TEXT_ARROW_CLOSE_RE, line, index) > 0) last = index
-  }
-  return last
-}
-
-/** Mirror the parser's quote-aware text-arrow consumer at one source offset.
- * Requiring a complete closer distinguishes compact labels (`A--lab-->B`)
- * from legal hyphenated ids (`foo--bar`). */
-function textArrowLabelRangeAt(
-  line: string,
-  index: number,
-  lastCloser = lastTextArrowCloserIndex(line),
-): TextArrowRange | undefined {
-  if (index > lastCloser || !/[-=<]/.test(line[index] ?? '')) return undefined
-  if (index > 0 && /[-.=<]/.test(line[index - 1]!)) return undefined
-  if (matchLengthAt(COMPACT_EDGE_OPERATOR_AT_RE, line, index) > 0) return undefined
-  const openerLength = matchLengthAt(TEXT_ARROW_OPEN_RE, line, index)
-  if (openerLength === 0) return undefined
-  const semicolonEligible = /\s/.test(line[index + openerLength] ?? '')
-  let sawSemicolon = false
-  let quote = false
-  let escaped = false
-  for (let cursor = index + openerLength; cursor <= lastCloser; cursor++) {
-    const char = line[cursor]!
-    if (quote) {
-      if (escaped) escaped = false
-      else if (char === '\\') escaped = true
-      else if (char === '"') quote = false
-      continue
-    }
-    if (char === '"') { quote = true; continue }
-    if (char === ';') {
-      if (!semicolonEligible) return undefined
-      sawSemicolon = true
-      continue
-    }
-    const closerLength = matchLengthAt(TEXT_ARROW_CLOSE_RE, line, cursor)
-    if (closerLength === 0) continue
-    if (sawSemicolon && !/\s/.test(line[cursor - 1] ?? '')) return undefined
-    const rawLabel = line.slice(index + openerLength, cursor)
-    const leading = rawLabel.length - rawLabel.trimStart().length
-    const trimmed = rawLabel.trim()
-    if (!trimmed) continue
-    const start = index + openerLength + leading
-    return { start, end: start + trimmed.length, closeEnd: cursor + closerLength }
-  }
-  return undefined
-}
-
-function topLevelPipeLabelRanges(line: string, topLevel: boolean[], from: number, to: number): TextRange[] {
-  const ranges: TextRange[] = []
-  for (let index = Math.max(0, from); index < Math.min(line.length, to); index++) {
-    if (line[index] !== '|' || !topLevel[index]) continue
-    let contentStart = index + 1
-    while (/\s/.test(line[contentStart] ?? '')) contentStart++
-    let closing = -1
-    if (line[contentStart] === '"') {
-      let escaped = false
-      for (let cursor = contentStart + 1; cursor < to; cursor++) {
-        const char = line[cursor]!
-        if (escaped) { escaped = false; continue }
-        if (char === '\\') { escaped = true; continue }
-        if (char !== '"') continue
-        let pipe = cursor + 1
-        while (/\s/.test(line[pipe] ?? '')) pipe++
-        if (line[pipe] === '|') closing = pipe
-        break
-      }
-    } else {
-      closing = line.indexOf('|', index + 1)
-    }
-    if (closing > index + 1 && closing < to) {
-      ranges.push({ start: index + 1, end: closing })
-      index = closing
-    }
-  }
-  return ranges
-}
-
-function edgeIntervalLabelRanges(
-  line: string,
-  topLevel: boolean[],
-  textLabelRanges: TextRange[],
-  from: number,
-  to: number,
-): TextRange[] {
+function edgeIntervalLabelRanges(segment: SourceStatementSegment, from: number, to: number): TextRange[] {
   return [
-    ...topLevelPipeLabelRanges(line, topLevel, from, to),
-    ...textLabelRanges.filter(range => range.start >= from && range.end <= to),
+    ...pipeLabelRanges(segment, from, to),
+    ...segment.textLabelRanges.filter(range => range.start >= from && range.end <= to),
   ].sort((left, right) => left.start - right.start)
 }
 
-/** The spellings a parsed label may have in source: as parsed, with `<br>`
- *  as `\n`, and with `"` as the `#quot;` it is decoded from. */
-function labelSpellings(label: string): string[] {
-  const spellings = [label]
-  const escaped = label.replace(/<br\s*\/?\s*>/gi, '\\n')
-  if (escaped !== label) spellings.push(escaped)
-  const entity = label.replace(/"/g, '#quot;')
-  if (entity !== label) spellings.push(entity)
-  return spellings
+/** Where `label` begins in one label range: when the range's text reads as
+ * the label (flowchart-labels.ts), at its first character inside any quotes;
+ * otherwise where the label's text, as parsed or as the serializer writes it,
+ * lies inside the range (a `@{ … }` value, a lean shape's slashes). */
+function labelColumnInRange(line: string, label: string, range: TextRange): number {
+  const raw = line.slice(range.start, range.end)
+  let parsed: string | undefined
+  try {
+    parsed = parseFlowchartLabel(raw).text
+  } catch {
+    parsed = undefined
+  }
+  if (parsed === label) {
+    let column = range.start + raw.length - raw.trimStart().length
+    if (line[column] === '"') column += line[column + 1] === '`' ? 2 : 1
+    return column
+  }
+  for (const spelling of new Set([label, writeFlowchartLabelText(label)])) {
+    const column = line.indexOf(spelling, range.start)
+    if (column >= range.start && column + spelling.length <= range.end) return column
+  }
+  return -1
 }
 
 function labelColumnInRanges(line: string, label: string, ranges: readonly TextRange[]): number {
-  if (!label || label.trim().length === 0) return -1
-  const variants = labelSpellings(label)
+  if (!label) return -1
   for (const range of ranges) {
-    for (const variant of variants) {
-      const column = line.indexOf(variant, range.start)
-      if (column >= range.start && column + variant.length <= range.end) return column
-    }
+    const column = labelColumnInRange(line, label, range)
+    if (column >= 0) return column
   }
   return -1
 }
@@ -344,32 +234,6 @@ function nonNodeStatement(line: string): boolean {
   return trimmed === 'end'
     || /^(?:graph|flowchart|swimlane|stateDiagram(?:-v2)?)(?:\s|$)/i.test(trimmed)
     || /^(?:subgraph|direction|classDef|class|style|linkStyle|click|href)\b/i.test(trimmed)
-}
-
-function topLevelMask(line: string): boolean[] {
-  const result = Array<boolean>(line.length).fill(false)
-  const stack: string[] = []
-  let quote: string | undefined
-  let pipeLabel = false
-  let escaped = false
-  for (let index = 0; index < line.length; index++) {
-    const char = line[index]!
-    result[index] = quote === undefined && stack.length === 0 && !pipeLabel
-    if (quote) {
-      if (escaped) escaped = false
-      else if (char === '\\') escaped = true
-      else if (char === quote) quote = undefined
-      continue
-    }
-    // Spell the backtick by code point so the repository's deliberately
-    // lightweight non-code scanner does not mistake this quote detector for
-    // the start of a template literal.
-    if (char === '"' || char === "'" || char.charCodeAt(0) === 96) { quote = char; continue }
-    if (char === '|' && stack.length === 0) { pipeLabel = !pipeLabel; continue }
-    if (char === '[' || char === '(' || char === '{') { stack.push(char); continue }
-    if (char === ']' || char === ')' || char === '}') stack.pop()
-  }
-  return result
 }
 
 function nodeTokenAt(
@@ -444,6 +308,11 @@ function candidateNodeTokens(line: string, trie: NodeIdTrie): Array<{ id: string
 const COMPACT_EDGE_OPERATOR_SOURCE = '(?:(?:<)?(?:~{3,}|-{2,}>|-{3,}|-{2,}[ox]|-\\.+->?|\\.+->|={2,}>|={3,})|[ox]-{2,}[ox])'
 const COMPACT_EDGE_OPERATOR_AT_RE = new RegExp(COMPACT_EDGE_OPERATOR_SOURCE, 'y')
 
+function matchLengthAt(expression: RegExp, line: string, index: number): number {
+  expression.lastIndex = index
+  return expression.exec(line)?.[0].length ?? 0
+}
+
 function nodeIdCharacter(char: string | undefined): boolean {
   return char !== undefined && /[\p{L}\p{N}_-]/u.test(char)
 }
@@ -466,7 +335,7 @@ function edgeSourceMapKey(index: number, edge: MermaidEdge): string { return `ed
 
 interface EdgeMention { sourceCol: number; targetCol: number }
 
-function compactOperatorRanges(line: string, topLevel: boolean[]): Array<{ start: number; end: number }> {
+function compactOperatorRanges(line: string, topLevel: readonly boolean[]): Array<{ start: number; end: number }> {
   const ranges: Array<{ start: number; end: number }> = []
   for (let index = 0; index < line.length; index++) {
     if (!topLevel[index]) continue
@@ -526,71 +395,30 @@ function edgeMentions(
   return mentions
 }
 
-function labelColumn(line: string, label: string, afterCol: number): number {
-  if (!label || label.trim().length === 0) return -1
-  for (const spelling of labelSpellings(label)) {
-    const column = line.indexOf(spelling, Math.max(0, afterCol))
-    if (column >= 0) return column
-  }
-  return -1
+/** A subgraph title: the `[…]` after its id, or the rest of the line. */
+function titleColumn(line: string, label: string, afterCol: number): number {
+  const title = scanFlowchart(line).regions.find(region => region.kind === 'shape' && region.closed && region.start >= afterCol)
+  return labelColumnInRanges(line, label, [title ? { start: title.contentStart, end: title.contentEnd } : { start: Math.max(0, afterCol), end: line.length }])
 }
 
-function nodeLabelColumn(line: string, label: string, afterCol: number): number {
+/** A node's label lies in the shape text right after its id and in a
+ * `@{ … }` block after that, as the lexer delimits them. */
+function nodeLabelColumn(segment: SourceStatementSegment, label: string, afterCol: number): number {
   const ranges: TextRange[] = []
   let cursor = afterCol
-  const declarationRange = (): TextRange | undefined => {
-    const opener = line[cursor]
-    if (opener !== '[' && opener !== '(' && opener !== '{' && opener !== '>') return undefined
-    const closer = opener === '[' ? ']' : opener === '(' ? ')' : opener === '{' ? '}' : ']'
-    const stack: string[] = []
-    let quote: string | undefined
-    let escaped = false
-    for (let index = cursor; index < line.length; index++) {
-      const char = line[index]!
-      if (quote) {
-        if (escaped) escaped = false
-        else if (char === '\\') escaped = true
-        else if (char === quote) quote = undefined
-        continue
-      }
-      if (char === '"' || char === "'" || char.charCodeAt(0) === 96) { quote = char; continue }
-      if (opener === '>' && char === ']' && index > cursor) return { start: cursor + 1, end: index }
-      if (char === '[' || char === '(' || char === '{') stack.push(char)
-      else if (char === ']' || char === ')' || char === '}') {
-        stack.pop()
-        if (char === closer && stack.length === 0) return { start: cursor + 1, end: index }
-      }
-    }
-    return undefined
+  let shape = segment.regionsByStart.get(cursor)
+  if (shape?.kind === 'shape' && shape.closed) {
+    cursor = shape.end
+    // A doubled delimiter (`((…))`, `[[…]]`, `([…])`) holds the label in its
+    // innermost shape text.
+    for (let inner = segment.regionsByStart.get(shape.contentStart);
+      inner?.kind === 'shape' && inner.closed && inner.end === shape.contentEnd;
+      inner = segment.regionsByStart.get(inner.contentStart)) shape = inner
+    ranges.push({ start: shape.contentStart, end: shape.contentEnd })
   }
-
-  const shape = declarationRange()
-  if (shape) {
-    ranges.push(shape)
-    cursor = shape.end + 1
-  }
-  if (line.startsWith('@{', cursor)) {
-    const metadata = (() => {
-      let depth = 0
-      let quote: string | undefined
-      let escaped = false
-      for (let index = cursor + 1; index < line.length; index++) {
-        const char = line[index]!
-        if (quote) {
-          if (escaped) escaped = false
-          else if (char === '\\') escaped = true
-          else if (char === quote) quote = undefined
-          continue
-        }
-        if (char === '"' || char === "'") { quote = char; continue }
-        if (char === '{') depth++
-        else if (char === '}' && --depth === 0) return { start: cursor + 2, end: index }
-      }
-      return undefined
-    })()
-    if (metadata) ranges.push(metadata)
-  }
-  return labelColumnInRanges(line, label, ranges.reverse())
+  const metadata = segment.regionsByStart.get(cursor)
+  if (metadata?.kind === 'metadata' && metadata.closed) ranges.push({ start: metadata.contentStart, end: metadata.contentEnd })
+  return labelColumnInRanges(segment.text, label, ranges.reverse())
 }
 
 function mapSubgraphSource(sg: MermaidSubgraph, lines: string[], map: SourceMap): void {
@@ -600,7 +428,7 @@ function mapSubgraphSource(sg: MermaidSubgraph, lines: string[], map: SourceMap)
     if (!re.test(line)) continue
     const col = line.indexOf(sg.id)
     map.groups.set(sg.id, { line: i + 1, col: col + 1 })
-    const labelCol = sg.label && sg.label !== sg.id ? labelColumn(line, sg.label, col + sg.id.length) : -1
+    const labelCol = sg.label && sg.label !== sg.id ? titleColumn(line, sg.label, col + sg.id.length) : -1
     if (labelCol >= 0) map.labels.set(`group:${sg.id}`, { line: i + 1, col: labelCol + 1 })
     break
   }
@@ -654,7 +482,10 @@ export function renderFlowchart(graph: MermaidGraph, headerKind: 'flowchart' | '
   for (const [name, props] of graph.classDefs) lines.push(`  classDef ${name} ${styleProps(props)}`)
   for (const [id, cls] of graph.classAssignments) lines.push(`  class ${id} ${cls}`)
   for (const [id, style] of graph.nodeStyles) lines.push(`  style ${id} ${styleProps(style)}`)
-  for (const [idx, style] of graph.linkStyles) lines.push(`  linkStyle ${idx} ${styleProps(style)}`)
+  // Mermaid rejects an index that names no link, and its style draws nothing.
+  for (const [idx, style] of graph.linkStyles) {
+    if (idx === 'default' || idx < graph.edges.length) lines.push(`  linkStyle ${idx} ${styleProps(style)}`)
+  }
   for (const node of graph.nodes.values()) {
     if (node.href) lines.push(`  click ${node.id} href ${quoteValue(node.href)}`)
   }
@@ -671,7 +502,7 @@ function renderShape(node: MermaidNode): string {
   // typed serializer can reproduce it without falling back to an opaque body.
   if (node.icon !== undefined || node.image !== undefined) {
     const entries = [
-      node.icon !== undefined ? `icon: ${quoteValue(node.icon)}` : `img: ${quoteValue(node.image!)}`,
+      node.icon !== undefined ? `icon: ${quoteMetadataString(node.icon)}` : `img: ${quoteMetadataString(node.image!)}`,
       ...(node.iconForm ? [`form: ${node.iconForm}`] : []),
       ...(node.label !== node.id ? [`label: ${quoteMetadataLabel(node.label)}`] : []),
     ]
@@ -712,35 +543,36 @@ function renderShape(node: MermaidNode): string {
   }
 }
 
-/** The ONE quoted-label form for bracket, pipe and subgraph labels,
- *  `<br>`-normalized. Upstream's quoted strings have no escapes (a `"` always
- *  closes one and `\` is literal), so a `"` is written as Mermaid's `#quot;`
- *  entity code, which the parser decodes back. */
+/** The ONE quoted-label form for bracket, pipe and subgraph labels: the
+ *  label codec's text (flowchart-labels.ts), which spells `"` as `#quot;`
+ *  because upstream's quoted strings have no escapes. A leading backtick is
+ *  written `#96;`: `"` and a backtick open a markdown string. */
 function quoteLabel(label: string): string {
-  return `"${label.replace(/\r?\n/g, '<br>').replace(/"/g, '#quot;')}"`
+  const text = writeFlowchartLabelText(label)
+  return `"${text.startsWith('`') ? `#96;${text.slice(1)}` : text}"`
 }
 
-/** A `@{ label: … }` value is a YAML double-quoted scalar upstream, so its `\`
- *  is escaped as well; parseMetadataEntries reads `\\` back. */
+/** A `@{ label: … }` value: the label codec's text written as the YAML
+ *  double-quoted scalar that upstream's `@{}` reader, and ours
+ *  (shared/metadata-yaml.ts), reads back. */
 function quoteMetadataLabel(label: string): string {
-  return quoteLabel(label.replace(/\\/g, '\\\\'))
+  return quoteMetadataString(writeFlowchartLabelText(label))
 }
 
-/** A `click` href or `icon`/`img` value: `"` and `\` backslash-escaped, the
- *  form their parsers read back. */
+/** A `click` href: `"` and `\` backslash-escaped, the form its parser reads
+ *  back. */
 function quoteValue(value: string): string {
   const normalized = value.replace(/\r?\n/g, '<br>')
   return `"${normalized.replace(/["\\]/g, '\\$&')}"`
 }
 
 function escapeLabel(label: string): string {
-  const normalized = label.replace(/\r?\n/g, '<br>')
   // Mermaid rejects an empty quoted label; a lone space trims back to empty.
-  if (normalized.trim() === '') return '" "'
+  if (label === '') return '" "'
   // Upstream rejects a bracket, `|`, `"` or `@` in a bare label, and a leading
-  // `~~~` (its invisible-link token). `#quot;` is only written inside quotes.
-  if (/[\[\]{}()|"@]|^~~~/.test(normalized)) return quoteLabel(label)
-  return normalized
+  // `~~~` (its invisible-link token).
+  if (/[\[\]{}()|"@]|^~~~/.test(label)) return quoteLabel(label)
+  return writeFlowchartLabelText(label)
 }
 
 /** `;` separates statements and no bracket shields it in an asymmetric

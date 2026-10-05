@@ -5,7 +5,7 @@
 // rules): never silently drop a line; duplicate task ids are errors; invalid
 // directives/tasks are errors with line numbers. The agent-grade structured-
 // or-opaque parser lives in src/agent/gantt-body.ts and shares the task-line
-// helpers exported here so the two cannot drift.
+// statement reader exported here. Render and editable models project separately.
 //
 // Input is the normalized line list from mermaid-source.ts (trimmed, comments
 // stripped, header first). Frontmatter-derived config (displayMode, barHeight)
@@ -13,13 +13,14 @@
 // ============================================================================
 
 import type {
-  GanttModel, GanttModelTask, GanttModelSection, GanttTaskTag,
+  GanttModel, GanttModelTask, GanttTaskTag,
   GanttCalendarToken, GanttWeekday, GanttStartExpr, GanttEndExpr, GanttTickUnit,
 } from './types.ts'
 import { GanttError } from './types.ts'
 import type { MermaidFrontmatterMap } from '../mermaid-source.ts'
 import { getFrontmatterMap, getFrontmatterScalar } from '../mermaid-source.ts'
-import { scanAccessibilityDirectives } from '../shared/accessibility-directives.ts'
+import { parseAccessibilityDirective, type ParsedAccessibilityDirective } from '../shared/accessibility-directives.ts'
+import { stripTrailingComment, trailingCommentStart } from '../shared/trailing-comment.ts'
 
 export const GANTT_TASK_TAGS: readonly GanttTaskTag[] = ['active', 'done', 'crit', 'milestone', 'vert']
 
@@ -112,18 +113,111 @@ const DIRECTIVE_RES = {
   click: /^click\s+([\w-]+)\s+(href|call)\s+(.+)$/i,
 } as const
 
+type GanttSyntax =
+  | { kind: 'comment' | 'blank' }
+  | { kind: 'accessibility'; directive: ParsedAccessibilityDirective }
+  | { kind: 'title' | 'section'; value: string }
+  | { kind: 'directive'; name: Exclude<keyof typeof DIRECTIVE_RES, 'title' | 'section' | 'click'> | 'inclusiveEndDates' | 'topAxis'; value: string }
+  | { kind: 'click'; taskId: string; action: 'href' | 'call'; rest: string }
+  | { kind: 'task'; label: string; meta: ParsedTaskMeta }
+  | { kind: 'invalid'; code: 'GANTT_BAD_DIRECTIVE' | 'GANTT_BAD_TASK'; message: string; structural?: boolean }
+
+export type GanttSourceStatement = GanttSyntax & {
+  /** Physical source lines, including indentation and comments. */
+  raw: string[]
+  startLine: number
+  endLine: number
+  valueColumn?: number
+}
+
+/** One statement authority; render and edit projections choose their own
+ * treatment of unsupported statements without reclassifying their syntax. */
+export function readGanttStatements(lines: readonly string[]): GanttSourceStatement[] {
+  const statements: GanttSourceStatement[] = []
+  for (let index = 0; index < lines.length; index++) {
+    const start = index
+    const rawLine = lines[index]!
+    const line = rawLine.trim()
+    const append = (syntax: GanttSyntax, raw = [rawLine]): void => {
+      const valueColumn = syntax.kind === 'section' || syntax.kind === 'title'
+        ? rawLine.indexOf(syntax.value, rawLine.search(/\S/) + syntax.kind.length) + 1
+        : undefined
+      statements.push({ ...syntax, raw, startLine: start + 1, endLine: index + 1, valueColumn })
+    }
+    if (!line || line.startsWith('%%')) {
+      append({ kind: line ? 'comment' : 'blank' })
+      continue
+    }
+    const accessibility = parseAccessibilityDirective(lines, index)
+    if (accessibility === undefined) {
+      const raw = lines.slice(index)
+      index = lines.length - 1
+      append({ kind: 'invalid', code: 'GANTT_BAD_DIRECTIVE', message: 'Unclosed accDescr block', structural: true }, raw)
+      break
+    }
+    if (accessibility !== null) {
+      index = accessibility.endIndex
+      const raw = lines.slice(start, index + 1)
+      if (accessibility.suffixLine) raw[raw.length - 1] = raw.at(-1)!.slice(0, raw.at(-1)!.indexOf('}') + 1)
+      append({ kind: 'accessibility', directive: accessibility }, raw)
+      if (accessibility.suffixLine) {
+        const closingLine = lines[index]!
+        const offset = closingLine.indexOf('}') + 1
+        const suffix = readGanttStatements([closingLine.slice(offset)])
+        statements.push(...suffix.map(statement => ({ ...statement, startLine: index + 1, endLine: index + 1,
+          valueColumn: statement.valueColumn === undefined ? undefined : statement.valueColumn + offset })))
+      }
+      continue
+    }
+    let matched = false
+    for (const [name, pattern] of Object.entries(DIRECTIVE_RES)) {
+      const source = name === 'weekday' || name === 'weekend' ? stripTrailingComment(line) : line
+      const match = source.match(pattern)
+      if (!match) continue
+      matched = true
+      const value = match[1]!.trim()
+      if (name === 'title' || name === 'section') append({ kind: name, value })
+      else if (name === 'click') append({ kind: 'click', taskId: value, action: match[2]!.toLowerCase() as 'href' | 'call', rest: match[3]!.trim() })
+      else if (name === 'weekday' && !(WEEKDAYS as readonly string[]).includes(value.toLowerCase())) {
+        append({ kind: 'invalid', code: 'GANTT_BAD_DIRECTIVE', message: `Invalid weekday "${value}"` })
+      } else if (name === 'weekend' && !['friday', 'saturday'].includes(value.toLowerCase())) {
+        append({ kind: 'invalid', code: 'GANTT_BAD_DIRECTIVE', message: `Invalid weekend "${value}" (friday or saturday)` })
+      } else append({ kind: 'directive', name: name as Extract<GanttSyntax, { kind: 'directive' }>['name'], value })
+      break
+    }
+    if (matched) continue
+    const keyword = stripTrailingComment(line)
+    if (/^(inclusiveEndDates|topAxis)\s*$/i.test(keyword)) {
+      append({ kind: 'directive', name: /^topAxis/i.test(keyword) ? 'topAxis' : 'inclusiveEndDates', value: '' })
+      continue
+    }
+    // Reserved directives must never be misclassified as tasks because their
+    // malformed payload happens to contain a colon.
+    const colon = line.indexOf(':')
+    if (!/^(dateFormat|axisFormat|tickInterval|inclusiveEndDates|topAxis|excludes|includes|todayMarker|weekday|weekend|click)\b/i.test(line)
+      && colon > 0 && colon < line.length - 1) {
+      const label = line.slice(0, colon).trim()
+      const rawColon = rawLine.indexOf(':')
+      const commentInMeta = trailingCommentStart(rawLine.slice(rawColon + 1))
+      const commentOffset = commentInMeta < 0 ? -1 : rawColon + 1 + commentInMeta
+      const rawMeta = stripTrailingComment(line.slice(colon + 1)).trim()
+      const meta = parseGanttTaskMeta(rawMeta)
+      if (meta) {
+        append({ kind: 'task', label, meta }, [commentOffset < 0 ? rawLine : rawLine.slice(0, commentOffset)])
+        if (commentOffset >= 0) append({ kind: 'comment' }, [rawLine.slice(commentOffset)])
+      } else append({ kind: 'invalid', code: 'GANTT_BAD_TASK', message: `Invalid task metadata "${rawMeta}"` })
+    } else append({ kind: 'invalid', code: 'GANTT_BAD_DIRECTIVE', message: `Unrecognized gantt line "${line}"` })
+  }
+  return statements
+}
+
 /**
  * Parse normalized Mermaid gantt lines (header included) into a GanttModel.
  * Throws GanttError with a code and 1-based line number on the first invalid
  * construct. Lines is the normalized list, so `lineNo` refers to it.
  */
 export function parseGanttModel(lines: string[]): GanttModel {
-  const accessibility = scanAccessibilityDirectives(lines)
-  if (accessibility.unclosedIndex !== undefined) {
-    throw new GanttError('GANTT_BAD_DIRECTIVE', 'Unclosed accDescr block', accessibility.unclosedIndex + 1)
-  }
-  lines = accessibility.familyLines
-  const header = (lines[0] ?? '').trim()
+  const header = stripTrailingComment((lines[0] ?? '').trim())
   if (!/^gantt\s*$/i.test(header)) {
     throw new GanttError('GANTT_BAD_DIRECTIVE', `Expected "gantt" header, got "${header}"`, 1)
   }
@@ -139,87 +233,42 @@ export function parseGanttModel(lines: string[]): GanttModel {
     sections: [{ taskIndexes: [] }],
     tasks: [],
     clicks: [],
-    ...(accessibility.accessibility.title !== undefined ? { accTitle: accessibility.accessibility.title } : {}),
-    ...(accessibility.accessibility.descr !== undefined
-      ? { accDescr: accessibility.accessibility.descr.replace(/\s*\n\s*/g, ' ') }
-      : {}),
   }
   const seenIds = new Set<string>()
   let currentSection = 0
 
-  for (let i = 1; i < lines.length; i++) {
-    const line = lines[i]!.trim()
-    const lineNo = i + 1
-    if (!line || line.startsWith('%%')) continue
-
-    let m: RegExpMatchArray | null
-
-    if ((m = line.match(DIRECTIVE_RES.title))) { model.title = m[1]!.trim(); continue }
-    if ((m = line.match(DIRECTIVE_RES.dateFormat))) { model.dateFormat = m[1]!.trim(); continue }
-    if ((m = line.match(DIRECTIVE_RES.axisFormat))) { model.axisFormat = m[1]!.trim(); continue }
-    if ((m = line.match(DIRECTIVE_RES.tickInterval))) {
-      // Lenient like Mermaid: values outside the documented
-      // `count(millisecond|second|minute|hour|day|week|month)` shape are
-      // ignored and the axis falls back to auto ticks — mermaid's own docs
-      // contain `tickInterval 1decade`. The PR #7197 safety property lives in
-      // bounded tick GENERATION (layout.ts), not in rejecting the directive.
-      const tm = m[1]!.trim().match(TICK_INTERVAL_RE)
-      if (tm) model.tickInterval = { count: Number(tm[1]), unit: tm[2] as GanttTickUnit }
-      continue
-    }
-    if (/^inclusiveEndDates\s*$/i.test(line)) { model.inclusiveEndDates = true; continue }
-    if (/^topAxis\s*$/i.test(line)) { model.topAxis = true; continue }
-    if ((m = line.match(DIRECTIVE_RES.excludes))) {
-      // Multiple excludes lines accumulate (mermaid PR #7772).
-      model.excludes.push(...parseCalendarTokens(m[1]!.trim()))
-      continue
-    }
-    if ((m = line.match(DIRECTIVE_RES.includes))) {
-      model.includes.push(...parseCalendarTokens(m[1]!.trim()))
-      continue
-    }
-    if ((m = line.match(DIRECTIVE_RES.todayMarker))) {
-      const v = m[1]!.trim()
-      model.todayMarker = v.toLowerCase() === 'off' ? { off: true } : { off: false, style: v }
-      continue
-    }
-    if ((m = line.match(DIRECTIVE_RES.weekday))) {
-      const day = m[1]!.trim().toLowerCase()
-      if (!(WEEKDAYS as readonly string[]).includes(day)) {
-        throw new GanttError('GANTT_BAD_DIRECTIVE', `Invalid weekday "${m[1]!.trim()}"`, lineNo)
+  for (const statement of readGanttStatements(lines.slice(1))) {
+    const lineNo = statement.startLine + 1
+    if (statement.kind === 'invalid') throw new GanttError(statement.code, statement.message, lineNo)
+    if (statement.kind === 'accessibility') {
+      if (statement.directive.title) model.accTitle = statement.directive.value
+      else model.accDescr = statement.directive.value.replace(/\s*\n\s*/g, ' ')
+    } else if (statement.kind === 'title') model.title = statement.value
+    else if (statement.kind === 'directive') {
+      const value = statement.value
+      switch (statement.name) {
+        case 'dateFormat': model.dateFormat = value; break
+        case 'axisFormat': model.axisFormat = value; break
+        case 'tickInterval': {
+          const tm = value.match(TICK_INTERVAL_RE)
+          if (tm) model.tickInterval = { count: Number(tm[1]), unit: tm[2] as GanttTickUnit }
+          break
+        }
+        case 'inclusiveEndDates': model.inclusiveEndDates = true; break
+        case 'topAxis': model.topAxis = true; break
+        case 'excludes': model.excludes.push(...parseCalendarTokens(value)); break
+        case 'includes': model.includes.push(...parseCalendarTokens(value)); break
+        case 'todayMarker': model.todayMarker = value.toLowerCase() === 'off' ? { off: true } : { off: false, style: value }; break
+        case 'weekday': model.weekStart = value.toLowerCase() as GanttWeekday; break
+        case 'weekend': model.weekendStart = value.toLowerCase() as 'friday' | 'saturday'; break
       }
-      model.weekStart = day as GanttWeekday
-      continue
-    }
-    if ((m = line.match(DIRECTIVE_RES.weekend))) {
-      const day = m[1]!.trim().toLowerCase()
-      if (day !== 'friday' && day !== 'saturday') {
-        throw new GanttError('GANTT_BAD_DIRECTIVE', `Invalid weekend "${m[1]!.trim()}" (friday or saturday)`, lineNo)
-      }
-      model.weekendStart = day
-      continue
-    }
-    if ((m = line.match(DIRECTIVE_RES.click))) {
-      model.clicks.push({ taskId: m[1]!, action: m[2]!.toLowerCase() as 'href' | 'call', rest: m[3]!.trim(), line: lineNo })
-      continue
-    }
-    if ((m = line.match(DIRECTIVE_RES.section))) {
-      model.sections.push({ label: m[1]!.trim(), taskIndexes: [], line: lineNo })
+    } else if (statement.kind === 'click') {
+      model.clicks.push({ taskId: statement.taskId, action: statement.action, rest: statement.rest, line: lineNo })
+    } else if (statement.kind === 'section') {
+      model.sections.push({ label: statement.value, taskIndexes: [], line: lineNo })
       currentSection = model.sections.length - 1
-      continue
-    }
-
-    // Task line: `<label> : <metadata>` — label is everything before the LAST
-    // colon-separated metadata block. Mermaid's grammar splits on the first
-    // colon (labels cannot contain `:`); `#`/`;` are allowed in labels since
-    // mermaid PR #5095 (our comment stripping only removes `%%` lines).
-    const colon = line.indexOf(':')
-    if (colon > 0 && colon < line.length - 1) {
-      const label = line.slice(0, colon).trim()
-      const rawMeta = line.slice(colon + 1).trim()
-      const meta = parseGanttTaskMeta(rawMeta)
-      if (!meta) throw new GanttError('GANTT_BAD_TASK', `Invalid task metadata "${rawMeta}"`, lineNo)
-      if (!label) throw new GanttError('GANTT_BAD_TASK', 'Task label is empty', lineNo)
+    } else if (statement.kind === 'task') {
+      const { label, meta } = statement
       if (meta.id !== undefined) {
         if (seenIds.has(meta.id)) throw new GanttError('GANTT_DUPLICATE_TASK_ID', `Duplicate task id "${meta.id}"`, lineNo)
         seenIds.add(meta.id)
@@ -236,10 +285,7 @@ export function parseGanttModel(lines: string[]): GanttModel {
       }
       model.tasks.push(task)
       model.sections[currentSection]!.taskIndexes.push(task.index)
-      continue
     }
-
-    throw new GanttError('GANTT_BAD_DIRECTIVE', `Unrecognized gantt line "${line}"`, lineNo)
   }
 
   return model

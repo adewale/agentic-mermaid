@@ -71,13 +71,6 @@ export function parseJourneyDiagram(
     issue: issue => { throw journeyIssueError(issue) },
   })
 
-  // Upstream parity: a journey with a title/acc metadata but no tasks still
-  // renders (as its header furniture). Only a journey with NOTHING — no
-  // sections, no tasks, no title — is unrenderable.
-  if (diagram.sections.length === 0 && !diagram.title && diagram.sections.every(section => section.tasks.length === 0) && !diagram.accessibilityTitle && !diagram.accessibilityDescription) {
-    throw new Error('Journey diagram must include at least one scored task, a section, or a title')
-  }
-
   return diagram
 }
 
@@ -100,7 +93,6 @@ function journeyIssueError(issue: JourneyParseIssue): Error {
       return new Error(issue.detail)
     case 'empty_title':
     case 'unrecognized_line':
-    case 'empty_journey':
       return new Error(`Invalid user journey line: "${issue.statement}". Expected title, section, accessibility metadata, or "Task name: 3: Actor"`)
   }
 }

@@ -6,7 +6,11 @@ successful canonical `ci.yml` run for the exact release commit. CI owns tests,
 dependency/palette/sketch/whole-corpus quality, TypeScript and Biome checks,
 browser contracts, route sabotage, `hero:check`, `website:check`, golden drift,
 mutation, and packed-consumer fuzzing under Node 24 and the minimum supported
-Node 22. The release workflow retains the registry-derived macOS/Windows smoke,
+Node 22. `bun run lint:package` runs publint and attw on the packed tarball, so
+every export resolves and carries types for Node ESM and bundlers. attw uses its
+`esm-only` profile because the package ships ESM only, and it skips `./browser`
+because that is the classic `<script>` bundle that sets a global, not an import.
+The release workflow retains the registry-derived macOS/Windows smoke,
 then owns only the publish boundary: an unprivileged job builds once, creates a
 real tarball with the pinned publishing npm, compares its contents with the
 reviewed fail-closed manifest, records its integrity and SHA-256 digest, and

@@ -4,7 +4,7 @@
 // Mermaid's `todayMarker <css-ish payload>` directive carries comma-separated
 // `prop:value` declarations (e.g. `stroke-width:5px,stroke:#0f0,opacity:0.5`)
 // that upstream applies verbatim to the today line. Here the payload is
-// parsed with the flowchart parser's own parseStyleProps (one style grammar,
+// parsed with the shared parseStyleProps the flowchart parser uses (one style grammar,
 // two consumers) and filtered twice before it can land in a style="" attr:
 //
 //   1. property whitelist — only line-paint properties are wired
@@ -18,7 +18,7 @@
 //      declaration (and are reported like unwired ones).
 // ============================================================================
 
-import { parseStyleProps } from '../parser.ts'
+import { parseStyleProps } from '../shared/style-props.ts'
 
 /** Wired todayMarker payload properties (everything else lints). */
 export const GANTT_TODAY_MARKER_STYLE_PROPS = ['stroke', 'stroke-width', 'opacity', 'stroke-dasharray'] as const

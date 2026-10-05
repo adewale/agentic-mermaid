@@ -1,3 +1,5 @@
+import { scanMetadataBlock } from '../shared/metadata-block-scan.ts'
+
 /**
  * Mermaid Sequence accepts semicolons in place of physical line breaks. Keep
  * this lexical boundary shared by the render and agent projections so neither
@@ -15,25 +17,39 @@ export function isSequenceCommentLine(line: string): boolean {
 }
 
 export function splitSequenceStatementLines(lines: readonly string[]): string[] {
-  const statements: string[] = []
+  return scanSequenceStatementLines(lines).map(statement => statement.raw)
+}
+
+export interface SequenceSourceSpan {
+  raw: string
+  /** Zero-based physical source coordinates, with an exclusive end column. */
+  line: number
+  column: number
+  endColumn: number
+}
+
+export function scanSequenceStatementLines(lines: readonly string[]): SequenceSourceSpan[] {
+  const statements: SequenceSourceSpan[] = []
   let inAccessibilityDescription = false
-  for (const physicalLine of lines) {
-    const pushStatement = (statement: string): void => { statements.push(statement) }
+  for (const [lineNumber, physicalLine] of lines.entries()) {
+    let lineOffset = 0
+    const pushStatement = (raw: string, start: number): void => {
+      const column = lineOffset + start
+      statements.push({ raw, line: lineNumber, column, endColumn: column + raw.length })
+    }
     let line = physicalLine
     if (inAccessibilityDescription) {
       const closing = line.indexOf('}')
       if (closing < 0) {
-        pushStatement(line)
+        pushStatement(line, 0)
         continue
       }
-      pushStatement(line.slice(0, closing + 1))
+      pushStatement(line.slice(0, closing + 1), 0)
       line = line.slice(closing + 1)
+      lineOffset = closing + 1
       inAccessibilityDescription = false
     }
     let start = 0
-    let braceDepth = 0
-    let quote: '"' | "'" | null = null
-    let escaped = false
     let finished = false
     let firstHashIndex = -1
     for (let index = 0; index < line.length; index++) {
@@ -44,12 +60,12 @@ export function splitSequenceStatementLines(lines: readonly string[]): string[] 
           const opening = line.indexOf('{', start)
           const closing = line.indexOf('}', opening + 1)
           if (closing < 0) {
-            pushStatement(line.slice(start))
+            pushStatement(line.slice(start), start)
             inAccessibilityDescription = true
             finished = true
             break
           }
-          pushStatement(line.slice(start, closing + 1))
+          pushStatement(line.slice(start, closing + 1), start)
           start = closing + 1
           index = closing
           continue
@@ -57,43 +73,34 @@ export function splitSequenceStatementLines(lines: readonly string[]): string[] 
         if (/^(?:rect|box)\s+#(?:[0-9a-f]{3,4}|[0-9a-f]{6}|[0-9a-f]{8});/i.test(remainder)
           || isSequenceCommentLine(remainder)
           || /^(?:accTitle|accDescr)(?:\s*:|\s+)/i.test(remainder)) {
-          pushStatement(line.slice(start))
+          pushStatement(line.slice(start), start)
           finished = true
           break
         }
       }
       const char = line[index]!
-      if (braceDepth > 0) {
-        if (quote) {
-          if (escaped) escaped = false
-          else if (char === '\\') escaped = true
-          else if (char === quote) quote = null
-        } else if (char === '"' || char === "'") quote = char
-        else if (char === '{') braceDepth++
-        else if (char === '}') braceDepth--
-        continue
-      }
-
       if (char === '@' && line[index + 1] === '{' && /^(?:participant|actor)\b/i.test(line.slice(start, index).trimStart())) {
-        braceDepth = 1
-        index++
+        // Upstream's CONFIG lexer: the block's semicolons are metadata text,
+        // and its first `}`, quoted or not, ends it.
+        const block = scanMetadataBlock(line, index + 1, 'sequence')
+        index = block.kind === 'closed' ? block.end : block.kind === 'unclosed' ? line.length : index + 1
         continue
       }
       if (char === '#' && firstHashIndex < 0) firstHashIndex = index
       if (char === '#' && !hasHashEntityAt(line, index)
         && !(/^\s*(?:rect|box)\s*$/i.test(line.slice(start, index))
           && /^#(?:[0-9a-f]{3,4}|[0-9a-f]{6}|[0-9a-f]{8})(?=\s|;|$)/i.test(line.slice(index)))) {
-        pushStatement(line.slice(start, index))
-        pushStatement(line.slice(index))
+        pushStatement(line.slice(start, index), start)
+        pushStatement(line.slice(index), index)
         finished = true
         break
       }
       if (line[index] !== ';' || isHashEntityTerminator(line, start, index, firstHashIndex)) continue
-      pushStatement(line.slice(start, index))
+      pushStatement(line.slice(start, index), start)
       start = index + 1
       firstHashIndex = -1
     }
-    if (!finished) pushStatement(line.slice(start))
+    if (!finished) pushStatement(line.slice(start), start)
   }
   return statements
 }

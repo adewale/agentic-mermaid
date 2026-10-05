@@ -17,33 +17,23 @@ not hand-edited screenshots. Use the smallest artifact that matches the change.
 
 ## Artifact meanings
 
-- `docs/pr-assets/contact-sheet.png` is a dated reviewer snapshot of the route/port contact sheet, not a golden: `contact-sheet.test.ts` pins each scenario's geometry in the readable golden `src/__tests__/testdata/contact-sheet-geometry.json` (one node, edge, or group per line; regenerate with `UPDATE_CONTACT_SHEET_GEOMETRY=1` and approve with `[approve-goldens]`) and `contact-sheet-png.test.ts` checks the generator still draws one cell per scenario. Scenarios `AP`–`AR` cover duplicate/parallel edges: duplicates must render as evenly-separated, nested (non-crossing) parallel lanes — never a collapsed single line or a crossed pair.
+- `docs/pr-assets/contact-sheet.png` is a dated reviewer snapshot of the route/port contact sheet, not a golden: `contact-sheet.test.ts` pins each scenario's geometry in the readable golden `src/__tests__/testdata/contact-sheet-geometry.json` (one node, edge, or group per line; regenerate with `UPDATE_CONTACT_SHEET_GEOMETRY=1`, review the diff, and list the changed golden and why in the PR description) and `contact-sheet-png.test.ts` checks the generator still draws one cell per scenario. Scenarios `AP`–`AR` cover duplicate/parallel edges: duplicates must render as evenly-separated, nested (non-crossing) parallel lanes — never a collapsed single line or a crossed pair.
 - The duplicate-edge crossing ratchet (`layout-rubric.test.ts`) counts duplicate-pair crossings over the random-flowchart generator and holds the count at or below its pinned baseline. Duplicate edges share both endpoints, so a crossing between them is never logically required; the baseline is a regression ceiling whose target is zero — lower it when the count drops.
 - `eval/visual-rubric` produces deterministic scored galleries. Its scores are a gate for obvious regressions, not a replacement for human review.
 - `eval/layout-compare` compares before/after layout faithfulness and quality over a corpus. “0 regressions” means no configured metric/faithfulness regression, not a claim of pixel parity with Mermaid.js.
 - Browser screenshots prove the shipped site/editor still renders and remains usable. Pixel-diff is only active when dependencies are available, so reviewer inspection still matters.
 
-## Golden-snapshot drift gate (`[approve-goldens]`)
+## Golden-snapshot review
 
-Committed goldens under `src/__tests__/testdata/` are a **hard CI gate**, not an
-ignorable warning. The gate is the `golden-drift` check in `bun run quality:check`
-(`QUALITY_CHECKS` in `scripts/ci/quality-gates.ts`, run by the `ci.yml` Quality
-gates job), and it fails if:
+Committed goldens under `src/__tests__/testdata/` are reviewed through the PR.
+When an intentional renderer or protocol change moves a golden, regenerate it,
+review the diff, and commit the result. The PR description must list **each
+changed golden and why it changed**, with the relevant visual or structural
+evidence. The PR template restates this requirement as a checklist item.
 
-- the working tree has **uncommitted** changes under `testdata/` (regenerate
-  and commit them) — in practice this half only bites locally, after you have
-  run the suite, because the CI Quality gates job does not run the unit suite, or
-- any commit in the PR/push range **modifies** committed goldens **without its
-  own** approval line starting with `[approve-goldens]`.
-
-So when a renderer change legitimately moves goldens: regenerate them, **review
-the diff** (this is the human decision the gate enforces), commit the result,
-and **start a commit-message line** with `[approve-goldens]`. The token only
-counts at the start of a line — merely mentioning it mid-sentence (as this doc
-does) is not approval, so prose about the gate can't trip it. A standalone
-`[approve-goldens]` line on a commit that changes no goldens also fails, to keep
-the token meaningful. The gate logic lives in `scripts/ci/golden-drift.ts` and is
-unit-tested; the PR template restates it as a checklist item.
+The snapshot tests still fail when current output differs from the committed
+goldens. A passing comparison establishes consistency with the baseline;
+reviewers decide whether an intentional baseline change is justified.
 
 ## Reviewer checklist
 

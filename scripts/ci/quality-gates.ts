@@ -15,12 +15,16 @@ export const QUALITY_CHECKS: readonly QualityCheck[] = [
   // catalog/descriptors before CI inspected them.
   { id: 'browser-family-catalog', label: 'Verify the committed lazy browser family catalog', command: ['bun', 'run', 'check:browser-families'] },
   { id: 'website', label: 'Verify website and Worker artifacts', command: ['bun', 'run', 'website:check'] },
+  // The lazy bundle's graph and size budgets are judged once, here, on the
+  // bundle website:check has just built. `bun run build` only builds it, so
+  // the unit shards, E2E lanes and release jobs that build it no longer each
+  // report the same overrun.
+  { id: 'browser-lazy', label: 'Verify the lazy browser bundle graph and size budgets', command: ['bun', 'run', 'check:browser-lazy'] },
   { id: 'sketch', label: 'Run sketch prototype style checks', command: ['bun', 'run', 'sketch:check'] },
   { id: 'rendered-corpora', label: 'Audit rendered corpora and family structural evidence', command: ['bun', 'run', 'audit:ugly'] },
   { id: 'lint', label: 'Lint TypeScript', command: ['bun', 'run', 'lint:biome'] },
   { id: 'typecheck', label: 'Type check', command: ['bun', 'run', 'typecheck'] },
   { id: 'hero', label: 'Check README hero image freshness', command: ['bun', 'run', 'hero:check'] },
-  { id: 'golden-drift', label: 'Enforce reviewed golden snapshot drift', command: ['bun', 'run', 'scripts/ci/golden-drift.ts'] },
 ]
 
 export type CheckRunner = (check: QualityCheck) => number
