@@ -4,7 +4,7 @@
 // assertion happens to look at.
 //
 // Why this exists alongside the behavioural MCP suites: those pin the tool
-// ROSTER (hosted-mcp.test.ts asserts the exact 9 names) and spot-check
+// ROSTER (hosted-mcp.test.ts asserts the exact names) and spot-check
 // individual schema properties, but tool descriptions, the server instructions
 // string, annotations, and full input schemas were unpinned. Those strings are
 // the prompt an agent actually reads — a reworded description or a quietly
@@ -23,7 +23,10 @@
 // property added, removed, or retyped) readable in the diff without committing
 // the ~58KB shared RenderOptions schema four times over. Render payload bytes
 // are hashed for the same reason; their exact bytes are already owned by the
-// styled-output and PNG contract goldens.
+// styled-output and PNG contract goldens. A tool's `_meta` (the MCP Apps view
+// link) is recorded verbatim. An MCP Apps view's HTML is left out: hosts render
+// it for the user, no agent reads it, and its behaviour is pinned by its
+// browser contract (e2e/mcp-app-preview.e2e.test.ts).
 //
 // The reported server version is normalized to <package-version>: it tracks
 // package.json by design (MCP_SERVER_VERSION = PACKAGE_VERSION), and baking the
@@ -106,6 +109,7 @@ function toolEntry(tool: McpToolDefinition) {
     name: tool.name,
     description: tool.description,
     annotations: tool.annotations ?? null,
+    ...(tool._meta === undefined ? {} : { _meta: tool._meta }),
     inputSchemaSha256: sha256(canonicalJson(tool.inputSchema)),
     inputSchemaShape: schemaShape(tool.inputSchema),
   }
@@ -121,12 +125,20 @@ function normalize(value: unknown): unknown {
   return value
 }
 
+/** Record a resource read without the HTML of MCP Apps views (see header). */
+function recordContents(result: { contents: Array<Record<string, unknown>> }): unknown {
+  const contents = result.contents.map(({ text, ...item }) =>
+    item.mimeType === 'text/html;profile=mcp-app' ? item : { ...item, text })
+  return normalize({ result: { ...result, contents } })
+}
+
 /** Record a tool-call payload: full text when small enough to read in a diff,
  *  hash + length when it is render output whose bytes other goldens own. */
 function recordPayload(response: JsonRpcResponse | null): unknown {
   if (response === null) return { notification: true }
   if (response.error) return normalize({ error: response.error })
-  const result = response.result as { content?: Array<{ text?: string }>; isError?: boolean } | undefined
+  const result = response.result as { content?: Array<{ text?: string }>; contents?: Array<Record<string, unknown>>; isError?: boolean } | undefined
+  if (Array.isArray(result?.contents)) return recordContents(result as { contents: Array<Record<string, unknown>> })
   if (!result?.content) return normalize({ result })
   const text = result.content[0]?.text ?? ''
   const body = text.length <= 2000
@@ -149,8 +161,10 @@ const SHARED_CALLS: Array<{ label: string; request: JsonRpcRequest }> = [
   { label: 'error/describe-missing-source', request: { jsonrpc: '2.0', id: 7, method: 'tools/call', params: { name: 'describe', arguments: {} } } },
   { label: 'error/describe-unknown-argument', request: { jsonrpc: '2.0', id: 8, method: 'tools/call', params: { name: 'describe', arguments: { source: FLOW, nope: 1 } } } },
   { label: 'error/unadvertised-prompts-list', request: { jsonrpc: '2.0', id: 9, method: 'prompts/list' } },
-  { label: 'error/unadvertised-resources-list', request: { jsonrpc: '2.0', id: 10, method: 'resources/list' } },
-  { label: 'error/unadvertised-resource-templates-list', request: { jsonrpc: '2.0', id: 17, method: 'resources/templates/list' } },
+  { label: 'resources-list', request: { jsonrpc: '2.0', id: 10, method: 'resources/list' } },
+  { label: 'resource-templates-list', request: { jsonrpc: '2.0', id: 17, method: 'resources/templates/list' } },
+  { label: 'resources-read/preview-view', request: { jsonrpc: '2.0', id: 18, method: 'resources/read', params: { uri: 'ui://agentic-mermaid/preview' } } },
+  { label: 'error/resources-read-unknown-uri', request: { jsonrpc: '2.0', id: 19, method: 'resources/read', params: { uri: 'agentic-mermaid://nope' } } },
 ]
 
 // Hosted-only tools (the local server routes these through execute instead).

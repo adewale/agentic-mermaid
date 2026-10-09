@@ -4,7 +4,7 @@
 
 export const LOCAL_MCP_TOOL_NAMES = ['execute', 'describe_sdk', 'render_png', 'describe'] as const
 
-export const HOSTED_MCP_TOOL_NAMES = ['execute', 'describe_sdk', 'render_svg', 'render_ascii', 'render_png', 'verify', 'describe', 'mutate', 'build'] as const
+export const HOSTED_MCP_TOOL_NAMES = ['execute', 'describe_sdk', 'render_svg', 'render_ascii', 'render_png', 'verify', 'describe', 'mutate', 'build', 'preview'] as const
 
 /** `a`, `b`, and `c` — an inline Markdown list of tool names. */
 export function inlineToolList(names: readonly string[]): string {

@@ -12,7 +12,7 @@ An agent-agnostic typed editing surface for Mermaid. New diagrams can be authore
 - `agentic-mermaid-mcp` connected → **Code Mode** (`references/code-mode.md`). Multi-step edits in one round-trip.
 - Can run JS/TS with imports → **library** (`agentic-mermaid/agent`). Same SDK.
 - Shell only → **CLI** (`references/cli.md`).
-- No local install, network only → **hosted MCP** at `https://agentic-mermaid.dev/mcp` (stateless Streamable HTTP JSON-RPC; <!-- BEGIN GENERATED: hosted-mcp-tools -->`execute`, `describe_sdk`, `render_svg`, `render_ascii`, `render_png`, `verify`, `describe`, `mutate`, and `build`<!-- END GENERATED: hosted-mcp-tools --> tools — 64 KB input cap). Read `references/hosted-mcp.md` before composing a hosted request. Use the named direct tool and its exact argument object; do not substitute library APIs or local Code Mode for a hosted direct-tool task.
+- No local install, network only → **hosted MCP** at `https://agentic-mermaid.dev/mcp` (stateless Streamable HTTP JSON-RPC; <!-- BEGIN GENERATED: hosted-mcp-tools -->`execute`, `describe_sdk`, `render_svg`, `render_ascii`, `render_png`, `verify`, `describe`, `mutate`, `build`, and `preview`<!-- END GENERATED: hosted-mcp-tools --> tools — 64 KB input cap). Read `references/hosted-mcp.md` before composing a hosted request. Use the named direct tool and its exact argument object; do not substitute library APIs or local Code Mode for a hosted direct-tool task.
 
 For hosted MCP, choose the least-powerful tool that completes the task:
 
