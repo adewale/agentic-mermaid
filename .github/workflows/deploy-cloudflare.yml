@@ -155,7 +155,7 @@ jobs:
         if: steps.cloudflare-secrets.outputs.available == 'true' && steps.npm-version.outputs.available == 'true'
         run: |
           bun install --frozen-lockfile
-          test "$(node_modules/.bin/wrangler --version)" = '4.114.0'
+          test "$(node_modules/.bin/wrangler --version)" = '4.149.0'
       - name: Build the published artifacts the site serves
         if: steps.cloudflare-secrets.outputs.available == 'true' && steps.npm-version.outputs.available == 'true'
         # /demo/ serves the real dist/browser-lazy graph. Building explicitly
