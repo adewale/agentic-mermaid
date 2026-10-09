@@ -26,7 +26,7 @@ describe('dependency security overrides', () => {
       Address4: new (address: string) => unknown
     }
 
-    expect(packageVersion(ipAddressEntry)).toBe('10.4.0')
+    expect(packageVersion(ipAddressEntry)).toBe('10.7.1')
     expect(() => new Address4('127.0.0.01')).toThrow()
   })
 })
