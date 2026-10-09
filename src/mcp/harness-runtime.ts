@@ -7,7 +7,7 @@
 // for behavioral parity with sandbox.ts: same hardened facade, same console
 // coercion, same result serialization, same error surface.
 
-import { createTracingMermaid, marshalCodeModeResult, CODE_MODE_RETURN_HINT } from './facade.ts'
+import { createTracingMermaid, marshalCodeModeResult, returnTrailingExpression, CODE_MODE_RETURN_HINT } from './facade.ts'
 import type { ExecuteResult } from './sandbox.ts'
 import { HOSTED_CODE_MODE_HOST_POLICY } from '../render-host-policy.ts'
 import {
@@ -106,7 +106,7 @@ export function userModuleSources(code: string): { expr: string; stmt: string } 
   // only against hardenIsolateGlobals()-stripped capabilities.
   return {
     expr: `export default (function (${params}) { return (\n${stripped}\n) })\n`,
-    stmt: `export default (function (${params}) { ${code} })\n`,
+    stmt: `export default (function (${params}) { ${returnTrailingExpression(code)} })\n`,
   }
 }
 
