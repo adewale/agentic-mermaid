@@ -12,6 +12,12 @@ name: Deploy website to Cloudflare
 # Also runnable manually via workflow_dispatch after proving the same exact-SHA
 # canonical CI success as the automatic path.
 #
+# An unpublished version skips the deploy and the run stays green. The skip
+# opens one `release-todo` issue for that version (scripts/ci/release-todo.ts)
+# with a prefilled link to create the GitHub Release, and a verified deploy of
+# that version closes it. Later skips for the same version write nothing, and
+# to-do errors are warnings that never change the job's outcome.
+#
 # Requires two repository secrets to publish from GitHub: CLOUDFLARE_API_TOKEN
 # (a token with the Workers Scripts:Edit permission) and CLOUDFLARE_ACCOUNT_ID.
 # If either secret is absent, the workflow fails before checkout. A green deploy
@@ -52,6 +58,8 @@ jobs:
     permissions:
       actions: read
       contents: read
+      # Only for the release to-do issue (scripts/ci/release-todo.ts).
+      issues: write
     env:
       WRANGLER_SEND_METRICS: 'false'
       EXPECTED_SHA: ${{ github.event_name == 'workflow_run' && github.event.workflow_run.head_sha || github.sha }}
@@ -82,6 +90,10 @@ jobs:
           # Never let workflow_run's default-branch GITHUB_SHA select the build.
           ref: ${{ env.EXPECTED_SHA }}
           fetch-depth: 0
+          # The job token can write issues (the release to-do). Do not leave it
+          # in .git/config for build-time code: the only later git commands are
+          # anonymous fetches of this public repository.
+          persist-credentials: false
 
       - name: Require the exact current main commit
         if: steps.cloudflare-secrets.outputs.available == 'true'
@@ -151,6 +163,15 @@ jobs:
             echo "\`agentic-mermaid@$version\` is not available on npm yet, so the site's pinned CDN URL would fail."
             echo "Publishing that exact version will trigger this workflow again."
           } >> "$GITHUB_STEP_SUMMARY"
+      - name: Open a release to-do for the unpublished version
+        if: steps.npm-version.outputs.available == 'false'
+        # One issue per version: later skips find it and write nothing. Errors
+        # are warnings, so the skip stays a green, non-failing run.
+        continue-on-error: true
+        timeout-minutes: 2
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: bun run scripts/ci/release-todo.ts open
       - name: Install dependencies
         if: steps.cloudflare-secrets.outputs.available == 'true' && steps.npm-version.outputs.available == 'true'
         run: |
@@ -429,6 +450,16 @@ jobs:
         run: |
           bun run scripts/site/smoke-live-site.ts
           echo "verified=true" >> "$GITHUB_OUTPUT"
+
+      - name: Close release to-dos for the version now live
+        if: steps.production-verify.outputs.verified == 'true' && steps.production-site-verify.outputs.verified == 'true'
+        # Production is promoted and verified, so every open release-todo issue
+        # for this version or an older one is done. Errors are warnings.
+        continue-on-error: true
+        timeout-minutes: 2
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: bun run scripts/ci/release-todo.ts close
 
       - name: Roll back any unverified deployment
         if: ${{ always() && steps.rollback-guard.outputs.armed == 'true' && (steps.production-verify.outputs.verified != 'true' || steps.production-site-verify.outputs.verified != 'true') }}

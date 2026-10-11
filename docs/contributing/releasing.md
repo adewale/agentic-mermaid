@@ -98,7 +98,17 @@ client-side exact-identity check.
 4. **Flip the "published" copy** (see below), commit via PR, and merge to `main`.
 5. **Create the GitHub Release** on the merge commit (tag `v<version>`). Its
    publication fires `publish.yml`, which gates, builds, publishes to npm, and
-   then publishes the matching server metadata to the MCP Registry.
+   then publishes the matching server metadata to the MCP Registry. You do not
+   need to remember this step: once the merge's CI passes, the deploy finds the
+   version missing from npm and opens a **release to-do** issue that
+   @mentions you, labelled `release-todo`, titled
+   `Publish v<version>: production still serves v<previous>`. Its link opens
+   the new-release form with the tag, the target commit and the title
+   `Agentic Mermaid v<version>` filled in, plus the version's `CHANGELOG.md`
+   section as notes when that fits in a URL. Check the notes and publish. If
+   `main` has moved on since the issue opened, set the target to the current
+   `main` commit once its CI is green, because the deploy ships only the
+   current `main` commit.
 6. **Verify:** `npm view agentic-mermaid version` shows the new version;
    if npm committed the immutable version before the workflow recorded success,
    rerun it—the publish job recovers only after the registry's SHA-512 integrity
@@ -113,6 +123,50 @@ client-side exact-identity check.
 7. **After the first publish,** set the package on npmjs.com to
    "Require two-factor authentication and disallow tokens" — trusted publishing
    keeps working, and token-based publishing is locked out.
+
+### Between the version bump and the publish
+
+The site deploys only published bytes:
+[`deploy-cloudflare.yml`](../../.github/workflows/deploy-cloudflare.yml) builds
+from the exact npm package, so while `package.json` names a version that is not
+on npm, every deploy run skips with a warning and ends green, and production
+keeps serving its previous build. That gap is expected between steps 4 and 5.
+(0.4.2 was bumped on 2026-08-03 and not published, and production stayed on
+0.4.1 for eight weeks while every deploy run was green.)
+
+The deploy job turns that gap into a release to-do
+([`scripts/ci/release-todo.ts`](../../scripts/ci/release-todo.ts)), so it
+notifies you once instead of failing pushes or nagging daily:
+
+- **When a version is first found missing from npm,** the skip opens one
+  `release-todo` issue for it (step 5). That is the only notification for that
+  version.
+- **Later skips for the same version write nothing:** no comment, no edit and
+  no new issue, even if you closed the issue by hand. A newer unpublished
+  version gets its own issue.
+- **When a deploy of that version or a later one is promoted and verified,**
+  the deploy closes the issue with a one-line comment.
+- **The run's outcome never changes.** A skip stays green, and a GitHub API
+  error while opening or closing the issue is a warning. The steps run inside
+  the existing deploy job with `issues: write`; there is no schedule and no
+  extra job.
+
+To check what production actually serves, run the freshness check by hand,
+for example after a release or whenever deploys look stale. It makes one
+read-only GET to `https://agentic-mermaid.dev/capabilities.json` and reads
+local git history:
+
+```bash
+git fetch origin main
+bun run scripts/ci/production-freshness.ts --deployable-sha "$(git rev-parse origin/main)" --max-drift-days 3
+```
+
+It compares the build production reports (`generatedFrom.gitSha`) with the
+given `main` commit, and fails once `main` has held undeployed commits for more
+than three days. If the pending version is not on npm, publish it (steps 5 and
+6); the publish run triggers the deploy. If that version is already on npm, the
+deploy itself is failing: read the latest "Deploy website to Cloudflare" run.
+The check never deploys or publishes.
 
 ### Optional visual review
 
