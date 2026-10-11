@@ -35,6 +35,7 @@ interface Step {
   with?: Record<string, unknown>
   env?: Record<string, string>
   'working-directory'?: string
+  'continue-on-error'?: boolean
 }
 
 function step(name: string): Step {
@@ -164,10 +165,11 @@ const deployments = (...versions: Array<[string, number]>) => JSON.stringify([
 ])
 
 describe('deploy workflow shape', () => {
-  test('a started transaction is never cancelled, and it runs with read-only token scopes', () => {
+  test('a started transaction is never cancelled, and its token reads the repository and writes only issues', () => {
     expect(WORKFLOW.concurrency['cancel-in-progress']).toBe(false)
     expect(WORKFLOW.concurrency).not.toHaveProperty('queue')
-    expect(JOB.permissions).toEqual({ actions: 'read', contents: 'read' })
+    // issues: write exists only for the release to-do; contents stays read-only.
+    expect(JOB.permissions).toEqual({ actions: 'read', contents: 'read', issues: 'write' })
   })
 
   test('builds the exact CI-validated commit with pinned third-party actions and the locked wrangler', () => {
@@ -194,6 +196,7 @@ describe('deploy workflow ordering and guards', () => {
       'Require the exact current main commit',
       'Require successful canonical CI for a manual deployment',
       'Require the site\'s exact package version on npm',
+      'Open a release to-do for the unpublished version',
       'Install dependencies',
       'Verify every published browser artifact is byte-identical',
       'Build the site bundle',
@@ -209,6 +212,7 @@ describe('deploy workflow ordering and guards', () => {
       'Promote the verified candidate to all traffic',
       'Verify the promoted production version',
       'Smoke-test the promoted production website',
+      'Close release to-dos for the version now live',
       'Roll back any unverified deployment',
     ]
     const indexes = order.map(stepIndex)
@@ -217,7 +221,7 @@ describe('deploy workflow ordering and guards', () => {
     expect(STEPS[stepIndex('Arm rollback before changing production state')]!.id).toBe('rollback-guard')
   })
 
-  test('missing secrets or an unpublished package version stop every later step', () => {
+  test('missing secrets stop every later step; an unpublished version stops every later step but the release to-do', () => {
     const afterSecrets = STEPS.slice(stepIndex('Check Cloudflare deployment secrets') + 1)
     for (const event of ['workflow_dispatch', 'workflow_run']) {
       const runs = afterSecrets.filter(candidate => guardAllows(candidate.if, { event, outputs: { 'cloudflare-secrets': {} } }))
@@ -225,7 +229,7 @@ describe('deploy workflow ordering and guards', () => {
     }
     const afterNpm = STEPS.slice(stepIndex('Require the site\'s exact package version on npm') + 1)
     const unpublished = { 'cloudflare-secrets': { available: 'true' }, 'npm-version': { available: 'false' } }
-    expect(afterNpm.filter(candidate => guardAllows(candidate.if, { event: 'workflow_run', outputs: unpublished })).map(candidate => candidate.name)).toEqual([])
+    expect(afterNpm.filter(candidate => guardAllows(candidate.if, { event: 'workflow_run', outputs: unpublished })).map(candidate => candidate.name)).toEqual(['Open a release to-do for the unpublished version'])
   })
 
   test('manual dispatch, and only manual dispatch, must prove canonical CI', () => {
@@ -419,5 +423,105 @@ esac`,
     expect(restored.status).toBe(0)
     expect(restored.calls.find(call => call.startsWith('wrangler rollback'))).toStartWith('wrangler rollback prod-v1 -y')
     expect(rollBack(deployments(['cand-v2', 100])).status).not.toBe(0)
+  })
+})
+
+describe('release to-do wiring', () => {
+  const OPEN = 'Open a release to-do for the unpublished version'
+  const CLOSE = 'Close release to-dos for the version now live'
+  const SCRIPT = join(REPO, 'scripts', 'ci', 'release-todo.ts')
+  // A gh double for the REST calls release-todo.ts makes; FAIL_GH=1 turns
+  // every call into an HTTP 502.
+  const GH_DOUBLE = `
+if [ "\${FAIL_GH:-}" = 1 ]; then echo 'gh: Server Error (HTTP 502)' >&2; exit 1; fi
+case "$*" in
+  *"--method GET"*"/issues?"*) cat "$MOCK_ROOT/issues.json" ;;
+  *"--method GET"*"/labels/release-todo"*) echo '{"name":"release-todo"}' ;;
+  *"--method POST"*"/issues/"*"/comments"*) cat > "$MOCK_ROOT/comment.json"; echo '{"id":1}' ;;
+  *"--method POST"*"/issues"*) cat > "$MOCK_ROOT/created.json"; echo '{"number":7,"html_url":"https://github.com/adewale/agentic-mermaid/issues/7"}' ;;
+  *"--method PATCH"*"/issues/"*) cat > "$MOCK_ROOT/patched.json"; echo '{}' ;;
+  *) echo "unexpected gh call: $*" >&2; exit 64 ;;
+esac`
+  const todo = (name: string, options: { issues?: unknown[]; failGh?: boolean } = {}) =>
+    runStep(name, {
+      env: { FAIL_GH: options.failGh ? '1' : '0' },
+      stubs: { gh: GH_DOUBLE, npm: 'echo 9.9.8' },
+      files: {
+        'package.json': JSON.stringify({ name: 'agentic-mermaid', version: '9.9.9' }),
+        'issues.json': JSON.stringify(options.issues ?? []),
+      },
+      setup(root) {
+        mkdirSync(join(root, 'scripts', 'ci'), { recursive: true })
+        copyFileSync(SCRIPT, join(root, 'scripts', 'ci', 'release-todo.ts'))
+      },
+    })
+  const writes = (calls: string[]) => calls.filter(call => /^gh api --method (?:POST|PATCH)/.test(call)).map(call => call.replace(/ -H Accept: \S+/, ''))
+
+  test('the to-do steps delegate to the tested script with the job token and can never fail the job', () => {
+    for (const [name, command] of [
+      [OPEN, 'open'],
+      [CLOSE, 'close'],
+    ] as const) {
+      const target = step(name)
+      expect({ name, run: target.run?.trim() }).toEqual({ name, run: `bun run scripts/ci/release-todo.ts ${command}` })
+      expect({ name, env: target.env }).toEqual({ name, env: { GH_TOKEN: '${{ github.token }}' } })
+      expect({ name, continueOnError: target['continue-on-error'] }).toEqual({ name, continueOnError: true })
+    }
+    expect(existsSync(SCRIPT)).toBe(true)
+  })
+
+  test('the open step runs right after the npm gate, and only when the version is missing from npm', () => {
+    expect(stepIndex(OPEN)).toBe(stepIndex("Require the site's exact package version on npm") + 1)
+    const open = step(OPEN)
+    const runs = (npm: Record<string, string>) => guardAllows(open.if, { event: 'workflow_run', outputs: { 'cloudflare-secrets': { available: 'true' }, 'npm-version': npm } })
+    expect({ missing: runs({ available: 'false' }), published: runs({ available: 'true' }), gateNotRun: runs({}) }).toEqual({ missing: true, published: false, gateNotRun: false })
+  })
+
+  test('the close step runs only after promoted production passes both verifications', () => {
+    const close = step(CLOSE)
+    expect(stepIndex(CLOSE)).toBeGreaterThan(stepIndex('Smoke-test the promoted production website'))
+    const outputs = (mcp: boolean, site: boolean): Outputs => ({
+      'production-verify': mcp ? { verified: 'true' } : {},
+      'production-site-verify': site ? { verified: 'true' } : {},
+    })
+    expect(
+      [
+        [true, true],
+        [true, false],
+        [false, true],
+        [false, false],
+      ].map(([mcp, site]) => guardAllows(close.if, { event: 'workflow_run', outputs: outputs(mcp!, site!) })),
+    ).toEqual([true, false, false, false])
+    expect(guardAllows(close.if, { event: 'workflow_run', outputs: outputs(true, true), jobStatus: 'failure' })).toBe(false)
+  })
+
+  test('executed: a skip opens one issue for the version, and an existing one means no write', () => {
+    const first = todo(OPEN)
+    expect(first.status).toBe(0)
+    expect(writes(first.calls)).toEqual(['gh api --method POST repos/adewale/agentic-mermaid/issues --input -'])
+    const created = JSON.parse(readFileSync(join(lastStepRoot, 'created.json'), 'utf8')) as { title: string; body: string; labels: string[] }
+    expect(created.title).toBe('Publish v9.9.9: production still serves v9.9.8')
+    expect(created.labels).toEqual(['release-todo'])
+    expect(created.body).toContain(`/releases/new?tag=v9.9.9&target=${SHA}&title=`)
+
+    const existing = { number: 7, title: created.title, body: created.body, state: 'open' }
+    const again = todo(OPEN, { issues: [existing] })
+    expect({ status: again.status, writes: writes(again.calls) }).toEqual({ status: 0, writes: [] })
+  })
+
+  test('executed: a verified deploy closes the open to-do for its version', () => {
+    const issue = { number: 7, title: 'Publish v9.9.9: production still serves v9.9.8', body: '<!-- release-todo version="9.9.9" -->', state: 'open' }
+    const closed = todo(CLOSE, { issues: [issue] })
+    expect(closed.status).toBe(0)
+    expect(writes(closed.calls)).toEqual(['gh api --method POST repos/adewale/agentic-mermaid/issues/7/comments --input -', 'gh api --method PATCH repos/adewale/agentic-mermaid/issues/7 --input -'])
+    expect(JSON.parse(readFileSync(join(lastStepRoot, 'patched.json'), 'utf8'))).toEqual({ state: 'closed', state_reason: 'completed' })
+  })
+
+  test('executed: GitHub API errors leave both steps green with a warning', () => {
+    for (const name of [OPEN, CLOSE]) {
+      const failed = todo(name, { failGh: true })
+      expect({ name, status: failed.status }).toEqual({ name, status: 0 })
+      expect(failed.stdout).toContain('::warning title=Release to-do')
+    }
   })
 })
