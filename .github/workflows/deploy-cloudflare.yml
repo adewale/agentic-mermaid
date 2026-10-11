@@ -90,6 +90,10 @@ jobs:
           # Never let workflow_run's default-branch GITHUB_SHA select the build.
           ref: ${{ env.EXPECTED_SHA }}
           fetch-depth: 0
+          # The job token can write issues (the release to-do). Do not leave it
+          # in .git/config for build-time code: the only later git commands are
+          # anonymous fetches of this public repository.
+          persist-credentials: false
 
       - name: Require the exact current main commit
         if: steps.cloudflare-secrets.outputs.available == 'true'

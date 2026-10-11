@@ -176,7 +176,7 @@ describe('deploy workflow shape', () => {
     // workflow_run's GITHUB_SHA is the default branch tip, not the validated commit.
     expect(JOB.env.EXPECTED_SHA).toBe("${{ github.event_name == 'workflow_run' && github.event.workflow_run.head_sha || github.sha }}")
     const checkout = STEPS.find(candidate => candidate.uses?.startsWith('actions/checkout@'))
-    expect(checkout?.with).toMatchObject({ ref: '${{ env.EXPECTED_SHA }}', 'fetch-depth': 0 })
+    expect(checkout?.with).toMatchObject({ ref: '${{ env.EXPECTED_SHA }}', 'fetch-depth': 0, 'persist-credentials': false })
     for (const { uses } of STEPS.filter(candidate => candidate.uses)) {
       expect({ uses, pinned: /@[0-9a-f]{40}$/.test(uses!) }).toEqual({ uses, pinned: true })
     }
