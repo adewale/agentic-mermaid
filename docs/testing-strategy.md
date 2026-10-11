@@ -378,14 +378,20 @@ table here, which would drift. In broad strokes:
   protectable result that cannot turn green early.
 - **Nightly (`nightly-finder.yml`):** random-seed sweeps of every property
   suite; failures become an issue, never a blocked PR.
-- **Daily (`production-freshness.yml`):** compares the build
-  agentic-mermaid.dev serves with the newest `main` commit that passed CI and
-  fails once `main` has held undeployed commits for more than three days. A
-  deploy run proves only the deploys that ran; this proves deploys are still
-  reaching production. **Does not prove:** that the served build works (the
-  deploy's candidate probes do that).
-- **Manual / periodic:** `layout-compare` before/after, the benchmark vs competitors, and the real
-  LLM-as-judge run.
+- **Per deploy (`deploy-cloudflare.yml`, release to-do):** when the deploy
+  skips because `package.json` names a version that is not on npm, it opens
+  one `release-todo` issue for that version, and a verified deploy of the
+  version closes it (`scripts/ci/release-todo.ts`, tested with a fake `gh` in
+  `release-todo.test.ts`). It adds no schedule and never fails a run. **Does
+  not prove:** what production serves; it only reports the skip.
+- **Manual / periodic:** `layout-compare` before/after, the benchmark vs competitors, the real
+  LLM-as-judge run, and the production freshness check
+  (`scripts/ci/production-freshness.ts`, in `docs/contributing/releasing.md`).
+  That check compares the build agentic-mermaid.dev serves with the `main`
+  commit it is given (the tip of `main`, in the documented command) and fails
+  once `main` has held undeployed commits for more than three days. A deploy run proves only the deploys that
+  ran; this proves deploys are still reaching production. **Does not prove:**
+  that the served build works (the deploy's candidate probes do that).
 
 ## Boundary-contract matrix — lessons applied from the 2026-07 agent audit
 

@@ -9,8 +9,10 @@
 //
 // The decision is a pure function. The CLI wrapper reads the live build stamp
 // (a read-only GET) and the git facts, then maps the verdict to a GitHub
-// annotation and exit code. .github/workflows/production-freshness.yml runs it
-// on a schedule.
+// annotation and exit code. It runs by hand (docs/contributing/releasing.md);
+// no workflow schedules it. The deploy's release to-do
+// (scripts/ci/release-todo.ts) reports the common cause, an unpublished
+// version, without reading production.
 
 import { execFileSync } from 'node:child_process'
 
