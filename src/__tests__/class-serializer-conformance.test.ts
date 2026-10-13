@@ -86,6 +86,69 @@ describe('class labeled declaration conformance', () => {
 })
 
 describe('class namespaces — structured agent body (#118)', () => {
+  test.each([
+    { kind: 'remove_class', id: 'A' },
+    { kind: 'set_class_namespace', class: 'A', namespace: null },
+  ] as const)('keeps a labeled parent with surviving descendants valid after $kind', async op => {
+    const diagram = classDiagram('classDiagram\nnamespace Parent["Keep this label"] {\nclass A\nnamespace Child {\nclass B\n}\n}\nclass C')
+    const edited = apply(diagram, op)
+    const source = serializeMermaid(edited)
+    const upstream = startUpstreamMermaid()
+    try {
+      expect(await upstream.accepts(source)).toBe(true)
+    } finally {
+      await upstream.close()
+    }
+    const reparsed = classDiagram(source)
+    const byId = (nodes: typeof edited.body.classes) => [...nodes].sort((a, b) => a.id.localeCompare(b.id))
+    expect(byId(reparsed.body.classes)).toEqual(byId(edited.body.classes))
+    expect(reparsed.body.namespaces).toEqual(edited.body.namespaces)
+    expect(renderParse(source).namespaces[0]?.label).toBe('Keep this label')
+    expect(serializeMermaid(reparsed)).toBe(source)
+  })
+
+  test.each([
+    { kind: 'remove_class', id: 'A' },
+    { kind: 'set_class_namespace', class: 'A', namespace: null },
+    { kind: 'set_class_namespace', class: 'A', namespace: 'Other' },
+  ] as const)('prunes empty unlabeled namespaces after $kind and exports valid Mermaid', async op => {
+    const diagram = classDiagram('classDiagram\nnamespace N {\nclass A\n}\nclass B')
+    const edited = apply(diagram, op)
+    expect(edited.body.namespaces?.some(namespace => namespace.name === 'N') ?? false).toBe(false)
+    const source = serializeMermaid(edited)
+    const upstream = startUpstreamMermaid()
+    try {
+      expect(await upstream.accepts(source)).toBe(true)
+    } finally {
+      await upstream.close()
+    }
+    const reparsed = classDiagram(source)
+    expect(reparsed.body.classes).toEqual(edited.body.classes)
+    expect(reparsed.body.classes.find(node => node.id === 'B')).toEqual({ id: 'B', members: [] })
+    expect(serializeMermaid(reparsed)).toBe(source)
+  })
+
+  test.each([
+    { kind: 'remove_class', id: 'A' },
+    { kind: 'set_class_namespace', class: 'A', namespace: 'Other' },
+  ] as const)('refuses $kind when it would discard an explicit namespace label', op => {
+    const diagram = classDiagram('classDiagram\nnamespace N["Meaningful group"] {\nclass A\n}\nclass B')
+    const before = serializeMermaid(diagram)
+    const result = mutate(diagram, op)
+    expect(result.ok).toBe(false)
+    if (!result.ok) expect(result.error).toMatchObject({ code: 'INVALID_OP', message: expect.stringContaining('N') })
+    expect(serializeMermaid(diagram)).toBe(before)
+  })
+
+  test.each(['namespace N {\n}', 'namespace N["Meaningful group"] {\n}'])('preserves directly authored empty namespaces as opaque source: %s', namespace => {
+    const source = `classDiagram\n${namespace}\nclass B`
+    const parsed = parseMermaid(source)
+    if (!parsed.ok) throw new Error(JSON.stringify(parsed.error))
+    expect(parsed.value.body.kind).toBe('opaque')
+    expect(asClass(parsed.value)).toBeNull()
+    expect(serializeMermaid(parsed.value).trimEnd()).toBe(source)
+  })
+
   test('repeated declarations across namespaces preserve authored source and every rendered group', async () => {
     const source = `classDiagram
 namespace First { class Shared }
@@ -188,7 +251,10 @@ class Other
 
   test('an empty separator inside a namespace is diagnosed even without an adjacent statement', async () => {
     const source = 'classDiagram\nnamespace Outer { ; }'
-    expect(classDiagram(source).body.namespaces).toEqual([{ name: 'Outer' }])
+    const parsed = parseMermaid(source)
+    if (!parsed.ok) throw new Error(JSON.stringify(parsed.error))
+    expect(parsed.value.body.kind).toBe('opaque')
+    expect(serializeMermaid(parsed.value).trimEnd()).toBe(source)
     expect(verifyMermaid(source).warnings).toContainEqual(expect.objectContaining({
       code: 'UNSUPPORTED_SYNTAX', syntax: 'class_compact_semicolon_statement_extension', line: 2,
     }))
@@ -198,8 +264,8 @@ class Other
     } finally {
       await upstream.close()
     }
-    // Empty namespace serialization has an existing portability limitation;
-    // this case protects the separator diagnostic, not a portable writer claim.
+    // Empty namespaces stay source-preserved rather than becoming editable
+    // bodies whose canonical export would be rejected by Mermaid.
   })
 
   test('a trailing comment after a compact namespace is diagnosed for portability', async () => {
