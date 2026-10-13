@@ -5,8 +5,10 @@ import { createSubgraphMembership } from './shared/subgraph-membership.ts'
 import { normalizeV11Shape } from './flowchart-shapes.ts'
 import {
   matchNoteLine, matchNoteOpen, isNoteEnd, matchStereotypeDecl,
-  isConcurrencySeparator, isStateNodeId, matchHistoryEndpoint, matchTransitionLine, historyLabel,
+  isConcurrencySeparator, matchStateDeclarationLine, matchHistoryEndpoint, matchTransitionLine, historyLabel,
   stripStateComment, matchStateClassAssignment, stateNoteText,
+  STATE_DIRECTION_RE, STATE_ALIAS_RE, STATE_COMPOSITE_OPEN_RE, STATE_DESCRIPTION_RE,
+  STATE_CLASS_DEF_RE, STATE_STYLE_RE, STATE_LINK_STYLE_RE,
 } from './state/parse-core.ts'
 import { parseStyleProps } from './shared/style-props.ts'
 export { parseStyleProps } from './shared/style-props.ts'
@@ -530,7 +532,7 @@ function parseStateDiagram(lines: string[]): MermaidGraph {
     }
 
     // --- direction override ---
-    const dirMatch = line.match(/^direction\s+(TD|TB|LR|BT|RL)\s*$/i)
+    const dirMatch = line.match(STATE_DIRECTION_RE)
     if (dirMatch) {
       if (compositeStack.length > 0) {
         compositeStack[compositeStack.length - 1]!.direction = dirMatch[1]!.toUpperCase() as Direction
@@ -541,7 +543,7 @@ function parseStateDiagram(lines: string[]): MermaidGraph {
     }
 
     // --- classDef: shared paint model with flowcharts ---
-    const stateClassDefMatch = line.match(/^classDef\s+([\w,-]+)\s+(.+)$/)
+    const stateClassDefMatch = line.match(STATE_CLASS_DEF_RE)
     if (stateClassDefMatch) {
       const names = stateClassDefMatch[1]!.split(',').map(name => name.trim()).filter(Boolean)
       const props = parseStyleProps(stateClassDefMatch[2]!)
@@ -558,7 +560,7 @@ function parseStateDiagram(lines: string[]): MermaidGraph {
       }
       continue
     }
-    const stateInlineStyle = line.match(/^style\s+([\w\p{L},-]+)\s+(.+)$/u)
+    const stateInlineStyle = line.match(STATE_STYLE_RE)
     if (stateInlineStyle) {
       const ids = stateInlineStyle[1]!.split(',').map(id => id.trim()).filter(Boolean)
       const props = parseStyleProps(stateInlineStyle[2]!)
@@ -570,7 +572,7 @@ function parseStateDiagram(lines: string[]): MermaidGraph {
     }
 
     // --- linkStyle: `linkStyle 0 stroke:#f00` or `linkStyle default stroke:#f00` ---
-    const linkStyleMatch = line.match(/^linkStyle\s+(default|[\d,\s]+)\s+(.+)$/)
+    const linkStyleMatch = line.match(STATE_LINK_STYLE_RE)
     if (linkStyleMatch) {
       const target = linkStyleMatch[1]!.trim()
       const props = parseStyleProps(linkStyleMatch[2]!)
@@ -640,7 +642,7 @@ function parseStateDiagram(lines: string[]): MermaidGraph {
     }
 
     // --- composite state start: `state CompositeState {` ---
-    const compositeMatch = line.match(/^state\s+(?:"([^"]+)"\s+as\s+)?([\w\p{L}-]+)\s*\{$/u)
+    const compositeMatch = line.match(STATE_COMPOSITE_OPEN_RE)
     if (compositeMatch) {
       const label = compositeMatch[1] ?? compositeMatch[2]!
       const id = compositeMatch[2]!
@@ -672,7 +674,7 @@ function parseStateDiagram(lines: string[]): MermaidGraph {
     }
 
     // --- state alias: `state "Description" as s1` (without brace) ---
-    const stateAliasMatch = line.match(/^state\s+"([^"]+)"\s+as\s+([\w\p{L}-]+)\s*$/u)
+    const stateAliasMatch = line.match(STATE_ALIAS_RE)
     if (stateAliasMatch) {
       const label = normalizeBrTags(stateAliasMatch[1]!)
       const id = stateAliasMatch[2]!
@@ -711,7 +713,7 @@ function parseStateDiagram(lines: string[]): MermaidGraph {
     }
 
     // --- state description / bare declaration ---
-    const stateDescMatch = line.match(/^([\w\p{L}-]+)\s*:\s*(.+)$/u)
+    const stateDescMatch = line.match(STATE_DESCRIPTION_RE)
     if (stateDescMatch) {
       const id = stateDescMatch[1]!
       const label = normalizeBrTags(stateDescMatch[2]!.trim())
@@ -725,10 +727,17 @@ function parseStateDiagram(lines: string[]): MermaidGraph {
       registerStateNode(graph, compositeStack, { id, label, shape: 'rounded' })
       continue
     }
-    if (isStateNodeId(line)) {
-      registerStateNode(graph, compositeStack, { id: line, label: line, shape: 'rounded' })
+    const declaredId = matchStateDeclarationLine(line)
+    if (declaredId !== null) {
+      registerStateNode(graph, compositeStack, { id: declaredId, label: declaredId, shape: 'rounded' })
       continue
     }
+
+    throw syntaxError({
+      what: `Unsupported state syntax: "${line}"`,
+      expectedForm: 'a state declaration, transition, composite, note, direction, or paint directive',
+      example: 'A --> B : continue',
+    })
   }
 
   // An unterminated block note still lands (lenient, like unbalanced braces).

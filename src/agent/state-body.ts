@@ -55,7 +55,9 @@ import { normalizeBrTags } from '../multiline-utils.ts'
 import {
   matchNoteLine, matchNoteOpen, isNoteEnd, matchStereotypeDecl,
   matchTransitionLine, isConcurrencySeparator, isHistoryEndpoint, matchHistoryEndpoint,
-  isStateNodeId, stereotypeMarker, stripStateComment, matchStateClassAssignment, stateNoteText,
+  isStateNodeId, matchStateDeclarationLine, stereotypeMarker, stripStateComment, matchStateClassAssignment, stateNoteText,
+  STATE_DIRECTION_RE, STATE_ALIAS_RE, STATE_COMPOSITE_OPEN_RE, STATE_DESCRIPTION_RE,
+  STATE_CLASS_DEF_RE, STATE_STYLE_RE, STATE_LINK_STYLE_RE,
 } from '../state/parse-core.ts'
 import { parseClassShorthandStatement } from '../shared/mermaid-identifiers.ts'
 
@@ -73,12 +75,6 @@ function isEndpointId(id: string): boolean {
 }
 
 // ---- Parser -----------------------------------------------------------------
-
-const DIRECTION_RE = /^direction\s+(TD|TB|LR|BT|RL)$/i
-const ALIAS_RE = /^state\s+"([^"]+)"\s+as\s+([\w\p{L}-]+)\s*$/u
-const COMPOSITE_OPEN_RE = /^state\s+(?:"([^"]+)"\s+as\s+)?([\w\p{L}-]+)\s*\{$/u
-const DESC_RE = /^([\w\p{L}-]+)\s*:\s*(.+)$/u
-
 /** A mutable scope used during parsing — one per composite nesting level. */
 interface ParseScope {
   states: StateNode[]
@@ -118,7 +114,7 @@ export function parseStateBody(lines: string[]): StateBody | null {
   // forward reference must never create a competing simple placeholder.
   const compositeIds = new Set<string>()
   for (const raw of lines) {
-    const match = stripStateComment(raw).match(COMPOSITE_OPEN_RE)
+    const match = stripStateComment(raw).match(STATE_COMPOSITE_OPEN_RE)
     if (!match) continue
     const id = match[2]!
     if (compositeIds.has(id)) return null
@@ -175,7 +171,7 @@ export function parseStateBody(lines: string[]): StateBody | null {
     }
 
     // --- paint directives (shared renderer grammar) ---
-    const classDef = line.match(/^classDef\s+([\w,-]+)\s+(.+)$/)
+    const classDef = line.match(STATE_CLASS_DEF_RE)
     if (classDef) {
       const props = parseStyleProps(classDef[2]!)
       if (Object.keys(props).length === 0) return null
@@ -189,7 +185,7 @@ export function parseStateBody(lines: string[]): StateBody | null {
       }
       continue
     }
-    const styleLine = line.match(/^style\s+([\w\p{L},-]+)\s+(.+)$/u)
+    const styleLine = line.match(STATE_STYLE_RE)
     if (styleLine) {
       const props = parseStyleProps(styleLine[2]!)
       if (Object.keys(props).length === 0) return null
@@ -198,7 +194,7 @@ export function parseStateBody(lines: string[]): StateBody | null {
       }
       continue
     }
-    const linkStyle = line.match(/^linkStyle\s+(default|[\d,\s]+)\s+(.+)$/)
+    const linkStyle = line.match(STATE_LINK_STYLE_RE)
     if (linkStyle) {
       const props = parseStyleProps(linkStyle[2]!)
       if (Object.keys(props).length === 0) return null
@@ -230,7 +226,7 @@ export function parseStateBody(lines: string[]): StateBody | null {
     }
 
     // --- direction ---
-    const dir = line.match(DIRECTION_RE)
+    const dir = line.match(STATE_DIRECTION_RE)
     if (dir) {
       scope.direction = dir[1]!.toUpperCase() as StateNode['direction']
       continue
@@ -247,7 +243,7 @@ export function parseStateBody(lines: string[]): StateBody | null {
     }
 
     // --- composite open: `state X {` / `state "Label" as X {` ---
-    const open = line.match(COMPOSITE_OPEN_RE)
+    const open = line.match(STATE_COMPOSITE_OPEN_RE)
     if (open) {
       const id = open[2]!
       if (!isCompositeId(id)) return null
@@ -294,7 +290,7 @@ export function parseStateBody(lines: string[]): StateBody | null {
     }
 
     // --- alias: `state "Description" as id` ---
-    const alias = line.match(ALIAS_RE)
+    const alias = line.match(STATE_ALIAS_RE)
     if (alias) {
       const id = alias[2]!
       const label = normalizeBrTags(alias[1]!)
@@ -334,7 +330,7 @@ export function parseStateBody(lines: string[]): StateBody | null {
     }
 
     // --- description: `id : Description` ---
-    const desc = line.match(DESC_RE)
+    const desc = line.match(STATE_DESCRIPTION_RE)
     if (desc) {
       const id = desc[1]!
       const label = normalizeBrTags(desc[2]!.trim())
@@ -348,8 +344,9 @@ export function parseStateBody(lines: string[]): StateBody | null {
     }
 
     // --- standalone state declaration ---
-    if (isStateNodeId(line)) {
-      const node = ensureState(scope, line)
+    const declaredId = matchStateDeclarationLine(line)
+    if (declaredId !== null) {
+      const node = ensureState(scope, declaredId)
       node.declaredBare = true
       continue
     }

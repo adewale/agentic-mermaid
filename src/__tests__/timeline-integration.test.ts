@@ -5,6 +5,7 @@ import { describe, it, expect } from 'bun:test'
 import { renderMermaidSVG } from '../index.ts'
 import type { RenderOptions } from '../types.ts'
 import { measureTextWidth } from '../text-metrics.ts'
+import { parseRegisteredMermaid, asTimeline, serializeMermaid, verifyMermaid, renderMermaidASCII } from '../agent/index.ts'
 
 function render(text: string, options: RenderOptions = {}): string {
   return renderMermaidSVG(text, options)
@@ -18,6 +19,28 @@ const MERMAID_DOCS_SOCIAL_TIMELINE = `timeline
   2006 : Twitter`
 
 describe('renderMermaidSVG – timeline diagrams', () => {
+  it.each(['Timeline redesign', 'timeline', 'TIMELINE release'])('keeps a period named %s through parse, export and rendering', label => {
+    const source = `timeline\n2020 : A\n${label} : Ship`
+    const parsed = parseRegisteredMermaid(source)
+    if (!parsed.ok) throw new Error(JSON.stringify(parsed.error))
+    const diagram = asTimeline(parsed.value)!
+    expect(diagram.body.sections[0]!.periods.map(period => period.label)).toEqual(['2020', label])
+    const serialized = serializeMermaid(diagram)
+    for (const input of [source, serialized]) {
+      const svg = render(input)
+      expect(svg).toContain(`>${label}</text>`)
+      expect(svg).toContain('>Ship</text>')
+      expect(svg.match(/class="timeline-period"/g)).toHaveLength(2)
+      const terminal = renderMermaidASCII(input)
+      expect(terminal).toContain(label)
+      expect(terminal).toContain('Ship')
+      expect(verifyMermaid(input).layout?.nodes.map(node => node.label)).toContain(label)
+    }
+    const reparsed = parseRegisteredMermaid(serialized)
+    if (!reparsed.ok) throw new Error(JSON.stringify(reparsed.error))
+    expect(asTimeline(reparsed.value)!.body).toEqual(diagram.body)
+  })
+
   it('renders a basic timeline to valid SVG', () => {
     const svg = render(`timeline
       title Product history

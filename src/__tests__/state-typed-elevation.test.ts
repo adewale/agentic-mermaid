@@ -22,6 +22,20 @@ function apply(diagram: StateValidDiagram, op: StateMutationOp): StateValidDiagr
 }
 
 describe('typed State residual elevation (B07)', () => {
+  test.each(['bogus statement', 'state A <<unknown>>', 'direction diagonal'])('rejects unknown State content instead of drawing a partial diagram: %s', statement => {
+    const source = `stateDiagram-v2\nA --> B\n${statement}`
+    const parsed = parseMermaid(source)
+    if (!parsed.ok) throw new Error(JSON.stringify(parsed.error))
+    expect(parsed.value.body.kind).toBe('opaque')
+    expect(serializeMermaid(parsed.value).trimEnd()).toBe(source)
+    expect(() => renderMermaidSVG(source)).toThrow(`Unsupported state syntax: "${statement}"`)
+    const verified = verifyMermaid(source)
+    expect(verified.ok).toBe(false)
+    expect(verified.warnings).toContainEqual(expect.objectContaining({
+      code: 'RENDER_FAILED', reason: expect.stringContaining(statement),
+    }))
+  })
+
   test('trailing Mermaid comments preserve transition topology in both parsers', () => {
     const source = `stateDiagram-v2
       A --> B %% legal trailing comment
