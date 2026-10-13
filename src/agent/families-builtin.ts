@@ -46,7 +46,7 @@ import { mutateRadar, parseRadarBody, renderRadar, verifyRadar } from './radar-b
 import { mutateSankey, parseSankeyBody, renderSankey, verifySankey } from './sankey-body.ts'
 import { mutateSequence, parseSequenceBody, renderSequence } from './sequence-body.ts'
 import { splitSequenceStatementLines } from '../sequence/statements.ts'
-import { mutateState, parseStateBody, renderState, verifyState } from './state-body.ts'
+import { mutateState, parseStateBody, renderState, verifyState, verifyOpaqueState } from './state-body.ts'
 import { mutateTimeline, parseTimelineBody, renderTimeline } from './timeline-body.ts'
 import type { AnyMutationOp, ClassBody, DiagramBody, DiagramKind, ErBody, FamilyParsedBody, GanttBody, LayoutWarning, MutationError, PieBody, QuadrantBody, RadarBody, Result, SankeyBody, SourceMap, XyChartBody } from './types.ts'
 import { err, ok } from './types.ts'
@@ -163,7 +163,7 @@ const STATE_AGENT_HOOKS = {
   extractLabels: extractStateLabels,
   // The verify hook covers body-level structural Tier 1 (EMPTY/MISANCHORED/
   // LABEL_OVERFLOW); verify.ts adds geometric Tier 2 via the graph projection.
-  verify: (body, opts) => (body.kind === 'state' ? verifyState(body, opts) : []),
+  verify: (body, opts) => (body.kind === 'state' ? verifyState(body, opts) : body.kind === 'opaque' ? verifyOpaqueState(body.source) : []),
   ...structuredFamilyHooks('state', {
     headerOk: h => /^statediagram(?:-v2)?\s*$/i.test(h),
     parseBody: parseStateBody,

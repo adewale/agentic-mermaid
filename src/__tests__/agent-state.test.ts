@@ -213,16 +213,18 @@ describe('state residual syntax promotion table', () => {
     }
   })
 
-  test('an opaque state body exposes the renderer-backed layout', () => {
+  test('explicit state declarations retain isolated states in the editable body and drawing', () => {
     const r = parseMermaid(`stateDiagram-v2
   state Active
+  state Waiting
   Active --> Done`)
     expect(r.ok).toBe(true)
     if (!r.ok) return
-    expect(r.value.body.kind).toBe('opaque')
+    expect(r.value.body.kind).toBe('state')
+    expect(asState(r.value)?.body.states.map(node => node.id).sort()).toEqual(['Active', 'Done', 'Waiting'])
     const verified = verifyMermaid(r.value)
     expect(verified.layout.kind).toBe('state')
-    expect(verified.layout.nodes.map(node => node.id).sort()).toEqual(['Active', 'Done'])
+    expect(verified.layout.nodes.map(node => node.id).sort()).toEqual(['Active', 'Done', 'Waiting'])
     expect(verified.layout.bounds.w).toBeGreaterThan(0)
     expect(verified.layout.bounds.h).toBeGreaterThan(0)
   })

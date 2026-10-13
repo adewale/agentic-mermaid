@@ -89,7 +89,6 @@ export function parseTimelineDiagram(
   for (let i = 1; i < lines.length; i++) {
     const line = lines[i]!
 
-    if (/^timeline\b/i.test(line)) continue
     if (isTimelineCommentLine(line)) continue
 
     const titleMatch = line.match(TIMELINE_TITLE_RE)

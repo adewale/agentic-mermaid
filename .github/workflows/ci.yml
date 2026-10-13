@@ -97,6 +97,26 @@ jobs:
         # in a local four-core run); two workers ran the full suite clean.
         run: bun run test -- --shard=${{ matrix.shard }} --parallel=2
 
+      - name: Render immutable PR review evidence
+        if: ${{ matrix.shard == '1/3' && github.event_name == 'pull_request' }}
+        continue-on-error: true
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+        run: |
+          git fetch --no-tags --depth=1 origin "$BASE_SHA" "$HEAD_SHA"
+          bun run scripts/pr-assets/meaning-preservation-evidence.ts "$BASE_SHA" "$HEAD_SHA" "$RUNNER_TEMP/meaning-review"
+
+      - name: Upload PR review evidence
+        if: ${{ always() && matrix.shard == '1/3' && github.event_name == 'pull_request' }}
+        continue-on-error: true
+        uses: actions/upload-artifact@v7
+        with:
+          name: diagram-meaning-review-${{ github.event.pull_request.head.sha }}
+          path: ${{ runner.temp }}/meaning-review/
+          if-no-files-found: warn
+          retention-days: 14
+
       - name: Upload shard coverage
         if: ${{ always() }}
         uses: actions/upload-artifact@v7

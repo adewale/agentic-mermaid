@@ -54,6 +54,20 @@ export function isStateNodeId(id: string): boolean {
   return STATE_NODE_ID_RE.test(id)
 }
 
+/** Simple declarations accept both `Idle` and `state Idle`. */
+export function matchStateDeclarationLine(line: string): string | null {
+  const explicit = line.match(/^state\s+([\w\p{L}-]+)$/u)
+  return explicit?.[1] ?? (isStateNodeId(line) ? line : null)
+}
+
+/** Upstream accepts these layout directives without declaring states/edges.
+ * Preserve them in opaque source; our renderer uses its own layout policy. */
+export function matchStateLayoutDirective(line: string): 'scale' | 'hide_empty_description' | null {
+  if (/^scale\s+\d+\s+width$/i.test(line)) return 'scale'
+  if (/^hide empty description$/i.test(line)) return 'hide_empty_description'
+  return null
+}
+
 export { stripStateComment } from './comment.ts'
 
 /** `class Moving, Crash movement` (or `cssClass`) allows spaces around commas. */
@@ -165,3 +179,12 @@ export function isHistoryEndpoint(endpoint: string): boolean {
 export function stereotypeMarker(stereotype: StateStereotype): string {
   return stereotype === 'deep-history' ? '<<deephistory>>' : `<<${stereotype}>>`
 }
+
+// Residual statement grammar shared by the render and editable projections.
+export const STATE_DIRECTION_RE = /^direction\s+(TD|TB|LR|BT|RL)\s*$/i
+export const STATE_ALIAS_RE = /^state\s+"([^"]+)"\s+as\s+([\w\p{L}-]+)\s*$/u
+export const STATE_COMPOSITE_OPEN_RE = /^state\s+(?:"([^"]+)"\s+as\s+)?([\w\p{L}-]+)\s*\{$/u
+export const STATE_DESCRIPTION_RE = /^([\w\p{L}-]+)\s*:\s*(.+)$/u
+export const STATE_CLASS_DEF_RE = /^classDef\s+([\w,-]+)\s+(.+)$/
+export const STATE_STYLE_RE = /^style\s+([\w\p{L},-]+)\s+(.+)$/u
+export const STATE_LINK_STYLE_RE = /^linkStyle\s+(default|[\d,\s]+)\s+(.+)$/

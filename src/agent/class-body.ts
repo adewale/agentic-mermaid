@@ -178,7 +178,30 @@ export function parseClassBody(lines: string[]): ClassBody | null {
   }
   if (!visit(tree.statements)) return null
   if (namespaces.length > 0) body.namespaces = namespaces
+  // Mermaid cannot write empty namespace blocks. Preserve directly authored
+  // ones verbatim instead of promising a portable structured edit.
+  if (namespaces.some(namespace => !namespaceHasClasses(body, namespace.name))) return null
   return body
+}
+
+function namespaceHasClasses(body: ClassBody, name: string): boolean {
+  return body.classes.some(node => node.namespace === name || node.namespace?.startsWith(`${name}.`))
+}
+
+/** Empty unlabeled groups are structural scaffolding; explicit labels are
+ * authored content and must not silently vanish when the last class leaves. */
+function pruneEmptyNamespaces(body: ClassBody): Result<ClassBody, MutationError> {
+  const empty = (body.namespaces ?? []).filter(namespace => !namespaceHasClasses(body, namespace.name))
+  const labeled = empty.find(namespace => namespace.label !== undefined)
+  if (labeled) return err({
+    code: 'INVALID_OP',
+    message: `Cannot empty labeled namespace "${labeled.name}" without losing its label; keep a class in the group or edit the source explicitly`,
+  })
+  if (body.namespaces) {
+    body.namespaces = body.namespaces.filter(namespace => !empty.includes(namespace))
+    if (body.namespaces.length === 0) delete body.namespaces
+  }
+  return ok(body)
 }
 
 // ---- Serializer -----------------------------------------------------------
@@ -231,30 +254,54 @@ function pushClassLines(lines: string[], c: ClassNode, indent: string): void {
 export function renderClass(body: ClassBody): string {
   const lines: string[] = ['classDiagram']
   if (body.title) lines.push(`  title ${body.title}`)
-  // Namespace blocks (repo #118), canonicalized to dot-path form — the exact
-  // production the render parser's namespace grammar accepts (P3). A parent
-  // path without direct members is implied by its descendants' dot paths and
-  // skipped, unless it carries a label or is a childless declaration.
+  // Dot paths imply unlabeled parents. A labeled parent without direct
+  // classes must wrap its descendants: an empty standalone block is invalid.
   const namespaces = body.namespaces ?? []
   const registryPaths = namespaces.map(n => n.name)
-  for (const ns of namespaces) {
+  // A dotted child may be authored before its parent. Visit wrapping parents
+  // first so moving descendants into a nested frame removes no earlier entry.
+  const parentFirst: ClassNamespaceDecl[] = []
+  for (const namespace of namespaces) {
+    const wrapsDescendants = namespace.label !== undefined && !body.classes.some(node => node.namespace === namespace.name)
+    const descendant = wrapsDescendants
+      ? parentFirst.findIndex(candidate => candidate.name.startsWith(`${namespace.name}.`))
+      : -1
+    if (descendant < 0) parentFirst.push(namespace)
+    else parentFirst.splice(descendant, 0, namespace)
+  }
+  const frames = [{ entries: parentFirst, index: 0, prefix: '', depth: 1, closes: 0 }]
+  while (frames.length > 0) {
+    const frame = frames.at(-1)!
+    if (frame.index === frame.entries.length) {
+      for (let index = frame.closes; index > 0; index--) lines.push(`${'  '.repeat(frame.depth - frame.closes + index - 1)}}`)
+      frames.pop()
+      continue
+    }
+    const ns = frame.entries[frame.index++]!
     const members = body.classes.filter(c => c.namespace === ns.name)
-    const hasRegisteredDescendant = registryPaths.some(p => p.startsWith(`${ns.name}.`))
-    if (members.length === 0 && ns.label === undefined && hasRegisteredDescendant) continue
-    const segments = ns.name.split('.')
+    if (members.length === 0 && ns.label === undefined && registryPaths.some(path => path.startsWith(`${ns.name}.`))) continue
+    const descendants = members.length === 0 && ns.label !== undefined
+      ? frame.entries.filter(candidate => candidate.name.startsWith(`${ns.name}.`))
+      : []
+    const relativePath = ns.name.slice(frame.prefix.length)
+    const segments = relativePath.split('.')
+    const levels = segments.every(segment => /^[\w$]+$/.test(segment)) ? 1 : segments.length
     if (segments.every(segment => /^[\w$]+$/.test(segment))) {
-      lines.push(`  namespace ${ns.name}${ns.label !== undefined ? `["${ns.label}"]` : ''} {`)
-      for (const c of members) pushClassLines(lines, c, '    ')
-      lines.push('  }')
+      lines.push(`${'  '.repeat(frame.depth)}namespace ${relativePath}${ns.label !== undefined ? `["${ns.label}"]` : ''} {`)
     } else {
       // Preserve each path atom: quoting the entire dotted path would turn a
       // nested namespace into one flat name.
       segments.forEach((segment, index) => {
         const label = index === segments.length - 1 && ns.label !== undefined ? `["${ns.label}"]` : ''
-        lines.push(`${'  '.repeat(index + 1)}namespace ${quoteIfNeeded(segment)}${label} {`)
+        lines.push(`${'  '.repeat(frame.depth + index)}namespace ${quoteIfNeeded(segment)}${label} {`)
       })
-      for (const c of members) pushClassLines(lines, c, '  '.repeat(segments.length + 1))
-      for (let index = segments.length; index > 0; index--) lines.push(`${'  '.repeat(index)}}`)
+    }
+    for (const c of members) pushClassLines(lines, c, '  '.repeat(frame.depth + levels))
+    if (members.length === 0 && descendants.length > 0) {
+      frame.entries = frame.entries.filter(candidate => !candidate.name.startsWith(`${ns.name}.`))
+      frames.push({ entries: descendants, index: 0, prefix: `${ns.name}.`, depth: frame.depth + levels, closes: levels })
+    } else {
+      for (let index = levels; index > 0; index--) lines.push(`${'  '.repeat(frame.depth + index - 1)}}`)
     }
   }
   // Classes claimed by a namespace the registry doesn't know (possible only
@@ -357,14 +404,14 @@ export function mutateClass(body: ClassBody, op: ClassMutationOp): Result<ClassB
       if (!c) return err({ code: 'CLASS_NOT_FOUND', message: `class ${op.class} not found` })
       if (op.namespace === null) {
         c.namespace = undefined
-        return ok(b)
+        return pruneEmptyNamespaces(b)
       }
       if (!NAMESPACE_PATH_RE.test(op.namespace)) {
         return err({ code: 'INVALID_OP', message: `invalid namespace path "${op.namespace}" — expected dot-joined identifier segments like "Platform.Auth"` })
       }
       c.namespace = op.namespace
       declareNamespaceOn(b, op.namespace)
-      return ok(b)
+      return pruneEmptyNamespaces(b)
     }
     case 'define_class': {
       if (typeof op.name !== 'string' || !/^[\w-]+$/.test(op.name)) return err({ code: 'INVALID_OP', message: 'classDef name must contain only letters, digits, underscore, or hyphen' })
@@ -415,7 +462,7 @@ export function mutateClass(body: ClassBody, op: ClassMutationOp): Result<ClassB
       b.classes.splice(i, 1)
       b.relations = b.relations.filter(r => r.from !== op.id && r.to !== op.id)
       b.notes = b.notes.filter(n => n.for !== op.id)
-      return ok(b)
+      return pruneEmptyNamespaces(b)
     }
     case 'rename_class': {
       const c = findClass(op.from)

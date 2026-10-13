@@ -314,8 +314,8 @@ describe('BUILD-20 Mermaid upstream parser/DB bench', () => {
 
       const verification = verifyMermaid(parsed.value)
       if (c.assertions.renderError) {
-        // Unsupported glyphs must remain source-preserved and fail explicitly,
-        // never count as a successful zero-node drawing.
+        // Unmodeled source must remain preserved and fail explicitly, never
+        // count as a successful empty or partial drawing.
         expect(verification.ok).toBe(false)
         expect(verification.warnings.map(w => w.code)).toContain('RENDER_FAILED')
         expect(() => layoutMermaid(parsed.value)).toThrow(c.assertions.renderError)

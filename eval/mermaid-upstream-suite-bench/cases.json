@@ -12192,7 +12192,7 @@
       ]
     },
     "assertions": {
-      "expectStructured": false,
+      "expectStructured": true,
       "nodeCount": 2,
       "edgeCount": 0,
       "groupCount": 0
@@ -12306,7 +12306,7 @@
       ]
     },
     "assertions": {
-      "expectStructured": false,
+      "expectStructured": true,
       "nodeCount": 1,
       "edgeCount": 0,
       "groupCount": 0
@@ -12326,7 +12326,7 @@
       ]
     },
     "assertions": {
-      "expectStructured": false,
+      "expectStructured": true,
       "nodeCount": 1,
       "edgeCount": 0,
       "groupCount": 0
@@ -12346,7 +12346,7 @@
       ]
     },
     "assertions": {
-      "expectStructured": false,
+      "expectStructured": true,
       "nodeCount": 1,
       "edgeCount": 0,
       "groupCount": 0
@@ -12367,7 +12367,7 @@
       ]
     },
     "assertions": {
-      "expectStructured": false,
+      "expectStructured": true,
       "nodeCount": 1,
       "edgeCount": 0,
       "groupCount": 0
@@ -12897,9 +12897,7 @@
     },
     "assertions": {
       "expectStructured": false,
-      "nodeCount": 1,
-      "edgeCount": 0,
-      "groupCount": 0
+      "renderError": "Unsupported state syntax: \"note \"This is a floating note\" as N1\""
     }
   },
   {
@@ -12917,9 +12915,7 @@
     },
     "assertions": {
       "expectStructured": false,
-      "nodeCount": 0,
-      "edgeCount": 0,
-      "groupCount": 0
+      "renderError": "Unsupported state syntax: \"note \"This is a floating note\" as N1\""
     }
   },
   {
@@ -12937,9 +12933,7 @@
     },
     "assertions": {
       "expectStructured": false,
-      "nodeCount": 1,
-      "edgeCount": 0,
-      "groupCount": 0
+      "renderError": "Unsupported state syntax: \"note \"This is a floating note\" as N1\""
     }
   },
   {
@@ -12957,9 +12951,7 @@
     },
     "assertions": {
       "expectStructured": false,
-      "nodeCount": 0,
-      "edgeCount": 0,
-      "groupCount": 0
+      "renderError": "Unsupported state syntax: \"note \"This is a floating note\" as N1\""
     }
   },
   {
@@ -13567,9 +13559,7 @@
     },
     "assertions": {
       "expectStructured": false,
-      "nodeCount": 0,
-      "edgeCount": 0,
-      "groupCount": 0
+      "renderError": "Unsupported state syntax: \"state valid { X }\""
     }
   },
   {
@@ -13587,9 +13577,7 @@
     },
     "assertions": {
       "expectStructured": false,
-      "nodeCount": 10,
-      "edgeCount": 11,
-      "groupCount": 1
+      "renderError": "Unsupported state syntax: \"state \"Accumulate Enough Data\""
     }
   },
   {
@@ -13607,9 +13595,7 @@
     },
     "assertions": {
       "expectStructured": false,
-      "nodeCount": 10,
-      "edgeCount": 11,
-      "groupCount": 1
+      "renderError": "Unsupported state syntax: \"state \"Accumulate Enough Data\""
     }
   },
   {

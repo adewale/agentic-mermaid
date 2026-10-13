@@ -37,11 +37,9 @@
 // rejects them). Each of those keeps the whole body opaque so it round-trips
 // verbatim.
 //
-// Canonical serialization emits state DEFINITIONS before transitions, because
-// the legacy parser only applies a `state "…" as id` / `id : …` label when the
-// node does not yet exist (definition-before-use); a transition that mentions
-// the id first would otherwise pin the label to the bare id. Notes serialize
-// LAST (they are annotations over already-declared states).
+// Canonical serialization emits state DEFINITIONS before transitions, keeping
+// labels beside their declarations. Notes serialize LAST (they are annotations
+// over already-declared states).
 // ============================================================================
 
 import { unknownOpMessage } from './mutation-ops.ts'
@@ -52,10 +50,13 @@ import type {
 import { ok, err } from './types.ts'
 import { labelOverflowCollector } from './body-utils.ts'
 import { normalizeBrTags } from '../multiline-utils.ts'
+import { scanAccessibilityDirectives } from '../shared/accessibility-directives.ts'
 import {
   matchNoteLine, matchNoteOpen, isNoteEnd, matchStereotypeDecl,
   matchTransitionLine, isConcurrencySeparator, isHistoryEndpoint, matchHistoryEndpoint,
-  isStateNodeId, stereotypeMarker, stripStateComment, matchStateClassAssignment, stateNoteText,
+  isStateNodeId, matchStateDeclarationLine, matchStateLayoutDirective, stereotypeMarker, stripStateComment, matchStateClassAssignment, stateNoteText,
+  STATE_DIRECTION_RE, STATE_ALIAS_RE, STATE_COMPOSITE_OPEN_RE, STATE_DESCRIPTION_RE,
+  STATE_CLASS_DEF_RE, STATE_STYLE_RE, STATE_LINK_STYLE_RE,
 } from '../state/parse-core.ts'
 import { parseClassShorthandStatement } from '../shared/mermaid-identifiers.ts'
 
@@ -73,12 +74,6 @@ function isEndpointId(id: string): boolean {
 }
 
 // ---- Parser -----------------------------------------------------------------
-
-const DIRECTION_RE = /^direction\s+(TD|TB|LR|BT|RL)$/i
-const ALIAS_RE = /^state\s+"([^"]+)"\s+as\s+([\w\p{L}-]+)\s*$/u
-const COMPOSITE_OPEN_RE = /^state\s+(?:"([^"]+)"\s+as\s+)?([\w\p{L}-]+)\s*\{$/u
-const DESC_RE = /^([\w\p{L}-]+)\s*:\s*(.+)$/u
-
 /** A mutable scope used during parsing — one per composite nesting level. */
 interface ParseScope {
   states: StateNode[]
@@ -118,7 +113,7 @@ export function parseStateBody(lines: string[]): StateBody | null {
   // forward reference must never create a competing simple placeholder.
   const compositeIds = new Set<string>()
   for (const raw of lines) {
-    const match = stripStateComment(raw).match(COMPOSITE_OPEN_RE)
+    const match = stripStateComment(raw).match(STATE_COMPOSITE_OPEN_RE)
     if (!match) continue
     const id = match[2]!
     if (compositeIds.has(id)) return null
@@ -175,7 +170,7 @@ export function parseStateBody(lines: string[]): StateBody | null {
     }
 
     // --- paint directives (shared renderer grammar) ---
-    const classDef = line.match(/^classDef\s+([\w,-]+)\s+(.+)$/)
+    const classDef = line.match(STATE_CLASS_DEF_RE)
     if (classDef) {
       const props = parseStyleProps(classDef[2]!)
       if (Object.keys(props).length === 0) return null
@@ -189,7 +184,7 @@ export function parseStateBody(lines: string[]): StateBody | null {
       }
       continue
     }
-    const styleLine = line.match(/^style\s+([\w\p{L},-]+)\s+(.+)$/u)
+    const styleLine = line.match(STATE_STYLE_RE)
     if (styleLine) {
       const props = parseStyleProps(styleLine[2]!)
       if (Object.keys(props).length === 0) return null
@@ -198,7 +193,7 @@ export function parseStateBody(lines: string[]): StateBody | null {
       }
       continue
     }
-    const linkStyle = line.match(/^linkStyle\s+(default|[\d,\s]+)\s+(.+)$/)
+    const linkStyle = line.match(STATE_LINK_STYLE_RE)
     if (linkStyle) {
       const props = parseStyleProps(linkStyle[2]!)
       if (Object.keys(props).length === 0) return null
@@ -230,7 +225,7 @@ export function parseStateBody(lines: string[]): StateBody | null {
     }
 
     // --- direction ---
-    const dir = line.match(DIRECTION_RE)
+    const dir = line.match(STATE_DIRECTION_RE)
     if (dir) {
       scope.direction = dir[1]!.toUpperCase() as StateNode['direction']
       continue
@@ -247,7 +242,7 @@ export function parseStateBody(lines: string[]): StateBody | null {
     }
 
     // --- composite open: `state X {` / `state "Label" as X {` ---
-    const open = line.match(COMPOSITE_OPEN_RE)
+    const open = line.match(STATE_COMPOSITE_OPEN_RE)
     if (open) {
       const id = open[2]!
       if (!isCompositeId(id)) return null
@@ -294,7 +289,7 @@ export function parseStateBody(lines: string[]): StateBody | null {
     }
 
     // --- alias: `state "Description" as id` ---
-    const alias = line.match(ALIAS_RE)
+    const alias = line.match(STATE_ALIAS_RE)
     if (alias) {
       const id = alias[2]!
       const label = normalizeBrTags(alias[1]!)
@@ -334,22 +329,24 @@ export function parseStateBody(lines: string[]): StateBody | null {
     }
 
     // --- description: `id : Description` ---
-    const desc = line.match(DESC_RE)
+    const desc = line.match(STATE_DESCRIPTION_RE)
     if (desc) {
       const id = desc[1]!
       const label = normalizeBrTags(desc[2]!.trim())
       if (compositeIds.has(id) && !scope.byId.has(id)) {
-        if (!pendingCompositeLabels.has(id)) pendingCompositeLabels.set(id, label)
+        const previous = pendingCompositeLabels.get(id)
+        pendingCompositeLabels.set(id, previous === undefined ? label : `${previous}\n${label}`)
       } else {
         const node = ensureState(scope, id)
-        if (node.label === undefined) node.label = label
+        node.label = node.label === undefined ? label : `${node.label}\n${label}`
       }
       continue
     }
 
     // --- standalone state declaration ---
-    if (isStateNodeId(line)) {
-      const node = ensureState(scope, line)
+    const declaredId = matchStateDeclarationLine(line)
+    if (declaredId !== null) {
+      const node = ensureState(scope, declaredId)
       node.declaredBare = true
       continue
     }
@@ -412,14 +409,17 @@ export function parseStateBody(lines: string[]): StateBody | null {
 
 // ---- Serializer -------------------------------------------------------------
 
+function serializeStateLabel(label: string): string {
+  return label.replace(/\r\n?|\n/g, '<br/>')
+}
+
 function renderScope(states: StateNode[], transitions: StateTransition[], direction: StateNode['direction'] | undefined, indent: string, out: string[]): void {
   if (direction !== undefined) out.push(`${indent}direction ${direction}`)
-  // Definitions first (labels + composites), so the legacy parser applies the
-  // label before any transition mentions the id.
+  // Definitions first (labels + composites), then transitions.
   for (const s of states) {
     if (s.states !== undefined || s.transitions !== undefined || s.regions !== undefined) {
       // Composite block (ordinary or `--`-partitioned concurrency regions).
-      const header = s.label !== undefined ? `state "${s.label}" as ${s.id} {` : `state ${s.id} {`
+      const header = s.label !== undefined ? `state "${serializeStateLabel(s.label)}" as ${s.id} {` : `state ${s.id} {`
       out.push(`${indent}${header}`)
       if (s.regions) {
         if (s.direction !== undefined) out.push(`${indent}  direction ${s.direction}`)
@@ -434,19 +434,19 @@ function renderScope(states: StateNode[], transitions: StateTransition[], direct
     } else if (s.stereotype !== undefined) {
       // Pseudostate declaration (fork/join/choice/history) — canonical marker
       // spelling; `<<H>>`/`<<H*>>` shorthands normalize on parse.
-      const alias = s.label !== undefined ? `"${s.label}" as ` : ''
+      const alias = s.label !== undefined ? `"${serializeStateLabel(s.label)}" as ` : ''
       out.push(`${indent}state ${alias}${s.id} ${stereotypeMarker(s.stereotype)}`)
     } else if (s.label !== undefined) {
       out.push(isCompositeId(s.id)
-        ? `${indent}state "${s.label}" as ${s.id}`
-        : `${indent}${s.id} : ${s.label}`)
+        ? `${indent}state "${serializeStateLabel(s.label)}" as ${s.id}`
+        : `${indent}${s.id} : ${serializeStateLabel(s.label)}`)
     } else if (s.declaredBare) {
       out.push(`${indent}${s.id}`)
     }
     // Implicit transition endpoints need no standalone declaration.
   }
   for (const t of transitions) {
-    const label = t.label !== undefined ? ` : ${t.label}` : ''
+    const label = t.label !== undefined ? ` : ${serializeStateLabel(t.label)}` : ''
     out.push(`${indent}${t.from} --> ${t.to}${label}`)
   }
 }
@@ -1130,6 +1130,26 @@ function renameInTransitions(body: StateBody, from: string, to: string): void {
 // via the graph projection. This hook adds the body-level structural checks:
 // EMPTY_DIAGRAM, EDGE_MISANCHORED (transition endpoint references a missing
 // state), and LABEL_OVERFLOW.
+
+export function verifyOpaqueState(source: string): LayoutWarning[] {
+  const directives = new Set<string>()
+  let inNote = false
+  for (const raw of scanAccessibilityDirectives(source.split(/\r?\n/)).familyLines) {
+    const line = stripStateComment(raw)
+    if (inNote) {
+      if (isNoteEnd(line)) inNote = false
+      continue
+    }
+    if (matchNoteOpen(line)) { inNote = true; continue }
+    if (!matchStateLayoutDirective(line)) continue
+    directives.add(line)
+  }
+  return directives.size === 0 ? [] : [{
+    code: 'UNSUPPORTED_SYNTAX',
+    syntax: 'state_layout_directive',
+    message: `State layout directives ${[...directives].map(directive => `"${directive}"`).join(', ')} are preserved in source but have no effect on local rendering; Agentic Mermaid uses its own layout. Typed mutation is unavailable for this preserved source.`,
+  }]
+}
 
 export function verifyState(body: StateBody, opts: VerifyOptions): LayoutWarning[] {
   const warnings: LayoutWarning[] = []

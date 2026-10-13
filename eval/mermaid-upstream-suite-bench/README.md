@@ -33,7 +33,8 @@ interface Case {
   source: string
   upstream: { repo: string; files: string[]; blocks: string[] }
   assertions: {
-    expectStructured?: boolean // default true; false means public parse/layout works through opaque fallback
+    expectStructured?: boolean // default true; false means lossless opaque source
+    renderError?: string // an explicit failure that preserves the source instead of drawing part of it
     nodeCount?: number
     edgeCount?: number
     groupCount?: number
@@ -97,7 +98,7 @@ interface ManifestFamily {
 
 - Every current built-in renderable family has a manifest row and at least one upstream parser/DB-derived case here or a dedicated family upstream bench.
 - Every considered upstream block is imported or excluded: `importedBlocks + excludedBlocks + deferredBlocks === consideredBlocks`, with `deferredBlocks === 0`.
-- Every case parses, verifies, lays out, round-trips stably, and meets its exact structural assertions through public APIs.
+- Positive cases parse, verify, lay out, round-trip stably, and meet their exact structural assertions through public APIs. Cases carrying `renderError` preserve their exact source, fail verification with `RENDER_FAILED`, and reject layout with the named reason.
 - Every structured case succeeds through its advertised family narrower; explicitly opaque-compatible cases set `assertions.expectStructured: false`.
 - Every case records upstream provenance.
 - Every exclusion uses a documented reason code.

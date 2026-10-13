@@ -2,6 +2,10 @@ import { describe, expect, test } from 'bun:test'
 import { layoutGraphSync } from '../layout-engine.ts'
 import { parseMermaid } from '../parser.ts'
 import type { Point, PositionedEdge, PositionedGraph, PositionedNode } from '../types.ts'
+import { assessLayout, onShapeOutline } from '../layout-rubric.ts'
+import { verifyMermaid } from '../agent/verify.ts'
+import { measureMultilineText } from '../text-metrics.ts'
+import { resolveRenderStyle } from '../styles.ts'
 
 const C_FIVE_WAY_FAN_IN = `flowchart TD
   Web[Web App] --> Gateway
@@ -83,6 +87,52 @@ ${peerIds(count).map(id => `  ${id}[Peer] --> Hub[Hub]`).join('\n')}
 }
 
 const MIXED_DIRECTIONS = ['TD', 'BT', 'LR', 'RL'] as const
+
+describe('labeled decision duplicates (#373)', () => {
+  test.each(MIXED_DIRECTIONS.flatMap(direction => ['A[Start] --> D', 'D --> C'].map(neighbor => [direction, neighbor] as const)))('%s separates labels without crossing %s', (direction, neighbor) => {
+    const source = `flowchart ${direction}\nC{Verify} -->|ok| D[View]\nC -->|warnings| D\n${neighbor}`
+    const graph = parseMermaid(source)
+    const positioned = layoutGraphSync(graph)
+    const [first, second] = positioned.edges
+    expect(assessLayout(graph, positioned).metrics.edgeCrossings).toBe(0)
+    expect(first!.points).not.toEqual(second!.points)
+    const style = resolveRenderStyle({})
+    const sizes = positioned.edges.slice(0, 2).map(edge => measureMultilineText(edge.label!, style.edgeLabelFontSize, style.edgeLabelFontWeight))
+    const dx = Math.abs(first!.labelPosition!.x - second!.labelPosition!.x)
+    const dy = Math.abs(first!.labelPosition!.y - second!.labelPosition!.y)
+    expect(dx > (sizes[0]!.width + sizes[1]!.width) / 2 + 16 || dy > (sizes[0]!.height + sizes[1]!.height) / 2 + 16).toBe(true)
+    for (const edge of positioned.edges) {
+      expect(onShapeOutline(node(positioned, edge.source), edge.points[0]!)).toBe(true)
+      expect(onShapeOutline(node(positioned, edge.target), edge.points.at(-1)!)).toBe(true)
+    }
+    expect(verifyMermaid(source).warnings.filter(warning => warning.code === 'ROUTE_LABEL_ON_SHARED_TRUNK')).toEqual([])
+  })
+
+  test.each([...MIXED_DIRECTIONS])('%s keeps both labels on separate outline-anchored lanes', direction => {
+    const source = `flowchart ${direction}\nC{Verify} -->|ok| D[View]\nC -->|warnings| D`
+    const graph = parseMermaid(source)
+    const positioned = layoutGraphSync(graph)
+    const decision = node(positioned, 'C')
+    const target = node(positioned, 'D')
+    const [first, second] = positioned.edges
+    const cross = direction === 'LR' || direction === 'RL' ? 'y' : 'x'
+    const style = resolveRenderStyle({})
+    const labelSizes = positioned.edges.map(edge => measureMultilineText(edge.label!, style.edgeLabelFontSize, style.edgeLabelFontWeight))
+    const size = cross === 'y' ? 'height' : 'width'
+    const separation = second!.labelPosition![cross] - first!.labelPosition![cross]
+    expect(separation).toBeGreaterThan((labelSizes[0]![size] + labelSizes[1]![size]) / 2 + 16)
+    expect(first!.points).not.toEqual(second!.points)
+    for (const edge of positioned.edges) {
+      expect(onShapeOutline(decision, edge.points[0]!)).toBe(true)
+      expect(onShapeOutline(target, edge.points.at(-1)!)).toBe(true)
+    }
+    const metrics = assessLayout(graph, positioned).metrics
+    expect(metrics.edgeCrossings).toBe(0)
+    expect(metrics.labelOffRoute).toBe(0)
+    expect(verifyMermaid(source).warnings.filter(warning => warning.code === 'ROUTE_LABEL_ON_SHARED_TRUNK')).toEqual([])
+    expect(layoutGraphSync(graph)).toEqual(positioned)
+  })
+})
 
 // A non-terminal hub that receives from `n` incoming peers and fans out to `m`
 // outgoing peers — the mixed fan-in/fan-out class from issue #61.
