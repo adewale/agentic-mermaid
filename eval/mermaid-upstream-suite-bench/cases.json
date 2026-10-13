@@ -12192,7 +12192,7 @@
       ]
     },
     "assertions": {
-      "expectStructured": false,
+      "expectStructured": true,
       "nodeCount": 2,
       "edgeCount": 0,
       "groupCount": 0
@@ -12238,9 +12238,7 @@
     },
     "assertions": {
       "expectStructured": false,
-      "nodeCount": 3,
-      "edgeCount": 2,
-      "groupCount": 0
+      "renderError": "Unsupported state syntax: \"scale 350 width\""
     }
   },
   {
@@ -12258,9 +12256,7 @@
     },
     "assertions": {
       "expectStructured": false,
-      "nodeCount": 3,
-      "edgeCount": 2,
-      "groupCount": 0
+      "renderError": "Unsupported state syntax: \"scale 350 width\""
     }
   },
   {
@@ -12306,7 +12302,7 @@
       ]
     },
     "assertions": {
-      "expectStructured": false,
+      "expectStructured": true,
       "nodeCount": 1,
       "edgeCount": 0,
       "groupCount": 0
@@ -12326,7 +12322,7 @@
       ]
     },
     "assertions": {
-      "expectStructured": false,
+      "expectStructured": true,
       "nodeCount": 1,
       "edgeCount": 0,
       "groupCount": 0
@@ -12346,7 +12342,7 @@
       ]
     },
     "assertions": {
-      "expectStructured": false,
+      "expectStructured": true,
       "nodeCount": 1,
       "edgeCount": 0,
       "groupCount": 0
@@ -12367,7 +12363,7 @@
       ]
     },
     "assertions": {
-      "expectStructured": false,
+      "expectStructured": true,
       "nodeCount": 1,
       "edgeCount": 0,
       "groupCount": 0
@@ -12461,9 +12457,7 @@
     },
     "assertions": {
       "expectStructured": false,
-      "nodeCount": 5,
-      "edgeCount": 4,
-      "groupCount": 0
+      "renderError": "Unsupported state syntax: \"hide empty description\""
     }
   },
   {
@@ -12481,9 +12475,7 @@
     },
     "assertions": {
       "expectStructured": false,
-      "nodeCount": 5,
-      "edgeCount": 4,
-      "groupCount": 0
+      "renderError": "Unsupported state syntax: \"hide empty description\""
     }
   },
   {
@@ -12550,9 +12542,7 @@
     },
     "assertions": {
       "expectStructured": false,
-      "nodeCount": 5,
-      "edgeCount": 4,
-      "groupCount": 0
+      "renderError": "Unsupported state syntax: \"scale 350 width\""
     }
   },
   {
@@ -12570,9 +12560,7 @@
     },
     "assertions": {
       "expectStructured": false,
-      "nodeCount": 5,
-      "edgeCount": 4,
-      "groupCount": 0
+      "renderError": "Unsupported state syntax: \"scale 350 width\""
     }
   },
   {
@@ -12590,9 +12578,7 @@
     },
     "assertions": {
       "expectStructured": false,
-      "nodeCount": 3,
-      "edgeCount": 2,
-      "groupCount": 0
+      "renderError": "Unsupported state syntax: \"scale 350 width\""
     }
   },
   {
@@ -12610,9 +12596,7 @@
     },
     "assertions": {
       "expectStructured": false,
-      "nodeCount": 3,
-      "edgeCount": 2,
-      "groupCount": 0
+      "renderError": "Unsupported state syntax: \"scale 350 width\""
     }
   },
   {
@@ -12733,9 +12717,7 @@
     },
     "assertions": {
       "expectStructured": false,
-      "nodeCount": 0,
-      "edgeCount": 0,
-      "groupCount": 0
+      "renderError": "Unsupported state syntax: \"//     [*] -up-> First\""
     }
   },
   {
@@ -12753,9 +12735,7 @@
     },
     "assertions": {
       "expectStructured": false,
-      "nodeCount": 0,
-      "edgeCount": 0,
-      "groupCount": 0
+      "renderError": "Unsupported state syntax: \"//     [*] -up-> First\""
     }
   },
   {
@@ -12897,9 +12877,7 @@
     },
     "assertions": {
       "expectStructured": false,
-      "nodeCount": 1,
-      "edgeCount": 0,
-      "groupCount": 0
+      "renderError": "Unsupported state syntax: \"note \"This is a floating note\" as N1\""
     }
   },
   {
@@ -12917,9 +12895,7 @@
     },
     "assertions": {
       "expectStructured": false,
-      "nodeCount": 0,
-      "edgeCount": 0,
-      "groupCount": 0
+      "renderError": "Unsupported state syntax: \"note \"This is a floating note\" as N1\""
     }
   },
   {
@@ -12937,9 +12913,7 @@
     },
     "assertions": {
       "expectStructured": false,
-      "nodeCount": 1,
-      "edgeCount": 0,
-      "groupCount": 0
+      "renderError": "Unsupported state syntax: \"note \"This is a floating note\" as N1\""
     }
   },
   {
@@ -12957,9 +12931,7 @@
     },
     "assertions": {
       "expectStructured": false,
-      "nodeCount": 0,
-      "edgeCount": 0,
-      "groupCount": 0
+      "renderError": "Unsupported state syntax: \"note \"This is a floating note\" as N1\""
     }
   },
   {
@@ -13079,9 +13051,7 @@
     },
     "assertions": {
       "expectStructured": false,
-      "nodeCount": 7,
-      "edgeCount": 9,
-      "groupCount": 3
+      "renderError": "Unsupported state syntax: \"scale 350 width\""
     }
   },
   {
@@ -13099,9 +13069,7 @@
     },
     "assertions": {
       "expectStructured": false,
-      "nodeCount": 7,
-      "edgeCount": 9,
-      "groupCount": 3
+      "renderError": "Unsupported state syntax: \"scale 350 width\""
     }
   },
   {
@@ -13567,9 +13535,7 @@
     },
     "assertions": {
       "expectStructured": false,
-      "nodeCount": 0,
-      "edgeCount": 0,
-      "groupCount": 0
+      "renderError": "Unsupported state syntax: \"state valid { X }\""
     }
   },
   {
@@ -13587,9 +13553,7 @@
     },
     "assertions": {
       "expectStructured": false,
-      "nodeCount": 10,
-      "edgeCount": 11,
-      "groupCount": 1
+      "renderError": "Unsupported state syntax: \"scale 600 width\""
     }
   },
   {
@@ -13607,9 +13571,7 @@
     },
     "assertions": {
       "expectStructured": false,
-      "nodeCount": 10,
-      "edgeCount": 11,
-      "groupCount": 1
+      "renderError": "Unsupported state syntax: \"scale 600 width\""
     }
   },
   {

@@ -10,6 +10,9 @@ This changelog tracks user-facing changes for **Agentic Mermaid**, a fork of `lu
 - State rendering rejects unknown statements with a named `RENDER_FAILED`
   diagnostic instead of returning a partial diagram. Explicit `state Idle`
   declarations retain isolated states in both the editable model and drawing.
+  Canonical labels write `<br/>` breaks so normalized multiline text survives
+  re-parsing and verification. Unmodeled State directives and floating notes
+  now fail explicitly rather than being silently omitted.
 - Class edits prune empty unlabeled namespaces and refuse to erase explicit
   labels. Labeled parents retain surviving descendants in valid nested exports;
   directly authored empty namespaces remain source-preserved and non-editable.
