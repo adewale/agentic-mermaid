@@ -1999,7 +1999,7 @@ export function applySymmetricParallelEdgeLanes(
     if (edge.source === edge.target || !edge.label) continue
     const source = nodeMap.get(edge.source)
     const target = nodeMap.get(edge.target)
-    if (!source || !target || source.shape !== 'rectangle' || target.shape !== 'rectangle') continue
+    if (!source || !target || (source.shape !== 'rectangle' && source.shape !== 'diamond') || target.shape !== 'rectangle') continue
     if (nodeInsideGroups(source, groups) || nodeInsideGroups(target, groups)) continue
     const key = `${edge.source}\0${edge.target}`
     if (!byPair.has(key)) byPair.set(key, [])
@@ -2022,7 +2022,11 @@ export function applySymmetricParallelEdgeLanes(
       let ok = true
       for (let i = 0; i < group.length; i++) {
         const edge = group[i]!
-        const points = symmetricParallelOuterLanePoints(source, target, graph.direction, lanes[i]!, i, group.length)
+        const points = simplifyPolyline(clipEdgeToShape(
+          clipEdgeToShape(symmetricParallelOuterLanePoints(source, target, graph.direction, lanes[i]!, i, group.length), source, true),
+          target, false,
+        ))
+        if (!onShapeOutline(source, points[0]!) || !onShapeOutline(target, points.at(-1)!)) { ok = false; break }
         if (!routeClearOfNodes(points, nodes, new Set([source.id, target.id]))) { ok = false; break }
         proposed.push({ edge, points, label: longestSegmentMidpoint(points) })
       }
