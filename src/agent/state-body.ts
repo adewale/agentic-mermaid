@@ -37,11 +37,9 @@
 // rejects them). Each of those keeps the whole body opaque so it round-trips
 // verbatim.
 //
-// Canonical serialization emits state DEFINITIONS before transitions, because
-// the legacy parser only applies a `state "…" as id` / `id : …` label when the
-// node does not yet exist (definition-before-use); a transition that mentions
-// the id first would otherwise pin the label to the bare id. Notes serialize
-// LAST (they are annotations over already-declared states).
+// Canonical serialization emits state DEFINITIONS before transitions, keeping
+// labels beside their declarations. Notes serialize LAST (they are annotations
+// over already-declared states).
 // ============================================================================
 
 import { unknownOpMessage } from './mutation-ops.ts'
@@ -52,10 +50,11 @@ import type {
 import { ok, err } from './types.ts'
 import { labelOverflowCollector } from './body-utils.ts'
 import { normalizeBrTags } from '../multiline-utils.ts'
+import { scanAccessibilityDirectives } from '../shared/accessibility-directives.ts'
 import {
   matchNoteLine, matchNoteOpen, isNoteEnd, matchStereotypeDecl,
   matchTransitionLine, isConcurrencySeparator, isHistoryEndpoint, matchHistoryEndpoint,
-  isStateNodeId, matchStateDeclarationLine, stereotypeMarker, stripStateComment, matchStateClassAssignment, stateNoteText,
+  isStateNodeId, matchStateDeclarationLine, matchStateLayoutDirective, stereotypeMarker, stripStateComment, matchStateClassAssignment, stateNoteText,
   STATE_DIRECTION_RE, STATE_ALIAS_RE, STATE_COMPOSITE_OPEN_RE, STATE_DESCRIPTION_RE,
   STATE_CLASS_DEF_RE, STATE_STYLE_RE, STATE_LINK_STYLE_RE,
 } from '../state/parse-core.ts'
@@ -335,10 +334,11 @@ export function parseStateBody(lines: string[]): StateBody | null {
       const id = desc[1]!
       const label = normalizeBrTags(desc[2]!.trim())
       if (compositeIds.has(id) && !scope.byId.has(id)) {
-        if (!pendingCompositeLabels.has(id)) pendingCompositeLabels.set(id, label)
+        const previous = pendingCompositeLabels.get(id)
+        pendingCompositeLabels.set(id, previous === undefined ? label : `${previous}\n${label}`)
       } else {
         const node = ensureState(scope, id)
-        if (node.label === undefined) node.label = label
+        node.label = node.label === undefined ? label : `${node.label}\n${label}`
       }
       continue
     }
@@ -415,8 +415,7 @@ function serializeStateLabel(label: string): string {
 
 function renderScope(states: StateNode[], transitions: StateTransition[], direction: StateNode['direction'] | undefined, indent: string, out: string[]): void {
   if (direction !== undefined) out.push(`${indent}direction ${direction}`)
-  // Definitions first (labels + composites), so the legacy parser applies the
-  // label before any transition mentions the id.
+  // Definitions first (labels + composites), then transitions.
   for (const s of states) {
     if (s.states !== undefined || s.transitions !== undefined || s.regions !== undefined) {
       // Composite block (ordinary or `--`-partitioned concurrency regions).
@@ -1131,6 +1130,26 @@ function renameInTransitions(body: StateBody, from: string, to: string): void {
 // via the graph projection. This hook adds the body-level structural checks:
 // EMPTY_DIAGRAM, EDGE_MISANCHORED (transition endpoint references a missing
 // state), and LABEL_OVERFLOW.
+
+export function verifyOpaqueState(source: string): LayoutWarning[] {
+  const directives = new Set<string>()
+  let inNote = false
+  for (const raw of scanAccessibilityDirectives(source.split(/\r?\n/)).familyLines) {
+    const line = stripStateComment(raw)
+    if (inNote) {
+      if (isNoteEnd(line)) inNote = false
+      continue
+    }
+    if (matchNoteOpen(line)) { inNote = true; continue }
+    if (!matchStateLayoutDirective(line)) continue
+    directives.add(line)
+  }
+  return directives.size === 0 ? [] : [{
+    code: 'UNSUPPORTED_SYNTAX',
+    syntax: 'state_layout_directive',
+    message: `State layout directives ${[...directives].map(directive => `"${directive}"`).join(', ')} are preserved in source but have no effect on local rendering; Agentic Mermaid uses its own layout. Typed mutation is unavailable for this preserved source.`,
+  }]
+}
 
 export function verifyState(body: StateBody, opts: VerifyOptions): LayoutWarning[] {
   const warnings: LayoutWarning[] = []

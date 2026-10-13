@@ -33,6 +33,10 @@ State diagrams own a dedicated `StateBody`: narrow with `asState`. States, trans
 Simple states accept both `Idle` and `state Idle`. Unknown statements stop
 rendering, and verification reports `RENDER_FAILED` with the offending text.
 Preserving an opaque source does not imply that it can be drawn completely.
+Full-line `//` comments remain preserved. `scale N width` and
+`hide empty description` remain opaque and source-preserved while rendering
+known topology; verification names the layout directives that have no effect
+on local rendering. Unknown statements still prevent a partial drawing.
 
 ## Sequence
 

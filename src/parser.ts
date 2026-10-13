@@ -5,7 +5,7 @@ import { createSubgraphMembership } from './shared/subgraph-membership.ts'
 import { normalizeV11Shape } from './flowchart-shapes.ts'
 import {
   matchNoteLine, matchNoteOpen, isNoteEnd, matchStereotypeDecl,
-  isConcurrencySeparator, matchStateDeclarationLine, matchHistoryEndpoint, matchTransitionLine, historyLabel,
+  isConcurrencySeparator, matchStateDeclarationLine, matchStateLayoutDirective, matchHistoryEndpoint, matchTransitionLine, historyLabel,
   stripStateComment, matchStateClassAssignment, stateNoteText,
   STATE_DIRECTION_RE, STATE_ALIAS_RE, STATE_COMPOSITE_OPEN_RE, STATE_DESCRIPTION_RE,
   STATE_CLASS_DEF_RE, STATE_STYLE_RE, STATE_LINK_STYLE_RE,
@@ -53,8 +53,17 @@ export function parseMermaid(text: string): MermaidGraph {
   const firstStatement = rawLines.find(line => line.trim().length > 0 && !line.trim().startsWith('%%'))?.trim() ?? ''
   // State comments can contain syntax-looking delimiters. Remove them before
   // the generic Markdown/metadata coalescers and inline-header splitter run.
+  let inStateNote = false
   const semanticLines = /^stateDiagram(?:-v2)?(?=$|[\s;%])/i.test(firstStatement)
-    ? rawLines.map(stripStateComment)
+    ? rawLines.map(raw => {
+      const line = stripStateComment(raw)
+      if (inStateNote) {
+        if (isNoteEnd(line)) inStateNote = false
+        return line
+      }
+      if (matchNoteOpen(line)) inStateNote = true
+      return line.startsWith('//') ? '' : line
+    })
     : rawLines
   const lines = expandInlineHeaderStatements(coalesceMetadataLines(coalesceMarkdownStringLines(semanticLines)).map(l => l.trim()).filter(l => l.length > 0 && !l.startsWith('%%')))
 
@@ -457,6 +466,7 @@ function parseStateDiagram(lines: string[]): MermaidGraph {
   const compositeStack: MermaidSubgraph[] = []
   // Track all composite state IDs to avoid creating duplicate nodes
   const compositeStateIds = new Set<string>()
+  const labeledStateIds = new Set<string>()
   // Counter for unique [*] pseudostate IDs
   let startCount = 0
   let endCount = 0
@@ -518,6 +528,10 @@ function parseStateDiagram(lines: string[]): MermaidGraph {
       }
       continue
     }
+
+    // Comment-only source carries no drawing content. Keep note text above
+    // literal; opaque parsing preserves slash comments and layout directives.
+    if (matchStateLayoutDirective(line)) continue
 
     // --- notes: `note left|right of X : text` / `note left|right of X` ---
     const noteLine = matchNoteLine(line)
@@ -644,8 +658,10 @@ function parseStateDiagram(lines: string[]): MermaidGraph {
     // --- composite state start: `state CompositeState {` ---
     const compositeMatch = line.match(STATE_COMPOSITE_OPEN_RE)
     if (compositeMatch) {
-      const label = compositeMatch[1] ?? compositeMatch[2]!
       const id = compositeMatch[2]!
+      const label = compositeMatch[1] !== undefined
+        ? normalizeBrTags(compositeMatch[1])
+        : graph.nodes.get(id)?.label ?? id
       const sg: MermaidSubgraph = { id, label, nodeIds: [], children: [] }
       compositeStack.push(sg)
       // Track this ID to avoid creating a duplicate node for the composite state
@@ -678,7 +694,12 @@ function parseStateDiagram(lines: string[]): MermaidGraph {
     if (stateAliasMatch) {
       const label = normalizeBrTags(stateAliasMatch[1]!)
       const id = stateAliasMatch[2]!
+      const existing = graph.nodes.get(id)
+      if (existing?.shape === 'rounded' && !labeledStateIds.has(id)) {
+        graph.nodes.set(id, { ...existing, label })
+      }
       registerStateNode(graph, compositeStack, { id, label, shape: 'rounded' })
+      labeledStateIds.add(id)
       continue
     }
 
@@ -722,9 +743,10 @@ function parseStateDiagram(lines: string[]): MermaidGraph {
       // second description stacks under the first rather than being dropped.
       const existing = graph.nodes.get(id)
       if (existing && existing.shape === 'rounded') {
-        graph.nodes.set(id, { ...existing, label: existing.label === id ? label : `${existing.label}\n${label}` })
+        graph.nodes.set(id, { ...existing, label: labeledStateIds.has(id) ? `${existing.label}\n${label}` : label })
       }
       registerStateNode(graph, compositeStack, { id, label, shape: 'rounded' })
+      labeledStateIds.add(id)
       continue
     }
     const declaredId = matchStateDeclarationLine(line)

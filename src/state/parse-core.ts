@@ -60,6 +60,14 @@ export function matchStateDeclarationLine(line: string): string | null {
   return explicit?.[1] ?? (isStateNodeId(line) ? line : null)
 }
 
+/** Upstream accepts these layout directives without declaring states/edges.
+ * Preserve them in opaque source; our renderer uses its own layout policy. */
+export function matchStateLayoutDirective(line: string): 'scale' | 'hide_empty_description' | null {
+  if (/^scale\s+\d+\s+width$/i.test(line)) return 'scale'
+  if (/^hide empty description$/i.test(line)) return 'hide_empty_description'
+  return null
+}
+
 export { stripStateComment } from './comment.ts'
 
 /** `class Moving, Crash movement` (or `cssClass`) allows spaces around commas. */

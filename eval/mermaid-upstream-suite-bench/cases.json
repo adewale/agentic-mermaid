@@ -12238,7 +12238,9 @@
     },
     "assertions": {
       "expectStructured": false,
-      "renderError": "Unsupported state syntax: \"scale 350 width\""
+      "nodeCount": 3,
+      "edgeCount": 2,
+      "groupCount": 0
     }
   },
   {
@@ -12256,7 +12258,9 @@
     },
     "assertions": {
       "expectStructured": false,
-      "renderError": "Unsupported state syntax: \"scale 350 width\""
+      "nodeCount": 3,
+      "edgeCount": 2,
+      "groupCount": 0
     }
   },
   {
@@ -12457,7 +12461,9 @@
     },
     "assertions": {
       "expectStructured": false,
-      "renderError": "Unsupported state syntax: \"hide empty description\""
+      "nodeCount": 5,
+      "edgeCount": 4,
+      "groupCount": 0
     }
   },
   {
@@ -12475,7 +12481,9 @@
     },
     "assertions": {
       "expectStructured": false,
-      "renderError": "Unsupported state syntax: \"hide empty description\""
+      "nodeCount": 5,
+      "edgeCount": 4,
+      "groupCount": 0
     }
   },
   {
@@ -12542,7 +12550,9 @@
     },
     "assertions": {
       "expectStructured": false,
-      "renderError": "Unsupported state syntax: \"scale 350 width\""
+      "nodeCount": 5,
+      "edgeCount": 4,
+      "groupCount": 0
     }
   },
   {
@@ -12560,7 +12570,9 @@
     },
     "assertions": {
       "expectStructured": false,
-      "renderError": "Unsupported state syntax: \"scale 350 width\""
+      "nodeCount": 5,
+      "edgeCount": 4,
+      "groupCount": 0
     }
   },
   {
@@ -12578,7 +12590,9 @@
     },
     "assertions": {
       "expectStructured": false,
-      "renderError": "Unsupported state syntax: \"scale 350 width\""
+      "nodeCount": 3,
+      "edgeCount": 2,
+      "groupCount": 0
     }
   },
   {
@@ -12596,7 +12610,9 @@
     },
     "assertions": {
       "expectStructured": false,
-      "renderError": "Unsupported state syntax: \"scale 350 width\""
+      "nodeCount": 3,
+      "edgeCount": 2,
+      "groupCount": 0
     }
   },
   {
@@ -12717,7 +12733,9 @@
     },
     "assertions": {
       "expectStructured": false,
-      "renderError": "Unsupported state syntax: \"//     [*] -up-> First\""
+      "nodeCount": 0,
+      "edgeCount": 0,
+      "groupCount": 0
     }
   },
   {
@@ -12735,7 +12753,9 @@
     },
     "assertions": {
       "expectStructured": false,
-      "renderError": "Unsupported state syntax: \"//     [*] -up-> First\""
+      "nodeCount": 0,
+      "edgeCount": 0,
+      "groupCount": 0
     }
   },
   {
@@ -13051,7 +13071,9 @@
     },
     "assertions": {
       "expectStructured": false,
-      "renderError": "Unsupported state syntax: \"scale 350 width\""
+      "nodeCount": 7,
+      "edgeCount": 9,
+      "groupCount": 3
     }
   },
   {
@@ -13069,7 +13091,9 @@
     },
     "assertions": {
       "expectStructured": false,
-      "renderError": "Unsupported state syntax: \"scale 350 width\""
+      "nodeCount": 7,
+      "edgeCount": 9,
+      "groupCount": 3
     }
   },
   {
@@ -13553,7 +13577,7 @@
     },
     "assertions": {
       "expectStructured": false,
-      "renderError": "Unsupported state syntax: \"scale 600 width\""
+      "renderError": "Unsupported state syntax: \"state \"Accumulate Enough Data\""
     }
   },
   {
@@ -13571,7 +13595,7 @@
     },
     "assertions": {
       "expectStructured": false,
-      "renderError": "Unsupported state syntax: \"scale 600 width\""
+      "renderError": "Unsupported state syntax: \"state \"Accumulate Enough Data\""
     }
   },
   {

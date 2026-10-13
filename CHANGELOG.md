@@ -11,8 +11,10 @@ This changelog tracks user-facing changes for **Agentic Mermaid**, a fork of `lu
   diagnostic instead of returning a partial diagram. Explicit `state Idle`
   declarations retain isolated states in both the editable model and drawing.
   Canonical labels write `<br/>` breaks so normalized multiline text survives
-  re-parsing and verification. Unmodeled State directives and floating notes
-  now fail explicitly rather than being silently omitted.
+  re-parsing and verification. Unmodeled statements and floating notes fail
+  explicitly rather than being silently omitted. Harmless slash comments
+  remain preserved; recognized legacy layout directives render known topology
+  and warn that their layout behavior is not applied.
 - Class edits prune empty unlabeled namespaces and refuse to erase explicit
   labels. Labeled parents retain surviving descendants in valid nested exports;
   directly authored empty namespaces remain source-preserved and non-editable.

@@ -6,6 +6,7 @@ import { asState, type StateMutationOp, type StateValidDiagram } from '../agent/
 import { parseMermaid as parseRenderGraph } from '../parser.ts'
 import { verifyMermaid } from '../agent/verify.ts'
 import { renderMermaidSVG } from '../index.ts'
+import { startUpstreamMermaid } from './helpers/upstream-mermaid.ts'
 
 function state(source: string): StateValidDiagram {
   const parsed = parseMermaid(source)
@@ -22,6 +23,85 @@ function apply(diagram: StateValidDiagram, op: StateMutationOp): StateValidDiagr
 }
 
 describe('typed State residual elevation (B07)', () => {
+  test.each([
+    ['state A\nstate "Running" as A\nA --> B', 'Running'],
+    ['state "A" as A\nstate "Running" as A\nA --> B', 'A'],
+    ['A --> B\nstate "Running" as A', 'Running'],
+    ['state A\nA : First\nA : Second\nA --> B', 'First\nSecond'],
+    ['A : First\nA : Second\nstate A {\nB --> C\n}', 'First\nSecond'],
+  ])('retains State labels after declarations and repeated descriptions: %s', async (body, label) => {
+    const source = `stateDiagram-v2\n${body}`
+    const diagram = state(source)
+    expect(diagram.body.states.find(node => node.id === 'A')?.label).toBe(label)
+    const serialized = serializeMermaid(diagram)
+    const upstream = startUpstreamMermaid()
+    try {
+      expect(await upstream.accepts(serialized)).toBe(true)
+    } finally {
+      upstream.close()
+    }
+    expect(state(serialized).body.states.find(node => node.id === 'A')?.label).toBe(label)
+    for (const input of [source, serialized]) {
+      const graph = parseRenderGraph(input)
+      expect(graph.nodes.get('A')?.label ?? graph.subgraphs.find(group => group.id === 'A')?.label).toBe(label)
+      for (const part of label.split('\n')) expect(renderMermaidSVG(input)).toContain(part)
+      const verified = verifyMermaid(input)
+      expect(verified.ok).toBe(true)
+      expect(verified.layout.nodes.find(node => node.id === 'A')?.label ?? verified.layout.groups.find(group => group.id === 'A')?.label).toBe(label)
+    }
+  })
+
+  test('full-line slash comments preserve source without hiding drawing content or note text', () => {
+    const source = 'stateDiagram-v2\n// A --> Ghost\nA --> B\nnote right of A\n// literal note text\nend note'
+    const parsed = parseMermaid(source)
+    if (!parsed.ok) throw new Error(JSON.stringify(parsed.error))
+    expect(serializeMermaid(parsed.value).trimEnd()).toBe(source)
+    expect(parseRenderGraph(source).edges.map(edge => [edge.source, edge.target])).toEqual([['A', 'B']])
+    expect(renderMermaidSVG(source)).toContain('// literal note text')
+    expect(verifyMermaid(source).ok).toBe(true)
+    const commentedDelimiter = 'stateDiagram-v2\n// A["` @{\nA --> B'
+    expect(parseRenderGraph(commentedDelimiter).edges.map(edge => [edge.source, edge.target])).toEqual([['A', 'B']])
+    expect(() => renderMermaidSVG(`${commentedDelimiter}\nbogus statement`)).toThrow('Unsupported state syntax: "bogus statement"')
+  })
+
+  test.each(['scale 350 width', 'hide empty description'])('preserves and warns about an unapplied State layout directive: %s', async directive => {
+    const source = `stateDiagram-v2\nA --> B\n${directive}`
+    const upstream = startUpstreamMermaid()
+    try {
+      expect(await upstream.accepts(source)).toBe(true)
+    } finally {
+      upstream.close()
+    }
+    const parsed = parseMermaid(source)
+    if (!parsed.ok) throw new Error(JSON.stringify(parsed.error))
+    expect(parsed.value.body.kind).toBe('opaque')
+    expect(serializeMermaid(parsed.value).trimEnd()).toBe(source)
+    expect(parseRenderGraph(source).edges.map(edge => [edge.source, edge.target])).toEqual([['A', 'B']])
+    expect(renderMermaidSVG(source)).toContain('>A</text>')
+    const verified = verifyMermaid(source)
+    expect(verified.ok).toBe(true)
+    expect(verified.warnings).toContainEqual(expect.objectContaining({
+      code: 'UNSUPPORTED_SYNTAX', syntax: 'state_layout_directive', message: expect.stringContaining(directive),
+    }))
+    expect(verified.warnings.some(warning => warning.code === 'RENDER_FAILED')).toBe(false)
+  })
+
+  test('State layout-directive recognition leaves note text literal and rejects malformed lookalikes', () => {
+    const source = 'stateDiagram-v2\n// source comment\nA --> B\nnote right of A\nscale 350 width\nhide empty description\nend note'
+    expect(renderMermaidSVG(source)).toContain('scale 350 width')
+    expect(verifyMermaid(source).warnings.some(warning => warning.code === 'UNSUPPORTED_SYNTAX' && warning.syntax === 'state_layout_directive')).toBe(false)
+    const accessibility = verifyMermaid('stateDiagram-v2\naccDescr {\nscale 350 width\n}\nA --> B\n// comment')
+    expect(accessibility.ok).toBe(true)
+    expect(accessibility.warnings.some(warning => warning.code === 'UNSUPPORTED_SYNTAX' && warning.syntax === 'state_layout_directive')).toBe(false)
+    const multiple = verifyMermaid('stateDiagram-v2\nA --> B\nscale 350 width\nhide empty description')
+    const warning = multiple.warnings.find(warning => warning.code === 'UNSUPPORTED_SYNTAX' && warning.syntax === 'state_layout_directive')
+    expect(warning).toEqual(expect.objectContaining({ message: expect.stringContaining('scale 350 width') }))
+    expect(warning).toEqual(expect.objectContaining({ message: expect.stringContaining('hide empty description') }))
+    for (const directive of ['scale diagonal width', 'hide empty description extra']) {
+      expect(() => renderMermaidSVG(`stateDiagram-v2\nA --> B\n${directive}`)).toThrow(`Unsupported state syntax: "${directive}"`)
+    }
+  })
+
   test.each([
     'state "First<br/>second" as A\nA --> B',
     'A --> B : First<br/>second',
