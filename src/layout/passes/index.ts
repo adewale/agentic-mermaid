@@ -1966,19 +1966,29 @@ function labelTouchesNeighborRoute(edge: PositionedEdge, labelBox: { x: number; 
   }
   return false
 }
-function symmetricParallelOuterLanePoints(source: PositionedNode, target: PositionedNode, direction: Direction, lane: number, index: number, count: number): Point[] {
+function parallelRoutesCross(first: Point[], second: Point[]): boolean {
+  for (let i = 1; i < first.length; i++) for (let j = 1; j < second.length; j++) {
+    const a = first[i - 1]!, b = first[i]!, c = second[j - 1]!, d = second[j]!
+    const det = (b.x - a.x) * (d.y - c.y) - (b.y - a.y) * (d.x - c.x)
+    if (Math.abs(det) < 1e-9) continue
+    const t = ((c.x - a.x) * (d.y - c.y) - (c.y - a.y) * (d.x - c.x)) / det
+    const u = ((c.x - a.x) * (b.y - a.y) - (c.y - a.y) * (b.x - a.x)) / det
+    if (t > 0.001 && t < 0.999 && u > 0.001 && u < 0.999) return true
+  }
+  return false
+}
+function symmetricParallelOuterLanePoints(source: PositionedNode, target: PositionedNode, direction: Direction, lane: number, index: number, count: number, sourceFraction = (index + 1) / (count + 1), targetFraction = sourceFraction): Point[] {
   const f = layoutFlow(direction)
-  const t = (index + 1) / (count + 1)
   if (f.isHorizontal) {
-    const p: Point = { x: f.sourceSide === 'E' ? source.x + source.width : source.x, y: source.y + source.height * t }
-    const q: Point = { x: f.targetSide === 'W' ? target.x : target.x + target.width, y: target.y + target.height * t }
+    const p: Point = { x: f.sourceSide === 'E' ? source.x + source.width : source.x, y: source.y + source.height * sourceFraction }
+    const q: Point = { x: f.targetSide === 'W' ? target.x : target.x + target.width, y: target.y + target.height * targetFraction }
     const gap = Math.min(28, Math.max(14, Math.abs(q.x - p.x) * 0.18))
     const x1 = p.x + f.sign * gap
     const x2 = q.x - f.sign * gap
     return simplifyPolyline([p, { x: x1, y: p.y }, { x: x1, y: lane }, { x: x2, y: lane }, { x: x2, y: q.y }, q])
   }
-  const p: Point = { x: source.x + source.width * t, y: f.sourceSide === 'S' ? source.y + source.height : source.y }
-  const q: Point = { x: target.x + target.width * t, y: f.targetSide === 'N' ? target.y : target.y + target.height }
+  const p: Point = { x: source.x + source.width * sourceFraction, y: f.sourceSide === 'S' ? source.y + source.height : source.y }
+  const q: Point = { x: target.x + target.width * targetFraction, y: f.targetSide === 'N' ? target.y : target.y + target.height }
   const gap = Math.min(28, Math.max(14, Math.abs(q.y - p.y) * 0.18))
   const y1 = p.y + f.sign * gap
   const y2 = q.y - f.sign * gap
@@ -2013,17 +2023,33 @@ export function applySymmetricParallelEdgeLanes(
     const labelWidths = group.map(e => measureMultilineText(e.label!, style.edgeLabelFontSize, style.edgeLabelFontWeight).width + 16)
     const labelHeights = group.map(e => measureMultilineText(e.label!, style.edgeLabelFontSize, style.edgeLabelFontWeight).height + 16)
     const lanePadding = (f.isHorizontal ? Math.max(...labelHeights) : Math.max(...labelWidths)) / 2 + 18
-    const attempts = [lanePadding, lanePadding + 16, lanePadding + 32, lanePadding + 52]
-    for (const gap of attempts) {
-      const lanes = f.isHorizontal
+    const gaps = [lanePadding, lanePadding + 16, lanePadding + 32, lanePadding + 52]
+    const slots = [[1 / 3, 2 / 3], [1 / 6, 1 / 3], [2 / 3, 5 / 6]]
+    const attempts = gaps.map(gap => ({
+      lanes: f.isHorizontal
         ? [Math.min(source.y, target.y) - gap, Math.max(source.y + source.height, target.y + target.height) + gap]
-        : [Math.min(source.x, target.x) - gap, Math.max(source.x + source.width, target.x + target.width) + gap]
+        : [Math.min(source.x, target.x) - gap, Math.max(source.x + source.width, target.x + target.width) + gap],
+      sourceSlots: slots[0]!, targetSlots: slots[0]!,
+    }))
+    // A feeder or feedback edge can occupy one outside lane. Keep the other
+    // outside lane and try an inside lane with both arrivals on the free half
+    // of the target face, rather than wrapping across that neighboring route.
+    if (source.shape === 'diamond') for (const attempt of [...attempts]) {
+      for (const sourceSlots of slots) for (const targetSlots of slots) {
+        const targetLanes = targetSlots.map(slot => target[f.cross] + nodeCrossSize(target, graph.direction) * slot)
+        const sourceLanes = sourceSlots.map(slot => source[f.cross] + nodeCrossSize(source, graph.direction) * slot)
+        for (const lanes of [attempt.lanes, [attempt.lanes[0]!, targetLanes[1]!], [targetLanes[0]!, attempt.lanes[1]!], [attempt.lanes[0]!, sourceLanes[1]!], [sourceLanes[0]!, attempt.lanes[1]!]]) {
+          attempts.push({ lanes, sourceSlots, targetSlots })
+        }
+      }
+    }
+    for (const { lanes, sourceSlots, targetSlots } of attempts) {
       const proposed: Array<{ edge: PositionedEdge; points: Point[]; label: Point }> = []
       let ok = true
       for (let i = 0; i < group.length; i++) {
         const edge = group[i]!
         const points = simplifyPolyline(clipEdgeToShape(
-          clipEdgeToShape(symmetricParallelOuterLanePoints(source, target, graph.direction, lanes[i]!, i, group.length), source, true),
+          clipEdgeToShape(symmetricParallelOuterLanePoints(source, target, graph.direction, lanes[i]!, i, group.length, sourceSlots[i], targetSlots[i]), source, true),
           target, false,
         ))
         if (!onShapeOutline(source, points[0]!) || !onShapeOutline(target, points.at(-1)!)) { ok = false; break }
@@ -2031,10 +2057,27 @@ export function applySymmetricParallelEdgeLanes(
         proposed.push({ edge, points, label: longestSegmentMidpoint(points) })
       }
       if (!ok) continue
+      if (source.shape === 'diamond') {
+        const neighbors = edges.filter(edge => !group.includes(edge))
+        if (parallelRoutesCross(proposed[0]!.points, proposed[1]!.points) || proposed.some(p => neighbors.some(edge => parallelRoutesCross(p.points, edge.points)))) continue
+        const candidateSets = proposed.map(p => {
+          const routes = [...neighbors, ...proposed.filter(other => other !== p).map(other => ({ ...other.edge, points: other.points }))]
+          return bundledLabelCandidates(p.edge, p.points, nodes, graph.direction, style)
+            .filter(candidate => !labelTouchesNeighborRoute(p.edge, { x: candidate.box.x, y: candidate.box.y, w: candidate.box.width, h: candidate.box.height }, routes))
+        })
+        let labels: [BundledLabelCandidate, BundledLabelCandidate] | undefined
+        for (const first of candidateSets[0]!) {
+          const second = candidateSets[1]!.find(candidate => !rectsOverlap(first.box, candidate.box, readableLabelGap(style)))
+          if (second) { labels = [first, second]; break }
+        }
+        if (!labels) continue
+        proposed[0]!.label = labels[0].point
+        proposed[1]!.label = labels[1].point
+      }
       for (const p of proposed) {
         const metrics = measureMultilineText(p.edge.label!, style.edgeLabelFontSize, style.edgeLabelFontWeight)
         const box = { x: p.label.x - (metrics.width + 16) / 2, y: p.label.y - (metrics.height + 16) / 2, w: metrics.width + 16, h: metrics.height + 16 }
-        if (labelTouchesNeighborRoute(p.edge, box, edges)) ok = false
+        if (source.shape !== 'diamond' && labelTouchesNeighborRoute(p.edge, box, edges)) ok = false
       }
       if (!ok) continue
       for (const { edge, points, label } of proposed) {
