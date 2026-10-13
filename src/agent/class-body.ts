@@ -258,7 +258,18 @@ export function renderClass(body: ClassBody): string {
   // classes must wrap its descendants: an empty standalone block is invalid.
   const namespaces = body.namespaces ?? []
   const registryPaths = namespaces.map(n => n.name)
-  const frames = [{ entries: namespaces, index: 0, prefix: '', depth: 1, closes: 0 }]
+  // A dotted child may be authored before its parent. Visit wrapping parents
+  // first so moving descendants into a nested frame removes no earlier entry.
+  const parentFirst: ClassNamespaceDecl[] = []
+  for (const namespace of namespaces) {
+    const wrapsDescendants = namespace.label !== undefined && !body.classes.some(node => node.namespace === namespace.name)
+    const descendant = wrapsDescendants
+      ? parentFirst.findIndex(candidate => candidate.name.startsWith(`${namespace.name}.`))
+      : -1
+    if (descendant < 0) parentFirst.push(namespace)
+    else parentFirst.splice(descendant, 0, namespace)
+  }
+  const frames = [{ entries: parentFirst, index: 0, prefix: '', depth: 1, closes: 0 }]
   while (frames.length > 0) {
     const frame = frames.at(-1)!
     if (frame.index === frame.entries.length) {

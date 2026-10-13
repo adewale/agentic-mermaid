@@ -86,6 +86,59 @@ describe('class labeled declaration conformance', () => {
 })
 
 describe('class namespaces — structured agent body (#118)', () => {
+  test('keeps first-seen namespace order when a labeled parent has direct classes', () => {
+    const diagram = classDiagram('classDiagram\nnamespace Parent.Child {\nclass B\n}\nnamespace Parent["Keep"] {\nclass A\n}')
+    const serialized = serializeMermaid(diagram)
+    expect(serialized).toBe('classDiagram\n  namespace Parent.Child {\n    class B\n  }\n  namespace Parent["Keep"] {\n    class A\n  }\n')
+    expect(classDiagram(serialized).body.classes).toEqual(diagram.body.classes)
+  })
+
+  test.each([
+    { kind: 'remove_class', id: 'A' },
+    { kind: 'set_class_namespace', class: 'A', namespace: null },
+    { kind: 'set_class_namespace', class: 'A', namespace: 'Other2' },
+  ] as const)('preserves child-before-parent namespaces and trailing siblings after $kind', async op => {
+    const diagram = classDiagram('classDiagram\nnamespace Parent.Child {\nclass B\n}\nnamespace Parent["Keep label"] {\nclass A\n}\nnamespace Other1 {\nclass D\n}\nnamespace Other2 {\nclass E\n}')
+    const edited = apply(diagram, op)
+    const source = serializeMermaid(edited)
+    const upstream = startUpstreamMermaid()
+    try {
+      expect(await upstream.accepts(source)).toBe(true)
+    } finally {
+      await upstream.close()
+    }
+    const reparsed = classDiagram(source)
+    const byId = (nodes: typeof edited.body.classes) => [...nodes].sort((a, b) => a.id.localeCompare(b.id))
+    const byName = (namespaces: NonNullable<typeof edited.body.namespaces>) => [...namespaces].sort((a, b) => a.name.localeCompare(b.name))
+    expect(byId(reparsed.body.classes)).toEqual(byId(edited.body.classes))
+    expect(byName(reparsed.body.namespaces!)).toEqual(byName(edited.body.namespaces!))
+    expect(source.match(/class B\b/g)).toHaveLength(1)
+    expect(serializeMermaid(reparsed)).toBe(source)
+  })
+
+  test.each([
+    { parent: 'Parent', sibling: true },
+    { parent: 'Parent.Middle', sibling: true },
+    { parent: 'Parent', sibling: false },
+  ])('writes a later labeled ancestor $parent with sibling=$sibling', async ({ parent, sibling }) => {
+    const source = `classDiagram\nnamespace ${parent}.Child {\nclass B\n}\nnamespace ${parent}["Keep label"] {\nnamespace Other {\nclass A\n}\n}${sibling ? '\nnamespace Sibling {\nclass C\n}' : ''}`
+    const diagram = classDiagram(source)
+    const serialized = serializeMermaid(diagram)
+    const upstream = startUpstreamMermaid()
+    try {
+      expect(await upstream.accepts(source)).toBe(true)
+      expect(await upstream.accepts(serialized)).toBe(true)
+    } finally {
+      await upstream.close()
+    }
+    const reparsed = classDiagram(serialized)
+    expect(reparsed.body.classes).toEqual(diagram.body.classes)
+    const labeled = renderParse(serialized).namespaces[0]!
+    expect(parent === 'Parent' ? labeled.label : labeled.children[0]?.label).toBe('Keep label')
+    expect(serialized.match(/class B\b/g)).toHaveLength(1)
+    expect(serializeMermaid(reparsed)).toBe(serialized)
+  })
+
   test.each([
     { kind: 'remove_class', id: 'A' },
     { kind: 'set_class_namespace', class: 'A', namespace: null },
