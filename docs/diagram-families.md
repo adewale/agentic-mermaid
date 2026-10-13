@@ -30,6 +30,10 @@ stateDiagram-v2
 
 State diagrams own a dedicated `StateBody`: narrow with `asState`. States, transitions, start/end, composites, concurrency regions, fork/join/choice and history pseudostates, notes, declarations, direction, and paint are modeled. Use `describeOps('state')` for the current mutation schema; malformed or otherwise unmodeled syntax falls back losslessly and stays source-level. Verify runs the full Tier 1 + Tier 2 geometric path by projecting the body to a graph.
 
+Simple states accept both `Idle` and `state Idle`. Unknown statements stop
+rendering, and verification reports `RENDER_FAILED` with the offending text.
+Preserving an opaque source does not imply that it can be drawn completely.
+
 ## Sequence
 
 ```mermaid
@@ -66,6 +70,14 @@ classDiagram
 ```
 
 Structured ops cover classes, members, relations, notes, and renames.
+
+Removing or moving the last class out of an unlabeled namespace removes that
+empty group, including empty ancestors. An explicit namespace label is authored
+content: an edit that would empty its entire subtree returns `INVALID_OP` and
+leaves the diagram unchanged. A labeled parent with surviving descendants keeps
+its label in a valid nested export. Directly authored empty namespace blocks
+remain opaque and source-preserved, because Mermaid cannot read an empty block;
+they cannot accept typed edits.
 
 ## ER
 

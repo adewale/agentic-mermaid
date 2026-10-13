@@ -5,6 +5,16 @@ This changelog tracks user-facing changes for **Agentic Mermaid**, a fork of `lu
 ## Unreleased
 
 ### Fixed
+- Timeline periods whose names begin with `Timeline` retain their labels and
+  events in SVG, terminal output and verified layout.
+- State rendering rejects unknown statements with a named `RENDER_FAILED`
+  diagnostic instead of returning a partial diagram. Explicit `state Idle`
+  declarations retain isolated states in both the editable model and drawing.
+- Class edits prune empty unlabeled namespaces and refuse to erase explicit
+  labels. Labeled parents retain surviving descendants in valid nested exports;
+  directly authored empty namespaces remain source-preserved and non-editable.
+- Two labeled edges from a decision diamond to the same rectangle render on
+  separate, outline-anchored routes with readable labels.
 - Flowchart and sequence `@{ … }` metadata is read as YAML, as Mermaid reads
   it: escapes such as `\t`, `\x41` and `''` work, and metadata Mermaid rejects
   (`'a}b;c'`, `\'`, unknown escapes, duplicate keys, an unquoted `^`, an empty
