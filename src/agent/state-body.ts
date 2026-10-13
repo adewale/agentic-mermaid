@@ -409,6 +409,10 @@ export function parseStateBody(lines: string[]): StateBody | null {
 
 // ---- Serializer -------------------------------------------------------------
 
+function serializeStateLabel(label: string): string {
+  return label.replace(/\r\n?|\n/g, '<br/>')
+}
+
 function renderScope(states: StateNode[], transitions: StateTransition[], direction: StateNode['direction'] | undefined, indent: string, out: string[]): void {
   if (direction !== undefined) out.push(`${indent}direction ${direction}`)
   // Definitions first (labels + composites), so the legacy parser applies the
@@ -416,7 +420,7 @@ function renderScope(states: StateNode[], transitions: StateTransition[], direct
   for (const s of states) {
     if (s.states !== undefined || s.transitions !== undefined || s.regions !== undefined) {
       // Composite block (ordinary or `--`-partitioned concurrency regions).
-      const header = s.label !== undefined ? `state "${s.label}" as ${s.id} {` : `state ${s.id} {`
+      const header = s.label !== undefined ? `state "${serializeStateLabel(s.label)}" as ${s.id} {` : `state ${s.id} {`
       out.push(`${indent}${header}`)
       if (s.regions) {
         if (s.direction !== undefined) out.push(`${indent}  direction ${s.direction}`)
@@ -431,19 +435,19 @@ function renderScope(states: StateNode[], transitions: StateTransition[], direct
     } else if (s.stereotype !== undefined) {
       // Pseudostate declaration (fork/join/choice/history) — canonical marker
       // spelling; `<<H>>`/`<<H*>>` shorthands normalize on parse.
-      const alias = s.label !== undefined ? `"${s.label}" as ` : ''
+      const alias = s.label !== undefined ? `"${serializeStateLabel(s.label)}" as ` : ''
       out.push(`${indent}state ${alias}${s.id} ${stereotypeMarker(s.stereotype)}`)
     } else if (s.label !== undefined) {
       out.push(isCompositeId(s.id)
-        ? `${indent}state "${s.label}" as ${s.id}`
-        : `${indent}${s.id} : ${s.label}`)
+        ? `${indent}state "${serializeStateLabel(s.label)}" as ${s.id}`
+        : `${indent}${s.id} : ${serializeStateLabel(s.label)}`)
     } else if (s.declaredBare) {
       out.push(`${indent}${s.id}`)
     }
     // Implicit transition endpoints need no standalone declaration.
   }
   for (const t of transitions) {
-    const label = t.label !== undefined ? ` : ${t.label}` : ''
+    const label = t.label !== undefined ? ` : ${serializeStateLabel(t.label)}` : ''
     out.push(`${indent}${t.from} --> ${t.to}${label}`)
   }
 }

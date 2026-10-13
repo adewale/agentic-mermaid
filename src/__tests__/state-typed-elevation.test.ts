@@ -22,6 +22,19 @@ function apply(diagram: StateValidDiagram, op: StateMutationOp): StateValidDiagr
 }
 
 describe('typed State residual elevation (B07)', () => {
+  test.each([
+    'state "First<br/>second" as A\nA --> B',
+    'A --> B : First<br/>second',
+  ])('writes normalized label breaks without introducing unknown body lines: %s', body => {
+    const source = `stateDiagram-v2\n${body}`
+    const diagram = state(source)
+    const serialized = serializeMermaid(diagram)
+    expect(serialized).toContain('First<br/>second')
+    expect(state(serialized).body).toEqual(diagram.body)
+    expect(verifyMermaid(diagram).ok).toBe(true)
+    expect(renderMermaidSVG(serialized)).toContain('second')
+  })
+
   test.each(['bogus statement', 'state A <<unknown>>', 'direction diagonal'])('rejects unknown State content instead of drawing a partial diagram: %s', statement => {
     const source = `stateDiagram-v2\nA --> B\n${statement}`
     const parsed = parseMermaid(source)
