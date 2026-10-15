@@ -200,6 +200,8 @@ export interface PositionedXYChart extends PositionedDiagram {
   horizontal?: boolean
   /** Title text and position (if present) */
   title?: PositionedTitle
+  /** Authored title omitted because it exceeds the title-space budget. */
+  hiddenTitle?: string
   /** Positioned x-axis with tick marks and labels */
   xAxis: PositionedAxis
   /** Positioned y-axis with tick marks and labels */

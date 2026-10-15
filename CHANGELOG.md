@@ -5,6 +5,10 @@ This changelog tracks user-facing changes for **Agentic Mermaid**, a fork of `lu
 ## Unreleased
 
 ### Fixed
+- XY-chart titles wrap to the configured canvas width and reserve space above
+  the plot, keeping long titles visible in vertical and horizontal charts.
+  Verification names titles that cannot fit the configured title-space budget
+  with `LABELS_HIDDEN`, rather than omitting them silently.
 - Timeline periods whose names begin with `Timeline` retain their labels and
   events in SVG, terminal output and verified layout.
 - State rendering rejects unknown statements with a named `RENDER_FAILED`

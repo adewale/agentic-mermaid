@@ -138,6 +138,11 @@ export const HONESTY_SAMPLES: Record<DiagramKind, readonly HonestySample[]> = {
   ],
   xychart: [
     {
+      name: 'horizontal wrapped literal title',
+      source: 'xychart-beta horizontal\n  title "Worldwide <b>quarterly revenue by region and channel for the North American market forecast</b>"\n  x-axis [Jan, Feb, Mar]\n  y-axis 0 --> 100\n  bar [10, 20, 30]',
+      expectText: ['Worldwide <b>quarterly revenue by region and channel for the North American market forecast</b>'],
+    },
+    {
       name: 'legend and labels',
       source: 'xychart-beta\n  title Quarterly revenue by channel\n  x-axis [January, February, March, April]\n  y-axis "Revenue (k$)" 0 --> 120\n  bar "Online store" [30, 55, 80, 100]\n  line "Retail forecast" [25, 60, 75, 110]',
       expectText: ['Quarterly revenue by channel', 'January', 'February', 'March', 'April', 'Revenue (k$)', 'Online store', 'Retail forecast'],

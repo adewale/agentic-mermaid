@@ -15,7 +15,8 @@ import type { RenderOptions } from '../types.ts'
 import type { InternalStyleFace } from '../scene/style-registry.ts'
 import { applyTextTransform, STROKE_WIDTHS, resolveRenderStyle } from '../styles.ts'
 import type { ResolvedRenderStyle } from '../styles.ts'
-import { measureFormattedTextWidth } from '../text-metrics.ts'
+import { LINE_HEIGHT_RATIO, measureFormattedTextWidth } from '../text-metrics.ts'
+import { wrapLabelToWidth } from '../shared/label-wrap.ts'
 import type { RenderStyleDefaults } from '../styles.ts'
 import { resolveXYChartRenderConfig } from './config.ts'
 import { barBaselineValue, clampToAxisRange, formatBarValue, formatTickValue, getCategoryLabels, getDataCount, getDataXValues, getPointSpacing, linearTicks } from './axis-utils.ts'
@@ -60,6 +61,7 @@ export const XY_STYLE_DEFAULTS: RenderStyleDefaults = {
  * transform, weight and letter spacing for each kind of text — so a styled
  * chart reserves room for the text it actually draws. */
 interface XYTextMeasure {
+  wrapTitle(title: string, fontSize: number, width: number): string
   /** Axis tick labels: categories and values. */
   tick(label: string, fontSize: number): number
   legend(label: string, fontSize: number): number
@@ -68,6 +70,7 @@ interface XYTextMeasure {
 
 function xyTextMeasure(style: ResolvedRenderStyle): XYTextMeasure {
   return {
+    wrapTitle: (title, fontSize, width) => wrapLabelToWidth(applyTextTransform(title, style.groupTextTransform), width, fontSize, style.groupHeaderFontWeight, style.groupLetterSpacing, true),
     tick: (label, fontSize) => measureFormattedTextWidth(applyTextTransform(label, style.edgeTextTransform), fontSize, style.nodeLabelFontWeight, style.nodeLetterSpacing),
     legend: (label, fontSize) => measureFormattedTextWidth(applyTextTransform(label, style.nodeTextTransform), fontSize, style.nodeLabelFontWeight, style.nodeLetterSpacing),
     axisTitle: (title, fontSize) => measureFormattedTextWidth(applyTextTransform(title, style.edgeTextTransform), fontSize, style.edgeLabelFontWeight, style.edgeLetterSpacing),
@@ -119,7 +122,8 @@ function layoutVertical(chart: XYChart, config: ResolvedXYChartConfig, measure: 
   let remainingTopBottomBudget = Math.max(0, totalH - Math.floor(totalH * config.plotReservedSpacePercent / 100))
   let remainingLeftBudget = Math.max(0, totalW - Math.floor(totalW * config.plotReservedSpacePercent / 100))
 
-  const titleHeight = fitChartTitle(chart.title, config, remainingTopBottomBudget)
+  const title = fitChartTitle(chart.title, config, remainingTopBottomBudget, measure)
+  const titleHeight = title.height
   remainingTopBottomBudget = Math.max(0, remainingTopBottomBudget - titleHeight)
 
   const xAxisConfig = fitHorizontalAxisConfig(config.xAxis, chart.xAxis.title, xTickLabels, remainingTopBottomBudget)
@@ -190,9 +194,8 @@ function layoutVertical(chart: XYChart, config: ResolvedXYChartConfig, measure: 
     width: totalW,
     height: totalH,
     accessibility: chart.accessibility,
-    title: titleHeight > 0 && chart.title
-      ? { text: chart.title, x: totalW / 2, y: config.titlePadding + config.titleFontSize }
-      : undefined,
+    title: title.title,
+    hiddenTitle: chart.title && config.showTitle && !title.title ? chart.title : undefined,
     xAxis: {
       ticks: xTicks,
       line: buildBottomAxisLine(plotArea, xAxisConfig.config),
@@ -229,7 +232,8 @@ function layoutHorizontal(chart: XYChart, config: ResolvedXYChartConfig, measure
   let remainingTopBottomBudget = Math.max(0, totalH - Math.floor(totalH * config.plotReservedSpacePercent / 100))
   let remainingLeftBudget = Math.max(0, totalW - Math.floor(totalW * config.plotReservedSpacePercent / 100))
 
-  const titleHeight = fitChartTitle(chart.title, config, remainingTopBottomBudget)
+  const title = fitChartTitle(chart.title, config, remainingTopBottomBudget, measure)
+  const titleHeight = title.height
   remainingTopBottomBudget = Math.max(0, remainingTopBottomBudget - titleHeight)
 
   // Mermaid places the numeric value axis at the top in horizontal mode.
@@ -299,9 +303,8 @@ function layoutHorizontal(chart: XYChart, config: ResolvedXYChartConfig, measure
     height: totalH,
     accessibility: chart.accessibility,
     horizontal: true,
-    title: titleHeight > 0 && chart.title
-      ? { text: chart.title, x: totalW / 2, y: config.titlePadding + config.titleFontSize }
-      : undefined,
+    title: title.title,
+    hiddenTitle: chart.title && config.showTitle && !title.title ? chart.title : undefined,
     xAxis: {
       ticks: leftTicks,
       line: buildLeftAxisLine(plotArea, leftAxisConfig.config),
@@ -365,10 +368,16 @@ function fitLegend(
   return { items, size: width }
 }
 
-function fitChartTitle(title: string | undefined, config: ResolvedXYChartConfig, budget: number): number {
-  if (!title || !config.showTitle) return 0
-  const required = config.titleFontSize + config.titlePadding * 2
-  return required <= budget ? required : 0
+function fitChartTitle(title: string | undefined, config: ResolvedXYChartConfig, budget: number, measure: XYTextMeasure): { height: number; title?: PositionedXYChart['title'] } {
+  if (!title || !config.showTitle) return { height: 0 }
+  const text = measure.wrapTitle(title, config.titleFontSize, Math.max(1, config.width - config.titlePadding * 2))
+  const extraHeight = (text.split('\n').length - 1) * config.titleFontSize * LINE_HEIGHT_RATIO
+  const required = config.titleFontSize + extraHeight + config.titlePadding * 2
+  if (required > budget) return { height: 0 }
+  return {
+    height: required,
+    title: { text, x: config.width / 2, y: config.titlePadding + config.titleFontSize + extraHeight / 2 },
+  }
 }
 
 /** Fit an axis into `budget` greedily — line, labels, ticks, then title —
