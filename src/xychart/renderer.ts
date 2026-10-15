@@ -359,7 +359,7 @@ export function lowerXYChartScene(
   }
 
   if (chart.title) {
-    const title = applyTextTransform(chart.title.text, style.groupTextTransform)
+    const title = chart.title.text
     parts.push(marks.text({
       id: 'title',
       role: 'title',
