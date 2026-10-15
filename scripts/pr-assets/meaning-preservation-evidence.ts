@@ -13,8 +13,10 @@ if (!base || !head || !destination || ![base, head].every(sha => /^[a-f0-9]{40}$
 const out = resolve(destination)
 mkdirSync(out, { recursive: true })
 const fixtures = [
+  { id: 'xychart-title', title: 'XY-chart nightly title counterexample', source: '---\ntitle: Quarterly Quarterly Quarterly Quarterly Quarterly Quarterly Quarterly Quarterly\n---\nxychart-beta\n  x-axis [n0, n1, n2]\n  y-axis 0 --> 100\n  bar [1, 2, 3]', cue: 'Inspect the complete title inside the canvas and the plot below its wrapped lines.' },
+  { id: 'xychart-literal-title', title: 'Horizontal XY-chart literal title', source: 'xychart-beta horizontal\n  title "Worldwide <b>quarterly revenue by region and channel for the North American market forecast</b>"\n  x-axis [Jan, Feb, Mar]\n  y-axis 0 --> 100\n  bar [10, 20, 30]', cue: 'The title wraps without interpreting or duplicating the literal angle brackets.' },
   { id: 'timeline', title: 'Timeline milestone', source: 'timeline\n2020 : A\nTimeline redesign : Ship', cue: 'Both the Timeline redesign period and Ship event remain visible.' },
-  { id: 'state', title: 'Unknown State statement', source: 'stateDiagram-v2\nA --> B\nbogus statement', cue: 'The baseline drawing omits source; the candidate rejects it explicitly.' },
+  { id: 'state', title: 'Unknown State statement', source: 'stateDiagram-v2\nA --> B\nbogus statement', cue: 'Unknown State statements produce an explicit error, preserving the honest unsupported outcome.' },
   { id: 'diamond-lr', title: 'Horizontal decision duplicates', source: 'flowchart LR\nC{Verify} -->|ok| D[View]\nC -->|warnings| D', cue: 'Both labels and distinct arrowheads are visible, without crossing routes.' },
   { id: 'diamond-td', title: 'Vertical decision duplicates', source: 'flowchart TD\nC{Verify} -->|ok| D[View]\nC -->|warnings| D', cue: 'Both labels and distinct arrowheads are visible, without crossing routes.' },
   { id: 'diamond-feeder', title: 'Decision duplicates with another feeder', source: 'flowchart TD\nC{Verify} -->|ok| D[View]\nC -->|warnings| D\nA[Start] --> D', cue: 'The two decision labels remain readable without crossing the extra feeder.' },
