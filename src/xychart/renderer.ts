@@ -4,7 +4,7 @@ import { svgOpenTag, buildStyleBlock, buildShadowDefs } from '../theme.ts'
 import { TEXT_BASELINE_SHIFT, applyTextTransform, estimateTextWidth, STROKE_WIDTHS, resolveRenderStyle } from '../styles.ts'
 import type { RenderStyleDefaults } from '../styles.ts'
 import { LEGEND_SWATCH_GAP, LEGEND_SWATCH_SIZE, XY_STYLE_DEFAULTS } from './layout.ts'
-import { escapeXml } from '../multiline-utils.ts'
+import { escapeXml, renderMultilineText } from '../multiline-utils.ts'
 import { CHART_ACCENT_FALLBACK } from './colors.ts'
 import { categoricalPalette } from '../shared/categorical-palette.ts'
 import { contrastTextColor } from '../color-resolver.ts'
@@ -370,7 +370,11 @@ export function lowerXYChartScene(
       anchor: 'middle',
       paint: { fill: chartColors.titleColor },
     },
-      `<text x="${chart.title.x}" y="${chart.title.y}" text-anchor="middle" ` +
+      title.includes('\n')
+        ? renderMultilineText(title, chart.title.x, chart.title.y, chart.config.titleFontSize,
+          `text-anchor="middle" font-size="${chart.config.titleFontSize}" font-weight="${style.groupHeaderFontWeight}"${letterAttr(style.groupLetterSpacing)} class="xychart-title"`,
+          0.35, true)
+        : `<text x="${chart.title.x}" y="${chart.title.y}" text-anchor="middle" ` +
       `font-size="${chart.config.titleFontSize}" font-weight="${style.groupHeaderFontWeight}"${letterAttr(style.groupLetterSpacing)} ` +
       `dy="${TEXT_BASELINE_SHIFT}" class="xychart-title">${escapeXml(title)}</text>`,
     ))

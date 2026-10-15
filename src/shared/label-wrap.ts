@@ -11,14 +11,14 @@
 // text breaks between any two characters without hyphenation.
 // ============================================================================
 
-import { measureFormattedTextWidth } from '../text-metrics.ts'
+import { measureFormattedTextWidth, measureTextWidth } from '../text-metrics.ts'
 import { HAS_FORMAT_TAGS, parseInlineFormatting, serializeStyledSegment, type StyledSegment } from './inline-format.ts'
 import { graphemes } from './graphemes.ts'
 
 /**
  * Wrap `text` so no line measures wider than `maxWidth` px at the given font.
  * Embedded newlines are hard breaks; formatting tags (<b>, <i>, …) are
- * excluded from measurement but preserved in the output.
+ * excluded from measurement but preserved in the output, unless literalText.
  */
 export function wrapLabelToWidth(
   text: string,
@@ -26,13 +26,15 @@ export function wrapLabelToWidth(
   fontSize: number,
   fontWeight: number,
   letterSpacing = 0,
+  literalText = false,
 ): string {
   if (!Number.isFinite(maxWidth) || maxWidth <= 0) return text
-  if (measureFormattedTextWidth(text, fontSize, fontWeight, letterSpacing) <= maxWidth) return text
+  const measure = (value: string) => labelWidth(value, fontSize, fontWeight, letterSpacing, literalText)
+  if (measure(text) <= maxWidth) return text
 
   const lines: string[] = []
   for (const paragraph of text.split(/\r?\n/)) {
-    if (HAS_FORMAT_TAGS.test(paragraph)) {
+    if (!literalText && HAS_FORMAT_TAGS.test(paragraph)) {
       lines.push(...wrapFormattedParagraph(paragraph, maxWidth, fontSize, fontWeight, letterSpacing))
       continue
     }
@@ -40,12 +42,12 @@ export function wrapLabelToWidth(
     let current = ''
     for (const word of words) {
       const candidate = current ? `${current} ${word}` : word
-      if (measureFormattedTextWidth(candidate, fontSize, fontWeight, letterSpacing) <= maxWidth) {
+      if (measure(candidate) <= maxWidth) {
         current = candidate
         continue
       }
       if (current) lines.push(current)
-      current = breakWordToWidth(word, maxWidth, fontSize, fontWeight, letterSpacing)
+      current = breakWordToWidth(word, maxWidth, fontSize, fontWeight, letterSpacing, literalText)
     }
     if (current) lines.push(current)
   }
@@ -124,8 +126,10 @@ export function breakWordToWidth(
   fontSize: number,
   fontWeight: number,
   letterSpacing = 0,
+  literalText = false,
 ): string {
-  if (measureFormattedTextWidth(word, fontSize, fontWeight, letterSpacing) <= maxWidth) return word
+  const measure = (value: string) => labelWidth(value, fontSize, fontWeight, letterSpacing, literalText)
+  if (measure(word) <= maxWidth) return word
   const clusters = graphemes(word)
   const lines: string[] = []
   let start = 0
@@ -139,7 +143,7 @@ export function breakWordToWidth(
       const next = clusters[end + 1] ?? ''
       const breakIsFullwidth = hasMore && isFullwidthChar(cluster) && isFullwidthChar(next)
       const measured = candidate + (hasMore && !breakIsFullwidth ? '-' : '')
-      if (current && measureFormattedTextWidth(measured, fontSize, fontWeight, letterSpacing) > maxWidth) break
+      if (current && measure(measured) > maxWidth) break
       current = candidate
       end++
     }
@@ -153,12 +157,17 @@ export function breakWordToWidth(
     const hasMore = end < clusters.length
     const breakIsFullwidth = hasMore && isFullwidthChar(clusters[end - 1]!) && isFullwidthChar(clusters[end]!)
     const hyphenated = `${current}-`
-    lines.push(hasMore && !breakIsFullwidth && measureFormattedTextWidth(hyphenated, fontSize, fontWeight, letterSpacing) <= maxWidth
+    lines.push(hasMore && !breakIsFullwidth && measure(hyphenated) <= maxWidth
       ? hyphenated
       : current)
     start = end
   }
   return lines.join('\n')
+}
+
+function labelWidth(text: string, fontSize: number, fontWeight: number, letterSpacing: number, literalText: boolean): number {
+  if (!literalText) return measureFormattedTextWidth(text, fontSize, fontWeight, letterSpacing)
+  return Math.max(0, measureTextWidth(text, fontSize, fontWeight) + Math.max(0, graphemes(text).length - 1) * letterSpacing)
 }
 
 export function isFullwidthChar(char: string): boolean {

@@ -375,6 +375,14 @@ function xychartHiddenLabelWarnings(positioned: VerificationArtifact): LayoutWar
     const chart = positioned()?.positioned as Partial<PositionedXYChart> | undefined
     if (!chart) return []
     const warnings: LayoutWarning[] = []
+    if (chart.hiddenTitle) {
+      warnings.push({
+        code: 'LABELS_HIDDEN',
+        target: 'title',
+        labels: [chart.hiddenTitle],
+        message: `XY chart does not draw its title because it does not fit: ${chart.hiddenTitle}. Enlarge the chart, shorten the title, or lower xyChart.plotReservedSpacePercent.`,
+      })
+    }
     const categories = chart.hiddenCategoryLabels ?? []
     if (categories.length > 0) {
       const remedy = chart.horizontal

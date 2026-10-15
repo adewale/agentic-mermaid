@@ -36,6 +36,24 @@ function drawnTexts(svg: string, className: string): string[] {
 const categoryArb = fc.uniqueArray(fc.stringMatching(/^[a-z][a-z0-9]{0,15}$/), { minLength: 1, maxLength: 30 })
 
 describe('xychart verify lints match the rendered chart', () => {
+  it('reports a title that cannot fit, but not a title deliberately disabled', () => {
+    const title = Array(14).fill('Quarterly').join(' ')
+    for (const horizontal of [false, true]) {
+      const source = (width: number, height: number, showTitle: boolean) => [
+        '---', 'config:', '  xyChart:', `    width: ${width}`, `    height: ${height}`, `    showTitle: ${showTitle}`, '---',
+        horizontal ? 'xychart-beta horizontal' : 'xychart-beta',
+        `  title ${title}`, '  x-axis [a, b, c]', '  bar [1, 2, 3]',
+      ].join('\n')
+      const crowded = source(300, 160, true)
+      expect(renderMermaidSVG(crowded)).not.toContain('class="xychart-title"')
+      expect(hidden(crowded, 'title')).toEqual([title])
+      const roomy = source(700, 500, true)
+      expect(renderMermaidSVG(roomy)).toContain('class="xychart-title"')
+      expect(hidden(roomy, 'title')).toEqual([])
+      expect(hidden(source(300, 160, false), 'title')).toEqual([])
+    }
+  })
+
   it('reports exactly the authored categories the x-axis does not draw', () => {
     fc.assert(
       fc.property(categoryArb, fc.boolean(), fc.integer({ min: 200, max: 900 }), (categories, horizontal, width) => {

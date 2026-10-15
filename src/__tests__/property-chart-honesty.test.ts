@@ -31,7 +31,13 @@ describe('chart honesty: generated diagrams with random titles', () => {
           const sample = { name: `k=${k}`, source: `---\ntitle: ${title}\n---\n${untitled(family.build(k, 'n'))}`, expectText: [title] }
           expect(describeViolations(kind, sample, textHonestyViolations(sample, [style]))).toEqual([])
         }),
-        { numRuns: 6 },
+        {
+          numRuns: 6,
+          // Nightly finder #362: the one-line title exceeded the fixed canvas.
+          examples: kind === 'xychart'
+            ? [[1, 'Quarterly Quarterly Quarterly Quarterly Quarterly Quarterly Quarterly Quarterly', undefined]]
+            : [],
+        },
       )
     }, 120_000)
   }
