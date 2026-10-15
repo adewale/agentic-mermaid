@@ -198,7 +198,7 @@ export interface PositionedXYChart extends PositionedDiagram {
   accessibility?: XYChartAccessibility
   /** Whether this is a horizontal (rotated) chart */
   horizontal?: boolean
-  /** Title text and position (if present) */
+  /** Positioned paint text, already case-transformed and wrapped by layout. */
   title?: PositionedTitle
   /** Authored title omitted because it exceeds the title-space budget. */
   hiddenTitle?: string
