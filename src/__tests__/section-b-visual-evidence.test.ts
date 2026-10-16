@@ -6,7 +6,7 @@ import { buildSectionBBrandEvidence, GRAPHICAL_BACKEND_PROBES, runSectionBBacken
 import { knownBuiltinFamilies } from '../agent/families.ts'
 
 const ROOT = join(import.meta.dir, '..', '..')
-const PNG = join(ROOT, 'docs/design/families/section-b-brand-evidence.png')
+const PNG = join(import.meta.dir, 'testdata', 'section-b-brand-evidence.png')
 const APPROVAL = join(ROOT, 'eval/section-b-brand-evidence/visual-approval.json')
 
 function pngDimensions(bytes: Uint8Array): { width: number; height: number } {
@@ -15,7 +15,7 @@ function pngDimensions(bytes: Uint8Array): { width: number; height: number } {
   return { width: view.getUint32(16), height: view.getUint32(20) }
 }
 
-describe('Section B generated visual evidence', () => {
+describe('Section B reviewed rendering golden', () => {
   test('positions every variant heading inside its own section band', () => {
     const sectionHeight = 86 + 5 * 380
     for (let index = 0; index < 4; index++) {
@@ -34,7 +34,7 @@ describe('Section B generated visual evidence', () => {
     expect(checked.byteLength).toBeGreaterThan(500_000)
   }, 120_000)
 
-  test('the human approval names the exact committed bytes and the frozen baseline inputs exist', () => {
+  test('the recorded visual review names the exact committed bytes and the frozen baseline inputs exist', () => {
     const approval = JSON.parse(readFileSync(APPROVAL, 'utf8'))
     expect(sectionBVisualApproval()).toEqual({
       path: 'eval/section-b-brand-evidence/visual-approval.json',

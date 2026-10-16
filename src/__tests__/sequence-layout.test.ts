@@ -13,6 +13,7 @@ import type { PositionedSequenceDiagram } from '../sequence/types.ts'
 import { resolveStyleStackWithFace } from '../scene/style-registry.ts'
 import { estimateTextWidth } from '../styles.ts'
 import { renderMermaidSVG } from '../index.ts'
+import { parseRegisteredMermaid as parseMermaid, layoutMermaid } from '../agent/index.ts'
 
 /** Helper: parse and layout a sequence diagram from source lines */
 function layout(source: string) {
@@ -1001,5 +1002,729 @@ describe('sequence layout – activation/note/block properties', () => {
       ),
       { numRuns: 60 },
     )
+  })
+})
+
+describe('sequence layout – complete painted bounds (#385)', () => {
+  const noteBoundaryCases = [
+    {
+      name: 'a created actor in an anchored fragment after an outside note',
+      source: 'sequenceDiagram\nparticipant A\nNote over A: before\nloop Outer\ncreate actor C as New\nA->>C: spawn\nloop Empty\nend\nend\nNote over A: after',
+      owned: [],
+      after: [['Outer', 'after']],
+      before: [['Outer', 'before']],
+      siblings: [],
+      createdActor: { owner: 'Outer', id: 'C' },
+    },
+    {
+      name: 'a self-message section after an outside note',
+      source: 'sequenceDiagram\nparticipant A\nNote over A: before\nalt Next\nA->>A: self\nelse EmptySection\nend\nNote over A: after',
+      owned: [],
+      after: [['Next', 'after']],
+      before: [['Next', 'before']],
+      siblings: [],
+    },
+    {
+      name: 'a self-message section after an empty sibling frame',
+      source: 'sequenceDiagram\nparticipant A\nloop Empty\nend\nalt Next\nA->>A: self\nelse EmptySection\nend\nNote over A: after',
+      owned: [],
+      after: [['Next', 'after']],
+      before: [],
+      siblings: [['Empty', 'Next']],
+    },
+    {
+      name: 'a note-only background below actor headers',
+      source: 'sequenceDiagram\nparticipant A\nrect rgba(0,0,0,0.1)\nNote over A: inside\nend\nNote over A: outside',
+      owned: [['', 'inside']],
+      after: [['', 'outside']],
+      before: [],
+      siblings: [],
+      clearActorHeaders: true,
+    },
+    {
+      name: 'an empty fragment between notes',
+      source: 'sequenceDiagram\nparticipant A\nNote over A: before\nloop Empty\nend\nNote over A: after',
+      owned: [],
+      after: [['Empty', 'after']],
+      before: [['Empty', 'before']],
+      siblings: [],
+    },
+    {
+      name: 'nested empty fragments between notes and messages',
+      source: 'sequenceDiagram\nparticipant A\nparticipant B\nA->>B: first\nNote over A: before\nloop Outer\nloop Inner\nend\nend\nNote over A: after\nB->>A: last',
+      owned: [],
+      after: [['Outer', 'after']],
+      before: [['Outer', 'before']],
+      siblings: [],
+    },
+    {
+      name: 'the exact inside/outside-note reproduction',
+      source: 'sequenceDiagram\nparticipant A\nparticipant B\nloop inside\nA->>B: hi\nNote over B: inside note\nend\nNote over B: outside note\nA->>B: done',
+      owned: [['inside', 'inside note']],
+      after: [['inside', 'outside note']],
+      before: [],
+      siblings: [],
+    },
+    {
+      name: 'notes between nested closures',
+      source: 'sequenceDiagram\nparticipant A\nparticipant B\nloop Outer\nloop Inner\nA->>B: hi\nNote over B: inner owned\nend\nNote over B: outer owned\nend\nNote over B: outside both\nA->>B: done',
+      owned: [['Inner', 'inner owned'], ['Outer', 'inner owned'], ['Outer', 'outer owned']],
+      after: [['Inner', 'outer owned'], ['Outer', 'outside both']],
+      before: [],
+      siblings: [],
+    },
+    {
+      name: 'a sibling fragment entered through a leading note',
+      source: 'sequenceDiagram\nparticipant A\nparticipant B\nloop First\nA->>B: hi\nNote over B: inside first\nend\nNote over B: between\nopt Second\nNote over B: leading second\nA->>B: next\nend\nNote over B: outside second',
+      owned: [['First', 'inside first'], ['Second', 'leading second']],
+      after: [['First', 'between'], ['Second', 'outside second']],
+      before: [['Second', 'between']],
+      siblings: [['First', 'Second']],
+    },
+    {
+      name: 'a note-only fragment with no messages',
+      source: 'sequenceDiagram\nparticipant A\nloop L\nNote over A: inside\nend\nNote over A: outside',
+      owned: [['L', 'inside']],
+      after: [['L', 'outside']],
+      before: [],
+      siblings: [],
+    },
+    {
+      name: 'a note-only fragment between messages',
+      source: 'sequenceDiagram\nparticipant A\nparticipant B\nA->>B: before\nloop L\nNote over A: inside\nend\nNote over A: outside\nB->>A: after',
+      owned: [['L', 'inside']],
+      after: [['L', 'outside']],
+      before: [],
+      siblings: [],
+    },
+    {
+      name: 'a created multiline icon followed by an outside note',
+      source: 'sequenceDiagram\nparticipant A\nloop Spawn\ncreate actor C as Support<br/>Engineer<br/>On call\nA->>C: spawn\nNote over A: owned created note\nend\nNote over C: outside created note\nC->>A: ready',
+      owned: [['Spawn', 'owned created note']],
+      after: [['Spawn', 'outside created note']],
+      before: [],
+      siblings: [],
+    },
+  ] as const
+
+  for (const fixture of noteBoundaryCases) {
+    for (const paddingY of [8, 24]) {
+      it(`keeps lexical note boundaries in emitted SVG: ${fixture.name}, group padding ${paddingY}`, () => {
+        const paddingX = paddingY === 8 ? 10 : 18
+        const svg = renderMermaidSVG(fixture.source, {
+          embedFontImport: false,
+          ...(paddingY === 8 ? {} : { style: { roles: { group: { paddingX, paddingY } } } }),
+        })
+        const frames = new Map<string, Rect>()
+        const notes = new Map<string, Rect>()
+        // Read the actual painted rectangles at the public renderer boundary;
+        // no production bounds or fragment-sizing helper supplies expectations.
+        for (const group of svg.matchAll(/<g\b([^>]*\bclass="(?:block|note)"[^>]*)>([\s\S]*?)<\/g>/g)) {
+          const attributes = group[1]!
+          const body = group[2]!
+          const rectangle = body.match(/<rect\b([^>]*)>/)?.[1]
+          expect(rectangle).toBeDefined()
+          const numeric = (name: string) => Number(rectangle!.match(new RegExp(`\\b${name}="([^"]+)"`))?.[1])
+          const rect = { x: numeric('x'), y: numeric('y'), width: numeric('width'), height: numeric('height') }
+          expectFiniteRect(rect)
+          if (/\bclass="block"/.test(attributes)) {
+            frames.set(attributes.match(/\bdata-label="([^"]*)"/)?.[1] ?? '', rect)
+          } else {
+            const text = body.replace(/<[^>]+>/g, '').replace(/\s+/g, ' ').trim()
+            notes.set(text, rect)
+          }
+        }
+        const frame = (name: string) => {
+          expect(frames.has(name), `missing fragment ${name}`).toBe(true)
+          return frames.get(name)!
+        }
+        const note = (name: string) => {
+          expect(notes.has(name), `missing note ${name}`).toBe(true)
+          return notes.get(name)!
+        }
+        for (const [owner, text] of fixture.owned) {
+          const f = frame(owner)
+          const n = note(text)
+          expect(n.x, `${text}: left padding`).toBeGreaterThanOrEqual(f.x + paddingX - 1e-6)
+          expect(n.x + n.width, `${text}: right padding`).toBeLessThanOrEqual(f.x + f.width - paddingX + 1e-6)
+          expect(n.y, `${text}: top padding`).toBeGreaterThanOrEqual(f.y + paddingY - 1e-6)
+          expect(n.y + n.height, `${text}: bottom padding`).toBeLessThanOrEqual(f.y + f.height - paddingY + 1e-6)
+        }
+        for (const [owner, text] of fixture.after) {
+          const f = frame(owner)
+          expect(note(text).y, `${text}: below closed ${owner}`).toBeGreaterThanOrEqual(f.y + f.height - 1e-6)
+        }
+        for (const [owner, text] of fixture.before) {
+          const n = note(text)
+          expect(frame(owner).y, `${owner}: below preceding ${text}`).toBeGreaterThanOrEqual(n.y + n.height - 1e-6)
+        }
+        for (const [first, second] of fixture.siblings) {
+          const f = frame(first)
+          expect(frame(second).y, `${second}: below sibling ${first}`).toBeGreaterThanOrEqual(f.y + f.height - 1e-6)
+        }
+        if ('clearActorHeaders' in fixture) {
+          const actorRectangles = [...svg.matchAll(/<g\b[^>]*\bclass="actor"[^>]*>\s*<rect\b([^>]*)>/g)]
+          expect(actorRectangles).toHaveLength(1)
+          const attributes = actorRectangles[0]![1]!
+          const actorBottom = Number(attributes.match(/\by="([^"]+)"/)![1]) + Number(attributes.match(/\bheight="([^"]+)"/)![1])
+          expect(frame('').y).toBeGreaterThanOrEqual(actorBottom)
+        }
+        if ('createdActor' in fixture) {
+          const { owner, id } = fixture.createdActor
+          const actor = svg.match(new RegExp(`<g class="actor" data-id="${id}"[\\s\\S]*?<\\/text>\\s*<\\/g>`))?.[0]
+          expect(actor).toBeDefined()
+          const transform = actor!.match(/transform="translate\(([-0-9.]+),([-0-9.]+)\) scale\(([-0-9.]+)\)"/)
+          const label = actor!.match(/<text\b([^>]*)>([\s\S]*?)<\/text>/)
+          expect(transform).toBeDefined()
+          expect(label).toBeDefined()
+          const attribute = (name: string) => Number(label![1]!.match(new RegExp(`\\b${name}="([^"]+)"`))?.[1])
+          const labelBottom = attribute('y') + attribute('dy') + attribute('font-size') * 0.3
+          const glyphTop = Number(transform![2])
+          const glyphBottom = glyphTop + 24 * Number(transform![3])
+          expect(glyphTop).toBeGreaterThanOrEqual(frame(owner).y + paddingY - 1e-6)
+          expect(Math.max(glyphBottom, labelBottom)).toBeLessThanOrEqual(frame(owner).y + frame(owner).height - paddingY + 1e-6)
+        }
+      })
+    }
+  }
+
+  it('keeps an empty nested frame below actor headers and above its following message in emitted SVG', () => {
+    const svg = renderMermaidSVG('sequenceDiagram\nparticipant A\nparticipant B\nloop Outer\nloop Inner\nend\nA->>B: work\nend', { embedFontImport: false })
+    const numeric = (attributes: string, name: string) => Number(attributes.match(new RegExp(`\\b${name}="([^"]+)"`))?.[1])
+    const frames = new Map<string, Rect>()
+    let actorBottom = 0
+    for (const group of svg.matchAll(/<g\b([^>]*\bclass="(?:block|actor)"[^>]*)>([\s\S]*?)<\/g>/g)) {
+      const rectangle = group[2]!.match(/<rect\b([^>]*)>/)?.[1]
+      expect(rectangle).toBeDefined()
+      const rect = { x: numeric(rectangle!, 'x'), y: numeric(rectangle!, 'y'), width: numeric(rectangle!, 'width'), height: numeric(rectangle!, 'height') }
+      expectFiniteRect(rect)
+      if (/\bclass="block"/.test(group[1]!)) frames.set(group[1]!.match(/\bdata-label="([^"]*)"/)![1]!, rect)
+      else actorBottom = Math.max(actorBottom, rect.y + rect.height)
+    }
+    const outer = frames.get('Outer')!
+    const inner = frames.get('Inner')!
+    expect(outer).toBeDefined()
+    expect(inner).toBeDefined()
+    expect(outer.y).toBeGreaterThanOrEqual(actorBottom)
+    expect(inner.y).toBeGreaterThan(outer.y)
+    const messageAttributes = svg.match(/<line\b([^>]*\bdata-from="A"[^>]*\bdata-to="B"[^>]*)>/)?.[1]
+    expect(messageAttributes).toBeDefined()
+    expect(numeric(messageAttributes!, 'y1')).toBeGreaterThanOrEqual(inner.y + inner.height)
+  })
+
+  for (const [type, separator] of [['alt', 'else'], ['par', 'and'], ['critical', 'option']] as const) {
+    for (const firstSection of ['message', 'note and message', 'note only'] as const) {
+      it(`orders a final note-only ${separator} section after preceding ${firstSection} content in emitted SVG`, () => {
+        const source = `sequenceDiagram\nparticipant A\nparticipant B\n${type} First\n${firstSection !== 'message' ? 'Note over A: intro\n' : ''}${firstSection !== 'note only' ? 'A->>B: work\n' : ''}${separator} Second\nNote over A: second branch\nend\nNote over B: outside`
+        const svg = renderMermaidSVG(source, { embedFontImport: false })
+        const numeric = (attributes: string, name: string) => Number(attributes.match(new RegExp(`\\b${name}="([^"]+)"`))?.[1])
+        const blockBody = svg.match(/<g\b[^>]*\bclass="block"[^>]*>([\s\S]*?)<\/g>/)?.[1]
+        expect(blockBody).toBeDefined()
+        const frameAttributes = blockBody!.match(/<rect\b([^>]*)>/)?.[1]
+        const dividerAttributes = blockBody!.match(/<line\b([^>]*)>/)?.[1]
+        const messageAttributes = svg.match(/<line\b([^>]*\bdata-from="A"[^>]*\bdata-to="B"[^>]*)>/)?.[1]
+        expect(frameAttributes).toBeDefined()
+        expect(dividerAttributes).toBeDefined()
+        const dividerY = numeric(dividerAttributes!, 'y1')
+        expect(Number.isFinite(dividerY)).toBe(true)
+        if (firstSection !== 'note only') {
+          expect(messageAttributes).toBeDefined()
+          expect(dividerY).toBeGreaterThan(numeric(messageAttributes!, 'y1'))
+        }
+        const notes = new Map<string, { top: number; bottom: number }>()
+        for (const group of svg.matchAll(/<g\b[^>]*\bclass="note"[^>]*>([\s\S]*?)<\/g>/g)) {
+          const rectangle = group[1]!.match(/<rect\b([^>]*)>/)?.[1]
+          expect(rectangle).toBeDefined()
+          const text = group[1]!.replace(/<[^>]+>/g, '').replace(/\s+/g, ' ').trim()
+          const top = numeric(rectangle!, 'y')
+          notes.set(text, { top, bottom: top + numeric(rectangle!, 'height') })
+        }
+        const sectionLabel = [...svg.matchAll(/<text\b([^>]*)>([\s\S]*?)<\/text>/g)].find(match => match[2]!.replace(/<[^>]+>/g, '').includes('Second'))
+        expect(sectionLabel).toBeDefined()
+        const labelY = numeric(sectionLabel![1]!, 'y')
+        const labelSize = numeric(sectionLabel![1]!, 'font-size')
+        expect(labelY).toBeGreaterThan(dividerY)
+        expect(notes.get('second branch')!.top).toBeGreaterThanOrEqual(labelY + labelSize / 2)
+        if (firstSection !== 'message') expect(dividerY).toBeGreaterThanOrEqual(notes.get('intro')!.bottom)
+        expect(notes.get('outside')!.top).toBeGreaterThanOrEqual(numeric(frameAttributes!, 'y') + numeric(frameAttributes!, 'height'))
+      })
+    }
+  }
+
+  for (const edgeFontSize of [undefined, 22]) {
+    it(`keeps all five-line message text below the painted fragment header, edge font ${edgeFontSize ?? 'default'}`, () => {
+      const source = 'sequenceDiagram\nparticipant A\nparticipant B\nloop L\nA->>B: one<br/>two<br/>three<br/>four<br/>five\nend'
+      const svg = renderMermaidSVG(source, {
+        embedFontImport: false,
+        ...(edgeFontSize ? { style: { roles: { edge: { fontSize: edgeFontSize }, group: { fontSize: 18, paddingY: 20 } } } } : {}),
+      })
+      const numeric = (attributes: string, name: string) => Number(attributes.match(new RegExp(`\\b${name}="([^"]+)"`))?.[1])
+      const headerRectangle = svg.match(/<g\b[^>]*\bclass="sequence-block-header-overlay"[^>]*>\s*<rect\b([^>]*)>/)?.[1]
+      expect(headerRectangle).toBeDefined()
+      const messageText = [...svg.matchAll(/<text\b([^>]*)>([\s\S]*?)<\/text>/g)].find(match => match[2]!.includes('>one</tspan>'))
+      expect(messageText).toBeDefined()
+      const tspans = [...messageText![2]!.matchAll(/<tspan\b([^>]*)>/g)]
+      expect(tspans).toHaveLength(5)
+      // Read the real SVG baseline advance; a full font-size ascent is a
+      // conservative text envelope independent of the geometry authority.
+      const firstLineTop = numeric(messageText![1]!, 'y') + numeric(tspans[0]![1]!, 'dy') - numeric(messageText![1]!, 'font-size')
+      expect(firstLineTop).toBeGreaterThanOrEqual(numeric(headerRectangle!, 'y') + numeric(headerRectangle!, 'height') - 1e-6)
+    })
+  }
+
+  for (const fixture of [
+    {
+      name: 'an empty first section before a note-only second section',
+      source: 'sequenceDiagram\nparticipant A\nalt First\nelse Second\nNote over A: second\nend\nNote over A: after',
+      parent: 'First', dividers: ['Second'], order: ['header', 'divider:Second', 'note:second'],
+    },
+    {
+      name: 'three empty sections',
+      source: 'sequenceDiagram\nparticipant A\nalt First\nelse Second\nelse Third\nend\nNote over A: after',
+      parent: 'First', dividers: ['Second', 'Third'], order: ['header', 'divider:Second', 'divider:Third'],
+    },
+    {
+      name: 'an empty child in a later section',
+      source: 'sequenceDiagram\nparticipant A\nparticipant B\nalt First\nA->>B: first\nelse Second\nloop Inner\nend\nend\nNote over A: after',
+      parent: 'First', dividers: ['Second'], order: ['header', 'message:first', 'divider:Second', 'child:Inner'],
+    },
+    {
+      name: 'empty sibling children in distinct sections at the same message and note cursor',
+      source: 'sequenceDiagram\nparticipant A\nalt One\nloop C1\nend\nelse Two\nloop C2\nend\nelse Three\nloop C3\nend\nend\nNote over A: after',
+      parent: 'One', dividers: ['Two', 'Three'], order: ['header', 'child:C1', 'divider:Two', 'child:C2', 'divider:Three', 'child:C3'],
+    },
+    {
+      name: 'a nested empty first section inside a later parent section',
+      source: 'sequenceDiagram\nparticipant A\nparticipant B\nalt O1\nA->>B: first\nelse O2\nalt I1\nelse I2\nNote over A: inner\nend\nend\nNote over B: after',
+      parent: 'O1', dividers: ['O2'], order: ['header', 'message:first', 'divider:O2', 'child:I1'],
+      nested: { parent: 'I1', divider: 'I2', note: 'inner' },
+    },
+    {
+      name: 'a completed child ending in notes before a later child starting with a self-message',
+      source: 'sequenceDiagram\nparticipant A\nparticipant B\nalt Parent\nloop First\nNote over A: first note\nA->>B: work\nNote over A: last\nend\nelse Second\nloop Later\nA->>A: self\nNote over A: last2\nend\nend\nNote over A: after',
+      parent: 'Parent', dividers: ['Second'], order: ['header', 'child:First', 'divider:Second', 'child:Later'],
+    },
+  ]) {
+    it(`preserves section order in emitted SVG for ${fixture.name}`, () => {
+      const svg = renderMermaidSVG(fixture.source, { embedFontImport: false })
+      const numeric = (attributes: string, name: string) => Number(attributes.match(new RegExp(`\\b${name}="([^"]+)"`))?.[1])
+      const rectangle = (body: string) => {
+        const attributes = body.match(/<rect\b([^>]*)>/)?.[1]
+        expect(attributes).toBeDefined()
+        const top = numeric(attributes!, 'y')
+        return { top, bottom: top + numeric(attributes!, 'height') }
+      }
+      const text = (body: string) => body.replace(/<[^>]+>/g, '').replace(/\s+/g, ' ').trim()
+      const groups = [...svg.matchAll(/<g\b([^>]*)>([\s\S]*?)<\/g>/g)]
+      const parent = groups.find(group => /\bclass="block"/.test(group[1]!) && group[1]!.includes(`data-label="${fixture.parent}"`))
+      expect(parent).toBeDefined()
+      const frame = rectangle(parent![2]!)
+      const elements = new Map<string, { top: number; bottom: number }>()
+      for (const group of groups) {
+        if (/\bclass="block"/.test(group[1]!)) {
+          const label = group[1]!.match(/\bdata-label="([^"]*)"/)?.[1]
+          if (label) elements.set(`child:${label}`, rectangle(group[2]!))
+        } else if (/\bclass="note"/.test(group[1]!)) elements.set(`note:${text(group[2]!)}`, rectangle(group[2]!))
+        else if (/\bclass="sequence-block-header-overlay"/.test(group[1]!) && text(group[2]!).includes(`alt [${fixture.parent}]`)) elements.set('header', rectangle(group[2]!))
+      }
+      const labels = [...svg.matchAll(/<text\b([^>]*)>([\s\S]*?)<\/text>/g)]
+      const textEnvelope = (label: RegExpMatchArray) => {
+        const size = numeric(label[1]!, 'font-size')
+        const baseline = numeric(label[1]!, 'y') + numeric(label[1]!, 'dy')
+        return { top: baseline - size, bottom: baseline + size * 0.3 }
+      }
+      const dividerLines = [...parent![2]!.matchAll(/<line\b([^>]*)>/g)]
+      expect(dividerLines).toHaveLength(fixture.dividers.length)
+      for (const [index, label] of fixture.dividers.entries()) {
+        const paintedLabel = labels.find(match => text(match[2]!) === `[${label}]`)
+        expect(paintedLabel).toBeDefined()
+        const envelope = textEnvelope(paintedLabel!)
+        const dividerY = numeric(dividerLines[index]![1]!, 'y1')
+        expect(envelope.top).toBeGreaterThanOrEqual(dividerY - 1e-6)
+        elements.set(`divider:${label}`, { top: dividerY, bottom: envelope.bottom })
+      }
+      const message = labels.find(match => text(match[2]!) === 'first')
+      if (message) {
+        const shaft = svg.match(/<line\b([^>]*\bdata-from="A"[^>]*\bdata-to="B"[^>]*)>/)!
+        const envelope = textEnvelope(message)
+        elements.set('message:first', { top: envelope.top, bottom: Math.max(envelope.bottom, numeric(shaft[1]!, 'y1') + 4) })
+      }
+      let previousBottom = frame.top
+      for (const key of fixture.order) {
+        expect(elements.has(key), `missing ${key}`).toBe(true)
+        const element = elements.get(key)!
+        expect(element.top, `${key}: follows preceding section content`).toBeGreaterThanOrEqual(previousBottom - 1e-6)
+        expect(element.bottom, `${key}: inside enclosing frame`).toBeLessThanOrEqual(frame.bottom + 1e-6)
+        previousBottom = element.bottom
+      }
+      expect(elements.get('note:after')!.top).toBeGreaterThanOrEqual(frame.bottom)
+      if ('nested' in fixture && fixture.nested) {
+        const nested = fixture.nested
+        const body = groups.find(group => /\bclass="block"/.test(group[1]!) && group[1]!.includes(`data-label="${nested.parent}"`))![2]!
+        const header = groups.find(group => /\bclass="sequence-block-header-overlay"/.test(group[1]!) && text(group[2]!).includes(`alt [${nested.parent}]`))![2]!
+        const dividerY = numeric(body.match(/<line\b([^>]*)>/)![1]!, 'y1')
+        const label = labels.find(match => text(match[2]!) === `[${nested.divider}]`)!
+        expect(dividerY).toBeGreaterThanOrEqual(rectangle(header).bottom)
+        expect(elements.get(`note:${nested.note}`)!.top).toBeGreaterThanOrEqual(textEnvelope(label).bottom)
+      }
+    })
+  }
+
+  it('resolves the exact #385 opening reproduction without self-message overlap, header tab overflow, or return-arrow clipping', () => {
+    const source = `sequenceDiagram
+      participant A
+      participant B
+      loop A very long block header that must remain within the enclosing fragment
+        A->>A: This very long self message should have clear space before B
+      end
+      A->>B: done`
+    const result = layout(source)
+    const selfMsg = result.messages[0]!
+    const lifelineB = result.lifelines[1]!
+    const loopBlock = result.blocks[0]!
+
+    // 1. Self-message label has clear space before B's lifeline
+    expect(selfMsg.labelPosition.bounds.x + selfMsg.labelPosition.bounds.width + 12).toBeLessThanOrEqual(lifelineB.x)
+
+    // 2. Fragment header tab remains within the enclosing fragment, which remains within the canvas
+    expect(loopBlock.header).toBeDefined()
+    expect(loopBlock.header!.x + loopBlock.header!.width).toBeLessThanOrEqual(loopBlock.x + loopBlock.width)
+    expect(loopBlock.x + loopBlock.width).toBeLessThanOrEqual(result.width - 30 + 1e-6)
+
+    // 3. Self-message return arrow at y + 20 clears the bottom of the fragment frame
+    expect(selfMsg.y + 20).toBeLessThan(loopBlock.y + loopBlock.height)
+  })
+
+  it('widens adjacent lifelines so middle-actor self-message labels do not intersect neighboring lifelines or activation bars', () => {
+    const source = `sequenceDiagram
+      participant A as Alice
+      participant B as Service
+      participant C as Worker
+      A->>+B: Dispatch
+      B->>B: Signal for throat clearance and audit logging
+      B->>+C: Forward
+      C-->>-B: Ack
+      B-->>-A: Complete`
+    const result = layout(source)
+    const selfMsg = result.messages.find(m => m.isSelf)!
+    const nextLifeline = result.lifelines[2]!
+    const nextActivation = result.activations.find(a => a.actorId === 'C')!
+
+    const selfRight = selfMsg.bounds.x + selfMsg.bounds.width
+    expect(selfRight + 12).toBeLessThanOrEqual(nextLifeline.x)
+    expect(selfRight).toBeLessThan(nextActivation.x)
+  })
+
+  it('keeps last-actor self-message loops and labels inside the SVG viewBox', () => {
+    const source = `sequenceDiagram
+      participant A
+      participant B
+      A->>B: Start
+      B->>B: Very long self-message label on the rightmost participant`
+    const result = layout(source)
+    const selfMsg = result.messages[1]!
+    expect(selfMsg.bounds.x + selfMsg.bounds.width).toBeLessThanOrEqual(result.width - 30 + 1e-6)
+  })
+
+  it('sizes fragments to contain long header tabs, wide divider labels, owned notes, self-messages, created participants, and nested fragments', () => {
+    const source = `sequenceDiagram
+      participant A
+      participant B
+      critical Establish a fault-tolerant quorum session across replicas
+        Note left of A: Pre-flight quorum note inside critical
+        A->>A: Validate local lease and epoch state
+        opt Secondary verification with an extra-wide fragment header tab
+          B->>B: Verify remote attestation token
+          Note right of B: Right-hand audit note inside opt
+        end
+      option Network partition or quorum timeout while awaiting replica acknowledgements
+        create actor C as Ephemeral<br/>Recovery<br/>Agent
+        A->>C: Spawn recovery agent
+      end`
+    const result = layout(source)
+    expect(result.blocks).toHaveLength(2)
+    const optBlock = result.blocks.find(b => b.type === 'opt')!
+    const critBlock = result.blocks.find(b => b.type === 'critical')!
+
+    // Header tabs fit inside their own fragment widths
+    expect(optBlock.header).toBeDefined()
+    expect(optBlock.header!.x + optBlock.header!.width).toBeLessThanOrEqual(optBlock.x + optBlock.width + 1e-6)
+    expect(critBlock.header).toBeDefined()
+    expect(critBlock.header!.x + critBlock.header!.width).toBeLessThanOrEqual(critBlock.x + critBlock.width + 1e-6)
+
+    // Wide divider label fits inside critical fragment width
+    const divider = critBlock.dividers[0]!
+    expect(divider.labelPosition).toBeDefined()
+    expect(divider.labelPosition!.bounds.x + divider.labelPosition!.bounds.width).toBeLessThanOrEqual(critBlock.x + critBlock.width - 10 + 1e-6)
+
+    // Owned self-messages (including return arrow at y + 20) fit inside their fragments
+    const selfA = result.messages[0]!
+    const selfB = result.messages[1]!
+    expect(selfB.y + 20).toBeLessThanOrEqual(optBlock.y + optBlock.height - 8 + 1e-6)
+    expect(selfB.bounds.x + selfB.bounds.width).toBeLessThanOrEqual(optBlock.x + optBlock.width - 10 + 1e-6)
+    expect(selfA.bounds.x + selfA.bounds.width).toBeLessThanOrEqual(critBlock.x + critBlock.width - 10 + 1e-6)
+
+    // Created icon participant C (and its 3-line below-icon label) fits inside critical fragment
+    const actorC = result.actors.find(a => a.id === 'C')!
+    expect(actorC.bounds.x).toBeGreaterThanOrEqual(critBlock.x + 10 - 1e-6)
+    expect(actorC.bounds.x + actorC.bounds.width).toBeLessThanOrEqual(critBlock.x + critBlock.width - 10 + 1e-6)
+    expect(actorC.bounds.y + actorC.bounds.height).toBeLessThanOrEqual(critBlock.y + critBlock.height - 8 + 1e-6)
+
+    // Owned notes fit inside their fragments
+    const leftNote = result.notes[0]!
+    const rightNote = result.notes[1]!
+    expect(leftNote.x).toBeGreaterThanOrEqual(critBlock.x + 10 - 1e-6)
+    expect(leftNote.y).toBeGreaterThanOrEqual(critBlock.y)
+    expect(rightNote.x + rightNote.width).toBeLessThanOrEqual(optBlock.x + optBlock.width - 10 + 1e-6)
+    expect(rightNote.y + rightNote.height).toBeLessThanOrEqual(optBlock.y + optBlock.height - 8 + 1e-6)
+
+    // Enclosing fragment contains nested fragment with declared padding
+    expect(critBlock.x).toBeLessThanOrEqual(optBlock.x - 10 + 1e-6)
+    expect(critBlock.x + critBlock.width).toBeGreaterThanOrEqual(optBlock.x + optBlock.width + 10 - 1e-6)
+    expect(critBlock.y).toBeLessThanOrEqual(optBlock.y - 8 + 1e-6)
+    expect(critBlock.y + critBlock.height).toBeGreaterThanOrEqual(optBlock.y + optBlock.height + 8 - 1e-6)
+  })
+
+  it('sizes single-message self-loop fragments so the return arrow at y + 20 stays inside the fragment bottom', () => {
+    const result = layout(`sequenceDiagram
+      participant A
+      loop Self check
+        A->>A: Ping self
+      end`)
+    const block = result.blocks[0]!
+    const msg = result.messages[0]!
+    expect(block.y + block.height).toBeGreaterThanOrEqual(msg.y + 20 + 12)
+  })
+
+  it('reserves header bounds for icon participants and multiline labels without enlarging the icon glyph', () => {
+    const types = ['actor', 'boundary', 'control', 'entity', 'database', 'collections', 'queue'] as const
+    for (const type of types) {
+      const decl = type === 'actor' ? 'actor A as Support<br/>Engineer<br/>On call' : `participant A@{ "type": "${type}" } as Support<br/>Engineer<br/>On call`
+      const source = `sequenceDiagram
+        ${decl}
+        participant B as Backend
+        A->>B: Escalate incident`
+      const result = layout(source)
+      const actor = result.actors[0]!
+      const lifeline = result.lifelines[0]!
+      const firstMsg = result.messages[0]!
+
+      // Glyph height stays compact (40px), while complete header bounds cover the 3-line label below it
+      expect(actor.height, type).toBe(40)
+      expect(actor.bounds.height, type).toBeGreaterThan(actor.height + 30)
+
+      // First line top clears the glyph bottom (y + height)
+      expect(actor.labelPosition.bounds.y, type).toBeGreaterThanOrEqual(actor.y + actor.height)
+
+      // Lifeline starts below the full header bounds, not through the label
+      const headerBottom = actor.bounds.y + actor.bounds.height
+      expect(lifeline.topY, type).toBeGreaterThanOrEqual(headerBottom)
+
+      // First message label clears the actor label
+      expect(firstMsg.labelPosition.bounds.y, type).toBeGreaterThan(headerBottom)
+    }
+  })
+
+  it('uses resolved metrics for custom font size, weight, tracking, uppercase capitalization, and padding', () => {
+    const source = `sequenceDiagram
+      actor A as Support<br/>Engineer
+      participant B as Service
+      alt Primary route with long header
+        A->>A: Local self check before dispatch
+      else Fallback route with wide section label
+        A->>B: Dispatch request
+      end`
+    const lines = source
+      .split('\n')
+      .map(l => l.trim())
+      .filter(l => l.length > 0)
+    const parsed = parseSequenceDiagram(lines)
+    const defaultPos = layoutSequenceDiagram(parsed)
+    const customPos = layoutSequenceDiagram(parsed, {}, {}, {
+      node: {
+        fontSize: 16,
+        fontWeight: 700,
+        letterSpacing: 1.5,
+        textTransform: 'uppercase',
+        paddingX: 24,
+        paddingY: 16,
+      },
+      edge: {
+        fontSize: 15,
+        fontWeight: 600,
+        letterSpacing: 1.2,
+        textTransform: 'uppercase',
+      },
+      group: {
+        fontSize: 15,
+        fontWeight: 700,
+        letterSpacing: 1.5,
+        textTransform: 'uppercase',
+        paddingX: 18,
+        paddingY: 14,
+      },
+    })
+
+    // Custom metrics and uppercase transform widen and heighten actors, self-loops, and fragments
+    expect(customPos.actors[0]!.labelPosition.text).toBe('SUPPORT\nENGINEER')
+    expect(customPos.actors[0]!.bounds.width).toBeGreaterThan(defaultPos.actors[0]!.bounds.width)
+    expect(customPos.actors[0]!.bounds.height).toBeGreaterThan(defaultPos.actors[0]!.bounds.height)
+
+    // Self-message clears B's lifeline under larger font + tracking + uppercase
+    const selfMsg = customPos.messages[0]!
+    const lifelineB = customPos.lifelines[1]!
+    expect(selfMsg.labelPosition.text).toBe('LOCAL SELF CHECK BEFORE DISPATCH')
+    expect(selfMsg.bounds.x + selfMsg.bounds.width + 12).toBeLessThanOrEqual(lifelineB.x)
+
+    // Fragment header tab and divider label respect custom group padding and stay inside block
+    const block = customPos.blocks[0]!
+    expect(block.header).toBeDefined()
+    expect(block.header!.label.x).toBe(block.x + 18)
+    expect(block.header!.label.bounds.x + block.header!.label.bounds.width).toBeLessThanOrEqual(block.header!.x + block.header!.width)
+    expect(block.header!.x + block.header!.width).toBeLessThanOrEqual(block.x + block.width - 18 + 1e-6)
+
+    const divider = block.dividers[0]!
+    expect(divider.labelPosition).toBeDefined()
+    expect(divider.labelPosition!.x).toBe(block.x + 8)
+    expect(divider.labelPosition!.bounds.x + divider.labelPosition!.bounds.width).toBeLessThanOrEqual(block.x + block.width - 18 + 1e-6)
+    expect(divider.labelPosition!.bounds.y + divider.labelPosition!.bounds.height).toBeLessThan(customPos.messages[1]!.labelPosition.bounds.y)
+  })
+
+  it('preserves contrast and opaque/translucent nested rect layering across crisp and styled looks', () => {
+    const source = `sequenceDiagram
+      box DarkSlateBlue Core Services
+        participant A as Gateway
+        participant B as Auth
+      end
+      alt Authenticated
+        rect rgba(16, 185, 129, 0.22)
+          A->>B: Verify token
+        end
+      else Unauthenticated
+        B-->>A: 401 Unauthorized
+      end`
+    for (const style of [undefined, 'accessible-high-contrast', 'blueprint']) {
+      const svg = renderMermaidSVG(source, { ...(style ? { style } : {}), embedFontImport: false })
+      // Enclosing alt background paints before nested rect, and alt frame/dividers paint above rect fill
+      const altBgIdx = svg.indexOf('data-type="alt"')
+      const rectBgIdx = svg.indexOf('data-type="rect"')
+      const frameOverlayIdx = svg.indexOf('class="sequence-block-frame-overlay"')
+      const dividerOverlayIdx = svg.indexOf('class="sequence-block-divider-overlay"')
+      const lifelineIdx = svg.indexOf('class="lifeline"')
+      expect(altBgIdx).toBeGreaterThan(0)
+      expect(rectBgIdx).toBeGreaterThan(altBgIdx)
+      expect(frameOverlayIdx).toBeGreaterThan(rectBgIdx)
+      expect(dividerOverlayIdx).toBeGreaterThan(rectBgIdx)
+      expect(lifelineIdx).toBeGreaterThan(dividerOverlayIdx)
+    }
+  })
+
+  it('projects complete actor and fragment bounds through layoutMermaid()', () => {
+    const source = `sequenceDiagram
+      actor A as Support<br/>Engineer<br/>On call
+      participant B as Backend
+      loop Health check with a very long fragment header tab
+        A->>B: Ping
+      end`
+    const pos = layout(source)
+    const parsed = parseMermaid(source)
+    expect(parsed.ok).toBe(true)
+    if (!parsed.ok) return
+    const projected = layoutMermaid(parsed.value)
+    const nodeA = projected.nodes.find(n => n.id === 'A')!
+    const group0 = projected.groups[0]!
+
+    expect(Number(nodeA.h)).toBe(Math.round(pos.actors[0]!.bounds.height))
+    expect(Number(group0.w)).toBe(Math.round(pos.blocks[0]!.bounds.width))
+  })
+
+  it('emits final SVG geometry whose <rect>, <line>, <polyline>, <text>, <tspan>, and transform attributes satisfy non-overlap invariants', () => {
+    const source = `sequenceDiagram
+      actor A as Support<br/>Engineer<br/>On call
+      participant B as API Gateway
+      participant C as Worker
+      loop HealthCheck
+        B->>B: Validate token and refresh lease
+        opt Nested verification with a long header label
+          A->>B: Ping
+          Note right of B: Gateway note
+        end
+      end
+      B->>C: Forward`
+    const svg = renderMermaidSVG(source, { embedFontImport: false })
+
+    // 1. Parse viewBox
+    const vbMatch = svg.match(/viewBox="0 0 ([0-9.]+) ([0-9.]+)"/)
+    expect(vbMatch).not.toBeNull()
+    const svgWidth = Number(vbMatch![1])
+    const svgHeight = Number(vbMatch![2])
+
+    // 2. Actor icon transform + label tspans + lifeline topY
+    const actorGroupMatch = svg.match(/<g class="actor" data-id="A"[\s\S]*?<\/text>\s*<\/g>/)
+    expect(actorGroupMatch).not.toBeNull()
+    const translateMatch = actorGroupMatch![0].match(/transform="translate\(([0-9.]+),([0-9.]+)\) scale\(([0-9.]+)\)"/)
+    expect(translateMatch).not.toBeNull()
+    const iconTopY = Number(translateMatch![2])
+    const iconScale = Number(translateMatch![3])
+    const iconBottomY = iconTopY + 24 * iconScale
+
+    const actorTextMatch = actorGroupMatch![0].match(/<text x="([0-9.]+)" y="([0-9.]+)"[^>]*font-size="([0-9.]+)"[^>]*>([\s\S]*?)<\/text>/)
+    expect(actorTextMatch).not.toBeNull()
+    const actorTextY = Number(actorTextMatch![2])
+    const actorFontSize = Number(actorTextMatch![3])
+    const tspanCount = (actorTextMatch![4]!.match(/<tspan /g) ?? []).length
+    expect(tspanCount).toBe(3)
+    const firstTspanDyMatch = actorTextMatch![4]!.match(/<tspan [^>]*dy="([-0-9.]+)"/)
+    const firstLineCenterY = actorTextY + Number(firstTspanDyMatch?.[1] ?? 0)
+    const lastLineCenterY = firstLineCenterY + (tspanCount - 1) * actorFontSize * 1.3
+    expect(firstLineCenterY - actorFontSize / 2).toBeGreaterThanOrEqual(iconBottomY)
+
+    const lifelineAMatch = svg.match(/<line class="lifeline" data-actor="A" x1="([0-9.]+)" y1="([0-9.]+)" x2="([0-9.]+)" y2="([0-9.]+)"/)
+    expect(lifelineAMatch).not.toBeNull()
+    const lifelineATopY = Number(lifelineAMatch![2])
+    expect(lifelineATopY).toBeGreaterThan(lastLineCenterY + actorFontSize / 2)
+
+    // 3. Self-message polyline + label clear lifeline C
+    const lifelineCMatch = svg.match(/<line class="lifeline" data-actor="C" x1="([0-9.]+)"/)
+    expect(lifelineCMatch).not.toBeNull()
+    const lifelineCX = Number(lifelineCMatch![1])
+
+    const selfMsgMatch = svg.match(/<g class="message" data-label="Validate token and refresh lease"[\s\S]*?<polyline points="([^"]+)"[\s\S]*?<text x="([0-9.]+)" y="([0-9.]+)"[^>]*font-size="([0-9.]+)"/)
+    expect(selfMsgMatch).not.toBeNull()
+    const polyXs = selfMsgMatch![1]!
+      .trim()
+      .split(/\s+/)
+      .map(pt => Number(pt.split(',')[0]))
+    const selfLabelX = Number(selfMsgMatch![2])
+    const selfFontSize = Number(selfMsgMatch![4])
+    const selfLabelRight = selfLabelX + estimateTextWidth('Validate token and refresh lease', selfFontSize, 400)
+    expect(Math.max(...polyXs)).toBeLessThan(lifelineCX)
+    expect(selfLabelRight).toBeLessThan(lifelineCX)
+
+    // 4. Fragment <rect> elements contain their header tabs and stay within viewBox
+    const blockRects = [...svg.matchAll(/<g class="block" data-type="([^"]+)"[^>]*>\s*<rect x="([0-9.]+)" y="([0-9.]+)" width="([0-9.]+)" height="([0-9.]+)"/g)].map(m => ({
+      type: m[1]!,
+      x: Number(m[2]),
+      y: Number(m[3]),
+      width: Number(m[4]),
+      height: Number(m[5]),
+    }))
+    const headerRects = [...svg.matchAll(/<g class="sequence-block-header-overlay"[^>]*>\s*<rect x="([0-9.]+)" y="([0-9.]+)" width="([0-9.]+)" height="([0-9.]+)"/g)].map(m => ({
+      x: Number(m[1]),
+      y: Number(m[2]),
+      width: Number(m[3]),
+      height: Number(m[4]),
+    }))
+    expect(blockRects).toHaveLength(2)
+    expect(headerRects).toHaveLength(2)
+    for (let i = 0; i < blockRects.length; i++) {
+      const b = blockRects[i]!
+      const h = headerRects[i]!
+      expect(b.x).toBeGreaterThanOrEqual(0)
+      expect(b.y).toBeGreaterThanOrEqual(0)
+      expect(b.x + b.width).toBeLessThanOrEqual(svgWidth + 1e-6)
+      expect(b.y + b.height).toBeLessThanOrEqual(svgHeight + 1e-6)
+      expect(h.x + h.width).toBeLessThanOrEqual(b.x + b.width + 1e-6)
+    }
   })
 })

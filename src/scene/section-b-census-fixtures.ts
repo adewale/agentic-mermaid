@@ -33,15 +33,19 @@ sequenceDiagram
     participant A as Alice
     participant B@{ "type": "database", "alias": "Bob" }
   end
+  participant C as Client
   link A: profile @ https://example.com
   activate A
+  activate B
   A->>B: request
+  A->>C: forward across Bob
   alt accepted
     B-->>A: response
   else delayed
     Note over A,B: wait
   end
   deactivate A
+  deactivate B
   destroy B
   A->>()B: publish
   A-xB: done`,

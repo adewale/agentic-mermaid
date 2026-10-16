@@ -161,6 +161,35 @@ export interface LifelineCross {
   y: number
 }
 
+/** Axis-aligned painted bounding box in sequence canvas coordinates. */
+export interface SequenceBounds {
+  x: number
+  y: number
+  width: number
+  height: number
+}
+
+/** Positioned text label with its anchor and full painted bounding box. */
+export interface PositionedSequenceLabel {
+  text: string
+  x: number
+  y: number
+  anchor: 'start' | 'middle' | 'end'
+  fontSize: number
+  fontWeight: number
+  letterSpacing: number
+  bounds: SequenceBounds
+}
+
+/** Positioned fragment header tab and label (`loop`, `alt`, `opt`, `par`, `critical`, `break`). */
+export interface PositionedBlockHeader {
+  x: number
+  y: number
+  width: number
+  height: number
+  label: PositionedSequenceLabel
+}
+
 export interface PositionedActor {
   id: string
   label: string
@@ -172,6 +201,10 @@ export interface PositionedActor {
   y: number
   width: number
   height: number
+  /** Complete painted header bounds (box or icon glyph + below-icon multiline label). */
+  bounds: SequenceBounds
+  /** Positioned label anchor and painted bounds. */
+  labelPosition: PositionedSequenceLabel
 }
 
 /** Vertical dashed line from actor to bottom of diagram */
@@ -199,6 +232,12 @@ export interface PositionedMessage {
   y: number
   /** Whether this is a self-message (same actor) */
   isSelf: boolean
+  /** Routed connector polyline points (2 points for horizontal messages, 4 points for self-loops). */
+  points: Array<{ x: number; y: number }>
+  /** Positioned label anchor and painted bounds. */
+  labelPosition: PositionedSequenceLabel
+  /** Complete painted bounds covering the shaft/loop, arrowheads, and label. */
+  bounds: SequenceBounds
 }
 
 /** Narrow rectangle on a lifeline showing active processing */
@@ -210,6 +249,12 @@ export interface Activation {
   width: number
 }
 
+export interface PositionedBlockDivider {
+  y: number
+  label: string
+  labelPosition?: PositionedSequenceLabel
+}
+
 export interface PositionedBlock {
   type: Block['type']
   label: string
@@ -219,7 +264,11 @@ export interface PositionedBlock {
   width: number
   height: number
   /** Divider lines within the block (for alt/par) */
-  dividers: Array<{ y: number; label: string }>
+  dividers: PositionedBlockDivider[]
+  /** Positioned fragment header tab and label (`undefined` for `rect` blocks). */
+  header?: PositionedBlockHeader
+  /** Complete painted bounds covering the fragment frame, header tab, dividers, notes, and child blocks. */
+  bounds: SequenceBounds
 }
 
 export interface PositionedNote {

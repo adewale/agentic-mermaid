@@ -1,8 +1,43 @@
 # Visual review and production comparison
 
+## PR #390 reviewed-golden refresh — 2026-10-16
+
+The current [reviewed rendering golden](../../src/__tests__/testdata/section-b-brand-evidence.png)
+is 1560×9464 and contains 64 family-by-variant cells. It lives under
+`src/__tests__/testdata/`, the repository's explicit exception for reviewed
+rendering goldens. The gallery generator and unit test use this single copy;
+PR before/after evidence remains a generated review artifact.
+
+The previous committed PNG byte-matches a fresh production render at immutable
+main `9925294bdf9501662b754c1260acb1c1b6819cdc` with Bun 1.4.2. The candidate was
+generated at `e43f37e3ec50d0697c9f26807f53e33f49dd5b81` with the same inputs and
+bundled fonts. A per-pixel comparison found 17,623 changed pixels out of
+14,763,840, entirely within the four Sequence cells:
+
+| Treatment | Changed pixels |
+|---|---:|
+| Sentinel | 5,188 |
+| Editorial | 4,981 |
+| Technical | 6,976 |
+| Operations | 478 |
+
+The other 60 cells are pixel-identical. Codex agents inspected the four Sequence
+before/after crops at native size. Request/response text and arrow direction
+remain complete, typography and palettes retain each treatment, and all content
+fits its panel. Small changes in actor dimensions, label clearance, and lifeline
+positions follow the updated sequence geometry. This records an agent visual
+review, not human approval.
+
+This simple two-participant sheet is a rendering baseline, not a reproduction
+of the closed-fragment or intervening-lifeline defects. PR #390's dedicated SVG
+and raster regressions provide that behavioral evidence; accepting this golden
+alone does not establish that the renderer is correct.
+
+## Historical Section B reviews
+
 Originally reviewed 2026-07-15 and re-reviewed for the current branch on
-2026-07-22 at native resolution. The Section B sheet is
-`docs/design/families/section-b-brand-evidence.png` (1560×7944, 60 cells). The
+2026-07-22 at native resolution. The Section B sheet at that time was
+1560×7944 with 60 cells. The
 website comparison captured every visible diagram SVG on the branch homepage
 at `http://127.0.0.1:9095/` and its deployed equivalent at
 `https://agentic-mermaid.dev/` in the same Chromium build and viewport.

@@ -278,6 +278,46 @@ describe('style consolidation', () => {
     }
   })
 
+  for (const look of ['hand-drawn', 'blueprint']) {
+    test(`${look} keeps split activation surfaces open and preserves authored fills`, () => {
+      const source = `sequenceDiagram
+        participant A
+        participant B
+        participant C
+        activate A
+        activate B
+        A->>B: Open
+        A->>C: Read Read
+        B-->>A: Close
+        deactivate A
+        deactivate B`
+      const activationPaints = (svg: string, actor: string): string[] => {
+        // Inspect public SVG paint on both the untouched and occluded actor;
+        // the assertion does not depend on how either activation is split.
+        const shapeTags = /<(?:rect|path|polygon|circle|ellipse)\b[^>]*>/g
+        const owner = svg.match(new RegExp(`<g\\b[^>]*class="activation"[^>]*data-actor="${actor}"[^>]*>[\\s\\S]*?<\\/g>`))?.[0]
+        const marks = owner
+          ? [...owner.matchAll(shapeTags)].map(match => match[0])
+          : [...svg.matchAll(shapeTags)].map(match => match[0]).filter(tag => tag.includes(`data-id="activation:${actor}#0"`))
+        expect(marks.length, `${actor} activation remains visible`).toBeGreaterThan(0)
+        return marks.map(tag => tag.match(/\bfill="([^"]*)"/)?.[1] ?? 'none')
+          .filter(fill => fill !== 'none')
+      }
+      const open = renderMermaidSVG(source, { style: look, embedFontImport: false })
+      for (const actor of ['A', 'B']) expect(activationPaints(open, actor)).toEqual([])
+
+      const authored = renderMermaidSVG(source, {
+        style: [look, { roles: { node: { fillColor: '#ee8844' } } }],
+        embedFontImport: false,
+      })
+      for (const actor of ['A', 'B']) {
+        const paints = activationPaints(authored, actor)
+        expect(paints.length, `${actor} retains its authored surface`).toBeGreaterThan(0)
+        expect(paints.every(fill => fill === '#ee8844')).toBe(true)
+      }
+    })
+  }
+
   test('an inline fragment on top of a stack wins per field', () => {
     const merged = resolveStyleStack(['hand-drawn', { roughness: 2.5, colors: { accent: '#ff0000' } }])!
     expect(merged.roughness).toBe(2.5)

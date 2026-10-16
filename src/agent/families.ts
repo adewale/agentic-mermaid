@@ -499,7 +499,7 @@ const BUILTIN_FAMILY_DESCRIPTOR_SEEDS = [
     semanticChannels: ['category'],
     detect: (line: string) => /^sequencediagram\s*$/.test(line),
     detectLoose: (line: string) => /^sequencediagram(?:\s|$)/.test(line),
-    sceneRoles: [nativeSceneRole('prelude', 'document'), nativeSceneRole('title', 'text'), nativeSceneRole('defs', 'document', 'marker'), nativeSceneRole('chrome', 'document', 'shape'), nativeSceneRole('actor', 'container', 'shape'), nativeSceneRole('lifeline', 'connector'), nativeSceneRole('activation', 'shape'), nativeSceneRole('message', 'container', 'connector'), nativeSceneRole('block', 'container', 'connector', 'shape'), nativeSceneRole('group', 'container', 'shape'), nativeSceneRole('note', 'container', 'shape'), nativeSceneRole('label', 'text'), nativeSceneRole('icon', 'document', 'text', 'shape')],
+    sceneRoles: [nativeSceneRole('prelude', 'document'), nativeSceneRole('title', 'text'), nativeSceneRole('defs', 'document', 'marker'), nativeSceneRole('chrome', 'document', 'shape'), nativeSceneRole('actor', 'container', 'shape'), nativeSceneRole('lifeline', 'container', 'connector'), nativeSceneRole('activation', 'container', 'shape'), nativeSceneRole('message', 'container', 'connector'), nativeSceneRole('block', 'container', 'connector', 'shape'), nativeSceneRole('group', 'container', 'shape'), nativeSceneRole('note', 'container', 'shape'), nativeSceneRole('label', 'text'), nativeSceneRole('icon', 'document', 'text', 'shape')],
     example: 'sequenceDiagram\n  participant U as User\n  participant S as Server\n  U->>S: request\n  S-->>U: response',
     editorExample: `sequenceDiagram
   participant User

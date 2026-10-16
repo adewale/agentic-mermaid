@@ -1,10 +1,10 @@
 {
   "schemaVersion": 1,
   "status": "approved",
-  "artifact": "docs/design/families/section-b-brand-evidence.png",
-  "artifactSha256": "bacf986e3aa8a4364e037eb0b23fce71e8b26701f6b4ec6ee938eb8a94329c53",
-  "reviewedAt": "2026-09-27",
-  "reviewer": "Claude Code agent, while rebasing the chart-honesty branch onto main's PR #306",
-  "scope": "The 1560×9464 sheet, all 64 family-by-variant cells, was compared with this branch's previous approved sheet at native size through a per-pixel difference mask: 715 of 14,763,840 pixels differ, all in the Class column (x=720–765) across the four style variants (y=589–7693). They are main's PR #306 Class member text (\"+id: string\" in authored order instead of \"+ string: id:\"), drawn with this branch's text tones. Every other cell is identical at the pixel level; geometry, containment, endpoints, peer-category paint, and authored emphasis are unchanged.",
+  "artifact": "src/__tests__/testdata/section-b-brand-evidence.png",
+  "artifactSha256": "917b97b2ef21c590be6aae21e4539958d13e42cebde03b37645d1b56f9db2424",
+  "reviewedAt": "2026-10-16",
+  "reviewer": "Codex agents, reviewing PR #390 at e43f37e3ec50d0697c9f26807f53e33f49dd5b81",
+  "scope": "The 1560×9464 sheet contains 64 family-by-variant cells. The prior committed PNG byte-matches a fresh render of immutable main 9925294bdf9501662b754c1260acb1c1b6819cdc. Compared with the candidate at e43f37e3ec50d0697c9f26807f53e33f49dd5b81, 17,623 of 14,763,840 pixels differ, only in the four Sequence cells; the other 60 cells are pixel-identical. Codex agents inspected all four Sequence before/after crops at native size: request/response text, arrow direction, typography, palette, and style are preserved, and every diagram stays within its panel. Small actor, label-clearance, and lifeline position changes follow the updated sequence geometry. This is an agent visual review, not human approval; the dedicated sequence regressions provide behavioral proof beyond this reviewed golden.",
   "audit": "eval/section-b-brand-evidence/production-comparison.md"
 }

@@ -104,6 +104,9 @@ export interface ShapeMark extends SceneNodeBase {
   kind: 'shape'
   geometry: Geometry
   paint: MarkPaint
+  /** Internal fill-only piece of an outlined surface. Sketch fill policies still
+   * apply to its default surface color after the outline is separated. */
+  surfaceFragment?: boolean
 }
 
 export interface ScenePoint {
