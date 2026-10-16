@@ -283,7 +283,7 @@ export function renderSequenceAscii(text: string, config: AsciiConfig, colorMode
   }
   // Frames use measured owned bounds, including complete conditions and notes.
   for (const positioned of [...closedFrames].reverse()) {
-    const element = owner(generated(`block:${positioned.index}`), 'group', positioned.parentId)
+    const element = owner(generated(`block:${positioned.index}`), 'compartment', positioned.parentId)
     frame(positioned, element)
     positioned.header.forEach((line, row) => doc.text(positioned.x + 1, positioned.y + row, line, { owner: element, role: 'text', kind: 'text' }))
     positioned.dividers.forEach(divider => {

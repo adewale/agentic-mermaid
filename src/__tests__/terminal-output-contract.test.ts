@@ -14,7 +14,7 @@ import { colorizeText } from '../ascii/ansi.ts'
 import { secureTerminalHtmlOutput } from '../terminal-security.ts'
 import { withoutTerminalColor } from './helpers/terminal-text.ts'
 import { renderMermaidASCIIWithMeta } from '../ascii/meta.ts'
-import { terminalDocumentOf } from '../ascii/terminal-document.ts'
+import { finishTerminalDocument, TerminalDocument, terminalDocumentOf } from '../ascii/terminal-document.ts'
 
 const SOURCE = 'flowchart LR\n  A[Start] --> B[Finish]'
 const OSC52 = '\u001b]52;c;dGVybWluYWwtZXhmaWx0cmF0aW9u\u0007'
@@ -185,6 +185,21 @@ describe('canonical terminal output policy', () => {
         expect(result.warnings).toContainEqual(expect.objectContaining({ code: 'TERMINAL_OWNERSHIP_UNAVAILABLE' }))
       } finally { restore() }
     }
+  })
+
+  test('public warnings retain final cell coordinates when a title translates a captured drawing', () => {
+    const descriptor = getFamily('flowchart')!
+    const restore = replaceFamilyForTest('flowchart', { ...descriptor, renderAscii(context) {
+      const drawing = new TerminalDocument(4, 2)
+      drawing.text(1, 1, 'X', { owner: { id: 'A', kind: 'node' } })
+      drawing.put(1, 1, '─', { owner: { id: 'route', kind: 'edge' } })
+      return finishTerminalDocument(context.config, drawing, { colorMode: context.colorMode, theme: context.theme })
+    } })
+    try {
+      const result = renderMermaidASCIIWithMeta(`---\ntitle: Heading\n---\n${SOURCE}`, { colorMode: 'none' })
+      expect(result.ascii.split('\n')[3]?.[1]).toBe('X')
+      expect(result.warnings).toContainEqual(expect.objectContaining({ code: 'TERMINAL_TEXT_COLLISION', cell: { column: 1, row: 3 } }))
+    } finally { restore() }
   })
 
   test('the output registry records the terminal security gate', () => {

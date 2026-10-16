@@ -5,6 +5,7 @@ import { renderErAscii } from '../ascii/er-diagram.ts'
 import { renderGitGraphAscii } from '../ascii/gitgraph.ts'
 import { renderMindmapAscii } from '../ascii/mindmap.ts'
 import { renderSequenceAscii } from '../ascii/sequence.ts'
+import { renderMermaidASCIIWithMeta } from '../ascii/meta.ts'
 import { DEFAULT_ASCII_THEME } from '../ascii/ansi.ts'
 import { beginTerminalCapture, capturedTerminalDocument } from '../ascii/terminal-document.ts'
 import type { AsciiConfig } from '../ascii/types.ts'
@@ -24,6 +25,30 @@ function capture(render: (config: AsciiConfig) => string, useAscii = false) {
 }
 
 describe('Terminal grid family adapters emit owned primitives', () => {
+  test.each([false, true])('State retains cluster semantics for composite frames and concurrent regions (ASCII=%s)', useAscii => {
+    const rendered = renderMermaidASCIIWithMeta('stateDiagram-v2\nstate Active {\n[*] --> A\n--\n[*] --> B\n}', { useAscii })
+    const clusters = rendered.regions.filter(region => region.kind === 'cluster')
+    expect(clusters.map(region => region.id).sort()).toEqual(['Active', 'Active__r1', 'Active__r2'])
+    expect(clusters.find(region => region.id === 'Active')?.members).toEqual(['Active__r1', 'Active__r2'])
+    for (const id of ['Active__r1', 'Active__r2']) expect(clusters.find(region => region.id === id)?.parentId).toBe('Active')
+    expect(rendered.regions.filter(region => region.kind === 'subgraph')).toEqual([])
+    expect(rendered.regions.find(region => region.id === 'A')?.parentId).toBe('Active__r1')
+    expect(rendered.regions.find(region => region.id === 'B')?.parentId).toBe('Active__r2')
+  })
+
+  test.each([false, true])('Class and ER preserve fixed rectangular public canvases, including title bands (ASCII=%s)', useAscii => {
+    for (const [source, renderer] of [
+      ['classDiagram\nclass C0', renderClassAscii],
+      ['classDiagram\ntitle Short<br/>Longer heading\nclass C0', renderClassAscii],
+      ['classDiagram\ntitle Short<br/>Longer heading', renderClassAscii],
+      ['erDiagram\nA ||--o{ A : a', renderErAscii],
+    ] as const) {
+      const { output, doc } = capture(config => renderer(source, config), useAscii)
+      expect(new Set(output.split('\n').map(visualWidth))).toEqual(new Set([doc.width]))
+      expect(output.split('\n')).toHaveLength(doc.height)
+    }
+  })
+
   test('native title fallbacks share each family display policy and inline titles retain priority', () => {
     const renderers = [
       ['classDiagram', 'class A', (source: string, config: AsciiConfig) => renderClassAscii(source, config)],
@@ -144,7 +169,7 @@ A ||--o{ B : "owns é"`, config))
     expect(output).toContain('顧客🙂')
     expect(output).toContain('label 👩‍💻')
     expect(output).toContain('owns é')
-    expect(region('Domain')).toMatchObject({ kind: 'group', members: ['A', 'B'] })
+    expect(region('Domain')).toMatchObject({ kind: 'cluster', members: ['A', 'B'] })
     expect(region('A').parentId).toBe('Domain')
     expect(region('A:compartment:1')).toMatchObject({ kind: 'compartment', parentId: 'A' })
     expect(region('A:compartment:1').ownedCellSpans.length).toBeGreaterThan(0)
@@ -176,8 +201,8 @@ G ||--o{ C : boundary`, config))
     expect(doc.diagnostics.filter(item => item.code === 'TERMINAL_TEXT_COLLISION')).toEqual([])
     const emptyGroups = capture(config => renderErAscii('erDiagram\nsubgraph First\nend\nsubgraph Second\nend\nFirst ||--|| Second : group only', config))
     expect(emptyGroups.output).toContain('group only')
-    expect(emptyGroups.region('First').kind).toBe('group')
-    expect(emptyGroups.region('Second').kind).toBe('group')
+    expect(emptyGroups.region('First').kind).toBe('cluster')
+    expect(emptyGroups.region('Second').kind).toBe('cluster')
     expect(emptyGroups.region('relationship:0').ports?.map(port => port.nodeId)).toEqual(['First', 'Second'])
   })
 

@@ -33,12 +33,12 @@ export function renderErAscii(text: string, config: AsciiConfig, colorMode?: Col
   const diagram = parseErDiagram(text.split('\n').map(line => line.trim()).filter(line => line && !line.startsWith('%%')))
   diagram.title ??= config.title === undefined ? undefined : normalizeBrTags(config.title)
   const finish = (doc: TerminalDocument): string => {
-    if (!diagram.title) return finishTerminalDocument(config, doc, { colorMode, theme, trimEnd: true })
+    if (!diagram.title) return finishTerminalDocument(config, doc, { colorMode, theme })
     const lines = wrapText(displayText(diagram.title), targetWidth)
     const titled = new TerminalDocument(Math.max(doc.width, ...lines.map(visualWidth)), doc.height ? doc.height + lines.length + 1 : lines.length)
     titled.scope({ id: 'title', kind: 'label' }, () => lines.forEach((line, row) => titled.text(Math.floor((titled.width - visualWidth(line)) / 2), row, line)))
     if (doc.height) titled.overlay(doc, 0, lines.length + 1)
-    return finishTerminalDocument(config, titled, { colorMode, theme, trimEnd: true })
+    return finishTerminalDocument(config, titled, { colorMode, theme })
   }
   checkAllClassLikeAuthoredStyles(diagram.classDefs, diagram.entities)
   if (!diagram.entities.length && !diagram.groups.length) return finish(new TerminalDocument())
@@ -145,7 +145,7 @@ export function renderErAscii(text: string, config: AsciiConfig, colorMode?: Col
   }
   const routes = allocateBoxRoutes([...placed.values(), ...groupFrames], relations, direction), doc = new TerminalDocument()
   for (const group of [...groupFrames].reverse()) {
-    const owner: TerminalOwner = { id: group.id, kind: 'group', parentId: group.parentId, members: group.members }
+    const owner: TerminalOwner = { id: group.id, kind: 'cluster', parentId: group.parentId, members: group.members }
     doc.region(owner, { x: group.x, y: group.y, width: group.width, height: group.height })
     const H = config.useAscii ? '-' : '─', V = config.useAscii ? '|' : '│'
     for (let x = group.x + 1; x < group.x + group.width - 1; x++) { doc.put(x, group.y, H, { owner, role: 'border' }); doc.put(x, group.y + group.height - 1, H, { owner, role: 'border' }) }

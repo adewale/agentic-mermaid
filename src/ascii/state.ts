@@ -14,7 +14,7 @@ interface Box { x: number; y: number; width: number; height: number }
 export function renderStateAscii(parsed: MermaidGraph, config: AsciiConfig, colorMode: ColorMode, theme: AsciiTheme, targetWidth?: number): string {
   const graph = convertToAsciiGraph(parsed, config)
   createMapping(graph)
-  drawGraph(graph)
+  drawGraph(graph, 'cluster')
   if (parsed.stateNotes?.length) overlayNotes(graph, parsed.stateNotes, targetWidth ?? config.maxWidth)
   if (parsed.direction === 'BT') {
     flipCanvasVertically(graph.canvas)

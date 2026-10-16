@@ -216,7 +216,7 @@ A-xC: goodbye`, config)
     expect(output).toContain('Generated note')
     expect(regions.find(item => item.kind === 'node' && item.id === 'note:0')?.projectedText).toBe('Authored')
     expect(regions.find(item => item.kind === 'node' && item.id === 'note:0#1')?.projectedText).toBe('Generated note')
-    expect(regions.find(item => item.kind === 'group')?.id).toBe('block:0#1')
+    expect(regions.find(item => item.kind === 'compartment')?.id).toBe('block:0#1')
     expect(regions.find(item => item.id === 'note:0#1')?.parentId).toBe('block:0#1')
   })
 

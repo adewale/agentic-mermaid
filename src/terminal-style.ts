@@ -56,6 +56,8 @@ export interface TerminalProjectionDiagnostic {
   code: TerminalProjectionDiagnosticCode
   feature: string
   message: string
+  /** Optional zero-based cell in the final composed terminal drawing. */
+  cell?: { column: number; row: number }
 }
 
 export interface ResolvedTerminalStyle {

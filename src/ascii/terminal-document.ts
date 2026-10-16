@@ -215,7 +215,7 @@ export class TerminalDocument {
     if (this.diagnosticKeys.has(key)) return
     this.diagnosticKeys.add(key)
     const description = code === 'TERMINAL_TEXT_COLLISION' ? 'Text footprints overlap' : code === 'TERMINAL_ROUTE_OVERLAP' ? 'Unrelated route runs overlap' : 'Incompatible occupied geometry overlaps'
-    this.diagnostics.push({ code, feature, message: `${description} at terminal cell (${x}, ${y}); owners: ${owners.map(owner => owner.id).join(', ')}.` })
+    this.diagnostics.push({ code, feature, cell: { column: x, row: y }, message: `${description}; owners: ${owners.map(owner => owner.id).join(', ')}.` })
   }
 
   private retire(x: number, y: number): void {
@@ -361,13 +361,17 @@ export class TerminalDocument {
     for (const owner of other.owners.values()) this.remember(owner)
     for (const [key, bounds] of other.declared) this.region(other.owners.get(key)!, { ...bounds, x: bounds.x + dx, y: bounds.y + dy })
     for (const [key, ports] of other.ports) for (const port of ports) this.port(other.owners.get(key)!, { ...port, x: port.x + dx, y: port.y + dy })
-    for (const diagnostic of other.diagnostics) this.report(diagnostic)
+    for (const diagnostic of other.diagnostics) this.report(diagnostic.cell
+      ? { ...diagnostic, cell: { column: diagnostic.cell.column + dx, row: diagnostic.cell.row + dy } }
+      : diagnostic)
   }
 
   /** Reflect positioned primitives. Text blocks retain their reading order. */
   flip(horizontal: boolean, vertical: boolean): void {
     const next = new Map<number, Map<number, TerminalCell>>()
     const blocks = new Map<TextBlock, TextBlock>()
+    const diagnosticSites = new Set(this.diagnostics.flatMap(diagnostic => diagnostic.cell ? [`${diagnostic.cell.column},${diagnostic.cell.row}`] : []))
+    const movedSites = new Map<string, { column: number; row: number }>()
     for (const [y, row] of this.rows) for (const [x, cell] of row) {
       if (cell.glyph === WIDE_CHAR_CONTINUATION) continue
       let nx = horizontal ? this.width - cell.width - x : x
@@ -391,6 +395,10 @@ export class TerminalDocument {
       const placed = { ...cell, glyph, head: nx, ...(block ? { textBlock: block } : {}) }
       target.set(nx, placed)
       for (let offset = 1; offset < cell.width; offset++) target.set(nx + offset, { ...placed, glyph: WIDE_CHAR_CONTINUATION })
+      for (let offset = 0; diagnosticSites.size > 0 && offset < cell.width; offset++) {
+        const site = `${x + offset},${y}`
+        if (diagnosticSites.has(site)) movedSites.set(site, { column: nx + offset, row: ny })
+      }
     }
     this.rows = next
     for (const bounds of this.declared.values()) {
@@ -400,6 +408,13 @@ export class TerminalDocument {
     for (const ports of this.ports.values()) for (const port of ports) {
       if (horizontal) { port.x = this.width - 1 - port.x; if (port.side === 'L') port.side = 'R'; else if (port.side === 'R') port.side = 'L' }
       if (vertical) { port.y = this.height - 1 - port.y; if (port.side === 'T') port.side = 'B'; else if (port.side === 'B') port.side = 'T' }
+    }
+    for (let index = 0; index < this.diagnostics.length; index++) {
+      const diagnostic = this.diagnostics[index]!
+      if (diagnostic.cell) this.diagnostics[index] = { ...diagnostic, cell: movedSites.get(`${diagnostic.cell.column},${diagnostic.cell.row}`) ?? {
+        column: horizontal ? this.width - 1 - diagnostic.cell.column : diagnostic.cell.column,
+        row: vertical ? this.height - 1 - diagnostic.cell.row : diagnostic.cell.row,
+      } }
     }
     this.activeTextBlock = undefined
     this.textGroups.clear()

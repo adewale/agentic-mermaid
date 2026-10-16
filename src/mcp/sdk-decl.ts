@@ -63,7 +63,7 @@ function codeModeRenderMethodDeclarations(): string {
 export const CODE_MODE_SHARED_RENDER_OPTIONS_DECLARATION = sharedRenderOptionsTypeScriptDeclaration()
 
 const CODE_MODE_OUTPUT_RENDER_OPTION_DECLARATIONS = `interface ConfigDiagnostic { code: 'INEFFECTIVE_CONFIG'; field: string; message: string }
-interface TerminalProjectionDiagnostic { code: string; feature: string; message: string }
+interface TerminalProjectionDiagnostic { code: string; feature: string; message: string; cell?: { column: number; row: number } }
 
 interface SvgRenderOptions extends SharedRenderOptions {
   onConfigDiagnostic?: (diagnostic: ConfigDiagnostic) => void

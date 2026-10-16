@@ -50,6 +50,36 @@ describe('owned terminal composition', () => {
     expect(doc.diagnostics).toHaveLength(1)
   })
 
+  test('diagnostic cells follow overlay and reflection without changing the source layer', () => {
+    const layer = new TerminalDocument(4, 4)
+    layer.text(1, 2, 'X', { owner: owner('label') })
+    layer.put(1, 2, '─', { owner: route('route') })
+    expect(layer.diagnostics[0]?.cell).toEqual({ column: 1, row: 2 })
+    const drawing = new TerminalDocument(12, 10)
+    drawing.overlay(layer, 3, 4)
+    expect(drawing.diagnostics[0]?.cell).toEqual({ column: 4, row: 6 })
+    expect(drawing.get(4, 6)).toBe('X')
+    drawing.flip(true, true)
+    expect(drawing.diagnostics[0]?.cell).toEqual({ column: 7, row: 3 })
+    expect(drawing.get(7, 3)).toBe('X')
+    expect(layer.diagnostics[0]?.cell).toEqual({ column: 1, row: 2 })
+  })
+
+  test('diagnostic reflection follows readable text blocks and wide continuations', () => {
+    const drawing = new TerminalDocument(8, 6)
+    drawing.scope(owner('label'), () => {
+      drawing.text(1, 1, '界x')
+      drawing.text(1, 2, 'abc')
+    })
+    drawing.put(2, 1, '│', { owner: route('route') })
+    expect(drawing.diagnostics[0]?.cell).toEqual({ column: 2, row: 1 })
+    drawing.flip(true, true)
+    expect(drawing.diagnostics[0]?.cell).toEqual({ column: 5, row: 3 })
+    expect(drawing.get(4, 3)).toBe('界')
+    expect(drawing.get(5, 3)).toBe(WIDE_CHAR_CONTINUATION)
+    expect(drawing.serialize().split('\n')[4]).toContain('abc')
+  })
+
   test.each([['─', '│', '┼'], ['-', '|', '+']] as const)('crossing %s and %s keeps distinct route owners', (horizontal, vertical, crossing) => {
     const doc = new TerminalDocument()
     doc.put(1, 1, horizontal, { owner: route('a') })

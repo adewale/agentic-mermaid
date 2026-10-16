@@ -43,9 +43,10 @@ export function renderClassAscii(text: string, config: AsciiConfig, colorMode?: 
   diagram.title ??= config.title
   checkAllClassLikeAuthoredStyles(diagram.classDefs, diagram.classes)
   if (!diagram.classes.length && !diagram.namespaces.length) {
-    const empty = new TerminalDocument()
-    if (diagram.title) for (const line of wrapText(displayText(normalizeBrTags(diagram.title)), targetWidth)) empty.line([{ text: line, owner: { id: 'title', kind: 'label' }, role: 'text' }])
-    return finishTerminalDocument(config, empty, { colorMode, theme, trimEnd: true })
+    const lines = diagram.title ? wrapText(displayText(normalizeBrTags(diagram.title)), targetWidth) : []
+    const empty = new TerminalDocument(Math.max(0, ...lines.map(visualWidth)), lines.length)
+    empty.scope({ id: 'title', kind: 'label' }, () => lines.forEach((line, row) => empty.text(0, row, line)))
+    return finishTerminalDocument(config, empty, { colorMode, theme })
   }
   const namespaceIds = (items: ClassNamespace[], parent = ''): string[] => items.flatMap(item => { const id = parent ? `${parent}.${item.name}` : item.name; return [id, ...namespaceIds(item.children, id)] })
   const generated = terminalIds([...diagram.classes.map(cls => cls.id), ...namespaceIds(diagram.namespaces)])
@@ -210,7 +211,7 @@ export function renderClassAscii(text: string, config: AsciiConfig, colorMode?: 
     const lines = wrapText(displayText(normalizeBrTags(diagram.title)), targetWidth), titled = new TerminalDocument(Math.max(doc.width, ...lines.map(visualWidth)), doc.height + lines.length + 1)
     titled.scope({ id: 'title', kind: 'label' }, () => lines.forEach((line, row) => titled.text(Math.floor((titled.width - visualWidth(line)) / 2), row, line)))
     titled.overlay(doc, 0, lines.length + 1)
-    return finishTerminalDocument(config, titled, { colorMode, theme, trimEnd: true })
+    return finishTerminalDocument(config, titled, { colorMode, theme })
   }
-  return finishTerminalDocument(config, doc, { colorMode, theme, trimEnd: true })
+  return finishTerminalDocument(config, doc, { colorMode, theme })
 }

@@ -23,7 +23,8 @@ Authored spaces belong to the text footprint, including trailing spaces.
 
 Text, markers and card surfaces cannot silently be erased by a later route.
 Incompatible text/geometry and unrelated collinear route overlaps produce
-projection diagnostics. Coincident identical markers retain all owners.
+projection diagnostics with optional zero-based cell coordinates that follow
+composition and reflection. Coincident identical markers retain all owners.
 Explicitly allocated bundles may share runs and markers. A crossing can have
 two independent route owners; a shared printed intersection does not merge
 their semantic identities.

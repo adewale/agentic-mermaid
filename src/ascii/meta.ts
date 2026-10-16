@@ -6,11 +6,11 @@ import type { DiagramActionRecord, ParsedDiagram, RenderedRegionKind } from '../
 import { ParsedDiagramFamilyMismatchError } from '../render-contract.ts'
 import { prepareRenderInput } from '../agent/render-input.ts'
 import { sanitizeTerminalText } from '../terminal-security.ts'
-import type { TerminalProjectionDiagnosticCode } from '../terminal-style.ts'
+import type { TerminalProjectionDiagnostic, TerminalProjectionDiagnosticCode } from '../terminal-style.ts'
 
 export type RegionKind = Exclude<RenderedRegionKind, 'canvas'> | 'subgraph'
 export type AsciiWarningCode = 'ASCII_RENDER_FAILED' | 'ASCII_EDGE_REGION_UNMAPPED' | TerminalProjectionDiagnosticCode
-export interface AsciiWarning { code: AsciiWarningCode; message: string; severity: 'degraded' }
+export interface AsciiWarning { code: AsciiWarningCode; message: string; severity: 'degraded'; cell?: TerminalProjectionDiagnostic['cell'] }
 export interface AsciiRegion extends Omit<TerminalRegion, 'ownedCellSpans'> {
   /** Exact occupied geometry, including spaces, continuations and repeated occurrences. */
   ownedCellSpans?: TerminalCellSpan[]
@@ -38,7 +38,7 @@ export function renderMermaidASCIIWithMeta(input: ParsedDiagram | string, option
   try {
     const rendered = renderMermaidASCIIWithReceipt(input, options)
     const document = terminalDocumentOf(rendered)
-    const warnings: AsciiWarning[] = rendered.terminalStyle.diagnostics.map(diagnostic => ({ code: diagnostic.code, severity: 'degraded', message: diagnostic.message }))
+    const warnings: AsciiWarning[] = rendered.terminalStyle.diagnostics.map(diagnostic => ({ code: diagnostic.code, severity: 'degraded', message: diagnostic.message, ...(diagnostic.cell ? { cell: diagnostic.cell } : {}) }))
     if (!document) warnings.push({ code: 'TERMINAL_OWNERSHIP_UNAVAILABLE', severity: 'degraded', message: 'This family returns terminal text without owned geometry; element regions cannot be established from its string output.' })
     const parsed = parseRegisteredMermaid(source)
     const regions: AsciiRegion[] = document?.regions() ?? []

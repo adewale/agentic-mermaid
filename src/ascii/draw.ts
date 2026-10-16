@@ -1499,7 +1499,7 @@ export function drawSubgraphBox(sg: AsciiSubgraph, graph: AsciiGraph): Canvas {
 }
 
 /** Draw a subgraph label centered in its header area. Supports multi-line labels. */
-export function drawSubgraphLabel(sg: AsciiSubgraph, graph: AsciiGraph): [Canvas, DrawingCoord] {
+export function drawSubgraphLabel(sg: AsciiSubgraph, graph: AsciiGraph, containerKind: 'subgraph' | 'cluster' = 'subgraph'): [Canvas, DrawingCoord] {
   const width = sg.maxX - sg.minX
   const height = sg.maxY - sg.minY
   if (width <= 0 || height <= 0) return [mkCanvas(0, 0), { x: 0, y: 0 }]
@@ -1510,7 +1510,7 @@ export function drawSubgraphLabel(sg: AsciiSubgraph, graph: AsciiGraph): [Canvas
   const lines = splitLines(sg.name)
 
   // Start at row 1 inside subgraph, expand downward for multiple lines
-  canvas.scope({ id: sg.id, kind: 'subgraph' }, () => { for (let i = 0; i < lines.length; i++) {
+  canvas.scope({ id: sg.id, kind: containerKind }, () => { for (let i = 0; i < lines.length; i++) {
     const line = lines[i]!
     const labelY = 1 + i
     let labelX = Math.floor(width / 2) - Math.floor(visualWidth(line) / 2)
@@ -1526,7 +1526,7 @@ export function drawSubgraphLabel(sg: AsciiSubgraph, graph: AsciiGraph): [Canvas
 // ============================================================================
 
 /** Sort subgraphs by nesting depth (shallowest first) for correct layered rendering. */
-function drawConcurrencyRegionSeparators(graph: AsciiGraph): Canvas {
+function drawConcurrencyRegionSeparators(graph: AsciiGraph, containerKind: 'subgraph' | 'cluster'): Canvas {
   const [maxX, maxY] = getCanvasSize(graph.canvas)
   const canvas = mkCanvas(maxX, maxY)
   for (const parent of graph.subgraphs) {
@@ -1542,7 +1542,7 @@ function drawConcurrencyRegionSeparators(graph: AsciiGraph): Canvas {
         const x = Math.round((ordered[index - 1]!.maxX + ordered[index]!.minX) / 2)
         const top = Math.max(parent.minY + 3, Math.min(...regions.map(region => region.minY)))
         const bottom = Math.min(parent.maxY - 1, Math.max(...regions.map(region => region.maxY)))
-        for (let y = top; y <= bottom; y++) canvas.put(x, y, graph.config.useAscii ? ':' : '┆', { owner: { id: parent.id, kind: 'subgraph' }, role: 'border' })
+        for (let y = top; y <= bottom; y++) canvas.put(x, y, graph.config.useAscii ? ':' : '┆', { owner: { id: parent.id, kind: containerKind }, role: 'border' })
       }
     } else {
       const ordered = [...regions].sort((a, b) => a.minY - b.minY)
@@ -1550,7 +1550,7 @@ function drawConcurrencyRegionSeparators(graph: AsciiGraph): Canvas {
         const y = Math.round((ordered[index - 1]!.maxY + ordered[index]!.minY) / 2)
         const left = Math.max(parent.minX + 1, Math.min(...regions.map(region => region.minX)))
         const right = Math.min(parent.maxX - 1, Math.max(...regions.map(region => region.maxX)))
-        for (let x = left; x <= right; x++) canvas.put(x, y, graph.config.useAscii ? '.' : '┄', { owner: { id: parent.id, kind: 'subgraph' }, role: 'border' })
+        for (let x = left; x <= right; x++) canvas.put(x, y, graph.config.useAscii ? '.' : '┄', { owner: { id: parent.id, kind: containerKind }, role: 'border' })
       }
     }
   }
@@ -1584,19 +1584,19 @@ function recordGraphPorts(graph: AsciiGraph, edge: AsciiEdge, start: DrawingCoor
   graph.canvas.port(owner, { nodeId: owner.to!, ...end, side: side(edge.endDir), end: 'end' })
 }
 
-export function drawGraph(graph: AsciiGraph): Canvas {
+export function drawGraph(graph: AsciiGraph, containerKind: 'subgraph' | 'cluster' = 'subgraph'): Canvas {
   const document = graph.canvas
   const parentFor = new Map(graph.subgraphs.flatMap(group => group.nodes.map(node => [node.name, group.id] as const)))
   for (const group of sortSubgraphsByDepth(graph.subgraphs)) {
     const owner = {
-      id: group.id, kind: 'subgraph' as const,
+      id: group.id, kind: containerKind,
       ...(group.parent ? { parentId: group.parent.id } : {}),
-      members: [...group.nodes.filter(node => !node.containerAnchor).map(node => node.name), ...group.children.map(child => child.id)],
+      members: [...group.nodes.filter(node => !node.containerAnchor && parentFor.get(node.name) === group.id).map(node => node.name), ...group.children.map(child => child.id)],
     }
     document.region(owner, { x: group.minX, y: group.minY, width: group.maxX - group.minX + 1, height: group.maxY - group.minY + 1 })
     if (!group.concurrencyRegion) document.overlay(drawSubgraphBox(group, graph).attribute(owner, { role: 'border' }), group.minX, group.minY)
   }
-  document.overlay(drawConcurrencyRegionSeparators(graph))
+  document.overlay(drawConcurrencyRegionSeparators(graph, containerKind))
   for (const node of graph.nodes) {
     if (!node.drawn && node.drawingCoord && node.drawing) {
       const owner = { id: node.name, kind: 'node' as const, ...(parentFor.has(node.name) ? { parentId: parentFor.get(node.name)! } : {}) }
@@ -1653,8 +1653,8 @@ export function drawGraph(graph: AsciiGraph): Canvas {
   }
   for (const group of graph.subgraphs) {
     if (group.nodes.length === 0 || group.concurrencyRegion) continue
-    const [label, offset] = drawSubgraphLabel(group, graph)
-    document.overlay(label.attribute({ id: group.id, kind: 'subgraph' }, { role: 'text' }), offset.x, offset.y)
+    const [label, offset] = drawSubgraphLabel(group, graph, containerKind)
+    document.overlay(label.attribute({ id: group.id, kind: containerKind }, { role: 'text' }), offset.x, offset.y)
   }
   return document
 }
