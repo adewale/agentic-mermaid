@@ -71,13 +71,15 @@ design context, never additional queues. Retired IDs are not reused.
 
 ## Ready build backlog
 
-- [ ] **BUILD-36 — Prepared text and owned rendering geometry** (`todo`, in progress).
+- [ ] **BUILD-36 — Prepared text and owned rendering geometry** (in review: [PR #395](https://github.com/adewale/agentic-mermaid/pull/395)).
   Execute the owner-requested cross-family contract in
   [`prepared-text-geometry-plan.md`](docs/project/prepared-text-geometry-plan.md):
   prepared literal/formatted text, complete pixel/cell bounds, owned terminal
   composition, shared quantitative projection and sequence semantic evaluation.
-  Covers #381–#384, #386, #391 and #392; integrate the compositor work already
-  underway for #386 rather than maintaining a competing implementation.
+  Implementation and independent multi-agent audit complete. Covers #381–#384,
+  #386, #391 and #392, including the compositor and audit fixes from PR #394.
+  See the linked acceptance plan and audit dispositions; final CI/review is
+  tracked on the PR.
 
 - [ ] **BUILD-27 — MCP Apps support** (`todo`). Expose an interactive
   in-agent diagram UI through MCP Apps: `ui://` resources, correct

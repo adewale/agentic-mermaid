@@ -79,4 +79,5 @@ test('checks lazy package files against the emitted graph when chunk topology ch
   const expected = expectedFilesWithLazyBuild(['dist/browser-lazy/chunks/chunk-[hash].js', ...base], ['dist/browser-lazy/chunks/chunk-ABCDEFG1.js', 'dist/browser-lazy/chunks/chunk-ABCDEFG2.js'])
   expect(publishPackageProblems({}, [...base, 'dist/browser-lazy/chunks/chunk-ABCDEFG1.js'], expected)).toContain('npm package is missing expected file: dist/browser-lazy/chunks/chunk-[hash].js (expected 2, found 1)')
   expect(publishPackageProblems({}, [...base, 'dist/browser-lazy/chunks/chunk-ABCDEFG1.js', 'dist/browser-lazy/chunks/chunk-ABCDEFG2.js'], expected)).toEqual([])
+  expect(publishPackageProblems({}, [...base, 'dist/browser-lazy/chunks/chunk-ABCDEFG1.js', 'dist/browser-lazy/chunks/chunk-ABCDEFGX.js'], expected, ['dist/browser-lazy/chunks/chunk-ABCDEFG2.js'])).toContain('npm package is missing required file: dist/browser-lazy/chunks/chunk-ABCDEFG2.js')
 })

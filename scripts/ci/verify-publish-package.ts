@@ -49,9 +49,10 @@ export function publishPackageProblems(
   packageJson: PackageJson,
   files: readonly string[],
   expectedFiles: readonly string[] = files.map(normalizePackagePath),
+  emittedFiles: readonly string[] = [],
 ): string[] {
   const present = new Set(files)
-  const required = new Set<string>(REQUIRED_PACKAGE_FILES)
+  const required = new Set<string>([...REQUIRED_PACKAGE_FILES, ...emittedFiles])
   for (const target of Object.values(packageJson.bin ?? {})) required.add(stripDotSlash(target))
   for (const entry of Object.values(packageJson.exports ?? {})) {
     if (typeof entry === 'string') required.add(stripDotSlash(entry))
@@ -128,7 +129,8 @@ if (import.meta.main) {
     writeFileSync(join(import.meta.dir, 'publish-package-files.json'), `${JSON.stringify({ schemaVersion: 2, files: normalized }, null, 2)}\n`)
     process.stdout.write(`wrote scripts/ci/publish-package-files.json (${normalized.length} files); review the diff\n`)
   }
-  const problems = publishPackageProblems(packageJson, files, writeManifest ? files.map(normalizePackagePath) : expectedFiles)
+  const emittedChunks = Object.keys(lazyBuild.outputs).filter(path => path.startsWith('dist/browser-lazy/chunks/') && path.endsWith('.js'))
+  const problems = publishPackageProblems(packageJson, files, writeManifest ? files.map(normalizePackagePath) : expectedFiles, emittedChunks)
   if (problems.length > 0) {
     process.stderr.write(problems.map(problem => `- ${problem}`).join('\n') + '\n')
     process.exit(1)

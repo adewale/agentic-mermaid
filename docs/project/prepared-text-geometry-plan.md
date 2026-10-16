@@ -1,6 +1,7 @@
 # Prepared text and owned rendering geometry
 
-Status: active implementation under root `TODO.md` BUILD-36. This is the
+Status: implementation and independent audit complete in PR 395; root `TODO.md`
+BUILD-36 tracks review and merge. This is the
 acceptance and verification plan; the root backlog owns unfinished work.
 
 The contract is one interpretation of authored display text, complete measured
@@ -80,5 +81,7 @@ Representative verification commands (Bun 1.4.2):
 
 New family witnesses were checked red against original production sources;
 CI independently confirms changed tests fail on the base branch. The shared
-reviewer's final 252-case raster probe passes. Final full-head CI status is
-recorded in the PR; it remains a delivery gate until green.
+reviewer's final 252-case raster probe passes. All 28 research examples render
+in both SVG and terminal with zero independent raster defects. The PR records
+final full-head CI status and immutable visual artifacts; green CI is required
+for delivery.
