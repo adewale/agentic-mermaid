@@ -2,6 +2,7 @@
 import { readFileSync } from 'node:fs'
 import { join, resolve } from 'node:path'
 import { pathToFileURL } from 'node:url'
+import { decodeXML } from 'entities'
 import {
   brotliCompressSync,
   constants as zlibConstants,
@@ -11,6 +12,13 @@ import {
   BROWSER_BUILTIN_FAMILY_IDS,
   type BrowserBuiltinFamilyId,
 } from '../../src/browser-lazy/generated/catalog.ts'
+
+/** XML descendants partition shaping runs; they do not insert visible spaces.
+ * Strip markup before decoding so authored tag-like characters remain text. */
+function displayedTexts(svg: string): string[] {
+  return [...svg.matchAll(/<text\b[^>]*>([\s\S]*?)<\/text>/g)]
+    .map(match => decodeXML(match[1]!.replace(/<[^>]+>/g, '')))
+}
 
 interface ImportRecord { path: string; kind: string }
 interface OutputRecord {
@@ -151,13 +159,13 @@ if (!MEASURE_ONLY) {
     ['flowchart', 'flowchart LR\n  A["x#hearts;y"] --> B'],
     ['er', 'erDiagram\n  A ||--o{ B : "x#hearts;y"'],
   ] as const) {
-    if (!(await renderMermaidSVGAsync(source)).includes('>x♥y<')) {
+    if (!displayedTexts(await renderMermaidSVGAsync(source)).includes('x♥y')) {
       throw new Error(`Built ${family} lazy decoder failed HTML5 named reference #hearts;`)
     }
   }
   for (const [name, displayed] of [['NotEqualTilde', '≂̸'], ['notit', '¬it;']] as const) {
     const svg = await renderMermaidSVGAsync(`pie\n  "A#${name};B" : 1\n`)
-    if (!svg.includes(`>A${displayed}B (100.0%)</text>`)) {
+    if (!displayedTexts(svg).includes(`A${displayed}B (100.0%)`)) {
       throw new Error(`Built Pie lazy decoder failed HTML5 named reference #${name};`)
     }
   }

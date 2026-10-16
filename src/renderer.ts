@@ -1,4 +1,4 @@
-import { graphTextBlock } from './layout-engine.ts'
+import { graphTextBlock } from './graph-text.ts'
 import type { PositionedGraph, PositionedNode, PositionedEdge, PositionedGroup, PositionedStateNote, Point, EdgeMarker, RenderContext, RenderOptions } from './types.ts'
 import type { DiagramColors } from './theme.ts'
 import { svgOpenTag, buildStyleBlock, buildShadowDefs } from './theme.ts'

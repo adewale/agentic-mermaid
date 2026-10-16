@@ -94,7 +94,7 @@ A->>B: done`, { useAscii })
     expect(inside).toBeGreaterThan(0)
     expect(outside).toBeGreaterThan(inside + 3)
     // The outer frame closes after the inside note box and before the outside box.
-    expect(rows.slice(inside + 2, outside - 1).some(row => row.startsWith(border))).toBe(true)
+    expect(rows.slice(inside + 2, outside - 1).some(row => row.trimStart().startsWith(border))).toBe(true)
     const content = rows[inside]!
     expect(content.trimEnd().endsWith(useAscii ? '|' : '│')).toBe(true)
     expect(content.lastIndexOf(useAscii ? '|' : '│')).toBeGreaterThan(content.indexOf('inside note') + 'inside note'.length)

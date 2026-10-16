@@ -7,7 +7,7 @@
 // ============================================================================
 
 import { LINE_HEIGHT_RATIO, measureTextWidth, measureSystemFontSafeTextWidth, measureMonospaceTextWidth } from './text-metrics.ts'
-import { HAS_FORMAT_TAGS, parseInlineFormatting, plainTextFromInlineFormatting } from './shared/inline-format.ts'
+import { HAS_FORMAT_TAGS } from './shared/inline-format.ts'
 import { prepareDisplayText, type DisplayRun } from './shared/display-text.ts'
 import type { PixelTextBlock } from './shared/prepared-text.ts'
 import { graphemes } from './shared/graphemes.ts'
@@ -71,7 +71,7 @@ export type LabelDisplay = 'formatted' | 'literal'
  * are formatting and which are text.
  */
 export function displayText(label: string, display: LabelDisplay = 'formatted'): string {
-  return display === 'literal' ? label : plainTextFromInlineFormatting(label)
+  return prepareDisplayText(label, display).lines.map(runs => runs.map(run => run.text).join('')).join('\n')
 }
 
 /**

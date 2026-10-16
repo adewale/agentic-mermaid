@@ -20,7 +20,7 @@ import type { DiagramColors } from '../theme.ts'
 import type { SvgSemanticIdentity } from './identity.ts'
 import { ensureSvgIdentity, semanticIdentityForSvg } from './identity.ts'
 import { ensureSvgAccessibility, relationAccessibility, relationAccessibilityForSvg } from './accessibility.ts'
-import { escapeAttr, escapeXml } from '../multiline-utils.ts'
+import { escapeAttr, escapeXml, renderMultilineText } from '../multiline-utils.ts'
 import type { LabelDisplay } from '../multiline-utils.ts'
 import { preparePixelText, type PixelTextBlock } from '../shared/prepared-text.ts'
 import {
@@ -31,6 +31,7 @@ import {
   pathMoveCount,
   sameConnectorPoint,
 } from './connector-geometry.ts'
+import { connectorInlineLabelText } from './bounds.ts'
 import { deriveConnectorTerminalProjection } from './connector-terminal.ts'
 import {
   attachSceneNodeSerialization,
@@ -203,13 +204,14 @@ function connectorInlineLabelSvg(
   if (!label.anchor || !label.paint || label.fontSize === undefined || label.textAnchor === undefined) {
     throw new TypeError(`Connector "${connectorId}" inline label ${index + 1} requires anchor, paint, fontSize, and textAnchor`)
   }
+  const block = connectorInlineLabelText(label)
   const attrs: string[] = [
     `data-id="${escapeAttr(label.id ?? `${connectorId}-label-${index + 1}`)}"`,
     'data-role="label"',
     `data-connector-label-for="${escapeAttr(connectorId)}"`,
-    `x="${label.anchor.x}"`,
-    `y="${label.anchor.y - Math.max(0, label.clearance ?? 0)}"`,
-    `font-size="${label.fontSize}"`,
+    `font-size="${block.fontSize}"`,
+    `font-weight="${block.fontWeight}"`,
+    ...(block.letterSpacing ? [`letter-spacing="${block.letterSpacing}"`] : []),
     `text-anchor="${label.textAnchor}"`,
   ]
   if (transform?.kind === 'rotate') attrs.push(`transform="rotate(${transform.angle} ${transform.cx} ${transform.cy})"`)
@@ -229,7 +231,7 @@ function connectorInlineLabelSvg(
     ['paint-order', paint.paintOrder], ['opacity', paint.opacity],
   ] as const
   for (const [name, value] of paintFields) if (value !== undefined) attrs.push(`${name}="${escapeAttr(value)}"`)
-  return `<text ${attrs.join(' ')}>${escapeXml(label.text)}</text>`
+  return renderMultilineText(block, label.anchor.x, label.anchor.y - Math.max(0, label.clearance ?? 0), block.fontSize, attrs.join(' '), 0)
 }
 
 export function connector(fields: ConnectorFields, crisp: string): ConnectorMark {
@@ -308,7 +310,11 @@ export function connector(fields: ConnectorFields, crisp: string): ConnectorMark
     ...(fields.identity?.from ?? endpoints.from ? { from: fields.identity?.from ?? endpoints.from } : {}),
     ...(fields.identity?.to ?? endpoints.to ? { to: fields.identity?.to ?? endpoints.to } : {}),
   }
-  const accessibility = relationAccessibility(identity, labels[0]?.text)
+  const firstLabel = labels[0]
+  const accessibleLabel = firstLabel?.visual?.kind === 'inline'
+    ? connectorInlineLabelText(firstLabel).lineBlocks.map(line => line.runs.map(run => run.text).join('')).join('\n')
+    : firstLabel?.text
+  const accessibility = relationAccessibility(identity, accessibleLabel)
   const projectedMarkers = ensureConnectorMarkerProjection(crisp, {
     ...(markerStart ? { start: markerStart.id } : {}),
     ...(midMarkerId ? { mid: midMarkerId } : {}),

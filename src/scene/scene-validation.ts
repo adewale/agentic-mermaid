@@ -1011,6 +1011,11 @@ function validateNode(value: unknown, path: string, state: ValidationState, dept
       }
       if (label.clearance !== undefined) finite(label.clearance, `${path}.labels[${index}].clearance`, state.diagnostics, { nonNegative: true })
       if (label.fontSize !== undefined) finite(label.fontSize, `${path}.labels[${index}].fontSize`, state.diagnostics, { positive: true })
+      if (label.fontWeight !== undefined) finite(label.fontWeight, `${path}.labels[${index}].fontWeight`, state.diagnostics, { positive: true })
+      if (label.letterSpacing !== undefined) finite(label.letterSpacing, `${path}.labels[${index}].letterSpacing`, state.diagnostics)
+      if (label.display !== undefined && label.display !== 'literal' && label.display !== 'formatted') {
+        add(state.diagnostics, 'SCENE_DOCUMENT', `${path}.labels[${index}].display`, 'must be literal or formatted')
+      }
       if (label.textAnchor !== undefined && !['start', 'middle', 'end'].includes(String(label.textAnchor))) {
         add(state.diagnostics, 'SCENE_DOCUMENT', `${path}.labels[${index}].textAnchor`, 'must be start, middle, or end')
       }

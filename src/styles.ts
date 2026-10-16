@@ -1,3 +1,4 @@
+import { prepareDisplayText } from './shared/display-text.ts'
 // ============================================================================
 // Font metrics — character width estimates for Inter at different sizes.
 // Used to approximate text bounding boxes without DOM measurement.
@@ -246,25 +247,17 @@ function textTransform(...values: Array<string | undefined>): TextTransform | un
   return undefined
 }
 
-const INLINE_FORMAT_TAG = new RegExp(`(${FORMAT_TAG_SOURCE})`, 'gi')
-const WHOLE_FORMAT_TAG = new RegExp(`^${FORMAT_TAG_SOURCE}$`, 'i')
-
+/** Preserve authored formatting syntax while transforming the complete visible
+ * word. Source ranges keep tags from introducing false capitalization points. */
 export function applyTextTransform(text: string, transform: TextTransform | undefined): string {
   if (!transform) return text
-  const transformPlain = (chunk: string): string => {
-    switch (transform) {
-      case 'uppercase':
-        return chunk.toUpperCase()
-      case 'lowercase':
-        return chunk.toLowerCase()
-      case 'capitalize':
-        return chunk.replace(/\b\p{L}/gu, ch => ch.toUpperCase())
-    }
+  const prepared = prepareDisplayText(text, 'formatted', transform)
+  let cursor = 0, result = ''
+  for (const runs of prepared.lines) for (const run of runs) {
+    result += text.slice(cursor, run.sourceStart) + run.text
+    cursor = run.sourceEnd
   }
-  return text
-    .split(INLINE_FORMAT_TAG)
-    .map(part => WHOLE_FORMAT_TAG.test(part) ? part : transformPlain(part))
-    .join('')
+  return result + text.slice(cursor)
 }
 
 export function resolveRenderStyle(

@@ -1,3 +1,4 @@
+import { applyTextTransform } from '../styles.ts'
 import { beforeAll, describe, expect, it } from 'bun:test'
 import { prepareDisplayText } from '../shared/display-text.ts'
 import { preparePixelText, fitPixelText } from '../shared/prepared-text.ts'
@@ -26,6 +27,13 @@ describe('prepared display text', () => {
     const text = prepareDisplayText('pre<b>fix</b> and s<i>uffix</i>', 'formatted', 'capitalize')
     expect(text.lines[0]!.map(run => run.text).join('')).toBe('Prefix And Suffix')
     expect(text.source).toBe('pre<b>fix</b> and s<i>uffix</i>')
+  })
+
+  it('capitalizes Unicode words without treating combining marks or formatting as boundaries', () => {
+    const source = 'café ångström niño résumé élève Ελληνικά'
+    const expected = 'Café Ångström Niño Résumé Élève Ελληνικά'
+    expect(preparePixelText(source, { ...typography, transform: 'capitalize' }).text).toBe(expected)
+    expect(applyTextTransform('ca<b>fé</b> ångström', 'capitalize')).toBe('Ca<b>fé</b> Ångström')
   })
 
   it('retains source ranges when casing expands characters and changes context', () => {

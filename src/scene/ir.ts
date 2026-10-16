@@ -17,6 +17,7 @@ import type { SvgSemanticIdentity } from './identity.ts'
 import type { SvgSemanticAccessibility } from './accessibility.ts'
 import type { PrimitiveRealization } from './capabilities.ts'
 import type { LabelDisplay } from '../multiline-utils.ts'
+import type { PixelTextBlock } from '../shared/prepared-text.ts'
 
 /** Version of the extension-facing Scene document/mark behavioral contract. */
 export { SCENE_CONTRACT_VERSION } from './version.ts'
@@ -265,6 +266,11 @@ export interface ConnectorLabelDescriptor {
   /** Resolved visual styling when the connector owns its label artwork. */
   paint?: MarkPaint
   fontSize?: number
+  /** Internal typography. External Scene v1 retains its fixed literal policy. */
+  fontWeight?: number
+  letterSpacing?: number
+  display?: LabelDisplay
+  block?: PixelTextBlock
   textAnchor?: 'start' | 'middle' | 'end'
   /** `inline` is serialized by the connector constructor; `companion`
    * records the separately emitted TextMark that owns the artwork. */

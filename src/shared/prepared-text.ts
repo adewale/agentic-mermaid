@@ -138,10 +138,15 @@ export function preparePixelText(source: string, options: PixelTextOptions): Pix
         end++
       }
       if (end === clusters.length) { broken.push(coalesce(clusters.slice(start))); break }
+      if (end > start && !/\s/u.test(clusters[end - 1]!.text) && /\s/u.test(clusters[end]?.text ?? '')) {
+        whitespace = end
+        while (whitespace < clusters.length && /\s/u.test(clusters[whitespace]!.text)) whitespace++
+      }
       let hyphen = false
       let paintEnd: number | undefined
       let replacedText: string | undefined
       if (whitespace > start) {
+        if (clusters.slice(start, whitespace).some(cluster => !/\s/u.test(cluster.text))) while (whitespace < clusters.length && /\s/u.test(clusters[whitespace]!.text)) whitespace++
         end = whitespace
         paintEnd = end
         while (paintEnd > start && /\s/u.test(clusters[paintEnd - 1]!.text)) paintEnd--

@@ -1,8 +1,7 @@
-import { measureTextWidth } from '../text-metrics.ts'
 import { rotateBoxBounds, type AxisAlignedBox } from '../shared/transformed-bounds.ts'
 import type { ConnectorLabelDescriptor, ConnectorMark, Geometry, MarkerDescriptor, SceneNode, ScenePoint } from './ir.ts'
 import { connectorEndpointAnchors, connectorMidpoints } from './connector-geometry.ts'
-import { preparePixelText } from '../shared/prepared-text.ts'
+import { preparePixelText, type PixelTextBlock } from '../shared/prepared-text.ts'
 
 function pointsBounds(points: Array<{ x: number; y: number }>): AxisAlignedBox | undefined {
   if (points.length === 0) return undefined
@@ -143,6 +142,35 @@ function connectorLocalBounds(node: ConnectorMark): AxisAlignedBox | undefined {
   return local
 }
 
+const connectorLabelBlocks = new WeakMap<ConnectorLabelDescriptor, PixelTextBlock>()
+
+/** One prepared text authority for connector-owned emission and visual bounds.
+ * Default literal interpretation preserves External Scene v1's escaped text. */
+export function connectorInlineLabelText(label: ConnectorLabelDescriptor): PixelTextBlock {
+  if (label.block) {
+    const block = label.block
+    if (block.prepared.source !== label.text
+      || (label.fontSize !== undefined && label.fontSize !== block.fontSize)
+      || (label.fontWeight !== undefined && label.fontWeight !== block.fontWeight)
+      || (label.letterSpacing !== undefined && label.letterSpacing !== block.letterSpacing)
+      || (label.display !== undefined && label.display !== block.prepared.display)) {
+      throw new TypeError('Connector inline label typography and source must agree with its prepared block')
+    }
+    return block
+  }
+  const fontSize = label.fontSize ?? 12
+  const fontWeight = label.fontWeight ?? 400
+  const letterSpacing = label.letterSpacing ?? 0
+  const display = label.display ?? 'literal'
+  const prior = connectorLabelBlocks.get(label)
+  if (prior && prior.prepared.source === label.text && prior.fontSize === fontSize
+    && prior.fontWeight === fontWeight && prior.letterSpacing === letterSpacing
+    && prior.prepared.display === display) return prior
+  const block = preparePixelText(label.text, { display, fontSize, fontWeight, letterSpacing })
+  connectorLabelBlocks.set(label, block)
+  return block
+}
+
 /** Conservative visual box for connector-owned inline label artwork. Shared
  * with External Scene admission so a declared box cannot under-report the
  * SVG that will actually be emitted. */
@@ -150,7 +178,8 @@ export function connectorInlineLabelVisualBounds(
   label: ConnectorLabelDescriptor,
 ): AxisAlignedBox | undefined {
   if (label.visual?.kind !== 'inline' || !label.anchor || label.fontSize === undefined || label.textAnchor === undefined) return undefined
-  const labelWidth = measureTextWidth(label.text, label.fontSize, 500)
+  const block = connectorInlineLabelText(label)
+  const labelWidth = block.width
   const x0 = label.textAnchor === 'middle'
     ? label.anchor.x - labelWidth / 2
     : label.textAnchor === 'end' ? label.anchor.x - labelWidth : label.anchor.x
@@ -158,9 +187,9 @@ export function connectorInlineLabelVisualBounds(
   const halo = Math.max(0, label.halo?.width ?? 0) / 2
   return expandSceneBounds({
     x0,
-    y0: y - label.fontSize,
+    y0: y - block.fontSize * 0.35 - block.height / 2,
     x1: x0 + labelWidth,
-    y1: y + label.fontSize * 0.28,
+    y1: y - block.fontSize * 0.35 + block.height / 2,
   }, halo)
 }
 

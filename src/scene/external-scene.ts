@@ -115,7 +115,8 @@ export interface ExternalSceneConnector extends ExternalSceneNodeBase {
   readonly labels?: readonly ExternalSceneConnectorLabel[]
 }
 
-export type ExternalSceneConnectorLabel = Omit<ConnectorLabelDescriptor, 'visual'>
+export type ExternalSceneConnectorLabel = Pick<ConnectorLabelDescriptor,
+  'id' | 'text' | 'anchor' | 'bounds' | 'halo' | 'clearance' | 'paint' | 'fontSize' | 'textAnchor'>
 
 export type ExternalSceneNode =
   | ExternalSceneShape

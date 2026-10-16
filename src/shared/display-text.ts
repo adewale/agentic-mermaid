@@ -21,7 +21,7 @@ export interface PreparedDisplayText {
 export function transformDisplayText(text: string, transform?: TextTransform): string {
   if (transform === 'uppercase') return text.toUpperCase()
   if (transform === 'lowercase') return text.toLowerCase()
-  if (transform === 'capitalize') return text.replace(/\b\p{L}/gu, ch => ch.toUpperCase())
+  if (transform === 'capitalize') return text.replace(/(?<![\p{L}\p{M}\p{N}\p{Pc}])\p{L}/gu, ch => ch.toUpperCase())
   return text
 }
 
@@ -52,7 +52,7 @@ export function prepareDisplayText(source: string, display: LabelDisplay = 'form
     const transformed = transformDisplayText(visible, transform)
     let at = 0
     let transformedAt = 0
-    const capitalized = transform === 'capitalize' ? new Set([...visible.matchAll(/\b\p{L}/gu)].map(match => match.index!)) : undefined
+    const capitalized = transform === 'capitalize' ? new Set([...visible.matchAll(/(?<![\p{L}\p{M}\p{N}\p{Pc}])\p{L}/gu)].map(match => match.index!)) : undefined
     runs = runs.map(run => {
       const start = transformedAt
       let sourceAt = run.sourceStart
