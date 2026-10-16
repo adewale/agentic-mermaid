@@ -1,5 +1,6 @@
 import { reply, rpcError, toolResult, type JsonRpcRequest, type JsonRpcResponse } from './protocol.ts'
 import { DESCRIBE_FORMATS } from '../agent/describe.ts'
+import type { McpResourceContents, McpResourceDefinition } from './resource-surface.ts'
 import {
   META_SERVER_INFO,
   isLegacyProtocolVersion,
@@ -38,6 +39,15 @@ export interface McpToolDefinition {
     idempotentHint?: boolean
     openWorldHint?: boolean
   }
+  /** MCP Apps linkage (extension io.modelcontextprotocol/ui): a host that
+   *  supports the extension renders this tool's result with the referenced
+   *  ui:// resource; every other host ignores it and uses the result as-is. */
+  _meta?: {
+    ui?: {
+      resourceUri: string
+      visibility?: readonly ('model' | 'app')[]
+    }
+  }
 }
 
 /** Adapt independently authored tool definitions to the closed argument
@@ -56,6 +66,10 @@ export interface McpServerSurface<Context> {
    *  Defaults to the single pinned `protocolVersion` when it is a constant. */
   supportedVersions?: readonly string[]
   tools: McpToolDefinition[]
+  /** Static resource roster. A surface without one advertises no resources
+   *  capability and answers resources/* as Method not found. */
+  resources?: readonly McpResourceDefinition[]
+  readResource?(uri: string): McpResourceContents | null
   instructions: string
   handleToolCall(id: number | string | null, params: unknown, context: Context): JsonRpcResponse | Promise<JsonRpcResponse>
 }
@@ -92,10 +106,21 @@ export const MCP_SERVER_NAME = 'agentic-mermaid-mcp'
 // The release identity gate keeps this runtime-safe constant synchronized with
 // package.json so every MCP handshake reports the published package version.
 export const MCP_SERVER_VERSION = PACKAGE_VERSION
-// The product surface is tools-only. Advertising an empty prompt/resource
-// namespace makes clients probe methods we do not implement and overstates the
-// server's scope; optional MCP features must be claimed only when complete.
-const SERVER_CAPABILITIES = { tools: {} } as const
+// Optional MCP features are claimed only by a surface that implements them:
+// advertising an empty namespace makes clients probe methods we do not serve.
+// A surface that publishes resources declares a static, version-pinned roster
+// (listChanged: false is a statement, not a default) and declares
+// resources/subscribe unimplemented rather than silently ignoring it.
+function publishesResources<Context>(surface: McpServerSurface<Context>): surface is McpServerSurface<Context> & { resources: readonly McpResourceDefinition[] } {
+  return (surface.resources?.length ?? 0) > 0
+}
+
+function serverCapabilities<Context>(surface: McpServerSurface<Context>) {
+  return publishesResources(surface)
+    ? { tools: {}, resources: { subscribe: false, listChanged: false } }
+    : { tools: {} }
+}
+
 export const PURE_COMPUTE_ANNOTATIONS = {
   readOnlyHint: true,
   destructiveHint: false,
@@ -384,7 +409,7 @@ export function surfaceSupportedVersions<Context>(surface: McpServerSurface<Cont
 function discoverResult<Context>(surface: McpServerSurface<Context>, supportedVersions: readonly string[]) {
   return {
     supportedVersions: [...supportedVersions],
-    capabilities: SERVER_CAPABILITIES,
+    capabilities: serverCapabilities(surface),
     instructions: surface.instructions,
   }
 }
@@ -443,7 +468,7 @@ export async function dispatchAdmittedMcpRequest<Context>(message: AdmittedMcpMe
       response = reply(id, {
         protocolVersion,
         serverInfo: { name: surface.serverName ?? MCP_SERVER_NAME, version: MCP_SERVER_VERSION },
-        capabilities: SERVER_CAPABILITIES,
+        capabilities: serverCapabilities(surface),
         instructions: surface.instructions,
       })
       break
@@ -454,6 +479,34 @@ export async function dispatchAdmittedMcpRequest<Context>(message: AdmittedMcpMe
       ? reply(id, discoverResult(surface, servedVersions))
       : unknownMethod(id, req.method); break
     case 'tools/list': response = reply(id, { tools: surface.tools }); break
+    case 'resources/list': response = publishesResources(surface)
+      ? reply(id, { resources: surface.resources })
+      : unknownMethod(id, req.method); break
+    // No resource templates exist (per-family op discovery stays on the
+    // describe_sdk tool), but a client that saw the resources capability may
+    // legitimately probe: answer with the empty roster, not Method-not-found.
+    case 'resources/templates/list': response = publishesResources(surface)
+      ? reply(id, { resourceTemplates: [] })
+      : unknownMethod(id, req.method); break
+    case 'resources/read': {
+      if (!publishesResources(surface)) {
+        response = unknownMethod(id, req.method)
+        break
+      }
+      const uri = isPlainRecord(req.params) ? req.params.uri : undefined
+      if (typeof uri !== 'string') {
+        response = rpcError(id, -32602, 'Invalid params: resources/read requires `uri` (string)')
+        break
+      }
+      const contents = surface.readResource?.(uri) ?? null
+      // This revision retired -32002 (ResourceNotFound); unknown URIs are
+      // Invalid params per the reserved-error-code policy the static sweep
+      // in mcp-reserved-error-codes.test.ts enforces.
+      response = contents
+        ? reply(id, contents)
+        : rpcError(id, -32602, `Invalid params: resource not found: ${uri}`, { uri })
+      break
+    }
     case 'tools/call': {
       if (!isPlainRecord(req.params)) {
         response = rpcError(id, -32602, 'Invalid params: tools/call requires an object')
@@ -500,7 +553,11 @@ export async function dispatchAdmittedMcpRequest<Context>(message: AdmittedMcpMe
 export const LIST_RESULT_TTL_MS = 300_000
 
 /** The operations the spec requires caching hints on, intersected with ours. */
-const CACHEABLE_METHODS = new Set(['server/discover', 'tools/list'])
+// resources/read is included because every served resource is a
+// version-static constant — its content changes only with the package
+// version, exactly like the list rosters (SEP-2549 requires hints on
+// cacheable reads, and ours are all cacheable).
+const CACHEABLE_METHODS = new Set(['server/discover', 'tools/list', 'resources/list', 'resources/templates/list', 'resources/read'])
 
 /**
  * Result fields this revision requires, applied on the MODERN path only.

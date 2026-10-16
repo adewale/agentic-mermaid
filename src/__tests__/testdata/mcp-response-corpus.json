@@ -341,16 +341,28 @@
           "message": "Method not found: prompts/list"
         }
       },
-      "error/unadvertised-resources-list": {
+      "resources-list": {
         "error": {
           "code": -32601,
           "message": "Method not found: resources/list"
         }
       },
-      "error/unadvertised-resource-templates-list": {
+      "resource-templates-list": {
         "error": {
           "code": -32601,
           "message": "Method not found: resources/templates/list"
+        }
+      },
+      "resources-read/preview-view": {
+        "error": {
+          "code": -32601,
+          "message": "Method not found: resources/read"
+        }
+      },
+      "error/resources-read-unknown-uri": {
+        "error": {
+          "code": -32601,
+          "message": "Method not found: resources/read"
         }
       },
       "modern/server-discover": {
@@ -473,9 +485,13 @@
         "version": "<package-version>"
       },
       "capabilities": {
-        "tools": {}
+        "tools": {},
+        "resources": {
+          "subscribe": false,
+          "listChanged": false
+        }
       },
-      "instructions": "agentic-mermaid hosted MCP server (stateless). Direct tools render_svg, render_ascii, render_png, verify, and describe cover plain render/verify calls cheaply. Successful deterministic pure-tool results may be reused by a private server-side compute cache for up to 24 hours; execute, mutate, and build bypass it. HTTP /mcp responses themselves are cache-control: no-store, so clients must not infer response freshness from CDN headers. The x-agentic-mermaid-compute-cache response header reports hit, miss, mixed, bypass, or disabled. There is no layout seed — the library's optional style seed only re-rolls ink of styled looks. describe_sdk progressively discloses one family's version-matched mutation schema. Declarative mutate/build apply typed op lists and verify before emitting source; prefer them for straightforward structured edits. execute runs synchronous JavaScript against the typed mermaid.* SDK in an isolated on-demand sandbox for logic the ops don't express; async/await and Promise jobs are not supported, and network access is disabled. Inputs are capped at 64KB; for bigger diagrams, Code Mode artifacts, or file/URL PNG output, run the local stdio server (see https://agentic-mermaid.dev/docs/mcp/)."
+      "instructions": "agentic-mermaid hosted MCP server (stateless). Direct tools render_svg, render_ascii, render_png, verify, and describe cover plain render/verify calls cheaply; preview renders and verifies a diagram for the user to see, and hosts that support MCP Apps show it as a read-only diagram view. Successful deterministic pure-tool results may be reused by a private server-side compute cache for up to 24 hours; execute, mutate, and build bypass it. HTTP /mcp responses themselves are cache-control: no-store, so clients must not infer response freshness from CDN headers. The x-agentic-mermaid-compute-cache response header reports hit, miss, mixed, bypass, or disabled. There is no layout seed — the library's optional style seed only re-rolls ink of styled looks. describe_sdk progressively discloses one family's version-matched mutation schema. Declarative mutate/build apply typed op lists and verify before emitting source; prefer them for straightforward structured edits. execute runs synchronous JavaScript against the typed mermaid.* SDK in an isolated on-demand sandbox for logic the ops don't express; async/await and Promise jobs are not supported, and network access is disabled. Inputs are capped at 64KB; for bigger diagrams, Code Mode artifacts, or file/URL PNG output, run the local stdio server (see https://agentic-mermaid.dev/docs/mcp/)."
     },
     "supportedProtocolVersions": [
       "2025-03-26",
@@ -1109,6 +1125,150 @@
             }
           }
         }
+      },
+      {
+        "name": "preview",
+        "description": "Render and verify a Mermaid diagram so the user can see it. Returns\n{ ok, family, summary, warnings, svg } for valid diagrams and { ok: false, errors }\nfor parse failures. `ok` is the verify verdict, so a diagram that fails\nverification still returns its svg. Hosts that support MCP Apps show the result\nas a read-only diagram view; every other host receives the same JSON. The hosted\nboundary forces security:'strict' and embedFontImport:false.",
+        "annotations": {
+          "readOnlyHint": true,
+          "destructiveHint": false,
+          "idempotentHint": true,
+          "openWorldHint": false
+        },
+        "_meta": {
+          "ui": {
+            "resourceUri": "ui://agentic-mermaid/preview"
+          }
+        },
+        "inputSchemaSha256": "590412976494d0a4e971800df82ce4e9773d095fe1ff1d1bfd906327240d67af",
+        "inputSchemaShape": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "source"
+          ],
+          "properties": {
+            "options": {
+              "type": "object",
+              "additionalProperties": false,
+              "properties": {
+                "accent": {
+                  "type": "string"
+                },
+                "architecture": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "propertyNames": [
+                    "visual"
+                  ]
+                },
+                "bg": {
+                  "type": "string"
+                },
+                "border": {
+                  "type": "string"
+                },
+                "class": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "propertyNames": [
+                    "hierarchicalNamespaces"
+                  ]
+                },
+                "compact": {
+                  "type": "boolean"
+                },
+                "componentSpacing": {
+                  "type": "number"
+                },
+                "embedFontImport": {
+                  "type": "boolean"
+                },
+                "fg": {
+                  "type": "string"
+                },
+                "font": {
+                  "type": "string"
+                },
+                "gantt": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "propertyNames": [
+                    "criticalPath",
+                    "dependencyArrows"
+                  ]
+                },
+                "ganttToday": {
+                  "type": "string"
+                },
+                "idPrefix": {
+                  "type": "string"
+                },
+                "interactive": {
+                  "type": "boolean"
+                },
+                "journey": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "propertyNames": [
+                    "experienceCurve"
+                  ]
+                },
+                "layerSpacing": {
+                  "type": "number"
+                },
+                "line": {
+                  "type": "string"
+                },
+                "mermaidConfig": {
+                  "type": "object"
+                },
+                "muted": {
+                  "type": "string"
+                },
+                "nodeSpacing": {
+                  "type": "number"
+                },
+                "padding": {
+                  "type": "number"
+                },
+                "security": {
+                  "type": "string",
+                  "enum": [
+                    "default",
+                    "strict"
+                  ]
+                },
+                "seed": {
+                  "type": "number"
+                },
+                "shadow": {
+                  "type": "boolean"
+                },
+                "style": {},
+                "surface": {
+                  "type": "string"
+                },
+                "timeline": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "propertyNames": [
+                    "maxWidth"
+                  ]
+                },
+                "transparent": {
+                  "type": "boolean"
+                },
+                "wrappingWidth": {
+                  "type": "number"
+                }
+              }
+            },
+            "source": {
+              "type": "string"
+            }
+          }
+        }
       }
     ],
     "calls": {
@@ -1160,16 +1320,52 @@
           "message": "Method not found: prompts/list"
         }
       },
-      "error/unadvertised-resources-list": {
-        "error": {
-          "code": -32601,
-          "message": "Method not found: resources/list"
+      "resources-list": {
+        "result": {
+          "resources": [
+            {
+              "uri": "ui://agentic-mermaid/preview",
+              "name": "preview-view",
+              "title": "Diagram preview",
+              "description": "Read-only MCP Apps view for the preview tool: the rendered diagram, its family and summary, and its verification warnings.",
+              "mimeType": "text/html;profile=mcp-app"
+            }
+          ]
         }
       },
-      "error/unadvertised-resource-templates-list": {
+      "resource-templates-list": {
+        "result": {
+          "resourceTemplates": []
+        }
+      },
+      "resources-read/preview-view": {
+        "result": {
+          "contents": [
+            {
+              "uri": "ui://agentic-mermaid/preview",
+              "mimeType": "text/html;profile=mcp-app",
+              "_meta": {
+                "ui": {
+                  "csp": {
+                    "connectDomains": [],
+                    "resourceDomains": [],
+                    "frameDomains": [],
+                    "baseUriDomains": []
+                  },
+                  "prefersBorder": true
+                }
+              }
+            }
+          ]
+        }
+      },
+      "error/resources-read-unknown-uri": {
         "error": {
-          "code": -32601,
-          "message": "Method not found: resources/templates/list"
+          "code": -32602,
+          "message": "Invalid params: resource not found: agentic-mermaid://nope",
+          "data": {
+            "uri": "agentic-mermaid://nope"
+          }
         }
       },
       "verify/flowchart": {
@@ -1210,9 +1406,13 @@
             "2026-07-28"
           ],
           "capabilities": {
-            "tools": {}
+            "tools": {},
+            "resources": {
+              "subscribe": false,
+              "listChanged": false
+            }
           },
-          "instructions": "agentic-mermaid hosted MCP server (stateless). Direct tools render_svg, render_ascii, render_png, verify, and describe cover plain render/verify calls cheaply. Successful deterministic pure-tool results may be reused by a private server-side compute cache for up to 24 hours; execute, mutate, and build bypass it. HTTP /mcp responses themselves are cache-control: no-store, so clients must not infer response freshness from CDN headers. The x-agentic-mermaid-compute-cache response header reports hit, miss, mixed, bypass, or disabled. There is no layout seed — the library's optional style seed only re-rolls ink of styled looks. describe_sdk progressively discloses one family's version-matched mutation schema. Declarative mutate/build apply typed op lists and verify before emitting source; prefer them for straightforward structured edits. execute runs synchronous JavaScript against the typed mermaid.* SDK in an isolated on-demand sandbox for logic the ops don't express; async/await and Promise jobs are not supported, and network access is disabled. Inputs are capped at 64KB; for bigger diagrams, Code Mode artifacts, or file/URL PNG output, run the local stdio server (see https://agentic-mermaid.dev/docs/mcp/).",
+          "instructions": "agentic-mermaid hosted MCP server (stateless). Direct tools render_svg, render_ascii, render_png, verify, and describe cover plain render/verify calls cheaply; preview renders and verifies a diagram for the user to see, and hosts that support MCP Apps show it as a read-only diagram view. Successful deterministic pure-tool results may be reused by a private server-side compute cache for up to 24 hours; execute, mutate, and build bypass it. HTTP /mcp responses themselves are cache-control: no-store, so clients must not infer response freshness from CDN headers. The x-agentic-mermaid-compute-cache response header reports hit, miss, mixed, bypass, or disabled. There is no layout seed — the library's optional style seed only re-rolls ink of styled looks. describe_sdk progressively discloses one family's version-matched mutation schema. Declarative mutate/build apply typed op lists and verify before emitting source; prefer them for straightforward structured edits. execute runs synchronous JavaScript against the typed mermaid.* SDK in an isolated on-demand sandbox for logic the ops don't express; async/await and Promise jobs are not supported, and network access is disabled. Inputs are capped at 64KB; for bigger diagrams, Code Mode artifacts, or file/URL PNG output, run the local stdio server (see https://agentic-mermaid.dev/docs/mcp/).",
           "_meta": {
             "io.modelcontextprotocol/serverInfo": {
               "name": "agentic-mermaid-hosted",
@@ -1235,7 +1435,8 @@
             "verify",
             "describe",
             "mutate",
-            "build"
+            "build",
+            "preview"
           ],
           "_meta": {
             "io.modelcontextprotocol/serverInfo": {
@@ -1284,7 +1485,8 @@
             "verify",
             "describe",
             "mutate",
-            "build"
+            "build",
+            "preview"
           ],
           "_meta": {
             "io.modelcontextprotocol/serverInfo": {

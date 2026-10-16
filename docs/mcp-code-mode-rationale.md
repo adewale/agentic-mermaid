@@ -4,7 +4,7 @@
 Local `agentic-mermaid-mcp` is intentionally Code Mode first. Its primary tool is `execute(code)`, which runs synchronous JavaScript against the typed `mermaid.*` SDK in a local `node:vm` sandbox. This is a local implementation inspired by Code Mode as a product shape; it is not Cloudflare Codemode, not backed by `@cloudflare/codemode`, and not an OS/container security boundary. The local helper tools (`describe_sdk`, `render_png`, and `describe`) are narrow conveniences, not a second full authoring API.
 
 <!-- complete: hosted-mcp-tools -->
-There is now also a **hosted** MCP at `https://agentic-mermaid.dev/mcp` (stateless Streamable HTTP; see the [as-built record](./project/archive/hosted-mcp-cloudflare-plan.md)). It keeps `execute` but runs agent code in a per-request Cloudflare Dynamic Worker isolate (`globalOutbound: null`, empty env, `cpuMs` budget) instead of a local `node:vm` — there the isolate configuration *is* the security boundary — and adds `describe_sdk` plus direct `render_svg`/`render_ascii`/`render_png`/`verify`/`describe` tools so schema discovery and common render/verify paths avoid a billable isolate, plus the declarative `mutate`/`build` tools (see below). Both share the same hardened `mermaid.*` facade; their semantics are pinned against each other by a differential test suite, with one explicit host-policy divergence: both hosted `renderMermaidSVG*` execute methods and the direct `render_svg` tool force `security: 'strict'` and `embedFontImport: false`, even if agent code asks for weaker values. Local Code Mode retains the library's caller-selectable policy.
+There is now also a **hosted** MCP at `https://agentic-mermaid.dev/mcp` (stateless Streamable HTTP; see the [as-built record](./project/archive/hosted-mcp-cloudflare-plan.md)). It keeps `execute` but runs agent code in a per-request Cloudflare Dynamic Worker isolate (`globalOutbound: null`, empty env, `cpuMs` budget) instead of a local `node:vm` — there the isolate configuration *is* the security boundary — and adds `describe_sdk` plus direct `render_svg`/`render_ascii`/`render_png`/`verify`/`describe` tools so schema discovery and common render/verify paths avoid a billable isolate, plus the declarative `mutate`/`build` tools and the `preview` tool with its MCP Apps view (see below). Both share the same hardened `mermaid.*` facade; their semantics are pinned against each other by a differential test suite, with one explicit host-policy divergence: both hosted `renderMermaidSVG*` execute methods and the direct `render_svg` and `preview` tools force `security: 'strict'` and `embedFontImport: false`, even if agent code asks for weaker values. Local Code Mode retains the library's caller-selectable policy.
 
 ## Why the MCP server exists
 
@@ -51,7 +51,7 @@ Local MCP keeps only three helpers:
 - `describe(source)` exists because one-shot natural-language summaries are common for screen readers, docs, and context compaction.
 
 <!-- complete: hosted-mcp-tools -->
-The hosted endpoint adds the same direct discovery tool (`describe_sdk`) and direct pure tools (`render_svg`, `render_ascii`, `render_png`, `verify`, `describe`) because every hosted `execute` contacts a Dynamic Worker; schema discovery and common render/verify calls should be ordinary Worker invocations eligible for the private compute cache. Hosted `mutate` and `build` are the only declarative authoring tools, and they exist to apply typed op lists with the verify-before-emit contract without asking a weaker model to write JavaScript. They do not introduce a separate mutation engine.
+The hosted endpoint adds the same direct discovery tool (`describe_sdk`) and direct pure tools (`render_svg`, `render_ascii`, `render_png`, `verify`, `describe`) because every hosted `execute` contacts a Dynamic Worker; schema discovery and common render/verify calls should be ordinary Worker invocations eligible for the private compute cache. Hosted `mutate` and `build` are the only declarative authoring tools, and they exist to apply typed op lists with the verify-before-emit contract without asking a weaker model to write JavaScript. They do not introduce a separate mutation engine. Hosted `preview` is `render_svg` plus `verify` in one call, and it is the one tool linked to an MCP Apps view (below).
 
 Direct render tools accept shared render fields only through the canonical
 nested `options` object, generated from the shared RenderOptions descriptors.
@@ -59,6 +59,35 @@ Palette selection uses `options.style`; `theme` and top-level
 `bg`/`fg`/`style`/`seed` are not tool inputs.
 
 Local managed artifacts are generated under one exclusively owned server artifact directory with safe names, per-file and aggregate limits, persisted TTL cleanup, MIME type, byte count, and SHA-256 integrity metadata; they are not arbitrary user-chosen file writes. A second live owner fails closed instead of racing a stale manifest. Hosted `render_png` returns base64 only.
+
+## The preview view: MCP Apps, read-only
+
+The hosted server publishes one MCP resource, `ui://agentic-mermaid/preview`:
+an MCP Apps view (extension `io.modelcontextprotocol/ui`, specification
+2026-01-26, MIME type `text/html;profile=mcp-app`) that the `preview` tool
+links through `_meta.ui.resourceUri`. A host that supports MCP Apps renders the
+view in a sandboxed iframe and forwards the tool result to it; the person sees
+the diagram, its family, the verify verdict, and any warnings. Every other host
+ignores the link and receives the same JSON, so the tool stays useful without
+the extension.
+
+The view is deliberately read-only and passive. It is one self-contained HTML
+document (inline style and script, no network), so its declared CSP lists no
+external origin of any kind, and it runs under the spec's default policy. It
+never calls tools: it completes the `ui/initialize` handshake and renders the
+result it is given. The SVG is shown as an `<img>` with a `data:` URL, so the
+diagram cannot run script or reach the view's document even if a renderer bug
+let markup through; every other value is written as text, never parsed as
+HTML. An editable view would need host-mediated tool calls and is future work.
+
+Because the transport is stateless and `tools/list` is publicly cacheable, the
+server lists `preview` and its link for every client rather than gating them
+on the client's declared UI capability. The roster is static per package
+version (`listChanged: false`; `resources/subscribe` is unimplemented and
+declared as such), `resources/read` carries the spec's caching hints in the
+modern era, and an off-roster URI fails with `-32602`. The local server
+publishes no resources. There are no MCP prompts: the agent skill and
+`describe_sdk` already deliver the authoring doctrine and op schemas.
 
 ## Equivalence example
 

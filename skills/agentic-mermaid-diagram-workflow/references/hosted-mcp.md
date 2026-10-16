@@ -60,6 +60,11 @@ synonym is still an invalid call.
 - `execute({ code, timeoutMs? })` runs synchronous JavaScript with the injected
   `mermaid.*` global. Reserve it for custom control flow that a direct tool or
   op list cannot express.
+- `preview({ source, options? })` renders and verifies a diagram for the user
+  to see. It returns `{ ok, family, summary, warnings, svg }`, or
+  `{ ok: false, errors }` when the source does not parse. Hosts that support
+  MCP Apps show the result as a read-only diagram view; other hosts receive
+  the same JSON.
 
 There is no hosted `capabilities` tool. Use the MCP client's `tools/list` for
 tool discovery and `describe_sdk` for one family's mutation schema.

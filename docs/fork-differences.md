@@ -11,7 +11,7 @@ The canonical live site is **[agentic-mermaid.dev](https://agentic-mermaid.dev/)
 - Family comparisons (Mermaid vs Beautiful Mermaid vs Agentic Mermaid): <https://agentic-mermaid.dev/comparisons/>
 
 <!-- complete: hosted-mcp-tools -->
-Alongside the static surface (the public website, machine-readable manifests, schemas, recipes, and skill files), the Cloudflare Worker serves a stateless hosted MCP endpoint at `/mcp` (`https://agentic-mermaid.dev/mcp`) — registry-checked tools: Code Mode `execute` in per-request Dynamic Worker isolates, `describe_sdk` for one family's mutation schema on demand, the `render_svg`/`render_ascii`/`render_png`/`verify`/`describe` pure tools, and the declarative `mutate`/`build` structured-edit tools. There is still no REST render API: `/mcp` speaks MCP JSON-RPC only.
+Alongside the static surface (the public website, machine-readable manifests, schemas, recipes, and skill files), the Cloudflare Worker serves a stateless hosted MCP endpoint at `/mcp` (`https://agentic-mermaid.dev/mcp`) — registry-checked tools: Code Mode `execute` in per-request Dynamic Worker isolates, `describe_sdk` for one family's mutation schema on demand, the `render_svg`/`render_ascii`/`render_png`/`verify`/`describe` pure tools, the declarative `mutate`/`build` structured-edit tools, and `preview`, whose result MCP Apps hosts show as a read-only diagram view. There is still no REST render API: `/mcp` speaks MCP JSON-RPC only.
 
 GitHub Pages is no longer a deployed surface; its samples-gallery generator has been retired. The live editor is served at [agentic-mermaid.dev/editor](https://agentic-mermaid.dev/editor) and built by `scripts/site/editor.ts` (also used by `website/build.ts`), and is exercised in a real browser by `e2e/browser.test.ts`.
 

@@ -15,7 +15,7 @@ We ship two MCP servers:
 
 - **Hosted** — stateless Streamable HTTP at `agentic-mermaid.dev/mcp`. Transport in
   `website/src/mcp-handler.ts` (factory `createMcpHandler`), tool core in
-  `src/mcp/hosted-server.ts` (tools: <!-- BEGIN GENERATED: hosted-mcp-tools -->`execute`, `describe_sdk`, `render_svg`, `render_ascii`, `render_png`, `verify`, `describe`, `mutate`, and `build`<!-- END GENERATED: hosted-mcp-tools -->).
+  `src/mcp/hosted-server.ts` (tools: <!-- BEGIN GENERATED: hosted-mcp-tools -->`execute`, `describe_sdk`, `render_svg`, `render_ascii`, `render_png`, `verify`, `describe`, `mutate`, `build`, and `preview`<!-- END GENERATED: hosted-mcp-tools -->).
   Accepts protocol versions <!-- BEGIN GENERATED: hosted-protocol-versions -->`2025-03-26`, `2025-06-18`, `2025-11-25`, and `2026-07-28`<!-- END GENERATED: hosted-protocol-versions -->.
 - **Local** — stdio (and node HTTP/SSE) server in `src/mcp/server.ts`, shipped as the
   `agentic-mermaid-mcp` bin (`src/mcp/mcp-bin.ts` → `runMcpCli`, default transport

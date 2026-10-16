@@ -17,6 +17,8 @@ import { StreamableHTTPClientTransport } from '@modelcontextprotocol/sdk/client/
 import { StdioClientTransport } from '@modelcontextprotocol/sdk/client/stdio.js'
 import { createMcpHandler } from '../../website/src/mcp-handler.ts'
 import { HOSTED_MCP_SERVER_NAME, HOSTED_TOOLS, SUPPORTED_PROTOCOL_VERSIONS, type HostedMcpContext } from '../mcp/hosted-server.ts'
+import { MCP_APP_MIME_TYPE, MCP_APP_RESOURCES } from '../mcp/resource-surface.ts'
+import { PREVIEW_VIEW_URI } from '../mcp/apps/preview-view.ts'
 import { LOCAL_TOOLS, STDIO_PROTOCOL_VERSIONS } from '../mcp/server.ts'
 
 const FLOW = 'flowchart LR\n  A --> B'
@@ -83,6 +85,17 @@ describe('hosted /mcp driven by the reference Streamable HTTP client', () => {
       // matches the hosted tool set exactly.
       const { tools } = await client.listTools()
       expect(new Set(tools.map(tool => tool.name))).toEqual(new Set(HOSTED_TOOLS.map(tool => tool.name)))
+
+      // The MCP Apps wiring survives the reference SDK's schemas: the preview
+      // tool keeps its UI link, and the linked view lists and reads back as an
+      // MCP App resource.
+      const preview = tools.find(tool => tool.name === 'preview')
+      expect(preview?._meta).toEqual({ ui: { resourceUri: PREVIEW_VIEW_URI } })
+      const { resources } = await client.listResources()
+      expect(new Set(resources.map(resource => resource.uri))).toEqual(new Set(MCP_APP_RESOURCES.map(resource => resource.uri)))
+      const view = await client.readResource({ uri: PREVIEW_VIEW_URI })
+      expect(view.contents[0]?.mimeType).toBe(MCP_APP_MIME_TYPE)
+      expect((view.contents[0] as { text?: string }).text).toContain('ui/initialize')
 
       // A real render round-trips: SDK-framed arguments through the real
       // parse→layout→render pipeline, back out as SDK-validated content.
@@ -161,6 +174,10 @@ describe('local stdio server driven by the reference stdio client', () => {
 
       const { tools } = await client.listTools()
       expect(new Set(tools.map(tool => tool.name))).toEqual(new Set(LOCAL_TOOLS.map(tool => tool.name)))
+
+      // The MCP Apps view is hosted-only: the local server stays tools-only and
+      // does not advertise an empty resources namespace.
+      expect(client.getServerCapabilities()?.resources).toBeUndefined()
 
       // Code Mode executes in the real node:vm sandbox end to end.
       const executed = await client.callTool({ name: 'execute', arguments: { code: 'return 1 + 41' } })
