@@ -1,7 +1,7 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="735" height="312" viewBox="0 0 735 312" style="--bg:#FFFFFF;--fg:#27272A;--font:Inter;background:#FFFFFF" class="am-0zi5q30040bkwj">
+<svg xmlns="http://www.w3.org/2000/svg" width="735" height="312" viewBox="0 0 735 312" style="--bg:#FFFFFF;--fg:#27272A;--font:Inter;background:#FFFFFF" class="am-1mlf08x0zwid0a">
 <style>
-  .am-0zi5q30040bkwj text { font-family: var(--font, 'Inter'), system-ui, sans-serif; }
-  svg.am-0zi5q30040bkwj {
+  .am-1mlf08x0zwid0a text { font-family: var(--font, 'Inter'), system-ui, sans-serif; }
+  svg.am-1mlf08x0zwid0a {
     /* Derived from --bg and --fg (overridable via --line, --accent, etc.) */
     --_text:          #27272A;
     --_text-sec:      #575759;
@@ -18,40 +18,40 @@
   }
 </style>
 <style>
-  .am-0zi5q30040bkwj .gantt-section-band { fill: #27272A; opacity: 0.07; }
-  .am-0zi5q30040bkwj .gantt-grid-line { stroke: #27272A; stroke-width: 1; opacity: 0.45; }
-  .am-0zi5q30040bkwj .gantt-bar { fill: #27272A; stroke: none; opacity: 0.92; }
-  .am-0zi5q30040bkwj .gantt-bar-active { fill: #27272A; stroke: #27272A; stroke-width: 1.5; opacity: 1; }
-  .am-0zi5q30040bkwj .gantt-bar-done { fill: #27272A; opacity: 0.55; }
-  .am-0zi5q30040bkwj .gantt-bar-crit { fill: #27272A; stroke: #27272A; stroke-width: 1.5; opacity: 0.95; }
-  .am-0zi5q30040bkwj .gantt-milestone { fill: #27272A; stroke: #27272A; stroke-width: 1; }
-  .am-0zi5q30040bkwj .gantt-milestone-crit { fill: #27272A; stroke: #27272A; stroke-width: 1.5; }
-  .am-0zi5q30040bkwj .gantt-vert-marker { stroke: #27272A; stroke-width: 2; stroke-dasharray: 6 3; }
-  .am-0zi5q30040bkwj .gantt-today-marker { stroke: #27272A; stroke-width: 2; stroke-dasharray: 4 3; }
-  .am-0zi5q30040bkwj .gantt-title { fill: #27272A; }
-  .am-0zi5q30040bkwj .gantt-section-label { fill: #27272A; }
-  .am-0zi5q30040bkwj .gantt-task-label { fill: #27272A; }
-  .am-0zi5q30040bkwj .gantt-axis-label { fill: #69696c; }
-  .am-0zi5q30040bkwj .gantt-excluded-band { fill: #27272A; opacity: 0.1; }
+  .am-1mlf08x0zwid0a .gantt-section-band { fill: #27272A; opacity: 0.07; }
+  .am-1mlf08x0zwid0a .gantt-grid-line { stroke: #27272A; stroke-width: 1; opacity: 0.45; }
+  .am-1mlf08x0zwid0a .gantt-bar { fill: #27272A; stroke: none; opacity: 0.92; }
+  .am-1mlf08x0zwid0a .gantt-bar-active { fill: #27272A; stroke: #27272A; stroke-width: 1.5; opacity: 1; }
+  .am-1mlf08x0zwid0a .gantt-bar-done { fill: #27272A; opacity: 0.55; }
+  .am-1mlf08x0zwid0a .gantt-bar-crit { fill: #27272A; stroke: #27272A; stroke-width: 1.5; opacity: 0.95; }
+  .am-1mlf08x0zwid0a .gantt-milestone { fill: #27272A; stroke: #27272A; stroke-width: 1; }
+  .am-1mlf08x0zwid0a .gantt-milestone-crit { fill: #27272A; stroke: #27272A; stroke-width: 1.5; }
+  .am-1mlf08x0zwid0a .gantt-vert-marker { stroke: #27272A; stroke-width: 2; stroke-dasharray: 6 3; }
+  .am-1mlf08x0zwid0a .gantt-today-marker { stroke: #27272A; stroke-width: 2; stroke-dasharray: 4 3; }
+  .am-1mlf08x0zwid0a .gantt-title { fill: #27272A; }
+  .am-1mlf08x0zwid0a .gantt-section-label { fill: #27272A; }
+  .am-1mlf08x0zwid0a .gantt-task-label { fill: #27272A; }
+  .am-1mlf08x0zwid0a .gantt-axis-label { fill: #69696c; }
+  .am-1mlf08x0zwid0a .gantt-excluded-band { fill: #27272A; opacity: 0.1; }
 </style>
 <rect class="gantt-section-band" x="119" y="50" width="600" height="120" data-id="section-band:A section#0" data-role="section" />
 <rect class="gantt-excluded-band" x="319" y="50" width="80" height="222" />
 <rect class="gantt-excluded-band" x="599" y="50" width="80" height="222" />
 <line class="gantt-grid-line" x1="359" y1="50" x2="359" y2="272" />
 <line class="gantt-grid-line" x1="639" y1="50" x2="639" y2="272" />
-<text x="359" y="284" class="gantt-axis-label" text-anchor="middle" dominant-baseline="middle" font-size="11" font-weight="500" data-prepared-text="true" dy="0" textLength="22.340999999999994" lengthAdjust="spacingAndGlyphs" data-font-metrics="deterministic-fit">01-12</text>
-<text x="639" y="284" class="gantt-axis-label" text-anchor="middle" dominant-baseline="middle" font-size="11" font-weight="500" data-prepared-text="true" dy="0" textLength="22.340999999999994" lengthAdjust="spacingAndGlyphs" data-font-metrics="deterministic-fit">01-19</text>
-<text x="8" y="65" class="gantt-section-label" text-anchor="start" dominant-baseline="middle" font-size="13" font-weight="600" data-prepared-text="true" dy="0" textLength="58.89000000000001" lengthAdjust="spacingAndGlyphs" data-font-metrics="deterministic-fit" data-id="section-label:A section#0" data-role="section">A section</text>
-<text x="8" y="191" class="gantt-section-label" text-anchor="start" dominant-baseline="middle" font-size="13" font-weight="600" data-prepared-text="true" dy="0" textLength="82.29" lengthAdjust="spacingAndGlyphs" data-font-metrics="deterministic-fit" data-id="section-label:Critical tasks#0" data-role="section">Critical tasks</text>
-<text x="16" y="91" class="gantt-task-label" text-anchor="start" dominant-baseline="middle" font-size="13" font-weight="500" data-prepared-text="true" dy="0" textLength="90.129" lengthAdjust="spacingAndGlyphs" data-font-metrics="deterministic-fit">Completed task</text>
-<text x="16" y="121" class="gantt-task-label" text-anchor="start" dominant-baseline="middle" font-size="13" font-weight="500" data-prepared-text="true" dy="0" textLength="66.41699999999999" lengthAdjust="spacingAndGlyphs" data-font-metrics="deterministic-fit">Active task</text>
-<text x="16" y="151" class="gantt-task-label" text-anchor="start" dominant-baseline="middle" font-size="13" font-weight="500" data-prepared-text="true" dy="0" textLength="69.381" lengthAdjust="spacingAndGlyphs" data-font-metrics="deterministic-fit">Future task</text>
-<text x="16" y="217" class="gantt-task-label" text-anchor="start" dominant-baseline="middle" font-size="13" font-weight="500" data-prepared-text="true" dy="0" textLength="50.115" lengthAdjust="spacingAndGlyphs" data-font-metrics="deterministic-fit">Crit task</text>
-<text x="16" y="247" class="gantt-task-label" text-anchor="start" dominant-baseline="middle" font-size="13" font-weight="500" data-prepared-text="true" dy="0" textLength="50.855999999999995" lengthAdjust="spacingAndGlyphs" data-font-metrics="deterministic-fit">Release</text>
+<text x="359" y="284" class="gantt-axis-label" text-anchor="middle" font-size="11" font-weight="500" data-prepared-text="true" dy="3.8499999999999996" textLength="22.340999999999994" lengthAdjust="spacingAndGlyphs" data-font-metrics="deterministic-fit">01-12</text>
+<text x="639" y="284" class="gantt-axis-label" text-anchor="middle" font-size="11" font-weight="500" data-prepared-text="true" dy="3.8499999999999996" textLength="22.340999999999994" lengthAdjust="spacingAndGlyphs" data-font-metrics="deterministic-fit">01-19</text>
+<text x="8" y="65" class="gantt-section-label" text-anchor="start" font-size="13" font-weight="600" data-prepared-text="true" dy="4.55" textLength="58.89000000000001" lengthAdjust="spacingAndGlyphs" data-font-metrics="deterministic-fit" data-id="section-label:A section#0" data-role="section">A section</text>
+<text x="8" y="191" class="gantt-section-label" text-anchor="start" font-size="13" font-weight="600" data-prepared-text="true" dy="4.55" textLength="82.29" lengthAdjust="spacingAndGlyphs" data-font-metrics="deterministic-fit" data-id="section-label:Critical tasks#0" data-role="section">Critical tasks</text>
+<text x="16" y="91" class="gantt-task-label" text-anchor="start" font-size="13" font-weight="500" data-prepared-text="true" dy="4.55" textLength="90.129" lengthAdjust="spacingAndGlyphs" data-font-metrics="deterministic-fit">Completed task</text>
+<text x="16" y="121" class="gantt-task-label" text-anchor="start" font-size="13" font-weight="500" data-prepared-text="true" dy="4.55" textLength="66.41699999999999" lengthAdjust="spacingAndGlyphs" data-font-metrics="deterministic-fit">Active task</text>
+<text x="16" y="151" class="gantt-task-label" text-anchor="start" font-size="13" font-weight="500" data-prepared-text="true" dy="4.55" textLength="69.381" lengthAdjust="spacingAndGlyphs" data-font-metrics="deterministic-fit">Future task</text>
+<text x="16" y="217" class="gantt-task-label" text-anchor="start" font-size="13" font-weight="500" data-prepared-text="true" dy="4.55" textLength="50.115" lengthAdjust="spacingAndGlyphs" data-font-metrics="deterministic-fit">Crit task</text>
+<text x="16" y="247" class="gantt-task-label" text-anchor="start" font-size="13" font-weight="500" data-prepared-text="true" dy="4.55" textLength="50.855999999999995" lengthAdjust="spacingAndGlyphs" data-font-metrics="deterministic-fit">Release</text>
 <rect class="gantt-bar gantt-bar-done" x="119" y="80" width="80" height="22" rx="3" ry="3" data-task="des1" data-id="task:des1" data-role="task" />
 <rect class="gantt-bar gantt-bar-active" x="239" y="110" width="200" height="22" rx="3" ry="3" data-task="des2" data-id="task:des2" data-role="task" />
 <rect class="gantt-bar" x="439" y="140" width="280" height="22" rx="3" ry="3" data-task="des3" data-id="task:des3" data-role="task" />
 <rect class="gantt-bar gantt-bar-crit" x="119" y="206" width="160" height="22" rx="3" ry="3" data-task="c1" data-id="task:c1" data-role="task" />
 <path class="gantt-milestone" d="M 708 236 L 719 247 L 708 258 L 697 247 Z" data-task="m1" data-id="task:m1" data-role="milestone" />
-<text x="367.5" y="18" class="gantt-title" text-anchor="middle" dominant-baseline="middle" font-size="17" font-weight="600" data-prepared-text="true" dy="0" textLength="378.92999999999984" lengthAdjust="spacingAndGlyphs" data-font-metrics="deterministic-fit" data-id="title" data-role="title">Adding GANTT diagram functionality to mermaid</text>
+<text x="367.5" y="18" class="gantt-title" text-anchor="middle" font-size="17" font-weight="600" data-prepared-text="true" dy="5.949999999999999" textLength="378.92999999999984" lengthAdjust="spacingAndGlyphs" data-font-metrics="deterministic-fit" data-id="title" data-role="title">Adding GANTT diagram functionality to mermaid</text>
 </svg>

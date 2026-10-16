@@ -1,5 +1,59 @@
 # Visual review and production comparison
 
+## PR #394 final agent review — 2026-10-17
+
+The regenerated reviewed PNG is **1560×9464**, with SHA-256
+`8d18b4679019db5535fcf9b930a6c3a156115cf4834022ef8476a95e7467593e`. A Codex agent inspected
+**all 64 cells** at their native 520×380 size, arranged as sixteen unscaled
+four-treatment panels: Sentinel, Editorial, Technical, and Operations. The
+candidate includes the working-tree fixes from the independent audit on top of
+`f96f6bd297cc4a85f94f5cb8dff033d7fbac9ba8`; that commit alone does not identify
+the candidate production code. The artifact hash identifies the exact reviewed
+bytes, and `visual-approval.json` records this **agent review, not human approval**.
+
+The review checked label containment, readable family structure, complete
+connector/marker silhouettes, header clearance, resolved typography and palette
+coherence. Fine member/cardinality text remains small at the sheet's thumbnail
+scale; this visual review does not establish arbitrary-size accessibility or
+script/font coverage. No deployed website was rechecked in this pass.
+
+| Native cells inspected in all four treatments | Observations |
+|---|---|
+| Flowchart, State | Branch labels remain visible; directional tips and pseudostate contacts remain complete. |
+| Sequence, Timeline | Request/response direction, actor headers, milestone chronology and event cards remain readable and contained. |
+| Class, ER | Class/entity names, member or attribute rows and relationship endpoints remain present; no card crops its labels. |
+| Journey, Architecture | Scores/actors and group/service topology remain legible; headers clear contained content. |
+| XYChart, Pie | Axis ranges and quantitative marks remain meaningful; title/legend text fits. Pie retains authored Pro emphasis and source-order values. |
+| Quadrant, Gantt | Point labels, axis titles, dates, task ranges and milestones remain visible; external point-label placement stays within its panel. |
+| Mindmap, GitGraph | Hierarchy/commit topology remains readable, including complete branch labels and rotated commit pills. |
+| Radar, Sankey | Axis/series legends and flow labels remain complete; chart data and family structure stay visible. |
+
+Compared with the PNG committed at the context commit above, **37 cells change
+in 358,245 pixels; 27 cells are pixel-identical**. Changes occur in Timeline,
+ER, Journey, Architecture, XYChart, Pie, Quadrant, Gantt, Mindmap, GitGraph and
+Radar. These counts describe the candidate-versus-committed image comparison;
+they do not attribute every changed pixel to an individual fix. No baseline
+image is fabricated for the pre-Section-B revision that rejected roles.
+
+The representative Gantt and accessible XY SVG goldens were also regenerated
+and inspected. Both retain their canvas dimensions and have zero off-canvas
+text pixels in an independent bundled-font raster census. Their full text bands
+change label placement and XY plot clearance as intended.
+
+### Cookbook screenshots
+
+All six existing cookbook PNGs were regenerated and inspected at native 900px
+width. Before/after inspection of Cupertino, Vercel and Cloudflare confirms
+readable labels, complete markers, preserved topology or quantitative data, and
+retained role/semantic styling. Cupertino changes 900×192 → 900×191; Vercel
+remains 900×643 (22,220 pixels changed); Cloudflare remains 900×339 (7,475 pixels
+changed). Transit Route Map, Mid-century Report and Star Chart Atlas remain
+pixel-identical. The exact bytes for the three documentation-only prototypes
+are recorded in
+[`eval/style-prototype-evidence/visual-approval.json`](../style-prototype-evidence/visual-approval.json).
+This is an agent review of published documentation assets; the existing
+non-endorsement and non-equivalence limitations remain in force.
+
 ## PR #390 reviewed-golden refresh — 2026-10-16
 
 The current [reviewed rendering golden](../../src/__tests__/testdata/section-b-brand-evidence.png)

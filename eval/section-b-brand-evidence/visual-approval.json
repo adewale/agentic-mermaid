@@ -2,9 +2,9 @@
   "schemaVersion": 1,
   "status": "approved",
   "artifact": "src/__tests__/testdata/section-b-brand-evidence.png",
-  "artifactSha256": "917b97b2ef21c590be6aae21e4539958d13e42cebde03b37645d1b56f9db2424",
-  "reviewedAt": "2026-10-16",
-  "reviewer": "Codex agents, reviewing PR #390 at e43f37e3ec50d0697c9f26807f53e33f49dd5b81",
-  "scope": "The 1560×9464 sheet contains 64 family-by-variant cells. The prior committed PNG byte-matches a fresh render of immutable main 9925294bdf9501662b754c1260acb1c1b6819cdc. Compared with the candidate at e43f37e3ec50d0697c9f26807f53e33f49dd5b81, 17,623 of 14,763,840 pixels differ, only in the four Sequence cells; the other 60 cells are pixel-identical. Codex agents inspected all four Sequence before/after crops at native size: request/response text, arrow direction, typography, palette, and style are preserved, and every diagram stays within its panel. Small actor, label-clearance, and lifeline position changes follow the updated sequence geometry. This is an agent visual review, not human approval; the dedicated sequence regressions provide behavioral proof beyond this reviewed golden.",
+  "artifactSha256": "8d18b4679019db5535fcf9b930a6c3a156115cf4834022ef8476a95e7467593e",
+  "reviewedAt": "2026-10-17",
+  "reviewer": "Codex agent, final native-size visual review of PR #394",
+  "scope": "Agent review of all 64 family-by-variant cells in the regenerated 1560\u00d79464 Section B sheet, using unscaled 520\u00d7380 native cell crops arranged into 16 four-treatment comparison panels. Checked label containment, connector and marker visibility, title/header clearance, palette and typography consistency, Pie Pro emphasis, chart values, and readable family structure. Compared with the committed PNG at f96f6bd297cc4a85f94f5cb8dff033d7fbac9ba8, 37 cells change in 358245 pixels and 27 cells are pixel-identical. The candidate includes the working-tree independent-audit geometry fixes; the artifact hash identifies the reviewed bytes. This is an agent visual review, not human approval, a deployed-site comparison, or proof for arbitrary input/font coverage.",
   "audit": "eval/section-b-brand-evidence/production-comparison.md"
 }

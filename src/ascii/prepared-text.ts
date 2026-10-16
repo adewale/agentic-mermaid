@@ -79,7 +79,7 @@ export function prepareCellText(source: string, options: CellTextOptions = {}): 
         hyphen = needsHyphen(end) && visualWidth(clusters.slice(start, end).join('')) + 1 <= limit
       }
       lines.push(clusters.slice(start, paintEnd).join('') + (hyphen ? '-' : ''))
-      breaks.push(Object.freeze({ kind: hyphen ? 'hyphen' : 'wrap', sourceOffset: sourceOffsets[end] ?? source.length, ...(replacedText ? { replacedText } : {}) }))
+      if (end < clusters.length) breaks.push(Object.freeze({ kind: hyphen ? 'hyphen' : 'wrap', sourceOffset: sourceOffsets[end]!, ...(replacedText ? { replacedText } : {}) }))
       start = end
     }
   }

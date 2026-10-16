@@ -18,7 +18,7 @@ are evaluated at their own semantic boundary before painting.
 | T4 Allocate containers | Complete title/header/legend/label space before placing content | Independent resvg on-canvas/contrast checks, header-to-content clearance, naturally expanding versus fixed canvases, both chart orientations |
 | T5 Carry graphical geometry | Scene text and connector labels retain complete typography and occupied bounds | Emitted SVG fidelity, multiline/rotated bounds, bold/tracking, styled backends, external Scene admission remains enforced |
 | T6 Project SVG advances | Prepared emission owns advances; compatibility projection respects literal content | Short and wrapped literal tags, continuous formatted runs, custom fonts, exact visible characters, renderer does not transform a positioned block again |
-| T7 Cover every family role | Existing family and role declarations drive the conformance census | All 16 built-in families, titles and applicable nodes/edges/groups/notes/compartments/axes/legends, no title-only exemption |
+| T7 Cover every family role | Registry-wide family probes and directed supported-role cases | All 16 built-in families, titles and applicable nodes/edges/groups/notes/compartments/axes/legends, no title-only exemption |
 | T8 Own terminal cells | Reuse #386 compositor for text spaces, padding, glyph continuations and structural marks | Label-on-stroke, punctuation-only labels, duplicate/wrapped labels, opaque notes, shared corridors, corners/arrowheads, region identity and color-mode parity |
 | T9 Quantize numeric values once | XY ticks/bars/lines/baseline share one domain and scale | Explicit 1..14 range, zero baseline, negative and mixed signs, zero-length bars, half/whole cells, horizontal mode, coarse ticks and bar/line overlap |
 | T10 Preserve sequence chronology | Lexical event ownership and complete cell bounds | Notes before/after end, nested and empty/note-only fragments, long alt/else headers, CJK notes and note padding |
@@ -67,6 +67,18 @@ observations must remain independent of production preparation and stored bounds
 
 ## Completion evidence
 
-Record implementation revisions, red/green commands, focused and full results,
-the PR, generated visual artifact and final independent audit here once complete.
-Do not mark a task complete merely because its first witness passes.
+Implementation is in [PR 395](https://github.com/adewale/agentic-mermaid/pull/395),
+including the compositor and its audit fixes from PR 394. The independent audit
+and dispositions are recorded in [prepared-text-geometry-audit.md](prepared-text-geometry-audit.md).
+
+Representative verification commands (Bun 1.4.2):
+
+- `bun test --timeout 30000 src/__tests__/prepared-*.test.ts src/__tests__/connector-inline-text.test.ts`
+- `bun test --timeout 30000 src/__tests__/terminal-*.test.ts src/__tests__/xychart-terminal-scale.test.ts src/__tests__/sequence-autonumber.test.ts`
+- `bun run typecheck`, `bun run lint`, `bun run build`, `bun run check:browser-lazy`
+- `bun run quality:check`, plus the three covered CI shards and browser E2E lanes.
+
+New family witnesses were checked red against original production sources;
+CI independently confirms changed tests fail on the base branch. The shared
+reviewer's final 252-case raster probe passes. Final full-head CI status is
+recorded in the PR; it remains a delivery gate until green.

@@ -1,3 +1,4 @@
+import fc from 'fast-check'
 import { applyTextTransform } from '../styles.ts'
 import { beforeAll, describe, expect, it } from 'bun:test'
 import { prepareDisplayText } from '../shared/display-text.ts'
@@ -90,6 +91,25 @@ describe('prepared display text', () => {
     const block = preparePixelText('e<b>́</b>e<b>́</b>', { ...typography, maxWidth: 13 })
     expect(block.lineBlocks.map(line => line.runs.map(run => run.text).join(''))).toEqual(['é', 'é'])
     expect(block.lineBlocks.every(line => line.runs.some(run => run.bold))).toBe(true)
+  })
+
+  it('reconstructs transformed visible source across generated formatting, spaces and wraps', () => {
+    fc.assert(fc.property(
+      fc.constantFrom('ßeta', 'café', 'antidisestablishmentarianism', 'Ωμέγα', 'Широкий'),
+      fc.constantFrom('漢字', '👩🏽‍💻', 'é', 'مرحبا'),
+      fc.boolean(), fc.integer({ min: 28, max: 120 }),
+      (word, tail, styled, maxWidth) => {
+        const source = `a${styled ? `<b>${word}</b>` : word}  ${tail}\n\n${word}`
+        const expected = `a${word}  ${tail}\n\n${word}`.toUpperCase()
+        const block = preparePixelText(source, { fontSize: 14, fontWeight: 500, transform: 'uppercase', maxWidth })
+        const reconstructed = block.lineBlocks.map((line, index) => {
+          const at = block.breaks[index]
+          const visible = line.runs.map(run => run.text).join('')
+          return (at?.kind === 'hyphen' ? visible.slice(0, -1) : visible) + (at?.kind === 'authored' ? '\n' : at?.replacedText ?? '')
+        }).join('')
+        expect(reconstructed).toBe(expected)
+      },
+    ), { numRuns: 40 })
   })
 
   it('reports unsatisfiable width or height instead of silently claiming a fit', () => {

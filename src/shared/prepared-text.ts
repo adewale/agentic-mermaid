@@ -177,7 +177,7 @@ export function preparePixelText(source: string, options: PixelTextOptions): Pix
       const sourceOffset = clusters[end]?.sourceStart ?? source.length
       if (hyphen) line.push({ ...hyphenRun(clusters[end - 1]!), sourceStart: sourceOffset, sourceEnd: sourceOffset })
       broken.push(line)
-      breaks.push({ kind: hyphen ? 'hyphen' : 'wrap', sourceOffset, ...(replacedText ? { replacedText } : {}) })
+      if (end < clusters.length) breaks.push({ kind: hyphen ? 'hyphen' : 'wrap', sourceOffset, ...(replacedText ? { replacedText } : {}) })
       start = end
     }
     if (clusters.length === 0) broken.push([])

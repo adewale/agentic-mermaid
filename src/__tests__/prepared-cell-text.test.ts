@@ -31,7 +31,22 @@ describe('prepared cell text', () => {
     const block = prepareCellText('<b>👩‍💻</b>', { maxWidth: 1, hyphenate: false })
     expect(block.lines.join('')).toBe('<b>👩‍💻</b>')
     expect(block.width).toBe(2)
+    expect(prepareCellText('👩‍💻', { maxWidth: 1 }).breaks).toEqual([])
     expect(Object.isFrozen(block.lines)).toBe(true)
+  })
+
+  it('keeps locale-independent grapheme cells through the public terminal renderer', () => {
+    const entry = new URL('../index.ts', import.meta.url).href
+    const source = 'flowchart LR\nA["界 é 👩🏽‍💻 🇨🇳"] --> B["Ω Ш"]'
+    const code = `import { renderMermaidASCII } from ${JSON.stringify(entry)}; process.stdout.write(renderMermaidASCII(${JSON.stringify(source)}, { colorMode: 'none' }))`
+    const outputs = ['C', 'en_US.UTF-8', 'ja_JP.UTF-8'].map(locale => {
+      const result = Bun.spawnSync([process.execPath, '-e', code], { env: { ...process.env, LANG: locale, LC_ALL: locale }, stdout: 'pipe', stderr: 'pipe' })
+      expect(result.exitCode).toBe(0)
+      return new TextDecoder().decode(result.stdout)
+    })
+    expect(outputs[0]).toContain('界 é 👩🏽‍💻 🇨🇳')
+    expect(outputs[1]).toBe(outputs[0])
+    expect(outputs[2]).toBe(outputs[0])
   })
 
   it('keeps all-space content and exact authored trailing spaces', () => {
