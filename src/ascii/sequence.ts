@@ -86,7 +86,18 @@ export function renderSequenceAscii(text: string, config: AsciiConfig, colorMode
     const msg = diagram.messages[mi]!
     const fi = actorIdx.get(msg.from)!
     const ti = actorIdx.get(msg.to)!
-    if (fi === ti) continue // self-messages don't affect spacing
+    if (fi === ti) {
+      // A self-message draws a 4-cell loop (`├──┐` at fi..fi+3) and its label
+      // starting at column `llX[fi] + 5`. When `fi` has a right neighbor,
+      // reserve enough width in gap `fi` so the self-loop and label clear
+      // `llX[fi + 1]`.
+      if (fi < diagram.actors.length - 1) {
+        const selfLabelWidth = maxLineWidth(msgLabels[mi]!)
+        const selfNeeded = 4 + (selfLabelWidth > 0 ? 1 + selfLabelWidth : 0)
+        adjMaxWidth[fi] = Math.max(adjMaxWidth[fi]!, selfNeeded)
+      }
+      continue
+    }
     const lo = Math.min(fi, ti)
     const hi = Math.max(fi, ti)
     // Required gap per span = (max line width + arrow decorations) / number of gaps

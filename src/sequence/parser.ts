@@ -61,6 +61,20 @@ export interface ParsedSequenceMessageLine {
   centralEnd: boolean
 }
 
+export interface SequenceBlockScope {
+  /** Indices into `diagram.notes` for notes authored inside this block's lexical scope. */
+  noteIndices: number[]
+  /** Indices into `diagram.blocks` for direct child blocks authored inside this block. */
+  childBlockIndices: number[]
+}
+
+const blockScopes = new WeakMap<Block, SequenceBlockScope>()
+
+/** Return the lexical scope (owned notes and direct child blocks) recorded for `block` during parsing. */
+export function getSequenceBlockScope(block: Block): SequenceBlockScope | undefined {
+  return blockScopes.get(block)
+}
+
 /** One message-line grammar shared by renderer and agent parsers. */
 export function parseSequenceMessageLine(line: string): ParsedSequenceMessageLine | null {
   const adjacentMatch = line.match(SEQUENCE_MESSAGE_PREFIX_RE)
@@ -169,7 +183,7 @@ export function parseSequenceDiagram(lines: string[], opts: { showSequenceNumber
   const boundaryIssue = source.issues.find(issue => issue.syntax === 'sequence_block_boundary')
   if (boundaryIssue) throw new Error(`SEQUENCE_BLOCK_BOUNDARY: line ${boundaryIssue.line + 2}: ${boundaryIssue.message}`)
   // Render data is keyed by shared statement identity, not another scope parser.
-  const blocks = new Map<number, { type: Block['type']; label: string; color?: string; startIndex: number; dividers: Block['dividers'] }>()
+  const blocks = new Map<number, { type: Block['type']; label: string; color?: string; startIndex: number; dividers: Block['dividers']; parent?: number; noteIndices: number[]; childBlockIndices: number[] }>()
   // Active autonumber state; null = numbering off
   let autonumber: { next: number; step: number } | null = opts.showSequenceNumbers === true ? { next: 1, step: 1 } : null
   // Actors awaiting their binding message (`create X` / `destroy X` directives
@@ -286,12 +300,16 @@ export function parseSequenceDiagram(lines: string[], opts: { showSequenceNumber
     // --- Note ---
     case 'note': {
       const { note } = statement
+      const noteIndex = diagram.notes.length
       diagram.notes.push({
         actorIds: note.actorIds,
         text: normalizeBrTags(note.text),
         position: note.position,
         afterIndex: diagram.messages.length - 1,
       })
+      for (let p = entry.parent; p !== undefined; p = blocks.get(p)?.parent) {
+        blocks.get(p)?.noteIndices.push(noteIndex)
+      }
       break
     }
 
@@ -321,6 +339,9 @@ export function parseSequenceDiagram(lines: string[], opts: { showSequenceNumber
         ...(color ? { color } : {}),
         startIndex: diagram.messages.length,
         dividers: [],
+        parent: entry.parent,
+        noteIndices: [],
+        childBlockIndices: [],
       })
       break
     }
@@ -339,14 +360,23 @@ export function parseSequenceDiagram(lines: string[], opts: { showSequenceNumber
     case 'end': {
       const completed = blocks.get(entry.closes!)
       if (completed) {
-        diagram.blocks.push({
+        const blockIndex = diagram.blocks.length
+        const blockObj: Block = {
           type: completed.type,
           label: completed.label,
           ...(completed.color ? { color: completed.color } : {}),
           startIndex: completed.startIndex,
           endIndex: Math.max(diagram.messages.length - 1, completed.startIndex),
           dividers: completed.dividers,
+        }
+        blockScopes.set(blockObj, {
+          noteIndices: completed.noteIndices,
+          childBlockIndices: completed.childBlockIndices,
         })
+        if (completed.parent !== undefined) {
+          blocks.get(completed.parent)?.childBlockIndices.push(blockIndex)
+        }
+        diagram.blocks.push(blockObj)
       } else {
         participants.closeBox()
       }

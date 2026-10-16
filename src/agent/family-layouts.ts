@@ -482,10 +482,10 @@ export function projectSequencePositioned({ positioned, options }: FamilyPositio
   const nodes: RenderedLayoutNode[] = [
     ...positioned.actors.map(a => ({
       id: a.id,
-      x: f(a.x - a.width / 2),
-      y: f(a.y),
-      w: f(a.width),
-      h: f(a.height),
+      x: f(a.bounds.x),
+      y: f(a.bounds.y),
+      w: f(a.bounds.width),
+      h: f(a.bounds.height),
       shape: 'rectangle',
       label: a.label,
       role: 'box' as const,
@@ -504,49 +504,25 @@ export function projectSequencePositioned({ positioned, options }: FamilyPositio
   return {
     version: 1,
     nodes,
-    edges: positioned.messages.map((m, i) => {
-      const path = sequenceMessagePath(m)
-      return {
-        id: `msg#${i}:${m.from}->${m.to}`,
-        from: m.from,
-        to: m.to,
-        path: path.map(p => [f(p.x), f(p.y)] as [Finite, Finite]),
-        label: m.label ? sequenceMessageLabel(m) : undefined,
-        route: options.debug ? sequenceRouteCertificate(i, m, path, lifelineByActor) : undefined,
-      }
-    }),
+    edges: positioned.messages.map((m, i) => ({
+      id: `msg#${i}:${m.from}->${m.to}`,
+      from: m.from,
+      to: m.to,
+      path: m.points.map(p => [f(p.x), f(p.y)] as [Finite, Finite]),
+      label: m.label ? { x: f(m.labelPosition.x), y: f(m.labelPosition.y), text: m.label } : undefined,
+      route: options.debug ? sequenceRouteCertificate(i, m, m.points, lifelineByActor) : undefined,
+    })),
     groups: positioned.blocks.map((b, i) => ({
       id: `block#${i}:${b.type}`,
-      x: f(b.x),
-      y: f(b.y),
-      w: f(b.width),
-      h: f(b.height),
+      x: f(b.bounds.x),
+      y: f(b.bounds.y),
+      w: f(b.bounds.width),
+      h: f(b.bounds.height),
       members: [],
       label: b.label,
     })),
     bounds: { w: f(positioned.width), h: f(positioned.height) },
   }
-}
-
-function sequenceMessagePath(message: { x1: number; x2: number; y: number; isSelf: boolean }): Point[] {
-  if (!message.isSelf)
-    return [
-      { x: message.x1, y: message.y },
-      { x: message.x2, y: message.y },
-    ]
-  const loopW = 30
-  const loopH = 20
-  return [
-    { x: message.x1, y: message.y },
-    { x: message.x1 + loopW, y: message.y },
-    { x: message.x1 + loopW, y: message.y + loopH },
-    { x: message.x2, y: message.y + loopH },
-  ]
-}
-
-function sequenceMessageLabel(message: { x1: number; x2: number; y: number; isSelf: boolean; label: string }): { x: Finite; y: Finite; text: string } {
-  if (message.isSelf) return { x: f(message.x1 + 38), y: f(message.y + 10), text: message.label }
-  return { x: f((message.x1 + message.x2) / 2), y: f(message.y - 10), text: message.label }
 }
 
 function sequenceRouteCertificate(edgeIndex: number, message: { from: string; to: string; x1: number; x2: number; y: number; isSelf: boolean }, points: Point[], lifelineByActor: Map<string, number>): FamilyEdgeRouteCertificate {

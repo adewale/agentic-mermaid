@@ -13,6 +13,7 @@ import type { PositionedSequenceDiagram } from '../sequence/types.ts'
 import { resolveStyleStackWithFace } from '../scene/style-registry.ts'
 import { estimateTextWidth } from '../styles.ts'
 import { renderMermaidSVG } from '../index.ts'
+import { parseRegisteredMermaid as parseMermaid, layoutMermaid } from '../agent/index.ts'
 
 /** Helper: parse and layout a sequence diagram from source lines */
 function layout(source: string) {
@@ -1001,5 +1002,365 @@ describe('sequence layout – activation/note/block properties', () => {
       ),
       { numRuns: 60 },
     )
+  })
+})
+
+describe('sequence layout – complete painted bounds (#385)', () => {
+  it('resolves the exact #385 opening reproduction without self-message overlap, header tab overflow, or return-arrow clipping', () => {
+    const source = `sequenceDiagram
+      participant A
+      participant B
+      loop A very long block header that must remain within the enclosing fragment
+        A->>A: This very long self message should have clear space before B
+      end
+      A->>B: done`
+    const result = layout(source)
+    const selfMsg = result.messages[0]!
+    const lifelineB = result.lifelines[1]!
+    const loopBlock = result.blocks[0]!
+
+    // 1. Self-message label has clear space before B's lifeline
+    expect(selfMsg.labelPosition.bounds.x + selfMsg.labelPosition.bounds.width + 12).toBeLessThanOrEqual(lifelineB.x)
+
+    // 2. Fragment header tab remains within the enclosing fragment, which remains within the canvas
+    expect(loopBlock.header).toBeDefined()
+    expect(loopBlock.header!.x + loopBlock.header!.width).toBeLessThanOrEqual(loopBlock.x + loopBlock.width)
+    expect(loopBlock.x + loopBlock.width).toBeLessThanOrEqual(result.width - 30 + 1e-6)
+
+    // 3. Self-message return arrow at y + 20 clears the bottom of the fragment frame
+    expect(selfMsg.y + 20).toBeLessThan(loopBlock.y + loopBlock.height)
+  })
+
+  it('widens adjacent lifelines so middle-actor self-message labels do not intersect neighboring lifelines or activation bars', () => {
+    const source = `sequenceDiagram
+      participant A as Alice
+      participant B as Service
+      participant C as Worker
+      A->>+B: Dispatch
+      B->>B: Signal for throat clearance and audit logging
+      B->>+C: Forward
+      C-->>-B: Ack
+      B-->>-A: Complete`
+    const result = layout(source)
+    const selfMsg = result.messages.find(m => m.isSelf)!
+    const nextLifeline = result.lifelines[2]!
+    const nextActivation = result.activations.find(a => a.actorId === 'C')!
+
+    const selfRight = selfMsg.bounds.x + selfMsg.bounds.width
+    expect(selfRight + 12).toBeLessThanOrEqual(nextLifeline.x)
+    expect(selfRight).toBeLessThan(nextActivation.x)
+  })
+
+  it('keeps last-actor self-message loops and labels inside the SVG viewBox', () => {
+    const source = `sequenceDiagram
+      participant A
+      participant B
+      A->>B: Start
+      B->>B: Very long self-message label on the rightmost participant`
+    const result = layout(source)
+    const selfMsg = result.messages[1]!
+    expect(selfMsg.bounds.x + selfMsg.bounds.width).toBeLessThanOrEqual(result.width - 30 + 1e-6)
+  })
+
+  it('sizes fragments to contain long header tabs, wide divider labels, owned notes, self-messages, created participants, and nested fragments', () => {
+    const source = `sequenceDiagram
+      participant A
+      participant B
+      critical Establish a fault-tolerant quorum session across replicas
+        Note left of A: Pre-flight quorum note inside critical
+        A->>A: Validate local lease and epoch state
+        opt Secondary verification with an extra-wide fragment header tab
+          B->>B: Verify remote attestation token
+          Note right of B: Right-hand audit note inside opt
+        end
+      option Network partition or quorum timeout while awaiting replica acknowledgements
+        create actor C as Ephemeral<br/>Recovery<br/>Agent
+        A->>C: Spawn recovery agent
+      end`
+    const result = layout(source)
+    expect(result.blocks).toHaveLength(2)
+    const optBlock = result.blocks.find(b => b.type === 'opt')!
+    const critBlock = result.blocks.find(b => b.type === 'critical')!
+
+    // Header tabs fit inside their own fragment widths
+    expect(optBlock.header).toBeDefined()
+    expect(optBlock.header!.x + optBlock.header!.width).toBeLessThanOrEqual(optBlock.x + optBlock.width + 1e-6)
+    expect(critBlock.header).toBeDefined()
+    expect(critBlock.header!.x + critBlock.header!.width).toBeLessThanOrEqual(critBlock.x + critBlock.width + 1e-6)
+
+    // Wide divider label fits inside critical fragment width
+    const divider = critBlock.dividers[0]!
+    expect(divider.labelPosition).toBeDefined()
+    expect(divider.labelPosition!.bounds.x + divider.labelPosition!.bounds.width).toBeLessThanOrEqual(critBlock.x + critBlock.width - 10 + 1e-6)
+
+    // Owned self-messages (including return arrow at y + 20) fit inside their fragments
+    const selfA = result.messages[0]!
+    const selfB = result.messages[1]!
+    expect(selfB.y + 20).toBeLessThanOrEqual(optBlock.y + optBlock.height - 8 + 1e-6)
+    expect(selfB.bounds.x + selfB.bounds.width).toBeLessThanOrEqual(optBlock.x + optBlock.width - 10 + 1e-6)
+    expect(selfA.bounds.x + selfA.bounds.width).toBeLessThanOrEqual(critBlock.x + critBlock.width - 10 + 1e-6)
+
+    // Created icon participant C (and its 3-line below-icon label) fits inside critical fragment
+    const actorC = result.actors.find(a => a.id === 'C')!
+    expect(actorC.bounds.x).toBeGreaterThanOrEqual(critBlock.x + 10 - 1e-6)
+    expect(actorC.bounds.x + actorC.bounds.width).toBeLessThanOrEqual(critBlock.x + critBlock.width - 10 + 1e-6)
+    expect(actorC.bounds.y + actorC.bounds.height).toBeLessThanOrEqual(critBlock.y + critBlock.height - 8 + 1e-6)
+
+    // Owned notes fit inside their fragments
+    const leftNote = result.notes[0]!
+    const rightNote = result.notes[1]!
+    expect(leftNote.x).toBeGreaterThanOrEqual(critBlock.x + 10 - 1e-6)
+    expect(leftNote.y).toBeGreaterThanOrEqual(critBlock.y)
+    expect(rightNote.x + rightNote.width).toBeLessThanOrEqual(optBlock.x + optBlock.width - 10 + 1e-6)
+    expect(rightNote.y + rightNote.height).toBeLessThanOrEqual(optBlock.y + optBlock.height - 8 + 1e-6)
+
+    // Enclosing fragment contains nested fragment with declared padding
+    expect(critBlock.x).toBeLessThanOrEqual(optBlock.x - 10 + 1e-6)
+    expect(critBlock.x + critBlock.width).toBeGreaterThanOrEqual(optBlock.x + optBlock.width + 10 - 1e-6)
+    expect(critBlock.y).toBeLessThanOrEqual(optBlock.y - 8 + 1e-6)
+    expect(critBlock.y + critBlock.height).toBeGreaterThanOrEqual(optBlock.y + optBlock.height + 8 - 1e-6)
+  })
+
+  it('sizes single-message self-loop fragments so the return arrow at y + 20 stays inside the fragment bottom', () => {
+    const result = layout(`sequenceDiagram
+      participant A
+      loop Self check
+        A->>A: Ping self
+      end`)
+    const block = result.blocks[0]!
+    const msg = result.messages[0]!
+    expect(block.y + block.height).toBeGreaterThanOrEqual(msg.y + 20 + 12)
+  })
+
+  it('reserves header bounds for icon participants and multiline labels without enlarging the icon glyph', () => {
+    const types = ['actor', 'boundary', 'control', 'entity', 'database', 'collections', 'queue'] as const
+    for (const type of types) {
+      const decl = type === 'actor' ? 'actor A as Support<br/>Engineer<br/>On call' : `participant A@{ "type": "${type}" } as Support<br/>Engineer<br/>On call`
+      const source = `sequenceDiagram
+        ${decl}
+        participant B as Backend
+        A->>B: Escalate incident`
+      const result = layout(source)
+      const actor = result.actors[0]!
+      const lifeline = result.lifelines[0]!
+      const firstMsg = result.messages[0]!
+
+      // Glyph height stays compact (40px), while complete header bounds cover the 3-line label below it
+      expect(actor.height, type).toBe(40)
+      expect(actor.bounds.height, type).toBeGreaterThan(actor.height + 30)
+
+      // First line top clears the glyph bottom (y + height)
+      expect(actor.labelPosition.bounds.y, type).toBeGreaterThanOrEqual(actor.y + actor.height)
+
+      // Lifeline starts below the full header bounds, not through the label
+      const headerBottom = actor.bounds.y + actor.bounds.height
+      expect(lifeline.topY, type).toBeGreaterThanOrEqual(headerBottom)
+
+      // First message label clears the actor label
+      expect(firstMsg.labelPosition.bounds.y, type).toBeGreaterThan(headerBottom)
+    }
+  })
+
+  it('uses resolved metrics for custom font size, weight, tracking, uppercase capitalization, and padding', () => {
+    const source = `sequenceDiagram
+      actor A as Support<br/>Engineer
+      participant B as Service
+      alt Primary route with long header
+        A->>A: Local self check before dispatch
+      else Fallback route with wide section label
+        A->>B: Dispatch request
+      end`
+    const lines = source
+      .split('\n')
+      .map(l => l.trim())
+      .filter(l => l.length > 0)
+    const parsed = parseSequenceDiagram(lines)
+    const defaultPos = layoutSequenceDiagram(parsed)
+    const customPos = layoutSequenceDiagram(parsed, {}, {}, {
+      node: {
+        fontSize: 16,
+        fontWeight: 700,
+        letterSpacing: 1.5,
+        textTransform: 'uppercase',
+        paddingX: 24,
+        paddingY: 16,
+      },
+      edge: {
+        fontSize: 15,
+        fontWeight: 600,
+        letterSpacing: 1.2,
+        textTransform: 'uppercase',
+      },
+      group: {
+        fontSize: 15,
+        fontWeight: 700,
+        letterSpacing: 1.5,
+        textTransform: 'uppercase',
+        paddingX: 18,
+        paddingY: 14,
+      },
+    })
+
+    // Custom metrics and uppercase transform widen and heighten actors, self-loops, and fragments
+    expect(customPos.actors[0]!.labelPosition.text).toBe('SUPPORT\nENGINEER')
+    expect(customPos.actors[0]!.bounds.width).toBeGreaterThan(defaultPos.actors[0]!.bounds.width)
+    expect(customPos.actors[0]!.bounds.height).toBeGreaterThan(defaultPos.actors[0]!.bounds.height)
+
+    // Self-message clears B's lifeline under larger font + tracking + uppercase
+    const selfMsg = customPos.messages[0]!
+    const lifelineB = customPos.lifelines[1]!
+    expect(selfMsg.labelPosition.text).toBe('LOCAL SELF CHECK BEFORE DISPATCH')
+    expect(selfMsg.bounds.x + selfMsg.bounds.width + 12).toBeLessThanOrEqual(lifelineB.x)
+
+    // Fragment header tab and divider label respect custom group padding and stay inside block
+    const block = customPos.blocks[0]!
+    expect(block.header).toBeDefined()
+    expect(block.header!.label.x).toBe(block.x + 18)
+    expect(block.header!.label.bounds.x + block.header!.label.bounds.width).toBeLessThanOrEqual(block.header!.x + block.header!.width)
+    expect(block.header!.x + block.header!.width).toBeLessThanOrEqual(block.x + block.width - 18 + 1e-6)
+
+    const divider = block.dividers[0]!
+    expect(divider.labelPosition).toBeDefined()
+    expect(divider.labelPosition!.x).toBe(block.x + 8)
+    expect(divider.labelPosition!.bounds.x + divider.labelPosition!.bounds.width).toBeLessThanOrEqual(block.x + block.width - 18 + 1e-6)
+    expect(divider.labelPosition!.bounds.y + divider.labelPosition!.bounds.height).toBeLessThan(customPos.messages[1]!.labelPosition.bounds.y)
+  })
+
+  it('preserves contrast and opaque/translucent nested rect layering across crisp and styled looks', () => {
+    const source = `sequenceDiagram
+      box DarkSlateBlue Core Services
+        participant A as Gateway
+        participant B as Auth
+      end
+      alt Authenticated
+        rect rgba(16, 185, 129, 0.22)
+          A->>B: Verify token
+        end
+      else Unauthenticated
+        B-->>A: 401 Unauthorized
+      end`
+    for (const style of [undefined, 'accessible-high-contrast', 'blueprint']) {
+      const svg = renderMermaidSVG(source, { ...(style ? { style } : {}), embedFontImport: false })
+      // Enclosing alt background paints before nested rect, and alt frame/dividers paint above rect fill
+      const altBgIdx = svg.indexOf('data-type="alt"')
+      const rectBgIdx = svg.indexOf('data-type="rect"')
+      const frameOverlayIdx = svg.indexOf('class="sequence-block-frame-overlay"')
+      const dividerOverlayIdx = svg.indexOf('class="sequence-block-divider-overlay"')
+      const lifelineIdx = svg.indexOf('class="lifeline"')
+      expect(altBgIdx).toBeGreaterThan(0)
+      expect(rectBgIdx).toBeGreaterThan(altBgIdx)
+      expect(frameOverlayIdx).toBeGreaterThan(rectBgIdx)
+      expect(dividerOverlayIdx).toBeGreaterThan(rectBgIdx)
+      expect(lifelineIdx).toBeGreaterThan(dividerOverlayIdx)
+    }
+  })
+
+  it('projects complete actor and fragment bounds through layoutMermaid()', () => {
+    const source = `sequenceDiagram
+      actor A as Support<br/>Engineer<br/>On call
+      participant B as Backend
+      loop Health check with a very long fragment header tab
+        A->>B: Ping
+      end`
+    const pos = layout(source)
+    const parsed = parseMermaid(source)
+    expect(parsed.ok).toBe(true)
+    if (!parsed.ok) return
+    const projected = layoutMermaid(parsed.value)
+    const nodeA = projected.nodes.find(n => n.id === 'A')!
+    const group0 = projected.groups[0]!
+
+    expect(Number(nodeA.h)).toBe(Math.round(pos.actors[0]!.bounds.height))
+    expect(Number(group0.w)).toBe(Math.round(pos.blocks[0]!.bounds.width))
+  })
+
+  it('emits final SVG geometry whose <rect>, <line>, <polyline>, <text>, <tspan>, and transform attributes satisfy non-overlap invariants', () => {
+    const source = `sequenceDiagram
+      actor A as Support<br/>Engineer<br/>On call
+      participant B as API Gateway
+      participant C as Worker
+      loop HealthCheck
+        B->>B: Validate token and refresh lease
+        opt Nested verification with a long header label
+          A->>B: Ping
+          Note right of B: Gateway note
+        end
+      end
+      B->>C: Forward`
+    const svg = renderMermaidSVG(source, { embedFontImport: false })
+
+    // 1. Parse viewBox
+    const vbMatch = svg.match(/viewBox="0 0 ([0-9.]+) ([0-9.]+)"/)
+    expect(vbMatch).not.toBeNull()
+    const svgWidth = Number(vbMatch![1])
+    const svgHeight = Number(vbMatch![2])
+
+    // 2. Actor icon transform + label tspans + lifeline topY
+    const actorGroupMatch = svg.match(/<g class="actor" data-id="A"[\s\S]*?<\/text>\s*<\/g>/)
+    expect(actorGroupMatch).not.toBeNull()
+    const translateMatch = actorGroupMatch![0].match(/transform="translate\(([0-9.]+),([0-9.]+)\) scale\(([0-9.]+)\)"/)
+    expect(translateMatch).not.toBeNull()
+    const iconTopY = Number(translateMatch![2])
+    const iconScale = Number(translateMatch![3])
+    const iconBottomY = iconTopY + 24 * iconScale
+
+    const actorTextMatch = actorGroupMatch![0].match(/<text x="([0-9.]+)" y="([0-9.]+)"[^>]*font-size="([0-9.]+)"[^>]*>([\s\S]*?)<\/text>/)
+    expect(actorTextMatch).not.toBeNull()
+    const actorTextY = Number(actorTextMatch![2])
+    const actorFontSize = Number(actorTextMatch![3])
+    const tspanCount = (actorTextMatch![4]!.match(/<tspan /g) ?? []).length
+    expect(tspanCount).toBe(3)
+    const firstTspanDyMatch = actorTextMatch![4]!.match(/<tspan [^>]*dy="([-0-9.]+)"/)
+    const firstLineCenterY = actorTextY + Number(firstTspanDyMatch?.[1] ?? 0)
+    const lastLineCenterY = firstLineCenterY + (tspanCount - 1) * actorFontSize * 1.3
+    expect(firstLineCenterY - actorFontSize / 2).toBeGreaterThanOrEqual(iconBottomY)
+
+    const lifelineAMatch = svg.match(/<line class="lifeline" data-actor="A" x1="([0-9.]+)" y1="([0-9.]+)" x2="([0-9.]+)" y2="([0-9.]+)"/)
+    expect(lifelineAMatch).not.toBeNull()
+    const lifelineATopY = Number(lifelineAMatch![2])
+    expect(lifelineATopY).toBeGreaterThan(lastLineCenterY + actorFontSize / 2)
+
+    // 3. Self-message polyline + label clear lifeline C
+    const lifelineCMatch = svg.match(/<line class="lifeline" data-actor="C" x1="([0-9.]+)"/)
+    expect(lifelineCMatch).not.toBeNull()
+    const lifelineCX = Number(lifelineCMatch![1])
+
+    const selfMsgMatch = svg.match(/<g class="message" data-label="Validate token and refresh lease"[\s\S]*?<polyline points="([^"]+)"[\s\S]*?<text x="([0-9.]+)" y="([0-9.]+)"[^>]*font-size="([0-9.]+)"/)
+    expect(selfMsgMatch).not.toBeNull()
+    const polyXs = selfMsgMatch![1]!
+      .trim()
+      .split(/\s+/)
+      .map(pt => Number(pt.split(',')[0]))
+    const selfLabelX = Number(selfMsgMatch![2])
+    const selfFontSize = Number(selfMsgMatch![4])
+    const selfLabelRight = selfLabelX + estimateTextWidth('Validate token and refresh lease', selfFontSize, 400)
+    expect(Math.max(...polyXs)).toBeLessThan(lifelineCX)
+    expect(selfLabelRight).toBeLessThan(lifelineCX)
+
+    // 4. Fragment <rect> elements contain their header tabs and stay within viewBox
+    const blockRects = [...svg.matchAll(/<g class="block" data-type="([^"]+)"[^>]*>\s*<rect x="([0-9.]+)" y="([0-9.]+)" width="([0-9.]+)" height="([0-9.]+)"/g)].map(m => ({
+      type: m[1]!,
+      x: Number(m[2]),
+      y: Number(m[3]),
+      width: Number(m[4]),
+      height: Number(m[5]),
+    }))
+    const headerRects = [...svg.matchAll(/<g class="sequence-block-header-overlay"[^>]*>\s*<rect x="([0-9.]+)" y="([0-9.]+)" width="([0-9.]+)" height="([0-9.]+)"/g)].map(m => ({
+      x: Number(m[1]),
+      y: Number(m[2]),
+      width: Number(m[3]),
+      height: Number(m[4]),
+    }))
+    expect(blockRects).toHaveLength(2)
+    expect(headerRects).toHaveLength(2)
+    for (let i = 0; i < blockRects.length; i++) {
+      const b = blockRects[i]!
+      const h = headerRects[i]!
+      expect(b.x).toBeGreaterThanOrEqual(0)
+      expect(b.y).toBeGreaterThanOrEqual(0)
+      expect(b.x + b.width).toBeLessThanOrEqual(svgWidth + 1e-6)
+      expect(b.y + b.height).toBeLessThanOrEqual(svgHeight + 1e-6)
+      expect(h.x + h.width).toBeLessThanOrEqual(b.x + b.width + 1e-6)
+    }
   })
 })

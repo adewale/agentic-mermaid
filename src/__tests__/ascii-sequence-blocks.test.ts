@@ -54,4 +54,22 @@ describe('ASCII sequence blocks — self-arrow extent', () => {
     const lastTextIdx = longRow.lastIndexOf('1') // last '1' of "line1" or longer
     expect(lastBorder).toBeGreaterThan(lastTextIdx)
   })
+
+  it('spaces adjacent lifelines so a self-message label does not overwrite the next lifeline (#385)', () => {
+    const src = `sequenceDiagram
+  participant A
+  participant B
+  participant C
+  B->>B: Signal for throat clearance
+  B->>C: Next step`
+    const ascii = renderMermaidASCII(src, { useAscii: false })
+    const lines = ascii.split('\n')
+    const labelRow = lines.find(l => l.includes('Signal for throat clearance'))!
+    expect(labelRow).toBeDefined()
+
+    // On the self-message label row, C's lifeline (│) must still be drawn to the right of the label.
+    const labelEnd = labelRow.indexOf('Signal for throat clearance') + 'Signal for throat clearance'.length
+    const cLifelineIdx = labelRow.lastIndexOf('│')
+    expect(cLifelineIdx).toBeGreaterThan(labelEnd)
+  })
 })

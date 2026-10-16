@@ -1,11 +1,10 @@
-import type { PositionedSequenceDiagram, PositionedActor, Lifeline, PositionedMessage, Activation, PositionedBlock, PositionedNote, PositionedBoxGroup, LifelineCross } from './types.ts'
+import type { PositionedSequenceDiagram, PositionedActor, Lifeline, PositionedMessage, Activation, PositionedBlock, PositionedBlockHeader, PositionedNote, PositionedBoxGroup, LifelineCross, SequenceBounds } from './types.ts'
 import { boxColorToHex } from './colors.ts'
 import { contrastTextColor, toneOnFill } from '../color-resolver.ts'
 import { compositeCssColor, legibleInk, toHex, tryParseCssColor, wcagContrastRatio } from '../shared/color-math.ts'
 import type { RenderContext } from '../types.ts'
 import { svgOpenTag, buildStyleBlock, buildShadowDefs, resolvedColorValue, type DiagramColors } from '../theme.ts'
-import { FONT_SIZES, FONT_WEIGHTS, STROKE_WIDTHS, ARROW_HEAD, estimateTextWidth, TEXT_BASELINE_SHIFT, applyTextTransform, resolveRenderStyle, diagramTitleMark } from '../styles.ts'
-import { LINE_HEIGHT_RATIO } from '../text-metrics.ts'
+import { FONT_SIZES, FONT_WEIGHTS, STROKE_WIDTHS, ARROW_HEAD, TEXT_BASELINE_SHIFT, applyTextTransform, resolveRenderStyle, diagramTitleMark } from '../styles.ts'
 import type { RenderStyleDefaults, ResolvedRenderStyle } from '../styles.ts'
 import { SEQUENCE_STYLE_DEFAULTS } from './layout.ts'
 import { buildAccessibilityAttrs } from '../shared/svg-a11y.ts'
@@ -166,7 +165,7 @@ export function lowerSequenceScene(
   for (const block of diagram.blocks) {
     const k = blockHeaderOccurrence.get(block.type) ?? 0
     blockHeaderOccurrence.set(block.type, k + 1)
-    if (block.type !== 'rect') parts.push(renderBlockHeader(block, style, blockSceneIds.get(block)!))
+    if (block.type !== 'rect' && block.header) parts.push(renderBlockHeader(block.header, style, blockSceneIds.get(block)!))
   }
 
   // 3b. Fragment section labels, above the lifelines and activation bars that
@@ -230,12 +229,14 @@ function haloPaint(paint: SurfaceText): { stroke?: string; strokeWidth?: string;
   return paint.halo ? { stroke: paint.halo, strokeWidth: '3', strokeLinejoin: 'round', paintOrder: 'stroke' } : {}
 }
 
-/** The area of a label drawn by renderMultilineText at (x, y) with `anchor`. */
-function labelArea(x: number, y: number, anchor: 'start' | 'middle' | 'end', text: string, fontSize: number, fontWeight: number): TextArea {
-  const lines = text.split('\n')
-  const width = Math.max(...lines.map(line => estimateTextWidth(line, fontSize, fontWeight)))
-  const center = anchor === 'middle' ? x : anchor === 'start' ? x + width / 2 : x - width / 2
-  return { x: center, y, width, height: lines.length * fontSize * LINE_HEIGHT_RATIO }
+/** Center-based area from a top-left `SequenceBounds` box. */
+function areaFromBounds(bounds: SequenceBounds): TextArea {
+  return {
+    x: bounds.x + bounds.width / 2,
+    y: bounds.y + bounds.height / 2,
+    width: bounds.width,
+    height: bounds.height,
+  }
 }
 
 function surfaceInk(
@@ -360,11 +361,11 @@ function renderActor(
   const open =
     `<g class="actor" data-id="${escapeAttr(id)}" data-label="${escapeAttr(label)}" data-type="${type}"${menu}>`
 
-  const displayLabel = applyTextTransform(label, textTransform)
+  const { text: displayLabel, x: labelX, y: labelY, bounds: labelBounds } = actor.labelPosition
   const labelAttrs =
     `font-size="${fontSize}" text-anchor="middle" font-weight="${fontWeight}"${letterAttr(letterSpacing)} fill="${escapeAttr(boxTextColor)}"`
   // Icon participants label below the glyph, on whatever the column shows.
-  const below = inkAt(labelArea(x, y + height + 14, 'middle', displayLabel, fontSize, fontWeight), rawTextColor)
+  const below = inkAt(areaFromBounds(labelBounds), rawTextColor)
   const belowAttrs =
     `font-size="${fontSize}" text-anchor="middle" font-weight="${fontWeight}"${letterAttr(letterSpacing)} fill="${escapeAttr(below.ink)}"${haloAttrs(below)}`
 
@@ -400,13 +401,13 @@ function renderActor(
         id: `actor:${id}:label`,
         role: 'label',
         text: displayLabel,
-        x,
-        y: y + height + 14,
+        x: labelX,
+        y: labelY,
         fontSize,
         anchor: 'middle',
         paint: { fill: below.ink, ...haloPaint(below) },
         channels: { category: id },
-      }, renderMultilineText(displayLabel, x, y + height + 14, fontSize, belowAttrs)),
+      }, renderMultilineText(displayLabel, labelX, labelY, fontSize, belowAttrs)),
     })
   } else if (type !== 'participant') {
     const rawStroke = escapeAttr(roleStyle?.borderColor ?? style.edgeStrokeColor ?? 'var(--_line)')
@@ -431,9 +432,9 @@ function renderActor(
     children.push({ indent: 2, node: marks.documentContent({ id: `actor:${id}:icon`, role: 'icon', channels: { category: id } },
       `<g class="sequence-actor-glyph sequence-actor-${type}" fill="${rawFill}" stroke="${rawStroke}" stroke-width="${lineWidth}">${glyph}</g>`) })
     children.push({ indent: 2, node: marks.text({
-      id: `actor:${id}:label`, role: 'label', text: displayLabel, x, y: y + height + 14,
+      id: `actor:${id}:label`, role: 'label', text: displayLabel, x: labelX, y: labelY,
       fontSize, anchor: 'middle', paint: { fill: below.ink, ...haloPaint(below) }, channels: { category: id },
-    }, renderMultilineText(displayLabel, x, y + height + 14, fontSize, belowAttrs)) })
+    }, renderMultilineText(displayLabel, labelX, labelY, fontSize, belowAttrs)) })
   } else {
     // Participant: rectangle box with label (supports multi-line)
     const boxX = x - width / 2
@@ -458,13 +459,13 @@ function renderActor(
         id: `actor:${id}:label`,
         role: 'label',
         text: displayLabel,
-        x,
-        y: y + height / 2,
+        x: labelX,
+        y: labelY,
         fontSize,
         anchor: 'middle',
         paint: { fill: boxTextColor },
         channels: { category: id },
-      }, renderMultilineText(displayLabel, x, y + height / 2, fontSize, labelAttrs)),
+      }, renderMultilineText(displayLabel, labelX, labelY, fontSize, labelAttrs)),
     })
   }
 
@@ -534,7 +535,7 @@ function renderMessage(msg: PositionedMessage, style: ResolvedRenderStyle, scene
   const markerAttrs = `${startMarker ? ` marker-start="url(#${startMarker.id})"` : ''}${endMarker ? ` marker-end="url(#${endMarker.id})"` : ''}`
   const rawStroke = style.edgeStrokeColor ?? 'var(--_line)'
   const rawTextColor = style.edgeTextColor ?? 'var(--_text-muted)'
-  const displayLabel = applyTextTransform(msg.label, style.edgeTextTransform)
+  const { text: displayLabel, x: labelX, y: labelY, bounds: labelBounds } = msg.labelPosition
   const linePaint = {
     stroke: rawStroke,
     strokeWidth: String(style.lineWidth),
@@ -559,10 +560,7 @@ function renderMessage(msg: PositionedMessage, style: ResolvedRenderStyle, scene
 
   if (msg.isSelf) {
     // Self-message: curved loop going right and back
-    // Loop dimensions - loopH is fixed, loopW provides minimum clearance
-    const loopW = 30
-    const loopH = 20
-    const labelPadding = 8 // Space between loop and label
+    const pointsAttr = msg.points.map(p => `${p.x},${p.y}`).join(' ')
     children.push({
       indent: 2,
       node: marks.connector({
@@ -570,12 +568,7 @@ function renderMessage(msg: PositionedMessage, style: ResolvedRenderStyle, scene
         role: 'message',
         geometry: {
           kind: 'polyline',
-          points: [
-            { x: msg.x1, y: msg.y },
-            { x: msg.x1 + loopW, y: msg.y },
-            { x: msg.x1 + loopW, y: msg.y + loopH },
-            { x: msg.x2, y: msg.y + loopH },
-          ],
+          points: msg.points,
         },
         lineStyle: msg.lineStyle,
         paint: linePaint,
@@ -583,57 +576,58 @@ function renderMessage(msg: PositionedMessage, style: ResolvedRenderStyle, scene
         ...(endMarker ? { endMarker } : {}),
         ...connectorSemantics,
       },
-        `<polyline points="${msg.x1},${msg.y} ${msg.x1 + loopW},${msg.y} ${msg.x1 + loopW},${msg.y + loopH} ${msg.x2},${msg.y + loopH}" ` +
+        `<polyline points="${pointsAttr}" ` +
         `fill="none" stroke="${escapeAttr(rawStroke)}" stroke-width="${style.lineWidth}"${dashArray}${markerAttrs} />`),
     })
     // Label to the right of the loop (supports multi-line)
-    const loopPaint = inkAt(labelArea(msg.x1 + loopW + labelPadding, msg.y + loopH / 2, 'start', displayLabel, style.edgeLabelFontSize, style.edgeLabelFontWeight), rawTextColor)
+    const loopPaint = inkAt(areaFromBounds(labelBounds), rawTextColor)
     children.push({
       indent: 2,
       node: marks.text({
         id: `${sceneId}:label`,
         role: 'label',
         text: displayLabel,
-        x: msg.x1 + loopW + labelPadding,
-        y: msg.y + loopH / 2,
+        x: labelX,
+        y: labelY,
         fontSize: style.edgeLabelFontSize,
         anchor: 'start',
         paint: { fill: loopPaint.ink, ...haloPaint(loopPaint) },
-      }, renderMultilineText(displayLabel, msg.x1 + loopW + labelPadding, msg.y + loopH / 2, style.edgeLabelFontSize,
+      }, renderMultilineText(displayLabel, labelX, labelY, style.edgeLabelFontSize,
         `font-size="${style.edgeLabelFontSize}" text-anchor="start" font-weight="${style.edgeLabelFontWeight}"${letterAttr(style.edgeLetterSpacing)} fill="${escapeAttr(loopPaint.ink)}"${haloAttrs(loopPaint)}`)),
     })
   } else {
     // Normal message: horizontal arrow
+    const p0 = msg.points[0]!
+    const p1 = msg.points[msg.points.length - 1]!
     children.push({
       indent: 2,
       node: marks.connector({
         id: `${sceneId}:line`,
         role: 'message',
-        geometry: { kind: 'line', x1: msg.x1, y1: msg.y, x2: msg.x2, y2: msg.y },
+        geometry: { kind: 'line', x1: p0.x, y1: p0.y, x2: p1.x, y2: p1.y },
         lineStyle: msg.lineStyle,
         paint: linePaint,
         ...(startMarker ? { startMarker } : {}),
         ...(endMarker ? { endMarker } : {}),
         ...connectorSemantics,
       },
-        `<line x1="${msg.x1}" y1="${msg.y}" x2="${msg.x2}" y2="${msg.y}" ` +
+        `<line x1="${p0.x}" y1="${p0.y}" x2="${p1.x}" y2="${p1.y}" ` +
         `stroke="${escapeAttr(rawStroke)}" stroke-width="${style.lineWidth}"${dashArray}${markerAttrs} />`),
     })
     // Label above the arrow, centered (supports multi-line)
-    const midX = (msg.x1 + msg.x2) / 2
-    const labelPaint = inkAt(labelArea(midX, msg.y - 10, 'middle', displayLabel, style.edgeLabelFontSize, style.edgeLabelFontWeight), rawTextColor)
+    const labelPaint = inkAt(areaFromBounds(labelBounds), rawTextColor)
     children.push({
       indent: 2,
       node: marks.text({
         id: `${sceneId}:label`,
         role: 'label',
         text: displayLabel,
-        x: midX,
-        y: msg.y - 10,
+        x: labelX,
+        y: labelY,
         fontSize: style.edgeLabelFontSize,
         anchor: 'middle',
         paint: { fill: labelPaint.ink, ...haloPaint(labelPaint) },
-      }, renderMultilineText(displayLabel, midX, msg.y - 10, style.edgeLabelFontSize,
+      }, renderMultilineText(displayLabel, labelX, labelY, style.edgeLabelFontSize,
         `font-size="${style.edgeLabelFontSize}" text-anchor="middle" font-weight="${style.edgeLabelFontWeight}"${letterAttr(style.edgeLetterSpacing)} fill="${escapeAttr(labelPaint.ink)}"${haloAttrs(labelPaint)}`)),
     })
   }
@@ -736,9 +730,9 @@ function renderBlockDividerLabels(block: PositionedBlock, style: ResolvedRenderS
   const rawDividerText = style.edgeTextColor ?? 'var(--_text-muted)'
   const children: Array<{ node: SceneNode; indent: number }> = []
   block.dividers.forEach((divider, dividerIndex) => {
-    if (!divider.label) return
-    const label = applyTextTransform(`[${divider.label}]`, style.edgeTextTransform)
-    const surface = inkAt(labelArea(block.x + 8, divider.y + 14, 'start', label, style.edgeLabelFontSize, style.edgeLabelFontWeight), rawDividerText)
+    if (!divider.label || !divider.labelPosition) return
+    const { text: label, x: labelX, y: labelY, bounds } = divider.labelPosition
+    const surface = inkAt(areaFromBounds(bounds), rawDividerText)
     const labelPaint = { ink: surface.ink, halo: surface.halo ?? style.groupFillColor ?? 'var(--bg)' }
     children.push({
       indent: 2,
@@ -746,12 +740,12 @@ function renderBlockDividerLabels(block: PositionedBlock, style: ResolvedRenderS
         id: `${sceneId}:divider#${dividerIndex}:label`,
         role: 'label',
         text: label,
-        x: block.x + 8,
-        y: divider.y + 14,
+        x: labelX,
+        y: labelY,
         fontSize: style.edgeLabelFontSize,
         anchor: 'start',
         paint: { fill: labelPaint.ink, ...haloPaint(labelPaint) },
-      }, renderMultilineText(label, block.x + 8, divider.y + 14, style.edgeLabelFontSize,
+      }, renderMultilineText(label, labelX, labelY, style.edgeLabelFontSize,
         `font-size="${style.edgeLabelFontSize}" text-anchor="start" font-weight="${style.edgeLabelFontWeight}"${letterAttr(style.edgeLetterSpacing)} fill="${escapeAttr(labelPaint.ink)}"${haloAttrs(labelPaint)}`)),
     })
   })
@@ -764,11 +758,9 @@ function renderBlockDividerLabels(block: PositionedBlock, style: ResolvedRenderS
   })
 }
 
-function renderBlockHeader(block: PositionedBlock, style: ResolvedRenderStyle, sceneId: string): SceneNode {
-  const labelText = applyTextTransform(`${block.type}${block.label ? ` [${block.label}]` : ''}`, style.groupTextTransform)
-  const firstLine = labelText.split('\n')[0]!
-  const tabWidth = estimateTextWidth(firstLine, style.groupHeaderFontSize, style.groupHeaderFontWeight) + style.groupPaddingX * 2
-  const tabHeight = Math.max(18, style.groupHeaderFontSize + style.groupPaddingY)
+function renderBlockHeader(header: PositionedBlockHeader, style: ResolvedRenderStyle, sceneId: string): SceneNode {
+  const { x: tabX, y: tabY, width: tabWidth, height: tabHeight, label } = header
+  const { text: labelText, x: labelX, y: labelY } = label
   const fill = style.groupHeaderFillColor ?? 'var(--_group-hdr)'
   const stroke = style.groupBorderColor ?? 'var(--_node-stroke)'
   const text = style.groupTextColor ?? 'var(--_text-sec)'
@@ -783,9 +775,9 @@ function renderBlockHeader(block: PositionedBlock, style: ResolvedRenderStyle, s
         node: marks.shape({
           id: `${sceneId}:tab`,
           role: 'block',
-          geometry: { kind: 'rect', x: block.x, y: block.y, width: tabWidth, height: tabHeight },
+          geometry: { kind: 'rect', x: tabX, y: tabY, width: tabWidth, height: tabHeight },
           paint: { fill, stroke, strokeWidth: String(style.groupLineWidth) },
-        }, `<rect x="${block.x}" y="${block.y}" width="${tabWidth}" height="${tabHeight}" fill="${escapeAttr(fill)}" stroke="${escapeAttr(stroke)}" stroke-width="${style.groupLineWidth}" />`),
+        }, `<rect x="${tabX}" y="${tabY}" width="${tabWidth}" height="${tabHeight}" fill="${escapeAttr(fill)}" stroke="${escapeAttr(stroke)}" stroke-width="${style.groupLineWidth}" />`),
       },
       {
         indent: 0,
@@ -793,15 +785,15 @@ function renderBlockHeader(block: PositionedBlock, style: ResolvedRenderStyle, s
           id: `${sceneId}:label`,
           role: 'label',
           text: labelText,
-          x: block.x + style.groupLabelPaddingX,
-          y: block.y + tabHeight / 2,
+          x: labelX,
+          y: labelY,
           fontSize: style.groupHeaderFontSize,
           anchor: 'start',
           paint: { fill: text },
         }, renderMultilineText(
           labelText,
-          block.x + style.groupLabelPaddingX,
-          block.y + tabHeight / 2,
+          labelX,
+          labelY,
           style.groupHeaderFontSize,
           `font-size="${style.groupHeaderFontSize}" font-weight="${style.groupHeaderFontWeight}"${style.groupFont ? ` font-family="${escapeAttr(style.groupFont)}"` : ''}${letterAttr(style.groupLetterSpacing)} fill="${escapeAttr(text)}"`,
         )),
