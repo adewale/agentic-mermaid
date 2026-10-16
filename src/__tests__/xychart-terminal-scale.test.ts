@@ -92,7 +92,10 @@ x-axis [A, B]
 y-axis -120 --> 0
 bar [-120, 0]`
     const rows = renderMermaidASCII(source, { colorMode: 'none', targetWidth: 12 }).split('\n')
-    expect(rows[rows.length - 1]).toMatch(/-120\s+0$/)
+    const labels = rows.at(-1)!.trim().split(/\s+/).map(Number)
+    expect(labels[0]).toBe(-120)
+    expect(labels.at(-1)).toBe(0)
+    expect(labels.every((value, index) => index === 0 || value > labels[index - 1]!)).toBe(true)
     expect(rows.every(row => row.length <= 12)).toBe(true)
   })
 

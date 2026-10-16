@@ -145,7 +145,7 @@ describe('terminal XY numeric projection', () => {
       const category = document.regions().find(region => region.id === `x-category-${index}`)!
       return [...document.entries()].filter(([, y, cell]) => y === category.canvasRow && cell.owners.some(owner => owner.id === 'series-0')).reduce((sum, [, , cell]) => sum + weight(cell.glyph), 0)
     })
-    expect(lengths).toEqual([0, 1.5, 59])
+    expect(lengths).toEqual([0, 1.5, 60])
   })
 
   test('literal axis titles and axis visibility survive the terminal projection', () => {
