@@ -32,6 +32,10 @@ under C, English and Japanese locale settings.
   bands; Timeline text bands; GitGraph label clearance; and XY title allocation.
   The 296-diagram golden remains a determinism check, alongside independent
   content, clearance and raster oracles.
+- All 16 styled SVG goldens were reviewed in native before/after pairs; all
+  32 renders have zero off-canvas text. Six pairs are pixel-identical changes
+  to prepared serialization; the others reflect canonical typography or
+  complete title/header/container bands.
 - Section B's 64 family-by-style cells and the existing cookbook images were
   visually reviewed. Their approval records identify an agent review, never
   human approval. The README hero uses bundled mono text with explicit column
