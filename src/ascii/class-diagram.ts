@@ -149,6 +149,39 @@ export function renderClassAscii(text: string, config: AsciiConfig, colorMode?: 
       namespaces.push(frame); return frame
     }
     diagram.namespaces.forEach(ns => visit(ns))
+    // Header growth can make independently placed sibling namespaces overlap.
+    // Settle their complete envelopes, moving each contained subtree together.
+    const move = (box: PlacedClass | PlacedNamespace, dy: number): void => {
+      box.y += dy
+      if ('members' in box) {
+        namespaces.filter(child => child.parentId === box.id).forEach(child => move(child, dy))
+        for (const child of placed.values()) if (namespaceByClass.get(child.id) === box.id) move(child, dy)
+      }
+    }
+    const settle = (parentId?: string): void => {
+      const children = [
+        ...namespaces.filter(box => box.parentId === parentId),
+        ...[...placed.values()].filter(box => namespaceByClass.get(box.id) === parentId),
+      ]
+      for (const child of children) if ('members' in child) settle(child.id)
+      const allocated: Array<PlacedClass | PlacedNamespace> = []
+      for (const child of children.sort((a, b) => a.y - b.y || a.x - b.x || compareCodePointStrings(a.id, b.id))) {
+        for (;;) {
+          const blockers = allocated.filter(other => child.x < other.x + other.width && other.x < child.x + child.width && child.y < other.y + other.height && other.y < child.y + child.height)
+          if (!blockers.length) break
+          move(child, Math.max(...blockers.map(other => other.y + other.height + 2)) - child.y)
+        }
+        allocated.push(child)
+      }
+      const parent = namespaces.find(box => box.id === parentId)
+      if (parent && children.length) {
+        parent.x = Math.min(...children.map(box => box.x)) - 2
+        parent.y = Math.min(...children.map(box => box.y)) - parent.labelLines.length - 1
+        parent.width = Math.max(...children.map(box => box.x + box.width + 2), parent.x + Math.max(...parent.labelLines.map(visualWidth)) + 4) - parent.x
+        parent.height = Math.max(...children.map(box => box.y + box.height + 2)) - parent.y
+      }
+    }
+    settle()
   }
   let noteY = Math.max(0, ...[...placed.values()].map(box => box.y + box.height), ...namespaces.map(box => box.y + box.height)) + 8
   const noteBoxes = notePlans.map(note => {
@@ -156,7 +189,7 @@ export function renderClassAscii(text: string, config: AsciiConfig, colorMode?: 
     const box = { ...note, x: target?.x ?? 2, y: noteY, width: Math.max(6, ...note.lines.map(line => visualWidth(line) + 4), size?.width ?? 0), height: Math.max(note.lines.length + 2, size?.height ?? 0) }
     noteY += box.height + 4; return box
   })
-  const routes = allocateBoxRoutes([...placed.values(), ...noteBoxes], [...relations, ...noteRelations], direction)
+  const routes = allocateBoxRoutes([...placed.values(), ...noteBoxes], [...relations, ...noteRelations], direction, namespaces.map(box => ({ ...box, container: true, headerHeight: box.labelLines.length })))
   const doc = new TerminalDocument()
   const ascii = config.useAscii, H = ascii ? '-' : '─', V = ascii ? '|' : '│'
   const frame = (box: TerminalBox, owner: TerminalOwner, opaque = false) => {

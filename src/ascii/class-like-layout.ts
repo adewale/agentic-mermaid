@@ -87,7 +87,7 @@ const overlaps = (a: TerminalBounds, b: TerminalBounds): boolean => a.x < b.x + 
  * marker exits, all text rectangles and earlier routes are allocated here.
  * Family code supplies its own boxes, labels and endpoint marker semantics.
  */
-export function allocateBoxRoutes(boxes: readonly TerminalBox[], relations: readonly BoxRelation[], direction: DiagramDirection): BoxRoute[] {
+export function allocateBoxRoutes(boxes: readonly TerminalBox[], relations: readonly BoxRelation[], direction: DiagramDirection, additionalObstacles: readonly TerminalBox[] = []): BoxRoute[] {
   const byId = new Map(boxes.map(box => [box.id, box]))
   const counts = faceCounts(relations, direction, byId), cursors = new Map<string, number>()
   const port = (id: string, side: BoxSide): BoxPort => {
@@ -114,7 +114,14 @@ export function allocateBoxRoutes(boxes: readonly TerminalBox[], relations: read
   const occupy = (bounds: TerminalBounds) => {
     for (let y = bounds.y; y < bounds.y + bounds.height; y++) for (let x = bounds.x; x < bounds.x + bounds.width; x++) occupied.set(`${x},${y}`, blocker)
   }
-  const obstacles = boxes.flatMap(box => box.container ? [{ x: box.x, y: box.y, width: box.width, height: box.headerHeight ?? 1 }] : [box])
+  const geometry = [...boxes, ...additionalObstacles]
+  const obstacles = geometry.flatMap(box => box.container ? [{ x: box.x, y: box.y, width: box.width, height: box.headerHeight ?? 1 }] : [box])
+  const textObstacles = geometry.flatMap(box => box.container ? [
+    { x: box.x, y: box.y, width: box.width, height: box.headerHeight ?? 1 },
+    { x: box.x, y: box.y, width: 1, height: box.height },
+    { x: box.x + box.width - 1, y: box.y, width: 1, height: box.height },
+    { x: box.x, y: box.y + box.height - 1, width: box.width, height: 1 },
+  ] : [box])
   obstacles.forEach(occupy)
   for (const key of occupied.keys()) cardCells.add(key)
   for (const plan of plans) for (const point of [plan.source, plan.target]) {
@@ -126,7 +133,7 @@ export function allocateBoxRoutes(boxes: readonly TerminalBox[], relations: read
     const width = Math.max(...lines.map(visualWidth)), height = lines.length
     const free = (bounds: TerminalBounds) => {
       const clearance = { x: bounds.x - 1, y: bounds.y - 1, width: bounds.width + 2, height: bounds.height + 2 }
-      if (bounds.x < 0 || bounds.y < 0 || obstacles.some(box => overlaps(clearance, box)) || textBounds.some(other => overlaps(clearance, other))) return false
+      if (bounds.x < 0 || bounds.y < 0 || textObstacles.some(box => overlaps(clearance, box)) || textBounds.some(other => overlaps(clearance, other))) return false
       for (let y = bounds.y; y < bounds.y + height; y++) for (let x = bounds.x; x < bounds.x + width; x++) if (markerCells.has(`${x},${y}`) || routeCells.has(`${x},${y}`)) return false
       return true
     }
@@ -147,7 +154,7 @@ export function allocateBoxRoutes(boxes: readonly TerminalBox[], relations: read
     }
     // A non-clipping feasible fallback is outside the occupied geometry. Hard
     // width policy can refuse this complete result with its existing error.
-    let x = Math.max(2, ...boxes.map(box => box.x + box.width + 2), ...textBounds.map(bounds => bounds.x + bounds.width + 2))
+    let x = Math.max(2, ...geometry.map(box => box.x + box.width + 2), ...textBounds.map(bounds => bounds.x + bounds.width + 2))
     const y = Math.max(0, anchors[0]?.y ?? 0)
     while (!free({ x, y, width, height })) x++
     const bounds = { x, y, width, height }; textBounds.push(bounds); occupy(bounds)
@@ -167,7 +174,11 @@ export function allocateBoxRoutes(boxes: readonly TerminalBox[], relations: read
       const key = gridKey(point), previous = occupied.get(key)
       if (previous && !cardCells.has(key)) { removed.push([key, previous]); occupied.delete(key) }
     }
-    let middle = sourceExit.x < 0 || sourceExit.y < 0 || targetExit.x < 0 || targetExit.y < 0 ? null : getPath(occupied, sourceExit, targetExit, preferred[source.side])
+    const clearExit = (point: BoxPort): boolean => {
+      const d = delta[point.side]
+      return [0, 1, 2].every(step => !cardCells.has(`${point.x + d.x * step},${point.y + d.y * step}`))
+    }
+    let middle = sourceExit.x < 0 || sourceExit.y < 0 || targetExit.x < 0 || targetExit.y < 0 || !clearExit(source) || !clearExit(target) ? null : getPath(occupied, sourceExit, targetExit, preferred[source.side])
     if (!middle) {
       const removedRoutes: string[] = []
       for (const key of routeCells) if (occupied.has(key) && !cardCells.has(key)) { occupied.delete(key); removedRoutes.push(key) }

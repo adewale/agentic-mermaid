@@ -101,7 +101,9 @@ export function renderJourneyAscii(
 
   for (let sectionIndex = 0; sectionIndex < diagram.sections.length; sectionIndex++) {
     const section = diagram.sections[sectionIndex]!
-    owner = { id: section.id, kind: 'band' }
+    const sectionStart = document.height
+    const sectionOwner: TerminalOwner = { id: section.id, kind: 'band', members: section.tasks.map(task => task.id) }
+    owner = sectionOwner
 
     if (section.label) {
       // Bracket only the first line of a wrapped label — bracketing every
@@ -168,6 +170,9 @@ export function renderJourneyAscii(
       const moreSections = sectionIndex < diagram.sections.length - 1
       if (moreTasks || moreSections) pushLine()
     }
+    if (document.height > sectionStart) document.region(sectionOwner, {
+      x: 0, y: sectionStart, width: document.width, height: document.height - sectionStart,
+    })
   }
 
   return finishTerminalDocument(config, document, { colorMode, theme, trimEnd: true })

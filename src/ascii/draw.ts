@@ -389,27 +389,32 @@ export function drawLine(
  *
  * Supports bidirectional arrows via edge.hasArrowStart and edge.hasArrowEnd.
  */
-function reciprocalHorizontalLaneOffset(
+function reciprocalLaneOffset(
   graph: AsciiGraph,
   edge: AsciiEdge,
   startPoint: DrawingCoord,
   endPoint: DrawingCoord,
-): number {
-  if (edge.routeClass !== 'feedback' || edge.bundle || edge.fromSubgraph || edge.toSubgraph
-    || edge.path.length !== 2 || edge.path[0]!.y !== edge.path[1]!.y
-    || !(dirEquals(edge.startDir, Left) || dirEquals(edge.startDir, Right))
-    || !(dirEquals(edge.endDir, Left) || dirEquals(edge.endDir, Right))) return 0
-  const opposite = graph.edges.some(other => other !== edge && other.from === edge.to && other.to === edge.from)
-  if (!opposite) return 0
-  const inside = (node: AsciiNode, point: DrawingCoord, offset: number) => {
+): DrawingCoord {
+  const none = { x: 0, y: 0 }
+  if ((edge.routeClass !== 'feedback' && edge.routeClass !== 'container') || edge.bundle || edge.path.length !== 2) return none
+  const horizontal = startPoint.y === endPoint.y && (dirEquals(edge.startDir, Left) || dirEquals(edge.startDir, Right)) && (dirEquals(edge.endDir, Left) || dirEquals(edge.endDir, Right))
+  const vertical = startPoint.x === endPoint.x && (dirEquals(edge.startDir, Up) || dirEquals(edge.startDir, Down)) && (dirEquals(edge.endDir, Up) || dirEquals(edge.endDir, Down))
+  if (!horizontal && !vertical) return none
+  const opposite = graph.edges.find(other => other !== edge && other.from === edge.to && other.to === edge.from)
+  if (!opposite) return none
+  if (edge.routeClass === 'container' && graph.edges.indexOf(edge) < graph.edges.indexOf(opposite)) return none
+  const inside = (node: AsciiNode, group: AsciiSubgraph | undefined, point: DrawingCoord, offset: number) => {
+    if (group) return horizontal
+      ? point.y + offset > group.minY + splitLines(group.name).length && point.y + offset < group.maxY
+      : point.x + offset > group.minX && point.x + offset < group.maxX
     if (!node.drawing || !node.drawingCoord) return false
-    const [, height] = getCanvasSize(node.drawing)
-    const y = point.y + offset
-    return y > node.drawingCoord.y && y < node.drawingCoord.y + height
+    const [width, height] = getCanvasSize(node.drawing)
+    return horizontal
+      ? point.y + offset > node.drawingCoord.y && point.y + offset < node.drawingCoord.y + height
+      : point.x + offset > node.drawingCoord.x && point.x + offset < node.drawingCoord.x + width
   }
-  if (inside(edge.from, startPoint, 1) && inside(edge.to, endPoint, 1)) return 1
-  if (inside(edge.from, startPoint, -1) && inside(edge.to, endPoint, -1)) return -1
-  return 0
+  for (const offset of [1, -1]) if (inside(edge.from, edge.fromSubgraph, startPoint, offset) && inside(edge.to, edge.toSubgraph, endPoint, offset)) return horizontal ? { x: 0, y: offset } : { x: offset, y: 0 }
+  return none
 }
 
 export function drawArrow(
@@ -436,11 +441,10 @@ export function drawArrow(
     : getNodeAttachmentPoint(graph, edge.to, edge.endDir)
   // A reciprocal two-cycle needs two disjoint terminal rows. Merge precedence
   // cannot preserve two labels and two markers that occupy the same cells.
-  const laneOffset = reciprocalHorizontalLaneOffset(graph, edge, baseStartPoint, baseEndPoint)
-  const startPoint = laneOffset === 0 ? baseStartPoint : { x: baseStartPoint.x, y: baseStartPoint.y + laneOffset }
-  const endPoint = edge.toSubgraph
-    ? baseEndPoint
-    : laneOffset === 0 ? undefined : { x: baseEndPoint.x, y: baseEndPoint.y + laneOffset }
+  const laneOffset = reciprocalLaneOffset(graph, edge, baseStartPoint, baseEndPoint)
+  const moved = laneOffset.x !== 0 || laneOffset.y !== 0
+  const startPoint = { x: baseStartPoint.x + laneOffset.x, y: baseStartPoint.y + laneOffset.y }
+  const endPoint = moved || edge.toSubgraph ? { x: baseEndPoint.x + laneOffset.x, y: baseEndPoint.y + laneOffset.y } : undefined
   recordGraphPorts(graph, edge, startPoint, endPoint ?? baseEndPoint)
   const labelCanvas = drawArrowLabel(graph, edge, laneOffset)
   const [pathCanvas, linesDrawn, lineDirs] = drawPath(graph, edge.path, edge.style, startPoint, endPoint)
@@ -940,12 +944,12 @@ function drawCorners(graph: AsciiGraph, path: GridCoord[]): Canvas {
 }
 
 /** Draw edge label text centered on the widest path segment. */
-function drawArrowLabel(graph: AsciiGraph, edge: AsciiEdge, laneOffset = 0): Canvas {
+function drawArrowLabel(graph: AsciiGraph, edge: AsciiEdge, laneOffset: DrawingCoord = { x: 0, y: 0 }): Canvas {
   const canvas = copyCanvas(graph.canvas)
   if (edge.text.length === 0) return canvas
 
   const drawingLine = lineToDrawing(graph, edge.labelLine)
-    .map(point => laneOffset === 0 ? point : { x: point.x, y: point.y + laneOffset })
+    .map(point => ({ x: point.x + laneOffset.x, y: point.y + laneOffset.y }))
 
   // Offset labels only for true bidirectional pairs. Ordinary downward
   // fan-out branches should keep labels centered on the branch, not shifted
@@ -1645,8 +1649,13 @@ export function drawGraph(graph: AsciiGraph, containerKind: 'subgraph' | 'cluste
       const point = gridToDrawingCoord(graph, junction)
       const current = document.cell(point.x, point.y)
       const drawing = copyCanvas(document)
-      drawing.put(point.x, point.y, graph.config.useAscii ? '+' : graph.config.graphDirection === 'LR' ? '├' : '┬', { role: 'junction' })
-      if (current?.owners.length) drawing.attribute(current.owners)
+      drawing.put(point.x, point.y, graph.config.useAscii ? '+' : graph.config.graphDirection === 'LR' ? graph.config.reverseDirection ? '┤' : '├' : '┬', { role: 'junction' })
+      const traversing = graph.edges.filter(edge => edge.style !== 'invisible' && edge.path.some((end, index) => {
+        const start = edge.path[index - 1]
+        return start && ((start.x === end.x && junction.x === start.x && junction.y >= Math.min(start.y, end.y) && junction.y <= Math.max(start.y, end.y))
+          || (start.y === end.y && junction.y === start.y && junction.x >= Math.min(start.x, end.x) && junction.x <= Math.max(start.x, end.x)))
+      })).map(edgeOwner)
+      drawing.attribute([...(current?.owners ?? []), ...traversing])
       document.overlay(drawing)
     }
     for (const drawing of layers[stage]!) document.overlay(drawing)

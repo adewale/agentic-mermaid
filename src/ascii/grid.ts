@@ -722,10 +722,19 @@ export function createMapping(graph: AsciiGraph): void {
       }
     }
     if (placedCount === prevCount) {
-      // Safety: break if even a forced pass made no progress (disconnected
-      // nodes). A first stall means children are waiting on a cycle — run
-      // one greedy pass to break the deadlock, then resume waiting.
-      if (force) break
+      // A component may have no surviving root after container entry filtering.
+      // Seed one unplaced member, preferring an external node, then let the
+      // ordinary child allocator place the rest of that component.
+      if (force) {
+        const unplaced = graph.nodes.filter(node => node.gridCoord === null)
+        const seed = unplaced.find(node => !isNodeInAnySubgraph(graph, node)) ?? unplaced[0]
+        if (!seed) break
+        reserveSpotInGrid(graph, seed, dir === 'LR' ? { x: 0, y: levelPos(0) } : { x: levelPos(0), y: 0 })
+        highestPositionPerLevel.set(0, levelPos(0) + 4)
+        placedCount++
+        force = false
+        continue
+      }
       force = true
     } else {
       force = false

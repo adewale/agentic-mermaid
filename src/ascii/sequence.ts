@@ -257,6 +257,12 @@ export function renderSequenceAscii(text: string, config: AsciiConfig, colorMode
     const element = owner(generated(`message:${positioned.index}`), 'edge', positioned.parentId)
     const line = message.lineStyle === 'dashed' ? (ascii ? '.' : '╌') : H
     const y = positioned.arrowY, from = positioned.fromX, to = positioned.toX
+    const endpoint = (start: boolean, right: boolean): string => {
+      if (start ? message.centralStart : message.centralEnd) return ascii ? 'o' : '○'
+      const head = start ? message.startHead : message.endHead
+      return head === 'none' ? '' : sequenceHeadGlyph(head, right, ascii)
+    }
+    const startGlyph = endpoint(true, self || from > to), endGlyph = endpoint(false, !self && from < to)
     doc.port(element, { nodeId: message.from, x: from, y, side: self || from < to ? 'R' : 'L', end: 'start' })
     doc.port(element, { nodeId: message.to, x: to, y: self ? y + positioned.lines.length + 1 : y, side: self || from > to ? 'R' : 'L', end: 'end' })
     if (self) {
@@ -267,15 +273,13 @@ export function renderSequenceAscii(text: string, config: AsciiConfig, colorMode
       const bottom = y + positioned.lines.length + 1
       for (let x = from + 1; x < from + 4; x++) put(x, bottom, line, 'line', element)
       put(from + 4, bottom, ascii ? '+' : '┘', 'corner', element)
-      if (message.endHead !== 'none') put(from, bottom, sequenceHeadGlyph(message.endHead, false, ascii), 'arrow', element, 'marker')
-      if (message.startHead !== 'none') put(from, y, sequenceHeadGlyph(message.startHead, true, ascii), 'arrow', element, 'marker')
+      if (endGlyph) put(from, bottom, endGlyph, 'arrow', element, 'marker')
+      if (startGlyph) put(from, y, startGlyph, 'arrow', element, 'marker')
     } else {
       for (let x = Math.min(from, to) + 1; x < Math.max(from, to); x++) put(x, y, line, 'line', element)
-      if (message.startHead !== 'none') put(from, y, sequenceHeadGlyph(message.startHead, from > to, ascii), 'arrow', element, 'marker')
-      if (message.endHead !== 'none') put(to, y, sequenceHeadGlyph(message.endHead, from < to, ascii), 'arrow', element, 'marker')
+      if (startGlyph) put(from, y, startGlyph, 'arrow', element, 'marker')
+      if (endGlyph) put(to, y, endGlyph, 'arrow', element, 'marker')
     }
-    if (message.centralStart) put(from, y, ascii ? 'o' : '○', 'arrow', element, 'marker')
-    if (message.centralEnd) put(to, self ? y + positioned.lines.length + 1 : y, ascii ? 'o' : '○', 'arrow', element, 'marker')
     positioned.lines.forEach((line, index) => {
       const x = self ? positioned.x : Math.min(from, to) + Math.floor((Math.abs(to - from) - visualWidth(line)) / 2)
       doc.text(x, positioned.y + index, line, { owner: element, role: 'text', kind: 'text' })

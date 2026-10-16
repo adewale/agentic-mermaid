@@ -125,8 +125,70 @@ export function renderXYChartAscii(
       for (const line of wrapText(text, widthBudget)) rendered.line([{ text: line, role: 'text', textGroup: 'point-label', owner: { id: `series-${seriesIndex}:point-${pointIndex}:label`, kind: 'label', parentId: `series-${seriesIndex}` } }])
     })
   })
+  reportXYChartProjections(rendered, chart)
   rendered.titleHandled = true
   return finishTerminalDocument(config, rendered, { colorMode, theme, trimEnd: true })
+}
+
+/** Graphical sizing and typography remain authored configuration; terminal
+ * layout uses measured cells and the caller's independent width policy. */
+function reportXYChartProjections(document: TerminalDocument, chart: XYChart): void {
+  const project = (feature: string, value: unknown, representation: string): void => document.report({
+    code: 'TERMINAL_FAMILY_PROJECTION', feature,
+    message: `${feature}=${JSON.stringify(value)} is represented by ${representation}; source configuration is retained.`,
+  })
+  const hasTitle = !!chart.title && chart.config.showTitle !== false
+  const hasLegend = chart.config.showLegend !== false && isLegendWorthy(chart.series)
+  const hasDataLabels = chart.config.showDataLabel && chart.series.some(series => series.type === 'bar')
+  for (const field of ['width', 'height', 'useWidth', 'plotReservedSpacePercent'] as const) {
+    if (chart.config[field] !== undefined) project(`xyChart.${field}`, chart.config[field], 'measured terminal plot cells and the terminal targetWidth/maxWidth policy rather than a pixel chart box')
+  }
+  if (chart.config.useMaxWidth === true) document.report({
+    code: 'TERMINAL_RENDER_OPTION_NOT_APPLICABLE', feature: 'xyChart.useMaxWidth',
+    message: 'xyChart.useMaxWidth=true controls responsive SVG sizing; terminal output uses measured cell width and the terminal width policy.',
+  })
+  if (hasTitle) {
+    for (const field of ['titleFontSize', 'titlePadding'] as const) {
+      if (chart.config[field] !== undefined) project(`xyChart.${field}`, chart.config[field], 'the terminal font cell size and wrapped title rows')
+    }
+  }
+  if (hasLegend) {
+    for (const field of ['legendFontSize', 'legendPadding'] as const) {
+      if (chart.config[field] !== undefined) project(`xyChart.${field}`, chart.config[field], 'single-cell series markers and complete wrapped legend labels')
+    }
+  }
+  for (const name of ['xAxis', 'yAxis'] as const) {
+    const axis = chart.config[name]
+    if (!axis) continue
+    for (const [visible, fields] of [
+      [axis.showLabel !== false, ['labelFontSize', 'labelPadding']],
+      [!!chart[name].title && axis.showTitle !== false, ['titleFontSize', 'titlePadding']],
+      [axis.showTick !== false, ['tickLength', 'tickWidth']],
+      [axis.showAxisLine !== false, ['axisLineWidth']],
+    ] as const) {
+      if (!visible) continue
+      for (const field of fields) if (axis[field] !== undefined) {
+        project(`xyChart.${name}.${field}`, axis[field], 'single-cell axis/tick glyphs and complete wrapped labels rather than pixel font, padding or stroke dimensions')
+      }
+    }
+  }
+  if (hasDataLabels && chart.config.showDataLabelOutsideBar !== true) {
+    project('xyChart.showDataLabelOutsideBar', false, 'numeric labels beside bar endpoints; inside-bar text placement is unavailable')
+  }
+  for (const [field, value] of Object.entries(chart.theme)) {
+    if (value === undefined || field === 'plotColorPalette') continue
+    if ((field === 'titleColor' && !hasTitle) || (field === 'legendTextColor' && !hasLegend) || (field === 'dataLabelColor' && !hasDataLabels)) continue
+    const axisPaint = /^([xy])Axis(Label|Tick|Line|Title)Color$/.exec(field)
+    if (axisPaint) {
+      const name = axisPaint[1] === 'x' ? 'xAxis' : 'yAxis', axis = chart.config[name]
+      const visible = axisPaint[2] === 'Label' ? axis?.showLabel !== false
+        : axisPaint[2] === 'Tick' ? axis?.showTick !== false
+        : axisPaint[2] === 'Line' ? axis?.showAxisLine !== false
+        : !!chart[name].title && axis?.showTitle !== false
+      if (!visible) continue
+    }
+    project(field === 'themeCss' ? 'themeCSS' : `themeVariables.xyChart.${field}`, value, 'the shared terminal theme palette; SVG background, per-axis paints and CSS are not applied')
+  }
 }
 
 // ============================================================================

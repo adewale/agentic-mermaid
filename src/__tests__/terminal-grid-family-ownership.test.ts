@@ -358,11 +358,40 @@ root((Root))
     }
   })
 
-  test('parallel Class and ER relationships allocate separate face ports and preserve all labels', () => {
-    for (const source of ['classDiagram\nA --> B : first\nA --> B : second\nA --> B : third', 'erDiagram\nA ||--o{ B : first\nA ||--o{ B : second\nA ||--o{ B : third']) {
+  test.each(['TB', 'BT', 'LR', 'RL'] as const)('parallel Class and ER relationships allocate separate %s face ports and preserve all labels', direction => {
+    for (const source of [`classDiagram\ndirection ${direction}\nA --> B : first\nA --> B : second\nA --> B : third`, `erDiagram\ndirection ${direction}\nA ||--o{ B : first\nA ||--o{ B : second\nA ||--o{ B : third`]) {
       const { output, doc, region } = capture(config => source.startsWith('class') ? renderClassAscii(source, config) : renderErAscii(source, config))
       for (const label of ['first', 'second', 'third']) expect(output).toContain(label)
-      for (let index = 0; index < 3; index++) expect(region(`relationship:${index}`).ownedCellSpans.length).toBeGreaterThan(0)
+      const used = { start: new Set<string>(), end: new Set<string>() }
+      const outward = { T: [0, -1], B: [0, 1], L: [-1, 0], R: [1, 0] } as const
+      for (let index = 0; index < 3; index++) {
+        const relation = region(`relationship:${index}`)
+        expect(relation.ports?.map(port => [port.nodeId, port.end])).toEqual([['A', 'start'], ['B', 'end']])
+        for (const port of relation.ports!) {
+          const node = region(port.nodeId), cell = doc.cell(port.x, port.y)!
+          const [dx, dy] = outward[port.side!]
+          expect(['stroke', 'marker']).toContain(cell.kind!)
+          expect(cell.owners.map(owner => owner.id)).toEqual([relation.id])
+          expect(output.split('\n')[port.y]![port.x]).toBe(cell.glyph)
+          const border = doc.cell(port.x - dx, port.y - dy)!
+          expect(border.kind).toBe('stroke')
+          expect(border.owners.some(owner => owner.id === node.id)).toBe(true)
+          if (port.side === 'T' || port.side === 'B') {
+            expect(port.y).toBe(port.side === 'T' ? node.canvasRow - 1 : node.canvasRow + node.rowSpan!)
+            expect(port.x).toBeGreaterThan(node.canvasColStart)
+            expect(port.x).toBeLessThan(node.canvasColEnd - 1)
+          } else {
+            expect(port.x).toBe(port.side === 'L' ? node.canvasColStart - 1 : node.canvasColEnd)
+            expect(port.y).toBeGreaterThan(node.canvasRow)
+            expect(port.y).toBeLessThan(node.canvasRow + node.rowSpan! - 1)
+          }
+          expect(doc.cell(port.x + dx, port.y + dy)?.owners.some(owner => owner.id === relation.id)).toBe(true)
+          const key = `${port.x},${port.y}`
+          expect(used[port.end].has(key)).toBe(false)
+          used[port.end].add(key)
+        }
+      }
+      expect([used.start.size, used.end.size]).toEqual([3, 3])
       expect(doc.diagnostics).toEqual([])
     }
   })

@@ -55,13 +55,48 @@ describe('terminal XY numeric projection', () => {
     }
   })
 
-  test('longer later series and many bar series retain every admitted value', () => {
-    const { document } = chart('xychart-beta\nx-axis [A]\nbar [1]\nbar [2,3,4]\nbar [3,4,5]')
-    expect(document.regions().filter(region => /^x-category-/.test(region.id))).toHaveLength(3)
-    for (const id of ['series-0', 'series-1', 'series-2']) {
-      expect([...document.entries()].some(([, , cell]) => weight(cell.glyph) > 0 && cell.owners.some(owner => owner.id === id))).toBe(true)
+  test.each([false, true])('longer later series and many bar series retain every admitted value (horizontal=%s)', horizontal => {
+    const values = [[1], [2, 3, 4], [3, 4, 5]]
+    for (const useAscii of [false, true]) {
+      const { document, text } = chart(`xychart-beta${horizontal ? ' horizontal' : ''}\nx-axis [A]\ny-axis 0 --> 5\nbar [1]\nbar [2,3,4]\nbar [3,4,5]`, useAscii)
+      const regions = document.regions()
+      const categories = [0, 1, 2].map(index => regions.find(region => region.id === `x-category-${index}`)!)
+      expect(regions.filter(region => /^x-category-/.test(region.id))).toHaveLength(3)
+      const centers = categories.map(category => horizontal ? category.canvasRow : Math.floor((category.canvasColStart + category.canvasColEnd) / 2))
+      const plot = regions.find(region => region.id === 'plot')!
+      const extent = horizontal ? plot.canvasColEnd - plot.canvasColStart - 1 : plot.rowSpan! - 1
+      expect(extent).toBe(horizontal ? 59 : 20)
+      const baseline = horizontal ? plot.canvasColStart : plot.canvasRow + extent
+      const rows = text.split('\n')
+      for (const [series, data] of values.entries()) {
+        const ink = [...document.entries()].filter(([x, y, cell]) => x >= plot.canvasColStart && x < plot.canvasColEnd && y >= plot.canvasRow && y < plot.canvasRow + plot.rowSpan! && weight(cell.glyph) > 0 && cell.owners.some(owner => owner.id === `series-${series}`))
+        for (const [category, center] of centers.entries()) {
+          const lower = category === 0 ? -Infinity : (centers[category - 1]! + center) / 2
+          const upper = category === centers.length - 1 ? Infinity : (center + centers[category + 1]!) / 2
+          const cells = ink.filter(([x, y]) => (horizontal ? y : x) >= lower && (horizontal ? y : x) < upper)
+          if (data[category] === undefined) {
+            expect(cells).toEqual([])
+            continue
+          }
+          expect(cells.length, `series ${series}, category ${category}`).toBeGreaterThan(0)
+          const cross = [...new Set(cells.map(([x, y]) => horizontal ? y : x))].sort((a, b) => a - b)
+          expect(cross.at(-1)! - cross[0]! + 1).toBe(cross.length)
+          for (const coordinate of cross) {
+            const interval = cells.filter(([x, y]) => (horizontal ? y : x) === coordinate)
+            const positions = interval.map(([x, y]) => horizontal ? x : y).sort((a, b) => a - b)
+            expect(positions.at(-1)! - positions[0]! + 1).toBe(positions.length)
+            expect(horizontal ? positions[0] : positions.at(-1)).toBe(horizontal ? baseline : baseline - 1)
+            const magnitude = interval.reduce((sum, [, , cell]) => sum + weight(cell.glyph), 0)
+            expect(Math.abs(magnitude - data[category]! * extent / 5)).toBeLessThanOrEqual(useAscii ? 0.5 : 0.25)
+          }
+          for (const [x, y, cell] of cells) {
+            expect(rows[y]![x]).toBe(cell.glyph)
+            expect(cell.owners.filter(owner => /^series-\d+$/.test(owner.id)).map(owner => owner.id)).toEqual([`series-${series}`])
+          }
+        }
+      }
+      expect(document.diagnostics.filter(diagnostic => diagnostic.code === 'TERMINAL_TEXT_COLLISION')).toEqual([])
     }
-    expect(document.diagnostics.filter(diagnostic => diagnostic.code === 'TERMINAL_TEXT_COLLISION')).toEqual([])
   })
 
   test('horizontal half-cell coverage shares the domain and clamps outside values', () => {

@@ -37,6 +37,10 @@ export function renderTimelineAscii(
   const periodContinuation = '  '
 
   const document = new TerminalDocument()
+  if (diagram.direction !== undefined) document.report({
+    code: 'TERMINAL_FAMILY_PROJECTION', feature: 'timeline.direction',
+    message: `timeline ${diagram.direction} is represented by a chronological vertical outline; period order, events and section containment are retained rather than the graphical rail orientation.`,
+  })
   let owner: TerminalOwner | undefined
   const pushLine = (segments: StyledSegment[] = []): void => {
     document.line(segments.map(segment => ({ ...segment, owner: segment.owner ?? owner, textGroup: segment.textGroup ?? (segment.owner ?? owner)?.id, kind: segment.kind ?? (segment.role === 'text' ? 'text' : segment.role == null ? 'surface' : 'stroke') })))
@@ -52,7 +56,9 @@ export function renderTimelineAscii(
 
   for (let sectionIndex = 0; sectionIndex < diagram.sections.length; sectionIndex++) {
     const section = diagram.sections[sectionIndex]!
-    owner = { id: section.id, kind: 'band' }
+    const sectionStart = document.height
+    const sectionOwner: TerminalOwner = { id: section.id, kind: 'band', members: section.periods.map(period => period.id) }
+    owner = sectionOwner
 
     if (section.label) {
       // Bracket only the first line of a wrapped label — bracketing every
@@ -122,6 +128,9 @@ export function renderTimelineAscii(
       const moreSections = sectionIndex < diagram.sections.length - 1
       if (morePeriods || moreSections) pushLine()
     }
+    if (document.height > sectionStart) document.region(sectionOwner, {
+      x: 0, y: sectionStart, width: document.width, height: document.height - sectionStart,
+    })
   }
 
   return finishTerminalDocument(config, document, { colorMode, theme, trimEnd: true })

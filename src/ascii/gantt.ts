@@ -40,6 +40,7 @@ import { breakLineTags } from '../multiline-utils.ts'
 import type { AsciiConfig, AsciiTheme, ColorMode } from './types.ts'
 import { resolveRoleStyle, type InternalStyleFace } from '../scene/style-registry.ts'
 import { wrapText } from './wrap.ts'
+import { terminalIds } from './identity.ts'
 
 type StyledSegment = TerminalRun
 
@@ -119,7 +120,8 @@ export function renderGanttAscii(
     return Array.from({ length: count }, (_, li) =>
       sectionTasks.filter((_, i) => lanes[i] === li).map(t => t.label).join(', '))
   }
-  const taskOwner = (task: ScheduledGanttTask): TerminalOwner => ({ id: task.id ?? `task-${task.index}`, kind: 'node' })
+  const generated = terminalIds(schedule.tasks.flatMap(task => task.id === undefined ? [] : [task.id]))
+  const taskOwner = (task: ScheduledGanttTask): TerminalOwner => ({ id: task.id ?? generated(`task-${task.index}`), kind: 'node' })
   const labelRows = (tasks: ScheduledGanttTask[], width: number): TerminalRun[][] => {
     const rows: TerminalRun[][] = [[]]
     let used = 0
@@ -182,10 +184,11 @@ export function renderGanttAscii(
     : undefined
   const todayStyle = model.todayMarker?.style === undefined ? undefined : parseTodayMarkerStyle(model.todayMarker.style)
   const todayPaint = todayStyle?.applied.find(([property]) => property === 'stroke')?.[1]
-  const todayOwner: TerminalOwner = { id: 'today-marker', kind: 'plot' }
+  const todayOwner: TerminalOwner = { id: generated('today-marker'), kind: 'plot' }
   const todayGlyph = config.useAscii ? '|' : '╎'
 
   const document = new TerminalDocument()
+  document.titleHandled = true
   if (model.barHeight !== undefined && rowTasks.length > 0) document.report({
     code: 'TERMINAL_FAMILY_PROJECTION', feature: 'gantt.barHeight',
     message: `gantt.barHeight=${model.barHeight}px is represented by one terminal bar row per task or compact lane; task labels, dates and interval ownership are retained.`,
@@ -206,7 +209,7 @@ export function renderGanttAscii(
 
   // ---- title ------------------------------------------------------------------
   if (model.title) {
-    owner = { id: 'title', kind: 'label' }
+    owner = { id: generated('title'), kind: 'label' }
     const totalWidth = labelWidth + 2 + plotWidth
     document.scope(owner, () => {
       for (const text of wrapText(model.title!, widthBudget)) {
@@ -256,7 +259,7 @@ export function renderGanttAscii(
   }
 
   const emitAxis = (): void => {
-  owner = { id: 'time-axis', kind: 'label' }
+  owner = { id: generated('time-axis'), kind: 'label' }
   const axisRow = document.height
   pushLine([
     { text: ' '.repeat(labelWidth + 2), role: null },
@@ -297,7 +300,7 @@ export function renderGanttAscii(
             { text: ' '.repeat(Math.max(0, labelWidth - 4 - width) + 2) },
             { text: padForCol(Math.min(plotWidth - 1, colOf(v.start + (v.renderEnd - v.start) / 2)), g.vert), role: 'line' as const, kind: 'stroke' as const },
             { text: '  ' },
-            { text: formatGanttInstant(v.start, schedule.dateOnly ? '%m-%d' : '%m-%d %H:%M'), role: 'text' as const, owner: { id: `${taskOwner(v).id}:dates`, kind: 'label' as const, parentId: taskOwner(v).id } },
+            { text: formatGanttInstant(v.start, schedule.dateOnly ? '%m-%d' : '%m-%d %H:%M'), role: 'text' as const, owner: { id: generated(`${taskOwner(v).id}:dates`), kind: 'label' as const, parentId: taskOwner(v).id } },
           ] : []),
         ])
       })
@@ -314,7 +317,7 @@ export function renderGanttAscii(
     if (sectionTasks.length === 0 && sectionVertical.length === 0 && section.label === undefined) continue
     if (sectionTasks.length === 0 && section.label === undefined) { sectionVertical.forEach(emitVertical); continue }
     const visibleSectionIndex = sectionIndex++
-    owner = { id: `section-label#${visibleSectionIndex}`, kind: 'label' }
+    owner = { id: generated(`section-label#${visibleSectionIndex}`), kind: 'label' }
     if (section.label !== undefined) {
       for (const line of sectionLines(section.label)) {
         document.scope(owner, () => {
@@ -334,7 +337,7 @@ export function renderGanttAscii(
           const track = buildTrack(t)
           for (let c = 0; c < plotWidth; c++) if (track[c]!.text !== g.track) cells[c] = { ...track[c]!, owner: track[c]!.owner ?? taskOwner(t) }
         }
-        owner = { id: `lane:${si}:${li}`, kind: 'lane', members: laneTasks.map(task => taskOwner(task).id) }
+        owner = { id: generated(`lane:${si}:${li}`), kind: 'lane', members: laneTasks.map(task => taskOwner(task).id) }
         const labels = labelRows(laneTasks, Math.max(1, labelWidth - 4))
         labels.forEach((runs, index) => {
           const width = runs.reduce((sum, run) => sum + visualWidth(run.text), 0)
@@ -359,14 +362,14 @@ export function renderGanttAscii(
               { text: ' '.repeat(Math.max(0, labelWidth - 4 - width) + 2) },
               ...buildTrack(t),
               { text: '  ' },
-              { text: dateGutter(t, schedule).replace('→', arrow), role: 'text' as const, owner: { id: `${currentOwner.id}:dates`, kind: 'label' as const, parentId: currentOwner.id } },
+              { text: dateGutter(t, schedule).replace('→', arrow), role: 'text' as const, owner: { id: generated(`${currentOwner.id}:dates`), kind: 'label' as const, parentId: currentOwner.id } },
             ] : []),
           ])
         })
       }
     }
     sectionVertical.forEach(emitVertical)
-    document.region({ id: `section#${visibleSectionIndex}`, kind: 'band', members: [...sectionTasks, ...sectionVertical].map(task => taskOwner(task).id) }, {
+    document.region({ id: generated(`section#${visibleSectionIndex}`), kind: 'band', members: [...sectionTasks, ...sectionVertical].map(task => taskOwner(task).id) }, {
       x: 0, y: sectionStart, width: document.width, height: document.height - sectionStart,
     })
   }

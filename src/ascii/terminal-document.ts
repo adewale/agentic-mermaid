@@ -239,27 +239,35 @@ export class TerminalDocument {
   private place(x: number, y: number, glyph: string, width: number, paint: TerminalPaint, block: TextBlock | undefined): boolean {
     const old = this.cell(x, y), incoming = paint.owner ? [paint.owner] : []
     let owners: readonly TerminalOwner[] = incoming
-    // Admission is atomic over the full incoming grapheme, including a wide
-    // head whose second cell encounters another owner's text.
+    // Admit the complete incoming footprint before retiring any old grapheme.
+    // A continuation may encounter a protected head beyond the incoming head.
     for (let offset = 0; offset < width; offset++) {
-      const covered = this.cell(x + offset, y)
-      if (covered?.kind !== 'text') continue
-      const unrelated = incoming.length > 0 && covered.owners.length > 0 && !covered.owners.some(owner => ownerKey(owner) === ownerKey(incoming[0]!))
-      if (unrelated) this.warn('TERMINAL_TEXT_COLLISION', [...covered.owners, ...incoming], x + offset, y)
-      if (unrelated || paint.kind !== 'text') return false
-    }
-    const related = old?.owners.some(previous => incoming.some(next => ownerKey(previous) === ownerKey(next) || (previous.bundle && previous.bundle === next.bundle))) ?? false
-    if (old?.kind === 'surface' && old.owners.length && incoming.length && !related) {
-      this.warn('TERMINAL_GEOMETRY_COLLISION', [...old.owners, ...incoming], x, y)
-      return false
-    }
-    if (old?.kind === 'marker') {
-      if (paint.kind === 'marker' && old.glyph === glyph) owners = [...old.owners, ...incoming.filter(next => !old.owners.some(previous => ownerKey(previous) === ownerKey(next)))]
-      else if (!related || (paint.kind !== 'text' && paint.kind !== 'surface')) {
-        if (!related && incoming.length) this.warn('TERMINAL_GEOMETRY_COLLISION', [...old.owners, ...incoming], x, y)
+      const covered = offset === 0 ? old : this.cell(x + offset, y)
+      if (!covered) continue
+      const previous = covered.head === x + offset ? covered : this.cell(covered.head, y)!
+      if (previous.kind === 'text') {
+        const unrelated = incoming.length > 0 && previous.owners.length > 0 && !previous.owners.some(owner => ownerKey(owner) === ownerKey(incoming[0]!))
+        if (unrelated) this.warn('TERMINAL_TEXT_COLLISION', [...previous.owners, ...incoming], x + offset, y)
+        if (unrelated || paint.kind !== 'text') return false
+        continue
+      }
+      const related = previous.owners.some(owner => incoming.some(next => ownerKey(owner) === ownerKey(next) || (owner.bundle && owner.bundle === next.bundle)))
+      if (previous.kind === 'surface' && previous.owners.length && incoming.length && !related) {
+        this.warn('TERMINAL_GEOMETRY_COLLISION', [...previous.owners, ...incoming], x + offset, y)
         return false
       }
+      if (previous.kind === 'marker') {
+        const coincident = paint.kind === 'marker' && previous.head === x && previous.width === width && previous.glyph === glyph
+        if (!coincident && (!related || (paint.kind !== 'text' && paint.kind !== 'surface'))) {
+          if (!related && incoming.length) this.warn('TERMINAL_GEOMETRY_COLLISION', [...previous.owners, ...incoming], x + offset, y)
+          return false
+        }
+      }
+      if (previous.kind === 'stroke' && paint.kind === 'text' && previous.owners.length && incoming.length && !related) {
+        this.warn('TERMINAL_GEOMETRY_COLLISION', [...previous.owners, ...incoming], x + offset, y)
+      }
     }
+    if (old?.kind === 'marker' && paint.kind === 'marker') owners = [...old.owners, ...incoming.filter(next => !old.owners.some(previous => ownerKey(previous) === ownerKey(next)))]
     if (old?.kind === 'stroke' && paint.kind === 'stroke') {
       const unicode = asciiPorts[old.glyph] === undefined && asciiPorts[glyph] === undefined
       const a = strokePorts[old.glyph] ?? styledPorts[old.glyph] ?? asciiPorts[old.glyph], b = strokePorts[glyph] ?? styledPorts[glyph] ?? asciiPorts[glyph]
@@ -486,9 +494,8 @@ export class TerminalDocument {
       }
       const authored = label.filter(({ cell }) => cell.glyph !== WIDE_CHAR_CONTINUATION)
         .sort((a, b) => a.y - b.y || a.x - b.x)
-      const visible = label.filter(({ cell }) => cell.glyph !== WIDE_CHAR_CONTINUATION).sort((a, b) => a.y - b.y || a.x - b.x)
       let projectedText = '', previousRow: number | undefined
-      for (const item of visible) { if (previousRow !== undefined && previousRow !== item.y) projectedText += '\n'; projectedText += item.cell.glyph; previousRow = item.y }
+      for (const item of authored) { if (previousRow !== undefined && previousRow !== item.y) projectedText += '\n'; projectedText += item.cell.glyph; previousRow = item.y }
       result.push({
         id: owner.id, kind: owner.kind ?? 'node',
         ...(owner.sourceLine === undefined ? {} : { sourceLine: owner.sourceLine }),

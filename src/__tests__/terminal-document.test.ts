@@ -30,6 +30,38 @@ describe('owned terminal composition', () => {
     expect(doc.diagnostics.map(diagnostic => diagnostic.code)).toEqual(['TERMINAL_TEXT_COLLISION'])
   })
 
+  test.each(['marker', 'surface'] as const)('wide graphemes cannot erase a foreign %s in their second cell', kind => {
+    const doc = new TerminalDocument()
+    if (kind === 'marker') doc.put(1, 0, '●', { owner: owner('obstacle'), kind })
+    else doc.fill(1, 0, 1, 1, { owner: owner('obstacle') })
+    doc.text(0, 0, '界', { owner: owner('label') })
+    expect(doc.cell(0, 0)).toBeUndefined()
+    expect(doc.cell(1, 0)).toMatchObject({ kind, owners: [owner('obstacle')] })
+    expect(doc.regions().map(region => region.id)).toEqual(['obstacle'])
+    expect(doc.diagnostics).toContainEqual(expect.objectContaining({ code: 'TERMINAL_GEOMETRY_COLLISION', cell: { column: 1, row: 0 } }))
+  })
+
+  test('partial overlap cannot retire another owner’s wide marker', () => {
+    const doc = new TerminalDocument()
+    doc.put(1, 0, '界', { owner: owner('marker'), kind: 'marker' })
+    doc.text(0, 0, '界', { owner: owner('label') })
+    expect(doc.get(1, 0)).toBe('界')
+    expect(doc.get(2, 0)).toBe(WIDE_CHAR_CONTINUATION)
+    expect(doc.cell(0, 0)).toBeUndefined()
+    expect(doc.diagnostics.map(diagnostic => diagnostic.code)).toEqual(['TERMINAL_GEOMETRY_COLLISION'])
+  })
+
+  test('text diagnoses foreign route erasure while own-route and declared-bundle labels stay compatible', () => {
+    for (const relation of ['foreign', 'own', 'bundle'] as const) {
+      const doc = new TerminalDocument()
+      doc.put(0, 0, '─', { owner: route('a', relation === 'bundle' ? 'shared' : undefined) })
+      doc.text(0, 0, 'X', { owner: route(relation === 'own' ? 'a' : 'b', relation === 'bundle' ? 'shared' : undefined) })
+      expect(doc.serialize()).toBe('X')
+      expect(doc.diagnostics.map(diagnostic => diagnostic.code)).toEqual(relation === 'foreign' ? ['TERMINAL_GEOMETRY_COLLISION'] : [])
+      expect(doc.regions().find(region => region.id === (relation === 'own' ? 'a' : 'b'))?.projectedText).toBe('X')
+    }
+  })
+
   test('replacing a continuation retires the whole previous grapheme', () => {
     const doc = new TerminalDocument()
     doc.text(0, 0, '👩‍💻')

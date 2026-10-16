@@ -20,6 +20,8 @@ Wrapping never edits Mermaid source. Literal labels remain literal; formatted
 labels use the existing display projection. Graphemes stay atomic, including
 CJK, combining marks and ZWJ emoji. Wide cells include owned continuations.
 Authored spaces belong to the text footprint, including trailing spaces.
+Admission checks every cell of an incoming grapheme before retiring any old
+grapheme, so a wide continuation cannot erase a neighboring marker or surface.
 
 Text, markers and card surfaces cannot silently be erased by a later route.
 Incompatible text/geometry and unrelated collinear route overlaps produce
@@ -31,6 +33,9 @@ their semantic identities.
 
 Family layouts keep their own constraints. Class and ER share card-face demand,
 port allocation, free label rectangles and the existing bounded A* search.
+Namespace headers are measured routing obstacles, separate from endpoint
+identities; containers and classes can share an authored name without changing
+a relationship's target. Complete sibling envelopes settle before routing.
 Sequence lays out lexical fragment boundaries, notes and messages in order.
 Chart adapters allocate numeric marks and literal labels in their own units.
 Reversals move geometry, text blocks, frames and ports while preserving text
@@ -59,6 +64,8 @@ It does not search text or render a second version. Its region fields are:
 
 Terminal action regions retain their compatible bounds and add `cellSpans`
 and parent identities. Generated IDs avoid authored IDs in the same render.
+Generated identity allocation distinguishes semantic keys from preferred
+readable names, so derived labels and relationships cannot alias each other.
 String-only extension hooks remain supported; without a matching captured
 drawing, metadata reports `TERMINAL_OWNERSHIP_UNAVAILABLE` instead of inventing
 regions. Changing a native hook's returned string likewise invalidates its
