@@ -79,7 +79,9 @@ const sourceFor = (entry: CorpusCase): string => readFileSync(join(CORPUS, entry
 const flattenMindmap = (node: MindmapNode): MindmapNode[] =>
   [node, ...node.children.flatMap(flattenMindmap)]
 const plainSvgText = (svg: string): string => svg
-  .replace(/<[^>]+>/g, ' ')
+  .replace(/<\/text>/g, ' ')
+  .replace(/<tspan\b[^>]*\bdy="[^"]*"[^>]*>/g, ' ')
+  .replace(/<[^>]+>/g, '')
   .replaceAll('&amp;', '&').replaceAll('&lt;', '<').replaceAll('&gt;', '>').replaceAll('&quot;', '"').replaceAll('&#39;', "'")
   .replace(/\s+/g, ' ').trim()
 
@@ -247,7 +249,9 @@ describe('Mindmap/GitGraph popularity-weighted real-content corpus', () => {
         expect(verifyNoExternalRefs(first), `${entry.id} × ${stack.join('+')}`).toEqual({ ok: true, refs: [] })
         const sentinel = entry.expect.svgText?.[0] ?? entry.expect.labels?.[0]
         expect(sentinel, entry.id).toBeDefined()
-        expect(plainSvgText(first), `${entry.id} × ${stack.join('+')} text`).toContain(sentinel!)
+        // These stacks deliberately change title/header case; the directed
+        // prepared-text contracts separately assert the exact transformed case.
+        expect(plainSvgText(first).toLowerCase(), `${entry.id} × ${stack.join('+')} text`).toContain(sentinel!.toLowerCase())
       }
     }
   })

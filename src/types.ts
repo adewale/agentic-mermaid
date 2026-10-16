@@ -1,3 +1,4 @@
+import type { PixelTextBlock } from './shared/prepared-text.ts'
 import type { MermaidRuntimeConfig } from './mermaid-source.ts'
 import type { DiagramColors } from './theme.ts'
 import type { ArchitectureVisualOverrides } from './architecture/config.ts'
@@ -186,6 +187,7 @@ export interface PositionedGraph extends PositionedDiagram {
 
 /** A placed state-diagram note box. */
 export interface PositionedStateNote {
+  textBlock?: PixelTextBlock
   id: string
   target: string
   side: 'left' | 'right'
@@ -197,6 +199,7 @@ export interface PositionedStateNote {
 }
 
 export interface PositionedNode {
+  labelBlock?: PixelTextBlock
   id: string
   label: string
   shape: NodeShape
@@ -218,6 +221,7 @@ export interface PositionedNode {
 }
 
 export interface PositionedEdge {
+  labelBlock?: PixelTextBlock
   source: string
   target: string
   /** Authored Mermaid v11.6 edge ID (`e1@-->`) — SVG identity (data-id). */
@@ -429,6 +433,8 @@ export interface Point {
 }
 
 export interface PositionedGroup {
+  headerHeight?: number
+  labelBlock?: PixelTextBlock
   id: string
   label: string
   x: number

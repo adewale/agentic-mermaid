@@ -486,6 +486,8 @@ function compileNode(
       x: input.x,
       y: input.y,
       fontSize: input.fontSize,
+      fontWeight: 400,
+      display: 'literal',
       anchor,
       paint,
       ...(input.channels ? { channels: input.channels } : {}),

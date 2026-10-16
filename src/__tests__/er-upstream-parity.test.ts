@@ -211,7 +211,8 @@ describe('ER text as drawn', () => {
     const diagram = parseErDiagram(normalizeMermaidSource(`erDiagram\n  ${declaration}`).familyLines)
     expect({ declaration, drawn: displayText(diagram.entities[0]!.label) }).toEqual({ declaration, drawn })
     const svg = renderMermaidSVG(`erDiagram\n  ${declaration}`)
-    expect({ declaration, inSvg: svg.includes(`>${escapeXml(drawn)}</text>`) }).toEqual({ declaration, inSvg: true })
+    const visibleText = [...svg.matchAll(/<text\b[^>]*>([\s\S]*?)<\/text>/g)].map(match => match[1]!.replace(/<[^>]+>/g, ''))
+    expect({ declaration, inSvg: visibleText.includes(escapeXml(drawn)) }).toEqual({ declaration, inSvg: true })
   })
 
   // BUG-31: the typed body keeps text as written, but the renderer still

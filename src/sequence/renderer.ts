@@ -411,13 +411,14 @@ function renderActor(
         id: `actor:${id}:label`,
         role: 'label',
         text: displayLabel,
+        block: actor.labelPosition.block,
         x: labelX,
         y: labelY,
         fontSize,
         anchor: 'middle',
         paint: { fill: below.ink, ...haloPaint(below) },
         channels: { category: id },
-      }, renderMultilineText(displayLabel, labelX, labelY, fontSize, belowAttrs)),
+      }, renderMultilineText(actor.labelPosition.block ?? displayLabel, labelX, labelY, fontSize, belowAttrs)),
     })
   } else if (type !== 'participant') {
     const rawStroke = escapeAttr(roleStyle?.borderColor ?? style.edgeStrokeColor ?? 'var(--_line)')
@@ -442,9 +443,9 @@ function renderActor(
     children.push({ indent: 2, node: marks.documentContent({ id: `actor:${id}:icon`, role: 'icon', channels: { category: id } },
       `<g class="sequence-actor-glyph sequence-actor-${type}" fill="${rawFill}" stroke="${rawStroke}" stroke-width="${lineWidth}">${glyph}</g>`) })
     children.push({ indent: 2, node: marks.text({
-      id: `actor:${id}:label`, role: 'label', text: displayLabel, x: labelX, y: labelY,
+      id: `actor:${id}:label`, role: 'label', text: displayLabel, block: actor.labelPosition.block, x: labelX, y: labelY,
       fontSize, anchor: 'middle', paint: { fill: below.ink, ...haloPaint(below) }, channels: { category: id },
-    }, renderMultilineText(displayLabel, labelX, labelY, fontSize, belowAttrs)) })
+    }, renderMultilineText(actor.labelPosition.block ?? displayLabel, labelX, labelY, fontSize, belowAttrs)) })
   } else {
     // Participant: rectangle box with label (supports multi-line)
     const boxX = x - width / 2
@@ -469,13 +470,14 @@ function renderActor(
         id: `actor:${id}:label`,
         role: 'label',
         text: displayLabel,
+        block: actor.labelPosition.block,
         x: labelX,
         y: labelY,
         fontSize,
         anchor: 'middle',
         paint: { fill: boxTextColor },
         channels: { category: id },
-      }, renderMultilineText(displayLabel, labelX, labelY, fontSize, labelAttrs)),
+      }, renderMultilineText(actor.labelPosition.block ?? displayLabel, labelX, labelY, fontSize, labelAttrs)),
     })
   }
 
@@ -654,12 +656,13 @@ function renderMessage(msg: PositionedMessage, style: ResolvedRenderStyle, scene
         id: `${sceneId}:label`,
         role: 'label',
         text: displayLabel,
+        block: msg.labelPosition.block,
         x: labelX,
         y: labelY,
         fontSize: style.edgeLabelFontSize,
         anchor: 'start',
         paint: { fill: loopPaint.ink, ...haloPaint(loopPaint) },
-      }, renderMultilineText(displayLabel, labelX, labelY, style.edgeLabelFontSize,
+      }, renderMultilineText(msg.labelPosition.block ?? displayLabel, labelX, labelY, style.edgeLabelFontSize,
         `font-size="${style.edgeLabelFontSize}" text-anchor="start" font-weight="${style.edgeLabelFontWeight}"${letterAttr(style.edgeLetterSpacing)} fill="${escapeAttr(loopPaint.ink)}"${haloAttrs(loopPaint)}`)),
     })
   } else {
@@ -689,12 +692,13 @@ function renderMessage(msg: PositionedMessage, style: ResolvedRenderStyle, scene
         id: `${sceneId}:label`,
         role: 'label',
         text: displayLabel,
+        block: msg.labelPosition.block,
         x: labelX,
         y: labelY,
         fontSize: style.edgeLabelFontSize,
         anchor: 'middle',
         paint: { fill: labelPaint.ink, ...haloPaint(labelPaint) },
-      }, renderMultilineText(displayLabel, labelX, labelY, style.edgeLabelFontSize,
+      }, renderMultilineText(msg.labelPosition.block ?? displayLabel, labelX, labelY, style.edgeLabelFontSize,
         `font-size="${style.edgeLabelFontSize}" text-anchor="middle" font-weight="${style.edgeLabelFontWeight}"${letterAttr(style.edgeLetterSpacing)} fill="${escapeAttr(labelPaint.ink)}"${haloAttrs(labelPaint)}`)),
     })
   }
@@ -807,12 +811,13 @@ function renderBlockDividerLabels(block: PositionedBlock, style: ResolvedRenderS
         id: `${sceneId}:divider#${dividerIndex}:label`,
         role: 'label',
         text: label,
+        block: divider.labelPosition.block,
         x: labelX,
         y: labelY,
         fontSize: style.edgeLabelFontSize,
         anchor: 'start',
         paint: { fill: labelPaint.ink, ...haloPaint(labelPaint) },
-      }, renderMultilineText(label, labelX, labelY, style.edgeLabelFontSize,
+      }, renderMultilineText(divider.labelPosition.block ?? label, labelX, labelY, style.edgeLabelFontSize,
         `font-size="${style.edgeLabelFontSize}" text-anchor="start" font-weight="${style.edgeLabelFontWeight}"${letterAttr(style.edgeLetterSpacing)} fill="${escapeAttr(labelPaint.ink)}"${haloAttrs(labelPaint)}`)),
     })
   })
@@ -852,13 +857,14 @@ function renderBlockHeader(header: PositionedBlockHeader, style: ResolvedRenderS
           id: `${sceneId}:label`,
           role: 'label',
           text: labelText,
+          block: label.block,
           x: labelX,
           y: labelY,
           fontSize: style.groupHeaderFontSize,
           anchor: 'start',
           paint: { fill: text },
         }, renderMultilineText(
-          labelText,
+          label.block ?? labelText,
           labelX,
           labelY,
           style.groupHeaderFontSize,
@@ -900,22 +906,23 @@ function renderBoxGroup(box: PositionedBoxGroup, style: ResolvedRenderStyle, sce
   })
 
   if (box.label) {
-    const displayLabel = applyTextTransform(box.label, style.groupTextTransform)
+    const displayLabel = box.block?.text ?? applyTextTransform(box.label, style.groupTextTransform)
     const ink = boxTitleInk(explicit, style)
     const titleX = box.x + box.width / 2
-    const titleY = box.y + 13
+    const titleY = box.labelY ?? box.y + 13
     children.push({
       indent: 2,
       node: marks.text({
         id: `${sceneId}:title`,
         role: 'label',
         text: displayLabel,
+        block: box.block,
         x: titleX,
         y: titleY,
         fontSize: style.groupHeaderFontSize,
         anchor: 'middle',
         paint: { fill: ink },
-      }, renderMultilineText(displayLabel, titleX, titleY, style.groupHeaderFontSize,
+      }, renderMultilineText(box.block ?? displayLabel, titleX, titleY, style.groupHeaderFontSize,
         `font-size="${style.groupHeaderFontSize}" text-anchor="middle" font-weight="${style.groupHeaderFontWeight}"${style.groupFont ? ` font-family="${escapeAttr(style.groupFont)}"` : ''}${letterAttr(style.groupLetterSpacing)} fill="${escapeAttr(ink)}"`)),
     })
   }
@@ -980,7 +987,7 @@ function renderNote(note: PositionedNote, style: ResolvedRenderStyle, colors: Di
   const rawStroke = style.nodeBorderColor ?? 'var(--_node-stroke)'
   const rawTextColor = style.nodeTextColor ?? toneOnFill('var(--_text-muted)', rawFill, colors)
   const radius = style.cornerRadius ?? 0
-  const displayText = applyTextTransform(note.text, style.nodeTextTransform)
+  const displayText = note.block?.text ?? applyTextTransform(note.text, style.nodeTextTransform)
 
   return marks.group({
     id: sceneId,
@@ -1005,12 +1012,13 @@ function renderNote(note: PositionedNote, style: ResolvedRenderStyle, colors: Di
           id: `${sceneId}:text`,
           role: 'label',
           text: displayText,
+          block: note.block,
           x: x + w / 2,
           y: y + h / 2,
           fontSize: style.nodeLabelFontSize,
           anchor: 'middle',
           paint: { fill: rawTextColor },
-        }, renderMultilineText(displayText, x + w / 2, y + h / 2, style.nodeLabelFontSize,
+        }, renderMultilineText(note.block ?? displayText, x + w / 2, y + h / 2, style.nodeLabelFontSize,
           `font-size="${style.nodeLabelFontSize}" text-anchor="middle" font-weight="${style.nodeLabelFontWeight}"${letterAttr(style.nodeLetterSpacing)} fill="${escapeAttr(rawTextColor)}"`)),
       },
     ],

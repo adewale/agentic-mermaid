@@ -1,3 +1,4 @@
+import type { PixelTextBlock } from '../shared/prepared-text.ts'
 // ============================================================================
 // XY Chart types
 //
@@ -229,6 +230,7 @@ export interface PositionedXYChart extends PositionedDiagram {
 }
 
 export interface LegendItem {
+  block?: PixelTextBlock
   /** Display label */
   label: string
   /** Position of the swatch/icon */
@@ -243,6 +245,7 @@ export interface LegendItem {
 }
 
 export interface PositionedTitle {
+  block?: PixelTextBlock
   text: string
   x: number
   y: number
@@ -250,7 +253,7 @@ export interface PositionedTitle {
 
 export interface PositionedAxis {
   /** Optional axis title text and position */
-  title?: { text: string; x: number; y: number; rotate?: number }
+  title?: { text: string; block?: PixelTextBlock; x: number; y: number; rotate?: number }
   /** Tick positions along the axis */
   ticks: AxisTick[]
   /** Axis line: start and end coordinates */
@@ -260,6 +263,7 @@ export interface PositionedAxis {
 }
 
 export interface AxisTick {
+  block?: PixelTextBlock
   /** Label text for this tick */
   label: string
   /** Position of the tick mark on the axis */
@@ -283,6 +287,7 @@ export interface PlotArea {
 }
 
 export interface PositionedDataLabel {
+  block?: PixelTextBlock
   bar: PositionedBar
   text: string
   x: number
@@ -312,7 +317,7 @@ export interface PositionedBar {
 
 export interface PositionedLine {
   /** Polyline points */
-  points: Array<{ x: number; y: number; value: number; label?: string; textLabel?: string }>
+  points: Array<{ x: number; y: number; value: number; label?: string; textLabel?: string; textBlock?: PixelTextBlock }>
   /** Series index within line type (for layout grouping) */
   seriesIndex: number
   /** Global color index across all series */

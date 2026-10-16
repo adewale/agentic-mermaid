@@ -6,8 +6,11 @@
 // Used across all diagram types (flowcharts, state, sequence, class, ER).
 // ============================================================================
 
-import { LINE_HEIGHT_RATIO } from './text-metrics.ts'
+import { LINE_HEIGHT_RATIO, measureTextWidth, measureSystemFontSafeTextWidth, measureMonospaceTextWidth } from './text-metrics.ts'
 import { HAS_FORMAT_TAGS, parseInlineFormatting, plainTextFromInlineFormatting } from './shared/inline-format.ts'
+import { prepareDisplayText, type DisplayRun } from './shared/display-text.ts'
+import type { PixelTextBlock } from './shared/prepared-text.ts'
+import { graphemes } from './shared/graphemes.ts'
 
 /**
  * Normalize label text: strip surrounding quotes, convert <br> tags and
@@ -106,7 +109,12 @@ export function renderDisplayLine(line: string, display: LabelDisplay = 'formatt
   // Fast path: literal text, or no formatting tags
   if (display === 'literal' || !HAS_FORMAT_TAGS.test(line)) return escapeXml(line)
 
-  const segments = parseInlineFormatting(line)
+  return renderDisplayRuns(prepareDisplayText(line, display).lines[0]!)
+}
+
+/** Paint interpreted runs directly. Prepared labels never pass through a tag
+ * parser again, even when their visible characters spell formatting tags. */
+function renderDisplayRuns(segments: readonly DisplayRun[]): string {
   if (segments.length === 0) return ''
 
   // If all segments are unstyled, just escape
@@ -130,6 +138,39 @@ export function renderDisplayLine(line: string, display: LabelDisplay = 'formatt
   }).join('')
 }
 
+/** Tracking and fallback shaping are not uniformly included in textLength by
+ * SVG rasterizers. Position these graphemes in the measured band explicitly;
+ * ordinary untracked single-font runs keep their continuous shaping. */
+function renderPreparedLine(block: PixelTextBlock, index: number, cx: number, anchor: string): string {
+  const line = block.lineBlocks[index]!
+  if (block.letterSpacing === 0 && !/[^\x20-\x7e]/u.test(line.runs.map(run => run.text).join(''))) return renderDisplayRuns(line.runs)
+  let x = (anchor === 'middle' ? cx - line.width / 2 : anchor === 'end' ? cx - line.width : cx) + line.originX
+  const result: string[] = []
+  for (const run of line.runs) {
+    const clusters = graphemes(run.text)
+    const groups: Array<{ text: string; natural: boolean; count: number }> = []
+    for (const cluster of clusters) {
+      const natural = /[^\x20-\x7e]/u.test(cluster)
+      const prior = groups.at(-1)
+      // Keep non-ASCII shaping runs intact. Separating Arabic/Indic clusters
+      // would lose joining and ligatures even if every character survived.
+      if (prior && prior.natural === natural && (natural || block.letterSpacing === 0)) {
+        prior.text += cluster; prior.count++
+      } else groups.push({ text: cluster, natural, count: 1 })
+    }
+    for (const [at, group] of groups.entries()) {
+      const weight = run.bold ? Math.max(700, block.fontWeight) : block.fontWeight
+      const measure = block.safeFont ? measureSystemFontSafeTextWidth : measureTextWidth
+      const width = (block.monospace ? measureMonospaceTextWidth(group.text, block.fontSize) : measure(group.text, block.fontSize, weight) - (at === groups.length - 1 ? 0 : block.fontSize * 0.15)) + (group.count - 1) * block.letterSpacing
+      const fit = group.natural ? '' : ` textLength="${Math.max(0, width)}" lengthAdjust="spacingAndGlyphs"`
+      const tracking = group.natural ? block.letterSpacing : 0
+      result.push(`<tspan x="${x}" text-anchor="start" letter-spacing="${tracking}" data-text-fragment="true"${fit}>${renderDisplayRuns([{ ...run, text: group.text }])}</tspan>`)
+      x += width + block.letterSpacing
+    }
+  }
+  return result.join('')
+}
+
 // ============================================================================
 // Multi-line text rendering
 // ============================================================================
@@ -150,7 +191,7 @@ export function renderDisplayLine(line: string, display: LabelDisplay = 'formatt
  * @returns SVG text element string
  */
 export function renderMultilineText(
-  text: string,
+  text: string | PixelTextBlock,
   cx: number,
   cy: number,
   fontSize: number,
@@ -158,23 +199,34 @@ export function renderMultilineText(
   baselineShift: number = 0.35,
   literalText = false,
 ): string {
-  const lines = text.split('\n')
-  const renderLine = (line: string) => renderDisplayLine(line, literalText ? 'literal' : 'formatted')
+  const block = typeof text === 'string' ? undefined : text
+  const value = block ? block.text : text as string
+  const lines = block ? block.lines : value.split('\n')
+  const display = block?.prepared.display ?? (literalText ? 'literal' : 'formatted')
+  const anchor = attrs.match(/\btext-anchor="([^"]*)"/)?.[1] ?? 'start'
+  const fragmented = block && (block.letterSpacing !== 0 || /[^\x20-\x7e]/u.test(block.lineBlocks.map(line => line.runs.map(run => run.text).join('')).join('')))
+  const renderLine = (line: string, index: number) => block
+    ? renderPreparedLine(block, index, cx, anchor)
+    : renderDisplayLine(line, display)
+  if (display === 'literal' && HAS_FORMAT_TAGS.test(value) && !attrs.includes('data-literal-text=')) attrs += ' data-literal-text="true"'
+  if (/(?:^ | $| {2}|\t)/m.test(value) && !attrs.includes('xml:space=')) attrs += ' xml:space="preserve"'
+  if (block) attrs += ' data-prepared-text="true"'
+  const advanceAttrs = (i: number) => block && !fragmented ? ` textLength="${block.lineBlocks[i]!.width}" lengthAdjust="spacingAndGlyphs" data-font-metrics="deterministic-fit"` : ''
 
   // Single line — simple text element
   if (lines.length === 1) {
     const dy = fontSize * baselineShift
-    return `<text x="${cx}" y="${cy}" ${attrs} dy="${dy}">${renderLine(text)}</text>`
+    return `<text x="${cx}" y="${cy}" ${attrs} dy="${dy}"${advanceAttrs(0)}>${renderLine(value, 0)}</text>`
   }
 
   // Multi-line — use tspan elements with vertical centering
-  const lineHeight = fontSize * LINE_HEIGHT_RATIO
+  const lineHeight = block?.lineHeight ?? fontSize * LINE_HEIGHT_RATIO
   // First line dy: shift up by (n-1)/2 line heights, then add baseline shift
   const firstDy = -((lines.length - 1) / 2) * lineHeight + fontSize * baselineShift
 
   const tspans = lines.map((line, i) => {
     const dy = i === 0 ? firstDy : lineHeight
-    return `<tspan x="${cx}" dy="${dy}">${renderLine(line)}</tspan>`
+    return `<tspan x="${cx}" dy="${dy}"${advanceAttrs(i)}>${renderLine(line, i)}</tspan>`
   }).join('')
 
   return `<text x="${cx}" y="${cy}" ${attrs}>${tspans}</text>`
@@ -197,7 +249,7 @@ export function renderMultilineText(
  * @returns SVG elements string (rect + text)
  */
 export function renderMultilineTextWithBackground(
-  text: string,
+  text: string | PixelTextBlock,
   cx: number,
   cy: number,
   textWidth: number,

@@ -9,8 +9,7 @@ import type {
 } from './types.ts'
 import type { RenderOptions } from '../types.ts'
 import type { RadarVisualConfig } from './config.ts'
-import { measureTextWidth } from '../text-metrics.ts'
-import { wrapLabelToWidth } from '../shared/label-wrap.ts'
+import { preparePixelText, type PixelTextBlock } from '../shared/prepared-text.ts'
 import { resolveRenderStyle, STROKE_WIDTHS } from '../styles.ts'
 import type { RenderStyleDefaults } from '../styles.ts'
 import type { InternalStyleFace } from '../scene/style-registry.ts'
@@ -167,24 +166,25 @@ export function layoutRadarChart(
   const axisWeight = style.edgeLabelFontWeight
   const axisLineH = axisFont * 1.3
   const titleFont = style.groupHeaderFontSize
-  const titleWeight = style.groupHeaderFontWeight
+  const titleWeight = Math.max(style.groupHeaderFontWeight, 600)
 
   // --- Axis labels: budget-driven, lossless wrap compression ----------------
   // Wrap at the default cap, then (timeline discipline) shrink the cap in
   // bounded steps while the widest wrapped label still exceeds a budget derived
   // from the plot radius, so a couple of very long labels can't blow the gutter.
   const labelBudget = Math.max(R.axisLabelMinWidth, Math.min(R.axisLabelMaxWidth, radius * 1.05))
-  const wrapAt = (cap: number): string[][] =>
-    chart.axes.map(a => wrapLabelToWidth(a.label, cap, axisFont, axisWeight).split('\n'))
-  const widest = (wrapped: string[][]): number =>
-    Math.max(0, ...wrapped.flat().map(line => measureTextWidth(line, axisFont, axisWeight)))
+  const wrapAt = (cap: number): PixelTextBlock[] => chart.axes.map(a => preparePixelText(a.label, {
+    display: 'literal', transform: style.edgeTextTransform, fontSize: axisFont, fontWeight: axisWeight,
+    letterSpacing: style.edgeLetterSpacing, maxWidth: cap,
+  }))
   let wrapCap: number = R.axisLabelMaxWidth
-  let wrappedAxes = wrapAt(wrapCap)
-  for (let pass = 0; pass < 8 && widest(wrappedAxes) > labelBudget && wrapCap > R.axisLabelMinWidth; pass++) {
+  let axisBlocks = wrapAt(wrapCap)
+  for (let pass = 0; pass < 8 && Math.max(0, ...axisBlocks.map(block => block.width)) > labelBudget && wrapCap > R.axisLabelMinWidth; pass++) {
     wrapCap = Math.max(R.axisLabelMinWidth, wrapCap - 12)
-    wrappedAxes = wrapAt(wrapCap)
+    axisBlocks = wrapAt(wrapCap)
   }
-  const axisLabelW = wrappedAxes.map(lines => Math.max(0, ...lines.map(line => measureTextWidth(line, axisFont, axisWeight))))
+  const wrappedAxes = axisBlocks.map(block => block.lines)
+  const axisLabelW = axisBlocks.map(block => block.width)
   const axisBlockH = wrappedAxes.map(lines => lines.length * axisLineH)
 
   // Outermost drawn data radius per axis — labels must clear the dot on it.
@@ -251,11 +251,13 @@ export function layoutRadarChart(
   // Wrap budget scales with the legend type size, so a larger accessible font
   // still expands the canvas (it wraps wider, not just taller).
   const legendWrapWidth = legendFont * (R.legendLabelMaxWidth / R.legendFontSize)
-  const legendLines = wantLegend
-    ? chart.curves.map(c => wrapLabelToWidth(c.label, legendWrapWidth, legendFont, legendWeight).split('\n'))
-    : []
+  const legendBlocks = wantLegend ? chart.curves.map(c => preparePixelText(c.label, {
+    display: 'literal', transform: style.nodeTextTransform, fontSize: legendFont, fontWeight: legendWeight,
+    letterSpacing: style.nodeLetterSpacing, maxWidth: legendWrapWidth,
+  })) : []
+  const legendLines = legendBlocks.map(block => block.lines)
   const legendRowHeights = legendLines.map(lines => Math.max(legendSwatch, lines.length * legendLineH))
-  const legendTextWidth = Math.max(0, ...legendLines.flat().map(line => measureTextWidth(line, legendFont, legendWeight)))
+  const legendTextWidth = Math.max(0, ...legendBlocks.map(block => block.width))
   const legendWidth = wantLegend ? legendSwatch + R.legendSwatchToText + legendTextWidth : 0
   const legendHeight = wantLegend
     ? legendRowHeights.reduce((s, h) => s + h, 0) + Math.max(0, chart.curves.length - 1) * R.legendRowGap
@@ -281,11 +283,13 @@ export function layoutRadarChart(
   if (visual.width) { const half = visual.width / 2; extL = Math.max(extL, half); extR = Math.max(extR, half) }
   if (visual.height) { const half = visual.height / 2; extT = Math.max(extT, half); extB = Math.max(extB, half) }
 
-  const titleHeight = chart.title ? titleFont + R.titleGap : 0
+  const titleBlock = chart.title ? preparePixelText(chart.title, { display: 'literal', transform: style.groupTextTransform, fontSize: titleFont, fontWeight: titleWeight, letterSpacing: style.groupLetterSpacing }) : undefined
+  const titleBandHeight = titleBlock ? titleBlock.height - (titleBlock.lineHeight - titleBlock.fontSize) : 0
+  const titleHeight = titleBlock ? titleBandHeight + R.titleGap : 0
   const legendColW = wantLegend ? R.legendGap + legendWidth : 0
   const baseWidth = marginL + extL + extR + legendColW + marginR
   const baseCx = marginL + extL
-  const titleWidth = chart.title ? measureTextWidth(chart.title, titleFont, titleWeight) : 0
+  const titleWidth = titleBlock?.width ?? 0
   const titleLeftExtra = Math.max(0, titleWidth / 2 - baseCx)
   const titleRightExtra = Math.max(0, baseCx + titleWidth / 2 - baseWidth)
   const width = baseWidth + titleLeftExtra + titleRightExtra
@@ -320,6 +324,7 @@ export function layoutRadarChart(
     return {
       id: axis.id,
       label: axis.label,
+      block: axisBlocks[i],
       x: round(spoke.x),
       y: round(spoke.y),
       labelX: round(label.x),
@@ -357,9 +362,10 @@ export function layoutRadarChart(
     for (const ring of [...rings].reverse()) {
       const p = polar(cx, cy, ring.r, gapAngle)
       const text = formatTick(ring.value)
-      const w = measureTextWidth(text, R.ringLabelFontSize, axisWeight) + R.tickBoxPadX * 2
+      const block = preparePixelText(text, { display: 'literal', fontSize: R.ringLabelFontSize, fontWeight: axisWeight, letterSpacing: style.edgeLetterSpacing })
+      const w = block.width + R.tickBoxPadX * 2
       const h = R.ringLabelFontSize + R.tickBoxPadY * 2
-      const candidate = { text, x: round(p.x), y: round(p.y), w: round(w), h: round(h) }
+      const candidate = { text, block, x: round(p.x), y: round(p.y), w: round(w), h: round(h) }
       const box: Box = { left: candidate.x - candidate.w / 2, right: candidate.x + candidate.w / 2, top: candidate.y - candidate.h / 2, bottom: candidate.y + candidate.h / 2 }
       const collides = tickLabels.some(t => boxesOverlap(box, {
         left: t.x - t.w / 2, right: t.x + t.w / 2,
@@ -380,6 +386,7 @@ export function layoutRadarChart(
       legend.push({
         label: curve.label,
         lines: legendLines[index]!,
+        block: legendBlocks[index],
         colorIndex: index,
         x: round(legendX),
         y: round(rowTop + (rowH - legendSwatch) / 2),
@@ -398,7 +405,7 @@ export function layoutRadarChart(
     cy: round(cy),
     radius: round(radius),
     title: chart.title
-      ? { text: chart.title, x: round(cx), y: round(marginT + titleFont / 2), fontSize: titleFont }
+      ? { text: titleBlock!.text, block: titleBlock, x: round(cx), y: round(marginT + titleBandHeight / 2), fontSize: titleFont }
       : undefined,
     accessibility: chart.accessibility ? { ...chart.accessibility } : undefined,
     rings,

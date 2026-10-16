@@ -39,15 +39,15 @@ const cases = [
 
 function legendXml(source: string): string {
   const svg = renderMermaidSVG(source)
-  const match = svg.match(/class="pie-legend-text"[^>]*>([^<]*)<\/text>/)
+  const match = svg.match(/class="pie-legend-text"[^>]*>([\s\S]*?)<\/text>/)
   if (!match) throw new Error('Pie legend text was not rendered')
-  return match[1]!
+  return match[1]!.replace(/<[^>]*>/g, '')
 }
 
 function titleXml(source: string): string {
-  const match = renderMermaidSVG(source).match(/class="pie-title"[^>]*>([^<]*)<\/text>/)
+  const match = renderMermaidSVG(source).match(/class="pie-title"[^>]*>([\s\S]*?)<\/text>/)
   if (!match) throw new Error('Pie title was not rendered')
-  return match[1]!
+  return match[1]!.replace(/<[^>]*>/g, '')
 }
 
 test('Pie authored formatting-looking text remains literal across SVG, terminal, agent, and async render', async () => {
@@ -66,7 +66,7 @@ test('Pie authored formatting-looking text remains literal across SVG, terminal,
     expect(chart.entries[0]!.displayLabel).toBe(label)
     expect(decodeXML(titleXml(source))).toBe(title)
     expect(decodeXML(legendXml(source))).toStartWith(`${label} [1]`)
-    expect(renderMermaidSVG(source)).not.toContain('<tspan')
+    expect(renderMermaidSVG(source)).not.toMatch(/<tspan[^>]*font-(?:weight="700|style="italic)/)
     expect(renderMermaidASCII(source, { colorMode: 'none' })).toStartWith(`${title}\n${label}`)
     const meta = renderMermaidASCIIWithMeta(source, { colorMode: 'none' })
     expect(meta.regions.filter(region => region.kind === 'node' || region.id === 'title').map(region => region.projectedText)).toEqual([title, label])
@@ -232,7 +232,7 @@ test('reviewed Pie title, named-reference, formatting, and escaped-newline sourc
   ]) {
     expect(titleXml(source)).toBe(title)
     expect(legendXml(source)).toBe(legend)
-    expect(renderMermaidSVG(source)).not.toContain('<tspan')
+    expect(renderMermaidSVG(source)).not.toMatch(/<tspan[^>]*font-(?:weight="700|style="italic)/)
   }
 })
 

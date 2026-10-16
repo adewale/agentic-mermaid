@@ -60,6 +60,7 @@ export interface PositionedSankeyNode {
   y1: number
   /** Label lines (name, plus the formatted value line when `showValues`). */
   labelLines: string[]
+  labelBlock?: import('../shared/prepared-text.ts').PixelTextBlock
   /** Label anchor position and side. */
   labelX: number
   labelY: number
@@ -93,7 +94,7 @@ export interface PositionedSankeyLink {
 export interface PositionedSankeyChart extends PositionedDiagram {
   width: number
   height: number
-  title?: { text: string; x: number; y: number }
+  title?: { text: string; x: number; y: number; block?: import('../shared/prepared-text.ts').PixelTextBlock }
   /** Nodes in first-appearance order (palette/identity order). */
   nodes: PositionedSankeyNode[]
   /** Links in authored order (drawing order; stacking is per-node). */

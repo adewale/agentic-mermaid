@@ -84,9 +84,9 @@ describe('sankey SVG renderer · structure', () => {
 describe('sankey SVG renderer · config wiring', () => {
   test('showValues (default on) adds a value line; prefix/suffix format it', () => {
     const svg = renderMermaidSVG(configured('    prefix: "€"\n    suffix: "M"'))
-    expect(svg).toContain('€127.93M')
+    expect(svg.replace(/<[^>]*>/g, '')).toContain('€127.93M')
     const withoutValues = renderMermaidSVG(configured('    showValues: false'))
-    expect(withoutValues).not.toContain('127.93</tspan>')
+    expect(withoutValues.replace(/<[^>]*>/g, '')).not.toContain('127.93')
   })
 
   test('linkColor: source paints ribbons with the source node color', () => {

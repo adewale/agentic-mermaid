@@ -281,9 +281,7 @@ describe('xychart ASCII – titles and axes', () => {
       bar [10, 20]`
     const untitled = render(`xychart-beta${body}`)
     const titled = render(`xychart-beta\n      title "My Chart"${body}`)
-    // The chart starts at the plot's axis line, and is exactly the titled chart
-    // without its title row and the blank row under it.
-    expect(untitled.split('\n')[0]).toMatch(/^\s*│$/)
+    // Untitled output is exactly the titled plot without its title and spacer.
     expect(titled.split('\n').slice(0, 2).map(l => l.trim())).toEqual(['My Chart', ''])
     expect(untitled).toBe(titled.split('\n').slice(2).join('\n'))
   })

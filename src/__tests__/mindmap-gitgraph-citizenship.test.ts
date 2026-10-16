@@ -247,7 +247,7 @@ describe('GitGraph full-family citizenship', () => {
       // alignment, font size, rotation, and fitted textLength, and the canvas.
       const svg = renderMermaidSVG(`gitGraph ${direction}:\n  commit id:"x" msg:"${message}"`)
       const [, canvasW, canvasH] = svg.match(/viewBox="0 0 ([\d.]+) ([\d.]+)"/)!.map(Number)
-      const tag = svg.match(/<text class="git-commit-label"[^>]*>/)![0]
+      const tag = svg.match(/<text[^>]*class="git-commit-label"[^>]*>/)![0]
       const attr = (name: string) => tag.match(new RegExp(` ${name}="([^"]+)"`))?.[1]
       const [x, y, size, width] = ['x', 'y', 'font-size', 'textLength'].map(name => Number(attr(name)))
       const angle = Number(attr('transform')?.match(/rotate\(([-\d.]+)/)?.[1] ?? 0)
@@ -321,11 +321,11 @@ describe('GitGraph full-family citizenship', () => {
       const pairs = [
         ...[...svg.matchAll(/<g class="git-branch"[^>]*>([\s\S]*?)<\/g>/g)].map(match => ({
           background: match[1]!.match(/<rect class="git-branch-label-background"[^>]*\sfill="([^"]+)"/)?.[1],
-          text: match[1]!.match(/<text class="git-branch-label"[^>]*\sfill="([^"]+)"/)?.[1],
+          text: match[1]!.match(/<text[^>]*class="git-branch-label"[^>]*\sfill="([^"]+)"/)?.[1],
         })),
         ...[...svg.matchAll(/<g class="git-commit[^>]*>([\s\S]*?)<\/g>/g)].flatMap(match => {
           const backgrounds = [...match[1]!.matchAll(/<rect class="git-tag-background"[^>]*\sfill="([^"]+)"/g)].map(item => item[1]!)
-          const texts = [...match[1]!.matchAll(/<text class="git-tag"[^>]*\sfill="([^"]+)"/g)].map(item => item[1]!)
+          const texts = [...match[1]!.matchAll(/<text[^>]*class="git-tag"[^>]*\sfill="([^"]+)"/g)].map(item => item[1]!)
           return texts.map((text, index) => ({ text, background: backgrounds[index] }))
         }),
       ]

@@ -1,3 +1,4 @@
+import type { PixelTextBlock } from '../shared/prepared-text.ts'
 // ============================================================================
 // Journey diagram types
 //
@@ -40,6 +41,7 @@ export interface JourneyTask {
 // ============================================================================
 
 export interface PositionedJourneyDiagram extends PositionedDiagram {
+  actorLegendTitle?: PixelTextBlock
   width: number
   height: number
   title?: PositionedJourneyTitle
@@ -51,12 +53,14 @@ export interface PositionedJourneyDiagram extends PositionedDiagram {
 }
 
 export interface PositionedJourneyTitle {
+  block?: PixelTextBlock
   text: string
   x: number
   y: number
 }
 
 export interface PositionedJourneySection {
+  block?: PixelTextBlock
   id: string
   /** Unwrapped semantic category used by Style bindings. */
   category: string
@@ -75,6 +79,7 @@ export interface PositionedJourneySection {
 }
 
 export interface PositionedJourneyActor {
+  block?: PixelTextBlock
   label: string
   x: number
   y: number
@@ -91,6 +96,7 @@ export interface PositionedJourneyScoreGuide {
 }
 
 export interface PositionedJourneyScoreTick {
+  block?: PixelTextBlock
   score: number
   x1: number
   x2: number
@@ -107,6 +113,7 @@ export interface PositionedJourneyBaseline {
 }
 
 export interface PositionedJourneyTask {
+  block?: PixelTextBlock
   id: string
   sectionId: string
   text: string

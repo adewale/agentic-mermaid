@@ -103,6 +103,7 @@ export interface PositionedRadarAxis {
   /** Leader line from the outer ring to a label displaced clear of a neighbour
    *  (quadrant-style); present only when the label was relocated. */
   leader?: { x1: number; y1: number; x2: number; y2: number }
+  block?: import('../shared/prepared-text.ts').PixelTextBlock
 }
 
 /** One positioned curve. */
@@ -130,6 +131,7 @@ export interface PositionedRadarTickLabel {
    *  and translucent silhouettes — the flowchart bordered-label-box discipline. */
   w: number
   h: number
+  block?: import('../shared/prepared-text.ts').PixelTextBlock
 }
 
 export interface PositionedRadarLegendItem {
@@ -142,6 +144,7 @@ export interface PositionedRadarLegendItem {
   swatchSize: number
   textX: number
   textY: number
+  block?: import('../shared/prepared-text.ts').PixelTextBlock
 }
 
 /** Exact resolved typography shared by layout, public projection, and SVG. */
@@ -164,7 +167,7 @@ export interface PositionedRadarChart extends PositionedDiagram {
   cy: number
   /** Outer radius (data max maps here). */
   radius: number
-  title?: { text: string; x: number; y: number; fontSize: number }
+  title?: { text: string; x: number; y: number; fontSize: number; block?: import('../shared/prepared-text.ts').PixelTextBlock }
   accessibility?: { title?: string; description?: string }
   rings: PositionedRadarRing[]
   axes: PositionedRadarAxis[]

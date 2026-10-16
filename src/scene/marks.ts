@@ -21,6 +21,8 @@ import type { SvgSemanticIdentity } from './identity.ts'
 import { ensureSvgIdentity, semanticIdentityForSvg } from './identity.ts'
 import { ensureSvgAccessibility, relationAccessibility, relationAccessibilityForSvg } from './accessibility.ts'
 import { escapeAttr, escapeXml } from '../multiline-utils.ts'
+import type { LabelDisplay } from '../multiline-utils.ts'
+import { preparePixelText, type PixelTextBlock } from '../shared/prepared-text.ts'
 import {
   connectorContourSemantics,
   connectorGeometryHasCurves,
@@ -474,16 +476,29 @@ export function text(fields: {
   x: number
   y: number
   fontSize: number
+  fontWeight?: number
+  letterSpacing?: number
+  display?: LabelDisplay
+  block?: PixelTextBlock
   anchor: TextMark['anchor']
   paint: MarkPaint
   pageFill?: string
   channels?: SemanticChannels
   transform?: SceneTransform
 }, crisp: string): TextMark {
+  const { block, ...semantic } = fields
+  const open = crisp.match(/<text\b[^>]*>/)?.[0] ?? ''
+  const weight = fields.fontWeight ?? block?.fontWeight ?? Number(open.match(/\bfont-weight="(\d+)"/)?.[1] ?? 400)
+  const spacing = fields.letterSpacing ?? block?.letterSpacing ?? Number(open.match(/\bletter-spacing="(-?[\d.]+)"/)?.[1] ?? 0)
+  const display = fields.display ?? block?.prepared.display ?? (open.includes('data-literal-text="true"') ? 'literal' : 'formatted')
+  const measured = block ?? preparePixelText(fields.text, { display, fontSize: fields.fontSize, fontWeight: weight, letterSpacing: spacing })
+  const firstDy = open.match(/\bdy="([^"]*)"/)?.[1] ?? crisp.match(/<tspan\b[^>]*\bdy="([^"]*)"/)?.[1] ?? '0'
+  const dy = Number.parseFloat(firstDy) * (firstDy.endsWith('em') ? fields.fontSize : 1)
+  const offsetY = dy + (measured.lines.length - 1) * measured.lineHeight / 2 - fields.fontSize * 0.35
   const identity = semanticIdentityForSvg(crisp, fields)
   const accessibility = relationAccessibilityForSvg(crisp, identity)
   const decorated = ensureSvgAccessibility(ensureSvgIdentity(crisp, identity), accessibility)
-  return attachSceneNodeSerialization({ kind: 'text', identity, accessibility, ...fields }, decorated)
+  return attachSceneNodeSerialization({ kind: 'text', identity, accessibility, ...semantic, ...(block ? { prepared: true } : {}), fontWeight: weight, letterSpacing: spacing, display, textLayout: { width: measured.width, height: measured.height, lineHeight: measured.lineHeight, offsetY } }, decorated)
 }
 
 export function documentContent(fields: {

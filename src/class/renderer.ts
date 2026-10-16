@@ -1,8 +1,10 @@
+import { preparePixelText, type PixelTextBlock } from '../shared/prepared-text.ts'
+import { classTextBlock, classMemberBlock } from './layout.ts'
 import type { PositionedClassDiagram, PositionedClassNode, PositionedClassNamespace, PositionedClassRelationship, PositionedClassNote, ClassMember, RelationshipType } from './types.ts'
 import type { RenderContext } from '../types.ts'
 import { svgOpenTag, buildStyleBlock, buildShadowDefs, type DiagramColors } from '../theme.ts'
 import { inkOnNodeFill } from '../color-resolver.ts'
-import { FONT_SIZES, FONT_WEIGHTS, STROKE_WIDTHS, TEXT_BASELINE_SHIFT, applyTextTransform, resolveRenderStyle, diagramTitleMark } from '../styles.ts'
+import { FONT_SIZES, FONT_WEIGHTS, STROKE_WIDTHS, TEXT_BASELINE_SHIFT, resolveRenderStyle, diagramTitleMark } from '../styles.ts'
 import type { RenderStyleDefaults, ResolvedRenderStyle } from '../styles.ts'
 import { CLS, CLASS_STYLE_DEFAULTS, memberToString } from './layout.ts'
 import { buildAccessibilityAttrs } from '../shared/svg-a11y.ts'
@@ -39,6 +41,10 @@ const CLS_FONT = {
   annotationSize: 10,
   annotationWeight: 500,
 } as const
+
+function literalAdvanceAttrs(block: PixelTextBlock): string {
+  return ` data-prepared-text="true" data-literal-text="true" textLength="${block.width}" lengthAdjust="spacingAndGlyphs"`
+}
 
 /**
  * Render a positioned class diagram as an SVG string.
@@ -224,21 +230,22 @@ function renderNamespaceBox(ns: PositionedClassNamespace, style: ResolvedRenderS
 
   // Header label (display label when given, else the segment name), wrapped
   // by layout when it is wider than the namespace.
-  const headerText = ns.title ?? applyTextTransform(ns.label, style.groupTextTransform)
+  const headerBlock = ns.labelBlock ?? classTextBlock(ns.label, style, 'group', ns.width - 2 * style.groupLabelPaddingX)
+  const headerText = headerBlock.text
   const headerTextColor = style.groupTextColor ?? 'var(--_text-sec)'
   children.push({
     indent: 2,
     node: marks.text({
       id: `namespace-label:${ns.id}`,
       role: 'group-header',
-      text: headerText,
+      text: headerText, block: headerBlock,
       x: ns.x + style.groupLabelPaddingX,
       y: ns.y + ns.headerHeight / 2,
       fontSize: style.groupHeaderFontSize,
       anchor: 'start',
       paint: { fill: headerTextColor },
     }, renderMultilineText(
-      headerText,
+      headerBlock,
       ns.x + style.groupLabelPaddingX,
       ns.y + ns.headerHeight / 2,
       style.groupHeaderFontSize,
@@ -328,6 +335,7 @@ function renderClassBox(cls: PositionedClassNode, style: ResolvedRenderStyle, in
   // Annotation (<<interface>>, <<abstract>>, etc.)
   let nameY = y + headerHeight / 2
   if (cls.annotation !== undefined) {
+    const annotationBlock = cls.annotationBlock ?? preparePixelText(`<<${cls.annotation}>>`, { display: 'literal', fontSize: 10, fontWeight: 500 })
     const annotY = y + 12
     const annotColor = headerInk(style.nodeTextColor ?? 'var(--_text-muted)')
     children.push({
@@ -335,7 +343,7 @@ function renderClassBox(cls: PositionedClassNode, style: ResolvedRenderStyle, in
       node: marks.text({
         id: `class:${cls.id}:annotation`,
         role: 'label',
-        text: `<<${cls.annotation}>>`,
+        text: `<<${cls.annotation}>>`, block: annotationBlock,
         x: x + width / 2,
         y: annotY,
         fontSize: CLS_FONT.annotationSize,
@@ -344,27 +352,28 @@ function renderClassBox(cls: PositionedClassNode, style: ResolvedRenderStyle, in
       },
         `<text x="${x + width / 2}" y="${annotY}" text-anchor="middle" dy="${TEXT_BASELINE_SHIFT}" ` +
         `font-size="${CLS_FONT.annotationSize}" font-weight="${CLS_FONT.annotationWeight}" ` +
-        `font-style="italic" fill="${escapeAttr(annotColor)}">&lt;&lt;${escapeXml(cls.annotation)}&gt;&gt;</text>`),
+        `font-style="italic"${literalAdvanceAttrs(annotationBlock)} fill="${escapeAttr(annotColor)}">&lt;&lt;${escapeXml(cls.annotation)}&gt;&gt;</text>`),
     })
     nameY = y + headerHeight / 2 + 6
   }
 
   // Class name (supports multi-line via <br> tags)
   const nameColor = headerInk(style.nodeTextColor ?? 'var(--_text)')
-  const label = applyTextTransform(cls.label, style.nodeTextTransform)
+  const labelBlock = cls.labelBlock ?? classTextBlock(cls.label, style, 'node')
+  const label = labelBlock.text
   children.push({
     indent: 2,
     node: marks.text({
       id: `class:${cls.id}:name`,
       role: 'label',
-      text: label,
+      text: label, block: labelBlock,
       x: x + width / 2,
       y: nameY,
       fontSize: style.nodeLabelFontSize,
       anchor: 'middle',
       paint: { fill: nameColor },
     }, renderMultilineText(
-      label,
+      labelBlock,
       x + width / 2,
       nameY,
       style.nodeLabelFontSize,
@@ -381,7 +390,7 @@ function renderClassBox(cls: PositionedClassNode, style: ResolvedRenderStyle, in
   for (let i = 0; i < cls.attributes.length; i++) {
     const member = cls.attributes[i]!
     const memberY = attrTop + 4 + i * memberRowH + memberRowH / 2
-    children.push({ indent: 2, node: renderMember(member, x + style.nodePaddingX, memberY, style, `member:${cls.id}:${member.name}`, ink) })
+    children.push({ indent: 2, node: renderMember(member, x + style.nodePaddingX, memberY, style, `member:${cls.id}:${member.name}`, ink, cls.attributeBlocks?.[i]) })
   }
 
   // Divider line between attributes and methods
@@ -392,7 +401,7 @@ function renderClassBox(cls: PositionedClassNode, style: ResolvedRenderStyle, in
   for (let i = 0; i < cls.methods.length; i++) {
     const member = cls.methods[i]!
     const memberY = methodTop + 4 + i * memberRowH + memberRowH / 2
-    children.push({ indent: 2, node: renderMember(member, x + style.nodePaddingX, memberY, style, `member:${cls.id}:${member.name}`, ink) })
+    children.push({ indent: 2, node: renderMember(member, x + style.nodePaddingX, memberY, style, `member:${cls.id}:${member.name}`, ink, cls.methodBlocks?.[i]) })
   }
 
   return marks.group({
@@ -426,7 +435,8 @@ function renderDivider(clsId: string, which: 'attrs' | 'methods', x: number, lin
  *   - colon separator → textFaint (decoration)
  *   - type annotation → textMuted
  */
-function renderMember(member: ClassMember, x: number, y: number, style: ResolvedRenderStyle, sceneId: string, ink: (tone: string) => string): SceneNode {
+function renderMember(member: ClassMember, x: number, y: number, style: ResolvedRenderStyle, sceneId: string, ink: (tone: string) => string, prepared?: PixelTextBlock): SceneNode {
+  const block = prepared ?? classMemberBlock(member)
   const fontStyle = member.isAbstract ? ' font-style="italic"' : ''
   const decoration = member.isStatic ? ' text-decoration="underline"' : ''
 
@@ -440,7 +450,7 @@ function renderMember(member: ClassMember, x: number, y: number, style: Resolved
     return marks.text({
       id: sceneId,
       role: 'member',
-      text: plain,
+      text: plain, block,
       x,
       y,
       fontSize: CLS_FONT.memberSize,
@@ -448,7 +458,7 @@ function renderMember(member: ClassMember, x: number, y: number, style: Resolved
       paint: { fill: textInk },
     },
       `<text x="${x}" y="${y}" class="mono" dy="${TEXT_BASELINE_SHIFT}" ` +
-      `font-size="${CLS_FONT.memberSize}" font-weight="${CLS_FONT.memberWeight}"${fontStyle}${decoration}>` +
+      `font-size="${CLS_FONT.memberSize}" font-weight="${CLS_FONT.memberWeight}"${fontStyle}${decoration}${literalAdvanceAttrs(block)}>` +
       `${visible}</text>`)
   }
 
@@ -478,7 +488,7 @@ function renderMember(member: ClassMember, x: number, y: number, style: Resolved
   return marks.text({
     id: sceneId,
     role: 'member',
-    text: plain,
+    text: plain, block,
     x,
     y,
     fontSize: CLS_FONT.memberSize,
@@ -486,7 +496,7 @@ function renderMember(member: ClassMember, x: number, y: number, style: Resolved
     paint: { fill: nameInk },
   },
     `<text x="${x}" y="${y}" class="mono" dy="${TEXT_BASELINE_SHIFT}" ` +
-    `font-size="${CLS_FONT.memberSize}" font-weight="${CLS_FONT.memberWeight}"${fontStyle}${decoration}>` +
+    `font-size="${CLS_FONT.memberSize}" font-weight="${CLS_FONT.memberWeight}"${fontStyle}${decoration}${literalAdvanceAttrs(block)}>` +
     `${spans.join('')}</text>`)
 }
 
@@ -508,9 +518,9 @@ function renderClassNote(note: PositionedClassNote, style: ResolvedRenderStyle, 
     paint: { fill, stroke, strokeWidth: '1' },
   }, `<rect x="${note.x}" y="${note.y}" width="${note.width}" height="${note.height}" rx="2" fill="${escapeAttr(fill)}" stroke="${escapeAttr(stroke)}" />`), indent: 2 })
   children.push({ node: marks.text({
-    id: `class-note:${index}:label`, role: 'label', text: note.text,
+    id: `class-note:${index}:label`, role: 'label', text: note.text, block: note.textBlock,
     x: note.x + note.width / 2, y: note.y + note.height / 2, fontSize: 12, anchor: 'middle', paint: { fill: text },
-  }, renderMultilineText(note.text, note.x + note.width / 2, note.y + note.height / 2, 12, `text-anchor="middle" fill="${escapeAttr(text)}"`)), indent: 2 })
+  }, renderMultilineText(note.textBlock ?? note.text, note.x + note.width / 2, note.y + note.height / 2, 12, `text-anchor="middle" fill="${escapeAttr(text)}"`)), indent: 2 })
   return marks.group({
     id: `class-note:${index}`, role: 'note',
     open: `<g class="class-note" data-note-index="${index}"${note.for ? ` data-for="${escapeAttr(note.for)}"` : ''}>`,
@@ -714,17 +724,18 @@ function renderRelationshipLabels(rel: PositionedClassRelationship, style: Resol
   // Label — prefer layout-computed position (collision-aware), fall back to midpoint
   if (rel.label) {
     const pos = rel.labelPosition ?? midpoint(rel.points)
-    const label = applyTextTransform(rel.label, style.edgeTextTransform)
+    const labelBlock = rel.labelBlock ?? classTextBlock(rel.label, style, 'edge')
+    const label = labelBlock.text
     out.push(marks.text({
       id: `rel-label:${key}`,
       role: 'label',
-      text: label,
+      text: label, block: labelBlock,
       x: pos.x,
       y: pos.y - 8,
       fontSize: style.edgeLabelFontSize,
       anchor: 'middle',
       paint,
-    }, renderMultilineText(label, pos.x, pos.y - 8, style.edgeLabelFontSize, textAttrs)))
+    }, renderMultilineText(labelBlock, pos.x, pos.y - 8, style.edgeLabelFontSize, textAttrs)))
   }
 
   // From cardinality (near start)
@@ -736,13 +747,13 @@ function renderRelationshipLabels(rel: PositionedClassRelationship, style: Resol
     out.push(marks.text({
       id: `rel-card:${key}:from`,
       role: 'cardinality',
-      text: rel.fromCardinality,
+      text: rel.fromCardinality, block: rel.fromCardinalityBlock,
       x: position.x,
       y: position.y,
       fontSize: style.edgeLabelFontSize,
       anchor: 'middle',
       paint,
-    }, renderMultilineText(rel.fromCardinality, position.x, position.y, style.edgeLabelFontSize, textAttrs)))
+    }, renderMultilineText(rel.fromCardinalityBlock ?? rel.fromCardinality, position.x, position.y, style.edgeLabelFontSize, textAttrs)))
   }
 
   // To cardinality (near end)
@@ -754,13 +765,13 @@ function renderRelationshipLabels(rel: PositionedClassRelationship, style: Resol
     out.push(marks.text({
       id: `rel-card:${key}:to`,
       role: 'cardinality',
-      text: rel.toCardinality,
+      text: rel.toCardinality, block: rel.toCardinalityBlock,
       x: position.x,
       y: position.y,
       fontSize: style.edgeLabelFontSize,
       anchor: 'middle',
       paint,
-    }, renderMultilineText(rel.toCardinality, position.x, position.y, style.edgeLabelFontSize, textAttrs)))
+    }, renderMultilineText(rel.toCardinalityBlock ?? rel.toCardinality, position.x, position.y, style.edgeLabelFontSize, textAttrs)))
   }
 
   return out

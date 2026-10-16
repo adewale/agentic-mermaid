@@ -15,6 +15,7 @@ import { measureMonospaceTextWidth, measureMultilineText, measureTextWidth } fro
 import type { InternalStyleFace, StyleInput } from './scene/style-registry.ts'
 import type { TextTransform } from './types.ts'
 import { FORMAT_TAG_SOURCE } from './shared/inline-format.ts'
+import { preparePixelText, type PixelTextBlock } from './shared/prepared-text.ts'
 
 /** Average character width in px at the given font size and weight (proportional font) */
 export function estimateTextWidth(text: string, fontSize: number, fontWeight: number): number {
@@ -338,6 +339,7 @@ export interface PositionedDiagramTitle {
   text: string
   x: number
   y: number
+  block?: PixelTextBlock
 }
 
 /** The band a title needs above the content: display text, width, and height
@@ -346,6 +348,7 @@ export interface DiagramTitleBand {
   text: string
   width: number
   height: number
+  block?: PixelTextBlock
 }
 
 export function diagramTitleBand(
@@ -353,14 +356,13 @@ export function diagramTitleBand(
   style: Pick<ResolvedRenderStyle, 'groupTextTransform' | 'groupLetterSpacing'>,
 ): DiagramTitleBand | undefined {
   if (title === undefined) return undefined
-  const text = applyTextTransform(title, style.groupTextTransform)
-  const metrics = measureMultilineText(text, DIAGRAM_TITLE_FONT_SIZE, DIAGRAM_TITLE_FONT_WEIGHT, style.groupLetterSpacing)
-  return { text, width: metrics.width, height: metrics.height + DIAGRAM_TITLE_GAP }
+  const block = preparePixelText(title, { display: 'formatted', transform: style.groupTextTransform, fontSize: DIAGRAM_TITLE_FONT_SIZE, fontWeight: DIAGRAM_TITLE_FONT_WEIGHT, letterSpacing: style.groupLetterSpacing })
+  return { text: block.text, width: block.width, height: block.height + DIAGRAM_TITLE_GAP, block }
 }
 
 /** Where a band's title sits on a canvas `width` wide with `top` padding. */
 export function positionDiagramTitle(band: DiagramTitleBand, width: number, top: number): PositionedDiagramTitle {
-  return { text: band.text, x: width / 2, y: top + (band.height - DIAGRAM_TITLE_GAP) / 2 }
+  return { text: band.text, x: width / 2, y: top + (band.height - DIAGRAM_TITLE_GAP) / 2, ...(band.block ? { block: band.block } : {}) }
 }
 
 export function diagramTitleMark(title: PositionedDiagramTitle, style: ResolvedRenderStyle): TextMark {
@@ -368,9 +370,9 @@ export function diagramTitleMark(title: PositionedDiagramTitle, style: ResolvedR
   const font = style.groupFont ? ` font-family="${escapeAttr(style.groupFont)}"` : ''
   const spacing = style.groupLetterSpacing !== 0 ? ` letter-spacing="${style.groupLetterSpacing}"` : ''
   return marks.text(
-    { id: 'diagram-title', role: 'title', text: title.text, x: title.x, y: title.y, fontSize: DIAGRAM_TITLE_FONT_SIZE, anchor: 'middle', paint: { fill } },
+    { id: 'diagram-title', role: 'title', text: title.text, block: title.block, x: title.x, y: title.y, fontSize: DIAGRAM_TITLE_FONT_SIZE, anchor: 'middle', paint: { fill } },
     renderMultilineText(
-      title.text,
+      title.block ?? title.text,
       title.x,
       title.y,
       DIAGRAM_TITLE_FONT_SIZE,

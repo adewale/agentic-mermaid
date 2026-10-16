@@ -88,7 +88,7 @@ export function requiredContrast(text: Pick<RenderedText, 'large'>): number {
 interface TextElement { start: number; end: number; open: string; content: string }
 
 /** A tspan that sets its own x or dy starts a new line of the same text. */
-const LINE_TSPAN = /<tspan\b[^>]*\s(?:x|dy)="[^"]*"[^>]*>/g
+const LINE_TSPAN = /<tspan\b(?![^>]*\bdata-text-fragment=)[^>]*\s(?:x|dy)="[^"]*"[^>]*>/g
 
 function textElements(svg: string): TextElement[] {
   return [...svg.matchAll(/<text\b[^>]*>[\s\S]*?<\/text>/g)].map(match => ({

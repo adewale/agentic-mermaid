@@ -1,3 +1,4 @@
+import { preparePixelText, type PixelTextBlock } from '../shared/prepared-text.ts'
 import type {
   AxisTick,
   GridLine,
@@ -13,10 +14,9 @@ import type {
 } from './types.ts'
 import type { RenderOptions } from '../types.ts'
 import type { InternalStyleFace } from '../scene/style-registry.ts'
-import { applyTextTransform, STROKE_WIDTHS, resolveRenderStyle } from '../styles.ts'
+import { STROKE_WIDTHS, resolveRenderStyle } from '../styles.ts'
 import type { ResolvedRenderStyle } from '../styles.ts'
-import { LINE_HEIGHT_RATIO, measureFormattedTextWidth } from '../text-metrics.ts'
-import { wrapLabelToWidth } from '../shared/label-wrap.ts'
+import { LINE_HEIGHT_RATIO } from '../text-metrics.ts'
 import type { RenderStyleDefaults } from '../styles.ts'
 import { resolveXYChartRenderConfig } from './config.ts'
 import { barBaselineValue, clampToAxisRange, formatBarValue, formatTickValue, getCategoryLabels, getDataCount, getDataXValues, getPointSpacing, linearTicks } from './axis-utils.ts'
@@ -61,7 +61,8 @@ export const XY_STYLE_DEFAULTS: RenderStyleDefaults = {
  * transform, weight and letter spacing for each kind of text — so a styled
  * chart reserves room for the text it actually draws. */
 interface XYTextMeasure {
-  wrapTitle(title: string, fontSize: number, width: number): string
+  wrapTitle(title: string, fontSize: number, width: number): PixelTextBlock
+  block(role: 'tick' | 'legend' | 'axisTitle' | 'data', source: string, fontSize: number): PixelTextBlock
   /** Axis tick labels: categories and values. */
   tick(label: string, fontSize: number): number
   legend(label: string, fontSize: number): number
@@ -69,11 +70,23 @@ interface XYTextMeasure {
 }
 
 function xyTextMeasure(style: ResolvedRenderStyle): XYTextMeasure {
+  const cache = new Map<string, PixelTextBlock>()
+  const block = (role: 'tick' | 'legend' | 'axisTitle' | 'data', source: string, fontSize: number): PixelTextBlock => {
+    const key = JSON.stringify([role, source, fontSize])
+    let prepared = cache.get(key)
+    if (!prepared) {
+      const edge = role === 'axisTitle'
+      prepared = preparePixelText(source, { display: 'literal', fontSize, fontWeight: edge ? style.edgeLabelFontWeight : style.nodeLabelFontWeight, letterSpacing: edge ? style.edgeLetterSpacing : style.nodeLetterSpacing, transform: role === 'axisTitle' || role === 'tick' ? style.edgeTextTransform : style.nodeTextTransform })
+      cache.set(key, prepared)
+    }
+    return prepared
+  }
   return {
-    wrapTitle: (title, fontSize, width) => wrapLabelToWidth(applyTextTransform(title, style.groupTextTransform), width, fontSize, style.groupHeaderFontWeight, style.groupLetterSpacing, true),
-    tick: (label, fontSize) => measureFormattedTextWidth(applyTextTransform(label, style.edgeTextTransform), fontSize, style.nodeLabelFontWeight, style.nodeLetterSpacing),
-    legend: (label, fontSize) => measureFormattedTextWidth(applyTextTransform(label, style.nodeTextTransform), fontSize, style.nodeLabelFontWeight, style.nodeLetterSpacing),
-    axisTitle: (title, fontSize) => measureFormattedTextWidth(applyTextTransform(title, style.edgeTextTransform), fontSize, style.edgeLabelFontWeight, style.edgeLetterSpacing),
+    block,
+    wrapTitle: (title, fontSize, maxWidth) => preparePixelText(title, { display: 'literal', transform: style.groupTextTransform, fontSize, fontWeight: style.groupHeaderFontWeight, letterSpacing: style.groupLetterSpacing, maxWidth }),
+    tick: (label, fontSize) => block('tick', label, fontSize).width,
+    legend: (label, fontSize) => block('legend', label, fontSize).width,
+    axisTitle: (label, fontSize) => block('axisTitle', label, fontSize).width,
   }
 }
 
@@ -103,8 +116,17 @@ export function layoutXYChart(
     config.yAxis.tickWidth = style.lineWidth
   }
   const measure = xyTextMeasure(style)
-  if (chart.horizontal) return layoutHorizontal(chart, config, measure)
-  return layoutVertical(chart, config, measure)
+  const positioned = chart.horizontal ? layoutHorizontal(chart, config, measure) : layoutVertical(chart, config, measure)
+  for (const axis of [positioned.xAxis, positioned.yAxis]) {
+    if (axis.title) axis.title.block = measure.block('axisTitle', axis.title.text, axis.config.titleFontSize)
+    for (const tick of axis.ticks) tick.block = measure.block('tick', tick.label, axis.config.labelFontSize)
+  }
+  for (const item of positioned.legend) item.block = measure.block('legend', item.label, positioned.config.legendFontSize)
+  for (const label of positioned.dataLabels) label.block = measure.block('data', label.text, label.fontSize)
+  for (const line of positioned.lines) for (const point of line.points) {
+    if (point.textLabel !== undefined) point.textBlock = measure.block('data', point.textLabel, 12)
+  }
+  return positioned
 }
 
 function layoutVertical(chart: XYChart, config: ResolvedXYChartConfig, measure: XYTextMeasure): PositionedXYChart {
@@ -126,7 +148,7 @@ function layoutVertical(chart: XYChart, config: ResolvedXYChartConfig, measure: 
   const titleHeight = title.height
   remainingTopBottomBudget = Math.max(0, remainingTopBottomBudget - titleHeight)
 
-  const xAxisConfig = fitHorizontalAxisConfig(config.xAxis, chart.xAxis.title, xTickLabels, remainingTopBottomBudget)
+  const xAxisConfig = fitHorizontalAxisConfig(config.xAxis, chart.xAxis.title, xTickLabels, remainingTopBottomBudget, measure)
   remainingTopBottomBudget = Math.max(0, remainingTopBottomBudget - xAxisConfig.size)
 
   const yAxisConfig = fitVerticalAxisConfig(config.yAxis, chart.yAxis.title, yTickLabels, remainingLeftBudget, measure)
@@ -214,7 +236,7 @@ function layoutVertical(chart: XYChart, config: ResolvedXYChartConfig, measure: 
     gridLines,
     legend: legend.items,
     hiddenCategoryLabels: hiddenCategoryLabels(chart, config, xAxisConfig.config, xTicks),
-    ...planBarDataLabels(bars, false, plotArea, config),
+    ...planBarDataLabels(bars, false, plotArea, config, measure),
     config,
     theme: chart.theme,
   }
@@ -237,7 +259,7 @@ function layoutHorizontal(chart: XYChart, config: ResolvedXYChartConfig, measure
   remainingTopBottomBudget = Math.max(0, remainingTopBottomBudget - titleHeight)
 
   // Mermaid places the numeric value axis at the top in horizontal mode.
-  const topAxisConfig = fitTopAxisConfig(config.yAxis, chart.yAxis.title, valueTickLabels, remainingTopBottomBudget)
+  const topAxisConfig = fitTopAxisConfig(config.yAxis, chart.yAxis.title, valueTickLabels, remainingTopBottomBudget, measure)
   remainingTopBottomBudget = Math.max(0, remainingTopBottomBudget - topAxisConfig.size)
 
   const leftAxisConfig = fitVerticalAxisConfig(config.xAxis, chart.xAxis.title, categoryLabels, remainingLeftBudget, measure)
@@ -323,7 +345,7 @@ function layoutHorizontal(chart: XYChart, config: ResolvedXYChartConfig, measure
     gridLines,
     legend: legend.items,
     hiddenCategoryLabels: hiddenCategoryLabels(chart, config, leftAxisConfig.config, leftTicks),
-    ...planBarDataLabels(bars, true, plotArea, config),
+    ...planBarDataLabels(bars, true, plotArea, config, measure),
     config,
     theme: chart.theme,
   }
@@ -352,7 +374,7 @@ function fitLegend(
 
   const maxLabelWidth = Math.ceil(Math.max(...entries.map(entry => measure.legend(entry.label, config.legendFontSize))))
   const width = config.legendPadding * 2 + LEGEND_SWATCH_SIZE + LEGEND_SWATCH_GAP + maxLabelWidth
-  const rowHeight = Math.max(config.legendFontSize, LEGEND_SWATCH_SIZE) + config.legendPadding
+  const rowHeight = Math.max(...entries.map(entry => measure.block('legend', entry.label, config.legendFontSize).height), LEGEND_SWATCH_SIZE) + config.legendPadding
   const height = config.legendPadding + entries.length * rowHeight
   if (width > budget || height > plotHeight) return { items: [], size: 0 }
 
@@ -370,13 +392,13 @@ function fitLegend(
 
 function fitChartTitle(title: string | undefined, config: ResolvedXYChartConfig, budget: number, measure: XYTextMeasure): { height: number; title?: PositionedXYChart['title'] } {
   if (!title || !config.showTitle) return { height: 0 }
-  const text = measure.wrapTitle(title, config.titleFontSize, Math.max(1, config.width - config.titlePadding * 2))
-  const extraHeight = (text.split('\n').length - 1) * config.titleFontSize * LINE_HEIGHT_RATIO
+  const block = measure.wrapTitle(title, config.titleFontSize, Math.max(1, config.width - config.titlePadding * 2))
+  const extraHeight = (block.lines.length - 1) * config.titleFontSize * LINE_HEIGHT_RATIO
   const required = config.titleFontSize + extraHeight + config.titlePadding * 2
   if (required > budget) return { height: 0 }
   return {
     height: required,
-    title: { text, x: config.width / 2, y: config.titlePadding + config.titleFontSize + extraHeight / 2 },
+    title: { text: block.text, block, x: config.width / 2, y: config.titlePadding + config.titleFontSize + extraHeight / 2 },
   }
 }
 
@@ -390,6 +412,7 @@ function fitAxisConfig(
   labels: string[],
   budget: number,
   labelExtent: () => number,
+  titleExtent = config.titleFontSize,
 ): { config: ResolvedXYAxisRenderConfig; size: number } {
   let remaining = budget
   const fitted: ResolvedXYAxisRenderConfig = { ...config, showAxisLine: false, showLabel: false, showTick: false, showTitle: false }
@@ -410,7 +433,7 @@ function fitAxisConfig(
     remaining -= config.tickLength
   }
   if (config.showTitle && title) {
-    const required = config.titleFontSize + config.titlePadding * 2
+    const required = titleExtent + config.titlePadding * 2
     if (required <= remaining) {
       fitted.showTitle = true
       remaining -= required
@@ -425,8 +448,10 @@ function fitHorizontalAxisConfig(
   title: string | undefined,
   labels: string[],
   budget: number,
+  measure: XYTextMeasure,
 ): { config: ResolvedXYAxisRenderConfig; size: number } {
-  return fitAxisConfig(config, title, labels, budget, () => config.labelFontSize)
+  const titleHeight = title ? measure.block('axisTitle', title, config.titleFontSize).height - config.titleFontSize * (LINE_HEIGHT_RATIO - 1) : config.titleFontSize
+  return fitAxisConfig(config, title, labels, budget, () => Math.max(config.labelFontSize, ...labels.map(label => measure.block('tick', label, config.labelFontSize).height - config.labelFontSize * (LINE_HEIGHT_RATIO - 1))), titleHeight)
 }
 
 function fitTopAxisConfig(
@@ -434,8 +459,9 @@ function fitTopAxisConfig(
   title: string | undefined,
   labels: string[],
   budget: number,
+  measure: XYTextMeasure,
 ): { config: ResolvedXYAxisRenderConfig; size: number } {
-  return fitHorizontalAxisConfig(config, title, labels, budget)
+  return fitHorizontalAxisConfig(config, title, labels, budget, measure)
 }
 
 function fitVerticalAxisConfig(
@@ -445,7 +471,7 @@ function fitVerticalAxisConfig(
   budget: number,
   measure: XYTextMeasure,
 ): { config: ResolvedXYAxisRenderConfig; size: number } {
-  return fitAxisConfig(config, title, labels, budget, () => Math.max(...labels.map(label => measure.tick(label, config.labelFontSize))))
+  return fitAxisConfig(config, title, labels, budget, () => Math.max(...labels.map(label => measure.tick(label, config.labelFontSize))), title ? measure.block('axisTitle', title, config.titleFontSize).height - config.titleFontSize * (LINE_HEIGHT_RATIO - 1) : config.titleFontSize)
 }
 
 function buildBottomAxisTicks<T extends string | number>(
@@ -636,7 +662,6 @@ const DATA_LABEL_MIN_FONT = 8
 const DATA_LABEL_MAX_FONT = 16
 const DATA_LABEL_INSET = 8
 const DATA_LABEL_GAP = 4
-const DATA_LABEL_CHAR_EM = 0.62
 
 /**
  * Value labels share one font size, fitted across the bars only (a vertical
@@ -651,27 +676,33 @@ function planBarDataLabels(
   horizontal: boolean,
   plotArea: PlotArea,
   config: ResolvedXYChartConfig,
+  measure: XYTextMeasure,
 ): { dataLabels: PositionedDataLabel[]; unlabeledBars: PositionedBar[] } {
   if (!config.showDataLabel || bars.length === 0) return { dataLabels: [], unlabeledBars: [] }
   const texts = bars.map(bar => formatBarValue(bar.value))
-  const crossFits = bars.map((bar, index) => horizontal
-    ? bar.height * 0.72
-    : Math.max(0, (bar.width - DATA_LABEL_INSET) / Math.max(1, texts[index]!.length * DATA_LABEL_CHAR_EM)))
-  const fitted = Math.floor(Math.min(...crossFits))
-  if (!Number.isFinite(fitted) || fitted < DATA_LABEL_MIN_FONT) return { dataLabels: [], unlabeledBars: [...bars] }
-  const fontSize = Math.min(DATA_LABEL_MAX_FONT, fitted)
+  // Tracking is an absolute pixel distance, so scaling a 1px measurement
+  // would multiply the tracking too. Fit the finite supported font sizes.
+  let fontSize: number = DATA_LABEL_MAX_FONT
+  for (; fontSize >= DATA_LABEL_MIN_FONT; fontSize--) {
+    if (bars.every((bar, index) => {
+      const block = measure.block('data', texts[index]!, fontSize)
+      return horizontal ? block.height <= bar.height - 4 : block.width <= bar.width - DATA_LABEL_INSET
+    })) break
+  }
+  if (fontSize < DATA_LABEL_MIN_FONT) return { dataLabels: [], unlabeledBars: [...bars] }
 
   const dataLabels: PositionedDataLabel[] = []
   const unlabeledBars: PositionedBar[] = []
   bars.forEach((bar, index) => {
     const text = texts[index]!
-    const textWidth = text.length * DATA_LABEL_CHAR_EM * fontSize
-    const insideFits = horizontal ? bar.width - 12 >= textWidth : bar.height - 10 >= fontSize
+    const textBlock = measure.block('data', text, fontSize)
+    const textWidth = textBlock.width
+    const insideFits = horizontal ? bar.width - 12 >= textWidth : bar.height - 10 >= textBlock.height
     const outsideFitsBeyond = (positiveEnd: boolean): boolean => {
       const room = horizontal
         ? (positiveEnd ? plotArea.x + plotArea.width - (bar.x + bar.width) : bar.x - plotArea.x)
         : (positiveEnd ? bar.y - plotArea.y : plotArea.y + plotArea.height - (bar.y + bar.height))
-      return room >= (horizontal ? textWidth : fontSize) + DATA_LABEL_GAP
+      return room >= (horizontal ? textWidth : textBlock.height) + DATA_LABEL_GAP
     }
     // Bars grow from zero clamped into the axis range, so the value's sign
     // names the end that carries the value. A zero bar has no length and no

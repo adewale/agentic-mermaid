@@ -71,6 +71,14 @@ design context, never additional queues. Retired IDs are not reused.
 
 ## Ready build backlog
 
+- [ ] **BUILD-36 — Prepared text and owned rendering geometry** (`todo`, in progress).
+  Execute the owner-requested cross-family contract in
+  [`prepared-text-geometry-plan.md`](docs/project/prepared-text-geometry-plan.md):
+  prepared literal/formatted text, complete pixel/cell bounds, owned terminal
+  composition, shared quantitative projection and sequence semantic evaluation.
+  Covers #381–#384, #386, #391 and #392; integrate the compositor work already
+  underway for #386 rather than maintaining a competing implementation.
+
 - [ ] **BUILD-27 — MCP Apps support** (`todo`). Expose an interactive
   in-agent diagram UI through MCP Apps: `ui://` resources, correct
   `text/html;profile=mcp-app` resource MIME type, tool `_meta.ui.resourceUri`

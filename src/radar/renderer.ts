@@ -2,7 +2,7 @@ import type { PositionedRadarChart } from './types.ts'
 import type { RenderContext } from '../types.ts'
 import type { DiagramColors } from '../theme.ts'
 import { svgOpenTag, buildStyleBlock, buildShadowDefs } from '../theme.ts'
-import { escapeXml } from '../multiline-utils.ts'
+import { escapeXml, renderMultilineText } from '../multiline-utils.ts'
 import { radarStyleDefaults } from './layout.ts'
 import { resolveRenderStyle } from '../styles.ts'
 import type { ResolvedRenderStyle } from '../styles.ts'
@@ -283,10 +283,11 @@ export function lowerRadarScene(ctx: RenderContext<PositionedRadarChart>): Scene
         x: t.x,
         y: t.y,
         fontSize: chart.typography.tickFontSize,
+        block: t.block,
         anchor: 'middle',
         paint: { fill: tickTextColor },
       },
-      `<text class="radar-tick-label" x="${t.x}" y="${t.y}" text-anchor="middle" dominant-baseline="middle" font-size="${chart.typography.tickFontSize}" font-weight="${chart.typography.tickFontWeight}">${escapeXml(t.text)}</text>`,
+      `<text class="radar-tick-label" x="${t.x}" y="${t.y}" text-anchor="middle" dominant-baseline="middle" font-size="${chart.typography.tickFontSize}" font-weight="${chart.typography.tickFontWeight}"${style.edgeLetterSpacing ? ` letter-spacing="${style.edgeLetterSpacing}"` : ''}>${escapeXml(t.text)}</text>`,
     ))
   }
 
@@ -294,10 +295,6 @@ export function lowerRadarScene(ctx: RenderContext<PositionedRadarChart>): Scene
   for (const [axisIndex, axis] of chart.axes.entries()) {
     const identity = axisIdentities[axisIndex]!
     const lines = axis.lines
-    const shift = -(lines.length - 1) * 0.6
-    const tspans = lines
-      .map((line, li) => `<tspan x="${axis.labelX}" dy="${li === 0 ? `${shift}em` : '1.2em'}">${escapeXml(line)}</tspan>`)
-      .join('')
     parts.push(marks.text(
       {
         id: `axis-label:${identity}`,
@@ -306,11 +303,12 @@ export function lowerRadarScene(ctx: RenderContext<PositionedRadarChart>): Scene
         x: axis.labelX,
         y: axis.labelY,
         fontSize: chart.typography.axisFontSize,
+        block: axis.block,
         anchor: axis.anchor,
         paint: { fill: axisTextColor },
       },
-      `<text class="radar-axis-label" aria-label="${escapeXml(axis.label)}" x="${axis.labelX}" y="${axis.labelY}" text-anchor="${axis.anchor}" ` +
-        `dominant-baseline="middle" font-size="${chart.typography.axisFontSize}" font-weight="${chart.typography.axisFontWeight}">${tspans}</text>`,
+      renderMultilineText(axis.block ?? lines.join('\n'), axis.labelX, axis.labelY, chart.typography.axisFontSize,
+        `class="radar-axis-label" aria-label="${escapeXml(axis.label)}" text-anchor="${axis.anchor}" dominant-baseline="middle" font-size="${chart.typography.axisFontSize}" font-weight="${chart.typography.axisFontWeight}"${style.edgeLetterSpacing ? ` letter-spacing="${style.edgeLetterSpacing}"` : ''}`, 0, true),
     ))
   }
 
@@ -335,10 +333,6 @@ export function lowerRadarScene(ctx: RenderContext<PositionedRadarChart>): Scene
       },
       `<rect class="radar-legend-swatch" x="${item.x}" y="${item.y}" width="${item.swatchSize}" height="${item.swatchSize}" rx="2" ry="2" fill="${escapeXml(fill)}"${roleStyleAttr} fill-opacity="${curveOpacity}" />`,
     ))
-    const legendShift = -(item.lines.length - 1) * 0.6
-    const legendTspans = item.lines
-      .map((line, li) => `<tspan x="${item.textX}" dy="${li === 0 ? `${legendShift}em` : '1.2em'}">${escapeXml(line)}</tspan>`)
-      .join('')
     parts.push(marks.text(
       {
         id: `legend-label:${item.colorIndex}`,
@@ -347,11 +341,12 @@ export function lowerRadarScene(ctx: RenderContext<PositionedRadarChart>): Scene
         x: item.textX,
         y: item.textY,
         fontSize: chart.typography.legendFontSize,
+        block: item.block,
         anchor: 'start',
         paint: { fill: roleStyle?.textColor ?? style.nodeTextColor ?? 'var(--_text)' },
       },
-      `<text class="radar-legend-text" x="${item.textX}" y="${item.textY}" text-anchor="start" dominant-baseline="middle" ` +
-        `font-size="${chart.typography.legendFontSize}" font-weight="${chart.typography.legendFontWeight}"${roleStyle?.textColor ? ` style="fill:${escapeXml(roleStyle.textColor)}"` : ''}>${legendTspans}</text>`,
+      renderMultilineText(item.block ?? item.lines.join('\n'), item.textX, item.textY, chart.typography.legendFontSize,
+        `class="radar-legend-text" text-anchor="start" dominant-baseline="middle" font-size="${chart.typography.legendFontSize}" font-weight="${chart.typography.legendFontWeight}"${style.nodeLetterSpacing ? ` letter-spacing="${style.nodeLetterSpacing}"` : ''}${roleStyle?.textColor ? ` style="fill:${escapeXml(roleStyle.textColor)}"` : ''}`, 0, true),
     ))
   }
 
@@ -365,11 +360,12 @@ export function lowerRadarScene(ctx: RenderContext<PositionedRadarChart>): Scene
         x: chart.title.x,
         y: chart.title.y,
         fontSize: chart.title.fontSize,
+        block: chart.title.block,
         anchor: 'middle',
         paint: { fill: titleColor },
       },
-      `<text class="radar-title" x="${chart.title.x}" y="${chart.title.y}" text-anchor="middle" dominant-baseline="middle" ` +
-        `font-size="${chart.title.fontSize}" font-weight="${Math.max(chart.typography.titleFontWeight, 600)}">${escapeXml(chart.title.text)}</text>`,
+      renderMultilineText(chart.title.block ?? chart.title.text, chart.title.x, chart.title.y, chart.title.fontSize,
+        `class="radar-title" text-anchor="middle" dominant-baseline="middle" font-size="${chart.title.fontSize}" font-weight="${chart.typography.titleFontWeight}"${style.groupLetterSpacing ? ` letter-spacing="${style.groupLetterSpacing}"` : ''}`, 0, true),
     ))
   }
 

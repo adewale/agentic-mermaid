@@ -11,8 +11,8 @@ import {
 } from 'd3-sankey'
 import type { InternalStyleFace } from '../scene/style-registry.ts'
 import type { RenderStyleDefaults } from '../styles.ts'
-import { applyTextTransform, resolveRenderStyle, STROKE_WIDTHS } from '../styles.ts'
-import { measureSystemFontSafeTextWidth } from '../text-metrics.ts'
+import { resolveRenderStyle, STROKE_WIDTHS } from '../styles.ts'
+import { preparePixelText, type PixelTextBlock } from '../shared/prepared-text.ts'
 import type { RenderOptions } from '../types.ts'
 import type { SankeyVisualConfig } from './config.ts'
 import { DEFAULT_SANKEY_VISUAL_CONFIG } from './config.ts'
@@ -241,9 +241,14 @@ export function layoutSankeyDiagram(diagram: SankeyDiagram, options: RenderOptio
   }
 
   const flowLeft = SANKEY.padding
-  const renderedTitle = diagram.title ? applyTextTransform(diagram.title, style.groupTextTransform) : undefined
   const titleFontSize = style.groupHeaderFontSize
-  const titleHeight = renderedTitle ? titleFontSize + SANKEY.titleGap : 0
+  const titleBlock = diagram.title ? preparePixelText(diagram.title, {
+    display: 'formatted', transform: style.groupTextTransform, fontSize: titleFontSize,
+    fontWeight: style.groupHeaderFontWeight, letterSpacing: style.groupLetterSpacing, safeFont: true,
+  }) : undefined
+  const renderedTitle = titleBlock?.text
+  const titleBlockHeight = titleBlock ? titleBlock.height - (titleBlock.lineHeight - titleBlock.fontSize) : 0
+  const titleHeight = titleBlock ? titleBlockHeight + SANKEY.titleGap : 0
   const flowTop = SANKEY.padding + titleHeight
 
   // -- labels + canvas bounds ------------------------------------------------
@@ -251,6 +256,7 @@ export function layoutSankeyDiagram(diagram: SankeyDiagram, options: RenderOptio
   const flowCenterX = flowLeft + flowWidth / 2
   interface LabelPlan {
     lines: string[]
+    block: PixelTextBlock
     anchor: 'start' | 'end'
     width: number
   }
@@ -260,17 +266,17 @@ export function layoutSankeyDiagram(diagram: SankeyDiagram, options: RenderOptio
   ).layer ?? 0
   const labelPlans = new Map<D3Node, LabelPlan>()
   for (const node of nodes) {
-    const name = applyTextTransform(node.id, style.nodeTextTransform)
     const value = nodeValues.get(node.id) ?? 0
     const layer = node.layer ?? node.depth ?? 0
     const x0 = requiredCoordinate(node.x0, `x0 for node ${node.id}`)
-    const nameLines = name.split(/\r?\n/)
-    const lines = visual.showValues ? [...nameLines, formatSankeyValue(value, visual)] : nameLines
+    const source = visual.showValues ? `${node.id}\n${formatSankeyValue(value, visual)}` : node.id
+    const block = preparePixelText(source, { display: 'formatted', transform: style.nodeTextTransform, fontSize: labelFontSize, fontWeight: style.nodeLabelFontWeight, letterSpacing: style.nodeLetterSpacing, safeFont: true })
+    const lines = block.lines
     const anchor: 'start' | 'end' = visual.labelStyle === 'outlined'
       ? layer < centralNodeLayer ? 'end' : 'start'
       : flowLeft + x0 < flowCenterX ? 'start' : 'end'
-    const width = Math.max(...lines.map(line => measureSystemFontSafeTextWidth(line, labelFontSize, style.nodeLabelFontWeight)))
-    labelPlans.set(node, { lines, anchor, width })
+    const width = block.width
+    labelPlans.set(node, { lines, block, anchor, width })
   }
   let minX: number = flowLeft
   let maxX = flowLeft + flowWidth
@@ -285,7 +291,7 @@ export function layoutSankeyDiagram(diagram: SankeyDiagram, options: RenderOptio
     }
   }
   const shiftX = SANKEY.padding - minX
-  const width = Math.max(maxX + shiftX + SANKEY.padding, (renderedTitle ? measureSystemFontSafeTextWidth(renderedTitle, titleFontSize, style.groupHeaderFontWeight) : 0) + 2 * SANKEY.padding)
+  const width = Math.max(maxX + shiftX + SANKEY.padding, (titleBlock?.width ?? 0) + 2 * SANKEY.padding)
   const height = flowTop + flowHeight + SANKEY.padding
 
   // -- positioned projection -------------------------------------------------
@@ -305,6 +311,7 @@ export function layoutSankeyDiagram(diagram: SankeyDiagram, options: RenderOptio
       x1: round(x1),
       y1: round(y1),
       labelLines: plan.lines,
+      labelBlock: plan.block,
       labelX: round(plan.anchor === 'start' ? x1 + SANKEY.labelGap : x0 - SANKEY.labelGap),
       labelY: round((y0 + y1) / 2),
       labelAnchor: plan.anchor,
@@ -345,7 +352,7 @@ export function layoutSankeyDiagram(diagram: SankeyDiagram, options: RenderOptio
   return {
     width: round(width),
     height: round(height),
-    ...(renderedTitle ? { title: { text: renderedTitle, x: round(width / 2), y: SANKEY.padding + titleFontSize / 2 } } : {}),
+    ...(renderedTitle ? { title: { text: renderedTitle, block: titleBlock, x: round(width / 2), y: SANKEY.padding + titleBlockHeight / 2 } } : {}),
     nodes: positionedNodes,
     links: positionedLinks,
     total: diagram.links.reduce((sum, link) => sum + link.value, 0),

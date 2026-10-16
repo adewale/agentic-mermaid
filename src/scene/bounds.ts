@@ -2,6 +2,7 @@ import { measureTextWidth } from '../text-metrics.ts'
 import { rotateBoxBounds, type AxisAlignedBox } from '../shared/transformed-bounds.ts'
 import type { ConnectorLabelDescriptor, ConnectorMark, Geometry, MarkerDescriptor, SceneNode, ScenePoint } from './ir.ts'
 import { connectorEndpointAnchors, connectorMidpoints } from './connector-geometry.ts'
+import { preparePixelText } from '../shared/prepared-text.ts'
 
 function pointsBounds(points: Array<{ x: number; y: number }>): AxisAlignedBox | undefined {
   if (points.length === 0) return undefined
@@ -170,9 +171,11 @@ export function nodeWorldBounds(node: SceneNode): AxisAlignedBox | undefined {
   if (node.kind === 'shape') local = geometryBounds(node.geometry)
   else if (node.kind === 'connector') local = connectorLocalBounds(node)
   else if (node.kind === 'text') {
-    const width = measureTextWidth(node.text, node.fontSize, 500)
+    const metrics = node.textLayout ?? preparePixelText(node.text, { display: node.display, fontSize: node.fontSize, fontWeight: node.fontWeight ?? 500, letterSpacing: node.letterSpacing })
+    const width = metrics.width
     const x0 = node.anchor === 'middle' ? node.x - width / 2 : node.anchor === 'end' ? node.x - width : node.x
-    local = { x0, y0: node.y - node.fontSize, x1: x0 + width, y1: node.y + node.fontSize * 0.28 }
+    const offsetY = 'offsetY' in metrics ? metrics.offsetY : -node.fontSize * 0.35
+    local = { x0, y0: node.y + offsetY - metrics.height / 2, x1: x0 + width, y1: node.y + offsetY + metrics.height / 2 }
   } else return undefined
   if (!local || !node.transform) return local
   if (node.transform.kind === 'rotate') {

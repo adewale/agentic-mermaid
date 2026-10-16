@@ -140,6 +140,82 @@ describe('parseSequenceDiagram – autonumber', () => {
     expect(d.messages.map(m => m.number)).toEqual([1, undefined, 5])
   })
 
+  it.each([
+    ['repeat enable', ['autonumber', 'autonumber', ''], [1, 2, 3]],
+    ['retain step', ['autonumber 10 2', 'autonumber', ''], [10, 12, 14]],
+    ['resume after hidden message', ['autonumber 10 2', 'autonumber off', 'autonumber'], [10, undefined, 14]],
+    ['late enable', ['', 'autonumber', ''], [undefined, 2, 3]],
+    ['start only resets increment', ['autonumber 10 2', 'autonumber 20', ''], [10, 20, 21]],
+    ['zero start', ['autonumber 0', '', ''], [0, 1, 2]],
+    ['zero increment survives resume', ['autonumber 7 0', 'autonumber off', 'autonumber'], [7, undefined, 7]],
+    ['fractional resume', ['autonumber .1 .01', 'autonumber off', 'autonumber'], [0.1, undefined, 0.12]],
+  ] as const)('preserves control intent: %s', (_name, controls, expected) => {
+    const source = `sequenceDiagram\n${controls[0]}\nA->>B: first\n${controls[1]}\nB->>A: second\n${controls[2]}\nA->>B: third`
+    expect(parse(source).messages.map(message => message.number)).toEqual([...expected])
+    const parsed = parseRegisteredMermaid(source)
+    expect(parsed.ok).toBe(true)
+    if (!parsed.ok) throw new Error(JSON.stringify(parsed.error))
+    const serialized = serializeMermaid(parsed.value)
+    expect(parse(serialized).messages.map(message => message.number)).toEqual([...expected])
+    for (const renderedSource of [source, serialized]) {
+      const svg = renderMermaidSVG(renderedSource)
+      for (const useAscii of [true, false]) {
+        const terminal = renderMermaidASCII(renderedSource, { useAscii })
+        for (const [index, label] of ['first', 'second', 'third'].entries()) {
+          const display = expected[index] === undefined ? label : `${expected[index]}. ${label}`
+          expect(svg).toContain(display)
+          expect(terminal).toContain(display)
+        }
+      }
+    }
+  })
+
+  it('gives authored controls precedence over initial config across fragments', () => {
+    const body = `sequenceDiagram
+A->>B: first
+autonumber off
+loop hidden
+B->>A: hidden
+end
+autonumber
+A->>B: third`
+    expect(parseSequenceDiagram(body.split('\n'), { showSequenceNumbers: true }).messages.map(message => message.number)).toEqual([1, undefined, 3])
+    const source = `%%{init: {"sequence": {"showSequenceNumbers": true}}}%%\n${body}`
+    for (const output of [renderMermaidSVG(source), renderMermaidASCII(source)]) {
+      expect(output).toContain('1. first')
+      expect(output).toContain('3. third')
+      expect(output).not.toContain('2. hidden')
+    }
+  })
+
+  it('keeps authored text separate from display numbers after an edit and serialization', () => {
+    const parsed = parseRegisteredMermaid(`sequenceDiagram
+autonumber 10 2
+A->>B: first
+autonumber off
+B->>A: hidden
+autonumber
+A->>B: resumed`)
+    if (!parsed.ok) throw new Error(JSON.stringify(parsed.error))
+    const sequence = asSequence(parsed.value)
+    if (!sequence) throw new Error('Expected structured sequence')
+    expect(sequence.body.messages.map(message => message.text)).toEqual(['first', 'hidden', 'resumed'])
+    const edited = mutate(sequence, { kind: 'set_participant_label', id: 'A', label: 'Alice' })
+    if (!edited.ok) throw new Error(JSON.stringify(edited.error))
+    const serialized = serializeMermaid(edited.value)
+    expect(parse(serialized).messages.map(message => message.number)).toEqual([10, undefined, 14])
+    expect(serialized).not.toContain('14. resumed')
+    expect(renderMermaidSVG(serialized)).toContain('14. resumed')
+    expect(renderMermaidASCII(serialized)).toContain('14. resumed')
+  })
+
+  it('retains a large step reference and reports impossible terminal geometry explicitly', () => {
+    const source = `sequenceDiagram\nautonumber 123456789012\nA->>B: step`
+    expect(renderMermaidSVG(source)).toContain('123456789012. step')
+    expect(renderMermaidASCII(source)).toContain('123456789012. step')
+    expect(() => renderMermaidASCII(source, { targetWidth: 3 })).toThrow('Cannot render sequence within 3 terminal cells')
+  })
+
   it.each(['.001 .001', '.001 .01', '.01 .001', '0.001 0.001'])('refuses unsupported decimal precision %s rather than drawing backwards numbering', numbering => {
     const source = `sequenceDiagram\n  autonumber ${numbering}\n  A->>B: one\n  A->>B: two\n  A->>B: three`
     expect(() => renderMermaidSVG(source)).toThrow('SEQUENCE_UNSUPPORTED_STATEMENT')

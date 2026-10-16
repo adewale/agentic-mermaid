@@ -8,11 +8,11 @@ import type {
 import type { RenderOptions } from '../types.ts'
 import type { PieVisualConfig } from './config.ts'
 import { DEFAULT_PIE_VISUAL_CONFIG } from './config.ts'
-import { measureFormattedTextWidth, measureSystemFontSafeTextWidth, measureTextWidth } from '../text-metrics.ts'
-import { STROKE_WIDTHS, applyTextTransform, resolveRenderStyle } from '../styles.ts'
+import { measureTextWidth } from '../text-metrics.ts'
+import { STROKE_WIDTHS, resolveRenderStyle } from '../styles.ts'
 import type { RenderStyleDefaults } from '../styles.ts'
 import type { InternalStyleFace } from '../scene/style-registry.ts'
-import { graphemes } from '../shared/graphemes.ts'
+import { preparePixelText, type PixelTextBlock } from '../shared/prepared-text.ts'
 
 // ============================================================================
 // Pie chart layout engine
@@ -82,17 +82,6 @@ export const PIE_STYLE_DEFAULTS: RenderStyleDefaults = {
   groupPaddingX: 0,
   groupPaddingY: 0,
   groupLineWidth: STROKE_WIDTHS.outerBox,
-}
-
-function measureSafeStyledTextWidth(
-  text: string,
-  fontSize: number,
-  fontWeight: number,
-  letterSpacing: number,
-): number {
-  const tracking = measureFormattedTextWidth(text, fontSize, fontWeight, letterSpacing) -
-    measureFormattedTextWidth(text, fontSize, fontWeight)
-  return measureSystemFontSafeTextWidth(text, fontSize, fontWeight) + tracking
 }
 
 /** Format a numeric value compactly (drops trailing `.0`). */
@@ -178,6 +167,7 @@ function round(n: number): number {
 }
 
 interface LegendRowMetrics {
+  block: PixelTextBlock
   lines: string[]
   fraction: number
   textWidth: number
@@ -207,15 +197,14 @@ export function layoutPieChart(
   const titleFontSize = visual.titleTextSize ?? style.groupHeaderFontSize
   const legendFontSize = visual.legendTextSize ?? style.nodeLabelFontSize
   const legendLineHeight = legendFontSize * 1.3
-  const renderedTitle = chart.title ? applyTextTransform(chart.displayTitle ?? chart.title, style.groupTextTransform) : undefined
-  const titleHeight = renderedTitle ? titleFontSize + PIE.titleGap : 0
-  const titleWidth = renderedTitle
-    ? Math.max(...renderedTitle.split('\n').map(line =>
-      chart.displayTitle === undefined
-        ? measureSafeStyledTextWidth(line, titleFontSize, style.groupHeaderFontWeight, style.groupLetterSpacing)
-        : measureSystemFontSafeTextWidth(line, titleFontSize, style.groupHeaderFontWeight) +
-          Math.max(0, graphemes(line).length - 1) * style.groupLetterSpacing))
-    : 0
+  const titleBlock = chart.title ? preparePixelText(chart.displayTitle ?? chart.title, {
+    display: chart.displayTitle === undefined ? 'formatted' : 'literal', transform: style.groupTextTransform,
+    fontSize: titleFontSize, fontWeight: style.groupHeaderFontWeight, letterSpacing: style.groupLetterSpacing, safeFont: true,
+  }) : undefined
+  const renderedTitle = titleBlock?.text
+  const titleBlockHeight = titleBlock ? titleBlock.height - (titleBlock.lineHeight - titleBlock.fontSize) : 0
+  const titleHeight = titleBlock ? titleBlockHeight + PIE.titleGap : 0
+  const titleWidth = titleBlock?.width ?? 0
   const staticHighlight = visual.highlightSlice === 'hover' ? undefined : visual.highlightSlice
 
   // Legend metrics — one row per entry. Only actual newline characters span
@@ -226,24 +215,22 @@ export function layoutPieChart(
     const valuePart = chart.showData ? ` [${formatPieValue(e.value)}]` : ''
     const suffix = `${valuePart} (${formatPiePercent(fraction)})`
     const labelLines = (e.displayLabel ?? e.label).split('\n')
-    const lines = labelLines.map((line, k) => applyTextTransform(
-      k === labelLines.length - 1 ? `${line}${suffix}` : line,
-      style.nodeTextTransform,
-    ))
     const fontWeight = staticHighlight === e.label
       ? PIE_LEGEND_HIGHLIGHT_FONT_WEIGHT
       : style.nodeLabelFontWeight
-    const measuredTextWidth = Math.max(...lines.map(line =>
-      e.displayLabel === undefined
-        ? measureSafeStyledTextWidth(line, legendFontSize, fontWeight, style.nodeLetterSpacing)
-        : measureSystemFontSafeTextWidth(line, legendFontSize, fontWeight) +
-          Math.max(0, graphemes(line).length - 1) * style.nodeLetterSpacing))
+    const source = labelLines.map((line, k) => k === labelLines.length - 1 ? `${line}${suffix}` : line).join('\n')
+    const block = preparePixelText(source, {
+      display: e.displayLabel === undefined ? 'formatted' : 'literal', transform: style.nodeTextTransform,
+      fontSize: legendFontSize, fontWeight, letterSpacing: style.nodeLetterSpacing, safeFont: true,
+    })
+    const lines = block.lines
+    const measuredTextWidth = block.width
     const textWidth = fontWeight === PIE_LEGEND_HIGHLIGHT_FONT_WEIGHT
       ? measuredTextWidth * PIE.legendHighlightWidthScale
       : measuredTextWidth
     const contentHeight = Math.max(PIE.legendSwatch, legendFontSize) +
       (lines.length - 1) * legendLineHeight
-    return { lines, fraction, textWidth, contentHeight }
+    return { block, lines, fraction, textWidth, contentHeight }
   })
   const legendTextWidth = rows.length > 0 ? Math.max(...rows.map(r => r.textWidth)) : 0
   const legendWidth = PIE.legendSwatch + PIE.legendSwatchToText + legendTextWidth
@@ -322,6 +309,7 @@ export function layoutPieChart(
   })
 
   placeSliceLabels(slices, cx, cy, radius, visual)
+  for (const slice of slices) if (slice.pctLabel) slice.pctLabel.block = preparePixelText(slice.pctLabel.text, { display: 'literal', fontSize: slice.pctLabel.fontSize, fontWeight: PIE.sliceLabelFontWeight })
 
   // Legend rows.
   let rowY = legendTop
@@ -338,6 +326,7 @@ export function layoutPieChart(
       textX: round(legendX + PIE.legendSwatch + PIE.legendSwatchToText),
       textY: round(rowY + row.contentHeight / 2),
       lines: row.lines,
+      block: row.block,
       textWidth: round(row.textWidth),
     }
     rowY += row.contentHeight + PIE.legendRowGap
@@ -349,7 +338,7 @@ export function layoutPieChart(
     height: round(height),
     title: chart.title
       ? {
-        text: renderedTitle!, x: round(width / 2), y: PIE.paddingY + titleFontSize / 2,
+        text: renderedTitle!, block: titleBlock, x: round(width / 2), y: PIE.paddingY + titleBlockHeight / 2,
         ...(chart.displayTitle === undefined ? {} : { literalText: true as const }),
       }
       : undefined,
