@@ -93,7 +93,8 @@ function renderRevision(sha: string): RevisionEvidence {
         try {
           const plain = renderMermaidASCIIWithMeta(fixture.source, { colorMode: 'none', useAscii: true })
           const colored = renderMermaidASCIIWithMeta(fixture.source, { colorMode: 'html', useAscii: false })
-          terminals[fixture.id] = { ascii: plain.ascii, html: colored.ascii, meta: { ascii: plain.regions, unicode: colored.regions, warnings: colored.warnings } }
+          const failure = [...plain.warnings, ...colored.warnings].find(warning => warning.code === 'ASCII_RENDER_FAILED')
+          terminals[fixture.id] = { ascii: plain.ascii, html: colored.ascii, ...(failure ? { error: failure.message } : {}), meta: { ascii: plain.regions, unicode: colored.regions, warnings: colored.warnings } }
         } catch (error) { terminals[fixture.id] = { error: String(error) } }
       }
       const parsed = parseRegisteredMermaid('classDiagram\\nnamespace N {\\nclass A\\n}\\nclass B')
@@ -135,7 +136,7 @@ const terminalRows = terminalFixtures.map(fixture => {
     const result = revisions[phase].terminals[fixture.id]!
     writeFileSync(join(out, `${fixture.id}-${phase}.txt`), result.ascii ?? result.error ?? 'No output')
     writeFileSync(join(out, `${fixture.id}-${phase}-meta.json`), JSON.stringify(result.meta ?? result.error, null, 2))
-    return `<figure><figcaption>${phase}</figcaption><pre class="terminal">${result.html ?? esc(result.error ?? 'Empty output')}</pre></figure>`
+    return `<figure><figcaption>${phase}</figcaption><pre class="terminal">${result.error ? esc(result.error) : result.html ?? 'Empty output'}</pre></figure>`
   }).join('')
   return `<section><h2>${fixture.id}</h2><p>${esc(fixture.cue)}</p><div class="pair">${panels}</div></section>`
 }).join('')
