@@ -95,6 +95,32 @@ describe('scene fidelity', () => {
     }
   })
 
+  test('sequence label gaps preserve unique identities beside delimiter-bearing actor ids', () => {
+    const lowered = lowerSample(`sequenceDiagram
+      participant A
+      participant B
+      participant C
+      participant B:start
+      activate B
+      A->>C: across B
+      A->>C: across B again
+      deactivate B`)
+    expect(lowered && 'doc' in lowered).toBe(true)
+    if (!lowered || !('doc' in lowered)) throw new Error('sequence did not lower')
+    const nodes: SceneDoc['parts'] = []
+    const visit = (node: SceneDoc['parts'][number]): void => {
+      nodes.push(node)
+      if (node.kind === 'group') for (const child of node.children) visit(child.node)
+    }
+    for (const node of lowered.doc.parts) visit(node)
+    const ids = nodes.map(node => node.id)
+    expect(new Set(ids).size).toBe(ids.length)
+    expect(nodes).toContainEqual(expect.objectContaining({ id: 'lifeline:B', kind: 'group', role: 'lifeline' }))
+    expect(nodes).toContainEqual(expect.objectContaining({ id: 'lifeline:B:start', kind: 'connector', role: 'lifeline' }))
+    expect(nodes).toContainEqual(expect.objectContaining({ id: 'activation:B#0', kind: 'group', role: 'activation' }))
+    expect(sceneFidelityProblems(lowered.doc)).toEqual([])
+  })
+
   test('public Scene nodes expose no serialization carriers', () => {
     const violations: string[] = []
     const visit = (node: SceneDoc['parts'][number], family: string): void => {

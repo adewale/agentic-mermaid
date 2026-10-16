@@ -15,6 +15,8 @@ import * as marks from '../scene/marks.ts'
 import { DefaultBackend } from '../scene/backend.ts'
 import { serializeMarkerResources } from '../scene/marker-resources.ts'
 import { resolveRoleStyle, type InternalStyleFace } from '../scene/style-registry.ts'
+import { messageLabelOcclusion, type VisibleSpan } from './label-occlusion.ts'
+import { semanticChildId } from '../scene/identity.ts'
 
 
 // ============================================================================
@@ -145,8 +147,13 @@ export function lowerSequenceScene(
   }
 
   // 2. Lifelines (dashed vertical lines from actor to bottom)
+  const visibleSpans = messageLabelOcclusion(diagram.messages)
   for (const lifeline of diagram.lifelines) {
-    parts.push(renderLifeline(lifeline, style))
+    const width = Math.max(0.75, style.lineWidth * 0.75)
+    parts.push(renderLifeline(lifeline, style, visibleSpans({
+      x: lifeline.x - width / 2, y: lifeline.topY,
+      width, height: lifeline.bottomY - lifeline.topY,
+    }, 'x')))
   }
 
   // 3. Activation boxes
@@ -154,7 +161,10 @@ export function lowerSequenceScene(
   for (const activation of diagram.activations) {
     const k = activationOccurrence.get(activation.actorId) ?? 0
     activationOccurrence.set(activation.actorId, k + 1)
-    parts.push(renderActivation(activation, style, `activation:${activation.actorId}#${k}`))
+    parts.push(renderActivation(activation, style, `activation:${activation.actorId}#${k}`, visibleSpans({
+      x: activation.x - STROKE_WIDTHS.innerBox / 2, y: activation.topY,
+      width: activation.width + STROKE_WIDTHS.innerBox, height: activation.bottomY - activation.topY,
+    }, 'y')))
   }
 
   // 3a. Paint fragment header tabs above lifelines and activation bars. The
@@ -489,11 +499,30 @@ function renderActor(
  * Render a lifeline (dashed vertical line from actor to bottom).
  * Includes data-actor to link to its actor.
  */
-function renderLifeline(lifeline: Lifeline, style: ResolvedRenderStyle): SceneNode {
+function renderLifeline(lifeline: Lifeline, style: ResolvedRenderStyle, spans: VisibleSpan[]): SceneNode {
   const rawStroke = style.edgeStrokeColor ?? 'var(--_line)'
   const strokeWidth = Math.max(0.75, style.lineWidth * 0.75)
+  const owner = `lifeline:${lifeline.actorId}`
+  if (spans.length !== 1 || spans[0]!.top !== lifeline.topY || spans[0]!.bottom !== lifeline.bottomY) {
+    return marks.group({
+      id: owner, role: 'lifeline',
+      open: `<g class="lifeline" data-actor="${escapeAttr(lifeline.actorId)}">`, close: '</g>',
+      children: spans.map(span => {
+        // A new contour restarts its dash pattern; carry the original phase
+        // through the gap rather than accumulating a timing shift below it.
+        const offset = (span.top - lifeline.topY) % 10
+        return { indent: 2, node: marks.connector({
+          id: span.after ? semanticChildId(owner, 'after', span.after) : semanticChildId(owner, 'start'), role: 'lifeline',
+          geometry: { kind: 'line', x1: lifeline.x, y1: span.top, x2: lifeline.x, y2: span.bottom },
+          lineStyle: 'dashed',
+          paint: { stroke: rawStroke, strokeWidth: String(strokeWidth), strokeDasharray: '6 4', strokeDashoffset: String(offset) },
+        }, `<line x1="${lifeline.x}" y1="${span.top}" x2="${lifeline.x}" y2="${span.bottom}" ` +
+          `stroke="${escapeAttr(rawStroke)}" stroke-width="${strokeWidth}" stroke-dasharray="6 4" stroke-dashoffset="${offset}" />`) }
+      }),
+    })
+  }
   return marks.connector({
-    id: `lifeline:${lifeline.actorId}`,
+    id: owner,
     role: 'lifeline',
     geometry: { kind: 'line', x1: lifeline.x, y1: lifeline.topY, x2: lifeline.x, y2: lifeline.bottomY },
     lineStyle: 'dashed',
@@ -508,9 +537,47 @@ function renderLifeline(lifeline: Lifeline, style: ResolvedRenderStyle): SceneNo
  * Render an activation box (narrow filled rectangle on lifeline).
  * Includes data-actor to link to its actor.
  */
-function renderActivation(activation: Activation, style: ResolvedRenderStyle, sceneId: string): SceneNode {
+function renderActivation(activation: Activation, style: ResolvedRenderStyle, sceneId: string, spans: VisibleSpan[]): SceneNode {
   const rawFill = style.nodeFillColor ?? 'var(--_node-fill)'
   const rawStroke = style.nodeBorderColor ?? 'var(--_node-stroke)'
+  if (spans.length !== 1 || spans[0]!.top !== activation.topY || spans[0]!.bottom !== activation.bottomY) {
+    const children: Array<{ node: SceneNode; indent: number }> = []
+    const fills: string[] = []
+    const borders: string[] = []
+    for (const span of spans) {
+      fills.push(`M ${activation.x} ${span.top} h ${activation.width} V ${span.bottom} h ${-activation.width} Z`)
+      // Only the original border survives. Capping each piece would invent
+      // extra activation starts/ends at every label's knockout boundary.
+      const edges = [
+        { x1: activation.x, y1: span.top, x2: activation.x, y2: span.bottom },
+        { x1: activation.x + activation.width, y1: span.top, x2: activation.x + activation.width, y2: span.bottom },
+        ...(span.top === activation.topY ? [{ x1: activation.x, y1: span.top, x2: activation.x + activation.width, y2: span.top }] : []),
+        ...(span.bottom === activation.bottomY ? [{ x1: activation.x, y1: span.bottom, x2: activation.x + activation.width, y2: span.bottom }] : []),
+      ]
+      for (const edge of edges) {
+        borders.push(`M ${edge.x1} ${edge.y1} L ${edge.x2} ${edge.y2}`)
+      }
+    }
+    if (fills.length) {
+      // One path per paint keeps both Scene admission and emitted SVG bounded;
+      // each fill contour is closed, each border contour remains independent.
+      const fillPath = fills.join(' ')
+      const borderPath = borders.join(' ')
+      children.push({ indent: 2, node: marks.shape({
+        id: semanticChildId(sceneId, 'fill'), role: 'activation', surfaceFragment: true,
+        geometry: { kind: 'path', d: fillPath }, paint: { fill: rawFill, stroke: 'none' },
+      }, `<path d="${fillPath}" fill="${escapeAttr(rawFill)}" stroke="none" />`) })
+      children.push({ indent: 2, node: marks.shape({
+        id: semanticChildId(sceneId, 'border'), role: 'activation',
+        geometry: { kind: 'path', d: borderPath },
+        paint: { fill: 'none', stroke: rawStroke, strokeWidth: String(STROKE_WIDTHS.innerBox) },
+      }, `<path d="${borderPath}" fill="none" stroke="${escapeAttr(rawStroke)}" stroke-width="${STROKE_WIDTHS.innerBox}" />`) })
+    }
+    return marks.group({
+      id: sceneId, role: 'activation',
+      open: `<g class="activation" data-actor="${escapeAttr(activation.actorId)}">`, close: '</g>', children,
+    })
+  }
   return marks.shape({
     id: sceneId,
     role: 'activation',

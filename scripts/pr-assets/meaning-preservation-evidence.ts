@@ -4,6 +4,7 @@ import { execFileSync } from 'node:child_process'
 import { mkdtempSync, mkdirSync, rmSync, symlinkSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join, resolve } from 'node:path'
+import type { RenderOptions } from '../../src/types.ts'
 
 const ROOT = resolve(import.meta.dir, '../..')
 const [base, head, destination] = process.argv.slice(2)
@@ -12,7 +13,13 @@ if (!base || !head || !destination || ![base, head].every(sha => /^[a-f0-9]{40}$
 }
 const out = resolve(destination)
 mkdirSync(out, { recursive: true })
-const fixtures = [
+interface Fixture { id: string; title: string; source: string; cue: string; renderOptions?: RenderOptions }
+const sequenceSpanSource = 'sequenceDiagram\nparticipant A\nparticipant B\nparticipant C\nA->>C: Label across B\nactivate B\nA->>C: Begin work\nA->>C: Label across active B\ndeactivate B'
+const fixtures: Fixture[] = [
+  { id: 'sequence-label-span', title: 'Sequence labels crossing a middle lifeline and activation', source: sequenceSpanSource, cue: 'Inspect B behind the first and final labels: structural ink should leave their measured areas, while the lifeline and activation remain visible above and below. The middle message begins the activation.' },
+  { id: 'sequence-label-nested-surfaces', title: 'Sequence multiline numbered bidirectional label over nested colors', source: 'sequenceDiagram\nparticipant A\nparticipant B\nparticipant C\nrect rgba(30,90,150,0.25)\nrect rgb(25,45,65)\nactivate B\nA->>C: Begin work\nautonumber 10.5 0.25\nA<<-->>C: Numbered span<br/>across active B<br/>on the inner surface\ndeactivate B\nend\nend', cue: 'Inspect all label lines, the 10.5 prefix and both arrowheads. The gap through B should reveal the inner authored surface, without a page-colored patch; the outer translucent band is a color control.' },
+  { id: 'sequence-label-transparent', title: 'Sequence label gaps on a transparent canvas', source: sequenceSpanSource, renderOptions: { transparent: true }, cue: 'Inspect the gaps over the checkerboard: removing lifeline and activation ink should preserve canvas transparency. The checkerboard belongs only to this review page; the PNG uses an explicitly transparent raster background.' },
+  { id: 'sequence-label-sketch', title: 'Sequence label gaps with the hand-drawn style', source: sequenceSpanSource, renderOptions: { style: 'hand-drawn', seed: 17 }, cue: 'Inspect the first and final labels with a fixed sketch seed. This is a check of one styled backend; it does not establish parity across every look.' },
   { id: 'sequence-created-empty-child', title: 'Sequence created actor inside a frame with an empty child', source: 'sequenceDiagram\nparticipant A\nNote over A: before\nloop Outer\ncreate actor C as New\nA->>C: spawn\nloop Empty\nend\nend\nNote over A: after', cue: 'The Outer frame clears the before note, contains the full created actor, and reserves a separate empty child below the creation row.' },
   { id: 'sequence-self-empty-section', title: 'Sequence self-message followed by an empty alternative', source: 'sequenceDiagram\nparticipant A\nNote over A: before\nalt Next\nA->>A: self\nelse EmptySection\nend\nNote over A: after', cue: 'The reserved frame top clears the before note; the empty alternative divider follows the self-message and stays inside its frame.' },
   { id: 'sequence-note-only-rect', title: 'Sequence note-only background below actor headers', source: 'sequenceDiagram\nparticipant A\nrect rgba(0,0,0,0.1)\nNote over A: inside\nend\nNote over A: outside', cue: 'The background begins below the participant header, contains its note with declared padding, and ends before the outside note.' },
@@ -35,6 +42,10 @@ const fixtures = [
   { id: 'diamond-feeder', title: 'Decision duplicates with another feeder', source: 'flowchart TD\nC{Verify} -->|ok| D[View]\nC -->|warnings| D\nA[Start] --> D', cue: 'The two decision labels remain readable without crossing the extra feeder.' },
   { id: 'diamond-feedback', title: 'Decision duplicates with feedback', source: 'flowchart TD\nC{Verify} -->|ok| D[View]\nC -->|warnings| D\nD --> C', cue: 'The forward pair remains readable without crossing the return edge.' },
 ]
+const fixtureOptions = Object.fromEntries(fixtures.map(fixture => {
+  const svg = { security: 'strict' as const, ...fixture.renderOptions }
+  return [fixture.id, { svg, png: { ...svg, background: svg.transparent ? '#00000000' : '#ffffff' } }]
+}))
 interface Evidence { svg?: string; png?: string; error?: string }
 interface RevisionEvidence { renders: Record<string, Evidence>; classExport: string }
 
@@ -47,12 +58,13 @@ function renderRevision(sha: string): RevisionEvidence {
     writeFileSync(join(checkout, 'probe.ts'), `
       import { renderMermaidSVG, renderMermaidPNG, parseRegisteredMermaid, asClass, mutate, serializeMermaid } from './src/agent/index.ts'
       const fixtures = ${JSON.stringify(fixtures)}
+      const fixtureOptions = ${JSON.stringify(fixtureOptions)}
       const renders = {}
       for (const fixture of fixtures) {
         try {
           renders[fixture.id] = {
-            svg: renderMermaidSVG(fixture.source, { security: 'strict' }),
-            png: Buffer.from(renderMermaidPNG(fixture.source, { security: 'strict', background: '#ffffff' })).toString('base64'),
+            svg: renderMermaidSVG(fixture.source, fixtureOptions[fixture.id].svg),
+            png: Buffer.from(renderMermaidPNG(fixture.source, fixtureOptions[fixture.id].png)).toString('base64'),
           }
         } catch (error) { renders[fixture.id] = { error: String(error) } }
       }
@@ -81,13 +93,14 @@ const rows = fixtures.map(fixture => {
       writeFileSync(join(out, `${fixture.id}-${phase}.svg`), result.svg)
       writeFileSync(join(out, `${fixture.id}-${phase}.png`), Buffer.from(result.png, 'base64'))
     }
-    return `<figure><figcaption>${phase}</figcaption>${result.png
+    return `<figure${fixture.renderOptions?.transparent ? ' class="transparent"' : ''}><figcaption>${phase}</figcaption>${result.png
       ? `<img alt="${phase}: ${esc(fixture.title)}" src="data:image/png;base64,${result.png}">`
       : `<pre>${esc(result.error ?? 'No render')}</pre>`}</figure>`
   }).join('')
-  return `<section><h2>${fixture.title}</h2><p>${fixture.cue}</p><div class="pair">${panels}</div></section>`
+  const optionsCaption = fixture.renderOptions ? `<p>Render options at both revisions: <code>${esc(JSON.stringify(fixture.renderOptions))}</code>.</p>` : ''
+  return `<section><h2>${fixture.title}</h2><p>${fixture.cue}</p>${optionsCaption}<div class="pair">${panels}</div></section>`
 }).join('')
 for (const phase of ['before', 'after'] as const) writeFileSync(join(out, `class-export-${phase}.mmd`), revisions[phase].classExport)
-writeFileSync(join(out, 'review.html'), `<!doctype html><html lang="en"><meta charset="utf-8"><meta name="viewport" content="width=device-width"><title>Diagram meaning: before and after</title><style>body{font:16px/1.5 system-ui;margin:40px auto;padding:0 24px;max-width:1100px;color:#222;background:white}.pair{display:grid;grid-template-columns:1fr 1fr;gap:24px}section{border-top:1px solid #ddd;margin-top:32px}figure{margin:0}figcaption{font-weight:bold}img{display:block;width:100%;height:auto}pre{white-space:pre-wrap;background:#f6f6f6;padding:16px}@media(max-width:700px){.pair{grid-template-columns:1fr}}</style><h1>Diagram meaning: before and after</h1><p>Baseline SHA: <code>${base}</code><br>Head SHA: <code>${head}</code></p><p>Same sources, default style, strict security and bundled fonts at both revisions. Focused witnesses do not prove all-layout or cross-platform visual parity.</p>${rows}<section><h2>Class export after deleting A</h2><p>Compare the serialized result after deleting A: class B should remain and the empty namespace should be omitted.</p><div class="pair"><pre>${esc(revisions.before.classExport)}</pre><pre>${esc(revisions.after.classExport)}</pre></div></section></html>`)
-writeFileSync(join(out, 'receipt.json'), JSON.stringify({ base, head, bun: Bun.version, fixtures: fixtures.map(fixture => fixture.id), options: { security: 'strict', style: 'default', fonts: 'bundled' } }, null, 2) + '\n')
+writeFileSync(join(out, 'review.html'), `<!doctype html><html lang="en"><meta charset="utf-8"><meta name="viewport" content="width=device-width"><title>Diagram meaning: before and after</title><style>body{font:16px/1.5 system-ui;margin:40px auto;padding:0 24px;max-width:1100px;color:#222;background:white}.pair{display:grid;grid-template-columns:1fr 1fr;gap:24px}section{border-top:1px solid #ddd;margin-top:32px}figure{margin:0}figcaption{font-weight:bold}img{display:block;width:100%;height:auto}figure.transparent img{background-color:white;background-image:conic-gradient(#ddd 25%,transparent 0 50%,#ddd 0 75%,transparent 0);background-size:16px 16px}pre{white-space:pre-wrap;background:#f6f6f6;padding:16px}@media(max-width:700px){.pair{grid-template-columns:1fr}}</style><h1>Diagram meaning: before and after</h1><p>Baseline SHA: <code>${base}</code><br>Head SHA: <code>${head}</code></p><p>Same sources and render options at both revisions, with strict security and bundled PNG fonts. Default style and opaque PNGs use a white background unless a fixture states otherwise; explicit options are shown beside that fixture and recorded in receipt.json. Focused witnesses do not prove all-layout or cross-platform visual parity.</p>${rows}<section><h2>Class export after deleting A</h2><p>Compare the serialized result after deleting A: class B should remain and the empty namespace should be omitted.</p><div class="pair"><pre>${esc(revisions.before.classExport)}</pre><pre>${esc(revisions.after.classExport)}</pre></div></section></html>`)
+writeFileSync(join(out, 'receipt.json'), JSON.stringify({ base, head, bun: Bun.version, fixtures: fixtures.map(fixture => fixture.id), options: { security: 'strict', style: 'default unless fixtureOptions overrides it', fonts: 'bundled' }, fixtureOptions }, null, 2) + '\n')
 console.log(`Wrote immutable before/after evidence to ${out}`)

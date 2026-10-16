@@ -43,6 +43,7 @@ export function shape(fields: {
   identity?: Omit<SvgSemanticIdentity, 'role'>
   geometry: Geometry
   paint: MarkPaint
+  surfaceFragment?: boolean
   channels?: SemanticChannels
   transform?: SceneTransform
 }, crisp: string): ShapeMark {
@@ -61,6 +62,7 @@ export function shape(fields: {
     ...(accessibility ? { accessibility } : {}),
     geometry: fields.geometry,
     paint: fields.paint,
+    ...(fields.surfaceFragment !== undefined ? { surfaceFragment: fields.surfaceFragment } : {}),
     ...(fields.channels ? { channels: fields.channels } : {}),
     ...(fields.transform ? { transform: fields.transform } : {}),
   }

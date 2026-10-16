@@ -318,6 +318,10 @@ function sketchShape(node: ShapeMark, walk: Walk): string {
     // element) or re-rendered as hachure/solid sketch fill.
     const wantFill = hasFill && p.fill !== 'none' ? fill : undefined
     if (!hasStroke) {
+      // Decomposing an outlined surface must not turn its fill-only pieces
+      // into semantic color plates. Open-box looks still suppress the default
+      // surface, while authored concrete colors retain their existing policy.
+      if (node.surfaceFragment && hasFill && p.fill === 'none' && isBoxFill(fill!)) continue
       // Stroke-less element (gantt bands, halo chips, state-start dots,
       // width-0 borders): never synthesize an outline (Phase 0 lesson b).
       if (wantFill) {

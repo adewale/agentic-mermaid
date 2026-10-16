@@ -738,6 +738,9 @@ function validateNode(value: unknown, path: string, state: ValidationState, dept
   }
 
   if (kind === 'shape') {
+    if (value.surfaceFragment !== undefined && typeof value.surfaceFragment !== 'boolean') {
+      add(state.diagnostics, 'SCENE_DOCUMENT', `${path}.surfaceFragment`, 'must be boolean')
+    }
     validateGeometry(value.geometry, `${path}.geometry`, state.diagnostics, false, 0, state.budget, state.external)
     if (state.external && record(value.geometry) && (value.geometry.kind === 'path' || value.geometry.kind === 'compound')) {
       add(state.diagnostics, 'SCENE_BOUNDS', `${path}.geometry`, 'external shapes must use a directly bounded structured geometry')
