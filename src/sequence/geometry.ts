@@ -334,6 +334,7 @@ export interface SequenceDividerGeometrySpec {
   extraFontOffset: number
   extraLinesHeight: number
   requiredExtraBefore: number
+  noteContentOffset: number
 }
 
 export interface SequenceBlockGeometrySpec {
@@ -345,6 +346,7 @@ export interface SequenceBlockGeometrySpec {
   blockPadTop: number
   blockHeaderExtra: number
   enclosingHeaderStep: number
+  contentTopPadding: number
   dividers: SequenceDividerGeometrySpec[]
 }
 
@@ -370,7 +372,14 @@ export function resolveSequenceBlockScopes(diagram: SequenceDiagram): SequenceBl
         if (!hasIntermediateParent) childBlockIndices.push(ci)
       }
     }
-    return { noteIndices, childBlockIndices }
+    return {
+      endMessageExclusive: Math.min(block.endIndex + 1, diagram.messages.length),
+      dividerNoteIndices: block.dividers.map(() => -1),
+      endNoteExclusive: noteIndices.length > 0 ? noteIndices.at(-1)! + 1 : diagram.notes.filter(note => note.afterIndex <= block.endIndex).length,
+      noteIndices,
+      childBlockIndices,
+      childSectionIndices: childBlockIndices.map(ci => block.dividers.filter(divider => diagram.blocks[ci]!.startIndex >= divider.index).length),
+    }
   })
 }
 
@@ -401,6 +410,8 @@ export function measureSequenceBlockSpec(block: Block, style: ResolvedRenderStyl
       extraFontOffset,
       extraLinesHeight,
       requiredExtraBefore: baseDividerExtra + extraLinesHeight + extraFontOffset,
+      noteContentOffset: Math.ceil(Math.max(28 + extraLinesHeight + extraFontOffset,
+        firstLineOffset + ((metrics.lines.length - 1) / 2) * metrics.lineHeight + metrics.height / 2 + style.groupPaddingY)),
     }
   })
 
@@ -413,8 +424,22 @@ export function measureSequenceBlockSpec(block: Block, style: ResolvedRenderStyl
     blockPadTop,
     blockHeaderExtra,
     enclosingHeaderStep,
+    contentTopPadding: block.type === 'rect' ? style.groupPaddingY : Math.max(blockPadTop, tabHeight + style.groupPaddingY),
     dividers,
   }
+}
+
+/** A section may begin with notes, even when it contains no messages. */
+export function sequenceDividerLeadingNote(block: Block, scope: SequenceBlockScope, diagram: SequenceDiagram, dividerIndex: number): number | undefined {
+  const ni = scope.dividerNoteIndices[dividerIndex] ?? -1
+  const end = scope.dividerNoteIndices[dividerIndex + 1] ?? scope.endNoteExclusive
+  return ni >= 0 && ni < end && diagram.notes[ni]!.afterIndex < block.dividers[dividerIndex]!.index ? ni : undefined
+}
+
+/** Reserved lexical boundaries for sections that have no message/note anchor. */
+export interface SequenceBlockPlacement {
+  top?: number
+  dividerY: Array<number | undefined>
 }
 
 export function positionSequenceBlock(
@@ -430,13 +455,14 @@ export function positionSequenceBlock(
   style: ResolvedRenderStyle,
   edgeTextHeight: number,
   fallbackY: number,
+  placement?: SequenceBlockPlacement,
 ): PositionedBlock {
-  const startMsg = messages[block.startIndex]
-  const endMsg = messages[block.endIndex]
+  const startMsg = block.startIndex < scope.endMessageExclusive ? messages[block.startIndex] : undefined
+  const endMsg = block.startIndex < scope.endMessageExclusive ? messages[scope.endMessageExclusive - 1] : undefined
 
   // 1. Horizontal bounds from involved actors, owned messages, owned notes, and child blocks
   const involvedActors = new Set<number>()
-  for (let mi = block.startIndex; mi <= block.endIndex; mi++) {
+  for (let mi = block.startIndex; mi < scope.endMessageExclusive; mi++) {
     const m = diagram.messages[mi]
     if (m) {
       involvedActors.add(actorIndex.get(m.from) ?? 0)
@@ -466,7 +492,7 @@ export function positionSequenceBlock(
     blockRight = Math.max(blockRight, actorBounds.x + actorBounds.width + style.groupPaddingX)
   }
 
-  for (let mi = block.startIndex; mi <= block.endIndex; mi++) {
+  for (let mi = block.startIndex; mi < scope.endMessageExclusive; mi++) {
     const msg = messages[mi]
     if (!msg) continue
     blockLeft = Math.min(blockLeft, msg.bounds.x - style.groupPaddingX)
@@ -499,12 +525,16 @@ export function positionSequenceBlock(
 
   // 2. Vertical bounds from owned messages, created actors, owned notes, and child blocks
   const startMsgExtraAbove = startMsg && !startMsg.isSelf && startMsg.labelPosition.text.includes('\n') ? Math.ceil(Math.max(0, startMsg.labelPosition.y - startMsg.labelPosition.bounds.y - (style.edgeLabelFontSize * LINE_HEIGHT_RATIO) / 2 - 1e-6)) : 0
-  let blockTop = (startMsg?.y ?? fallbackY) - (spec.blockPadTop + startMsgExtraAbove)
+  const fallbackTopPadding = scope.noteIndices.length > 0 ? spec.contentTopPadding : spec.blockPadTop
+  let blockTop = placement?.top ?? (startMsg ? startMsg.y - (spec.blockPadTop + startMsgExtraAbove) : fallbackY - fallbackTopPadding)
 
   let blockBottom = (endMsg?.y ?? fallbackY) + style.groupPaddingY + 12
-  for (let mi = block.startIndex; mi <= block.endIndex; mi++) {
+  for (let mi = block.startIndex; mi < scope.endMessageExclusive; mi++) {
     const msg = messages[mi]
     if (!msg) continue
+    // Consume the full upper extent too: reconstructing half the multiline
+    // label height can put its first lines above the frame and header tab.
+    blockTop = Math.min(blockTop, msg.bounds.y - Math.max(spec.tabHeight, style.groupPaddingY))
     const bottomPad = msg.isSelf ? style.groupPaddingY + 4 : style.groupPaddingY
     blockBottom = Math.max(blockBottom, msg.bounds.y + msg.bounds.height + bottomPad)
   }
@@ -512,9 +542,9 @@ export function positionSequenceBlock(
   for (const ai of involvedActors) {
     const actorDecl = diagram.actors[ai]
     const actor = actors[ai]
-    if (!actor || actorDecl?.createMessageIndex === undefined) continue
-    if (actorDecl.createMessageIndex >= block.startIndex && actorDecl.createMessageIndex <= block.endIndex) {
-      const createdTopPad = block.type === 'rect' ? style.groupPaddingY : Math.max(spec.blockPadTop, spec.tabHeight + style.groupPaddingY)
+    if (!actor || actorDecl?.createMessageIndex === undefined || !messages[actorDecl.createMessageIndex]) continue
+    if (actorDecl.createMessageIndex >= block.startIndex && actorDecl.createMessageIndex < scope.endMessageExclusive) {
+      const createdTopPad = spec.contentTopPadding
       blockTop = Math.min(blockTop, actor.bounds.y - createdTopPad)
       blockBottom = Math.max(blockBottom, actor.bounds.y + actor.bounds.height + style.groupPaddingY)
     }
@@ -523,7 +553,7 @@ export function positionSequenceBlock(
   for (const ni of scope.noteIndices) {
     const note = notes[ni]
     if (!note) continue
-    const noteTopPad = block.type === 'rect' ? style.groupPaddingY : Math.max(spec.blockPadTop, spec.tabHeight + style.groupPaddingY)
+    const noteTopPad = spec.contentTopPadding
     blockTop = Math.min(blockTop, note.y - noteTopPad)
     blockBottom = Math.max(blockBottom, note.y + note.height + style.groupPaddingY)
   }
@@ -536,8 +566,10 @@ export function positionSequenceBlock(
   }
 
   // 3. Position dividers and their labels
-  const dividers: PositionedBlockDivider[] = spec.dividers.map(divSpec => {
-    const msg = messages[divSpec.index]
+  const dividers: PositionedBlockDivider[] = spec.dividers.map((divSpec, di) => {
+    const noteIndex = sequenceDividerLeadingNote(block, scope, diagram, di)
+    const leadingNote = noteIndex === undefined ? undefined : notes[noteIndex]
+    const msg = divSpec.index < scope.endMessageExclusive ? messages[divSpec.index] : undefined
     const msgY = msg?.y ?? fallbackY
     let offset = 28 + divSpec.extraLinesHeight + divSpec.extraFontOffset
 
@@ -554,14 +586,15 @@ export function positionSequenceBlock(
       }
     }
 
-    let divY = msgY - offset
+    const reservedY = placement?.dividerY[di]
+    let divY = reservedY ?? (leadingNote ? leadingNote.y - divSpec.noteContentOffset : msgY - offset)
     // If a child block starts at this divider's message index, keep the divider
     // and its label above the child block's top border.
-    for (const ci of scope.childBlockIndices) {
+    for (const [childIndex, ci] of scope.childBlockIndices.entries()) {
       const child = positionedBlocks[ci]
       const childSpec = diagram.blocks[ci]
-      if (child && childSpec?.startIndex === divSpec.index) {
-        const divContentHeight = divSpec.label ? divSpec.firstLineOffset + divSpec.metrics.height + 6 : 8
+      if (reservedY === undefined && child && childSpec?.startIndex === divSpec.index && scope.childSectionIndices[childIndex] === di + 1) {
+        const divContentHeight = divSpec.noteContentOffset
         divY = Math.min(divY, child.y - divContentHeight)
       }
     }

@@ -1,5 +1,6 @@
 import type { SequenceDiagram, PositionedSequenceDiagram, PositionedActor, Lifeline, PositionedMessage, Activation, PositionedBlock, PositionedNote, PositionedBoxGroup, LifelineCross } from './types.ts'
-import { SEQUENCE_SELF_LOOP, measureSequenceActorSpec, measureSequenceBlockSpec, measureSequenceMessageSpec, positionSequenceActor, positionSequenceBlock, positionSequenceMessage, resolveSequenceBlockScopes, translatePositionedSequence } from './geometry.ts'
+import { SEQUENCE_SELF_LOOP, measureSequenceActorSpec, measureSequenceBlockSpec, measureSequenceMessageSpec, positionSequenceActor, positionSequenceBlock, positionSequenceMessage, resolveSequenceBlockScopes, sequenceDividerLeadingNote, translatePositionedSequence, type SequenceBlockPlacement } from './geometry.ts'
+import { getSequenceBlockBoundaries } from './parser.ts'
 import type { RenderOptions } from '../types.ts'
 import { applyTextTransform, FONT_SIZES, FONT_WEIGHTS, STROKE_WIDTHS, resolveRenderStyle, diagramTitleBand, positionDiagramTitle } from '../styles.ts'
 import type { RenderStyleDefaults, ResolvedRenderStyle } from '../styles.ts'
@@ -195,34 +196,74 @@ export function layoutSequenceDiagram(diagram: SequenceDiagram, options: RenderO
 
   const blockScopes = resolveSequenceBlockScopes(diagram)
   const blockSpecs = diagram.blocks.map(block => measureSequenceBlockSpec(block, style, blockPadTop, blockHeaderExtra, SEQ.dividerExtra, edgeTextHeight))
+  const boundaries = getSequenceBlockBoundaries(diagram)
 
   // Pre-scan blocks to determine which message indices need extra vertical
   // space for block headers (including stacked nested headers) or divider labels.
   const extraSpaceBefore = new Map<number, number>()
   const blocksStartingAt = new Map<number, number[]>()
-  const blocksEndingAt = new Map<number, number[]>()
+  const blocksStartingAtNote = new Map<number, number[]>()
+  const parentBlock = new Map<number, number>()
+  const dividersStartingAtNote = new Map<number, number>()
   for (let bi = 0; bi < diagram.blocks.length; bi++) {
     const block = diagram.blocks[bi]!
     const startList = blocksStartingAt.get(block.startIndex) ?? []
     startList.push(bi)
     blocksStartingAt.set(block.startIndex, startList)
+    const scope = blockScopes[bi]!
+    const firstNote = scope.noteIndices[0]
+    if (firstNote !== undefined) {
+      const noteList = blocksStartingAtNote.get(firstNote) ?? []
+      noteList.push(bi)
+      blocksStartingAtNote.set(firstNote, noteList)
+    }
+    for (const ci of scope.childBlockIndices) parentBlock.set(ci, bi)
 
-    const endList = blocksEndingAt.get(block.endIndex) ?? []
-    endList.push(bi)
-    blocksEndingAt.set(block.endIndex, endList)
   }
 
-  for (const [startIdx, blockIndices] of blocksStartingAt) {
-    const innermost = blockSpecs[blockIndices[0]!]!
-    const nestedStep = blockIndices.slice(1).reduce((sum, bi) => sum + blockSpecs[bi]!.enclosingHeaderStep, 0)
-    const prev = extraSpaceBefore.get(startIdx) ?? 0
-    extraSpaceBefore.set(startIdx, Math.max(prev, innermost.blockHeaderExtra + nestedStep))
+  const openedBlocks = new Set<number>()
+  const anchoredSections = new Set<number>()
+  if (boundaries) {
+    const openingNoteIndices = new Map(boundaries.filter(boundary => boundary.kind === 'open').map(boundary => [boundary.blockIndex, boundary.noteIndex]))
+    for (let bi = 0; bi < diagram.blocks.length; bi++) {
+      const block = diagram.blocks[bi]!
+      const scope = blockScopes[bi]!
+      const childSections = new Set(scope.childSectionIndices)
+      let messageStart = block.startIndex
+      let noteStart = openingNoteIndices.get(bi)!
+      for (let section = 0; section <= block.dividers.length; section++) {
+        const messageEnd = block.dividers[section]?.index ?? scope.endMessageExclusive
+        const noteEnd = scope.dividerNoteIndices[section] ?? scope.endNoteExclusive
+        if (messageStart === messageEnd && noteStart === noteEnd && !childSections.has(section)) anchoredSections.add(bi)
+        messageStart = messageEnd
+        noteStart = noteEnd
+      }
+      if (scope.childBlockIndices.some(ci => diagram.blocks[ci]!.startIndex === blockScopes[ci]!.endMessageExclusive && blockScopes[ci]!.noteIndices.length === 0)) anchoredSections.add(bi)
+    }
+    // A child's reserved header also needs a real boundary for its enclosing
+    // section; otherwise the parent could pull its divider above earlier work.
+    // Children precede parents, so one pass propagates through every ancestor.
+    for (let bi = 0; bi < diagram.blocks.length; bi++) {
+      const parent = parentBlock.get(bi)
+      if (anchoredSections.has(bi) && parent !== undefined) anchoredSections.add(parent)
+    }
   }
+  const openingBlocks = (messageIndex: number): number[] => (blocksStartingAt.get(messageIndex) ?? [])
+    .filter(bi => !openedBlocks.has(bi) && blockScopes[bi]!.endMessageExclusive > messageIndex)
+  const headerSpace = (indices: readonly number[]): number => indices.length === 0 ? 0
+    : blockSpecs[indices[0]!]!.blockHeaderExtra + indices.slice(1).reduce((sum, bi) => sum + blockSpecs[bi]!.enclosingHeaderStep, 0)
 
   for (let bi = 0; bi < diagram.blocks.length; bi++) {
+    if (anchoredSections.has(bi)) continue
     const spec = blockSpecs[bi]!
     const scope = blockScopes[bi]!
-    for (const divSpec of spec.dividers) {
+    for (const [di, divSpec] of spec.dividers.entries()) {
+      const leadingNote = sequenceDividerLeadingNote(diagram.blocks[bi]!, scope, diagram, di)
+      if (leadingNote !== undefined) {
+        dividersStartingAtNote.set(leadingNote, Math.max(dividersStartingAtNote.get(leadingNote) ?? 0, divSpec.noteContentOffset))
+        continue
+      }
+      if (divSpec.index >= scope.endMessageExclusive) continue
       let required = divSpec.requiredExtraBefore
       for (const ci of scope.childBlockIndices) {
         if (diagram.blocks[ci]?.startIndex === divSpec.index) {
@@ -247,9 +288,6 @@ export function layoutSequenceDiagram(diagram: SequenceDiagram, options: RenderO
       const list = createAtIndex.get(a.createMessageIndex) ?? []
       list.push(ai)
       createAtIndex.set(a.createMessageIndex, list)
-      const prev = extraSpaceBefore.get(a.createMessageIndex) ?? 0
-      const createdTopHalf = actors[ai]!.height / 2
-      extraSpaceBefore.set(a.createMessageIndex, prev > 0 ? Math.max(prev, prev + Math.max(0, createdTopHalf - 12)) : Math.max(prev, createdTopHalf + 8))
     }
     if (a.destroyMessageIndex !== undefined && a.destroyMessageIndex < diagram.messages.length) {
       const list = destroyAtIndex.get(a.destroyMessageIndex) ?? []
@@ -333,25 +371,102 @@ export function layoutSequenceDiagram(diagram: SequenceDiagram, options: RenderO
     }
   }
 
-  const notesBeforeFirstMsg = notesByAfterIndex.get(-1)
-  if (notesBeforeFirstMsg && notesBeforeFirstMsg.length > 0) {
-    // If a block opens at message 0 and owns a note before message 0, apply
-    // the block's leading header space before the note so the block frame and
-    // header tab clear the top actor headers.
-    const openingBlocksAtZero = blocksStartingAt.get(0) ?? []
-    const noteOwnedByOpeningBlock = notesBeforeFirstMsg.some(({ index }) => openingBlocksAtZero.some(bi => blockScopes[bi]!.noteIndices.includes(index)))
-    if (noteOwnedByOpeningBlock) {
-      messageY += extraSpaceBefore.get(0) ?? 0
-      extraSpaceBefore.set(0, 0)
+  // Complete a fragment as soon as its lexical content has been positioned.
+  // The timeline and renderer consume this same geometry; neither predicts a
+  // closing border from message counts or a fixed amount of note padding.
+  const blocks: PositionedBlock[] = new Array(diagram.blocks.length)
+  const placements: SequenceBlockPlacement[] = []
+  let completedBottom = Number.NEGATIVE_INFINITY
+  let contentBottom = headerBottom
+  let reservedBottom = Number.NEGATIVE_INFINITY
+  let nextNoteIndex = 0
+  let nextBlockIndex = 0
+  let nextBoundaryIndex = 0
+  const reserveFrame = (bi: number): void => {
+    const ancestors: number[] = []
+    for (let current: number | undefined = bi; current !== undefined && !openedBlocks.has(current); current = parentBlock.get(current)) ancestors.push(current)
+    for (let i = ancestors.length - 1; i >= 0; i--) {
+      const current = ancestors[i]!
+      const top = Math.max(contentBottom, completedBottom, reservedBottom) + 8
+      placements[current] = { top, dividerY: [] }
+      openedBlocks.add(current)
+      contentBottom = reservedBottom = top + blockSpecs[current]!.enclosingHeaderStep
     }
-    let noteY = messageY
-    for (const { note, index } of notesBeforeFirstMsg) {
+  }
+  const completeBlock = (bi: number): void => {
+    const block = diagram.blocks[bi]!
+    const scope = blockScopes[bi]!
+    const top = placements[bi]?.top
+    const anchorY = top !== undefined && block.startIndex === scope.endMessageExclusive && scope.noteIndices.length === 0
+      ? top + blockSpecs[bi]!.blockPadTop
+      : positionedNotes[scope.noteIndices[0] ?? -1]?.y ?? messageY
+    openedBlocks.add(bi)
+    const positioned = positionSequenceBlock(block, blockSpecs[bi]!, scope, diagram, actorIndex, actors, messages, positionedNotes, blocks, style, edgeTextHeight, anchorY, placements[bi])
+    blocks[bi] = positioned
+    completedBottom = Math.max(completedBottom, positioned.y + positioned.height)
+  }
+  const completeBlocks = (): void => {
+    // Consume source boundaries in lexical order. Message/note cursors alone
+    // cannot distinguish several empty siblings or sections at one boundary.
+    if (boundaries) {
+      while (nextBoundaryIndex < boundaries.length) {
+        const boundary = boundaries[nextBoundaryIndex]!
+        if (boundary.messageIndex > messages.length || boundary.noteIndex > nextNoteIndex) break
+        const bi = boundary.blockIndex
+        if (boundary.kind === 'open' && anchoredSections.has(bi)) reserveFrame(bi)
+        if (boundary.kind === 'divider') {
+          const divSpec = blockSpecs[bi]!.dividers[boundary.dividerIndex!]!
+          const y = Math.max(contentBottom, completedBottom, reservedBottom) + 8
+          if (anchoredSections.has(bi)) {
+            placements[bi]!.dividerY[boundary.dividerIndex!] = y
+            contentBottom = reservedBottom = y + divSpec.noteContentOffset
+          } else {
+            // Even a message-bearing section follows the complete painted
+            // content of its predecessor, including completed child frames.
+            reservedBottom = y + divSpec.noteContentOffset
+          }
+        }
+        if (boundary.kind === 'close') completeBlock(bi)
+        nextBoundaryIndex++
+      }
+      return
+    }
+    // Structural diagram literals have no lexical side data; their inclusive
+    // message intervals remain the best available completion boundary.
+    while (nextBlockIndex < diagram.blocks.length) {
+      const bi = nextBlockIndex
+      const scope = blockScopes[bi]!
+      if (scope.endMessageExclusive > messages.length || scope.endNoteExclusive > nextNoteIndex) break
+      completeBlock(bi)
+      nextBlockIndex++
+    }
+  }
+  const placeNotes = (afterIndex: number, initialY: number): void => {
+    let noteY = initialY
+    for (const { note, index } of notesByAfterIndex.get(afterIndex) ?? []) {
+      completeBlocks()
+      noteY = Math.max(noteY, completedBottom + 8, reservedBottom)
+      for (const bi of blocksStartingAtNote.get(index) ?? []) {
+        const top = placements[bi]?.top
+        if (top !== undefined) noteY = Math.max(noteY, top + blockSpecs[bi]!.contentTopPadding)
+      }
+      const opening = (blocksStartingAtNote.get(index) ?? []).filter(bi => !openedBlocks.has(bi))
+      const sectionInset = dividersStartingAtNote.get(index) ?? 0
+      if (opening.length > 0 || sectionInset > 0) {
+        const topInset = sectionInset + (opening.length > 0 ? blockSpecs[opening[0]!]!.contentTopPadding + opening.slice(1).reduce((sum, bi) => sum + blockSpecs[bi]!.enclosingHeaderStep, 0) : 0)
+        noteY = Math.max(noteY, Math.max(contentBottom, completedBottom) + 8 + topInset)
+        for (const bi of opening) openedBlocks.add(bi)
+      }
       const positioned = positionNote(note, noteY)
       positionedNotes[index] = positioned
-      noteY += positioned.height + 4
+      contentBottom = Math.max(contentBottom, positioned.y + positioned.height)
+      nextNoteIndex = index + 1
+      noteY = positioned.y + positioned.height + 4
     }
-    messageY = Math.max(messageY, noteY + messageRowHeight / 2)
+    if (notesByAfterIndex.has(afterIndex)) messageY = Math.max(messageY, noteY + messageRowHeight / 2)
   }
+
+  placeNotes(-1, messageY)
 
   for (let msgIdx = 0; msgIdx < diagram.messages.length; msgIdx++) {
     const msg = diagram.messages[msgIdx]!
@@ -362,15 +477,54 @@ export function layoutSequenceDiagram(diagram: SequenceDiagram, options: RenderO
 
     // Add extra vertical space if this message sits below a block header,
     // divider, or has multi-line label text above the arrow shaft.
-    const extra = (extraSpaceBefore.get(msgIdx) ?? 0) + msgSpec.extraAboveHeight
-    if (extra > 0) messageY += extra
-    applyActivationEvents(msgIdx, messageY)
-
+    completeBlocks()
+    const opening = openingBlocks(msgIdx)
+    let extra = Math.max(extraSpaceBefore.get(msgIdx) ?? 0, headerSpace(opening))
+    for (const ai of createAtIndex.get(msgIdx) ?? []) {
+      const topHalf = actors[ai]!.height / 2
+      extra = extra > 0 ? extra + Math.max(0, topHalf - 12) : topHalf + 8
+    }
+    messageY += extra + msgSpec.extraAboveHeight
     const x1 = actorCenterX[fromIdx]!
     const x2 = actorCenterX[toIdx]!
-
-    const positionedMsg = positionSequenceMessage(msg, msgSpec, style, x1, x2, messageY)
-    messages.push(positionedMsg)
+    const positionRow = (): PositionedMessage => {
+      const positioned = positionSequenceMessage(msg, msgSpec, style, x1, x2, messageY)
+      messages[msgIdx] = positioned
+      // Created headers must have their real position before fragment geometry
+      // is completed, including icon labels extending below the message row.
+      for (const ai of createAtIndex.get(msgIdx) ?? []) {
+        actors[ai] = positionSequenceActor(diagram.actors[ai]!, actorSpecs[ai]!, actorCenterX[ai]!, messageY - actors[ai]!.height / 2)
+      }
+      return positioned
+    }
+    let positionedMsg = positionRow()
+    let firstPaintedY = positionedMsg.bounds.y
+    let anchorShift = 0
+    const openingSet = new Set(opening)
+    const previewIndices = (blocksStartingAt.get(msgIdx) ?? []).filter(bi => openingSet.has(bi) || (placements[bi]?.top !== undefined && !blocks[bi]))
+    if (previewIndices.length > 0) {
+      // Preview the opening boundary using the same fragment primitive as the
+      // completed frame, including real first-row created actor extents.
+      // Seed only needed direct children; never copy the whole block array.
+      const preview: PositionedBlock[] = []
+      for (const bi of previewIndices) {
+        for (const ci of blockScopes[bi]!.childBlockIndices) if (blocks[ci]) preview[ci] = blocks[ci]!
+        preview[bi] = positionSequenceBlock(diagram.blocks[bi]!, blockSpecs[bi]!, blockScopes[bi]!, diagram, actorIndex, actors, messages, positionedNotes, preview, style, edgeTextHeight, messageY, placements[bi])
+        const reservedTop = placements[bi]?.top
+        if (reservedTop !== undefined) anchorShift = Math.max(anchorShift, reservedTop - preview[bi]!.y)
+        else firstPaintedY = Math.min(firstPaintedY, preview[bi]!.y)
+      }
+    }
+    const boundaryBottom = opening.length > 0 ? Math.max(contentBottom, completedBottom, reservedBottom) : Math.max(completedBottom, reservedBottom)
+    const shift = Math.max(0, anchorShift, boundaryBottom + (opening.length > 0 ? 8 : 0) - firstPaintedY)
+    if (shift > 0) {
+      messageY += shift
+      positionedMsg = positionRow()
+    }
+    for (const bi of opening) openedBlocks.add(bi)
+    contentBottom = Math.max(contentBottom, positionedMsg.bounds.y + positionedMsg.bounds.height,
+      ...(createAtIndex.get(msgIdx) ?? []).map(ai => actors[ai]!.bounds.y + actors[ai]!.bounds.height))
+    applyActivationEvents(msgIdx, messageY)
 
     const destroyedHere = destroyAtIndex.get(msgIdx)
     if (destroyedHere) for (const id of destroyedHere) destroyYByActor.set(id, messageY)
@@ -394,34 +548,10 @@ export function layoutSequenceDiagram(diagram: SequenceDiagram, options: RenderO
       messageY += createdBottomClearance
     }
 
-    const closingBlocksHere = blocksEndingAt.get(msgIdx) ?? []
-    const notesForMsg = notesByAfterIndex.get(msgIdx)
-    if (notesForMsg && notesForMsg.length > 0) {
-      let noteY = messages[msgIdx]!.y + selfLoopAdvance + 14
-
-      for (const { note, index } of notesForMsg) {
-        // If a block closed at `msgIdx` BEFORE this note (so it does not own
-        // this note), keep the note below the closing block's bottom border.
-        const unownedClosingCount = closingBlocksHere.filter(bi => !blockScopes[bi]!.noteIndices.includes(index)).length
-        if (unownedClosingCount > 0) {
-          const msgBottom = positionedMsg.bounds.y + positionedMsg.bounds.height
-          const closingBorderY = Math.max(messages[msgIdx]!.y + style.groupPaddingY + 12, msgBottom + (isSelf ? style.groupPaddingY + 4 : style.groupPaddingY)) + (unownedClosingCount - 1) * style.groupPaddingY
-          noteY = Math.max(noteY, closingBorderY + 8)
-        }
-
-        const positioned = positionNote(note, noteY)
-        positionedNotes[index] = positioned
-        noteY += positioned.height + 4
-      }
-
-      const lastNoteIndex = notesForMsg[notesForMsg.length - 1]!.index
-      const owningClosingCount = closingBlocksHere.filter(bi => blockScopes[bi]!.noteIndices.includes(lastNoteIndex)).length
-      const closingPad = owningClosingCount > 0 ? Math.max(0, owningClosingCount * style.groupPaddingY - 4) : 0
-      messageY = Math.max(messageY, noteY + closingPad + messageRowHeight / 2)
-    } else if (closingBlocksHere.length > 1) {
-      messageY += (closingBlocksHere.length - 1) * style.groupPaddingY
-    }
+    const noteFloor = createdHere ? contentBottom + 8 : positionedMsg.y + selfLoopAdvance + 14
+    placeNotes(msgIdx, noteFloor)
   }
+  completeBlocks()
 
   const activationTailY = Math.max(messages[messages.length - 1]?.y ?? messageY, messageY - messageRowHeight / 2)
   applyActivationEvents(diagram.messages.length, activationTailY)
@@ -431,24 +561,8 @@ export function layoutSequenceDiagram(diagram: SequenceDiagram, options: RenderO
     while (stack.length > 0) deactivate(actorId, activationTailY)
   }
 
-  // 3b. Reposition created actors: their header box centers on the create
-  //     message row instead of the diagram top (clearance was reserved during
-  //     stacking). Lifelines pick the new bounds up in step 7.
-  for (const [msgIdx, actorIdxs] of createAtIndex) {
-    const msgY = messages[msgIdx]?.y
-    if (msgY === undefined) continue
-    for (const ai of actorIdxs) {
-      actors[ai] = positionSequenceActor(diagram.actors[ai]!, actorSpecs[ai]!, actorCenterX[ai]!, msgY - actors[ai]!.height / 2)
-    }
-  }
-
-  // 4. Position blocks (loop/alt/opt/par/critical/break/rect) inner-first so
-  //    enclosing blocks contain their nested child blocks, notes, and messages.
+  // Completed fragments are reused unchanged by all output projections.
   const notes = positionedNotes.filter((n): n is PositionedNote => n !== undefined)
-  const blocks: PositionedBlock[] = []
-  for (let bi = 0; bi < diagram.blocks.length; bi++) {
-    blocks.push(positionSequenceBlock(diagram.blocks[bi]!, blockSpecs[bi]!, blockScopes[bi]!, diagram, actorIndex, actors, messages, positionedNotes, blocks, style, edgeTextHeight, messageY))
-  }
 
   const maxBlockBottom = blocks.reduce((max, b) => Math.max(max, b.y + b.height), 0)
   if (maxBlockBottom > 0) {
