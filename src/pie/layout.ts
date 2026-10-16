@@ -202,7 +202,7 @@ export function layoutPieChart(
     fontSize: titleFontSize, fontWeight: style.groupHeaderFontWeight, letterSpacing: style.groupLetterSpacing, safeFont: true,
   }) : undefined
   const renderedTitle = titleBlock?.text
-  const titleBlockHeight = titleBlock ? titleBlock.height - (titleBlock.lineHeight - titleBlock.fontSize) : 0
+  const titleBlockHeight = titleBlock ? titleBlock.height : 0
   const titleHeight = titleBlock ? titleBlockHeight + PIE.titleGap : 0
   const titleWidth = titleBlock?.width ?? 0
   const staticHighlight = visual.highlightSlice === 'hover' ? undefined : visual.highlightSlice
@@ -228,8 +228,7 @@ export function layoutPieChart(
     const textWidth = fontWeight === PIE_LEGEND_HIGHLIGHT_FONT_WEIGHT
       ? measuredTextWidth * PIE.legendHighlightWidthScale
       : measuredTextWidth
-    const contentHeight = Math.max(PIE.legendSwatch, legendFontSize) +
-      (lines.length - 1) * legendLineHeight
+    const contentHeight = Math.max(PIE.legendSwatch, block.height)
     return { block, lines, fraction, textWidth, contentHeight }
   })
   const legendTextWidth = rows.length > 0 ? Math.max(...rows.map(r => r.textWidth)) : 0

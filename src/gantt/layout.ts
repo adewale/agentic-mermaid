@@ -132,7 +132,10 @@ export function ganttTitleFontWeight(style: ResolvedRenderStyle): number {
 
 export function ganttTitleY(style: ResolvedRenderStyle): number {
   const titleHeight = ganttTitleHeight(style)
-  return titleHeight === GL.titleHeight ? 18 : titleHeight / 2
+  // dominant-baseline="middle" follows the font's x-height; tall accent and
+  // fallback ascenders can reach a full em above it. Keep the legacy 17px
+  // title position, then reserve an em plus breathing room as type grows.
+  return Math.max(titleHeight === GL.titleHeight ? 18 : titleHeight / 2, ganttTitleFontSize(style) + 1)
 }
 
 export function ganttAxisLabelOffset(style: ResolvedRenderStyle): number {
@@ -149,7 +152,7 @@ export function ganttMeasureTextWidth(
 }
 
 function ganttTitleHeight(style: ResolvedRenderStyle): number {
-  return Math.max(GL.titleHeight, Math.ceil(ganttTitleFontSize(style) * 1.3) + 8)
+  return Math.max(GL.titleHeight, Math.ceil(ganttTitleFontSize(style) * 1.5) + 8)
 }
 
 function ganttAxisHeight(style: ResolvedRenderStyle): number {
@@ -598,7 +601,7 @@ export function layoutGantt(model: GanttModel, schedule: GanttSchedule, options:
   const width = options.width ?? Math.max(naturalWidth + rightPadding - GL.padding, Math.ceil(titleWidth) + GL.padding * 2)
   const plotW = Math.max(120, width - plotX - rightPadding)
 
-  const titleH = titleBlock ? ganttTitleHeight(style) + titleExtraHeight : 0
+  const titleH = titleBlock ? Math.max(ganttTitleHeight(style) + titleExtraHeight, titleBlock.height) : 0
   const axisH = ganttAxisHeight(style)
   const topAxisH = model.topAxis ? axisH : 0
   const vertExtra = Math.max(0, ...[...vertBlocks.values()].map(block => (block.height - block.lineHeight) / 2))
@@ -617,9 +620,9 @@ export function layoutGantt(model: GanttModel, schedule: GanttSchedule, options:
   // enough for the block to clear the next row. Single-line rows keep the
   // uniform rowH by construction (bh/2 + lh/2 <= max(bh, lh) always).
   const rowAdvance = (lineCount: number, lineHeight: number): number =>
-    lineCount <= 1 ? rowH : Math.max(rowH, Math.ceil(barHeight / 2 + (lineCount - 0.5) * lineHeight) + GL.rowGap)
-  const taskLineHeight = style.nodeLabelFontSize * 1.3
-  const sectionLineHeight = style.groupHeaderFontSize * 1.3
+    Math.max(rowH, Math.ceil(barHeight / 2 + (lineCount - 0.5) * lineHeight) + GL.rowGap)
+  const taskLineHeight = Math.max(style.nodeLabelFontSize * 1.3, ...[...taskWraps.values()].map(label => label.block.lineHeight))
+  const sectionLineHeight = Math.max(style.groupHeaderFontSize * 1.3, ...[...sectionWraps.values()].map(label => label.block.lineHeight))
 
   for (let si = 0; si < model.sections.length; si++) {
     const section = model.sections[si]!
@@ -752,7 +755,7 @@ export function layoutGantt(model: GanttModel, schedule: GanttSchedule, options:
   return {
     title: titleBlock?.text,
     titleBlock,
-    titleY: ganttTitleY(style) + titleExtraHeight / 2,
+    titleY: Math.max(ganttTitleY(style), (titleBlock?.lineHeight ?? 0) / 2) + titleExtraHeight / 2,
     width, height,
     plot: { x: plotX, y: plotY, w: plotW, h: plotH },
     labelColumnWidth,

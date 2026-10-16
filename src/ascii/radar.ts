@@ -35,6 +35,19 @@ function maxCellWidth(labels: string[]): number {
   return width
 }
 
+/** Match graphical per-key occurrences, adding a role only when an authored
+ * identifier is shared by axes and curves. Unique authored IDs stay stable. */
+function occurrenceOwners(values: readonly string[], otherRole: ReadonlySet<string>, role: 'axis' | 'curve'): string[] {
+  const counts = new Map<string, number>(), seen = new Map<string, number>()
+  for (const id of values) counts.set(id, (counts.get(id) ?? 0) + 1)
+  return values.map(id => {
+    const occurrence = seen.get(id) ?? 0
+    seen.set(id, occurrence + 1)
+    const identity = counts.get(id)! > 1 ? `${id}#${occurrence}` : id
+    return otherRole.has(id) ? `${role}:${identity}` : identity
+  })
+}
+
 export function renderRadarTerminal(
   lines: string[],
   config: AsciiConfig,
@@ -46,6 +59,9 @@ export function renderRadarTerminal(
 ): TerminalArtifact {
   targetWidth ??= config.maxWidth
   const chart = parseRadarChart(lines, { title: getFrontmatterScalar<string>(frontmatter, ['title']) })
+  const axisOwners = occurrenceOwners(chart.axes.map(axis => axis.id), new Set(chart.curves.map(curve => curve.id)), 'axis')
+  const curveIds = occurrenceOwners(chart.curves.map(curve => curve.id), new Set(chart.axes.map(axis => axis.id)), 'curve')
+  const curveOwners = new Map(chart.curves.map((curve, index) => [curve, curveIds[index]!]))
   const sep = config.useAscii ? '|' : '│'
   const cueGlyphs = (label: string): { marker: string; bar: string } => {
     const cue = resolveRoleStyle(styleFace, 'pie-slice', { category: label }, { includeFallback: false })?.cue
@@ -122,6 +138,7 @@ export function renderRadarTerminal(
     let legend: TerminalRun[] = []
     let width = 0
     chart.curves.forEach((curve, index) => {
+      const id = curveOwners.get(curve)!
       const glyph = cueGlyphs(curve.label).marker
       const lines = wrapText(cellLines(curve.label).join(' '), targetWidth === undefined ? undefined : Math.max(1, targetWidth - 2))
       lines.forEach((text, lineIndex) => {
@@ -131,9 +148,9 @@ export function renderRadarTerminal(
         }
         if (legend.length > 0) { legend.push({ text: '   ' }); width += 3 }
         legend.push(
-          { text: glyph, role: 'arrow', kind: 'marker', color: colors[index]!, owner: { id: `${curve.id}:legend`, kind: 'label', parent: { id: curve.id, kind: 'node' } } },
+          { text: glyph, role: 'arrow', kind: 'marker', color: colors[index]!, owner: { id: `${id}:legend`, kind: 'label', parent: { id: id, kind: 'node' } } },
           { text: ' ' },
-          { text, role: 'text', textGroup: 'legend', owner: { id: curve.id, kind: 'node' } },
+          { text, role: 'text', textGroup: 'legend', owner: { id, kind: 'node' } },
         )
         width += itemWidth
       })
@@ -146,7 +163,7 @@ export function renderRadarTerminal(
   if (mismatched.length > 0) {
     for (const curve of mismatched) {
       const warning = `! ${cellLines(curve.label).join(' ')}: expected ${chart.axes.length} values, got ${curve.values.length}; not plotted`
-      for (const text of wrapText(warning, targetWidth)) document.line([{ text, role: 'text', textGroup: 'warning', owner: { id: curve.id, kind: 'node' } }])
+      for (const text of wrapText(warning, targetWidth)) document.line([{ text, role: 'text', textGroup: 'warning', owner: { id: curveOwners.get(curve)!, kind: 'node' } }])
     }
     document.line()
   }
@@ -170,15 +187,16 @@ export function renderRadarTerminal(
   // Axes are meaningful chart structure even when there is no drawable
   // series (axis-only source or every curve has an arity mismatch).
   if (drawable.length === 0) {
-    for (const axis of chart.axes) {
+    for (const [index, axis] of chart.axes.entries()) {
       for (const text of cellLines(axis.label, axisBudget)) {
-        document.line([{ text, role: 'text', textGroup: 'axis', owner: { id: axis.id, kind: 'node' } }, { text: ' '.repeat(Math.max(0, axisWidth - visualWidth(text)) + 2) + sep, role: 'border', kind: 'stroke', color: visual.axisColor }])
+        document.line([{ text, role: 'text', textGroup: 'axis', owner: { id: axisOwners[index]!, kind: 'node' } }, { text: ' '.repeat(Math.max(0, axisWidth - visualWidth(text)) + 2) + sep, role: 'border', kind: 'stroke', color: visual.axisColor }])
       }
     }
   }
 
   chart.axes.forEach((axis, axisIndex) => {
     drawable.forEach((curve, curveIndex) => {
+      const axisId = axisOwners[axisIndex]!, curveId = curveOwners.get(curve)!
       const value = curve.values[axisIndex]!
       const ratio = radarValueRatio(value, scale)
       const barLength = ratio > 0 ? Math.max(1, Math.round(ratio * barMax)) : 0
@@ -190,12 +208,12 @@ export function renderRadarTerminal(
       for (let row = 0; row < rowCount; row++) {
         const valueCol = row === 0 ? ` ${fmt(value).padStart(valWidth)}` : ''
         document.line([
-          { text: axisLines[row] ?? '', role: 'text', textGroup: 'axis', ...(curveIndex === 0 ? { owner: { id: axis.id, kind: 'node' as const } } : {}) },
+          { text: axisLines[row] ?? '', role: 'text', textGroup: 'axis', ...(curveIndex === 0 ? { owner: { id: axisId, kind: 'node' as const } } : {}) },
           { text: ' '.repeat(Math.max(0, axisWidth - visualWidth(axisLines[row] ?? '')) + 2) },
-          { text: curveLines[row] ?? '', role: 'text', textGroup: `table:${axis.id}`, owner: { id: curve.id, kind: 'node' } },
+          { text: curveLines[row] ?? '', role: 'text', textGroup: `table:${axisId}`, owner: { id: curveId, kind: 'node' } },
           { text: ' '.repeat(Math.max(0, curveWidth - visualWidth(curveLines[row] ?? '')) + 1) + sep + ' ', role: 'border', kind: 'stroke', color: visual.axisColor },
-          { text: row === 0 ? bar : '', role: 'arrow', kind: 'mark', color: colors[paletteIndex]!, owner: { id: `${curve.id}:${axis.id}`, kind: 'plot', parent: { id: curve.id, kind: 'node' } } },
-          { text: valueCol, role: 'text', owner: { id: `${curve.id}:${axis.id}:value`, kind: 'label', parent: { id: curve.id, kind: 'node' } } },
+          { text: row === 0 ? bar : '', role: 'arrow', kind: 'mark', color: colors[paletteIndex]!, owner: { id: `${curveId}:${axisId}`, kind: 'plot', parent: { id: curveId, kind: 'node' } } },
+          { text: valueCol, role: 'text', owner: { id: `${curveId}:${axisId}:value`, kind: 'label', parent: { id: curveId, kind: 'node' } } },
         ])
       }
     })

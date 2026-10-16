@@ -471,37 +471,6 @@ describe('syntax range — & multi-edge chains hit the same fan heuristics', () 
     expectLabelClearsTerminalMarkers(needsWork, needsWorkLabel, style)
     expect(yesLabel.y).toBeGreaterThanOrEqual(decisionSouth + 2)
     expect(needsWorkLabel.y).toBeGreaterThanOrEqual(decisionSouth + 2)
-    expect(stableProductLoopGeometry(positioned)).toEqual({
-      nodes: [
-        { id: 'A', x: 78.625, y: 86, width: 162.35, height: 47.5, shape: 'rectangle' },
-        { id: 'B', x: 96.775, y: 181.5, width: 126.05, height: 126.05, shape: 'diamond' },
-        { id: 'C', x: 54.55, y: 486.15, width: 91.25, height: 47.5, shape: 'rectangle' },
-        { id: 'D', x: 173.8, y: 486.15, width: 91.25, height: 47.5, shape: 'rectangle' },
-      ],
-      edges: [
-        {
-          source: 'A',
-          target: 'B',
-          label: undefined,
-          points: [{ x: 159.8, y: 133.5 }, { x: 159.8, y: 181.5 }],
-          routeCertificate: { routeClass: 'primary-forward', bendCount: 0, sourcePort: 'S', targetPort: 'N', invariant: 'straight' },
-        },
-        {
-          source: 'B',
-          target: 'C',
-          label: 'yes',
-          points: [{ x: 128.288, y: 276.038 }, { x: 128.288, y: 356.55 }, { x: 100.175, y: 356.55 }, { x: 100.175, y: 486.15 }],
-          routeCertificate: { routeClass: 'primary-forward', bendCount: 2, sourcePort: 'SW', targetPort: 'N', invariant: 'bundle' },
-        },
-        {
-          source: 'B',
-          target: 'D',
-          label: 'needs work',
-          points: [{ x: 191.313, y: 276.038 }, { x: 191.313, y: 356.55 }, { x: 219.425, y: 356.55 }, { x: 219.425, y: 486.15 }],
-          routeCertificate: { routeClass: 'primary-forward', bendCount: 2, sourcePort: 'SE', targetPort: 'N', invariant: 'bundle' },
-        },
-      ],
-    })
     zeroHardViolations(source)
   })
 

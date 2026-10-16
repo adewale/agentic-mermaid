@@ -373,13 +373,9 @@ export function lowerXYChartScene(
       anchor: 'middle',
       paint: { fill: chartColors.titleColor },
     },
-      title.includes('\n')
-        ? renderMultilineText(chart.title.block ?? title, chart.title.x, chart.title.y, chart.config.titleFontSize,
-          `text-anchor="middle" font-size="${chart.config.titleFontSize}" font-weight="${style.groupHeaderFontWeight}"${letterAttr(style.groupLetterSpacing)} class="xychart-title"`,
-          0.35, true)
-        : `<text x="${chart.title.x}" y="${chart.title.y}" text-anchor="middle" ` +
-      `font-size="${chart.config.titleFontSize}" font-weight="${style.groupHeaderFontWeight}"${letterAttr(style.groupLetterSpacing)} ` +
-      `dy="${TEXT_BASELINE_SHIFT}" class="xychart-title" data-literal-text="true">${escapeXml(title)}</text>`,
+      renderMultilineText(chart.title.block ?? title, chart.title.x, chart.title.y, chart.config.titleFontSize,
+        `text-anchor="middle" font-size="${chart.config.titleFontSize}" font-weight="${style.groupHeaderFontWeight}"${letterAttr(style.groupLetterSpacing)} class="xychart-title"`,
+        0.35, true),
     ))
   }
 

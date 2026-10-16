@@ -4,7 +4,7 @@ import type { PositionedClassDiagram, PositionedClassNode, PositionedClassNamesp
 import type { RenderContext } from '../types.ts'
 import { svgOpenTag, buildStyleBlock, buildShadowDefs, type DiagramColors } from '../theme.ts'
 import { inkOnNodeFill } from '../color-resolver.ts'
-import { FONT_SIZES, FONT_WEIGHTS, STROKE_WIDTHS, TEXT_BASELINE_SHIFT, resolveRenderStyle, diagramTitleMark } from '../styles.ts'
+import { FONT_SIZES, FONT_WEIGHTS, STROKE_WIDTHS, resolveRenderStyle, diagramTitleMark } from '../styles.ts'
 import type { RenderStyleDefaults, ResolvedRenderStyle } from '../styles.ts'
 import { CLS, CLASS_STYLE_DEFAULTS, memberToString } from './layout.ts'
 import { buildAccessibilityAttrs } from '../shared/svg-a11y.ts'
@@ -42,8 +42,9 @@ const CLS_FONT = {
   annotationWeight: 500,
 } as const
 
-function literalAdvanceAttrs(block: PixelTextBlock): string {
-  return ` data-prepared-text="true" data-literal-text="true" textLength="${block.width}" lengthAdjust="spacingAndGlyphs"`
+function renderLiteralBlock(block: PixelTextBlock, x: number, y: number, attrs: string, visible?: string): string {
+  const svg = renderMultilineText(block, x, y, block.fontSize, attrs)
+  return visible && block.lines.length === 1 ? svg.replace(`>${escapeXml(block.text)}</text>`, `>${visible}</text>`) : svg
 }
 
 /**
@@ -350,9 +351,7 @@ function renderClassBox(cls: PositionedClassNode, style: ResolvedRenderStyle, in
         anchor: 'middle',
         paint: { fill: annotColor },
       },
-        `<text x="${x + width / 2}" y="${annotY}" text-anchor="middle" dy="${TEXT_BASELINE_SHIFT}" ` +
-        `font-size="${CLS_FONT.annotationSize}" font-weight="${CLS_FONT.annotationWeight}" ` +
-        `font-style="italic"${literalAdvanceAttrs(annotationBlock)} fill="${escapeAttr(annotColor)}">&lt;&lt;${escapeXml(cls.annotation)}&gt;&gt;</text>`),
+        renderLiteralBlock(annotationBlock, x + width / 2, annotY, `text-anchor="middle" font-size="${CLS_FONT.annotationSize}" font-weight="${CLS_FONT.annotationWeight}" font-style="italic" fill="${escapeAttr(annotColor)}"`)),
     })
     nameY = y + headerHeight / 2 + 6
   }
@@ -457,9 +456,7 @@ function renderMember(member: ClassMember, x: number, y: number, style: Resolved
       anchor: 'start',
       paint: { fill: textInk },
     },
-      `<text x="${x}" y="${y}" class="mono" dy="${TEXT_BASELINE_SHIFT}" ` +
-      `font-size="${CLS_FONT.memberSize}" font-weight="${CLS_FONT.memberWeight}"${fontStyle}${decoration}${literalAdvanceAttrs(block)}>` +
-      `${visible}</text>`)
+      renderLiteralBlock(block, x, y, `class="mono" font-size="${CLS_FONT.memberSize}" font-weight="${CLS_FONT.memberWeight}"${fontStyle}${decoration}`, visible))
   }
 
   // Build tspan parts for syntax-highlighted member text
@@ -495,9 +492,7 @@ function renderMember(member: ClassMember, x: number, y: number, style: Resolved
     anchor: 'start',
     paint: { fill: nameInk },
   },
-    `<text x="${x}" y="${y}" class="mono" dy="${TEXT_BASELINE_SHIFT}" ` +
-    `font-size="${CLS_FONT.memberSize}" font-weight="${CLS_FONT.memberWeight}"${fontStyle}${decoration}${literalAdvanceAttrs(block)}>` +
-    `${spans.join('')}</text>`)
+    renderLiteralBlock(block, x, y, `class="mono" font-size="${CLS_FONT.memberSize}" font-weight="${CLS_FONT.memberWeight}"${fontStyle}${decoration}`, spans.join('')))
 }
 
 function renderClassNote(note: PositionedClassNote, style: ResolvedRenderStyle, index: number): SceneNode {
@@ -520,7 +515,7 @@ function renderClassNote(note: PositionedClassNote, style: ResolvedRenderStyle, 
   children.push({ node: marks.text({
     id: `class-note:${index}:label`, role: 'label', text: note.text, block: note.textBlock,
     x: note.x + note.width / 2, y: note.y + note.height / 2, fontSize: 12, anchor: 'middle', paint: { fill: text },
-  }, renderMultilineText(note.textBlock ?? note.text, note.x + note.width / 2, note.y + note.height / 2, 12, `text-anchor="middle" fill="${escapeAttr(text)}"`)), indent: 2 })
+  }, renderMultilineText(note.textBlock ?? note.text, note.x + note.width / 2, note.y + note.height / 2, 12, `text-anchor="middle" font-size="12" fill="${escapeAttr(text)}"`)), indent: 2 })
   return marks.group({
     id: `class-note:${index}`, role: 'note',
     open: `<g class="class-note" data-note-index="${index}"${note.for ? ` data-for="${escapeAttr(note.for)}"` : ''}>`,

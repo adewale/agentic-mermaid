@@ -48,8 +48,8 @@ interface ShapePiece {
   crisp: string
 }
 
-function literalAdvanceAttrs(block: PixelTextBlock): string {
-  return ` data-prepared-text="true" data-literal-text="true" textLength="${block.width}" lengthAdjust="spacingAndGlyphs"`
+function renderLiteralBlock(block: PixelTextBlock, x: number, y: number, attrs: string): string {
+  return renderMultilineText(block, x, y, block.fontSize, attrs)
 }
 
 /**
@@ -363,8 +363,7 @@ function renderAttribute(
       anchor: 'middle',
       paint: { fill: keyTextColor },
     },
-      `<text x="${badgeX + keyWidth / 2}" y="${y}" text-anchor="middle" dy="${TEXT_BASELINE_SHIFT}" ` +
-      `font-size="${ER_FONT.keySize}" font-weight="${ER_FONT.keyWeight}"${literalAdvanceAttrs(blocks.keys)} fill="${escapeAttr(keyTextColor)}">${attr.keys.join(',')}</text>`))
+      renderLiteralBlock(blocks.keys, badgeX + keyWidth / 2, y, `text-anchor="middle" font-size="${ER_FONT.keySize}" font-weight="${ER_FONT.keyWeight}" fill="${escapeAttr(keyTextColor)}"`)))
   }
 
   // Type (left-aligned after keys, monospace with syntax highlighting)
@@ -379,9 +378,7 @@ function renderAttribute(
     anchor: 'start',
     paint: { fill: attrTypeColor },
   },
-    `<text x="${typeX}" y="${y}" class="mono" dy="${TEXT_BASELINE_SHIFT}" ` +
-    `font-size="${ER_FONT.attrSize}" font-weight="${ER_FONT.attrWeight}"${literalAdvanceAttrs(blocks.type)}>` +
-    `<tspan fill="${escapeAttr(attrTypeColor)}">${escapeXml(attr.type)}</tspan></text>`))
+    renderLiteralBlock(blocks.type, typeX, y, `class="mono" font-size="${ER_FONT.attrSize}" font-weight="${ER_FONT.attrWeight}" fill="${escapeAttr(attrTypeColor)}"`)))
 
   // Name (right-aligned, monospace with syntax highlighting), left of the
   // entity's comment column when any attribute carries a comment.
@@ -397,9 +394,7 @@ function renderAttribute(
     anchor: 'end',
     paint: { fill: attrTextColor },
   },
-    `<text x="${nameX}" y="${y}" class="mono" text-anchor="end" dy="${TEXT_BASELINE_SHIFT}" ` +
-    `font-size="${ER_FONT.attrSize}" font-weight="${ER_FONT.attrWeight}"${literalAdvanceAttrs(blocks.name)}>` +
-    `<tspan fill="${escapeAttr(attrTextColor)}">${escapeXml(attr.name)}</tspan></text>`))
+    renderLiteralBlock(blocks.name, nameX, y, `class="mono" text-anchor="end" font-size="${ER_FONT.attrSize}" font-weight="${ER_FONT.attrWeight}" fill="${escapeAttr(attrTextColor)}"`)))
 
   // Comment (right-aligned in its column, as Mermaid draws it after the name)
   if (attr.comment) {
@@ -414,8 +409,7 @@ function renderAttribute(
       anchor: 'end',
       paint: { fill: attrTypeColor },
     },
-      `<text x="${rightEdge}" y="${y}" text-anchor="end" dy="${TEXT_BASELINE_SHIFT}" ` +
-      `font-size="${ER_FONT.attrSize}"${literalAdvanceAttrs(blocks.comment!)} fill="${escapeAttr(attrTypeColor)}">${escapeXml(comment)}</text>`))
+      renderLiteralBlock(blocks.comment!, rightEdge, y, `text-anchor="end" font-size="${ER_FONT.attrSize}" fill="${escapeAttr(attrTypeColor)}"`)))
   }
 
   // Wrap in a group if there's a comment (for tooltip support)

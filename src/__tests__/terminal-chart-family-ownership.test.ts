@@ -12,6 +12,8 @@ import { renderTimelineTerminal as renderTimelineAscii } from '../ascii/timeline
 import { terminalDocumentOf, type TerminalDocument } from '../ascii/terminal-document.ts'
 import type { AsciiConfig } from '../ascii/types.ts'
 import { visualWidth, WIDE_CHAR_CONTINUATION } from '../ascii/width.ts'
+import { renderMermaidASCIIWithMeta } from '../ascii/meta.ts'
+import { renderMermaidWithActions } from '../agent/index.ts'
 
 function capture(render: (config: AsciiConfig) => TerminalArtifact): TerminalDocument {
   const config: AsciiConfig = { useAscii: false, paddingX: 5, paddingY: 5, boxBorderPadding: 1, graphDirection: 'TD' }
@@ -28,6 +30,50 @@ function authored(document: TerminalDocument, id: string): Array<{ x: number; y:
 }
 
 describe('terminal outline and chart ownership', () => {
+  test.each([false, true])('anonymous Gantt tasks cannot capture an authored task action (ASCII=%s)', useAscii => {
+    const source = 'gantt\ndateFormat YYYY-MM-DD\nFirst :2024-01-01, 1d\nSecond :task-0, 2024-01-03, 1d\nclick task-0 href "https://example.com"'
+    const options = { useAscii, colorMode: 'none' as const }
+    const rendered = renderMermaidASCIIWithMeta(source, options)
+    const explicit = rendered.regions.find(region => region.kind === 'node' && region.id === 'task-0')!
+    const anonymous = rendered.regions.find(region => region.kind === 'node' && region.projectedText === 'First')!
+    expect(explicit.projectedText).toBe('Second')
+    expect(anonymous.id).not.toBe(explicit.id)
+    expect(explicit.canvasRow).toBe(1)
+    expect(explicit.rowSpan ?? 1).toBe(1)
+    const artifact = renderMermaidWithActions(source, { format: useAscii ? 'ascii' : 'unicode', options })
+    const action = artifact.actionSurface.actions[0]!
+    expect(action.target).toBe('task-0')
+    expect(action.region?.bounds).toMatchObject({ y: 1, h: 1 })
+    expect(action.region?.cellSpans?.every(span => span.row === 1)).toBe(true)
+  })
+
+  test('Radar keeps duplicate axis and curve occurrences distinct through legends and numeric cells', () => {
+    const source = 'radar-beta\naxis a["First axis"], a["Second axis"]\ncurve x["First series"]{1,2}\ncurve x["Second series"]{2,1}\nmax 3'
+    for (const prefix of ['', 'curve y["Inserted"]{1,1}\n']) {
+      const rendered = renderMermaidASCIIWithMeta(source.replace('curve x["First series"]', `${prefix}curve x["First series"]`), { colorMode: 'none' })
+      const region = (id: string) => rendered.regions.find(region => region.id === id)!
+      expect(region('a#0')?.projectedText).toBe('First axis')
+      expect(region('a#1')?.projectedText).toBe('Second axis')
+      expect(region('x#0')?.projectedText).toBe('First series')
+      expect(region('x#1')?.projectedText).toBe('Second series')
+      for (const [id, value, magnitude] of [['x#0:a#0', '1', 8], ['x#0:a#1', '2', 16], ['x#1:a#0', '2', 16], ['x#1:a#1', '1', 8]] as const) {
+        const bar = region(id)
+        expect(bar?.parentId).toBe(id.slice(0, 3))
+        expect(bar?.ownedCellSpans?.reduce((sum, span) => sum + span.end - span.start, 0)).toBe(magnitude)
+        expect(region(`${id}:value`)?.projectedText?.trim()).toBe(value)
+      }
+    }
+  })
+
+  test('Radar distinguishes an axis and curve sharing an authored ID while retaining unique authored IDs', () => {
+    const rendered = renderMermaidASCIIWithMeta('radar-beta\naxis same["Axis"], other["Other"]\ncurve same["Series"]{1,2}', { colorMode: 'none' })
+    const nodes = rendered.regions.filter(region => region.kind === 'node')
+    expect(nodes.map(region => [region.id, region.projectedText])).toEqual([
+      ['curve:same', 'Series'], ['axis:same', 'Axis'], ['other', 'Other'],
+    ])
+    expect(rendered.regions.find(region => region.id === 'curve:same:axis:same')?.parentId).toBe('curve:same')
+  })
+
   test('repeated outline text keeps native event/task identities and opaque authored spaces', () => {
     const timeline = capture(config => renderTimelineAscii('timeline\n2026 : Same name\n2027 : Same name'.split('\n'), config))
     const journey = capture(config => renderJourneyAscii('journey\nSame name: 3: Person\nSame name: 4: Person', config))

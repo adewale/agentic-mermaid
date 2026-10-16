@@ -24,7 +24,10 @@ export function gitTagOffset(tags: readonly PixelTextBlock[], index: number): nu
 
 export function gitCommitLabelY(block: PixelTextBlock, direction: GitGraphDiagram['direction']): number {
   const extra = block.height - block.lineHeight
-  return direction === 'LR' ? block.fontSize + 13 + extra : block.fontSize - 7 + extra / 2
+  // Preserve the established single-line baseline when theme font sizes
+  // change; the occupied bounds, rather than an extra baseline shift, grow
+  // the canvas. Additional authored lines stack clear of the commit mark.
+  return direction === 'LR' ? 24 + extra : 4 + extra / 2
 }
 
 export interface GitGraphLayoutOptions {
@@ -88,15 +91,19 @@ export function layoutGitGraph(diagram: GitGraphDiagram, options: GitGraphLayout
     } : bounds)
   }
   const axisPositions = new Map<number, number>()
-  for (let axis = 0; axis <= maxAxis; axis++) {
+  const axisOrder = Array.from({ length: maxAxis + 1 }, (_, index) => diagram.direction === 'BT' ? maxAxis - index : index)
+  for (const [index, axis] of axisOrder.entries()) {
     const current = axisExtents.get(axis) ?? { minX: -10, minY: -10, maxX: 10, maxY: 10 }
-    if (axis === 0) {
-      axisPositions.set(axis, Math.max(0, -current.minX))
+    const low = diagram.direction === 'LR' ? current.minX : current.minY
+    if (index === 0) {
+      axisPositions.set(axis, diagram.direction === 'LR' ? Math.max(0, -low) : 0)
       continue
     }
-    const previous = axisExtents.get(axis - 1) ?? { minX: -10, minY: -10, maxX: 10, maxY: 10 }
-    const previousPosition = axisPositions.get(axis - 1)!
-    axisPositions.set(axis, Math.max(previousPosition + commitGap, previousPosition + previous.maxX - current.minX + 18))
+    const previousAxis = axisOrder[index - 1]!
+    const previous = axisExtents.get(previousAxis) ?? { minX: -10, minY: -10, maxX: 10, maxY: 10 }
+    const previousPosition = axisPositions.get(previousAxis)!
+    const high = diagram.direction === 'LR' ? previous.maxX : previous.maxY
+    axisPositions.set(axis, Math.max(previousPosition + commitGap, previousPosition + high - low + 18))
   }
   const commitStart = padding + branchLabelSpace + 20
   const verticalStart = padding + titleHeight + 38
@@ -110,7 +117,7 @@ export function layoutGitGraph(diagram: GitGraphDiagram, options: GitGraphLayout
       ...commit,
       lane,
       x: padding + branchLabelSpace + lane * verticalLaneGap,
-      y: verticalStart + (diagram.direction === 'BT' ? maxAxis - axis : axis) * commitGap,
+      y: verticalStart + axisPositions.get(axis)!,
     }
   })
   const positionedById = new Map(commits.map(commit => [commit.id, commit]))

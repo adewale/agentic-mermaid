@@ -167,7 +167,27 @@ describe('prepared text at the graphical boundary', () => {
     const measured = measureRenderedText(svg).texts[0]!
     expect(measured.pixels).toBeGreaterThan(0)
     expect(measured.offCanvasPixels).toBe(0)
-    expect(svg).not.toContain('data-text-fragment="true"')
+    expect(svg.match(/data-text-fragment="true"/g)).toHaveLength(1)
+  })
+
+  it.each(['مرحبا', 'مَرْحَبًا بِكُمْ', 'שָׁלוֹם', 'किंकर्तव्यविमूढ़', '̸', '́́́'])('allocates the full native glyph band: %s', label => {
+    const block = preparePixelText(label, { fontSize: 30, fontWeight: 400 })
+    const width = block.width + 2
+    const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${block.height}" viewBox="0 0 ${width} ${block.height}" style="font-family:Inter">${renderMultilineText(block, width / 2, block.height / 2, 30, 'text-anchor="middle" font-size="30" font-weight="400"')}</svg>`
+    const measured = measureRenderedText(svg).texts[0]!
+    expect(measured.pixels).toBeGreaterThan(0)
+    expect(measured.offCanvasPixels).toBe(0)
+    expect(fitPixelText(label, { fontSize: 30, fontWeight: 400 }, { width: block.width, height: block.height }).kind).toBe('placed')
+  })
+
+  it.each(['start', 'middle', 'end'] as const)('contains natural ink bearings with %s anchoring', anchor => {
+    for (const label of ['̸', '́́́', 'किंकर्तव्यविमूढ़']) {
+      const block = preparePixelText(label, { fontSize: 30, fontWeight: 800 })
+      const width = block.width + 4
+      const x = anchor === 'start' ? 2 : anchor === 'end' ? width - 2 : width / 2
+      const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${block.height}" viewBox="0 0 ${width} ${block.height}" style="font-family:Inter">${renderMultilineText(block, x, block.height / 2, 30, `text-anchor="${anchor}" font-size="30" font-weight="800"`)}</svg>`
+      expect(measureRenderedText(svg).texts[0]!.offCanvasPixels).toBe(0)
+    }
   })
 
   it('retains complete joining-script text in a shaping run', () => {

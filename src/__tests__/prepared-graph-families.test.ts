@@ -79,6 +79,37 @@ describe('prepared graph-family display contracts', () => {
     expect(tagged.box!.width).toBeGreaterThan(unadorned.box!.width + 20)
   }, 60_000)
 
+  for (const [family, label, source] of [
+    ['class', 'नमस्ते दुनिया'.repeat(8), `classDiagram\n class A {\n +String ${'नमस्ते दुनिया'.repeat(8)}\n }`],
+    ['er', 'X 👨‍👩‍👧‍👦 '.repeat(8).trim(), `erDiagram\n A {\n string field "${'X 👨‍👩‍👧‍👦 '.repeat(8)}"\n }`],
+  ]) {
+    test(`${family} contains literal member/comment text across fallback shaping`, () => {
+      const rendered = measureRenderedText(renderMermaidSVG(source!)).texts.find(text => text.content.includes(label!))!
+      expect(rendered).toBeDefined()
+      expect(rendered.offCanvasPixels).toBe(0)
+      expect(rendered.pixels).toBeGreaterThan(0)
+    }, 60_000)
+  }
+
+  test('Class notes paint the same font size their prepared geometry allocates', () => {
+    const source = 'classDiagram\n class A\n note for A "Prepared note typography"'
+    const note = measureRenderedText(renderMermaidSVG(source)).texts.find(text => text.content === 'Prepared note typography')!
+    expect(note.fontSize).toBe(12)
+    expect(note.offCanvasPixels).toBe(0)
+  })
+
+  for (const direction of ['TB', 'BT']) {
+    test(`GitGraph ${direction} separates complete multiline commit labels`, () => {
+      const source = `gitGraph ${direction}:\n commit id:"one"\n commit id:"two"\n commit id:"three"`
+      const model = parseGitGraph(source)
+      for (const commit of model.commits) commit.message = Array.from({ length: 10 }, (_, line) => `${commit.id} line ${line}`).join('\n')
+      const svg = renderPositionedMermaidSVG(resolveRenderRequest(source, {}, 'svg'), { positioned: layoutGitGraph(model) }, []).svg
+      const texts = measureRenderedText(svg).texts.filter(text => text.content.includes('line 0')).sort((a, b) => a.box!.y - b.box!.y)
+      expect(texts).toHaveLength(3)
+      for (let i = 1; i < texts.length; i++) expect(texts[i]!.box!.y).toBeGreaterThan(texts[i - 1]!.box!.y + texts[i - 1]!.box!.height)
+    }, 60_000)
+  }
+
   test('GitGraph uses resolved case, fonts and tracking for branches, commits, tags and title', () => {
     const source = '---\ntitle: history title\n---\ngitGraph\n commit id:"first" msg:"commit message" tag:"release tag"\n branch feature\n commit msg:"next message"'
     const svg = renderMermaidSVG(source, { style: { roles: {

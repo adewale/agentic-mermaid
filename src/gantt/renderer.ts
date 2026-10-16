@@ -245,7 +245,7 @@ function textMark(
     paint: { fill },
     channels,
   }, block
-    ? renderMultilineText(block, r(x), r(y), size, `class="${cls}" text-anchor="${anchor}" dominant-baseline="middle" font-size="${size}" font-weight="${weight}"${letterSpacing ? ` letter-spacing="${letterSpacing}"` : ''}`, 0, true)
+    ? renderMultilineText(block, r(x), r(y), size, `class="${cls}" text-anchor="${anchor}" font-size="${size}" font-weight="${weight}"${letterSpacing ? ` letter-spacing="${letterSpacing}"` : ''}`, 0.35, true)
     : text(x, y, content, cls, size, weight, anchor, letterSpacing))
 }
 
@@ -431,7 +431,7 @@ export function lowerGanttScene(
       const lines = s.labelBlock?.lines ?? s.labelLines ?? [applyTextTransform(s.label, style.groupTextTransform)]
       lines.forEach((line, li) => {
         const id = li === 0 ? `section-label:${s.label}#${k}` : `section-label:${s.label}#${k}/${li}`
-        parts.push(textMark(id, 'section', 8, s.y + layout.barHeight / 2 + 4 + li * sectionLineHeight, line, 'gantt-section-label', style.groupHeaderFontSize, style.groupHeaderFontWeight, palette.groupText, 'start', style.groupLetterSpacing, { category: s.label }, pixelLine(s.labelBlock, li)))
+        parts.push(textMark(id, 'section', 8, s.y + layout.barHeight / 2 + 4 + li * (s.labelBlock?.lineHeight ?? sectionLineHeight), line, 'gantt-section-label', style.groupHeaderFontSize, style.groupHeaderFontWeight, palette.groupText, 'start', style.groupLetterSpacing, { category: s.label }, pixelLine(s.labelBlock, li)))
       })
     }
   }
@@ -453,7 +453,7 @@ export function lowerGanttScene(
       const baseId = taskLabelId(bar.id ?? bar.label)
       lines.forEach((line, li) => {
         const id = li === 0 ? baseId : `${baseId}/${li}`
-        parts.push(textMark(id, 'label', 16, bar.y + bar.h / 2 + li * taskLineHeight, line, 'gantt-task-label', style.nodeLabelFontSize, style.nodeLabelFontWeight, palette.taskText, 'start', style.nodeLetterSpacing, undefined, pixelLine(bar.labelBlock, li)))
+        parts.push(textMark(id, 'label', 16, bar.y + bar.h / 2 + li * (bar.labelBlock?.lineHeight ?? taskLineHeight), line, 'gantt-task-label', style.nodeLabelFontSize, style.nodeLabelFontWeight, palette.taskText, 'start', style.nodeLetterSpacing, undefined, pixelLine(bar.labelBlock, li)))
       })
     }
   } else {

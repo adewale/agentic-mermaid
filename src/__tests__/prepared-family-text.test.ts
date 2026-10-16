@@ -13,6 +13,15 @@ const bodies = {
 }
 
 describe('prepared family text preserves authored display and allocated bounds', () => {
+  test('Gantt contains accent ascenders in a large-font multiline title', () => {
+    const svg = renderMermaidSVG(`---\ntitle: ${JSON.stringify('ÉǗẼ\nÉǗẼ')}\n---\n${bodies.gantt}`, { style: { roles: { group: { fontSize: 40, fontWeight: 800, letterSpacing: 2 } } } })
+    const census = measureRenderedText(svg)
+    const title = census.texts.find(text => text.content.includes('ÉǗẼ'))!
+    expect(title.offCanvasPixels).toBe(0)
+    expect(title.box!.y).toBeGreaterThanOrEqual(0)
+    for (const text of census.texts.filter(text => text !== title && text.box)) expect(text.box!.y).toBeGreaterThan(title.box!.y + title.box!.height)
+  }, 60_000)
+
   for (const [family, body] of Object.entries(bodies)) {
     test(`${family} reserves a complete five-line frontmatter title above chart content`, () => {
       const svg = renderMermaidSVG(`---\ntitle: ${JSON.stringify(title)}\n---\n${body}`)

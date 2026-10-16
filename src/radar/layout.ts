@@ -185,7 +185,7 @@ export function layoutRadarChart(
   }
   const wrappedAxes = axisBlocks.map(block => block.lines)
   const axisLabelW = axisBlocks.map(block => block.width)
-  const axisBlockH = wrappedAxes.map(lines => lines.length * axisLineH)
+  const axisBlockH = axisBlocks.map(block => block.height)
 
   // Outermost drawn data radius per axis — labels must clear the dot on it.
   const dataMaxR = new Array<number>(n).fill(0)
@@ -256,7 +256,7 @@ export function layoutRadarChart(
     letterSpacing: style.nodeLetterSpacing, maxWidth: legendWrapWidth,
   })) : []
   const legendLines = legendBlocks.map(block => block.lines)
-  const legendRowHeights = legendLines.map(lines => Math.max(legendSwatch, lines.length * legendLineH))
+  const legendRowHeights = legendBlocks.map(block => Math.max(legendSwatch, block.height))
   const legendTextWidth = Math.max(0, ...legendBlocks.map(block => block.width))
   const legendWidth = wantLegend ? legendSwatch + R.legendSwatchToText + legendTextWidth : 0
   const legendHeight = wantLegend
@@ -284,7 +284,7 @@ export function layoutRadarChart(
   if (visual.height) { const half = visual.height / 2; extT = Math.max(extT, half); extB = Math.max(extB, half) }
 
   const titleBlock = chart.title ? preparePixelText(chart.title, { display: 'literal', transform: style.groupTextTransform, fontSize: titleFont, fontWeight: titleWeight, letterSpacing: style.groupLetterSpacing }) : undefined
-  const titleBandHeight = titleBlock ? titleBlock.height - (titleBlock.lineHeight - titleBlock.fontSize) : 0
+  const titleBandHeight = titleBlock ? titleBlock.height : 0
   const titleHeight = titleBlock ? titleBandHeight + R.titleGap : 0
   const legendColW = wantLegend ? R.legendGap + legendWidth : 0
   const baseWidth = marginL + extL + extR + legendColW + marginR

@@ -393,12 +393,12 @@ function fitLegend(
 function fitChartTitle(title: string | undefined, config: ResolvedXYChartConfig, budget: number, measure: XYTextMeasure): { height: number; title?: PositionedXYChart['title'] } {
   if (!title || !config.showTitle) return { height: 0 }
   const block = measure.wrapTitle(title, config.titleFontSize, Math.max(1, config.width - config.titlePadding * 2))
-  const extraHeight = (block.lines.length - 1) * config.titleFontSize * LINE_HEIGHT_RATIO
-  const required = config.titleFontSize + extraHeight + config.titlePadding * 2
+  const extraHeight = block.height - block.lineHeight
+  const required = block.height + config.titlePadding * 2
   if (required > budget) return { height: 0 }
   return {
     height: required,
-    title: { text: block.text, block, x: config.width / 2, y: config.titlePadding + config.titleFontSize + extraHeight / 2 },
+    title: { text: block.text, block, x: config.width / 2, y: config.titlePadding + block.height / 2 },
   }
 }
 

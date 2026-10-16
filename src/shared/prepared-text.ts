@@ -76,7 +76,8 @@ function advance(runs: readonly DisplayRun[], options: PixelTextOptions): number
     // glyphs for components of a flag or a ZWJ cluster. Zero-width marks stay
     // attached to their base. ASCII sharing this shaping run uses safe metrics.
     const naturalWidth = grouped.reduce((sum, run) => sum + [...run.text].reduce((line, char) => line + (getCharWidth(char) === 0 ? 0 : /[^\x20-\x7e]/u.test(char) ? options.fontSize * 1.2 : measureSystemFontSafeTextWidth(char, options.fontSize, run.bold ? Math.max(700, options.fontWeight) : options.fontWeight)), 0), 0)
-    return Math.max(width, naturalWidth) + Math.max(0, [...text].length - 1) * Math.abs(options.letterSpacing ?? 0)
+    const orphanMarks = graphemes(text).filter(cluster => /\p{M}/u.test(cluster) && [...cluster].every(char => getCharWidth(char) === 0)).length
+    return Math.max(width, naturalWidth + orphanMarks * options.fontSize * 1.2) + Math.max(0, [...text].length - 1) * Math.abs(options.letterSpacing ?? 0)
   }
   return (options.letterSpacing ?? 0) < 0 ? trackedBounds(grouped, options).width : Math.max(0, width + Math.max(0, graphemes(text).length - 1) * (options.letterSpacing ?? 0))
 }
@@ -181,7 +182,12 @@ export function preparePixelText(source: string, options: PixelTextOptions): Pix
     }
     if (clusters.length === 0) broken.push([])
   }
-  const lineHeight = options.fontSize * LINE_HEIGHT_RATIO
+  // The Latin baseline band cannot enclose joining-script ascents or stacked
+  // diacritics. Reserve a native shaping band before family placement; marks
+  // may extend ink even when they contribute no horizontal advance.
+  const visible = /[\p{M}\p{Script=Arabic}\p{Script=Hebrew}]/u.test(source.normalize('NFD')) ? prepared.lines.map(runs => runs.map(run => run.text).join('')).join('\n') : ''
+  const maxMarks = /\p{M}/u.test(visible.normalize('NFD').replace(/[\uFE0E\uFE0F]/g, '')) ? graphemes(visible.normalize('NFD')).reduce((max, cluster) => Math.max(max, (cluster.replace(/[\uFE0E\uFE0F]/g, '').match(/\p{M}/gu) ?? []).length), 0) : 0
+  const lineHeight = options.fontSize * Math.max(LINE_HEIGHT_RATIO, /[\p{Script=Arabic}\p{Script=Hebrew}]/u.test(visible) ? 2.4 : 0, maxMarks ? LINE_HEIGHT_RATIO + maxMarks * 0.6 : 0)
   const lineBlocks = broken.map((runs, i) => {
     const text = runs.map(run => prepared.display === 'literal' ? run.text : serializeStyledSegment(run)).join('')
     runs.forEach(Object.freeze)

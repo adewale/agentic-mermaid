@@ -146,7 +146,11 @@ function renderPreparedLine(block: PixelTextBlock, index: number, cx: number, an
   // Keep the complete logical line in one shaping context. In particular,
   // spaces do not separate RTL words into left-to-right positioned fragments,
   // and a combining cluster may span formatting descendants.
-  if (block.letterSpacing === 0 || /[^\x20-\x7e]/u.test(line.runs.map(run => run.text).join(''))) return renderDisplayRuns(line.runs)
+  if (/[^\x20-\x7e]/u.test(line.runs.map(run => run.text).join(''))) {
+    const center = anchor === 'start' ? cx + line.width / 2 : anchor === 'end' ? cx - line.width / 2 : cx
+    return `<tspan x="${center}" text-anchor="middle" data-text-fragment="true">${renderDisplayRuns(line.runs)}</tspan>`
+  }
+  if (block.letterSpacing === 0) return renderDisplayRuns(line.runs)
   let x = (anchor === 'middle' ? cx - line.width / 2 : anchor === 'end' ? cx - line.width : cx) + line.originX
   const result: string[] = []
   for (const run of line.runs) {
