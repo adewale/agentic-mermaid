@@ -147,11 +147,34 @@ describe('prepared text at the graphical boundary', () => {
     })
   }
 
+  it.each(['<b> a</b>', 'a <b> </b>b', '<b>a </b>'])('preserves visible spaces across formatting: %s', label => {
+    const block = preparePixelText(label, { fontSize: 18, fontWeight: 500 })
+    expect(renderMultilineText(block, 10, 20, 18, 'font-size="18"')).toContain('xml:space="preserve"')
+  })
+
+  it.each([
+    ['e<b>́</b>e<b>́</b>e<b>́</b>', 0],
+    ['🇺🇸🇬🇧🇫🇷', 10],
+    ['مرحبا بكم', -12],
+    ['ΩΩΩΩΩΩ', 0],
+    ['ШШШШШШ', 0],
+    ['ÄÄÄÄÄÄ', 0],
+    ['mmmmmm é', 0],
+  ] as const)('contains native shaping ink with tracking: %s (%s)', (label, letterSpacing) => {
+    const block = preparePixelText(label, { fontSize: 30, fontWeight: 400, letterSpacing })
+    const width = block.width + 2
+    const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="90" viewBox="0 0 ${width} 90" style="font-family:Inter">${renderMultilineText(block, width / 2, 45, 30, `text-anchor="middle" font-size="30" font-weight="400" letter-spacing="${letterSpacing}"`)}</svg>`
+    const measured = measureRenderedText(svg).texts[0]!
+    expect(measured.pixels).toBeGreaterThan(0)
+    expect(measured.offCanvasPixels).toBe(0)
+    expect(svg).not.toContain('data-text-fragment="true"')
+  })
+
   it('retains complete joining-script text in a shaping run', () => {
-    const label = 'مرحبا'
+    const label = 'مرحبا بكم'
     const block = preparePixelText(label, { ...typography, display: 'literal' })
     const svg = renderMultilineText(block, 100, 30, 18, 'text-anchor="middle" font-size="18"')
-    expect(svg).toContain('>مرحبا<')
+    expect(svg).toContain('>مرحبا بكم<')
     expect(svg).not.toContain('>م</tspan>')
   })
 

@@ -143,7 +143,10 @@ function renderDisplayRuns(segments: readonly DisplayRun[]): string {
  * ordinary untracked single-font runs keep their continuous shaping. */
 function renderPreparedLine(block: PixelTextBlock, index: number, cx: number, anchor: string): string {
   const line = block.lineBlocks[index]!
-  if (block.letterSpacing === 0 && !/[^\x20-\x7e]/u.test(line.runs.map(run => run.text).join(''))) return renderDisplayRuns(line.runs)
+  // Keep the complete logical line in one shaping context. In particular,
+  // spaces do not separate RTL words into left-to-right positioned fragments,
+  // and a combining cluster may span formatting descendants.
+  if (block.letterSpacing === 0 || /[^\x20-\x7e]/u.test(line.runs.map(run => run.text).join(''))) return renderDisplayRuns(line.runs)
   let x = (anchor === 'middle' ? cx - line.width / 2 : anchor === 'end' ? cx - line.width : cx) + line.originX
   const result: string[] = []
   for (const run of line.runs) {
@@ -209,7 +212,8 @@ export function renderMultilineText(
     ? renderPreparedLine(block, index, cx, anchor)
     : renderDisplayLine(line, display)
   if (display === 'literal' && HAS_FORMAT_TAGS.test(value) && !attrs.includes('data-literal-text=')) attrs += ' data-literal-text="true"'
-  if (/(?:^ | $| {2}|\t)/m.test(value) && !attrs.includes('xml:space=')) attrs += ' xml:space="preserve"'
+  const visible = block ? block.lineBlocks.map(line => line.runs.map(run => run.text).join('')).join('\n') : displayText(value, display)
+  if (/(?:^ | $| {2}|\t)/m.test(visible) && !attrs.includes('xml:space=')) attrs += ' xml:space="preserve"'
   if (block) attrs += ' data-prepared-text="true"'
   const advanceAttrs = (i: number) => block && !fragmented ? ` textLength="${block.lineBlocks[i]!.width}" lengthAdjust="spacingAndGlyphs" data-font-metrics="deterministic-fit"` : ''
 

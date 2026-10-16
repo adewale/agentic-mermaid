@@ -1,6 +1,6 @@
 import type { LabelDisplay } from '../multiline-utils.ts'
 import type { TextTransform } from '../types.ts'
-import { LINE_HEIGHT_RATIO, measureTextWidth, measureSystemFontSafeTextWidth, measureMonospaceTextWidth } from '../text-metrics.ts'
+import { LINE_HEIGHT_RATIO, measureTextWidth, measureSystemFontSafeTextWidth, measureMonospaceTextWidth, getCharWidth } from '../text-metrics.ts'
 import { graphemes } from './graphemes.ts'
 import { serializeStyledSegment } from './inline-format.ts'
 import { prepareDisplayText, type DisplayRun, type PreparedDisplayText } from './display-text.ts'
@@ -67,6 +67,17 @@ function advance(runs: readonly DisplayRun[], options: PixelTextOptions): number
   const grouped = coalesce(runs)
   const text = grouped.map(run => run.text).join('')
   const width = options.monospace ? measureMonospaceTextWidth(text, options.fontSize) : grouped.reduce((sum, run) => sum + measure(run.text, options.fontSize, run.bold ? Math.max(700, options.fontWeight) : options.fontWeight), 0)
+  // Native shaping may apply tracking to several code points in a cluster
+  // (flags are a common example). Negative tracking can reverse occupied
+  // intervals; reserve their envelope rather than shrinking to final advance.
+  if (/[^\x20-\x7e]/u.test(text)) {
+    // Unknown fallback faces need an em envelope, rather than the Latin bucket
+    // for Ω/Ш/etc. Count visible code points: a fallback can draw separate
+    // glyphs for components of a flag or a ZWJ cluster. Zero-width marks stay
+    // attached to their base. ASCII sharing this shaping run uses safe metrics.
+    const naturalWidth = grouped.reduce((sum, run) => sum + [...run.text].reduce((line, char) => line + (getCharWidth(char) === 0 ? 0 : /[^\x20-\x7e]/u.test(char) ? options.fontSize * 1.2 : measureSystemFontSafeTextWidth(char, options.fontSize, run.bold ? Math.max(700, options.fontWeight) : options.fontWeight)), 0), 0)
+    return Math.max(width, naturalWidth) + Math.max(0, [...text].length - 1) * Math.abs(options.letterSpacing ?? 0)
+  }
   return (options.letterSpacing ?? 0) < 0 ? trackedBounds(grouped, options).width : Math.max(0, width + Math.max(0, graphemes(text).length - 1) * (options.letterSpacing ?? 0))
 }
 
@@ -174,7 +185,7 @@ export function preparePixelText(source: string, options: PixelTextOptions): Pix
   const lineBlocks = broken.map((runs, i) => {
     const text = runs.map(run => prepared.display === 'literal' ? run.text : serializeStyledSegment(run)).join('')
     runs.forEach(Object.freeze)
-    return Object.freeze({ runs: Object.freeze(runs), text, width: advance(runs, options), baseline: i * lineHeight + options.fontSize * 0.35, originX: (options.letterSpacing ?? 0) < 0 ? trackedBounds(runs, options).originX : 0 })
+    return Object.freeze({ runs: Object.freeze(runs), text, width: advance(runs, options), baseline: i * lineHeight + options.fontSize * 0.35, originX: (options.letterSpacing ?? 0) < 0 && !/[^\x20-\x7e]/u.test(runs.map(run => run.text).join('')) ? trackedBounds(runs, options).originX : 0 })
   })
   const lines = lineBlocks.map(line => line.text)
   Object.freeze(lines)
