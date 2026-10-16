@@ -1,7 +1,9 @@
 import { describe, expect, test } from 'bun:test'
 import { readFileSync } from 'node:fs'
 import { DEFAULT_ARCHITECTURE_VISUAL } from '../architecture/config.ts'
-import { renderContractDigest, renderMermaidSVG } from '../index.ts'
+import { createMermaidRenderer, DefaultBackend, registerBackend, renderContractDigest, renderMermaidSVG } from '../index.ts'
+import { renderedSvgDigest } from '../graphical-render.ts'
+import { SCENE_VALIDATION_LIMITS } from '../scene/scene-validation.ts'
 import { renderMermaidASCIIWithReceipt } from '../ascii/index.ts'
 import { layoutMermaidWithReceipt } from '../agent/core.ts'
 import {
@@ -143,6 +145,55 @@ describe('shared RenderOptions authority', () => {
     })
     expect(renderContractDigest(accessorBacked)).toBe(renderContractDigest({ value: 1 }))
     expect(getterReads).toBe(1)
+  })
+
+  test('graphical digests preserve the established canonical JSON string encoding', () => {
+    expect(renderedSvgDigest('')).toBe('fnv1a64:07cc7607b4949e25')
+    expect(renderedSvgDigest('a"\\\b\f\n\r\t\u0000\u001f/é😀\ud800x\udfff\u2028\u2029'))
+      .toBe('fnv1a64:ab04f0d8cdd45e97')
+  })
+
+  test('graphical digests admit bounded output beyond the request-data character limit', () => {
+    const svg = `<svg><!--${'x'.repeat(2_000_001)}--></svg>`
+    const digest = renderedSvgDigest(svg)
+    expect(digest).toMatch(/^fnv1a64:[0-9a-f]{16}$/)
+    expect(renderedSvgDigest(svg.replace('--></svg>', 'y--></svg>'))).not.toBe(digest)
+    expect(() => renderContractDigest(svg)).toThrow('2000000-character aggregate limit')
+  })
+
+  test('graphical digests retain primitive-string and final SVG byte admission', () => {
+    let coercions = 0
+    expect(() => renderedSvgDigest({ toString() { coercions++; return '<svg/>' } })).toThrow('must be a string')
+    expect(coercions).toBe(0)
+    const oversized = `<svg><!--${'é'.repeat(SCENE_VALIDATION_LIMITS.maxFinalSvgBytes / 2)}--></svg>`
+    expect(oversized.length).toBeLessThan(SCENE_VALIDATION_LIMITS.maxFinalSvgBytes)
+    expect(() => renderedSvgDigest(oversized)).toThrow(`${SCENE_VALIDATION_LIMITS.maxFinalSvgBytes}-byte final SVG limit`)
+  })
+
+  test('public SVG receipts hash admitted large backend output after the final security gate', () => {
+    const id = 'backend:test/large-svg-digest'
+    let padding = ''
+    const unregister = registerBackend({
+      ...DefaultBackend,
+      id,
+      capabilities: DefaultBackend.capabilities.map(claim => ({ ...claim, target: id })),
+      render(document, context) {
+        return DefaultBackend.render(document, context).replace('</svg>', `<!--${padding}--></svg>`)
+      },
+    }, {
+      compatibility: { core: '^0.4.0', scene: '^2.0.0' },
+      provenance: { owner: 'large-svg-digest-test', source: 'test' },
+    })
+    try {
+      padding = 'x'.repeat(2_000_001)
+      const renderer = createMermaidRenderer({ backendPolicy: { selectBackend: () => id } })
+      const result = renderer.renderMermaidSVGWithReceipt('flowchart LR\nA-->B', { embedFontImport: false, security: 'strict' })
+      expect(result.svg.length).toBeGreaterThan(2_000_000)
+      expect(result.svg).toContain(padding)
+      expect(result.receipt.graphicalProjectionDigest).toMatch(/^fnv1a64:[0-9a-f]{16}$/)
+    } finally {
+      unregister()
+    }
   })
 
   test('enforces the authority at the canonical render boundary', () => {

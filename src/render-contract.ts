@@ -1441,7 +1441,12 @@ export function renderContractDigest(value: unknown): string {
   assertJsonConfigAdmission(snapshot, 'render contract digest input', {
     allowUndefinedObjectProperties: true,
   })
-  const text = canonicalJson(snapshot)
+  return canonicalTextDigest(canonicalJson(snapshot))
+}
+
+/** Internal hash primitive for already-admitted canonical JSON text.
+ * Public callers still enter through renderContractDigest's data admission. */
+export function canonicalTextDigest(text: string): string {
   let hash = 0xcbf29ce484222325n
   for (let i = 0; i < text.length; i++) {
     hash ^= BigInt(text.charCodeAt(i))

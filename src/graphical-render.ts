@@ -16,7 +16,7 @@ import { inlineResolvedColors } from './theme.ts'
 import { positionResolvedFamily } from './positioning.ts'
 import {
   receiptOf,
-  renderContractDigest,
+  canonicalTextDigest,
   resolveRenderRequestForExecution,
   resolvedFamilyRenderContextOf,
   resolvedRenderExecutionPlanOf,
@@ -43,6 +43,14 @@ export interface ResolvedGraphicalExecution {
 export interface GraphicalSvgArtifact {
   readonly svg: string
   readonly receipt: RenderRequestReceipt
+}
+
+/** Internal receipt digest for a completed graphical output. SVG already has
+ * its own byte budget; request-data snapshot limits do not constrain artifacts.
+ * Primitive strings cannot change between admission and hashing. */
+export function renderedSvgDigest(value: unknown): string {
+  assertFinalSvgByteBudget(value, 'graphical projection digest input')
+  return canonicalTextDigest(JSON.stringify(value))
 }
 
 function renderContextForPositionedFamily(
@@ -210,7 +218,7 @@ export function executeGraphicalRequest(
     svg: rendered.svg,
     receipt: Object.freeze({
       ...receipt,
-      graphicalProjectionDigest: renderContractDigest(rendered.svg),
+      graphicalProjectionDigest: renderedSvgDigest(rendered.svg),
       executionDecision: rendered.executionDecision,
     }),
   })
