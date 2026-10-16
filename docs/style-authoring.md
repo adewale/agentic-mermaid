@@ -130,8 +130,8 @@ BrandPack registry is deliberately **not promoted**. Render-time semver ranges,
 dependency solving, ambient resource loading, and a second inheritance system
 remain absent.
 
-The [all-family evidence sheet](./design/families/section-b-brand-evidence.png)
-shows one deliberately distinctive sentinel plus three holdout styles; its receipt
+The [reviewed all-family rendering golden](../src/__tests__/testdata/section-b-brand-evidence.png)
+shows one deliberately distinctive sentinel plus three holdout styles; its review record
 and honest hard-error baseline live in `eval/section-b-brand-evidence/`.
 
 Every field is optional in a reusable fragment, but the resolved final stack

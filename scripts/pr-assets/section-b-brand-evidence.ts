@@ -2,7 +2,7 @@
 import { spawnSync } from 'node:child_process'
 import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, symlinkSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
-import { join } from 'node:path'
+import { dirname, join } from 'node:path'
 import { Resvg } from '@resvg/resvg-js'
 import { getFamily, knownBuiltinFamilies } from '../../src/agent/families.ts'
 import { renderMermaidPNG } from '../../src/agent/png.ts'
@@ -11,7 +11,7 @@ import { renderMermaidSVG, validateStyleSpec, type StyleSpec } from '../../src/i
 import { repositoryPath, sha256File } from './artifact-receipt.ts'
 
 const ROOT = join(import.meta.dir, '..', '..')
-export const OUTPUT = join(ROOT, 'docs', 'design', 'families', 'section-b-brand-evidence.png')
+export const OUTPUT = join(ROOT, 'src', '__tests__', 'testdata', 'section-b-brand-evidence.png')
 export const VISUAL_APPROVAL = join(ROOT, 'eval', 'section-b-brand-evidence', 'visual-approval.json')
 export const SECTION_B_BASELINE_COMMIT = 'e60be1e68b5aa51fac205c7cf9e481ea3b27ffc8'
 const README = join(ROOT, 'eval', 'section-b-brand-evidence', 'README.md')
@@ -252,15 +252,15 @@ export function verifySectionBCausalBaseline(): { commit: string; exitCode: numb
   }
 }
 
-/** The human approval must name the exact bytes of the committed sheet. */
+/** The recorded visual review must name the exact bytes of the committed golden. */
 export function sectionBVisualApproval(): ReturnType<typeof verifiedVisualApproval> {
   return verifiedVisualApproval(sha256File(OUTPUT))
 }
 
 if (import.meta.main) {
-  mkdirSync(join(ROOT, 'docs', 'design', 'families'), { recursive: true })
+  mkdirSync(dirname(OUTPUT), { recursive: true })
   mkdirSync(join(ROOT, 'eval', 'section-b-brand-evidence'), { recursive: true })
   writeFileSync(OUTPUT, buildSectionBBrandEvidence())
-  writeFileSync(README, `# Section B visual evidence\n\nThe pinned pre-Section-B commit \`${SECTION_B_BASELINE_COMMIT}\` rejects the public \`roles\` field, so no plausible before image exists. \`baseline.mmd\` and \`role-style.json\` are the exact committed inputs. Reproduce it manually by checking out that commit in a worktree and running \`bun run bin/am.ts render baseline.mmd --format svg --style role-style.json\`; the expected result is exit 2 plus the \`unknown field "roles"\` diagnostic. Routine shallow-history checks verify the frozen inputs and current evidence rather than executing an old checkout.\n\nThe generated after sheet renders every registered family through one deliberately distinctive sentinel and three holdout inline StyleSpec records. Every cell uses the public native PNG API; the unit test also renders the sentinel across all registered families through default, rough, and hybrid SVG+PNG probes. Inspect typography, padding/radius/line-weight changes, cross-family palette coherence, and the Pie card: \`Pro\` remains the family-authored highlighted slice while the sentinel category binding changes its paint without changing wedge geometry. The manual native-size review and deployed-website comparison are recorded by \`visual-approval.json\` and \`production-comparison.md\`. The separate Cupertino-, Vercel-, and Cloudflare Workers-inspired public-record evidence is catalogued in \`examples/styles/catalog.json\` and pinned by \`eval/style-prototype-evidence/visual-approval.json\`.\n\nApproval is intentionally separate from generation: run \`bun run gallery:section-b\` to create a candidate, inspect all 60 cells at native size, and update \`visual-approval.json\` with the candidate SHA-256 and audit path. \`src/__tests__/section-b-visual-evidence.test.ts\` regenerates the sheet in memory, byte-compares it with the committed PNG, and checks that the approval names those exact bytes.\n`)
+  writeFileSync(README, `# Section B visual evidence\n\nThe pinned pre-Section-B commit \`${SECTION_B_BASELINE_COMMIT}\` rejects the public \`roles\` field, so no plausible before image exists. \`baseline.mmd\` and \`role-style.json\` are the exact committed inputs. Reproduce it manually by checking out that commit in a worktree and running \`bun run bin/am.ts render baseline.mmd --format svg --style role-style.json\`; the expected result is exit 2 plus the \`unknown field "roles"\` diagnostic. Routine shallow-history checks verify the frozen inputs and current evidence rather than executing an old checkout.\n\nThe generated after sheet renders every registered family through one deliberately distinctive sentinel and three holdout inline StyleSpec records. Every cell uses the public native PNG API; the unit test also renders the sentinel across all registered families through default, rough, and hybrid SVG+PNG probes. Inspect typography, padding/radius/line-weight changes, cross-family palette coherence, and the Pie card: \`Pro\` remains the family-authored highlighted slice while the sentinel category binding changes its paint without changing wedge geometry. The native-size visual review and deployed-website comparison are recorded by \`visual-approval.json\` and \`production-comparison.md\`. The separate Cupertino-, Vercel-, and Cloudflare Workers-inspired public-record evidence is catalogued in \`examples/styles/catalog.json\` and pinned by \`eval/style-prototype-evidence/visual-approval.json\`.\n\nThe reviewed rendering golden is \`src/__tests__/testdata/section-b-brand-evidence.png\`, under the repository reviewed-golden exception. Approval is intentionally separate from generation: run \`bun run gallery:section-b\` to create a candidate, inspect all registered family-by-variant cells at native size, and update \`visual-approval.json\` with the candidate SHA-256 and audit path. \`src/__tests__/section-b-visual-evidence.test.ts\` regenerates the sheet in memory, byte-compares it with the committed PNG, and checks that the approval names those exact bytes.\n`)
   process.stdout.write(`wrote ${OUTPUT}\n`)
 }
