@@ -1,7 +1,7 @@
 // Same-input production renders at immutable revisions, for PR review only.
 // bun run scripts/pr-assets/meaning-preservation-evidence.ts BASE_SHA HEAD_SHA OUT_DIR
 import { execFileSync } from 'node:child_process'
-import { mkdtempSync, mkdirSync, rmSync, symlinkSync, writeFileSync } from 'node:fs'
+import { mkdtempSync, mkdirSync, readFileSync, rmSync, symlinkSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join, resolve } from 'node:path'
 import type { RenderOptions } from '../../src/types.ts'
@@ -69,6 +69,7 @@ function renderRevision(sha: string): RevisionEvidence {
   try {
     symlinkSync(join(ROOT, 'node_modules'), join(checkout, 'node_modules'), 'dir')
     writeFileSync(join(checkout, 'probe.ts'), `
+      import { writeFileSync } from 'node:fs'
       import { renderMermaidSVG, renderMermaidPNG, parseRegisteredMermaid, asClass, mutate, serializeMermaid } from './src/agent/index.ts'
       import { renderMermaidASCIIWithMeta } from './src/ascii/meta.ts'
       const fixtures = ${JSON.stringify(fixtures)}
@@ -96,9 +97,10 @@ function renderRevision(sha: string): RevisionEvidence {
       if (!diagram) throw new Error('Class witness was not editable')
       const edited = mutate(diagram, { kind: 'remove_class', id: 'A' })
       if (!edited.ok) throw new Error(edited.error.message)
-      console.log(JSON.stringify({ renders, terminals, classExport: serializeMermaid(edited.value) }))
+      writeFileSync('probe-result.json', JSON.stringify({ renders, terminals, classExport: serializeMermaid(edited.value) }))
     `)
-    return JSON.parse(execFileSync(process.execPath, ['probe.ts'], { cwd: checkout, encoding: 'utf8' })) as RevisionEvidence
+    execFileSync(process.execPath, ['probe.ts'], { cwd: checkout, stdio: 'pipe' })
+    return JSON.parse(readFileSync(join(checkout, 'probe-result.json'), 'utf8')) as RevisionEvidence
   } finally {
     execFileSync('git', ['worktree', 'remove', '--force', checkout], { cwd: ROOT, stdio: 'pipe' })
     rmSync(directory, { recursive: true, force: true })
