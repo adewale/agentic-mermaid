@@ -11,7 +11,7 @@ import type {
   GridCoord, DrawingCoord, Direction, AsciiGraph, AsciiNode, AsciiSubgraph, AsciiEdge,
 } from './types.ts'
 import { gridKey, gridCoordDirection } from './types.ts'
-import { mkCanvas, setCanvasSizeToGrid, setRoleCanvasSizeToGrid } from './canvas.ts'
+import { mkCanvas, setCanvasSizeToGrid } from './canvas.ts'
 import { determinePath, determineLabelLine } from './edge-routing.ts'
 import { getPath, mergePath } from './pathfinder.ts'
 import { analyzeEdgeBundles, processBundles } from './edge-bundling.ts'
@@ -288,8 +288,8 @@ function calculateSubgraphBoundingBox(graph: AsciiGraph, sg: AsciiSubgraph): voi
     if (!node.drawingCoord || !node.drawing) continue
     const nodeMinX = node.drawingCoord.x
     const nodeMinY = node.drawingCoord.y
-    const nodeMaxX = nodeMinX + node.drawing.length - 1
-    const nodeMaxY = nodeMinY + node.drawing[0]!.length - 1
+    const nodeMaxX = nodeMinX + node.drawing.width - 1
+    const nodeMaxY = nodeMinY + node.drawing.height - 1
     minX = Math.min(minX, nodeMinX)
     minY = Math.min(minY, nodeMinY)
     maxX = Math.max(maxX, nodeMaxX)
@@ -297,7 +297,7 @@ function calculateSubgraphBoundingBox(graph: AsciiGraph, sg: AsciiSubgraph): voi
   }
 
   const subgraphPadding = 2
-  const subgraphLabelSpace = 2
+  const subgraphLabelSpace = Math.max(2, lineCount(sg.name))
   sg.minX = minX - subgraphPadding
   sg.minY = minY - subgraphPadding - subgraphLabelSpace
   sg.maxX = maxX + subgraphPadding
@@ -307,6 +307,27 @@ function calculateSubgraphBoundingBox(graph: AsciiGraph, sg: AsciiSubgraph): voi
 export function calculateSubgraphBoundingBoxes(graph: AsciiGraph): void {
   for (const sg of graph.subgraphs) {
     calculateSubgraphBoundingBox(graph, sg)
+  }
+}
+
+/** Reserve complete headers in the shared grid before routing or painting. */
+function reserveSubgraphHeaders(graph: AsciiGraph): void {
+  for (const group of graph.subgraphs) {
+    const nodes = group.nodes.filter(node => node.gridCoord !== null)
+    if (!nodes.length) continue
+    const first = nodes.reduce((a, b) => a.gridCoord!.x < b.gridCoord!.x ? a : b)
+    const left = Math.min(...nodes.map(node => gridToDrawingCoord(graph, node.gridCoord!).x))
+    const right = Math.max(...nodes.map(node => {
+      const gc = node.gridCoord!
+      return gridToDrawingCoord(graph, gc).x + (graph.columnWidth.get(gc.x) ?? 0) + (graph.columnWidth.get(gc.x + 1) ?? 0)
+    }))
+    const extraWidth = Math.max(0, maxLineWidth(group.name) + 2 - (right - left + 4))
+    if (extraWidth) {
+      const column = first.gridCoord!.x + 1
+      graph.columnWidth.set(column, (graph.columnWidth.get(column) ?? 0) + extraWidth)
+    }
+    const top = Math.min(...nodes.map(node => node.gridCoord!.y))
+    if (top > 0) graph.rowHeight.set(top - 1, Math.max(graph.rowHeight.get(top - 1) ?? 0, graph.config.paddingY + Math.max(0, lineCount(group.name) - 2)))
   }
 }
 
@@ -717,6 +738,7 @@ export function createMapping(graph: AsciiGraph): void {
   for (const node of graph.nodes) {
     setColumnWidth(graph, node)
   }
+  reserveSubgraphHeaders(graph)
 
   // Analyze edges for bundling (parallel links like A & B --> C)
   // This groups edges that share sources or targets for cleaner visualization
@@ -756,7 +778,6 @@ export function createMapping(graph: AsciiGraph): void {
 
   // Set canvas size and compute subgraph bounding boxes
   setCanvasSizeToGrid(graph.canvas, graph.columnWidth, graph.rowHeight)
-  setRoleCanvasSizeToGrid(graph.roleCanvas, graph.columnWidth, graph.rowHeight)
   calculateSubgraphBoundingBoxes(graph)
   offsetDrawingForSubgraphs(graph)
 }
@@ -817,7 +838,7 @@ function shareSiblingEdgeTrunks(graph: AsciiGraph): void {
     // Bundled edges already share a routed trunk via processBundles; sharing
     // again here would fight that routing (issues #111/#113).
     if (edge.bundle) continue
-    const key = `${edge.from.name}:${edge.startDir.x},${edge.startDir.y}`
+    const key = `${edge.from.name}:${edge.startDir.x},${edge.startDir.y}:${edge.style}:${edge.inlineStyle?.stroke ?? ''}`
     const list = groups.get(key) ?? []
     list.push(edge)
     groups.set(key, list)
@@ -858,6 +879,8 @@ function shareSiblingEdgeTrunks(graph: AsciiGraph): void {
       if (!route) continue
 
       edge.path = [...trunk, ...mergePath(route).slice(1)]
+      first.sharedTrunk ??= `trunk:${first.id ?? first.sourceIndex}`
+      edge.sharedTrunk = first.sharedTrunk
       const key = gridKey(branchPoint)
       if (!junctionKeys.has(key)) {
         graph.trunkJunctions.push(branchPoint)

@@ -84,21 +84,21 @@ export function renderBox(
 
   // Draw horizontal lines (top and bottom)
   for (let x = from.x + 1; x < to.x; x++) {
-    canvas[x]![from.y] = hLine
-    canvas[x]![to.y] = hLine
+    canvas.put(x, from.y, hLine)
+    canvas.put(x, to.y, hLine)
   }
 
   // Draw vertical lines (left and right)
   for (let y = from.y + 1; y < to.y; y++) {
-    canvas[from.x]![y] = vLine
-    canvas[to.x]![y] = vLine
+    canvas.put(from.x, y, vLine)
+    canvas.put(to.x, y, vLine)
   }
 
   // Draw corners
-  canvas[from.x]![from.y] = corners.tl
-  canvas[to.x]![from.y] = corners.tr
-  canvas[from.x]![to.y] = corners.bl
-  canvas[to.x]![to.y] = corners.br
+  canvas.put(from.x, from.y, corners.tl)
+  canvas.put(to.x, from.y, corners.tr)
+  canvas.put(from.x, to.y, corners.bl)
+  canvas.put(to.x, to.y, corners.br)
 
   // Center the multi-line label
   const lines = splitLines(label)

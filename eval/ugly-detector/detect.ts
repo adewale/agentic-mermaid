@@ -22,7 +22,7 @@ export interface Finding { kind: string; severity: 'hard' | 'soft'; detail: stri
 // raster-only sanity hints. detect()/detectSvg()/detectAscii() sort by this so
 // the worst finding is read first instead of in discovery order.
 const IMPACT_RANK: Record<string, number> = {
-  'edge-through-node': 0, 'ascii-edge-through-node': 0, 'node-overlap': 0,
+  'edge-through-node': 0, 'ascii-edge-through-node': 0, 'ascii-label-corrupted': 0, 'node-overlap': 0,
   'diagonal-segment': 1, 'hitch': 1, 'floating-endpoint': 1,
   'png-diagonal-ink': 2,
 }
@@ -231,6 +231,7 @@ export interface AsciiRegion {
   canvasRow: number; canvasColStart: number; canvasColEnd: number; rowSpan?: number
   projectedText?: string
   authoredTextCells?: Array<{ row: number; column: number; glyph: string }>
+  ownedCellSpans?: Array<{ row: number; start: number; end: number }>
 }
 export function detectAscii(ascii: string, regions: AsciiRegion[], options: { useAscii?: boolean } = {}): Finding[] {
   const out: Finding[] = []
@@ -238,6 +239,19 @@ export function detectAscii(ascii: string, regions: AsciiRegion[], options: { us
   const lineGlyphs = options.useAscii ? ASCII_LINE_GLYPHS : UNICODE_LINE_GLYPHS
   for (const r of regions) {
     if (r.kind !== 'node') continue
+    // Native bounds may describe a whole card or repeated/disjoint text. Check
+    // emitted label coordinates directly: borders within a card are expected,
+    // and literal punctuation is text. This also catches non-line corruption.
+    if (r.ownedCellSpans !== undefined) {
+      for (const cell of r.authoredTextCells ?? []) {
+        const actual = displayCellAt(rows[cell.row], cell.column)
+        if (actual !== cell.glyph) {
+          out.push({ kind: 'ascii-label-corrupted', severity: 'hard', detail: `${r.id}: expected text ${JSON.stringify(cell.glyph)} at (${cell.column},${cell.row}), found ${JSON.stringify(actual)}` })
+          break
+        }
+      }
+      continue
+    }
     const authoredCells = new Set((r.authoredTextCells ?? []).map(cell => `${cell.row}\0${cell.column}\0${cell.glyph}`))
     const r0 = r.canvasRow, r1 = r.canvasRow + (r.rowSpan ?? 1)
     for (let gy = r0; gy < r1; gy++) {

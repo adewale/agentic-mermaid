@@ -14,14 +14,16 @@ import {
   Up, Down, Left, Right, UpperLeft, UpperRight, LowerLeft, LowerRight, Middle,
   drawingCoordEquals,
 } from './types.ts'
-import { mkCanvas, copyCanvas, getCanvasSize, mergeCanvases, drawText, mkRoleCanvas, setRole, mergeRoleCanvases } from './canvas.ts'
-import type { RoleCanvas, CharRole } from './types.ts'
+import { mkCanvas, copyCanvas, getCanvasSize, drawText } from './canvas.ts'
+import type { CharRole } from './types.ts'
 import { determineDirection, dirEquals } from './edge-routing.ts'
 import { gridToDrawingCoord, lineToDrawing } from './grid.ts'
 import { splitLines } from './multiline-utils.ts'
-import { visualWidth, truncateToVisualWidth } from './width.ts'
+import { visualWidth } from './width.ts'
 import { getCorners } from './shapes/corners.ts'
 import { getShapeAttachmentPoint } from './shapes/index.ts'
+import { safeCssColor } from '../shared/css-color.ts'
+import type { TerminalOwner } from './terminal-document.ts'
 
 // ============================================================================
 // Node drawing — renders a node using shape-aware rendering
@@ -73,6 +75,9 @@ function drawBoxWithGridDimensions(node: AsciiNode, graph: AsciiGraph): Canvas {
   const to: DrawingCoord = { x: w, y: h }
   const box = mkCanvas(Math.max(from.x, to.x), Math.max(from.y, to.y))
 
+  const parent = graph.subgraphs.filter(group => group.nodes.includes(node)).at(-1)
+  return box.scope({ id: node.name, kind: 'node', ...(parent ? { parentId: parent.id } : {}) }, () => {
+  box.fill(1, 1, Math.max(0, w - 1), Math.max(0, h - 1))
   // Get corner characters for this shape type
   const corners = getCorners(node.shape, useAscii)
 
@@ -88,14 +93,14 @@ function drawBoxWithGridDimensions(node: AsciiNode, graph: AsciiGraph): Canvas {
   const effectiveCorners = isDoubleBox ? doubleCorners : corners
 
   // Draw box border with shape-specific corners
-  for (let x = from.x + 1; x < to.x; x++) box[x]![from.y] = hChar
-  for (let x = from.x + 1; x < to.x; x++) box[x]![to.y] = hChar
-  for (let y = from.y + 1; y < to.y; y++) box[from.x]![y] = vChar
-  for (let y = from.y + 1; y < to.y; y++) box[to.x]![y] = vChar
-  box[from.x]![from.y] = effectiveCorners.tl
-  box[to.x]![from.y] = effectiveCorners.tr
-  box[from.x]![to.y] = effectiveCorners.bl
-  box[to.x]![to.y] = effectiveCorners.br
+  for (let x = from.x + 1; x < to.x; x++) box.put(x, from.y, hChar, { role: 'border' })
+  for (let x = from.x + 1; x < to.x; x++) box.put(x, to.y, hChar, { role: 'border' })
+  for (let y = from.y + 1; y < to.y; y++) box.put(from.x, y, vChar, { role: 'border' })
+  for (let y = from.y + 1; y < to.y; y++) box.put(to.x, y, vChar, { role: 'border' })
+  box.put(from.x, from.y, effectiveCorners.tl, { role: 'border' })
+  box.put(to.x, from.y, effectiveCorners.tr, { role: 'border' })
+  box.put(from.x, to.y, effectiveCorners.bl, { role: 'border' })
+  box.put(to.x, to.y, effectiveCorners.br, { role: 'border' })
 
   // Center the multi-line display label inside the box
   const label = node.displayLabel
@@ -109,7 +114,13 @@ function drawBoxWithGridDimensions(node: AsciiNode, graph: AsciiGraph): Canvas {
     drawText(box, { x: textX, y: startY + i }, line, true)
   }
 
+  for (const [, , cell] of box.entries()) {
+    const color = safeCssColor(cell.kind === 'text' ? node.styleClass.styles.color : node.styleClass.styles.stroke)
+    if (color) cell.color = color
+  }
+
   return box
+  })
 }
 
 /**
@@ -139,6 +150,7 @@ export function drawMultiBox(
   sections: string[][],
   useAscii: boolean,
   padding: number = 1,
+  minSize: { width?: number; height?: number } = {},
 ): Canvas {
   // Compute width: widest line across all sections + 2*padding + 2 border chars
   let maxTextWidth = 0
@@ -148,7 +160,7 @@ export function drawMultiBox(
     }
   }
   const innerWidth = maxTextWidth + 2 * padding
-  const boxWidth = innerWidth + 2 // +2 for left/right border
+  const boxWidth = Math.max(innerWidth + 2, minSize.width ?? 0)
 
   // Compute height: sum of all section line counts + dividers + 2 border rows
   let totalLines = 0
@@ -156,7 +168,7 @@ export function drawMultiBox(
     totalLines += Math.max(section.length, 1) // at least 1 row per section
   }
   const numDividers = sections.length - 1
-  const boxHeight = totalLines + numDividers + 2 // +2 for top/bottom border
+  const boxHeight = Math.max(totalLines + numDividers + 2, minSize.height ?? 0)
 
   // Box-drawing characters
   const hLine = useAscii ? '-' : '─'
@@ -171,19 +183,19 @@ export function drawMultiBox(
   const canvas = mkCanvas(boxWidth - 1, boxHeight - 1)
 
   // Top border
-  canvas[0]![0] = tl
-  for (let x = 1; x < boxWidth - 1; x++) canvas[x]![0] = hLine
-  canvas[boxWidth - 1]![0] = tr
+  canvas.put(0, 0, tl, { role: 'border' })
+  for (let x = 1; x < boxWidth - 1; x++) canvas.put(x, 0, hLine, { role: 'border' })
+  canvas.put(boxWidth - 1, 0, tr, { role: 'border' })
 
   // Bottom border
-  canvas[0]![boxHeight - 1] = bl
-  for (let x = 1; x < boxWidth - 1; x++) canvas[x]![boxHeight - 1] = hLine
-  canvas[boxWidth - 1]![boxHeight - 1] = br
+  canvas.put(0, boxHeight - 1, bl, { role: 'border' })
+  for (let x = 1; x < boxWidth - 1; x++) canvas.put(x, boxHeight - 1, hLine, { role: 'border' })
+  canvas.put(boxWidth - 1, boxHeight - 1, br, { role: 'border' })
 
   // Left and right borders (full height)
   for (let y = 1; y < boxHeight - 1; y++) {
-    canvas[0]![y] = vLine
-    canvas[boxWidth - 1]![y] = vLine
+    canvas.put(0, y, vLine, { role: 'border' })
+    canvas.put(boxWidth - 1, y, vLine, { role: 'border' })
   }
 
   // Render sections with dividers
@@ -201,9 +213,9 @@ export function drawMultiBox(
 
     // Draw divider after each section except the last
     if (s < sections.length - 1) {
-      canvas[0]![row] = divL
-      for (let x = 1; x < boxWidth - 1; x++) canvas[x]![row] = hLine
-      canvas[boxWidth - 1]![row] = divR
+      canvas.put(0, row, divL, { role: 'border' })
+      for (let x = 1; x < boxWidth - 1; x++) canvas.put(x, row, hLine, { role: 'border' })
+      canvas.put(boxWidth - 1, row, divR, { role: 'border' })
       row++
     }
   }
@@ -278,24 +290,24 @@ export function drawLine(
   if (dirEquals(dir, Up)) {
     for (let y = from.y - offsetFrom; y >= to.y - offsetTo; y--) {
       drawnCoords.push({ x: from.x, y })
-      canvas[from.x]![y] = vChar
+      canvas.put(from.x, y, vChar)
     }
   } else if (dirEquals(dir, Down)) {
     for (let y = from.y + offsetFrom; y <= to.y + offsetTo; y++) {
       drawnCoords.push({ x: from.x, y })
-      canvas[from.x]![y] = vChar
+      canvas.put(from.x, y, vChar)
     }
   }
   // Pure horizontal directions
   else if (dirEquals(dir, Left)) {
     for (let x = from.x - offsetFrom; x >= to.x - offsetTo; x--) {
       drawnCoords.push({ x, y: from.y })
-      canvas[x]![from.y] = hChar
+      canvas.put(x, from.y, hChar)
     }
   } else if (dirEquals(dir, Right)) {
     for (let x = from.x + offsetFrom; x <= to.x + offsetTo; x++) {
       drawnCoords.push({ x, y: from.y })
-      canvas[x]![from.y] = hChar
+      canvas.put(x, from.y, hChar)
     }
   }
   // Diagonal directions: use Manhattan routing (horizontal-first, then vertical)
@@ -304,12 +316,12 @@ export function drawLine(
     // Horizontal segment: from.x -> to.x (going left)
     for (let x = from.x - offsetFrom; x >= to.x; x--) {
       drawnCoords.push({ x, y: from.y })
-      canvas[x]![from.y] = hChar
+      canvas.put(x, from.y, hChar)
     }
     // Vertical segment: from.y -> to.y (going up)
     for (let y = from.y - 1; y >= to.y - offsetTo; y--) {
       drawnCoords.push({ x: to.x, y })
-      canvas[to.x]![y] = vChar
+      canvas.put(to.x, y, vChar)
     }
   }
   // UpperRight: go right first, then up
@@ -317,12 +329,12 @@ export function drawLine(
     // Horizontal segment: from.x -> to.x (going right)
     for (let x = from.x + offsetFrom; x <= to.x; x++) {
       drawnCoords.push({ x, y: from.y })
-      canvas[x]![from.y] = hChar
+      canvas.put(x, from.y, hChar)
     }
     // Vertical segment: from.y -> to.y (going up)
     for (let y = from.y - 1; y >= to.y - offsetTo; y--) {
       drawnCoords.push({ x: to.x, y })
-      canvas[to.x]![y] = vChar
+      canvas.put(to.x, y, vChar)
     }
   }
   // LowerLeft: go left first, then down
@@ -330,12 +342,12 @@ export function drawLine(
     // Horizontal segment: from.x -> to.x (going left)
     for (let x = from.x - offsetFrom; x >= to.x; x--) {
       drawnCoords.push({ x, y: from.y })
-      canvas[x]![from.y] = hChar
+      canvas.put(x, from.y, hChar)
     }
     // Vertical segment: from.y -> to.y (going down)
     for (let y = from.y + 1; y <= to.y + offsetTo; y++) {
       drawnCoords.push({ x: to.x, y })
-      canvas[to.x]![y] = vChar
+      canvas.put(to.x, y, vChar)
     }
   }
   // LowerRight: go right first, then down
@@ -347,18 +359,18 @@ export function drawLine(
       // Draw vertical line at from.x (source's x-coordinate)
       for (let y = from.y + offsetFrom; y <= to.y + offsetTo; y++) {
         drawnCoords.push({ x: from.x, y })
-        canvas[from.x]![y] = vChar
+        canvas.put(from.x, y, vChar)
       }
     } else {
       // Horizontal segment: from.x -> to.x (going right)
       for (let x = from.x + offsetFrom; x <= to.x; x++) {
         drawnCoords.push({ x, y: from.y })
-        canvas[x]![from.y] = hChar
+        canvas.put(x, from.y, hChar)
       }
       // Vertical segment: from.y -> to.y (going down)
       for (let y = from.y + 1; y <= to.y + offsetTo; y++) {
         drawnCoords.push({ x: to.x, y })
-        canvas[to.x]![y] = vChar
+        canvas.put(to.x, y, vChar)
       }
     }
   }
@@ -429,6 +441,7 @@ export function drawArrow(
   const endPoint = edge.toSubgraph
     ? baseEndPoint
     : laneOffset === 0 ? undefined : { x: baseEndPoint.x, y: baseEndPoint.y + laneOffset }
+  recordGraphPorts(graph, edge, startPoint, endPoint ?? baseEndPoint)
   const labelCanvas = drawArrowLabel(graph, edge, laneOffset)
   const [pathCanvas, linesDrawn, lineDirs] = drawPath(graph, edge.path, edge.style, startPoint, endPoint)
   const isStatePseudo = !edge.fromSubgraph && (edge.from.shape === 'state-start' || edge.from.shape === 'state-end')
@@ -509,6 +522,7 @@ function drawContainerEdge(
   if (poly.length < 2) return [empty, empty, empty, empty, empty, empty]
 
   // Draw the polyline segments.
+  recordGraphPorts(graph, edge, poly[0]!, poly.at(-1)!)
   const pathCanvas = copyCanvas(graph.canvas)
   const useAscii = graph.config.useAscii
   // Mirror standard drawPath: every segment skips its first and last cell so
@@ -542,7 +556,7 @@ function drawContainerEdge(
     const next = poly[i + 1]!
     const prevDir = determineDirection(prev, coord)
     const nextDir = determineDirection(coord, next)
-    cornersCanvas[coord.x]![coord.y] = cornerChar(prevDir, nextDir, useAscii)
+    cornersCanvas.put(coord.x, coord.y, cornerChar(prevDir, nextDir, useAscii))
   }
 
   // Arrowhead at the END of the edge.
@@ -553,12 +567,12 @@ function drawContainerEdge(
     const arrowDir = determineDirection(beforeLast, last)
     if (edge.attachToSubgraph) {
       // Terminal is the container border — draw the arrowhead on it.
-      arrowHeadEndCanvas[last.x]![last.y] = arrowHeadChar(arrowDir, useAscii)
+      arrowHeadEndCanvas.put(last.x, last.y, arrowHeadChar(arrowDir, useAscii))
     } else {
       // Terminal is a real node — draw the arrowhead one cell before its border
       // (matching standard edges, which use offsetTo=-1).
       const tip = stepBack(last, arrowDir)
-      arrowHeadEndCanvas[tip.x]![tip.y] = arrowHeadChar(arrowDir, useAscii)
+      arrowHeadEndCanvas.put(tip.x, tip.y, arrowHeadChar(arrowDir, useAscii))
     }
   }
 
@@ -568,7 +582,7 @@ function drawContainerEdge(
     const first = poly[0]!
     const second = poly[1]!
     const startDir = determineDirection(second, first)
-    arrowHeadStartCanvas[first.x]![first.y] = arrowHeadChar(startDir, useAscii)
+    arrowHeadStartCanvas.put(first.x, first.y, arrowHeadChar(startDir, useAscii))
   }
 
   const labelCanvas = drawArrowLabel(graph, edge)
@@ -790,10 +804,10 @@ function drawBoxStart(
   const canvas = copyCanvas(graph.canvas)
   if (graph.config.useAscii) return canvas
 
-  if (dirEquals(startDir, Up)) canvas[startPoint.x]![startPoint.y] = '┴'
-  else if (dirEquals(startDir, Down)) canvas[startPoint.x]![startPoint.y] = '┬'
-  else if (dirEquals(startDir, Left)) canvas[startPoint.x]![startPoint.y] = '┤'
-  else if (dirEquals(startDir, Right)) canvas[startPoint.x]![startPoint.y] = '├'
+  if (dirEquals(startDir, Up)) canvas.put(startPoint.x, startPoint.y, '┴')
+  else if (dirEquals(startDir, Down)) canvas.put(startPoint.x, startPoint.y, '┬')
+  else if (dirEquals(startDir, Left)) canvas.put(startPoint.x, startPoint.y, '┤')
+  else if (dirEquals(startDir, Right)) canvas.put(startPoint.x, startPoint.y, '├')
 
   return canvas
 }
@@ -813,7 +827,7 @@ function drawEndpointMarker(
     const canvas = copyCanvas(graph.canvas)
     if (lastLine.length === 0) return canvas
     const lastPos = lastLine[lastLine.length - 1]!
-    canvas[lastPos.x]![lastPos.y] = endpointMarkerChar(marker, graph.config.useAscii)
+    canvas.put(lastPos.x, lastPos.y, endpointMarkerChar(marker, graph.config.useAscii))
     return canvas
   }
 
@@ -874,7 +888,7 @@ function drawArrowHead(
     }
   }
 
-  canvas[lastPos.x]![lastPos.y] = char
+  canvas.put(lastPos.x, lastPos.y, char)
   return canvas
 }
 
@@ -919,7 +933,7 @@ function drawCorners(graph: AsciiGraph, path: GridCoord[]): Canvas {
       corner = '+'
     }
 
-    canvas[dc.x]![dc.y] = corner
+    canvas.put(dc.x, dc.y, corner)
   }
 
   return canvas
@@ -949,7 +963,7 @@ function drawArrowLabel(graph: AsciiGraph, edge: AsciiEdge, laneOffset = 0): Can
 
   const isLeftwardEdge = edge.path.length >= 2
     && edge.path[edge.path.length - 1]!.x < edge.path[0]!.x
-  drawTextOnLine(canvas, drawingLine, edge.text, isUpwardEdge, isLeftwardEdge)
+  canvas.scope(terminalEdgeOwner(graph, edge), () => drawTextOnLine(canvas, drawingLine, edge.text, isUpwardEdge, isLeftwardEdge))
   return canvas
 }
 
@@ -1156,7 +1170,7 @@ function drawBundledEdgeSegment(
       corner = '+'
     }
 
-    cornersCanvas[dc.x]![dc.y] = corner
+    cornersCanvas.put(dc.x, dc.y, corner)
   }
 
   // Draw box start connector (for fan-in, from source node)
@@ -1168,10 +1182,10 @@ function drawBundledEdgeSegment(
     const dir = determineDirection(edge.pathToJunction[0]!, edge.pathToJunction[1]!)
 
     if (!useAscii) {
-      if (dirEquals(dir, Up)) boxStartCanvas[firstPoint.x]![firstPoint.y] = '┴'
-      else if (dirEquals(dir, Down)) boxStartCanvas[firstPoint.x]![firstPoint.y] = '┬'
-      else if (dirEquals(dir, Left)) boxStartCanvas[firstPoint.x]![firstPoint.y] = '┤'
-      else if (dirEquals(dir, Right)) boxStartCanvas[firstPoint.x]![firstPoint.y] = '├'
+      if (dirEquals(dir, Up)) boxStartCanvas.put(firstPoint.x, firstPoint.y, '┴')
+      else if (dirEquals(dir, Down)) boxStartCanvas.put(firstPoint.x, firstPoint.y, '┬')
+      else if (dirEquals(dir, Left)) boxStartCanvas.put(firstPoint.x, firstPoint.y, '┤')
+      else if (dirEquals(dir, Right)) boxStartCanvas.put(firstPoint.x, firstPoint.y, '├')
     }
   }
 
@@ -1253,7 +1267,7 @@ function drawBundleSharedPath(graph: AsciiGraph, bundle: EdgeBundle): [Canvas, C
       corner = '+'
     }
 
-    cornersCanvas[dc.x]![dc.y] = corner
+    cornersCanvas.put(dc.x, dc.y, corner)
   }
 
   return [pathCanvas, cornersCanvas]
@@ -1299,7 +1313,7 @@ function drawBundleArrowhead(graph: AsciiGraph, bundle: EdgeBundle): Canvas {
     else char = 'v'  // default
   }
 
-  canvas[dc.x]![dc.y] = char
+  canvas.put(dc.x, dc.y, char)
   return canvas
 }
 
@@ -1341,7 +1355,7 @@ function drawBundledEdgeArrowhead(graph: AsciiGraph, edge: AsciiEdge): Canvas {
     else char = 'v'  // default
   }
 
-  canvas[dc.x]![dc.y] = char
+  canvas.put(dc.x, dc.y, char)
   return canvas
 }
 
@@ -1443,7 +1457,7 @@ function drawJunctionCharacter(graph: AsciiGraph, bundle: EdgeBundle): Canvas {
     char = '+'
   }
 
-  canvas[dc.x]![dc.y] = char
+  canvas.put(dc.x, dc.y, char)
   return canvas
 }
 
@@ -1462,23 +1476,23 @@ export function drawSubgraphBox(sg: AsciiSubgraph, graph: AsciiGraph): Canvas {
   const canvas = mkCanvas(width, height)
 
   if (!graph.config.useAscii) {
-    for (let x = from.x + 1; x < to.x; x++) canvas[x]![from.y] = '─'
-    for (let x = from.x + 1; x < to.x; x++) canvas[x]![to.y] = '─'
-    for (let y = from.y + 1; y < to.y; y++) canvas[from.x]![y] = '│'
-    for (let y = from.y + 1; y < to.y; y++) canvas[to.x]![y] = '│'
-    canvas[from.x]![from.y] = '┌'
-    canvas[to.x]![from.y] = '┐'
-    canvas[from.x]![to.y] = '└'
-    canvas[to.x]![to.y] = '┘'
+    for (let x = from.x + 1; x < to.x; x++) canvas.put(x, from.y, '─')
+    for (let x = from.x + 1; x < to.x; x++) canvas.put(x, to.y, '─')
+    for (let y = from.y + 1; y < to.y; y++) canvas.put(from.x, y, '│')
+    for (let y = from.y + 1; y < to.y; y++) canvas.put(to.x, y, '│')
+    canvas.put(from.x, from.y, '┌')
+    canvas.put(to.x, from.y, '┐')
+    canvas.put(from.x, to.y, '└')
+    canvas.put(to.x, to.y, '┘')
   } else {
-    for (let x = from.x + 1; x < to.x; x++) canvas[x]![from.y] = '-'
-    for (let x = from.x + 1; x < to.x; x++) canvas[x]![to.y] = '-'
-    for (let y = from.y + 1; y < to.y; y++) canvas[from.x]![y] = '|'
-    for (let y = from.y + 1; y < to.y; y++) canvas[to.x]![y] = '|'
-    canvas[from.x]![from.y] = '+'
-    canvas[to.x]![from.y] = '+'
-    canvas[from.x]![to.y] = '+'
-    canvas[to.x]![to.y] = '+'
+    for (let x = from.x + 1; x < to.x; x++) canvas.put(x, from.y, '-')
+    for (let x = from.x + 1; x < to.x; x++) canvas.put(x, to.y, '-')
+    for (let y = from.y + 1; y < to.y; y++) canvas.put(from.x, y, '|')
+    for (let y = from.y + 1; y < to.y; y++) canvas.put(to.x, y, '|')
+    canvas.put(from.x, from.y, '+')
+    canvas.put(to.x, from.y, '+')
+    canvas.put(from.x, to.y, '+')
+    canvas.put(to.x, to.y, '+')
   }
 
   return canvas
@@ -1496,13 +1510,13 @@ export function drawSubgraphLabel(sg: AsciiSubgraph, graph: AsciiGraph): [Canvas
   const lines = splitLines(sg.name)
 
   // Start at row 1 inside subgraph, expand downward for multiple lines
-  for (let i = 0; i < lines.length; i++) {
-    const line = truncateToVisualWidth(lines[i]!, Math.max(0, width - 1))
+  canvas.scope({ id: sg.id, kind: 'subgraph' }, () => { for (let i = 0; i < lines.length; i++) {
+    const line = lines[i]!
     const labelY = 1 + i
     let labelX = Math.floor(width / 2) - Math.floor(visualWidth(line) / 2)
     if (labelX < 1) labelX = 1
     if (labelY < height) drawText(canvas, { x: labelX, y: labelY }, line, true)
-  }
+  } })
 
   return [canvas, { x: sg.minX, y: sg.minY }]
 }
@@ -1528,7 +1542,7 @@ function drawConcurrencyRegionSeparators(graph: AsciiGraph): Canvas {
         const x = Math.round((ordered[index - 1]!.maxX + ordered[index]!.minX) / 2)
         const top = Math.max(parent.minY + 3, Math.min(...regions.map(region => region.minY)))
         const bottom = Math.min(parent.maxY - 1, Math.max(...regions.map(region => region.maxY)))
-        for (let y = top; y <= bottom; y++) canvas[x]![y] = graph.config.useAscii ? ':' : '┆'
+        for (let y = top; y <= bottom; y++) canvas.put(x, y, graph.config.useAscii ? ':' : '┆', { owner: { id: parent.id, kind: 'subgraph' }, role: 'border' })
       }
     } else {
       const ordered = [...regions].sort((a, b) => a.minY - b.minY)
@@ -1536,7 +1550,7 @@ function drawConcurrencyRegionSeparators(graph: AsciiGraph): Canvas {
         const y = Math.round((ordered[index - 1]!.maxY + ordered[index]!.minY) / 2)
         const left = Math.max(parent.minX + 1, Math.min(...regions.map(region => region.minX)))
         const right = Math.min(parent.maxX - 1, Math.max(...regions.map(region => region.maxX)))
-        for (let x = left; x <= right; x++) canvas[x]![y] = graph.config.useAscii ? '.' : '┄'
+        for (let x = left; x <= right; x++) canvas.put(x, y, graph.config.useAscii ? '.' : '┄', { owner: { id: parent.id, kind: 'subgraph' }, role: 'border' })
       }
     }
   }
@@ -1552,218 +1566,95 @@ function sortSubgraphsByDepth(subgraphs: AsciiSubgraph[]): AsciiSubgraph[] {
   return sorted
 }
 
-// ============================================================================
-// Role tracking helpers for colored output
-// ============================================================================
-
-/**
- * Fill roles for all non-space characters in a canvas region.
- * Used after drawing a layer to record what role those characters have.
- */
-function fillRolesFromCanvas(
-  roleCanvas: RoleCanvas,
-  canvas: Canvas,
-  offset: DrawingCoord,
-  role: CharRole,
-): void {
-  for (let x = 0; x < canvas.length; x++) {
-    for (let y = 0; y < (canvas[0]?.length ?? 0); y++) {
-      const char = canvas[x]?.[y]
-      if (char && char !== ' ') {
-        const rx = x + offset.x
-        const ry = y + offset.y
-        // Use setRole which auto-expands the role canvas if needed
-        if (rx >= 0 && ry >= 0) {
-          setRole(roleCanvas, rx, ry, role)
-        }
-      }
-    }
+/** Compose positioned sparse layers; identity and roles come from their owners. */
+function terminalEdgeOwner(graph: AsciiGraph, edge: AsciiEdge): TerminalOwner {
+  return {
+    id: edge.id ?? `edge#${edge.sourceIndex ?? graph.edges.indexOf(edge)}:${edge.from.name}->${edge.to.name}`,
+    kind: 'edge',
+    from: edge.attachFromSubgraph?.id ?? edge.fromSubgraph?.id ?? edge.from.name,
+    to: edge.attachToSubgraph?.id ?? edge.toSubgraph?.id ?? edge.to.name,
+    ...(edge.bundle ? { bundle: `bundle:${graph.bundles.indexOf(edge.bundle)}` } : edge.sharedTrunk ? { bundle: edge.sharedTrunk } : {}),
   }
 }
 
-/**
- * Fill roles for multiple canvases with the same role.
- */
-function fillRolesFromCanvases(
-  roleCanvas: RoleCanvas,
-  canvases: Canvas[],
-  offset: DrawingCoord,
-  role: CharRole,
-): void {
-  for (const canvas of canvases) {
-    fillRolesFromCanvas(roleCanvas, canvas, offset, role)
-  }
+function recordGraphPorts(graph: AsciiGraph, edge: AsciiEdge, start: DrawingCoord, end: DrawingCoord): void {
+  const owner = terminalEdgeOwner(graph, edge)
+  const side = (direction: Direction) => dirEquals(direction, Up) ? 'T' as const : dirEquals(direction, Down) ? 'B' as const : dirEquals(direction, Left) ? 'L' as const : 'R' as const
+  graph.canvas.port(owner, { nodeId: owner.from!, ...start, side: side(edge.startDir), end: 'start' })
+  graph.canvas.port(owner, { nodeId: owner.to!, ...end, side: side(edge.endDir), end: 'end' })
 }
 
-/**
- * Special handling for node boxes: border chars get 'border' role, text gets 'text' role.
- * Detects text by checking if character is alphanumeric or common punctuation.
- */
-function fillRolesForNodeBox(
-  roleCanvas: RoleCanvas,
-  canvas: Canvas,
-  offset: DrawingCoord,
-): void {
-  const isBorderChar = (c: string) => /^[┌┐└┘├┤┬┴┼│─╭╮╰╯+\-|.':]$/.test(c)
-
-  for (let x = 0; x < canvas.length; x++) {
-    for (let y = 0; y < (canvas[0]?.length ?? 0); y++) {
-      const char = canvas[x]?.[y]
-      if (char && char !== ' ') {
-        const rx = x + offset.x
-        const ry = y + offset.y
-        // Use setRole which auto-expands the role canvas if needed
-        if (rx >= 0 && ry >= 0) {
-          setRole(roleCanvas, rx, ry, isBorderChar(char) ? 'border' : 'text')
-        }
-      }
-    }
-  }
-}
-
-/**
- * Main draw function — renders the entire graph onto the canvas.
- * Drawing order matters for correct layering:
- * 1. Subgraph borders (bottom layer)
- * 2. Node boxes
- * 3. Edge paths (lines)
- * 4. Edge corners
- * 5. Arrowheads
- * 6. Box-start junctions
- * 7. Edge labels
- * 8. Subgraph labels (top layer)
- *
- * Also fills the roleCanvas with character roles for colored output.
- */
 export function drawGraph(graph: AsciiGraph): Canvas {
-  const useAscii = graph.config.useAscii
-  const zero: DrawingCoord = { x: 0, y: 0 }
-
-  // Draw subgraph borders
-  const sortedSgs = sortSubgraphsByDepth(graph.subgraphs)
-  for (const sg of sortedSgs) {
-    if (sg.concurrencyRegion) continue
-    const sgCanvas = drawSubgraphBox(sg, graph)
-    const offset: DrawingCoord = { x: sg.minX, y: sg.minY }
-    graph.canvas = mergeCanvases(graph.canvas, offset, useAscii, sgCanvas)
-    // Subgraph borders get 'border' role
-    fillRolesFromCanvas(graph.roleCanvas, sgCanvas, offset, 'border')
+  const document = graph.canvas
+  const parentFor = new Map(graph.subgraphs.flatMap(group => group.nodes.map(node => [node.name, group.id] as const)))
+  for (const group of sortSubgraphsByDepth(graph.subgraphs)) {
+    const owner = {
+      id: group.id, kind: 'subgraph' as const,
+      ...(group.parent ? { parentId: group.parent.id } : {}),
+      members: [...group.nodes.filter(node => !node.containerAnchor).map(node => node.name), ...group.children.map(child => child.id)],
+    }
+    document.region(owner, { x: group.minX, y: group.minY, width: group.maxX - group.minX + 1, height: group.maxY - group.minY + 1 })
+    if (!group.concurrencyRegion) document.overlay(drawSubgraphBox(group, graph).attribute(owner, { role: 'border' }), group.minX, group.minY)
   }
-
-  const regionSeparators = drawConcurrencyRegionSeparators(graph)
-  graph.canvas = mergeCanvases(graph.canvas, zero, useAscii, regionSeparators)
-  fillRolesFromCanvas(graph.roleCanvas, regionSeparators, zero, 'border')
-
-  // Draw node boxes
+  document.overlay(drawConcurrencyRegionSeparators(graph))
   for (const node of graph.nodes) {
     if (!node.drawn && node.drawingCoord && node.drawing) {
-      graph.canvas = mergeCanvases(graph.canvas, node.drawingCoord, useAscii, node.drawing)
-      // Node boxes: detect border vs text characters
-      fillRolesForNodeBox(graph.roleCanvas, node.drawing, node.drawingCoord)
+      const owner = { id: node.name, kind: 'node' as const, ...(parentFor.has(node.name) ? { parentId: parentFor.get(node.name)! } : {}) }
+      document.overlay(node.drawing.attribute(owner, { role: 'border' }), node.drawingCoord.x, node.drawingCoord.y)
       node.drawn = true
     }
   }
 
-  // Collect all edge drawing layers
-  const lineCanvases: Canvas[] = []
-  const cornerCanvases: Canvas[] = []
-  const arrowHeadEndCanvases: Canvas[] = []
-  const arrowHeadStartCanvases: Canvas[] = []
-  const boxStartCanvases: Canvas[] = []
-  const labelCanvases: Canvas[] = []
-  const junctionCanvases: Canvas[] = []
-
-  // Track which bundles have been processed (to draw shared paths only once)
-  const processedBundles = new Set<EdgeBundle>()
-
+  // Global paint order remains explicit, while each layer stores touched cells only.
+  const layers: Canvas[][] = Array.from({ length: 7 }, () => [])
+  const edgeOwner = (edge: AsciiEdge) => terminalEdgeOwner(graph, edge)
+  const edgeStyles = new Map(graph.edges.map(edge => [edgeOwner(edge).id, edge.inlineStyle]))
+  const add = (stage: number, drawing: Canvas, owners: ReturnType<typeof edgeOwner> | ReturnType<typeof edgeOwner>[], role: CharRole): void => {
+    const first = Array.isArray(owners) ? owners[0]! : owners
+    const style = edgeStyles.get(first.id)
+    const color = safeCssColor(role === 'text' ? style?.color ?? style?.stroke : style?.stroke)
+    layers[stage]!.push(drawing.attribute(owners, { role, ...(color ? { color } : {}), ...(role === 'arrow' ? { kind: 'marker' as const } : {}) }))
+  }
+  const processed = new Set<EdgeBundle>()
   for (const edge of graph.edges) {
-    // Handle bundled edges specially
+    const owner = edgeOwner(edge)
     if (edge.bundle && edge.pathToJunction) {
       const bundle = edge.bundle
-
-      // Draw this edge's individual path (source → junction for fan-in, junction → target for fan-out)
-      const [pathC, boxStartC, , , cornersC, labelC] = drawBundledEdgeSegment(graph, edge, bundle)
-      lineCanvases.push(pathC)
-      cornerCanvases.push(cornersC)
-      boxStartCanvases.push(boxStartC)
-      labelCanvases.push(labelC)
-
-      // Draw the bundle's shared path and arrowhead only once
-      if (!processedBundles.has(bundle)) {
-        processedBundles.add(bundle)
-
-        // Draw shared path (junction → target for fan-in, source → junction for fan-out)
-        const [sharedPathC, sharedCornersC] = drawBundleSharedPath(graph, bundle)
-        lineCanvases.push(sharedPathC)
-        cornerCanvases.push(sharedCornersC)
-
-        // Draw arrowhead at target for fan-in (once for all edges in bundle)
-        if (bundle.type === 'fan-in') {
-          const arrowHeadC = drawBundleArrowhead(graph, bundle)
-          arrowHeadEndCanvases.push(arrowHeadC)
-        }
-
-        // Draw junction character
-        const junctionC = drawJunctionCharacter(graph, bundle)
-        junctionCanvases.push(junctionC)
+      recordGraphPorts(graph, edge, getNodeAttachmentPoint(graph, edge.from, edge.startDir), getNodeAttachmentPoint(graph, edge.to, edge.endDir))
+      const [path, start, , , corners, label] = drawBundledEdgeSegment(graph, edge, bundle)
+      add(0, path, owner, 'line'); add(1, corners, owner, 'corner')
+      add(4, start, owner, 'junction'); add(6, label, owner, 'text')
+      if (!processed.has(bundle)) {
+        processed.add(bundle)
+        const owners = bundle.edges.map(edgeOwner)
+        const [shared, sharedCorners] = drawBundleSharedPath(graph, bundle)
+        add(0, shared, owners, 'line'); add(1, sharedCorners, owners, 'corner')
+        if (bundle.type === 'fan-in') add(3, drawBundleArrowhead(graph, bundle), owners, 'arrow')
+        add(2, drawJunctionCharacter(graph, bundle), owners, 'junction')
       }
-
-      // For fan-out bundles, draw arrowhead at each target
-      if (bundle.type === 'fan-out' && edge.hasArrowEnd) {
-        const arrowHeadC = drawBundledEdgeArrowhead(graph, edge)
-        arrowHeadEndCanvases.push(arrowHeadC)
-      }
+      if (bundle.type === 'fan-out' && edge.hasArrowEnd) add(3, drawBundledEdgeArrowhead(graph, edge), owner, 'arrow')
     } else {
-      // Non-bundled edge: use standard drawing
-      const [pathC, boxStartC, arrowHeadEndC, arrowHeadStartC, cornersC, labelC] = drawArrow(graph, edge)
-      lineCanvases.push(pathC)
-      cornerCanvases.push(cornersC)
-      arrowHeadEndCanvases.push(arrowHeadEndC)
-      arrowHeadStartCanvases.push(arrowHeadStartC)
-      boxStartCanvases.push(boxStartC)
-      labelCanvases.push(labelC)
+      const [path, start, endHead, startHead, corners, label] = drawArrow(graph, edge)
+      add(0, path, owner, 'line'); add(1, corners, owner, 'corner')
+      add(3, endHead, owner, 'arrow'); add(4, start, owner, 'junction')
+      add(5, startHead, owner, 'arrow'); add(6, label, owner, 'text')
     }
   }
-
-  // Merge edge layers in order and track roles
-  // Note: arrowHeadStart is merged AFTER boxStart so bidirectional arrows
-  // properly overwrite the box connector at the source end
-  graph.canvas = mergeCanvases(graph.canvas, zero, useAscii, ...lineCanvases)
-  fillRolesFromCanvases(graph.roleCanvas, lineCanvases, zero, 'line')
-
-  graph.canvas = mergeCanvases(graph.canvas, zero, useAscii, ...cornerCanvases)
-  fillRolesFromCanvases(graph.roleCanvas, cornerCanvases, zero, 'corner')
-
-  graph.canvas = mergeCanvases(graph.canvas, zero, useAscii, ...junctionCanvases)
-  fillRolesFromCanvases(graph.roleCanvas, junctionCanvases, zero, 'junction')
-
-  graph.canvas = mergeCanvases(graph.canvas, zero, useAscii, ...arrowHeadEndCanvases)
-  fillRolesFromCanvases(graph.roleCanvas, arrowHeadEndCanvases, zero, 'arrow')
-
-  graph.canvas = mergeCanvases(graph.canvas, zero, useAscii, ...boxStartCanvases)
-  fillRolesFromCanvases(graph.roleCanvas, boxStartCanvases, zero, 'junction')
-
-  graph.canvas = mergeCanvases(graph.canvas, zero, useAscii, ...arrowHeadStartCanvases)
-  fillRolesFromCanvases(graph.roleCanvas, arrowHeadStartCanvases, zero, 'arrow')
-
-  const trunkJunctionCanvas = copyCanvas(graph.canvas)
-  for (const jc of graph.trunkJunctions) {
-    const dc = gridToDrawingCoord(graph, jc)
-    trunkJunctionCanvas[dc.x]![dc.y] = useAscii ? '+' : (graph.config.graphDirection === 'LR' ? '├' : '┬')
+  for (let stage = 0; stage < layers.length; stage++) {
+    if (stage === 6) for (const junction of graph.trunkJunctions) {
+      const point = gridToDrawingCoord(graph, junction)
+      const current = document.cell(point.x, point.y)
+      const drawing = copyCanvas(document)
+      drawing.put(point.x, point.y, graph.config.useAscii ? '+' : graph.config.graphDirection === 'LR' ? '├' : '┬', { role: 'junction' })
+      if (current?.owners.length) drawing.attribute(current.owners)
+      document.overlay(drawing)
+    }
+    for (const drawing of layers[stage]!) document.overlay(drawing)
   }
-  graph.canvas = mergeCanvases(graph.canvas, zero, useAscii, trunkJunctionCanvas)
-  fillRolesFromCanvas(graph.roleCanvas, trunkJunctionCanvas, zero, 'junction')
-
-  graph.canvas = mergeCanvases(graph.canvas, zero, useAscii, ...labelCanvases)
-  fillRolesFromCanvases(graph.roleCanvas, labelCanvases, zero, 'text')
-
-  // Draw subgraph labels last (on top)
-  for (const sg of graph.subgraphs) {
-    if (sg.nodes.length === 0 || sg.concurrencyRegion) continue
-    const [labelCanvas, offset] = drawSubgraphLabel(sg, graph)
-    graph.canvas = mergeCanvases(graph.canvas, offset, useAscii, labelCanvas)
-    fillRolesFromCanvas(graph.roleCanvas, labelCanvas, offset, 'text')
+  for (const group of graph.subgraphs) {
+    if (group.nodes.length === 0 || group.concurrencyRegion) continue
+    const [label, offset] = drawSubgraphLabel(group, graph)
+    document.overlay(label.attribute({ id: group.id, kind: 'subgraph' }, { role: 'text' }), offset.x, offset.y)
   }
-
-  return graph.canvas
+  return document
 }

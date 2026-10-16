@@ -9,41 +9,20 @@ import { parseJourneyDiagram } from '../journey/parser.ts'
 import type { JourneyDiagram } from '../journey/types.ts'
 import { preprocessMermaidLines } from '../mermaid-source.ts'
 import { displayText } from '../multiline-utils.ts'
-import { colorizeLine, DEFAULT_ASCII_THEME } from './ansi.ts'
-import type { AsciiConfig, AsciiTheme, CharRole, ColorMode } from './types.ts'
+import { DEFAULT_ASCII_THEME } from './ansi.ts'
+import { TerminalDocument, finishTerminalDocument, type TerminalOwner, type TerminalRun } from './terminal-document.ts'
+import type { AsciiConfig, AsciiTheme, ColorMode } from './types.ts'
 import { visualWidth } from './width.ts'
 import { wrapText } from './wrap.ts'
 import { resolveRoleStyle, type InternalStyleFace } from '../scene/style-registry.ts'
 
-interface StyledSegment {
-  text: string
-  role: CharRole | null
-}
-
-function renderStyledLine(
-  segments: StyledSegment[],
-  colorMode: ColorMode,
-  theme: AsciiTheme,
-): string {
-  const chars: string[] = []
-  const roles: (CharRole | null)[] = []
-
-  for (const segment of segments) {
-    for (const char of segment.text) {
-      chars.push(char)
-      roles.push(segment.role)
-    }
-  }
-
-  return colorizeLine(chars, roles, theme, colorMode)
-}
+type StyledSegment = TerminalRun
 
 function renderScoreSegments(score: number, useAscii: boolean): StyledSegment[] {
   const filled = useAscii ? '#' : '●'
   const empty = useAscii ? '.' : '○'
   const whole = Math.floor(score)
   const hasFraction = !Number.isInteger(score)
-
   const segments: StyledSegment[] = [
     { text: filled.repeat(whole), role: 'arrow' },
     ...(hasFraction ? [{ text: useAscii ? '+' : '◐', role: 'arrow' as const }] : []),
@@ -86,15 +65,18 @@ export function renderJourneyAscii(
   maxWidth?: number,
   styleFace?: InternalStyleFace,
 ): string {
+  maxWidth ??= config.maxWidth
   const lines = preprocessMermaidLines(text)
   const diagram = parseJourneyDiagram(lines)
   const useAscii = config.useAscii
-  const out: string[] = []
+  const document = new TerminalDocument()
+  let owner: TerminalOwner | undefined
   const pushLine = (segments: StyledSegment[] = []): void => {
-    out.push(segments.length === 0 ? '' : renderStyledLine(segments, colorMode, theme))
+    document.line(segments.map(segment => ({ ...segment, owner: segment.owner ?? owner, textGroup: segment.textGroup ?? (segment.owner ?? owner)?.id, kind: segment.kind ?? (segment.role === 'text' ? 'text' : segment.role == null ? 'surface' : 'stroke') })))
   }
 
   if (diagram.title) {
+    owner = { id: 'title', kind: 'label' }
     for (const line of wrapText(displayText(diagram.title), maxWidth)) {
       pushLine([{ text: line, role: 'text' }])
     }
@@ -103,6 +85,7 @@ export function renderJourneyAscii(
 
   const scoreStrip = renderScoreStrip(diagram, useAscii)
   if (scoreStrip) {
+    owner = { id: 'score-strip', kind: 'label' }
     const stripPrefix = 'scores: '
     const stripLines = wrapText(scoreStrip, maxWidth ? Math.max(1, maxWidth - stripPrefix.length) : undefined, { hyphenate: false })
     stripLines.forEach((line, index) => {
@@ -118,6 +101,7 @@ export function renderJourneyAscii(
 
   for (let sectionIndex = 0; sectionIndex < diagram.sections.length; sectionIndex++) {
     const section = diagram.sections[sectionIndex]!
+    owner = { id: section.id, kind: 'band' }
 
     if (section.label) {
       // Bracket only the first line of a wrapped label — bracketing every
@@ -145,6 +129,7 @@ export function renderJourneyAscii(
 
     for (let taskIndex = 0; taskIndex < section.tasks.length; taskIndex++) {
       const task = section.tasks[taskIndex]!
+      owner = { id: task.id, kind: 'node', parentId: section.id }
       const scoreSegments = renderScoreSegments(task.score, useAscii)
       const scoreWidth = 5
       const taskPrefixWidth = scoreWidth + 1
@@ -164,6 +149,7 @@ export function renderJourneyAscii(
       }
 
       if (task.actors.length > 0) {
+        owner = { id: `${task.id}:actors`, kind: 'label', parentId: task.id }
         const actorPrefix = '  by '
         const actorLines = wrapText(task.actors.map(label => displayText(label)).join(', '), maxWidth ? Math.max(1, maxWidth - visualWidth(actorPrefix)) : undefined)
         actorLines.forEach((line, index) => {
@@ -184,5 +170,5 @@ export function renderJourneyAscii(
     }
   }
 
-  return out.join('\n').trimEnd()
+  return finishTerminalDocument(config, document, { colorMode, theme, trimEnd: true })
 }

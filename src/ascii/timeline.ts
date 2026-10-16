@@ -7,32 +7,12 @@
 // ============================================================================
 
 import { parseTimelineDiagram } from '../timeline/parser.ts'
-import { colorizeLine, DEFAULT_ASCII_THEME } from './ansi.ts'
-import type { AsciiConfig, AsciiTheme, CharRole, ColorMode } from './types.ts'
+import { DEFAULT_ASCII_THEME } from './ansi.ts'
+import { TerminalDocument, finishTerminalDocument, type TerminalOwner, type TerminalRun } from './terminal-document.ts'
+import type { AsciiConfig, AsciiTheme, ColorMode } from './types.ts'
 import { wrapText } from './wrap.ts'
 
-interface StyledSegment {
-  text: string
-  role: CharRole | null
-}
-
-function renderStyledLine(
-  segments: StyledSegment[],
-  colorMode: ColorMode,
-  theme: AsciiTheme,
-): string {
-  const chars: string[] = []
-  const roles: (CharRole | null)[] = []
-
-  for (const segment of segments) {
-    for (const char of segment.text) {
-      chars.push(char)
-      roles.push(segment.role)
-    }
-  }
-
-  return colorizeLine(chars, roles, theme, colorMode)
-}
+type StyledSegment = TerminalRun
 
 /**
  * Render a Mermaid timeline diagram to ASCII/Unicode text.
@@ -44,7 +24,9 @@ export function renderTimelineAscii(
   theme: AsciiTheme = DEFAULT_ASCII_THEME,
   maxWidth?: number,
 ): string {
+  maxWidth ??= config.maxWidth
   const diagram = parseTimelineDiagram(lines)
+  diagram.title ??= config.title
   const useAscii = config.useAscii
 
   const marker = useAscii ? 'o' : '○'
@@ -54,12 +36,14 @@ export function renderTimelineAscii(
   const horizontal = useAscii ? '-' : '─'
   const periodContinuation = '  '
 
-  const out: string[] = []
+  const document = new TerminalDocument()
+  let owner: TerminalOwner | undefined
   const pushLine = (segments: StyledSegment[] = []): void => {
-    out.push(segments.length === 0 ? '' : renderStyledLine(segments, colorMode, theme))
+    document.line(segments.map(segment => ({ ...segment, owner: segment.owner ?? owner, textGroup: segment.textGroup ?? (segment.owner ?? owner)?.id, kind: segment.kind ?? (segment.role === 'text' ? 'text' : segment.role == null ? 'surface' : 'stroke') })))
   }
 
   if (diagram.title) {
+    owner = { id: 'title', kind: 'label' }
     for (const line of wrapText(diagram.title, maxWidth)) {
       pushLine([{ text: line, role: 'text' }])
     }
@@ -68,6 +52,7 @@ export function renderTimelineAscii(
 
   for (let sectionIndex = 0; sectionIndex < diagram.sections.length; sectionIndex++) {
     const section = diagram.sections[sectionIndex]!
+    owner = { id: section.id, kind: 'band' }
 
     if (section.label) {
       // Bracket only the first line of a wrapped label — bracketing every
@@ -88,6 +73,7 @@ export function renderTimelineAscii(
 
     for (let periodIndex = 0; periodIndex < section.periods.length; periodIndex++) {
       const period = section.periods[periodIndex]!
+      owner = { id: period.id, kind: 'node', parentId: section.id }
       // Continuation lines carry the wider 3-cell prefix, so wrap to that.
       const periodLines = wrapText(period.label, maxWidth ? Math.max(1, maxWidth - 3) : undefined)
 
@@ -105,6 +91,7 @@ export function renderTimelineAscii(
 
       for (let eventIndex = 0; eventIndex < period.events.length; eventIndex++) {
         const event = period.events[eventIndex]!
+        owner = { id: event.id, kind: 'node', parentId: period.id }
         // First-line prefix ('│  ├─ ') is 6 cells wide.
         const eventLines = wrapText(event.text, maxWidth ? Math.max(1, maxWidth - 6) : undefined)
         const junction = eventIndex === period.events.length - 1 ? lastBranch : branch
@@ -137,5 +124,5 @@ export function renderTimelineAscii(
     }
   }
 
-  return out.join('\n').trimEnd()
+  return finishTerminalDocument(config, document, { colorMode, theme, trimEnd: true })
 }

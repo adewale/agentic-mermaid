@@ -38,11 +38,16 @@ function cellSlice(line: string, start: number, end: number): string {
   return out
 }
 
-/** The text a region covers, whitespace runs collapsed. */
+/** Read exact authored coordinates, independently of a container's frame bounds. */
 function regionText(ascii: string, region: AsciiRegion): string {
   const lines = ascii.split('\n')
-  return Array.from({ length: region.rowSpan ?? 1 }, (_, i) =>
-    cellSlice(lines[region.canvasRow + i] ?? '', region.canvasColStart, region.canvasColEnd)).join(' ').replace(/\s+/g, ' ').trim()
+  let text = '', row: number | undefined
+  for (const cell of region.authoredTextCells ?? []) {
+    if (row !== undefined && row !== cell.row) text += '\n'
+    text += cellSlice(lines[cell.row] ?? '', cell.column, cell.column + visualWidth(cell.glyph))
+    row = cell.row
+  }
+  return text.replace(/\s+/g, ' ').trim()
 }
 
 /** Every region that claims projected text, with what its cells show. */
@@ -75,8 +80,7 @@ describe('terminal labels draw their display text', () => {
   })
 
   const META_SOURCES: ReadonlyArray<readonly [string, string]> = [
-    // Sankey has no label regions yet.
-    ...FORMATTED.filter(([family]) => family !== 'sankey nodes').map(([family, formatted]) => [family, formatted] as const),
+    ...FORMATTED.map(([family, formatted]) => [family, formatted] as const),
     ['Gantt literal text', 'gantt\n  dateFormat YYYY-MM-DD\n  section Sa <b>Sb</b>\n    Ta **Tb** :a1, 2024-01-01, 1d'],
     ['XYChart literal text', 'xychart-beta\n  title "Ta <b>Tb</b>"\n  x-axis ["Ca *Cb*", b]\n  bar [1, 2]'],
     ['GitGraph literal text', 'gitGraph\n  commit id: "Ca <i>Cb</i>"'],

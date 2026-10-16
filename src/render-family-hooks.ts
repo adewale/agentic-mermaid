@@ -18,7 +18,8 @@ import {
 } from './agent/family-layouts.ts'
 import type { DiagramKind } from './agent/types.ts'
 import { renderArchitectureAscii } from './ascii/architecture.ts'
-import { canvasToString, flipCanvasVertically, flipRoleCanvasVertically } from './ascii/canvas.ts'
+import { flipCanvasVertically } from './ascii/canvas.ts'
+import { finishTerminalDocument } from './ascii/terminal-document.ts'
 import { renderClassAscii } from './ascii/class-diagram.ts'
 import { convertToAsciiGraph } from './ascii/converter.ts'
 import { drawGraph } from './ascii/draw.ts'
@@ -95,11 +96,9 @@ function renderFlowchartAscii(ctx: AsciiContext): string {
 
   if (parsed.direction === 'BT') {
     flipCanvasVertically(graph.canvas)
-    flipRoleCanvasVertically(graph.roleCanvas)
   }
 
-  return canvasToString(graph.canvas, {
-    roleCanvas: graph.roleCanvas,
+  return finishTerminalDocument(ctx.config, graph.canvas, {
     colorMode: ctx.colorMode,
     theme: ctx.theme,
   })

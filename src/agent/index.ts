@@ -81,17 +81,19 @@ function terminalRegionKind(kind: AsciiRegion['kind']): RenderedRegionKind {
   return kind === 'subgraph' ? 'cluster' : kind
 }
 
-function terminalRegion(region: AsciiRegion): RenderedRegion {
+function terminalRegion(region: AsciiRegion, parents: ReadonlyMap<string, string>): RenderedRegion {
   return {
     id: terminalRegionId(region),
     kind: terminalRegionKind(region.kind),
     elementId: region.id,
+    ...(region.parentId && parents.has(region.parentId) ? { parentId: parents.get(region.parentId)! } : {}),
     bounds: {
       x: toFinite(region.canvasColStart),
       y: toFinite(region.canvasRow),
       w: toFinite(Math.max(1, region.canvasColEnd - region.canvasColStart)),
       h: toFinite(Math.max(1, region.rowSpan ?? 1)),
     },
+    ...(region.ownedCellSpans ? { cellSpans: region.ownedCellSpans } : {}),
     ...(region.sourceLine !== undefined ? { sourceLine: region.sourceLine } : {}),
   }
 }
@@ -179,7 +181,8 @@ export function renderMermaidWithActions(
     })
     const failure = meta.warnings.find(warning => warning.code === 'ASCII_RENDER_FAILED')
     if (failure) throw new Error(failure.message)
-    const regions = meta.regions.map(terminalRegion)
+    const ids = new Map(meta.regions.map(region => [region.id, terminalRegionId(region)]))
+    const regions = meta.regions.map(region => terminalRegion(region, ids))
     return {
       format: request.format,
       output: meta.ascii,

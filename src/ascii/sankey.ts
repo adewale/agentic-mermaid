@@ -23,11 +23,11 @@ import type { MermaidFrontmatterMap } from '../mermaid-source.ts'
 import { pieSliceColors } from '../pie/palette.ts'
 import type { SankeyVisualConfig } from '../sankey/config.ts'
 import { resolveSankeyVisualConfig } from '../sankey/config.ts'
-import { formatSankeyValue } from '../sankey/layout.ts'
+import { formatSankeyValue, sankeyLinkId } from '../sankey/layout.ts'
 import { parseSankeyDiagram } from '../sankey/parser.ts'
-import { colorizeText } from './ansi.ts'
+import { TerminalDocument, finishTerminalDocument } from './terminal-document.ts'
 import type { AsciiConfig, AsciiTheme, ColorMode } from './types.ts'
-import { padEndToVisualWidth, visualWidth } from './width.ts'
+import { visualWidth } from './width.ts'
 import { wrapText } from './wrap.ts'
 import { displayText } from '../multiline-utils.ts'
 
@@ -35,6 +35,7 @@ import { displayText } from '../multiline-utils.ts'
 const MAX_BAR = 20
 
 export function renderSankeyAscii(lines: string[], config: AsciiConfig, colorMode: ColorMode, theme: AsciiTheme, frontmatter: MermaidFrontmatterMap = {}, targetWidth?: number, resolvedVisual?: SankeyVisualConfig): string {
+  targetWidth ??= config.maxWidth
   const visual = resolvedVisual ?? resolveSankeyVisualConfig(frontmatter)
   const title = typeof frontmatter.title === 'string' ? frontmatter.title : undefined
   const diagram = parseSankeyDiagram(lines, title !== undefined ? { title } : {})
@@ -72,9 +73,19 @@ export function renderSankeyAscii(lines: string[], config: AsciiConfig, colorMod
   const fixedWidth = 2 + 4 + 2 + (visual.showValues ? valueWidth + 2 : 0) + MAX_BAR
   const labelBudget = targetWidth ? Math.max(1, targetWidth - fixedWidth) : undefined
 
-  const out: string[] = []
+  const document = new TerminalDocument()
+  const occurrence = new Map<string, number>()
+  const linkIds = new Map(diagram.links.map(link => {
+    const key = JSON.stringify([link.source, link.target])
+    const index = occurrence.get(key) ?? 0
+    occurrence.set(key, index + 1)
+    return [link, sankeyLinkId(link.source, link.target, index)]
+  }))
   // Labels draw their display text, as the SVG node labels do.
-  if (diagram.title) out.push(...wrapText(displayText(diagram.title), targetWidth), '')
+  if (diagram.title) {
+    for (const text of wrapText(displayText(diagram.title), targetWidth)) document.line([{ text, role: 'text', textGroup: 'title', owner: { id: 'title', kind: 'label' } }])
+    document.line()
+  }
 
   const sources = diagram.nodes.filter(label => outgoing.has(label))
   const wrappedTargets = new Map<string, string[]>()
@@ -89,8 +100,11 @@ export function renderSankeyAscii(lines: string[], config: AsciiConfig, colorMod
     const links = outgoing.get(source)!
     const headerValue = visual.showValues ? `  ${formatSankeyValue(nodeTotal.get(source) ?? 0, visual)}` : ''
     const headerLines = wrapText(displayText(source), targetWidth)
-    for (let i = 0; i < headerLines.length - 1; i++) out.push(headerLines[i]!)
-    out.push(`${headerLines.at(-1) ?? ''}${headerValue}`)
+    for (let i = 0; i < headerLines.length - 1; i++) document.line([{ text: headerLines[i]!, role: 'text', textGroup: 'header', owner: { id: source, kind: 'node' } }])
+    document.line([
+      { text: headerLines.at(-1) ?? '', role: 'text', textGroup: 'header', owner: { id: source, kind: 'node' } },
+      { text: headerValue, role: 'text', owner: { id: `${source}:value`, kind: 'label', parentId: source } },
+    ])
 
     links.forEach((link, linkIndex) => {
       const last = linkIndex === links.length - 1
@@ -98,7 +112,7 @@ export function renderSankeyAscii(lines: string[], config: AsciiConfig, colorMod
       const barLen = maxValue > 0 && link.value > 0 ? Math.max(1, Math.round((link.value / maxValue) * MAX_BAR)) : 0
       const bar = barChar.repeat(barLen)
       const color = colorOf.get(link.target)!
-      const coloredBar = colorMode === 'none' || bar.length === 0 ? bar : colorizeText(bar, color, colorMode)
+      const id = linkIds.get(link)!
       const valuePart = visual.showValues ? `${padStartToVisualWidth(formatSankeyValue(link.value, visual), valueWidth)}  ` : ''
       // Branch glyph on the first wrapped line, rail continuation beneath it,
       // value + bar riding on the last line (the pie multiline-row pattern).
@@ -107,18 +121,26 @@ export function renderSankeyAscii(lines: string[], config: AsciiConfig, colorMod
       targetLines.forEach((line, lineIndex) => {
         const prefix = lineIndex === 0 ? glyph : restPrefix
         if (lineIndex < targetLines.length - 1) {
-          out.push(`  ${prefix}${line}`)
+          document.line([
+            { text: `  ${prefix}`, role: 'line', kind: 'stroke', owner: { id, kind: 'edge' } },
+            { text: line, role: 'text', textGroup: id, owner: { id: link.target, kind: 'node' } },
+          ])
         } else {
-          const label = padEndToVisualWidth(line, labelWidth)
-          out.push(`  ${prefix}${label}  ${valuePart}${coloredBar}`.trimEnd())
+          document.line([
+            { text: `  ${prefix}`, role: 'line', kind: 'stroke', owner: { id, kind: 'edge' } },
+            { text: line, role: 'text', textGroup: id, owner: { id: link.target, kind: 'node' } },
+            { text: ' '.repeat(Math.max(0, labelWidth - visualWidth(line)) + 2) },
+            { text: valuePart, role: 'text', owner: { id: `${id}:value`, kind: 'label', parentId: id } },
+            { text: bar, role: 'arrow', kind: 'stroke', color, owner: { id, kind: 'edge' } },
+          ])
         }
       })
     })
 
-    if (sourceIndex < sources.length - 1) out.push('')
+    if (sourceIndex < sources.length - 1) document.line()
   })
 
-  return out.join('\n')
+  return finishTerminalDocument(config, document, { colorMode, theme, trimEnd: true })
 }
 
 function padStartToVisualWidth(text: string, width: number): string {

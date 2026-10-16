@@ -1,3 +1,4 @@
+import { terminalText, withoutTerminalColor } from './helpers/terminal-text.ts'
 import { afterAll, expect, test } from 'bun:test'
 import { decodeXML } from 'entities'
 import { mutate, parseRegisteredMermaid, renderMermaidWithActions, serializeMermaid, verifyMermaid } from '../agent/index.ts'
@@ -139,14 +140,14 @@ test('Pie terminal, width, HTML and metadata projections keep entity-distinct ro
     expect(rows[1]).toContain('66.7%  [2]')
   }
   const htmlRows = renderMermaidASCII(encoded, { colorMode: 'html' }).split('\n')
-  expect(htmlRows[0]).toStartWith('A&amp;amp;B  ')
-  expect(htmlRows[1]).toStartWith('A&amp;B  ')
+  expect(withoutTerminalColor(htmlRows[0]!)).toStartWith('A&amp;amp;B  ')
+  expect(withoutTerminalColor(htmlRows[1]!)).toStartWith('A&amp;B  ')
   const meta = renderMermaidASCIIWithMeta(encoded, { colorMode: 'none' })
-  expect(meta.regions.map(region => [region.id, region.projectedText, region.canvasRow]))
+  expect(meta.regions.filter(region => region.kind === 'node' || region.id === 'title').map(region => [region.id, region.projectedText, region.canvasRow]))
     .toEqual([['slice-0', 'A&amp;B', 0], ['slice-1', 'A&B', 1]])
   const htmlMeta = renderMermaidASCIIWithMeta(encoded, { colorMode: 'html' })
   expect(htmlMeta.ascii).toBe(htmlRows.join('\n'))
-  expect(htmlMeta.regions.map(region => [region.id, region.projectedText, region.canvasRow]))
+  expect(htmlMeta.regions.filter(region => region.kind === 'node' || region.id === 'title').map(region => [region.id, region.projectedText, region.canvasRow]))
     .toEqual([['slice-0', 'A&amp;B', 0], ['slice-1', 'A&B', 1]])
   const configDiagnostics: string[] = []
   renderMermaidASCIIWithMeta(encoded, {
@@ -192,7 +193,7 @@ test('numeric entity spelling collides with Mermaid’s pre-parser marker in fir
   ])
   expect(drawnSlices(escaped)).toEqual([['A#35;B', 1], ['Aﬂ°°35¶ßB', 2]])
   expect(renderMermaidASCII(escaped, { colorMode: 'none' })).toContain('A#B  ')
-  expect(renderMermaidASCIIWithMeta(escaped, { colorMode: 'none' }).regions.map(region => region.projectedText))
+  expect(renderMermaidASCIIWithMeta(escaped, { colorMode: 'none' }).regions.filter(region => region.kind === 'node').map(region => region.projectedText))
     .toEqual(['A#35;B', 'A#B'])
   const prepass = 'pie\n  "styleX:#35;" : 1\n  "styleX:#35" : 2\n'
   expect(await upstreamSections(prepass)).toEqual([['styleX:#35', 1]])

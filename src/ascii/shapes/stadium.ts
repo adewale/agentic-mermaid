@@ -62,31 +62,31 @@ export const stadiumRenderer: ShapeRenderer = {
 
     if (height === 3) {
       // Single row pill: (  Label  )
-      canvas[0]![centerY] = '('
-      canvas[width - 1]![centerY] = ')'
+      canvas.put(0, centerY, '(')
+      canvas.put(width - 1, centerY, ')')
     } else if (!options.useAscii) {
       // Multi-row stadium with rounded corners (unicode)
-      canvas[0]![0] = '╭'
-      for (let x = 1; x < width - 1; x++) canvas[x]![0] = hChar
-      canvas[width - 1]![0] = '╮'
+      canvas.put(0, 0, '╭')
+      for (let x = 1; x < width - 1; x++) canvas.put(x, 0, hChar)
+      canvas.put(width - 1, 0, '╮')
 
       for (let y = 1; y < height - 1; y++) {
-        canvas[0]![y] = '│'
-        canvas[width - 1]![y] = '│'
+        canvas.put(0, y, '│')
+        canvas.put(width - 1, y, '│')
       }
 
-      canvas[0]![height - 1] = '╰'
-      for (let x = 1; x < width - 1; x++) canvas[x]![height - 1] = hChar
-      canvas[width - 1]![height - 1] = '╯'
+      canvas.put(0, height - 1, '╰')
+      for (let x = 1; x < width - 1; x++) canvas.put(x, height - 1, hChar)
+      canvas.put(width - 1, height - 1, '╯')
     } else {
       // Multi-row stadium ASCII — parentheses on all sides
       for (let y = 0; y < height; y++) {
-        canvas[0]![y] = '('
-        canvas[width - 1]![y] = ')'
+        canvas.put(0, y, '(')
+        canvas.put(width - 1, y, ')')
       }
       for (let x = 1; x < width - 1; x++) {
-        canvas[x]![0] = hChar
-        canvas[x]![height - 1] = hChar
+        canvas.put(x, 0, hChar)
+        canvas.put(x, height - 1, hChar)
       }
     }
 

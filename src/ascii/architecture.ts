@@ -17,21 +17,16 @@ import type {
 } from '../architecture/types.ts'
 import type { AsciiNode, AsciiConfig, AsciiTheme, CharRole, ColorMode, Direction, GridCoord } from './types.ts'
 import { Up, Down, Left, Right, gridKey } from './types.ts'
-import {
-  canvasToString,
-  drawText,
-  increaseRoleCanvasSize,
-  increaseSize,
-  mkCanvas,
-  mkRoleCanvas,
-  setRole,
-} from './canvas.ts'
+import { mkCanvas, increaseSize } from './canvas.ts'
+import { finishTerminalDocument, type TerminalOwner } from './terminal-document.ts'
+import { wrapText } from './wrap.ts'
 import { DEFAULT_ASCII_THEME } from './ansi.ts'
 import { getPath, mergePath } from './pathfinder.ts'
 import { visualWidth } from './width.ts'
-import { displayText } from '../multiline-utils.ts'
+import { displayText, normalizeBrTags } from '../multiline-utils.ts'
 import { oneRowDisplayText } from './multiline-utils.ts'
 import { compareCodePointStrings } from '../shared/deterministic-order.ts'
+import { terminalIds } from './identity.ts'
 
 interface CellBox {
   id: string
@@ -66,8 +61,17 @@ export function renderArchitectureAscii(
   options: ArchitectureAsciiOptions = {},
 ): string {
   const diagram = parseArchitectureDiagram(lines)
+  diagram.title ??= config.title === undefined ? undefined : normalizeBrTags(config.title)
+  const generated = terminalIds([...diagram.services.map(service => service.id), ...diagram.groups.map(group => group.id), ...diagram.junctions.map(junction => junction.id)])
   const positioned = layoutArchitectureDiagram(diagram)
-  const terminalBudget = options.targetWidth ?? options.maxWidth
+  const terminalBudget = options.targetWidth ?? options.maxWidth ?? config.targetWidth ?? config.maxWidth
+  const faceDemand = new Map<string, Record<ArchitectureEndpoint['side'], number>>()
+  const endpointId = (endpoint: ArchitectureEndpoint): string => endpoint.boundary === 'group' ? diagram.services.find(service => service.id === endpoint.id)?.parentId ?? endpoint.id : endpoint.id
+  for (const edge of diagram.edges) for (const endpoint of [edge.source, edge.target]) {
+    const id = endpointId(endpoint), demand = faceDemand.get(id) ?? { T: 0, B: 0, L: 0, R: 0 }
+    demand[endpoint.side]++; faceDemand.set(id, demand)
+  }
+  const minimum = (id: string) => { const count = faceDemand.get(id); return { width: count ? Math.max(count.T, count.B) * 3 + 2 : 0, height: count ? Math.max(count.L, count.R) * 3 + 2 : 0 } }
   const allPixelBounds = [
     ...positioned.services.map(item => ({ x: item.x, right: item.x + item.width })),
     ...positioned.junctions.map(item => ({ x: item.x, right: item.x + item.width })),
@@ -86,13 +90,14 @@ export function renderArchitectureAscii(
   const leftMargin = terminalBudget === undefined ? OUTER_MARGIN : 1
   const usableBudget = terminalBudget === undefined ? Infinity : Math.max(8, terminalBudget - OUTER_MARGIN - 1)
   const xScale = Math.max(BASE_X_PIXELS_PER_CELL, (maxPixelX - minPixelX) / usableBudget)
-  const titleRows = positioned.title ? 2 : 0
+  const titleLines = positioned.title ? wrapText(displayText(positioned.title.text), terminalBudget) : []
+  const titleRows = titleLines.length ? titleLines.length + 1 : 0
   const projectX = (x: number): number => leftMargin + Math.round((x - minPixelX) / xScale)
   const projectY = (y: number): number => OUTER_MARGIN + titleRows + Math.round((y - minPixelY) / Y_PIXELS_PER_ROW)
 
   const serviceBoxes = new Map<string, CellBox>()
   for (const service of positioned.services) {
-    const labelLines = serviceLabelLines(service.label, service.icon)
+    const labelLines = serviceLabelLines(service.label, service.icon).flatMap(line => wrapText(line, terminalBudget ? Math.max(1, terminalBudget - 8) : undefined))
     const contentWidth = Math.max(1, ...labelLines.map(visualWidth))
     serviceBoxes.set(service.id, {
       id: service.id,
@@ -100,8 +105,8 @@ export function renderArchitectureAscii(
       parentId: service.parentId,
       x: projectX(service.x),
       y: projectY(service.y),
-      width: Math.max(contentWidth + 2, Math.ceil(service.width / xScale), 5),
-      height: Math.max(labelLines.length + 2, Math.ceil(service.height / Y_PIXELS_PER_ROW) + 1, 3),
+      width: Math.max(contentWidth + 2, Math.ceil(service.width / xScale), 5, minimum(service.id).width),
+      height: Math.max(labelLines.length + 2, Math.ceil(service.height / Y_PIXELS_PER_ROW) + 1, 3, minimum(service.id).height),
       labelLines,
       icon: service.icon,
       depth: groupDepth(diagram, service.parentId) + 1,
@@ -118,17 +123,12 @@ export function renderArchitectureAscii(
       parentId: junction.parentId,
       x: projectX(junction.x),
       y: projectY(junction.y),
-      width: visualWidth(label),
-      height: 1,
+      width: Math.max(visualWidth(label) + 2, minimum(junction.id).width),
+      height: Math.max(3, minimum(junction.id).height),
       labelLines: [label],
       depth: groupDepth(diagram, junction.parentId) + 1,
     })
   }
-
-  // Rounding and display-width minima can enlarge cards beyond their projected
-  // pixel slots. Resolve the rare collision monotonically without changing
-  // source order or identity.
-  separateItemBoxes([...serviceBoxes.values(), ...junctionBoxes.values()])
 
   const groupBoxes = buildGroupBoxes(
     diagram,
@@ -138,69 +138,114 @@ export function renderArchitectureAscii(
     projectX,
     projectY,
     xScale,
-    config.useAscii,
+    terminalBudget,
   )
-
+  for (const group of groupBoxes.values()) {
+    group.width = Math.max(group.width, minimum(group.id).width)
+    group.height = Math.max(group.height, minimum(group.id).height)
+  }
   const allBoxes = [...groupBoxes.values(), ...serviceBoxes.values(), ...junctionBoxes.values()]
-  const maxRight = Math.max(OUTER_MARGIN + 1, ...allBoxes.map(right))
+  settleArchitectureBoxes(allBoxes)
+  // Crop empty leading geometry before emission so ownership and text coordinates
+  // never require reparsing/stripping a serialized result.
+  const top = positioned.title ? 0 : Math.min(Infinity, ...allBoxes.map(box => box.y))
+  if (Number.isFinite(top) && top > 4) for (const box of allBoxes) box.y -= top - 4
+  const maxRight = Math.max(OUTER_MARGIN + 1, ...titleLines.map(line => visualWidth(line) + OUTER_MARGIN * 2), ...allBoxes.map(right))
   const maxBottom = Math.max(OUTER_MARGIN + titleRows + 1, ...allBoxes.map(bottom))
   const canvas = mkCanvas(maxRight + OUTER_MARGIN + 8, maxBottom + OUTER_MARGIN + 5)
-  const roleCanvas = mkRoleCanvas(maxRight + OUTER_MARGIN + 8, maxBottom + OUTER_MARGIN + 5)
+  let activeOwner: TerminalOwner | undefined
+  const writeText = (at: GridCoord, value: string, _overwrite = true): void => {
+    canvas.text(at.x, at.y, value, { owner: activeOwner, role: 'text', kind: 'text' })
+  }
 
   const setCell = (x: number, y: number, char: string, role: CharRole, overwrite = true): void => {
     if (x < 0 || y < 0) return
     increaseSize(canvas, x, y)
-    increaseRoleCanvasSize(roleCanvas, x, y)
-    if (overwrite || canvas[x]![y] === ' ') {
-      canvas[x]![y] = char
-      setRole(roleCanvas, x, y, role)
+    if (overwrite || canvas.get(x, y) === ' ') {
+      canvas.put(x, y, char, { owner: activeOwner, role, kind: role === 'text' ? 'text' : role === 'arrow' ? 'marker' : 'stroke' })
     }
   }
 
   if (positioned.title) {
-    const x = Math.max(OUTER_MARGIN, Math.floor((maxRight - visualWidth(positioned.title.text)) / 2))
-    drawText(canvas, { x, y: 0 }, positioned.title.text, true)
-    for (let col = x; col < x + visualWidth(positioned.title.text); col++) setRole(roleCanvas, col, 0, 'text')
+    activeOwner = { id: 'title', kind: 'label' }
+    canvas.scope(activeOwner, () => titleLines.forEach((line, y) => {
+      const x = Math.max(OUTER_MARGIN, Math.floor((maxRight - visualWidth(line)) / 2))
+      writeText({ x, y }, line, true)
+    }))
   }
 
   // Containers form the background layer. Deeper groups draw after parents.
   for (const group of [...groupBoxes.values()].sort((a, b) => a.depth - b.depth || compareCodePointStrings(a.id, b.id))) {
+    activeOwner = { id: group.id, kind: 'group', parentId: group.parentId, members: [...groupBoxes.values(), ...serviceBoxes.values(), ...junctionBoxes.values()].filter(box => box.parentId === group.id).map(box => box.id) }
+    canvas.region(activeOwner, { x: group.x, y: group.y, width: group.width, height: group.height })
     drawFramedBox(group, true)
   }
 
   const connections = new Map<string, Set<Cardinal>>()
-  const markerCells: Array<{ point: GridCoord; char: string }> = []
-  const edgePaths: Array<{ edge: ArchitectureEdge; points: GridCoord[] }> = []
+  const markerCells: Array<{ point: GridCoord; char: string; owner: TerminalOwner }> = []
+  const edgePaths: Array<{ edge: ArchitectureEdge; points: GridCoord[]; owner: TerminalOwner }> = []
+  const connectionOwners = new Map<string, Map<string, { owner: TerminalOwner; dirs: Set<Cardinal> }>>()
+  const portCursors = new Map<string, number>()
+  const portFor = (box: CellBox, side: ArchitectureEndpoint['side']): GridCoord => {
+    const key = `${box.id}:${side}`, index = portCursors.get(key) ?? 0, count = faceDemand.get(box.id)?.[side] ?? 1
+    portCursors.set(key, index + 1)
+    const along = Math.floor((index + 1) * ((side === 'T' || side === 'B' ? box.width : box.height) - 1) / (count + 1))
+    if (side === 'L') return { x: box.x - 1, y: box.y + along }
+    if (side === 'R') return { x: right(box) + 1, y: box.y + along }
+    if (side === 'T') return { x: box.x + along, y: box.y - 1 }
+    return { x: box.x + along, y: bottom(box) + 1 }
+  }
+  const unrouted: Array<{ owner: TerminalOwner; edge: ArchitectureEdge }> = []
 
-  for (const edge of diagram.edges) {
+  for (const [edgeIndex, edge] of diagram.edges.entries()) {
+    const owner: TerminalOwner = { id: generated(`edge:${edgeIndex}`), kind: 'edge', from: edge.source.id, to: edge.target.id }
+    activeOwner = owner
     const source = endpointBox(edge.source)
     const target = endpointBox(edge.target)
-    if (!source || !target) continue
-    const start = outsideAnchor(source, edge.source.side)
-    const end = outsideAnchor(target, edge.target.side)
+    if (!source || !target) {
+      unrouted.push({ owner, edge })
+      canvas.report({ code: 'TERMINAL_FAMILY_PROJECTION', feature: `architecture.${owner.id}.endpoint`, message: 'An Architecture endpoint has no allocated service, junction or group boundary; the complete relationship is retained in an owned endpoint summary.' })
+      continue
+    }
+    const start = portFor(source, edge.source.side)
+    const end = portFor(target, edge.target.side)
+    canvas.port(owner, { nodeId: source.id, x: start.x, y: start.y, side: edge.source.side, end: 'start' })
+    canvas.port(owner, { nodeId: target.id, x: end.x, y: end.y, side: edge.target.side, end: 'end' })
     const obstacles = obstacleGrid(edge)
-    const path = mergePath(getPath(obstacles, start, end, preferredDirection(edge.source.side)) ?? fallbackPath(start, end))
-    edgePaths.push({ edge, points: path })
+    const separated = new Map(obstacles)
+    for (const key of connections.keys()) separated.set(key, {} as AsciiNode)
+    separated.delete(gridKey(start)); separated.delete(gridKey(end))
+    const found = getPath(separated, start, end, preferredDirection(edge.source.side)) ?? getPath(obstacles, start, end, preferredDirection(edge.source.side))
+    if (!found) {
+      unrouted.push({ owner, edge })
+      canvas.report({ code: 'TERMINAL_FAMILY_PROJECTION', feature: `architecture.${owner.id}.route`, message: 'No obstacle-free route was found for the authored Architecture ports; the complete relationship is retained in an owned endpoint summary.' })
+      continue
+    }
+    const path = mergePath(found)
+    edgePaths.push({ edge, points: path, owner })
     for (let index = 1; index < path.length; index++) addConnection(path[index - 1]!, path[index]!)
-    if (edge.hasArrowStart) markerCells.push({ point: start, char: markerTowardBox(edge.source.side) })
-    if (edge.hasArrowEnd) markerCells.push({ point: end, char: markerTowardBox(edge.target.side) })
+    if (edge.hasArrowStart) markerCells.push({ point: start, char: markerTowardBox(edge.source.side), owner })
+    if (edge.hasArrowEnd) markerCells.push({ point: end, char: markerTowardBox(edge.target.side), owner })
   }
 
-  for (const [key, dirs] of connections) {
+  for (const key of connections.keys()) {
     const comma = key.indexOf(',')
     const x = Number(key.slice(0, comma))
     const y = Number(key.slice(comma + 1))
-    setCell(x, y, connectionGlyph(dirs), dirs.size > 2 ? 'junction' : 'line')
+    for (const { owner, dirs: ownedDirs } of connectionOwners.get(key)?.values() ?? []) {
+      activeOwner = owner
+      setCell(x, y, connectionGlyph(ownedDirs), ownedDirs.size > 2 ? 'junction' : 'line')
+    }
   }
-  for (const marker of markerCells) setCell(marker.point.x, marker.point.y, marker.char, 'arrow')
+  for (const marker of markerCells) { activeOwner = marker.owner; setCell(marker.point.x, marker.point.y, marker.char, 'arrow') }
 
   const labelBoxes: CellBox[] = []
-  for (const { edge, points } of edgePaths) {
+  for (const { edge, points, owner } of edgePaths) {
+    activeOwner = owner
     if (!edge.label) continue
     const text = `[${oneRowDisplayText(edge.label)}]`
     const placement = placeEdgeLabel(text, points, [...allBoxes, ...labelBoxes])
-    drawText(canvas, placement, text, true)
-    for (let x = placement.x; x < placement.x + visualWidth(text); x++) setRole(roleCanvas, x, placement.y, 'text')
+    writeText(placement, text, true)
     labelBoxes.push({
       id: `edge-label-${labelBoxes.length}`,
       kind: 'junction',
@@ -214,20 +259,22 @@ export function renderArchitectureAscii(
   }
 
   // Cards and junction labels are the foreground layer.
-  for (const service of serviceBoxes.values()) drawFramedBox(service, false)
+  for (const service of serviceBoxes.values()) {
+    activeOwner = { id: service.id, kind: 'node', parentId: service.parentId }
+    canvas.region(activeOwner, { x: service.x, y: service.y, width: service.width, height: service.height })
+    drawFramedBox(service, false)
+  }
   for (const junction of junctionBoxes.values()) {
-    drawText(canvas, { x: junction.x, y: junction.y }, junction.labelLines[0]!, true)
-    const markWidth = config.useAscii ? 3 : 1
-    for (let x = junction.x; x < junction.x + junction.width; x++) {
-      setRole(roleCanvas, x, junction.y, x < junction.x + markWidth ? 'arrow' : 'text')
-    }
+    activeOwner = { id: junction.id, kind: 'node', parentId: junction.parentId }
+    canvas.region(activeOwner, { x: junction.x, y: junction.y, width: junction.width, height: junction.height })
+    drawFramedBox(junction, false)
   }
 
-  const raw = canvasToString(canvas, { roleCanvas, colorMode, theme })
-  const rows = raw.split('\n')
-  while (rows.length > 0 && stripTerminalMarkup(rows[0]!).trim().length === 0) rows.shift()
-  while (rows.length > 0 && stripTerminalMarkup(rows[rows.length - 1]!).trim().length === 0) rows.pop()
-  return rows.map(row => row.trimEnd()).join('\n')
+  for (const { owner, edge } of unrouted) {
+    const summary = `${edge.source.id}${edge.source.boundary === 'group' ? '{group}' : ''}:${edge.source.side} ${edge.hasArrowStart ? '<' : ''}--${edge.hasArrowEnd ? '>' : ''} ${edge.target.side}:${edge.target.id}${edge.target.boundary === 'group' ? '{group}' : ''}${edge.label ? ` : ${oneRowDisplayText(edge.label)}` : ''}`
+    for (const line of wrapText(summary, terminalBudget)) canvas.text(0, canvas.height, line, { owner, role: 'text', kind: 'text' })
+  }
+  return finishTerminalDocument(config, canvas, { colorMode, theme, trimEnd: true })
 
   function endpointBox(endpoint: ArchitectureEndpoint): CellBox | undefined {
     if (endpoint.boundary === 'group') {
@@ -263,7 +310,12 @@ export function renderArchitectureAscii(
     }
     for (const box of serviceBoxes.values()) mark(box)
     for (const box of junctionBoxes.values()) mark(box)
-    for (const box of groupBoxes.values()) if (!excludedGroups.has(box.id)) mark(box)
+    for (const box of groupBoxes.values()) {
+      // Endpoint ancestors are permeable frames, but their complete headers
+      // remain obstacles just like a service label.
+      if (excludedGroups.has(box.id)) mark({ ...box, height: Math.max(1, box.labelLines.length) })
+      else mark(box)
+    }
     return occupied
   }
 
@@ -283,6 +335,13 @@ export function renderArchitectureAscii(
 
   function addDirection(point: GridCoord, direction: Cardinal): void {
     const key = gridKey(point)
+    const owners = connectionOwners.get(key) ?? new Map<string, { owner: TerminalOwner; dirs: Set<Cardinal> }>()
+    if (activeOwner) {
+      const route = owners.get(activeOwner.id) ?? { owner: activeOwner, dirs: new Set<Cardinal>() }
+      route.dirs.add(direction)
+      owners.set(activeOwner.id, route)
+    }
+    connectionOwners.set(key, owners)
     const dirs = connections.get(key) ?? new Set<Cardinal>()
     dirs.add(direction)
     connections.set(key, dirs)
@@ -316,6 +375,7 @@ export function renderArchitectureAscii(
   }
 
   function drawFramedBox(box: CellBox, group: boolean): void {
+    if (!group) canvas.fill(box.x, box.y, box.width, box.height, { owner: activeOwner, kind: 'surface' })
     const chars = config.useAscii
       ? { tl: '+', tr: '+', bl: '+', br: '+', h: '-', v: '|' }
       : { tl: '┌', tr: '┐', bl: '└', br: '┘', h: '─', v: '│' }
@@ -333,18 +393,15 @@ export function renderArchitectureAscii(
     setCell(right(box), bottom(box), chars.br, 'border')
 
     if (group) {
-      const header = box.labelLines[0]!
       const start = box.x + 2
-      drawText(canvas, { x: start, y: box.y }, header, true)
-      for (let x = start; x < start + visualWidth(header); x++) setRole(roleCanvas, x, box.y, 'text')
+      canvas.scope(activeOwner!, () => box.labelLines.forEach((header, index) => writeText({ x: start, y: box.y + index }, header, true)))
       return
     }
     const startY = box.y + Math.max(1, Math.floor((box.height - box.labelLines.length) / 2))
     for (let index = 0; index < box.labelLines.length; index++) {
       const label = box.labelLines[index]!
       const x = box.x + Math.max(1, Math.floor((box.width - visualWidth(label)) / 2))
-      drawText(canvas, { x, y: startY + index }, label, true)
-      for (let col = x; col < x + visualWidth(label); col++) setRole(roleCanvas, col, startY + index, 'text')
+      writeText({ x, y: startY + index }, label, true)
     }
   }
 }
@@ -384,18 +441,18 @@ function buildGroupBoxes(
   projectX: (x: number) => number,
   projectY: (y: number) => number,
   xScale: number,
-  useAscii: boolean,
+  terminalBudget?: number,
 ): Map<string, CellBox> {
   const positioned = new Map(flattenGroups(positionedGroups).map(group => [group.id, group]))
   const boxes = new Map<string, CellBox>()
   const ordered = [...diagram.groups].sort((a, b) => groupDepth(diagram, b.id) - groupDepth(diagram, a.id))
   for (const group of ordered) {
     const source = positioned.get(group.id)!
-    const header = `${group.icon ? `(${group.icon}) ` : ''}${oneRowDisplayText(group.label)}`
+    const labelLines = wrapText(`${group.icon ? `(${group.icon}) ` : ''}${displayText(group.label)}`, terminalBudget ? Math.max(1, terminalBudget - 8) : undefined)
     let x = projectX(source.x)
     let y = projectY(source.y)
-    let width = Math.max(8, visualWidth(header) + 4, Math.ceil(source.width / xScale))
-    let height = Math.max(4, Math.ceil(source.height / Y_PIXELS_PER_ROW) + 1)
+    let width = Math.max(8, ...labelLines.map(line => visualWidth(line) + 4), Math.ceil(source.width / xScale))
+    let height = Math.max(labelLines.length + BOX_GAP + 2, Math.ceil(source.height / Y_PIXELS_PER_ROW) + 1)
     const children = [
       ...[...services.values()].filter(child => child.parentId === group.id),
       ...[...junctions.values()].filter(child => child.parentId === group.id),
@@ -423,7 +480,7 @@ function buildGroupBoxes(
       y,
       width,
       height,
-      labelLines: [header],
+      labelLines,
       icon: group.icon,
       depth: groupDepth(diagram, group.id),
     })
@@ -431,17 +488,38 @@ function buildGroupBoxes(
   return boxes
 }
 
-function separateItemBoxes(boxes: CellBox[]): void {
-  const placed: CellBox[] = []
-  const ordered = [...boxes].sort((a, b) => a.y - b.y || a.x - b.x || compareCodePointStrings(a.id, b.id))
-  for (const box of ordered) {
-    for (let guard = 0; guard <= placed.length; guard++) {
-      const blockers = placed.filter(other => boxesOverlap(box, other))
-      if (blockers.length === 0) break
-      box.y = Math.max(...blockers.map(other => bottom(other) + BOX_GAP + 1))
-    }
-    placed.push(box)
+/** Resolve integer-cell growth in the containment tree before any ink is emitted. */
+function settleArchitectureBoxes(boxes: CellBox[]): void {
+  const children = (parentId?: string) => boxes.filter(box => box.parentId === parentId)
+  const move = (box: CellBox, dy: number): void => {
+    box.y += dy
+    if (box.kind === 'group') for (const child of children(box.id)) move(child, dy)
   }
+  const settle = (parentId?: string): void => {
+    const siblings = children(parentId)
+    for (const box of siblings) if (box.kind === 'group') settle(box.id)
+    const parent = boxes.find(box => box.id === parentId)
+    const placed: CellBox[] = []
+    const ordered = siblings.sort((a, b) => a.y - b.y || a.x - b.x || compareCodePointStrings(a.id, b.id))
+    for (const box of ordered) {
+      // Every header line is occupied geometry, including an empty group header.
+      if (parent && box.y < parent.y + parent.labelLines.length + BOX_GAP) move(box, parent.y + parent.labelLines.length + BOX_GAP - box.y)
+      for (;;) {
+        const blockers = placed.filter(other => boxesOverlap(box, other))
+        if (!blockers.length) break
+        move(box, Math.max(...blockers.map(other => bottom(other) + BOX_GAP + 1)) - box.y)
+      }
+      placed.push(box)
+    }
+    if (!parent || !siblings.length) return
+    const x = Math.max(0, Math.min(parent.x, ...siblings.map(child => child.x - BOX_GAP)))
+    const endX = Math.max(right(parent), ...siblings.map(child => right(child) + BOX_GAP), x + Math.max(...parent.labelLines.map(visualWidth)) + 3)
+    const endY = Math.max(bottom(parent), ...siblings.map(child => bottom(child) + BOX_GAP))
+    parent.x = x
+    parent.width = endX - x + 1
+    parent.height = endY - parent.y + 1
+  }
+  settle()
 }
 
 function placeEdgeLabel(text: string, path: GridCoord[], boxes: CellBox[]): GridCoord {
@@ -467,14 +545,13 @@ function placeEdgeLabel(text: string, path: GridCoord[], boxes: CellBox[]): Grid
     const x = Math.max(0, middle.x - Math.floor(width / 2))
     if (clear(x, middle.y + dy)) return { x, y: middle.y + dy }
   }
-  return { x: Math.max(0, middle.x - Math.floor(width / 2)), y: Math.max(0, middle.y) }
-}
-
-function outsideAnchor(box: CellBox, side: ArchitectureEndpoint['side']): GridCoord {
-  if (side === 'L') return { x: box.x - 1, y: box.y + Math.floor(box.height / 2) }
-  if (side === 'R') return { x: right(box) + 1, y: box.y + Math.floor(box.height / 2) }
-  if (side === 'T') return { x: box.x + Math.floor(box.width / 2), y: box.y - 1 }
-  return { x: box.x + Math.floor(box.width / 2), y: bottom(box) + 1 }
+  // No candidate may overwrite a foreign card or previously owned label.
+  // Outside the occupied bounds there is always room; hard width policy can
+  // refuse the complete geometry instead of silently clipping its text.
+  let y = Math.max(0, ...boxes.map(box => bottom(box) + 2))
+  const x = Math.max(0, middle.x - Math.floor(width / 2))
+  while (!clear(x, y)) y++
+  return { x, y }
 }
 
 function preferredDirection(side: ArchitectureEndpoint['side']): Direction {
@@ -484,16 +561,11 @@ function preferredDirection(side: ArchitectureEndpoint['side']): Direction {
   return Down
 }
 
-function fallbackPath(start: GridCoord, end: GridCoord): GridCoord[] {
-  if (start.x === end.x || start.y === end.y) return [start, end]
-  return [start, { x: end.x, y: start.y }, end]
-}
-
 /** The four one-cell sides of a group box. */
 function groupFrame(box: CellBox): CellBox[] {
   const side = (x: number, y: number, width: number, height: number): CellBox => ({ ...box, x, y, width, height })
   return [
-    side(box.x, box.y, box.width, 1),
+    side(box.x, box.y, box.width, Math.max(1, box.labelLines.length)),
     side(box.x, bottom(box), box.width, 1),
     side(box.x, box.y, 1, box.height),
     side(right(box), box.y, 1, box.height),
@@ -505,8 +577,4 @@ function bottom(box: CellBox): number { return box.y + box.height - 1 }
 
 function boxesOverlap(a: CellBox, b: CellBox): boolean {
   return a.x <= right(b) && b.x <= right(a) && a.y <= bottom(b) && b.y <= bottom(a)
-}
-
-function stripTerminalMarkup(value: string): string {
-  return value.replace(/\x1b\[[0-9;]*m/g, '').replace(/<\/?span(?:\s[^>]*)?>/g, '')
 }

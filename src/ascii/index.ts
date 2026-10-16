@@ -14,7 +14,7 @@
 
 import { detectColorMode, DEFAULT_ASCII_THEME, diagramColorsToAsciiTheme } from './ansi.ts'
 import type { AsciiConfig, AsciiTheme, ColorMode } from './types.ts'
-import { normalizeMermaidSource, toMermaidLines, type NormalizedMermaidSource } from '../mermaid-source.ts'
+import { frontmatterTitle, normalizeMermaidSource, toMermaidLines, type NormalizedMermaidSource } from '../mermaid-source.ts'
 import type { ParsedDiagram } from '../agent/types.ts'
 import { prepareRenderInput } from '../agent/render-input.ts'
 import { isBuiltinFamilyId } from '../agent/families.ts'
@@ -22,6 +22,7 @@ import { requireRegisteredMermaidFamily } from '../family-detection.ts'
 import type { RenderOptions } from '../types.ts'
 import {
   NON_SERIALIZABLE_RENDER_OPTION_FIELDS,
+  renderContractDigest,
   SHARED_RENDER_OPTION_FIELDS,
   receiptOf,
   resolveRenderRequestForExecution,
@@ -34,6 +35,7 @@ import { emitResolvedConfigDiagnostics } from '../render-config-diagnostics.ts'
 import { visualWidth } from './width.ts'
 import { graphemes } from '../shared/graphemes.ts'
 import { wrapText } from './wrap.ts'
+import { displayText } from '../multiline-utils.ts'
 import { positionResolvedFamily } from '../positioning.ts'
 import type { SceneDoc } from '../scene/ir.ts'
 import { admitFamilyScene } from '../scene/admission.ts'
@@ -53,8 +55,8 @@ import {
 } from '../terminal-security.ts'
 import { AsciiWidthError } from './width-error.ts'
 import { parsePieChart } from '../pie/parser.ts'
-import { architectureTitleSource } from '../architecture/parser.ts'
 import { safePieTerminalText } from './pie.ts'
+import { beginTerminalCapture, capturedTerminalDocument, retainTerminalDocument, TerminalDocument } from './terminal-document.ts'
 
 // Re-export types for external use
 export type { AsciiTheme, ColorMode }
@@ -183,10 +185,7 @@ export function renderMermaidASCIIWithReceipt(
   }
   const colorMode = outputPolicy.colorMode
 
-  // Loop 9 M13: apply pre-render label wrapping if maxWidth is set. Walks
-  // the source and rewrites bracket-quoted labels to insert <br/> at word
-  // boundaries when the label exceeds (maxWidth / 3). Family-agnostic
-  // because every renderer respects <br/> as a hard line break.
+  // Families wrap prepared display text in cells, retaining source identity.
   const widthBudget = outputPolicy.targetWidth ?? outputPolicy.maxWidth
   const outputKind = colorMode === 'html' ? 'html' : outputPolicy.useAscii ? 'ascii' : 'unicode'
   // The terminal adapter owns its cell-grid controls. Only the canonical
@@ -207,25 +206,15 @@ export function renderMermaidASCIIWithReceipt(
   // ANSI/HTML wrappers are introduced. A visible one-cell replacement keeps
   // renderer geometry and emitted geometry coherent.
   const terminalSource = projectTerminalSafeSource(request.source)
-  // Width-driven label wrapping is an output projection. Project only the
-  // already-normalized diagram body: reparsing the authored wrapper would
-  // merge frontmatter/init config a second time and historically lost nested
-  // config on width-bounded renders. Keep the authored source and its resolved
-  // config in the shared receipt.
-  // Pie already wraps its legend labels in terminal cells. Rewriting its
-  // authored grammar body through the decoded envelope would merge distinct
-  // entity-spelled source keys before first-wins section parsing.
-  const normalizedSource = widthBudget && family.id !== 'pie'
-    ? projectLabelsInNormalizedSource(terminalSource.source, widthBudget, outputPolicy.targetWidth !== undefined, family.id)
-    : terminalSource.source
+  const normalizedSource = terminalSource.source
+  config.title = frontmatterTitle(normalizedSource.frontmatter)
+  config.maxWidth = widthBudget
+  config.targetWidth = outputPolicy.targetWidth
   // Source admission sees the authored `\\r` / `\\t` bytes, not the control
   // characters created by Pie's grammar. Reflect the family-owned terminal
   // projection in the shared receipt and public diagnostics as well.
   const pieControlsReplaced = family.id === 'pie' && (() => {
     const chart = parsePieChart(normalizedSource.authoredPieFamilyLines ?? normalizedSource.familyLines)
-    // The Pie terminal renderer emits no rows (including the title) when the
-    // total is zero, so no output control is replaced in that case.
-    if (chart.entries.reduce((sum, entry) => sum + entry.value, 0) <= 0) return false
     const visibleTitle = chart.displayTitle ?? chart.title
     return (visibleTitle !== undefined && safePieTerminalText(visibleTitle) !== visibleTitle)
       || chart.entries.some(entry => {
@@ -252,7 +241,7 @@ export function renderMermaidASCIIWithReceipt(
       connectorProjectionFailed = true
     }
   }
-  const terminalStyle = projectTerminalStyle(
+  let terminalStyle = projectTerminalStyle(
     request,
     colorMode,
     outputPolicy.theme,
@@ -264,7 +253,8 @@ export function renderMermaidASCIIWithReceipt(
   )
   for (const diagnostic of terminalStyle.diagnostics) options.onProjectionDiagnostic?.(diagnostic)
   const theme: AsciiTheme = terminalStyle.theme
-  const renderedOutput = family.renderAscii!({
+  beginTerminalCapture(config)
+  let renderedOutput = family.renderAscii!({
     source: normalizedSource,
     // Forward the canonical family context as one unit. Enumerating today's
     // fields here previously dropped styleFace and made the terminal hook a
@@ -280,6 +270,22 @@ export function renderMermaidASCIIWithReceipt(
       ganttToday: familyContext.renderOptions.ganttToday,
     },
   })
+  let drawing = capturedTerminalDocument(config, renderedOutput)
+  const title = frontmatterTitle(normalizedSource.frontmatter)
+  if (drawing && title && !drawing.titleHandled && !drawing.hasOwner('title', 'label')) {
+    const titled = new TerminalDocument()
+    for (const line of wrapText(displayText(title), widthBudget)) titled.line([{ text: line, owner: { id: 'title', kind: 'label' }, role: 'text', textGroup: 'title' }])
+    titled.line()
+    titled.overlay(drawing, 0, titled.height)
+    drawing = titled
+    renderedOutput = drawing.serialize({ colorMode, theme, trimEnd: true })
+  }
+  if (drawing?.diagnostics.length) {
+    for (const diagnostic of drawing.diagnostics) options.onProjectionDiagnostic?.(diagnostic)
+    const diagnostics = Object.freeze([...terminalStyle.diagnostics, ...drawing.diagnostics])
+    terminalStyle = Object.freeze({ ...terminalStyle, diagnostics, digest: renderContractDigest({ style: terminalStyle.digest, diagnostics }) })
+  }
+  if (drawing && outputPolicy.targetWidth !== undefined) renderedOutput = drawing.serialize({ colorMode, theme, trimEnd: true })
   // HTML is an output encoding, not permission for family renderers to emit
   // authored markup. Secure the completed artifact at the common boundary so
   // raw labels are escaped even in renderers that concatenate them beside
@@ -293,9 +299,11 @@ export function renderMermaidASCIIWithReceipt(
 
   const targetWidth = outputPolicy.targetWidth
   if (targetWidth === undefined) {
-    return { text: output, receipt, terminalStyle, outputPolicy }
+    const result = { text: output, receipt, terminalStyle, outputPolicy }
+    retainTerminalDocument(result, drawing)
+    return result
   }
-  const boundedOutput = output.split('\n').map(line => line.trimEnd()).join('\n').trimEnd()
+  const boundedOutput = drawing ? output : output.split('\n').map(line => line.trimEnd()).join('\n').trimEnd()
   const requiredWidth = Math.max(
     0,
     ...boundedOutput.split('\n').map(line => terminalOutputLineWidth(line, colorMode)),
@@ -309,7 +317,9 @@ export function renderMermaidASCIIWithReceipt(
       hasTooWideGrapheme ? 'UNBREAKABLE_GRAPHEME' : 'MINIMUM_GEOMETRY',
     )
   }
-  return { text: boundedOutput, receipt, terminalStyle, outputPolicy }
+  const result = { text: boundedOutput, receipt, terminalStyle, outputPolicy }
+  retainTerminalDocument(result, drawing)
+  return result
 }
 
 interface TerminalSafeSourceProjection {
@@ -368,33 +378,6 @@ function projectTerminalSafeSource(source: Readonly<NormalizedMermaidSource>): T
   return Object.freeze({ source: Object.freeze(safeSource), controlsReplaced })
 }
 
-function projectLabelsInNormalizedSource(
-  source: NormalizedMermaidSource,
-  width: number,
-  hard: boolean,
-  familyId: string,
-): NormalizedMermaidSource {
-  // Mermaid's architecture grammar reads `<br/>` in a [title] only quoted.
-  const bracketText = familyId === 'architecture' ? architectureTitleSource : undefined
-  const body = source.body
-    .split(/\r?\n/)
-    .map(line => /^\s*%%/.test(line) ? line : wrapLabelsInSource(line, width, hard, bracketText))
-    .join('\n')
-  if (body === source.body) return source
-  const lines = toMermaidLines(body)
-  const projected = normalizeMermaidSource(body)
-  return Object.freeze({
-    ...source,
-    body,
-    text: lines.join('\n'),
-    lines: Object.freeze(lines) as unknown as string[],
-    familyBody: projected.familyBody,
-    familyText: projected.familyText,
-    familyLines: Object.freeze(projected.familyLines) as unknown as string[],
-    firstLine: lines[0]?.toLowerCase() ?? '',
-  })
-}
-
 /**
  * Loop 9 M13: wrap a single label string at word boundaries to fit a column
  * width. Words longer than `maxLineWidth` emit a warn and render as-is.
@@ -421,30 +404,4 @@ export function wrapLabel(text: string, maxLineWidth: number): string {
   }
   if (current) lines.push(current)
   return lines.join('<br/>')
-}
-
-/**
- * Walk Mermaid source and wrap bracket-quoted labels (`["..."]`, `[...]`,
- * `(...)`, `{...}`, `((...))`) whose contents exceed `maxWidth / 3` columns.
- * Family-agnostic — works on flowchart node labels, sequence message text,
- * class members, etc. — except that `bracketText`, when given, writes a
- * wrapped unquoted `[…]` label for a grammar that reads `<br/>` only quoted.
- */
-function wrapLabelsInSource(source: string, maxWidth: number, hard = false, bracketText?: (text: string) => string): string {
-  const perLabel = Math.max(hard ? 1 : 8, Math.floor(maxWidth / 3))
-  // Match bracket-quoted labels: ["text"], [text], (text), {text}, ((text))
-  // Skip already-wrapped labels (those containing <br/>) and identifier-only labels.
-  return source.replace(/(\[\[|\(\(|\[|\(|\{)("?)([^\[\]\(\)\{\}\n]+)\2(\]\]|\)\)|\]|\)|\})/g,
-    (full, open: string, quote: string, inner: string, close: string) => {
-      if (visualWidth(inner) <= perLabel || inner.includes('<br/>')) return full
-      // Numeric arrays and coordinate tuples are grammar, not labels. Injecting
-      // <br/> into `[1, 2]` or `[0.3, 0.4]` can erase chart data or make a
-      // valid quadrant fail parsing at narrow target widths.
-      if (/^[\s,+.\-0-9]+$/.test(inner)) return full
-      // Don't wrap identifier-like content (no spaces, looks like a variable)
-      if (!inner.includes(' ')) return full
-      const wrapped = hard ? wrapText(inner, perLabel).join('<br/>') : wrapLabel(inner, perLabel)
-      if (bracketText && open === '[' && quote === '' && close === ']') return `[${bracketText(wrapped)}]`
-      return open + quote + wrapped + quote + close
-    })
 }

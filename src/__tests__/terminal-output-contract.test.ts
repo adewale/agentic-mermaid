@@ -12,6 +12,9 @@ import {
 } from '../agent/families.ts'
 import { colorizeText } from '../ascii/ansi.ts'
 import { secureTerminalHtmlOutput } from '../terminal-security.ts'
+import { withoutTerminalColor } from './helpers/terminal-text.ts'
+import { renderMermaidASCIIWithMeta } from '../ascii/meta.ts'
+import { terminalDocumentOf } from '../ascii/terminal-document.ts'
 
 const SOURCE = 'flowchart LR\n  A[Start] --> B[Finish]'
 const OSC52 = '\u001b]52;c;dGVybWluYWwtZXhmaWx0cmF0aW9u\u0007'
@@ -50,7 +53,7 @@ describe('terminal text security boundary', () => {
     expect(serializedProjection).not.toContain('\\u001b')
   })
 
-  test('escapes authored HTML in family renderers that concatenate plain labels', () => {
+  test('escapes authored HTML while preserving literal text through colored runs', () => {
     const payload = '<img src=x onerror=alert(1)>'
     const pie = renderMermaidASCIIWithReceipt(`pie\n  "${payload}" : 5`, { colorMode: 'html' })
     const quadrant = renderMermaidASCIIWithReceipt(`quadrantChart\n  title ${payload}\n  P: [0.2, 0.8]`, { colorMode: 'html' })
@@ -58,7 +61,7 @@ describe('terminal text security boundary', () => {
     for (const rendered of [pie, quadrant]) {
       expect(rendered.text).not.toContain(payload)
       expect(rendered.text).not.toContain('<img')
-      expect(rendered.text).toContain('&lt;img src=x onerror=alert(1)&gt;')
+      expect(withoutTerminalColor(rendered.text)).toContain('&lt;img src=x onerror=alert(1)&gt;')
     }
   })
 
@@ -152,14 +155,35 @@ describe('canonical terminal output policy', () => {
       if (!descriptor.example || !descriptor.renderAscii) continue
       for (const useAscii of [false, true]) {
         const baseline = renderMermaidASCIIWithReceipt(descriptor.example, { useAscii, colorMode: 'none' })
+        const document = terminalDocumentOf(baseline)!
+        expect(document, `${id} native owned drawing`).toBeDefined()
+        const baselineRegions = document.regions()
+        expect(baselineRegions.length, `${id} owned regions`).toBeGreaterThan(0)
         for (const colorMode of ['none', 'ansi16', 'ansi256', 'truecolor', 'html'] as const) {
           const rendered = renderMermaidASCIIWithReceipt(descriptor.example, { useAscii, colorMode })
           expect(plain(rendered.text), `${id}/${useAscii ? 'ascii' : 'unicode'}/${colorMode}`).toBe(baseline.text)
+          expect(terminalDocumentOf(rendered)!.regions(), `${id}/${colorMode} ownership`).toEqual(baselineRegions)
           expect(rendered.receipt.diagnostics, `${id}/${colorMode}`).toEqual(rendered.terminalStyle.diagnostics)
           expect(rendered.terminalStyle.connectorProjection.digest, `${id}/${colorMode}`)
             .toBe(baseline.terminalStyle.connectorProjection.digest)
         }
       }
+    }
+  })
+
+  test('string-only hooks explicitly decline ownership, including wrappers that alter native output', () => {
+    const descriptor = getFamily('flowchart')!
+    for (const wrapNative of [true, false]) {
+      const restore = replaceFamilyForTest('flowchart', {
+        ...descriptor,
+        renderAscii(context) { return wrapNative ? `${descriptor.renderAscii!(context)}\nextra` : 'external terminal text' },
+      })
+      try {
+        const result = renderMermaidASCIIWithMeta(SOURCE, { colorMode: 'none' })
+        expect(result.ascii).toContain(wrapNative ? 'extra' : 'external terminal text')
+        expect(result.regions).toEqual([])
+        expect(result.warnings).toContainEqual(expect.objectContaining({ code: 'TERMINAL_OWNERSHIP_UNAVAILABLE' }))
+      } finally { restore() }
     }
   })
 
