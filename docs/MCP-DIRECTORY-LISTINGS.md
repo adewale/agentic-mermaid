@@ -49,16 +49,73 @@ from `verify.ok` alone.
 
 ## Directory record
 
-| Directory | Registration input | Recorded status on 2026-07-30 |
+Last audited **2026-10-16** against the eight destinations in the
+[original checklist](https://x.com/soraiadev/status/2082500548134056063).
+“Listed” requires a public entry; submission and account ownership are separate
+states. Search-index evidence is labelled below because it cannot establish
+live endpoint health. A failed lookup does not establish that a listing is absent.
+
+| Directory / evidence | Status and date | Next action |
 |---|---|---|
-| Official MCP Registry | Root [`server.json`](../server.json) | Active at version `0.4.1` (published to npm and the Registry on 2026-07-31). Root `server.json` carries `0.4.2`, not yet published |
-| OpenAI Plugins | Endpoint plus canonical fields above | Account-gated submission; tool titles and privacy notice captured in this repository |
-| Claude Connectors Directory | Endpoint plus canonical fields above | Account-gated Team/Enterprise submission; tool titles and privacy notice captured in this repository |
-| Cursor Directory | Repository and endpoint | Not found in directory; account-gated submission remains |
-| MCPServers.org | Name, short description, repository, category `Design`, support email | Submitted on 2026-07-30; review pending |
-| PulseMCP | Official Registry ingestion | Listed as Agentic Mermaid |
-| Smithery | Endpoint | Not found; account-gated submission remains |
-| Glama | Repository or Official Registry entry | Listed and healthy; ownership claim remains optional |
+| [Official MCP Registry: immutable `0.4.1` record](https://registry.modelcontextprotocol.io/v0.1/servers/io.github.adewale%2Fagentic-mermaid/versions/0.4.1) | **Active, latest**, confirmed from the live API on 2026-10-16. Published 2026-07-31 by [release run](https://github.com/adewale/agentic-mermaid/actions/runs/30626742621). | Keep root [`server.json`](../server.json) as the only publication authority. |
+| [OpenAI Plugins](https://platform.openai.com/plugins) | **Desired; no submission receipt recorded.** Current [submission instructions](https://developers.openai.com/plugins/deploy/submission) checked 2026-10-16. | Prepare the required package and review materials below, then complete the verified developer/account flow. |
+| [Claude directory](https://claude.com/resources/articles/build-plugins-for-claude) | **Desired; no submission receipt recorded.** New portal announced 2026-09-25; accepts a single remote connector or a plugin bundle from developers on paid Claude plans. The old Team/Enterprise-only note is obsolete. | Submit the hosted URL through the portal linked from the announcement; optionally bundle the existing diagram-workflow skill. |
+| [Cursor Directory](https://cursor.directory/) | **Desired; current listing unconfirmed.** On 2026-10-16 the former `/mcp` route redirects to a plugin directory. The July search found no listing. | Search the current catalog while signed in and use its current plugin submission flow; record its receipt. |
+| [MCPServers.org listing](https://mcpservers.org/servers/adewale/agentic-mermaid) | **Listed in the public search index**, checked 2026-10-16. The 2026-07-30 submission is no longer merely “review pending.” Direct retrieval returned 403, so live-page health was not verified. | Inspect the listing in a browser and request an update only if the endpoint/copy is wrong. |
+| [PulseMCP](https://www.pulsemcp.com/servers) | **Historical listing, current entry unconfirmed.** July's record said “Listed as Agentic Mermaid,” but retained no entry URL. On 2026-10-16 the directory announces that new submissions and listing changes are paused. | Recover the existing entry URL when lookup is available; do not assume Registry ingestion guarantees a current listing or submit a duplicate. |
+| [Smithery publishing](https://smithery.ai/docs/build/publish) | **Desired; no submission receipt or verified entry recorded.** July's search found no listing. | Publish `https://agentic-mermaid.dev/mcp` via [URL publishing](https://smithery.ai/new) after account access; it supports Streamable HTTP and automatically scans public servers. |
+| [Glama connector](https://glama.ai/mcp/connectors/io.github.adewale/agentic-mermaid) | **Listed, healthy** on Glama's page checked 2026-10-16; page reports its last test as 2026-10-16. Ownership remains unconfirmed. | Use the listing's ownership flow to verify the domain or GitHub account. Do not equate automatic indexing with an ownership claim. |
+
+### Version and evidence maintenance
+
+On 2026-10-16 both `npm view agentic-mermaid version` and the Registry's
+`servers?search=io.github.adewale%2Fagentic-mermaid&version=latest` API reported
+`0.4.1`. Root `server.json` and `package.json` carry the **source version `0.4.2`**;
+that does not mean it has been published. A source version, npm version,
+Registry record, and hosted deployment must each be checked independently.
+
+The July MCPServers.org submission has no retained receipt ID. Its public
+listing above is the available evidence. For every future submission, add the
+timestamp, resulting listing or receipt URL/ID, submitted version, review status,
+ownership status, and exact remaining action here. Keep credentials and private
+reviewer data out of public records.
+
+### Remaining OpenAI submission materials
+
+The current [official submission guide](https://developers.openai.com/plugins/deploy/submission)
+requires a plugin ZIP containing the remote MCP configuration, developer identity
+verification, domain challenge, automated scan, five positive and three negative
+review cases, and an accessible video walkthrough. It also requires HTTPS
+website, support, privacy-policy, and terms-of-service URLs. The email above is
+the support contact, not a substitute for the support-page URL. This document
+and the three prompts above are preparation, not a completed review package.
+Approved terms, a walkthrough URL, the package, completed review cases, and the
+portal's exact challenge token are not recorded here yet. Do not invent a token,
+claim approval, or treat the MIT source license as hosted-service terms.
+
+## Additional opportunities checked on 2026-10-16
+
+These are researched candidates, not submitted entries or claims that the
+services first launched after July.
+
+| Opportunity / primary source | Fit and remaining work |
+|---|---|
+| [MCP.Directory](https://mcp.directory/submit) | Accepts a public GitHub URL and optional npm package. It also discovers Official Registry entries: first search for an existing entry, then claim it or submit `adewale/agentic-mermaid` with npm package `agentic-mermaid`. No receipt recorded. |
+| [Cline MCP Marketplace](https://github.com/cline/mcp-marketplace) | A separate discovery surface with its own submission repository. Check for an existing listing, follow its current issue template, and provide the published stdio command or verified hosted transport. No submission made. |
+| [Docker MCP Registry](https://github.com/docker/mcp-registry) | A potential route for the local stdio distribution. Requires a working Docker deployment and a reviewed catalog contribution; it is not automatic ingestion from our hosted Registry entry. Container packaging/validation remains separate work. |
+| [Microsoft MCP Server Registry](https://github.com/microsoft/mcp-server-registry) | **Not currently eligible:** its current README restricts V1 onboarding to Microsoft first-party servers. Watch for community eligibility; do not open an ineligible manifest PR. |
+
+Glama's domain/GitHub claim and Claude's newer portal are the most direct
+follow-ups to existing listings and prepared copy. OpenAI's newer ZIP submission
+flow can also distribute the existing agent skill with the MCP connection.
+
+### Outreach
+
+The [reply to the original checklist](https://x.com/e_stradella/status/2082502989625872764)
+suggests `r/mcp` with the Showcase tag. Record it as **desired outreach, not
+registered or posted**. Prepare a small public diagram example and check the
+community's current rules before posting; no Reddit post or outreach message
+has been sent as part of this refresh.
 
 ## Publication checks
 
