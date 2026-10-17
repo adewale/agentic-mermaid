@@ -70,7 +70,7 @@ function sharedRenderOptions(options: Readonly<Record<string, unknown>>): Render
   return result as RenderOptions
 }
 
-function terminalRegionId(region: AsciiRegion): string {
+function terminalRegionId(region: Pick<AsciiRegion, 'id' | 'kind'>): string {
   if (region.kind === 'node') return `node:${region.id}`
   if (region.kind === 'edge') return `edge:${region.id}`
   if (region.kind === 'label') return `label:${region.id}`
@@ -81,17 +81,23 @@ function terminalRegionKind(kind: AsciiRegion['kind']): RenderedRegionKind {
   return kind === 'subgraph' ? 'cluster' : kind
 }
 
-function terminalRegion(region: AsciiRegion): RenderedRegion {
+function terminalRegion(region: AsciiRegion, identities: ReadonlySet<string>): RenderedRegion {
+  const parent = region.parentId !== undefined && region.parentKind !== undefined
+    ? terminalRegionId({ id: region.parentId, kind: region.parentKind })
+    : undefined
   return {
     id: terminalRegionId(region),
     kind: terminalRegionKind(region.kind),
     elementId: region.id,
+    ...(parent !== undefined && identities.has(parent) ? { parentId: parent } : {}),
     bounds: {
       x: toFinite(region.canvasColStart),
       y: toFinite(region.canvasRow),
       w: toFinite(Math.max(1, region.canvasColEnd - region.canvasColStart)),
       h: toFinite(Math.max(1, region.rowSpan ?? 1)),
     },
+    ...(region.ownedCellSpans ? { cellSpans: region.ownedCellSpans } : {}),
+    ...(region.occludedCellSpans ? { occludedCellSpans: region.occludedCellSpans } : {}),
     ...(region.sourceLine !== undefined ? { sourceLine: region.sourceLine } : {}),
   }
 }
@@ -179,7 +185,8 @@ export function renderMermaidWithActions(
     })
     const failure = meta.warnings.find(warning => warning.code === 'ASCII_RENDER_FAILED')
     if (failure) throw new Error(failure.message)
-    const regions = meta.regions.map(terminalRegion)
+    const ids = new Set(meta.regions.map(terminalRegionId))
+    const regions = meta.regions.map(region => terminalRegion(region, ids))
     return {
       format: request.format,
       output: meta.ascii,

@@ -143,8 +143,17 @@ function canBundle(edges: AsciiEdge[], graph: AsciiGraph): boolean {
     // interiors and overwrite labels in a three-node graph with a 2-cycle.
     if (edge.routeClass !== undefined && edge.routeClass !== 'primary-forward') return false
 
+    // Source-order placement can leave an otherwise primary edge on the same
+    // allocated level as its target. A TD bundle needs an actual empty grid
+    // row between the source's three-cell envelope and the target: otherwise
+    // its fixed top-entry junction may be negative or inside another card.
+    // Such edges retain the ordinary router and their own physical ports.
+    const from = edge.from.gridCoord, to = edge.to.gridCoord
+    if (from && to && from.y + 3 > to.y) return false
+
     // Different styles can't be bundled (would look confusing)
     if (edge.style !== firstStyle) return false
+    if (edge.inlineStyle?.stroke !== edges[0]!.inlineStyle?.stroke) return false
 
     // Edges with labels can't be bundled (labels would overlap at junction)
     if (edge.text.length > 0) return false

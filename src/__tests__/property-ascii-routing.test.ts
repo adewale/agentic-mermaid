@@ -1,3 +1,4 @@
+import { OccupancyMap } from '../ascii/occupancy.ts'
 import { describe, expect, it } from 'bun:test'
 import fc from 'fast-check'
 
@@ -18,6 +19,7 @@ import {
   gridKey,
 } from '../ascii/types.ts'
 import { assertNoDiagonals } from '../ascii/validate.ts'
+import { TerminalDocument } from '../ascii/terminal-document.ts'
 import type { MermaidGraph, MermaidNode } from '../types.ts'
 
 const PROPERTY_RUNS = 50
@@ -78,9 +80,8 @@ function makeGraph(direction: 'TD' | 'LR' = 'TD'): AsciiGraph {
   return {
     nodes: [],
     edges: [],
-    canvas: [[]],
-    roleCanvas: [[]],
-    grid: new Map(),
+    canvas: new TerminalDocument(1, 0),
+    grid: new OccupancyMap(),
     columnWidth: new Map(),
     rowHeight: new Map(),
     subgraphs: [],

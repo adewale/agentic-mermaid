@@ -315,11 +315,11 @@ design context, never additional queues. Retired IDs are not reused.
   new ad-hoc quote scanners.
 - [ ] **CONS-45 — Finish terminal-context convergence** (`todo`). Move remaining
   family-local cell writers and context argument lists onto shared grapheme-safe
-  canvas/context helpers without projecting pixel Scene geometry. Track the
-  owned-cell design in [#386](https://github.com/adewale/agentic-mermaid/issues/386)
-  and proposed PR #394, not a second compositor implementation. PR #395
-  incorporates an older #394 revision and needs reconciliation with its newer
-  audit fixes before merge; retain #395's distinct prepared-text/XY work.
+  canvas/context helpers without projecting pixel Scene geometry. Build on the
+  shared terminal compositor delivered by #394 under
+  [#386](https://github.com/adewale/agentic-mermaid/issues/386). PR #395
+  incorporates an older #394 revision and needs reconciliation with current
+  main before merge; retain #395's distinct prepared-text/XY work.
 
 ## Contribution governance backlog
 
@@ -383,9 +383,14 @@ investigation of the class rather than per-item fixes.
 - [ ] **BUG-43 — Edges between a subgraph and its own contents break routing rules** (`todo`). Nine such pairs (for example `A --> Outer`, `Inner --> Outer`) render but leave an endpoint off the outline, route through a node, or misanchor on the container; `verify` reports them. Pinned in `subgraph-hierarchy-exhaustive.test.ts`.
 - [ ] **BUG-46 — SVG output carries unrounded floats** (`todo`). The default style emits `36.900000000000006` (state) and `4.199999999999999` (timeline, pie), and hand-drawn styles emit `stroke-width="2.0999999999999996"`. Round once where numbers become SVG text, shared by Scene and SVG; goldens that pin these values change with the fix.
 - [ ] **BUG-47 — A Journey title, section or task that is only `<br/>` is rejected** (`todo`). Mermaid draws `<br/>` as text there; ours reports "Invalid user journey line". Pinned `it.failing` in `property-svg-wellformedness.test.ts`.
-- [ ] **BUG-48 — Terminal width wrapping writes `<br/>` into labels that draw it as text** (`todo`). `wrapLabelsInSource` in `src/ascii/index.ts` inserts `<br/>` into bracketed labels, so XYChart categories and Timeline events at a `targetWidth` show `<br/>` literally.
 - [ ] **BUG-52 — Mutators keep "don't empty" floors that predate renderable empty charts** (`todo`). `set_title` on `createMermaid('pie')` is refused ("Pie must keep at least one slice"); the Architecture and Journey mutators keep similar floors.
 - [ ] **BUG-60 — A YAML string whose first line is only spaces does not round-trip through frontmatter** (`todo`). The `yaml` writer turns ` \n` into a block scalar that reads back as `\n`. Pinned `test.failing` in `metadata-yaml.test.ts`.
+- [ ] **BUG-69 — Sankey public link identities collide with authored suffixes**
+  (`todo`, [#400](https://github.com/adewale/agentic-mermaid/issues/400)). Duplicate
+  `A,B` rows and an authored target `B#1` produce duplicate graphical link IDs.
+  Share a pure family identity plan across graphical and terminal projections,
+  reserve authored names and test SVG semantics, layout regions and terminal
+  ownership. This is separate from the shared terminal compositor's guarantees.
 - [ ] **BUG-61 — Code Mode trailing line comments break the wrapper** (`todo`,
   [#366](https://github.com/adewale/agentic-mermaid/issues/366)). Protect
   multi-statement snippets ending in `//` from swallowing wrapper syntax.
@@ -407,17 +412,6 @@ investigation of the class rather than per-item fixes.
 - [ ] **BUG-64 — Gantt/Radar wrapping duplicates literal formatting tags**
   (`todo`, [#383](https://github.com/adewale/agentic-mermaid/issues/383)). Prepare
   display text once rather than reinterpreting wrapped text; proposed in #395.
-- [ ] **BUG-65 — Terminal XY ticks and bars disagree** (`todo`,
-  [#384](https://github.com/adewale/agentic-mermaid/issues/384)). Use one quantized
-  numeric scale. #394 and #395 overlap here; preserve the richer quantization
-  cases when reconciling them rather than declaring both variants equivalent.
-- [ ] **BUG-66 — Terminal sequence notes/fragments lose lexical ownership**
-  (`todo`, [#391](https://github.com/adewale/agentic-mermaid/issues/391)). Preserve
-  event order and measured cell bounds. #390 is landed; the fixes proposed in
-  #394/#395 are not. The entire compositor is not a conceptual prerequisite.
-- [ ] **BUG-67 — Sequence autonumber controls diverge between surfaces** (`todo`,
-  [#392](https://github.com/adewale/agentic-mermaid/issues/392)). Share ordered
-  control intent independently of pixel/cell layout; proposed in #394/#395.
 
 ## Non-goals
 

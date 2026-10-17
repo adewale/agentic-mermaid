@@ -1,3 +1,4 @@
+import { terminalArtifact, serializeTerminalArtifact, type TerminalArtifact } from './terminal-artifact.ts'
 // ============================================================================
 // ASCII renderer — Gantt diagrams (docs/design/families/gantt.md §5).
 //
@@ -30,15 +31,19 @@ import {
 } from '../gantt/parser.ts'
 import { resolveGanttSchedule, formatGanttInstant } from '../gantt/schedule.ts'
 import { resolveTicks, packCompactLanes } from '../gantt/layout.ts'
-import type { GanttModel, GanttSchedule, ScheduledGanttTask, EpochMs } from '../gantt/types.ts'
+import { parseTodayMarkerStyle } from '../gantt/today-marker.ts'
+import type { GanttSchedule, ScheduledGanttTask, EpochMs } from '../gantt/types.ts'
 import type { MermaidFrontmatterMap } from '../mermaid-source.ts'
-import { colorizeLine, DEFAULT_ASCII_THEME } from './ansi.ts'
-import { padEndToVisualWidth, truncateToVisualWidth, visualWidth } from './width.ts'
+import { DEFAULT_ASCII_THEME } from './ansi.ts'
+import { TerminalDocument, type TerminalOwner, type TerminalRun } from './terminal-document.ts'
+import { visualWidth } from './width.ts'
 import { breakLineTags } from '../multiline-utils.ts'
-import type { AsciiConfig, AsciiTheme, CharRole, ColorMode } from './types.ts'
+import type { AsciiConfig, AsciiTheme, ColorMode } from './types.ts'
 import { resolveRoleStyle, type InternalStyleFace } from '../scene/style-registry.ts'
+import { wrapText } from './wrap.ts'
+import { terminalIds } from './identity.ts'
 
-interface StyledSegment { text: string; role: CharRole | null }
+type StyledSegment = TerminalRun
 
 const DEFAULT_PLOT_WIDTH = 40
 const MIN_PLOT_WIDTH = 12
@@ -63,11 +68,6 @@ function fillGlyph(tags: readonly string[], g: GanttGlyphs): string {
   return g.bar
 }
 
-function truncateToWidth(text: string, width: number): string {
-  if (visualWidth(text) <= width) return text
-  return truncateToVisualWidth(text, Math.max(1, width - 1)) + '…'
-}
-
 function dateGutter(task: ScheduledGanttTask, schedule: GanttSchedule): string {
   const fmt = schedule.dateOnly ? '%m-%d' : '%m-%d %H:%M'
   if (task.tags.includes('milestone')) {
@@ -82,18 +82,20 @@ function dateGutter(task: ScheduledGanttTask, schedule: GanttSchedule): string {
  * Render a Mermaid gantt diagram to ASCII/Unicode text. `lines` are the
  * normalized source lines (header first); frontmatter carries displayMode.
  */
-export function renderGanttAscii(
+export function renderGanttTerminal(
   lines: string[],
   config: AsciiConfig,
   colorMode: ColorMode = 'none',
   theme: AsciiTheme = DEFAULT_ASCII_THEME,
   frontmatter?: MermaidFrontmatterMap,
   options: { maxWidth?: number; today?: string; resolvedConfig?: ResolvedGanttFrontmatterConfig; styleFace?: InternalStyleFace } = {},
-): string {
+): TerminalArtifact {
+  const widthBudget = options.maxWidth ?? config.maxWidth
   const model = applyResolvedGanttFrontmatterConfig(
     parseGanttModel(lines),
     options.resolvedConfig ?? resolveGanttFrontmatterConfig(frontmatter),
   )
+  model.title ??= config.title
   const schedule = resolveGanttSchedule(model, { today: options.today })
   const g = glyphsFor(config.useAscii)
   const arrow = config.useAscii ? '->' : '→'
@@ -119,8 +121,25 @@ export function renderGanttAscii(
     return Array.from({ length: count }, (_, li) =>
       sectionTasks.filter((_, i) => lanes[i] === li).map(t => t.label).join(', '))
   }
+  const generated = terminalIds(schedule.tasks.flatMap(task => task.id === undefined ? [] : [task.id]))
+  const taskOwner = (task: ScheduledGanttTask): TerminalOwner => ({ id: task.id ?? generated(`task-${task.index}`), kind: 'node' })
+  const labelRows = (tasks: ScheduledGanttTask[], width: number): TerminalRun[][] => {
+    const rows: TerminalRun[][] = [[]]
+    let used = 0
+    tasks.forEach((task, index) => {
+      const chunks = wrapText(task.label, Math.max(1, width))
+      chunks.forEach((text, lineIndex) => {
+        const gap = index > 0 && lineIndex === 0 ? ', ' : ''
+        if (used > 0 && (lineIndex > 0 || used + visualWidth(gap + text) > width)) { rows.push([]); used = 0 }
+        if (used > 0 && gap) { rows.at(-1)!.push({ text: gap }); used += visualWidth(gap) }
+        rows.at(-1)!.push({ text, role: 'text', owner: taskOwner(task) })
+        used += visualWidth(text)
+      })
+    })
+    return rows
+  }
 
-  // ---- column sizing: shrink the plot before truncating labels --------------
+  // ---- column sizing: shrink the plot before wrapping labels ----------------
   let labelWidth = 0
   for (let si = 0; si < model.sections.length; si++) {
     const sectionTasks = rowTasks.filter(t => t.sectionIndex === si)
@@ -144,13 +163,13 @@ export function renderGanttAscii(
   const gutterWidth = Math.max(0, ...gutters.map(visualWidth))
 
   let plotWidth = DEFAULT_PLOT_WIDTH
-  if (options.maxWidth !== undefined) {
+  if (widthBudget !== undefined) {
     const fixed = labelWidth + 2 + 2 + gutterWidth
-    plotWidth = Math.max(MIN_PLOT_WIDTH, Math.min(DEFAULT_PLOT_WIDTH, options.maxWidth - fixed))
+    plotWidth = Math.max(MIN_PLOT_WIDTH, Math.min(DEFAULT_PLOT_WIDTH, widthBudget - fixed))
     const total = fixed + plotWidth
-    if (total > options.maxWidth) {
+    if (total > widthBudget) {
       // Plot is already at minimum: truncate the label column to fit.
-      labelWidth = Math.max(8, labelWidth - (total - options.maxWidth))
+      labelWidth = Math.max(8, labelWidth - (total - widthBudget))
     }
   }
 
@@ -164,29 +183,47 @@ export function renderGanttAscii(
   const todayCol = schedule.today !== undefined && schedule.today >= schedule.timeMin && schedule.today <= schedule.timeMax
     ? Math.min(plotWidth - 1, colOf(schedule.today))
     : undefined
+  const todayStyle = model.todayMarker?.style === undefined ? undefined : parseTodayMarkerStyle(model.todayMarker.style)
+  const todayPaint = todayStyle?.applied.find(([property]) => property === 'stroke')?.[1]
+  const todayOwner: TerminalOwner = { id: generated('today-marker'), kind: 'plot' }
+  const todayGlyph = config.useAscii ? '|' : '╎'
 
-  const out: string[] = []
-  const pushLine = (segments: StyledSegment[] = []): void => {
-    if (segments.length === 0) { out.push(''); return }
-    const chars: string[] = []
-    const roles: (CharRole | null)[] = []
-    for (const seg of segments) {
-      for (const ch of seg.text) { chars.push(ch); roles.push(seg.role) }
+  const document = new TerminalDocument()
+  document.titleHandled = true
+  if (model.barHeight !== undefined && rowTasks.length > 0) document.report({
+    code: 'TERMINAL_FAMILY_PROJECTION', feature: 'gantt.barHeight',
+    message: `gantt.barHeight=${model.barHeight}px is represented by one terminal bar row per task or compact lane; task labels, dates and interval ownership are retained.`,
+  })
+  if (todayCol !== undefined && todayStyle !== undefined) {
+    for (const [property, value] of todayStyle.applied) {
+      if (property === 'stroke' || (property === 'opacity' && Number(value) === 1)) continue
+      document.report({
+      code: 'TERMINAL_FAMILY_PROJECTION', feature: `gantt.todayMarker.${property}`,
+      message: `todayMarker ${property}=${JSON.stringify(value)} is represented by ${todayGlyph} at the resolved clock column; CSS opacity, dash lengths and pixel stroke widths are unavailable. The resolved stroke color is retained.`,
+      })
     }
-    out.push(colorizeLine(chars, roles, theme, colorMode).replace(/\s+$/, ''))
+  }
+  let owner: TerminalOwner | undefined
+  const pushLine = (segments: StyledSegment[] = []): void => {
+    document.line(segments, { owner })
   }
 
   // ---- title ------------------------------------------------------------------
   if (model.title) {
+    owner = { id: generated('title'), kind: 'label' }
     const totalWidth = labelWidth + 2 + plotWidth
-    const pad = Math.max(0, Math.floor((totalWidth - visualWidth(model.title)) / 2))
-    pushLine([{ text: ' '.repeat(pad) + model.title, role: 'text' }])
+    document.scope(owner, () => {
+      for (const text of wrapText(model.title!, widthBudget)) {
+        const pad = Math.max(0, Math.floor((totalWidth - visualWidth(text)) / 2))
+        pushLine([{ text: ' '.repeat(pad), kind: 'surface' }, { text, role: 'text' }])
+      }
+    })
     pushLine()
   }
 
   // ---- track builder ------------------------------------------------------------
-  const buildTrack = (task: ScheduledGanttTask): string => {
-    const cells = new Array<string>(plotWidth).fill(g.track)
+  const buildTrack = (task: ScheduledGanttTask): TerminalRun[] => {
+    const cells: TerminalRun[] = Array.from({ length: plotWidth }, () => ({ text: g.track, role: 'line', kind: 'stroke' }))
     const status = task.tags.includes('crit') ? 'crit'
       : task.tags.includes('active') ? 'active'
       : task.tags.includes('done') ? 'done'
@@ -207,7 +244,7 @@ export function renderGanttAscii(
         : roleStyle?.cue === 'double-line' ? (config.useAscii ? '#' : '◈')
         : roleStyle?.cue === 'pattern' ? (config.useAscii ? '%' : '▣')
         : undefined
-      cells[c] = milestoneCue ?? g.milestone
+      cells[c] = { text: milestoneCue ?? g.milestone, role: 'line', kind: 'marker' }
     } else {
       // Bars draw to renderEnd — the same drawn extent the SVG bars use.
       const from = colOf(task.start)
@@ -215,70 +252,22 @@ export function renderGanttAscii(
       // Critical emphasis remains family-owned; otherwise the semantic cue
       // receives a deterministic no-color glyph projection.
       const fill = task.tags.includes('crit') ? g.crit : cueFill ?? fillGlyph(task.tags, g)
-      for (let c = from; c < to && c < plotWidth; c++) cells[c] = fill
+      for (let c = from; c < to && c < plotWidth; c++) cells[c] = { text: fill, role: 'line', kind: 'mark' }
     }
-    for (const vc of vertCols) if (cells[vc] === g.track) cells[vc] = g.vert
-    if (todayCol !== undefined && cells[todayCol] === g.track) cells[todayCol] = config.useAscii ? '|' : '╎'
-    return cells.join('')
+    for (const vc of vertCols) if (cells[vc]!.text === g.track) cells[vc] = { text: g.vert, role: 'line', kind: 'stroke' }
+    if (todayCol !== undefined && cells[todayCol]!.text === g.track) cells[todayCol] = { text: todayGlyph, role: 'line', kind: 'marker', owner: todayOwner, color: todayPaint }
+    return cells
   }
 
-  // ---- rows -----------------------------------------------------------------------
-  for (let si = 0; si < model.sections.length; si++) {
-    const section = model.sections[si]!
-    const sectionTasks = rowTasks.filter(t => t.sectionIndex === si)
-    if (sectionTasks.length === 0 && section.label === undefined) continue
-    if (section.label !== undefined) {
-      for (const line of sectionLines(section.label)) {
-        pushLine([{ text: SECTION_INDENT + truncateToWidth(line, labelWidth - 2), role: 'border' }])
-      }
-    }
-    if (compact && sectionTasks.length > 0) {
-      // Compact mode: tasks pack into shared lanes; each lane renders the
-      // overlay of its tasks' bars (deterministic first-fit, source order).
-      const lanes = lanesBySection.get(si)!
-      const labels = laneLabels(si, sectionTasks)
-      for (let li = 0; li < labels.length; li++) {
-        const laneTasks = sectionTasks.filter((_, i) => lanes[i] === li)
-        const cells = new Array<string>(plotWidth).fill(g.track)
-        for (const t of laneTasks) {
-          const track = buildTrack(t)
-          for (let c = 0; c < plotWidth; c++) if (track[c] !== g.track) cells[c] = track[c]!
-        }
-        pushLine([
-          { text: padEndToVisualWidth(TASK_INDENT + truncateToWidth(labels[li]!, labelWidth - 4), labelWidth), role: 'text' },
-          { text: '  ', role: null },
-          { text: cells.join(''), role: 'line' },
-        ])
-      }
-    } else {
-      for (const t of sectionTasks) {
-        pushLine([
-          { text: padEndToVisualWidth(TASK_INDENT + truncateToWidth(t.label, labelWidth - 4), labelWidth), role: 'text' },
-          { text: '  ', role: null },
-          { text: buildTrack(t), role: 'line' },
-          { text: '  ', role: null },
-          { text: dateGutter(t, schedule).replace('→', arrow), role: 'text' },
-        ])
-      }
-    }
-  }
-
-  // ---- vert marker legend ------------------------------------------------------
-  for (const v of vertTasks) {
-    pushLine([
-      { text: padEndToVisualWidth(TASK_INDENT + truncateToWidth(v.label, labelWidth - 4), labelWidth), role: 'text' },
-      { text: '  ', role: null },
-      { text: padForCol(Math.min(plotWidth - 1, colOf(v.start + (v.renderEnd - v.start) / 2)), g.vert), role: 'line' },
-      { text: '  ', role: null },
-      { text: formatGanttInstant(v.start, schedule.dateOnly ? '%m-%d' : '%m-%d %H:%M'), role: 'text' },
-    ])
-  }
-
-  // ---- axis ----------------------------------------------------------------------
+  const emitAxis = (): void => {
+  owner = { id: generated('time-axis'), kind: 'label' }
+  const axisRow = document.height
   pushLine([
     { text: ' '.repeat(labelWidth + 2), role: null },
     { text: g.axis.repeat(plotWidth), role: 'line' },
   ])
+  // Keep the clock position visible even when task bars cover every track.
+  if (todayCol !== undefined) document.put(labelWidth + 2 + todayCol, axisRow, todayGlyph, { role: 'line', kind: 'marker', owner: todayOwner, color: todayPaint })
   const ticks = resolveTicks(schedule, model, Math.max(2, Math.floor(plotWidth / 12)))
   const axisCells = new Array<string>(plotWidth + 16).fill(' ')
   for (const tick of ticks) {
@@ -294,12 +283,108 @@ export function renderGanttAscii(
   }
   pushLine([
     { text: ' '.repeat(labelWidth + 2), role: null },
-    { text: axisCells.join(''), role: 'text' },
+    { text: axisCells.join('').trimEnd(), role: 'text' },
   ])
 
-  return out.join('\n').replace(/\s+$/, '')
+  }
+
+  if (model.topAxis) emitAxis()
+
+  const emitVertical = (v: ScheduledGanttTask): void => {
+    owner = taskOwner(v)
+    document.scope(owner, () => {
+      labelRows([v], Math.max(1, labelWidth - 4)).forEach((runs, index) => {
+        const width = runs.reduce((sum, run) => sum + visualWidth(run.text), 0)
+        pushLine([
+          { text: TASK_INDENT, kind: 'surface' }, ...runs,
+          ...(index === 0 ? [
+            { text: ' '.repeat(Math.max(0, labelWidth - 4 - width) + 2) },
+            { text: padForCol(Math.min(plotWidth - 1, colOf(v.start + (v.renderEnd - v.start) / 2)), g.vert), role: 'line' as const, kind: 'stroke' as const },
+            { text: '  ' },
+            { text: formatGanttInstant(v.start, schedule.dateOnly ? '%m-%d' : '%m-%d %H:%M'), role: 'text' as const, owner: { id: generated(`${taskOwner(v).id}:dates`), kind: 'label' as const, parent: { id: taskOwner(v).id, kind: 'node' as const } } },
+          ] : []),
+        ])
+      })
+    })
+  }
+
+  // ---- rows -----------------------------------------------------------------------
+  let sectionIndex = 0
+  for (let si = 0; si < model.sections.length; si++) {
+    const section = model.sections[si]!
+    const sectionStart = document.height
+    const sectionTasks = rowTasks.filter(t => t.sectionIndex === si)
+    const sectionVertical = vertTasks.filter(task => task.sectionIndex === si)
+    if (sectionTasks.length === 0 && sectionVertical.length === 0 && section.label === undefined) continue
+    if (sectionTasks.length === 0 && section.label === undefined) { sectionVertical.forEach(emitVertical); continue }
+    const visibleSectionIndex = sectionIndex++
+    owner = { id: generated(`section-label#${visibleSectionIndex}`), kind: 'label' }
+    if (section.label !== undefined) {
+      for (const line of sectionLines(section.label)) {
+        document.scope(owner, () => {
+          for (const text of wrapText(line, Math.max(1, labelWidth - 2))) pushLine([{ text: SECTION_INDENT, kind: 'surface' }, { text, role: 'border', kind: 'text' }])
+        })
+      }
+    }
+    if (compact && sectionTasks.length > 0) {
+      // Compact mode: tasks pack into shared lanes; each lane renders the
+      // overlay of its tasks' bars (deterministic first-fit, source order).
+      const lanes = lanesBySection.get(si)!
+      const laneCount = Math.max(...lanes) + 1
+      for (let li = 0; li < laneCount; li++) {
+        const laneTasks = sectionTasks.filter((_, i) => lanes[i] === li)
+        const cells: TerminalRun[] = Array.from({ length: plotWidth }, () => ({ text: g.track, role: 'line', kind: 'stroke' }))
+        for (const t of laneTasks) {
+          const track = buildTrack(t)
+          for (let c = 0; c < plotWidth; c++) if (track[c]!.text !== g.track) cells[c] = { ...track[c]!, owner: track[c]!.owner ?? taskOwner(t) }
+        }
+        owner = { id: generated(`lane:${si}:${li}`), kind: 'lane', members: laneTasks.map(task => taskOwner(task).id) }
+        const labels = labelRows(laneTasks, Math.max(1, labelWidth - 4))
+        labels.forEach((runs, index) => {
+          const width = runs.reduce((sum, run) => sum + visualWidth(run.text), 0)
+          pushLine([
+            { text: TASK_INDENT }, ...runs,
+            ...(index === 0 ? [
+              { text: ' '.repeat(Math.max(0, labelWidth - 4 - width) + 2) },
+              ...cells.map(cell => ({ ...cell, owner: cell.owner ?? owner })),
+            ] : []),
+          ])
+        })
+      }
+    } else {
+      for (const t of sectionTasks) {
+        const currentOwner = taskOwner(t)
+        owner = currentOwner
+        labelRows([t], Math.max(1, labelWidth - 4)).forEach((runs, index) => {
+          const width = runs.reduce((sum, run) => sum + visualWidth(run.text), 0)
+          pushLine([
+            { text: TASK_INDENT }, ...runs,
+            ...(index === 0 ? [
+              { text: ' '.repeat(Math.max(0, labelWidth - 4 - width) + 2) },
+              ...buildTrack(t),
+              { text: '  ' },
+              { text: dateGutter(t, schedule).replace('→', arrow), role: 'text' as const, owner: { id: generated(`${currentOwner.id}:dates`), kind: 'label' as const, parent: { id: currentOwner.id, kind: 'node' as const } } },
+            ] : []),
+          ])
+        })
+      }
+    }
+    sectionVertical.forEach(emitVertical)
+    document.region({ id: generated(`section#${visibleSectionIndex}`), kind: 'band', members: [...sectionTasks, ...sectionVertical].map(task => taskOwner(task).id) }, {
+      x: 0, y: sectionStart, width: document.width, height: document.height - sectionStart,
+    })
+  }
+
+  if (!model.topAxis) emitAxis()
+
+  return terminalArtifact(document, { colorMode, theme, trimEnd: true })
 }
 
 function padForCol(col: number, glyph: string): string {
   return ' '.repeat(col) + glyph
+}
+
+/** Compatibility string entry point; native dispatch retains the drawing. */
+export function renderGanttAscii(...args: Parameters<typeof renderGanttTerminal>): string {
+  return serializeTerminalArtifact(renderGanttTerminal(...args))
 }

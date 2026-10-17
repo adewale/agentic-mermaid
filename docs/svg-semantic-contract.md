@@ -16,6 +16,14 @@ Source-authored IDs win. Anonymous marks receive semantic IDs derived from label
 
 `data-id` is source-facing identity and is intentionally **not** changed by `RenderOptions.idPrefix`.
 
+Known implementation defect: duplicate Sankey rows and an authored endpoint
+such as `B#1` can collide with a generated occurrence suffix, violating the
+uniqueness requirement above. [#400](https://github.com/adewale/agentic-mermaid/issues/400)
+tracks shared collision-safe family identity allocation and SVG/layout/terminal
+regressions. The shared terminal compositor does not repair this separate
+graphical allocator. Distinct internal Scene mark IDs keep the ribbons drawn;
+this finding does not establish incorrect PNG pixels.
+
 ## Multi-diagram references
 
 `idPrefix` namespaces local SVG `id` declarations and every supported local reference:

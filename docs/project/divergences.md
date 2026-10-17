@@ -34,6 +34,15 @@ For source-level bodies, agents may render, verify, describe, and round-trip pre
 
 `participant A asAlice` is read as participant `A` with alias `Alice`, rather than Mermaid 11.16's surprising participant ID `A asAlice`. Other unspaced aliases, such as an alias containing `:`, are rejected upstream but have equally clear authored meaning. Verification emits `UNSUPPORTED_SYNTAX` with `sequence_unspaced_alias`; canonical serialization writes `participant A as Alice`, preserving the intended identity and label in portable Mermaid.
 
+### Sequence numbering preserves counter state
+
+Sequence messages advance one counter even while `autonumber off` hides their
+numbers. Bare `autonumber` resumes that counter and its step; an explicit start
+resets it, with a default step of one. SVG and terminal output use the same
+parsed message numbers. Explicit zero starts and zero steps are meaningful;
+unlike Mermaid's truthiness-based defaults, they remain zero. Authored controls
+stay intact through source-preserving edits and serialization.
+
 ### Structured-or-opaque is load-bearing
 
 Known-family input must never be partially parsed and then re-emitted with unknown constructs dropped. If the structured parser cannot preserve a construct, the body stays opaque/source-preserved and serializes from `body.source`.

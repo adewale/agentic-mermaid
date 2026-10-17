@@ -6,7 +6,8 @@
 import { describe, expect, it } from 'bun:test'
 import fc from 'fast-check'
 
-import { renderMermaidASCII, renderMermaidSVG } from '../index.ts'
+import { renderMermaidSVG } from '../index.ts'
+import { renderMermaidASCIIWithMeta } from '../ascii/meta.ts'
 import { toMermaidLines } from '../mermaid-source.ts'
 import { parseXYChart } from '../xychart/parser.ts'
 
@@ -130,18 +131,27 @@ describe('xychart bars encode value as length from a shared baseline', () => {
           else expect(bar.y + bar.height).toBeGreaterThan(baselineY)
         }
 
-        const rows = renderMermaidASCII(source, { useAscii: true }).split('\n')
-        const zeroRow = rows.findIndex(row => /^\s*0\+/.test(row))
-        expect(zeroRow).toBeGreaterThanOrEqual(0)
-        const axisRow = rows.findIndex((row, index) => index > zeroRow && /^\s*\+-/.test(row))
-        const tickColumns = [...rows[axisRow]!.matchAll(/\+/g)].map(match => match.index!).slice(1)
-        expect(tickColumns).toHaveLength(values.length)
+        const { ascii, regions } = renderMermaidASCIIWithMeta(source, { useAscii: true, colorMode: 'none' })
+        const rows = ascii.split('\n')
+        const zero = regions.find(region => region.kind === 'label' && region.id === 'y-tick-0')!
+        const plot = regions.find(region => region.kind === 'plot' && region.id === 'plot')!
+        expect(zero).toBeDefined()
+        expect(plot).toBeDefined()
+        const zeroRow = zero.canvasRow
+        const plotExtent = plot.rowSpan! - 1
+        const range = parsedRange(source)
+        const cellsPerUnit = plotExtent / (range.max - range.min)
+        expect(Math.abs(zeroRow - (plot.canvasRow + range.max * cellsPerUnit))).toBeLessThanOrEqual(0.5)
         values.forEach((value, index) => {
-          const column = tickColumns[index]!
-          const filled = rows.slice(0, axisRow).flatMap((row, rowIndex) => row[column] === '#' ? [rowIndex] : [])
-          expect(filled.length).toBeGreaterThan(1)
+          const category = regions.find(region => region.kind === 'node' && region.id === `x-category-${index}`)!
+          const column = Math.floor((category.canvasColStart + category.canvasColEnd) / 2)
+          const filled = rows.flatMap((row, rowIndex) => row[column] === '#' ? [rowIndex] : [])
+          expect(filled.length).toBeGreaterThan(0)
+          // ASCII rounds each boundary to a whole cell. Their two independent
+          // rounding errors can change interval length by at most one cell.
+          expect(Math.abs(filled.length - Math.abs(value) * cellsPerUnit)).toBeLessThanOrEqual(1)
           if (value > 0) {
-            expect(Math.max(...filled)).toBe(zeroRow)
+            expect(Math.max(...filled)).toBe(zeroRow - 1)
             expect(Math.min(...filled)).toBeLessThan(zeroRow)
           } else {
             expect(Math.min(...filled)).toBe(zeroRow)
@@ -149,7 +159,7 @@ describe('xychart bars encode value as length from a shared baseline', () => {
           }
         })
       }),
-      { numRuns: PROPERTY_RUNS },
+      { numRuns: PROPERTY_RUNS, examples: [[[20, 20]], [[-20, -20]], [[20, -20]]] },
     )
   })
 })

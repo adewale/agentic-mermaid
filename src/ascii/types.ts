@@ -7,6 +7,8 @@
 // ============================================================================
 
 import type { NodeShape, EdgeMarker, RouteClass } from '../types.ts'
+import type { TerminalDocument } from './terminal-document.ts'
+import type { OccupancyMap } from './occupancy.ts'
 
 // Re-export shared graph types for convenience
 export type { NodeShape, EdgeMarker }
@@ -58,11 +60,8 @@ export const ALL_DIRECTIONS: readonly Direction[] = [
   Up, Down, Left, Right, UpperRight, UpperLeft, LowerRight, LowerLeft, Middle,
 ]
 
-/**
- * 2D text canvas — column-major (canvas[x][y]).
- * Each cell holds a single character (or space).
- */
-export type Canvas = string[][]
+/** Sparse terminal drawing in display-cell coordinates. */
+export type Canvas = TerminalDocument
 
 /** A node in the ASCII graph, positioned on the grid. */
 export interface AsciiNode {
@@ -77,6 +76,8 @@ export interface AsciiNode {
   drawingCoord: DrawingCoord | null
   drawing: Canvas | null
   drawn: boolean
+  /** Private allocation envelope for an empty container; never painted as a node. */
+  containerAnchor?: true
   styleClassName: string
   styleClass: AsciiStyleClass
 }
@@ -92,6 +93,10 @@ export type AsciiEdgeStyle = 'solid' | 'dotted' | 'thick' | 'invisible'
 
 /** An edge in the ASCII graph, with a routed path. */
 export interface AsciiEdge {
+  /** Authored edge id, or a stable source-index identity for parallel links. */
+  id?: string
+  sourceIndex?: number
+  inlineStyle?: Record<string, string>
   from: AsciiNode
   to: AsciiNode
   /**
@@ -127,6 +132,8 @@ export interface AsciiEdge {
   endMarker?: EdgeMarker
   /** Bundle this edge belongs to (if any). Set during bundling analysis. */
   bundle?: EdgeBundle
+  /** A shared sibling trunk explicitly allocated by the graph router. */
+  sharedTrunk?: string
   /**
    * For bundled edges: path from source/target to the junction point.
    * The full visual path is: pathToJunction + bundle.sharedPath (for fan-in)
@@ -170,6 +177,11 @@ export interface AsciiSubgraph {
 
 /** Configuration for ASCII rendering. */
 export interface AsciiConfig {
+  /** Sanitized frontmatter title; family-native inline titles take precedence. */
+  title?: string
+  /** Resolved display-cell wrapping budget; never applied to Mermaid source. */
+  maxWidth?: number
+  targetWidth?: number
   /** true = ASCII chars (+,-,|), false = Unicode box-drawing (┌,─,│). Default: false */
   useAscii: boolean
   /** Horizontal spacing between nodes. Default: 5 */
@@ -186,13 +198,13 @@ export interface AsciiConfig {
 
 /** Full ASCII graph state used during layout and rendering. */
 export interface AsciiGraph {
+  /** Semantic namespace of compound parents, shared by allocation and painting. */
+  containerKind?: 'subgraph' | 'cluster'
   nodes: AsciiNode[]
   edges: AsciiEdge[]
   canvas: Canvas
-  /** Role canvas — tracks the role of each character for colored output. */
-  roleCanvas: RoleCanvas
   /** Grid occupancy map — maps "x,y" keys to node references. */
-  grid: Map<string, AsciiNode>
+  grid: OccupancyMap<AsciiNode>
   columnWidth: Map<number, number>
   rowHeight: Map<number, number>
   subgraphs: AsciiSubgraph[]
@@ -246,13 +258,6 @@ export type CharRole =
   | 'arrow'     // Arrowheads (▲▼◄► or ^v<>)
   | 'corner'    // Corner characters at path bends
   | 'junction'  // Junction characters (┬┴├┤ where edges meet boxes)
-
-/**
- * Role canvas — parallel to Canvas, tracks the role of each character.
- * Same column-major structure: roleCanvas[x][y] gives the role at (x, y).
- * null means the character has no role (whitespace).
- */
-export type RoleCanvas = (CharRole | null)[][]
 
 /**
  * Theme colors for ASCII output — hex color strings.

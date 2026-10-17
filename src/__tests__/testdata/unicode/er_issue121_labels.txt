@@ -9,9 +9,9 @@ erDiagram
   }
   CUSTOMER ||--o{ ORDER : places labeled orders
 ---
-┌─────────────────────────┐                       ┌──────────────────────────────┐
-│ CUSTOMER                │                       │ ORDER                        │
-├─────────────────────────┤                       ├──────────────────────────────┤
-│ PK string email_address ││────────────────────○╟│    string external_reference │
-│    string display_name  │ places labeled orders │    int total_cents           │
-└─────────────────────────┘                       └──────────────────────────────┘
+    ┌─────────────────────────┐                         ┌───────────────────────────────┐
+    │ CUSTOMER                │  places labeled orders  │ ORDER                         │
+    ├─────────────────────────┤│──────────────────────○╟├───────────────────────────────┤
+    │ PK string email_address │                         │     string external_reference │
+    │     string display_name │                         │     int total_cents           │
+    └─────────────────────────┘                         └───────────────────────────────┘

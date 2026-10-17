@@ -1,4 +1,4 @@
-import { describe, expect, test } from 'bun:test'
+import { describe, expect, spyOn, test } from 'bun:test'
 import { renderMermaidASCIIWithReceipt } from '../ascii/index.ts'
 import {
   resolveTerminalOutputPolicy,
@@ -12,6 +12,12 @@ import {
 } from '../agent/families.ts'
 import { colorizeText } from '../ascii/ansi.ts'
 import { secureTerminalHtmlOutput } from '../terminal-security.ts'
+import { withoutTerminalColor } from './helpers/terminal-text.ts'
+import { renderMermaidASCIIWithMeta } from '../ascii/meta.ts'
+import { TerminalDocument, terminalDocumentOf } from '../ascii/terminal-document.ts'
+import { nativeTerminalRenderer, terminalArtifact } from '../ascii/terminal-artifact.ts'
+import { parseRegisteredMermaid } from '../agent/parse.ts'
+import { MermaidFamilyDetectionError } from '../family-detection.ts'
 
 const SOURCE = 'flowchart LR\n  A[Start] --> B[Finish]'
 const OSC52 = '\u001b]52;c;dGVybWluYWwtZXhmaWx0cmF0aW9u\u0007'
@@ -50,7 +56,7 @@ describe('terminal text security boundary', () => {
     expect(serializedProjection).not.toContain('\\u001b')
   })
 
-  test('escapes authored HTML in family renderers that concatenate plain labels', () => {
+  test('escapes authored HTML while preserving literal text through colored runs', () => {
     const payload = '<img src=x onerror=alert(1)>'
     const pie = renderMermaidASCIIWithReceipt(`pie\n  "${payload}" : 5`, { colorMode: 'html' })
     const quadrant = renderMermaidASCIIWithReceipt(`quadrantChart\n  title ${payload}\n  P: [0.2, 0.8]`, { colorMode: 'html' })
@@ -58,7 +64,7 @@ describe('terminal text security boundary', () => {
     for (const rendered of [pie, quadrant]) {
       expect(rendered.text).not.toContain(payload)
       expect(rendered.text).not.toContain('<img')
-      expect(rendered.text).toContain('&lt;img src=x onerror=alert(1)&gt;')
+      expect(withoutTerminalColor(rendered.text)).toContain('&lt;img src=x onerror=alert(1)&gt;')
     }
   })
 
@@ -152,15 +158,156 @@ describe('canonical terminal output policy', () => {
       if (!descriptor.example || !descriptor.renderAscii) continue
       for (const useAscii of [false, true]) {
         const baseline = renderMermaidASCIIWithReceipt(descriptor.example, { useAscii, colorMode: 'none' })
+        const document = terminalDocumentOf(baseline)!
+        expect(document, `${id} native owned drawing`).toBeDefined()
+        const baselineRegions = document.regions()
+        expect(baselineRegions.length, `${id} owned regions`).toBeGreaterThan(0)
         for (const colorMode of ['none', 'ansi16', 'ansi256', 'truecolor', 'html'] as const) {
           const rendered = renderMermaidASCIIWithReceipt(descriptor.example, { useAscii, colorMode })
           expect(plain(rendered.text), `${id}/${useAscii ? 'ascii' : 'unicode'}/${colorMode}`).toBe(baseline.text)
+          expect(terminalDocumentOf(rendered)!.regions(), `${id}/${colorMode} ownership`).toEqual(baselineRegions)
           expect(rendered.receipt.diagnostics, `${id}/${colorMode}`).toEqual(rendered.terminalStyle.diagnostics)
           expect(rendered.terminalStyle.connectorProjection.digest, `${id}/${colorMode}`)
             .toBe(baseline.terminalStyle.connectorProjection.digest)
         }
       }
     }
+  })
+
+  test('string-only hooks explicitly decline ownership, including wrappers that alter native output', () => {
+    const descriptor = getFamily('flowchart')!
+    for (const wrapNative of [true, false]) {
+      const restore = replaceFamilyForTest('flowchart', {
+        ...descriptor,
+        renderAscii(context) { return wrapNative ? `${descriptor.renderAscii!(context)}\nextra` : 'external terminal text' },
+      })
+      try {
+        const result = renderMermaidASCIIWithMeta(SOURCE, { colorMode: 'none' })
+        expect(result.ascii).toContain(wrapNative ? 'extra' : 'external terminal text')
+        expect(result.regions).toEqual([])
+        expect(result.warnings).toContainEqual(expect.objectContaining({ code: 'TERMINAL_OWNERSHIP_UNAVAILABLE' }))
+      } finally { restore() }
+    }
+  })
+
+  test('public warnings retain final cell coordinates when a title translates a native drawing', () => {
+    const descriptor = getFamily('flowchart')!
+    const restore = replaceFamilyForTest('flowchart', { ...descriptor, renderAscii: nativeTerminalRenderer(context => {
+      const drawing = new TerminalDocument(4, 2)
+      drawing.text(1, 1, 'X', { owner: { id: 'A', kind: 'node' } })
+      drawing.put(1, 1, '─', { owner: { id: 'route', kind: 'edge' } })
+      return terminalArtifact(drawing, { colorMode: context.colorMode, theme: context.theme })
+    }) })
+    try {
+      const result = renderMermaidASCIIWithMeta(`---\ntitle: Heading\n---\n${SOURCE}`, { colorMode: 'none' })
+      expect(result.ascii.split('\n')[3]?.[1]).toBe('X')
+      expect(result.warnings).toContainEqual(expect.objectContaining({ code: 'TERMINAL_TEXT_COLLISION', cell: { column: 1, row: 3 } }))
+    } finally { restore() }
+  })
+
+  test('native titles and width policy are applied before the single encoding pass', () => {
+    const serialize = spyOn(TerminalDocument.prototype, 'serialize')
+    try {
+      const rendered = renderMermaidASCIIWithReceipt(`---\ntitle: Heading\n---\n${SOURCE}`, { colorMode: 'html', targetWidth: 80 })
+      expect(rendered.text).toContain('Heading')
+      expect(serialize).toHaveBeenCalledTimes(1)
+      expect(terminalDocumentOf(rendered)?.regions().find(region => region.id === 'title')).toBeDefined()
+    } finally { serialize.mockRestore() }
+  })
+
+  test('native text avoids optional graphical work and full receipts memoize its evidence', () => {
+    const descriptor = getFamily('flowchart')!
+    let calls = 0
+    const restore = replaceFamilyForTest('flowchart', { ...descriptor, layout(context) {
+      calls++
+      return descriptor.layout!(context)
+    } })
+    try {
+      const rendered = renderMermaidASCIIWithReceipt(SOURCE, { colorMode: 'none' })
+      expect(rendered.text).toContain('Start')
+      expect(calls).toBe(0)
+      expect(rendered.terminalStyle.connectorProjection.evidence).toBe('scene')
+      expect(calls).toBe(1)
+      const receipt = rendered.receipt
+      expect(rendered.receipt).toBe(receipt)
+      expect(rendered.terminalStyle.connectorProjection.count).toBeGreaterThan(0)
+      expect(calls).toBe(1)
+    } finally { restore() }
+  })
+
+  test('native Flowchart and metadata share the same authored parse within one render', () => {
+    const descriptor = getFamily('flowchart')!
+    const parsed = parseRegisteredMermaid(SOURCE)
+    expect(parsed.ok).toBe(true)
+    if (!parsed.ok) return
+    const canonicalSource = parsed.value.canonicalSource
+    let preparations = 0
+    const input = { ...parsed.value, get canonicalSource() { preparations++; return canonicalSource } }
+    let parses = 0
+    const restore = replaceFamilyForTest('flowchart', { ...descriptor, parse(context) {
+      parses++
+      return descriptor.parse!(context)
+    } })
+    try {
+      const result = renderMermaidASCIIWithMeta(input, { colorMode: 'none' })
+      expect(result.ascii).toContain('Start')
+      expect(result.regions.find(region => region.id === 'A')?.sourceLine).toBe(2)
+      expect(parses).toBe(1)
+      expect(preparations).toBe(1)
+    } finally { restore() }
+  })
+
+  test('metadata rejects a preserved parsed family before recovering drawing failures', () => {
+    const parsed = parseRegisteredMermaid('C4Context\nPerson(user, User)')
+    expect(parsed.ok).toBe(true)
+    if (!parsed.ok) return
+    expect(parsed.value.body.kind).toBe('preserved')
+    expect(() => renderMermaidASCIIWithReceipt(parsed.value, { colorMode: 'none' })).toThrow(MermaidFamilyDetectionError)
+    expect(() => renderMermaidASCIIWithMeta(parsed.value, { colorMode: 'none' })).toThrow(MermaidFamilyDetectionError)
+  })
+
+  test('Gantt defers graphical evidence and retains its captured explicit clock', () => {
+    const source = 'gantt\n  dateFormat YYYY-MM-DD\n  Build :build, 2026-10-01, 10d'
+    const descriptor = getFamily('gantt')!
+    let calls = 0
+    let observedClock: string | undefined
+    const restore = replaceFamilyForTest('gantt', { ...descriptor, layout(context) {
+      calls++
+      observedClock = context.renderOptions.ganttToday
+      return descriptor.layout!(context)
+    } })
+    try {
+      const options = { colorMode: 'none' as const, ganttToday: '2026-10-05' }
+      const delayed = renderMermaidASCIIWithReceipt(source, options)
+      const marker = terminalDocumentOf(delayed)!.regions().find(region => region.id === 'today-marker')!
+      expect(marker.ownedCellSpans!.length).toBeGreaterThan(0)
+      expect(calls).toBe(0)
+      // Mutating the caller's object before consuming the receipt cannot move
+      // its marker or change the date passed to optional graphical layout.
+      options.ganttToday = '2026-10-08'
+      const delayedStyle = delayed.terminalStyle
+      expect(observedClock).toBe('2026-10-05')
+      expect(calls).toBe(1)
+      const eager = renderMermaidASCIIWithReceipt(source, { colorMode: 'none', ganttToday: '2026-10-05', onProjectionDiagnostic() {} })
+      expect(calls).toBe(2)
+      expect(eager.text).toBe(delayed.text)
+      expect(eager.terminalStyle).toEqual(delayedStyle)
+      expect(eager.receipt).toEqual(delayed.receipt)
+      expect(calls).toBe(2)
+    } finally { restore() }
+  })
+
+  test('model reuse respects admitted entity decoding in labels, headers and grammar', () => {
+    const encoded = 'flowchart&#32;LR\nA[&lt;b&gt;Start&lt;/b&gt;] --&gt; B[Finish]'
+    const decoded = 'flowchart LR\nA[<b>Start</b>] --> B[Finish]'
+    const actual = renderMermaidASCIIWithMeta(encoded, { colorMode: 'none' })
+    const expected = renderMermaidASCIIWithMeta(decoded, { colorMode: 'none' })
+    expect(actual.ascii).toBe(expected.ascii)
+    expect(actual.ascii).toContain('Start')
+    const labelOnly = renderMermaidASCIIWithMeta('flowchart&#32;LR\nA[&lt;b&gt;Start&lt;/b&gt;] --> B[Finish]', { colorMode: 'none' })
+    expect(labelOnly.ascii).toBe(expected.ascii)
+    expect(labelOnly.regions.find(region => region.id === 'A')?.sourceLine).toBe(2)
+    expect(actual.regions.filter(region => region.kind === 'edge')).toHaveLength(1)
   })
 
   test('the output registry records the terminal security gate', () => {

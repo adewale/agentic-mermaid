@@ -1,3 +1,4 @@
+import { terminalText, withoutTerminalColor } from './helpers/terminal-text.ts'
 import { afterAll, expect, test } from 'bun:test'
 import { decodeHTML, decodeXML } from 'entities'
 import { mutate, parseRegisteredMermaid, serializeMermaid } from '../agent/index.ts'
@@ -68,7 +69,7 @@ test('Pie authored formatting-looking text remains literal across SVG, terminal,
     expect(renderMermaidSVG(source)).not.toContain('<tspan')
     expect(renderMermaidASCII(source, { colorMode: 'none' })).toStartWith(`${title}\n${label}`)
     const meta = renderMermaidASCIIWithMeta(source, { colorMode: 'none' })
-    expect(meta.regions.map(region => region.projectedText)).toEqual([title, label])
+    expect(meta.regions.filter(region => region.kind === 'node' || region.id === 'title').map(region => region.projectedText)).toEqual([title, label])
     expect(await renderMermaidSVGAsync(source)).toBe(renderMermaidSVG(source))
     const agent = parseRegisteredMermaid(source)
     expect(agent.ok).toBe(true)
@@ -175,7 +176,7 @@ test('Pie title metadata covers entity-produced leading and trailing whitespace 
       expect(title?.canvasColStart).toBe(0)
       expect(title?.canvasColEnd).toBe(visible.length)
       expect(title?.authoredTextCells?.map(cell => cell.glyph).join('')).toBe(visible)
-      expect(meta.ascii).toStartWith(visible)
+      expect(terminalText(meta.ascii, colorMode)).toStartWith(visible)
     }
   }
 })
@@ -264,10 +265,10 @@ test('Pie entity display matches pinned Mermaid browser text while preserving au
     const terminal = renderMermaidASCII(source, { colorMode: 'none' })
     expect(terminal).toStartWith(`${display}  `)
     const meta = renderMermaidASCIIWithMeta(source, { colorMode: 'none' })
-    expect(meta.regions.map(region => [region.id, region.projectedText]))
+    expect(meta.regions.filter(region => region.kind === 'node' || region.id === 'title').map(region => [region.id, region.projectedText]))
       .toEqual([['slice-0', display]])
     const htmlMeta = renderMermaidASCIIWithMeta(source, { colorMode: 'html' })
-    expect(htmlMeta.regions.map(region => [region.id, region.projectedText]))
+    expect(htmlMeta.regions.filter(region => region.kind === 'node' || region.id === 'title').map(region => [region.id, region.projectedText]))
       .toEqual([['slice-0', display]])
     expect(await renderMermaidSVGAsync(source)).toBe(renderMermaidSVG(source))
 
@@ -291,7 +292,7 @@ test('Pie entity display transformation does not replace section keys or merge d
   expect([...svg.matchAll(/data-label="([^"]+)" data-value="([^"]+)"/g)].map(match => [decodeXML(match[1]!), Number(match[2])]))
     .toEqual([['A&#35;B', 1], ['A&#B', 2]])
   const regions = renderMermaidASCIIWithMeta(source, { colorMode: 'none' }).regions
-  expect(regions.map(region => [region.id, region.projectedText, region.canvasRow]))
+  expect(regions.filter(region => region.kind === 'node' || region.id === 'title').map(region => [region.id, region.projectedText, region.canvasRow]))
     .toEqual([['slice-0', 'A&#B', 0], ['slice-1', 'A&#B', 1]])
 })
 
@@ -409,5 +410,5 @@ test('projected Pie entity text remains escaped in SVG and HTML terminal output'
   expect(svg).toContain('A&amp;&lt;img src=x onerror=alert(1)&amp;&gt;B')
   const html = renderMermaidASCII(source, { colorMode: 'html' })
   expect(html).not.toContain('<img')
-  expect(html).toContain('A&amp;&lt;img src=x onerror=alert(1)&amp;&gt;B')
+  expect(withoutTerminalColor(html)).toContain('A&amp;&lt;img src=x onerror=alert(1)&amp;&gt;B')
 })

@@ -30,6 +30,11 @@ import { visitSceneNodes } from './scene/walk.ts'
 export const TERMINAL_STYLE_VERSION = 1 as const
 
 export type TerminalProjectionDiagnosticCode =
+  | 'TERMINAL_TEXT_COLLISION'
+  | 'TERMINAL_ROUTE_OVERLAP'
+  | 'TERMINAL_GEOMETRY_COLLISION'
+  | 'TERMINAL_FAMILY_PROJECTION'
+  | 'TERMINAL_OWNERSHIP_UNAVAILABLE'
   | 'TERMINAL_RADIUS_PROJECTED'
   | 'TERMINAL_TYPOGRAPHY_PROJECTED'
   | 'TERMINAL_ELEVATION_PROJECTED'
@@ -51,6 +56,8 @@ export interface TerminalProjectionDiagnostic {
   code: TerminalProjectionDiagnosticCode
   feature: string
   message: string
+  /** Optional zero-based cell in the final composed terminal drawing. */
+  cell?: { column: number; row: number }
 }
 
 export interface ResolvedTerminalStyle {
@@ -255,6 +262,19 @@ export function projectTerminalStyle(
   )
   const semanticFallbacks = ['labels', 'symbols', 'markers', 'line-patterns'] as const
   const receipt = { version: TERMINAL_STYLE_VERSION, colorMode, theme, diagnostics, semanticFallbacks, connectorProjection }
+  return Object.freeze({ ...receipt, diagnostics: Object.freeze(diagnostics), digest: renderContractDigest(receipt) })
+}
+
+/** Add optional graphical evidence without resolving terminal appearance twice. */
+export function withTerminalConnectorScene(
+  appearance: ResolvedTerminalStyle,
+  scene: SceneDoc | null,
+  failed = false,
+): ResolvedTerminalStyle {
+  const diagnostics = [...appearance.diagnostics]
+  const connectorProjection = projectConnectorScene(scene, diagnostics, failed)
+  const { digest: _digest, ...base } = appearance
+  const receipt = { ...base, diagnostics, connectorProjection }
   return Object.freeze({ ...receipt, diagnostics: Object.freeze(diagnostics), digest: renderContractDigest(receipt) })
 }
 

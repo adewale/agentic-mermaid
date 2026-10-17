@@ -1,10 +1,11 @@
 // Same-input production renders at immutable revisions, for PR review only.
 // bun run scripts/pr-assets/meaning-preservation-evidence.ts BASE_SHA HEAD_SHA OUT_DIR
 import { execFileSync } from 'node:child_process'
-import { mkdtempSync, mkdirSync, rmSync, symlinkSync, writeFileSync } from 'node:fs'
+import { mkdtempSync, mkdirSync, readFileSync, rmSync, symlinkSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join, resolve } from 'node:path'
 import type { RenderOptions } from '../../src/types.ts'
+import { getFamily, knownBuiltinFamilies } from '../../src/agent/families.ts'
 
 const ROOT = resolve(import.meta.dir, '../..')
 const [base, head, destination] = process.argv.slice(2)
@@ -46,8 +47,38 @@ const fixtureOptions = Object.fromEntries(fixtures.map(fixture => {
   const svg = { security: 'strict' as const, ...fixture.renderOptions }
   return [fixture.id, { svg, png: { ...svg, background: svg.transparent ? '#00000000' : '#ffffff' } }]
 }))
+const terminalFixtures = [
+  ...knownBuiltinFamilies().flatMap(id => {
+    const source = getFamily(id)?.example
+    return source ? [{ id: `terminal-${id}`, source, cue: 'Compare labels, native marks and structure; the JSON sidecars show exact ownership separately.' }] : []
+  }),
+  { id: 'terminal-sequence-boundaries', source: 'sequenceDiagram\nparticipant A\nparticipant B\nloop outer\nNote over A,B: Owned inside\nA->>B: work\nend\nNote over A,B: After close\nopt empty sibling\nend\nautonumber 10 2\nB->>A: numbered\nautonumber off\nA->>B: hidden\nautonumber\nB->>A: resumes', cue: 'The post-close note is outside the loop, empty siblings keep their own bounds, and numbering resumes the shared counter.' },
+  { id: 'terminal-class-ports', source: 'classDiagram\nclass A {\n +String name\n +run() void\n}\nclass B\nA "1" --> "*" B : complete relation\nA --> A : self\nA --> B : parallel', cue: 'Inspect both cardinalities, every complete label, the self loop and separate physical ports.' },
+  { id: 'terminal-zero-pie', source: 'pie showData\n title Zero values\n "Still present" : 0\n "Also present" : 0', cue: 'The baseline is honestly empty. The new output preserves zero labels and values without inventing positive bars.' },
+  { id: 'terminal-xy-baseline', source: 'xychart-beta\n x-axis [A, B, C]\n y-axis 1 --> 14\n bar [1, 6.5, 14]', cue: 'The authored minimum-valued bar has zero length; ticks, marks and baseline use the same quantizer.' },
+  { id: 'terminal-xy-mixed-coverage', source: 'xychart-beta\n x-axis [A, B, C, D]\n y-axis 0 --> 100\n bar [20, 50, 80, 40]\n line [20, 90, 30, 70]', cue: 'Bars retain their full numeric coverage. The line is visible outside bars and explicitly occluded behind them; compare the exact cell spans in the metadata.' },
+  { id: 'terminal-xy-horizontal-coverage', source: 'xychart-beta horizontal\n x-axis [A, B, C, D]\n y-axis 0 --> 100\n bar [22.5, 52.5, 82.5, 42.5]\n line [20, 90, 30, 70]', cue: 'The horizontal form preserves half-cell bar endpoints using the same opaque-mark policy.' },
+  { id: "terminal-class-namespace-headers", source: "classDiagram\ndirection LR\nnamespace Alpha[\"First<br/>complete header\"] {\n class A\n}\nnamespace Beta[\"Second<br/>complete header\"] {\n class B\n}\nA --> B : edge", cue: "Both complete namespace headers clear sibling envelopes and the owned relationship." },
+  { id: "terminal-sequence-central-markers", source: "sequenceDiagram\nA->>()B: central end\nB() ->>A: central start\nA() <<->>()B: both ends\nA->>()A: self end", cue: "Inspect central circles at every authored endpoint, including the self message." },
+  { id: "terminal-container-cycle", source: "flowchart TD\nsubgraph G[Group]\n subgraph H[Inner]\n A[Member]\n end\nend\nB[External] --> G\nG --> B", cue: "Both reciprocal relationships survive a component without an initial root. A baseline error is retained honestly." },
+  { id: "terminal-gantt-task-identities", source: "gantt\ndateFormat YYYY-MM-DD\nFirst :2024-01-01, 1d\nSecond :task-0, 2024-01-03, 1d\nclick task-0 href \"https://example.com\"", cue: "The task-0 owned spans identify only Second; the anonymous task has its own stable identity." },
+  { id: "terminal-sankey-policy", source: "---\nconfig:\n sankey:\n  linkColor: \"#ff0000\"\n---\nsankey-beta\nSource,Target,2\nSource,Target,1", cue: "Static link paint reaches the owned bars. Parallel adjacency regions retain their endpoints and distinct identities." },
+  { id: 'terminal-tall-frame', source: 'flowchart LR\nsubgraph S["One<br>Two<br>Three<br>Four<br>Five"]\n A[Node]\nend', cue: 'Every header line is complete and clears the node; neither wrapping nor composition rewrites source.' },
+  { id: 'terminal-reflected-text-footprint', source: 'flowchart BT\nA["ab<br>x"] --> B[Other]', cue: 'The reflected card retains both ragged lines, ab and x. Text and its opaque footprint move together without reversing reading order.' },
+  { id: 'terminal-header-route-feasibility', source: 'flowchart TD\nX\nsubgraph one\n A --> B\nend\nY\nX --> A\nB --> Y', cue: 'The complete one header stays clear of the incoming relationship. Inspect the continuous route around its reserved text rectangle.' },
+  { id: 'terminal-empty-header-route-feasibility', source: 'flowchart TD\nsubgraph Parent[Empty parent]\n subgraph Empty[Nothing here]\n end\nend\nA[Start] --> Empty', cue: 'Both complete headers remain visible while the relationship detours around the parent header and attaches to the actual empty container.' },
+  { id: 'terminal-reciprocal-label-feasibility', source: 'flowchart TD\nA -->|down| B\nB -->|up| A', cue: 'Both complete labels and physical routes survive. A label must not erase the other relationship when it crosses a parallel run.' },
+  { id: 'terminal-intercontainer-label-feasibility', source: 'flowchart LR\nsubgraph one\n A -->|sends| B\nend\nsubgraph two\n C -->|receives| D\nend\nB -->|data| C', cue: 'The data label fits in free space without erasing either container frame. Both internal labels and all three relationships remain visible.' },
+  { id: 'terminal-long-reciprocal-label-feasibility', source: `flowchart TD\nA -->|${'a'.repeat(50)}| B\nB -->|return| A`, cue: 'The complete 50-character label fits beside its actual route without erasing the opposite relationship. Placement follows measured demand rather than a fixed search-radius cutoff.' },
+  { id: 'terminal-nested-external-node-feasibility', source: 'flowchart TB\nsubgraph G0[Group 0 日本]\nsubgraph G1[Group 1 日本]\nsubgraph G2[Group 2 日本]\nsubgraph G3[Group 3 日本]\nA[日本語 👩‍💻 long label] -->|handoff labels| B[Wide terminal label]\nend\nend\nend\nend\nB --> C[Finish]', cue: 'All nested frames contain their own members and exclude the external Finish card. Its complete label and the outgoing relationship survive without erasing the outer frame.' },
+  { id: 'terminal-interleaved-containment-limit', source: 'flowchart TD\nsubgraph Outer\nsubgraph Inner\nA[First]\nB[Last]\nend\nX[Outside]\nend\nA --> X --> B', cue: 'This existing logical embedding interleaves a nonmember inside both axes of Inner. All labels remain present; final metadata explicitly reports the unresolved containment limitation instead of claiming separation.' },
+  { id: 'terminal-gitgraph-composite-identities', source: 'gitGraph\ncommit id: "a:b"\ncommit id: "c"\ncommit id: "a"\ncommit id: "b:c"', cue: 'All four commits remain visible. Metadata keeps the distinct a:b→c and a→b:c parent relationships; punctuation must not alias their semantic keys.' },
+  { id: 'terminal-class-typed-parent', source: 'classDiagram\nnamespace A["Container"] {\nclass A["Target"]\n}\nclick A href "https://example.com"', cue: 'The class and namespace share raw ID A. Inspect separate node/cluster geometry and parentKind in the sidecar; the public action regression additionally checks node:A→group:A.' },
+  { id: 'terminal-sequence-background-reservations', source: 'sequenceDiagram\nparticipant A\nparticipant B\nparticipant C\nactivate B\nalt Complete active fragment header\nA->>C: hello across B\nNote over B: Opaque active note\nend\ndeactivate B', cue: 'Complete message, fragment header and note text clear intermediate lifelines and active bands. Intentional background gaps must not produce geometry-collision diagnostics.' },
+]
 interface Evidence { svg?: string; png?: string; error?: string }
-interface RevisionEvidence { renders: Record<string, Evidence>; classExport: string }
+interface TerminalEvidence { ascii?: string; html?: string; meta?: unknown; error?: string }
+interface RevisionEvidence { renders: Record<string, Evidence>; terminals: Record<string, TerminalEvidence>; classExport: string }
 
 function renderRevision(sha: string): RevisionEvidence {
   const directory = mkdtempSync(join(tmpdir(), 'am-meaning-review-'))
@@ -56,10 +87,13 @@ function renderRevision(sha: string): RevisionEvidence {
   try {
     symlinkSync(join(ROOT, 'node_modules'), join(checkout, 'node_modules'), 'dir')
     writeFileSync(join(checkout, 'probe.ts'), `
+      import { writeFileSync } from 'node:fs'
       import { renderMermaidSVG, renderMermaidPNG, parseRegisteredMermaid, asClass, mutate, serializeMermaid } from './src/agent/index.ts'
+      import { renderMermaidASCIIWithMeta } from './src/ascii/meta.ts'
       const fixtures = ${JSON.stringify(fixtures)}
       const fixtureOptions = ${JSON.stringify(fixtureOptions)}
       const renders = {}
+      const terminals = {}
       for (const fixture of fixtures) {
         try {
           renders[fixture.id] = {
@@ -68,15 +102,24 @@ function renderRevision(sha: string): RevisionEvidence {
           }
         } catch (error) { renders[fixture.id] = { error: String(error) } }
       }
+      for (const fixture of ${JSON.stringify(terminalFixtures)}) {
+        try {
+          const plain = renderMermaidASCIIWithMeta(fixture.source, { colorMode: 'none', useAscii: true })
+          const colored = renderMermaidASCIIWithMeta(fixture.source, { colorMode: 'html', useAscii: false })
+          const failure = [...plain.warnings, ...colored.warnings].find(warning => warning.code === 'ASCII_RENDER_FAILED')
+          terminals[fixture.id] = { ascii: plain.ascii, html: colored.ascii, ...(failure ? { error: failure.message } : {}), meta: { ascii: plain.regions, unicode: colored.regions, warnings: colored.warnings } }
+        } catch (error) { terminals[fixture.id] = { error: String(error) } }
+      }
       const parsed = parseRegisteredMermaid('classDiagram\\nnamespace N {\\nclass A\\n}\\nclass B')
       if (!parsed.ok) throw new Error('Class witness did not parse')
       const diagram = asClass(parsed.value)
       if (!diagram) throw new Error('Class witness was not editable')
       const edited = mutate(diagram, { kind: 'remove_class', id: 'A' })
       if (!edited.ok) throw new Error(edited.error.message)
-      console.log(JSON.stringify({ renders, classExport: serializeMermaid(edited.value) }))
+      writeFileSync('probe-result.json', JSON.stringify({ renders, terminals, classExport: serializeMermaid(edited.value) }))
     `)
-    return JSON.parse(execFileSync(process.execPath, ['probe.ts'], { cwd: checkout, encoding: 'utf8' })) as RevisionEvidence
+    execFileSync(process.execPath, ['probe.ts'], { cwd: checkout, stdio: 'pipe' })
+    return JSON.parse(readFileSync(join(checkout, 'probe-result.json'), 'utf8')) as RevisionEvidence
   } finally {
     execFileSync('git', ['worktree', 'remove', '--force', checkout], { cwd: ROOT, stdio: 'pipe' })
     rmSync(directory, { recursive: true, force: true })
@@ -100,7 +143,18 @@ const rows = fixtures.map(fixture => {
   const optionsCaption = fixture.renderOptions ? `<p>Render options at both revisions: <code>${esc(JSON.stringify(fixture.renderOptions))}</code>.</p>` : ''
   return `<section><h2>${fixture.title}</h2><p>${fixture.cue}</p>${optionsCaption}<div class="pair">${panels}</div></section>`
 }).join('')
+const terminalRows = terminalFixtures.map(fixture => {
+  writeFileSync(join(out, `${fixture.id}.mmd`), `${fixture.source}\n`)
+  const panels = (['before', 'after'] as const).map(phase => {
+    const result = revisions[phase].terminals[fixture.id]!
+    writeFileSync(join(out, `${fixture.id}-${phase}.txt`), result.ascii ?? result.error ?? 'No output')
+    writeFileSync(join(out, `${fixture.id}-${phase}-meta.json`), JSON.stringify(result.meta ?? result.error, null, 2))
+    return `<figure><figcaption>${phase}</figcaption><pre class="terminal">${result.error ? esc(result.error) : result.html ?? 'Empty output'}</pre></figure>`
+  }).join('')
+  return `<section><h2>${fixture.id}</h2><p>${esc(fixture.cue)}</p><div class="pair">${panels}</div></section>`
+}).join('')
 for (const phase of ['before', 'after'] as const) writeFileSync(join(out, `class-export-${phase}.mmd`), revisions[phase].classExport)
 writeFileSync(join(out, 'review.html'), `<!doctype html><html lang="en"><meta charset="utf-8"><meta name="viewport" content="width=device-width"><title>Diagram meaning: before and after</title><style>body{font:16px/1.5 system-ui;margin:40px auto;padding:0 24px;max-width:1100px;color:#222;background:white}.pair{display:grid;grid-template-columns:1fr 1fr;gap:24px}section{border-top:1px solid #ddd;margin-top:32px}figure{margin:0}figcaption{font-weight:bold}img{display:block;width:100%;height:auto}figure.transparent img{background-color:white;background-image:conic-gradient(#ddd 25%,transparent 0 50%,#ddd 0 75%,transparent 0);background-size:16px 16px}pre{white-space:pre-wrap;background:#f6f6f6;padding:16px}@media(max-width:700px){.pair{grid-template-columns:1fr}}</style><h1>Diagram meaning: before and after</h1><p>Baseline SHA: <code>${base}</code><br>Head SHA: <code>${head}</code></p><p>Same sources and render options at both revisions, with strict security and bundled PNG fonts. Default style and opaque PNGs use a white background unless a fixture states otherwise; explicit options are shown beside that fixture and recorded in receipt.json. Focused witnesses do not prove all-layout or cross-platform visual parity.</p>${rows}<section><h2>Class export after deleting A</h2><p>Compare the serialized result after deleting A: class B should remain and the empty namespace should be omitted.</p><div class="pair"><pre>${esc(revisions.before.classExport)}</pre><pre>${esc(revisions.after.classExport)}</pre></div></section></html>`)
-writeFileSync(join(out, 'receipt.json'), JSON.stringify({ base, head, bun: Bun.version, fixtures: fixtures.map(fixture => fixture.id), options: { security: 'strict', style: 'default unless fixtureOptions overrides it', fonts: 'bundled' }, fixtureOptions }, null, 2) + '\n')
+writeFileSync(join(out, 'terminal-review.html'), `<!doctype html><html lang="en"><meta charset="utf-8"><title>Terminal composition review</title><style>body{font:16px/1.5 system-ui;margin:32px;color:#222;background:white}.pair{display:grid;grid-template-columns:1fr 1fr;gap:20px}figure{min-width:0;margin:0}pre.terminal{white-space:pre;overflow:auto;font:12px/1.3 Menlo,Consolas,monospace;background:#f7f7f7;padding:12px}section{border-top:1px solid #ddd;margin-top:24px}</style><h1>Terminal composition: same input before and after</h1><p>Baseline SHA: ${base}<br>Head SHA: ${head}<br>Bun: ${Bun.version}</p><p>Production ASCII text files and exact metadata accompany every pair. Browser monospace/font coverage is a visual limitation; independent owned-cell and grapheme tests establish logical geometry and encoding parity.</p>${terminalRows}</html>`)
+writeFileSync(join(out, 'receipt.json'), JSON.stringify({ base, head, bun: Bun.version, fixtures: fixtures.map(fixture => fixture.id), terminalFixtures: terminalFixtures.map(fixture => fixture.id), terminalOptions: { ascii: { colorMode: 'none', useAscii: true }, unicode: { colorMode: 'html', useAscii: false } }, options: { security: 'strict', style: 'default unless fixtureOptions overrides it', fonts: 'bundled' }, fixtureOptions }, null, 2) + '\n')
 console.log(`Wrote immutable before/after evidence to ${out}`)

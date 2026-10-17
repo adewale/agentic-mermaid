@@ -78,27 +78,20 @@ export function renderBox(
   const from = { x: 0, y: 0 }
   const to = { x: width - 1, y: height - 1 }
 
-  // Line characters
-  const hLine = useAscii ? '-' : '─'
-  const vLine = useAscii ? '|' : '│'
-
-  // Draw horizontal lines (top and bottom)
+  const border = { ascii: useAscii }
   for (let x = from.x + 1; x < to.x; x++) {
-    canvas[x]![from.y] = hLine
-    canvas[x]![to.y] = hLine
+    canvas.stroke(x, from.y, 10, border)
+    canvas.stroke(x, to.y, 10, border)
   }
-
-  // Draw vertical lines (left and right)
   for (let y = from.y + 1; y < to.y; y++) {
-    canvas[from.x]![y] = vLine
-    canvas[to.x]![y] = vLine
+    canvas.stroke(from.x, y, 5, border)
+    canvas.stroke(to.x, y, 5, border)
   }
-
-  // Draw corners
-  canvas[from.x]![from.y] = corners.tl
-  canvas[to.x]![from.y] = corners.tr
-  canvas[from.x]![to.y] = corners.bl
-  canvas[to.x]![to.y] = corners.br
+  // Shape-specific symbols decorate the corners; they do not declare route ports.
+  canvas.put(from.x, from.y, corners.tl, { kind: 'marker' })
+  canvas.put(to.x, from.y, corners.tr, { kind: 'marker' })
+  canvas.put(from.x, to.y, corners.bl, { kind: 'marker' })
+  canvas.put(to.x, to.y, corners.br, { kind: 'marker' })
 
   // Center the multi-line label
   const lines = splitLines(label)

@@ -205,8 +205,9 @@ export function parseSequenceDiagram(lines: string[], opts: { showSequenceNumber
   const blocks = new Map<number, { type: Block['type']; label: string; color?: string; startIndex: number; dividers: Block['dividers']; dividerNoteIndices: number[]; parent?: number; parentSection: number; noteIndices: number[]; childBlockIndices: number[]; childSectionIndices: number[] }>()
   const boundaries: Array<Omit<SequenceBlockBoundary, 'blockIndex'> & { blockId: number }> = []
   const blockIndexById = new Map<number, number>()
-  // Active autonumber state; null = numbering off
-  let autonumber: { next: number; step: number } | null = opts.showSequenceNumbers === true ? { next: 1, step: 1 } : null
+  // Visibility is independent of the message counter. Hiding or enabling it
+  // does not erase step references; only an explicit start resets the value.
+  const autonumber = { visible: opts.showSequenceNumbers === true, next: 1, step: 1 }
   // Actors awaiting their binding message (`create X` / `destroy X` directives
   // take effect at the NEXT message that involves the actor)
   const pendingCreates: string[] = []
@@ -230,12 +231,9 @@ export function parseSequenceDiagram(lines: string[], opts: { showSequenceNumber
     if (message.activationMark === '+') msg.activate = true
     if (message.activationMark === '-') msg.deactivate = true
 
-    if (autonumber) {
-      msg.number = autonumber.next
-      // Upstream allows decimal steps to the hundredth; round so float drift
-      // can't leak into labels.
-      autonumber.next = Math.round((autonumber.next + autonumber.step) * 100) / 100
-    }
+    if (autonumber.visible) msg.number = autonumber.next
+    // The authored precision contract is hundredths, including hidden steps.
+    autonumber.next = Math.round((autonumber.next + autonumber.step) * 100) / 100
 
     // Bind pending create/destroy directives to this message when it involves
     // the actor (upstream ties creation to the message the actor receives and
@@ -282,7 +280,11 @@ export function parseSequenceDiagram(lines: string[], opts: { showSequenceNumber
 
     // --- autonumber [off | <start> [<step>]] ---
     case 'autonumber':
-      autonumber = statement.numbering
+      autonumber.visible = statement.numbering !== null
+      if (statement.numbering?.next !== undefined) {
+        autonumber.next = statement.numbering.next
+        autonumber.step = statement.numbering.step ?? 1
+      }
       break
 
     // --- box [<color>] [Label] … end ---
@@ -455,7 +457,7 @@ export type SequenceStatementSyntax =
    * renderer does not draw, but the statement still creates the actor. */
   | { kind: 'actor-data'; actorId: string }
   | { kind: 'title'; text: string }
-  | { kind: 'autonumber'; numbering: { next: number; step: number } | null }
+  | { kind: 'autonumber'; numbering: { next?: number; step?: number } | null }
   | { kind: 'box'; text: string }
   | { kind: 'note'; note: Pick<Note, 'actorIds' | 'text' | 'position'> }
   | { kind: 'block'; opener: { type: Exclude<SequenceBlockOpener, 'box'>; label: string } }
@@ -540,10 +542,10 @@ export function parseSequenceStatement(line: string): SequenceStatementSyntax | 
     if (nums && (!Number.isFinite(Number(nums[1])) || (nums[2] !== undefined && !Number.isFinite(Number(nums[2]))))) return null
     return {
       kind: 'autonumber',
-      numbering: {
-        next: nums ? Number.parseFloat(nums[1]!) : 1,
-        step: nums?.[2] !== undefined ? Number.parseFloat(nums[2]) : 1,
-      },
+      numbering: nums ? {
+        next: Number.parseFloat(nums[1]!),
+        ...(nums[2] === undefined ? {} : { step: Number.parseFloat(nums[2]) }),
+      } : {},
     }
   }
   const box = line.match(/^box(?:\s+(.*))?$/i)

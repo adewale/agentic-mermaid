@@ -343,9 +343,11 @@ describe('Class Diagram Arrow Directions', () => {
       const hasUpArrow = result.includes('▲')
       const hasDownArrow = result.includes('▼')
       expect(hasUpArrow || hasDownArrow).toBe(true)
-      expect(result).toContain('│ A │')
-      expect(result).toContain('│ B │')
-      expect(result).toContain('│ C │')
+      // Reciprocal face demand can widen the cards; their complete labels
+      // remain inside their own borders.
+      expect(result).toMatch(/│ A +│/)
+      expect(result).toMatch(/│ B +│/)
+      expect(result).toMatch(/│ C +│/)
     })
   })
 

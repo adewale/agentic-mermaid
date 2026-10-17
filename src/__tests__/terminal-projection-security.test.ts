@@ -13,7 +13,7 @@ import {
   type SceneFeature,
 } from '../scene/capabilities.ts'
 import * as marks from '../scene/marks.ts'
-import { projectTerminalStyle } from '../terminal-style.ts'
+import { projectTerminalStyle, type TerminalProjectionDiagnostic } from '../terminal-style.ts'
 import type { RenderOptions } from '../types.ts'
 import {
   getFamily,
@@ -93,6 +93,31 @@ describe('terminal projection color security', () => {
 })
 
 describe('canonical terminal field applicability', () => {
+  test('deferred connector evidence preserves eager diagnostics and the complete style digest', () => {
+    const descriptor = getFamily('flowchart')!
+    for (const projection of ['scene', 'failed'] as const) {
+      const restore = replaceFamilyForTest('flowchart', {
+        ...descriptor,
+        ...(projection === 'failed' ? { lowerScene() { throw new Error('optional evidence unavailable') } } : {}),
+      })
+      try {
+        const source = 'flowchart LR\n A["Start\u001b"] --> B[Finish]'
+        const options = { colorMode: 'html' as const, style: 'hand-drawn' as const, theme: { fg: '#123456' } }
+        const deferred = renderMermaidASCIIWithReceipt(source, options)
+        const callbacks: TerminalProjectionDiagnostic[] = []
+        const eager = renderMermaidASCIIWithReceipt(source, { ...options, onProjectionDiagnostic(diagnostic) { callbacks.push(diagnostic) } })
+        expect(deferred.text).toBe(eager.text)
+        expect(deferred.terminalStyle).toEqual(eager.terminalStyle)
+        expect(deferred.receipt).toEqual(eager.receipt)
+        expect(callbacks).toEqual([...eager.terminalStyle.diagnostics])
+        expect(deferred.terminalStyle.connectorProjection.evidence).toBe(projection === 'scene' ? 'scene' : 'unavailable')
+        expect(deferred.terminalStyle.diagnostics.filter(diagnostic => diagnostic.code === 'TERMINAL_CONTROL_CHARACTERS_REPLACED')).toHaveLength(1)
+        expect(JSON.stringify(deferred.terminalStyle.connectorProjection)).not.toContain('\\u001b')
+        assertInertHtml(deferred.text)
+      } finally { restore() }
+    }
+  })
+
   test('consumes connector terminalProjection from the family Scene descriptor', () => {
     const rendered = renderMermaidASCIIWithReceipt(SOURCE, { colorMode: 'none' })
     expect(rendered.terminalStyle.connectorProjection.evidence).toBe('scene')
@@ -299,7 +324,8 @@ describe('canonical terminal field applicability', () => {
       },
     })
     try {
-      renderMermaidASCIIWithReceipt(SOURCE, { colorMode: 'none', style: 'status-dashboard' })
+      const rendered = renderMermaidASCIIWithReceipt(SOURCE, { colorMode: 'none', style: 'status-dashboard' })
+      expect(rendered.terminalStyle.connectorProjection.evidence).toBe('scene')
       expect(terminalFace).toBe(sceneFace)
       expect(terminalFace).toBeDefined()
       expect(Object.isFrozen(terminalFace)).toBe(true)

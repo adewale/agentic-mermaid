@@ -115,7 +115,7 @@ describe('timeline ASCII', () => {
     expect(result).toContain('○ 2023')
     expect(result).toContain('Public launch')
     expect(result).not.toContain('○ title')
-    expect(result).not.toContain('Timeline example')
+    expect(result).toStartWith('Timeline example\n\n')
   })
 
   it('does not render accessibility metadata as visible timeline content', () => {

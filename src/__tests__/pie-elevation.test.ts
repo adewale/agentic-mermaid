@@ -763,9 +763,11 @@ describe('pie high-count palette', () => {
   it('the ASCII renderer shares the same palette (cross-format consistency)', () => {
     const entries = Array.from({ length: 15 }, (_u, i) => `  "slice ${i}" : ${i + 1}`).join('\n')
     const out = renderMermaidASCII(`pie\n${entries}`, { useAscii: true, colorMode: 'truecolor' })
-    const seen = [...out.matchAll(/\x1b\[38;2;(\d+);(\d+);(\d+)m/g)]
+    const seen = [...out.matchAll(/\x1b\[38;2;(\d+);(\d+);(\d+)m#+\x1b\[0m/g)]
       .map(m => '#' + [m[1], m[2], m[3]].map(v => Number(v).toString(16).padStart(2, '0')).join(''))
     const uniq = [...new Set(seen)]
+    const svgColors = [...renderMermaidSVG(`pie\n${entries}`).matchAll(/<path class="pie-slice"[^>]*fill="([^"]+)"/g)].map(match => match[1]!)
+    expect(seen).toEqual(svgColors)
     expect(uniq.length).toBe(15)
     for (let i = 0; i < uniq.length; i++) {
       for (let j = i + 1; j < uniq.length; j++) {

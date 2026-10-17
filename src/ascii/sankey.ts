@@ -1,3 +1,4 @@
+import { terminalArtifact, serializeTerminalArtifact, type TerminalArtifact } from './terminal-artifact.ts'
 // ============================================================================
 // ASCII renderer — Sankey diagram
 //
@@ -19,22 +20,25 @@
 // hides the numeric columns (bars remain); `prefix`/`suffix` format values.
 // ============================================================================
 
-import type { MermaidFrontmatterMap } from '../mermaid-source.ts'
+import { getFrontmatterMap, type MermaidFrontmatterMap } from '../mermaid-source.ts'
 import { pieSliceColors } from '../pie/palette.ts'
 import type { SankeyVisualConfig } from '../sankey/config.ts'
 import { resolveSankeyVisualConfig } from '../sankey/config.ts'
-import { formatSankeyValue } from '../sankey/layout.ts'
+import { formatSankeyValue, sankeyLinkId } from '../sankey/layout.ts'
 import { parseSankeyDiagram } from '../sankey/parser.ts'
-import { colorizeText } from './ansi.ts'
+import { TerminalDocument, type TerminalOwner } from './terminal-document.ts'
 import type { AsciiConfig, AsciiTheme, ColorMode } from './types.ts'
-import { padEndToVisualWidth, visualWidth } from './width.ts'
+import { visualWidth } from './width.ts'
 import { wrapText } from './wrap.ts'
 import { displayText } from '../multiline-utils.ts'
+import { terminalIds } from './identity.ts'
+import { tryParseCssColor } from '../shared/color-math.ts'
 
 /** Maximum bar length in characters (the largest flow fills this). */
 const MAX_BAR = 20
 
-export function renderSankeyAscii(lines: string[], config: AsciiConfig, colorMode: ColorMode, theme: AsciiTheme, frontmatter: MermaidFrontmatterMap = {}, targetWidth?: number, resolvedVisual?: SankeyVisualConfig): string {
+export function renderSankeyTerminal(lines: string[], config: AsciiConfig, colorMode: ColorMode, theme: AsciiTheme, frontmatter: MermaidFrontmatterMap = {}, targetWidth?: number, resolvedVisual?: SankeyVisualConfig): TerminalArtifact {
+  targetWidth ??= config.maxWidth
   const visual = resolvedVisual ?? resolveSankeyVisualConfig(frontmatter)
   const title = typeof frontmatter.title === 'string' ? frontmatter.title : undefined
   const diagram = parseSankeyDiagram(lines, title !== undefined ? { title } : {})
@@ -72,9 +76,36 @@ export function renderSankeyAscii(lines: string[], config: AsciiConfig, colorMod
   const fixedWidth = 2 + 4 + 2 + (visual.showValues ? valueWidth + 2 : 0) + MAX_BAR
   const labelBudget = targetWidth ? Math.max(1, targetWidth - fixedWidth) : undefined
 
-  const out: string[] = []
+  const document = new TerminalDocument()
+  document.titleHandled = true
+  const generated = terminalIds(diagram.nodes)
+  const authoredVisual = getFrontmatterMap(frontmatter, ['config', 'sankey']) ?? getFrontmatterMap(frontmatter, ['sankey']) ?? {}
+  const project = (field: string, value: unknown, representation: string): void => document.report({
+    code: 'TERMINAL_FAMILY_PROJECTION', feature: `sankey.${field}`,
+    message: `sankey.${field}=${JSON.stringify(value)} is represented by ${representation}; source configuration is retained.`,
+  })
+  for (const field of ['width', 'height', 'nodeWidth', 'nodePadding'] as const) {
+    if (typeof authoredVisual[field] === 'number' && authoredVisual[field] === visual[field]) {
+      project(field, visual[field], 'measured adjacency-list columns and proportional bars rather than pixel ribbon/node geometry')
+    }
+  }
+  if (typeof authoredVisual.nodeAlignment === 'string' && authoredVisual.nodeAlignment === visual.nodeAlignment) {
+    project('nodeAlignment', visual.nodeAlignment, 'adjacency sections in first-appearance order rather than horizontal flow layers')
+  }
+  if (visual.labelStyle === 'outlined') project('labelStyle', visual.labelStyle, 'complete terminal labels without a pixel outline halo')
+  if (visual.linkColor.mode === 'gradient') project('linkColor', 'gradient', 'solid target-colored bars rather than a source-to-target gradient')
+  const occurrence = new Map<string, number>()
+  const linkIds = new Map(diagram.links.map((link, linkIndex) => {
+    const key = JSON.stringify([link.source, link.target])
+    const index = occurrence.get(key) ?? 0
+    occurrence.set(key, index + 1)
+    return [link, generated(sankeyLinkId(link.source, link.target, index), ['link', linkIndex])]
+  }))
   // Labels draw their display text, as the SVG node labels do.
-  if (diagram.title) out.push(...wrapText(displayText(diagram.title), targetWidth), '')
+  if (diagram.title) {
+    for (const text of wrapText(displayText(diagram.title), targetWidth)) document.line([{ text, role: 'text', textGroup: 'title', owner: { id: generated('title', 'title'), kind: 'label' } }])
+    document.line()
+  }
 
   const sources = diagram.nodes.filter(label => outgoing.has(label))
   const wrappedTargets = new Map<string, string[]>()
@@ -89,16 +120,32 @@ export function renderSankeyAscii(lines: string[], config: AsciiConfig, colorMod
     const links = outgoing.get(source)!
     const headerValue = visual.showValues ? `  ${formatSankeyValue(nodeTotal.get(source) ?? 0, visual)}` : ''
     const headerLines = wrapText(displayText(source), targetWidth)
-    for (let i = 0; i < headerLines.length - 1; i++) out.push(headerLines[i]!)
-    out.push(`${headerLines.at(-1) ?? ''}${headerValue}`)
+    for (let i = 0; i < headerLines.length - 1; i++) document.line([{ text: headerLines[i]!, role: 'text', textGroup: 'header', owner: { id: source, kind: 'node' } }])
+    document.line([
+      { text: headerLines.at(-1) ?? '', role: 'text', textGroup: 'header', owner: { id: source, kind: 'node' } },
+      { text: headerValue, role: 'text', owner: { id: generated(`${source}:value`, ['source-value', source]), kind: 'label', parent: { id: source, kind: 'node' } } },
+    ])
 
     links.forEach((link, linkIndex) => {
       const last = linkIndex === links.length - 1
       const glyph = last ? branchLast : branch
       const barLen = maxValue > 0 && link.value > 0 ? Math.max(1, Math.round((link.value / maxValue) * MAX_BAR)) : 0
       const bar = barChar.repeat(barLen)
-      const color = colorOf.get(link.target)!
-      const coloredBar = colorMode === 'none' || bar.length === 0 ? bar : colorizeText(bar, color, colorMode)
+      const color = visual.linkColor.mode === 'static' ? visual.linkColor.color
+        : colorOf.get(visual.linkColor.mode === 'source' ? link.source : link.target)!
+      const id = linkIds.get(link)!
+      const edgeOwner: TerminalOwner = { id, kind: 'edge', from: link.source, to: link.target }
+      if (barLen > 0 && colorMode !== 'none' && colorMode !== 'html') {
+        const parsed = tryParseCssColor(color)
+        if (!parsed || parsed[3] !== 1) {
+          const feature = visual.linkColor.mode === 'static' ? 'sankey.linkColor'
+            : `sankey.nodeColors.${visual.linkColor.mode === 'source' ? link.source : link.target}`
+          document.report({
+            code: 'TERMINAL_COLOR_UNREPRESENTABLE', feature,
+            message: `${feature}=${JSON.stringify(color)} cannot be encoded as an opaque terminal foreground; ANSI bars retain their owned cells without that paint. HTML retains the safe CSS color.`,
+          })
+        }
+      }
       const valuePart = visual.showValues ? `${padStartToVisualWidth(formatSankeyValue(link.value, visual), valueWidth)}  ` : ''
       // Branch glyph on the first wrapped line, rail continuation beneath it,
       // value + bar riding on the last line (the pie multiline-row pattern).
@@ -107,21 +154,34 @@ export function renderSankeyAscii(lines: string[], config: AsciiConfig, colorMod
       targetLines.forEach((line, lineIndex) => {
         const prefix = lineIndex === 0 ? glyph : restPrefix
         if (lineIndex < targetLines.length - 1) {
-          out.push(`  ${prefix}${line}`)
+          document.line([
+            { text: `  ${prefix}`, role: 'line', kind: 'stroke', owner: edgeOwner },
+            { text: line, role: 'text', textGroup: id, owner: { id: link.target, kind: 'node' } },
+          ])
         } else {
-          const label = padEndToVisualWidth(line, labelWidth)
-          out.push(`  ${prefix}${label}  ${valuePart}${coloredBar}`.trimEnd())
+          document.line([
+            { text: `  ${prefix}`, role: 'line', kind: 'stroke', owner: edgeOwner },
+            { text: line, role: 'text', textGroup: id, owner: { id: link.target, kind: 'node' } },
+            { text: ' '.repeat(Math.max(0, labelWidth - visualWidth(line)) + 2) },
+            { text: valuePart, role: 'text', owner: { id: generated(`${id}:value`, ['link-value', id]), kind: 'label', parent: { id, kind: 'edge' } } },
+            { text: bar, role: 'arrow', kind: 'mark', color, owner: edgeOwner },
+          ])
         }
       })
     })
 
-    if (sourceIndex < sources.length - 1) out.push('')
+    if (sourceIndex < sources.length - 1) document.line()
   })
 
-  return out.join('\n')
+  return terminalArtifact(document, { colorMode, theme, trimEnd: true })
 }
 
 function padStartToVisualWidth(text: string, width: number): string {
   const pad = width - visualWidth(text)
   return pad > 0 ? ' '.repeat(pad) + text : text
+}
+
+/** Compatibility string entry point; native dispatch retains the drawing. */
+export function renderSankeyAscii(...args: Parameters<typeof renderSankeyTerminal>): string {
+  return serializeTerminalArtifact(renderSankeyTerminal(...args))
 }

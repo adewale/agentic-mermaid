@@ -1,25 +1,25 @@
+import { terminalArtifact, serializeTerminalArtifact, type TerminalArtifact } from './terminal-artifact.ts'
 import type { MermaidGraph, StateNoteSpec } from '../types.ts'
-import type { AsciiConfig, AsciiGraph, AsciiTheme, CharRole, ColorMode } from './types.ts'
+import type { AsciiConfig, AsciiGraph, AsciiTheme, ColorMode } from './types.ts'
 import { convertToAsciiGraph } from './converter.ts'
 import { createMapping } from './grid.ts'
 import { drawGraph, drawMultiBox } from './draw.ts'
 import { wrapText } from './wrap.ts'
 import { displayText } from '../multiline-utils.ts'
-import { canvasToString, flipCanvasVertically, flipRoleCanvasVertically, getCanvasSize, increaseRoleCanvasSize, increaseSize, mkCanvas, mkRoleCanvas, setRole } from './canvas.ts'
+import { flipCanvasVertically, getCanvasSize, mkCanvas } from './canvas.ts'
 
 interface Box { x: number; y: number; width: number; height: number }
 
 /** Shared graph rendering plus State-only note geometry. */
-export function renderStateAscii(parsed: MermaidGraph, config: AsciiConfig, colorMode: ColorMode, theme: AsciiTheme, targetWidth?: number): string {
-  const graph = convertToAsciiGraph(parsed, config)
+export function renderStateTerminal(parsed: MermaidGraph, config: AsciiConfig, colorMode: ColorMode, theme: AsciiTheme, targetWidth?: number): TerminalArtifact {
+  const graph = convertToAsciiGraph(parsed, config, 'cluster')
   createMapping(graph)
   drawGraph(graph)
-  if (parsed.stateNotes?.length) overlayNotes(graph, parsed.stateNotes, targetWidth)
+  if (parsed.stateNotes?.length) overlayNotes(graph, parsed.stateNotes, targetWidth ?? config.maxWidth)
   if (parsed.direction === 'BT') {
     flipCanvasVertically(graph.canvas)
-    flipRoleCanvasVertically(graph.roleCanvas)
   }
-  return canvasToString(graph.canvas, { roleCanvas: graph.roleCanvas, colorMode, theme })
+  return terminalArtifact(graph.canvas, { colorMode, theme })
 }
 
 function overlayNotes(graph: AsciiGraph, notes: StateNoteSpec[], targetWidth?: number): void {
@@ -33,13 +33,13 @@ function overlayNotes(graph: AsciiGraph, notes: StateNoteSpec[], targetWidth?: n
   let shift = 0
   for (const { note, canvas } of drawings) {
     const target = boundsFor(graph, note.target)
-    if (note.side === 'left' && target) shift = Math.max(shift, canvas.length + 2 - target.x)
+    if (note.side === 'left' && target) shift = Math.max(shift, canvas.width + 2 - target.x)
   }
   if (shift > 0) shiftRight(graph, shift)
 
   const occupied: Box[] = graph.nodes.flatMap(node => node.drawingCoord && node.drawing ? [{
     x: node.drawingCoord.x, y: node.drawingCoord.y,
-    width: node.drawing.length, height: node.drawing[0]?.length ?? 1,
+    width: node.drawing.width, height: node.drawing.height ?? 1,
   }] : [])
   const placed: Box[] = []
   for (const { note, canvas } of drawings) {
@@ -57,8 +57,11 @@ function overlayNotes(graph: AsciiGraph, notes: StateNoteSpec[], targetWidth?: n
       if (blockers.length === 0) break
       box.y = Math.max(...blockers.map(other => other.y + other.height + 1))
     }
-    drawConnector(graph, target, box, note.side)
-    copyDrawing(graph, canvas, box.x, box.y)
+    const link = { id: `${note.id}:link`, kind: 'edge' as const, from: note.target, to: note.id }
+    graph.canvas.scope(link, () => drawConnector(graph, target, box, note.side))
+    graph.canvas.port(link, { nodeId: note.target, end: 'start', x: note.side === 'right' ? target.x + target.width - 1 : target.x, y: target.y + Math.floor(target.height / 2), side: note.side === 'right' ? 'R' : 'L' })
+    graph.canvas.port(link, { nodeId: note.id, end: 'end', x: note.side === 'right' ? box.x : box.x + box.width - 1, y: box.y + Math.floor(box.height / 2), side: note.side === 'right' ? 'L' : 'R' })
+    graph.canvas.scope({ id: note.id, kind: 'node', parent: { id: note.target, kind: graph.nodes.some(node => node.name === note.target) ? 'node' : 'cluster' } }, () => graph.canvas.overlay(canvas, box.x, box.y))
     placed.push(box)
   }
 }
@@ -67,7 +70,7 @@ function boundsFor(graph: AsciiGraph, id: string): Box | undefined {
   const node = graph.nodes.find(candidate => candidate.name === id)
   if (node?.drawingCoord && node.drawing) return {
     x: node.drawingCoord.x, y: node.drawingCoord.y,
-    width: node.drawing.length, height: node.drawing[0]?.length ?? 1,
+    width: node.drawing.width, height: node.drawing.height ?? 1,
   }
   const group = graph.subgraphs.find(candidate => candidate.id === id)
   return group ? {
@@ -79,13 +82,8 @@ function boundsFor(graph: AsciiGraph, id: string): Box | undefined {
 function shiftRight(graph: AsciiGraph, delta: number): void {
   const [lastX, lastY] = getCanvasSize(graph.canvas)
   const canvas = mkCanvas(lastX + delta, lastY)
-  const roles = mkRoleCanvas(lastX + delta, lastY)
-  for (let x = 0; x <= lastX; x++) for (let y = 0; y <= lastY; y++) {
-    canvas[x + delta]![y] = graph.canvas[x]![y]!
-    roles[x + delta]![y] = graph.roleCanvas[x]?.[y] ?? null
-  }
+  canvas.overlay(graph.canvas, delta, 0)
   graph.canvas = canvas
-  graph.roleCanvas = roles
   for (const node of graph.nodes) if (node.drawingCoord) node.drawingCoord.x += delta
   for (const group of graph.subgraphs) { group.minX += delta; group.maxX += delta }
   graph.offsetX += delta
@@ -96,29 +94,22 @@ function drawConnector(graph: AsciiGraph, target: Box, note: Box, side: StateNot
   const noteY = note.y + Math.floor(note.height / 2)
   const startX = side === 'right' ? target.x + target.width : target.x - 1
   const endX = side === 'right' ? note.x - 1 : note.x + note.width
-  const horizontal = graph.config.useAscii ? '.' : '┄'
-  const vertical = graph.config.useAscii ? ':' : '┆'
-  for (let x = Math.min(startX, endX); x <= Math.max(startX, endX); x++) put(graph, x, targetY, horizontal, 'line', false)
-  for (let y = Math.min(targetY, noteY); y <= Math.max(targetY, noteY); y++) put(graph, endX, y, vertical, 'line', false)
-}
-
-function copyDrawing(graph: AsciiGraph, canvas: string[][], ox: number, oy: number): void {
-  const border = /^[+\-|┌┐└┘├┤─│]$/
-  for (let x = 0; x < canvas.length; x++) for (let y = 0; y < (canvas[0]?.length ?? 0); y++) {
-    const char = canvas[x]![y]!
-    if (char !== ' ') put(graph, x + ox, y + oy, char, border.test(char) ? 'border' : 'text', true)
+  const paint = { ascii: graph.config.useAscii, style: 'dotted' as const, role: 'line' as const }
+  const stroke = (x: number, y: number, mask: number): void => {
+    if (x >= 0 && y >= 0 && graph.canvas.get(x, y) === ' ') graph.canvas.stroke(x, y, mask, paint)
   }
-}
-
-function put(graph: AsciiGraph, x: number, y: number, char: string, role: CharRole, overwrite: boolean): void {
-  if (x < 0 || y < 0) return
-  increaseSize(graph.canvas, x, y)
-  increaseRoleCanvasSize(graph.roleCanvas, x, y)
-  if (!overwrite && graph.canvas[x]![y] !== ' ') return
-  graph.canvas[x]![y] = char
-  setRole(graph.roleCanvas, x, y, role)
+  for (let x = Math.min(startX, endX); x <= Math.max(startX, endX); x++) {
+    const bend = x === endX && targetY !== noteY
+    stroke(x, targetY, bend ? (side === 'right' ? 8 : 2) | (noteY > targetY ? 4 : 1) : 10)
+  }
+  for (let y = Math.min(targetY, noteY); y <= Math.max(targetY, noteY); y++) if (y !== targetY) stroke(endX, y, 5)
 }
 
 function intersects(a: Box, b: Box): boolean {
   return a.x < b.x + b.width && b.x < a.x + a.width && a.y < b.y + b.height && b.y < a.y + a.height
+}
+
+/** Compatibility string entry point; native dispatch retains the drawing. */
+export function renderStateAscii(...args: Parameters<typeof renderStateTerminal>): string {
+  return serializeTerminalArtifact(renderStateTerminal(...args))
 }
