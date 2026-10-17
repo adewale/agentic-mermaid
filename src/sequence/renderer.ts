@@ -641,8 +641,7 @@ function renderMessage(msg: PositionedMessage, style: ResolvedRenderStyle, scene
         },
         lineStyle: msg.lineStyle,
         paint: linePaint,
-        ...(startMarker ? { startMarker } : {}),
-        ...(endMarker ? { endMarker } : {}),
+        markers: { ...(startMarker ? { start: startMarker } : {}), mid: [], ...(endMarker ? { end: endMarker } : {}) },
         ...connectorSemantics,
       },
         `<polyline points="${pointsAttr}" ` +
@@ -677,8 +676,7 @@ function renderMessage(msg: PositionedMessage, style: ResolvedRenderStyle, scene
         geometry: { kind: 'line', x1: p0.x, y1: p0.y, x2: p1.x, y2: p1.y },
         lineStyle: msg.lineStyle,
         paint: linePaint,
-        ...(startMarker ? { startMarker } : {}),
-        ...(endMarker ? { endMarker } : {}),
+        markers: { ...(startMarker ? { start: startMarker } : {}), mid: [], ...(endMarker ? { end: endMarker } : {}) },
         ...connectorSemantics,
       },
         `<line x1="${p0.x}" y1="${p0.y}" x2="${p1.x}" y2="${p1.y}" ` +
