@@ -18,7 +18,8 @@ function completeComposition(source: string, useAscii: boolean, labels: Record<s
     bounds.top = Math.min(bounds.top, y); bounds.bottom = Math.max(bounds.bottom, y)
     cards.set(owner.id, bounds)
   }
-  const frames = regions.filter(region => region.kind === 'subgraph')
+  const frames = regions.filter(region => region.kind === 'subgraph' || region.kind === 'cluster')
+  expect([...cards.keys()].sort()).toEqual(Object.keys(labels).filter(id => !frames.some(frame => frame.id === id)).sort())
   const boundsOf = (frame: typeof frames[number]): Bounds => ({ left: frame.canvasColStart, right: frame.canvasColEnd - 1, top: frame.canvasRow, bottom: frame.canvasRow + frame.rowSpan! - 1 })
   const belongs = (id: string, parent: string): boolean => {
     let region = regions.find(region => region.id === id)
@@ -84,12 +85,29 @@ for (const direction of ['TD', 'BT', 'LR', 'RL']) for (const depth of [3, 5]) fo
   })
 }
 
-test.each(['TD', 'BT', 'LR', 'RL'])('%s reports a logically interleaved nonmember instead of silently claiming separation', direction => {
+test.each(['TD', 'BT', 'LR', 'RL'])('%s places an interleaved nonmember outside its unrelated inner frame', direction => {
   for (const useAscii of [false, true]) {
     const source = `flowchart ${direction}\nsubgraph Outer\nsubgraph Inner\nA[First]\nB[Last]\nend\nX[Outside]\nend\nA --> X --> B`
-    const rendered = renderMermaidASCIIWithReceipt(source, { useAscii, colorMode: 'none' })
-    const document = terminalDocumentOf(rendered)!
-    expect(document.diagnostics.some(diagnostic => diagnostic.code === 'TERMINAL_GEOMETRY_COLLISION' && diagnostic.feature.includes('container-envelope:'))).toBe(true)
-    for (const label of ['First', 'Last', 'Outside', 'Inner', 'Outer']) expect(rendered.text).toContain(label)
+    completeComposition(source, useAscii, { A: 'First', B: 'Last', X: 'Outside', Inner: 'Inner', Outer: 'Outer' })
   }
 })
+
+for (const direction of ['TD', 'BT', 'LR', 'RL']) for (const useAscii of [false, true]) {
+  test(`${direction} child direction overrides preserve atomic membership (${useAscii ? 'ASCII' : 'Unicode'})`, () => {
+    const childDirection = direction === 'LR' || direction === 'RL' ? 'TD' : 'LR'
+    completeComposition(`flowchart ${direction}\nsubgraph Outer[Outer 日本]\nsubgraph Inner[Inner 👩‍💻]\ndirection ${childDirection}\nA[First]\nB[Last]\nend\nX[Outside]\nend\nsubgraph Sibling\nC[Sibling card]\nend\nA --> X --> B\nX --> C`, useAscii, {
+      A: 'First', B: 'Last', X: 'Outside', C: 'Sibling card', Inner: 'Inner 👩‍💻', Outer: 'Outer 日本', Sibling: 'Sibling',
+    })
+  })
+  test(`${direction} an unconnected empty child retains its own measured position (${useAscii ? 'ASCII' : 'Unicode'})`, () => {
+    completeComposition(`flowchart ${direction}\nsubgraph Outer\nsubgraph Inner\nA[First]\nB[Last]\nsubgraph Empty[Unused 日本]\nend\nend\nX[Outside]\nend\nA --> X --> B`, useAscii, {
+      A: 'First', B: 'Last', X: 'Outside', Inner: 'Inner', Outer: 'Outer', Empty: 'Unused 日本',
+    })
+  })
+}
+
+for (const direction of ['TD', 'BT', 'LR', 'RL']) for (const useAscii of [false, true]) {
+  test(`${direction} State compound membership shares complete relationship capacity (${useAscii ? 'ASCII' : 'Unicode'})`, () => {
+    completeComposition(`stateDiagram-v2\ndirection ${direction}\nstate Outer {\nstate Inner {\nstate "First" as A\nstate "Last" as B\n}\nstate "Outside" as X\n}\nA --> X: one\nA --> X: two\nX --> A: return\nX --> B: back\nB --> B: self`, useAscii, { A: 'First', B: 'Last', X: 'Outside', Inner: 'Inner', Outer: 'Outer' })
+  })
+}

@@ -1,3 +1,4 @@
+import { decodeXML } from 'entities'
 // ============================================================================
 // Scene fidelity checker — asserts a mark's semantic fields agree with its
 // crisp serialization, so styled backends can trust the geometry they redraw.
@@ -119,7 +120,7 @@ function geometryProblems(geom: Geometry, els: Array<{ tag: string; attrs: Map<s
 }
 
 function unescapeXml(s: string): string {
-  return s.replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&quot;/g, '"').replace(/&#39;/g, "'").replace(/&amp;/g, '&')
+  return decodeXML(s)
 }
 
 /** Parse only the wrappers emitted by Timeline's literal-text renderer. This

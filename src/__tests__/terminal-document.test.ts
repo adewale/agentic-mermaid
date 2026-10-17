@@ -1,6 +1,7 @@
 import { describe, expect, test } from 'bun:test'
 import { TerminalDocument, measuredText, type TerminalOwner } from '../ascii/terminal-document.ts'
 import { WIDE_CHAR_CONTINUATION } from '../ascii/width.ts'
+import { prepareCellText } from '../ascii/prepared-text.ts'
 import { terminalText } from './helpers/terminal-text.ts'
 
 const owner = (id: string): TerminalOwner => ({ id, kind: 'node' })
@@ -430,6 +431,108 @@ describe('owned terminal composition', () => {
     expect(doc.get(2, 1)).toBe(' ')
     expect(doc.regions().find(region => region.id === 'label')?.projectedText).toBe('界\nx\ntail')
     expect(doc.diagnostics[0]?.code).toBe('TERMINAL_GEOMETRY_COLLISION')
+  })
+
+  test.each(['text', 'textBlock'] as const)('authored empty rows survive %s composition without invented text cells', method => {
+    for (const [horizontal, vertical] of [[false, false], [true, false], [false, true], [true, true]] as const) {
+      const source = new TerminalDocument()
+      const value = '\nlong label\n\n界 é 👩‍💻 \n'
+      source[method](1, 1, value, { owner: owner('label') })
+      const before = source.serialize()
+      const target = new TerminalDocument(30, 20)
+      target.overlay(source, 3, 2)
+      target.flip(horizontal, vertical)
+      target.serialize({ trimEnd: true })
+      const label = target.regions().find(region => region.id === 'label')!
+      const x = horizontal ? 16 : 4, y = vertical ? 12 : 3
+      expect(label.projectedText).toBe(value)
+      expect(label).toMatchObject({ canvasRow: y, canvasColStart: x, canvasColEnd: x + 10, rowSpan: 5 })
+      expect([...new Set(label.authoredTextCells!.map(cell => cell.row))]).toEqual([y + 1, y + 3])
+      expect(label.authoredTextCells!.filter(cell => cell.row === y + 3).map(cell => cell.glyph)).toEqual(['界', ' ', 'é', ' ', '👩‍💻', ' '])
+      expect(target.cell(x, y + 2)?.kind).toBe(method === 'textBlock' ? 'surface' : undefined)
+      expect(target.diagnostics).toEqual([])
+      expect(source.serialize()).toBe(before)
+    }
+  })
+
+  test.each(['text', 'textBlock'] as const)('%s combines only declared rows across disjoint calls and preserves the primary occurrence', method => {
+    const doc = new TerminalDocument(20, 20)
+    const label = owner('label')
+    doc[method](1, 1, 'first\n\n', { owner: label, textGroup: 'primary' })
+    doc[method](1, 8, 'tail', { owner: label, textGroup: 'primary' })
+    doc[method](1, 12, '\nsecondary\n', { owner: label, textGroup: 'secondary' })
+    const region = doc.regions().find(region => region.id === 'label')!
+    expect(region.projectedText).toBe('first\n\n\ntail')
+    expect(region.authoredTextCells!.map(cell => cell.row)).toEqual([1, 1, 1, 1, 1, 8, 8, 8, 8])
+    expect(region.authoredTextCells!.map(cell => cell.glyph).join('')).toBe('firsttail')
+    expect(region.ownedCellSpans.some(span => span.row === 6)).toBe(false)
+    expect(doc.diagnostics).toEqual([])
+  })
+
+  test('prepared wraps and explicit empty line runs retain their declared reading rows', () => {
+    const wrapped = prepareCellText('\na<b>bc</b> def\n\n漢字\n', { display: 'formatted', transform: 'capitalize', maxWidth: 4 })
+    const block = new TerminalDocument()
+    block.textBlock(0, 0, wrapped.lines, { owner: owner('wrapped') })
+    expect(block.regions()[0]?.projectedText).toBe('\nAbc\nDef\n\n漢字\n')
+    const lines = new TerminalDocument()
+    const paint = { owner: owner('lines'), role: 'text' as const }
+    for (const text of ['', 'ab', '', '界 ', '']) lines.line([{ text, role: 'text' }], paint)
+    expect(lines.regions()[0]?.projectedText).toBe('\nab\n\n界 \n')
+    const gap = new TerminalDocument()
+    gap.line([{ text: 'a', owner: owner('gap'), textGroup: 'same' }])
+    gap.line()
+    gap.line([{ text: 'b', owner: owner('gap'), textGroup: 'same' }])
+    expect(gap.regions()[0]?.projectedText).toBe('a\nb')
+  })
+
+  test('rejected complete allocations and rejected nonempty writes cannot append blank-row provenance', () => {
+    for (const method of ['text', 'textBlock'] as const) {
+      const doc = new TerminalDocument()
+      doc[method](0, 0, 'kept', { owner: owner('label'), textGroup: 'same' })
+      doc.marker(0, 3, { shape: 'circle' }, { owner: owner('obstacle') })
+      doc[method](0, 2, '\nX\n', { owner: owner('label'), textGroup: 'same' })
+      expect(doc.regions().find(region => region.id === 'label')?.projectedText).toBe('kept')
+      expect(doc.regions().find(region => region.id === 'label')?.authoredTextCells!.map(cell => cell.glyph)).toEqual(['k', 'e', 'p', 't'])
+      expect(doc.get(0, 3)).toBe('○')
+      expect(doc.diagnostics).toHaveLength(1)
+    }
+    const source = new TerminalDocument()
+    source.textBlock(0, 0, '\nAB\n', { owner: owner('rejected') })
+    const target = new TerminalDocument()
+    target.marker(1, 1, { shape: 'circle' }, { owner: owner('obstacle') })
+    target.overlay(source)
+    expect(target.regions().map(region => region.id)).toEqual(['obstacle'])
+    const empty = new TerminalDocument()
+    empty.text(0, 0, '\n\n', { owner: owner('empty') })
+    expect(empty.occupiedCells).toBe(0)
+    expect(empty.regions()).toEqual([])
+  })
+
+  test('attributed blank rows follow complete text ownership and never leak into a partial compartment', () => {
+    const doc = new TerminalDocument()
+    doc.textBlock(0, 0, '\nAB\n\n界x\n', { owner: owner('card') })
+    doc.attribute(owner('copy'))
+    doc.attributeWithin({ id: 'part', kind: 'compartment', parent: { id: 'card', kind: 'node' } }, { x: 2, y: 3, width: 1, height: 1 })
+    const composed = new TerminalDocument(16, 12)
+    composed.overlay(doc, 2, 1)
+    composed.flip(true, true)
+    for (const id of ['card', 'copy']) expect(composed.regions().find(region => region.id === id)?.projectedText).toBe('\nAB\n\n界x\n')
+    expect(composed.regions().find(region => region.id === 'part')?.projectedText).toBe('x')
+    expect(composed.regions().find(region => region.id === 'part')?.rowSpan).toBeUndefined()
+    expect(composed.diagnostics).toEqual([])
+  })
+
+  test('an unowned blank-row layer inherits its composition scope without changing its source', () => {
+    const layer = new TerminalDocument()
+    layer.textBlock(0, 0, '\n界\n')
+    const doc = new TerminalDocument()
+    doc.scope(owner('scoped'), () => {
+      doc.text(0, 0, 'prefix')
+      doc.overlay(layer, 1, 3)
+    })
+    expect(doc.regions()[0]?.projectedText).toBe('prefix\n\n界\n')
+    expect(layer.regions()).toEqual([])
+    expect(doc.diagnostics).toEqual([])
   })
 
   test('an own-route label diagnoses every foreign route hidden at a crossing', () => {

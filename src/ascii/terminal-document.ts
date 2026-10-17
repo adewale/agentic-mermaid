@@ -39,6 +39,7 @@ export interface MeasuredTerminalText {
   readonly [measuredBrand]: true
   readonly width: number
   readonly height: number
+  readonly emptyRows: readonly number[]
   readonly lines: readonly (readonly { readonly glyph: string; readonly x: number; readonly width: number }[])[]
 }
 export interface AllocatedTerminalText extends TerminalBounds { readonly text: MeasuredTerminalText }
@@ -58,7 +59,7 @@ export function measuredText(value: string | readonly string[]): MeasuredTermina
     maximum = Math.max(maximum, x)
     return Object.freeze(clusters)
   })
-  return Object.freeze({ [measuredBrand]: true as const, width: maximum, height: lines.length, lines: Object.freeze(lines) })
+  return Object.freeze({ [measuredBrand]: true as const, width: maximum, height: lines.length, emptyRows: Object.freeze(rows.flatMap((row, index) => row.length === 0 ? [index] : [])), lines: Object.freeze(lines) })
 }
 export interface TerminalPaint {
   owner?: TerminalOwner
@@ -78,7 +79,10 @@ export interface TerminalSerializeOptions {
   theme?: AsciiTheme
   trimEnd?: boolean
 }
-interface TextBlock extends TerminalBounds {}
+interface TextBlock extends TerminalBounds {
+  /** Authored empty rows carry meaning but never fabricate occupied cells. */
+  emptyRows?: Map<number, TerminalOwnerSet>
+}
 export interface TerminalCell extends TerminalPaint {
   glyph: string
   owners: TerminalOwnerSet
@@ -267,7 +271,9 @@ export class TerminalDocument {
   /** Attach identity at a family drawing boundary, retaining explicit text cells. */
   attribute(owners: TerminalOwner | readonly TerminalOwner[], paint: Omit<TerminalPaint, 'owner'> = {}): this {
     const canonical = this.owners(Array.isArray(owners) ? owners : [owners])
+    const blocks = new Set<TextBlock>()
     for (const [, , cell] of this.entries()) {
+      if (cell.textBlock) blocks.add(cell.textBlock)
       cell.owners = this.unionOwners(cell.owners, canonical)
       cell.owner ??= canonical[0]
       if (cell.kind !== 'text') {
@@ -275,6 +281,9 @@ export class TerminalDocument {
         if (paint.kind !== undefined) cell.kind = paint.kind
       }
       if (paint.color !== undefined) cell.color = paint.color
+    }
+    for (const block of blocks) {
+      if (block.emptyRows) for (const [row, previous] of block.emptyRows) block.emptyRows.set(row, this.unionOwners(previous, canonical))
     }
     return this
   }
@@ -289,11 +298,19 @@ export class TerminalDocument {
     }
     const attributed = this.remember(owner)!
     const canonical = this.owners([attributed])
+    const blocks = new Set<TextBlock>()
     for (const [x, y, cell] of this.entries()) {
       if (x < bounds.x || x >= bounds.x + bounds.width || y < bounds.y || y >= bounds.y + bounds.height) continue
       cell.owners = this.unionOwners(cell.owners, canonical)
+      if (cell.textBlock) blocks.add(cell.textBlock)
       if (paint.role !== undefined && cell.kind !== 'text') cell.role = paint.role
       if (paint.color !== undefined) cell.color = paint.color
+    }
+    for (const block of blocks) {
+      // A partial compartment cannot claim empty lines belonging to the rest
+      // of its parent text occurrence.
+      if (block.x < bounds.x || block.x + block.width > bounds.x + bounds.width || !block.emptyRows) continue
+      for (const [row, previous] of block.emptyRows) if (row >= bounds.y && row < bounds.y + bounds.height) block.emptyRows.set(row, this.unionOwners(previous, canonical))
     }
     return this
   }
@@ -589,6 +606,16 @@ export class TerminalDocument {
     }
   }
 
+  private recordEmptyRows(block: TextBlock, y: number, rows: readonly number[], owners: TerminalOwnerSet): void {
+    if (!rows.length) return
+    block.emptyRows ??= new Map()
+    for (const row of rows) block.emptyRows.set(y + row, this.unionOwners(block.emptyRows.get(y + row) ?? emptyOwners, owners))
+  }
+
+  private movedTextBlock(block: TextBlock, x: number, y: number): TextBlock {
+    return { ...block, x, y, ...(block.emptyRows ? { emptyRows: new Map([...block.emptyRows].map(([row, owners]) => [row + y - block.y, this.owners(owners)])) } : {}) }
+  }
+
   /** Complete immutable measured text is admitted as one allocation. */
   textBlock(x: number, y: number, value: string | readonly string[] | MeasuredTerminalText, paint: TerminalPaint = {}): Readonly<AllocatedTerminalText> | undefined {
     integer(x, 'x'); integer(y, 'y')
@@ -610,6 +637,7 @@ export class TerminalDocument {
       for (const cluster of text.lines[row]!) { this.place(x + cluster.x, y + row, cluster.glyph, cluster.width, ink, block); end = cluster.x + cluster.width }
       for (let column = end; column < text.width; column++) this.place(x + column, y + row, ' ', 1, { ...paint, owner, kind: 'surface' }, block)
     }
+    this.recordEmptyRows(block, y, text.emptyRows, incoming)
     this.resize(x + text.width, y + text.height)
     return Object.freeze({ ...bounds, text })
   }
@@ -629,16 +657,18 @@ export class TerminalDocument {
     if (block) Object.assign(block, union(block, bounds))
     else { block = { ...bounds }; if (scoped) this.activeTextBlock = block; if (groupKey !== undefined) this.textGroups.set(groupKey, block) }
     if (kind === 'text') this.bindTextSurface(block, this.paintOwners({ ...paint, owner }), previous)
+    let accepted = false
     lines.forEach((line, offsetY) => {
       let column = x
       for (const cluster of graphemes(line)) {
         const width = visualWidth(cluster)
         if (width > 0) {
-          this.place(column, y + offsetY, cluster, width, { ...paint, owner, role: paint.role === undefined ? 'text' : paint.role, kind }, kind === 'text' ? block : undefined)
+          accepted = this.place(column, y + offsetY, cluster, width, { ...paint, owner, role: paint.role === undefined ? 'text' : paint.role, kind }, kind === 'text' ? block : undefined) || accepted
           column += width
         }
       }
     })
+    if (kind === 'text' && (accepted || lines.every(line => line.length === 0))) this.recordEmptyRows(block, y, lines.flatMap((line, index) => line.length === 0 ? [index] : []), this.paintOwners(paint))
     this.resize(x + bounds.width, y + bounds.height)
     return bounds
   }
@@ -710,13 +740,20 @@ export class TerminalDocument {
         }))
         if (!admitted.get(cell.textBlock)) continue
         block = blocks.get(cell.textBlock)
-        if (!block) { block = { ...cell.textBlock, x: cell.textBlock.x + dx, y: cell.textBlock.y + dy }; blocks.set(cell.textBlock, block) }
+        if (!block) { block = this.movedTextBlock(cell.textBlock, cell.textBlock.x + dx, cell.textBlock.y + dy); blocks.set(cell.textBlock, block) }
       }
       const owner = this.remember(cell.owner ?? this.activeOwner)
       if (block && !cell.owner && this.activeOwner) {
-        if (this.activeTextBlock) Object.assign(this.activeTextBlock, union(this.activeTextBlock, block))
-        else this.activeTextBlock = block
+        if (this.activeTextBlock && this.activeTextBlock !== block) {
+          Object.assign(this.activeTextBlock, union(this.activeTextBlock, block))
+          if (block.emptyRows) for (const [row, owners] of block.emptyRows) this.recordEmptyRows(this.activeTextBlock, row, [0], this.unionOwners(owners, this.paintOwners({ owner: this.activeOwner })))
+        }
+        else if (!this.activeTextBlock) {
+          this.activeTextBlock = block
+          if (block.emptyRows) for (const [row, owners] of block.emptyRows) block.emptyRows.set(row, this.unionOwners(owners, this.paintOwners({ owner: this.activeOwner })))
+        }
         block = this.activeTextBlock
+        blocks.set(cell.textBlock!, block)
       }
       if (!this.place(x + dx, y + dy, cell.glyph, cell.width, { ...cell, owner }, block)) continue
     }
@@ -758,7 +795,7 @@ export class TerminalDocument {
         const old = readableBlock
         block = blocks.get(old)
         if (!block) {
-          block = { ...old, x: horizontal ? this.width - old.x - old.width : old.x, y: vertical ? this.height - old.y - old.height : old.y }
+          block = this.movedTextBlock(old, horizontal ? this.width - old.x - old.width : old.x, vertical ? this.height - old.y - old.height : old.y)
           blocks.set(old, block)
         }
         nx = block.x + x - old.x; ny = block.y + y - old.y
@@ -896,13 +933,20 @@ export class TerminalDocument {
       const selected = cells.length === 0 ? occluded : owner.kind === 'edge' ? cells : label.length > 0 ? label : cells
       const declared = this.declared.get(key)
       if (selected.length === 0 && !declared) continue
-      const bounds = declared ?? selected.reduce<TerminalBounds | undefined>((previous, item) => {
+      let bounds = declared ?? selected.reduce<TerminalBounds | undefined>((previous, item) => {
         const cellBounds = { x: item.x, y: item.y, width: 1, height: 1 }
         return previous ? union(previous, cellBounds) : cellBounds
       }, undefined)!
       const authored = label.filter(({ cell }) => cell.glyph !== WIDE_CHAR_CONTINUATION)
-      let projectedText = '', previousRow: number | undefined
-      for (const item of authored) { if (previousRow !== undefined && previousRow !== item.y) projectedText += '\n'; projectedText += item.cell.glyph; previousRow = item.y }
+      const projectedRows = new Map<number, string>()
+      for (const [row, owners] of firstBlock?.emptyRows ?? []) if (owners.some(candidate => ownerKey(candidate) === key)) projectedRows.set(row, '')
+      for (const item of authored) projectedRows.set(item.y, (projectedRows.get(item.y) ?? '') + item.cell.glyph)
+      const projectedText = [...projectedRows].sort(([a], [b]) => a - b).map(([, text]) => text).join('\n')
+      if (!declared && projectedRows.size) {
+        let first = bounds.y, end = bounds.y + bounds.height
+        for (const row of projectedRows.keys()) { first = Math.min(first, row); end = Math.max(end, row + 1) }
+        bounds = { ...bounds, y: first, height: end - first }
+      }
       result.push({
         id: owner.id, kind: owner.kind ?? 'node',
         ...(owner.sourceLine === undefined ? {} : { sourceLine: owner.sourceLine }),

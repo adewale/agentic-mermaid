@@ -83,14 +83,36 @@ and files production code imports at runtime.
 ### Change shape
 
 - Work comes from issues filed by the owner or users. A PR closes an issue or
-  delivers a stated contract; findings made along the way are filed as issues,
-  not fixed unasked in the same PR.
+  delivers a stated contract. Report additional findings in the conversation;
+  create new issues only when the user explicitly asks. Do not expand the fix
+  to unrelated findings without authorization.
 - One coherent change per commit, at the owning boundary: all the sites of one
   rule together, not one commit per bug.
 - Locally run typecheck, lint and the tests that exercise what you changed. The
   full suite runs in CI (3 shards, about 4 minutes); don't run it locally per
   commit.
 - Parallel agents only on disjoint files, at most 2–3 at a time.
+
+### Shared meaning and output-specific geometry
+
+- Share authored identities, typed parent/endpoint references and display
+  interpretation before projection. Keep pixel and terminal-cell layout rules
+  in their owning adapters; a common semantic helper does not prove geometry.
+- Test correspondence and connectivity alongside appearance. Inspect public
+  identities, parents, endpoints and actual owned ink; raster checks cannot
+  detect duplicate IDs or prove that stored ownership/ports describe a real path.
+- Exercise bounded, purposeful combinations: nested containers with reciprocal
+  or parallel edges, wide graphemes beside protected markers, and authored names
+  that resemble generated IDs. Choose cases that challenge interacting rules,
+  rather than duplicating isolated examples or creating another coverage roster.
+- Bind review to the combined candidate and its final dependency revision.
+  After a dependency update, rerun the affected contracts and recheck integration
+  before declaring the candidate audited. An earlier review is evidence only
+  for its recorded revision.
+- Measure execution and download cost separately. Lazy evaluation can avoid
+  computation while retaining code in the initial bundle. Check the actual
+  module/request graph and compressed startup/lazy payloads before claiming a
+  download reduction; report fully consumed receipts as well as text-only work.
 
 ## Pull requests — use the `good-pr` skill
 

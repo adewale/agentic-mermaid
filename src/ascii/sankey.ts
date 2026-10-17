@@ -24,7 +24,7 @@ import { getFrontmatterMap, type MermaidFrontmatterMap } from '../mermaid-source
 import { pieSliceColors } from '../pie/palette.ts'
 import type { SankeyVisualConfig } from '../sankey/config.ts'
 import { resolveSankeyVisualConfig } from '../sankey/config.ts'
-import { formatSankeyValue, sankeyLinkId } from '../sankey/layout.ts'
+import { formatSankeyValue, sankeyIdentities } from '../sankey/semantics.ts'
 import { parseSankeyDiagram } from '../sankey/parser.ts'
 import { TerminalDocument, type TerminalOwner } from './terminal-document.ts'
 import type { AsciiConfig, AsciiTheme, ColorMode } from './types.ts'
@@ -42,6 +42,7 @@ export function renderSankeyTerminal(lines: string[], config: AsciiConfig, color
   const visual = resolvedVisual ?? resolveSankeyVisualConfig(frontmatter)
   const title = typeof frontmatter.title === 'string' ? frontmatter.title : undefined
   const diagram = parseSankeyDiagram(lines, title !== undefined ? { title } : {})
+  const identities = sankeyIdentities(diagram)
 
   const barChar = config.useAscii ? '#' : '█'
   const branch = config.useAscii ? '|-> ' : '├─▶ '
@@ -78,7 +79,7 @@ export function renderSankeyTerminal(lines: string[], config: AsciiConfig, color
 
   const document = new TerminalDocument()
   document.titleHandled = true
-  const generated = terminalIds(diagram.nodes)
+  const generated = terminalIds([...diagram.nodes, ...identities.links.map(identity => identity.id), ...(identities.titleId ? [identities.titleId] : [])])
   const authoredVisual = getFrontmatterMap(frontmatter, ['config', 'sankey']) ?? getFrontmatterMap(frontmatter, ['sankey']) ?? {}
   const project = (field: string, value: unknown, representation: string): void => document.report({
     code: 'TERMINAL_FAMILY_PROJECTION', feature: `sankey.${field}`,
@@ -94,16 +95,10 @@ export function renderSankeyTerminal(lines: string[], config: AsciiConfig, color
   }
   if (visual.labelStyle === 'outlined') project('labelStyle', visual.labelStyle, 'complete terminal labels without a pixel outline halo')
   if (visual.linkColor.mode === 'gradient') project('linkColor', 'gradient', 'solid target-colored bars rather than a source-to-target gradient')
-  const occurrence = new Map<string, number>()
-  const linkIds = new Map(diagram.links.map((link, linkIndex) => {
-    const key = JSON.stringify([link.source, link.target])
-    const index = occurrence.get(key) ?? 0
-    occurrence.set(key, index + 1)
-    return [link, generated(sankeyLinkId(link.source, link.target, index), ['link', linkIndex])]
-  }))
+  const linkIdentities = new Map(diagram.links.map((link, linkIndex) => [link, identities.links[linkIndex]!]))
   // Labels draw their display text, as the SVG node labels do.
   if (diagram.title) {
-    for (const text of wrapText(displayText(diagram.title), targetWidth)) document.line([{ text, role: 'text', textGroup: 'title', owner: { id: generated('title', 'title'), kind: 'label' } }])
+    for (const text of wrapText(displayText(diagram.title), targetWidth)) document.line([{ text, role: 'text', textGroup: 'title', owner: { id: identities.titleId!, kind: 'label' } }])
     document.line()
   }
 
@@ -133,8 +128,9 @@ export function renderSankeyTerminal(lines: string[], config: AsciiConfig, color
       const bar = barChar.repeat(barLen)
       const color = visual.linkColor.mode === 'static' ? visual.linkColor.color
         : colorOf.get(visual.linkColor.mode === 'source' ? link.source : link.target)!
-      const id = linkIds.get(link)!
-      const edgeOwner: TerminalOwner = { id, kind: 'edge', from: link.source, to: link.target }
+      const identity = linkIdentities.get(link)!
+      const id = identity.id
+      const edgeOwner: TerminalOwner = { id, kind: 'edge', from: identity.source, to: identity.target }
       if (barLen > 0 && colorMode !== 'none' && colorMode !== 'html') {
         const parsed = tryParseCssColor(color)
         if (!parsed || parsed[3] !== 1) {

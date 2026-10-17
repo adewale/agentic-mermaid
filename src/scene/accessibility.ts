@@ -1,3 +1,4 @@
+import { decodeXML } from 'entities'
 import type { SvgSemanticIdentity } from './identity.ts'
 import { escapeAttr } from '../multiline-utils.ts'
 import { sceneRoleTraits } from './roles.ts'
@@ -16,14 +17,6 @@ export interface SvgSemanticAccessibility {
   relation: SvgRelationSemantics
 }
 
-function decodeAttr(value: string): string {
-  return value
-    .replace(/&quot;/g, '"')
-    .replace(/&#39;|&apos;/g, "'")
-    .replace(/&lt;/g, '<')
-    .replace(/&gt;/g, '>')
-    .replace(/&amp;/g, '&')
-}
 
 /** Build relation accessibility from typed Scene fields only. */
 export function relationAccessibility(
@@ -51,11 +44,7 @@ export function relationAccessibilityForSvg(
 ): SvgSemanticAccessibility | undefined {
   const opening = svg.match(/^\s*<[A-Za-z][\w:-]*\b[^>]*>/)?.[0] ?? ''
   const sourceLabel = opening.match(/\sdata-label="([^"]*)"/)?.[1]
-  return relationAccessibility({
-    ...identity,
-    ...(identity.from !== undefined ? { from: decodeAttr(identity.from) } : {}),
-    ...(identity.to !== undefined ? { to: decodeAttr(identity.to) } : {}),
-  }, sourceLabel ? decodeAttr(sourceLabel) : undefined)
+  return relationAccessibility(identity, sourceLabel ? decodeXML(sourceLabel) : undefined)
 }
 
 export function ensureSvgAccessibility(svg: string, accessibility: SvgSemanticAccessibility | undefined): string {

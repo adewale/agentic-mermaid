@@ -2,6 +2,9 @@ import { describe, expect, test } from 'bun:test'
 import { layoutMermaid, parseRegisteredMermaid as parseMermaid } from '../agent/index.ts'
 import type { DiagramKind } from '../agent/types.ts'
 import { renderMermaidSVG } from '../index.ts'
+import { escapeAttr, escapeDisplayAttr } from '../multiline-utils.ts'
+import { semanticIdentityForSvg, ensureSvgIdentity } from '../scene/identity.ts'
+import { relationAccessibilityForSvg } from '../scene/accessibility.ts'
 import { compareCodePointStrings } from '../shared/deterministic-order.ts'
 import { METAMORPHIC_FAMILIES } from './helpers/metamorphic-families.ts'
 
@@ -209,5 +212,22 @@ describe('all-family SVG semantic identity contract', () => {
     expect(svg).toContain('data-role="pie-slice"')
     const ids = dataIds(svg)
     expect(new Set(ids).size).toBe(ids.length)
+  })
+})
+
+
+test('XML attribute projection preserves whitespace and decodes source references exactly once', () => {
+  const id = 'A\tB\nC\rD & < " \' &#9;'
+  const encoded = 'A&#9;B&#10;C&#13;D &amp; &lt; &quot; &#39; &amp;#9;'
+  expect(escapeAttr(id)).toBe(encoded)
+  expect(escapeDisplayAttr('A\rB\nC\tD\u001b')).toBe('A?B&#10;C D?')
+  const from = 'literal &#9; &amp;', to = 'real\tTAB\nLF\rCR'
+  const crisp = `<path data-id="${encoded}" data-role="edge" data-from="${escapeAttr(from)}" data-to="${escapeAttr(to)}" data-label="one&#10;two &amp;#9;" />`
+  const identity = semanticIdentityForSvg(crisp, { id: 'bounded-mark', role: 'edge' })
+  expect(identity).toEqual({ id, role: 'edge', from, to })
+  expect(ensureSvgIdentity(crisp, identity)).toBe(crisp)
+  expect(relationAccessibilityForSvg(crisp, identity)).toMatchObject({
+    label: `${from} to ${to}: one\ntwo &#9;`,
+    relation: { from, to, label: 'one\ntwo &#9;' },
   })
 })

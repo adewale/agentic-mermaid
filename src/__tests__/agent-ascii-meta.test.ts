@@ -313,3 +313,47 @@ describe('renderMermaidASCIIWithMeta', () => {
     expect(regions).toEqual([])
   })
 })
+
+
+test('terminal actions retain distinct authored targets and their actual owned regions', () => {
+  const source = 'classDiagram\nclass `A\tB`\nclass `A B`\nclick `A\tB` href "https://example.com/tab"\nclick `A B` href "https://example.com/space"'
+  for (const format of ['ascii', 'unicode'] as const) for (const colorMode of ['none', 'ansi16', 'html'] as const) {
+    const meta = renderMermaidASCIIWithMeta(source, { useAscii: format === 'ascii', colorMode })
+    expect(meta.actions.map(({ id, regionId, target }) => ({ id, regionId, target }))).toEqual([
+      { id: 'action:class:A\tB:0', regionId: 'node:A\tB', target: 'A\tB' },
+      { id: 'action:class:A B:0', regionId: 'node:A B', target: 'A B' },
+    ])
+    const output = renderMermaidWithActions(source, { format, options: { colorMode } })
+    for (const [index, target] of ['A\tB', 'A B'].entries()) {
+      const action = output.actionSurface.actions[index]!
+      const region = meta.regions.find(region => region.id === target && region.kind === 'node')!
+      expect(action).toMatchObject({ id: `action:class:${target}:0`, target, regionId: `node:${target}`, region: { id: `node:${target}`, elementId: target, cellSpans: region.ownedCellSpans } })
+      expect(region.ownedCellSpans!.length).toBeGreaterThan(0)
+      expect(region.projectedText).toBe('A B')
+      expect(regionText(renderMermaidASCIIWithMeta(source, { useAscii: format === 'ascii', colorMode: 'none' }).ascii, region)).toContain('A B')
+    }
+    expect(output.actionSurface.actions[0]!.region!.cellSpans).not.toEqual(output.actionSurface.actions[1]!.region!.cellSpans)
+  }
+})
+
+test('public metadata preserves authored blank rows in node, edge and timeline text', () => {
+  const fixtures = [
+    { source: 'flowchart LR\nA -->|long label<br><br>x| B', kind: 'edge', id: 'edge#0:A->B', text: 'long label\n\nx' },
+    { source: 'flowchart TD\nA["first<br><br>last"]', kind: 'node', id: 'A', text: 'first\n\nlast' },
+    { source: 'sequenceDiagram\nparticipant A\nparticipant B\nA->>B: first<br><br>last', kind: 'edge', id: 'message:0', text: 'first\n\nlast' },
+    { source: 'timeline\nfirst<br><br>last : Event', kind: 'node', id: 'period-0', text: 'first\n\nlast' },
+    { source: 'sankey-beta\n"first\n\nlast",Sink,1', kind: 'node', id: 'first\n\nlast', text: 'first\n\nlast' },
+  ]
+  for (const fixture of fixtures) for (const useAscii of [true, false]) {
+    const result = renderMermaidASCIIWithMeta(fixture.source, { useAscii, colorMode: 'none' })
+    const region = result.regions.find(region => region.kind === fixture.kind && region.id === fixture.id)!
+    expect(region.projectedText).toBe(fixture.text)
+    const rows = [...new Set(region.authoredTextCells!.map(cell => cell.row))]
+    expect(rows).toHaveLength(2)
+    expect(rows[1]! - rows[0]!).toBe(2)
+    const lines = result.ascii.split('\n')
+    for (const cell of region.authoredTextCells!) expect(cellSlice(lines[cell.row]!, cell.column, cell.column + visualWidth(cell.glyph))).toBe(cell.glyph)
+    expect(region.authoredTextCells!.some(cell => cell.row === rows[0]! + 1)).toBe(false)
+    expect(result.warnings).not.toContainEqual(expect.objectContaining({ code: 'ASCII_RENDER_FAILED' }))
+  }
+})

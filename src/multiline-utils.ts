@@ -11,6 +11,7 @@ import { HAS_FORMAT_TAGS } from './shared/inline-format.ts'
 import { prepareDisplayText, type DisplayRun } from './shared/display-text.ts'
 import type { PixelTextBlock } from './shared/prepared-text.ts'
 import { graphemes } from './shared/graphemes.ts'
+import { sanitizeDisplayLines } from './shared/text-controls.ts'
 
 /**
  * Normalize label text: strip surrounding quotes, convert <br> tags and
@@ -87,12 +88,18 @@ export function escapeXml(text: string): string {
 }
 
 /**
- * Escape text for use inside a double-quoted XML attribute. The escape set is
- * the same one escapeXml uses — a superset of what attributes strictly need —
- * so element text and attribute values stay consistent everywhere.
+ * Escape a double-quoted XML attribute without XML whitespace normalization
+ * changing its semantic value. Character references preserve authored TAB, LF
+ * and CR; element text retains its separate display interpretation.
  */
 export function escapeAttr(text: string): string {
-  return escapeXml(text)
+  return escapeXml(text).replace(/[\t\n\r]/g, character => character === '\t' ? '&#9;' : character === '\n' ? '&#10;' : '&#13;')
+}
+
+/** Display metadata follows the same inert-control interpretation as labels.
+ * Semantic IDs and references must use escapeAttr directly. */
+export function escapeDisplayAttr(text: string): string {
+  return escapeAttr(sanitizeDisplayLines(text))
 }
 
 // ============================================================================

@@ -114,6 +114,35 @@ describe('browser bundle', () => {
     expect(surface.exportCount).toBeGreaterThan(50)
   })
 
+
+  test('XML DOM preserves whitespace identities and relation accessibility across SVG styles', async () => {
+    const source = 'sankey-beta\n"A\nB",X,1\n"A B",Y,2\n"A\tB",Z,3\n"A\rB",CR,4\n"A\tB",Z,5\n"link:A\tB->Z",Other,6\n"A\n\nB",Blank,7'
+    for (const style of [undefined, 'hand-drawn']) {
+      const actual = await page.evaluate(({ name, source, style }) => {
+        const svg = (globalThis as Record<string, any>)[name].renderMermaidSVG(source, { embedFontImport: false, ...(style ? { style } : {}) })
+        const doc = new DOMParser().parseFromString(svg, 'image/svg+xml')
+        return {
+          errors: doc.querySelectorAll('parsererror').length,
+          nodes: [...doc.querySelectorAll('[data-role="bar"]')].map(element => element.getAttribute('data-id')),
+          edges: [...doc.querySelectorAll('[data-role="edge"]')].map(element => ({ id: element.getAttribute('data-id'), from: element.getAttribute('data-from'), to: element.getAttribute('data-to'), label: element.getAttribute('aria-label') })),
+          identities: [...doc.querySelectorAll('[data-id]')].map(element => element.getAttribute('data-id')),
+        }
+      }, { name: GLOBAL, source, style })
+      expect(actual.errors).toBe(0)
+      expect(actual.nodes).toEqual(['A\nB', 'X', 'A B', 'Y', 'A\tB', 'Z', 'A\rB', 'CR', 'link:A\tB->Z', 'Other', 'A\n\nB', 'Blank'])
+      expect(actual.edges).toEqual([
+        { id: 'link:A\nB->X', from: 'A\nB', to: 'X', label: 'A\nB to X' },
+        { id: 'link:A B->Y', from: 'A B', to: 'Y', label: 'A B to Y' },
+        { id: 'link:A\tB->Z#1', from: 'A\tB', to: 'Z', label: 'A\tB to Z' },
+        { id: 'link:A\rB->CR', from: 'A\rB', to: 'CR', label: 'A\rB to CR' },
+        { id: 'link:A\tB->Z#1#1', from: 'A\tB', to: 'Z', label: 'A\tB to Z' },
+        { id: 'link:link:A\tB->Z->Other', from: 'link:A\tB->Z', to: 'Other', label: 'link:A\tB->Z to Other' },
+        { id: 'link:A\n\nB->Blank', from: 'A\n\nB', to: 'Blank', label: 'A\n\nB to Blank' },
+      ])
+      expect(new Set(actual.identities).size).toBe(actual.identities.length)
+    }
+  })
+
   // B2. Registry-driven, so future families enroll without touching this file.
   test('registry is non-empty, so the per-family checks below are not vacuous', () => {
     expect(BUILTIN_FAMILY_METADATA.length).toBeGreaterThanOrEqual(MIN_EXPECTED_FAMILIES)

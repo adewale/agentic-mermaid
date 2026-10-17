@@ -18,6 +18,25 @@ beforeAll(() => renderedTextReady())
 const typography = { fontSize: 18, fontWeight: 600 }
 
 describe('prepared display text', () => {
+  it('keeps source ranges while preparing inert controls for pixel fitting', () => {
+    const source = 'a\t<b>b\u001b</b>\r c\nend'
+    const prepared = prepareDisplayText(source, 'formatted', 'uppercase')
+    expect(prepared.source).toBe(source)
+    expect(prepared.lines.map(line => line.map(run => run.text).join(''))).toEqual(['A B?? C', 'END'])
+    expect(prepared.lines[0]![0]!.clusters).toEqual([
+      { text: 'A', sourceStart: 0, sourceEnd: 1 },
+      { text: ' ', sourceStart: 1, sourceEnd: 2 },
+    ])
+    expect(prepared.lines[0]![1]!.clusters).toEqual([
+      { text: 'B', sourceStart: 5, sourceEnd: 6 },
+      { text: '?', sourceStart: 6, sourceEnd: 7 },
+    ])
+    const pixel = preparePixelText(source, { ...typography, display: 'formatted', transform: 'uppercase' })
+    expect(pixel.prepared.source).toBe(source)
+    expect(pixel.lineBlocks.map(line => line.runs.map(run => run.text).join(''))).toEqual(['A B?? C', 'END'])
+    expect(pixel.lineBlocks.every(line => line.runs.every(run => !/[\u0000-\u001f\u007f-\u009f]/.test(run.text)))).toBe(true)
+  })
+
   it('distinguishes literal content from styled runs without decoding tag-like entities', () => {
     const literal = prepareDisplayText('<b>x</b> #lt;br#gt; &#60;br&#62;', 'literal')
     expect(literal.lines[0]!.map(run => run.text).join('')).toBe('<b>x</b> #lt;br#gt; &#60;br&#62;')

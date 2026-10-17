@@ -205,7 +205,7 @@ const RADAR_RENDER_HOOKS = {
 const SANKEY_RENDER_HOOKS = {
   ...SANKEY_SVG_HOOKS,
   projectPositioned: positionedView(projectSankeyPositioned),
-  renderAscii: nativeTerminalRenderer(ctx => renderSankeyTerminal(ctx.source.familyLines, ctx.config, ctx.colorMode, ctx.theme, ctx.source.frontmatter, ctx.options.targetWidth, (ctx.familyConfig as { visual?: ReturnType<typeof resolveSankeyVisualConfig> } | undefined)?.visual)),
+  renderAscii: nativeTerminalRenderer(ctx => renderSankeyTerminal(ctx.source.body.split(/\r?\n/), ctx.config, ctx.colorMode, ctx.theme, ctx.source.frontmatter, ctx.options.targetWidth, (ctx.familyConfig as { visual?: ReturnType<typeof resolveSankeyVisualConfig> } | undefined)?.visual)),
 } satisfies BuiltinRenderHooks
 
 const GANTT_RENDER_HOOKS = {

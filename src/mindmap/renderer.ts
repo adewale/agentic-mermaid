@@ -10,7 +10,7 @@ import { svgOpenTag, buildStyleBlock, buildShadowDefs, resolveColors } from '../
 import { ensureContrast, isHexColor, mixHex } from '../shared/color-math.ts'
 import { buildAccessibilityAttrs } from '../shared/svg-a11y.ts'
 import { semanticChildId, semanticRelationId } from '../scene/identity.ts'
-import { escapeAttr, escapeXml, renderMultilineText } from '../multiline-utils.ts'
+import { escapeAttr, escapeDisplayAttr, escapeXml, renderMultilineText } from '../multiline-utils.ts'
 import { resolveMindmapIcon } from './icons.ts'
 import { categoricalPalette } from '../shared/categorical-palette.ts'
 import { projectConnectorPath } from '../scene/connector-geometry.ts'
@@ -150,7 +150,7 @@ function renderNode(
     id: node.id,
     role: 'node',
     channels: { importance: Math.max(1, 5 - node.depth), ...(branchIndex === undefined ? {} : { category: String(branchIndex) }) },
-    open: `<g class="mindmap-node depth-${node.depth}${customClasses}" data-id="${escapeAttr(node.id)}" data-label="${escapeAttr(node.label)}"${branchIndex === undefined ? '' : ` data-branch-index="${branchIndex}"`}${node.parentId ? ` data-parent-id="${escapeAttr(node.parentId)}"` : ''}>`,
+    open: `<g class="mindmap-node depth-${node.depth}${customClasses}" data-id="${escapeAttr(node.id)}" data-label="${escapeDisplayAttr(node.label)}"${branchIndex === undefined ? '' : ` data-branch-index="${branchIndex}"`}${node.parentId ? ` data-parent-id="${escapeAttr(node.parentId)}"` : ''}>`,
     close: '</g>', children,
   })
 }

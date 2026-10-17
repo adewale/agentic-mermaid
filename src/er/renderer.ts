@@ -8,7 +8,7 @@ import { FONT_SIZES, FONT_WEIGHTS, STROKE_WIDTHS, TEXT_BASELINE_SHIFT, resolveRe
 import type { RenderStyleDefaults, ResolvedRenderStyle } from '../styles.ts'
 import { ER_STYLE_DEFAULTS, erCommentColumnWidth, erCommentText } from './layout.ts'
 import { buildAccessibilityAttrs } from '../shared/svg-a11y.ts'
-import { breakLineTags, renderMultilineText, escapeAttr, escapeXml as escapeXmlUtil } from '../multiline-utils.ts'
+import { breakLineTags, renderMultilineText, escapeAttr, escapeDisplayAttr, escapeXml as escapeXmlUtil } from '../multiline-utils.ts'
 import { topRoundedRectPath } from '../svg-paths.ts'
 import type { Geometry, SceneDoc, SceneNode } from '../scene/ir.ts'
 import { hashId } from '../scene/seed.ts'
@@ -166,7 +166,7 @@ function renderErGroup(group: PositionedErGroup, style: ResolvedRenderStyle): Sc
   const block = group.labelBlock ?? erGroupBlock(group.label, style)
   return marks.group({
     id: `er-group:${group.id}`, role: 'group',
-    open: `<g class="er-subgraph" data-id="${escapeAttr(group.id)}" data-label="${escapeAttr(group.label)}"${group.parentId ? ` data-parent-id="${escapeAttr(group.parentId)}"` : ''}>`,
+    open: `<g class="er-subgraph" data-id="${escapeAttr(group.id)}" data-label="${escapeDisplayAttr(group.label)}"${group.parentId ? ` data-parent-id="${escapeAttr(group.parentId)}"` : ''}>`,
     close: '</g>', children: [
       { node: marks.shape({ id: `er-group:${group.id}:box`, role: 'group', geometry: { kind: 'rect', x: group.x, y: group.y, width: group.width, height: group.height, rx: 6, ry: 6 }, paint: { fill, stroke, strokeWidth: '1.5' } }, `<rect x="${group.x}" y="${group.y}" width="${group.width}" height="${group.height}" rx="6" fill="${escapeAttr(fill)}" stroke="${escapeAttr(stroke)}" stroke-width="1.5" />`), indent: 2 },
       { node: marks.shape({ id: `er-group:${group.id}:header`, role: 'group-header', geometry: { kind: 'rect', x: group.x, y: group.y, width: group.width, height: group.headerHeight, rx: 6, ry: 6 }, paint: { fill: headerFill, stroke: 'none' } }, `<rect x="${group.x}" y="${group.y}" width="${group.width}" height="${group.headerHeight}" rx="6" fill="${escapeAttr(headerFill)}" />`), indent: 2 },
@@ -190,7 +190,7 @@ function renderEntityBox(entity: PositionedErEntity, style: ResolvedRenderStyle,
   // Semantic wrapper with entity metadata
   const classAttr = entity.className ? ` ${escapeAttr(entity.className)}` : ''
   const dataClass = entity.className ? ` data-class="${escapeAttr(entity.className)}"` : ''
-  const open = `<g class="entity${classAttr}" data-id="${escapeAttr(id)}" data-label="${escapeAttr(label)}"${dataClass}>`
+  const open = `<g class="entity${classAttr}" data-id="${escapeAttr(id)}" data-label="${escapeDisplayAttr(label)}"${dataClass}>`
 
   // classDef then inline style are merged by layout for backend parity.
   const local = entity.inlineStyle ?? {}
@@ -470,7 +470,7 @@ function renderRelationshipLine(
   const dashArray = !rel.identifying ? ' stroke-dasharray="6 4"' : ''
 
   // Semantic data attributes for relationship inspection
-  const labelAttr = rel.label ? ` data-label="${escapeAttr(rel.label)}"` : ''
+  const labelAttr = rel.label ? ` data-label="${escapeDisplayAttr(rel.label)}"` : ''
   const dataAttrs = [
     'class="er-relationship"',
     `data-from="${escapeAttr(rel.entity1)}"`,

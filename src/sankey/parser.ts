@@ -33,8 +33,9 @@ export interface SankeyParseOptions {
 }
 
 /**
- * Parse a Mermaid sankey diagram from raw lines. The first line is expected
- * to be the `sankey` / `sankey-beta` header.
+ * Parse a Mermaid sankey diagram from physical lines. Leading blank/comment
+ * lines may precede the `sankey` / `sankey-beta` header; quoted CSV contents
+ * retain their interior physical rows and whitespace.
  *
  * Throws on malformed input:
  *   - a header that isn't `sankey` / `sankey-beta`
@@ -47,11 +48,12 @@ export interface SankeyParseOptions {
  *   - a diagram with no data rows
  */
 export function parseSankeyDiagram(lines: string[], options: SankeyParseOptions = {}): SankeyDiagram {
-  if (lines.length === 0) {
+  const headerIndex = lines.findIndex(line => line.trim().length > 0 && !line.trim().startsWith('%%'))
+  if (headerIndex < 0) {
     throw new Error('Sankey diagram is empty')
   }
 
-  const header = lines[0]!.trim()
+  const header = lines[headerIndex]!.trim()
   if (!/^sankey(?:-beta)?\s*$/i.test(header)) {
     throw new Error(`Sankey diagram must start with "sankey" or "sankey-beta", got: "${header}"`)
   }
@@ -66,7 +68,7 @@ export function parseSankeyDiagram(lines: string[], options: SankeyParseOptions 
     }
   }
 
-  for (let i = 1; i < lines.length; i++) {
+  for (let i = headerIndex + 1; i < lines.length; i++) {
     let row = lines[i]!.replace(/\r$/, '')
     const rowNumber = i + 1
     const trimmedPhysicalLine = row.trim()

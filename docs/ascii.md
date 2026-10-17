@@ -80,6 +80,17 @@ labels retain separate element identities, and parent references include
 `parentId` and `parentKind`. These fields support cell-based hit testing without
 searching the rendered label text.
 
+`projectedText` preserves deliberately empty rows of its primary logical text
+occurrence, including leading and trailing rows. Separate occurrences do not
+acquire newlines merely because they are far apart on the canvas. Empty rows
+retain provenance without inventing occupied cells.
+
+Family parsing retains authored identities and endpoints. Shared display
+preparation neutralizes C0/C1 controls before pixel or cell fitting, while typed
+IDs, connector references and action targets remain exact. XML attribute
+serialization separately preserves identity whitespace. Sankey's CSV parser
+receives physical authored rows, including blank rows inside quoted labels.
+
 `actions` contains inert action metadata only; a host decides whether and how to
 handle it. `routeParity` records route intent and projection limits; it does not
 certify identical SVG/terminal paths or guarantee that every family layout can
@@ -87,10 +98,10 @@ fit. Terminal drawing does not consume SVG route certificates directly.
 
 Inspect `warnings` for refused geometry and feature-specific projection losses.
 An edge region with ports is not evidence that its label was painted: check its
-owned/projected text and any collision diagnostic. Interleaved containers
-([#397](https://github.com/adewale/agentic-mermaid/issues/397)) and
-parallel/reciprocal lane capacity
-([#398](https://github.com/adewale/agentic-mermaid/issues/398)) remain known limits.
+owned/projected text and any collision diagnostic. Compound graph placement
+keeps child containers atomic within their parent; parallel/reciprocal allocation
+reserves physical ports and complete labels before routing. Bounded allocation
+can still fail, and a diagnostic must not be treated as a successful route.
 String-only extension hooks report `TERMINAL_OWNERSHIP_UNAVAILABLE`; metadata
 does not invent regions from their text.
 

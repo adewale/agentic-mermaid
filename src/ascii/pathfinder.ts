@@ -180,6 +180,7 @@ export function getPath(
   from: GridCoord,
   to: GridCoord,
   preferredDir?: Direction,
+  canStep?: (from: GridCoord, to: GridCoord) => boolean,
 ): GridCoord[] | null {
   // #66 (ktrysmt): bound the search. `isFreeInGrid` only guards x/y < 0, so an
   // unreachable target (walled off) would let A* explore +x/+y unboundedly →
@@ -231,6 +232,7 @@ export function getPath(
       // #66 guard: never expand past the bounded extent. Without this, an
       // unreachable target lets the search wander the unbounded +x/+y plane.
       if (next.x > boundX || next.y > boundY) continue
+      if (canStep && !canStep(current, next)) continue
 
       // Allow moving to the destination even if it's occupied (it's a node boundary)
       if (!isFreeInGrid(grid, next) && !gridCoordEquals(next, to)) {

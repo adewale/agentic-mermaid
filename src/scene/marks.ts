@@ -1,3 +1,4 @@
+import { sanitizeDisplayLines } from '../shared/text-controls.ts'
 // ============================================================================
 // Mark constructors — the only way family lowerings build scene nodes.
 //
@@ -302,7 +303,7 @@ export function connector(fields: ConnectorFields, crisp: string): ConnectorMark
     kind: fields.relationship?.kind ?? fields.role,
     direction: fields.relationship?.direction ?? connectorDirection(endpoints, markerStart, markerEnd),
   }
-  const labels = fields.labels ?? []
+  const labels = (fields.labels ?? []).map(label => ({ ...label, text: sanitizeDisplayLines(label.text) }))
   const identity: SvgSemanticIdentity = {
     id: fields.identity?.id ?? fields.id,
     role: fields.role,
@@ -478,6 +479,8 @@ export function connector(fields: ConnectorFields, crisp: string): ConnectorMark
 export function text(fields: {
   id: string
   role: SceneRole
+  /** Optional public DOM identity when the bounded Scene key is internal. */
+  identity?: Omit<SvgSemanticIdentity, 'role'>
   text: string
   x: number
   y: number
@@ -502,10 +505,14 @@ export function text(fields: {
   const firstY = block ? crisp.match(/<tspan\b[^>]*\by="([^"]*)"/)?.[1] : undefined
   const dy = firstY !== undefined ? Number.parseFloat(firstY) - fields.y : Number.parseFloat(firstDy) * (firstDy.endsWith('em') ? fields.fontSize : 1)
   const offsetY = dy + (measured.lines.length - 1) * measured.lineHeight / 2 - fields.fontSize * 0.35
-  const identity = semanticIdentityForSvg(crisp, fields)
-  const accessibility = relationAccessibilityForSvg(crisp, identity)
+  const identity: SvgSemanticIdentity = fields.identity
+    ? { ...fields.identity, role: fields.role }
+    : semanticIdentityForSvg(crisp, fields)
+  const accessibility = fields.identity
+    ? relationAccessibility(identity)
+    : relationAccessibilityForSvg(crisp, identity)
   const decorated = ensureSvgAccessibility(ensureSvgIdentity(crisp, identity), accessibility)
-  return attachSceneNodeSerialization({ kind: 'text', identity, accessibility, ...semantic, ...(block ? { prepared: true } : {}), fontWeight: weight, letterSpacing: spacing, display, textLayout: { width: measured.width, height: measured.height, lineHeight: measured.lineHeight, offsetY } }, decorated)
+  return attachSceneNodeSerialization({ kind: 'text', ...semantic, identity, accessibility, ...(block ? { prepared: true } : {}), fontWeight: weight, letterSpacing: spacing, display, textLayout: { width: measured.width, height: measured.height, lineHeight: measured.lineHeight, offsetY } }, decorated)
 }
 
 export function documentContent(fields: {

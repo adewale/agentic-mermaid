@@ -16,13 +16,19 @@ Source-authored IDs win. Anonymous marks receive semantic IDs derived from label
 
 `data-id` is source-facing identity and is intentionally **not** changed by `RenderOptions.idPrefix`.
 
-Known implementation defect: duplicate Sankey rows and an authored endpoint
-such as `B#1` can collide with a generated occurrence suffix, violating the
-uniqueness requirement above. [#400](https://github.com/adewale/agentic-mermaid/issues/400)
-tracks shared collision-safe family identity allocation and SVG/layout/terminal
-regressions. The shared terminal compositor does not repair this separate
-graphical allocator. Distinct internal Scene mark IDs keep the ribbons drawn;
-this finding does not establish incorrect PNG pixels.
+Sankey prepares one family-owned identity plan before graphical or terminal
+layout. It reserves authored node names before allocating link and title names;
+structured endpoint/occurrence keys distinguish authored punctuation from
+generated suffixes. Ordinary readable names stay compatible, while ambiguous
+generated names receive deterministic collision suffixes. SVG semantic attributes,
+graphical layout regions and terminal ownership consume the same plan.
+Scene-local mark IDs and SVG resource IDs keep their separate namespaces.
+
+XML attributes preserve authored TAB, LF and CR with numeric character
+references. Attribute readers decode serialized values exactly once; typed
+semantic references are never decoded or sanitized as display text. This keeps
+literal entity-looking names distinct from actual whitespace. Regression checks
+use a real XML DOM alongside layout and terminal identity correspondence.
 
 ## Multi-diagram references
 

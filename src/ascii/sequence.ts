@@ -300,9 +300,9 @@ export function renderSequenceTerminal(text: string, config: AsciiConfig, colorM
       endpoint(from, y, true, from > to)
       endpoint(to, y, false, from < to)
     }
-    positioned.lines.forEach((line, index) => {
+    doc.scope(element, () => positioned.lines.forEach((line, index) => {
       doc.text(messageLabelX(positioned, line), positioned.y + index, line, { owner: element, role: 'text', kind: 'text' })
-    })
+    }))
   }
   // Frames use measured owned bounds, including complete conditions and notes.
   for (const positioned of [...closedFrames].reverse()) {

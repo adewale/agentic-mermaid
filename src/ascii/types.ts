@@ -155,6 +155,10 @@ export interface AsciiEdge {
    */
   attachFromSubgraph?: AsciiSubgraph
   attachToSubgraph?: AsciiSubgraph
+  /** Physical face slots reserved from complete incident demand before paint. */
+  cellAllocation?: { startOffset: number; endOffset: number }
+  /** Final cell route and label origin, consumed unchanged by drawing. */
+  cellRoute?: { points: DrawingCoord[]; label?: DrawingCoord }
 }
 
 /** A subgraph container with bounding box for rendering. */
@@ -169,6 +173,8 @@ export interface AsciiSubgraph {
   minY: number
   maxX: number
   maxY: number
+  /** Content-to-frame capacity reserved for incident descendant approaches. */
+  insets?: Partial<Record<'left' | 'right' | 'top' | 'bottom', number>>
   /** Optional direction override for layout within this subgraph (LR or TD). */
   direction?: 'LR' | 'TD'
   /** State-only synthetic parallel region; drawn as a dashed separator, not a frame. */
@@ -216,6 +222,8 @@ export interface AsciiGraph {
   bundles: EdgeBundle[]
   /** Grid coordinates where sibling-edge trunk branches need explicit T-junctions. */
   trunkJunctions: GridCoord[]
+  /** Flat placement was replaced by an atomic compound-tree embedding. */
+  compoundRepacked?: true
 }
 
 // ============================================================================

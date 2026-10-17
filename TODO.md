@@ -395,12 +395,6 @@ investigation of the class rather than per-item fixes.
 - [ ] **BUG-47 — A Journey title, section or task that is only `<br/>` is rejected** (`todo`). Mermaid draws `<br/>` as text there; ours reports "Invalid user journey line". Pinned `it.failing` in `property-svg-wellformedness.test.ts`.
 - [ ] **BUG-52 — Mutators keep "don't empty" floors that predate renderable empty charts** (`todo`). `set_title` on `createMermaid('pie')` is refused ("Pie must keep at least one slice"); the Architecture and Journey mutators keep similar floors.
 - [ ] **BUG-60 — A YAML string whose first line is only spaces does not round-trip through frontmatter** (`todo`). The `yaml` writer turns ` \n` into a block scalar that reads back as `\n`. Pinned `test.failing` in `metadata-yaml.test.ts`.
-- [ ] **BUG-69 — Sankey public link identities collide with authored suffixes**
-  (`todo`, [#400](https://github.com/adewale/agentic-mermaid/issues/400)). Duplicate
-  `A,B` rows and an authored target `B#1` produce duplicate graphical link IDs.
-  Share a pure family identity plan across graphical and terminal projections,
-  reserve authored names and test SVG semantics, layout regions and terminal
-  ownership. This is separate from the shared terminal compositor's guarantees.
 - [ ] **BUG-61 — Code Mode trailing line comments break the wrapper** (`todo`,
   [#366](https://github.com/adewale/agentic-mermaid/issues/366)). Protect
   multi-statement snippets ending in `//` from swallowing wrapper syntax.

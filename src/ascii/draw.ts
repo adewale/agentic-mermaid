@@ -26,14 +26,21 @@ import { safeCssColor } from '../shared/css-color.ts'
 import { measuredText, type MeasuredTerminalText, type TerminalCell, type TerminalOwner, type TerminalSide } from './terminal-document.ts'
 import type { PathOccupancy } from './occupancy.ts'
 import { getPath, mergePath } from './pathfinder.ts'
+import { GRAPH_EDGE_APPROACH, graphEndpointOf, type GraphEndpoint } from './graph-capacity.ts'
 
 /** Protect admitted headers and cards before routing in terminal cells. The
  * grid router cannot see text measured inside a container's header band. */
 function protectedGraphCells(document: Canvas): PathOccupancy {
   const protectedCell = (cell: TerminalCell | undefined) => !!cell && (cell.kind !== 'stroke' || cell.owners.some(owner => owner.kind === 'node'))
+  const textBlocks = new Set<NonNullable<TerminalCell['textBlock']>>()
   let maxX = 0, maxY = 0
   for (const [x, y, cell] of document.entries()) {
     if (protectedCell(cell)) { maxX = Math.max(maxX, x); maxY = Math.max(maxY, y) }
+    if (cell.kind === 'text' && cell.textBlock) textBlocks.add(cell.textBlock)
+  }
+  const textRows = new Map<number, Array<{ left: number; right: number }>>()
+  for (const box of textBlocks) for (let y = box.y; y < box.y + box.height; y++) {
+    const spans = textRows.get(y) ?? []; spans.push({ left: box.x, right: box.x + box.width }); textRows.set(y, spans)
   }
   // All routes are planned before any route ink is overlaid, so the admitted
   // document is already the stable occupancy store; do not duplicate its cells.
@@ -41,7 +48,8 @@ function protectedGraphCells(document: Canvas): PathOccupancy {
     extent: { maxX, maxY },
     has(key) {
       const comma = key.indexOf(',')
-      return protectedCell(document.cell(Number(key.slice(0, comma)), Number(key.slice(comma + 1))))
+      const x = Number(key.slice(0, comma)), y = Number(key.slice(comma + 1))
+      return protectedCell(document.cell(x, y)) || !!textRows.get(y)?.some(span => x >= span.left && x < span.right)
     },
   }
 }
@@ -426,7 +434,22 @@ export function drawArrow(
   protectedCells?: PathOccupancy,
 ): [Canvas, Canvas, Canvas, Canvas, Canvas] {
   // Invisible links (~~~) shape the layout but draw no glyphs.
-  if (edge.path.length === 0 || edge.style === 'invisible') {
+  if (edge.style === 'invisible') {
+    const empty = copyCanvas(graph.canvas)
+    return [empty, empty, empty, empty, empty]
+  }
+
+  if (edge.cellRoute) {
+    const poly = edge.cellRoute.points
+    if (poly.length < 2) return Array.from({ length: 5 }, () => copyCanvas(graph.canvas)) as [Canvas, Canvas, Canvas, Canvas, Canvas]
+    recordGraphPorts(graph, edge, poly[0]!, poly.at(-1)!)
+    const [path, lines, directions] = drawDrawingPath(graph, poly, edge.style)
+    const start = drawBoxStart(graph, edge.startDir, poly[0]!)
+    const endMarker = edge.hasArrowEnd ? drawEndpointMarker(graph, lines.at(-1)!, directions.at(-1)!, edge.endMarker) : copyCanvas(graph.canvas)
+    const startMarker = edge.hasArrowStart ? drawEndpointMarker(graph, [poly[0]!], reverseDirection(directions[0]!), edge.startMarker) : copyCanvas(graph.canvas)
+    return [path, start, endMarker, startMarker, drawDrawingCorners(graph, poly)]
+  }
+  if (!edge.path.length) {
     const empty = copyCanvas(graph.canvas)
     return [empty, empty, empty, empty, empty]
   }
@@ -627,8 +650,8 @@ function dedupeCollinear(poly: DrawingCoord[]): DrawingCoord[] {
       const a = out[i - 1]!
       const b = out[i]!
       const c = out[i + 1]!
-      const collinearH = a.y === b.y && b.y === c.y
-      const collinearV = a.x === b.x && b.x === c.x
+      const collinearH = a.y === b.y && b.y === c.y && (b.x - a.x) * (c.x - b.x) >= 0
+      const collinearV = a.x === b.x && b.x === c.x && (b.y - a.y) * (c.y - b.y) >= 0
       if (collinearH || collinearV) continue
     }
     result.push(out[i]!)
@@ -875,6 +898,12 @@ interface GraphLabel {
 /** Keep measured authored text separate from route ink until placement. */
 function planArrowLabel(graph: AsciiGraph, edge: AsciiEdge): GraphLabel | undefined {
   if (!edge.text.length || edge.style === 'invisible') return undefined
+  if (edge.cellRoute) {
+    const origin = edge.cellRoute.label
+    if (!origin) return undefined
+    const color = safeCssColor(edge.inlineStyle?.color ?? edge.inlineStyle?.stroke)
+    return { owner: terminalEdgeOwner(graph, edge), rows: splitLines(edge.text).map((text, index) => ({ x: origin.x, y: origin.y + index, text: measuredText(text) })), ...(color ? { color } : {}) }
+  }
   const start = edge.fromSubgraph
     ? getSubgraphAttachmentPoint(graph, edge.fromSubgraph, edge.from, edge.startDir)
     : getNodeAttachmentPoint(graph, edge.from, edge.startDir)
@@ -1354,6 +1383,154 @@ function recordGraphPorts(graph: AsciiGraph, edge: AsciiEdge, start: DrawingCoor
   graph.canvas.port(owner, { nodeId: owner.to!, ...end, side: side(edge.endDir), end: 'end' })
 }
 
+/** Resolve preallocated face slots and complete label rectangles against the
+ * admitted cards/headers before any edge ink is painted. Other labels and all
+ * protected markers are obstacles; unrelated crossings keep separate owners. */
+function planAllocatedGraphRoutes(graph: AsciiGraph, protectedCells: PathOccupancy): void {
+  const edges = graph.edges.filter(edge => edge.cellAllocation)
+  if (!edges.length) return
+  const pairOrder = new Map<GraphEndpoint, Map<GraphEndpoint, number>>()
+  const endpointOrder = new Map<GraphEndpoint, number>([...graph.nodes, ...graph.subgraphs].map((endpoint, index) => [endpoint, index]))
+  let nextPair = 0
+  const order = (edge: AsciiEdge): number => {
+    const from = graphEndpointOf(edge, true), to = graphEndpointOf(edge, false)
+    const a = endpointOrder.get(from)! < endpointOrder.get(to)! ? from : to, b = a === from ? to : from
+    const targets = pairOrder.get(a) ?? new Map<GraphEndpoint, number>()
+    const index = targets.get(b) ?? nextPair++
+    targets.set(b, index); pairOrder.set(a, targets); return index
+  }
+  const orderByEdge = new Map(edges.map(edge => [edge, order(edge)]))
+  edges.sort((a, b) => orderByEdge.get(a)! - orderByEdge.get(b)!)
+  interface Rectangle extends DrawingCoord { width: number; height: number }
+  const rectangles = new Map<AsciiEdge, Rectangle>()
+  const routed = new Map<string, number>()
+  const ends = new Map<AsciiEdge, [DrawingCoord, DrawingCoord]>()
+  const markerCells = new Map<string, Set<AsciiEdge>>()
+  const approaches = new Map<string, { edge: AsciiEdge; start: boolean }>()
+  const overlapping = new Map<AsciiEdge, DrawingCoord>()
+  let regions: ReturnType<Canvas['regions']> | undefined
+  const step = (point: DrawingCoord, direction: Direction, count: number) => ({ x: point.x + (direction.x - 1) * count, y: point.y + (direction.y - 1) * count })
+  const inside = (box: Rectangle, x: number, y: number) => x >= box.x - (box.height > 1 ? 1 : 0) && x < box.x + box.width && y >= box.y && y < box.y + box.height
+  const endpoint = (edge: AsciiEdge, start: boolean): DrawingCoord | undefined => {
+    const node = start ? edge.from : edge.to, direction = start ? edge.startDir : edge.endDir
+    const group = start ? edge.attachFromSubgraph ?? edge.fromSubgraph : edge.attachToSubgraph ?? edge.toSubgraph
+    const offset = start ? edge.cellAllocation!.startOffset : edge.cellAllocation!.endOffset
+    const horizontal = dirEquals(direction, Left) || dirEquals(direction, Right)
+    const available = group ? horizontal ? group.maxY - group.minY : group.maxX - group.minX
+      : horizontal ? node.drawing!.height - 1 : node.drawing!.width - 1
+    const minimum = group && horizontal ? splitLines(group.name).length + 1 : 1
+    if (!Number.isSafeInteger(offset) || offset < minimum || offset >= available) return undefined
+    const point = group ? getSubgraphAttachmentPoint(graph, group, node, direction) : getNodeAttachmentPoint(graph, node, direction)
+    if (dirEquals(direction, Left) || dirEquals(direction, Right)) point.y = (group?.minY ?? node.drawingCoord!.y) + offset
+    else point.x = (group?.minX ?? node.drawingCoord!.x) + offset
+    return point
+  }
+  for (const edge of edges) {
+    const start = endpoint(edge, true), end = endpoint(edge, false)
+    if (!start || !end) {
+      edge.cellRoute = { points: [] }
+      graph.canvas.report({ code: 'TERMINAL_GEOMETRY_COLLISION', feature: `edge-face:${terminalEdgeOwner(graph, edge).id}`, message: 'The final endpoint envelope has insufficient usable face capacity for its allocated physical port.' })
+      continue
+    }
+    ends.set(edge, [start, end])
+    for (const [isStart, point, direction] of [[true, start, edge.startDir], [false, end, edge.endDir]] as const) for (let distance = 0; distance <= GRAPH_EDGE_APPROACH; distance++) {
+      const marker = step(point, direction, distance), key = `${marker.x},${marker.y}`
+      const previous = approaches.get(key)
+      if (previous && (previous.edge !== edge || previous.start !== isStart)) {
+        overlapping.set(previous.edge, marker); overlapping.set(edge, marker)
+      } else approaches.set(key, { edge, start: isStart })
+      const owners = markerCells.get(key) ?? new Set<AsciiEdge>(); owners.add(edge); markerCells.set(key, owners)
+    }
+  }
+  // Separate valid faces can still have intersecting exterior approaches,
+  // especially across concentric frames. Admit the complete set together.
+  for (const [edge, point] of overlapping) {
+    edge.cellRoute = { points: [] }; ends.delete(edge)
+    graph.canvas.report({ code: 'TERMINAL_GEOMETRY_COLLISION', feature: `edge-approach:${terminalEdgeOwner(graph, edge).id}`, cell: { column: point.x, row: point.y }, message: 'Allocated physical endpoint approach corridors overlap before routing.' })
+  }
+  if (overlapping.size) for (const [key, owners] of markerCells) {
+    for (const edge of owners) if (overlapping.has(edge)) owners.delete(edge)
+    if (!owners.size) markerCells.delete(key)
+  }
+  for (const edge of edges) {
+    if (!ends.has(edge)) continue
+    if (!edge.text) continue
+    const [start, end] = ends.get(edge)!, text = measuredText(edge.text)
+    const preferred = graphEndpointOf(edge, true) === graphEndpointOf(edge, false)
+      ? { x: start.x + 4, y: Math.floor((start.y + end.y - text.height + 1) / 2) }
+      : { x: Math.floor((start.x + end.x - text.width + 1) / 2), y: Math.floor((start.y + end.y - text.height + 1) / 2) }
+    const clear = (point: DrawingCoord): boolean => {
+      const margin = text.height > 1 ? 1 : 0
+      if (point.x < margin || point.y < 0) return false
+      for (let y = point.y; y < point.y + text.height; y++) for (let x = point.x - margin; x < point.x + text.width; x++) {
+        if (graph.canvas.cell(x, y) || markerCells.has(`${x},${y}`)) return false
+        for (const box of rectangles.values()) if (inside(box, x, y)) return false
+      }
+      return true
+    }
+    let origin = clear(preferred) ? preferred : undefined
+    if (!origin) {
+      // Rectangle contact coordinates provide finite measured candidates,
+      // including long labels outside deeply nested frames, without a pixel
+      // settling loop or an arbitrary radius unrelated to the content.
+      const xs = new Set([preferred.x, 0]), ys = new Set([preferred.y, 0])
+      for (const region of regions ??= graph.canvas.regions()) {
+        xs.add(region.canvasColStart - text.width - 1); xs.add(region.canvasColEnd + 1)
+        ys.add(region.canvasRow - text.height - 1); ys.add(region.canvasRow + (region.rowSpan ?? 1) + 1)
+      }
+      for (const box of rectangles.values()) { xs.add(box.x - text.width - 1); xs.add(box.x + box.width + 1); ys.add(box.y - text.height - 1); ys.add(box.y + box.height + 1) }
+      const candidates = [...xs].flatMap(x => [...ys].map(y => ({ x, y }))).sort((a, b) => Math.abs(a.x - preferred.x) + Math.abs(a.y - preferred.y) - Math.abs(b.x - preferred.x) - Math.abs(b.y - preferred.y) || a.y - b.y || a.x - b.x)
+      origin = candidates.find(clear)
+    }
+    if (origin) rectangles.set(edge, { ...origin, width: text.width, height: text.height })
+  }
+  const rectangleList = [...rectangles]
+  const extent = { maxX: Math.max(protectedCells.extent.maxX, ...rectangleList.map(([, box]) => box.x + box.width)), maxY: Math.max(protectedCells.extent.maxY, ...rectangleList.map(([, box]) => box.y + box.height)) }
+  for (const edge of edges) {
+    if (!ends.has(edge)) continue
+    const [start, end] = ends.get(edge)!, rectangle = rectangles.get(edge)
+    const exit = step(start, edge.startDir, GRAPH_EDGE_APPROACH), entry = step(end, edge.endDir, GRAPH_EDGE_APPROACH)
+    const ownMarkers = new Set([start, end, step(start, edge.startDir, 1), step(end, edge.endDir, 1)].map(point => `${point.x},${point.y}`))
+    const obstacles: PathOccupancy = {
+      extent,
+      has(key) {
+        if (ownMarkers.has(key) || protectedCells.has(key)) return true
+        for (const owner of markerCells.get(key) ?? []) if (owner !== edge) return true
+        const [x, y] = key.split(',').map(Number)
+        return rectangleList.some(([owner, box]) => owner !== edge ? inside(box, x!, y!)
+          : box.height > 1 && x! >= box.x && x! < box.x + box.width && y! >= box.y && y! < box.y + box.height)
+      },
+    }
+    // A multiline label has a real adjacent vertical run spanning every row,
+    // including authored blank rows. Short rows need not reach a centre wire.
+    const labelStart = rectangle ? rectangle.height > 1 ? { x: rectangle.x - 1, y: rectangle.y } : { x: rectangle.x + Math.floor(rectangle.width / 2), y: rectangle.y } : undefined
+    const labelEnd = rectangle && labelStart ? { x: labelStart.x, y: labelStart.y + rectangle.height - 1 } : undefined
+    const canStep = (from: DrawingCoord, to: DrawingCoord): boolean => {
+      const mask = from.x === to.x ? 5 : 10
+      return !((routed.get(`${from.x},${from.y}`) ?? 0) & mask) && !((routed.get(`${to.x},${to.y}`) ?? 0) & mask)
+    }
+    const first = !obstacles.has(`${exit.x},${exit.y}`) && !obstacles.has(`${entry.x},${entry.y}`)
+      ? getPath(obstacles, exit, labelStart ?? entry, edge.startDir, canStep) : null
+    const second = labelEnd && first ? getPath(obstacles, labelEnd, entry, edge.endDir, canStep) : []
+    if (first && second && (!edge.text || rectangle)) {
+      edge.cellRoute = { points: dedupeCollinear([start, ...mergePath(first), ...(labelEnd ? [labelEnd] : []), ...mergePath(second).slice(1), end]), ...(rectangle ? { label: { x: rectangle.x, y: rectangle.y } } : {}) }
+      for (let index = 1; index < edge.cellRoute.points.length; index++) {
+        const a = edge.cellRoute.points[index - 1]!, b = edge.cellRoute.points[index]!
+        const dx = Math.sign(b.x - a.x), dy = Math.sign(b.y - a.y), mask = dx ? 10 : 5
+        for (let x = a.x, y = a.y;; x += dx, y += dy) {
+          const key = `${x},${y}`; routed.set(key, (routed.get(key) ?? 0) | mask)
+          if (x === b.x && y === b.y) break
+        }
+      }
+    } else {
+      edge.cellRoute = { points: [] }
+      recordGraphPorts(graph, edge, start, end)
+      const reason = !rectangle && edge.text ? 'complete label rectangle' : !first ? 'source-to-label route' : 'label-to-target route'
+      graph.canvas.report({ code: 'TERMINAL_GEOMETRY_COLLISION', feature: `edge-lane:${terminalEdgeOwner(graph, edge).id}`, ...(rectangle ? { cell: { column: rectangle.x, row: rectangle.y } } : {}), message: `Bounded terminal routing could not allocate the ${reason} between its physical ports.` })
+    }
+  }
+}
+
 /** Allocate an entire label before overlay. Its preferred position may cover
  * its own route; relocation uses empty space so no unrelated ink is erased. */
 function feasibleLabel(document: Canvas, label: GraphLabel, route: readonly DrawingCoord[]): Canvas {
@@ -1442,6 +1619,7 @@ export function drawGraph(graph: AsciiGraph): Canvas {
     document.overlay(label.attribute({ id: group.id, kind: containerKind }, { role: 'text' }), offset.x, offset.y)
   }
   const protectedCells = protectedGraphCells(document)
+  planAllocatedGraphRoutes(graph, protectedCells)
 
   // Global paint order remains explicit, while each layer stores touched cells only.
   const layers: Canvas[][] = Array.from({ length: 7 }, () => [])
