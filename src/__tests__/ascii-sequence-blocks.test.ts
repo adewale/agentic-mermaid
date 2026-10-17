@@ -9,6 +9,7 @@
 import { describe, it, expect } from 'bun:test'
 import { renderMermaidASCII } from '../ascii/index.ts'
 import { visualWidth } from '../ascii/width.ts'
+import { renderSequenceTerminal } from '../ascii/sequence.ts'
 
 describe('ASCII sequence blocks — self-arrow extent', () => {
   it('alt block right border sits past a self-arrow label (bug 3.2)', () => {
@@ -237,6 +238,44 @@ Note over B: outside`, { useAscii: false, targetWidth: 70, colorMode })
     expect(plain).toContain('注記です 👩‍💻 é')
     expect(plain).toContain('outside')
     expect(Math.max(...plain.split('\n').map(visualWidth))).toBeLessThanOrEqual(70)
+  })
+
+  it.each([false, true])('keeps each multiline message as one admitted occurrence (ASCII=%s)', useAscii => {
+    const result = renderSequenceTerminal(`sequenceDiagram
+participant A
+participant B
+loop enclosing
+A->>B: first<br><br>界 é 👩‍💻<br>
+B->>B: <br>self<br><br>last
+end`, { useAscii, paddingX: 1, paddingY: 1, boxBorderPadding: 1, graphDirection: 'TD' })
+    const regions = result.document.regions()
+    const first = regions.find(region => region.id === 'message:0')!
+    const self = regions.find(region => region.id === 'message:1')!
+    expect(first).toMatchObject({ kind: 'edge', from: 'A', to: 'B', parentId: 'block:0', projectedText: 'first\n\n界 é 👩‍💻\n' })
+    expect(self).toMatchObject({ kind: 'edge', from: 'B', to: 'B', parentId: 'block:0', projectedText: '\nself\n\nlast' })
+    const firstRows = [...new Set(first.authoredTextCells!.map(cell => cell.row))]
+    const selfRows = [...new Set(self.authoredTextCells!.map(cell => cell.row))]
+    expect(firstRows[1]! - firstRows[0]!).toBe(2)
+    expect(selfRows[1]! - selfRows[0]!).toBe(2)
+    expect(first.authoredTextCells!.map(cell => cell.glyph)).toEqual(['f', 'i', 'r', 's', 't', '界', ' ', 'é', ' ', '👩‍💻'])
+    expect(self.authoredTextCells!.map(cell => cell.glyph).join('')).toBe('selflast')
+    expect(result.document.diagnostics).toEqual([])
+  })
+
+  it('keeps repeated participant cards and separate fragment headers out of message occurrences', () => {
+    const result = renderSequenceTerminal(`sequenceDiagram
+participant A as first<br><br>last
+alt main<br><br>condition
+A->>A: first<br><br>last
+else other header
+A->>A: following
+end`, { useAscii: false, paddingX: 1, paddingY: 1, boxBorderPadding: 1, graphDirection: 'TD' })
+    const regions = result.document.regions()
+    expect(regions.find(region => region.id === 'A')?.projectedText).toBe('first\n\nlast')
+    expect(regions.find(region => region.id === 'block:0')?.projectedText).toBe('alt [main\n\ncondition]')
+    expect(regions.find(region => region.id === 'message:0')?.projectedText).toBe('first\n\nlast')
+    expect(regions.find(region => region.id === 'message:1')?.projectedText).toBe('following')
+    expect(result.document.diagnostics).toEqual([])
   })
 
   it('clears note padding and writes wide graphemes as terminal cells', () => {
