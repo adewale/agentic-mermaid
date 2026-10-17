@@ -42,6 +42,11 @@ under C, English and Japanese locale settings.
   Class and Journey retain their dimensions. The refresh also captures the
   host-page corner backdrop changing from dark to light, outside the diagram
   surface; that change is not attributed to text geometry.
+- The full browser sweep exposed a lightbox test synchronization race. A bare
+  Chromium lifecycle probe confirmed that native `close()` removes `open`
+  before the queued close event restores the grid. The test now waits for
+  actual grid attachment while retaining closure and keyboard-reopen checks;
+  no production behavior or assertion was weakened.
 - Section B's 64 family-by-style cells and the existing cookbook images were
   visually reviewed. Their approval records identify an agent review, never
   human approval. The README hero uses bundled mono text with explicit column
