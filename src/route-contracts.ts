@@ -2832,10 +2832,42 @@ export function separateEdgeLabelPills(
   }
 }
 
+/** Remove a sub-pixel terminal run along an open rectangle face. The preceding
+ * point is already on that face with an outward normal shaft: removing the
+ * endpoint adds no line, crosses no obstacle and moves contact by less than
+ * one pixel, but prevents that tiny run rotating the whole marker sideways. */
+export function collapseTinyEndpointSegments(nodes: readonly PositionedNode[], edges: readonly PositionedEdge[]): void {
+  const nodeMap = new Map(nodes.map(node => [node.id, node]))
+  for (const edge of edges) {
+    const saved = edge.routeCertificate
+    let changed = false
+    for (const source of [true, false]) {
+      const points = source ? [...edge.points].reverse() : edge.points
+      const [a, b, c] = points.slice(-3)
+      const node = nodeMap.get(source ? edge.source : edge.target)
+      if (!node || node.shape !== 'rectangle' || (node.semanticShape !== undefined && node.semanticShape !== 'rect')
+        || !a || !b || !c || Math.hypot(c.x - b.x, c.y - b.y) >= 1) continue
+      const vertical = (Math.abs(b.x - node.x) < EPS || Math.abs(b.x - node.x - node.width) < EPS)
+        && Math.abs(c.x - b.x) < EPS && Math.abs(a.y - b.y) < EPS
+        && b.y > node.y && b.y < node.y + node.height && c.y > node.y && c.y < node.y + node.height
+        && (a.x - b.x) * (b.x - node.x - node.width / 2) > 0
+      const horizontal = (Math.abs(b.y - node.y) < EPS || Math.abs(b.y - node.y - node.height) < EPS)
+        && Math.abs(c.y - b.y) < EPS && Math.abs(a.x - b.x) < EPS
+        && b.x > node.x && b.x < node.x + node.width && c.x > node.x && c.x < node.x + node.width
+        && (a.y - b.y) * (b.y - node.y - node.height / 2) > 0
+      if (!vertical && !horizontal) continue
+      edge.points = source ? edge.points.slice(1) : edge.points.slice(0, -1)
+      changed = true
+    }
+    if (changed) recertifyReroutedEdge(edge, saved, nodeMap.get(edge.source), nodeMap.get(edge.target))
+  }
+}
+
 /** Close the route contract over settled label geometry. Each scan changes
  * only routes accepted by the final hitch proof, so the closer and auditor
  * cannot disagree about lane occupancy. A successful change removes one bent
- * edge and never introduces a bend; at most `edges.length` scans are needed. */
+ * edge and never introduces a bend; at most `edges.length` scans are needed.
+ * Then remove proven sub-pixel rectangle-face tails and recertify contacts. */
 export function closeRouteContracts(
   positioned: { nodes: PositionedNode[]; edges: PositionedEdge[]; groups: PositionedGroup[] },
   graph: MermaidGraph,
@@ -2844,6 +2876,7 @@ export function closeRouteContracts(
   for (let round = 0; round < positioned.edges.length; round++) {
     if (scanRouteHitches(positioned, graph, style, true).length === 0) break
   }
+  collapseTinyEndpointSegments(positioned.nodes, positioned.edges)
   return positioned.edges.flatMap(edge => edge.routeCertificate ? [edge.routeCertificate] : [])
 }
 
