@@ -35,6 +35,11 @@ export function normalizeCssObfuscation(svg: string): string {
     .replace(/\\([^\n\r\f])/g, '$1')
 }
 
+/** Marker CSS would create a second authority beside typed connector markers. */
+export function hasMarkerCss(value: string): boolean {
+  return /(?:^|;)\s*marker(?:-(?:start|mid|end))?\s*:/i.test(normalizeCssObfuscation(value))
+}
+
 const ATTRIBUTE = /\s([^\s=<>]+)\s*=\s*("[^"]*"|'[^']*'|[^\s>]+)/g
 const ANIMATION_TAG = /<(?:[^\s<>/:]+:)?(?:animate(?:Motion|Transform)?|set)\b/i
 

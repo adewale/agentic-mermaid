@@ -35,7 +35,7 @@ import {
 import { connectorInlineLabelText } from './bounds.ts'
 import { deriveConnectorTerminalProjection } from './connector-terminal.ts'
 import { decodedSvgAttributeValue, scanSvgStartTags } from '../svg-structure.ts'
-import { normalizeCssObfuscation } from '../output-security.ts'
+import { hasMarkerCss } from '../output-security.ts'
 import {
   attachSceneNodeSerialization,
   canonicalizeSceneNodeSerialization,
@@ -178,17 +178,17 @@ function projectConnectorMarkerReferences(
   const tags = scanSvgStartTags(crisp)
   const carrier = tags[0]
   if (!carrier || !['line', 'polyline', 'path'].includes(carrier.name)) {
-    throw new TypeError(`Connector "${id}" requires a line, polyline or path marker carrier`)
+    throw new TypeError(`Connector "${id}": expected line/polyline/path`)
   }
   for (const tag of tags) {
     for (const attribute of tag.attributes) {
-      if (attribute.name === 'marker' || (attribute.name === 'style' && /(?:^|;)\s*marker(?:-(?:start|mid|end))?\s*:/i.test(normalizeCssObfuscation(decodedSvgAttributeValue(tag, 'style') ?? '')))) {
-        throw new TypeError(`Connector "${id}" must apply markers through typed markers, not SVG shorthand or CSS`)
+      if (attribute.name === 'marker' || (attribute.name === 'style' && hasMarkerCss(decodedSvgAttributeValue(tag, 'style') ?? ''))) {
+        throw new TypeError(`Connector "${id}" SVG shorthand/CSS bypasses typed markers`)
       }
       if (!/^marker-(?:start|mid|end)$/.test(attribute.name)) continue
-      if (tag !== carrier) throw new TypeError(`Connector "${id}" has marker references outside its typed markers carrier`)
+      if (tag !== carrier) throw new TypeError(`Connector "${id}" has typed markers on another element`)
       if (tag.attributes.filter(candidate => candidate.name === attribute.name).length !== 1) {
-        throw new TypeError(`Connector "${id}" has duplicate ${attribute.name} attributes`)
+        throw new TypeError(`Connector "${id}" has duplicate ${attribute.name}`)
       }
       const position = attribute.name.slice(7) as keyof typeof markerIds
       const expected = markerIds[position] ? `url(#${markerIds[position]})` : undefined

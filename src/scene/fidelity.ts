@@ -14,7 +14,7 @@ import { hasDomSvgIdentityRole } from './identity.ts'
 import { sceneNodeSerialization } from './serialization.ts'
 import { breakLineTags, displayText } from '../multiline-utils.ts'
 import { decodedSvgAttributeValue, scanSvgStartTags } from '../svg-structure.ts'
-import { normalizeCssObfuscation } from '../output-security.ts'
+import { hasMarkerCss } from '../output-security.ts'
 
 /** Parse the top-level SVG elements out of a crisp chunk (self-closed or
  *  paired), ignoring nested content. Good enough for our own emitters. */
@@ -232,8 +232,8 @@ export function nodeProblems(node: SceneNode, path: string, problems: string[]):
       }
       for (const tag of tags) {
         for (const attribute of tag.attributes) {
-          if (attribute.name === 'marker' || (attribute.name === 'style' && /(?:^|;)\s*marker(?:-(?:start|mid|end))?\s*:/i.test(normalizeCssObfuscation(decodedSvgAttributeValue(tag, 'style') ?? '')))) {
-            problems.push(`${path}(connector:${node.id}): marker shorthand/CSS bypasses typed marker references`)
+          if (attribute.name === 'marker' || (attribute.name === 'style' && hasMarkerCss(decodedSvgAttributeValue(tag, 'style') ?? ''))) {
+            problems.push(`${path}(connector:${node.id}): SVG shorthand/CSS bypasses typed markers`)
           }
         }
       }

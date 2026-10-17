@@ -70,6 +70,20 @@ geometry is correct. Family vector/raster tests still check visible attachment,
 direction, scaling and final route geometry. This contract does not require
 perpendicular incidence on every surface or certify every SVG rasterizer.
 
+The pinned resvg 2.6.2 N-API and WASM adapters do not implement SVG 2's
+`auto-start-reverse`. They lower it to `auto` with a separately rotated start
+resource and mirrored reference point, preserving the resource's viewBox,
+clipping and marker units. Public SVG and browser Canvas retain the original
+SVG 2 resources. Browser regressions check seven marker-using families in
+three stroke styles, plus rotated carriers and nonzero viewBoxes; this is
+bounded contact parity, not pixel identity or certification of every viewer.
+
+Final Flowchart/State routing also removes terminal runs shorter than one pixel
+along an open rectangle face when the preceding shaft already meets that face
+normally. Only existing shaft segments remain, contact stays on the same face,
+and route certificates are refreshed. Larger turns, corners and curved/sloped
+surfaces are not flattened into a universal perpendicular-arrival rule.
+
 ## Relation accessibility
 
 Typed edges, messages, and relationships emit:
