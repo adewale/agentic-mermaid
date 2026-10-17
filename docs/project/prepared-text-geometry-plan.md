@@ -4,6 +4,13 @@ Status: implementation and independent audit complete in PR 395; root `TODO.md`
 BUILD-36 tracks review and merge. This is the
 acceptance and verification plan; the root backlog owns unfinished work.
 
+PR 394 has landed the terminal compositor, chronology and numbering foundation
+(T8, T10 and T11). PR 395's remaining contribution is prepared display/pixel/cell
+text, complete text bounds (T1–T7), additional XY endpoint/fractional tick and
+Radar occurrence corrections, and their compatibility/evidence checks. Its
+branch is refreshed onto landed main at `c361f4b`; the compositor is a dependency,
+not a new feature being delivered again by PR 395.
+
 The contract is one interpretation of authored display text, complete measured
 geometry in the output's units, and stable ownership through projection. Each
 family keeps its layout algorithm. Numeric scales and sequence control state

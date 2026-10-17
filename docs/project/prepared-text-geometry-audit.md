@@ -84,6 +84,28 @@ PR 394's separate follow-ups remain separate: terminal lane capacity (#398),
 interleaved compound membership (#397), graphical Sankey identity (#400), and
 native C4 (#387). Rebase verification does not close those contracts.
 
+## Editor payload investigation after landing PR 394
+
+The branch is refreshed onto landed main `c361f4b`. The editor bundled its
+renderer with minification but appended application code and example data in
+authoring form. Removing that code's comments and whitespace with the pinned
+Bun transpiler reduces the complete editor module by 37,162 raw bytes,
+10,294 gzip bytes and 9,085 Brotli bytes. Renderer implementation and names are
+unchanged by this build-only optimization.
+
+Same-host Bun 1.4.2 browser capture reports the empty editor at two requests,
+1,060,242 gzip bytes and 836,570 Brotli bytes, below its existing absolute
+ceilings of 1,065,000 and 840,000. Landed main measures 1,061,826 and 839,937
+bytes respectively. All four route budgets pass without a ceiling change.
+CI supplies final same-runner comparison and browser behavior verification.
+
+An independent lazy-graph cost review finds preparation emitted once, no new
+runtime package, and no terminal/PNG/resvg leak into lazy SVG. Seven family
+loads still grow 3.7–4.9 KB gzip, exceeding the separate default per-PR guard.
+The review found no credible common 1.5 KB saving without weakening provenance,
+shaping or compatibility; the PR records that intended cost separately from
+the now-reduced editor transfer. No approval label is applied by this audit.
+
 ## Scope and limits
 
 Coverage spans all 16 registry families, with directed tests for supported
