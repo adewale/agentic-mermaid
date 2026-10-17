@@ -233,7 +233,13 @@ Sankey diagrams accept the `sankey` or `sankey-beta` header followed by one `sou
 
 ## Output formats
 
-All families use the same public output paths:
+All built-in renderable families use the same public output paths:
+
+Terminal output uses the [shared terminal compositor](https://github.com/adewale/agentic-mermaid/blob/main/docs/project/terminal-composition.md)
+for owned cell geometry and encoding. SVG/PNG use their graphical pipeline.
+Shared entry points do not imply identical geometry, feature projections or
+layout feasibility. Native C4 remains unsupported; string-only extension output
+does not supply native terminal ownership.
 
 ```ts
 import { renderMermaidSVG, renderMermaidPNG, renderMermaidASCII } from 'agentic-mermaid/agent'

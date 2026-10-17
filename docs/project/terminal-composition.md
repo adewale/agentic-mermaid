@@ -1,4 +1,31 @@
-# Terminal composition
+# Shared terminal compositor
+
+The shared terminal compositor is the owned cell drawing used by every built-in
+terminal family. It supplies common composition and encoding primitives; each
+family still chooses its layout. Its guarantees apply to native terminal
+artifacts, rather than to every rendering format or every possible layout.
+
+## Scope and guarantees
+
+| Surface | Current scope |
+| --- | --- |
+| ASCII and Unicode | All built-in terminal families construct owned cell geometry before alphabet lowering. |
+| Plain, ANSI and terminal HTML | Encodings of that same drawing; HTML here means escaped terminal text with color spans. |
+| Terminal metadata and actions | Regions derive from the emitted drawing, with exact occupied spans and typed parent references. |
+| SVG, PNG and graphical layout | Use their existing Scene and pixel adapters; terminal admission does not validate their geometry or semantic identities. |
+| Family placement and routing | Remain family-specific; composition checks admitted geometry but cannot make every requested arrangement feasible. |
+| String-only extension hooks | Keep text output support and report unavailable ownership instead of inventing geometry. |
+| Native C4 | Remains unsupported; reusable terminal primitives do not implement a family. |
+
+The represented-content-or-explicit-diagnostic contract does not promise that
+every label or route can be placed. In particular, interleaved compound
+membership ([#397](https://github.com/adewale/agentic-mermaid/issues/397)) and
+parallel/reciprocal lane capacity
+([#398](https://github.com/adewale/agentic-mermaid/issues/398)) remain open layout
+work. A collision diagnostic is evidence of a refused placement, not a successful
+rendering of the missing content.
+
+## Drawing authority
 
 Every built-in terminal family constructs a `TerminalArtifact` containing its
 `TerminalDocument` and encoding policy. The paired native drawing function
@@ -30,8 +57,8 @@ and interned owner sets retain all identities at crossings; conflicting
 definitions of one identity are rejected. A wide continuation cannot erase a
 neighboring marker or surface.
 
-Generated names and semantic identity are separate. Composite identity keys use
-tagged tuples, so punctuation in authored IDs cannot merge different endpoint
+Terminal generated names and semantic identity are separate. Composite identity
+keys use tagged tuples, so punctuation in authored IDs cannot merge different endpoint
 pairs before generated-name collision avoidance runs. Parents are immutable
 `{ id, kind }` references throughout the drawing. Public regions preserve the
 existing `parentId` and add `parentKind`; the action adapter maps that complete
@@ -120,8 +147,9 @@ It does not search text or render a second version. Its region fields are:
 
 Terminal action regions retain their compatible bounds and add `cellSpans`,
 optional `occludedCellSpans`, and parent identities. Generated IDs avoid authored IDs in the same render.
-Generated identity allocation distinguishes semantic keys from preferred
-readable names, so derived labels and relationships cannot alias each other.
+Terminal generated identity allocation distinguishes semantic keys from
+preferred readable names, so derived terminal labels and relationships cannot
+alias each other.
 String-only extension hooks remain supported; metadata reports
 `TERMINAL_OWNERSHIP_UNAVAILABLE` instead of inventing regions. Wrapping a native
 hook as a string-only function similarly makes no geometry claim. No config
@@ -151,7 +179,7 @@ five gaps and extended their owning contracts:
 
 | Invariant | Gap and representative class | Construction boundary |
 | --- | --- | --- |
-| Distinct semantic identities remain distinct | Delimiter-concatenated endpoint keys collided before name suffixing; text-group and diagnostic keys have the same risk | Structured composite keys, separate readable names, and admission of supported key components |
+| Distinct terminal semantic identities remain distinct | Delimiter-concatenated endpoint keys collided before name suffixing; text-group and diagnostic keys have the same risk | Structured composite keys, separate readable names, and admission of supported key components |
 | Parent references retain their namespace | Bare IDs lost the node/container distinction during action conversion and compatibility checks | Typed immutable parent references consumed by both geometry admission and output adapters |
 | Intended background occlusion is explicit | A cell compositor cannot infer that a message or heading should cut a gap in a lifeline or activation | Family layout reserves foreground footprints before either background pass; collision diagnostics remain enabled |
 | One identity has one immutable definition | Explicit registration validated definitions while paint, attribution and layer imports bypassed it | One snapshot-and-validation path, with complete batch validation before target mutation and caches restricted to owned immutable values |
@@ -165,6 +193,59 @@ families may not exercise. Family and action tests separately check the final
 public text, diagnostics, endpoint identities and parent mapping.
 
 ## Rebuilding on this basis
+
+### Shared semantics with format-specific geometry
+
+The next concrete repair is
+[Sankey semantic identity #400](https://github.com/adewale/agentic-mermaid/issues/400).
+Graphical Sankey currently concatenates endpoint names and occurrence suffixes;
+duplicate `A,B` rows and an authored target `B#1` can receive the same public link
+ID. Terminal allocation avoids this collision, but graphical layout and SVG
+semantic attributes still violate the existing uniqueness contract. Internal
+Scene mark IDs remain distinct, so this finding does not establish missing
+ribbons or incorrect PNG pixels.
+
+That repair should share one pure, family-owned semantic-link plan before either
+layout: authored endpoints, structured occurrence keys and collision-safe public
+identities. Reserve authored node identities, including generated-looking names,
+and preserve ordinary readable IDs where unambiguous. Reuse or extract the small
+allocation/key primitives behind the existing terminal and Scene helpers.
+Obtaining semantic identities must not require graphical layout, d3-sankey, or
+terminal cell geometry.
+
+Subsequent migrations should share immutable semantic references, including kind
+and ID, and validate parent/endpoint correspondence at the boundary where a
+family creates or imports them. Extend existing identity, action and route tests
+at their owning boundaries. Corresponding retained source elements must remain
+unambiguous across output projections; different projections can have different
+visual marks, region inventories and explicit losses. One source element may
+own multiple marks or text occurrences. Public semantic IDs, Scene mark IDs,
+SVG resource IDs and action-region namespaces have different responsibilities.
+
+Cell layout remains responsible for grapheme widths, occupied spans, terminal
+ports and line extents. Graphical layout remains responsible for pixel text bounds,
+curves, surfaces, markers and SVG references. Each needs final-output checks in
+its own coordinates; sharing an identity helper is not proof of either layout.
+The independent route-verification policy remains
+[#265](https://github.com/adewale/agentic-mermaid/issues/265).
+
+### Follow-up order and boundaries
+
+| Work | Next deliverable |
+| --- | --- |
+| [#400: Sankey identities](https://github.com/adewale/agentic-mermaid/issues/400) | Red-to-green graphical identity regressions, cross-format identity checks and terminal-ownership compatibility controls; broaden shared semantic primitives only as their consumers require. |
+| [#398: lane capacity](https://github.com/adewale/agentic-mermaid/issues/398) | Allocate lanes, ports and measured label demand from the complete relationship set before routing. |
+| [#397: interleaved membership](https://github.com/adewale/agentic-mermaid/issues/397) | A compound placement solution that preserves membership, with truthful diagnostics for infeasible bounded layouts. |
+| [#387: native C4](https://github.com/adewale/agentic-mermaid/issues/387) | Family admission, lossless source/editing semantics, graphical layout and a native terminal projection through the existing registry. |
+| String-only extensions | Preserve explicit ownership-unavailable diagnostics; design an opt-in native artifact contract when a concrete extension consumer needs it. |
+
+Fix #400 first because it violates an existing public identity contract. #398 is
+the next bounded terminal layout repair for small parallel/reciprocal graphs;
+#397 needs a separate compound-placement change. These are recommendations for
+their owning issues, not completed capabilities of this migration. C4 can
+reuse available primitives without waiting for every layout limit to disappear.
+
+### Existing reuse
 
 The migration already uses the basis to implement ordered sequence containment,
 Class/ER cardinalities, self/parallel routes and directions, complete Quadrant
