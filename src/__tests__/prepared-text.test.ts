@@ -11,6 +11,8 @@ import { buildExternalScene } from '../scene/external-scene.ts'
 import { validateSceneDoc } from '../scene/scene-validation.ts'
 import { attachSceneNodeSerialization, sceneNodeSerialization } from '../scene/serialization.ts'
 import { measureRenderedText, renderedTextReady } from './helpers/rendered-text.ts'
+import { Resvg } from '@resvg/resvg-js'
+import { join } from 'node:path'
 
 beforeAll(() => renderedTextReady())
 const typography = { fontSize: 18, fontWeight: 600 }
@@ -130,6 +132,32 @@ describe('prepared display text', () => {
 })
 
 describe('prepared text at the graphical boundary', () => {
+  it.each(['مرحبا بكم', 'שָׁלוֹם'])('keeps a native RTL single line on its absolute baseline: %s', label => {
+    const block = preparePixelText(label, { fontSize: 40, fontWeight: 500 })
+    const wrap = (text: string) => `<svg xmlns="http://www.w3.org/2000/svg" width="500" height="160"><style>text{font-family:DejaVu Sans;font-size:40px;font-weight:500}</style>${text}</svg>`
+    const markup = renderMultilineText(block, 250, 70, 40, 'text-anchor="middle" font-size="40" font-weight="500"')
+    const reference = `<text x="250" y="84" text-anchor="middle">${label}</text>`
+    const raster = (text: string) => new Resvg(wrap(text), { font: { loadSystemFonts: false, fontDirs: [join(import.meta.dir, '..', '..', 'assets', 'fonts')], defaultFontFamily: 'Inter' } }).render().pixels
+    expect(Buffer.from(raster(markup)).equals(Buffer.from(raster(reference)))).toBe(true)
+    const node = marks.text({ id: 'rtl-line', role: 'label', text: block.text, block, x: 250, y: 70, fontSize: 40, anchor: 'middle', paint: {} }, markup)
+    expect(node.textLayout!.offsetY).toBeCloseTo(0)
+  })
+
+  it('places every native RTL line like independently positioned text', () => {
+    const lines = [...Array<string>(12).fill('مرحبا مرحبا'), 'مرحبا']
+    const block = preparePixelText(lines.join('\n'), { fontSize: 13, fontWeight: 500 })
+    const wrap = (text: string) => `<svg xmlns="http://www.w3.org/2000/svg" width="200" height="450"><style>text{font-family:DejaVu Sans;font-size:13px;font-weight:500}</style>${text}</svg>`
+    const markup = renderMultilineText(block, 100, 212.65, 13, 'text-anchor="middle" font-size="13" font-weight="500"')
+    const actual = wrap(markup)
+    // Separate text elements give each authored line its own native shaping
+    // context. Relative dy must not be consumed by reordered RTL fragments.
+    const reference = wrap(lines.map((line, i) => `<text x="100" y="${30 + i * 31.2}" text-anchor="middle">${line}</text>`).join(''))
+    const raster = (svg: string) => new Resvg(svg, { font: { loadSystemFonts: false, fontDirs: [join(import.meta.dir, '..', '..', 'assets', 'fonts')], defaultFontFamily: 'Inter' } }).render().pixels
+    expect(Buffer.from(raster(actual)).equals(Buffer.from(raster(reference)))).toBe(true)
+    const node = marks.text({ id: 'rtl-lines', role: 'label', text: block.text, block, x: 100, y: 212.65, fontSize: 13, anchor: 'middle', paint: {} }, markup)
+    expect(node.textLayout!.offsetY).toBeCloseTo(0)
+  })
+
   it('recomputes external text geometry instead of trusting a supplied band', () => {
     const valid = buildExternalScene({ version: 1, family: 'family:test/text-band', width: 200, height: 100, colors: { bg: '#fff', fg: '#111' }, metadata: { title: 'Measured text' }, parts: [{ kind: 'text', id: 'label', role: 'label', text: 'Visible label', x: 10, y: 30, fontSize: 18 }] })
     expect(validateSceneDoc(valid, { mode: 'external' }).valid).toBe(true)

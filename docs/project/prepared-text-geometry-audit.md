@@ -132,6 +132,17 @@ ribbon widths and authored values are preserved. Independent raster cases cover
 outer containment and adjacent label clearance, with a corresponding review
 witness. This allocation correction does not change public identity rules (#400).
 
+Inspecting the new native-script witness also exposed a preexisting rasterizer
+interaction: relative `dy` advances on nested RTL tspans can drift between lines
+even when the serialized source is correct. Prepared native output now
+uses absolute line baselines, and Scene text offsets recognize the resulting
+first-line position. Arabic and Hebrew single-line controls and a thirteen-line
+Arabic raster regression compare against independently positioned plain SVG
+text; they fail with relative advances and pass with absolute placement. ASCII
+serialization keeps its existing bytes. The author passed 122 focused tests; an
+independent reviewer passed 90 tests plus 108 exact raster/Scene-offset probes
+across anchors, rotations, baseline shifts, formatting and native scripts.
+
 ## Scope and limits
 
 Coverage spans all 16 registry families, with directed tests for supported

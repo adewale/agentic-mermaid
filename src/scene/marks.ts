@@ -499,7 +499,8 @@ export function text(fields: {
   const display = fields.display ?? block?.prepared.display ?? (open.includes('data-literal-text="true"') ? 'literal' : 'formatted')
   const measured = block ?? preparePixelText(fields.text, { display, fontSize: fields.fontSize, fontWeight: weight, letterSpacing: spacing })
   const firstDy = open.match(/\bdy="([^"]*)"/)?.[1] ?? crisp.match(/<tspan\b[^>]*\bdy="([^"]*)"/)?.[1] ?? '0'
-  const dy = Number.parseFloat(firstDy) * (firstDy.endsWith('em') ? fields.fontSize : 1)
+  const firstY = block ? crisp.match(/<tspan\b[^>]*\by="([^"]*)"/)?.[1] : undefined
+  const dy = firstY !== undefined ? Number.parseFloat(firstY) - fields.y : Number.parseFloat(firstDy) * (firstDy.endsWith('em') ? fields.fontSize : 1)
   const offsetY = dy + (measured.lines.length - 1) * measured.lineHeight / 2 - fields.fontSize * 0.35
   const identity = semanticIdentityForSvg(crisp, fields)
   const accessibility = relationAccessibilityForSvg(crisp, identity)

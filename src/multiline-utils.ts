@@ -141,14 +141,14 @@ function renderDisplayRuns(segments: readonly DisplayRun[]): string {
 /** Tracking and fallback shaping are not uniformly included in textLength by
  * SVG rasterizers. Position these graphemes in the measured band explicitly;
  * ordinary untracked single-font runs keep their continuous shaping. */
-function renderPreparedLine(block: PixelTextBlock, index: number, cx: number, anchor: string): string {
+function renderPreparedLine(block: PixelTextBlock, index: number, cx: number, anchor: string, baseline?: number): string {
   const line = block.lineBlocks[index]!
   // Keep the complete logical line in one shaping context. In particular,
   // spaces do not separate RTL words into left-to-right positioned fragments,
   // and a combining cluster may span formatting descendants.
   if (/[^\x20-\x7e]/u.test(line.runs.map(run => run.text).join(''))) {
     const center = anchor === 'start' ? cx + line.width / 2 : anchor === 'end' ? cx - line.width / 2 : cx
-    return `<tspan x="${center}" text-anchor="middle" data-text-fragment="true">${renderDisplayRuns(line.runs)}</tspan>`
+    return `<tspan x="${center}"${baseline === undefined ? '' : ` y="${baseline}"`} text-anchor="middle" data-text-fragment="true">${renderDisplayRuns(line.runs)}</tspan>`
   }
   if (block.letterSpacing === 0) return renderDisplayRuns(line.runs)
   let x = (anchor === 'middle' ? cx - line.width / 2 : anchor === 'end' ? cx - line.width : cx) + line.originX
@@ -211,7 +211,8 @@ export function renderMultilineText(
   const lines = block ? block.lines : value.split('\n')
   const display = block?.prepared.display ?? (literalText ? 'literal' : 'formatted')
   const anchor = attrs.match(/\btext-anchor="([^"]*)"/)?.[1] ?? 'start'
-  const fragmented = block && (block.letterSpacing !== 0 || /[^\x20-\x7e]/u.test(block.lineBlocks.map(line => line.runs.map(run => run.text).join('')).join('')))
+  const nativeShaping = block && /[^\x20-\x7e]/u.test(block.lineBlocks.map(line => line.runs.map(run => run.text).join('')).join(''))
+  const fragmented = block && (block.letterSpacing !== 0 || nativeShaping)
   const renderLine = (line: string, index: number) => block
     ? renderPreparedLine(block, index, cx, anchor)
     : renderDisplayLine(line, display)
@@ -224,6 +225,7 @@ export function renderMultilineText(
   // Single line — simple text element
   if (lines.length === 1) {
     const dy = fontSize * baselineShift
+    if (nativeShaping) return `<text x="${cx}" y="${cy}" ${attrs}>${renderPreparedLine(block, 0, cx, anchor, cy + dy)}</text>`
     return `<text x="${cx}" y="${cy}" ${attrs} dy="${dy}"${advanceAttrs(0)}>${renderLine(value, 0)}</text>`
   }
 
@@ -234,7 +236,10 @@ export function renderMultilineText(
 
   const tspans = lines.map((line, i) => {
     const dy = i === 0 ? firstDy : lineHeight
-    return `<tspan x="${cx}" dy="${dy}"${advanceAttrs(i)}>${renderLine(line, i)}</tspan>`
+    // Native RTL fragments can consume relative advances in visual order.
+    // Pin every baseline independently of the fragments' visual order.
+    const position = nativeShaping ? `y="${cy + firstDy + i * lineHeight}"` : `dy="${dy}"`
+    return `<tspan x="${cx}" ${position}${advanceAttrs(i)}>${renderLine(line, i)}</tspan>`
   }).join('')
 
   return `<text x="${cx}" y="${cy}" ${attrs}>${tspans}</text>`
