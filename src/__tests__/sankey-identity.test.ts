@@ -14,6 +14,20 @@ interface ExpectedLink {
 
 const cases: Array<{ name: string; source: string; links: ExpectedLink[]; title?: { text: string; id: string } }> = [
   {
+    name: 'authored whitespace stays distinct beside duplicate and generated-looking names',
+    source: 'sankey-beta\n"A\nB",X,1\n"A B",Y,2\n"A\tB",Z,3\n"A\rB",CR,4\n"A\tB",Z,5\n"link:A\tB->Z",Other,6\n"A\n\nB",Blank,7',
+    links: [
+      { id: 'link:A\nB->X', from: 'A\nB', to: 'X' },
+      { id: 'link:A B->Y', from: 'A B', to: 'Y' },
+      { id: 'link:A\tB->Z#1', from: 'A\tB', to: 'Z' },
+      { id: 'link:A\rB->CR', from: 'A\rB', to: 'CR' },
+      { id: 'link:A\tB->Z#1#1', from: 'A\tB', to: 'Z' },
+      { id: 'link:link:A\tB->Z->Other', from: 'link:A\tB->Z', to: 'Other' },
+      { id: 'link:A\n\nB->Blank', from: 'A\n\nB', to: 'Blank' },
+    ],
+  },
+
+  {
     name: 'ordinary titles retain their established identity',
     source: 'sankey-beta\nA,B,1',
     title: { text: 'Caption', id: 'title' },

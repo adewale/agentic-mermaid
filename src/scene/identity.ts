@@ -1,3 +1,4 @@
+import { decodeXML } from 'entities'
 import type { SceneRole } from './roles.ts'
 import { sceneRoleTraits } from './roles.ts'
 import { escapeAttr } from '../multiline-utils.ts'
@@ -42,14 +43,6 @@ export function semanticNamespacedId(namespace: string, value: string, ...parts:
     : `${namespace}:${JSON.stringify([value, ...textParts])}`
 }
 
-function decodeAttr(value: string): string {
-  return value
-    .replace(/&quot;/g, '"')
-    .replace(/&#39;|&apos;/g, "'")
-    .replace(/&lt;/g, '<')
-    .replace(/&gt;/g, '>')
-    .replace(/&amp;/g, '&')
-}
 
 export function semanticIdentityForSvg(
   svg: string,
@@ -58,7 +51,7 @@ export function semanticIdentityForSvg(
   const opening = svg.match(/^\s*<([A-Za-z][\w:-]*)\b[^>]*>/)?.[0] ?? ''
   const attr = (name: string): string | undefined => {
     const value = opening.match(new RegExp(`\\s${name}="([^"]*)"`))?.[1]
-    return value === undefined ? undefined : decodeAttr(value)
+    return value === undefined ? undefined : decodeXML(value)
   }
   const classNames = (attr('class') ?? '').split(/\s+/).filter(Boolean)
   const from = attr('data-from')

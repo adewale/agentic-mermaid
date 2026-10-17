@@ -16,7 +16,7 @@ import { toneOnFill } from '../color-resolver.ts'
 import type { JourneyRequestAppearance, JourneyVisualConfig } from './layout.ts'
 import { buildAccessibilityAttrs } from '../shared/svg-a11y.ts'
 import { JOURNEY_ACTOR_COLOR_LIMIT } from './parse-core.ts'
-import { escapeAttr, renderMultilineText, escapeXml } from '../multiline-utils.ts'
+import { escapeAttr, escapeDisplayAttr, renderMultilineText, escapeXml } from '../multiline-utils.ts'
 import { applyTextTransform, resolveRenderStyle } from '../styles.ts'
 import type { ResolvedRenderStyle } from '../styles.ts'
 import type { MarkerDescriptor, SceneDoc, SceneNode, SemanticChannels } from '../scene/ir.ts'
@@ -508,7 +508,7 @@ function renderSectionFrame(
   authoredSectionPaint: boolean,
 ): SceneNode {
   const name = section.category
-  const labelAttr = section.label ? ` data-label="${escapeAttr(section.label)}"` : ''
+  const labelAttr = section.label ? ` data-label="${escapeDisplayAttr(section.label)}"` : ''
   const children: Array<{ node: SceneNode; indent: number }> = []
 
   children.push({

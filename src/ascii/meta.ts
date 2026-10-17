@@ -55,5 +55,5 @@ export function renderMermaidASCIIWithMeta(input: ParsedDiagram | string, option
 
 function sanitizeAction(action: DiagramActionRecord): DiagramActionRecord {
   const safe = (value: string | undefined): string | undefined => value === undefined ? undefined : sanitizeTerminalText(value)
-  return { ...action, id: safe(action.id), regionId: safe(action.regionId), target: safe(action.target)!, raw: safe(action.raw)!, href: safe(action.href), message: safe(action.message) }
+  return { ...action, raw: safe(action.raw)!, href: safe(action.href), tooltip: safe(action.tooltip), message: safe(action.message) }
 }

@@ -11,6 +11,17 @@ describe('sankey parser · header and rows', () => {
     }
   })
 
+  test('admits a physical-line source without filtering quoted CSV whitespace or directive-looking content', () => {
+    const source = '\n%% before header\nsankey-beta\n"first\n\nlast",Sink,1\n"first\n  last",Other,2\n"first\n%% literal comment\naccTitle: literal title\nlast",Third,3'
+    const parsed = parseSankeyDiagram(lines(source))
+    expect(parsed.links).toEqual([
+      { source: 'first\n\nlast', target: 'Sink', value: 1 },
+      { source: 'first\n  last', target: 'Other', value: 2 },
+      { source: 'first\n%% literal comment\naccTitle: literal title\nlast', target: 'Third', value: 3 },
+    ])
+    expect(() => parseSankeyDiagram(lines('\n%% preface\nsankey-beta\nBad,row'))).toThrow(/row 4 has 2 columns/)
+  })
+
   test('rejects a non-sankey header loudly', () => {
     expect(() => parseSankeyDiagram(lines('sankeyx\nA,B,1'))).toThrow(/must start with "sankey"/)
     expect(() => parseSankeyDiagram(lines('sankey-beta:\nA,B,1'))).toThrow(/must start with "sankey"/)

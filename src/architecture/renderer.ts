@@ -12,7 +12,7 @@ import type { Point, RenderContext } from '../types.ts'
 import { svgOpenTag, buildStyleBlock, resolvedColorValue, type DiagramColors } from '../theme.ts'
 import { toneOnFill } from '../color-resolver.ts'
 import { mixHex } from '../shared/color-math.ts'
-import { escapeAttr, renderMultilineText, renderMultilineTextWithBackground, escapeXml } from '../multiline-utils.ts'
+import { escapeAttr, escapeDisplayAttr, renderMultilineText, renderMultilineTextWithBackground, escapeXml } from '../multiline-utils.ts'
 import { preparePixelText } from '../shared/prepared-text.ts'
 import { topRoundedRectPath } from '../svg-paths.ts'
 import type { MarkerDescriptor, SceneDoc, SceneNode } from '../scene/ir.ts'
@@ -211,7 +211,7 @@ function architectureStyles(visual: ArchitectureVisualConfig, labels: Architectu
 function lowerGroup(group: PositionedArchitectureGroup, visual: ArchitectureVisualConfig, labels: ArchitectureLabelPaints): SceneNode {
   const children: Array<{ node: SceneNode; indent: number }> = []
   const open =
-    `<g class="architecture-group" data-id="${escapeAttr(group.id)}" data-label="${escapeAttr(group.label)}">`
+    `<g class="architecture-group" data-id="${escapeAttr(group.id)}" data-label="${escapeDisplayAttr(group.label)}">`
 
   children.push({
     indent: 2,
@@ -309,7 +309,7 @@ function lowerService(service: PositionedArchitectureService, visual: Architectu
     : service.x + visual.servicePaddingX
 
   const open =
-    `<g class="architecture-service" data-id="${escapeAttr(service.id)}" data-label="${escapeAttr(service.label)}">`
+    `<g class="architecture-service" data-id="${escapeAttr(service.id)}" data-label="${escapeDisplayAttr(service.label)}">`
 
   children.push({
     indent: 2,
@@ -428,7 +428,7 @@ function lowerEdge(edge: PositionedArchitectureEdge, visual: ArchitectureVisualC
     `data-from-boundary="${edge.source.boundary}"`,
     `data-to-boundary="${edge.target.boundary}"`,
   ]
-  if (edge.label) attrs.push(`data-label="${escapeAttr(edge.label)}"`)
+  if (edge.label) attrs.push(`data-label="${escapeDisplayAttr(edge.label)}"`)
 
   const paint = { stroke: 'var(--arch-edge-stroke, var(--_line))', strokeWidth: String(visual.edgeLineWidth) }
   const connectorSemantics = {

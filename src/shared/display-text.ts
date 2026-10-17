@@ -2,6 +2,7 @@ import type { LabelDisplay } from '../multiline-utils.ts'
 import type { TextTransform } from '../types.ts'
 import { parseInlineFormatting, FORMAT_TAG_SOURCE, type StyledSegment } from './inline-format.ts'
 import { graphemes } from './graphemes.ts'
+import { sanitizeTextControls } from './text-controls.ts'
 
 export interface DisplayRun extends Readonly<StyledSegment> {
   readonly sourceStart: number
@@ -26,7 +27,9 @@ export function transformDisplayText(text: string, transform?: TextTransform): s
 }
 
 /** Input is the family's already normalized label. No entity decoding, grammar
- * normalization, whitespace trimming or interpretation of decoded tag-like text. */
+ * normalization, whitespace trimming or interpretation of decoded tag-like text.
+ * Display controls become inert before either cell or pixel fitting; authored
+ * source and cluster ranges retain their original values. */
 export function prepareDisplayText(source: string, display: LabelDisplay = 'formatted', transform?: TextTransform): PreparedDisplayText {
   let offset = 0
   const lineStarts: number[] = []
@@ -48,7 +51,7 @@ export function prepareDisplayText(source: string, display: LabelDisplay = 'form
       if (cursor < line.length) spans.push({ start: cursor, end: line.length })
       runs = parseInlineFormatting(line).map((run, i) => ({ ...run, sourceStart: offset + spans[i]!.start, sourceEnd: offset + spans[i]!.end }))
     }
-    const visible = runs.map(run => run.text).join('')
+    const visible = runs.map(run => sanitizeTextControls(run.text)).join('')
     const transformed = transformDisplayText(visible, transform)
     let at = 0
     let transformedAt = 0

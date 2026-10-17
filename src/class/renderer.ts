@@ -8,7 +8,7 @@ import { FONT_SIZES, FONT_WEIGHTS, STROKE_WIDTHS, resolveRenderStyle, diagramTit
 import type { RenderStyleDefaults, ResolvedRenderStyle } from '../styles.ts'
 import { CLS, CLASS_STYLE_DEFAULTS, memberToString } from './layout.ts'
 import { buildAccessibilityAttrs } from '../shared/svg-a11y.ts'
-import { renderMultilineText, escapeAttr, escapeXml as escapeXmlUtil } from '../multiline-utils.ts'
+import { renderMultilineText, escapeAttr, escapeDisplayAttr, escapeXml as escapeXmlUtil } from '../multiline-utils.ts'
 import { topRoundedRectPath } from '../svg-paths.ts'
 import type { MarkerDescriptor, SceneDoc, SceneNode } from '../scene/ir.ts'
 import { hashId } from '../scene/seed.ts'
@@ -197,7 +197,7 @@ function classMarkerResources(style: ResolvedRenderStyle): readonly MarkerDescri
 function renderNamespaceBox(ns: PositionedClassNamespace, style: ResolvedRenderStyle): SceneNode {
   const children: Array<{ node: SceneNode; indent: number }> = []
   const open =
-    `<g class="namespace" data-id="${escapeAttr(ns.id)}" data-label="${escapeAttr(ns.label)}"${ns.parentId ? ` data-parent-id="${escapeAttr(ns.parentId)}"` : ''}>`
+    `<g class="namespace" data-id="${escapeAttr(ns.id)}" data-label="${escapeDisplayAttr(ns.label)}"${ns.parentId ? ` data-parent-id="${escapeAttr(ns.parentId)}"` : ''}>`
 
   // Outer rectangle
   const rectFill = style.groupFillColor ?? 'var(--_group-fill)'
@@ -284,7 +284,7 @@ function renderClassBox(cls: PositionedClassNode, style: ResolvedRenderStyle, in
   const dataClass = cls.className ? ` data-class="${escapeAttr(cls.className)}"` : ''
   const interaction = includeInteraction && cls.href ? ` data-href="${escapeAttr(cls.href)}" role="link" tabindex="0"` : ''
   const open =
-    `<g class="class-node${classAttr}" data-id="${escapeAttr(cls.id)}" data-label="${escapeAttr(cls.label)}"${annotationAttr}${dataClass}${interaction}>`
+    `<g class="class-node${classAttr}" data-id="${escapeAttr(cls.id)}" data-label="${escapeDisplayAttr(cls.label)}"${annotationAttr}${dataClass}${interaction}>`
 
   if (includeInteraction && cls.href && cls.tooltip !== undefined) {
     children.push({
@@ -576,7 +576,7 @@ function renderRelationship(rel: PositionedClassRelationship, style: ResolvedRen
     `data-marker-at="${rel.markerAt}"`,
   ]
   if (rel.label) {
-    dataAttrs.push(`data-label="${escapeAttr(rel.label)}"`)
+    dataAttrs.push(`data-label="${escapeDisplayAttr(rel.label)}"`)
   }
   if (rel.fromCardinality) {
     dataAttrs.push(`data-from-cardinality="${escapeAttr(rel.fromCardinality)}"`)

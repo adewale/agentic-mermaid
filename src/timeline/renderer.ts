@@ -5,7 +5,7 @@ import { svgOpenTag, buildStyleBlock, buildShadowDefs } from '../theme.ts'
 import { toneOnFill } from '../color-resolver.ts'
 import { TIMELINE_STYLE_DEFAULTS } from './layout.ts'
 import { buildAccessibilityAttrs } from '../shared/svg-a11y.ts'
-import { escapeAttr, renderMultilineText, escapeXml } from '../multiline-utils.ts'
+import { escapeAttr, escapeDisplayAttr, renderMultilineText, escapeXml } from '../multiline-utils.ts'
 import { STROKE_WIDTHS, resolveRenderStyle } from '../styles.ts'
 import type { RenderStyleDefaults, ResolvedRenderStyle } from '../styles.ts'
 import type { MermaidThemeVariables, TimelineRuntimeConfig } from '../mermaid-source.ts'
@@ -277,7 +277,7 @@ function lowerSectionFrame(
   paints: TimelinePaints,
 ): SceneNode {
   const sectionName = section.label ?? section.id
-  const labelAttr = section.label ? ` data-label="${escapeAttr(section.label)}"` : ''
+  const labelAttr = section.label ? ` data-label="${escapeDisplayAttr(section.label)}"` : ''
   const familyAttr = renderFamilyAttr(familyIndex, familyPalettes)
   const children: Array<{ node: SceneNode; indent: number }> = []
 
@@ -448,7 +448,7 @@ function lowerPeriod(
   return marks.group({
     id: `period:${period.id}`,
     role: 'period',
-    open: `<g class="timeline-period" data-id="${escapeAttr(period.id)}" data-label="${escapeAttr(period.label)}"${sectionAttr}${familyAttr}>`,
+    open: `<g class="timeline-period" data-id="${escapeAttr(period.id)}" data-label="${escapeDisplayAttr(period.label)}"${sectionAttr}${familyAttr}>`,
     close: '</g>',
     children,
   })

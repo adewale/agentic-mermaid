@@ -477,6 +477,33 @@ describe('external family executable registration conformance', () => {
     }
   })
 
+  test('preserves authored source for external family hooks while refusing echoed controls', () => {
+    const base = directDescriptor('terminal-authored-source')
+    let observed: Parameters<NonNullable<FamilyDescriptor['renderAscii']>>[0]['source'] | undefined
+    const descriptor: FamilyDescriptor = {
+      ...base,
+      renderAscii(context) {
+        if (context.source.body.includes('retain')) { observed = context.source; return 'Safe display' }
+        if (context.source.body.includes('echo')) return context.source.familyText
+        return base.renderAscii!(context)
+      },
+    }
+    const unregister = registerFamily(descriptor)
+    try {
+      const header = descriptor.headers[0]!
+      const source = `---\ntitle: "Title\\tX"\n---\n${header}\nretain A\tB`
+      renderMermaidASCIIWithReceipt(source, { colorMode: 'none' })
+      expect(observed?.originalText).toBe(source)
+      expect(observed?.familyText).toBe(`${header}\nretain A\tB`)
+      expect(observed?.frontmatter.title).toBe('Title\tX')
+      expect(Object.isFrozen(observed)).toBe(true)
+      for (const colorMode of RESOLVED_TERMINAL_COLOR_MODES) {
+        expect(() => renderMermaidASCIIWithReceipt(`${header}\necho A\u001b]52;c;payload\u0007`, { colorMode }))
+          .toThrow(/disallowed control/i)
+      }
+    } finally { unregister() }
+  })
+
   test('rejects zero-sized or semantically empty native layout witnesses', () => {
     const zeroSized = directDescriptor('zero-sized-layout')
     expectRejected({

@@ -1,4 +1,4 @@
-import { escapeAttr, escapeXml, renderMultilineText } from '../multiline-utils.ts'
+import { escapeAttr, escapeDisplayAttr, escapeXml, renderMultilineText } from '../multiline-utils.ts'
 import { pieSliceColors } from '../pie/palette.ts'
 import { DefaultBackend } from '../scene/backend.ts'
 import { serializeLinearGradientResources } from '../scene/gradient-resources.ts'
@@ -206,7 +206,7 @@ export function lowerSankeyScene(ctx: RenderContext<PositionedSankeyChart>): Sce
           `width="${round2(node.x1 - node.x0)}" height="${round2(node.y1 - node.y0)}" ` +
           `fill="${escapeAttr(fill)}" stroke="${escapeAttr(nodePaint.stroke)}" ` +
           `stroke-width="${nodePaint.strokeWidth}" ` +
-          `data-label="${escapeAttr(node.label)}" data-value="${node.value}" data-layer="${node.layer}" />`,
+          `data-label="${escapeDisplayAttr(node.label)}" data-value="${node.value}" data-layer="${node.layer}" />`,
       ),
     )
   }

@@ -18,6 +18,7 @@ import { TerminalDocument, terminalDocumentOf } from '../ascii/terminal-document
 import { nativeTerminalRenderer, terminalArtifact } from '../ascii/terminal-artifact.ts'
 import { parseRegisteredMermaid } from '../agent/parse.ts'
 import { MermaidFamilyDetectionError } from '../family-detection.ts'
+import { serializeMermaid } from '../agent/serialize.ts'
 
 const SOURCE = 'flowchart LR\n  A[Start] --> B[Finish]'
 const OSC52 = '\u001b]52;c;dGVybWluYWwtZXhmaWx0cmF0aW9u\u0007'
@@ -44,6 +45,94 @@ describe('terminal text security boundary', () => {
         feature: 'terminal-text',
       }))
     }
+  })
+
+  test('retains distinct authored whitespace identities before projecting Sankey display text', () => {
+    const source = 'sankey-beta\n"A\nB","T\nU",1\n"A B","T U",2\n"A\tB","T\tU",3\n"A\rB","T\rU",4'
+    const parsed = parseRegisteredMermaid(source)
+    expect(parsed.ok).toBe(true)
+    if (!parsed.ok) return
+    const preserved = serializeMermaid(parsed.value)
+    const expectedNodes = ['A\nB', 'T\nU', 'A B', 'T U', 'A\tB', 'T\tU', 'A\rB', 'T\rU']
+    const expectedEdges = [['A\nB', 'T\nU'], ['A B', 'T U'], ['A\tB', 'T\tU'], ['A\rB', 'T\rU']]
+    const projected = new Map([['A\nB', 'A\nB'], ['A B', 'A B'], ['A\tB', 'A B'], ['A\rB', 'A?B']])
+    for (const input of [source, parsed.value]) for (const useAscii of [true, false]) {
+      for (const colorMode of ['none', 'ansi16', 'html'] as const) {
+        const result = renderMermaidASCIIWithMeta(input, { useAscii, colorMode })
+        expect(result.regions.filter(region => region.kind === 'node').map(region => region.id)).toEqual(expectedNodes)
+        expect(result.regions.filter(region => region.kind === 'edge').map(region => [region.from, region.to])).toEqual(expectedEdges)
+        for (const [id, text] of projected) {
+          const node = result.regions.find(region => region.kind === 'node' && region.id === id)!
+          expect(node.projectedText).toBe(text)
+          expect(node.ownedCellSpans!.length).toBeGreaterThan(0)
+        }
+        expect(containsTerminalControl(withoutTrustedSgr(result.ascii))).toBe(false)
+        expect(result.warnings).not.toContainEqual(expect.objectContaining({ code: 'ASCII_RENDER_FAILED' }))
+        expect(result.warnings).toContainEqual(expect.objectContaining({ code: 'TERMINAL_CONTROL_CHARACTERS_REPLACED' }))
+      }
+    }
+    expect(serializeMermaid(parsed.value)).toBe(preserved)
+  })
+
+  test('keeps quoted CSV blank rows, indentation and directive-like text in authored identities', () => {
+    const source = '%% before header\nsankey-beta\n"first\n\nlast",Sink,1\n"first\nlast",Other,2\n"first\n  last",Indented,3\n"first\n%% literal comment\naccTitle: literal title\nlast",Third,4'
+    const expectedSources = ['first\n\nlast', 'first\nlast', 'first\n  last', 'first\n%% literal comment\naccTitle: literal title\nlast']
+    const parsed = parseRegisteredMermaid(source)
+    expect(parsed.ok).toBe(true)
+    if (!parsed.ok) return
+    expect(parsed.value.body.kind).toBe('opaque')
+    expect(serializeMermaid(parsed.value)).toBe(source + '\n')
+    for (const input of [source, parsed.value]) {
+      const result = renderMermaidASCIIWithMeta(input, { colorMode: 'none' })
+      expect(result.regions.filter(region => region.kind === 'node').map(region => region.id)).toEqual([
+        expectedSources[0]!, 'Sink', expectedSources[1]!, 'Other', expectedSources[2]!, 'Indented', expectedSources[3]!, 'Third',
+      ])
+      expect(result.regions.filter(region => region.kind === 'edge').map(region => [region.from, region.to])).toEqual([
+        [expectedSources[0]!, 'Sink'], [expectedSources[1]!, 'Other'], [expectedSources[2]!, 'Indented'], [expectedSources[3]!, 'Third'],
+      ])
+      expect(result.warnings).not.toContainEqual(expect.objectContaining({ code: 'ASCII_RENDER_FAILED' }))
+    }
+  })
+
+  test('keeps control-bearing semantic owners distinct from their visible replacements', () => {
+    const source = 'sankey-beta\n"A\u001bB",X,1\n"A?B",Y,2\n"A\u009dB",Z,3'
+    for (const colorMode of ['none', 'truecolor', 'html'] as const) {
+      const result = renderMermaidASCIIWithMeta(source, { colorMode })
+      expect(result.regions.filter(region => region.kind === 'node').map(region => region.id))
+        .toEqual(['A\u001bB', 'X', 'A?B', 'Y', 'A\u009dB', 'Z'])
+      expect(result.regions.filter(region => region.kind === 'edge').map(region => [region.from, region.to]))
+        .toEqual([['A\u001bB', 'X'], ['A?B', 'Y'], ['A\u009dB', 'Z']])
+      for (const id of ['A\u001bB', 'A?B', 'A\u009dB']) {
+        expect(result.regions.find(region => region.id === id && region.kind === 'node')?.projectedText).toBe('A?B')
+      }
+      expect(containsTerminalControl(withoutTrustedSgr(result.ascii))).toBe(false)
+      expect(result.warnings).toContainEqual(expect.objectContaining({ code: 'TERMINAL_CONTROL_CHARACTERS_REPLACED' }))
+    }
+  })
+
+  test('retains GitGraph commit identity and parent references when visible labels coincide', () => {
+    const source = 'gitGraph LR:\ncommit id:"A\tB"\ncommit id:"A B"'
+    const parsed = parseRegisteredMermaid(source)
+    expect(parsed.ok).toBe(true)
+    if (!parsed.ok) return
+    for (const input of [source, parsed.value]) {
+      const result = renderMermaidASCIIWithMeta(input, { colorMode: 'none' })
+      expect(result.regions.filter(region => region.kind === 'node').map(region => region.id)).toEqual(['A\tB', 'A B'])
+      expect(result.regions.filter(region => region.kind === 'node').map(region => region.projectedText)).toEqual(['[A B]', '[A B]'])
+      expect(result.regions.filter(region => region.kind === 'edge').map(region => [region.from, region.to])).toEqual([['A\tB', 'A B']])
+      expect(result.regions.filter(region => region.kind === 'node').map(region => [region.parentId, region.parentKind]))
+        .toEqual([['branch:main', 'lane'], ['branch:main', 'lane']])
+      expect(containsTerminalControl(result.ascii)).toBe(false)
+    }
+  })
+
+  test('diagnoses controls introduced by source admission and preserves structural CRLF', () => {
+    const encoded = renderMermaidASCIIWithReceipt('flowchart LR\nA["X&#9;Y"] --> B[Done]', { colorMode: 'none' })
+    expect(encoded.text).toContain('X Y')
+    expect(encoded.terminalStyle.diagnostics).toContainEqual(expect.objectContaining({ code: 'TERMINAL_CONTROL_CHARACTERS_REPLACED' }))
+    const crlf = renderMermaidASCIIWithReceipt('flowchart LR\r\nA[Start] --> B[Done]\r\n', { colorMode: 'none' })
+    expect(crlf.text).toContain('Start')
+    expect(crlf.terminalStyle.diagnostics).not.toContainEqual(expect.objectContaining({ code: 'TERMINAL_CONTROL_CHARACTERS_REPLACED' }))
   })
 
   test('sanitizes connector receipt labels as well as emitted cells', () => {

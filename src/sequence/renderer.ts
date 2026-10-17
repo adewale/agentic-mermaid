@@ -8,7 +8,7 @@ import { FONT_SIZES, FONT_WEIGHTS, STROKE_WIDTHS, ARROW_HEAD, TEXT_BASELINE_SHIF
 import type { RenderStyleDefaults, ResolvedRenderStyle } from '../styles.ts'
 import { SEQUENCE_STYLE_DEFAULTS } from './layout.ts'
 import { buildAccessibilityAttrs } from '../shared/svg-a11y.ts'
-import { renderMultilineText, escapeAttr, escapeXml as escapeXmlUtil } from '../multiline-utils.ts'
+import { renderMultilineText, escapeAttr, escapeDisplayAttr, escapeXml as escapeXmlUtil } from '../multiline-utils.ts'
 import type { MarkerDescriptor, SceneDoc, SceneNode } from '../scene/ir.ts'
 import { hashId } from '../scene/seed.ts'
 import * as marks from '../scene/marks.ts'
@@ -369,7 +369,7 @@ function renderActor(
     ? ` data-links="${escapeAttr(JSON.stringify(actor.links))}" role="link" tabindex="0"`
     : ''
   const open =
-    `<g class="actor" data-id="${escapeAttr(id)}" data-label="${escapeAttr(label)}" data-type="${type}"${menu}>`
+    `<g class="actor" data-id="${escapeAttr(id)}" data-label="${escapeDisplayAttr(label)}" data-type="${type}"${menu}>`
 
   const { text: displayLabel, x: labelX, y: labelY, bounds: labelBounds } = actor.labelPosition
   const labelAttrs =
@@ -624,7 +624,7 @@ function renderMessage(msg: PositionedMessage, style: ResolvedRenderStyle, scene
 
   // Semantic wrapper with message metadata
   const open =
-    `<g class="message" data-label="${escapeAttr(msg.label)}" data-line-style="${msg.lineStyle}" ` +
+    `<g class="message" data-label="${escapeDisplayAttr(msg.label)}" data-line-style="${msg.lineStyle}" ` +
     `data-start-head="${msg.startHead}" data-end-head="${msg.endHead}" data-central-start="${msg.centralStart}" data-central-end="${msg.centralEnd}" data-self="${msg.isSelf}">`
 
   if (msg.isSelf) {
@@ -737,7 +737,7 @@ function renderBlock(block: PositionedBlock, style: ResolvedRenderStyle, sceneId
   const children: Array<{ node: SceneNode; indent: number }> = []
 
   // Semantic wrapper with block metadata
-  const labelAttr = block.label ? ` data-label="${escapeAttr(block.label)}"` : ''
+  const labelAttr = block.label ? ` data-label="${escapeDisplayAttr(block.label)}"` : ''
   const open = part === 'dividers'
     ? `<g class="sequence-block-divider-overlay" data-owner="${escapeAttr(sceneId)}">`
     : part === 'frame'
@@ -888,7 +888,7 @@ function renderBlockHeader(header: PositionedBlockHeader, style: ResolvedRenderS
  */
 function renderBoxGroup(box: PositionedBoxGroup, style: ResolvedRenderStyle, sceneId: string): SceneNode {
   const children: Array<{ node: SceneNode; indent: number }> = []
-  const labelAttr = box.label ? ` data-label="${escapeAttr(box.label)}"` : ''
+  const labelAttr = box.label ? ` data-label="${escapeDisplayAttr(box.label)}"` : ''
   const open = `<g class="box"${labelAttr}>`
 
   const explicit = box.color?.toLowerCase() === 'transparent' ? 'none' : box.color

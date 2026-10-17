@@ -4,7 +4,7 @@ import type { DiagramColors } from './theme.ts'
 import { svgOpenTag, buildStyleBlock, buildShadowDefs } from './theme.ts'
 import { STROKE_WIDTHS, ARROW_HEAD, FLOWCHART_DOTTED_DASH, resolveRenderStyle, diagramTitleMark } from './styles.ts'
 import type { ResolvedRenderStyle } from './styles.ts'
-import { renderMultilineText, renderMultilineTextWithBackground, escapeAttr, escapeXml } from './multiline-utils.ts'
+import { renderMultilineText, renderMultilineTextWithBackground, escapeAttr, escapeDisplayAttr, escapeXml } from './multiline-utils.ts'
 import { topRoundedRectPath } from './svg-paths.ts'
 import { resolveInlineNodeTextColor, toneOnFill } from './color-resolver.ts'
 import type { ConnectorLabelDescriptor, MarkerDescriptor, SceneDoc, SceneNode, SemanticChannels } from './scene/ir.ts'
@@ -274,7 +274,7 @@ function renderGroup(group: PositionedGroup, font: string, style: ResolvedRender
   // data-id: original Mermaid subgraph ID
   // data-label: display label (may differ from ID)
   const open =
-    `<g class="subgraph" data-id="${escapeAttr(group.id)}" data-region="subgraph" data-label="${escapeAttr(group.label)}"${parentId ? ` data-parent-id="${escapeAttr(parentId)}"` : ''}>`
+    `<g class="subgraph" data-id="${escapeAttr(group.id)}" data-region="subgraph" data-label="${escapeDisplayAttr(group.label)}"${parentId ? ` data-parent-id="${escapeAttr(parentId)}"` : ''}>`
 
   // Outer rectangle
   const rectFill = style.groupFillColor ?? 'var(--_group-fill)'
@@ -551,7 +551,7 @@ function renderEdge(
   ]
   if (edge.hasArrowStart) dataAttrs.push(`data-marker-start="${edge.startMarker ?? 'arrow'}"`)
   if (edge.hasArrowEnd) dataAttrs.push(`data-marker-end="${edge.endMarker ?? 'arrow'}"`)
-  if (edge.label) dataAttrs.push(`data-label="${escapeAttr(edge.label)}"`)
+  if (edge.label) dataAttrs.push(`data-label="${escapeDisplayAttr(edge.label)}"`)
   if (edge.curve) dataAttrs.push(`data-curve="${escapeAttr(edge.curve)}"`)
   if (edge.animate) dataAttrs.push(`data-animate="true"`, `data-animation="${edge.animation ?? 'slow'}"`)
 
@@ -748,7 +748,7 @@ function renderEdgeLabel(edge: PositionedEdge, font: string, style: ResolvedRend
   return marks.group({
     id: sceneId,
     role: 'edge-label',
-    open: `<g class="edge-label" data-from="${escapeAttr(edge.source)}" data-to="${escapeAttr(edge.target)}" data-label="${escapeAttr(edge.label!)}">`,
+    open: `<g class="edge-label" data-from="${escapeAttr(edge.source)}" data-to="${escapeAttr(edge.target)}" data-label="${escapeDisplayAttr(edge.label!)}">`,
     close: '</g>',
     children: [
       { indent: 2, node: halo },
@@ -834,7 +834,7 @@ function renderNode(node: PositionedNode, font: string, style: ResolvedRenderSty
   return marks.group({
     id: `node:${node.id}`,
     role: 'node',
-    open: `<g class="${classAttr}" data-id="${escapeAttr(node.id)}" data-label="${escapeAttr(node.label)}" data-shape="${node.shape}"${semanticShape}${interaction}>`,
+    open: `<g class="${classAttr}" data-id="${escapeAttr(node.id)}" data-label="${escapeDisplayAttr(node.label)}" data-shape="${node.shape}"${semanticShape}${interaction}>`,
     close: '</g>',
     children,
     channels,

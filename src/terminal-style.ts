@@ -313,24 +313,19 @@ function projectConnectorScene(
     if (sanitized !== value) connectorControlsReplaced = true
     return sanitized
   }
-  const cleanProjectionValue = (value: unknown): unknown => {
-    if (typeof value === 'string') return clean(value)
-    if (Array.isArray(value)) return Object.freeze(value.map(cleanProjectionValue))
-    if (value === null || typeof value !== 'object') return value
-    const entries = Object.entries(value).map(([key, child]) => [key, cleanProjectionValue(child)] as const)
-    return Object.freeze(Object.fromEntries(entries))
-  }
   for (const connector of connectors) {
     const projection = connector.terminalProjection
     const projected: TerminalConnectorProjection = Object.freeze({
-      id: clean(connector.id),
+      ...projection,
+      id: connector.id,
       role: connector.role,
-      ...(cleanProjectionValue(projection) as ConnectorMark['terminalProjection']),
+      labels: Object.freeze(projection.labels.map(label => Object.freeze({ ...label, text: clean(label.text) }))),
+      diagnostics: Object.freeze(projection.diagnostics.map(clean)),
     })
     projectedConnectors.push(projected)
     topologies[projection.topology]++
     realizations[projection.realization] = (realizations[projection.realization] ?? 0) + 1
-    relationships.add(clean(connector.relationship.kind))
+    relationships.add(connector.relationship.kind)
     directions.add(connector.relationship.direction)
     markerPositions.start += projection.markerPlacements.start.length
     markerPositions.mid += projection.markerPlacements.mid.length

@@ -14,7 +14,7 @@
 
 import { detectColorMode, DEFAULT_ASCII_THEME, diagramColorsToAsciiTheme } from './ansi.ts'
 import type { AsciiConfig, AsciiTheme, ColorMode } from './types.ts'
-import { frontmatterTitle, normalizeMermaidSource, toMermaidLines, type NormalizedMermaidSource } from '../mermaid-source.ts'
+import { frontmatterTitle, type NormalizedMermaidSource } from '../mermaid-source.ts'
 import type { ParsedDiagram } from '../agent/types.ts'
 import { prepareRenderInput, type PreparedRenderInput } from '../agent/render-input.ts'
 import { isBuiltinFamilyId, type AsciiContext } from '../agent/families.ts'
@@ -212,11 +212,10 @@ export function executeTerminalRender(
   emitResolvedConfigDiagnostics(request)
   const executionPlan = resolvedRenderExecutionPlanOf(request)
   const family = executionPlan.family
-  // Sanitize user-derived text before layout, cell measurement, or trusted
-  // ANSI/HTML wrappers are introduced. A visible one-cell replacement keeps
-  // renderer geometry and emitted geometry coherent.
-  const terminalSource = projectTerminalSafeSource(request.source)
-  const normalizedSource = terminalSource.source
+  // Family parsers retain authored identities and endpoints. Terminal text
+  // preparation neutralizes display controls before cell fitting; the final
+  // painting/encoding boundary provides the same protection for direct runs.
+  const normalizedSource = request.source
   config.title = frontmatterTitle(normalizedSource.frontmatter)
   config.maxWidth = widthBudget
   config.targetWidth = outputPolicy.targetWidth
@@ -235,7 +234,7 @@ export function executeTerminalRender(
   const familyContext = resolvedFamilyRenderContextOf(request)
   const diagramType = family.id
   const appearance = projectTerminalStyle(request, colorMode, outputPolicy.theme, undefined, {
-    controlsReplaced: terminalSource.controlsReplaced || pieControlsReplaced,
+    controlsReplaced: terminalControlsReplaced(normalizedSource) || pieControlsReplaced,
   })
   let projectedStyle: ResolvedTerminalStyle | undefined
   const connectorStyle = (): ResolvedTerminalStyle => {
@@ -244,7 +243,7 @@ export function executeTerminalRender(
     let failed = false
     if (family.lowerScene && family.layout) {
       try {
-        const layout = positionResolvedFamily(diagramType, request, terminalSource.source)
+        const layout = positionResolvedFamily(diagramType, request, normalizedSource)
         connectorScene = admitFamilyScene(family, family.lowerScene({
           positioned: layout.positioned,
           colors: connectorSceneColors(request.appearance.colors),
@@ -345,60 +344,24 @@ export function executeTerminalRender(
   return { rendered: resultOf(boundedOutput), model }
 }
 
-interface TerminalSafeSourceProjection {
-  readonly source: NormalizedMermaidSource
-  readonly controlsReplaced: boolean
-}
-
-/** Clone/freeze source metadata while neutralizing every string that a family
- * terminal renderer can consume. Structural CR/LF survive only in source
- * bodies; metadata strings never carry terminal controls. */
-function projectTerminalSafeSource(source: Readonly<NormalizedMermaidSource>): TerminalSafeSourceProjection {
-  let controlsReplaced = false
-  const sanitizeStructural = (value: string): string => {
-    const result = sanitizeTerminalText(value, true)
-    if (result !== value) controlsReplaced = true
-    return result
-  }
-  const sanitizeValue = <T>(value: T): T => {
-    if (typeof value === 'string') {
-      const result = sanitizeTerminalText(value)
-      if (result !== value) controlsReplaced = true
-      return result as T
-    }
-    if (Array.isArray(value)) return Object.freeze(value.map(sanitizeValue)) as T
+/** Diagnostics observe authored controls without rewriting grammar input or
+ * semantic metadata. Only displayed text is sanitized by terminal adapters. */
+function terminalControlsReplaced(source: Readonly<NormalizedMermaidSource>): boolean {
+  const containsControls = (value: unknown): boolean => {
+    if (typeof value === 'string') return sanitizeTerminalText(value) !== value
+    if (Array.isArray(value)) return value.some(containsControls)
     if (value !== null && typeof value === 'object') {
-      return Object.freeze(Object.fromEntries(
-        Object.entries(value).map(([key, child]) => [sanitizeValue(key), sanitizeValue(child)]),
-      )) as T
+      return Object.entries(value).some(([key, child]) => containsControls(key) || containsControls(child))
     }
-    return value
+    return false
   }
-
-  const body = sanitizeStructural(source.body)
-  const lines = toMermaidLines(body)
-  const projected = normalizeMermaidSource(body)
-  const safeSource: NormalizedMermaidSource = {
-    ...source,
-    originalText: sanitizeStructural(source.originalText),
-    text: lines.join('\n'),
-    body,
-    lines: Object.freeze(lines) as unknown as string[],
-    familyBody: projected.familyBody,
-    familyText: projected.familyText,
-    familyLines: Object.freeze(projected.familyLines) as unknown as string[],
-    ...(source.authoredPieFamilyLines === undefined ? {} : {
-      authoredPieFamilyLines: Object.freeze(source.authoredPieFamilyLines.map(sanitizeStructural)) as unknown as string[],
-    }),
-    firstLine: lines[0]?.toLowerCase() ?? '',
-    config: sanitizeValue(source.config),
-    frontmatter: sanitizeValue(source.frontmatter),
-    ...(source.wrapperSource === undefined ? {} : { wrapperSource: sanitizeStructural(source.wrapperSource) }),
-    initDirectives: sanitizeValue(source.initDirectives),
-    comments: sanitizeValue(source.comments),
-    accessibility: sanitizeValue(source.accessibility),
-  }
-  return Object.freeze({ source: Object.freeze(safeSource), controlsReplaced })
+  return source.originalText.split(/\r?\n/).some(containsControls)
+    || source.body.split(/\r?\n/).some(containsControls)
+    || containsControls(source.config)
+    || containsControls(source.frontmatter)
+    || containsControls(source.initDirectives)
+    || containsControls(source.comments)
+    || containsControls(source.accessibility)
 }
 
 /**

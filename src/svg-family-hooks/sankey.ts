@@ -11,7 +11,7 @@ export const SANKEY_SVG_HOOKS = {
     familyConfig: { visual: resolveSankeyVisualConfig(ctx.source.frontmatter) },
   }),
   layout: ctx => layoutResult(layoutSankeyDiagram(
-    parseSankeyDiagram(ctx.source.familyLines, {
+    parseSankeyDiagram(ctx.source.body.split(/\r?\n/), {
       title: typeof ctx.source.frontmatter.title === 'string' ? ctx.source.frontmatter.title : undefined,
     }),
     ctx.renderOptions,

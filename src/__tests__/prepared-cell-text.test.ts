@@ -27,6 +27,28 @@ describe('prepared cell text', () => {
     expect(block.width).toBe(Math.max(...block.lines.map(visualWidth)))
   })
 
+  it('neutralizes display controls before wrapping while preserving authored source spans', () => {
+    const source = 'A\t界\u001bB\u009dC'
+    const block = prepareCellText(source, { maxWidth: 4, hyphenate: false })
+    expect(block.prepared.source).toBe(source)
+    expect(block.lines).toEqual(['A', '界?B', '?C'])
+    expect(block.lineWidths).toEqual([1, 4, 2])
+    expect(block.breaks).toEqual([
+      { kind: 'wrap', sourceOffset: 2, replacedText: ' ' },
+      { kind: 'wrap', sourceOffset: 5 },
+    ])
+    expect(block.prepared.lines[0]![0]!.clusters).toEqual([
+      { text: 'A', sourceStart: 0, sourceEnd: 1 },
+      { text: ' ', sourceStart: 1, sourceEnd: 2 },
+      { text: '界', sourceStart: 2, sourceEnd: 3 },
+      { text: '?', sourceStart: 3, sourceEnd: 4 },
+      { text: 'B', sourceStart: 4, sourceEnd: 5 },
+      { text: '?', sourceStart: 5, sourceEnd: 6 },
+      { text: 'C', sourceStart: 6, sourceEnd: 7 },
+    ])
+    expect(prepareCellText('A\rB\nC\tD').lines).toEqual(['A?B', 'C D'])
+  })
+
   it('retains literal tags and an indivisible cluster that exceeds the budget', () => {
     const block = prepareCellText('<b>👩‍💻</b>', { maxWidth: 1, hyphenate: false })
     expect(block.lines.join('')).toBe('<b>👩‍💻</b>')
