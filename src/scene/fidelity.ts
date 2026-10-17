@@ -127,18 +127,30 @@ function unescapeXml(s: string): string {
 function timelineLiteralText(serialized: string): string | undefined {
   const outer = /^<text\b([^<>]*)>([\s\S]*)<\/text>$/.exec(serialized)
   if (!outer) return undefined
-  if (!/^(?:\s+(?:x|y|class|text-anchor|font-size|font-weight|data-literal-text|font-family|letter-spacing|dy|data-id|data-role|aria-label|role)="[^"<>]*")+$/.test(outer[1]!)) return undefined
-  const inner = outer[2]!
-  if (!inner.includes('<')) return inner.includes('>') ? undefined : unescapeXml(inner)
-  const spans = /<tspan x="([^"]+)" dy="([^"]+)">([^<>]*)<\/tspan>/g
-  const lines: string[] = []
+  const attributes = /^(?:\s+(?:x|y|class|text-anchor|font-size|font-weight|font-style|text-decoration|data-literal-text|font-family|letter-spacing|dy|data-id|data-role|aria-label|role|textLength|lengthAdjust|data-font-metrics|data-prepared-text|data-text-fragment|xml:space)="[^"<>]*")*\s*$/
+  if (!attributes.test(outer[1]!)) return undefined
+  let result = ''
   let cursor = 0
-  for (const match of inner.matchAll(spans)) {
-    if (match.index !== cursor || !Number.isFinite(Number(match[1])) || !Number.isFinite(Number(match[2]))) return undefined
-    lines.push(unescapeXml(match[3]!))
-    cursor += match[0].length
+  let depth = 0
+  let line = 0
+  const inner = outer[2]!
+  for (const tag of inner.matchAll(/<[^>]*>/g)) {
+    result += unescapeXml(inner.slice(cursor, tag.index))
+    if (tag[0] === '</tspan>') {
+      if (--depth < 0) return undefined
+    } else {
+      const span = /^<tspan\b([^<>]*)>$/.exec(tag[0])
+      if (!span || !attributes.test(span[1]!)) return undefined
+      if (/\b(?:font-weight|font-style|font-size|font-family|text-decoration)=/.test(span[1]!)) return undefined
+      if (/\bdy=/.test(span[1]!) && !/data-text-fragment=/.test(span[1]!)) {
+        if (line++ > 0) result += '\n'
+      }
+      depth++
+    }
+    cursor = tag.index! + tag[0].length
   }
-  return cursor === inner.length && lines.length > 0 ? lines.join('\n') : undefined
+  result += unescapeXml(inner.slice(cursor))
+  return depth === 0 ? result : undefined
 }
 
 function parsedTransform(value: string | undefined): SceneTransform | undefined {
@@ -251,7 +263,13 @@ export function nodeProblems(node: SceneNode, path: string, problems: string[]):
       // Crisp markup is the emitter's own SVG elements; authored text in it is
       // entity-escaped, so dropping the elements leaves exactly the drawn text.
       const drawn = (svg: string) => shown(unescapeXml(svg.replace(/<[^>]+>/g, '')))
-      if (node.role === 'member') {
+      if (node.prepared) {
+        const expected = displayText(node.text, node.display).replace(/\s+/g, ' ').trim()
+        const actual = unescapeXml(serialized
+          .replace(/<tspan\b(?![^>]*\bdata-text-fragment=)[^>]*\s(?:x|dy)="[^"]*"[^>]*>/g, '\n')
+          .replace(/<[^>]+>/g, '')).replace(/\s+/g, ' ').trim()
+        if (actual !== expected) problems.push(`${path}(text:${node.id}): prepared text "${expected.slice(0, 40)}" differs from crisp "${actual.slice(0, 40)}"`)
+      } else if (node.role === 'member') {
         // Class members are literal source text, not emphasis markup. Compare
         // their entire visible string so a lost type argument (including
         // <b>/<i>/<u>/<s>) cannot be hidden by the first-token check.

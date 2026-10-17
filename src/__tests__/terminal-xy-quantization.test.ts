@@ -104,8 +104,8 @@ describe('terminal XY numeric projection', () => {
       expect(regions.filter(region => /^x-category-/.test(region.id))).toHaveLength(3)
       const centers = categories.map(category => horizontal ? category.canvasRow : Math.floor((category.canvasColStart + category.canvasColEnd) / 2))
       const plot = regions.find(region => region.id === 'plot')!
-      const extent = horizontal ? plot.canvasColEnd - plot.canvasColStart - 1 : plot.rowSpan! - 1
-      expect(extent).toBe(horizontal ? 59 : 20)
+      const extent = horizontal ? plot.canvasColEnd - plot.canvasColStart : plot.rowSpan! - 1
+      expect(extent).toBe(horizontal ? 60 : 20)
       const baseline = horizontal ? plot.canvasColStart : plot.canvasRow + extent
       const rows = text.split('\n')
       for (const [series, data] of values.entries()) {
@@ -145,7 +145,7 @@ describe('terminal XY numeric projection', () => {
       const category = document.regions().find(region => region.id === `x-category-${index}`)!
       return [...document.entries()].filter(([, y, cell]) => y === category.canvasRow && cell.owners.some(owner => owner.id === 'series-0')).reduce((sum, [, , cell]) => sum + weight(cell.glyph), 0)
     })
-    expect(lengths).toEqual([0, 1.5, 59])
+    expect(lengths).toEqual([0, 1.5, 60])
   })
 
   test('literal axis titles and axis visibility survive the terminal projection', () => {

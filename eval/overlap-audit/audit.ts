@@ -61,20 +61,21 @@ export function extract(svg: string): { texts: TextBox[]; prims: PrimBox[] } {
     const anchor = /text-anchor="([^"]*)"/.exec(attrs)?.[1] ?? 'start'
     // tspans (multi-line) or plain content
     const tspans = [...inner.matchAll(/<tspan\b([^>]*)>([\s\S]*?)<\/tspan>/g)]
-    const lines: { text: string; x: number; y: number }[] = tspans.length
+    const lines: { text: string; x: number; y: number; anchor: string }[] = tspans.length
       ? tspans.map(t => ({
           text: t[2]!.replace(/<[^>]+>/g, ''),
+          anchor: /text-anchor="([^"]*)"/.exec(t[1]!)?.[1] ?? anchor,
           x: /(?:^|\s)x="([\d.e+-]+)"/.exec(t[1]!)?.[1] !== undefined ? num(/(?:^|\s)x="([\d.e+-]+)"/.exec(t[1]!)?.[1]) : x,
           y: /(?:^|\s)y="([\d.e+-]+)"/.exec(t[1]!)?.[1] !== undefined ? num(/(?:^|\s)y="([\d.e+-]+)"/.exec(t[1]!)?.[1]) : y,
         }))
-      : [{ text: inner.replace(/<[^>]+>/g, ''), x, y }]
+      : [{ text: inner.replace(/<[^>]+>/g, ''), x, y, anchor }]
     const owner = innermostGroup(spans, m.index) ?? `text#${anon++}`
     const rot = /transform="rotate\((-?[\d.]+)[, ]+([\d.e+-]+)[, ]+([\d.e+-]+)\)"/.exec(attrs)
     for (const ln of lines) {
       const clean = ln.text.replace(/\s+/g, ' ').trim()
       if (!clean || !Number.isFinite(ln.x) || !Number.isFinite(ln.y)) continue
       const w = measureTextWidth(clean, fs, fw)
-      let x0 = anchor === 'middle' ? ln.x - w / 2 : anchor === 'end' ? ln.x - w : ln.x
+      let x0 = ln.anchor === 'middle' ? ln.x - w / 2 : ln.anchor === 'end' ? ln.x - w : ln.x
       // y is the baseline anchor (renderer centers with dy); approximate the em box
       let box: Box = { x0, y0: ln.y - fs * 0.55, x1: x0 + w, y1: ln.y + fs * 0.55 }
       if (rot) box = rotateBoxBounds(box, { x: num(rot[2]), y: num(rot[3]) }, num(rot[1]))

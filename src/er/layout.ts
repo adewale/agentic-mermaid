@@ -1,3 +1,5 @@
+import { preparePixelText, type PixelTextBlock } from '../shared/prepared-text.ts'
+import { resolveRoleStyle } from '../scene/style-registry.ts'
 /**
  * ER diagram layout engine (ELK.js).
  *
@@ -11,10 +13,9 @@ import type { ErAttribute, ErDiagram, ErEntity, PositionedErDiagram, PositionedE
 import type { RenderOptions, Point, Direction } from '../types.ts'
 import type { MermaidFrontmatterMap } from '../mermaid-source.ts'
 import { getFrontmatterScalar } from '../mermaid-source.ts'
-import { applyTextTransform, estimateTextWidth, estimateMonoTextWidth, FONT_SIZES, FONT_WEIGHTS, STROKE_WIDTHS, resolveRenderStyle, diagramTitleBand, positionDiagramTitle } from '../styles.ts'
+import { FONT_SIZES, FONT_WEIGHTS, STROKE_WIDTHS, resolveRenderStyle, diagramTitleBand, positionDiagramTitle } from '../styles.ts'
 import type { RenderStyleDefaults, ResolvedRenderStyle } from '../styles.ts'
 import type { InternalStyleFace } from '../scene/style-registry.ts'
-import { measureMultilineText } from '../text-metrics.ts'
 import { elkLayoutSync } from '../elk-instance.ts'
 import { directionToElk } from '../layout-engine.ts'
 import { checkedAuthoredStyle } from '../shared/style-props.ts'
@@ -101,6 +102,38 @@ export function resolveErRenderOptions(
     : { ...options, nodeSpacing: options.nodeSpacing ?? nodeSpacing, layerSpacing: options.layerSpacing ?? rankSpacing }
 }
 
+export function erHeaderBlock(text: string, style: ResolvedRenderStyle): PixelTextBlock {
+  return preparePixelText(text, { transform: style.nodeTextTransform, fontSize: style.nodeLabelFontSize, fontWeight: style.nodeLabelFontWeight, letterSpacing: style.nodeLetterSpacing })
+}
+
+export function erGroupBlock(text: string, style: ResolvedRenderStyle): PixelTextBlock {
+  return preparePixelText(text, { transform: style.groupTextTransform, fontSize: style.groupHeaderFontSize, fontWeight: style.groupHeaderFontWeight, letterSpacing: style.groupLetterSpacing })
+}
+
+export function erRelationshipBlock(rel: Pick<PositionedErRelationship, 'label' | 'identifying'>, style: ResolvedRenderStyle, styleFace?: Readonly<InternalStyleFace>): PixelTextBlock {
+  const role = resolveRoleStyle(styleFace, 'relationship', { category: rel.identifying ? 'identifying' : 'non-identifying' }, { includeFallback: false })
+  return preparePixelText(rel.label, { transform: role?.textTransform ?? style.edgeTextTransform, fontSize: role?.fontSize ?? style.edgeLabelFontSize, fontWeight: role?.fontWeight ?? style.edgeLabelFontWeight, letterSpacing: role?.letterSpacing ?? style.edgeLetterSpacing })
+}
+
+export function erAttributeBlocks(attr: ErAttribute) {
+  const mono = { display: 'literal' as const, fontSize: ER.attrFontSize, fontWeight: ER.attrFontWeight, monospace: true }
+  return {
+    type: preparePixelText(attr.type, mono), name: preparePixelText(attr.name, mono),
+    keys: preparePixelText(attr.keys.join(','), { display: 'literal', fontSize: 9, fontWeight: 600 }),
+    ...(attr.comment ? { comment: preparePixelText(erCommentText(attr.comment), { display: 'literal', fontSize: ER.attrFontSize, fontWeight: 400 }) } : {}),
+  }
+}
+
+function prepareErText(positioned: PositionedErDiagram, style: ResolvedRenderStyle, styleFace?: Readonly<InternalStyleFace>): PositionedErDiagram {
+  for (const entity of positioned.entities) {
+    entity.labelBlock = erHeaderBlock(entity.label, style)
+    entity.attributeBlocks = entity.attributes.map(erAttributeBlocks)
+  }
+  for (const group of positioned.groups) group.labelBlock ??= erGroupBlock(group.label, style)
+  for (const rel of positioned.relationships) rel.labelBlock = erRelationshipBlock(rel, style, styleFace)
+  return positioned
+}
+
 type EntitySizeMap = Map<string, { width: number; height: number; headerHeight: number }>
 
 /** Space between an attribute's name and its comment. */
@@ -109,7 +142,7 @@ export const ER_COMMENT_GAP = 12
 /** Width of an entity's comment column (0 when no attribute has a comment):
  * Mermaid draws each attribute's comment in a column after its name. */
 export function erCommentColumnWidth(attributes: readonly ErAttribute[]): number {
-  const widths = attributes.map(attr => attr.comment ? estimateTextWidth(erCommentText(attr.comment), ER.attrFontSize, 400) : 0)
+  const widths = attributes.map(attr => attr.comment ? erAttributeBlocks(attr).comment!.width : 0)
   const widest = Math.max(0, ...widths)
   return widest > 0 ? widest + ER_COMMENT_GAP : 0
 }
@@ -129,17 +162,18 @@ function buildErElkGraph(
   const entitySizes: EntitySizeMap = new Map()
 
   for (const entity of diagram.entities) {
-    const label = applyTextTransform(entity.label, style.nodeTextTransform)
-    const headerTextW = estimateTextWidth(label, style.nodeLabelFontSize, style.nodeLabelFontWeight)
+    const labelBlock = erHeaderBlock(entity.label, style)
+    const headerTextW = labelBlock.width
     let maxAttrW = 0
     const commentColumn = erCommentColumnWidth(entity.attributes)
     for (const attr of entity.attributes) {
-      const attrText = `${attr.type}  ${attr.name}${attr.keys.length > 0 ? '  ' + attr.keys.join(',') : ''}`
-      const w = estimateMonoTextWidth(attrText, ER.attrFontSize) + commentColumn
+      const blocks = erAttributeBlocks(attr)
+      const keySlot = attr.keys.length ? blocks.keys.width + 14 : 0
+      const w = blocks.type.width + blocks.name.width + keySlot + ER_COMMENT_GAP + commentColumn
       if (w > maxAttrW) maxAttrW = w
     }
-    const width = Math.max(ER.minWidth, headerTextW + style.nodePaddingX * 2, maxAttrW + style.nodePaddingX * 2)
-    const headerHeight = Math.max(ER.headerHeight, measureMultilineText(label, style.nodeLabelFontSize, style.nodeLabelFontWeight).height + style.nodePaddingY * 2)
+    const width = Math.max(ER.minWidth, headerTextW + style.nodePaddingX * 2, maxAttrW + Math.max(8, style.nodePaddingX) * 2)
+    const headerHeight = Math.max(ER.headerHeight, labelBlock.height + style.nodePaddingY * 2)
     const height = headerHeight + Math.max(entity.attributes.length, 1) * ER.rowHeight
     entitySizes.set(entity.id, { width, height, headerHeight })
   }
@@ -172,8 +206,8 @@ function buildErElkGraph(
     if (!entityIds.has(rel.entity1) || !entityIds.has(rel.entity2)) continue
     const edge: ElkExtendedEdge = { id: `e${i}`, sources: [rel.entity1], targets: [rel.entity2] }
     if (rel.label) {
-      const label = applyTextTransform(rel.label, style.edgeTextTransform)
-      const metrics = measureMultilineText(label, style.edgeLabelFontSize, style.edgeLabelFontWeight)
+      const metrics = erRelationshipBlock(rel, style, styleFace)
+      const label = metrics.text
       edge.labels = [{ text: label, width: metrics.width + 8, height: metrics.height + 6 }]
     }
     elkGraph.edges!.push(edge)
@@ -186,7 +220,8 @@ function buildErElkGraph(
 function extractErLayout(
   result: ElkNode,
   diagram: ErDiagram,
-  entitySizes: EntitySizeMap
+  entitySizes: EntitySizeMap,
+  style: ResolvedRenderStyle,
 ): PositionedErDiagram {
   const entityLookup = new Map<string, ErEntity>()
   for (const entity of diagram.entities) entityLookup.set(entity.id, entity)
@@ -217,7 +252,7 @@ function extractErLayout(
   }
 
   const movedByScopedDirection = applyErGroupDirections(diagram, positionedEntities)
-  const positionedGroups = deriveErGroups(diagram, positionedEntities)
+  const positionedGroups = deriveErGroups(diagram, positionedEntities, style)
   const boxes = new Map<string, { x: number; y: number; width: number; height: number }>()
   positionedEntities.forEach(entity => boxes.set(entity.id, entity))
   positionedGroups.forEach(group => boxes.set(group.id, group))
@@ -335,7 +370,7 @@ function applyErGroupDirections(diagram: ErDiagram, entities: PositionedErEntity
   return moved
 }
 
-function deriveErGroups(diagram: ErDiagram, entities: PositionedErEntity[]): PositionedErDiagram['groups'] {
+function deriveErGroups(diagram: ErDiagram, entities: PositionedErEntity[], style: ResolvedRenderStyle): PositionedErDiagram['groups'] {
   const positioned: PositionedErDiagram['groups'] = []
   for (const group of [...diagram.groups].reverse()) {
     const members = [
@@ -343,35 +378,49 @@ function deriveErGroups(diagram: ErDiagram, entities: PositionedErEntity[]): Pos
       ...positioned.filter(child => child.parentId === group.id),
     ]
     const pad = 20
-    const headerHeight = 28
+    const labelBlock = erGroupBlock(group.label, style)
+    const headerHeight = style.groupHeaderFontSize + 16 + labelBlock.height - labelBlock.lineHeight
     const minX = members.length ? Math.min(...members.map(member => member.x)) - pad : ER.padding
     const minY = members.length ? Math.min(...members.map(member => member.y)) - pad - headerHeight : ER.padding
-    const maxX = members.length ? Math.max(...members.map(member => member.x + member.width)) + pad : minX + 140
+    const maxX = Math.max(minX + labelBlock.width + 20, members.length ? Math.max(...members.map(member => member.x + member.width)) + pad : minX + 140)
     const maxY = members.length ? Math.max(...members.map(member => member.y + member.height)) + pad : minY + 90
     positioned.unshift({
-      id: group.id, label: group.label, ...(group.parentId ? { parentId: group.parentId } : {}),
+      id: group.id, label: group.label, labelBlock, ...(group.parentId ? { parentId: group.parentId } : {}),
       x: minX, y: minY, width: maxX - minX, height: maxY - minY, headerHeight,
     })
   }
   return positioned
 }
 
-function layoutErGroupsOnly(diagram: ErDiagram): PositionedErDiagram {
+function layoutErGroupsOnly(diagram: ErDiagram, style: ResolvedRenderStyle): PositionedErDiagram {
   const horizontal = (diagram.direction ?? 'LR') === 'LR' || (diagram.direction ?? 'LR') === 'RL'
   const reverse = diagram.direction === 'RL' || diagram.direction === 'BT'
   const topLevel = diagram.groups.filter(group => !group.parentId)
   const ordered = reverse ? [...topLevel].reverse() : topLevel
   const groups: PositionedErDiagram['groups'] = []
-  const place = (group: ErDiagram['groups'][number], index: number, parent?: PositionedErDiagram['groups'][number]): void => {
-    const siblings = diagram.groups.filter(candidate => candidate.parentId === group.parentId)
-    const siblingIndex = siblings.findIndex(candidate => candidate.id === group.id)
-    const x = parent ? parent.x + 20 + siblingIndex * 150 : ER.padding + (horizontal ? index * 200 : 0)
-    const y = parent ? parent.y + 36 + siblingIndex * 80 : ER.padding + (horizontal ? 0 : index * 130)
-    const positioned = { id: group.id, label: group.label, ...(group.parentId ? { parentId: group.parentId } : {}), x, y, width: 160, height: 100, headerHeight: 28 }
+  const place = (group: ErDiagram['groups'][number], x: number, y: number): PositionedErDiagram['groups'][number] => {
+    const labelBlock = erGroupBlock(group.label, style)
+    const headerHeight = style.groupHeaderFontSize + 16 + labelBlock.height - labelBlock.lineHeight
+    const positioned = { id: group.id, label: group.label, labelBlock, ...(group.parentId ? { parentId: group.parentId } : {}), x, y, width: Math.max(160, labelBlock.width + 20), height: Math.max(100, headerHeight + 20), headerHeight }
     groups.push(positioned)
-    for (const [childIndex, child] of diagram.groups.filter(candidate => candidate.parentId === group.id).entries()) place(child, childIndex, positioned)
+    let cursorX = x + 20
+    let cursorY = y + headerHeight + 8
+    for (const child of diagram.groups.filter(candidate => candidate.parentId === group.id)) {
+      const placed = place(child, cursorX, cursorY)
+      positioned.width = Math.max(positioned.width, placed.x + placed.width - x + 20)
+      positioned.height = Math.max(positioned.height, placed.y + placed.height - y + 20)
+      if (horizontal) cursorX += placed.width + 20
+      else cursorY += placed.height + 20
+    }
+    return positioned
   }
-  ordered.forEach((group, index) => place(group, index))
+  let cursorX = ER.padding
+  let cursorY = ER.padding
+  for (const group of ordered) {
+    const placed = place(group, cursorX, cursorY)
+    if (horizontal) cursorX += placed.width + 40
+    else cursorY += placed.height + 30
+  }
   const boxes = new Map(groups.map(group => [group.id, group]))
   const relationships: PositionedErRelationship[] = diagram.relationships.map(relation => {
     const from = boxes.get(relation.entity1), to = boxes.get(relation.entity2)
@@ -404,13 +453,13 @@ export function layoutErDiagram(
   styleFace?: Readonly<InternalStyleFace>,
 ): PositionedErDiagram {
   if (diagram.entities.length === 0) {
-    if (diagram.groups.length > 0) return withErTitle(layoutErGroupsOnly(diagram), diagram.title, resolveRenderStyle(options, ER_STYLE_DEFAULTS, styleFace))
+    if (diagram.groups.length > 0) return withErTitle(prepareErText(layoutErGroupsOnly(diagram, resolveRenderStyle(options, ER_STYLE_DEFAULTS, styleFace)), resolveRenderStyle(options, ER_STYLE_DEFAULTS, styleFace), styleFace), diagram.title, resolveRenderStyle(options, ER_STYLE_DEFAULTS, styleFace))
     return { width: 0, height: 0, accessibilityTitle: diagram.accessibilityTitle, accessibilityDescription: diagram.accessibilityDescription, entities: [], relationships: [], groups: [] }
   }
 
   const { elkGraph, entitySizes } = buildErElkGraph(diagram, options, styleFace)
   const result = elkLayoutSync(elkGraph)
-  return withErTitle(extractErLayout(result, diagram, entitySizes), diagram.title, resolveRenderStyle(options, ER_STYLE_DEFAULTS, styleFace))
+  return withErTitle(prepareErText(extractErLayout(result, diagram, entitySizes, resolveRenderStyle(options, ER_STYLE_DEFAULTS, styleFace)), resolveRenderStyle(options, ER_STYLE_DEFAULTS, styleFace), styleFace), diagram.title, resolveRenderStyle(options, ER_STYLE_DEFAULTS, styleFace))
 }
 
 /** The diagram's title takes a band above everything the layout placed. */

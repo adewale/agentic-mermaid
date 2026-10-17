@@ -1,8 +1,12 @@
+import { LINE_HEIGHT_RATIO } from '../text-metrics.ts'
+import type { RenderOptions } from '../types.ts'
+import { resolveRenderStyle, FLOWCHART_STYLE_DEFAULTS } from '../styles.ts'
+import type { InternalStyleFace } from '../scene/style-registry.ts'
 import type {
   GitGraphDiagram, PositionedGitGraphBranch, PositionedGitGraphCommit,
   PositionedGitGraphDiagram, PositionedGitGraphEdge,
 } from './types.ts'
-import { measureTextWidth } from '../text-metrics.ts'
+import { preparePixelText, type PixelTextBlock, type PixelTextOptions } from '../shared/prepared-text.ts'
 import { compareCodePointStrings } from '../shared/deterministic-order.ts'
 import { rotateBoxBounds } from '../shared/transformed-bounds.ts'
 
@@ -10,8 +14,26 @@ import { rotateBoxBounds } from '../shared/transformed-bounds.ts'
  * renderer so measured glyphs cannot touch or escape the rotated outline. */
 export const GITGRAPH_COMMIT_LABEL_PADDING_X = 12
 
+export function gitGraphText(text: string, fontSize: number, fontWeight: number, options: Partial<PixelTextOptions> = {}): PixelTextBlock {
+  return preparePixelText(text, { display: 'literal', fontSize, fontWeight, ...options })
+}
+
+export function gitTagOffset(tags: readonly PixelTextBlock[], index: number): number {
+  return -6 - tags[index]!.fontSize - tags.slice(0, index).reduce((sum, block) => sum + block.height + 5, 0) - (tags[index]!.height - tags[index]!.lineHeight) / 2
+}
+
+export function gitCommitLabelY(block: PixelTextBlock, direction: GitGraphDiagram['direction']): number {
+  const extra = block.height - block.lineHeight
+  // Preserve the established single-line baseline when theme font sizes
+  // change; the occupied bounds, rather than an extra baseline shift, grow
+  // the canvas. Additional authored lines stack clear of the commit mark.
+  return direction === 'LR' ? 24 + extra : 4 + extra / 2
+}
+
 export interface GitGraphLayoutOptions {
   padding?: number
+  renderOptions?: RenderOptions
+  styleFace?: Readonly<InternalStyleFace>
   showBranches?: boolean
   showCommitLabel?: boolean
   rotateCommitLabel?: boolean
@@ -26,27 +48,40 @@ export function layoutGitGraph(diagram: GitGraphDiagram, options: GitGraphLayout
   const showCommitLabel = options.showCommitLabel !== false
   const rotateCommitLabel = options.rotateCommitLabel !== false
   const commitLabelFontSize = finitePositive(options.commitLabelFontSize, 11)
-  const titleHeight = diagram.title ? 40 : 0
-  const orderedBranches = [...diagram.branches].sort((a, b) => a.order - b.order || a.sequence - b.sequence || compareCodePointStrings(a.name, b.name))
+  const style = resolveRenderStyle(options.renderOptions ?? {}, { ...FLOWCHART_STYLE_DEFAULTS, nodeLabelFontSize: commitLabelFontSize, nodeLabelFontWeight: 500, groupHeaderFontSize: 12, groupHeaderFontWeight: 600 }, options.styleFace)
+  const tagStyle = resolveRenderStyle(options.renderOptions ?? {}, { ...FLOWCHART_STYLE_DEFAULTS, nodeLabelFontSize: 10, nodeLabelFontWeight: 600 }, options.styleFace)
+  const titleStyle = resolveRenderStyle(options.renderOptions ?? {}, { ...FLOWCHART_STYLE_DEFAULTS, groupHeaderFontSize: 16, groupHeaderFontWeight: 600 }, options.styleFace)
+  const prepareCommit = (commit: GitGraphDiagram['commits'][number]) => ({ ...commit,
+    labelBlock: gitGraphText(commit.message || commit.id, style.nodeLabelFontSize, style.nodeLabelFontWeight, { transform: style.nodeTextTransform, letterSpacing: style.nodeLetterSpacing }),
+    tagBlocks: commit.tags.map(tag => gitGraphText(tag, tagStyle.nodeLabelFontSize, tagStyle.nodeLabelFontWeight, { transform: tagStyle.nodeTextTransform, letterSpacing: tagStyle.nodeLetterSpacing })),
+  })
+  const preparedCommits = diagram.commits.map(prepareCommit)
+  const titleBlock = diagram.title ? gitGraphText(diagram.title, titleStyle.groupHeaderFontSize, titleStyle.groupHeaderFontWeight, { transform: titleStyle.groupTextTransform, letterSpacing: titleStyle.groupLetterSpacing }) : undefined
+  const titleHeight = titleBlock ? 40 - 16 * LINE_HEIGHT_RATIO + titleBlock.height : 0
+  const orderedBranches = diagram.branches.map(branch => ({ ...branch, labelBlock: gitGraphText(branch.name, style.groupHeaderFontSize, style.groupHeaderFontWeight, { transform: style.groupTextTransform, letterSpacing: style.groupLetterSpacing }) })).sort((a, b) => a.order - b.order || a.sequence - b.sequence || compareCodePointStrings(a.name, b.name))
   const laneByBranch = new Map(orderedBranches.map((branch, lane) => [branch.name, lane]))
-  const commitById = new Map(diagram.commits.map(commit => [commit.id, commit]))
+  const commitById = new Map(preparedCommits.map(commit => [commit.id, commit]))
   const depth = new Map<string, number>()
-  for (const commit of diagram.commits) {
+  for (const commit of preparedCommits) {
     const level = commit.parents.length === 0 ? 0 : Math.max(...commit.parents.map(parent => depth.get(parent) ?? 0)) + 1
     depth.set(commit.id, level)
   }
   const axisIndex = (commit: typeof diagram.commits[number]): number => options.parallelCommits ? depth.get(commit.id)! : commit.sequence
-  const maxAxis = Math.max(0, ...diagram.commits.map(axisIndex))
-  const laneGap = 82
+  const maxAxis = Math.max(0, ...preparedCommits.map(axisIndex))
+  const laneGap = Math.max(82, ...orderedBranches.map(branch => branch.labelBlock.height + 20), ...preparedCommits.map(commit => {
+    const bounds = relativeCommitTextBounds(commit, diagram.direction, rotateCommitLabel, commitLabelFontSize, showCommitLabel)
+    return bounds.maxY - bounds.minY + 20
+  }))
+  const verticalLaneGap = Math.max(150, ...orderedBranches.map(branch => branch.labelBlock.width + 20))
   const commitGap = 94
-  const branchLabelSpace = showBranches ? Math.max(80, ...orderedBranches.map(branch => measureTextWidth(branch.name, 12, 600) + 24)) : 20
+  const branchLabelSpace = showBranches ? Math.max(80, ...orderedBranches.map(branch => branch.labelBlock.width + 24)) : 20
 
   // Pack chronological slots by the actual label/tag extents. A fixed 94px
   // stride made adjacent 45° messages overlap in Gitflow, backport, transit,
   // and CI/CD histories. This keeps topology order fixed while adding only the
   // space required by authored text.
   const axisExtents = new Map<number, TextBounds>()
-  for (const commit of diagram.commits) {
+  for (const commit of preparedCommits) {
     const axis = axisIndex(commit)
     const bounds = relativeCommitTextBounds(commit, diagram.direction, rotateCommitLabel, commitLabelFontSize, showCommitLabel)
     const previous = axisExtents.get(axis)
@@ -56,19 +91,23 @@ export function layoutGitGraph(diagram: GitGraphDiagram, options: GitGraphLayout
     } : bounds)
   }
   const axisPositions = new Map<number, number>()
-  for (let axis = 0; axis <= maxAxis; axis++) {
+  const axisOrder = Array.from({ length: maxAxis + 1 }, (_, index) => diagram.direction === 'BT' ? maxAxis - index : index)
+  for (const [index, axis] of axisOrder.entries()) {
     const current = axisExtents.get(axis) ?? { minX: -10, minY: -10, maxX: 10, maxY: 10 }
-    if (axis === 0) {
-      axisPositions.set(axis, Math.max(0, -current.minX))
+    const low = diagram.direction === 'LR' ? current.minX : current.minY
+    if (index === 0) {
+      axisPositions.set(axis, diagram.direction === 'LR' ? Math.max(0, -low) : 0)
       continue
     }
-    const previous = axisExtents.get(axis - 1) ?? { minX: -10, minY: -10, maxX: 10, maxY: 10 }
-    const previousPosition = axisPositions.get(axis - 1)!
-    axisPositions.set(axis, Math.max(previousPosition + commitGap, previousPosition + previous.maxX - current.minX + 18))
+    const previousAxis = axisOrder[index - 1]!
+    const previous = axisExtents.get(previousAxis) ?? { minX: -10, minY: -10, maxX: 10, maxY: 10 }
+    const previousPosition = axisPositions.get(previousAxis)!
+    const high = diagram.direction === 'LR' ? previous.maxX : previous.maxY
+    axisPositions.set(axis, Math.max(previousPosition + commitGap, previousPosition + high - low + 18))
   }
   const commitStart = padding + branchLabelSpace + 20
   const verticalStart = padding + titleHeight + 38
-  const commits: PositionedGitGraphCommit[] = diagram.commits.map(commit => {
+  const commits: PositionedGitGraphCommit[] = preparedCommits.map(commit => {
     const lane = laneByBranch.get(commit.branch) ?? 0
     const axis = axisIndex(commit)
     if (diagram.direction === 'LR') {
@@ -77,8 +116,8 @@ export function layoutGitGraph(diagram: GitGraphDiagram, options: GitGraphLayout
     return {
       ...commit,
       lane,
-      x: padding + branchLabelSpace + lane * 150,
-      y: verticalStart + (diagram.direction === 'BT' ? maxAxis - axis : axis) * commitGap,
+      x: padding + branchLabelSpace + lane * verticalLaneGap,
+      y: verticalStart + axisPositions.get(axis)!,
     }
   })
   const positionedById = new Map(commits.map(commit => [commit.id, commit]))
@@ -103,28 +142,28 @@ export function layoutGitGraph(diagram: GitGraphDiagram, options: GitGraphLayout
       const y = padding + titleHeight + lane * laneGap
       return { ...branch, lane, x1: commitStart - 14, y1: y, x2: Math.max(commitStart, ...own.map(commit => commit.x)), y2: y }
     }
-    const x = padding + branchLabelSpace + lane * 150
+    const x = padding + branchLabelSpace + lane * verticalLaneGap
     return { ...branch, lane, x1: x, y1: padding + titleHeight - 14, x2: x, y2: Math.max(verticalStart, ...own.map(commit => commit.y)) }
   })
   let width: number
   let height: number
   if (diagram.direction === 'LR') {
-    width = Math.max(padding * 2 + branchLabelSpace + 80, ...commits.map(commit => commit.x + (showCommitLabel ? Math.max(26, measureTextWidth(commit.message || commit.id, commitLabelFontSize, 500) * 0.75) : 18))) + padding
-    height = padding * 2 + titleHeight + Math.max(1, orderedBranches.length) * laneGap + (showCommitLabel ? commitLabelFontSize * 2 + 26 : 0)
+    width = Math.max(padding * 2 + branchLabelSpace + 80, ...commits.map(commit => commit.x + (showCommitLabel ? Math.max(26, commit.labelBlock!.width * 0.75) : 18))) + padding
+    height = padding * 2 + titleHeight + Math.max(0, orderedBranches.length - 1) * laneGap + 82 + (showCommitLabel ? commitLabelFontSize * 2 + 26 : 0)
   } else {
-    width = padding * 2 + branchLabelSpace + Math.max(1, orderedBranches.length) * 150
+    width = padding * 2 + branchLabelSpace + Math.max(1, orderedBranches.length) * verticalLaneGap
     height = Math.max(padding * 2 + titleHeight + 80, ...commits.map(commit => commit.y + (showCommitLabel ? 38 : 18))) + padding
   }
 
-  if (diagram.title) width = Math.max(width, measureTextWidth(diagram.title, 16, 600) + padding * 2)
+  if (diagram.title) width = Math.max(width, titleBlock!.width + padding * 2)
 
   // Canvas bounds follow the text the renderer actually displays (message
   // fallback to id), including LR's 45° rotation. The old id-only estimate
   // clipped long authored messages even though their commit marks were inside.
-  const textBounds = commits.flatMap(commit => [
+  const textBounds = [...commits.flatMap(commit => [
     ...(showCommitLabel ? [commitLabelBounds(commit, diagram.direction, rotateCommitLabel, commitLabelFontSize)] : []),
-    ...commit.tags.map((tag, index) => measuredTextBounds(tag, commit.x + 14, commit.y - 16 - index * 17, 10, 600, 'start', 0)),
-  ])
+    ...commit.tags.map((tag, index) => measuredTextBounds(commit.tagBlocks![index]!, commit.x + 14, commit.y + gitTagOffset(commit.tagBlocks!, index), 10, 600, 'start', 0)),
+  ]), ...(showBranches ? branches.map(branch => measuredTextBounds(branch.labelBlock!, diagram.direction === 'LR' ? branch.x1 - 10 : branch.x1, diagram.direction === 'LR' ? branch.y1 : branch.y1 - 16, 12, 600, diagram.direction === 'LR' ? 'end' : 'middle', 0)) : [])]
   if (textBounds.length > 0) {
     const minX = Math.min(...textBounds.map(bounds => bounds.minX))
     const minY = Math.min(...textBounds.map(bounds => bounds.minY))
@@ -153,7 +192,7 @@ export function layoutGitGraph(diagram: GitGraphDiagram, options: GitGraphLayout
   }
   for (const edge of edges) for (const point of edge.points) { point.x = round3(point.x); point.y = round3(point.y) }
   return {
-    width: round3(width), height: round3(height), direction: diagram.direction, ...(diagram.title ? { title: diagram.title } : {}), commits, branches, edges,
+    width: round3(width), height: round3(height), direction: diagram.direction, ...(diagram.title ? { title: diagram.title, titleBlock } : {}), commits, branches, edges,
     accessibilityTitle: diagram.accessibilityTitle,
     accessibilityDescription: diagram.accessibilityDescription,
     showBranches, showCommitLabel, rotateCommitLabel,
@@ -163,7 +202,7 @@ export function layoutGitGraph(diagram: GitGraphDiagram, options: GitGraphLayout
 interface TextBounds { minX: number; minY: number; maxX: number; maxY: number }
 
 function relativeCommitTextBounds(
-  commit: GitGraphDiagram['commits'][number],
+  commit: GitGraphDiagram['commits'][number] & { labelBlock?: PixelTextBlock; tagBlocks?: PixelTextBlock[] },
   direction: GitGraphDiagram['direction'],
   rotate: boolean,
   fontSize: number,
@@ -171,11 +210,12 @@ function relativeCommitTextBounds(
 ): TextBounds {
   const bounds: TextBounds[] = [{ minX: -10, minY: -10, maxX: 10, maxY: 10 }]
   if (showCommitLabel) {
-    const label = commit.message || commit.id
-    bounds.push(commitLabelBackgroundBounds(label, direction === 'LR' ? 0 : 14, direction === 'LR' ? 24 : 4, fontSize, direction === 'LR' ? 'middle' : 'start', direction === 'LR' && rotate ? 45 : 0))
+    const label = commit.labelBlock ?? gitGraphText(commit.message || commit.id, fontSize, 500)
+    bounds.push(commitLabelBackgroundBounds(label, direction === 'LR' ? 0 : 14, gitCommitLabelY(label, direction), fontSize, direction === 'LR' ? 'middle' : 'start', direction === 'LR' && rotate ? 45 : 0))
   }
+  const tagBlocks = commit.tagBlocks ?? commit.tags.map(tag => gitGraphText(tag, 10, 600))
   for (const [index, tag] of commit.tags.entries()) {
-    const tagBounds = measuredTextBounds(tag, 14, -16 - index * 17, 10, 600, 'start', 0)
+    const tagBounds = measuredTextBounds(tagBlocks[index]!, 14, gitTagOffset(tagBlocks, index), 10, 600, 'start', 0)
     bounds.push({ ...tagBounds, minX: tagBounds.minX - 4, maxX: tagBounds.maxX + 6, minY: tagBounds.minY - 2, maxY: tagBounds.maxY + 2 })
   }
   return {
@@ -190,24 +230,27 @@ function commitLabelBounds(
   rotate: boolean,
   fontSize: number,
 ): TextBounds {
-  const label = commit.message || commit.id
+  const label = commit.labelBlock ?? gitGraphText(commit.message || commit.id, fontSize, 500)
   return direction === 'LR'
-    ? commitLabelBackgroundBounds(label, commit.x, commit.y + 24, fontSize, 'middle', rotate ? 45 : 0)
-    : commitLabelBackgroundBounds(label, commit.x + 14, commit.y + 4, fontSize, 'start', 0)
+    ? commitLabelBackgroundBounds(label, commit.x, commit.y + gitCommitLabelY(label, direction), fontSize, 'middle', rotate ? 45 : 0)
+    : commitLabelBackgroundBounds(label, commit.x + 14, commit.y + gitCommitLabelY(label, direction), fontSize, 'start', 0)
 }
 
 function commitLabelBackgroundBounds(
-  text: string,
+  text: string | PixelTextBlock,
   x: number,
   baselineY: number,
   fontSize: number,
-  anchor: 'start' | 'middle',
+  anchor: 'start' | 'middle' | 'end',
   angle: number,
 ): TextBounds {
-  const width = Math.max(18, measureTextWidth(text, fontSize, 500) + GITGRAPH_COMMIT_LABEL_PADDING_X * 2)
+  const block = typeof text === 'string' ? gitGraphText(text, fontSize, 500) : text
+  fontSize = block.fontSize
+  const extraHeight = block.height - block.lineHeight
+  const width = Math.max(18, block.width + GITGRAPH_COMMIT_LABEL_PADDING_X * 2)
   const left = anchor === 'middle' ? -width / 2 : -GITGRAPH_COMMIT_LABEL_PADDING_X
   const bounds = rotateBoxBounds(
-    { x0: x + left, y0: baselineY - fontSize, x1: x + left + width, y1: baselineY + 6 },
+    { x0: x + left, y0: baselineY - fontSize - extraHeight / 2, x1: x + left + width, y1: baselineY + 6 + extraHeight / 2 },
     { x, y: baselineY },
     angle,
   )
@@ -215,18 +258,21 @@ function commitLabelBackgroundBounds(
 }
 
 function measuredTextBounds(
-  text: string,
+  text: string | PixelTextBlock,
   x: number,
   baselineY: number,
   fontSize: number,
   fontWeight: number,
-  anchor: 'start' | 'middle',
+  anchor: 'start' | 'middle' | 'end',
   angle: number,
 ): TextBounds {
-  const width = measureTextWidth(text, fontSize, fontWeight)
-  const left = anchor === 'middle' ? -width / 2 : 0
-  const top = -fontSize
-  const bottom = fontSize * 0.28
+  const block = typeof text === 'string' ? gitGraphText(text, fontSize, fontWeight) : text
+  fontSize = block.fontSize
+  const extraHeight = block.height - block.lineHeight
+  const width = block.width
+  const left = anchor === 'middle' ? -width / 2 : anchor === 'end' ? -width : 0
+  const top = -fontSize - extraHeight / 2
+  const bottom = fontSize * 0.28 + extraHeight / 2
   const bounds = rotateBoxBounds(
     { x0: x + left, y0: baselineY + top, x1: x + left + width, y1: baselineY + bottom },
     { x, y: baselineY },

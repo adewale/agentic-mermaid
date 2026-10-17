@@ -199,6 +199,7 @@ export interface GanttTick {
   time: EpochMs
   x: number
   label: string
+  labelBlock?: import('../shared/prepared-text.ts').PixelTextBlock
 }
 
 export interface GanttBarLayout {
@@ -224,6 +225,7 @@ export interface GanttBarLayout {
    *  (standard mode). Text-transform is ALREADY applied — renderers draw
    *  these verbatim. Absent = single line, current rendering. */
   labelLines?: string[]
+  labelBlock?: import('../shared/prepared-text.ts').PixelTextBlock
 }
 
 export interface GanttSectionBand {
@@ -234,6 +236,7 @@ export interface GanttSectionBand {
   rowEnd: number
   /** Wrapped section-header lines (same contract as GanttBarLayout.labelLines). */
   labelLines?: string[]
+  labelBlock?: import('../shared/prepared-text.ts').PixelTextBlock
 }
 
 /** A merged run of excluded calendar days, shaded behind the bars
@@ -253,6 +256,7 @@ export interface GanttVertLayout {
   label: string
   x: number
   time: EpochMs
+  labelBlock?: import('../shared/prepared-text.ts').PixelTextBlock
 }
 
 export interface GanttRowLayout {
@@ -288,6 +292,8 @@ export interface GanttDependencyLayout {
 
 export interface GanttLayoutResult extends PositionedDiagram {
   title?: string
+  titleBlock?: import('../shared/prepared-text.ts').PixelTextBlock
+  titleY?: number
   width: number
   height: number
   plot: { x: number; y: number; w: number; h: number }

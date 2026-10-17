@@ -24,6 +24,16 @@ function render(text: string, interactive: boolean = false) {
 }
 
 describe('renderXYChartSvg – structure', () => {
+  it.each(['crisp', 'jittered'] as const)('capitalizes wrapped titles once with %s strokes', stroke => {
+    for (const horizontal of [false, true]) {
+      const source = `---\nconfig:\n  xyChart:\n    width: 200\n    height: 500\n---\nxychart${horizontal ? ' horizontal' : ''}\ntitle antidisestablishmentarianism\nx-axis [a, b]\nbar [1, 2]`
+      const svg = renderMermaidSVG(source, { style: { stroke, roles: { group: { textTransform: 'capitalize' } } } })
+      const title = svg.match(/<text\b[^>]*class="xychart-title"[^>]*>([\s\S]*?)<\/text>/)?.[1]
+      expect(title).toContain('<tspan')
+      expect(title!.replace(/<[^>]+>/g, '').replace(/-/g, '')).toBe('Antidisestablishmentarianism')
+    }
+  })
+
   it('emits semantic grid, axis, tick, bar, and line classes', () => {
     const svg = render(`xychart
       x-axis [Q1, Q2, Q3]
@@ -137,7 +147,7 @@ xychart
     expect(svg).toContain('class="xychart-axis-line xychart-y-axis-line" stroke-width="4"')
     expect(svg).toContain('dominant-baseline="middle"')
     expect(svg).toContain('font-size="13" font-weight="400"')
-    expect(svg).toMatch(/font-size="17" font-weight="400" dy="0.35em" class="xychart-axis-title xychart-y-axis-title"[^>]*>Users<\/text>/)
+    expect(svg).toMatch(/font-size="17" font-weight="400" class="xychart-axis-title xychart-y-axis-title"[^>]*>Users<\/text>/)
   })
 
   it('adapts text contrast to backgroundColor and carries the authored background and series palette into PNG', () => {

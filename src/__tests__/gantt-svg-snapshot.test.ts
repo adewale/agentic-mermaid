@@ -169,7 +169,7 @@ describe('renderMermaidSVG — gantt', () => {
 
   it('renders topAxis labels above and below the plot', () => {
     const svg = renderMermaidSVG('gantt\n  dateFormat YYYY-MM-DD\n  topAxis\n  A :a, 2024-01-01, 14d')
-    const labels = [...svg.matchAll(/class="gantt-axis-label"[^>]*y="(\d+(?:\.\d+)?)"/g)].map(m => Number(m[1]))
+    const labels = [...svg.matchAll(/<text\b([^>]*class="gantt-axis-label"[^>]*)>/g)].map(m => Number(m[1]!.match(/(?:^|\s)y="([\d.]+)"/)![1]))
     const plotTop = Math.min(...labels)
     const plotBottom = Math.max(...labels)
     expect(plotTop).toBeLessThan(60)

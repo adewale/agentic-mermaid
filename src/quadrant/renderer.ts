@@ -2,9 +2,9 @@ import type { PositionedQuadrantChart, PositionedQuadrantPoint } from './types.t
 import type { RenderContext } from '../types.ts'
 import type { DiagramColors } from '../theme.ts'
 import { svgOpenTag, buildStyleBlock, buildShadowDefs } from '../theme.ts'
-import { renderMultilineText, renderDisplayLine, escapeXml } from '../multiline-utils.ts'
+import { renderMultilineText, escapeXml } from '../multiline-utils.ts'
 import { quadrantStyleDefaults } from './layout.ts'
-import { applyTextTransform, resolveRenderStyle } from '../styles.ts'
+import { resolveRenderStyle } from '../styles.ts'
 import type { ResolvedRenderStyle } from '../styles.ts'
 import type { SceneDoc, SceneNode } from '../scene/ir.ts'
 import * as marks from '../scene/marks.ts'
@@ -168,7 +168,7 @@ export function lowerQuadrantScene(
   // Quadrant labels.
   for (const region of chart.regions) {
     if (!region.label) continue
-    const label = applyTextTransform(region.label, style.groupTextTransform)
+    const label = region.labelBlock?.text ?? region.label
     parts.push(marks.text(
       {
         id: `quadrant-label:${region.number}`,
@@ -177,12 +177,13 @@ export function lowerQuadrantScene(
         x: region.labelX,
         y: region.labelY,
         fontSize: style.groupHeaderFontSize,
+        block: region.labelBlock,
         anchor: 'middle',
         paint: { fill: style.groupTextColor ?? 'var(--_text-sec)' },
         channels: { category: region.label },
       },
       renderMultilineText(
-        label,
+        region.labelBlock ?? label,
         region.labelX,
         region.labelY,
         style.groupHeaderFontSize,
@@ -242,11 +243,12 @@ export function lowerQuadrantScene(
           x: point.labelX,
           y: point.labelY,
           fontSize: style.nodeLabelFontSize,
+          block: point.labelBlock,
           anchor: point.labelAnchor,
           paint: { fill: style.nodeTextColor ?? 'var(--_text)', stroke: halo, strokeWidth: String(POINT_LABEL_HALO_WIDTH), strokeLinejoin: 'round', paintOrder: 'stroke' },
         },
         renderMultilineText(
-          point.label,
+          point.labelBlock ?? point.label,
           point.labelX,
           point.labelY,
           style.nodeLabelFontSize,
@@ -274,36 +276,35 @@ export function lowerQuadrantScene(
 
   // Axis labels.
   for (const axis of chart.axisLabels) {
-    const lines = axis.text.split('\n').map(line => applyTextTransform(line, style.edgeTextTransform))
+    const lines = axis.text.split('\n')
     const label = lines.join('\n')
     // y-axis labels sit in the left gutter and are rotated upright.
     const isYAxis = axis.x < plot.x
     const rotation = isYAxis ? { kind: 'rotate' as const, angle: -90, cx: axis.x, cy: axis.y } : undefined
     const transform = rotation ? ` transform="rotate(${rotation.angle} ${rotation.cx} ${rotation.cy})"` : ''
-    const textMarkup = lines.length === 1
-      ? renderDisplayLine(label)
-      : lines.map((line, index) => `<tspan x="${axis.x}" dy="${index === 0 ? 0 : '1.1em'}">${renderDisplayLine(line)}</tspan>`).join('')
+    const lineHeight = axis.block?.lineHeight ?? axis.fontSize * 1.3
+    const labelY = axis.y + (lines.length - 1) * lineHeight / 2 - axis.fontSize * 0.35
     parts.push(marks.text(
       {
         id: `axis:${axis.text}`,
         role: 'axis',
         text: label,
         x: axis.x,
-        y: axis.y,
+        y: labelY,
         fontSize: axis.fontSize,
+        block: axis.block,
         anchor: axis.anchor,
         paint: { fill: style.edgeTextColor ?? 'var(--_text-muted)' },
         transform: rotation,
       },
-      `<text class="quadrant-axis-label" x="${axis.x}" y="${axis.y}" ` +
-        `text-anchor="${axis.anchor}" font-size="${axis.fontSize}" font-weight="${style.edgeLabelFontWeight}"${letterAttr(style.edgeLetterSpacing)}${transform}>` +
-        `${textMarkup}</text>`,
+      renderMultilineText(axis.block ?? label, axis.x, labelY, axis.fontSize,
+        `class="quadrant-axis-label" text-anchor="${axis.anchor}" font-size="${axis.fontSize}" font-weight="${style.edgeLabelFontWeight}"${letterAttr(style.edgeLetterSpacing)}${transform}`),
     ))
   }
 
   // Title.
   if (chart.title) {
-    const title = applyTextTransform(chart.title.text, style.groupTextTransform)
+    const title = chart.title.text
     parts.push(marks.text(
       {
         id: 'title',
@@ -312,11 +313,12 @@ export function lowerQuadrantScene(
         x: chart.title.x,
         y: chart.title.y,
         fontSize: chart.title.fontSize,
+        block: chart.title.block,
         anchor: 'middle',
         paint: { fill: style.groupTextColor ?? style.nodeTextColor ?? 'var(--_text)' },
       },
       renderMultilineText(
-        title,
+        chart.title.block ?? title,
         chart.title.x,
         chart.title.y,
         chart.title.fontSize,

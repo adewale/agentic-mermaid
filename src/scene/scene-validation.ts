@@ -679,7 +679,7 @@ function validateNode(value: unknown, path: string, state: ValidationState, dept
     const base = ['kind', 'id', 'role', 'identity', 'accessibility', 'channels', 'transform']
     const fields: Record<string, readonly string[]> = {
       shape: [...base, 'geometry', 'paint'],
-      text: [...base, 'text', 'x', 'y', 'fontSize', 'anchor', 'paint'],
+      text: [...base, 'text', 'x', 'y', 'fontSize', 'anchor', 'paint', 'fontWeight', 'letterSpacing', 'display', 'textLayout'],
       group: [...base, 'open', 'close', 'children', 'join'],
       'document': [...base, 'element', 'text', 'domId', 'markerResources'],
       connector: [
@@ -753,6 +753,19 @@ function validateNode(value: unknown, path: string, state: ValidationState, dept
     if (state.external) consumeStringBudget(state.budget, 'textBytes', 'textExceeded', value.text, `${path}.text`, state.diagnostics, MAX_TEXT_BYTES, 'Scene text values')
     finite(value.x, `${path}.x`, state.diagnostics); finite(value.y, `${path}.y`, state.diagnostics)
     finite(value.fontSize, `${path}.fontSize`, state.diagnostics, { positive: true })
+    if (value.fontWeight !== undefined) finite(value.fontWeight, `${path}.fontWeight`, state.diagnostics, { positive: true })
+    if (value.letterSpacing !== undefined) finite(value.letterSpacing, `${path}.letterSpacing`, state.diagnostics)
+    if (value.display !== undefined && value.display !== 'literal' && value.display !== 'formatted') add(state.diagnostics, 'SCENE_DOCUMENT', `${path}.display`, 'must be literal or formatted')
+    if (value.textLayout !== undefined) {
+      if (!record(value.textLayout)) add(state.diagnostics, 'SCENE_DOCUMENT', `${path}.textLayout`, 'must be measured text geometry')
+      else {
+        if (state.external) rejectUnknownKeys(value.textLayout, ['width', 'height', 'lineHeight', 'offsetY'], `${path}.textLayout`, state.diagnostics)
+        finite(value.textLayout.width, `${path}.textLayout.width`, state.diagnostics, { nonNegative: true })
+        finite(value.textLayout.height, `${path}.textLayout.height`, state.diagnostics, { nonNegative: true })
+        finite(value.textLayout.lineHeight, `${path}.textLayout.lineHeight`, state.diagnostics, { positive: true })
+        finite(value.textLayout.offsetY, `${path}.textLayout.offsetY`, state.diagnostics)
+      }
+    }
     if (!['start', 'middle', 'end'].includes(String(value.anchor))) add(state.diagnostics, 'SCENE_DOCUMENT', `${path}.anchor`, 'must be start, middle, or end')
     validatePaint(value.paint, `${path}.paint`, state.diagnostics, state.external)
     return
@@ -998,6 +1011,11 @@ function validateNode(value: unknown, path: string, state: ValidationState, dept
       }
       if (label.clearance !== undefined) finite(label.clearance, `${path}.labels[${index}].clearance`, state.diagnostics, { nonNegative: true })
       if (label.fontSize !== undefined) finite(label.fontSize, `${path}.labels[${index}].fontSize`, state.diagnostics, { positive: true })
+      if (label.fontWeight !== undefined) finite(label.fontWeight, `${path}.labels[${index}].fontWeight`, state.diagnostics, { positive: true })
+      if (label.letterSpacing !== undefined) finite(label.letterSpacing, `${path}.labels[${index}].letterSpacing`, state.diagnostics)
+      if (label.display !== undefined && label.display !== 'literal' && label.display !== 'formatted') {
+        add(state.diagnostics, 'SCENE_DOCUMENT', `${path}.labels[${index}].display`, 'must be literal or formatted')
+      }
       if (label.textAnchor !== undefined && !['start', 'middle', 'end'].includes(String(label.textAnchor))) {
         add(state.diagnostics, 'SCENE_DOCUMENT', `${path}.labels[${index}].textAnchor`, 'must be start, middle, or end')
       }
@@ -1220,6 +1238,11 @@ function validateCanonicalExternalNode(
       if (child.indent !== 2) add(diagnostics, 'SCENE_FIDELITY', `${path}.children[${index}].indent`, 'external container children must use the canonical two-space indent')
       validateCanonicalExternalNode(child.node, `${path}.children[${index}].node`, diagnostics)
     })
+  }
+  if (node.kind === 'text' && expected.kind === 'text') {
+    for (const field of ['fontWeight', 'letterSpacing', 'display', 'textLayout'] as const) {
+      if (!structurallyEqual(node[field], expected[field])) add(diagnostics, 'SCENE_FIDELITY', `${path}.${field}`, 'must equal text geometry derived by the external Scene builder')
+    }
   }
   if (node.kind === 'connector' && expected.kind === 'connector') {
     const derivedFields = ['endpoints', 'route', 'stroke', 'hit', 'terminalProjection'] as const

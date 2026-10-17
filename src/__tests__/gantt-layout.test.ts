@@ -169,8 +169,12 @@ describe('gantt layout — axes and markers', () => {
       .map(m => ({ top: Number(m[1]), bottom: Number(m[1]) + Number(m[2]) }))
     const barsTop = Math.min(...bars.map(b => b.top))
     const barsBottom = Math.max(...bars.map(b => b.bottom))
-    const labels = [...svg.matchAll(/<text class="gantt-axis-label"[^>]* y="([\d.]+)"[^>]* font-size="([\d.]+)"[^>]*>([^<]*)</g)]
-      .map(m => ({ text: m[3]!, top: Number(m[1]) - Number(m[2]) / 2, bottom: Number(m[1]) + Number(m[2]) / 2 }))
+    const labels = [...svg.matchAll(/<text\b([^>]*class="gantt-axis-label"[^>]*)>([\s\S]*?)<\/text>/g)]
+      .map(m => {
+        const y = Number(m[1]!.match(/(?:^|\s)y="([\d.]+)"/)![1])
+        const fontSize = Number(m[1]!.match(/font-size="([\d.]+)"/)![1])
+        return { text: m[2]!.replace(/<[^>]*>/g, ''), top: y - fontSize / 2, bottom: y + fontSize / 2 }
+      })
     const side = (l: (typeof labels)[number]) => l.bottom <= barsTop ? 'above' : l.top >= barsBottom ? 'below' : `overlaps bars: ${l.text}`
 
     expect(bars).toHaveLength(3)

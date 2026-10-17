@@ -1,3 +1,4 @@
+import type { PixelTextBlock } from '../shared/prepared-text.ts'
 import type {
   PositionedJourneyActor,
   PositionedJourneyActorDot,
@@ -152,7 +153,7 @@ export function lowerJourneyScene(
   parts.push(renderScoreGuide(diagram.scoreGuide, style, arrowMarker))
 
   if (diagram.actors.length > 0) {
-    parts.push(renderActorLegend(diagram.actors, style, paints))
+    parts.push(renderActorLegend(diagram.actors, style, paints, diagram.actorLegendTitle))
   }
 
   const rawJourneyConfig = options.mermaidConfig?.journey as Record<string, unknown> | undefined
@@ -183,6 +184,7 @@ export function lowerJourneyScene(
         id: 'title',
         role: 'title',
         text: diagram.title.text,
+          block: diagram.title.block,
         x: diagram.title.x,
         y: diagram.title.y,
         fontSize: visual.titleFontSize,
@@ -190,7 +192,7 @@ export function lowerJourneyScene(
         paint: { fill: paints.titleColor },
       },
       renderMultilineText(
-        diagram.title.text,
+        diagram.title.block ?? diagram.title.text,
         diagram.title.x,
         diagram.title.y,
         visual.titleFontSize,
@@ -368,7 +370,8 @@ function renderScoreGuide(guide: PositionedJourneyScoreGuide, style: ResolvedRen
         {
           id: `score-label:${tick.score}`,
           role: 'axis',
-          text: String(tick.score),
+          text: tick.block?.text ?? String(tick.score),
+          block: tick.block,
           x: tick.labelX,
           y: tick.labelY,
           fontSize: style.edgeLabelFontSize,
@@ -377,7 +380,7 @@ function renderScoreGuide(guide: PositionedJourneyScoreGuide, style: ResolvedRen
           channels: { value: tick.score / JOURNEY_MAX_SCORE },
         },
         renderMultilineText(
-          String(tick.score),
+          tick.block ?? String(tick.score),
           tick.labelX,
           tick.labelY,
           style.edgeLabelFontSize,
@@ -415,11 +418,11 @@ function renderScoreGuide(guide: PositionedJourneyScoreGuide, style: ResolvedRen
   })
 }
 
-function renderActorLegend(actors: PositionedJourneyActor[], style: ResolvedRenderStyle, paints: JourneyPaints): SceneNode {
+function renderActorLegend(actors: PositionedJourneyActor[], style: ResolvedRenderStyle, paints: JourneyPaints, titleBlock?: PixelTextBlock): SceneNode {
   const first = actors[0]!
   const titleX = first.x - JY.legendDotRadius
   const titleY = first.y - JY.legendTitleGap
-  const title = applyTextTransform('Actors', style.groupTextTransform)
+  const title = titleBlock?.text ?? applyTextTransform('Actors', style.groupTextTransform)
   const children: Array<{ node: SceneNode; indent: number }> = [
     {
       indent: 2,
@@ -428,6 +431,7 @@ function renderActorLegend(actors: PositionedJourneyActor[], style: ResolvedRend
           id: 'actor-legend-title',
           role: 'legend',
           text: title,
+          block: titleBlock,
           x: titleX,
           y: titleY,
           fontSize: style.groupHeaderFontSize,
@@ -435,7 +439,7 @@ function renderActorLegend(actors: PositionedJourneyActor[], style: ResolvedRend
           paint: { fill: style.groupTextColor ?? 'var(--_text-sec)' },
         },
         renderMultilineText(
-          title,
+          titleBlock ?? title,
           titleX,
           titleY,
           style.groupHeaderFontSize,
@@ -467,6 +471,7 @@ function renderActorLegend(actors: PositionedJourneyActor[], style: ResolvedRend
           id: `actor-legend-label:${actor.label}`,
           role: 'legend',
           text: actor.label,
+          block: actor.block,
           x: actor.x + JY.legendDotRadius + JY.legendLabelGap,
           y: actor.y,
           fontSize: style.edgeLabelFontSize,
@@ -475,7 +480,7 @@ function renderActorLegend(actors: PositionedJourneyActor[], style: ResolvedRend
           channels: { category: actor.label },
         },
         renderMultilineText(
-          actor.label,
+          actor.block ?? actor.label,
           actor.x + JY.legendDotRadius + JY.legendLabelGap,
           actor.y,
           style.edgeLabelFontSize,
@@ -526,7 +531,7 @@ function renderSectionFrame(
   if (section.label) {
     const channels = { category: name }
     const semanticStyle = resolveRoleStyle(face, 'group-header', channels, { includeFallback: false })
-    const labelText = applyTextTransform(section.label, semanticStyle?.textTransform ?? style.groupTextTransform)
+    const labelText = section.block?.text ?? applyTextTransform(section.label, semanticStyle?.textTransform ?? style.groupTextTransform)
     const labelFontSize = semanticStyle?.fontSize ?? style.groupHeaderFontSize
     const labelFontWeight = semanticStyle?.fontWeight ?? style.groupHeaderFontWeight
     const labelFontFamily = semanticStyle?.fontFamily ?? style.groupFont
@@ -543,6 +548,7 @@ function renderSectionFrame(
           id: `section-label:${section.id}`,
           role: 'group-header',
           text: labelText,
+          block: section.block,
           x: section.labelX,
           y: section.labelY,
           fontSize: labelFontSize,
@@ -550,7 +556,7 @@ function renderSectionFrame(
           paint: { fill: labelColor },
         },
         renderMultilineText(
-          labelText,
+          section.block ?? labelText,
           section.labelX,
           section.labelY,
           labelFontSize,
@@ -686,6 +692,7 @@ function renderTaskLabel(task: PositionedJourneyTask, style: ResolvedRenderStyle
       id: `task-label:${task.id}`,
       role: 'label',
       text: task.text,
+          block: task.block,
       x: task.textX,
       y: task.textY,
       fontSize: style.nodeLabelFontSize,
@@ -694,7 +701,7 @@ function renderTaskLabel(task: PositionedJourneyTask, style: ResolvedRenderStyle
       channels,
     },
     renderMultilineText(
-      task.text,
+      task.block ?? task.text,
       task.textX,
       task.textY,
       style.nodeLabelFontSize,

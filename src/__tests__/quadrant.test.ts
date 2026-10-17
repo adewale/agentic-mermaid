@@ -220,9 +220,9 @@ describe('quadrant geometry', () => {
     const budget = chart.plot.size / 2 - 12
     expect(chart.axisLabels).toHaveLength(4)
     expect(chart.axisLabels.some(axis => axis.text.includes('\n'))).toBe(true)
-    for (const axis of chart.axisLabels) {
+    for (const [index, axis] of chart.axisLabels.entries()) {
       const lines = axis.text.split('\n')
-      expect(lines.length).toBeLessThanOrEqual(2)
+      expect(axis.text.replace(/[\s-]/g, '')).toBe([nearX, farX, nearY, farY][index]!.replace(/[\s-]/g, ''))
       const width = Math.max(...lines.map(line => measureTextWidth(line, axis.fontSize, 500)))
       expect(width).toBeLessThanOrEqual(budget + 0.01)
       if (axis.x >= chart.plot.x) {

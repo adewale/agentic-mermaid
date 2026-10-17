@@ -79,7 +79,9 @@ const sourceFor = (entry: CorpusCase): string => readFileSync(join(CORPUS, entry
 const flattenMindmap = (node: MindmapNode): MindmapNode[] =>
   [node, ...node.children.flatMap(flattenMindmap)]
 const plainSvgText = (svg: string): string => svg
-  .replace(/<[^>]+>/g, ' ')
+  .replace(/<\/text>/g, ' ')
+  .replace(/<tspan\b[^>]*\bdy="[^"]*"[^>]*>/g, ' ')
+  .replace(/<[^>]+>/g, '')
   .replaceAll('&amp;', '&').replaceAll('&lt;', '<').replaceAll('&gt;', '>').replaceAll('&quot;', '"').replaceAll('&#39;', "'")
   .replace(/\s+/g, ' ').trim()
 
@@ -216,7 +218,9 @@ describe('Mindmap/GitGraph popularity-weighted real-content corpus', () => {
       expect(auditSvgOverlaps(svg), `${entry.id}: rendered overlap audit`).toEqual([])
       const svgText = plainSvgText(svg)
       for (const sentinel of entry.expect.svgText ?? entry.expect.labels ?? []) {
-        expect(svgText, `${entry.id}: SVG text ${sentinel}`).toContain(sentinel)
+        // Positioned soft breaks may fall inside a CJK word. Preserve exact
+        // characters while ignoring only layout whitespace in this census.
+        expect(svgText.replace(/\s+/g, ''), `${entry.id}: SVG text ${sentinel}`).toContain(sentinel.replace(/\s+/g, ''))
       }
       const terminalWidth = entry.family === 'mindmap' ? 100 : 120
       const terminal = renderMermaidASCII(source, { targetWidth: terminalWidth, colorMode: 'none' })
@@ -247,7 +251,9 @@ describe('Mindmap/GitGraph popularity-weighted real-content corpus', () => {
         expect(verifyNoExternalRefs(first), `${entry.id} × ${stack.join('+')}`).toEqual({ ok: true, refs: [] })
         const sentinel = entry.expect.svgText?.[0] ?? entry.expect.labels?.[0]
         expect(sentinel, entry.id).toBeDefined()
-        expect(plainSvgText(first), `${entry.id} × ${stack.join('+')} text`).toContain(sentinel!)
+        // These stacks deliberately change title/header case; the directed
+        // prepared-text contracts separately assert the exact transformed case.
+        expect(plainSvgText(first).toLowerCase(), `${entry.id} × ${stack.join('+')} text`).toContain(sentinel!.toLowerCase())
       }
     }
   })

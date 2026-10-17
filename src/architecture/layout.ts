@@ -1,9 +1,9 @@
-import { applyTextTransform, estimateTextWidth } from '../styles.ts'
 import type { Point, RenderOptions } from '../types.ts'
-import { ARCHITECTURE_DEFAULT_LAYER_SPACING, ARCHITECTURE_DEFAULT_NODE_SPACING } from './config.ts'
+import { ARCHITECTURE_DEFAULT_LAYER_SPACING, ARCHITECTURE_DEFAULT_NODE_SPACING, DEFAULT_ARCHITECTURE_VISUAL, architectureLayoutMetrics } from './config.ts'
 import type { ArchitectureLayoutMetrics } from './config.ts'
 import { layoutGraphSync } from '../layout-engine.ts'
 import { architectureToMermaidGraph } from './parser.ts'
+import { preparePixelText } from '../shared/prepared-text.ts'
 import { compareCodePointStrings } from '../shared/deterministic-order.ts'
 import type {
   ArchitectureChildRef,
@@ -28,6 +28,7 @@ const TITLE_Y = 20
 const TITLE_SIDE_PADDING = 40
 
 interface LayoutGroup {
+  headerHeight?: number
   id: string
   x: number
   y: number
@@ -57,7 +58,22 @@ export function layoutArchitectureDiagram(
   options: RenderOptions = {},
   metrics?: ArchitectureLayoutMetrics,
 ): PositionedArchitectureDiagram {
+  const typography = metrics ?? architectureLayoutMetrics(DEFAULT_ARCHITECTURE_VISUAL)
+  const roleBlock = (source: string, role: 'service' | 'group' | 'edge') => preparePixelText(source, {
+    display: 'formatted', transform: typography[`${role}TextTransform`], fontSize: typography[`${role}FontSize`],
+    fontWeight: typography[`${role}FontWeight`], letterSpacing: typography[`${role}LetterSpacing`],
+  })
+  const serviceText = new Map(diagram.services.map(service => [service.id, roleBlock(service.label, 'service')]))
+  const groupText = new Map(diagram.groups.map(group => [group.id, roleBlock(group.label, 'group')]))
+  const edgeText = diagram.edges.map(edge => edge.label === undefined ? undefined : roleBlock(edge.label, 'edge'))
   const graph = architectureToMermaidGraph(diagram)
+  for (const [id, block] of serviceText) graph.nodes.get(id)!.label = block.text
+  const prepareGroup = (group: typeof graph.subgraphs[number]): void => {
+    group.label = groupText.get(group.id)!.text
+    group.children.forEach(prepareGroup)
+  }
+  graph.subgraphs.forEach(prepareGroup)
+  graph.edges.forEach((edge, index) => { edge.label = edgeText[index]?.text })
   const positioned = layoutGraphSync(graph, {
     padding: options.padding ?? 40,
     nodeSpacing: options.nodeSpacing ?? ARCHITECTURE_DEFAULT_NODE_SPACING,
@@ -68,7 +84,7 @@ export function layoutArchitectureDiagram(
         fontSize: metrics.serviceFontSize,
         fontWeight: metrics.serviceFontWeight,
         letterSpacing: metrics.serviceLetterSpacing,
-        textTransform: metrics.serviceTextTransform,
+        textTransform: undefined,
         paddingX: metrics.servicePaddingX,
         paddingY: metrics.servicePaddingY,
         cornerRadius: metrics.serviceCornerRadius,
@@ -78,7 +94,7 @@ export function layoutArchitectureDiagram(
         fontSize: metrics.edgeFontSize,
         fontWeight: metrics.edgeFontWeight,
         letterSpacing: metrics.edgeLetterSpacing,
-        textTransform: metrics.edgeTextTransform,
+        textTransform: undefined,
         lineWidth: metrics.edgeLineWidth,
         bendRadius: metrics.edgeBendRadius,
       },
@@ -87,7 +103,7 @@ export function layoutArchitectureDiagram(
         fontWeight: metrics.groupFontWeight,
         letterSpacing: metrics.groupLetterSpacing,
         fontFamily: metrics.groupFont,
-        textTransform: metrics.groupTextTransform,
+        textTransform: undefined,
         paddingX: metrics.groupPaddingX,
         paddingY: metrics.groupPaddingY,
         cornerRadius: metrics.groupCornerRadius,
@@ -109,7 +125,7 @@ export function layoutArchitectureDiagram(
     const bounds = { x: node.x, y: node.y, width: node.width, height: node.height }
     if (servicesById.has(node.id)) {
       const service = servicesById.get(node.id)!
-      services.push({ ...bounds, id: service.id, label: service.label, icon: service.icon, parentId: service.parentId })
+      services.push({ ...bounds, id: service.id, label: service.label, labelBlock: serviceText.get(service.id), icon: service.icon, parentId: service.parentId })
       serviceBounds.set(node.id, bounds)
     } else if (junctionIds.has(node.id)) {
       const junction = diagram.junctions.find((entry) => entry.id === node.id)!
@@ -146,6 +162,7 @@ export function layoutArchitectureDiagram(
 
   const flatGroups = new Map<string, PositionedArchitectureGroup>()
   const groups = positioned.groups.map((group) => mapGroup(group, groupsById, flatGroups))
+  for (const group of flatGroups.values()) group.labelBlock = groupText.get(group.id)
   expandGroupBounds(groups, services, junctions, diagram.alignments.length > 0)
   const sideConstraintsChanged = applyArchitectureSideConstraints(
     diagram,
@@ -174,11 +191,15 @@ export function layoutArchitectureDiagram(
       positionedJunctionsById,
     )
   )
+  edges.forEach((edge, index) => { edge.labelBlock = edgeText[index] })
   separateEdgeLabels(edges, services, metrics)
 
-  const titleText = diagram.title
-    ? applyTextTransform(diagram.title, metrics?.groupTextTransform)
-    : undefined
+  const titleBlock = diagram.title ? preparePixelText(diagram.title, {
+    display: 'formatted', transform: metrics?.groupTextTransform,
+    fontSize: ARCHITECTURE_TITLE_FONT_SIZE, fontWeight: ARCHITECTURE_TITLE_FONT_WEIGHT, safeFont: true,
+  }) : undefined
+  const titleText = titleBlock?.text
+  const titleHeight = titleBlock ? titleBlock.height - (titleBlock.lineHeight - titleBlock.fontSize) : 0
   let width = positioned.width
   let height = positioned.height
   if (diagram.alignments.length > 0 || sideConstraintsChanged) {
@@ -198,8 +219,24 @@ export function layoutArchitectureDiagram(
     )
   }
   if (titleText) {
-    width = Math.max(width, estimateTextWidth(titleText, ARCHITECTURE_TITLE_FONT_SIZE, ARCHITECTURE_TITLE_FONT_WEIGHT) + TITLE_SIDE_PADDING * 2)
-    height = Math.max(height, TITLE_Y + ARCHITECTURE_TITLE_FONT_SIZE + 20)
+    width = Math.max(width, titleBlock!.width + TITLE_SIDE_PADDING * 2)
+    // The centered title owns its complete block. Move the graph as one unit
+    // so nested groups, ports and routed labels retain their relative geometry.
+    const titleTop = TITLE_Y - ARCHITECTURE_TITLE_FONT_SIZE / 2
+    const contentTop = Math.min(...services.map(s => s.y), ...junctions.map(j => j.y), ...[...flatGroups.values()].map(g => g.y))
+    const shiftY = Math.max(0, titleTop + titleHeight + 11 - contentTop)
+    const shiftGroup = (group: PositionedArchitectureGroup): void => {
+      group.y += shiftY
+      group.children.forEach(shiftGroup)
+    }
+    groups.forEach(shiftGroup)
+    for (const service of services) service.y += shiftY
+    for (const junction of junctions) junction.y += shiftY
+    for (const edge of edges) {
+      for (const point of edge.points) point.y += shiftY
+      if (edge.labelPosition) edge.labelPosition.y += shiftY
+    }
+    height = Math.max(height + shiftY, titleTop + titleHeight + 20)
   }
   for (const edge of edges) {
     for (const point of edge.points) {
@@ -215,7 +252,7 @@ export function layoutArchitectureDiagram(
   return {
     width,
     height,
-    ...(titleText ? { title: { text: titleText, x: width / 2, y: TITLE_Y } } : {}),
+    ...(titleText ? { title: { text: titleText, x: width / 2, y: TITLE_Y + (titleHeight - ARCHITECTURE_TITLE_FONT_SIZE) / 2, block: titleBlock } } : {}),
     groups,
     services,
     junctions,
@@ -682,6 +719,7 @@ function mapGroup(
     y: group.y,
     width: group.width,
     height: group.height,
+    headerHeight: group.headerHeight,
     children: group.children.map((child) => mapGroup(child, groupsById, flatGroups)),
   }
   flatGroups.set(mapped.id, mapped)
@@ -1020,10 +1058,10 @@ function separateEdgeLabels(
   const FS = metrics?.edgeFontSize ?? 11
   const FW = metrics?.edgeFontWeight ?? 400
   const PAD = 6
-  const boxAt = (label: string, cx: number, cy: number): Box => {
-    const visible = applyTextTransform(label, metrics?.edgeTextTransform)
-    const w = estimateTextWidth(visible, FS, FW) + PAD * 2
-    const h = FS + PAD * 2
+  const boxAt = (edge: PositionedArchitectureEdge, cx: number, cy: number): Box => {
+    const block = edge.labelBlock ?? preparePixelText(edge.label!, { display: 'formatted', fontSize: FS, fontWeight: FW, letterSpacing: metrics?.edgeLetterSpacing })
+    const w = block.width + PAD * 2
+    const h = block.height + PAD * 2
     return { x0: cx - w / 2, y0: cy - h / 2, x1: cx + w / 2, y1: cy + h / 2 }
   }
   const intersects = (a: Box, b: Box): boolean =>
@@ -1032,7 +1070,7 @@ function separateEdgeLabels(
   const labeled = edges.filter(e => e.label && e.labelPosition && e.points.length >= 2)
   const placed: Box[] = []
   for (const edge of labeled) {
-    const current = boxAt(edge.label!, edge.labelPosition!.x, edge.labelPosition!.y)
+    const current = boxAt(edge, edge.labelPosition!.x, edge.labelPosition!.y)
     const collides = (b: Box): boolean => placed.some(o => intersects(b, o)) || serviceBoxes.some(o => intersects(b, o))
     if (!collides(current)) { placed.push(current); continue }
     // Arc-length candidates along the polyline, center-out.
@@ -1055,7 +1093,7 @@ function separateEdgeLabels(
     let chosen = current
     for (const f of fractions) {
       const q = at(total * f)
-      const b = boxAt(edge.label!, q.x, q.y)
+      const b = boxAt(edge, q.x, q.y)
       if (!collides(b)) { edge.labelPosition = { x: q.x, y: q.y }; chosen = b; break }
     }
     placed.push(chosen)

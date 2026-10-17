@@ -7,7 +7,7 @@ import * as marks from '../scene/marks.ts'
 import { resolveRoleStyle } from '../scene/style-registry.ts'
 import { ensureCompositedBgContrast } from '../shared/categorical-palette.ts'
 import { relativeLuminance } from '../shared/color-math.ts'
-import { applyTextTransform, resolveRenderStyle } from '../styles.ts'
+import { resolveRenderStyle } from '../styles.ts'
 import { buildShadowDefs, buildStyleBlock, svgOpenTag } from '../theme.ts'
 import type { RenderContext } from '../types.ts'
 import type { SankeyVisualConfig } from './config.ts'
@@ -228,6 +228,7 @@ export function lowerSankeyScene(ctx: RenderContext<PositionedSankeyChart>): Sce
           x: node.labelX,
           y: node.labelY,
           fontSize: style.nodeLabelFontSize,
+          block: node.labelBlock,
           anchor: node.labelAnchor,
           paint: {
             fill: labelFill,
@@ -237,14 +238,14 @@ export function lowerSankeyScene(ctx: RenderContext<PositionedSankeyChart>): Sce
           },
           channels: { category: node.label, value: node.value },
         },
-        renderMultilineText(text, node.labelX, node.labelY, style.nodeLabelFontSize, `class="sankey-node-label" text-anchor="${node.labelAnchor}" dominant-baseline="middle" ` + `font-size="${style.nodeLabelFontSize}" font-weight="${style.nodeLabelFontWeight}" ` + `fill="${escapeAttr(labelFill)}"${haloAttrs}`),
+        renderMultilineText(node.labelBlock ?? text, node.labelX, node.labelY, style.nodeLabelFontSize, `class="sankey-node-label" text-anchor="${node.labelAnchor}" dominant-baseline="middle" ` + `font-size="${style.nodeLabelFontSize}" font-weight="${style.nodeLabelFontWeight}"${style.nodeLetterSpacing ? ` letter-spacing="${style.nodeLetterSpacing}"` : ''} ` + `fill="${escapeAttr(labelFill)}"${haloAttrs}`),
       ),
     )
   }
 
   // Title.
   if (chart.title) {
-    const title = applyTextTransform(chart.title.text, style.groupTextTransform)
+    const title = chart.title.text
     parts.push(
       marks.text(
         {
@@ -254,15 +255,16 @@ export function lowerSankeyScene(ctx: RenderContext<PositionedSankeyChart>): Sce
           x: chart.title.x,
           y: chart.title.y,
           fontSize: style.groupHeaderFontSize,
+          block: chart.title.block,
           anchor: 'middle',
           paint: { fill: style.groupTextColor ?? style.nodeTextColor ?? 'var(--_text)' },
         },
         renderMultilineText(
-          title,
+          chart.title.block ?? title,
           chart.title.x,
           chart.title.y,
           style.groupHeaderFontSize,
-          `class="sankey-title" text-anchor="middle" dominant-baseline="middle" ` + `font-size="${style.groupHeaderFontSize}" font-weight="${style.groupHeaderFontWeight}" ` + `fill="${escapeAttr(style.groupTextColor ?? style.nodeTextColor ?? 'var(--_text)')}"`,
+          `class="sankey-title" text-anchor="middle" dominant-baseline="middle" ` + `font-size="${style.groupHeaderFontSize}" font-weight="${style.groupHeaderFontWeight}"${style.groupLetterSpacing ? ` letter-spacing="${style.groupLetterSpacing}"` : ''} ` + `fill="${escapeAttr(style.groupTextColor ?? style.nodeTextColor ?? 'var(--_text)')}"`,
         ),
       ),
     )

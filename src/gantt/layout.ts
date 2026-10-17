@@ -15,10 +15,10 @@ import type {
   GanttExcludedBand, EpochMs,
 } from './types.ts'
 import { DAY_MS, dayOfWeek, WEEKDAY_INDEX, formatGanttInstant, ganttDependencyEdges, startOfDay } from './schedule.ts'
-import { applyTextTransform, estimateTextWidth, resolveRenderStyle, STROKE_WIDTHS } from '../styles.ts'
+import { resolveRenderStyle, STROKE_WIDTHS } from '../styles.ts'
 import type { RenderStyleDefaults, ResolvedRenderStyle } from '../styles.ts'
-import { wrapLabelToWidth } from '../shared/label-wrap.ts'
-import { breakLineTags, displayText } from '../multiline-utils.ts'
+import { preparePixelText, type PixelTextBlock } from '../shared/prepared-text.ts'
+import { breakLineTags } from '../multiline-utils.ts'
 import type { RenderOptions } from '../types.ts'
 import type { InternalStyleFace } from '../scene/style-registry.ts'
 
@@ -132,7 +132,10 @@ export function ganttTitleFontWeight(style: ResolvedRenderStyle): number {
 
 export function ganttTitleY(style: ResolvedRenderStyle): number {
   const titleHeight = ganttTitleHeight(style)
-  return titleHeight === GL.titleHeight ? 18 : titleHeight / 2
+  // dominant-baseline="middle" follows the font's x-height; tall accent and
+  // fallback ascenders can reach a full em above it. Keep the legacy 17px
+  // title position, then reserve an em plus breathing room as type grows.
+  return Math.max(titleHeight === GL.titleHeight ? 18 : titleHeight / 2, ganttTitleFontSize(style) + 1)
 }
 
 export function ganttAxisLabelOffset(style: ResolvedRenderStyle): number {
@@ -145,16 +148,11 @@ export function ganttMeasureTextWidth(
   fontWeight: number,
   letterSpacing = 0,
 ): number {
-  // Gantt draws its labels as written (formatting tags included, as upstream
-  // does), so it measures them as written.
-  const drawn = displayText(text, 'literal')
-  const codepoints = [...drawn].length
-  const tracking = Math.max(0, codepoints - 1) * letterSpacing
-  return Math.max(0, estimateTextWidth(drawn, fontSize, fontWeight) + tracking)
+  return preparePixelText(text, { display: 'literal', fontSize, fontWeight, letterSpacing }).width
 }
 
 function ganttTitleHeight(style: ResolvedRenderStyle): number {
-  return Math.max(GL.titleHeight, Math.ceil(ganttTitleFontSize(style) * 1.3) + 8)
+  return Math.max(GL.titleHeight, Math.ceil(ganttTitleFontSize(style) * 1.5) + 8)
 }
 
 function ganttAxisHeight(style: ResolvedRenderStyle): number {
@@ -525,7 +523,7 @@ function routeGanttDependencies(
 /** A column label wrapped to the budget: transformed display lines plus the
  *  widest measured line. Single-line results keep `lines.length === 1` and the
  *  exact pre-wrap measurement, so unwrapped charts stay byte-identical. */
-interface WrappedColumnLabel { lines: string[]; width: number }
+interface WrappedColumnLabel { lines: string[]; width: number; block: PixelTextBlock }
 
 function wrapColumnLabel(
   raw: string,
@@ -534,28 +532,17 @@ function wrapColumnLabel(
   fontWeight: number,
   letterSpacing: number,
 ): WrappedColumnLabel {
-  const label = applyTextTransform(raw, transform)
-  const width = ganttMeasureTextWidth(label, fontSize, fontWeight, letterSpacing)
-  if (!label.includes('\n') && width <= GANTT_LABEL_WRAP_BUDGET) return { lines: [label], width }
-  // Shared wrap machinery (measured pixels, grapheme-safe CJK breaks). It
-  // measures without letter-spacing; non-zero tracking can overshoot the
-  // budget by a few px, which the labelGap margin absorbs. A newline is a
-  // hard break; each line wraps on its own.
-  const lines = label.split('\n').flatMap(line =>
-    ganttMeasureTextWidth(line, fontSize, fontWeight, letterSpacing) <= GANTT_LABEL_WRAP_BUDGET
-      ? [line]
-      : wrapLabelToWidth(line, GANTT_LABEL_WRAP_BUDGET, fontSize, fontWeight).split('\n'))
-  return {
-    lines,
-    width: Math.max(...lines.map(l => ganttMeasureTextWidth(l, fontSize, fontWeight, letterSpacing))),
-  }
+  const block = preparePixelText(raw, {
+    display: 'literal', transform, fontSize, fontWeight, letterSpacing, maxWidth: GANTT_LABEL_WRAP_BUDGET,
+  })
+  return { lines: [...block.lines], width: block.width, block }
 }
 
 export function layoutGantt(model: GanttModel, schedule: GanttSchedule, options: GanttLayoutOptions = {}): GanttLayoutResult {
   const style = resolveGanttRenderStyle(options.renderOptions, options.styleFace)
   const compact = options.compact ?? (model.displayMode === 'compact')
   const barHeight = options.barHeight ?? model.barHeight ?? GL.barHeight
-  const rowH = ganttRowHeight(style, barHeight)
+  let rowH = ganttRowHeight(style, barHeight)
 
   const vertTasks = schedule.tasks.filter(t => t.tags.includes('vert'))
   const rowTasks = schedule.tasks.filter(t => !t.tags.includes('vert'))
@@ -569,8 +556,9 @@ export function layoutGantt(model: GanttModel, schedule: GanttSchedule, options:
   let labelColumnWidth = 0
   for (const t of rowTasks) {
     if (compact) {
-      const label = applyTextTransform(t.label, style.nodeTextTransform)
-      labelColumnWidth = Math.max(labelColumnWidth, ganttMeasureTextWidth(label, style.nodeLabelFontSize, style.nodeLabelFontWeight, style.nodeLetterSpacing))
+      const block = preparePixelText(t.label, { display: 'literal', transform: style.nodeTextTransform, fontSize: style.nodeLabelFontSize, fontWeight: style.nodeLabelFontWeight, letterSpacing: style.nodeLetterSpacing })
+      taskWraps.set(t.index, { lines: block.lines, width: block.width, block })
+      labelColumnWidth = Math.max(labelColumnWidth, block.width)
     } else {
       const wrapped = wrapColumnLabel(t.label, style.nodeTextTransform, style.nodeLabelFontSize, style.nodeLabelFontWeight, style.nodeLetterSpacing)
       taskWraps.set(t.index, wrapped)
@@ -587,30 +575,37 @@ export function layoutGantt(model: GanttModel, schedule: GanttSchedule, options:
     }
   }
   labelColumnWidth = Math.ceil(labelColumnWidth) + GL.labelGap
+  if (compact) rowH = Math.max(rowH, ...[...taskWraps.values()].map(label => Math.ceil(label.block.height) + GL.rowGap))
+  const vertBlocks = new Map(vertTasks.map(task => [task.index, preparePixelText(task.label, { display: 'literal', transform: style.edgeTextTransform, fontSize: style.edgeLabelFontSize, fontWeight: Math.max(style.edgeLabelFontWeight, 600), letterSpacing: style.edgeLetterSpacing })]))
 
   // ---- canvas width -----------------------------------------------------------
   // Axis labels are centered on their ticks, so a tick at (or near) the end of
   // the range reaches past the plot by up to half its label; the right margin
   // grows to hold it. A title wider than the chart widens the canvas.
   const span = schedule.timeMax - schedule.timeMin
-  const tickLabels = resolveTicks(schedule, model)
+  const tickLabels = resolveTicks(schedule, model).map(tick => ({ ...tick, block: preparePixelText(tick.label, { display: 'literal', transform: style.edgeTextTransform, fontSize: style.edgeLabelFontSize, fontWeight: style.edgeLabelFontWeight, letterSpacing: style.edgeLetterSpacing }) }))
   const tickOverhang = (plotW: number): number => Math.max(0, ...tickLabels.map(tick => {
-    const half = ganttMeasureTextWidth(applyTextTransform(tick.label, style.edgeTextTransform), style.edgeLabelFontSize, style.edgeLabelFontWeight, style.edgeLetterSpacing) / 2
+    const half = tick.block.width / 2
     return half - ((schedule.timeMax - tick.time) / span) * plotW
   }))
   const plotX = GL.padding + labelColumnWidth
   const naturalWidth = options.width ?? (GL.padding * 2 + labelColumnWidth + GL.plotWidth)
   const rightPadding = Math.max(GL.padding, Math.ceil(tickOverhang(Math.max(120, naturalWidth - plotX - GL.padding)) + GANTT_EDGE_GAP))
-  const titleWidth = model.title
-    ? ganttMeasureTextWidth(applyTextTransform(model.title, style.groupTextTransform), ganttTitleFontSize(style), ganttTitleFontWeight(style), style.groupLetterSpacing)
-    : 0
+  const titleBlock = model.title ? preparePixelText(model.title, {
+    display: 'literal', transform: style.groupTextTransform, fontSize: ganttTitleFontSize(style),
+    fontWeight: ganttTitleFontWeight(style), letterSpacing: style.groupLetterSpacing,
+    ...(options.width === undefined ? {} : { maxWidth: Math.max(1, options.width - GL.padding * 2) }),
+  }) : undefined
+  const titleWidth = titleBlock?.width ?? 0
+  const titleExtraHeight = titleBlock ? titleBlock.height - titleBlock.lineHeight : 0
   const width = options.width ?? Math.max(naturalWidth + rightPadding - GL.padding, Math.ceil(titleWidth) + GL.padding * 2)
   const plotW = Math.max(120, width - plotX - rightPadding)
 
-  const titleH = model.title ? ganttTitleHeight(style) : 0
+  const titleH = titleBlock ? Math.max(ganttTitleHeight(style) + titleExtraHeight, titleBlock.height) : 0
   const axisH = ganttAxisHeight(style)
   const topAxisH = model.topAxis ? axisH : 0
-  const plotY = GL.padding + titleH + topAxisH
+  const vertExtra = Math.max(0, ...[...vertBlocks.values()].map(block => (block.height - block.lineHeight) / 2))
+  const plotY = GL.padding + titleH + topAxisH + vertExtra
 
   const xOf = (t: EpochMs): number => plotX + ((t - schedule.timeMin) / span) * plotW
 
@@ -625,9 +620,9 @@ export function layoutGantt(model: GanttModel, schedule: GanttSchedule, options:
   // enough for the block to clear the next row. Single-line rows keep the
   // uniform rowH by construction (bh/2 + lh/2 <= max(bh, lh) always).
   const rowAdvance = (lineCount: number, lineHeight: number): number =>
-    lineCount <= 1 ? rowH : Math.max(rowH, Math.ceil(barHeight / 2 + (lineCount - 0.5) * lineHeight) + GL.rowGap)
-  const taskLineHeight = style.nodeLabelFontSize * 1.3
-  const sectionLineHeight = style.groupHeaderFontSize * 1.3
+    Math.max(rowH, Math.ceil(barHeight / 2 + (lineCount - 0.5) * lineHeight) + GL.rowGap)
+  const taskLineHeight = Math.max(style.nodeLabelFontSize * 1.3, ...[...taskWraps.values()].map(label => label.block.lineHeight))
+  const sectionLineHeight = Math.max(style.groupHeaderFontSize * 1.3, ...[...sectionWraps.values()].map(label => label.block.lineHeight))
 
   for (let si = 0; si < model.sections.length; si++) {
     const section = model.sections[si]!
@@ -677,7 +672,7 @@ export function layoutGantt(model: GanttModel, schedule: GanttSchedule, options:
       }
       const taskLines = taskWraps.get(t.index)?.lines
       bars.push({
-        taskIndex: t.index, id: t.id, label: t.label, tags: t.tags, sectionIndex: bandIndex,
+        taskIndex: t.index, id: t.id, label: t.label, labelBlock: taskWraps.get(t.index)?.block, tags: t.tags, sectionIndex: bandIndex,
         x, y: row.y, w, h: barHeight,
         milestoneX,
         rowIndex: rowStart + (section.label !== undefined ? 1 : 0) + lane,
@@ -693,7 +688,7 @@ export function layoutGantt(model: GanttModel, schedule: GanttSchedule, options:
       for (const t of sectionTasks) y += rowAdvance(taskWraps.get(t.index)?.lines.length ?? 1, taskLineHeight)
     }
     sections.push({
-      label: section.label, y: bandStartY, h: y - bandStartY,
+      label: section.label, labelBlock: sectionWraps.get(si)?.block, y: bandStartY, h: y - bandStartY,
       rowStart, rowEnd: rows.length,
       ...(sectionLines && sectionLines.length > 1 ? { labelLines: sectionLines } : {}),
     })
@@ -705,11 +700,11 @@ export function layoutGantt(model: GanttModel, schedule: GanttSchedule, options:
 
   // ---- ticks / markers --------------------------------------------------------
   const ticks: GanttTick[] = tickLabels.map(t => ({
-    time: t.time, x: xOf(t.time), label: t.label,
+    time: t.time, x: xOf(t.time), label: t.label, labelBlock: t.block,
   }))
 
   const verts: GanttVertLayout[] = vertTasks.map(t => ({
-    taskIndex: t.index, label: t.label,
+    taskIndex: t.index, label: t.label, labelBlock: vertBlocks.get(t.index),
     x: xOf(t.start + (t.renderEnd - t.start) / 2), time: t.start,
   }))
 
@@ -758,7 +753,9 @@ export function layoutGantt(model: GanttModel, schedule: GanttSchedule, options:
   })
 
   return {
-    title: model.title,
+    title: titleBlock?.text,
+    titleBlock,
+    titleY: Math.max(ganttTitleY(style), (titleBlock?.lineHeight ?? 0) / 2) + titleExtraHeight / 2,
     width, height,
     plot: { x: plotX, y: plotY, w: plotW, h: plotH },
     labelColumnWidth,

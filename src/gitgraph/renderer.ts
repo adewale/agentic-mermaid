@@ -1,3 +1,5 @@
+import { gitGraphText, gitTagOffset, gitCommitLabelY } from './layout.ts'
+import { renderMultilineText } from '../multiline-utils.ts'
 import type { RenderContext } from '../types.ts'
 import type { PositionedGitGraphCommit, PositionedGitGraphDiagram } from './types.ts'
 import type { SceneDoc, SceneNode } from '../scene/ir.ts'
@@ -11,7 +13,6 @@ import { semanticChildId, semanticNamespacedId, semanticRelationId } from '../sc
 import { escapeAttr, escapeXml } from '../multiline-utils.ts'
 import { safeCssPaint } from '../shared/css-color.ts'
 import { categoricalPalette } from '../shared/categorical-palette.ts'
-import { measureTextWidth } from '../text-metrics.ts'
 import { ensureContrast, isHexColor, mixHex } from '../shared/color-math.ts'
 import { resolveGitGraphCommitLabelFontSize } from './position.ts'
 import { GITGRAPH_COMMIT_LABEL_PADDING_X } from './layout.ts'
@@ -60,9 +61,9 @@ export function lowerGitGraphScene(ctx: RenderContext<PositionedGitGraphDiagram>
   parts.push(marks.documentText({ id: 'acc-title', element: 'title', domId: titleId, text: diagram.accessibilityTitle ?? 'Git graph' }))
   if (diagram.accessibilityDescription) parts.push(marks.documentText({ id: 'acc-desc', element: 'description', domId: descId, text: diagram.accessibilityDescription }))
   if (diagram.title) parts.push(marks.text({
-    id: 'gitgraph-visible-title', role: 'title', text: diagram.title,
-    x: diagram.width / 2, y: 24, fontSize: 16, anchor: 'middle', paint: { fill: 'var(--_text)' },
-  }, `<text class="gitgraph-title" data-id="gitgraph-title" x="${r(diagram.width / 2)}" y="24" text-anchor="middle" font-size="16" font-weight="600" fill="var(--_text)">${escapeXml(diagram.title)}</text>`))
+    id: 'gitgraph-visible-title', role: 'title', text: diagram.titleBlock?.text ?? diagram.title, block: diagram.titleBlock,
+    x: diagram.width / 2, y: 8 + (diagram.titleBlock?.fontSize ?? 16) * 0.65 + ((diagram.titleBlock?.height ?? 0) - (diagram.titleBlock?.lineHeight ?? 0)) / 2, fontSize: diagram.titleBlock?.fontSize ?? 16, anchor: 'middle', paint: { fill: 'var(--_text)' },
+  }, renderMultilineText(diagram.titleBlock ?? gitGraphText(diagram.title, 16, 600), diagram.width / 2, 8 + (diagram.titleBlock?.fontSize ?? 16) * 0.65 + ((diagram.titleBlock?.height ?? 0) - (diagram.titleBlock?.lineHeight ?? 0)) / 2, diagram.titleBlock?.fontSize ?? 16, `class="gitgraph-title" data-id="gitgraph-title" text-anchor="middle" font-size="${diagram.titleBlock?.fontSize ?? 16}" font-weight="${diagram.titleBlock?.fontWeight ?? 600}" letter-spacing="${diagram.titleBlock?.letterSpacing ?? 0}" fill="var(--_text)"`)))
 
   if (diagram.showBranches) {
     for (const branch of diagram.branches) {
@@ -70,7 +71,9 @@ export function lowerGitGraphScene(ctx: RenderContext<PositionedGitGraphDiagram>
       const branchPaint = paints.branches.get(branch.name)!
       const labelX = r(diagram.direction === 'LR' ? branch.x1 - 10 : branch.x1)
       const labelY = r(diagram.direction === 'LR' ? branch.y1 : branch.y1 - 16)
-      const labelWidth = r(measureTextWidth(branch.name, 12, 600) + 10)
+      const block = branch.labelBlock ?? gitGraphText(branch.name, 12, 600)
+      const extraHeight = block.height - block.lineHeight
+      const labelWidth = r(block.width + 10)
       const labelBackgroundX = r(diagram.direction === 'LR' ? labelX - labelWidth : labelX - labelWidth / 2)
       parts.push(marks.group({
         id: branchId, role: 'group', channels: { category: branch.name },
@@ -79,9 +82,9 @@ export function lowerGitGraphScene(ctx: RenderContext<PositionedGitGraphDiagram>
         children: [
           { node: marks.shape({
             id: semanticChildId(branchId, 'label-bg'), role: 'chrome',
-            geometry: { kind: 'rect', x: labelBackgroundX, y: labelY - 13, width: labelWidth, height: 18, rx: 4, ry: 4 },
+            geometry: { kind: 'rect', x: labelBackgroundX, y: labelY - block.fontSize - 1 - extraHeight / 2, width: labelWidth, height: block.fontSize + 6 + extraHeight, rx: 4, ry: 4 },
             paint: { fill: branchPaint.labelBackground, stroke: branchPaint.line, strokeWidth: '1' },
-          }, `<rect class="git-branch-label-background" x="${r(labelBackgroundX)}" y="${r(labelY - 13)}" width="${r(labelWidth)}" height="18" rx="4" fill="${escapeAttr(branchPaint.labelBackground)}" stroke="${escapeAttr(branchPaint.line)}" stroke-width="1" />`), indent: 2 },
+          }, `<rect class="git-branch-label-background" x="${r(labelBackgroundX)}" y="${r(labelY - block.fontSize - 1 - extraHeight / 2)}" width="${r(labelWidth)}" height="${r(block.fontSize + 6 + extraHeight)}" rx="4" fill="${escapeAttr(branchPaint.labelBackground)}" stroke="${escapeAttr(branchPaint.line)}" stroke-width="1" />`), indent: 2 },
           { node: marks.shape({
             id: semanticChildId(branchId, 'line'), role: 'rail',
             geometry: { kind: 'line', x1: branch.x1, y1: branch.y1, x2: branch.x2, y2: branch.y2 },
@@ -89,10 +92,10 @@ export function lowerGitGraphScene(ctx: RenderContext<PositionedGitGraphDiagram>
             channels: { category: branch.name },
           }, `<line class="git-branch-line" data-branch="${escapeAttr(branch.name)}" x1="${r(branch.x1)}" y1="${r(branch.y1)}" x2="${r(branch.x2)}" y2="${r(branch.y2)}" stroke="${escapeAttr(branchPaint.line)}" stroke-width="3" opacity="0.86" />`), indent: 2 },
           { node: marks.text({
-            id: semanticChildId(branchId, 'label'), role: 'label', text: branch.name,
-            x: labelX, y: labelY, fontSize: 12, anchor: diagram.direction === 'LR' ? 'end' : 'middle',
+            id: semanticChildId(branchId, 'label'), role: 'label', text: block.text, block,
+            x: labelX, y: labelY - block.fontSize * 0.35, fontSize: block.fontSize, anchor: diagram.direction === 'LR' ? 'end' : 'middle',
             paint: { fill: branchPaint.label }, channels: { category: branch.name },
-          }, `<text class="git-branch-label" data-branch="${escapeAttr(branch.name)}" x="${r(labelX)}" y="${r(labelY)}" text-anchor="${diagram.direction === 'LR' ? 'end' : 'middle'}" font-size="12" font-weight="600" fill="${escapeAttr(branchPaint.label)}">${escapeXml(branch.name)}</text>`), indent: 2 },
+          }, renderMultilineText(block, labelX, labelY - block.fontSize * 0.35, block.fontSize, `class="git-branch-label" data-branch="${escapeAttr(branch.name)}" text-anchor="${diagram.direction === 'LR' ? 'end' : 'middle'}" font-size="${block.fontSize}" font-weight="${block.fontWeight}" letter-spacing="${block.letterSpacing}" fill="${escapeAttr(branchPaint.label)}"`)), indent: 2 },
         ],
       }))
     }
@@ -135,31 +138,36 @@ function renderCommit(commit: PositionedGitGraphCommit, diagram: PositionedGitGr
     for (const sign of [-1, 1]) children.push({ node: marks.shape({ id: semanticChildId(commit.id, 'cross', sign), role: 'chrome', geometry: { kind: 'line', x1: commit.x - 6, y1: commit.y + sign * 6, x2: commit.x + 6, y2: commit.y - sign * 6 }, paint: { stroke: 'var(--_arrow)', strokeWidth: '2' } }, `<line x1="${r(commit.x - 6)}" y1="${r(commit.y + sign * 6)}" x2="${r(commit.x + 6)}" y2="${r(commit.y - sign * 6)}" stroke="var(--_arrow)" stroke-width="2" />`), indent: 2 })
   }
   if (diagram.showCommitLabel) {
-    const label = commit.message || commit.id
+    const block = commit.labelBlock ?? gitGraphText(commit.message || commit.id, paints.commitLabelFontSize, 500)
+    const label = block.text
+    const extraHeight = block.height - block.lineHeight
     const labelX = diagram.direction === 'LR' ? commit.x : commit.x + 14
-    const labelY = diagram.direction === 'LR' ? commit.y + 24 : commit.y + 4
+    const labelY = commit.y + gitCommitLabelY(block, diagram.direction)
     const anchor = diagram.direction === 'LR' ? 'middle' : 'start'
     const rotation = diagram.direction === 'LR' && diagram.rotateCommitLabel
       ? { kind: 'rotate' as const, angle: 45, cx: r(labelX), cy: r(labelY) }
       : undefined
     const transform = rotation ? ` transform="rotate(${rotation.angle} ${rotation.cx} ${rotation.cy})"` : ''
     if (paints.commitLabelBackground) {
-      const width = r(Math.max(18, measureTextWidth(label, paints.commitLabelFontSize, 500) + GITGRAPH_COMMIT_LABEL_PADDING_X * 2))
+      const width = r(Math.max(18, block.width + GITGRAPH_COMMIT_LABEL_PADDING_X * 2))
       const backgroundX = r(anchor === 'middle' ? labelX - width / 2 : labelX - GITGRAPH_COMMIT_LABEL_PADDING_X)
-      children.push({ node: marks.shape({ id: semanticChildId(commit.id, 'label-bg'), role: 'chrome', geometry: { kind: 'rect', x: backgroundX, y: labelY - paints.commitLabelFontSize, width, height: paints.commitLabelFontSize + 6, rx: 3, ry: 3 }, paint: { fill: paints.commitLabelBackground, stroke: branchPaint.line, strokeWidth: '0.75' }, transform: rotation }, `<rect class="git-commit-label-background" x="${r(backgroundX)}" y="${r(labelY - paints.commitLabelFontSize)}" width="${r(width)}" height="${r(paints.commitLabelFontSize + 6)}" rx="3" fill="${escapeAttr(paints.commitLabelBackground)}" fill-opacity="0.94" stroke="${escapeAttr(branchPaint.line)}" stroke-width="0.75"${transform} />`), indent: 2 })
+      children.push({ node: marks.shape({ id: semanticChildId(commit.id, 'label-bg'), role: 'chrome', geometry: { kind: 'rect', x: backgroundX, y: labelY - block.fontSize - extraHeight / 2, width, height: block.fontSize + 6 + extraHeight, rx: 3, ry: 3 }, paint: { fill: paints.commitLabelBackground, stroke: branchPaint.line, strokeWidth: '0.75' }, transform: rotation }, `<rect class="git-commit-label-background" x="${r(backgroundX)}" y="${r(labelY - block.fontSize - extraHeight / 2)}" width="${r(width)}" height="${r(block.fontSize + 6 + extraHeight)}" rx="3" fill="${escapeAttr(paints.commitLabelBackground)}" fill-opacity="0.94" stroke="${escapeAttr(branchPaint.line)}" stroke-width="0.75"${transform} />`), indent: 2 })
     }
-    children.push({ node: marks.text({ id: semanticChildId(commit.id, 'label'), role: 'label', text: label, x: labelX, y: labelY, fontSize: paints.commitLabelFontSize, anchor, paint: { fill: paints.commitLabelColor }, transform: rotation }, `<text class="git-commit-label" x="${r(labelX)}" y="${r(labelY)}" text-anchor="${anchor}" font-size="${r(paints.commitLabelFontSize)}" fill="${escapeAttr(paints.commitLabelColor)}"${transform}>${escapeXml(label)}</text>`), indent: 2 })
+    children.push({ node: marks.text({ id: semanticChildId(commit.id, 'label'), role: 'label', text: label, block, x: labelX, y: labelY - block.fontSize * 0.35, fontSize: block.fontSize, anchor, paint: { fill: paints.commitLabelColor }, transform: rotation }, renderMultilineText(block, labelX, labelY - block.fontSize * 0.35, block.fontSize, `class="git-commit-label" text-anchor="${anchor}" font-size="${r(block.fontSize)}" font-weight="${block.fontWeight}" letter-spacing="${block.letterSpacing}" fill="${escapeAttr(paints.commitLabelColor)}"${transform}`)), indent: 2 })
   }
+  const tagBlocks = commit.tagBlocks ?? commit.tags.map(tag => gitGraphText(tag, 10, 600))
   commit.tags.forEach((tag, index) => {
+    const block = tagBlocks[index]!
+    const extraHeight = block.height - block.lineHeight
     const x = commit.x + 14
-    const y = commit.y - 16 - index * 17
-    const width = r(measureTextWidth(tag, 10, 600) + 10)
+    const y = commit.y + gitTagOffset(tagBlocks, index)
+    const width = r(block.width + 10)
     children.push({ node: marks.shape({
       id: semanticChildId(commit.id, 'tag-bg', index), role: 'chrome',
-      geometry: { kind: 'rect', x: x - 4, y: y - 11, width, height: 15, rx: 4, ry: 4 },
+      geometry: { kind: 'rect', x: x - 4, y: y - block.fontSize - 1 - extraHeight / 2, width, height: block.fontSize + 5 + extraHeight, rx: 4, ry: 4 },
       paint: { fill: branchPaint.labelBackground, stroke: branchPaint.line, strokeWidth: '0.75' },
-    }, `<rect class="git-tag-background" x="${r(x - 4)}" y="${r(y - 11)}" width="${r(width)}" height="15" rx="4" fill="${escapeAttr(branchPaint.labelBackground)}" stroke="${escapeAttr(branchPaint.line)}" stroke-width="0.75" />`), indent: 2 })
-    children.push({ node: marks.text({ id: semanticChildId(commit.id, 'tag', index), role: 'label', text: tag, x, y, fontSize: 10, anchor: 'start', paint: { fill: branchPaint.label } }, `<text class="git-tag" x="${r(x)}" y="${r(y)}" text-anchor="start" font-size="10" font-weight="600" fill="${escapeAttr(branchPaint.label)}">${escapeXml(tag)}</text>`), indent: 2 })
+    }, `<rect class="git-tag-background" x="${r(x - 4)}" y="${r(y - block.fontSize - 1 - extraHeight / 2)}" width="${r(width)}" height="${r(block.fontSize + 5 + extraHeight)}" rx="4" fill="${escapeAttr(branchPaint.labelBackground)}" stroke="${escapeAttr(branchPaint.line)}" stroke-width="0.75" />`), indent: 2 })
+    children.push({ node: marks.text({ id: semanticChildId(commit.id, 'tag', index), role: 'label', text: block.text, block, x, y: y - block.fontSize * 0.35, fontSize: block.fontSize, anchor: 'start', paint: { fill: branchPaint.label } }, renderMultilineText(block, x, y - block.fontSize * 0.35, block.fontSize, `class="git-tag" text-anchor="start" font-size="${block.fontSize}" font-weight="${block.fontWeight}" letter-spacing="${block.letterSpacing}" fill="${escapeAttr(branchPaint.label)}"`)), indent: 2 })
   })
   return marks.group({
     id: commit.id, role: 'node', channels: { status: visualType.toLowerCase(), category: commit.branch },

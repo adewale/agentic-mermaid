@@ -13,8 +13,7 @@ import { svgOpenTag, buildStyleBlock, resolvedColorValue, type DiagramColors } f
 import { toneOnFill } from '../color-resolver.ts'
 import { mixHex } from '../shared/color-math.ts'
 import { escapeAttr, renderMultilineText, renderMultilineTextWithBackground, escapeXml } from '../multiline-utils.ts'
-import { measureMultilineText } from '../text-metrics.ts'
-import { applyTextTransform } from '../styles.ts'
+import { preparePixelText } from '../shared/prepared-text.ts'
 import { topRoundedRectPath } from '../svg-paths.ts'
 import type { MarkerDescriptor, SceneDoc, SceneNode } from '../scene/ir.ts'
 import { hashId } from '../scene/seed.ts'
@@ -120,10 +119,11 @@ export function lowerArchitectureScene(
       x: diagram.title.x,
       y: diagram.title.y,
       fontSize: ARCHITECTURE_TITLE_FONT_SIZE,
+      block: diagram.title.block,
       anchor: 'middle',
       paint: { fill: 'var(--arch-service-label, var(--_text))' },
     }, renderMultilineText(
-      diagram.title.text,
+      diagram.title.block ?? diagram.title.text,
       diagram.title.x,
       diagram.title.y,
       ARCHITECTURE_TITLE_FONT_SIZE,
@@ -224,7 +224,7 @@ function lowerGroup(group: PositionedArchitectureGroup, visual: ArchitectureVisu
       `<rect class="architecture-group-frame" x="${group.x}" y="${group.y}" width="${group.width}" height="${group.height}" rx="${visual.groupCornerRadius}" ry="${visual.groupCornerRadius}" />`),
   })
 
-  const bandPath = topRoundedRectPath(group.x, group.y, group.width, visual.groupHeaderHeight, visual.groupCornerRadius)
+  const bandPath = topRoundedRectPath(group.x, group.y, group.width, group.headerHeight ?? visual.groupHeaderHeight, visual.groupCornerRadius)
   children.push({
     indent: 2,
     node: marks.shape({
@@ -261,9 +261,10 @@ function lowerGroup(group: PositionedArchitectureGroup, visual: ArchitectureVisu
     })
   }
 
-  const labelText = applyTextTransform(group.label, visual.groupTextTransform)
+  const block = group.labelBlock ?? preparePixelText(group.label, { display: 'formatted', transform: visual.groupTextTransform, fontSize: visual.groupFontSize, fontWeight: visual.groupFontWeight, letterSpacing: visual.groupLetterSpacing })
+  const labelText = block.text
   const labelX = group.x + (group.icon ? ARCHITECTURE_GROUP_ICON_TITLE_OFFSET : visual.groupLabelPaddingX)
-  const labelY = group.y + visual.groupHeaderHeight / 2
+  const labelY = group.y + (group.headerHeight ?? visual.groupHeaderHeight) / 2
   children.push({
     indent: 2,
     node: marks.text({
@@ -273,10 +274,11 @@ function lowerGroup(group: PositionedArchitectureGroup, visual: ArchitectureVisu
       x: labelX,
       y: labelY,
       fontSize: visual.groupFontSize,
+      block,
       anchor: 'start',
       paint: { fill: labels.group },
     }, renderMultilineText(
-      labelText,
+      block,
       labelX,
       labelY,
       visual.groupFontSize,
@@ -343,7 +345,8 @@ function lowerService(service: PositionedArchitectureService, visual: Architectu
   }
 
   const labelY = service.y + service.height / 2
-  const labelText = applyTextTransform(service.label, visual.serviceTextTransform)
+  const block = service.labelBlock ?? preparePixelText(service.label, { display: 'formatted', transform: visual.serviceTextTransform, fontSize: visual.serviceFontSize, fontWeight: visual.serviceFontWeight, letterSpacing: visual.serviceLetterSpacing })
+  const labelText = block.text
   children.push({
     indent: 2,
     node: marks.text({
@@ -353,10 +356,11 @@ function lowerService(service: PositionedArchitectureService, visual: Architectu
       x: labelX,
       y: labelY,
       fontSize: visual.serviceFontSize,
+      block,
       anchor: 'start',
       paint: { fill: labels.service },
     }, renderMultilineText(
-      labelText,
+      block,
       labelX,
       labelY,
       visual.serviceFontSize,
@@ -466,13 +470,14 @@ function lowerEdge(edge: PositionedArchitectureEdge, visual: ArchitectureVisualC
 }
 
 function lowerEdgeLabel(edge: PositionedArchitectureEdge, visual: ArchitectureVisualConfig, sceneId: string): SceneNode[] {
-  const label = applyTextTransform(edge.label!, visual.edgeTextTransform)
+  const block = edge.labelBlock ?? preparePixelText(edge.label!, { display: 'formatted', transform: visual.edgeTextTransform, fontSize: visual.edgeFontSize, fontWeight: visual.edgeFontWeight, letterSpacing: visual.edgeLetterSpacing })
+  const label = block.text
   const mid = edge.labelPosition ?? edgeMidpoint(edge.points)
-  const metrics = measureMultilineText(label, visual.edgeFontSize, visual.edgeFontWeight)
+  const metrics = block
   const padding = 7
 
   const crisp = renderMultilineTextWithBackground(
-    label,
+    block,
     mid.x,
     mid.y,
     metrics.width,
@@ -509,6 +514,7 @@ function lowerEdgeLabel(edge: PositionedArchitectureEdge, visual: ArchitectureVi
       x: mid.x,
       y: mid.y,
       fontSize: visual.edgeFontSize,
+      block,
       anchor: 'middle',
       paint: { fill: 'var(--arch-edge-label, var(--_text-muted))' },
     }, textCrisp),

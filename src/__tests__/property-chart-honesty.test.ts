@@ -5,6 +5,8 @@
 // hold fixed sources to every style; this varies the structure and the title.
 import { beforeAll, describe, expect, it } from 'bun:test'
 import fc from 'fast-check'
+import { decodeXML } from 'entities'
+import { renderMermaidSVG } from '../index.ts'
 
 import { BUILTIN_FAMILY_METADATA } from '../agent/families.ts'
 import { describeViolations, HONESTY_STYLES, textHonestyViolations } from './helpers/chart-honesty.ts'
@@ -14,7 +16,8 @@ import { renderedTextReady } from './helpers/rendered-text.ts'
 beforeAll(() => renderedTextReady())
 
 const WORDS = ['Quarterly', 'revenue', 'by', 'region', 'and', 'channel', 'for', 'the', 'North', 'American', 'market', 'forecast'] as const
-const titleArb = fc.array(fc.constantFrom(...WORDS), { minLength: 1, maxLength: 14 }).map(words => words.join(' '))
+const sentenceArb = fc.array(fc.constantFrom(...WORDS), { minLength: 1, maxLength: 14 }).map(words => words.join(' '))
+const titleArb = fc.oneof(sentenceArb, fc.array(sentenceArb, { minLength: 2, maxLength: 5 }).map(lines => lines.join('\n')), fc.constantFrom('W'.repeat(70), '漢字ひらがな É 👩🏽‍💻', 'First line\n\nThird line'))
 
 /** The generator's source without its own title statement, which would
  * (as in Mermaid) override the frontmatter title. */
@@ -28,11 +31,28 @@ describe('chart honesty: generated diagrams with random titles', () => {
     it(`${kind} draws its title and text legibly on the canvas`, () => {
       fc.assert(
         fc.property(fc.integer({ min: family.kRange[0], max: family.kRange[1] }), titleArb, fc.constantFrom(...HONESTY_STYLES), (k, title, style) => {
-          const sample = { name: `k=${k}`, source: `---\ntitle: ${title}\n---\n${untitled(family.build(k, 'n'))}`, expectText: [title] }
+          const sample = { name: `k=${k}`, source: `---\ntitle: ${JSON.stringify(title)}\n---\n${untitled(family.build(k, 'n'))}`, expectText: [title] }
           expect(describeViolations(kind, sample, textHonestyViolations(sample, [style]))).toEqual([])
         }),
-        { numRuns: 6 },
+        {
+          numRuns: fc.readConfigureGlobal().numRuns ?? 6,
+          // Nightly finder #362: the one-line title exceeded the fixed canvas.
+          examples: kind === 'xychart'
+            ? [[1, 'Quarterly Quarterly Quarterly Quarterly Quarterly Quarterly Quarterly Quarterly', undefined]]
+            : [],
+        },
       )
     }, 120_000)
+
+    it(`${kind} preserves exact title case through soft wrapping`, () => {
+      const title = 'antidisestablishmentarianism'.repeat(5)
+      const source = `---\ntitle: ${JSON.stringify(title)}\n---\n${untitled(family.build(family.kRange[0], 'n'))}`
+      const svg = renderMermaidSVG(source, { style: { roles: { group: { textTransform: 'capitalize' } } } })
+      const drawn = [...svg.matchAll(/<text\b[^>]*\bdata-role="title"[^>]*>([\s\S]*?)<\/text>/g)]
+        .map(match => decodeXML(match[1]!.replace(/<[^>]+>/g, ''))).join('')
+      // This controlled source contains no authored hyphens or spaces; only
+      // layout can introduce them. Case must remain exact.
+      expect(drawn.replace(/[\s-]/g, '')).toBe(`A${title.slice(1)}`)
+    })
   }
 })

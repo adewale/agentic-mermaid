@@ -1,24 +1,24 @@
 {
   "schemaVersion": 1,
   "status": "approved",
-  "reviewedAt": "2026-09-24",
-  "reviewer": "Claude Code agent, while holding every family to the chart-honesty text contract",
-  "scope": "Native deterministic cookbook renders for all three documentation-only brand-inspired public StyleSpec prototypes after visible Flowchart arrow tips were aligned to their route endpoints; reviewed for clean marker contact, readable labels, contained geometry, visible semantic binding/cue effects, and consistency with the stated non-endorsement/non-equivalence boundaries. Re-reviewed 2026-09-23 after the peer-category palette gained its separation contract: the Vercel-inspired prototype changes in 98 pixels, all in the \"Line 1\" legend swatch (a sub-perceptual tint shift); the other two prototypes are byte-identical. Re-reviewed 2026-09-24 after layouts began measuring text with the style's font: the Vercel-inspired prototype's legend reserves 3 px more, so its plot is 3 px narrower and \"Line 1\" ends 7 px from the right edge instead of 4. 16,408 pixels differ, all antialiasing along the shifted bars, line, ticks, and labels; text ink is unchanged (#ededed on #0a0a0a). The other two prototypes are byte-identical.",
+  "reviewedAt": "2026-10-17",
+  "reviewer": "Codex agent, reviewing native deterministic cookbook renders for PR #394",
+  "scope": "Agent visual review at native 900px width of all six existing cookbook screenshots, including before/after inspection of the three documentation-only prototypes named below. Cupertino changes from 900\u00d7192 to 900\u00d7191 after canonical text geometry; its topology, readable labels and marker contact remain intact. Vercel remains 900\u00d7643 with 22220 changed pixels as the title reserves its full text band and plot/legend positions adjust; values, series identity and complete legend labels remain visible. Cloudflare remains 900\u00d7339 with 7475 changed pixels in title/label projection; task ranges, milestone, section bindings and non-color cues remain intact. Transit Route Map, Mid-century Report and Star Chart Atlas are pixel-identical to their previous committed screenshots. This records an agent review, not human approval, endorsement or exhaustive design-system equivalence.",
   "artifacts": [
     {
       "id": "cupertino-prototype",
       "path": "docs/assets/style-cookbook/cupertino-prototype.png",
-      "sha256": "6441154b8206d989bbcbb6489fdc4d69cf444ff1a537bcf21d0516225b9c29c5"
+      "sha256": "23ea4871312dd1902c41a335c264dd8c1e5244eb3f382dde06603aec953e4182"
     },
     {
       "id": "vercel-inspired-prototype",
       "path": "docs/assets/style-cookbook/vercel-inspired-prototype.png",
-      "sha256": "7180d1fee99a69dd21ddcd602d25fc615884df7657f23224990573afda6c16f1"
+      "sha256": "a52bfa502a1f099eecdb90291056f43711d749a720f696f0358b52d0159989e4"
     },
     {
       "id": "cloudflare-workers-inspired-prototype",
       "path": "docs/assets/style-cookbook/cloudflare-workers-inspired-prototype.png",
-      "sha256": "fc49e606dbfa35a5021571902dbb17c2e3ef715073fa096e5f55d643f4a81342"
+      "sha256": "9f06cfbeb1b7b76ff6f0d1d0781431230b9f52a63edea015dae467fb5aa0d7cf"
     }
   ],
   "limitations": "These are static documentation prototypes, not built-in Looks, BrandPacks, endorsements, proprietary-asset reproductions, or exhaustive design-system equivalence claims."

@@ -15,7 +15,7 @@ import type { PieVisualConfig } from './config.ts'
 import { pieSliceColors } from './palette.ts'
 import { contrastTextColor } from '../color-resolver.ts'
 import { tooltipMarkup, tooltipCss } from '../shared/svg-tooltip.ts'
-import { applyTextTransform, resolveRenderStyle } from '../styles.ts'
+import { resolveRenderStyle } from '../styles.ts'
 import type { ResolvedRenderStyle } from '../styles.ts'
 import type { SceneDoc, SceneNode } from '../scene/ir.ts'
 import * as marks from '../scene/marks.ts'
@@ -233,6 +233,7 @@ export function lowerPieScene(
         x: label.x,
         y: label.y,
         fontSize: label.fontSize,
+        block: label.block,
         anchor: 'middle',
         // Percentage labels are data, not decoration. A dimmed wedge is
         // composited toward the page, so use foreground ink by default rather
@@ -241,7 +242,7 @@ export function lowerPieScene(
         channels: { category: slice.label, value: slice.fraction },
       },
       renderMultilineText(
-        label.text,
+        label.block ?? label.text,
         label.x,
         label.y,
         label.fontSize,
@@ -276,7 +277,7 @@ export function lowerPieScene(
     ))
     // Display lines are composed (and measured) by the layout; multiline
     // labels carry the value/percent suffix on their last line.
-    const text = applyTextTransform(item.lines.join('\n'), style.nodeTextTransform)
+    const text = item.lines.join('\n')
     parts.push(marks.text(
       {
         id: occurrenceId('legend-label', item.label),
@@ -285,6 +286,7 @@ export function lowerPieScene(
         x: item.textX,
         y: item.textY,
         fontSize: visual.legendTextSize ?? style.nodeLabelFontSize,
+        block: item.block,
         anchor: 'start',
         // Legend text is meaningful chart data and stays full-opacity; the
         // selected row is reinforced by weight, and non-selected swatches dim.
@@ -294,7 +296,7 @@ export function lowerPieScene(
         channels: { category: item.label, value: item.fraction },
       },
       renderMultilineText(
-        text,
+        item.block ?? text,
         item.textX,
         item.textY,
         visual.legendTextSize ?? style.nodeLabelFontSize,
@@ -307,7 +309,7 @@ export function lowerPieScene(
 
   // Title.
   if (chart.title) {
-    const title = applyTextTransform(chart.title.text, style.groupTextTransform)
+    const title = chart.title.text
     parts.push(marks.text(
       {
         id: 'title',
@@ -316,12 +318,13 @@ export function lowerPieScene(
         x: chart.title.x,
         y: chart.title.y,
         fontSize: visual.titleTextSize ?? style.groupHeaderFontSize,
+        block: chart.title.block,
         anchor: 'middle',
         // Fill comes from the .pie-title rule in pieStyles().
         paint: { fill: visual.titleTextColor ?? style.groupTextColor ?? style.nodeTextColor ?? 'var(--_text)' },
       },
       renderMultilineText(
-        title,
+        chart.title.block ?? title,
         chart.title.x,
         chart.title.y,
         visual.titleTextSize ?? style.groupHeaderFontSize,

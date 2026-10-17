@@ -1,3 +1,4 @@
+import { preparePixelText, type PixelTextBlock } from '../shared/prepared-text.ts'
 import type {
   JourneyDiagram,
   PositionedJourneyActor,
@@ -7,11 +8,8 @@ import type {
   PositionedJourneyTask,
 } from './types.ts'
 import type { RenderOptions } from '../types.ts'
-import { measureMultilineText, measureTextWidth } from '../text-metrics.ts'
-import { STROKE_WIDTHS, applyTextTransform, resolveRenderStyle } from '../styles.ts'
+import { STROKE_WIDTHS, resolveRenderStyle } from '../styles.ts'
 import type { RenderStyleDefaults, ResolvedRenderStyle } from '../styles.ts'
-import { displayText } from '../multiline-utils.ts'
-import { wrapLabelToWidth } from '../shared/label-wrap.ts'
 import type { JourneyRuntimeConfig } from '../mermaid-source.ts'
 import { resolveRoleStyle, type InternalStyleFace } from '../scene/style-registry.ts'
 
@@ -149,6 +147,7 @@ function journeyStyleDefaults(config: JourneyRuntimeConfig | undefined): RenderS
 }
 
 interface TaskMetric {
+  block: PixelTextBlock
   text: string
   textWidth: number
   textHeight: number
@@ -158,6 +157,7 @@ interface TaskMetric {
 }
 
 interface SectionMetric {
+  block?: PixelTextBlock
   category: string
   label?: string
   labelWidth: number
@@ -179,32 +179,24 @@ export function layoutJourneyDiagram(
   const style = resolveRenderStyle(options, appearance.styleDefaults, styleFace)
   const hasNamedSections = diagram.sections.some(section => !!section.label)
 
-  const titleText = diagram.title
-    ? applyTextTransform(diagram.title, style.groupTextTransform)
-    : undefined
-  const titleMetrics = titleText
-    ? measureMultilineText(titleText, visual.titleFontSize, JY.titleFontWeight)
-    : undefined
-
+  const titleBlock = diagram.title ? preparePixelText(diagram.title, { transform: style.groupTextTransform, fontSize: visual.titleFontSize, fontWeight: JY.titleFontWeight, letterSpacing: style.groupLetterSpacing }) : undefined
+  const titleText = titleBlock?.text
+  const titleMetrics = titleBlock
   const actorLabels = collectActors(diagram).map(actor => {
-    const label = applyTextTransform(actor, style.edgeTextTransform)
-    return {
-      raw: actor,
-      label: wrapLabelToWidth(label, visual.maxLabelWidth, style.edgeLabelFontSize, style.edgeLabelFontWeight),
-    }
+    const block = preparePixelText(actor, { transform: style.edgeTextTransform, fontSize: style.edgeLabelFontSize, fontWeight: style.edgeLabelFontWeight, letterSpacing: style.edgeLetterSpacing, maxWidth: visual.maxLabelWidth })
+    return { raw: actor, label: block.text, block }
   })
   const actorIndex = new Map(actorLabels.map((actor, index) => [actor.raw, index]))
-
-  const legendLabelMetrics = actorLabels.map(actor =>
-    measureMultilineText(displayText(actor.label), style.edgeLabelFontSize, style.edgeLabelFontWeight),
-  )
+  const legendLabelMetrics = actorLabels.map(actor => actor.block)
+  const actorLegendTitle = preparePixelText('Actors', { transform: style.groupTextTransform, fontSize: style.groupHeaderFontSize, fontWeight: style.groupHeaderFontWeight, letterSpacing: style.groupLetterSpacing })
+  const scoreBlocks = [5, 4, 3, 2, 1].map(score => preparePixelText(String(score), { transform: style.edgeTextTransform, fontSize: style.edgeLabelFontSize, fontWeight: style.edgeLabelFontWeight, letterSpacing: style.edgeLetterSpacing }))
   const legendWidth = actorLabels.length > 0
     ? Math.max(
         visual.legendMinWidth,
         JY.legendDotRadius * 2
           + JY.legendDotLabelGap
           + Math.max(
-            measureTextWidth('Actors', style.groupHeaderFontSize, style.groupHeaderFontWeight),
+            actorLegendTitle.width,
             ...legendLabelMetrics.map(metric => metric.width),
           ),
       )
@@ -216,22 +208,15 @@ export function layoutJourneyDiagram(
     const fontSize = semanticStyle?.fontSize ?? style.groupHeaderFontSize
     const fontWeight = semanticStyle?.fontWeight ?? style.groupHeaderFontWeight
     const letterSpacing = semanticStyle?.letterSpacing ?? style.groupLetterSpacing
-    const label = section.label
-      ? wrapLabelToWidth(
-          applyTextTransform(section.label, semanticStyle?.textTransform ?? style.groupTextTransform),
-          visual.maxLabelWidth,
-          fontSize,
-          fontWeight,
-          letterSpacing,
-        )
-      : undefined
-    const labelMetrics = label ? measureMultilineText(label, fontSize, fontWeight, letterSpacing) : undefined
+    const block = section.label ? preparePixelText(section.label, { transform: semanticStyle?.textTransform ?? style.groupTextTransform, fontSize, fontWeight, letterSpacing, maxWidth: visual.maxLabelWidth }) : undefined
+    const label = block?.text
+    const labelMetrics = block
     const labelWidth = labelMetrics?.width ?? 0
     const labelHeight = labelMetrics?.height ?? 0
     const tasks = section.tasks.map(task => measureTask(task.text, task.actors.length, style, visual))
     const emptyWidth = Math.max(visual.taskMinWidth, labelWidth + JY.sectionHeaderPadX * 2)
 
-    return { category, label, labelWidth, labelHeight, tasks, emptyWidth }
+    return { category, label, block, labelWidth, labelHeight, tasks, emptyWidth }
   })
 
   const maxTaskHeight = Math.max(
@@ -252,7 +237,7 @@ export function layoutJourneyDiagram(
     : 0
 
   const sectionY = contentTop
-  const taskY = sectionY + (hasNamedSections ? sectionHeaderHeight + JY.sectionTaskGap : 0)
+  const taskY = Math.max(sectionY + (hasNamedSections ? sectionHeaderHeight + JY.sectionTaskGap : 0), actorLabels.length > 0 ? JY.legendTitleGap - JY.legendDotRadius + actorLegendTitle.height / 2 : 0)
   const guideTop = taskY + maxTaskHeight + JY.taskToGuideGap
   const guideHeight = JY.scoreStep * 4
   const guideBottom = guideTop + guideHeight
@@ -260,7 +245,7 @@ export function layoutJourneyDiagram(
   const plotLeft = visual.paddingX
     + legendWidth
     + (legendWidth > 0 ? JY.legendGap : 0)
-    + JY.scoreLabelGutter
+    + Math.max(JY.scoreLabelGutter, ...scoreBlocks.map(block => block.width + JY.scoreLabelGap))
 
   // Sections are tiled blocks: each span is wide enough for both its tasks
   // and its header label, and tasks center inside the span. The next span
@@ -303,6 +288,7 @@ export function layoutJourneyDiagram(
         id: task.id,
         sectionId: section.id,
         text: taskMetric.text,
+        block: taskMetric.block,
         score: task.score,
         actors: task.actors,
         x,
@@ -335,6 +321,7 @@ export function layoutJourneyDiagram(
       id: section.id,
       category: metric.category,
       label: metric.label,
+      block: metric.block,
       x: spanX,
       y: sectionY,
       width: spanWidth,
@@ -361,6 +348,7 @@ export function layoutJourneyDiagram(
     const metric = legendLabelMetrics[index]!
     const positioned = {
       label: actor.label,
+      block: actor.block,
       x: visual.paddingX + JY.legendDotRadius,
       y: actorY,
       colorIndex: index,
@@ -371,7 +359,7 @@ export function layoutJourneyDiagram(
   })
 
   const legendBottom = actors.length > 0
-    ? actors[actors.length - 1]!.y + JY.legendDotRadius
+    ? Math.max(...actors.map(actor => actor.y + Math.max(JY.legendDotRadius, (actor.block?.height ?? 0) / 2)))
     : 0
   // Nothing renders below the baseline except the arrowhead, so the canvas
   // reserves only its clearance (upstream Mermaid's #3501 bottom-whitespace
@@ -387,6 +375,7 @@ export function layoutJourneyDiagram(
     title: titleText
       ? {
           text: titleText,
+          block: titleBlock,
           x: width / 2,
           y: visual.paddingY + titleMetrics!.height / 2,
         }
@@ -394,15 +383,17 @@ export function layoutJourneyDiagram(
     accessibilityTitle: diagram.accessibilityTitle,
     accessibilityDescription: diagram.accessibilityDescription,
     actors,
+    actorLegendTitle,
     scoreGuide: {
       x: plotLeft,
       y: guideTop,
       width: plotRight - plotLeft,
       height: guideHeight,
-      ticks: [5, 4, 3, 2, 1].map(score => {
+      ticks: [5, 4, 3, 2, 1].map((score, index) => {
         const y = scoreToY(score, guideTop)
         return {
           score,
+          block: scoreBlocks[index],
           x1: plotLeft,
           x2: plotRight,
           y,
@@ -430,13 +421,9 @@ function measureTask(
   // Task labels share the actor-legend wrap cap: a long label wraps into a
   // taller box instead of stretching the whole plot (Mermaid clips here —
   // upstream issue #6243; we wrap).
-  const taskText = wrapLabelToWidth(
-    applyTextTransform(text, style.nodeTextTransform),
-    visual.maxLabelWidth,
-    style.nodeLabelFontSize,
-    style.nodeLabelFontWeight,
-  )
-  const textMetrics = measureMultilineText(taskText, style.nodeLabelFontSize, style.nodeLabelFontWeight)
+  const block = preparePixelText(text, { transform: style.nodeTextTransform, fontSize: style.nodeLabelFontSize, fontWeight: style.nodeLabelFontWeight, letterSpacing: style.nodeLetterSpacing, maxWidth: visual.maxLabelWidth })
+  const taskText = block.text
+  const textMetrics = block
   const actorDotsWidth = actorCount > 0
     ? actorCount * JY.actorDotRadius * 2 + (actorCount - 1) * JY.actorDotGap
     : 0
@@ -453,6 +440,7 @@ function measureTask(
 
   return {
     text: taskText,
+    block,
     textWidth: textMetrics.width,
     textHeight: textMetrics.height,
     actorDotsWidth,

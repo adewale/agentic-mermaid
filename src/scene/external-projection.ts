@@ -192,6 +192,8 @@ export function canonicalExternalNode(node: ShapeMark | TextMark | GroupMark | C
         x: node.x,
         y: node.y,
         fontSize: node.fontSize,
+        fontWeight: 400,
+        display: 'literal',
         anchor: node.anchor,
         paint: node.paint,
         ...(node.channels ? { channels: node.channels } : {}),

@@ -244,7 +244,9 @@ describe('canonical PNG output-option authority', () => {
     })
 
     expect(result.status, result.stderr || result.stdout).toBe(0)
-    expect(result.stdout).toContain('ok   render_png enforces portable WASM parity (96x29, sRGB, receipt, runtime, font and legibility warnings)')
+    // This boundary proves fresh-process bootstrap and portable parity. The
+    // fitted height follows the prepared text's aspect ratio.
+    expect(result.stdout).toMatch(/ok   render_png enforces portable WASM parity \(96x[1-9]\d*, sRGB, receipt, runtime, font and legibility warnings\)/)
   })
 
   test('MCP admission enforces the canonical fit and native-font shapes', () => {

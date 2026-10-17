@@ -136,12 +136,15 @@ function renderNode(
     }
   }
   const labelY = node.y + node.height / 2 + (node.icon ? 5 : 0)
+  const fontSize = node.labelBlock?.fontSize ?? FONT_SIZE
+  const fontWeight = node.labelBlock?.fontWeight ?? 500
+  const letterSpacing = node.labelBlock?.letterSpacing ?? 0
   children.push({ node: marks.text({
-    id: semanticChildId(node.id, 'label'), role: 'label', text: node.label,
-    x: node.x + node.width / 2, y: labelY, fontSize: FONT_SIZE,
+    id: semanticChildId(node.id, 'label'), role: 'label', text: node.label, block: node.labelBlock,
+    x: node.x + node.width / 2, y: labelY, fontSize,
     anchor: 'middle', paint: { fill: textColor },
-  }, renderMultilineText(node.label, node.x + node.width / 2, labelY, FONT_SIZE,
-    `text-anchor="middle" font-size="${FONT_SIZE}" font-weight="500" fill="${textColor}"`)), indent: 2 })
+  }, renderMultilineText(node.labelBlock ?? node.label, node.x + node.width / 2, labelY, fontSize,
+    `text-anchor="middle" font-size="${fontSize}" font-weight="${fontWeight}" letter-spacing="${letterSpacing}" fill="${textColor}"`)), indent: 2 })
   const customClasses = node.className ? ` ${escapeAttr(node.className)}` : ''
   return marks.group({
     id: node.id,
