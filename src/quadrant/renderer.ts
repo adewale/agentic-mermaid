@@ -282,7 +282,8 @@ export function lowerQuadrantScene(
     const isYAxis = axis.x < plot.x
     const rotation = isYAxis ? { kind: 'rotate' as const, angle: -90, cx: axis.x, cy: axis.y } : undefined
     const transform = rotation ? ` transform="rotate(${rotation.angle} ${rotation.cx} ${rotation.cy})"` : ''
-    const labelY = axis.y + (lines.length - 1) * axis.fontSize * 1.3 / 2 - axis.fontSize * 0.35
+    const lineHeight = axis.block?.lineHeight ?? axis.fontSize * 1.3
+    const labelY = axis.y + (lines.length - 1) * lineHeight / 2 - axis.fontSize * 0.35
     parts.push(marks.text(
       {
         id: `axis:${axis.text}`,

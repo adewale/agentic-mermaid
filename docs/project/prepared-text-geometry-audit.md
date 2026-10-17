@@ -106,6 +106,32 @@ The review found no credible common 1.5 KB saving without weakening provenance,
 shaping or compatibility; the PR records that intended cost separately from
 the now-reduced editor transfer. No approval label is applied by this audit.
 
+## Final audit after growth approval
+
+Three reviewers rechecked the landed-main diff at `68d75d1`. Shared text/Scene
+checks passed 110 focused tests and terminal/build/package checks passed 132;
+these selections overlap with previous verification and must not be summed.
+The graphical reviewer passed 206 focused tests and found three allocation defects in two families. All ten new regression cases fail against the untouched reviewed head and pass with the fixes. The first was an introduced Quadrant axis containment defect:
+long Arabic and accented labels used taller prepared shaping bands, but gutter
+allocation and first-line placement still assumed a fixed 1.3 line-height ratio.
+The Arabic witness painted 450 glyph pixels outside the canvas.
+
+Quadrant gutters now use the full prepared block height and placement uses its
+resolved line height. Six independent raster cases cover both axes and both
+anchors with Arabic, accented Latin and stacked combining marks; they require
+visible ink, zero off-canvas glyphs and clearance from the plot. The immutable
+meaning-review artifact includes a matching tall-axis witness. Final CI and
+independent patch rechecks are recorded on the PR.
+
+The same scan found Sankey node labels retaining tall native/combining bands
+inside a canvas and layer packing sized only for node faces. An 18-line accented
+label painted 1,365 glyph pixels outside the canvas; adjacent eight-line labels
+overlapped by 32 pixels. Sankey now packs each node's complete face/label union
+and expands/translates the canvas for outer label bands. Node order, node heights,
+ribbon widths and authored values are preserved. Independent raster cases cover
+outer containment and adjacent label clearance, with a corresponding review
+witness. This allocation correction does not change public identity rules (#400).
+
 ## Scope and limits
 
 Coverage spans all 16 registry families, with directed tests for supported

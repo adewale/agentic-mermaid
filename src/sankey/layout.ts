@@ -155,6 +155,7 @@ function semanticNodeValues(diagram: SankeyDiagram): Map<string, number> {
  */
 export function layoutSankeyDiagram(diagram: SankeyDiagram, options: RenderOptions = {}, visual: SankeyVisualConfig = DEFAULT_SANKEY_VISUAL_CONFIG, styleFace?: Readonly<InternalStyleFace>): PositionedSankeyChart {
   const style = resolveRenderStyle(options, SANKEY_STYLE_DEFAULTS, styleFace)
+  const labelFontSize = style.nodeLabelFontSize
 
   // Mermaid feeds these exact parameters into d3-sankey. The extra 15px is
   // its allowance for the second value-label line.
@@ -184,6 +185,11 @@ export function layoutSankeyDiagram(diagram: SankeyDiagram, options: RenderOptio
 
   const nodes = graph.nodes as D3Node[]
   const links = graph.links as D3Link[]
+  const labelBlocks = new Map(nodes.map(node => {
+    const value = nodeValues.get(node.id) ?? 0
+    const source = visual.showValues ? `${node.id}\n${formatSankeyValue(value, visual)}` : node.id
+    return [node, preparePixelText(source, { display: 'formatted', transform: style.nodeTextTransform, fontSize: labelFontSize, fontWeight: style.nodeLabelFontWeight, letterSpacing: style.nodeLetterSpacing, safeFont: true })] as const
+  }))
   // Mermaid renders every positive ribbon at least 1px wide. d3-sankey does
   // not account for that display floor, so a tiny ribbon can otherwise
   // over-stack its node face. Preserve d3's layers and ordering, then grow
@@ -211,10 +217,12 @@ export function layoutSankeyDiagram(diagram: SankeyDiagram, options: RenderOptio
   for (const layer of nodesByLayer.values()) {
     layer.sort((a, b) => requiredCoordinate(a.y0, `y0 for node ${a.id}`) - requiredCoordinate(b.y0, `y0 for node ${b.id}`) || a.authoredIndex - b.authoredIndex)
     let nextY = 0
-    for (const node of layer) {
-      const y = Math.max(requiredCoordinate(node.y0, `y0 for node ${node.id}`), nextY)
+    for (const [index, node] of layer.entries()) {
+      const nodeHeight = nodeHeights.get(node)!
+      const labelOverhang = Math.max(0, (labelBlocks.get(node)!.height - nodeHeight) / 2)
+      const y = Math.max(requiredCoordinate(node.y0, `y0 for node ${node.id}`), index === 0 ? 0 : nextY + labelOverhang)
       nodeY.set(node, y)
-      nextY = y + nodeHeights.get(node)! + layoutNodePadding
+      nextY = y + nodeHeight + labelOverhang + layoutNodePadding
     }
     flowHeight = Math.max(flowHeight, nextY - layoutNodePadding)
   }
@@ -252,7 +260,6 @@ export function layoutSankeyDiagram(diagram: SankeyDiagram, options: RenderOptio
   const flowTop = SANKEY.padding + titleHeight
 
   // -- labels + canvas bounds ------------------------------------------------
-  const labelFontSize = style.nodeLabelFontSize
   const flowCenterX = flowLeft + flowWidth / 2
   interface LabelPlan {
     lines: string[]
@@ -266,11 +273,9 @@ export function layoutSankeyDiagram(diagram: SankeyDiagram, options: RenderOptio
   ).layer ?? 0
   const labelPlans = new Map<D3Node, LabelPlan>()
   for (const node of nodes) {
-    const value = nodeValues.get(node.id) ?? 0
     const layer = node.layer ?? node.depth ?? 0
     const x0 = requiredCoordinate(node.x0, `x0 for node ${node.id}`)
-    const source = visual.showValues ? `${node.id}\n${formatSankeyValue(value, visual)}` : node.id
-    const block = preparePixelText(source, { display: 'formatted', transform: style.nodeTextTransform, fontSize: labelFontSize, fontWeight: style.nodeLabelFontWeight, letterSpacing: style.nodeLetterSpacing, safeFont: true })
+    const block = labelBlocks.get(node)!
     const lines = block.lines
     const anchor: 'start' | 'end' = visual.labelStyle === 'outlined'
       ? layer < centralNodeLayer ? 'end' : 'start'
@@ -280,6 +285,8 @@ export function layoutSankeyDiagram(diagram: SankeyDiagram, options: RenderOptio
   }
   let minX: number = flowLeft
   let maxX = flowLeft + flowWidth
+  let minY = flowTop
+  let maxY = flowTop + flowHeight
   for (const node of nodes) {
     const plan = labelPlans.get(node)!
     const x0 = flowLeft + requiredCoordinate(node.x0, `x0 for node ${node.id}`)
@@ -289,17 +296,21 @@ export function layoutSankeyDiagram(diagram: SankeyDiagram, options: RenderOptio
     } else {
       minX = Math.min(minX, x0 - SANKEY.labelGap - plan.width)
     }
+    const labelY = flowTop + nodeY.get(node)! + nodeHeights.get(node)! / 2
+    minY = Math.min(minY, labelY - plan.block.height / 2)
+    maxY = Math.max(maxY, labelY + plan.block.height / 2)
   }
   const shiftX = SANKEY.padding - minX
+  const shiftY = flowTop - minY
   const width = Math.max(maxX + shiftX + SANKEY.padding, (titleBlock?.width ?? 0) + 2 * SANKEY.padding)
-  const height = flowTop + flowHeight + SANKEY.padding
+  const height = maxY + shiftY + SANKEY.padding
 
   // -- positioned projection -------------------------------------------------
   const positionedNodes: PositionedSankeyNode[] = nodes.map(node => {
     const plan = labelPlans.get(node)!
     const x0 = flowLeft + requiredCoordinate(node.x0, `x0 for node ${node.id}`) + shiftX
     const x1 = flowLeft + requiredCoordinate(node.x1, `x1 for node ${node.id}`) + shiftX
-    const y0 = flowTop + nodeY.get(node)!
+    const y0 = flowTop + nodeY.get(node)! + shiftY
     const y1 = y0 + nodeHeights.get(node)!
     return {
       id: `sankey-node-${node.authoredIndex + 1}`,
@@ -328,8 +339,8 @@ export function layoutSankeyDiagram(diagram: SankeyDiagram, options: RenderOptio
     occurrences.set(key, occurrence + 1)
     const sx = round(flowLeft + requiredCoordinate(source.x1, `x1 for node ${source.id}`) + shiftX)
     const tx = round(flowLeft + requiredCoordinate(target.x0, `x0 for node ${target.id}`) + shiftX)
-    const sy = round(flowTop + sourceY.get(link)!)
-    const ty = round(flowTop + targetY.get(link)!)
+    const sy = round(flowTop + sourceY.get(link)! + shiftY)
+    const ty = round(flowTop + targetY.get(link)! + shiftY)
     const geometry = linkCenterline(sx, sy, tx, ty)
     return {
       id: sankeyLinkId(source.id, target.id, occurrence),

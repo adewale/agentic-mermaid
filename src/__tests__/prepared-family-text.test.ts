@@ -1,5 +1,9 @@
 import { beforeAll, describe, expect, test } from 'bun:test'
 import { renderMermaidSVG } from '../index.ts'
+import { layoutQuadrantChart } from '../quadrant/layout.ts'
+import { parseQuadrantChart } from '../quadrant/parser.ts'
+import { layoutSankeyDiagram } from '../sankey/layout.ts'
+import { parseSankeyDiagram } from '../sankey/parser.ts'
 import { renderedTextReady, measureRenderedText } from './helpers/rendered-text.ts'
 
 beforeAll(() => renderedTextReady())
@@ -83,6 +87,71 @@ describe('prepared family text preserves authored display and allocated bounds',
     const svg = renderMermaidSVG(`---\ntitle: ${JSON.stringify(word)}\n---\nquadrantChart\n A: [0.3,0.6]`, { style: { roles: { group: { textTransform: 'capitalize' } } } })
     const text = measureRenderedText(svg).texts.find(t => t.content.startsWith('Pneumonoultra'))!.content
     expect(text.replace(/[\s-]/g, '')).toBe('P' + word.slice(1))
+  })
+
+  for (const label of ['مرحبا '.repeat(25), 'ÉǗẼ '.repeat(25), 'a\u0301\u0301\u0301\u0301\u0301 '.repeat(25)]) {
+    for (const axis of ['x', 'y'] as const) {
+      test(`quadrant ${axis}-axis contains complete tall shaping bands for both anchors: ${label.slice(0, 8)}`, () => {
+        const source = `quadrantChart\n ${axis}-axis ${label} --> ${label}\n A: [0.3,0.6]`
+        const plot = layoutQuadrantChart(parseQuadrantChart(source.split('\n'))).plot
+        const texts = measureRenderedText(renderMermaidSVG(source)).texts.filter(text => text.content.startsWith(label.trim().split(' ')[0]!))
+        expect(texts).toHaveLength(2)
+        for (const text of texts) {
+          expect(text.offCanvasPixels).toBe(0)
+          expect(text.pixels).toBeGreaterThan(0)
+          if (axis === 'x') expect(text.box!.y).toBeGreaterThanOrEqual(plot.y + plot.size)
+          else expect(text.box!.x + text.box!.width).toBeLessThanOrEqual(plot.x)
+        }
+      })
+    }
+  }
+
+  for (const word of ['مرحبا', 'ÉǗẼ', 'a\u0301\u0301\u0301\u0301\u0301']) {
+    test(`Sankey contains complete tall node labels while preserving flow quantities: ${word}`, () => {
+      const label = Array(18).fill(word).join('\n')
+      const source = `sankey-beta\n"${label}",Sink,1`
+      const census = measureRenderedText(renderMermaidSVG(`---\ntitle: Tall label graph\n---\n${source}`))
+      const title = census.texts.find(text => text.content === 'Tall label graph')!
+      const text = census.texts.find(text => text.content.startsWith(word))!
+      expect(text.offCanvasPixels).toBe(0)
+      expect(text.pixels).toBeGreaterThan(0)
+      expect(text.content.split(' ').filter(part => part === word)).toHaveLength(18)
+      expect(text.box!.y).toBeGreaterThan(title.box!.y + title.box!.height)
+
+      const plain = layoutSankeyDiagram(parseSankeyDiagram(['sankey-beta', 'Source,Sink,1']))
+      const tall = layoutSankeyDiagram(parseSankeyDiagram(source.split('\n')))
+      expect(tall.height).toBeGreaterThan(plain.height)
+      expect(tall.total).toBe(plain.total)
+      expect(tall.links.map(link => [link.value, link.width])).toEqual(plain.links.map(link => [link.value, link.width]))
+      const shiftY = tall.nodes[0]!.y0 - plain.nodes[0]!.y0
+      for (const [index, node] of tall.nodes.entries()) {
+        expect(node.value).toBe(plain.nodes[index]!.value)
+        expect(node.y1 - node.y0).toBeCloseTo(plain.nodes[index]!.y1 - plain.nodes[index]!.y0, 2)
+        expect(node.y0 - plain.nodes[index]!.y0).toBeCloseTo(shiftY, 2)
+      }
+      expect(tall.links[0]!.sy - plain.links[0]!.sy).toBeCloseTo(shiftY, 2)
+      expect(tall.links[0]!.ty - plain.links[0]!.ty).toBeCloseTo(shiftY, 2)
+    })
+  }
+
+  test('Sankey separates complete neighboring label bands without changing ribbon or node quantities', () => {
+    const label = Array(7).fill('ÉǗẼ').join('\n')
+    const source = `sankey-beta\n"First ${label}",Sink1,1\n"Second ${label}",Sink2,1`
+    const census = measureRenderedText(renderMermaidSVG(source))
+    const labels = census.texts.filter(text => text.content.startsWith('First') || text.content.startsWith('Second'))
+    expect(labels).toHaveLength(2)
+    expect(labels[0]!.offCanvasPixels).toBe(0)
+    expect(labels[1]!.offCanvasPixels).toBe(0)
+    expect(labels[0]!.box!.y + labels[0]!.box!.height).toBeLessThan(labels[1]!.box!.y)
+
+    const plain = layoutSankeyDiagram(parseSankeyDiagram(['sankey-beta', 'First,Sink1,1', 'Second,Sink2,1']))
+    const tall = layoutSankeyDiagram(parseSankeyDiagram(source.split('\n')))
+    expect(tall.total).toBe(plain.total)
+    expect(tall.links.map(link => [link.value, link.width])).toEqual(plain.links.map(link => [link.value, link.width]))
+    for (const [index, node] of tall.nodes.entries()) {
+      expect(node.value).toBe(plain.nodes[index]!.value)
+      expect(node.y1 - node.y0).toBeCloseTo(plain.nodes[index]!.y1 - plain.nodes[index]!.y0, 2)
+    }
   })
 
   for (const family of ['gantt', 'radar'] as const) {

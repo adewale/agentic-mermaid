@@ -9,6 +9,7 @@ import type {
 import type { RenderOptions } from '../types.ts'
 import type { QuadrantVisualConfig } from './config.ts'
 import { preparePixelText, type PixelTextBlock } from '../shared/prepared-text.ts'
+import { LINE_HEIGHT_RATIO } from '../text-metrics.ts'
 import { resolveRenderStyle, STROKE_WIDTHS } from '../styles.ts'
 import type { RenderStyleDefaults } from '../styles.ts'
 import type { InternalStyleFace } from '../scene/style-registry.ts'
@@ -236,7 +237,7 @@ export function layoutQuadrantChart(
   const axisFontY = visual.yAxisLabelFontSize ?? style.edgeLabelFontSize
   const axisPadX = visual.xAxisLabelPadding ?? Q.axisLabelPadding
   const axisPadY = visual.yAxisLabelPadding ?? Q.axisLabelPadding
-  // Axis labels own one half-plot each. Compute measured two-line paint labels
+  // Axis labels own one half-plot each. Compute their complete prepared blocks
   // and enlarge only the appropriate gutter; sparse/default labels therefore
   // keep their historical bytes. Explicit canvas dimensions are solved twice
   // because a wrapped gutter slightly reduces the available square plot.
@@ -269,10 +270,10 @@ export function layoutQuadrantChart(
       titleText = titleBlock.text
       titleHeight = titleBlock.height - (titleBlock.lineHeight - titleBlock.fontSize) + titleGap
     }
-    const xLines = Math.max(1, ...(budgetedX ? [budgetedX.near, budgetedX.far].map(block => block?.lines.length ?? 1) : [1]))
-    const yLines = Math.max(1, ...(budgetedY ? [budgetedY.near, budgetedY.far].map(block => block?.lines.length ?? 1) : [1]))
-    xAxisGutter = baseXAxisGutter + (xLines - 1) * axisFontX * 1.3
-    yAxisGutter = baseYAxisGutter + (yLines - 1) * axisFontY * 1.3
+    const xHeight = Math.max(axisFontX * LINE_HEIGHT_RATIO, ...[budgetedX?.near, budgetedX?.far].map(block => block?.height ?? 0))
+    const yHeight = Math.max(axisFontY * LINE_HEIGHT_RATIO, ...[budgetedY?.near, budgetedY?.far].map(block => block?.height ?? 0))
+    xAxisGutter = baseXAxisGutter + xHeight - axisFontX * LINE_HEIGHT_RATIO
+    yAxisGutter = baseYAxisGutter + yHeight - axisFontY * LINE_HEIGHT_RATIO
   }
 
   const plotX = paddingX + yAxisGutter
@@ -394,20 +395,20 @@ export function layoutQuadrantChart(
 
   // Axis labels.
   const axisLabels: PositionedQuadrantAxisLabel[] = []
-  const axisBaseline = plotY + size + axisFontX + axisPadX
+  const axisBaseline = (block: PixelTextBlock): number => plotY + size + Math.max(axisFontX, block.lineHeight / 2) + axisPadX
   if (budgetedX) {
     // Left label under the left half; right label under the right half.
-    axisLabels.push({ text: budgetedX.near.text, block: budgetedX.near, x: round(plotX + 4), y: round(axisBaseline), anchor: 'start', fontSize: axisFontX })
+    axisLabels.push({ text: budgetedX.near.text, block: budgetedX.near, x: round(plotX + 4), y: round(axisBaseline(budgetedX.near)), anchor: 'start', fontSize: axisFontX })
     if (budgetedX.far) {
-      axisLabels.push({ text: budgetedX.far.text, block: budgetedX.far, x: round(plotX + size - 4), y: round(axisBaseline), anchor: 'end', fontSize: axisFontX })
+      axisLabels.push({ text: budgetedX.far.text, block: budgetedX.far, x: round(plotX + size - 4), y: round(axisBaseline(budgetedX.far)), anchor: 'end', fontSize: axisFontX })
     }
   }
   if (budgetedY) {
     // Rotated labels along the left gutter: bottom label low, top label high.
-    const yAxisX = paddingX + axisFontY
-    axisLabels.push({ text: budgetedY.near.text, block: budgetedY.near, x: round(yAxisX), y: round(plotY + size - 4), anchor: 'start', fontSize: axisFontY })
+    const yAxisX = (block: PixelTextBlock): number => paddingX + Math.max(axisFontY, block.lineHeight / 2)
+    axisLabels.push({ text: budgetedY.near.text, block: budgetedY.near, x: round(yAxisX(budgetedY.near)), y: round(plotY + size - 4), anchor: 'start', fontSize: axisFontY })
     if (budgetedY.far) {
-      axisLabels.push({ text: budgetedY.far.text, block: budgetedY.far, x: round(yAxisX), y: round(plotY + 4), anchor: 'end', fontSize: axisFontY })
+      axisLabels.push({ text: budgetedY.far.text, block: budgetedY.far, x: round(yAxisX(budgetedY.far)), y: round(plotY + 4), anchor: 'end', fontSize: axisFontY })
     }
   }
 
