@@ -265,7 +265,7 @@ function hasIncomingEdgeFromOutsideSubgraph(graph: AsciiGraph, node: AsciiNode):
 // Subgraph bounding boxes
 // ============================================================================
 
-function calculateSubgraphBoundingBox(graph: AsciiGraph, sg: AsciiSubgraph): void {
+function calculateSubgraphBoundingBox(graph: AsciiGraph, sg: AsciiSubgraph, projected?: ReadonlyMap<AsciiNode, GridBounds>): void {
   if (sg.nodes.length === 0) return
 
   let minX = 1_000_000
@@ -275,7 +275,7 @@ function calculateSubgraphBoundingBox(graph: AsciiGraph, sg: AsciiSubgraph): voi
 
   // Include children's bounding boxes
   for (const child of sg.children) {
-    calculateSubgraphBoundingBox(graph, child)
+    calculateSubgraphBoundingBox(graph, child, projected)
     if (child.nodes.length > 0) {
       minX = Math.min(minX, child.minX)
       minY = Math.min(minY, child.minY)
@@ -286,28 +286,30 @@ function calculateSubgraphBoundingBox(graph: AsciiGraph, sg: AsciiSubgraph): voi
 
   // Include node positions
   for (const node of sg.nodes) {
-    if (!node.drawingCoord || !node.drawing) continue
-    const nodeMinX = node.drawingCoord.x
-    const nodeMinY = node.drawingCoord.y
-    const nodeMaxX = nodeMinX + node.drawing.width - 1
-    const nodeMaxY = nodeMinY + node.drawing.height - 1
-    minX = Math.min(minX, nodeMinX)
-    minY = Math.min(minY, nodeMinY)
-    maxX = Math.max(maxX, nodeMaxX)
-    maxY = Math.max(maxY, nodeMaxY)
+    const bounds = projected?.get(node) ?? (node.drawingCoord && node.drawing ? {
+      minX: node.drawingCoord.x, minY: node.drawingCoord.y,
+      maxX: node.drawingCoord.x + node.drawing.width - 1, maxY: node.drawingCoord.y + node.drawing.height - 1,
+    } : undefined)
+    if (!bounds) continue
+    minX = Math.min(minX, bounds.minX)
+    minY = Math.min(minY, bounds.minY)
+    maxX = Math.max(maxX, bounds.maxX)
+    maxY = Math.max(maxY, bounds.maxY)
   }
 
   const subgraphPadding = 2
-  const subgraphLabelSpace = Math.max(2, lineCount(sg.name))
+  // Keep two cells after the last header line for an incoming bend and its
+  // terminal marker; a marker cannot also represent a change of direction.
+  const subgraphLabelSpace = Math.max(2, lineCount(sg.name) + 1)
   sg.minX = minX - subgraphPadding
   sg.minY = minY - subgraphPadding - subgraphLabelSpace
   sg.maxX = maxX + subgraphPadding
   sg.maxY = maxY + subgraphPadding
 }
 
-export function calculateSubgraphBoundingBoxes(graph: AsciiGraph): void {
+export function calculateSubgraphBoundingBoxes(graph: AsciiGraph, projected?: ReadonlyMap<AsciiNode, GridBounds>): void {
   for (const sg of graph.subgraphs) {
-    calculateSubgraphBoundingBox(graph, sg)
+    if (!sg.parent) calculateSubgraphBoundingBox(graph, sg, projected)
   }
 }
 
@@ -386,6 +388,68 @@ function nodeBounds(node: AsciiNode): GridBounds | null {
   if (!node.gridCoord) return null
   const { x, y } = node.gridCoord
   return { minX: x, minY: y, maxX: x + 2, maxY: y + 2 }
+}
+
+/** Reserve terminal capacity for the complete containment tree, rather than
+ * assuming the normal card-to-card gap also fits arbitrarily nested frames.
+ * Logical placement and routes stay fixed; only empty spacer rows/columns grow. */
+function reserveContainerEnvelopes(graph: AsciiGraph): void {
+  if (!graph.subgraphs.length) return
+  const projected = new Map<AsciiNode, GridBounds>()
+  for (const node of graph.nodes) {
+    if (!node.gridCoord) continue
+    const point = gridToDrawingCoord(graph, node.gridCoord)
+    projected.set(node, {
+      minX: point.x, minY: point.y,
+      maxX: point.x + (graph.columnWidth.get(node.gridCoord.x) ?? 0) + (graph.columnWidth.get(node.gridCoord.x + 1) ?? 0),
+      maxY: point.y + (graph.rowHeight.get(node.gridCoord.y) ?? 0) + (graph.rowHeight.get(node.gridCoord.y + 1) ?? 0),
+    })
+  }
+  calculateSubgraphBoundingBoxes(graph, projected)
+  interface Envelope { bounds: GridBounds; logical: GridBounds; node?: AsciiNode; group?: AsciiSubgraph }
+  const envelopes: Envelope[] = []
+  for (const [node, bounds] of projected) envelopes.push({ node, bounds, logical: nodeBounds(node)! })
+  for (const group of graph.subgraphs) {
+    const logical = boundsOfNodes(group.nodes)
+    if (logical && !group.concurrencyRegion) envelopes.push({ group, logical, bounds: { minX: group.minX, minY: group.minY, maxX: group.maxX, maxY: group.maxY } })
+  }
+  const related = (a: Envelope, b: Envelope): boolean => {
+    if (a.group && b.node) return a.group.nodes.includes(b.node)
+    if (b.group && a.node) return b.group.nodes.includes(a.node)
+    if (a.group && b.group) return isAncestorOrSelf(a.group, b.group) || isAncestorOrSelf(b.group, a.group)
+    return true // individual cards already occupy disjoint logical blocks
+  }
+  const rows = new Map<number, number>(), columns = new Map<number, number>()
+  const clearance = 2 // one visible terminal cell between unrelated envelopes
+  for (let index = 0; index < envelopes.length; index++) for (let next = index + 1; next < envelopes.length; next++) {
+    const a = envelopes[index]!, b = envelopes[next]!
+    if (related(a, b)) continue
+    const first = a.bounds, second = b.bounds
+    if (first.maxX + clearance <= second.minX || second.maxX + clearance <= first.minX
+      || first.maxY + clearance <= second.minY || second.maxY + clearance <= first.minY) continue
+    const candidates: Array<{ axis: 'x' | 'y'; index: number; extra: number }> = []
+    for (const axis of ['x', 'y'] as const) {
+      const min = axis === 'x' ? 'minX' : 'minY', max = axis === 'x' ? 'maxX' : 'maxY'
+      if (a.logical[max] < b.logical[min]) candidates.push({ axis, index: b.logical[min] - 1, extra: first[max] + clearance - second[min] })
+      if (b.logical[max] < a.logical[min]) candidates.push({ axis, index: a.logical[min] - 1, extra: second[max] + clearance - first[min] })
+    }
+    // A separating logical gap can only gain capacity when other reservations
+    // grow. Batch the largest deficit per spacer: no repeated paint/settle loop.
+    candidates.sort((a, b) => a.extra - b.extra || (a.axis === (graph.config.graphDirection === 'TD' ? 'y' : 'x') ? -1 : 1))
+    const candidate = candidates[0]
+    if (!candidate) {
+      const firstId = a.group?.id ?? a.node!.name, secondId = b.group?.id ?? b.node!.name
+      graph.canvas.report({
+        code: 'TERMINAL_GEOMETRY_COLLISION', feature: `container-envelope:${firstId}:${secondId}`,
+        message: `Unrelated envelopes ${firstId} and ${secondId} interleave in both logical axes; spacer capacity cannot separate them.`,
+      })
+      continue
+    }
+    const reservations = candidate.axis === 'x' ? columns : rows
+    reservations.set(candidate.index, Math.max(reservations.get(candidate.index) ?? 0, candidate.extra))
+  }
+  for (const [index, extra] of columns) graph.columnWidth.set(index, (graph.columnWidth.get(index) ?? 0) + extra)
+  for (const [index, extra] of rows) graph.rowHeight.set(index, (graph.rowHeight.get(index) ?? 0) + extra)
 }
 
 /**
@@ -779,6 +843,8 @@ export function createMapping(graph: AsciiGraph): void {
   if (graph.config.reverseDirection) {
     mirrorHorizontalGrid(graph)
   }
+
+  reserveContainerEnvelopes(graph)
 
   // Convert grid coords → drawing coords and generate box drawings
   for (const node of graph.nodes) {

@@ -72,6 +72,12 @@ from measured label bounds and actual owned route cells, with a bounded local
 search for ties. Grid spacing reserves frame margins
 and reciprocal-label demand. If bounded local placement fails, ordinary strict
 admission reports the collision; no detached label is substituted.
+Cards and recursive container frames share provisional and final envelope
+measurement. One batch reserves the maximum missing capacity per spacer between
+unrelated, logically disjoint items; logical coordinates, routes and ports stay
+fixed. Multiline headers reserve a two-cell bend/marker approach. If unrelated
+items interleave in both logical axes, spacer growth cannot separate them and
+the drawing reports that containment limitation explicitly.
 
 GitGraph reserves complete commit-label rectangles clear of branch rails.
 Positive-length shared rail runs and merge stems determine intentional bundles;
