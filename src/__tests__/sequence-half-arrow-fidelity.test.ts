@@ -5,6 +5,10 @@ import { asSequence } from '../agent/types.ts'
 import { mutate } from '../agent/mutate.ts'
 import { renderMermaidSVG } from '../index.ts'
 import { parseSequenceDiagram, parseSequenceMessageLine } from '../sequence/parser.ts'
+import { resolveRenderRequest } from '../render-contract.ts'
+import { positionResolvedFamily } from '../positioning.ts'
+import { lowerPositionedFamilyScene } from '../graphical-render.ts'
+import type { ConnectorMark, SceneNode } from '../scene/ir.ts'
 
 // Pinned Mermaid 11.16 sequenceDiagram.jison has eight solid and eight dotted
 // half-arrow tokens. A shorter prefix must never become part of the recipient.
@@ -28,6 +32,26 @@ const CASES = [
 ] as const
 
 describe('Sequence half-arrow lexical fidelity', () => {
+  test('final Scene retains message arrowheads and their marker placements', () => {
+    const source = 'sequenceDiagram\nA->>B: Request\nB-->>A: Reply\nA->>A: Retry\nA<<->>B: Exchange'
+    const request = resolveRenderRequest(source)
+    const scene = lowerPositionedFamilyScene(request, positionResolvedFamily('sequence', request))
+    const messages: ConnectorMark[] = []
+    const visit = (node: SceneNode): void => {
+      if (node.kind === 'connector' && node.role === 'message') messages.push(node)
+      if (node.kind === 'group') for (const child of node.children) visit(child.node)
+    }
+    scene.parts.forEach(visit)
+    expect(messages).toHaveLength(4)
+    for (const message of messages) {
+      expect(message.markers.end?.shape).toBe('arrow')
+      expect(message.terminalProjection.markerPlacements.end).toHaveLength(1)
+      expect(message.terminalProjection.markerPlacements.end[0]?.point).toEqual(message.endpoints.end?.point)
+    }
+    expect(messages[3]!.markers.start?.shape).toBe('arrow')
+    expect(messages[3]!.terminalProjection.markerPlacements.start).toHaveLength(1)
+  })
+
   for (const { arrow, head, side, dashed } of CASES) {
     test(`${JSON.stringify(arrow)} keeps exact identities and paint implication`, () => {
       const line = `A${arrow}B: witness`

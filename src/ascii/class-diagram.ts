@@ -5,7 +5,7 @@ import { parseClassDiagram } from '../class/parser.ts'
 import { memberToString } from '../class/layout.ts'
 import type { ClassNode, ClassNamespace, RelationshipType } from '../class/types.ts'
 import type { AsciiConfig, AsciiTheme, ColorMode } from './types.ts'
-import { TerminalDocument, type TerminalOwner } from './terminal-document.ts'
+import { TerminalDocument, type TerminalMarker, type TerminalOwner } from './terminal-document.ts'
 import { drawMultiBox } from './draw.ts'
 import { visualWidth } from './width.ts'
 import { wrapText } from './wrap.ts'
@@ -29,13 +29,12 @@ function classSections(cls: ClassNode, width?: number): string[][] {
   return methods.length ? [header, attrs, methods] : attrs.length ? [header, attrs] : [header]
 }
 
-function markerGlyph(type: RelationshipType, side: BoxSide, ascii: boolean): string {
-  if (type === 'inheritance' || type === 'realization') return ({ T: ascii ? 'v' : '▽', B: ascii ? '^' : '△', L: ascii ? '>' : '▷', R: ascii ? '<' : '◁' })[side]
-  if (type === 'composition') return ascii ? '*' : '◆'
-  if (type === 'aggregation') return ascii ? 'o' : '◇'
-  if (type === 'lollipop') return ascii ? 'O' : '○'
-  if (type === 'link-solid' || type === 'link-dashed') return ''
-  return ({ T: ascii ? 'v' : '▼', B: ascii ? '^' : '▲', L: ascii ? '>' : '▶', R: ascii ? '<' : '◀' })[side]
+function classMarker(type: RelationshipType, side: BoxSide, ascii: boolean): TerminalMarker | undefined {
+  if (type === 'link-solid' || type === 'link-dashed') return undefined
+  const shape = type === 'inheritance' || type === 'realization' ? 'open-arrow'
+    : type === 'composition' ? 'filled-diamond' : type === 'aggregation' ? 'hollow-diamond'
+      : type === 'lollipop' ? 'lollipop' : 'triangle'
+  return { shape, direction: ({ T: 'B', B: 'T', L: 'R', R: 'L' } as const)[side], ascii }
 }
 
 export function renderClassTerminal(text: string, config: AsciiConfig, colorMode?: ColorMode, theme?: AsciiTheme, targetWidth?: number, authoredText?: string): TerminalArtifact {
@@ -203,14 +202,19 @@ export function renderClassTerminal(text: string, config: AsciiConfig, colorMode
   for (const route of routes) {
     const relationIndex = relations.findIndex(relation => relation.id === route.relation.id)
     if (relationIndex < 0) {
-      paintBoxRoute(doc, route, { id: route.relation.id, kind: 'edge', from: route.relation.from, to: route.relation.to }, ascii)
+      const owner = { id: route.relation.id, kind: 'edge' as const, from: route.relation.from, to: route.relation.to }
+      paintBoxRoute(doc, route, owner, ascii)
+      doc.expectMarkers(owner, 'start', [])
+      doc.expectMarkers(owner, 'end', [])
       continue
     }
     const rel = diagram.relationships[relationIndex]!
     const owner = doc.element({ id: route.relation.id, kind: 'edge', from: rel.from, to: rel.to })
     paintBoxRoute(doc, route, owner, ascii, rel.type === 'dependency' || rel.type === 'realization' || rel.type === 'link-dashed')
-    for (const [port, type, enabled] of [[route.source, rel.fromType ?? rel.type, rel.markerAt === 'from' || rel.markerAt === 'both'], [route.target, rel.toType ?? rel.type, rel.markerAt === 'to' || rel.markerAt === 'both']] as const) {
-      if (enabled) doc.put(port.x, port.y, markerGlyph(type, port.side, ascii), { owner, role: 'arrow', kind: 'marker' })
+    for (const [end, port, type, enabled] of [['start', route.source, rel.fromType ?? rel.type, rel.markerAt === 'from' || rel.markerAt === 'both'], ['end', route.target, rel.toType ?? rel.type, rel.markerAt === 'to' || rel.markerAt === 'both']] as const) {
+      const marker = enabled ? classMarker(type, port.side, ascii) : undefined
+      doc.expectMarkers(owner, end, marker ? [marker] : [])
+      if (marker) doc.marker(port.x, port.y, marker, { owner, role: 'arrow' })
     }
     paintBoxText(doc, route.label, owner)
     paintBoxText(doc, route.fromLabel, { id: generated(`${owner.id}:from-cardinality`), kind: 'label', parent: { id: owner.id, kind: 'edge' } })

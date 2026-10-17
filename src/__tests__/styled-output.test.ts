@@ -20,6 +20,8 @@ import { FAMILY_CONFORMANCE_PROFILES } from './helpers/family-conformance-profil
 import { renderedTextReady } from './helpers/rendered-text.ts'
 import { normalizeSvg } from './helpers/svg-normalize.ts'
 import { ensureWebsiteBuilt } from './website-public-fixture.ts'
+import { decodePng } from './helpers/png-pixels.ts'
+import { colorPixelBoxInRaster, redPixel } from './helpers/raster.ts'
 
 const FIXTURES = join(import.meta.dir, '..', '..', 'eval', 'layout-compare', 'fixtures')
 const GOLDENS = join(import.meta.dir, 'testdata', 'styled')
@@ -433,6 +435,16 @@ describe('bundled fonts', () => {
     const { png, warnings } = await renderMermaidPNGWasm('flowchart LR\n  A[Start] -- go --> B[Finish]\n', { fitTo: { width: 100 } })
     expect(Array.from(png.subarray(0, 8))).toEqual([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a])
     expect(warnings).toContainEqual(expect.objectContaining({ code: 'BELOW_READABLE_SIZE', cause: 'fitTo' }))
+    for (const [source, left, top, bottom] of [
+      ['classDiagram\ndirection LR\nA *-- B', 160, 55, 74],
+      ['sequenceDiagram\nA<<->>B: hello', 70, 90, 102],
+    ] as const) {
+      const result = await renderMermaidPNGWasm(source, { scale: 1, style: { roles: { edge: { strokeColor: '#ff0000' } } } })
+      const image = decodePng(result.png)
+      const ink = colorPixelBoxInRaster({ ...image, pixels: image.rgba }, redPixel, { left: left - 20, right: left + 25, top, bottom })
+      expect(ink.left).toBeGreaterThanOrEqual(left - 1)
+      expect(ink.height).toBeGreaterThan(2)
+    }
   }, 180_000)
 })
 

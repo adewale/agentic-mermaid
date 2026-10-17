@@ -32,7 +32,13 @@ export type TerminalSide = 'T' | 'R' | 'B' | 'L'
 export const TERMINAL_STROKE_PORTS = { T: 1, R: 2, B: 4, L: 8 } as const
 export type TerminalLineStyle = 'solid' | 'dashed' | 'dotted' | 'heavy' | 'double'
 export interface TerminalStroke { mask: number; ascii?: boolean; style?: TerminalLineStyle; rounded?: boolean }
-export interface TerminalMarker { shape: 'arrow' | 'triangle' | 'open-arrow' | 'circle' | 'cross' | 'diamond'; direction?: TerminalSide; ascii?: boolean }
+export interface TerminalMarker {
+  shape: 'arrow' | 'triangle' | 'open-arrow' | 'circle' | 'cross' | 'diamond'
+    | 'wide-circle' | 'lollipop' | 'filled-diamond' | 'hollow-diamond' | 'sequence-cross'
+    | 'half-top' | 'half-bottom' | 'stick-top' | 'stick-bottom' | 'cardinality-one' | 'cardinality-many'
+  direction?: TerminalSide
+  ascii?: boolean
+}
 export interface TerminalNumericMark { axis: 'horizontal' | 'vertical'; coverage: 1 | 2 | 3; ascii?: boolean }
 const measuredBrand = Symbol('measured terminal text')
 export interface MeasuredTerminalText {
@@ -95,7 +101,17 @@ export interface TerminalCell extends TerminalPaint {
   occludedOwners?: TerminalOwnerSet
 }
 export interface TerminalCellSpan { row: number; start: number; end: number }
-export interface TerminalPort { nodeId: string; x: number; y: number; side?: 'T' | 'B' | 'L' | 'R'; end: 'start' | 'end' }
+export interface TerminalPort {
+  nodeId: string; x: number; y: number; side?: TerminalSide; end: 'start' | 'end'
+  /** Model-owned expectation, declared separately from painting. Empty means
+   * deliberately unmarked; multiple cells retain ER cardinality semantics. */
+  markers?: readonly Readonly<TerminalMarker>[]
+  markerOffset?: number
+  /** A declared family loss, backed by a diagnostic and owned fallback text. */
+  markerProjection?: string
+  /** Sequence contacts a participant lifeline, not its header-card frame. */
+  surface?: 'frame' | 'lifeline'
+}
 export interface TerminalRegion {
   id: string
   kind: NonNullable<TerminalOwner['kind']>
@@ -193,11 +209,30 @@ function strokeGlyph(stroke: TerminalStroke): string {
 }
 function markerGlyph(marker: TerminalMarker): string {
   const direction = marker.direction ?? 'R', index = ['T', 'R', 'B', 'L'].indexOf(direction)
+  const right = direction === 'R', horizontal = direction === 'R' || direction === 'L'
+  if (marker.shape === 'sequence-cross') return 'X'
+  if (marker.shape === 'half-top') return right ? (marker.ascii ? '/' : '◜') : (marker.ascii ? '\\' : '◝')
+  if (marker.shape === 'half-bottom') return right ? (marker.ascii ? '\\' : '◟') : (marker.ascii ? '/' : '◞')
+  if (marker.shape === 'stick-top') return right ? '/' : '\\'
+  if (marker.shape === 'stick-bottom') return right ? '\\' : '/'
+  if (marker.shape === 'wide-circle') return marker.ascii ? 'o' : '◯'
+  if (marker.shape === 'lollipop') return marker.ascii ? 'O' : '○'
+  if (marker.shape === 'filled-diamond') return marker.ascii ? '*' : '◆'
+  if (marker.shape === 'hollow-diamond') return marker.ascii ? 'o' : '◇'
+  if (marker.shape === 'cardinality-one') return horizontal ? (marker.ascii ? '|' : '│') : (marker.ascii ? '-' : '─')
+  if (marker.shape === 'cardinality-many') return (marker.ascii ? ['^', '>', 'v', '<'] : ['┴', '╢', '┬', '╟'])[index]!
   if (marker.shape === 'circle') return marker.ascii ? 'o' : '○'
   if (marker.shape === 'cross') return marker.ascii ? 'x' : '✕'
   if (marker.shape === 'diamond') return marker.ascii ? 'o' : '◆'
   if (marker.ascii) return ['^', '>', 'v', '<'][index]!
   return (marker.shape === 'open-arrow' ? ['△', '▷', '▽', '◁'] : marker.shape === 'triangle' ? ['▲', '▶', '▼', '◀'] : ['▲', '►', '▼', '◄'])[index]!
+}
+function reflectedMarker(marker: Readonly<TerminalMarker>, horizontal: boolean, vertical: boolean): Readonly<TerminalMarker> {
+  let direction = marker.direction ?? 'R', shape = marker.shape
+  if (horizontal && (direction === 'L' || direction === 'R')) direction = direction === 'L' ? 'R' : 'L'
+  if (vertical && (direction === 'T' || direction === 'B')) direction = direction === 'T' ? 'B' : 'T'
+  if (vertical) shape = shape === 'half-top' ? 'half-bottom' : shape === 'half-bottom' ? 'half-top' : shape === 'stick-top' ? 'stick-bottom' : shape === 'stick-bottom' ? 'stick-top' : shape
+  return Object.freeze({ ...marker, shape, direction })
 }
 function numericMarkGlyph(mark: TerminalNumericMark): string {
   return mark.ascii ? '#' : mark.coverage === 3 ? '█' : mark.axis === 'horizontal' ? mark.coverage === 1 ? '▌' : '▐' : mark.coverage === 1 ? '▄' : '▀'
@@ -439,6 +474,78 @@ export class TerminalDocument {
     if (!ports.some(existing => existing.end === port.end && existing.nodeId === port.nodeId)) ports.push({ ...port })
     this.ports.set(key, ports)
     this.resize(port.x + 1, port.y + 1)
+  }
+
+  /** Allocate from the native family model, never infer intent from ink. */
+  expectMarkers(owner: TerminalOwner, end: TerminalPort['end'], markers: readonly TerminalMarker[], offset = 0): void {
+    const port = this.ports.get(ownerKey(this.remember(owner)!))?.find(port => port.end === end)
+    if (!port || port.markers) throw new TypeError(`Terminal endpoint ${owner.id}/${end} must have one allocated marker contract`)
+    port.markers = Object.freeze(markers.map(marker => Object.freeze({ ...marker, direction: marker.direction ?? 'R' })))
+    port.markerOffset = offset
+  }
+
+  projectMarkers(owner: TerminalOwner, feature: string): void {
+    for (const port of this.ports.get(ownerKey(this.remember(owner)!)) ?? []) port.markerProjection = feature
+  }
+
+  /** Inspect final visible cells after all routing, overlays and reflections.
+   * Node decorations and non-geometric family projections are not connectors. */
+  assertMarkers(): void {
+    if (![...this.ports.values()].some(ports => ports.some(port => port.markers))) return
+    const frames = new Map<string, { kind: TerminalOwner['kind']; bounds: TerminalBounds }>()
+    const includeFrame = (owner: TerminalOwner, bounds: TerminalBounds, declared = false) => {
+      if (!['node', 'group', 'cluster', 'subgraph'].includes(owner.kind ?? 'node')) return
+      const previous = frames.get(owner.id)
+      if (previous?.kind === 'node' && owner.kind !== 'node') return
+      frames.set(owner.id, { kind: owner.kind, bounds: !declared && previous && previous.kind === owner.kind ? union(previous.bounds, bounds) : bounds })
+    }
+    // Owned link summaries and labels are not surfaces. Explicit native card
+    // allocation wins over inferred ink bounds, which may include annotations.
+    for (const [x, y, cell] of this.entries()) if (cell.kind !== 'text') for (const owner of cell.owners) includeFrame(owner, { x, y, width: cell.width, height: 1 })
+    for (const [key, bounds] of this.declared) includeFrame(this.elements.get(key)!, bounds, true)
+    const expected = new Map<string, Set<string>>()
+    for (const [key, ports] of this.ports) {
+      const owner = this.elements.get(key)!
+      const owns = (cell: TerminalCell | undefined) => cell?.owners.some(candidate => ownerKey(candidate) === key)
+      for (const port of ports) {
+        if (!port.markers) continue
+        const fail = () => { throw new Error(`Terminal marker contract failed: ${owner.id}/${port.end} at ${port.x},${port.y}`) }
+        if (!port.side) fail()
+        const dx = port.side === 'R' ? 1 : port.side === 'L' ? -1 : 0
+        const dy = port.side === 'B' ? 1 : port.side === 'T' ? -1 : 0
+        const sites = expected.get(key) ?? new Set<string>()
+        expected.set(key, sites)
+        if (port.markerProjection) {
+          if (!this.diagnostics.some(diagnostic => diagnostic.code === 'TERMINAL_FAMILY_PROJECTION' && diagnostic.feature === port.markerProjection)
+            || ![...this.entries()].some(([, , cell]) => cell.kind === 'text' && owns(cell) && cell.glyph.trim())) fail()
+          continue
+        }
+        if (port.markers.length && port.surface !== 'lifeline') {
+          const bounds = frames.get(port.nodeId)?.bounds
+          if (!bounds) fail()
+          const frame = bounds!
+          const distance = dx ? dx > 0 ? port.x - (frame.x + frame.width - 1) : frame.x - port.x
+            : dy > 0 ? port.y - (frame.y + frame.height - 1) : frame.y - port.y
+          const along = dx ? port.y - frame.y : port.x - frame.x
+          if (distance < 0 || distance > 1 || along < 0 || along >= (dx ? frame.height : frame.width)) fail()
+        }
+        for (const [index, marker] of port.markers.entries()) {
+          const offset = (port.markerOffset ?? 0) + index
+          const x = port.x + dx * offset, y = port.y + dy * offset, cell = this.cell(x, y)
+          sites.add(`${x},${y}`)
+          if (x >= (this.lineWidths?.[y] ?? this.width) || !owns(cell) || cell?.kind !== 'marker' || !cell.marker
+            || cell.marker.shape !== marker.shape || (cell.marker.direction ?? 'R') !== (marker.direction ?? 'R')
+            || !!cell.marker.ascii !== !!marker.ascii || cell.glyph !== markerGlyph(marker)) fail()
+          if (['arrow', 'triangle', 'open-arrow', 'half-top', 'half-bottom', 'stick-top', 'stick-bottom'].includes(marker.shape)
+            && marker.direction !== ({ T: 'B', B: 'T', L: 'R', R: 'L' } as const)[port.side!]) fail()
+        }
+      }
+    }
+    if (!expected.size) return
+    for (const [x, y, cell] of this.entries()) if (cell.kind === 'marker') for (const owner of cell.owners) {
+      const sites = expected.get(ownerKey(owner))
+      if (sites && !sites.has(`${x},${y}`)) throw new Error(`Unexpected terminal marker: ${owner.id} at ${x},${y}`)
+    }
   }
 
   report(diagnostic: TerminalProjectionDiagnostic): void {
@@ -803,10 +910,7 @@ export class TerminalDocument {
         stroke = Object.freeze({ ...stroke, mask: reflectedMask(stroke.mask, horizontal, vertical) })
         glyph = strokeGlyph(stroke)
       } else if (marker) {
-        let direction = marker.direction
-        if (horizontal && (direction === 'L' || direction === 'R')) direction = direction === 'L' ? 'R' : 'L'
-        if (vertical && (direction === 'T' || direction === 'B')) direction = direction === 'T' ? 'B' : 'T'
-        marker = Object.freeze({ ...marker, direction }); glyph = markerGlyph(marker)
+        marker = reflectedMarker(marker, horizontal, vertical); glyph = markerGlyph(marker)
       } else if (numericMark) {
         if ((numericMark.axis === 'horizontal' && horizontal) || (numericMark.axis === 'vertical' && vertical)) numericMark = Object.freeze({ ...numericMark, coverage: numericMark.coverage === 1 ? 2 : numericMark.coverage === 2 ? 1 : 3 })
         glyph = numericMarkGlyph(numericMark)
@@ -829,6 +933,7 @@ export class TerminalDocument {
     for (const ports of this.ports.values()) for (const port of ports) {
       if (horizontal) { port.x = this.width - 1 - port.x; if (port.side === 'L') port.side = 'R'; else if (port.side === 'R') port.side = 'L' }
       if (vertical) { port.y = this.height - 1 - port.y; if (port.side === 'T') port.side = 'B'; else if (port.side === 'B') port.side = 'T' }
+      if (port.markers) port.markers = Object.freeze(port.markers.map(marker => reflectedMarker(marker, horizontal, vertical)))
     }
     for (let index = 0; index < diagnosticCount; index++) {
       const diagnostic = this.diagnostics[index]!
@@ -869,6 +974,7 @@ export class TerminalDocument {
   }
 
   serialize(options: TerminalSerializeOptions = {}): string {
+    this.assertMarkers()
     this.metrics.outputCells = 0
     const mode = options.colorMode ?? 'none', theme = options.theme ?? DEFAULT_ASCII_THEME
     const lines: string[] = [], widths: number[] = []

@@ -198,6 +198,9 @@ export function renderArchitectureTerminal(
     const end = portFor(target, edge.target.side)
     canvas.port(owner, { nodeId: source.id, x: start.x, y: start.y, side: edge.source.side, end: 'start' })
     canvas.port(owner, { nodeId: target.id, x: end.x, y: end.y, side: edge.target.side, end: 'end' })
+    const inward = { T: 'B', B: 'T', L: 'R', R: 'L' } as const
+    canvas.expectMarkers(owner, 'start', edge.hasArrowStart ? [{ shape: 'arrow', direction: inward[edge.source.side], ascii: config.useAscii }] : [])
+    canvas.expectMarkers(owner, 'end', edge.hasArrowEnd ? [{ shape: 'arrow', direction: inward[edge.target.side], ascii: config.useAscii }] : [])
     const obstacles = obstacleGrid(edge)
     const separated = new OccupancyMap(obstacles)
     for (const key of connections.keys()) separated.set(key, true)
@@ -205,6 +208,7 @@ export function renderArchitectureTerminal(
     const found = getPath(separated, start, end, preferredDirection(edge.source.side)) ?? getPath(obstacles, start, end, preferredDirection(edge.source.side))
     if (!found) {
       unrouted.push({ owner, edge })
+      canvas.projectMarkers(owner, `architecture.${owner.id}.route`)
       canvas.report({ code: 'TERMINAL_FAMILY_PROJECTION', feature: `architecture.${owner.id}.route`, message: 'No obstacle-free route was found for the authored Architecture ports; the complete relationship is retained in an owned endpoint summary.' })
       continue
     }

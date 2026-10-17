@@ -6,7 +6,7 @@ import { resolveSequenceBlockScopes } from '../sequence/geometry.ts'
 import type { SequenceMessageHead } from '../sequence/types.ts'
 import type { ResolvedSequenceConfig } from '../sequence/config.ts'
 import type { AsciiConfig, AsciiTheme, ColorMode, CharRole } from './types.ts'
-import { TerminalDocument, type TerminalOwner } from './terminal-document.ts'
+import { TerminalDocument, type TerminalMarker, type TerminalOwner } from './terminal-document.ts'
 import { visualWidth } from './width.ts'
 import { wrapText } from './wrap.ts'
 import { displayText, normalizeBrTags } from '../multiline-utils.ts'
@@ -277,14 +277,15 @@ export function renderSequenceTerminal(text: string, config: AsciiConfig, colorM
     const style = message.lineStyle === 'dashed' ? 'dashed' : 'solid'
     const y = positioned.arrowY, from = positioned.fromX, to = positioned.toX
     const endpoint = (x: number, row: number, start: boolean, right: boolean): void => {
-      if (start ? message.centralStart : message.centralEnd) { doc.marker(x, row, { shape: 'circle', ascii }, { owner: element, role: 'arrow' }); return }
-      const head = start ? message.startHead : message.endHead
-      if (head === 'none') return
-      if (head === 'filled' || head === 'open') doc.marker(x, row, { shape: head === 'filled' ? 'triangle' : 'open-arrow', direction: right ? 'R' : 'L', ascii }, { owner: element, role: 'arrow' })
-      else marker(x, row, sequenceHeadGlyph(head, right, ascii), element)
+      const semantic = sequenceMarker(start ? message.startHead : message.endHead, right, ascii, start ? message.centralStart : message.centralEnd)
+      if (semantic) doc.marker(x, row, semantic, { owner: element, role: 'arrow' })
     }
-    doc.port(element, { nodeId: message.from, x: from, y, side: self || from < to ? 'R' : 'L', end: 'start' })
-    doc.port(element, { nodeId: message.to, x: to, y: self ? y + positioned.lines.length + 1 : y, side: self || from > to ? 'R' : 'L', end: 'end' })
+    doc.port(element, { nodeId: message.from, x: from, y, side: self || from < to ? 'R' : 'L', end: 'start', surface: 'lifeline' })
+    doc.port(element, { nodeId: message.to, x: to, y: self ? y + positioned.lines.length + 1 : y, side: self || from > to ? 'R' : 'L', end: 'end', surface: 'lifeline' })
+    const startMarker = sequenceMarker(message.startHead, !self && from > to, ascii, message.centralStart)
+    const endMarker = sequenceMarker(message.endHead, !self && from < to, ascii, message.centralEnd)
+    doc.expectMarkers(element, 'start', startMarker ? [startMarker] : [])
+    doc.expectMarkers(element, 'end', endMarker ? [endMarker] : [])
     if (self) {
       stroke(from, y, 7, 'junction', element)
       for (let x = from + 1; x < from + 4; x++) stroke(x, y, 10, 'line', element, style)
@@ -294,7 +295,7 @@ export function renderSequenceTerminal(text: string, config: AsciiConfig, colorM
       for (let x = from + 1; x < from + 4; x++) stroke(x, bottom, 10, 'line', element, style)
       stroke(from + 4, bottom, 9, 'corner', element)
       endpoint(from, bottom, false, false)
-      endpoint(from, y, true, true)
+      endpoint(from, y, true, false)
     } else {
       for (let x = Math.min(from, to) + 1; x < Math.max(from, to); x++) stroke(x, y, 10, 'line', element, style)
       endpoint(from, y, true, from > to)
@@ -330,14 +331,10 @@ export function renderSequenceTerminal(text: string, config: AsciiConfig, colorM
   return terminalArtifact(doc, { colorMode, theme })
 }
 
-function sequenceHeadGlyph(head: SequenceMessageHead, right: boolean, ascii: boolean): string {
-  if (head === 'cross') return 'X'
-  if (head === 'half-top') return right ? (ascii ? '/' : '◜') : (ascii ? '\\' : '◝')
-  if (head === 'half-bottom') return right ? (ascii ? '\\' : '◟') : (ascii ? '/' : '◞')
-  if (head === 'stick-top') return right ? '/' : '\\'
-  if (head === 'stick-bottom') return right ? '\\' : '/'
-  if (head === 'filled') return right ? (ascii ? '>' : '▶') : (ascii ? '<' : '◀')
-  return right ? (ascii ? '>' : '▷') : (ascii ? '<' : '◁')
+function sequenceMarker(head: SequenceMessageHead, right: boolean, ascii: boolean, central?: boolean): TerminalMarker | undefined {
+  if (central) return { shape: 'circle', ascii }
+  if (head === 'none') return undefined
+  return { shape: head === 'filled' ? 'triangle' : head === 'open' ? 'open-arrow' : head === 'cross' ? 'sequence-cross' : head, direction: right ? 'R' : 'L', ascii }
 }
 
 /** Compatibility string entry point; native dispatch retains the drawing. */

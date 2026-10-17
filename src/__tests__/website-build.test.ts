@@ -871,8 +871,8 @@ describe('Workers Static Assets website contract', () => {
     expect(examples).toContain('<p class="example-trace"><span>Trace</span> <code>asFlowchart')
     const editorScript = editorScriptRel(editor)
     expect(existsSync(join(SITE, editorScript))).toBe(true)
-    expect(read(editorScript)).toContain('createPopupController')
-    // Example navigation and popup behavior are exercised in the generated-site browser suites.
+    // Generated-site browser suites exercise example navigation and popups
+    // without pinning private identifiers shortened by the production build.
     expect(read(editorScript)).not.toContain('buildAgentTaskPrompt')
     expect(editor).not.toContain('Copy agent prompt')
     expect(editor).not.toContain('id="copy-agent-prompt-btn"')
@@ -1467,8 +1467,6 @@ describe('Workers Static Assets website contract', () => {
     expect(editor).not.toContain('id="seed-shuffle-btn"')
     expect(editor).not.toContain('Re-roll style ink')
     expect(editor).toContain('id="config-view" role="dialog" aria-modal="false" aria-label="Diagram settings" hidden aria-hidden="true" inert')
-    const editorRuntime = read(editorScriptRel(editor))
-    expect(editorRuntime).toContain('positionSettingsPanel')
     // The generated-site browser suite opens settings and verifies focus/inert state.
     expect(editor).toContain('data-mobile-panel="preview"')
     expect(editor).toContain('id="examples-sidebar-btn"')

@@ -21,7 +21,7 @@ export interface OutputSecurityResult {
   diagnostics: readonly OutputSecurityDiagnostic[]
 }
 
-function normalizeCssObfuscation(svg: string): string {
+export function normalizeCssObfuscation(svg: string): string {
   return svg
     .replace(/\/\*[\s\S]*?\*\//g, '')
     // CSS removes a backslash followed by a physical line break before it
@@ -33,6 +33,11 @@ function normalizeCssObfuscation(svg: string): string {
       return Number.isFinite(cp) ? String.fromCodePoint(cp) : ''
     })
     .replace(/\\([^\n\r\f])/g, '$1')
+}
+
+/** Marker CSS would create a second authority beside typed connector markers. */
+export function hasMarkerCss(value: string): boolean {
+  return /(?:^|;)\s*marker(?:-(?:start|mid|end))?\s*:/i.test(normalizeCssObfuscation(value))
 }
 
 const ATTRIBUTE = /\s([^\s=<>]+)\s*=\s*("[^"]*"|'[^']*'|[^\s>]+)/g

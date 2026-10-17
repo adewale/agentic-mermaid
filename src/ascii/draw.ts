@@ -23,9 +23,10 @@ import { visualWidth } from './width.ts'
 import { getCorners } from './shapes/corners.ts'
 import { getShapeAttachmentPoint } from './shapes/index.ts'
 import { safeCssColor } from '../shared/css-color.ts'
-import { measuredText, type MeasuredTerminalText, type TerminalCell, type TerminalOwner, type TerminalSide } from './terminal-document.ts'
+import { measuredText, type MeasuredTerminalText, type TerminalCell, type TerminalMarker, type TerminalOwner, type TerminalSide } from './terminal-document.ts'
 import type { PathOccupancy } from './occupancy.ts'
 import { getPath, mergePath } from './pathfinder.ts'
+import { allocateFacePort } from './terminal-geometry.ts'
 import { GRAPH_EDGE_APPROACH, graphEndpointOf, type GraphEndpoint } from './graph-capacity.ts'
 
 /** Protect admitted headers and cards before routing in terminal cells. The
@@ -456,30 +457,33 @@ export function drawArrow(
 
   // BUILD-14: edges whose endpoint is a subgraph container attach to the
   // container border, not the inner anchor node we routed through.
-  if (edge.attachToSubgraph || edge.attachFromSubgraph) {
+  if (edge.attachToSubgraph || edge.attachFromSubgraph || edge.toSubgraph || edge.fromSubgraph) {
     return drawContainerEdge(graph, edge, protectedCells)
   }
 
-  const baseStartPoint = edge.fromSubgraph
-    ? getSubgraphAttachmentPoint(graph, edge.fromSubgraph, edge.from, edge.startDir)
-    : getNodeAttachmentPoint(graph, edge.from, edge.startDir)
-  const baseEndPoint = edge.toSubgraph
-    ? getSubgraphAttachmentPoint(graph, edge.toSubgraph, edge.to, edge.endDir)
-    : getNodeAttachmentPoint(graph, edge.to, edge.endDir)
+  const baseStartPoint = getNodeAttachmentPoint(graph, edge.from, edge.startDir, edge.startPort)
+  const baseEndPoint = getNodeAttachmentPoint(graph, edge.to, edge.endDir, edge.endPort)
   // A reciprocal two-cycle needs two disjoint terminal rows. Merge precedence
   // cannot preserve two labels and two markers that occupy the same cells.
   const laneOffset = reciprocalLaneOffset(graph, edge, baseStartPoint, baseEndPoint)
-  const moved = laneOffset.x !== 0 || laneOffset.y !== 0
   const startPoint = { x: baseStartPoint.x + laneOffset.x, y: baseStartPoint.y + laneOffset.y }
-  const endPoint = moved || edge.toSubgraph ? { x: baseEndPoint.x + laneOffset.x, y: baseEndPoint.y + laneOffset.y } : undefined
-  const projectedPath = edge.path.map((point, index) => index === 0 ? startPoint : index === edge.path.length - 1 && endPoint ? endPoint : gridToDrawingCoord(graph, point))
+  // Logical grid coordinates are not physical ports after an RL projection:
+  // unequal card widths can otherwise leave the head on a card or beyond it.
+  const endPoint = { x: baseEndPoint.x + laneOffset.x, y: baseEndPoint.y + laneOffset.y }
+  let projectedPath = edge.path.map((point, index) => index === 0 ? startPoint : index === edge.path.length - 1 ? endPoint : gridToDrawingCoord(graph, point))
+  const guideStart = !!edge.startPort || !dirEquals(determineDirection(startPoint, projectedPath[1]!), edge.startDir)
+  const guideEnd = !!edge.endPort || !dirEquals(determineDirection(projectedPath.at(-2)!, endPoint), reverseDirection(edge.endDir))
+  if (guideStart || guideEnd) {
+    const guide = (point: DrawingCoord, direction: Direction) => ({ x: point.x + (direction.x - 1) * 2, y: point.y + (direction.y - 1) * 2 })
+    projectedPath = [startPoint, ...(guideStart ? [guide(startPoint, edge.startDir)] : []), ...projectedPath.slice(1, -1), ...(guideEnd ? [guide(endPoint, edge.endDir)] : []), endPoint]
+  }
   const feasiblePath = feasiblePolyline(projectedPath, protectedCells)
-  const rerouted = feasiblePath.length !== projectedPath.length || feasiblePath.some((point, index) => !drawingCoordEquals(point, projectedPath[index]!))
-  recordGraphPorts(graph, edge, startPoint, endPoint ?? baseEndPoint)
+  const rerouted = guideStart || guideEnd || feasiblePath.length !== projectedPath.length || feasiblePath.some((point, index) => !drawingCoordEquals(point, projectedPath[index]!))
+  recordGraphPorts(graph, edge, startPoint, endPoint)
   const [pathCanvas, linesDrawn, lineDirs] = rerouted
     ? drawDrawingPath(graph, feasiblePath, edge.style)
     : drawPath(graph, edge.path, edge.style, startPoint, endPoint)
-  const isStatePseudo = !edge.fromSubgraph && (edge.from.shape === 'state-start' || edge.from.shape === 'state-end')
+  const isStatePseudo = edge.from.shape === 'state-start' || edge.from.shape === 'state-end'
   const boxStartCanvas = isStatePseudo
     ? copyCanvas(graph.canvas)
     : drawBoxStart(graph, edge.startDir, startPoint)
@@ -497,28 +501,9 @@ export function drawArrow(
     arrowHeadEndCanvas = copyCanvas(graph.canvas)
   }
 
-  // Draw start arrowhead for bidirectional edges
-  // The start arrowhead needs to be at the box connector position (one step back
-  // from the first line point), pointing into the source node.
-  let arrowHeadStartCanvas: Canvas
-  if (edge.hasArrowStart && linesDrawn.length > 0) {
-    const firstLine = linesDrawn[0]!
-    const firstPoint = firstLine[0]!
-    const startDir = reverseDirection(lineDirs[0]!)
-
-    // Calculate the box connector position (one step back from first point)
-    const arrowPos: DrawingCoord = { x: firstPoint.x, y: firstPoint.y }
-    if (dirEquals(lineDirs[0]!, Right)) arrowPos.x = firstPoint.x - 1
-    else if (dirEquals(lineDirs[0]!, Left)) arrowPos.x = firstPoint.x + 1
-    else if (dirEquals(lineDirs[0]!, Down)) arrowPos.y = firstPoint.y - 1
-    else if (dirEquals(lineDirs[0]!, Up)) arrowPos.y = firstPoint.y + 1
-
-    // Create a synthetic line ending at the marker position.
-    const syntheticLine: DrawingCoord[] = [firstPoint, arrowPos]
-    arrowHeadStartCanvas = drawEndpointMarker(graph, syntheticLine, startDir, edge.startMarker)
-  } else {
-    arrowHeadStartCanvas = copyCanvas(graph.canvas)
-  }
+  // Native ports, not a possibly one-cell first segment, own start attachment.
+  const arrowHeadStartCanvas = copyCanvas(graph.canvas)
+  if (edge.hasArrowStart) arrowHeadStartCanvas.marker(startPoint.x, startPoint.y, graphMarker(edge.startMarker, terminalSide(reverseDirection(edge.startDir)) ?? 'T', graph.config.useAscii))
 
   const cornersCanvas = rerouted ? drawDrawingCorners(graph, feasiblePath) : drawCorners(graph, edge.path)
 
@@ -542,41 +527,47 @@ function drawContainerEdge(
   const empty = copyCanvas(graph.canvas)
 
   // Build the full drawing-coordinate polyline from the grid path.
-  let poly = edge.path.map(c => gridToDrawingCoord(graph, c))
+  const sourceGroup = edge.attachFromSubgraph ?? edge.fromSubgraph
+  const targetGroup = edge.attachToSubgraph ?? edge.toSubgraph
+  let poly = edge.path.map((c, index) => index === 0 && !sourceGroup ? getNodeAttachmentPoint(graph, edge.from, edge.startDir, edge.startPort)
+    : index === edge.path.length - 1 && !targetGroup ? getNodeAttachmentPoint(graph, edge.to, edge.endDir, edge.endPort) : gridToDrawingCoord(graph, c))
   poly = dedupeCollinear(poly)
   if (poly.length < 2) return [empty, empty, empty, empty, empty]
 
   // Clip the start at the source container border (if any).
-  if (edge.attachFromSubgraph) {
-    const sg = edge.attachFromSubgraph
-    poly = clipPolylineAtBorder(poly, sg, 'start')
+  if (sourceGroup) {
+    poly = clipPolylineAtBorder(poly, sourceGroup, 'start')
   }
   // Clip the end at the target container border (if any).
-  if (edge.attachToSubgraph) {
-    poly = clipPolylineAtBorder(poly, edge.attachToSubgraph, 'end')
+  if (targetGroup) {
+    poly = clipPolylineAtBorder(poly, targetGroup, 'end')
   }
   if (poly.length < 2) return [empty, empty, empty, empty, empty]
 
+  const lane = reciprocalLaneOffset(graph, edge, poly[0]!, poly.at(-1)!)
+  if (lane.x || lane.y) poly = poly.map(point => ({ x: point.x + lane.x, y: point.y + lane.y }))
   poly = feasiblePolyline(poly, protectedCells)
 
   // Draw the polyline segments.
-  recordGraphPorts(graph, edge, poly[0]!, poly.at(-1)!)
+  const face = (group: AsciiSubgraph | undefined, point: DrawingCoord, fallback: Direction): Direction => !group ? fallback
+    : point.x === group.minX ? Left : point.x === group.maxX ? Right : point.y === group.minY ? Up : Down
+  const sourceFace = face(sourceGroup, poly[0]!, edge.startDir)
+  recordGraphPorts(graph, edge, poly[0]!, poly.at(-1)!, sourceFace, face(targetGroup, poly.at(-1)!, edge.endDir))
   const pathCanvas = copyCanvas(graph.canvas)
   const useAscii = graph.config.useAscii
   // Mirror standard drawPath: every segment skips its first and last cell so
   // bend cells are owned solely by the corner canvas (avoids junction glyph
-  // corruption when two segments meet). Exceptions: the very first cell is the
-  // container-border exit (draw it, offset 0) and the very last cell is either
+  // corruption when two segments meet). The source border is a separate
+  // junction layer. The very last cell is either
   // the container-border entry (draw it, offset 0) or one cell before a real
   // target node (offset -1, arrowhead drawn separately).
-  const lastSegmentEndsAtRealNode = !edge.attachToSubgraph
+  const lastSegmentEndsAtRealNode = !targetGroup
   for (let i = 1; i < poly.length; i++) {
     const from = poly[i - 1]!
     const to = poly[i]!
     if (drawingCoordEquals(from, to)) continue
-    const isFirst = i === 1
     const isLast = i === poly.length - 1
-    const offsetFrom = isFirst && edge.attachFromSubgraph ? 0 : 1
+    const offsetFrom = 1
     let offsetTo: number
     if (isLast) {
       offsetTo = lastSegmentEndsAtRealNode ? -1 : 0
@@ -603,14 +594,14 @@ function drawContainerEdge(
     const last = poly[poly.length - 1]!
     const beforeLast = poly[poly.length - 2]!
     const arrowDir = determineDirection(beforeLast, last)
-    if (edge.attachToSubgraph) {
+    if (targetGroup) {
       // Terminal is the container border — draw the arrowhead on it.
-      directedArrow(arrowHeadEndCanvas, last, arrowDir, useAscii)
+      arrowHeadEndCanvas.marker(last.x, last.y, graphMarker(edge.endMarker, terminalSide(arrowDir) ?? 'B', useAscii))
     } else {
       // Terminal is a real node — draw the arrowhead one cell before its border
       // (matching standard edges, which use offsetTo=-1).
       const tip = stepBack(last, arrowDir)
-      directedArrow(arrowHeadEndCanvas, tip, arrowDir, useAscii)
+      arrowHeadEndCanvas.marker(tip.x, tip.y, graphMarker(edge.endMarker, terminalSide(arrowDir) ?? 'B', useAscii))
     }
   }
 
@@ -620,10 +611,11 @@ function drawContainerEdge(
     const first = poly[0]!
     const second = poly[1]!
     const startDir = determineDirection(second, first)
-    directedArrow(arrowHeadStartCanvas, first, startDir, useAscii)
+    arrowHeadStartCanvas.marker(first.x, first.y, graphMarker(edge.startMarker, terminalSide(startDir) ?? 'T', useAscii))
   }
 
-  return [pathCanvas, empty, arrowHeadEndCanvas, arrowHeadStartCanvas, cornersCanvas]
+  const sourceJunction = edge.from.shape === 'state-start' || edge.from.shape === 'state-end' ? empty : drawBoxStart(graph, sourceFace, poly[0]!)
+  return [pathCanvas, sourceJunction, arrowHeadEndCanvas, arrowHeadStartCanvas, cornersCanvas]
 }
 
 /** Move one cell backward against a direction (toward the segment origin). */
@@ -650,9 +642,10 @@ function dedupeCollinear(poly: DrawingCoord[]): DrawingCoord[] {
       const a = out[i - 1]!
       const b = out[i]!
       const c = out[i + 1]!
-      const collinearH = a.y === b.y && b.y === c.y && (b.x - a.x) * (c.x - b.x) >= 0
-      const collinearV = a.x === b.x && b.x === c.x && (b.y - a.y) * (c.y - b.y) >= 0
-      if (collinearH || collinearV) continue
+      const collinearH = a.y === b.y && b.y === c.y
+      const collinearV = a.x === b.x && b.x === c.x
+      const forward = (b.x - a.x) * (c.x - b.x) + (b.y - a.y) * (c.y - b.y) > 0
+      if ((collinearH || collinearV) && forward) continue
     }
     result.push(out[i]!)
   }
@@ -838,9 +831,8 @@ function drawBoxStart(
   return canvas
 }
 
-function endpointMarkerChar(marker: Exclude<EdgeMarker, 'arrow'>, useAscii: boolean): string {
-  if (useAscii) return marker === 'circle' ? 'o' : 'x'
-  return marker === 'circle' ? '◯' : '✕'
+function graphMarker(marker: EdgeMarker | undefined, direction: TerminalSide, ascii: boolean): TerminalMarker {
+  return { shape: marker === 'circle' ? 'wide-circle' : marker === 'cross' ? 'cross' : 'arrow', direction, ascii }
 }
 
 function drawEndpointMarker(
@@ -853,7 +845,7 @@ function drawEndpointMarker(
     const canvas = copyCanvas(graph.canvas)
     if (lastLine.length === 0) return canvas
     const lastPos = lastLine[lastLine.length - 1]!
-    canvas.put(lastPos.x, lastPos.y, endpointMarkerChar(marker, graph.config.useAscii), { kind: 'marker' })
+    canvas.marker(lastPos.x, lastPos.y, graphMarker(marker, terminalSide(fallbackDir) ?? 'B', graph.config.useAscii))
     return canvas
   }
 
@@ -1001,6 +993,7 @@ function getNodeAttachmentPoint(
   graph: AsciiGraph,
   node: AsciiNode,
   dir: Direction,
+  slot?: { index: number; count: number },
 ): DrawingCoord {
   const gc = node.gridCoord!
 
@@ -1024,6 +1017,11 @@ function getNodeAttachmentPoint(
   }
 
   const baseCoord = node.drawingCoord!
+  if (slot) {
+    const side = terminalSide(dir)!
+    const point = allocateFacePort({ x: baseCoord.x + 1, y: baseCoord.y + 1, width: w + 1, height: h + 1 }, side, slot.index, slot.count)
+    return { x: point.x - 1 - (dir.x - 1), y: point.y - 1 - (dir.y - 1) }
+  }
   return getShapeAttachmentPoint(node.shape, dir, gridDimensions, baseCoord)
 }
 
@@ -1376,11 +1374,15 @@ function terminalEdgeOwner(graph: AsciiGraph, edge: AsciiEdge): TerminalOwner {
   }
 }
 
-function recordGraphPorts(graph: AsciiGraph, edge: AsciiEdge, start: DrawingCoord, end: DrawingCoord): void {
+function recordGraphPorts(graph: AsciiGraph, edge: AsciiEdge, start: DrawingCoord, end: DrawingCoord, startDir = edge.startDir, endDir = edge.endDir): void {
   const owner = terminalEdgeOwner(graph, edge)
   const side = (direction: Direction) => dirEquals(direction, Up) ? 'T' as const : dirEquals(direction, Down) ? 'B' as const : dirEquals(direction, Left) ? 'L' as const : 'R' as const
-  graph.canvas.port(owner, { nodeId: owner.from!, ...start, side: side(edge.startDir), end: 'start' })
-  graph.canvas.port(owner, { nodeId: owner.to!, ...end, side: side(edge.endDir), end: 'end' })
+  graph.canvas.port(owner, { nodeId: owner.from!, ...start, side: side(startDir), end: 'start' })
+  graph.canvas.port(owner, { nodeId: owner.to!, ...end, side: side(endDir), end: 'end' })
+  graph.canvas.expectMarkers(owner, 'start', edge.hasArrowStart ? [graphMarker(edge.startMarker, side(reverseDirection(startDir)), graph.config.useAscii)] : [])
+  // Allocated routes use the ordinary exterior marker cell; clipped container
+  // routes paint their marker directly on the frame instead.
+  graph.canvas.expectMarkers(owner, 'end', edge.hasArrowEnd ? [graphMarker(edge.endMarker, side(reverseDirection(endDir)), graph.config.useAscii)] : [], !edge.cellRoute && (edge.attachToSubgraph || edge.toSubgraph) ? 0 : 1)
 }
 
 /** Resolve preallocated face slots and complete label rectangles against the

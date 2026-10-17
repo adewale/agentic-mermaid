@@ -37,7 +37,7 @@ import type { MermaidFrontmatterMap } from '../mermaid-source.ts'
 import { DEFAULT_ASCII_THEME } from './ansi.ts'
 import { TerminalDocument, type TerminalOwner, type TerminalRun } from './terminal-document.ts'
 import { visualWidth } from './width.ts'
-import { breakLineTags } from '../multiline-utils.ts'
+import { breakLineTags, displayText } from '../multiline-utils.ts'
 import type { AsciiConfig, AsciiTheme, ColorMode } from './types.ts'
 import { resolveRoleStyle, type InternalStyleFace } from '../scene/style-registry.ts'
 import { wrapText } from './wrap.ts'
@@ -122,7 +122,7 @@ export function renderGanttTerminal(
       sectionTasks.filter((_, i) => lanes[i] === li).map(t => t.label).join(', '))
   }
   const generated = terminalIds(schedule.tasks.flatMap(task => task.id === undefined ? [] : [task.id]))
-  const taskOwner = (task: ScheduledGanttTask): TerminalOwner => ({ id: task.id ?? generated(`task-${task.index}`), kind: 'node' })
+  const taskOwner = (task: Pick<ScheduledGanttTask, 'id' | 'index'>): TerminalOwner => ({ id: task.id ?? generated(`task-${task.index}`), kind: 'node' })
   const labelRows = (tasks: ScheduledGanttTask[], width: number): TerminalRun[][] => {
     const rows: TerminalRun[][] = [[]]
     let used = 0
@@ -376,6 +376,21 @@ export function renderGanttTerminal(
   }
 
   if (!model.topAxis) emitAxis()
+
+  // Dates retain the resolved schedule, but equal dates cannot recover the
+  // authored dependency graph. Keep that graph as owned, width-aware text.
+  for (const task of model.tasks) {
+    const dependencies = [
+      ...(task.start?.kind === 'after' ? task.start.refs.map(ref => ({ ref, kind: 'after' as const })) : []),
+      ...(task.end.kind === 'until' ? task.end.refs.map(ref => ({ ref, kind: 'until' as const })) : []),
+    ]
+    for (const { ref, kind } of dependencies) {
+      const ownId = taskOwner(task).id
+      const relation = { id: generated(`dependency:${task.index}:${kind}:${ref}`), kind: 'edge' as const, from: kind === 'after' ? ref : ownId, to: kind === 'after' ? ownId : ref }
+      for (const line of wrapText(`${displayText(task.id ?? task.label)} ${kind} ${displayText(ref)}`, widthBudget, { hyphenate: false })) document.line([{ text: line, role: 'text', kind: 'text', owner: relation }])
+    }
+    if (dependencies.length) document.report({ code: 'TERMINAL_FAMILY_PROJECTION', feature: `gantt.${task.index}.dependencies`, message: 'Gantt dependency endpoints are retained as owned after/until text rather than geometric arrows between bars.' })
+  }
 
   return terminalArtifact(document, { colorMode, theme, trimEnd: true })
 }
