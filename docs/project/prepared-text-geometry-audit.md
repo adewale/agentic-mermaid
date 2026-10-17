@@ -36,6 +36,12 @@ under C, English and Japanese locale settings.
   32 renders have zero off-canvas text. Six pairs are pixel-identical changes
   to prepared serialization; the others reflect canonical typography or
   complete title/header/container bands.
+- Five existing browser rounded-fill baselines were independently reviewed at
+  native size: no clipping, fill leakage or lost connections. ER grows from
+  650 to 651 pixels wide and Timeline from 362 to 366 pixels tall; Flowchart,
+  Class and Journey retain their dimensions. The refresh also captures the
+  host-page corner backdrop changing from dark to light, outside the diagram
+  surface; that change is not attributed to text geometry.
 - Section B's 64 family-by-style cells and the existing cookbook images were
   visually reviewed. Their approval records identify an agent review, never
   human approval. The README hero uses bundled mono text with explicit column
