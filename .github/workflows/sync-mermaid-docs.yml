@@ -46,4 +46,4 @@ jobs:
           diff -ru "$expected" "$harvested"
 
           echo "Pinned syntax references are current at $actual"
-          echo "Upgrades must update the policy, references, generated manifest/index/report, and receipts together in a reviewed PR."
+          echo "Upgrades must update the reviewed policy and syntax references together, then verify the owning parser/corpus tests."

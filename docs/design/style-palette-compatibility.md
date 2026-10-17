@@ -1,4 +1,4 @@
-# Style + Palette compatibility receipt
+# Style + Palette compatibility
 
 Compatibility is owned by the registry-derived portfolio in
 `src/__tests__/render-conformance-plan.test.ts`, not by a copied family roster
@@ -28,15 +28,17 @@ Every registered family contributes six mandatory sources:
 - highest-complexity structured source discovered in the eval corpus.
 
 Adding a `DiagramKind` cannot compile until its conformance profile exists.
-Runtime exact-set checks, independent tuple enumeration and fake/removed-family
-sabotage prevent a hidden opt-out.
+Runtime exact-set checks enforce family/profile closure. The independent tuple
+verifier remains a helper, but the historical fake/removed-family sabotage
+suite was removed; its old plan is not proof of a current CI assertion.
 
 The former family × Look × Palette matrix proved every named triple for one
 simple SVG source. The replacement intentionally does **not** retain that exact
 triple claim. Instead it proves every family/Look, family/Palette and
 Look/Palette pair; exhausts the pure stack and Look/Palette/background
-contracts; exercises six complexity strata; and retains focused fault probes.
-A faster plan with weaker fault sensitivity would not have been accepted.
+contracts; and exercises six complexity strata. The retained render tests check
+semantic/finite/security behavior and selected byte determinism. Historical
+fault-sensitivity results do not establish today's assertion coverage.
 
 The styled-output suite separately pins a normalised SVG golden for every
 built-in family, each paired with one non-default Look so every Look is covered
@@ -54,9 +56,9 @@ bun test src/__tests__/styled-output.test.ts --timeout 30000
 
 Human sense-making is separate from machine conformance:
 
-- [`../project/complexity-aware-test-portfolio-plan.md`](../project/complexity-aware-test-portfolio-plan.md) defines the Cynefin rationale and review protocol;
+- the [historical portfolio migration](../project/archive/complexity-aware-test-portfolio-plan.md) records the Cynefin rationale and original review protocol, not current release gates;
 - the portfolio contact-sheet probe and its review record are no longer published.
 
-This is a compatibility and interaction receipt, not a universal aesthetic
+This is a compatibility and interaction contract, not a universal aesthetic
 claim. Contact sheets, native-size human review, production smoke and external
 consumer evidence remain independent oracles.

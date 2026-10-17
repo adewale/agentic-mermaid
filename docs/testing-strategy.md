@@ -9,9 +9,10 @@ flattering one.
 For the *definition* of "good looking" and the determinism guarantees, see
 [`quality.md`](./quality.md). For the layout/visual
 contracts, see [`layout-characterization/README.md`](./layout-characterization/README.md).
-The complexity-aware and registry-derived interaction portfolio is specified in
-[`project/complexity-aware-test-portfolio-plan.md`](./project/complexity-aware-test-portfolio-plan.md);
-its measured before/candidate reports are no longer published.
+The complexity-aware and registry-derived interaction portfolio is implemented
+in `src/__tests__/render-conformance-plan.test.ts` and its helpers. The
+[July migration record](./project/archive/complexity-aware-test-portfolio-plan.md)
+is historical; its removed reports and receipts are not current requirements.
 
 ## Local CI parity
 
@@ -128,18 +129,20 @@ Style registries and mandatory family conformance profiles generate:
   palette-sensitive role, external-reference and contact-sheet obligations;
 - a separate SVG/PNG/ASCII/Unicode portfolio with every-family Unicode stress.
 
-An independently implemented tuple enumerator must report zero missing
-obligations. Fake/removed-family, precedence, strict-reference, transparency,
-seed and terminal sabotage probes guard fault sensitivity. A new `DiagramKind`
+The planner and tuple-verifier helpers describe the interaction obligations;
+the retained tests exercise family-profile closure, resolver behavior,
+rendered output and determinism. Do not infer current enforcement merely from
+the existence of a helper or from the historical plan's removed sabotage suite.
+A new `DiagramKind`
 cannot compile without its minimal, representative, dense, text-stress,
 family-risk and eval-corpus-outlier conformance material.
 
-**Runs:** executable conformance and the bounded fault probes run per PR. The
+**Runs:** executable conformance runs per PR. The
 larger citizenship/interaction/outlier contact sheets run when visual inputs
 change, during periodic design review, or before release.
 **Does not prove:** an unrendered three-way family/Look/Palette combination is
-beautiful. The exact retained obligations are published by the candidate
-report rather than implied by the word “exhaustive.”
+beautiful. Inspect the current planner, verifier and actual assertions for the
+retained obligations; there is no published candidate report to serve as a gate.
 
 ## 3. Derived oracles — differential corpora
 
@@ -519,8 +522,9 @@ gates rather than adding new machinery:
 2. There is no automatic mutation lane in the current PR workflow. Red → green
    proves an assertion in a changed test file discriminates the base; it does not
    prove every changed behavior is protected. Focused isolated faults can audit
-   weak oracles locally. Diff-scoped mutation is tracked in issue #355. Line
-   coverage remains a finder, not an adequacy score.
+   weak oracles locally. The diff-scoped mutation proposal #355 was closed
+   `not_planned`; it is not an active implementation commitment. Line coverage
+   remains a finder, not an adequacy score.
 3. The benchmark is not on the PR gate (timing variance). Browser/screenshot
    e2e and the heuristic-tracker ratchet now are.
 4. Determinism is proven Bun↔Node on one architecture; cross-architecture

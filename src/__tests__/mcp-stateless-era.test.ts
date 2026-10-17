@@ -1,5 +1,5 @@
 // Dual-era MCP: the 2026-07-28 stateless revision served alongside the
-// handshake-based revisions, per docs/project/stateless-mcp-migration-plan.md.
+// handshake-based revisions; history: docs/project/archive/stateless-mcp-migration-plan.md.
 //
 // Two things this file guards that nothing else can:
 //
