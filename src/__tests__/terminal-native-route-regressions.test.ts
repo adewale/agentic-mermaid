@@ -6,6 +6,7 @@ import { createMapping } from '../ascii/grid.ts'
 import { drawGraph } from '../ascii/draw.ts'
 import { shapeRegistry } from '../ascii/shapes/index.ts'
 import { parseMermaid } from '../parser.ts'
+import { contactSheetScenarios } from '../../eval/visual-rubric/scenarios.ts'
 
 function visibleEndpointMarkers(doc: TerminalDocument, edge: TerminalRegion) {
   return edge.ports!.flatMap(port => {
@@ -66,6 +67,16 @@ test.each([false, true])('every native node silhouette retains inward markers on
     const edge = doc.regions().find(region => region.kind === 'edge')!
     const markers = visibleEndpointMarkers(doc, edge)
     expect(markers.map(marker => marker.direction)).toEqual(graphDirection === 'TD' ? reverse ? ['B', 'T'] : ['T', 'B'] : reverse ? ['R', 'L'] : ['L', 'R'])
+  }
+})
+
+test.each([false, true])('existing AI/AR contact-sheet routes retain every marked native endpoint (ASCII=%s)', useAscii => {
+  for (const letter of ['AI', 'AR']) for (const direction of ['TD', 'BT', 'LR', 'RL']) {
+    const source = contactSheetScenarios().find(scenario => scenario.letter === letter)!.source.replace(/^flowchart \w+/, `flowchart ${direction}`)
+    const { doc } = render(source, useAscii)
+    const edges = doc.regions().filter(region => region.kind === 'edge')
+    expect(edges).toHaveLength(parseMermaid(source).edges.length)
+    for (const edge of edges) expect(visibleEndpointMarkers(doc, edge)).toHaveLength(1)
   }
 })
 
