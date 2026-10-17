@@ -18,12 +18,10 @@ artifacts, rather than to every rendering format or every possible layout.
 | Native C4 | Remains unsupported; reusable terminal primitives do not implement a family. |
 
 The represented-content-or-explicit-diagnostic contract does not promise that
-every label or route can be placed. In particular, interleaved compound
-membership ([#397](https://github.com/adewale/agentic-mermaid/issues/397)) and
-parallel/reciprocal lane capacity
-([#398](https://github.com/adewale/agentic-mermaid/issues/398)) remain open layout
-work. A collision diagnostic is evidence of a refused placement, not a successful
-rendering of the missing content.
+every label or route can be placed. Compound membership and complete
+parallel/reciprocal demand now participate in graph allocation before painting.
+A collision diagnostic still means that a bounded placement was refused; it
+does not count as a successful rendering of the missing content.
 
 ## Drawing authority
 
@@ -111,11 +109,14 @@ search for ties. Grid spacing reserves frame margins
 and reciprocal-label demand. If bounded local placement fails, ordinary strict
 admission reports the collision; no detached label is substituted.
 Cards and recursive container frames share provisional and final envelope
-measurement. One batch reserves the maximum missing capacity per spacer between
-unrelated, logically disjoint items; logical coordinates, routes and ports stay
-fixed. Multiline headers reserve a two-cell bend/marker approach. If unrelated
-items interleave in both logical axes, spacer growth cannot separate them and
-the drawing reports that containment limitation explicitly.
+measurement. When a flat embedding interleaves members and nonmembers, compound
+placement rebuilds it as recursive quotient graphs: each child container is an
+atomic item at its parent's level. Membership and authored endpoints remain
+unchanged. Envelope allocation then reserves measured frame/header clearance
+between disjoint items. Parallel/reciprocal demand reserves physical face slots
+and complete label capacity before cell routes are planned. The same allocated
+polyline supplies lines, corners, markers and public ports. A failed bounded
+allocation reports a specific geometry diagnostic instead of claiming a route.
 
 GitGraph reserves complete commit-label rectangles clear of branch rails.
 Positive-length shared rail runs and merge stems determine intentional bundles;
@@ -144,6 +145,11 @@ It does not search text or render a second version. Its region fields are:
   excluded from visible owned cells.
 - `parentId`, `members`, `from`, `to`, `bundle` and `ports`, when the family
   supplies the corresponding semantic geometry.
+
+Known metadata limitation: `projectedText` currently collapses intentionally empty
+text rows ([#402](https://github.com/adewale/agentic-mermaid/issues/402)). The
+emitted drawing and `authoredTextCells` row coordinates retain their spacing.
+Preserving complete occurrence provenance is a separate repair.
 
 Terminal action regions retain their compatible bounds and add `cellSpans`,
 optional `occludedCellSpans`, and parent identities. Generated IDs avoid authored IDs in the same render.
@@ -196,22 +202,16 @@ public text, diagnostics, endpoint identities and parent mapping.
 
 ### Shared semantics with format-specific geometry
 
-The next concrete repair is
-[Sankey semantic identity #400](https://github.com/adewale/agentic-mermaid/issues/400).
-Graphical Sankey currently concatenates endpoint names and occurrence suffixes;
-duplicate `A,B` rows and an authored target `B#1` can receive the same public link
-ID. Terminal allocation avoids this collision, but graphical layout and SVG
-semantic attributes still violate the existing uniqueness contract. Internal
-Scene mark IDs remain distinct, so this finding does not establish missing
-ribbons or incorrect PNG pixels.
-
-That repair should share one pure, family-owned semantic-link plan before either
+Sankey now prepares one pure, family-owned semantic identity plan before either
 layout: authored endpoints, structured occurrence keys and collision-safe public
-identities. Reserve authored node identities, including generated-looking names,
-and preserve ordinary readable IDs where unambiguous. Reuse or extract the small
-allocation/key primitives behind the existing terminal and Scene helpers.
-Obtaining semantic identities must not require graphical layout, d3-sankey, or
-terminal cell geometry.
+link/title identities. The shared generated-name allocator reserves authored
+node identities, including generated-looking names, and preserves ordinary
+readable IDs where unambiguous. SVG attributes, layout regions and terminal
+ownership consume that same plan. Typed text-mark identity keeps a generated
+title separate from its bounded Scene mark ID. Obtaining semantic identities
+and formatting numeric display values requires neither d3-sankey nor terminal
+cell geometry. This repairs semantic correspondence; it is not a claim that
+the earlier duplicate identities caused missing ribbons or wrong PNG pixels.
 
 Subsequent migrations should share immutable semantic references, including kind
 and ID, and validate parent/endpoint correspondence at the boundary where a
@@ -233,17 +233,19 @@ The independent route-verification policy remains
 
 | Work | Next deliverable |
 | --- | --- |
-| [#400: Sankey identities](https://github.com/adewale/agentic-mermaid/issues/400) | Red-to-green graphical identity regressions, cross-format identity checks and terminal-ownership compatibility controls; broaden shared semantic primitives only as their consumers require. |
-| [#398: lane capacity](https://github.com/adewale/agentic-mermaid/issues/398) | Allocate lanes, ports and measured label demand from the complete relationship set before routing. |
-| [#397: interleaved membership](https://github.com/adewale/agentic-mermaid/issues/397) | A compound placement solution that preserves membership, with truthful diagnostics for infeasible bounded layouts. |
+| [#402: empty text rows](https://github.com/adewale/agentic-mermaid/issues/402) | Preserve deliberate empty rows in projectedText using complete occurrence provenance, with emitted-row correspondence and reflection checks. |
 | [#387: native C4](https://github.com/adewale/agentic-mermaid/issues/387) | Family admission, lossless source/editing semantics, graphical layout and a native terminal projection through the existing registry. |
 | String-only extensions | Preserve explicit ownership-unavailable diagnostics; design an opt-in native artifact contract when a concrete extension consumer needs it. |
 
-Fix #400 first because it violates an existing public identity contract. #398 is
-the next bounded terminal layout repair for small parallel/reciprocal graphs;
-#397 needs a separate compound-placement change. These are recommendations for
-their owning issues, not completed capabilities of this migration. C4 can
-reuse available primitives without waiting for every layout limit to disappear.
+The combined fixes for [#400](https://github.com/adewale/agentic-mermaid/issues/400),
+[#397](https://github.com/adewale/agentic-mermaid/issues/397) and
+[#398](https://github.com/adewale/agentic-mermaid/issues/398) exercise the shared
+semantic boundary and the separate cell-layout boundary together. Their tests
+check literal identities/membership, emitted graphemes, occupied frames, physical
+endpoint contact and connected owned routes, including nested containers with
+parallel/reciprocal edges and wide labels beside protected markers. They do not
+prove every family layout feasible. C4 can reuse available primitives without
+waiting for every layout limit to disappear.
 
 ### Existing reuse
 

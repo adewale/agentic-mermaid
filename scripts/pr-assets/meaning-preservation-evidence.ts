@@ -14,8 +14,10 @@ if (!base || !head || !destination || ![base, head].every(sha => /^[a-f0-9]{40}$
 }
 const out = resolve(destination)
 mkdirSync(out, { recursive: true })
-interface Fixture { id: string; title: string; source: string; cue: string; renderOptions?: RenderOptions }
+interface Fixture { id: string; title: string; source: string; cue: string; renderOptions?: RenderOptions; captureLayout?: true }
 const sequenceSpanSource = 'sequenceDiagram\nparticipant A\nparticipant B\nparticipant C\nA->>C: Label across B\nactivate B\nA->>C: Begin work\nA->>C: Label across active B\ndeactivate B'
+const sankeyIdentitySource = '---\ntitle: Caption\n---\nsankey-beta\nA,B,1\nA,B,2\nA,B#1,3\nlink:A->B#1,X,4\ntitle,title#1,5'
+const parallelReciprocalSource = 'flowchart LR\nA[Client] -->|request 0| B[Server]\nA -->|request 1| B\nB -->|reply| A'
 const fixtures: Fixture[] = [
   { id: 'sequence-label-span', title: 'Sequence labels crossing a middle lifeline and activation', source: sequenceSpanSource, cue: 'Inspect B behind the first and final labels: structural ink should leave their measured areas, while the lifeline and activation remain visible above and below. The middle message begins the activation.' },
   { id: 'sequence-label-nested-surfaces', title: 'Sequence multiline numbered bidirectional label over nested colors', source: 'sequenceDiagram\nparticipant A\nparticipant B\nparticipant C\nrect rgba(30,90,150,0.25)\nrect rgb(25,45,65)\nactivate B\nA->>C: Begin work\nautonumber 10.5 0.25\nA<<-->>C: Numbered span<br/>across active B<br/>on the inner surface\ndeactivate B\nend\nend', cue: 'Inspect all label lines, the 10.5 prefix and both arrowheads. The gap through B should reveal the inner authored surface, without a page-colored patch; the outer translucent band is a color control.' },
@@ -34,14 +36,15 @@ const fixtures: Fixture[] = [
   { id: 'sequence-empty-frames', title: 'Sequence nested empty frames between notes', source: 'sequenceDiagram\nparticipant A\nparticipant B\nA->>B: first\nNote over A: before\nloop Outer\nloop Inner\nend\nend\nNote over A: after\nB->>A: last', cue: 'Both empty frames remain visible between the before and after notes, without capturing either neighboring message.' },
   { id: 'sequence-final-note-branch', title: 'Sequence final branch containing only a note', source: 'sequenceDiagram\nparticipant A\nparticipant B\nalt First\nNote over A: intro\nA->>B: work\nelse Second\nNote over A: second branch\nend\nNote over B: outside', cue: 'The Second divider follows the intro note and work message; its note clears the section label and the outside note clears the frame.' },
   { id: 'sequence-five-line-message', title: 'Sequence five-line message inside a loop', source: 'sequenceDiagram\nparticipant A\nparticipant B\nloop Work\nA->>B: one<br/>two<br/>three<br/>four<br/>five\nend', cue: 'All five message lines remain inside the loop, below its header and above the arrow shaft.' },
-  { id: 'sequence-corpus-26', title: 'Corpus sequence 26: nested parallel fragments', source: 'sequenceDiagram\n    par Alice to Bob\n        Alice->>Bob: Go help John\n    and Alice to John\n        Alice->>John: I want this done today\n        par John to Charlie\n            John->>Charlie: Can we do this today?\n        and John to Diana\n            John->>Diana: Can you help us today?\n        end\n    end', cue: 'Inspect both parallel frames, their headers and bottom clearance as unused closing-tail space is removed.' },
-  { id: 'sequence-corpus-30', title: 'Corpus sequence 30: nested backgrounds with a leading note', source: 'sequenceDiagram\n    participant Alice\n    participant John\n\n    rect rgb(191, 223, 255)\n    note right of Alice: Alice calls John.\n    Alice->>+John: Hello John, how are you?\n    rect rgb(200, 150, 255)\n    Alice->>+John: John, can you hear me?\n    John-->>-Alice: Hi Alice, I can hear you!\n    end\n    John-->>-Alice: I feel great!\n    end\n    Alice ->>+ John: Did you want to go to the game tonight?\n    John -->>- Alice: Yeah! See you there.', cue: 'Inspect the leading note, nested background boundaries and following messages when duplicate leading-header space is removed.' },
+  { id: 'sequence-corpus-26', title: 'Corpus sequence 26: nested parallel fragments', source: 'sequenceDiagram\n    par Alice to Bob\n        Alice->>Bob: Go help John\n    and Alice to John\n        Alice->>John: I want this done today\n        par John to Charlie\n            John->>Charlie: Can we do this today?\n        and John to Diana\n            John->>Diana: Can you help us today?\n        end\n    end', cue: 'Compare both parallel frames, their headers and bottom clearance; this earlier sequence repair is a compatibility control.' },
+  { id: 'sequence-corpus-30', title: 'Corpus sequence 30: nested backgrounds with a leading note', source: 'sequenceDiagram\n    participant Alice\n    participant John\n\n    rect rgb(191, 223, 255)\n    note right of Alice: Alice calls John.\n    Alice->>+John: Hello John, how are you?\n    rect rgb(200, 150, 255)\n    Alice->>+John: John, can you hear me?\n    John-->>-Alice: Hi Alice, I can hear you!\n    end\n    John-->>-Alice: I feel great!\n    end\n    Alice ->>+ John: Did you want to go to the game tonight?\n    John -->>- Alice: Yeah! See you there.', cue: 'Compare the leading note, nested background boundaries and following messages; this earlier sequence repair is a compatibility control.' },
   { id: 'timeline', title: 'Timeline milestone', source: 'timeline\n2020 : A\nTimeline redesign : Ship', cue: 'Both the Timeline redesign period and Ship event remain visible.' },
   { id: 'state', title: 'Unknown State statement', source: 'stateDiagram-v2\nA --> B\nbogus statement', cue: 'Compare how each revision reports the unknown statement, including any explicit diagnostic.' },
   { id: 'diamond-lr', title: 'Horizontal decision duplicates', source: 'flowchart LR\nC{Verify} -->|ok| D[View]\nC -->|warnings| D', cue: 'Both labels and distinct arrowheads are visible, without crossing routes.' },
   { id: 'diamond-td', title: 'Vertical decision duplicates', source: 'flowchart TD\nC{Verify} -->|ok| D[View]\nC -->|warnings| D', cue: 'Both labels and distinct arrowheads are visible, without crossing routes.' },
   { id: 'diamond-feeder', title: 'Decision duplicates with another feeder', source: 'flowchart TD\nC{Verify} -->|ok| D[View]\nC -->|warnings| D\nA[Start] --> D', cue: 'The two decision labels remain readable without crossing the extra feeder.' },
   { id: 'diamond-feedback', title: 'Decision duplicates with feedback', source: 'flowchart TD\nC{Verify} -->|ok| D[View]\nC -->|warnings| D\nD --> C', cue: 'The forward pair remains readable without crossing the return edge.' },
+  { id: 'sankey-public-identities', title: 'Sankey duplicate rows and generated-looking authored names', source: sankeyIdentitySource, captureLayout: true, cue: 'The ribbons are a visual compatibility control. Inspect the SVG data-id attributes and public layout sidecars: every authored link keeps distinct identity and correct endpoints, including the literal node link:A->B#1. Pixels cannot establish identity uniqueness.' },
 ]
 const fixtureOptions = Object.fromEntries(fixtures.map(fixture => {
   const svg = { security: 'strict' as const, ...fixture.renderOptions }
@@ -54,13 +57,13 @@ const terminalFixtures = [
   }),
   { id: 'terminal-sequence-boundaries', source: 'sequenceDiagram\nparticipant A\nparticipant B\nloop outer\nNote over A,B: Owned inside\nA->>B: work\nend\nNote over A,B: After close\nopt empty sibling\nend\nautonumber 10 2\nB->>A: numbered\nautonumber off\nA->>B: hidden\nautonumber\nB->>A: resumes', cue: 'The post-close note is outside the loop, empty siblings keep their own bounds, and numbering resumes the shared counter.' },
   { id: 'terminal-class-ports', source: 'classDiagram\nclass A {\n +String name\n +run() void\n}\nclass B\nA "1" --> "*" B : complete relation\nA --> A : self\nA --> B : parallel', cue: 'Inspect both cardinalities, every complete label, the self loop and separate physical ports.' },
-  { id: 'terminal-zero-pie', source: 'pie showData\n title Zero values\n "Still present" : 0\n "Also present" : 0', cue: 'The baseline is honestly empty. The new output preserves zero labels and values without inventing positive bars.' },
+  { id: 'terminal-zero-pie', source: 'pie showData\n title Zero values\n "Still present" : 0\n "Also present" : 0', cue: 'Both revisions should preserve zero labels and values without inventing positive bars; this earlier Pie repair is a compatibility control.' },
   { id: 'terminal-xy-baseline', source: 'xychart-beta\n x-axis [A, B, C]\n y-axis 1 --> 14\n bar [1, 6.5, 14]', cue: 'The authored minimum-valued bar has zero length; ticks, marks and baseline use the same quantizer.' },
   { id: 'terminal-xy-mixed-coverage', source: 'xychart-beta\n x-axis [A, B, C, D]\n y-axis 0 --> 100\n bar [20, 50, 80, 40]\n line [20, 90, 30, 70]', cue: 'Bars retain their full numeric coverage. The line is visible outside bars and explicitly occluded behind them; compare the exact cell spans in the metadata.' },
   { id: 'terminal-xy-horizontal-coverage', source: 'xychart-beta horizontal\n x-axis [A, B, C, D]\n y-axis 0 --> 100\n bar [22.5, 52.5, 82.5, 42.5]\n line [20, 90, 30, 70]', cue: 'The horizontal form preserves half-cell bar endpoints using the same opaque-mark policy.' },
   { id: "terminal-class-namespace-headers", source: "classDiagram\ndirection LR\nnamespace Alpha[\"First<br/>complete header\"] {\n class A\n}\nnamespace Beta[\"Second<br/>complete header\"] {\n class B\n}\nA --> B : edge", cue: "Both complete namespace headers clear sibling envelopes and the owned relationship." },
   { id: "terminal-sequence-central-markers", source: "sequenceDiagram\nA->>()B: central end\nB() ->>A: central start\nA() <<->>()B: both ends\nA->>()A: self end", cue: "Inspect central circles at every authored endpoint, including the self message." },
-  { id: "terminal-container-cycle", source: "flowchart TD\nsubgraph G[Group]\n subgraph H[Inner]\n A[Member]\n end\nend\nB[External] --> G\nG --> B", cue: "Both reciprocal relationships survive a component without an initial root. A baseline error is retained honestly." },
+  { id: "terminal-container-cycle", source: "flowchart TD\nsubgraph G[Group]\n subgraph H[Inner]\n A[Member]\n end\nend\nB[External] --> G\nG --> B", cue: "Both reciprocal relationships should survive a component without an initial root; any actual refusal remains visible in its revision panel." },
   { id: "terminal-gantt-task-identities", source: "gantt\ndateFormat YYYY-MM-DD\nFirst :2024-01-01, 1d\nSecond :task-0, 2024-01-03, 1d\nclick task-0 href \"https://example.com\"", cue: "The task-0 owned spans identify only Second; the anonymous task has its own stable identity." },
   { id: "terminal-sankey-policy", source: "---\nconfig:\n sankey:\n  linkColor: \"#ff0000\"\n---\nsankey-beta\nSource,Target,2\nSource,Target,1", cue: "Static link paint reaches the owned bars. Parallel adjacency regions retain their endpoints and distinct identities." },
   { id: 'terminal-tall-frame', source: 'flowchart LR\nsubgraph S["One<br>Two<br>Three<br>Four<br>Five"]\n A[Node]\nend', cue: 'Every header line is complete and clears the node; neither wrapping nor composition rewrites source.' },
@@ -71,12 +74,15 @@ const terminalFixtures = [
   { id: 'terminal-intercontainer-label-feasibility', source: 'flowchart LR\nsubgraph one\n A -->|sends| B\nend\nsubgraph two\n C -->|receives| D\nend\nB -->|data| C', cue: 'The data label fits in free space without erasing either container frame. Both internal labels and all three relationships remain visible.' },
   { id: 'terminal-long-reciprocal-label-feasibility', source: `flowchart TD\nA -->|${'a'.repeat(50)}| B\nB -->|return| A`, cue: 'The complete 50-character label fits beside its actual route without erasing the opposite relationship. Placement follows measured demand rather than a fixed search-radius cutoff.' },
   { id: 'terminal-nested-external-node-feasibility', source: 'flowchart TB\nsubgraph G0[Group 0 日本]\nsubgraph G1[Group 1 日本]\nsubgraph G2[Group 2 日本]\nsubgraph G3[Group 3 日本]\nA[日本語 👩‍💻 long label] -->|handoff labels| B[Wide terminal label]\nend\nend\nend\nend\nB --> C[Finish]', cue: 'All nested frames contain their own members and exclude the external Finish card. Its complete label and the outgoing relationship survive without erasing the outer frame.' },
-  { id: 'terminal-interleaved-containment-limit', source: 'flowchart TD\nsubgraph Outer\nsubgraph Inner\nA[First]\nB[Last]\nend\nX[Outside]\nend\nA --> X --> B', cue: 'This existing logical embedding interleaves a nonmember inside both axes of Inner. All labels remain present; final metadata explicitly reports the unresolved containment limitation instead of claiming separation.' },
+  { id: 'terminal-interleaved-containment', source: 'flowchart TD\nsubgraph Outer\nsubgraph Inner\nA[First]\nB[Last]\nend\nX[Outside]\nend\nA --> X --> B', cue: 'A and B belong inside Inner; X belongs inside Outer and wholly outside Inner. Compare the complete frames, label cells, parent references and connected relationship ownership. The baseline containment diagnostic is a refused layout, not successful separation.' },
   { id: 'terminal-gitgraph-composite-identities', source: 'gitGraph\ncommit id: "a:b"\ncommit id: "c"\ncommit id: "a"\ncommit id: "b:c"', cue: 'All four commits remain visible. Metadata keeps the distinct a:b→c and a→b:c parent relationships; punctuation must not alias their semantic keys.' },
   { id: 'terminal-class-typed-parent', source: 'classDiagram\nnamespace A["Container"] {\nclass A["Target"]\n}\nclick A href "https://example.com"', cue: 'The class and namespace share raw ID A. Inspect separate node/cluster geometry and parentKind in the sidecar; the public action regression additionally checks node:A→group:A.' },
   { id: 'terminal-sequence-background-reservations', source: 'sequenceDiagram\nparticipant A\nparticipant B\nparticipant C\nactivate B\nalt Complete active fragment header\nA->>C: hello across B\nNote over B: Opaque active note\nend\ndeactivate B', cue: 'Complete message, fragment header and note text clear intermediate lifelines and active bands. Intentional background gaps must not produce geometry-collision diagnostics.' },
+  { id: 'terminal-parallel-reciprocal-capacity', source: parallelReciprocalSource, cue: 'All three complete labels must be attached to their own connected routes and real endpoint markers. Inspect request 1, which the baseline omits, and compare the endpoint/owned-span sidecars.' },
+  { id: 'terminal-compound-parallel-reciprocal', source: 'flowchart TD\nsubgraph Outer["外側 👩‍💻<br>é header"]\nsubgraph Inner["内側<br>second"]\nA["日本<br>👩‍💻 é"]\nB[End]\nend\nX[Outside]\nend\nA -->|界 👩‍💻 = é| X\nX -->|back| B\nA -->|again| X\nX -->|return| A\nB -->|self| B', cue: 'Combined witness: Inner contains A/B and excludes X; all five parallel, reciprocal and self relationships retain their complete labels and physical endpoints. Inspect multiline CJK/ZWJ/combining text together with actual owned paths. Sidecars preserve baseline refusals honestly; the independent test also checks a hard 200-column width.' },
+  { id: 'terminal-sankey-public-identities', source: sankeyIdentitySource, cue: 'Compare terminal edge identities/endpoints with the graphical Sankey layout sidecars. Authored names resembling generated IDs stay distinct; the existing complete adjacency text is a compatibility control.' },
 ]
-interface Evidence { svg?: string; png?: string; error?: string }
+interface Evidence { svg?: string; png?: string; layout?: unknown; error?: string }
 interface TerminalEvidence { ascii?: string; html?: string; meta?: unknown; error?: string }
 interface RevisionEvidence { renders: Record<string, Evidence>; terminals: Record<string, TerminalEvidence>; classExport: string }
 
@@ -88,7 +94,7 @@ function renderRevision(sha: string): RevisionEvidence {
     symlinkSync(join(ROOT, 'node_modules'), join(checkout, 'node_modules'), 'dir')
     writeFileSync(join(checkout, 'probe.ts'), `
       import { writeFileSync } from 'node:fs'
-      import { renderMermaidSVG, renderMermaidPNG, parseRegisteredMermaid, asClass, mutate, serializeMermaid } from './src/agent/index.ts'
+      import { renderMermaidSVG, renderMermaidPNG, layoutMermaidWithReceipt, parseRegisteredMermaid, asClass, mutate, serializeMermaid } from './src/agent/index.ts'
       import { renderMermaidASCIIWithMeta } from './src/ascii/meta.ts'
       const fixtures = ${JSON.stringify(fixtures)}
       const fixtureOptions = ${JSON.stringify(fixtureOptions)}
@@ -99,6 +105,7 @@ function renderRevision(sha: string): RevisionEvidence {
           renders[fixture.id] = {
             svg: renderMermaidSVG(fixture.source, fixtureOptions[fixture.id].svg),
             png: Buffer.from(renderMermaidPNG(fixture.source, fixtureOptions[fixture.id].png)).toString('base64'),
+            ...(fixture.captureLayout ? { layout: layoutMermaidWithReceipt(fixture.source, { ...fixtureOptions[fixture.id].svg, regions: true }).layout } : {}),
           }
         } catch (error) { renders[fixture.id] = { error: String(error) } }
       }
@@ -136,9 +143,11 @@ const rows = fixtures.map(fixture => {
       writeFileSync(join(out, `${fixture.id}-${phase}.svg`), result.svg)
       writeFileSync(join(out, `${fixture.id}-${phase}.png`), Buffer.from(result.png, 'base64'))
     }
+    if (result.layout) writeFileSync(join(out, `${fixture.id}-${phase}-layout.json`), JSON.stringify(result.layout, null, 2))
+    const semanticSidecar = result.layout ? `<p><a href="${fixture.id}-${phase}-layout.json">${phase} public layout identities and regions</a></p>` : ''
     return `<figure${fixture.renderOptions?.transparent ? ' class="transparent"' : ''}><figcaption>${phase}</figcaption>${result.png
       ? `<img alt="${phase}: ${esc(fixture.title)}" src="data:image/png;base64,${result.png}">`
-      : `<pre>${esc(result.error ?? 'No render')}</pre>`}</figure>`
+      : `<pre>${esc(result.error ?? 'No render')}</pre>`}${semanticSidecar}</figure>`
   }).join('')
   const optionsCaption = fixture.renderOptions ? `<p>Render options at both revisions: <code>${esc(JSON.stringify(fixture.renderOptions))}</code>.</p>` : ''
   return `<section><h2>${fixture.title}</h2><p>${fixture.cue}</p>${optionsCaption}<div class="pair">${panels}</div></section>`
