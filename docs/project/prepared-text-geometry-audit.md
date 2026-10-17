@@ -59,6 +59,31 @@ under C, English and Japanese locale settings.
   195,000 gzip bytes for its prepared geometry and semantic controls; other
   family and initial budgets are unchanged.
 
+## Rebase onto the completed compositor
+
+The prepared-text branch is rebased onto PR 394 at
+`70f5937b0cf38dbd27b1c8c9238665419e267861`. Its terminal artifact/model reuse,
+typed parents, atomic footprint admission, logical strokes, numeric marks,
+container allocation and later identity fixes are retained. All 21 earlier
+compatibility counterexamples now pass against the combined implementation.
+
+The XY adapter keeps the complete 60-cell boundary scale, authored endpoints,
+fractional ticks and non-overlapping coarse endpoint labels inside the newer
+terminal API. Its tests also retain PR 394's bar-coverage protection at line/bar
+intersections; line segments remain visible outside filled marks. Radar keeps
+distinct axis/curve occurrences and uses typed parent identities.
+
+Independent rechecks pass 257 terminal tests, 76 counterexample/XY/chart tests,
+312 shared/Scene/golden/package tests, and all 252 shaping raster probes. Root
+checks pass 103 integration, 155 prepared/sequence and 219 compatibility tests;
+these selections overlap and must not be summed. The README hero was regenerated
+and visually reviewed. The PR records fresh quality/CI results for the rebased
+head rather than treating earlier-head CI as current evidence.
+
+PR 394's separate follow-ups remain separate: terminal lane capacity (#398),
+interleaved compound membership (#397), graphical Sankey identity (#400), and
+native C4 (#387). Rebase verification does not close those contracts.
+
 ## Scope and limits
 
 Coverage spans all 16 registry families, with directed tests for supported

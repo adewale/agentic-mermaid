@@ -104,8 +104,8 @@ describe('terminal XY numeric projection', () => {
       expect(regions.filter(region => /^x-category-/.test(region.id))).toHaveLength(3)
       const centers = categories.map(category => horizontal ? category.canvasRow : Math.floor((category.canvasColStart + category.canvasColEnd) / 2))
       const plot = regions.find(region => region.id === 'plot')!
-      const extent = horizontal ? plot.canvasColEnd - plot.canvasColStart - 1 : plot.rowSpan! - 1
-      expect(extent).toBe(horizontal ? 59 : 20)
+      const extent = horizontal ? plot.canvasColEnd - plot.canvasColStart : plot.rowSpan! - 1
+      expect(extent).toBe(horizontal ? 60 : 20)
       const baseline = horizontal ? plot.canvasColStart : plot.canvasRow + extent
       const rows = text.split('\n')
       for (const [series, data] of values.entries()) {

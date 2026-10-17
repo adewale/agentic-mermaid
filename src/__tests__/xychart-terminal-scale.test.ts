@@ -124,13 +124,13 @@ bar [-120, 0]`
     expect(render([-5, 25], [0, 20])).toEqual(render([0, 20], [0, 20]))
   })
 
-  it('keeps a line visible above bars regardless of source series order', () => {
+  it('keeps visible line segments and bar coverage regardless of source series order', () => {
     const body = 'x-axis [A, B]\ny-axis 0 --> 20\n'
     const options = { colorMode: 'none' as const }
-    const first = renderMermaidASCII(`xychart\n${body}bar [20, 20]\nline [10, 10]`, options).split('\n').slice(1)
-    const second = renderMermaidASCII(`xychart\n${body}line [10, 10]\nbar [20, 20]`, options).split('\n').slice(1)
+    const first = renderMermaidASCII(`xychart\n${body}bar [5, 5]\nline [10, 10]`, options).split('\n').slice(1)
+    const second = renderMermaidASCII(`xychart\n${body}line [10, 10]\nbar [5, 5]`, options).split('\n').slice(1)
     expect(first).toEqual(second)
     expect(first[10]).toMatch(/─{20}/)
-    expect(first[9]).toContain('█')
+    expect(first[19]).toContain('█')
   })
 })

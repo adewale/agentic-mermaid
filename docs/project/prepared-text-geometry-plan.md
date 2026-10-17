@@ -69,7 +69,8 @@ observations must remain independent of production preparation and stored bounds
 ## Completion evidence
 
 Implementation is in [PR 395](https://github.com/adewale/agentic-mermaid/pull/395),
-including the compositor and its audit fixes from PR 394. The independent audit
+rebased onto the compositor and its audit fixes from PR 394 at
+`70f5937b0cf38dbd27b1c8c9238665419e267861`. The independent audit
 and dispositions are recorded in [prepared-text-geometry-audit.md](prepared-text-geometry-audit.md).
 
 Representative verification commands (Bun 1.4.2):

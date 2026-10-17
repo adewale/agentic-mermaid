@@ -20,11 +20,12 @@ import { TerminalDocument, type TerminalOwner } from './terminal-document.ts'
 import { CHART_ACCENT_FALLBACK } from '../xychart/colors.ts'
 import { categoricalPalette } from '../shared/categorical-palette.ts'
 import { isLegendWorthy, legendEntries } from '../xychart/legend.ts'
-import { barBaselineValue, clampToAxisRange, getDataCount, getCategoryLabels, formatTickValue, linearTicks } from '../xychart/axis-utils.ts'
+import { barBaselineValue, getDataCount, getCategoryLabels, formatTickValue, linearTicks } from '../xychart/axis-utils.ts'
 import { graphemes } from '../shared/graphemes.ts'
 import { visualWidth } from './width.ts'
 import { wrapText } from './wrap.ts'
 import { AsciiWidthError } from './width-error.ts'
+import { quantizedScale } from './quantized-scale.ts'
 
 // ============================================================================
 // Constants
@@ -180,7 +181,7 @@ function renderVertical(
   if (dataCount === 0) return new TerminalDocument()
 
   const yRange = chart.yAxis.range!
-  const yTicks = linearTicks(yRange.min, yRange.max, 6)
+  const yTicks = valueProjection(yRange, PLOT_HEIGHT, ch.ascii).ticks(linearTicks(yRange.min, yRange.max, 6))
   const yLabels = yTicks.map(v => formatTickValue(v))
   const showYLabels = chart.config.yAxis?.showLabel !== false
   const showXLabels = chart.config.xAxis?.showLabel !== false
@@ -357,7 +358,6 @@ function renderHorizontal(
   if (dataCount === 0) return new TerminalDocument()
 
   const yRange = chart.yAxis.range!
-  const valueTicks = linearTicks(yRange.min, yRange.max, 6)
   const catLabels = getCategoryLabels(chart, dataCount)
   const showCategoryLabels = chart.config.xAxis?.showLabel !== false
   const showValueLabels = chart.config.yAxis?.showLabel !== false
@@ -373,8 +373,9 @@ function renderHorizontal(
   // Reject an actually impossible fixed-width frame before deriving its height
   // or allocating any canvases.
   const plotLeft = catGutter + 1
-  const minimumPlotW = 2
   const dataLabelPad = chart.config.showDataLabel ? 12 : 2
+  const endpointWidth = [yRange.min, yRange.max].reduce((sum, value) => sum + visualWidth(formatTickValue(value)), 1)
+  const minimumPlotW = Math.max(1, showValueLabels ? endpointWidth - plotLeft - dataLabelPad : 1)
   const minimumRequiredWidth = plotLeft + minimumPlotW
   if (hardWidth !== undefined && minimumRequiredWidth > hardWidth) {
     const visibleText = [
@@ -418,7 +419,8 @@ function renderHorizontal(
   canvas.overlay(header)
 
   // Value scale (horizontal)
-  const projection = valueProjection(yRange, plotW - 1, ch.ascii)
+  const projection = valueProjection(yRange, plotW, ch.ascii)
+  const valueTicks = projection.ticks(linearTicks(yRange.min, yRange.max, 6))
   const valueToCol = (value: number): number => plotLeft + projection.position(value)
   const bandMid = (i: number): number => plotTop + Math.floor(bandH * (i + 0.5))
 
@@ -441,13 +443,22 @@ function renderHorizontal(
   for (let c = plotLeft; chart.config.yAxis?.showAxisLine !== false && c < plotLeft + plotW; c++) {
     stroke(canvas, xAxisRow, c, 10, ch, 'border')
   }
+  const tickLabelStarts = new Map<number, number>()
+  // Endpoints describe the authored domain. Admit interior labels only when
+  // they leave a separating cell on the same numeric lattice.
+  for (const tick of [yRange.min, yRange.max, ...valueTicks]) {
+    if (tickLabelStarts.has(tick)) continue
+    const labelWidth = visualWidth(formatTickValue(tick))
+    const start = Math.max(0, Math.min(totalW - labelWidth, valueToCol(tick) - Math.floor(labelWidth / 2)))
+    if ([...tickLabelStarts].every(([other, x]) => start > x + visualWidth(formatTickValue(other)) || start + labelWidth < x)) tickLabelStarts.set(tick, start)
+  }
   for (const tick of valueTicks) {
     const cx = valueToCol(tick)
     if (cx < plotLeft || cx > plotLeft + plotW) continue
     if (chart.config.yAxis?.showTick !== false) stroke(canvas, xAxisRow, cx, 14, ch, 'border')
-    if (showValueLabels) {
+    if (showValueLabels && tickLabelStarts.has(tick)) {
       const label = formatTickValue(tick)
-      writeText(canvas, xAxisRow + 1, Math.max(0, cx - Math.floor(visualWidth(label) / 2)), label, 'text', { id: `y-tick-${tick}`, kind: 'label' })
+      writeText(canvas, xAxisRow + 1, tickLabelStarts.get(tick)!, label, 'text', { id: `y-tick-${tick}`, kind: 'label' })
     }
   }
 
@@ -796,21 +807,13 @@ function writeColoredText(canvas: TerminalDocument, row: number, col: number, te
  * ASCII bar boundaries to whole cells (<= 1/2). The authored domain is unchanged.
  * Bars cover the interval between baseline and value, so zero paints no cell. */
 function valueProjection(range: { min: number; max: number }, extent: number, ascii: boolean) {
-  const affine = (value: number): number => (clampToAxisRange(range, value) - range.min) / (range.max - range.min || 1) * extent
-  const edge = (value: number): number => Math.round(affine(value) * (ascii ? 1 : 2)) / (ascii ? 1 : 2)
+  const scale = quantizedScale(range, extent)
   return {
-    edge,
-    position: (value: number): number => Math.round(affine(value)),
+    edge: (value: number): number => scale.position(value, ascii ? 1 : 2),
+    position: scale.position,
+    ticks: scale.ticks,
     coverage(start: number, end: number): Array<{ cell: number; coverage: 1 | 2 | 3 }> {
-      const lo = Math.min(edge(start), edge(end)), hi = Math.max(edge(start), edge(end))
-      const cells: Array<{ cell: number; coverage: 1 | 2 | 3 }> = []
-      for (let cell = Math.floor(lo); cell < Math.ceil(hi); cell++) {
-        const from = Math.max(lo, cell) - cell, to = Math.min(hi, cell + 1) - cell
-        if (to <= from) continue
-        const coverage = to - from >= 1 ? 3 : from === 0 ? 1 : 2
-        cells.push({ cell, coverage })
-      }
-      return cells
+      return scale.interval(start, end, ascii ? 1 : 2).map(({ index, coverage }) => ({ cell: index, coverage: coverage as 1 | 2 | 3 }))
     },
   }
 }

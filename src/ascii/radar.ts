@@ -148,7 +148,7 @@ export function renderRadarTerminal(
         }
         if (legend.length > 0) { legend.push({ text: '   ' }); width += 3 }
         legend.push(
-          { text: glyph, role: 'arrow', kind: 'marker', color: colors[index]!, owner: { id: `${id}:legend`, kind: 'label', parent: { id: id, kind: 'node' } } },
+          { text: glyph, role: 'arrow', kind: 'marker', color: colors[index]!, owner: { id: `${id}:legend`, kind: 'label', parent: { id, kind: 'node' } } },
           { text: ' ' },
           { text, role: 'text', textGroup: 'legend', owner: { id, kind: 'node' } },
         )
