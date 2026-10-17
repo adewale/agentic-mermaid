@@ -173,6 +173,8 @@ export interface AsciiSubgraph {
   minY: number
   maxX: number
   maxY: number
+  /** Content-to-frame capacity reserved for incident descendant approaches. */
+  insets?: Partial<Record<'left' | 'right' | 'top' | 'bottom', number>>
   /** Optional direction override for layout within this subgraph (LR or TD). */
   direction?: 'LR' | 'TD'
   /** State-only synthetic parallel region; drawn as a dashed separator, not a frame. */

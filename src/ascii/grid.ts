@@ -299,14 +299,13 @@ function calculateSubgraphBoundingBox(graph: AsciiGraph, sg: AsciiSubgraph, proj
     maxY = Math.max(maxY, bounds.maxY)
   }
 
-  const subgraphPadding = 2
   // Keep two cells after the last header line for an incoming bend and its
   // terminal marker; a marker cannot also represent a change of direction.
   const subgraphLabelSpace = Math.max(2, lineCount(sg.name) + 1)
-  sg.minX = minX - subgraphPadding
-  sg.minY = minY - subgraphPadding - subgraphLabelSpace
-  sg.maxX = maxX + subgraphPadding
-  sg.maxY = maxY + subgraphPadding
+  sg.minX = minX - (sg.insets?.left ?? 2)
+  sg.minY = minY - (sg.insets?.top ?? 2) - subgraphLabelSpace
+  sg.maxX = maxX + (sg.insets?.right ?? 2)
+  sg.maxY = maxY + (sg.insets?.bottom ?? 2)
 }
 
 export function calculateSubgraphBoundingBoxes(graph: AsciiGraph, projected?: ReadonlyMap<AsciiNode, GridBounds>): void {

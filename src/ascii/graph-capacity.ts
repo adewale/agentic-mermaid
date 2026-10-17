@@ -44,6 +44,7 @@ export function reserveGraphEdgeCapacity(graph: AsciiGraph, measure: () => Reado
   let projected = measure()
   const boundsOf = (endpoint: Endpoint): Bounds => isGroup(endpoint) ? endpoint : projected.get(endpoint)!
   const faces = new Map<Endpoint, Map<Direction, { extent: number; count: number }>>()
+  const parentFor = new Map(graph.subgraphs.flatMap(group => group.nodes.map(node => [node, group] as const)))
   const slot = (endpoint: Endpoint, face: Direction, demand: number): number => {
     const perFace = faces.get(endpoint) ?? new Map<Direction, { extent: number; count: number }>()
     const before = perFace.get(face) ?? { extent: 1 + (isGroup(endpoint) && (face === Left || face === Right) ? lineCount(endpoint.name) : 0), count: 0 }
@@ -68,6 +69,18 @@ export function reserveGraphEdgeCapacity(graph: AsciiGraph, measure: () => Reado
     }
     const demand = edge.startDir === Left || edge.startDir === Right ? lineCount(edge.text) : Math.max(1, maxLineWidth(edge.text))
     edge.cellAllocation = { startOffset: slot(from, edge.startDir, demand), endOffset: slot(to, edge.endDir, demand) }
+  }
+  // An individually valid child face is insufficient: its outward marker
+  // approach must fit inside the enclosing frame without touching that
+  // frame's own ports. Reserve the occupied approach and one clear cell.
+  for (const [endpoint, perFace] of faces) {
+    const parent = isGroup(endpoint) ? endpoint.parent : parentFor.get(endpoint)
+    if (!parent) continue
+    for (const face of perFace.keys()) {
+      const side = face === Left ? 'left' : face === Right ? 'right' : face === Up ? 'top' : 'bottom'
+      parent.insets ??= {}
+      parent.insets[side] = Math.max(parent.insets[side] ?? 2, GRAPH_EDGE_APPROACH + 1 + 1)
+    }
   }
   // Card demand fills its own grid dimensions. Container demand first measures
   // its actual usable face, then grows a member grid interval only by deficit.

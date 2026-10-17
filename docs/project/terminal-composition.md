@@ -117,6 +117,10 @@ between disjoint items. Parallel/reciprocal demand reserves physical face slots
 and complete label capacity before cell routes are planned. The same allocated
 polyline supplies lines, corners, markers and public ports. A failed bounded
 allocation reports a specific geometry diagnostic instead of claiming a route.
+Container ports use their actual frame, rather than a representative member.
+Final header/face capacity is measured after reverse-grid projection. Nested
+frame insets reserve descendant marker approaches and a clear cell; joint
+approach admission checks different endpoints together before edge painting.
 
 GitGraph reserves complete commit-label rectangles clear of branch rails.
 Positive-length shared rail runs and merge stems determine intentional bundles;
@@ -190,7 +194,7 @@ gaps and extended their owning contracts:
 | Intended background occlusion is explicit | A cell compositor cannot infer that a message or heading should cut a gap in a lifeline or activation | Family layout reserves foreground footprints before either background pass; collision diagnostics remain enabled |
 | One identity has one immutable definition | Explicit registration validated definitions while paint, attribution and layer imports bypassed it | One snapshot-and-validation path, with complete batch validation before target mutation and caches restricted to owned immutable values |
 | Admitted ink remains serializable | Legacy row caps became stale after positioned writes, sparse overlays and reflection | Accepted cell placement maintains row extents; transforms rebuild them from moved occupied geometry |
-| Allocated graph ports fit their semantic endpoints | A representative child used for placement lost the container's actual face and exterior approach; valid source IDs alone did not preserve geometry | Node-or-container endpoint objects through demand allocation, measured final-envelope capacity checks and actual frame/marker contact regressions |
+| Allocated graph ports and approaches fit their semantic endpoints | A representative child lost the container's actual face; independently valid nested ports still had overlapping approaches | Node-or-container endpoint objects, final-envelope face checks, shared measured frame insets, joint approach admission and actual frame/marker contact regressions |
 
 Owning regressions include foreign frozen handles, mutable/getter callers,
 partial failed imports, arbitrary ID separators, same-ID/different-kind parents,

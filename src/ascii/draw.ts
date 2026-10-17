@@ -1406,6 +1406,8 @@ function planAllocatedGraphRoutes(graph: AsciiGraph, protectedCells: PathOccupan
   const routed = new Map<string, number>()
   const ends = new Map<AsciiEdge, [DrawingCoord, DrawingCoord]>()
   const markerCells = new Map<string, Set<AsciiEdge>>()
+  const approaches = new Map<string, { edge: AsciiEdge; start: boolean }>()
+  const overlapping = new Map<AsciiEdge, DrawingCoord>()
   let regions: ReturnType<Canvas['regions']> | undefined
   const step = (point: DrawingCoord, direction: Direction, count: number) => ({ x: point.x + (direction.x - 1) * count, y: point.y + (direction.y - 1) * count })
   const inside = (box: Rectangle, x: number, y: number) => x >= box.x - (box.height > 1 ? 1 : 0) && x < box.x + box.width && y >= box.y && y < box.y + box.height
@@ -1431,10 +1433,24 @@ function planAllocatedGraphRoutes(graph: AsciiGraph, protectedCells: PathOccupan
       continue
     }
     ends.set(edge, [start, end])
-    for (const [point, direction] of [[start, edge.startDir], [end, edge.endDir]] as const) for (let distance = 0; distance <= GRAPH_EDGE_APPROACH; distance++) {
+    for (const [isStart, point, direction] of [[true, start, edge.startDir], [false, end, edge.endDir]] as const) for (let distance = 0; distance <= GRAPH_EDGE_APPROACH; distance++) {
       const marker = step(point, direction, distance), key = `${marker.x},${marker.y}`
+      const previous = approaches.get(key)
+      if (previous && (previous.edge !== edge || previous.start !== isStart)) {
+        overlapping.set(previous.edge, marker); overlapping.set(edge, marker)
+      } else approaches.set(key, { edge, start: isStart })
       const owners = markerCells.get(key) ?? new Set<AsciiEdge>(); owners.add(edge); markerCells.set(key, owners)
     }
+  }
+  // Separate valid faces can still have intersecting exterior approaches,
+  // especially across concentric frames. Admit the complete set together.
+  for (const [edge, point] of overlapping) {
+    edge.cellRoute = { points: [] }; ends.delete(edge)
+    graph.canvas.report({ code: 'TERMINAL_GEOMETRY_COLLISION', feature: `edge-approach:${terminalEdgeOwner(graph, edge).id}`, cell: { column: point.x, row: point.y }, message: 'Allocated physical endpoint approach corridors overlap before routing.' })
+  }
+  if (overlapping.size) for (const [key, owners] of markerCells) {
+    for (const edge of owners) if (overlapping.has(edge)) owners.delete(edge)
+    if (!owners.size) markerCells.delete(key)
   }
   for (const edge of edges) {
     if (!ends.has(edge)) continue

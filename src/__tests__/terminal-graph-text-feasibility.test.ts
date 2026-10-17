@@ -6,7 +6,13 @@ import { createMapping } from '../ascii/grid.ts'
 import { drawGraph } from '../ascii/draw.ts'
 import { measuredText, terminalDocumentOf, type TerminalDocument, type TerminalRegion } from '../ascii/terminal-document.ts'
 
-const containerEndpointCases: Array<{ name: string; body: string; texts: Array<[string, string]>; relationships: Array<[string, string, string]> }> = [
+type RelationshipWitness = [string, string, string?, ('circle' | 'cross')?]
+const visibleStrokePorts: Record<string, number> = {
+  '─': 10, '━': 10, '═': 10, '┄': 10, '┈': 10, '╌': 10, '-': 10, '=': 10, '.': 10,
+  '│': 5, '┃': 5, '║': 5, '┆': 5, '┊': 5, '╎': 5, '|': 5, ':': 5,
+  '┌': 6, '┐': 12, '└': 3, '┘': 9, '├': 7, '┤': 13, '┬': 14, '┴': 11, '┼': 15, '+': 15,
+}
+const containerEndpointCases: Array<{ name: string; body: string; texts: Array<[string, string]>; relationships: Array<[string, string, string, ('circle' | 'cross')?]>; variants?: readonly boolean[] }> = [
   {
     name: 'two complete sibling frame faces',
     body: 'subgraph G1\nA[Inside one]\nend\nsubgraph G2\nB[Inside two]\nend\nG1 -->|one| G2\nG1 -->|two| G2\nG2 -->|back| G1',
@@ -43,6 +49,24 @@ const containerEndpointCases: Array<{ name: string; body: string; texts: Array<[
     texts: [['G', 'Wide 日本 header'], ['A', 'Left'], ['C', 'Right']],
     relationships: [['G', 'G', 'one'], ['G', 'G', 'two']],
   },
+  {
+    name: 'nested frame approaches stay disjoint with a multiline parallel label',
+    body: 'subgraph P\nsubgraph C\nA\nend\nend\nP -->|one| C\nP -->|two<br>x| C\nC -->|back| P',
+    texts: [['P', 'P'], ['C', 'C'], ['A', 'A']],
+    relationships: [['P', 'C', 'one'], ['P', 'C', 'two\nx'], ['C', 'P', 'back']], variants: [true],
+  },
+  {
+    name: 'nested frame approaches reserve both protected marker ends and self capacity',
+    body: 'subgraph Parent[Outer 日本]\nsubgraph Child[Inner 👩‍💻]\nA[Member]\nend\nend\nParent o--o|界 👩‍💻 = é| Child\nParent x--x|again<br>日本| Child\nChild -->|back| Parent\nChild -->|self| Child',
+    texts: [['Parent', 'Outer 日本'], ['Child', 'Inner 👩‍💻'], ['A', 'Member']],
+    relationships: [['Parent', 'Child', '界 👩‍💻 = é', 'circle'], ['Parent', 'Child', 'again\n日本', 'cross'], ['Child', 'Parent', 'back'], ['Child', 'Child', 'self']], variants: [true],
+  },
+  {
+    name: 'multilevel ancestor approaches coexist with a leaf and nested self relationship',
+    body: 'subgraph Parent[Outer 日本]\nsubgraph Middle[Between]\nsubgraph Child[Inner 👩‍💻]\nA[Member]\nend\nend\nend\nParent o--o|界 👩‍💻 = é| Child\nParent x--x|again<br>日本| Child\nChild -->|back| Parent\nChild -->|self| Child\nA -->|leaf| Parent',
+    texts: [['Parent', 'Outer 日本'], ['Middle', 'Between'], ['Child', 'Inner 👩‍💻'], ['A', 'Member']],
+    relationships: [['Parent', 'Child', '界 👩‍💻 = é', 'circle'], ['Parent', 'Child', 'again\n日本', 'cross'], ['Child', 'Parent', 'back'], ['Child', 'Child', 'self'], ['A', 'Parent', 'leaf']], variants: [true],
+  },
 ]
 
 function completeText(document: TerminalDocument, glyphs: ReadonlyMap<string, string>, region: TerminalRegion, text: string): void {
@@ -72,13 +96,14 @@ function relationship(document: TerminalDocument, glyphs: ReadonlyMap<string, st
     covered.add(`${x},${y}`)
   }
   expect(covered.size).toBeGreaterThan(0)
-  const neighbors = (x: number, y: number) => [[x - 1, y], [x + 1, y], [x, y - 1], [x, y + 1]]
+  const neighbors = (x: number, y: number) => [[x - 1, y], [x + 1, y], [x, y - 1], [x, y + 1]] as const
   const endpointInk = (x: number, y: number, id: string): boolean => {
     const cell = document.cell(x, y)
     return cell !== undefined && glyphs.get(`${x},${y}`) !== undefined && glyphs.get(`${x},${y}`) !== ' '
       && cell.kind !== 'text' && cell.kind !== 'surface'
       && cell.owners.some(owner => owner.id === id && (owner.kind === 'node' || owner.kind === 'subgraph'))
   }
+  const attachments: string[][] = []
   for (const port of [start, end]) {
     expect(glyphs.get(`${port.x},${port.y}`)).toBeDefined()
     expect(glyphs.get(`${port.x},${port.y}`)).not.toBe(' ')
@@ -88,21 +113,36 @@ function relationship(document: TerminalDocument, glyphs: ReadonlyMap<string, st
     const ownRoute = covered.has(`${port.x},${port.y}`)
     const adjacentRoute = around.some(([x, y]) => covered.has(`${x},${y}`) && glyphs.has(`${x},${y}`) && glyphs.get(`${x},${y}`) !== ' ')
     expect(ownRoute || (endpointInk(port.x, port.y, port.nodeId) && adjacentRoute)).toBe(true)
-    // Only a proven visible endpoint may supplement the relationship cells.
-    covered.add(`${port.x},${port.y}`)
+    attachments.push([[port.x, port.y], ...around].filter(([x, y]) => covered.has(`${x},${y}`)
+      && glyphs.has(`${x},${y}`) && glyphs.get(`${x},${y}`) !== ' '
+      && /stroke|marker|text/.test(document.cell(x!, y!)?.kind ?? '')).map(([x, y]) => `${x},${y}`))
   }
-  const first = `${start.x},${start.y}`, last = `${end.x},${end.y}`
-  const queue = [first], seen = new Set(queue)
+  const queue = attachments[0]!, seen = new Set(queue)
   for (let index = 0; index < queue.length; index++) {
     const [x, y] = queue[index]!.split(',').map(Number)
-    for (const [nx, ny] of [[x! - 1, y!], [x! + 1, y!], [x!, y! - 1], [x!, y! + 1]]) {
+    for (const [nx, ny] of neighbors(x!, y!)) {
       const key = `${nx},${ny}`
-      if (covered.has(key) && !seen.has(key)) { seen.add(key); queue.push(key) }
+      const from = document.cell(x!, y!)!, to = document.cell(nx, ny)
+      const outgoing = nx < x! ? 8 : nx > x! ? 2 : ny < y! ? 1 : 4
+      const incoming = outgoing === 8 ? 2 : outgoing === 2 ? 8 : outgoing === 1 ? 4 : 1
+      const fromMask = from.kind === 'stroke' ? visibleStrokePorts[from.glyph] ?? 15 : 15
+      const toMask = to?.kind === 'stroke' ? visibleStrokePorts[to.glyph] ?? 15 : 15
+      if (covered.has(key) && !seen.has(key) && (fromMask & outgoing) && (toMask & incoming)) { seen.add(key); queue.push(key) }
     }
   }
-  expect(seen.has(last), `physical relationship ${from}->${to}`).toBe(true)
+  expect(attachments[1]!.some(point => seen.has(point)), `physical relationship ${from}->${to}`).toBe(true)
+  // A floating label may attach beside a real run without a wire into its
+  // letters. Prove that semantic component only after endpoint connectivity.
+  const labels = [...seen], attached = new Set(labels)
+  for (let index = 0; index < labels.length; index++) {
+    const [x, y] = labels[index]!.split(',').map(Number)
+    for (const [nx, ny] of neighbors(x!, y!)) {
+      const key = `${nx},${ny}`
+      if (covered.has(key) && !attached.has(key)) { attached.add(key); labels.push(key) }
+    }
+  }
   for (const cell of edge.authoredTextCells ?? []) {
-    expect(seen.has(`${cell.column},${cell.row}`), `label remains attached to ${from}->${to}`).toBe(true)
+    expect(attached.has(`${cell.column},${cell.row}`), `label remains attached to ${from}->${to}`).toBe(true)
   }
 }
 
@@ -110,7 +150,7 @@ function witness(
   source: string,
   useAscii: boolean,
   texts: Array<[string, string]>,
-  relationships: Array<[string, string, string?]>,
+  relationships: RelationshipWitness[],
   geometry?: (document: TerminalDocument, regions: TerminalRegion[]) => void,
 ): void {
   const rendered = renderMermaidASCIIWithReceipt(source, { useAscii, colorMode: 'none' })
@@ -174,14 +214,29 @@ for (const direction of ['TD', 'BT', 'LR', 'RL']) for (const useAscii of [false,
   test(`parallel container endpoints bind to real frame ports (${direction}/${useAscii ? 'ASCII' : 'Unicode'})`, () => {
     witness(`flowchart ${direction}\nsubgraph Group\nA[Inner]\nend\nGroup -->|one| B[Outside]\nGroup -->|two| B\nB -->|back| Group`, useAscii, [['Group', 'Group'], ['A', 'Inner'], ['B', 'Outside']], [['Group', 'B', 'one'], ['Group', 'B', 'two'], ['B', 'Group', 'back']])
   })
-  for (const fixture of containerEndpointCases) for (const parallel of [false, true]) test(`${fixture.name} (${direction}/${useAscii ? 'ASCII' : 'Unicode'}, parallel=${parallel})`, () => {
+  for (const fixture of containerEndpointCases) for (const parallel of fixture.variants ?? [false, true]) test(`${fixture.name} (${direction}/${useAscii ? 'ASCII' : 'Unicode'}, parallel=${parallel})`, () => {
     const body = parallel ? fixture.body : fixture.body.split('\n').filter(line => !line.includes('-->|two|')).join('\n')
     const relationships = parallel ? fixture.relationships : fixture.relationships.filter(([, , text]) => text !== 'two')
     witness(`flowchart ${direction}\n${body}`, useAscii, fixture.texts, relationships, (document, regions) => {
       for (const edge of regions.filter(region => region.kind === 'edge')) {
         for (const port of edge.ports ?? []) {
-          expect(document.cell(port.x, port.y)?.owners.some(owner => owner.id === port.nodeId && (owner.kind === 'node' || owner.kind === 'subgraph'))).toBe(true)
+          const endpoint = regions.find(region => region.id === port.nodeId && (region.kind === 'node' || region.kind === 'subgraph'))!
+          const ink = [...document.entries()].filter(([, , cell]) => [...cell.owners, ...(cell.occludedOwners ?? [])].some(owner => owner.id === endpoint.id && owner.kind === endpoint.kind))
+          const left = Math.min(...ink.map(([x]) => x)), right = Math.max(...ink.map(([x]) => x)), top = Math.min(...ink.map(([, y]) => y)), bottom = Math.max(...ink.map(([, y]) => y))
+          expect(port.x === left && port.y > top && port.y < bottom || port.x === right && port.y > top && port.y < bottom
+            || port.y === top && port.x > left && port.x < right || port.y === bottom && port.x > left && port.x < right).toBe(true)
         }
+        const expectedRelationship = relationships.find(([from, to, text]) => edge.from === from && edge.to === to && edge.projectedText === text)!
+        const shape = expectedRelationship[3]
+        if (shape) for (const port of edge.ports!) {
+          const dx = port.end === 'end' ? port.side === 'L' ? -1 : port.side === 'R' ? 1 : 0 : 0
+          const dy = port.end === 'end' ? port.side === 'T' ? -1 : port.side === 'B' ? 1 : 0 : 0
+          const marker = document.cell(port.x + dx, port.y + dy)!
+          expect(marker?.kind).toBe('marker')
+          expect(marker?.glyph).toBe(shape === 'circle' ? useAscii ? 'o' : '◯' : useAscii ? 'x' : '✕')
+          expect(marker?.owners.some(owner => owner.kind === 'edge' && owner.id === edge.id)).toBe(true)
+        }
+        if (shape) continue
         const end = edge.ports!.find(port => port.end === 'end')!
         const dx = end.side === 'L' ? -1 : end.side === 'R' ? 1 : 0, dy = end.side === 'T' ? -1 : end.side === 'B' ? 1 : 0
         const marker = document.cell(end.x + dx, end.y + dy)!
@@ -226,6 +281,25 @@ test('an obstructed physical face reports a bounded lane failure without fabrica
   expect(document.diagnostics.some(diagnostic => diagnostic.feature.startsWith('edge-lane:') && diagnostic.message.includes('physical ports'))).toBe(true)
   expect(document.regions().filter(region => region.kind === 'edge')).toEqual([])
   expect([...document.entries()].some(([, , cell]) => cell.kind === 'text' && cell.owners.some(owner => owner.kind === 'edge'))).toBe(false)
+})
+
+test('joint approach admission rejects collapsed nested corridors before painting their labels', () => {
+  const graph = convertToAsciiGraph(parseMermaid('flowchart TD\nsubgraph P\nsubgraph C\nA\nend\nend\nP -->|one| C\nP -->|two<br>x| C\nC -->|back| P'), {
+    graphDirection: 'TD', paddingX: 5, paddingY: 5, boxBorderPadding: 1, useAscii: false,
+  })
+  createMapping(graph)
+  const parent = graph.subgraphs.find(group => group.id === 'P')!, child = graph.subgraphs.find(group => group.id === 'C')!
+  // Reintroduce the old two-cell content inset at the native layout boundary.
+  parent.maxX = child.maxX + 2
+  const document = drawGraph(graph)
+  const rejected = document.diagnostics.filter(diagnostic => diagnostic.feature.startsWith('edge-approach:'))
+  expect(rejected).toHaveLength(2)
+  for (const diagnostic of rejected) {
+    expect(diagnostic.code).toBe('TERMINAL_GEOMETRY_COLLISION')
+    const id = diagnostic.feature.slice('edge-approach:'.length)
+    expect([...document.entries()].some(([, , cell]) => cell.owners.some(owner => owner.kind === 'edge' && owner.id === id))).toBe(false)
+    expect(document.regions().find(region => region.kind === 'edge' && region.id === id)).toBeUndefined()
+  }
 })
 
 for (const direction of ['TD', 'BT', 'LR', 'RL'] as const) for (const useAscii of [false, true]) {
