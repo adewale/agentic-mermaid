@@ -2,9 +2,10 @@ import { describe, expect, test } from 'bun:test'
 import { OccupancyMap } from '../ascii/occupancy.ts'
 import { getPath } from '../ascii/pathfinder.ts'
 import { allocateBoxRoutes, paintBoxRoute, type BoxRoute } from '../ascii/class-like-layout.ts'
-import { TerminalDocument } from '../ascii/terminal-document.ts'
+import { TerminalDocument, type TerminalMarker } from '../ascii/terminal-document.ts'
 import { renderMermaidASCIIWithReceipt } from '../ascii/index.ts'
 import { terminalDocumentOf } from '../ascii/terminal-document.ts'
+import { allocateTerminalRoute, paintTerminalRoute } from '../ascii/terminal-route.ts'
 
 describe('bounded terminal search occupancy', () => {
   test('current bounds follow replacement, deletion, cloning and clearing', () => {
@@ -77,6 +78,103 @@ describe('allocated terminal routes', () => {
     expect(document.regions().find(region => region.id === 'AB')?.ports).toEqual([
       { nodeId: 'A', ...route!.source, end: 'start' }, { nodeId: 'B', ...route!.target, end: 'end' },
     ])
+  })
+
+  test('box routes refuse late obstacles without partial ink or endpoint metadata', () => {
+    const [route] = allocateBoxRoutes(boxes, [relation], 'LR'), doc = new TerminalDocument()
+    const point = route!.points.at(-1)!
+    doc.text(point.x, point.y, 'protected', { owner: { id: 'label', kind: 'node' } })
+    const before = doc.serialize()
+    expect(() => paintBoxRoute(doc, route!, owner, false)).toThrow('conflicts with admitted geometry')
+    expect(doc.serialize()).toBe(before)
+    expect(doc.regions().some(region => region.id === relation.id)).toBe(false)
+  })
+})
+
+describe('exact physical terminal attachments', () => {
+  const source = { nodeId: 'A', end: 'start' as const, side: 'R' as const, x: 0, y: 1 }
+  const target = { nodeId: 'B', end: 'end' as const, side: 'L' as const, x: 6, y: 1 }
+  const points = [1, 2, 3, 4, 5].map(x => ({ x, y: 1 }))
+  const owner = { id: 'attachment', kind: 'edge' as const, from: 'A', to: 'B' }
+
+  test('binds immutable border ports to complete outward-adjacent route ink', () => {
+    const input = points.map(point => ({ ...point })), from = { ...source }
+    const route = allocateTerminalRoute(owner.id, from, target, input)
+    from.x = 20; input[0]!.x = 20
+    expect(route.source.x).toBe(0)
+    expect(route.points[0]!.x).toBe(1)
+    expect(Object.isFrozen(route.points[0])).toBe(true)
+    const doc = new TerminalDocument()
+    doc.stroke(0, 1, 5, { owner: { id: 'A', kind: 'node' } })
+    doc.stroke(6, 1, 5, { owner: { id: 'B', kind: 'node' } })
+    expect(paintTerminalRoute(doc, route, owner, false, 'dotted')).toBe(true)
+    expect(doc.regions().find(region => region.id === owner.id)?.ports).toEqual([source, target])
+    for (let x = 1; x <= 5; x++) expect(doc.cell(x, 1)).toMatchObject({ glyph: '┄', stroke: { mask: 10 }, owners: [owner] })
+    expect(doc.cell(0, 1)?.owners.map(element => element.id)).toEqual(['A'])
+    expect(doc.cell(6, 1)?.owners.map(element => element.id)).toEqual(['B'])
+    expect(doc.diagnostics).toEqual([])
+  })
+
+  test('late occupied text refuses the entire route without partial ink or attachment ports', () => {
+    const route = allocateTerminalRoute(owner.id, source, target, points)
+    const doc = new TerminalDocument()
+    doc.text(4, 1, '界', { owner: { id: 'protected', kind: 'node' } })
+    const before = { text: doc.serialize(), cells: doc.occupiedCells, regions: doc.regions(), width: doc.width, height: doc.height }
+    expect(paintTerminalRoute(doc, route, owner, false)).toBe(false)
+    expect({ text: doc.serialize(), cells: doc.occupiedCells, regions: doc.regions(), width: doc.width, height: doc.height }).toEqual(before)
+    expect(doc.regions().some(region => region.id === owner.id)).toBe(false)
+    expect(doc.diagnostics.map(diagnostic => diagnostic.code)).toEqual(['TERMINAL_TEXT_COLLISION'])
+  })
+
+  test('one immutable owner snapshot binds nested references across stroke and port admission', () => {
+    let reads = 0
+    const parent = { get id() { return ++reads === 1 ? 'first' : 'changed' }, kind: 'cluster' as const }
+    const route = allocateTerminalRoute(owner.id, source, target, points), doc = new TerminalDocument()
+    expect(paintTerminalRoute(doc, route, { ...owner, parent }, false)).toBe(true)
+    expect(reads).toBe(1)
+    expect(doc.regions().find(region => region.id === owner.id)).toMatchObject({ parentId: 'first', parentKind: 'cluster', ports: [source, target] })
+    expect(doc.diagnostics).toEqual([])
+  })
+
+  test('allocated endpoint markers cannot change through their source definitions', () => {
+    const marker: TerminalMarker = { shape: 'circle', direction: 'L' }
+    const markers = [marker], from = { ...source, markers }
+    const route = allocateTerminalRoute(owner.id, from, target, points), doc = new TerminalDocument()
+    marker.shape = 'cross'; markers.push({ shape: 'diamond' })
+    expect(route.source.markers).toEqual([{ shape: 'circle', direction: 'L' }])
+    expect(Object.isFrozen(route.source.markers)).toBe(true)
+    expect(Object.isFrozen(route.source.markers![0])).toBe(true)
+    expect(paintTerminalRoute(doc, route, owner, false)).toBe(true)
+    markers.length = 0
+    const admitted = doc.regions().find(region => region.id === owner.id)!.ports![0]!
+    expect(admitted.markers).toEqual([{ shape: 'circle', direction: 'L' }])
+    expect(Object.isFrozen(admitted.markers![0])).toBe(true)
+  })
+
+  test('a port extent overflow is refused before publishing route ink or ports', () => {
+    const x = Number.MAX_SAFE_INTEGER
+    const doc = new TerminalDocument()
+    expect(() => {
+      const route = allocateTerminalRoute(owner.id,
+        { ...source, side: 'L', x }, { ...target, side: 'R', x: x - 4 },
+        [x - 1, x - 2, x - 3].map(x => ({ x, y: 1 })))
+      paintTerminalRoute(doc, route, owner, false)
+    }).toThrow('physical ports')
+    expect(doc.occupiedCells).toBe(0)
+    expect(doc.regions()).toEqual([])
+    expect({ width: doc.width, height: doc.height }).toEqual({ width: 0, height: 0 })
+  })
+
+  test('rejects discontinuity, inward approaches and forged endpoint evidence before painting', () => {
+    expect(() => allocateTerminalRoute(owner.id, source, target, [points[0]!, points[4]!])).toThrow('contiguous')
+    expect(() => allocateTerminalRoute(owner.id, source, target, [{ x: 2, y: 1 }, ...points.slice(1)])).toThrow('physical ports')
+    const inward = [{ x: 1, y: 1 }, { x: 0, y: 1 }, ...[0, 1, 2, 3, 4, 5].map(x => ({ x, y: 2 })), { x: 5, y: 1 }]
+    expect(() => allocateTerminalRoute(owner.id, source, target, inward)).toThrow('physical ports')
+    const route = allocateTerminalRoute(owner.id, source, target, points), doc = new TerminalDocument()
+    expect(() => paintTerminalRoute(doc, { ...route, points: [] }, owner, false)).toThrow('complete path allocation')
+    expect(() => paintTerminalRoute(doc, route, { ...owner, to: 'wrong' }, false)).toThrow('physical endpoints')
+    expect(doc.occupiedCells).toBe(0)
+    expect(doc.regions()).toEqual([])
   })
 })
 

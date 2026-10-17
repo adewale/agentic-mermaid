@@ -396,6 +396,54 @@ root((Root))
     }
   })
 
+  for (const direction of ['TB', 'BT', 'LR', 'RL'] as const) test.each([
+    { name: 'mixed Class', family: 'classDiagram', declarations: '', relationships: ['C --> D', 'A ..> F', 'C --* F', 'C --o B', 'A --> D', 'C ..> F'] },
+    { name: 'mixed ER', family: 'erDiagram', declarations: '', relationships: ['C ||--o{ F', 'A }o..|| B', 'C ||--|| F', 'E ||--o{ B', 'E }o..|| B', 'E ||--|| D', 'E ||--o{ B', 'E }o..|| D'] },
+    { name: 'namespace Class', family: 'classDiagram', declarations: 'class A["Actual source"]\nnamespace A["First 界<br/>complete header"] {\n class B["Actual target"]\n}', relationships: ['A --> B'] },
+    { name: 'grouped ER', family: 'erDiagram', declarations: 'A["Actual source"]\nsubgraph G["First 界<br/>complete header"]\n B["Actual target"]\nend', relationships: ['A ||--o{ B'] },
+  ])('crossing $name routes retain protected endpoint ink in ' + direction, ({ family, declarations, relationships }) => {
+    const directions = { T: [0, -1, 1, 4], R: [1, 0, 2, 8], B: [0, 1, 4, 1], L: [-1, 0, 8, 2] } as const
+    for (const useAscii of [false, true]) {
+      const source = `${family}\ndirection ${direction}\n${declarations}\n${relationships.map((relation, index) => `${relation} : relation ${index}`).join('\n')}`
+      const { output, doc, regions } = capture(config => family === 'classDiagram' ? renderClassAscii(source, config) : renderErAscii(source, config), useAscii)
+      const edges = regions.filter(region => region.kind === 'edge')
+      expect(edges).toHaveLength(relationships.length)
+      for (const edge of edges) {
+        const index = Number(edge.id.slice('relationship:'.length))
+        expect(edge.projectedText).toBe(`relation ${index}`)
+        expect(edge.ports).toHaveLength(2)
+        const masks = new Map<string, number>()
+        for (const port of edge.ports!) {
+          const [dx, dy] = directions[port.side!]
+          for (const [offset, marker] of port.markers!.entries()) {
+            const x = port.x + dx * offset, y = port.y + dy * offset, cell = doc.cell(x, y)!
+            expect(cell.marker).toMatchObject(marker)
+            expect(cell.owners.map(owner => owner.id)).toEqual([edge.id])
+            expect(output.split('\n')[y]![x]).toBe(cell.glyph)
+            masks.set(`${x},${y}`, dx ? 10 : 5)
+          }
+        }
+        for (const [x, y, cell] of doc.entries()) if (cell.stroke && cell.owners.some(owner => owner.kind === 'edge' && owner.id === edge.id)) {
+          expect(cell.glyph.trim()).not.toBe('')
+          masks.set(`${x},${y}`, cell.stroke.mask)
+        }
+        const [start, end] = edge.ports!, first = `${start!.x},${start!.y}`
+        const queue = [first], seen = new Set(queue)
+        expect(masks.has(first)).toBe(true)
+        for (let cursor = 0; cursor < queue.length; cursor++) {
+          const [x, y] = queue[cursor]!.split(',').map(Number), mask = masks.get(queue[cursor]!)!
+          for (const [dx, dy, outward, inward] of Object.values(directions)) {
+            const key = `${x! + dx},${y! + dy}`, next = masks.get(key)
+            if (next && (mask & outward) && (next & inward) && !seen.has(key)) { seen.add(key); queue.push(key) }
+          }
+        }
+        expect(seen.has(`${end!.x},${end!.y}`), `${family}/${edge.id}: connected physical endpoints`).toBe(true)
+        expect(seen.size, `${family}/${edge.id}: no disconnected owned ink`).toBe(masks.size)
+      }
+      expect(doc.diagnostics.filter(item => /COLLISION/.test(item.code))).toEqual([])
+    }
+  })
+
   test.each([
     { name: 'colon-separated IDs', ids: ['a:b', 'c', 'a', 'b:c'] },
     { name: 'escaped quotes', ids: ['a:"b', 'c', 'a', '"b:c'] },

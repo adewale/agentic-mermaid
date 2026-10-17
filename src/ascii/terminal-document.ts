@@ -112,6 +112,14 @@ export interface TerminalPort {
   /** Sequence contacts a participant lifeline, not its header-card frame. */
   surface?: 'frame' | 'lifeline'
 }
+
+/** Ports retain independent immutable marker definitions across allocation and import. */
+export function snapshotTerminalPort<T extends TerminalPort>(port: T): T {
+  const snapshot = { ...port }
+  if (snapshot.markers) snapshot.markers = Object.freeze(snapshot.markers.map(marker => Object.freeze({ ...marker })))
+  return snapshot
+}
+
 export interface TerminalRegion {
   id: string
   kind: NonNullable<TerminalOwner['kind']>
@@ -468,10 +476,12 @@ export class TerminalDocument {
   }
 
   port(owner: TerminalOwner, port: TerminalPort): void {
+    port = snapshotTerminalPort(port)
     integer(port.x, 'port x'); integer(port.y, 'port y')
+    integer(port.x + 1, 'width'); integer(port.y + 1, 'height')
     const key = ownerKey(this.remember(owner)!)
     const ports = this.ports.get(key) ?? []
-    if (!ports.some(existing => existing.end === port.end && existing.nodeId === port.nodeId)) ports.push({ ...port })
+    if (!ports.some(existing => existing.end === port.end && existing.nodeId === port.nodeId)) ports.push(port)
     this.ports.set(key, ports)
     this.resize(port.x + 1, port.y + 1)
   }
@@ -677,6 +687,23 @@ export class TerminalDocument {
     if (!Number.isInteger(mask) || mask < 1 || mask > 15) throw new RangeError('stroke mask must contain terminal cardinal ports')
     const stroke = Object.freeze({ mask, ascii: paint.ascii, style: paint.style, rounded: paint.rounded })
     this.put(x, y, strokeGlyph(stroke), { ...paint, kind: 'stroke', stroke })
+  }
+
+  /** Validate a complete stroke batch before changing any occupied cell. */
+  strokeBatch(cells: readonly { x: number; y: number; mask: number; role?: CharRole }[], paint: TerminalPaint & Omit<TerminalStroke, 'mask'> = {}): boolean {
+    const settings = { ...paint }
+    const strokes = cells.map(({ x, y, mask, role }) => {
+      integer(x, 'x'); integer(y, 'y')
+      integer(x + 1, 'width'); integer(y + 1, 'height')
+      if (!Number.isInteger(mask) || mask < 1 || mask > 15) throw new RangeError('stroke mask must contain terminal cardinal ports')
+      const stroke = Object.freeze({ mask, ascii: settings.ascii, style: settings.style, rounded: settings.rounded })
+      return { x, y, glyph: strokeGlyph(stroke), stroke, role }
+    })
+    const shared = this.canonicalPaint({ ...settings, kind: 'stroke' })
+    const prepared = strokes.map(cell => ({ ...cell, paint: { ...shared, ...(cell.role ? { role: cell.role } : {}), stroke: cell.stroke } }))
+    if (prepared.some(cell => !this.admit(cell.x, cell.y, cell.glyph, 1, cell.paint, this.paintOwners(cell.paint), true))) return false
+    for (const cell of prepared) this.place(cell.x, cell.y, cell.glyph, 1, cell.paint, undefined)
+    return true
   }
 
   marker(x: number, y: number, marker: TerminalMarker, paint: TerminalPaint = {}): void {

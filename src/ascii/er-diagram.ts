@@ -92,24 +92,25 @@ export function renderErTerminal(text: string, config: AsciiConfig, colorMode?: 
     }
     const build = (id: string): GroupFrame => {
       const group = diagram.groups.find(item => item.id === id)!, labelLines = prepared(group.label)
+      const frameClearance = 4, headerHeight = labelLines.length + 1
       const children: Array<PlacedEntity | GroupFrame> = [
         ...diagram.entities.filter(entity => entity.groupId === id).map(entity => placed.get(entity.id)!),
         ...diagram.groups.filter(item => item.parentId === id).map(item => build(item.id)),
       ]
       const localDirection = group.direction ?? direction, alongX = localDirection === 'LR' || localDirection === 'RL'
       const ordered = localDirection === 'RL' || localDirection === 'BT' ? [...children].reverse() : children
-      let axis = alongX ? 3 : labelLines.length + 3
+      let axis = alongX ? frameClearance : headerHeight + frameClearance
       for (const child of ordered) {
-        const x = alongX ? axis : 3, y = alongX ? labelLines.length + 3 : axis
+        const x = alongX ? axis : frameClearance, y = alongX ? headerHeight + frameClearance : axis
         move(child, x - child.x, y - child.y)
         axis += (alongX ? child.width : child.height) + 8
       }
       const size = faceSizes.get(id)
       const frame: GroupFrame = {
         id, parentId: group.parentId, children, labelLines, members: [...group.entityIds, ...children.filter(child => 'children' in child).map(child => child.id)],
-        container: true, headerHeight: labelLines.length + 1,
-        x: 0, y: 0, width: Math.max(8, ...labelLines.map(line => visualWidth(line) + 4), ...children.map(child => child.x + child.width + 3), size?.width ?? 0),
-        height: Math.max(labelLines.length + 4, ...children.map(child => child.y + child.height + 3), size?.height ?? 0),
+        container: true, headerHeight,
+        x: 0, y: 0, width: Math.max(8, ...labelLines.map(line => visualWidth(line) + 4), ...children.map(child => child.x + child.width + frameClearance), size?.width ?? 0),
+        height: Math.max(labelLines.length + 4, ...children.map(child => child.y + child.height + frameClearance), size?.height ?? 0),
       }
       groupFrames.push(frame); return frame
     }

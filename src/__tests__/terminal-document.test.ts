@@ -1,5 +1,5 @@
 import { describe, expect, test } from 'bun:test'
-import { TerminalDocument, measuredText, type TerminalOwner } from '../ascii/terminal-document.ts'
+import { TerminalDocument, measuredText, type TerminalMarker, type TerminalOwner } from '../ascii/terminal-document.ts'
 import { WIDE_CHAR_CONTINUATION } from '../ascii/width.ts'
 import { prepareCellText } from '../ascii/prepared-text.ts'
 import { terminalText } from './helpers/terminal-text.ts'
@@ -56,11 +56,13 @@ describe('owned terminal composition', () => {
 
   test('endpoint contracts survive offset composition, reflection and encoding without mutating their source', () => {
     const edge = route('half'), layer = new TerminalDocument(8, 4)
+    const markers: TerminalMarker[] = [{ shape: 'half-top', direction: 'L' }]
     layer.region(owner('B'), { x: 0, y: 0, width: 3, height: 3 })
-    layer.port(edge, { nodeId: 'B', end: 'end', side: 'R', x: 3, y: 1 })
-    layer.expectMarkers(edge, 'end', [{ shape: 'half-top', direction: 'L' }])
+    layer.port(edge, { nodeId: 'B', end: 'end', side: 'R', x: 3, y: 1, markers })
     layer.marker(3, 1, { shape: 'half-top', direction: 'L' }, { owner: edge })
     const before = layer.serialize()
+    markers[0]!.shape = 'half-bottom'; markers.push({ shape: 'circle' })
+    expect(layer.serialize()).toBe(before)
     const composed = new TerminalDocument()
     composed.overlay(layer, 2, 3)
     composed.flip(true, true)
@@ -102,6 +104,7 @@ describe('owned terminal composition', () => {
     region: (doc: TerminalDocument, foreign: TerminalOwner) => doc.region(foreign, { x: 8, y: 8, width: 2, height: 2 }),
     port: (doc: TerminalDocument, foreign: TerminalOwner) => doc.port(foreign, { nodeId: 'X', x: 8, y: 8, end: 'start' }),
     paint: (doc: TerminalDocument, foreign: TerminalOwner) => doc.stroke(8, 8, 10, { owner: foreign }),
+    'stroke batch': (doc: TerminalDocument, foreign: TerminalOwner) => doc.strokeBatch([{ x: 8, y: 8, mask: 10 }], { owner: foreign }),
     owners: (doc: TerminalDocument, foreign: TerminalOwner) => doc.owners([owner('fresh'), foreign]),
     attribution: (doc: TerminalDocument, foreign: TerminalOwner) => doc.attribute([owner('fresh'), foreign]),
     rectangle: (doc: TerminalDocument, foreign: TerminalOwner) => doc.attributeWithin(foreign, { x: 0, y: 0, width: 1, height: 1 }),
@@ -912,8 +915,21 @@ describe('owned terminal composition', () => {
       const doc = new TerminalDocument()
       expect(() => doc.put(value, 0, 'x')).toThrow(RangeError)
       expect(() => doc.text(0, value, 'x')).toThrow(RangeError)
+      expect(() => doc.strokeBatch([{ x: 0, y: 0, mask: 10 }, { x: value, y: 1, mask: 5 }], { owner: route('batch') })).toThrow(RangeError)
+      expect(doc.occupiedCells).toBe(0)
       expect(() => doc.overlay(new TerminalDocument(), value, 0)).toThrow(RangeError)
       expect(() => doc.region(owner('a'), { x: 0, y: 0, width: value, height: 1 })).toThrow(RangeError)
     }
+  })
+
+  test.each([{ x: Number.MAX_SAFE_INTEGER, y: 1 }, { x: 1, y: Number.MAX_SAFE_INTEGER }])('stroke batches and ports reject extent overflow before changing admitted geometry (%o)', point => {
+    const doc = new TerminalDocument()
+    doc.text(0, 0, 'keep', { owner: owner('existing') })
+    const before = { text: doc.serialize(), cells: doc.occupiedCells, regions: doc.regions(), width: doc.width, height: doc.height }
+    expect(() => doc.strokeBatch([{ x: 5, y: 0, mask: 10 }, { ...point, mask: 5 }], { owner: route('batch') })).toThrow(RangeError)
+    expect({ text: doc.serialize(), cells: doc.occupiedCells, regions: doc.regions(), width: doc.width, height: doc.height }).toEqual(before)
+    expect(() => doc.port(route('port'), { nodeId: 'A', end: 'start', ...point })).toThrow(RangeError)
+    expect(doc.hasOwner('port')).toBe(false)
+    expect({ text: doc.serialize(), cells: doc.occupiedCells, regions: doc.regions(), width: doc.width, height: doc.height }).toEqual(before)
   })
 })

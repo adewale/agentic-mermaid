@@ -14,6 +14,6 @@ erDiagram
     | CUSTOMER        |          | ORDER             |
     +-----------------+  +-----o<+-------------------+
     | PK string name  ||-+       | PK int id         |
-    | UK string email |  places  |     string status |
-    |     int age     |          +-------------------+
+    | UK string email |          |     string status |
+    |     int age     |  places  +-------------------+
     +-----------------+
