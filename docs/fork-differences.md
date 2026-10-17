@@ -143,12 +143,14 @@ candidates: at each `end`, keep candidates not already owned by an earlier-close
 subgraph, once each. An inner subgraph closes before its enclosing subgraph.
 But the families do not collect the same candidates:
 
-- Flowchart adds newly created nodes and explicit shaped/metadata definitions
-  to the current subgraph. A bare reference to an already-known node does not
-  add it. First mention therefore still matters for bare Flowchart references.
-- ER collects declarations and both ends of relations, even for entities already
-  named at top level. A prior top-level mention does not prevent a later ER
-  subgraph from keeping that entity.
+- Flowchart node statements and edge endpoints add newly created nodes and
+  explicit shaped/metadata definitions to the current subgraph. A bare reference
+  to an already-known node does not add it; neither does a `style` statement that
+  creates a node. First mention therefore still matters for bare Flowchart references.
+- ER collects entity declarations and entity endpoints of relations, even for
+  entities already named at top level. A prior top-level mention does not prevent
+  a later ER subgraph from keeping that entity. A style directive alone does not
+  collect an entity; a relation endpoint naming a group refers to its boundary.
 
 For example:
 
