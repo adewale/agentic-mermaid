@@ -572,6 +572,22 @@ export class TerminalDocument {
     this.put(x, y, strokeGlyph(stroke), { ...paint, kind: 'stroke', stroke })
   }
 
+  /** Validate a complete stroke batch before changing any occupied cell. */
+  strokeBatch(cells: readonly { x: number; y: number; mask: number; role?: CharRole }[], paint: TerminalPaint & Omit<TerminalStroke, 'mask'> = {}): boolean {
+    const settings = { ...paint }
+    const strokes = cells.map(({ x, y, mask, role }) => {
+      integer(x, 'x'); integer(y, 'y')
+      if (!Number.isInteger(mask) || mask < 1 || mask > 15) throw new RangeError('stroke mask must contain terminal cardinal ports')
+      const stroke = Object.freeze({ mask, ascii: settings.ascii, style: settings.style, rounded: settings.rounded })
+      return { x, y, glyph: strokeGlyph(stroke), stroke, role }
+    })
+    const shared = this.canonicalPaint({ ...settings, kind: 'stroke' })
+    const prepared = strokes.map(cell => ({ ...cell, paint: { ...shared, ...(cell.role ? { role: cell.role } : {}), stroke: cell.stroke } }))
+    if (prepared.some(cell => !this.admit(cell.x, cell.y, cell.glyph, 1, cell.paint, this.paintOwners(cell.paint), true))) return false
+    for (const cell of prepared) this.place(cell.x, cell.y, cell.glyph, 1, cell.paint, undefined)
+    return true
+  }
+
   marker(x: number, y: number, marker: TerminalMarker, paint: TerminalPaint = {}): void {
     const semantic = Object.freeze({ ...marker, direction: marker.direction ?? 'R' })
     this.put(x, y, markerGlyph(semantic), { ...paint, kind: 'marker', marker: semantic })

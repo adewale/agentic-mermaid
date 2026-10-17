@@ -86,6 +86,13 @@ current extents, including deletion, rather than scanning keys during search.
 Namespace headers are measured routing obstacles, separate from endpoint
 identities; containers and classes can share an authored name without changing
 a relationship's target. Complete sibling envelopes settle before routing.
+State notes use the same immutable contiguous-route proof and mask painter with
+their existing border-based ports. Complete note boxes and their attachment
+approaches settle outside their ancestor envelopes before routing. Search reads
+the admitted graph and annotation layer, protects cards/headers/other notes and permits only
+perpendicular ancestor-frame crossings. Explicit same-face note bundles may
+share a trunk. A full stroke batch is admitted before any route ink or ports
+are published; a refused attachment leaves its note visible with a diagnostic.
 Sequence lays out lexical fragment boundaries, notes and messages in order.
 It reserves exact foreground text, note and card footprints before painting
 lifelines or activations. Intended background gaps are allocation decisions;

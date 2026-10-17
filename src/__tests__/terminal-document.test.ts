@@ -14,6 +14,7 @@ describe('owned terminal composition', () => {
     region: (doc: TerminalDocument, foreign: TerminalOwner) => doc.region(foreign, { x: 8, y: 8, width: 2, height: 2 }),
     port: (doc: TerminalDocument, foreign: TerminalOwner) => doc.port(foreign, { nodeId: 'X', x: 8, y: 8, end: 'start' }),
     paint: (doc: TerminalDocument, foreign: TerminalOwner) => doc.stroke(8, 8, 10, { owner: foreign }),
+    'stroke batch': (doc: TerminalDocument, foreign: TerminalOwner) => doc.strokeBatch([{ x: 8, y: 8, mask: 10 }], { owner: foreign }),
     owners: (doc: TerminalDocument, foreign: TerminalOwner) => doc.owners([owner('fresh'), foreign]),
     attribution: (doc: TerminalDocument, foreign: TerminalOwner) => doc.attribute([owner('fresh'), foreign]),
     rectangle: (doc: TerminalDocument, foreign: TerminalOwner) => doc.attributeWithin(foreign, { x: 0, y: 0, width: 1, height: 1 }),
@@ -824,6 +825,8 @@ describe('owned terminal composition', () => {
       const doc = new TerminalDocument()
       expect(() => doc.put(value, 0, 'x')).toThrow(RangeError)
       expect(() => doc.text(0, value, 'x')).toThrow(RangeError)
+      expect(() => doc.strokeBatch([{ x: 0, y: 0, mask: 10 }, { x: value, y: 1, mask: 5 }], { owner: route('batch') })).toThrow(RangeError)
+      expect(doc.occupiedCells).toBe(0)
       expect(() => doc.overlay(new TerminalDocument(), value, 0)).toThrow(RangeError)
       expect(() => doc.region(owner('a'), { x: 0, y: 0, width: value, height: 1 })).toThrow(RangeError)
     }

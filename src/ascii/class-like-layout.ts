@@ -6,6 +6,7 @@ import { OccupancyMap } from './occupancy.ts'
 import { allocateFacePort, countFaceDemand, faceSize } from './terminal-geometry.ts'
 import { tryParseCssColor, toHex } from '../shared/color-math.ts'
 import { measuredText, type MeasuredTerminalText, type TerminalBounds, type TerminalDocument, type TerminalOwner } from './terminal-document.ts'
+import { allocateTerminalRoute, paintTerminalRoute, type TerminalRoute } from './terminal-route.ts'
 
 export type BoxSide = 'T' | 'B' | 'L' | 'R'
 export interface TerminalBox extends TerminalBounds { id: string; container?: boolean; headerHeight?: number }
@@ -27,6 +28,7 @@ export interface BoxRoute {
   readonly source: BoxPort
   readonly target: BoxPort
   readonly points: readonly Readonly<GridCoord>[]
+  readonly path: TerminalRoute
   readonly label?: BoxText
   readonly fromLabel?: BoxText
   readonly toLabel?: BoxText
@@ -65,20 +67,15 @@ function faceCounts(relations: readonly BoxRelation[], direction: DiagramDirecti
   }))
 }
 
-function sealRoute(route: Omit<BoxRoute, typeof allocatedRoute>): BoxRoute {
-  const { source, target, points } = route
-  const same = (a: Readonly<GridCoord> | undefined, b: Readonly<GridCoord>) => a?.x === b.x && a.y === b.y
-  const inward = (port: BoxPort) => ({ x: port.x - delta[port.side].x, y: port.y - delta[port.side].y })
-  if (!same(points[0], source) || !same(points.at(-1), target) || same(points[1], inward(source)) || same(points.at(-2), inward(target))) throw new Error(`Terminal route ${route.relation.id} must join both allocated ports without entering their cards`)
-  for (let index = 0; index < points.length; index++) {
-    const point = points[index]!, previous = points[index - 1]
-    if (!Number.isSafeInteger(point.x) || point.x < 0 || !Number.isSafeInteger(point.y) || point.y < 0 || (previous && Math.abs(point.x - previous.x) + Math.abs(point.y - previous.y) !== 1)) throw new Error(`Terminal route ${route.relation.id} must be a complete contiguous cell path`)
-  }
+function sealRoute(route: Omit<BoxRoute, typeof allocatedRoute | 'path'>): BoxRoute {
+  const path = allocateTerminalRoute(route.relation.id,
+    { ...route.source, nodeId: route.relation.from, end: 'start' },
+    { ...route.target, nodeId: route.relation.to, end: 'end' }, route.points)
   const relation = Object.freeze({ ...route.relation, ...Object.fromEntries(['lines', 'fromLines', 'toLines'].flatMap(key => {
     const lines = route.relation[key as 'lines']
     return lines ? [[key, Object.freeze([...lines])]] : []
   })) })
-  const allocated = Object.freeze({ ...route, [allocatedRoute]: true as const, relation, points: Object.freeze(points.map(point => Object.freeze({ ...point }))) })
+  const allocated = Object.freeze({ ...route, [allocatedRoute]: true as const, relation, points: path.points, path })
   allocatedRoutes.add(allocated)
   return allocated
 }
@@ -214,26 +211,7 @@ export function allocateBoxRoutes(boxes: readonly TerminalBox[], relations: read
 export function paintBoxRoute(doc: TerminalDocument, route: BoxRoute, owner: TerminalOwner, ascii: boolean, dashed = false): void {
   if (!allocatedRoutes.has(route)) throw new TypeError('Terminal routes must come from box allocation')
   if (owner.kind !== 'edge' || owner.id !== route.relation.id || owner.from !== route.relation.from || owner.to !== route.relation.to) throw new TypeError('Terminal route identity must match its allocated endpoints')
-  owner = doc.element(owner)
-  doc.port(owner, { nodeId: route.relation.from, x: route.source.x, y: route.source.y, side: route.source.side, end: 'start' })
-  doc.port(owner, { nodeId: route.relation.to, x: route.target.x, y: route.target.y, side: route.target.side, end: 'end' })
-  const directions = new Map<string, number>()
-  const ports: Record<BoxSide, number> = { T: 1, R: 2, B: 4, L: 8 }
-  const add = (point: Readonly<GridCoord>, side: BoxSide) => { const key = gridKey(point); directions.set(key, (directions.get(key) ?? 0) | ports[side]) }
-  for (let index = 1; index < route.points.length; index++) {
-    const a = route.points[index - 1]!, b = route.points[index]!
-    if (a.x === b.x && a.y === b.y) continue
-    const side: BoxSide = b.x > a.x ? 'R' : b.x < a.x ? 'L' : b.y > a.y ? 'B' : 'T'
-    const opposite: Record<BoxSide, BoxSide> = { R: 'L', L: 'R', T: 'B', B: 'T' }
-    add(a, side); add(b, opposite[side])
-  }
-  const towardCard: Record<BoxSide, BoxSide> = { T: 'B', B: 'T', L: 'R', R: 'L' }
-  add(route.source, towardCard[route.source.side]); add(route.target, towardCard[route.target.side])
-  for (const [key, mask] of directions) {
-    const comma = key.indexOf(','), x = Number(key.slice(0, comma)), y = Number(key.slice(comma + 1))
-    const horizontal = (mask & 10) > 0, vertical = (mask & 5) > 0
-    doc.stroke(x, y, mask, { owner, role: horizontal && vertical ? 'corner' : 'line', ascii, style: dashed ? 'dashed' : 'solid' })
-  }
+  if (!paintTerminalRoute(doc, route.path, owner, ascii, dashed ? 'dashed' : 'solid')) throw new Error(`Allocated terminal route ${owner.id} conflicts with admitted geometry`)
 }
 
 export function paintBoxText(doc: TerminalDocument, text: BoxText | undefined, owner: TerminalOwner): void {
