@@ -236,3 +236,28 @@ measurement was unified. Their current bytes are unchanged: the long bold
 Potassium legend stays inside the canvas, crisp/hand-drawn/watercolor emphasis
 remains non-geometric, the pointer tooltip stays legible, and the standalone
 Product X card has no clipping or collision.
+
+## PR #401 marker review after prepared-text rebase
+
+Compared the current production-generated sheet with immutable main
+`53056ec569781d6f5153f90b5bd563aa70f8c5c7`. Both are 1560×9464.
+Only Sequence, Class and Architecture change in each of the four treatments:
+
+| Treatment | Sequence pixels | Class pixels | Architecture pixels |
+|---|---:|---:|---:|
+| Sentinel | 683 | 1111 | 159 |
+| Warm editorial | 159 | 312 | 66 |
+| Light technical | 319 | 552 | 90 |
+| Dark operations | 409 | 719 | 114 |
+
+Total: 4,693 changed pixels; the other 52 family-by-treatment cells are
+pixel-identical to upstream's already reviewed artifact. Codex inspected all
+twelve changed native-size before/after cells. Responses now point into the
+receiving participant; Class triangles/diamonds align with vertical shafts;
+Architecture tips touch the authored boundary. Prepared text, card geometry,
+labels, colors, routing and all unaffected family output are preserved.
+The approval names SHA-256
+`b2e6c3a54c1e7c625fa5499752c56eeec371552882b34c19df9375e569f9f124`.
+This is an agent review, not human approval or deployed-site parity. Native
+terminal changes are reviewed separately in the immutable PR evidence bundle
+and `terminal-native-route-regressions.test.ts`.

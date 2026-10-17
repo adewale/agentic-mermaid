@@ -1,7 +1,7 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="679.73" height="402.3" viewBox="0 0 679.73 402.3" style="--bg:#ffffff;--fg:#050505;--line:#111111;--accent:#005fcc;--muted:#333333;--surface:#ffffff;--border:#050505;--font:Inter;background:#ffffff;--arch-group-fill:#ffffff;--arch-group-stroke:#050505;--arch-group-label:#050505;--arch-service-fill:#ffffff;--arch-service-stroke:#050505;--arch-service-label:#050505;--arch-edge-stroke:#050505;--arch-edge-label:#050505" class="am-1f1t99w15dtwvi">
+<svg xmlns="http://www.w3.org/2000/svg" width="679.73" height="402.3" viewBox="0 0 679.73 402.3" style="--bg:#ffffff;--fg:#050505;--line:#111111;--accent:#005fcc;--muted:#333333;--surface:#ffffff;--border:#050505;--font:Inter;background:#ffffff;--arch-group-fill:#ffffff;--arch-group-stroke:#050505;--arch-group-label:#050505;--arch-service-fill:#ffffff;--arch-service-stroke:#050505;--arch-service-label:#050505;--arch-edge-stroke:#050505;--arch-edge-label:#050505" class="am-0va5vzx0vpp4lm">
 <style>
-  .am-1f1t99w15dtwvi text { font-family: var(--font, 'Inter'), system-ui, sans-serif; }
-  svg.am-1f1t99w15dtwvi {
+  .am-0va5vzx0vpp4lm text { font-family: var(--font, 'Inter'), system-ui, sans-serif; }
+  svg.am-0va5vzx0vpp4lm {
     /* Derived from --bg and --fg (overridable via --line, --accent, etc.) */
     --_text:          #050505;
     --_text-sec:      #333333;
@@ -18,20 +18,20 @@
   }
 </style>
 <style>
-  .am-1f1t99w15dtwvi .architecture-group-frame { fill: #ffffff; stroke: none; }
-  .am-1f1t99w15dtwvi .architecture-group-band { fill: #f2f7fc; stroke: none; }
-  .am-1f1t99w15dtwvi .architecture-group-outline { fill: none; stroke: #050505; stroke-width: 2.2; }
-  .am-1f1t99w15dtwvi .architecture-group-label { fill: #333333; }
-  .am-1f1t99w15dtwvi .architecture-service-card { fill: #ffffff; stroke: none; }
-  .am-1f1t99w15dtwvi .architecture-service-outline { fill: none; stroke: #050505; stroke-width: 2.4; }
-  .am-1f1t99w15dtwvi .architecture-service-label { fill: #050505; }
-  .am-1f1t99w15dtwvi .architecture-edge { fill: none; stroke: #111111; stroke-width: 2.6; stroke-linejoin: round; }
-  .am-1f1t99w15dtwvi .architecture-edge-label-bg { fill: #fefefe; stroke: #d4d4d4; stroke-width: 0.75; }
-  .am-1f1t99w15dtwvi .architecture-edge-label-text { fill: #333333; }
-  .am-1f1t99w15dtwvi .architecture-junction-ring { fill: #ffffff; stroke: #005fcc; stroke-width: 1.25; }
-  .am-1f1t99w15dtwvi .architecture-junction-core { fill: #c2d9f3; stroke: #005fcc; stroke-width: 0.75; }
-  .am-1f1t99w15dtwvi .architecture-icon-mark { fill: none; stroke: #005fcc; stroke-width: 1.25; stroke-linecap: round; stroke-linejoin: round; }
-  .am-1f1t99w15dtwvi .architecture-icon-glyph { fill: #005fcc; }
+  .am-0va5vzx0vpp4lm .architecture-group-frame { fill: #ffffff; stroke: none; }
+  .am-0va5vzx0vpp4lm .architecture-group-band { fill: #f2f7fc; stroke: none; }
+  .am-0va5vzx0vpp4lm .architecture-group-outline { fill: none; stroke: #050505; stroke-width: 2.2; }
+  .am-0va5vzx0vpp4lm .architecture-group-label { fill: #333333; }
+  .am-0va5vzx0vpp4lm .architecture-service-card { fill: #ffffff; stroke: none; }
+  .am-0va5vzx0vpp4lm .architecture-service-outline { fill: none; stroke: #050505; stroke-width: 2.4; }
+  .am-0va5vzx0vpp4lm .architecture-service-label { fill: #050505; }
+  .am-0va5vzx0vpp4lm .architecture-edge { fill: none; stroke: #111111; stroke-width: 2.6; stroke-linejoin: round; }
+  .am-0va5vzx0vpp4lm .architecture-edge-label-bg { fill: #fefefe; stroke: #d4d4d4; stroke-width: 0.75; }
+  .am-0va5vzx0vpp4lm .architecture-edge-label-text { fill: #333333; }
+  .am-0va5vzx0vpp4lm .architecture-junction-ring { fill: #ffffff; stroke: #005fcc; stroke-width: 1.25; }
+  .am-0va5vzx0vpp4lm .architecture-junction-core { fill: #c2d9f3; stroke: #005fcc; stroke-width: 0.75; }
+  .am-0va5vzx0vpp4lm .architecture-icon-mark { fill: none; stroke: #005fcc; stroke-width: 1.25; stroke-linecap: round; stroke-linejoin: round; }
+  .am-0va5vzx0vpp4lm .architecture-icon-glyph { fill: #005fcc; }
 </style>
 <rect width="679.73" height="402.3" fill="#ffffff" data-backdrop="page" />
 <defs>
