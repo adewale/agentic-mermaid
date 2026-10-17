@@ -16,7 +16,7 @@ import { detectColorMode, DEFAULT_ASCII_THEME, diagramColorsToAsciiTheme } from 
 import type { AsciiConfig, AsciiTheme, ColorMode } from './types.ts'
 import { frontmatterTitle, normalizeMermaidSource, toMermaidLines, type NormalizedMermaidSource } from '../mermaid-source.ts'
 import type { ParsedDiagram } from '../agent/types.ts'
-import { prepareRenderInput } from '../agent/render-input.ts'
+import { prepareRenderInput, type PreparedRenderInput } from '../agent/render-input.ts'
 import { isBuiltinFamilyId, type AsciiContext } from '../agent/families.ts'
 import { requireRegisteredMermaidFamily } from '../family-detection.ts'
 import type { RenderOptions } from '../types.ts'
@@ -58,7 +58,7 @@ import { parsePieChart } from '../pie/parser.ts'
 import { safePieTerminalText } from './pie.ts'
 import { retainTerminalDocument, TerminalDocument } from './terminal-document.ts'
 import { nativeTerminalArtifact } from './terminal-artifact.ts'
-import { terminalInputModel, retainTerminalInput } from './terminal-model.ts'
+import { terminalInputModel, type TerminalInputModel } from './terminal-model.ts'
 
 // Re-export types for external use
 export type { AsciiTheme, ColorMode }
@@ -166,7 +166,15 @@ export function renderMermaidASCIIWithReceipt(
   input: ParsedDiagram | string,
   options: AsciiRenderOptions = {},
 ): RenderedAscii {
-  const preparedInput = prepareRenderInput(input)
+  return executeTerminalRender(prepareRenderInput(input), options).rendered
+}
+
+/** Internal execution shared with metadata. The authored model stays local to
+ * this execution rather than being retained by the public rendered result. */
+export function executeTerminalRender(
+  preparedInput: PreparedRenderInput,
+  options: AsciiRenderOptions,
+): { rendered: RenderedAscii; model: TerminalInputModel } {
   const text = preparedInput.source
   const outputPolicy: ResolvedTerminalOutputPolicy = resolveTerminalOutputPolicy({
     useAscii: options.useAscii,
@@ -313,13 +321,12 @@ export function renderMermaidASCIIWithReceipt(
       outputPolicy,
     }
     retainTerminalDocument(result, drawing)
-    retainTerminalInput(result, model)
     return result
   }
 
   const targetWidth = outputPolicy.targetWidth
   if (targetWidth === undefined) {
-    return resultOf(output)
+    return { rendered: resultOf(output), model }
   }
   const boundedOutput = drawing ? output : output.split('\n').map(line => line.trimEnd()).join('\n').trimEnd()
   const requiredWidth = Math.max(
@@ -335,7 +342,7 @@ export function renderMermaidASCIIWithReceipt(
       hasTooWideGrapheme ? 'UNBREAKABLE_GRAPHEME' : 'MINIMUM_GEOMETRY',
     )
   }
-  return resultOf(boundedOutput)
+  return { rendered: resultOf(boundedOutput), model }
 }
 
 interface TerminalSafeSourceProjection {

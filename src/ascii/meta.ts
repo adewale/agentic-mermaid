@@ -1,6 +1,6 @@
-import { renderMermaidASCIIWithReceipt, type AsciiRenderOptions } from './index.ts'
+import { executeTerminalRender, type AsciiRenderOptions } from './index.ts'
 import { terminalDocumentOf, type TerminalCellSpan, type TerminalRegion } from './terminal-document.ts'
-import { terminalInputOf } from './terminal-model.ts'
+import { prepareRenderInput } from '../agent/render-input.ts'
 import { collectActionRecords } from '../agent/analyze.ts'
 import type { DiagramActionRecord, ParsedDiagram, RenderedRegionKind } from '../agent/types.ts'
 import { ParsedDiagramFamilyMismatchError } from '../render-contract.ts'
@@ -33,12 +33,13 @@ export interface AsciiWithMeta {
 
 /** Metadata is emitted by the same execution as the text. No label search or rerender. */
 export function renderMermaidASCIIWithMeta(input: ParsedDiagram | string, options: AsciiRenderOptions = {}): AsciiWithMeta {
+  const preparedInput = prepareRenderInput(input)
   try {
-    const rendered = renderMermaidASCIIWithReceipt(input, options)
+    const { rendered, model } = executeTerminalRender(preparedInput, options)
     const document = terminalDocumentOf(rendered)
     const warnings: AsciiWarning[] = rendered.terminalStyle.diagnostics.map(diagnostic => ({ code: diagnostic.code, severity: 'degraded', message: diagnostic.message, ...(diagnostic.cell ? { cell: diagnostic.cell } : {}) }))
     if (!document) warnings.push({ code: 'TERMINAL_OWNERSHIP_UNAVAILABLE', severity: 'degraded', message: 'This family returns terminal text without owned geometry; element regions cannot be established from its string output.' })
-    const parsed = terminalInputOf(rendered).parsed()
+    const parsed = model.parsed()
     const regions: AsciiRegion[] = document?.regions() ?? []
     if (parsed.ok) for (const region of regions) {
       const declaration = region.kind === 'node' ? parsed.value.source.nodes.get(region.id) : parsed.value.source.groups.get(region.id)

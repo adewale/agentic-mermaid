@@ -16,6 +16,8 @@ import { withoutTerminalColor } from './helpers/terminal-text.ts'
 import { renderMermaidASCIIWithMeta } from '../ascii/meta.ts'
 import { TerminalDocument, terminalDocumentOf } from '../ascii/terminal-document.ts'
 import { nativeTerminalRenderer, terminalArtifact } from '../ascii/terminal-artifact.ts'
+import { parseRegisteredMermaid } from '../agent/parse.ts'
+import { MermaidFamilyDetectionError } from '../family-detection.ts'
 
 const SOURCE = 'flowchart LR\n  A[Start] --> B[Finish]'
 const OSC52 = '\u001b]52;c;dGVybWluYWwtZXhmaWx0cmF0aW9u\u0007'
@@ -235,17 +237,33 @@ describe('canonical terminal output policy', () => {
 
   test('native Flowchart and metadata share the same authored parse within one render', () => {
     const descriptor = getFamily('flowchart')!
+    const parsed = parseRegisteredMermaid(SOURCE)
+    expect(parsed.ok).toBe(true)
+    if (!parsed.ok) return
+    const canonicalSource = parsed.value.canonicalSource
+    let preparations = 0
+    const input = { ...parsed.value, get canonicalSource() { preparations++; return canonicalSource } }
     let parses = 0
     const restore = replaceFamilyForTest('flowchart', { ...descriptor, parse(context) {
       parses++
       return descriptor.parse!(context)
     } })
     try {
-      const result = renderMermaidASCIIWithMeta(SOURCE, { colorMode: 'none' })
+      const result = renderMermaidASCIIWithMeta(input, { colorMode: 'none' })
       expect(result.ascii).toContain('Start')
       expect(result.regions.find(region => region.id === 'A')?.sourceLine).toBe(2)
       expect(parses).toBe(1)
+      expect(preparations).toBe(1)
     } finally { restore() }
+  })
+
+  test('metadata rejects a preserved parsed family before recovering drawing failures', () => {
+    const parsed = parseRegisteredMermaid('C4Context\nPerson(user, User)')
+    expect(parsed.ok).toBe(true)
+    if (!parsed.ok) return
+    expect(parsed.value.body.kind).toBe('preserved')
+    expect(() => renderMermaidASCIIWithReceipt(parsed.value, { colorMode: 'none' })).toThrow(MermaidFamilyDetectionError)
+    expect(() => renderMermaidASCIIWithMeta(parsed.value, { colorMode: 'none' })).toThrow(MermaidFamilyDetectionError)
   })
 
   test('Gantt defers graphical evidence and retains its captured explicit clock', () => {

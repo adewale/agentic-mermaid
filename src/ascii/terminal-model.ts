@@ -20,6 +20,3 @@ export function terminalInputModel(source: string, admittedFamilyText: string) {
   })
 }
 export type TerminalInputModel = ReturnType<typeof terminalInputModel>
-const terminalInputs = new WeakMap<object, TerminalInputModel>()
-export function retainTerminalInput(result: object, model: TerminalInputModel): void { terminalInputs.set(result, model) }
-export function terminalInputOf(result: object): TerminalInputModel { return terminalInputs.get(result)! }

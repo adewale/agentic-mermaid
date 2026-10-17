@@ -108,6 +108,8 @@ must distinguish text-only output from fully consumed receipts.
 Authored parsing is memoized within one render. Flowchart drawing and metadata
 reuse its model only when authored and admitted grammar inputs match exactly;
 entity decoding and terminal control replacement can require separate models.
+Prepared input and the model travel in one internal execution result. Metadata
+consumes that local model; the public receipt does not retain a model cache.
 Family grammars and layouts remain distinct. Regions group occupied cells and
 sort each group's visible cells once.
 
