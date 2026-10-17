@@ -35,3 +35,14 @@ test.each([NaN, Infinity, -Infinity])('terminal composite keys reject non-finite
   expect(generated('edge', ['edge', 0])).toBe('edge')
   expect(generated('other', ['edge', 0])).toBe('edge')
 })
+
+test('terminal composite keys validate and memoize one snapshot of accessor components', () => {
+  const generated = terminalIds([])
+  let reads = 0
+  const key = Object.freeze(Object.defineProperty(['edge', 0] as [string, number], 1, {
+    get: () => ++reads === 1 ? 1 : NaN,
+  }))
+  const id = generated('edge', key)
+  expect(reads).toBe(1)
+  expect(generated('other', ['edge', 1])).toBe(id)
+})

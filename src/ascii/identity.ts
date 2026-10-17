@@ -5,10 +5,11 @@ type TerminalIdentityKey = string | readonly [string, ...(string | number)[]]
 export function terminalIds(authored: Iterable<string>): (preferred: string, key?: TerminalIdentityKey) => string {
   const occupied = new Set(authored), assigned = new Map<string, string>()
   return (preferred, key = preferred) => {
-    if (typeof key !== 'string' && key.some(component => typeof component === 'number' && !Number.isFinite(component))) {
+    const components = typeof key === 'string' ? key : [...key]
+    if (typeof components !== 'string' && components.some(component => typeof component === 'number' && !Number.isFinite(component))) {
       throw new TypeError('Terminal identity key numeric components must be finite')
     }
-    const semanticKey = JSON.stringify(key)
+    const semanticKey = JSON.stringify(components)
     const previous = assigned.get(semanticKey)
     if (previous !== undefined) return previous
     let id = preferred, suffix = 1
