@@ -177,6 +177,7 @@ describe('agent-facing runnable docs', () => {
   test('public-API doc snippets execute', () => {
     const AGENT = JSON.stringify(join(REPO, 'src/agent/index.ts'))
     const CORE = JSON.stringify(join(REPO, 'src/index.ts'))
+    const BROWSER = JSON.stringify(join(REPO, 'src/browser-lazy.ts'))
     const docs = ['README.md', 'docs/getting-started.md', 'docs/api.md', 'docs/ascii.md', 'docs/config.md', 'docs/theming.md', 'docs/diagram-families.md']
     // Reader-supplied placeholders the docs reference but expect you to provide.
     const placeholders = (block: string): string => {
@@ -199,7 +200,10 @@ describe('agent-facing runnable docs', () => {
           if (!runnable) continue
           // Point published specifiers at in-repo source; a temp cwd keeps any
           // written artifacts (diagram.svg/png) out of the repo.
-          const wired = block.replaceAll("'agentic-mermaid/agent'", AGENT).replaceAll("'agentic-mermaid'", CORE)
+          const wired = block
+            .replaceAll("'agentic-mermaid/agent'", AGENT)
+            .replaceAll("'agentic-mermaid/browser/lazy'", BROWSER)
+            .replaceAll("'agentic-mermaid'", CORE)
           const file = join(dir, `${doc.replace(/[/.]/g, '_')}__${i}.ts`)
           writeFileSync(file, placeholders(block) + '\n' + wired)
           const r = spawnSync('bun', ['run', file], { cwd: dir, encoding: 'utf8' })
@@ -352,7 +356,7 @@ describe('start.md bootstrap claims stay true', () => {
 })
 
 describe('documented package usage works', () => {
-  test('React client recipes bundle through the browser ESM entry', async () => {
+  test('browser client recipes bundle through the browser ESM entry', async () => {
     for (const file of ['docs/react.md', 'docs/getting-started.md']) {
       const text = readFileSync(join(REPO, file), 'utf8')
       if (file === 'docs/react.md') {
@@ -360,9 +364,11 @@ describe('documented package usage works', () => {
         expect(text).toContain('.diagram-surface {')
         expect(text).toContain('.dark .diagram-surface {')
       }
-      const clientBlocks = Array.from(text.matchAll(/```tsx\n([\s\S]*?)\n```/g))
+      // Getting Started demonstrates the browser API; the complete React
+      // adapter lives in react.md rather than a second copy to keep in sync.
+      const clientBlocks = Array.from(text.matchAll(/```tsx?\n([\s\S]*?)\n```/g))
         .map(match => match[1]!)
-        .filter(block => /from ['"]react['"]/.test(block))
+        .filter(block => /from ['"]agentic-mermaid\/browser\/lazy['"]/.test(block))
       expect(clientBlocks.length, file).toBeGreaterThan(0)
       for (const block of clientBlocks) {
         expect({ file, block }).toMatchObject({ block: expect.stringContaining("from 'agentic-mermaid/browser/lazy'") })

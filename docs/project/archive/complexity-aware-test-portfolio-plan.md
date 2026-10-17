@@ -1,6 +1,12 @@
-# Complexity-aware test portfolio plan
+# Complexity-aware test portfolio — historical migration record
 
-Status: implemented and measured; tracked by `TODO.md` **TEST-3** until the configured release rows execute and the 30-merge observation window exists. Structured contact-sheet review remains available as advisory evidence after the owner removed it as a publication gate in #200. The before/candidate reports and their tests are no longer published; the measurements below are the record.
+Status: archived on 2026-10-17. This records the July migration, not current
+acceptance requirements. PR #361 subsequently removed report/receipt and
+fault-injection infrastructure. Do not restore it to satisfy this plan.
+Current behavior is documented in [`testing-strategy.md`](../../testing-strategy.md);
+the remaining observational follow-up belongs only to **TEST-3** in
+[`TODO.md`](../../../TODO.md). Historical measurements below do not establish
+current CI costs, browser support, or release-job execution.
 
 ## Decision
 

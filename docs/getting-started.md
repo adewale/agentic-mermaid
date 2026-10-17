@@ -135,34 +135,18 @@ const safe = renderMermaidSVG(userProvidedSource, { security: 'strict' })
 Use the browser ESM entry in client components. It avoids the Node/native entry
 and loads only the selected diagram family:
 
-```tsx
-import { useEffect, useState } from 'react'
+```ts
 import { renderMermaidSVGAsync } from 'agentic-mermaid/browser/lazy'
 
-function Diagram({ code }: { code: string }) {
-  const [svg, setSvg] = useState('')
-  const [error, setError] = useState('')
-  useEffect(() => {
-    let current = true
-    setSvg('')
-    setError('')
-    renderMermaidSVGAsync(code, { security: 'strict' }).then(
-      result => {
-        if (current) setSvg(result)
-      },
-      cause => {
-        if (current) setError(cause instanceof Error ? cause.message : String(cause))
-      },
-    )
-    return () => { current = false }
-  }, [code])
-  if (error) return <pre role="alert">{error}</pre>
-  if (!svg) return <div aria-busy="true" />
-  return <div dangerouslySetInnerHTML={{ __html: svg }} />
-}
+const svg = await renderMermaidSVGAsync('flowchart LR\n  A --> B', {
+  security: 'strict',
+  idPrefix: 'example-diagram', // use a unique prefix per inline diagram
+})
 ```
 
-See [`react.md`](./react.md) for error handling and live theme switching. For a
+The returned string is not a DOM-insertion API. Follow [`browser.md`](./browser.md)
+for parsed-XML insertion and CSP policy, or the complete [`React component`](./react.md)
+for cancellation, unique IDs, error handling and live theme switching. For a
 server component or build step, the synchronous `agentic-mermaid` entry remains
 the simpler choice.
 

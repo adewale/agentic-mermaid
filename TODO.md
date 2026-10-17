@@ -8,8 +8,26 @@ surfaces. IDs are stable names, not ordering.
 
 Status legend: `todo` | `blocked` | `owner-decision` | `parked`.
 
+Reconciled against `main` `aa16b127` and GitHub on 2026-10-17. An open PR is
+proposed work, not a shipped capability; a closed issue is not completion
+evidence when its acceptance conditions still fail (see TEST-4). Plans supply
+design context, never additional queues. Retired IDs are not reused.
+
 ## Release / owner decisions
 
+- [ ] **REL-1 — Publish and verify the prepared release** (`todo`,
+  [#378](https://github.com/adewale/agentic-mermaid/issues/378)). Source declares
+  0.4.2, but npm and the hosted site/MCP still serve 0.4.1 at the reconciliation
+  date. Follow `docs/contributing/releasing.md`, choose the actual green release
+  SHA rather than an old issue-body SHA, finish the changelog, and verify npm,
+  site build identity and a hosted capability after publication. A green CI run
+  or a deliberately skipped deployment is not delivery evidence.
+- [ ] **DEC-6 — Decide the hosted `execute` boundary from usage evidence**
+  (`owner-decision`, [#204](https://github.com/adewale/agentic-mermaid/issues/204)).
+  Compare hosted direct tools, hosted Code Mode and local Code Mode for real
+  tasks, demand, cost and compatibility before deciding retain/gate/remove.
+  This does not authorize removing the tool. Keep SEC-4 relevant to every
+  compute-capable route retained publicly.
 - [ ] **DEC-1 — Get one real external consumer** (`todo`). Validate
   `agentic-mermaid/agent`, `am`, or `agentic-mermaid-mcp` in a real agent,
   TUI, CI gate, or editor integration outside this repo.
@@ -58,7 +76,7 @@ Status legend: `todo` | `blocked` | `owner-decision` | `parked`.
   `text/html;profile=mcp-app` resource MIME type, tool `_meta.ui.resourceUri`
   wiring, resource CSP/domain metadata, and tests that the resources are
   reachable without leaking secrets. Start with a portable, read-only
-  preview/verify view before adding an editable surface; keep tool results useful
+  preview/verify view (proposed in PR #374, not yet merged) before adding an editable surface; keep tool results useful
   in MCP hosts that ignore the UI extension.
 - [ ] **BUILD-28 — Experimental page-local WebMCP support** (`todo`). The
   current Web Machine Learning Community Group report is not a W3C Standard or
@@ -111,14 +129,18 @@ Status legend: `todo` | `blocked` | `owner-decision` | `parked`.
   and define the parity outcome. Unpromoted issue lists are deliberately not
   retained in this backlog.
 - [ ] **BUILD-6 — Native upstream Mermaid family adoption** (`todo`). Select
-  work from the version-pinned upstream manifest and generated capability
-  report using current demand, maturity, syntax stability and semantic
-  leverage; do not copy their roster or pre-rank a shadow queue here. Each
+  work from the pinned upstream syntax references, current family descriptors
+  and `am capabilities --json`, using demand, maturity, syntax stability and
+  semantic leverage; the former upstream manifest/report was removed in #361.
+  Do not rebuild it or pre-rank a shadow queue here. Each
   promoted family passes the citizenship ratchet and the current source,
   primitive, backend, output, transport and extension contracts. Section A
-  already owns the recognition floor: official and unknown headers are
+  supplies the recognition floor: official and unknown headers are
   preserved or diagnosed and never fall through to Flowchart. Maturity comes
-  from manifest data rather than a `-beta` spelling heuristic.
+  from reviewed upstream evidence rather than a `-beta` spelling heuristic.
+  Native C4 is a design proposal in
+  [#387](https://github.com/adewale/agentic-mermaid/issues/387), not a currently
+  native family or an automatic priority over confirmed defects.
 - [ ] **BUILD-34 — Measure peer colors as drawn (chart honesty H5)** (`todo`).
   Palettes separate peers where colors are generated (`categoricalPalette`,
   ΔE_OK ≥ 0.10), but a scene-keyed census of every family's honesty corpus in
@@ -179,29 +201,28 @@ Status legend: `todo` | `blocked` | `owner-decision` | `parked`.
 
 ## Testing architecture backlog
 
-- [ ] **TEST-3 — Complexity-aware, registry-derived test portfolio** (`todo`).
-  The executable migration in
-  [`docs/project/complexity-aware-test-portfolio-plan.md`](docs/project/complexity-aware-test-portfolio-plan.md)
-  is implemented: immutable before/candidate reports, exhaustive finite
-  authorities, automatic family enrollment, focused exact goldens,
-  independently verified variable-strength arrays, six mandatory complexity
-  strata, mixed outputs, fault probes, precise receipt dependency graphs,
-  platform release smoke, and plan-derived Cynefin contact sheets. The former
-  4,500-row matrix is removed. Structured human review remains available as
-  advisory evidence rather than a publication gate. Keep this item open only
-  for evidence that cannot be manufactured in the implementation turn: the
-  configured macOS/Windows release jobs must execute, and the after-report must
-  be revisited after 30 merges for CI p50/p95, flake/retry, human findings,
-  churn, and escaped defects.
+- [ ] **TEST-3 — Review observed test/release outcomes** (`todo`). The July
+  portfolio migration is complete and its
+  [measurement record](docs/project/archive/complexity-aware-test-portfolio-plan.md)
+  is historical. Inspect actual macOS/Windows release-job runs and compare CI
+  p50/p95, retries/flakes, human findings, churn and escaped defects over a
+  documented post-migration window of at least 30 merges. The window has
+  elapsed; the analysis has not been supplied. Account for #361 and later
+  runtime/suite changes rather than attributing every difference to July's
+  migration. Do not recreate removed reports, receipts or mandatory review gates.
   Upstream cost/covering-array research is tracked in
   [`testing-best-practices#21`](https://github.com/adewale/testing-best-practices/issues/21).
 - [ ] **TEST-4 — Correct and strengthen the Python MCP interop probe** (`todo`,
   [#191](https://github.com/adewale/agentic-mermaid/issues/191)). Replace the
-  deprecated `streamablehttp_client` alias, record the Python client's actual
-  request path, and correct the verification plan: all three SDKs prove
+  deprecated `streamablehttp_client` alias and record the Python client's actual
+  request path. The verification plan now distinguishes the recorded evidence: all three SDKs prove
   sessionless initialize/version negotiation/tool calls, while only TypeScript
-  and Go currently prove `GET -> 405`. Keep pinned `mcp==1.28.1` and latest
-  canary coverage green.
+  and Go prove `GET -> 405`; Python skips GET without a session ID. Re-run pinned
+  `mcp==1.28.1` and latest canary after the API/instrumentation changes, recording
+  actual SDK and negotiated versions. Update the probe's stale hosted-version
+  assertion against the server's current accepted set, not its old three-value
+  tuple. The issue is closed, but that closure did
+  not complete these remaining acceptance conditions.
 - [ ] **TEST-5 — Make route-verification policy executable and retire the stale
   score target** (`todo`,
   [#265](https://github.com/adewale/agentic-mermaid/issues/265); supersedes the historical framing in
@@ -212,8 +233,9 @@ Status legend: `todo` | `blocked` | `owner-decision` | `parked`.
   independent diagnostic is now enforced by `auditRouteContracts` and the
   layout rubric), extract an independent certificate consistency audit, and
   make production pipeline invariant checks explicit.
-  Use the canonical 2,800-case corpus, focused mutation lanes, and bounded route
-  sabotage to prove named behaviors; do not restore a broad percentage chase.
+  Use retained public route contracts and representative final-output witnesses
+  to prove named behaviors. The removed mutation/sabotage lanes are not
+  prerequisites; do not restore them or a broad percentage chase.
 - [ ] **TEST-6 — Audit cross-family endpoint-marker and geometry authority**
   (`todo`, [#258](https://github.com/adewale/agentic-mermaid/issues/258)).
   Derive the marker-producing family inventory from the registry, characterize
@@ -246,7 +268,9 @@ Status legend: `todo` | `blocked` | `owner-decision` | `parked`.
 - [ ] **TEST-10 — Random-order, fresh-process finder lane** (`todo`). Two
   order-dependent failures (resvg initialization, the Bun `node:vm` timer)
   surfaced only by accident. Run the suite nightly in shuffled file order and
-  each file alone.
+  each file alone. The existing `nightly-finder.yml` already randomizes property
+  seeds and reports to #362; shuffled order and file isolation are the additional
+  work here, not a second random-seed finder.
 - [ ] **TEST-11 — Run the CJK font tests in CI** (`todo`). The two CJK cases in
   `png-fonts.test.ts` skip unless `fonts-wqy` is installed, and no workflow
   installs it, so they never run. Install the font in the unit job and make the
@@ -256,22 +280,21 @@ Status legend: `todo` | `blocked` | `owner-decision` | `parked`.
   `closeTo` overwrite the checked field of the received object with the matcher,
   so a later read of that field sees the matcher, not the data. Find tests that
   read an object after such an assertion, and report the bug upstream.
+- [ ] **TEST-13 — Execute installed-package quickstarts** (`todo`,
+  [#377](https://github.com/adewale/agentic-mermaid/issues/377)). Run the documented
+  Getting Started commands against a packed, installed tarball in a clean
+  consumer directory. Existing command-vocabulary checks do not execute those
+  commands or prove package-runner resolution.
 
 ## Consolidation / dedup backlog
 
-- [ ] **CONS-26 — Finish State/Timeline statement ownership** (`todo`,
-  [#368](https://github.com/adewale/agentic-mermaid/issues/368)). Class, ER,
-  Sequence, Architecture and Gantt now project from shared lossless statement
-  readers; the other nine families use a renderer-owned AST or shared parse
-  authority. State and Timeline still duplicate statement dispatch/scope despite
-  sharing lexical helpers: a Timeline period starting with `Timeline` vanishes
-  only in rendering, and State rendering silently ignores unknown statements
-  that editable parsing preserves and diagnoses. Keep each projection's
-  invariants separate, with independent meaning and source-loss regressions.
-- [ ] **CONS-30 — `agent/body-utils.ts` extraction** (`todo`, mostly done). `src/agent/body-utils.ts` now owns optional fields (`setOptionalField`), insert positions (`resolveInsertIndex`), label-overflow collection and accessibility serialization for the non-flowchart bodies. What remains differs on purpose (per-family validators, move-target error codes, seeded hashes stored in ids and goldens); unifying the insert-position error wording across families needs an owner decision. Mechanically
-  deduplicate repeated LABEL_OVERFLOW, id-allocation, `set_title`, collection,
-  source-map, label-extraction, seeded-hash, and CSS-mix helpers. Characterize
-  semantics first and extract one proven cluster at a time.
+- [ ] **CONS-30 — Decide residual body-helper consolidation** (`owner-decision`).
+  The `agent/body-utils.ts` extraction landed: optional fields, insert positions,
+  overflow collection and accessibility serialization are shared. Per-family
+  validators, move-target codes and seeded IDs differ intentionally. Decide
+  whether insert-position error wording should converge; promote any further
+  extraction only with a demonstrated repeated behavior and characterization.
+  Do not mechanically unify the intentionally different code.
 - [ ] **CONS-43 — Continue physical layout-pass extraction** (`todo`). Move
   cohesive pass implementations out of `layout/passes/index.ts` one at a time
   behind the checked manifest; preserve order, mutation declarations,
@@ -303,10 +326,19 @@ Status legend: `todo` | `blocked` | `owner-decision` | `parked`.
   new ad-hoc quote scanners.
 - [ ] **CONS-45 — Finish terminal-context convergence** (`todo`). Move remaining
   family-local cell writers and context argument lists onto shared grapheme-safe
-  canvas/context helpers without projecting pixel Scene geometry.
+  canvas/context helpers without projecting pixel Scene geometry. Track the
+  owned-cell design in [#386](https://github.com/adewale/agentic-mermaid/issues/386)
+  and proposed PR #394, not a second compositor implementation. PR #395
+  incorporates an older #394 revision and needs reconciliation with its newer
+  audit fixes before merge; retain #395's distinct prepared-text/XY work.
 
 ## Contribution governance backlog
 
+- [ ] **GOV-2 — Require canonical CI on `main`** (`owner-decision`,
+  [#331](https://github.com/adewale/agentic-mermaid/issues/331)). Configure the
+  repository rule requiring `CI complete` on main. Main remains unprotected at
+  reconciliation; the golden-token removal and follow-up code changes already
+  landed. This is a repository-owner setting, not another CI implementation.
 - [ ] **GOV-1 — Enforce one primary contract boundary per PR** (`todo`,
   [#263](https://github.com/adewale/agentic-mermaid/issues/263)). Require one of
   grammar authority, mutation closure, rendered geometry, or an explicitly
@@ -318,6 +350,26 @@ Status legend: `todo` | `blocked` | `owner-decision` | `parked`.
 
 - [ ] **SRC-1 — Segment-preserving Class and Timeline bodies** (`todo`). Preserve typed mutation around unmodeled statements without violating byte-for-byte opaque fallback. Add parser/serializer closure and adversarial reorder tests before promotion.
 - [ ] **SRC-2 — Positional comments for Flowchart and State** (`todo`). Replace announced `COMMENT_DROPPED` loss with positionally anchored opaque segments that survive typed mutation.
+
+## Documentation / issue triage
+
+- [ ] **DOC-1 — Reconcile public comparison claims** (`todo`,
+  [#388](https://github.com/adewale/agentic-mermaid/issues/388)). Distinguish
+  native rendering, source preservation, proposals and released capabilities.
+  The incorrect “already upstreamed” routing claim is corrected; complete the
+  broader comparison review against pinned evidence without claiming a strict
+  superset or treating open upstream PRs as releases.
+- [ ] **TRIAGE-1 — Revalidate the color issue's remaining surface matrix**
+  (`todo`, [#303](https://github.com/adewale/agentic-mermaid/issues/303)). Several
+  original cases have since been fixed. Reproduce each remaining source,
+  typed-edit, terminal and error-reporting claim on current main before keeping
+  or closing it; its original before/after table is historical, not today's state.
+- [ ] **TRIAGE-2 — Resolve the unfinished ER/preprocessor exploration** (`todo`,
+  [#372](https://github.com/adewale/agentic-mermaid/issues/372)). Reproduce the
+  ER entity-order witness separately from the proposed serializer rewrite and
+  existing BUG-9/BUG-10. Do not merge the known-failing WIP wholesale. Evaluate
+  the proposed flowchart preprocessor rejection against the current input-language
+  policy; upstream-only rejection is not automatically a product requirement.
 
 ## Known defects
 
@@ -351,6 +403,38 @@ investigation of the class rather than per-item fixes.
 - [ ] **BUG-48 — Terminal width wrapping writes `<br/>` into labels that draw it as text** (`todo`). `wrapLabelsInSource` in `src/ascii/index.ts` inserts `<br/>` into bracketed labels, so XYChart categories and Timeline events at a `targetWidth` show `<br/>` literally.
 - [ ] **BUG-52 — Mutators keep "don't empty" floors that predate renderable empty charts** (`todo`). `set_title` on `createMermaid('pie')` is refused ("Pie must keep at least one slice"); the Architecture and Journey mutators keep similar floors.
 - [ ] **BUG-60 — A YAML string whose first line is only spaces does not round-trip through frontmatter** (`todo`). The `yaml` writer turns ` \n` into a block scalar that reads back as `\n`. Pinned `test.failing` in `metadata-yaml.test.ts`.
+- [ ] **BUG-61 — Code Mode trailing line comments break the wrapper** (`todo`,
+  [#366](https://github.com/adewale/agentic-mermaid/issues/366)). Protect
+  multi-statement snippets ending in `//` from swallowing wrapper syntax.
+  PR #365 addresses #274/#275, not this case.
+- [ ] **BUG-68 — Code Mode result capture and ops-array recovery hint** (`todo`,
+  [#274](https://github.com/adewale/agentic-mermaid/issues/274),
+  [#275](https://github.com/adewale/agentic-mermaid/issues/275)). PR #365 proposes
+  returning a final expression after preceding statements and replacing the
+  nonexistent `applyOps` recovery hint. Verify the public behavior at merge;
+  this does not close BUG-61's trailing-comment case.
+- [ ] **BUG-62 — Multiline titles can clip** (`todo`,
+  [#381](https://github.com/adewale/agentic-mermaid/issues/381)). Pie, Sankey and
+  Architecture need complete title geometry; proposed PR #395 also incorporates
+  the XY title fix in PR #380. Keep the nightly #362 collector separate from
+  closure of one counterexample.
+- [ ] **BUG-63 — Quadrant wrapping changes capitalization** (`todo`,
+  [#382](https://github.com/adewale/agentic-mermaid/issues/382)). Apply display
+  transforms before wrapping without changing authored meaning; proposed in #395.
+- [ ] **BUG-64 — Gantt/Radar wrapping duplicates literal formatting tags**
+  (`todo`, [#383](https://github.com/adewale/agentic-mermaid/issues/383)). Prepare
+  display text once rather than reinterpreting wrapped text; proposed in #395.
+- [ ] **BUG-65 — Terminal XY ticks and bars disagree** (`todo`,
+  [#384](https://github.com/adewale/agentic-mermaid/issues/384)). Use one quantized
+  numeric scale. #394 and #395 overlap here; preserve the richer quantization
+  cases when reconciling them rather than declaring both variants equivalent.
+- [ ] **BUG-66 — Terminal sequence notes/fragments lose lexical ownership**
+  (`todo`, [#391](https://github.com/adewale/agentic-mermaid/issues/391)). Preserve
+  event order and measured cell bounds. #390 is landed; the fixes proposed in
+  #394/#395 are not. The entire compositor is not a conceptual prerequisite.
+- [ ] **BUG-67 — Sequence autonumber controls diverge between surfaces** (`todo`,
+  [#392](https://github.com/adewale/agentic-mermaid/issues/392)). Share ordered
+  control intent independently of pixel/cell layout; proposed in #394/#395.
 
 ## Non-goals
 
