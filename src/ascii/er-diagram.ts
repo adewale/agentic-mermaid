@@ -4,7 +4,7 @@ import { terminalArtifact, serializeTerminalArtifact, type TerminalArtifact } fr
 import { parseErDiagram } from '../er/parser.ts'
 import type { ErEntity, ErAttribute, Cardinality } from '../er/types.ts'
 import type { AsciiConfig, AsciiTheme, ColorMode } from './types.ts'
-import { TerminalDocument, type TerminalOwner } from './terminal-document.ts'
+import { TerminalDocument, type TerminalMarker, type TerminalOwner } from './terminal-document.ts'
 import { drawMultiBox } from './draw.ts'
 import { visualWidth } from './width.ts'
 import { wrapText } from './wrap.ts'
@@ -18,16 +18,9 @@ interface PlacedEntity extends TerminalBox { entity: ErEntity; sections: string[
 const attributeText = (attr: ErAttribute) => `${attr.keys.length ? attr.keys.join(',') : '   '} ${attr.type} ${attr.name}${attr.comment ? ` # ${attr.comment}` : ''}`
 
 /** Family-owned crow's-foot projection, measured along the port's normal. */
-function cardinalityGlyphs(card: Cardinality, port: BoxPort, ascii: boolean): string[] {
-  const horizontal = port.side === 'L' || port.side === 'R'
-  const one = horizontal ? '|' : '-'
-  const unicodeOne = horizontal ? '│' : '─'
-  const many = horizontal ? port.side === 'R' ? (ascii ? '>' : '╢') : (ascii ? '<' : '╟') : port.side === 'B' ? (ascii ? 'v' : '┬') : (ascii ? '^' : '┴')
-  const mark = ascii ? one : unicodeOne
-  if (card === 'one') return [mark]
-  if (card === 'zero-one') return [mark, ascii ? 'o' : '○']
-  if (card === 'many') return [many]
-  return [many, ascii ? 'o' : '○']
+function cardinalityMarkers(card: Cardinality, port: BoxPort, ascii: boolean): TerminalMarker[] {
+  const marker: TerminalMarker = { shape: card === 'one' || card === 'zero-one' ? 'cardinality-one' : 'cardinality-many', direction: port.side, ascii }
+  return card === 'zero-one' || card === 'zero-many' ? [marker, { shape: 'circle', ascii }] : [marker]
 }
 
 export function renderErTerminal(text: string, config: AsciiConfig, colorMode?: ColorMode, theme?: AsciiTheme, targetWidth?: number): TerminalArtifact {
@@ -155,9 +148,11 @@ export function renderErTerminal(text: string, config: AsciiConfig, colorMode?: 
     const rel = diagram.relationships[relations.findIndex(relation => relation.id === route.relation.id)]!
     const owner = doc.element({ id: route.relation.id, kind: 'edge', from: rel.entity1, to: rel.entity2 })
     paintBoxRoute(doc, route, owner, config.useAscii, !rel.identifying)
-    for (const [port, card] of [[route.source, rel.cardinality1], [route.target, rel.cardinality2]] as const) {
+    for (const [end, port, card] of [['start', route.source, rel.cardinality1], ['end', route.target, rel.cardinality2]] as const) {
       const dx = port.side === 'L' ? -1 : port.side === 'R' ? 1 : 0, dy = port.side === 'T' ? -1 : port.side === 'B' ? 1 : 0
-      cardinalityGlyphs(card, port, config.useAscii).forEach((glyph, index) => doc.put(port.x + dx * index, port.y + dy * index, glyph, { owner, role: 'arrow', kind: 'marker' }))
+      const markers = cardinalityMarkers(card, port, config.useAscii)
+      doc.expectMarkers(owner, end, markers)
+      markers.forEach((marker, index) => doc.marker(port.x + dx * index, port.y + dy * index, marker, { owner, role: 'arrow' }))
     }
     paintBoxText(doc, route.label, owner)
   }

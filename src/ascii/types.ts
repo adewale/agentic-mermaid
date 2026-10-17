@@ -130,6 +130,9 @@ export interface AsciiEdge {
   startMarker?: EdgeMarker
   /** Marker shape at end when hasArrowEnd=true. Defaults to 'arrow' if undefined. */
   endMarker?: EdgeMarker
+  /** Incompatible heads sharing a face need distinct native cell slots. */
+  startPort?: { index: number; count: number }
+  endPort?: { index: number; count: number }
   /** Bundle this edge belongs to (if any). Set during bundling analysis. */
   bundle?: EdgeBundle
   /** A shared sibling trunk explicitly allocated by the graph router. */

@@ -8,6 +8,94 @@ const owner = (id: string): TerminalOwner => ({ id, kind: 'node' })
 const route = (id: string, bundle?: string): TerminalOwner => ({ id, kind: 'edge', ...(bundle ? { bundle } : {}) })
 
 describe('owned terminal composition', () => {
+  test.each([false, true])('final marker admission rejects lost, forged, displaced and misowned heads (ASCII=%s)', ascii => {
+    const edge = { id: 'relation', kind: 'edge' as const, from: 'A', to: 'B' }
+    const make = () => {
+      const doc = new TerminalDocument(8, 4)
+      doc.region(owner('B'), { x: 3, y: 0, width: 3, height: 3 })
+      doc.port(edge, { nodeId: 'B', end: 'end', x: 2, y: 1, side: 'L' })
+      doc.expectMarkers(edge, 'end', [{ shape: 'arrow', direction: 'R', ascii }])
+      return doc
+    }
+    expect(() => make().serialize()).toThrow('Terminal marker contract failed')
+    const valid = make()
+    valid.marker(2, 1, { shape: 'arrow', direction: 'R', ascii }, { owner: edge })
+    expect(() => valid.serialize()).not.toThrow()
+    for (const marker of [{ shape: 'arrow', direction: 'L', ascii }, { shape: 'triangle', direction: 'R', ascii }] as const) {
+      const wrong = make()
+      wrong.marker(2, 1, marker, { owner: edge })
+      expect(() => wrong.serialize()).toThrow('Terminal marker contract failed')
+    }
+    const foreign = make()
+    foreign.marker(2, 1, { shape: 'arrow', direction: 'R', ascii }, { owner: route('foreign') })
+    expect(() => foreign.serialize()).toThrow('Terminal marker contract failed')
+    const erased = make()
+    erased.marker(2, 1, { shape: 'arrow', direction: 'R', ascii }, { owner: edge })
+    erased.text(2, 1, 'label', { owner: edge })
+    expect(() => erased.serialize()).toThrow('Terminal marker contract failed')
+    const glyphOnly = make()
+    glyphOnly.put(2, 1, ascii ? '>' : '►', { owner: edge, kind: 'marker' })
+    expect(() => glyphOnly.serialize()).toThrow('Terminal marker contract failed')
+    const displaced = make()
+    displaced.marker(3, 1, { shape: 'arrow', direction: 'R', ascii }, { owner: edge })
+    expect(() => displaced.serialize()).toThrow('Terminal marker contract failed')
+    valid.marker(6, 1, { shape: 'arrow', direction: 'R', ascii }, { owner: edge })
+    expect(() => valid.serialize()).toThrow('Unexpected terminal marker')
+    const wrongFace = new TerminalDocument()
+    wrongFace.port(edge, { nodeId: 'B', end: 'end', x: 2, y: 1, side: 'R' })
+    wrongFace.expectMarkers(edge, 'end', [{ shape: 'arrow', direction: 'R', ascii }])
+    wrongFace.marker(2, 1, { shape: 'arrow', direction: 'R', ascii }, { owner: edge })
+    expect(() => wrongFace.serialize()).toThrow('Terminal marker contract failed')
+    const floating = new TerminalDocument()
+    floating.region(owner('B'), { x: 3, y: 0, width: 3, height: 3 })
+    floating.port(edge, { nodeId: 'B', end: 'end', x: 0, y: 1, side: 'L' })
+    floating.expectMarkers(edge, 'end', [{ shape: 'arrow', direction: 'R', ascii }])
+    floating.marker(0, 1, { shape: 'arrow', direction: 'R', ascii }, { owner: edge })
+    expect(() => floating.serialize()).toThrow('Terminal marker contract failed')
+  })
+
+  test('endpoint contracts survive offset composition, reflection and encoding without mutating their source', () => {
+    const edge = route('half'), layer = new TerminalDocument(8, 4)
+    layer.region(owner('B'), { x: 0, y: 0, width: 3, height: 3 })
+    layer.port(edge, { nodeId: 'B', end: 'end', side: 'R', x: 3, y: 1 })
+    layer.expectMarkers(edge, 'end', [{ shape: 'half-top', direction: 'L' }])
+    layer.marker(3, 1, { shape: 'half-top', direction: 'L' }, { owner: edge })
+    const before = layer.serialize()
+    const composed = new TerminalDocument()
+    composed.overlay(layer, 2, 3)
+    composed.flip(true, true)
+    const port = composed.regions().find(region => region.id === edge.id)!.ports![0]!
+    expect(port).toMatchObject({ side: 'L', markers: [{ shape: 'half-bottom', direction: 'R' }] })
+    expect(composed.cell(port.x, port.y)?.marker).toMatchObject({ shape: 'half-bottom', direction: 'R' })
+    for (const colorMode of ['none', 'ansi16', 'html'] as const) expect(() => composed.serialize({ colorMode })).not.toThrow()
+    expect(layer.serialize()).toBe(before)
+    expect(layer.regions().find(region => region.id === edge.id)!.ports![0]!.markers).toEqual([{ shape: 'half-top', direction: 'L' }])
+  })
+
+  test('an explicit marker projection needs both a family diagnostic and visible owned fallback text', () => {
+    const doc = new TerminalDocument(), edge = { ...route('r'), from: 'A', to: 'B' }
+    doc.port(edge, { nodeId: 'B', end: 'end', side: 'L', x: 2, y: 1 })
+    doc.expectMarkers(edge, 'end', [{ shape: 'arrow', direction: 'R' }])
+    doc.projectMarkers(edge, 'family.r.route')
+    expect(() => doc.serialize()).toThrow('Terminal marker contract failed')
+    doc.report({ code: 'TERMINAL_FAMILY_PROJECTION', feature: 'family.r.route', message: 'The route uses an owned endpoint summary.' })
+    expect(() => doc.serialize()).toThrow('Terminal marker contract failed')
+    doc.text(0, 3, 'A --> B', { owner: edge })
+    expect(() => doc.serialize()).not.toThrow()
+  })
+
+  test('declared card faces exclude ancillary owned link text from endpoint bounds', () => {
+    const doc = new TerminalDocument(), edge = { ...route('r'), from: 'A', to: 'B' }, node = owner('B')
+    doc.region(node, { x: 3, y: 0, width: 3, height: 3 })
+    doc.fill(3, 0, 3, 3, { owner: node, kind: 'surface' })
+    doc.text(0, 5, 'link B: https://example.com/class', { owner: node })
+    doc.port(edge, { nodeId: 'B', end: 'end', x: 2, y: 1, side: 'L' })
+    doc.expectMarkers(edge, 'end', [{ shape: 'arrow', direction: 'R' }])
+    doc.marker(2, 1, { shape: 'arrow', direction: 'R' }, { owner: edge })
+    expect(() => doc.serialize()).not.toThrow()
+    expect(doc.serialize()).toContain('link B: https://example.com/class')
+  })
+
   const identityAdmissions = {
     element: (doc: TerminalDocument, foreign: TerminalOwner) => doc.element(foreign),
     scope: (doc: TerminalDocument, foreign: TerminalOwner) => doc.scope(foreign, () => doc.put(8, 8, 'x')),

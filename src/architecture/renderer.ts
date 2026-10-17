@@ -20,7 +20,7 @@ import { hashId } from '../scene/seed.ts'
 import * as marks from '../scene/marks.ts'
 import { DefaultBackend } from '../scene/backend.ts'
 import { resolveArchitectureIcon } from './icons.ts'
-import { serializeMarkerResources } from '../scene/marker-resources.ts'
+import { serializeMarkerResources, tipAnchoredArrow } from '../scene/marker-resources.ts'
 import { projectRoundedConnectorPath } from '../scene/connector-geometry.ts'
 
 // ============================================================================
@@ -620,18 +620,8 @@ const ARCHITECTURE_MARKER_PAINT = {
 }
 
 const ARCHITECTURE_MARKERS: readonly MarkerDescriptor[] = [
-  {
-    id: 'architecture-arrow-end', shape: 'arrow',
-    size: { width: 8, height: 5 }, ref: { x: 7, y: 2.5 }, orient: 'auto',
-    geometry: { kind: 'polygon', points: [{ x: 0, y: 0 }, { x: 8, y: 2.5 }, { x: 0, y: 5 }] },
-    paint: ARCHITECTURE_MARKER_PAINT,
-  },
-  {
-    id: 'architecture-arrow-start', shape: 'arrow',
-    size: { width: 8, height: 5 }, ref: { x: 1, y: 2.5 }, orient: 'auto-start-reverse',
-    geometry: { kind: 'polygon', points: [{ x: 8, y: 0 }, { x: 0, y: 2.5 }, { x: 8, y: 5 }] },
-    paint: ARCHITECTURE_MARKER_PAINT,
-  },
+  tipAnchoredArrow('architecture-arrow-end', { width: 8, height: 5 }, 'end', ARCHITECTURE_MARKER_PAINT),
+  tipAnchoredArrow('architecture-arrow-start', { width: 8, height: 5 }, 'start', ARCHITECTURE_MARKER_PAINT),
 ]
 
 function letterAttr(value: number): string {

@@ -2,9 +2,9 @@
   "schemaVersion": 1,
   "status": "approved",
   "artifact": "src/__tests__/testdata/section-b-brand-evidence.png",
-  "artifactSha256": "8d18b4679019db5535fcf9b930a6c3a156115cf4834022ef8476a95e7467593e",
+  "artifactSha256": "b2e6c3a54c1e7c625fa5499752c56eeec371552882b34c19df9375e569f9f124",
   "reviewedAt": "2026-10-17",
-  "reviewer": "Codex agent, final native-size visual review of PR #394",
-  "scope": "Agent review of all 64 family-by-variant cells in the regenerated 1560\u00d79464 Section B sheet, using unscaled 520\u00d7380 native cell crops arranged into 16 four-treatment comparison panels. Checked label containment, connector and marker visibility, title/header clearance, palette and typography consistency, Pie Pro emphasis, chart values, and readable family structure. Compared with the committed PNG at f96f6bd297cc4a85f94f5cb8dff033d7fbac9ba8, 37 cells change in 358245 pixels and 27 cells are pixel-identical. The candidate includes the working-tree independent-audit geometry fixes; the artifact hash identifies the reviewed bytes. This is an agent visual review, not human approval, a deployed-site comparison, or proof for arbitrary input/font coverage.",
+  "reviewer": "Codex agent, PR #401 marker review after rebasing onto prepared-text geometry",
+  "scope": "The 1560×9464 sheet contains 64 family-by-variant cells and retains upstream's prepared-text geometry and prior visual review. Against immutable main 53056ec569781d6f5153f90b5bd563aa70f8c5c7, exactly 4,693 of 14,763,840 pixels change, limited to four Sequence, four Class and four Architecture cells. The other 52 cells are pixel-identical to upstream's reviewed artifact. Codex inspected all twelve changed before/after crops at native size in four 1040×1140 comparison panels: Sequence responses point toward the receiving lifeline, Class triangles and diamonds follow their vertical shafts, and Architecture tips contact their service boundaries. Labels, palettes, routes, prepared text and containment remain unchanged. This is agent review, not human approval, viewer certification or proof of arbitrary input/font coverage. Final-cell terminal tests separately cover ASCII/Unicode semantics.",
   "audit": "eval/section-b-brand-evidence/production-comparison.md"
 }

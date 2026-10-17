@@ -18,6 +18,7 @@ import { collectSamples } from '../../eval/layout-compare/run.ts'
 import { resolveRenderRequest, resolvedRenderExecutionPlanOf } from '../render-contract.ts'
 import { positionResolvedFamily } from '../positioning.ts'
 import { BUILTIN_RENDER_HOOKS } from '../render-family-hooks.ts'
+import { getFamily, knownBuiltinFamilies } from '../agent/families.ts'
 
 interface Lowered {
   id: string
@@ -57,8 +58,14 @@ function lowerSample(source: string, options: RenderOptions = {}): { doc: SceneD
 function lowerAll(): { scenes: Lowered[]; dropped: Array<{ id: string; reason: string }> } {
   const scenes: Lowered[] = []
   const dropped: Array<{ id: string; reason: string }> = []
-  for (const sample of collectSamples()) {
-    const lowered = lowerSample(sample.source)
+  const samples: Array<{ id: string; family: string; source: string; options?: RenderOptions }> = [
+    ...collectSamples(),
+    ...knownBuiltinFamilies().map(family => ({ id: `registry/${family}`, family, source: getFamily(family)!.example })),
+  ]
+  const gantt = samples.find(sample => sample.id === 'fixture/gantt-basic.mmd')!
+  samples.push({ ...gantt, id: `${gantt.id}/dependency-arrows`, options: { gantt: { dependencyArrows: true } } })
+  for (const sample of samples) {
+    const lowered = lowerSample(sample.source, sample.options)
     if (!lowered) continue
     if ('dropped' in lowered) dropped.push({ id: sample.id, reason: lowered.dropped })
     else scenes.push({ id: sample.id, family: sample.family, ...lowered })

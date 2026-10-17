@@ -12,7 +12,7 @@ import * as marks from './scene/marks.ts'
 import { DefaultBackend } from './scene/backend.ts'
 import type { ResolvedStateVisualConfig } from './state/config.ts'
 import { resolveMindmapIcon } from './mindmap/icons.ts'
-import { serializeMarkerResources } from './scene/marker-resources.ts'
+import { serializeMarkerResources, tipAnchoredArrow } from './scene/marker-resources.ts'
 import {
   projectConnectorPath,
   projectRoundedConnectorPath,
@@ -172,14 +172,12 @@ function arrowMarkerResources(color?: string, fixed = false): readonly MarkerDes
   // SVG places this reference point at the route vertex. Anchor the polygon
   // tip itself so a correctly clipped route cannot push the visible arrow
   // through the target outline.
-  const refX = w
   const stroke = color ?? 'var(--_arrow)'
   const suffix = `${color ? `-${markerSuffix(color)}` : ''}${fixed ? '-fixed' : ''}`
   const paint = { fill: stroke, stroke, strokeWidth: '0.75', strokeLinejoin: 'round' as const }
-  const units = fixed ? { units: 'userSpaceOnUse' as const } : {}
   return [
-    { id: `arrowhead${suffix}`, shape: 'arrow', size: { width: w, height: h }, ref: { x: refX, y: h / 2 }, ...units, orient: 'auto', geometry: { kind: 'polygon', points: [{ x: 0, y: 0 }, { x: w, y: h / 2 }, { x: 0, y: h }] }, paint },
-    { id: `arrowhead-start${suffix}`, shape: 'arrow', size: { width: w, height: h }, ref: { x: 0, y: h / 2 }, ...units, orient: 'auto', geometry: { kind: 'polygon', points: [{ x: w, y: 0 }, { x: 0, y: h / 2 }, { x: w, y: h }] }, paint },
+    tipAnchoredArrow(`arrowhead${suffix}`, { width: w, height: h }, 'end', paint, fixed ? 'userSpaceOnUse' : undefined),
+    tipAnchoredArrow(`arrowhead-start${suffix}`, { width: w, height: h }, 'start', paint, fixed ? 'userSpaceOnUse' : undefined),
   ]
 }
 

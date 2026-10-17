@@ -159,6 +159,32 @@ export function setColumnWidth(graph: AsciiGraph, node: AsciiNode): void {
   }
 }
 
+/** A glyph cannot carry two different endpoint meanings. Reserve capacity
+ * before converting logical cells to physical cards; compatible shared heads
+ * retain their existing allocation and ownership. */
+function reserveMarkerPorts(graph: AsciiGraph): void {
+  const faces = new Map<AsciiNode, Map<string, Array<{ edge: AsciiEdge; end: 'start' | 'end'; marker: string }>>>()
+  for (const edge of graph.edges) for (const end of ['start', 'end'] as const) {
+    if (edge.style === 'invisible' || !(end === 'start' ? edge.hasArrowStart : edge.hasArrowEnd)
+      || (end === 'start' ? edge.fromSubgraph || edge.attachFromSubgraph : edge.toSubgraph || edge.attachToSubgraph)) continue
+    const node = end === 'start' ? edge.from : edge.to, dir = end === 'start' ? edge.startDir : edge.endDir
+    const groups = faces.get(node) ?? new Map(), key = `${dir.x},${dir.y}`, group = groups.get(key) ?? []
+    group.push({ edge, end, marker: (end === 'start' ? edge.startMarker : edge.endMarker) ?? 'arrow' })
+    groups.set(key, group); faces.set(node, groups)
+  }
+  for (const [node, groups] of faces) for (const [face, group] of groups) {
+    const kinds = [...new Set(group.map(item => item.marker))]
+    if (kinds.length < 2) continue
+    for (const { edge, end, marker } of group) edge[end === 'start' ? 'startPort' : 'endPort'] = { index: kinds.indexOf(marker), count: kinds.length }
+    const verticalFace = face === '1,0' || face === '1,2'
+    const dimensions = verticalFace ? graph.columnWidth : graph.rowHeight
+    const origin = verticalFace ? node.gridCoord!.x : node.gridCoord!.y
+    const extent = (dimensions.get(origin) ?? 0) + (dimensions.get(origin + 1) ?? 0) + 1
+    const extra = Math.max(0, kinds.length * 3 + 2 - extent)
+    dimensions.set(origin + 1, (dimensions.get(origin + 1) ?? 0) + extra)
+  }
+}
+
 /** Ensure grid has width/height entries for all cells along an edge path. */
 export function increaseGridSizeForPath(graph: AsciiGraph, path: GridCoord[]): void {
   for (const c of path) {
@@ -855,6 +881,7 @@ export function createMapping(graph: AsciiGraph): void {
   }
 
   shareSiblingEdgeTrunks(graph)
+  reserveMarkerPorts(graph)
 
   if (graph.config.reverseDirection) {
     mirrorHorizontalGrid(graph)
