@@ -57,7 +57,7 @@ async function readCssFiles(fontPrefix: string): Promise<string> {
 }
 
 function editorExamplesDataJs(): string {
-  return `var EDITOR_EXAMPLES = ${JSON.stringify(EDITOR_EXAMPLES, null, 2)};`
+  return `var EDITOR_EXAMPLES = ${JSON.stringify(EDITOR_EXAMPLES)};`
 }
 
 function editorFamilyDataJs(): string {
@@ -73,7 +73,7 @@ function editorFontDataJs(): string {
     { name: 'Georgia', value: 'Georgia', group: 'System' },
     { name: 'Courier New', value: 'Courier New', group: 'System' },
   ]
-  return `var EDITOR_PRESET_FONTS = ${JSON.stringify([...hosted, ...system], null, 2)};`
+  return `var EDITOR_PRESET_FONTS = ${JSON.stringify([...hosted, ...system])};`
 }
 
 async function readJsFiles(): Promise<string> {
@@ -103,10 +103,25 @@ async function readJsFiles(): Promise<string> {
     readSharedBrowserFile('copy-feedback.js'),
     ...order.map(f => readFile(f)),
   ])
-  // The renderer is bundled separately; also remove authoring comments and
-  // whitespace from the application code shipped beside it.
-  return new Bun.Transpiler({ loader: 'js', target: 'browser', minifyWhitespace: true })
-    .transformSync([copyFeedback, editorExamplesDataJs(), editorFamilyDataJs(), editorFontDataJs(), ...parts].join('\n\n'))
+  // Minify the ordered application together. Its own scope prevents shortened
+  // names colliding with the separately bundled renderer. Leave the generated
+  // catalog data outside that private scope for the site data contract.
+  const source = [copyFeedback, ...parts].join('\n\n')
+  const result = await Bun.build({
+    entrypoints: ['editor-app'],
+    target: 'browser',
+    format: 'iife',
+    minify: true,
+    plugins: [{
+      name: 'editor-app',
+      setup(build) {
+        build.onResolve({ filter: /^editor-app$/ }, () => ({ path: 'entry.js', namespace: 'editor-app' }))
+        build.onLoad({ filter: /.*/, namespace: 'editor-app' }, () => ({ contents: source, loader: 'js' }))
+      },
+    }],
+  })
+  if (!result.success) throw new AggregateError(result.logs, 'Editor application bundle failed')
+  return [editorExamplesDataJs(), editorFamilyDataJs(), editorFontDataJs(), await result.outputs[0]!.text()].join('\n')
 }
 
 function escapeHtmlAttr(value: string): string {
