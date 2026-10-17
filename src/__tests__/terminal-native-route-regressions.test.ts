@@ -1,6 +1,116 @@
 import { expect, test } from 'bun:test'
 import { renderMermaidASCIIWithReceipt } from '../ascii/index.ts'
 import { terminalDocumentOf, type TerminalDocument, type TerminalRegion } from '../ascii/terminal-document.ts'
+import { convertToAsciiGraph } from '../ascii/converter.ts'
+import { createMapping } from '../ascii/grid.ts'
+import { drawGraph } from '../ascii/draw.ts'
+import { shapeRegistry } from '../ascii/shapes/index.ts'
+import { parseMermaid } from '../parser.ts'
+
+function visibleEndpointMarkers(doc: TerminalDocument, edge: TerminalRegion) {
+  return edge.ports!.flatMap(port => {
+    expect(port.markers, `${edge.id}/${port.end} has model intent`).toBeDefined()
+    const dx = port.side === 'R' ? 1 : port.side === 'L' ? -1 : 0, dy = port.side === 'B' ? 1 : port.side === 'T' ? -1 : 0
+    return port.markers!.map((marker, index) => {
+      const offset = (port.markerOffset ?? 0) + index
+      const cell = doc.cell(port.x + dx * offset, port.y + dy * offset)!
+      expect(cell.kind).toBe('marker')
+      expect(cell.owners.some(owner => owner.kind === 'edge' && owner.id === edge.id)).toBe(true)
+      expect(cell.marker).toMatchObject(marker)
+      return cell.marker!
+    })
+  })
+}
+
+test.each([false, true])('native families retain typed endpoint meaning across faces and widths (ASCII=%s)', useAscii => {
+  for (const direction of ['TB', 'BT', 'LR', 'RL']) {
+    for (const [source, shapes] of [
+      [`flowchart ${direction}\nA o--x B\nB <--> C\nC --> C`, ['wide-circle', 'cross', 'arrow', 'arrow', 'arrow']],
+      [`stateDiagram-v2\ndirection ${direction}\nA --> B\nB --> A\nB --> B`, ['arrow', 'arrow', 'arrow']],
+      [`classDiagram\ndirection ${direction}\nA o--* B\nB <|-- C\nC --() D`, ['hollow-diamond', 'filled-diamond', 'open-arrow', 'lollipop']],
+      [`erDiagram\ndirection ${direction}\nA ||--o{ B : owns`, ['cardinality-one', 'cardinality-many', 'circle']],
+    ] as const) {
+      for (const maxWidth of [48, 96]) {
+        const rendered = renderMermaidASCIIWithReceipt(source, { useAscii, colorMode: 'none', maxWidth })
+        const doc = terminalDocumentOf(rendered)!
+        const actual = doc.regions().filter(region => region.kind === 'edge').flatMap(edge => visibleEndpointMarkers(doc, edge).map(marker => marker.shape))
+        expect(actual.sort()).toEqual([...shapes].sort())
+        expect(() => doc.assertMarkers()).not.toThrow()
+      }
+    }
+  }
+})
+
+test.each([false, true])('different Flowchart marker meanings receive distinct physical ports, including self routes (ASCII=%s)', useAscii => {
+  for (const direction of ['TB', 'BT', 'LR', 'RL']) for (const target of ['B', 'A']) {
+    const { doc } = render(`flowchart ${direction}\nA o--o ${target}\nA x--x ${target}\nA <--> ${target}`, useAscii)
+    const edges = doc.regions().filter(region => region.kind === 'edge')
+    expect(edges).toHaveLength(3)
+    const shapes: string[] = edges.flatMap(edge => visibleEndpointMarkers(doc, edge).map(marker => marker.shape))
+    expect(shapes.sort()).toEqual(['wide-circle', 'wide-circle', 'cross', 'cross', 'arrow', 'arrow'].sort())
+    for (const end of ['start', 'end']) expect(new Set(edges.map(edge => {
+      const port = edge.ports!.find(port => port.end === end)!
+      return `${port.x},${port.y}`
+    })).size).toBe(3)
+  }
+})
+
+test.each([false, true])('every native node silhouette retains inward markers on all four faces (ASCII=%s)', useAscii => {
+  for (const shape of shapeRegistry.keys()) for (const graphDirection of ['TD', 'LR'] as const) for (const reverse of [false, true]) {
+    const graph = convertToAsciiGraph(parseMermaid('flowchart TD\nA <--> B'), { useAscii, graphDirection, reverseDirection: graphDirection === 'LR' && reverse, paddingX: 3, paddingY: 3, boxBorderPadding: 1 })
+    for (const node of graph.nodes) node.shape = shape
+    createMapping(graph)
+    const doc = drawGraph(graph)
+    if (graphDirection === 'TD' && reverse) doc.flip(false, true)
+    expect(() => doc.serialize()).not.toThrow()
+    const edge = doc.regions().find(region => region.kind === 'edge')!
+    const markers = visibleEndpointMarkers(doc, edge)
+    expect(markers.map(marker => marker.direction)).toEqual(graphDirection === 'TD' ? reverse ? ['B', 'T'] : ['T', 'B'] : reverse ? ['R', 'L'] : ['L', 'R'])
+  }
+})
+
+test.each([false, true])('Architecture preserves authored arrow faces, ends and parallel routes (ASCII=%s)', useAscii => {
+  const inward = { T: 'B', R: 'L', B: 'T', L: 'R' } as const
+  for (const [from, to] of [['L', 'R'], ['R', 'L'], ['T', 'B'], ['B', 'T']] as const) {
+    const { doc } = render(`architecture-beta\nservice a(server)[Source]\nservice b(database)[Target]\na:${from} <--> ${to}:b\na:${from} <--> ${to}:b`, useAscii)
+    const edges = doc.regions().filter(region => region.kind === 'edge')
+    expect(edges).toHaveLength(2)
+    for (const edge of edges) {
+      expect(edge.ports!.map(port => port.side)).toEqual([from, to])
+      expect(edge.ports!.map(port => port.markers![0]!.direction)).toEqual([inward[from], inward[to]])
+      if (edge.ports!.some(port => port.markerProjection)) {
+        expect(edge.projectedText).toContain(`a:${from} <--> ${to}:b`)
+        for (const port of edge.ports!) expect(doc.diagnostics).toContainEqual(expect.objectContaining({ code: 'TERMINAL_FAMILY_PROJECTION', feature: port.markerProjection }))
+      } else expect(visibleEndpointMarkers(doc, edge).map(marker => marker.direction)).toEqual([inward[from], inward[to]])
+    }
+    expect(() => doc.assertMarkers()).not.toThrow()
+  }
+})
+
+test.each([false, true])('Sequence preserves half/stick distinctions and inward self heads after wrapping (ASCII=%s)', useAscii => {
+  const tokens = [
+    ['-|\\', 'half-top', 'end'], ['-|/', 'half-bottom', 'end'], ['-\\\\', 'stick-top', 'end'], ['-//', 'stick-bottom', 'end'],
+    ['\\|-', 'half-top', 'start'], ['/|-', 'half-bottom', 'start'], ['\\\\-', 'stick-top', 'start'], ['//-', 'stick-bottom', 'start'],
+  ] as const
+  for (const [token, shape, end] of tokens) for (const [from, to] of [['A', 'B'], ['B', 'A'], ['A', 'A']] as const) {
+    const result = renderMermaidASCIIWithReceipt(`sequenceDiagram\nparticipant A\nparticipant B\n${from}${token}${to}: complete wrapped message with long text`, { useAscii, colorMode: 'none', targetWidth: 48 })
+    const doc = terminalDocumentOf(result)!, edge = doc.regions().find(region => region.kind === 'edge')!
+    expect(visibleEndpointMarkers(doc, edge)).toMatchObject([{ shape, direction: from === to || (end === 'end' ? from > to : from < to) ? 'L' : 'R' }])
+  }
+  const { doc } = render('sequenceDiagram\nA<<->>A: self', useAscii)
+  expect(visibleEndpointMarkers(doc, doc.regions().find(region => region.kind === 'edge')!).map(marker => marker.direction)).toEqual(['L', 'L'])
+})
+
+test('non-geometric terminal families explicitly retain their distinct projection', () => {
+  const journey = renderMermaidASCIIWithReceipt('journey\nsection Work\nDone: 5: Me')
+  expect(journey.terminalStyle.diagnostics).toContainEqual(expect.objectContaining({ feature: 'journey.axis', code: 'TERMINAL_FAMILY_PROJECTION' }))
+  const gantt = renderMermaidASCIIWithReceipt('gantt\ndateFormat YYYY-MM-DD\nA :a, 2026-01-01, 1d\nB :b, after a, 1d\nC :c, 2026-01-01, until b', { useAscii: true, targetWidth: 48 })
+  expect(gantt.text).toContain('b after a')
+  expect(gantt.text).toContain('c until b')
+  const relations = terminalDocumentOf(gantt)!.regions().filter(region => region.kind === 'edge')
+  expect(relations.map(region => [region.from, region.to])).toEqual([['a', 'b'], ['c', 'b']])
+  expect(gantt.terminalStyle.diagnostics.filter(diagnostic => diagnostic.feature.endsWith('.dependencies'))).toHaveLength(2)
+})
 
 function render(source: string, useAscii = false) {
   const result = renderMermaidASCIIWithReceipt(source, { useAscii, colorMode: 'none' })

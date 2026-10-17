@@ -71,6 +71,10 @@ export function renderJourneyTerminal(
   const diagram = parseJourneyDiagram(lines)
   const useAscii = config.useAscii
   const document = new TerminalDocument()
+  if (diagram.sections.some(section => section.tasks.length)) document.report({
+    code: 'TERMINAL_FAMILY_PROJECTION', feature: 'journey.axis',
+    message: 'Journey uses ordered scored task lists and a score strip rather than a geometric axis arrow; task order, actors and exact scores are retained.',
+  })
   let owner: TerminalOwner | undefined
   const pushLine = (segments: StyledSegment[] = []): void => {
     document.line(segments, { owner })

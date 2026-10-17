@@ -7,6 +7,7 @@ import { join, resolve } from 'node:path'
 import type { RenderOptions } from '../../src/types.ts'
 import { getFamily, knownBuiltinFamilies } from '../../src/agent/families.ts'
 import { denseDag } from '../../eval/degenerate-etn/generators.ts'
+import { contactSheetScenarios } from '../../eval/visual-rubric/scenarios.ts'
 
 const ROOT = resolve(import.meta.dir, '../..')
 const [base, head, destination] = process.argv.slice(2)
@@ -87,6 +88,11 @@ const fixtureOptions = Object.fromEntries(fixtures.map(fixture => {
   return [fixture.id, { svg, png: { ...svg, background: svg.transparent ? '#00000000' : '#ffffff' } }]
 }))
 const terminalFixtures = [
+  { id: 'terminal-mixed-marker-ports', source: 'flowchart LR\nA o--o B\nA x--x B\nA <--> B', cue: 'Before, circle, cross and arrow markers compete for one cell and later meanings disappear. After, native face capacity and separate ports preserve all six endpoint markers.' },
+  { id: 'terminal-sequence-self-heads', source: 'sequenceDiagram\nA<<->>A: both heads\nA\\|-A: half start\nA-|/A: half return', cue: 'Both self-message heads point into their own lifeline. The old upper head points away; half heads retain their authored kind in the metadata.' },
+  { id: 'terminal-container-entry', source: 'flowchart LR\nX --> S\nsubgraph S [One]\na1\na2\nend\nsubgraph T [Two]\nb1\nb2\nend', cue: 'Before, the route enters through the top and points outward at the left face from inside. After, it stops at the first actual container boundary with an inward head.' },
+  { id: 'terminal-rl-physical-ports', source: contactSheetScenarios().find(scenario => scenario.letter === 'AI')!.source.replace('flowchart TD', 'flowchart RL'), cue: 'Existing contact-sheet AI counterexample, reflected to RL. Inspect the heads entering EEEE from DDDD and F? from DDDD: both disappear at stale grid boundaries in the baseline and survive at physical native ports after the repair. The other heads and all labels are controls.' },
+  { id: 'terminal-gantt-dependencies', source: 'gantt\ndateFormat YYYY-MM-DD\nFirst :a, 2026-01-01, 1d\nNext :b, after a, 1d\nUntil :c, 2026-01-01, until b', cue: 'The bars and dates stay unchanged. Owned after/until summaries now preserve the dependency graph, and diagnostics explicitly distinguish them from geometric arrows.' },
   { id: 'terminal-authored-empty-rows', source: 'flowchart LR\nA -->|long label<br><br>x| B', cue: 'The drawing is unchanged. Compare projectedText in the metadata: its deliberate empty row must agree with the existing visible row gap and authoredTextCells, without inventing text cells.' },
   { id: 'terminal-sequence-empty-rows', source: 'sequenceDiagram\nparticipant A\nparticipant B\nA->>B: first<br><br>last', cue: 'The complete message is one logical occurrence. The drawing retains its original rows; metadata must include first, the deliberate empty row and last, while actor header/footer occurrences remain separate.' },
   { id: 'terminal-whitespace-identities', source: whitespaceIdentitySource, cue: 'Authored LF, TAB, CR, space and quoted empty-row identifiers remain distinct. Inspect exact node/edge IDs and endpoints in both projections, including generated-looking IDs and duplicate links. The display may show the same safe label for different source elements.' },

@@ -84,6 +84,39 @@ normally. Only existing shaft segments remain, contact stays on the same face,
 and route certificates are refreshed. Larger turns, corners and curved/sloped
 surfaces are not flattened into a universal perpendicular-arrival rule.
 
+### Native terminal endpoints
+
+ASCII and Unicode do not reuse SVG coordinates or require graphical layout.
+Architecture, Sequence, Flowchart, State, Class and ER declare endpoint marker
+intent from their parsed family models on their native allocated ports. The
+owned `TerminalDocument` carries that intent separately from painted cells.
+At serialization, it checks the completed drawing for missing, extra,
+displaced, wrong-kind, wrong-direction and wrong-owner markers, including
+cells outside a serialized row. Directional heads must face inward relative
+to their allocated face, and framed ports must lie on or immediately outside
+that face of the actual native card/container bounds. Expectations and semantic markers follow offset
+composition and reflection together; half/stick and hollow/filled variants
+remain distinct even when ASCII uses the same character for different kinds.
+
+ER cardinalities retain their one- or two-cell, outward-normal glyph groups;
+they are not treated as inward-pointing arrows. A deliberately unroutable
+Architecture relation keeps its expected heads and authored faces but records
+a family projection diagnostic and an owned endpoint summary instead of
+pretending those heads were drawn. Journey retains ordered scored tasks and
+reports the loss of its geometric axis. Gantt retains dependencies as owned
+`after`/`until` text, with a diagnostic that geometric arrows are not drawn.
+
+Flowchart/State terminal routes use physical endpoints after RL projection,
+clip container relations to the actual frame, and preserve reciprocal lanes.
+Only ordinary one-way arrow relations share a bundled terminal; other marker
+kinds and bidirectional relations retain independent native routes. Sequence
+self-message heads both face their own lifeline. Incompatible Flowchart/State
+heads reserve face capacity and separate native port slots before physical
+cards are drawn, including parallel self routes. These are cell-space rules,
+not a claim of SVG/terminal pixel parity or validation of arbitrary externally
+supplied string renderers. Optional Scene projection receipts remain separate
+graphical evidence, not the oracle for the native final-cell check.
+
 ## Relation accessibility
 
 Typed edges, messages, and relationships emit:

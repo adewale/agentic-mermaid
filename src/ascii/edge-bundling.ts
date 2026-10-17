@@ -138,6 +138,9 @@ function canBundle(edges: AsciiEdge[], graph: AsciiGraph): boolean {
   const firstToSg = getNodeSubgraph(graph, edges[0]!.to)
 
   for (const edge of edges) {
+    // A shared terminal has one semantic head. Keep independently marked,
+    // bidirectional and unmarked relations on their own allocated routes.
+    if (edge.hasArrowStart || !edge.hasArrowEnd || (edge.endMarker && edge.endMarker !== 'arrow')) return false
     // A feedback/container edge is topology, not another fan-in/fan-out leg.
     // Bundling it with primary edges can route the shared trunk through node
     // interiors and overwrite labels in a three-node graph with a 2-cycle.
