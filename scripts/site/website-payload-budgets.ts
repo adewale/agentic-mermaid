@@ -64,10 +64,8 @@ export const WEBSITE_PAYLOAD_BUDGETS: WebsitePayloadBudgets = Object.freeze({
   'editor-empty': Object.freeze({
     maxRequests: 2,
     maxRawBytes: 3_579_000,
-    // Compound-route correctness adds ~4.2 kB gzip / 2.8 kB Brotli. Keep
-    // modest absolute headroom; the per-PR growth gate remains unchanged.
-    maxGzipBytes: 1_075_000,
-    maxBrotliBytes: 850_000,
+    maxGzipBytes: 1_065_000,
+    maxBrotliBytes: 840_000,
     required: Object.freeze([
       '^/editor/$',
       '^/editor/editor-[a-f0-9]{12}\\.js$',
