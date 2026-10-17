@@ -196,7 +196,7 @@ export function renderClassTerminal(text: string, config: AsciiConfig, colorMode
   const ascii = config.useAscii
   const frame = (box: TerminalBox, owner: TerminalOwner, opaque = false) => paintTerminalFrame(doc, box, owner, ascii, opaque)
   for (const box of namespaces.sort((a, b) => a.depth - b.depth || compareCodePointStrings(a.id, b.id))) {
-    const owner = doc.element({ id: box.id, kind: 'cluster', parentId: box.parentId, members: box.members })
+    const owner = doc.element({ id: box.id, kind: 'cluster', parent: box.parentId === undefined ? undefined : { id: box.parentId, kind: 'cluster' }, members: box.members })
     frame(box, owner)
     doc.scope(owner, () => box.labelLines.forEach((line, row) => doc.text(box.x + Math.max(1, Math.floor((box.width - visualWidth(line) - 2) / 2)), box.y + row, ` ${line} `)))
   }
@@ -213,11 +213,11 @@ export function renderClassTerminal(text: string, config: AsciiConfig, colorMode
       if (enabled) doc.put(port.x, port.y, markerGlyph(type, port.side, ascii), { owner, role: 'arrow', kind: 'marker' })
     }
     paintBoxText(doc, route.label, owner)
-    paintBoxText(doc, route.fromLabel, { id: generated(`${owner.id}:from-cardinality`), kind: 'label', parentId: owner.id })
-    paintBoxText(doc, route.toLabel, { id: generated(`${owner.id}:to-cardinality`), kind: 'label', parentId: owner.id })
+    paintBoxText(doc, route.fromLabel, { id: generated(`${owner.id}:from-cardinality`), kind: 'label', parent: { id: owner.id, kind: 'edge' } })
+    paintBoxText(doc, route.toLabel, { id: generated(`${owner.id}:to-cardinality`), kind: 'label', parent: { id: owner.id, kind: 'edge' } })
   }
   for (const box of placed.values()) {
-    const owner = doc.element({ id: box.id, kind: 'node', parentId: namespaceByClass.get(box.id) })
+    const owner = doc.element({ id: box.id, kind: 'node', parent: namespaceByClass.has(box.id) ? { id: namespaceByClass.get(box.id)!, kind: 'cluster' } : undefined })
     doc.region(owner, { x: box.x, y: box.y, width: box.width, height: box.height })
     doc.fill(box.x, box.y, box.width, box.height, { owner, kind: 'surface' })
     const card = drawMultiBox(box.sections, ascii, 1, { width: box.width, height: box.height })
@@ -226,13 +226,13 @@ export function renderClassTerminal(text: string, config: AsciiConfig, colorMode
     for (const [, , cell] of card.entries()) { const color = cell.kind === 'text' ? paint.text : paint.stroke; if (color) cell.color = color }
     let y = 1
     box.sections.forEach((section, index) => {
-      const bounds = { x: 1, y, width: box.width - 2, height: Math.max(1, section.length) }, compartment: TerminalOwner = { id: generated(`${box.id}:compartment:${index}`), kind: 'compartment', parentId: box.id }
+      const bounds = { x: 1, y, width: box.width - 2, height: Math.max(1, section.length) }, compartment: TerminalOwner = { id: generated(`${box.id}:compartment:${index}`), kind: 'compartment', parent: { id: box.id, kind: 'node' } }
       card.attributeWithin(compartment, bounds); card.region(compartment, bounds); y += bounds.height + 1
     })
     doc.scope(owner, () => doc.overlay(card, box.x, box.y))
   }
   for (const box of noteBoxes) {
-    const owner = doc.element({ id: box.id, kind: 'node', parentId: box.parentId })
+    const owner = doc.element({ id: box.id, kind: 'node', parent: box.parentId === undefined ? undefined : { id: box.parentId, kind: 'node' } })
     frame(box, owner, true); doc.textBlock(box.x + 2, box.y + 1, box.lines, { owner })
   }
   for (const cls of diagram.classes) if (cls.href) doc.text(0, doc.height + 1, `link ${cls.id}: ${cls.href}`, { owner: { id: cls.id, kind: 'node' }, role: 'text' })

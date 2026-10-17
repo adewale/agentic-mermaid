@@ -170,10 +170,10 @@ export function renderQuadrantTerminal(
       const suffix = `: [${fmt(p.x)}, ${fmt(p.y)}]`
       const labelLines = wrapText(displayText(p.label), targetWidth ? Math.max(1, targetWidth - visualWidth(suffix) - 2) : undefined)
       labelLines.forEach((text, index) => document.line([
-        { text: pointMarkers[pointIndex]!.glyph, role: 'arrow', kind: 'marker', color: pointMarkers[pointIndex]!.color, owner: { id: `point-${pointIndex}:legend`, kind: 'label', parentId: `point-${pointIndex}` } },
+        { text: pointMarkers[pointIndex]!.glyph, role: 'arrow', kind: 'marker', color: pointMarkers[pointIndex]!.color, owner: { id: `point-${pointIndex}:legend`, kind: 'label', parent: { id: `point-${pointIndex}`, kind: 'node' } } },
         { text: ' ' },
         { text, role: 'text', textGroup: 'legend', owner: { id: `point-${pointIndex}`, kind: 'node' } },
-        { text: index === labelLines.length - 1 ? suffix : '', role: 'text', owner: { id: `point-${pointIndex}:coordinates`, kind: 'label', parentId: `point-${pointIndex}` } },
+        { text: index === labelLines.length - 1 ? suffix : '', role: 'text', owner: { id: `point-${pointIndex}:coordinates`, kind: 'label', parent: { id: `point-${pointIndex}`, kind: 'node' } } },
       ]))
     }
   }

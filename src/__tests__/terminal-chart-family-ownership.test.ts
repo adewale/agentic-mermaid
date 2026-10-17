@@ -85,7 +85,7 @@ describe('terminal outline and chart ownership', () => {
     const radar = capture(config => renderRadarAscii(['radar-beta', 'axis a["Same"], b["Same"]', 'curve x["Curve name"]{1,2}'], config, 'none', DEFAULT_ASCII_THEME))
     expect(authored(radar, 'a').map(cell => cell.glyph).join('')).toBe('Same')
     expect(authored(radar, 'b').map(cell => cell.glyph).join('')).toBe('Same')
-    expect([...radar.entries()].some(([, , cell]) => cell.kind === 'mark' && cell.color !== undefined && cell.owners.some(owner => owner.parentId === 'x'))).toBe(true)
+    expect([...radar.entries()].some(([, , cell]) => cell.kind === 'mark' && cell.color !== undefined && cell.owners.some(owner => owner.parent?.id === 'x' && owner.parent.kind === 'node'))).toBe(true)
     const rings = radar.regions().filter(region => region.kind === 'ring')
     expect(rings).toHaveLength(5)
     expect(rings.every(region => region.ownedCellSpans.length === 1)).toBe(true)

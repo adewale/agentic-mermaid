@@ -45,7 +45,7 @@ export function renderGitGraphTerminal(diagram: GitGraphDiagram, config: AsciiCo
   const colors = new Map(branches.map((branch, index) => [branch.name, safeCssColor(themeVariables?.[`git${index % 8}`]) ?? palette[index]!]))
   const paint = (owner: TerminalOwner, branch: string, role: 'line' | 'arrow' | 'text', kind: 'stroke' | 'marker' | 'text') => ({ owner, role, kind, color: colors.get(branch) })
   branches.forEach(branch => {
-    const element: TerminalOwner = { id: generated(`branch:${branch.name}`), kind: 'lane', members: diagram.commits.filter(commit => commit.branch === branch.name).map(commit => commit.id) }
+    const element: TerminalOwner = { id: generated(`branch:${branch.name}`, ['branch', branch.name]), kind: 'lane', members: diagram.commits.filter(commit => commit.branch === branch.name).map(commit => commit.id) }
     const x = vertical ? xFor(0, branch.name) : Math.max(0, labelWidth - visualWidth(branch.name))
     const y = vertical ? titleRows : yFor(0, branch.name)
     doc.textBlock(x, y, branch.name, paint(element, branch.name, 'text', 'text'))
@@ -55,7 +55,7 @@ export function renderGitGraphTerminal(diagram: GitGraphDiagram, config: AsciiCo
   const byId = new Map(diagram.commits.map(commit => [commit.id, commit]))
   const plans = diagram.commits.flatMap(commit => commit.parents.flatMap(parentId => {
     const parent = byId.get(parentId), source = positions.get(parentId), target = positions.get(commit.id)!
-    return parent && source ? [{ commit, parent, source, target, id: generated(`edge:${parentId}:${commit.id}`) }] : []
+    return parent && source ? [{ commit, parent, source, target, id: generated(`edge:${parentId}:${commit.id}`, ['edge', parentId, commit.id]) }] : []
   }))
   // Shared runs are allocated from actual branch rails and merge stems.
   // Merely crossing a different rail does not make two routes a bundle.
@@ -84,7 +84,7 @@ export function renderGitGraphTerminal(diagram: GitGraphDiagram, config: AsciiCo
   for (const [index, plan] of plans.entries()) {
     const { commit, parent, source, target, id } = plan
     const shared = root(index)
-    const element = doc.element({ id, kind: 'edge', from: parent.id, to: commit.id, ...((counts.get(shared) ?? 0) > 1 ? { bundle: generated(`shared-rail:${plans[shared]!.id}`) } : {}) })
+    const element = doc.element({ id, kind: 'edge', from: parent.id, to: commit.id, ...((counts.get(shared) ?? 0) > 1 ? { bundle: generated(`shared-rail:${plans[shared]!.id}`, ['shared-rail', plans[shared]!.id]) } : {}) })
     doc.port(element, { nodeId: parent.id, ...source, side: vertical ? 'B' : 'R', end: 'start' })
     doc.port(element, { nodeId: commit.id, ...target, side: vertical ? source.x === target.x ? 'T' : source.x < target.x ? 'L' : 'R' : source.y === target.y ? 'L' : source.y < target.y ? 'T' : 'B', end: 'end' })
     const points = [source, vertical ? { x: source.x, y: target.y } : { x: target.x, y: source.y }, target]
@@ -105,7 +105,7 @@ export function renderGitGraphTerminal(diagram: GitGraphDiagram, config: AsciiCo
     const { x, y } = positions.get(commit.id)!
     const type = commit.customType ?? commit.type
     const glyph = type === 'HIGHLIGHT' ? '#' : type === 'REVERSE' ? 'X' : type === 'MERGE' ? (config.useAscii ? 'O' : '◎') : type === 'CHERRY_PICK' ? (config.useAscii ? '<>' : '◆') : '*'
-    const element: TerminalOwner = { id: commit.id, kind: 'node', parentId: generated(`branch:${commit.branch}`) }
+    const element: TerminalOwner = { id: commit.id, kind: 'node', parent: { id: generated(`branch:${commit.branch}`, ['branch', commit.branch]), kind: 'lane' } }
     doc.mark(x, y, glyph, paint(element, commit.branch, 'arrow', 'marker'))
     doc.scope(element, () => {
       doc.textBlock(x + visualWidth(glyph) + 1, y + 1, (labels.get(commit.id) ?? [commit.message || commit.id]).map(line => `[${line}]`), paint(element, commit.branch, 'text', 'text'))

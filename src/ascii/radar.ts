@@ -131,7 +131,7 @@ export function renderRadarTerminal(
         }
         if (legend.length > 0) { legend.push({ text: '   ' }); width += 3 }
         legend.push(
-          { text: glyph, role: 'arrow', kind: 'marker', color: colors[index]!, owner: { id: `${curve.id}:legend`, kind: 'label', parentId: curve.id } },
+          { text: glyph, role: 'arrow', kind: 'marker', color: colors[index]!, owner: { id: `${curve.id}:legend`, kind: 'label', parent: { id: curve.id, kind: 'node' } } },
           { text: ' ' },
           { text, role: 'text', textGroup: 'legend', owner: { id: curve.id, kind: 'node' } },
         )
@@ -194,8 +194,8 @@ export function renderRadarTerminal(
           { text: ' '.repeat(Math.max(0, axisWidth - visualWidth(axisLines[row] ?? '')) + 2) },
           { text: curveLines[row] ?? '', role: 'text', textGroup: `table:${axis.id}`, owner: { id: curve.id, kind: 'node' } },
           { text: ' '.repeat(Math.max(0, curveWidth - visualWidth(curveLines[row] ?? '')) + 1) + sep + ' ', role: 'border', kind: 'stroke', color: visual.axisColor },
-          { text: row === 0 ? bar : '', role: 'arrow', kind: 'mark', color: colors[paletteIndex]!, owner: { id: `${curve.id}:${axis.id}`, kind: 'plot', parentId: curve.id } },
-          { text: valueCol, role: 'text', owner: { id: `${curve.id}:${axis.id}:value`, kind: 'label', parentId: curve.id } },
+          { text: row === 0 ? bar : '', role: 'arrow', kind: 'mark', color: colors[paletteIndex]!, owner: { id: `${curve.id}:${axis.id}`, kind: 'plot', parent: { id: curve.id, kind: 'node' } } },
+          { text: valueCol, role: 'text', owner: { id: `${curve.id}:${axis.id}:value`, kind: 'label', parent: { id: curve.id, kind: 'node' } } },
         ])
       }
     })

@@ -132,7 +132,7 @@ export function renderJourneyTerminal(
 
     for (let taskIndex = 0; taskIndex < section.tasks.length; taskIndex++) {
       const task = section.tasks[taskIndex]!
-      owner = { id: task.id, kind: 'node', parentId: section.id }
+      owner = { id: task.id, kind: 'node', parent: { id: section.id, kind: 'band' } }
       const scoreSegments = renderScoreSegments(task.score, useAscii)
       const scoreWidth = 5
       const taskPrefixWidth = scoreWidth + 1
@@ -152,7 +152,7 @@ export function renderJourneyTerminal(
       }
 
       if (task.actors.length > 0) {
-        owner = { id: `${task.id}:actors`, kind: 'label', parentId: task.id }
+        owner = { id: `${task.id}:actors`, kind: 'label', parent: { id: task.id, kind: 'node' } }
         const actorPrefix = '  by '
         const actorLines = wrapText(task.actors.map(label => displayText(label)).join(', '), maxWidth ? Math.max(1, maxWidth - visualWidth(actorPrefix)) : undefined)
         actorLines.forEach((line, index) => {

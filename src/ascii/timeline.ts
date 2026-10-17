@@ -80,7 +80,7 @@ export function renderTimelineTerminal(
 
     for (let periodIndex = 0; periodIndex < section.periods.length; periodIndex++) {
       const period = section.periods[periodIndex]!
-      owner = { id: period.id, kind: 'node', parentId: section.id }
+      owner = { id: period.id, kind: 'node', parent: { id: section.id, kind: 'band' } }
       // Continuation lines carry the wider 3-cell prefix, so wrap to that.
       const periodLines = wrapText(period.label, maxWidth ? Math.max(1, maxWidth - 3) : undefined)
 
@@ -98,7 +98,7 @@ export function renderTimelineTerminal(
 
       for (let eventIndex = 0; eventIndex < period.events.length; eventIndex++) {
         const event = period.events[eventIndex]!
-        owner = { id: event.id, kind: 'node', parentId: period.id }
+        owner = { id: event.id, kind: 'node', parent: { id: period.id, kind: 'node' } }
         // First-line prefix ('│  ├─ ') is 6 cells wide.
         const eventLines = wrapText(event.text, maxWidth ? Math.max(1, maxWidth - 6) : undefined)
         const junction = eventIndex === period.events.length - 1 ? lastBranch : branch

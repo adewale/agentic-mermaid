@@ -167,7 +167,7 @@ export function renderArchitectureTerminal(
 
   // Containers form the background layer. Deeper groups draw after parents.
   for (const group of [...groupBoxes.values()].sort((a, b) => a.depth - b.depth || compareCodePointStrings(a.id, b.id))) {
-    activeOwner = canvas.element({ id: group.id, kind: 'group', parentId: group.parentId, members: [...groupBoxes.values(), ...serviceBoxes.values(), ...junctionBoxes.values()].filter(box => box.parentId === group.id).map(box => box.id) })
+    activeOwner = canvas.element({ id: group.id, kind: 'group', parent: group.parentId === undefined ? undefined : { id: group.parentId, kind: 'group' }, members: [...groupBoxes.values(), ...serviceBoxes.values(), ...junctionBoxes.values()].filter(box => box.parentId === group.id).map(box => box.id) })
     canvas.region(activeOwner, { x: group.x, y: group.y, width: group.width, height: group.height })
     drawFramedBox(group, true)
   }
@@ -254,12 +254,12 @@ export function renderArchitectureTerminal(
 
   // Cards and junction labels are the foreground layer.
   for (const service of serviceBoxes.values()) {
-    activeOwner = canvas.element({ id: service.id, kind: 'node', parentId: service.parentId })
+    activeOwner = canvas.element({ id: service.id, kind: 'node', parent: service.parentId === undefined ? undefined : { id: service.parentId, kind: 'group' } })
     canvas.region(activeOwner, { x: service.x, y: service.y, width: service.width, height: service.height })
     drawFramedBox(service, false)
   }
   for (const junction of junctionBoxes.values()) {
-    activeOwner = canvas.element({ id: junction.id, kind: 'node', parentId: junction.parentId })
+    activeOwner = canvas.element({ id: junction.id, kind: 'node', parent: junction.parentId === undefined ? undefined : { id: junction.parentId, kind: 'group' } })
     canvas.region(activeOwner, { x: junction.x, y: junction.y, width: junction.width, height: junction.height })
     drawFramedBox(junction, false)
   }

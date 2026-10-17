@@ -99,7 +99,7 @@ export function renderSankeyTerminal(lines: string[], config: AsciiConfig, color
     const key = JSON.stringify([link.source, link.target])
     const index = occurrence.get(key) ?? 0
     occurrence.set(key, index + 1)
-    return [link, generated(sankeyLinkId(link.source, link.target, index), `link:${linkIndex}`)]
+    return [link, generated(sankeyLinkId(link.source, link.target, index), ['link', linkIndex])]
   }))
   // Labels draw their display text, as the SVG node labels do.
   if (diagram.title) {
@@ -123,7 +123,7 @@ export function renderSankeyTerminal(lines: string[], config: AsciiConfig, color
     for (let i = 0; i < headerLines.length - 1; i++) document.line([{ text: headerLines[i]!, role: 'text', textGroup: 'header', owner: { id: source, kind: 'node' } }])
     document.line([
       { text: headerLines.at(-1) ?? '', role: 'text', textGroup: 'header', owner: { id: source, kind: 'node' } },
-      { text: headerValue, role: 'text', owner: { id: generated(`${source}:value`, JSON.stringify(['source-value', source])), kind: 'label', parentId: source } },
+      { text: headerValue, role: 'text', owner: { id: generated(`${source}:value`, ['source-value', source]), kind: 'label', parent: { id: source, kind: 'node' } } },
     ])
 
     links.forEach((link, linkIndex) => {
@@ -163,7 +163,7 @@ export function renderSankeyTerminal(lines: string[], config: AsciiConfig, color
             { text: `  ${prefix}`, role: 'line', kind: 'stroke', owner: edgeOwner },
             { text: line, role: 'text', textGroup: id, owner: { id: link.target, kind: 'node' } },
             { text: ' '.repeat(Math.max(0, labelWidth - visualWidth(line)) + 2) },
-            { text: valuePart, role: 'text', owner: { id: generated(`${id}:value`, JSON.stringify(['link-value', id])), kind: 'label', parentId: id } },
+            { text: valuePart, role: 'text', owner: { id: generated(`${id}:value`, ['link-value', id]), kind: 'label', parent: { id, kind: 'edge' } } },
             { text: bar, role: 'arrow', kind: 'mark', color, owner: edgeOwner },
           ])
         }

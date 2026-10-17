@@ -15,7 +15,12 @@ import { paintTerminalFrame } from './terminal-geometry.ts'
 
 interface CellBounds { x: number; y: number; width: number; height: number }
 interface PositionedText extends CellBounds { lines: string[]; index: number; parentId?: string }
+interface PositionedMessage extends PositionedText { arrowY: number; fromX: number; toX: number }
 interface SequenceFrame extends CellBounds { index: number; header: string[]; dividers: Array<{ y: number; lines: string[] }> ; parentId?: string }
+
+function messageLabelX(message: PositionedMessage, line: string): number {
+  return message.fromX === message.toX ? message.x : Math.min(message.fromX, message.toX) + Math.floor((Math.abs(message.toX - message.fromX) - visualWidth(line)) / 2)
+}
 
 export function renderSequenceTerminal(text: string, config: AsciiConfig, colorMode?: ColorMode, theme?: AsciiTheme, seqConfig: ResolvedSequenceConfig = {}, targetWidth?: number): TerminalArtifact {
   targetWidth ??= config.targetWidth ?? config.maxWidth
@@ -87,7 +92,7 @@ export function renderSequenceTerminal(text: string, config: AsciiConfig, colorM
   if (maxDepth) leftMargin += maxDepth * 4
   const llX = [leftMargin]
   for (let index = 1; index < diagram.actors.length; index++) llX[index] = llX[index - 1]! + Math.max(halfBox[index - 1]! + halfBox[index]! + (diagram.actors[index - 1]!.box !== diagram.actors[index]!.box ? 4 : 2), gaps[index - 1]! + 2, 10)
-  const messages: Array<PositionedText & { arrowY: number; fromX: number; toX: number }> = []
+  const messages: PositionedMessage[] = []
   const notes: PositionedText[] = []
   const frames = new Map<number, SequenceFrame>()
   const closedFrames: SequenceFrame[] = []
@@ -193,17 +198,30 @@ export function renderSequenceTerminal(text: string, config: AsciiConfig, colorM
   diagram.blocks.forEach((block, index) => {
     if (block.color && block.color.toLowerCase() !== 'transparent') doc.report({ code: 'TERMINAL_FAMILY_PROJECTION', feature: `sequence.${generated(`block:${index}`)}.background`, message: 'The authored rect background color is represented by an owned terminal frame; terminal output uses foreground ink without a background fill.' })
   })
-  const owner = (id: string, kind: TerminalOwner['kind'] = 'node', parentId?: string): TerminalOwner => doc.element({ id, kind, ...(parentId ? { parentId } : {}) })
+  const owner = (id: string, kind: TerminalOwner['kind'] = 'node', parent?: TerminalOwner['parent']): TerminalOwner => doc.element({ id, kind, ...(parent ? { parent } : {}) })
   const stroke = (x: number, y: number, mask: number, role: CharRole, element: TerminalOwner, style: 'solid' | 'dashed' = 'solid') => doc.stroke(x, y, mask, { owner: element, role, ascii, style })
   const marker = (x: number, y: number, glyph: string, element: TerminalOwner) => doc.put(x, y, glyph, { owner: element, role: 'arrow', kind: 'marker' })
   const frame = (bounds: CellBounds, element: TerminalOwner, opaque = false) => paintTerminalFrame(doc, bounds, element, ascii, opaque)
-  // Header rectangles are allocated before background lifelines. Painting a
-  // complete label must never have to erase another element's route cells.
-  const headers = closedFrames.flatMap(frame => [
+  // Foreground text and opaque cards intentionally interrupt lifelines and
+  // activation bars. Allocate those gaps before either background pass;
+  // foreground routes and labels still meet the ordinary collision checks.
+  const foreground = closedFrames.flatMap(frame => [
     { x: frame.x + 1, y: frame.y, width: Math.max(0, ...frame.header.map(visualWidth)), height: frame.header.length },
     ...frame.dividers.map(divider => ({ x: frame.x + 1, y: divider.y, width: Math.max(0, ...divider.lines.map(visualWidth)), height: divider.lines.length })),
   ])
-  const reservedHeader = (x: number, y: number) => headers.some(header => x >= header.x && x < header.x + header.width && y >= header.y && y < header.y + header.height)
+  foreground.push(...notes)
+  messages.forEach(message => message.lines.forEach((line, row) => foreground.push({ x: messageLabelX(message, line), y: message.y + row, width: visualWidth(line), height: 1 })))
+  diagram.actors.forEach((actor, index) => {
+    const card = { x: llX[index]! - Math.floor(actorWidths[index]! / 2), y: actorTop.get(index) ?? participantTop, width: actorWidths[index]!, height: actorBoxH }
+    foreground.push(card)
+    if (actor.destroyMessageIndex === undefined) foreground.push({ ...card, y: footerY })
+  })
+  const backgroundGaps = new Map<number, Array<{ start: number; end: number }>>()
+  for (const bounds of foreground) for (let row = bounds.y; row < bounds.y + bounds.height; row++) {
+    const spans = backgroundGaps.get(row) ?? []
+    spans.push({ start: bounds.x, end: bounds.x + bounds.width }); backgroundGaps.set(row, spans)
+  }
+  const reservedForeground = (x: number, y: number) => backgroundGaps.get(y)?.some(span => x >= span.start && x < span.end) ?? false
   // Participant-group frames are background geometry with distinct ownership.
   participantGroups.forEach(group => {
     const element = doc.element({ id: generated(`box:${group.index}`), kind: 'group', members: group.members })
@@ -211,10 +229,10 @@ export function renderSequenceTerminal(text: string, config: AsciiConfig, colorM
     doc.scope(element, () => group.lines.forEach((line, y) => doc.text(group.x + 1, y, line, { role: 'text', kind: 'text' })))
   })
   diagram.actors.forEach((actor, index) => {
-    const element = owner(actor.id, 'node', actor.box === undefined ? undefined : generated(`box:${actor.box}`))
+    const element = owner(actor.id, 'node', actor.box === undefined ? undefined : { id: generated(`box:${actor.box}`), kind: 'group' })
     const start = actorTop.has(index) ? actorTop.get(index)! + actorBoxH : participantTop + actorBoxH
     const end = actor.destroyMessageIndex === undefined ? footerY : messages[actor.destroyMessageIndex]?.arrowY ?? footerY
-    for (let y = start; y <= end; y++) if (!reservedHeader(llX[index]!, y)) stroke(llX[index]!, y, 5, 'line', element)
+    for (let y = start; y <= end; y++) if (!reservedForeground(llX[index]!, y)) stroke(llX[index]!, y, 5, 'line', element)
   })
   // Activations are owned spans, drawn behind opaque labels and notes.
   const activationStacks = new Map<string, Array<{ y: number; id: number }>>()
@@ -224,9 +242,9 @@ export function renderSequenceTerminal(text: string, config: AsciiConfig, colorM
     if (enable) stack.push({ y, id: activationIndex++ })
     else if (stack.length) {
       const opened = stack.pop()!, start = opened.y, ai = actorIndex.get(id)!, x = llX[ai]! + stack.length
-      const element = owner(generated(`activation:${opened.id}`), 'band', id)
+      const element = owner(generated(`activation:${opened.id}`), 'band', { id, kind: 'node' })
       doc.region(element, { x: x - 1, y: start, width: 3, height: Math.max(1, y - start + 1) })
-      for (let row = start; row <= y; row++) { stroke(x - 1, row, 5, 'line', element); stroke(x + 1, row, 5, 'line', element) }
+      for (let row = start; row <= y; row++) for (const column of [x - 1, x + 1]) if (!reservedForeground(column, row)) stroke(column, row, 5, 'line', element)
     }
     activationStacks.set(id, stack)
   }
@@ -239,7 +257,7 @@ export function renderSequenceTerminal(text: string, config: AsciiConfig, colorM
   for (const event of diagram.activationEvents ?? []) if (event.messageIndex >= diagram.messages.length) activation(event.actorId, footerY - 1, event.kind === 'activate')
   for (const [id, stack] of activationStacks) while (stack.length) activation(id, footerY, false)
   diagram.actors.forEach((actor, index) => {
-    const element = owner(actor.id, 'node', actor.box === undefined ? undefined : generated(`box:${actor.box}`))
+    const element = owner(actor.id, 'node', actor.box === undefined ? undefined : { id: generated(`box:${actor.box}`), kind: 'group' })
     const drawActor = (top: number) => {
       const width = actorWidths[index]!, lines = actorLines[index]!, x = llX[index]! - Math.floor(width / 2)
       frame({ x, y: top, width, height: actorBoxH }, element, true)
@@ -255,7 +273,7 @@ export function renderSequenceTerminal(text: string, config: AsciiConfig, colorM
   })
   for (const positioned of messages) {
     const message = diagram.messages[positioned.index]!, self = message.from === message.to
-    const element = doc.element({ id: generated(`message:${positioned.index}`), kind: 'edge', parentId: positioned.parentId, from: message.from, to: message.to })
+    const element = doc.element({ id: generated(`message:${positioned.index}`), kind: 'edge', parent: positioned.parentId === undefined ? undefined : { id: positioned.parentId, kind: 'compartment' }, from: message.from, to: message.to })
     const style = message.lineStyle === 'dashed' ? 'dashed' : 'solid'
     const y = positioned.arrowY, from = positioned.fromX, to = positioned.toX
     const endpoint = (x: number, row: number, start: boolean, right: boolean): void => {
@@ -283,13 +301,12 @@ export function renderSequenceTerminal(text: string, config: AsciiConfig, colorM
       endpoint(to, y, false, from < to)
     }
     positioned.lines.forEach((line, index) => {
-      const x = self ? positioned.x : Math.min(from, to) + Math.floor((Math.abs(to - from) - visualWidth(line)) / 2)
-      doc.text(x, positioned.y + index, line, { owner: element, role: 'text', kind: 'text' })
+      doc.text(messageLabelX(positioned, line), positioned.y + index, line, { owner: element, role: 'text', kind: 'text' })
     })
   }
   // Frames use measured owned bounds, including complete conditions and notes.
   for (const positioned of [...closedFrames].reverse()) {
-    const element = owner(generated(`block:${positioned.index}`), 'compartment', positioned.parentId)
+    const element = owner(generated(`block:${positioned.index}`), 'compartment', positioned.parentId === undefined ? undefined : { id: positioned.parentId, kind: 'compartment' })
     frame(positioned, element)
     doc.textBlock(positioned.x + 1, positioned.y, positioned.header, { owner: element, role: 'text', kind: 'text' })
     positioned.dividers.forEach(divider => {
@@ -298,7 +315,7 @@ export function renderSequenceTerminal(text: string, config: AsciiConfig, colorM
     })
   }
   for (const positioned of notes) {
-    const element = owner(generated(`note:${positioned.index}`), 'node', positioned.parentId)
+    const element = owner(generated(`note:${positioned.index}`), 'node', positioned.parentId === undefined ? undefined : { id: positioned.parentId, kind: 'compartment' })
     frame(positioned, element, true)
     doc.textBlock(positioned.x + 2, positioned.y + 1, positioned.lines, { owner: element, role: 'text', kind: 'text' })
   }

@@ -2,8 +2,8 @@ import { serializeTerminalArtifact } from '../ascii/terminal-artifact.ts'
 import { describe, expect, test } from 'bun:test'
 import { renderSequenceTerminal as renderSequenceAscii } from '../ascii/sequence.ts'
 import { type TerminalRegion } from '../ascii/terminal-document.ts'
-import type { AsciiConfig } from '../ascii/types.ts'
-import { visualWidth } from '../ascii/width.ts'
+import type { AsciiConfig, ColorMode } from '../ascii/types.ts'
+import { visualWidth, WIDE_CHAR_CONTINUATION } from '../ascii/width.ts'
 import { parseSequenceDiagram } from '../sequence/parser.ts'
 
 function render(body: string, useAscii = false, targetWidth?: number) {
@@ -146,6 +146,48 @@ end`)
     const cells = [...doc.entries()].filter(([, , cell]) => cell.kind === 'text' && cell.owners.some(owner => owner.id === 'message:0'))
     expect(cells.map(([, , cell]) => cell.glyph).join('')).toContain('a very long label')
     expect(output).toContain('retained')
+  })
+
+  test.each([
+    ['a skipped participant', 'A->>C: hello', [['message:0', 'hello']]],
+    ['multiline text over an active participant', 'A->>+B: start\nA->>C: hello<br/>日本 é\nB-->>-A: finish', [['message:1', 'hello\n日本 é']]],
+    ['self messages and nested activations', 'activate B\nactivate B\nactivate B\nB->>B: self message<br/>second line\ndeactivate B\ndeactivate B\ndeactivate B', [['message:0', 'self message\nsecond line']]],
+    ['an opaque note over an active participant', 'A->>+B: start\nNote over A,C: note covering B\nB-->>-A: finish', [['note:0', 'note covering B']]],
+    ['fragment headers and dividers over an activation', 'A->>+B: start\nalt a complete condition across the active actor\nA->>C: hello\nelse another complete condition across the active actor\nA->>C: finish\nend\nB-->>-A: done', [['block:0', 'alt [a complete condition across the active actor]'], ['block:0', '[another complete condition across the active actor]']]],
+    ['created and destroyed participants', 'A->>+B: start\ncreate participant D as Dynamic\nA->>D: created across B and C\nNote over B,D: created note\ndestroy D\nA-xD: destroyed across B and C\nB-->>-A: done', [['D', 'Dynamic'], ['message:1', 'created across B and C'], ['message:2', 'destroyed across B and C'], ['note:0', 'created note']]],
+  ] as const)('reserves %s before lifelines and activations in every output mode', (_name, body, expected) => {
+    const source = `sequenceDiagram\nparticipant A\nparticipant B\nparticipant C\n${body}`
+    for (const useAscii of [false, true]) for (const colorMode of ['none', 'ansi16', 'ansi256', 'truecolor', 'html'] satisfies ColorMode[]) {
+      const config: AsciiConfig = { useAscii, paddingX: 1, paddingY: 1, boxBorderPadding: 1, graphDirection: 'TD' }
+      const artifact = renderSequenceAscii(source, config, colorMode)
+      expect(serializeTerminalArtifact(artifact).length).toBeGreaterThan(0)
+      const doc = artifact.document
+      for (const [id, text] of expected) {
+        const rows = new Map<number, string>()
+        for (const [, y, cell] of [...doc.entries()].sort(([ax, ay], [bx, by]) => ay - by || ax - bx)) {
+          if (cell.kind === 'text' && cell.glyph !== WIDE_CHAR_CONTINUATION && cell.owners.some(owner => owner.id === id)) rows.set(y, (rows.get(y) ?? '') + cell.glyph)
+        }
+        expect([...rows.values()].join('\n')).toContain(text)
+      }
+      expect(doc.diagnostics.filter(item => /COLLISION|OVERLAP/.test(item.code))).toEqual([])
+      const activationCells = [...doc.entries()].filter(([, , cell]) => cell.owners.some(owner => owner.kind === 'band'))
+      if (body.includes('activate B') || body.includes('->>+B')) expect(activationCells.length).toBeGreaterThan(0)
+      expect(activationCells.every(([, , cell]) => cell.kind !== 'text')).toBe(true)
+    }
+  })
+
+  test('keeps the crossed lifeline on each side of a reserved message label', () => {
+    const { doc, region } = render('A->>C: hello')
+    const column = region('B').authoredTextCells![0]!.column
+    const message = region('message:0')
+    for (const row of [message.canvasRow - 1, message.ports![0]!.y + 1]) {
+      expect(doc.cell(column, row)?.kind).toBe('stroke')
+      expect(doc.cell(column, row)?.owners.some(owner => owner.id === 'B')).toBe(true)
+    }
+    const label = doc.cell(column, message.canvasRow)!
+    expect(label.kind).toBe('text')
+    expect(label.owners.map(owner => owner.id)).toEqual(['message:0'])
+    expect(doc.diagnostics.filter(item => /COLLISION|OVERLAP/.test(item.code))).toEqual([])
   })
 
   test.each([false, true])('mixed-height participant labels join every lifeline to its measured card (ASCII=%s)', useAscii => {

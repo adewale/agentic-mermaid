@@ -12,9 +12,9 @@ interface Box { x: number; y: number; width: number; height: number }
 
 /** Shared graph rendering plus State-only note geometry. */
 export function renderStateTerminal(parsed: MermaidGraph, config: AsciiConfig, colorMode: ColorMode, theme: AsciiTheme, targetWidth?: number): TerminalArtifact {
-  const graph = convertToAsciiGraph(parsed, config)
+  const graph = convertToAsciiGraph(parsed, config, 'cluster')
   createMapping(graph)
-  drawGraph(graph, 'cluster')
+  drawGraph(graph)
   if (parsed.stateNotes?.length) overlayNotes(graph, parsed.stateNotes, targetWidth ?? config.maxWidth)
   if (parsed.direction === 'BT') {
     flipCanvasVertically(graph.canvas)
@@ -61,7 +61,7 @@ function overlayNotes(graph: AsciiGraph, notes: StateNoteSpec[], targetWidth?: n
     graph.canvas.scope(link, () => drawConnector(graph, target, box, note.side))
     graph.canvas.port(link, { nodeId: note.target, end: 'start', x: note.side === 'right' ? target.x + target.width - 1 : target.x, y: target.y + Math.floor(target.height / 2), side: note.side === 'right' ? 'R' : 'L' })
     graph.canvas.port(link, { nodeId: note.id, end: 'end', x: note.side === 'right' ? box.x : box.x + box.width - 1, y: box.y + Math.floor(box.height / 2), side: note.side === 'right' ? 'L' : 'R' })
-    graph.canvas.scope({ id: note.id, kind: 'node', parentId: note.target }, () => graph.canvas.overlay(canvas, box.x, box.y))
+    graph.canvas.scope({ id: note.id, kind: 'node', parent: { id: note.target, kind: graph.nodes.some(node => node.name === note.target) ? 'node' : 'cluster' } }, () => graph.canvas.overlay(canvas, box.x, box.y))
     placed.push(box)
   }
 }

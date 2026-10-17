@@ -301,7 +301,7 @@ export function renderGanttTerminal(
             { text: ' '.repeat(Math.max(0, labelWidth - 4 - width) + 2) },
             { text: padForCol(Math.min(plotWidth - 1, colOf(v.start + (v.renderEnd - v.start) / 2)), g.vert), role: 'line' as const, kind: 'stroke' as const },
             { text: '  ' },
-            { text: formatGanttInstant(v.start, schedule.dateOnly ? '%m-%d' : '%m-%d %H:%M'), role: 'text' as const, owner: { id: generated(`${taskOwner(v).id}:dates`), kind: 'label' as const, parentId: taskOwner(v).id } },
+            { text: formatGanttInstant(v.start, schedule.dateOnly ? '%m-%d' : '%m-%d %H:%M'), role: 'text' as const, owner: { id: generated(`${taskOwner(v).id}:dates`), kind: 'label' as const, parent: { id: taskOwner(v).id, kind: 'node' as const } } },
           ] : []),
         ])
       })
@@ -363,7 +363,7 @@ export function renderGanttTerminal(
               { text: ' '.repeat(Math.max(0, labelWidth - 4 - width) + 2) },
               ...buildTrack(t),
               { text: '  ' },
-              { text: dateGutter(t, schedule).replace('→', arrow), role: 'text' as const, owner: { id: generated(`${currentOwner.id}:dates`), kind: 'label' as const, parentId: currentOwner.id } },
+              { text: dateGutter(t, schedule).replace('→', arrow), role: 'text' as const, owner: { id: generated(`${currentOwner.id}:dates`), kind: 'label' as const, parent: { id: currentOwner.id, kind: 'node' as const } } },
             ] : []),
           ])
         })

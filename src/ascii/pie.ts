@@ -129,13 +129,13 @@ export function renderPieTerminal(
     // may style any category, but it cannot displace the explicit `>` target.
     const marker = highlighted ? '> ' : cueMarker || (staticHighlight !== undefined || hasSemanticCue ? '  ' : '')
     document.line([
-      { text: marker, role: 'arrow', kind: 'marker', owner: { id: `slice-${index}:highlight`, kind: 'label', parentId: `slice-${index}` } },
+      { text: marker, role: 'arrow', kind: 'marker', owner: { id: `slice-${index}:highlight`, kind: 'label', parent: { id: `slice-${index}`, kind: 'node' } } },
       { text: linesForEntry.at(-1) ?? '', role: 'text', color: visual.legendTextColor, textGroup: 'label', owner: { id: `slice-${index}`, kind: 'node' } },
       { text: ' '.repeat(Math.max(0, labelWidth - visualWidth(linesForEntry.at(-1) ?? '')) + 2) },
-      { text: bar, role: 'arrow', kind: 'mark', color: colors[index]!, owner: { id: `slice-${index}:bar`, kind: 'plot', parentId: `slice-${index}` } },
+      { text: bar, role: 'arrow', kind: 'mark', color: colors[index]!, owner: { id: `slice-${index}:bar`, kind: 'plot', parent: { id: `slice-${index}`, kind: 'node' } } },
       { text: barPad },
-      { text: pct, role: 'text', color: visual.sectionTextColor, textGroup: 'value', owner: { id: `slice-${index}:value`, kind: 'label', parentId: `slice-${index}` } },
-      { text: valuePart, role: 'text', color: visual.legendTextColor, textGroup: 'value', owner: { id: `slice-${index}:value`, kind: 'label', parentId: `slice-${index}` } },
+      { text: pct, role: 'text', color: visual.sectionTextColor, textGroup: 'value', owner: { id: `slice-${index}:value`, kind: 'label', parent: { id: `slice-${index}`, kind: 'node' } } },
+      { text: valuePart, role: 'text', color: visual.legendTextColor, textGroup: 'value', owner: { id: `slice-${index}:value`, kind: 'label', parent: { id: `slice-${index}`, kind: 'node' } } },
     ])
   })
 

@@ -27,7 +27,7 @@ import { resolveNodeInlineStyle, resolveEdgeInlineStyle } from '../color-resolve
  * - MermaidGraph.subgraphs → AsciiSubgraph[] with parent/child tree
  * - Node labels are used as display names (not raw IDs)
  */
-export function convertToAsciiGraph(parsed: MermaidGraph, config: AsciiConfig): AsciiGraph {
+export function convertToAsciiGraph(parsed: MermaidGraph, config: AsciiConfig, containerKind: 'subgraph' | 'cluster' = 'subgraph'): AsciiGraph {
   const width = config.maxWidth === undefined ? undefined : Math.max(config.targetWidth === undefined ? 8 : 1, Math.floor(config.maxWidth / 3))
   const label = (text: string): string => wrapText(displayText(text), width).join('\n')
   const subgraphIds = collectSubgraphIds(parsed.subgraphs)
@@ -149,6 +149,7 @@ export function convertToAsciiGraph(parsed: MermaidGraph, config: AsciiConfig): 
     canvas.report({ code: 'TERMINAL_FAMILY_PROJECTION', feature: `node:${node.name}:style:${property}`, message: `Node ${node.name} style ${property} projects to a terminal card with text and border ink; its graphical fill, typography and dimensions remain source data.` })
   }
   return {
+    containerKind,
     nodes,
     edges,
     canvas,

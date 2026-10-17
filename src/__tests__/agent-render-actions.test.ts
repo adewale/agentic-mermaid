@@ -234,19 +234,26 @@ describe('renderer-neutral action surface', () => {
     }
   })
 
-  test('class and namespace sharing an id retain separate terminal identities', () => {
-    const source = 'classDiagram\n namespace A["A"] {\n class A["A"]\n }\n click A href "https://example.com"'
+  test.each([
+    { id: 'A', parent: 'A', source: 'classDiagram\n namespace A["A"] {\n class A["A"]\n }\n click A href "https://example.com"' },
+    { id: 'Outer.Inner', parent: 'Outer.Inner', source: 'classDiagram\n namespace Outer {\n namespace Inner {\n class `Outer.Inner`["Target"]\n }\n }\n click `Outer.Inner` href "https://example.com"' },
+    { id: 'A', parent: 'Outer.Inner', source: 'classDiagram\n namespace Outer {\n namespace Inner {\n class A["Target"]\n }\n }\n click A href "https://example.com"' },
+  ])('class $id and namespace $parent retain typed terminal parent identities', ({ id, parent, source }) => {
     const meta = renderMermaidASCIIWithMeta(source, { colorMode: 'none' })
-    const namespace = meta.regions.find(region => region.id === 'A' && region.kind === 'cluster')
-    const cls = meta.regions.find(region => region.id === 'A' && region.kind === 'node')
+    const namespace = meta.regions.find(region => region.id === parent && region.kind === 'cluster')
+    const cls = meta.regions.find(region => region.id === id && region.kind === 'node')
     expect(namespace).toBeDefined()
     expect(cls).toBeDefined()
     expect(cls!.canvasRow).toBeGreaterThan(namespace!.canvasRow)
-
-    const rendered = renderMermaidWithActions(source, { format: 'unicode', options: { colorMode: 'none' } })
-    expect(rendered.actionSurface.actions[0]!.region).toEqual(expect.objectContaining({
-      id: 'node:A', bounds: expect.objectContaining({ y: cls!.canvasRow }),
-    }))
+    expect(cls!.parentId).toBe(parent)
+    for (const format of ['ascii', 'unicode'] as const) {
+      const rendered = renderMermaidWithActions(source, { format, options: { colorMode: 'none' } })
+      const region = rendered.actionSurface.actions[0]!.region!
+      expect(region).toEqual(expect.objectContaining({
+        id: `node:${id}`, parentId: `group:${parent}`, bounds: expect.objectContaining({ y: cls!.canvasRow }),
+      }))
+      expect(region.parentId).not.toBe(region.id)
+    }
   })
 
   test('terminal failures throw instead of returning an unmarked empty artifact', () => {

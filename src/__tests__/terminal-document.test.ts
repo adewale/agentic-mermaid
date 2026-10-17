@@ -7,6 +7,223 @@ const owner = (id: string): TerminalOwner => ({ id, kind: 'node' })
 const route = (id: string, bundle?: string): TerminalOwner => ({ id, kind: 'edge', ...(bundle ? { bundle } : {}) })
 
 describe('owned terminal composition', () => {
+  const identityAdmissions = {
+    element: (doc: TerminalDocument, foreign: TerminalOwner) => doc.element(foreign),
+    scope: (doc: TerminalDocument, foreign: TerminalOwner) => doc.scope(foreign, () => doc.put(8, 8, 'x')),
+    region: (doc: TerminalDocument, foreign: TerminalOwner) => doc.region(foreign, { x: 8, y: 8, width: 2, height: 2 }),
+    port: (doc: TerminalDocument, foreign: TerminalOwner) => doc.port(foreign, { nodeId: 'X', x: 8, y: 8, end: 'start' }),
+    paint: (doc: TerminalDocument, foreign: TerminalOwner) => doc.stroke(8, 8, 10, { owner: foreign }),
+    owners: (doc: TerminalDocument, foreign: TerminalOwner) => doc.owners([owner('fresh'), foreign]),
+    attribution: (doc: TerminalDocument, foreign: TerminalOwner) => doc.attribute([owner('fresh'), foreign]),
+    rectangle: (doc: TerminalDocument, foreign: TerminalOwner) => doc.attributeWithin(foreign, { x: 0, y: 0, width: 1, height: 1 }),
+    text: (doc: TerminalDocument, foreign: TerminalOwner) => doc.text(8, 8, 'new', { owner: owner('fresh'), owners: [foreign] }),
+    allocation: (doc: TerminalDocument, foreign: TerminalOwner) => doc.textBlock(8, 8, 'new', { owner: owner('fresh'), owners: [foreign] }),
+    fill: (doc: TerminalDocument, foreign: TerminalOwner) => doc.fill(8, 8, 2, 2, { owner: owner('fresh'), owners: [foreign] }),
+    line: (doc: TerminalDocument, foreign: TerminalOwner) => doc.line([{ text: 'new', owner: owner('fresh') }, { text: 'bad', owner: foreign }]),
+    overlay: (doc: TerminalDocument, foreign: TerminalOwner) => {
+      const layer = new TerminalDocument()
+      layer.stroke(0, 0, 10, { owner: owner('fresh') })
+      layer.stroke(1, 0, 10, { owner: foreign })
+      doc.overlay(layer, 8, 8)
+    },
+  }
+
+  test.each(Object.entries(identityAdmissions))('conflicting complete definitions fail before %s changes the target', (_boundary, admit) => {
+    const doc = new TerminalDocument()
+    doc.stroke(0, 0, 10, { owner: doc.element({ ...route('r'), from: 'A', to: 'B' }) })
+    const foreign = new TerminalDocument().element({ ...route('r'), from: 'X', to: 'Y' })
+    const before = { output: doc.serialize(), regions: doc.regions(), width: doc.width, height: doc.height }
+    expect(() => admit(doc, foreign)).toThrow('Inconsistent terminal element r: from')
+    expect({ output: doc.serialize(), regions: doc.regions(), width: doc.width, height: doc.height }).toEqual(before)
+    expect(doc.hasOwner('fresh')).toBe(false)
+    expect(doc.diagnostics).toEqual([])
+  })
+
+  test('same complete definitions from another document retain one canonical identity', () => {
+    const doc = new TerminalDocument(), layer = new TerminalDocument()
+    const definition = { ...route('r'), from: 'A', to: 'B', members: ['A', 'B'] }
+    const local = doc.element(definition), foreign = layer.element({ ...definition, members: [...definition.members] })
+    layer.stroke(0, 0, 10, { owner: foreign })
+    doc.overlay(layer)
+    expect(doc.cell(0, 0)?.owners).toBe(doc.owners([local]))
+    expect(doc.element({ ...route('r'), from: 'A' })).toBe(local)
+    expect(doc.regions()[0]).toMatchObject({ from: 'A', to: 'B', members: ['A', 'B'] })
+    expect(doc.diagnostics).toEqual([])
+  })
+
+  test.each([
+    ['sourceLine', 2], ['parent', { id: 'parent', kind: 'cluster' }], ['bundle', 'other'],
+    ['from', 'other'], ['to', 'other'], ['members', ['other']],
+  ] as const)('imported definitions validate the immutable %s field', (field, value) => {
+    const definition: TerminalOwner = { ...route('r'), sourceLine: 1, parent: { id: 'parent', kind: 'node' }, bundle: 'shared', from: 'A', to: 'B', members: ['A', 'B'] }
+    const doc = new TerminalDocument()
+    doc.element(definition)
+    const foreign = new TerminalDocument().element({ ...definition, [field]: value })
+    expect(() => doc.owners([foreign])).toThrow(`Inconsistent terminal element r: ${field}`)
+    expect(doc.occupiedCells).toBe(0)
+  })
+
+  test('parent references are immutable and authorize only the declared kind', () => {
+    const parent: { id: string; kind: 'node' | 'cluster' } = { id: 'same', kind: 'node' }
+    const doc = new TerminalDocument(), child = doc.element({ id: 'child', kind: 'compartment', parent })
+    parent.kind = 'cluster'
+    expect(child.parent).toEqual({ id: 'same', kind: 'node' })
+    expect(Object.isFrozen(child.parent)).toBe(true)
+    doc.fill(0, 0, 2, 1, { owner: { id: 'same', kind: 'cluster' } })
+    expect(doc.textBlock(0, 0, 'NO', { owner: child })).toBeUndefined()
+    expect(doc.get(0, 0)).toBe(' ')
+    expect(doc.diagnostics[0]?.code).toBe('TERMINAL_GEOMETRY_COLLISION')
+    const compatible = new TerminalDocument()
+    compatible.fill(0, 0, 2, 1, { owner: { id: 'same', kind: 'node' } })
+    expect(compatible.textBlock(0, 0, 'OK', { owner: child })).toBeDefined()
+    expect(compatible.serialize()).toBe('OK')
+    expect(compatible.regions().find(region => region.id === 'child')).toMatchObject({ parentId: 'same', parentKind: 'node' })
+  })
+
+  test.each(['text', 'textBlock'] as const)('arbitrary owner and group strings retain independent %s allocations', method => {
+    const first = owner('a\0b'), second = owner('a'), source = new TerminalDocument(8, 2)
+    source[method](0, 0, 'AA', { owner: first, textGroup: 'c' })
+    source[method](4, 1, 'BB', { owner: second, textGroup: 'b\0c' })
+    const target = new TerminalDocument()
+    target.marker(5, 1, { shape: 'circle' }, { owner: owner('obstacle') })
+    target.overlay(source)
+    expect(target.regions().find(region => region.id === first.id)?.projectedText).toBe('AA')
+    expect(target.regions().some(region => region.id === second.id)).toBe(false)
+    expect(target.diagnostics).toHaveLength(1)
+    source.flip(true, false)
+    expect(source.get(6, 0)).toBe('A')
+    expect(source.get(2, 1)).toBe('B')
+    expect(source.regions().find(region => region.id === first.id)?.projectedText).toBe('AA')
+  })
+
+  test('distinct owner tuples retain separate diagnostics through composition and reflection', () => {
+    const source = new TerminalDocument()
+    for (const [x, previous, next] of [[0, 'a', 'b|node:c'], [2, 'a|node:b', 'c'], [4, 'a', 'b|node:c']] as const) {
+      source.fill(x, 0, 1, 1, { owner: owner(previous) })
+      expect(source.textBlock(x, 0, 'X', { owner: owner(next) })).toBeUndefined()
+    }
+    expect(source.diagnostics).toHaveLength(2)
+    expect(source.diagnostics.map(diagnostic => diagnostic.feature)).toEqual(['node:a|node:b|node:c', 'node:a|node:b|node:c'])
+    const target = new TerminalDocument()
+    target.overlay(source, 3, 1)
+    target.overlay(source, 3, 1)
+    expect(target.diagnostics).toHaveLength(2)
+    expect(target.diagnostics.map(diagnostic => diagnostic.cell)).toEqual([{ column: 3, row: 1 }, { column: 5, row: 1 }])
+    target.flip(true, true)
+    const composed = new TerminalDocument()
+    composed.overlay(target, 1, 2)
+    expect(composed.diagnostics).toHaveLength(2)
+    expect(composed.diagnostics.map(diagnostic => diagnostic.cell)).toEqual([{ column: 5, row: 2 }, { column: 3, row: 2 }])
+  })
+
+  test('caller-owned frozen definitions and accessor arrays are revalidated on each import', () => {
+    const doc = new TerminalDocument()
+    doc.element({ ...route('r'), from: 'A', to: 'B' })
+    let from = 'A', reads = 0
+    const supplied = Object.freeze([{ ...route('r'), get from() { reads++; return from }, to: 'B' }])
+    doc.owners(supplied)
+    expect(reads).toBe(1)
+    from = 'X'
+    expect(() => doc.owners(supplied)).toThrow('Inconsistent terminal element r: from')
+    expect(reads).toBe(2)
+    const source = new TerminalDocument()
+    let current = source.element({ ...route('r'), from: 'A', to: 'B' })
+    const accessors: TerminalOwner[] = []
+    Object.defineProperty(accessors, '0', { enumerable: true, get: () => current })
+    Object.freeze(accessors)
+    doc.owners(accessors)
+    current = new TerminalDocument().element({ ...route('r'), from: 'X', to: 'Y' })
+    expect(() => doc.owners(accessors)).toThrow('Inconsistent terminal element r: from')
+  })
+
+  test('an external definition is snapshotted before deriving its identity key', () => {
+    const doc = new TerminalDocument()
+    let reads = 0
+    doc.stroke(0, 0, 10, { owner: { get id() { return ++reads === 1 ? 'first' : 'later' }, kind: 'node' } })
+    expect(reads).toBe(1)
+    expect(doc.hasOwner('first')).toBe(true)
+    expect(doc.hasOwner('later')).toBe(false)
+    expect(doc.regions()[0]?.id).toBe('first')
+  })
+
+  test.each(['text', 'textBlock', 'fill', 'line'] as const)('a %s batch snapshots a caller paint getter once before admission', method => {
+    for (const conflicting of [false, true]) {
+      const doc = new TerminalDocument(), good = doc.element({ ...route('r'), from: 'A' })
+      const bad = new TerminalDocument().element({ ...route('r'), from: 'X' })
+      let reads = 0
+      const paint = { get owner() { return ++reads === 1 ? conflicting ? bad : good : conflicting ? good : bad } }
+      const draw = () => {
+        if (method === 'line') doc.line([{ text: 'A' }, { text: 'B' }], paint)
+        else if (method === 'fill') doc.fill(0, 0, 2, 1, paint)
+        else doc[method](0, 0, 'AB', paint)
+      }
+      if (conflicting) {
+        expect(draw).toThrow('Inconsistent terminal element r: from')
+        expect([doc.width, doc.height, doc.occupiedCells]).toEqual([0, 0, 0])
+      } else {
+        expect(draw).not.toThrow()
+        expect(doc.occupiedCells).toBe(2)
+        expect(doc.regions()[0]?.from).toBe('A')
+      }
+      expect(reads).toBe(1)
+    }
+  })
+
+  test('multi-cell paint snapshots an explicit owners getter once', () => {
+    const doc = new TerminalDocument(), good = doc.element({ ...route('r'), from: 'A' })
+    const bad = new TerminalDocument().element({ ...route('r'), from: 'X' })
+    let reads = 0
+    doc.fill(0, 0, 2, 1, { get owners() { return ++reads === 1 ? [good] : [bad] } })
+    expect(reads).toBe(1)
+    expect(doc.occupiedCells).toBe(2)
+    expect(doc.cell(0, 0)?.owners).toBe(doc.cell(1, 0)?.owners)
+  })
+
+  test.each(['text', 'allocation', 'overlay'] as const)('positioned %s extends an existing line without widening untouched rows', method => {
+    const doc = new TerminalDocument()
+    doc.line([{ text: 'A', owner: owner('a') }])
+    doc.line([{ text: 'untouched ', owner: owner('untouched') }])
+    doc.line([{ text: 'X', owner: owner('x') }])
+    if (method === 'text') doc.text(4, 0, '界 ', { owner: owner('b') })
+    else if (method === 'allocation') doc.textBlock(4, 0, '界 ', { owner: owner('b') })
+    else {
+      const layer = new TerminalDocument()
+      layer.textBlock(0, 0, '界 ', { owner: owner('b') })
+      doc.overlay(layer, 4, 0)
+    }
+    expect(doc.serialize({ trimEnd: true })).toBe('A   界 \nuntouched \nX')
+    expect(doc.regions().find(region => region.id === 'b')?.ownedCellSpans).toEqual([{ row: 0, start: 4, end: 7 }])
+    expect(doc.diagnostics).toEqual([])
+  })
+
+  test.each([[true, false], [false, true], [true, true]])('positioned row extents follow complete readable groups through reflection (%s, %s)', (horizontal, vertical) => {
+    const doc = new TerminalDocument()
+    doc.line([{ text: 'ab', owner: owner('group'), textGroup: 'label' }])
+    doc.line([{ text: 'x', owner: owner('group'), textGroup: 'label' }])
+    doc.line([{ text: 'Z', owner: owner('independent') }])
+    doc.textBlock(5, 0, '界 ', { owner: owner('extension') })
+    const before = 'ab   界 \nx\nZ'
+    expect(doc.serialize()).toBe(before)
+    doc.flip(horizontal, vertical)
+    doc.serialize()
+    expect(doc.regions().find(region => region.id === 'group')?.projectedText).toBe('ab\nx')
+    expect(doc.regions().find(region => region.id === 'extension')?.projectedText).toBe('界 ')
+    doc.flip(horizontal, vertical)
+    expect(doc.serialize()).toBe(before)
+    expect(doc.diagnostics).toEqual([])
+  })
+
+  test('vertical reflection retains allocated empty row widths beside positioned line output', () => {
+    const doc = new TerminalDocument(4, 2)
+    doc.line([{ text: 'x', owner: owner('x') }])
+    const before = '    \n    \nx'
+    expect(doc.serialize()).toBe(before)
+    doc.flip(false, true)
+    expect(doc.serialize()).toBe('x\n    \n    ')
+    doc.flip(false, true)
+    expect(doc.serialize()).toBe(before)
+  })
+
   test('a frozen owner array does not make its mutable element definitions immutable', () => {
     const doc = new TerminalDocument()
     const first = route('A'), second = route('B'), supplied = Object.freeze([first, second])
@@ -126,8 +343,8 @@ describe('owned terminal composition', () => {
   test('declared compartments may paint their parent surface, while a sibling cannot erase their text', () => {
     const doc = new TerminalDocument()
     const card = doc.element(owner('card'))
-    const first = doc.element({ id: 'first', kind: 'compartment', parentId: card.id })
-    const second = doc.element({ id: 'second', kind: 'compartment', parentId: card.id })
+    const first = doc.element({ id: 'first', kind: 'compartment', parent: { id: card.id, kind: 'node' } })
+    const second = doc.element({ id: 'second', kind: 'compartment', parent: { id: card.id, kind: 'node' } })
     doc.fill(0, 0, 2, 1, { owner: card })
     doc.text(0, 0, 'AB', { owner: first, owners: doc.owners([card, first]) })
     expect(doc.serialize()).toBe('AB')
@@ -292,7 +509,7 @@ describe('owned terminal composition', () => {
     const source = new TerminalDocument()
     source.text(0, 0, 'AB界', { owner: owner('card') })
     const before = source.regions()
-    const compartment: TerminalOwner = { id: 'compartment', kind: 'compartment', parentId: 'card' }
+    const compartment: TerminalOwner = { id: 'compartment', kind: 'compartment', parent: { id: 'card', kind: 'node' } }
     expect(() => source.attributeWithin(compartment, { x: 0, y: 0, width: 3, height: 1 })).toThrow('complete graphemes')
     expect(source.regions()).toEqual(before)
     expect(source.hasOwner(compartment.id)).toBe(false)

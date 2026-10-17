@@ -30,6 +30,14 @@ and interned owner sets retain all identities at crossings; conflicting
 definitions of one identity are rejected. A wide continuation cannot erase a
 neighboring marker or surface.
 
+Generated names and semantic identity are separate. Composite identity keys use
+tagged tuples, so punctuation in authored IDs cannot merge different endpoint
+pairs before generated-name collision avoidance runs. Parents are immutable
+`{ id, kind }` references throughout the drawing. Public regions preserve the
+existing `parentId` and add `parentKind`; the action adapter maps that complete
+reference into its renderer-neutral namespace. A class and a namespace may
+therefore share an authored ID without creating a self-parenting action region.
+
 Text, markers and card surfaces cannot silently be erased by a later route.
 Incompatible text/geometry and unrelated collinear route overlaps produce
 projection diagnostics with optional zero-based cell coordinates that follow
@@ -54,6 +62,9 @@ Namespace headers are measured routing obstacles, separate from endpoint
 identities; containers and classes can share an authored name without changing
 a relationship's target. Complete sibling envelopes settle before routing.
 Sequence lays out lexical fragment boundaries, notes and messages in order.
+It reserves exact foreground text, note and card footprints before painting
+lifelines or activations. Intended background gaps are allocation decisions;
+foreign foreground text and route conflicts still reach ordinary admission.
 Chart adapters allocate numeric marks and literal labels in their own units.
 Reversals move geometry, text blocks, frames and ports while preserving text
 reading order; they do not reverse serialized strings.
@@ -131,6 +142,27 @@ Prepared input and the model travel in one internal execution result. Metadata
 consumes that local model; the public receipt does not retain a model cache.
 Family grammars and layouts remain distinct. Regions group occupied cells and
 sort each group's visible cells once.
+
+## Where construction enforces invariants
+
+The representation prevents a defect only when every path that creates or
+imports the relevant state passes through the same boundary. The audit found
+five gaps and extended their owning contracts:
+
+| Invariant | Gap and representative class | Construction boundary |
+| --- | --- | --- |
+| Distinct semantic identities remain distinct | Delimiter-concatenated endpoint keys collided before name suffixing; text-group and diagnostic keys have the same risk | Structured composite keys, separate readable names, and admission of supported key components |
+| Parent references retain their namespace | Bare IDs lost the node/container distinction during action conversion and compatibility checks | Typed immutable parent references consumed by both geometry admission and output adapters |
+| Intended background occlusion is explicit | A cell compositor cannot infer that a message or heading should cut a gap in a lifeline or activation | Family layout reserves foreground footprints before either background pass; collision diagnostics remain enabled |
+| One identity has one immutable definition | Explicit registration validated definitions while paint, attribution and layer imports bypassed it | One snapshot-and-validation path, with complete batch validation before target mutation and caches restricted to owned immutable values |
+| Admitted ink remains serializable | Legacy row caps became stale after positioned writes, sparse overlays and reflection | Accepted cell placement maintains row extents; transforms rebuild them from moved occupied geometry |
+
+Owning regressions include foreign frozen handles, mutable/getter callers,
+partial failed imports, arbitrary ID separators, same-ID/different-kind parents,
+wide continuations, authored spaces, reflected ragged rows, and active sequence
+headings. Primitive tests cover composition combinations that current built-in
+families may not exercise. Family and action tests separately check the final
+public text, diagnostics, endpoint identities and parent mapping.
 
 ## Rebuilding on this basis
 

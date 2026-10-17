@@ -198,6 +198,8 @@ export interface AsciiConfig {
 
 /** Full ASCII graph state used during layout and rendering. */
 export interface AsciiGraph {
+  /** Semantic namespace of compound parents, shared by allocation and painting. */
+  containerKind?: 'subgraph' | 'cluster'
   nodes: AsciiNode[]
   edges: AsciiEdge[]
   canvas: Canvas

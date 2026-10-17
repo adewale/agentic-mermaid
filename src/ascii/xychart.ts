@@ -97,7 +97,7 @@ export function renderXYChartTerminal(
     series.pointLabels?.forEach((label, pointIndex) => {
       if (label === undefined) return
       const text = `line ${seriesIndex + 1}.${pointIndex + 1}: ${label}`
-      for (const line of wrapText(text, widthBudget)) rendered.line([{ text: line, role: 'text', textGroup: 'point-label', owner: { id: `series-${seriesIndex}:point-${pointIndex}:label`, kind: 'label', parentId: `series-${seriesIndex}` } }])
+      for (const line of wrapText(text, widthBudget)) rendered.line([{ text: line, role: 'text', textGroup: 'point-label', owner: { id: `series-${seriesIndex}:point-${pointIndex}:label`, kind: 'label', parent: { id: `series-${seriesIndex}`, kind: 'node' } } }])
     })
   })
   reportXYChartProjections(rendered, chart)
@@ -317,7 +317,7 @@ function renderVertical(
             ? Math.max(plotTop, topDisplayRow - 1)
             : Math.min(xAxisRow - 1, bottomDisplayRow + 1)
           const labelCol = Math.max(plotLeft, cx - Math.floor(visualWidth(label) / 2))
-          writeColoredText(canvas, labelRow, labelCol, label, 'text', hexColor, { id: `series-${entry.globalIdx}:value-${i}`, kind: 'label', parentId: `series-${entry.globalIdx}` })
+          writeColoredText(canvas, labelRow, labelCol, label, 'text', hexColor, { id: `series-${entry.globalIdx}:value-${i}`, kind: 'label', parent: { id: `series-${entry.globalIdx}`, kind: 'node' } })
         }
       }
     }
@@ -501,7 +501,7 @@ function renderHorizontal(
           const labelCol = entry.data[i]! >= 0
             ? Math.min(totalW - visualWidth(label), Math.ceil(toCol) + 2)
             : Math.max(plotLeft, Math.floor(fromCol) - visualWidth(label) - 1)
-          writeColoredText(canvas, by, labelCol, label, 'text', hexColor, { id: `series-${entry.globalIdx}:value-${i}`, kind: 'label', parentId: `series-${entry.globalIdx}` })
+          writeColoredText(canvas, by, labelCol, label, 'text', hexColor, { id: `series-${entry.globalIdx}:value-${i}`, kind: 'label', parent: { id: `series-${entry.globalIdx}`, kind: 'node' } })
         }
       }
     }

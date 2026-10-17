@@ -125,7 +125,7 @@ function drawBoxWithGridDimensions(node: AsciiNode, graph: AsciiGraph): Canvas {
   const box = mkCanvas(Math.max(from.x, to.x), Math.max(from.y, to.y))
 
   const parent = graph.subgraphs.filter(group => group.nodes.includes(node)).at(-1)
-  return box.scope({ id: node.name, kind: 'node', ...(parent ? { parentId: parent.id } : {}) }, () => {
+  return box.scope({ id: node.name, kind: 'node', ...(parent ? { parent: { id: parent.id, kind: graph.containerKind ?? 'subgraph' } } : {}) }, () => {
   box.fill(1, 1, Math.max(0, w - 1), Math.max(0, h - 1))
   // Get corner characters for this shape type
   const corners = getCorners(node.shape, useAscii)
@@ -1415,13 +1415,14 @@ function feasibleLabel(document: Canvas, label: GraphLabel, route: readonly Draw
   return placed(0, 0)
 }
 
-export function drawGraph(graph: AsciiGraph, containerKind: 'subgraph' | 'cluster' = 'subgraph'): Canvas {
+export function drawGraph(graph: AsciiGraph): Canvas {
+  const containerKind = graph.containerKind ?? 'subgraph'
   const document = graph.canvas
   const parentFor = new Map(graph.subgraphs.flatMap(group => group.nodes.map(node => [node.name, group.id] as const)))
   for (const group of sortSubgraphsByDepth(graph.subgraphs)) {
     const owner = {
       id: group.id, kind: containerKind,
-      ...(group.parent ? { parentId: group.parent.id } : {}),
+      ...(group.parent ? { parent: { id: group.parent.id, kind: containerKind } } : {}),
       members: [...group.nodes.filter(node => !node.containerAnchor && parentFor.get(node.name) === group.id).map(node => node.name), ...group.children.map(child => child.id)],
     }
     document.region(owner, { x: group.minX, y: group.minY, width: group.maxX - group.minX + 1, height: group.maxY - group.minY + 1 })
@@ -1430,7 +1431,7 @@ export function drawGraph(graph: AsciiGraph, containerKind: 'subgraph' | 'cluste
   document.overlay(drawConcurrencyRegionSeparators(graph, containerKind))
   for (const node of graph.nodes) {
     if (!node.drawn && node.drawingCoord && node.drawing) {
-      const owner = { id: node.name, kind: 'node' as const, ...(parentFor.has(node.name) ? { parentId: parentFor.get(node.name)! } : {}) }
+      const owner = { id: node.name, kind: 'node' as const, ...(parentFor.has(node.name) ? { parent: { id: parentFor.get(node.name)!, kind: containerKind } } : {}) }
       document.overlay(node.drawing.attribute(owner, { role: 'border' }), node.drawingCoord.x, node.drawingCoord.y)
       node.drawn = true
     }

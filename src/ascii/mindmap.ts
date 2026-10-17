@@ -18,7 +18,7 @@ export function renderMindmapTerminal(diagram: MindmapDiagram, config: AsciiConf
     const icon = node.icon ? `{${node.icon}} ` : ''
     const available = targetWidth === undefined ? undefined : Math.max(1, targetWidth - visualWidth(branch) - visualWidth(icon) - 4)
     const labelLines = wrapText(displayText(node.label), available)
-    const element: TerminalOwner = { id: node.id, kind: 'node', parentId }
+    const element: TerminalOwner = { id: node.id, kind: 'node', parent: parentId === undefined ? undefined : { id: parentId, kind: 'node' } }
     const [open, close] = delimiters(node)
     const edge: TerminalOwner = { id: generated(`edge:${node.id}`), kind: 'edge', from: parentId, to: node.id }
     const branchWidth = visualWidth(branch), prefixWidth = visualWidth(prefix)

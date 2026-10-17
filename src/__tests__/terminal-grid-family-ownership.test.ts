@@ -396,6 +396,31 @@ root((Root))
     }
   })
 
+  test.each([
+    { name: 'colon-separated IDs', ids: ['a:b', 'c', 'a', 'b:c'] },
+    { name: 'escaped quotes', ids: ['a:"b', 'c', 'a', '"b:c'] },
+    { name: 'CJK colon-separated IDs', ids: ['界:日', '本', '界', '日:本'] },
+    { name: 'authored generated-looking IDs', ids: ['edge:a:b:c', 'a:b', 'c', 'a', 'b:c'] },
+  ])('GitGraph preserves distinct parent relationships for $name', ({ ids }) => {
+    const source = `gitGraph\n${ids.map(id => `commit id:${JSON.stringify(id)}`).join('\n')}`
+    const { output, regions } = capture(config => renderGitGraphAscii(parseGitGraph(source), config, 'none', DEFAULT_ASCII_THEME))
+    const edges = regions.filter(region => region.kind === 'edge')
+    expect(edges).toHaveLength(ids.length - 1)
+    expect(new Set(edges.map(edge => edge.id)).size).toBe(edges.length)
+    ids.forEach(id => {
+      expect(output).toContain(`[${id}]`)
+      expect(regions.find(region => region.kind === 'node' && region.id === id)?.projectedText).toBe(`[${id}]`)
+    })
+    for (let index = 1; index < ids.length; index++) {
+      const from = ids[index - 1]!, to = ids[index]!
+      const edge = edges.find(edge => edge.from === from && edge.to === to)!
+      expect(edge).toBeDefined()
+      expect(edge.ownedCellSpans.length).toBeGreaterThan(0)
+      expect(edge.ports?.map(port => [port.nodeId, port.end])).toEqual([[from, 'start'], [to, 'end']])
+      expect(ids).not.toContain(edge.id)
+    }
+  })
+
   test.each(['LR', 'TB', 'BT'])('GitGraph %s preserves commit labels, tags, parent edges and branch ownership', direction => {
     const diagram = parseGitGraph(`gitGraph ${direction}:
 commit id:"base" msg:"Base 界"
