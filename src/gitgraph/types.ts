@@ -1,3 +1,4 @@
+import type { PixelTextBlock } from '../shared/prepared-text.ts'
 import type { PositionedDiagram } from '../types.ts'
 
 export type GitGraphDirection = 'LR' | 'TB' | 'BT'
@@ -51,12 +52,15 @@ export interface GitGraphDiagram {
 }
 
 export interface PositionedGitGraphCommit extends GitGraphCommit {
+  labelBlock?: PixelTextBlock
+  tagBlocks?: PixelTextBlock[]
   x: number
   y: number
   lane: number
 }
 
 export interface PositionedGitGraphBranch extends GitGraphBranch {
+  labelBlock?: PixelTextBlock
   lane: number
   x1: number
   y1: number
@@ -72,6 +76,7 @@ export interface PositionedGitGraphEdge {
 }
 
 export interface PositionedGitGraphDiagram extends PositionedDiagram {
+  titleBlock?: PixelTextBlock
   direction: GitGraphDirection
   title?: string
   commits: PositionedGitGraphCommit[]

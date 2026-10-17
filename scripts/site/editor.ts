@@ -103,7 +103,10 @@ async function readJsFiles(): Promise<string> {
     readSharedBrowserFile('copy-feedback.js'),
     ...order.map(f => readFile(f)),
   ])
-  return [copyFeedback, editorExamplesDataJs(), editorFamilyDataJs(), editorFontDataJs(), ...parts].join('\n\n')
+  // The renderer is bundled separately; also remove authoring comments and
+  // whitespace from the application code shipped beside it.
+  return new Bun.Transpiler({ loader: 'js', target: 'browser', minifyWhitespace: true })
+    .transformSync([copyFeedback, editorExamplesDataJs(), editorFamilyDataJs(), editorFontDataJs(), ...parts].join('\n\n'))
 }
 
 function escapeHtmlAttr(value: string): string {

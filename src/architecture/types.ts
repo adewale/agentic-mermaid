@@ -70,8 +70,10 @@ export interface ArchitectureDiagram {
 }
 
 export interface PositionedArchitectureGroup {
+  headerHeight?: number
   id: string
   label: string
+  labelBlock?: import('../shared/prepared-text.ts').PixelTextBlock
   icon?: string
   parentId?: string
   x: number
@@ -84,6 +86,7 @@ export interface PositionedArchitectureGroup {
 export interface PositionedArchitectureService {
   id: string
   label: string
+  labelBlock?: import('../shared/prepared-text.ts').PixelTextBlock
   icon?: string
   parentId?: string
   x: number
@@ -105,6 +108,7 @@ export interface PositionedArchitectureEdge {
   source: ArchitectureEndpoint
   target: ArchitectureEndpoint
   label?: string
+  labelBlock?: import('../shared/prepared-text.ts').PixelTextBlock
   hasArrowStart: boolean
   hasArrowEnd: boolean
   points: Point[]
@@ -120,7 +124,7 @@ export interface PositionedArchitectureEdge {
 export interface PositionedArchitectureDiagram extends PositionedDiagram {
   width: number
   height: number
-  title?: { text: string; x: number; y: number }
+  title?: { text: string; x: number; y: number; block?: import('../shared/prepared-text.ts').PixelTextBlock }
   groups: PositionedArchitectureGroup[]
   services: PositionedArchitectureService[]
   junctions: PositionedArchitectureJunction[]

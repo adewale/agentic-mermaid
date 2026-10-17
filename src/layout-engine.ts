@@ -1,3 +1,4 @@
+import { graphTextBlock } from './graph-text.ts'
 /**
  * Layout engine for Agentic Mermaid (ELK.js based).
  *
@@ -34,11 +35,10 @@ import type {
   DiamondFacet,
   RouteClass,
 } from './types.ts'
-import { ARROW_HEAD, FLOWCHART_DOTTED_DASH, applyTextTransform, resolveRenderStyle, diagramTitleBand, positionDiagramTitle } from './styles.ts'
+import { ARROW_HEAD, FLOWCHART_DOTTED_DASH, resolveRenderStyle, diagramTitleBand, positionDiagramTitle } from './styles.ts'
 import type { ResolvedRenderStyle } from './styles.ts'
 import type { InternalStyleFace } from './scene/style-registry.ts'
 import type { ResolvedStateVisualConfig, StateRenderOptions } from './state/config.ts'
-import { measureMultilineText } from './text-metrics.ts'
 import { elkLayoutSync } from './elk-instance.ts'
 import { clipEdgeToShape } from './shape-clipping.ts'
 import { onShapeOutline, assessLayout, hardViolations } from './layout-rubric.ts'
@@ -193,7 +193,7 @@ function sourceAwareNodeOrder(nodeIds: string[], edges: Array<Pick<MermaidEdge, 
 
 function estimateNodeSize(id: string, label: string, shape: string, style: ResolvedRenderStyle, direction: Direction = 'TB', stateVisual?: ResolvedStateVisualConfig): { width: number; height: number } {
   void id
-  const metrics = measureMultilineText(applyTextTransform(label, style.nodeTextTransform), style.nodeLabelFontSize, style.nodeLabelFontWeight)
+  const metrics = graphTextBlock(label, style, 'node')
 
   // State pseudostates (plan §State 2): fork/join bars run PERPENDICULAR to
   // the flow (wide+thin in vertical flows, tall+thin in horizontal flows);
@@ -390,8 +390,8 @@ function corankFanInBalancingLabels(
     let width = 0
     let height = 0
     for (const i of labeled) {
-      const label = applyTextTransform(graph.edges[i]!.label!, style.edgeTextTransform)
-      const metrics = measureMultilineText(label, style.edgeLabelFontSize, style.edgeLabelFontWeight)
+      const metrics = graphTextBlock(graph.edges[i]!.label!, style, 'edge')
+      const label = metrics.text
       width = Math.max(width, metrics.width + 8)
       height = Math.max(height, metrics.height + 6)
     }
@@ -652,8 +652,8 @@ function mermaidToElk(
       targets: [routePortHints.byEndpoint.get(endpointKey(index, 'target'))?.portId ?? edge.target],
     }
     if (edge.label && !layoutEnvFlag('APL_DECOUPLE_LABELS')) {
-      const label = applyTextTransform(edge.label, style.edgeTextTransform)
-      const metrics = measureMultilineText(label, style.edgeLabelFontSize, style.edgeLabelFontWeight)
+      const metrics = graphTextBlock(edge.label, style, 'edge')
+      const label = metrics.text
       elkEdge.labels = [{
         text: label,
         width: metrics.width + 8,
@@ -910,8 +910,8 @@ function crossHierarchyElkEdge(
     targets: targetSubgraph && targetSubgraph !== hostSubgraph ? [`${targetSubgraph}_in_${index}`] : [edge.target],
   }
   if (edge.label && !layoutEnvFlag('APL_DECOUPLE_LABELS')) {
-    const label = applyTextTransform(edge.label, style.edgeTextTransform)
-    const metrics = measureMultilineText(label, style.edgeLabelFontSize, style.edgeLabelFontWeight)
+    const metrics = graphTextBlock(edge.label, style, 'edge')
+    const label = metrics.text
     elkEdge.labels = [{
       text: label,
       width: metrics.width + 8,
@@ -939,8 +939,7 @@ function usesSeparateHierarchy(graph: MermaidGraph, opts: Pick<ElkConversionOpti
  * the title, which is drawn from where the group sits. */
 function groupTitleWidth(sg: Pick<MermaidSubgraph, 'label' | 'concurrencyRegion' | 'titleOffset' | 'nodeIds' | 'children'>, style: ResolvedRenderStyle): number {
   if (!sg.label || sg.concurrencyRegion || (sg.nodeIds.length === 0 && sg.children.length === 0)) return 0
-  const title = applyTextTransform(sg.label, style.groupTextTransform)
-  const width = measureMultilineText(title, style.groupHeaderFontSize, style.groupHeaderFontWeight, style.groupLetterSpacing).width
+  const width = graphTextBlock(sg.label, style, 'group').width
   return Math.ceil((sg.titleOffset ?? style.groupLabelPaddingX) + width + style.groupLabelPaddingX)
 }
 
@@ -972,7 +971,8 @@ function subgraphToElk(
 ): ElkGraphNode {
   // Concurrency regions draw no header band of their own, so they reserve
   // only the plain padding at the top (plan §State 2c).
-  const groupHeaderHeight = sg.concurrencyRegion ? 0 : style.groupHeaderFontSize + 16
+  const groupBlock = graphTextBlock(sg.label, style, 'group')
+  const groupHeaderHeight = sg.concurrencyRegion ? 0 : style.groupHeaderFontSize + 16 + groupBlock.height - groupBlock.lineHeight
   const dividerMargin = sg.concurrencyRegion ? (opts.stateVisual?.dividerMargin ?? 0) : 0
   // Effective direction of THIS scope — drives direction-dependent node
   // sizing (fork/join bars) for direct children.
@@ -1050,8 +1050,8 @@ function subgraphToElk(
       targets: [routePortHints.byEndpoint.get(endpointKey(index, 'target'))?.portId ?? edge.target],
     }
     if (edge.label && !layoutEnvFlag('APL_DECOUPLE_LABELS')) {
-      const label = applyTextTransform(edge.label, style.edgeTextTransform)
-      const metrics = measureMultilineText(label, style.edgeLabelFontSize, style.edgeLabelFontWeight)
+      const metrics = graphTextBlock(edge.label, style, 'edge')
+      const label = metrics.text
       elkEdge.labels = [{
         text: label,
         width: metrics.width + 8,
@@ -1480,7 +1480,7 @@ function placeStateNotes(
     const anchor = node ?? group
     if (!anchor) continue
 
-    const metrics = measureMultilineText(spec.text, style.edgeLabelFontSize, style.edgeLabelFontWeight)
+    const metrics = graphTextBlock(spec.text, style, 'note')
     const w = metrics.width + NOTE_PADDING_X * 2
     const h = metrics.height + NOTE_PADDING_Y * 2
     const y = anchor.y + (anchor.height - h) / 2
@@ -1497,7 +1497,7 @@ function placeStateNotes(
       x = spec.side === 'left' ? hit.x - NOTE_CLEARANCE - w : hit.x + hit.w + NOTE_CLEARANCE
     }
 
-    placed.push({ id: spec.id, target: spec.target, side: spec.side, text: spec.text, x, y, width: w, height: h })
+    placed.push({ id: spec.id, target: spec.target, side: spec.side, text: spec.text, textBlock: metrics, x, y, width: w, height: h })
   }
 
   // Uniform shift when any note went negative (left-side notes beside the
@@ -1707,6 +1707,15 @@ export function layoutGraphSync(
   options: LayoutEngineOptions = {}
 ): PositionedGraph {
   const positioned = layoutUntitledGraph(graph, options)
+  const style = resolveRenderStyle(options, (options as StateRenderOptions).stateVisual?.styleDefaults, options.styleFace)
+  for (const node of positioned.nodes) node.labelBlock = graphTextBlock(node.label, style, 'node')
+  for (const edge of positioned.edges) if (edge.label !== undefined) edge.labelBlock = graphTextBlock(edge.label, style, 'edge')
+  const prepareGroup = (group: PositionedGroup): void => {
+    group.labelBlock = graphTextBlock(group.label, style, 'group')
+    group.headerHeight = group.concurrencyRegion ? 0 : style.groupHeaderFontSize + 16 + group.labelBlock.height - group.labelBlock.lineHeight
+    group.children.forEach(prepareGroup)
+  }
+  positioned.groups.forEach(prepareGroup)
   const band = diagramTitleBand(options.diagramTitle, resolveRenderStyle(options, (options as StateRenderOptions).stateVisual?.styleDefaults, options.styleFace))
   if (!band) return positioned
   // The title takes a band above everything the layout placed; the graph

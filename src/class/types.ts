@@ -1,3 +1,4 @@
+import type { PixelTextBlock } from '../shared/prepared-text.ts'
 // ============================================================================
 // Class diagram types
 //
@@ -146,6 +147,7 @@ export interface PositionedClassDiagram extends PositionedDiagram {
 
 /** A laid-out namespace box (ELK compound node), absolute coordinates. */
 export interface PositionedClassNamespace {
+  labelBlock?: PixelTextBlock
   /** Full dot path (unique id), e.g. 'Company.Engineering.Backend'. */
   id: string
   /** Segment name (last path element). */
@@ -168,6 +170,10 @@ export interface PositionedClassNamespace {
 }
 
 export interface PositionedClassNode {
+  labelBlock?: PixelTextBlock
+  annotationBlock?: PixelTextBlock
+  attributeBlocks?: PixelTextBlock[]
+  methodBlocks?: PixelTextBlock[]
   id: string
   label: string
   annotation?: string
@@ -190,6 +196,7 @@ export interface PositionedClassNode {
 }
 
 export interface PositionedClassNote {
+  textBlock?: PixelTextBlock
   text: string
   for?: string
   x: number
@@ -203,6 +210,9 @@ export interface PositionedClassNote {
 }
 
 export interface PositionedClassRelationship {
+  labelBlock?: PixelTextBlock
+  fromCardinalityBlock?: PixelTextBlock
+  toCardinalityBlock?: PixelTextBlock
   from: string
   to: string
   type: RelationshipType

@@ -1,7 +1,8 @@
+import { preparePixelText, type PixelTextBlock } from '../shared/prepared-text.ts'
 import type { Actor, Block, Message, PositionedActor, PositionedBlock, PositionedBlockDivider, PositionedBlockHeader, PositionedMessage, PositionedNote, PositionedSequenceDiagram, PositionedSequenceLabel, SequenceBounds, SequenceDiagram } from './types.ts'
 import { displayMessageLabel, getSequenceBlockScope, type SequenceBlockScope } from './parser.ts'
-import { ARROW_HEAD, applyTextTransform, type ResolvedRenderStyle } from '../styles.ts'
-import { LINE_HEIGHT_RATIO, measureMultilineText, type MultilineMetrics } from '../text-metrics.ts'
+import { ARROW_HEAD, type ResolvedRenderStyle } from '../styles.ts'
+import { LINE_HEIGHT_RATIO, type MultilineMetrics } from '../text-metrics.ts'
 import type { resolveRoleStyle } from '../scene/style-registry.ts'
 
 type ResolvedRoleStyle = ReturnType<typeof resolveRoleStyle>
@@ -26,11 +27,12 @@ export interface MeasuredSequenceLabel extends PositionedSequenceLabel {
   metrics: MultilineMetrics
 }
 
-export function createSequenceLabelGeometry(text: string, x: number, y: number, anchor: 'start' | 'middle' | 'end', fontSize: number, fontWeight: number, letterSpacing = 0): MeasuredSequenceLabel {
-  const metrics = measureMultilineText(text, fontSize, fontWeight, letterSpacing)
+export function createSequenceLabelGeometry(text: string, x: number, y: number, anchor: 'start' | 'middle' | 'end', fontSize: number, fontWeight: number, letterSpacing = 0, block = preparePixelText(text, { fontSize, fontWeight, letterSpacing })): MeasuredSequenceLabel {
+  const metrics = block
   const left = anchor === 'middle' ? x - metrics.width / 2 : anchor === 'start' ? x : x - metrics.width
   return {
-    text,
+    text: block.text,
+    block,
     x,
     y,
     anchor,
@@ -89,6 +91,7 @@ export interface SequenceActorGeometrySpec {
   paddingX: number
   paddingY: number
   displayLabel: string
+  block: PixelTextBlock
   labelMetrics: MultilineMetrics
   width: number
   /** Box height for `participant`, or glyph height for icon participants. */
@@ -102,8 +105,9 @@ export function measureSequenceActorSpec(actor: Actor, style: ResolvedRenderStyl
   const letterSpacing = roleStyle?.letterSpacing ?? style.nodeLetterSpacing
   const paddingX = roleStyle?.paddingX ?? style.nodePaddingX
   const paddingY = roleStyle?.paddingY ?? style.nodePaddingY
-  const displayLabel = applyTextTransform(actor.label, transform)
-  const labelMetrics = measureMultilineText(displayLabel, fontSize, fontWeight, letterSpacing)
+  const block = preparePixelText(actor.label, { transform, fontSize, fontWeight, letterSpacing })
+  const displayLabel = block.text
+  const labelMetrics = block
   const width = Math.max(labelMetrics.width + paddingX * 2, minActorWidth)
   const height = actor.type === 'participant' ? Math.max(baseActorHeight, Math.ceil(labelMetrics.height + paddingY * 2)) : baseActorHeight
 
@@ -114,6 +118,7 @@ export function measureSequenceActorSpec(actor: Actor, style: ResolvedRenderStyl
     paddingX,
     paddingY,
     displayLabel,
+    block,
     labelMetrics,
     width,
     height,
@@ -122,7 +127,7 @@ export function measureSequenceActorSpec(actor: Actor, style: ResolvedRenderStyl
 
 export function positionSequenceActor(actor: Actor, spec: SequenceActorGeometrySpec, centerX: number, topY: number): PositionedActor {
   if (actor.type === 'participant') {
-    const labelPosition = createSequenceLabelGeometry(spec.displayLabel, centerX, topY + spec.height / 2, 'middle', spec.fontSize, spec.fontWeight, spec.letterSpacing)
+    const labelPosition = createSequenceLabelGeometry(spec.displayLabel, centerX, topY + spec.height / 2, 'middle', spec.fontSize, spec.fontWeight, spec.letterSpacing, spec.block)
     const bounds: SequenceBounds = {
       x: centerX - spec.width / 2,
       y: topY,
@@ -150,7 +155,7 @@ export function positionSequenceActor(actor: Actor, spec: SequenceActorGeometryS
   const glyphBottom = actor.type === 'actor' ? topY + spec.height : Math.max(topY + spec.height, topY + 26)
   const firstLineOffset = Math.max(14, spec.labelMetrics.lineHeight / 2 + 5.5)
   const labelY = glyphBottom + firstLineOffset + ((spec.labelMetrics.lines.length - 1) / 2) * spec.labelMetrics.lineHeight
-  const labelPosition = createSequenceLabelGeometry(spec.displayLabel, centerX, labelY, 'middle', spec.fontSize, spec.fontWeight, spec.letterSpacing)
+  const labelPosition = createSequenceLabelGeometry(spec.displayLabel, centerX, labelY, 'middle', spec.fontSize, spec.fontWeight, spec.letterSpacing, spec.block)
   const glyphBounds: SequenceBounds = {
     x: centerX - spec.width / 2,
     y: topY,
@@ -193,6 +198,7 @@ export function translatePositionedActor(actor: PositionedActor, dx: number, dy:
 export interface SequenceMessageGeometrySpec {
   label: string
   displayLabel: string
+  block: PixelTextBlock
   labelMetrics: MultilineMetrics
   startPad: number
   endPad: number
@@ -205,9 +211,10 @@ export interface SequenceMessageGeometrySpec {
 
 export function measureSequenceMessageSpec(message: Message, style: ResolvedRenderStyle, activationWidth: number): SequenceMessageGeometrySpec {
   const label = displayMessageLabel(message)
-  const displayLabel = applyTextTransform(label, style.edgeTextTransform)
+  const block = preparePixelText(label, { transform: style.edgeTextTransform, fontSize: style.edgeLabelFontSize, fontWeight: style.edgeLabelFontWeight, letterSpacing: style.edgeLetterSpacing })
+  const displayLabel = block.text
   const defaultLineHeight = style.edgeLabelFontSize * LINE_HEIGHT_RATIO
-  const labelMetrics: MultilineMetrics = label ? measureMultilineText(displayLabel, style.edgeLabelFontSize, style.edgeLabelFontWeight, style.edgeLetterSpacing) : { width: 0, height: 0, lines: [], lineHeight: defaultLineHeight }
+  const labelMetrics: MultilineMetrics = label ? block : { width: 0, height: 0, lines: [], lineHeight: defaultLineHeight }
   const startPad = Math.max(message.startHead !== 'none' ? ARROW_HEAD.width : 0, message.centralStart ? 5 : 0)
   const endPad = Math.max(message.endHead !== 'none' ? ARROW_HEAD.width : 0, message.centralEnd ? 5 : 0)
   const markerHalfHeight = Math.max(style.lineWidth / 2, message.startHead !== 'none' || message.endHead !== 'none' ? ARROW_HEAD.height / 2 : 0, message.centralStart || message.centralEnd ? 4.75 : 0)
@@ -220,6 +227,7 @@ export function measureSequenceMessageSpec(message: Message, style: ResolvedRend
   return {
     label,
     displayLabel,
+    block,
     labelMetrics,
     startPad,
     endPad,
@@ -244,7 +252,7 @@ export function positionSequenceMessage(message: Message, spec: SequenceMessageG
     ]
     const labelX = x1 + loopW + SEQUENCE_SELF_LOOP.labelPadding
     const labelY = y + Math.max(loopH, spec.labelMetrics.height) / 2
-    const labelPosition = createSequenceLabelGeometry(spec.displayLabel, labelX, labelY, 'start', style.edgeLabelFontSize, style.edgeLabelFontWeight, style.edgeLetterSpacing)
+    const labelPosition = createSequenceLabelGeometry(spec.displayLabel, labelX, labelY, 'start', style.edgeLabelFontSize, style.edgeLabelFontWeight, style.edgeLetterSpacing, spec.block)
     const connectorBounds: SequenceBounds = {
       x: x1 - spec.startPad,
       y: y - spec.markerHalfHeight,
@@ -280,7 +288,7 @@ export function positionSequenceMessage(message: Message, spec: SequenceMessageG
   const minClearanceAboveShaft = Math.max(2.85, style.lineWidth / 2 + 2)
   const labelOffsetAboveArrow = Math.max(10, spec.labelMetrics.height / 2 + minClearanceAboveShaft)
   const labelY = y - labelOffsetAboveArrow
-  const labelPosition = createSequenceLabelGeometry(spec.displayLabel, midX, labelY, 'middle', style.edgeLabelFontSize, style.edgeLabelFontWeight, style.edgeLetterSpacing)
+  const labelPosition = createSequenceLabelGeometry(spec.displayLabel, midX, labelY, 'middle', style.edgeLabelFontSize, style.edgeLabelFontWeight, style.edgeLetterSpacing, spec.block)
   const leftPad = x1 <= x2 ? spec.startPad : spec.endPad
   const rightPad = x1 <= x2 ? spec.endPad : spec.startPad
   const minX = Math.min(x1, x2) - leftPad
@@ -329,6 +337,7 @@ export interface SequenceDividerGeometrySpec {
   index: number
   label: string
   displayLabel: string
+  block: PixelTextBlock
   metrics: MultilineMetrics
   firstLineOffset: number
   extraFontOffset: number
@@ -339,6 +348,7 @@ export interface SequenceDividerGeometrySpec {
 
 export interface SequenceBlockGeometrySpec {
   headerText: string
+  block: PixelTextBlock
   headerMetrics: MultilineMetrics
   tabWidth: number
   tabHeight: number
@@ -384,9 +394,10 @@ export function resolveSequenceBlockScopes(diagram: SequenceDiagram): SequenceBl
 }
 
 export function measureSequenceBlockSpec(block: Block, style: ResolvedRenderStyle, baseBlockPadTop: number, baseBlockHeaderExtra: number, baseDividerExtra: number, edgeTextHeight: number): SequenceBlockGeometrySpec {
-  const headerText = block.type === 'rect' ? '' : applyTextTransform(`${block.type}${block.label ? ` [${block.label}]` : ''}`, style.groupTextTransform)
+  const prepared = preparePixelText(block.type === 'rect' ? '' : `${block.type}${block.label ? ` [${block.label}]` : ''}`, { transform: style.groupTextTransform, fontSize: style.groupHeaderFontSize, fontWeight: style.groupHeaderFontWeight, letterSpacing: style.groupLetterSpacing })
+  const headerText = prepared.text
   const defaultHeaderLineHeight = style.groupHeaderFontSize * LINE_HEIGHT_RATIO
-  const headerMetrics: MultilineMetrics = headerText ? measureMultilineText(headerText, style.groupHeaderFontSize, style.groupHeaderFontWeight, style.groupLetterSpacing) : { width: 0, height: 0, lines: [], lineHeight: defaultHeaderLineHeight }
+  const headerMetrics: MultilineMetrics = headerText ? prepared : { width: 0, height: 0, lines: [], lineHeight: defaultHeaderLineHeight }
   const extraHeaderLinesHeight = Math.ceil(Math.max(0, (headerMetrics.lines.length - 1) * headerMetrics.lineHeight))
   const tabPadX = Math.max(style.groupPaddingX * 2, style.groupLabelPaddingX * 2)
   const tabWidth = block.type === 'rect' ? 0 : headerMetrics.width + tabPadX
@@ -396,8 +407,9 @@ export function measureSequenceBlockSpec(block: Block, style: ResolvedRenderStyl
   const enclosingHeaderStep = block.type === 'rect' ? style.groupPaddingY : tabHeight + style.groupPaddingY
 
   const dividers: SequenceDividerGeometrySpec[] = block.dividers.map(d => {
-    const displayLabel = d.label ? applyTextTransform(`[${d.label}]`, style.edgeTextTransform) : ''
-    const metrics: MultilineMetrics = d.label ? measureMultilineText(displayLabel, style.edgeLabelFontSize, style.edgeLabelFontWeight, style.edgeLetterSpacing) : { width: 0, height: 0, lines: [], lineHeight: edgeTextHeight }
+    const prepared = preparePixelText(d.label ? `[${d.label}]` : '', { transform: style.edgeTextTransform, fontSize: style.edgeLabelFontSize, fontWeight: style.edgeLabelFontWeight, letterSpacing: style.edgeLetterSpacing })
+    const displayLabel = prepared.text
+    const metrics: MultilineMetrics = d.label ? prepared : { width: 0, height: 0, lines: [], lineHeight: edgeTextHeight }
     const firstLineOffset = Math.max(14, Math.ceil(metrics.lineHeight / 2 + 6))
     const extraFontOffset = Math.max(0, firstLineOffset - 14)
     const extraLinesHeight = Math.ceil(Math.max(0, (metrics.lines.length - 1) * metrics.lineHeight))
@@ -405,6 +417,7 @@ export function measureSequenceBlockSpec(block: Block, style: ResolvedRenderStyl
       index: d.index,
       label: d.label,
       displayLabel,
+      block: prepared,
       metrics,
       firstLineOffset,
       extraFontOffset,
@@ -417,6 +430,7 @@ export function measureSequenceBlockSpec(block: Block, style: ResolvedRenderStyl
 
   return {
     headerText,
+    block: prepared,
     headerMetrics,
     tabWidth,
     tabHeight,
@@ -604,7 +618,7 @@ export function positionSequenceBlock(
     }
 
     const labelY = divY + divSpec.firstLineOffset + ((divSpec.metrics.lines.length - 1) / 2) * divSpec.metrics.lineHeight
-    const measured = createSequenceLabelGeometry(divSpec.displayLabel, blockLeft + 8, labelY, 'start', style.edgeLabelFontSize, style.edgeLabelFontWeight, style.edgeLetterSpacing)
+    const measured = createSequenceLabelGeometry(divSpec.displayLabel, blockLeft + 8, labelY, 'start', style.edgeLabelFontSize, style.edgeLabelFontWeight, style.edgeLetterSpacing, divSpec.block)
     blockBottom = Math.max(blockBottom, measured.bounds.y + measured.bounds.height + style.groupPaddingY)
     return {
       y: divY,
@@ -621,7 +635,7 @@ export function positionSequenceBlock(
       ? undefined
       : (() => {
           const labelY = blockTop + spec.tabHeight / 2
-          const measured = createSequenceLabelGeometry(spec.headerText, blockLeft + style.groupLabelPaddingX, labelY, 'start', style.groupHeaderFontSize, style.groupHeaderFontWeight, style.groupLetterSpacing)
+          const measured = createSequenceLabelGeometry(spec.headerText, blockLeft + style.groupLabelPaddingX, labelY, 'start', style.groupHeaderFontSize, style.groupHeaderFontWeight, style.groupLetterSpacing, spec.block)
           return {
             x: blockLeft,
             y: blockTop,
@@ -686,6 +700,7 @@ export function translatePositionedSequence(positioned: Pick<PositionedSequenceD
   for (const box of positioned.boxes) {
     box.x += dx
     box.y += dy
+    if (box.labelY !== undefined) box.labelY += dy
   }
   for (const activation of positioned.activations) {
     activation.x += dx

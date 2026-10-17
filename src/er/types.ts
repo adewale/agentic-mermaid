@@ -1,3 +1,4 @@
+import type { PixelTextBlock } from '../shared/prepared-text.ts'
 // ============================================================================
 // ER diagram types
 //
@@ -102,6 +103,7 @@ export interface PositionedErDiagram extends PositionedDiagram {
 }
 
 export interface PositionedErGroup {
+  labelBlock?: PixelTextBlock
   id: string
   label: string
   parentId?: string
@@ -113,6 +115,8 @@ export interface PositionedErGroup {
 }
 
 export interface PositionedErEntity {
+  labelBlock?: PixelTextBlock
+  attributeBlocks?: { type: PixelTextBlock; name: PixelTextBlock; keys: PixelTextBlock; comment?: PixelTextBlock }[]
   id: string
   label: string
   attributes: ErAttribute[]
@@ -130,6 +134,7 @@ export interface PositionedErEntity {
 }
 
 export interface PositionedErRelationship {
+  labelBlock?: PixelTextBlock
   entity1: string
   entity2: string
   cardinality1: Cardinality

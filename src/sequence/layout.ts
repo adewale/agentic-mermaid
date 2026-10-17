@@ -1,8 +1,9 @@
+import { preparePixelText } from '../shared/prepared-text.ts'
 import type { SequenceDiagram, PositionedSequenceDiagram, PositionedActor, Lifeline, PositionedMessage, Activation, PositionedBlock, PositionedNote, PositionedBoxGroup, LifelineCross } from './types.ts'
 import { SEQUENCE_SELF_LOOP, measureSequenceActorSpec, measureSequenceBlockSpec, measureSequenceMessageSpec, positionSequenceActor, positionSequenceBlock, positionSequenceMessage, resolveSequenceBlockScopes, sequenceDividerLeadingNote, translatePositionedSequence, type SequenceBlockPlacement } from './geometry.ts'
 import { getSequenceBlockBoundaries } from './parser.ts'
 import type { RenderOptions } from '../types.ts'
-import { applyTextTransform, FONT_SIZES, FONT_WEIGHTS, STROKE_WIDTHS, resolveRenderStyle, diagramTitleBand, positionDiagramTitle } from '../styles.ts'
+import { FONT_SIZES, FONT_WEIGHTS, STROKE_WIDTHS, resolveRenderStyle, diagramTitleBand, positionDiagramTitle } from '../styles.ts'
 import type { RenderStyleDefaults, ResolvedRenderStyle } from '../styles.ts'
 import { measureMultilineText } from '../text-metrics.ts'
 import type { ResolvedSequenceConfig } from './config.ts'
@@ -175,9 +176,11 @@ export function layoutSequenceDiagram(diagram: SequenceDiagram, options: RenderO
   //    the actor boxes, so boxed diagrams reserve extra headroom for it.
   const boxGroups = (diagram.boxes ?? []).flatMap((box, index) => {
     const memberIdxs = diagram.actors.flatMap((actor, i) => (actor.box === index ? [i] : []))
-    return memberIdxs.length > 0 ? [{ box, memberIdxs }] : []
+    const block = box.label ? preparePixelText(box.label, { transform: style.groupTextTransform, fontSize: style.groupHeaderFontSize, fontWeight: style.groupHeaderFontWeight, letterSpacing: style.groupLetterSpacing }) : undefined
+    return memberIdxs.length > 0 ? [{ box, memberIdxs, block }] : []
   })
-  const actorY = padY + (boxGroups.length > 0 ? SEQ.boxTitleSpace + 6 : 0)
+  const boxTitleHeight = Math.max(SEQ.boxTitleSpace, ...boxGroups.map(group => (group.block?.height ?? 0) + 8))
+  const actorY = padY + (boxGroups.length > 0 ? boxTitleHeight + 6 : 0)
   const actors: PositionedActor[] = diagram.actors.map((a, i) => positionSequenceActor(a, actorSpecs[i]!, actorCenterX[i]!, actorY))
 
   // Top-row (non-created) actors determine where the message timeline begins.
@@ -344,8 +347,8 @@ export function layoutSequenceDiagram(diagram: SequenceDiagram, options: RenderO
   }
 
   const positionNote = (note: (typeof diagram.notes)[number], noteY: number): PositionedNote => {
-    const noteText = applyTextTransform(note.text, style.nodeTextTransform)
-    const noteMetrics = measureMultilineText(noteText, style.nodeLabelFontSize, style.nodeLabelFontWeight, style.nodeLetterSpacing)
+    const block = preparePixelText(note.text, { transform: style.nodeTextTransform, fontSize: style.nodeLabelFontSize, fontWeight: style.nodeLabelFontWeight, letterSpacing: style.nodeLetterSpacing })
+    const noteMetrics = block
     const noteW = Math.max(SEQ.noteWidth, noteMetrics.width + style.nodePaddingX * 2)
     const noteH = noteMetrics.height + style.nodePaddingY * 2
     const firstActorIdx = actorIndex.get(note.actorIds[0] ?? '') ?? 0
@@ -362,6 +365,7 @@ export function layoutSequenceDiagram(diagram: SequenceDiagram, options: RenderO
     }
     return {
       text: note.text,
+      block,
       x: noteX,
       y: noteY,
       width: noteW,
@@ -573,17 +577,19 @@ export function layoutSequenceDiagram(diagram: SequenceDiagram, options: RenderO
   //     and run from the title band above the actor boxes to just below the
   //     lifeline ends, so the group visibly owns its lifelines.
   const lifelineBottom = messageY // lifelines end here (see step 7)
-  const boxes: PositionedBoxGroup[] = boxGroups.map(({ box, memberIdxs }) => {
+  const boxes: PositionedBoxGroup[] = boxGroups.map(({ box, memberIdxs, block }) => {
     const left = Math.min(...memberIdxs.map(i => actors[i]!.bounds.x)) - SEQ.boxPadX
     let right = Math.max(...memberIdxs.map(i => actors[i]!.bounds.x + actors[i]!.bounds.width)) + SEQ.boxPadX
     // A title wider than the member span widens the frame so it can't clip
     if (box.label) {
-      const titleW = measureMultilineText(applyTextTransform(box.label, style.groupTextTransform), style.groupHeaderFontSize, style.groupHeaderFontWeight, style.groupLetterSpacing).width
+      const titleW = block!.width
       right = Math.max(right, left + titleW + SEQ.boxPadX * 2)
     }
     const top = padY
     return {
       label: box.label,
+      block,
+      labelY: padY + boxTitleHeight / 2,
       color: box.color,
       x: left,
       y: top,

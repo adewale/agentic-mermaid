@@ -478,9 +478,10 @@ pie showData
       embedFontImport: false,
     })
     const width = Number(svg.match(/viewBox="0 0 ([\d.]+)/)?.[1])
-    const legendText = [...svg.matchAll(/<text ([^>]*class="pie-legend-text"[^>]*)>([^<]+)<\/text>/g)]
+    const legendText = [...svg.matchAll(/<text ([^>]*class="pie-legend-text"[^>]*)>([\s\S]*?)<\/text>/g)]
     expect(legendText).toHaveLength(3)
-    for (const [, attributes, text] of legendText) {
+    for (const [, attributes, markup] of legendText) {
+      const text = markup!.replace(/<[^>]*>/g, '')
       const x = Number(attributes!.match(/\bx="([\d.]+)"/)?.[1])
       const fontSize = Number(attributes!.match(/font-size="([\d.]+)"/)?.[1])
       const fontWeight = Number(attributes!.match(/font-weight="([\d.]+)"/)?.[1])

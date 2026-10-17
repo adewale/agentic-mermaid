@@ -16,10 +16,8 @@
 // not (it depends on installed fonts and the resvg build), which is why the
 // fingerprint — not the .png — is the source of truth for the check.
 //
-// Fonts: rasterization uses the bundled DejaVu Sans plus the system DejaVu
-// Sans Mono when available (the code/ASCII panels need a monospace face;
-// box-drawing alignment breaks in a proportional font). Regenerate on a
-// machine with dejavu fonts installed; --check needs no fonts.
+// Fonts: code panels use bundled Share Tech Mono; each cell has an explicit
+// position so fallback box-drawing glyphs keep the same column lattice.
 // ============================================================================
 
 import { writeFileSync, existsSync, readFileSync } from 'node:fs'
@@ -112,7 +110,7 @@ const esc = (s: string) => s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replac
 
 function monoBlock(lines: string[], x: number, y: number, size: number, fill: string, lineHeight = 1.5): string {
   return lines.map((l, i) =>
-    `<text x="${x}" y="${y + i * size * lineHeight}" font-family="DejaVu Sans Mono, monospace" font-size="${size}" fill="${fill}" xml:space="preserve">${esc(l)}</text>`,
+    `<text x="${x}" y="${y + i * size * lineHeight}" font-family="Share Tech Mono, DejaVu Sans" font-size="${size}" fill="${fill}" xml:space="preserve">${[...l].map((char, column) => `<tspan x="${x + column * size * 0.6}">${esc(char)}</tspan>`).join('')}</text>`,
   ).join('\n')
 }
 
@@ -158,8 +156,7 @@ const hero = `<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3
 const fontFiles = [
   join(ROOT, 'assets', 'fonts', 'DejaVuSans.ttf'),
   join(ROOT, 'assets', 'fonts', 'DejaVuSans-Bold.ttf'),
-  '/usr/share/fonts/truetype/dejavu/DejaVuSansMono.ttf',
-  '/usr/share/fonts/truetype/dejavu/DejaVuSansMono-Bold.ttf',
+  join(ROOT, 'assets', 'fonts', 'ShareTechMono.ttf'),
 ].filter(existsSync)
 
 const resvg = new Resvg(hero, {

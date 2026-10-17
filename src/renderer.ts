@@ -1,9 +1,9 @@
+import { graphTextBlock } from './graph-text.ts'
 import type { PositionedGraph, PositionedNode, PositionedEdge, PositionedGroup, PositionedStateNote, Point, EdgeMarker, RenderContext, RenderOptions } from './types.ts'
 import type { DiagramColors } from './theme.ts'
 import { svgOpenTag, buildStyleBlock, buildShadowDefs } from './theme.ts'
-import { STROKE_WIDTHS, ARROW_HEAD, FLOWCHART_DOTTED_DASH, applyTextTransform, resolveRenderStyle, diagramTitleMark } from './styles.ts'
+import { STROKE_WIDTHS, ARROW_HEAD, FLOWCHART_DOTTED_DASH, resolveRenderStyle, diagramTitleMark } from './styles.ts'
 import type { ResolvedRenderStyle } from './styles.ts'
-import { measureMultilineText } from './text-metrics.ts'
 import { renderMultilineText, renderMultilineTextWithBackground, escapeAttr, escapeXml } from './multiline-utils.ts'
 import { topRoundedRectPath } from './svg-paths.ts'
 import { resolveInlineNodeTextColor, toneOnFill } from './color-resolver.ts'
@@ -266,7 +266,8 @@ function renderGroup(group: PositionedGroup, font: string, style: ResolvedRender
     })
   }
 
-  const headerHeight = style.groupHeaderFontSize + 16
+  const headerBlock = group.labelBlock ?? graphTextBlock(group.label, style, 'group')
+  const headerHeight = group.headerHeight ?? style.groupHeaderFontSize + 16 + headerBlock.height - headerBlock.lineHeight
   const children: Array<{ node: SceneNode; indent: number }> = []
 
   // Opening <g> with semantic attributes for subgraph identification
@@ -306,21 +307,21 @@ function renderGroup(group: PositionedGroup, font: string, style: ResolvedRender
   })
 
   // Header label (supports multi-line via <br> tags)
-  const headerText = applyTextTransform(group.label, style.groupTextTransform)
+  const headerText = headerBlock.text
   const headerTextColor = style.groupTextColor ?? 'var(--_text-sec)'
   children.push({
     indent: 2,
     node: marks.text({
       id: `group-label:${group.id}`,
       role: 'group-header',
-      text: headerText,
+      text: headerText, block: headerBlock,
       x: group.x + style.groupLabelPaddingX,
       y: group.y + headerHeight / 2,
       fontSize: style.groupHeaderFontSize,
       anchor: 'start',
       paint: { fill: headerTextColor },
     }, renderMultilineText(
-      headerText,
+      headerBlock,
       group.x + style.groupLabelPaddingX,
       group.y + headerHeight / 2,
       style.groupHeaderFontSize,
@@ -398,7 +399,8 @@ function renderStateNote(note: PositionedStateNote, font: string, style: Resolve
   const rawFill = style.groupHeaderFillColor ?? 'var(--_group-hdr)'
   const rawStroke = style.groupBorderColor ?? 'var(--_node-stroke)'
   const rawTextColor = style.edgeTextColor ?? 'var(--_text-sec)'
-  const displayText = applyTextTransform(note.text, style.nodeTextTransform)
+  const textBlock = note.textBlock ?? graphTextBlock(note.text, style, 'note')
+  const displayText = textBlock.text
   const sceneId = `state-note:${note.id}`
 
   return marks.group({
@@ -423,13 +425,13 @@ function renderStateNote(note: PositionedStateNote, font: string, style: Resolve
         node: marks.text({
           id: `${sceneId}:text`,
           role: 'label',
-          text: displayText,
+          text: displayText, block: textBlock,
           x: x + w / 2,
           y: y + h / 2,
           fontSize: style.edgeLabelFontSize,
           anchor: 'middle',
           paint: { fill: rawTextColor },
-        }, renderMultilineText(displayText, x + w / 2, y + h / 2, style.edgeLabelFontSize,
+        }, renderMultilineText(textBlock, x + w / 2, y + h / 2, style.edgeLabelFontSize,
           `text-anchor="middle" font-size="${style.edgeLabelFontSize}" font-weight="${style.edgeLabelFontWeight}"${style.edgeLetterSpacing !== 0 ? ` letter-spacing="${style.edgeLetterSpacing}"` : ''} fill="${escapeAttr(rawTextColor)}"`)),
       },
     ],
@@ -697,13 +699,14 @@ function renderEdgeLabel(edge: PositionedEdge, font: string, style: ResolvedRend
   // Use layout-computed label position when available (layout-aware, avoids collisions).
   // Fall back to geometric midpoint of the edge polyline.
   const mid = edge.labelPosition ?? edgeMidpoint(edge.points)
-  const label = applyTextTransform(edge.label!, style.edgeTextTransform)
+  const block = edge.labelBlock ?? graphTextBlock(edge.label!, style, 'edge')
+  const label = block.text
   const padding = 8
   const strokeWidth = edge.style === 'thick' ? style.lineWidth * 2 : style.lineWidth
   const haloPadding = padding + Math.max(4, strokeWidth * 2)
 
   // Measure text (works for both single and multi-line)
-  const metrics = measureMultilineText(label, style.edgeLabelFontSize, style.edgeLabelFontWeight)
+  const metrics = block
   const haloWidth = metrics.width + haloPadding * 2
   const haloHeight = metrics.height + haloPadding * 2
   const haloX = mid.x - haloWidth / 2
@@ -721,14 +724,14 @@ function renderEdgeLabel(edge: PositionedEdge, font: string, style: ResolvedRend
   const content = marks.text({
     id: `${sceneId}:text`,
     role: 'label',
-    text: label,
+    text: label, block,
     x: mid.x,
     y: mid.y,
     fontSize: style.edgeLabelFontSize,
     anchor: 'middle',
     paint: { fill: labelTextColor },
   }, renderMultilineTextWithBackground(
-    label,
+    block,
     mid.x,
     mid.y,
     metrics.width,
@@ -915,19 +918,20 @@ function renderNodeLabel(node: PositionedNode, font: string, style: ResolvedRend
   const cy = node.y + node.height / 2
 
   const textColor = escapeAttr(rawTextColor)
-  const label = applyTextTransform(node.label, style.nodeTextTransform)
+  const block = node.labelBlock ?? graphTextBlock(node.label, style, 'node')
+  const label = block.text
 
   return marks.text({
     id: `node-label:${node.id}`,
     role: 'label',
-    text: label,
+    text: label, block,
     x: cx,
     y: cy,
     fontSize: style.nodeLabelFontSize,
     anchor: 'middle',
     paint: { fill: rawTextColor },
   }, renderMultilineText(
-    label,
+    block,
     cx,
     cy,
     style.nodeLabelFontSize,

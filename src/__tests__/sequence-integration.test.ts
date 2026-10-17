@@ -151,14 +151,14 @@ describe('renderMermaidSVG – sequence diagrams', () => {
   ] as const) {
     it(`keeps intervening structural ink out of the full message label envelope for ${fixture.name}`, () => {
       const svg = renderMermaidSVG(fixture.source, { ...fixture.options, embedFontImport: false })
-      const label = [...svg.matchAll(/<text\b[^>]*>[\s\S]*?<\/text>/g)].find(match => match[0].replace(/\u2003/g, ' ').includes('Read Read'))?.[0]
+      const label = [...svg.matchAll(/<text\b[^>]*>[\s\S]*?<\/text>/g)].find(match => match[0].replace(/<[^>]+>/g, '').replace(/\u2003/g, ' ').includes('Read Read'))?.[0]
       expect(label).toBeDefined()
       if ('numbered' in fixture) {
-        expect(label).toContain('10. Read Read')
+        expect(label!.replace(/<[^>]+>/g, '')).toContain('10. Read Read')
         const arrow = svg.match(/<line\b[^>]*data-from="A"[^>]*data-to="C"[^>]*>/)?.[0]
         expect(arrow).toContain('marker-start=')
         expect(arrow).toContain('marker-end=')
-        expect(label).toContain('More More')
+        expect(label!.replace(/<[^>]+>/g, '')).toContain('More More')
       }
       // Measure the emitted glyphs with bundled fonts, independently of the
       // layout's bounds. Remove halos from this ownership raster only.

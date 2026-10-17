@@ -84,10 +84,10 @@ export function renderArchitectureTerminal(
     ...positioned.junctions.map(item => item.y),
     ...flattenGroups(positioned.groups).map(item => item.y),
   )
-  // projectX already accounts for the left margin; reserve one rounding cell
-  // on the right rather than charging the margin twice.
+  // Positions round to the nearest cell and widths round upward. Reserve
+  // both possible rounding cells before projecting the pixel topology.
   const leftMargin = terminalBudget === undefined ? OUTER_MARGIN : 1
-  const usableBudget = terminalBudget === undefined ? Infinity : Math.max(8, terminalBudget - OUTER_MARGIN - 1)
+  const usableBudget = terminalBudget === undefined ? Infinity : Math.max(8, terminalBudget - OUTER_MARGIN - 2)
   const xScale = Math.max(BASE_X_PIXELS_PER_CELL, (maxPixelX - minPixelX) / usableBudget)
   const titleLines = positioned.title ? wrapText(displayText(positioned.title.text), terminalBudget) : []
   const titleRows = titleLines.length ? titleLines.length + 1 : 0

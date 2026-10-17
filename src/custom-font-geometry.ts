@@ -220,6 +220,8 @@ export function fitUncalibratedSvgText(svg: string, _fontStack: string): string 
   const base: InheritedTextMetrics = { size: 0, weight: 400, letterSpacing: 0, mono: false }
 
   const visitTextTree = (element: XmlElement, inherited: InheritedTextMetrics, insideText: boolean, inheritedLiteral = false) => {
+    // Prepared emission already owns every run's advance and placement.
+    if (hasAttribute(element.attrs, 'data-prepared-text')) return
     const metrics = resolveMetrics(inherited, element)
     const literalText = inheritedLiteral || hasAttribute(element.attrs, 'data-literal-text')
     const isTextRoot = element.name === 'text' && !insideText

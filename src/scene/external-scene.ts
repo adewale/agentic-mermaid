@@ -115,7 +115,8 @@ export interface ExternalSceneConnector extends ExternalSceneNodeBase {
   readonly labels?: readonly ExternalSceneConnectorLabel[]
 }
 
-export type ExternalSceneConnectorLabel = Omit<ConnectorLabelDescriptor, 'visual'>
+export type ExternalSceneConnectorLabel = Pick<ConnectorLabelDescriptor,
+  'id' | 'text' | 'anchor' | 'bounds' | 'halo' | 'clearance' | 'paint' | 'fontSize' | 'textAnchor'>
 
 export type ExternalSceneNode =
   | ExternalSceneShape
@@ -486,6 +487,8 @@ function compileNode(
       x: input.x,
       y: input.y,
       fontSize: input.fontSize,
+      fontWeight: 400,
+      display: 'literal',
       anchor,
       paint,
       ...(input.channels ? { channels: input.channels } : {}),

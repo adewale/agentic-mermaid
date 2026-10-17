@@ -1,13 +1,14 @@
+import type { PixelTextBlock } from '../shared/prepared-text.ts'
+import { erHeaderBlock, erRelationshipBlock, erAttributeBlocks, erGroupBlock } from './layout.ts'
 import type { PositionedErDiagram, PositionedErEntity, PositionedErRelationship, PositionedErGroup, ErAttribute, Cardinality } from './types.ts'
 import type { RenderContext } from '../types.ts'
 import { svgOpenTag, buildStyleBlock, buildShadowDefs, type DiagramColors } from '../theme.ts'
 import { inkOnNodeFill } from '../color-resolver.ts'
-import { FONT_SIZES, FONT_WEIGHTS, STROKE_WIDTHS, estimateTextWidth, TEXT_BASELINE_SHIFT, applyTextTransform, resolveRenderStyle, diagramTitleMark } from '../styles.ts'
+import { FONT_SIZES, FONT_WEIGHTS, STROKE_WIDTHS, TEXT_BASELINE_SHIFT, resolveRenderStyle, diagramTitleMark } from '../styles.ts'
 import type { RenderStyleDefaults, ResolvedRenderStyle } from '../styles.ts'
 import { ER_STYLE_DEFAULTS, erCommentColumnWidth, erCommentText } from './layout.ts'
 import { buildAccessibilityAttrs } from '../shared/svg-a11y.ts'
 import { breakLineTags, renderMultilineText, escapeAttr, escapeXml as escapeXmlUtil } from '../multiline-utils.ts'
-import { measureMultilineText } from '../text-metrics.ts'
 import { topRoundedRectPath } from '../svg-paths.ts'
 import type { Geometry, SceneDoc, SceneNode } from '../scene/ir.ts'
 import { hashId } from '../scene/seed.ts'
@@ -45,6 +46,10 @@ const ER_FONT = {
 interface ShapePiece {
   geometry: Geometry
   crisp: string
+}
+
+function renderLiteralBlock(block: PixelTextBlock, x: number, y: number, attrs: string): string {
+  return renderMultilineText(block, x, y, block.fontSize, attrs)
 }
 
 /**
@@ -158,13 +163,14 @@ function renderErGroup(group: PositionedErGroup, style: ResolvedRenderStyle): Sc
   const fill = style.groupFillColor ?? 'var(--_group-fill)'
   const headerFill = style.groupHeaderFillColor ?? 'var(--_group-hdr)'
   const text = style.groupTextColor ?? 'var(--_text)'
+  const block = group.labelBlock ?? erGroupBlock(group.label, style)
   return marks.group({
     id: `er-group:${group.id}`, role: 'group',
     open: `<g class="er-subgraph" data-id="${escapeAttr(group.id)}" data-label="${escapeAttr(group.label)}"${group.parentId ? ` data-parent-id="${escapeAttr(group.parentId)}"` : ''}>`,
     close: '</g>', children: [
       { node: marks.shape({ id: `er-group:${group.id}:box`, role: 'group', geometry: { kind: 'rect', x: group.x, y: group.y, width: group.width, height: group.height, rx: 6, ry: 6 }, paint: { fill, stroke, strokeWidth: '1.5' } }, `<rect x="${group.x}" y="${group.y}" width="${group.width}" height="${group.height}" rx="6" fill="${escapeAttr(fill)}" stroke="${escapeAttr(stroke)}" stroke-width="1.5" />`), indent: 2 },
       { node: marks.shape({ id: `er-group:${group.id}:header`, role: 'group-header', geometry: { kind: 'rect', x: group.x, y: group.y, width: group.width, height: group.headerHeight, rx: 6, ry: 6 }, paint: { fill: headerFill, stroke: 'none' } }, `<rect x="${group.x}" y="${group.y}" width="${group.width}" height="${group.headerHeight}" rx="6" fill="${escapeAttr(headerFill)}" />`), indent: 2 },
-      { node: marks.text({ id: `er-group:${group.id}:label`, role: 'label', text: group.label, x: group.x + 10, y: group.y + group.headerHeight / 2, fontSize: 12, anchor: 'start', paint: { fill: text } }, renderMultilineText(group.label, group.x + 10, group.y + group.headerHeight / 2, 12, `text-anchor="start" font-weight="600" fill="${escapeAttr(text)}"`)), indent: 2 },
+      { node: marks.text({ id: `er-group:${group.id}:label`, role: 'label', text: block.text, block, x: group.x + 10, y: group.y + group.headerHeight / 2, fontSize: block.fontSize, anchor: 'start', paint: { fill: text } }, renderMultilineText(block, group.x + 10, group.y + group.headerHeight / 2, block.fontSize, `text-anchor="start" font-size="${block.fontSize}" font-weight="${block.fontWeight}" letter-spacing="${block.letterSpacing}" fill="${escapeAttr(text)}"`)), indent: 2 },
     ],
   })
 }
@@ -227,20 +233,21 @@ function renderEntityBox(entity: PositionedErEntity, style: ResolvedRenderStyle,
 
   // Entity name (supports multi-line via <br> tags)
   const nameColor = headerInk(style.nodeTextColor ?? 'var(--_text)')
-  const displayLabel = applyTextTransform(label, style.nodeTextTransform)
+  const labelBlock = entity.labelBlock ?? erHeaderBlock(label, style)
+  const displayLabel = labelBlock.text
   children.push({
     indent: 2,
     node: marks.text({
       id: `entity-name:${id}`,
       role: 'label',
-      text: displayLabel,
+      text: displayLabel, block: labelBlock,
       x: x + width / 2,
       y: y + headerHeight / 2,
       fontSize: style.nodeLabelFontSize,
       anchor: 'middle',
       paint: { fill: nameColor },
     }, renderMultilineText(
-      displayLabel,
+      labelBlock,
       x + width / 2,
       y + headerHeight / 2,
       style.nodeLabelFontSize,
@@ -268,7 +275,7 @@ function renderEntityBox(entity: PositionedErEntity, style: ResolvedRenderStyle,
   for (let i = 0; i < attributes.length; i++) {
     const attr = attributes[i]!
     const rowY = attrTop + i * rowHeight + rowHeight / 2
-    for (const node of renderAttribute(attr, id, x, rowY, width, style, ink, commentColumn)) {
+    for (const node of renderAttribute(attr, id, x, rowY, width, style, ink, commentColumn, entity.attributeBlocks?.[i])) {
       children.push({ indent: 2, node })
     }
   }
@@ -322,9 +329,11 @@ function renderAttribute(
   style: ResolvedRenderStyle,
   ink: (tone: string) => string,
   commentColumn: number,
+  prepared?: ReturnType<typeof erAttributeBlocks>,
 ): SceneNode[] {
   const rowNodes: SceneNode[] = []
   const attrId = `attr:${entityId}:${attr.name}`
+  const blocks = prepared ?? erAttributeBlocks(attr)
   // Key text sits on its theme-tinted badge; type and name sit on the entity fill.
   const keyTextColor = style.nodeTextColor ?? 'var(--_text-sec)'
   const attrTextColor = ink(keyTextColor)
@@ -334,7 +343,7 @@ function renderAttribute(
   let keyWidth = 0
   if (attr.keys.length > 0) {
     const keyText = attr.keys.join(',')
-    keyWidth = estimateTextWidth(keyText, ER_FONT.keySize, ER_FONT.keyWeight) + 8
+    keyWidth = blocks.keys.width + 8
     const badgeX = boxX + Math.max(6, style.nodePaddingX / 2)
     rowNodes.push(marks.shape({
       id: `${attrId}:key-badge`,
@@ -347,15 +356,14 @@ function renderAttribute(
     rowNodes.push(marks.text({
       id: `${attrId}:key-text`,
       role: 'attribute',
-      text: keyText,
+      text: keyText, block: blocks.keys,
       x: badgeX + keyWidth / 2,
       y,
       fontSize: ER_FONT.keySize,
       anchor: 'middle',
       paint: { fill: keyTextColor },
     },
-      `<text x="${badgeX + keyWidth / 2}" y="${y}" text-anchor="middle" dy="${TEXT_BASELINE_SHIFT}" ` +
-      `font-size="${ER_FONT.keySize}" font-weight="${ER_FONT.keyWeight}" fill="${escapeAttr(keyTextColor)}">${attr.keys.join(',')}</text>`))
+      renderLiteralBlock(blocks.keys, badgeX + keyWidth / 2, y, `text-anchor="middle" font-size="${ER_FONT.keySize}" font-weight="${ER_FONT.keyWeight}" fill="${escapeAttr(keyTextColor)}"`)))
   }
 
   // Type (left-aligned after keys, monospace with syntax highlighting)
@@ -363,16 +371,14 @@ function renderAttribute(
   rowNodes.push(marks.text({
     id: `${attrId}:type`,
     role: 'attribute',
-    text: attr.type,
+    text: attr.type, block: blocks.type,
     x: typeX,
     y,
     fontSize: ER_FONT.attrSize,
     anchor: 'start',
     paint: { fill: attrTypeColor },
   },
-    `<text x="${typeX}" y="${y}" class="mono" dy="${TEXT_BASELINE_SHIFT}" ` +
-    `font-size="${ER_FONT.attrSize}" font-weight="${ER_FONT.attrWeight}">` +
-    `<tspan fill="${escapeAttr(attrTypeColor)}">${escapeXml(attr.type)}</tspan></text>`))
+    renderLiteralBlock(blocks.type, typeX, y, `class="mono" font-size="${ER_FONT.attrSize}" font-weight="${ER_FONT.attrWeight}" fill="${escapeAttr(attrTypeColor)}"`)))
 
   // Name (right-aligned, monospace with syntax highlighting), left of the
   // entity's comment column when any attribute carries a comment.
@@ -381,16 +387,14 @@ function renderAttribute(
   rowNodes.push(marks.text({
     id: attrId,
     role: 'attribute',
-    text: attr.name,
+    text: attr.name, block: blocks.name,
     x: nameX,
     y,
     fontSize: ER_FONT.attrSize,
     anchor: 'end',
     paint: { fill: attrTextColor },
   },
-    `<text x="${nameX}" y="${y}" class="mono" text-anchor="end" dy="${TEXT_BASELINE_SHIFT}" ` +
-    `font-size="${ER_FONT.attrSize}" font-weight="${ER_FONT.attrWeight}">` +
-    `<tspan fill="${escapeAttr(attrTextColor)}">${escapeXml(attr.name)}</tspan></text>`))
+    renderLiteralBlock(blocks.name, nameX, y, `class="mono" text-anchor="end" font-size="${ER_FONT.attrSize}" font-weight="${ER_FONT.attrWeight}" fill="${escapeAttr(attrTextColor)}"`)))
 
   // Comment (right-aligned in its column, as Mermaid draws it after the name)
   if (attr.comment) {
@@ -398,15 +402,14 @@ function renderAttribute(
     rowNodes.push(marks.text({
       id: `${attrId}:comment`,
       role: 'attribute',
-      text: comment,
+      text: comment, block: blocks.comment,
       x: rightEdge,
       y,
       fontSize: ER_FONT.attrSize,
       anchor: 'end',
       paint: { fill: attrTypeColor },
     },
-      `<text x="${rightEdge}" y="${y}" text-anchor="end" dy="${TEXT_BASELINE_SHIFT}" ` +
-      `font-size="${ER_FONT.attrSize}" fill="${escapeAttr(attrTypeColor)}">${escapeXml(comment)}</text>`))
+      renderLiteralBlock(blocks.comment!, rightEdge, y, `text-anchor="end" font-size="${ER_FONT.attrSize}" fill="${escapeAttr(attrTypeColor)}"`)))
   }
 
   // Wrap in a group if there's a comment (for tooltip support)
@@ -544,15 +547,7 @@ export function separateRelationshipLabels(
   const placed: Box[] = []
   for (const rel of diagram.relationships) {
     if (!rel.label || rel.points.length < 2) continue
-    const roleStyle = resolveRoleStyle(styleFace, 'relationship', {
-      category: rel.identifying ? 'identifying' : 'non-identifying',
-    }, { includeFallback: false })
-    const m = measureMultilineText(
-      applyTextTransform(rel.label, roleStyle?.textTransform ?? style.edgeTextTransform),
-      roleStyle?.fontSize ?? style.edgeLabelFontSize,
-      roleStyle?.fontWeight ?? style.edgeLabelFontWeight,
-      roleStyle?.letterSpacing ?? style.edgeLetterSpacing,
-    )
+    const m = rel.labelBlock ?? erRelationshipBlock(rel, style, styleFace)
     // Match the public readability audit's conservative glyph-clearance box
     // (8px per side), not merely the smaller painted pill dimensions.
     const bgW = m.width + 16, bgH = m.height + 16
@@ -625,8 +620,8 @@ function renderRelationshipLabel(
   const fontWeight = roleStyle?.fontWeight ?? style.edgeLabelFontWeight
   const letterSpacing = roleStyle?.letterSpacing ?? style.edgeLetterSpacing
   const mid = at ?? midpoint(rel.points)
-  const displayLabel = applyTextTransform(rel.label, roleStyle?.textTransform ?? style.edgeTextTransform)
-  const metrics = measureMultilineText(displayLabel, fontSize, fontWeight, letterSpacing)
+  const metrics = rel.labelBlock ?? erRelationshipBlock(rel, style, styleFace)
+  const displayLabel = metrics.text
 
   // Background pill for readability
   const bgW = metrics.width + 8
@@ -646,14 +641,14 @@ function renderRelationshipLabel(
   const label = marks.text({
     id: sceneId,
     role: 'label',
-    text: displayLabel,
+    text: displayLabel, block: metrics,
     x: mid.x,
     y: mid.y,
     fontSize,
     anchor: 'middle',
     paint: { fill: labelColor },
     channels,
-  }, renderMultilineText(displayLabel, mid.x, mid.y, fontSize,
+  }, renderMultilineText(metrics, mid.x, mid.y, fontSize,
     `text-anchor="middle" font-size="${fontSize}" font-weight="${fontWeight}"${letterAttr(letterSpacing)} fill="${escapeAttr(labelColor)}"`))
 
   return [pill, label]

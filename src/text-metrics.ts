@@ -128,27 +128,27 @@ export function getCharWidth(char: string): number {
  * @returns Estimated width in pixels
  */
 export interface TextMeasurementContract {
-  version: 3
+  version: 4
   unit: 'px'
   fontCalibration: 'Inter-compatible proportional estimate'
   monospaceCalibration: '0.6em-per-cell'
   wideCodepoints: 'src/shared/unicode-ranges.ts'
   emojiDetection: 'Emoji_Presentation-or-Extended_Pictographic'
   ambiguousWidth: 'single-cell'
-  paintedAdvanceProjection: 'svg-textLength-spacingAndGlyphs'
-  naturalAdvanceExemptions: 'none'
+  paintedAdvanceProjection: 'prepared-positions-or-svg-textLength-spacingAndGlyphs'
+  naturalAdvanceExemptions: 'prepared-non-ascii-shaping-runs'
 }
 
 export const TEXT_MEASUREMENT_CONTRACT: TextMeasurementContract = {
-  version: 3,
+  version: 4,
   unit: 'px',
   fontCalibration: 'Inter-compatible proportional estimate',
   monospaceCalibration: '0.6em-per-cell',
   wideCodepoints: 'src/shared/unicode-ranges.ts',
   emojiDetection: 'Emoji_Presentation-or-Extended_Pictographic',
   ambiguousWidth: 'single-cell',
-  paintedAdvanceProjection: 'svg-textLength-spacingAndGlyphs',
-  naturalAdvanceExemptions: 'none',
+  paintedAdvanceProjection: 'prepared-positions-or-svg-textLength-spacingAndGlyphs',
+  naturalAdvanceExemptions: 'prepared-non-ascii-shaping-runs',
 }
 
 export interface TextMeasurementInput {

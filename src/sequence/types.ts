@@ -1,3 +1,4 @@
+import type { PixelTextBlock } from '../shared/prepared-text.ts'
 // ============================================================================
 // Sequence diagram types
 //
@@ -145,6 +146,8 @@ export interface PositionedSequenceDiagram extends PositionedDiagram {
 
 /** Positioned `box … end` background frame (drawn behind everything). */
 export interface PositionedBoxGroup {
+  block?: PixelTextBlock
+  labelY?: number
   label?: string
   /** Explicit CSS color from the source; absent = theme-derived fill. */
   color?: string
@@ -171,6 +174,7 @@ export interface SequenceBounds {
 
 /** Positioned text label with its anchor and full painted bounding box. */
 export interface PositionedSequenceLabel {
+  block?: PixelTextBlock
   text: string
   x: number
   y: number
@@ -272,6 +276,7 @@ export interface PositionedBlock {
 }
 
 export interface PositionedNote {
+  block?: PixelTextBlock
   text: string
   x: number
   y: number

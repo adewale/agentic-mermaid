@@ -29,7 +29,7 @@ export const GITGRAPH_SVG_HOOKS = {
       mainBranchOrder: config.mainBranchOrder,
       title: familyConfig?.title,
     }), ctx.source.accessibility)
-    return layoutResult(positionGitGraph(diagram, config), { injectAccessibility: false })
+    return layoutResult(positionGitGraph(diagram, config, ctx.renderOptions, ctx.styleFace), { injectAccessibility: false })
   },
   lowerScene: scene(lowerGitGraphScene),
 } satisfies BrowserSvgFamilyHooks

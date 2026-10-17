@@ -27,7 +27,7 @@ const nameArb = fc.stringMatching(/^[A-Za-z][A-Za-z0-9 ]{0,17}[A-Za-z0-9]$/)
 
 const chartArb = fc.integer({ min: 1, max: 12 }).chain(count => fc.record({
   horizontal: fc.boolean(),
-  title: fc.option(nameArb, { nil: undefined }),
+  title: fc.option(fc.oneof(nameArb, fc.stringMatching(/^[A-Za-z][A-Za-z0-9 ]{60,120}$/)), { nil: undefined }),
   // Descenders (g, p, q, y) are what cross a bottom edge first.
   xTitle: fc.option(fc.constantFrom('Quarterly spending', 'Typography', 'gypsy query', 'Q'), { nil: undefined }),
   yTitle: fc.option(fc.constantFrom('Revenue', 'Throughput (qps)', 'y'), { nil: undefined }),

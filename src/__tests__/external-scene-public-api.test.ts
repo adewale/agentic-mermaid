@@ -516,6 +516,10 @@ describe('public external Scene construction and admission', () => {
       [{ ...base, parts: [container, { ...data, channels: { ...data.channels, hue: 'red' } }, edge] } as unknown as ExternalSceneInput, /input\.parts\[1\]\.channels\.hue/],
       [{ ...base, parts: [container, data, { ...edge, relationship: { kind: 'dependency', typo: true } }] } as unknown as ExternalSceneInput, /input\.parts\[2\]\.relationship\.typo/],
       [{ ...base, parts: [container, data, { ...edge, labels: [{ text: 'label', visual: { kind: 'inline' } }] }] } as unknown as ExternalSceneInput, /input\.parts\[2\]\.labels\[0\]\.visual/],
+      [{ ...base, parts: [container, data, { ...edge, labels: [{ text: 'label', fontWeight: 800 }] }] } as unknown as ExternalSceneInput, /input\.parts\[2\]\.labels\[0\]\.fontWeight/],
+      [{ ...base, parts: [container, data, { ...edge, labels: [{ text: 'label', letterSpacing: 2 }] }] } as unknown as ExternalSceneInput, /input\.parts\[2\]\.labels\[0\]\.letterSpacing/],
+      [{ ...base, parts: [container, data, { ...edge, labels: [{ text: 'label', display: 'formatted' }] }] } as unknown as ExternalSceneInput, /input\.parts\[2\]\.labels\[0\]\.display/],
+      [{ ...base, parts: [container, data, { ...edge, labels: [{ text: 'label', block: {} }] }] } as unknown as ExternalSceneInput, /input\.parts\[2\]\.labels\[0\]\.block/],
     ]
     for (const [candidate, path] of candidates) {
       expect(() => buildExternalScene(candidate)).toThrow(path)

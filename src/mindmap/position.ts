@@ -22,7 +22,7 @@ export function resolveMindmapPositionConfig(raw: unknown, authoredLayout: unkno
 export function positionMindmap(
   body: MindmapDiagram,
   config: MindmapPositionConfig,
-  titleStyle: Pick<ResolvedRenderStyle, 'groupTextTransform' | 'groupLetterSpacing'> = { groupLetterSpacing: 0 },
+  titleStyle: Pick<ResolvedRenderStyle, 'groupTextTransform' | 'groupLetterSpacing'> & Partial<Pick<ResolvedRenderStyle, 'nodeTextTransform' | 'nodeLetterSpacing' | 'nodeLabelFontSize' | 'nodeLabelFontWeight'>> = { groupLetterSpacing: 0 },
 ): PositionedMindmapDiagram {
-  return withMindmapTitle(layoutMindmap(body, config), body.title, titleStyle, config)
+  return withMindmapTitle(layoutMindmap(body, { ...config, textStyle: titleStyle }), body.title, titleStyle, config)
 }

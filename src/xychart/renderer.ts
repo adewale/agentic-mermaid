@@ -4,7 +4,7 @@ import { svgOpenTag, buildStyleBlock, buildShadowDefs } from '../theme.ts'
 import { TEXT_BASELINE_SHIFT, applyTextTransform, estimateTextWidth, STROKE_WIDTHS, resolveRenderStyle } from '../styles.ts'
 import type { RenderStyleDefaults } from '../styles.ts'
 import { LEGEND_SWATCH_GAP, LEGEND_SWATCH_SIZE, XY_STYLE_DEFAULTS } from './layout.ts'
-import { escapeXml } from '../multiline-utils.ts'
+import { escapeXml, renderMultilineText } from '../multiline-utils.ts'
 import { CHART_ACCENT_FALLBACK } from './colors.ts'
 import { categoricalPalette } from '../shared/categorical-palette.ts'
 import { contrastTextColor } from '../color-resolver.ts'
@@ -222,11 +222,12 @@ export function lowerXYChartScene(
         channels: { category: `line-${line.seriesIndex}`, value: normalized(point.value) },
       }, `<circle cx="${r(point.x)}" cy="${r(point.y)}" r="${CHART_FONT.dotRadius}" class="xychart-dot xychart-color-${line.colorIndex}" data-value="${point.value}"/>`))
       parts.push(marks.text({
-        id: `point-label:${line.seriesIndex}:${pointIndex}`, role: 'label', text: point.textLabel,
+        id: `point-label:${line.seriesIndex}:${pointIndex}`, role: 'label', text: point.textBlock?.text ?? point.textLabel, block: point.textBlock,
         x, y, fontSize: 12, anchor,
         paint: { fill: `var(--xychart-color-${line.colorIndex})` },
         channels: { category: `line-${line.seriesIndex}`, value: normalized(point.value) },
-      }, `<text class="xychart-point-label xychart-color-${line.colorIndex}" data-label-position="${position}" x="${r(x)}" y="${r(y)}" text-anchor="${anchor}" font-size="12" fill="var(--xychart-color-${line.colorIndex})">${escapeXml(point.textLabel)}</text>`))
+      }, renderMultilineText(point.textBlock ?? point.textLabel, rn(x), rn(y), 12,
+        `class="xychart-point-label xychart-color-${line.colorIndex}" data-label-position="${position}" text-anchor="${anchor}" font-size="12" font-weight="${style.nodeLabelFontWeight}"${letterAttr(style.nodeLetterSpacing)} fill="var(--xychart-color-${line.colorIndex})"`, 0, true)))
     })
   }
 
@@ -277,7 +278,7 @@ export function lowerXYChartScene(
 
   const labelSeriesCount = new Map<number, number>()
   for (const label of chart.dataLabels) {
-    const text = applyTextTransform(label.text, style.nodeTextTransform)
+    const text = label.block?.text ?? applyTextTransform(label.text, style.nodeTextTransform)
     const catIndex = labelSeriesCount.get(label.bar.seriesIndex) ?? 0
     labelSeriesCount.set(label.bar.seriesIndex, catIndex + 1)
     // Outside labels sit on the page, whose text contrast the palette contract
@@ -294,6 +295,7 @@ export function lowerXYChartScene(
       id: `label:bar:${label.bar.seriesIndex}:${label.bar.label ?? catIndex}`,
       role: 'label',
       text,
+      block: label.block,
       x: label.x,
       y: label.y,
       fontSize: label.fontSize,
@@ -307,7 +309,7 @@ export function lowerXYChartScene(
       `<text x="${r(label.x)}" y="${r(label.y)}" text-anchor="${label.anchor}" ` +
       `${label.dominantBaseline ? `dominant-baseline="${label.dominantBaseline}" ` : ''}` +
       `font-size="${label.fontSize}" font-weight="${style.nodeLabelFontWeight}"${letterAttr(style.nodeLetterSpacing)} fill="${escapeXml(fill)}" ` +
-      `stroke="${escapeXml(halo)}" stroke-width="${DATA_LABEL_HALO_WIDTH}" stroke-linejoin="round" paint-order="stroke" class="xychart-data-label">${escapeXml(text)}</text>`,
+      `stroke="${escapeXml(halo)}" stroke-width="${DATA_LABEL_HALO_WIDTH}" stroke-linejoin="round" paint-order="stroke" class="xychart-data-label" data-literal-text="true">${escapeXml(text)}</text>`,
     ))
   }
 
@@ -316,13 +318,14 @@ export function lowerXYChartScene(
 
   if (chart.xAxis.title) {
     const title = chart.xAxis.title
-    const text = applyTextTransform(title.text, style.edgeTextTransform)
+    const text = title.block?.text ?? applyTextTransform(title.text, style.edgeTextTransform)
     const rotation = title.rotate ? { kind: 'rotate' as const, angle: title.rotate, cx: title.x, cy: title.y } : undefined
     const transform = rotation ? ` transform="rotate(${rotation.angle},${rotation.cx},${rotation.cy})"` : ''
     parts.push(marks.text({
       id: 'axis:x:title',
       role: 'axis',
       text,
+      block: title.block,
       x: title.x,
       y: title.y,
       fontSize: chart.xAxis.config.titleFontSize,
@@ -330,21 +333,21 @@ export function lowerXYChartScene(
       paint: { fill: chartColors.xAxisTitleColor },
       transform: rotation,
     },
-      `<text x="${title.x}" y="${title.y}" text-anchor="middle"${transform} ` +
-      `font-size="${chart.xAxis.config.titleFontSize}" font-weight="${style.edgeLabelFontWeight}"${letterAttr(style.edgeLetterSpacing)} ` +
-      `dy="${TEXT_BASELINE_SHIFT}" class="xychart-axis-title xychart-x-axis-title">${escapeXml(text)}</text>`,
+      renderMultilineText(title.block ?? text, title.x, title.y, chart.xAxis.config.titleFontSize,
+        `text-anchor="middle"${transform} font-size="${chart.xAxis.config.titleFontSize}" font-weight="${style.edgeLabelFontWeight}"${letterAttr(style.edgeLetterSpacing)} class="xychart-axis-title xychart-x-axis-title"`, 0.35, true),
     ))
   }
 
   if (chart.yAxis.title) {
     const title = chart.yAxis.title
-    const text = applyTextTransform(title.text, style.edgeTextTransform)
+    const text = title.block?.text ?? applyTextTransform(title.text, style.edgeTextTransform)
     const rotation = title.rotate ? { kind: 'rotate' as const, angle: title.rotate, cx: title.x, cy: title.y } : undefined
     const transform = rotation ? ` transform="rotate(${rotation.angle},${rotation.cx},${rotation.cy})"` : ''
     parts.push(marks.text({
       id: 'axis:y:title',
       role: 'axis',
       text,
+      block: title.block,
       x: title.x,
       y: title.y,
       fontSize: chart.yAxis.config.titleFontSize,
@@ -352,27 +355,27 @@ export function lowerXYChartScene(
       paint: { fill: chartColors.yAxisTitleColor },
       transform: rotation,
     },
-      `<text x="${title.x}" y="${title.y}" text-anchor="middle"${transform} ` +
-      `font-size="${chart.yAxis.config.titleFontSize}" font-weight="${style.edgeLabelFontWeight}"${letterAttr(style.edgeLetterSpacing)} ` +
-      `dy="${TEXT_BASELINE_SHIFT}" class="xychart-axis-title xychart-y-axis-title">${escapeXml(text)}</text>`,
+      renderMultilineText(title.block ?? text, title.x, title.y, chart.yAxis.config.titleFontSize,
+        `text-anchor="middle"${transform} font-size="${chart.yAxis.config.titleFontSize}" font-weight="${style.edgeLabelFontWeight}"${letterAttr(style.edgeLetterSpacing)} class="xychart-axis-title xychart-y-axis-title"`, 0.35, true),
     ))
   }
 
   if (chart.title) {
-    const title = applyTextTransform(chart.title.text, style.groupTextTransform)
+    const title = chart.title.text
     parts.push(marks.text({
       id: 'title',
       role: 'title',
       text: title,
+      block: chart.title.block,
       x: chart.title.x,
       y: chart.title.y,
       fontSize: chart.config.titleFontSize,
       anchor: 'middle',
       paint: { fill: chartColors.titleColor },
     },
-      `<text x="${chart.title.x}" y="${chart.title.y}" text-anchor="middle" ` +
-      `font-size="${chart.config.titleFontSize}" font-weight="${style.groupHeaderFontWeight}"${letterAttr(style.groupLetterSpacing)} ` +
-      `dy="${TEXT_BASELINE_SHIFT}" class="xychart-title">${escapeXml(title)}</text>`,
+      renderMultilineText(chart.title.block ?? title, chart.title.x, chart.title.y, chart.config.titleFontSize,
+        `text-anchor="middle" font-size="${chart.config.titleFontSize}" font-weight="${style.groupHeaderFontWeight}"${letterAttr(style.groupLetterSpacing)} class="xychart-title"`,
+        0.35, true),
     ))
   }
 
@@ -382,7 +385,7 @@ export function lowerXYChartScene(
   if (chart.legend.length > 0) {
     const legendChildren: Array<{ node: SceneNode; indent: number }> = []
     for (const item of chart.legend) {
-      const cy = item.y + LEGEND_SWATCH_SIZE / 2
+      const cy = item.y + Math.max(LEGEND_SWATCH_SIZE, item.block?.height ?? 0) / 2
       if (item.type === 'bar') {
         legendChildren.push({
           node: marks.shape({
@@ -424,22 +427,22 @@ export function lowerXYChartScene(
           indent: 2,
         })
       }
-      const label = applyTextTransform(item.label, style.nodeTextTransform)
+      const label = item.block?.text ?? applyTextTransform(item.label, style.nodeTextTransform)
       const labelX = item.x + LEGEND_SWATCH_SIZE + LEGEND_SWATCH_GAP
       legendChildren.push({
         node: marks.text({
           id: `legend:label:${item.colorIndex}`,
           role: 'legend',
           text: label,
+          block: item.block,
           x: rn(labelX),
           y: rn(cy),
           fontSize: chart.config.legendFontSize,
           anchor: 'start',
           paint: { fill: chartColors.legendTextColor },
         },
-          `<text x="${r(labelX)}" y="${r(cy)}" text-anchor="start" dominant-baseline="middle" ` +
-          `font-size="${chart.config.legendFontSize}" font-weight="${style.nodeLabelFontWeight}"${letterAttr(style.nodeLetterSpacing)} ` +
-          `class="xychart-legend-label">${escapeXml(label)}</text>`),
+          renderMultilineText(item.block ?? label, rn(labelX), rn(cy), chart.config.legendFontSize,
+            `text-anchor="start" dominant-baseline="middle" font-size="${chart.config.legendFontSize}" font-weight="${style.nodeLabelFontWeight}"${letterAttr(style.nodeLetterSpacing)} class="xychart-legend-label"`, 0, true)),
         indent: 2,
       })
     }
@@ -502,22 +505,21 @@ function lowerAxisLabels(
   fill: string,
 ): void {
   for (const tick of ticks) {
-    const label = applyTextTransform(tick.label, style.edgeTextTransform)
+    const label = tick.block?.text ?? applyTextTransform(tick.label, style.edgeTextTransform)
     const middleBaseline = tick.textAnchor === 'end' ? ' dominant-baseline="middle"' : ''
-    const dy = tick.textAnchor === 'end' ? '' : ` dy="${TEXT_BASELINE_SHIFT}"`
     parts.push(marks.text({
       id: `axis:${axisName}:label:${tick.label}`,
       role: 'axis',
       text: label,
+      block: tick.block,
       x: tick.labelX,
       y: tick.labelY,
       fontSize,
       anchor: tick.textAnchor,
       paint: { fill },
     },
-      `<text x="${tick.labelX}" y="${tick.labelY}" text-anchor="${tick.textAnchor}"${middleBaseline} ` +
-      `font-size="${fontSize}" font-weight="${style.nodeLabelFontWeight}"${letterAttr(style.nodeLetterSpacing)}${dy} class="xychart-label xychart-${axisName}-label">` +
-      `${escapeXml(label)}</text>`,
+      renderMultilineText(tick.block ?? label, tick.labelX, tick.labelY, fontSize,
+        `text-anchor="${tick.textAnchor}"${middleBaseline} font-size="${fontSize}" font-weight="${style.nodeLabelFontWeight}"${letterAttr(style.nodeLetterSpacing)} class="xychart-label xychart-${axisName}-label"`, tick.textAnchor === 'end' ? 0 : 0.35, true),
     ))
   }
 }

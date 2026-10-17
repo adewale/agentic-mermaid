@@ -1,3 +1,4 @@
+import { preparePixelText, type PixelTextBlock } from '../shared/prepared-text.ts'
 /**
  * Class diagram layout engine (ELK.js).
  *
@@ -20,11 +21,10 @@ import type { ClassDiagram, ClassNode, ClassNamespace, ClassMember, PositionedCl
 import type { RenderOptions, Point } from '../types.ts'
 import type { MermaidFrontmatterMap } from '../mermaid-source.ts'
 import { getFrontmatterScalar } from '../mermaid-source.ts'
-import { applyTextTransform, estimateTextWidth, estimateMonoTextWidth, FONT_SIZES, FONT_WEIGHTS, STROKE_WIDTHS, resolveRenderStyle, diagramTitleBand, positionDiagramTitle } from '../styles.ts'
+import { FONT_SIZES, FONT_WEIGHTS, STROKE_WIDTHS, resolveRenderStyle, diagramTitleBand, positionDiagramTitle } from '../styles.ts'
 import type { RenderStyleDefaults, ResolvedRenderStyle } from '../styles.ts'
 import type { InternalStyleFace } from '../scene/style-registry.ts'
-import { LINE_HEIGHT_RATIO, measureMultilineText } from '../text-metrics.ts'
-import { wrapLabelToWidth } from '../shared/label-wrap.ts'
+import { LINE_HEIGHT_RATIO } from '../text-metrics.ts'
 import { elkLayoutSync } from '../elk-instance.ts'
 import { directionToElk } from '../layout-engine.ts'
 import { checkedAuthoredStyle } from '../shared/style-props.ts'
@@ -96,6 +96,18 @@ export function configSpacing(frontmatter: MermaidFrontmatterMap, family: string
   return typeof value === 'number' && Number.isFinite(value) && value >= 0 ? value : undefined
 }
 
+export function classTextBlock(text: string, style: ResolvedRenderStyle, role: 'node' | 'edge' | 'group', maxWidth?: number): PixelTextBlock {
+  return role === 'node'
+    ? preparePixelText(text, { transform: style.nodeTextTransform, fontSize: style.nodeLabelFontSize, fontWeight: style.nodeLabelFontWeight, letterSpacing: style.nodeLetterSpacing, maxWidth })
+    : role === 'edge'
+      ? preparePixelText(text, { transform: style.edgeTextTransform, fontSize: style.edgeLabelFontSize, fontWeight: style.edgeLabelFontWeight, letterSpacing: style.edgeLetterSpacing, maxWidth })
+      : preparePixelText(text, { transform: style.groupTextTransform, fontSize: style.groupHeaderFontSize, fontWeight: style.groupHeaderFontWeight, letterSpacing: style.groupLetterSpacing, maxWidth })
+}
+
+export function classMemberBlock(member: ClassMember): PixelTextBlock {
+  return preparePixelText(memberToString(member), { display: 'literal', fontSize: CLS.memberFontSize, fontWeight: 400, monospace: true })
+}
+
 type ClassSizeMap = Map<string, { width: number; height: number; headerHeight: number; attrHeight: number; methodHeight: number }>
 
 /** id prefix for namespace compound nodes — keeps them disjoint from class ids. */
@@ -135,10 +147,10 @@ function buildClassElkGraph(
   const classSizes: ClassSizeMap = new Map()
 
   for (const cls of diagram.classes) {
-    const label = applyTextTransform(cls.label, style.nodeTextTransform)
+    const labelBlock = classTextBlock(cls.label, style, 'node')
     const headerBaseHeight = Math.max(
       CLS.headerBaseHeight,
-      measureMultilineText(label, style.nodeLabelFontSize, style.nodeLabelFontWeight).height + style.nodePaddingY * 2,
+      labelBlock.height + style.nodePaddingY * 2,
     )
     const headerHeight = cls.annotation !== undefined
       ? headerBaseHeight + CLS.annotationHeight
@@ -152,7 +164,8 @@ function buildClassElkGraph(
       ? cls.methods.length * CLS.memberRowHeight + style.nodePaddingY
       : CLS.emptySectionHeight
 
-    const headerTextW = estimateTextWidth(label, style.nodeLabelFontSize, style.nodeLabelFontWeight)
+    const annotationWidth = cls.annotation === undefined ? 0 : preparePixelText(`<<${cls.annotation}>>`, { display: 'literal', fontSize: 10, fontWeight: 500 }).width
+    const headerTextW = Math.max(labelBlock.width, annotationWidth)
     const maxAttrW = maxMemberWidth(cls.attributes)
     const maxMethodW = maxMemberWidth(cls.methods)
     const width = Math.max(CLS.minWidth, headerTextW + style.nodePaddingX * 2, maxAttrW + style.nodePaddingX * 2, maxMethodW + style.nodePaddingX * 2)
@@ -202,7 +215,7 @@ function buildClassElkGraph(
   // children attach.
   const elkByPath = new Map<string, ElkNode>()
   for (const info of namespaces) {
-    const headerHeight = namespaceHeaderHeight(style, titles.get(info.path))
+    const headerHeight = namespaceHeaderHeight(style, titles.get(info.path) ?? classTextBlock(info.ns.label ?? info.ns.name, style, 'group').text)
     const compound: ElkNode = {
       id: NS_PREFIX + info.path,
       layoutOptions: {
@@ -241,8 +254,8 @@ function buildClassElkGraph(
     const rel = diagram.relationships[i]!
     const edge: ElkExtendedEdge = { id: `e${i}`, sources: [rel.from], targets: [rel.to] }
     if (rel.label) {
-      const label = applyTextTransform(rel.label, style.edgeTextTransform)
-      const metrics = measureMultilineText(label, style.edgeLabelFontSize, style.edgeLabelFontWeight)
+      const metrics = classTextBlock(rel.label, style, 'edge')
+      const label = metrics.text
       edge.labels = [{ text: label, width: metrics.width + 8, height: metrics.height + 6 }]
     }
     const fromChain = ancestorsOf(rel.from)
@@ -313,7 +326,7 @@ function extractClassLayout(
           y,
           width: child.width ?? 0,
           height: child.height ?? 0,
-          headerHeight: namespaceHeaderHeight(style, titles.get(path)),
+          headerHeight: namespaceHeaderHeight(style, titles.get(path) ?? classTextBlock(info?.ns.label ?? info?.ns.name ?? path, style, 'group').text),
           ...(titles.has(path) ? { title: titles.get(path)! } : {}),
         })
         walk(child, x, y)
@@ -377,7 +390,7 @@ function extractClassLayout(
     && a.y < b.y + b.height + gap && a.y + a.height + gap > b.y
   let freestandingY = height + 16
   const notes = diagram.notes.map(note => {
-    const metrics = measureMultilineText(note.text, 12, 400)
+    const metrics = preparePixelText(note.text, { fontSize: 12, fontWeight: 400 })
     const noteWidth = Math.max(90, metrics.width + 24)
     const noteHeight = Math.max(40, metrics.height + 18)
     const target = note.for ? positionedClasses.find(cls => cls.id === note.for) : undefined
@@ -436,11 +449,7 @@ function placeClassCardinalityLabels(
   }))
   for (const relationship of relationships) {
     if (!relationship.label || !relationship.labelPosition) continue
-    const metrics = measureMultilineText(
-      applyTextTransform(relationship.label, style.edgeTextTransform),
-      style.edgeLabelFontSize,
-      style.edgeLabelFontWeight,
-    )
+    const metrics = classTextBlock(relationship.label, style, 'edge')
     obstacles.push({
       x0: relationship.labelPosition.x - metrics.width / 2 - 2,
       y0: relationship.labelPosition.y - 8 - metrics.height / 2 - 2,
@@ -450,7 +459,7 @@ function placeClassCardinalityLabels(
   }
 
   const allocate = (text: string, endpoint: Point, toward: Point): Point => {
-    const metrics = measureMultilineText(text, style.edgeLabelFontSize, style.edgeLabelFontWeight)
+    const metrics = preparePixelText(text, { fontSize: style.edgeLabelFontSize, fontWeight: style.edgeLabelFontWeight, letterSpacing: style.edgeLetterSpacing })
     const halfW = metrics.width / 2 + 2
     const halfH = metrics.height / 2 + 2
     const dx = toward.x - endpoint.x
@@ -536,6 +545,21 @@ export function layoutClassDiagram(
     if (wrapped.size === titles.size && [...wrapped].every(([path, title]) => titles.get(path) === title)) break
     titles = wrapped
   }
+  for (const cls of positioned!.classes) {
+    cls.labelBlock = classTextBlock(cls.label, style, 'node')
+    cls.attributeBlocks = cls.attributes.map(classMemberBlock)
+    cls.methodBlocks = cls.methods.map(classMemberBlock)
+    if (cls.annotation !== undefined) cls.annotationBlock = preparePixelText(`<<${cls.annotation}>>`, { display: 'literal', fontSize: 10, fontWeight: 500 })
+  }
+  for (const ns of positioned!.namespaces) ns.labelBlock = classTextBlock(ns.label, style, 'group', ns.width - 2 * style.groupLabelPaddingX)
+  for (const note of positioned!.notes) note.textBlock = preparePixelText(note.text, { fontSize: 12, fontWeight: 400 })
+  for (const rel of positioned!.relationships) {
+    if (rel.label !== undefined) rel.labelBlock = classTextBlock(rel.label, style, 'edge')
+    for (const side of ['from', 'to'] as const) {
+      const text = rel[`${side}Cardinality`]
+      if (text !== undefined) rel[`${side}CardinalityBlock`] = preparePixelText(text, { fontSize: style.edgeLabelFontSize, fontWeight: style.edgeLabelFontWeight, letterSpacing: style.edgeLetterSpacing })
+    }
+  }
   return withClassTitle(positioned!, diagram.title, style)
 }
 
@@ -565,10 +589,10 @@ function withClassTitle(positioned: PositionedClassDiagram, title: string | unde
 function wrappedNamespaceTitles(namespaces: readonly PositionedClassNamespace[], style: ResolvedRenderStyle): Map<string, string> {
   const titles = new Map<string, string>()
   for (const ns of namespaces) {
-    const text = applyTextTransform(ns.label, style.groupTextTransform)
     const room = ns.width - 2 * style.groupLabelPaddingX
-    const wrapped = wrapLabelToWidth(text, room, style.groupHeaderFontSize, style.groupHeaderFontWeight, style.groupLetterSpacing)
-    if (wrapped !== text) titles.set(ns.id, wrapped)
+    const block = classTextBlock(ns.label, style, 'group', room)
+    const unwrapped = classTextBlock(ns.label, style, 'group')
+    if (block.text !== unwrapped.text) titles.set(ns.id, block.text)
   }
   return titles
 }
@@ -578,8 +602,7 @@ function maxMemberWidth(members: ClassMember[]): number {
   if (members.length === 0) return 0
   let maxW = 0
   for (const m of members) {
-    const text = memberToString(m)
-    const w = estimateMonoTextWidth(text, CLS.memberFontSize)
+    const w = classMemberBlock(m).width
     if (w > maxW) maxW = w
   }
   return maxW

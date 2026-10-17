@@ -267,6 +267,9 @@ describeBrowser('website browser accessibility smoke', () => {
     // Closing restores the grid to the page; Enter on the grid reopens it.
     await dialog.locator('.comparison-dialog-close').click()
     await page.waitForFunction(() => document.querySelector('.comparison-dialog[open]') === null)
+    // Native close removes [open] before its queued close event restores the
+    // grid. Observe that restoration before checking ownership and reopening.
+    await section.locator('.comparison-grid').waitFor({ state: 'attached' })
     expect(await section.locator('.comparison-grid').count()).toBe(1)
     await section.locator('[data-comparison-lightbox-panel]').evaluate((grid: HTMLElement) => {
       grid.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true, cancelable: true }))

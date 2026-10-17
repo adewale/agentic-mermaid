@@ -20,7 +20,9 @@ import type { DiagramColors } from '../theme.ts'
 import type { SvgSemanticIdentity } from './identity.ts'
 import { ensureSvgIdentity, semanticIdentityForSvg } from './identity.ts'
 import { ensureSvgAccessibility, relationAccessibility, relationAccessibilityForSvg } from './accessibility.ts'
-import { escapeAttr, escapeXml } from '../multiline-utils.ts'
+import { escapeAttr, escapeXml, renderMultilineText } from '../multiline-utils.ts'
+import type { LabelDisplay } from '../multiline-utils.ts'
+import { preparePixelText, type PixelTextBlock } from '../shared/prepared-text.ts'
 import {
   connectorContourSemantics,
   connectorGeometryHasCurves,
@@ -29,6 +31,7 @@ import {
   pathMoveCount,
   sameConnectorPoint,
 } from './connector-geometry.ts'
+import { connectorInlineLabelText } from './bounds.ts'
 import { deriveConnectorTerminalProjection } from './connector-terminal.ts'
 import {
   attachSceneNodeSerialization,
@@ -201,13 +204,14 @@ function connectorInlineLabelSvg(
   if (!label.anchor || !label.paint || label.fontSize === undefined || label.textAnchor === undefined) {
     throw new TypeError(`Connector "${connectorId}" inline label ${index + 1} requires anchor, paint, fontSize, and textAnchor`)
   }
+  const block = connectorInlineLabelText(label)
   const attrs: string[] = [
     `data-id="${escapeAttr(label.id ?? `${connectorId}-label-${index + 1}`)}"`,
     'data-role="label"',
     `data-connector-label-for="${escapeAttr(connectorId)}"`,
-    `x="${label.anchor.x}"`,
-    `y="${label.anchor.y - Math.max(0, label.clearance ?? 0)}"`,
-    `font-size="${label.fontSize}"`,
+    `font-size="${block.fontSize}"`,
+    `font-weight="${block.fontWeight}"`,
+    ...(block.letterSpacing ? [`letter-spacing="${block.letterSpacing}"`] : []),
     `text-anchor="${label.textAnchor}"`,
   ]
   if (transform?.kind === 'rotate') attrs.push(`transform="rotate(${transform.angle} ${transform.cx} ${transform.cy})"`)
@@ -227,7 +231,7 @@ function connectorInlineLabelSvg(
     ['paint-order', paint.paintOrder], ['opacity', paint.opacity],
   ] as const
   for (const [name, value] of paintFields) if (value !== undefined) attrs.push(`${name}="${escapeAttr(value)}"`)
-  return `<text ${attrs.join(' ')}>${escapeXml(label.text)}</text>`
+  return renderMultilineText(block, label.anchor.x, label.anchor.y - Math.max(0, label.clearance ?? 0), block.fontSize, attrs.join(' '), 0)
 }
 
 export function connector(fields: ConnectorFields, crisp: string): ConnectorMark {
@@ -306,7 +310,11 @@ export function connector(fields: ConnectorFields, crisp: string): ConnectorMark
     ...(fields.identity?.from ?? endpoints.from ? { from: fields.identity?.from ?? endpoints.from } : {}),
     ...(fields.identity?.to ?? endpoints.to ? { to: fields.identity?.to ?? endpoints.to } : {}),
   }
-  const accessibility = relationAccessibility(identity, labels[0]?.text)
+  const firstLabel = labels[0]
+  const accessibleLabel = firstLabel?.visual?.kind === 'inline'
+    ? connectorInlineLabelText(firstLabel).lineBlocks.map(line => line.runs.map(run => run.text).join('')).join('\n')
+    : firstLabel?.text
+  const accessibility = relationAccessibility(identity, accessibleLabel)
   const projectedMarkers = ensureConnectorMarkerProjection(crisp, {
     ...(markerStart ? { start: markerStart.id } : {}),
     ...(midMarkerId ? { mid: midMarkerId } : {}),
@@ -476,12 +484,26 @@ export function text(fields: {
   x: number
   y: number
   fontSize: number
+  fontWeight?: number
+  letterSpacing?: number
+  display?: LabelDisplay
+  block?: PixelTextBlock
   anchor: TextMark['anchor']
   paint: MarkPaint
   pageFill?: string
   channels?: SemanticChannels
   transform?: SceneTransform
 }, crisp: string): TextMark {
+  const { block, ...semantic } = fields
+  const open = crisp.match(/<text\b[^>]*>/)?.[0] ?? ''
+  const weight = fields.fontWeight ?? block?.fontWeight ?? Number(open.match(/\bfont-weight="(\d+)"/)?.[1] ?? 400)
+  const spacing = fields.letterSpacing ?? block?.letterSpacing ?? Number(open.match(/\bletter-spacing="(-?[\d.]+)"/)?.[1] ?? 0)
+  const display = fields.display ?? block?.prepared.display ?? (open.includes('data-literal-text="true"') ? 'literal' : 'formatted')
+  const measured = block ?? preparePixelText(fields.text, { display, fontSize: fields.fontSize, fontWeight: weight, letterSpacing: spacing })
+  const firstDy = open.match(/\bdy="([^"]*)"/)?.[1] ?? crisp.match(/<tspan\b[^>]*\bdy="([^"]*)"/)?.[1] ?? '0'
+  const firstY = block ? crisp.match(/<tspan\b[^>]*\by="([^"]*)"/)?.[1] : undefined
+  const dy = firstY !== undefined ? Number.parseFloat(firstY) - fields.y : Number.parseFloat(firstDy) * (firstDy.endsWith('em') ? fields.fontSize : 1)
+  const offsetY = dy + (measured.lines.length - 1) * measured.lineHeight / 2 - fields.fontSize * 0.35
   const identity: SvgSemanticIdentity = fields.identity
     ? { ...fields.identity, role: fields.role }
     : semanticIdentityForSvg(crisp, fields)
@@ -489,7 +511,7 @@ export function text(fields: {
     ? relationAccessibility(identity)
     : relationAccessibilityForSvg(crisp, identity)
   const decorated = ensureSvgAccessibility(ensureSvgIdentity(crisp, identity), accessibility)
-  return attachSceneNodeSerialization({ kind: 'text', ...fields, identity, accessibility }, decorated)
+  return attachSceneNodeSerialization({ kind: 'text', ...semantic, identity, accessibility, ...(block ? { prepared: true } : {}), fontWeight: weight, letterSpacing: spacing, display, textLayout: { width: measured.width, height: measured.height, lineHeight: measured.lineHeight, offsetY } }, decorated)
 }
 
 export function documentContent(fields: {
