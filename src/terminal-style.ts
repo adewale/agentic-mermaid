@@ -1,3 +1,4 @@
+import { sanitizeDisplayLines } from './shared/text-controls.ts'
 // ============================================================================
 // ResolvedAppearance -> terminal projection.
 //
@@ -319,7 +320,11 @@ function projectConnectorScene(
       ...projection,
       id: connector.id,
       role: connector.role,
-      labels: Object.freeze(projection.labels.map(label => Object.freeze({ ...label, text: clean(label.text) }))),
+      labels: Object.freeze(projection.labels.map(label => {
+        const text = sanitizeDisplayLines(label.text)
+        if (text !== label.text) connectorControlsReplaced = true
+        return Object.freeze({ ...label, text })
+      })),
       diagnostics: Object.freeze(projection.diagnostics.map(clean)),
     })
     projectedConnectors.push(projected)

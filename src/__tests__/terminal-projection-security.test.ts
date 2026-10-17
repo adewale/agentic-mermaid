@@ -358,7 +358,7 @@ describe('canonical terminal field applicability', () => {
 
 
 test('connector receipts retain exact references while projecting inert display labels', () => {
-  const source = 'classDiagram\nclass `A\tB`\nclass `A B`\nclass X\nclass Y\n`A\tB` --> X : first\u001b\n`A B` --> Y : second'
+  const source = 'classDiagram\nclass `A\tB`\nclass `A B`\nclass X\nclass Y\n`A\tB` --> X : first\u001b<br><br>last\n`A B` --> Y : second'
   for (const colorMode of ['none', 'ansi16', 'html'] as const) {
     const rendered = renderMermaidASCIIWithReceipt(source, { colorMode })
     const projection = rendered.terminalStyle.connectorProjection
@@ -367,7 +367,7 @@ test('connector receipts retain exact references while projecting inert display 
       { id: 'rel:A\tB->X#0', from: 'A\tB', to: 'X' },
       { id: 'rel:A B->Y#0', from: 'A B', to: 'Y' },
     ])
-    expect(projection.connectors[0]!.labels.map(label => label.text)).toEqual(['first?'])
+    expect(projection.connectors[0]!.labels.map(label => label.text)).toEqual(['first?\n\nlast'])
     expect(projection.connectors[1]!.labels.map(label => label.text)).toEqual(['second'])
     for (const connector of projection.connectors) for (const label of connector.labels) {
       expect(label.text).not.toContain('\u001b')

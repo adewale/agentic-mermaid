@@ -11,7 +11,7 @@ import { HAS_FORMAT_TAGS } from './shared/inline-format.ts'
 import { prepareDisplayText, type DisplayRun } from './shared/display-text.ts'
 import type { PixelTextBlock } from './shared/prepared-text.ts'
 import { graphemes } from './shared/graphemes.ts'
-import { sanitizeTextControls } from './shared/text-controls.ts'
+import { sanitizeDisplayLines } from './shared/text-controls.ts'
 
 /**
  * Normalize label text: strip surrounding quotes, convert <br> tags and
@@ -99,7 +99,7 @@ export function escapeAttr(text: string): string {
 /** Display metadata follows the same inert-control interpretation as labels.
  * Semantic IDs and references must use escapeAttr directly. */
 export function escapeDisplayAttr(text: string): string {
-  return escapeAttr(sanitizeTextControls(text, true))
+  return escapeAttr(sanitizeDisplayLines(text))
 }
 
 // ============================================================================

@@ -1,4 +1,4 @@
-import { sanitizeTextControls } from '../shared/text-controls.ts'
+import { sanitizeDisplayLines } from '../shared/text-controls.ts'
 // ============================================================================
 // Mark constructors — the only way family lowerings build scene nodes.
 //
@@ -303,7 +303,7 @@ export function connector(fields: ConnectorFields, crisp: string): ConnectorMark
     kind: fields.relationship?.kind ?? fields.role,
     direction: fields.relationship?.direction ?? connectorDirection(endpoints, markerStart, markerEnd),
   }
-  const labels = (fields.labels ?? []).map(label => ({ ...label, text: sanitizeTextControls(label.text, true) }))
+  const labels = (fields.labels ?? []).map(label => ({ ...label, text: sanitizeDisplayLines(label.text) }))
   const identity: SvgSemanticIdentity = {
     id: fields.identity?.id ?? fields.id,
     role: fields.role,

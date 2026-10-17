@@ -262,8 +262,7 @@ for (const direction of ['TD', 'BT', 'LR', 'RL']) for (const useAscii of [false,
     expect([...rows.values()]).toEqual(['long  label', 'x'])
     const positions = [...rows.keys()]
     expect(positions[1]! - positions[0]!).toBe(2)
-    // #402 tracks projectedText collapsing empty authored rows across families;
-    // that metadata defect must not hide correct emitted spacing.
+    expect(edge.projectedText).toBe('long  label\n\nx')
     relationship(document, glyphs, edge, 'A', 'B')
     expect(document.diagnostics).toEqual([])
   })

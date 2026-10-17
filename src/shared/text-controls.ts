@@ -18,3 +18,7 @@ export function sanitizeTextControls(
   return result
 }
 
+/** Preserve displayed line boundaries while neutralizing controls within a line. */
+export function sanitizeDisplayLines(value: string): string {
+  return value.split('\n').map(line => sanitizeTextControls(line)).join('\n')
+}
