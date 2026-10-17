@@ -5,8 +5,8 @@
 > [#191](https://github.com/adewale/agentic-mermaid/issues/191) uses the current
 > transport API and records actual HTTP requests; pinned/latest Python results
 > and their coverage limits are recorded below. Client probes remain manual.
-> (`src/__tests__/mcp-client-interop.test.ts`, SDK `1.29.0`
-> pinned as a devDependency; see the red→green record below). This document specifies
+> (`src/__tests__/mcp-client-interop.test.ts`; the original lane used SDK `1.29.0`,
+> current devDependency `1.31.0`; see the historical red→green record below). This document specifies
 > a test lane that drives both MCP servers in this repo with the **reference MCP client
 > SDK** (`@modelcontextprotocol/sdk`), so compatibility is *observed against a real
 > client* rather than *asserted from our own reading of the spec*. It supplies
@@ -155,18 +155,18 @@ Two candidate targets, matching the two things we care about:
 **Recommendation:** source-under-Bun in the unit lane (default `bun run test`), and add the
 shipped-artifact-under-Node variant to the e2e lane where `dist/` is already built.
 
-Assertions: `initialize` negotiates `2024-11-05` (the local pin — assert exactly, and note
-that a future SDK dropping `2024-11-05` from its supported window would fail here, which is
-the signal that motivates the #186 follow-up to modernize the local server's version);
-`tools/list` returns the 4 local tools; a `render_svg`/`describe` call round-trips. Reap
-the subprocess in `finally` (`transport.close()` / `client.close()`).
+The original local lane asserted `2024-11-05` exactly. After #186, current checks
+require membership in `STDIO_PROTOCOL_VERSIONS` instead; do not copy the old local
+pin into a client probe. `tools/list` returns the 4 local tools, and a real tool
+call round-trips. Reap the subprocess in `finally` (`transport.close()` /
+`client.close()`).
 
 ## Key decisions and risks
 
 | # | Decision / risk | Recommendation |
 |---|---|---|
 | 1 | Handler is a function, not a server | Bind with `Bun.serve({ port: 0 })`; ephemeral port avoids collisions; `server.stop(true)` in `finally` |
-| 2 | Assert negotiated version | Membership in `SUPPORTED_PROTOCOL_VERSIONS` (hosted) / `=== '2024-11-05'` (local) — never a hardcoded SDK default, which drifts across SDK releases |
+| 2 | Assert negotiated version | Membership in `SUPPORTED_PROTOCOL_VERSIONS` (hosted) / `STDIO_PROTOCOL_VERSIONS` (local); the original exact local pin is superseded |
 | 3 | stdio target | Source-under-Bun in unit lane; shipped-artifact-under-Node in e2e lane |
 | 4 | Flake surface (socket + subprocess) | Ephemeral port; deterministic teardown in `finally`; per-test timeout within the 30 s suite budget; no wall-clock assertions |
 | 5 | Dev dependency footprint | Dev-only; assert it never reaches `dist/`/`files[]`; verify transitive deps resolve under Bun |
@@ -306,9 +306,13 @@ SDK's modern per-request `_meta` path has been exercised. Verify the actual
 SDK revision and request trace before making that additional claim; do not
 treat the already-landed server version-list change as unfinished work.
 
-## Acceptance criteria
+## Original lane acceptance record
 
-- [x] `@modelcontextprotocol/sdk` added to `devDependencies` (pinned `1.29.0`); confirmed
+These checked boxes record the July implementation, not a fresh rerun of its
+original version pins or the full suite. Current protocol membership rules and
+the October Python verification are described above.
+
+- [x] `@modelcontextprotocol/sdk` added to `devDependencies` (then pinned `1.29.0`); confirmed
       out of `dist/` (no SDK code or import specifiers bundled — the one string match is
       the devDependencies line of the pre-existing inlined `package.json` metadata) and out
       of `files[]` (tests are excluded by `!src/**/__tests__/**`).

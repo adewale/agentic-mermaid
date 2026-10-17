@@ -342,12 +342,6 @@ design context, never additional queues. Retired IDs are not reused.
 
 ## Documentation / issue triage
 
-- [ ] **DOC-1 — Reconcile public comparison claims** (`todo`,
-  [#388](https://github.com/adewale/agentic-mermaid/issues/388)). Distinguish
-  native rendering, source preservation, proposals and released capabilities.
-  The incorrect “already upstreamed” routing claim is corrected; complete the
-  broader comparison review against pinned evidence without claiming a strict
-  superset or treating open upstream PRs as releases.
 - [ ] **TRIAGE-1 — Revalidate the color issue's remaining surface matrix**
   (`todo`, [#303](https://github.com/adewale/agentic-mermaid/issues/303)). Several
   original cases have since been fixed. Reproduce each remaining source,
