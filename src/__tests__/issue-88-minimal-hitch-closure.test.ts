@@ -2,7 +2,8 @@ import { describe, expect, test } from 'bun:test'
 import { denseDag, diamondFan } from '../../eval/degenerate-etn/generators.ts'
 import { layoutGraphSync } from '../layout-engine.ts'
 import { parseMermaid } from '../parser.ts'
-import { collapseTinyEndpointSegments, findRouteHitches } from '../route-contracts.ts'
+import { closeRouteContracts, findRouteHitches } from '../route-contracts.ts'
+import { resolveRenderStyle } from '../styles.ts'
 import type { PositionedEdge, PositionedNode } from '../types.ts'
 
 const REGRESSIONS = [
@@ -39,7 +40,7 @@ describe('minimal final hitch closure (issue #88)', () => {
         [{ x: 40, y: 80 }, { x: 40, y: 60 }, { x: 40.5, y: 60 }],
       ]) {
         const edge: PositionedEdge = { source: source ? 'box' : 'outside', target: source ? 'outside' : 'box', style: 'solid', hasArrowStart: source, hasArrowEnd: !source, label: 'kept', points: source ? [...face].reverse() : face }
-        collapseTinyEndpointSegments([node], [edge])
+        closeRouteContracts({ nodes: [node], edges: [edge], groups: [] }, parseMermaid('flowchart LR\noutside --> box'), resolveRenderStyle({}))
         expect(edge.points).toEqual(source ? [...face.slice(0, 2)].reverse() : face.slice(0, 2))
         expect(edge.label).toBe('kept')
       }
@@ -47,7 +48,7 @@ describe('minimal final hitch closure (issue #88)', () => {
     for (const shape of ['rectangle', 'diamond'] as const) {
       const edge: PositionedEdge = { source: 'outside', target: 'box', style: 'solid', hasArrowStart: false, hasArrowEnd: true, points: [{ x: 0, y: 40 }, { x: 20, y: 40 }, { x: 20, y: shape === 'rectangle' ? 42 : 40.5 }] }
       const original = [...edge.points]
-      collapseTinyEndpointSegments([{ ...node, shape }], [edge])
+      closeRouteContracts({ nodes: [{ ...node, shape }], edges: [edge], groups: [] }, parseMermaid('flowchart LR\noutside --> box'), resolveRenderStyle({}))
       expect(edge.points).toEqual(original)
     }
   })

@@ -2836,7 +2836,7 @@ export function separateEdgeLabelPills(
  * point is already on that face with an outward normal shaft: removing the
  * endpoint adds no line, crosses no obstacle and moves contact by less than
  * one pixel, but prevents that tiny run rotating the whole marker sideways. */
-export function collapseTinyEndpointSegments(nodes: readonly PositionedNode[], edges: readonly PositionedEdge[]): void {
+function collapseTinyEndpointSegments(nodes: readonly PositionedNode[], edges: readonly PositionedEdge[]): void {
   const nodeMap = new Map(nodes.map(node => [node.id, node]))
   for (const edge of edges) {
     const saved = edge.routeCertificate
