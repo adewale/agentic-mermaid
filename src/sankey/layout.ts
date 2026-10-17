@@ -16,6 +16,7 @@ import { measureSystemFontSafeTextWidth } from '../text-metrics.ts'
 import type { RenderOptions } from '../types.ts'
 import type { SankeyVisualConfig } from './config.ts'
 import { DEFAULT_SANKEY_VISUAL_CONFIG } from './config.ts'
+import { formatSankeyValue, sankeyIdentities } from './semantics.ts'
 import type { PositionedSankeyChart, PositionedSankeyLink, PositionedSankeyNode, SankeyDiagram } from './types.ts'
 
 // ============================================================================
@@ -67,18 +68,6 @@ export const SANKEY_STYLE_DEFAULTS: RenderStyleDefaults = {
   groupPaddingX: 0,
   groupPaddingY: 0,
   groupLineWidth: STROKE_WIDTHS.outerBox,
-}
-
-/** Format a flow value with Mermaid's display-only two-decimal rounding. */
-export function formatSankeyValue(value: number, visual: SankeyVisualConfig): string {
-  return `${visual.prefix}${String(Math.round(value * 100) / 100)}${visual.suffix}`
-}
-
-/** Stable semantic link id: endpoints plus an occurrence suffix for duplicate
- * rows. Scene identities are separate bounded authored-index keys. */
-export function sankeyLinkId(source: string, target: string, occurrence: number): string {
-  const base = `link:${source}->${target}`
-  return occurrence === 0 ? base : `${base}#${occurrence}`
 }
 
 function round(n: number): number {
@@ -154,6 +143,7 @@ function semanticNodeValues(diagram: SankeyDiagram): Map<string, number> {
  * vertical relaxation, collision resolution, and ribbon stacking.
  */
 export function layoutSankeyDiagram(diagram: SankeyDiagram, options: RenderOptions = {}, visual: SankeyVisualConfig = DEFAULT_SANKEY_VISUAL_CONFIG, styleFace?: Readonly<InternalStyleFace>): PositionedSankeyChart {
+  const identities = sankeyIdentities(diagram)
   const style = resolveRenderStyle(options, SANKEY_STYLE_DEFAULTS, styleFace)
 
   // Mermaid feeds these exact parameters into d3-sankey. The extra 15px is
@@ -312,23 +302,20 @@ export function layoutSankeyDiagram(diagram: SankeyDiagram, options: RenderOptio
   })
 
   const positionedNodeByLabel = new Map(positionedNodes.map(node => [node.label, node]))
-  const occurrences = new Map<string, number>()
   const positionedLinks: PositionedSankeyLink[] = links.map(link => {
     const source = link.source as D3Node
     const target = link.target as D3Node
-    const key = `${source.id}->${target.id}`
-    const occurrence = occurrences.get(key) ?? 0
-    occurrences.set(key, occurrence + 1)
+    const identity = identities.links[link.authoredIndex]!
     const sx = round(flowLeft + requiredCoordinate(source.x1, `x1 for node ${source.id}`) + shiftX)
     const tx = round(flowLeft + requiredCoordinate(target.x0, `x0 for node ${target.id}`) + shiftX)
     const sy = round(flowTop + sourceY.get(link)!)
     const ty = round(flowTop + targetY.get(link)!)
     const geometry = linkCenterline(sx, sy, tx, ty)
     return {
-      id: sankeyLinkId(source.id, target.id, occurrence),
+      id: identity.id,
       sceneId: `sankey-link-${link.authoredIndex + 1}`,
-      source: source.id,
-      target: target.id,
+      source: identity.source,
+      target: identity.target,
       sourceId: positionedNodeByLabel.get(source.id)!.id,
       targetId: positionedNodeByLabel.get(target.id)!.id,
       value: link.authoredValue,
@@ -345,7 +332,7 @@ export function layoutSankeyDiagram(diagram: SankeyDiagram, options: RenderOptio
   return {
     width: round(width),
     height: round(height),
-    ...(renderedTitle ? { title: { text: renderedTitle, x: round(width / 2), y: SANKEY.padding + titleFontSize / 2 } } : {}),
+    ...(renderedTitle ? { title: { id: identities.titleId!, text: renderedTitle, x: round(width / 2), y: SANKEY.padding + titleFontSize / 2 } } : {}),
     nodes: positionedNodes,
     links: positionedLinks,
     total: diagram.links.reduce((sum, link) => sum + link.value, 0),

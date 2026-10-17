@@ -1068,7 +1068,7 @@ export function projectSankeyPositioned({ positioned }: FamilyPositionedProjecti
   if (positioned.title) {
     const width = measureTextWidth(positioned.title.text, 18, 600)
     nodes.push({
-      id: 'title',
+      id: positioned.title.id,
       x: f(positioned.title.x - width / 2),
       y: f(positioned.title.y - (18 * 1.2) / 2),
       w: f(width),

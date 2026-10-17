@@ -17,6 +17,7 @@ import { parseQuadrantChart } from '../quadrant/parser.ts'
 import { layoutQuadrantChart } from '../quadrant/layout.ts'
 import { toMermaidLines } from '../mermaid-source.ts'
 import type { SceneDoc } from '../scene/ir.ts'
+import { sceneNodeSerialization } from '../scene/serialization.ts'
 
 function textMark(semantic: { x: number; y: number; anchor: 'start' | 'middle' | 'end' }, crisp: string) {
   return marks.text(
@@ -26,6 +27,19 @@ function textMark(semantic: { x: number; y: number; anchor: 'start' | 'middle' |
 }
 
 describe('fidelity oracle checks text x/y/anchor', () => {
+  it('keeps typed public text identity separate from its bounded mark ID and authoritative over crisp attributes', () => {
+    const mark = marks.text({
+      id: 'local-caption', role: 'title', identity: { id: 'title#2' },
+      text: 'Caption', x: 10, y: 20, fontSize: 12, anchor: 'start', paint: {},
+    }, '<text x="10" y="20" font-size="12" data-id="title" data-role="label">Caption</text>')
+    expect(mark.id).toBe('local-caption')
+    expect(mark.identity).toEqual({ id: 'title#2', role: 'title' })
+    expect(sceneNodeSerialization(mark)).toContain('data-id="title#2" data-role="title"')
+    const problems: string[] = []
+    nodeProblems(mark, 'p', problems)
+    expect(problems).toEqual([])
+  })
+
   it('flags a crisp x that disagrees with the semantic x', () => {
     const problems: string[] = []
     nodeProblems(textMark({ x: 10, y: 20, anchor: 'start' },

@@ -249,6 +249,7 @@ export function lowerSankeyScene(ctx: RenderContext<PositionedSankeyChart>): Sce
       marks.text(
         {
           id: 'title',
+          identity: { id: chart.title.id },
           role: 'title',
           text: title,
           x: chart.title.x,

@@ -67,7 +67,8 @@ export interface PositionedSankeyNode {
 }
 
 export interface PositionedSankeyLink {
-  /** Stable link id: `source→target` with an occurrence suffix for duplicates. */
+  /** Shared source-semantic identity, collision-free against nodes and links.
+   * Ordinary endpoint/occurrence names are preserved when available. */
   id: string
   /** Bounded collision-free Scene identity, independent of authored labels. */
   sceneId: string
@@ -93,7 +94,7 @@ export interface PositionedSankeyLink {
 export interface PositionedSankeyChart extends PositionedDiagram {
   width: number
   height: number
-  title?: { text: string; x: number; y: number }
+  title?: { id: string; text: string; x: number; y: number }
   /** Nodes in first-appearance order (palette/identity order). */
   nodes: PositionedSankeyNode[]
   /** Links in authored order (drawing order; stacking is per-node). */

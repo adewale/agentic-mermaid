@@ -470,6 +470,8 @@ export function connector(fields: ConnectorFields, crisp: string): ConnectorMark
 export function text(fields: {
   id: string
   role: SceneRole
+  /** Optional public DOM identity when the bounded Scene key is internal. */
+  identity?: Omit<SvgSemanticIdentity, 'role'>
   text: string
   x: number
   y: number
@@ -480,10 +482,14 @@ export function text(fields: {
   channels?: SemanticChannels
   transform?: SceneTransform
 }, crisp: string): TextMark {
-  const identity = semanticIdentityForSvg(crisp, fields)
-  const accessibility = relationAccessibilityForSvg(crisp, identity)
+  const identity: SvgSemanticIdentity = fields.identity
+    ? { ...fields.identity, role: fields.role }
+    : semanticIdentityForSvg(crisp, fields)
+  const accessibility = fields.identity
+    ? relationAccessibility(identity)
+    : relationAccessibilityForSvg(crisp, identity)
   const decorated = ensureSvgAccessibility(ensureSvgIdentity(crisp, identity), accessibility)
-  return attachSceneNodeSerialization({ kind: 'text', identity, accessibility, ...fields }, decorated)
+  return attachSceneNodeSerialization({ kind: 'text', ...fields, identity, accessibility }, decorated)
 }
 
 export function documentContent(fields: {
