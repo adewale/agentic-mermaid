@@ -314,7 +314,15 @@ export function determineLabelLine(graph: AsciiGraph, edge: AsciiEdge): void {
   const middleX = minX + Math.floor((maxX - minX) / 2)
 
   const current = graph.columnWidth.get(middleX) ?? 0
-  graph.columnWidth.set(middleX, Math.max(current, lenLabel + 2))
+  // Container frames extend two terminal cells beyond their cards. Reserve
+  // those margins as well as the complete label, or a short inter-container
+  // route appears wide enough on the grid while its label crosses a frame.
+  const horizontal = largestLine[0].y === largestLine[1].y
+  const frameMargins = horizontal ? graph.subgraphs.filter(group => group.nodes.includes(edge.from) !== group.nodes.includes(edge.to)).length * 2 : 0
+  // Reciprocal vertical runs occupy adjacent columns. A complete label needs
+  // room on its own side of the pair, rather than crossing the opposite run.
+  const reciprocal = !horizontal && graph.edges.some(other => other !== edge && other.from === edge.to && other.to === edge.from)
+  graph.columnWidth.set(middleX, Math.max(current, lenLabel * (reciprocal ? 2 : 1) + 2 + frameMargins))
 
   edge.labelLine = [largestLine[0], largestLine[1]]
 }

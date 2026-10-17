@@ -1,7 +1,22 @@
 import { expect, test } from 'bun:test'
 import { renderMermaidASCIIWithReceipt } from '../ascii/index.ts'
-import { terminalDocumentOf } from '../ascii/terminal-document.ts'
+import { terminalDocumentOf, type TerminalDocument, type TerminalRegion } from '../ascii/terminal-document.ts'
 import { renderMermaidASCIIWithMeta } from '../ascii/meta.ts'
+
+function connectedRelationship(document: TerminalDocument, edge: TerminalRegion): void {
+  const covered = new Set([...document.entries()].filter(([, , cell]) => cell.owners.some(owner => owner.id === edge.id)).map(([x, y]) => `${x},${y}`))
+  const start = edge.ports!.find(port => port.end === 'start')!, end = edge.ports!.find(port => port.end === 'end')!
+  covered.add(`${start.x},${start.y}`); covered.add(`${end.x},${end.y}`)
+  const pending = [`${start.x},${start.y}`], seen = new Set(pending)
+  for (let index = 0; index < pending.length; index++) {
+    const [x, y] = pending[index]!.split(',').map(Number)
+    for (const next of [`${x! - 1},${y}`, `${x! + 1},${y}`, `${x},${y! - 1}`, `${x},${y! + 1}`]) {
+      if (covered.has(next) && !seen.has(next)) { seen.add(next); pending.push(next) }
+    }
+  }
+  expect(seen.has(`${end.x},${end.y}`)).toBe(true)
+  for (const cell of edge.authoredTextCells!) expect(seen.has(`${cell.column},${cell.row}`)).toBe(true)
+}
 
 test('BT keeps complete ragged multiline card labels and their opaque surfaces', () => {
   const rendered = renderMermaidASCIIWithReceipt('flowchart BT\nA["ab<br>x"] --> B[Other]', { colorMode: 'none' })
@@ -20,6 +35,42 @@ test.each(['TD', 'BT', 'LR', 'RL'] as const)('opaque edge-label spaces survive r
     for (const cell of edge.authoredTextCells!) expect(ascii.split('\n')[cell.row]![cell.column]).toBe(cell.glyph)
   }
 })
+
+test.each(['TD', 'BT'] as const)('relocated %s relationship labels retain measured graphemes, authored spaces and color', direction => {
+  for (const useAscii of [false, true]) {
+    const label = '界 👩‍💻 = build'
+    const rendered = renderMermaidASCIIWithReceipt(`flowchart ${direction}\nA -->|${label}| B\nB -->|戻る| A\nlinkStyle 0 color:#00ffff`, { useAscii, colorMode: 'none' })
+    const document = terminalDocumentOf(rendered)!
+    const edge = document.regions().find(region => region.kind === 'edge' && region.from === 'A')!
+    expect(rendered.text).toContain(label)
+    expect(rendered.text).toContain('戻る')
+    expect(rendered.text).not.toContain('\0')
+    expect(edge.projectedText).toBe(label)
+    expect(edge.authoredTextCells!.filter(cell => cell.glyph === ' ')).toHaveLength(3)
+    for (const authored of edge.authoredTextCells!) {
+      const cell = document.cell(authored.column, authored.row)!
+      expect(cell.glyph).toBe(authored.glyph)
+      expect(cell.color).toBe('#00ffff')
+      expect(cell.owners.map(owner => owner.id)).toEqual([edge.id])
+    }
+    connectedRelationship(document, edge)
+    expect(document.diagnostics).toEqual([])
+  }
+})
+
+for (const direction of ['TD', 'BT', 'LR', 'RL'] as const) for (const length of [50, 80]) for (const useAscii of [false, true]) {
+  test(`${direction} places ${length}-cell reciprocal labels beside their actual routes (${useAscii ? 'ASCII' : 'Unicode'})`, () => {
+    const label = 'a'.repeat(length)
+    const rendered = renderMermaidASCIIWithReceipt(`flowchart ${direction}\nA -->|${label}| B\nB -->|return| A`, { useAscii, colorMode: 'none' })
+    const document = terminalDocumentOf(rendered)!
+    expect(rendered.text).toContain(label)
+    expect(rendered.text).toContain('return')
+    const edges = document.regions().filter(region => region.kind === 'edge')
+    expect(edges.map(edge => edge.projectedText).sort()).toEqual([label, 'return'])
+    for (const edge of edges) connectedRelationship(document, edge)
+    expect(document.diagnostics).toEqual([])
+  })
+}
 
 test.each([
   'graph TD\nA -->|push = build| B\nA --> C',

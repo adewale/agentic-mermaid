@@ -23,7 +23,56 @@ import { visualWidth } from './width.ts'
 import { getCorners } from './shapes/corners.ts'
 import { getShapeAttachmentPoint } from './shapes/index.ts'
 import { safeCssColor } from '../shared/css-color.ts'
-import type { TerminalOwner, TerminalSide } from './terminal-document.ts'
+import { measuredText, type MeasuredTerminalText, type TerminalCell, type TerminalOwner, type TerminalSide } from './terminal-document.ts'
+import type { PathOccupancy } from './occupancy.ts'
+import { getPath, mergePath } from './pathfinder.ts'
+
+/** Protect admitted headers and cards before routing in terminal cells. The
+ * grid router cannot see text measured inside a container's header band. */
+function protectedGraphCells(document: Canvas): PathOccupancy {
+  const protectedCell = (cell: TerminalCell | undefined) => !!cell && (cell.kind !== 'stroke' || cell.owners.some(owner => owner.kind === 'node'))
+  let maxX = 0, maxY = 0
+  for (const [x, y, cell] of document.entries()) {
+    if (protectedCell(cell)) { maxX = Math.max(maxX, x); maxY = Math.max(maxY, y) }
+  }
+  // All routes are planned before any route ink is overlaid, so the admitted
+  // document is already the stable occupancy store; do not duplicate its cells.
+  return {
+    extent: { maxX, maxY },
+    has(key) {
+      const comma = key.indexOf(',')
+      return protectedCell(document.cell(Number(key.slice(0, comma)), Number(key.slice(comma + 1))))
+    },
+  }
+}
+
+/** Keep every declared endpoint and its incident direction. Only a segment
+ * whose interior crosses protected text needs a terminal-cell detour. */
+function feasiblePolyline(poly: DrawingCoord[], protectedCells?: PathOccupancy): DrawingCoord[] {
+  if (!protectedCells) return poly
+  const result: DrawingCoord[] = [poly[0]!]
+  for (let index = 1; index < poly.length; index++) {
+    const start = poly[index - 1]!, end = poly[index]!
+    const dx = Math.sign(end.x - start.x), dy = Math.sign(end.y - start.y)
+    // Legacy diagonal projections retain their existing drawing policy.
+    if (dx && dy) { result.push(end); continue }
+    const distance = Math.abs(end.x - start.x) + Math.abs(end.y - start.y)
+    let obstructed = false
+    for (let step = 1; step < distance; step++) if (protectedCells.has(`${start.x + dx * step},${start.y + dy * step}`)) { obstructed = true; break }
+    if (!obstructed || distance < 4) { result.push(end); continue }
+    const exit = { x: start.x + dx, y: start.y + dy }
+    // Keep a straight cell before a terminal marker: a marker cannot also
+    // encode a right-angle bend immediately beside its endpoint.
+    const entry = { x: end.x - dx * 2, y: end.y - dy * 2 }
+    const incidentCells = new Set([`${start.x},${start.y}`, `${end.x},${end.y}`, `${end.x - dx},${end.y - dy}`])
+    const obstacles: PathOccupancy = { extent: protectedCells.extent, has: key => incidentCells.has(key) || protectedCells.has(key) }
+    const path = !protectedCells.has(`${exit.x},${exit.y}`) && !protectedCells.has(`${entry.x},${entry.y}`)
+      ? getPath(obstacles, exit, entry, determineDirection(start, end)) : null
+    if (path) result.push(...mergePath(path), end)
+    else result.push(end)
+  }
+  return dedupeCollinear(result)
+}
 
 // ============================================================================
 // Node drawing — renders a node using shape-aware rendering
@@ -374,17 +423,18 @@ function reciprocalLaneOffset(
 export function drawArrow(
   graph: AsciiGraph,
   edge: AsciiEdge,
-): [Canvas, Canvas, Canvas, Canvas, Canvas, Canvas] {
+  protectedCells?: PathOccupancy,
+): [Canvas, Canvas, Canvas, Canvas, Canvas] {
   // Invisible links (~~~) shape the layout but draw no glyphs.
   if (edge.path.length === 0 || edge.style === 'invisible') {
     const empty = copyCanvas(graph.canvas)
-    return [empty, empty, empty, empty, empty, empty]
+    return [empty, empty, empty, empty, empty]
   }
 
   // BUILD-14: edges whose endpoint is a subgraph container attach to the
   // container border, not the inner anchor node we routed through.
   if (edge.attachToSubgraph || edge.attachFromSubgraph) {
-    return drawContainerEdge(graph, edge)
+    return drawContainerEdge(graph, edge, protectedCells)
   }
 
   const baseStartPoint = edge.fromSubgraph
@@ -399,9 +449,13 @@ export function drawArrow(
   const moved = laneOffset.x !== 0 || laneOffset.y !== 0
   const startPoint = { x: baseStartPoint.x + laneOffset.x, y: baseStartPoint.y + laneOffset.y }
   const endPoint = moved || edge.toSubgraph ? { x: baseEndPoint.x + laneOffset.x, y: baseEndPoint.y + laneOffset.y } : undefined
+  const projectedPath = edge.path.map((point, index) => index === 0 ? startPoint : index === edge.path.length - 1 && endPoint ? endPoint : gridToDrawingCoord(graph, point))
+  const feasiblePath = feasiblePolyline(projectedPath, protectedCells)
+  const rerouted = feasiblePath.length !== projectedPath.length || feasiblePath.some((point, index) => !drawingCoordEquals(point, projectedPath[index]!))
   recordGraphPorts(graph, edge, startPoint, endPoint ?? baseEndPoint)
-  const labelCanvas = drawArrowLabel(graph, edge, laneOffset)
-  const [pathCanvas, linesDrawn, lineDirs] = drawPath(graph, edge.path, edge.style, startPoint, endPoint)
+  const [pathCanvas, linesDrawn, lineDirs] = rerouted
+    ? drawDrawingPath(graph, feasiblePath, edge.style)
+    : drawPath(graph, edge.path, edge.style, startPoint, endPoint)
   const isStatePseudo = !edge.fromSubgraph && (edge.from.shape === 'state-start' || edge.from.shape === 'state-end')
   const boxStartCanvas = isStatePseudo
     ? copyCanvas(graph.canvas)
@@ -443,9 +497,9 @@ export function drawArrow(
     arrowHeadStartCanvas = copyCanvas(graph.canvas)
   }
 
-  const cornersCanvas = drawCorners(graph, edge.path)
+  const cornersCanvas = rerouted ? drawDrawingCorners(graph, feasiblePath) : drawCorners(graph, edge.path)
 
-  return [pathCanvas, boxStartCanvas, arrowHeadEndCanvas, arrowHeadStartCanvas, cornersCanvas, labelCanvas]
+  return [pathCanvas, boxStartCanvas, arrowHeadEndCanvas, arrowHeadStartCanvas, cornersCanvas]
 }
 
 /**
@@ -455,18 +509,19 @@ export function drawArrow(
  * arrowhead on the border, so the edge attaches to the container instead of the
  * phantom box or the inner node.
  *
- * Returns the same 6-canvas tuple as drawArrow.
+ * Returns the same five geometry layers as drawArrow.
  */
 function drawContainerEdge(
   graph: AsciiGraph,
   edge: AsciiEdge,
-): [Canvas, Canvas, Canvas, Canvas, Canvas, Canvas] {
+  protectedCells?: PathOccupancy,
+): [Canvas, Canvas, Canvas, Canvas, Canvas] {
   const empty = copyCanvas(graph.canvas)
 
   // Build the full drawing-coordinate polyline from the grid path.
   let poly = edge.path.map(c => gridToDrawingCoord(graph, c))
   poly = dedupeCollinear(poly)
-  if (poly.length < 2) return [empty, empty, empty, empty, empty, empty]
+  if (poly.length < 2) return [empty, empty, empty, empty, empty]
 
   // Clip the start at the source container border (if any).
   if (edge.attachFromSubgraph) {
@@ -477,7 +532,9 @@ function drawContainerEdge(
   if (edge.attachToSubgraph) {
     poly = clipPolylineAtBorder(poly, edge.attachToSubgraph, 'end')
   }
-  if (poly.length < 2) return [empty, empty, empty, empty, empty, empty]
+  if (poly.length < 2) return [empty, empty, empty, empty, empty]
+
+  poly = feasiblePolyline(poly, protectedCells)
 
   // Draw the polyline segments.
   recordGraphPorts(graph, edge, poly[0]!, poly.at(-1)!)
@@ -543,9 +600,7 @@ function drawContainerEdge(
     directedArrow(arrowHeadStartCanvas, first, startDir, useAscii)
   }
 
-  const labelCanvas = drawArrowLabel(graph, edge)
-
-  return [pathCanvas, empty, arrowHeadEndCanvas, arrowHeadStartCanvas, cornersCanvas, labelCanvas]
+  return [pathCanvas, empty, arrowHeadEndCanvas, arrowHeadStartCanvas, cornersCanvas]
 }
 
 /** Move one cell backward against a direction (toward the segment origin). */
@@ -709,34 +764,34 @@ function drawPath(
   startPointOverride?: DrawingCoord,
   endPointOverride?: DrawingCoord,
 ): [Canvas, DrawingCoord[][], Direction[]] {
+  return drawDrawingPath(graph, path.map((point, index) =>
+    index === 0 && startPointOverride ? startPointOverride
+      : index === path.length - 1 && endPointOverride ? endPointOverride
+        : gridToDrawingCoord(graph, point)), style)
+}
+
+/** Paint the same orthogonal route that was checked for text feasibility. */
+function drawDrawingPath(graph: AsciiGraph, poly: DrawingCoord[], style: AsciiEdgeStyle): [Canvas, DrawingCoord[][], Direction[]] {
   const canvas = copyCanvas(graph.canvas)
-  let previousCoord = path[0]!
-  const linesDrawn: DrawingCoord[][] = []
-  const lineDirs: Direction[] = []
-
-  for (let i = 1; i < path.length; i++) {
-    const nextCoord = path[i]!
-    const prevDC = (i === 1 && startPointOverride)
-      ? startPointOverride
-      : gridToDrawingCoord(graph, previousCoord)
-    const nextDC = (i === path.length - 1 && endPointOverride)
-      ? endPointOverride
-      : gridToDrawingCoord(graph, nextCoord)
-
-    if (drawingCoordEquals(prevDC, nextDC)) {
-      previousCoord = nextCoord
-      continue
-    }
-
-    const dir = determineDirection(previousCoord, nextCoord)
-    const segment = drawLine(canvas, prevDC, nextDC, 1, -1, graph.config.useAscii, style)
-    if (segment.length === 0) segment.push(prevDC)
-    linesDrawn.push(segment)
-    lineDirs.push(dir)
-    previousCoord = nextCoord
+  const lines: DrawingCoord[][] = [], directions: Direction[] = []
+  for (let index = 1; index < poly.length; index++) {
+    const from = poly[index - 1]!, to = poly[index]!
+    if (drawingCoordEquals(from, to)) continue
+    const line = drawLine(canvas, from, to, 1, -1, graph.config.useAscii, style)
+    if (!line.length) line.push(from)
+    lines.push(line); directions.push(determineDirection(from, to))
   }
+  return [canvas, lines, directions]
+}
 
-  return [canvas, linesDrawn, lineDirs]
+function drawDrawingCorners(graph: AsciiGraph, poly: DrawingCoord[]): Canvas {
+  const canvas = copyCanvas(graph.canvas)
+  for (let index = 1; index < poly.length - 1; index++) {
+    const point = poly[index]!
+    const before = determineDirection(poly[index - 1]!, point), after = determineDirection(point, poly[index + 1]!)
+    if (!dirEquals(before, after)) canvas.stroke(point.x, point.y, cornerMask(before, after), { ascii: graph.config.useAscii })
+  }
+  return canvas
 }
 
 /**
@@ -808,29 +863,25 @@ function drawArrowHead(
  * Uses ┌┐└┘ in Unicode mode, + in ASCII mode.
  */
 function drawCorners(graph: AsciiGraph, path: GridCoord[]): Canvas {
-  const canvas = copyCanvas(graph.canvas)
-
-  for (let idx = 1; idx < path.length - 1; idx++) {
-    const coord = path[idx]!
-    const dc = gridToDrawingCoord(graph, coord)
-    const prevDir = determineDirection(path[idx - 1]!, coord)
-    const nextDir = determineDirection(coord, path[idx + 1]!)
-    // Skip collinear intermediate points: a non-bend (prevDir === nextDir) is a
-    // straight run, and painting a corner glyph there would punch a hole in the
-    // trunk line (upstream lukilabs#113). mergePath normally removes these, so
-    // this is a defensive guard against any path that still carries one.
-    if (dirEquals(prevDir, nextDir)) continue
-
-    canvas.stroke(dc.x, dc.y, cornerMask(prevDir, nextDir), { ascii: graph.config.useAscii })
-  }
-
-  return canvas
+  return drawDrawingCorners(graph, path.map(point => gridToDrawingCoord(graph, point)))
 }
 
-/** Draw edge label text centered on the widest path segment. */
-function drawArrowLabel(graph: AsciiGraph, edge: AsciiEdge, laneOffset: DrawingCoord = { x: 0, y: 0 }): Canvas {
-  const canvas = copyCanvas(graph.canvas)
-  if (edge.text.length === 0) return canvas
+interface GraphLabel {
+  owner: TerminalOwner
+  rows: Array<{ x: number; y: number; text: MeasuredTerminalText }>
+  color?: string
+}
+
+/** Keep measured authored text separate from route ink until placement. */
+function planArrowLabel(graph: AsciiGraph, edge: AsciiEdge): GraphLabel | undefined {
+  if (!edge.text.length || edge.style === 'invisible') return undefined
+  const start = edge.fromSubgraph
+    ? getSubgraphAttachmentPoint(graph, edge.fromSubgraph, edge.from, edge.startDir)
+    : getNodeAttachmentPoint(graph, edge.from, edge.startDir)
+  const end = edge.toSubgraph
+    ? getSubgraphAttachmentPoint(graph, edge.toSubgraph, edge.to, edge.endDir)
+    : getNodeAttachmentPoint(graph, edge.to, edge.endDir)
+  const laneOffset = edge.attachFromSubgraph || edge.attachToSubgraph ? { x: 0, y: 0 } : reciprocalLaneOffset(graph, edge, start, end)
 
   const drawingLine = lineToDrawing(graph, edge.labelLine)
     .map(point => ({ x: point.x + laneOffset.x, y: point.y + laneOffset.y }))
@@ -851,12 +902,12 @@ function drawArrowLabel(graph: AsciiGraph, edge: AsciiEdge, laneOffset: DrawingC
 
   const isLeftwardEdge = edge.path.length >= 2
     && edge.path[edge.path.length - 1]!.x < edge.path[0]!.x
-  canvas.scope(terminalEdgeOwner(graph, edge), () => drawTextOnLine(canvas, drawingLine, edge.text, isUpwardEdge, isLeftwardEdge))
-  return canvas
+  const color = safeCssColor(edge.inlineStyle?.color ?? edge.inlineStyle?.stroke)
+  return { owner: terminalEdgeOwner(graph, edge), rows: textOnLine(drawingLine, edge.text, isUpwardEdge, isLeftwardEdge), ...(color ? { color } : {}) }
 }
 
 /**
- * Draw text centered on a line segment defined by two drawing coordinates.
+ * Measure text centered on a line segment defined by two drawing coordinates.
  * Supports multi-line labels.
  *
  * When isUpwardEdge is provided, offsets the label vertically to prevent
@@ -865,14 +916,13 @@ function drawArrowLabel(graph: AsciiGraph, edge: AsciiEdge, laneOffset: DrawingC
  * - Downward edges (isUpwardEdge=false): label placed in upper portion
  * - No direction (isUpwardEdge=undefined): label centered (default)
  */
-function drawTextOnLine(
-  canvas: Canvas,
+function textOnLine(
   line: DrawingCoord[],
   label: string,
   isUpwardEdge?: boolean,
   isLeftwardEdge = false,
-): void {
-  if (line.length < 2) return
+): GraphLabel['rows'] {
+  if (line.length < 2) return []
   const minX = Math.min(line[0]!.x, line[1]!.x)
   const maxX = Math.max(line[0]!.x, line[1]!.x)
   const minY = Math.min(line[0]!.y, line[1]!.y)
@@ -898,14 +948,14 @@ function drawTextOnLine(
   const lines = splitLines(label)
   const startY = middleY - Math.floor((lines.length - 1) / 2)
 
-  for (let i = 0; i < lines.length; i++) {
-    const lineText = lines[i]!
+  return lines.map((lineText, i) => {
+    const text = measuredText(lineText)
     // With an even-width label and an odd midpoint split, reserve the spare
     // cell on the target side for the terminal marker. Leftward routes need
     // the opposite tie-break from the default rightward projection.
-    const startX = middleX - Math.floor(visualWidth(lineText) / 2) + (isLeftwardEdge ? 1 : 0)
-    drawText(canvas, { x: startX, y: startY + i }, lineText)
-  }
+    const startX = middleX - Math.floor(text.width / 2) + (isLeftwardEdge ? 1 : 0)
+    return { x: startX, y: startY + i, text }
+  })
 }
 
 // ============================================================================
@@ -989,21 +1039,20 @@ function drawBundledEdgeSegment(
   graph: AsciiGraph,
   edge: AsciiEdge,
   bundle: EdgeBundle,
-): [Canvas, Canvas, Canvas, Canvas, Canvas, Canvas] {
+  protectedCells?: PathOccupancy,
+): [Canvas, Canvas, Canvas, Canvas, Canvas] {
   const empty = copyCanvas(graph.canvas)
 
   if (!edge.pathToJunction || edge.pathToJunction.length === 0) {
-    return [empty, empty, empty, empty, empty, empty]
+    return [empty, empty, empty, empty, empty]
   }
 
-  // Draw the path segment (pathToJunction)
-  const pathCanvas = copyCanvas(graph.canvas)
   const useAscii = graph.config.useAscii
 
   // Convert grid coords to drawing coords
   // For fan-in: first point is at source node border (use attachment point)
   // For fan-out: last point is at target node border (use attachment point)
-  const drawingPath = edge.pathToJunction.map((gc, idx) => {
+  const drawingPath = feasiblePolyline(edge.pathToJunction.map((gc, idx) => {
     if (bundle.type === 'fan-in' && idx === 0) {
       // First point: use source node's actual border position
       return getNodeAttachmentPoint(graph, edge.from, edge.startDir)
@@ -1013,32 +1062,10 @@ function drawBundledEdgeSegment(
       return getNodeAttachmentPoint(graph, edge.to, edge.endDir)
     }
     return gridToDrawingCoord(graph, gc)
-  })
+  }), protectedCells)
 
-  // Draw line segments
-  for (let i = 1; i < drawingPath.length; i++) {
-    const from = drawingPath[i - 1]!
-    const to = drawingPath[i]!
-    if (!drawingCoordEquals(from, to)) {
-      // Always skip both endpoints of every segment (offset 1, -1),
-      // matching non-bundled drawPath behavior. This leaves endpoint
-      // characters to corner/junction/boxStart canvases, preventing
-      // line characters from corrupting them via mergeJunctions.
-      drawLine(pathCanvas, from, to, 1, -1, useAscii, edge.style)
-    }
-  }
-
-  // Draw corners at path bends
-  const cornersCanvas = copyCanvas(graph.canvas)
-  for (let idx = 1; idx < edge.pathToJunction.length - 1; idx++) {
-    const coord = edge.pathToJunction[idx]!
-    const dc = gridToDrawingCoord(graph, coord)
-    const prevDir = determineDirection(edge.pathToJunction[idx - 1]!, coord)
-    const nextDir = determineDirection(coord, edge.pathToJunction[idx + 1]!)
-    if (dirEquals(prevDir, nextDir)) continue
-
-    cornersCanvas.stroke(dc.x, dc.y, cornerMask(prevDir, nextDir), { ascii: useAscii })
-  }
+  const [pathCanvas] = drawDrawingPath(graph, drawingPath, edge.style)
+  const cornersCanvas = drawDrawingCorners(graph, drawingPath)
 
   // Draw box start connector (for fan-in, from source node)
   // The connector is placed at the first point coordinate (box border position)
@@ -1046,7 +1073,7 @@ function drawBundledEdgeSegment(
   const boxStartCanvas = copyCanvas(graph.canvas)
   if (bundle.type === 'fan-in' && edge.pathToJunction.length >= 2) {
     const firstPoint = drawingPath[0]!
-    const dir = determineDirection(edge.pathToJunction[0]!, edge.pathToJunction[1]!)
+    const dir = determineDirection(drawingPath[0]!, drawingPath[1]!)
 
     if (!useAscii) {
       const outgoing = directionMask(dir)
@@ -1055,32 +1082,23 @@ function drawBundledEdgeSegment(
     }
   }
 
-  // Label canvas (bundled edges typically don't have labels, but handle it)
-  const labelCanvas = copyCanvas(graph.canvas)
-
-  return [pathCanvas, boxStartCanvas, empty, empty, cornersCanvas, labelCanvas]
+  return [pathCanvas, boxStartCanvas, empty, empty, cornersCanvas]
 }
 
 /**
  * Draw the shared path segment of a bundle (junction → target for fan-in,
  * source → junction for fan-out).
  */
-function drawBundleSharedPath(graph: AsciiGraph, bundle: EdgeBundle): [Canvas, Canvas] {
-  const pathCanvas = copyCanvas(graph.canvas)
-  const cornersCanvas = copyCanvas(graph.canvas)
+function drawBundleSharedPath(graph: AsciiGraph, bundle: EdgeBundle, protectedCells?: PathOccupancy): [Canvas, Canvas] {
+  if (bundle.sharedPath.length < 2) return [copyCanvas(graph.canvas), copyCanvas(graph.canvas)]
 
-  if (bundle.sharedPath.length < 2) {
-    return [pathCanvas, cornersCanvas]
-  }
-
-  const useAscii = graph.config.useAscii
   const style = bundle.edges[0]?.style ?? 'solid'
   const graphDir = graph.config.graphDirection
 
   // Convert grid coords to drawing coords
   // For fan-in: last point is at target node border
   // For fan-out: first point is at source node border
-  const drawingPath = bundle.sharedPath.map((gc, idx) => {
+  const drawingPath = feasiblePolyline(bundle.sharedPath.map((gc, idx) => {
     if (bundle.type === 'fan-in' && idx === bundle.sharedPath.length - 1) {
       // Last point: use target node's actual border position (entry from above/left)
       const entryDir = graphDir === 'TD' ? Up : Left
@@ -1092,30 +1110,10 @@ function drawBundleSharedPath(graph: AsciiGraph, bundle: EdgeBundle): [Canvas, C
       return getNodeAttachmentPoint(graph, bundle.sharedNode, exitDir)
     }
     return gridToDrawingCoord(graph, gc)
-  })
+  }), protectedCells)
 
-  // Draw line segments with appropriate offsets
-  for (let i = 1; i < drawingPath.length; i++) {
-    const from = drawingPath[i - 1]!
-    const to = drawingPath[i]!
-    if (!drawingCoordEquals(from, to)) {
-      // Always skip both endpoints (offset 1, -1), matching non-bundled drawPath.
-      drawLine(pathCanvas, from, to, 1, -1, useAscii, style)
-    }
-  }
-
-  // Draw corners at path bends
-  for (let idx = 1; idx < bundle.sharedPath.length - 1; idx++) {
-    const coord = bundle.sharedPath[idx]!
-    const dc = gridToDrawingCoord(graph, coord)
-    const prevDir = determineDirection(bundle.sharedPath[idx - 1]!, coord)
-    const nextDir = determineDirection(coord, bundle.sharedPath[idx + 1]!)
-    if (dirEquals(prevDir, nextDir)) continue
-
-    cornersCanvas.stroke(dc.x, dc.y, cornerMask(prevDir, nextDir), { ascii: useAscii })
-  }
-
-  return [pathCanvas, cornersCanvas]
+  const [pathCanvas] = drawDrawingPath(graph, drawingPath, style)
+  return [pathCanvas, drawDrawingCorners(graph, drawingPath)]
 }
 
 /**
@@ -1356,6 +1354,67 @@ function recordGraphPorts(graph: AsciiGraph, edge: AsciiEdge, start: DrawingCoor
   graph.canvas.port(owner, { nodeId: owner.to!, ...end, side: side(edge.endDir), end: 'end' })
 }
 
+/** Allocate an entire label before overlay. Its preferred position may cover
+ * its own route; relocation uses empty space so no unrelated ink is erased. */
+function feasibleLabel(document: Canvas, label: GraphLabel, route: readonly DrawingCoord[]): Canvas {
+  let left = Infinity, top = Infinity, right = 0, bottom = 0
+  for (const row of label.rows) {
+    left = Math.min(left, row.x); top = Math.min(top, row.y)
+    right = Math.max(right, row.x + row.text.width - 1); bottom = Math.max(bottom, row.y + row.text.height - 1)
+  }
+  const owns = (owner: TerminalOwner) => label.owner.id === owner.id && label.owner.kind === owner.kind
+  const clear = (dx: number, dy: number, allowOwnRoute: boolean): boolean => {
+    if (left + dx < 0 || top + dy < 0) return false
+    let touchesRoute = false
+    for (let y = top; y <= bottom; y++) for (let x = left; x <= right; x++) {
+      const previous = document.cell(x + dx, y + dy)
+      if (previous && !(allowOwnRoute && previous.kind === 'stroke' && previous.owners.length && previous.owners.every(owns))) return false
+      for (const [nx, ny] of [[x + dx, y + dy], [x + dx - 1, y + dy], [x + dx + 1, y + dy], [x + dx, y + dy - 1], [x + dx, y + dy + 1]]) {
+        if (document.cell(nx!, ny!)?.owners.some(owns)) touchesRoute = true
+      }
+    }
+    return touchesRoute
+  }
+  const placed = (dx: number, dy: number): Canvas => {
+    const canvas = copyCanvas(document)
+    canvas.scope(label.owner, () => {
+      for (const row of label.rows) canvas.textBlock(row.x + dx, row.y + dy, row.text, { role: 'text', ...(label.color ? { color: label.color } : {}) })
+    })
+    return canvas
+  }
+  if (clear(0, 0, true)) return placed(0, 0)
+  // These candidates depend on measured dimensions, not a search radius: even
+  // a long label can sit immediately beside its own run. For each route cell,
+  // align the nearest end or the preferred position along the adjacent face.
+  const candidates = new Map<string, DrawingCoord>()
+  const candidate = (x: number, y: number): void => {
+    const point = { x: x - left, y: y - top }
+    if (x >= 0 && y >= 0) candidates.set(`${point.x},${point.y}`, point)
+  }
+  const width = right - left + 1, height = bottom - top + 1
+  for (const point of route) {
+    for (const y of [clamp(top, point.y - height + 1, point.y), point.y, point.y - height + 1]) {
+      candidate(point.x - width, y); candidate(point.x + 1, y)
+    }
+    for (const x of [clamp(left, point.x - width + 1, point.x), point.x, point.x - width + 1]) {
+      candidate(x, point.y - height); candidate(x, point.y + 1)
+    }
+  }
+  const adjacent = [...candidates.values()].sort((a, b) =>
+    Math.abs(a.x) + Math.abs(a.y) - Math.abs(b.x) - Math.abs(b.y)
+      || Math.abs(a.x) - Math.abs(b.x) || a.y - b.y || b.x - a.x)
+  for (const point of adjacent) if (clear(point.x, point.y, false)) return placed(point.x, point.y)
+  // Bounded integer candidates nearest the authored route anchor. Prefer the
+  // adjacent row before moving horizontally away from the relationship.
+  for (let radius = 1; radius <= 24; radius++) for (let dx = 0; dx <= radius; dx++) {
+    const dy = radius - dx
+    for (const [x, y] of [[dx, -dy], [dx, dy], [-dx, -dy], [-dx, dy]]) if (clear(x!, y!, false)) return placed(x!, y!)
+  }
+  // Let strict composition diagnose a genuinely unavailable local rectangle;
+  // silently detaching a label elsewhere would misrepresent its relationship.
+  return placed(0, 0)
+}
+
 export function drawGraph(graph: AsciiGraph, containerKind: 'subgraph' | 'cluster' = 'subgraph'): Canvas {
   const document = graph.canvas
   const parentFor = new Map(graph.subgraphs.flatMap(group => group.nodes.map(node => [node.name, group.id] as const)))
@@ -1376,6 +1435,12 @@ export function drawGraph(graph: AsciiGraph, containerKind: 'subgraph' | 'cluste
       node.drawn = true
     }
   }
+  for (const group of graph.subgraphs) {
+    if (group.nodes.length === 0 || group.concurrencyRegion) continue
+    const [label, offset] = drawSubgraphLabel(group, graph, containerKind)
+    document.overlay(label.attribute({ id: group.id, kind: containerKind }, { role: 'text' }), offset.x, offset.y)
+  }
+  const protectedCells = protectedGraphCells(document)
 
   // Global paint order remains explicit, while each layer stores touched cells only.
   const layers: Canvas[][] = Array.from({ length: 7 }, () => [])
@@ -1387,51 +1452,57 @@ export function drawGraph(graph: AsciiGraph, containerKind: 'subgraph' | 'cluste
     const color = safeCssColor(role === 'text' ? style?.color ?? style?.stroke : style?.stroke)
     layers[stage]!.push(drawing.attribute(owners, { role, ...(color ? { color } : {}), ...(role === 'arrow' ? { kind: 'marker' as const } : {}) }))
   }
+  const labels: GraphLabel[] = []
   const processed = new Set<EdgeBundle>()
   for (const edge of graph.edges) {
     const owner = edgeOwner(edge)
+    const label = planArrowLabel(graph, edge)
+    if (label) labels.push(label)
     if (edge.bundle && edge.pathToJunction) {
       const bundle = edge.bundle
       recordGraphPorts(graph, edge, getNodeAttachmentPoint(graph, edge.from, edge.startDir), getNodeAttachmentPoint(graph, edge.to, edge.endDir))
-      const [path, start, , , corners, label] = drawBundledEdgeSegment(graph, edge, bundle)
+      const [path, start, , , corners] = drawBundledEdgeSegment(graph, edge, bundle, protectedCells)
       add(0, path, owner, 'line'); add(1, corners, owner, 'corner')
-      add(4, start, owner, 'junction'); add(6, label, owner, 'text')
+      add(4, start, owner, 'junction')
       if (!processed.has(bundle)) {
         processed.add(bundle)
         const owners = bundle.edges.map(edgeOwner)
-        const [shared, sharedCorners] = drawBundleSharedPath(graph, bundle)
+        const [shared, sharedCorners] = drawBundleSharedPath(graph, bundle, protectedCells)
         add(0, shared, owners, 'line'); add(1, sharedCorners, owners, 'corner')
         if (bundle.type === 'fan-in') add(3, drawBundleArrowhead(graph, bundle), owners, 'arrow')
         add(2, drawJunctionCharacter(graph, bundle), owners, 'junction')
       }
       if (bundle.type === 'fan-out' && edge.hasArrowEnd) add(3, drawBundledEdgeArrowhead(graph, edge), owner, 'arrow')
     } else {
-      const [path, start, endHead, startHead, corners, label] = drawArrow(graph, edge)
+      const [path, start, endHead, startHead, corners] = drawArrow(graph, edge, protectedCells)
       add(0, path, owner, 'line'); add(1, corners, owner, 'corner')
       add(3, endHead, owner, 'arrow'); add(4, start, owner, 'junction')
-      add(5, startHead, owner, 'arrow'); add(6, label, owner, 'text')
+      add(5, startHead, owner, 'arrow')
     }
   }
   for (let stage = 0; stage < layers.length; stage++) {
     if (stage === 6) for (const junction of graph.trunkJunctions) {
       const point = gridToDrawingCoord(graph, junction)
       const current = document.cell(point.x, point.y)
+      if (current?.kind !== 'stroke') continue
       const drawing = copyCanvas(document)
       drawing.stroke(point.x, point.y, graph.config.graphDirection === 'LR' ? graph.config.reverseDirection ? 13 : 7 : 14, { ascii: graph.config.useAscii, role: 'junction' })
-      const traversing = graph.edges.filter(edge => edge.style !== 'invisible' && edge.path.some((end, index) => {
-        const start = edge.path[index - 1]
-        return start && ((start.x === end.x && junction.x === start.x && junction.y >= Math.min(start.y, end.y) && junction.y <= Math.max(start.y, end.y))
-          || (start.y === end.y && junction.y === start.y && junction.x >= Math.min(start.x, end.x) && junction.x <= Math.max(start.x, end.x)))
-      })).map(edgeOwner)
-      drawing.attribute([...(current?.owners ?? []), ...traversing])
+      drawing.attribute(current.owners)
       document.overlay(drawing)
     }
     for (const drawing of layers[stage]!) document.overlay(drawing)
   }
-  for (const group of graph.subgraphs) {
-    if (group.nodes.length === 0 || group.concurrencyRegion) continue
-    const [label, offset] = drawSubgraphLabel(group, graph, containerKind)
-    document.overlay(label.attribute({ id: group.id, kind: containerKind }, { role: 'text' }), offset.x, offset.y)
+  // Index actual painted route ink once, including declared shared ownership.
+  // Label placement must not consult stale grid paths after header detours.
+  const labelOwners = new Set(labels.map(label => label.owner.id))
+  const labelRoutes = new Map<string, DrawingCoord[]>()
+  if (labels.length) for (const [x, y, cell] of document.entries()) {
+    if (cell.kind !== 'stroke' && cell.kind !== 'marker') continue
+    for (const owner of cell.owners) if (owner.kind === 'edge' && labelOwners.has(owner.id)) {
+      const route = labelRoutes.get(owner.id) ?? []
+      route.push({ x, y }); labelRoutes.set(owner.id, route)
+    }
   }
+  for (const label of labels) document.overlay(feasibleLabel(document, label, labelRoutes.get(label.owner.id) ?? []))
   return document
 }

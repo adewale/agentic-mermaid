@@ -22,7 +22,9 @@ labels use the existing display projection. Graphemes stay atomic, including
 CJK, combining marks and ZWJ emoji. Wide cells include owned continuations.
 Authored spaces belong to the text footprint, including trailing spaces.
 Whole text blocks are measured once and admitted atomically, so a collision
-cannot leave half a label. Every incoming owner must be compatible with every
+cannot leave half a label. Sparse overlays preflight each complete incoming
+text group before painting any of its cells, retaining this guarantee through
+layer composition. Every incoming owner must be compatible with every
 affected existing owner before any cell is retired. Immutable element handles
 and interned owner sets retain all identities at crossings; conflicting
 definitions of one identity are rejected. A wide continuation cannot erase a
@@ -59,6 +61,17 @@ Text and its opaque padding retain explicit footprint provenance through
 repaints and reflection. Growing a grouped label visits only newly included
 surface cells. Reflected rows recompute their emitted extents; transforming a
 drawing never inherits an ambient painting owner.
+
+Graph headers reserve their measured cells before routes are painted. A stable
+occupancy view reuses that drawing, and the existing bounded search detours
+obstructed segments while retaining their endpoints and incident directions.
+Lines and corners use the same resulting polyline. Measured relationship labels
+retain their owner, graphemes, spaces and color while choosing a complete
+rectangle on or adjacent to their own route. Adjacent-face candidates derive
+from measured label bounds and actual owned route cells, with a bounded local
+search for ties. Grid spacing reserves frame margins
+and reciprocal-label demand. If bounded local placement fails, ordinary strict
+admission reports the collision; no detached label is substituted.
 
 GitGraph reserves complete commit-label rectangles clear of branch rails.
 Positive-length shared rail runs and merge stems determine intentional bundles;

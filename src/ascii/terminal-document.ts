@@ -629,11 +629,25 @@ export class TerminalDocument {
       for (let y = 0; y < other.height; y++) this.lineWidths[y + dy] = Math.max(this.lineWidths[y + dy] ?? 0, dx + (other.lineWidths[y] ?? other.width))
     }
     const blocks = new Map<TextBlock, TextBlock>()
+    // Preflight whole source text groups while retaining ordinary replay order
+    // for their accepted cells and all ungrouped geometry.
+    const groups = new Map<TextBlock, Array<{ x: number; y: number; cell: TerminalCell }>>()
+    const admitted = new Map<TextBlock, boolean>()
+    for (const [y, row] of other.rows) for (const [x, cell] of row) {
+      if (!cell.textBlock || cell.glyph === WIDE_CHAR_CONTINUATION) continue
+      const group = groups.get(cell.textBlock) ?? []
+      group.push({ x, y, cell }); groups.set(cell.textBlock, group)
+    }
     for (const [y, row] of other.rows) for (const [x, cell] of row) {
       if (cell.glyph === WIDE_CHAR_CONTINUATION) continue
       this.metrics.overlayVisits++
       let block: TextBlock | undefined
       if (cell.textBlock) {
+        if (!admitted.has(cell.textBlock)) admitted.set(cell.textBlock, groups.get(cell.textBlock)!.every(item => {
+          const paint = { ...item.cell, owner: this.remember(item.cell.owner ?? this.activeOwner) }
+          return this.admit(item.x + dx, item.y + dy, item.cell.glyph, item.cell.width, paint, this.paintOwners(paint), true)
+        }))
+        if (!admitted.get(cell.textBlock)) continue
         block = blocks.get(cell.textBlock)
         if (!block) { block = { ...cell.textBlock, x: cell.textBlock.x + dx, y: cell.textBlock.y + dy }; blocks.set(cell.textBlock, block) }
       }
