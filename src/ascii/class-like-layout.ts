@@ -143,7 +143,10 @@ export function allocateBoxRoutes(boxes: readonly TerminalBox[], relations: read
     const free = (bounds: TerminalBounds) => {
       const clearance = { x: bounds.x - 1, y: bounds.y - 1, width: bounds.width + 2, height: bounds.height + 2 }
       if (bounds.x < 0 || bounds.y < 0 || textObstacles.some(box => overlaps(clearance, box)) || textBounds.some(other => overlaps(clearance, other))) return false
-      for (let y = bounds.y; y < bounds.y + height; y++) for (let x = bounds.x; x < bounds.x + width; x++) if (markerCells.has(`${x},${y}`) || routeCells.has(`${x},${y}`)) return false
+      // A label beside an exit can seal it between neighboring face ports.
+      // Keep the same one-cell clearance around complete marker approaches.
+      for (let y = clearance.y; y < clearance.y + clearance.height; y++) for (let x = clearance.x; x < clearance.x + clearance.width; x++) if (markerCells.has(`${x},${y}`)) return false
+      for (let y = bounds.y; y < bounds.y + height; y++) for (let x = bounds.x; x < bounds.x + width; x++) if (routeCells.has(`${x},${y}`)) return false
       return true
     }
     // Nearest meaningful anchors first; all candidates are complete rectangles.
@@ -179,7 +182,10 @@ export function allocateBoxRoutes(boxes: readonly TerminalBox[], relations: read
     // Previously used routes are obstacles on the first attempt. The bounded
     // shared search may fall back to an ordinary crossing when necessary.
     const removed: Array<[string, true]> = []
-    for (const point of [source, target, sourceExit, targetExit, { x: source.x + delta[source.side].x, y: source.y + delta[source.side].y }, { x: target.x + delta[target.side].x, y: target.y + delta[target.side].y }]) {
+    // The middle path starts outside each protected marker approach. Keeping
+    // its inner cells occupied prevents a detour through an endpoint before
+    // doubling back to its exit and losing that turn when the marker paints.
+    for (const point of [sourceExit, targetExit]) {
       const key = gridKey(point), previous = occupied.get(key)
       if (previous && !cardCells.has(key)) { removed.push([key, previous]); occupied.delete(key) }
     }
@@ -191,15 +197,15 @@ export function allocateBoxRoutes(boxes: readonly TerminalBox[], relations: read
     let middle = exitsClear ? getPath(occupied, sourceExit, targetExit, preferred[source.side]) : null
     if (!middle) {
       const removedRoutes: string[] = []
-      for (const key of routeCells) if (occupied.has(key) && !cardCells.has(key)) { occupied.delete(key); removedRoutes.push(key) }
-      middle = getPath(occupied, source, target, preferred[source.side])
+      // Cross line ink only; endpoint markers and their approaches stay
+      // protected even where an earlier route also owns those cells.
+      for (const key of routeCells) if (occupied.has(key) && !cardCells.has(key) && !markerCells.has(key)) { occupied.delete(key); removedRoutes.push(key) }
+      middle = exitsClear ? getPath(occupied, sourceExit, targetExit, preferred[source.side]) : null
       for (const key of removedRoutes) occupied.set(key, blocker)
     }
     for (const [key, previous] of removed) occupied.set(key, previous)
     if (!middle) throw new Error(`No feasible terminal route for ${relation.id}; move the related cards or reduce their label footprint`)
-    const points = middle[0]?.x === sourceExit.x && middle[0]?.y === sourceExit.y
-      ? [source, { x: source.x + delta[source.side].x, y: source.y + delta[source.side].y }, ...middle, { x: target.x + delta[target.side].x, y: target.y + delta[target.side].y }, target]
-      : middle
+    const points = [source, { x: source.x + delta[source.side].x, y: source.y + delta[source.side].y }, ...middle, { x: target.x + delta[target.side].x, y: target.y + delta[target.side].y }, target]
     for (const point of points) { const key = gridKey(point); routeCells.add(key); occupied.set(key, blocker) }
     const label = text(relation.lines, [points[Math.floor(points.length / 2)]!, source, target])
     routes.push(sealRoute({ ...plan, points, ...(label ? { label } : {}), ...(fromLabel ? { fromLabel } : {}), ...(toLabel ? { toLabel } : {}) }))

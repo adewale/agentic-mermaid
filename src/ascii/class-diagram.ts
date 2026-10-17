@@ -127,9 +127,11 @@ export function renderClassTerminal(text: string, config: AsciiConfig, colorMode
   const namespaceByClass = new Map<string, string>(), namespaces: PlacedNamespace[] = []
   if (diagram.namespaces.length) {
     const header = (ns: ClassNamespace) => prepared(normalizeBrTags(ns.label ?? ns.name))
+    // Keep normal port approaches and a free routing row inside each frame.
+    const frameClearance = 4
     const depthOf = (items: ClassNamespace[], depth = 1): number => Math.max(depth, ...items.map(ns => depthOf(ns.children, depth + 1)))
     const headerHeight = (items: ClassNamespace[]): number => Math.max(1, ...items.flatMap(ns => [header(ns).length, headerHeight(ns.children)]))
-    const inset = depthOf(diagram.namespaces) * (headerHeight(diagram.namespaces) + 2)
+    const inset = depthOf(diagram.namespaces) * (headerHeight(diagram.namespaces) + frameClearance)
     for (const box of placed.values()) { box.x += inset; box.y += inset }
     let emptyY = Math.max(4, ...[...placed.values()].map(box => box.y + box.height + 4))
     const visit = (ns: ClassNamespace, parentId?: string, depth = 1): PlacedNamespace | undefined => {
@@ -143,9 +145,9 @@ export function renderClassTerminal(text: string, config: AsciiConfig, colorMode
         const empty: PlacedNamespace = { id, parentId, depth, members: [], labelLines, x: 4, y: emptyY, width: Math.max(6, ...labelLines.map(line => visualWidth(line) + 4)), height: labelLines.length + 3 }
         emptyY += empty.height + 4; namespaces.push(empty); return empty
       }
-      const x = Math.min(...bounds.map(box => box.x)) - 2, y = Math.min(...bounds.map(box => box.y)) - labelLines.length - 1
-      const right = Math.max(...bounds.map(box => box.x + box.width + 1), x + Math.max(...labelLines.map(visualWidth)) + 4)
-      const bottom = Math.max(...bounds.map(box => box.y + box.height + 1))
+      const x = Math.min(...bounds.map(box => box.x)) - frameClearance, y = Math.min(...bounds.map(box => box.y)) - labelLines.length - frameClearance
+      const right = Math.max(...bounds.map(box => box.x + box.width + frameClearance - 1), x + Math.max(...labelLines.map(visualWidth)) + 4)
+      const bottom = Math.max(...bounds.map(box => box.y + box.height + frameClearance - 1))
       const frame: PlacedNamespace = { id, parentId, depth, members: [...ns.classIds, ...children.map(child => child.id)], labelLines, x, y, width: right - x + 1, height: bottom - y + 1 }
       namespaces.push(frame); return frame
     }
@@ -168,18 +170,18 @@ export function renderClassTerminal(text: string, config: AsciiConfig, colorMode
       const allocated: Array<PlacedClass | PlacedNamespace> = []
       for (const child of children.sort((a, b) => a.y - b.y || a.x - b.x || compareCodePointStrings(a.id, b.id))) {
         for (;;) {
-          const blockers = allocated.filter(other => child.x < other.x + other.width && other.x < child.x + child.width && child.y < other.y + other.height && other.y < child.y + child.height)
+          const blockers = allocated.filter(other => child.x < other.x + other.width + frameClearance && other.x < child.x + child.width + frameClearance && child.y < other.y + other.height + frameClearance && other.y < child.y + child.height + frameClearance)
           if (!blockers.length) break
-          move(child, Math.max(...blockers.map(other => other.y + other.height + 2)) - child.y)
+          move(child, Math.max(...blockers.map(other => other.y + other.height + frameClearance)) - child.y)
         }
         allocated.push(child)
       }
       const parent = namespaces.find(box => box.id === parentId)
       if (parent && children.length) {
-        parent.x = Math.min(...children.map(box => box.x)) - 2
-        parent.y = Math.min(...children.map(box => box.y)) - parent.labelLines.length - 1
-        parent.width = Math.max(...children.map(box => box.x + box.width + 2), parent.x + Math.max(...parent.labelLines.map(visualWidth)) + 4) - parent.x
-        parent.height = Math.max(...children.map(box => box.y + box.height + 2)) - parent.y
+        parent.x = Math.min(...children.map(box => box.x)) - frameClearance
+        parent.y = Math.min(...children.map(box => box.y)) - parent.labelLines.length - frameClearance
+        parent.width = Math.max(...children.map(box => box.x + box.width + frameClearance), parent.x + Math.max(...parent.labelLines.map(visualWidth)) + 4) - parent.x
+        parent.height = Math.max(...children.map(box => box.y + box.height + frameClearance)) - parent.y
       }
     }
     settle()

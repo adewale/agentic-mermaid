@@ -19,8 +19,8 @@ classDiagram
                     |
                     | 1
                   +-+
-                  | places labeled orders
                   |
+                  | places labeled orders
                   |
                   | *
                   v

@@ -8,8 +8,8 @@ erDiagram
     string city
   }
 ---
-    +----------------+            +-------------------+
-    | PERSON         |  lives_at  | ADDRESS           |
+    +----------------+  lives_at  +-------------------+
+    | PERSON         |            | ADDRESS           |
     +----------------+|---------o<+-------------------+
     | PK string name |            |     string street |
     +----------------+            |     string city   |

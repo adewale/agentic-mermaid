@@ -1,6 +1,7 @@
 import type { GridCoord } from './types.ts'
 import { gridKey } from './types.ts'
 import type { TerminalDocument, TerminalLineStyle, TerminalOwner, TerminalPort, TerminalSide } from './terminal-document.ts'
+import { snapshotTerminalPort } from './terminal-document.ts'
 
 const allocated = new WeakSet<object>()
 declare const routeBrand: unique symbol
@@ -19,9 +20,10 @@ const opposite = { T: 'B', R: 'L', B: 'T', L: 'R' } as const
 /** A complete cell path joins either on-path ports or their outward-adjacent
  * cells. Families retain their existing physical port convention. */
 export function allocateTerminalRoute(id: string, source: TerminalPort & { side: TerminalSide }, target: TerminalPort & { side: TerminalSide }, path: readonly Readonly<GridCoord>[]): TerminalRoute {
-  source = { ...source }; target = { ...target }
+  source = snapshotTerminalPort(source); target = snapshotTerminalPort(target)
   const points = path.map(point => Object.freeze({ ...point }))
-  const integer = (point: Readonly<GridCoord>) => Number.isSafeInteger(point.x) && point.x >= 0 && Number.isSafeInteger(point.y) && point.y >= 0
+  const integer = (point: Readonly<GridCoord>) => Number.isSafeInteger(point.x) && point.x >= 0 && point.x < Number.MAX_SAFE_INTEGER
+    && Number.isSafeInteger(point.y) && point.y >= 0 && point.y < Number.MAX_SAFE_INTEGER
   const same = (a: Readonly<GridCoord> | undefined, b: Readonly<GridCoord>) => a?.x === b.x && a.y === b.y
   const joins = (point: Readonly<GridCoord> | undefined, next: Readonly<GridCoord> | undefined, port: TerminalPort & { side: TerminalSide }): boolean => {
     const d = delta[port.side]

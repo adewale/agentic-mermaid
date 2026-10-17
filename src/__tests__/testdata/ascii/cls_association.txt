@@ -6,9 +6,9 @@ classDiagram
     +---------+
          |
          |
-        ++enrolls
+        ++
         |
-        |
+        | enrolls
         |
         |
         v
