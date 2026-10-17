@@ -249,10 +249,10 @@ export function renderMermaidASCIIWithReceipt(
     }
     return projectedStyle = withTerminalConnectorScene(appearance, connectorScene, failed)
   }
-  // Preserve callback ordering and Gantt's request-time default clock. Native
-  // output otherwise needs only appearance; full receipts evaluate the same
+  // Preserve callback ordering. Native output otherwise needs only appearance;
+  // full receipts evaluate the same
   // graphical evidence on first access and retain it for subsequent accesses.
-  if (options.onProjectionDiagnostic || family.id === 'gantt') connectorStyle()
+  if (options.onProjectionDiagnostic) connectorStyle()
   for (const diagnostic of projectedStyle?.diagnostics ?? []) options.onProjectionDiagnostic?.(diagnostic)
   const theme: AsciiTheme = appearance.theme
   const model = terminalInputModel(text, normalizedSource.familyText)

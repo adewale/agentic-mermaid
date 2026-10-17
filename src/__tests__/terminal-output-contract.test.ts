@@ -248,6 +248,37 @@ describe('canonical terminal output policy', () => {
     } finally { restore() }
   })
 
+  test('Gantt defers graphical evidence and retains its captured explicit clock', () => {
+    const source = 'gantt\n  dateFormat YYYY-MM-DD\n  Build :build, 2026-10-01, 10d'
+    const descriptor = getFamily('gantt')!
+    let calls = 0
+    let observedClock: string | undefined
+    const restore = replaceFamilyForTest('gantt', { ...descriptor, layout(context) {
+      calls++
+      observedClock = context.renderOptions.ganttToday
+      return descriptor.layout!(context)
+    } })
+    try {
+      const options = { colorMode: 'none' as const, ganttToday: '2026-10-05' }
+      const delayed = renderMermaidASCIIWithReceipt(source, options)
+      const marker = terminalDocumentOf(delayed)!.regions().find(region => region.id === 'today-marker')!
+      expect(marker.ownedCellSpans!.length).toBeGreaterThan(0)
+      expect(calls).toBe(0)
+      // Mutating the caller's object before consuming the receipt cannot move
+      // its marker or change the date passed to optional graphical layout.
+      options.ganttToday = '2026-10-08'
+      const delayedStyle = delayed.terminalStyle
+      expect(observedClock).toBe('2026-10-05')
+      expect(calls).toBe(1)
+      const eager = renderMermaidASCIIWithReceipt(source, { colorMode: 'none', ganttToday: '2026-10-05', onProjectionDiagnostic() {} })
+      expect(calls).toBe(2)
+      expect(eager.text).toBe(delayed.text)
+      expect(eager.terminalStyle).toEqual(delayedStyle)
+      expect(eager.receipt).toEqual(delayed.receipt)
+      expect(calls).toBe(2)
+    } finally { restore() }
+  })
+
   test('model reuse respects admitted entity decoding in labels, headers and grammar', () => {
     const encoded = 'flowchart&#32;LR\nA[&lt;b&gt;Start&lt;/b&gt;] --&gt; B[Finish]'
     const decoded = 'flowchart LR\nA[<b>Start</b>] --> B[Finish]'

@@ -3,6 +3,14 @@ import { renderMermaidASCIIWithReceipt } from '../ascii/index.ts'
 import { terminalDocumentOf } from '../ascii/terminal-document.ts'
 import { renderMermaidASCIIWithMeta } from '../ascii/meta.ts'
 
+test('BT keeps complete ragged multiline card labels and their opaque surfaces', () => {
+  const rendered = renderMermaidASCIIWithReceipt('flowchart BT\nA["ab<br>x"] --> B[Other]', { colorMode: 'none' })
+  const doc = terminalDocumentOf(rendered)!
+  expect(doc.regions().find(region => region.id === 'A')?.projectedText).toBe('ab\nx')
+  expect(rendered.text).toContain('ab')
+  expect(doc.diagnostics).toEqual([])
+})
+
 test.each(['TD', 'BT', 'LR', 'RL'] as const)('opaque edge-label spaces survive real %s routes (#157)', direction => {
   for (const useAscii of [false, true]) {
     const { ascii, regions } = renderMermaidASCIIWithMeta(`graph ${direction}\nA -->|push = build| B`, { useAscii, colorMode: 'none' })

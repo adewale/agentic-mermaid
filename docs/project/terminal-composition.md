@@ -55,6 +55,15 @@ Sequence lays out lexical fragment boundaries, notes and messages in order.
 Chart adapters allocate numeric marks and literal labels in their own units.
 Reversals move geometry, text blocks, frames and ports while preserving text
 reading order; they do not reverse serialized strings.
+Text and its opaque padding retain explicit footprint provenance through
+repaints and reflection. Growing a grouped label visits only newly included
+surface cells. Reflected rows recompute their emitted extents; transforming a
+drawing never inherits an ambient painting owner.
+
+GitGraph reserves complete commit-label rectangles clear of branch rails.
+Positive-length shared rail runs and merge stems determine intentional bundles;
+crossings alone do not. Each parent relationship retains its own endpoint
+ports and connected owned geometry, including coverage hidden by commit marks.
 
 ## Output and metadata
 
@@ -91,8 +100,9 @@ mutation or string-equality test connects a drawing to its output.
 Plain native output resolves terminal appearance without running optional
 graphical layout. Accessing `terminalStyle` or `receipt` evaluates and memoizes
 the same Scene connector evidence previously computed eagerly. A projection
-callback requests that evidence before drawing; Gantt also keeps request-time
-clock evaluation. Metadata consumes this full evidence. Performance comparisons
+callback requests that evidence before drawing. Gantt's clock is an explicit
+resolved input, so delayed evidence retains the same date and marker. Metadata
+consumes this full evidence. Performance comparisons
 must distinguish text-only output from fully consumed receipts.
 
 Authored parsing is memoized within one render. Flowchart drawing and metadata

@@ -7,6 +7,108 @@ const owner = (id: string): TerminalOwner => ({ id, kind: 'node' })
 const route = (id: string, bundle?: string): TerminalOwner => ({ id, kind: 'edge', ...(bundle ? { bundle } : {}) })
 
 describe('owned terminal composition', () => {
+  test('a frozen owner array does not make its mutable element definitions immutable', () => {
+    const doc = new TerminalDocument()
+    const first = route('A'), second = route('B'), supplied = Object.freeze([first, second])
+    doc.put(0, 0, '─', { owners: supplied })
+    second.id = 'C'
+    doc.put(0, 1, '─', { owners: supplied })
+    expect(doc.cell(0, 0)?.owners.map(owner => owner.id)).toEqual(['A', 'B'])
+    expect(doc.cell(0, 1)?.owners.map(owner => owner.id)).toEqual(['A', 'C'])
+    expect(doc.regions().map(region => region.id)).toEqual(['A', 'B', 'C'])
+    expect(doc.diagnostics).toEqual([])
+  })
+
+  test.each([[true, false], [false, true], [true, true]])('reflection moves ragged text and its opaque padding together (%s, %s)', (horizontal, vertical) => {
+    const doc = new TerminalDocument(6, 4)
+    doc.textBlock(1, 1, ['ab', 'x'], { owner: owner('label') })
+    const before = doc.serialize()
+    doc.flip(horizontal, vertical)
+    expect(doc.regions().find(region => region.id === 'label')?.projectedText).toBe('ab\nx')
+    const textX = horizontal ? 3 : 1
+    expect(doc.get(textX + 1, 2)).toBe(' ')
+    expect(doc.cell(textX + 1, 2)?.kind).toBe('surface')
+    expect(doc.diagnostics).toEqual([])
+    doc.flip(horizontal, vertical)
+    expect(doc.serialize()).toBe(before)
+  })
+
+  test('reflection carries compatible card surface through a grouped multiline label', () => {
+    const doc = new TerminalDocument(6, 4)
+    doc.scope(owner('card'), () => {
+      doc.fill(0, 0, 6, 4)
+      doc.textBlock(1, 1, 'ab')
+      doc.textBlock(1, 2, 'x')
+    })
+    doc.flip(false, true)
+    expect(doc.regions().find(region => region.id === 'card')?.projectedText).toBe('ab\nx')
+    expect(doc.cell(2, 2)?.kind).toBe('surface')
+    expect(doc.occupiedCells).toBe(24)
+    expect(doc.diagnostics).toEqual([])
+  })
+
+  test('a compatible padding repaint retains its complete text allocation during reflection', () => {
+    const doc = new TerminalDocument(6, 4)
+    doc.scope(owner('card'), () => {
+      doc.fill(0, 0, 6, 4)
+      doc.textBlock(1, 1, ['ab', 'x'])
+      doc.fill(2, 2, 1, 1)
+    })
+    doc.flip(false, true)
+    expect(doc.occupiedCells).toBe(24)
+    expect(doc.regions().find(region => region.id === 'card')?.projectedText).toBe('ab\nx')
+    expect(doc.cell(2, 2)?.kind).toBe('surface')
+    expect(doc.diagnostics).toEqual([])
+  })
+
+  test.each(['text', 'textBlock'] as const)('reflection preserves a long ragged grouped %s label over its card surface', method => {
+    const lines = Array.from({ length: 80 }, (_, row) => row % 3 ? `row${row}` : `Long row ${row} 界`)
+    const doc = new TerminalDocument(24, lines.length + 2)
+    doc.scope(owner('card'), () => {
+      doc.fill(0, 0, 24, lines.length + 2)
+      lines.forEach((line, row) => doc[method](1, row + 1, line))
+    })
+    const before = doc.serialize()
+    doc.flip(true, true)
+    expect(doc.regions().find(region => region.id === 'card')?.projectedText).toBe(lines.join('\n'))
+    expect(doc.occupiedCells).toBe(24 * (lines.length + 2))
+    expect(doc.diagnostics).toEqual([])
+    doc.flip(true, true)
+    expect(doc.serialize()).toBe(before)
+  })
+
+  test('a default-direction semantic arrow reflects like an explicit right arrow', () => {
+    const doc = new TerminalDocument(3, 1)
+    doc.marker(0, 0, { shape: 'arrow' }, { owner: route('a') })
+    expect(doc.cell(0, 0)?.marker?.direction).toBe('R')
+    doc.flip(true, false)
+    expect(doc.get(2, 0)).toBe('◄')
+    expect(doc.cell(2, 0)?.marker?.direction).toBe('L')
+  })
+
+  test('horizontal reflection updates ragged line extents before serialization and metadata', () => {
+    const doc = new TerminalDocument()
+    doc.line([{ text: 'abcd', owner: owner('first') }])
+    doc.line([{ text: 'x', owner: owner('second') }])
+    const before = doc.serialize()
+    doc.flip(true, false)
+    expect(doc.serialize()).toBe('abcd\n   x')
+    expect(doc.regions().find(region => region.id === 'second')?.ownedCellSpans).toEqual([{ row: 1, start: 3, end: 4 }])
+    doc.flip(true, false)
+    expect(doc.serialize()).toBe(before)
+    doc.flip(true, false)
+    doc.flip(false, true)
+    expect(doc.serialize()).toBe('   x\nabcd')
+  })
+
+  test('reflection retains unowned cells inside an ambient owner scope', () => {
+    const doc = new TerminalDocument(2, 1)
+    doc.stroke(0, 0, 10)
+    doc.scope(owner('intruder'), () => doc.flip(true, false))
+    expect(doc.cell(1, 0)?.owners).toHaveLength(0)
+    expect(doc.regions()).toEqual([])
+  })
+
   test('element handles and owner sets are immutable, canonical and reject conflicting identity', () => {
     const doc = new TerminalDocument()
     const a = doc.element({ ...route('a'), from: 'source', to: 'target' })
@@ -14,6 +116,9 @@ describe('owned terminal composition', () => {
     expect(doc.element({ ...route('a'), from: 'source' })).toBe(a)
     expect(Object.isFrozen(a)).toBe(true)
     expect(doc.owners([a, b, a])).toBe(doc.owners([b, a]))
+    expect(doc.owners([a])).toBe(doc.owners(new Set([a])))
+    expect(doc.owners([a])).toBe(doc.owners([a, a]))
+    expect(doc.owners([])).toBe(doc.owners(new Set()))
     expect(Object.isFrozen(doc.owners([a, b]))).toBe(true)
     expect(() => doc.element({ ...route('a'), to: 'different' })).toThrow('Inconsistent terminal element a: to')
   })

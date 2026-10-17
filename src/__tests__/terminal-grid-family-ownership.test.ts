@@ -413,10 +413,31 @@ merge topic id:"join" tag:"v1"`, { title: 'Release title' })
     expect(region('title').kind).toBe('label')
     expect(region('work').parentId).toBe('branch:topic')
     expect(region('release').parentId).toBe('branch:main')
-    for (const commit of diagram.commits) for (const parent of commit.parents) expect(region(`edge:${parent}:${commit.id}`).kind).toBe('edge')
+    const commitMarks = new Map(['base', 'work', 'release', 'join'].map(id => {
+      const marks = [...doc.entries()].filter(([, , cell]) => cell.kind !== 'text' && cell.role === 'arrow' && cell.owners.some(owner => owner.kind === 'node' && owner.id === id))
+      expect(marks.map(([, , cell]) => cell.glyph)).toEqual([{ base: '*', work: '*', release: 'X', join: '◎' }[id]!])
+      return [id, marks[0]!] as const
+    }))
+    for (const commit of diagram.commits) for (const parent of commit.parents) {
+      const edge = region(`edge:${parent}:${commit.id}`)
+      expect(edge).toMatchObject({ kind: 'edge', from: parent, to: commit.id })
+      expect(edge.ports?.map(port => port.nodeId)).toEqual([parent, commit.id])
+      const [sx, sy] = commitMarks.get(parent)!, [tx, ty] = commitMarks.get(commit.id)!
+      const covered = new Set([...doc.entries()].filter(([, , cell]) => [...cell.owners, ...(cell.occludedOwners ?? [])].some(owner => owner.kind === 'edge' && owner.id === edge.id)).map(([x, y]) => `${x},${y}`))
+      covered.add(`${sx},${sy}`); covered.add(`${tx},${ty}`)
+      const queue = [`${sx},${sy}`], seen = new Set(queue)
+      for (let index = 0; index < queue.length; index++) {
+        const [x, y] = queue[index]!.split(',').map(Number)
+        for (const [nx, ny] of [[x! - 1, y!], [x! + 1, y!], [x!, y! - 1], [x!, y! + 1]]) {
+          const key = `${nx},${ny}`
+          if (covered.has(key) && !seen.has(key)) { seen.add(key); queue.push(key) }
+        }
+      }
+      expect(seen.has(`${tx},${ty}`)).toBe(true)
+    }
     const branch = region('branch:topic')
     expect(branch.members).toContain('work')
     expect([...doc.entries()].some(([, , cell]) => cell.color !== undefined)).toBe(true)
-    expect(doc.diagnostics.filter(item => item.code === 'TERMINAL_TEXT_COLLISION')).toEqual([])
+    expect(doc.diagnostics.filter(item => /COLLISION|OVERLAP/.test(item.code))).toEqual([])
   })
 })

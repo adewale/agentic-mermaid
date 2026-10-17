@@ -115,6 +115,8 @@ export interface TerminalCompositionDiagnostic {
 }
 
 const ownerKey = (owner: TerminalOwner): string => `${owner.kind ?? 'node'}\0${owner.id}`
+// Only snapshots created by this module may back identity-based import caches.
+const canonicalOwnerDefinitions = new WeakSet<TerminalOwner>()
 const emptyOwners = Object.freeze([]) as unknown as TerminalOwnerSet
 const strokePorts: Readonly<Record<string, number>> = {
   '─': 10, '│': 5, '┌': 6, '┐': 12, '└': 3, '┘': 9,
@@ -189,6 +191,10 @@ export class TerminalDocument {
   private ownerSets = new Map<string, TerminalOwnerSet>()
   private singletonOwners = new WeakMap<TerminalOwner, TerminalOwnerSet>()
   private importedOwners = new WeakMap<readonly TerminalOwner[], TerminalOwnerSet>()
+  private canonicalOwners = new WeakSet<TerminalOwner>()
+  private ownerKeys = new WeakMap<TerminalOwner, string>()
+  private ownerUnions = new WeakMap<TerminalOwnerSet, WeakMap<TerminalOwnerSet, TerminalOwnerSet>>()
+  private warningFeatures = new WeakMap<TerminalOwnerSet, { feature: string; keys: Partial<Record<TerminalCompositionDiagnostic['code'], string>> }>()
   private declared = new Map<string, TerminalBounds>()
   private ports = new Map<string, TerminalPort[]>()
   private activeOwner: TerminalOwner | undefined
@@ -226,8 +232,9 @@ export class TerminalDocument {
   /** Attach identity at a family drawing boundary, retaining explicit text cells. */
   attribute(owners: TerminalOwner | readonly TerminalOwner[], paint: Omit<TerminalPaint, 'owner'> = {}): this {
     const attributed = (Array.isArray(owners) ? owners : [owners]).map(owner => this.remember(owner)!)
+    const canonical = this.owners(attributed)
     for (const [, , cell] of this.entries()) {
-      cell.owners = this.owners([...cell.owners, ...attributed])
+      cell.owners = this.unionOwners(cell.owners, canonical)
       cell.owner ??= attributed[0]
       if (cell.kind !== 'text') {
         if (paint.role !== undefined) cell.role = paint.role
@@ -247,9 +254,10 @@ export class TerminalDocument {
       if (cell.head < bounds.x || cell.head + cell.width > bounds.x + bounds.width) throw new RangeError('terminal attribution bounds must contain complete graphemes')
     }
     const attributed = this.remember(owner)!
+    const canonical = this.owners([attributed])
     for (const [x, y, cell] of this.entries()) {
       if (x < bounds.x || x >= bounds.x + bounds.width || y < bounds.y || y >= bounds.y + bounds.height) continue
-      if (!cell.owners.some(existing => ownerKey(existing) === ownerKey(attributed))) cell.owners = this.owners([...cell.owners, attributed])
+      cell.owners = this.unionOwners(cell.owners, canonical)
       if (paint.role !== undefined && cell.kind !== 'text') cell.role = paint.role
       if (paint.color !== undefined) cell.color = paint.color
     }
@@ -281,27 +289,77 @@ export class TerminalDocument {
   owners(values: Iterable<TerminalOwner>): TerminalOwnerSet {
     if (Array.isArray(values)) {
       if (!values.length) return emptyOwners
-      if (values.length === 1) {
-        const owner = this.remember(values[0])!
-        let set = this.singletonOwners.get(owner)
-        if (!set) { set = Object.freeze([owner]) as TerminalOwnerSet; this.singletonOwners.set(owner, set) }
-        return set
-      }
       const imported = this.importedOwners.get(values)
       if (imported) return imported
+      if (values.length === 1) {
+        const owner = this.canonicalOwner(values[0]!)
+        const set = this.singletonOwnerSet(owner)
+        if (Object.isFrozen(values) && canonicalOwnerDefinitions.has(values[0]!)) this.importedOwners.set(values, set)
+        return set
+      }
     }
     const byKey = new Map<string, TerminalOwner>()
-    for (const owner of values) { const canonical = this.remember(owner)!; byKey.set(ownerKey(canonical), canonical) }
+    let cacheable = Array.isArray(values) && Object.isFrozen(values)
+    for (const owner of values) {
+      const canonical = this.canonicalOwner(owner)
+      byKey.set(this.ownerKeys.get(canonical)!, canonical)
+      cacheable &&= canonicalOwnerDefinitions.has(owner)
+    }
+    if (!byKey.size) return emptyOwners
+    if (byKey.size === 1) {
+      const set = this.singletonOwnerSet(byKey.values().next().value!)
+      if (cacheable) this.importedOwners.set(values as readonly TerminalOwner[], set)
+      return set
+    }
     const keys = [...byKey.keys()].sort(compareCodePointStrings), key = JSON.stringify(keys)
     let set = this.ownerSets.get(key)
-    if (!set) { set = Object.freeze(keys.map(key => byKey.get(key)!)) as TerminalOwnerSet; this.ownerSets.set(key, set) }
-    if (Array.isArray(values) && Object.isFrozen(values)) this.importedOwners.set(values, set)
+    if (!set) {
+      set = Object.freeze(keys.map(key => byKey.get(key)!)) as TerminalOwnerSet
+      this.ownerSets.set(key, set); this.importedOwners.set(set, set)
+    }
+    if (cacheable) this.importedOwners.set(values as readonly TerminalOwner[], set)
+    return set
+  }
+
+  private canonicalOwner(owner: TerminalOwner): TerminalOwner {
+    if (this.canonicalOwners.has(owner)) return owner
+    const canonical = this.remember(owner)!
+    this.canonicalOwners.add(canonical); canonicalOwnerDefinitions.add(canonical)
+    if (!this.ownerKeys.has(canonical)) this.ownerKeys.set(canonical, ownerKey(canonical))
+    return canonical
+  }
+
+  private singletonOwnerSet(owner: TerminalOwner): TerminalOwnerSet {
+    let set = this.singletonOwners.get(owner)
+    if (!set) {
+      set = Object.freeze([owner]) as TerminalOwnerSet
+      this.singletonOwners.set(owner, set); this.importedOwners.set(set, set)
+    }
     return set
   }
 
   private paintOwners(paint: TerminalPaint): TerminalOwnerSet {
-    const primary = paint.owner ?? this.activeOwner
-    return this.owners(paint.owners ? primary ? [...paint.owners, primary] : paint.owners : primary ? [primary] : [])
+    const supplied = paint.owner ?? this.activeOwner
+    const primary = supplied ? this.canonicalOwner(supplied) : undefined
+    if (!paint.owners) return primary ? this.singletonOwnerSet(primary) : emptyOwners
+    const owners = this.owners(paint.owners)
+    if (!primary || owners.includes(primary)) return owners
+    return this.unionOwners(owners, this.singletonOwnerSet(primary))
+  }
+
+  private unionOwners(left: readonly TerminalOwner[], right: readonly TerminalOwner[]): TerminalOwnerSet {
+    const a = this.owners(left), b = this.owners(right)
+    if (!a.length || a === b) return b
+    if (!b.length) return a
+    let unions = this.ownerUnions.get(a)
+    const cached = unions?.get(b) ?? this.ownerUnions.get(b)?.get(a)
+    if (cached) return cached
+    const combined = a.every(owner => b.includes(owner)) ? b
+      : b.every(owner => a.includes(owner)) ? a
+      : this.owners([...a, ...b])
+    if (!unions) { unions = new WeakMap(); this.ownerUnions.set(a, unions) }
+    unions.set(b, combined)
+    return combined
   }
 
   scope<T>(owner: TerminalOwner, draw: () => T): T {
@@ -336,8 +394,14 @@ export class TerminalDocument {
   }
 
   private warn(code: TerminalCompositionDiagnostic['code'], owners: readonly TerminalOwner[], x: number, y: number): void {
-    const feature = owners.map(owner => `${owner.kind ?? 'node'}:${owner.id}`).sort(compareCodePointStrings).join('|')
-    const key = `${code}:${feature}`
+    const canonical = this.owners(owners)
+    let cached = this.warningFeatures.get(canonical)
+    if (!cached) {
+      cached = { feature: owners.map(owner => `${owner.kind ?? 'node'}:${owner.id}`).sort(compareCodePointStrings).join('|'), keys: {} }
+      this.warningFeatures.set(canonical, cached)
+    }
+    const feature = cached.feature
+    const key = cached.keys[code] ??= `${code}:${feature}`
     if (this.diagnosticKeys.has(key)) return
     this.diagnosticKeys.add(key)
     const description = code === 'TERMINAL_TEXT_COLLISION' ? 'Text footprints overlap' : code === 'TERMINAL_ROUTE_OVERLAP' ? 'Unrelated route runs overlap' : 'Incompatible occupied geometry overlaps'
@@ -363,7 +427,8 @@ export class TerminalDocument {
   }
 
   private admit(x: number, y: number, glyph: string, width: number, paint: TerminalPaint, incoming: TerminalOwnerSet, strict = false): boolean {
-    const related = (a: TerminalOwner, b: TerminalOwner, geometry = true) => ownerKey(a) === ownerKey(b) || !!(geometry && (
+    // Both sets contain this document's canonical immutable definitions.
+    const related = (a: TerminalOwner, b: TerminalOwner, geometry = true) => a === b || !!(geometry && (
       (a.bundle && a.bundle === b.bundle) || a.parentId === b.id || b.parentId === a.id))
     const incompatible = (previous: readonly TerminalOwner[], bundles = true) => previous.length > 0 && incoming.length > 0 && (
       previous.some(owner => !incoming.some(next => related(owner, next, bundles))) || incoming.some(next => !previous.some(owner => related(owner, next, bundles))))
@@ -373,33 +438,33 @@ export class TerminalDocument {
       if (!covered) continue
       const previous = covered.head === x + offset ? covered : this.cell(covered.head, y)!
       if (strict && (previous.kind === 'marker' || previous.kind === 'surface' || previous.kind === 'mark') && (!previous.owners.length || !incoming.length)) {
-        this.warn('TERMINAL_GEOMETRY_COLLISION', this.owners([...previous.owners, ...incoming]), x + offset, y)
+        this.warn('TERMINAL_GEOMETRY_COLLISION', this.unionOwners(previous.owners, incoming), x + offset, y)
         return false
       }
       if (previous.kind === 'text') {
         const unrelated = incompatible(previous.owners, false)
-        if (unrelated) this.warn('TERMINAL_TEXT_COLLISION', this.owners([...previous.owners, ...incoming]), x + offset, y)
+        if (unrelated) this.warn('TERMINAL_TEXT_COLLISION', this.unionOwners(previous.owners, incoming), x + offset, y)
         if (unrelated || paint.kind !== 'text') return false
         continue
       }
       const unrelated = incompatible(previous.owners)
       if (previous.kind === 'surface' && unrelated) {
-        this.warn('TERMINAL_GEOMETRY_COLLISION', this.owners([...previous.owners, ...incoming]), x + offset, y)
+        this.warn('TERMINAL_GEOMETRY_COLLISION', this.unionOwners(previous.owners, incoming), x + offset, y)
         return false
       }
       if (previous.kind === 'marker') {
         const coincident = paint.kind === 'marker' && previous.head === x && previous.width === width && previous.glyph === glyph
         if (!coincident && (unrelated || (paint.kind !== 'text' && paint.kind !== 'surface'))) {
-          if (unrelated) this.warn('TERMINAL_GEOMETRY_COLLISION', this.owners([...previous.owners, ...incoming]), x + offset, y)
+          if (unrelated) this.warn('TERMINAL_GEOMETRY_COLLISION', this.unionOwners(previous.owners, incoming), x + offset, y)
           return false
         }
       }
       if (previous.kind === 'mark' && paint.kind !== 'stroke' && unrelated) {
-        this.warn('TERMINAL_GEOMETRY_COLLISION', this.owners([...previous.owners, ...incoming]), x + offset, y)
+        this.warn('TERMINAL_GEOMETRY_COLLISION', this.unionOwners(previous.owners, incoming), x + offset, y)
         return false
       }
       if (previous.kind === 'stroke' && paint.kind === 'text' && unrelated) {
-        this.warn('TERMINAL_GEOMETRY_COLLISION', this.owners([...previous.owners, ...incoming]), x + offset, y)
+        this.warn('TERMINAL_GEOMETRY_COLLISION', this.unionOwners(previous.owners, incoming), x + offset, y)
         if (strict) return false
       }
     }
@@ -409,15 +474,16 @@ export class TerminalDocument {
   private place(x: number, y: number, glyph: string, width: number, paint: TerminalPaint, block: TextBlock | undefined): boolean {
     const old = this.cell(x, y), incoming = this.paintOwners(paint)
     if (!this.admit(x, y, glyph, width, paint, incoming)) return false
+    if (!block && paint.kind === 'surface' && old?.kind === 'surface' && old.textBlock && x >= old.textBlock.x && x + width <= old.textBlock.x + old.textBlock.width && this.compatibleTextSurface(old.owners, incoming)) block = old.textBlock
     if (old?.kind === 'mark' && paint.kind === 'stroke') {
-      old.occludedOwners = this.owners([...(old.occludedOwners ?? []), ...incoming])
+      old.occludedOwners = this.unionOwners(old.occludedOwners ?? emptyOwners, incoming)
       return true
     }
     let owners = incoming
     const importedOcclusion = (paint as TerminalCell).occludedOwners
     let occludedOwners = importedOcclusion ? this.owners(importedOcclusion) : undefined
-    if (old?.kind === 'marker' && paint.kind === 'marker') owners = this.owners([...old.owners, ...incoming])
-    if (paint.kind === 'mark' && old?.kind === 'stroke') occludedOwners = this.owners([...old.owners, ...(old.occludedOwners ?? []), ...(occludedOwners ?? [])])
+    if (old?.kind === 'marker' && paint.kind === 'marker') owners = this.unionOwners(old.owners, incoming)
+    if (paint.kind === 'mark' && old?.kind === 'stroke') occludedOwners = this.unionOwners(this.unionOwners(old.owners, old.occludedOwners ?? emptyOwners), occludedOwners ?? emptyOwners)
     if (old?.kind === 'stroke' && paint.kind === 'stroke') {
       const a = old.stroke?.mask ?? strokePorts[old.glyph] ?? styledPorts[old.glyph] ?? asciiPorts[old.glyph]
       const b = paint.stroke?.mask ?? strokePorts[glyph] ?? styledPorts[glyph] ?? asciiPorts[glyph]
@@ -425,7 +491,7 @@ export class TerminalDocument {
         const stroke = { ...(paint.stroke ?? old.stroke!), mask: (a ?? 0) | (b ?? 0) }
         paint = { ...paint, stroke }; glyph = strokeGlyph(stroke)
       } else if (a && b && a !== b) glyph = asciiPorts[old.glyph] === undefined && asciiPorts[glyph] === undefined ? portGlyph.get(a | b) ?? glyph : '+'
-      owners = this.owners([...old.owners, ...incoming])
+      owners = this.unionOwners(old.owners, incoming)
       if (a !== undefined && a === b && old.owners.some(previous => incoming.some(next => previous.kind === 'edge' && next.kind === 'edge' && previous.id !== next.id && !(previous.bundle && previous.bundle === next.bundle)))) this.warn('TERMINAL_ROUTE_OVERLAP', owners, x, y)
     }
     for (let offset = 0; offset < width; offset++) this.retire(x + offset, y)
@@ -446,7 +512,7 @@ export class TerminalDocument {
   }
 
   marker(x: number, y: number, marker: TerminalMarker, paint: TerminalPaint = {}): void {
-    const semantic = Object.freeze({ ...marker })
+    const semantic = Object.freeze({ ...marker, direction: marker.direction ?? 'R' })
     this.put(x, y, markerGlyph(semantic), { ...paint, kind: 'marker', marker: semantic })
   }
 
@@ -456,6 +522,28 @@ export class TerminalDocument {
     if (mark.coverage !== 1 && mark.coverage !== 2 && mark.coverage !== 3) throw new RangeError('numeric mark coverage must contain one or both half cells')
     const semantic = Object.freeze({ ...mark })
     this.mark(x, y, numericMarkGlyph(semantic), { ...paint, numericMark: semantic })
+  }
+
+  private compatibleTextSurface(previous: TerminalOwnerSet, incoming: TerminalOwnerSet): boolean {
+    const related = (a: TerminalOwner, b: TerminalOwner) => ownerKey(a) === ownerKey(b) || a.parentId === b.id || b.parentId === a.id || !!(a.bundle && a.bundle === b.bundle)
+    return previous.length > 0 && incoming.length > 0 && previous.every(owner => incoming.some(next => related(owner, next))) && incoming.every(next => previous.some(owner => related(owner, next)))
+  }
+
+  private bindTextSurface(block: TextBlock, incoming: TerminalOwnerSet, previous?: TerminalBounds): void {
+    const bind = (x: number, y: number, width: number, height: number): void => {
+      for (let row = y; row < y + height; row++) for (let column = x; column < x + width; column++) {
+        const cell = this.cell(column, row)
+        if (cell?.kind !== 'surface' || cell.head < block.x || cell.head + cell.width > block.x + block.width) continue
+        if (this.compatibleTextSurface(cell.owners, incoming)) cell.textBlock = block
+      }
+    }
+    if (!previous) bind(block.x, block.y, block.width, block.height)
+    else {
+      bind(block.x, block.y, block.width, previous.y - block.y)
+      bind(block.x, previous.y + previous.height, block.width, block.y + block.height - previous.y - previous.height)
+      bind(block.x, previous.y, previous.x - block.x, previous.height)
+      bind(previous.x + previous.width, previous.y, block.x + block.width - previous.x - previous.width, previous.height)
+    }
   }
 
   /** Complete immutable measured text is admitted as one allocation. */
@@ -469,12 +557,14 @@ export class TerminalDocument {
     const groupKey = paint.textGroup === undefined ? undefined : `${owner ? ownerKey(owner) : ''}\0${paint.textGroup}`
     const scoped = owner !== undefined && owner === this.activeOwner
     let block = groupKey === undefined ? scoped ? this.activeTextBlock : undefined : this.textGroups.get(groupKey)
+    const previous = block ? { ...block } : undefined
     if (block) Object.assign(block, union(block, bounds))
     else { block = { ...bounds }; if (scoped) this.activeTextBlock = block; if (groupKey !== undefined) this.textGroups.set(groupKey, block) }
+    this.bindTextSurface(block, incoming, previous)
     for (let row = 0; row < text.height; row++) {
       let end = 0
       for (const cluster of text.lines[row]!) { this.place(x + cluster.x, y + row, cluster.glyph, cluster.width, ink, block); end = cluster.x + cluster.width }
-      for (let column = end; column < text.width; column++) this.put(x + column, y + row, ' ', { ...paint, owner, kind: 'surface' })
+      for (let column = end; column < text.width; column++) this.place(x + column, y + row, ' ', 1, { ...paint, owner, kind: 'surface' }, block)
     }
     this.resize(x + text.width, y + text.height)
     return Object.freeze({ ...bounds, text })
@@ -490,8 +580,10 @@ export class TerminalDocument {
     const scoped = kind === 'text' && owner !== undefined && owner === this.activeOwner
     const groupKey = paint.textGroup === undefined ? undefined : `${owner ? ownerKey(owner) : ''}\0${paint.textGroup}`
     let block = groupKey === undefined ? scoped ? this.activeTextBlock : undefined : this.textGroups.get(groupKey)
+    const previous = block ? { ...block } : undefined
     if (block) Object.assign(block, union(block, bounds))
     else { block = { ...bounds }; if (scoped) this.activeTextBlock = block; if (groupKey !== undefined) this.textGroups.set(groupKey, block) }
+    if (kind === 'text') this.bindTextSurface(block, this.paintOwners({ ...paint, owner }), previous)
     lines.forEach((line, offsetY) => {
       let column = x
       for (const cluster of graphemes(line)) {
@@ -565,6 +657,9 @@ export class TerminalDocument {
   flip(horizontal: boolean, vertical: boolean): void {
     const next = new Map<number, Map<number, TerminalCell>>()
     const blocks = new Map<TextBlock, TextBlock>()
+    type MovedCell = { x: number; y: number; cell: TerminalCell; block?: TextBlock }
+    const moved: MovedCell[] = []
+    const diagnosticCount = this.diagnostics.length
     const diagnosticSites = new Set(this.diagnostics.flatMap(diagnostic => diagnostic.cell ? [`${diagnostic.cell.column},${diagnostic.cell.row}`] : []))
     const movedSites = new Map<string, { column: number; row: number }>()
     for (const [y, row] of this.rows) for (const [x, cell] of row) {
@@ -574,8 +669,9 @@ export class TerminalDocument {
       let block: TextBlock | undefined
       let glyph = cell.glyph
       let stroke = cell.stroke, marker = cell.marker, numericMark = cell.numericMark
-      if (cell.kind === 'text' && cell.textBlock) {
-        const old = cell.textBlock
+      const readableBlock = cell.textBlock
+      if ((cell.kind === 'text' || cell.kind === 'surface') && readableBlock) {
+        const old = readableBlock
         block = blocks.get(old)
         if (!block) {
           block = { ...old, x: horizontal ? this.width - old.x - old.width : old.x, y: vertical ? this.height - old.y - old.height : old.y }
@@ -597,11 +693,8 @@ export class TerminalDocument {
         if (horizontal) glyph = flipXGlyph[glyph] ?? glyph
         if (vertical) glyph = flipYGlyph[glyph] ?? glyph
       }
-      let target = next.get(ny)
-      if (!target) { target = new Map(); next.set(ny, target) }
       const placed = { ...cell, glyph, head: nx, ...(stroke ? { stroke } : {}), ...(marker ? { marker } : {}), ...(numericMark ? { numericMark } : {}), ...(block ? { textBlock: block } : {}) }
-      target.set(nx, placed)
-      for (let offset = 1; offset < cell.width; offset++) target.set(nx + offset, { ...placed, glyph: WIDE_CHAR_CONTINUATION })
+      moved.push({ x: nx, y: ny, cell: placed, ...(block ? { block } : {}) })
       for (let offset = 0; diagnosticSites.size > 0 && offset < cell.width; offset++) {
         const site = `${x + offset},${y}`
         if (diagnosticSites.has(site)) movedSites.set(site, { column: nx + offset, row: ny })
@@ -616,17 +709,39 @@ export class TerminalDocument {
       if (horizontal) { port.x = this.width - 1 - port.x; if (port.side === 'L') port.side = 'R'; else if (port.side === 'R') port.side = 'L' }
       if (vertical) { port.y = this.height - 1 - port.y; if (port.side === 'T') port.side = 'B'; else if (port.side === 'B') port.side = 'T' }
     }
-    for (let index = 0; index < this.diagnostics.length; index++) {
+    for (let index = 0; index < diagnosticCount; index++) {
       const diagnostic = this.diagnostics[index]!
       if (diagnostic.cell) this.diagnostics[index] = { ...diagnostic, cell: movedSites.get(`${diagnostic.cell.column},${diagnostic.cell.row}`) ?? {
         column: horizontal ? this.width - 1 - diagnostic.cell.column : diagnostic.cell.column,
         row: vertical ? this.height - 1 - diagnostic.cell.row : diagnostic.cell.row,
       } }
     }
+    // Background geometry is admitted before complete readable text footprints.
+    // Reuse ordinary composition's collision policy instead of overwriting
+    // cells that move to the same destination.
+    const groups = new Map<TextBlock, MovedCell[]>()
+    const activeOwner = this.activeOwner
+    this.activeOwner = undefined
+    try {
+      for (const item of moved) if (!item.block && item.cell.kind === 'surface') this.place(item.x, item.y, item.cell.glyph, item.cell.width, item.cell, undefined)
+      for (const item of moved) {
+        if (item.block) { const group = groups.get(item.block) ?? []; group.push(item); groups.set(item.block, group) }
+        else if (item.cell.kind !== 'surface') this.place(item.x, item.y, item.cell.glyph, item.cell.width, item.cell, undefined)
+      }
+      for (const [block, group] of groups) {
+        if (!group.every(item => this.admit(item.x, item.y, item.cell.glyph, item.cell.width, item.cell, this.paintOwners(item.cell), true))) continue
+        for (const item of group) this.place(item.x, item.y, item.cell.glyph, item.cell.width, item.cell, block)
+      }
+    } finally { this.activeOwner = activeOwner }
     this.activeTextBlock = undefined
     this.textGroups.clear()
     this.emittedWidths = undefined
-    if (vertical) this.lineWidths?.reverse()
+    if (horizontal && this.lineWidths) this.lineWidths = Array.from({ length: this.height }, (_, y) => {
+      let end = 0
+      for (const x of this.rows.get(y)?.keys() ?? []) end = Math.max(end, x + 1)
+      return end
+    })
+    else if (vertical) this.lineWidths?.reverse()
   }
 
   serialize(options: TerminalSerializeOptions = {}): string {

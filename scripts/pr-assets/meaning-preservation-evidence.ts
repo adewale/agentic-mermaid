@@ -64,6 +64,7 @@ const terminalFixtures = [
   { id: "terminal-gantt-task-identities", source: "gantt\ndateFormat YYYY-MM-DD\nFirst :2024-01-01, 1d\nSecond :task-0, 2024-01-03, 1d\nclick task-0 href \"https://example.com\"", cue: "The task-0 owned spans identify only Second; the anonymous task has its own stable identity." },
   { id: "terminal-sankey-policy", source: "---\nconfig:\n sankey:\n  linkColor: \"#ff0000\"\n---\nsankey-beta\nSource,Target,2\nSource,Target,1", cue: "Static link paint reaches the owned bars. Parallel adjacency regions retain their endpoints and distinct identities." },
   { id: 'terminal-tall-frame', source: 'flowchart LR\nsubgraph S["One<br>Two<br>Three<br>Four<br>Five"]\n A[Node]\nend', cue: 'Every header line is complete and clears the node; neither wrapping nor composition rewrites source.' },
+  { id: 'terminal-reflected-text-footprint', source: 'flowchart BT\nA["ab<br>x"] --> B[Other]', cue: 'The reflected card retains both ragged lines, ab and x. Text and its opaque footprint move together without reversing reading order.' },
 ]
 interface Evidence { svg?: string; png?: string; error?: string }
 interface TerminalEvidence { ascii?: string; html?: string; meta?: unknown; error?: string }
