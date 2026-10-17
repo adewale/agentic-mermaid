@@ -158,12 +158,13 @@ describe('subgraph direction override (ASCII grid layout)', () => {
   end
   Cluster ==> Done`
     const unicode = renderMermaidASCII(src, { paddingX: 12 })
-    expect(unicode).toContain('┄┄┄load┄┄►')
+    // The head now occupies the actual container frame, not the cell before it.
+    expect(unicode).toContain('┄┄┄load┄┄┄►')
     expect(unicode).toContain('━━━━━━━━━►')
     expect(unicode.split('\n').filter(l => l.includes('Cluster')).length).toBe(1)
 
     const ascii = renderMermaidASCII(src, { useAscii: true, paddingX: 12 })
-    expect(ascii).toContain('...load..>')
+    expect(ascii).toContain('...load...>')
     expect(ascii).toContain('=========>')
     expect(ascii.split('\n').filter(l => l.includes('Cluster')).length).toBe(1)
   })

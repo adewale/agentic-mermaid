@@ -84,6 +84,18 @@ describe('owned terminal composition', () => {
     expect(() => doc.serialize()).not.toThrow()
   })
 
+  test('declared card faces exclude ancillary owned link text from endpoint bounds', () => {
+    const doc = new TerminalDocument(), edge = { ...route('r'), from: 'A', to: 'B' }, node = owner('B')
+    doc.region(node, { x: 3, y: 0, width: 3, height: 3 })
+    doc.fill(3, 0, 3, 3, { owner: node, kind: 'surface' })
+    doc.text(0, 5, 'link B: https://example.com/class', { owner: node })
+    doc.port(edge, { nodeId: 'B', end: 'end', x: 2, y: 1, side: 'L' })
+    doc.expectMarkers(edge, 'end', [{ shape: 'arrow', direction: 'R' }])
+    doc.marker(2, 1, { shape: 'arrow', direction: 'R' }, { owner: edge })
+    expect(() => doc.serialize()).not.toThrow()
+    expect(doc.serialize()).toContain('link B: https://example.com/class')
+  })
+
   const identityAdmissions = {
     element: (doc: TerminalDocument, foreign: TerminalOwner) => doc.element(foreign),
     scope: (doc: TerminalDocument, foreign: TerminalOwner) => doc.scope(foreign, () => doc.put(8, 8, 'x')),

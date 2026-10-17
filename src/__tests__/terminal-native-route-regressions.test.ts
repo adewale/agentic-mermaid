@@ -28,7 +28,7 @@ test.each([false, true])('native families retain typed endpoint meaning across f
     for (const [source, shapes] of [
       [`flowchart ${direction}\nA o--x B\nB <--> C\nC --> C`, ['wide-circle', 'cross', 'arrow', 'arrow', 'arrow']],
       [`stateDiagram-v2\ndirection ${direction}\nA --> B\nB --> A\nB --> B`, ['arrow', 'arrow', 'arrow']],
-      [`classDiagram\ndirection ${direction}\nA o--* B\nB <|-- C\nC --() D`, ['hollow-diamond', 'filled-diamond', 'open-arrow', 'lollipop']],
+      [`classDiagram\ndirection ${direction}\nA o--* B\nB <|-- C\nC --() D\nnote for A "base type"\nclick A href "https://example.com/class"`, ['hollow-diamond', 'filled-diamond', 'open-arrow', 'lollipop']],
       [`erDiagram\ndirection ${direction}\nA ||--o{ B : owns`, ['cardinality-one', 'cardinality-many', 'circle']],
     ] as const) {
       for (const maxWidth of [48, 96]) {

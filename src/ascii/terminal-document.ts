@@ -493,14 +493,16 @@ export class TerminalDocument {
   assertMarkers(): void {
     if (![...this.ports.values()].some(ports => ports.some(port => port.markers))) return
     const frames = new Map<string, { kind: TerminalOwner['kind']; bounds: TerminalBounds }>()
-    const includeFrame = (owner: TerminalOwner, bounds: TerminalBounds) => {
+    const includeFrame = (owner: TerminalOwner, bounds: TerminalBounds, declared = false) => {
       if (!['node', 'group', 'cluster', 'subgraph'].includes(owner.kind ?? 'node')) return
       const previous = frames.get(owner.id)
       if (previous?.kind === 'node' && owner.kind !== 'node') return
-      frames.set(owner.id, { kind: owner.kind, bounds: previous && previous.kind === owner.kind ? union(previous.bounds, bounds) : bounds })
+      frames.set(owner.id, { kind: owner.kind, bounds: !declared && previous && previous.kind === owner.kind ? union(previous.bounds, bounds) : bounds })
     }
-    for (const [x, y, cell] of this.entries()) for (const owner of cell.owners) includeFrame(owner, { x, y, width: cell.width, height: 1 })
-    for (const [key, bounds] of this.declared) includeFrame(this.elements.get(key)!, bounds)
+    // Owned link summaries and labels are not surfaces. Explicit native card
+    // allocation wins over inferred ink bounds, which may include annotations.
+    for (const [x, y, cell] of this.entries()) if (cell.kind !== 'text') for (const owner of cell.owners) includeFrame(owner, { x, y, width: cell.width, height: 1 })
+    for (const [key, bounds] of this.declared) includeFrame(this.elements.get(key)!, bounds, true)
     const expected = new Map<string, Set<string>>()
     for (const [key, ports] of this.ports) {
       const owner = this.elements.get(key)!
