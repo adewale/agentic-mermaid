@@ -155,6 +155,10 @@ export interface AsciiEdge {
    */
   attachFromSubgraph?: AsciiSubgraph
   attachToSubgraph?: AsciiSubgraph
+  /** Physical face slots reserved from complete incident demand before paint. */
+  cellAllocation?: { startOffset: number; endOffset: number }
+  /** Final cell route and label origin, consumed unchanged by drawing. */
+  cellRoute?: { points: DrawingCoord[]; label?: DrawingCoord }
 }
 
 /** A subgraph container with bounding box for rendering. */
@@ -216,6 +220,8 @@ export interface AsciiGraph {
   bundles: EdgeBundle[]
   /** Grid coordinates where sibling-edge trunk branches need explicit T-junctions. */
   trunkJunctions: GridCoord[]
+  /** Flat placement was replaced by an atomic compound-tree embedding. */
+  compoundRepacked?: true
 }
 
 // ============================================================================

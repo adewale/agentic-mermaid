@@ -1,5 +1,9 @@
 import { expect, test } from 'bun:test'
 import { renderMermaidASCIIWithReceipt } from '../ascii/index.ts'
+import { parseMermaid } from '../parser.ts'
+import { convertToAsciiGraph } from '../ascii/converter.ts'
+import { createMapping } from '../ascii/grid.ts'
+import { drawGraph } from '../ascii/draw.ts'
 import { measuredText, terminalDocumentOf, type TerminalDocument, type TerminalRegion } from '../ascii/terminal-document.ts'
 
 function completeText(document: TerminalDocument, glyphs: ReadonlyMap<string, string>, region: TerminalRegion, text: string): void {
@@ -99,14 +103,73 @@ function witness(
     }
   }
   expect(regions.filter(region => region.kind === 'edge')).toHaveLength(relationships.length)
+  const remaining = regions.filter(region => region.kind === 'edge')
   for (const [from, to, text] of relationships) {
-    const edge = regions.find(region => region.kind === 'edge' && region.from === from && region.to === to)!
+    const index = remaining.findIndex(region => region.from === from && region.to === to && (text === undefined || region.projectedText === text))
+    const edge = remaining.splice(index, 1)[0]!
+    expect(index).toBeGreaterThanOrEqual(0)
     expect(edge, `relationship ${from}->${to}`).toBeDefined()
     if (text !== undefined) completeText(document, glyphs, edge, text)
     relationship(document, glyphs, edge, from, to)
   }
   expect(document.diagnostics.filter(diagnostic => /COLLISION|OVERLAP/.test(diagnostic.code))).toEqual([])
 }
+
+for (const direction of ['TD', 'BT', 'LR', 'RL']) for (const useAscii of [false, true]) {
+  for (const labels of [
+    ['request 0', 'request 1'],
+    ['request 0', 'request 1', 'request 2'],
+    ['界 👩‍💻 = é', '界 👩‍💻 = é', 'long  authored  spaces'],
+    ['first<br>second', '日本<br>👩‍💻 = é', 'third'],
+  ]) {
+    for (const reciprocal of [false, true]) {
+      test(`complete parallel face/lane/label demand (${direction}/${useAscii ? 'ASCII' : 'Unicode'}, ${JSON.stringify(labels)}, return=${reciprocal})`, () => {
+        const source = `flowchart ${direction}\n${labels.map(label => `A[Client] -->|${label}| B[Server]`).join('\n')}${reciprocal ? '\nB -->|reply| A' : ''}\nB -->|self| B`
+        const relationships: Array<[string, string, string]> = labels.map(label => ['A', 'B', label.replaceAll('<br>', '\n')])
+        if (reciprocal) relationships.push(['B', 'A', 'reply'])
+        relationships.push(['B', 'B', 'self'])
+        witness(source, useAscii, [['A', 'Client'], ['B', 'Server']], relationships)
+      })
+    }
+  }
+  test(`parallel container endpoints bind to real frame ports (${direction}/${useAscii ? 'ASCII' : 'Unicode'})`, () => {
+    witness(`flowchart ${direction}\nsubgraph Group\nA[Inner]\nend\nGroup -->|one| B[Outside]\nGroup -->|two| B\nB -->|back| Group`, useAscii, [['Group', 'Group'], ['A', 'Inner'], ['B', 'Outside']], [['Group', 'B', 'one'], ['Group', 'B', 'two'], ['B', 'Group', 'back']])
+  })
+  test(`multiline lane labels retain authored blank rows and attached short rows (${direction}/${useAscii ? 'ASCII' : 'Unicode'})`, () => {
+    const rendered = renderMermaidASCIIWithReceipt(`flowchart ${direction}\nA -->|long  label<br><br>x| B\nA -->|other| B\nA -->|third| B\nB -->|self| B`, { useAscii, colorMode: 'none' })
+    const document = terminalDocumentOf(rendered)!, glyphs = new Map<string, string>()
+    rendered.text.split('\n').forEach((line, y) => {
+      for (const cluster of measuredText(line).lines[0]!) glyphs.set(`${cluster.x},${y}`, cluster.glyph)
+    })
+    const edge = document.regions().find(region => region.kind === 'edge' && region.id === 'edge#0:A->B')!
+    const rows = new Map<number, string>()
+    for (const cell of edge.authoredTextCells ?? []) {
+      expect(glyphs.get(`${cell.column},${cell.row}`)).toBe(cell.glyph)
+      rows.set(cell.row, (rows.get(cell.row) ?? '') + cell.glyph)
+    }
+    expect([...rows.values()]).toEqual(['long  label', 'x'])
+    const positions = [...rows.keys()]
+    expect(positions[1]! - positions[0]!).toBe(2)
+    // #402 tracks projectedText collapsing empty authored rows across families;
+    // that metadata defect must not hide correct emitted spacing.
+    relationship(document, glyphs, edge, 'A', 'B')
+    expect(document.diagnostics).toEqual([])
+  })
+}
+
+test('an obstructed physical face reports a bounded lane failure without fabricating labels', () => {
+  const graph = convertToAsciiGraph(parseMermaid('flowchart LR\nA -->|one| B\nA -->|two| B\nB -->|back| A'), {
+    graphDirection: 'LR', paddingX: 1, paddingY: 1, boxBorderPadding: 1, useAscii: false,
+  })
+  createMapping(graph)
+  const source = graph.nodes.find(node => node.name === 'A')!
+  const x = source.drawingCoord!.x + source.drawing!.width
+  graph.canvas.fill(x, source.drawingCoord!.y, 3, source.drawing!.height, { owner: { id: 'blocked-face', kind: 'label' } })
+  const document = drawGraph(graph)
+  expect(document.diagnostics.some(diagnostic => diagnostic.feature.startsWith('edge-lane:') && diagnostic.message.includes('physical ports'))).toBe(true)
+  expect(document.regions().filter(region => region.kind === 'edge')).toEqual([])
+  expect([...document.entries()].some(([, , cell]) => cell.kind === 'text' && cell.owners.some(owner => owner.kind === 'edge'))).toBe(false)
+})
 
 for (const direction of ['TD', 'BT', 'LR', 'RL'] as const) for (const useAscii of [false, true]) {
   const mode = `${direction}/${useAscii ? 'ASCII' : 'Unicode'}`

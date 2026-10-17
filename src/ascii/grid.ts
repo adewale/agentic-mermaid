@@ -19,6 +19,8 @@ import { analyzeEdgeBundles, processBundles } from './edge-bundling.ts'
 import { drawBox } from './draw.ts'
 import { maxLineWidth, lineCount } from './multiline-utils.ts'
 import { getShapeDimensions } from './shapes/index.ts'
+import { placeCompoundItems } from './compound-placement.ts'
+import { reserveGraphEdgeCapacity } from './graph-capacity.ts'
 
 // ============================================================================
 // Grid coordinate → drawing coordinate conversion
@@ -807,6 +809,8 @@ export function createMapping(graph: AsciiGraph): void {
   }
 
   separateRootSubgraphLanes(graph, dir)
+  placeCompoundItems(graph)
+  if (graph.compoundRepacked) { graph.columnWidth.clear(); graph.rowHeight.clear() }
 
   // Compute column widths and row heights
   for (const node of graph.nodes) {
@@ -839,6 +843,13 @@ export function createMapping(graph: AsciiGraph): void {
   }
 
   shareSiblingEdgeTrunks(graph)
+
+  reserveGraphEdgeCapacity(graph)
+  if (graph.edges.some(edge => edge.cellAllocation)) {
+    graph.bundles = []
+    graph.trunkJunctions = []
+    for (const edge of graph.edges) { delete edge.bundle; delete edge.sharedTrunk; delete edge.pathToJunction }
+  }
 
   if (graph.config.reverseDirection) {
     mirrorHorizontalGrid(graph)
