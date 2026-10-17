@@ -193,11 +193,14 @@ async function generateEditorHtml(): Promise<string> {
 
   const themeItems = themeItemsHtml()
 
-  const [css, appJs, html] = await Promise.all([
+  const [css, appSource, html] = await Promise.all([
     readCssFiles(fontPrefix),
     readJsFiles(),
     readHtmlPartials(themeItems),
   ])
+  // The renderer is already minified above; apply the same shipping policy to
+  // the concatenated editor application without changing its global bindings.
+  const appJs = new Bun.Transpiler({ target: 'browser', minifyWhitespace: true }).transformSync(appSource)
 
   return `<!DOCTYPE html>
 <html lang="en">
