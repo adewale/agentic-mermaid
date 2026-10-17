@@ -622,13 +622,15 @@ const ARCHITECTURE_MARKER_PAINT = {
 const ARCHITECTURE_MARKERS: readonly MarkerDescriptor[] = [
   {
     id: 'architecture-arrow-end', shape: 'arrow',
-    size: { width: 8, height: 5 }, ref: { x: 7, y: 2.5 }, orient: 'auto',
+    size: { width: 8, height: 5 }, ref: { x: 8, y: 2.5 }, orient: 'auto',
     geometry: { kind: 'polygon', points: [{ x: 0, y: 0 }, { x: 8, y: 2.5 }, { x: 0, y: 5 }] },
     paint: ARCHITECTURE_MARKER_PAINT,
   },
   {
     id: 'architecture-arrow-start', shape: 'arrow',
-    size: { width: 8, height: 5 }, ref: { x: 1, y: 2.5 }, orient: 'auto-start-reverse',
+    // This polygon already points toward the source; reversing it again can
+    // bury the head in the service. Keep its tip at the route endpoint.
+    size: { width: 8, height: 5 }, ref: { x: 0, y: 2.5 }, orient: 'auto',
     geometry: { kind: 'polygon', points: [{ x: 8, y: 0 }, { x: 0, y: 2.5 }, { x: 8, y: 5 }] },
     paint: ARCHITECTURE_MARKER_PAINT,
   },
