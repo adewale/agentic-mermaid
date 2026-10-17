@@ -42,6 +42,34 @@ References are rewritten only when their target is declared in the same SVG. Thi
 
 Style rules need no prefix. An inline `<style>` element applies to its whole host page, so every render scopes its own rules: the root `<svg>` carries a class `am-<hash>` derived from the finished output, and each selector in the SVG's style sheets is rewritten to match only inside that root (`.am-<hash> .xychart-bar`, `svg.am-<hash>`). Two different diagrams inlined in one page therefore keep their own paint, and identical renders share one scope harmlessly. Declarations, strings, comments, and non-selector at-rules are copied unchanged, and resvg rasterizes the scoped SVG to the same pixels as the unscoped one (`property-svg-style-scope.test.ts`; the page-level property runs in the browser lane as `svg-style-isolation-browser.test.ts`).
 
+## Connector marker authority and attachment
+
+`ConnectorMark.markers` is authoritative for SVG `marker-start`, `marker-mid`
+and `marker-end`, marker bounds and terminal projections. The connector
+constructor supplies missing SVG references and rejects extra, conflicting,
+duplicate, shorthand or inline-CSS marker declarations. Matching internal
+carrier attributes are checked assertions, not a fallback source of meaning.
+Unknown constructor fields (including the removed `startMarker`/`endMarker`)
+fail at runtime, even when TypeScript accepts an object spread. Independent
+Scene admission compares actual SVG marker references with the typed markers;
+the existing corpus gate exercises this across every registered family.
+
+Attachment intent remains family-owned:
+
+| Family / marker | Contact contract |
+|---|---|
+| Flowchart, State, Architecture triangular arrows | Triangle tip at the route endpoint. `tipAnchoredArrow` derives polygon, reference and start/end orientation together. |
+| Class relationships | The relationship-specific tip or tangent contacts the class; diamonds and lollipops are not ordinary triangular arrows. |
+| Sequence messages | Arrow tips or cross centres attach to message endpoints; these are not a universal node-surface normal constraint. |
+| Gantt dependencies | Tip at the dependency route endpoint. |
+| Journey baseline | Free-ending axis marker, with its existing reference offset; no node-surface contact claim. |
+| ER relationships | Cardinalities are separate geometric glyphs, not SVG marker resources. |
+
+Agreement between SVG and Scene does not prove that the family's authored
+geometry is correct. Family vector/raster tests still check visible attachment,
+direction, scaling and final route geometry. This contract does not require
+perpendicular incidence on every surface or certify every SVG rasterizer.
+
 ## Relation accessibility
 
 Typed edges, messages, and relationships emit:

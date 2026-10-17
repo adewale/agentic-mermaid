@@ -3,7 +3,7 @@ import { decodeXML } from 'entities'
 // Scene fidelity checker — asserts a mark's semantic fields agree with its
 // crisp serialization, so styled backends can trust the geometry they redraw.
 //
-// Test-only oracle (driven by scene-fidelity.test.ts across the corpus): it
+// Independent oracle used by Scene admission and the cross-family corpus: it
 // parses the crisp strings we ourselves emit — a stable, owned format — and
 // returns human-readable problems instead of throwing, so one run reports
 // every divergence in a lowering.
@@ -13,21 +13,21 @@ import type { Geometry, SceneDoc, SceneNode, SceneTransform } from './ir.ts'
 import { hasDomSvgIdentityRole } from './identity.ts'
 import { sceneNodeSerialization } from './serialization.ts'
 import { breakLineTags, displayText } from '../multiline-utils.ts'
+import { decodedSvgAttributeValue, scanSvgStartTags } from '../svg-structure.ts'
+import { normalizeCssObfuscation } from '../output-security.ts'
 
 /** Parse the top-level SVG elements out of a crisp chunk (self-closed or
  *  paired), ignoring nested content. Good enough for our own emitters. */
 export function topLevelElements(crisp: string): Array<{ tag: string; attrs: Map<string, string> }> {
   const out: Array<{ tag: string; attrs: Map<string, string> }> = []
-  const re = /<([a-zA-Z][a-zA-Z0-9-]*)((?:\s+[a-zA-Z_:][\w:.-]*="[^"]*")*)\s*\/?>/g
   let depth = 0
   let m: RegExpExecArray | null
   const closeRe = /<\/([a-zA-Z][a-zA-Z0-9-]*)>/g
   // Walk open/self-close/close tags in order, tracking depth.
   const tokens: Array<{ index: number; kind: 'open' | 'self' | 'close'; tag: string; attrs?: Map<string, string> }> = []
-  while ((m = re.exec(crisp)) !== null) {
-    const attrs = new Map<string, string>()
-    for (const am of m[2]!.matchAll(/([a-zA-Z_:][\w:.-]*)="([^"]*)"/g)) attrs.set(am[1]!, am[2]!)
-    tokens.push({ index: m.index, kind: m[0]!.endsWith('/>') ? 'self' : 'open', tag: m[1]!, attrs })
+  for (const tag of scanSvgStartTags(crisp)) {
+    const attrs = new Map(tag.attributes.map(attribute => [attribute.name, attribute.value]))
+    tokens.push({ index: tag.start, kind: tag.selfClosing ? 'self' : 'open', tag: tag.name, attrs })
   }
   while ((m = closeRe.exec(crisp)) !== null) tokens.push({ index: m.index, kind: 'close', tag: m[1]! })
   tokens.sort((a, b) => a.index - b.index)
@@ -211,6 +211,32 @@ export function nodeProblems(node: SceneNode, path: string, problems: string[]):
       return
     }
     case 'connector': {
+      if (node.lineStyle === 'invisible' && serialized === '') return
+      const carriers = topLevelElements(serialized).filter(element => ['line', 'polyline', 'path'].includes(element.tag))
+      if (carriers.length !== 1) {
+        problems.push(`${path}(connector:${node.id}): expected one SVG marker carrier`)
+        return
+      }
+      const attrs = carriers[0]!.attrs
+      geometryProblems(node.route.geometry, carriers, `${path}(connector:${node.id})`, problems)
+      const tags = scanSvgStartTags(serialized)
+      for (const position of ['start', 'mid', 'end'] as const) {
+        const marker = position === 'mid' ? node.markers.mid[0] : node.markers[position]
+        const expected = marker ? `url(#${marker.id})` : undefined
+        const raw = attrs.get(`marker-${position}`)
+        const actual = raw === undefined ? undefined : unescapeXml(raw)
+        const references = tags.flatMap(tag => tag.attributes.filter(attribute => attribute.name === `marker-${position}`))
+        if (actual !== expected || references.length !== (marker ? 1 : 0)) {
+          problems.push(`${path}(connector:${node.id}).marker-${position}: typed ${expected} != SVG ${actual} (${references.length} references)`)
+        }
+      }
+      for (const tag of tags) {
+        for (const attribute of tag.attributes) {
+          if (attribute.name === 'marker' || (attribute.name === 'style' && /(?:^|;)\s*marker(?:-(?:start|mid|end))?\s*:/i.test(normalizeCssObfuscation(decodedSvgAttributeValue(tag, 'style') ?? '')))) {
+            problems.push(`${path}(connector:${node.id}): marker shorthand/CSS bypasses typed marker references`)
+          }
+        }
+      }
       return
     }
     case 'text': {

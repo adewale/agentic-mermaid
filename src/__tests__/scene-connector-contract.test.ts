@@ -10,7 +10,8 @@ import { hitTestConnector, hitTestSceneConnectors } from '../scene/hit-test.ts'
 import { serializeMarkerResource } from '../scene/marker-resources.ts'
 import { validateSceneDoc } from '../scene/scene-validation.ts'
 import { lowerGraphScene } from '../renderer.ts'
-import { sceneNodeSerialization } from '../scene/serialization.ts'
+import { attachSceneNodeSerialization, sceneNodeSerialization } from '../scene/serialization.ts'
+import { nodeProblems } from '../scene/fidelity.ts'
 
 describe('typed Scene connector contract', () => {
   const crisp = '<line data-id="typed-id" data-role="edge" data-from="typed-a" data-to="typed-b" x1="0" y1="2" x2="10" y2="2" stroke="#00aa55" stroke-width="4" stroke-opacity="0" stroke-dasharray="9 2" stroke-dashoffset="0" stroke-linecap="square" stroke-linejoin="bevel" stroke-miterlimit="7" pathLength="40" paint-order="stroke fill" vector-effect="non-scaling-stroke" marker-end="url(#typed-arrow)" />'
@@ -114,6 +115,88 @@ describe('typed Scene connector contract', () => {
     }
   })
 
+  test('rejects unknown constructor fields even when supplied through object spreads', () => {
+    const fields = {
+      id: 'closed-marker-fields', role: 'edge' as const,
+      geometry: { kind: 'line' as const, x1: 0, y1: 0, x2: 10, y2: 0 },
+      lineStyle: 'solid' as const, paint: {},
+    }
+    for (const name of ['startMarker', 'endMarker', 'markres']) {
+      expect(() => marks.connector({ ...fields, ...{ [name]: { id: 'arrow', shape: 'arrow' } } },
+        '<line x1="0" y1="0" x2="10" y2="0" />')).toThrow(/unknown connector field/)
+    }
+    expect(() => marks.connector({ ...fields, markers: { mid: [], ...{ stat: { id: 'arrow', shape: 'arrow' } } } },
+      '<line x1="0" y1="0" x2="10" y2="0" />')).toThrow(/unknown marker field/)
+  })
+
+  test('typed markers are the only source of SVG marker references', () => {
+    const fields = {
+      id: 'marker-authority', role: 'edge' as const,
+      geometry: { kind: 'polyline' as const, points: [{ x: 0, y: 0 }, { x: 5, y: 0 }, { x: 10, y: 0 }] },
+      lineStyle: 'solid' as const, paint: {},
+    }
+    for (const position of ['start', 'mid', 'end'] as const) {
+      const marker = { id: 'typed-arrow', shape: 'arrow' as const }
+      const markers = position === 'mid' ? { mid: [marker] } : { [position]: marker }
+      const attribute = `marker-${position}`
+      for (const raw of [
+        `${attribute}="url(#svg-only-arrow)"`,
+        `${attribute}='url(#svg-only-arrow)'`,
+        `${attribute} = "url(#svg-only-arrow)"`,
+      ]) {
+        expect(() => marks.connector(fields, `<polyline points="0,0 5,0 10,0" ${raw} />`)).toThrow(/typed markers/)
+        expect(() => marks.connector({ ...fields, markers }, `<polyline points="0,0 5,0 10,0" ${raw} />`)).toThrow(/typed markers/)
+      }
+      expect(() => marks.connector({ ...fields, markers },
+        `<polyline points="0,0 5,0 10,0" ${attribute}="url(#typed-arrow)" ${attribute}="url(#typed-arrow)" />`)).toThrow(/duplicate/)
+    }
+    for (const raw of [
+      'marker="url(#svg-only-arrow)"', 'style="marker-end:url(#svg-only-arrow)"',
+      'style="m\\61rker-end:url(#svg-only-arrow)"', 'style="mar/**/ker-end:url(#svg-only-arrow)"',
+      'style="m&#97;rker-end:url(#svg-only-arrow)"',
+    ]) {
+      expect(() => marks.connector(fields, `<polyline points="0,0 5,0 10,0" ${raw} />`)).toThrow(/typed markers/)
+    }
+  })
+
+  test('fidelity independently detects missing, extra and changed marker references', () => {
+    for (const position of ['start', 'mid', 'end'] as const) {
+      const marker = { id: 'typed-arrow', shape: 'arrow' as const }
+      const fields = {
+        id: 'marker-fidelity', role: 'edge' as const,
+        geometry: { kind: 'polyline' as const, points: [{ x: 0, y: 0 }, { x: 5, y: 0 }, { x: 10, y: 0 }] },
+        lineStyle: 'solid' as const, paint: {},
+      }
+      const node = marks.connector({ ...fields, markers: position === 'mid' ? { mid: [marker] } : { [position]: marker } },
+        '<polyline points="0,0 5,0 10,0" />')
+      const original = sceneNodeSerialization(node)
+      const reference = `marker-${position}="url(#typed-arrow)"`
+      for (const forged of [original.replace(reference, ''), original.replace('url(#typed-arrow)', 'url(#wrong-arrow)'), original.replace(reference, `${reference} ${reference}`)]) {
+        attachSceneNodeSerialization(node, forged)
+        const problems: string[] = []
+        nodeProblems(node, 'probe', problems)
+        expect(problems).toContainEqual(expect.stringContaining(`marker-${position}`))
+      }
+      const unmarked = marks.connector(fields, '<polyline points="0,0 5,0 10,0" />')
+      attachSceneNodeSerialization(unmarked, sceneNodeSerialization(unmarked).replace(' />', ` ${reference} />`))
+      const problems: string[] = []
+      nodeProblems(unmarked, 'probe', problems)
+      expect(problems).toContainEqual(expect.stringContaining(`marker-${position}`))
+    }
+  })
+
+  test('fidelity checks connector geometry, not only marker references', () => {
+    const node = marks.connector({
+      id: 'geometry-fidelity', role: 'edge',
+      geometry: { kind: 'line', x1: 0, y1: 0, x2: 10, y2: 0 },
+      lineStyle: 'solid', paint: {},
+    }, '<line x1="0" y1="0" x2="10" y2="0" />')
+    attachSceneNodeSerialization(node, sceneNodeSerialization(node).replace('x2="10"', 'x2="12"'))
+    const problems: string[] = []
+    nodeProblems(node, 'probe', problems)
+    expect(problems).toContainEqual(expect.stringContaining('.x2'))
+  })
+
   test('a built-in flowchart connector associates its separately emitted visual label', () => {
     const scene = lowerGraphScene({
       positioned: {
@@ -150,6 +233,16 @@ describe('typed Scene connector contract', () => {
     expect(edge.terminalProjection.labels[0]?.visual).toEqual({ kind: 'companion', markId: text.id })
 
     expect(validateSceneDoc(scene).valid).toBe(true)
+    const canonical = sceneNodeSerialization(edge)
+    try {
+      attachSceneNodeSerialization(edge, canonical.replace(' />', ' marker-start="url(#svg-only-arrow)" />'))
+      expect(validateSceneDoc(scene).diagnostics).toContainEqual(expect.objectContaining({
+        code: 'SCENE_FIDELITY', message: expect.stringContaining('marker-start'),
+      }))
+      for (const backend of [DefaultBackend, RoughBackend, HybridBackend]) {
+        expect(() => backend.render(scene, { seed: 0 })).toThrow(/marker-start/)
+      }
+    } finally { attachSceneNodeSerialization(edge, canonical) }
     const edgeIndex = scene.parts.indexOf(edge)
     for (const [markId, message] of [
       ['missing-label', /unknown companion Text mark/],

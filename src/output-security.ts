@@ -21,7 +21,7 @@ export interface OutputSecurityResult {
   diagnostics: readonly OutputSecurityDiagnostic[]
 }
 
-function normalizeCssObfuscation(svg: string): string {
+export function normalizeCssObfuscation(svg: string): string {
   return svg
     .replace(/\/\*[\s\S]*?\*\//g, '')
     // CSS removes a backslash followed by a physical line break before it

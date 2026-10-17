@@ -34,6 +34,8 @@ import {
 } from './connector-geometry.ts'
 import { connectorInlineLabelText } from './bounds.ts'
 import { deriveConnectorTerminalProjection } from './connector-terminal.ts'
+import { decodedSvgAttributeValue, scanSvgStartTags } from '../svg-structure.ts'
+import { normalizeCssObfuscation } from '../output-security.ts'
 import {
   attachSceneNodeSerialization,
   canonicalizeSceneNodeSerialization,
@@ -97,6 +99,21 @@ export interface ConnectorFields {
   transform?: SceneTransform
 }
 
+// Runtime admission is closed too: TypeScript permits extra spread properties.
+const CONNECTOR_FIELDS: Record<keyof ConnectorFields, true> = {
+  id: true, role: true, geometry: true, lineStyle: true, paint: true,
+  identity: true, endpoints: true, relationship: true, route: true, stroke: true,
+  markers: true, labels: true, hit: true, terminalProjection: true, channels: true, transform: true,
+}
+const CONNECTOR_MARKER_FIELDS: Record<keyof NonNullable<ConnectorFields['markers']>, true> = { start: true, mid: true, end: true }
+
+function assertKnownConnectorFields(value: object, allowed: object, kind: string): void {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) throw new TypeError(`${kind} fields must be an object`)
+  for (const key of Reflect.ownKeys(value)) {
+    if (!Object.hasOwn(allowed, key)) throw new TypeError(`unknown ${kind} field "${String(key)}"`)
+  }
+}
+
 function connectorGeometryEndpoints(geometry: ConnectorGeometry, closed: boolean): {
   start?: ConnectorEndpointAnchor
   end?: ConnectorEndpointAnchor
@@ -150,22 +167,44 @@ function projectedMidMarkerId(id: string, geometry: ConnectorGeometry, closed: b
   return markers[0]!.id
 }
 
-/** Add a missing typed marker attachment to a connector serialization so typed
- * markers cannot survive bounds/terminal projection while disappearing graphically. */
-function ensureConnectorMarkerProjection(
+/** Typed markers own the references. Existing internal carrier attributes are
+ * checked assertions, never a fallback source of marker semantics. */
+function projectConnectorMarkerReferences(
+  id: string,
   crisp: string,
   markerIds: Readonly<{ start?: string; mid?: string; end?: string }>,
 ): string {
   if (crisp === '') return crisp
-  let projected = crisp
+  const tags = scanSvgStartTags(crisp)
+  const carrier = tags[0]
+  if (!carrier || !['line', 'polyline', 'path'].includes(carrier.name)) {
+    throw new TypeError(`Connector "${id}" requires a line, polyline or path marker carrier`)
+  }
+  for (const tag of tags) {
+    for (const attribute of tag.attributes) {
+      if (attribute.name === 'marker' || (attribute.name === 'style' && /(?:^|;)\s*marker(?:-(?:start|mid|end))?\s*:/i.test(normalizeCssObfuscation(decodedSvgAttributeValue(tag, 'style') ?? '')))) {
+        throw new TypeError(`Connector "${id}" must apply markers through typed markers, not SVG shorthand or CSS`)
+      }
+      if (!/^marker-(?:start|mid|end)$/.test(attribute.name)) continue
+      if (tag !== carrier) throw new TypeError(`Connector "${id}" has marker references outside its typed markers carrier`)
+      if (tag.attributes.filter(candidate => candidate.name === attribute.name).length !== 1) {
+        throw new TypeError(`Connector "${id}" has duplicate ${attribute.name} attributes`)
+      }
+      const position = attribute.name.slice(7) as keyof typeof markerIds
+      const expected = markerIds[position] ? `url(#${markerIds[position]})` : undefined
+      if (decodedSvgAttributeValue(tag, attribute.name) !== expected) {
+        throw new TypeError(`Connector "${id}" ${attribute.name} disagrees with typed markers`)
+      }
+    }
+  }
+  let opening = crisp.slice(carrier.start, carrier.end)
   for (const [position, markerId] of Object.entries(markerIds)) {
     if (!markerId) continue
     const attribute = `marker-${position}`
-    const opening = projected.match(/^\s*<(?:line|polyline|path)\b[^>]*>/)?.[0]
-    if (!opening || new RegExp(`\\s${attribute}=`).test(opening)) continue
-    projected = projected.replace(opening, opening.replace(/\s*\/?>$/, ending => ` ${attribute}="url(#${escapeAttr(markerId)})"${ending}`))
+    if (carrier.attributes.some(candidate => candidate.name === attribute)) continue
+    opening = opening.replace(/\s*\/?>$/, ending => ` ${attribute}="url(#${escapeAttr(markerId)})"${ending}`)
   }
-  return projected
+  return `${crisp.slice(0, carrier.start)}${opening}${crisp.slice(carrier.end)}`
 }
 
 function ensureConnectorTransformProjection(crisp: string, transform: SceneTransform | undefined): string {
@@ -236,6 +275,8 @@ function connectorInlineLabelSvg(
 }
 
 export function connector(fields: ConnectorFields, crisp: string): ConnectorMark {
+  assertKnownConnectorFields(fields, CONNECTOR_FIELDS, 'connector')
+  if (fields.markers !== undefined) assertKnownConnectorFields(fields.markers, CONNECTOR_MARKER_FIELDS, 'marker')
   if (fields.geometry.kind !== 'path' && fields.route?.closed === true) {
     throw new TypeError(`Connector "${fields.id}" closed route topology requires path geometry`)
   }
@@ -316,7 +357,7 @@ export function connector(fields: ConnectorFields, crisp: string): ConnectorMark
     ? connectorInlineLabelText(firstLabel).lineBlocks.map(line => line.runs.map(run => run.text).join('')).join('\n')
     : firstLabel?.text
   const accessibility = relationAccessibility(identity, accessibleLabel)
-  const projectedMarkers = ensureConnectorMarkerProjection(crisp, {
+  const projectedMarkers = projectConnectorMarkerReferences(fields.id, crisp, {
     ...(markerStart ? { start: markerStart.id } : {}),
     ...(midMarkerId ? { mid: midMarkerId } : {}),
     ...(markerEnd ? { end: markerEnd.id } : {}),
