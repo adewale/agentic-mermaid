@@ -17,7 +17,7 @@ import type { AsciiConfig, AsciiTheme, ColorMode } from './types.ts'
 import { frontmatterTitle, normalizeMermaidSource, toMermaidLines, type NormalizedMermaidSource } from '../mermaid-source.ts'
 import type { ParsedDiagram } from '../agent/types.ts'
 import { prepareRenderInput } from '../agent/render-input.ts'
-import { isBuiltinFamilyId } from '../agent/families.ts'
+import { isBuiltinFamilyId, type AsciiContext } from '../agent/families.ts'
 import { requireRegisteredMermaidFamily } from '../family-detection.ts'
 import type { RenderOptions } from '../types.ts'
 import {
@@ -30,7 +30,7 @@ import {
   resolvedRenderExecutionPlanOf,
   type RenderRequestReceipt,
 } from '../render-contract.ts'
-import { projectTerminalStyle, type ResolvedTerminalStyle, type TerminalProjectionDiagnostic } from '../terminal-style.ts'
+import { projectTerminalStyle, withTerminalConnectorScene, type ResolvedTerminalStyle, type TerminalProjectionDiagnostic } from '../terminal-style.ts'
 import { emitResolvedConfigDiagnostics } from '../render-config-diagnostics.ts'
 import { visualWidth } from './width.ts'
 import { graphemes } from '../shared/graphemes.ts'
@@ -56,7 +56,9 @@ import {
 import { AsciiWidthError } from './width-error.ts'
 import { parsePieChart } from '../pie/parser.ts'
 import { safePieTerminalText } from './pie.ts'
-import { beginTerminalCapture, capturedTerminalDocument, retainTerminalDocument, TerminalDocument } from './terminal-document.ts'
+import { retainTerminalDocument, TerminalDocument } from './terminal-document.ts'
+import { nativeTerminalArtifact } from './terminal-artifact.ts'
+import { terminalInputModel, retainTerminalInput } from './terminal-model.ts'
 
 // Re-export types for external use
 export type { AsciiTheme, ColorMode }
@@ -224,53 +226,52 @@ export function renderMermaidASCIIWithReceipt(
   })()
   const familyContext = resolvedFamilyRenderContextOf(request)
   const diagramType = family.id
-  let connectorScene: SceneDoc | null = null
-  let connectorProjectionFailed = false
-  if (family.lowerScene && family.layout) {
-    try {
-      const layout = positionResolvedFamily(diagramType, request, terminalSource.source)
-      connectorScene = admitFamilyScene(family, family.lowerScene({
-        positioned: layout.positioned,
-        colors: connectorSceneColors(request.appearance.colors),
-        resolved: familyContext,
-      }))
-    } catch {
-      // Scene evidence enriches terminal connector semantics, but renderAscii
-      // is the complete negotiated terminal tuple. Optional graphical hooks
-      // must never become an undeclared runtime prerequisite.
-      connectorProjectionFailed = true
+  const appearance = projectTerminalStyle(request, colorMode, outputPolicy.theme, undefined, {
+    controlsReplaced: terminalSource.controlsReplaced || pieControlsReplaced,
+  })
+  let projectedStyle: ResolvedTerminalStyle | undefined
+  const connectorStyle = (): ResolvedTerminalStyle => {
+    if (projectedStyle) return projectedStyle
+    let connectorScene: SceneDoc | null = null
+    let failed = false
+    if (family.lowerScene && family.layout) {
+      try {
+        const layout = positionResolvedFamily(diagramType, request, terminalSource.source)
+        connectorScene = admitFamilyScene(family, family.lowerScene({
+          positioned: layout.positioned,
+          colors: connectorSceneColors(request.appearance.colors),
+          resolved: familyContext,
+        }))
+      } catch {
+        // Optional pixel evidence must not become a native layout dependency.
+        failed = true
+      }
     }
+    return projectedStyle = withTerminalConnectorScene(appearance, connectorScene, failed)
   }
-  let terminalStyle = projectTerminalStyle(
-    request,
-    colorMode,
-    outputPolicy.theme,
-    connectorScene,
-    {
-      controlsReplaced: terminalSource.controlsReplaced || pieControlsReplaced,
-      connectorProjectionFailed,
-    },
-  )
-  for (const diagnostic of terminalStyle.diagnostics) options.onProjectionDiagnostic?.(diagnostic)
-  const theme: AsciiTheme = terminalStyle.theme
-  beginTerminalCapture(config)
-  let renderedOutput = family.renderAscii!({
+  // Preserve callback ordering and Gantt's request-time default clock. Native
+  // output otherwise needs only appearance; full receipts evaluate the same
+  // graphical evidence on first access and retain it for subsequent accesses.
+  if (options.onProjectionDiagnostic || family.id === 'gantt') connectorStyle()
+  for (const diagnostic of projectedStyle?.diagnostics ?? []) options.onProjectionDiagnostic?.(diagnostic)
+  const theme: AsciiTheme = appearance.theme
+  const model = terminalInputModel(text, normalizedSource.familyText)
+  const context: AsciiContext = {
     source: normalizedSource,
-    // Forward the canonical family context as one unit. Enumerating today's
-    // fields here previously dropped styleFace and made the terminal hook a
-    // narrower contract than layout and Scene lowering.
     ...familyContext,
     config,
     colorMode,
     theme,
-    connectorProjection: terminalStyle.connectorProjection.connectors,
+    get connectorProjection() { return connectorStyle().connectorProjection.connectors },
     options: {
       maxWidth: widthBudget,
       targetWidth: outputPolicy.targetWidth,
       ganttToday: familyContext.renderOptions.ganttToday,
     },
-  })
-  let drawing = capturedTerminalDocument(config, renderedOutput)
+  }
+  const artifact = nativeTerminalArtifact(family.renderAscii!, context, model)
+  let drawing = artifact?.document
+  const legacyOutput = artifact ? undefined : family.renderAscii!(context)
   const title = frontmatterTitle(normalizedSource.frontmatter)
   if (drawing && title && !drawing.titleHandled && !drawing.hasOwner('title', 'label')) {
     const titled = new TerminalDocument()
@@ -278,14 +279,22 @@ export function renderMermaidASCIIWithReceipt(
     titled.line()
     titled.overlay(drawing, 0, titled.height)
     drawing = titled
-    renderedOutput = drawing.serialize({ colorMode, theme, trimEnd: true })
   }
-  if (drawing?.diagnostics.length) {
-    for (const diagnostic of drawing.diagnostics) options.onProjectionDiagnostic?.(diagnostic)
-    const diagnostics = Object.freeze([...terminalStyle.diagnostics, ...drawing.diagnostics])
-    terminalStyle = Object.freeze({ ...terminalStyle, diagnostics, digest: renderContractDigest({ style: terminalStyle.digest, diagnostics }) })
+  const drawingDiagnostics = drawing?.diagnostics ?? []
+  for (const diagnostic of drawingDiagnostics) options.onProjectionDiagnostic?.(diagnostic)
+  let completedStyle: ResolvedTerminalStyle | undefined
+  const terminalStyle = (): ResolvedTerminalStyle => {
+    if (completedStyle) return completedStyle
+    const style = connectorStyle()
+    if (!drawingDiagnostics.length) return completedStyle = style
+    const diagnostics = Object.freeze([...style.diagnostics, ...drawingDiagnostics])
+    return completedStyle = Object.freeze({ ...style, diagnostics, digest: renderContractDigest({ style: style.digest, diagnostics }) })
   }
-  if (drawing && outputPolicy.targetWidth !== undefined) renderedOutput = drawing.serialize({ colorMode, theme, trimEnd: true })
+  const renderedOutput = drawing
+    ? drawing.serialize({ ...artifact!.serialization, colorMode, theme,
+      ...((drawing !== artifact!.document || outputPolicy.targetWidth !== undefined) ? { trimEnd: true } : {}),
+    })
+    : legacyOutput!
   // HTML is an output encoding, not permission for family renderers to emit
   // authored markup. Secure the completed artifact at the common boundary so
   // raw labels are escaped even in renderers that concatenate them beside
@@ -295,13 +304,22 @@ export function renderMermaidASCIIWithReceipt(
       ? secureTerminalHtmlOutput(renderedOutput)
       : renderedOutput
     : admitExternalTerminalOutput(renderedOutput, colorMode)
-  const receipt = receiptOf(request, terminalStyle.diagnostics)
+  let receipt: RenderRequestReceipt | undefined
+  const resultOf = (text: string): RenderedAscii => {
+    const result = {
+      text,
+      get receipt() { return receipt ??= receiptOf(request, terminalStyle().diagnostics) },
+      get terminalStyle() { return terminalStyle() },
+      outputPolicy,
+    }
+    retainTerminalDocument(result, drawing)
+    retainTerminalInput(result, model)
+    return result
+  }
 
   const targetWidth = outputPolicy.targetWidth
   if (targetWidth === undefined) {
-    const result = { text: output, receipt, terminalStyle, outputPolicy }
-    retainTerminalDocument(result, drawing)
-    return result
+    return resultOf(output)
   }
   const boundedOutput = drawing ? output : output.split('\n').map(line => line.trimEnd()).join('\n').trimEnd()
   const requiredWidth = Math.max(
@@ -317,9 +335,7 @@ export function renderMermaidASCIIWithReceipt(
       hasTooWideGrapheme ? 'UNBREAKABLE_GRAPHEME' : 'MINIMUM_GEOMETRY',
     )
   }
-  const result = { text: boundedOutput, receipt, terminalStyle, outputPolicy }
-  retainTerminalDocument(result, drawing)
-  return result
+  return resultOf(boundedOutput)
 }
 
 interface TerminalSafeSourceProjection {

@@ -299,7 +299,8 @@ describe('canonical terminal field applicability', () => {
       },
     })
     try {
-      renderMermaidASCIIWithReceipt(SOURCE, { colorMode: 'none', style: 'status-dashboard' })
+      const rendered = renderMermaidASCIIWithReceipt(SOURCE, { colorMode: 'none', style: 'status-dashboard' })
+      expect(rendered.terminalStyle.connectorProjection.evidence).toBe('scene')
       expect(terminalFace).toBe(sceneFace)
       expect(terminalFace).toBeDefined()
       expect(Object.isFrozen(terminalFace)).toBe(true)

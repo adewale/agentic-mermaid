@@ -1,3 +1,4 @@
+import { terminalArtifact, serializeTerminalArtifact, type TerminalArtifact } from './terminal-artifact.ts'
 // ============================================================================
 // ASCII renderer — XY Chart
 //
@@ -15,7 +16,7 @@ import { applyResolvedXYChartConfig, applyXYChartFrontmatterConfig, parseXYChart
 import type { XYChart, XYChartConfig, XYChartTheme } from '../xychart/types.ts'
 import type { MermaidFrontmatterMap } from '../mermaid-source.ts'
 import type { AsciiConfig, AsciiTheme, ColorMode, CharRole } from './types.ts'
-import { TerminalDocument, finishTerminalDocument, type TerminalOwner } from './terminal-document.ts'
+import { TerminalDocument, type TerminalOwner } from './terminal-document.ts'
 import { CHART_ACCENT_FALLBACK } from '../xychart/colors.ts'
 import { categoricalPalette } from '../shared/categorical-palette.ts'
 import { isLegendWorthy, legendEntries } from '../xychart/legend.ts'
@@ -32,35 +33,9 @@ import { AsciiWidthError } from './width-error.ts'
 const PLOT_WIDTH = 60
 const PLOT_HEIGHT = 20
 
-// Unicode box-drawing characters
-const UNI = {
-  hLine: '─',
-  vLine: '│',
-  origin: '┼',
-  yTick: '┤',
-  xTick: '┬',
-  bar: '█',
-  grid: '·',
-  cornerTL: '╭',  // top-left: down+right
-  cornerTR: '╮',  // top-right: down+left
-  cornerBL: '╰',  // bottom-left: up+right
-  cornerBR: '╯',  // bottom-right: up+left
-} as const
-
-// ASCII fallback characters
-const ASC = {
-  hLine: '-',
-  vLine: '|',
-  origin: '+',
-  yTick: '+',
-  xTick: '+',
-  bar: '#',
-  grid: '.',
-  cornerTL: '+',
-  cornerTR: '+',
-  cornerBL: '+',
-  cornerBR: '+',
-} as const
+// Decorative glyphs; connected geometry lowers logical ports centrally.
+const UNI = { ascii: false, hLine: '─', bar: '█', grid: '·' } as const
+const ASC = { ascii: true, hLine: '-', bar: '#', grid: '.' } as const
 
 // ============================================================================
 // Multi-series color support
@@ -82,7 +57,7 @@ function getSeriesColors(total: number, theme: AsciiTheme, palette?: string[]): 
 // Public API
 // ============================================================================
 
-export function renderXYChartAscii(
+export function renderXYChartTerminal(
   text: string,
   config: AsciiConfig,
   colorMode: ColorMode,
@@ -90,7 +65,7 @@ export function renderXYChartAscii(
   frontmatter: MermaidFrontmatterMap = {},
   targetWidth?: number,
   resolved?: { config: XYChartConfig; theme: XYChartTheme },
-): string {
+): TerminalArtifact {
   const lines = text.split('\n').map(l => l.trim()).filter(l => l.length > 0 && !l.startsWith('%%'))
   const parsed = parseXYChart(lines)
   const chart = resolved
@@ -114,7 +89,7 @@ export function renderXYChartAscii(
     const prefix = `${secondaryId}: `
     const lines = wrapText(secondaryAxis.title, widthBudget === undefined ? undefined : Math.max(1, widthBudget - visualWidth(prefix)))
     lines.forEach((text, index) => rendered.line([
-      { text: index === 0 ? prefix : ' '.repeat(visualWidth(prefix)), role: 'border', kind: 'stroke' },
+      { text: index === 0 ? prefix : ' '.repeat(visualWidth(prefix)), role: 'border', kind: 'text' },
       { text, role: 'text', textGroup: secondaryId, owner: { id: secondaryId, kind: 'label' } },
     ]))
   }
@@ -127,7 +102,7 @@ export function renderXYChartAscii(
   })
   reportXYChartProjections(rendered, chart)
   rendered.titleHandled = true
-  return finishTerminalDocument(config, rendered, { colorMode, theme, trimEnd: true })
+  return terminalArtifact(rendered, { colorMode, theme, trimEnd: true })
 }
 
 /** Graphical sizing and typography remain authored configuration; terminal
@@ -245,17 +220,17 @@ function renderVertical(
   canvas.overlay(header)
 
   // Scales
-  const projection = valueProjection(yRange, plotH, ch === ASC)
+  const projection = valueProjection(yRange, plotH, ch.ascii)
   const valueToRow = projection.position
   const bandCenter = (i: number): number => plotLeft + Math.floor(bandW * (i + 0.5))
 
   // 3. Y-axis line + ticks + labels
   for (let row = 0; chart.config.yAxis?.showAxisLine !== false && row <= plotH; row++) {
     const displayRow = plotTop + plotH - row
-    set(canvas, displayRow, plotLeft - 1, ch.vLine, 'border')
+    stroke(canvas, displayRow, plotLeft - 1, 5, ch, 'border')
   }
   // Origin
-  if (chart.config.xAxis?.showAxisLine !== false || chart.config.yAxis?.showAxisLine !== false) set(canvas, xAxisRow, plotLeft - 1, ch.origin, 'border')
+  if (chart.config.xAxis?.showAxisLine !== false || chart.config.yAxis?.showAxisLine !== false) stroke(canvas, xAxisRow, plotLeft - 1, 15, ch, 'border')
 
   for (const tick of yTicks) {
     const row = valueToRow(tick)
@@ -263,7 +238,7 @@ function renderVertical(
     const displayRow = plotTop + plotH - row
     const label = formatTickValue(tick)
     // Tick mark on axis
-    if (chart.config.yAxis?.showTick !== false) set(canvas, displayRow, plotLeft - 1, row === 0 ? ch.origin : ch.yTick, 'border')
+    if (chart.config.yAxis?.showTick !== false) stroke(canvas, displayRow, plotLeft - 1, row === 0 ? 15 : 13, ch, 'border')
     // Label
     if (showYLabels) {
       const labelStart = yGutter - visualWidth(label)
@@ -273,11 +248,11 @@ function renderVertical(
 
   // 4. X-axis line + ticks + labels
   for (let c = plotLeft; chart.config.xAxis?.showAxisLine !== false && c < plotLeft + bandW * dataCount; c++) {
-    set(canvas, xAxisRow, c, ch.hLine, 'border')
+    stroke(canvas, xAxisRow, c, 10, ch, 'border')
   }
   for (let i = 0; i < dataCount; i++) {
     const cx = bandCenter(i)
-    if (chart.config.xAxis?.showTick !== false) set(canvas, xAxisRow, cx, ch.xTick, 'border')
+    if (chart.config.xAxis?.showTick !== false) stroke(canvas, xAxisRow, cx, 14, ch, 'border')
     if (showXLabels && xLabelRow >= 0) {
       categoryLines[i]!.forEach((label, row) => {
         const labelStart = cx - Math.floor(visualWidth(label) / 2)
@@ -328,9 +303,9 @@ function renderVertical(
         const fromRow = Math.min(baselineEdge, valueEdge)
         const toRow = Math.max(baselineEdge, valueEdge)
         canvas.scope({ id: `series-${entry.globalIdx}`, kind: 'node' }, () => {
-          for (const { cell, glyph } of projection.coverage(baseline, value, 'vertical')) {
+          for (const { cell, coverage } of projection.coverage(baseline, value)) {
             const displayRow = plotTop + plotH - 1 - cell
-            for (let c = bx; c < bx + singleBarW; c++) set(canvas, displayRow, c, glyph, 'arrow', hexColor)
+            for (let c = bx; c < bx + singleBarW; c++) canvas.numericMark(c, displayRow, { axis: 'vertical', coverage, ascii: ch.ascii }, { role: 'arrow', color: hexColor })
           }
         })
 
@@ -443,15 +418,15 @@ function renderHorizontal(
   canvas.overlay(header)
 
   // Value scale (horizontal)
-  const projection = valueProjection(yRange, plotW - 1, ch === ASC)
+  const projection = valueProjection(yRange, plotW - 1, ch.ascii)
   const valueToCol = (value: number): number => plotLeft + projection.position(value)
   const bandMid = (i: number): number => plotTop + Math.floor(bandH * (i + 0.5))
 
   // Y-axis (category axis on left)
   for (let r = plotTop; chart.config.xAxis?.showAxisLine !== false && r < plotTop + plotH; r++) {
-    set(canvas, r, plotLeft - 1, ch.vLine, 'border')
+    stroke(canvas, r, plotLeft - 1, 5, ch, 'border')
   }
-  if (chart.config.xAxis?.showAxisLine !== false || chart.config.yAxis?.showAxisLine !== false) set(canvas, xAxisRow, plotLeft - 1, ch.origin, 'border')
+  if (chart.config.xAxis?.showAxisLine !== false || chart.config.yAxis?.showAxisLine !== false) stroke(canvas, xAxisRow, plotLeft - 1, 15, ch, 'border')
 
   for (let i = 0; i < dataCount; i++) {
     const my = bandMid(i)
@@ -464,12 +439,12 @@ function renderHorizontal(
 
   // X-axis (value axis on bottom)
   for (let c = plotLeft; chart.config.yAxis?.showAxisLine !== false && c < plotLeft + plotW; c++) {
-    set(canvas, xAxisRow, c, ch.hLine, 'border')
+    stroke(canvas, xAxisRow, c, 10, ch, 'border')
   }
   for (const tick of valueTicks) {
     const cx = valueToCol(tick)
     if (cx < plotLeft || cx > plotLeft + plotW) continue
-    if (chart.config.yAxis?.showTick !== false) set(canvas, xAxisRow, cx, ch.xTick, 'border')
+    if (chart.config.yAxis?.showTick !== false) stroke(canvas, xAxisRow, cx, 14, ch, 'border')
     if (showValueLabels) {
       const label = formatTickValue(tick)
       writeText(canvas, xAxisRow + 1, Math.max(0, cx - Math.floor(visualWidth(label) / 2)), label, 'text', { id: `y-tick-${tick}`, kind: 'label' })
@@ -517,7 +492,7 @@ function renderHorizontal(
         const toCol = Math.max(baselineEdge, valueEdge)
         canvas.scope({ id: `series-${entry.globalIdx}`, kind: 'node' }, () => {
           for (let r = by; r < by + singleBarH; r++) {
-            for (const { cell, glyph } of projection.coverage(baseline, value, 'horizontal')) set(canvas, r, plotLeft + cell, glyph, 'arrow', hexColor)
+            for (const { cell, coverage } of projection.coverage(baseline, value)) canvas.numericMark(plotLeft + cell, r, { axis: 'horizontal', coverage, ascii: ch.ascii }, { role: 'arrow', color: hexColor })
           }
         })
 
@@ -580,16 +555,16 @@ function drawStaircaseLine(
   }))
 
   // Helper to draw on the canvas (row 0 = bottom, displayed inverted)
-  const drawAt = (col: number, row: number, char: string) => {
+  const drawAt = (col: number, row: number, ports: number) => {
     const displayRow = plotTop + plotH - row
     if (displayRow >= 0 && col >= plotLeft && col < plotLeft + plotTotalW) {
-      set(canvas, displayRow, col, char, 'arrow', hexColor)
+      stroke(canvas, displayRow, col, ports, ch, 'arrow', hexColor, true)
     }
   }
 
   // Single point: just draw a flat segment
   if (points.length === 1) {
-    drawAt(points[0]!.col, points[0]!.row, ch.hLine)
+    drawAt(points[0]!.col, points[0]!.row, 10)
     return
   }
 
@@ -600,7 +575,7 @@ function drawStaircaseLine(
     if (p1.row === p2.row) {
       // Flat: draw ─ across
       for (let c = p1.col; c <= p2.col; c++) {
-        drawAt(c, p1.row, ch.hLine)
+        drawAt(c, p1.row, 10)
       }
       continue
     }
@@ -610,44 +585,44 @@ function drawStaircaseLine(
 
     // 1. Flat at p1's row from p1.col to midCol-1
     for (let c = p1.col; c < midCol; c++) {
-      drawAt(c, p1.row, ch.hLine)
+      drawAt(c, p1.row, 10)
     }
 
     // 2. Corner at (midCol, p1.row)
     //    goingUp:   ─ from LEFT, │ going UP   → LEFT+TOP  = ╯ (cornerBR)
     //    goingDown: ─ from LEFT, │ going DOWN  → LEFT+BOT  = ╮ (cornerTR)
     if (goingUp) {
-      drawAt(midCol, p1.row, ch.cornerBR) // ╯
+      drawAt(midCol, p1.row, 9) // ╯
     } else {
-      drawAt(midCol, p1.row, ch.cornerTR) // ╮
+      drawAt(midCol, p1.row, 12) // ╮
     }
 
     // 3. Vertical from p1.row to p2.row (exclusive of endpoints)
     const minRow = Math.min(p1.row, p2.row)
     const maxRow = Math.max(p1.row, p2.row)
     for (let row = minRow + 1; row < maxRow; row++) {
-      drawAt(midCol, row, ch.vLine)
+      drawAt(midCol, row, 5)
     }
 
     // 4. Corner at (midCol, p2.row)
     //    goingUp:   │ from BOTTOM, ─ going RIGHT → BOT+RIGHT = ╭ (cornerTL)
     //    goingDown: │ from TOP, ─ going RIGHT     → TOP+RIGHT = ╰ (cornerBL)
     if (goingUp) {
-      drawAt(midCol, p2.row, ch.cornerTL) // ╭
+      drawAt(midCol, p2.row, 6) // ╭
     } else {
-      drawAt(midCol, p2.row, ch.cornerBL) // ╰
+      drawAt(midCol, p2.row, 3) // ╰
     }
 
     // 5. Flat at p2's row from midCol+1 to p2.col
     for (let c = midCol + 1; c <= p2.col; c++) {
-      drawAt(c, p2.row, ch.hLine)
+      drawAt(c, p2.row, 10)
     }
 
     // Leading flat for first segment (before p1.col)
     if (i === 0) {
       const leadStart = Math.max(plotLeft, p1.col - Math.floor((p2.col - p1.col) / 4))
       for (let c = leadStart; c < p1.col; c++) {
-        drawAt(c, p1.row, ch.hLine)
+        drawAt(c, p1.row, 10)
       }
     }
 
@@ -655,7 +630,7 @@ function drawStaircaseLine(
     if (i === points.length - 2) {
       const trailEnd = Math.min(plotLeft + plotTotalW - 1, p2.col + Math.floor((p2.col - p1.col) / 4))
       for (let c = p2.col + 1; c <= trailEnd; c++) {
-        drawAt(c, p2.row, ch.hLine)
+        drawAt(c, p2.row, 10)
       }
     }
   }
@@ -689,14 +664,14 @@ function drawHorizontalStaircaseLine(
     col: valueToCol(v),
   }))
 
-  const drawAt = (row: number, col: number, char: string) => {
+  const drawAt = (row: number, col: number, ports: number) => {
     if (row >= plotTop && row < plotTop + plotH && col >= plotLeft && col <= plotLeft + plotW) {
-      set(canvas, row, col, char, 'arrow', hexColor)
+      stroke(canvas, row, col, ports, ch, 'arrow', hexColor, true)
     }
   }
 
   if (points.length === 1) {
-    drawAt(points[0]!.row, points[0]!.col, ch.vLine)
+    drawAt(points[0]!.row, points[0]!.col, 5)
     return
   }
 
@@ -707,7 +682,7 @@ function drawHorizontalStaircaseLine(
     if (p1.col === p2.col) {
       // Same value: draw │ down
       for (let r = p1.row; r <= p2.row; r++) {
-        drawAt(r, p1.col, ch.vLine)
+        drawAt(r, p1.col, 5)
       }
       continue
     }
@@ -717,37 +692,37 @@ function drawHorizontalStaircaseLine(
 
     // 1. Vertical at p1's col from p1.row to midRow-1
     for (let r = p1.row; r < midRow; r++) {
-      drawAt(r, p1.col, ch.vLine)
+      drawAt(r, p1.col, 5)
     }
 
     // 2. Corner at (midRow, p1.col)
     //    goingRight: │ from TOP, ─ going RIGHT → TOP+RIGHT = ╰ (cornerBL)
     //    goingLeft:  │ from TOP, ─ going LEFT  → TOP+LEFT  = ╯ (cornerBR)
     if (goingRight) {
-      drawAt(midRow, p1.col, ch.cornerBL) // ╰
+      drawAt(midRow, p1.col, 3) // ╰
     } else {
-      drawAt(midRow, p1.col, ch.cornerBR) // ╯
+      drawAt(midRow, p1.col, 9) // ╯
     }
 
     // 3. Horizontal from p1.col to p2.col (exclusive)
     const minCol = Math.min(p1.col, p2.col)
     const maxCol = Math.max(p1.col, p2.col)
     for (let c = minCol + 1; c < maxCol; c++) {
-      drawAt(midRow, c, ch.hLine)
+      drawAt(midRow, c, 10)
     }
 
     // 4. Corner at (midRow, p2.col)
     //    goingRight: ─ from LEFT, │ going DOWN  → LEFT+BOT  = ╮ (cornerTR)
     //    goingLeft:  ─ from RIGHT, │ going DOWN → RIGHT+BOT = ╭ (cornerTL)
     if (goingRight) {
-      drawAt(midRow, p2.col, ch.cornerTR) // ╮
+      drawAt(midRow, p2.col, 12) // ╮
     } else {
-      drawAt(midRow, p2.col, ch.cornerTL) // ╭
+      drawAt(midRow, p2.col, 6) // ╭
     }
 
     // 5. Vertical at p2's col from midRow+1 to p2.row
     for (let r = midRow + 1; r <= p2.row; r++) {
-      drawAt(r, p2.col, ch.vLine)
+      drawAt(r, p2.col, 5)
     }
   }
 }
@@ -761,7 +736,7 @@ function chartHeader(chart: XYChart, ch: typeof UNI | typeof ASC, colors: string
   if (hasTitle) {
     for (const text of wrapText(chart.title!, width)) {
       const row = document.height
-      document.text(Math.max(0, Math.floor((width - visualWidth(text)) / 2)), row, text, { role: 'text', textGroup: 'title', owner: { id: 'title', kind: 'label' } })
+      document.textBlock(Math.max(0, Math.floor((width - visualWidth(text)) / 2)), row, text, { role: 'text', textGroup: 'title', owner: { id: 'title', kind: 'label' } })
     }
   }
   if (hasLegend) {
@@ -792,10 +767,15 @@ function chartHeader(chart: XYChart, ch: typeof UNI | typeof ASC, colors: string
 // Canvas utilities
 // ============================================================================
 
-function set(canvas: TerminalDocument, row: number, col: number, glyph: string, role: CharRole, color?: string | null): void {
+function stroke(canvas: TerminalDocument, row: number, col: number, ports: number, ch: typeof UNI | typeof ASC, role: CharRole, color?: string | null, rounded = false): void {
   if (col >= 0 && col < canvas.width && row >= 0 && row < canvas.height) {
-    canvas.put(col, row, glyph, { role, ...(color ? { color } : {}), kind: role === 'text' ? 'text' : 'stroke' })
+    canvas.stroke(col, row, ports, { ascii: ch.ascii, rounded, role, ...(color ? { color } : {}) })
   }
+}
+
+/** Grid dots are decorative samples, rather than composable route ink. */
+function set(canvas: TerminalDocument, row: number, col: number, glyph: string, role: CharRole): void {
+  if (col >= 0 && col < canvas.width && row >= 0 && row < canvas.height) canvas.put(col, row, glyph, { role, kind: 'stroke' })
 }
 
 function get(canvas: TerminalDocument, row: number, col: number): string {
@@ -803,7 +783,7 @@ function get(canvas: TerminalDocument, row: number, col: number): string {
 }
 
 function writeText(canvas: TerminalDocument, row: number, col: number, text: string, role: CharRole, owner?: TerminalOwner): void {
-  if (col >= 0 && row >= 0) canvas.text(col, row, text, { role, owner, textGroup: owner?.id })
+  if (col >= 0 && row >= 0) canvas.textBlock(col, row, text, { role, owner, textGroup: owner?.id })
 }
 
 function writeColoredText(canvas: TerminalDocument, row: number, col: number, text: string, role: CharRole, color: string, owner?: TerminalOwner): void {
@@ -821,17 +801,21 @@ function valueProjection(range: { min: number; max: number }, extent: number, as
   return {
     edge,
     position: (value: number): number => Math.round(affine(value)),
-    coverage(start: number, end: number, orientation: 'vertical' | 'horizontal'): Array<{ cell: number; glyph: string }> {
+    coverage(start: number, end: number): Array<{ cell: number; coverage: 1 | 2 | 3 }> {
       const lo = Math.min(edge(start), edge(end)), hi = Math.max(edge(start), edge(end))
-      const cells: Array<{ cell: number; glyph: string }> = []
+      const cells: Array<{ cell: number; coverage: 1 | 2 | 3 }> = []
       for (let cell = Math.floor(lo); cell < Math.ceil(hi); cell++) {
         const from = Math.max(lo, cell) - cell, to = Math.min(hi, cell + 1) - cell
         if (to <= from) continue
-        const glyph = ascii ? '#' : to - from >= 1 ? '█'
-          : orientation === 'vertical' ? (from === 0 ? '▄' : '▀') : (from === 0 ? '▌' : '▐')
-        cells.push({ cell, glyph })
+        const coverage = to - from >= 1 ? 3 : from === 0 ? 1 : 2
+        cells.push({ cell, coverage })
       }
       return cells
     },
   }
+}
+
+/** Compatibility string entry point; native dispatch retains the drawing. */
+export function renderXYChartAscii(...args: Parameters<typeof renderXYChartTerminal>): string {
+  return serializeTerminalArtifact(renderXYChartTerminal(...args))
 }

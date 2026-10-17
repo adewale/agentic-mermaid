@@ -1,6 +1,7 @@
+import { serializeTerminalArtifact } from '../ascii/terminal-artifact.ts'
 import { describe, expect, test } from 'bun:test'
-import { renderSequenceAscii } from '../ascii/sequence.ts'
-import { beginTerminalCapture, capturedTerminalDocument, type TerminalRegion } from '../ascii/terminal-document.ts'
+import { renderSequenceTerminal as renderSequenceAscii } from '../ascii/sequence.ts'
+import { type TerminalRegion } from '../ascii/terminal-document.ts'
 import type { AsciiConfig } from '../ascii/types.ts'
 import { visualWidth } from '../ascii/width.ts'
 import { parseSequenceDiagram } from '../sequence/parser.ts'
@@ -8,9 +9,9 @@ import { parseSequenceDiagram } from '../sequence/parser.ts'
 function render(body: string, useAscii = false, targetWidth?: number) {
   const source = `sequenceDiagram\nparticipant A\nparticipant B\nparticipant C\n${body}`
   const config: AsciiConfig = { useAscii, paddingX: 1, paddingY: 1, boxBorderPadding: 1, graphDirection: 'TD' }
-  beginTerminalCapture(config)
-  const output = renderSequenceAscii(source, config, 'none', undefined, {}, targetWidth)
-  const doc = capturedTerminalDocument(config)!
+  const artifact = renderSequenceAscii(source, config, 'none', undefined, {}, targetWidth)
+  const output = serializeTerminalArtifact(artifact)
+  const doc = artifact.document
   const regions = doc.regions()
   const diagram = parseSequenceDiagram(source.split('\n'))
   const region = (id: string) => regions.find(item => item.id === id)!
@@ -149,9 +150,9 @@ end`)
 
   test.each([false, true])('mixed-height participant labels join every lifeline to its measured card (ASCII=%s)', useAscii => {
     const config: AsciiConfig = { useAscii, paddingX: 1, paddingY: 1, boxBorderPadding: 1, graphDirection: 'TD' }
-    beginTerminalCapture(config)
-    renderSequenceAscii('sequenceDiagram\nparticipant A as Short\nparticipant B as First<br/>Second<br/>Third\nA->>B: message', config)
-    const doc = capturedTerminalDocument(config)!, regions = doc.regions()
+    const artifact = renderSequenceAscii('sequenceDiagram\nparticipant A as Short\nparticipant B as First<br/>Second<br/>Third\nA->>B: message', config)
+    serializeTerminalArtifact(artifact)
+    const doc = artifact.document, regions = doc.regions()
     expect(regions.find(region => region.id === 'B')?.projectedText).toBe('First\nSecond\nThird')
     const x = regions.find(region => region.id === 'message:0')!.ports!.find(port => port.nodeId === 'A')!.x
     expect(doc.cell(x - 1, 4)?.glyph).toBe(useAscii ? '-' : '─')
@@ -162,8 +163,7 @@ end`)
 
   test('reserves participant box titles and retains membership beside lifecycle and activations', () => {
     const config: AsciiConfig = { useAscii: false, paddingX: 1, paddingY: 1, boxBorderPadding: 1, graphDirection: 'TD' }
-    beginTerminalCapture(config)
-    const output = renderSequenceAscii(`sequenceDiagram
+    const artifact = renderSequenceAscii(`sequenceDiagram
 box Aqua Team title<br/>complete second line
 participant A as Alice
 participant B as Bob
@@ -178,7 +178,8 @@ create participant C as Created
 A->>C: welcome
 destroy C
 A-xC: goodbye`, config)
-    const doc = capturedTerminalDocument(config)!
+    const output = serializeTerminalArtifact(artifact)
+    const doc = artifact.document
     const regions = doc.regions()
     expect(output).toContain('Team title')
     expect(output).toContain('complete second line')
@@ -195,9 +196,8 @@ A-xC: goodbye`, config)
 
   test('reports authored silhouette and background projections while default participant cards stay quiet', () => {
     const config: AsciiConfig = { useAscii: false, paddingX: 1, paddingY: 1, boxBorderPadding: 1, graphDirection: 'TD' }
-    beginTerminalCapture(config)
-    renderSequenceAscii('sequenceDiagram\nbox Aqua Team\nactor A\nparticipant B\nend\nrect rgb(220, 220, 220)\nA->>B: message\nend', config)
-    const diagnostics = capturedTerminalDocument(config)!.diagnostics
+    const artifact = renderSequenceAscii('sequenceDiagram\nbox Aqua Team\nactor A\nparticipant B\nend\nrect rgb(220, 220, 220)\nA->>B: message\nend', config)
+    const diagnostics = artifact.document.diagnostics
     expect(diagnostics).toContainEqual(expect.objectContaining({ code: 'TERMINAL_FAMILY_PROJECTION', feature: 'sequence.A.glyph' }))
     expect(diagnostics).toContainEqual(expect.objectContaining({ code: 'TERMINAL_FAMILY_PROJECTION', feature: 'sequence.box:0.background' }))
     expect(diagnostics).toContainEqual(expect.objectContaining({ code: 'TERMINAL_FAMILY_PROJECTION', feature: 'sequence.block:0.background' }))
@@ -207,11 +207,11 @@ A-xC: goodbye`, config)
 
   test('native authored participant IDs cannot alias generated note or fragment IDs', () => {
     const config: AsciiConfig = { useAscii: false, paddingX: 1, paddingY: 1, boxBorderPadding: 1, graphDirection: 'TD' }
-    beginTerminalCapture(config)
     const source = 'sequenceDiagram\nparticipant note:0 as Authored\nparticipant block:0 as Other\nparticipant A\nloop generated\nNote over A: Generated note\nend'
     // Exercise the real accepted source grammar, rather than a fabricated model.
     expect(parseSequenceDiagram(source.split('\n')).actors.map(actor => actor.id)).toEqual(['note:0', 'block:0', 'A'])
-    const output = renderSequenceAscii(source, config), regions = capturedTerminalDocument(config)!.regions()
+    const artifact = renderSequenceAscii(source, config)
+    const output = serializeTerminalArtifact(artifact), regions = artifact.document.regions()
     expect(output).toContain('Authored')
     expect(output).toContain('Generated note')
     expect(regions.find(item => item.kind === 'node' && item.id === 'note:0')?.projectedText).toBe('Authored')
@@ -220,13 +220,12 @@ A-xC: goodbye`, config)
     expect(regions.find(item => item.id === 'note:0#1')?.parentId).toBe('block:0#1')
   })
 
-  test('empty and title-only native diagrams retain captures, including actor-free fragments', () => {
+  test('empty and title-only native diagrams retain drawings, including actor-free fragments', () => {
     for (const [source, required] of [['sequenceDiagram', ''], ['sequenceDiagram\ntitle Only title', 'Only title'], ['sequenceDiagram\nloop Empty fragment\nend', 'Empty fragment']] as const) {
       const config: AsciiConfig = { useAscii: false, paddingX: 1, paddingY: 1, boxBorderPadding: 1, graphDirection: 'TD' }
-      beginTerminalCapture(config)
-      const output = renderSequenceAscii(source, config)
-      expect(output).toContain(required)
-      expect(capturedTerminalDocument(config)).toBeDefined()
+        const artifact = renderSequenceAscii(source, config)
+      expect(serializeTerminalArtifact(artifact)).toContain(required)
+      expect(artifact.document).toBeDefined()
     }
   })
 })

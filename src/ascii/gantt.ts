@@ -1,3 +1,4 @@
+import { terminalArtifact, serializeTerminalArtifact, type TerminalArtifact } from './terminal-artifact.ts'
 // ============================================================================
 // ASCII renderer — Gantt diagrams (docs/design/families/gantt.md §5).
 //
@@ -34,7 +35,7 @@ import { parseTodayMarkerStyle } from '../gantt/today-marker.ts'
 import type { GanttSchedule, ScheduledGanttTask, EpochMs } from '../gantt/types.ts'
 import type { MermaidFrontmatterMap } from '../mermaid-source.ts'
 import { DEFAULT_ASCII_THEME } from './ansi.ts'
-import { TerminalDocument, finishTerminalDocument, type TerminalOwner, type TerminalRun } from './terminal-document.ts'
+import { TerminalDocument, type TerminalOwner, type TerminalRun } from './terminal-document.ts'
 import { visualWidth } from './width.ts'
 import { breakLineTags } from '../multiline-utils.ts'
 import type { AsciiConfig, AsciiTheme, ColorMode } from './types.ts'
@@ -81,14 +82,14 @@ function dateGutter(task: ScheduledGanttTask, schedule: GanttSchedule): string {
  * Render a Mermaid gantt diagram to ASCII/Unicode text. `lines` are the
  * normalized source lines (header first); frontmatter carries displayMode.
  */
-export function renderGanttAscii(
+export function renderGanttTerminal(
   lines: string[],
   config: AsciiConfig,
   colorMode: ColorMode = 'none',
   theme: AsciiTheme = DEFAULT_ASCII_THEME,
   frontmatter?: MermaidFrontmatterMap,
   options: { maxWidth?: number; today?: string; resolvedConfig?: ResolvedGanttFrontmatterConfig; styleFace?: InternalStyleFace } = {},
-): string {
+): TerminalArtifact {
   const widthBudget = options.maxWidth ?? config.maxWidth
   const model = applyResolvedGanttFrontmatterConfig(
     parseGanttModel(lines),
@@ -204,7 +205,7 @@ export function renderGanttAscii(
   }
   let owner: TerminalOwner | undefined
   const pushLine = (segments: StyledSegment[] = []): void => {
-    document.line(segments.map(segment => ({ ...segment, owner: segment.owner ?? owner, textGroup: segment.textGroup ?? (segment.owner ?? owner)?.id, kind: segment.kind ?? (segment.role === 'text' ? 'text' : segment.role == null ? 'surface' : 'stroke') })))
+    document.line(segments, { owner })
   }
 
   // ---- title ------------------------------------------------------------------
@@ -251,7 +252,7 @@ export function renderGanttAscii(
       // Critical emphasis remains family-owned; otherwise the semantic cue
       // receives a deterministic no-color glyph projection.
       const fill = task.tags.includes('crit') ? g.crit : cueFill ?? fillGlyph(task.tags, g)
-      for (let c = from; c < to && c < plotWidth; c++) cells[c] = { text: fill, role: 'line', kind: 'stroke' }
+      for (let c = from; c < to && c < plotWidth; c++) cells[c] = { text: fill, role: 'line', kind: 'mark' }
     }
     for (const vc of vertCols) if (cells[vc]!.text === g.track) cells[vc] = { text: g.vert, role: 'line', kind: 'stroke' }
     if (todayCol !== undefined && cells[todayCol]!.text === g.track) cells[todayCol] = { text: todayGlyph, role: 'line', kind: 'marker', owner: todayOwner, color: todayPaint }
@@ -376,9 +377,14 @@ export function renderGanttAscii(
 
   if (!model.topAxis) emitAxis()
 
-  return finishTerminalDocument(config, document, { colorMode, theme, trimEnd: true })
+  return terminalArtifact(document, { colorMode, theme, trimEnd: true })
 }
 
 function padForCol(col: number, glyph: string): string {
   return ' '.repeat(col) + glyph
+}
+
+/** Compatibility string entry point; native dispatch retains the drawing. */
+export function renderGanttAscii(...args: Parameters<typeof renderGanttTerminal>): string {
+  return serializeTerminalArtifact(renderGanttTerminal(...args))
 }

@@ -1,3 +1,4 @@
+import { terminalArtifact, serializeTerminalArtifact, type TerminalArtifact } from './terminal-artifact.ts'
 // ============================================================================
 // ASCII renderer — timeline diagrams
 //
@@ -8,7 +9,7 @@
 
 import { parseTimelineDiagram } from '../timeline/parser.ts'
 import { DEFAULT_ASCII_THEME } from './ansi.ts'
-import { TerminalDocument, finishTerminalDocument, type TerminalOwner, type TerminalRun } from './terminal-document.ts'
+import { TerminalDocument, type TerminalOwner, type TerminalRun } from './terminal-document.ts'
 import type { AsciiConfig, AsciiTheme, ColorMode } from './types.ts'
 import { wrapText } from './wrap.ts'
 
@@ -17,13 +18,13 @@ type StyledSegment = TerminalRun
 /**
  * Render a Mermaid timeline diagram to ASCII/Unicode text.
  */
-export function renderTimelineAscii(
+export function renderTimelineTerminal(
   lines: string[],
   config: AsciiConfig,
   colorMode: ColorMode = 'none',
   theme: AsciiTheme = DEFAULT_ASCII_THEME,
   maxWidth?: number,
-): string {
+): TerminalArtifact {
   maxWidth ??= config.maxWidth
   const diagram = parseTimelineDiagram(lines)
   diagram.title ??= config.title
@@ -43,7 +44,7 @@ export function renderTimelineAscii(
   })
   let owner: TerminalOwner | undefined
   const pushLine = (segments: StyledSegment[] = []): void => {
-    document.line(segments.map(segment => ({ ...segment, owner: segment.owner ?? owner, textGroup: segment.textGroup ?? (segment.owner ?? owner)?.id, kind: segment.kind ?? (segment.role === 'text' ? 'text' : segment.role == null ? 'surface' : 'stroke') })))
+    document.line(segments, { owner })
   }
 
   if (diagram.title) {
@@ -133,5 +134,10 @@ export function renderTimelineAscii(
     })
   }
 
-  return finishTerminalDocument(config, document, { colorMode, theme, trimEnd: true })
+  return terminalArtifact(document, { colorMode, theme, trimEnd: true })
+}
+
+/** Compatibility string entry point; native dispatch retains the drawing. */
+export function renderTimelineAscii(...args: Parameters<typeof renderTimelineTerminal>): string {
+  return serializeTerminalArtifact(renderTimelineTerminal(...args))
 }

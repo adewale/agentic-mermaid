@@ -1,3 +1,4 @@
+import { terminalArtifact, serializeTerminalArtifact, type TerminalArtifact } from './terminal-artifact.ts'
 // ============================================================================
 // Spatial ASCII/Unicode renderer — architecture diagrams
 //
@@ -15,13 +16,15 @@ import type {
   ArchitectureEndpoint,
   PositionedArchitectureGroup,
 } from '../architecture/types.ts'
-import type { AsciiNode, AsciiConfig, AsciiTheme, CharRole, ColorMode, Direction, GridCoord } from './types.ts'
+import type { AsciiConfig, AsciiTheme, ColorMode, Direction, GridCoord } from './types.ts'
 import { Up, Down, Left, Right, gridKey } from './types.ts'
-import { mkCanvas, increaseSize } from './canvas.ts'
-import { finishTerminalDocument, type TerminalOwner } from './terminal-document.ts'
+import { mkCanvas } from './canvas.ts'
+import { type TerminalOwner } from './terminal-document.ts'
 import { wrapText } from './wrap.ts'
 import { DEFAULT_ASCII_THEME } from './ansi.ts'
 import { getPath, mergePath } from './pathfinder.ts'
+import { OccupancyMap } from './occupancy.ts'
+import { allocateFacePort, countFaceDemand, faceSize, paintTerminalFrame } from './terminal-geometry.ts'
 import { visualWidth } from './width.ts'
 import { displayText, normalizeBrTags } from '../multiline-utils.ts'
 import { oneRowDisplayText } from './multiline-utils.ts'
@@ -53,25 +56,21 @@ const Y_PIXELS_PER_ROW = 24
 const OUTER_MARGIN = 2
 const BOX_GAP = 2
 
-export function renderArchitectureAscii(
+export function renderArchitectureTerminal(
   lines: string[],
   config: AsciiConfig,
   colorMode: ColorMode = 'none',
   theme: AsciiTheme = DEFAULT_ASCII_THEME,
   options: ArchitectureAsciiOptions = {},
-): string {
+): TerminalArtifact {
   const diagram = parseArchitectureDiagram(lines)
   diagram.title ??= config.title === undefined ? undefined : normalizeBrTags(config.title)
   const generated = terminalIds([...diagram.services.map(service => service.id), ...diagram.groups.map(group => group.id), ...diagram.junctions.map(junction => junction.id)])
   const positioned = layoutArchitectureDiagram(diagram)
   const terminalBudget = options.targetWidth ?? options.maxWidth ?? config.targetWidth ?? config.maxWidth
-  const faceDemand = new Map<string, Record<ArchitectureEndpoint['side'], number>>()
   const endpointId = (endpoint: ArchitectureEndpoint): string => endpoint.boundary === 'group' ? diagram.services.find(service => service.id === endpoint.id)?.parentId ?? endpoint.id : endpoint.id
-  for (const edge of diagram.edges) for (const endpoint of [edge.source, edge.target]) {
-    const id = endpointId(endpoint), demand = faceDemand.get(id) ?? { T: 0, B: 0, L: 0, R: 0 }
-    demand[endpoint.side]++; faceDemand.set(id, demand)
-  }
-  const minimum = (id: string) => { const count = faceDemand.get(id); return { width: count ? Math.max(count.T, count.B) * 3 + 2 : 0, height: count ? Math.max(count.L, count.R) * 3 + 2 : 0 } }
+  const faceDemand = countFaceDemand(diagram.edges.flatMap(edge => [edge.source, edge.target].map(endpoint => ({ id: endpointId(endpoint), side: endpoint.side }))))
+  const minimum = (id: string) => faceSize(faceDemand.get(id))
   const allPixelBounds = [
     ...positioned.services.map(item => ({ x: item.x, right: item.x + item.width })),
     ...positioned.junctions.map(item => ({ x: item.x, right: item.x + item.width })),
@@ -155,19 +154,11 @@ export function renderArchitectureAscii(
   const canvas = mkCanvas(maxRight + OUTER_MARGIN + 8, maxBottom + OUTER_MARGIN + 5)
   let activeOwner: TerminalOwner | undefined
   const writeText = (at: GridCoord, value: string, _overwrite = true): void => {
-    canvas.text(at.x, at.y, value, { owner: activeOwner, role: 'text', kind: 'text' })
-  }
-
-  const setCell = (x: number, y: number, char: string, role: CharRole, overwrite = true): void => {
-    if (x < 0 || y < 0) return
-    increaseSize(canvas, x, y)
-    if (overwrite || canvas.get(x, y) === ' ') {
-      canvas.put(x, y, char, { owner: activeOwner, role, kind: role === 'text' ? 'text' : role === 'arrow' ? 'marker' : 'stroke' })
-    }
+    canvas.textBlock(at.x, at.y, value, { owner: activeOwner, role: 'text', kind: 'text' })
   }
 
   if (positioned.title) {
-    activeOwner = { id: 'title', kind: 'label' }
+    activeOwner = canvas.element({ id: 'title', kind: 'label' })
     canvas.scope(activeOwner, () => titleLines.forEach((line, y) => {
       const x = Math.max(OUTER_MARGIN, Math.floor((maxRight - visualWidth(line)) / 2))
       writeText({ x, y }, line, true)
@@ -176,29 +167,25 @@ export function renderArchitectureAscii(
 
   // Containers form the background layer. Deeper groups draw after parents.
   for (const group of [...groupBoxes.values()].sort((a, b) => a.depth - b.depth || compareCodePointStrings(a.id, b.id))) {
-    activeOwner = { id: group.id, kind: 'group', parentId: group.parentId, members: [...groupBoxes.values(), ...serviceBoxes.values(), ...junctionBoxes.values()].filter(box => box.parentId === group.id).map(box => box.id) }
+    activeOwner = canvas.element({ id: group.id, kind: 'group', parentId: group.parentId, members: [...groupBoxes.values(), ...serviceBoxes.values(), ...junctionBoxes.values()].filter(box => box.parentId === group.id).map(box => box.id) })
     canvas.region(activeOwner, { x: group.x, y: group.y, width: group.width, height: group.height })
     drawFramedBox(group, true)
   }
 
   const connections = new Map<string, Set<Cardinal>>()
-  const markerCells: Array<{ point: GridCoord; char: string; owner: TerminalOwner }> = []
+  const markerCells: Array<{ point: GridCoord; side: ArchitectureEndpoint['side']; owner: TerminalOwner }> = []
   const edgePaths: Array<{ edge: ArchitectureEdge; points: GridCoord[]; owner: TerminalOwner }> = []
   const connectionOwners = new Map<string, Map<string, { owner: TerminalOwner; dirs: Set<Cardinal> }>>()
   const portCursors = new Map<string, number>()
   const portFor = (box: CellBox, side: ArchitectureEndpoint['side']): GridCoord => {
     const key = `${box.id}:${side}`, index = portCursors.get(key) ?? 0, count = faceDemand.get(box.id)?.[side] ?? 1
     portCursors.set(key, index + 1)
-    const along = Math.floor((index + 1) * ((side === 'T' || side === 'B' ? box.width : box.height) - 1) / (count + 1))
-    if (side === 'L') return { x: box.x - 1, y: box.y + along }
-    if (side === 'R') return { x: right(box) + 1, y: box.y + along }
-    if (side === 'T') return { x: box.x + along, y: box.y - 1 }
-    return { x: box.x + along, y: bottom(box) + 1 }
+    return allocateFacePort(box, side, index, count)
   }
   const unrouted: Array<{ owner: TerminalOwner; edge: ArchitectureEdge }> = []
 
   for (const [edgeIndex, edge] of diagram.edges.entries()) {
-    const owner: TerminalOwner = { id: generated(`edge:${edgeIndex}`), kind: 'edge', from: edge.source.id, to: edge.target.id }
+    const owner = canvas.element({ id: generated(`edge:${edgeIndex}`), kind: 'edge', from: edge.source.id, to: edge.target.id })
     activeOwner = owner
     const source = endpointBox(edge.source)
     const target = endpointBox(edge.target)
@@ -212,8 +199,8 @@ export function renderArchitectureAscii(
     canvas.port(owner, { nodeId: source.id, x: start.x, y: start.y, side: edge.source.side, end: 'start' })
     canvas.port(owner, { nodeId: target.id, x: end.x, y: end.y, side: edge.target.side, end: 'end' })
     const obstacles = obstacleGrid(edge)
-    const separated = new Map(obstacles)
-    for (const key of connections.keys()) separated.set(key, {} as AsciiNode)
+    const separated = new OccupancyMap(obstacles)
+    for (const key of connections.keys()) separated.set(key, true)
     separated.delete(gridKey(start)); separated.delete(gridKey(end))
     const found = getPath(separated, start, end, preferredDirection(edge.source.side)) ?? getPath(obstacles, start, end, preferredDirection(edge.source.side))
     if (!found) {
@@ -223,9 +210,11 @@ export function renderArchitectureAscii(
     }
     const path = mergePath(found)
     edgePaths.push({ edge, points: path, owner })
+    const towardBox: Record<ArchitectureEndpoint['side'], Cardinal> = { T: 'S', R: 'W', B: 'N', L: 'E' }
+    addDirection(start, towardBox[edge.source.side]); addDirection(end, towardBox[edge.target.side])
     for (let index = 1; index < path.length; index++) addConnection(path[index - 1]!, path[index]!)
-    if (edge.hasArrowStart) markerCells.push({ point: start, char: markerTowardBox(edge.source.side), owner })
-    if (edge.hasArrowEnd) markerCells.push({ point: end, char: markerTowardBox(edge.target.side), owner })
+    if (edge.hasArrowStart) markerCells.push({ point: start, side: edge.source.side, owner })
+    if (edge.hasArrowEnd) markerCells.push({ point: end, side: edge.target.side, owner })
   }
 
   for (const key of connections.keys()) {
@@ -234,10 +223,15 @@ export function renderArchitectureAscii(
     const y = Number(key.slice(comma + 1))
     for (const { owner, dirs: ownedDirs } of connectionOwners.get(key)?.values() ?? []) {
       activeOwner = owner
-      setCell(x, y, connectionGlyph(ownedDirs), ownedDirs.size > 2 ? 'junction' : 'line')
+      const bits: Record<Cardinal, number> = { N: 1, E: 2, S: 4, W: 8 }
+      const mask = [...ownedDirs].reduce((value, direction) => value | bits[direction], 0)
+      canvas.stroke(x, y, mask, { owner, role: ownedDirs.size > 2 ? 'junction' : 'line', ascii: config.useAscii })
     }
   }
-  for (const marker of markerCells) { activeOwner = marker.owner; setCell(marker.point.x, marker.point.y, marker.char, 'arrow') }
+  for (const marker of markerCells) {
+    const toward: Record<ArchitectureEndpoint['side'], ArchitectureEndpoint['side']> = { T: 'B', B: 'T', L: 'R', R: 'L' }
+    canvas.marker(marker.point.x, marker.point.y, { shape: 'arrow', direction: toward[marker.side], ascii: config.useAscii }, { owner: marker.owner, role: 'arrow' })
+  }
 
   const labelBoxes: CellBox[] = []
   for (const { edge, points, owner } of edgePaths) {
@@ -260,12 +254,12 @@ export function renderArchitectureAscii(
 
   // Cards and junction labels are the foreground layer.
   for (const service of serviceBoxes.values()) {
-    activeOwner = { id: service.id, kind: 'node', parentId: service.parentId }
+    activeOwner = canvas.element({ id: service.id, kind: 'node', parentId: service.parentId })
     canvas.region(activeOwner, { x: service.x, y: service.y, width: service.width, height: service.height })
     drawFramedBox(service, false)
   }
   for (const junction of junctionBoxes.values()) {
-    activeOwner = { id: junction.id, kind: 'node', parentId: junction.parentId }
+    activeOwner = canvas.element({ id: junction.id, kind: 'node', parentId: junction.parentId })
     canvas.region(activeOwner, { x: junction.x, y: junction.y, width: junction.width, height: junction.height })
     drawFramedBox(junction, false)
   }
@@ -274,7 +268,7 @@ export function renderArchitectureAscii(
     const summary = `${edge.source.id}${edge.source.boundary === 'group' ? '{group}' : ''}:${edge.source.side} ${edge.hasArrowStart ? '<' : ''}--${edge.hasArrowEnd ? '>' : ''} ${edge.target.side}:${edge.target.id}${edge.target.boundary === 'group' ? '{group}' : ''}${edge.label ? ` : ${oneRowDisplayText(edge.label)}` : ''}`
     for (const line of wrapText(summary, terminalBudget)) canvas.text(0, canvas.height, line, { owner, role: 'text', kind: 'text' })
   }
-  return finishTerminalDocument(config, canvas, { colorMode, theme, trimEnd: true })
+  return terminalArtifact(canvas, { colorMode, theme, trimEnd: true })
 
   function endpointBox(endpoint: ArchitectureEndpoint): CellBox | undefined {
     if (endpoint.boundary === 'group') {
@@ -284,9 +278,9 @@ export function renderArchitectureAscii(
     return serviceBoxes.get(endpoint.id) ?? junctionBoxes.get(endpoint.id)
   }
 
-  function obstacleGrid(edge: ArchitectureEdge): Map<string, AsciiNode> {
-    const occupied = new Map<string, AsciiNode>()
-    const sentinel = {} as AsciiNode
+  function obstacleGrid(edge: ArchitectureEdge): OccupancyMap {
+    const occupied = new OccupancyMap()
+    const sentinel = true
     const excludedGroups = new Set<string>()
     const addAncestors = (parentId: string | undefined): void => {
       let current = parentId
@@ -347,50 +341,8 @@ export function renderArchitectureAscii(
     connections.set(key, dirs)
   }
 
-  function markerTowardBox(side: ArchitectureEndpoint['side']): string {
-    if (config.useAscii) {
-      if (side === 'L') return '>'
-      if (side === 'R') return '<'
-      if (side === 'T') return 'v'
-      return '^'
-    }
-    if (side === 'L') return '►'
-    if (side === 'R') return '◄'
-    if (side === 'T') return '▼'
-    return '▲'
-  }
-
-  function connectionGlyph(dirs: Set<Cardinal>): string {
-    const key = [...dirs].sort().join('')
-    if (config.useAscii) {
-      if (key === 'EW') return '-'
-      if (key === 'NS') return '|'
-      return '+'
-    }
-    const glyphs: Record<string, string> = {
-      EW: '─', NS: '│', ES: '┌', SW: '┐', EN: '└', NW: '┘',
-      ENS: '├', NSW: '┤', ESW: '┬', ENW: '┴', ENSW: '┼',
-    }
-    return glyphs[key] ?? (dirs.has('E') || dirs.has('W') ? '─' : '│')
-  }
-
   function drawFramedBox(box: CellBox, group: boolean): void {
-    if (!group) canvas.fill(box.x, box.y, box.width, box.height, { owner: activeOwner, kind: 'surface' })
-    const chars = config.useAscii
-      ? { tl: '+', tr: '+', bl: '+', br: '+', h: '-', v: '|' }
-      : { tl: '┌', tr: '┐', bl: '└', br: '┘', h: '─', v: '│' }
-    for (let x = box.x + 1; x < right(box); x++) {
-      setCell(x, box.y, chars.h, 'border')
-      setCell(x, bottom(box), chars.h, 'border')
-    }
-    for (let y = box.y + 1; y < bottom(box); y++) {
-      setCell(box.x, y, chars.v, 'border')
-      setCell(right(box), y, chars.v, 'border')
-    }
-    setCell(box.x, box.y, chars.tl, 'border')
-    setCell(right(box), box.y, chars.tr, 'border')
-    setCell(box.x, bottom(box), chars.bl, 'border')
-    setCell(right(box), bottom(box), chars.br, 'border')
+    paintTerminalFrame(canvas, box, activeOwner!, config.useAscii, !group)
 
     if (group) {
       const start = box.x + 2
@@ -577,4 +529,9 @@ function bottom(box: CellBox): number { return box.y + box.height - 1 }
 
 function boxesOverlap(a: CellBox, b: CellBox): boolean {
   return a.x <= right(b) && b.x <= right(a) && a.y <= bottom(b) && b.y <= bottom(a)
+}
+
+/** Compatibility string entry point; native dispatch retains the drawing. */
+export function renderArchitectureAscii(...args: Parameters<typeof renderArchitectureTerminal>): string {
+  return serializeTerminalArtifact(renderArchitectureTerminal(...args))
 }

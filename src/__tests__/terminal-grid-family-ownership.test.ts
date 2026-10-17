@@ -1,24 +1,24 @@
 import { describe, expect, test } from 'bun:test'
-import { renderArchitectureAscii } from '../ascii/architecture.ts'
-import { renderClassAscii } from '../ascii/class-diagram.ts'
-import { renderErAscii } from '../ascii/er-diagram.ts'
-import { renderGitGraphAscii } from '../ascii/gitgraph.ts'
-import { renderMindmapAscii } from '../ascii/mindmap.ts'
-import { renderSequenceAscii } from '../ascii/sequence.ts'
+import { renderArchitectureTerminal as renderArchitectureAscii } from '../ascii/architecture.ts'
+import { renderClassTerminal as renderClassAscii } from '../ascii/class-diagram.ts'
+import { renderErTerminal as renderErAscii } from '../ascii/er-diagram.ts'
+import { renderGitGraphTerminal as renderGitGraphAscii } from '../ascii/gitgraph.ts'
+import { renderMindmapTerminal as renderMindmapAscii } from '../ascii/mindmap.ts'
+import { renderSequenceTerminal as renderSequenceAscii } from '../ascii/sequence.ts'
 import { renderMermaidASCIIWithMeta } from '../ascii/meta.ts'
 import { DEFAULT_ASCII_THEME } from '../ascii/ansi.ts'
-import { beginTerminalCapture, capturedTerminalDocument } from '../ascii/terminal-document.ts'
+import { serializeTerminalArtifact, type TerminalArtifact } from '../ascii/terminal-artifact.ts'
 import type { AsciiConfig } from '../ascii/types.ts'
 import { visualWidth } from '../ascii/width.ts'
 import { parseGitGraph } from '../gitgraph/parser.ts'
 import { parseMindmap } from '../mindmap/parser.ts'
 import { renderMermaidWithActions } from '../agent/index.ts'
 
-function capture(render: (config: AsciiConfig) => string, useAscii = false) {
+function capture(render: (config: AsciiConfig) => TerminalArtifact, useAscii = false) {
   const config: AsciiConfig = { useAscii, paddingX: 1, paddingY: 1, boxBorderPadding: 1, graphDirection: 'TD' }
-  beginTerminalCapture(config)
-  const output = render(config)
-  const doc = capturedTerminalDocument(config)!
+  const artifact = render(config)
+  const output = serializeTerminalArtifact(artifact)
+  const doc = artifact.document
   const regions = doc.regions()
   const region = (id: string) => regions.find(item => item.id === id)!
   return { output, doc, regions, region }

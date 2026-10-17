@@ -6,8 +6,9 @@
 // paths between nodes on the grid. Prefers straight lines over zigzags.
 // ============================================================================
 
-import type { GridCoord, AsciiNode, Direction } from './types.ts'
+import type { GridCoord, Direction } from './types.ts'
 import { gridKey, gridCoordEquals } from './types.ts'
+import { pathOccupancy, type PathOccupancy } from './occupancy.ts'
 
 // ============================================================================
 // Priority queue (min-heap) for A* open set
@@ -160,7 +161,7 @@ function buildMoveDirs(preferredDir?: Direction): GridCoord[] {
 }
 
 /** Check if a grid cell is unoccupied and has non-negative coordinates. */
-function isFreeInGrid(grid: Map<string, AsciiNode>, c: GridCoord): boolean {
+function isFreeInGrid(grid: PathOccupancy, c: GridCoord): boolean {
   if (c.x < 0 || c.y < 0) return false
   return !grid.has(gridKey(c))
 }
@@ -175,7 +176,7 @@ function isFreeInGrid(grid: Map<string, AsciiNode>, c: GridCoord): boolean {
  *   a tested capability and exercised by ascii-pathfinder-determinism.test.ts.
  */
 export function getPath(
-  grid: Map<string, AsciiNode>,
+  cells: PathOccupancy | ReadonlyMap<string, unknown>,
   from: GridCoord,
   to: GridCoord,
   preferredDir?: Direction,
@@ -185,15 +186,9 @@ export function getPath(
   // OOM/hang. Derive an upper bound from the grid extent + the from/to coords,
   // plus a hard iteration cap. On exhaustion we return null and the caller
   // falls back to a direct route, rather than exhausting memory.
-  let maxX = Math.max(from.x, to.x)
-  let maxY = Math.max(from.y, to.y)
-  for (const key of grid.keys()) {
-    const comma = key.indexOf(',')
-    const kx = Number(key.slice(0, comma))
-    const ky = Number(key.slice(comma + 1))
-    if (kx > maxX) maxX = kx
-    if (ky > maxY) maxY = ky
-  }
+  const grid = pathOccupancy(cells)
+  const maxX = Math.max(from.x, to.x, grid.extent.maxX)
+  const maxY = Math.max(from.y, to.y, grid.extent.maxY)
   // Margin lets routes detour slightly around obstacles past the extent.
   const boundX = maxX + 4
   const boundY = maxY + 4
@@ -222,10 +217,10 @@ export function getPath(
       const path: GridCoord[] = []
       let c: GridCoord | null = current
       while (c !== null) {
-        path.unshift(c)
+        path.push(c)
         c = cameFrom.get(gridKey(c)) ?? null
       }
-      return path
+      return path.reverse()
     }
 
     const currentCost = costSoFar.get(gridKey(current))!

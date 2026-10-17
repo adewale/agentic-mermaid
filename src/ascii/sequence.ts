@@ -1,3 +1,4 @@
+import { terminalArtifact, serializeTerminalArtifact, type TerminalArtifact } from './terminal-artifact.ts'
 // Terminal sequence layout owns cell bounds before painting. Lexical fragment
 // boundaries distinguish notes and empty sections sharing a message cursor.
 import { parseSequenceDiagram, displayMessageLabel, getSequenceBlockBoundaries } from '../sequence/parser.ts'
@@ -5,29 +6,28 @@ import { resolveSequenceBlockScopes } from '../sequence/geometry.ts'
 import type { SequenceMessageHead } from '../sequence/types.ts'
 import type { ResolvedSequenceConfig } from '../sequence/config.ts'
 import type { AsciiConfig, AsciiTheme, ColorMode, CharRole } from './types.ts'
-import { TerminalDocument, finishTerminalDocument, type TerminalOwner } from './terminal-document.ts'
+import { TerminalDocument, type TerminalOwner } from './terminal-document.ts'
 import { visualWidth } from './width.ts'
 import { wrapText } from './wrap.ts'
 import { displayText, normalizeBrTags } from '../multiline-utils.ts'
 import { terminalIds } from './identity.ts'
+import { paintTerminalFrame } from './terminal-geometry.ts'
 
 interface CellBounds { x: number; y: number; width: number; height: number }
 interface PositionedText extends CellBounds { lines: string[]; index: number; parentId?: string }
 interface SequenceFrame extends CellBounds { index: number; header: string[]; dividers: Array<{ y: number; lines: string[] }> ; parentId?: string }
 
-export function renderSequenceAscii(text: string, config: AsciiConfig, colorMode?: ColorMode, theme?: AsciiTheme, seqConfig: ResolvedSequenceConfig = {}, targetWidth?: number): string {
+export function renderSequenceTerminal(text: string, config: AsciiConfig, colorMode?: ColorMode, theme?: AsciiTheme, seqConfig: ResolvedSequenceConfig = {}, targetWidth?: number): TerminalArtifact {
   targetWidth ??= config.targetWidth ?? config.maxWidth
   const diagram = parseSequenceDiagram(text.split('\n').map(line => line.trim()).filter(line => line && !line.startsWith('%%')), seqConfig)
   diagram.title ??= config.title === undefined ? undefined : normalizeBrTags(config.title)
   if (!diagram.actors.length && !diagram.blocks.length) {
     const empty = new TerminalDocument()
     if (diagram.title) for (const line of wrapText(displayText(diagram.title), targetWidth)) empty.line([{ text: line, owner: { id: 'title', kind: 'label' }, role: 'text' }])
-    return finishTerminalDocument(config, empty, { colorMode, theme, trimEnd: true })
+    return terminalArtifact(empty, { colorMode, theme, trimEnd: true })
   }
   const generated = terminalIds(diagram.actors.map(actor => actor.id))
   const ascii = config.useAscii
-  const H = ascii ? '-' : '─', V = ascii ? '|' : '│'
-  const TL = ascii ? '+' : '┌', TR = ascii ? '+' : '┐', BL = ascii ? '+' : '└', BR = ascii ? '+' : '┘'
   const actorIndex = new Map(diagram.actors.map((actor, index) => [actor.id, index]))
   const budget = targetWidth === undefined ? undefined : Math.max(1, Math.floor(targetWidth / 3))
   const prepared = (value: string) => wrapText(displayText(value), budget)
@@ -193,19 +193,20 @@ export function renderSequenceAscii(text: string, config: AsciiConfig, colorMode
   diagram.blocks.forEach((block, index) => {
     if (block.color && block.color.toLowerCase() !== 'transparent') doc.report({ code: 'TERMINAL_FAMILY_PROJECTION', feature: `sequence.${generated(`block:${index}`)}.background`, message: 'The authored rect background color is represented by an owned terminal frame; terminal output uses foreground ink without a background fill.' })
   })
-  const owner = (id: string, kind: TerminalOwner['kind'] = 'node', parentId?: string): TerminalOwner => ({ id, kind, ...(parentId ? { parentId } : {}) })
-  const put = (x: number, y: number, glyph: string, role: CharRole, element: TerminalOwner, kind: 'stroke' | 'marker' = 'stroke') => doc.put(x, y, glyph, { owner: element, role, kind })
-  const frame = (bounds: CellBounds, element: TerminalOwner, opaque = false) => {
-    doc.region(element, { x: bounds.x, y: bounds.y, width: bounds.width, height: bounds.height })
-    if (opaque) doc.fill(bounds.x, bounds.y, bounds.width, bounds.height, { owner: element, kind: 'surface' })
-    for (let x = bounds.x + 1; x < bounds.x + bounds.width - 1; x++) { put(x, bounds.y, H, 'border', element); put(x, bounds.y + bounds.height - 1, H, 'border', element) }
-    for (let y = bounds.y + 1; y < bounds.y + bounds.height - 1; y++) { put(bounds.x, y, V, 'border', element); put(bounds.x + bounds.width - 1, y, V, 'border', element) }
-    put(bounds.x, bounds.y, TL, 'border', element); put(bounds.x + bounds.width - 1, bounds.y, TR, 'border', element)
-    put(bounds.x, bounds.y + bounds.height - 1, BL, 'border', element); put(bounds.x + bounds.width - 1, bounds.y + bounds.height - 1, BR, 'border', element)
-  }
+  const owner = (id: string, kind: TerminalOwner['kind'] = 'node', parentId?: string): TerminalOwner => doc.element({ id, kind, ...(parentId ? { parentId } : {}) })
+  const stroke = (x: number, y: number, mask: number, role: CharRole, element: TerminalOwner, style: 'solid' | 'dashed' = 'solid') => doc.stroke(x, y, mask, { owner: element, role, ascii, style })
+  const marker = (x: number, y: number, glyph: string, element: TerminalOwner) => doc.put(x, y, glyph, { owner: element, role: 'arrow', kind: 'marker' })
+  const frame = (bounds: CellBounds, element: TerminalOwner, opaque = false) => paintTerminalFrame(doc, bounds, element, ascii, opaque)
+  // Header rectangles are allocated before background lifelines. Painting a
+  // complete label must never have to erase another element's route cells.
+  const headers = closedFrames.flatMap(frame => [
+    { x: frame.x + 1, y: frame.y, width: Math.max(0, ...frame.header.map(visualWidth)), height: frame.header.length },
+    ...frame.dividers.map(divider => ({ x: frame.x + 1, y: divider.y, width: Math.max(0, ...divider.lines.map(visualWidth)), height: divider.lines.length })),
+  ])
+  const reservedHeader = (x: number, y: number) => headers.some(header => x >= header.x && x < header.x + header.width && y >= header.y && y < header.y + header.height)
   // Participant-group frames are background geometry with distinct ownership.
   participantGroups.forEach(group => {
-    const element: TerminalOwner = { id: generated(`box:${group.index}`), kind: 'group', members: group.members }
+    const element = doc.element({ id: generated(`box:${group.index}`), kind: 'group', members: group.members })
     frame({ x: group.x, y: 0, width: group.width, height: footerY + actorBoxH + 1 }, element)
     doc.scope(element, () => group.lines.forEach((line, y) => doc.text(group.x + 1, y, line, { role: 'text', kind: 'text' })))
   })
@@ -213,7 +214,7 @@ export function renderSequenceAscii(text: string, config: AsciiConfig, colorMode
     const element = owner(actor.id, 'node', actor.box === undefined ? undefined : generated(`box:${actor.box}`))
     const start = actorTop.has(index) ? actorTop.get(index)! + actorBoxH : participantTop + actorBoxH
     const end = actor.destroyMessageIndex === undefined ? footerY : messages[actor.destroyMessageIndex]?.arrowY ?? footerY
-    for (let y = start; y <= end; y++) put(llX[index]!, y, V, 'line', element)
+    for (let y = start; y <= end; y++) if (!reservedHeader(llX[index]!, y)) stroke(llX[index]!, y, 5, 'line', element)
   })
   // Activations are owned spans, drawn behind opaque labels and notes.
   const activationStacks = new Map<string, Array<{ y: number; id: number }>>()
@@ -225,7 +226,7 @@ export function renderSequenceAscii(text: string, config: AsciiConfig, colorMode
       const opened = stack.pop()!, start = opened.y, ai = actorIndex.get(id)!, x = llX[ai]! + stack.length
       const element = owner(generated(`activation:${opened.id}`), 'band', id)
       doc.region(element, { x: x - 1, y: start, width: 3, height: Math.max(1, y - start + 1) })
-      for (let row = start; row <= y; row++) { put(x - 1, row, V, 'line', element); put(x + 1, row, V, 'line', element) }
+      for (let row = start; row <= y; row++) { stroke(x - 1, row, 5, 'line', element); stroke(x + 1, row, 5, 'line', element) }
     }
     activationStacks.set(id, stack)
   }
@@ -246,39 +247,40 @@ export function renderSequenceAscii(text: string, config: AsciiConfig, colorMode
     }
     drawActor(actorTop.get(index) ?? participantTop)
     if (actor.destroyMessageIndex === undefined) drawActor(footerY)
-    else put(llX[index]!, messages[actor.destroyMessageIndex]?.arrowY ?? footerY, 'X', 'arrow', element, 'marker')
+    else marker(llX[index]!, messages[actor.destroyMessageIndex]?.arrowY ?? footerY, 'X', element)
     if (!ascii) {
-      if (actor.createMessageIndex === undefined) put(llX[index]!, participantTop + actorBoxH - 1, '┬', 'junction', element)
-      if (actor.destroyMessageIndex === undefined) put(llX[index]!, footerY, '┴', 'junction', element)
+      if (actor.createMessageIndex === undefined) stroke(llX[index]!, participantTop + actorBoxH - 1, 14, 'junction', element)
+      if (actor.destroyMessageIndex === undefined) stroke(llX[index]!, footerY, 11, 'junction', element)
     }
   })
   for (const positioned of messages) {
     const message = diagram.messages[positioned.index]!, self = message.from === message.to
-    const element = owner(generated(`message:${positioned.index}`), 'edge', positioned.parentId)
-    const line = message.lineStyle === 'dashed' ? (ascii ? '.' : '╌') : H
+    const element = doc.element({ id: generated(`message:${positioned.index}`), kind: 'edge', parentId: positioned.parentId, from: message.from, to: message.to })
+    const style = message.lineStyle === 'dashed' ? 'dashed' : 'solid'
     const y = positioned.arrowY, from = positioned.fromX, to = positioned.toX
-    const endpoint = (start: boolean, right: boolean): string => {
-      if (start ? message.centralStart : message.centralEnd) return ascii ? 'o' : '○'
+    const endpoint = (x: number, row: number, start: boolean, right: boolean): void => {
+      if (start ? message.centralStart : message.centralEnd) { doc.marker(x, row, { shape: 'circle', ascii }, { owner: element, role: 'arrow' }); return }
       const head = start ? message.startHead : message.endHead
-      return head === 'none' ? '' : sequenceHeadGlyph(head, right, ascii)
+      if (head === 'none') return
+      if (head === 'filled' || head === 'open') doc.marker(x, row, { shape: head === 'filled' ? 'triangle' : 'open-arrow', direction: right ? 'R' : 'L', ascii }, { owner: element, role: 'arrow' })
+      else marker(x, row, sequenceHeadGlyph(head, right, ascii), element)
     }
-    const startGlyph = endpoint(true, self || from > to), endGlyph = endpoint(false, !self && from < to)
     doc.port(element, { nodeId: message.from, x: from, y, side: self || from < to ? 'R' : 'L', end: 'start' })
     doc.port(element, { nodeId: message.to, x: to, y: self ? y + positioned.lines.length + 1 : y, side: self || from > to ? 'R' : 'L', end: 'end' })
     if (self) {
-      put(from, y, ascii ? '+' : '├', 'junction', element)
-      for (let x = from + 1; x < from + 4; x++) put(x, y, line, 'line', element)
-      put(from + 4, y, ascii ? '+' : '┐', 'corner', element)
-      for (let row = y + 1; row <= y + positioned.lines.length; row++) put(from + 4, row, V, 'line', element)
+      stroke(from, y, 7, 'junction', element)
+      for (let x = from + 1; x < from + 4; x++) stroke(x, y, 10, 'line', element, style)
+      stroke(from + 4, y, 12, 'corner', element)
+      for (let row = y + 1; row <= y + positioned.lines.length; row++) stroke(from + 4, row, 5, 'line', element)
       const bottom = y + positioned.lines.length + 1
-      for (let x = from + 1; x < from + 4; x++) put(x, bottom, line, 'line', element)
-      put(from + 4, bottom, ascii ? '+' : '┘', 'corner', element)
-      if (endGlyph) put(from, bottom, endGlyph, 'arrow', element, 'marker')
-      if (startGlyph) put(from, y, startGlyph, 'arrow', element, 'marker')
+      for (let x = from + 1; x < from + 4; x++) stroke(x, bottom, 10, 'line', element, style)
+      stroke(from + 4, bottom, 9, 'corner', element)
+      endpoint(from, bottom, false, false)
+      endpoint(from, y, true, true)
     } else {
-      for (let x = Math.min(from, to) + 1; x < Math.max(from, to); x++) put(x, y, line, 'line', element)
-      if (startGlyph) put(from, y, startGlyph, 'arrow', element, 'marker')
-      if (endGlyph) put(to, y, endGlyph, 'arrow', element, 'marker')
+      for (let x = Math.min(from, to) + 1; x < Math.max(from, to); x++) stroke(x, y, 10, 'line', element, style)
+      endpoint(from, y, true, from > to)
+      endpoint(to, y, false, from < to)
     }
     positioned.lines.forEach((line, index) => {
       const x = self ? positioned.x : Math.min(from, to) + Math.floor((Math.abs(to - from) - visualWidth(line)) / 2)
@@ -289,16 +291,16 @@ export function renderSequenceAscii(text: string, config: AsciiConfig, colorMode
   for (const positioned of [...closedFrames].reverse()) {
     const element = owner(generated(`block:${positioned.index}`), 'compartment', positioned.parentId)
     frame(positioned, element)
-    positioned.header.forEach((line, row) => doc.text(positioned.x + 1, positioned.y + row, line, { owner: element, role: 'text', kind: 'text' }))
+    doc.textBlock(positioned.x + 1, positioned.y, positioned.header, { owner: element, role: 'text', kind: 'text' })
     positioned.dividers.forEach(divider => {
-      for (let x = positioned.x; x < positioned.x + positioned.width; x++) put(x, divider.y, ascii ? '-' : '╌', 'line', element)
-      divider.lines.forEach((line, row) => { if (line) doc.text(positioned.x + 1, divider.y + row, line, { owner: element, role: 'text', kind: 'text' }) })
+      for (let x = positioned.x; x < positioned.x + positioned.width; x++) stroke(x, divider.y, 10, 'line', element, ascii ? 'solid' : 'dashed')
+      doc.textBlock(positioned.x + 1, divider.y, divider.lines, { owner: element, role: 'text', kind: 'text' })
     })
   }
   for (const positioned of notes) {
     const element = owner(generated(`note:${positioned.index}`), 'node', positioned.parentId)
     frame(positioned, element, true)
-    positioned.lines.forEach((line, row) => doc.text(positioned.x + 2, positioned.y + row + 1, line, { owner: element, role: 'text', kind: 'text' }))
+    doc.textBlock(positioned.x + 2, positioned.y + 1, positioned.lines, { owner: element, role: 'text', kind: 'text' })
   }
   if (diagram.title) {
     const lines = wrapText(displayText(diagram.title), targetWidth)
@@ -306,9 +308,9 @@ export function renderSequenceAscii(text: string, config: AsciiConfig, colorMode
     const element = owner('title', 'label')
     titled.scope(element, () => lines.forEach((line, y) => titled.text(Math.floor((titled.width - visualWidth(line)) / 2), y, line, { role: 'text', kind: 'text' })))
     titled.overlay(doc, 0, lines.length + 1)
-    return finishTerminalDocument(config, titled, { colorMode, theme })
+    return terminalArtifact(titled, { colorMode, theme })
   }
-  return finishTerminalDocument(config, doc, { colorMode, theme })
+  return terminalArtifact(doc, { colorMode, theme })
 }
 
 function sequenceHeadGlyph(head: SequenceMessageHead, right: boolean, ascii: boolean): string {
@@ -319,4 +321,9 @@ function sequenceHeadGlyph(head: SequenceMessageHead, right: boolean, ascii: boo
   if (head === 'stick-bottom') return right ? '\\' : '/'
   if (head === 'filled') return right ? (ascii ? '>' : '▶') : (ascii ? '<' : '◀')
   return right ? (ascii ? '>' : '▷') : (ascii ? '<' : '◁')
+}
+
+/** Compatibility string entry point; native dispatch retains the drawing. */
+export function renderSequenceAscii(...args: Parameters<typeof renderSequenceTerminal>): string {
+  return serializeTerminalArtifact(renderSequenceTerminal(...args))
 }

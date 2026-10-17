@@ -1,3 +1,4 @@
+import { terminalInputModel } from './ascii/terminal-model.ts'
 import type { AsciiContext, FamilyDescriptor, FamilyPositionedProjectionContext, FamilyPositionedView } from './agent/families.ts'
 import {
   projectArchitecturePositioned,
@@ -17,26 +18,26 @@ import {
   projectXyChartPositioned,
 } from './agent/family-layouts.ts'
 import type { DiagramKind } from './agent/types.ts'
-import { renderArchitectureAscii } from './ascii/architecture.ts'
+import { renderArchitectureTerminal } from './ascii/architecture.ts'
 import { flipCanvasVertically } from './ascii/canvas.ts'
-import { finishTerminalDocument } from './ascii/terminal-document.ts'
-import { renderClassAscii } from './ascii/class-diagram.ts'
+import { nativeTerminalRenderer, terminalArtifact, type TerminalArtifact } from './ascii/terminal-artifact.ts'
+import { renderClassTerminal } from './ascii/class-diagram.ts'
 import { convertToAsciiGraph } from './ascii/converter.ts'
 import { drawGraph } from './ascii/draw.ts'
-import { renderErAscii } from './ascii/er-diagram.ts'
-import { renderGanttAscii } from './ascii/gantt.ts'
-import { renderGitGraphAscii } from './ascii/gitgraph.ts'
+import { renderErTerminal } from './ascii/er-diagram.ts'
+import { renderGanttTerminal } from './ascii/gantt.ts'
+import { renderGitGraphTerminal } from './ascii/gitgraph.ts'
 import { createMapping } from './ascii/grid.ts'
-import { renderJourneyAscii } from './ascii/journey.ts'
-import { renderMindmapAscii } from './ascii/mindmap.ts'
-import { renderPieAscii } from './ascii/pie.ts'
-import { renderQuadrantAscii } from './ascii/quadrant.ts'
-import { renderRadarAscii } from './ascii/radar.ts'
-import { renderSankeyAscii } from './ascii/sankey.ts'
-import { renderSequenceAscii } from './ascii/sequence.ts'
-import { renderStateAscii } from './ascii/state.ts'
-import { renderTimelineAscii } from './ascii/timeline.ts'
-import { renderXYChartAscii } from './ascii/xychart.ts'
+import { renderJourneyTerminal } from './ascii/journey.ts'
+import { renderMindmapTerminal } from './ascii/mindmap.ts'
+import { renderPieTerminal } from './ascii/pie.ts'
+import { renderQuadrantTerminal } from './ascii/quadrant.ts'
+import { renderRadarTerminal } from './ascii/radar.ts'
+import { renderSankeyTerminal } from './ascii/sankey.ts'
+import { renderSequenceTerminal } from './ascii/sequence.ts'
+import { renderStateTerminal } from './ascii/state.ts'
+import { renderTimelineTerminal } from './ascii/timeline.ts'
+import { renderXYChartTerminal } from './ascii/xychart.ts'
 import { normalizeMermaidSource } from './mermaid-source.ts'
 import { resolveGanttFrontmatterConfig } from './gantt/parser.ts'
 import { parseGitGraph } from './gitgraph/parser.ts'
@@ -78,8 +79,8 @@ type BuiltinRenderHooks = Pick<FamilyDescriptor, 'normalizeRequest' | 'layout' |
 
 
 
-function renderFlowchartAscii(ctx: AsciiContext): string {
-  const parsed = parseMermaid(ctx.source.familyText)
+function renderFlowchartTerminal(ctx: AsciiContext, model = terminalInputModel(ctx.source.originalText, ctx.source.familyText)): TerminalArtifact {
+  const parsed = model.graph()
   checkAllGraphAuthoredStyles(parsed)
   const config = { ...ctx.config }
 
@@ -98,120 +99,120 @@ function renderFlowchartAscii(ctx: AsciiContext): string {
     flipCanvasVertically(graph.canvas)
   }
 
-  return finishTerminalDocument(ctx.config, graph.canvas, {
+  return terminalArtifact(graph.canvas, {
     colorMode: ctx.colorMode,
     theme: ctx.theme,
   })
 }
 
-function renderStateAsciiWithContext(ctx: AsciiContext): string {
+function renderStateTerminalWithContext(ctx: AsciiContext): TerminalArtifact {
   const parsed = parseMermaid(ctx.source.familyText)
   checkAllGraphAuthoredStyles(parsed)
   const config = { ...ctx.config }
   config.graphDirection = parsed.direction === 'LR' || parsed.direction === 'RL' ? 'LR' : 'TD'
   config.reverseDirection = parsed.direction === 'RL'
-  return renderStateAscii(parsed, config, ctx.colorMode, ctx.theme, ctx.options.targetWidth)
+  return renderStateTerminal(parsed, config, ctx.colorMode, ctx.theme, ctx.options.targetWidth)
 }
 
 
-function renderArchitectureAsciiWithContext(ctx: AsciiContext): string {
+function renderArchitectureTerminalWithContext(ctx: AsciiContext): TerminalArtifact {
   // The shared appearance resolver has already applied the documented
   // precedence (explicit RenderOptions > source config > defaults) and the
   // terminal projector has sanitized it. Re-reading raw themeVariables here
   // created a second, unsafe color authority unique to Architecture.
-  return renderArchitectureAscii(ctx.source.familyLines, ctx.config, ctx.colorMode, ctx.theme, ctx.options)
+  return renderArchitectureTerminal(ctx.source.familyLines, ctx.config, ctx.colorMode, ctx.theme, ctx.options)
 }
 
 const FLOWCHART_RENDER_HOOKS = {
   ...FLOWCHART_SVG_HOOKS,
   projectPositioned: positionedView(projectGraphPositioned),
-  renderAscii: renderFlowchartAscii,
+  renderAscii: nativeTerminalRenderer(renderFlowchartTerminal),
 } satisfies BuiltinRenderHooks
 
 const STATE_RENDER_HOOKS = {
   ...STATE_SVG_HOOKS,
   projectPositioned: positionedView(projectGraphPositioned),
-  renderAscii: renderStateAsciiWithContext,
+  renderAscii: nativeTerminalRenderer(renderStateTerminalWithContext),
 } satisfies BuiltinRenderHooks
 
 const ARCHITECTURE_RENDER_HOOKS = {
   ...ARCHITECTURE_SVG_HOOKS,
   projectPositioned: positionedView(projectArchitecturePositioned),
-  renderAscii: renderArchitectureAsciiWithContext,
+  renderAscii: nativeTerminalRenderer(renderArchitectureTerminalWithContext),
 } satisfies BuiltinRenderHooks
 
 const SEQUENCE_RENDER_HOOKS = {
   ...SEQUENCE_SVG_HOOKS,
   projectPositioned: positionedView(projectSequencePositioned),
-  renderAscii: ctx => renderSequenceAscii(ctx.source.familyText, ctx.config, ctx.colorMode, ctx.theme, (ctx.familyConfig as { sequence?: ReturnType<typeof resolveSequenceConfig> } | undefined)?.sequence ?? {}, ctx.options.targetWidth),
+  renderAscii: nativeTerminalRenderer(ctx => renderSequenceTerminal(ctx.source.familyText, ctx.config, ctx.colorMode, ctx.theme, (ctx.familyConfig as { sequence?: ReturnType<typeof resolveSequenceConfig> } | undefined)?.sequence ?? {}, ctx.options.targetWidth)),
 } satisfies BuiltinRenderHooks
 
 const CLASS_RENDER_HOOKS = {
   ...CLASS_SVG_HOOKS,
   projectPositioned: positionedView(projectClassPositioned),
-  renderAscii: ctx => renderClassAscii(
+  renderAscii: nativeTerminalRenderer(ctx => renderClassTerminal(
     ctx.source.familyText, ctx.config, ctx.colorMode, ctx.theme, ctx.options.targetWidth,
     normalizeMermaidSource(ctx.source.originalText).familyText,
-  ),
+  )),
 } satisfies BuiltinRenderHooks
 
 const ER_RENDER_HOOKS = {
   ...ER_SVG_HOOKS,
   projectPositioned: positionedView(projectErPositioned),
-  renderAscii: ctx => renderErAscii(ctx.source.familyText, ctx.config, ctx.colorMode, ctx.theme, ctx.options.targetWidth),
+  renderAscii: nativeTerminalRenderer(ctx => renderErTerminal(ctx.source.familyText, ctx.config, ctx.colorMode, ctx.theme, ctx.options.targetWidth)),
 } satisfies BuiltinRenderHooks
 
 const TIMELINE_RENDER_HOOKS = {
   ...TIMELINE_SVG_HOOKS,
   projectPositioned: positionedView(projectTimelinePositioned),
-  renderAscii: ctx => renderTimelineAscii(ctx.source.familyLines, ctx.config, ctx.colorMode, ctx.theme, ctx.options.maxWidth),
+  renderAscii: nativeTerminalRenderer(ctx => renderTimelineTerminal(ctx.source.familyLines, ctx.config, ctx.colorMode, ctx.theme, ctx.options.maxWidth)),
 } satisfies BuiltinRenderHooks
 
 const JOURNEY_RENDER_HOOKS = {
   ...JOURNEY_SVG_HOOKS,
   projectPositioned: positionedView(projectJourneyPositioned),
-  renderAscii: ctx => renderJourneyAscii(ctx.source.familyText, ctx.config, ctx.colorMode, ctx.theme, ctx.options.maxWidth, ctx.styleFace),
+  renderAscii: nativeTerminalRenderer(ctx => renderJourneyTerminal(ctx.source.familyText, ctx.config, ctx.colorMode, ctx.theme, ctx.options.maxWidth, ctx.styleFace)),
 } satisfies BuiltinRenderHooks
 
 const XYCHART_RENDER_HOOKS = {
   ...XYCHART_SVG_HOOKS,
   projectPositioned: positionedView(projectXyChartPositioned),
-  renderAscii: ctx => {
+  renderAscii: nativeTerminalRenderer(ctx => {
     const config = (ctx.familyConfig as { config?: ReturnType<typeof resolveXYChartConfig> } | undefined)?.config
     const theme = (ctx.familyAppearance as { theme?: ReturnType<typeof resolveXYChartTheme> } | undefined)?.theme
-    return renderXYChartAscii(ctx.source.familyText, ctx.config, ctx.colorMode, ctx.theme, {}, ctx.options.targetWidth, config && theme ? { config, theme } : undefined)
-  },
+    return renderXYChartTerminal(ctx.source.familyText, ctx.config, ctx.colorMode, ctx.theme, {}, ctx.options.targetWidth, config && theme ? { config, theme } : undefined)
+  }),
 } satisfies BuiltinRenderHooks
 
 const PIE_RENDER_HOOKS = {
   ...PIE_SVG_HOOKS,
   projectPositioned: positionedView(projectPiePositioned),
-  renderAscii: ctx => renderPieAscii(ctx.source.authoredPieFamilyLines ?? ctx.source.familyLines, ctx.config, ctx.colorMode, ctx.theme, {}, ctx.options.targetWidth, (ctx.familyConfig as { visual?: ReturnType<typeof resolvePieVisualConfig> } | undefined)?.visual, ctx.styleFace),
+  renderAscii: nativeTerminalRenderer(ctx => renderPieTerminal(ctx.source.authoredPieFamilyLines ?? ctx.source.familyLines, ctx.config, ctx.colorMode, ctx.theme, {}, ctx.options.targetWidth, (ctx.familyConfig as { visual?: ReturnType<typeof resolvePieVisualConfig> } | undefined)?.visual, ctx.styleFace)),
 } satisfies BuiltinRenderHooks
 
 const QUADRANT_RENDER_HOOKS = {
   ...QUADRANT_SVG_HOOKS,
   projectPositioned: positionedView(projectQuadrantPositioned),
-  renderAscii: ctx => renderQuadrantAscii(ctx.source.familyLines, ctx.config, ctx.colorMode, ctx.theme, ctx.options.targetWidth),
+  renderAscii: nativeTerminalRenderer(ctx => renderQuadrantTerminal(ctx.source.familyLines, ctx.config, ctx.colorMode, ctx.theme, ctx.options.targetWidth)),
 } satisfies BuiltinRenderHooks
 
 const RADAR_RENDER_HOOKS = {
   ...RADAR_SVG_HOOKS,
   projectPositioned: positionedView(projectRadarPositioned),
-  renderAscii: ctx => renderRadarAscii(ctx.source.familyLines, ctx.config, ctx.colorMode, ctx.theme, ctx.source.frontmatter, ctx.options.targetWidth, ctx.styleFace),
+  renderAscii: nativeTerminalRenderer(ctx => renderRadarTerminal(ctx.source.familyLines, ctx.config, ctx.colorMode, ctx.theme, ctx.source.frontmatter, ctx.options.targetWidth, ctx.styleFace)),
 } satisfies BuiltinRenderHooks
 
 const SANKEY_RENDER_HOOKS = {
   ...SANKEY_SVG_HOOKS,
   projectPositioned: positionedView(projectSankeyPositioned),
-  renderAscii: ctx => renderSankeyAscii(ctx.source.familyLines, ctx.config, ctx.colorMode, ctx.theme, ctx.source.frontmatter, ctx.options.targetWidth, (ctx.familyConfig as { visual?: ReturnType<typeof resolveSankeyVisualConfig> } | undefined)?.visual),
+  renderAscii: nativeTerminalRenderer(ctx => renderSankeyTerminal(ctx.source.familyLines, ctx.config, ctx.colorMode, ctx.theme, ctx.source.frontmatter, ctx.options.targetWidth, (ctx.familyConfig as { visual?: ReturnType<typeof resolveSankeyVisualConfig> } | undefined)?.visual)),
 } satisfies BuiltinRenderHooks
 
 const GANTT_RENDER_HOOKS = {
   ...GANTT_SVG_HOOKS,
   projectPositioned: positionedView(projectGanttPositioned),
-  renderAscii: ctx =>
-    renderGanttAscii(ctx.source.familyLines, ctx.config, ctx.colorMode, ctx.theme, undefined, {
+  renderAscii: nativeTerminalRenderer(ctx =>
+    renderGanttTerminal(ctx.source.familyLines, ctx.config, ctx.colorMode, ctx.theme, undefined, {
       maxWidth: ctx.options.maxWidth,
       today: ctx.options.ganttToday,
       resolvedConfig: (
@@ -222,26 +223,26 @@ const GANTT_RENDER_HOOKS = {
           | undefined
       )?.config,
       styleFace: ctx.styleFace,
-    }),
+    })),
 } satisfies BuiltinRenderHooks
 
 const MINDMAP_RENDER_HOOKS = {
   ...MINDMAP_SVG_HOOKS,
   projectPositioned: positionedView(projectMindmapPositioned),
-  renderAscii: ctx => renderMindmapAscii(parseMindmap(ctx.source.familyBody), ctx.config, ctx.colorMode, ctx.theme, ctx.options.targetWidth),
+  renderAscii: nativeTerminalRenderer(ctx => renderMindmapTerminal(parseMindmap(ctx.source.familyBody), ctx.config, ctx.colorMode, ctx.theme, ctx.options.targetWidth)),
 } satisfies BuiltinRenderHooks
 
 const GITGRAPH_RENDER_HOOKS = {
   ...GITGRAPH_SVG_HOOKS,
   projectPositioned: positionedView(projectGitGraphPositioned),
-  renderAscii: ctx => {
+  renderAscii: nativeTerminalRenderer(ctx => {
     const familyConfig = ctx.familyConfig as
       | {
           position?: ReturnType<typeof resolveGitGraphPositionConfig>
           title?: string
         }
       | undefined
-    return renderGitGraphAscii(
+    return renderGitGraphTerminal(
       parseGitGraph(ctx.source.familyBody, {
         mainBranchName: familyConfig?.position?.mainBranchName,
         mainBranchOrder: familyConfig?.position?.mainBranchOrder,
@@ -253,7 +254,7 @@ const GITGRAPH_RENDER_HOOKS = {
       ctx.options.targetWidth,
       (ctx.familyAppearance as { themeVariables?: Record<string, unknown> } | undefined)?.themeVariables,
     )
-  },
+  }),
 } satisfies BuiltinRenderHooks
 
 export const BUILTIN_RENDER_HOOKS = Object.freeze({

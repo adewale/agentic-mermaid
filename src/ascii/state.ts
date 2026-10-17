@@ -1,17 +1,17 @@
+import { terminalArtifact, serializeTerminalArtifact, type TerminalArtifact } from './terminal-artifact.ts'
 import type { MermaidGraph, StateNoteSpec } from '../types.ts'
-import type { AsciiConfig, AsciiGraph, AsciiTheme, CharRole, ColorMode } from './types.ts'
+import type { AsciiConfig, AsciiGraph, AsciiTheme, ColorMode } from './types.ts'
 import { convertToAsciiGraph } from './converter.ts'
 import { createMapping } from './grid.ts'
 import { drawGraph, drawMultiBox } from './draw.ts'
 import { wrapText } from './wrap.ts'
 import { displayText } from '../multiline-utils.ts'
 import { flipCanvasVertically, getCanvasSize, mkCanvas } from './canvas.ts'
-import { finishTerminalDocument } from './terminal-document.ts'
 
 interface Box { x: number; y: number; width: number; height: number }
 
 /** Shared graph rendering plus State-only note geometry. */
-export function renderStateAscii(parsed: MermaidGraph, config: AsciiConfig, colorMode: ColorMode, theme: AsciiTheme, targetWidth?: number): string {
+export function renderStateTerminal(parsed: MermaidGraph, config: AsciiConfig, colorMode: ColorMode, theme: AsciiTheme, targetWidth?: number): TerminalArtifact {
   const graph = convertToAsciiGraph(parsed, config)
   createMapping(graph)
   drawGraph(graph, 'cluster')
@@ -19,7 +19,7 @@ export function renderStateAscii(parsed: MermaidGraph, config: AsciiConfig, colo
   if (parsed.direction === 'BT') {
     flipCanvasVertically(graph.canvas)
   }
-  return finishTerminalDocument(config, graph.canvas, { colorMode, theme })
+  return terminalArtifact(graph.canvas, { colorMode, theme })
 }
 
 function overlayNotes(graph: AsciiGraph, notes: StateNoteSpec[], targetWidth?: number): void {
@@ -94,18 +94,22 @@ function drawConnector(graph: AsciiGraph, target: Box, note: Box, side: StateNot
   const noteY = note.y + Math.floor(note.height / 2)
   const startX = side === 'right' ? target.x + target.width : target.x - 1
   const endX = side === 'right' ? note.x - 1 : note.x + note.width
-  const horizontal = graph.config.useAscii ? '.' : '┄'
-  const vertical = graph.config.useAscii ? ':' : '┆'
-  for (let x = Math.min(startX, endX); x <= Math.max(startX, endX); x++) put(graph, x, targetY, horizontal, 'line', false)
-  for (let y = Math.min(targetY, noteY); y <= Math.max(targetY, noteY); y++) put(graph, endX, y, vertical, 'line', false)
-}
-
-function put(graph: AsciiGraph, x: number, y: number, char: string, role: CharRole, overwrite: boolean): void {
-  if (x < 0 || y < 0) return
-  if (!overwrite && graph.canvas.get(x, y) !== ' ') return
-  graph.canvas.put(x, y, char, { role })
+  const paint = { ascii: graph.config.useAscii, style: 'dotted' as const, role: 'line' as const }
+  const stroke = (x: number, y: number, mask: number): void => {
+    if (x >= 0 && y >= 0 && graph.canvas.get(x, y) === ' ') graph.canvas.stroke(x, y, mask, paint)
+  }
+  for (let x = Math.min(startX, endX); x <= Math.max(startX, endX); x++) {
+    const bend = x === endX && targetY !== noteY
+    stroke(x, targetY, bend ? (side === 'right' ? 8 : 2) | (noteY > targetY ? 4 : 1) : 10)
+  }
+  for (let y = Math.min(targetY, noteY); y <= Math.max(targetY, noteY); y++) if (y !== targetY) stroke(endX, y, 5)
 }
 
 function intersects(a: Box, b: Box): boolean {
   return a.x < b.x + b.width && b.x < a.x + a.width && a.y < b.y + b.height && b.y < a.y + a.height
+}
+
+/** Compatibility string entry point; native dispatch retains the drawing. */
+export function renderStateAscii(...args: Parameters<typeof renderStateTerminal>): string {
+  return serializeTerminalArtifact(renderStateTerminal(...args))
 }

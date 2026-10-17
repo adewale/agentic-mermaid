@@ -1,7 +1,5 @@
 import type { Canvas, DrawingCoord } from './types.ts'
-import { TerminalDocument } from './terminal-document.ts'
-import { graphemes } from '../shared/graphemes.ts'
-import { visualWidth } from './width.ts'
+import { TerminalDocument, measuredText } from './terminal-document.ts'
 
 /** Legacy dimensions are inclusive; the document itself uses width/height. */
 export function mkCanvas(x: number, y: number): Canvas {
@@ -18,20 +16,11 @@ export function mergeCanvases(base: Canvas, offset: DrawingCoord, _useAscii: boo
 export function flipCanvasVertically(canvas: Canvas): Canvas { canvas.flip(false, true); return canvas }
 
 export function drawText(canvas: Canvas, start: DrawingCoord, text: string, forceOverwrite = false): void {
-  if (forceOverwrite) { canvas.text(start.x, start.y, text, { role: 'text' }); return }
-  let x = start.x
-  let run = '', runStart = x
-  const flush = (): void => { if (run) canvas.text(runStart, start.y, run, { role: 'text' }); run = '' }
-  for (const glyph of graphemes(text)) {
-    const width = visualWidth(glyph)
-    if (width === 0) continue
-    if (Array.from({ length: width }, (_, offset) => canvas.get(x + offset, start.y)).every(cell => cell === ' ')) {
-      if (!run) runStart = x
-      run += glyph
-    } else flush()
-    x += width
+  const label = measuredText(text)
+  if (!forceOverwrite) for (let row = 0; row < label.height; row++) {
+    for (let column = 0; column < label.width; column++) if (canvas.get(start.x + column, start.y + row) !== ' ') return
   }
-  flush()
+  canvas.textBlock(start.x, start.y, label, { role: 'text' })
 }
 export function setCanvasSizeToGrid(canvas: Canvas, columns: Map<number, number>, rows: Map<number, number>): void {
   canvas.resize([...columns.values()].reduce((a, b) => a + b, 0), [...rows.values()].reduce((a, b) => a + b, 0))

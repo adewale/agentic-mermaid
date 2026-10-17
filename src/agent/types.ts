@@ -1617,6 +1617,8 @@ export interface RenderedRegion {
   bounds: { x: Finite; y: Finite; w: Finite; h: Finite }
   /** Exact occupied terminal cells; repeated occurrences need not form one rectangle. */
   cellSpans?: Array<{ row: number; start: number; end: number }>
+  /** Semantic route cells occluded by opaque chart marks; excluded from visible cellSpans. */
+  occludedCellSpans?: Array<{ row: number; start: number; end: number }>
   sourceLine?: number
 }
 

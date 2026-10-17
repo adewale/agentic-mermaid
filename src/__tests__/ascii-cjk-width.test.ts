@@ -17,13 +17,13 @@ describe('ASCII CJK/fullwidth display width', () => {
     expect(visualWidth('AΩ🙂Ｂ')).toBe(6)
   })
 
-  it('non-forced wide text never overwrites occupied topology with a continuation cell', () => {
-    for (const grapheme of ['界', '🙂', '👩‍🔬']) {
+  it('non-forced text is admitted completely or leaves occupied topology intact', () => {
+    for (const text of ['界', '🙂', '👩‍🔬', 'AB', 'A🙂']) {
       const canvas = mkCanvas(2, 0)
       canvas.put(1, 0, '►', { kind: 'marker', role: 'arrow' })
-      drawText(canvas, { x: 0, y: 0 }, grapheme)
-      expect(canvas.get(0, 0), grapheme).toBe(' ')
-      expect(canvas.get(1, 0), grapheme).toBe('►')
+      drawText(canvas, { x: 0, y: 0 }, text)
+      expect(canvas.get(0, 0), text).toBe(' ')
+      expect(canvas.get(1, 0), text).toBe('►')
     }
   })
 

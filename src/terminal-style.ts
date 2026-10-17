@@ -265,6 +265,19 @@ export function projectTerminalStyle(
   return Object.freeze({ ...receipt, diagnostics: Object.freeze(diagnostics), digest: renderContractDigest(receipt) })
 }
 
+/** Add optional graphical evidence without resolving terminal appearance twice. */
+export function withTerminalConnectorScene(
+  appearance: ResolvedTerminalStyle,
+  scene: SceneDoc | null,
+  failed = false,
+): ResolvedTerminalStyle {
+  const diagnostics = [...appearance.diagnostics]
+  const connectorProjection = projectConnectorScene(scene, diagnostics, failed)
+  const { digest: _digest, ...base } = appearance
+  const receipt = { ...base, diagnostics, connectorProjection }
+  return Object.freeze({ ...receipt, diagnostics: Object.freeze(diagnostics), digest: renderContractDigest(receipt) })
+}
+
 function reportTerminalControlReplacement(diagnostics: TerminalProjectionDiagnostic[]): void {
   if (diagnostics.some(diagnostic => diagnostic.code === 'TERMINAL_CONTROL_CHARACTERS_REPLACED')) return
   diagnostics.push({

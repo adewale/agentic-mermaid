@@ -94,6 +94,7 @@ function terminalRegion(region: AsciiRegion, parents: ReadonlyMap<string, string
       h: toFinite(Math.max(1, region.rowSpan ?? 1)),
     },
     ...(region.ownedCellSpans ? { cellSpans: region.ownedCellSpans } : {}),
+    ...(region.occludedCellSpans ? { occludedCellSpans: region.occludedCellSpans } : {}),
     ...(region.sourceLine !== undefined ? { sourceLine: region.sourceLine } : {}),
   }
 }

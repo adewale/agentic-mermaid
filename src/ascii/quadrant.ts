@@ -1,3 +1,4 @@
+import { terminalArtifact, serializeTerminalArtifact, type TerminalArtifact } from './terminal-artifact.ts'
 // ============================================================================
 // ASCII renderer — Quadrant chart
 //
@@ -13,7 +14,7 @@
 import { parseQuadrantChart } from '../quadrant/parser.ts'
 import { resolvePointVisual } from '../quadrant/point-style.ts'
 import type { AsciiConfig, AsciiTheme, ColorMode } from './types.ts'
-import { TerminalDocument, finishTerminalDocument } from './terminal-document.ts'
+import { TerminalDocument, measuredText } from './terminal-document.ts'
 import { visualWidth } from './width.ts'
 import { wrapText } from './wrap.ts'
 import { oneRowDisplayText as oneRow } from './multiline-utils.ts'
@@ -23,35 +24,20 @@ import { displayText } from '../multiline-utils.ts'
 const GRID_W = 41
 const GRID_H = 21
 
-const UNI = {
-  tl: '┌', tr: '┐', bl: '└', br: '┘',
-  h: '─', v: '│',
-  tDown: '┬', tUp: '┴', tLeft: '┤', tRight: '├', cross: '┼',
-  point: '●',
-} as const
-
-const ASC = {
-  tl: '+', tr: '+', bl: '+', br: '+',
-  h: '-', v: '|',
-  tDown: '+', tUp: '+', tLeft: '+', tRight: '+', cross: '+',
-  point: '*',
-} as const
-
-export function renderQuadrantAscii(
+export function renderQuadrantTerminal(
   lines: string[],
   config: AsciiConfig,
   colorMode: ColorMode,
   theme: AsciiTheme,
   targetWidth?: number,
-): string {
+): TerminalArtifact {
   targetWidth ??= config.maxWidth
   const chart = parseQuadrantChart(lines)
-  const ch = config.useAscii ? ASC : UNI
   const pointVisuals = chart.points.map(point => resolvePointVisual(point, chart.classDefs, { radius: 5 }))
   const pointMarkers = pointVisuals.map(point => {
     const hollow = point.fill?.trim().toLowerCase() === 'none' || point.fill?.trim().toLowerCase() === 'transparent'
     return {
-      glyph: hollow ? (config.useAscii ? 'o' : '○') : ch.point,
+      glyph: hollow ? (config.useAscii ? 'o' : '○') : (config.useAscii ? '*' : '●'),
       color: (hollow ? point.stroke : point.fill) ?? pointColor(theme),
     }
   })
@@ -59,14 +45,13 @@ export function renderQuadrantAscii(
   // Interior grid (rows × cols of single characters). Row 0 = top.
   const grid = new TerminalDocument(GRID_W + 2, GRID_H + 2)
   const frameOwner = { id: 'quadrant-plot', kind: 'plot' as const }
-  const put = (col: number, row: number, glyph: string): void => grid.put(col + 1, row + 1, glyph, { role: 'border', kind: 'stroke', owner: frameOwner })
+  const stroke = (col: number, row: number, ports: number): void => grid.stroke(col, row, ports, { ascii: config.useAscii, role: 'border', owner: frameOwner })
   const midCol = Math.floor(GRID_W / 2)
   const midRow = Math.floor(GRID_H / 2)
 
   // Dividers.
-  for (let r = 0; r < GRID_H; r++) put(midCol, r, ch.v)
-  for (let c = 0; c < GRID_W; c++) put(c, midRow, ch.h)
-  put(midCol, midRow, ch.cross)
+  for (let r = 0; r < GRID_H; r++) stroke(midCol + 1, r + 1, 5)
+  for (let c = 0; c < GRID_W; c++) stroke(c + 1, midRow + 1, 10)
 
   // Points — scaled into the grid. x grows right, y grows up (invert row).
   // Plotted first so quadrant labels (decorative) never clobber a data point.
@@ -113,15 +98,16 @@ export function renderQuadrantAscii(
     for (const text of wrapText(displayText(chart.title), targetWidth)) document.line([{ text: centerText(text, GRID_W + 2), role: 'text', textGroup: 'title', owner: { id: 'title', kind: 'label' } }])
   }
 
-  grid.text(0, 0, ch.tl + ch.h.repeat(GRID_W) + ch.tr, { role: 'border', kind: 'stroke', owner: frameOwner })
-  for (let r = 0; r < GRID_H; r++) {
-    // The mid divider row meets the border as ├ … ┤ junctions.
-    const left = r === midRow ? ch.tRight : ch.v
-    const right = r === midRow ? ch.tLeft : ch.v
-    grid.put(0, r + 1, left, { role: 'border', kind: 'stroke', owner: frameOwner })
-    grid.put(GRID_W + 1, r + 1, right, { role: 'border', kind: 'stroke', owner: frameOwner })
+  stroke(0, 0, 6); stroke(GRID_W + 1, 0, 12)
+  stroke(0, GRID_H + 1, 3); stroke(GRID_W + 1, GRID_H + 1, 9)
+  for (let col = 1; col <= GRID_W; col++) {
+    stroke(col, 0, col === midCol + 1 ? 14 : 10)
+    stroke(col, GRID_H + 1, col === midCol + 1 ? 11 : 10)
   }
-  grid.text(0, GRID_H + 1, ch.bl + ch.h.repeat(GRID_W) + ch.br, { role: 'border', kind: 'stroke', owner: frameOwner })
+  for (let row = 1; row <= GRID_H; row++) {
+    stroke(0, row, row === midRow + 1 ? 7 : 5)
+    stroke(GRID_W + 1, row, row === midRow + 1 ? 13 : 5)
+  }
   grid.region(frameOwner, { x: 0, y: 0, width: GRID_W + 2, height: GRID_H + 2 })
   for (const [number, x, y, width, height] of [
     [1, midCol + 2, 1, GRID_W - midCol - 1, midRow],
@@ -140,8 +126,8 @@ export function renderQuadrantAscii(
     const nearLines = wrapText(near, columnWidth)
     const farLines = far ? wrapText(far, columnWidth) : []
     const row = document.height
-    document.text(0, row, nearLines.join('\n'), { role: 'text', owner: { id: 'x-axis-near', kind: 'label' } })
-    if (far) document.text(width - Math.max(...farLines.map(visualWidth)), row, farLines.join('\n'), { role: 'text', owner: { id: 'x-axis-far', kind: 'label' } })
+    document.textBlock(0, row, nearLines.join('\n'), { role: 'text', owner: { id: 'x-axis-near', kind: 'label' } })
+    if (far) document.textBlock(width - Math.max(...farLines.map(visualWidth)), row, farLines.join('\n'), { role: 'text', owner: { id: 'x-axis-far', kind: 'label' } })
   }
   // y-axis labels as a separate annotated line.
   if (chart.yAxis) {
@@ -151,17 +137,17 @@ export function renderQuadrantAscii(
     const whole = prefix + near + (far ? `  |  top: ${far}` : '')
     if (targetWidth === undefined || visualWidth(whole) <= targetWidth) {
       document.line([
-        { text: prefix, role: 'border', kind: 'stroke' },
+        { text: prefix, role: 'border', kind: 'text' },
         { text: near, role: 'text', owner: { id: 'y-axis-near', kind: 'label' } },
-        ...(far ? [{ text: '  |  top: ', role: 'border' as const, kind: 'stroke' as const }, { text: far, role: 'text' as const, owner: { id: 'y-axis-far', kind: 'label' as const } }] : []),
+        ...(far ? [{ text: '  |  top: ', role: 'border' as const, kind: 'text' as const }, { text: far, role: 'text' as const, owner: { id: 'y-axis-far', kind: 'label' as const } }] : []),
       ])
     } else {
       for (const [id, label, value] of [['y-axis-near', 'bottom: ', near], ['y-axis-far', 'top: ', far]] as const) {
         if (value === undefined) continue
         const lines = wrapText(value, Math.max(1, targetWidth - visualWidth(label)))
         const row = document.height
-        document.text(0, row, label, { role: 'border', kind: 'stroke' })
-        document.text(visualWidth(label), row, lines.join('\n'), { role: 'text', owner: { id, kind: 'label' } })
+        document.textBlock(0, row, label, { role: 'border', kind: 'text' })
+        document.textBlock(visualWidth(label), row, lines.join('\n'), { role: 'text', owner: { id, kind: 'label' } })
       }
     }
   }
@@ -172,7 +158,7 @@ export function renderQuadrantAscii(
     const prefix = `quadrant-${quadrant}: `
     const lines = wrapText(text, Math.max(1, (targetWidth ?? GRID_W + 2) - visualWidth(prefix)))
     lines.forEach((line, index) => document.line([
-      { text: index === 0 ? prefix : ' '.repeat(visualWidth(prefix)), role: 'border', kind: 'stroke' },
+      { text: index === 0 ? prefix : ' '.repeat(visualWidth(prefix)), role: 'border', kind: 'text' },
       { text: line, role: 'text', textGroup: 'label', owner: { id: `quadrant-label#${quadrant}`, kind: 'label' } },
     ]))
   }
@@ -192,7 +178,7 @@ export function renderQuadrantAscii(
     }
   }
 
-  return finishTerminalDocument(config, document, { colorMode, theme })
+  return terminalArtifact(document, { colorMode, theme })
 }
 
 function pointColor(theme: AsciiTheme): string {
@@ -224,16 +210,16 @@ function placeLabel(
   const regionH = rowEnd - rowStart
   const text = oneRow(label)
   if (regionW <= 0 || regionH <= 0) return text
-  const lines = wrapText(text, regionW)
-  if (lines.length > regionH || lines.some(line => visualWidth(line) > regionW)) return text
+  const lines = wrapText(text, regionW).map(measuredText)
+  if (lines.length > regionH || lines.some(line => line.width > regionW)) return text
   const preferred = top ? rowStart + 1 : rowStart + Math.floor((regionH - lines.length) / 2)
   const candidates = [preferred, ...Array.from({ length: regionH - lines.length + 1 }, (_, offset) => rowStart + offset)]
   for (const row of new Set(candidates)) {
     if (row < rowStart || row + lines.length > rowEnd) continue
-    const placements = lines.map((line, index) => ({ text: line, row: row + index, column: colStart + Math.floor((regionW - visualWidth(line)) / 2) }))
-    const free = placements.every(line => Array.from({ length: visualWidth(line.text) }, (_, offset) => !occupied.has(`${line.row},${line.column + offset}`)).every(Boolean))
+    const placements = lines.map((line, index) => ({ text: line, row: row + index, column: colStart + Math.floor((regionW - line.width) / 2) }))
+    const free = placements.every(line => Array.from({ length: line.text.width }, (_, offset) => !occupied.has(`${line.row},${line.column + offset}`)).every(Boolean))
     if (!free) continue
-    for (const line of placements) grid.text(line.column + 1, line.row + 1, line.text, { role: 'text', textGroup: 'label', owner: { id: `quadrant-label#${quadrant}`, kind: 'label' } })
+    for (const line of placements) grid.textBlock(line.column + 1, line.row + 1, line.text, { role: 'text', textGroup: 'label', owner: { id: `quadrant-label#${quadrant}`, kind: 'label' } })
     return
   }
   return text
@@ -244,4 +230,9 @@ function centerText(text: string, width: number): string {
   if (textWidth >= width) return text
   const pad = Math.floor((width - textWidth) / 2)
   return ' '.repeat(pad) + text
+}
+
+/** Compatibility string entry point; native dispatch retains the drawing. */
+export function renderQuadrantAscii(...args: Parameters<typeof renderQuadrantTerminal>): string {
+  return serializeTerminalArtifact(renderQuadrantTerminal(...args))
 }

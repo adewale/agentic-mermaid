@@ -1,15 +1,15 @@
+import { serializeTerminalArtifact } from '../ascii/terminal-artifact.ts'
 import { describe, expect, test } from 'bun:test'
 import { DEFAULT_ASCII_THEME } from '../ascii/ansi.ts'
-import { renderMermaidASCII } from '../ascii/index.ts'
-import { renderXYChartAscii } from '../ascii/xychart.ts'
-import { beginTerminalCapture, capturedTerminalDocument } from '../ascii/terminal-document.ts'
+import { renderMermaidASCII, renderMermaidASCIIWithReceipt } from '../ascii/index.ts'
+import { renderXYChartTerminal as renderXYChartAscii } from '../ascii/xychart.ts'
+import { terminalDocumentOf } from '../ascii/terminal-document.ts'
 import type { AsciiConfig } from '../ascii/types.ts'
 
 function chart(source: string, useAscii = false) {
   const config: AsciiConfig = { useAscii, paddingX: 5, paddingY: 5, boxBorderPadding: 1, graphDirection: 'TD' }
-  beginTerminalCapture(config)
-  const text = renderXYChartAscii(source, config, 'none', DEFAULT_ASCII_THEME)
-  return { text, document: capturedTerminalDocument(config)! }
+  const artifact = renderXYChartAscii(source, config, 'none', DEFAULT_ASCII_THEME)
+  return { text: serializeTerminalArtifact(artifact), document: artifact.document }
 }
 
 const weight = (glyph: string): number => glyph === '█' || glyph === '#' ? 1 : /[▄▀▌▐]/.test(glyph) ? 0.5 : 0
@@ -52,6 +52,46 @@ describe('terminal XY numeric projection', () => {
         return [...document.entries()].filter(([x]) => x === label.canvasColStart).reduce((sum, [, , cell]) => sum + weight(cell.glyph), 0)
       })
       expect(lengths).toEqual([10, 0, 10])
+    }
+  })
+
+  test.each([
+    [false, '20,50,80,40'], [false, '22.5,52.5,82.5,42.5'],
+    [true, '20,50,80,40'], [true, '22.5,52.5,82.5,42.5'],
+  ] as const)('mixed lines preserve the visible quantized bar coverage (horizontal=%s, bars=%s)', (horizontal, values) => {
+    const source = `xychart-beta${horizontal ? ' horizontal' : ''}\nx-axis [A,B,C,D]\ny-axis 0 --> 100\nbar [${values}]`
+    for (const useAscii of [false, true]) {
+      const render = (input: string) => {
+        const receipt = renderMermaidASCIIWithReceipt(input, { colorMode: 'none', useAscii })
+        const document = terminalDocumentOf(receipt)!
+        return { document, plot: document.regions().find(region => region.id === 'plot')!, rows: receipt.text.split('\n') }
+      }
+      const bars = render(source)
+      for (const values of ['20,50,80,40', '0,50,100,25', '10,10,10,10']) {
+        const mixed = render(`${source}\nline [${values}]`)
+        const dx = mixed.plot.canvasColStart - bars.plot.canvasColStart
+        const dy = mixed.plot.canvasRow - bars.plot.canvasRow
+        let originalCoverage = 0, visibleCoverage = 0
+        for (const [x, y, cell] of bars.document.entries()) {
+          if (!cell.owners.some(owner => owner.id === 'series-0') || weight(cell.glyph) === 0) continue
+          const emitted = mixed.rows[y + dy]![x + dx]!
+          expect(emitted, `bar cell ${x},${y} with line [${values}]`).toBe(cell.glyph)
+          originalCoverage += weight(cell.glyph)
+          visibleCoverage += weight(emitted)
+          expect(mixed.document.cell(x + dx, y + dy)?.owners.map(owner => owner.id)).not.toContain('series-1')
+        }
+        expect(visibleCoverage).toBe(originalCoverage)
+        // A line can be hidden behind a filled mark, but remains visible in
+        // the plot outside the marks. Neither legend nor ownership alone
+        // establishes that it survived in the drawing.
+        const visibleLine = [...mixed.document.entries()].filter(([x, y, cell]) =>
+          x >= mixed.plot.canvasColStart && x < mixed.plot.canvasColEnd &&
+          y >= mixed.plot.canvasRow && y < mixed.plot.canvasRow + mixed.plot.rowSpan! &&
+          cell.owners.some(owner => owner.id === 'series-1'))
+        expect(visibleLine.length).toBeGreaterThan(0)
+        for (const [x, y, cell] of visibleLine) expect(mixed.rows[y]![x]).toBe(cell.glyph)
+        expect(mixed.document.diagnostics.filter(diagnostic => /COLLISION|OVERLAP/.test(diagnostic.code))).toEqual([])
+      }
     }
   })
 

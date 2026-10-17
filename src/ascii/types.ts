@@ -8,6 +8,7 @@
 
 import type { NodeShape, EdgeMarker, RouteClass } from '../types.ts'
 import type { TerminalDocument } from './terminal-document.ts'
+import type { OccupancyMap } from './occupancy.ts'
 
 // Re-export shared graph types for convenience
 export type { NodeShape, EdgeMarker }
@@ -201,7 +202,7 @@ export interface AsciiGraph {
   edges: AsciiEdge[]
   canvas: Canvas
   /** Grid occupancy map — maps "x,y" keys to node references. */
-  grid: Map<string, AsciiNode>
+  grid: OccupancyMap<AsciiNode>
   columnWidth: Map<number, number>
   rowHeight: Map<number, number>
   subgraphs: AsciiSubgraph[]

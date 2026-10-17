@@ -1,3 +1,4 @@
+import { OccupancyMap } from '../ascii/occupancy.ts'
 import { describe, expect, it } from 'bun:test'
 import fc from 'fast-check'
 
@@ -80,7 +81,7 @@ function makeGraph(direction: 'TD' | 'LR' = 'TD'): AsciiGraph {
     nodes: [],
     edges: [],
     canvas: new TerminalDocument(1, 0),
-    grid: new Map(),
+    grid: new OccupancyMap(),
     columnWidth: new Map(),
     rowHeight: new Map(),
     subgraphs: [],

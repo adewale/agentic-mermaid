@@ -1,3 +1,4 @@
+import { terminalArtifact, serializeTerminalArtifact, type TerminalArtifact } from './terminal-artifact.ts'
 // ============================================================================
 // ASCII renderer — Sankey diagram
 //
@@ -25,7 +26,7 @@ import type { SankeyVisualConfig } from '../sankey/config.ts'
 import { resolveSankeyVisualConfig } from '../sankey/config.ts'
 import { formatSankeyValue, sankeyLinkId } from '../sankey/layout.ts'
 import { parseSankeyDiagram } from '../sankey/parser.ts'
-import { TerminalDocument, finishTerminalDocument, type TerminalOwner } from './terminal-document.ts'
+import { TerminalDocument, type TerminalOwner } from './terminal-document.ts'
 import type { AsciiConfig, AsciiTheme, ColorMode } from './types.ts'
 import { visualWidth } from './width.ts'
 import { wrapText } from './wrap.ts'
@@ -36,7 +37,7 @@ import { tryParseCssColor } from '../shared/color-math.ts'
 /** Maximum bar length in characters (the largest flow fills this). */
 const MAX_BAR = 20
 
-export function renderSankeyAscii(lines: string[], config: AsciiConfig, colorMode: ColorMode, theme: AsciiTheme, frontmatter: MermaidFrontmatterMap = {}, targetWidth?: number, resolvedVisual?: SankeyVisualConfig): string {
+export function renderSankeyTerminal(lines: string[], config: AsciiConfig, colorMode: ColorMode, theme: AsciiTheme, frontmatter: MermaidFrontmatterMap = {}, targetWidth?: number, resolvedVisual?: SankeyVisualConfig): TerminalArtifact {
   targetWidth ??= config.maxWidth
   const visual = resolvedVisual ?? resolveSankeyVisualConfig(frontmatter)
   const title = typeof frontmatter.title === 'string' ? frontmatter.title : undefined
@@ -163,7 +164,7 @@ export function renderSankeyAscii(lines: string[], config: AsciiConfig, colorMod
             { text: line, role: 'text', textGroup: id, owner: { id: link.target, kind: 'node' } },
             { text: ' '.repeat(Math.max(0, labelWidth - visualWidth(line)) + 2) },
             { text: valuePart, role: 'text', owner: { id: generated(`${id}:value`, JSON.stringify(['link-value', id])), kind: 'label', parentId: id } },
-            { text: bar, role: 'arrow', kind: 'stroke', color, owner: edgeOwner },
+            { text: bar, role: 'arrow', kind: 'mark', color, owner: edgeOwner },
           ])
         }
       })
@@ -172,10 +173,15 @@ export function renderSankeyAscii(lines: string[], config: AsciiConfig, colorMod
     if (sourceIndex < sources.length - 1) document.line()
   })
 
-  return finishTerminalDocument(config, document, { colorMode, theme, trimEnd: true })
+  return terminalArtifact(document, { colorMode, theme, trimEnd: true })
 }
 
 function padStartToVisualWidth(text: string, width: number): string {
   const pad = width - visualWidth(text)
   return pad > 0 ? ' '.repeat(pad) + text : text
+}
+
+/** Compatibility string entry point; native dispatch retains the drawing. */
+export function renderSankeyAscii(...args: Parameters<typeof renderSankeyTerminal>): string {
+  return serializeTerminalArtifact(renderSankeyTerminal(...args))
 }

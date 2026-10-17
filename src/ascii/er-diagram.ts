@@ -1,15 +1,17 @@
+import { terminalArtifact, serializeTerminalArtifact, type TerminalArtifact } from './terminal-artifact.ts'
 // ER cards and relationship ports are allocated in integer terminal cells.
 // Source semantics, complete labels and family cardinalities stay distinct.
 import { parseErDiagram } from '../er/parser.ts'
 import type { ErEntity, ErAttribute, Cardinality } from '../er/types.ts'
 import type { AsciiConfig, AsciiTheme, ColorMode } from './types.ts'
-import { TerminalDocument, finishTerminalDocument, type TerminalOwner } from './terminal-document.ts'
+import { TerminalDocument, type TerminalOwner } from './terminal-document.ts'
 import { drawMultiBox } from './draw.ts'
 import { visualWidth } from './width.ts'
 import { wrapText } from './wrap.ts'
 import { displayText, normalizeBrTags } from '../multiline-utils.ts'
 import { checkAllClassLikeAuthoredStyles } from '../shared/style-props.ts'
 import { terminalIds } from './identity.ts'
+import { paintTerminalFrame } from './terminal-geometry.ts'
 import { allocateBoxRoutes, boxFaceSizes, classLikePaint, paintBoxRoute, paintBoxText, reverseBoxes, type BoxPort, type BoxRelation, type TerminalBox } from './class-like-layout.ts'
 
 interface PlacedEntity extends TerminalBox { entity: ErEntity; sections: string[][] }
@@ -28,17 +30,17 @@ function cardinalityGlyphs(card: Cardinality, port: BoxPort, ascii: boolean): st
   return [many, ascii ? 'o' : '○']
 }
 
-export function renderErAscii(text: string, config: AsciiConfig, colorMode?: ColorMode, theme?: AsciiTheme, targetWidth?: number): string {
+export function renderErTerminal(text: string, config: AsciiConfig, colorMode?: ColorMode, theme?: AsciiTheme, targetWidth?: number): TerminalArtifact {
   targetWidth ??= config.targetWidth ?? config.maxWidth
   const diagram = parseErDiagram(text.split('\n').map(line => line.trim()).filter(line => line && !line.startsWith('%%')))
   diagram.title ??= config.title === undefined ? undefined : normalizeBrTags(config.title)
-  const finish = (doc: TerminalDocument): string => {
-    if (!diagram.title) return finishTerminalDocument(config, doc, { colorMode, theme })
+  const finish = (doc: TerminalDocument): TerminalArtifact => {
+    if (!diagram.title) return terminalArtifact(doc, { colorMode, theme })
     const lines = wrapText(displayText(diagram.title), targetWidth)
     const titled = new TerminalDocument(Math.max(doc.width, ...lines.map(visualWidth)), doc.height ? doc.height + lines.length + 1 : lines.length)
     titled.scope({ id: 'title', kind: 'label' }, () => lines.forEach((line, row) => titled.text(Math.floor((titled.width - visualWidth(line)) / 2), row, line)))
     if (doc.height) titled.overlay(doc, 0, lines.length + 1)
-    return finishTerminalDocument(config, titled, { colorMode, theme })
+    return terminalArtifact(titled, { colorMode, theme })
   }
   checkAllClassLikeAuthoredStyles(diagram.classDefs, diagram.entities)
   if (!diagram.entities.length && !diagram.groups.length) return finish(new TerminalDocument())
@@ -145,17 +147,13 @@ export function renderErAscii(text: string, config: AsciiConfig, colorMode?: Col
   }
   const routes = allocateBoxRoutes([...placed.values(), ...groupFrames], relations, direction), doc = new TerminalDocument()
   for (const group of [...groupFrames].reverse()) {
-    const owner: TerminalOwner = { id: group.id, kind: 'cluster', parentId: group.parentId, members: group.members }
-    doc.region(owner, { x: group.x, y: group.y, width: group.width, height: group.height })
-    const H = config.useAscii ? '-' : '─', V = config.useAscii ? '|' : '│'
-    for (let x = group.x + 1; x < group.x + group.width - 1; x++) { doc.put(x, group.y, H, { owner, role: 'border' }); doc.put(x, group.y + group.height - 1, H, { owner, role: 'border' }) }
-    for (let y = group.y + 1; y < group.y + group.height - 1; y++) { doc.put(group.x, y, V, { owner, role: 'border' }); doc.put(group.x + group.width - 1, y, V, { owner, role: 'border' }) }
-    for (const [dx, dy, glyph] of [[0, 0, config.useAscii ? '+' : '┌'], [group.width - 1, 0, config.useAscii ? '+' : '┐'], [0, group.height - 1, config.useAscii ? '+' : '└'], [group.width - 1, group.height - 1, config.useAscii ? '+' : '┘']] as const) doc.put(group.x + dx, group.y + dy, glyph, { owner, role: 'border' })
+    const owner = doc.element({ id: group.id, kind: 'cluster', parentId: group.parentId, members: group.members })
+    paintTerminalFrame(doc, group, owner, config.useAscii)
     doc.scope(owner, () => group.labelLines.forEach((line, row) => doc.text(group.x + 2, group.y + row, line)))
   }
   for (const route of routes) {
     const rel = diagram.relationships[relations.findIndex(relation => relation.id === route.relation.id)]!
-    const owner: TerminalOwner = { id: route.relation.id, kind: 'edge', from: rel.entity1, to: rel.entity2 }
+    const owner = doc.element({ id: route.relation.id, kind: 'edge', from: rel.entity1, to: rel.entity2 })
     paintBoxRoute(doc, route, owner, config.useAscii, !rel.identifying)
     for (const [port, card] of [[route.source, rel.cardinality1], [route.target, rel.cardinality2]] as const) {
       const dx = port.side === 'L' ? -1 : port.side === 'R' ? 1 : 0, dy = port.side === 'T' ? -1 : port.side === 'B' ? 1 : 0
@@ -164,7 +162,7 @@ export function renderErAscii(text: string, config: AsciiConfig, colorMode?: Col
     paintBoxText(doc, route.label, owner)
   }
   for (const box of placed.values()) {
-    const owner: TerminalOwner = { id: box.id, kind: 'node', parentId: box.entity.groupId }
+    const owner = doc.element({ id: box.id, kind: 'node', parentId: box.entity.groupId })
     doc.region(owner, { x: box.x, y: box.y, width: box.width, height: box.height }); doc.fill(box.x, box.y, box.width, box.height, { owner, kind: 'surface' })
     const card = drawMultiBox(box.sections, config.useAscii, 1, { width: box.width, height: box.height })
     const style = Object.assign({}, diagram.classDefs.get('default'), ...(box.entity.className ?? '').split(/\s+/).map(name => diagram.classDefs.get(name)), box.entity.inlineStyle)
@@ -178,4 +176,9 @@ export function renderErAscii(text: string, config: AsciiConfig, colorMode?: Col
     doc.scope(owner, () => doc.overlay(card, box.x, box.y))
   }
   return finish(doc)
+}
+
+/** Compatibility string entry point; native dispatch retains the drawing. */
+export function renderErAscii(...args: Parameters<typeof renderErTerminal>): string {
+  return serializeTerminalArtifact(renderErTerminal(...args))
 }

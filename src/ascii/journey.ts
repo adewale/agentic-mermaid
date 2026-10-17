@@ -1,3 +1,4 @@
+import { terminalArtifact, serializeTerminalArtifact, type TerminalArtifact } from './terminal-artifact.ts'
 // ============================================================================
 // ASCII renderer — journey diagrams
 //
@@ -10,7 +11,7 @@ import type { JourneyDiagram } from '../journey/types.ts'
 import { preprocessMermaidLines } from '../mermaid-source.ts'
 import { displayText } from '../multiline-utils.ts'
 import { DEFAULT_ASCII_THEME } from './ansi.ts'
-import { TerminalDocument, finishTerminalDocument, type TerminalOwner, type TerminalRun } from './terminal-document.ts'
+import { TerminalDocument, type TerminalOwner, type TerminalRun } from './terminal-document.ts'
 import type { AsciiConfig, AsciiTheme, ColorMode } from './types.ts'
 import { visualWidth } from './width.ts'
 import { wrapText } from './wrap.ts'
@@ -24,9 +25,9 @@ function renderScoreSegments(score: number, useAscii: boolean): StyledSegment[] 
   const whole = Math.floor(score)
   const hasFraction = !Number.isInteger(score)
   const segments: StyledSegment[] = [
-    { text: filled.repeat(whole), role: 'arrow' },
-    ...(hasFraction ? [{ text: useAscii ? '+' : '◐', role: 'arrow' as const }] : []),
-    { text: empty.repeat(5 - whole - Number(hasFraction)), role: 'border' },
+    { text: filled.repeat(whole), role: 'arrow', kind: 'mark' },
+    ...(hasFraction ? [{ text: useAscii ? '+' : '◐', role: 'arrow' as const, kind: 'mark' as const }] : []),
+    { text: empty.repeat(5 - whole - Number(hasFraction)), role: 'border', kind: 'mark' },
   ]
   return segments.filter(segment => segment.text.length > 0)
 }
@@ -57,14 +58,14 @@ function renderScoreStrip(diagram: JourneyDiagram, useAscii: boolean): string {
 /**
  * Render a Mermaid journey diagram to ASCII/Unicode text.
  */
-export function renderJourneyAscii(
+export function renderJourneyTerminal(
   text: string,
   config: AsciiConfig,
   colorMode: ColorMode = 'none',
   theme: AsciiTheme = DEFAULT_ASCII_THEME,
   maxWidth?: number,
   styleFace?: InternalStyleFace,
-): string {
+): TerminalArtifact {
   maxWidth ??= config.maxWidth
   const lines = preprocessMermaidLines(text)
   const diagram = parseJourneyDiagram(lines)
@@ -72,7 +73,7 @@ export function renderJourneyAscii(
   const document = new TerminalDocument()
   let owner: TerminalOwner | undefined
   const pushLine = (segments: StyledSegment[] = []): void => {
-    document.line(segments.map(segment => ({ ...segment, owner: segment.owner ?? owner, textGroup: segment.textGroup ?? (segment.owner ?? owner)?.id, kind: segment.kind ?? (segment.role === 'text' ? 'text' : segment.role == null ? 'surface' : 'stroke') })))
+    document.line(segments, { owner })
   }
 
   if (diagram.title) {
@@ -91,9 +92,9 @@ export function renderJourneyAscii(
     stripLines.forEach((line, index) => {
       pushLine([
         index === 0
-          ? { text: stripPrefix, role: 'border' }
+          ? { text: stripPrefix, role: 'border', kind: 'text' }
           : { text: ' '.repeat(stripPrefix.length), role: null },
-        { text: line, role: 'arrow' },
+        { text: line, role: 'arrow', kind: 'mark' },
       ])
     })
     pushLine()
@@ -158,7 +159,7 @@ export function renderJourneyAscii(
           pushLine([
             { text: index === 0 ? '  ' : ' '.repeat(visualWidth(actorPrefix)), role: null },
             ...(index === 0 ? [
-              { text: 'by', role: 'border' as const },
+              { text: 'by', role: 'border' as const, kind: 'text' as const },
               { text: ' ', role: null },
             ] : []),
             { text: line, role: 'text' },
@@ -175,5 +176,10 @@ export function renderJourneyAscii(
     })
   }
 
-  return finishTerminalDocument(config, document, { colorMode, theme, trimEnd: true })
+  return terminalArtifact(document, { colorMode, theme, trimEnd: true })
+}
+
+/** Compatibility string entry point; native dispatch retains the drawing. */
+export function renderJourneyAscii(...args: Parameters<typeof renderJourneyTerminal>): string {
+  return serializeTerminalArtifact(renderJourneyTerminal(...args))
 }

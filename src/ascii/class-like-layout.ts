@@ -1,10 +1,11 @@
 import type { Direction as DiagramDirection } from '../types.ts'
-import type { AsciiNode, Direction, GridCoord } from './types.ts'
+import type { Direction, GridCoord } from './types.ts'
 import { Up, Down, Left, Right, gridKey } from './types.ts'
 import { getPath } from './pathfinder.ts'
-import { visualWidth } from './width.ts'
+import { OccupancyMap } from './occupancy.ts'
+import { allocateFacePort, countFaceDemand, faceSize } from './terminal-geometry.ts'
 import { tryParseCssColor, toHex } from '../shared/color-math.ts'
-import type { TerminalBounds, TerminalDocument, TerminalOwner } from './terminal-document.ts'
+import { measuredText, type MeasuredTerminalText, type TerminalBounds, type TerminalDocument, type TerminalOwner } from './terminal-document.ts'
 
 export type BoxSide = 'T' | 'B' | 'L' | 'R'
 export interface TerminalBox extends TerminalBounds { id: string; container?: boolean; headerHeight?: number }
@@ -12,20 +13,23 @@ export interface BoxRelation {
   id: string
   from: string
   to: string
-  lines?: string[]
-  fromLines?: string[]
-  toLines?: string[]
+  lines?: readonly string[]
+  fromLines?: readonly string[]
+  toLines?: readonly string[]
 }
-export interface BoxPort extends GridCoord { side: BoxSide }
-export interface BoxText extends TerminalBounds { lines: string[] }
+export interface BoxPort extends Readonly<GridCoord> { readonly side: BoxSide }
+export interface BoxText extends Readonly<TerminalBounds> { readonly lines: readonly string[]; readonly text: MeasuredTerminalText }
+const allocatedRoute = Symbol('allocated terminal box route')
+const allocatedRoutes = new WeakSet<object>()
 export interface BoxRoute {
-  relation: BoxRelation
-  source: BoxPort
-  target: BoxPort
-  points: GridCoord[]
-  label?: BoxText
-  fromLabel?: BoxText
-  toLabel?: BoxText
+  readonly [allocatedRoute]: true
+  readonly relation: Readonly<BoxRelation>
+  readonly source: BoxPort
+  readonly target: BoxPort
+  readonly points: readonly Readonly<GridCoord>[]
+  readonly label?: BoxText
+  readonly fromLabel?: BoxText
+  readonly toLabel?: BoxText
 }
 
 const delta: Record<BoxSide, GridCoord> = { T: { x: 0, y: -1 }, B: { x: 0, y: 1 }, L: { x: -1, y: 0 }, R: { x: 1, y: 0 } }
@@ -51,20 +55,32 @@ function sides(relation: BoxRelation, direction: DiagramDirection, boxes?: Reado
 /** Face capacity belongs to allocation, before any node or connector is painted. */
 export function boxFaceSizes(relations: readonly BoxRelation[], direction: DiagramDirection, boxes?: readonly TerminalBox[]): Map<string, { width: number; height: number }> {
   const counts = faceCounts(relations, direction, boxes ? new Map(boxes.map(box => [box.id, box])) : undefined)
-  return new Map([...counts].map(([id, count]) => [id, { width: Math.max(count.T, count.B) * 3 + 2, height: Math.max(count.L, count.R) * 3 + 2 }]))
+  return new Map([...counts].map(([id, count]) => [id, faceSize(count)]))
 }
 
 function faceCounts(relations: readonly BoxRelation[], direction: DiagramDirection, boxes?: ReadonlyMap<string, TerminalBox>): Map<string, Record<BoxSide, number>> {
-  const counts = new Map<string, Record<BoxSide, number>>()
-  const add = (id: string, side: BoxSide) => {
-    const value = counts.get(id) ?? { T: 0, B: 0, L: 0, R: 0 }
-    value[side]++; counts.set(id, value)
-  }
-  for (const relation of relations) {
+  return countFaceDemand(relations.flatMap(relation => {
     const [from, to] = sides(relation, direction, boxes)
-    add(relation.from, from); add(relation.to, to)
+    return [{ id: relation.from, side: from }, { id: relation.to, side: to }]
+  }))
+}
+
+function sealRoute(route: Omit<BoxRoute, typeof allocatedRoute>): BoxRoute {
+  const { source, target, points } = route
+  const same = (a: Readonly<GridCoord> | undefined, b: Readonly<GridCoord>) => a?.x === b.x && a.y === b.y
+  const inward = (port: BoxPort) => ({ x: port.x - delta[port.side].x, y: port.y - delta[port.side].y })
+  if (!same(points[0], source) || !same(points.at(-1), target) || same(points[1], inward(source)) || same(points.at(-2), inward(target))) throw new Error(`Terminal route ${route.relation.id} must join both allocated ports without entering their cards`)
+  for (let index = 0; index < points.length; index++) {
+    const point = points[index]!, previous = points[index - 1]
+    if (!Number.isSafeInteger(point.x) || point.x < 0 || !Number.isSafeInteger(point.y) || point.y < 0 || (previous && Math.abs(point.x - previous.x) + Math.abs(point.y - previous.y) !== 1)) throw new Error(`Terminal route ${route.relation.id} must be a complete contiguous cell path`)
   }
-  return counts
+  const relation = Object.freeze({ ...route.relation, ...Object.fromEntries(['lines', 'fromLines', 'toLines'].flatMap(key => {
+    const lines = route.relation[key as 'lines']
+    return lines ? [[key, Object.freeze([...lines])]] : []
+  })) })
+  const allocated = Object.freeze({ ...route, [allocatedRoute]: true as const, relation, points: Object.freeze(points.map(point => Object.freeze({ ...point }))) })
+  allocatedRoutes.add(allocated)
+  return allocated
 }
 
 /** Reflect model rectangles in cell space. Their text is laid out afterwards. */
@@ -94,21 +110,17 @@ export function allocateBoxRoutes(boxes: readonly TerminalBox[], relations: read
     const box = byId.get(id)!, key = `${id}\0${side}`, index = cursors.get(key) ?? 0
     cursors.set(key, index + 1)
     const count = counts.get(id)![side]
-    const along = Math.floor((index + 1) * ((side === 'T' || side === 'B' ? box.width : box.height) - 1) / (count + 1))
-    if (side === 'T') return { x: box.x + along, y: box.y - 1, side }
-    if (side === 'B') return { x: box.x + along, y: box.y + box.height, side }
-    if (side === 'L') return { x: box.x - 1, y: box.y + along, side }
-    return { x: box.x + box.width, y: box.y + along, side }
+    return allocateFacePort(box, side, index, count)
   }
-  const plans = relations.flatMap(relation => {
-    if (!byId.has(relation.from) || !byId.has(relation.to)) return []
+  const plans = relations.map(relation => {
+    if (!byId.has(relation.from) || !byId.has(relation.to)) throw new Error(`Terminal route ${relation.id} has no allocated endpoint box`)
     const [from, to] = sides(relation, direction, byId)
-    return [{ relation, source: port(relation.from, from), target: port(relation.to, to) }]
+    return { relation, source: port(relation.from, from), target: port(relation.to, to) }
   })
   // The map is a search adapter over cell rectangles; its payload is unused by
   // getPath. No family-specific node store or dense output canvas is copied.
-  const blocker = {} as AsciiNode
-  const occupied = new Map<string, AsciiNode>(), cardCells = new Set<string>(), routeCells = new Set<string>()
+  const blocker = true
+  const occupied = new OccupancyMap(), cardCells = new Set<string>(), routeCells = new Set<string>()
   const markerCells = new Set<string>()
   const textBounds: TerminalBounds[] = []
   const occupy = (bounds: TerminalBounds) => {
@@ -128,9 +140,9 @@ export function allocateBoxRoutes(boxes: readonly TerminalBox[], relations: read
     const d = delta[point.side]
     for (let step = 0; step <= 2; step++) markerCells.add(`${point.x + d.x * step},${point.y + d.y * step}`)
   }
-  const text = (lines: string[] | undefined, anchors: readonly GridCoord[]): BoxText | undefined => {
+  const text = (lines: readonly string[] | undefined, anchors: readonly GridCoord[]): BoxText | undefined => {
     if (!lines?.some(line => line.length > 0)) return undefined
-    const width = Math.max(...lines.map(visualWidth)), height = lines.length
+    const measured = measuredText(lines), width = measured.width, height = measured.height
     const free = (bounds: TerminalBounds) => {
       const clearance = { x: bounds.x - 1, y: bounds.y - 1, width: bounds.width + 2, height: bounds.height + 2 }
       if (bounds.x < 0 || bounds.y < 0 || textObstacles.some(box => overlaps(clearance, box)) || textBounds.some(other => overlaps(clearance, other))) return false
@@ -149,7 +161,7 @@ export function allocateBoxRoutes(boxes: readonly TerminalBox[], relations: read
         const bounds = { ...candidate, width, height }
         if (!free(bounds)) continue
         textBounds.push(bounds); occupy(bounds)
-        return { ...bounds, lines }
+        return Object.freeze({ ...bounds, lines: Object.freeze([...lines]), text: measured })
       }
     }
     // A non-clipping feasible fallback is outside the occupied geometry. Hard
@@ -158,7 +170,7 @@ export function allocateBoxRoutes(boxes: readonly TerminalBox[], relations: read
     const y = Math.max(0, anchors[0]?.y ?? 0)
     while (!free({ x, y, width, height })) x++
     const bounds = { x, y, width, height }; textBounds.push(bounds); occupy(bounds)
-    return { ...bounds, lines }
+    return Object.freeze({ ...bounds, lines: Object.freeze([...lines]), text: measured })
   }
   for (const key of markerCells) occupied.set(key, blocker)
   const routes: BoxRoute[] = []
@@ -169,7 +181,7 @@ export function allocateBoxRoutes(boxes: readonly TerminalBox[], relations: read
     const targetExit = { x: target.x + delta[target.side].x * 2, y: target.y + delta[target.side].y * 2 }
     // Previously used routes are obstacles on the first attempt. The bounded
     // shared search may fall back to an ordinary crossing when necessary.
-    const removed: Array<[string, AsciiNode]> = []
+    const removed: Array<[string, true]> = []
     for (const point of [source, target, sourceExit, targetExit, { x: source.x + delta[source.side].x, y: source.y + delta[source.side].y }, { x: target.x + delta[target.side].x, y: target.y + delta[target.side].y }]) {
       const key = gridKey(point), previous = occupied.get(key)
       if (previous && !cardCells.has(key)) { removed.push([key, previous]); occupied.delete(key) }
@@ -178,7 +190,8 @@ export function allocateBoxRoutes(boxes: readonly TerminalBox[], relations: read
       const d = delta[point.side]
       return [0, 1, 2].every(step => !cardCells.has(`${point.x + d.x * step},${point.y + d.y * step}`))
     }
-    let middle = sourceExit.x < 0 || sourceExit.y < 0 || targetExit.x < 0 || targetExit.y < 0 || !clearExit(source) || !clearExit(target) ? null : getPath(occupied, sourceExit, targetExit, preferred[source.side])
+    const exitsClear = sourceExit.x >= 0 && sourceExit.y >= 0 && targetExit.x >= 0 && targetExit.y >= 0 && clearExit(source) && clearExit(target)
+    let middle = exitsClear ? getPath(occupied, sourceExit, targetExit, preferred[source.side]) : null
     if (!middle) {
       const removedRoutes: string[] = []
       for (const key of routeCells) if (occupied.has(key) && !cardCells.has(key)) { occupied.delete(key); removedRoutes.push(key) }
@@ -192,17 +205,21 @@ export function allocateBoxRoutes(boxes: readonly TerminalBox[], relations: read
       : middle
     for (const point of points) { const key = gridKey(point); routeCells.add(key); occupied.set(key, blocker) }
     const label = text(relation.lines, [points[Math.floor(points.length / 2)]!, source, target])
-    routes.push({ ...plan, points, ...(label ? { label } : {}), ...(fromLabel ? { fromLabel } : {}), ...(toLabel ? { toLabel } : {}) })
+    routes.push(sealRoute({ ...plan, points, ...(label ? { label } : {}), ...(fromLabel ? { fromLabel } : {}), ...(toLabel ? { toLabel } : {}) }))
   }
   return routes
 }
 
 /** Paint each route's own ports; the compositor owns compatible intersections. */
 export function paintBoxRoute(doc: TerminalDocument, route: BoxRoute, owner: TerminalOwner, ascii: boolean, dashed = false): void {
+  if (!allocatedRoutes.has(route)) throw new TypeError('Terminal routes must come from box allocation')
+  if (owner.kind !== 'edge' || owner.id !== route.relation.id || owner.from !== route.relation.from || owner.to !== route.relation.to) throw new TypeError('Terminal route identity must match its allocated endpoints')
+  owner = doc.element(owner)
   doc.port(owner, { nodeId: route.relation.from, x: route.source.x, y: route.source.y, side: route.source.side, end: 'start' })
   doc.port(owner, { nodeId: route.relation.to, x: route.target.x, y: route.target.y, side: route.target.side, end: 'end' })
-  const directions = new Map<string, Set<BoxSide>>()
-  const add = (point: GridCoord, side: BoxSide) => { const key = gridKey(point), value = directions.get(key) ?? new Set<BoxSide>(); value.add(side); directions.set(key, value) }
+  const directions = new Map<string, number>()
+  const ports: Record<BoxSide, number> = { T: 1, R: 2, B: 4, L: 8 }
+  const add = (point: Readonly<GridCoord>, side: BoxSide) => { const key = gridKey(point); directions.set(key, (directions.get(key) ?? 0) | ports[side]) }
   for (let index = 1; index < route.points.length; index++) {
     const a = route.points[index - 1]!, b = route.points[index]!
     if (a.x === b.x && a.y === b.y) continue
@@ -210,18 +227,18 @@ export function paintBoxRoute(doc: TerminalDocument, route: BoxRoute, owner: Ter
     const opposite: Record<BoxSide, BoxSide> = { R: 'L', L: 'R', T: 'B', B: 'T' }
     add(a, side); add(b, opposite[side])
   }
-  const unicode: Record<string, string> = { LR: '─', BT: '│', BR: '┌', BL: '┐', RT: '└', LT: '┘', BLR: '┬', LRT: '┴', BRT: '├', BLT: '┤', BLRT: '┼' }
-  for (const [key, ports] of directions) {
-    const comma = key.indexOf(','), x = Number(key.slice(0, comma)), y = Number(key.slice(comma + 1)), joined = [...ports].sort().join('')
-    const horizontal = ports.has('L') || ports.has('R'), vertical = ports.has('T') || ports.has('B')
-    const glyph = ascii ? horizontal && vertical ? '+' : horizontal ? (dashed ? '.' : '-') : dashed ? ':' : '|'
-      : horizontal && vertical ? unicode[joined] ?? '┼' : horizontal ? (dashed ? '╌' : '─') : dashed ? '┊' : '│'
-    doc.put(x, y, glyph, { owner, role: horizontal && vertical ? 'corner' : 'line', kind: 'stroke' })
+  const towardCard: Record<BoxSide, BoxSide> = { T: 'B', B: 'T', L: 'R', R: 'L' }
+  add(route.source, towardCard[route.source.side]); add(route.target, towardCard[route.target.side])
+  for (const [key, mask] of directions) {
+    const comma = key.indexOf(','), x = Number(key.slice(0, comma)), y = Number(key.slice(comma + 1))
+    const horizontal = (mask & 10) > 0, vertical = (mask & 5) > 0
+    doc.stroke(x, y, mask, { owner, role: horizontal && vertical ? 'corner' : 'line', ascii, style: dashed ? 'dashed' : 'solid' })
   }
 }
 
 export function paintBoxText(doc: TerminalDocument, text: BoxText | undefined, owner: TerminalOwner): void {
-  if (text) doc.scope(owner, () => text.lines.forEach((line, row) => doc.text(text.x, text.y + row, line, { role: 'text', kind: 'text' })))
+  owner = doc.element(owner)
+  if (text) doc.textBlock(text.x, text.y, text.text, { owner, role: 'text', kind: 'text' })
 }
 
 /** Report only authored style properties whose terminal realization is lossy. */

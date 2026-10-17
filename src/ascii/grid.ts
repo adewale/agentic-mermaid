@@ -1,3 +1,4 @@
+import { OccupancyMap } from './occupancy.ts'
 // ============================================================================
 // ASCII renderer — grid-based layout
 //
@@ -822,7 +823,7 @@ function mirrorHorizontalGrid(graph: AsciiGraph): void {
   // EdgeBundle/pathToJunction state to mirror.
   graph.trunkJunctions = graph.trunkJunctions.map(point)
 
-  const mirroredGrid = new Map<string, AsciiNode>()
+  const mirroredGrid = new OccupancyMap<AsciiNode>()
   for (const [key, node] of graph.grid) {
     const [x, y] = key.split(',').map(Number)
     mirroredGrid.set(gridKey({ x: maxX - x!, y: y! }), node)

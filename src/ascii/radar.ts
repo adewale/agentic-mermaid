@@ -1,3 +1,4 @@
+import { terminalArtifact, serializeTerminalArtifact, type TerminalArtifact } from './terminal-artifact.ts'
 // ============================================================================
 // ASCII renderer — Radar (spider) chart
 //
@@ -12,7 +13,7 @@ import { radarValueRatio, resolveRadarScale } from '../radar/scale.ts'
 import { pieSliceColors } from '../pie/palette.ts'
 import { getFrontmatterScalar, type MermaidFrontmatterMap } from '../mermaid-source.ts'
 import type { AsciiConfig, AsciiTheme, ColorMode } from './types.ts'
-import { TerminalDocument, finishTerminalDocument, type TerminalRun } from './terminal-document.ts'
+import { TerminalDocument, type TerminalRun } from './terminal-document.ts'
 import { visualWidth } from './width.ts'
 import { wrapText } from './wrap.ts'
 import { resolveRoleStyle, type InternalStyleFace } from '../scene/style-registry.ts'
@@ -34,7 +35,7 @@ function maxCellWidth(labels: string[]): number {
   return width
 }
 
-export function renderRadarAscii(
+export function renderRadarTerminal(
   lines: string[],
   config: AsciiConfig,
   colorMode: ColorMode,
@@ -42,7 +43,7 @@ export function renderRadarAscii(
   frontmatter: MermaidFrontmatterMap = {},
   targetWidth?: number,
   styleFace?: Readonly<InternalStyleFace>,
-): string {
+): TerminalArtifact {
   targetWidth ??= config.maxWidth
   const chart = parseRadarChart(lines, { title: getFrontmatterScalar<string>(frontmatter, ['title']) })
   const sep = config.useAscii ? '|' : '│'
@@ -161,7 +162,7 @@ export function renderRadarAscii(
     const barStart = axisWidth + curveWidth + 5
     for (let index = 0; index < chart.ticks; index++) {
       const column = barStart + Math.max(0, Math.round((index + 1) / chart.ticks * barMax) - 1)
-      document.put(column, rulerRow, config.useAscii ? '+' : '┬', { role: 'border', kind: 'stroke', color: visual.graticuleColor, owner: { id: `ring:${index}`, kind: 'ring' } })
+      document.stroke(column, rulerRow, 14, { ascii: config.useAscii, role: 'border', color: visual.graticuleColor, owner: { id: `ring:${index}`, kind: 'ring' } })
     }
     document.line()
   }
@@ -193,12 +194,17 @@ export function renderRadarAscii(
           { text: ' '.repeat(Math.max(0, axisWidth - visualWidth(axisLines[row] ?? '')) + 2) },
           { text: curveLines[row] ?? '', role: 'text', textGroup: `table:${axis.id}`, owner: { id: curve.id, kind: 'node' } },
           { text: ' '.repeat(Math.max(0, curveWidth - visualWidth(curveLines[row] ?? '')) + 1) + sep + ' ', role: 'border', kind: 'stroke', color: visual.axisColor },
-          { text: row === 0 ? bar : '', role: 'arrow', kind: 'stroke', color: colors[paletteIndex]!, owner: { id: `${curve.id}:${axis.id}`, kind: 'plot', parentId: curve.id } },
+          { text: row === 0 ? bar : '', role: 'arrow', kind: 'mark', color: colors[paletteIndex]!, owner: { id: `${curve.id}:${axis.id}`, kind: 'plot', parentId: curve.id } },
           { text: valueCol, role: 'text', owner: { id: `${curve.id}:${axis.id}:value`, kind: 'label', parentId: curve.id } },
         ])
       }
     })
   })
 
-  return finishTerminalDocument(config, document, { colorMode, theme, trimEnd: true })
+  return terminalArtifact(document, { colorMode, theme, trimEnd: true })
+}
+
+/** Compatibility string entry point; native dispatch retains the drawing. */
+export function renderRadarAscii(...args: Parameters<typeof renderRadarTerminal>): string {
+  return serializeTerminalArtifact(renderRadarTerminal(...args))
 }

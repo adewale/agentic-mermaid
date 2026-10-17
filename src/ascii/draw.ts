@@ -23,7 +23,7 @@ import { visualWidth } from './width.ts'
 import { getCorners } from './shapes/corners.ts'
 import { getShapeAttachmentPoint } from './shapes/index.ts'
 import { safeCssColor } from '../shared/css-color.ts'
-import type { TerminalOwner } from './terminal-document.ts'
+import type { TerminalOwner, TerminalSide } from './terminal-document.ts'
 
 // ============================================================================
 // Node drawing — renders a node using shape-aware rendering
@@ -83,24 +83,27 @@ function drawBoxWithGridDimensions(node: AsciiNode, graph: AsciiGraph): Canvas {
 
   // State-end uses double border to differentiate from state-start
   const isDoubleBox = node.shape === 'state-end'
-  const hChar = useAscii ? (isDoubleBox ? '=' : '-') : (isDoubleBox ? '═' : '─')
-  const vChar = useAscii ? '|' : (isDoubleBox ? '║' : '│')
-
-  // Double-box corners (for state-end)
-  const doubleCorners = useAscii
-    ? { tl: '#', tr: '#', bl: '#', br: '#' }
-    : { tl: '╔', tr: '╗', bl: '╚', br: '╝' }
-  const effectiveCorners = isDoubleBox ? doubleCorners : corners
-
-  // Draw box border with shape-specific corners
-  for (let x = from.x + 1; x < to.x; x++) box.put(x, from.y, hChar, { role: 'border' })
-  for (let x = from.x + 1; x < to.x; x++) box.put(x, to.y, hChar, { role: 'border' })
-  for (let y = from.y + 1; y < to.y; y++) box.put(from.x, y, vChar, { role: 'border' })
-  for (let y = from.y + 1; y < to.y; y++) box.put(to.x, y, vChar, { role: 'border' })
-  box.put(from.x, from.y, effectiveCorners.tl, { role: 'border' })
-  box.put(to.x, from.y, effectiveCorners.tr, { role: 'border' })
-  box.put(from.x, to.y, effectiveCorners.bl, { role: 'border' })
-  box.put(to.x, to.y, effectiveCorners.br, { role: 'border' })
+  const border = { ascii: useAscii, role: 'border' as const, style: isDoubleBox ? 'double' as const : 'solid' as const }
+  for (let x = from.x + 1; x < to.x; x++) {
+    box.stroke(x, from.y, 10, border)
+    box.stroke(x, to.y, 10, border)
+  }
+  for (let y = from.y + 1; y < to.y; y++) {
+    box.stroke(from.x, y, 5, border)
+    box.stroke(to.x, y, 5, border)
+  }
+  const standard = node.shape === 'rectangle' || node.shape === 'service'
+  const rounded = !useAscii && (node.shape === 'rounded' || node.shape === 'cylinder')
+  const effectiveCorners = isDoubleBox
+    ? useAscii ? { tl: '#', tr: '#', bl: '#', br: '#' } : { tl: '╔', tr: '╗', bl: '╚', br: '╝' }
+    : corners
+  for (const [x, y, mask, glyph] of [
+    [from.x, from.y, 6, effectiveCorners.tl], [to.x, from.y, 12, effectiveCorners.tr],
+    [from.x, to.y, 3, effectiveCorners.bl], [to.x, to.y, 9, effectiveCorners.br],
+  ] as const) {
+    if (standard || rounded || (isDoubleBox && !useAscii)) box.stroke(x, y, mask, { ...border, rounded })
+    else box.put(x, y, glyph, { role: 'border', kind: 'marker' })
+  }
 
   // Center the multi-line display label inside the box
   const label = node.displayLabel
@@ -170,32 +173,19 @@ export function drawMultiBox(
   const numDividers = sections.length - 1
   const boxHeight = Math.max(totalLines + numDividers + 2, minSize.height ?? 0)
 
-  // Box-drawing characters
-  const hLine = useAscii ? '-' : '─'
-  const vLine = useAscii ? '|' : '│'
-  const tl = useAscii ? '+' : '┌'
-  const tr = useAscii ? '+' : '┐'
-  const bl = useAscii ? '+' : '└'
-  const br = useAscii ? '+' : '┘'
-  const divL = useAscii ? '+' : '├'
-  const divR = useAscii ? '+' : '┤'
-
   const canvas = mkCanvas(boxWidth - 1, boxHeight - 1)
-
-  // Top border
-  canvas.put(0, 0, tl, { role: 'border' })
-  for (let x = 1; x < boxWidth - 1; x++) canvas.put(x, 0, hLine, { role: 'border' })
-  canvas.put(boxWidth - 1, 0, tr, { role: 'border' })
-
-  // Bottom border
-  canvas.put(0, boxHeight - 1, bl, { role: 'border' })
-  for (let x = 1; x < boxWidth - 1; x++) canvas.put(x, boxHeight - 1, hLine, { role: 'border' })
-  canvas.put(boxWidth - 1, boxHeight - 1, br, { role: 'border' })
-
-  // Left and right borders (full height)
+  const border = { ascii: useAscii, role: 'border' as const }
+  canvas.stroke(0, 0, 6, border)
+  canvas.stroke(boxWidth - 1, 0, 12, border)
+  canvas.stroke(0, boxHeight - 1, 3, border)
+  canvas.stroke(boxWidth - 1, boxHeight - 1, 9, border)
+  for (let x = 1; x < boxWidth - 1; x++) {
+    canvas.stroke(x, 0, 10, border)
+    canvas.stroke(x, boxHeight - 1, 10, border)
+  }
   for (let y = 1; y < boxHeight - 1; y++) {
-    canvas.put(0, y, vLine, { role: 'border' })
-    canvas.put(boxWidth - 1, y, vLine, { role: 'border' })
+    canvas.stroke(0, y, 5, border)
+    canvas.stroke(boxWidth - 1, y, 5, border)
   }
 
   // Render sections with dividers
@@ -213,9 +203,9 @@ export function drawMultiBox(
 
     // Draw divider after each section except the last
     if (s < sections.length - 1) {
-      canvas.put(0, row, divL, { role: 'border' })
-      for (let x = 1; x < boxWidth - 1; x++) canvas.put(x, row, hLine, { role: 'border' })
-      canvas.put(boxWidth - 1, row, divR, { role: 'border' })
+      canvas.stroke(0, row, 7, border)
+      for (let x = 1; x < boxWidth - 1; x++) canvas.stroke(x, row, 10, border)
+      canvas.stroke(boxWidth - 1, row, 13, border)
       row++
     }
   }
@@ -226,37 +216,6 @@ export function drawMultiBox(
 // ============================================================================
 // Line drawing — 8-directional lines on the canvas
 // ============================================================================
-
-/**
- * Line character sets for different edge styles.
- * Each style has horizontal, vertical, and diagonal characters for both
- * Unicode (box-drawing) and ASCII (basic punctuation) modes.
- *
- * Unicode dotted: ┄ (horizontal), ┆ (vertical) — U+2504, U+2506
- * Unicode thick:  ━ (horizontal), ┃ (vertical) — U+2501, U+2503
- */
-/**
- * Line character sets for different edge styles.
- * Only horizontal and vertical characters - no diagonals.
- * All edges use orthogonal Manhattan routing (90° bends only).
- */
-const LINE_CHARS = {
-  solid: {
-    h: { unicode: '─', ascii: '-' },
-    v: { unicode: '│', ascii: '|' },
-  },
-  dotted: {
-    h: { unicode: '┄', ascii: '.' },
-    v: { unicode: '┆', ascii: ':' },
-  },
-  thick: {
-    h: { unicode: '━', ascii: '=' },
-    // ASCII mode is a strict 7-bit projection. A single-cell vertical stroke
-    // cannot encode a doubled line, so preserve topology with `|` while the
-    // horizontal `=` continues to carry the thick-style distinction.
-    v: { unicode: '┃', ascii: '|' },
-  },
-} as const
 
 /**
  * Draw a line between two drawing coordinates using orthogonal Manhattan routing.
@@ -279,35 +238,30 @@ export function drawLine(
   const dir = determineDirection(from, to)
   const drawnCoords: DrawingCoord[] = []
 
-  // Select character set based on style (horizontal and vertical only).
-  // Invisible links never reach here (callers short-circuit), but fall back
-  // to solid glyphs defensively so the index is total.
-  const chars = LINE_CHARS[style === 'invisible' ? 'solid' : style]
-  const hChar = useAscii ? chars.h.ascii : chars.h.unicode
-  const vChar = useAscii ? chars.v.ascii : chars.v.unicode
+  const paint = { ascii: useAscii, style: style === 'thick' ? 'heavy' as const : style === 'dotted' ? 'dotted' as const : 'solid' as const }
 
   // Pure vertical directions
   if (dirEquals(dir, Up)) {
     for (let y = from.y - offsetFrom; y >= to.y - offsetTo; y--) {
       drawnCoords.push({ x: from.x, y })
-      canvas.put(from.x, y, vChar)
+      canvas.stroke(from.x, y, 5, paint)
     }
   } else if (dirEquals(dir, Down)) {
     for (let y = from.y + offsetFrom; y <= to.y + offsetTo; y++) {
       drawnCoords.push({ x: from.x, y })
-      canvas.put(from.x, y, vChar)
+      canvas.stroke(from.x, y, 5, paint)
     }
   }
   // Pure horizontal directions
   else if (dirEquals(dir, Left)) {
     for (let x = from.x - offsetFrom; x >= to.x - offsetTo; x--) {
       drawnCoords.push({ x, y: from.y })
-      canvas.put(x, from.y, hChar)
+      canvas.stroke(x, from.y, 10, paint)
     }
   } else if (dirEquals(dir, Right)) {
     for (let x = from.x + offsetFrom; x <= to.x + offsetTo; x++) {
       drawnCoords.push({ x, y: from.y })
-      canvas.put(x, from.y, hChar)
+      canvas.stroke(x, from.y, 10, paint)
     }
   }
   // Diagonal directions: use Manhattan routing (horizontal-first, then vertical)
@@ -316,12 +270,12 @@ export function drawLine(
     // Horizontal segment: from.x -> to.x (going left)
     for (let x = from.x - offsetFrom; x >= to.x; x--) {
       drawnCoords.push({ x, y: from.y })
-      canvas.put(x, from.y, hChar)
+      canvas.stroke(x, from.y, 10, paint)
     }
     // Vertical segment: from.y -> to.y (going up)
     for (let y = from.y - 1; y >= to.y - offsetTo; y--) {
       drawnCoords.push({ x: to.x, y })
-      canvas.put(to.x, y, vChar)
+      canvas.stroke(to.x, y, 5, paint)
     }
   }
   // UpperRight: go right first, then up
@@ -329,12 +283,12 @@ export function drawLine(
     // Horizontal segment: from.x -> to.x (going right)
     for (let x = from.x + offsetFrom; x <= to.x; x++) {
       drawnCoords.push({ x, y: from.y })
-      canvas.put(x, from.y, hChar)
+      canvas.stroke(x, from.y, 10, paint)
     }
     // Vertical segment: from.y -> to.y (going up)
     for (let y = from.y - 1; y >= to.y - offsetTo; y--) {
       drawnCoords.push({ x: to.x, y })
-      canvas.put(to.x, y, vChar)
+      canvas.stroke(to.x, y, 5, paint)
     }
   }
   // LowerLeft: go left first, then down
@@ -342,12 +296,12 @@ export function drawLine(
     // Horizontal segment: from.x -> to.x (going left)
     for (let x = from.x - offsetFrom; x >= to.x; x--) {
       drawnCoords.push({ x, y: from.y })
-      canvas.put(x, from.y, hChar)
+      canvas.stroke(x, from.y, 10, paint)
     }
     // Vertical segment: from.y -> to.y (going down)
     for (let y = from.y + 1; y <= to.y + offsetTo; y++) {
       drawnCoords.push({ x: to.x, y })
-      canvas.put(to.x, y, vChar)
+      canvas.stroke(to.x, y, 5, paint)
     }
   }
   // LowerRight: go right first, then down
@@ -359,18 +313,18 @@ export function drawLine(
       // Draw vertical line at from.x (source's x-coordinate)
       for (let y = from.y + offsetFrom; y <= to.y + offsetTo; y++) {
         drawnCoords.push({ x: from.x, y })
-        canvas.put(from.x, y, vChar)
+        canvas.stroke(from.x, y, 5, paint)
       }
     } else {
       // Horizontal segment: from.x -> to.x (going right)
       for (let x = from.x + offsetFrom; x <= to.x; x++) {
         drawnCoords.push({ x, y: from.y })
-        canvas.put(x, from.y, hChar)
+        canvas.stroke(x, from.y, 10, paint)
       }
       // Vertical segment: from.y -> to.y (going down)
       for (let y = from.y + 1; y <= to.y + offsetTo; y++) {
         drawnCoords.push({ x: to.x, y })
-        canvas.put(to.x, y, vChar)
+        canvas.stroke(to.x, y, 5, paint)
       }
     }
   }
@@ -560,7 +514,7 @@ function drawContainerEdge(
     const next = poly[i + 1]!
     const prevDir = determineDirection(prev, coord)
     const nextDir = determineDirection(coord, next)
-    cornersCanvas.put(coord.x, coord.y, cornerChar(prevDir, nextDir, useAscii))
+    cornersCanvas.stroke(coord.x, coord.y, cornerMask(prevDir, nextDir), { ascii: useAscii })
   }
 
   // Arrowhead at the END of the edge.
@@ -571,12 +525,12 @@ function drawContainerEdge(
     const arrowDir = determineDirection(beforeLast, last)
     if (edge.attachToSubgraph) {
       // Terminal is the container border — draw the arrowhead on it.
-      arrowHeadEndCanvas.put(last.x, last.y, arrowHeadChar(arrowDir, useAscii))
+      directedArrow(arrowHeadEndCanvas, last, arrowDir, useAscii)
     } else {
       // Terminal is a real node — draw the arrowhead one cell before its border
       // (matching standard edges, which use offsetTo=-1).
       const tip = stepBack(last, arrowDir)
-      arrowHeadEndCanvas.put(tip.x, tip.y, arrowHeadChar(arrowDir, useAscii))
+      directedArrow(arrowHeadEndCanvas, tip, arrowDir, useAscii)
     }
   }
 
@@ -586,7 +540,7 @@ function drawContainerEdge(
     const first = poly[0]!
     const second = poly[1]!
     const startDir = determineDirection(second, first)
-    arrowHeadStartCanvas.put(first.x, first.y, arrowHeadChar(startDir, useAscii))
+    directedArrow(arrowHeadStartCanvas, first, startDir, useAscii)
   }
 
   const labelCanvas = drawArrowLabel(graph, edge)
@@ -709,34 +663,24 @@ function borderCrossing(
   }
 }
 
-/** Pick the corner glyph for a bend given incoming/outgoing directions. */
-function cornerChar(prevDir: Direction, nextDir: Direction, useAscii: boolean): string {
-  if (useAscii) return '+'
-  if ((dirEquals(prevDir, Right) && dirEquals(nextDir, Down)) ||
-      (dirEquals(prevDir, Up) && dirEquals(nextDir, Left))) return '┐'
-  if ((dirEquals(prevDir, Right) && dirEquals(nextDir, Up)) ||
-      (dirEquals(prevDir, Down) && dirEquals(nextDir, Left))) return '┘'
-  if ((dirEquals(prevDir, Left) && dirEquals(nextDir, Down)) ||
-      (dirEquals(prevDir, Up) && dirEquals(nextDir, Right))) return '┌'
-  if ((dirEquals(prevDir, Left) && dirEquals(nextDir, Up)) ||
-      (dirEquals(prevDir, Down) && dirEquals(nextDir, Right))) return '└'
-  return '+'
+function terminalSide(dir: Direction): TerminalSide | undefined {
+  if (dirEquals(dir, Up)) return 'T'
+  if (dirEquals(dir, Right)) return 'R'
+  if (dirEquals(dir, Down)) return 'B'
+  if (dirEquals(dir, Left)) return 'L'
 }
 
-/** Pick the arrowhead glyph for a direction. */
-function arrowHeadChar(dir: Direction, useAscii: boolean): string {
-  if (!useAscii) {
-    if (dirEquals(dir, Up)) return '▲'
-    if (dirEquals(dir, Down)) return '▼'
-    if (dirEquals(dir, Left)) return '◄'
-    if (dirEquals(dir, Right)) return '►'
-    return '●'
-  }
-  if (dirEquals(dir, Up)) return '^'
-  if (dirEquals(dir, Down)) return 'v'
-  if (dirEquals(dir, Left)) return '<'
-  if (dirEquals(dir, Right)) return '>'
-  return '*'
+function directionMask(dir: Direction): number {
+  const side = terminalSide(dir)
+  return side === 'T' ? 1 : side === 'R' ? 2 : side === 'B' ? 4 : side === 'L' ? 8 : 0
+}
+
+function cornerMask(previous: Direction, next: Direction): number {
+  return (directionMask(reverseDirection(previous)) | directionMask(next)) || 15
+}
+
+function directedArrow(canvas: Canvas, point: DrawingCoord, dir: Direction, useAscii: boolean, fallback: Direction = Down): void {
+  canvas.marker(point.x, point.y, { shape: 'arrow', direction: terminalSide(dir) ?? terminalSide(fallback) ?? 'B', ascii: useAscii })
 }
 
 /**
@@ -808,10 +752,10 @@ function drawBoxStart(
   const canvas = copyCanvas(graph.canvas)
   if (graph.config.useAscii) return canvas
 
-  if (dirEquals(startDir, Up)) canvas.put(startPoint.x, startPoint.y, '┴')
-  else if (dirEquals(startDir, Down)) canvas.put(startPoint.x, startPoint.y, '┬')
-  else if (dirEquals(startDir, Left)) canvas.put(startPoint.x, startPoint.y, '┤')
-  else if (dirEquals(startDir, Right)) canvas.put(startPoint.x, startPoint.y, '├')
+  const outgoing = directionMask(startDir)
+
+
+  if (outgoing) canvas.stroke(startPoint.x, startPoint.y, outgoing | ((outgoing & 5) ? 10 : 5))
 
   return canvas
 }
@@ -831,7 +775,7 @@ function drawEndpointMarker(
     const canvas = copyCanvas(graph.canvas)
     if (lastLine.length === 0) return canvas
     const lastPos = lastLine[lastLine.length - 1]!
-    canvas.put(lastPos.x, lastPos.y, endpointMarkerChar(marker, graph.config.useAscii))
+    canvas.put(lastPos.x, lastPos.y, endpointMarkerChar(marker, graph.config.useAscii), { kind: 'marker' })
     return canvas
   }
 
@@ -855,44 +799,7 @@ function drawArrowHead(
   let dir = determineDirection(from, lastPos)
   if (lastLine.length === 1 || dirEquals(dir, Middle)) dir = fallbackDir
 
-  let char: string
-
-  if (!graph.config.useAscii) {
-    if (dirEquals(dir, Up)) char = '▲'
-    else if (dirEquals(dir, Down)) char = '▼'
-    else if (dirEquals(dir, Left)) char = '◄'
-    else if (dirEquals(dir, Right)) char = '►'
-    else if (dirEquals(dir, UpperRight)) char = '◥'
-    else if (dirEquals(dir, UpperLeft)) char = '◤'
-    else if (dirEquals(dir, LowerRight)) char = '◢'
-    else if (dirEquals(dir, LowerLeft)) char = '◣'
-    else {
-      // Fallback
-      if (dirEquals(fallbackDir, Up)) char = '▲'
-      else if (dirEquals(fallbackDir, Down)) char = '▼'
-      else if (dirEquals(fallbackDir, Left)) char = '◄'
-      else if (dirEquals(fallbackDir, Right)) char = '►'
-      else if (dirEquals(fallbackDir, UpperRight)) char = '◥'
-      else if (dirEquals(fallbackDir, UpperLeft)) char = '◤'
-      else if (dirEquals(fallbackDir, LowerRight)) char = '◢'
-      else if (dirEquals(fallbackDir, LowerLeft)) char = '◣'
-      else char = '●'
-    }
-  } else {
-    if (dirEquals(dir, Up)) char = '^'
-    else if (dirEquals(dir, Down)) char = 'v'
-    else if (dirEquals(dir, Left)) char = '<'
-    else if (dirEquals(dir, Right)) char = '>'
-    else {
-      if (dirEquals(fallbackDir, Up)) char = '^'
-      else if (dirEquals(fallbackDir, Down)) char = 'v'
-      else if (dirEquals(fallbackDir, Left)) char = '<'
-      else if (dirEquals(fallbackDir, Right)) char = '>'
-      else char = '*'
-    }
-  }
-
-  canvas.put(lastPos.x, lastPos.y, char)
+  directedArrow(canvas, lastPos, dir, graph.config.useAscii, fallbackDir)
   return canvas
 }
 
@@ -908,36 +815,13 @@ function drawCorners(graph: AsciiGraph, path: GridCoord[]): Canvas {
     const dc = gridToDrawingCoord(graph, coord)
     const prevDir = determineDirection(path[idx - 1]!, coord)
     const nextDir = determineDirection(coord, path[idx + 1]!)
-    if (dirEquals(prevDir, nextDir)) continue
-
     // Skip collinear intermediate points: a non-bend (prevDir === nextDir) is a
     // straight run, and painting a corner glyph there would punch a hole in the
     // trunk line (upstream lukilabs#113). mergePath normally removes these, so
     // this is a defensive guard against any path that still carries one.
     if (dirEquals(prevDir, nextDir)) continue
 
-    let corner: string
-    if (!graph.config.useAscii) {
-      if ((dirEquals(prevDir, Right) && dirEquals(nextDir, Down)) ||
-          (dirEquals(prevDir, Up) && dirEquals(nextDir, Left))) {
-        corner = '┐'
-      } else if ((dirEquals(prevDir, Right) && dirEquals(nextDir, Up)) ||
-                 (dirEquals(prevDir, Down) && dirEquals(nextDir, Left))) {
-        corner = '┘'
-      } else if ((dirEquals(prevDir, Left) && dirEquals(nextDir, Down)) ||
-                 (dirEquals(prevDir, Up) && dirEquals(nextDir, Right))) {
-        corner = '┌'
-      } else if ((dirEquals(prevDir, Left) && dirEquals(nextDir, Up)) ||
-                 (dirEquals(prevDir, Down) && dirEquals(nextDir, Right))) {
-        corner = '└'
-      } else {
-        corner = '+'
-      }
-    } else {
-      corner = '+'
-    }
-
-    canvas.put(dc.x, dc.y, corner)
+    canvas.stroke(dc.x, dc.y, cornerMask(prevDir, nextDir), { ascii: graph.config.useAscii })
   }
 
   return canvas
@@ -1153,28 +1037,7 @@ function drawBundledEdgeSegment(
     const nextDir = determineDirection(coord, edge.pathToJunction[idx + 1]!)
     if (dirEquals(prevDir, nextDir)) continue
 
-    let corner: string
-    if (!useAscii) {
-      if ((dirEquals(prevDir, Right) && dirEquals(nextDir, Down)) ||
-          (dirEquals(prevDir, Up) && dirEquals(nextDir, Left))) {
-        corner = '┐'
-      } else if ((dirEquals(prevDir, Right) && dirEquals(nextDir, Up)) ||
-                 (dirEquals(prevDir, Down) && dirEquals(nextDir, Left))) {
-        corner = '┘'
-      } else if ((dirEquals(prevDir, Left) && dirEquals(nextDir, Down)) ||
-                 (dirEquals(prevDir, Up) && dirEquals(nextDir, Right))) {
-        corner = '┌'
-      } else if ((dirEquals(prevDir, Left) && dirEquals(nextDir, Up)) ||
-                 (dirEquals(prevDir, Down) && dirEquals(nextDir, Right))) {
-        corner = '└'
-      } else {
-        corner = '+'
-      }
-    } else {
-      corner = '+'
-    }
-
-    cornersCanvas.put(dc.x, dc.y, corner)
+    cornersCanvas.stroke(dc.x, dc.y, cornerMask(prevDir, nextDir), { ascii: useAscii })
   }
 
   // Draw box start connector (for fan-in, from source node)
@@ -1186,10 +1049,9 @@ function drawBundledEdgeSegment(
     const dir = determineDirection(edge.pathToJunction[0]!, edge.pathToJunction[1]!)
 
     if (!useAscii) {
-      if (dirEquals(dir, Up)) boxStartCanvas.put(firstPoint.x, firstPoint.y, '┴')
-      else if (dirEquals(dir, Down)) boxStartCanvas.put(firstPoint.x, firstPoint.y, '┬')
-      else if (dirEquals(dir, Left)) boxStartCanvas.put(firstPoint.x, firstPoint.y, '┤')
-      else if (dirEquals(dir, Right)) boxStartCanvas.put(firstPoint.x, firstPoint.y, '├')
+      const outgoing = directionMask(dir)
+
+      if (outgoing) boxStartCanvas.stroke(firstPoint.x, firstPoint.y, outgoing | ((outgoing & 5) ? 10 : 5))
     }
   }
 
@@ -1250,28 +1112,7 @@ function drawBundleSharedPath(graph: AsciiGraph, bundle: EdgeBundle): [Canvas, C
     const nextDir = determineDirection(coord, bundle.sharedPath[idx + 1]!)
     if (dirEquals(prevDir, nextDir)) continue
 
-    let corner: string
-    if (!useAscii) {
-      if ((dirEquals(prevDir, Right) && dirEquals(nextDir, Down)) ||
-          (dirEquals(prevDir, Up) && dirEquals(nextDir, Left))) {
-        corner = '┐'
-      } else if ((dirEquals(prevDir, Right) && dirEquals(nextDir, Up)) ||
-                 (dirEquals(prevDir, Down) && dirEquals(nextDir, Left))) {
-        corner = '┘'
-      } else if ((dirEquals(prevDir, Left) && dirEquals(nextDir, Down)) ||
-                 (dirEquals(prevDir, Up) && dirEquals(nextDir, Right))) {
-        corner = '┌'
-      } else if ((dirEquals(prevDir, Left) && dirEquals(nextDir, Up)) ||
-                 (dirEquals(prevDir, Down) && dirEquals(nextDir, Right))) {
-        corner = '└'
-      } else {
-        corner = '+'
-      }
-    } else {
-      corner = '+'
-    }
-
-    cornersCanvas.put(dc.x, dc.y, corner)
+    cornersCanvas.stroke(dc.x, dc.y, cornerMask(prevDir, nextDir), { ascii: useAscii })
   }
 
   return [pathCanvas, cornersCanvas]
@@ -1301,23 +1142,7 @@ function drawBundleArrowhead(graph: AsciiGraph, bundle: EdgeBundle): Canvas {
   if (graphDir === 'TD') dc.y -= 1
   else dc.x -= 1
 
-  // Draw arrowhead
-  let char: string
-  if (!graph.config.useAscii) {
-    if (dirEquals(dir, Up)) char = '▲'
-    else if (dirEquals(dir, Down)) char = '▼'
-    else if (dirEquals(dir, Left)) char = '◄'
-    else if (dirEquals(dir, Right)) char = '►'
-    else char = '▼'  // default
-  } else {
-    if (dirEquals(dir, Up)) char = '^'
-    else if (dirEquals(dir, Down)) char = 'v'
-    else if (dirEquals(dir, Left)) char = '<'
-    else if (dirEquals(dir, Right)) char = '>'
-    else char = 'v'  // default
-  }
-
-  canvas.put(dc.x, dc.y, char)
+  directedArrow(canvas, dc, dir, graph.config.useAscii)
   return canvas
 }
 
@@ -1343,23 +1168,7 @@ function drawBundledEdgeArrowhead(graph: AsciiGraph, edge: AsciiEdge): Canvas {
   if (graphDir === 'TD') dc.y -= 1
   else dc.x -= 1
 
-  // Draw arrowhead
-  let char: string
-  if (!graph.config.useAscii) {
-    if (dirEquals(dir, Up)) char = '▲'
-    else if (dirEquals(dir, Down)) char = '▼'
-    else if (dirEquals(dir, Left)) char = '◄'
-    else if (dirEquals(dir, Right)) char = '►'
-    else char = '▼'  // default
-  } else {
-    if (dirEquals(dir, Up)) char = '^'
-    else if (dirEquals(dir, Down)) char = 'v'
-    else if (dirEquals(dir, Left)) char = '<'
-    else if (dirEquals(dir, Right)) char = '>'
-    else char = 'v'  // default
-  }
-
-  canvas.put(dc.x, dc.y, char)
+  directedArrow(canvas, dc, dir, graph.config.useAscii)
   return canvas
 }
 
@@ -1429,39 +1238,8 @@ function drawJunctionCharacter(graph: AsciiGraph, bundle: EdgeBundle): Canvas {
     }
   }
 
-  // Select character based on connected directions
-  let char: string
-  if (!useAscii) {
-    if (hasUp && hasDown && hasLeft && hasRight) {
-      char = '┼'  // cross - all 4 directions
-    } else if (hasDown && hasLeft && hasRight && !hasUp) {
-      char = '┬'  // T pointing down
-    } else if (hasUp && hasLeft && hasRight && !hasDown) {
-      char = '┴'  // T pointing up
-    } else if (hasUp && hasDown && hasRight && !hasLeft) {
-      char = '├'  // T pointing right
-    } else if (hasUp && hasDown && hasLeft && !hasRight) {
-      char = '┤'  // T pointing left
-    } else if (hasLeft && hasRight) {
-      char = '─'  // horizontal only
-    } else if (hasUp && hasDown) {
-      char = '│'  // vertical only
-    } else if (hasDown && hasRight) {
-      char = '┌'  // corner
-    } else if (hasDown && hasLeft) {
-      char = '┐'
-    } else if (hasUp && hasRight) {
-      char = '└'
-    } else if (hasUp && hasLeft) {
-      char = '┘'
-    } else {
-      char = '┼'  // fallback
-    }
-  } else {
-    char = '+'
-  }
-
-  canvas.put(dc.x, dc.y, char)
+  const mask = (hasUp ? 1 : 0) | (hasRight ? 2 : 0) | (hasDown ? 4 : 0) | (hasLeft ? 8 : 0)
+  canvas.stroke(dc.x, dc.y, mask || 15, { ascii: useAscii })
   return canvas
 }
 
@@ -1479,25 +1257,15 @@ export function drawSubgraphBox(sg: AsciiSubgraph, graph: AsciiGraph): Canvas {
   const to: DrawingCoord = { x: width, y: height }
   const canvas = mkCanvas(width, height)
 
-  if (!graph.config.useAscii) {
-    for (let x = from.x + 1; x < to.x; x++) canvas.put(x, from.y, '─')
-    for (let x = from.x + 1; x < to.x; x++) canvas.put(x, to.y, '─')
-    for (let y = from.y + 1; y < to.y; y++) canvas.put(from.x, y, '│')
-    for (let y = from.y + 1; y < to.y; y++) canvas.put(to.x, y, '│')
-    canvas.put(from.x, from.y, '┌')
-    canvas.put(to.x, from.y, '┐')
-    canvas.put(from.x, to.y, '└')
-    canvas.put(to.x, to.y, '┘')
-  } else {
-    for (let x = from.x + 1; x < to.x; x++) canvas.put(x, from.y, '-')
-    for (let x = from.x + 1; x < to.x; x++) canvas.put(x, to.y, '-')
-    for (let y = from.y + 1; y < to.y; y++) canvas.put(from.x, y, '|')
-    for (let y = from.y + 1; y < to.y; y++) canvas.put(to.x, y, '|')
-    canvas.put(from.x, from.y, '+')
-    canvas.put(to.x, from.y, '+')
-    canvas.put(from.x, to.y, '+')
-    canvas.put(to.x, to.y, '+')
+  const border = { ascii: graph.config.useAscii }
+  for (let x = from.x + 1; x < to.x; x++) {
+    canvas.stroke(x, from.y, 10, border); canvas.stroke(x, to.y, 10, border)
   }
+  for (let y = from.y + 1; y < to.y; y++) {
+    canvas.stroke(from.x, y, 5, border); canvas.stroke(to.x, y, 5, border)
+  }
+  canvas.stroke(from.x, from.y, 6, border); canvas.stroke(to.x, from.y, 12, border)
+  canvas.stroke(from.x, to.y, 3, border); canvas.stroke(to.x, to.y, 9, border)
 
   return canvas
 }
@@ -1546,7 +1314,7 @@ function drawConcurrencyRegionSeparators(graph: AsciiGraph, containerKind: 'subg
         const x = Math.round((ordered[index - 1]!.maxX + ordered[index]!.minX) / 2)
         const top = Math.max(parent.minY + 3, Math.min(...regions.map(region => region.minY)))
         const bottom = Math.min(parent.maxY - 1, Math.max(...regions.map(region => region.maxY)))
-        for (let y = top; y <= bottom; y++) canvas.put(x, y, graph.config.useAscii ? ':' : '┆', { owner: { id: parent.id, kind: containerKind }, role: 'border' })
+        for (let y = top; y <= bottom; y++) canvas.stroke(x, y, 5, { ascii: graph.config.useAscii, style: 'dotted', owner: { id: parent.id, kind: containerKind }, role: 'border' })
       }
     } else {
       const ordered = [...regions].sort((a, b) => a.minY - b.minY)
@@ -1554,7 +1322,7 @@ function drawConcurrencyRegionSeparators(graph: AsciiGraph, containerKind: 'subg
         const y = Math.round((ordered[index - 1]!.maxY + ordered[index]!.minY) / 2)
         const left = Math.max(parent.minX + 1, Math.min(...regions.map(region => region.minX)))
         const right = Math.min(parent.maxX - 1, Math.max(...regions.map(region => region.maxX)))
-        for (let x = left; x <= right; x++) canvas.put(x, y, graph.config.useAscii ? '.' : '┄', { owner: { id: parent.id, kind: containerKind }, role: 'border' })
+        for (let x = left; x <= right; x++) canvas.stroke(x, y, 10, { ascii: graph.config.useAscii, style: 'dotted', owner: { id: parent.id, kind: containerKind }, role: 'border' })
       }
     }
   }
@@ -1649,7 +1417,7 @@ export function drawGraph(graph: AsciiGraph, containerKind: 'subgraph' | 'cluste
       const point = gridToDrawingCoord(graph, junction)
       const current = document.cell(point.x, point.y)
       const drawing = copyCanvas(document)
-      drawing.put(point.x, point.y, graph.config.useAscii ? '+' : graph.config.graphDirection === 'LR' ? graph.config.reverseDirection ? '┤' : '├' : '┬', { role: 'junction' })
+      drawing.stroke(point.x, point.y, graph.config.graphDirection === 'LR' ? graph.config.reverseDirection ? 13 : 7 : 14, { ascii: graph.config.useAscii, role: 'junction' })
       const traversing = graph.edges.filter(edge => edge.style !== 'invisible' && edge.path.some((end, index) => {
         const start = edge.path[index - 1]
         return start && ((start.x === end.x && junction.x === start.x && junction.y >= Math.min(start.y, end.y) && junction.y <= Math.max(start.y, end.y))

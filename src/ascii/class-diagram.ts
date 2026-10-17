@@ -1,10 +1,11 @@
+import { terminalArtifact, serializeTerminalArtifact, type TerminalArtifact } from './terminal-artifact.ts'
 // Class layout keeps integer cards, endpoint demand and label rectangles
 // authoritative before emitting owned terminal primitives.
 import { parseClassDiagram } from '../class/parser.ts'
 import { memberToString } from '../class/layout.ts'
 import type { ClassNode, ClassNamespace, RelationshipType } from '../class/types.ts'
 import type { AsciiConfig, AsciiTheme, ColorMode } from './types.ts'
-import { TerminalDocument, finishTerminalDocument, type TerminalOwner } from './terminal-document.ts'
+import { TerminalDocument, type TerminalOwner } from './terminal-document.ts'
 import { drawMultiBox } from './draw.ts'
 import { visualWidth } from './width.ts'
 import { wrapText } from './wrap.ts'
@@ -12,6 +13,7 @@ import { displayText, normalizeBrTags } from '../multiline-utils.ts'
 import { compareCodePointStrings } from '../shared/deterministic-order.ts'
 import { checkAllClassLikeAuthoredStyles } from '../shared/style-props.ts'
 import { terminalIds } from './identity.ts'
+import { paintTerminalFrame } from './terminal-geometry.ts'
 import { allocateBoxRoutes, boxFaceSizes, classLikePaint, paintBoxRoute, paintBoxText, reverseBoxes, type BoxSide, type TerminalBox, type BoxRelation } from './class-like-layout.ts'
 
 interface PlacedClass extends TerminalBox { cls: ClassNode; sections: string[][] }
@@ -36,7 +38,7 @@ function markerGlyph(type: RelationshipType, side: BoxSide, ascii: boolean): str
   return ({ T: ascii ? 'v' : '▼', B: ascii ? '^' : '▲', L: ascii ? '>' : '▶', R: ascii ? '<' : '◀' })[side]
 }
 
-export function renderClassAscii(text: string, config: AsciiConfig, colorMode?: ColorMode, theme?: AsciiTheme, targetWidth?: number, authoredText?: string): string {
+export function renderClassTerminal(text: string, config: AsciiConfig, colorMode?: ColorMode, theme?: AsciiTheme, targetWidth?: number, authoredText?: string): TerminalArtifact {
   targetWidth ??= config.targetWidth ?? config.maxWidth
   const lines = (value: string) => value.split('\n').map(line => line.trim()).filter(line => line && !line.startsWith('%%'))
   const diagram = parseClassDiagram(lines(text), authoredText === undefined ? undefined : lines(authoredText))
@@ -46,7 +48,7 @@ export function renderClassAscii(text: string, config: AsciiConfig, colorMode?: 
     const lines = diagram.title ? wrapText(displayText(normalizeBrTags(diagram.title)), targetWidth) : []
     const empty = new TerminalDocument(Math.max(0, ...lines.map(visualWidth)), lines.length)
     empty.scope({ id: 'title', kind: 'label' }, () => lines.forEach((line, row) => empty.text(0, row, line)))
-    return finishTerminalDocument(config, empty, { colorMode, theme })
+    return terminalArtifact(empty, { colorMode, theme })
   }
   const namespaceIds = (items: ClassNamespace[], parent = ''): string[] => items.flatMap(item => { const id = parent ? `${parent}.${item.name}` : item.name; return [id, ...namespaceIds(item.children, id)] })
   const generated = terminalIds([...diagram.classes.map(cls => cls.id), ...namespaceIds(diagram.namespaces)])
@@ -191,16 +193,10 @@ export function renderClassAscii(text: string, config: AsciiConfig, colorMode?: 
   })
   const routes = allocateBoxRoutes([...placed.values(), ...noteBoxes], [...relations, ...noteRelations], direction, namespaces.map(box => ({ ...box, container: true, headerHeight: box.labelLines.length })))
   const doc = new TerminalDocument()
-  const ascii = config.useAscii, H = ascii ? '-' : '─', V = ascii ? '|' : '│'
-  const frame = (box: TerminalBox, owner: TerminalOwner, opaque = false) => {
-    doc.region(owner, { x: box.x, y: box.y, width: box.width, height: box.height })
-    if (opaque) doc.fill(box.x, box.y, box.width, box.height, { owner, kind: 'surface' })
-    for (let x = box.x + 1; x < box.x + box.width - 1; x++) { doc.put(x, box.y, H, { owner, role: 'border' }); doc.put(x, box.y + box.height - 1, H, { owner, role: 'border' }) }
-    for (let y = box.y + 1; y < box.y + box.height - 1; y++) { doc.put(box.x, y, V, { owner, role: 'border' }); doc.put(box.x + box.width - 1, y, V, { owner, role: 'border' }) }
-    for (const [dx, dy, glyph] of [[0, 0, ascii ? '+' : '┌'], [box.width - 1, 0, ascii ? '+' : '┐'], [0, box.height - 1, ascii ? '+' : '└'], [box.width - 1, box.height - 1, ascii ? '+' : '┘']] as const) doc.put(box.x + dx, box.y + dy, glyph, { owner, role: 'border' })
-  }
+  const ascii = config.useAscii
+  const frame = (box: TerminalBox, owner: TerminalOwner, opaque = false) => paintTerminalFrame(doc, box, owner, ascii, opaque)
   for (const box of namespaces.sort((a, b) => a.depth - b.depth || compareCodePointStrings(a.id, b.id))) {
-    const owner: TerminalOwner = { id: box.id, kind: 'cluster', parentId: box.parentId, members: box.members }
+    const owner = doc.element({ id: box.id, kind: 'cluster', parentId: box.parentId, members: box.members })
     frame(box, owner)
     doc.scope(owner, () => box.labelLines.forEach((line, row) => doc.text(box.x + Math.max(1, Math.floor((box.width - visualWidth(line) - 2) / 2)), box.y + row, ` ${line} `)))
   }
@@ -211,7 +207,7 @@ export function renderClassAscii(text: string, config: AsciiConfig, colorMode?: 
       continue
     }
     const rel = diagram.relationships[relationIndex]!
-    const owner: TerminalOwner = { id: route.relation.id, kind: 'edge', from: rel.from, to: rel.to }
+    const owner = doc.element({ id: route.relation.id, kind: 'edge', from: rel.from, to: rel.to })
     paintBoxRoute(doc, route, owner, ascii, rel.type === 'dependency' || rel.type === 'realization' || rel.type === 'link-dashed')
     for (const [port, type, enabled] of [[route.source, rel.fromType ?? rel.type, rel.markerAt === 'from' || rel.markerAt === 'both'], [route.target, rel.toType ?? rel.type, rel.markerAt === 'to' || rel.markerAt === 'both']] as const) {
       if (enabled) doc.put(port.x, port.y, markerGlyph(type, port.side, ascii), { owner, role: 'arrow', kind: 'marker' })
@@ -221,7 +217,7 @@ export function renderClassAscii(text: string, config: AsciiConfig, colorMode?: 
     paintBoxText(doc, route.toLabel, { id: generated(`${owner.id}:to-cardinality`), kind: 'label', parentId: owner.id })
   }
   for (const box of placed.values()) {
-    const owner: TerminalOwner = { id: box.id, kind: 'node', parentId: namespaceByClass.get(box.id) }
+    const owner = doc.element({ id: box.id, kind: 'node', parentId: namespaceByClass.get(box.id) })
     doc.region(owner, { x: box.x, y: box.y, width: box.width, height: box.height })
     doc.fill(box.x, box.y, box.width, box.height, { owner, kind: 'surface' })
     const card = drawMultiBox(box.sections, ascii, 1, { width: box.width, height: box.height })
@@ -236,15 +232,20 @@ export function renderClassAscii(text: string, config: AsciiConfig, colorMode?: 
     doc.scope(owner, () => doc.overlay(card, box.x, box.y))
   }
   for (const box of noteBoxes) {
-    const owner: TerminalOwner = { id: box.id, kind: 'node', parentId: box.parentId }
-    frame(box, owner, true); doc.scope(owner, () => box.lines.forEach((line, row) => doc.text(box.x + 2, box.y + 1 + row, line)))
+    const owner = doc.element({ id: box.id, kind: 'node', parentId: box.parentId })
+    frame(box, owner, true); doc.textBlock(box.x + 2, box.y + 1, box.lines, { owner })
   }
   for (const cls of diagram.classes) if (cls.href) doc.text(0, doc.height + 1, `link ${cls.id}: ${cls.href}`, { owner: { id: cls.id, kind: 'node' }, role: 'text' })
   if (diagram.title) {
     const lines = wrapText(displayText(normalizeBrTags(diagram.title)), targetWidth), titled = new TerminalDocument(Math.max(doc.width, ...lines.map(visualWidth)), doc.height + lines.length + 1)
     titled.scope({ id: 'title', kind: 'label' }, () => lines.forEach((line, row) => titled.text(Math.floor((titled.width - visualWidth(line)) / 2), row, line)))
     titled.overlay(doc, 0, lines.length + 1)
-    return finishTerminalDocument(config, titled, { colorMode, theme })
+    return terminalArtifact(titled, { colorMode, theme })
   }
-  return finishTerminalDocument(config, doc, { colorMode, theme })
+  return terminalArtifact(doc, { colorMode, theme })
+}
+
+/** Compatibility string entry point; native dispatch retains the drawing. */
+export function renderClassAscii(...args: Parameters<typeof renderClassTerminal>): string {
+  return serializeTerminalArtifact(renderClassTerminal(...args))
 }

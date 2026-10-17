@@ -3,6 +3,23 @@ import { renderMermaidASCIIWithReceipt } from '../ascii/index.ts'
 import { terminalDocumentOf } from '../ascii/terminal-document.ts'
 import { renderMermaidASCIIWithMeta } from '../ascii/meta.ts'
 
+test.each(['TD', 'BT', 'LR', 'RL'] as const)('opaque edge-label spaces survive real %s routes (#157)', direction => {
+  for (const useAscii of [false, true]) {
+    const { ascii, regions } = renderMermaidASCIIWithMeta(`graph ${direction}\nA -->|push = build| B`, { useAscii, colorMode: 'none' })
+    expect(ascii).toContain('push = build')
+    const edge = regions.find(region => region.kind === 'edge')!
+    expect(edge.projectedText).toBe('push = build')
+    for (const cell of edge.authoredTextCells!) expect(ascii.split('\n')[cell.row]![cell.column]).toBe(cell.glyph)
+  }
+})
+
+test.each([
+  'graph TD\nA -->|push = build| B\nA --> C',
+  'graph LR\nA -->|push = build| C\nB --> C',
+])('opaque edge-label spaces survive beside another branch: %s', source => {
+  expect(renderMermaidASCIIWithMeta(source, { colorMode: 'none' }).ascii).toContain('push = build')
+})
+
 test.each(['TD', 'BT', 'LR', 'RL'] as const)('%s preserves text, physical ports and marker direction', direction => {
   const result = renderMermaidASCIIWithReceipt(`flowchart ${direction}\n A["< > ^ v 界"] --> B["< > ^ v 界"]`, { colorMode: 'none' })
   const doc = terminalDocumentOf(result)!

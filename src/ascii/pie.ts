@@ -1,3 +1,4 @@
+import { terminalArtifact, serializeTerminalArtifact, type TerminalArtifact } from './terminal-artifact.ts'
 // ============================================================================
 // ASCII renderer — Pie chart
 //
@@ -23,7 +24,7 @@ import { resolvePieVisualConfig } from '../pie/config.ts'
 import type { PieVisualConfig } from '../pie/config.ts'
 import type { MermaidFrontmatterMap } from '../mermaid-source.ts'
 import type { AsciiConfig, AsciiTheme, ColorMode } from './types.ts'
-import { TerminalDocument, finishTerminalDocument } from './terminal-document.ts'
+import { TerminalDocument } from './terminal-document.ts'
 import { visualWidth } from './width.ts'
 import { wrapText } from './wrap.ts'
 import { resolveRoleStyle, type InternalStyleFace } from '../scene/style-registry.ts'
@@ -38,7 +39,7 @@ export function safePieTerminalText(value: string): string {
   return sanitizeTerminalText(value, true).replace(/\r/g, '?')
 }
 
-export function renderPieAscii(
+export function renderPieTerminal(
   lines: string[],
   config: AsciiConfig,
   colorMode: ColorMode,
@@ -47,7 +48,7 @@ export function renderPieAscii(
   targetWidth?: number,
   resolvedVisual?: PieVisualConfig,
   styleFace?: InternalStyleFace,
-): string {
+): TerminalArtifact {
   targetWidth ??= config.maxWidth
   const chart = parsePieChart(lines)
   // Frontmatter is already plain title data, not Pie body grammar. Keep it
@@ -131,12 +132,17 @@ export function renderPieAscii(
       { text: marker, role: 'arrow', kind: 'marker', owner: { id: `slice-${index}:highlight`, kind: 'label', parentId: `slice-${index}` } },
       { text: linesForEntry.at(-1) ?? '', role: 'text', color: visual.legendTextColor, textGroup: 'label', owner: { id: `slice-${index}`, kind: 'node' } },
       { text: ' '.repeat(Math.max(0, labelWidth - visualWidth(linesForEntry.at(-1) ?? '')) + 2) },
-      { text: bar, role: 'arrow', kind: 'stroke', color: colors[index]!, owner: { id: `slice-${index}:bar`, kind: 'plot', parentId: `slice-${index}` } },
+      { text: bar, role: 'arrow', kind: 'mark', color: colors[index]!, owner: { id: `slice-${index}:bar`, kind: 'plot', parentId: `slice-${index}` } },
       { text: barPad },
       { text: pct, role: 'text', color: visual.sectionTextColor, textGroup: 'value', owner: { id: `slice-${index}:value`, kind: 'label', parentId: `slice-${index}` } },
       { text: valuePart, role: 'text', color: visual.legendTextColor, textGroup: 'value', owner: { id: `slice-${index}:value`, kind: 'label', parentId: `slice-${index}` } },
     ])
   })
 
-  return finishTerminalDocument(config, document, { colorMode, theme })
+  return terminalArtifact(document, { colorMode, theme })
+}
+
+/** Compatibility string entry point; native dispatch retains the drawing. */
+export function renderPieAscii(...args: Parameters<typeof renderPieTerminal>): string {
+  return serializeTerminalArtifact(renderPieTerminal(...args))
 }

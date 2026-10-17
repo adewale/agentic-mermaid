@@ -1,6 +1,7 @@
+import { terminalArtifact, serializeTerminalArtifact, type TerminalArtifact } from './terminal-artifact.ts'
 import type { GitGraphDiagram } from '../gitgraph/types.ts'
 import type { AsciiConfig, AsciiTheme, ColorMode } from './types.ts'
-import { TerminalDocument, finishTerminalDocument, type TerminalOwner } from './terminal-document.ts'
+import { TerminalDocument, type TerminalOwner } from './terminal-document.ts'
 import { visualWidth } from './width.ts'
 import { wrapText } from './wrap.ts'
 import { compareCodePointStrings } from '../shared/deterministic-order.ts'
@@ -8,7 +9,7 @@ import { categoricalPalette } from '../shared/categorical-palette.ts'
 import { safeCssColor } from '../shared/css-color.ts'
 import { terminalIds } from './identity.ts'
 
-export function renderGitGraphAscii(diagram: GitGraphDiagram, config: AsciiConfig, colorMode: ColorMode, theme: AsciiTheme, targetWidth?: number, themeVariables?: Record<string, unknown>): string {
+export function renderGitGraphTerminal(diagram: GitGraphDiagram, config: AsciiConfig, colorMode: ColorMode, theme: AsciiTheme, targetWidth?: number, themeVariables?: Record<string, unknown>): TerminalArtifact {
   targetWidth ??= config.targetWidth ?? config.maxWidth
   const generated = terminalIds(diagram.commits.map(commit => commit.id))
   const branches = [...diagram.branches].sort((a, b) => a.order - b.order || a.sequence - b.sequence || compareCodePointStrings(a.name, b.name))
@@ -47,9 +48,9 @@ export function renderGitGraphAscii(diagram: GitGraphDiagram, config: AsciiConfi
     const element: TerminalOwner = { id: generated(`branch:${branch.name}`), kind: 'lane', members: diagram.commits.filter(commit => commit.branch === branch.name).map(commit => commit.id) }
     const x = vertical ? xFor(0, branch.name) : Math.max(0, labelWidth - visualWidth(branch.name))
     const y = vertical ? titleRows : yFor(0, branch.name)
-    doc.text(x, y, branch.name, paint(element, branch.name, 'text', 'text'))
-    if (vertical) for (let row = titleRows + 1; row <= height; row++) doc.put(x, row, config.useAscii ? '|' : '│', paint(element, branch.name, 'line', 'stroke'))
-    else for (let col = labelWidth + 1; col < width; col++) doc.put(col, y, config.useAscii ? '-' : '─', paint(element, branch.name, 'line', 'stroke'))
+    doc.textBlock(x, y, branch.name, paint(element, branch.name, 'text', 'text'))
+    if (vertical) for (let row = titleRows + 1; row <= height; row++) doc.stroke(x, row, 5, { ...paint(element, branch.name, 'line', 'stroke'), ascii: config.useAscii })
+    else for (let col = labelWidth + 1; col < width; col++) doc.stroke(col, y, 10, { ...paint(element, branch.name, 'line', 'stroke'), ascii: config.useAscii })
   })
   const byId = new Map(diagram.commits.map(commit => [commit.id, commit]))
   // All relationship routes precede marks and owned text footprints.
@@ -59,15 +60,15 @@ export function renderGitGraphAscii(diagram: GitGraphDiagram, config: AsciiConfi
       const parent = byId.get(parentId), point = positions.get(parentId)
       if (!parent || !point) continue
       const element: TerminalOwner = { id: generated(`edge:${parentId}:${commit.id}`), kind: 'edge', from: parentId, to: commit.id }
-      const edgePaint = paint(element, commit.branch, 'line', 'stroke')
+      const edgePaint = { ...paint(element, commit.branch, 'line', 'stroke'), ascii: config.useAscii }
       if (vertical) {
-        for (let row = Math.min(point.y, y); row <= Math.max(point.y, y); row++) doc.put(point.x, row, config.useAscii ? '|' : '│', edgePaint)
-        for (let col = Math.min(point.x, x); col <= Math.max(point.x, x); col++) doc.put(col, y, config.useAscii ? '-' : '─', edgePaint)
-        if (point.x !== x) doc.put(point.x, y, config.useAscii ? '+' : '└', edgePaint)
+        for (let row = Math.min(point.y, y); row <= Math.max(point.y, y); row++) doc.stroke(point.x, row, 5, edgePaint)
+        for (let col = Math.min(point.x, x); col <= Math.max(point.x, x); col++) doc.stroke(col, y, 10, edgePaint)
+        if (point.x !== x) doc.stroke(point.x, y, 3, edgePaint)
       } else {
-        for (let col = Math.min(point.x, x); col <= Math.max(point.x, x); col++) doc.put(col, point.y, config.useAscii ? '-' : '─', edgePaint)
-        for (let row = Math.min(point.y, y); row <= Math.max(point.y, y); row++) doc.put(x, row, config.useAscii ? '|' : '│', edgePaint)
-        if (point.y !== y) doc.put(x, point.y, config.useAscii ? '+' : point.y < y ? '┐' : '┘', edgePaint)
+        for (let col = Math.min(point.x, x); col <= Math.max(point.x, x); col++) doc.stroke(col, point.y, 10, edgePaint)
+        for (let row = Math.min(point.y, y); row <= Math.max(point.y, y); row++) doc.stroke(x, row, 5, edgePaint)
+        if (point.y !== y) doc.stroke(x, point.y, point.y < y ? 12 : 9, edgePaint)
       }
     }
   }
@@ -84,9 +85,14 @@ export function renderGitGraphAscii(diagram: GitGraphDiagram, config: AsciiConfi
   if (diagram.direction === 'BT') doc.flip(false, true)
   if (titleLines.length) {
     const titled = new TerminalDocument(Math.max(doc.width, ...titleLines.map(visualWidth)), doc.height + titleLines.length + 1)
-    titled.scope({ id: 'title', kind: 'label' }, () => titleLines.forEach((line, row) => titled.text(Math.floor((titled.width - visualWidth(line)) / 2), row, line)))
+    titled.scope({ id: 'title', kind: 'label' }, () => titleLines.forEach((line, row) => titled.textBlock(Math.floor((titled.width - visualWidth(line)) / 2), row, line)))
     titled.overlay(doc, 0, titleLines.length + 1)
-    return finishTerminalDocument(config, titled, { colorMode, theme, trimEnd: true })
+    return terminalArtifact(titled, { colorMode, theme, trimEnd: true })
   }
-  return finishTerminalDocument(config, doc, { colorMode, theme, trimEnd: true })
+  return terminalArtifact(doc, { colorMode, theme, trimEnd: true })
+}
+
+/** Compatibility string entry point; native dispatch retains the drawing. */
+export function renderGitGraphAscii(...args: Parameters<typeof renderGitGraphTerminal>): string {
+  return serializeTerminalArtifact(renderGitGraphTerminal(...args))
 }

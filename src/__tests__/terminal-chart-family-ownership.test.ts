@@ -1,24 +1,23 @@
+import { serializeTerminalArtifact, type TerminalArtifact } from '../ascii/terminal-artifact.ts'
 import { describe, expect, test } from 'bun:test'
 import { DEFAULT_ASCII_THEME } from '../ascii/ansi.ts'
 import { renderMermaidASCII, renderMermaidASCIIWithReceipt } from '../ascii/index.ts'
-import { renderGanttAscii } from '../ascii/gantt.ts'
-import { renderJourneyAscii } from '../ascii/journey.ts'
-import { renderPieAscii } from '../ascii/pie.ts'
-import { renderQuadrantAscii } from '../ascii/quadrant.ts'
-import { renderRadarAscii } from '../ascii/radar.ts'
-import { renderSankeyAscii } from '../ascii/sankey.ts'
-import { renderTimelineAscii } from '../ascii/timeline.ts'
-import { beginTerminalCapture, capturedTerminalDocument, terminalDocumentOf, type TerminalDocument } from '../ascii/terminal-document.ts'
+import { renderGanttTerminal as renderGanttAscii } from '../ascii/gantt.ts'
+import { renderJourneyTerminal as renderJourneyAscii } from '../ascii/journey.ts'
+import { renderPieTerminal as renderPieAscii } from '../ascii/pie.ts'
+import { renderQuadrantTerminal as renderQuadrantAscii } from '../ascii/quadrant.ts'
+import { renderRadarTerminal as renderRadarAscii } from '../ascii/radar.ts'
+import { renderSankeyTerminal as renderSankeyAscii } from '../ascii/sankey.ts'
+import { renderTimelineTerminal as renderTimelineAscii } from '../ascii/timeline.ts'
+import { terminalDocumentOf, type TerminalDocument } from '../ascii/terminal-document.ts'
 import type { AsciiConfig } from '../ascii/types.ts'
 import { visualWidth, WIDE_CHAR_CONTINUATION } from '../ascii/width.ts'
 
-function capture(render: (config: AsciiConfig) => string): TerminalDocument {
+function capture(render: (config: AsciiConfig) => TerminalArtifact): TerminalDocument {
   const config: AsciiConfig = { useAscii: false, paddingX: 5, paddingY: 5, boxBorderPadding: 1, graphDirection: 'TD' }
-  beginTerminalCapture(config)
-  render(config)
-  const document = capturedTerminalDocument(config)
-  expect(document).toBeDefined()
-  return document!
+  const artifact = render(config)
+  serializeTerminalArtifact(artifact)
+  return artifact.document
 }
 
 function authored(document: TerminalDocument, id: string): Array<{ x: number; y: number; glyph: string }> {
@@ -48,7 +47,7 @@ describe('terminal outline and chart ownership', () => {
     ))
     expect(authored(document, 'a').map(cell => cell.glyph).join('')).toBe('First task')
     expect(authored(document, 'b').map(cell => cell.glyph).join('')).toBe('Next task')
-    const bars = [...document.entries()].filter(([, , cell]) => cell.kind === 'stroke' && cell.glyph === '█')
+    const bars = [...document.entries()].filter(([, , cell]) => cell.kind === 'mark' && cell.glyph === '█')
     for (const id of ['a', 'b']) expect(bars.some(([, , cell]) => cell.owners.some(owner => owner.id === id))).toBe(true)
   })
 
@@ -81,12 +80,12 @@ describe('terminal outline and chart ownership', () => {
     expect(authored(pie, 'slice-0').map(cell => cell.glyph).join('')).toBe('日本 name')
     const pieBars = [...pie.entries()].filter(([, , cell]) => cell.owners.some(owner => owner.id === 'slice-0:bar'))
     expect(pieBars.length).toBeGreaterThan(0)
-    expect(pieBars.every(([, , cell]) => cell.kind === 'stroke' && cell.color !== undefined)).toBe(true)
+    expect(pieBars.every(([, , cell]) => cell.kind === 'mark' && cell.color !== undefined)).toBe(true)
 
     const radar = capture(config => renderRadarAscii(['radar-beta', 'axis a["Same"], b["Same"]', 'curve x["Curve name"]{1,2}'], config, 'none', DEFAULT_ASCII_THEME))
     expect(authored(radar, 'a').map(cell => cell.glyph).join('')).toBe('Same')
     expect(authored(radar, 'b').map(cell => cell.glyph).join('')).toBe('Same')
-    expect([...radar.entries()].some(([, , cell]) => cell.kind === 'stroke' && cell.color !== undefined && cell.owners.some(owner => owner.parentId === 'x'))).toBe(true)
+    expect([...radar.entries()].some(([, , cell]) => cell.kind === 'mark' && cell.color !== undefined && cell.owners.some(owner => owner.parentId === 'x'))).toBe(true)
     const rings = radar.regions().filter(region => region.kind === 'ring')
     expect(rings).toHaveLength(5)
     expect(rings.every(region => region.ownedCellSpans.length === 1)).toBe(true)

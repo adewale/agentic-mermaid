@@ -1,7 +1,8 @@
 # Terminal composition
 
-Every built-in terminal family constructs a `TerminalDocument` through its
-existing `FamilyDescriptor.renderAscii` hook. A document contains positioned
+Every built-in terminal family constructs a `TerminalArtifact` containing its
+`TerminalDocument` and encoding policy. The paired native drawing function
+preserves the existing `FamilyDescriptor.renderAscii` string hook. A document contains positioned
 graphemes, their terminal cell widths, paint roles, element owners, complete
 text occurrences, surfaces, container bounds and relationship ports. Family
 layout decides where those primitives fit before painting them. Pixel layout
@@ -20,8 +21,12 @@ Wrapping never edits Mermaid source. Literal labels remain literal; formatted
 labels use the existing display projection. Graphemes stay atomic, including
 CJK, combining marks and ZWJ emoji. Wide cells include owned continuations.
 Authored spaces belong to the text footprint, including trailing spaces.
-Admission checks every cell of an incoming grapheme before retiring any old
-grapheme, so a wide continuation cannot erase a neighboring marker or surface.
+Whole text blocks are measured once and admitted atomically, so a collision
+cannot leave half a label. Every incoming owner must be compatible with every
+affected existing owner before any cell is retired. Immutable element handles
+and interned owner sets retain all identities at crossings; conflicting
+definitions of one identity are rejected. A wide continuation cannot erase a
+neighboring marker or surface.
 
 Text, markers and card surfaces cannot silently be erased by a later route.
 Incompatible text/geometry and unrelated collinear route overlaps produce
@@ -31,8 +36,18 @@ Explicitly allocated bundles may share runs and markers. A crossing can have
 two independent route owners; a shared printed intersection does not merge
 their semantic identities.
 
+Connected strokes carry directional ports, line style and rounding; oriented
+markers carry shape and direction. Alphabet selection lowers these values to
+glyphs centrally. Compatibility glyph painting remains available for decorative
+symbols and string adapters. Numeric bars carry half-cell coverage independently
+of stroke topology. An opaque bar covers a line while retaining the occluded
+relationship separately; hidden lines never become visible bar ownership.
+
 Family layouts keep their own constraints. Class and ER share card-face demand,
-port allocation, free label rectangles and the existing bounded A* search.
+port allocation, immutable allocated label rectangles and the existing bounded
+A* search. A validated route binds endpoint identities, allocated face ports
+and a contiguous exterior path before painting. Bounded occupancy tracks exact
+current extents, including deletion, rather than scanning keys during search.
 Namespace headers are measured routing obstacles, separate from endpoint
 identities; containers and classes can share an authored name without changing
 a relationship's target. Complete sibling envelopes settle before routing.
@@ -43,8 +58,8 @@ reading order; they do not reverse serialized strings.
 
 ## Output and metadata
 
-One encoder derives plain, ANSI and HTML text from the drawing. ASCII and
-Unicode select family glyphs before encoding. Security checks still apply at
+One encoding pass derives plain, ANSI and HTML text after title composition.
+ASCII and Unicode lower logical geometry before encoding. Security checks still apply at
 the common output boundary. A hard `targetWidth` either fits the complete
 result or raises the existing `AsciiWidthError`; a soft `maxWidth` guides
 family wrapping. Neither policy clips content or inserts an ellipsis.
@@ -59,17 +74,32 @@ It does not search text or render a second version. Its region fields are:
   bounds can cover much more than their header text.
 - `ownedCellSpans`: all occupied cells belonging to the element, including
   surfaces, continuations and repeated/disjoint occurrences.
+- `occludedCellSpans`: optional semantic route coverage behind opaque marks,
+  excluded from visible owned cells.
 - `parentId`, `members`, `from`, `to`, `bundle` and `ports`, when the family
   supplies the corresponding semantic geometry.
 
-Terminal action regions retain their compatible bounds and add `cellSpans`
-and parent identities. Generated IDs avoid authored IDs in the same render.
+Terminal action regions retain their compatible bounds and add `cellSpans`,
+optional `occludedCellSpans`, and parent identities. Generated IDs avoid authored IDs in the same render.
 Generated identity allocation distinguishes semantic keys from preferred
 readable names, so derived labels and relationships cannot alias each other.
-String-only extension hooks remain supported; without a matching captured
-drawing, metadata reports `TERMINAL_OWNERSHIP_UNAVAILABLE` instead of inventing
-regions. Changing a native hook's returned string likewise invalidates its
-captured geometry.
+String-only extension hooks remain supported; metadata reports
+`TERMINAL_OWNERSHIP_UNAVAILABLE` instead of inventing regions. Wrapping a native
+hook as a string-only function similarly makes no geometry claim. No config
+mutation or string-equality test connects a drawing to its output.
+
+Plain native output resolves terminal appearance without running optional
+graphical layout. Accessing `terminalStyle` or `receipt` evaluates and memoizes
+the same Scene connector evidence previously computed eagerly. A projection
+callback requests that evidence before drawing; Gantt also keeps request-time
+clock evaluation. Metadata consumes this full evidence. Performance comparisons
+must distinguish text-only output from fully consumed receipts.
+
+Authored parsing is memoized within one render. Flowchart drawing and metadata
+reuse its model only when authored and admitted grammar inputs match exactly;
+entity decoding and terminal control replacement can require separate models.
+Family grammars and layouts remain distinct. Regions group occupied cells and
+sort each group's visible cells once.
 
 ## Rebuilding on this basis
 

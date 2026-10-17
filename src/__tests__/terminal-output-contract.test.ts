@@ -1,4 +1,4 @@
-import { describe, expect, test } from 'bun:test'
+import { describe, expect, spyOn, test } from 'bun:test'
 import { renderMermaidASCIIWithReceipt } from '../ascii/index.ts'
 import {
   resolveTerminalOutputPolicy,
@@ -14,7 +14,8 @@ import { colorizeText } from '../ascii/ansi.ts'
 import { secureTerminalHtmlOutput } from '../terminal-security.ts'
 import { withoutTerminalColor } from './helpers/terminal-text.ts'
 import { renderMermaidASCIIWithMeta } from '../ascii/meta.ts'
-import { finishTerminalDocument, TerminalDocument, terminalDocumentOf } from '../ascii/terminal-document.ts'
+import { TerminalDocument, terminalDocumentOf } from '../ascii/terminal-document.ts'
+import { nativeTerminalRenderer, terminalArtifact } from '../ascii/terminal-artifact.ts'
 
 const SOURCE = 'flowchart LR\n  A[Start] --> B[Finish]'
 const OSC52 = '\u001b]52;c;dGVybWluYWwtZXhmaWx0cmF0aW9u\u0007'
@@ -187,19 +188,77 @@ describe('canonical terminal output policy', () => {
     }
   })
 
-  test('public warnings retain final cell coordinates when a title translates a captured drawing', () => {
+  test('public warnings retain final cell coordinates when a title translates a native drawing', () => {
     const descriptor = getFamily('flowchart')!
-    const restore = replaceFamilyForTest('flowchart', { ...descriptor, renderAscii(context) {
+    const restore = replaceFamilyForTest('flowchart', { ...descriptor, renderAscii: nativeTerminalRenderer(context => {
       const drawing = new TerminalDocument(4, 2)
       drawing.text(1, 1, 'X', { owner: { id: 'A', kind: 'node' } })
       drawing.put(1, 1, '─', { owner: { id: 'route', kind: 'edge' } })
-      return finishTerminalDocument(context.config, drawing, { colorMode: context.colorMode, theme: context.theme })
-    } })
+      return terminalArtifact(drawing, { colorMode: context.colorMode, theme: context.theme })
+    }) })
     try {
       const result = renderMermaidASCIIWithMeta(`---\ntitle: Heading\n---\n${SOURCE}`, { colorMode: 'none' })
       expect(result.ascii.split('\n')[3]?.[1]).toBe('X')
       expect(result.warnings).toContainEqual(expect.objectContaining({ code: 'TERMINAL_TEXT_COLLISION', cell: { column: 1, row: 3 } }))
     } finally { restore() }
+  })
+
+  test('native titles and width policy are applied before the single encoding pass', () => {
+    const serialize = spyOn(TerminalDocument.prototype, 'serialize')
+    try {
+      const rendered = renderMermaidASCIIWithReceipt(`---\ntitle: Heading\n---\n${SOURCE}`, { colorMode: 'html', targetWidth: 80 })
+      expect(rendered.text).toContain('Heading')
+      expect(serialize).toHaveBeenCalledTimes(1)
+      expect(terminalDocumentOf(rendered)?.regions().find(region => region.id === 'title')).toBeDefined()
+    } finally { serialize.mockRestore() }
+  })
+
+  test('native text avoids optional graphical work and full receipts memoize its evidence', () => {
+    const descriptor = getFamily('flowchart')!
+    let calls = 0
+    const restore = replaceFamilyForTest('flowchart', { ...descriptor, layout(context) {
+      calls++
+      return descriptor.layout!(context)
+    } })
+    try {
+      const rendered = renderMermaidASCIIWithReceipt(SOURCE, { colorMode: 'none' })
+      expect(rendered.text).toContain('Start')
+      expect(calls).toBe(0)
+      expect(rendered.terminalStyle.connectorProjection.evidence).toBe('scene')
+      expect(calls).toBe(1)
+      const receipt = rendered.receipt
+      expect(rendered.receipt).toBe(receipt)
+      expect(rendered.terminalStyle.connectorProjection.count).toBeGreaterThan(0)
+      expect(calls).toBe(1)
+    } finally { restore() }
+  })
+
+  test('native Flowchart and metadata share the same authored parse within one render', () => {
+    const descriptor = getFamily('flowchart')!
+    let parses = 0
+    const restore = replaceFamilyForTest('flowchart', { ...descriptor, parse(context) {
+      parses++
+      return descriptor.parse!(context)
+    } })
+    try {
+      const result = renderMermaidASCIIWithMeta(SOURCE, { colorMode: 'none' })
+      expect(result.ascii).toContain('Start')
+      expect(result.regions.find(region => region.id === 'A')?.sourceLine).toBe(2)
+      expect(parses).toBe(1)
+    } finally { restore() }
+  })
+
+  test('model reuse respects admitted entity decoding in labels, headers and grammar', () => {
+    const encoded = 'flowchart&#32;LR\nA[&lt;b&gt;Start&lt;/b&gt;] --&gt; B[Finish]'
+    const decoded = 'flowchart LR\nA[<b>Start</b>] --> B[Finish]'
+    const actual = renderMermaidASCIIWithMeta(encoded, { colorMode: 'none' })
+    const expected = renderMermaidASCIIWithMeta(decoded, { colorMode: 'none' })
+    expect(actual.ascii).toBe(expected.ascii)
+    expect(actual.ascii).toContain('Start')
+    const labelOnly = renderMermaidASCIIWithMeta('flowchart&#32;LR\nA[&lt;b&gt;Start&lt;/b&gt;] --> B[Finish]', { colorMode: 'none' })
+    expect(labelOnly.ascii).toBe(expected.ascii)
+    expect(labelOnly.regions.find(region => region.id === 'A')?.sourceLine).toBe(2)
+    expect(actual.regions.filter(region => region.kind === 'edge')).toHaveLength(1)
   })
 
   test('the output registry records the terminal security gate', () => {

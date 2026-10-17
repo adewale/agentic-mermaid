@@ -1,3 +1,4 @@
+import { OccupancyMap } from './occupancy.ts'
 // ============================================================================
 // ASCII renderer — MermaidGraph → AsciiGraph converter
 //
@@ -151,7 +152,7 @@ export function convertToAsciiGraph(parsed: MermaidGraph, config: AsciiConfig): 
     nodes,
     edges,
     canvas,
-    grid: new Map(),
+    grid: new OccupancyMap(),
     columnWidth: new Map(),
     rowHeight: new Map(),
     subgraphs,
