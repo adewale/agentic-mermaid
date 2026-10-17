@@ -180,8 +180,8 @@ sort each group's visible cells once.
 ## Where construction enforces invariants
 
 The representation prevents a defect only when every path that creates or
-imports the relevant state passes through the same boundary. The audit found
-five gaps and extended their owning contracts:
+imports the relevant state passes through the same boundary. The audits found
+gaps and extended their owning contracts:
 
 | Invariant | Gap and representative class | Construction boundary |
 | --- | --- | --- |
@@ -190,6 +190,7 @@ five gaps and extended their owning contracts:
 | Intended background occlusion is explicit | A cell compositor cannot infer that a message or heading should cut a gap in a lifeline or activation | Family layout reserves foreground footprints before either background pass; collision diagnostics remain enabled |
 | One identity has one immutable definition | Explicit registration validated definitions while paint, attribution and layer imports bypassed it | One snapshot-and-validation path, with complete batch validation before target mutation and caches restricted to owned immutable values |
 | Admitted ink remains serializable | Legacy row caps became stale after positioned writes, sparse overlays and reflection | Accepted cell placement maintains row extents; transforms rebuild them from moved occupied geometry |
+| Allocated graph ports fit their semantic endpoints | A representative child used for placement lost the container's actual face and exterior approach; valid source IDs alone did not preserve geometry | Node-or-container endpoint objects through demand allocation, measured final-envelope capacity checks and actual frame/marker contact regressions |
 
 Owning regressions include foreign frozen handles, mutable/getter callers,
 partial failed imports, arbitrary ID separators, same-ID/different-kind parents,
@@ -213,6 +214,12 @@ and formatting numeric display values requires neither d3-sankey nor terminal
 cell geometry. This repairs semantic correspondence; it is not a claim that
 the earlier duplicate identities caused missing ribbons or wrong PNG pixels.
 
+This fixes generated-name collisions. An inherited adapter defect remains:
+literal LF/TAB identities can normalize in an SVG DOM, and terminal source
+sanitation can merge TAB-bearing authored endpoints before family parsing
+([#403](https://github.com/adewale/agentic-mermaid/issues/403)). Shared planning
+cannot recover distinctions already removed at an input or encoding boundary.
+
 Subsequent migrations should share immutable semantic references, including kind
 and ID, and validate parent/endpoint correspondence at the boundary where a
 family creates or imports them. Extend existing identity, action and route tests
@@ -234,6 +241,7 @@ The independent route-verification policy remains
 | Work | Next deliverable |
 | --- | --- |
 | [#402: empty text rows](https://github.com/adewale/agentic-mermaid/issues/402) | Preserve deliberate empty rows in projectedText using complete occurrence provenance, with emitted-row correspondence and reflection checks. |
+| [#403: identity whitespace](https://github.com/adewale/agentic-mermaid/issues/403) | Preserve authored identities before terminal display sanitation and through XML attribute serialization; check actual DOM correspondence. |
 | [#387: native C4](https://github.com/adewale/agentic-mermaid/issues/387) | Family admission, lossless source/editing semantics, graphical layout and a native terminal projection through the existing registry. |
 | String-only extensions | Preserve explicit ownership-unavailable diagnostics; design an opt-in native artifact contract when a concrete extension consumer needs it. |
 

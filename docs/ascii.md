@@ -83,6 +83,10 @@ searching the rendered label text.
 `projectedText` currently collapses intentional empty rows
 ([#402](https://github.com/adewale/agentic-mermaid/issues/402)); the drawing and
 `authoredTextCells` retain their actual row spacing.
+Whole-source terminal sanitation can also merge authored TAB-bearing Sankey
+identities with space-bearing names before parsing
+([#403](https://github.com/adewale/agentic-mermaid/issues/403)). Visible control
+sanitation and source identity preservation need separate boundaries.
 
 `actions` contains inert action metadata only; a host decides whether and how to
 handle it. `routeParity` records route intent and projection limits; it does not
