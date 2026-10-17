@@ -116,12 +116,14 @@ async def probe_hosted(url: str, supported_versions: list[str]) -> None:
                     rendered = await session.call_tool("render_svg", {"source": FLOW})
                     text = rendered.content[0].text if rendered.content else ""
                     check("hosted: render_svg round-trip", "<svg" in text, f"{len(text)} bytes")
-                    tool_requests = [entry for entry in wire if entry.get("rpc_method") in ("tools/list", "tools/call")]
+                    # A followed redirect remains in WIRE, but only the final
+                    # successful exchange proves the server accepted the tool.
+                    tool_requests = [entry for entry in wire if entry.get("rpc_method") in ("tools/list", "tools/call") and entry.get("status") == 200]
                     check(
                         "hosted: supported negotiated version accepted on tool requests",
                         negotiated in supported_versions
-                        and len(tool_requests) >= 2
-                        and all(entry["protocol_version"] == negotiated and entry.get("status") == 200 for entry in tool_requests),
+                        and {entry["rpc_method"] for entry in tool_requests} == {"tools/list", "tools/call"}
+                        and all(entry["protocol_version"] == negotiated for entry in tool_requests),
                         negotiated,
                     )
     finally:

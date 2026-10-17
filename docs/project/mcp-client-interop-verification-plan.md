@@ -261,7 +261,9 @@ the deprecated alias or assumes the v1-only session-ID callback exists.
 Supported hosted and stdio revisions are loaded from the servers' canonical
 TypeScript exports using Bun; there is no copied Python version list and no
 fixed `2024-11-05` stdio expectation. The hosted check additionally requires
-real tool requests to carry the negotiated revision and receive HTTP 200.
+successful exchanges for both `tools/list` and `tools/call` to carry the negotiated
+revision and receive HTTP 200. Intermediate followed redirects remain visible in
+the trace without being mistaken for failed tool acceptance.
 
 Both the pinned **mcp 1.28.1** and freshly resolved latest **mcp 2.3.0** passed
 all **10 checks** on macOS arm64, Python 3.14.4 and Bun 1.4.2. Each offered
