@@ -150,7 +150,8 @@ But the families do not collect the same candidates:
 - ER collects entity declarations and entity endpoints of relations, even for
   entities already named at top level. A prior top-level mention does not prevent
   a later ER subgraph from keeping that entity. A style directive alone does not
-  collect an entity; a relation endpoint naming a group refers to its boundary.
+  collect an entity; a relation endpoint naming an already-opened group refers
+  to its boundary. A reference before that group's declaration creates an entity.
 
 For example:
 
