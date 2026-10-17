@@ -118,7 +118,11 @@ Users can discover fork features through:
 
 - A layout before/after comparison harness (`eval/layout-compare/`) and per-family `RenderedLayout` adapters so perceptual metrics gate layout changes with evidence. Debug JSON can also expose opt-in graph route certificates, family edge-route certificates, region-containment certificates, and region/action sidecars for tooling; default JSON stays compact.
 - Still different from the current upstream release (Beautiful Mermaid 1.1.3): decision-branch routing emits a diamond's branches from facet-mid ports as mirror-symmetric routes (the layout symmetry floor), and an edge to a subgraph attaches to its container with `direction` overrides honored inside it — a case upstream 1.1.3 still mis-routes (`mermaid-js/mermaid#2509` leaves it unsolved). Both are shown side by side on the [differences page](https://agentic-mermaid.dev/comparisons/).
-- Already upstreamed: fan-in grouping (upstream #68/#69) and labeled fan-out trunk sharing with box-start connector placement (#111/#112/#113, upstream PR #113) landed here first and now render identically in Beautiful Mermaid 1.1.3 — they are no longer fork-only.
+- Implemented here, with upstream proposals still open as of 2026-10-17:
+  fan-in grouping ([Beautiful Mermaid PR #69](https://github.com/lukilabs/beautiful-mermaid/pull/69))
+  and labeled fan-out trunk sharing with box-start connector placement
+  ([PR #113](https://github.com/lukilabs/beautiful-mermaid/pull/113)). Open proposals
+  are not evidence of upstream release inclusion or identical rendering.
 - ER cardinality parsing matches Mermaid's lexer exactly; malformed relationship lines error loudly instead of being silently dropped.
 
 ## Parser and semantic divergences from Mermaid.js

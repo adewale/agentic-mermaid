@@ -291,6 +291,13 @@ artifact remains covered separately by the all-family browser contract.
 Keep `security: 'strict'` for authored or user-provided source, and insert the
 accepted result as parsed XML nodes as shown above. Do not assign renderer output
 to `innerHTML`: strict rendering and DOM insertion are separate trust boundaries.
+XML parsing is not a sanitizer; accept only the strict renderer's result.
+These DOMParser examples assume Trusted Types is not enforced. Under
+`require-trusted-types-for 'script'`, parsing is also a protected sink: supply
+the application's reviewed, narrowly scoped TrustedHTML adapter rather than
+adding a permissive default policy or disabling CSP. Server/build frameworks
+likewise need their own reviewed trusted-markup boundary.
+See [DOMParser's security and Trusted Types requirements](https://developer.mozilla.org/en-US/docs/Web/API/DOMParser/parseFromString#security_considerations).
 The integrity value pins the reviewed bytes as well as the version. When the
 package version changes, recompute it with:
 

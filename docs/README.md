@@ -49,7 +49,7 @@ The design docs split into two tiers — **system** (how the engine works, cross
 
 | Doc | Purpose |
 |---|---|
-| [`project/brand-primitives-plan.md`](https://github.com/adewale/agentic-mermaid/blob/main/docs/project/brand-primitives-plan.md) | Normative appearance/family-contract decision and A/B dependency/acceptance plan; live status is owned by root `TODO.md`. |
+| [`project/brand-primitives-plan.md`](https://github.com/adewale/agentic-mermaid/blob/main/docs/project/brand-primitives-plan.md) | Brand/family design rationale and completed A/B rollout history; current architecture is in the system hub, not the old acceptance machinery. |
 | [`design/system/`](https://github.com/adewale/agentic-mermaid/blob/main/docs/design/system/README.md) | **Start here.** Current resolved-request, family-descriptor, positioned-artifact, and output-security architecture overview (dogfooded, drift-proof). |
 | [`design/system/route-contracts.md`](https://github.com/adewale/agentic-mermaid/blob/main/docs/design/system/route-contracts.md) | Route contracts: edge classification, direct-lane proofs, certifying straightener (issue #25). |
 | [`design/system/layout-rubric.md`](https://github.com/adewale/agentic-mermaid/blob/main/docs/design/system/layout-rubric.md) | Deterministic layout-quality rubric: metrics, CI gates, and property oracles. |
@@ -77,6 +77,8 @@ The design docs split into two tiers — **system** (how the engine works, cross
 
 | Doc | Purpose |
 |---|---|
+| [`project/README.md`](https://github.com/adewale/agentic-mermaid/blob/main/docs/project/README.md) | Current plans versus completed/superseded records, and their canonical backlog owners. |
+| [`contributing/branches.md`](https://github.com/adewale/agentic-mermaid/blob/main/docs/contributing/branches.md) | How to distinguish active work, merged residue and evidence branches without losing squash-merged work. |
 | [`contributing/adding-diagram-types.md`](https://github.com/adewale/agentic-mermaid/blob/main/docs/contributing/adding-diagram-types.md) | How to add a Mermaid-supported diagram family. |
 | [`contributing/visual-review-evidence.md`](https://github.com/adewale/agentic-mermaid/blob/main/docs/contributing/visual-review-evidence.md) | Which reproducible visual artifacts are required for layout/rendering changes. |
 | [`contributing/diagram-family-citizenship.md`](https://github.com/adewale/agentic-mermaid/blob/main/docs/contributing/diagram-family-citizenship.md) | Enforced good-citizen checklist and matrix for family/surface drift (issue #41). |
@@ -89,9 +91,9 @@ The design docs split into two tiers — **system** (how the engine works, cross
 | [`project/lessons-learned.md`](https://github.com/adewale/agentic-mermaid/blob/main/docs/project/lessons-learned.md) | Evergreen engineering lessons distilled from the archived fork narrative. |
 | [`research/tanstack-charts-learnings.md`](https://github.com/adewale/agentic-mermaid/blob/main/research/tanstack-charts-learnings.md) | External survey: what TanStack Charts v0 validates about the agent-native bet, what is worth adopting, and where we deliberately diverge. |
 | [`project/agent-interface-contract-audit-2026-07.md`](https://github.com/adewale/agentic-mermaid/blob/main/docs/project/agent-interface-contract-audit-2026-07.md) | PR #162 defect provenance, review of PRs #157/#160, testing root causes, and recurrence controls. |
-| [`project/complexity-aware-test-portfolio-plan.md`](https://github.com/adewale/agentic-mermaid/blob/main/docs/project/complexity-aware-test-portfolio-plan.md) | Implemented measured migration from overlapping family/style matrices to automatic complexity-aware conformance, variable-strength interaction coverage, and periodic contact-sheet review. |
+| [`project/archive/complexity-aware-test-portfolio-plan.md`](https://github.com/adewale/agentic-mermaid/blob/main/docs/project/archive/complexity-aware-test-portfolio-plan.md) | Historical July test-portfolio migration and measurements; not current acceptance policy. |
 | [`contributing/lessons-learned.md`](https://github.com/adewale/agentic-mermaid/blob/main/docs/contributing/lessons-learned.md) | Dated contributor process lessons (newest first). |
-| [`project/dogfooding-docs-strategy.md`](https://github.com/adewale/agentic-mermaid/blob/main/docs/project/dogfooding-docs-strategy.md) | How we render and pin our own docs with our own tools. |
+| [`project/archive/dogfooding-docs-strategy.md`](https://github.com/adewale/agentic-mermaid/blob/main/docs/project/archive/dogfooding-docs-strategy.md) | Superseded generated-artifact strategy; current contributor policy is in `CLAUDE.md` and `contributing/doc-consistency.md`. |
 | [`project/archive/`](https://github.com/adewale/agentic-mermaid/tree/main/docs/project/archive) | Status-marked landing/completion evidence and frozen historical records; never live backlog authority. |
 | [`issue-derived-test-cases.md`](./issue-derived-test-cases.md) | Issue-derived regression coverage map. |
 | [`mermaid-layout-complaints.md`](./mermaid-layout-complaints.md) | Mermaid layout complaint catalog, root causes, and coverage scorecard. |

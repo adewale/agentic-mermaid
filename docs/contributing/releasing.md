@@ -4,8 +4,8 @@ The package is published by [`.github/workflows/publish.yml`](../../.github/work
 which triggers on a **published GitHub Release**. The workflow requires a
 successful canonical `ci.yml` run for the exact release commit. CI owns tests,
 dependency/palette/sketch/whole-corpus quality, TypeScript and Biome checks,
-browser contracts, route sabotage, `hero:check`, `website:check`, golden drift,
-mutation, and packed-consumer fuzzing under Node 24 and the minimum supported
+browser contracts, `hero:check`, `website:check`, golden drift,
+and packed-consumer fuzzing under Node 24 and the minimum supported
 Node 22. `bun run lint:package` runs publint and attw on the packed tarball, so
 every export resolves and carries types for Node ESM and bundlers. attw uses its
 `esm-only` profile because the package ships ESM only, and it skips `./browser`

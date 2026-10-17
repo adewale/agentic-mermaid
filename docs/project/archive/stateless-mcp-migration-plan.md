@@ -1,4 +1,12 @@
-# Stateless MCP migration: hosted `/mcp` and the local server
+# Stateless MCP migration — historical design and evidence
+
+Archived on 2026-10-17: phases 0–4 landed. Statements such as “current”,
+“today”, and “not published yet” below refer to the July 2026 investigation,
+not a live protocol or deployment assessment. Consult
+[`mcp-http-transport.md`](../../mcp-http-transport.md) and
+[`website/README.md`](../../../website/README.md) for the maintained contract.
+The publication re-check in §11 is retained as an evidence limitation, not a
+new merge gate or an unchecked implementation queue.
 
 > **Status: phases 0–4 resolved.** Supersedes the analysis in
 > [issue #186](https://github.com/adewale/agentic-mermaid/issues/186), which this
