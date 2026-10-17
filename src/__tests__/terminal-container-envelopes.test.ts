@@ -19,6 +19,7 @@ function completeComposition(source: string, useAscii: boolean, labels: Record<s
     cards.set(owner.id, bounds)
   }
   const frames = regions.filter(region => region.kind === 'subgraph' || region.kind === 'cluster')
+  expect([...cards.keys()].sort()).toEqual(Object.keys(labels).filter(id => !frames.some(frame => frame.id === id)).sort())
   const boundsOf = (frame: typeof frames[number]): Bounds => ({ left: frame.canvasColStart, right: frame.canvasColEnd - 1, top: frame.canvasRow, bottom: frame.canvasRow + frame.rowSpan! - 1 })
   const belongs = (id: string, parent: string): boolean => {
     let region = regions.find(region => region.id === id)
@@ -96,6 +97,11 @@ for (const direction of ['TD', 'BT', 'LR', 'RL']) for (const useAscii of [false,
     const childDirection = direction === 'LR' || direction === 'RL' ? 'TD' : 'LR'
     completeComposition(`flowchart ${direction}\nsubgraph Outer[Outer 日本]\nsubgraph Inner[Inner 👩‍💻]\ndirection ${childDirection}\nA[First]\nB[Last]\nend\nX[Outside]\nend\nsubgraph Sibling\nC[Sibling card]\nend\nA --> X --> B\nX --> C`, useAscii, {
       A: 'First', B: 'Last', X: 'Outside', C: 'Sibling card', Inner: 'Inner 👩‍💻', Outer: 'Outer 日本', Sibling: 'Sibling',
+    })
+  })
+  test(`${direction} an unconnected empty child retains its own measured position (${useAscii ? 'ASCII' : 'Unicode'})`, () => {
+    completeComposition(`flowchart ${direction}\nsubgraph Outer\nsubgraph Inner\nA[First]\nB[Last]\nsubgraph Empty[Unused 日本]\nend\nend\nX[Outside]\nend\nA --> X --> B`, useAscii, {
+      A: 'First', B: 'Last', X: 'Outside', Inner: 'Inner', Outer: 'Outer', Empty: 'Unused 日本',
     })
   })
 }

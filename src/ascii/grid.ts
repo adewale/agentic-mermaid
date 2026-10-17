@@ -20,7 +20,7 @@ import { drawBox } from './draw.ts'
 import { maxLineWidth, lineCount } from './multiline-utils.ts'
 import { getShapeDimensions } from './shapes/index.ts'
 import { placeCompoundItems } from './compound-placement.ts'
-import { reserveGraphEdgeCapacity } from './graph-capacity.ts'
+import { reserveGraphEdgeCapacity, GRAPH_EDGE_APPROACH } from './graph-capacity.ts'
 
 // ============================================================================
 // Grid coordinate → drawing coordinate conversion
@@ -397,17 +397,7 @@ function nodeBounds(node: AsciiNode): GridBounds | null {
  * Logical placement and routes stay fixed; only empty spacer rows/columns grow. */
 function reserveContainerEnvelopes(graph: AsciiGraph): void {
   if (!graph.subgraphs.length) return
-  const projected = new Map<AsciiNode, GridBounds>()
-  for (const node of graph.nodes) {
-    if (!node.gridCoord) continue
-    const point = gridToDrawingCoord(graph, node.gridCoord)
-    projected.set(node, {
-      minX: point.x, minY: point.y,
-      maxX: point.x + (graph.columnWidth.get(node.gridCoord.x) ?? 0) + (graph.columnWidth.get(node.gridCoord.x + 1) ?? 0),
-      maxY: point.y + (graph.rowHeight.get(node.gridCoord.y) ?? 0) + (graph.rowHeight.get(node.gridCoord.y + 1) ?? 0),
-    })
-  }
-  calculateSubgraphBoundingBoxes(graph, projected)
+  const projected = projectNodeEnvelopes(graph)
   interface Envelope { bounds: GridBounds; logical: GridBounds; node?: AsciiNode; group?: AsciiSubgraph }
   const envelopes: Envelope[] = []
   for (const [node, bounds] of projected) envelopes.push({ node, bounds, logical: nodeBounds(node)! })
@@ -452,6 +442,22 @@ function reserveContainerEnvelopes(graph: AsciiGraph): void {
   }
   for (const [index, extra] of columns) graph.columnWidth.set(index, (graph.columnWidth.get(index) ?? 0) + extra)
   for (const [index, extra] of rows) graph.rowHeight.set(index, (graph.rowHeight.get(index) ?? 0) + extra)
+}
+
+/** Measure cards and complete nested frames from the same grid projection. */
+function projectNodeEnvelopes(graph: AsciiGraph): Map<AsciiNode, GridBounds> {
+  const projected = new Map<AsciiNode, GridBounds>()
+  for (const node of graph.nodes) {
+    if (!node.gridCoord) continue
+    const point = gridToDrawingCoord(graph, node.gridCoord)
+    projected.set(node, {
+      minX: point.x, minY: point.y,
+      maxX: point.x + (graph.columnWidth.get(node.gridCoord.x) ?? 0) + (graph.columnWidth.get(node.gridCoord.x + 1) ?? 0),
+      maxY: point.y + (graph.rowHeight.get(node.gridCoord.y) ?? 0) + (graph.rowHeight.get(node.gridCoord.y + 1) ?? 0),
+    })
+  }
+  calculateSubgraphBoundingBoxes(graph, projected)
+  return projected
 }
 
 /**
@@ -545,6 +551,13 @@ export function offsetDrawingForSubgraphs(graph: AsciiGraph): void {
   for (const sg of graph.subgraphs) {
     minX = Math.min(minX, sg.minX)
     minY = Math.min(minY, sg.minY)
+  }
+
+  for (const edge of graph.edges) if (edge.cellAllocation) for (const start of [true, false]) {
+    const group = start ? edge.attachFromSubgraph ?? edge.fromSubgraph : edge.attachToSubgraph ?? edge.toSubgraph
+    const node = start ? edge.from : edge.to, direction = start ? edge.startDir : edge.endDir
+    if (direction.x === 0) minX = Math.min(minX, (group?.minX ?? node.drawingCoord!.x) - GRAPH_EDGE_APPROACH)
+    if (direction.y === 0) minY = Math.min(minY, (group?.minY ?? node.drawingCoord!.y) - GRAPH_EDGE_APPROACH)
   }
 
   const offsetX = -minX
@@ -844,15 +857,19 @@ export function createMapping(graph: AsciiGraph): void {
 
   shareSiblingEdgeTrunks(graph)
 
-  reserveGraphEdgeCapacity(graph)
+  if (graph.config.reverseDirection) {
+    mirrorHorizontalGrid(graph)
+    // Reflection exchanges the shared block columns. Measure readable cards
+    // and headers in that final projection before allocating physical faces.
+    for (const node of graph.nodes) setColumnWidth(graph, node)
+    reserveSubgraphHeaders(graph)
+  }
+
+  reserveGraphEdgeCapacity(graph, () => projectNodeEnvelopes(graph))
   if (graph.edges.some(edge => edge.cellAllocation)) {
     graph.bundles = []
     graph.trunkJunctions = []
     for (const edge of graph.edges) { delete edge.bundle; delete edge.sharedTrunk; delete edge.pathToJunction }
-  }
-
-  if (graph.config.reverseDirection) {
-    mirrorHorizontalGrid(graph)
   }
 
   reserveContainerEnvelopes(graph)

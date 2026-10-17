@@ -26,6 +26,7 @@ import { safeCssColor } from '../shared/css-color.ts'
 import { measuredText, type MeasuredTerminalText, type TerminalCell, type TerminalOwner, type TerminalSide } from './terminal-document.ts'
 import type { PathOccupancy } from './occupancy.ts'
 import { getPath, mergePath } from './pathfinder.ts'
+import { GRAPH_EDGE_APPROACH, graphEndpointOf, type GraphEndpoint } from './graph-capacity.ts'
 
 /** Protect admitted headers and cards before routing in terminal cells. The
  * grid router cannot see text measured inside a container's header band. */
@@ -433,7 +434,7 @@ export function drawArrow(
   protectedCells?: PathOccupancy,
 ): [Canvas, Canvas, Canvas, Canvas, Canvas] {
   // Invisible links (~~~) shape the layout but draw no glyphs.
-  if (edge.path.length === 0 || edge.style === 'invisible') {
+  if (edge.style === 'invisible') {
     const empty = copyCanvas(graph.canvas)
     return [empty, empty, empty, empty, empty]
   }
@@ -447,6 +448,10 @@ export function drawArrow(
     const endMarker = edge.hasArrowEnd ? drawEndpointMarker(graph, lines.at(-1)!, directions.at(-1)!, edge.endMarker) : copyCanvas(graph.canvas)
     const startMarker = edge.hasArrowStart ? drawEndpointMarker(graph, [poly[0]!], reverseDirection(directions[0]!), edge.startMarker) : copyCanvas(graph.canvas)
     return [path, start, endMarker, startMarker, drawDrawingCorners(graph, poly)]
+  }
+  if (!edge.path.length) {
+    const empty = copyCanvas(graph.canvas)
+    return [empty, empty, empty, empty, empty]
   }
 
   // BUILD-14: edges whose endpoint is a subgraph container attach to the
@@ -1384,11 +1389,13 @@ function recordGraphPorts(graph: AsciiGraph, edge: AsciiEdge, start: DrawingCoor
 function planAllocatedGraphRoutes(graph: AsciiGraph, protectedCells: PathOccupancy): void {
   const edges = graph.edges.filter(edge => edge.cellAllocation)
   if (!edges.length) return
-  const pairOrder = new Map<AsciiNode, Map<AsciiNode, number>>()
+  const pairOrder = new Map<GraphEndpoint, Map<GraphEndpoint, number>>()
+  const endpointOrder = new Map<GraphEndpoint, number>([...graph.nodes, ...graph.subgraphs].map((endpoint, index) => [endpoint, index]))
   let nextPair = 0
   const order = (edge: AsciiEdge): number => {
-    const a = edge.from.index < edge.to.index ? edge.from : edge.to, b = a === edge.from ? edge.to : edge.from
-    const targets = pairOrder.get(a) ?? new Map<AsciiNode, number>()
+    const from = graphEndpointOf(edge, true), to = graphEndpointOf(edge, false)
+    const a = endpointOrder.get(from)! < endpointOrder.get(to)! ? from : to, b = a === from ? to : from
+    const targets = pairOrder.get(a) ?? new Map<GraphEndpoint, number>()
     const index = targets.get(b) ?? nextPair++
     targets.set(b, index); pairOrder.set(a, targets); return index
   }
@@ -1402,27 +1409,38 @@ function planAllocatedGraphRoutes(graph: AsciiGraph, protectedCells: PathOccupan
   let regions: ReturnType<Canvas['regions']> | undefined
   const step = (point: DrawingCoord, direction: Direction, count: number) => ({ x: point.x + (direction.x - 1) * count, y: point.y + (direction.y - 1) * count })
   const inside = (box: Rectangle, x: number, y: number) => x >= box.x - (box.height > 1 ? 1 : 0) && x < box.x + box.width && y >= box.y && y < box.y + box.height
-  const endpoint = (edge: AsciiEdge, start: boolean): DrawingCoord => {
+  const endpoint = (edge: AsciiEdge, start: boolean): DrawingCoord | undefined => {
     const node = start ? edge.from : edge.to, direction = start ? edge.startDir : edge.endDir
     const group = start ? edge.attachFromSubgraph ?? edge.fromSubgraph : edge.attachToSubgraph ?? edge.toSubgraph
     const offset = start ? edge.cellAllocation!.startOffset : edge.cellAllocation!.endOffset
+    const horizontal = dirEquals(direction, Left) || dirEquals(direction, Right)
+    const available = group ? horizontal ? group.maxY - group.minY : group.maxX - group.minX
+      : horizontal ? node.drawing!.height - 1 : node.drawing!.width - 1
+    const minimum = group && horizontal ? splitLines(group.name).length + 1 : 1
+    if (!Number.isSafeInteger(offset) || offset < minimum || offset >= available) return undefined
     const point = group ? getSubgraphAttachmentPoint(graph, group, node, direction) : getNodeAttachmentPoint(graph, node, direction)
-    if (dirEquals(direction, Left) || dirEquals(direction, Right)) point.y = node.drawingCoord!.y + offset
-    else point.x = node.drawingCoord!.x + offset
+    if (dirEquals(direction, Left) || dirEquals(direction, Right)) point.y = (group?.minY ?? node.drawingCoord!.y) + offset
+    else point.x = (group?.minX ?? node.drawingCoord!.x) + offset
     return point
   }
   for (const edge of edges) {
     const start = endpoint(edge, true), end = endpoint(edge, false)
+    if (!start || !end) {
+      edge.cellRoute = { points: [] }
+      graph.canvas.report({ code: 'TERMINAL_GEOMETRY_COLLISION', feature: `edge-face:${terminalEdgeOwner(graph, edge).id}`, message: 'The final endpoint envelope has insufficient usable face capacity for its allocated physical port.' })
+      continue
+    }
     ends.set(edge, [start, end])
-    for (const [point, direction] of [[start, edge.startDir], [end, edge.endDir]] as const) for (const distance of [0, 1, 2]) {
+    for (const [point, direction] of [[start, edge.startDir], [end, edge.endDir]] as const) for (let distance = 0; distance <= GRAPH_EDGE_APPROACH; distance++) {
       const marker = step(point, direction, distance), key = `${marker.x},${marker.y}`
       const owners = markerCells.get(key) ?? new Set<AsciiEdge>(); owners.add(edge); markerCells.set(key, owners)
     }
   }
   for (const edge of edges) {
+    if (!ends.has(edge)) continue
     if (!edge.text) continue
     const [start, end] = ends.get(edge)!, text = measuredText(edge.text)
-    const preferred = edge.from === edge.to
+    const preferred = graphEndpointOf(edge, true) === graphEndpointOf(edge, false)
       ? { x: start.x + 4, y: Math.floor((start.y + end.y - text.height + 1) / 2) }
       : { x: Math.floor((start.x + end.x - text.width + 1) / 2), y: Math.floor((start.y + end.y - text.height + 1) / 2) }
     const clear = (point: DrawingCoord): boolean => {
@@ -1453,8 +1471,9 @@ function planAllocatedGraphRoutes(graph: AsciiGraph, protectedCells: PathOccupan
   const rectangleList = [...rectangles]
   const extent = { maxX: Math.max(protectedCells.extent.maxX, ...rectangleList.map(([, box]) => box.x + box.width)), maxY: Math.max(protectedCells.extent.maxY, ...rectangleList.map(([, box]) => box.y + box.height)) }
   for (const edge of edges) {
+    if (!ends.has(edge)) continue
     const [start, end] = ends.get(edge)!, rectangle = rectangles.get(edge)
-    const exit = step(start, edge.startDir, 2), entry = step(end, edge.endDir, 2)
+    const exit = step(start, edge.startDir, GRAPH_EDGE_APPROACH), entry = step(end, edge.endDir, GRAPH_EDGE_APPROACH)
     const ownMarkers = new Set([start, end, step(start, edge.startDir, 1), step(end, edge.endDir, 1)].map(point => `${point.x},${point.y}`))
     const obstacles: PathOccupancy = {
       extent,

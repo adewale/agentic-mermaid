@@ -6,6 +6,45 @@ import { createMapping } from '../ascii/grid.ts'
 import { drawGraph } from '../ascii/draw.ts'
 import { measuredText, terminalDocumentOf, type TerminalDocument, type TerminalRegion } from '../ascii/terminal-document.ts'
 
+const containerEndpointCases: Array<{ name: string; body: string; texts: Array<[string, string]>; relationships: Array<[string, string, string]> }> = [
+  {
+    name: 'two complete sibling frame faces',
+    body: 'subgraph G1\nA[Inside one]\nend\nsubgraph G2\nB[Inside two]\nend\nG1 -->|one| G2\nG1 -->|two| G2\nG2 -->|back| G1',
+    texts: [['G1', 'G1'], ['G2', 'G2'], ['A', 'Inside one'], ['B', 'Inside two']],
+    relationships: [['G1', 'G2', 'one'], ['G1', 'G2', 'two'], ['G2', 'G1', 'back']],
+  },
+  {
+    name: 'multi-member frame independent of its representative anchor',
+    body: 'subgraph G[Header]\nA[Left]\nC[Right]\nend\nG -->|one| B[Outside]\nG -->|two| B\nB -->|back| G',
+    texts: [['G', 'Header'], ['A', 'Left'], ['C', 'Right'], ['B', 'Outside']],
+    relationships: [['G', 'B', 'one'], ['G', 'B', 'two'], ['B', 'G', 'back']],
+  },
+  {
+    name: 'ancestor and descendant share an anchor but remain distinct endpoints',
+    body: 'subgraph Parent[Outer 日本]\nsubgraph Child[Inner 👩‍💻]\nA[Member]\nend\nend\nParent -->|one| A\nParent -->|two| A\nA -->|back| Parent',
+    texts: [['Parent', 'Outer 日本'], ['Child', 'Inner 👩‍💻'], ['A', 'Member']],
+    relationships: [['Parent', 'A', 'one'], ['Parent', 'A', 'two'], ['A', 'Parent', 'back']],
+  },
+  {
+    name: 'nested container endpoints share an anchor but retain their own frames',
+    body: 'subgraph Parent[Outer 日本]\nsubgraph Child[Inner 👩‍💻]\nA[Member]\nend\nend\nParent -->|one| Child\nParent -->|two| Child\nChild -->|back| Parent',
+    texts: [['Parent', 'Outer 日本'], ['Child', 'Inner 👩‍💻'], ['A', 'Member']],
+    relationships: [['Parent', 'Child', 'one'], ['Parent', 'Child', 'two'], ['Child', 'Parent', 'back']],
+  },
+  {
+    name: 'empty frame endpoints have usable faces without phantom cards',
+    body: 'subgraph Empty1[Nothing 日本]\nend\nsubgraph Empty2[Nothing 👩‍💻]\nend\nEmpty1 -->|one| Empty2\nEmpty1 -->|two| Empty2\nEmpty2 -->|back| Empty1',
+    texts: [['Empty1', 'Nothing 日本'], ['Empty2', 'Nothing 👩‍💻']],
+    relationships: [['Empty1', 'Empty2', 'one'], ['Empty1', 'Empty2', 'two'], ['Empty2', 'Empty1', 'back']],
+  },
+  {
+    name: 'self-container relationships allocate separate ports on the full face',
+    body: 'subgraph G[Wide 日本 header]\nA[Left]\nC[Right]\nend\nG -->|one| G\nG -->|two| G',
+    texts: [['G', 'Wide 日本 header'], ['A', 'Left'], ['C', 'Right']],
+    relationships: [['G', 'G', 'one'], ['G', 'G', 'two']],
+  },
+]
+
 function completeText(document: TerminalDocument, glyphs: ReadonlyMap<string, string>, region: TerminalRegion, text: string): void {
   expect(region.projectedText).toBe(text)
   for (const cell of region.authoredTextCells ?? []) {
@@ -134,6 +173,24 @@ for (const direction of ['TD', 'BT', 'LR', 'RL']) for (const useAscii of [false,
   }
   test(`parallel container endpoints bind to real frame ports (${direction}/${useAscii ? 'ASCII' : 'Unicode'})`, () => {
     witness(`flowchart ${direction}\nsubgraph Group\nA[Inner]\nend\nGroup -->|one| B[Outside]\nGroup -->|two| B\nB -->|back| Group`, useAscii, [['Group', 'Group'], ['A', 'Inner'], ['B', 'Outside']], [['Group', 'B', 'one'], ['Group', 'B', 'two'], ['B', 'Group', 'back']])
+  })
+  for (const fixture of containerEndpointCases) for (const parallel of [false, true]) test(`${fixture.name} (${direction}/${useAscii ? 'ASCII' : 'Unicode'}, parallel=${parallel})`, () => {
+    const body = parallel ? fixture.body : fixture.body.split('\n').filter(line => !line.includes('-->|two|')).join('\n')
+    const relationships = parallel ? fixture.relationships : fixture.relationships.filter(([, , text]) => text !== 'two')
+    witness(`flowchart ${direction}\n${body}`, useAscii, fixture.texts, relationships, (document, regions) => {
+      for (const edge of regions.filter(region => region.kind === 'edge')) {
+        for (const port of edge.ports ?? []) {
+          expect(document.cell(port.x, port.y)?.owners.some(owner => owner.id === port.nodeId && (owner.kind === 'node' || owner.kind === 'subgraph'))).toBe(true)
+        }
+        const end = edge.ports!.find(port => port.end === 'end')!
+        const dx = end.side === 'L' ? -1 : end.side === 'R' ? 1 : 0, dy = end.side === 'T' ? -1 : end.side === 'B' ? 1 : 0
+        const marker = document.cell(end.x + dx, end.y + dy)!
+        const expected = useAscii ? { T: 'v', B: '^', L: '>', R: '<' } : { T: '▼', B: '▲', L: '►', R: '◄' }
+        expect(marker?.kind).toBe('marker')
+        expect(marker?.glyph).toBe(expected[end.side!])
+        expect(marker?.owners.some(owner => owner.kind === 'edge' && owner.id === edge.id)).toBe(true)
+      }
+    })
   })
   test(`multiline lane labels retain authored blank rows and attached short rows (${direction}/${useAscii ? 'ASCII' : 'Unicode'})`, () => {
     const rendered = renderMermaidASCIIWithReceipt(`flowchart ${direction}\nA -->|long  label<br><br>x| B\nA -->|other| B\nA -->|third| B\nB -->|self| B`, { useAscii, colorMode: 'none' })
