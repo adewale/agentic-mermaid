@@ -150,10 +150,11 @@ It does not search text or render a second version. Its region fields are:
 - `parentId`, `members`, `from`, `to`, `bundle` and `ports`, when the family
   supplies the corresponding semantic geometry.
 
-Known metadata limitation: `projectedText` currently collapses intentionally empty
-text rows ([#402](https://github.com/adewale/agentic-mermaid/issues/402)). The
-emitted drawing and `authoredTextCells` row coordinates retain their spacing.
-Preserving complete occurrence provenance is a separate repair.
+Logical text blocks retain admitted, owner-specific empty-row provenance through
+composition and reflection. `projectedText` joins actual glyph rows and explicitly
+authored empty rows; it never fills arbitrary gaps between independent calls or
+adds occupied cells for an empty row. Sequence messages share one scope across
+their label lines, while repeated actor/header occurrences remain separate.
 
 Terminal action regions retain their compatible bounds and add `cellSpans`,
 optional `occludedCellSpans`, and parent identities. Generated IDs avoid authored IDs in the same render.
@@ -218,11 +219,11 @@ and formatting numeric display values requires neither d3-sankey nor terminal
 cell geometry. This repairs semantic correspondence; it is not a claim that
 the earlier duplicate identities caused missing ribbons or wrong PNG pixels.
 
-This fixes generated-name collisions. An inherited adapter defect remains:
-literal LF/TAB identities can normalize in an SVG DOM, and terminal source
-sanitation can merge TAB-bearing authored endpoints before family parsing
-([#403](https://github.com/adewale/agentic-mermaid/issues/403)). Shared planning
-cannot recover distinctions already removed at an input or encoding boundary.
+Authored source reaches family parsing unchanged. Display controls are prepared
+as inert text before output geometry; connector references and action targets
+remain semantic values. XML attributes encode TAB/LF/CR and decode references
+once. Sankey uses its existing CSV parser on physical rows, preserving quoted
+blank lines and comment-looking content.
 
 Subsequent migrations should share immutable semantic references, including kind
 and ID, and validate parent/endpoint correspondence at the boundary where a
@@ -244,8 +245,6 @@ The independent route-verification policy remains
 
 | Work | Next deliverable |
 | --- | --- |
-| [#402: empty text rows](https://github.com/adewale/agentic-mermaid/issues/402) | Preserve deliberate empty rows in projectedText using complete occurrence provenance, with emitted-row correspondence and reflection checks. |
-| [#403: identity whitespace](https://github.com/adewale/agentic-mermaid/issues/403) | Preserve authored identities before terminal display sanitation and through XML attribute serialization; check actual DOM correspondence. |
 | [#387: native C4](https://github.com/adewale/agentic-mermaid/issues/387) | Family admission, lossless source/editing semantics, graphical layout and a native terminal projection through the existing registry. |
 | String-only extensions | Preserve explicit ownership-unavailable diagnostics; design an opt-in native artifact contract when a concrete extension consumer needs it. |
 

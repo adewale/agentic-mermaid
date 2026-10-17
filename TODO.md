@@ -395,16 +395,6 @@ investigation of the class rather than per-item fixes.
 - [ ] **BUG-47 — A Journey title, section or task that is only `<br/>` is rejected** (`todo`). Mermaid draws `<br/>` as text there; ours reports "Invalid user journey line". Pinned `it.failing` in `property-svg-wellformedness.test.ts`.
 - [ ] **BUG-52 — Mutators keep "don't empty" floors that predate renderable empty charts** (`todo`). `set_title` on `createMermaid('pie')` is refused ("Pie must keep at least one slice"); the Architecture and Journey mutators keep similar floors.
 - [ ] **BUG-60 — A YAML string whose first line is only spaces does not round-trip through frontmatter** (`todo`). The `yaml` writer turns ` \n` into a block scalar that reads back as `\n`. Pinned `test.failing` in `metadata-yaml.test.ts`.
-- [ ] **BUG-70 — Terminal projectedText collapses authored empty rows** (`todo`,
-  [#402](https://github.com/adewale/agentic-mermaid/issues/402)). A label such as
-  `long label<br><br>x` retains its visible row gap and exact cell coordinates,
-  but metadata reports `long label\nx`. Preserve complete text-occurrence
-  provenance rather than joining only rows that contain glyphs.
-- [ ] **BUG-71 — Output adapters normalize authored whitespace identities**
-  (`todo`, [#403](https://github.com/adewale/agentic-mermaid/issues/403)). XML
-  attribute normalization merges literal LF/TAB/space identities, and terminal
-  whole-source sanitation merges TAB-bearing Sankey endpoints before parsing.
-  Preserve semantic identities before display sanitation and test a real SVG DOM.
 - [ ] **BUG-61 — Code Mode trailing line comments break the wrapper** (`todo`,
   [#366](https://github.com/adewale/agentic-mermaid/issues/366)). Protect
   multi-statement snippets ending in `//` from swallowing wrapper syntax.

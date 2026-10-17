@@ -18,6 +18,7 @@ interface Fixture { id: string; title: string; source: string; cue: string; rend
 const sequenceSpanSource = 'sequenceDiagram\nparticipant A\nparticipant B\nparticipant C\nA->>C: Label across B\nactivate B\nA->>C: Begin work\nA->>C: Label across active B\ndeactivate B'
 const sankeyIdentitySource = '---\ntitle: Caption\n---\nsankey-beta\nA,B,1\nA,B,2\nA,B#1,3\nlink:A->B#1,X,4\ntitle,title#1,5'
 const parallelReciprocalSource = 'flowchart LR\nA[Client] -->|request 0| B[Server]\nA -->|request 1| B\nB -->|reply| A'
+const whitespaceIdentitySource = 'sankey-beta\n"A\nB",X,1\n"A B",Y,2\n"A\tB",Z,3\n"A\rB",CR,4\n"A\tB",Z,5\n"link:A\tB->Z",Other,6\n"A\n\nB",Blank,7'
 const fiveLineTitle = ['First authored title line', 'Second authored title line', 'Third authored title line', 'Fourth authored title line', 'Fifth authored title line'].join('\n')
 const withTitle = (source: string): string => `---\ntitle: ${JSON.stringify(fiveLineTitle)}\n---\n${source}`
 const trackedRoles: RenderOptions = { style: { roles: {
@@ -27,6 +28,7 @@ const trackedRoles: RenderOptions = { style: { roles: {
 } } }
 const literalLabel = '<b>This is a very long label that describes the work in detail</b>'
 const fixtures: Fixture[] = [
+  { id: 'sankey-whitespace-identities', title: 'Sankey authored whitespace identities', source: whitespaceIdentitySource, captureLayout: true, cue: 'The identity oracle is the decoded XML DOM and graphical/terminal sidecars: TAB, LF, CR and quoted empty rows must remain distinct from spaces, including repeated links and generated-looking names. Display controls stay inert. Pixels alone do not prove identity preservation.' },
   { id: 'pie-five-line-title', title: 'Pie authored multiline title (#381)', source: withTitle('pie\n "n0" : 1\n "n1" : 2'), cue: 'All five title lines stay on the canvas and clear the pie and legend. This is the original multiline-title failure family.' },
   { id: 'sankey-five-line-title', title: 'Sankey authored multiline title (#381)', source: withTitle('sankey-beta\n n0,nsink,1'), cue: 'The complete centered title owns a band above the flows, without clipping its first lines or overlapping node labels.' },
   { id: 'architecture-title-and-header', title: 'Architecture multiline title and group header (#381)', source: withTitle('architecture-beta\n group ng(cloud)["First<br/>Second<br/>Third<br/>Fourth<br/>Fifth"]\n service ns0(server)[S0] in ng\n service ns1(server)[S1] in ng\n ns0:R -- L:ns1'), cue: 'The title clears the complete group header; the header band expands above both services, and routed edges retain their port positions.' },
@@ -73,6 +75,9 @@ const fixtureOptions = Object.fromEntries(fixtures.map(fixture => {
   return [fixture.id, { svg, png: { ...svg, background: svg.transparent ? '#00000000' : '#ffffff' } }]
 }))
 const terminalFixtures = [
+  { id: 'terminal-authored-empty-rows', source: 'flowchart LR\nA -->|long label<br><br>x| B', cue: 'The drawing is unchanged. Compare projectedText in the metadata: its deliberate empty row must agree with the existing visible row gap and authoredTextCells, without inventing text cells.' },
+  { id: 'terminal-sequence-empty-rows', source: 'sequenceDiagram\nparticipant A\nparticipant B\nA->>B: first<br><br>last', cue: 'The complete message is one logical occurrence. The drawing retains its original rows; metadata must include first, the deliberate empty row and last, while actor header/footer occurrences remain separate.' },
+  { id: 'terminal-whitespace-identities', source: whitespaceIdentitySource, cue: 'Authored LF, TAB, CR, space and quoted empty-row identifiers remain distinct. Inspect exact node/edge IDs and endpoints in both projections, including generated-looking IDs and duplicate links. The display may show the same safe label for different source elements.' },
   ...knownBuiltinFamilies().flatMap(id => {
     const source = getFamily(id)?.example
     return source ? [{ id: `terminal-${id}`, source, cue: 'Compare labels, native marks and structure; the JSON sidecars show exact ownership separately.' }] : []

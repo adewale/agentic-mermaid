@@ -80,13 +80,16 @@ labels retain separate element identities, and parent references include
 `parentId` and `parentKind`. These fields support cell-based hit testing without
 searching the rendered label text.
 
-`projectedText` currently collapses intentional empty rows
-([#402](https://github.com/adewale/agentic-mermaid/issues/402)); the drawing and
-`authoredTextCells` retain their actual row spacing.
-Whole-source terminal sanitation can also merge authored TAB-bearing Sankey
-identities with space-bearing names before parsing
-([#403](https://github.com/adewale/agentic-mermaid/issues/403)). Visible control
-sanitation and source identity preservation need separate boundaries.
+`projectedText` preserves deliberately empty rows of its primary logical text
+occurrence, including leading and trailing rows. Separate occurrences do not
+acquire newlines merely because they are far apart on the canvas. Empty rows
+retain provenance without inventing occupied cells.
+
+Family parsing retains authored identities and endpoints. Shared display
+preparation neutralizes C0/C1 controls before pixel or cell fitting, while typed
+IDs, connector references and action targets remain exact. XML attribute
+serialization separately preserves identity whitespace. Sankey's CSV parser
+receives physical authored rows, including blank rows inside quoted labels.
 
 `actions` contains inert action metadata only; a host decides whether and how to
 handle it. `routeParity` records route intent and projection limits; it does not

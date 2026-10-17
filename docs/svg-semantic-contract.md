@@ -24,10 +24,11 @@ generated names receive deterministic collision suffixes. SVG semantic attribute
 graphical layout regions and terminal ownership consume the same plan.
 Scene-local mark IDs and SVG resource IDs keep their separate namespaces.
 
-Known adapter limitation: literal LF/TAB in authored semantic attributes can
-normalize to spaces in an XML DOM ([#403](https://github.com/adewale/agentic-mermaid/issues/403)).
-Generated-name allocation does not repair attribute whitespace serialization;
-lexical SVG scanning alone cannot detect that loss.
+XML attributes preserve authored TAB, LF and CR with numeric character
+references. Attribute readers decode serialized values exactly once; typed
+semantic references are never decoded or sanitized as display text. This keeps
+literal entity-looking names distinct from actual whitespace. Regression checks
+use a real XML DOM alongside layout and terminal identity correspondence.
 
 ## Multi-diagram references
 
