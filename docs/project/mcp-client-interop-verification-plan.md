@@ -1,9 +1,10 @@
 # MCP client interop — coverage and verification record
 
-> **Status: TypeScript lane implemented; Python follow-up incomplete (2026-10-17).**
-> `TODO.md` **TEST-4** owns the remaining API and request-trace work from
-> [#191](https://github.com/adewale/agentic-mermaid/issues/191), despite that
-> issue being closed. Correcting this document does not complete the probe changes.
+> **Status: TypeScript lane and Python follow-up implemented (2026-10-17).**
+> The completed **TEST-4** work from
+> [#191](https://github.com/adewale/agentic-mermaid/issues/191) uses the current
+> transport API and records actual HTTP requests; pinned/latest Python results
+> and their coverage limits are recorded below. Client probes remain manual.
 > (`src/__tests__/mcp-client-interop.test.ts`, SDK `1.29.0`
 > pinned as a devDependency; see the red→green record below). This document specifies
 > a test lane that drives both MCP servers in this repo with the **reference MCP client
@@ -211,11 +212,11 @@ cd scripts/interop/probe-go && go run . <url>
 The Python command above is the reproducible baseline used for the recorded result.
 To detect compatibility drift in the newest published Python client, run the same probe
 as an explicitly unpinned canary with
-`uv run --with mcp scripts/interop/probe-python.py <url>`. The Python and Go probes
+`uv run --refresh-package mcp --with mcp scripts/interop/probe-python.py <url>`. The Python and Go probes
 both bound the combined hosted-plus-stdio lifecycle to 120 seconds.
 
-Each probe drives the hosted endpoint (initialize → downgrade negotiation →
-`tools/list` → real `render_svg`) and the stdio bin (spawn → `2024-11-05` negotiation →
+Each probe drives the hosted endpoint (initialize → version negotiation →
+`tools/list` → real `render_svg`) and the stdio bin (spawn → negotiation →
 exact 4-tool surface → real vm-sandbox `execute`), printing PASS/FAIL per check and
 exiting nonzero on failure. Both tool-list checks compare the exact sorted names, not
 only the expected cardinality.
@@ -239,22 +240,49 @@ same HTTP behavior:
 | Automated repeat coverage | Unit lane | Manual probe | Manual probe |
 
 HTTP 405 here means the server declines the optional server-to-client SSE
-stream; POST tool requests still work. Python's `handle_get_stream()` returns
-without issuing GET when no session ID exists. A successful Python connection
-therefore says nothing about how it handles a 405 response. The deprecated
-`streamablehttp_client` name remains in the probe; replacing it with
-`streamable_http_client` and adding inspectable request tracing are still TEST-4.
-Both the early return and deprecated wrapper are visible in the
+stream; POST tool requests still work. Python 1.28.1's `handle_get_stream()`
+returns without issuing GET when no session ID exists. A successful Python
+connection therefore says nothing about how it handles a 405 response.
+The early return and old deprecated wrapper are visible in the
 [pinned Python SDK source](https://github.com/modelcontextprotocol/python-sdk/blob/v1.28.1/src/mcp/client/streamable_http.py).
 
 The July runs recorded hosted `2025-03-26` and stdio `2024-11-05` negotiation.
 Those are historical observations, not the current server ceiling or a promise
-about every client's offered version. Capture the actual SDK, offered and
-negotiated versions when re-running the pinned baseline and latest canary.
-The Python probe still hardcodes `2024-11-05`, `2025-03-26`, and `2025-06-18`
-as its hosted accepted set. That is not the current hosted set shown above:
-it can misreport a valid newer negotiation as a failure. Refresh that assertion
-as part of TEST-4; do not diagnose a server/SDK incompatibility from it alone.
+about every client's offered version.
+
+### Python follow-up verification — 2026-10-17
+
+The repaired probe uses `streamable_http_client` with the SDK's own HTTP-client
+factory, preserving its timeout/redirect policy and HTTP dependency (httpx in
+SDK 1, httpx2 in SDK 2). It consumes the read/write streams in both SDK versions
+and reads initialization fields through their wire aliases. It no longer uses
+the deprecated alias or assumes the v1-only session-ID callback exists.
+
+Supported hosted and stdio revisions are loaded from the servers' canonical
+TypeScript exports using Bun; there is no copied Python version list and no
+fixed `2024-11-05` stdio expectation. The hosted check additionally requires
+real tool requests to carry the negotiated revision and receive HTTP 200.
+
+Both the pinned **mcp 1.28.1** and freshly resolved latest **mcp 2.3.0** passed
+all **10 checks** on macOS arm64, Python 3.14.4 and Bun 1.4.2. Each offered
+`2025-11-25`, negotiated it for hosted and stdio, and produced this observed
+hosted sequence: initialize POST → 200, initialized-notification POST → 202,
+tools/list POST → 200, render tool-call POST → 200. Neither sent a GET or
+received a session ID. The probe explicitly prints that GET→405 client handling
+was **not exercised**, rather than treating a successful connection as evidence.
+
+`WIRE` JSON lines record method, JSON-RPC method, offered/negotiated version,
+response status and session-header presence only. They exclude endpoint URLs,
+source/tool arguments, credentials and session-ID values. The summary reports
+the actual GET count and observed GET→405 exchanges without requiring future
+SDKs to keep today's request path.
+
+Before the repair, the pinned baseline passed 8/10: the obsolete hosted tuple
+and stdio pin falsely rejected `2025-11-25`, despite successful tool calls.
+These are source/loopback client results, not production-edge validation or a
+new Go canary result. TEST-4 is removed from the unfinished backlog; later SDK
+drift should be reproduced and tracked as new work rather than hidden by the
+historical July result.
 
 ## Promotion check (dashboard-side, manual)
 

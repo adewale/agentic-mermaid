@@ -12,7 +12,7 @@ code/tests, not dated inventories.
 |---|---|
 | [Website payload plan](website-payload-plan.md) | Measured optimization boundaries; remaining work is WEB-2. Historical byte totals are not current budgets. |
 | [Hosted abuse controls](mcp-abuse-controls-plan.md) | Threat model and acceptance detail for SEC-4. DEC-6 separately owns whether hosted execute should remain. |
-| [MCP interop](mcp-client-interop-verification-plan.md) | Implemented TypeScript lane and recorded manual Python/Go coverage; TEST-4 owns unfinished Python API/request-trace work. |
+| [MCP interop](mcp-client-interop-verification-plan.md) | Implemented TypeScript lane, instrumented Python probe and recorded manual client coverage; includes the completed TEST-4 verification record. |
 | [Brand/family design record](brand-primitives-plan.md) | Design rationale and completed rollout; current architecture lives in the [system hub](../design/system/README.md). Old report/receipt tables are not current gates. |
 | [Divergences](divergences.md) | Deliberate product boundaries, not feature requests. |
 | [Lessons learned](lessons-learned.md) | Engineering lessons, not mandatory restoration of historical machinery. |

@@ -10,7 +10,7 @@ Status legend: `todo` | `blocked` | `owner-decision` | `parked`.
 
 Reconciled against `main` `aa16b127` and GitHub on 2026-10-17. An open PR is
 proposed work, not a shipped capability; a closed issue is not completion
-evidence when its acceptance conditions still fail (see TEST-4). Plans supply
+evidence when its acceptance conditions still fail. Plans supply
 design context, never additional queues. Retired IDs are not reused.
 
 ## Release / owner decisions
@@ -212,17 +212,6 @@ design context, never additional queues. Retired IDs are not reused.
   migration. Do not recreate removed reports, receipts or mandatory review gates.
   Upstream cost/covering-array research is tracked in
   [`testing-best-practices#21`](https://github.com/adewale/testing-best-practices/issues/21).
-- [ ] **TEST-4 — Correct and strengthen the Python MCP interop probe** (`todo`,
-  [#191](https://github.com/adewale/agentic-mermaid/issues/191)). Replace the
-  deprecated `streamablehttp_client` alias and record the Python client's actual
-  request path. The verification plan now distinguishes the recorded evidence: all three SDKs prove
-  sessionless initialize/version negotiation/tool calls, while only TypeScript
-  and Go prove `GET -> 405`; Python skips GET without a session ID. Re-run pinned
-  `mcp==1.28.1` and latest canary after the API/instrumentation changes, recording
-  actual SDK and negotiated versions. Update the probe's stale hosted-version
-  assertion against the server's current accepted set, not its old three-value
-  tuple. The issue is closed, but that closure did
-  not complete these remaining acceptance conditions.
 - [ ] **TEST-5 — Make route-verification policy executable and retire the stale
   score target** (`todo`,
   [#265](https://github.com/adewale/agentic-mermaid/issues/265); supersedes the historical framing in
