@@ -21,6 +21,7 @@ import fontEbGaramond from './generated/EBGaramond.ttf'
 import fontArchitectsDaughter from './generated/ArchitectsDaughter.ttf'
 import fontShareTechMono from './generated/ShareTechMono.ttf'
 import { inlineFontVarForRaster } from '../../src/theme.ts'
+import { prepareResvgMarkerOrientation } from '../../src/resvg-marker-orientation.ts'
 import { findUncoveredScriptsFromBuffers } from '../../src/agent/font-coverage-core.ts'
 import { buildPngFontWarnings, type PngRasterResult } from '../../src/shared/png-font-warnings.ts'
 import type { RenderOptions } from '../../src/types.ts'
@@ -72,7 +73,7 @@ export async function renderMermaidPNGWasm(source: string, opts: RenderOptions &
   assertHostedPngRasterBudget(graphical.rasterDimensions)
   const outputPolicy = graphical.outputPolicy
   const svg = prepareSvgForPngRasterization(
-    inlineFontVarForRaster(graphical.svg),
+    prepareResvgMarkerOrientation(inlineFontVarForRaster(graphical.svg)),
     graphical.rasterDimensions,
   )
   const fontBuffers = FONT_INPUTS.map(({ bytes }) => bytes)

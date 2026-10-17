@@ -30,6 +30,7 @@ import type { RenderOptions } from '../types.ts'
 import { prepareRenderInput } from './render-input.ts'
 import type { RenderRequestReceipt } from '../render-contract.ts'
 import { inlineFontVarForRaster } from '../theme.ts'
+import { prepareResvgMarkerOrientation } from '../resvg-marker-orientation.ts'
 import { findUncoveredScripts } from './font-coverage.ts'
 import { buildPngFontWarnings } from '../shared/png-font-warnings.ts'
 import type { PngRasterWarning } from '../shared/png-font-warnings.ts'
@@ -204,7 +205,7 @@ function renderMermaidPNGWithReceiptForHost(
   )
   const outputPolicy = graphical.outputPolicy
   const svg = prepareSvgForPngRasterization(
-    inlineFontVarForRaster(graphical.svg),
+    prepareResvgMarkerOrientation(inlineFontVarForRaster(graphical.svg)),
     graphical.rasterDimensions,
   )
 
