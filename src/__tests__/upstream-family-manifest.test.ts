@@ -121,7 +121,7 @@ describe('forward-compatible family classification', () => {
           classification: header.agenticStatus === 'inventory-only' ? 'inventory-only' : 'unsupported',
           source,
           upstreamFamilyId: family.id,
-          mermaidVersion: '11.16.0',
+          mermaidVersion: '12.2.0',
           },
         } },
       })
@@ -152,6 +152,14 @@ describe('forward-compatible family classification', () => {
 
   test('SVG and ASCII expose the same stable unsupported/unknown diagnostic without Flowchart fallback', () => {
     const cases = [
+      {
+        source: 'agentflow-beta TB\n  changes["Gather changes"]@{ shape: input }\n',
+        expected: { code: 'UNSUPPORTED_FAMILY', classification: 'unsupported', family: 'agentflow', header: 'agentflow-beta' },
+      },
+      {
+        source: 'usecase-beta\nactor Customer("Customer")\nCheckout("Place order")\nCustomer --> Checkout\n',
+        expected: { code: 'UNSUPPORTED_FAMILY', classification: 'unsupported', family: 'usecase', header: 'usecase-beta' },
+      },
       {
         source: 'requirementDiagram\n  requirement R {\n    id: 1\n  }\n',
         expected: { code: 'UNSUPPORTED_FAMILY', classification: 'unsupported', family: 'requirement', header: 'requirementDiagram' },

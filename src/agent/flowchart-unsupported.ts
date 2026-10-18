@@ -61,9 +61,9 @@ export function flowchartUnsupportedSyntaxWarnings(source: string): LayoutWarnin
   return warnings
 }
 
-// ---- Source ours reads where Mermaid 11.16 rejects it -----------------------
+// ---- Source ours reads where pinned Mermaid rejects it -----------------------
 
-/** Flowchart source ours reads where Mermaid 11.16 rejects it, each on its
+/** Flowchart source ours reads where pinned Mermaid rejects it, each on its
  * canonical line: a `@{…}` block with a space before `@` or inside `@{`, a
  * text-arrow label that a link of another stroke closes, and a `linkStyle`
  * index past the links defined above it. */
@@ -73,10 +73,10 @@ export function flowchartUpstreamRejectedSyntaxWarnings(source: string): LayoutW
   for (const { text, line } of statements) {
     for (const region of scanFlowchart(text).regions) {
       if (region.kind === 'metadata' && (text.slice(region.start, region.contentStart) !== '@{' || /\s/.test(text[region.start - 1] ?? ''))) {
-        warnings.push({ code: 'UNSUPPORTED_SYNTAX', line, syntax: 'flowchart_metadata_spacing', message: 'A @{…} metadata block with a space before "@" or inside "@{" is read as its node\'s metadata. Mermaid 11.16 rejects this; write id@{ … } with no space.' })
+        warnings.push({ code: 'UNSUPPORTED_SYNTAX', line, syntax: 'flowchart_metadata_spacing', message: 'A @{…} metadata block with a space before "@" or inside "@{" is read as its node\'s metadata. Pinned Mermaid rejects this; write id@{ … } with no space.' })
       }
       if (region.kind === 'edge-text' && matchTextArrow(text, region.start)?.mixed) {
-        warnings.push({ code: 'UNSUPPORTED_SYNTAX', line, syntax: 'flowchart_mixed_link_label', message: 'A link label opened with one stroke and closed by a link of another (A -- b ==> B) is read as one labelled link. Mermaid 11.16 rejects this; close the label with a link of its own stroke (A == b ==> B), or use a pipe label (A ==>|b| B).' })
+        warnings.push({ code: 'UNSUPPORTED_SYNTAX', line, syntax: 'flowchart_mixed_link_label', message: 'A link label opened with one stroke and closed by a link of another (A -- b ==> B) is read as one labelled link. Pinned Mermaid rejects this; close the label with a link of its own stroke (A == b ==> B), or use a pipe label (A ==>|b| B).' })
       }
     }
   }
@@ -115,8 +115,8 @@ function linkStyleIndexWarnings(source: string, statements: FlowchartStatement[]
     const before = edgesBefore(at) ?? beforeFirst
     for (const index of late.filter(index => index >= before)) {
       const message = index >= total
-        ? `linkStyle ${index} names no link (the flowchart has ${total}), so it styles nothing. Mermaid 11.16 rejects this; ${total === 0 ? 'remove it' : `use an index from 0 to ${total - 1}, counting links in source order`}.`
-        : `linkStyle ${index} comes before the link it styles, and styles it. Mermaid 11.16 rejects this; put the linkStyle after that link.`
+        ? `linkStyle ${index} names no link (the flowchart has ${total}), so it styles nothing. Pinned Mermaid rejects this; ${total === 0 ? 'remove it' : `use an index from 0 to ${total - 1}, counting links in source order`}.`
+        : `linkStyle ${index} comes before the link it styles, and styles it. Pinned Mermaid rejects this; put the linkStyle after that link.`
       warnings.push({ code: 'UNSUPPORTED_SYNTAX', line, syntax: 'flowchart_link_style_index', message })
     }
   }

@@ -294,7 +294,7 @@ function quadrantInertStyleWarnings(d: ValidDiagram): LayoutWarning[] {
 }
 
 /** Agentic Mermaid retains semicolon-separated Journey statements for
- * backwards compatibility, but Mermaid 11.16 rejects that spelling. Diagnose
+ * backwards compatibility, but pinned Mermaid rejects that spelling. Diagnose
  * the authored boundary rather than claiming its rendered tasks are native. */
 function journeySemicolonExtensionWarnings(d: ValidDiagram): LayoutWarning[] {
   const source = d.canonicalSource
@@ -309,11 +309,11 @@ function journeySemicolonExtensionWarnings(d: ValidDiagram): LayoutWarning[] {
     code: 'UNSUPPORTED_SYNTAX',
     syntax: 'journey_semicolon_statement_extension',
     line: authoredLineForCanonical(d.source, canonicalLine),
-    message: 'Semicolon-separated Journey statements are an Agentic Mermaid extension; Mermaid 11.16 rejects this source. Put each statement on its own line for upstream portability.',
+    message: 'Semicolon-separated Journey statements are an Agentic Mermaid extension; pinned Mermaid rejects this source. Put each statement on its own line for upstream portability.',
   }))
 }
 
-/** Source this repo reads generously where Mermaid 11.16 rejects it: each
+/** Source this repo reads generously where pinned Mermaid rejects it: each
  * family's rule reports UNSUPPORTED_SYNTAX on canonical lines, and verify
  * names the authored line, as journeySemicolonExtensionWarnings does. */
 const UPSTREAM_REJECTED_SYNTAX: Partial<Record<ValidDiagram['kind'], (canonicalSource: string) => LayoutWarning[]>> = {

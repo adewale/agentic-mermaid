@@ -33,7 +33,7 @@ Supported Mermaid constructs:
 - Mermaid comments, frontmatter, and init directives before the header
 
 Agentic Mermaid also retains `;`-separated Journey statements as an extension:
-`A: 5: Me; B: 3: Me` becomes two tasks locally, but pinned Mermaid 11.16
+`A: 5: Me; B: 3: Me` becomes two tasks locally, but pinned Mermaid
 rejects that source. `verifyMermaid` emits
 `UNSUPPORTED_SYNTAX` / `journey_semicolon_statement_extension` with the
 authored line number. Write one statement per line for portable Mermaid.

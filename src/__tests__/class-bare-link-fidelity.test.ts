@@ -25,7 +25,7 @@ const cases = [
 ] as const
 
 describe('Class markerless link fidelity', () => {
-  test('pinned Mermaid 11.16 gives both bare links two endpoints and no markers', async () => {
+  test('pinned Mermaid gives both bare links two endpoints and no markers', async () => {
     const relations: Array<Record<string, unknown>> = await upstream.projectAll(cases.map(item => `classDiagram\n${item.statement}`), diagram => {
       const relation = diagram.db.getRelations()[0]
       return { classes: [...diagram.db.getClasses().keys()], from: relation?.id1, to: relation?.id2,

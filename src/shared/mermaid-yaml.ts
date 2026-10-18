@@ -1,13 +1,13 @@
 /**
  * The one YAML reader for Mermaid frontmatter and `@{…}` metadata bodies.
  *
- * Pinned Mermaid 11.16 reads frontmatter (`frontmatter.ts`) and flowchart and
+ * Pinned Mermaid reads frontmatter (`frontmatter.ts`) and flowchart and
  * sequence `@{}` bodies with one call: js-yaml `load` under its
  * `JSON_SCHEMA`, and a YAML error rejects the diagram. This module is that
  * reader, on the bundled `yaml` package: its YAML 1.2 core schema with the
- * integer and float resolution replaced by js-yaml's (`0b…`, `_` digit
- * separators, signed hex/octal; `-.5` stays a string). An unresolvable tag is
- * an error, as in js-yaml.
+ * integer and float resolution replaced by js-yaml's (`0b…`, signed
+ * hex/octal; `-.5`, digit separators and numeric overflow stay strings).
+ * An unresolvable tag is an error, as in js-yaml.
  *
  * It is kept apart from the `@{…}` block lexers (shared/metadata-yaml.ts) so
  * the source normalizer every render loads carries only the reader; the
@@ -19,32 +19,34 @@ import { stringifyNumber } from 'yaml/util'
 
 // ---- js-yaml JSON_SCHEMA scalar resolution ---------------------------------
 
-const JS_YAML_INT_RE = /^[-+]?(?:0b[01_]*[01]|0x[0-9a-fA-F_]*[0-9a-fA-F]|0o[0-7_]*[0-7]|0|0[0-9](?:[0-9_]*[0-9])?|[1-9](?:[0-9_]*[0-9])?)$/
-const JS_YAML_FLOAT_RE = /^(?!.*_$)(?:[-+]?[0-9][0-9_]*(?:\.[0-9_]*)?(?:[eE][-+]?[0-9]+)?|\.[0-9_]+(?:[eE][-+]?[0-9]+)?|[-+]?\.(?:inf|Inf|INF)|\.(?:nan|NaN|NAN))$/
+const JS_YAML_INT_RE = /^[-+]?(?:0b[01]+|0x[0-9a-fA-F]+|0o[0-7]+|[0-9]+)$/
+const JS_YAML_FLOAT_RE = /^(?:[-+]?[0-9]+(?:\.[0-9]*)?(?:[eE][-+]?[0-9]+)?|\.[0-9]+(?:[eE][-+]?[0-9]+)?|[-+]?\.(?:inf|Inf|INF)|\.(?:nan|NaN|NAN))$/
 
-function resolveJsYamlInt(source: string, onError: (message: string) => void): number {
+function resolveJsYamlInt(source: string, onError: (message: string) => void): number | string {
   if (!JS_YAML_INT_RE.test(source)) {
     onError(`cannot resolve ${JSON.stringify(source)} as an integer`)
     return Number.NaN
   }
-  let value = source.replace(/_/g, '')
+  let value = source
   const sign = value[0] === '-' ? -1 : 1
   if (value[0] === '-' || value[0] === '+') value = value.slice(1)
   const radix = value[1] === 'b' ? 2 : value[1] === 'x' ? 16 : value[1] === 'o' ? 8 : 10
-  return sign * Number.parseInt(radix === 10 ? value : value.slice(2), radix)
+  const number = sign * Number.parseInt(radix === 10 ? value : value.slice(2), radix)
+  return Number.isFinite(number) ? number : source
 }
 
-function resolveJsYamlFloat(source: string, onError: (message: string) => void): number {
+function resolveJsYamlFloat(source: string, onError: (message: string) => void): number | string {
   if (!JS_YAML_FLOAT_RE.test(source)) {
     onError(`cannot resolve ${JSON.stringify(source)} as a float`)
     return Number.NaN
   }
-  let value = source.replace(/_/g, '').toLowerCase()
+  let value = source.toLowerCase()
   const sign = value[0] === '-' ? -1 : 1
   if (value[0] === '-' || value[0] === '+') value = value.slice(1)
   if (value === '.inf') return sign * Number.POSITIVE_INFINITY
   if (value === '.nan') return Number.NaN
-  return sign * Number.parseFloat(value)
+  const number = sign * Number.parseFloat(value)
+  return Number.isFinite(number) ? number : source
 }
 
 const JS_YAML_INT: ScalarTag = {
@@ -163,12 +165,20 @@ function readYamlDocument(text: string): MermaidYamlResult {
   const problem = parsed.errors.find(error => !jsYamlAccepts(error, text)) ?? parsed.warnings[0]
   if (problem) return { ok: false, message: problem.message.split('\n')[0]! }
   if (hasEmptyBlockKey(parsed, text)) return { ok: false, message: 'a block mapping entry has no key' }
+  let numericTagError: string | undefined
   // js-yaml names a null key `null` (String(null)); the yaml package, ``.
   YAML.visit(parsed, {
+    Scalar(_key, scalar) {
+      const pattern = scalar.tag === JS_YAML_INT.tag ? JS_YAML_INT_RE : scalar.tag === JS_YAML_FLOAT.tag ? JS_YAML_FLOAT_RE : undefined
+      if (pattern && (!pattern.test(scalar.source ?? '') || typeof scalar.value !== 'number')) {
+        numericTagError = `cannot resolve ${JSON.stringify(scalar.source)} as ${scalar.tag}`
+      }
+    },
     Pair(_key, pair) {
       if (YAML.isScalar(pair.key) && pair.key.value === null) pair.key = new YAML.Scalar('null')
     },
   })
+  if (numericTagError) return { ok: false, message: numericTagError }
   try {
     return { ok: true, value: parsed.toJS() }
   } catch (error) {

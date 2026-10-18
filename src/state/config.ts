@@ -15,17 +15,24 @@ export const STATE_LEGACY_CONFIG_FIELDS = [
   'miniPadding', 'sizeUnit', 'textHeight', 'titleShift', 'titleTopMargin',
 ] as const
 
+/** Official Mermaid options owned by other engines or the Style system here. */
+export const STATE_NOOP_CONFIG_FIELDS = [
+  'layout', 'look', 'minNodeWidth', 'theme', 'wrappingWidth',
+] as const
+
 /** Mermaid's complete documented stateDiagram config key inventory. */
 export const STATE_CONFIG_FIELDS = [
   'arrowMarkerAbsolute', 'compositTitleSize', 'defaultRenderer', 'dividerMargin',
   'edgeLengthFactor', 'fontSize', 'fontSizeFactor', 'forkHeight', 'forkWidth',
-  'labelHeight', 'miniPadding', 'nodeSpacing', 'noteMargin', 'padding', 'radius',
-  'rankSpacing', 'sizeUnit', 'textHeight', 'titleShift', 'titleTopMargin',
+  'labelHeight', 'layout', 'look', 'miniPadding', 'minNodeWidth', 'nodeSpacing',
+  'noteMargin', 'padding', 'radius', 'rankSpacing', 'sizeUnit', 'textHeight',
+  'theme', 'titleShift', 'titleTopMargin', 'wrappingWidth',
 ] as const
 
 const KNOWN_FIELDS = new Set<string>(STATE_CONFIG_FIELDS)
 const WIRED_FIELDS = new Set<string>(STATE_WIRED_CONFIG_FIELDS)
 const LEGACY_FIELDS = new Set<string>(STATE_LEGACY_CONFIG_FIELDS)
+const NOOP_FIELDS = new Set<string>(STATE_NOOP_CONFIG_FIELDS)
 const POSITIVE_FIELDS = new Set(['fontSize', 'compositTitleSize', 'forkWidth', 'forkHeight'])
 
 export interface ResolvedStateVisualConfig {
@@ -76,6 +83,14 @@ export function stateConfigDiagnostics(configs: unknown[], includeUnknown = fals
         code: 'INEFFECTIVE_CONFIG',
         field: `state.${field}`,
         message: `State config field "state.${field}" is a legacy Dagre/fixed-metric option with no faithful effect in the ELK measured-text renderer.`,
+      })
+      continue
+    }
+    if (NOOP_FIELDS.has(field)) {
+      diagnostics.push({
+        code: 'INEFFECTIVE_CONFIG',
+        field: `state.${field}`,
+        message: `State config field "state.${field}" is accepted for Mermaid compatibility but has no effect on this renderer.`,
       })
       continue
     }
