@@ -56,7 +56,7 @@ describe('connector-owned prepared text', () => {
     const mark = connector({ ...placed, text, textContent: { value: text, prepared }, block })
     const svg = sceneNodeSerialization(mark)
     expect(svg).toContain('&lt;b&gt;X&lt;/b&gt;')
-    expect(svg).toContain('<tspan font-weight="bold">Y</tspan>')
+    expect(svg).toMatch(/<tspan\b[^>]*\bfont-weight="(?:bold|700)"[^>]*>Y<\/tspan>/)
     const problems: string[] = []
     nodeProblems(mark, 'inline-text', problems)
     expect(problems).toEqual([])

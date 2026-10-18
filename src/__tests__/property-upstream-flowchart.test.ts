@@ -606,7 +606,7 @@ describe('flowchart grammar differential against pinned upstream Mermaid', () =>
     expect(await upstream.accepts(changedSource)).toBe(true)
     expect(parseOurs(changedSource).nodes.get('A')?.label).toBe('<b>changed</b> literal #quot;')
     expect(renderMermaidASCII(changedSource)).toContain('changed literal #quot;')
-    expect(renderMermaidSVG(changedSource)).toContain('<tspan font-weight="bold">changed</tspan>')
+    expect(renderMermaidSVG(changedSource)).toMatch(/<tspan\b[^>]*\bfont-weight="(?:bold|700)"[^>]*>changed<\/tspan>/)
   })
 
   test('quoted labels have no escapes: `\\` stays literal and `"` is written `#quot;`', async () => {

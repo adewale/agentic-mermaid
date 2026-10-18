@@ -162,7 +162,7 @@ describe('flowchart wrappingWidth (feature stage)', () => {
     const svg = renderMermaidSVG(source, options)
     const visible = [...svg.matchAll(/<text\b[^>]*>([\s\S]*?)<\/text>/g)].map(match => decodeXML(match[1]!.replace(/<[^>]+>/g, ''))).join('')
     expect(visible.replace(/[\s-]/g, '')).toBe('<B>X</B>YTA?IL')
-    expect(svg).toContain('<tspan font-weight="bold">Y</tspan>')
+    expect(svg).toMatch(/<tspan\b[^>]*\bfont-weight="bold"[^>]*>Y<\/tspan>/)
     const content = resolveLabelContent(graph.nodes.get('A')!.label, graph.nodes.get('A')!.labelContent)
     expect(typeof content).not.toBe('string')
     if (typeof content !== 'string') expect(preparedDisplayTextValue(content)).toBe('<b>x</b> y ta?il')

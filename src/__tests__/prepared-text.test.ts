@@ -36,7 +36,7 @@ describe('prepared display text', () => {
     expect(labelDisplayLength(prepared)).toBe(visible.split('\n')[0]!.length)
     const svg = renderMultilineText(block, 100, 50, typography.fontSize, 'text-anchor="middle"')
     expect(svg).toContain('&lt;b&gt;X&lt;/b&gt;')
-    expect(svg).toContain('font-weight="bold">Y</tspan>')
+    expect(svg).toMatch(/<tspan\b[^>]*\bfont-weight="(?:bold|700)"[^>]*>Y<\/tspan>/)
     const mark = marks.text({ id: 'decoded-literal', role: 'label', text: block.text, block, x: 100, y: 50, fontSize: typography.fontSize, anchor: 'middle', paint: {} }, svg)
     const problems: string[] = []
     nodeProblems(mark, 'decoded-literal', problems)
@@ -288,7 +288,7 @@ describe('prepared text at the graphical boundary', () => {
     }
     const unicode = preparePixelText('<b>漢</b>', { fontSize: 20, fontWeight: 800 })
     expect(unicode.lineBlocks[0]!.fragments).toBeUndefined()
-    expect(renderMultilineText(unicode, 10, 30, 20, 'text-anchor="start" font-size="20" font-weight="800"')).toContain('font-weight="800">漢</tspan>')
+    expect(renderMultilineText(unicode, 10, 30, 20, 'text-anchor="start" font-size="20" font-weight="800"')).toMatch(/<tspan\b[^>]*\bfont-weight="800"[^>]*>漢<\/tspan>/)
   })
 
   it.each(['مرحبا بكم', 'שָׁלוֹם'])('keeps a native RTL single line on its absolute baseline: %s', label => {

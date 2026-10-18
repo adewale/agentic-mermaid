@@ -139,12 +139,12 @@ describe('renderMermaidSVG – timeline diagrams', () => {
         const svg = render(source)
         expect(svg, source).toContain(escaped)
         expect(svg, source).not.toContain('NaN')
-        expect(svg, source).not.toContain('<tspan font-weight="bold">')
+        expect(svg, source).not.toMatch(/<tspan\b[^>]*\b(?:font-weight="(?:bold|700)"|font-style="italic"|text-decoration=")/)
       }
     }
     const complete = render('timeline\n  2024 : A<b>Bold</b>Z')
     expect(complete).toContain('A&lt;b&gt;Bold&lt;/b&gt;Z')
-    expect(complete).not.toContain('<tspan font-weight="bold">')
+    expect(complete).not.toMatch(/<tspan\b[^>]*\b(?:font-weight="(?:bold|700)"|font-style="italic"|text-decoration=")/)
   })
 
   it('measures markup-looking Timeline text literally in all four slots', () => {
