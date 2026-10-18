@@ -537,7 +537,9 @@ export function mutateSequence(body: SequenceBody, op: SequenceMutationOp): Resu
       if (!target) return err({ code: 'INVALID_OP', message: `No sequence fragment at index ${op.index}` })
       const label = normalizeFragmentLabel(op.label)
       if (!label.ok) return label
-      if (target.statement.fragment.label !== label.value) delete target.statement.fragment.rawLines
+      // A matching setter can follow a direct body edit. Rebuild the source;
+      // valid labelContent still preserves the label's authored spelling.
+      delete target.statement.fragment.rawLines
       if (target.statement.fragment.label !== label.value || target.statement.fragment.labelContent?.value !== target.statement.fragment.label) delete target.statement.fragment.labelContent
       if (label.value) target.statement.fragment.label = label.value
       else delete target.statement.fragment.label
@@ -560,17 +562,16 @@ export function mutateSequence(body: SequenceBody, op: SequenceMutationOp): Resu
       if (!branch.ok) return branch
       const label = normalizeFragmentLabel(op.label)
       if (!label.ok) return label
+      delete target.statement.fragment.rawLines
       if (branch.value.label !== label.value || branch.value.labelContent?.value !== branch.value.label) delete branch.value.labelContent
       if (op.branchIndex === 0) {
         // Mermaid spells the first branch label on the fragment opener (`alt x`),
         // not on an `else`/`and` continuation line.
-        if (target.statement.fragment.label !== label.value) delete target.statement.fragment.rawLines
         if (target.statement.fragment.label !== label.value || target.statement.fragment.labelContent?.value !== target.statement.fragment.label) delete target.statement.fragment.labelContent
         if (label.value) target.statement.fragment.label = label.value
         else delete target.statement.fragment.label
         delete branch.value.label
       } else {
-        if (branch.value.label !== label.value) delete target.statement.fragment.rawLines
         if (label.value) branch.value.label = label.value
         else delete branch.value.label
       }

@@ -21,7 +21,7 @@ import { startUpstreamMermaid } from './helpers/upstream-mermaid.ts'
 import { projectEntityMarkers } from '../shared/mermaid-entity-display.ts'
 import { mermaidEntityPrepass } from '../shared/mermaid-entities.ts'
 import { verifyMermaid } from '../agent/verify.ts'
-import { renderMermaidASCII } from '../index.ts'
+import { renderMermaidASCII, renderMermaidSVG } from '../index.ts'
 
 function sequence(src: string): SequenceValidDiagram {
   const r = parseMermaid(src)
@@ -131,12 +131,39 @@ describe('Sequence text survives edits and source delimiters', () => {
     let edited = apply(original, { kind: 'set_participant_label', id: 'A', label: text })
     edited = apply(edited, { kind: 'set_message_text', index: 0, text })
     edited = apply(edited, { kind: 'set_fragment_label', index: 0, label: text })
+    edited = apply(edited, { kind: 'set_fragment_branch_label', fragmentIndex: 0, branchIndex: 0, label: text })
     edited = apply(edited, { kind: 'set_fragment_branch_label', fragmentIndex: 0, branchIndex: 1, label: text })
     edited = apply(edited, { kind: 'set_fragment_message_text', fragmentIndex: 0, index: 0, text })
     const written = serializeMermaid(edited)
     expect(written).toContain(payload)
     expect(describeMermaidFacts(sequence(written))).toEqual(describeMermaidFacts(original))
     expect(renderMermaidASCII(written, { colorMode: 'none' })).toBe(renderMermaidASCII(serializeMermaid(original), { colorMode: 'none' }))
+  })
+
+  test.each([
+    ['opener', 0, { kind: 'set_fragment_label', index: 0, label: 'changed' }],
+    ['first branch', 0, { kind: 'set_fragment_branch_label', fragmentIndex: 0, branchIndex: 0, label: 'changed' }],
+    ['continuation', 1, { kind: 'set_fragment_branch_label', fragmentIndex: 0, branchIndex: 1, label: 'changed' }],
+  ] as const)('a matching %s label setter discards source made stale by a direct edit', (_context, branchIndex, op) => {
+    for (const payload of ['old', '#lt;b#gt;old#lt;/b#gt;']) {
+      const original = sequence(`sequenceDiagram\nalt ${payload}\nA->>B: first\nelse ${payload}\nB->>A: second\nend`)
+      const statement = original.body.statements.find(statement => statement.kind === 'fragment')!
+      const target = branchIndex === 0 ? statement.fragment : statement.fragment.branches[branchIndex]!
+      target.label = 'changed'
+      const edited = apply(original, op)
+      const fragment = edited.body.statements.find(statement => statement.kind === 'fragment')!.fragment
+      const changed = branchIndex === 0 ? fragment : fragment.branches[branchIndex]!
+      expect(changed.label).toBe('changed')
+      expect(changed.labelContent).toBeUndefined()
+      expect(describeMermaidFacts(edited)).toContain(`fragment#0 branch#${branchIndex} : changed`)
+      const written = serializeMermaid(edited)
+      expect(written).toContain(`${branchIndex === 0 ? 'alt' : 'else'} changed`)
+      expect(describeMermaidFacts(sequence(written))).toEqual(describeMermaidFacts(edited))
+      const svgText = [...renderMermaidSVG(edited).matchAll(/<text\b[^>]*>([\s\S]*?)<\/text>/g)]
+        .map(match => match[1]!.replace(/<[^>]+>/g, '')).join('\n')
+      expect(svgText).toContain('[changed]')
+      expect(renderMermaidASCII(edited, { colorMode: 'none' })).toContain('changed')
+    }
   })
 
   test('a stale sidecar does not revive after a direct string edit', () => {

@@ -17,7 +17,7 @@ if (!base || !head || !destination || ![base, head].every(sha => /^[a-f0-9]{40}$
 }
 const out = resolve(destination)
 mkdirSync(out, { recursive: true })
-interface Fixture { id: string; title: string; source: string; cue: string; renderOptions?: RenderOptions; captureLayout?: true; classMutation?: ClassMutationOp; mutation?: AnyMutationOp }
+interface Fixture { id: string; title: string; source: string; cue: string; renderOptions?: RenderOptions; captureLayout?: true; classMutation?: ClassMutationOp; mutation?: AnyMutationOp; directFragmentLabel?: string }
 const sequenceSpanSource = 'sequenceDiagram\nparticipant A\nparticipant B\nparticipant C\nA->>C: Label across B\nactivate B\nA->>C: Begin work\nA->>C: Label across active B\ndeactivate B'
 const sankeyIdentitySource = '---\ntitle: Caption\n---\nsankey-beta\nA,B,1\nA,B,2\nA,B#1,3\nlink:A->B#1,X,4\ntitle,title#1,5'
 const parallelReciprocalSource = 'flowchart LR\nA[Client] -->|request 0| B[Server]\nA -->|request 1| B\nB -->|reply| A'
@@ -43,6 +43,7 @@ const fixtures: Fixture[] = [
   { id: 'sequence-literal-runs', title: 'Sequence aliases and messages retain literal entity text beside real emphasis (CONS-46)', source: sequenceEntitySource, cue: 'Inspect the visible &lt;b&gt;code&lt;/b&gt; alias, &lt;i&gt;literal&lt;/i&gt; message and *stars* characters. Authored styled, bold and italic words retain their actual emphasis. Compare both message directions and their arrowheads as controls. Spacing between formatted fragments remains imperfect in bundled-font PNGs at both revisions; the SVG retains the authored spaces. This pair covers graphical text interpretation; the matching terminal fixture shows plain cell text separately.' },
   { id: 'state-literal-percent-pairs', title: 'State description, transition and note retain literal percent pairs (#372)', source: 'stateDiagram-v2\nA : 100%% ready\nA --> B : status%%complete\nnote right of B : keep%%note', cue: 'Inspect all three complete text values: 100%% ready, status%%complete and keep%%note. Percent pairs inside these label contexts must remain visible instead of starting comments. This is a public render witness; source-loss warnings and editing paths have separate owning tests.' },
   { id: 'mindmap-literal-percent-pairs', title: 'Mindmap labels retain percent pairs while a real trailing comment stays hidden (#372)', source: 'mindmap\n root[100%% ready]\n  child[keep%%label]\n  final[Done] %% actual trailing comment', cue: 'Inspect the complete 100%% ready root and keep%%label child; Done remains a control, and actual trailing comment is not label text. The baseline panel records its actual refusal after truncating the root at the percent pair. This pair covers these bounded label/comment contexts, not every Mindmap delimiter form.' },
+  { id: 'sequence-matching-fragment-setter', title: 'A matching Sequence setter publishes a directly changed fragment caption', source: 'sequenceDiagram\nalt Previous\nA->>B: request\nelse Alternate\nB->>A: reply\nend', directFragmentLabel: 'Updated', mutation: { kind: 'set_fragment_label', index: 0, label: 'Updated' }, cue: 'At both revisions, change the mutable fragment label to Updated and call its matching public setter. Inspect alt Updated in the rendered export and matching facts/reloadedFacts in the edit sidecar. The audited 1d397dfd candidate kept Previous; main already publishes Updated. Owning tests cover first and continuation branch setters too. This does not establish serialization support for arbitrary direct body writes.' },
   { id: 'class-inheritance-after-member-edit', title: 'Class inheritance survives an unrelated member edit (#406)', source: 'classDiagram\nPerson --|> Animal', classMutation: { kind: 'add_member', class: 'Person', text: '+name: String' }, cue: 'Both revisions add the same member to Person. Before, canonical serialization reverses the inheritance triangle toward Person; after, it remains at Animal. Inspect the triangle and exported source, not the unchanged node labels. This witness covers one inheritance relation; the owning tests exercise the other marker kinds.' },
   { id: 'class-dashed-diamond-after-member-edit', title: 'Class dashed diamonds retain their shaft through an edit', source: 'classDiagram\nWhole o..* Part', classMutation: { kind: 'add_member', class: 'Whole', text: '+name: String' }, cue: 'Both revisions add the same member to Whole. Before, export and rendering turn the dashed diamond relationship solid; after, the shaft stays dashed and both diamond endpoints remain. Inspect shaft gaps and the exported o..* spelling. This fixture does not establish every mixed marker combination.' },
   { id: 'class-multi-lollipop-after-member-edit', title: 'Class two-ended lollipops become editable and render natively', source: 'classDiagram\nPort ()..() Service : contract', classMutation: { kind: 'add_member', class: 'Port', text: '+name: String' }, cue: 'The base revision refuses the edit because this relationship stays opaque; its honest error is the before evidence. The head exports and renders the same edit with two circle endpoints and a dashed shaft. Inspect authored Port/Service identities, both circles and the exported ()..() spelling; the image does not prove every public operation path.' },
@@ -175,7 +176,7 @@ function renderRevision(sha: string): RevisionEvidence {
     symlinkSync(join(ROOT, 'node_modules'), join(checkout, 'node_modules'), 'dir')
     writeFileSync(join(checkout, 'probe.ts'), `
       import { writeFileSync } from 'node:fs'
-      import { renderMermaidSVG, renderMermaidPNG, layoutMermaidWithReceipt, parseRegisteredMermaid, asClass, mutate, serializeMermaid, describeMermaidFacts } from './src/agent/index.ts'
+      import { renderMermaidSVG, renderMermaidPNG, layoutMermaidWithReceipt, parseRegisteredMermaid, asClass, asSequence, mutate, serializeMermaid, describeMermaidFacts } from './src/agent/index.ts'
       import { renderMermaidASCIIWithMeta } from './src/ascii/meta.ts'
       const fixtures = ${JSON.stringify(fixtures)}
       const fixtureOptions = ${JSON.stringify(fixtureOptions)}
@@ -196,6 +197,11 @@ function renderRevision(sha: string): RevisionEvidence {
           } else if (fixture.mutation) {
             const parsed = parseRegisteredMermaid(fixture.source)
             if (!parsed.ok) throw new Error('Edit witness did not parse')
+            if (fixture.directFragmentLabel !== undefined) {
+              const fragment = asSequence(parsed.value)?.body.statements.find(statement => statement.kind === 'fragment')
+              if (!fragment) throw new Error('Sequence edit witness had no fragment')
+              fragment.fragment.label = fixture.directFragmentLabel
+            }
             const edited = mutate(parsed.value, fixture.mutation)
             if (!edited.ok) throw new Error(edited.error.message)
             input = serializeMermaid(edited.value)
