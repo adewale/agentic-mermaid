@@ -15,7 +15,24 @@ export type Determinism = 'pure-order' | 'fixed-point' | 'in-place'
 export type RubricMetric = 'hard' | 'crossings' | 'bends' | 'straight' | 'portRate' | 'symErr'
 
 /** Per-metric direction/budget for the ratchet (§3.3, resolves OQ-B1). */
-export type MetricBudget = 'improve-only' | { worsenBy: number }
+export type MetricBudget = 'improve-only' | { worsenBy: number; whenImproves?: RubricMetric }
+
+export type PassMetrics = Partial<Record<RubricMetric, number>>
+
+/** A pass exceeded its declared allowance on the geometry it actually produced. */
+export class LayoutMetricBudgetError extends Error {
+  readonly code = 'LAYOUT_METRIC_BUDGET_EXCEEDED'
+  constructor(
+    readonly pass: string,
+    readonly metric: RubricMetric,
+    readonly before: number,
+    readonly after: number,
+    readonly allowance: number,
+  ) {
+    super(`Layout pass '${pass}' worsened ${metric} from ${before} to ${after} (allowance ${allowance})`)
+    this.name = 'LayoutMetricBudgetError'
+  }
+}
 
 /** The minimal shape `runPipeline` needs to enforce the freeze invariant (§3.2). */
 export interface PassContextBase {
@@ -48,26 +65,22 @@ export interface LayoutPass<C extends PassContextBase> {
 export interface RunOptions<C extends PassContextBase> {
   /** Debug/CI only: enforce ordering + freeze invariants (O(n) per mover). */
   checkInvariants?: boolean
+  /** With invariant checking, measure declared budgets on actual before/after geometry. */
+  measureMetrics?: (ctx: C, metrics: readonly RubricMetric[]) => PassMetrics
   /** Debug/CI only: called after each pass that actually ran (e.g. to measure the ratchet). */
   onAfterPass?: (pass: LayoutPass<C>, ctx: C) => void
 }
 
 /** Post-freeze a pass may only translate the whole graph or rewrite edges (§3.2). */
-const freezeSafe = (mutates: PassEffect[]): boolean =>
-  mutates.every(m => m === 'translate' || m === 'edges')
+const freezeSafe = (mutates: PassEffect[]): boolean => mutates.every(m => m === 'translate' || m === 'edges')
 
-const routeKey = (edge: { points?: ReadonlyArray<{ x: number; y: number }> }): string =>
-  edge.points?.map(p => `${p.x},${p.y}`).join('|') ?? ''
+const routeKey = (edge: { points?: ReadonlyArray<{ x: number; y: number }> }): string => edge.points?.map(p => `${p.x},${p.y}`).join('|') ?? ''
 
 /**
  * Run `passes` over `ctx` in array order. The array IS the execution path; with
  * `checkInvariants` the runner also enforces the §3 contract (ordering + freeze).
  */
-export function runPipeline<C extends PassContextBase>(
-  ctx: C,
-  passes: ReadonlyArray<LayoutPass<C>>,
-  opts: RunOptions<C> = {},
-): void {
+export function runPipeline<C extends PassContextBase>(ctx: C, passes: ReadonlyArray<LayoutPass<C>>, opts: RunOptions<C> = {}): void {
   const ran = new Set<string>()
   for (const pass of passes) {
     if (pass.enabled && !pass.enabled(ctx)) {
@@ -83,17 +96,34 @@ export function runPipeline<C extends PassContextBase>(
       }
     }
 
+    const budgets = opts.checkInvariants ? (Object.entries(pass.mayChangeMetrics ?? {}) as Array<[RubricMetric, MetricBudget]>) : []
+    const measured = [...new Set(budgets.flatMap(([metric, budget]) => [metric, ...(typeof budget === 'object' && budget.whenImproves ? [budget.whenImproves] : [])]))]
+    if (budgets.length && !opts.measureMetrics) throw new Error(`Layout pass '${pass.id}' declares metric budgets but no geometry measurement was supplied`)
+    const metricsBefore = budgets.length ? opts.measureMetrics!(ctx, measured) : undefined
+
     // Freeze invariant (§3.2): after the route-contract pass only a whole-graph
     // translation (or an edge rewrite) may run; a positions/dimensions move is illegal.
     const guardFreeze = opts.checkInvariants === true && ctx.frozen && !freezeSafe(pass.mutates)
-    const before = guardFreeze
-      ? ctx.nodes.map(n => ({ x: n.x, y: n.y, width: n.width, height: n.height }))
-      : undefined
-    const beforeEdges = opts.checkInvariants === true && ctx.frozen && pass.mutates.includes('edges') && ctx.edges
-      ? ctx.edges.map(routeKey)
-      : undefined
+    const before = guardFreeze ? ctx.nodes.map(n => ({ x: n.x, y: n.y, width: n.width, height: n.height })) : undefined
+    const beforeEdges = opts.checkInvariants === true && ctx.frozen && pass.mutates.includes('edges') && ctx.edges ? ctx.edges.map(routeKey) : undefined
 
     pass.run(ctx)
+
+    if (metricsBefore) {
+      const metricsAfter = opts.measureMetrics!(ctx, measured)
+      const change = (metric: RubricMetric): number => {
+        const before = metricsBefore[metric],
+          after = metricsAfter[metric]
+        if (before === undefined || after === undefined || !Number.isFinite(before) || !Number.isFinite(after)) {
+          throw new Error(`Layout pass '${pass.id}' has no finite measurement for ${metric}`)
+        }
+        return (metric === 'straight' || metric === 'portRate' ? -1 : 1) * (after - before)
+      }
+      for (const [metric, budget] of budgets) {
+        const allowance = budget === 'improve-only' || (budget.whenImproves && change(budget.whenImproves) >= -1e-6) ? 0 : budget.worsenBy
+        if (change(metric) > allowance + 1e-6) throw new LayoutMetricBudgetError(pass.id, metric, metricsBefore[metric]!, metricsAfter[metric]!, allowance)
+      }
+    }
 
     if (before) {
       for (let i = 0; i < before.length; i++) {
@@ -101,10 +131,7 @@ export function runPipeline<C extends PassContextBase>(
         const b = ctx.nodes[i]
         if (!a || !b) continue
         if (a.x !== b.x || a.y !== b.y || a.width !== b.width || a.height !== b.height) {
-          throw new Error(
-            `LayoutPass freeze: '${pass.id}' moved node geometry after the route-contract freeze ` +
-              `(only translate/edge passes are allowed; declare 'translate' in mutates if this is a uniform shift)`,
-          )
+          throw new Error(`LayoutPass freeze: '${pass.id}' moved node geometry after the route-contract freeze ` + `(only translate/edge passes are allowed; declare 'translate' in mutates if this is a uniform shift)`)
         }
       }
     }
@@ -114,10 +141,7 @@ export function runPipeline<C extends PassContextBase>(
         const edge = ctx.edges[i]
         if (!edge) continue
         if (beforeEdges[i] !== routeKey(edge) && edge.routeCertificate === undefined) {
-          throw new Error(
-            `LayoutPass certificate: '${pass.id}' rewrote edge geometry after the route-contract freeze ` +
-              'without re-issuing routeCertificate',
-          )
+          throw new Error(`LayoutPass certificate: '${pass.id}' rewrote edge geometry after the route-contract freeze ` + 'without re-issuing routeCertificate')
         }
       }
     }

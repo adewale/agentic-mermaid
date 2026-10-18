@@ -48,6 +48,7 @@ import { RESOURCE_MANIFEST } from '../font-manifest.ts'
 import { NodeResourceResolver } from '../node-resource-resolver.ts'
 import { verifyRegisteredEmbeddedFontResources } from './embedded-font-resources.ts'
 import { snapshotHostBackendPolicy, type HostBackendPolicy } from '../scene/backend.ts'
+import { snapshotTextMeasurementProfile, type TextMeasurementProfile } from '../text-measurement-profile.ts'
 export type { PngFontWarning, PngRasterWarning } from '../shared/png-font-warnings.ts'
 export type { PngLegibilityWarning } from '../shared/png-legibility-warnings.ts'
 
@@ -158,6 +159,7 @@ export function renderMermaidPNGWithReceipt(input: ParsedDiagram | string, opts:
 /** Trusted Node/Bun host policy; never copied into RenderOptions or receipts. */
 export interface MermaidPNGRendererHostOptions {
   readonly backendPolicy?: HostBackendPolicy
+  readonly textMeasurement?: TextMeasurementProfile
 }
 
 export interface MermaidPNGRenderer {
@@ -170,7 +172,8 @@ export function createMermaidPNGRenderer(
   hostOptions: MermaidPNGRendererHostOptions = {},
 ): MermaidPNGRenderer {
   const backendPolicy = snapshotHostBackendPolicy(hostOptions.backendPolicy)
-  const host = Object.freeze({ ...(backendPolicy ? { backendPolicy } : {}) })
+  const textMeasurement = snapshotTextMeasurementProfile(hostOptions.textMeasurement)
+  const host = Object.freeze({ ...(backendPolicy ? { backendPolicy } : {}), ...(textMeasurement ? { textMeasurement } : {}) })
   return Object.freeze({
     renderMermaidPNG(input: ParsedDiagram | string, opts: PngOptions = {}): Uint8Array {
       return renderMermaidPNGWithReceiptForHost(input, opts, host).png
@@ -201,7 +204,7 @@ function renderMermaidPNGWithReceiptForHost(
     source,
     renderOptions,
     outputOptions,
-    { backendPolicy: hostOptions.backendPolicy, expectedFamilyId: preparedInput.expectedFamilyId },
+    { backendPolicy: hostOptions.backendPolicy, textMeasurement: hostOptions.textMeasurement, expectedFamilyId: preparedInput.expectedFamilyId },
   )
   const outputPolicy = graphical.outputPolicy
   const svg = prepareSvgForPngRasterization(

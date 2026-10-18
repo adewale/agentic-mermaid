@@ -1,12 +1,9 @@
+import type { LabelMetricsStyle } from '../../route-contracts.ts'
+import { labelRect } from '../../route-contracts.ts'
 import type { PositionedEdge, PositionedGroup, PositionedNode } from '../../types.ts'
 
 /** Translate all positioned geometry together so the public canvas origin is non-negative. */
-export function translateGeometryToNonNegativeOrigin(
-  nodes: PositionedNode[],
-  edges: PositionedEdge[],
-  groups: PositionedGroup[],
-  padding: number,
-): void {
+export function translateGeometryToNonNegativeOrigin(nodes: PositionedNode[], edges: PositionedEdge[], groups: PositionedGroup[], padding: number, style?: LabelMetricsStyle): void {
   let minX = 0
   let minY = 0
   const visitGroup = (group: PositionedGroup): void => {
@@ -24,7 +21,11 @@ export function translateGeometryToNonNegativeOrigin(
       minX = Math.min(minX, point.x)
       minY = Math.min(minY, point.y)
     }
-    if (edge.labelPosition) {
+    const pill = style && edge.labelBlock ? labelRect(edge, style) : null
+    if (pill) {
+      minX = Math.min(minX, pill.x)
+      minY = Math.min(minY, pill.y)
+    } else if (edge.labelPosition) {
       minX = Math.min(minX, edge.labelPosition.x)
       minY = Math.min(minY, edge.labelPosition.y)
     }
@@ -37,10 +38,19 @@ export function translateGeometryToNonNegativeOrigin(
     group.y += dy
     for (const child of group.children) moveGroup(child)
   }
-  for (const node of nodes) { node.x += dx; node.y += dy }
+  for (const node of nodes) {
+    node.x += dx
+    node.y += dy
+  }
   for (const group of groups) moveGroup(group)
   for (const edge of edges) {
-    for (const point of edge.points) { point.x += dx; point.y += dy }
-    if (edge.labelPosition) { edge.labelPosition.x += dx; edge.labelPosition.y += dy }
+    for (const point of edge.points) {
+      point.x += dx
+      point.y += dy
+    }
+    if (edge.labelPosition) {
+      edge.labelPosition.x += dx
+      edge.labelPosition.y += dy
+    }
   }
 }

@@ -217,6 +217,8 @@ export interface PositionedXYChart extends PositionedDiagram {
   gridLines: GridLine[]
   /** Legend items (shown when multiple series) */
   legend: LegendItem[]
+  /** Requested legend entries omitted because their measured column does not fit. */
+  hiddenLegendLabels: string[]
   /** Authored x-axis category names the fitted axis leaves undrawn */
   hiddenCategoryLabels: string[]
   /** Bar value labels, when `showDataLabel` is on */

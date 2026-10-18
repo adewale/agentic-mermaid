@@ -6,6 +6,7 @@ import { serializeMermaid } from '../agent/serialize.ts'
 import { asXyChart } from '../agent/types.ts'
 import { parseXYChart } from '../xychart/parser.ts'
 import { renderMermaidSVG } from '../index.ts'
+import { startUpstreamMermaid } from './helpers/upstream-mermaid.ts'
 
 function structured(source: string) {
   const parsed = parseRegisteredMermaid(source)
@@ -26,6 +27,20 @@ function expectClosed(source: string): void {
 }
 
 describe('XYChart shared grammar authority', () => {
+  test('serialized text preserves spaced, punctuated and reserved chart labels in Mermaid', async () => {
+    const source = 'xychart-beta\n title "Revenue for 2026"\n x-axis "Dap50te" ["Research & Development", "EU/UK", "bar"]\n y-axis "Revenue (USD)" 0 --> 100\n bar [1, 2, 3]'
+    const canonical = serializeMermaid(structured(source))
+    const reference = startUpstreamMermaid()
+    try {
+      expect(await reference.accepts(canonical)).toBe(true)
+      const actual = await reference.project(canonical, diagram => ({
+        title: diagram.db.getDiagramTitle(), data: diagram.db.getXYChartData(),
+      }))
+      expect(actual).toMatchObject({ ok: true, value: { title: 'Revenue for 2026', data: { xAxis: { title: 'Dap50te', categories: ['Research & Development', 'EU/UK', 'bar'] }, yAxis: { title: 'Revenue (USD)' } } } })
+    } finally { reference.close() }
+    expectClosed(source)
+  })
+
   test('an unknown nonblank statement fails native rendering instead of losing authored data', async () => {
     const validSource = 'xychart-beta\n  bar [1, 2]\n'
     const source = `${validSource}  frob official-data-lost\n`

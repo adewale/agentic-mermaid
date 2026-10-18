@@ -1512,7 +1512,7 @@ export type LayoutWarning =
    * room inside or beyond their bar. `labels` lists exactly what is missing.
    * Advisory: the chart still renders; never flips verify.ok.
    */
-  | { code: 'LABELS_HIDDEN'; target: 'title' | 'x-axis' | 'data-labels' | 'point-labels'; labels: string[]; message: string }
+  | { code: 'LABELS_HIDDEN'; target: 'title' | 'legend' | 'x-axis' | 'data-labels' | 'point-labels'; labels: string[]; message: string }
   /**
    * An authored value-axis range excludes zero on a chart with bar series, so
    * bars start at `baseline` and their lengths are not proportional to their
@@ -1642,6 +1642,9 @@ export interface RenderedRegion {
   sourceLine?: number
 }
 
+/** Retained bounds in the renderer's pixel coordinate system. */
+export interface RenderedLabelBounds { x: Finite; y: Finite; w: Finite; h: Finite }
+
 export interface RenderedLayoutNode {
   id: NodeId
   /** Authored immediate container, supplied by families with a typed hierarchy. */
@@ -1652,6 +1655,14 @@ export interface RenderedLayoutNode {
   h: Finite
   shape: string
   label?: string
+  /** Actual prepared visible text; absent when an extension did not retain measurement. */
+  labelBounds?: RenderedLabelBounds
+  /** Available text region; external mark labels use the canvas rather than the mark. */
+  labelContainer?: RenderedLabelBounds
+  /** Hidden text and semantic-only mark metadata are not unmeasured visible labels. */
+  labelVisibility?: 'visible' | 'hidden' | 'semantic'
+  /** Authored chart coordinates, retained before pixel rounding. */
+  dataPosition?: { x: Finite; y: Finite }
   /** Explicit semantic role for family-generic quality scoring. Shape is paint,
    *  not semantics: a rectangular bar is a mark, not a node box. */
   role?: 'box' | 'mark' | 'labelled-mark'
@@ -1661,7 +1672,7 @@ export interface RenderedLayoutEdge {
   from: NodeId
   to: NodeId
   path: [Finite, Finite][]
-  label?: { x: Finite; y: Finite; text: string }
+  label?: { x: Finite; y: Finite; text: string; bounds?: RenderedLabelBounds }
   /** Edge route certificate; present only under layoutMermaid(d, { debug: true }) for families with an edge certificate model. */
   route?: EdgeRouteCertificate
 }

@@ -1,6 +1,7 @@
 import { parseAccessibilityDirective } from '../shared/accessibility-directives.ts'
 import { syntaxError } from '../shared/syntax-error.ts'
 import type { SankeyDiagram, SankeyLink } from './types.ts'
+import { parserObservationActive, observeParserStatement, observeParserMutation } from '../shared/parser-observation.ts'
 
 // ============================================================================
 // Sankey diagram parser
@@ -57,14 +58,16 @@ export function parseSankeyDiagram(lines: string[], options: SankeyParseOptions 
   if (!/^sankey(?:-beta)?\s*$/i.test(header)) {
     throw new Error(`Sankey diagram must start with "sankey" or "sankey-beta", got: "${header}"`)
   }
+  if (parserObservationActive('sankey')) observeParserStatement('sankey', 'header', header, { line: headerIndex + 1, unit: 'physical' })
 
   const nodes: string[] = []
   const seen = new Set<string>()
   const links: SankeyLink[] = []
-  const addNode = (label: string) => {
+  const addNode = (label: string, rowNumber: number) => {
     if (!seen.has(label)) {
       seen.add(label)
       nodes.push(label)
+      if (parserObservationActive('sankey')) observeParserMutation('sankey', 'appendNode', label, { line: rowNumber, unit: 'physical' })
     }
   }
 
@@ -79,6 +82,7 @@ export function parseSankeyDiagram(lines: string[], options: SankeyParseOptions 
     // render pipeline projects them into the SVG title/desc).
     const acc = parseAccessibilityDirective(lines, i)
     if (acc) {
+      if (parserObservationActive('sankey')) observeParserStatement('sankey', acc.title ? 'accTitle' : 'accDescr', lines.slice(i, acc.endIndex + 1).join('\n'), { line: rowNumber, unit: 'physical' })
       i = acc.endIndex
       continue
     }
@@ -91,6 +95,7 @@ export function parseSankeyDiagram(lines: string[], options: SankeyParseOptions 
       row += `\n${lines[i]!.replace(/\r$/, '')}`
     }
     const trimmed = row.trim()
+    if (parserObservationActive('sankey')) observeParserStatement('sankey', 'csvRecord', row, { line: rowNumber, unit: 'physical' })
     const fields = parseCsvRow(row, rowNumber)
     if (fields.length !== 3) {
       throw syntaxError({
@@ -115,9 +120,10 @@ export function parseSankeyDiagram(lines: string[], options: SankeyParseOptions 
       throw new Error(`Sankey flow "${source}" -> "${target}" is a self-loop. ` + 'Sankey diagrams must be acyclic (upstream rejects circular links).')
     }
 
-    addNode(source)
-    addNode(target)
+    addNode(source, rowNumber)
+    addNode(target, rowNumber)
     links.push({ source, target, value })
+    if (parserObservationActive('sankey')) observeParserMutation('sankey', 'appendLink', links[links.length - 1], { line: rowNumber, unit: 'physical' })
   }
 
   if (links.length === 0) {
@@ -125,11 +131,14 @@ export function parseSankeyDiagram(lines: string[], options: SankeyParseOptions 
   }
 
   const cycle = findSankeyCycle(links)
+  if (parserObservationActive('sankey')) observeParserMutation('sankey', 'resolveCycle', cycle)
   if (cycle) {
     throw new Error(`Sankey diagram contains a cycle: ${cycle.map(label => `"${label}"`).join(' -> ')}. ` + 'Sankey diagrams must be acyclic (upstream rejects circular links).')
   }
 
-  return { ...(options.title !== undefined ? { title: options.title } : {}), nodes, links }
+  const diagram = { ...(options.title !== undefined ? { title: options.title } : {}), nodes, links }
+  if (options.title !== undefined && parserObservationActive('sankey')) observeParserMutation('sankey', 'setFrontmatterTitle', diagram.title)
+  return diagram
 }
 
 /**

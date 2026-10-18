@@ -311,6 +311,10 @@ export function layoutTimelineDiagram(
   const railMain1 = firstCenter === lastCenter ? firstCenter - 42 : firstCenter
   const railMain2 = firstCenter === lastCenter ? lastCenter + 42 : lastCenter
 
+  for (const section of sections) for (const period of section.periods) for (const event of period.events) {
+    event.labelX = event.x + style.nodePaddingX
+  }
+
   return {
     width,
     height,

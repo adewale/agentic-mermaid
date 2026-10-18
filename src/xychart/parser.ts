@@ -15,6 +15,7 @@ import type {
 import { scanAccessibilityDirectives } from '../shared/accessibility-directives.ts'
 import { splitCssColorList } from '../shared/css-color.ts'
 import { stripTrailingComment } from '../shared/trailing-comment.ts'
+import { parserObservationActive, observeParserStatement, observeParserMutation } from '../shared/parser-observation.ts'
 
 // ============================================================================
 // XY Chart parser
@@ -69,9 +70,12 @@ export function parseXYChart(lines: string[], options: { strict?: boolean } = {}
   if (!headerMatch && options.strict) {
     throw new Error(`Invalid XYChart header: "${header ?? ''}"`)
   }
+  if (headerMatch && parserObservationActive('xychart')) observeParserStatement('xychart', 'header', header!, { line: 1, unit: 'normalized' })
   if (headerMatch?.[1]) {
     headerOrientation = headerMatch[1].toLowerCase() as 'vertical' | 'horizontal'
+    if (parserObservationActive('xychart')) observeParserMutation('xychart', 'setHeaderOrientation', headerOrientation, { line: 1, unit: 'normalized' })
     horizontal = headerOrientation === 'horizontal'
+    if (parserObservationActive('xychart')) observeParserMutation('xychart', 'setHorizontal', horizontal, { line: 1, unit: 'normalized' })
   }
 
   for (let index = headerMatch ? 1 : 0; index < statements.length; index++) {
@@ -80,17 +84,22 @@ export function parseXYChart(lines: string[], options: { strict?: boolean } = {}
     // Title
     const titleMatch = line.match(/^title\s+(.+)$/i)
     if (titleMatch) {
+      if (parserObservationActive('xychart')) observeParserStatement('xychart', 'title', line, { line: index + 1, unit: 'normalized' })
       const parsed = parseDirectiveText(titleMatch[1]!)
       if (parsed === null) {
         if (options.strict) throw new Error(`Invalid XYChart title directive: "${line}"`)
-      } else title = parsed
+      } else {
+        title = parsed
+        if (parserObservationActive('xychart')) observeParserMutation('xychart', 'setTitle', title, { line: index + 1, unit: 'normalized' })
+      }
       continue
     }
 
     // x-axis: optional title with either categories or numeric range
     const xAxisMatch = line.match(/^x-axis\s+(.+)$/i)
     if (xAxisMatch) {
-      if (!applyAxisDirective(xAxis, xAxisMatch[1]!, 'x') && options.strict) {
+      if (parserObservationActive('xychart')) observeParserStatement('xychart', 'x-axis', line, { line: index + 1, unit: 'normalized' })
+      if (!applyAxisDirective(xAxis, xAxisMatch[1]!, 'x', index + 1) && options.strict) {
         throw new Error(`Invalid XYChart x-axis directive: "${line}"`)
       }
       continue
@@ -99,7 +108,8 @@ export function parseXYChart(lines: string[], options: { strict?: boolean } = {}
     // y-axis: numeric range only, optionally with a title
     const yAxisMatch = line.match(/^y-axis\s+(.+)$/i)
     if (yAxisMatch) {
-      if (!applyAxisDirective(yAxis, yAxisMatch[1]!, 'y') && options.strict) {
+      if (parserObservationActive('xychart')) observeParserStatement('xychart', 'y-axis', line, { line: index + 1, unit: 'normalized' })
+      if (!applyAxisDirective(yAxis, yAxisMatch[1]!, 'y', index + 1) && options.strict) {
         throw new Error(`Invalid XYChart y-axis directive: "${line}"`)
       }
       continue
@@ -107,30 +117,35 @@ export function parseXYChart(lines: string[], options: { strict?: boolean } = {}
 
     const seriesDirective = parseSeriesDirective(line)
     if (seriesDirective?.type === 'bar') {
-      const points = parseNumericPoints(seriesDirective.points, options.strict === true)
+      if (parserObservationActive('xychart')) observeParserStatement('xychart', 'bar', line, { line: index + 1, unit: 'normalized' })
+      const points = parseNumericPoints(seriesDirective.points, options.strict === true, index + 1)
       series.push({
         type: 'bar',
         label: seriesDirective.label,
         data: points.values,
         ...(points.labels.some(pointLabel => pointLabel !== undefined) ? { pointLabels: points.labels } : {}),
       })
+      if (parserObservationActive('xychart')) observeParserMutation('xychart', 'appendSeries', series[series.length - 1], { line: index + 1, unit: 'normalized' })
       continue
     }
 
     if (seriesDirective?.type === 'line') {
-      const points = parseNumericPoints(seriesDirective.points, options.strict === true)
+      if (parserObservationActive('xychart')) observeParserStatement('xychart', 'line', line, { line: index + 1, unit: 'normalized' })
+      const points = parseNumericPoints(seriesDirective.points, options.strict === true, index + 1)
       series.push({
         type: 'line',
         label: seriesDirective.label,
         data: points.values,
         ...(points.labels.some(label => label !== undefined) ? { pointLabels: points.labels } : {}),
       })
+      if (parserObservationActive('xychart')) observeParserMutation('xychart', 'appendSeries', series[series.length - 1], { line: index + 1, unit: 'normalized' })
       continue
     }
 
     // A closed grammar must not produce a plausible partial chart after
     // silently dropping an authored statement. Agent mode still preserves the
     // full source opaquely when this error reaches its strict projection.
+    if (parserObservationActive('xychart')) observeParserStatement('xychart', 'unrecognized', line, { line: index + 1, unit: 'normalized' })
     throw new Error(`Unrecognized XYChart line: "${line}"`)
   }
 
@@ -151,11 +166,13 @@ export function parseXYChart(lines: string[], options: { strict?: boolean } = {}
     // Floor to 0 if all values are positive and min is close to 0
     if (min > 0 && min < span * 0.5) min = 0
     yAxis.range = { min, max }
+    if (parserObservationActive('xychart')) observeParserMutation('xychart', 'deriveYAxisRange', yAxis.range)
   }
 
   // Fallback y-axis range
   if (!yAxis.range) {
     yAxis.range = { min: 0, max: 100 }
+    if (parserObservationActive('xychart')) observeParserMutation('xychart', 'setFallbackYAxisRange', yAxis.range)
   }
 
   return {
@@ -188,7 +205,7 @@ export function applyResolvedXYChartConfig(
   config: XYChartConfig,
   theme: XYChartTheme,
 ): XYChart {
-  return {
+  const resolved = {
     ...chart,
     horizontal: chart.headerOrientation
       ? chart.horizontal
@@ -196,13 +213,15 @@ export function applyResolvedXYChartConfig(
     config,
     theme,
   }
+  if (parserObservationActive('xychart')) observeParserMutation('xychart', 'applyConfig', { horizontal: resolved.horizontal, config, theme })
+  return resolved
 }
 
 // splitCommaList removes the quote delimiters while preserving their content.
 const LABELED_POINT_RE = /^([+-]?(?:\d+(?:\.\d+)?|\.\d+))(?:\s+(.+))?$/
 
 /** Full recognition prevents `parseFloat('25 typo')` from silently accepting a prefix. */
-function parseNumericPoints(str: string, strict = false): { values: number[]; labels: Array<string | undefined> } {
+function parseNumericPoints(str: string, strict = false, statementLine?: number): { values: number[]; labels: Array<string | undefined> } {
   const values: number[] = []
   const labels: Array<string | undefined> = []
   for (const token of splitCommaTokens(str)) {
@@ -217,7 +236,9 @@ function parseNumericPoints(str: string, strict = false): { values: number[]; la
     const label = rawLabel === undefined ? undefined : parseDirectiveText(rawLabel)
     if (label === null) throw new Error(`Invalid XYChart point label: "${token.trim()}"`)
     values.push(value)
+    if (parserObservationActive('xychart')) observeParserMutation('xychart', 'appendSeriesValue', { index: values.length - 1, value }, { line: statementLine, unit: 'normalized' })
     labels.push(label)
+    if (parserObservationActive('xychart')) observeParserMutation('xychart', 'appendSeriesPointLabel', { index: labels.length - 1, label }, { line: statementLine, unit: 'normalized' })
   }
   if (values.length === 0) throw new Error('XYChart series must contain at least one point')
   return { values, labels }
@@ -230,7 +251,7 @@ function parseNumericArray(str: string): number[] {
 const NUMBER_PATTERN = String.raw`[+-]?(?:\d+(?:\.\d+)?|\.\d+)`
 const RANGE_REGEX = new RegExp(`^(${NUMBER_PATTERN})\\s*-->\\s*(${NUMBER_PATTERN})$`)
 
-function applyAxisDirective(axis: XYAxis, rawValue: string, axisName: 'x' | 'y'): boolean {
+function applyAxisDirective(axis: XYAxis, rawValue: string, axisName: 'x' | 'y', statementLine: number): boolean {
   const value = rawValue.trim()
   if (value.length === 0) return false
 
@@ -241,20 +262,31 @@ function applyAxisDirective(axis: XYAxis, rawValue: string, axisName: 'x' | 'y')
     if (title === null) return false
     const categories = splitCommaList(categoriesMatch.contents)
     if (categories.length === 0) return false
-    if (title !== undefined) axis.title = title
+    if (title !== undefined) {
+      axis.title = title
+      if (parserObservationActive('xychart')) observeParserMutation('xychart', 'setAxisTitle', { axis: axisName, title }, { line: statementLine, unit: 'normalized' })
+    }
     axis.categories = categories
+    if (parserObservationActive('xychart')) observeParserMutation('xychart', 'setAxisCategories', { axis: axisName, categories }, { line: statementLine, unit: 'normalized' })
     delete axis.range
+    if (parserObservationActive('xychart')) observeParserMutation('xychart', 'deleteAxisRange', axisName, { line: statementLine, unit: 'normalized' })
     delete axis.rangeAuthored
+    if (parserObservationActive('xychart')) observeParserMutation('xychart', 'deleteAxisRangeAuthored', axisName, { line: statementLine, unit: 'normalized' })
     axis.authored = true
+    if (parserObservationActive('xychart')) observeParserMutation('xychart', 'setAxisAuthored', { axis: axisName, authored: true }, { line: statementLine, unit: 'normalized' })
     return true
   }
 
   const rangeOnly = value.match(RANGE_REGEX)
   if (rangeOnly) {
     axis.range = { min: parseFloat(rangeOnly[1]!), max: parseFloat(rangeOnly[2]!) }
+    if (parserObservationActive('xychart')) observeParserMutation('xychart', 'setAxisRange', { axis: axisName, range: axis.range }, { line: statementLine, unit: 'normalized' })
     axis.rangeAuthored = true
+    if (parserObservationActive('xychart')) observeParserMutation('xychart', 'setAxisRangeAuthored', { axis: axisName, authored: true }, { line: statementLine, unit: 'normalized' })
     delete axis.categories
+    if (parserObservationActive('xychart')) observeParserMutation('xychart', 'deleteAxisCategories', axisName, { line: statementLine, unit: 'normalized' })
     axis.authored = true
+    if (parserObservationActive('xychart')) observeParserMutation('xychart', 'setAxisAuthored', { axis: axisName, authored: true }, { line: statementLine, unit: 'normalized' })
     return true
   }
 
@@ -263,16 +295,23 @@ function applyAxisDirective(axis: XYAxis, rawValue: string, axisName: 'x' | 'y')
     const rangeMatch = titledRange.rest.match(RANGE_REGEX)
     if (rangeMatch) {
       axis.title = titledRange.value
+      if (parserObservationActive('xychart')) observeParserMutation('xychart', 'setAxisTitle', { axis: axisName, title: axis.title }, { line: statementLine, unit: 'normalized' })
       axis.range = { min: parseFloat(rangeMatch[1]!), max: parseFloat(rangeMatch[2]!) }
+      if (parserObservationActive('xychart')) observeParserMutation('xychart', 'setAxisRange', { axis: axisName, range: axis.range }, { line: statementLine, unit: 'normalized' })
       axis.rangeAuthored = true
+      if (parserObservationActive('xychart')) observeParserMutation('xychart', 'setAxisRangeAuthored', { axis: axisName, authored: true }, { line: statementLine, unit: 'normalized' })
       delete axis.categories
+      if (parserObservationActive('xychart')) observeParserMutation('xychart', 'deleteAxisCategories', axisName, { line: statementLine, unit: 'normalized' })
       axis.authored = true
+      if (parserObservationActive('xychart')) observeParserMutation('xychart', 'setAxisAuthored', { axis: axisName, authored: true }, { line: statementLine, unit: 'normalized' })
       return true
     }
 
     if (titledRange.rest.length === 0) {
       axis.title = titledRange.value
+      if (parserObservationActive('xychart')) observeParserMutation('xychart', 'setAxisTitle', { axis: axisName, title: axis.title }, { line: statementLine, unit: 'normalized' })
       axis.authored = true
+      if (parserObservationActive('xychart')) observeParserMutation('xychart', 'setAxisAuthored', { axis: axisName, authored: true }, { line: statementLine, unit: 'normalized' })
       return true
     }
   }
@@ -427,11 +466,13 @@ function readQuotedText(text: string): { value: string; endIndex: number } | nul
 /** Serialize text through the same lexical contract consumed above. */
 export function renderXYChartText(value: string, mode: 'free' | 'token' | 'list' | 'quoted'): string {
   if (mode === 'quoted') return `"${value.replace(/(["\\])/g, '\\$1')}"`
-  const bare = mode === 'token'
-    ? /^[^\s"'\\;\[\]{},]+$/.test(value)
-    : mode === 'list'
-      ? /^[^"'\\;,\[\]{}]+$/.test(value) && value.trim() === value
-      : /^[^"'\\;\[\]{}]+$/.test(value) && value.trim() === value
+  // Mermaid discards whitespace between bare tokens and reserves chart
+  // keywords. Quoting preserves labels rather than merely accepting them in
+  // our more generous reader (e.g. "Revenue (USD)" and the category "bar").
+  const bare = /^[A-Za-z_][A-Za-z0-9_]*$/.test(value)
+    // Axis-title mode tokenizes digits as range numbers, unlike category text.
+    && (mode !== 'token' || !/\d/.test(value))
+    && !/^(?:title|bar|line|xychart|horizontal|vertical|accTitle|accDescr)$/i.test(value)
   return bare && value.length > 0 ? value : `"${value.replace(/(["\\])/g, '\\$1')}"`
 }
 
@@ -443,7 +484,7 @@ export function resolveXYChartConfig(frontmatter: MermaidFrontmatterMap): XYChar
   const configRoot = getFrontmatterMap(frontmatter, ['config']) ?? frontmatter
   const root = getFrontmatterMap(frontmatter, ['config', 'xyChart']) ?? getFrontmatterMap(frontmatter, ['xyChart']) ?? {}
   const chartOrientation = getString(root, ['chartOrientation'])
-  return {
+  const config: XYChartConfig = {
     width: getPositiveNumber(root, ['width']),
     height: getPositiveNumber(root, ['height']),
     useMaxWidth: getBoolean(root, ['useMaxWidth']) ?? getBoolean(configRoot, ['useMaxWidth']),
@@ -463,6 +504,8 @@ export function resolveXYChartConfig(frontmatter: MermaidFrontmatterMap): XYChar
     xAxis: resolveAxisConfig(root, 'xAxis'),
     yAxis: resolveAxisConfig(root, 'yAxis'),
   }
+  if (parserObservationActive('xychart')) observeParserMutation('xychart', 'resolveConfig', config)
+  return config
 }
 
 export function resolveXYChartTheme(frontmatter: MermaidFrontmatterMap): XYChartTheme {
@@ -470,7 +513,7 @@ export function resolveXYChartTheme(frontmatter: MermaidFrontmatterMap): XYChart
   const root = getFrontmatterMap(frontmatter, ['config', 'themeVariables', 'xyChart'])
     ?? getFrontmatterMap(frontmatter, ['themeVariables', 'xyChart'])
     ?? {}
-  return {
+  const theme: XYChartTheme = {
     backgroundColor: getString(root, ['backgroundColor']),
     themeCss: getString(configRoot, ['themeCSS']),
     titleColor: getString(root, ['titleColor']),
@@ -486,6 +529,8 @@ export function resolveXYChartTheme(frontmatter: MermaidFrontmatterMap): XYChart
     dataLabelColor: getString(root, ['dataLabelColor']),
     plotColorPalette: getPalette(root, ['plotColorPalette']),
   }
+  if (parserObservationActive('xychart')) observeParserMutation('xychart', 'resolveTheme', theme)
+  return theme
 }
 
 function resolveAxisConfig(root: MermaidFrontmatterMap, key: 'xAxis' | 'yAxis'): XYAxisRenderConfig | undefined {

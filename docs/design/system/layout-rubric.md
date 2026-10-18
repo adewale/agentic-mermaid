@@ -3,6 +3,20 @@
 Status: implemented — `src/layout-rubric.ts` (metrics), `eval/visual-rubric/` (harness + fixtures), `src/__tests__/layout-rubric.test.ts` (CI gates + property oracles).
 Companion to `docs/design/system/route-contracts.md`.
 
+Checks consume retained prepared text and final geometry. `assessLayout` accepts
+the resolved render style as a third argument for older positioned artifacts
+without retained blocks; custom text must not silently use default font sizes.
+The policy order and its explicit conflicts are described in
+[`quality.md`](../../quality.md#layout-priorities-and-their-limits).
+
+The Flowchart/State graph engine now runs this independent hard checker before
+returning a layout. It tries at most four deterministic strategy candidates and
+returns a certification receipt or `LAYOUT_CERTIFICATION_FAILED`. The common
+positioning boundary additionally checks every native family's final projection
+against the family rubric's hard rules. Specialized layouters have one
+deterministic attempt and fail explicitly. This does not certify soft aesthetics
+or family-specific obligations absent from those checkers.
+
 ## Why a deterministic rubric
 
 The competitive analysis (appendix B) found that no tool in this space gates

@@ -48,6 +48,7 @@ interface InheritedTextMetrics {
   readonly weight: number
   readonly letterSpacing: number
   readonly mono: boolean
+  readonly fontStyle: 'normal' | 'italic'
 }
 
 interface XmlTextNode {
@@ -139,6 +140,8 @@ function resolveMetrics(parent: InheritedTextMetrics, element: XmlElement): Inhe
     weight: namedBold ? Math.max(700, fontWeightAttribute(element.attrs, parent.weight)) : fontWeightAttribute(element.attrs, parent.weight),
     letterSpacing: numericAttribute(element.attrs, 'letter-spacing', parent.letterSpacing),
     mono: parent.mono || hasMonoClass(element.attrs),
+    fontStyle: element.name === 'i' || element.name === 'em' || attribute(element.attrs, 'font-style') === 'italic'
+      ? 'italic' : attribute(element.attrs, 'font-style') === 'normal' ? 'normal' : parent.fontStyle,
   }
 }
 
@@ -191,11 +194,11 @@ function measuredAdvance(runs: readonly MeasuredRun[], literalText = false): num
     const clusters = graphemes(run.text).length
     if (previousClusters > 0 && clusters > 0) width += previousSpacing
     width += run.metrics.mono
-      ? measureMonospaceTextWidth(run.text, run.metrics.size, run.metrics.letterSpacing)
+      ? measureMonospaceTextWidth(run.text, run.metrics.size, run.metrics.letterSpacing, run.metrics.weight, run.metrics.fontStyle)
       : literalText
-        ? measureTextWidth(run.text, run.metrics.size, run.metrics.weight) +
+        ? measureTextWidth(run.text, run.metrics.size, run.metrics.weight, run.metrics.fontStyle) +
           Math.max(0, clusters - 1) * run.metrics.letterSpacing
-        : measureFormattedTextWidth(run.text, run.metrics.size, run.metrics.weight, run.metrics.letterSpacing)
+        : measureFormattedTextWidth(run.text, run.metrics.size, run.metrics.weight, run.metrics.letterSpacing, run.metrics.fontStyle)
     previousClusters = clusters
     previousSpacing = run.metrics.letterSpacing
   }
@@ -217,7 +220,7 @@ export function fitUncalibratedSvgText(svg: string, _fontStack: string): string 
   const roots = scanXml(svg)
   if (!roots) return svg
   const edits: SourceEdit[] = []
-  const base: InheritedTextMetrics = { size: 0, weight: 400, letterSpacing: 0, mono: false }
+  const base: InheritedTextMetrics = { size: 0, weight: 400, letterSpacing: 0, mono: false, fontStyle: 'normal' }
 
   const visitTextTree = (element: XmlElement, inherited: InheritedTextMetrics, insideText: boolean, inheritedLiteral = false) => {
     // Prepared emission already owns every run's advance and placement.

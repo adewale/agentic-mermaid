@@ -130,7 +130,7 @@ function prepareErText(positioned: PositionedErDiagram, style: ResolvedRenderSty
     entity.attributeBlocks = entity.attributes.map(erAttributeBlocks)
   }
   for (const group of positioned.groups) group.labelBlock ??= erGroupBlock(group.label, style)
-  for (const rel of positioned.relationships) rel.labelBlock = erRelationshipBlock(rel, style, styleFace)
+  for (const rel of positioned.relationships) rel.labelBlock ??= erRelationshipBlock(rel, style, styleFace)
   return positioned
 }
 
@@ -222,6 +222,7 @@ function extractErLayout(
   diagram: ErDiagram,
   entitySizes: EntitySizeMap,
   style: ResolvedRenderStyle,
+  styleFace?: Readonly<InternalStyleFace>,
 ): PositionedErDiagram {
   const entityLookup = new Map<string, ErEntity>()
   for (const entity of diagram.entities) entityLookup.set(entity.id, entity)
@@ -251,8 +252,11 @@ function extractErLayout(
     }
   }
 
-  const movedByScopedDirection = applyErGroupDirections(diagram, positionedEntities)
+  const relationshipBlocks = diagram.relationships.map(rel => erRelationshipBlock(rel, style, styleFace))
+  const movedByScopedDirection = applyErGroupDirections(diagram, positionedEntities, relationshipBlocks)
   const positionedGroups = deriveErGroups(diagram, positionedEntities, style)
+  const separatedGroups = separateErCompounds(diagram, positionedEntities, positionedGroups, style, relationshipBlocks)
+  const rerouteRelationships = movedByScopedDirection.size > 0 || separatedGroups
   const boxes = new Map<string, { x: number; y: number; width: number; height: number }>()
   positionedEntities.forEach(entity => boxes.set(entity.id, entity))
   positionedGroups.forEach(group => boxes.set(group.id, group))
@@ -260,7 +264,7 @@ function extractErLayout(
   const relationships: PositionedErRelationship[] = []
   for (let i = 0; i < diagram.relationships.length; i++) {
     const rel = diagram.relationships[i]!
-    const elkEdge = movedByScopedDirection.has(rel.entity1) || movedByScopedDirection.has(rel.entity2)
+    const elkEdge = rerouteRelationships
       ? undefined
       : edgeById.get(`e${i}`)
     const points: Point[] = []
@@ -294,7 +298,7 @@ function extractErLayout(
     relationships.push({
       entity1: rel.entity1, entity2: rel.entity2,
       cardinality1: rel.cardinality1, cardinality2: rel.cardinality2,
-      label: rel.label, identifying: rel.identifying, points,
+      label: rel.label, labelBlock: relationshipBlocks[i], identifying: rel.identifying, points,
     })
   }
 
@@ -350,7 +354,7 @@ function rectBoundaryToward(box: { x: number; y: number; width: number; height: 
   return { x: center.x + (dx / (Math.abs(dy) || 1)) * box.height / 2, y: dy >= 0 ? box.y + box.height : box.y }
 }
 
-function applyErGroupDirections(diagram: ErDiagram, entities: PositionedErEntity[]): Set<string> {
+function applyErGroupDirections(diagram: ErDiagram, entities: PositionedErEntity[], relationshipBlocks: readonly PixelTextBlock[]): Set<string> {
   const moved = new Set<string>()
   for (const group of diagram.groups) {
     if (!group.direction) continue
@@ -359,12 +363,18 @@ function applyErGroupDirections(diagram: ErDiagram, entities: PositionedErEntity
     for (const member of members) moved.add(member.id)
     const horizontal = group.direction === 'LR' || group.direction === 'RL'
     const ordered = group.direction === 'RL' || group.direction === 'BT' ? [...members].reverse() : members
+    const ids = new Set(members.map(member => member.id))
+    // The scoped adapter replaces ELK routes. Retain enough straight corridor
+    // for the actual label plus both cardinality glyphs before rerouting.
+    const gap = Math.max(48, ...diagram.relationships.flatMap((rel, i) =>
+      rel.label && ids.has(rel.entity1) && ids.has(rel.entity2)
+        ? [relationshipBlocks[i]![horizontal ? 'width' : 'height'] + 56] : []))
     const originX = Math.min(...members.map(member => member.x))
     const originY = Math.min(...members.map(member => member.y))
     let cursor = horizontal ? originX : originY
     for (const member of ordered) {
-      if (horizontal) { member.x = cursor; member.y = originY; cursor += member.width + 48 }
-      else { member.x = originX; member.y = cursor; cursor += member.height + 48 }
+      if (horizontal) { member.x = cursor; member.y = originY; cursor += member.width + gap }
+      else { member.x = originX; member.y = cursor; cursor += member.height + gap }
     }
   }
   return moved
@@ -390,6 +400,106 @@ function deriveErGroups(diagram: ErDiagram, entities: PositionedErEntity[], styl
     })
   }
   return positioned
+}
+
+/** Flat ELK placement reserves entity boxes, not their surrounding frames.
+ * Pack only colliding sibling compounds/direct entities, bottom-up, moving
+ * each compound as one unit so scoped directions and ownership survive.
+ * Each collision advances beyond a previously placed item, bounding a local
+ * repair by the number of siblings; no convergence/retry loop is needed. */
+function separateErCompounds(diagram: ErDiagram, entities: PositionedErEntity[], groups: PositionedErDiagram['groups'], style: ResolvedRenderStyle, relationshipBlocks: readonly PixelTextBlock[]): boolean {
+  if (groups.length === 0) return false
+  type Box = { x: number; y: number; width: number; height: number }
+  type Item = { box: Box; ids: Set<string>; move: (dx: number, dy: number) => void }
+  const byId = new Map(groups.map(group => [group.id, group]))
+  const modelById = new Map(diagram.groups.map(group => [group.id, group]))
+  const children = new Map<string | undefined, typeof groups>()
+  const directEntities = new Map<string | undefined, PositionedErEntity[]>()
+  for (const group of groups) {
+    const parent = group.parentId && byId.has(group.parentId) ? group.parentId : undefined
+    const siblings = children.get(parent) ?? []
+    siblings.push(group)
+    children.set(parent, siblings)
+  }
+  for (const entity of entities) {
+    const parent = entity.groupId && byId.has(entity.groupId) ? entity.groupId : undefined
+    const siblings = directEntities.get(parent) ?? []
+    siblings.push(entity)
+    directEntities.set(parent, siblings)
+  }
+  let changed = false
+  const moveGroup = (group: typeof groups[number], dx: number, dy: number): void => {
+    group.x += dx; group.y += dy
+    for (const entity of directEntities.get(group.id) ?? []) { entity.x += dx; entity.y += dy }
+    for (const child of children.get(group.id) ?? []) moveGroup(child, dx, dy)
+  }
+  const idsWithin = (group: typeof groups[number]): Set<string> => new Set([
+    group.id, ...(directEntities.get(group.id) ?? []).map(entity => entity.id),
+    ...(children.get(group.id) ?? []).flatMap(child => [...idsWithin(child)]),
+  ])
+  const pack = (items: Item[], direction: Direction): void => {
+    const horizontal = direction === 'LR' || direction === 'RL'
+    const cross = horizontal ? 'y' : 'x'
+    const span = horizontal ? 'height' : 'width'
+    const main = horizontal ? 'x' : 'y'
+    const owner = new Map<string, Item>()
+    const clearances = new Map<Item, Map<Item, number>>()
+    for (const item of items) for (const id of item.ids) owner.set(id, item)
+    for (const [i, rel] of diagram.relationships.entries()) {
+      const from = owner.get(rel.entity1), to = owner.get(rel.entity2)
+      if (!rel.label || !from || !to || from === to) continue
+      // 8px label clearance per side, two 18px cardinality zones, 4px slack.
+      const clearance = relationshipBlocks[i]![horizontal ? 'height' : 'width'] + 56
+      for (const [a, b] of [[from, to], [to, from]] as const) {
+        const row = clearances.get(a) ?? new Map<Item, number>()
+        row.set(b, Math.max(row.get(b) ?? 0, clearance))
+        clearances.set(a, row)
+      }
+    }
+    // Stable coordinate order retains ELK's ordering when no collision forces
+    // a move. Reverse main flow changes neither cross-axis order nor padding.
+    items.sort((a, b) => a.box[cross] - b.box[cross] || a.box[main] - b.box[main])
+    const placed: Item[] = []
+    for (const item of items) {
+      for (let step = 0; step < placed.length; step++) {
+        let delta = 0
+        for (const other of placed) {
+          const clearance = clearances.get(item)?.get(other) ?? 0
+          const mainSpan = horizontal ? 'width' : 'height'
+          const mainOverlap = Math.min(item.box[main] + item.box[mainSpan], other.box[main] + other.box[mainSpan]) - Math.max(item.box[main], other.box[main])
+          const crossOverlap = Math.min(item.box[cross] + item.box[span], other.box[cross] + other.box[span]) - Math.max(item.box[cross], other.box[cross])
+          if (mainOverlap > 0.5 && crossOverlap > -clearance + 0.5) {
+            delta = Math.max(delta, other.box[cross] + other.box[span] + Math.max(20, clearance) - item.box[cross])
+          }
+        }
+        if (delta === 0) break
+        item.move(horizontal ? 0 : delta, horizontal ? delta : 0)
+        changed = true
+      }
+      placed.push(item)
+    }
+  }
+  const visit = (parent: string | undefined, direction: Direction): void => {
+    const childGroups = children.get(parent) ?? []
+    for (const group of childGroups) visit(group.id, modelById.get(group.id)?.direction ?? direction)
+    const members = directEntities.get(parent) ?? []
+    const items: Item[] = [
+      ...members.map(entity => ({ box: entity, ids: new Set([entity.id]), move: (dx: number, dy: number) => { entity.x += dx; entity.y += dy } })),
+      ...childGroups.map(group => ({ box: group, ids: idsWithin(group), move: (dx: number, dy: number) => moveGroup(group, dx, dy) })),
+    ]
+    pack(items, direction)
+    if (parent === undefined || items.length === 0) return
+    const group = byId.get(parent)!
+    const minX = Math.min(...items.map(item => item.box.x)) - 20
+    const minY = Math.min(...items.map(item => item.box.y)) - 20 - group.headerHeight
+    const maxX = Math.max(minX + (group.labelBlock?.width ?? erGroupBlock(group.label, style).width) + 20, Math.max(...items.map(item => item.box.x + item.box.width)) + 20)
+    const width = maxX - minX
+    const height = Math.max(...items.map(item => item.box.y + item.box.height)) + 20 - minY
+    if (group.x !== minX || group.y !== minY || group.width !== width || group.height !== height) changed = true
+    Object.assign(group, { x: minX, y: minY, width, height })
+  }
+  visit(undefined, diagram.direction ?? 'LR')
+  return changed
 }
 
 function layoutErGroupsOnly(diagram: ErDiagram, style: ResolvedRenderStyle): PositionedErDiagram {
@@ -459,7 +569,7 @@ export function layoutErDiagram(
 
   const { elkGraph, entitySizes } = buildErElkGraph(diagram, options, styleFace)
   const result = elkLayoutSync(elkGraph)
-  return withErTitle(prepareErText(extractErLayout(result, diagram, entitySizes, resolveRenderStyle(options, ER_STYLE_DEFAULTS, styleFace)), resolveRenderStyle(options, ER_STYLE_DEFAULTS, styleFace), styleFace), diagram.title, resolveRenderStyle(options, ER_STYLE_DEFAULTS, styleFace))
+  return withErTitle(prepareErText(extractErLayout(result, diagram, entitySizes, resolveRenderStyle(options, ER_STYLE_DEFAULTS, styleFace), styleFace), resolveRenderStyle(options, ER_STYLE_DEFAULTS, styleFace), styleFace), diagram.title, resolveRenderStyle(options, ER_STYLE_DEFAULTS, styleFace))
 }
 
 /** The diagram's title takes a band above everything the layout placed. */

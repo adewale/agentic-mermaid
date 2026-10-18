@@ -1,3 +1,4 @@
+import { parserObservationActive, observeParserStatement, observeParserMutation } from '../shared/parser-observation.ts'
 import type { MermaidGraph, MermaidSubgraph, Direction } from '../types.ts'
 import { normalizeBrTags } from '../multiline-utils.ts'
 import { syntaxError } from '../shared/syntax-error.ts'
@@ -218,6 +219,8 @@ export function parseArchitectureDiagram(lines: string[]): ArchitectureDiagram {
     throw new Error(`Invalid mermaid header: "${lines[0]}". Expected "architecture" or "architecture-beta".`)
   }
 
+  if (parserObservationActive('architecture')) observeParserStatement('architecture', 'header', lines[0]!, { line: 1, unit: 'normalized' })
+
   const groups = new Map<string, ArchitectureGroup>()
   const services = new Map<string, ArchitectureService>()
   const junctions = new Map<string, ArchitectureJunction>()
@@ -230,15 +233,18 @@ export function parseArchitectureDiagram(lines: string[]): ArchitectureDiagram {
 
   for (const statement of readArchitectureStatements(lines.slice(1))) {
     const line = stripTrailingComment(statement.raw.join('\n').trim())
+    if (parserObservationActive('architecture')) observeParserStatement('architecture', statement.kind, statement.raw.join('\n'), { line: statement.startLine + 1, unit: 'normalized' })
     if (statement.kind === 'invalid') throw statement.error
     if (statement.kind === 'blank' || statement.kind === 'comment') continue
     if (statement.kind === 'accessibility') {
       if (statement.directive.title) accessibilityTitle = normalizeBrTags(statement.directive.value)
       else accessibilityDescription = normalizeBrTags(statement.directive.value)
+      if (parserObservationActive('architecture')) observeParserMutation('architecture', statement.directive.title ? 'setAccessibilityTitle' : 'setAccessibilityDescription', statement.directive.title ? accessibilityTitle : accessibilityDescription, { line: statement.startLine + 1, unit: 'normalized' })
       continue
     }
     if (statement.kind === 'title') {
       title = normalizeBrTags(statement.value)
+      if (parserObservationActive('architecture')) observeParserMutation('architecture', 'setTitle', title, { line: statement.startLine + 1, unit: 'normalized' })
       continue
     }
 
@@ -250,7 +256,9 @@ export function parseArchitectureDiagram(lines: string[]): ArchitectureDiagram {
       const group: ArchitectureGroup = { id, label, icon, parentId, children: [] }
       ensureParentGroup(parentId, groups, line)
       groups.set(id, group)
+      if (parserObservationActive('architecture')) observeParserMutation('architecture', 'addGroup', group, { line: statement.startLine + 1, unit: 'normalized' })
       attachChild({ kind: 'group', id }, parentId, groups, rootChildren)
+      if (parserObservationActive('architecture')) observeParserMutation('architecture', 'attachChild', { kind: 'group', id, parentId }, { line: statement.startLine + 1, unit: 'normalized' })
       continue
     }
 
@@ -262,7 +270,9 @@ export function parseArchitectureDiagram(lines: string[]): ArchitectureDiagram {
       const service: ArchitectureService = { id, label, icon, parentId }
       ensureParentGroup(parentId, groups, line)
       services.set(id, service)
+      if (parserObservationActive('architecture')) observeParserMutation('architecture', 'addService', service, { line: statement.startLine + 1, unit: 'normalized' })
       attachChild({ kind: 'service', id }, parentId, groups, rootChildren)
+      if (parserObservationActive('architecture')) observeParserMutation('architecture', 'attachChild', { kind: 'service', id, parentId }, { line: statement.startLine + 1, unit: 'normalized' })
       continue
     }
 
@@ -272,7 +282,9 @@ export function parseArchitectureDiagram(lines: string[]): ArchitectureDiagram {
       const junction: ArchitectureJunction = { id, parentId }
       ensureParentGroup(parentId, groups, line)
       junctions.set(id, junction)
+      if (parserObservationActive('architecture')) observeParserMutation('architecture', 'addJunction', junction, { line: statement.startLine + 1, unit: 'normalized' })
       attachChild({ kind: 'junction', id }, parentId, groups, rootChildren)
+      if (parserObservationActive('architecture')) observeParserMutation('architecture', 'attachChild', { kind: 'junction', id, parentId }, { line: statement.startLine + 1, unit: 'normalized' })
       continue
     }
 
@@ -281,6 +293,7 @@ export function parseArchitectureDiagram(lines: string[]): ArchitectureDiagram {
     // "align" (edge endpoints carry a `:SIDE` suffix and do not match).
     if (statement.kind === 'align') {
       alignments.push(validateAlignment(statement.alignment, line, groups, services, junctions))
+      if (parserObservationActive('architecture')) observeParserMutation('architecture', 'addAlignment', alignments.at(-1), { line: statement.startLine + 1, unit: 'normalized' })
       continue
     }
 
@@ -288,6 +301,7 @@ export function parseArchitectureDiagram(lines: string[]): ArchitectureDiagram {
       validateEndpoint(statement.edge.source, services, junctions, line)
       validateEndpoint(statement.edge.target, services, junctions, line)
       edges.push({ ...statement.edge, label: statement.edge.label === undefined ? undefined : normalizeBrTags(statement.edge.label) })
+      if (parserObservationActive('architecture')) observeParserMutation('architecture', 'addEdge', edges.at(-1), { line: statement.startLine + 1, unit: 'normalized' })
     }
   }
 

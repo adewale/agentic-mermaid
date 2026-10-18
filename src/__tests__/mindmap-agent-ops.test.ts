@@ -153,13 +153,10 @@ describe('Mindmap typed operations — discriminating mutation contract', () => 
     expectError({ kind: 'set_shape', id: 'missing', shape: 'rect' }, 'NODE_NOT_FOUND', "Mindmap node 'missing' not found")
     expectError({ kind: 'set_shape', id: 'a', shape: 'triangle' as never }, 'INVALID_OP', 'Mindmap shape must be one of: default, rect, rounded, circle, cloud, bang, hexagon')
     expectError({ kind: 'set_shape', id: 'box', shape: 'default' }, 'INVALID_OP', 'Default mindmap shape requires id and label to match')
-    const delimiterId = parseMindmapBody('mindmap\n  A(B[Label]\n')
-    expectError(
-      { kind: 'set_shape', id: 'A(B', shape: 'rounded' },
-      'INVALID_OP',
-      "Mindmap node text 'A(B/Label' is not serialization-stable; choose an id and label that do not conflict with rounded delimiters",
-      delimiterId,
-    )
+    const delimiterId = parseMindmapBody('mindmap\n  (A[B)\n')
+    const changedShape = apply({ kind: 'set_shape', id: 'A[B', shape: 'rect' }, delimiterId)
+    expect(changedShape.root).toMatchObject({ id: 'A[B', label: 'A[B', shape: 'rect' })
+    expect(parseMindmapBody(renderMindmapBody(changedShape))).toEqual(changedShape)
   })
 
   test('icon and class operations set, trim, clear, and validate', () => {

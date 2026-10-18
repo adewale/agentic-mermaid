@@ -16,6 +16,7 @@ import { asQuadrant } from '../agent/types.ts'
 import type { QuadrantValidDiagram, QuadrantMutationOp } from '../agent/types.ts'
 import { parseQuadrantChart } from '../quadrant/parser.ts'
 import { normalizeMermaidSource } from '../mermaid-source.ts'
+import { startUpstreamMermaid } from './helpers/upstream-mermaid.ts'
 
 const SRC = `quadrantChart
   title Reach and engagement of campaigns
@@ -44,6 +45,33 @@ function apply(d: QuadrantValidDiagram, op: QuadrantMutationOp): QuadrantValidDi
 }
 
 describe('quadrant structured parse', () => {
+  test.each([
+    ['x-axis "Left --> literal"', { near: 'Left --> literal' }],
+    ['x-axis "Left --> literal" --> "Right --> literal"', { near: 'Left --> literal', far: 'Right --> literal' }],
+    ['x-axis "Left --> literal" -->', { near: 'Left --> literal ⟶ ' }],
+  ])('keeps quoted axis delimiters as text: %s', async (axis, expected) => {
+    const diagram = quadrant(`quadrantChart\n  ${axis}`)
+    expect(diagram.body.xAxis).toEqual(expected)
+    const serialized = serializeMermaid(diagram)
+    expect(quadrant(serialized).body.xAxis).toEqual(expected)
+    const upstream = startUpstreamMermaid()
+    try { expect(await upstream.accepts(serialized)).toBe(true) }
+    finally { upstream.close() }
+  })
+
+  test('keeps reserved grammar words quoted in axis labels after edits', async () => {
+    const upstream = startUpstreamMermaid()
+    try {
+      const diagram = quadrant('quadrantChart\n  x-axis "x-axis-1" --> "x-axis-2"\n  y-axis "title low" --> "quadrant-1 high"\n  A: [0.5, 0.5]')
+      for (const candidate of [diagram, apply(diagram, { kind: 'set_axis_labels', axis: 'x', near: 'y-axis low', far: 'classDef high' })]) {
+        const serialized = serializeMermaid(candidate)
+        expect(await upstream.accepts(serialized)).toBe(true)
+        expect(quadrant(serialized).body).toEqual(candidate.body)
+        expect(serializeMermaid(quadrant(serialized))).toBe(serialized)
+      }
+    } finally { upstream.close() }
+  })
+
   test('models title, axes, 1..4 quadrant labels, and [0,1] points', () => {
     const d = quadrant()
     expect(d.kind).toBe('quadrant')

@@ -145,7 +145,7 @@ export function historyLabel(deep: boolean): 'H' | 'H*' {
  *  transition. */
 const TRANSITION_ENDPOINT = String.raw`\[\*\]|[\w\p{L}-]+\[H\*?\]|\[H\*?\]|[\w\p{L}-]+`
 const TRANSITION_RE = new RegExp(
-  `^(${TRANSITION_ENDPOINT})(?::::([\\w-]+))?\\s*-->\\s*(${TRANSITION_ENDPOINT})(?::::([\\w-]+))?(?:\\s*:\\s*(.+))?$`,
+  `^(${TRANSITION_ENDPOINT})(?::::([\\w-]+))?\\s*-->\\s*(${TRANSITION_ENDPOINT})(?::::([\\w-]+))?(?:\\s+([\\w\\p{L}-]+(?:\\s+[\\w\\p{L}-]+)*))?(?:\\s*:\\s*(.+))?$`,
   'u',
 )
 
@@ -155,17 +155,23 @@ export interface StateTransitionMatch {
   fromClass?: string
   toClass?: string
   label?: string
+  /** Independent state declarations consumed after the transition. */
+  followingStates?: string[]
 }
 
 export function matchTransitionLine(line: string): StateTransitionMatch | null {
   const m = line.match(TRANSITION_RE)
   if (!m) return null
-  const rawLabel = m[5]?.trim()
+  // A trailing description after another state belongs to that declaration,
+  // not to this transition; never misattribute it as the connector label.
+  if (m[5] && m[6]) return null
+  const rawLabel = m[6]?.trim()
   return {
     from: m[1]!,
     ...(m[2] ? { fromClass: m[2] } : {}),
     to: m[3]!,
     ...(m[4] ? { toClass: m[4] } : {}),
+    ...(m[5] ? { followingStates: m[5].trim().split(/\s+/) } : {}),
     ...(rawLabel ? { label: rawLabel } : {}),
   }
 }

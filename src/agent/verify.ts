@@ -406,6 +406,13 @@ function xychartHiddenLabelWarnings(positioned: VerificationArtifact): LayoutWar
       })
     }
     const categories = chart.hiddenCategoryLabels ?? []
+    const legend = chart.hiddenLegendLabels ?? []
+    if (legend.length > 0) {
+      warnings.push({
+        code: 'LABELS_HIDDEN', target: 'legend', labels: legend,
+        message: `XY chart does not draw ${legend.length} legend ${legend.length === 1 ? 'entry' : 'entries'} because the legend does not fit: ${legend.join(', ')}. Enlarge the chart, shorten the series names, or lower xyChart.plotReservedSpacePercent.`,
+      })
+    }
     if (categories.length > 0) {
       const remedy = chart.horizontal
         ? 'Shorten the category names, widen the chart, or lower xyChart.plotReservedSpacePercent.'

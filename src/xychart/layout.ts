@@ -235,6 +235,7 @@ function layoutVertical(chart: XYChart, config: ResolvedXYChartConfig, measure: 
     lines,
     gridLines,
     legend: legend.items,
+    hiddenLegendLabels: legend.hiddenLabels,
     hiddenCategoryLabels: hiddenCategoryLabels(chart, config, xAxisConfig.config, xTicks),
     ...planBarDataLabels(bars, false, plotArea, config, measure),
     config,
@@ -344,6 +345,7 @@ function layoutHorizontal(chart: XYChart, config: ResolvedXYChartConfig, measure
     lines,
     gridLines,
     legend: legend.items,
+    hiddenLegendLabels: legend.hiddenLabels,
     hiddenCategoryLabels: hiddenCategoryLabels(chart, config, leftAxisConfig.config, leftTicks),
     ...planBarDataLabels(bars, true, plotArea, config, measure),
     config,
@@ -367,16 +369,16 @@ function fitLegend(
   plotTop: number,
   plotHeight: number,
   measure: XYTextMeasure,
-): { items: LegendItem[]; size: number } {
-  if (!config.showLegend) return { items: [], size: 0 }
+): { items: LegendItem[]; size: number; hiddenLabels: string[] } {
+  if (!config.showLegend) return { items: [], size: 0, hiddenLabels: [] }
   const entries = legendEntries(chart.series)
-  if (entries.length === 0) return { items: [], size: 0 }
+  if (entries.length === 0) return { items: [], size: 0, hiddenLabels: [] }
 
   const maxLabelWidth = Math.ceil(Math.max(...entries.map(entry => measure.legend(entry.label, config.legendFontSize))))
   const width = config.legendPadding * 2 + LEGEND_SWATCH_SIZE + LEGEND_SWATCH_GAP + maxLabelWidth
   const rowHeight = Math.max(...entries.map(entry => measure.block('legend', entry.label, config.legendFontSize).height), LEGEND_SWATCH_SIZE) + config.legendPadding
   const height = config.legendPadding + entries.length * rowHeight
-  if (width > budget || height > plotHeight) return { items: [], size: 0 }
+  if (width > budget || height > plotHeight) return { items: [], size: 0, hiddenLabels: entries.map(entry => entry.label) }
 
   const swatchX = totalW - width + config.legendPadding
   const items: LegendItem[] = entries.map((entry, index) => ({
@@ -387,7 +389,7 @@ function fitLegend(
     seriesIndex: entry.seriesIndex,
     colorIndex: entry.colorIndex,
   }))
-  return { items, size: width }
+  return { items, size: width, hiddenLabels: [] }
 }
 
 function fitChartTitle(title: string | undefined, config: ResolvedXYChartConfig, budget: number, measure: XYTextMeasure): { height: number; title?: PositionedXYChart['title'] } {

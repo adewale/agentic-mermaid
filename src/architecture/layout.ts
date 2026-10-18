@@ -249,6 +249,12 @@ export function layoutArchitectureDiagram(
     }
   }
 
+  for (const service of services) {
+    service.labelPosition = {
+      x: service.x + typography.servicePaddingX + (service.icon ? (typography.serviceIconSize ?? DEFAULT_ARCHITECTURE_VISUAL.serviceIconSize) + Math.max(10, typography.servicePaddingX * 0.7) : 0),
+      y: service.y + service.height / 2,
+    }
+  }
   return {
     width,
     height,

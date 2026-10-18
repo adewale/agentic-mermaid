@@ -53,6 +53,9 @@ render results expose the same receipt. Use `validateSerializableRenderOptions(v
 `sharedRenderOptionsJsonSchema()` for untrusted advanced option objects, or
 `styleInputJsonSchema()` for a standalone convenience `style` field; unknown
 fields, `null`, functions, prototype keys, and non-finite values are rejected.
+Graphical receipts name an explicitly selected pixel `textMeasurement` profile
+(`id` and `version`). Trusted hosts can select custom metrics through the
+renderer factories described below; their callback never enters a receipt.
 
 ## Output helpers
 
@@ -186,6 +189,26 @@ Its rasterizer must apply `fitTo` and `background`, not only `scale`.
 `renderMermaidSVG`, `renderMermaidPNG`, and
 `renderMermaidPNGInBrowserWithReceipt` remain the compatible default-backend
 entry points.
+
+#### Trusted host-selected pixel metrics
+
+The same three factories accept `textMeasurement`, a named, versioned
+`TextMeasurementProfile` with a synchronous `measure(input)` callback returning
+the run's natural width in pixels. Inputs include displayed `text`,
+`fontFamily`, `fontSize`, `fontWeight`, `fontStyle`, and `monospace`. Letter
+spacing and wrapping remain the library's responsibility. The host supplies
+the font measurement implementation and makes its fonts available to the
+selected SVG/PNG consumer; no Canvas or system-font measurement is enabled
+implicitly. See [custom fonts](./custom-fonts.md#trusted-font-measurement-profiles)
+for an example and reproducibility requirements.
+
+This is an in-process host option, separate from serializable `RenderOptions`,
+Style data, Mermaid source, editor state, CLI, and MCP inputs. Bound renderers
+capture the profile's name, version, and function once. Layout, prepared pixel
+text, SVG advances, and both PNG adapters use those same metrics. Receipts
+record its identity and include custom identity in request digests. Terminal
+cell widths remain independent. Omitting the profile keeps the existing
+deterministic Inter estimate, SVG output, and receipt shape unchanged.
 
 ### ASCII / Unicode
 
@@ -346,6 +369,47 @@ Core functions:
 | `renderMermaidWithActions(d, request)` | Render SVG, PNG, ASCII, or Unicode and return one inert action/hit-region sidecar for admitted Flowchart/Class/Gantt interactions and Sequence actor-menu links. An SVG href is `embedded-inert` only when matching inert metadata is present in the returned SVG; PNG/terminal actions, strict-mode hrefs, and all callbacks are `sidecar-only` and never execute. Terminal artifacts also return projection `warnings`, and terminal render failure throws instead of returning an empty success artifact. |
 | `measureQuality(layout, colors?)` / `checkQuality(layout, bounds?, colors?)` | Perceptual quality metrics, including fail-closed contrast (`null` when requested paints are unresolved), nearest-node spacing, and element density. Rendered audits can supply exact foreground/background associations through `textPairs`. |
 | `describeMermaid(d, { format })` | Prose, AX-tree, or facts summary (`format: "text" | "json" | "facts"`). |
+
+#### Observe a native parser
+
+The root library exports `withParserObservation(family, observer, parse)`. Wrap
+one synchronous parser call to receive its actual consumed statements and
+builder writes. Each event names its native kind, family and unit
+(`statement`, `token` or `mutation`). Source coordinates explicitly distinguish
+physical input from a parser's normalized view. Mutation operands are copied at
+the call boundary, retaining identities, parent and membership fields.
+
+```ts
+import { parseRegisteredMermaid, withParserObservation } from 'agentic-mermaid'
+
+const observations: import('agentic-mermaid').ParserObservation[] = []
+const result = withParserObservation(
+  'flowchart',
+  event => observations.push(event),
+  () => parseRegisteredMermaid('flowchart LR\nA --> B'),
+)
+```
+
+Nested scopes restore their caller, including after an exception. An observer
+callback does not implicitly observe a parser it invokes itself. Promise-returning
+callbacks are rejected because the scope is synchronous. Observation is a
+trusted in-process diagnostic API, outside serializable render options.
+
+Native statement kinds and builder operations describe our implementations;
+they are not Mermaid terminal kinds or its `yy` method protocol. Flowchart also
+exposes consumed compound node/link fragments. Other native parsers expose
+classified statements rather than a homologous token stream. The modern
+assessment compares explicitly scoped semantic fields using independent
+reference adapters and records unavailable comparisons honestly.
+
+Flowchart/State positioned graphs also carry a `certification` receipt after
+bounded final geometry checking. At most four deterministic candidates are
+considered. Exhaustion throws `LayoutCertificationError` with code
+`LAYOUT_CERTIFICATION_FAILED` and per-candidate reasons. This certifies hard graph
+invariants, not an optimal layout. The common positioning boundary also vetoes
+hard family-rubric violations in every native family's final projection.
+Specialized family layouters get one attempt and fail explicitly; their checks
+do not imply graph route guarantees or certify soft aesthetic quality.
 
 The family registry is the operation authority. Use `am capabilities --json`
 for the current roster and field schemas, or call `describeOps(family)` and

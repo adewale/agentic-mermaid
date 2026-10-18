@@ -3,7 +3,7 @@
  *
  * Mermaid builds a subgraph's member list when the subgraph closes (`end`),
  * so an inner subgraph is finished before the one around it. It then keeps
- * each id once and drops any id that a subgraph closed earlier already holds
+ * each id once and drops any id that a different subgraph already holds
  * (`FlowDB.addSubGraph` → `makeUniq`, flowDb.ts in 11.16; `ErDB.addSubGraph`
  * → `makeUniq` from 11.17, which ER subgraphs first appear in). The first
  * subgraph to close keeps a node, and the node is listed once:
@@ -36,8 +36,8 @@ export function resolveSubgraphMembership<S extends SubgraphMembers>(closeOrder:
 }
 
 export interface SubgraphMembership {
-  /** Close one subgraph: its members, deduplicated, less every id a
-   * subgraph closed before it already keeps. */
+  /** Close one declaration: its members, deduplicated, less every id a
+   * different subgraph already keeps. Reopening the same id retains ownership. */
   close(id: string, members: readonly string[]): string[]
   /** The subgraph that keeps `member`, if any has closed with it. */
   ownerOf(member: string): string | undefined
@@ -50,8 +50,10 @@ export function createSubgraphMembership(): SubgraphMembership {
   return {
     close(id, members) {
       const kept: string[] = []
+      const seen = new Set<string>()
       for (const member of members) {
-        if (member.trim() === '' || owners.has(member)) continue
+        if (member.trim() === '' || seen.has(member) || (owners.has(member) && owners.get(member) !== id)) continue
+        seen.add(member)
         owners.set(member, id)
         kept.push(member)
       }

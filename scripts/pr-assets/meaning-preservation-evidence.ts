@@ -1,5 +1,5 @@
 // Same-input production renders at immutable revisions, for PR review only.
-// bun run scripts/pr-assets/meaning-preservation-evidence.ts BASE_SHA HEAD_SHA OUT_DIR
+// bun run scripts/pr-assets/meaning-preservation-evidence.ts BASE_SHA HEAD_SHA OUT_DIR [FIXTURE_ID...]
 import { execFileSync } from 'node:child_process'
 import { mkdtempSync, mkdirSync, readFileSync, rmSync, symlinkSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
@@ -8,12 +8,13 @@ import type { RenderOptions } from '../../src/types.ts'
 import type { ClassMutationOp } from '../../src/agent/types.ts'
 import { getFamily, knownBuiltinFamilies } from '../../src/agent/families.ts'
 import { denseDag } from '../../eval/degenerate-etn/generators.ts'
+import { collectSamples } from '../../eval/layout-compare/run.ts'
 import { contactSheetScenarios } from '../../eval/visual-rubric/scenarios.ts'
 
 const ROOT = resolve(import.meta.dir, '../..')
-const [base, head, destination] = process.argv.slice(2)
+const [base, head, destination, ...selectedFixtureIds] = process.argv.slice(2)
 if (!base || !head || !destination || ![base, head].every(sha => /^[a-f0-9]{40}$/.test(sha))) {
-  throw new Error('Expected BASE_SHA HEAD_SHA OUT_DIR, with full commit SHAs')
+  throw new Error('Expected BASE_SHA HEAD_SHA OUT_DIR [FIXTURE_ID...], with full commit SHAs')
 }
 const out = resolve(destination)
 mkdirSync(out, { recursive: true })
@@ -32,7 +33,11 @@ const trackedRoles: RenderOptions = { style: { roles: {
 const literalLabel = '<b>This is a very long label that describes the work in detail</b>'
 const c4AncestorSource = 'C4Deployment\nNode(parent,"Parent","Cloud") {\nContainer(child,"Child","JS")\n}\nRel(child,parent,"Reports up")'
 const c4DenseSource = 'C4Container\nSystem_Boundary(app,"Application") {\n' + Array.from({ length: 7 }, (_, index) => `Container(n${index},"Service ${index}","HTTP")`).join('\n') + '\n}\n' + Array.from({ length: 7 }, (_, from) => Array.from({ length: 6 - from }, (_, offset) => `Rel(n${from},n${from + offset + 1},"Interaction ${from} to ${from + offset + 1}","HTTPS")`).join('\n')).join('\n')
+const corpusSamples = collectSamples()
 const fixtures: Fixture[] = [
+  { id: 'flowchart-repeated-group-content', title: 'Repeated Flowchart group declarations retain both members', source: 'flowchart LR\nsubgraph S[First]\nA[Alpha]\nend\nsubgraph S[Later]\nB[Beta]\nend\nA e1@-->B\nB e2@-->A', captureLayout: true, cue: 'The baseline cannot render this repeated declaration; its actual error remains in the before panel. After, inspect one S frame containing Alpha and Beta, with the first authored title, First. Public layout sidecars expose group membership and reciprocal endpoints; SVG data-id attributes retain e1/e2. Complete labels alone do not establish correct containment.' },
+  { id: 'er-neighboring-frame-corridors', title: 'ER corpus 16: neighboring frames reserve relationship-label corridors', source: corpusSamples.find(sample => sample.id === 'corpus/er/16')!.source, captureLayout: true, cue: 'Compare the three sibling frames and all six links labels, including the relationships between title1/title2/title3 and from title2 to C2. Each label must stay on its own connector and clear entity cards and sibling frames. Larger gaps and canvas bounds reserve measured label and marker space; unchanged labels do not by themselves prove routing ownership.' },
+  { id: 'er-scoped-compound-corridors', title: 'ER corpus 17: scoped compound directions and relationship-label corridors', source: corpusSamples.find(sample => sample.id === 'corpus/er/17')!.source, captureLayout: true, cue: 'Inspect TOP containing separate B1/B2 frames: B1 keeps its right-to-left I1/F1 order and B2 its bottom-to-top I2/F2 order. All five links labels must remain attached to their own routes, especially A-to-TOP and I1-to-F1. Frame separation and label corridors grow without changing authored endpoints or parent membership; compare the public layout sidecars as well as the image.' },
   { id: 'class-inheritance-after-member-edit', title: 'Class inheritance survives an unrelated member edit (#406)', source: 'classDiagram\nPerson --|> Animal', classMutation: { kind: 'add_member', class: 'Person', text: '+name: String' }, cue: 'Both revisions add the same member to Person. Before, canonical serialization reverses the inheritance triangle toward Person; after, it remains at Animal. Inspect the triangle and exported source, not the unchanged node labels. This witness covers one inheritance relation; the owning tests exercise the other marker kinds.' },
   { id: 'class-dashed-diamond-after-member-edit', title: 'Class dashed diamonds retain their shaft through an edit', source: 'classDiagram\nWhole o..* Part', classMutation: { kind: 'add_member', class: 'Whole', text: '+name: String' }, cue: 'Both revisions add the same member to Whole. Before, export and rendering turn the dashed diamond relationship solid; after, the shaft stays dashed and both diamond endpoints remain. Inspect shaft gaps and the exported o..* spelling. This fixture does not establish every mixed marker combination.' },
   { id: 'class-multi-lollipop-after-member-edit', title: 'Class two-ended lollipops become editable and render natively', source: 'classDiagram\nPort ()..() Service : contract', classMutation: { kind: 'add_member', class: 'Port', text: '+name: String' }, cue: 'The base revision refuses the edit because this relationship stays opaque; its honest error is the before evidence. The head exports and renders the same edit with two circle endpoints and a dashed shaft. Inspect authored Port/Service identities, both circles and the exported ()..() spelling; the image does not prove every public operation path.' },
@@ -96,10 +101,6 @@ const fixtures: Fixture[] = [
   { id: 'diamond-feedback', title: 'Decision duplicates with feedback', source: 'flowchart TD\nC{Verify} -->|ok| D[View]\nC -->|warnings| D\nD --> C', cue: 'The forward pair remains readable without crossing the return edge.' },
   { id: 'sankey-public-identities', title: 'Sankey duplicate rows and generated-looking authored names', source: sankeyIdentitySource, captureLayout: true, cue: 'The ribbons are a visual compatibility control. Inspect the SVG data-id attributes and public layout sidecars: every authored link keeps distinct identity and correct endpoints, including the literal node link:A->B#1. Pixels cannot establish identity uniqueness.' },
 ]
-const fixtureOptions = Object.fromEntries(fixtures.map(fixture => {
-  const svg = { security: 'strict' as const, ...fixture.renderOptions }
-  return [fixture.id, { svg, png: { ...svg, background: svg.transparent ? '#00000000' : '#ffffff' } }]
-}))
 const terminalFixtures = [
   { id: 'terminal-c4-compact', source: '---\nconfig:\n  c4:\n    compact: true\n---\nC4Container\nPerson(user,"User")\nContainer(api,"API","Go")\nContainerDb(db,"Store","SQL")\nRel(user,api,"Calls")\nRel(api,db,"Reads")', cue: 'The same opt-in compact setting at both revisions reduces terminal spacing using independently measured cells. Inspect all three complete type labels, both relationship labels and connected owned routes; no pixel drawing is downscaled.' },
   { id: 'terminal-c4-checkout', source: readFileSync(join(ROOT, 'docs/design/families/c4-context-demo.mmd'), 'utf8'), cue: 'The baseline refuses C4. The candidate owns a separate cell layout with the complete boundary, metadata text and five connected interactions. Compare node/edge identities and parents with the graphical sidecar; terminal geometry is checked independently by owned-cell connectivity tests.' },
@@ -152,6 +153,18 @@ const terminalFixtures = [
   { id: 'terminal-compound-parallel-reciprocal', source: 'flowchart TD\nsubgraph Outer["外側 👩‍💻<br>é header"]\nsubgraph Inner["内側<br>second"]\nA["日本<br>👩‍💻 é"]\nB[End]\nend\nX[Outside]\nend\nA -->|界 👩‍💻 = é| X\nX -->|back| B\nA -->|again| X\nX -->|return| A\nB -->|self| B', cue: 'Combined witness: Inner contains A/B and excludes X; all five parallel, reciprocal and self relationships retain their complete labels and physical endpoints. Inspect multiline CJK/ZWJ/combining text together with actual owned paths. Sidecars preserve baseline refusals honestly; the independent test also checks a hard 200-column width.' },
   { id: 'terminal-sankey-public-identities', source: sankeyIdentitySource, cue: 'Compare terminal edge identities/endpoints with the graphical Sankey layout sidecars. Authored names resembling generated IDs stay distinct; the existing complete adjacency text is a compatibility control.' },
 ]
+if (selectedFixtureIds.length > 0) {
+  const selected = new Set(selectedFixtureIds)
+  for (const id of selected) {
+    if (![...fixtures, ...terminalFixtures].some(fixture => fixture.id === id)) throw new Error(`Unknown evidence fixture: ${id}`)
+  }
+  fixtures.splice(0, fixtures.length, ...fixtures.filter(fixture => selected.has(fixture.id)))
+  terminalFixtures.splice(0, terminalFixtures.length, ...terminalFixtures.filter(fixture => selected.has(fixture.id)))
+}
+const fixtureOptions = Object.fromEntries(fixtures.map(fixture => {
+  const svg = { security: 'strict' as const, ...fixture.renderOptions }
+  return [fixture.id, { svg, png: { ...svg, background: svg.transparent ? '#00000000' : '#ffffff' } }]
+}))
 interface Evidence { svg?: string; png?: string; layout?: unknown; source?: string; error?: string }
 interface TerminalEvidence { ascii?: string; html?: string; meta?: unknown; error?: string }
 interface RevisionEvidence { renders: Record<string, Evidence>; terminals: Record<string, TerminalEvidence>; classExport: string }

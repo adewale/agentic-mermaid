@@ -21,6 +21,7 @@ import { normalizeMermaidSource } from '../mermaid-source.ts'
 import { layoutMermaid, renderMermaidASCIIWithMeta, renderMermaidSVG } from '../agent/index.ts'
 import { ganttGeometryWarnings } from '../agent/family-layouts.ts'
 import { resolveGanttSchedule } from '../gantt/schedule.ts'
+import { startUpstreamMermaid } from './helpers/upstream-mermaid.ts'
 
 const SRC = `gantt
   title Release plan
@@ -33,6 +34,19 @@ const SRC = `gantt
     Release :milestone, rel, after pol, 0d
   click core href "https://example.com/core"
 `
+
+test('task metadata beginning with percent retains a lexical separator after the colon', async () => {
+  const source = 'gantt\n  Task : %H:%M'
+  const parsed = gantt(source)
+  expect(parsed.body.sections[0]!.tasks[0]!.end).toBe('%H:%M')
+  const canonical = serializeMermaid(parsed)
+  const upstream = startUpstreamMermaid()
+  try {
+    expect(await upstream.accepts(source)).toBe(true)
+    expect(await upstream.accepts(canonical)).toBe(true)
+  } finally { upstream.close() }
+  expect(gantt(canonical).body).toEqual(parsed.body)
+})
 
 function gantt(src: string = SRC): GanttValidDiagram {
   const r = parseMermaid(src)
