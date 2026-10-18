@@ -1740,7 +1740,7 @@ function resolveExecutionPlan(
 
   const configDiagnostics = explicitMermaidConfig === undefined
     ? undefined
-    : Object.freeze(explicitFamilyConfigDiagnostics(family.id, explicitMermaidConfig, family.config)
+    : Object.freeze(explicitFamilyConfigDiagnostics(family.id, explicitMermaidConfig, family.config, family.configDiagnostics)
       .map(diagnostic => Object.freeze({ ...diagnostic })))
 
   return Object.freeze({

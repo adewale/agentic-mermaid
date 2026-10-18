@@ -1,3 +1,4 @@
+import { diagnoseRadarConfig } from '../radar/config-diagnostics.ts'
 import { layoutResult, scene, type BrowserSvgFamilyHooks } from '../browser-lazy/family.ts'
 import { resolveRadarVisualConfig } from '../radar/config.ts'
 import { layoutRadarChart } from '../radar/layout.ts'
@@ -7,6 +8,7 @@ import { lowerRadarScene } from '../radar/renderer.ts'
 /** The radar SVG hooks: one definition for the complete renderer
  * (src/render-family-hooks.ts) and the lazy browser chunk. */
 export const RADAR_SVG_HOOKS = {
+  configDiagnostics: diagnoseRadarConfig,
   normalizeRequest: ctx => ({
     familyConfig: { visual: resolveRadarVisualConfig(ctx.source.frontmatter) },
   }),

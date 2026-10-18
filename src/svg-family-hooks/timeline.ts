@@ -1,3 +1,4 @@
+import { diagnoseTimelineConfig } from '../timeline/config-diagnostics.ts'
 import { withFrontmatterTitle } from '../mermaid-source.ts'
 import { layoutResult, scene, type BrowserSvgFamilyHooks } from '../browser-lazy/family.ts'
 import { layoutTimelineDiagram } from '../timeline/layout.ts'
@@ -7,6 +8,7 @@ import { lowerTimelineScene, resolveTimelineRequestAppearance } from '../timelin
 /** The timeline SVG hooks: one definition for the complete renderer
  * (src/render-family-hooks.ts) and the lazy browser chunk. */
 export const TIMELINE_SVG_HOOKS = {
+  configDiagnostics: diagnoseTimelineConfig,
   normalizeRequest: ctx => ({
     appearance: { family: { ...resolveTimelineRequestAppearance(ctx.renderOptions) } },
   }),

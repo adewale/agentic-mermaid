@@ -1,3 +1,4 @@
+import { diagnoseGanttConfig } from '../gantt/config-diagnostics.ts'
 import { layoutResult, scene, type BrowserSvgFamilyHooks } from '../browser-lazy/family.ts'
 import { buildGanttRenderPipelineFromConfig } from '../gantt/pipeline.ts'
 import { resolveGanttFrontmatterConfig } from '../gantt/parser.ts'
@@ -6,6 +7,7 @@ import { lowerGanttScene } from '../gantt/renderer.ts'
 /** The gantt SVG hooks: one definition for the complete renderer
  * (src/render-family-hooks.ts) and the lazy browser chunk. */
 export const GANTT_SVG_HOOKS = {
+  configDiagnostics: diagnoseGanttConfig,
   normalizeRequest: ctx => ({
     familyConfig: { config: resolveGanttFrontmatterConfig(ctx.source.frontmatter) },
   }),

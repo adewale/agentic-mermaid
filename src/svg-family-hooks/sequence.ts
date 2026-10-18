@@ -1,3 +1,4 @@
+import { diagnoseSequenceConfig } from '../sequence/config-diagnostics.ts'
 import { layoutResult, scene, type BrowserSvgFamilyHooks } from '../browser-lazy/family.ts'
 import { withFrontmatterTitle } from '../mermaid-source.ts'
 import { resolveSequenceConfig } from '../sequence/config.ts'
@@ -9,6 +10,7 @@ import { withAccessibilityFields } from '../shared/accessibility-directives.ts'
 /** The sequence SVG hooks: one definition for the complete renderer
  * (src/render-family-hooks.ts) and the lazy browser chunk. */
 export const SEQUENCE_SVG_HOOKS = {
+  configDiagnostics: diagnoseSequenceConfig,
   // Wire-or-warn config threading (src/sequence/config.ts): the typed
   // `sequence` frontmatter/init section's wired keys reach the parser
   // (showSequenceNumbers) and layout (margins/sizes); unwired keys are named

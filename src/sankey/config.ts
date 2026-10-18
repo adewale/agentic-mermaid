@@ -74,7 +74,7 @@ const NODE_ALIGNMENTS: readonly SankeyNodeAlignment[] = ['justify', 'center', 'l
 const LABEL_STYLES: readonly SankeyLabelStyle[] = ['legacy', 'outlined']
 const LINK_COLOR_MODES = ['source', 'target', 'gradient'] as const
 
-/** Domain bounds mirrored by family-config-diagnostics and boundary-tested. */
+/** Domain bounds shared by config resolution and diagnostics. */
 export const SANKEY_CONFIG_LIMITS = Object.freeze({
   width: { min: 1, max: 10000 },
   height: { min: 1, max: 10000 },

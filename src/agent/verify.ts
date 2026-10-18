@@ -48,7 +48,8 @@ import { DEFAULT_LABEL_CHAR_CAP, WARNING_SEVERITY } from './types.ts'
 
 function familyConfigShapeWarnings(d: ValidDiagram): LayoutWarning[] {
   const roots: unknown[] = [d.meta.frontmatter, ...d.meta.initDirectives.map(directive => directive.parsed)]
-  return familyConfigDiagnostics(d.kind, roots, getFamily(d.kind)?.config)
+  const family = getFamily(d.kind)
+  return familyConfigDiagnostics(d.kind, roots, family?.config, family?.configDiagnostics)
 }
 
 const KNOWN_SHAPES = new Set(['rectangle', 'service', 'rounded', 'diamond', 'stadium', 'circle', 'subroutine', 'doublecircle', 'hexagon', 'cylinder', 'asymmetric', 'trapezoid', 'trapezoid-alt', 'lean-r', 'lean-l', 'state-start', 'state-end', 'state-fork', 'state-join', 'state-choice', 'state-history'])
@@ -432,7 +433,12 @@ function quadrantHiddenLabelWarnings(positioned: VerificationArtifact): LayoutWa
 }
 
 export function configWarningsForDiagram(d: ParsedDiagram): LayoutWarning[] {
-  if (d.body.kind === 'extension' || d.body.kind === 'preserved') return []
+  if (d.body.kind === 'preserved') return []
+  if (d.body.kind === 'extension') {
+    const family = getFamily(d.kind)
+    return family?.configDiagnostics ? familyConfigDiagnostics(d.kind,
+      [d.meta.frontmatter, ...d.meta.initDirectives.map(directive => directive.parsed)], family.config, family.configDiagnostics) : []
+  }
   const builtin = d as ValidDiagram
   const familySpecific = builtin.kind === 'gantt' ? ganttTodayMarkerWarnings(builtin) : []
   return dedupedConcat(familySpecific, familyConfigShapeWarnings(builtin))

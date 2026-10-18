@@ -1,3 +1,4 @@
+import { diagnoseXyChartConfig } from '../xychart/config-diagnostics.ts'
 import { withFrontmatterTitle } from '../mermaid-source.ts'
 import { layoutResult, scene, type BrowserSvgFamilyHooks } from '../browser-lazy/family.ts'
 import { layoutXYChart } from '../xychart/layout.ts'
@@ -13,6 +14,7 @@ import { withAccessibilityObject } from '../shared/accessibility-directives.ts'
 /** The xychart SVG hooks: one definition for the complete renderer
  * (src/render-family-hooks.ts) and the lazy browser chunk. */
 export const XYCHART_SVG_HOOKS = {
+  configDiagnostics: diagnoseXyChartConfig,
   normalizeRequest: ctx => {
     const config = resolveXYChartConfig(ctx.source.frontmatter)
     const theme = resolveXYChartTheme(ctx.source.frontmatter)

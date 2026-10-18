@@ -1,15 +1,13 @@
-import type { DiagramKind, FamilyId } from '../agent/types.ts'
+import type { FamilyId } from '../agent/types.ts'
 import type { ConfigDiagnostic } from '../types.ts'
-import type { FamilyConfigContract } from '../agent/families.ts'
+import type { FamilyConfigContract, FamilyOperations } from '../agent/families.ts'
+import type { ConfigValueRule } from './config-value-rules.ts'
 import { getInstalledFamilyDescriptor } from '../agent/family-router.ts'
-import { RADAR_CONFIG_LIMITS, RADAR_THEME_FIELDS } from '../radar/config.ts'
-import { stateConfigDiagnostics } from '../state/config.ts'
 import { compareCodePointStrings } from './deterministic-order.ts'
-import { safeCssColor } from './css-color.ts'
 
 export type FamilyConfigSpec = FamilyConfigContract
 
-function section(root: unknown, key: string): Record<string, unknown> | undefined {
+export function configSection(root: unknown, key: string): Record<string, unknown> | undefined {
   if (!root || typeof root !== 'object' || Array.isArray(root)) return undefined
   const value = (root as Record<string, unknown>)[key]
   return value && typeof value === 'object' && !Array.isArray(value)
@@ -18,13 +16,13 @@ function section(root: unknown, key: string): Record<string, unknown> | undefine
 }
 
 export function familyUnknownConfigDiagnostics(
-  kind: DiagramKind,
+  kind: FamilyId,
   root: unknown,
   spec?: FamilyConfigContract,
 ): ConfigDiagnostic[] {
   if (!spec) return []
   const record = root && typeof root === 'object' && !Array.isArray(root) ? root as Record<string, unknown> : undefined
-  const config = section(root, spec.section)
+  const config = configSection(root, spec.section)
   if (!config) return record && spec.section in record ? [{
     code: 'INEFFECTIVE_CONFIG',
     field: spec.section,
@@ -38,228 +36,45 @@ export function familyUnknownConfigDiagnostics(
   }))
 }
 
-interface ValueRule { expected: string; valid: (value: unknown) => boolean }
-const rule = (expected: string, valid: ValueRule['valid']): ValueRule => ({ expected, valid })
-const positive = rule('a finite positive number', value => typeof value === 'number' && Number.isFinite(value) && value > 0)
-const nonNegative = rule('a finite non-negative number', value => typeof value === 'number' && Number.isFinite(value) && value >= 0)
-const finite = rule('a finite number', value => typeof value === 'number' && Number.isFinite(value))
-const boolean = rule('a boolean', value => typeof value === 'boolean')
-const stringValue = rule('a string', value => typeof value === 'string')
-const nonEmptyString = rule('a non-empty string', value => typeof value === 'string' && value.trim().length > 0)
-const stringArray = rule('a non-empty array of strings', value => Array.isArray(value) && value.length > 0 && value.every(item => typeof item === 'string'))
-const oneOf = (...values: string[]): ValueRule => rule(`one of: ${values.join(', ')}`, value => typeof value === 'string' && values.includes(value))
-const oneOfInsensitive = (...values: string[]): ValueRule => rule(`one of: ${values.join(', ')} (case-insensitive)`, value =>
-  typeof value === 'string' && values.some(candidate => candidate.toLowerCase() === value.toLowerCase()),
-)
-const range = (min: number, max: number, leftClosed = true): ValueRule => rule(
-  `a finite number ${leftClosed ? 'from' : 'greater than'} ${min} through ${max}`,
-  value => typeof value === 'number' && Number.isFinite(value) && (leftClosed ? value >= min : value > min) && value <= max,
-)
-const boundedPositive = (max: number): ValueRule => rule(
-  `a finite positive number no greater than ${max}`,
-  value => typeof value === 'number' && Number.isFinite(value) && value > 0 && value <= max,
-)
-const boundedNonNegative = (max: number): ValueRule => rule(
-  `a finite non-negative number no greater than ${max}`,
-  value => typeof value === 'number' && Number.isFinite(value) && value >= 0 && value <= max,
-)
-const positiveCssSize = rule('a finite positive number or non-empty CSS size string', value =>
-  (typeof value === 'number' && Number.isFinite(value) && value > 0) || (typeof value === 'string' && value.trim().length > 0),
-)
-const numericLike = (minimum: number, exclusive = false): ValueRule => rule(
-  `a numeric value${exclusive ? ` greater than ${minimum}` : ` of at least ${minimum}`}`,
-  value => {
-    const parsed = typeof value === 'number' ? value : typeof value === 'string' && /^[+-]?(?:\d+(?:\.\d+)?|\.\d+)(?:px)?$/i.test(value.trim()) ? Number.parseFloat(value) : Number.NaN
-    return Number.isFinite(parsed) && (exclusive ? parsed > minimum : parsed >= minimum)
-  },
-)
-
-// Mirrored from sankey/config.ts instead of importing the family runtime here:
-// this generic module is part of every lazy-browser family, and a runtime
-// import would add a Sankey-only chunk request to all of them. Boundary tests
-// cover both the resolver and these diagnostics.
-const SANKEY_DIAGNOSTIC_LIMITS = {
-  width: 10000,
-  height: 10000,
-  nodeWidth: 200,
-  nodePadding: 200,
-} as const
-
-const FAMILY_VALUE_RULES: Partial<Record<DiagramKind, Record<string, ValueRule>>> = {
-  flowchart: { nodeSpacing: positive, rankSpacing: positive, wrappingWidth: positive },
-  sequence: Object.fromEntries([
-    ...['actorMargin', 'width', 'height', 'diagramMarginX', 'diagramMarginY', 'messageMargin', 'noteMargin', 'activationWidth'].map(key => [key, nonNegative]),
-    ['showSequenceNumbers', boolean],
-  ]),
-  timeline: { disableMulticolor: boolean, sectionFills: stringArray, sectionColours: stringArray },
-  journey: Object.fromEntries([
-    ...['diagramMarginX', 'diagramMarginY', 'leftMargin', 'maxLabelWidth', 'width', 'height', 'taskMargin'].map(key => [key, positive]),
-    ...['taskFontSize', 'titleFontSize'].map(key => [key, positiveCssSize]),
-    ...['taskFontFamily', 'titleColor', 'titleFontFamily'].map(key => [key, nonEmptyString]),
-    ...['actorColours', 'sectionFills', 'sectionColours'].map(key => [key, stringArray]),
-    ['useMaxWidth', boolean],
-  ]),
-  radar: {
-    width: boundedPositive(RADAR_CONFIG_LIMITS.dimension), height: boundedPositive(RADAR_CONFIG_LIMITS.dimension),
-    marginTop: boundedNonNegative(RADAR_CONFIG_LIMITS.margin), marginRight: boundedNonNegative(RADAR_CONFIG_LIMITS.margin),
-    marginBottom: boundedNonNegative(RADAR_CONFIG_LIMITS.margin), marginLeft: boundedNonNegative(RADAR_CONFIG_LIMITS.margin),
-    axisScaleFactor: boundedPositive(RADAR_CONFIG_LIMITS.factor), axisLabelFactor: range(RADAR_CONFIG_LIMITS.axisLabelFactorMin, RADAR_CONFIG_LIMITS.factor), curveTension: range(0, 1),
-    useMaxWidth: boolean, tickLabels: boolean,
-  },
-  sankey: {
-    width: boundedPositive(SANKEY_DIAGNOSTIC_LIMITS.width),
-    height: boundedPositive(SANKEY_DIAGNOSTIC_LIMITS.height),
-    nodeWidth: boundedPositive(SANKEY_DIAGNOSTIC_LIMITS.nodeWidth),
-    nodePadding: boundedNonNegative(SANKEY_DIAGNOSTIC_LIMITS.nodePadding),
-    linkColor: rule('source, target, gradient, or a safe CSS color', value =>
-      typeof value === 'string'
-      && (['source', 'target', 'gradient'].includes(value) || safeCssColor(value) !== undefined),
-    ),
-    nodeAlignment: oneOf('justify', 'center', 'left', 'right'),
-    showValues: boolean,
-    prefix: stringValue,
-    suffix: stringValue,
-    labelStyle: oneOf('legacy', 'outlined'),
-    nodeColors: rule('an object mapping node labels to safe CSS colors', value =>
-      Boolean(value)
-      && typeof value === 'object'
-      && !Array.isArray(value)
-      && Object.values(value as Record<string, unknown>).every(color => safeCssColor(color) !== undefined),
-    ),
-  },
-  class: { nodeSpacing: nonNegative, rankSpacing: nonNegative, hierarchicalNamespaces: boolean },
-  er: { layoutDirection: oneOfInsensitive('TB', 'TD', 'BT', 'LR', 'RL'), nodeSpacing: nonNegative, rankSpacing: nonNegative },
-  architecture: {
-    padding: numericLike(0), iconSize: numericLike(0, true), fontSize: numericLike(0, true),
-    nodeSeparation: numericLike(0), idealEdgeLengthMultiplier: numericLike(0, true),
-  },
-  xychart: {
-    width: positive, height: positive, useMaxWidth: boolean, useWidth: positive,
-    titleFontSize: positive, titlePadding: nonNegative,
-    chartOrientation: oneOf('vertical', 'horizontal'), plotReservedSpacePercent: range(0, 100, false),
-    showDataLabel: boolean, showDataLabelOutsideBar: boolean, showTitle: boolean, showLegend: boolean,
-    legendFontSize: positive, legendPadding: nonNegative,
-    xAxis: rule('an axis-config object', value => Boolean(value) && typeof value === 'object' && !Array.isArray(value)),
-    yAxis: rule('an axis-config object', value => Boolean(value) && typeof value === 'object' && !Array.isArray(value)),
-  },
-  pie: { textPosition: range(0, 1), donutHole: range(0, 0.9), legendPosition: oneOf('top', 'bottom', 'left', 'right', 'center') },
-  quadrant: Object.fromEntries([
-    ...['chartWidth', 'chartHeight', 'titleFontSize', 'quadrantLabelFontSize', 'xAxisLabelFontSize', 'yAxisLabelFontSize', 'pointLabelFontSize', 'pointRadius'].map(key => [key, positive]),
-    ...['titlePadding', 'quadrantPadding', 'xAxisLabelPadding', 'yAxisLabelPadding', 'pointTextPadding', 'quadrantInternalBorderStrokeWidth', 'quadrantExternalBorderStrokeWidth'].map(key => [key, nonNegative]),
-    ['useMaxWidth', boolean],
-  ]),
-  gantt: {
-    displayMode: oneOfInsensitive('compact'), barHeight: positive, topAxis: boolean,
-    axisFormat: nonEmptyString,
-    tickInterval: rule('a positive Mermaid interval such as "1day" or "2week"', value => typeof value === 'string' && /^[1-9]\d*(?:millisecond|second|minute|hour|day|week|month)$/i.test(value.trim())),
-  },
-  mindmap: { padding: nonNegative, maxNodeWidth: positive },
-  gitgraph: {
-    showBranches: boolean, showCommitLabel: boolean, parallelCommits: boolean, rotateCommitLabel: boolean,
-    mainBranchName: nonEmptyString, mainBranchOrder: finite,
-  },
-}
-
-const XY_AXIS_VALUE_RULES: Record<string, ValueRule> = {
-  showLabel: boolean, labelFontSize: positive, labelPadding: nonNegative, labelRotation: finite,
-  showTitle: boolean, titleFontSize: positive, titlePadding: nonNegative,
-  showTick: boolean, tickLength: nonNegative, tickWidth: positive,
-  showAxisLine: boolean, axisLineWidth: positive,
-}
-
-function radarThemeDiagnostics(root: unknown): ConfigDiagnostic[] {
-  const themeVariables = section(root, 'themeVariables')
-  if (!themeVariables || !('radar' in themeVariables)) return []
-  const radar = section(themeVariables, 'radar')
-  if (!radar) return [{
-    code: 'INEFFECTIVE_CONFIG',
-    field: 'themeVariables.radar',
-    message: 'themeVariables.radar must be an object; the invalid value has no effect.',
-  }]
-  const known = new Set<string>(RADAR_THEME_FIELDS)
-  const diagnostics: ConfigDiagnostic[] = []
-  const lineWidthFields = new Set(['axisStrokeWidth', 'curveStrokeWidth', 'graticuleStrokeWidth'])
-  const fontSizeFields = new Set(['axisLabelFontSize', 'legendFontSize'])
-  const opacityFields = new Set(['curveOpacity', 'graticuleOpacity'])
-  const colorFields = new Set(['axisColor', 'graticuleColor'])
-  for (const key of Object.keys(radar).sort(compareCodePointStrings)) {
-    const value = radar[key]
-    let expected: string | undefined
-    if (!known.has(key)) expected = 'a documented radar theme field'
-    else if (lineWidthFields.has(key) && !boundedPositive(RADAR_CONFIG_LIMITS.lineWidth).valid(value)) expected = boundedPositive(RADAR_CONFIG_LIMITS.lineWidth).expected
-    else if (fontSizeFields.has(key) && !boundedPositive(RADAR_CONFIG_LIMITS.fontSize).valid(value)) expected = boundedPositive(RADAR_CONFIG_LIMITS.fontSize).expected
-    else if (key === 'legendBoxSize' && !boundedPositive(RADAR_CONFIG_LIMITS.legendBoxSize).valid(value)) expected = boundedPositive(RADAR_CONFIG_LIMITS.legendBoxSize).expected
-    else if (opacityFields.has(key) && !range(0, 1).valid(value)) expected = 'a finite number from 0 through 1'
-    else if (colorFields.has(key) && !safeCssColor(value)) expected = 'a safe CSS color without url(), variables, or context-breaking characters'
-    if (expected) diagnostics.push({
-      code: 'INEFFECTIVE_CONFIG',
-      field: `themeVariables.radar.${key}`,
-      message: `themeVariables.radar.${key} must be ${expected}; the invalid value has no effect.`,
-    })
-  }
-  return diagnostics
-}
-
-/** Value-validity diagnostics for every wired family config key. */
-export function familyConfigValueDiagnostics(
-  kind: DiagramKind,
-  root: unknown,
-  spec?: FamilyConfigContract,
+/** Common field rules; the calling descriptor owns the rule table. */
+export function diagnoseFamilyConfig(
+  kind: FamilyId,
+  { root, config: spec }: { root: unknown; config: FamilyConfigContract },
+  rules: Readonly<Record<string, ConfigValueRule>> = {},
 ): ConfigDiagnostic[] {
-  if (kind === 'state') return [] // state/config.ts owns its richer value diagnostics
-  if (!spec) return []
-  const config = section(root, spec.section)
-  const diagnostics: ConfigDiagnostic[] = kind === 'radar' ? radarThemeDiagnostics(root) : []
-  const warn = (field: string, expected: string): void => {
-    diagnostics.push({ code: 'INEFFECTIVE_CONFIG', field, message: `${field} must be ${expected}; the invalid value has no effect.` })
-  }
-  if (kind === 'mindmap') {
-    const rootRecord = root && typeof root === 'object' && !Array.isArray(root) ? root as Record<string, unknown> : undefined
-    if (rootRecord && 'layout' in rootRecord && !['tidy-tree', 'cose-bilkent', 'radial'].includes(String(rootRecord.layout))) warn('layout', '"cose-bilkent", "radial", or "tidy-tree" for mindmap diagrams')
-  }
-  if (!config) return diagnostics
-  for (const [key, valueRule] of Object.entries(FAMILY_VALUE_RULES[kind] ?? {})) {
-    if (key in config && !valueRule.valid(config[key])) warn(`${spec.section}.${key}`, valueRule.expected)
-  }
-  if (kind === 'xychart') {
-    for (const axis of ['xAxis', 'yAxis'] as const) {
-      const value = config[axis]
-      if (!value || typeof value !== 'object' || Array.isArray(value)) continue
-      const axisConfig = value as Record<string, unknown>
-      for (const key of Object.keys(axisConfig).sort()) {
-        const valueRule = XY_AXIS_VALUE_RULES[key]
-        if (!valueRule) warn(`xyChart.${axis}.${key}`, 'a documented axis-config field')
-        else if (!valueRule.valid(axisConfig[key])) warn(`xyChart.${axis}.${key}`, valueRule.expected)
-        else if (key === 'labelRotation') diagnostics.push({
-          code: 'INEFFECTIVE_CONFIG',
-          field: `xyChart.${axis}.${key}`,
-          message: `xyChart ${axis}.${key} is accepted for Mermaid compatibility but has no effect on this renderer.`,
-        })
+  const diagnostics = familyUnknownConfigDiagnostics(kind, root, spec)
+  const config = configSection(root, spec.section)
+  if (config) {
+    for (const [key, rule] of Object.entries(rules)) {
+      if (key in config && !rule.valid(config[key])) {
+        const field = `${spec.section}.${key}`
+        diagnostics.push({ code: 'INEFFECTIVE_CONFIG', field, message: `${field} must be ${rule.expected}; the invalid value has no effect.` })
       }
     }
   }
-  return diagnostics
+  return [...diagnostics, ...familyNoopConfigDiagnostics(kind, root, spec, rules)]
 }
 
 export function familyNoopConfigDiagnostics(
-  kind: DiagramKind,
+  kind: FamilyId,
   root: unknown,
   spec?: FamilyConfigContract,
+  rules: Readonly<Record<string, ConfigValueRule>> = {},
 ): ConfigDiagnostic[] {
   if (!spec) return []
-  const config = section(root, spec.section)
+  const config = configSection(root, spec.section)
   if (!config) return []
   const noop = new Set(spec.noopKeys ?? [])
   return Object.keys(config).filter(key => {
     if (!noop.has(key)) return false
     // An invalid value already has a more precise validity diagnostic; it
     // must not also be described as an accepted compatibility no-op.
-    const valueRule = FAMILY_VALUE_RULES[kind]?.[key]
+    const valueRule = rules[key]
     return !valueRule || valueRule.valid(config[key])
   }).sort().map(key => ({
     code: 'INEFFECTIVE_CONFIG' as const,
     field: `${spec.section}.${key}`,
-    message: `${kind} config field "${key}" is accepted for Mermaid compatibility but has no effect on this renderer.`,
+    message: `${kind} config field "${key}" is accepted for ${kind.includes(':') ? 'compatibility' : 'Mermaid compatibility'} but has no effect on this renderer.`,
   }))
 }
 
@@ -275,24 +90,18 @@ function stableDiagnostics(diagnostics: ConfigDiagnostic[]): ConfigDiagnostic[] 
     })
 }
 
-/** Schema-owned diagnostics for source wrappers or explicit config roots. */
+/** Descriptor-owned diagnostics for source wrappers or explicit config roots. */
 export function familyConfigDiagnostics(
-  kind: DiagramKind,
+  kind: FamilyId,
   roots: readonly unknown[],
   spec?: FamilyConfigContract,
+  hook?: FamilyOperations['configDiagnostics'],
 ): ConfigDiagnostic[] {
   if (!spec) return []
-  const diagnostics = roots.flatMap(root => {
-    const unknown = familyUnknownConfigDiagnostics(kind, root, spec)
-    const config = section(root, spec.section)
-    if (kind === 'state') return config ? stateConfigDiagnostics([config], true) : unknown
-    return [
-      ...unknown,
-      ...familyConfigValueDiagnostics(kind, root, spec),
-      ...familyNoopConfigDiagnostics(kind, root, spec),
-    ]
-  })
-  return stableDiagnostics(diagnostics)
+  const diagnose = hook ?? getInstalledFamilyDescriptor(kind)?.configDiagnostics
+  return stableDiagnostics(roots.flatMap(root => diagnose
+    ? [...diagnose({ root, config: spec })]
+    : diagnoseFamilyConfig(kind, { root, config: spec })))
 }
 
 /** Diagnostics for the explicit RenderOptions.mermaidConfig entry path. */
@@ -300,23 +109,9 @@ export function explicitFamilyConfigDiagnostics(
   kind: string,
   root: unknown,
   spec?: FamilyConfigContract,
+  hook?: FamilyOperations['configDiagnostics'],
 ): ConfigDiagnostic[] {
-  const resolvedSpec = spec ?? getInstalledFamilyDescriptor(kind)?.config
-  if (!resolvedSpec) return []
-  if (kind.includes(':')) {
-    const record = root && typeof root === 'object' && !Array.isArray(root) ? root as Record<string, unknown> : undefined
-    const config = section(root, resolvedSpec.section)
-    if (!config) return record && resolvedSpec.section in record ? [{
-      code: 'INEFFECTIVE_CONFIG', field: resolvedSpec.section,
-      message: `${kind} config section "${resolvedSpec.section}" must be an object; the invalid value has no effect.`,
-    }] : []
-    const known = new Set(resolvedSpec.keys)
-    const noop = new Set(resolvedSpec.noopKeys ?? [])
-    return stableDiagnostics(Object.keys(config).flatMap(key => {
-      if (!known.has(key)) return [{ code: 'INEFFECTIVE_CONFIG' as const, field: `${resolvedSpec.section}.${key}`, message: `${kind} config field "${key}" is unknown and has no effect; check the spelling or remove it.` }]
-      if (noop.has(key)) return [{ code: 'INEFFECTIVE_CONFIG' as const, field: `${resolvedSpec.section}.${key}`, message: `${kind} config field "${key}" is accepted for compatibility but has no effect on this renderer.` }]
-      return []
-    }))
-  }
-  return familyConfigDiagnostics(kind as DiagramKind, [root], resolvedSpec)
+  const descriptor = getInstalledFamilyDescriptor(kind)
+  const resolvedSpec = spec ?? descriptor?.config
+  return familyConfigDiagnostics(kind as FamilyId, [root], resolvedSpec, hook ?? descriptor?.configDiagnostics)
 }

@@ -1,3 +1,4 @@
+import { diagnoseErConfig } from '../er/config-diagnostics.ts'
 import { layoutResult, scene, type BrowserSvgFamilyHooks } from '../browser-lazy/family.ts'
 import { applyErFrontmatterDirection, layoutErDiagram, resolveErRenderOptions } from '../er/layout.ts'
 import { parseErDiagram } from '../er/parser.ts'
@@ -9,6 +10,7 @@ import { checkAllClassLikeAuthoredStyles } from '../shared/style-props.ts'
 /** The ER SVG hooks: one definition for the complete renderer
  * (src/render-family-hooks.ts) and the lazy browser chunk. */
 export const ER_SVG_HOOKS = {
+  configDiagnostics: diagnoseErConfig,
   normalizeRequest: ctx => ({
     renderOptions: resolveErRenderOptions(ctx.source.frontmatter, ctx.renderOptions),
   }),

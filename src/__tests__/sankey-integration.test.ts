@@ -9,6 +9,21 @@ import { parseSankeyDiagram } from '../sankey/parser.ts'
 const BASIC = 'sankey-beta\n  Coal,Electricity,127.93\n  Gas,Electricity,80\n  Electricity,Homes,120\n  Electricity,Industry,87.93'
 
 describe('sankey integration · parse → verify → layout → render seam', () => {
+  test.each(['width', 'height', 'nodeWidth'] as const)('diagnoses %s below the resolver minimum through source and explicit options', field => {
+    const config = { [field]: 0.5 }
+    const source = `%%{init: ${JSON.stringify({ sankey: config })}}%%\n${BASIC}`
+    expect(resolveSankeyVisualConfig({ sankey: config })[field]).toBe(resolveSankeyVisualConfig()[field])
+    expect(verifyMermaid(source).warnings).toContainEqual(expect.objectContaining({
+      code: 'INEFFECTIVE_CONFIG', field: `sankey.${field}`,
+    }))
+    const fields: string[] = []
+    expect(renderMermaidSVG(BASIC, {
+      mermaidConfig: { sankey: config }, onConfigDiagnostic: diagnostic => fields.push(diagnostic.field),
+    })).toBe(renderMermaidSVG(BASIC))
+    expect(fields).toEqual([`sankey.${field}`])
+    expect(resolveSankeyVisualConfig({ sankey: { [field]: 1 } })[field]).toBe(1)
+  })
+
   test('the public seam is green end to end', () => {
     const parsed = parseMermaid(BASIC)
     expect(parsed.ok).toBe(true)

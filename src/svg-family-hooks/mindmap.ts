@@ -1,3 +1,4 @@
+import { diagnoseMindmapConfig } from '../mindmap/config-diagnostics.ts'
 import { layoutResult, scene, type BrowserSvgFamilyHooks } from '../browser-lazy/family.ts'
 import { parseMindmap } from '../mindmap/parser.ts'
 import { positionMindmap, resolveMindmapPositionConfig } from '../mindmap/position.ts'
@@ -9,6 +10,7 @@ import { resolveRenderStyle } from '../styles.ts'
 /** The mindmap SVG hooks: one definition for the complete renderer
  * (src/render-family-hooks.ts) and the lazy browser chunk. */
 export const MINDMAP_SVG_HOOKS = {
+  configDiagnostics: diagnoseMindmapConfig,
   normalizeRequest: ctx => ({
     familyConfig: {
       position: resolveMindmapPositionConfig(ctx.source.config.mindmap, ctx.source.config.layout),

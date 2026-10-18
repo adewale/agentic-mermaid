@@ -1,3 +1,4 @@
+import { diagnoseClassConfig } from '../class/config-diagnostics.ts'
 import { layoutResult, scene, type BrowserSvgFamilyHooks } from '../browser-lazy/family.ts'
 import { layoutClassDiagram, resolveClassRenderOptions } from '../class/layout.ts'
 import { parseClassDiagram } from '../class/parser.ts'
@@ -9,6 +10,7 @@ import { checkAllClassLikeAuthoredStyles } from '../shared/style-props.ts'
 /** The class SVG hooks: one definition for the complete renderer
  * (src/render-family-hooks.ts) and the lazy browser chunk. */
 export const CLASS_SVG_HOOKS = {
+  configDiagnostics: diagnoseClassConfig,
   normalizeRequest: ctx => ({
     renderOptions: resolveClassRenderOptions(ctx.source.frontmatter, ctx.renderOptions),
   }),
