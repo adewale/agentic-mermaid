@@ -157,12 +157,32 @@ const HOST_BACKEND_PROVENANCE = Object.freeze({ owner: 'host', source: 'in-proce
 
 const BACKENDS = new Map<string, ExtensionRegistration<StyleBackend, 'backend'>>()
 const BACKEND_INPUT_NAMES = new Map<string, string>()
-const BACKEND_CONFORMANCE = new Map<string, BackendConformanceReport>()
+const BACKEND_CONFORMANCE = new Map<string, () => BackendConformanceReport>()
 
 /** Registration executes caller-owned methods. Keep every registry mutation
  * outside that executable window so a callback cannot install/uninstall a
  * sibling backend or observe a half-committed candidate. */
 let backendConformanceCandidate: string | null = null
+
+/** Built-in backends are first-party code whose conformance the test suite
+ * asserts (`extension-registries.test.ts`). Running their executable SVG
+ * conformance at import cost every process tens to hundreds of milliseconds,
+ * so their report is computed on first read, inside the same mutation guard
+ * as a registration. Host backends are still checked before they register. */
+function lazyBuiltInConformance(backend: StyleBackend, id: string): () => BackendConformanceReport {
+  let report: BackendConformanceReport | undefined
+  return () => {
+    if (report) return report
+    const outer = backendConformanceCandidate
+    backendConformanceCandidate = id
+    try {
+      report = runBackendConformance(backend, id)
+    } finally {
+      backendConformanceCandidate = outer
+    }
+    return report
+  }
+}
 
 function assertBackendRegistryMutationAllowed(): void {
   if (backendConformanceCandidate !== null) {
@@ -323,7 +343,7 @@ export function registerBackend(backend: StyleBackend, options: BackendRegistrat
     // No caller-owned code runs after this point. Publish the immutable value
     // and its proof together during the same synchronous mutation window.
     registerExtension(BACKENDS, { identity, value: snapshot })
-    BACKEND_CONFORMANCE.set(id, conformance)
+    BACKEND_CONFORMANCE.set(id, () => conformance)
     const registration = BACKENDS.get(id)!
     return () => {
       assertBackendRegistryMutationAllowed()
@@ -351,13 +371,6 @@ export function registerBuiltInBackend(backend: StyleBackend): void {
     if (existingInput !== undefined) throw new Error(`Backend input name "${inputName}" already selects "${existingInput}"`)
     validateBackendCapabilities(backend, id)
     const frozen = freezeBuiltInBackend(backend)
-    const conformance = runBackendConformance(frozen, id)
-    if (!conformance.passed) {
-      const failures = conformance.checks
-        .filter(check => !check.passed)
-        .map(check => `${check.id}${check.diagnostic ? `: ${check.diagnostic}` : ''}`)
-      throw new Error(`Built-in backend "${inputName}" failed registration SVG conformance: ${failures.join('; ')}`)
-    }
     registerExtension(BACKENDS, {
       identity: backendIdentity(id, {
         version: CORE_BACKEND_VERSION,
@@ -366,7 +379,7 @@ export function registerBuiltInBackend(backend: StyleBackend): void {
       }),
       value: frozen,
     })
-    BACKEND_CONFORMANCE.set(id, conformance)
+    BACKEND_CONFORMANCE.set(id, lazyBuiltInConformance(frozen, id))
     BACKEND_INPUT_NAMES.set(inputName, id)
   } finally {
     backendConformanceCandidate = null
@@ -374,12 +387,17 @@ export function registerBuiltInBackend(backend: StyleBackend): void {
 }
 
 export function knownBackendDescriptors(): readonly BackendDescriptor[] {
-  return Object.freeze(Array.from(BACKENDS.values(), ({ identity, value }) => Object.freeze({
-    identity,
-    backend: value,
-    inputName: Array.from(BACKEND_INPUT_NAMES.entries()).find(([, target]) => target === identity.id)?.[0] ?? identity.id,
-    conformance: BACKEND_CONFORMANCE.get(identity.id)!,
-  })))
+  return Object.freeze(Array.from(BACKENDS.values(), ({ identity, value }) => {
+    const conformance = BACKEND_CONFORMANCE.get(identity.id)!
+    return Object.freeze({
+      identity,
+      backend: value,
+      inputName: Array.from(BACKEND_INPUT_NAMES.entries()).find(([, target]) => target === identity.id)?.[0] ?? identity.id,
+      get conformance() {
+        return conformance()
+      },
+    })
+  }))
 }
 
 function backendDescriptorFromSnapshot(
