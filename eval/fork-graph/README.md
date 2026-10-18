@@ -29,7 +29,7 @@ The projects that keep 0.5 honest: browserless renderers to compare on speed and
 | `neongreen/mermaid-ast` | independent | mermaid-ast@0.8.2 | ast | parser-peer |
 | `probelabs/maid` | independent | @probelabs/maid@0.0.29 | diagnostics | parser-peer |
 
-`wiredInto` names the repo paths that already install, import or vendor a node, for example Pele and Mermaid in `eval/benchmark/release-browser-bench.ts` and the `beautiful-mermaid`, `mermaid` and `mermaid-ast` devDependencies. `citedIn` names the docs that discuss it.
+`bun run bench:peers` (`eval/benchmark/peer-bench.ts`) times the SVG and terminal peers above that run in Node or Python against the built package. `wiredInto` names the repo paths that already install, import or vendor a node, for example Pele and Mermaid in `eval/benchmark/release-browser-bench.ts` and the `beautiful-mermaid`, `mermaid` and `mermaid-ast` devDependencies. `citedIn` names the docs that discuss it.
 
 ## Re-checking
 

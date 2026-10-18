@@ -494,7 +494,9 @@ table here, which would drift. In broad strokes:
 - **Manual / periodic:** `layout-compare` before/after, the benchmark vs competitors,
   `bun run bench:micro` (per-stage hotspot timings, allocation per call under
   `--runtime node`, and `--baseline <ref>` for interleaved revision ratios;
-  advisory, never a gate), `bun run check:output-identity --baseline <ref>`
+  advisory, never a gate), `bun run bench:peers` (the built package against
+  the pinned browserless and terminal peers in `eval/fork-graph/`, with label
+  checks before timing), `bun run check:output-identity --baseline <ref>`
   (byte identity of 835 corpus inputs across SVG backends, SVG post-passes,
   ASCII, Unicode and verify, for refactors that must not change output), the real LLM-as-judge run, and the production freshness check
   (`scripts/ci/production-freshness.ts`, in `docs/contributing/releasing.md`).
