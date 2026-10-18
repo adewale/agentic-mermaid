@@ -100,7 +100,7 @@ function groupMeaning(value: Record<string, unknown>) {
 
 test.each([
   'flowchart TD\nA_B_2[Important]\nsubgraph A_B[Explicit]\nC\nend\nsubgraph "A--B"\nD\nend',
-  'flowchart TD\nsubgraph "A<br>B"\nX\nend\nsubgraph "A\\\\nB"\nY\nend',
+  'flowchart TD\nsubgraph "A<br>B"\nX\nend\nsubgraph "A\\nB"\nY\nend',
   'flowchart TD\nsubgraph "A--B"\nX\nend\nsubgraph "A#45;#45;B"\nY\nend',
 ])('Flowchart distinct group identities retain labels and membership: %s', async source => {
   const parsed = am.parseRegisteredMermaid(source)

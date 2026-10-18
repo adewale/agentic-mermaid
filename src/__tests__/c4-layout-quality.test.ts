@@ -7,6 +7,7 @@ import { LayoutCertificationError } from '../layout/certification-error.ts'
 import { renderLoadedFamilySvg } from '../browser-lazy/render-core.ts'
 import { measureQuality } from '../agent/quality.ts'
 import type { PositionedC4Diagram } from '../c4/layout.ts'
+import { preparePixelText } from '../shared/prepared-text.ts'
 
 interface Box { x: number; y: number; width: number; height: number }
 const overlaps = (a: Box, b: Box) => Math.min(a.x + a.width, b.x + b.width) - Math.max(a.x, b.x) > .01 && Math.min(a.y + a.height, b.y + b.height) - Math.max(a.y, b.y) > .01
@@ -83,8 +84,8 @@ describe('C4 measured pixel layout quality', () => {
     }
   })
 
-  test('native and lazy C4 reject invalid retained text before lowering once', async () => {
-    const source = 'C4Context\nPerson(user,"User")'
+  test.each(['off-canvas-text', 'missing-relation', 'duplicate-relation', 'endpoint', 'marker', 'node-text', 'group-text', 'edge-text', 'text-display', 'text-transform', 'title-text', 'legend-text', 'legend-heading', 'missing-title', 'missing-legend'] as const)('native and lazy C4 reject %s before lowering once', async mutation => {
+    const source = 'C4Deployment\ntitle Runtime\nNode(parent,"Production","Linux") {\nContainer(api,"API","Go")\n}\nPerson(user,"User")\nRel(user,api,"Calls","HTTPS")'
     const native = getFamily('c4')!
     const { default: browser } = await import('../browser-lazy/families/c4.ts')
     for (const [descriptor, lazy] of [[native, false], [browser, true]] as const) {
@@ -97,7 +98,25 @@ describe('C4 measured pixel layout quality', () => {
           const result = descriptor.layout!(context)
           const positioned = ('positioned' in result ? result.positioned : result) as PositionedC4Diagram
           const node = positioned.nodes[0]!
-          node.labelBlock = { ...node.labelBlock!, width: positioned.width * 10 }
+          if (mutation === 'off-canvas-text') node.labelBlock = { ...node.labelBlock!, width: positioned.width * 10 }
+          if (mutation === 'missing-relation') positioned.edges = []
+          if (mutation === 'duplicate-relation') positioned.edges.push({ ...positioned.edges[0]! })
+          if (mutation === 'endpoint') positioned.edges[0]!.target = 'user'
+          if (mutation === 'marker') positioned.edges[0]!.hasArrowEnd = false
+          if (mutation === 'node-text' || mutation === 'group-text' || mutation === 'edge-text') {
+            const owner = mutation === 'node-text' ? node : mutation === 'group-text' ? positioned.groups[0]! : positioned.edges[0]!
+            const block = owner.labelBlock!
+            owner.labelBlock = preparePixelText('Zebra', { display: 'literal', fontSize: block.fontSize, fontWeight: block.fontWeight })
+          }
+          if (mutation === 'text-display' || mutation === 'text-transform') {
+            const block = node.labelBlock!
+            node.labelBlock = { ...block, prepared: { ...block.prepared, ...(mutation === 'text-display' ? { display: 'formatted' as const } : { transform: 'uppercase' as const }) } }
+          }
+          if (mutation === 'title-text') positioned.title!.block = preparePixelText('Zebra', { display: 'literal', fontSize: 18, fontWeight: 600 })
+          if (mutation === 'legend-text') positioned.legend!.entries[0]!.block = preparePixelText('Zebra', { display: 'literal', fontSize: 11, fontWeight: 400 })
+          if (mutation === 'legend-heading') positioned.legend!.heading = preparePixelText('Zebra', { display: 'literal', fontSize: 13, fontWeight: 600 })
+          if (mutation === 'missing-title') delete positioned.title
+          if (mutation === 'missing-legend') delete positioned.legend
           return { positioned }
         },
         lowerScene: context => {

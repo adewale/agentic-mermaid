@@ -1,4 +1,4 @@
-import type { PositionedGraph, PositionedNode, PositionedGroup, PositionedEdge, RenderOptions } from '../types.ts'
+import type { PositionedGraph, PositionedNode, PositionedGroup, PositionedEdge, RenderOptions, TextTransform } from '../types.ts'
 import type { InternalStyleFace } from '../scene/style-registry.ts'
 import type { C4Body, C4Diagnostic } from './types.ts'
 import { preparePixelText } from '../shared/prepared-text.ts'
@@ -16,6 +16,7 @@ import { assertC4DiagramWork } from '../shared/diagram-limits.ts'
 
 export interface PositionedC4Diagram extends PositionedGraph {
   body: C4Body; config: C4Config; diagnostics: C4Diagnostic[]
+  textContext: { node?: TextTransform; edge?: TextTransform; group?: TextTransform; legendHeading?: TextTransform; title?: string }
   identities: ReturnType<typeof planC4Identity>
   legend?: { x: number; y: number; width: number; height: number; heading: PixelTextBlock; entries: Array<C4LegendEntry & { block: PixelTextBlock }> }
 }
@@ -103,5 +104,6 @@ export function layoutC4Diagram(body: C4Body, options: RenderOptions & { diagram
   if (legend) { width = Math.max(width, legend.x + legend.width + config.marginX); height = legend.y + legend.height + config.marginY }
   const diagnostics = [...placement.diagnostics, ...c4PixelVisibilityDiagnostics(body, { nodes, groups: roots, edges }, style.lineWidth, { width, height })]
   if (config.maxWidth !== undefined && width > config.maxWidth + .01) diagnostics.push({ code: 'C4_WIDTH_EXCEEDED', severity: 'warning', message: `The requested C4 width ${config.maxWidth}px cannot contain the ${Math.ceil(width)}px artifact without shrinking or clipping content; minimum card widths, nesting, explicit direction constraints and authored offsets retain precedence.` })
-  return { width, height, ...(legend ? { legend } : {}), nodes, groups: roots, edges, ...(title ? { title: positionDiagramTitle(title, width, config.marginY) } : {}), body, config, diagnostics, identities: planC4Identity(body) }
+  return { width, height, ...(legend ? { legend } : {}), nodes, groups: roots, edges, ...(title ? { title: positionDiagramTitle(title, width, config.marginY) } : {}), body, config, diagnostics, identities: planC4Identity(body),
+    textContext: { node: style.nodeTextTransform, edge: style.edgeTextTransform, group: style.groupTextTransform, legendHeading: styleFace?.text?.textTransform, title: titleText } }
 }
