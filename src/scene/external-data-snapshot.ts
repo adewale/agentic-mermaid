@@ -62,12 +62,21 @@ export const EXTERNAL_SCENE_DOCUMENT_SNAPSHOT_LIMITS: ExternalDataSnapshotLimits
  * data descriptors. Arrays are read by index rather than through a caller
  * iterator. The returned graph is recursively frozen before validation or
  * compilation can observe it.
+ *
+ * `firstParty` is for documents a built-in family just lowered: plain object
+ * and array literals from our own code, with no caller Proxy, accessor or
+ * iterator to defend against. Their own enumerable keys are read directly
+ * instead of through property descriptors, which made admission several times
+ * slower than the copy itself. Every limit, prototype and cycle check, the
+ * null-prototype frozen copy and the side-table transfers are unchanged.
  */
 export function snapshotBoundedExternalData(
   value: unknown,
   limits: ExternalDataSnapshotLimits,
   rootPath = 'input',
+  options: { readonly firstParty?: boolean } = {},
 ): unknown {
+  const firstParty = options.firstParty === true
   const active = new WeakSet<object>()
   const snapshots = new WeakMap<object, unknown>()
   let objects = 0
@@ -106,6 +115,21 @@ export function snapshotBoundedExternalData(
       if (Array.isArray(candidate)) {
         if (Object.getPrototypeOf(candidate) !== Array.prototype) {
           throw new TypeError(`External Scene ${path} must be a plain array`)
+        }
+        if (firstParty) {
+          const length = candidate.length
+          if (length > limits.maxArrayEntries) {
+            throw new Error(`External Scene ${path} contains too many entries`)
+          }
+          arrayEntries += length
+          if (arrayEntries > limits.maxAggregateArrayEntries) {
+            throw new Error(`External Scene input exceeds the aggregate ${limits.maxAggregateArrayEntries}-array-entry limit`)
+          }
+          const snapshot = new Array<unknown>(length)
+          snapshots.set(candidate, snapshot)
+          transferSceneNodeSerialization(candidate, snapshot)
+          for (let index = 0; index < length; index++) snapshot[index] = visit(candidate[index], depth + 1, `${path}[${index}]`)
+          return Object.freeze(snapshot)
         }
         const lengthDescriptor = Reflect.getOwnPropertyDescriptor(candidate, 'length')
         if (!lengthDescriptor || !('value' in lengthDescriptor)
@@ -160,7 +184,7 @@ export function snapshotBoundedExternalData(
       if (prototype !== Object.prototype && prototype !== null) {
         throw new TypeError(`External Scene ${path} must be a plain object`)
       }
-      const keys = Reflect.ownKeys(candidate)
+      const keys = firstParty ? Object.keys(candidate) : Reflect.ownKeys(candidate)
       if (keys.length > limits.maxPropertiesPerObject) {
         throw new Error(`External Scene ${path} contains too many properties`)
       }
@@ -186,6 +210,12 @@ export function snapshotBoundedExternalData(
       const snapshot = Object.create(null) as Record<string, unknown>
       snapshots.set(candidate, snapshot)
       transferSceneNodeSerialization(candidate, snapshot)
+      if (firstParty) {
+        const record = candidate as Record<string, unknown>
+        for (const key of keys as string[]) snapshot[key] = visit(record[key], depth + 1, `${path}.${key}`)
+        transferRetainedPixelText(candidate, snapshot)
+        return Object.freeze(snapshot)
+      }
       for (const key of keys) {
         if (typeof key !== 'string') throw new TypeError(`External Scene ${path} must not contain symbol keys`)
         const descriptor = Reflect.getOwnPropertyDescriptor(candidate, key)
@@ -236,10 +266,13 @@ export function admitSceneDocument(value: unknown, mode?: 'internal' | 'external
   // Look up before reading any property: a caller Proxy sees no trap here.
   const prior = typeof value === 'object' && value !== null ? ADMITTED_SCENES.get(value) : undefined
   if (prior !== undefined && prior === (mode ?? sceneValidationMode(value))) return value as SceneDoc
+  // Only built-in family admission names 'internal': its document is our own
+  // lowering output. An inferred mode keeps the full descriptor path.
   const admitted = snapshotBoundedExternalData(
     value,
     EXTERNAL_SCENE_DOCUMENT_SNAPSHOT_LIMITS,
     'scene',
+    { firstParty: mode === 'internal' },
   )
   assertValidSceneDoc(admitted, { mode })
   recordAdmittedScene(admitted as SceneDoc, mode ?? sceneValidationMode(admitted))
