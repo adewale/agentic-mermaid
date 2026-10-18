@@ -22,7 +22,7 @@
 // Treat small timing ratios as noise, and confirm with `bench:release`.
 
 import { execFileSync, spawnSync } from 'node:child_process'
-import { cpSync, mkdirSync, mkdtempSync, readFileSync, rmSync, symlinkSync, writeFileSync } from 'node:fs'
+import { cpSync, existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, symlinkSync, writeFileSync } from 'node:fs'
 import { cpus, release, tmpdir } from 'node:os'
 import { dirname, join, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
@@ -195,6 +195,16 @@ function extractBaseline(ref: string, scratch: string): { root: string; revision
   if (untar.status !== 0) throw new Error('tar extraction failed')
   cpSync(join(ROOT, 'eval/benchmark'), join(root, 'eval/benchmark'), { recursive: true })
   symlinkSync(join(ROOT, 'node_modules'), join(root, 'node_modules'), 'dir')
+  // A bundler resolves every import() at build time. A module the cases name
+  // but the revision lacks becomes a stub that throws when imported, so only
+  // the cases using it are reported as unavailable.
+  const cases = readFileSync(join(root, 'eval/benchmark/micro-bench-cases.ts'), 'utf8')
+  for (const [, specifier] of cases.matchAll(/import\('(\.\.\/\.\.\/src\/[^']+)'\)/g)) {
+    const target = resolve(root, 'eval/benchmark', specifier!)
+    if (existsSync(target)) continue
+    mkdirSync(dirname(target), { recursive: true })
+    writeFileSync(target, `throw new Error('${specifier} is not present at ${revision.slice(0, 12)}')\n`)
+  }
   return { root, revision }
 }
 

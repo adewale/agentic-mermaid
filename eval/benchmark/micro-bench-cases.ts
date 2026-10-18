@@ -64,6 +64,7 @@ const src = {
   displayText: () => import('../../src/shared/display-text.ts'),
   textMetrics: () => import('../../src/text-metrics.ts'),
   conformance: () => import('../../src/scene/backend-conformance.ts'),
+  paintCertification: () => import('../../src/scene/paint-certification.ts'),
   builtinBackends: () => import('../../src/scene/builtin-backends.ts'),
 }
 
@@ -143,7 +144,18 @@ function sceneCases(workload: Workload): MicroCase[] {
       async setup() {
         const { request, layout } = await staged(workload)
         const { lowerPositionedFamilyScene } = await src.graphical()
-        return () => lowerPositionedFamilyScene(request, layout)
+        // Lowering is retained per layout object; a fresh wrapper around the
+        // same positioned geometry measures the work instead of a cache hit.
+        return () => lowerPositionedFamilyScene(request, { ...layout })
+      },
+    },
+    {
+      id: `scene:paint-certify-${workload}`,
+      description: `certifyScenePaint: final paint certification run by every default SVG render, ${workload}`,
+      async setup() {
+        const { scene, layout } = await staged(workload)
+        const [{ certifyScenePaint }, { retainedFamilyProjection }] = await Promise.all([src.paintCertification(), src.positioning()])
+        return () => certifyScenePaint(scene, retainedFamilyProjection(layout), { outputSupported: true })
       },
     },
     {
