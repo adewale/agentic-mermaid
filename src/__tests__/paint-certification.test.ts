@@ -7,7 +7,10 @@ import { preparePixelText } from '../shared/prepared-text.ts'
 import { getFamily, knownBuiltinFamilies } from '../agent/families.ts'
 import { layoutMermaidWithReceipt, verifyMermaid } from '../agent/core.ts'
 import { renderMermaidSVGWithReceipt, renderMermaidASCIIWithReceipt } from '../index.ts'
-import { renderedSvgDigest } from '../graphical-render.ts'
+import { lowerPositionedFamilyScene, renderedSvgDigest } from '../graphical-render.ts'
+import { resolveRenderRequestForExecution, resolvedRenderExecutionPlanOf } from '../render-contract.ts'
+import { positionResolvedFamily } from '../positioning.ts'
+import { inspectScenePrimitives, scenePrimitiveSource } from '../scene/inspection.ts'
 import { measureQuality } from '../agent/quality.ts'
 import { replaceFamilyForTest } from '../agent/families.ts'
 
@@ -217,4 +220,42 @@ test('omitted marker orientation follows the emitted auto tangent', () => {
   expect(hull[1]).toEqual({ x: 10, y: 50 })
   expect(hull[2]!.x).toBeCloseTo(7.5)
   expect(hull[2]!.y).toBeCloseTo(42)
+})
+
+test('concurrent State labels retain visible own and neighboring endpoint markers', () => {
+  const source = `stateDiagram-v2
+    [*] --> Active
+
+    state Active {
+        [*] --> NumLockOff
+        NumLockOff --> NumLockOn : EvNumLockPressed
+        NumLockOn --> NumLockOff : EvNumLockPressed
+        --
+        [*] --> CapsLockOff
+        CapsLockOff --> CapsLockOn : EvCapsLockPressed
+        CapsLockOn --> CapsLockOff : EvCapsLockPressed
+        --
+        [*] --> ScrollLockOff
+        ScrollLockOff --> ScrollLockOn : EvScrollLockPressed
+        ScrollLockOn --> ScrollLockOff : EvScrollLockPressed
+    }`
+  const rendered = renderMermaidSVGWithReceipt(source)
+  expect(rendered.receipt.layoutCertification?.status).toBe('passed')
+  expect(rendered.receipt.layoutCertification?.issues).toEqual([])
+  expect(() => renderMermaidSVGWithReceipt(source, { layoutSafety: 'strict' })).not.toThrow()
+  const request = resolveRenderRequestForExecution(source, {}, 'svg')
+  const positioned = positionResolvedFamily(resolvedRenderExecutionPlanOf(request).family.id, request)
+  const primitives = inspectScenePrimitives(lowerPositionedFamilyScene(request, positioned)).primitives
+  const halos = primitives.filter(part => part.id.endsWith(':halo'))
+  for (const id of ['edge:_start2->NumLockOff#0', 'edge:NumLockOn->NumLockOff#0', 'edge:_start3->CapsLockOff#0', 'edge:CapsLockOn->CapsLockOff#0', 'edge:_start4->ScrollLockOff#0', 'edge:ScrollLockOn->ScrollLockOff#0']) {
+    const edge = scenePrimitiveSource(primitives.find(part => part.id === id)!)!
+    expect(edge.kind).toBe('connector')
+    if (edge.kind !== 'connector') throw new Error('Expected the retained native connector')
+    const marker = connectorMarkerPaintRegions(edge).find(region => region.position === 'end')!
+    expect(marker.hull).toBeDefined()
+    for (const halo of halos) {
+      const a = marker.bounds!, b = halo.bounds!
+      expect(a.x0 < b.x1 && a.x1 > b.x0 && a.y0 < b.y1 && a.y1 > b.y0, `${id} hidden by ${halo.id}`).toBe(false)
+    }
+  }
 })

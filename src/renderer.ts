@@ -1,9 +1,9 @@
 import { prepareDisplayText, resolveLabelContent } from './shared/display-text.ts'
 import { graphTextBlock } from './graph-text.ts'
-import type { PositionedGraph, PositionedNode, PositionedEdge, PositionedGroup, PositionedStateNote, Point, EdgeMarker, RenderContext, RenderOptions } from './types.ts'
+import type { PositionedGraph, PositionedNode, PositionedEdge, PositionedGroup, PositionedStateNote, Point, RenderContext, RenderOptions } from './types.ts'
 import type { DiagramColors } from './theme.ts'
 import { svgOpenTag, buildStyleBlock, buildShadowDefs } from './theme.ts'
-import { STROKE_WIDTHS, ARROW_HEAD, FLOWCHART_DOTTED_DASH, resolveRenderStyle, diagramTitleMark } from './styles.ts'
+import { STROKE_WIDTHS, FLOWCHART_DOTTED_DASH, resolveRenderStyle, diagramTitleMark } from './styles.ts'
 import type { ResolvedRenderStyle } from './styles.ts'
 import { renderMultilineText, renderMultilineTextWithBackground, escapeAttr, escapeDisplayAttr, escapeXml } from './multiline-utils.ts'
 import { topRoundedRectPath } from './svg-paths.ts'
@@ -15,13 +15,8 @@ import { iconFallbackToken } from './shared/icon-fallback.ts'
 import { DefaultBackend } from './scene/backend.ts'
 import type { ResolvedStateVisualConfig } from './state/config.ts'
 import { resolveMindmapIcon } from './mindmap/icons.ts'
-import { serializeMarkerResources, tipAnchoredArrow } from './scene/marker-resources.ts'
-import {
-  projectConnectorPath,
-  projectRoundedConnectorPath,
-  type ConnectorPathProjection,
-  type ConnectorPathProjectionSegment,
-} from './scene/connector-geometry.ts'
+import { serializeMarkerResources } from './scene/marker-resources.ts'
+import { flowchartMarkerResources, markerIdPrefix, markerSuffix, graphEdgePathProjection } from './graph-connectors.ts'
 import { scanSvgStartTags, transformSvgAttributes, transformSvgCssValues } from './svg-structure.ts'
 import { paintsNodeFill, shapeOutline } from './shape-outline.ts'
 
@@ -155,98 +150,6 @@ export function lowerGraphScene(
   parts.push(marks.documentClose())
 
   return { family: 'flowchart', width: graph.width, height: graph.height, colors, transparent, parts }
-}
-
-// ============================================================================
-// Arrow marker definitions
-// ============================================================================
-
-/**
- * Reusable arrow head markers — both forward (end) and pre-rotated start variants.
- * Start geometry points left in marker space and uses orient="auto". This avoids
- * renderer-dependent auto-start-reverse behavior in SVG rasterizers.
- * Arrow color uses var(--_arrow) CSS variable.
- */
-function arrowMarkerResources(color?: string, fixed = false): readonly MarkerDescriptor[] {
-  const w = ARROW_HEAD.width
-  // A custom-width edge gets a fixed 8×8 head: the default SVG strokeWidth
-  // units would magnify the marker by the authored edge width.
-  const h = fixed ? w : ARROW_HEAD.height
-  // SVG places this reference point at the route vertex. Anchor the polygon
-  // tip itself so a correctly clipped route cannot push the visible arrow
-  // through the target outline.
-  const stroke = color ?? 'var(--_arrow)'
-  const suffix = `${color ? `-${markerSuffix(color)}` : ''}${fixed ? '-fixed' : ''}`
-  const paint = { fill: stroke, stroke, strokeWidth: '0.75', strokeLinejoin: 'round' as const }
-  return [
-    tipAnchoredArrow(`arrowhead${suffix}`, { width: w, height: h }, 'end', paint, fixed ? 'userSpaceOnUse' : undefined),
-    tipAnchoredArrow(`arrowhead-start${suffix}`, { width: w, height: h }, 'start', paint, fixed ? 'userSpaceOnUse' : undefined),
-  ]
-}
-
-/**
- * Generate arrow markers tinted to a specific color (for linkStyle stroke overrides).
- * IDs are suffixed with a sanitized color string to avoid collisions.
- */
-function circleMarkerResources(color?: string, fixed = false): readonly MarkerDescriptor[] {
-  const size = ARROW_HEAD.width
-  const suffix = `${color ? `-${markerSuffix(color)}` : ''}${fixed ? '-fixed' : ''}`
-  const stroke = color ?? 'var(--_arrow)'
-  const r = size / 2 - 0.75
-  const common = { shape: 'circle' as const, size: { width: size, height: size }, ...(fixed ? { units: 'userSpaceOnUse' as const } : {}), orient: 'auto' as const, geometry: { kind: 'circle' as const, cx: size / 2, cy: size / 2, r }, paint: { fill: 'none', stroke, strokeWidth: '1' } }
-  return [
-    { ...common, id: `circlehead${suffix}`, ref: { x: size - 0.5, y: size / 2 } },
-    { ...common, id: `circlehead-start${suffix}`, ref: { x: 0.5, y: size / 2 } },
-  ]
-}
-
-function crossMarkerResources(color?: string, fixed = false): readonly MarkerDescriptor[] {
-  const size = ARROW_HEAD.width
-  const suffix = `${color ? `-${markerSuffix(color)}` : ''}${fixed ? '-fixed' : ''}`
-  const stroke = color ?? 'var(--_arrow)'
-  const pad = 1.25
-  const a = pad
-  const b = size - pad
-  const common = { shape: 'cross' as const, size: { width: size, height: size }, ...(fixed ? { units: 'userSpaceOnUse' as const } : {}), orient: 'auto' as const, geometry: { kind: 'compound' as const, children: [{ kind: 'line' as const, x1: a, y1: a, x2: b, y2: b }, { kind: 'line' as const, x1: a, y1: b, x2: b, y2: a }] }, paint: { stroke, strokeWidth: '1.25', strokeLinecap: 'round' as const } }
-  return [
-    { ...common, id: `crosshead${suffix}`, ref: { x: b, y: size / 2 } },
-    { ...common, id: `crosshead-start${suffix}`, ref: { x: pad, y: size / 2 } },
-  ]
-}
-
-function flowchartMarkerResources(
-  colors: ReadonlySet<string>,
-  fixedColors: ReadonlySet<string | undefined>,
-  needsCircle: boolean,
-  needsCross: boolean,
-): readonly MarkerDescriptor[] {
-  const resources: MarkerDescriptor[] = [...arrowMarkerResources()]
-  if (needsCircle) resources.push(...circleMarkerResources())
-  if (needsCross) resources.push(...crossMarkerResources())
-  for (const color of colors) {
-    resources.push(...arrowMarkerResources(color))
-    if (needsCircle) resources.push(...circleMarkerResources(color))
-    if (needsCross) resources.push(...crossMarkerResources(color))
-  }
-  for (const color of fixedColors) {
-    resources.push(...arrowMarkerResources(color, true))
-    if (needsCircle) resources.push(...circleMarkerResources(color, true))
-    if (needsCross) resources.push(...crossMarkerResources(color, true))
-  }
-  return resources
-}
-
-function markerIdPrefix(marker: EdgeMarker): string {
-  if (marker === 'circle') return 'circlehead'
-  if (marker === 'cross') return 'crosshead'
-  return 'arrowhead'
-}
-
-/** Sanitize a color value into a collision-free SVG ID suffix.
- *  Non-alphanumeric chars are hex-encoded so distinct inputs never collapse
- *  (e.g. "var(--line-1)" → "var28--line2d129", "var(--line1)" → "var28--line129"). */
-function markerSuffix(color: string): string {
-  return color.replace(/[^a-zA-Z0-9]/g, (ch) => ch.charCodeAt(0).toString(16))
 }
 
 // ============================================================================
@@ -497,11 +400,7 @@ function renderEdge(
     }, '')
   }
 
-  const pathProjection = edge.curve
-    ? pointsToCurveProjection(edge.points)
-    : style.edgeBendRadius > 0
-      ? projectRoundedConnectorPath(edge.points, style.edgeBendRadius, { precision: 3 })
-      : undefined
+  const pathProjection = graphEdgePathProjection(edge, style)
   const pathData = pathProjection?.geometry.d ?? pointsToPolylinePath(edge.points)
   // Section A output is static and active SVG is rejected in every security
   // mode. Preserve authored animation intent as typed metadata plus a stable
@@ -596,25 +495,6 @@ function connectorLabelSceneId(connectorSceneId: string): string {
   return connectorSceneId.startsWith('edge:')
     ? `edge-label:${connectorSceneId.slice('edge:'.length)}`
     : `${connectorSceneId}:label`
-}
-
-function pointsToCurveProjection(points: Point[]): ConnectorPathProjection {
-  const first = points[0]!
-  let d = `M ${first.x} ${first.y}`
-  const segments: ConnectorPathProjectionSegment[] = []
-  for (let index = 1; index < points.length; index++) {
-    const previous = points[index - 1]!
-    const point = points[index]!
-    const mx = (previous.x + point.x) / 2
-    d += ` C ${mx} ${previous.y}, ${mx} ${point.y}, ${point.x} ${point.y}`
-    segments.push({
-      kind: 'cubic',
-      control1: { x: mx, y: previous.y },
-      control2: { x: mx, y: point.y },
-      end: point,
-    })
-  }
-  return projectConnectorPath(d, first, segments)
 }
 
 /** Convert points to SVG polyline points attribute: "x1,y1 x2,y2 ..." */

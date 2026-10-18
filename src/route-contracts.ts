@@ -31,6 +31,7 @@ import type {
   RoutePortAssignment,
 } from './types.ts'
 import { graphEdgeTextBlock } from './graph-text.ts'
+import { graphEdgeMarkerPaintRegions } from './graph-connectors.ts'
 import { resolveRenderStyle } from './styles.ts'
 import { clipEdgeToShape } from './shape-clipping.ts'
 import { pointOnRoutingBoundary, pointOnShapeSide, shapeCardinalPorts, shapeRoutingProfile } from './shape-outline.ts'
@@ -196,6 +197,9 @@ export interface LabelMetricsStyle {
   edgeLabelFontWeight: number
   edgeTextTransform?: 'uppercase' | 'lowercase' | 'capitalize'
   edgeLetterSpacing?: number
+  lineWidth?: number
+  edgeStrokeColor?: string
+  edgeBendRadius?: number
 }
 
 // ============================================================================
@@ -2847,6 +2851,10 @@ export function separateEdgeLabelPills(
       inner.x - halo < n.x + n.width && inner.x + inner.w + halo > n.x &&
       inner.y - halo < n.y + n.height && inner.y + inner.h + halo > n.y)
 
+  // Labels paint after every connector. Protect their own terminal symbols
+  // and all neighboring symbols with the same resource geometry and units.
+  const markers = positioned.edges.flatMap(edge => graphEdgeMarkerPaintRegions(edge, style))
+
   const slots = function* (edge: PositionedEdge, others: PositionedEdge[], overhang = false): Generator<Point> {
     const m = (edge.labelBlock ?? graphEdgeTextBlock(resolveLabelContent(edge.label!, edge.labelContent), style))
     const pw = m.width + 2 * LABEL_PILL_PADDING, ph = m.height + 2 * LABEL_PILL_PADDING
@@ -2855,6 +2863,10 @@ export function separateEdgeLabelPills(
       const inner = pillRect(x, y, m)
       if (haloOverAnyNode(inner, halo)) return false
       const pill = { x: inner.x - halo, y: inner.y - halo, w: inner.w + 2 * halo, h: inner.h + 2 * halo }
+      if (markers.some(marker => {
+        const box = marker.bounds
+        return box && pill.x < box.x1 && pill.x + pill.w > box.x0 && pill.y < box.y1 && pill.y + pill.h > box.y0
+      })) return false
       for (const o of others) {
         const r = rectOf(o)
         if (r && intersects(pill, r)) return false
