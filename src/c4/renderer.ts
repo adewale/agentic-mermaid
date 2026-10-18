@@ -10,7 +10,9 @@ import { resolveRenderStyle } from '../styles.ts'
 import { toneOnFill, resolveInlineNodeTextColor } from '../color-resolver.ts'
 import { isSafeActionHref } from '../output-security.ts'
 import { topRoundedRectPath } from '../svg-paths.ts'
+import { resolveRoleStyle } from '../scene/style-registry.ts'
 import { sceneNodeSerialization } from '../scene/serialization.ts'
+import { c4LabelRect } from './pixel-labels.ts'
 import { c4SourceLine } from './projection.ts'
 
 /** C4 cards and frames are typed Scene shapes. Shared graph lowering supplies
@@ -89,24 +91,48 @@ export function lowerC4Scene(ctx: RenderContext<PositionedC4Diagram>): SceneDoc 
   const labels = positioned.edges.flatMap(edge => {
     if (!edge.label || !edge.labelBlock || !edge.labelPosition) return []
     const item = relationshipById.get(edge.id!)!, block = edge.labelBlock, { x, y } = edge.labelPosition, color = item.style.textColor ?? item.style.fontColor ?? style.edgeTextColor ?? 'var(--_text-sec)'
-    const width = block.width + 20, height = block.height + 16
+    const halo = c4LabelRect(edge)!, { width, height } = halo
     return [marks.group({ id: id(item.id, 'relationship-label'), role: 'edge-label', open: `<g class="edge-label" data-id="${escapeAttr(id(item.id, 'label'))}" data-role="edge-label" data-edge-id="${escapeAttr(item.id)}" data-from="${escapeAttr(item.source)}" data-to="${escapeAttr(item.target)}">`, close: '</g>', children: [
-      { indent: 2, node: marks.shape({ id: id(item.id, 'label-halo'), role: 'chrome', geometry: { kind: 'rect', x: x - width / 2, y: y - height / 2, width, height, rx: 3, ry: 3 }, paint: { fill: 'var(--bg)', stroke: 'var(--_inner-stroke)', strokeWidth: '1' } }, `<rect x="${x - width / 2}" y="${y - height / 2}" width="${width}" height="${height}" rx="3" ry="3" fill="var(--bg)" stroke="var(--_inner-stroke)" stroke-width="1"/>`) },
+      { indent: 2, node: marks.shape({ id: id(item.id, 'label-halo'), role: 'chrome', geometry: { kind: 'rect', ...halo, rx: 3, ry: 3 }, paint: { fill: 'var(--bg)', stroke: 'var(--_inner-stroke)', strokeWidth: '1' } }, `<rect x="${halo.x}" y="${halo.y}" width="${width}" height="${height}" rx="3" ry="3" fill="var(--bg)" stroke="var(--_inner-stroke)" stroke-width="1"/>`) },
       { indent: 2, node: marks.text({ id: id(item.id, 'label-text'), role: 'label', text: block.text, block, x, y, fontSize: block.fontSize, fontWeight: block.fontWeight, letterSpacing: block.letterSpacing, anchor: 'middle', paint: { fill: color }, pageFill: item.style.textColor ?? item.style.fontColor ?? toneOnFill('var(--_text-sec)', 'var(--bg)', ctx.colors) }, renderMultilineText(block, x, y, block.fontSize, `text-anchor="middle" font-size="${block.fontSize}" font-weight="${block.fontWeight}" letter-spacing="${block.letterSpacing}" fill="${escapeAttr(color)}"`)) },
     ] })]
   })
   parts.splice(parts.length - 1, 0, ...labels, ...positioned.nodes.map(node => card(body.elements.find(item => item.id === node.id)!, node)))
   if (positioned.legend) {
     const legend = positioned.legend, children: Array<{ node: SceneNode; indent: number }> = []
-    let y = legend.y + 20
-    const heading = marks.text({ id: id('legend', 'heading'), role: 'legend', text: 'Legend', x: legend.x + 12, y, fontSize: 13, fontWeight: 600, anchor: 'start', paint: { fill: 'var(--_text)' } }, `<text x="${legend.x + 12}" y="${y}" font-size="13" font-weight="600" text-anchor="start" fill="var(--_text)">Legend</text>`)
-    children.push({ node: heading, indent: 2 }); y += 20
+    const legendStyle = resolveRoleStyle(ctx.resolved.styleFace, 'legend', {}, { includeFallback: false })
+    const textColor = legendStyle?.textColor ?? 'var(--_text)'
+    const headingBlock = legend.heading, headingX = legend.x + 12, headingY = legend.y + 8 + headingBlock.height / 2
+    const heading = marks.text({ id: id('legend', 'heading'), role: 'legend', text: headingBlock.text, block: headingBlock, x: headingX, y: headingY, fontSize: headingBlock.fontSize, fontWeight: headingBlock.fontWeight, letterSpacing: headingBlock.letterSpacing, anchor: 'start', paint: { fill: textColor } }, renderMultilineText(headingBlock, headingX, headingY, headingBlock.fontSize, `font-size="${headingBlock.fontSize}" font-weight="${headingBlock.fontWeight}" letter-spacing="${headingBlock.letterSpacing}" text-anchor="start" fill="${escapeAttr(textColor)}"`))
+    children.push({ node: heading, indent: 2 })
+    let y = legend.y + 20 + headingBlock.height
     for (const entry of legend.entries) {
       const { block } = entry, x = legend.x + 38, cy = y + block.height / 2
-      const color = entry.style.borderColor ?? entry.style.lineColor ?? 'var(--_line)', fill = entry.style.bgColor ?? 'var(--_node-fill)'
-      const geometry: Geometry = entry.kind === 'relationship' ? { kind: 'line', x1: legend.x + 10, y1: cy, x2: legend.x + 28, y2: cy } : { kind: 'rect', x: legend.x + 10, y, width: 18, height: block.height }
-      children.push({ indent: 2, node: marks.shape({ id: id(entry.id, 'legend-swatch'), role: 'legend', geometry, paint: { fill, stroke: color, strokeWidth: '1' } }, entry.kind === 'relationship' ? `<line x1="${legend.x + 10}" y1="${cy}" x2="${legend.x + 28}" y2="${cy}" fill="${escapeAttr(fill)}" stroke="${escapeAttr(color)}" stroke-width="1"/>` : `<rect x="${legend.x + 10}" y="${y}" width="18" height="${block.height}" fill="${escapeAttr(fill)}" stroke="${escapeAttr(color)}" stroke-width="1"/>`) })
-      children.push({ indent: 2, node: marks.text({ id: id(entry.id, 'legend-text'), role: 'legend', text: block.text, block, x, y: cy, fontSize: block.fontSize, fontWeight: block.fontWeight, anchor: 'start', paint: { fill: 'var(--_text)' } }, renderMultilineText(block, x, cy, block.fontSize, `text-anchor="start" font-size="${block.fontSize}" font-weight="${block.fontWeight}" fill="var(--_text)"`)) })
+      const color = entry.style.borderColor ?? entry.style.lineColor ?? legendStyle?.strokeColor ?? legendStyle?.borderColor ?? style.nodeBorderColor ?? 'var(--_line)'
+      const fill = entry.style.bgColor ?? legendStyle?.fillColor ?? style.nodeFillColor ?? 'var(--_node-fill)', lineWidth = String(legendStyle?.lineWidth ?? 1)
+      const dash = entry.style.lineStyle === 'dotted' ? '1 3' : entry.style.lineStyle === 'dashed' || entry.external ? '5 3' : undefined
+      const paint = { fill, stroke: color, strokeWidth: lineWidth, ...(dash ? { strokeDasharray: dash } : {}) }
+      const attrs = `fill="${escapeAttr(fill)}" stroke="${escapeAttr(color)}" stroke-width="${lineWidth}"${dash ? ` stroke-dasharray="${dash}"` : ''}`
+      const sx = legend.x + 10, sw = 18, sh = block.height
+      const swatch = (feature: string, geometry: Geometry, svg: string) => children.push({ indent: 2, node: marks.shape({ id: id(entry.id, feature), role: 'legend', geometry, paint }, svg) })
+      if (entry.kind === 'relationship') swatch('legend-swatch', { kind: 'line', x1: sx, y1: cy, x2: sx + sw, y2: cy }, `<line x1="${sx}" y1="${cy}" x2="${sx + sw}" y2="${cy}" ${attrs}/>`)
+      else if (entry.shape === 'database') {
+        const ry = Math.min(3, sh / 4), d = `M ${sx} ${y + ry} A 9 ${ry} 0 0 1 ${sx + sw} ${y + ry} L ${sx + sw} ${y + sh - ry} A 9 ${ry} 0 0 1 ${sx} ${y + sh - ry} Z`
+        swatch('legend-swatch', { kind: 'path', d }, `<path d="${d}" ${attrs}/>`)
+        swatch('legend-rim', { kind: 'ellipse', cx: sx + 9, cy: y + ry, rx: 9, ry }, `<ellipse cx="${sx + 9}" cy="${y + ry}" rx="9" ry="${ry}" ${attrs}/>`)
+      } else if (entry.shape === 'person') {
+        const r = Math.min(3, sh / 5), cx = sx + 9
+        swatch('legend-head', { kind: 'circle', cx, cy: y + r, r }, `<circle cx="${cx}" cy="${y + r}" r="${r}" ${attrs}/>`)
+        const d = `M ${sx + 3} ${y + sh} Q ${sx + 3} ${y + r * 2.5} ${cx} ${y + r * 2.5} Q ${sx + 15} ${y + r * 2.5} ${sx + 15} ${y + sh} Z`
+        swatch('legend-swatch', { kind: 'path', d }, `<path d="${d}" ${attrs}/>`)
+      } else {
+        swatch('legend-swatch', { kind: 'rect', x: sx, y, width: sw, height: sh }, `<rect x="${sx}" y="${y}" width="${sw}" height="${sh}" ${attrs}/>`)
+        if (entry.shape === 'queue') for (const [index, px] of [sx + 3, sx + 15].entries()) swatch(`legend-end:${index}`, { kind: 'line', x1: px, y1: y, x2: px, y2: y + sh }, `<line x1="${px}" y1="${y}" x2="${px}" y2="${y + sh}" ${attrs}/>`)
+      }
+      // Legend labels sit on the page; node/tag font colors describe the
+      // colored card, while the legend role owns its own text ink.
+      const ink = textColor
+      children.push({ indent: 2, node: marks.text({ id: id(entry.id, 'legend-text'), role: 'legend', text: block.text, block, x, y: cy, fontSize: block.fontSize, fontWeight: block.fontWeight, letterSpacing: block.letterSpacing, anchor: 'start', paint: { fill: ink } }, renderMultilineText(block, x, cy, block.fontSize, `text-anchor="start" font-size="${block.fontSize}" font-weight="${block.fontWeight}" letter-spacing="${block.letterSpacing}" fill="${escapeAttr(ink)}"`)) })
       y += block.height + 10
     }
     parts.splice(parts.length - 1, 0, marks.group({ id: id('legend', 'container'), role: 'legend', open: '<g class="c4-legend">', close: '</g>', children }))

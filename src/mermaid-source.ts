@@ -368,6 +368,12 @@ export interface SequenceRuntimeConfig extends MermaidConfigMap {
 
 /** C4 spacing is pixel-space; terminal layout allocates its own cell geometry. */
 export interface C4RuntimeConfig extends MermaidConfigMap {
+  /** Reflow budget in pixels; minimum legible geometry may exceed it with a diagnostic. */
+  maxWidth?: number
+  /** Compact independently measured pixel and terminal layouts. */
+  compact?: boolean
+  /** Automatic semantic type legend; authored legend directives remain independent. */
+  typeLegend?: boolean
   diagramMarginX?: number
   diagramMarginY?: number
   c4ShapeMargin?: number

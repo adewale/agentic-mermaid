@@ -20,6 +20,7 @@ export interface C4Config {
   marginX: number; marginY: number; gap: number; padding: number
   minimumWidth: number; minimumHeight: number; boundaryPadding: number
   rowGap: number; shapesPerRow: number; boundariesPerRow: number; wrapWidth?: number
+  maxWidth?: number; compact: boolean; typeLegend: boolean
   input: C4ConfigInput; themeVariables: C4ConfigInput
 }
 const number = (value: unknown, fallback: number, minimum = 0): number => {
@@ -39,14 +40,16 @@ export function resolveC4Config(input: C4ConfigInput = {}, themeVariables: C4Con
       return typeof numeric === 'number' && Number.isFinite(numeric) && numeric >= minimum && numeric <= maximum
         && (!['c4ShapeInRow', 'c4BoundaryInRow'].includes(key) || Number.isSafeInteger(numeric))
     }
-    return key !== 'wrap' || typeof value === 'boolean'
+    return !['wrap', 'compact', 'typeLegend'].includes(key) || typeof value === 'boolean'
   }))
-  return { marginX: number(input.diagramMarginX, 24), marginY: number(input.diagramMarginY, 24),
-    gap: number(input.c4ShapeMargin, 56), padding: number(input.c4ShapePadding, 16, 4),
-    minimumWidth: number(input.width, 150, 24), minimumHeight: number(input.height, 76, 24),
-    boundaryPadding: number(input.boxMargin, 24, 12), rowGap: number(input.nextLinePaddingX, 56),
+  const compact = input.compact === true
+  return { compact, typeLegend: input.typeLegend !== false,
+    ...(input.maxWidth === undefined ? {} : { maxWidth: number(input.maxWidth, 10000, 1) }), marginX: number(input.diagramMarginX, compact ? 16 : 24), marginY: number(input.diagramMarginY, compact ? 16 : 24),
+    gap: number(input.c4ShapeMargin, compact ? 32 : 56), padding: number(input.c4ShapePadding, compact ? 10 : 16, 4),
+    minimumWidth: number(input.width, compact ? 120 : 150, 24), minimumHeight: number(input.height, compact ? 60 : 76, 24),
+    boundaryPadding: number(input.boxMargin, compact ? 16 : 24, 12), rowGap: number(input.nextLinePaddingX, compact ? 36 : 56),
     shapesPerRow: integer(input.c4ShapeInRow, 3), boundariesPerRow: integer(input.c4BoundaryInRow, 2),
-    ...(input.wrap === false ? {} : { wrapWidth: number(input.wrapPadding, 260, 40) }), input, themeVariables }
+    ...(input.wrap === false ? {} : { wrapWidth: number(input.wrapPadding, compact ? 220 : 260, 40) }), input, themeVariables }
 }
 export function c4ConfigType(item: C4Element | C4Boundary): string {
   if (!('external' in item)) return item.kind === 'deployment' ? 'node' : 'boundary'
@@ -70,8 +73,8 @@ export function c4Appearance(item: C4Element | C4Boundary, config: C4Config): { 
 }
 
 const C4_CONFIG_TYPES = ['person', 'external_person', ...['system', 'container', 'component'].flatMap(kind => ['', 'external_'].flatMap(prefix => ['', '_db', '_queue'].map(shape => `${prefix}${kind}${shape}`))), 'boundary', 'node']
-export const C4_CONFIG_KEYS: readonly string[] = Object.freeze(['diagramMarginX', 'diagramMarginY', 'c4ShapeMargin', 'c4ShapePadding', 'width', 'height', 'boxMargin', 'nextLinePaddingX', 'c4ShapeInRow', 'c4BoundaryInRow', 'wrap', 'wrapPadding', ...C4_CONFIG_TYPES.flatMap(kind => [`${kind}FontSize`, `${kind}FontWeight`, `${kind}_bg_color`, `${kind}_border_color`])])
+export const C4_CONFIG_KEYS: readonly string[] = Object.freeze(['diagramMarginX', 'diagramMarginY', 'c4ShapeMargin', 'c4ShapePadding', 'width', 'height', 'boxMargin', 'nextLinePaddingX', 'c4ShapeInRow', 'c4BoundaryInRow', 'wrap', 'wrapPadding', 'maxWidth', 'compact', 'typeLegend', ...C4_CONFIG_TYPES.flatMap(kind => [`${kind}FontSize`, `${kind}FontWeight`, `${kind}_bg_color`, `${kind}_border_color`])])
 /** Shared Scene typography owns the actual font; these official C4 settings
  * remain preserved compatibility inputs with an explicit no-effect warning. */
 export const C4_NOOP_CONFIG_KEYS: readonly string[] = Object.freeze(['useMaxWidth', ...[...C4_CONFIG_TYPES, 'message'].flatMap(kind => [`${kind}Font`, `${kind}FontFamily`]), 'messageFontSize', 'messageFontWeight'])
-const C4_NUMERIC_CONFIG_MINIMUM: Readonly<Record<string, number>> = Object.freeze({ diagramMarginX: 0, diagramMarginY: 0, c4ShapeMargin: 0, c4ShapePadding: 4, width: 24, height: 24, boxMargin: 12, nextLinePaddingX: 0, c4ShapeInRow: 1, c4BoundaryInRow: 1, wrapPadding: 40 })
+const C4_NUMERIC_CONFIG_MINIMUM: Readonly<Record<string, number>> = Object.freeze({ maxWidth: 1, diagramMarginX: 0, diagramMarginY: 0, c4ShapeMargin: 0, c4ShapePadding: 4, width: 24, height: 24, boxMargin: 12, nextLinePaddingX: 0, c4ShapeInRow: 1, c4BoundaryInRow: 1, wrapPadding: 40 })

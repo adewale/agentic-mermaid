@@ -224,7 +224,7 @@ type MermaidRuntimeConfig = {
   mindmap?: { [key: string]: MermaidConfigValue | undefined; padding?: number; maxNodeWidth?: number }
   gitGraph?: { [key: string]: MermaidConfigValue | undefined; showBranches?: boolean; showCommitLabel?: boolean; mainBranchName?: string; mainBranchOrder?: number; parallelCommits?: boolean; rotateCommitLabel?: boolean }
   radar?: { [key: string]: MermaidConfigValue | undefined; width?: number; height?: number; marginTop?: number; marginRight?: number; marginBottom?: number; marginLeft?: number; axisScaleFactor?: number; axisLabelFactor?: number; curveTension?: number; useMaxWidth?: boolean; tickLabels?: boolean }
-  c4?: { [key: string]: MermaidConfigValue | undefined; diagramMarginX?: number; diagramMarginY?: number; c4ShapeMargin?: number; c4ShapePadding?: number; width?: number; height?: number; c4ShapeInRow?: number; c4BoundaryInRow?: number; useMaxWidth?: boolean }
+  c4?: { [key: string]: MermaidConfigValue | undefined; maxWidth?: number; compact?: boolean; typeLegend?: boolean; diagramMarginX?: number; diagramMarginY?: number; c4ShapeMargin?: number; c4ShapePadding?: number; width?: number; height?: number; c4ShapeInRow?: number; c4BoundaryInRow?: number; useMaxWidth?: boolean }
   sankey?: { [key: string]: MermaidConfigValue | undefined; width?: number; height?: number; linkColor?: string; nodeAlignment?: 'justify' | 'center' | 'left' | 'right'; showValues?: boolean; prefix?: string; suffix?: string; labelStyle?: 'legacy' | 'outlined'; nodeWidth?: number; nodePadding?: number; nodeColors?: Record<string, string>; useMaxWidth?: boolean }
   // Wired sequence keys (unlisted documented keys are accepted and named by
   // verify's INEFFECTIVE_CONFIG lint — see src/sequence/config.ts).
@@ -789,7 +789,8 @@ type GanttMutationOp =
 //   <br> splits lines, XML entities decode to one char),
 //   UNRESOLVABLE_SCHEDULE (gantt: parses but schedule cannot resolve; render would fail),
 //   RENDER_FAILED (the strict render parser, layout, or theme colors rejected the source).
-// Tier 2 (geometric, advisory): NODE_OVERLAP, ROUTE_SELF_CROSS, and the
+// Tier 2 (geometric): CONTENT_OCCLUDED is an error; LAYOUT_LIMIT_EXCEEDED,
+// NODE_OVERLAP, ROUTE_SELF_CROSS and the following tripwires are advisory.
 // route-contract tripwires ROUTE_HITCH, ROUTE_UNEXPLAINED_BEND,
 // ROUTE_LABEL_ON_SHARED_TRUNK, ROUTE_SELF_LOOP_OCCUPANCY, ROUTE_CONTAINER_MISANCHOR,
 // ROUTE_SHAPE_MISANCHOR, ROUTE_STALE_AFTER_NODE_MOVE.
@@ -807,7 +808,7 @@ interface RenderedLayout { version: 1; kind: DiagramKind | ExternalFamilyId; nod
 type WarningCode =
   | 'EMPTY_DIAGRAM' | 'EDGE_MISANCHORED' | 'OFF_CANVAS' | 'GROUP_BREACH'
   | 'UNKNOWN_SHAPE' | 'LABEL_OVERFLOW' | 'UNRESOLVABLE_SCHEDULE' | 'RENDER_FAILED'
-  | 'NODE_OVERLAP' | 'ROUTE_SELF_CROSS' | 'ROUTE_HITCH'
+  | 'NODE_OVERLAP' | 'CONTENT_OCCLUDED' | 'LAYOUT_LIMIT_EXCEEDED' | 'ROUTE_SELF_CROSS' | 'ROUTE_HITCH'
   | 'ROUTE_UNEXPLAINED_BEND' | 'ROUTE_LABEL_ON_SHARED_TRUNK' | 'ROUTE_SELF_LOOP_OCCUPANCY' | 'ROUTE_CONTAINER_MISANCHOR'
   | 'ROUTE_SHAPE_MISANCHOR' | 'ROUTE_STALE_AFTER_NODE_MOVE'
   | 'DUPLICATE_EDGE' | 'UNREACHABLE_NODE' | 'DECISION_BRANCH_UNLABELED' | 'FLOW_IMBALANCE' | 'COMMENT_DROPPED' | 'UNSUPPORTED_SYNTAX'
@@ -874,7 +875,7 @@ ${SDK_FAMILY_CONVENTION}
 //    Opaque-fallback
 //    bodies (unmodeled syntax) are source-level only; if explicitly edited as
 //    text, re-parse and verify before returning.
-// 4. verify.ok is structural, not a visual-quality score; inspect warnings/layout or render artifacts for layout quality.
+// 4. verify.ok means no unsuppressed error was detected (including content occlusion), not a visual-quality score; inspect warnings/layout and render artifacts.
 //    For semantic task correctness, read back deterministic facts or check them:
 //    checkMermaid(d, ['edge Processing -> [*] : done', 'member Duck +quack()']).
 // 5. Layout is deterministic and never seeded. The render option seed only

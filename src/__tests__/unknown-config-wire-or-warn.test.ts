@@ -164,7 +164,7 @@ describe('family config is exhaustive wire-or-warn', () => {
   test('invalid C4 dimensions, row counts and typography warn and retain default geometry', () => {
     const source = CASES.find(entry => entry.family === 'c4')!.source
     const baseline = renderMermaidSVG(source, { embedFontImport: false })
-    for (const config of [{ width: 23 }, { diagramMarginX: -1 }, { c4ShapePadding: 3 }, { c4ShapeInRow: 1.5 }, { c4BoundaryInRow: 10001 }, { wrap: 'false' }, { systemFontSize: 'bad' }, { systemFontWeight: 'bold' }, { systemFontWeight: 1001 }, { systemFontWeight: '10000' }]) {
+    for (const config of [{ maxWidth: 0 }, { maxWidth: 10001 }, { compact: 'true' }, { typeLegend: 'false' }, { width: 23 }, { diagramMarginX: -1 }, { c4ShapePadding: 3 }, { c4ShapeInRow: 1.5 }, { c4BoundaryInRow: 10001 }, { wrap: 'false' }, { systemFontSize: 'bad' }, { systemFontWeight: 'bold' }, { systemFontWeight: 1001 }, { systemFontWeight: '10000' }]) {
       const diagnostics: string[] = []
       const output = renderMermaidSVG(source, { embedFontImport: false, mermaidConfig: { c4: config } as MermaidRuntimeConfig, onConfigDiagnostic: diagnostic => diagnostics.push(diagnostic.field) })
       expect(diagnostics).toEqual(Object.keys(config).map(key => `c4.${key}`))

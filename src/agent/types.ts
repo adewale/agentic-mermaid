@@ -1428,7 +1428,7 @@ export type WarningSeverity = 'error' | 'warning'
 export type WarningTier = 'structural' | 'geometric' | 'lint'
 
 export type Tier1WarningCode = 'EMPTY_DIAGRAM' | 'EDGE_MISANCHORED' | 'OFF_CANVAS' | 'GROUP_BREACH' | 'UNKNOWN_SHAPE' | 'LABEL_OVERFLOW' | 'UNRESOLVABLE_SCHEDULE' | 'RENDER_FAILED'
-export type Tier2WarningCode = 'NODE_OVERLAP' | 'ROUTE_SELF_CROSS' | 'ROUTE_HITCH' | 'ROUTE_UNEXPLAINED_BEND' | 'ROUTE_LABEL_ON_SHARED_TRUNK' | 'ROUTE_SELF_LOOP_OCCUPANCY' | 'ROUTE_CONTAINER_MISANCHOR' | 'ROUTE_SHAPE_MISANCHOR' | 'ROUTE_STALE_AFTER_NODE_MOVE'
+export type Tier2WarningCode = 'NODE_OVERLAP' | 'CONTENT_OCCLUDED' | 'LAYOUT_LIMIT_EXCEEDED' | 'ROUTE_SELF_CROSS' | 'ROUTE_HITCH' | 'ROUTE_UNEXPLAINED_BEND' | 'ROUTE_LABEL_ON_SHARED_TRUNK' | 'ROUTE_SELF_LOOP_OCCUPANCY' | 'ROUTE_CONTAINER_MISANCHOR' | 'ROUTE_SHAPE_MISANCHOR' | 'ROUTE_STALE_AFTER_NODE_MOVE'
 /**
  * Tier 3 (advisory lint). Family-specific quality hints for common agent
  * mistakes that still parse and render. Lint warnings never flip verify.ok.
@@ -1462,6 +1462,10 @@ export type LayoutWarning =
    */
   | { code: 'RENDER_FAILED'; reason: string }
   | { code: 'NODE_OVERLAP'; a: NodeId; b: NodeId; areaPx: number }
+  /** Final measured paint hides authored text or an interaction marker. */
+  | { code: 'CONTENT_OCCLUDED'; target: string; feature: 'label' | 'marker'; line?: number; message: string }
+  /** Content remains intact but cannot fit an explicitly requested layout budget. */
+  | { code: 'LAYOUT_LIMIT_EXCEEDED'; constraint: string; message: string }
   | { code: 'ROUTE_SELF_CROSS'; edge: EdgeId; count: number }
   | { code: 'ROUTE_HITCH'; edge: EdgeId; deviationPx: number }
   | { code: 'ROUTE_UNEXPLAINED_BEND'; edge: EdgeId }
@@ -1548,6 +1552,8 @@ export const WARNING_SEVERITY: Record<WarningCode, WarningSeverity> = {
   UNKNOWN_SHAPE: 'warning',
   LABEL_OVERFLOW: 'warning',
   NODE_OVERLAP: 'warning',
+  CONTENT_OCCLUDED: 'error',
+  LAYOUT_LIMIT_EXCEEDED: 'warning',
   ROUTE_SELF_CROSS: 'warning',
   ROUTE_HITCH: 'warning',
   ROUTE_UNEXPLAINED_BEND: 'warning',
@@ -1582,6 +1588,8 @@ export const WARNING_TIER: Record<WarningCode, WarningTier> = {
   UNKNOWN_SHAPE: 'structural',
   LABEL_OVERFLOW: 'structural',
   NODE_OVERLAP: 'geometric',
+  CONTENT_OCCLUDED: 'geometric',
+  LAYOUT_LIMIT_EXCEEDED: 'geometric',
   ROUTE_SELF_CROSS: 'geometric',
   ROUTE_HITCH: 'geometric',
   ROUTE_UNEXPLAINED_BEND: 'geometric',

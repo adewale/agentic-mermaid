@@ -23,7 +23,7 @@ export function renderC4Terminal(body: C4Body, config: AsciiConfig, colorMode?: 
   doc.titleHandled = true
   projectC4Graph(body, options) // shared authored paint admission for nodes and relationships
   targetWidth ??= config.targetWidth ?? config.maxWidth
-  const widthLimit = targetWidth ? Math.max(8, Math.floor(targetWidth / 3)) : 42
+  const widthLimit = targetWidth ? Math.max(8, Math.min(options.compact ? 32 : Infinity, Math.floor(targetWidth / (options.compact ? 2 : 3)))) : options.compact ? 32 : 42
   const prepare = (value: string) => prepareCellText(value, { display: 'literal', maxWidth: c4Config.wrap === false ? undefined : widthLimit })
   const blocks = new Map<string, CellTextBlock>(), sizes = new Map<string, C4Box>()
   const relations: BoxRelation[] = body.relationships.map(item => ({ id: identities.relationships.get(item.id)!, from: item.source, to: item.target, lines: prepare(c4RelationshipText(body, item)).lines }))
@@ -40,7 +40,14 @@ export function renderC4Terminal(body: C4Body, config: AsciiConfig, colorMode?: 
     sizes.set(item.id, { id: item.id, x: 0, y: 0, width: Math.max(block.width + 4, face?.width ?? 0, 14), height: Math.max(headerHeight + 8, (face?.height ?? 0) + headerHeight * 2), container: true, headerHeight })
   }
   const title = body.title ?? config.title, titleBlock = title === undefined ? undefined : prepare(title)
-  const placementOptions = { gapX: Math.max(10, ...relations.map(item => Math.max(0, ...(item.lines ?? []).map(visualWidth)) + 6)), gapY: Math.max(6, ...relations.map(item => (item.lines?.length ?? 0) + 6)), padding: 5, marginX: 5, marginY: 5 + (titleBlock?.height ?? 0), shapesPerRow: body.layout.shapesPerRow ?? options.shapesPerRow, boundariesPerRow: body.layout.boundariesPerRow ?? options.boundariesPerRow, direction }
+  const margin = options.compact ? 2 : 5, padding = options.compact ? 3 : 5
+  const gapX = Math.max(options.compact ? 6 : 10, ...relations.map(item => Math.max(0, ...(item.lines ?? []).map(visualWidth)) + (options.compact ? 4 : 6)))
+  const gapY = Math.max(options.compact ? 4 : 6, ...relations.map(item => (item.lines?.length ?? 0) + (options.compact ? 3 : 6)))
+  // Row packing uses measured cell boxes. A pixel viewport never becomes a
+  // terminal width; only the caller's terminal budget limits these columns.
+  const columns = options.compact && targetWidth && (direction === 'LR' || direction === 'RL')
+    ? Math.max(1, Math.floor((targetWidth - margin * 2 + gapX) / (Math.max(1, ...[...sizes.values()].filter(box => !box.container).map(box => box.width)) + gapX))) : options.shapesPerRow
+  const placementOptions = { gapX, gapY, padding, marginX: margin, marginY: margin + (titleBlock?.height ?? 0), shapesPerRow: body.layout.shapesPerRow ?? (c4Config.c4ShapeInRow === undefined ? Math.min(options.shapesPerRow, columns) : options.shapesPerRow), boundariesPerRow: body.layout.boundariesPerRow ?? options.boundariesPerRow, direction }
   let placement = placeC4Boxes(body, sizes, placementOptions)
   // Recount the actual faces after constrained placement. Distinct parallel
   // contacts are allocated before painting, including self and boundary edges.
@@ -118,8 +125,8 @@ export function renderC4Terminal(body: C4Body, config: AsciiConfig, colorMode?: 
     header(item.id, itemOwner, undefined, y); styleFrame(item, itemOwner)
   }
   if (titleBlock) doc.textBlock(5, 1, measuredText(titleBlock.lines), { owner: { id: identities.generated('c4:title', ['c4', 'title']), kind: 'label' }, role: 'text' })
-  for (const field of ['diagramMarginX', 'diagramMarginY', 'c4ShapeMargin', 'c4ShapePadding', 'width', 'height', 'boxMargin', 'nextLinePaddingX', 'wrapPadding']) if (c4Config[field] !== undefined) doc.report({ code: 'TERMINAL_FAMILY_PROJECTION', feature: `c4.config.${field}`, message: `C4 ${field} is a pixel dimension; terminal layout independently allocates measured character cells.` })
-  const legend = c4LegendEntries(body)
+  for (const field of ['diagramMarginX', 'diagramMarginY', 'c4ShapeMargin', 'c4ShapePadding', 'width', 'height', 'boxMargin', 'nextLinePaddingX', 'wrapPadding', 'maxWidth']) if (c4Config[field] !== undefined) doc.report({ code: 'TERMINAL_FAMILY_PROJECTION', feature: `c4.config.${field}`, message: `C4 ${field} is a pixel dimension; terminal layout independently allocates measured character cells.` })
+  const legend = c4LegendEntries(body, options)
   if (legend.length) {
     const top = doc.height + 2
     doc.textBlock(5, top, measuredText('Legend'), { owner: { id: identities.generated('c4:legend:title', ['c4', 'legend', 'title']), kind: 'label' }, role: 'text' })

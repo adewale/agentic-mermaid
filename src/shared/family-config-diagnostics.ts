@@ -161,6 +161,7 @@ const FAMILY_VALUE_RULES: Partial<Record<DiagramKind, Record<string, ValueRule>>
   // Keep these bounds aligned with c4/config.ts without importing the C4
   // runtime into every lazy family. Config contract tests cover both paths.
   c4: {
+    maxWidth: range(1, 10000), compact: boolean, typeLegend: boolean,
     diagramMarginX: range(0, 10000), diagramMarginY: range(0, 10000), c4ShapeMargin: range(0, 10000),
     c4ShapePadding: range(4, 10000), width: range(24, 10000), height: range(24, 10000),
     boxMargin: range(12, 10000), nextLinePaddingX: range(0, 10000), wrapPadding: range(40, 10000),

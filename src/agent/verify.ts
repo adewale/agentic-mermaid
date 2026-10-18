@@ -374,8 +374,16 @@ function c4LayoutWarnings(positioned: VerificationArtifact): LayoutWarning[] {
   try {
     const layout = positioned()?.layoutResult.positioned as PositionedC4Diagram | undefined
     if (layout?.body.kind !== 'c4') return []
-    return layout.diagnostics.map(diagnostic => {
+    return layout.diagnostics.map((diagnostic): LayoutWarning => {
       const statement = layout.body.statements.find(item => item.id === diagnostic.statementId)
+      if (diagnostic.code === 'C4_LABEL_COLLISION' || diagnostic.code === 'C4_ARROW_OCCLUDED') {
+        return {
+          code: 'CONTENT_OCCLUDED', target: statement?.entityId ?? 'C4 layout',
+          feature: diagnostic.code === 'C4_ARROW_OCCLUDED' ? 'marker' : 'label',
+          line: statement?.span.line, message: `${diagnostic.code}: ${diagnostic.message}`,
+        }
+      }
+      if (diagnostic.code === 'C4_WIDTH_EXCEEDED') return { code: 'LAYOUT_LIMIT_EXCEEDED', constraint: 'c4.maxWidth', message: `${diagnostic.code}: ${diagnostic.message}` }
       return { code: 'UNSUPPORTED_SYNTAX', line: statement?.span.line, syntax: statement?.raw ?? 'C4 layout', message: `${diagnostic.code}: ${diagnostic.message}` }
     })
   } catch { return [] } // The render-parity gate owns layout failures.

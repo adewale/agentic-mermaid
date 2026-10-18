@@ -1,6 +1,6 @@
 import type { C4Body, C4Direction, C4Diagnostic } from './types.ts'
-export interface C4Box { id: string; x: number; y: number; width: number; height: number; headerHeight?: number; container?: boolean; cylinder?: boolean }
-export interface C4PlacementOptions { gapX: number; gapY: number; padding: number; marginX: number; marginY: number; shapesPerRow: number; boundariesPerRow: number; direction: C4Direction }
+export interface C4Box { id: string; x: number; y: number; width: number; height: number; headerHeight?: number; container?: boolean; cylinder?: boolean; bottomPadding?: number }
+export interface C4PlacementOptions { gapX: number; gapY: number; padding: number; marginX: number; marginY: number; shapesPerRow: number; boundariesPerRow: number; direction: C4Direction; maxWidth?: number }
 /** Shared semantic ordering; callers independently supply pixel or cell extents. */
 export function placeC4Boxes(body: C4Body, sizes: ReadonlyMap<string, C4Box>, options: C4PlacementOptions): { boxes: Map<string, C4Box>; width: number; height: number; diagnostics: C4Diagnostic[] } {
   const boxes = new Map([...sizes].map(([id, box]) => [id, { ...box }])), diagnostics: C4Diagnostic[] = []
@@ -12,23 +12,28 @@ export function placeC4Boxes(body: C4Body, sizes: ReadonlyMap<string, C4Box>, op
     while (parents.get(id) !== parent) { if (seen.has(id)) return undefined; seen.add(id); const next = parents.get(id); if (!next) return undefined; id = next }
     return id
   }
-  const arrange = (parent: string | undefined, visiting: Set<string>): { width: number; height: number } => {
+  const arrange = (parent: string | undefined, visiting: Set<string>, availableWidth?: number): { width: number; height: number } => {
     const children = all.filter(item => item.parentId === parent && boxes.has(item.id))
     for (const child of children) if (boxes.get(child.id)!.container && !visiting.has(child.id)) {
       const next = new Set(visiting); next.add(child.id)
-      const size = arrange(child.id, next), box = boxes.get(child.id)!
+      const size = arrange(child.id, next, availableWidth === undefined ? undefined : Math.max(1, availableWidth - options.padding * 2)), box = boxes.get(child.id)!
       box.width = Math.max(box.width, size.width + options.padding * 2)
-      box.height = Math.max(box.height, size.height + (box.headerHeight ?? 0) + options.padding * 2)
+      box.height = Math.max(box.height, size.height + (box.headerHeight ?? 0) + options.padding + Math.max(options.padding, box.bottomPadding ?? 0))
     }
-    const maxPerRow = children.some(child => boxes.get(child.id)!.container) ? options.boundariesPerRow : options.shapesPerRow
+    let maxPerRow = children.some(child => boxes.get(child.id)!.container) ? options.boundariesPerRow : options.shapesPerRow
     const direction = options.direction, horizontal = direction === 'LR' || direction === 'RL'
-    let cursorX = 0, cursorY = 0, rowHeight = 0, columnWidth = 0
-    children.forEach((child, index) => {
+    if (!horizontal && availableWidth !== undefined) {
+      const widest = Math.max(1, ...children.map(child => boxes.get(child.id)!.width))
+      const columns = Math.max(1, Math.floor((availableWidth + options.gapX) / (widest + options.gapX)))
+      maxPerRow = Math.max(maxPerRow, Math.ceil(children.length / columns))
+    }
+    let cursorX = 0, cursorY = 0, rowHeight = 0, columnWidth = 0, count = 0
+    children.forEach(child => {
       const box = boxes.get(child.id)!
-      if (index && index % maxPerRow === 0) { if (horizontal) { cursorX = 0; cursorY += rowHeight + options.gapY; rowHeight = 0 } else { cursorY = 0; cursorX += columnWidth + options.gapX; columnWidth = 0 } }
+      if (count && (count >= maxPerRow || horizontal && availableWidth !== undefined && cursorX + box.width > availableWidth)) { if (horizontal) { cursorX = 0; cursorY += rowHeight + options.gapY; rowHeight = 0 } else { cursorY = 0; cursorX += columnWidth + options.gapX; columnWidth = 0 }; count = 0 }
       box.x = cursorX; box.y = cursorY
       if (horizontal) cursorX += box.width + options.gapX; else cursorY += box.height + options.gapY
-      rowHeight = Math.max(rowHeight, box.height); columnWidth = Math.max(columnWidth, box.width)
+      rowHeight = Math.max(rowHeight, box.height); columnWidth = Math.max(columnWidth, box.width); count++
     })
     // Explicit directional statements constrain separate axes, so mixed left/up
     // relations do not incorrectly reverse semantic arrows or disappear.
@@ -63,7 +68,7 @@ export function placeC4Boxes(body: C4Body, sizes: ReadonlyMap<string, C4Box>, op
     }
     return { width: Math.max(0, ...children.map(child => { const b = boxes.get(child.id)!; return b.x + b.width })), height: Math.max(0, ...children.map(child => { const b = boxes.get(child.id)!; return b.y + b.height })) }
   }
-  const extent = arrange(undefined, new Set())
+  const extent = arrange(undefined, new Set(), options.maxWidth === undefined ? undefined : Math.max(1, options.maxWidth - options.marginX * 2))
   const absolute = (parent: string | undefined, x: number, y: number, seen: Set<string>) => {
     for (const child of all.filter(item => item.parentId === parent)) { const box = boxes.get(child.id); if (!box || seen.has(child.id)) continue; seen.add(child.id); box.x += x; box.y += y; if (box.container) absolute(child.id, box.x + options.padding, box.y + (box.headerHeight ?? 0) + options.padding, seen) }
   }
