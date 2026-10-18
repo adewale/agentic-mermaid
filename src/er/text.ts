@@ -18,11 +18,11 @@
 // writeErRelationLabel, so reading what they write gives the text back.
 // ============================================================================
 
-import { normalizeBrTags } from '../multiline-utils.ts'
+import { breakLineTags, normalizeBrTags } from '../multiline-utils.ts'
 import { encodeMermaidEntities, encodeMermaidAuthoredEntities } from '../shared/mermaid-entities.ts'
 import { decodeMermaidEntities, type EntityRefusal } from '../shared/mermaid-entity-display.ts'
 import { syntaxError } from '../shared/syntax-error.ts'
-import { prepareDisplayText, replaceDisplayTextTokens, type LabelContent } from '../shared/display-text.ts'
+import { prepareDisplayText, preparedDisplayTextValue, replaceDisplayTextTokens, resolveLabelContent, type LabelContent } from '../shared/display-text.ts'
 
 const ER_ENTITY_REFUSAL: EntityRefusal = { subject: 'ER text entity', example: 'A["I #9829; ER"]' }
 
@@ -107,6 +107,13 @@ export function erTextLabel(authored: string, display = false): { label: string;
   const label = display ? erDisplayText(authored) : decodeErText(authored)
   const labelContent = erTextContent(authored, label)
   return { label, ...(labelContent ? { labelContent } : {}) }
+}
+
+/** An attribute comment as drawn on its row: line breaks become spaces. */
+export function erCommentText(comment: string, content?: LabelContent): string {
+  const prepared = resolveLabelContent(comment, content)
+  if (typeof prepared !== 'string') return preparedDisplayTextValue(prepared).replace(/\s+/g, ' ').trim()
+  return breakLineTags(comment).replace(/\s+/g, ' ').trim()
 }
 
 function writeErText(text: string, reserved: string, content?: LabelContent): string {

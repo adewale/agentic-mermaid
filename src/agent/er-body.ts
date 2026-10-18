@@ -15,13 +15,14 @@
 // ============================================================================
 
 import { unknownOpMessage } from './mutation-ops.ts'
+import { decodeXML } from 'entities'
 import type {
   ErBody, ErEntity, ErRelation, ErCardinality, ErAttribute, ErStatement, ErGroup,
   ErMutationOp, MutationError, Result, LayoutWarning, VerifyOptions,
 } from './types.ts'
 import { ok, err } from './types.ts'
 import { labelOverflowCollector } from './body-utils.ts'
-import { resolveLabelContent } from '../shared/display-text.ts'
+import { prepareDisplayText, resolveLabelContent } from '../shared/display-text.ts'
 import {
   parseErAttribute,
   parseErEntityId,
@@ -32,7 +33,7 @@ import {
   readErStatements,
 } from '../er/parser.ts'
 import { createErCreationFold, type ErCreationFold } from '../er/creation.ts'
-import { decodeErText, erTextLabel, writeErName, writeErRelationLabel, writeErTitle } from '../er/text.ts'
+import { decodeErText, erCommentText, erTextLabel, writeErName, writeErRelationLabel, writeErTitle } from '../er/text.ts'
 import { parseAccessibilityDirective } from '../shared/accessibility-directives.ts'
 import { parseMutableStyleProps, serializeStyleProps, unsafeStylePaintError } from '../shared/style-props.ts'
 
@@ -705,7 +706,12 @@ export function verifyErBody(body: ErBody, opts: VerifyOptions): LayoutWarning[]
   for (const e of body.entities) {
     if (e.label) overflow(e.id, resolveLabelContent(e.label, e.labelContent))
     for (let i = 0; i < e.attributes.length; i++) {
-      overflow(`${e.id}#a${i}`, e.attributes[i]!.text)
+      const attr = parseErAttribute(decodeXML(e.attributes[i]!.text))
+      if (!attr) continue
+      // Each column is a literal label. Separate lines let the shared cap
+      // measure the widest column once, without counting grammar or padding.
+      const columns = [attr.type, attr.name, attr.keys.join(','), erCommentText(attr.comment ?? '', attr.commentContent)]
+      overflow(`${e.id}#a${i}`, prepareDisplayText(columns.join('\n'), 'literal'))
     }
   }
   for (let i = 0; i < body.relations.length; i++) {

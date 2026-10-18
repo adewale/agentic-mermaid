@@ -1,4 +1,4 @@
-import { resolveLabelContent, preparedDisplayTextValue, type DisplayTextInput, type LabelContent } from '../shared/display-text.ts'
+import { resolveLabelContent, type DisplayTextInput } from '../shared/display-text.ts'
 import { preparePixelText, type PixelTextBlock } from '../shared/prepared-text.ts'
 import { resolveRoleStyle } from '../scene/style-registry.ts'
 /**
@@ -21,7 +21,8 @@ import { elkLayoutSync } from '../elk-instance.ts'
 import { directionToElk } from '../layout-engine.ts'
 import { checkedAuthoredStyle } from '../shared/style-props.ts'
 import { configSpacing } from '../class/layout.ts'
-import { breakLineTags } from '../multiline-utils.ts'
+import { erCommentText } from './text.ts'
+export { erCommentText } from './text.ts'
 
 /** Layout constants for ER diagrams */
 const ER = {
@@ -146,13 +147,6 @@ export function erCommentColumnWidth(attributes: readonly ErAttribute[]): number
   const widths = attributes.map(attr => attr.comment ? erAttributeBlocks(attr).comment!.width : 0)
   const widest = Math.max(0, ...widths)
   return widest > 0 ? widest + ER_COMMENT_GAP : 0
-}
-
-/** An attribute comment as drawn on its row: line breaks become spaces. */
-export function erCommentText(comment: string, content?: LabelContent): string {
-  const prepared = resolveLabelContent(comment, content)
-  if (typeof prepared !== 'string') return preparedDisplayTextValue(prepared).replace(/\s+/g, ' ').trim()
-  return breakLineTags(comment).replace(/\s+/g, ' ').trim()
 }
 
 /** Build ELK graph and size map from an ER diagram. */
