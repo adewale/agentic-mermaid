@@ -3,7 +3,7 @@ import { type CheckMermaidSpec, checkMermaidSource } from '../../src/agent/facts
 import { parseRegisteredMermaid as parseMermaid } from '../../src/agent/parse.ts'
 import { serializeMermaid } from '../../src/agent/serialize.ts'
 import { verifyMermaid } from '../../src/agent/verify.ts'
-import { asArchitecture, asClass, asEr, asFlowchart, asGantt, asGitGraph, asJourney, asMindmap, asPie, asQuadrant, asRadar, asSankey, asSequence, asState, asTimeline, asXyChart, type DiagramKind, type ParsedDiagram } from '../../src/agent/types.ts'
+import { asArchitecture, asC4, asClass, asEr, asFlowchart, asGantt, asGitGraph, asJourney, asMindmap, asPie, asQuadrant, asRadar, asSankey, asSequence, asState, asTimeline, asXyChart, type DiagramKind, type ParsedDiagram } from '../../src/agent/types.ts'
 import { executeInSandbox } from '../../src/mcp/sandbox.ts'
 import { type AntiPattern, lintAgentTrace, type SdkCall } from './harness.ts'
 import { buildHomepageAgentPromptTask } from './homepage-prompt.ts'
@@ -52,6 +52,8 @@ export interface AgentUsageEvalSummary {
 function promptTask(task: string, context: string, source?: string): string {
   return buildHomepageAgentPromptTask(task, context, source)
 }
+
+const C4_CACHE_INPUT = 'C4Container\nSystem_Boundary(platform, "Platform") {\n  Container(api, "API", "TypeScript", "Serves requests")\n  ContainerDb(db, "DB", "PostgreSQL", "Stores records")\n}\nRel(api, db, "Reads", "SQL")'
 
 export const DEFAULT_CASES: AgentUsageEvalCase[] = [
   {
@@ -363,6 +365,29 @@ export const DEFAULT_CASES: AgentUsageEvalCase[] = [
     `,
   },
   {
+    id: 'c4_add_cache_container',
+    family: 'c4',
+    prompt: promptTask(
+      'Add a Cache container inside the existing Platform boundary using structured mutation, verify, then serialize.',
+      'Use alias cache, label Cache, technology Redis, and description Caches responses. Add an API to Cache relationship labeled Reads cache with technology Redis. Preserve the API and database, their full labels, technologies and descriptions, their Platform membership, and the existing Reads relationship.',
+      C4_CACHE_INPUT,
+    ),
+    input: C4_CACHE_INPUT,
+    script: `
+      const r0 = mermaid.parseRegisteredMermaid(${JSON.stringify(C4_CACHE_INPUT)})
+      if (!r0.ok) return { error: 'parse' }
+      const c4 = mermaid.asC4(r0.value)
+      if (!c4) return { error: 'not-c4' }
+      const r1 = mermaid.mutate(c4, { kind: 'add_element', element: { id: 'cache', macro: 'Container', label: 'Cache', technology: 'Redis', description: 'Caches responses', parentId: 'platform' } })
+      if (!r1.ok) return { error: r1.error }
+      const r2 = mermaid.mutate(r1.value, { kind: 'add_relationship', relationship: { from: 'api', to: 'cache', label: 'Reads cache', technology: 'Redis' } })
+      if (!r2.ok) return { error: r2.error }
+      const verify = mermaid.verifyMermaid(r2.value)
+      if (!verify.ok) return { error: 'verify', warnings: verify.warnings }
+      return { source: mermaid.serializeMermaid(r2.value) }
+    `,
+  },
+  {
     id: 'author_auth_flow_source',
     family: 'flowchart',
     prompt: promptTask(
@@ -396,9 +421,10 @@ export const DEFAULT_CASES: AgentUsageEvalCase[] = [
 // Knowledge-proof cases: the correct output depends on facts only the
 // Agentic Mermaid docs/tooling carry (canonical serialization rules, the
 // opaque-fallback contract), so a no-docs agent fails on taskOk. The stored
-// DEFAULT_CASES saturate — every arm including the isolated no-docs baseline
-// passes them on model knowledge (claude-subagent-2026-07-04-none-iso-*) —
-// so surface comparisons need these to rank surfaces by task outcome.
+// cases in the July 4 capture saturate — every arm including the isolated
+// no-docs baseline passes that recorded population on model knowledge
+// (claude-subagent-2026-07-04-none-iso-*). Later additions such as C4 are not
+// historical results; surface comparisons need fresh captures to grade them.
 // Not part of DEFAULT_CASES: the render-quality and family-coverage suites
 // iterate DEFAULT_CASES, and these two exist for surface comparison only.
 const KNOWLEDGE_MESSY_FLOWCHART = 'flowchart TD\n    api["API"]   -->    db["DB"]\n    api --> logs["Log store\\nretention: 30 days"]'
@@ -408,9 +434,9 @@ const KNOWLEDGE_STRAY_END_SEQUENCE = 'sequenceDiagram\n  A->>B: hi\n  end\n  B--
 // Mermaid source directly (no mutation ceremony), parse, verify, return it.
 // Together with the structured mutate cases in DEFAULT_CASES (plus the two
 // author_* cases there for flowchart/sequence), these cover every registered
-// family. Kept OUT of DEFAULT_CASES so the deterministic baseline and the
-// committed all-family transcript still pin DEFAULT_CASES exactly; the subagent
-// eval pool includes them so live models can be graded on authoring.
+// family. Kept OUT of DEFAULT_CASES to separate the additional authoring cases
+// from the default deterministic run. Historical captures retain their recorded
+// case population; the current subagent pool includes all current families.
 function authorCase(id: string, family: DiagramKind, task: string, context: string, source: string): AgentUsageEvalCase {
   return {
     id,
@@ -526,6 +552,13 @@ export const CREATE_CASES: AgentUsageEvalCase[] = [
     'An energy sankey: Coal flows 127.93 into Electricity; Gas flows 151.89 into Electricity; Electricity flows 223.13 into Homes and 56.69 into Losses.',
     'sankey-beta\n  Coal,Electricity,127.93\n  Gas,Electricity,151.89\n  Electricity,Homes,223.13\n  Electricity,Losses,56.69',
   ),
+  authorCase(
+    'author_c4_source',
+    'c4',
+    'Create a new C4 context diagram from the context as Mermaid source, verify it, then return the source. Do not use mutate because there is no existing diagram to preserve.',
+    'Show a Customer person described as Places orders, a Shop system described as Sells products, and an external Payments system described as Processes payments. Customer Uses Shop, and Shop Charges Payments. Keep the arrow directions and the external-system distinction.',
+    'C4Context\nPerson(customer, "Customer", "Places orders")\nSystem(shop, "Shop", "Sells products")\nSystem_Ext(payments, "Payments", "Processes payments")\nRel(customer, shop, "Uses")\nRel(shop, payments, "Charges")',
+  ),
 ]
 
 /** The live-model suite: exactly one create and one mutate case per family. */
@@ -631,6 +664,7 @@ const STRUCTURED_CASES = new Set([
   'gitgraph_add_release_commit',
   'radar_add_beta_curve',
   'sankey_add_losses_flow',
+  'c4_add_cache_container',
 ])
 
 type MutableFamily = Extract<SdkCall, { verb: 'narrow' }>['family']
@@ -736,6 +770,7 @@ function checkTrace(id: string, input: string | undefined, trace: SdkCall[]): bo
   if (id === 'sequence_alt_add_message') return checkMutationTrace(id, input, 'sequence', trace) && hasMutationOps(trace, input, ['add_message'])
   if (id === 'radar_add_beta_curve') return checkMutationTrace(id, input, 'radar', trace) && hasMutationOps(trace, input, ['add_curve'])
   if (id === 'sankey_add_losses_flow') return checkMutationTrace(id, input, 'sankey', trace) && hasMutationOps(trace, input, ['add_link'])
+  if (id === 'c4_add_cache_container') return checkMutationTrace(id, input, 'c4', trace) && hasMutationOps(trace, input, ['add_element', 'add_relationship'])
   return false
 }
 
@@ -892,6 +927,15 @@ const CREATE_ORACLES: Record<string, (source: string) => boolean> = {
     const rows = new Set(b?.links.map(l => `${l.source}->${l.target}:${l.value}`))
     return Boolean(['Coal->Electricity:127.93', 'Gas->Electricity:151.89', 'Electricity->Homes:223.13', 'Electricity->Losses:56.69'].every(row => rows.has(row)))
   },
+  author_c4_source: s => {
+    const b = narrow(s, asC4)?.body
+    const customer = b?.elements.find(e => e.label === 'Customer' && e.kind === 'person' && !e.external && e.description === 'Places orders')
+    const shop = b?.elements.find(e => e.label === 'Shop' && e.kind === 'system' && !e.external && e.description === 'Sells products')
+    const payments = b?.elements.find(e => e.label === 'Payments' && e.kind === 'system' && e.external && e.description === 'Processes payments')
+    return Boolean(b?.variant === 'C4Context' && customer && shop && payments
+      && b.relationships.some(r => r.source === customer.id && r.target === shop.id && r.label === 'Uses' && !r.bidirectional)
+      && b.relationships.some(r => r.source === shop.id && r.target === payments.id && r.label === 'Charges' && !r.bidirectional))
+  },
 }
 
 function checkTask(id: string, input: string | undefined, value: unknown, trace: SdkCall[], sourceOnly = false): boolean {
@@ -1035,6 +1079,22 @@ function checkTask(id: string, input: string | undefined, value: unknown, trace:
     const rows = new Set(body?.links.map(l => `${l.source}->${l.target}:${l.value}`))
     // The Losses flow landed and every existing row survives.
     return Boolean(body && rows.has('Electricity->Losses:56.69') && rows.has('Coal->Electricity:127.93') && rows.has('Gas->Electricity:151.89') && rows.has('Electricity->Homes:223.13'))
+  }
+  if (id === 'c4_add_cache_container') {
+    const source = serializedSource(value, trace)
+    const body = source ? narrow(source, asC4)?.body : undefined
+    if (!body || body.variant !== 'C4Container') return false
+    const platform = body.boundaries.find(b => b.id === 'platform' && b.kind === 'system' && b.label === 'Platform' && !b.parentId)
+    const expectedElements = [
+      { id: 'api', label: 'API', technology: 'TypeScript', description: 'Serves requests', shape: 'rectangle' },
+      { id: 'db', label: 'DB', technology: 'PostgreSQL', description: 'Stores records', shape: 'database' },
+      { id: 'cache', label: 'Cache', technology: 'Redis', description: 'Caches responses', shape: 'rectangle' },
+    ]
+    return Boolean(platform && expectedElements.every(expected => body.elements.some(e => e.id === expected.id
+      && e.label === expected.label && e.technology === expected.technology && e.description === expected.description
+      && e.shape === expected.shape && e.kind === 'container' && !e.external && e.parentId === platform.id))
+      && body.relationships.some(r => r.source === 'api' && r.target === 'db' && r.label === 'Reads' && r.technology === 'SQL' && !r.bidirectional)
+      && body.relationships.some(r => r.source === 'api' && r.target === 'cache' && r.label === 'Reads cache' && r.technology === 'Redis' && !r.bidirectional))
   }
   if (id === 'sequence_alt_add_message') {
     const source = serializedSource(value, trace)

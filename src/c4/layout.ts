@@ -26,7 +26,7 @@ export function layoutC4Diagram(body: C4Body, options: RenderOptions & { diagram
   }
   const nodes: PositionedNode[] = body.elements.map(item => {
     const label = c4ElementText(item), labelBlock = text(item, label), shape = effectiveC4Shape(item), glyphHeight = shape === 'person' ? 38 : shape === 'database' ? 16 : 0
-    let width = Math.max(config.minimumWidth, labelBlock.width + (c4Config.c4ShapePadding === undefined ? style.nodePaddingX : config.padding) * 2 + (shape === 'queue' ? 20 : 0)), height = Math.max(config.minimumHeight, labelBlock.height + (c4Config.c4ShapePadding === undefined ? style.nodePaddingY : config.padding) * 2 + glyphHeight)
+    let width = Math.max(config.minimumWidth, labelBlock.width + (config.input.c4ShapePadding === undefined ? style.nodePaddingX : config.padding) * 2 + (shape === 'queue' ? 20 : 0)), height = Math.max(config.minimumHeight, labelBlock.height + (config.input.c4ShapePadding === undefined ? style.nodePaddingY : config.padding) * 2 + glyphHeight)
     sizes.set(item.id, { id: item.id, x: 0, y: 0, width, height, ...(shape === 'database' ? { cylinder: true } : {}) })
     return { ...graph.nodes.get(item.id)!, x: 0, y: 0, width, height, labelBlock, inlineStyle: graph.nodeStyles.get(item.id) }
   })

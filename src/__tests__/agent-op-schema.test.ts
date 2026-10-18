@@ -213,6 +213,7 @@ describe('schema covers every mutable family (§11)', () => {
     gitgraph: { kind: 'append_commit', id: 'first' },
     radar: { kind: 'add_axis', id: 'a' },
     sankey: { kind: 'add_link', source: 'A', target: 'B', value: 1 },
+    c4: { kind: 'add_element', element: { id: 'service', label: 'Service', kind: 'system' } },
   }
 
   test('every family in MUTATION_OPS_BY_FAMILY has a schema and builds a valid op', () => {

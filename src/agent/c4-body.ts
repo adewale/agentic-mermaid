@@ -11,6 +11,7 @@ import type {
 import type { Accessibility, LayoutWarning, MutationError, Result, SourceMap, VerifyOptions } from './types.ts'
 import { err, ok } from './types.ts'
 import { labelOverflowCollector } from './body-utils.ts'
+import { unknownOpMessage } from './mutation-ops.ts'
 
 export { emptyC4Body }
 
@@ -492,7 +493,7 @@ export function mutateC4(body: C4Body, op: C4MutationOp): Result<C4Body, Mutatio
         if (!next.directives.some(record => record.id === op.id)) missing('directive', op.id)
         next.directives = next.directives.filter(record => record.id !== op.id); break
       }
-      default: throw new Error(`Unknown C4 mutation ${(op as { kind: string }).kind}`)
+      default: throw new Error(unknownOpMessage('c4', op))
     }
     reallocateRelationships(next)
     resolveC4Directives(next)

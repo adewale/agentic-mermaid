@@ -158,6 +158,16 @@ const FAMILY_VALUE_RULES: Partial<Record<DiagramKind, Record<string, ValueRule>>
     showBranches: boolean, showCommitLabel: boolean, parallelCommits: boolean, rotateCommitLabel: boolean,
     mainBranchName: nonEmptyString, mainBranchOrder: finite,
   },
+  // Keep these bounds aligned with c4/config.ts without importing the C4
+  // runtime into every lazy family. Config contract tests cover both paths.
+  c4: {
+    diagramMarginX: range(0, 10000), diagramMarginY: range(0, 10000), c4ShapeMargin: range(0, 10000),
+    c4ShapePadding: range(4, 10000), width: range(24, 10000), height: range(24, 10000),
+    boxMargin: range(12, 10000), nextLinePaddingX: range(0, 10000), wrapPadding: range(40, 10000),
+    c4ShapeInRow: rule('an integer from 1 through 10000', value => Number.isSafeInteger(value) && range(1, 10000).valid(value)),
+    c4BoundaryInRow: rule('an integer from 1 through 10000', value => Number.isSafeInteger(value) && range(1, 10000).valid(value)),
+    wrap: boolean,
+  },
 }
 
 const XY_AXIS_VALUE_RULES: Record<string, ValueRule> = {
@@ -220,6 +230,16 @@ export function familyConfigValueDiagnostics(
   if (!config) return diagnostics
   for (const [key, valueRule] of Object.entries(FAMILY_VALUE_RULES[kind] ?? {})) {
     if (key in config && !valueRule.valid(config[key])) warn(`${spec.section}.${key}`, valueRule.expected)
+  }
+  if (kind === 'c4') {
+    const noop = new Set(spec.noopKeys ?? [])
+    for (const key of spec.keys) {
+      if (!(key in config) || noop.has(key) || !/Font(?:Size|Weight)$/.test(key)) continue
+      const value = config[key]
+      const numeric = /FontWeight$/.test(key) && typeof value === 'string' && /^\d+$/.test(value) ? Number(value) : value
+      const maximum = /FontWeight$/.test(key) ? 1000 : 10000
+      if (!range(1, maximum).valid(numeric)) warn(`${spec.section}.${key}`, `a finite number from 1 through ${maximum}`)
+    }
   }
   if (kind === 'xychart') {
     for (const axis of ['xAxis', 'yAxis'] as const) {

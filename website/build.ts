@@ -644,8 +644,11 @@ function addSvgAccessibleName(svg: string, idBase: string, title: string, desc: 
   const safeId = idBase.replace(/[^a-z0-9_-]+/gi, '-')
   const titleId = `${safeId}-svg-title`
   const descId = `${safeId}-svg-desc`
-  return svg.replace(/^<svg\b([^>]*)>/, (_full, attrs: string) => {
-    const cleanAttrs = attrs.replace(/\saria-labelledby="[^"]*"/g, '')
+  // The website owns the card's root name. Replace the renderer's immediate
+  // root title/description as well as its references, keeping descendant names.
+  const unnamed = svg.replace(/^(<svg\b[^>]*>)(?:\s*<(title|desc)\b[^>]*>[\s\S]*?<\/\2>)+/, '$1')
+  return unnamed.replace(/^<svg\b([^>]*)>/, (_full, attrs: string) => {
+    const cleanAttrs = attrs.replace(/\saria-(?:label|labelledby|describedby)="[^"]*"/g, '')
     const role = /\brole=/.test(cleanAttrs) ? '' : ' role="img"'
     return `<svg${cleanAttrs}${role} aria-labelledby="${titleId} ${descId}"><title id="${titleId}">${escapeHtml(title)}</title><desc id="${descId}">${escapeHtml(desc)}</desc>`
   })

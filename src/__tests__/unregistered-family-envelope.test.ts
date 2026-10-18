@@ -18,12 +18,12 @@ import { executeInSandbox } from '../mcp/sandbox.ts'
 
 const CASES = [
   {
-    source: '---\ntitle: Deployment\n---\n%%{init: {"theme":"base"}}%%\n%% keep me\nC4Deployment\n  Deployment_Node(a, "A")\n',
+    source: '---\ntitle: Requirements\n---\n%%{init: {"theme":"base"}}%%\n%% keep me\nrequirementDiagram\n  requirement r {\n    id: 1\n    text: Preserved requirement\n    risk: low\n    verifymethod: test\n  }\n',
     code: 'UNSUPPORTED_FAMILY',
-    classification: 'inventory-only',
+    classification: 'unsupported',
     representation: 'opaque',
-    header: 'C4Deployment',
-    family: 'c4',
+    header: 'requirementDiagram',
+    family: 'requirement',
   },
   {
     source: '\uFEFF\n%% untouched\nfutureDiagram-v99\n  opaque { bytes }\n',
@@ -132,9 +132,9 @@ describe('forward-compatible unregistered family envelopes', () => {
         code: 'UNKNOWN_HEADER',
       },
       {
-        source: 'C4&#68;eployment\n  Deployment_Node(a, "A")\n',
-        authoredHeader: 'C4&#68;eployment',
-        semanticHeader: 'C4Deployment',
+        source: 'requirement&#68;iagram\n  requirement r {\n    id: 1\n    text: Preserved requirement\n    risk: low\n    verifymethod: test\n  }\n',
+        authoredHeader: 'requirement&#68;iagram',
+        semanticHeader: 'requirementDiagram',
         code: 'UNSUPPORTED_FAMILY',
       },
     ] as const

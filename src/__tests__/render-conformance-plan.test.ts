@@ -118,7 +118,9 @@ describe('registry-derived complexity-aware render conformance plan', () => {
       switch (row.format) {
         case 'svg': assertSvg(renderMermaidSVG(row.source, row.options), context); break
         case 'png': {
-          const png = renderMermaidPNG(row.source, { ...row.options, onWarning: () => {} })
+          // Complex family layouts can exceed the raster budget at their
+          // natural pixel size; exercise the public bounded-size projection.
+          const png = renderMermaidPNG(row.source, { ...row.options, fitTo: { width: 1024 }, onWarning: () => {} })
           expect([...png.slice(0, 8)], context).toEqual([137, 80, 78, 71, 13, 10, 26, 10])
           break
         }

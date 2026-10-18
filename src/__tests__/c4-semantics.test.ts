@@ -6,7 +6,7 @@ import type { C4Body, C4MutationOp } from '../c4/types.ts'
 import { startUpstreamMermaid } from './helpers/upstream-mermaid.ts'
 import { projectEntityMarkers } from '../shared/mermaid-entity-display.ts'
 import { breakLineTags } from '../multiline-utils.ts'
-import { parseRegisteredMermaid, serializeMermaid } from '../agent/index.ts'
+import { layoutMermaid, parseRegisteredMermaid, serializeMermaid } from '../agent/index.ts'
 import { renderMermaidSVG, renderMermaidASCII } from '../index.ts'
 import { c4ShapeOverride, effectiveC4Shape } from '../c4/config.ts'
 
@@ -25,6 +25,9 @@ describe('C4 authored semantics', () => {
     expect(body.elements[0]).toMatchObject({ kind: 'system', external: true, shape: 'rectangle', macro: 'System_Ext', style: { shape: 'database' } })
     expect(renderC4(body)).toBe(source)
     expect(renderMermaidSVG(source)).toContain('<ellipse')
+    const parsed = parseRegisteredMermaid(source)
+    if (!parsed.ok) throw new Error(JSON.stringify(parsed.error))
+    expect(layoutMermaid(parsed.value).nodes[0]!.shape).toBe('database')
     expect(body.diagnostics.some(record => record.message.includes('style shape'))).toBe(false)
     const terminal = renderMermaidASCII(source, { useAscii: true, colorMode: 'none' })
     expect(terminal).not.toBe(renderMermaidASCII('C4Context\nSystem_Ext(a,"Storage")', { useAscii: true, colorMode: 'none' }))

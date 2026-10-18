@@ -66,6 +66,100 @@ and test lineage. They do not establish Pele as a Beautiful/Agentic fork.
 Agentic and Zombie do descend from Beautiful; the related terminal projects and
 C4 proposals below supply behavioral examples with their own ancestry.
 
+### Fresh performance observations
+
+Measured 18 October on shared Linux x86_64 (AMD EPYC 9V74, 5 vCPU),
+Node 24.19.0, with sequential public API calls. Comparators were Beautiful npm
+1.1.3 (`65f4e0ab8c289e9691a9e5bc4f9eac7108cf449b`), Zombie npm 5.7.1
+(`3e688e4e5e00ec9f92444af4757e0ec7c449e84b`), and Pele npm 1.6.0.
+Zombie current source `3610098ca328947cd252ebc6ee36934850cacbb1` was
+spot-checked separately; its source-bundle timings are not package startup data.
+Agentic is this PR's 0.4.2 source build, not the published 0.4.1 package. The
+principal matrix precedes the final configuration/metadata refinements; the
+isolated three-case comparison below includes the final SVG fast-path guard.
+
+The six matched inputs contain 5 nodes/6 edges, 50- and 100-node ternary trees,
+a seeded 50-node/69-edge mesh with 20 labels, a 20-message sequence, and a
+3-element/2-interaction C4. Tree/mesh generators follow
+[Pele's existing benchmark](https://github.com/obsidianmd/pele/blob/458322a5b8abb1ae57ddf127c32017ab9fb14a92/scripts/bench.mjs),
+with explicit labels for coverage checks. Five warmups precede 15–120 timed
+calls (400ms target, minimum 15); each consumes UTF-8 bytes and SHA-256 of the
+returned output. Receipt paths and Pele's object result serialize the entire
+returned object. Successful timings retain all expected labels; this does not
+establish arbitrary topology or aesthetic quality.
+
+| Warm Node median, milliseconds | Agentic SVG text | Agentic complete SVG receipt | Beautiful SVG | Zombie SVG | Pele complete result |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| Five-node flow | 18.31 | 18.95 | 5.14 | 3.90 | 0.30 |
+| Tree, 50 nodes | 78.48 | 86.30 | 21.09 | 19.19 | 0.74 |
+| Mesh, 50 nodes | 1044.46 | 817.38 | 42.12 | 37.08 | 1.78 |
+| Sequence, 20 messages | 24.53 | 20.73 | 0.09 | 0.25 | 0.15 |
+| Simple C4 | 12.46 | 9.85 | Unsupported | 0.19 | 0.08 |
+| Tree, 100 nodes | 196.42 | 184.76 | 64.73 | 58.80 | 1.55 |
+
+Each column runs in its own process/JIT/GC state. The text/receipt differences
+do not imply that consuming extra data makes execution faster; SVG text already
+constructs its receipt. Agentic remains substantially slower on these samples.
+Its additional contracts explain some cost, while profiling identifies material
+avoidable work. Richer semantics do not excuse the measured speed gap.
+
+The shared Scene-admission and SVG-postpass changes were isolated in a paired
+A/B using identical source/dependencies and build mode: 20 warmups, seven
+alternating rounds of 20 calls. Complete SVG and receipt bytes matched. Median
+time fell 17.395→13.675ms for the five-node flow, 31.604→20.951ms for the
+sequence and 13.612→10.451ms for C4 (21.4%, 33.7%, 23.2%). The CDATA overlap
+guard preserves the prior behavior for nested lexical ranges; common disjoint
+outputs retain byte parity. The final paired run includes that guard and
+complete output/receipt parity. These are three bounded improvements, not a
+cross-product speed claim. Complete terminal receipts changed only by
+noise-sized variation; no terminal speedup is claimed from these changes.
+
+| Warm terminal median, milliseconds | Agentic text | Agentic complete receipt | Beautiful text | Zombie text |
+| --- | ---: | ---: | ---: | ---: |
+| Five-node flow | 4.30 | 24.17 | 0.51 | 0.85 |
+| Tree, 50 nodes | 42.25 | 131.80 | 151.78 | 12.41 |
+| Mesh, 50 nodes | 53.57 | 844.76 | Excluded: 12 labels absent | 28.55 |
+| Sequence, 20 messages | 4.01 | 25.55 | 0.12 | 0.31 |
+| Simple C4 | 4.31 | 11.03 | Unsupported | 0.26 |
+| Tree, 100 nodes | 167.08 | 359.20 | 739.88 | 44.06 |
+
+Pele and Mermaid have no native terminal API. Beautiful's mesh output loses
+expected labels, so it is excluded from successful timings. Agentic terminal
+receipts deliberately consume additional pixel/connector evidence; comparing a
+text-only result with a fully consumed receipt hides substantial work.
+
+Five fresh Node processes per engine, alternating order with warm filesystem
+caches, measured spawn through successful five-node SVG output and exit:
+Agentic 525ms, Beautiful 242ms, Zombie 262ms, Pele 73ms. Main-entry import alone
+was 282/72/35/25ms respectively. Median peak process RSS was
+109.2/77.8/76.3/36.7 MiB; this includes the runtime and layout dependencies,
+and is not a retained-memory or leak measurement.
+
+In the same Chromium 154 browser, five-node public SVG calls took medians of
+20.0ms for Agentic lazy, 0.4ms for Pele lazy and 32.7ms for Mermaid 11.16.1.
+This consumes output bytes, not painting/rasterization. Mermaid's C4 median was
+5.5ms. Browser and Node rows must not be combined into one ratio.
+
+Actual browser JS requests, gzip level 9 per fetched file:
+
+| Lazy entry | Initial requests / bytes | Cumulative first-flow requests / bytes |
+| --- | ---: | ---: |
+| Agentic | 4 / 4,483 | 28 / 679,769 |
+| Pele | 5 / 14,803 | 16 / 54,020 |
+| Mermaid | 17 / 170,567 | 27 / 223,952 |
+
+Agentic's small loader does not make its usable flow renderer smaller. These
+JS-only transfer estimates exclude fonts/HTML/maps and do not measure network
+latency. Browser distributions for Beautiful/Zombie were not invented for this
+table. Historical benchmark tables elsewhere retain their original environments,
+versions and populations.
+
+The next performance priority is to profile dense routing separately while
+retaining connectivity, obstacle clearance, labels and certification. Narrow
+Node startup entries and smaller usable browser closures are separate work.
+Reuse validated immutable evidence and structural passes; do not remove security
+or receipt work merely to improve a text-only benchmark.
+
 The three-project comparison below retains its original dated evidence.
 
 Use this page to decide which of the three projects fits your task. The

@@ -92,6 +92,22 @@ function structuredBodyInventory(d: ParsedDiagram): SemanticInventory {
     }
   }
   switch (body.kind) {
+    case 'c4':
+      return {
+        nodes: sorted(body.elements.map(element => item(element.id, element.label))),
+        edges: sorted(body.relationships.map(relationship => {
+          const index = relationship.index ?? (body.variant === 'C4Dynamic' ? String(relationship.order) : undefined)
+          const label = [
+            `${index === undefined ? '' : `${index}: `}${relationship.label}`,
+            relationship.technology ? `[${relationship.technology}]` : undefined,
+            relationship.description,
+            relationship.tags.length ? `[tags: ${relationship.tags.join(', ')}]` : undefined,
+            relationship.sprite ? `[sprite: ${relationship.sprite}]` : undefined,
+          ].filter(value => value !== undefined && value !== '').join('\n')
+          return edge(relationship.source, relationship.target, label)
+        })),
+        groups: sorted(body.boundaries.map(boundary => group(boundary.id, boundary.label, body.elements.filter(element => element.parentId === boundary.id).map(element => element.id)))),
+      }
     case 'sequence':
       return {
         nodes: sorted(body.participants.map(p => item(p.id, p.label))),

@@ -3,7 +3,8 @@
 // Colour relations live in property-invariance-colour.test.ts.
 //
 //   MR6 Comment/blank-line insertion — full-line `%%` comments and blank lines
-//       between statements do not change a byte of the SVG. Insertions the
+//       between statements do not change the drawing. Physical source lines
+//       and the whole-output style-scope hash may change. Insertions the
 //       pinned upstream grammar refuses are excluded, each with its reason.
 //   MR7 Chain equivalence (flowchart) — `A --> B --> C` says exactly what
 //       `A --> B` plus `B --> C` says, down to identical geometry.
@@ -14,6 +15,7 @@ import { asFlowchart, describeMermaidFacts, layoutMermaid, parseRegisteredMermai
 import type { DiagramKind, ParsedDiagram } from '../agent/types.ts'
 import { type FamilyMetamorphic, METAMORPHIC_FAMILIES } from './helpers/metamorphic-families.ts'
 import { startUpstreamMermaid, type UpstreamMermaid } from './helpers/upstream-mermaid.ts'
+import { normalizeSvg } from './helpers/svg-normalize.ts'
 
 const FAMILIES = Object.values(METAMORPHIC_FAMILIES)
 const tagArb = fc.integer({ min: 0, max: 1_000_000 }).map(n => `q${n.toString(36)}`)
@@ -107,7 +109,7 @@ function insertionsArb(family: DiagramKind, lineCount: number): fc.Arbitrary<Ins
     .filter(insertions => insertions.every(insertion => !excluded(family, insertion)))
 }
 
-describe('MR6 comment and blank-line insertion leaves the SVG byte-identical', () => {
+describe('MR6 comment and blank-line insertion preserves the SVG drawing', () => {
   for (const fam of FAMILIES) {
     test(`${fam.family}: %% comments and blank lines between statements are inert`, () => {
       fc.assert(
@@ -115,7 +117,10 @@ describe('MR6 comment and blank-line insertion leaves the SVG byte-identical', (
           kArb(fam).chain(k => fc.tuple(fc.constant(k), tagArb, insertionsArb(fam.family, fam.build(k, 'q').split('\n').length))),
           ([k, tag, insertions]) => {
             const source = fam.build(k, tag)
-            expect(renderMermaidSVG(insertLines(source, insertions))).toBe(renderMermaidSVG(source))
+            // Source provenance follows physical authored lines; it is not
+            // painted geometry. Keep every other attribute, text and paint.
+            const drawing = (svg: string) => normalizeSvg(svg.replace(/\sdata-source-line="\d+"/g, ''), { maskStyleScope: true })
+            expect(drawing(renderMermaidSVG(insertLines(source, insertions)))).toBe(drawing(renderMermaidSVG(source)))
           },
         ),
         { numRuns: 25 },
