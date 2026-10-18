@@ -1,4 +1,4 @@
-import { resolveLabelContent } from '../shared/display-text.ts'
+import { prepareDisplayText, resolveLabelContent } from '../shared/display-text.ts'
 import { preparePixelText, type PixelTextBlock } from '../shared/prepared-text.ts'
 import { classTextBlock, classMemberBlock } from './layout.ts'
 import type { PositionedClassDiagram, PositionedClassNode, PositionedClassNamespace, PositionedClassRelationship, PositionedClassNote, ClassMember, RelationshipType } from './types.ts'
@@ -535,6 +535,11 @@ function renderClassNote(note: PositionedClassNote, style: ResolvedRenderStyle, 
  * Includes data-* attributes for programmatic inspection.
  */
 function renderRelationship(rel: PositionedClassRelationship, style: ResolvedRenderStyle, sceneId: string): SceneNode {
+  const labels = rel.label ? [{
+    text: rel.label,
+    textContent: { value: rel.label, prepared: prepareDisplayText(resolveLabelContent(rel.label, rel.labelContent)) },
+    ...(rel.labelPosition ? { anchor: rel.labelPosition } : {}),
+  }] : []
   if (rel.points.length < 2) {
     // Degenerate relationship — draws nothing (crisp '', like the old '' part).
     return marks.connector({
@@ -545,7 +550,7 @@ function renderRelationship(rel: PositionedClassRelationship, style: ResolvedRen
       paint: {},
       endpoints: { from: rel.from, to: rel.to },
       relationship: { kind: rel.type },
-      labels: rel.label ? [{ text: rel.label, ...(rel.labelContent ? { textContent: rel.labelContent } : {}), ...(rel.labelPosition ? { anchor: rel.labelPosition } : {}) }] : [],
+      labels,
     }, '')
   }
 
@@ -602,7 +607,7 @@ function renderRelationship(rel: PositionedClassRelationship, style: ResolvedRen
       bendRadius: style.edgeBendRadius,
       labelAnchors: rel.labelPosition ? [rel.labelPosition] : [],
     },
-    labels: rel.label ? [{ text: rel.label, ...(rel.labelContent ? { textContent: rel.labelContent } : {}), ...(rel.labelPosition ? { anchor: rel.labelPosition } : {}) }] : [],
+    labels,
   } as const
 
   if (style.edgeBendRadius > 0 && rel.points.length > 2) {

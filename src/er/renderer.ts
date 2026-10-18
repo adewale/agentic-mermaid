@@ -1,4 +1,4 @@
-import { resolveLabelContent } from '../shared/display-text.ts'
+import { prepareDisplayText, resolveLabelContent } from '../shared/display-text.ts'
 import type { PixelTextBlock } from '../shared/prepared-text.ts'
 import { erHeaderBlock, erRelationshipBlock, erAttributeBlocks, erGroupBlock } from './layout.ts'
 import type { PositionedErDiagram, PositionedErEntity, PositionedErRelationship, PositionedErGroup, ErAttribute, Cardinality } from './types.ts'
@@ -451,7 +451,7 @@ function renderRelationshipLine(
     endpoints: { from: rel.entity1, to: rel.entity2 },
     relationship: { kind: rel.identifying ? 'identifying' : 'non-identifying' },
     route: { ownership: 'layout', bendRadius },
-    labels: rel.label ? [{ text: rel.label, ...(rel.labelContent ? { textContent: rel.labelContent } : {}) }] : [],
+    labels: rel.label ? [{ text: rel.label, textContent: { value: rel.label, prepared: prepareDisplayText(resolveLabelContent(rel.label, rel.labelContent)) } }] : [],
   } as const
 
   // Degenerate relationships draw nothing (empty crisp keeps the part slot).

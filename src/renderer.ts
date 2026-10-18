@@ -1,4 +1,4 @@
-import { resolveLabelContent } from './shared/display-text.ts'
+import { prepareDisplayText, resolveLabelContent } from './shared/display-text.ts'
 import { graphTextBlock } from './graph-text.ts'
 import type { PositionedGraph, PositionedNode, PositionedEdge, PositionedGroup, PositionedStateNote, Point, EdgeMarker, RenderContext, RenderOptions } from './types.ts'
 import type { DiagramColors } from './theme.ts'
@@ -457,7 +457,7 @@ function renderEdge(
   const labels: readonly ConnectorLabelDescriptor[] = edge.label ? [{
     id: `${sceneId}:label`,
     text: edge.label,
-    ...(edge.labelContent ? { textContent: edge.labelContent } : {}),
+    textContent: { value: edge.label, prepared: prepareDisplayText(resolveLabelContent(edge.label, edge.labelContent)) },
     anchor: labelAnchor,
     paint: { fill: labelTextColor },
     fontSize: style.edgeLabelFontSize,
