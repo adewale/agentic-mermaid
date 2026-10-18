@@ -80,8 +80,16 @@ describe('frontmatter whitespace survives authored and canonical wrappers', () =
     ['---\n---\n', {}],
     ['\uFEFF\r\n  ---\r\na: 1\r\n  ---\r\n', { a: 1 }],
     ['---\n      title: Template\n      ---\n', { title: 'Template' }],
+    ["---\ntitle: X\n  ---\n", { title: "X" }],
+    ["\ufeff\r\n---\r\ntitle: X\r\n  ---\r\n", { title: "X" }],
+    ["---\ntitle: \"foo: |\n  bar\"\n  ---\n", { title: "foo: | bar" }],
+    ["---\ntitle: 'foo: >+\n  bar'\n  ---\n", { title: "foo: >+ bar" }],
+    ['---\ntitle: "foo\n  x: |\n    bar"\n    ---\n', { title: 'foo x: | bar' }],
+    ["---\ntitle: 'foo\n  x: >+\n    bar'\n    ---\n", { title: 'foo x: >+ bar' }],
     ['  ---\ntitle: |\n  ---\n  after\n---\n', { title: '---\nafter\n' }],
     ['---\nconfig:\n  themeCSS: |+\n    before\n    ---\n    after\n\n---\n', { themeCSS: 'before\n---\nafter\n\n' }],
+    ['---\nconfig:\n  items:\n    - text: |\n        line\n      flag: yes\n      ---\n', { items: [{ text: 'line\n', flag: 'yes' }] }],
+    ['---\nconfig:\n  items:\n    - |\n      ---\n      line\n---\n', { items: ['---\nline\n'] }],
   ])('wrapper boundary retains empty and indented documents: %j', (wrapper, frontmatter) => {
     const source = wrapper as string + 'flowchart TD\n  A --> B\n'
     expect(mermaidFirstLine(source)).toBe('flowchart td')

@@ -6,16 +6,16 @@
  * loads no YAML reader; the full normalizer runs in the family's render.
  */
 
-/** Find a frontmatter wrapper without loading the YAML reader. The root
- * document indentation also owns its closing marker: a template may indent
- * the whole YAML document even when its opening marker starts at column zero.
- * Deeper marker lines are document content, including block scalar text. */
+/** Find a frontmatter wrapper without loading the YAML reader. By the
+ * historical wrapper contract, a bare marker outside a block scalar closes
+ * frontmatter at any horizontal indentation. Block scalar marker lines remain
+ * content until the scalar dedents; all captured whitespace stays intact. */
 export function matchMermaidFrontmatter(text: string): { source: string; yaml: string } | undefined {
   const opening = /^﻿?(?:[^\S\r\n]*\r?\n)*([^\S\r\n]*)---[^\S\r\n]*\r?\n/.exec(text)
   if (!opening) return undefined
   const start = opening[0].length
-  let rootIndent: number | undefined
   let blockIndent: number | undefined
+  let quote: '"' | "'" | undefined
   const lines = /([^\r\n]*)(\r?\n|$)/g
   lines.lastIndex = start
   for (let line = lines.exec(text); line && line[0]; line = lines.exec(text)) {
@@ -24,16 +24,35 @@ export function matchMermaidFrontmatter(text: string): { source: string; yaml: s
     const trimmed = content.trim()
     if (!trimmed) continue
     if (blockIndent !== undefined && indent <= blockIndent) blockIndent = undefined
-    if (trimmed === '---' && blockIndent === undefined
-      && (rootIndent === undefined || indent <= rootIndent || indent === opening[1]!.length)) {
+    if (trimmed === '---' && blockIndent === undefined) {
       return { source: text.slice(0, lines.lastIndex), yaml: text.slice(start, line.index) }
     }
-    if (trimmed.startsWith('#')) continue
-    if (rootIndent === undefined) rootIndent = indent
-    // Only indentation is needed for a block's boundary. Its contents remain
-    // untouched for the shared reader; this also protects a first scalar line
-    // that is itself `---` in a historically accepted indented wrapper.
-    if (blockIndent === undefined && /(?:^|:[ \t]+|-[ \t]+)(?:[!&][^ \t]+[ \t]+)*[|>](?:[+-][1-9]?|[1-9][+-]?)?(?:[ \t]+#.*)?$/.test(trimmed)) blockIndent = indent
+    if (blockIndent !== undefined || (!quote && trimmed.startsWith('#'))) continue
+    // Inspect the value after its first mapping colon or sequence marker.
+    // Carry only quoted-value state across lines so a continuation containing
+    // `x: |` cannot become a block header. Bare markers still close the wrapper
+    // by its historical convention, even inside a multiline quoted value.
+    const continuedQuote = quote !== undefined
+    const entry = trimmed.replace(/^(?:-[ \t]+)+/, '')
+    const sequencePrefixWidth = trimmed.length - entry.length
+    const key = /^(?:"(?:[^"\\]|\\.)*"|'(?:[^']|'')*'|[^"':](?:[^:]|:(?![ \t]))*):[ \t]+/.exec(entry)
+    const value = continuedQuote ? content : (key ? entry.slice(key[0].length) : entry).replace(/^(?:[!&][^ \t]+[ \t]+)*/, '')
+    if (!quote && (value[0] === '"' || value[0] === "'")) quote = value[0]
+    if (quote) {
+      for (let index = continuedQuote ? 0 : 1; index < value.length; index++) {
+        if (quote === '"' && value[index] === '\\') { index++; continue }
+        if (value[index] !== quote) continue
+        if (quote === "'" && value[index + 1] === "'") { index++; continue }
+        quote = undefined
+        break
+      }
+      continue
+    }
+    if (/^[|>](?:[+-][1-9]?|[1-9][+-]?)?(?:[ \t]+#.*)?$/.test(value)) {
+      // A mapping inside a sequence owns the key's column after `- `;
+      // a standalone sequence scalar still owns the dash's column.
+      blockIndent = indent + (key ? sequencePrefixWidth : 0)
+    }
   }
   return undefined
 }
