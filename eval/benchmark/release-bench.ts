@@ -27,6 +27,7 @@ interface Engine { label: string; entry: string; version: string }
 type Outcome = { ok: true; output: string } | { ok: false; error: string }
 interface Rendered { svg: Outcome; ascii: { ok: boolean }; deterministic: boolean; ms: number }
 interface TimeResult {
+  node: string
   importMs: number
   firstRenderMs: number
   results: (Rendered & { id: string })[]
@@ -41,6 +42,7 @@ interface MemoryResult {
 interface EngineRun {
   label: string
   version: string
+  node?: string
   importMs?: number
   firstRenderMs?: number
   results: Map<string, Rendered>
@@ -127,6 +129,7 @@ function measure(out: string, engines: Engine[], groups: Group[], rounds: number
           continue
         }
         const value = timed.value as TimeResult
+        run.node = value.node
         if (group.name === 'corpus') {
           run.importMs = Math.min(run.importMs ?? Infinity, value.importMs)
           run.firstRenderMs = Math.min(run.firstRenderMs ?? Infinity, value.firstRenderMs)
@@ -180,6 +183,9 @@ function report(inputs: Input[], groups: Group[], runs: EngineRun[]): { checks: 
   const corpus = inputs.filter(input => input.kind === 'corpus')
   const scaling = inputs.filter(input => input.kind === 'scaling')
   const measured = (list: Input[]) => list.filter(input => candidate.results.has(input.id) && (!baseline || baseline.results.has(input.id)))
+  // Timing compares like with like: an input one engine renders and the other
+  // rejects is a correctness difference (gated above), not a speed one.
+  const comparable = (list: Input[]) => measured(list).filter(input => baseline!.results.get(input.id)!.svg.ok === candidate.results.get(input.id)!.svg.ok)
   const total = (run: EngineRun, list: Input[]) => sum(list.map(input => run.results.get(input.id)!.ms))
   const checks: Check[] = []
 
@@ -204,20 +210,26 @@ function report(inputs: Input[], groups: Group[], runs: EngineRun[]): { checks: 
 
   // Performance.
   if (baseline) {
-    const shared = measured(corpus)
-    if (shared.length === corpus.length) {
+    const shared = comparable(corpus)
+    if (measured(corpus).length === corpus.length) {
       const corpusRatio = ratio(total(candidate, shared), total(baseline, shared))
-      checks.push({ name: `Corpus render time ≤ ${GATES.corpusSlowdown}× baseline`, ok: corpusRatio <= GATES.corpusSlowdown, detail: times(corpusRatio) })
+      const excluded = corpus.length - shared.length
+      checks.push({
+        name: `Corpus render time ≤ ${GATES.corpusSlowdown}× baseline`,
+        ok: corpusRatio <= GATES.corpusSlowdown,
+        detail: `${times(corpusRatio)}${excluded > 0 ? ` over ${shared.length} fences both engines handle alike` : ''}`,
+      })
     }
-    const comparable = measured(scaling)
-    const slow = comparable.filter(input => ratio(candidate.results.get(input.id)!.ms, baseline.results.get(input.id)!.ms) > GATES.caseSlowdown)
+    const slow = comparable(scaling).filter(input => ratio(candidate.results.get(input.id)!.ms, baseline.results.get(input.id)!.ms) > GATES.caseSlowdown)
     const unmeasured = scaling.filter(input => candidate.results.has(input.id) && !baseline.results.has(input.id))
+    const unlike = measured(scaling).filter(input => !comparable([input]).length)
     checks.push({
       name: `Each large case ≤ ${GATES.caseSlowdown}× baseline`,
       ok: slow.length === 0,
       detail: [
         slow.map(input => `${input.id} ${times(ratio(candidate.results.get(input.id)!.ms, baseline.results.get(input.id)!.ms))}`).join(', ') || 'all within',
         ...(unmeasured.length > 0 ? [`baseline did not finish ${unmeasured.map(input => input.id).join(', ')}`] : []),
+        ...(unlike.length > 0 ? [`rendered by one engine only ${unlike.map(input => input.id).join(', ')}`] : []),
       ].join('; '),
     })
   }
@@ -242,7 +254,7 @@ function report(inputs: Input[], groups: Group[], runs: EngineRun[]): { checks: 
   const md: string[] = []
   const ok = checks.every(check => check.ok)
   md.push(`# Release benchmark: ${ok ? 'pass' : 'FAIL'}`, '')
-  md.push(`Engines: ${engines.join(' vs ')}. Inputs: ${corpus.length} official syntax fences across ${new Set(corpus.map(input => input.family)).size} families, ${scaling.length} generated large diagrams. Node ${process.versions.node}.`, '')
+  md.push(`Engines: ${engines.join(' vs ')}. Inputs: ${corpus.length} official syntax fences across ${new Set(corpus.map(input => input.family)).size} families, ${scaling.length} generated large diagrams. Node ${[...new Set(runs.map(run => run.node))].join(', ')}.`, '')
   md.push('| Gate | Result | Detail |', '|---|---|---|')
   for (const check of checks) md.push(`| ${check.name} | ${check.ok ? 'pass' : '**FAIL**'} | ${check.detail.replace(/\|/g, '\\|')} |`)
 
@@ -311,6 +323,7 @@ function report(inputs: Input[], groups: Group[], runs: EngineRun[]): { checks: 
     engines: runs.map(run => ({
       label: run.label,
       version: run.version,
+      node: run.node,
       importMs: run.importMs,
       firstRenderMs: run.firstRenderMs,
       corpusMs: column(run, corpus)?.ms,

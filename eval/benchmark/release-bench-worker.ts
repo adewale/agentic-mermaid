@@ -69,6 +69,7 @@ function timeMode(): unknown {
     })
   }
   return {
+    node: process.versions.node,
     importMs,
     firstRenderMs,
     results: results.map((result, index) => ({ ...result, ms: median(samples[index]!) })),
