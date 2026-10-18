@@ -9,6 +9,7 @@ import { join } from 'node:path'
 import fc from 'fast-check'
 import { parseRegisteredMermaid, serializeMermaid } from '../agent/index.ts'
 import { renderMermaidSVG } from '../index.ts'
+import { mermaidFirstLine } from '../mermaid-source-wrapper.ts'
 import { normalizeMermaidSource } from '../mermaid-source.ts'
 import { parseMermaid } from '../parser.ts'
 import { parseSequenceDiagram } from '../sequence/parser.ts'
@@ -46,8 +47,7 @@ describe('parseMermaidYaml resolves plain scalars as js-yaml JSON_SCHEMA does', 
     // js-yaml takes a `#` straight after `,` or a quoted scalar as a comment.
     expect(parseMermaidYaml('{\na: x,#c\n}')).toEqual({ ok: true, value: { a: 'x' } })
     expect(parseMermaidYaml('a: "x"#c')).toEqual({ ok: true, value: { a: 'x' } })
-    // Line breaks are left out: see the pinned writer defect below.
-    const strings = fc.array(fc.constantFrom('0b1', '1_0', '-0x1', 'true', 'Null', '~', '.inf', '1e3', 'a', ' ', ':', '#', '"', "'", '\\'), { maxLength: 5 })
+    const strings = fc.array(fc.constantFrom('0b1', '1_0', '-0x1', 'true', 'Null', '~', '.inf', '1e3', 'a', ' ', ':', '#', '"', "'", '\\', '\n', '\r', '\t'), { maxLength: 5 })
       .map(parts => parts.join(''))
     fc.assert(fc.property(strings, text => {
       const parsed = parseMermaidYaml(stringifyMermaidYaml({ title: text }))
@@ -55,15 +55,72 @@ describe('parseMermaidYaml resolves plain scalars as js-yaml JSON_SCHEMA does', 
     }), { numRuns: 300 })
   })
 
-  // Found by the property above: the `yaml` package writes ` \n` as the block
-  // scalar `|+` with a whitespace-only line, which every reader (ours, the
-  // package's own default, js-yaml) reads back as `\n`. The frontmatter
-  // writer in src/agent/serialize.ts has used this writer since before the
-  // shared module, so a frontmatter string whose first line is only spaces
-  // loses them on a round trip.
-  test.failing('a string whose first line is only spaces survives the YAML writer', () => {
+  test('a string whose first line is only spaces survives the YAML writer', () => {
     const parsed = parseMermaidYaml(stringifyMermaidYaml({ title: ' \n' }))
     expect(parsed).toEqual({ ok: true, value: { title: ' \n' } })
+  })
+})
+
+describe('frontmatter whitespace survives authored and canonical wrappers', () => {
+  test.each([' \n', '\t\n', '\n', 'a\n\n', 'a\n \n', '  \ntext', 'a\n b', 'literal &amp; #10;'])('quoted string %j', title => {
+    const source = `---\ntitle: ${JSON.stringify(title)}\n---\nflowchart TD\n  A --> B\n`
+    const parsed = parseRegisteredMermaid(source)
+    expect(parsed.ok).toBe(true)
+    if (!parsed.ok) return
+    expect(parsed.value.meta.frontmatter?.title).toBe(title)
+    expect(serializeMermaid(parsed.value)).toBe(source)
+    const canonical = serializeMermaid(parsed.value, { wrapper: 'canonical' })
+    const reread = parseRegisteredMermaid(canonical)
+    expect(reread.ok).toBe(true)
+    if (reread.ok) expect(reread.value.meta.frontmatter?.title).toBe(title)
+    expect(parseMermaidYaml(stringifyMermaidYaml({ title }))).toEqual({ ok: true, value: { title } })
+  })
+
+  test.each([
+    ['---\n---\n', {}],
+    ['\uFEFF\r\n  ---\r\na: 1\r\n  ---\r\n', { a: 1 }],
+    ['---\n      title: Template\n      ---\n', { title: 'Template' }],
+    ['  ---\ntitle: |\n  ---\n  after\n---\n', { title: '---\nafter\n' }],
+    ['---\nconfig:\n  themeCSS: |+\n    before\n    ---\n    after\n\n---\n', { themeCSS: 'before\n---\nafter\n\n' }],
+  ])('wrapper boundary retains empty and indented documents: %j', (wrapper, frontmatter) => {
+    const source = wrapper as string + 'flowchart TD\n  A --> B\n'
+    expect(mermaidFirstLine(source)).toBe('flowchart td')
+    expect(normalizeMermaidSource(source).frontmatter).toEqual(frontmatter)
+    const parsed = parseRegisteredMermaid(source)
+    expect(parsed.ok).toBe(true)
+    if (!parsed.ok) return
+    expect(serializeMermaid(parsed.value)).toBe(source)
+    const span = parsed.value.source.spans!.preserved.frontmatter!
+    expect(source.slice(span.start.offset, span.end.offset)).toBe(wrapper)
+    const canonical = serializeMermaid(parsed.value, { wrapper: 'canonical' })
+    expect(normalizeMermaidSource(canonical).frontmatter).toEqual(frontmatter)
+  })
+
+  test.each([
+    ['title: |+\n  a\n\n', 'a\n\n'],
+    ['title: |+\n  a\n   \n', 'a\n \n'],
+    ['title: |+\n\n', '\n'],
+    ['title: |\n  before\n  ---\n  after\n', 'before\n---\nafter\n'],
+  ])('authored block %j keeps its content through the wrapper', (yaml, title) => {
+    for (const [indent, newline] of [['', '\n'], ['  ', '\r\n']]) {
+      const source = `\uFEFF\n${indent}---\n${yaml!.replace(/^(?=.)/gm, indent!)}${indent}---\n\n  flowchart TD\n    A --> B\n`.replaceAll('\n', newline!)
+      const normalized = normalizeMermaidSource(source)
+      expect(normalized.frontmatter.title).toBe(title)
+      expect(normalized.firstLine).toBe('flowchart td')
+      expect(mermaidFirstLine(source)).toBe('flowchart td')
+      const parsed = parseRegisteredMermaid(source)
+      expect(parsed.ok).toBe(true)
+      if (!parsed.ok) continue
+      const wrapper = source.slice(0, source.indexOf('  flowchart TD'))
+      expect(parsed.value.meta.wrapperSource).toBe(wrapper)
+      const spans = parsed.value.source.spans!.preserved
+      expect(source.slice(spans.frontmatter!.start.offset, spans.frontmatter!.end.offset)).toBe(wrapper.slice(0, -newline!.length))
+      expect(source.slice(spans.header.start.offset, spans.header.end.offset)).toBe('flowchart TD')
+      expect(serializeMermaid(parsed.value)).toBe(wrapper + 'flowchart TD\n  A --> B\n')
+      const reread = parseRegisteredMermaid(serializeMermaid(parsed.value, { wrapper: 'canonical' }))
+      expect(reread.ok).toBe(true)
+      if (reread.ok) expect(reread.value.meta.frontmatter?.title).toBe(title)
+    }
   })
 })
 
