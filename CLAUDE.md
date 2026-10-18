@@ -138,6 +138,9 @@ The seven dimensions:
    to the PR (uploaded images or a CI artifact) rather than committing new files
    under `docs/pr-assets/`, and never make a test read PR evidence: the
    regression protection belongs in a semantic test of the current render.
+   Use `gh pr create|comment --attach 'file.png#caption'` (gh 2.99.0+); if this
+   session's `gh` lacks it, follow the fallback in
+   `docs/contributing/visual-review-evidence.md` ("Attaching evidence").
 3. **Code that fits** — match existing patterns, naming, and comment density; no
    unrelated refactoring smuggled in.
 4. **Tests that prove the fix** — tests must fail when the fix is reverted.

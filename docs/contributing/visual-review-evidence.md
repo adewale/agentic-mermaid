@@ -11,7 +11,7 @@ not hand-edited screenshots. Use the smallest artifact that matches the change.
 | Duplicate / parallel edges (a multigraph — the same directed pair written more than once) | `bun test src/__tests__/route-contracts.test.ts`; review the duplicate/parallel cases on the contact sheet (`AP`–`AR`) and the crossing ratchet in `layout-rubric.test.ts`. A duplicate-specific before/after lives at `docs/pr-assets/issue-62-duplicate-edge-lanes-before-after.png` (regenerate with `bun run scripts/pr-assets/issue-62-evidence.ts`). |
 | ASCII/Unicode routing or region metadata | Exact goldens/tests: `bun test src/__tests__/ascii.test.ts` plus relevant `src/__tests__/ascii*.test.ts` / `agent-ascii-meta.test.ts`. |
 | Family renderer/layout changes | Family parser/layout/renderer tests, SVG snapshot where available, and `agent-family-layouts.test.ts`. |
-| Broad layout heuristics | `bun run rubric:visual` and/or `eval/layout-compare` before/after output attached to the PR. Commit only small canonical assets; attach large HTML reports as artifacts. |
+| Broad layout heuristics | `bun run rubric:visual` and/or `eval/layout-compare` before/after output attached to the PR (see “Attaching evidence”); attach large HTML reports as artifacts. |
 | Website/editor visual changes | `bun test e2e/browser.test.ts`; inspect captured screenshots when baselines or UI structure change. |
 | Region/action metadata only | Prefer JSON/SVG metadata assertions over raster screenshots; include one representative fixture proving stable `data-region`/sidecar IDs. |
 
@@ -22,6 +22,29 @@ not hand-edited screenshots. Use the smallest artifact that matches the change.
 - `eval/visual-rubric` produces deterministic scored galleries. Its scores are a gate for obvious regressions, not a replacement for human review.
 - `eval/layout-compare` compares before/after layout faithfulness and quality over a corpus. “0 regressions” means no configured metric/faithfulness regression, not a claim of pixel parity with Mermaid.js.
 - Browser screenshots prove the shipped site/editor still renders and remains usable. Pixel-diff is only active when dependencies are available, so reviewer inspection still matters.
+
+## Attaching evidence
+
+`docs/pr-assets/` is gitignored: git refuses new files there, while the
+snapshots already tracked keep updating when regenerated. Render to any path,
+then attach with GitHub CLI 2.99.0 or later:
+
+```bash
+gh pr comment <number> --body-file body.md --attach './after.png#Hub centered over its peers'
+```
+
+`--attach` also works on `gh pr create`, `gh pr edit` and the issue commands.
+It uploads each file to an immutable `user-attachments` URL that survives later
+pushes. A body reference to an attached path, such as `![caption](./after.png)`,
+is rewritten to point at the upload; attached files the body doesn't reference
+are appended. Alt text follows `#` in the flag value. Images can be up to
+10 MB, videos up to 100 MB, and one command takes at most 50 files.
+
+Check support with `gh pr comment --help | grep -- --attach`. If it is missing
+or `gh` isn't authenticated (cloud agent sessions currently have neither), use
+the `diagram-meaning-review-<head-sha>` artifact that CI uploads for every PR,
+or give the exact generator command in the PR body and say the renders were
+not attached. Don't force-add files under `docs/pr-assets/` to work around it.
 
 ## Golden-snapshot review
 
