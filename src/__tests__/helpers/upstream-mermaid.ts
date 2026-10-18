@@ -1,5 +1,5 @@
 // A long-lived child process that parses sources with the pinned upstream
-// Mermaid (devDependency, 11.16.0) for grammar and differential oracles.
+// Mermaid (devDependency, 12.2.0) for grammar and differential oracles.
 //
 // Upstream's flowchart/class DBs call DOMPurify, which has no DOM under Bun.
 // An identity sanitizer shim is isolated in a child process so the test

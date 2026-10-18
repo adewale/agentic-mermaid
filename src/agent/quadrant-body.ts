@@ -309,7 +309,7 @@ export function mutateQuadrant(body: QuadrantBody, op: QuadrantMutationOp): Resu
 
 // ---- Verifier (FamilyDescriptor.verify hook) --------------------------------
 
-/** Quadrant source ours reads where Mermaid 11.16 rejects it, each on its
+/** Quadrant source ours reads where pinned Mermaid rejects it, each on its
  * canonical line: unquoted text holding a character Mermaid's quadrant lexer
  * does not read as text is read as written. */
 export function quadrantUnsupportedSyntaxWarnings(canonicalSource: string): LayoutWarning[] {
@@ -329,7 +329,7 @@ export function quadrantUnsupportedSyntaxWarnings(canonicalSource: string): Layo
         code: 'UNSUPPORTED_SYNTAX',
         syntax: 'quadrant_unquoted_text',
         line: index + 1,
-        message: `${what}, and is read as written. Mermaid 11.16 rejects this; put the whole text in double quotes.`,
+        message: `${what}, and is read as written. Pinned Mermaid rejects this; put the whole text in double quotes.`,
       })
     }
   }

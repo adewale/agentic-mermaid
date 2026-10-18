@@ -10,7 +10,7 @@ const upstream = startUpstreamMermaid()
 afterAll(() => upstream.close())
 
 describe('Journey semicolon statements are a diagnosed Agentic extension', () => {
-  test('pinned Mermaid 11.16 rejects a joined task line that both local parsers retain', async () => {
+  test('pinned Mermaid rejects a joined task line that both local parsers retain', async () => {
     const verdict = await upstream.parse(source)
     expect({ ok: verdict.ok, error: verdict.ok ? '' : verdict.error }).toEqual({ ok: false, error: expect.stringContaining('Parse error') })
 

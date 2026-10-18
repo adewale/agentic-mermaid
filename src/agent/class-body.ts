@@ -611,7 +611,7 @@ export function mutateClass(body: ClassBody, op: ClassMutationOp): Result<ClassB
 
 // ---- Verifier -------------------------------------------------------------
 
-/** Class source ours reads where Mermaid 11.16 rejects it, each on its
+/** Class source ours reads where pinned Mermaid rejects it, each on its
  * canonical line: a bare header draws an empty diagram, and a trailing `%%`
  * where Mermaid's class grammar does not end the statement is a comment. */
 export function classUnsupportedSyntaxWarnings(canonicalSource: string): LayoutWarning[] {
@@ -625,7 +625,7 @@ export function classUnsupportedSyntaxWarnings(canonicalSource: string): LayoutW
       code: 'UNSUPPORTED_SYNTAX',
       syntax: 'class_empty_diagram',
       line: header + 1,
-      message: 'A "classDiagram" header with no statement after it draws an empty class diagram. Mermaid 11.16 rejects this; add a class, relationship, note or other statement.',
+      message: 'A "classDiagram" header with no statement after it draws an empty class diagram. Pinned Mermaid rejects this; add a class, relationship, note or other statement.',
     })
   }
   for (const { index, what } of classCommentRejections(bodyLines)) {
@@ -633,7 +633,7 @@ export function classUnsupportedSyntaxWarnings(canonicalSource: string): LayoutW
       code: 'UNSUPPORTED_SYNTAX',
       syntax: 'class_trailing_comment',
       line: header + 2 + index,
-      message: `${what}. Mermaid 11.16 rejects this; put the comment on a line of its own.`,
+      message: `${what}. Pinned Mermaid rejects this; put the comment on a line of its own.`,
     })
   }
   const extensionWarnings = (nodes: ClassStatementNode[]): void => {
@@ -643,22 +643,22 @@ export function classUnsupportedSyntaxWarnings(canonicalSource: string): LayoutW
       const node = pending.pop()!
       if (node.followsNamespaceCloseOnSameLine && node.value.kind === 'trivia' && node.raw.startsWith('%%')) warnings.push({
         code: 'UNSUPPORTED_SYNTAX', syntax: 'class_trailing_comment', line: header + 1 + node.source.line,
-        message: 'A %% comment after a namespace closing brace is read as a comment. Mermaid 11.16 rejects this; put the comment on a line of its own.',
+        message: 'A %% comment after a namespace closing brace is read as a comment. Pinned Mermaid rejects this; put the comment on a line of its own.',
       })
       else if (node.followsNamespaceCloseOnSameLine && node.value.kind !== 'trivia' && node.value.kind !== 'close') warnings.push({
         code: 'UNSUPPORTED_SYNTAX', syntax: 'class_statement_after_namespace_close', line: header + 1 + node.source.line,
-        message: 'A Class statement after a namespace closing brace on the same line is read as a separate statement. Mermaid 11.16 rejects this, even with a semicolon; put the statement on a new line.',
+        message: 'A Class statement after a namespace closing brace on the same line is read as a separate statement. Pinned Mermaid rejects this, even with a semicolon; put the statement on a new line.',
       })
       if (node.compactSemicolon && !semicolonLines.has(node.source.line)) {
         semicolonLines.add(node.source.line)
         warnings.push({
           code: 'UNSUPPORTED_SYNTAX', syntax: 'class_compact_semicolon_statement_extension', line: header + 1 + node.source.line,
-          message: 'Semicolon-separated statements inside a compact Class namespace are read as separate statements. Mermaid 11.16 rejects this source; put each statement on its own line.',
+          message: 'Semicolon-separated statements inside a compact Class namespace are read as separate statements. Pinned Mermaid rejects this source; put each statement on its own line.',
         })
       }
       if (node.value.kind === 'note' && node.value.escapedQuotes) warnings.push({
         code: 'UNSUPPORTED_SYNTAX', syntax: 'class_escaped_note_quotes', line: header + 1 + node.source.line,
-        message: 'Backslash-escaped quotes in Class notes are read as text. Mermaid 11.16 rejects this; use &quot; inside the quoted note.',
+        message: 'Backslash-escaped quotes in Class notes are read as text. Pinned Mermaid rejects this; use &quot; inside the quoted note.',
       })
       if (node.children) for (let index = node.children.length - 1; index >= 0; index--) pending.push(node.children[index]!)
     }

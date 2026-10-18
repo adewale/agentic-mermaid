@@ -23,16 +23,20 @@ const descriptorData = Object.freeze({
       "entityPadding",
       "stroke",
       "fill",
-      "fontSize"
+      "fontSize",
+      "look",
+      "theme"
     ],
     "noopKeys": [
       "diagramPadding",
       "entityPadding",
       "fill",
       "fontSize",
+      "look",
       "minEntityHeight",
       "minEntityWidth",
       "stroke",
+      "theme",
       "titleTopMargin"
     ]
   },

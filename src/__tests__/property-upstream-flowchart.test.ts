@@ -1,5 +1,5 @@
 // Grammar-based differential test: flowchart sources generated from a
-// recursive grammar are parsed by the pinned upstream Mermaid (11.16.0,
+// recursive grammar are parsed by the pinned upstream Mermaid (12.2.0,
 // devDependency) and by our public parser, and the two must agree.
 //
 //   (i)   upstream accepts every generated source — validates the generator;
@@ -315,7 +315,7 @@ describe('flowchart grammar differential against pinned upstream Mermaid', () =>
     await fc.assert(
       fc.asyncProperty(sourceArb, async source => {
         const upstreamParse = await upstream.parse(source)
-        // (i) the generator only produces Mermaid 11.16 flowcharts.
+        // (i) the generator only produces Mermaid 12.2.0 flowcharts.
         expect({ source, upstream: upstreamParse.ok ? 'accepted' : upstreamParse.error }).toEqual({ source, upstream: 'accepted' })
         if (!upstreamParse.ok) return
         // (ii) our public parser accepts it as a structured flowchart.

@@ -22,7 +22,7 @@ const sources = [
 ]
 
 describe('Class official annotation forms', () => {
-  test('pinned Mermaid 11.16 DB distinguishes one annotation from two', async () => {
+  test('pinned Mermaid DB distinguishes one annotation from two', async () => {
     const annotations = await upstream.projectAll([...sources, 'classDiagram\n  class Shape <<interface>>\n  <<abstract>> Shape'],
       diagram => diagram.db.getClasses().get('Shape').annotations)
     expect(annotations).toEqual([

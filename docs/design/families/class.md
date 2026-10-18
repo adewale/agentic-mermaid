@@ -42,7 +42,7 @@ recognized outside that declaration content. Angle-bearing generic labels and
 backtick IDs still hit the existing Scene validation boundary even without an
 annotation; verification reports `RENDER_FAILED` until the broader #260 work.
 
-Pinned Mermaid 11.16 also permits multiple annotations on one class. The
+Pinned Mermaid also permits multiple annotations on one class. The
 current native class model has one annotation slot, so that case is explicitly
 diagnosed instead of rendering only the last annotation. Its agent body stays
 opaque and source-preserved, while separate executable inline and
@@ -52,7 +52,7 @@ tracked by #260.
 
 ## Markerless relationship fidelity (issue #248)
 
-Mermaid 11.16 treats `A -- B` and `A .. B` as distinct solid and dashed
+Pinned Mermaid treats `A -- B` and `A .. B` as distinct solid and dashed
 links with no endpoint marker. Both create endpoint classes, including when
 spaces around the operator are omitted. The native and agent parsers now share
 that distinction as `link-solid` / `link-dashed` with `markerAt: none`;
@@ -116,7 +116,7 @@ work remain tracked by #260.
 
 ## Safe link hover text (issue #248)
 
-Pinned Mermaid 11.16 accepts both `link A "https://example.com" "Docs"` and
+Pinned Mermaid accepts both `link A "https://example.com" "Docs"` and
 `click A href "https://example.com" "Docs"`. The shared Class link grammar
 now preserves the optional tooltip with the safe URL. Structured agent state,
 serialization, mutation, the renderer-neutral action sidecar, and a native SVG
@@ -241,7 +241,7 @@ The typed `class` frontmatter section (`ClassRuntimeConfig` in
   `resolveClassRenderOptions` in `src/class/layout.ts`, applied on both the
   render path (`render-family-hooks.ts`) and the verify layout path
   (`family-layouts.ts`).
-- **Lint** (`INEFFECTIVE_CONFIG`, Tier-3): <!-- BEGIN GENERATED: noop-keys:class -->`arrowMarkerAbsolute`, `defaultRenderer`, `diagramPadding`, `dividerMargin`, `hideEmptyMembersBox`, `htmlLabels`, `padding`, `textHeight`, `titleTopMargin`<!-- END GENERATED: noop-keys:class --> —
+- **Lint** (`INEFFECTIVE_CONFIG`, Tier-3): <!-- BEGIN GENERATED: noop-keys:class -->`arrowMarkerAbsolute`, `defaultRenderer`, `diagramPadding`, `dividerMargin`, `hideEmptyMembersBox`, `htmlLabels`, `look`, `padding`, `textHeight`, `theme`, `titleTopMargin`<!-- END GENERATED: noop-keys:class --> —
   the lint reads the class descriptor's `config.noopKeys` in
   `src/agent/families.ts`.
 

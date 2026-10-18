@@ -21,7 +21,7 @@ function texts(svg: string): string[] {
     .filter(Boolean)
 }
 
-test('pinned Mermaid 11.16 treats sender-spaced central markers as messages', async () => {
+test('pinned Mermaid treats sender-spaced central markers as messages', async () => {
   expect(await upstream.project(source, diagram => diagram.db.getMessages()
     .filter((message: any) => message.to)
     .map((message: any) => ({ from: message.from, to: message.to, text: message.message, central: Boolean(message.centralConnection) })))).toEqual({ ok: true, value: [
@@ -74,7 +74,6 @@ test('sender-spaced central fallback does not accept forms Mermaid rejects', asy
     'participant ()->> Bob: Invalid directive sender',
     'Note ()->> Bob: Invalid note sender',
     'over ()->> Bob: Invalid reserved sender',
-    'properties ()->> Bob: Invalid reserved sender',
     '1 ()->> Bob: Invalid numeric sender',
     '1.1 ()->> Bob: Invalid decimal sender',
     'Alice ()->> B+B: Invalid plus in receiver',
@@ -87,6 +86,22 @@ test('sender-spaced central fallback does not accept forms Mermaid rejects', asy
   expect(await Promise.all(rejected.map(line => upstream.accepts(`sequenceDiagram\n  participant Alice\n  participant Bob\n  ${line}`))))
     .toEqual(rejected.map(() => false))
   for (const line of rejected) expect(parseSequenceMessageLine(line)).toBeNull()
+})
+
+test.each(['properties', 'details'])('pinned Mermaid accepts %s central endpoints that remain source-preserved here', async id => {
+  for (const [from, to] of [[id, 'Bob'], ['Alice', id]]) {
+    const source = `sequenceDiagram\n  ${from} ()->> ${to}: message`
+    expect(await upstream.project(source, diagram => diagram.db.getMessages()
+      .filter((message: any) => message.to)
+      .map((message: any) => ({ from: message.from, to: message.to, central: Boolean(message.centralConnection) }))))
+      .toEqual({ ok: true, value: [{ from, to, central: true }] })
+    const parsed = parseRegisteredMermaid(source)
+    if (!parsed.ok) throw new Error(JSON.stringify(parsed.error))
+    expect(serializeMermaid(parsed.value).trimEnd()).toBe(source)
+    expect(verifyMermaid(parsed.value).warnings).toContainEqual(expect.objectContaining({
+      code: 'UNSUPPORTED_SYNTAX', syntax: 'sequence_statement', line: 2,
+    }))
+  }
 })
 
 test('a title-like line is not promoted to a central message', async () => {

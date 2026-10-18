@@ -24,7 +24,10 @@ const descriptorData = Object.freeze({
       "forkHeight",
       "forkWidth",
       "labelHeight",
+      "layout",
+      "look",
       "miniPadding",
+      "minNodeWidth",
       "nodeSpacing",
       "noteMargin",
       "padding",
@@ -32,8 +35,10 @@ const descriptorData = Object.freeze({
       "rankSpacing",
       "sizeUnit",
       "textHeight",
+      "theme",
       "titleShift",
-      "titleTopMargin"
+      "titleTopMargin",
+      "wrappingWidth"
     ]
   },
   "identity": {

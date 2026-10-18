@@ -1,7 +1,7 @@
 {
   "schemaVersion": 2,
   "provenance": {
-    "version": "11.16.0"
+    "version": "12.2.0"
   },
   "families": [
     {
@@ -355,6 +355,24 @@
         },
         {
           "value": "railroad-peg-beta",
+          "agenticStatus": "unsupported"
+        }
+      ]
+    },
+    {
+      "id": "agentflow",
+      "headers": [
+        {
+          "value": "agentflow-beta",
+          "agenticStatus": "unsupported"
+        }
+      ]
+    },
+    {
+      "id": "usecase",
+      "headers": [
+        {
+          "value": "usecase-beta",
           "agenticStatus": "unsupported"
         }
       ]

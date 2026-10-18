@@ -35,7 +35,7 @@ import { decodeErText, writeErName, writeErRelationLabel, writeErTitle } from '.
 import { parseAccessibilityDirective } from '../shared/accessibility-directives.ts'
 import { parseMutableStyleProps, serializeStyleProps, unsafeStylePaintError } from '../shared/style-props.ts'
 
-/** ER source ours reads where Mermaid 11.16 rejects it, each on its canonical
+/** ER source ours reads where pinned Mermaid rejects it, each on its canonical
  * line: a trailing `%%` comment after a statement is a comment, and quoted
  * text Mermaid's lexer refuses is read generously (src/er/text.ts). */
 export function erUnsupportedSyntaxWarnings(canonicalSource: string): LayoutWarning[] {
@@ -44,7 +44,7 @@ export function erUnsupportedSyntaxWarnings(canonicalSource: string): LayoutWarn
   if (header < 0) return []
   const warnings: LayoutWarning[] = []
   const warn = (index: number, syntax: string, what: string, portable: string): void => {
-    warnings.push({ code: 'UNSUPPORTED_SYNTAX', syntax, line: index + 1, message: `${what}. Mermaid 11.16 rejects this; ${portable}.` })
+    warnings.push({ code: 'UNSUPPORTED_SYNTAX', syntax, line: index + 1, message: `${what}. Pinned Mermaid rejects this; ${portable}.` })
   }
   const grammar = lines.slice(header + 1)
   for (let index = header + 1; index < lines.length; index++) {

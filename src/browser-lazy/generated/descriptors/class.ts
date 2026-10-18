@@ -24,7 +24,9 @@ const descriptorData = Object.freeze({
       "diagramPadding",
       "htmlLabels",
       "hideEmptyMembersBox",
-      "hierarchicalNamespaces"
+      "hierarchicalNamespaces",
+      "look",
+      "theme"
     ],
     "noopKeys": [
       "arrowMarkerAbsolute",
@@ -33,8 +35,10 @@ const descriptorData = Object.freeze({
       "dividerMargin",
       "hideEmptyMembersBox",
       "htmlLabels",
+      "look",
       "padding",
       "textHeight",
+      "theme",
       "titleTopMargin"
     ]
   },

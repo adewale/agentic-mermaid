@@ -262,7 +262,7 @@ function styleForArrow(a: string): SequenceMessageStyle {
 
 // ---- Verifier ---------------------------------------------------------------
 
-/** Sequence source ours reads where Mermaid 11.16 rejects it, each on its
+/** Sequence source ours reads where pinned Mermaid rejects it, each on its
  * canonical line: a participant a second `box` meets stays in its first box
  * (sequence/participants.ts). */
 export function sequenceUnsupportedSyntaxWarnings(canonicalSource: string): LayoutWarning[] {
@@ -276,7 +276,7 @@ export function sequenceUnsupportedSyntaxWarnings(canonicalSource: string): Layo
       code: 'UNSUPPORTED_SYNTAX',
       syntax: 'sequence_participant_in_two_boxes',
       line,
-      message: `Participant "${id}" in a second box stays in the box that first placed it. Mermaid 11.16 rejects this; put each participant in one box only.`,
+      message: `Participant "${id}" in a second box stays in the box that first placed it. Pinned Mermaid rejects this; put each participant in one box only.`,
     }),
   })
   const grammar = lines.slice(header + 1)

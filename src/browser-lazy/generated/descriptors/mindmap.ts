@@ -15,9 +15,11 @@ const descriptorData = Object.freeze({
     "keys": [
       "padding",
       "maxNodeWidth",
-      "layoutAlgorithm"
+      "layoutAlgorithm",
+      "colorBy"
     ],
     "noopKeys": [
+      "colorBy",
       "layoutAlgorithm"
     ]
   },
