@@ -333,6 +333,25 @@ Rel_Back(user,api,"Replies")`
     await page.close()
   }, 60_000)
 
+  test.each([320, 390, 1280])('export actions stay visible and keyboard reachable at %dpx', async width => {
+    const page = await browser.newPage({ viewport: { width, height: 900 }, reducedMotion: 'reduce' })
+    await page.goto(`${base}/editor/?example=flowchart-basic`, { waitUntil: 'networkidle' })
+    await waitForVerifiedRender(page)
+    await page.getByRole('button', { name: 'More export options', exact: true }).click()
+    const sourceAction = page.getByRole('button', { name: 'Save Mermaid source', exact: true })
+    await sourceAction.focus()
+    await page.keyboard.press('Tab')
+    await page.keyboard.press('Shift+Tab')
+    expect(await sourceAction.evaluate(element => element === document.activeElement)).toBe(true)
+    const bounds = await page.getByRole('dialog', { name: 'Export options', exact: true }).boundingBox()
+    expect(bounds).not.toBeNull()
+    expect(bounds!.x).toBeGreaterThanOrEqual(0)
+    expect(bounds!.x + bounds!.width).toBeLessThanOrEqual(width)
+    await page.keyboard.press('Escape')
+    expect(await page.getByRole('button', { name: 'More export options', exact: true }).getAttribute('aria-expanded')).toBe('false')
+    await page.close()
+  }, 60_000)
+
   test('PNG export records unreachable fonts in its receipt and renders at the default scale', async () => {
     const exportPng = async (blockFonts: boolean) => {
       const page = await browser.newPage({ viewport: { width: 1280, height: 900 }, acceptDownloads: true })
