@@ -1,6 +1,6 @@
 import { prepareDisplayText, resolveLabelContent } from '../shared/display-text.ts'
 import { preparePixelText, type PixelTextBlock } from '../shared/prepared-text.ts'
-import { classTextBlock, classMemberBlock } from './layout.ts'
+import { classTextBlock, classMemberBlock, classAnnotationBlock } from './layout.ts'
 import type { PositionedClassDiagram, PositionedClassNode, PositionedClassNamespace, PositionedClassRelationship, PositionedClassNote, ClassMember, RelationshipType } from './types.ts'
 import { classRelationshipLineStyle } from './parser.ts'
 import { decodeClassText, memberToString } from './text.ts'
@@ -344,7 +344,7 @@ function renderClassBox(cls: PositionedClassNode, style: ResolvedRenderStyle, in
   // Annotation (<<interface>>, <<abstract>>, etc.)
   let nameY = y + headerHeight / 2
   if (cls.annotation !== undefined) {
-    const annotationBlock = cls.annotationBlock ?? preparePixelText(`<<${cls.annotation}>>`, { display: 'literal', fontSize: 10, fontWeight: 500 })
+    const annotationBlock = cls.annotationBlock ?? classAnnotationBlock(cls.annotation)
     const annotY = y + 12
     const annotColor = headerInk(style.nodeTextColor ?? 'var(--_text-muted)')
     children.push({

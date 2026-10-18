@@ -195,7 +195,7 @@ function preparedTextPlacementProblems(node: TextMark, serialized: string, path:
   const expected = block.lineBlocks.map(line => line.runs.map(run => run.text).join(''))
   const firstBaseline = node.y + (node.textLayout?.offsetY ?? 0) - (expected.length - 1) * block.lineHeight / 2 + block.fontSize * 0.35
   const baseline = (line: number) => firstBaseline + line * block.lineHeight
-  type Frame = { tag: string; line: number; fragment: boolean; text: string; x?: number; width?: number; anchor?: string; weight: number }
+  type Frame = { tag: string; line: number; fragment: boolean; text: string; x?: number; width?: number; anchor?: string; weight: number; italic: boolean }
   const stack: Frame[] = []
   const spanAttributes = new Set(['x', 'y', 'dx', 'dy', 'text-anchor', 'textLength', 'lengthAdjust', 'font-size', 'font-family', 'font-weight', 'font-style', 'text-decoration', 'letter-spacing', 'fill', 'data-text-fragment', 'data-font-metrics', 'xml:space'])
   const lines = expected.map(() => '')
@@ -218,6 +218,7 @@ function preparedTextPlacementProblems(node: TextMark, serialized: string, path:
       const run = block.lineBlocks[frame.line]!.runs[position.index]
       if (!run) break
       if (frame.weight !== (run.bold ? 700 : block.fontWeight) && frame.weight !== (run.bold ? Math.max(700, block.fontWeight) : block.fontWeight)) fail('a descendant changes the retained run weight')
+      if (frame.italic !== run.italic) fail('a descendant changes the retained run font style')
       const take = Math.min(remaining, run.text.length - position.offset)
       position.offset += take; remaining -= take
       if (position.offset === run.text.length) { position.index++; position.offset = 0 }
@@ -280,7 +281,10 @@ function preparedTextPlacementProblems(node: TextMark, serialized: string, path:
     if (!fragment && attrs.has('letter-spacing') && length(attrs.get('letter-spacing')) !== block.letterSpacing) fail('a descendant changes retained tracking')
     const rawWeight = attrs.get('font-weight')
     const weight = rawWeight === undefined ? parent?.weight ?? block.fontWeight : rawWeight === 'bold' ? 700 : rawWeight === 'normal' ? 400 : length(rawWeight)
-    const frame: Frame = { tag: tag.name, line, fragment, text: '', x, anchor, weight, ...(attrs.has('textLength') ? { width: length(attrs.get('textLength')) } : {}) }
+    const fontStyle = attrs.get('font-style')
+    if (fontStyle !== undefined && fontStyle !== 'normal' && fontStyle !== 'italic') fail('unsupported retained font style')
+    const italic = fontStyle === undefined ? parent?.italic ?? false : fontStyle === 'italic'
+    const frame: Frame = { tag: tag.name, line, fragment, text: '', x, anchor, weight, italic, ...(attrs.has('textLength') ? { width: length(attrs.get('textLength')) } : {}) }
     if (!tag.selfClosing) stack.push(frame)
   }
   append(serialized.length)

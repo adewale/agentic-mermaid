@@ -14,10 +14,11 @@ import type { PositionedQuadrantChart } from '../quadrant/types.ts'
 import type { TooltipLayout } from '../shared/tooltip-layout.ts'
 import { nodePaintBounds, nodeWorldBounds } from '../scene/bounds.ts'
 import type { PositionedErDiagram } from '../er/types.ts'
+import type { PositionedClassDiagram } from '../class/types.ts'
 
-function lower(source: string, options: RenderOptions = {}, measure?: (text: string) => number) {
+function lower(source: string, options: RenderOptions = {}, measure?: (text: string, fontStyle: 'normal' | 'italic') => number) {
   const request = resolveRenderRequestForExecution(source, options, 'svg', undefined,
-    measure ? { textMeasurement: { id: 'test:owned-artwork', version: '1.0.0', measure: input => measure(input.text) } } : {})
+    measure ? { textMeasurement: { id: 'test:owned-artwork', version: '1.0.0', measure: input => measure(input.text, input.fontStyle) } } : {})
   const family = resolvedRenderExecutionPlanOf(request).family
   const layout = positionResolvedFamily(family.id, request)
   const scene = family.lowerScene!({ positioned: layout.positioned, colors: request.appearance.colors, resolved: resolvedFamilyRenderContextOf(request) })
@@ -148,5 +149,19 @@ describe('owned source artwork retains its actual primitives', () => {
     if (placeholder.kind !== 'text') throw new Error('missing ER placeholder')
     expect(placeholder.block).toBe(entity.emptyAttributeBlock)
     expect(placeholder.block!.lineBlocks[0]!.runs.every(run => run.italic)).toBe(true)
+  })
+
+  test.each([
+    ['annotation', 'classDiagram\nclass A <<interface>>', 'annotationBlock'],
+    ['abstract member', 'classDiagram\nclass A {\n+run()*\n}', 'methodBlocks'],
+  ] as const)('Class %s uses its actual italic metrics before placement', (_name, source, field) => {
+    const { scene, positioned } = lower(source, {}, (text, fontStyle) => fontStyle === 'italic' ? 320 : text.length * 2)
+    const cls = (positioned as PositionedClassDiagram).classes[0]!
+    const block = field === 'annotationBlock' ? cls.annotationBlock! : cls.methodBlocks![0]!
+    expect(block.lineBlocks[0]!.runs.every(run => run.italic)).toBe(true)
+    expect(block.width).toBe(320)
+    expect(cls.width).toBeGreaterThan(block.width)
+    expect(leaves(scene).some(node => node.kind === 'text' && node.block === block)).toBe(true)
+    expect(sceneFidelityProblems(scene)).toEqual([])
   })
 })

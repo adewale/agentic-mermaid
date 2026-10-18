@@ -42,6 +42,7 @@ describe('fidelity oracle checks text x/y/anchor', () => {
     ['unbounded fragment fitting', 'A B', '<tspan x="10" data-text-fragment="true" textLength="10" lengthAdjust="spacing">A B</tspan>'],
     ['changed fragment tracking', 'A B', '<tspan x="10" data-text-fragment="true" letter-spacing="200">A B</tspan>'],
     ['changed fragment weight', 'A B', '<tspan x="10" data-text-fragment="true" font-weight="900">A B</tspan>'],
+    ['unmeasured italic span', 'A B', '<tspan x="10" dy="4.2" font-style="italic">A B</tspan>'],
     ['shifted style span', 'A B', '<tspan dx="200">A B</tspan>'],
     ['transformed style span', 'A B', '<tspan transform="translate(200 0)">A B</tspan>'],
     ['oversized style span', 'A B', '<tspan font-size="200">A B</tspan>'],
@@ -57,7 +58,7 @@ describe('fidelity oracle checks text x/y/anchor', () => {
   })
 
   it('accepts retained native line wrappers, RTL shaping, tracking and projected Gantt lines', () => {
-    for (const [source, letterSpacing] of [['A B\nC D', 0], ['אב ג\nש ד', 0], ['界 é\n👩‍💻', 0], ['AB CD\nEF GH', -2], ['A B', 2]] as const) {
+    for (const [source, letterSpacing] of [['A B\nC D', 0], ['אב ג\nש ד', 0], ['界 é\n👩‍💻', 0], ['AB CD\nEF GH', -2], ['A B', 2], ['<i>Italic</i> <b>bold</b>', 0]] as const) {
       const block = preparePixelText(source, { fontSize: 12, fontWeight: 400, letterSpacing })
       for (const retained of [block, pixelTextLine(block, block.lines.length - 1)!]) {
         const mark = marks.text({ id: 'line', role: 'label', text: retained.text, block: retained, x: 10, y: 20, fontSize: 12, anchor: 'middle', paint: {} }, renderMultilineText(retained, 10, 20, 12, 'font-size="12" text-anchor="middle"'))
