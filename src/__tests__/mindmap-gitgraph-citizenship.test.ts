@@ -1,5 +1,7 @@
 import { describe, expect, test } from 'bun:test'
 import fc from 'fast-check'
+import { startUpstreamMermaid } from './helpers/upstream-mermaid.ts'
+import { describeMermaidFacts } from '../agent/facts.ts'
 
 import {
   GitGraphDuplicateCommitError, GitGraphParseError, MindmapDuplicateIdError,
@@ -64,6 +66,51 @@ describe('Mindmap full-family citizenship', () => {
     const commented = parseMindmap('mindmap\n  root(Root)\n    child(Child) %% trailing comment')
     expect(commented.root.children[0]).toMatchObject({ id: 'child', label: 'Child', shape: 'rounded' })
     expect(parseMindmap('mindmap\n  root["100%% ready"]').root.label).toBe('100%% ready')
+  })
+
+  test('literal percent pairs survive node text, decorations, typed edits and trailing comments', async () => {
+    const source = `mindmap
+  root[100%% ready] %% root comment
+    a %% b
+    quoted["quoted%% label"]
+    cloud)cloud%% label( %% cloud comment
+      ::icon(mdi:foo%%bar) %% icon comment
+      :::hot%%class
+    %% real comment
+    final(Final)`
+    const parsed = parseMermaid(source)
+    if (!parsed.ok) throw new Error(JSON.stringify(parsed.error))
+    const diagram = asMindmap(parsed.value)!
+    expect(diagram.body.root.label).toBe('100%% ready')
+    expect(diagram.body.root.children.map(node => [node.id, node.label])).toEqual([
+      ['a %% b', 'a %% b'], ['quoted', 'quoted%% label'], ['cloud', 'cloud%% label'], ['final', 'Final'],
+    ])
+    expect(diagram.body.root.children[2]).toMatchObject({ icon: 'mdi:foo%%bar', className: 'hot%%class' })
+    expect(verifyMermaid(diagram).warnings.filter(warning => warning.code === 'COMMENT_DROPPED')).toEqual([
+      { code: 'COMMENT_DROPPED', count: 4, lines: [2, 5, 6, 8] },
+    ])
+    const changed = mutate(diagram, { kind: 'add_node', id: 'added', label: 'more%%text', shape: 'rect', parent: 'root' })
+    if (!changed.ok) throw new Error(changed.error.message)
+    const written = serializeMermaid(changed.value)
+    const reloaded = parseMermaid(written)
+    if (!reloaded.ok) throw new Error(JSON.stringify(reloaded.error))
+    expect(describeMermaidFacts(reloaded.value)).toEqual(describeMermaidFacts(changed.value))
+    const upstream = startUpstreamMermaid()
+    try {
+      const meaning = await upstream.project(written, diagram => {
+        const root = diagram.db.getMindmap()
+        return { label: root.descr, children: root.children.map((node: any) => ({ id: node.nodeId, label: node.descr, ...(node.icon ? { icon: node.icon } : {}), ...(node.class ? { className: node.class } : {}) })) }
+      })
+      expect(meaning).toEqual({ ok: true, value: { label: '100%% ready', children: [
+        { id: 'a %% b', label: 'a %% b' }, { id: 'quoted', label: 'quoted%% label' },
+        { id: 'cloud', label: 'cloud%% label', icon: 'mdi:foo%%bar', className: 'hot%%class' },
+        { id: 'final', label: 'Final' }, { id: 'added', label: 'more%%text' },
+      ] } })
+    } finally { upstream.close() }
+    for (const label of ['100%% ready', 'a %% b', 'quoted%% label', 'cloud%% label', 'more%%text']) {
+      expect(renderMermaidSVG(written)).toContain(label)
+      expect(renderMermaidASCII(written)).toContain(label)
+    }
   })
 
   test('rejects duplicate semantic identities instead of silently overwriting a node', () => {

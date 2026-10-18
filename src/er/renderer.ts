@@ -1,3 +1,4 @@
+import { resolveLabelContent } from '../shared/display-text.ts'
 import type { PixelTextBlock } from '../shared/prepared-text.ts'
 import { erHeaderBlock, erRelationshipBlock, erAttributeBlocks, erGroupBlock } from './layout.ts'
 import type { PositionedErDiagram, PositionedErEntity, PositionedErRelationship, PositionedErGroup, ErAttribute, Cardinality } from './types.ts'
@@ -163,7 +164,7 @@ function renderErGroup(group: PositionedErGroup, style: ResolvedRenderStyle): Sc
   const fill = style.groupFillColor ?? 'var(--_group-fill)'
   const headerFill = style.groupHeaderFillColor ?? 'var(--_group-hdr)'
   const text = style.groupTextColor ?? 'var(--_text)'
-  const block = group.labelBlock ?? erGroupBlock(group.label, style)
+  const block = group.labelBlock ?? erGroupBlock(resolveLabelContent(group.label, group.labelContent), style)
   return marks.group({
     id: `er-group:${group.id}`, role: 'group',
     open: `<g class="er-subgraph" data-id="${escapeAttr(group.id)}" data-label="${escapeDisplayAttr(group.label)}"${group.parentId ? ` data-parent-id="${escapeAttr(group.parentId)}"` : ''}>`,
@@ -233,7 +234,7 @@ function renderEntityBox(entity: PositionedErEntity, style: ResolvedRenderStyle,
 
   // Entity name (supports multi-line via <br> tags)
   const nameColor = headerInk(style.nodeTextColor ?? 'var(--_text)')
-  const labelBlock = entity.labelBlock ?? erHeaderBlock(label, style)
+  const labelBlock = entity.labelBlock ?? erHeaderBlock(resolveLabelContent(label, entity.labelContent), style)
   const displayLabel = labelBlock.text
   children.push({
     indent: 2,
@@ -398,7 +399,7 @@ function renderAttribute(
 
   // Comment (right-aligned in its column, as Mermaid draws it after the name)
   if (attr.comment) {
-    const comment = erCommentText(attr.comment)
+    const comment = erCommentText(attr.comment, attr.commentContent)
     rowNodes.push(marks.text({
       id: `${attrId}:comment`,
       role: 'attribute',
@@ -450,7 +451,7 @@ function renderRelationshipLine(
     endpoints: { from: rel.entity1, to: rel.entity2 },
     relationship: { kind: rel.identifying ? 'identifying' : 'non-identifying' },
     route: { ownership: 'layout', bendRadius },
-    labels: rel.label ? [{ text: rel.label }] : [],
+    labels: rel.label ? [{ text: rel.label, ...(rel.labelContent ? { textContent: rel.labelContent } : {}) }] : [],
   } as const
 
   // Degenerate relationships draw nothing (empty crisp keeps the part slot).

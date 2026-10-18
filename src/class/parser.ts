@@ -6,6 +6,7 @@ import { parseStyleProps } from '../shared/style-props.ts'
 import { syntaxError } from '../shared/syntax-error.ts'
 import { isSafeActionHref } from '../output-security.ts'
 import { decodeXML } from 'entities'
+import { classTextLabel, decodeClassText } from './text.ts'
 
 // ---- Shared namespace grammar ----------------------------------------------
 // One grammar, two consumers: this render parser and the agent body parser
@@ -269,7 +270,7 @@ function applyClassAnnotation(node: ClassNode, annotation: string): void {
       example: `class ${node.id} <<${annotation}>>`,
     })
   }
-  node.annotation = annotation
+  node.annotation = decodeClassText(annotation)
 }
 
 /** Mermaid's class grammar is `classDiagram NEWLINE statements EOF`, so
@@ -737,11 +738,15 @@ export function parseClassDiagram(lines: string[], authoredLines?: string[]): Cl
       }
       children = namespace.children
     }
-    if (label !== undefined) namespaces.get(path)!.label = label
+    if (label !== undefined) {
+      const namespace = namespaces.get(path)!
+      delete namespace.labelContent
+      Object.assign(namespace, classTextLabel(label, false, false))
+    }
     return path
   }
   const addMember = (node: ClassNode, text: string): void => {
-    const member = parseMember(text)
+    const member = parseClassMember(text)
     if (member) (member.isMethod ? node.methods : node.attributes).push(member.member)
   }
   const visit = (nodes: ClassStatementNode[], path = '', owner?: ClassNode): void => {
@@ -758,7 +763,7 @@ export function parseClassDiagram(lines: string[], authoredLines?: string[]): Cl
         case 'class': {
           const declaration = value.declaration
           const cls = ensureClass(classMap, declaration.id, declaration.generic)
-          if (declaration.label !== undefined) cls.label = normalizeBrTags(declaration.label)
+          if (declaration.label !== undefined) { delete cls.labelContent; Object.assign(cls, classTextLabel(declaration.label)) }
           if (declaration.className !== undefined) cls.className = declaration.className
           claim(cls.id, path)
           if (node.children) frames.push({ nodes: node.children, path, owner: cls, index: 0 })
@@ -778,7 +783,7 @@ export function parseClassDiagram(lines: string[], authoredLines?: string[]): Cl
               example: `class ${annotation.id}\n<<${annotation.annotation}>> ${annotation.id}` })
           }
           const cls = ensureClass(classMap, annotation.id, annotation.generic)
-          if (annotation.label !== undefined) cls.label = normalizeBrTags(annotation.label)
+          if (annotation.label !== undefined) { delete cls.labelContent; Object.assign(cls, classTextLabel(annotation.label)) }
           applyClassAnnotation(cls, annotation.annotation)
           claim(cls.id, path)
           break
@@ -792,7 +797,10 @@ export function parseClassDiagram(lines: string[], authoredLines?: string[]): Cl
         }
         case 'note':
           if (value.reference) ensureClass(classMap, value.reference.id, value.reference.generic)
-          diagram.notes.push({ text: normalizeBrTags(value.text), ...(value.reference ? { for: value.reference.id } : {}) })
+          {
+            const { label: text, labelContent: textContent } = classTextLabel(value.text)
+            diagram.notes.push({ text, ...(textContent ? { textContent } : {}), ...(value.reference ? { for: value.reference.id } : {}) })
+          }
           break
         case 'title': diagram.title = value.text; break
         case 'direction': diagram.direction = value.direction; break
@@ -835,14 +843,15 @@ function ensureClass(classMap: Map<string, ClassNode>, id: string, generic?: str
 }
 
 /** Parse a class member line (attribute or method) */
-function parseMember(line: string): { member: ClassMember; isMethod: boolean } | null {
-  const trimmed = line.trim().replace(/;$/, '')
+export function parseClassMember(line: string): { member: ClassMember; isMethod: boolean } | null {
+  const authored = line.trim()
+  const trimmed = /#\w+;$/.test(authored) ? authored : authored.replace(/;$/, '')
   if (!trimmed) return null
 
   // Extract visibility prefix
   let visibility: ClassMember['visibility'] = ''
   let rest = trimmed
-  if (/^[+\-#~]/.test(rest)) {
+  if (/^[+\-#~]/.test(rest) && !/^#\w+;/.test(rest)) {
     visibility = rest[0] as ClassMember['visibility']
     rest = rest.slice(1).trim()
   }
@@ -939,6 +948,17 @@ function parseMarkedClassRelationship(line: string): (ClassRelationship & { from
   }
 }
 
+/** Expand entities only after endpoint and label grammar has been read. */
+function classRelationText(label?: string, fromCardinality?: string, toCardinality?: string): Pick<ClassRelationship, 'label' | 'labelContent' | 'fromCardinality' | 'fromCardinalityContent' | 'toCardinality' | 'toCardinalityContent'> {
+  const from = fromCardinality === undefined ? undefined : classTextLabel(fromCardinality)
+  const to = toCardinality === undefined ? undefined : classTextLabel(toCardinality)
+  return {
+    ...(label ? classTextLabel(label) : {}),
+    ...(from ? { fromCardinality: from.label, ...(from.labelContent ? { fromCardinalityContent: from.labelContent } : {}) } : {}),
+    ...(to ? { toCardinality: to.label, ...(to.labelContent ? { toCardinalityContent: to.labelContent } : {}) } : {}),
+  }
+}
+
 /** Endpoints, generics, cardinalities and labels share one bounded scanner for
  * one-ended and mixed relationships, including escaped IDs with spaces. */
 function parseClassRelationEndpoints(leftSource: string, rightSource: string):
@@ -949,7 +969,7 @@ function parseClassRelationEndpoints(leftSource: string, rightSource: string):
   if (left.endsWith('"')) {
     const start = left.lastIndexOf('"', left.length - 2)
     if (start >= 0) {
-      fromCardinality = normalizeBrTags(left.slice(start + 1, -1))
+      fromCardinality = left.slice(start + 1, -1)
       left = left.slice(0, start).trimEnd()
     }
   }
@@ -967,8 +987,8 @@ function parseClassRelationEndpoints(leftSource: string, rightSource: string):
     if (char === '~') { inGeneric = true; continue }
     if (char === ':') {
       const rawLabel = right.slice(i + 1).trim()
-      if (!rawLabel || rawLabel.includes(':') || rawLabel.includes(';')) return null
-      label = normalizeBrTags(rawLabel)
+      if (!rawLabel || /[:;]/.test(rawLabel.replace(/(?<!&)#\w+;/g, ''))) return null
+      label = rawLabel
       right = right.slice(0, i).trimEnd()
       break
     }
@@ -977,7 +997,7 @@ function parseClassRelationEndpoints(leftSource: string, rightSource: string):
   if (right.startsWith('"')) {
     const close = right.indexOf('"', 1)
     if (close < 0) return null
-    toCardinality = normalizeBrTags(right.slice(1, close))
+    toCardinality = right.slice(1, close)
     right = right.slice(close + 1).trimStart()
   }
   const fromRef = parseClassReference(left)
@@ -985,9 +1005,7 @@ function parseClassRelationEndpoints(leftSource: string, rightSource: string):
   if (!fromRef || !toRef || !supportedRelationEndpoint(fromRef.id, left) || !supportedRelationEndpoint(toRef.id, right)) return null
   return {
     from: fromRef.id, to: toRef.id,
-    ...(label ? { label } : {}),
-    ...(fromCardinality !== undefined ? { fromCardinality } : {}),
-    ...(toCardinality !== undefined ? { toCardinality } : {}),
+    ...classRelationText(label, fromCardinality, toCardinality),
     ...(fromRef.generic ? { fromGeneric: fromRef.generic } : {}),
     ...(toRef.generic ? { toGeneric: toRef.generic } : {}),
   }
@@ -1008,7 +1026,7 @@ function parseMarkerlessClassRelationship(line: string): (ClassRelationship & { 
     const cardStart = left.lastIndexOf('"', left.length - 2)
     if (cardStart >= 0) {
       fromRef = parseClassReference(left.slice(0, cardStart).trimEnd())
-      if (fromRef) fromCardinality = normalizeBrTags(left.slice(cardStart + 1, -1))
+      if (fromRef) fromCardinality = left.slice(cardStart + 1, -1)
     }
   }
   if (!fromRef) return null
@@ -1030,10 +1048,9 @@ function parseMarkerlessClassRelationship(line: string): (ClassRelationship & { 
     if (char === ':') {
       const rawLabel = right.slice(i + 1).trim()
       // Mermaid requires non-empty Class label text and rejects a second
-      // colon or semicolon. Numeric entities need separate source-normalizer
-      // work before native/agent rendering can claim them consistently.
-      if (!rawLabel || rawLabel.includes(':') || rawLabel.includes(';')) return null
-      label = normalizeBrTags(rawLabel)
+      // colon or semicolon outside a protected Mermaid entity token.
+      if (!rawLabel || /[:;]/.test(rawLabel.replace(/(?<!&)#\w+;/g, ''))) return null
+      label = rawLabel
       right = right.slice(0, i).trim()
       break
     }
@@ -1043,7 +1060,7 @@ function parseMarkerlessClassRelationship(line: string): (ClassRelationship & { 
   if (right.startsWith('"')) {
     const close = right.indexOf('"', 1)
     if (close < 0) return null
-    toCardinality = normalizeBrTags(right.slice(1, close))
+    toCardinality = right.slice(1, close)
     right = right.slice(close + 1).trim()
   }
   const toRef = parseClassReference(right)
@@ -1054,9 +1071,7 @@ function parseMarkerlessClassRelationship(line: string): (ClassRelationship & { 
     to: toRef.id,
     type: line[operator] === '.' ? 'link-dashed' : 'link-solid',
     markerAt: 'none',
-    ...(label ? { label } : {}),
-    ...(fromCardinality !== undefined ? { fromCardinality } : {}),
-    ...(toCardinality !== undefined ? { toCardinality } : {}),
+    ...classRelationText(label, fromCardinality, toCardinality),
     ...(fromRef.generic ? { fromGeneric: fromRef.generic } : {}),
     ...(toRef.generic ? { toGeneric: toRef.generic } : {}),
   }

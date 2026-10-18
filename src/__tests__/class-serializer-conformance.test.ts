@@ -13,7 +13,7 @@
 import { describe, test, expect } from 'bun:test'
 import { parseClassDiagram } from '../class/parser.ts'
 import type { ClassNamespace } from '../class/types.ts'
-import { parseRegisteredMermaid as parseMermaid, serializeMermaid, mutate, asClass, describeMermaidFacts, renderMermaidSVG, verifyMermaid } from '../agent/index.ts'
+import { parseRegisteredMermaid as parseMermaid, serializeMermaid, mutate, asClass, describeMermaidFacts, renderMermaidSVG, renderMermaidASCII, verifyMermaid } from '../agent/index.ts'
 import type { ClassValidDiagram, ClassMutationOp } from '../agent/types.ts'
 import { startUpstreamMermaid } from './helpers/upstream-mermaid.ts'
 
@@ -49,6 +49,81 @@ test('note edits write valid Mermaid while keeping literal quotes, backslashes a
   }
   expect(classDiagram(source).body.notes).toEqual([{ for: 'A', text }])
   expect(renderParse(source).notes).toEqual([{ for: 'A', text }])
+})
+
+test('Class entity text stays literal in labels, namespace titles, relations, cards and notes after an edit', async () => {
+  const source = `classDiagram
+namespace N["#lt;u#gt;group#lt;/u#gt;"] {
+class A["#lt;b#gt;box#lt;/b#gt;"]
+class B
+}
+A "#lt;i#gt;one#lt;/i#gt;" --> "#quot;many#quot;" B : #lt;s#gt;edge#lt;/s#gt;
+note for A "#lt;b#gt;note#lt;/b#gt;"`
+  const diagram = classDiagram(source)
+  expect(diagram.body.classes[0]?.label).toBe('<b>box</b>')
+  expect(diagram.body.namespaces?.[0]?.label).toBe('<u>group</u>')
+  expect(diagram.body.relations[0]).toMatchObject({ label: '<s>edge</s>', fromCardinality: '<i>one</i>', toCardinality: '"many"' })
+  expect(diagram.body.notes[0]?.text).toBe('<b>note</b>')
+  const edited = apply(diagram, { kind: 'add_member', class: 'B', text: '+value' })
+  const serialized = serializeMermaid(edited)
+  const reparsed = classDiagram(serialized)
+  expect(reparsed.body).toEqual(edited.body)
+  expect(serializeMermaid(reparsed)).toBe(serialized)
+  for (const current of [diagram, reparsed]) {
+    const svg = renderMermaidSVG(current)
+    const terminal = renderMermaidASCII(current)
+    for (const text of ['<b>box</b>', '<u>group</u>', '<s>edge</s>', '<i>one</i>', '<b>note</b>']) {
+      expect(svg).toContain(text.replace(/</g, '&lt;').replace(/>/g, '&gt;'))
+      expect(terminal).toContain(text)
+    }
+  }
+  const upstream = startUpstreamMermaid()
+  try { expect(await upstream.accepts(serialized)).toBe(true) } finally { await upstream.close() }
+})
+
+test('Class typed labels and relationship text escape literal entity-looking text and quotes', async () => {
+  let diagram = classDiagram('classDiagram\nclass A')
+  diagram = apply(diagram, { kind: 'add_class', id: 'B', label: 'say "hi" and literal #quot;' })
+  diagram = apply(diagram, { kind: 'add_relation', from: 'A', to: 'B', relKind: 'association', label: 'literal #quot;: end;' })
+  diagram = apply(diagram, { kind: 'add_note', for: 'A', text: 'literal #quot; and "quote"' })
+  const source = serializeMermaid(diagram)
+  const reparsed = classDiagram(source)
+  expect(reparsed.body.classes.find(node => node.id === 'B')?.label).toBe('say "hi" and literal #quot;')
+  expect(reparsed.body.relations[0]?.label).toBe('literal #quot;: end;')
+  expect(reparsed.body.notes[0]?.text).toBe('literal #quot; and "quote"')
+  expect(describeMermaidFacts(reparsed)).toEqual(describeMermaidFacts(diagram))
+  const upstream = startUpstreamMermaid()
+  try { expect(await upstream.accepts(source)).toBe(true) } finally { await upstream.close() }
+})
+
+test('Class labels preserve real formatting beside literal entity-produced markup and measure the visible text', () => {
+  const source = 'classDiagram\nclass A["**real** #42;literal#42; #lt;b#gt;tag#lt;/b#gt;"]'
+  const diagram = classDiagram(source)
+  const edited = apply(diagram, { kind: 'add_member', class: 'A', text: '+value' })
+  const written = serializeMermaid(edited)
+  expect(classDiagram(written).body.classes[0]?.label).toBe('**real** *literal* <b>tag</b>')
+  expect(renderMermaidASCII(written)).toContain('real *literal* <b>tag</b>')
+  expect(renderMermaidSVG(written)).toContain('&lt;b&gt;tag&lt;/b&gt;')
+  expect(verifyMermaid(edited, { labelCharCap: 20 }).warnings.some(warning => warning.code === 'LABEL_OVERFLOW' && warning.target === 'A')).toBe(true)
+})
+
+test.each([
+  ['#9829; #35; #amp;', '♥ # &'],
+  ['literal #92;n', 'literal \\n'],
+  ['a#quot;b', 'a"b'],
+  ['literal #35;quot#59;', 'literal #quot;'],
+])('Class display entities keep %s through edit and reload', async (authored, expected) => {
+  const diagram = classDiagram(`classDiagram\nclass A["${authored}"]\nA --> B : ${authored}\nnote for A "${authored}"`)
+  const edited = apply(diagram, { kind: 'add_member', class: 'B', text: '+value' })
+  const source = serializeMermaid(edited)
+  const reparsed = classDiagram(source)
+  expect(reparsed.body.classes[0]?.label).toBe(expected)
+  expect(reparsed.body.relations[0]?.label).toBe(expected)
+  expect(reparsed.body.notes[0]?.text).toBe(expected)
+  expect(describeMermaidFacts(reparsed)).toEqual(describeMermaidFacts(edited))
+  expect(renderMermaidASCII(source)).toContain(expected)
+  const upstream = startUpstreamMermaid()
+  try { expect(await upstream.accepts(source)).toBe(true) } finally { await upstream.close() }
 })
 
 /** Flatten a namespace tree to { path → classIds } for structural equality. */

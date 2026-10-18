@@ -42,6 +42,7 @@
 // over already-declared states).
 // ============================================================================
 
+import { scanStateComments } from '../state/comment.ts'
 import { unknownOpMessage } from './mutation-ops.ts'
 import type {
   StateBody, StateNode, StateNote, StateRegion, StateTransition, StateMutationOp,
@@ -106,14 +107,16 @@ function ensureState(scope: ParseScope, id: string): StateNode {
  * in Mermaid; verify reports it as EMPTY_DIAGRAM.
  */
 export function parseStateBody(lines: string[]): StateBody | null {
+  const sourceLines = scanStateComments(lines)
   const root = newScope()
   const stack: ParseScope[] = [root]
   // Discover composite declarations before materializing transition endpoints.
   // Mermaid state IDs are global even when the declaration is nested, so a
   // forward reference must never create a competing simple placeholder.
   const compositeIds = new Set<string>()
-  for (const raw of lines) {
-    const match = stripStateComment(raw).match(STATE_COMPOSITE_OPEN_RE)
+  for (const line of sourceLines) {
+    if (line.noteBody) continue
+    const match = line.text.match(STATE_COMPOSITE_OPEN_RE)
     if (!match) continue
     const id = match[2]!
     if (compositeIds.has(id)) return null
@@ -140,9 +143,8 @@ export function parseStateBody(lines: string[]): StateBody | null {
     if (!compositeIds.has(target)) ensureState(scope, target)
   }
 
-  for (const raw of lines) {
-    const line = stripStateComment(raw)
-    if (!line) continue
+  for (const sourceLine of sourceLines) {
+    const line = sourceLine.text
 
     const scope = stack[stack.length - 1]!
 
@@ -156,6 +158,8 @@ export function parseStateBody(lines: string[]): StateBody | null {
       }
       continue
     }
+
+    if (!line) continue
 
     // --- notes (before the ::: gate: note TEXT may legally contain :::) ---
     const noteLine = matchNoteLine(line)

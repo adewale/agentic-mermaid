@@ -6,7 +6,7 @@ import { parseDirectionStatement } from '../shared/direction-statement.ts'
 import { parseStyleProps } from '../shared/style-props.ts'
 import { stripTrailingComment, trailingCommentStart } from '../shared/trailing-comment.ts'
 import { createErCreationFold, type ErPlacement } from './creation.ts'
-import { decodeErText, erDisplayText, type ErQuotedTextReport, readErQuotedName, readErRelationLabel } from './text.ts'
+import { decodeErText, erTextLabel, erTextContent, type ErQuotedTextReport, readErQuotedName, readErRelationLabel } from './text.ts'
 
 // Mermaid ER accepts ordinary names, numeric/decimal names, and fully quoted
 // names (e.g. `1`, `2.5`, `"Entity<br>Name"`). Keep this grammar in one
@@ -62,9 +62,9 @@ export function parseErEntityReference(value: string, report?: ErQuotedTextRepor
 
 /** The text the renderer draws for an entity: its alias, else its name. A
  * quoted name is text (`"Entity<br>Name"`); a bare name is drawn as written. */
-function erEntityDisplayText(id: string, alias: string | undefined): string {
-  if (alias !== undefined) return erDisplayText(alias)
-  return ER_ENTITY_ID_RE.test(id) ? id : erDisplayText(id)
+function erEntityDisplayText(id: string, alias: string | undefined): Pick<ErEntity, 'label' | 'labelContent'> {
+  if (alias !== undefined) return erTextLabel(alias, true)
+  return ER_ENTITY_ID_RE.test(id) ? { label: id } : erTextLabel(id, true)
 }
 
 /** Shared renderer/agent grammar for a plain ER entity identifier. */
@@ -336,7 +336,7 @@ export function parseErDiagram(lines: string[]): ErDiagram {
         break
       }
       case 'group-open':
-        groupById.set(statement.id, { id: statement.id, label: erDisplayText(statement.title ?? statement.id) })
+        groupById.set(statement.id, { id: statement.id, ...erTextLabel(statement.title ?? statement.id, true) })
         break
       case 'end':
         break
@@ -377,7 +377,7 @@ export function parseErDiagram(lines: string[]): ErDiagram {
   for (const [id, names] of classNamesByEntity) entityMap.get(id)!.className = names.join(' ')
   diagram.entities = placement.order.map(id => {
     const entity = entityMap.get(id)!
-    entity.label = erEntityDisplayText(id, placement.alias.get(id))
+    Object.assign(entity, erEntityDisplayText(id, placement.alias.get(id)))
     const owner = placement.owner.get(id)
     return owner !== undefined ? { ...entity, groupId: owner } : entity
   })
@@ -414,11 +414,13 @@ export function parseErAttribute(line: string): ErAttribute | null {
   // Extract key constraints (PK, FK, UK) and optional comment
   const keys: ErAttribute['keys'] = []
   let comment: string | undefined
+  let commentContent: ErAttribute['commentContent']
 
   // Extract quoted comment first (supports <br> tags and entity codes)
   const commentMatch = rest.match(/"([^"]*)"/)
   if (commentMatch) {
     comment = decodeErText(normalizeBrTags(commentMatch[1]!))
+    commentContent = erTextContent(commentMatch[1]!, comment, true)
   }
 
   // Extract key constraints
@@ -430,7 +432,7 @@ export function parseErAttribute(line: string): ErAttribute | null {
     } else if (part) return null
   }
 
-  return { type, name, keys, comment }
+  return { type, name, keys, comment, ...(commentContent ? { commentContent } : {}) }
 }
 
 /**
@@ -495,7 +497,7 @@ function relationshipFrom(syntax: ParsedErRelationshipSyntax, line: string): ErR
     entity2: syntax.entity2.id,
     cardinality1,
     cardinality2,
-    label: erDisplayText(syntax.label),
+    ...erTextLabel(syntax.label, true),
     identifying: syntax.identifying,
   }
 }

@@ -5,7 +5,8 @@ import { mutate } from '../agent/mutate.ts'
 import { asState, type StateMutationOp, type StateValidDiagram } from '../agent/types.ts'
 import { parseMermaid as parseRenderGraph } from '../parser.ts'
 import { verifyMermaid } from '../agent/verify.ts'
-import { renderMermaidSVG } from '../index.ts'
+import { renderMermaidSVG, renderMermaidASCII } from '../index.ts'
+import { describeMermaidFacts } from '../agent/facts.ts'
 import { startUpstreamMermaid } from './helpers/upstream-mermaid.ts'
 
 function state(source: string): StateValidDiagram {
@@ -127,6 +128,72 @@ describe('typed State residual elevation (B07)', () => {
     expect(verified.warnings).toContainEqual(expect.objectContaining({
       code: 'RENDER_FAILED', reason: expect.stringContaining(statement),
     }))
+  })
+
+  test('literal percent pairs survive State labels, notes, edits and source-loss receipts', async () => {
+    const source = `stateDiagram-v2
+state "100%% alias" as A
+B : 100%% description
+A --> B : 100%% transition
+note right of A : 100%% inline
+B --> C %% real comment`
+    const diagram = state(source)
+    expect(diagram.body.states.find(node => node.id === 'A')?.label).toBe('100%% alias')
+    expect(diagram.body.states.find(node => node.id === 'B')?.label).toBe('100%% description')
+    expect(diagram.body.transitions[0]?.label).toBe('100%% transition')
+    expect(diagram.body.notes?.[0]?.text).toBe('100%% inline')
+    expect(diagram.meta.comments).toEqual([{ text: 'real comment', line: 6 }])
+    expect(verifyMermaid(diagram).warnings.filter(warning => warning.code === 'COMMENT_DROPPED')).toEqual([
+      { code: 'COMMENT_DROPPED', count: 1, lines: [6] },
+    ])
+    const edited = apply(diagram, { kind: 'add_state', id: 'Added' })
+    const written = serializeMermaid(edited)
+    expect(describeMermaidFacts(state(written))).toEqual(describeMermaidFacts(edited))
+    const upstream = startUpstreamMermaid()
+    try {
+      const labels = await upstream.project(written, diagram => diagram.db.rootDoc.flatMap((item: any) => item.description ? [item.description] : item.note ? [item.note.text] : []))
+      expect(labels).toEqual({ ok: true, value: ['100%% alias', '100%% description', '100%% transition', '100%% inline'] })
+    } finally { upstream.close() }
+    for (const input of [source, written]) {
+      const graph = parseRenderGraph(input)
+      expect(graph.nodes.get('A')?.label).toBe('100%% alias')
+      expect(graph.edges[0]?.label).toBe('100%% transition')
+      for (const label of ['100%% alias', '100%% description', '100%% transition', '100%% inline']) {
+        expect(renderMermaidSVG(input)).toContain(label)
+        expect(renderMermaidASCII(input)).toContain(label)
+      }
+    }
+  })
+
+  test('block-note percent lines remain text while end-note comments keep physical receipts', async () => {
+    const source = `---
+config:
+  theme: default
+---
+stateDiagram-v2
+A --> B
+note right of A
+%% literal note line
+100%% block
+state Fake {
+end note %% end comment`
+    const diagram = state(source)
+    const expected = '%% literal note line\n100%% block\nstate Fake {'
+    expect(diagram.body.notes?.[0]?.text).toBe(expected)
+    expect(diagram.body.states.map(node => node.id)).toEqual(['A', 'B'])
+    expect(parseRenderGraph(source.slice(source.indexOf('stateDiagram'))).stateNotes?.[0]?.text).toBe(expected)
+    expect(diagram.meta.comments).toEqual([{ text: 'end comment', line: 11 }])
+    expect(verifyMermaid(diagram).warnings.filter(warning => warning.code === 'COMMENT_DROPPED')).toEqual([
+      { code: 'COMMENT_DROPPED', count: 1, lines: [11] },
+    ])
+    const edited = apply(diagram, { kind: 'add_state', id: 'Added' })
+    const written = serializeMermaid(edited)
+    expect(state(written).body.notes).toEqual(edited.body.notes)
+    expect(describeMermaidFacts(state(written))).toEqual(describeMermaidFacts(edited))
+    expect(renderMermaidSVG(written)).toContain('%% literal note line')
+    expect(renderMermaidASCII(written)).toContain('%% literal note line')
+    const upstream = startUpstreamMermaid()
+    try { expect(await upstream.accepts(written)).toBe(true) } finally { upstream.close() }
   })
 
   test('trailing Mermaid comments preserve transition topology in both parsers', () => {

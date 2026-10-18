@@ -6,6 +6,11 @@ import * as marks from '../scene/marks.ts'
 import { sceneNodeSerialization } from '../scene/serialization.ts'
 import { connectorInlineLabelVisualBounds } from '../scene/bounds.ts'
 import { preparePixelText } from '../shared/prepared-text.ts'
+import { prepareDisplayText, replaceDisplayTextTokens } from '../shared/display-text.ts'
+import { decodeMermaidEntities } from '../shared/mermaid-entity-display.ts'
+import { nodeProblems } from '../scene/fidelity.ts'
+import { projectTerminalStyle } from '../terminal-style.ts'
+import { resolveRenderRequest } from '../render-contract.ts'
 import type { ConnectorLabelDescriptor } from '../scene/ir.ts'
 
 function connector(label: ConnectorLabelDescriptor) {
@@ -40,6 +45,25 @@ describe('connector-owned prepared text', () => {
     expect(visible).toBe('Foobarbaz')
     expect(svg).toContain('aria-label="a to b: Foobarbaz"')
     expect(svg).toMatch(/font-weight="(?:bold|700)"/)
+  })
+
+  test('retains literal entity text beside genuine formatting in SVG, fidelity and terminal receipts', () => {
+    const source = '#lt;b#gt;X#lt;/b#gt; <b>Y</b> #92;n\nEND'
+    const text = decodeMermaidEntities(source)
+    const prepared = replaceDisplayTextTokens(prepareDisplayText(source), /#\w+;/g, decodeMermaidEntities)
+    const block = preparePixelText(prepared, { fontSize: 24, fontWeight: 600 })
+    const mark = connector({ ...placed, text, textContent: { value: text, prepared }, block })
+    const svg = sceneNodeSerialization(mark)
+    expect(svg).toContain('&lt;b&gt;X&lt;/b&gt;')
+    expect(svg).toContain('<tspan font-weight="bold">Y</tspan>')
+    const problems: string[] = []
+    nodeProblems(mark, 'inline-text', problems)
+    expect(problems).toEqual([])
+    const terminal = projectTerminalStyle(resolveRenderRequest('flowchart LR\nA-->B', {}, 'ascii'), 'none', {}, {
+      family: 'test', width: 400, height: 200, colors: { bg: '#fff', fg: '#111' }, transparent: true, parts: [mark],
+    })
+    expect(terminal.connectorProjection.connectors[0]!.labels[0]!.text).toBe('<b>X</b> Y \\n\nEND')
+    expect(terminal.diagnostics.some(diagnostic => diagnostic.code === 'TERMINAL_CONTROL_CHARACTERS_REPLACED')).toBe(false)
   })
 
   test('multiline bounds contain independently rasterized CJK, combining marks and emoji', () => {

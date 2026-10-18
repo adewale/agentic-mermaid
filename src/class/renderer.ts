@@ -1,13 +1,15 @@
+import { resolveLabelContent } from '../shared/display-text.ts'
 import { preparePixelText, type PixelTextBlock } from '../shared/prepared-text.ts'
 import { classTextBlock, classMemberBlock } from './layout.ts'
 import type { PositionedClassDiagram, PositionedClassNode, PositionedClassNamespace, PositionedClassRelationship, PositionedClassNote, ClassMember, RelationshipType } from './types.ts'
 import { classRelationshipLineStyle } from './parser.ts'
+import { decodeClassText, memberToString } from './text.ts'
 import type { RenderContext } from '../types.ts'
 import { svgOpenTag, buildStyleBlock, buildShadowDefs, type DiagramColors } from '../theme.ts'
 import { inkOnNodeFill } from '../color-resolver.ts'
 import { FONT_SIZES, FONT_WEIGHTS, STROKE_WIDTHS, resolveRenderStyle, diagramTitleMark } from '../styles.ts'
 import type { RenderStyleDefaults, ResolvedRenderStyle } from '../styles.ts'
-import { CLS, CLASS_STYLE_DEFAULTS, memberToString } from './layout.ts'
+import { CLS, CLASS_STYLE_DEFAULTS } from './layout.ts'
 import { buildAccessibilityAttrs } from '../shared/svg-a11y.ts'
 import { renderMultilineText, escapeAttr, escapeDisplayAttr, escapeXml as escapeXmlUtil } from '../multiline-utils.ts'
 import { topRoundedRectPath } from '../svg-paths.ts'
@@ -232,7 +234,7 @@ function renderNamespaceBox(ns: PositionedClassNamespace, style: ResolvedRenderS
 
   // Header label (display label when given, else the segment name), wrapped
   // by layout when it is wider than the namespace.
-  const headerBlock = ns.labelBlock ?? classTextBlock(ns.label, style, 'group', ns.width - 2 * style.groupLabelPaddingX)
+  const headerBlock = ns.labelBlock ?? classTextBlock(resolveLabelContent(ns.label, ns.labelContent), style, 'group', ns.width - 2 * style.groupLabelPaddingX)
   const headerText = headerBlock.text
   const headerTextColor = style.groupTextColor ?? 'var(--_text-sec)'
   children.push({
@@ -359,7 +361,7 @@ function renderClassBox(cls: PositionedClassNode, style: ResolvedRenderStyle, in
 
   // Class name (supports multi-line via <br> tags)
   const nameColor = headerInk(style.nodeTextColor ?? 'var(--_text)')
-  const labelBlock = cls.labelBlock ?? classTextBlock(cls.label, style, 'node')
+  const labelBlock = cls.labelBlock ?? classTextBlock(resolveLabelContent(cls.label, cls.labelContent), style, 'node')
   const label = labelBlock.text
   children.push({
     indent: 2,
@@ -472,16 +474,15 @@ function renderMember(member: ClassMember, x: number, y: number, style: Resolved
     ? `${member.name}(${member.params || ''})`
     : member.name
   const nameInk = ink(style.nodeTextColor ?? 'var(--_text-sec)')
-  spans.push(`<tspan fill="${escapeAttr(nameInk)}">${escapeXml(displayName)}</tspan>`)
+  spans.push(`<tspan fill="${escapeAttr(nameInk)}">${escapeXml(decodeClassText(displayName))}</tspan>`)
 
   if (member.type) {
     spans.push(`<tspan fill="${escapeAttr(ink('var(--_text-faint)'))}">: </tspan>`)
-    spans.push(`<tspan fill="${escapeAttr(ink('var(--_text-muted)'))}">${escapeXml(member.type)}</tspan>`)
+    spans.push(`<tspan fill="${escapeAttr(ink('var(--_text-muted)'))}">${escapeXml(decodeClassText(member.type))}</tspan>`)
   }
 
   // Plain signature string (the tspan structure lives in the crisp)
-  const plain =
-    `${member.visibility ? `${member.visibility} ` : ''}${displayName}${member.type ? `: ${member.type}` : ''}`
+  const plain = memberToString(member)
 
   return marks.text({
     id: sceneId,
@@ -500,6 +501,7 @@ function renderClassNote(note: PositionedClassNote, style: ResolvedRenderStyle, 
   const stroke = style.groupBorderColor ?? 'var(--_node-stroke)'
   const fill = style.groupFillColor ?? 'var(--_group-hdr)'
   const text = style.groupTextColor ?? 'var(--_text)'
+  const noteBlock = note.textBlock ?? preparePixelText(resolveLabelContent(note.text, note.textContent), { fontSize: 12, fontWeight: 400 })
   const children: Array<{ node: SceneNode; indent: number }> = []
   if (note.targetX !== undefined && note.targetY !== undefined) {
     children.push({ node: marks.connector({
@@ -514,9 +516,9 @@ function renderClassNote(note: PositionedClassNote, style: ResolvedRenderStyle, 
     paint: { fill, stroke, strokeWidth: '1' },
   }, `<rect x="${note.x}" y="${note.y}" width="${note.width}" height="${note.height}" rx="2" fill="${escapeAttr(fill)}" stroke="${escapeAttr(stroke)}" />`), indent: 2 })
   children.push({ node: marks.text({
-    id: `class-note:${index}:label`, role: 'label', text: note.text, block: note.textBlock,
+    id: `class-note:${index}:label`, role: 'label', text: note.text, block: noteBlock,
     x: note.x + note.width / 2, y: note.y + note.height / 2, fontSize: 12, anchor: 'middle', paint: { fill: text },
-  }, renderMultilineText(note.textBlock ?? note.text, note.x + note.width / 2, note.y + note.height / 2, 12, `text-anchor="middle" font-size="12" fill="${escapeAttr(text)}"`)), indent: 2 })
+  }, renderMultilineText(noteBlock, note.x + note.width / 2, note.y + note.height / 2, 12, `text-anchor="middle" font-size="12" fill="${escapeAttr(text)}"`)), indent: 2 })
   return marks.group({
     id: `class-note:${index}`, role: 'note',
     open: `<g class="class-note" data-note-index="${index}"${note.for ? ` data-for="${escapeAttr(note.for)}"` : ''}>`,
@@ -543,7 +545,7 @@ function renderRelationship(rel: PositionedClassRelationship, style: ResolvedRen
       paint: {},
       endpoints: { from: rel.from, to: rel.to },
       relationship: { kind: rel.type },
-      labels: rel.label ? [{ text: rel.label, ...(rel.labelPosition ? { anchor: rel.labelPosition } : {}) }] : [],
+      labels: rel.label ? [{ text: rel.label, ...(rel.labelContent ? { textContent: rel.labelContent } : {}), ...(rel.labelPosition ? { anchor: rel.labelPosition } : {}) }] : [],
     }, '')
   }
 
@@ -600,7 +602,7 @@ function renderRelationship(rel: PositionedClassRelationship, style: ResolvedRen
       bendRadius: style.edgeBendRadius,
       labelAnchors: rel.labelPosition ? [rel.labelPosition] : [],
     },
-    labels: rel.label ? [{ text: rel.label, ...(rel.labelPosition ? { anchor: rel.labelPosition } : {}) }] : [],
+    labels: rel.label ? [{ text: rel.label, ...(rel.labelContent ? { textContent: rel.labelContent } : {}), ...(rel.labelPosition ? { anchor: rel.labelPosition } : {}) }] : [],
   } as const
 
   if (style.edgeBendRadius > 0 && rel.points.length > 2) {
@@ -720,7 +722,7 @@ function renderRelationshipLabels(rel: PositionedClassRelationship, style: Resol
   // Label — prefer layout-computed position (collision-aware), fall back to midpoint
   if (rel.label) {
     const pos = rel.labelPosition ?? midpoint(rel.points)
-    const labelBlock = rel.labelBlock ?? classTextBlock(rel.label, style, 'edge')
+    const labelBlock = rel.labelBlock ?? classTextBlock(resolveLabelContent(rel.label, rel.labelContent), style, 'edge')
     const label = labelBlock.text
     out.push(marks.text({
       id: `rel-label:${key}`,
@@ -740,16 +742,17 @@ function renderRelationshipLabels(rel: PositionedClassRelationship, style: Resol
     const next = rel.points[1]!
     const offset = cardinalityOffset(p, next)
     const position = rel.fromCardinalityPosition ?? { x: p.x + offset.x, y: p.y + offset.y }
+    const block = rel.fromCardinalityBlock ?? preparePixelText(resolveLabelContent(rel.fromCardinality, rel.fromCardinalityContent), { fontSize: style.edgeLabelFontSize, fontWeight: style.edgeLabelFontWeight, letterSpacing: style.edgeLetterSpacing })
     out.push(marks.text({
       id: `rel-card:${key}:from`,
       role: 'cardinality',
-      text: rel.fromCardinality, block: rel.fromCardinalityBlock,
+      text: rel.fromCardinality, block,
       x: position.x,
       y: position.y,
       fontSize: style.edgeLabelFontSize,
       anchor: 'middle',
       paint,
-    }, renderMultilineText(rel.fromCardinalityBlock ?? rel.fromCardinality, position.x, position.y, style.edgeLabelFontSize, textAttrs)))
+    }, renderMultilineText(block, position.x, position.y, style.edgeLabelFontSize, textAttrs)))
   }
 
   // To cardinality (near end)
@@ -758,16 +761,17 @@ function renderRelationshipLabels(rel: PositionedClassRelationship, style: Resol
     const prev = rel.points[rel.points.length - 2]!
     const offset = cardinalityOffset(p, prev)
     const position = rel.toCardinalityPosition ?? { x: p.x + offset.x, y: p.y + offset.y }
+    const block = rel.toCardinalityBlock ?? preparePixelText(resolveLabelContent(rel.toCardinality, rel.toCardinalityContent), { fontSize: style.edgeLabelFontSize, fontWeight: style.edgeLabelFontWeight, letterSpacing: style.edgeLetterSpacing })
     out.push(marks.text({
       id: `rel-card:${key}:to`,
       role: 'cardinality',
-      text: rel.toCardinality, block: rel.toCardinalityBlock,
+      text: rel.toCardinality, block,
       x: position.x,
       y: position.y,
       fontSize: style.edgeLabelFontSize,
       anchor: 'middle',
       paint,
-    }, renderMultilineText(rel.toCardinalityBlock ?? rel.toCardinality, position.x, position.y, style.edgeLabelFontSize, textAttrs)))
+    }, renderMultilineText(block, position.x, position.y, style.edgeLabelFontSize, textAttrs)))
   }
 
   return out

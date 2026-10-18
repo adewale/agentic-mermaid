@@ -18,6 +18,7 @@ import { walkJourneyLines } from '../journey/parse-core.ts'
 import { auditRouteContracts, findRouteHitches } from '../route-contracts.ts'
 import { evaluateBrandConstraints } from '../scene/brand-constraints.ts'
 import { isSequenceCommentLine } from '../sequence/statements.ts'
+import { readSequenceText } from '../sequence/text.ts'
 import { wcagCssContrastRatio } from '../shared/color-math.ts'
 import { sameExtensionIdentity } from '../shared/extension-identity.ts'
 import { familyConfigDiagnostics } from '../shared/family-config-diagnostics.ts'
@@ -34,6 +35,7 @@ import { builtinFamilyMetadata, extractLabelsGeneric, getFamily } from './famili
 import { FamilyLayoutError, ganttGeometryWarnings, ganttScheduleWarning, layoutGeometryWarnings, type ProjectedFamilyArtifact, positionFamilyArtifact } from './family-layouts.ts'
 import { flowchartUnsupportedSyntaxWarnings, flowchartUpstreamRejectedSyntaxWarnings } from './flowchart-unsupported.ts'
 import { labelOverflowWarning } from './label-metrics.ts'
+import { resolveLabelContent } from '../shared/display-text.ts'
 import { emptyRenderedLayout } from './layout-to-rendered.ts'
 import { parseRegisteredMermaid } from './parse.ts'
 import { quadrantUnsupportedSyntaxWarnings } from './quadrant-body.ts'
@@ -676,11 +678,11 @@ function verifyGraph(graph: import('../types.ts').MermaidGraph, d: ValidDiagram,
   for (const [id, node] of graph.nodes) {
     if (!KNOWN_SHAPES.has(node.shape)) warnings.push({ code: 'UNKNOWN_SHAPE', node: id, shape: String(node.shape) })
     // Parsed labels already carry their formatting as tags; a literal `*` is drawn.
-    const w = labelOverflowWarning(id, node.label, cap, 'plain')
+    const w = labelOverflowWarning(id, resolveLabelContent(node.label, node.labelContent), cap, 'plain')
     if (w) warnings.push(w)
   }
   for (const edge of graph.edges) {
-    const w = edge.label ? labelOverflowWarning(`${edge.source}->${edge.target}`, edge.label, cap, 'plain') : null
+    const w = edge.label ? labelOverflowWarning(`${edge.source}->${edge.target}`, resolveLabelContent(edge.label, edge.labelContent), cap, 'plain') : null
     if (w) warnings.push(w)
   }
   // Tier 1 + Tier 2 — box and polyline geometry.
@@ -934,22 +936,22 @@ function verifySequence(d: ValidDiagram & { body: SequenceBody }, cap: number, o
         to: ids.has(m.to) ? m.to : undefined,
       })
     }
-    const w = labelOverflowWarning(`msg#${i}:${m.from}->${m.to}`, m.text, cap)
+    const w = labelOverflowWarning(`msg#${i}:${m.from}->${m.to}`, resolveLabelContent(m.text, m.textContent), cap)
     if (w) warnings.push(w)
   })
   for (const p of body.participants) {
-    const w = labelOverflowWarning(p.id, p.label, cap)
+    const w = labelOverflowWarning(p.id, resolveLabelContent(p.label, p.labelContent), cap)
     if (w) warnings.push(w)
   }
   for (const statement of body.statements)
     if (statement.kind === 'fragment') {
       if (statement.fragment.label) {
-        const w = labelOverflowWarning(`fragment:${statement.fragment.fragmentKind}`, statement.fragment.label, cap)
+        const w = labelOverflowWarning(`fragment:${statement.fragment.fragmentKind}`, resolveLabelContent(statement.fragment.label, statement.fragment.labelContent), cap)
         if (w) warnings.push(w)
       }
       for (const [index, branch] of statement.fragment.branches.entries())
         if (branch.label) {
-          const w = labelOverflowWarning(`fragment:${statement.fragment.fragmentKind}:branch#${index}`, branch.label, cap)
+          const w = labelOverflowWarning(`fragment:${statement.fragment.fragmentKind}:branch#${index}`, resolveLabelContent(branch.label, branch.labelContent), cap)
           if (w) warnings.push(w)
         }
     }
@@ -968,7 +970,8 @@ function verifySequence(d: ValidDiagram & { body: SequenceBody }, cap: number, o
     const labels = (plugin?.extractLabels ?? extractLabelsGeneric)(opaqueLines.join('\n'))
     const seen = new Set<string>()
     for (const lbl of labels) {
-      const w = labelOverflowWarning(lbl.target, lbl.text, cap)
+      const text = readSequenceText(lbl.text)
+      const w = labelOverflowWarning(lbl.target, resolveLabelContent(text.value, text.content), cap)
       if (!w) continue
       const key = `${lbl.target}:${lbl.text}`
       if (seen.has(key)) continue

@@ -1,3 +1,4 @@
+import type { LabelContent } from '../shared/display-text.ts'
 import type { PixelTextBlock } from '../shared/prepared-text.ts'
 // ============================================================================
 // ER diagram types
@@ -36,6 +37,7 @@ export interface ErDiagram {
 export interface ErGroup {
   id: string
   label: string
+  labelContent?: LabelContent
   parentId?: string
   direction?: Direction
   entityIds: string[]
@@ -45,6 +47,7 @@ export interface ErEntity {
   id: string
   /** Display name (same as id unless aliased) */
   label: string
+  labelContent?: LabelContent
   /** Entity attributes (columns) */
   attributes: ErAttribute[]
   /** Applied CSS class names in source order, separated by spaces. */
@@ -62,6 +65,7 @@ export interface ErAttribute {
   keys: Array<'PK' | 'FK' | 'UK'>
   /** Optional comment */
   comment?: string
+  commentContent?: LabelContent
 }
 
 /**
@@ -82,6 +86,7 @@ export interface ErRelationship {
   cardinality2: Cardinality
   /** Relationship verb/label (e.g., "places", "contains") */
   label: string
+  labelContent?: LabelContent
   /** Whether the relationship is identifying (solid line) or non-identifying (dashed) */
   identifying: boolean
 }
@@ -106,6 +111,7 @@ export interface PositionedErGroup {
   labelBlock?: PixelTextBlock
   id: string
   label: string
+  labelContent?: LabelContent
   parentId?: string
   x: number
   y: number
@@ -119,6 +125,7 @@ export interface PositionedErEntity {
   attributeBlocks?: { type: PixelTextBlock; name: PixelTextBlock; keys: PixelTextBlock; comment?: PixelTextBlock }[]
   id: string
   label: string
+  labelContent?: LabelContent
   attributes: ErAttribute[]
   x: number
   y: number
@@ -140,6 +147,7 @@ export interface PositionedErRelationship {
   cardinality1: Cardinality
   cardinality2: Cardinality
   label: string
+  labelContent?: LabelContent
   identifying: boolean
   /** Path points from entity1 to entity2 */
   points: Array<{ x: number; y: number }>

@@ -1,4 +1,7 @@
+import { resolveLabelContent, type DisplayTextInput } from '../shared/display-text.ts'
 import { preparePixelText, type PixelTextBlock } from '../shared/prepared-text.ts'
+import { memberToString } from './text.ts'
+export { memberToString } from './text.ts'
 /**
  * Class diagram layout engine (ELK.js).
  *
@@ -96,7 +99,7 @@ export function configSpacing(frontmatter: MermaidFrontmatterMap, family: string
   return typeof value === 'number' && Number.isFinite(value) && value >= 0 ? value : undefined
 }
 
-export function classTextBlock(text: string, style: ResolvedRenderStyle, role: 'node' | 'edge' | 'group', maxWidth?: number): PixelTextBlock {
+export function classTextBlock(text: DisplayTextInput, style: ResolvedRenderStyle, role: 'node' | 'edge' | 'group', maxWidth?: number): PixelTextBlock {
   return role === 'node'
     ? preparePixelText(text, { transform: style.nodeTextTransform, fontSize: style.nodeLabelFontSize, fontWeight: style.nodeLabelFontWeight, letterSpacing: style.nodeLetterSpacing, maxWidth })
     : role === 'edge'
@@ -147,7 +150,7 @@ function buildClassElkGraph(
   const classSizes: ClassSizeMap = new Map()
 
   for (const cls of diagram.classes) {
-    const labelBlock = classTextBlock(cls.label, style, 'node')
+    const labelBlock = classTextBlock(resolveLabelContent(cls.label, cls.labelContent), style, 'node')
     const headerBaseHeight = Math.max(
       CLS.headerBaseHeight,
       labelBlock.height + style.nodePaddingY * 2,
@@ -215,7 +218,7 @@ function buildClassElkGraph(
   // children attach.
   const elkByPath = new Map<string, ElkNode>()
   for (const info of namespaces) {
-    const headerHeight = namespaceHeaderHeight(style, titles.get(info.path) ?? classTextBlock(info.ns.label ?? info.ns.name, style, 'group').text)
+    const headerHeight = namespaceHeaderHeight(style, titles.get(info.path) ?? classTextBlock(resolveLabelContent(info.ns.label ?? info.ns.name, info.ns.labelContent), style, 'group').text)
     const compound: ElkNode = {
       id: NS_PREFIX + info.path,
       layoutOptions: {
@@ -254,7 +257,7 @@ function buildClassElkGraph(
     const rel = diagram.relationships[i]!
     const edge: ElkExtendedEdge = { id: `e${i}`, sources: [rel.from], targets: [rel.to] }
     if (rel.label) {
-      const metrics = classTextBlock(rel.label, style, 'edge')
+      const metrics = classTextBlock(resolveLabelContent(rel.label, rel.labelContent), style, 'edge')
       const label = metrics.text
       edge.labels = [{ text: label, width: metrics.width + 8, height: metrics.height + 6 }]
     }
@@ -320,13 +323,14 @@ function extractClassLayout(
           id: path,
           name: info?.ns.name ?? path,
           label: info?.ns.label ?? info?.ns.name ?? path,
+          ...(info?.ns.labelContent ? { labelContent: info.ns.labelContent } : {}),
           parentId: info?.parentPath,
           classIds: info ? [...info.ns.classIds] : [],
           x,
           y,
           width: child.width ?? 0,
           height: child.height ?? 0,
-          headerHeight: namespaceHeaderHeight(style, titles.get(path) ?? classTextBlock(info?.ns.label ?? info?.ns.name ?? path, style, 'group').text),
+          headerHeight: namespaceHeaderHeight(style, titles.get(path) ?? classTextBlock(resolveLabelContent(info?.ns.label ?? info?.ns.name ?? path, info?.ns.labelContent), style, 'group').text),
           ...(titles.has(path) ? { title: titles.get(path)! } : {}),
         })
         walk(child, x, y)
@@ -338,6 +342,7 @@ function extractClassLayout(
         positionedClasses.push({
           id: cls.id,
           label: cls.label,
+          ...(cls.labelContent ? { labelContent: cls.labelContent } : {}),
           annotation: cls.annotation,
           attributes: cls.attributes,
           methods: cls.methods,
@@ -373,8 +378,11 @@ function extractClassLayout(
       fromType: rel.fromType,
       toType: rel.toType,
       label: rel.label,
+      ...(rel.labelContent ? { labelContent: rel.labelContent } : {}),
       fromCardinality: rel.fromCardinality,
+      ...(rel.fromCardinalityContent ? { fromCardinalityContent: rel.fromCardinalityContent } : {}),
       toCardinality: rel.toCardinality,
+      ...(rel.toCardinalityContent ? { toCardinalityContent: rel.toCardinalityContent } : {}),
       points: section?.points ?? [],
       labelPosition: section?.labelPosition,
     })
@@ -391,7 +399,7 @@ function extractClassLayout(
     && a.y < b.y + b.height + gap && a.y + a.height + gap > b.y
   let freestandingY = height + 16
   const notes = diagram.notes.map(note => {
-    const metrics = preparePixelText(note.text, { fontSize: 12, fontWeight: 400 })
+    const metrics = preparePixelText(resolveLabelContent(note.text, note.textContent), { fontSize: 12, fontWeight: 400 })
     const noteWidth = Math.max(90, metrics.width + 24)
     const noteHeight = Math.max(40, metrics.height + 18)
     const target = note.for ? positionedClasses.find(cls => cls.id === note.for) : undefined
@@ -415,7 +423,7 @@ function extractClassLayout(
     occupied.push(placement)
     width = Math.max(width, placement.x + noteWidth + CLS.padding)
     height = Math.max(height, placement.y + noteHeight + CLS.padding)
-    return { text: note.text, ...(note.for ? { for: note.for } : {}), ...placement }
+    return { text: note.text, ...(note.textContent ? { textContent: note.textContent } : {}), ...(note.for ? { for: note.for } : {}), ...placement }
   })
 
   return {
@@ -450,7 +458,7 @@ function placeClassCardinalityLabels(
   }))
   for (const relationship of relationships) {
     if (!relationship.label || !relationship.labelPosition) continue
-    const metrics = classTextBlock(relationship.label, style, 'edge')
+    const metrics = classTextBlock(resolveLabelContent(relationship.label, relationship.labelContent), style, 'edge')
     obstacles.push({
       x0: relationship.labelPosition.x - metrics.width / 2 - 2,
       y0: relationship.labelPosition.y - 8 - metrics.height / 2 - 2,
@@ -459,7 +467,7 @@ function placeClassCardinalityLabels(
     })
   }
 
-  const allocate = (text: string, endpoint: Point, toward: Point): Point => {
+  const allocate = (text: DisplayTextInput, endpoint: Point, toward: Point): Point => {
     const metrics = preparePixelText(text, { fontSize: style.edgeLabelFontSize, fontWeight: style.edgeLabelFontWeight, letterSpacing: style.edgeLetterSpacing })
     const halfW = metrics.width / 2 + 2
     const halfH = metrics.height / 2 + 2
@@ -503,7 +511,7 @@ function placeClassCardinalityLabels(
     if (relationship.points.length < 2) continue
     if (relationship.fromCardinality) {
       relationship.fromCardinalityPosition = allocate(
-        relationship.fromCardinality,
+        resolveLabelContent(relationship.fromCardinality, relationship.fromCardinalityContent),
         relationship.points[0]!,
         relationship.points[1]!,
       )
@@ -511,7 +519,7 @@ function placeClassCardinalityLabels(
     if (relationship.toCardinality) {
       const last = relationship.points.length - 1
       relationship.toCardinalityPosition = allocate(
-        relationship.toCardinality,
+        resolveLabelContent(relationship.toCardinality, relationship.toCardinalityContent),
         relationship.points[last]!,
         relationship.points[last - 1]!,
       )
@@ -547,18 +555,18 @@ export function layoutClassDiagram(
     titles = wrapped
   }
   for (const cls of positioned!.classes) {
-    cls.labelBlock = classTextBlock(cls.label, style, 'node')
+    cls.labelBlock = classTextBlock(resolveLabelContent(cls.label, cls.labelContent), style, 'node')
     cls.attributeBlocks = cls.attributes.map(classMemberBlock)
     cls.methodBlocks = cls.methods.map(classMemberBlock)
     if (cls.annotation !== undefined) cls.annotationBlock = preparePixelText(`<<${cls.annotation}>>`, { display: 'literal', fontSize: 10, fontWeight: 500 })
   }
-  for (const ns of positioned!.namespaces) ns.labelBlock = classTextBlock(ns.label, style, 'group', ns.width - 2 * style.groupLabelPaddingX)
-  for (const note of positioned!.notes) note.textBlock = preparePixelText(note.text, { fontSize: 12, fontWeight: 400 })
+  for (const ns of positioned!.namespaces) ns.labelBlock = classTextBlock(resolveLabelContent(ns.label, ns.labelContent), style, 'group', ns.width - 2 * style.groupLabelPaddingX)
+  for (const note of positioned!.notes) note.textBlock = preparePixelText(resolveLabelContent(note.text, note.textContent), { fontSize: 12, fontWeight: 400 })
   for (const rel of positioned!.relationships) {
-    if (rel.label !== undefined) rel.labelBlock = classTextBlock(rel.label, style, 'edge')
+    if (rel.label !== undefined) rel.labelBlock = classTextBlock(resolveLabelContent(rel.label, rel.labelContent), style, 'edge')
     for (const side of ['from', 'to'] as const) {
       const text = rel[`${side}Cardinality`]
-      if (text !== undefined) rel[`${side}CardinalityBlock`] = preparePixelText(text, { fontSize: style.edgeLabelFontSize, fontWeight: style.edgeLabelFontWeight, letterSpacing: style.edgeLetterSpacing })
+      if (text !== undefined) rel[`${side}CardinalityBlock`] = preparePixelText(resolveLabelContent(text, rel[`${side}CardinalityContent`]), { fontSize: style.edgeLabelFontSize, fontWeight: style.edgeLabelFontWeight, letterSpacing: style.edgeLetterSpacing })
     }
   }
   return withClassTitle(positioned!, diagram.title, style)
@@ -591,8 +599,8 @@ function wrappedNamespaceTitles(namespaces: readonly PositionedClassNamespace[],
   const titles = new Map<string, string>()
   for (const ns of namespaces) {
     const room = ns.width - 2 * style.groupLabelPaddingX
-    const block = classTextBlock(ns.label, style, 'group', room)
-    const unwrapped = classTextBlock(ns.label, style, 'group')
+    const block = classTextBlock(resolveLabelContent(ns.label, ns.labelContent), style, 'group', room)
+    const unwrapped = classTextBlock(resolveLabelContent(ns.label, ns.labelContent), style, 'group')
     if (block.text !== unwrapped.text) titles.set(ns.id, block.text)
   }
   return titles
@@ -607,58 +615,4 @@ function maxMemberWidth(members: ClassMember[]): number {
     if (w > maxW) maxW = w
   }
   return maxW
-}
-
-/** Convert a class member to its display string */
-export function memberToString(m: ClassMember): string {
-  if (!m.isMethod && m.sourceText) {
-    const visibility = m.visibility && m.sourceText.startsWith(m.visibility) ? m.visibility : ''
-    return visibility + formatGenericMemberText(m.sourceText.slice(visibility.length))
-  }
-  const vis = m.visibility ? `${m.visibility} ` : ''
-  const name = m.isMethod ? `${m.name}(${m.params || ''})` : m.name
-  const type = m.type ? `: ${m.type}` : ''
-  return `${vis}${name}${type}`
-}
-
-/** Match Mermaid's outside-in tilde pairing, including nested generic types. */
-function formatGenericMemberText(input: string): string {
-  const sets = input.split(/(,)/)
-  const output: string[] = []
-  // Pair comma-separated generic arguments before formatting. In particular,
-  // never pop a formatted output segment based on a raw input index: after one
-  // pair is consumed those indexes no longer refer to the same output entry.
-  for (let i = 0; i < sets.length; i += 2) {
-    let set = sets[i]!
-    let tildes = countTildes(set)
-    while (tildes % 2 !== 0 && i + 2 < sets.length) {
-      const next = sets[i + 2]!
-      set += `,${next}`
-      tildes += countTildes(next)
-      i += 2
-    }
-    output.push(formatGenericSet(set))
-    if (i + 1 < sets.length) output.push(',')
-  }
-  return output.join('')
-}
-
-function countTildes(input: string): number {
-  let count = 0
-  for (const char of input) if (char === '~') count++
-  return count
-}
-
-function formatGenericSet(input: string): string {
-  const chars = [...input]
-  const tildes: number[] = []
-  for (let i = 0; i < chars.length; i++) if (chars[i] === '~') tildes.push(i)
-  if (tildes.length <= 1) return input
-  // A leading odd tilde is UML's private visibility marker, not a bracket.
-  const first = tildes.length % 2 !== 0 && chars[0] === '~' ? 1 : 0
-  for (let left = first, right = tildes.length - 1; left < right; left++, right--) {
-    chars[tildes[left]!] = '<'
-    chars[tildes[right]!] = '>'
-  }
-  return chars.join('')
 }

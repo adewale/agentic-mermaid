@@ -1,4 +1,6 @@
 import { sanitizeDisplayLines } from './shared/text-controls.ts'
+import { resolveLabelContent } from './shared/display-text.ts'
+import { displayText } from './multiline-utils.ts'
 // ============================================================================
 // ResolvedAppearance -> terminal projection.
 //
@@ -321,9 +323,11 @@ function projectConnectorScene(
       id: connector.id,
       role: connector.role,
       labels: Object.freeze(projection.labels.map(label => {
-        const text = sanitizeDisplayLines(label.text)
-        if (text !== label.text) connectorControlsReplaced = true
-        return Object.freeze({ ...label, text })
+        const input = resolveLabelContent(label.text, label.textContent)
+        const visible = typeof input === 'string' ? input : displayText(input)
+        const text = sanitizeDisplayLines(visible)
+        if (text !== visible) connectorControlsReplaced = true
+        return Object.freeze({ ...label, text, ...(typeof input !== 'string' ? { textContent: { ...label.textContent!, value: text } } : {}) })
       })),
       diagnostics: Object.freeze(projection.diagnostics.map(clean)),
     })

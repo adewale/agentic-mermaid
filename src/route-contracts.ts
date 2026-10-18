@@ -1,3 +1,4 @@
+import { resolveLabelContent, type DisplayTextInput, type PreparedDisplayText } from './shared/display-text.ts'
 /**
  * Route contracts — principled routing without hitches (docs/design/system/route-contracts.md).
  *
@@ -758,9 +759,17 @@ function pillRect(cx: number, cy: number, m: { width: number; height: number }):
  * Cleared when full so a long-lived process cannot grow it without bound. */
 const LABEL_SIZES = new Map<string, { width: number; height: number }>()
 const MAX_LABEL_SIZES = 4096
+const PREPARED_LABEL_KEYS = new WeakMap<PreparedDisplayText, string>()
 
-function labelSize(label: string, style: LabelMetricsStyle): { width: number; height: number } {
-  const key = `${style.edgeLabelFontSize}\u0000${style.edgeLabelFontWeight}\u0000${style.edgeTextTransform ?? ''}\u0000${label}`
+function labelSize(label: DisplayTextInput, style: LabelMetricsStyle): { width: number; height: number } {
+  let labelKey: string
+  if (typeof label === 'string') labelKey = `text:${label}`
+  else {
+    labelKey = PREPARED_LABEL_KEYS.get(label) ?? JSON.stringify(label.lines.map(runs => runs.map(run => [run.text, run.bold, run.italic, run.underline, run.strikethrough])))
+    PREPARED_LABEL_KEYS.set(label, labelKey)
+    labelKey = `runs:${labelKey}`
+  }
+  const key = `${style.edgeLabelFontSize}\u0000${style.edgeLabelFontWeight}\u0000${style.edgeTextTransform ?? ''}\u0000${labelKey}`
   let size = LABEL_SIZES.get(key)
   if (size === undefined) {
     const m = measureMultilineText(applyTextTransform(label, style.edgeTextTransform), style.edgeLabelFontSize, style.edgeLabelFontWeight)
@@ -773,7 +782,7 @@ function labelSize(label: string, style: LabelMetricsStyle): { width: number; he
 
 export function labelRect(e: PositionedEdge, style: LabelMetricsStyle): { x: number; y: number; w: number; h: number } | null {
   if (!e.label || !e.labelPosition) return null
-  return pillRect(e.labelPosition.x, e.labelPosition.y, labelSize(e.label, style))
+  return pillRect(e.labelPosition.x, e.labelPosition.y, labelSize(resolveLabelContent(e.label, e.labelContent), style))
 }
 
 /**
@@ -840,7 +849,7 @@ export function directLaneBlockers(
   }
 
   if (edge.label) {
-    const m = measureMultilineText(applyTextTransform(edge.label, ctx.style.edgeTextTransform), ctx.style.edgeLabelFontSize, ctx.style.edgeLabelFontWeight)
+    const m = measureMultilineText(applyTextTransform(resolveLabelContent(edge.label, edge.labelContent), ctx.style.edgeTextTransform), ctx.style.edgeLabelFontSize, ctx.style.edgeLabelFontWeight)
     const span = (axis.main === 'x' ? m.width : m.height) + 2 * LABEL_PILL_PADDING
     if (mainHi - mainLo < span + LABEL_CLEARANCE) {
       blockers.push({ kind: 'label', id: edgeId(edge) })
@@ -869,7 +878,7 @@ export function findLabelSlot(
   ctx: LaneContext,
 ): Point | null {
   if (!edge.label) return { x: (start.x + end.x) / 2, y: (start.y + end.y) / 2 }
-  const m = measureMultilineText(applyTextTransform(edge.label, ctx.style.edgeTextTransform), ctx.style.edgeLabelFontSize, ctx.style.edgeLabelFontWeight)
+  const m = measureMultilineText(applyTextTransform(resolveLabelContent(edge.label, edge.labelContent), ctx.style.edgeTextTransform), ctx.style.edgeLabelFontSize, ctx.style.edgeLabelFontWeight)
   const PAD = 2
   const rectsOverlap = (
     ax: number, ay: number, aw: number, ah: number,
@@ -1993,7 +2002,7 @@ export function applyRouteContracts(
     // rubric's self-loop rule measures pill-RECT-to-route, so a 4px gap is
     // well inside its allowance.
     const pill = edge.label
-      ? measureMultilineText(applyTextTransform(edge.label, style.edgeTextTransform), style.edgeLabelFontSize, style.edgeLabelFontWeight)
+      ? measureMultilineText(applyTextTransform(resolveLabelContent(edge.label, edge.labelContent), style.edgeTextTransform), style.edgeLabelFontSize, style.edgeLabelFontWeight)
       : null
     const pillMain = (side: PortSide): number => pill
       ? (side === 'N' || side === 'S' ? pill.height : pill.width) + 2 * LABEL_PILL_PADDING
@@ -2541,7 +2550,7 @@ function sharedTrunkConflict(
   style: LabelMetricsStyle,
 ): PositionedEdge | null {
   if (!edge.label || !edge.labelPosition) return null
-  const m = measureMultilineText(applyTextTransform(edge.label, style.edgeTextTransform), style.edgeLabelFontSize, style.edgeLabelFontWeight)
+  const m = measureMultilineText(applyTextTransform(resolveLabelContent(edge.label, edge.labelContent), style.edgeTextTransform), style.edgeLabelFontSize, style.edgeLabelFontWeight)
   const pill = pillRect(edge.labelPosition.x, edge.labelPosition.y, m)
   for (const other of edges) {
     if (other === edge || (edge.edgeIndex !== undefined && other.edgeIndex === edge.edgeIndex)) continue
@@ -2604,7 +2613,7 @@ export function repairLabelsOnSharedTrunks(
   for (const edge of positioned.edges) {
     if (!edge.label || !edge.labelPosition || edge.points.length < 2) continue
     if (!sharedTrunkConflict(edge, positioned.edges, style)) continue
-    const m = measureMultilineText(applyTextTransform(edge.label, style.edgeTextTransform), style.edgeLabelFontSize, style.edgeLabelFontWeight)
+    const m = measureMultilineText(applyTextTransform(resolveLabelContent(edge.label, edge.labelContent), style.edgeTextTransform), style.edgeLabelFontSize, style.edgeLabelFontWeight)
     const pw = m.width + 2 * LABEL_PILL_PADDING, ph = m.height + 2 * LABEL_PILL_PADDING
 
     const segs: Array<{ a: Point; b: Point; vertical: boolean; len: number; i: number }> = []
@@ -2677,7 +2686,7 @@ export function repairLabelsOffOwnRoute(
   for (const edge of positioned.edges) {
     if (!edge.label || !edge.labelPosition || edge.points.length < 2) continue
     if (edge.source === edge.target) continue // self-loop label sits beside the stub — correct, not off-route
-    const m = measureMultilineText(applyTextTransform(edge.label, style.edgeTextTransform), style.edgeLabelFontSize, style.edgeLabelFontWeight)
+    const m = measureMultilineText(applyTextTransform(resolveLabelContent(edge.label, edge.labelContent), style.edgeTextTransform), style.edgeLabelFontSize, style.edgeLabelFontWeight)
     const pw = m.width + 2 * LABEL_PILL_PADDING, ph = m.height + 2 * LABEL_PILL_PADDING
     const allow = ph / 2 + 4 // exactly the rubric's labelOffRoute allowance
     const routeDist = (p: Point): number => {
@@ -2785,7 +2794,7 @@ export function separateEdgeLabelPills(
       inner.y - HALO < n.y + n.height && inner.y + inner.h + HALO > n.y)
 
   const trySlide = (edge: PositionedEdge, others: PositionedEdge[]): boolean => {
-    const m = measureMultilineText(applyTextTransform(edge.label!, style.edgeTextTransform), style.edgeLabelFontSize, style.edgeLabelFontWeight)
+    const m = measureMultilineText(applyTextTransform(resolveLabelContent(edge.label!, edge.labelContent), style.edgeTextTransform), style.edgeLabelFontSize, style.edgeLabelFontWeight)
     const pw = m.width + 2 * LABEL_PILL_PADDING, ph = m.height + 2 * LABEL_PILL_PADDING
     const clearAt = (x: number, y: number): boolean => {
       const inner = pillRect(x, y, m)

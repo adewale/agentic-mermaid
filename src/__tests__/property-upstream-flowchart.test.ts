@@ -15,11 +15,11 @@
 
 import { afterAll, beforeAll, describe, expect, test } from 'bun:test'
 import fc from 'fast-check'
-import { asFlowchart, type FlowchartMutationOp, mutate, parseRegisteredMermaid, serializeMermaid } from '../agent/index.ts'
+import { asFlowchart, type FlowchartMutationOp, mutate, parseRegisteredMermaid, serializeMermaid, verifyMermaid } from '../agent/index.ts'
+import { renderMermaidASCII, renderMermaidSVG } from '../index.ts'
 import { countStructuralElements } from '../agent/structural-count.ts'
 import type { MermaidEdge, MermaidGraph, MermaidSubgraph } from '../types.ts'
 import { breakLineTags } from '../multiline-utils.ts'
-import { FORMAT_TAG_SOURCE } from '../shared/inline-format.ts'
 import { toEntityMarkers } from '../shared/mermaid-entities.ts'
 import { projectEntityMarkers } from '../shared/mermaid-entity-display.ts'
 import { startUpstreamMermaid, type UpstreamMermaid, type UpstreamParse } from './helpers/upstream-mermaid.ts'
@@ -66,15 +66,6 @@ const QUOTED_CHARS = [
   ...'abcXYZ019 ()[]{}<>:,.!?-_/&=+\'*~;\\@`'.split(''),
   '#quot;', '@{', '#9829;', '#35;', '#amp;', '#lt;', '#gt;', '#92;', '\\n',
 ]
-const FORMAT_TAGS = new RegExp(FORMAT_TAG_SOURCE, 'gi')
-
-/** Entity codes that spell a formatting tag (`#lt;b#gt;`): upstream shows the
- *  tag's text, but the label model holds no literal formatting tag, so our
- *  label keeps those codes (BUG-19's recorded limit, pinned below). */
-function spellsTagWithEntities(text: string): boolean {
-  const tags = (value: string) => value.match(FORMAT_TAGS)?.length ?? 0
-  return tags(projectEntityMarkers(toEntityMarkers(text))) > tags(text)
-}
 // Edge operators with a fixed spelling; labelled forms are built below.
 const ARROWS = ['-->', '---', '-.->', '==>', '-.-', '===', '--o', '--x', '<-->']
 
@@ -88,7 +79,7 @@ const labelArb: fc.Arbitrary<Label> = fc.oneof(
     // generate (typed bodies keep them opaque). `&#35;` is an HTML character
     // reference, which the render path decodes before any grammar and our
     // parser keeps as written; upstream reads its `#35;` as an entity code.
-    .filter(label => !label.text.startsWith('`') && !spellsTagWithEntities(label.text) && !/&#\d+;/.test(label.text)),
+    .filter(label => !label.text.startsWith('`') && !/&#\d+;/.test(label.text)),
 )
 const nodeRefArb: fc.Arbitrary<NodeRef> = fc.oneof(
   fc.constantFrom(...NODE_IDS).map(id => ({ id })),
@@ -311,6 +302,52 @@ describe('flowchart grammar differential against pinned upstream Mermaid', () =>
     expect(fc.sample(sourceArb, { numRuns: 5000, seed: 7 }).filter(rewrittenByUpstreamPreprocess)).toEqual([])
   })
 
+  test('the #372 preprocessing witness stays readable and exports portably with a precise warning', async () => {
+    const source = 'flowchart TD\nA -->|"<a="| B["b"] --> C'
+    const parsed = parseRegisteredMermaid(source)
+    if (!parsed.ok || !asFlowchart(parsed.value)) throw new Error('structured flowchart required')
+    expect(ours(parseOurs(source))).toEqual({
+      vertices: ['A rectangle : A', 'B rectangle : b', 'C rectangle : C'],
+      edges: ['A B normal arrow_point : <a=', 'B C normal arrow_point : '],
+      subgraphs: [],
+    })
+    const verified = verifyMermaid(parsed.value)
+    expect(verified.warnings).toContainEqual(expect.objectContaining({ code: 'UNSUPPORTED_SYNTAX', syntax: 'flowchart_preprocessor_quote_rewrite', line: 2 }))
+    expect(verified.warnings.some(warning => warning.code === 'RENDER_FAILED')).toBe(false)
+    expect((await upstream.parse(source)).ok).toBe(false)
+    const written = serializeMermaid(parsed.value)
+    expect(written).toContain('#lt;a=')
+    const upstreamWritten = await upstream.parse(written)
+    expect(upstreamWritten.ok).toBe(true)
+    if (!upstreamWritten.ok) throw new Error('portable export rejected')
+    expect(theirs(upstreamWritten)).toEqual(ours(parseOurs(source)))
+    expect(ours(parseOurs(written))).toEqual(ours(parseOurs(source)))
+    expect(renderMermaidASCII(written)).toBe(renderMermaidASCII(source))
+    expect(renderMermaidSVG(source)).toContain('&lt;a=')
+    const reread = parseRegisteredMermaid(written)
+    if (!reread.ok) throw new Error('export rejected')
+    expect(verifyMermaid(reread.value).warnings.some(warning => warning.code === 'UNSUPPORTED_SYNTAX' && warning.syntax === 'flowchart_preprocessor_quote_rewrite')).toBe(false)
+  })
+
+  test('accepted formatting, attributes and comments do not trigger the preprocessing warning', async () => {
+    for (const source of [
+      'flowchart TD\nA["<b>bold</b><br>next"] --> B',
+      'flowchart TD\nA -->|"#lt;a="| B["b"] --> C',
+      'flowchart TD\nA -->|"<a="| B["b"] --- C',
+      'flowchart TD\nA[<a href="x">ok</a>] --> B',
+      'flowchart TD\nA["<a href="x">ok</a>"] --> B',
+      'flowchart TD\nA -->|"<a href="x">ok</a>"| B',
+      'flowchart TD\nsubgraph S[<a href="x">title</a>]\nA\nend',
+      'flowchart TD\n%% <a href="x">\nA --> B',
+      'flowchart TD\n%% <a=\nA["safe"] --> B',
+    ]) {
+      expect({ source, accepted: await upstream.accepts(source) }).toEqual({ source, accepted: true })
+      const parsed = parseRegisteredMermaid(source)
+      if (!parsed.ok) throw new Error('fixture rejected')
+      expect({ source, warned: verifyMermaid(parsed.value).warnings.some(warning => warning.code === 'UNSUPPORTED_SYNTAX' && warning.syntax === 'flowchart_preprocessor_quote_rewrite') }).toEqual({ source, warned: false })
+    }
+  })
+
   test('(i)–(v) upstream and our parser agree on every generated flowchart', async () => {
     await fc.assert(
       fc.asyncProperty(sourceArb, async source => {
@@ -510,12 +547,48 @@ describe('flowchart grammar differential against pinned upstream Mermaid', () =>
       .toEqual({ label: 'Map&#x3C;K,V&#x3E; &#60;', reparsed: 'Map&#x3C;K,V&#x3E; &#60;' })
   })
 
-  test('BUG-19 limit: entity codes that would spell a tag stay codes, never markup', () => {
-    // Upstream shows `<b>x` here; our label model holds no literal tag, so the
-    // label keeps its codes rather than turning text into bold markup. A
-    // regression guard for the chosen limit, not an upstream match.
-    const graph = parseOurs('flowchart TB\n  A["#lt;b#gt;x"] --> B["y#lt;/i#gt;z"] --> C["#lt;br#gt;"]')
-    expect([...graph.nodes.values()].map(node => node.label)).toEqual(['#lt;b#gt;x', 'y#lt;/i#gt;z', '<br>'])
+  test('literal entity-produced tags survive editing in node, pipe and subgraph labels', async () => {
+    const source = 'flowchart TB\n  subgraph G["#lt;u#gt;group#lt;/u#gt;"]\n  A["#lt;b#gt;box#lt;/b#gt;"] -->|"#lt;i#gt;edge#lt;/i#gt;"| B\n  end'
+    const parsed = parseRegisteredMermaid(source)
+    if (!parsed.ok) throw new Error('fixture rejected')
+    const edited = mutate(parsed.value, { kind: 'add_node', id: 'C', label: 'C' })
+    if (!edited.ok) throw new Error('edit refused')
+    const written = serializeMermaid(edited.value)
+    expect(await upstream.accepts(written)).toBe(true)
+    for (const candidate of [source, written]) {
+      const graph = parseOurs(candidate)
+      expect(graph.nodes.get('A')?.label).toBe('<b>box</b>')
+      expect(graph.edges[0]?.label).toBe('<i>edge</i>')
+      expect(graph.subgraphs[0]?.label).toBe('<u>group</u>')
+      const svg = renderMermaidSVG(candidate)
+      const terminal = renderMermaidASCII(candidate)
+      for (const text of ['<b>box</b>', '<i>edge</i>', '<u>group</u>']) {
+        expect(svg).toContain(text.replaceAll('<', '&lt;').replaceAll('>', '&gt;'))
+        expect(terminal).toContain(text)
+      }
+    }
+  })
+
+  test('real formatting and literal tags retain separate meanings through same-value and changed labels', async () => {
+    const source = 'flowchart TB\n A["<b>real</b> #lt;b#gt;literal#lt;/b#gt;"]'
+    const parsed = parseRegisteredMermaid(source)
+    if (!parsed.ok) throw new Error('fixture rejected')
+    const label = asFlowchart(parsed.value)?.body.graph.nodes.get('A')?.label
+    if (!label) throw new Error('missing label')
+    const same = mutate(parsed.value, { kind: 'set_label', target: 'A', label })
+    if (!same.ok) throw new Error('same-value edit refused')
+    const written = serializeMermaid(same.value)
+    expect(await upstream.accepts(written)).toBe(true)
+    expect(renderMermaidSVG(written)).toContain('&lt;b&gt;literal&lt;/b&gt;')
+    expect(renderMermaidASCII(written)).toContain('real <b>literal</b>')
+    expect(verifyMermaid(same.value, { labelCharCap: 12 }).warnings.some(warning => warning.code === 'LABEL_OVERFLOW')).toBe(true)
+    const changed = mutate(same.value, { kind: 'set_label', target: 'A', label: '<b>changed</b> literal #quot;' })
+    if (!changed.ok) throw new Error('changed-label edit refused')
+    const changedSource = serializeMermaid(changed.value)
+    expect(await upstream.accepts(changedSource)).toBe(true)
+    expect(parseOurs(changedSource).nodes.get('A')?.label).toBe('<b>changed</b> literal #quot;')
+    expect(renderMermaidASCII(changedSource)).toContain('changed literal #quot;')
+    expect(renderMermaidSVG(changedSource)).toContain('<tspan font-weight="bold">changed</tspan>')
   })
 
   test('quoted labels have no escapes: `\\` stays literal and `"` is written `#quot;`', async () => {

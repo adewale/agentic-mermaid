@@ -1,3 +1,4 @@
+import { resolveLabelContent, type DisplayTextInput } from '../shared/display-text.ts'
 import { terminalArtifact, serializeTerminalArtifact, type TerminalArtifact } from './terminal-artifact.ts'
 // ER cards and relationship ports are allocated in integer terminal cells.
 // Source semantics, complete labels and family cardinalities stay distinct.
@@ -39,11 +40,11 @@ export function renderErTerminal(text: string, config: AsciiConfig, colorMode?: 
   if (!diagram.entities.length && !diagram.groups.length) return finish(new TerminalDocument())
   const generated = terminalIds([...diagram.entities.map(entity => entity.id), ...diagram.groups.map(group => group.id)])
   const direction = diagram.direction ?? 'LR', horizontal = direction === 'LR' || direction === 'RL'
-  const prepared = (value: string) => wrapText(displayText(value), targetWidth ? Math.max(1, Math.floor(targetWidth / 3)) : undefined)
-  const relations: BoxRelation[] = diagram.relationships.map((rel, index) => ({ id: generated(`relationship:${index}`), from: rel.entity1, to: rel.entity2, ...(rel.label ? { lines: prepared(rel.label) } : {}) }))
+  const prepared = (value: DisplayTextInput) => wrapText(displayText(value), targetWidth ? Math.max(1, Math.floor(targetWidth / 3)) : undefined)
+  const relations: BoxRelation[] = diagram.relationships.map((rel, index) => ({ id: generated(`relationship:${index}`), from: rel.entity1, to: rel.entity2, ...(rel.label ? { lines: prepared(resolveLabelContent(rel.label, rel.labelContent)) } : {}) }))
   const faceSizes = boxFaceSizes(relations, direction)
   const sections = new Map(diagram.entities.map(entity => {
-    const header = wrapText(displayText(entity.label), targetWidth ? Math.max(1, targetWidth - 8) : undefined)
+    const header = wrapText(displayText(resolveLabelContent(entity.label, entity.labelContent)), targetWidth ? Math.max(1, targetWidth - 8) : undefined)
     const attributes = entity.attributes.flatMap(attr => wrapText(attributeText(attr), targetWidth ? Math.max(1, targetWidth - 8) : undefined))
     return [entity.id, attributes.length ? [header, attributes] : [header]]
   }))
@@ -91,7 +92,7 @@ export function renderErTerminal(text: string, config: AsciiConfig, colorMode?: 
       if ('children' in box) box.children.forEach(child => move(child, dx, dy))
     }
     const build = (id: string): GroupFrame => {
-      const group = diagram.groups.find(item => item.id === id)!, labelLines = prepared(group.label)
+      const group = diagram.groups.find(item => item.id === id)!, labelLines = prepared(resolveLabelContent(group.label, group.labelContent))
       const frameClearance = 4, headerHeight = labelLines.length + 1
       const children: Array<PlacedEntity | GroupFrame> = [
         ...diagram.entities.filter(entity => entity.groupId === id).map(entity => placed.get(entity.id)!),

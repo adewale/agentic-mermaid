@@ -1,4 +1,5 @@
 import { preparePixelText } from '../shared/prepared-text.ts'
+import { resolveLabelContent, type DisplayTextInput } from '../shared/display-text.ts'
 import type { SequenceDiagram, PositionedSequenceDiagram, PositionedActor, Lifeline, PositionedMessage, Activation, PositionedBlock, PositionedNote, PositionedBoxGroup, LifelineCross } from './types.ts'
 import { SEQUENCE_SELF_LOOP, measureSequenceActorSpec, measureSequenceBlockSpec, measureSequenceMessageSpec, positionSequenceActor, positionSequenceBlock, positionSequenceMessage, resolveSequenceBlockScopes, sequenceDividerLeadingNote, translatePositionedSequence, type SequenceBlockPlacement } from './geometry.ts'
 import { getSequenceBlockBoundaries } from './parser.ts'
@@ -176,7 +177,7 @@ export function layoutSequenceDiagram(diagram: SequenceDiagram, options: RenderO
   //    the actor boxes, so boxed diagrams reserve extra headroom for it.
   const boxGroups = (diagram.boxes ?? []).flatMap((box, index) => {
     const memberIdxs = diagram.actors.flatMap((actor, i) => (actor.box === index ? [i] : []))
-    const block = box.label ? preparePixelText(box.label, { transform: style.groupTextTransform, fontSize: style.groupHeaderFontSize, fontWeight: style.groupHeaderFontWeight, letterSpacing: style.groupLetterSpacing }) : undefined
+    const block = box.label ? preparePixelText(resolveLabelContent(box.label, box.labelContent), { transform: style.groupTextTransform, fontSize: style.groupHeaderFontSize, fontWeight: style.groupHeaderFontWeight, letterSpacing: style.groupLetterSpacing }) : undefined
     return memberIdxs.length > 0 ? [{ box, memberIdxs, block }] : []
   })
   const boxTitleHeight = Math.max(SEQ.boxTitleSpace, ...boxGroups.map(group => (group.block?.height ?? 0) + 8))
@@ -347,7 +348,7 @@ export function layoutSequenceDiagram(diagram: SequenceDiagram, options: RenderO
   }
 
   const positionNote = (note: (typeof diagram.notes)[number], noteY: number): PositionedNote => {
-    const block = preparePixelText(note.text, { transform: style.nodeTextTransform, fontSize: style.nodeLabelFontSize, fontWeight: style.nodeLabelFontWeight, letterSpacing: style.nodeLetterSpacing })
+    const block = preparePixelText(resolveLabelContent(note.text, note.textContent), { transform: style.nodeTextTransform, fontSize: style.nodeLabelFontSize, fontWeight: style.nodeLabelFontWeight, letterSpacing: style.nodeLetterSpacing })
     const noteMetrics = block
     const noteW = Math.max(SEQ.noteWidth, noteMetrics.width + style.nodePaddingX * 2)
     const noteH = noteMetrics.height + style.nodePaddingY * 2
@@ -694,7 +695,7 @@ export function layoutSequenceDiagram(diagram: SequenceDiagram, options: RenderO
       boxes,
       destructions,
     },
-    diagram.title,
+    diagram.title === undefined ? undefined : resolveLabelContent(diagram.title, diagram.titleContent),
     style,
     padX,
     padY,
@@ -702,7 +703,7 @@ export function layoutSequenceDiagram(diagram: SequenceDiagram, options: RenderO
 }
 
 /** The diagram's title takes a band above everything the layout placed. */
-function withSequenceTitle(positioned: PositionedSequenceDiagram, title: string | undefined, style: ResolvedRenderStyle, padX: number, padY: number): PositionedSequenceDiagram {
+function withSequenceTitle(positioned: PositionedSequenceDiagram, title: DisplayTextInput | undefined, style: ResolvedRenderStyle, padX: number, padY: number): PositionedSequenceDiagram {
   const band = diagramTitleBand(title, style)
   if (!band) return positioned
   const dy = band.height

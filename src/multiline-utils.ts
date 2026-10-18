@@ -8,7 +8,7 @@
 
 import { LINE_HEIGHT_RATIO, measureTextWidth, measureSystemFontSafeTextWidth, measureMonospaceTextWidth } from './text-metrics.ts'
 import { HAS_FORMAT_TAGS } from './shared/inline-format.ts'
-import { prepareDisplayText, type DisplayRun } from './shared/display-text.ts'
+import { prepareDisplayText, type DisplayRun, type DisplayTextInput } from './shared/display-text.ts'
 import type { PixelTextBlock } from './shared/prepared-text.ts'
 import { graphemes } from './shared/graphemes.ts'
 import { sanitizeDisplayLines } from './shared/text-controls.ts'
@@ -71,7 +71,7 @@ export type LabelDisplay = 'formatted' | 'literal'
  * check all read labels through it, so they cannot disagree about which tags
  * are formatting and which are text.
  */
-export function displayText(label: string, display: LabelDisplay = 'formatted'): string {
+export function displayText(label: DisplayTextInput, display: LabelDisplay = 'formatted'): string {
   return prepareDisplayText(label, display).lines.map(runs => runs.map(run => run.text).join('')).join('\n')
 }
 

@@ -113,7 +113,7 @@ describe('Mindmap typed operations — discriminating mutation contract', () => 
   })
 
   test('default-node edits reject text that would reparse as decoration or a different shape', () => {
-    const unstable = ['A[B]', 'A(B)', 'A((B))', 'A{{B}}', 'A)B(', 'A))B((', '**A**', '"A"', 'A%%comment', '%%']
+    const unstable = ['A[B]', 'A(B)', 'A((B))', 'A{{B}}', 'A)B(', 'A))B((', '**A**', '"A"', '%%']
     for (const value of unstable) {
       const message = `Default mindmap node text '${value}' is not serialization-stable; choose a bordered shape for decorated labels`
       expectError({ kind: 'rename_node', from: 'a', to: value }, 'INVALID_OP', message)
@@ -124,6 +124,12 @@ describe('Mindmap typed operations — discriminating mutation contract', () => 
     const formatted = "Mindmap node text 'formatted/*Label*' is not serialization-stable; choose an id and label that do not conflict with rect delimiters"
     expectError({ kind: 'add_node', id: 'formatted', label: '*Label*', parent: 'root', shape: 'rect' }, 'INVALID_OP', formatted)
     expectError({ kind: 'set_label', id: 'box', label: '*Label*' }, 'INVALID_OP', "Mindmap node text 'box/*Label*' is not serialization-stable; choose an id and label that do not conflict with rect delimiters")
+
+    for (const value of ['A%%comment', 'a %% b']) {
+      const edited = apply({ kind: 'set_label', id: 'a', label: value })
+      expect(child(edited, value)?.label).toBe(value)
+      expect(parseMindmapBody(renderMindmapBody(edited))).toEqual(edited)
+    }
 
     const renamed = apply({ kind: 'rename_node', from: 'a', to: 'stable words' })
     expect(parseMindmapBody(renderMindmapBody(renamed))).toEqual(renamed)
@@ -167,7 +173,7 @@ describe('Mindmap typed operations — discriminating mutation contract', () => 
     expect(child(apply({ kind: 'set_icon', id: 'box', icon: null }), 'box')?.icon).toBeUndefined()
     expectError({ kind: 'set_icon', id: 'missing', icon: 'x' }, 'NODE_NOT_FOUND', "Mindmap node 'missing' not found")
     expectError({ kind: 'set_icon', id: 'box', icon: 'bad\nicon' }, 'INVALID_OP', 'Mindmap icon must be a non-empty single-line string')
-    for (const icon of ['mdi:bad)', 'mdi:x%%cut']) {
+    for (const icon of ['mdi:bad)']) {
       expectError({ kind: 'set_icon', id: 'box', icon }, 'INVALID_OP', `Mindmap icon '${icon}' is not serialization-stable`)
     }
 
@@ -175,11 +181,11 @@ describe('Mindmap typed operations — discriminating mutation contract', () => 
     expect(child(apply({ kind: 'set_node_class', id: 'box', className: null }), 'box')?.className).toBeUndefined()
     expectError({ kind: 'set_node_class', id: 'missing', className: 'x' }, 'NODE_NOT_FOUND', "Mindmap node 'missing' not found")
     expectError({ kind: 'set_node_class', id: 'box', className: '' }, 'INVALID_OP', 'Mindmap class must be a non-empty single-line string')
-    for (const className of ['hot%%cut', 'hot  cold']) {
+    for (const className of ['hot  cold']) {
       expectError({ kind: 'set_node_class', id: 'box', className }, 'INVALID_OP', `Mindmap class '${className}' is not serialization-stable`)
     }
 
-    const decorated = apply({ kind: 'set_node_class', id: 'box', className: 'critical' }, apply({ kind: 'set_icon', id: 'box', icon: 'mdi:cloud' }))
+    const decorated = apply({ kind: 'set_node_class', id: 'box', className: 'hot%%cut' }, apply({ kind: 'set_icon', id: 'box', icon: 'mdi:x%%cut' }))
     expect(parseMindmapBody(renderMindmapBody(decorated))).toEqual(decorated)
   })
 

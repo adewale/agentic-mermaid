@@ -65,11 +65,14 @@ export function flowchartUnsupportedSyntaxWarnings(source: string): LayoutWarnin
 
 /** Flowchart source ours reads where pinned Mermaid rejects it, each on its
  * canonical line: a `@{…}` block with a space before `@` or inside `@{`, a
- * text-arrow label that a link of another stroke closes, and a `linkStyle`
- * index past the links defined above it. */
+ * text-arrow label that a link of another stroke closes, a `linkStyle`
+ * index past the links defined above it, and quoted text whose boundaries
+ * pinned Mermaid's HTML-like preprocessor rewrites. */
 export function flowchartUpstreamRejectedSyntaxWarnings(source: string): LayoutWarning[] {
   const statements = flowchartStatements(source)
   const warnings: LayoutWarning[] = []
+  const rewritten = preprocessorQuoteRewriteWarning(source)
+  if (rewritten) warnings.push(rewritten)
   for (const { text, line } of statements) {
     for (const region of scanFlowchart(text).regions) {
       if (region.kind === 'metadata' && (text.slice(region.start, region.contentStart) !== '@{' || /\s/.test(text[region.start - 1] ?? ''))) {
@@ -81,6 +84,37 @@ export function flowchartUpstreamRejectedSyntaxWarnings(source: string): LayoutW
     }
   }
   return [...warnings, ...linkStyleIndexWarnings(source, statements)]
+}
+
+/** cleanupText can pair a closing label quote with the next label's opening
+ * quote inside a <word …> span. Attribute quotes within one label are valid
+ * upstream and do not merit a syntax warning. The existing lexer gives each
+ * outer label its owner; splitting at > bounds the tag search to one pass. */
+function preprocessorQuoteRewriteWarning(source: string): LayoutWarning | undefined {
+  const owners = new Uint32Array(source.length)
+  const regions = scanFlowchart(source).regions
+  for (const [index, region] of regions.entries()) {
+    if (region.parent === -1) owners.fill(index + 1, region.start, region.end)
+  }
+  let offset = 0
+  const spans = source.split('>')
+  for (const span of spans.slice(0, -1)) {
+    const start = span.search(/<\w/)
+    if (start >= 0) {
+      for (const match of span.slice(start).matchAll(/="[^"]*"/g)) {
+        const first = owners[offset + start + match.index + 1]
+        const last = owners[offset + start + match.index + match[0].length - 1]
+        if (first === last) continue
+        return {
+          code: 'UNSUPPORTED_SYNTAX', syntax: 'flowchart_preprocessor_quote_rewrite',
+          line: source.slice(0, offset + start).split('\n').length,
+          message: 'Quoted label text is read as authored. Pinned Mermaid treats a <word …> span across separate labels as an HTML-like tag and rewrites their quote delimiters, which can change label boundaries. Write the literal < as #lt;, as the canonical serializer does.',
+        }
+      }
+    }
+    offset += span.length + 1
+  }
+  return undefined
 }
 
 const NUMBERED_LINK_STYLE_RE = /^linkStyle\s+([\d,\s]+)\s+(.+)$/

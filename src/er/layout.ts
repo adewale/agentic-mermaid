@@ -1,3 +1,4 @@
+import { resolveLabelContent, preparedDisplayTextValue, type DisplayTextInput, type LabelContent } from '../shared/display-text.ts'
 import { preparePixelText, type PixelTextBlock } from '../shared/prepared-text.ts'
 import { resolveRoleStyle } from '../scene/style-registry.ts'
 /**
@@ -102,17 +103,17 @@ export function resolveErRenderOptions(
     : { ...options, nodeSpacing: options.nodeSpacing ?? nodeSpacing, layerSpacing: options.layerSpacing ?? rankSpacing }
 }
 
-export function erHeaderBlock(text: string, style: ResolvedRenderStyle): PixelTextBlock {
+export function erHeaderBlock(text: DisplayTextInput, style: ResolvedRenderStyle): PixelTextBlock {
   return preparePixelText(text, { transform: style.nodeTextTransform, fontSize: style.nodeLabelFontSize, fontWeight: style.nodeLabelFontWeight, letterSpacing: style.nodeLetterSpacing })
 }
 
-export function erGroupBlock(text: string, style: ResolvedRenderStyle): PixelTextBlock {
+export function erGroupBlock(text: DisplayTextInput, style: ResolvedRenderStyle): PixelTextBlock {
   return preparePixelText(text, { transform: style.groupTextTransform, fontSize: style.groupHeaderFontSize, fontWeight: style.groupHeaderFontWeight, letterSpacing: style.groupLetterSpacing })
 }
 
-export function erRelationshipBlock(rel: Pick<PositionedErRelationship, 'label' | 'identifying'>, style: ResolvedRenderStyle, styleFace?: Readonly<InternalStyleFace>): PixelTextBlock {
+export function erRelationshipBlock(rel: Pick<PositionedErRelationship, 'label' | 'identifying' | 'labelContent'>, style: ResolvedRenderStyle, styleFace?: Readonly<InternalStyleFace>): PixelTextBlock {
   const role = resolveRoleStyle(styleFace, 'relationship', { category: rel.identifying ? 'identifying' : 'non-identifying' }, { includeFallback: false })
-  return preparePixelText(rel.label, { transform: role?.textTransform ?? style.edgeTextTransform, fontSize: role?.fontSize ?? style.edgeLabelFontSize, fontWeight: role?.fontWeight ?? style.edgeLabelFontWeight, letterSpacing: role?.letterSpacing ?? style.edgeLetterSpacing })
+  return preparePixelText(resolveLabelContent(rel.label, rel.labelContent), { transform: role?.textTransform ?? style.edgeTextTransform, fontSize: role?.fontSize ?? style.edgeLabelFontSize, fontWeight: role?.fontWeight ?? style.edgeLabelFontWeight, letterSpacing: role?.letterSpacing ?? style.edgeLetterSpacing })
 }
 
 export function erAttributeBlocks(attr: ErAttribute) {
@@ -120,16 +121,16 @@ export function erAttributeBlocks(attr: ErAttribute) {
   return {
     type: preparePixelText(attr.type, mono), name: preparePixelText(attr.name, mono),
     keys: preparePixelText(attr.keys.join(','), { display: 'literal', fontSize: 9, fontWeight: 600 }),
-    ...(attr.comment ? { comment: preparePixelText(erCommentText(attr.comment), { display: 'literal', fontSize: ER.attrFontSize, fontWeight: 400 }) } : {}),
+    ...(attr.comment ? { comment: preparePixelText(erCommentText(attr.comment, attr.commentContent), { display: 'literal', fontSize: ER.attrFontSize, fontWeight: 400 }) } : {}),
   }
 }
 
 function prepareErText(positioned: PositionedErDiagram, style: ResolvedRenderStyle, styleFace?: Readonly<InternalStyleFace>): PositionedErDiagram {
   for (const entity of positioned.entities) {
-    entity.labelBlock = erHeaderBlock(entity.label, style)
+    entity.labelBlock = erHeaderBlock(resolveLabelContent(entity.label, entity.labelContent), style)
     entity.attributeBlocks = entity.attributes.map(erAttributeBlocks)
   }
-  for (const group of positioned.groups) group.labelBlock ??= erGroupBlock(group.label, style)
+  for (const group of positioned.groups) group.labelBlock ??= erGroupBlock(resolveLabelContent(group.label, group.labelContent), style)
   for (const rel of positioned.relationships) rel.labelBlock = erRelationshipBlock(rel, style, styleFace)
   return positioned
 }
@@ -148,7 +149,9 @@ export function erCommentColumnWidth(attributes: readonly ErAttribute[]): number
 }
 
 /** An attribute comment as drawn on its row: line breaks become spaces. */
-export function erCommentText(comment: string): string {
+export function erCommentText(comment: string, content?: LabelContent): string {
+  const prepared = resolveLabelContent(comment, content)
+  if (typeof prepared !== 'string') return preparedDisplayTextValue(prepared).replace(/\s+/g, ' ').trim()
   return breakLineTags(comment).replace(/\s+/g, ' ').trim()
 }
 
@@ -162,7 +165,7 @@ function buildErElkGraph(
   const entitySizes: EntitySizeMap = new Map()
 
   for (const entity of diagram.entities) {
-    const labelBlock = erHeaderBlock(entity.label, style)
+    const labelBlock = erHeaderBlock(resolveLabelContent(entity.label, entity.labelContent), style)
     const headerTextW = labelBlock.width
     let maxAttrW = 0
     const commentColumn = erCommentColumnWidth(entity.attributes)
@@ -235,6 +238,7 @@ function extractErLayout(
       positionedEntities.push({
         id: entity.id,
         label: entity.label,
+        ...(entity.labelContent ? { labelContent: entity.labelContent } : {}),
         attributes: entity.attributes,
         x: child.x ?? 0,
         y: child.y ?? 0,
@@ -294,7 +298,7 @@ function extractErLayout(
     relationships.push({
       entity1: rel.entity1, entity2: rel.entity2,
       cardinality1: rel.cardinality1, cardinality2: rel.cardinality2,
-      label: rel.label, identifying: rel.identifying, points,
+      label: rel.label, ...(rel.labelContent ? { labelContent: rel.labelContent } : {}), identifying: rel.identifying, points,
     })
   }
 
@@ -378,14 +382,14 @@ function deriveErGroups(diagram: ErDiagram, entities: PositionedErEntity[], styl
       ...positioned.filter(child => child.parentId === group.id),
     ]
     const pad = 20
-    const labelBlock = erGroupBlock(group.label, style)
+    const labelBlock = erGroupBlock(resolveLabelContent(group.label, group.labelContent), style)
     const headerHeight = style.groupHeaderFontSize + 16 + labelBlock.height - labelBlock.lineHeight
     const minX = members.length ? Math.min(...members.map(member => member.x)) - pad : ER.padding
     const minY = members.length ? Math.min(...members.map(member => member.y)) - pad - headerHeight : ER.padding
     const maxX = Math.max(minX + labelBlock.width + 20, members.length ? Math.max(...members.map(member => member.x + member.width)) + pad : minX + 140)
     const maxY = members.length ? Math.max(...members.map(member => member.y + member.height)) + pad : minY + 90
     positioned.unshift({
-      id: group.id, label: group.label, labelBlock, ...(group.parentId ? { parentId: group.parentId } : {}),
+      id: group.id, label: group.label, ...(group.labelContent ? { labelContent: group.labelContent } : {}), labelBlock, ...(group.parentId ? { parentId: group.parentId } : {}),
       x: minX, y: minY, width: maxX - minX, height: maxY - minY, headerHeight,
     })
   }
@@ -399,9 +403,9 @@ function layoutErGroupsOnly(diagram: ErDiagram, style: ResolvedRenderStyle): Pos
   const ordered = reverse ? [...topLevel].reverse() : topLevel
   const groups: PositionedErDiagram['groups'] = []
   const place = (group: ErDiagram['groups'][number], x: number, y: number): PositionedErDiagram['groups'][number] => {
-    const labelBlock = erGroupBlock(group.label, style)
+    const labelBlock = erGroupBlock(resolveLabelContent(group.label, group.labelContent), style)
     const headerHeight = style.groupHeaderFontSize + 16 + labelBlock.height - labelBlock.lineHeight
-    const positioned = { id: group.id, label: group.label, labelBlock, ...(group.parentId ? { parentId: group.parentId } : {}), x, y, width: Math.max(160, labelBlock.width + 20), height: Math.max(100, headerHeight + 20), headerHeight }
+    const positioned = { id: group.id, label: group.label, ...(group.labelContent ? { labelContent: group.labelContent } : {}), labelBlock, ...(group.parentId ? { parentId: group.parentId } : {}), x, y, width: Math.max(160, labelBlock.width + 20), height: Math.max(100, headerHeight + 20), headerHeight }
     groups.push(positioned)
     let cursorX = x + 20
     let cursorY = y + headerHeight + 8
@@ -437,7 +441,7 @@ function layoutErGroupsOnly(diagram: ErDiagram, style: ResolvedRenderStyle): Pos
       }
       points.push(end)
     }
-    return { entity1: relation.entity1, entity2: relation.entity2, cardinality1: relation.cardinality1, cardinality2: relation.cardinality2, label: relation.label, identifying: relation.identifying, points }
+    return { entity1: relation.entity1, entity2: relation.entity2, cardinality1: relation.cardinality1, cardinality2: relation.cardinality2, label: relation.label, ...(relation.labelContent ? { labelContent: relation.labelContent } : {}), identifying: relation.identifying, points }
   })
   const width = Math.max(...groups.map(group => group.x + group.width + ER.padding), 0)
   const height = Math.max(...groups.map(group => group.y + group.height + ER.padding), 0)

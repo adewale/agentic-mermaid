@@ -1,3 +1,4 @@
+import { resolveLabelContent } from './shared/display-text.ts'
 import { graphTextBlock } from './graph-text.ts'
 import type { PositionedGraph, PositionedNode, PositionedEdge, PositionedGroup, PositionedStateNote, Point, EdgeMarker, RenderContext, RenderOptions } from './types.ts'
 import type { DiagramColors } from './theme.ts'
@@ -264,7 +265,7 @@ function renderGroup(group: PositionedGroup, font: string, style: ResolvedRender
     })
   }
 
-  const headerBlock = group.labelBlock ?? graphTextBlock(group.label, style, 'group')
+  const headerBlock = group.labelBlock ?? graphTextBlock(resolveLabelContent(group.label, group.labelContent), style, 'group')
   const headerHeight = group.headerHeight ?? style.groupHeaderFontSize + 16 + headerBlock.height - headerBlock.lineHeight
   const children: Array<{ node: SceneNode; indent: number }> = []
 
@@ -397,7 +398,7 @@ function renderStateNote(note: PositionedStateNote, font: string, style: Resolve
   const rawFill = style.groupHeaderFillColor ?? 'var(--_group-hdr)'
   const rawStroke = style.groupBorderColor ?? 'var(--_node-stroke)'
   const rawTextColor = style.edgeTextColor ?? 'var(--_text-sec)'
-  const textBlock = note.textBlock ?? graphTextBlock(note.text, style, 'note')
+  const textBlock = note.textBlock ?? graphTextBlock(resolveLabelContent(note.text, note.textContent), style, 'note')
   const displayText = textBlock.text
   const sceneId = `state-note:${note.id}`
 
@@ -456,6 +457,7 @@ function renderEdge(
   const labels: readonly ConnectorLabelDescriptor[] = edge.label ? [{
     id: `${sceneId}:label`,
     text: edge.label,
+    ...(edge.labelContent ? { textContent: edge.labelContent } : {}),
     anchor: labelAnchor,
     paint: { fill: labelTextColor },
     fontSize: style.edgeLabelFontSize,
@@ -697,7 +699,7 @@ function renderEdgeLabel(edge: PositionedEdge, font: string, style: ResolvedRend
   // Use layout-computed label position when available (layout-aware, avoids collisions).
   // Fall back to geometric midpoint of the edge polyline.
   const mid = edge.labelPosition ?? edgeMidpoint(edge.points)
-  const block = edge.labelBlock ?? graphTextBlock(edge.label!, style, 'edge')
+  const block = edge.labelBlock ?? graphTextBlock(resolveLabelContent(edge.label!, edge.labelContent), style, 'edge')
   const label = block.text
   const padding = 8
   const strokeWidth = edge.style === 'thick' ? style.lineWidth * 2 : style.lineWidth
@@ -916,7 +918,7 @@ function renderNodeLabel(node: PositionedNode, font: string, style: ResolvedRend
   const cy = node.y + node.height / 2
 
   const textColor = escapeAttr(rawTextColor)
-  const block = node.labelBlock ?? graphTextBlock(node.label, style, 'node')
+  const block = node.labelBlock ?? graphTextBlock(resolveLabelContent(node.label, node.labelContent), style, 'node')
   const label = block.text
 
   return marks.text({

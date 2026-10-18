@@ -1,3 +1,4 @@
+import { resolveLabelContent, type DisplayTextInput } from '../shared/display-text.ts'
 import { OccupancyMap } from './occupancy.ts'
 // ============================================================================
 // ASCII renderer — MermaidGraph → AsciiGraph converter
@@ -29,7 +30,7 @@ import { resolveNodeInlineStyle, resolveEdgeInlineStyle } from '../color-resolve
  */
 export function convertToAsciiGraph(parsed: MermaidGraph, config: AsciiConfig, containerKind: 'subgraph' | 'cluster' = 'subgraph'): AsciiGraph {
   const width = config.maxWidth === undefined ? undefined : Math.max(config.targetWidth === undefined ? 8 : 1, Math.floor(config.maxWidth / 3))
-  const label = (text: string): string => wrapText(displayText(text), width).join('\n')
+  const label = (text: DisplayTextInput): string => wrapText(displayText(text), width).join('\n')
   const subgraphIds = collectSubgraphIds(parsed.subgraphs)
 
   // Build node list preserving Map insertion order. A parsed node whose id is
@@ -48,7 +49,7 @@ export function convertToAsciiGraph(parsed: MermaidGraph, config: AsciiConfig, c
       // The label's display text is drawn inside the box: formatting tags
       // style the SVG runs and are not characters, so the cells show what
       // the SVG shows.
-      displayLabel: label(mNode.label),
+      displayLabel: label(resolveLabelContent(mNode.label, mNode.labelContent)),
       // Preserve shape from parser for shape-aware rendering
       shape: mNode.shape,
       index,
@@ -117,7 +118,7 @@ export function convertToAsciiGraph(parsed: MermaidGraph, config: AsciiConfig, c
       to,
       fromSubgraph,
       toSubgraph,
-      text: label(mEdge.label ?? ''),
+      text: label(resolveLabelContent(mEdge.label ?? '', mEdge.labelContent)),
       path: [],
       labelLine: [],
       startDir: { x: 0, y: 0 },
@@ -220,7 +221,7 @@ function convertSubgraph(
 
   const sg: AsciiSubgraph = {
     id: mSg.id,
-    name: displayText(mSg.label),
+    name: displayText(resolveLabelContent(mSg.label, mSg.labelContent)),
     nodes: [],
     parent,
     children: [],

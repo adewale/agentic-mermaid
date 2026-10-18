@@ -1,3 +1,4 @@
+import type { LabelContent } from '../shared/display-text.ts'
 // ============================================================================
 // Agentic Mermaid — IR and verb types (v4)
 //
@@ -39,6 +40,7 @@ export type SequenceParticipantKind = 'participant' | 'actor' | 'boundary' | 'co
 export interface SequenceParticipant {
   id: string
   label: string
+  labelContent?: LabelContent
   kind: SequenceParticipantKind
   /** Declaration keyword remains distinct from the visual metadata type. */
   declaration?: 'participant' | 'actor'
@@ -63,6 +65,7 @@ export interface SequenceMessage {
   from: string
   to: string
   text: string
+  textContent?: LabelContent
   style: SequenceMessageStyle
   /** Exact closed official endpoint operator when richer than legacy style. */
   arrow?: SequenceMessageArrow
@@ -76,11 +79,13 @@ export type SequenceFragmentKind = 'alt' | 'opt' | 'loop' | 'par'
 export interface SequenceFragmentBranch {
   /** `else` / `and` caption. The first branch normally omits it. */
   label?: string
+  labelContent?: LabelContent
   messages: SequenceMessage[]
 }
 export interface SequenceFragment {
   fragmentKind: SequenceFragmentKind
   label?: string
+  labelContent?: LabelContent
   branches: SequenceFragmentBranch[]
   /** Authored spelling retained until a typed fragment op changes the fragment. */
   rawLines?: string[]
@@ -188,6 +193,7 @@ export interface ClassNode {
   generic?: string
   /** Optional display label (e.g., from `class X["My Label"]` or `class X as "..."`). */
   label?: string
+  labelContent?: LabelContent
   /** Members, each as the raw source string ('+String name', '+eat()', '<<interface>>'). */
   members: string[]
   /**
@@ -212,6 +218,7 @@ export interface ClassNamespaceDecl {
   name: string
   /** Optional display label (upstream v11.15+). */
   label?: string
+  labelContent?: LabelContent
 }
 
 export interface ClassRelation {
@@ -222,10 +229,13 @@ export interface ClassRelation {
   lineStyle?: 'solid' | 'dashed'
   /** Optional relationship label, e.g., from `A --> B : uses`. */
   label?: string
+  labelContent?: LabelContent
   /** Optional cardinality on the `from` side (e.g., '"1"'). */
   fromCardinality?: string
+  fromCardinalityContent?: LabelContent
   /** Optional cardinality on the `to` side. */
   toCardinality?: string
+  toCardinalityContent?: LabelContent
   /** Marker ownership for two-ended and lollipop relations. */
   markerAt?: 'from' | 'to' | 'both' | 'none'
   fromKind?: ClassRelationKind
@@ -234,6 +244,7 @@ export interface ClassRelation {
 
 export interface ClassNote {
   text: string
+  textContent?: LabelContent
   /** Class id the note is attached to (undefined = freestanding). */
   for?: string
 }
@@ -271,6 +282,7 @@ export interface ErEntity {
   id: string
   /** Optional display label from `ID["Label"]`; identity remains `id`. */
   label?: string
+  labelContent?: LabelContent
   attributes: ErAttribute[]
   className?: string
   style?: Record<string, string>
@@ -282,6 +294,7 @@ export interface ErEntity {
 export interface ErGroup {
   id: string
   label: string
+  labelContent?: LabelContent
   parentId?: string
   direction?: import('../types.ts').Direction
 }
@@ -294,6 +307,7 @@ export interface ErRelation {
   /** Solid (--) or dashed (..) line. */
   dashed: boolean
   label?: string
+  labelContent?: LabelContent
 }
 
 export type ErStatement = { kind: 'entity'; id: string } | { kind: 'relation'; ref: number } | { kind: 'direction'; groupId?: string } | { kind: 'group-open'; id: string } | { kind: 'group-close'; id: string } | { kind: 'opaque'; lines: string[] }

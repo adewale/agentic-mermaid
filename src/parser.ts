@@ -1,3 +1,4 @@
+import { scanStateComments } from './state/comment.ts'
 import type { MermaidGraph, MermaidNode, MermaidEdge, MermaidSubgraph, Direction, NodeShape, EdgeStyle, EdgeMarker } from './types.ts'
 import { normalizeBrTags } from './multiline-utils.ts'
 import { parseFlowchartLabel } from './flowchart-labels.ts'
@@ -6,7 +7,7 @@ import { normalizeV11Shape } from './flowchart-shapes.ts'
 import {
   matchNoteLine, matchNoteOpen, isNoteEnd, matchStereotypeDecl,
   isConcurrencySeparator, matchStateDeclarationLine, matchStateLayoutDirective, matchHistoryEndpoint, matchTransitionLine, historyLabel,
-  stripStateComment, matchStateClassAssignment, stateNoteText,
+  matchStateClassAssignment, stateNoteText,
   STATE_DIRECTION_RE, STATE_ALIAS_RE, STATE_COMPOSITE_OPEN_RE, STATE_DESCRIPTION_RE,
   STATE_CLASS_DEF_RE, STATE_STYLE_RE, STATE_LINK_STYLE_RE,
 } from './state/parse-core.ts'
@@ -51,21 +52,12 @@ import {
 export function parseMermaid(text: string): MermaidGraph {
   const rawLines = text.split('\n')
   const firstStatement = rawLines.find(line => line.trim().length > 0 && !line.trim().startsWith('%%'))?.trim() ?? ''
-  // State comments can contain syntax-looking delimiters. Remove them before
-  // the generic Markdown/metadata coalescers and inline-header splitter run.
-  let inStateNote = false
-  const semanticLines = /^stateDiagram(?:-v2)?(?=$|[\s;%])/i.test(firstStatement)
-    ? rawLines.map(raw => {
-      const line = stripStateComment(raw)
-      if (inStateNote) {
-        if (isNoteEnd(line)) inStateNote = false
-        return line
-      }
-      if (matchNoteOpen(line)) inStateNote = true
-      return line.startsWith('//') ? '' : line
-    })
-    : rawLines
-  const lines = expandInlineHeaderStatements(coalesceMetadataLines(coalesceMarkdownStringLines(semanticLines)).map(l => l.trim()).filter(l => l.length > 0 && !l.startsWith('%%')))
+  // State note text must not pass through Flowchart's string coalescers or
+  // the generic whole-line comment filter.
+  const state = /^stateDiagram(?:-v2)?(?=$|[\s;%])/i.test(firstStatement)
+  const lines = expandInlineHeaderStatements(state
+    ? scanStateComments(rawLines).filter(line => line.noteBody || (line.text.length > 0 && !line.text.startsWith('//'))).map(line => line.text)
+    : coalesceMetadataLines(coalesceMarkdownStringLines(rawLines)).map(line => line.trim()).filter(line => line.length > 0 && !line.startsWith('%%')))
 
   if (lines.length === 0) {
     throw new Error('Empty mermaid diagram')
@@ -151,7 +143,7 @@ function endsInsideMarkdownString(text: string): boolean {
   return text.includes('"`') && scanFlowchart(text).openAtEnd.includes('markdown')
 }
 
-function parseFlowchartSubgraphDeclaration(rest: string): { id: string; label: string } {
+function parseFlowchartSubgraphDeclaration(rest: string): Pick<MermaidSubgraph, 'id' | 'label' | 'labelContent'> {
   // Delimiter scanning is deliberately linear. A lazy `(.+?)` matcher followed
   // by a bracketed label backtracked quadratically over long unterminated runs
   // of `[` — an input shape that fits the hosted 64 KiB source limit.
@@ -161,14 +153,15 @@ function parseFlowchartSubgraphDeclaration(rest: string): { id: string; label: s
     if (!isMermaidIdentifier(id)) {
       throw new Error(`Invalid flowchart subgraph identifier ${JSON.stringify(id)}`)
     }
-    return { id, label: parseFlowchartLabel(rest.slice(labelStart + 1, -1)).text }
+    const parsed = parseFlowchartLabel(rest.slice(labelStart + 1, -1))
+    return { id, label: parsed.text, ...(parsed.labelContent ? { labelContent: parsed.labelContent } : {}) }
   }
-  const label = parseFlowchartLabel(rest).text
+  const parsed = parseFlowchartLabel(rest)
   // Mermaid identifiers are Unicode-aware everywhere else in this parser.
   // Preserve non-Latin letters/numbers when deriving the implicit container id
   // instead of silently collapsing a CJK title to an empty string.
   const id = rest.replace(/\s+/g, '_').replace(/[^\p{L}\p{N}_-]/gu, '')
-  return { id, label }
+  return { id, label: parsed.text, ...(parsed.labelContent ? { labelContent: parsed.labelContent } : {}) }
 }
 
 /** Shared statement splitter for renderer and source-side action analysis:
@@ -359,8 +352,8 @@ function parseFlowchart(lines: string[]): MermaidGraph {
       const subgraphMatch = line.match(/^subgraph\s+(.+)$/)
       if (subgraphMatch) {
         const rest = subgraphMatch[1]!.trim()
-        const { id, label } = parseFlowchartSubgraphDeclaration(rest)
-        const sg: MermaidSubgraph = { id, label, nodeIds: [], children: [] }
+        const { id, label, labelContent } = parseFlowchartSubgraphDeclaration(rest)
+        const sg: MermaidSubgraph = { id, label, ...(labelContent ? { labelContent } : {}), nodeIds: [], children: [] }
         subgraphStack.push(sg)
         continue
       }
@@ -515,8 +508,7 @@ function parseStateDiagram(lines: string[]): MermaidGraph {
   }
 
   for (let i = 1; i < lines.length; i++) {
-    const line = stripStateComment(lines[i]!)
-    if (!line) continue
+    const line = lines[i]!
 
     // --- open block note: collect body lines verbatim until `end note` ---
     if (openNote) {
@@ -528,6 +520,8 @@ function parseStateDiagram(lines: string[]): MermaidGraph {
       }
       continue
     }
+
+    if (!line) continue
 
     // Comment-only source carries no drawing content. Keep note text above
     // literal; opaque parsing preserves slash comments and layout directives.
@@ -993,6 +987,7 @@ function parseEdgeLine(
     let startMarker: EdgeMarker | undefined
     let endMarker: EdgeMarker | undefined
     let edgeLabel: string | undefined
+    let labelContent: MermaidEdge['labelContent']
     let length: number | undefined
 
     // v11.6 edge IDs (`e1@-->`): the authored ID is modeled as stable edge
@@ -1010,7 +1005,9 @@ function parseEdgeLine(
       if (labelSuffix.startsWith('|')) {
         const pipeLabel = consumePipeLabel(labelSuffix)
         if (!pipeLabel) return { ok: false, remaining: labelSuffix, reason: 'expected edge target' }
-        edgeLabel = parseFlowchartLabel(pipeLabel.rawLabel.trim()).text || undefined
+        const parsedLabel = parseFlowchartLabel(pipeLabel.rawLabel.trim())
+        edgeLabel = parsedLabel.text || undefined
+        labelContent = parsedLabel.labelContent
         consumed += pipeLabel.consumed
       }
       remaining = remaining.slice(consumed).trim()
@@ -1025,7 +1022,9 @@ function parseEdgeLine(
       const textArrow = consumeTextArrow(remaining)
       if (!textArrow) return { ok: false, remaining, reason: 'expected edge operator' }
       hasArrowStart = textArrow.hasArrowStart
-      edgeLabel = parseFlowchartLabel(textArrow.rawLabel).text || undefined
+      const parsedLabel = parseFlowchartLabel(textArrow.rawLabel)
+      edgeLabel = parsedLabel.text || undefined
+      labelContent = parsedLabel.labelContent
       remaining = remaining.slice(textArrow.consumed).trim()
       style = textArrowStyleFromOps(textArrow.openOp, textArrow.closeOp)
       length = textArrowLengthFromOps(textArrow.openOp, textArrow.closeOp)
@@ -1050,6 +1049,7 @@ function parseEdgeLine(
           target: targetId,
           ...(edgeId !== undefined ? { id: edgeId } : {}),
           label: edgeLabel,
+          ...(labelContent ? { labelContent } : {}),
           style,
           hasArrowStart,
           hasArrowEnd,
@@ -1146,7 +1146,7 @@ function applyNodeMetadata(
   if (existing) {
     graph.nodes.set(id, {
       ...existing,
-      ...(parsedLabel !== undefined ? { label: parsedLabel.text, ...(parsedLabel.markdown ? { markdownLabel: true as const } : {}) } : {}),
+      ...(parsedLabel !== undefined ? { label: parsedLabel.text, labelContent: parsedLabel.labelContent, ...(parsedLabel.markdown ? { markdownLabel: true as const } : {}) } : {}),
       ...shapeFields,
       ...mediaFields,
     })
@@ -1155,6 +1155,7 @@ function applyNodeMetadata(
     registerNode(graph, subgraphStack, {
       id,
       label: parsedLabel?.text ?? id,
+      ...(parsedLabel?.labelContent ? { labelContent: parsedLabel.labelContent } : {}),
       shape: 'rectangle',
       ...(parsedLabel?.markdown ? { markdownLabel: true as const } : {}),
       ...shapeFields,
@@ -1213,6 +1214,7 @@ function consumeQuotedShapeNode(
     defineNode(graph, subgraphStack, {
       id: identifier.id,
       label: parsed.text,
+      ...(parsed.labelContent ? { labelContent: parsed.labelContent } : {}),
       shape: spec.shape,
       ...(parsed.markdown ? { markdownLabel: true as const } : {}),
     })
@@ -1266,8 +1268,8 @@ function consumeNode(
     if (match) {
       if (flowchartIdLength(text, match[1]!.length) < match[1]!.length) continue
       id = match[1]!
-      const { text: label, markdown } = parseFlowchartLabel(match[2]!)
-      defineNode(graph, subgraphStack, { id, label, shape, ...(markdown ? { markdownLabel: true as const } : {}) })
+      const { text: label, markdown, labelContent } = parseFlowchartLabel(match[2]!)
+      defineNode(graph, subgraphStack, { id, label, shape, ...(markdown ? { markdownLabel: true as const } : {}), ...(labelContent ? { labelContent } : {}) })
       remaining = text.slice(match[0].length)
       break
     }
@@ -1315,8 +1317,8 @@ function defineNode(
     registerNode(graph, subgraphStack, node)
     return
   }
-  const { markdownLabel: _markdown, semanticShape: _semantic, authoredShape: _authored, ...kept } = existing
-  graph.nodes.set(node.id, { ...kept, label: node.label, shape: node.shape, ...(node.markdownLabel ? { markdownLabel: true as const } : {}) })
+  const { markdownLabel: _markdown, semanticShape: _semantic, authoredShape: _authored, labelContent: _content, ...kept } = existing
+  graph.nodes.set(node.id, { ...kept, label: node.label, shape: node.shape, ...(node.markdownLabel ? { markdownLabel: true as const } : {}), ...(node.labelContent ? { labelContent: node.labelContent } : {}) })
   trackInSubgraph(subgraphStack, node.id)
 }
 

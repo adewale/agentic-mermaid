@@ -20,9 +20,8 @@ interface ParsedNode { id: string; label: string; shape: MindmapShape; markdown?
 /** Parse the indentation-sensitive source from the untrimmed normalized body. */
 export function parseMindmap(source: string): MindmapDiagram {
   const sourceLines = source.replace(/^\uFEFF/, '').split(/\r?\n/)
-  // Mindmap's lexer treats inline %% as a comment. Preserve that family rule
-  // before the universal parser reads an inline directive value; block
-  // interiors retain their historical free-text behavior.
+  // Keep the existing accessibility extension's inline-comment policy;
+  // block descriptions retain their free-text behavior.
   const accessibilityLines = sourceLines.map(line =>
     parseAccessibilityDirective([line], 0)?.form === 'inline' ? stripInlineComment(line) : line)
   const scanned = scanAccessibilityDirectives(accessibilityLines)
@@ -101,6 +100,8 @@ export function parseMindmap(source: string): MindmapDiagram {
 }
 
 function stripInlineComment(line: string): string {
+  if (line.trimStart().startsWith(':::')) return line
+  const inlineDirective = parseAccessibilityDirective([line], 0)?.form === 'inline'
   let quoted = false
   let escaped = false
   for (let index = 0; index < line.length - 1; index++) {
@@ -108,7 +109,13 @@ function stripInlineComment(line: string): string {
     if (escaped) { escaped = false; continue }
     if (char === '\\') { escaped = true; continue }
     if (char === '"') { quoted = !quoted; continue }
-    if (!quoted && char === '%' && line[index + 1] === '%') return line.slice(0, index)
+    if (quoted || char !== '%' || line[index + 1] !== '%') continue
+    const prefix = line.slice(0, index).trim()
+    // Bare-node, shape, icon and class payloads consume %% as text. Once a
+    // shape or icon closes, the lexer can start a trailing comment again.
+    if (!prefix || inlineDirective || /^::icon\([^)]*\)$/.test(prefix)) return line.slice(0, index)
+    const node = parseNode(prefix)
+    if (node && node.shape !== 'default') return line.slice(0, index)
   }
   return line
 }

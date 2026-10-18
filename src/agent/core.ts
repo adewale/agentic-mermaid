@@ -8,6 +8,7 @@
 // nothing (ELK is deterministic on its own). See AGENT_NATIVE.md § (1).
 // ============================================================================
 
+export type { LabelContent, PreparedDisplayText, DisplayRun } from '../shared/display-text.ts'
 export type { AsciiRenderOptions, AsciiWidthErrorReason, RenderedAscii } from '../ascii/index.ts'
 export { AsciiWidthError } from '../ascii/index.ts'
 export type { AsciiRegion, AsciiWarning, AsciiWarningCode, AsciiWithMeta, RegionKind } from '../ascii/meta.ts'

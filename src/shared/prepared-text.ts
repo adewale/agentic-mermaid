@@ -3,7 +3,7 @@ import type { TextTransform } from '../types.ts'
 import { LINE_HEIGHT_RATIO, measureTextWidth, measureSystemFontSafeTextWidth, measureMonospaceTextWidth, getCharWidth } from '../text-metrics.ts'
 import { graphemes } from './graphemes.ts'
 import { serializeStyledSegment } from './inline-format.ts'
-import { prepareDisplayText, type DisplayRun, type PreparedDisplayText } from './display-text.ts'
+import { prepareDisplayText, type DisplayRun, type DisplayTextInput, type PreparedDisplayText } from './display-text.ts'
 
 export interface PixelTextOptions {
   display?: LabelDisplay
@@ -128,7 +128,7 @@ function hyphenRun(glyph: WrapGlyph): DisplayRun {
 
 /** Prepared text is the layout authority. Soft breaks retain every authored
  * space, and inserted hyphens have an explicit provenance record. */
-export function preparePixelText(source: string, options: PixelTextOptions): PixelTextBlock {
+export function preparePixelText(source: DisplayTextInput, options: PixelTextOptions): PixelTextBlock {
   if (!Number.isFinite(options.fontSize) || options.fontSize <= 0 || !Number.isFinite(options.fontWeight) || !Number.isFinite(options.letterSpacing ?? 0)) throw new RangeError('Prepared text requires finite typography and a positive font size')
   const prepared = prepareDisplayText(source, options.display, options.transform)
   const maxWidth = options.maxWidth
@@ -174,7 +174,7 @@ export function preparePixelText(source: string, options: PixelTextOptions): Pix
         }
       }
       const line = coalesce(clusters.slice(start, paintEnd ?? end))
-      const sourceOffset = clusters[end]?.sourceStart ?? source.length
+      const sourceOffset = clusters[end]?.sourceStart ?? prepared.source.length
       if (hyphen) line.push({ ...hyphenRun(clusters[end - 1]!), sourceStart: sourceOffset, sourceEnd: sourceOffset })
       broken.push(line)
       if (end < clusters.length) breaks.push({ kind: hyphen ? 'hyphen' : 'wrap', sourceOffset, ...(replacedText ? { replacedText } : {}) })
@@ -185,7 +185,7 @@ export function preparePixelText(source: string, options: PixelTextOptions): Pix
   // The Latin baseline band cannot enclose joining-script ascents or stacked
   // diacritics. Reserve a native shaping band before family placement; marks
   // may extend ink even when they contribute no horizontal advance.
-  const visible = /[\p{M}\p{Script=Arabic}\p{Script=Hebrew}]/u.test(source.normalize('NFD')) ? prepared.lines.map(runs => runs.map(run => run.text).join('')).join('\n') : ''
+  const visible = prepared.lines.map(runs => runs.map(run => run.text).join('')).join('\n')
   const maxMarks = /\p{M}/u.test(visible.normalize('NFD').replace(/[\uFE0E\uFE0F]/g, '')) ? graphemes(visible.normalize('NFD')).reduce((max, cluster) => Math.max(max, (cluster.replace(/[\uFE0E\uFE0F]/g, '').match(/\p{M}/gu) ?? []).length), 0) : 0
   const lineHeight = options.fontSize * Math.max(LINE_HEIGHT_RATIO, /[\p{Script=Arabic}\p{Script=Hebrew}]/u.test(visible) ? 2.4 : 0, maxMarks ? LINE_HEIGHT_RATIO + maxMarks * 0.6 : 0)
   const lineBlocks = broken.map((runs, i) => {
@@ -206,7 +206,7 @@ export type PixelTextFit =
 
 /** The primitive reports insufficient space. The family decides whether its
  * canvas may grow or an owned omission must be reported. */
-export function fitPixelText(source: string, options: PixelTextOptions, available: { width: number; height: number }): PixelTextFit {
+export function fitPixelText(source: DisplayTextInput, options: PixelTextOptions, available: { width: number; height: number }): PixelTextFit {
   const block = preparePixelText(source, { ...options, maxWidth: available.width })
   return block.width <= available.width && block.height <= available.height
     ? { kind: 'placed', block }

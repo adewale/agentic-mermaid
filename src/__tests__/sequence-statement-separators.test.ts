@@ -47,7 +47,9 @@ describe('Sequence newline and semicolon statement equivalence', () => {
 
   test('Mermaid hash entities keep their terminator semicolons inside labels', () => {
     const source = 'sequenceDiagram; A->>B: I #9829; you!; B->>A: #59; yes;'
-    const expectedLabels = ['I #9829; you!', '#59; yes']
+    const expectedLabels = ['I ♥ you!', '; yes']
+    expect(splitSequenceStatementLines([source]).map(line => line.trim()).filter(Boolean))
+      .toEqual(['sequenceDiagram', 'A->>B: I #9829; you!', 'B->>A: #59; yes'])
     expect(parseSequenceDiagram([source]).messages.map(message => message.label)).toEqual(expectedLabels)
     const agent = parseRegisteredMermaid(source)
     expect(agent.ok).toBe(true)
