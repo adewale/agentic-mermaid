@@ -36,7 +36,7 @@ import type {
 } from './types.ts'
 import { ok, err } from './types.ts'
 import { labelOverflowCollector } from './body-utils.ts'
-import { classCommentRejections, classDiagramHasStatement, parseClassBodyAnnotationToken, parseClassRelationship, readClassStatements } from '../class/parser.ts'
+import { classCommentRejections, classDiagramHasStatement, parseClassBodyAnnotationToken, parseClassRelationship, readClassStatements, supportedRelationEndpoint } from '../class/parser.ts'
 import type { ClassStatementNode } from '../class/parser.ts'
 import { parseMutableStyleProps, serializeStyleProps, unsafeStylePaintError } from '../shared/style-props.ts'
 import { decodeXML } from 'entities'
@@ -254,6 +254,17 @@ function arrowForRelation(relation: ClassRelation): string {
 }
 
 function quoteIfNeeded(id: string): string {
+  if (/^[\w$]+$/.test(id) && supportedRelationEndpoint(id, id)) {
+    const relation = `${id} -- __endpoint`
+    const statements = readClassStatements([id, relation]).statements
+    if (parseAccessibilityDirective([relation], 0) === null
+      && statements[0]?.value.kind !== 'header'
+      && statements[1]?.value.kind === 'relationship') return id
+  }
+  return `\`${id}\``
+}
+
+function quoteDirectiveTarget(id: string): string {
   return /^[\w$]+$/.test(id) ? id : `\`${id}\``
 }
 
@@ -311,7 +322,7 @@ export function renderClass(body: ClassBody): string {
       // nested namespace into one flat name.
       segments.forEach((segment, index) => {
         const label = index === segments.length - 1 && ns.label !== undefined ? `["${ns.label}"]` : ''
-        lines.push(`${'  '.repeat(frame.depth + index)}namespace ${quoteIfNeeded(segment)}${label} {`)
+        lines.push(`${'  '.repeat(frame.depth + index)}namespace ${quoteDirectiveTarget(segment)}${label} {`)
       })
     }
     for (const c of members) pushClassLines(lines, c, '  '.repeat(frame.depth + levels))
@@ -345,8 +356,8 @@ export function renderClass(body: ClassBody): string {
   }
   for (const [name, style] of Object.entries(body.classDefs ?? {})) lines.push(`  classDef ${name} ${serializeStyleProps(style)}`)
   for (const c of body.classes) {
-    if (c.className) lines.push(`  class ${quoteIfNeeded(c.id)} ${c.className}`)
-    if (c.style) lines.push(`  style ${quoteIfNeeded(c.id)} ${serializeStyleProps(c.style)}`)
+    if (c.className) lines.push(`  class ${quoteDirectiveTarget(c.id)} ${c.className}`)
+    if (c.style) lines.push(`  style ${quoteDirectiveTarget(c.id)} ${serializeStyleProps(c.style)}`)
     if (c.href) {
       lines.push(`  click ${quoteIfNeeded(c.id)} href "${c.href.replace(/&/g, '&amp;').replace(/\\/g, '\\\\').replace(/"/g, '\\"')}"${c.tooltip !== undefined ? ` "${c.tooltip.replace(/&/g, '&amp;').replace(/"/g, '&quot;')}"` : ''}`)
     }

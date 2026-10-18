@@ -5,6 +5,7 @@ import { parseRegisteredMermaid as parseMermaid, asClass, mutate, mutateChecked,
 import { parseClassDiagram } from '../class/parser.ts'
 import { classUnsupportedSyntaxWarnings } from '../agent/class-body.ts'
 import type { ClassMutationOp } from '../agent/types.ts'
+import { startUpstreamMermaid } from './helpers/upstream-mermaid.ts'
 
 const parse = (s: string) => {
   const r = parseMermaid(s)
@@ -379,6 +380,68 @@ describe('class — mutate', () => {
 })
 
 describe('class — round-trip', () => {
+  test('keeps directive targets valid when their class names need relation quoting', async () => {
+    const upstream = startUpstreamMermaid()
+    try {
+      for (const id of ['title', 'accTitle', 'accDescr', 'class', 'classDiagram']) {
+        const style = ['title', 'accTitle', 'accDescr'].includes(id) ? `\nstyle ${id} stroke:blue` : ''
+        const source = `classDiagram\nclass ${id}\nclass ${id} chosen\nclassDef chosen fill:red${style}`
+        expect(await upstream.accepts(source)).toBe(true)
+        const original = asClass(parse(source))!
+        const edited = mutate(original, { kind: 'add_member', class: id, text: '+active()' })
+        if (!edited.ok) throw new Error(JSON.stringify(edited.error))
+        const exported = serializeMermaid(edited.value)
+        expect(await upstream.accepts(exported)).toBe(true)
+        const reloaded = asClass(parse(exported))!
+        expect(reloaded.body.classes).toEqual(edited.value.body.classes)
+        expect(reloaded.body.classDefs).toEqual(original.body.classDefs)
+      }
+    } finally {
+      await upstream.close()
+    }
+  })
+
+  test.each(['o', 'class', 'namespace', 'style', 'classDef', '$A', 'title', 'TITLE', 'accTitle', 'ACCDESCR', 'classDiagram'])('keeps required quoting for endpoint %s through edits and rendering', async id => {
+    const forward = `\`${id}\` ()..* B`
+    const reverse = `B -- \`${id}\` : linked`
+    const source = `classDiagram\n${forward}\n${reverse}\nnote for \`${id}\` "attached"\nclick \`${id}\` href "https://example.com"`
+    const original = asClass(parse(source))!
+    expect(original.body.relations).toEqual([
+      { from: id, to: 'B', kind: 'lollipop', markerAt: 'both', fromKind: 'lollipop', toKind: 'composition', lineStyle: 'dashed' },
+      { from: 'B', to: id, kind: 'link-solid', markerAt: 'none', label: 'linked' },
+    ])
+    const edited = mutate(original, { kind: 'add_member', class: 'B', text: '+active()' })
+    if (!edited.ok) throw new Error(JSON.stringify(edited.error))
+    const exported = serializeMermaid(edited.value)
+    const upstream = startUpstreamMermaid()
+    try {
+      expect(await upstream.accepts(source)).toBe(true)
+      expect(await upstream.accepts(exported)).toBe(true)
+    } finally {
+      await upstream.close()
+    }
+    expect(exported).toContain(`class \`${id}\``)
+    expect(exported).toContain(forward)
+    expect(exported).toContain(reverse)
+    const reloaded = asClass(parse(exported))!
+    expect(reloaded.body.classes.map(node => node.id)).toEqual([id, 'B'])
+    expect(reloaded.body.classes.find(node => node.id === id)?.href).toBe('https://example.com')
+    expect(reloaded.body.relations).toEqual(original.body.relations)
+    expect(reloaded.body.notes).toEqual([{ for: id, text: 'attached' }])
+    expect(verifyMermaid(edited.value).warnings).toEqual([])
+    for (const input of [edited.value, exported]) {
+      const relations = renderMermaidSVG(input).match(/<polyline\b[^>]*class="class-relationship"[^>]*>/g) ?? []
+      expect(relations).toHaveLength(2)
+      expect(relations[0]).toContain(`data-from="${id}" data-to="B"`)
+      expect(relations[0]).toContain('marker-start="url(#cls-lollipop)"')
+      expect(relations[0]).toContain('marker-end="url(#cls-composition)"')
+      expect(relations[0]).toContain('stroke-dasharray=')
+      expect(relations[1]).toContain(`data-from="B" data-to="${id}"`)
+      expect(relations[1]).not.toContain('marker-start=')
+      expect(relations[1]).not.toContain('marker-end=')
+    }
+  })
+
   test.each([
     { arrow: '<|--', kind: 'inheritance', markerAt: 'from', start: 'cls-inherit', end: '' },
     { arrow: '--|>', kind: 'inheritance', markerAt: 'to', start: '', end: 'cls-inherit' },
