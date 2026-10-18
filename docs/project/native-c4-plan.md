@@ -14,6 +14,19 @@ These are bounded witnesses, not a universal layout guarantee or a deployment.
 [PR #411](https://github.com/adewale/agentic-mermaid/pull/411) records the
 combined-head validation and independent review after the Pele comparison.
 
+The three Astra XHigh reviewers challenged the combined PR and prompted fixes
+for effective-shape metadata, configuration bounds, an SVG CDATA fast-path
+regression, accessibility label companions and an edge-count test that could
+skip a failed family. The final production commit is
+`6895af7c2aac29e9c7b1f6db1173e1b95f364be7`; the subsequent
+`315f8619961181545b9ce48cfd7e60e36debbfb1` strengthens that test and reviews
+a 137-byte gzip overrun by increasing only GitGraph's cap from 184,500 to
+185,000 bytes. It changes no renderer code. Fresh independent review bound
+42 SVGs, 36 terminal outputs and nine PNGs to this production code, including
+142 graphical endpoint contacts and 72 terminal contacts. These finite cases
+do not establish every dense layout, font/browser combination or assistive
+technology experience. Final CI status remains recorded on the PR.
+
 ## Contract
 
 Support Mermaid 11.16's five legacy dialects (`C4Context`, `C4Container`,
