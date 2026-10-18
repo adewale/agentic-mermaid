@@ -98,7 +98,8 @@ export function erDisplayText(text: string): string {
  * reading. Formatting is parsed before codes expand into literal runs. */
 export function erTextContent(authored: string, value: string, literal = false): LabelContent | undefined {
   if (!/#\w+;/.test(authored)) return undefined
-  const prepared = replaceDisplayTextTokens(prepareDisplayText(normalizedErText(authored), literal ? 'literal' : 'formatted'), /#\w+;/g, decodeErText)
+  const normalized = literal ? normalizeBrTags(authored) : normalizedErText(authored)
+  const prepared = replaceDisplayTextTokens(prepareDisplayText(normalized, literal ? 'literal' : 'formatted'), /#\w+;/g, decodeErText)
   return { value, prepared, authored }
 }
 

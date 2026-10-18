@@ -9,8 +9,9 @@
 // (ER_READ_GENEROUSLY).
 
 import { afterAll, describe, expect, test } from 'bun:test'
-import { asEr, mutate, parseRegisteredMermaid, renderMermaidSVG, serializeMermaid, verifyMermaid } from '../agent/index.ts'
+import { asEr, mutate, parseRegisteredMermaid, renderMermaidSVG, serializeMermaid, verifyMermaid, describeMermaidFacts } from '../agent/index.ts'
 import { parseErDiagram } from '../er/parser.ts'
+import { erAttributeBlocks } from '../er/layout.ts'
 import { normalizeMermaidSource } from '../mermaid-source.ts'
 import { displayText, escapeXml } from '../multiline-utils.ts'
 import { fromEntityMarkers } from '../shared/mermaid-entities.ts'
@@ -267,10 +268,32 @@ describe('ER text as drawn', () => {
     expect(serializeMermaid(reread.value)).toBe(written)
   })
 
-  test('an entity-produced br tag remains literal in an attribute comment on both outputs', () => {
-    const source = 'erDiagram\n  A {\n    string value "#lt;br#gt;"\n  }'
-    expect(renderMermaidSVG(source)).toContain('&lt;br&gt;')
-    expect(renderMermaidASCII(source)).toContain('<br>')
+  test.each([
+    ['#lt;br#gt;', '<br>', ['<br>']],
+    ['_word_', '_word_', ['_word_']],
+    ['_word_ #9829;', '_word_ ♥', ['_word_ ♥']],
+    ['_word_ #lt;i#gt;tag#lt;/i#gt; #92;n', String.raw`_word_ <i>tag</i> \n`, [String.raw`_word_ <i>tag</i> \n`]],
+    ['_word_<br/>next #9829;', '_word_ next ♥', ['_word_', 'next ♥']],
+  ] as const)('attribute comment %s retains its literal reading through edits, metrics and outputs', async (authored, visible, terminalParts) => {
+    const source = `erDiagram\n  A {\n    string value "${authored}"\n  }`
+    const parsed = parseRegisteredMermaid(source)
+    if (!parsed.ok) throw new Error('comment fixture rejected')
+    const edited = mutate(parsed.value, { kind: 'add_entity', id: 'B' })
+    if (!edited.ok) throw new Error('edit refused')
+    const written = serializeMermaid(edited.value)
+    const reread = parseRegisteredMermaid(written)
+    if (!reread.ok) throw new Error('written comment rejected')
+    expect(describeMermaidFacts(reread.value)).toEqual(describeMermaidFacts(edited.value))
+    expect(serializeMermaid(reread.value)).toBe(written)
+    for (const candidate of [source, written]) {
+      const attribute = parseErDiagram(normalizeMermaidSource(candidate).familyLines).entities[0]!.attributes[0]!
+      expect(erAttributeBlocks(attribute).comment?.text).toBe(visible)
+      expect(renderMermaidSVG(candidate)).toContain(escapeXml(visible))
+      // SVG keeps comments in one row; terminal preserves authored breaks.
+      const terminal = renderMermaidASCII(candidate)
+      for (const part of terminalParts) expect(terminal).toContain(part)
+    }
+    expect(await upstream.accepts(written)).toBe(true)
   })
 
   test('same-value ER labels keep literal runs beside markdown and changed labels acquire their own meaning', async () => {
