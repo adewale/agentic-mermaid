@@ -36,7 +36,7 @@ describe('prepared display text', () => {
     expect(labelDisplayLength(prepared)).toBe(visible.split('\n')[0]!.length)
     const svg = renderMultilineText(block, 100, 50, typography.fontSize, 'text-anchor="middle"')
     expect(svg).toContain('&lt;b&gt;X&lt;/b&gt;')
-    expect(svg).toContain('<tspan font-weight="bold">Y</tspan>')
+    expect(svg).toContain('font-weight="bold">Y</tspan>')
     const mark = marks.text({ id: 'decoded-literal', role: 'label', text: block.text, block, x: 100, y: 50, fontSize: typography.fontSize, anchor: 'middle', paint: {} }, svg)
     const problems: string[] = []
     nodeProblems(mark, 'decoded-literal', problems)
@@ -226,6 +226,71 @@ describe('prepared display text', () => {
 })
 
 describe('prepared text at the graphical boundary', () => {
+  it.each([{ letterSpacing: 0, fontWeight: 400 }, { letterSpacing: 2, fontWeight: 400 }, { letterSpacing: 0, fontWeight: 800 }])('paints retained styled allocations without nested fitting: %j', ({ letterSpacing, fontWeight }) => {
+    let measurements = 0
+    const execution = createTextMeasurementExecution({ id: 'test:styled-allocations', version: '1.0.0', measure: ({ text }) => { measurements++; return text.length > 1 ? text.length * 10 + 5 : 10 } }, 'Inter')
+    const block = withTextMeasurementExecution(execution, () => preparePixelText('This <b>is</b> <i>Markdown</i>', { fontSize: 20, fontWeight, letterSpacing }))
+    const preparedMeasurements = measurements
+    const markup = withTextMeasurementExecution(execution, () => renderMultilineText(block, 30, 73, 20, `text-anchor="start" font-size="20" font-weight="${fontWeight}"`))
+    expect(measurements).toBe(preparedMeasurements)
+    expect(block.prepared.source).toBe('This <b>is</b> <i>Markdown</i>')
+    expect(block.width).toBe(letterSpacing === 0 ? 175 : 190)
+    const fragments = block.lineBlocks[0]!.fragments!
+    expect(fragments).toHaveLength(letterSpacing === 0 ? 4 : 16)
+    expect(fragments.map(fragment => fragment.text).join('')).toBe('This is Markdown')
+    if (letterSpacing === 0) expect(fragments.map(fragment => [fragment.x, fragment.width])).toEqual([[0, 55], [55, 25], [80, 10], [90, 85]])
+    const reference = letterSpacing === 0
+      ? `<text x="30" y="80" textLength="55" lengthAdjust="spacingAndGlyphs" xml:space="preserve">This </text><text x="85" y="80" textLength="25" lengthAdjust="spacingAndGlyphs" font-weight="${Math.max(700, fontWeight)}">is</text><text x="110" y="80" textLength="10" lengthAdjust="spacingAndGlyphs" xml:space="preserve"> </text><text x="120" y="80" textLength="85" lengthAdjust="spacingAndGlyphs" font-style="italic">Markdown</text>`
+      : [...'This is Markdown'].map((text, index) => `<text x="${30 + index * 12}" y="80" textLength="10" lengthAdjust="spacingAndGlyphs" xml:space="preserve"${index >= 5 && index <= 6 ? ' font-weight="bold"' : index >= 8 ? ' font-style="italic"' : ''}>${text}</text>`).join('')
+    const wrap = (text: string) => `<svg xmlns="http://www.w3.org/2000/svg" width="300" height="120" font-weight="${fontWeight}"><style>text{font-family:Inter;font-size:20px}</style>${text}</svg>`
+    const raster = (text: string) => new Resvg(wrap(text), { font: { loadSystemFonts: false, fontDirs: [join(import.meta.dir, '..', '..', 'assets', 'fonts')], defaultFontFamily: 'Inter' } }).render().pixels
+    expect(Buffer.from(raster(markup)).equals(Buffer.from(raster(reference)))).toBe(true)
+    const node = marks.text({ id: 'styled-allocations', role: 'label', text: block.text, block, x: 30, y: 73, fontSize: 20, anchor: 'start', paint: {} }, markup)
+    const problems: string[] = []
+    nodeProblems(node, 'styled-allocations', problems)
+    expect(problems).toEqual([])
+    const nested = markup.replace(/(data-text-fragment="true"[^>]*>)([^<]+)/, '$1<tspan>$2</tspan>')
+    const changed = attachSceneNodeSerialization({ ...node }, nested)
+    const changedProblems: string[] = []
+    nodeProblems(changed, 'styled-allocations', changedProblems)
+    expect(changedProblems).toContainEqual(expect.stringContaining('a fitted fragment contains a descendant'))
+  })
+
+  it.each(['<b>WWW</b>', '<i>WWW</i>', '<u>WWW</u>', '<s>WWW</s>', '<b>A</b> <i>B</i>'])('retains fitted style carriers and zero-width authored whitespace: %s', source => {
+    const execution = createTextMeasurementExecution({ id: 'test:zero-space-run', version: '1.0.0', measure: ({ text }) => text.trim() ? 10 : 0 }, 'Inter')
+    const block = withTextMeasurementExecution(execution, () => preparePixelText(source, { fontSize: 30, fontWeight: 400 }))
+    const markup = renderMultilineText(block, 30, 50, 30, 'text-anchor="start" font-size="30" font-weight="400"')
+    const node = marks.text({ id: 'single-style', role: 'label', text: block.text, block, x: 30, y: 50, fontSize: 30, anchor: 'start', paint: {} }, markup)
+    const problems: string[] = []
+    nodeProblems(node, 'single-style', problems)
+    expect(problems).toEqual([])
+    expect(block.lineBlocks[0]!.fragments!.map(fragment => fragment.width)).toEqual(source.includes(' ') ? [10, 0, 10] : [10])
+    const resvg = new Resvg(`<svg xmlns="http://www.w3.org/2000/svg" width="200" height="100"><style>text{font-family:Inter}</style>${markup}</svg>`, { font: { loadSystemFonts: false, fontDirs: [join(import.meta.dir, '..', '..', 'assets', 'fonts')], defaultFontFamily: 'Inter' } }).render()
+    const ink: number[] = []
+    for (let y = 0; y < resvg.height; y++) for (let x = 0; x < resvg.width; x++) if (resvg.pixels[(y * resvg.width + x) * 4 + 3]) ink.push(x)
+    expect(ink.length).toBeGreaterThan(0)
+    expect(Math.min(...ink)).toBeGreaterThanOrEqual(29)
+    expect(Math.max(...ink)).toBeLessThanOrEqual(source.includes(' ') ? 51 : 41)
+  })
+
+  it('keeps adjacent identical styles in their original whole-run measurement', () => {
+    const execution = createTextMeasurementExecution({ id: 'test:adjacent-style-runs', version: '1.0.0', measure: ({ text }) => text.length > 1 ? 2 : 9 }, 'Inter')
+    for (const source of ['<b>A</b><b>B</b>', concatDisplayText([prepareDisplayText('<b>A</b>'), prepareDisplayText('<b>B</b>')])]) {
+      const block = withTextMeasurementExecution(execution, () => preparePixelText(source, { fontSize: 20, fontWeight: 800 }))
+      expect(block.width).toBe(2)
+      expect(block.lineBlocks[0]!.runs.map(run => run.text)).toEqual(['A', 'B'])
+      expect(block.lineBlocks[0]!.fragments).toEqual([{ runIndex: 0, text: 'AB', x: 0, width: 2 }])
+      const markup = renderMultilineText(block, 10, 30, 20, 'text-anchor="start" font-size="20" font-weight="800"')
+      const node = marks.text({ id: 'adjacent-style', role: 'label', text: block.text, block, x: 10, y: 30, fontSize: 20, anchor: 'start', paint: {} }, markup)
+      const problems: string[] = []
+      nodeProblems(node, 'adjacent-style', problems)
+      expect(problems).toEqual([])
+    }
+    const unicode = preparePixelText('<b>漢</b>', { fontSize: 20, fontWeight: 800 })
+    expect(unicode.lineBlocks[0]!.fragments).toBeUndefined()
+    expect(renderMultilineText(unicode, 10, 30, 20, 'text-anchor="start" font-size="20" font-weight="800"')).toContain('font-weight="800">漢</tspan>')
+  })
+
   it.each(['مرحبا بكم', 'שָׁלוֹם'])('keeps a native RTL single line on its absolute baseline: %s', label => {
     const block = preparePixelText(label, { fontSize: 40, fontWeight: 500 })
     const wrap = (text: string) => `<svg xmlns="http://www.w3.org/2000/svg" width="500" height="160"><style>text{font-family:DejaVu Sans;font-size:40px;font-weight:500}</style>${text}</svg>`

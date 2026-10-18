@@ -30,7 +30,7 @@ export interface PixelTextLine {
   readonly width: number
   readonly baseline: number
   readonly originX: number
-  /** ASCII tracking uses these exact prepared advances during emission. */
+  /** ASCII tracking and styled runs use these exact allocations during emission. */
   readonly fragments?: readonly PixelTextFragment[]
 }
 
@@ -122,6 +122,26 @@ function trackingLayout(runs: readonly DisplayRun[], options: PixelTextOptions):
     return fragment
   })
   return { width: max - min, originX: -min, fragments: Object.freeze(fragments) }
+}
+
+/** Fit each style run itself: fitting a parent containing style descendants is
+ * not applied consistently by native SVG rasterizers. Keep whole-run shaping
+ * and its authored whitespace, rather than measuring these glyphs separately. */
+function styledRunLayout(runs: readonly DisplayRun[], options: PixelTextOptions): { width: number; originX: number; fragments: readonly PixelTextFragment[] } {
+  const groups: { runIndex: number; text: string }[] = []
+  for (const [runIndex, run] of runs.entries()) {
+    const prior = groups.at(-1)
+    if (prior && sameStyle(runs[prior.runIndex]!, run)) prior.text += run.text
+    else groups.push({ runIndex, text: run.text })
+  }
+  let x = 0
+  const fragments = groups.map(({ runIndex, text }) => {
+    const width = advance([{ ...runs[runIndex]!, text }], options)
+    const fragment = Object.freeze({ runIndex, text, x, width })
+    x += width
+    return fragment
+  })
+  return { width: x, originX: 0, fragments: Object.freeze(fragments) }
 }
 
 function trackedGlyphWidth(text: string, run: DisplayRun, lastInStyle: boolean, options: PixelTextOptions): number {
@@ -240,8 +260,10 @@ export function preparePixelText(source: DisplayTextInput, options: PixelTextOpt
   const lineBlocks = broken.map((runs, i) => {
     const text = runs.map(run => prepared.display === 'literal' ? run.text : serializeStyledSegment(run)).join('')
     runs.forEach(Object.freeze)
-    const tracking = (options.letterSpacing ?? 0) !== 0 && !/[^\x20-\x7e]/u.test(runs.map(run => run.text).join('')) ? trackingLayout(runs, options) : undefined
-    return Object.freeze({ runs: Object.freeze(runs), text, width: tracking?.width ?? advance(runs, options), baseline: i * lineHeight + options.fontSize * 0.35, originX: tracking?.originX ?? 0, ...(tracking ? { fragments: tracking.fragments } : {}) })
+    const ascii = !/[^\x20-\x7e]/u.test(runs.map(run => run.text).join(''))
+    const styled = runs.some(run => run.bold || run.italic || run.underline || run.strikethrough)
+    const allocation = ascii ? (options.letterSpacing ?? 0) !== 0 ? trackingLayout(runs, options) : styled ? styledRunLayout(runs, options) : undefined : undefined
+    return Object.freeze({ runs: Object.freeze(runs), text, width: allocation?.width ?? advance(runs, options), baseline: i * lineHeight + options.fontSize * 0.35, originX: allocation?.originX ?? 0, ...(allocation ? { fragments: allocation.fragments } : {}) })
   })
   const lines = lineBlocks.map(line => line.text)
   Object.freeze(lines)

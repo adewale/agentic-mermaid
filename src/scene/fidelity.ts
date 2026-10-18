@@ -273,7 +273,8 @@ function preparedTextPlacementProblems(node: TextMark, serialized: string, path:
         if (attrs.get('data-text-fragment') !== 'true' || !attrs.has('x') || !['start', 'middle', 'end'].includes(anchor)) fail('a shaping fragment has unsupported positioning')
         if (length(attrs.get('dy')) !== 0 || parent?.fragment) fail('a shaping fragment introduces an unsupported baseline advance')
         if (attrs.has('letter-spacing') && length(attrs.get('letter-spacing')) !== (attrs.has('textLength') ? 0 : block.letterSpacing)) fail('a shaping fragment changes its retained tracking')
-      } else if (wrapper) {
+      } else if (parent?.fragment && parent.width !== undefined) fail('a fitted fragment contains a descendant that bypasses its retained fitting')
+      else if (wrapper) {
         if (!close(x, node.x) || anchor !== node.anchor || attrs.has('dx')) fail('a line wrapper changes its retained x or anchor')
       } else if (positioned || attrs.has('text-anchor') || attrs.has('textLength') || attrs.has('lengthAdjust')) fail('a style span introduces unchecked placement')
     }
@@ -283,7 +284,8 @@ function preparedTextPlacementProblems(node: TextMark, serialized: string, path:
       if (!Number.isFinite(width) || width < 0 || !lineBlock || width > lineBlock.width + 0.5 || (tag.name === 'text' && expected.length !== 1)) fail('textLength exceeds its retained line')
       if (attrs.get('lengthAdjust') !== 'spacingAndGlyphs') fail('textLength has no bounded glyph fitting policy')
       if (!fragment && lineBlock && Math.abs(width - lineBlock.width) > 1e-6 * Math.max(1, lineBlock.width)) fail('textLength differs from its retained line width')
-      if (fragment && (block.letterSpacing === 0 || expected[line]?.trim() && width <= Number.EPSILON * Math.max(1, lineBlock?.width ?? 1))) fail('a fitted fragment has no retained tracking allocation')
+      const allocation = lineBlock?.fragments?.[fragments[line] ?? 0]
+      if (fragment && (!allocation || allocation.text.trim() && width <= Number.EPSILON * Math.max(1, lineBlock?.width ?? 1))) fail('a fitted fragment has no retained allocation')
     }
     if (attrs.has('lengthAdjust') && !attrs.has('textLength')) fail('lengthAdjust has no retained fitted width')
     if (!fragment && attrs.has('letter-spacing') && length(attrs.get('letter-spacing')) !== block.letterSpacing) fail('a descendant changes retained tracking')

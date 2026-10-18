@@ -120,7 +120,18 @@ export function renderDisplayLine(line: string, display: LabelDisplay = 'formatt
 
 /** Paint interpreted runs directly. Prepared labels never pass through a tag
  * parser again, even when their visible characters spell formatting tags. */
-function renderDisplayRuns(segments: readonly DisplayRun[]): string {
+function displayRunAttributes(seg: DisplayRun, fontWeight = 400): string[] {
+  const attrs: string[] = []
+  if (seg.bold) attrs.push(`font-weight="${fontWeight > 700 ? fontWeight : 'bold'}"`)
+  if (seg.italic) attrs.push('font-style="italic"')
+  const deco: string[] = []
+  if (seg.underline) deco.push('underline')
+  if (seg.strikethrough) deco.push('line-through')
+  if (deco.length) attrs.push(`text-decoration="${deco.join(' ')}"`)
+  return attrs
+}
+
+function renderDisplayRuns(segments: readonly DisplayRun[], fontWeight = 400): string {
   if (segments.length === 0) return ''
 
   // If all segments are unstyled, just escape
@@ -131,16 +142,7 @@ function renderDisplayRuns(segments: readonly DisplayRun[]): string {
     const escaped = escapeXml(seg.text)
     if (!seg.bold && !seg.italic && !seg.underline && !seg.strikethrough) return escaped
 
-    const attrs: string[] = []
-    if (seg.bold) attrs.push('font-weight="bold"')
-    if (seg.italic) attrs.push('font-style="italic"')
-    // SVG text-decoration can combine values
-    const deco: string[] = []
-    if (seg.underline) deco.push('underline')
-    if (seg.strikethrough) deco.push('line-through')
-    if (deco.length) attrs.push(`text-decoration="${deco.join(' ')}"`)
-
-    return `<tspan ${attrs.join(' ')}>${escaped}</tspan>`
+    return `<tspan ${displayRunAttributes(seg, fontWeight).join(' ')}>${escaped}</tspan>`
   }).join('')
 }
 
@@ -154,12 +156,16 @@ function renderPreparedLine(block: PixelTextBlock, index: number, cx: number, an
   // and a combining cluster may span formatting descendants.
   if (/[^\x20-\x7e]/u.test(line.runs.map(run => run.text).join(''))) {
     const center = anchor === 'start' ? cx + line.width / 2 : anchor === 'end' ? cx - line.width / 2 : cx
-    return `<tspan x="${center}"${baseline === undefined ? '' : ` y="${baseline}"`} text-anchor="middle" data-text-fragment="true">${renderDisplayRuns(line.runs)}</tspan>`
+    return `<tspan x="${center}"${baseline === undefined ? '' : ` y="${baseline}"`} text-anchor="middle" data-text-fragment="true">${renderDisplayRuns(line.runs, block.fontWeight)}</tspan>`
   }
-  if (block.letterSpacing === 0) return renderDisplayRuns(line.runs)
+  if (block.letterSpacing === 0 && !line.fragments) return renderDisplayRuns(line.runs, block.fontWeight)
   if (!line.fragments) throw new TypeError('Tracked text requires retained fragment allocations')
   const origin = (anchor === 'middle' ? cx - line.width / 2 : anchor === 'end' ? cx - line.width : cx) + line.originX
-  return line.fragments.map(fragment => `<tspan x="${origin + fragment.x}" text-anchor="start" letter-spacing="0" data-text-fragment="true" textLength="${Math.max(0, fragment.width)}" lengthAdjust="spacingAndGlyphs">${renderDisplayRuns([{ ...line.runs[fragment.runIndex]!, text: fragment.text }])}</tspan>`).join('')
+  return line.fragments.map(fragment => {
+    const style = displayRunAttributes(line.runs[fragment.runIndex]!, block.fontWeight)
+    const whitespace = /^ | $/.test(fragment.text) ? ' xml:space="preserve"' : ''
+    return `<tspan x="${origin + fragment.x}" text-anchor="start" letter-spacing="0" data-text-fragment="true" textLength="${Math.max(0, fragment.width)}" lengthAdjust="spacingAndGlyphs"${whitespace}${style.length ? ` ${style.join(' ')}` : ''}>${escapeXml(fragment.text)}</tspan>`
+  }).join('')
 }
 
 // ============================================================================
@@ -204,7 +210,7 @@ export function renderMultilineText(
   const visible = block ? block.lineBlocks.map(line => line.runs.map(run => run.text).join('')).join('\n') : displayText(value, display)
   if (/(?:^ | $| {2}|\t)/m.test(visible) && !attrs.includes('xml:space=')) attrs += ' xml:space="preserve"'
   if (block) attrs += ' data-prepared-text="true"'
-  const advanceAttrs = (i: number) => block && !fragmented ? ` textLength="${block.lineBlocks[i]!.width}" lengthAdjust="spacingAndGlyphs" data-font-metrics="deterministic-fit"` : ''
+  const advanceAttrs = (i: number) => block && !fragmented && !block.lineBlocks[i]!.fragments ? ` textLength="${block.lineBlocks[i]!.width}" lengthAdjust="spacingAndGlyphs" data-font-metrics="deterministic-fit"` : ''
 
   // Single line — simple text element
   if (lines.length === 1) {

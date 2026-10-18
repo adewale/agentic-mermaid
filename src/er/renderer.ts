@@ -5,7 +5,7 @@ import type { PositionedErDiagram, PositionedErEntity, PositionedErRelationship,
 import type { RenderContext, Point } from '../types.ts'
 import { svgOpenTag, buildStyleBlock, buildShadowDefs, type DiagramColors } from '../theme.ts'
 import { inkOnNodeFill } from '../color-resolver.ts'
-import { FONT_SIZES, FONT_WEIGHTS, STROKE_WIDTHS, TEXT_BASELINE_SHIFT, resolveRenderStyle, diagramTitleMark } from '../styles.ts'
+import { FONT_SIZES, FONT_WEIGHTS, STROKE_WIDTHS, resolveRenderStyle, diagramTitleMark } from '../styles.ts'
 import type { RenderStyleDefaults, ResolvedRenderStyle } from '../styles.ts'
 import { ER_STYLE_DEFAULTS, erCommentColumnWidth, erCommentText } from './layout.ts'
 import { buildAccessibilityAttrs } from '../shared/svg-a11y.ts'
@@ -300,8 +300,8 @@ function renderEntityBox(entity: PositionedErEntity, style: ResolvedRenderStyle,
         anchor: 'middle',
         paint: { fill: emptyColor },
       },
-        `<text x="${x + width / 2}" y="${attrTop + rowHeight / 2}" text-anchor="middle" dy="${TEXT_BASELINE_SHIFT}" ` +
-        `font-size="${ER_FONT.attrSize}" fill="${escapeAttr(emptyColor)}" font-style="italic">(no attributes)</text>`),
+        renderMultilineText(block, x + width / 2, attrTop + rowHeight / 2, ER_FONT.attrSize,
+          `text-anchor="middle" font-size="${ER_FONT.attrSize}" fill="${escapeAttr(emptyColor)}"`)),
     })
   }
 

@@ -1,7 +1,7 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="462.48" height="274.9" viewBox="0 0 462.48 274.9" style="--bg:#08111f;--fg:#e6f4ff;--line:#5a7c99;--accent:#2dd4bf;--muted:#8aa6bf;--surface:#102033;--border:#2e4c63;--font:Inter;background:#08111f" aria-roledescription="pie chart" role="img" class="am-0aettib1ghzb4h">
+<svg xmlns="http://www.w3.org/2000/svg" width="462.48" height="274.9" viewBox="0 0 462.48 274.9" style="--bg:#08111f;--fg:#e6f4ff;--line:#5a7c99;--accent:#2dd4bf;--muted:#8aa6bf;--surface:#102033;--border:#2e4c63;--font:Inter;background:#08111f" aria-roledescription="pie chart" role="img" class="am-01hqsrw073zbuu">
 <style>
-  svg.am-0aettib1ghzb4h { font-family: var(--font, 'Inter'), system-ui, sans-serif; }
-  svg.am-0aettib1ghzb4h {
+  svg.am-01hqsrw073zbuu { font-family: var(--font, 'Inter'), system-ui, sans-serif; }
+  svg.am-01hqsrw073zbuu {
     /* Derived from --bg and --fg (overridable via --line, --accent, etc.) */
     --_text:          #e6f4ff;
     --_text-sec:      #8aa6bf;
@@ -18,14 +18,14 @@
   }
 </style>
 <style>
-  .am-0aettib1ghzb4h .pie-slice { stroke: #e6f4ff; stroke-width: 1.4; }
-  .am-0aettib1ghzb4h .pie-slice.highlighted { stroke: #e6f4ff; stroke-width: 2.5; opacity: 1; }
-  .am-0aettib1ghzb4h .pie-slice.highlighted-on-hover:hover { stroke: #e6f4ff; stroke-width: 2.5; opacity: 1; }
-  .am-0aettib1ghzb4h .pie-legend-swatch { stroke: #e6f4ff; stroke-width: 1.4; }
-  .am-0aettib1ghzb4h .pie-legend-text { fill: #e6f4ff; }
-  .am-0aettib1ghzb4h .pie-title { fill: #e6f4ff; }
-  .am-0aettib1ghzb4h .pie-slice.pie-dim { opacity: 0.4; }
-  .am-0aettib1ghzb4h .pie-legend-swatch.pie-dim { opacity: 0.4; }
+  .am-01hqsrw073zbuu .pie-slice { stroke: #e6f4ff; stroke-width: 1.4; }
+  .am-01hqsrw073zbuu .pie-slice.highlighted { stroke: #e6f4ff; stroke-width: 2.5; opacity: 1; }
+  .am-01hqsrw073zbuu .pie-slice.highlighted-on-hover:hover { stroke: #e6f4ff; stroke-width: 2.5; opacity: 1; }
+  .am-01hqsrw073zbuu .pie-legend-swatch { stroke: #e6f4ff; stroke-width: 1.4; }
+  .am-01hqsrw073zbuu .pie-legend-text { fill: #e6f4ff; }
+  .am-01hqsrw073zbuu .pie-title { fill: #e6f4ff; }
+  .am-01hqsrw073zbuu .pie-slice.pie-dim { opacity: 0.4; }
+  .am-01hqsrw073zbuu .pie-legend-swatch.pie-dim { opacity: 0.4; }
 </style>
 <rect width="462.48" height="274.9" fill="#08111f" data-backdrop="page" />
 <path class="pie-slice highlighted" d="M 119 155.9 L 119 60.9 A 95 95 0 0 1 129.72 250.29 Z" fill="#2dd4bf" data-label="Images" data-value="48.2" data-percent="48.2%" data-highlighted="true" data-id="slice:Images" data-role="pie-slice" />
@@ -44,5 +44,5 @@
 <text x="268" y="169" class="pie-legend-text" text-anchor="start" dominant-baseline="middle" font-size="14" font-weight="700" data-prepared-text="true" dy="4.8999999999999995" textLength="154.98000000000002" lengthAdjust="spacingAndGlyphs" data-font-metrics="deterministic-fit">Documents [12.5] (12.5%)</text>
 <rect class="pie-legend-swatch pie-dim" x="246" y="186.1" width="14" height="14" rx="2" ry="2" fill="#79afc4" />
 <text x="268" y="195.2" class="pie-legend-text" text-anchor="start" dominant-baseline="middle" font-size="14" font-weight="700" data-prepared-text="true" dy="4.8999999999999995" textLength="111.30000000000001" lengthAdjust="spacingAndGlyphs" data-font-metrics="deterministic-fit">Other [9.3] (9.3%)</text>
-<text x="231.24" y="32.45" class="pie-title" text-anchor="middle" dominant-baseline="middle" font-size="13" font-weight="700" letter-spacing="0.06" data-prepared-text="true" dy="4.55" data-id="title" data-role="title"><tspan x="181.995" text-anchor="start" letter-spacing="0" data-text-fragment="true" textLength="9.36" lengthAdjust="spacingAndGlyphs">S</tspan><tspan x="191.415" text-anchor="start" letter-spacing="0" data-text-fragment="true" textLength="9.36" lengthAdjust="spacingAndGlyphs">T</tspan><tspan x="200.835" text-anchor="start" letter-spacing="0" data-text-fragment="true" textLength="9.36" lengthAdjust="spacingAndGlyphs">O</tspan><tspan x="210.255" text-anchor="start" letter-spacing="0" data-text-fragment="true" textLength="9.36" lengthAdjust="spacingAndGlyphs">R</tspan><tspan x="219.675" text-anchor="start" letter-spacing="0" data-text-fragment="true" textLength="9.36" lengthAdjust="spacingAndGlyphs">A</tspan><tspan x="229.095" text-anchor="start" letter-spacing="0" data-text-fragment="true" textLength="9.36" lengthAdjust="spacingAndGlyphs">G</tspan><tspan x="238.51500000000001" text-anchor="start" letter-spacing="0" data-text-fragment="true" textLength="9.36" lengthAdjust="spacingAndGlyphs">E</tspan><tspan x="247.935" text-anchor="start" letter-spacing="0" data-text-fragment="true" textLength="2.34" lengthAdjust="spacingAndGlyphs"> </tspan><tspan x="250.335" text-anchor="start" letter-spacing="0" data-text-fragment="true" textLength="9.36" lengthAdjust="spacingAndGlyphs">U</tspan><tspan x="259.755" text-anchor="start" letter-spacing="0" data-text-fragment="true" textLength="9.36" lengthAdjust="spacingAndGlyphs">S</tspan><tspan x="269.175" text-anchor="start" letter-spacing="0" data-text-fragment="true" textLength="11.309999999999999" lengthAdjust="spacingAndGlyphs">E</tspan></text>
+<text x="231.24" y="32.45" class="pie-title" text-anchor="middle" dominant-baseline="middle" font-size="13" font-weight="700" letter-spacing="0.06" data-prepared-text="true" dy="4.55" data-id="title" data-role="title"><tspan x="181.995" text-anchor="start" letter-spacing="0" data-text-fragment="true" textLength="9.36" lengthAdjust="spacingAndGlyphs">S</tspan><tspan x="191.415" text-anchor="start" letter-spacing="0" data-text-fragment="true" textLength="9.36" lengthAdjust="spacingAndGlyphs">T</tspan><tspan x="200.835" text-anchor="start" letter-spacing="0" data-text-fragment="true" textLength="9.36" lengthAdjust="spacingAndGlyphs">O</tspan><tspan x="210.255" text-anchor="start" letter-spacing="0" data-text-fragment="true" textLength="9.36" lengthAdjust="spacingAndGlyphs">R</tspan><tspan x="219.675" text-anchor="start" letter-spacing="0" data-text-fragment="true" textLength="9.36" lengthAdjust="spacingAndGlyphs">A</tspan><tspan x="229.095" text-anchor="start" letter-spacing="0" data-text-fragment="true" textLength="9.36" lengthAdjust="spacingAndGlyphs">G</tspan><tspan x="238.51500000000001" text-anchor="start" letter-spacing="0" data-text-fragment="true" textLength="9.36" lengthAdjust="spacingAndGlyphs">E</tspan><tspan x="247.935" text-anchor="start" letter-spacing="0" data-text-fragment="true" textLength="2.34" lengthAdjust="spacingAndGlyphs" xml:space="preserve"> </tspan><tspan x="250.335" text-anchor="start" letter-spacing="0" data-text-fragment="true" textLength="9.36" lengthAdjust="spacingAndGlyphs">U</tspan><tspan x="259.755" text-anchor="start" letter-spacing="0" data-text-fragment="true" textLength="9.36" lengthAdjust="spacingAndGlyphs">S</tspan><tspan x="269.175" text-anchor="start" letter-spacing="0" data-text-fragment="true" textLength="11.309999999999999" lengthAdjust="spacingAndGlyphs">E</tspan></text>
 </svg>

@@ -5,6 +5,8 @@ import { parseQuadrantChart } from '../quadrant/parser.ts'
 import { layoutSankeyDiagram } from '../sankey/layout.ts'
 import { parseSankeyDiagram } from '../sankey/parser.ts'
 import { renderedTextReady, measureRenderedText } from './helpers/rendered-text.ts'
+import { renderMermaidPNGWithReceipt } from '../agent/png.ts'
+import { decodePng } from './helpers/png-pixels.ts'
 
 beforeAll(() => renderedTextReady())
 const title = ['First authored title line', 'Second authored title line', 'Third authored title line', 'Fourth authored title line', 'Fifth authored title line'].join('\n')
@@ -17,6 +19,23 @@ const bodies = {
 }
 
 describe('prepared family text preserves authored display and allocated bounds', () => {
+  test('PNG paints the complete mixed-style ER label inside its certified title band', () => {
+    const result = renderMermaidPNGWithReceipt('erDiagram\n"This **is** _Markdown_"', { embedFontImport: false, layoutSafety: 'strict', scale: 1 })
+    const raster = decodePng(result.png)
+    const dark = (left: number, right: number) => {
+      let pixels = 0
+      for (let y = 45; y < 68; y++) for (let x = left; x < right; x++) {
+        const i = (y * raster.width + x) * 4
+        if (raster.rgba[i + 3]! > 0 && raster.rgba[i]! < 80 && raster.rgba[i + 1]! < 80 && raster.rgba[i + 2]! < 80) pixels++
+      }
+      return pixels
+    }
+    expect(result.receipt.layoutCertification?.status).toBe('passed')
+    expect(dark(54, 83)).toBeGreaterThan(40)
+    expect(dark(105, 172)).toBeGreaterThan(40)
+    expect(dark(0, 35)).toBe(0)
+  })
+
   test('Gantt contains accent ascenders in a large-font multiline title', () => {
     const svg = renderMermaidSVG(`---\ntitle: ${JSON.stringify('ÉǗẼ\nÉǗẼ')}\n---\n${bodies.gantt}`, { style: { roles: { group: { fontSize: 40, fontWeight: 800, letterSpacing: 2 } } } })
     const census = measureRenderedText(svg)
