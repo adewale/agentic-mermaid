@@ -6,6 +6,16 @@ import { RoughBackend } from '../scene/rough-backend.ts'
 import { sceneNodeSerialization } from '../scene/serialization.ts'
 
 describe('Scene transforms are typed semantic geometry', () => {
+  test.each([
+    ['matrix(,1,1,0,0,0)', { a: 0, b: 1, c: 1, d: 0, e: 0, f: 0 }],
+    ['matrix(1,0,0,1,0,)', { a: 1, b: 0, c: 0, d: 1, e: 0, f: 0 }],
+    ['translate(,5)', { a: 1, b: 0, c: 0, d: 1, e: 0, f: 5 }],
+  ])('fidelity rejects malformed affine parameters: %s', (raw, matrix) => {
+    const group = marks.group({ id: 'invalid-transform', role: 'group', open: `<g transform="${raw}">`, close: '</g>', transform: { kind: 'matrix', ...matrix }, children: [] })
+    const problems: string[] = []
+    nodeProblems(group, 'group', problems)
+    expect(problems.join('\n')).toContain('unsupported crisp transform')
+  })
   test('fidelity rejects a crisp transform missing from semantic fields', () => {
     const mark = marks.text({
       id: 'label', role: 'label', text: 'release', x: 20, y: 30,

@@ -34,7 +34,7 @@ export function parseSvgTransform(value: string): AffineMatrix | undefined {
     if (value.slice(cursor, match.index).trim()) return undefined
     cursor = match.index! + match[0].length
     const raw = match[2]!.trim()
-    if (!raw || !/^[-+\d.eE,\s]+$/.test(raw)) return undefined
+    if (!raw || /^(?:,)|(?:,)$|,\s*,/.test(raw) || !/^[-+\d.eE,\s]+$/.test(raw)) return undefined
     const values = raw.split(/[\s,]+/).map(Number)
     if (!values.every(Number.isFinite)) return undefined
     let next: AffineMatrix
