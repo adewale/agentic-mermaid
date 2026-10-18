@@ -382,7 +382,7 @@ describe('stored agent-usage eval', () => {
   test('default Code Mode transcripts pass task and trace checks', async () => {
     const summary = await runAgentUsageEval()
     expect(summary.ok).toBe(true)
-    expect(summary.total).toBe(18)
+    expect(summary.total).toBe(19)
     expect(summary.passed).toBe(summary.total)
     expect(summary.safePathRate).toBe(1)
     expect(summary.structuredPathRate).toBe(1)

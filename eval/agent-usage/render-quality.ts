@@ -49,6 +49,8 @@ const EXPECTED_VISIBLE_LABELS: Record<string, string[]> = {
   mindmap_add_evidence_node: ['Product', 'Research', 'Evidence'],
   gitgraph_add_release_commit: ['ROOT', 'RC', 'rc.1'],
   radar_add_beta_curve: ['Speed', 'Alpha', 'Beta'],
+  c4_add_cache_container: ['Platform', 'API', 'DB', 'Cache', 'TypeScript', 'PostgreSQL', 'Redis', 'Serves requests', 'Stores records', 'Caches responses', 'Reads cache'],
+  author_c4_source: ['Customer', 'Shop', 'Payments', 'Places orders', 'Sells products', 'Processes payments', 'Uses', 'Charges'],
   author_auth_flow_source: ['User', 'Login Page', 'Dashboard'],
   author_api_sequence_source: ['User', 'App', 'API', 'Render SVG', 'Download'],
 }

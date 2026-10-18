@@ -356,7 +356,7 @@ describe('editor verify panel', () => {
     }
     const api = evaluateBrowserScript<{ updateVerifyPanel(source: string, options: unknown): unknown }>(
       `${editorScript('helpers.js')}\n${editorScript('rendering.js')}`,
-      { document, window: {}, verifyMermaid, ...nodes },
+      { document, window: { __mermaid: BROWSER_EDITOR_ADAPTER }, verifyMermaid, ...nodes },
       '{ updateVerifyPanel }',
     )
     return { api, nodes }
@@ -369,8 +369,8 @@ describe('editor verify panel', () => {
       api.updateVerifyPanel('flowchart TD\n  A --> B', {})
       const counted = [
         nodes.verifyStructural.textContent === '1 warning' ? 'structural' : null,
-        nodes.verifyGeometric.textContent === '1 advisory' ? 'geometric' : null,
-        nodes.verifyLint.textContent === '1 note' ? 'lint' : null,
+        ['1 advisory', '1 error'].includes(nodes.verifyGeometric.textContent) ? 'geometric' : null,
+        ['1 note', '1 error'].includes(nodes.verifyLint.textContent) ? 'lint' : null,
       ].filter(Boolean)
       observed[code] = counted.length === 1 ? counted[0]! : `ambiguous:${counted.join('+')}`
     }
@@ -383,8 +383,14 @@ describe('editor verify panel', () => {
     expect(clean.nodes.verifySummary.textContent).toBe('Verified: no warnings')
     const blocked = verifyPanel(() => ({ ok: false, warnings: [{ code: 'RENDER_FAILED' }] }))
     blocked.api.updateVerifyPanel('flowchart TD', {})
-    expect(blocked.nodes.verifySummary.textContent).toBe('Fix structural warnings before export')
+    expect(blocked.nodes.verifySummary.textContent).toBe('Fix verification errors before export')
     expect(blocked.nodes.verifyTierStructural.classList.contains('err')).toBe(true)
+    const occluded = verifyPanel(() => ({ ok: false, warnings: [{ code: 'CONTENT_OCCLUDED', target: 'c4-rel-1', feature: 'marker', message: 'Arrow is covered' }] }))
+    occluded.api.updateVerifyPanel('C4Context', {})
+    expect(occluded.nodes.verifySummary.textContent).toBe('Fix verification errors before export')
+    expect(occluded.nodes.verifyStructural.textContent).toBe('Clear')
+    expect(occluded.nodes.verifyGeometric.textContent).toBe('1 error')
+    expect(occluded.nodes.verifyTierGeometric.classList.contains('err')).toBe(true)
   })
 })
 

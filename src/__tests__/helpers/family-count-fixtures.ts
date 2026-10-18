@@ -48,4 +48,7 @@ export const FAMILY_COUNT_FIXTURES: FamilyCountFixture[] = [
   { family: 'radar', source: 'radar-beta\n  axis a, b, c\n  curve x{1, 2, 3}\n  curve y{3, 2, 1}\n  max 5', count: { nodes: 6, edges: 0, groups: 3 } },
   // Sankey: nodes = distinct labels (A, B, C, D), edges = CSV rows.
   { family: 'sankey', source: 'sankey-beta\n  A,B,10\n  B,C,4\n  B,D,6', count: { nodes: 4, edges: 3, groups: 0 } },
+  // Boundary frames are groups; repeated interactions and self-relations each
+  // remain edges even when their endpoint pair is already present.
+  { family: 'c4', source: 'C4Dynamic\n  System_Boundary(g, "Platform") {\n    Container(api, "API", "HTTP")\n    ContainerDb(db, "Store", "SQL")\n  }\n  Rel(api, db, "Read")\n  Rel(api, db, "Write")\n  Rel(db, db, "Compact")', count: { nodes: 2, edges: 3, groups: 1 } },
 ]

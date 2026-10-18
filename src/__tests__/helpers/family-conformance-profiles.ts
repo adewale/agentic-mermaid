@@ -36,6 +36,11 @@ export interface FamilyConformanceProfile {
  * particular test.
  */
 export const FAMILY_CONFORMANCE_PROFILES: Readonly<Record<DiagramKind, FamilyConformanceProfile>> = {
+  c4: {
+    family: 'c4', riskFixture: 'c4-context-demo.mmd', riskOptions: {},
+    textStressSource: 'C4Container\n  Person(user, "東京 café é 👩‍💻", "שלום")\n  Container(api, "مرحبا بالعالم", "HTTP", "長い説明")\n  Rel(user, api, "長いラベル", "HTTPS")',
+    externalReferenceSource: 'C4Context\n  System(docs, "Docs", $link="https://example.com/docs")',
+  },
   flowchart: {
     family: 'flowchart', riskFixture: 'flowchart-v11-shapes-demo.mmd', riskOptions: {},
     textStressSource: 'flowchart LR\n  A["東京 café é 👩‍💻 שלום"] -->|長いラベル| B["مرحبا بالعالم"]',

@@ -353,7 +353,7 @@ function attachUniversalAccessibility(body: import('./types.ts').DiagramBody, me
 function markDroppedComments(diagram: ValidDiagram, authoredSource: string): void {
   // Structured Sequence bodies keep comments as source-preserved segments;
   // whole-body opaque Sequence and wrapper comments are preserved as before.
-  if (diagram.kind === 'sequence' || diagram.body.kind === 'opaque') return
+  if (diagram.kind === 'sequence' || diagram.kind === 'c4' || diagram.body.kind === 'opaque') return
 
   const sourceLines = authoredSource.split(/\r?\n/).map(line => line.trim())
   // A `%%` comment after a statement is a comment only where the family's

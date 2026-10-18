@@ -48,6 +48,7 @@ export function accessibilityFromBody(body: DiagramBody): Accessibility | undefi
     case 'quadrant':
     case 'mindmap':
     case 'gitgraph':
+    case 'c4':
       return {
         ...(body.accessibilityTitle !== undefined ? { title: body.accessibilityTitle } : {}),
         ...(body.accessibilityDescription !== undefined ? { descr: body.accessibilityDescription } : {}),
@@ -69,6 +70,7 @@ export function attachAccessibilityToBody(body: DiagramBody, accessibility: Acce
     case 'quadrant':
     case 'mindmap':
     case 'gitgraph':
+    case 'c4':
       if (accessibility.title !== undefined) body.accessibilityTitle = accessibility.title
       if (accessibility.descr !== undefined) body.accessibilityDescription = accessibility.descr
       break

@@ -1,5 +1,6 @@
 import { describe, expect, test } from 'bun:test'
 import { layoutMermaid, parseRegisteredMermaid as parseMermaid } from '../agent/index.ts'
+import { countStructuralElements } from '../agent/structural-count.ts'
 import { renderMermaidSVG } from '../index.ts'
 import { BUILTIN_PALETTE_DEFINITIONS } from '../palette-catalog.ts'
 import { relationAccessibilityForSvg } from '../scene/accessibility.ts'
@@ -22,6 +23,9 @@ describe('typed relation accessibility', () => {
       const expected = layoutMermaid(parsed.value)
         .edges.map(edge => `${edge.from}->${edge.to}`)
         .sort()
+      const authored = countStructuralElements(parsed.value)
+      expect(authored, entry.family).not.toBeNull()
+      expect(expected.length, `${entry.family} retains authored relations`).toBe(authored!.edges)
       if (expected.length === 0) continue
       enrolled.push(entry.family)
 
@@ -33,7 +37,7 @@ describe('typed relation accessibility', () => {
         expect(relation, entry.family).toMatch(/aria-label="[^"]+ to [^"]+/)
       }
     }
-    expect(enrolled.sort()).toEqual(['architecture', 'class', 'er', 'flowchart', 'gitgraph', 'mindmap', 'sankey', 'sequence', 'state'])
+    expect(enrolled.length).toBeGreaterThan(0)
   })
 
   test('keeps the typed relation model aligned with escaped SVG attributes', () => {

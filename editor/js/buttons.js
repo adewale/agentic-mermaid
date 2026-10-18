@@ -41,6 +41,7 @@ function clearEditor() {
   renderTime.textContent = '';
   if (typeof resetVerifyPanel === 'function') resetVerifyPanel('Waiting for source');
   if (typeof updateExportAvailability === 'function') updateExportAvailability();
+  if (typeof refreshC4Navigation === 'function') refreshC4Navigation();
   if (typeof markActiveExample === 'function') markActiveExample('');
   window.history.replaceState(null, '', window.location.pathname);
   showToast('Started a blank diagram.');
@@ -67,6 +68,7 @@ function selectCanvasFormat(fmt) {
   });
   var zoomControls = document.getElementById('zoom-controls');
   if (zoomControls) zoomControls.hidden = fmt !== 'diagram';
+  if (typeof refreshC4Navigation === 'function') refreshC4Navigation();
   if (copyTextOutputBtn) {
     var label = fmt === 'diagram'
       ? 'Copy SVG markup'

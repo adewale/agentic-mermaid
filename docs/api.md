@@ -250,9 +250,9 @@ remain in their respective sections.
 | `border` | `string` | derived | Node and group border color. | all | consumed |
 | `font` | `string` | `Inter` | CSS font family or stack. | all | projected — the host terminal owns the font face |
 | `style` | `StyleInput \| StyleInput[]` | `crisp` | Registered Style/Palette name, inline StyleSpec, or left-to-right stack. | all | consumed |
-| `padding` | `number` | `40` | Canvas padding in SVG user units. | flowchart, state, architecture | not-applicable — terminal output uses paddingX, paddingY, and boxBorderPadding |
-| `nodeSpacing` | `number` | `24` | Horizontal spacing between sibling nodes. | flowchart, state, class, er, architecture | not-applicable — terminal layout has a cell-grid spacing contract |
-| `layerSpacing` | `number` | `40` | Vertical spacing between graph layers. | flowchart, state, class, er, architecture | not-applicable — terminal layout has a cell-grid spacing contract |
+| `padding` | `number` | `40` | Canvas padding in SVG user units. | flowchart, state, architecture, c4 | not-applicable — terminal output uses paddingX, paddingY, and boxBorderPadding |
+| `nodeSpacing` | `number` | `24` | Horizontal spacing between sibling nodes. | flowchart, state, class, er, architecture, c4 | not-applicable — terminal layout has a cell-grid spacing contract |
+| `layerSpacing` | `number` | `40` | Vertical spacing between graph layers. | flowchart, state, class, er, architecture, c4 | not-applicable — terminal layout has a cell-grid spacing contract |
 | `wrappingWidth` | `number` | unset | Flowchart measured-label wrapping budget in pixels. | flowchart | not-applicable — terminal output uses maxWidth or targetWidth |
 | `componentSpacing` | `number` | extension-defined | Spacing between disconnected graph components for compatible extension families; no built-in family currently consumes it. | none — extension-defined | not-applicable — terminal layout has a cell-grid spacing contract |
 | `transparent` | `boolean` | `false` | Omit the painted SVG canvas background. | all | projected — terminal output has no painted canvas background |

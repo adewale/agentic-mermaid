@@ -5,6 +5,8 @@ import { renderErTerminal as renderErAscii } from '../ascii/er-diagram.ts'
 import { renderGitGraphTerminal as renderGitGraphAscii } from '../ascii/gitgraph.ts'
 import { renderMindmapTerminal as renderMindmapAscii } from '../ascii/mindmap.ts'
 import { renderSequenceTerminal as renderSequenceAscii } from '../ascii/sequence.ts'
+import { renderC4Terminal } from '../ascii/c4.ts'
+import { parseC4Diagram } from '../c4/parser.ts'
 import { renderMermaidASCIIWithMeta } from '../ascii/meta.ts'
 import { DEFAULT_ASCII_THEME } from '../ascii/ansi.ts'
 import { serializeTerminalArtifact, type TerminalArtifact } from '../ascii/terminal-artifact.ts'
@@ -401,15 +403,16 @@ root((Root))
     { name: 'mixed ER', family: 'erDiagram', declarations: '', relationships: ['C ||--o{ F', 'A }o..|| B', 'C ||--|| F', 'E ||--o{ B', 'E }o..|| B', 'E ||--|| D', 'E ||--o{ B', 'E }o..|| D'] },
     { name: 'namespace Class', family: 'classDiagram', declarations: 'class A["Actual source"]\nnamespace A["First 界<br/>complete header"] {\n class B["Actual target"]\n}', relationships: ['A --> B'] },
     { name: 'grouped ER', family: 'erDiagram', declarations: 'A["Actual source"]\nsubgraph G["First 界<br/>complete header"]\n B["Actual target"]\nend', relationships: ['A ||--o{ B'] },
+    { name: 'nested parallel C4', family: 'C4Deployment', declarations: 'Deployment_Node(Outer,"Region","Cloud") {\n Node(Inner,"Host 界","VM") {\n Container(A,"Source","TypeScript")\n ContainerDb(B,"Target","SQL")\n }\n}\nSystem_Ext(C,"Partner")', relationships: ['Rel(A,B,"relation 0")', 'Rel(A,B,"relation 1")', 'Rel_Back(A,B,"relation 2")', 'BiRel(B,C,"relation 3")', 'Rel(B,B,"relation 4")'] },
   ])('crossing $name routes retain protected endpoint ink in ' + direction, ({ family, declarations, relationships }) => {
     const directions = { T: [0, -1, 1, 4], R: [1, 0, 2, 8], B: [0, 1, 4, 1], L: [-1, 0, 8, 2] } as const
     for (const useAscii of [false, true]) {
-      const source = `${family}\ndirection ${direction}\n${declarations}\n${relationships.map((relation, index) => `${relation} : relation ${index}`).join('\n')}`
-      const { output, doc, regions } = capture(config => family === 'classDiagram' ? renderClassAscii(source, config) : renderErAscii(source, config), useAscii)
+      const source = `${family}\ndirection ${direction}\n${declarations}\n${relationships.map((relation, index) => family === 'C4Deployment' ? relation : `${relation} : relation ${index}`).join('\n')}`
+      const { output, doc, regions } = capture(config => family === 'classDiagram' ? renderClassAscii(source, config) : family === 'C4Deployment' ? renderC4Terminal(parseC4Diagram(source), config) : renderErAscii(source, config), useAscii)
       const edges = regions.filter(region => region.kind === 'edge')
       expect(edges).toHaveLength(relationships.length)
       for (const edge of edges) {
-        const index = Number(edge.id.slice('relationship:'.length))
+        const index = family === 'C4Deployment' ? Number(edge.id.slice('c4-rel-'.length)) - 1 : Number(edge.id.slice('relationship:'.length))
         expect(edge.projectedText).toBe(`relation ${index}`)
         expect(edge.ports).toHaveLength(2)
         const masks = new Map<string, number>()

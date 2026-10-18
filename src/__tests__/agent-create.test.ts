@@ -19,7 +19,7 @@ const BLANK_VERIFY = {
   flowchart: 'EMPTY_DIAGRAM', state: 'EMPTY_DIAGRAM', sequence: 'EMPTY_DIAGRAM', timeline: 'EMPTY_DIAGRAM',
   class: 'EMPTY_DIAGRAM', er: 'EMPTY_DIAGRAM', journey: 'EMPTY_DIAGRAM', architecture: 'EMPTY_DIAGRAM',
   xychart: 'EMPTY_DIAGRAM', pie: 'EMPTY_DIAGRAM', quadrant: 'EMPTY_DIAGRAM', gantt: 'EMPTY_DIAGRAM',
-  mindmap: 'placeholder root', gitgraph: 'EMPTY_DIAGRAM', radar: 'EMPTY_DIAGRAM', sankey: 'EMPTY_DIAGRAM',
+  mindmap: 'placeholder root', gitgraph: 'EMPTY_DIAGRAM', radar: 'EMPTY_DIAGRAM', sankey: 'EMPTY_DIAGRAM', c4: 'EMPTY_DIAGRAM',
 } as const satisfies Record<BuiltinFamilyId, 'EMPTY_DIAGRAM' | 'placeholder root'>
 
 describe('createMermaid', () => {
@@ -68,10 +68,10 @@ function renders(source: string): boolean {
 // draw, so ours diagnoses it where Mermaid draws an empty chart (the same
 // deviation official-fence-corpus.test.ts records for gantt.md#6).
 const BLANK_RENDER_DEVIATIONS: ReadonlySet<BuiltinFamilyId> = new Set(['gantt'])
-// Read generously: Mermaid rejects a bare class header, but its meaning (an
-// empty class diagram) is clear, so ours reads it typed and draws it, and
+// Read generously: Mermaid rejects bare class and C4 headers, but their meaning
+// (an empty diagram) is clear, so ours reads them typed and draws them, and
 // verify says Mermaid rejects it (upstream-rejection-parity.test.ts).
-const BLANK_GENEROUS_READS: ReadonlySet<BuiltinFamilyId> = new Set(['class'])
+const BLANK_GENEROUS_READS: ReadonlySet<BuiltinFamilyId> = new Set(['class', 'c4'])
 
 describe('a blank diagram survives a save wherever Mermaid accepts it', () => {
   for (const kind of ALL_KINDS) {
@@ -133,6 +133,7 @@ describe('buildMermaid', () => {
       gitgraph: [{ kind: 'append_commit', id: 'c1' }, { kind: 'create_branch', name: 'dev' }, { kind: 'append_commit', id: 'c2' }],
       radar: [{ kind: 'add_axis', id: 'a', label: 'A' }, { kind: 'add_axis', id: 'b', label: 'B' }, { kind: 'add_axis', id: 'c', label: 'C' }, { kind: 'add_curve', id: 'x', label: 'X', values: [1, 2, 3] }],
       sankey: [{ kind: 'add_link', source: 'Coal', target: 'Power', value: 5 }],
+      c4: [{ kind: 'add_element', element: { id: 'client', label: 'Client', kind: 'person' } }, { kind: 'add_element', element: { id: 'api', label: 'API', kind: 'system' } }, { kind: 'add_relationship', relationship: { from: 'client', to: 'api', label: 'Calls' } }],
     } satisfies Record<BuiltinFamilyId, object[]>) as Array<[BuiltinFamilyId, object[]]>
     expect(cases.map(([kind]) => kind)).toEqual(ALL_KINDS)
     for (const [kind, ops] of cases) {
