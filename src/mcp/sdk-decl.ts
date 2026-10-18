@@ -2,6 +2,7 @@ import { BUILTIN_FAMILY_METADATA, type BuiltinFamilyMetadata } from '../agent/fa
 import { architectureVisualOverridesTypeScriptDeclaration, RENDER_CONTRACT_VERSION, RENDER_OUTPUT_DESCRIPTORS, sharedRenderOptionsTypeScriptDeclaration } from '../render-contract.ts'
 import { styleSpecTypeScriptDeclaration } from '../scene/style-spec.ts'
 import { NEW_DIAGRAM_POLICY } from '../shared/agent-workflow.ts'
+import { terminalOutputOptionsTypeScriptFields, terminalOutputPolicyTypeScriptDeclaration } from '../terminal-contract.ts'
 
 function sdkFamilyTypeStem(family: BuiltinFamilyMetadata): string {
   return family.narrower.slice(2)
@@ -70,14 +71,7 @@ interface SvgRenderOptions extends SharedRenderOptions {
 }
 
 interface AsciiRenderOptions extends SharedRenderOptions {
-  useAscii?: boolean
-  paddingX?: number
-  paddingY?: number
-  boxBorderPadding?: number
-  colorMode?: 'auto' | 'none' | 'ansi16' | 'ansi256' | 'truecolor' | 'html'
-  theme?: { fg?: string; border?: string; line?: string; arrow?: string; accent?: string; bg?: string; corner?: string; junction?: string }
-  maxWidth?: number
-  targetWidth?: number
+${terminalOutputOptionsTypeScriptFields()}
   onConfigDiagnostic?: (diagnostic: ConfigDiagnostic) => void
   onProjectionDiagnostic?: (diagnostic: TerminalProjectionDiagnostic) => void
 }
@@ -178,17 +172,7 @@ interface ResolvedTerminalStyle {
   connectorProjection: { evidence: 'scene' | 'unavailable' | 'not-evaluated'; count: number; topologies: Readonly<Record<'line' | 'polyline' | 'path', number>>; realizations: Readonly<Record<string, number>>; relationships: readonly string[]; directions: readonly string[]; markerPositions: Readonly<{ start: number; mid: number; end: number }>; labelCount: number; connectors: readonly TerminalConnectorProjection[]; digest: string }
   digest: string
 }
-interface ResolvedTerminalOutputPolicy {
-  version: 1
-  useAscii: boolean
-  paddingX: number
-  paddingY: number
-  boxBorderPadding: number
-  colorMode: 'none' | 'ansi16' | 'ansi256' | 'truecolor' | 'html'
-  theme: Readonly<{ fg?: string; border?: string; line?: string; arrow?: string; accent?: string; bg?: string; corner?: string; junction?: string }>
-  maxWidth?: number
-  targetWidth?: number
-}
+${terminalOutputPolicyTypeScriptDeclaration()}
 interface RenderedSvg { svg: string; receipt: RenderRequestReceipt }
 interface RenderedAscii { text: string; receipt: RenderRequestReceipt; terminalStyle: ResolvedTerminalStyle; outputPolicy: ResolvedTerminalOutputPolicy }
 interface RenderedLayoutArtifact { layout: VerifyResult['layout']; receipt: RenderRequestReceipt }`

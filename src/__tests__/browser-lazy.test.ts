@@ -7,8 +7,42 @@ import { renderLoadedFamilySvg } from '../browser-lazy/render-core.ts'
 import { renderMermaidSVG } from '../index.ts'
 import { LayoutCertificationError } from '../layout/certification-error.ts'
 import { detectDiagramTypeFromFirstLine } from '../mermaid-source.ts'
+import type { ConfigDiagnostic } from '../types.ts'
+import type { MermaidRuntimeConfig } from '../mermaid-source.ts'
 
 describe('async browser SVG entry', () => {
+  test('loads descriptor diagnostics without the complete registry and matches explicit synchronous output', async () => {
+    const cases = [
+      { id: 'state', config: { state: { nodeSpacing: -1, defaultRenderer: 'dagre' } }, fields: ['state.defaultRenderer', 'state.nodeSpacing'] },
+      { id: 'radar', config: { radar: { axisScaleFactor: 0 }, themeVariables: { radar: { curveOpacity: 3 } } }, fields: ['radar.axisScaleFactor', 'themeVariables.radar.curveOpacity'] },
+      { id: 'xychart', config: { xyChart: { xAxis: { labelRotation: 30, labelFontSize: 0 } } }, fields: ['xyChart.xAxis.labelFontSize', 'xyChart.xAxis.labelRotation'] },
+      { id: 'mindmap', config: { layout: 'unsupported', mindmap: { padding: -1 } }, fields: ['layout', 'mindmap.padding'] },
+      { id: 'sankey', config: { sankey: { width: 0.5, nodeWidth: 0.5 } }, fields: ['sankey.nodeWidth', 'sankey.width'] },
+      { id: 'c4', config: { c4: { c4ShapeInRow: 1.5, systemFontWeight: '1001', messageFontSize: 48 } }, fields: ['c4.c4ShapeInRow', 'c4.messageFontSize', 'c4.systemFontWeight'] },
+    ].map(entry => ({ ...entry, source: getFamily(entry.id)!.example }))
+    const child = Bun.spawn([process.execPath, '-e', `
+      import { renderMermaidSVGAsync } from ${JSON.stringify(new URL('../browser-lazy.ts', import.meta.url).pathname)};
+      const results = [];
+      for (const entry of ${JSON.stringify(cases)}) {
+        const diagnostics = [];
+        const svg = await renderMermaidSVGAsync(entry.source, { mermaidConfig: entry.config, onConfigDiagnostic: item => diagnostics.push(item) });
+        results.push({ svg, diagnostics });
+      }
+      console.log(JSON.stringify(results));
+    `], { stdout: 'pipe', stderr: 'pipe' })
+    const [text, stderr, exitCode] = await Promise.all([new Response(child.stdout).text(), new Response(child.stderr).text(), child.exited])
+    expect(exitCode, stderr).toBe(0)
+    const results = JSON.parse(text) as Array<{ svg: string; diagnostics: ConfigDiagnostic[] }>
+    for (const [index, entry] of cases.entries()) {
+      const diagnostics: ConfigDiagnostic[] = []
+      const svg = renderMermaidSVG(entry.source, {
+        mermaidConfig: entry.config as MermaidRuntimeConfig, onConfigDiagnostic: item => diagnostics.push(item),
+      })
+      expect(diagnostics.map(item => item.field)).toEqual(entry.fields)
+      expect(results[index]).toEqual({ svg, diagnostics })
+    }
+  })
+
   test('rejects invalid browser-only final geometry before lowering', async () => {
     const { default: descriptor } = await import('../browser-lazy/families/timeline.ts')
     let layoutCalls = 0

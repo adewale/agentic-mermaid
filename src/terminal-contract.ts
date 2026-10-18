@@ -27,10 +27,6 @@ const THEME_FIELDS = Object.freeze([
   'fg', 'border', 'line', 'arrow', 'accent', 'bg', 'corner', 'junction',
 ] as const satisfies readonly (keyof AsciiTheme)[])
 const THEME_FIELD_SET = new Set<string>(THEME_FIELDS)
-const INPUT_FIELDS = new Set([
-  'useAscii', 'paddingX', 'paddingY', 'boxBorderPadding', 'colorMode',
-  'theme', 'maxWidth', 'targetWidth',
-])
 
 export type AsciiRenderColorMode = ColorMode | 'auto'
 
@@ -57,6 +53,73 @@ export interface ResolvedTerminalOutputPolicy {
   readonly theme: Readonly<Partial<AsciiTheme>>
   readonly maxWidth?: number
   readonly targetWidth?: number
+}
+
+interface TerminalOutputField {
+  readonly typeScript: string
+  readonly resolvedTypeScript?: string
+  readonly optionalInPolicy?: boolean
+  readonly schema: Readonly<Record<string, unknown>>
+}
+
+// Rendering needs only the admitted names. Keep transport declarations out of
+// browser execution unless a schema or declaration projection is requested.
+const INPUT_FIELDS = new Set(
+  Object.keys({
+    useAscii: true,
+    paddingX: true,
+    paddingY: true,
+    boxBorderPadding: true,
+    colorMode: true,
+    theme: true,
+    maxWidth: true,
+    targetWidth: true,
+  } satisfies Record<keyof TerminalOutputPolicyInput, true>),
+)
+
+function terminalOutputFields(): Record<keyof TerminalOutputPolicyInput, TerminalOutputField> {
+  const themeTypeScript = `{ ${THEME_FIELDS.map(field => `${field}?: string`).join('; ')} }`
+  return {
+    useAscii: { typeScript: 'boolean', schema: { type: 'boolean' } },
+    paddingX: { typeScript: 'number', schema: { type: 'integer', minimum: 0 } },
+    paddingY: { typeScript: 'number', schema: { type: 'integer', minimum: 0 } },
+    boxBorderPadding: { typeScript: 'number', schema: { type: 'integer', minimum: 0 } },
+    colorMode: {
+      typeScript: COLOR_MODES.map(mode => `'${mode}'`).join(' | '),
+      resolvedTypeScript: RESOLVED_TERMINAL_COLOR_MODES.map(mode => `'${mode}'`).join(' | '),
+      schema: { type: 'string', enum: COLOR_MODES },
+    },
+    theme: {
+      typeScript: themeTypeScript,
+      resolvedTypeScript: `Readonly<${themeTypeScript}>`,
+      schema: {
+        type: 'object',
+        additionalProperties: false,
+        properties: Object.fromEntries(THEME_FIELDS.map(field => [field, { type: 'string' }])),
+      },
+    },
+    maxWidth: { typeScript: 'number', optionalInPolicy: true, schema: { type: 'integer', minimum: 1 } },
+    targetWidth: { typeScript: 'number', optionalInPolicy: true, schema: { type: 'integer', minimum: 1 } },
+  }
+}
+
+/** Transport projections of the terminal policy, kept beside its resolver. */
+export function terminalOutputOptionSchema(field: keyof TerminalOutputPolicyInput): Record<string, unknown> {
+  return structuredClone(terminalOutputFields()[field].schema)
+}
+
+export function terminalOutputOptionsTypeScriptFields(options: { resolved?: boolean } = {}): string {
+  return Object.entries(terminalOutputFields())
+    .map(([field, descriptor]) => {
+      const optional = !options.resolved || descriptor.optionalInPolicy ? '?' : ''
+      const type = options.resolved ? (descriptor.resolvedTypeScript ?? descriptor.typeScript) : descriptor.typeScript
+      return `  ${field}${optional}: ${type}`
+    })
+    .join('\n')
+}
+
+export function terminalOutputPolicyTypeScriptDeclaration(): string {
+  return `interface ResolvedTerminalOutputPolicy {\n  version: ${TERMINAL_OUTPUT_POLICY_VERSION}\n${terminalOutputOptionsTypeScriptFields({ resolved: true })}\n}`
 }
 
 export class TerminalOutputPolicyError extends TypeError {

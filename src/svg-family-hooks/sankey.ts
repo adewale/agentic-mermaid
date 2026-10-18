@@ -1,3 +1,4 @@
+import { diagnoseSankeyConfig } from '../sankey/config-diagnostics.ts'
 import { projectSankeyPositioned } from '../positioned-views/sankey.ts'
 import { layoutResult, positionedView, scene, type BrowserSvgFamilyHooks } from '../browser-lazy/family.ts'
 import { resolveSankeyVisualConfig } from '../sankey/config.ts'
@@ -8,6 +9,7 @@ import { lowerSankeyScene } from '../sankey/renderer.ts'
 /** The sankey SVG hooks: one definition for the complete renderer
  * (src/render-family-hooks.ts) and the lazy browser chunk. */
 export const SANKEY_SVG_HOOKS = {
+  configDiagnostics: diagnoseSankeyConfig,
   normalizeRequest: ctx => ({
     familyConfig: { visual: resolveSankeyVisualConfig(ctx.source.frontmatter) },
   }),

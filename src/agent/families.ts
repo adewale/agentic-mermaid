@@ -16,6 +16,7 @@ import type {
   AnyMutationOp, MutationError, LayoutWarning, VerifyOptions, Result, RenderedLayout,
 } from './types.ts'
 import type {
+  ConfigDiagnostic,
   PositionedDiagram,
   RenderContext,
   RenderOptions,
@@ -306,6 +307,12 @@ export interface FamilyConfigContract {
 }
 
 export interface FamilyOperations {
+  /** Diagnose one authored or explicit config root. Common dispatch preserves
+   * root boundaries, deterministic ordering and duplicate suppression. */
+  configDiagnostics?: (context: {
+    root: unknown
+    config: FamilyConfigContract
+  }) => readonly ConfigDiagnostic[]
   /**
    * Normalize family config once at the canonical request boundary. Layout and
    * render hooks receive only the frozen result and must not re-read raw Style,
@@ -868,6 +875,7 @@ const FAMILY_DESCRIPTOR_FIELDS = Object.freeze([
   'capabilityEvidence',
   'example',
   'normalizeRequest',
+  'configDiagnostics',
   'extractLabels',
   'parse',
   'buildSourceMap',
@@ -1190,6 +1198,9 @@ function validateDescriptor(
         throw new Error(`Family "${descriptor.id}" config noopKeys must be unique members of keys`)
       }
     }
+  }
+  if (descriptor.configDiagnostics !== undefined && typeof descriptor.configDiagnostics !== 'function') {
+    throw new TypeError(`Family "${descriptor.id}" configDiagnostics must be a function`)
   }
   if (!Array.isArray(descriptor.semanticRoles)) throw new Error(`Family "${descriptor.id}" must declare a semanticRoles array`)
   if (!Array.isArray(descriptor.semanticChannels)) throw new Error(`Family "${descriptor.id}" must declare a semanticChannels array`)

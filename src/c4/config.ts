@@ -1,6 +1,7 @@
 import type { C4Boundary, C4Element, C4Shape } from './types.ts'
 import { drawableAuthoredCssPaint } from '../shared/css-color.ts'
 import { AuthoredStyleColorError } from '../shared/style-props.ts'
+import { boolean, range, rule, type ConfigValueRule } from '../shared/config-value-rules.ts'
 
 const SHAPE_OVERRIDES: ReadonlyMap<string, C4Shape> = new Map([
   ['person', 'person'], ['box', 'rectangle'], ['rectangle', 'rectangle'], ['cylinder', 'database'],
@@ -32,16 +33,7 @@ const integer = (value: unknown, fallback: number): number => { const result = n
 export function resolveC4Config(input: C4ConfigInput = {}, themeVariables: C4ConfigInput = {}): C4Config {
   // Invalid documented values are diagnosed at the existing config boundary.
   // Drop them here so they cannot change layout or throw after that warning.
-  input = Object.fromEntries(Object.entries(input).filter(([key, value]) => {
-    const minimum = C4_NUMERIC_CONFIG_MINIMUM[key] ?? (/Font(?:Size|Weight)$/.test(key) && C4_CONFIG_KEYS.includes(key) ? 1 : undefined)
-    if (minimum !== undefined) {
-      const numeric = /FontWeight$/.test(key) && typeof value === 'string' && /^\d+$/.test(value) ? Number(value) : value
-      const maximum = /FontWeight$/.test(key) ? 1000 : 10000
-      return typeof numeric === 'number' && Number.isFinite(numeric) && numeric >= minimum && numeric <= maximum
-        && (!['c4ShapeInRow', 'c4BoundaryInRow'].includes(key) || Number.isSafeInteger(numeric))
-    }
-    return !['wrap', 'compact', 'typeLegend'].includes(key) || typeof value === 'boolean'
-  }))
+  input = Object.fromEntries(Object.entries(input).filter(([key, value]) => C4_CONFIG_VALUE_RULES[key]?.valid(value) ?? true))
   const compact = input.compact === true
   return { compact, typeLegend: input.typeLegend !== false,
     ...(input.maxWidth === undefined ? {} : { maxWidth: number(input.maxWidth, 10000, 1) }), marginX: number(input.diagramMarginX, compact ? 16 : 24), marginY: number(input.diagramMarginY, compact ? 16 : 24),
@@ -78,3 +70,23 @@ export const C4_CONFIG_KEYS: readonly string[] = Object.freeze(['diagramMarginX'
  * remain preserved compatibility inputs with an explicit no-effect warning. */
 export const C4_NOOP_CONFIG_KEYS: readonly string[] = Object.freeze(['useMaxWidth', ...[...C4_CONFIG_TYPES, 'message'].flatMap(kind => [`${kind}Font`, `${kind}FontFamily`]), 'messageFontSize', 'messageFontWeight'])
 const C4_NUMERIC_CONFIG_MINIMUM: Readonly<Record<string, number>> = Object.freeze({ maxWidth: 1, diagramMarginX: 0, diagramMarginY: 0, c4ShapeMargin: 0, c4ShapePadding: 4, width: 24, height: 24, boxMargin: 12, nextLinePaddingX: 0, c4ShapeInRow: 1, c4BoundaryInRow: 1, wrapPadding: 40 })
+
+/** The resolver and descriptor diagnostics admit the same documented values.
+ * Keep this projection removable from data-only browser metadata imports. */
+export const C4_CONFIG_VALUE_RULES: Readonly<Record<string, ConfigValueRule>> = /* @__PURE__ */ (() => {
+  const rules: Record<string, ConfigValueRule> = Object.assign(Object.create(null), { wrap: boolean, compact: boolean, typeLegend: boolean })
+  for (const [key, minimum] of Object.entries(C4_NUMERIC_CONFIG_MINIMUM)) {
+    const numeric = range(minimum, 10000)
+    rules[key] = key === 'c4ShapeInRow' || key === 'c4BoundaryInRow'
+      ? rule('an integer from 1 through 10000', value => Number.isSafeInteger(value) && numeric.valid(value))
+      : numeric
+  }
+  for (const key of C4_CONFIG_KEYS) {
+    if (/FontSize$/.test(key)) rules[key] = range(1, 10000)
+    if (/FontWeight$/.test(key)) {
+      const numeric = range(1, 1000)
+      rules[key] = rule(numeric.expected, value => numeric.valid(typeof value === 'string' && /^\d+$/.test(value) ? Number(value) : value))
+    }
+  }
+  return Object.freeze(rules)
+})()

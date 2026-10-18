@@ -40,6 +40,13 @@ export interface McpToolDefinition {
   }
 }
 
+export const MCP_PNG_OUTPUT_MODES = Object.freeze(['base64', 'file', 'url'] as const)
+export type McpPngOutputMode = typeof MCP_PNG_OUTPUT_MODES[number]
+
+export function isMcpPngOutputMode(value: unknown): value is McpPngOutputMode {
+  return typeof value === 'string' && MCP_PNG_OUTPUT_MODES.includes(value as McpPngOutputMode)
+}
+
 /** Adapt independently authored tool definitions to the closed argument
  * contract used by every first-party surface. This keeps progressive tools
  * from silently reopening the interface when they are composed into a server. */
@@ -617,7 +624,7 @@ Agentic Mermaid outputs SVG, PNG, ASCII, Unicode, and JSON layout. For non-PNG o
         ...pngProperties,
         ...mcpRenderOptionSchemaProperties('Shared advanced RenderOptions object.'),
         ...(hosted ? {} : {
-          output: { type: 'string', enum: ['base64', 'file', 'url'], description: 'PNG return mode (default base64).' },
+          output: { type: 'string', enum: [...MCP_PNG_OUTPUT_MODES], description: 'PNG return mode (default base64).' },
         }),
       },
       required: ['source'],

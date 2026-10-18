@@ -1,3 +1,4 @@
+import { diagnoseStateConfig } from '../state/config-diagnostics.ts'
 import { projectGraphPositioned } from '../positioned-views/graph.ts'
 import type { ResolvedStateVisualConfig } from '../state/config.ts'
 import { layoutResult, positionedView, scene, type BrowserSvgFamilyHooks } from '../browser-lazy/family.ts'
@@ -11,6 +12,7 @@ import { checkAllGraphAuthoredStyles } from '../shared/style-props.ts'
 /** The state SVG hooks: one definition for the complete renderer
  * (src/render-family-hooks.ts) and the lazy browser chunk. */
 export const STATE_SVG_HOOKS = {
+  configDiagnostics: diagnoseStateConfig,
   normalizeRequest: ctx => {
     const resolved = resolveStateRenderOptions(ctx.source.frontmatter, ctx.renderOptions)
     const { stateVisual, ...renderOptions } = resolved

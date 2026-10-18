@@ -1,3 +1,4 @@
+import { diagnoseFlowchartConfig } from '../flowchart/config-diagnostics.ts'
 import { projectGraphPositioned } from '../positioned-views/graph.ts'
 import { layoutResult, positionedView, scene, type BrowserSvgFamilyHooks } from '../browser-lazy/family.ts'
 import { resolveFlowchartRenderOptions, applyFlowchartLabelWrapping } from '../flowchart-config.ts'
@@ -15,6 +16,7 @@ import { checkAllGraphAuthoredStyles } from '../shared/style-props.ts'
 // INEFFECTIVE_CONFIG lint) and applies measured-width label wrapping before
 // ELK sizing so layout, renderer, and SVG see the same lines.
 export const FLOWCHART_SVG_HOOKS = {
+  configDiagnostics: diagnoseFlowchartConfig,
   normalizeRequest: ctx => ({
     renderOptions: resolveFlowchartRenderOptions(ctx.source.frontmatter, ctx.renderOptions),
   }),
