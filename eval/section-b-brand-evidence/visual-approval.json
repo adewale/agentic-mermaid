@@ -2,9 +2,9 @@
   "schemaVersion": 1,
   "status": "approved",
   "artifact": "src/__tests__/testdata/section-b-brand-evidence.png",
-  "artifactSha256": "95768feda747cc4f5e0c4e2d42041ad01442fcf923f0593d27705bf596203f3b",
+  "artifactSha256": "68a5b52113cc918048c3016ea0a5b6203f51eee169b689f99dd44d2159484c9d",
   "reviewedAt": "2026-10-18",
-  "reviewer": "Codex agent, PR #411 C4 visibility and presentation follow-up",
-  "scope": "The 1560\u00d79464 sheet contains 68 family-by-variant cells. Against 6724062c5da0e13401ab63744b3e7c11efc2684f, exactly 29,346 of 14,763,840 pixels change, confined to the four C4 cells; all 64 other cells remain pixel-identical. Codex inspected all four C4 cells at native size: person/type legend cues, prepared typography, the Uses/HTTPS relationship and light/dark palette treatments remain legible. The changed C4 production tree is included in 3b25e98336d820345a5f5390de7838e7c9cb139d. This is agent review, not human approval or proof of arbitrary input/font coverage; ancestor/dense geometry and terminal connectivity have independent behavioral checks.",
+  "reviewer": "Independent Codex audit agent, PR #420 infrastructure and primitive convergence",
+  "scope": "The 1560×9464 sheet contains 68 family-by-variant cells. Against base a3b06894a21396aed5c822c195e87f1082a4da84, exactly 132,756 of 14,763,840 pixels change, confined to the four C4 cells; 64 other cells and all headings remain pixel-identical. An independent agent inspected all four before/after pairs at native 520×380: centered Uses/HTTPS label with background clearance, complete target arrowhead, Customer/Person and API/System text, description, legend and light/dark palette remain legible. This is agent review, not human approval or arbitrary input/font coverage.",
   "audit": "eval/section-b-brand-evidence/production-comparison.md"
 }
