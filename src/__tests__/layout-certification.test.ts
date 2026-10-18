@@ -191,6 +191,10 @@ describe('bounded final layout certification', () => {
       const crossing = layoutGraphSync(parseMermaid('flowchart TD\nA[Start] --> B{Is it?}\nB -->|Yes| C[OK]\nC --> D[Rethink]\nD --> B\nB ---->|No| E[End]'))
       expect(calls).toBe(1)
       expect(crossing.certification?.preference).toMatchObject({ reason: 'no-alternative', selectedScore: { edgeCrossings: 1 } })
+      calls = 0
+      const alreadySeparate = layoutGraphSync(parseMermaid('flowchart TB\nc1-->a2\nsubgraph one\ndirection TB\na1-->a2\nend\nsubgraph two\nb1-->b2\nend\nsubgraph three\nc1-->c2\nend\none --> two\nthree --> two\ntwo --> c2'))
+      expect(calls).toBe(1)
+      expect(alreadySeparate.certification?.preference).toMatchObject({ reason: 'no-alternative', selectedScore: { edgeCrossings: 1 } })
     } finally { firstPass.run = run }
   })
 

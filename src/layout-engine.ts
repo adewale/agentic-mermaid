@@ -109,6 +109,10 @@ interface LayoutEngineOptions extends RenderOptions {
   checkLayoutPasses?: boolean
   /** @internal Bounded certification alternative; never changes global process state. */
   disableCorankFanIn?: boolean
+  /** @internal Disable cosmetic route comparisons when a family uses this
+   * graph only for placement and subsequently replaces its routes. Hard
+   * certification and the existing title-readability fallback still apply. */
+  compareRoutePreferences?: boolean
 }
 
 type ElkConversionOptions = Required<Pick<RenderOptions, 'font' | 'padding' | 'nodeSpacing' | 'layerSpacing'>> &
@@ -1836,16 +1840,18 @@ function layoutCandidate(
 function layoutUntitledGraph(graph: MermaidGraph, options: LayoutEngineOptions): PositionedGraph {
   const style = resolveRenderStyle(options, options.stateVisual?.styleDefaults, options.styleFace)
   const preferReadableTitles = (positioned: PositionedGraph) => groupsNarrowerThanTitles(positioned.groups, graph, style)
+  const compareRoutes = options.compareRoutePreferences !== false
+  const distinctHierarchy = graph.subgraphs.length > 0 && !usesSeparateHierarchy(graph, options)
   const candidates: LayoutCertificationCandidate[] = [{
     strategy: 'default', produce: () => layoutCandidate(graph, options),
     preferNext: preferReadableTitles,
   }]
   if (!options.separateHierarchy) {
-    candidates.push({ strategy: 'separate-hierarchy', produce: () => layoutCandidate(graph, { ...options, separateHierarchy: true }), preferNext: preferReadableTitles, qualityAlternative: graph.subgraphs.length > 0 })
+    candidates.push({ strategy: 'separate-hierarchy', produce: () => layoutCandidate(graph, { ...options, separateHierarchy: true }), preferNext: preferReadableTitles, qualityAlternative: compareRoutes && distinctHierarchy })
   }
   if (!options.disableCorankFanIn && !layoutEnvFlag('APL_NO_CORANK_FANIN')) {
-    candidates.push({ strategy: 'without-corank', produce: () => layoutCandidate(graph, { ...options, disableCorankFanIn: true }), preferNext: preferReadableTitles, qualityAlternative: corankFanInBalancingLabels(graph, style).size > 0 })
-    if (!options.separateHierarchy) candidates.push({ strategy: 'separate-without-corank', produce: () => layoutCandidate(graph, { ...options, separateHierarchy: true, disableCorankFanIn: true }), preferNext: preferReadableTitles, qualityAlternative: graph.subgraphs.length > 0 })
+    candidates.push({ strategy: 'without-corank', produce: () => layoutCandidate(graph, { ...options, disableCorankFanIn: true }), preferNext: preferReadableTitles, qualityAlternative: compareRoutes && corankFanInBalancingLabels(graph, style).size > 0 })
+    if (!options.separateHierarchy) candidates.push({ strategy: 'separate-without-corank', produce: () => layoutCandidate(graph, { ...options, separateHierarchy: true, disableCorankFanIn: true }), preferNext: preferReadableTitles, qualityAlternative: compareRoutes && distinctHierarchy })
   }
   return certifyLayoutCandidates(graph, style, candidates)
 }

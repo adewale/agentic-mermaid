@@ -190,7 +190,12 @@ describe('layoutArchitectureDiagram', () => {
       fc.property(groupedArchitectureArb, source => {
         expect(groupedLayoutViolations(source)).toEqual([])
       }),
-      { numRuns: 300 },
+      {
+        numRuns: 300,
+        // Graph crossing preferences must not score the temporary routes that
+        // Architecture replaces with its authored side-specific projection.
+        examples: [['architecture-beta\n  group g0(cloud)[Group 0]\n  service s0_0(server)[Svc s0_0] in g0\n  service s0_1(server)[Svc s0_1] in g0\n  service s0_2(server)[Svc s0_2] in g0\n  group g1(cloud)[Group 1]\n  service s1_0(server)[Svc s1_0] in g1\n  service s1_1(server)[Svc s1_1] in g1\n  s1_0:L --> L:s0_1\n  s1_1:L --> T:s0_0']],
+      },
     )
   })
 

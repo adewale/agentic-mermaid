@@ -82,6 +82,9 @@ export function layoutArchitectureDiagram(
     nodeSpacing: options.nodeSpacing ?? ARCHITECTURE_DEFAULT_NODE_SPACING,
     layerSpacing: options.layerSpacing ?? ARCHITECTURE_DEFAULT_LAYER_SPACING,
     preserveSubgraphChildOrder: true,
+    // The graph's temporary routes do not describe the side-constrained paths
+    // below. Their cosmetic score cannot rank Architecture's final artifact.
+    compareRoutePreferences: false,
     styleFace: metrics ? {
       node: {
         fontSize: metrics.serviceFontSize,

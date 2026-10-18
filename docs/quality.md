@@ -107,6 +107,9 @@ The receipt records both scores and the deciding criterion. Zero-crossing graphs
 equivalent strategies and larger inputs do not pay for aesthetic exploration;
 the four-candidate/16-ELK upper bound still applies. Search decisions use graph
 work counts, never elapsed time, so machine speed cannot change the drawing.
+These route comparisons apply to Flowchart and State, which retain the scored
+routes. Architecture uses the graph engine for placement and keeps its existing
+feasibility/title fallback before independently routing authored endpoint sides.
 The common positioning boundary also checks the final projection of every
 native family against the family rubric's hard geometry rules. Specialized
 layouters get one attempt and fail explicitly; their identical layout is not
