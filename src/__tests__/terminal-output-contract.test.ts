@@ -19,6 +19,11 @@ import { nativeTerminalRenderer, terminalArtifact } from '../ascii/terminal-arti
 import { parseRegisteredMermaid } from '../agent/parse.ts'
 import { MermaidFamilyDetectionError } from '../family-detection.ts'
 import { serializeMermaid } from '../agent/serialize.ts'
+import { connector } from '../scene/marks.ts'
+import { prepareDisplayText } from '../shared/display-text.ts'
+import { preparePixelText } from '../shared/prepared-text.ts'
+import { projectTerminalStyle } from '../terminal-style.ts'
+import { resolveRenderRequest } from '../render-contract.ts'
 
 const SOURCE = 'flowchart LR\n  A[Start] --> B[Finish]'
 const OSC52 = '\u001b]52;c;dGVybWluYWwtZXhmaWx0cmF0aW9u\u0007'
@@ -135,14 +140,60 @@ describe('terminal text security boundary', () => {
     expect(crlf.terminalStyle.diagnostics).not.toContainEqual(expect.objectContaining({ code: 'TERMINAL_CONTROL_CHARACTERS_REPLACED' }))
   })
 
-  test('sanitizes connector receipt labels as well as emitted cells', () => {
-    const rendered = renderMermaidASCIIWithReceipt(
-      `flowchart LR\n  A -- "${OSC52}" --> B`,
-      { colorMode: 'none' },
-    )
-    const serializedProjection = JSON.stringify(rendered.terminalStyle.connectorProjection)
-    expect(containsTerminalControl(serializedProjection)).toBe(false)
-    expect(serializedProjection).not.toContain('\\u001b')
+  test.each([
+    { source: `flowchart LR\nA -- "${OSC52}" --> B`, expected: '?]52;c;dGVybWluYWwtZXhmaWx0cmF0aW9u?', replaced: true },
+    { source: 'flowchart LR\nA -- "x&#27;y&#7;z #lt;b#gt;literal#lt;/b#gt; <b>MiXeD</b><br/>next" --> B', expected: 'x?y?z <b>literal</b> MiXeD\nnext', replaced: true },
+    { source: 'sequenceDiagram\nA->>B: #lt;b#gt;literal#lt;/b#gt; *MiXeD*\u001b\u009d<br/>next', expected: '<b>literal</b> MiXeD??\nnext', replaced: true },
+    { source: 'flowchart LR\nA -- "#lt;b#gt;literal#lt;/b#gt;<br/>#92;n" --> B', expected: '<b>literal</b>\n\\n', replaced: false },
+  ])('sanitizes connector receipt labels and provenance as well as emitted cells: $source', ({ source, expected, replaced }) => {
+    for (const style of [undefined, { roles: { edge: { textTransform: 'uppercase' as const } } }]) {
+      const rendered = renderMermaidASCIIWithReceipt(source, { colorMode: 'none', style })
+      const projection = rendered.terminalStyle.connectorProjection
+      expect(projection.connectors.flatMap(item => item.labels.map(label => label.text))).toEqual([expected])
+      for (const line of expected.split('\n')) expect(rendered.text).toContain(line)
+      const serializedProjection = JSON.stringify(projection, (_key, value) => {
+        if (typeof value === 'string') expect(containsTerminalControl(value)).toBe(false)
+        return value
+      })
+      expect(serializedProjection).not.toMatch(/\\u00(?:0[0-9b-f]|1[0-9a-f]|7f|[89][0-9a-f])/)
+      expect(containsTerminalControl(rendered.text)).toBe(false)
+      expect(rendered.terminalStyle.diagnostics.some(item => item.code === 'TERMINAL_CONTROL_CHARACTERS_REPLACED')).toBe(replaced)
+    }
+  })
+
+  test('terminal evidence copies safe inline label provenance without retaining pixel blocks or changing the Scene', () => {
+    const source = '\u001b<b>MiXeD</b>\n<literal>'
+    const prepared = prepareDisplayText(source)
+    const block = preparePixelText(prepared, { fontSize: 12, fontWeight: 400, transform: 'uppercase' })
+    const mark = connector({
+      id: 'inline', role: 'edge', geometry: { kind: 'line', x1: 0, y1: 30, x2: 100, y2: 30 },
+      lineStyle: 'solid', paint: { stroke: '#111' }, labels: [{ text: source, textContent: { value: source, prepared, authored: source }, block, anchor: { x: 50, y: 15 }, paint: { fill: '#111' }, fontSize: 12, textAnchor: 'middle', visual: { kind: 'inline' } }],
+    }, '<line x1="0" y1="30" x2="100" y2="30"/>')
+    const before = JSON.stringify(mark)
+    const terminal = projectTerminalStyle(resolveRenderRequest(SOURCE, {}, 'ascii'), 'none', {}, {
+      family: 'test', width: 100, height: 50, colors: { bg: '#fff', fg: '#111' }, transparent: true, parts: [mark],
+    })
+    const label = terminal.connectorProjection.connectors[0]!.labels[0]!
+    expect(label.text).toBe('?MiXeD\n<literal>')
+    expect(label).not.toHaveProperty('block')
+    expect(label.textContent?.authored).toBe('?<b>MiXeD</b>\n<literal>')
+    expect(label.textContent?.prepared.source).toBe('?<b>MiXeD</b>\n<literal>')
+    expect(label.textContent?.prepared.lines).toEqual(prepared.lines)
+    expect(label.textContent?.prepared.lineStarts).toEqual(prepared.lineStarts)
+    expect(label.textContent?.prepared).not.toBe(prepared)
+    expect(JSON.stringify(terminal.connectorProjection)).not.toContain('\\u001b')
+    expect(terminal.diagnostics.filter(item => item.code === 'TERMINAL_CONTROL_CHARACTERS_REPLACED')).toHaveLength(1)
+    expect(JSON.stringify(mark)).toBe(before)
+    const stale = { ...mark, terminalProjection: { ...mark.terminalProjection, labels: mark.terminalProjection.labels.map(item => ({
+      ...item, textContent: { ...item.textContent!, value: 'outdated' },
+    })) } }
+    const staleReceipt = projectTerminalStyle(resolveRenderRequest(SOURCE, {}, 'ascii'), 'none', {}, {
+      family: 'test', width: 100, height: 50, colors: { bg: '#fff', fg: '#111' }, transparent: true, parts: [stale],
+    })
+    const staleLabel = staleReceipt.connectorProjection.connectors[0]!.labels[0]!
+    expect(staleLabel).not.toHaveProperty('textContent')
+    expect(staleLabel).not.toHaveProperty('block')
+    expect(JSON.stringify(staleReceipt.connectorProjection)).not.toContain('\\u001b')
   })
 
   test('escapes authored HTML while preserving literal text through colored runs', () => {
