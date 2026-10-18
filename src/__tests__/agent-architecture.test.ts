@@ -281,7 +281,7 @@ describe('architecture mutation ops', () => {
     expect(d.body.edges.map(e => `${e.source.id}->${e.target.id}`)).not.toContain('db->web')
   })
 
-  test('error paths: missing targets, bad ids, non-empty group, invalid sides, emptying floor', () => {
+  test('error paths: missing targets, bad ids, non-empty group, invalid sides', () => {
     const cases: Array<[ArchitectureMutationOp, import('../agent/types.ts').MutationError['code']]> = [
       [{ kind: 'remove_service', id: 'ghost' }, 'SERVICE_NOT_FOUND'],
       [{ kind: 'set_service_label', id: 'ghost', label: 'X' }, 'SERVICE_NOT_FOUND'],
@@ -302,10 +302,6 @@ describe('architecture mutation ops', () => {
       const r = mutate(architecture(), op)
       expect({ op: op.kind, ok: r.ok, code: r.ok ? null : r.error.code }).toEqual({ op: op.kind, ok: false, code })
     }
-    // The floor: an architecture diagram must keep at least one node.
-    const single = architecture('architecture-beta\n  service only(server)[Only]')
-    const r = mutate(single, { kind: 'remove_service', id: 'only' })
-    expect(r.ok).toBe(false)
   })
 
   test('mutation does not alias the input diagram', () => {

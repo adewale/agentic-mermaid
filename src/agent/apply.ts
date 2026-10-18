@@ -23,7 +23,10 @@ import { mutateChecked } from './mutate.ts'
 import { verifyMermaid } from './verify.ts'
 import { hasOpSchema, type OpFamily, type OpValidationError } from './op-schema.ts'
 import type { MutableValidDiagram, VerifyResult, DiagramKind, MutationError, Result } from './types.ts'
-import { ok, err } from './types.ts'
+import { getFamily } from './families.ts'
+import { renderMermaidSVG } from '../index.ts'
+import type { ParsedDiagram } from './types.ts'
+import { WARNING_SEVERITY, ok, err } from './types.ts'
 import { isPlainRecord } from '../shared/plain-data.ts'
 
 // ---- Canonical result envelope --------------------------------------------
@@ -208,12 +211,32 @@ export function applyOps(input: ApplyOpsInput): OpEnvelope {
   return verifiedEnvelope(d)
 }
 
-/** Verification is the declarative surface's commit point. Never publish
- * source that the canonical verifier has rejected. */
-function verifiedEnvelope(diagram: MutableValidDiagram): OpEnvelope {
+/** Shared post-edit gate, internal to the public adapters. Empty is still an
+ * error for standalone verification, but a deliberate structured result can
+ * be published when emptiness is its only blocking diagnostic and its emitted
+ * source actually renders. Empty scaffolds below a grammar floor still fail. */
+export function verifyMutationResult(diagram: ParsedDiagram): { accepted: boolean; verification: VerifyResult } {
   const verification = verifyMermaid(diagram)
+  if (verification.ok) return { accepted: true, verification }
+  const blocking = verification.warnings.filter(warning => WARNING_SEVERITY[warning.code] === 'error')
+  if (diagram.body.kind === 'opaque' || diagram.body.kind === 'preserved' || diagram.body.kind === 'extension'
+    || !getFamily(diagram.kind)?.mutate
+    || blocking.length === 0 || blocking.some(warning => warning.code !== 'EMPTY_DIAGRAM')) {
+    return { accepted: false, verification }
+  }
+  try {
+    renderMermaidSVG(serializeMermaid(diagram))
+    return { accepted: true, verification }
+  } catch (error) {
+    const reason = error instanceof Error ? error.message : String(error)
+    return { accepted: false, verification: { ...verification, warnings: [...verification.warnings, { code: 'RENDER_FAILED', reason }] } }
+  }
+}
+
+function verifiedEnvelope(diagram: MutableValidDiagram): OpEnvelope {
+  const { accepted, verification } = verifyMutationResult(diagram)
   const summary = verifySummary(verification)
-  if (!verification.ok) {
+  if (!accepted) {
     return {
       ok: false,
       family: diagram.kind,

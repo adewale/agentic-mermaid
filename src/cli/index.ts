@@ -10,6 +10,7 @@ import { DESCRIBE_FORMATS, describeMermaid, isDescribeFormat } from '../agent/de
 import type { BuiltinFamilyId, FamilyConformanceReport } from '../agent/families.ts'
 import { BUILTIN_FAMILY_METADATA, builtinFamilyMetadata, getFamily, getFamilyConformanceReport, isBuiltinFamilyId, knownFamilies } from '../agent/families.ts'
 import { layoutMermaidWithReceipt, renderMermaidASCII, renderMermaidASCIIWithReceipt, renderMermaidPNG, renderMermaidPNGWithReceipt, renderMermaidSVG, renderMermaidSVGWithReceipt } from '../agent/index.ts'
+import { verifyMutationResult } from '../agent/apply.ts'
 import { mutateChecked } from '../agent/mutate.ts'
 import { parseRegisteredMermaid } from '../agent/parse.ts'
 import type { PngOptions, PngRasterWarning } from '../agent/png.ts'
@@ -1053,8 +1054,8 @@ export function mutateSource(source: string, ops: AnyMutationOp[]): MutationRunR
     }
     current = next.value
   }
-  const verify = verifyMermaid(current)
-  if (!verify.ok) {
+  const { accepted, verification: verify } = verifyMutationResult(current)
+  if (!accepted) {
     return {
       ok: false,
       error: { code: 'VERIFY_FAILED', message: 'mutated diagram failed verify; source was not emitted', details: verify.warnings },

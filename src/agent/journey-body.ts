@@ -318,14 +318,8 @@ export function mutateJourney(body: JourneyBody, op: JourneyMutationOp): Result<
     }
   }
 
-  // Preserve the structured floor: a journey without a scored task cannot
-  // render, so refuse mutations that would EMPTY a non-empty journey. A body
-  // that starts empty (createMermaid/buildMermaid) may stay empty while ops
-  // build it up — title/sections first, tasks after.
-  const hadTask = body.sections.some(s => s.tasks.length > 0)
-  if (hadTask && next.sections.every(s => s.tasks.length === 0)) {
-    return err({ code: 'INVALID_OP', message: 'Journey must keep at least one scored task' })
-  }
+  // An implicit section has no source statement once its last task is removed.
+  next.sections = next.sections.filter(section => section.label !== undefined || section.tasks.length > 0)
 
   // Construction postcondition: every successful edit must survive the exact
   // canonical serializer/parser waist with identical user-visible semantics.

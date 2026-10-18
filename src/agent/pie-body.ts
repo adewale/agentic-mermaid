@@ -216,11 +216,6 @@ export function mutatePie(body: PieBody, op: PieMutationOp): Result<PieBody, Mut
     }
   }
 
-  // Preserve the structured floor: a pie must keep at least one slice so it
-  // always renders.
-  if (next.slices.length === 0) {
-    return err({ code: 'INVALID_OP', message: 'Pie must keep at least one slice' })
-  }
 
   return ok(next)
 }

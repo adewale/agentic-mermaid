@@ -4,6 +4,8 @@ import { beforeAll, describe, expect, test } from 'bun:test'
 import { spawnSync } from 'node:child_process'
 import { writeFileSync } from 'node:fs'
 import { join } from 'node:path'
+import { applyOps, createMermaid, mutate, mutateChecked, parseRegisteredMermaid, serializeMermaid, verifyMermaid } from '../agent/core.ts'
+import { renderMermaidSVG } from '../index.ts'
 import pkg from '../../package.json'
 import { BUILTIN_FAMILY_METADATA } from '../agent/families.ts'
 import { runCli } from '../cli/index.ts'
@@ -81,16 +83,16 @@ describe('sandbox — happy', () => {
     expect(r.ok && (r.value as any).source).toBe('pie\n  "A" : 5\n')
   })
 
-  test('returned trusted diagrams are verify-gated before Code Mode emits source', async () => {
+  test('returned renderable empty diagrams keep verification diagnostics', async () => {
     for (const code of ['return mermaid.createMermaid("flowchart")', 'return mermaid.buildMermaid("flowchart", [])']) {
       const result = await executeInSandbox(code)
       expect(result.ok).toBe(true)
       expect(result.value).toMatchObject({
-        ok: false,
+        ok: true,
         family: 'flowchart',
-        error: { code: 'VERIFY_FAILED', details: [{ code: 'EMPTY_DIAGRAM' }] },
+        source: 'flowchart TD\n',
+        verify: { ok: false, warnings: [{ code: 'EMPTY_DIAGRAM' }] },
       })
-      expect(result.value).not.toHaveProperty('source')
     }
   })
   test('console captured', async () => {
@@ -796,15 +798,48 @@ describe('CLI — sad paths via runCli', () => {
     expect(out).toContain('A->>B: x')
   })
 
-  test('mutate verifies before emitting and exits 3 when the result is invalid', () => {
-    const tmp = tmpFile('mutate-invalid.mmd', 'flowchart TD\n  A[Only]\n')
-    const { code, out } = capture(() => runCli(['mutate', tmp, '--op', '{"kind":"remove_node","id":"A"}', '--json']))
-    expect(code).toBe(3)
-    const payload = JSON.parse(out)
-    expect(payload.ok).toBe(false)
-    expect(payload.error.code).toBe('VERIFY_FAILED')
-    expect(payload.error.details.map((w: any) => w.code)).toContain('EMPTY_DIAGRAM')
-    expect(payload.source).toBeUndefined()
+  test.each([
+    ['pie\n  "Only" : 1', { kind: 'remove_slice', label: 'Only' }, 'pie\n'],
+    ['journey\n  Only: 5: Me', { kind: 'remove_task', sectionIndex: 0, taskIndex: 0 }, 'journey\n'],
+    ['xychart-beta\n  bar [1]', { kind: 'remove_series', index: 0 }, 'xychart-beta\n'],
+    ['architecture-beta\n  service only(server)[Only]', { kind: 'remove_service', id: 'only' }, 'architecture-beta\n'],
+    ['flowchart TD\n  A[Only]', { kind: 'remove_node', id: 'A' }, 'flowchart TD\n'],
+  ])('intentional empty edit publishes renderable source: %s', async (source, op, expected) => {
+    const parsed = parseRegisteredMermaid(source as string)
+    expect(parsed.ok).toBe(true)
+    if (!parsed.ok) return
+    const original = serializeMermaid(parsed.value)
+    const direct = mutate(parsed.value as Parameters<typeof mutateChecked>[0], op as Parameters<typeof mutate>[1])
+    expect(direct.ok).toBe(true)
+    if (direct.ok) expect(serializeMermaid(direct.value)).toBe(expected)
+    const checked = mutateChecked(parsed.value as Parameters<typeof mutateChecked>[0], op)
+    expect(checked.ok).toBe(true)
+    if (!checked.ok) return
+    expect(serializeMermaid(checked.value)).toBe(expected)
+    expect(serializeMermaid(parsed.value)).toBe(original)
+    expect(verifyMermaid(checked.value)).toMatchObject({ ok: false, warnings: [{ code: 'EMPTY_DIAGRAM' }] })
+    expect(renderMermaidSVG(expected as string)).toContain('<svg')
+    const envelope = { ok: true, source: expected, verify: { ok: false, warnings: [{ code: 'EMPTY_DIAGRAM' }] } }
+    expect(applyOps({ source: source as string, ops: [op] })).toMatchObject(envelope)
+    const tmp = tmpFile('empty-edit.mmd', source as string)
+    const cli = capture(() => runCli(['mutate', tmp, '--op', JSON.stringify(op), '--json']))
+    expect(cli.code).toBe(0)
+    expect(JSON.parse(cli.out)).toMatchObject(envelope)
+    const sandbox = await executeInSandbox(`const d = mermaid.parseRegisteredMermaid(${JSON.stringify(source)}); return mermaid.mutate(d.value, ${JSON.stringify(op)})`)
+    expect(sandbox.ok).toBe(true)
+    expect(sandbox.value).toMatchObject(envelope)
+  })
+
+  test('empty pie can be titled before its first slice; unrenderable scaffolds remain rejected', async () => {
+    const result = mutateChecked(createMermaid('pie'), { kind: 'set_title', title: 'Pending' })
+    expect(result.ok).toBe(true)
+    if (result.ok) expect(serializeMermaid(result.value)).toBe('pie\n  title Pending\n')
+    expect(applyOps({ family: 'pie', ops: [{ kind: 'set_title', title: 'Pending' }] })).toMatchObject({ ok: true, source: 'pie\n  title Pending\n', verify: { ok: false, warnings: [{ code: 'EMPTY_DIAGRAM' }] } })
+    expect(applyOps({ family: 'sankey', ops: [{ kind: 'add_link', source: 'A', target: 'B', value: 1 }, { kind: 'remove_link', source: 'A', target: 'B' }] })).toMatchObject({ ok: false })
+    const sandbox = await executeInSandbox('return mermaid.createMermaid("sankey")')
+    expect(sandbox.ok).toBe(true)
+    expect(sandbox.value).toMatchObject({ ok: false, error: { code: 'VERIFY_FAILED' } })
+    expect(sandbox.value).not.toHaveProperty('source')
   })
 
   test('mutate --json includes verify warnings on success', () => {

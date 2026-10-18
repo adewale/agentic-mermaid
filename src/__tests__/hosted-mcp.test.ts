@@ -370,19 +370,17 @@ describe('hosted declarative mutate/build tools', () => {
     expect(p.source).toContain('class Dog')
   })
 
-  test('mutate and build never publish source rejected by canonical verify', async () => {
+  test('mutate and build publish intentional empty results with truthful diagnostics', async () => {
     const mutated = payloadOf(await handleHostedRequest(call('mutate', {
       source: 'flowchart TD\n  A[Only]\n',
       ops: [{ kind: 'remove_node', id: 'A' }],
     }), makeContext()))
     expect(mutated).toMatchObject({
-      ok: false,
-      isError: true,
+      ok: true,
       family: 'flowchart',
-      error: { code: 'VERIFY_FAILED' },
+      source: 'flowchart TD\n',
+      verify: { ok: false, warnings: [{ code: 'EMPTY_DIAGRAM' }] },
     })
-    expect(mutated.error.details.map((warning: { code: string }) => warning.code)).toContain('EMPTY_DIAGRAM')
-    expect(mutated.source).toBeUndefined()
 
     const built = payloadOf(await handleHostedRequest(call('build', {
       family: 'flowchart',
@@ -391,8 +389,7 @@ describe('hosted declarative mutate/build tools', () => {
         { kind: 'remove_node', id: 'A' },
       ],
     }), makeContext()))
-    expect(built).toMatchObject({ ok: false, isError: true, error: { code: 'VERIFY_FAILED' } })
-    expect(built.source).toBeUndefined()
+    expect(built).toMatchObject({ ok: true, source: 'flowchart TD\n', verify: { ok: false, warnings: [{ code: 'EMPTY_DIAGRAM' }] } })
   })
 
   test('Architecture junction, boundary-edge, accessibility, and in-place edge ops cross the hosted boundary', async () => {

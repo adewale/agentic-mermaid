@@ -258,7 +258,7 @@ describe('journey mutation ops', () => {
     expect(apply(d, { kind: 'set_title', title: 'A &amp; B' }).body.title).toBe('A &amp; B')
   })
 
-  test('error paths: missing targets, invalid score, unknown actor, emptying floor', () => {
+  test('error paths: missing targets, invalid score, unknown actor', () => {
     const cases: Array<[JourneyMutationOp, import('../agent/types.ts').MutationError['code']]> = [
       [{ kind: 'remove_section', index: 9 }, 'SECTION_NOT_FOUND'],
       [{ kind: 'remove_task', sectionIndex: 0, taskIndex: 9 }, 'TASK_NOT_FOUND'],
@@ -271,10 +271,6 @@ describe('journey mutation ops', () => {
       const r = mutate(journey(), op)
       expect({ op: op.kind, ok: r.ok, code: r.ok ? null : r.error.code }).toEqual({ op: op.kind, ok: false, code })
     }
-    // The floor: a journey must keep at least one scored task.
-    const single = journey('journey\n  Wake: 3: Me')
-    const r = mutate(single, { kind: 'remove_task', sectionIndex: 0, taskIndex: 0 })
-    expect(r.ok).toBe(false)
   })
 
   test('mutation does not alias the input diagram', () => {
