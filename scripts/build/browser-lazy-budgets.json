@@ -17,7 +17,7 @@
     "gantt": {"requests": 25, "raw": 637000, "gzip": 198000, "brotli": 175500},
     "mindmap": {"requests": 27, "raw": 598000, "gzip": 192000, "brotli": 169000},
     "gitgraph": {"requests": 28, "raw": 607000, "gzip": 195000, "brotli": 171000},
-    "radar": {"requests": 28, "raw": 609000, "gzip": 195000, "brotli": 172000},
+    "radar": {"requests": 28, "raw": 609000, "gzip": 197000, "brotli": 172000},
     "sankey": {"requests": 27, "raw": 604000, "gzip": 194000, "brotli": 171000},
     "c4": {"requests": 28, "raw": 757000, "gzip": 243000, "brotli": 213000}
   }
