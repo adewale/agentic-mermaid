@@ -5,7 +5,7 @@
   "families": {
     "flowchart": {"requests": 30, "raw": 2304000, "gzip": 704000, "brotli": 569000},
     "state": {"requests": 30, "raw": 2302000, "gzip": 705000, "brotli": 569000},
-    "sequence": {"requests": 27, "raw": 661000, "gzip": 212000, "brotli": 186000},
+    "sequence": {"requests": 27, "raw": 663000, "gzip": 212000, "brotli": 186000},
     "timeline": {"requests": 25, "raw": 613000, "gzip": 196000, "brotli": 172000},
     "class": {"requests": 28, "raw": 2316000, "gzip": 710000, "brotli": 574000},
     "er": {"requests": 32, "raw": 2311000, "gzip": 711000, "brotli": 574000},
@@ -18,7 +18,7 @@
     "mindmap": {"requests": 27, "raw": 615000, "gzip": 200000, "brotli": 176000},
     "gitgraph": {"requests": 28, "raw": 625000, "gzip": 202000, "brotli": 178000},
     "radar": {"requests": 28, "raw": 628000, "gzip": 203000, "brotli": 179000},
-    "sankey": {"requests": 27, "raw": 618000, "gzip": 201000, "brotli": 177000},
+    "sankey": {"requests": 27, "raw": 620000, "gzip": 201000, "brotli": 177000},
     "c4": {"requests": 28, "raw": 779000, "gzip": 253000, "brotli": 221000}
   }
 }
