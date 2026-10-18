@@ -105,6 +105,48 @@ describe('trusted host pixel measurement profiles', () => {
     expect(inputs.some(input => input.text.includes('Header') && input.fontFamily === 'Georgia')).toBe(true)
   })
 
+  test.each([
+    ['flowchart', 'flowchart TD\nA[Node]'],
+    ['state', 'stateDiagram-v2\n[*] --> Ready'],
+    ['class', 'classDiagram\nclass A'],
+    ['er', 'erDiagram\nA'],
+    ['sequence', 'sequenceDiagram\nparticipant A'],
+    ['mindmap', 'mindmap\nroot((Root))'],
+    ['c4', 'C4Context\nSystem(a,"API")'],
+  ])('%s measures its visible diagram title in the emitted group font', (_family, source) => {
+    const inputs: ProfileTextMeasurementInput[] = []
+    const renderer = createMermaidRenderer({ textMeasurement: profile(input => {
+      inputs.push(input)
+      return [...input.text].length * (input.fontFamily === 'Georgia' ? 30 : 10)
+    }) })
+    const svg = renderer.renderMermaidSVG(`---\ntitle: Runtime\n---\n${source}`, { font: 'Inter', style: { roles: { group: { fontFamily: 'Georgia' } } } })
+    expect(inputs.some(input => input.text === 'Runtime' && input.fontFamily === 'Georgia')).toBe(true)
+    expect(svg).toMatch(/<text[^>]*class="diagram-title"[^>]*font-family="Georgia"[^>]*textLength="210"[^>]*>Runtime<\/text>/)
+  })
+
+  test('C4 boundary metrics and emission share the configured group font', () => {
+    const inputs: ProfileTextMeasurementInput[] = []
+    const renderer = createMermaidRenderer({ textMeasurement: profile(input => {
+      inputs.push(input)
+      return [...input.text].length * (input.fontFamily === 'Georgia' ? 30 : 10)
+    }) })
+    const svg = renderer.renderMermaidSVG('C4Container\nSystem_Boundary(g,"Header") {\nContainer(a,"API","Go")\n}', { font: 'Inter', style: { roles: { group: { fontFamily: 'Georgia' } } } })
+    expect(inputs.some(input => input.text === 'Header' && input.fontFamily === 'Georgia')).toBe(true)
+    expect(svg).toMatch(/<text[^>]*font-family="Georgia"[^>]*>[\s\S]*?<tspan[^>]*textLength="180"[^>]*>Header<\/tspan>/)
+  })
+
+  test('Journey title and task font overrides are measured before their SVG text is fitted', () => {
+    const inputs: ProfileTextMeasurementInput[] = []
+    const renderer = createMermaidRenderer({ textMeasurement: profile(input => {
+      inputs.push(input)
+      return [...input.text].length * (input.fontFamily === 'Georgia' ? 30 : 10)
+    }) })
+    const svg = renderer.renderMermaidSVG('journey\ntitle Runtime\nsection Work\nTask: 4: User', { font: 'Inter', mermaidConfig: { journey: { titleFontFamily: 'Georgia', taskFontFamily: 'Georgia' } } })
+    for (const text of ['Runtime', 'Task']) expect(inputs.some(input => input.text === text && input.fontFamily === 'Georgia')).toBe(true)
+    expect(svg).toMatch(/<text[^>]*class="journey-title"[^>]*font-family="Georgia"[^>]*textLength="210"[^>]*>Runtime<\/text>/)
+    expect(svg).toMatch(/<text[^>]*class="journey-task-text"[^>]*textLength="120"[^>]*>Task<\/text>/)
+  })
+
   test('custom shaping widths and negative tracking use one measured band', () => {
     const renderer = createMermaidRenderer({ textMeasurement: profile() })
     const unicode = renderer.renderMermaidSVG('flowchart TD\nA["界é"]')

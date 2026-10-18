@@ -35,7 +35,7 @@ export function layoutC4Diagram(body: C4Body, options: RenderOptions & { diagram
   }
   const text = (item: typeof body.elements[number] | typeof body.boundaries[number], label: string, group = false) => {
     const appearance = c4Appearance(item, config)
-    return preparePixelText(label, { display: 'literal', fontSize: appearance.fontSize ?? (group ? style.groupHeaderFontSize : style.nodeLabelFontSize), fontWeight: appearance.fontWeight ?? (group ? style.groupHeaderFontWeight : style.nodeLabelFontWeight), transform: group ? style.groupTextTransform : style.nodeTextTransform, maxWidth: wrapWidth(item.id), letterSpacing: group ? style.groupLetterSpacing : style.nodeLetterSpacing })
+    return preparePixelText(label, { display: 'literal', fontSize: appearance.fontSize ?? (group ? style.groupHeaderFontSize : style.nodeLabelFontSize), fontWeight: appearance.fontWeight ?? (group ? style.groupHeaderFontWeight : style.nodeLabelFontWeight), transform: group ? style.groupTextTransform : style.nodeTextTransform, maxWidth: wrapWidth(item.id), letterSpacing: group ? style.groupLetterSpacing : style.nodeLetterSpacing, fontFamily: appearance.fontFamily ?? (group ? style.groupFont : undefined) })
   }
   const nodes: PositionedNode[] = body.elements.map(item => {
     const label = c4ElementText(item), labelBlock = text(item, label), shape = effectiveC4Shape(item), glyphHeight = shape === 'person' ? 38 : shape === 'database' ? 16 : 0
@@ -76,7 +76,7 @@ export function layoutC4Diagram(body: C4Body, options: RenderOptions & { diagram
     else box.width = Math.max(box.width, (parallel + 1) * width, (incident.length + 1) * 16)
   }
   const titleText = options.diagramTitle ?? body.title
-  const titleBlock = titleText === undefined ? undefined : preparePixelText(titleText, { display: 'literal', fontSize: DIAGRAM_TITLE_FONT_SIZE, fontWeight: DIAGRAM_TITLE_FONT_WEIGHT, transform: style.groupTextTransform, letterSpacing: style.groupLetterSpacing, ...(config.maxWidth === undefined ? {} : { maxWidth: Math.max(24, config.maxWidth - config.marginX * 2) }) })
+  const titleBlock = titleText === undefined ? undefined : preparePixelText(titleText, { display: 'literal', fontSize: DIAGRAM_TITLE_FONT_SIZE, fontWeight: DIAGRAM_TITLE_FONT_WEIGHT, transform: style.groupTextTransform, letterSpacing: style.groupLetterSpacing, fontFamily: style.groupFont, ...(config.maxWidth === undefined ? {} : { maxWidth: Math.max(24, config.maxWidth - config.marginX * 2) }) })
   const title = titleBlock ? { text: titleBlock.text, width: titleBlock.width, height: titleBlock.height + DIAGRAM_TITLE_GAP, block: titleBlock } : undefined, gapX = Math.max(config.gap, ...edges.map(edge => (edge.labelBlock?.width ?? 0) + 32)), gapY = Math.max(config.rowGap, ...edges.map(edge => (edge.labelBlock?.height ?? 0) + 36))
   const pairCounts = new Map<string, number>()
   for (const edge of edges) {
