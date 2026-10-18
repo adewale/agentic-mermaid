@@ -126,6 +126,26 @@ describe('op-schema shape validation (§1–3, §5)', () => {
       ])
     }
   })
+
+  test.each([
+    { metadata: { markerAt: 'both', toKind: 'aggregation', lineStyle: 'dashed' }, arrow: '()..o' },
+    { metadata: { markerAt: 'both', toKind: 'lollipop' }, arrow: '()--()' },
+    { metadata: { markerAt: 'to', lineStyle: 'dashed' }, arrow: '..()' },
+  ] as const)('direct, checked and declarative Class edits author $arrow with the same metadata', ({ metadata, arrow }) => {
+    const source = 'classDiagram\nclass Port\nclass Service'
+    const op = { kind: 'add_relation', from: 'Port', to: 'Service', relKind: 'lollipop', ...metadata } as const
+    const parsed = parseMermaid(source)
+    if (!parsed.ok) throw new Error('expected Class diagram')
+    const results = [mutate(parsed.value, op), mutateChecked(parsed.value, op)]
+    const declarative = applyOps({ source, ops: [op] })
+    expect(declarative.ok).toBe(true)
+    for (const result of results) {
+      if (!result.ok) throw new Error(JSON.stringify(result.error))
+      expect(serializeMermaid(result.value)).toContain(`Port ${arrow} Service`)
+    }
+    if (!declarative.ok) return
+    expect(declarative.source).toContain(`Port ${arrow} Service`)
+  })
 })
 
 describe('one shared choke point — byte-identical rejection (§6)', () => {

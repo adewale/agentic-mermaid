@@ -66,6 +66,39 @@ describe('checkMermaid semantic read-back', () => {
     expect(checkMermaid(reversed.value, expected)).toMatchObject({
       ok: false, missing: ['relation#0 Person inheritance Animal marker to'],
     })
+    const legacy = [
+      'class Animal', 'class Person', 'family class',
+      'relation Person inheritance Animal', 'relation#0 Person inheritance Animal',
+    ]
+    expect(checkMermaid(intended.value, { include: legacy, exact: true })).toMatchObject({
+      ok: false, unexpected: [
+        'relation#0 Person inheritance Animal line solid',
+        'relation#0 Person inheritance Animal marker to',
+      ],
+    })
+    expect(checkMermaid(intended.value, { include: [...legacy,
+      'relation#0 Person inheritance Animal line solid',
+      'relation#0 Person inheritance Animal marker to',
+    ], exact: true }).ok).toBe(true)
+  })
+
+  test.each([
+    { dashed: 'o..*', solid: 'o--*', kind: 'aggregation' },
+    { dashed: '()..()', solid: '()--()', kind: 'lollipop' },
+  ])('distinguishes $dashed from $solid and retains shaft facts after an edit', ({ dashed, solid, kind }) => {
+    const intended = parseMermaid(`classDiagram\nA ${dashed} B`)
+    const changed = parseMermaid(`classDiagram\nA ${solid} B`)
+    if (!intended.ok || !changed.ok) throw new Error('expected Class diagrams')
+    const expected = `relation#0 A ${kind} B line dashed`
+    expect(describeMermaidFacts(intended.value)).toContain(expected)
+    expect(checkMermaid(changed.value, [expected])).toMatchObject({ ok: false, missing: [expected] })
+    const editable = asClass(intended.value)
+    if (!editable) throw new Error('expected editable Class diagram')
+    const edited = mutate(editable, { kind: 'add_member', class: 'A', text: '+value: String' })
+    if (!edited.ok) throw new Error(JSON.stringify(edited.error))
+    const reloaded = parseMermaid(serializeMermaid(edited.value))
+    if (!reloaded.ok) throw new Error('expected Class diagram after reload')
+    expect(checkMermaid(reloaded.value, [expected]).ok).toBe(true)
   })
 
   test('distinguishes the marker kinds at both Class relationship endpoints', () => {

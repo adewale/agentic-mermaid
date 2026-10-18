@@ -14,14 +14,22 @@ This changelog tracks user-facing changes for **Agentic Mermaid**, a fork of `lu
 ### Fixed
 - Class relationship markers keep their authored endpoint through unrelated
   edits, serialization and reload (#406). Semantic facts now include marker
-  ownership and both-ended marker kinds; existing fact strings remain, but
-  callers using `checkMermaid` with `exact: true` must include the new facts.
+  ownership, both-ended marker kinds and shaft style; existing fact strings
+  remain, but callers using `checkMermaid` with `exact: true` must include the
+  new facts. `docs/api.md` gives a complete-set migration example.
+- Class dashed diamond relationships retain their shaft style independently
+  of endpoint markers. Native parsing, edits, serialization, SVG/Scene and
+  terminal output support two-ended and mixed lollipop relationships, including
+  escaped endpoint identities. Public relation operations accept endpoint and
+  shaft metadata and refuse contradictory combinations.
 - Checked and declarative Class edits accept the supported `lollipop`
   relationship kind, matching direct typed mutation (#407).
 - Class `add_member` and initial `add_class.members` reject LF/CRLF that
   would split a member on reload; bare CR is also rejected under the
   single-line member policy (#408). Literal backslash-n and ordinary
-  single-line member text remain supported.
+  single-line member text remain supported. Blank/comment-form members and
+  decoded line breaks are refused too; initial member arrays are copied so a
+  caller cannot change the returned diagram through the supplied array.
 - XY-chart titles wrap to the configured canvas width and reserve space above
   the plot, keeping long titles visible in vertical and horizontal charts.
   Verification names titles that cannot fit the configured title-space budget

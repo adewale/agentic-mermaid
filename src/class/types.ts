@@ -93,6 +93,8 @@ export interface ClassRelationship {
   from: string
   to: string
   type: RelationshipType
+  /** Explicit shaft style when endpoint kinds alone do not describe it. */
+  lineStyle?: 'solid' | 'dashed'
   /**
    * Which end of the relationship line has the UML marker (triangle, diamond, arrow).
    * Determined by the arrow syntax direction:
@@ -216,6 +218,7 @@ export interface PositionedClassRelationship {
   from: string
   to: string
   type: RelationshipType
+  lineStyle?: 'solid' | 'dashed'
   /** Which end of the line has the UML marker — propagated from ClassRelationship */
   markerAt: 'from' | 'to' | 'both' | 'none'
   fromType?: RelationshipType

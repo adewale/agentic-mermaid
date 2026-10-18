@@ -26,8 +26,10 @@ design context, never additional queues. Retired IDs are not reused.
   [#406](https://github.com/adewale/agentic-mermaid/issues/406),
   [#407](https://github.com/adewale/agentic-mermaid/issues/407),
   and [#408](https://github.com/adewale/agentic-mermaid/issues/408):
-  one-ended relationship preservation, checked
-  lollipop admission and single-line member validation. #406 blocks a safe
+  relationship endpoint/shaft preservation, native multi-ended lollipops,
+  explicit relation metadata, checked lollipop admission, member admission and
+  caller-array ownership. The Class fact additions have an explicit
+  `exact: true` migration example in `docs/api.md`. #406 blocks a safe
   Class-editing claim until the final candidate passes semantic export/reload
   and rendered-marker checks. ER entity order (#372) and canonical YAML
   whitespace (#367/BUG-60) are deferred beyond this candidate, remain open,

@@ -30,6 +30,16 @@ Opaque/source-level bodies:
 
 For source-level bodies, agents may render, verify, describe, and round-trip preserved source. They do **not** get typed mutation ops. `am mutate` returns `UNSUPPORTED_FAMILY` for those bodies.
 
+### Class lollipops keep authored identities
+
+For a one-ended lollipop such as `Port ()-- Service`, Mermaid 11.16.1 can
+substitute a generated `interface0` endpoint. Agentic Mermaid keeps `Port` and
+`Service` as the authored endpoints in its editable body, SVG/Scene and terminal
+metadata. Two-ended lollipops and mixed marker forms keep those authored
+endpoints too; the tested two-ended forms already agree with upstream on
+identity. Markers and solid/dashed shafts remain explicit properties, rather
+than creating synthetic classes that collide with authored names.
+
 ### Sequence numbering keeps authored control intent
 
 Bare `autonumber` enables or resumes numbering without resetting its counter or increment. `autonumber off` hides numbers while semantic messages continue advancing the retained counter; a late first enable therefore uses the message ordinal. An explicit start resets the counter, and a start without an increment selects increment one. This corrects earlier accidental resets on repeated enable or resume.

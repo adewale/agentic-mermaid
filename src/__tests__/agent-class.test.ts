@@ -1,7 +1,7 @@
 // Phase C: structured class diagram support.
 
 import { describe, test, expect } from 'bun:test'
-import { parseRegisteredMermaid as parseMermaid, asClass, mutate, mutateChecked, serializeMermaid, verifyMermaid, renderMermaidSVG } from '../agent/index.ts'
+import { parseRegisteredMermaid as parseMermaid, asClass, mutate, mutateChecked, applyOps, serializeMermaid, verifyMermaid, renderMermaidSVG } from '../agent/index.ts'
 import { parseClassDiagram } from '../class/parser.ts'
 import { classUnsupportedSyntaxWarnings } from '../agent/class-body.ts'
 import type { ClassMutationOp } from '../agent/types.ts'
@@ -162,7 +162,7 @@ note for A "A \"quote\" and \\ path"`)
 })
 
 describe('class — mutate', () => {
-  test.each(['\n', '\r', '\r\n'])('refuses multiline members through either authoring op without changing the diagram: %j', lineBreak => {
+  test.each(['\n', '\r', '\r\n', '&#10;', '&#13;', '&#13;&#10;'])('refuses multiline members through either authoring op without changing the diagram: %j', lineBreak => {
     const original = asClass(parse('classDiagram\nclass A'))!
     const text = `+foo()${lineBreak}+bar()`
     for (const op of [
@@ -176,10 +176,33 @@ describe('class — mutate', () => {
         expect(original.body.classes).toEqual([{ id: 'A', label: undefined, generic: undefined, members: [] }])
         expect(serializeMermaid(original)).toBe('classDiagram\n  class A\n')
       }
+      expect(applyOps({ source: 'classDiagram\nclass A', ops: [op] })).toMatchObject({
+        ok: false, opIndex: 0, error: { code: 'INVALID_OP', message: 'Class members must be single lines; add each member separately' },
+      })
     }
   })
 
-  test.each([String.raw`+foo()\n +bar()`, '+foo();+bar()'])('keeps single-line member text through either authoring op and reload: %j', text => {
+  test.each(['%% comment', ' \t%% comment', '%%{init: {"theme":"dark"}}%%', '&#37;&#37; comment', ' \t'])('refuses member text that source preprocessing would remove: %j', text => {
+    const source = 'classDiagram\nclass A'
+    const original = asClass(parse(source))!
+    const before = JSON.stringify(original)
+    const error = { code: 'INVALID_OP', message: 'Class members must contain text, not blank lines, comments or init directives' } as const
+    for (const op of [
+      { kind: 'add_member', class: 'A', text },
+      { kind: 'add_class', id: 'B', namespace: 'New.Nested', members: ['+valid()', text] },
+    ] satisfies ClassMutationOp[]) {
+      const supplied = JSON.stringify(op)
+      for (const apply of [mutate, mutateChecked]) {
+        expect(apply(original, op)).toEqual({ ok: false, error })
+        expect(JSON.stringify(original)).toBe(before)
+        expect(JSON.stringify(op)).toBe(supplied)
+      }
+      expect(applyOps({ source, ops: [op] })).toEqual({ ok: false, family: 'class', opIndex: 0, error })
+      expect(JSON.stringify(op)).toBe(supplied)
+    }
+  })
+
+  test.each([String.raw`+foo()\n +bar()`, '+foo();+bar()', '+value: 50%%', '+literal(%%{init: {}}%%)', String.raw`\%% literal`])('keeps single-line member text through either authoring op and reload: %j', text => {
     const original = asClass(parse('classDiagram\nclass A'))!
     for (const op of [
       { kind: 'add_member', class: 'A', text },
@@ -192,7 +215,43 @@ describe('class — mutate', () => {
         expect(reloaded.body.classes.at(-1)!.members).toEqual([text])
         expect(verifyMermaid(edited.value).warnings).toEqual([])
       }
+      const declarative = applyOps({ source: 'classDiagram\nclass A', ops: [op] })
+      if (!declarative.ok) throw new Error(JSON.stringify(declarative.error))
+      expect(asClass(parse(declarative.source))!.body.classes.at(-1)!.members).toEqual([text])
     }
+  })
+
+  test('added classes own their member arrays across direct, checked and declarative edits', () => {
+    const source = 'classDiagram\nclass A'
+    const original = asClass(parse(source))!
+    const before = JSON.stringify(original)
+    const expected = 'classDiagram\n  class A\n  class B {\n    +original()\n  }\n'
+    for (const apply of [mutate, mutateChecked]) {
+      const members = ['+original()']
+      const op = { kind: 'add_class', id: 'B', members } as const
+      const edited = apply(original, op)
+      if (!edited.ok) throw new Error(JSON.stringify(edited.error))
+      const added = asClass(edited.value)!
+      expect(members).toEqual(['+original()'])
+      expect(serializeMermaid(edited.value)).toBe(expected)
+      expect(verifyMermaid(edited.value).warnings).toEqual([])
+      const rendered = renderMermaidSVG(edited.value)
+      members[0] = '+replaced()'
+      members.push('+later()')
+      expect(added.body.classes.at(-1)!.members).toEqual(['+original()'])
+      expect(edited.value.canonicalSource).toBe(expected)
+      expect(serializeMermaid(edited.value)).toBe(expected)
+      expect(renderMermaidSVG(edited.value)).toBe(rendered)
+      expect(asClass(parse(expected))!.body.classes).toEqual(added.body.classes)
+      expect(JSON.stringify(original)).toBe(before)
+    }
+    const members = ['+original()']
+    const edited = applyOps({ source, ops: [{ kind: 'add_class', id: 'B', members }] })
+    if (!edited.ok) throw new Error(JSON.stringify(edited.error))
+    expect(members).toEqual(['+original()'])
+    members.push('+later()')
+    expect(edited.source).toBe(expected)
+    expect(asClass(parse(edited.source))!.body.classes.at(-1)!.members).toEqual(['+original()'])
   })
 
   test.each(['\n', '\r', '\r\n'])('refuses an unsupported multiline note without changing the diagram: %j', lineBreak => {
@@ -218,6 +277,50 @@ describe('class — mutate', () => {
     if (!r2.ok) return
     expect(r2.value.body.classes.map(c => c.id)).toEqual(['Animal', 'Dog'])
     expect(r2.value.body.relations[0]!.kind).toBe('inheritance')
+  })
+
+  test.each([
+    { relKind: 'association', markerAt: 'from', arrow: '<--' },
+    { relKind: 'aggregation', markerAt: 'both', fromKind: 'aggregation', toKind: 'composition', lineStyle: 'dashed', arrow: 'o..*' },
+    { relKind: 'lollipop', markerAt: 'both', fromKind: 'lollipop', toKind: 'lollipop', lineStyle: 'dashed', arrow: '()..()' },
+    { relKind: 'lollipop', markerAt: 'both', toKind: 'association', arrow: '()-->' },
+  ] as const)('authors relation metadata without changing its meaning: $arrow', ({ arrow, ...metadata }) => {
+    const source = 'classDiagram\nclass A\nclass B'
+    const original = asClass(parse(source))!
+    const op = { kind: 'add_relation', from: 'A', to: 'B', label: 'uses', ...metadata } as const
+    const expected = `classDiagram\n  class A\n  class B\n  A ${arrow} B : uses\n`
+    for (const apply of [mutate, mutateChecked]) {
+      const edited = apply(original, op)
+      if (!edited.ok) throw new Error(JSON.stringify(edited.error))
+      expect(asClass(edited.value)!.body.relations[0]).toMatchObject({ kind: metadata.relKind, markerAt: metadata.markerAt })
+      expect(serializeMermaid(edited.value)).toBe(expected)
+      expect(serializeMermaid(parse(expected))).toBe(expected)
+      expect(original.body.relations).toEqual([])
+    }
+    const declarative = applyOps({ source, ops: [op] })
+    if (!declarative.ok) throw new Error(JSON.stringify(declarative.error))
+    expect(declarative.source).toBe(expected)
+  })
+
+  test.each([
+    { relKind: 'inheritance', lineStyle: 'dashed' },
+    { relKind: 'dependency', lineStyle: 'solid' },
+    { relKind: 'inheritance', markerAt: 'none' },
+    { relKind: 'association', markerAt: 'to', fromKind: 'composition' },
+    { relKind: 'association', markerAt: 'both', fromKind: 'link-solid' },
+    { relKind: 'lollipop', markerAt: 'both', fromKind: 'aggregation', toKind: 'lollipop' },
+  ] as const)('refuses relation metadata whose arrow would change or ignore meaning: %j', metadata => {
+    const source = 'classDiagram\nclass A\nclass B'
+    const original = asClass(parse(source))!
+    const before = JSON.stringify(original)
+    const op = { kind: 'add_relation', from: 'A', to: 'B', ...metadata } as const
+    const supplied = JSON.stringify(op)
+    for (const apply of [mutate, mutateChecked]) {
+      expect(apply(original, op)).toMatchObject({ ok: false, error: { code: 'INVALID_OP' } })
+      expect(JSON.stringify(original)).toBe(before)
+      expect(JSON.stringify(op)).toBe(supplied)
+    }
+    expect(applyOps({ source, ops: [op] })).toMatchObject({ ok: false, opIndex: 0, error: { code: 'INVALID_OP' } })
   })
 
   test('rename_class updates relations and notes', () => {
