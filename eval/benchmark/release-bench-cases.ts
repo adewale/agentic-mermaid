@@ -23,11 +23,11 @@ function lines(header: string, count: number, line: (i: number) => string | stri
   return out.join('\n')
 }
 
-function flowchartTree(nodes: number): string {
+export function flowchartTree(nodes: number): string {
   return lines('flowchart TD', nodes - 1, i => `  n${Math.floor(i / 3)}[Node ${Math.floor(i / 3)}] --> n${i + 1}[Node ${i + 1}]`)
 }
 
-function flowchartMesh(nodes: number, labelled: number): string {
+export function flowchartMesh(nodes: number, labelled: number): string {
   const rnd = lcg(7)
   const edges = lines('flowchart TD', nodes - 1, i => `  n${Math.floor(rnd() * (i + 1))} --> n${i + 1}`)
   return edges + '\n' + Array.from({ length: labelled }, (_, i) => `  n${Math.floor(rnd() * nodes)} -->|label ${i}| n${Math.floor(rnd() * nodes)}`).join('\n')
