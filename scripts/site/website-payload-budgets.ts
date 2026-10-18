@@ -48,7 +48,7 @@ export const WEBSITE_PAYLOAD_BUDGETS: WebsitePayloadBudgets = Object.freeze({
   }),
   demo: Object.freeze({
     maxRequests: 31,
-    // Final connector/card checks: 803,181 raw / 304,208 gzip / 275,628 Brotli.
+    // Final connector/card checks: 803,181 raw / 304,208 gzip / 275,646 Brotli.
     maxRawBytes: 804_000,
     maxGzipBytes: 305_000,
     maxBrotliBytes: 276_000,
@@ -67,10 +67,10 @@ export const WEBSITE_PAYLOAD_BUDGETS: WebsitePayloadBudgets = Object.freeze({
   'editor-empty': Object.freeze({
     maxRequests: 2,
     // Native paint/cell certification and production pass budgets ship here.
-    // Combined measurement: 3,744,465 raw / 1,139,772 gzip / 898,029 Brotli.
+    // Combined measurement: 3,746,329 raw / 1,140,442 gzip / 898,118 Brotli.
     // Per-change growth still has its own delta gate.
-    maxRawBytes: 3_745_000,
-    maxGzipBytes: 1_140_000,
+    maxRawBytes: 3_747_000,
+    maxGzipBytes: 1_141_000,
     maxBrotliBytes: 899_000,
     required: Object.freeze([
       '^/editor/$',

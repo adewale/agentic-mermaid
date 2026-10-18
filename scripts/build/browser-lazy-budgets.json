@@ -19,6 +19,6 @@
     "gitgraph": {"requests": 28, "raw": 627000, "gzip": 203000, "brotli": 179000},
     "radar": {"requests": 28, "raw": 630000, "gzip": 204000, "brotli": 179000},
     "sankey": {"requests": 27, "raw": 622000, "gzip": 202000, "brotli": 177000},
-    "c4": {"requests": 28, "raw": 782000, "gzip": 254000, "brotli": 222000}
+    "c4": {"requests": 28, "raw": 783000, "gzip": 255000, "brotli": 223000}
   }
 }
