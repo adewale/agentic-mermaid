@@ -513,7 +513,7 @@ function renderClassNote(note: PositionedClassNote, style: ResolvedRenderStyle, 
       id: `class-note:${index}:connector`, role: 'relationship',
       geometry: { kind: 'line', x1: note.targetX, y1: note.targetY, x2: note.noteX ?? note.x, y2: note.noteY ?? note.y + note.height / 2 },
       lineStyle: 'dashed', paint: { stroke, strokeWidth: '1', strokeDasharray: '4 3' },
-      ...(note.for ? { endpoints: { from: note.for, to: `class-note:${index}` } } : {}),
+      ...(note.for ? { endpoints: { from: note.for, to: `class-note:${index}`, start: { owner: { id: note.for, role: 'class-box' } }, end: { owner: { id: `class-note:${index}`, role: 'note' } } } } : {}),
     }, `<line class="class-note-connector" x1="${note.targetX}" y1="${note.targetY}" x2="${note.noteX ?? note.x}" y2="${note.noteY ?? note.y + note.height / 2}" stroke="${escapeAttr(stroke)}" stroke-width="1" stroke-dasharray="4 3" />`), indent: 2 })
   }
   children.push({ node: marks.shape({
@@ -536,6 +536,10 @@ function renderClassNote(note: PositionedClassNote, style: ResolvedRenderStyle, 
 // Relationship rendering
 // ============================================================================
 
+function classRelationshipEndpoints(rel: PositionedClassRelationship) {
+  return { from: rel.from, to: rel.to, start: { owner: { id: rel.from, role: 'class-box' as const } }, end: { owner: { id: rel.to, role: 'class-box' as const } } }
+}
+
 /**
  * Render a relationship line with appropriate markers and semantic attributes.
  * Includes data-* attributes for programmatic inspection.
@@ -554,7 +558,7 @@ function renderRelationship(rel: PositionedClassRelationship, style: ResolvedRen
       geometry: { kind: 'polyline', points: rel.points },
       lineStyle: 'invisible',
       paint: {},
-      endpoints: { from: rel.from, to: rel.to },
+      endpoints: classRelationshipEndpoints(rel),
       relationship: { kind: rel.type },
       labels,
     }, '')
@@ -606,7 +610,7 @@ function renderRelationship(rel: PositionedClassRelationship, style: ResolvedRen
     ...(isDashed ? { strokeDasharray: '6 4' } : {}),
   }
   const connectorSemantics = {
-    endpoints: { from: rel.from, to: rel.to },
+    endpoints: classRelationshipEndpoints(rel),
     relationship: { kind: rel.type },
     route: {
       ownership: 'layout',
@@ -674,7 +678,7 @@ function renderRelationshipMarkerOverlay(
     lineStyle: 'solid' as const,
     paint: { fill: 'none', stroke: style.edgeStrokeColor ?? 'var(--_line)', strokeWidth: String(style.lineWidth) },
     stroke: { opacity: 0 },
-    endpoints: { from: rel.from, to: rel.to },
+    endpoints: classRelationshipEndpoints(rel),
     relationship: { kind: 'marker-carrier' },
     markers: { ...(markerStart ? { start: markerStart } : {}), mid: [], ...(markerEnd ? { end: markerEnd } : {}) },
     hit: { pointerEvents: 'none' as const },

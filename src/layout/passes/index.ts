@@ -728,10 +728,11 @@ function doglegBetween(source: Point, target: Point, direction: Direction, elbow
     ? simplifyPolyline([source, { x: elbow, y: source.y }, { x: elbow, y: target.y }, target])
     : simplifyPolyline([source, { x: source.x, y: elbow }, { x: target.x, y: elbow }, target])
 }
-function segmentClearOfNodes(a: Point, b: Point, nodes: PositionedNode[], exclude: ReadonlySet<string>, clearance = 1): boolean {
+function segmentClearOfNodes(a: Point, b: Point, nodes: PositionedNode[], exclude: ReadonlySet<string>, clearance = 1, chargeWork?: (operations: number) => void): boolean {
   const x1 = Math.min(a.x, b.x), x2 = Math.max(a.x, b.x)
   const y1 = Math.min(a.y, b.y), y2 = Math.max(a.y, b.y)
   for (const node of nodes) {
+    chargeWork?.(1)
     if (exclude.has(node.id)) continue
     const nx1 = node.x - clearance, nx2 = node.x + node.width + clearance
     const ny1 = node.y - clearance, ny2 = node.y + node.height + clearance
@@ -743,9 +744,9 @@ function segmentClearOfNodes(a: Point, b: Point, nodes: PositionedNode[], exclud
   }
   return true
 }
-function routeClearOfNodes(points: Point[], nodes: PositionedNode[], exclude: ReadonlySet<string>): boolean {
+function routeClearOfNodes(points: Point[], nodes: PositionedNode[], exclude: ReadonlySet<string>, chargeWork?: (operations: number) => void): boolean {
   for (let i = 1; i < points.length; i++) {
-    if (!segmentClearOfNodes(points[i - 1]!, points[i]!, nodes, exclude)) return false
+    if (!segmentClearOfNodes(points[i - 1]!, points[i]!, nodes, exclude, 1, chargeWork)) return false
   }
   return true
 }
@@ -1169,14 +1170,16 @@ export function reanchorOffOutlineEndpoints(nodes: PositionedNode[], edges: Posi
  * equivalence holds. Edge-only, deterministic (fixed candidate order); label
  * re-centred on the new route. Self-loops are skipped.
  */
-export function rerouteEdgesThroughNodes(nodes: PositionedNode[], edges: PositionedEdge[], graph: MermaidGraph): void {
+export function rerouteEdgesThroughNodes(nodes: PositionedNode[], edges: PositionedEdge[], graph: Pick<MermaidGraph, 'direction'>, chargeWork?: (operations: number) => void): void {
   const f = layoutFlow(graph.direction)
+  chargeWork?.(nodes.length)
   const nodeMap = new Map(nodes.map(n => [n.id, n]))
   const THROUGH_LANE_GAP = 10
   const throughNode = (pts: Point[], skip: ReadonlySet<string>): boolean => {
     for (const n of nodes) {
+      chargeWork?.(1)
       if (skip.has(n.id)) continue
-      for (let i = 1; i < pts.length; i++) if (segmentThroughShape(pts[i - 1]!, pts[i]!, n)) return true
+      for (let i = 1; i < pts.length; i++) { chargeWork?.(1); if (segmentThroughShape(pts[i - 1]!, pts[i]!, n)) return true }
     }
     return false
   }
@@ -1196,6 +1199,7 @@ export function rerouteEdgesThroughNodes(nodes: PositionedNode[], edges: Positio
       const c = a[ax]
       const cands: number[] = []
       for (const n of nodes) {
+        chargeWork?.(1)
         if (skip.has(n.id)) continue
         cands.push(n[ax] - THROUGH_LANE_GAP, n[ax] + (ax === 'x' ? n.width : n.height) + THROUGH_LANE_GAP)
       }
@@ -1203,7 +1207,7 @@ export function rerouteEdgesThroughNodes(nodes: PositionedNode[], edges: Positio
       for (const cp of cands) {
         const trial = pts.map(p => ({ ...p }))
         trial[k]![ax] = cp; trial[k + 1]![ax] = cp
-        if (!throughNode(trial, skip) && routeClearOfNodes(trial, nodes, skip)) return simplifyPolyline(trial)
+        if (!throughNode(trial, skip) && routeClearOfNodes(trial, nodes, skip, chargeWork)) return simplifyPolyline(trial)
       }
     }
     return null
@@ -1222,6 +1226,7 @@ export function rerouteEdgesThroughNodes(nodes: PositionedNode[], edges: Positio
     let bandLo = Infinity, bandHi = -Infinity
     const laneSet: number[] = []
     for (const n of nodes) {
+      chargeWork?.(1)
       if (skip.has(n.id)) continue
       const ns = n[f.main], ne = n[f.main] + (f.main === 'x' ? n.width : n.height)
       if (ne <= mLo || ns >= mHi) continue // outside the corridor
@@ -1239,11 +1244,12 @@ export function rerouteEdgesThroughNodes(nodes: PositionedNode[], edges: Positio
     const lanes = [...new Set(laneSet)].sort((p, q) => Math.abs(p - mean) - Math.abs(q - mean))
     for (const lane of lanes) {
       const route = simplifyPolyline([start, pt(m1, start[f.cross]), pt(m1, lane), pt(m2, lane), pt(m2, end[f.cross]), end])
-      if (!throughNode(route, skip) && routeClearOfNodes(route, nodes, skip)) return route
+      if (!throughNode(route, skip) && routeClearOfNodes(route, nodes, skip, chargeWork)) return route
     }
     return null
   }
   for (const edge of edges) {
+    chargeWork?.(1)
     if (edge.source === edge.target || edge.points.length < 2) continue
     const source = nodeMap.get(edge.source), target = nodeMap.get(edge.target)
     if (!source || !target) continue

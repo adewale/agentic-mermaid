@@ -1,5 +1,5 @@
 import { resolveLabelContent, type DisplayTextInput } from '../shared/display-text.ts'
-import { assertErDiagramWork } from '../shared/diagram-limits.ts'
+import { assertErDiagramWork, DIAGRAM_WORK_LIMITS } from '../shared/diagram-limits.ts'
 import { preparePixelText, type PixelTextBlock } from '../shared/prepared-text.ts'
 import { resolveRoleStyle } from '../scene/style-registry.ts'
 /**
@@ -12,7 +12,7 @@ import { resolveRoleStyle } from '../scene/style-registry.ts'
 
 import type { ElkNode, ElkExtendedEdge } from 'elkjs'
 import type { ErAttribute, ErDiagram, ErEntity, PositionedErDiagram, PositionedErEntity, PositionedErRelationship } from './types.ts'
-import type { RenderOptions, Point, Direction } from '../types.ts'
+import type { RenderOptions, Point, Direction, PositionedNode, PositionedEdge } from '../types.ts'
 import type { MermaidFrontmatterMap } from '../mermaid-source.ts'
 import { getFrontmatterScalar } from '../mermaid-source.ts'
 import { FONT_SIZES, FONT_WEIGHTS, STROKE_WIDTHS, resolveRenderStyle, diagramTitleBand, positionDiagramTitle } from '../styles.ts'
@@ -23,6 +23,11 @@ import { directionToElk } from '../layout-engine.ts'
 import { checkedAuthoredStyle } from '../shared/style-props.ts'
 import { configSpacing } from '../class/layout.ts'
 import { erCommentText } from './text.ts'
+import { rerouteEdgesThroughNodes } from '../layout/passes/index.ts'
+import { segmentThroughShape } from '../layout-rubric.ts'
+import { generatedIds } from '../shared/generated-identity.ts'
+import { simplifyPolyline } from '../route-contracts.ts'
+import { calculatePathMidpoint } from '../layout/geometry.ts'
 export { erCommentText } from './text.ts'
 
 /** Layout constants for ER diagrams */
@@ -144,6 +149,108 @@ function prepareErText(positioned: PositionedErDiagram, style: ResolvedRenderSty
 
 type EntitySizeMap = Map<string, { width: number; height: number; headerHeight: number }>
 
+/** An ancestor endpoint meets its descendant from the same bottom face, in
+ * reserved interior space rather than through the descendant's contents. */
+function erInteriorCorridors(diagram: ErDiagram, blocks: readonly PixelTextBlock[]) {
+  const groupParents = new Map(diagram.groups.map(group => [group.id, group.parentId]))
+  const parents = new Map([...diagram.entities.map(entity => [entity.id, entity.groupId] as const), ...groupParents])
+  const isAncestor = (id: string, descendant: string) => {
+    for (let parent = parents.get(descendant), depth = 0; parent !== undefined && groupParents.has(parent) && depth < DIAGRAM_WORK_LIMITS.nesting; parent = groupParents.get(parent), depth++) if (parent === id) return true
+    return false
+  }
+  const padding = new Map<string, number>(), exits = new Map<string, number>(), ancestors = new Map<string, number[]>()
+  for (const [index, rel] of diagram.relationships.entries()) {
+    const ancestor = isAncestor(rel.entity1, rel.entity2) ? rel.entity1 : isAncestor(rel.entity2, rel.entity1) ? rel.entity2 : undefined
+    if (!ancestor) continue
+    // Actual label halo, two 18px cardinality zones and clearance on each side.
+    padding.set(ancestor, (padding.get(ancestor) ?? 0) + blocks[index]!.height + 56)
+    const descendant = ancestor === rel.entity1 ? rel.entity2 : rel.entity1
+    exits.set(descendant, Math.max(exits.get(descendant) ?? 0, blocks[index]!.height + 40))
+    const indices = ancestors.get(ancestor) ?? []
+    indices.push(index); ancestors.set(ancestor, indices)
+  }
+  const lanes = new Map<number, number>()
+  for (const indices of ancestors.values()) indices.forEach((index, lane) => lanes.set(index, (lane + 1) / (indices.length + 1)))
+  return { padding, exits, lanes }
+}
+
+function erInteriorRoute(from: { x: number; y: number; width: number; height: number }, to: { x: number; y: number; width: number; height: number }, fraction: number): Point[] {
+  const x = Math.max(from.x, to.x) + (Math.min(from.x + from.width, to.x + to.width) - Math.max(from.x, to.x)) * fraction
+  return [{ x, y: from.y + from.height }, { x, y: to.y + to.height }]
+}
+
+function erPreferredLabelBounds(relationships: readonly PositionedErRelationship[], blocks: readonly PixelTextBlock[]) {
+  return relationships.flatMap((rel, index) => {
+    if (!rel.label || rel.points.length < 2) return []
+    const mid = calculatePathMidpoint(rel.points), block = blocks[index]!
+    return [{ x0: mid.x - block.width / 2 - 8, x1: mid.x + block.width / 2 + 8, y0: mid.y - block.height / 2 - 8, y1: mid.y + block.height / 2 + 8 }]
+  })
+}
+
+export class ErRouteWorkLimitError extends RangeError {
+  readonly code = 'ER_ROUTE_WORK_LIMIT'
+  constructor() { super('ER_ROUTE_WORK_LIMIT: frame corridor checks exceed 400000; split the diagram or reduce its relationships'); this.name = 'ErRouteWorkLimitError' }
+}
+
+class ErRouteGeometryError extends Error {
+  readonly code = 'ER_ROUTE_BLOCKED'
+  constructor(from: string, to: string) { super(`ER_ROUTE_BLOCKED: no clear frame corridor from ${from} to ${to}`); this.name = 'ErRouteGeometryError' }
+}
+
+function repairErFrameRoutes(entities: PositionedErEntity[], groups: PositionedErDiagram['groups'], relationships: PositionedErRelationship[], blocks: readonly PixelTextBlock[]): void {
+  if (groups.length === 0) return
+  const generated = generatedIds([...entities.map(entity => entity.id), ...groups.map(group => group.id)])
+  const groupIds = new Set(groups.map(group => group.id)), entityIds = new Map<string, string>()
+  const obstacles: PositionedNode[] = [
+    ...entities.map(entity => { const id = generated(`er-entity:${entity.id}`, ['er', 'entity', entity.id]); entityIds.set(id, entity.id); return { ...entity, id, shape: 'rectangle' as const } }),
+    ...groups.map(group => ({ ...group, id: generated(`er-header:${group.id}`, ['er', 'header', group.id]), height: group.headerHeight, shape: 'rectangle' as const })),
+  ]
+  let operations = 0
+  const charge = (count: number) => { operations += count; if (operations > 400_000) throw new ErRouteWorkLimitError() }
+  for (const [index, rel] of relationships.entries()) {
+    if (!groupIds.has(rel.entity1) && !groupIds.has(rel.entity2) || rel.points.length < 2) continue
+    const [start, end] = [rel.points[0]!, rel.points.at(-1)!]
+    const physical = obstacles.filter(node => { const id = entityIds.get(node.id); return id === undefined || groupIds.has(id) || id !== rel.entity1 && id !== rel.entity2 })
+    const blocked = (points: Point[]) => points.slice(1).some((point, i) => physical.some(node => { charge(1); return segmentThroughShape(points[i]!, point, node) }))
+    if (!blocked(rel.points)) continue
+    // Keep actual cardinality-bearing face contacts; shared routing owns only
+    // the middle between 20px terminal stems in the reserved sibling exits.
+    const next = rel.points.find(point => point.x !== start.x || point.y !== start.y)!, previous = [...rel.points].reverse().find(point => point.x !== end.x || point.y !== end.y)!
+    const stem = (point: Point, toward: Point, id: string): PositionedNode => {
+      const ray = { x: Math.sign(toward.x - point.x), y: Math.sign(toward.y - point.y) }
+      let length = 20
+      for (const node of physical) {
+        charge(1)
+        if (!(ray.x ? point.y > node.y && point.y < node.y + node.height : point.x > node.x && point.x < node.x + node.width)) continue
+        const gap = ray.x > 0 ? node.x - point.x : ray.x < 0 ? point.x - node.x - node.width : ray.y > 0 ? node.y - point.y : point.y - node.y - node.height
+        // The shared bracket adds up to 12px before turning; a normal 20px
+        // header gap must retain room for that turn and the cardinality ink.
+        if (gap >= 0) length = Math.min(length, Math.max(0, gap - 14))
+      }
+      return { id, label: '', shape: 'rectangle', x: point.x + ray.x * length, y: point.y + ray.y * length, width: 0, height: 0 }
+    }
+    const from = stem(start, next, rel.entity1), to = stem(end, previous, rel.entity2)
+    const block = blocks[index]!, padX = block.width / 2 + 8, padY = block.height / 2 + 8
+    const padded = physical.map(node => ({ ...node, x: node.x - padX, y: node.y - padY, width: node.width + padX * 2, height: node.height + padY * 2 }))
+    charge(physical.length)
+    const edge: PositionedEdge = { source: from.id, target: to.id, style: 'solid', hasArrowStart: false, hasArrowEnd: false, points: [{ x: from.x, y: from.y }, ...rel.points.slice(1, -1), { x: to.x, y: to.y }] }
+    const direction = Math.abs(end.x - start.x) >= Math.abs(end.y - start.y) ? end.x >= start.x ? 'LR' : 'RL' : end.y >= start.y ? 'TB' : 'BT'
+    rerouteEdgesThroughNodes([...padded, from, to], [edge], { direction }, charge)
+    if (blocked(edge.points)) {
+      // A header approach can fit the actual terminal stem without fitting a
+      // label along that stem. Keep measured label width in the long aisle,
+      // while allowing the physical approach along the flow axis.
+      charge(physical.length)
+      const crossPadded = physical.map(node => direction === 'TB' || direction === 'BT'
+        ? { ...node, x: node.x - padX, width: node.width + padX * 2 }
+        : { ...node, y: node.y - padY, height: node.height + padY * 2 })
+      rerouteEdgesThroughNodes([...crossPadded, from, to], [edge], { direction }, charge)
+    }
+    rel.points = simplifyPolyline([start, ...edge.points, end])
+    if (blocked(rel.points)) throw new ErRouteGeometryError(rel.entity1, rel.entity2)
+  }
+}
+
 /** Space between an attribute's name and its comment. */
 export const ER_COMMENT_GAP = 12
 
@@ -258,9 +365,10 @@ function extractErLayout(
 
   const originalPositions = new Map(positionedEntities.map(entity => [entity.id, { x: entity.x, y: entity.y }]))
   const relationshipBlocks = diagram.relationships.map(rel => erRelationshipBlock(rel, style, styleFace))
+  const interior = erInteriorCorridors(diagram, relationshipBlocks)
   applyErGroupDirections(diagram, positionedEntities, relationshipBlocks)
-  const positionedGroups = deriveErGroups(diagram, positionedEntities, style)
-  separateErCompounds(diagram, positionedEntities, positionedGroups, style, relationshipBlocks)
+  const positionedGroups = deriveErGroups(diagram, positionedEntities, style, interior.padding)
+  separateErCompounds(diagram, positionedEntities, positionedGroups, style, relationshipBlocks, interior.padding, interior.exits)
   const boxes = new Map<string, { x: number; y: number; width: number; height: number }>()
   positionedEntities.forEach(entity => boxes.set(entity.id, entity))
   positionedGroups.forEach(group => boxes.set(group.id, group))
@@ -278,7 +386,9 @@ function extractErLayout(
       Math.abs(to.x - originalTo.x - dx) < 0.001 && Math.abs(to.y - originalTo.y - dy) < 0.001
       ? edgeById.get(`e${i}`) : undefined
     const points: Point[] = []
-    if (elkEdge?.sections?.length) {
+    if (from && to && interior.lanes.has(i)) {
+      points.push(...erInteriorRoute(from, to, interior.lanes.get(i)!))
+    } else if (elkEdge?.sections?.length) {
       const section = elkEdge.sections[0]!
       points.push({ x: section.startPoint.x + dx!, y: section.startPoint.y + dy! })
       for (const bp of section.bendPoints ?? []) points.push({ x: bp.x + dx!, y: bp.y + dy! })
@@ -310,6 +420,8 @@ function extractErLayout(
     })
   }
 
+  repairErFrameRoutes(positionedEntities, positionedGroups, relationships, relationshipBlocks)
+
   // Nested group padding can extend left/top of ELK's entity-only canvas, and
   // group endpoints are routed after ELK. Translate the complete geometry as
   // one unit so group frames, endpoint routes, and their labels retain a real
@@ -324,8 +436,9 @@ function extractErLayout(
     ...positionedGroups.flatMap(group => [group.y, group.y + group.height]),
     ...relationships.flatMap(relationship => relationship.points.map(point => point.y)),
   ]
-  const dx = xs.length > 0 && Math.min(...xs) < ER.padding ? ER.padding - Math.min(...xs) : 0
-  const dy = ys.length > 0 && Math.min(...ys) < ER.padding ? ER.padding - Math.min(...ys) : 0
+  const labelBounds = erPreferredLabelBounds(relationships, relationshipBlocks)
+  const dx = Math.max(0, xs.length ? ER.padding - Math.min(...xs) : 0, ...labelBounds.map(box => -box.x0))
+  const dy = Math.max(0, ys.length ? ER.padding - Math.min(...ys) : 0, ...labelBounds.map(box => -box.y0))
   if (dx !== 0 || dy !== 0) {
     for (const entity of positionedEntities) { entity.x += dx; entity.y += dy }
     for (const group of positionedGroups) { group.x += dx; group.y += dy }
@@ -336,12 +449,14 @@ function extractErLayout(
     ...positionedEntities.map(entity => entity.x + entity.width + ER.padding),
     ...positionedGroups.map(group => group.x + group.width + ER.padding),
     ...relationships.flatMap(relationship => relationship.points.map(point => point.x + ER.padding)),
+    ...labelBounds.map(box => box.x1 + dx),
   )
   const height = Math.max(
     (result.height ?? 400) + dy,
     ...positionedEntities.map(entity => entity.y + entity.height + ER.padding),
     ...positionedGroups.map(group => group.y + group.height + ER.padding),
     ...relationships.flatMap(relationship => relationship.points.map(point => point.y + ER.padding)),
+    ...labelBounds.map(box => box.y1 + dy),
   )
   return {
     width, height,
@@ -388,7 +503,7 @@ function applyErGroupDirections(diagram: ErDiagram, entities: PositionedErEntity
   return moved
 }
 
-function deriveErGroups(diagram: ErDiagram, entities: PositionedErEntity[], style: ResolvedRenderStyle): PositionedErDiagram['groups'] {
+function deriveErGroups(diagram: ErDiagram, entities: PositionedErEntity[], style: ResolvedRenderStyle, bottomPadding: ReadonlyMap<string, number>): PositionedErDiagram['groups'] {
   const positioned: PositionedErDiagram['groups'] = []
   for (const group of [...diagram.groups].reverse()) {
     const members = [
@@ -401,7 +516,7 @@ function deriveErGroups(diagram: ErDiagram, entities: PositionedErEntity[], styl
     const minX = members.length ? Math.min(...members.map(member => member.x)) - pad : ER.padding
     const minY = members.length ? Math.min(...members.map(member => member.y)) - pad - headerHeight : ER.padding
     const maxX = Math.max(minX + labelBlock.width + 20, members.length ? Math.max(...members.map(member => member.x + member.width)) + pad : minX + 140)
-    const maxY = members.length ? Math.max(...members.map(member => member.y + member.height)) + pad : minY + 90
+    const maxY = members.length ? Math.max(...members.map(member => member.y + member.height)) + Math.max(pad, bottomPadding.get(group.id) ?? 0) : minY + 90
     positioned.unshift({
       id: group.id, label: group.label, ...(group.labelContent ? { labelContent: group.labelContent } : {}), labelBlock, ...(group.parentId ? { parentId: group.parentId } : {}),
       x: minX, y: minY, width: maxX - minX, height: maxY - minY, headerHeight,
@@ -415,7 +530,7 @@ function deriveErGroups(diagram: ErDiagram, entities: PositionedErEntity[], styl
  * each compound as one unit so scoped directions and ownership survive.
  * Each collision advances beyond a previously placed item, bounding a local
  * repair by the number of siblings; no convergence/retry loop is needed. */
-function separateErCompounds(diagram: ErDiagram, entities: PositionedErEntity[], groups: PositionedErDiagram['groups'], style: ResolvedRenderStyle, relationshipBlocks: readonly PixelTextBlock[]): boolean {
+function separateErCompounds(diagram: ErDiagram, entities: PositionedErEntity[], groups: PositionedErDiagram['groups'], style: ResolvedRenderStyle, relationshipBlocks: readonly PixelTextBlock[], bottomPadding: ReadonlyMap<string, number>, exitPadding: ReadonlyMap<string, number>): boolean {
   if (groups.length === 0) return false
   type Box = { x: number; y: number; width: number; height: number }
   type Item = { box: Box; ids: Set<string>; move: (dx: number, dy: number) => void }
@@ -451,6 +566,7 @@ function separateErCompounds(diagram: ErDiagram, entities: PositionedErEntity[],
     const span = horizontal ? 'height' : 'width'
     const main = horizontal ? 'x' : 'y'
     const owner = new Map<string, Item>()
+    const exits = new Map(items.map(item => [item, Math.max(0, ...[...item.ids].map(id => exitPadding.get(id) ?? 0))]))
     const clearances = new Map<Item, Map<Item, number>>()
     for (const item of items) for (const id of item.ids) owner.set(id, item)
     for (const [i, rel] of diagram.relationships.entries()) {
@@ -472,7 +588,7 @@ function separateErCompounds(diagram: ErDiagram, entities: PositionedErEntity[],
       for (let step = 0; step < placed.length; step++) {
         let delta = 0
         for (const other of placed) {
-          const clearance = clearances.get(item)?.get(other) ?? 0
+          const clearance = Math.max(clearances.get(item)?.get(other) ?? 0, exits.get(item)!, exits.get(other)!)
           const mainSpan = horizontal ? 'width' : 'height'
           const mainOverlap = Math.min(item.box[main] + item.box[mainSpan], other.box[main] + other.box[mainSpan]) - Math.max(item.box[main], other.box[main])
           const crossOverlap = Math.min(item.box[cross] + item.box[span], other.box[cross] + other.box[span]) - Math.max(item.box[cross], other.box[cross])
@@ -529,7 +645,7 @@ function separateErCompounds(diagram: ErDiagram, entities: PositionedErEntity[],
     const minY = Math.min(...items.map(item => item.box.y)) - 20 - group.headerHeight
     const maxX = Math.max(minX + (group.labelBlock?.width ?? erGroupBlock(group.label, style).width) + 20, Math.max(...items.map(item => item.box.x + item.box.width)) + 20)
     const width = maxX - minX
-    const height = Math.max(...items.map(item => item.box.y + item.box.height)) + 20 - minY
+    const height = Math.max(...items.map(item => item.box.y + item.box.height)) + Math.max(20, bottomPadding.get(group.id) ?? 0) - minY
     if (group.x !== minX || group.y !== minY || group.width !== width || group.height !== height) changed = true
     Object.assign(group, { x: minX, y: minY, width, height })
   }
@@ -537,7 +653,9 @@ function separateErCompounds(diagram: ErDiagram, entities: PositionedErEntity[],
   return changed
 }
 
-function layoutErGroupsOnly(diagram: ErDiagram, style: ResolvedRenderStyle): PositionedErDiagram {
+function layoutErGroupsOnly(diagram: ErDiagram, style: ResolvedRenderStyle, styleFace?: Readonly<InternalStyleFace>): PositionedErDiagram {
+  const blocks = diagram.relationships.map(rel => erRelationshipBlock(rel, style, styleFace))
+  const interior = erInteriorCorridors(diagram, blocks)
   const horizontal = (diagram.direction ?? 'LR') === 'LR' || (diagram.direction ?? 'LR') === 'RL'
   const reverse = diagram.direction === 'RL' || diagram.direction === 'BT'
   const topLevel = diagram.groups.filter(group => !group.parentId)
@@ -549,13 +667,13 @@ function layoutErGroupsOnly(diagram: ErDiagram, style: ResolvedRenderStyle): Pos
     const positioned = { id: group.id, label: group.label, ...(group.labelContent ? { labelContent: group.labelContent } : {}), labelBlock, ...(group.parentId ? { parentId: group.parentId } : {}), x, y, width: Math.max(160, labelBlock.width + 20), height: Math.max(100, headerHeight + 20), headerHeight }
     groups.push(positioned)
     let cursorX = x + 20
-    let cursorY = y + headerHeight + 8
+    let cursorY = y + headerHeight + 20
     for (const child of diagram.groups.filter(candidate => candidate.parentId === group.id)) {
       const placed = place(child, cursorX, cursorY)
       positioned.width = Math.max(positioned.width, placed.x + placed.width - x + 20)
-      positioned.height = Math.max(positioned.height, placed.y + placed.height - y + 20)
+      positioned.height = Math.max(positioned.height, placed.y + placed.height - y + Math.max(20, interior.padding.get(group.id) ?? 0))
       if (horizontal) cursorX += placed.width + 20
-      else cursorY += placed.height + 20
+      else cursorY += placed.height + Math.max(20, interior.exits.get(child.id) ?? 0)
     }
     return positioned
   }
@@ -567,10 +685,12 @@ function layoutErGroupsOnly(diagram: ErDiagram, style: ResolvedRenderStyle): Pos
     else cursorY += placed.height + 30
   }
   const boxes = new Map(groups.map(group => [group.id, group]))
-  const relationships: PositionedErRelationship[] = diagram.relationships.map(relation => {
+  const relationships: PositionedErRelationship[] = diagram.relationships.map((relation, index) => {
     const from = boxes.get(relation.entity1), to = boxes.get(relation.entity2)
     const points: Point[] = []
-    if (from && to) {
+    if (from && to && interior.lanes.has(index)) {
+      points.push(...erInteriorRoute(from, to, interior.lanes.get(index)!))
+    } else if (from && to) {
       const fromCenter = { x: from.x + from.width / 2, y: from.y + from.height / 2 }
       const toCenter = { x: to.x + to.width / 2, y: to.y + to.height / 2 }
       const start = rectBoundaryToward(from, toCenter), end = rectBoundaryToward(to, fromCenter)
@@ -584,8 +704,15 @@ function layoutErGroupsOnly(diagram: ErDiagram, style: ResolvedRenderStyle): Pos
     }
     return { entity1: relation.entity1, entity2: relation.entity2, cardinality1: relation.cardinality1, cardinality2: relation.cardinality2, label: relation.label, ...(relation.labelContent ? { labelContent: relation.labelContent } : {}), identifying: relation.identifying, points }
   })
-  const width = Math.max(...groups.map(group => group.x + group.width + ER.padding), 0)
-  const height = Math.max(...groups.map(group => group.y + group.height + ER.padding), 0)
+  repairErFrameRoutes([], groups, relationships, blocks)
+  const points = relationships.flatMap(rel => rel.points)
+  const labelBounds = erPreferredLabelBounds(relationships, blocks)
+  const dx = Math.max(0, ER.padding - Math.min(...groups.map(group => group.x), ...points.map(point => point.x)), ...labelBounds.map(box => -box.x0))
+  const dy = Math.max(0, ER.padding - Math.min(...groups.map(group => group.y), ...points.map(point => point.y)), ...labelBounds.map(box => -box.y0))
+  for (const group of groups) { group.x += dx; group.y += dy }
+  for (const point of points) { point.x += dx; point.y += dy }
+  const width = Math.max(...groups.map(group => group.x + group.width + ER.padding), ...points.map(point => point.x + ER.padding), ...labelBounds.map(box => box.x1 + dx), 0)
+  const height = Math.max(...groups.map(group => group.y + group.height + ER.padding), ...points.map(point => point.y + ER.padding), ...labelBounds.map(box => box.y1 + dy), 0)
   return { width, height, accessibilityTitle: diagram.accessibilityTitle, accessibilityDescription: diagram.accessibilityDescription, entities: [], relationships, groups }
 }
 
@@ -599,7 +726,7 @@ export function layoutErDiagram(
 ): PositionedErDiagram {
   assertErDiagramWork(diagram)
   if (diagram.entities.length === 0) {
-    if (diagram.groups.length > 0) return withErTitle(prepareErText(layoutErGroupsOnly(diagram, resolveRenderStyle(options, ER_STYLE_DEFAULTS, styleFace)), resolveRenderStyle(options, ER_STYLE_DEFAULTS, styleFace), styleFace), diagram.title, resolveRenderStyle(options, ER_STYLE_DEFAULTS, styleFace))
+    if (diagram.groups.length > 0) return withErTitle(prepareErText(layoutErGroupsOnly(diagram, resolveRenderStyle(options, ER_STYLE_DEFAULTS, styleFace), styleFace), resolveRenderStyle(options, ER_STYLE_DEFAULTS, styleFace), styleFace), diagram.title, resolveRenderStyle(options, ER_STYLE_DEFAULTS, styleFace))
     return { width: 0, height: 0, accessibilityTitle: diagram.accessibilityTitle, accessibilityDescription: diagram.accessibilityDescription, entities: [], relationships: [], groups: [] }
   }
 

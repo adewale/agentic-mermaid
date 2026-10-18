@@ -12,8 +12,34 @@ import { validateSceneDoc } from '../scene/scene-validation.ts'
 import { lowerGraphScene } from '../renderer.ts'
 import { attachSceneNodeSerialization, sceneNodeSerialization } from '../scene/serialization.ts'
 import { nodeProblems } from '../scene/fidelity.ts'
+import { admitFamilyScene } from '../scene/admission.ts'
+import { getFamily } from '../agent/families.ts'
+import type { SceneDoc } from '../scene/ir.ts'
 
 describe('typed Scene connector contract', () => {
+  test('typed endpoint owners survive admission and terminal projection without mutable aliases', () => {
+    const p = marks.shape({ id: 'p', role: 'entity', geometry: { kind: 'rect', x: 1, y: 1, width: 2, height: 2 }, paint: { fill: '#fff' } }, '<rect x="1" y="1" width="2" height="2" fill="#fff"/>')
+    const q = marks.shape({ id: 'q', role: 'group', geometry: { kind: 'rect', x: 5, y: 5, width: 90, height: 70 }, paint: { fill: 'none', stroke: '#111' } }, '<rect x="5" y="5" width="90" height="70" fill="none" stroke="#111"/>')
+    const owner = { id: 'q', role: 'group' as 'group' | 'entity' }
+    const edge = marks.connector({ id: 'relation', role: 'relationship', geometry: { kind: 'line', x1: 10, y1: 30, x2: 90, y2: 30 }, lineStyle: 'solid', paint: { stroke: '#111' }, endpoints: { from: 'p', to: 'q', start: { owner: { id: 'p', role: 'entity' } }, end: { owner } } }, '<line x1="10" y1="30" x2="90" y2="30" stroke="#111"/>')
+    const colors = { bg: '#fff', fg: '#111' }
+    const open = marks.documentOpen({ id: 'prelude', width: 100, height: 80, colors, transparent: false, font: 'Inter', hasMonoFont: false }, '<svg xmlns="http://www.w3.org/2000/svg" width="100" height="80" viewBox="0 0 100 80">')
+    const close = marks.documentClose()
+    const doc: SceneDoc = { family: 'er', width: 100, height: 80, colors, transparent: false, parts: [open, p, q, edge, close] }
+    expect(validateSceneDoc(doc).diagnostics).toEqual([])
+    const admitted = admitFamilyScene(getFamily('er')!, doc)
+    const retained = admitted.parts[3]!
+    if (retained.kind !== 'connector') throw new Error('Expected admitted relationship')
+    owner.role = 'entity'
+    expect(retained.endpoints.end?.owner).toEqual({ id: 'q', role: 'group' })
+    expect(retained.terminalProjection.endpoints.end?.owner).toEqual({ id: 'q', role: 'group' })
+    expect(edge.terminalProjection.endpoints.end?.owner).toEqual({ id: 'q', role: 'group' })
+    expect(Object.isFrozen(retained.endpoints.end?.owner)).toBe(true)
+    const forged = marks.connector({ id: 'forged', role: 'relationship', geometry: edge.route.geometry, lineStyle: 'solid', paint: { stroke: '#111' }, endpoints: { from: 'p', to: 'q', end: { owner: { id: 'q', role: 'actor' } } } }, '<line x1="10" y1="30" x2="90" y2="30" stroke="#111"/>')
+    expect(validateSceneDoc({ ...doc, parts: [open, p, q, forged, close] }).diagnostics).toContainEqual(expect.objectContaining({ code: 'SCENE_REFERENCE', path: 'scene.parts[3].endpoints.end.owner' }))
+    const changedIdentity = marks.connector({ id: 'changed', role: 'relationship', geometry: edge.route.geometry, lineStyle: 'solid', paint: { stroke: '#111' }, endpoints: { from: 'p', to: 'q', end: { owner: { id: 'p', role: 'entity' } } } }, '<line x1="10" y1="30" x2="90" y2="30" stroke="#111"/>')
+    expect(validateSceneDoc({ ...doc, parts: [open, p, q, changedIdentity, close] }).diagnostics).toContainEqual(expect.objectContaining({ code: 'SCENE_FIDELITY', path: 'scene.parts[3].endpoints.end.owner' }))
+  })
   test('hit testing composes group transforms and preserves scaled stroke regions', () => {
     const edge = marks.connector({ id: 'scaled', role: 'edge', geometry: { kind: 'line', x1: 0, y1: 0, x2: 10, y2: 0 }, lineStyle: 'solid', paint: { stroke: '#111', strokeWidth: '2' }, hit: { strokeWidth: 4 }, transform: { kind: 'matrix', a: 2, b: 0, c: 0, d: 3, e: 0, f: 0 } }, '<line x1="0" y1="0" x2="10" y2="0" stroke="#111" stroke-width="2" transform="matrix(2 0 0 3 0 0)"/>')
     expect(hitTestConnector(edge, { x: 10, y: 5.5 })).toBe(true)
@@ -537,7 +563,7 @@ describe('role traits and primitive capabilities', () => {
     const claims = (backend: typeof RoughBackend) => new Map(
       backend.capabilities
         .filter(claim => claim.primitive === 'connector' && claim.operation === 'render')
-        .map(claim => [claim.feature, claim]),
+        .map(claim => [claim.feature, { ...claim }]),
     )
     const rough = claims(RoughBackend)
     const hybrid = claims(HybridBackend)

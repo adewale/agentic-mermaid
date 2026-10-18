@@ -237,6 +237,8 @@ export function canonicalExternalNode(node: ShapeMark | TextMark | GroupMark | C
         endpoints: {
           ...(node.endpoints.from === undefined ? {} : { from: node.endpoints.from }),
           ...(node.endpoints.to === undefined ? {} : { to: node.endpoints.to }),
+          ...(node.endpoints.start?.owner ? { start: { owner: { ...node.endpoints.start.owner } } } : {}),
+          ...(node.endpoints.end?.owner ? { end: { owner: { ...node.endpoints.end.owner } } } : {}),
         },
         relationship: node.relationship,
         route: { closed: node.route.closed },

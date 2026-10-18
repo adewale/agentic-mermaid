@@ -6,7 +6,7 @@ import { escapeAttr } from '../multiline-utils.ts'
 import { tryParseCssColor } from '../shared/color-math.ts'
 import { decodedSvgAttributeValue, scanSvgStartTags } from '../svg-structure.ts'
 import { inspectScenePrimitives, scenePrimitiveSource, scenePrimitiveMatrix, type ScenePaintPrimitive } from './inspection.ts'
-import type { Geometry, SceneDoc, ScenePoint, SceneTransform } from './ir.ts'
+import type { ConnectorMark, Geometry, SceneDoc, SceneOwner, ScenePoint, SceneTransform } from './ir.ts'
 import { composeMatrices, inverseMatrix, transformMatrix, transformPoint } from './transforms.ts'
 
 export interface PaintViewport { readonly x: number; readonly y: number; readonly width: number; readonly height: number }
@@ -150,6 +150,7 @@ function lineCrossesInterior(line: readonly [ScenePoint, ScenePoint], interior: 
 }
 
 const CARD_ROLES = new Set(['node', 'service', 'class-box', 'entity'])
+const ENDPOINT_ROLES = new Set([...CARD_ROLES, 'group', 'note', 'actor', 'junction'])
 
 /** One linear envelope pass, at most one viewport repair, then final checking.
  * The certificate covers retained native geometry, not every antialiased pixel
@@ -208,6 +209,29 @@ export function certifyScenePaint(scene: SceneDoc, projection?: Pick<RenderedLay
     operations++
     return true
   }
+  const endpointRoles = new Map<string, Set<string>>()
+  for (const primitive of inspection.primitives) {
+    if (exhausted) break
+    for (const owner of [primitive.owner, ...primitive.ancestors]) {
+      if (!work()) break
+      if (!ENDPOINT_ROLES.has(owner.role)) continue
+      const roles = endpointRoles.get(owner.id) ?? new Set<string>()
+      roles.add(owner.role)
+      endpointRoles.set(owner.id, roles)
+    }
+  }
+  const endpointRelation = (connector: ConnectorMark, owner: SceneOwner): 'attached' | 'unrelated' | 'ambiguous' => {
+    let ambiguous = false
+    for (const [id, anchor] of [[connector.endpoints.from, connector.endpoints.start], [connector.endpoints.to, connector.endpoints.end]] as const) {
+      if (id !== owner.id) continue
+      if (anchor?.owner) {
+        if (anchor.owner.id !== id) { ambiguous = true; continue }
+        if (anchor.owner.role === owner.role) return 'attached'
+      } else if ((endpointRoles.get(id)?.size ?? 0) > 1) ambiguous = true
+      else return 'attached'
+    }
+    return ambiguous ? 'ambiguous' : 'unrelated'
+  }
   const check = (branch: Tree | undefined, primitive: ScenePaintPrimitive): void => {
     if (exhausted || !work() || !branch || !overlaps(branch.bounds, primitive.bounds!)) return
     if (!branch.leaves) { check(branch.left, primitive); check(branch.right, primitive); return }
@@ -255,8 +279,10 @@ export function certifyScenePaint(scene: SceneDoc, projection?: Pick<RenderedLay
         for (const surface of branch.leaves) {
           if (!work()) return
           if (++pairs > MAX_OCCLUSION_PAIRS) { exhausted = true; return }
-          if (!CARD_ROLES.has(surface.primitive.role) || surface.primitive.owner.id === primitive.owner.id && surface.primitive.owner.role === primitive.owner.role || [node.endpoints?.from, node.endpoints?.to].includes(surface.primitive.owner.id) || !overlaps(surface.bounds, bounds)) continue
-          if (exactInk && line && surface.interior && lineCrossesInterior(line, surface.interior)) issue({ code: 'CONNECTOR_CARD_CROSSING', id: primitive.id, by: surface.primitive.id, message: `Final connector shaft crosses opaque artwork owned by unrelated card ${surface.primitive.owner.id}` }, true)
+          if (!CARD_ROLES.has(surface.primitive.role) || surface.primitive.owner.id === primitive.owner.id && surface.primitive.owner.role === primitive.owner.role || !overlaps(surface.bounds, bounds)) continue
+          const relation = endpointRelation(node, surface.primitive.owner)
+          if (relation === 'attached') continue
+          if (exactInk && relation === 'unrelated' && line && surface.interior && lineCrossesInterior(line, surface.interior)) issue({ code: 'CONNECTOR_CARD_CROSSING', id: primitive.id, by: surface.primitive.id, message: `Final connector shaft crosses opaque artwork owned by unrelated card ${surface.primitive.owner.id}` }, true)
           else issue({ code: 'POTENTIAL_OCCLUSION', id: primitive.id, by: surface.primitive.id, message: 'Final connector envelope intersects unrelated filled card artwork; actual route/card crossing is unverified' })
         }
       }
@@ -301,7 +327,7 @@ export function certifyScenePaint(scene: SceneDoc, projection?: Pick<RenderedLay
         continue
       }
       const connector = scenePrimitiveSource(target.primitive)
-      const attached = connector?.kind === 'connector' && [connector.endpoints?.from, connector.endpoints?.to].includes(surface.primitive.owner.id)
+      const attached = connector?.kind === 'connector' && endpointRelation(connector, surface.primitive.owner) === 'attached'
       if (outsideFilledBody(surface, target.bounds, attached, target.hull, target.padding, work)) continue
       issue({ code: 'POTENTIAL_OCCLUSION', id: target.primitive.id, by: surface.primitive.id, message: 'Later filled artwork overlaps an endpoint marker; its exact ink intersection is unverified' })
     }

@@ -14,6 +14,7 @@ import { inspectScenePrimitives, scenePrimitiveSource } from '../scene/inspectio
 import { measureQuality } from '../agent/quality.ts'
 import { replaceFamilyForTest } from '../agent/families.ts'
 import type { PositionedArchitectureDiagram } from '../architecture/types.ts'
+import type { PositionedErDiagram } from '../er/types.ts'
 
 const scene = (parts: SceneNode[]): SceneDoc => ({ family: 'flowchart', width: 100, height: 80, transparent: false, colors: { bg: '#fff', fg: '#111' }, parts })
 const label = () => {
@@ -420,4 +421,45 @@ test('native Class note attachments identify their actual class and note subject
   expect(connector.endpoints).toMatchObject({ from: 'Account', to: 'class-note:0' })
   expect(inspection.primitives.some(primitive => primitive.owner.id === connector.endpoints?.from && primitive.owner.role === 'class-box')).toBe(true)
   expect(inspection.primitives.some(primitive => primitive.owner.id === connector.endpoints?.to && primitive.owner.role === 'note')).toBe(true)
+  expect(connector.endpoints).toMatchObject({ start: { owner: { id: 'Account', role: 'class-box' } }, end: { owner: { id: 'class-note:0', role: 'note' } } })
+  expect(renderMermaidSVGWithReceipt('classDiagram\nnamespace Account {\nclass Account\n}\nAccount --> Other', { layoutSafety: 'strict' }).receipt.layoutCertification?.status).toBe('passed')
+})
+
+test('typed group endpoints do not exempt a same-named entity; ambiguous legacy endpoints remain unverified', () => {
+  const card = marks.shape({ id: 'entity:q', role: 'entity', owner: { id: 'q', role: 'entity' }, geometry: { kind: 'rect', x: 30, y: 10, width: 40, height: 60 }, paint: { fill: '#fff' } }, '<rect x="30" y="10" width="40" height="60" fill="#fff"/>')
+  const frame = marks.shape({ id: 'group:q', role: 'group', owner: { id: 'q', role: 'group' }, geometry: { kind: 'rect', x: 5, y: 5, width: 90, height: 70 }, paint: { fill: 'none', stroke: '#111' } }, '<rect x="5" y="5" width="90" height="70" fill="none" stroke="#111"/>')
+  const fields = { id: 'relation', role: 'relationship' as const, geometry: { kind: 'line' as const, x1: 10, y1: 30, x2: 90, y2: 30 }, lineStyle: 'solid' as const, paint: { stroke: '#111' } }
+  const svg = '<line x1="10" y1="30" x2="90" y2="30" stroke="#111"/>'
+  const typed = marks.connector({ ...fields, endpoints: { from: 'p', to: 'q', end: { owner: { id: 'q', role: 'group' } } } }, svg)
+  expect(certifyScenePaint(scene([frame, typed, card]))).toMatchObject({ status: 'failed', issues: [expect.objectContaining({ code: 'CONNECTOR_CARD_CROSSING', by: 'entity:q' })] })
+  const legacy = marks.connector({ ...fields, endpoints: { from: 'p', to: 'q' } }, svg)
+  expect(certifyScenePaint(scene([frame, legacy, card]))).toMatchObject({ status: 'unverified', issues: [expect.objectContaining({ code: 'POTENTIAL_OCCLUSION', by: 'entity:q' })] })
+  const attached = marks.connector({ ...fields, endpoints: { from: 'p', to: 'q', end: { owner: { id: 'q', role: 'entity' } } } }, svg)
+  expect(certifyScenePaint(scene([frame, attached, card])).status).toBe('passed')
+})
+
+test('final ER certification rejects a group route corrupted through a same-named sibling entity after layout', () => {
+  const source = 'erDiagram\nsubgraph p\nsubgraph q\nX\nend\nq\nend\np ||--|| q : contains'
+  const family = getFamily('er')!
+  const restore = replaceFamilyForTest('er', { ...family, lowerScene(context) {
+    const value = context.positioned
+    const positioned = ('positioned' in value ? value.positioned : value) as PositionedErDiagram
+    const card = positioned.entities.find(entity => entity.id === 'q')!
+    const relationship = positioned.relationships[0]!
+    const first = relationship.points[0]!, last = relationship.points.at(-1)!
+    const cy = card.y + card.height / 2, left = card.x - 10, right = card.x + card.width + 10
+    relationship.points = [first, { x: first.x, y: first.y - 20 }, { x: left, y: first.y - 20 }, { x: left, y: cy }, { x: right, y: cy }, { x: right, y: last.y + 20 }, { x: last.x, y: last.y + 20 }, last]
+    const lowered = family.lowerScene!(context)
+    const primitive = inspectScenePrimitives(lowered).primitives.find(primitive => primitive.role === 'relationship')!
+    const connector = scenePrimitiveSource(primitive)!
+    if (connector.kind !== 'connector') throw new Error('Expected the native ER relationship')
+    expect(connector.endpoints).toMatchObject({ from: 'p', to: 'q', start: { point: first, owner: { id: 'p', role: 'group' } }, end: { point: last, owner: { id: 'q', role: 'group' } } })
+    return lowered
+  } })
+  try {
+    expect(() => renderMermaidSVGWithReceipt(source, { layoutSafety: 'strict' })).toThrow('Final connector shaft crosses')
+    const verified = verifyMermaid(source)
+    expect(verified.layoutCertification?.status).toBe('failed')
+    expect(verified.layoutCertification?.issues).toContainEqual(expect.objectContaining({ code: 'CONNECTOR_CARD_CROSSING', by: expect.stringContaining('q') }))
+  } finally { restore() }
 })

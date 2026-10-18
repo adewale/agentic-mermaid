@@ -211,6 +211,8 @@ export type ConnectorDirection = 'forward' | 'reverse' | 'bidirectional' | 'undi
 export interface ConnectorEndpointAnchor {
   /** Semantic node/entity identifier. */
   id?: string
+  /** Typed endpoint subject when authored IDs occur in more than one role. */
+  owner?: SceneOwner
   /** Optional family-owned port/terminal identifier. */
   portId?: string
   /** Routed endpoint in final user units. */
