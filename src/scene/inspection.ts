@@ -60,8 +60,8 @@ function nonPainting(node: SceneNode): boolean {
   if (node.kind === 'document') return node.element !== 'content' || node.nonPaint !== undefined || sceneNodeSerialization(node).trim() === ''
   if (node.kind === 'text') return !textPaints(node.block ? node.block.lineBlocks.map(line => line.runs.map(run => run.text).join('')).join('\n') : node.text, node.paint)
   if (node.kind === 'connector') return node.lineStyle === 'invisible'
-  if (node.kind === 'shape' || node.kind === 'text') {
-    if (node.kind === 'shape' && node.conditionalPaint) return false
+  if (node.kind === 'shape') {
+    if (node.conditionalPaint) return false
     if (node.paint.opacity !== undefined && Number(node.paint.opacity) === 0) return true
     return absentPaint(node.paint.fill) && (node.paint.stroke === undefined || absentPaint(node.paint.stroke))
   }
