@@ -47,7 +47,7 @@ export function renderC4Terminal(body: C4Body, config: AsciiConfig, colorMode?: 
   // terminal width; only the caller's terminal budget limits these columns.
   const columns = options.compact && targetWidth && (direction === 'LR' || direction === 'RL')
     ? Math.max(1, Math.floor((targetWidth - margin * 2 + gapX) / (Math.max(1, ...[...sizes.values()].filter(box => !box.container).map(box => box.width)) + gapX))) : options.shapesPerRow
-  const placementOptions = { gapX, gapY, padding, marginX: margin, marginY: margin + (titleBlock?.height ?? 0), shapesPerRow: body.layout.shapesPerRow ?? (c4Config.c4ShapeInRow === undefined ? Math.min(options.shapesPerRow, columns) : options.shapesPerRow), boundariesPerRow: body.layout.boundariesPerRow ?? options.boundariesPerRow, direction }
+  const placementOptions = { gapX, gapY, padding, marginX: margin, marginY: margin + (titleBlock?.height ?? 0), shapesPerRow: body.layout.shapesPerRow ?? (options.input.c4ShapeInRow === undefined ? Math.min(options.shapesPerRow, columns) : options.shapesPerRow), boundariesPerRow: body.layout.boundariesPerRow ?? options.boundariesPerRow, direction }
   let placement = placeC4Boxes(body, sizes, placementOptions)
   // Recount the actual faces after constrained placement. Distinct parallel
   // contacts are allocated before painting, including self and boundary edges.

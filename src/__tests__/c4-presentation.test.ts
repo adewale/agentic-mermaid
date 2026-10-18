@@ -14,6 +14,19 @@ Rel(api,db,"Reads","SQL")`
 // These test presentation choices at the public outputs: no source mutation,
 // optional chrome, executable paint, and independently allocated cell routes.
 describe('C4 presentation', () => {
+  test('invalid row settings warn without disabling compact terminal reflow', () => {
+    const options = { colorMode: 'none' as const, targetWidth: 60, mermaidConfig: { c4: { compact: true, typeLegend: false } } }
+    const baseline = renderMermaidASCIIWithReceipt(SOURCE, options).text
+    for (const c4ShapeInRow of [0, 1.5, 'bad']) {
+      const fields: string[] = []
+      const configured = renderMermaidASCIIWithReceipt(SOURCE, {
+        ...options, mermaidConfig: { c4: { ...options.mermaidConfig.c4, c4ShapeInRow } } as never,
+        onConfigDiagnostic: diagnostic => fields.push(diagnostic.field),
+      })
+      expect(fields).toEqual(['c4.c4ShapeInRow'])
+      expect(configured.text).toBe(baseline)
+    }
+  })
   test('automatic type legends can be omitted without hiding card semantics', () => {
     const options = { mermaidConfig: { c4: { typeLegend: false } } }
     const svg = renderMermaidSVG(SOURCE, options), text = renderMermaidASCIIWithReceipt(SOURCE, { ...options, colorMode: 'none' }).text
