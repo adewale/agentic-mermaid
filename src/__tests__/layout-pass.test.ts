@@ -8,9 +8,10 @@ const { assertTopologicalOrder, LayoutMetricBudgetError, LayoutPassContractError
 import { LAYOUT_PIPELINE, layoutGraphSync } from '../layout-engine.ts'
 import { parseMermaid } from '../parser.ts'
 import * as rubric from '../layout-rubric.ts'
-const { assessLayout, countParallelRouteOverlaps, measureRubricMetrics, onShapeOutline } = rubric
+const { assessLayout, countOpposingRouteOverlaps, countParallelRouteOverlaps, hardViolations, measureRubricMetrics, onShapeOutline } = rubric
 import { resolveRenderStyle } from '../styles.ts'
 import { labelRect } from '../route-contracts.ts'
+import * as routeContracts from '../route-contracts.ts'
 import { applySymmetricParallelEdgeLanes } from '../layout/passes/index.ts'
 import { graphEdgeTextBlock } from '../graph-text.ts'
 import { createTextMeasurementExecution, withTextMeasurementExecution } from '../text-measurement-profile.ts'
@@ -71,6 +72,58 @@ describe('LAYOUT_PIPELINE manifest', () => {
 })
 
 describe('declared pass budgets on actual native geometry', () => {
+  test.each([
+    ['through-node straight route', 'flowchart RL\nN6((a longer label goes here))\nN2 ---> N0\nN6 ===>|warnings| N0\nN1 ----> N6'],
+    ['two-point diagonals', 'flowchart TD\nA["done"] -->|done| B["b"]\nA --> B\nA --> B\nB --> C'],
+    ['detached feedback endpoint', 'flowchart TD\nS0["warnings"] --> H["hub"]\nS1["ok"] --> H\nS2["same word ok"] --> H\nS3["a longer label goes here"] --> H\nH --> T["out"]\nT --> S3'],
+  ])('route certification may repair an infeasible early route: %s', (_name, source) => {
+    const graph = parseMermaid(source)
+    const pass = LAYOUT_PIPELINE.find(candidate => candidate.id === 'applyRouteContracts')!, run = pass.run
+    const improvements: boolean[] = []
+    pass.run = context => {
+      const measure = () => measureRubricMetrics(graph, { nodes: context.nodes, edges: context.edges, groups: context.groups, width: 0, height: 0 }, ['hard', 'endpointApproaches'], context.style)
+      const before = measure()
+      run(context)
+      const after = measure()
+      improvements.push(after.hard! < before.hard! || after.endpointApproaches! < before.endpointApproaches!)
+    }
+    try {
+      const positioned = layoutGraphSync(graph)
+      expect(positioned.edges).toHaveLength(graph.edges.length)
+      expect(hardViolations(assessLayout(graph, positioned))).toEqual([])
+      expect(improvements).toEqual([true])
+    } finally { pass.run = run }
+  })
+
+  test('canonical contacts cannot yield without a measured higher-priority repair', () => {
+    const pass = LAYOUT_PIPELINE.find(candidate => candidate.id === 'applyRouteContracts')!, run = pass.run
+    let calls = 0, failure: unknown
+    pass.run = context => {
+      calls++; run(context)
+      context.edges[0]!.points = context.edges[0]!.points.map(point => ({ x: point.x, y: point.y + 3 }))
+    }
+    try { layoutGraphSync(parseMermaid('flowchart LR\nA-->B')) } catch (error) { failure = error } finally { pass.run = run }
+    expect(failure).toBeInstanceOf(LayoutMetricBudgetError)
+    expect(failure).toMatchObject({ pass: 'applyRouteContracts', metric: 'portRate', before: 1, after: 0, allowance: 0 })
+    expect(calls).toBe(1)
+  })
+
+  test('outward slanted-corner contact differs from a tangent or interior shaft', () => {
+    const source: PositionedNode = { id: 'A', label: '', shape: 'lean-r', x: 0, y: 0, width: 100, height: 40 }
+    const edge: PositionedEdge = { source: 'A', target: 'B', style: 'solid', hasArrowStart: false, hasArrowEnd: true, points: [{ x: 100, y: 0 }, { x: 120, y: 0 }] }
+    expect(routeContracts.invalidEndpointApproaches(edge, source)).toBe(0)
+    expect(routeContracts.invalidEndpointApproaches({ ...edge, points: [{ x: 50, y: 0 }, { x: 120, y: 0 }] }, source)).toBe(1)
+    expect(routeContracts.invalidEndpointApproaches({ ...edge, points: [{ x: 100, y: 0 }, { x: 80, y: 0 }] }, source)).toBe(1)
+  })
+
+  test('opposing shared ink excludes fan trunks, endpoint contacts and ordinary crossings', () => {
+    const edge: PositionedEdge = { source: 'A', target: 'B', style: 'solid', hasArrowStart: false, hasArrowEnd: true, points: [{ x: 0, y: 0 }, { x: 10, y: 0 }] }
+    const paired = (points: PositionedEdge['points']) => countOpposingRouteOverlaps([edge, { ...edge, source: 'C', target: 'D', points }])
+    expect(paired([{ x: 8, y: 0 }, { x: 2, y: 0 }])).toBe(1)
+    expect(paired([{ x: 2, y: 0 }, { x: 8, y: 0 }])).toBe(0)
+    expect(paired([{ x: 20, y: 0 }, { x: 10, y: 0 }])).toBe(0)
+    expect(paired([{ x: 5, y: -5 }, { x: 5, y: 5 }])).toBe(0)
+  })
   test.each([
     ['default production options', {}],
     ['audit explicitly disabled', { checkLayoutPasses: false }],
@@ -234,12 +287,19 @@ describe('declared pass budgets on actual native geometry', () => {
     expect(positioned.edges.find(edge => edge.style === 'invisible')?.points).toHaveLength(2)
   })
 
-  test('reciprocal symmetry cannot displace already proven canonical ports', () => {
+  test('canonical contacts may yield to separating actual opposing shared ink', () => {
     const graph = parseMermaid('flowchart LR\nN2-->N3\nN4-->N0\nN2-.-N0\nN0-->N2\nN4-->N1')
-    const positioned = layoutGraphSync(graph)
-    expect(positioned.certification?.status).toBe('passed')
-    expect(assessLayout(graph, positioned).metrics.portEndpointRate).toBeGreaterThanOrEqual(0.7)
-    expect(assessLayout(graph, positioned).metrics.edgeCrossings).toBe(0)
+    const pass = LAYOUT_PIPELINE.find(candidate => candidate.id === 'applyRouteContracts')!, run = pass.run
+    const overlaps: number[] = []
+    pass.run = context => { overlaps.push(countOpposingRouteOverlaps(context.edges)); run(context); overlaps.push(countOpposingRouteOverlaps(context.edges)) }
+    try {
+      const positioned = layoutGraphSync(graph)
+      expect(positioned.certification?.status).toBe('passed')
+      expect(overlaps).toEqual([1, 0])
+      expect(countOpposingRouteOverlaps(positioned.edges)).toBe(0)
+      expect(assessLayout(graph, positioned).metrics.portEndpointRate).toBeGreaterThanOrEqual(0.6)
+      expect(assessLayout(graph, positioned).metrics.edgeCrossings).toBe(0)
+    } finally { pass.run = run }
   })
 
   test.each([...simpleFixtures(), ...complicatedFixtures()])('$id', fixture => {

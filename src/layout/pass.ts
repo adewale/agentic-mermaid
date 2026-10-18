@@ -10,7 +10,7 @@
 
 export type PassEffect = 'extract' | 'positions' | 'dimensions' | 'edges' | 'translate'
 export type Determinism = 'pure-order' | 'fixed-point' | 'in-place'
-export type RubricMetric = 'hard' | 'crossings' | 'bends' | 'straight' | 'portRate' | 'symErr' | 'parallelOverlaps'
+export type RubricMetric = 'hard' | 'crossings' | 'bends' | 'straight' | 'portRate' | 'symErr' | 'parallelOverlaps' | 'endpointApproaches' | 'opposingOverlaps'
 
 /** Per-metric direction/budget for the ratchet (§3.3, resolves OQ-B1). */
 export type MetricBudget = 'improve-only' | { worsenBy: number; whenImproves?: RubricMetric | readonly RubricMetric[]; perImprovement?: true }

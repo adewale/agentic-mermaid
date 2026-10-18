@@ -276,17 +276,24 @@ describe('layout symmetry floor', () => {
     close(cx(f) - cx(node(g, 'G')), cx(node(g, 'H')) - cx(f))
   })
 
-  test('equivalent parallel labels route on symmetric outer lanes, not neighboring center lines', () => {
+  test('dense parallel labels preserve authored routes without buying outer symmetry with crossings', () => {
     const g = layout(N_DENSE_LABELS)
     const z = node(g, 'Z')
     const a = node(g, 'A')
     const left = edge(g, 'Z', 'A', 'long 1')
     const right = edge(g, 'Z', 'A', 'long 2')
-    const minX = Math.min(z.x, a.x)
-    const maxX = Math.max(z.x + z.width, a.x + a.width)
-    expect(left.labelPosition!.x).toBeLessThan(minX)
-    expect(right.labelPosition!.x).toBeGreaterThan(maxX)
-    close(left.labelPosition!.y, right.labelPosition!.y)
+    expect(g.edges).toHaveLength(16)
+    expect([left.label, right.label]).toEqual(['long 1', 'long 2'])
+    expect(left.points).not.toEqual(right.points)
+    expect(onShapeOutline(z, left.points[0]!)).toBe(true)
+    expect(onShapeOutline(a, left.points.at(-1)!)).toBe(true)
+    expect(onShapeOutline(z, right.points[0]!)).toBe(true)
+    expect(onShapeOutline(a, right.points.at(-1)!)).toBe(true)
+    // The symmetric outer proposal raises this fixture's crossings from2 to3.
+    // Keeping distinct inner lanes lets the final router reduce that count to1.
+    const { metrics } = assessLayout(parseMermaid(N_DENSE_LABELS), g)
+    expect(metrics.edgeCrossings).toBeLessThanOrEqual(1)
+    expect(metrics.labelOffRoute).toBe(0)
     expect(new Set([left, right].map(e => pkey(e.points[0]!))).size).toBe(2)
   })
 })

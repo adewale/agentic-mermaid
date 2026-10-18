@@ -8,6 +8,28 @@ import { measureMultilineText } from '../text-metrics.ts'
 import { layoutMermaid, parseRegisteredMermaid as agentParse, verifyMermaid } from '../agent/index.ts'
 import type { AnyPort, Point, PositionedEdge, PositionedGraph, PositionedGroup, PositionedNode } from '../types.ts'
 import { EDGE_FORMS, renderEdgeLine } from './helpers/edge-vocabulary.ts'
+import { gen } from '../../eval/overlap-audit/generators.ts'
+import { renderMermaidSVG } from '../index.ts'
+import { labelRect } from '../route-contracts.ts'
+import { resolveRenderStyle } from '../styles.ts'
+
+describe('colliding duplicate labels', () => {
+  it.each([4, 5, 13, 29])('keeps both authored labels visible when neither can clear alone: case %s', index => {
+    const source = gen.flowchart!(index), graph = parseMermaid(source), positioned = layoutGraphSync(graph)
+    const labels = positioned.edges.filter(edge => edge.label)
+    expect(labels.map(edge => edge.label)).toEqual(graph.edges.filter(edge => edge.label).map(edge => edge.label))
+    expect(() => renderMermaidSVG(source)).not.toThrow()
+    for (let i = 0; i < labels.length; i++) for (let j = i + 1; j < labels.length; j++) {
+      const a = labels[i]!, b = labels[j]!
+      if (a.source !== b.source || a.target !== b.target) continue
+      const ra = labelRect(a, resolveRenderStyle())!, rb = labelRect(b, resolveRenderStyle())!
+      // These fixtures paint four-pixel halos beyond the measured pills.
+      const width = Math.min(ra.x + ra.w + 4, rb.x + rb.w + 4) - Math.max(ra.x - 4, rb.x - 4)
+      const height = Math.min(ra.y + ra.h + 4, rb.y + rb.h + 4) - Math.max(ra.y - 4, rb.y - 4)
+      expect(width > 0.5 && height > 0.5).toBe(false)
+    }
+  })
+})
 
 /** The MFA/login regression from issue #25 — every dogleg here had a clear direct lane. */
 const MFA_SOURCE = `flowchart LR

@@ -15,7 +15,7 @@
  */
 
 import type { MermaidGraph, Point, PositionedEdge, PositionedGraph, PositionedGroup, PositionedNode } from './types.ts'
-import { diamondFacetPorts, findRouteHitches, PORT_EXACT, shapePorts } from './route-contracts.ts'
+import { diamondFacetPorts, findRouteHitches, invalidEndpointApproaches, PORT_EXACT, shapePorts } from './route-contracts.ts'
 import { renderedEndpointContact } from './rendered-endpoint-diagnostics.ts'
 import { graphTextBlock } from './graph-text.ts'
 import { resolveRenderStyle } from './styles.ts'
@@ -294,6 +294,39 @@ export function countParallelRouteOverlaps(edges: readonly PositionedEdge[], inv
     if ((!involved || involved.has(a.index) || involved.has(b.index)) && sharesSpan(a.edge, b.edge)) overlaps++
   }
   return overlaps
+}
+
+/** Opposite-direction shafts sharing positive-length collinear ink conceal
+ * which route owns that span. Same-direction fan trunks and mere endpoint
+ * contacts are excluded. Row buckets and an interval sweep avoid unrelated
+ * segment pairs; a pair of edges counts once even when several runs overlap. */
+export function countOpposingRouteOverlaps(edges: readonly PositionedEdge[]): number {
+  const segments = edges.flatMap((edge, edgeIndex) => edge.style === 'invisible' ? [] : edge.points.slice(1).flatMap((b, index) => {
+    const a = edge.points[index]!
+    const horizontal = Math.abs(a.y - b.y) <= 0.01
+    if (!horizontal && Math.abs(a.x - b.x) > 0.01) return []
+    const from = horizontal ? a.x : a.y, to = horizontal ? b.x : b.y
+    if (Math.abs(to - from) <= 0.01) return []
+    const cross = horizontal ? a.y : a.x
+    return [{ edgeIndex, horizontal, cross, bucket: Math.floor(cross / 0.01), lo: Math.min(from, to), hi: Math.max(from, to), sign: Math.sign(to - from) }]
+  })).sort((a, b) => a.lo - b.lo || a.edgeIndex - b.edgeIndex)
+  const rows = new Map<string, typeof segments>()
+  const pairs = new Set<string>()
+  for (const segment of segments) {
+    for (let offset = -1; offset <= 1; offset++) {
+      const key = `${segment.horizontal}:${segment.bucket + offset}`
+      const active = (rows.get(key) ?? []).filter(other => other.hi - segment.lo > 0.01)
+      rows.set(key, active)
+      for (const other of active) {
+        if (other.edgeIndex === segment.edgeIndex || other.sign === segment.sign || Math.abs(other.cross - segment.cross) > 0.01 ||
+          Math.min(segment.hi, other.hi) - segment.lo <= 0.01) continue
+        pairs.add(`${Math.min(segment.edgeIndex, other.edgeIndex)}:${Math.max(segment.edgeIndex, other.edgeIndex)}`)
+      }
+    }
+    const key = `${segment.horizontal}:${segment.bucket}`
+    rows.get(key)!.push(segment)
+  }
+  return pairs.size
 }
 
 export function portEndpointRate(positioned: Pick<PositionedGraph, 'nodes' | 'edges'>, visibleOnly = false): number {
@@ -655,6 +688,12 @@ export function measureRubricMetrics(
       case 'portRate': result.portRate = portEndpointRate(positioned, true); break
       case 'symErr': result.symErr = peerBarycenterDelta(positioned, graph); break
       case 'parallelOverlaps': result.parallelOverlaps = countParallelRouteOverlaps(positioned.edges); break
+      case 'opposingOverlaps': result.opposingOverlaps = countOpposingRouteOverlaps(positioned.edges); break
+      case 'endpointApproaches': {
+        const nodes = new Map(positioned.nodes.map(node => [node.id, node]))
+        result.endpointApproaches = positioned.edges.reduce((sum, edge) => sum + (edge.style === 'invisible' ? 0 : invalidEndpointApproaches(edge, nodes.get(edge.source), nodes.get(edge.target))), 0)
+        break
+      }
       case 'bends': result.bends = positioned.edges.reduce((sum, edge) => sum + (edge.style === 'invisible' || bundled.has(edge) || edge.routeCertificate?.invariant === 'bundle' ? 0 : Math.max(0, edge.points.length - 2)), 0); break
       case 'straight': result.straight = positioned.edges.filter(edge => edge.style !== 'invisible' && edge.points.length === 2).length; break
     }

@@ -48,7 +48,7 @@ import type { ResolvedStateVisualConfig, StateRenderOptions } from './state/conf
 import { elkLayoutSync } from './elk-instance.ts'
 import { clipEdgeToShape } from './shape-clipping.ts'
 import { onShapeOutline, assessLayout, hardViolations, measureRubricMetrics } from './layout-rubric.ts'
-import { applyRouteContracts, classifyRoutes, closeRouteContracts, diamondFacetPorts, labelRect, PORT_EXACT, repairLabelsOffOwnRoute, repairLabelsOnSharedTrunks, separateEdgeLabelPills, shapePorts, simplifyPolyline } from './route-contracts.ts'
+import { applyRouteContracts, classifyRoutes, closeRouteContracts, diamondFacetPorts, labelRect, PORT_EXACT, repairLabelsOffOwnRoute, repairLabelsOnSharedTrunks, separateEdgeLabelPills, shapePorts, simplifyPolyline, trimBoundaryEndpointRuns } from './route-contracts.ts'
 import type { LabelMetricsStyle } from './route-contracts.ts'
 import { resolveEdgeInlineStyle, resolveNodeInlineStyle } from './color-resolver.ts'
 import { runPipeline } from './layout/pass.ts'
@@ -1348,12 +1348,14 @@ export const LAYOUT_PIPELINE: ReadonlyArray<LayoutPass<LayoutPassContext>> = [
   {
     id: 'clipEdgeToShape', doc: 'clip edge endpoints to real (non-rect) shape outlines',
     after: ['bundleEdgePaths'], mutates: ['edges'], determinism: 'in-place',
-    mayChangeMetrics: { portRate: 'improve-only' },
+    mayChangeMetrics: { portRate: { worsenBy: 1, whenImproves: 'endpointApproaches' }, endpointApproaches: 'improve-only' },
     run: c => {
       const nodeMap = new Map(c.nodes.map(n => [n.id, n]))
       for (const edge of c.edges) {
+        edge.points = edge.points.filter((point, index, points) => index === 0 || Math.hypot(point.x - points[index - 1]!.x, point.y - points[index - 1]!.y) > 0.01)
         const sourceNode = nodeMap.get(edge.source)
         const targetNode = nodeMap.get(edge.target)
+        trimBoundaryEndpointRuns(edge, sourceNode, targetNode)
         if (sourceNode) edge.points = clipEdgeToShape(edge.points, sourceNode, true)
         if (targetNode) edge.points = clipEdgeToShape(edge.points, targetNode, false)
       }
@@ -1395,7 +1397,14 @@ export const LAYOUT_PIPELINE: ReadonlyArray<LayoutPass<LayoutPassContext>> = [
   {
     id: 'applyRouteContracts', doc: 'classify -> simplify -> straighten (fixed-point) -> certify; FREEZES node geometry',
     after: ['reassignBundledSiblingLabels'], mutates: ['edges'], determinism: 'fixed-point', freezesNodes: true,
-    mayChangeMetrics: { straight: 'improve-only', bends: 'improve-only', portRate: { worsenBy: 1, whenImproves: ['hard', 'crossings', 'bends'] } },
+    // An uncertified two-point route can still be diagonal or cross a node.
+    // Hard/terminal repairs and fewer crossings may cost up to four bends
+    // per removed defect. Mere preferred-port or symmetry changes may not.
+    mayChangeMetrics: {
+      straight: { worsenBy: 1, whenImproves: ['hard', 'crossings', 'endpointApproaches'], perImprovement: true },
+      bends: { worsenBy: 4, whenImproves: ['hard', 'crossings', 'endpointApproaches'], perImprovement: true },
+      portRate: { worsenBy: 1, whenImproves: ['hard', 'crossings', 'bends', 'endpointApproaches', 'opposingOverlaps'] },
+    },
     run: c => { applyRouteContracts({ nodes: c.nodes, edges: c.edges, groups: c.groups }, c.graph, c.bundled, c.style) },
   },
   {
