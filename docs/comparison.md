@@ -436,6 +436,31 @@ raw and Brotli ceilings remain unchanged. The inspected graph still excludes
 ELK from XyChart and all 12 non-ELK families, and initial lazy gzip remains
 4,460 bytes. This records a measured integration cost, not a download saving.
 
+### Current binding after the Class rebase, 18 October 2026 at 09:46 UTC
+
+Candidate `8cad259fdcb8e0117531bf1d33585d9c79ae89f2` rebases onto
+`b1a613a47ee50d99f59dbf24bdf499f5a68ae2df`. The earlier `1465fafb`
+measurements remain historical. The same two-file A/B, dependencies, fixture,
+runtimes, warmup/sample counts and quiet-window method were repeated. The
+before versions come from this newer main and are byte-identical to the prior
+main's two files; all Scene/schema/route/text optimizations remain identical
+between sides. The Class changes do not change these performance helpers.
+
+| Small C4 public path | Node median before→after, ms | Node p95 before→after, ms | Bun median before→after, ms | Bun p95 before→after, ms |
+| --- | ---: | ---: | ---: | ---: |
+| SVG text | 10.965→9.593 | 14.537→12.572 | 13.582→12.787 | 20.060→16.763 |
+| SVG plus complete receipt | 10.647→8.790 | 14.741→11.248 | 12.678→12.008 | 17.317→16.257 |
+| Terminal text | 4.033→4.053 | 7.192→7.464 | 7.517→6.975 | 11.409→10.973 |
+| Terminal plus complete receipt | 11.742→10.555 | 16.465→16.224 | 16.612→16.091 | 23.880→21.885 |
+
+Node plain-terminal median and p95 regress; Bun plain-terminal median improves
+in this run after regressing in the preceding run. No consistent plain-terminal
+speedup is established. All timed artifacts match exactly, as do the repeated
+42 output/receipt, nine metadata and 1,088 security cases. The same 57 focused
+admission/schema/security/post-pass tests pass 2,164 assertions. These results
+rebind the bounded C4 comparison and its existing limits; they add no Class,
+browser, startup or general performance claim.
+
 ## Zombie Mermaid and C4 bloodlines
 
 [Zombie Mermaid](https://github.com/dfadler/zombie-mermaid) is an independently

@@ -1,6 +1,22 @@
 # Native C4 implementation
 
-Current rebase candidate: `1465fafb77d540af2d884fc2d4afec9b646984ca`
+Current rebase candidate: `8cad259fdcb8e0117531bf1d33585d9c79ae89f2`
+(18 October 2026), based on main
+`b1a613a47ee50d99f59dbf24bdf499f5a68ae2df`, including Class PR #410 and
+documentation PR #414. C4 geometry, XML fast paths and shared Scene admission
+reuse are unchanged from the second rebase below. All 34 imported reference
+files still match main exactly, with Mermaid 12.2.0 installed.
+
+Fresh combined validation passes 90 tests and 790 assertions across the full
+official corpus, focused C4 contracts, Section B golden/backend checks and
+297-diagram layout-equivalence gate. Every existing main layout-baseline entry
+is preserved; only the C4 fixture is added. The combined Section B golden
+regenerates byte for byte, and independent inspection of its eight Class/C4
+panels confirms all four Class panels retain main's exact pixels. This rebinds
+the bounded geometry review without carrying older performance measurements
+forward as measurements of the new base.
+
+Second rebase candidate: `1465fafb77d540af2d884fc2d4afec9b646984ca`
 (18 October 2026), based on main
 `26a481284b80371ccd0d7d104cd5ab20006d3cac` after PR #412. The branch adopts
 main's shared Scene admission reuse, SVG assembly and schema caching while
