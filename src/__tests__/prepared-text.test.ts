@@ -148,6 +148,19 @@ describe('prepared display text', () => {
     })
   }
 
+  it('captures mutable prepared input without reinterpreting its decoded content', () => {
+    const decoded = replaceDisplayTextTokens(prepareDisplayText('#lt;b#gt;'), /#\w+;/g, decodeMermaidEntities)
+    const input = structuredClone(decoded)
+    const block = preparePixelText(input, { fontSize: 12, fontWeight: 400 })
+    ;(input as { source: string }).source = 'Forged'
+    ;(input.lines[0]![0]! as { text: string }).text = 'Lost'
+    expect(block.prepared.source).toBe('#lt;b#gt;')
+    expect(block.lineBlocks[0]!.runs.map(run => run.text).join('')).toBe('<b>')
+    expect(block.prepared.lines[0]![0]!.text).toBe('<b>')
+    expect(Object.isFrozen(block.prepared)).toBe(true)
+    expect(Object.isFrozen(block.prepared.lines[0]![0]!.clusters)).toBe(true)
+  })
+
   it('keeps monospace metrics distinct from proportional text', () => {
     const block = preparePixelText('iii界', { ...typography, display: 'literal', monospace: true })
     expect(block.width).toBe(5 * 18 * 0.6)
