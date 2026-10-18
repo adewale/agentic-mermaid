@@ -38,24 +38,39 @@ export function expandSceneBounds(box: AxisAlignedBox, amount: number): AxisAlig
 /** Conservative bounds from the typed path authority, never from serialized
  * SVG. Béziers stay inside their control hull; arcs stay inside their complete
  * rotated ellipse. Invalid input has no bound, rather than a partial one. */
-function pathBounds(d: string): AxisAlignedBox | undefined {
+export interface TypedPathSegment {
+  readonly bounds: AxisAlignedBox
+  /** Exact straight ink authority; a curve's control hull is only an envelope. */
+  readonly line?: readonly [ScenePoint, ScenePoint]
+}
+
+function pathBounds(d: string, visit?: (segment: TypedPathSegment) => boolean, work?: () => boolean): AxisAlignedBox | undefined {
   const number = /[+-]?(?:\d+\.?\d*|\.\d+)(?:[eE][+-]?\d+)?/y
   let index = 0, x = 0, y = 0, startX = 0, startY = 0
   let command = '', previous = ''
   let control: ScenePoint | undefined
   let result: AxisAlignedBox | undefined
-  const skip = (): void => { while (index < d.length && /[\s,]/.test(d[index]!)) index++ }
+  let segmentBounds: AxisAlignedBox | undefined
+  let stopped = false
+  const consume = (count: number): boolean => {
+    if (work) for (let i = 0; i < count; i++) if (!work()) { stopped = true; return false }
+    return true
+  }
+  const skip = (): void => { while (index < d.length && /[\s,]/.test(d[index]!)) { if (!consume(1)) return; index++ } }
   const read = (flag = false): number | undefined => {
     skip()
+    if (stopped) return undefined
     if (flag) {
       const value = d[index]
       if (value !== '0' && value !== '1') return undefined
+      if (!consume(1)) return undefined
       index++
       return Number(value)
     }
     number.lastIndex = index
     const match = number.exec(d)
     if (!match) return undefined
+    if (!consume(match[0].length)) return undefined
     index = number.lastIndex
     const value = Number(match[0])
     return Number.isFinite(value) ? value : undefined
@@ -63,21 +78,26 @@ function pathBounds(d: string): AxisAlignedBox | undefined {
   const include = (px: number, py: number): boolean => {
     if (!Number.isFinite(px) || !Number.isFinite(py)) return false
     result = unionSceneBounds(result, { x0: px, y0: py, x1: px, y1: py })
+    if (visit) segmentBounds = unionSceneBounds(segmentBounds, { x0: px, y0: py, x1: px, y1: py })
     return true
   }
   while (true) {
     skip()
+    if (stopped) return undefined
     if (index >= d.length) return result
     if (/[a-zA-Z]/.test(d[index]!)) {
+      if (!consume(1)) return undefined
       command = d[index++]!
       if (!/[MmLlHhVvCcSsQqTtAaZz]/.test(command) || (!result && command.toUpperCase() !== 'M')) return undefined
       if (command.toUpperCase() === 'Z') {
+        if (visit && !visit({ bounds: { x0: Math.min(x, startX), y0: Math.min(y, startY), x1: Math.max(x, startX), y1: Math.max(y, startY) }, line: [{ x, y }, { x: startX, y: startY }] })) return undefined
         x = startX; y = startY; previous = 'Z'; control = undefined; command = ''
         continue
       }
     }
     if (!command) return undefined
     const upper = command.toUpperCase(), relative = command !== upper
+    if (visit) segmentBounds = { x0: x, y0: y, x1: x, y1: y }
     const count = upper === 'A' ? 7 : upper === 'C' ? 6 : upper === 'S' || upper === 'Q' ? 4 : upper === 'H' || upper === 'V' ? 1 : 2
     const args: number[] = []
     for (let i = 0; i < count; i++) {
@@ -119,8 +139,15 @@ function pathBounds(d: string): AxisAlignedBox | undefined {
       if (upper === 'M') { startX = nextX; startY = nextY; command = relative ? 'l' : 'L' }
     }
     if (!include(nextX, nextY)) return undefined
+    if (visit && upper !== 'M' && !visit({ bounds: segmentBounds!, ...(['L', 'H', 'V'].includes(upper) ? { line: [{ x, y }, { x: nextX, y: nextY }] as const } : {}) })) return undefined
     x = nextX; y = nextY; control = nextControl; previous = upper
   }
+}
+
+/** Visit the same admitted typed-path segments used by geometry bounds.
+ * Returning false stops bounded consumers without accepting a partial path. */
+export function visitTypedPathSegments(d: string, visit: (segment: TypedPathSegment) => boolean, work?: () => boolean): boolean {
+  return pathBounds(d, visit, work) !== undefined
 }
 
 export function geometryBounds(geometry: Geometry): AxisAlignedBox | undefined {
@@ -384,7 +411,7 @@ function composedTransform(parent: SceneTransform | undefined, child: SceneTrans
 
 /** Numeric user-unit/px strokes have a typed extent. Relative and unresolved
  * CSS units do not: treating `1em` or `var(...)` as one pixel would undercount. */
-function paintedStrokeExtent(paint: MarkPaint, hasJoins: boolean): number | undefined {
+export function paintedStrokeExtent(paint: MarkPaint, hasJoins: boolean): number | undefined {
   if (paint.stroke === undefined || paint.stroke === 'none' || paint.stroke === 'transparent' || tryParseCssColor(paint.stroke)?.[3] === 0) return 0
   const raw = paint.strokeWidth ?? '1'
   if (!/^\s*(?:\d+\.?\d*|\.\d+)(?:[eE][+-]?\d+)?(?:px)?\s*$/.test(raw)) return undefined

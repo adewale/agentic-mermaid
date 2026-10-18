@@ -1,5 +1,5 @@
 import type { RenderedLayout } from '../agent/types.ts'
-import { connectorMarkerPaintRegions } from './bounds.ts'
+import { connectorMarkerPaintRegions, expandSceneBounds, paintedStrokeExtent, transformedBounds, visitTypedPathSegments, type TypedPathSegment } from './bounds.ts'
 import type { AxisAlignedBox } from '../shared/transformed-bounds.ts'
 import { inlineResolvedColors } from '../theme.ts'
 import { escapeAttr } from '../multiline-utils.ts'
@@ -11,7 +11,7 @@ import { composeMatrices, inverseMatrix, transformMatrix, transformPoint } from 
 
 export interface PaintViewport { readonly x: number; readonly y: number; readonly width: number; readonly height: number }
 export interface PaintCertificationIssue {
-  readonly code: 'UNMEASURED_PAINT' | 'UNPREPARED_TEXT' | 'CONDITIONAL_PAINT' | 'LABEL_CONTAINMENT' | 'TEXT_OCCLUDED' | 'CHECK_BUDGET' | 'OUTPUT_SCOPE' | 'POTENTIAL_OCCLUSION' | 'MARKER_OCCLUDED'
+  readonly code: 'UNMEASURED_PAINT' | 'UNPREPARED_TEXT' | 'CONDITIONAL_PAINT' | 'LABEL_CONTAINMENT' | 'TEXT_OCCLUDED' | 'CHECK_BUDGET' | 'OUTPUT_SCOPE' | 'POTENTIAL_OCCLUSION' | 'MARKER_OCCLUDED' | 'CONNECTOR_CARD_CROSSING'
   readonly id?: string
   readonly by?: string
   readonly message: string
@@ -133,6 +133,24 @@ function outsideFilledBody(surface: Surface, bounds: AxisAlignedBox, attached: b
   return outside(shape.geometry)
 }
 
+/** A positive-length open-rectangle intersection proves actual straight shaft
+ * ink, unlike a route envelope or a flattened curve approximation. */
+function lineCrossesInterior(line: readonly [ScenePoint, ScenePoint], interior: AxisAlignedBox): boolean {
+  const [a, b] = line
+  let first = 0, last = 1
+  for (const [origin, delta, low, high] of [[a.x, b.x - a.x, interior.x0, interior.x1], [a.y, b.y - a.y, interior.y0, interior.y1]]) {
+    if (Math.abs(delta!) < 1e-12) {
+      if (origin! <= low! + 1e-8 || origin! >= high! - 1e-8) return false
+    } else {
+      const start = (low! - origin!) / delta!, end = (high! - origin!) / delta!
+      first = Math.max(first, Math.min(start, end)); last = Math.min(last, Math.max(start, end))
+    }
+  }
+  return (last - first) * Math.hypot(b.x - a.x, b.y - a.y) > 1e-8
+}
+
+const CARD_ROLES = new Set(['node', 'service', 'class-box', 'entity'])
+
 /** One linear envelope pass, at most one viewport repair, then final checking.
  * The certificate covers retained native geometry, not every antialiased pixel
  * or arbitrary CSS/backend changes. It never treats path-hull overlap as proof.
@@ -202,6 +220,60 @@ export function certifyScenePaint(scene: SceneDoc, projection?: Pick<RenderedLay
     }
   }
   for (const primitive of inspection.primitives) if (primitive.kind === 'text' && primitive.coverage === 'measured' && primitive.visibility !== 'conditional') check(surfaces, primitive)
+  const strokeAlpha = new Map<string, number | undefined>()
+  for (const primitive of inspection.primitives) {
+    if (!work()) break
+    const node = scenePrimitiveSource(primitive)
+    // Semantic relationships must not cross unrelated cards even when their
+    // shafts paint above those cards. Missing endpoint ownership leaves an
+    // intersection unverified; chrome rails retain their separate semantics.
+    if (node?.kind !== 'connector' || !['edge', 'relationship'].includes(primitive.role) || node.lineStyle === 'invisible' || primitive.visibility === 'conditional' || primitive.coverage !== 'measured') continue
+    const width = Number.parseFloat(String(node.stroke.width)), opacity = Number(node.stroke.opacity ?? 1)
+    if (width === 0 || opacity === 0 || node.stroke.color === 'none' || node.stroke.color === 'transparent') continue
+    if (!strokeAlpha.has(node.stroke.color)) {
+      const svg = inlineResolvedColors(`<rect fill="${escapeAttr(node.stroke.color)}"/>`, scene.colors)
+      const value = decodedSvgAttributeValue(scanSvgStartTags(svg)[0]!, 'fill')
+      strokeAlpha.set(node.stroke.color, value ? tryParseCssColor(value)?.[3] : undefined)
+    }
+    const alpha = strokeAlpha.get(node.stroke.color)
+    if (alpha === 0) continue
+    const exactInk = options.outputSupported !== false && !scene.family.startsWith('family:') && !!node.endpoints?.from && !!node.endpoints.to && alpha !== undefined && alpha > 0 && width > 0 && opacity > 0 && !node.stroke.dash
+    const matrix = scenePrimitiveMatrix(primitive)!
+    const [a, b, c, d, e, f] = matrix
+    const transform: SceneTransform = { kind: 'matrix', a, b, c, d, e, f }
+    const extent = paintedStrokeExtent({ stroke: node.stroke.color, strokeWidth: String(node.stroke.width), strokeLinecap: node.stroke.lineCap, strokeLinejoin: node.stroke.lineJoin, strokeMiterlimit: String(node.stroke.miterLimit) }, node.route.geometry.kind !== 'line')
+    if (extent === undefined) { issue({ code: 'UNMEASURED_PAINT', id: primitive.id, message: 'Final connector stroke has no bounded cap/join extent' }); continue }
+    const visit = (part: TypedPathSegment): boolean => {
+      if (!work()) return false
+      const bounds = node.stroke.nonScaling
+        ? expandSceneBounds(transformedBounds(part.bounds, transform)!, extent)
+        : transformedBounds(expandSceneBounds(part.bounds, extent), transform)!
+      const line = part.line?.map(point => transformPoint(point, matrix)) as [ScenePoint, ScenePoint] | undefined
+      const walk = (branch: Tree | undefined): void => {
+        if (exhausted || !work() || !branch || !overlaps(branch.bounds, bounds)) return
+        if (!branch.leaves) { walk(branch.left); walk(branch.right); return }
+        for (const surface of branch.leaves) {
+          if (!work()) return
+          if (++pairs > MAX_OCCLUSION_PAIRS) { exhausted = true; return }
+          if (!CARD_ROLES.has(surface.primitive.role) || surface.primitive.owner.id === primitive.owner.id && surface.primitive.owner.role === primitive.owner.role || [node.endpoints?.from, node.endpoints?.to].includes(surface.primitive.owner.id) || !overlaps(surface.bounds, bounds)) continue
+          if (exactInk && line && surface.interior && lineCrossesInterior(line, surface.interior)) issue({ code: 'CONNECTOR_CARD_CROSSING', id: primitive.id, by: surface.primitive.id, message: `Final connector shaft crosses opaque artwork owned by unrelated card ${surface.primitive.owner.id}` }, true)
+          else issue({ code: 'POTENTIAL_OCCLUSION', id: primitive.id, by: surface.primitive.id, message: 'Final connector envelope intersects unrelated filled card artwork; actual route/card crossing is unverified' })
+        }
+      }
+      walk(surfaces)
+      return !exhausted
+    }
+    const geometry = node.route.geometry
+    if (geometry.kind === 'path') {
+      if (!visitTypedPathSegments(geometry.d, visit, work) && !exhausted) issue({ code: 'UNMEASURED_PAINT', id: primitive.id, message: 'Final connector segments could not be measured from typed path geometry' })
+    } else {
+      const points = geometry.kind === 'line' ? [{ x: geometry.x1, y: geometry.y1 }, { x: geometry.x2, y: geometry.y2 }] : geometry.points
+      for (let i = 1; i < points.length; i++) {
+        const first = points[i - 1]!, last = points[i]!
+        if (!visit({ bounds: { x0: Math.min(first.x, last.x), y0: Math.min(first.y, last.y), x1: Math.max(first.x, last.x), y1: Math.max(first.y, last.y) }, line: [first, last] })) break
+      }
+    }
+  }
   type MarkerTarget = { primitive: ScenePaintPrimitive; bounds: AxisAlignedBox; hull?: readonly ScenePoint[]; padding?: number }
   const lastMarkers = new Map<string, MarkerTarget>()
   for (const primitive of inspection.primitives) {

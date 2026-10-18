@@ -13,6 +13,7 @@ import { positionResolvedFamily } from '../positioning.ts'
 import { inspectScenePrimitives, scenePrimitiveSource } from '../scene/inspection.ts'
 import { measureQuality } from '../agent/quality.ts'
 import { replaceFamilyForTest } from '../agent/families.ts'
+import type { PositionedArchitectureDiagram } from '../architecture/types.ts'
 
 const scene = (parts: SceneNode[]): SceneDoc => ({ family: 'flowchart', width: 100, height: 80, transparent: false, colors: { bg: '#fff', fg: '#111' }, parts })
 const label = () => {
@@ -40,7 +41,7 @@ test('path envelopes and affine empty corners never masquerade as solid occluder
 
 test('endpoint symbols use final owned repaint order rather than marker counts', () => {
   const marker = { id: 'arrow', shape: 'arrow' as const, bounds: { x0: -1, y0: -1, x1: 1, y1: 1 }, units: 'userSpaceOnUse' as const }
-  const fields = { id: 'relationship', role: 'edge' as const, lineStyle: 'solid' as const, geometry: { kind: 'line' as const, x1: 20, y1: 30, x2: 30, y2: 30 }, paint: { stroke: '#111', strokeWidth: '1' }, markers: { end: marker } }
+  const fields = { id: 'relationship', role: 'edge' as const, lineStyle: 'solid' as const, geometry: { kind: 'line' as const, x1: 20, y1: 30, x2: 30, y2: 30 }, paint: { stroke: '#111', strokeWidth: '1' }, endpoints: { from: 'outside', to: 'cover' }, markers: { end: marker } }
   const svg = '<line x1="20" y1="30" x2="30" y2="30" stroke="#111" stroke-width="1" marker-end="url(#arrow)"/>'
   const edge = marks.connector(fields, svg)
   const hidden = certifyScenePaint(scene([edge, surface()]))
@@ -49,7 +50,7 @@ test('endpoint symbols use final owned repaint order rather than marker counts',
   const visible = certifyScenePaint(scene([edge, surface(), repaint]))
   expect(visible.status).toBe('passed')
   expect(visible.checks.markers).toBe(1)
-  const path = marks.shape({ id: 'path-cover', role: 'node', geometry: { kind: 'path', d: 'M10 10 L90 10 L90 70 L10 70 Z' }, paint: { fill: '#fff' } }, '<path d="M10 10 L90 10 L90 70 L10 70 Z" fill="#fff"/>')
+  const path = marks.shape({ id: 'path-cover', role: 'node', owner: { id: 'cover', role: 'node' }, geometry: { kind: 'path', d: 'M10 10 L90 10 L90 70 L10 70 Z' }, paint: { fill: '#fff' } }, '<path d="M10 10 L90 10 L90 70 L10 70 Z" fill="#fff"/>')
   const unknown = certifyScenePaint(scene([edge, path]))
   expect(unknown.status).toBe('unverified')
   expect(unknown.issues).toContainEqual(expect.objectContaining({ code: 'POTENTIAL_OCCLUSION', id: 'relationship', by: 'path-cover' }))
@@ -200,7 +201,9 @@ test('self-crossing filled polygons cannot prove that an overlapped marker is vi
   const points = [0, 2, 4, 1, 3].map(i => ({ x: 50 + 45 * Math.cos(-Math.PI / 2 + 2 * Math.PI * i / 5), y: 50 + 45 * Math.sin(-Math.PI / 2 + 2 * Math.PI * i / 5) }))
   const edge = marks.connector({ id: 'edge', role: 'edge', lineStyle: 'solid', geometry: { kind: 'line', x1: 40, y1: 15, x2: 50, y2: 15 }, paint: { stroke: '#111' }, markers: { end: { id: 'arrow', shape: 'arrow', bounds: { x0: -1, y0: -1, x1: 1, y1: 1 }, units: 'userSpaceOnUse' } } }, '<line x1="40" y1="15" x2="50" y2="15" stroke="#111" marker-end="url(#arrow)"/>')
   const cover = marks.shape({ id: 'star', role: 'node', geometry: { kind: 'polygon', points }, paint: { fill: '#fff' } }, `<polygon points="${points.map(p => `${p.x},${p.y}`).join(' ')}" fill="#fff"/>`)
-  expect(certifyScenePaint(scene([edge, cover]))).toMatchObject({ status: 'unverified', issues: [expect.objectContaining({ code: 'POTENTIAL_OCCLUSION', by: 'star' })] })
+  const proof = certifyScenePaint(scene([edge, cover]))
+  expect(proof.status).toBe('unverified')
+  expect(proof.issues).toContainEqual(expect.objectContaining({ code: 'POTENTIAL_OCCLUSION', by: 'star' }))
 })
 
 
@@ -258,4 +261,163 @@ test('concurrent State labels retain visible own and neighboring endpoint marker
       expect(a.x0 < b.x1 && a.x1 > b.x0 && a.y0 < b.y1 && a.y1 > b.y0, `${id} hidden by ${halo.id}`).toBe(false)
     }
   }
+})
+
+const SIDE_CONSTRAINED_ARCHITECTURE = `architecture-beta
+  group g0(cloud)[Group 0]
+  service s0_0(server)[Svc s0_0] in g0
+  service s0_1(server)[Svc s0_1] in g0
+  service s0_2(server)[Svc s0_2] in g0
+  group g1(cloud)[Group 1]
+  service s1_0(server)[Svc s1_0] in g1
+  service s1_1(server)[Svc s1_1] in g1
+  s1_0:L --> L:s0_1
+  s1_1:L --> T:s0_0`
+
+test('final Architecture certification preserves authored sides and rejects a later shaft through an unrelated card', () => {
+  const positive = layoutMermaidWithReceipt(SIDE_CONSTRAINED_ARCHITECTURE, { debug: true, layoutSafety: 'strict' })
+  expect(positive.receipt.layoutCertification?.status).toBe('passed')
+  for (const [from, to, targetSide] of [['s1_0', 's0_1', 'L'], ['s1_1', 's0_0', 'T']] as const) {
+    const edge = positive.layout.edges.find(edge => edge.from === from && edge.to === to)!
+    const source = positive.layout.nodes.find(node => node.id === from)!
+    const target = positive.layout.nodes.find(node => node.id === to)!
+    expect(edge.route).toMatchObject({ sourceSide: 'L', targetSide, sourceAnchored: true, targetAnchored: true })
+    expect(edge.path[0]![0]).toBe(source.x)
+    expect(targetSide === 'L' ? edge.path.at(-1)![0] : edge.path.at(-1)![1]).toBe(targetSide === 'L' ? target.x : target.y)
+  }
+  const family = getFamily('architecture')!
+  let layouts = 0
+  const restore = replaceFamilyForTest('architecture', { ...family, layout(context) {
+    layouts++
+    const value = family.layout!(context)
+    const positioned = ('positioned' in value ? value.positioned : value) as PositionedArchitectureDiagram
+    const edge = positioned.edges.find(edge => edge.source.id === 's1_1' && edge.target.id === 's0_0')!
+    const card = positioned.services.find(service => service.id === 's0_1')!
+    const first = edge.points[0]!, lead = edge.points[1]!, tail = edge.points.at(-2)!, last = edge.points.at(-1)!
+    const cy = card.y + card.height / 2, left = card.x - 10, right = card.x + card.width + 10
+    // Preserve both declared contacts and their approach segments, but introduce
+    // a real positive-length crossing after all family routing/translations.
+    edge.points = [first, lead, { x: lead.x, y: cy }, { x: left, y: cy }, { x: right, y: cy }, { x: right, y: tail.y }, tail, last]
+    expect(right - left).toBeGreaterThan(card.width)
+    expect(cy).toBeGreaterThan(card.y)
+    expect(cy).toBeLessThan(card.y + card.height)
+    return value
+  } })
+  try {
+    expect(() => renderMermaidSVGWithReceipt(SIDE_CONSTRAINED_ARCHITECTURE, { layoutSafety: 'strict' })).toThrow('Final paint certification failed')
+    const verified = verifyMermaid(SIDE_CONSTRAINED_ARCHITECTURE)
+    expect(verified.ok).toBe(false)
+    expect(verified.layoutCertification?.status).toBe('failed')
+    expect(verified.layoutCertification?.issues).toContainEqual(expect.objectContaining({ code: 'CONNECTOR_CARD_CROSSING', by: expect.stringContaining('s0_1') }))
+    expect(layouts).toBe(2)
+  } finally { restore() }
+})
+
+test('shaft checking distinguishes proved straight crossings, uncertain curves and clear routed detours', () => {
+  const fields = { id: 'route', role: 'edge' as const, lineStyle: 'solid' as const, paint: { stroke: '#111', strokeWidth: '1' }, endpoints: { from: 'A', to: 'B' } }
+  const straight = marks.connector({ ...fields, geometry: { kind: 'line', x1: 5, y1: 30, x2: 95, y2: 30 } }, '<line x1="5" y1="30" x2="95" y2="30" stroke="#111" stroke-width="1"/>')
+  expect(certifyScenePaint(scene([straight, surface()])).issues).toContainEqual(expect.objectContaining({ code: 'CONNECTOR_CARD_CROSSING', id: 'route', by: 'cover' }))
+  const path = marks.connector({ ...fields, geometry: { kind: 'path', d: 'M5 30 H95', points: [{ x: 5, y: 30 }, { x: 95, y: 30 }] } }, '<path d="M5 30 H95" stroke="#111" stroke-width="1"/>')
+  expect(certifyScenePaint(scene([path, surface()])).issues).toContainEqual(expect.objectContaining({ code: 'CONNECTOR_CARD_CROSSING', id: 'route', by: 'cover' }))
+  const curved = marks.connector({ ...fields, geometry: { kind: 'path', d: 'M5 5 C5 75 95 75 95 5', points: [{ x: 5, y: 5 }, { x: 50, y: 57.5 }, { x: 95, y: 5 }] } }, '<path d="M5 5 C5 75 95 75 95 5" stroke="#111" stroke-width="1"/>')
+  expect(certifyScenePaint(scene([curved, surface()]))).toMatchObject({ status: 'unverified', issues: [expect.objectContaining({ code: 'POTENTIAL_OCCLUSION', id: 'route' })] })
+  const detour = marks.connector({ ...fields, geometry: { kind: 'polyline', points: [{ x: 5, y: 5 }, { x: 95, y: 5 }, { x: 95, y: 75 }] } }, '<polyline points="5,5 95,5 95,75" stroke="#111" stroke-width="1"/>')
+  expect(certifyScenePaint(scene([detour, surface()])).status).toBe('passed')
+  expect(certifyScenePaint(scene([straight, surface('rgba(255,255,255,0.5)')])).status).toBe('passed')
+  expect(certifyScenePaint(scene([straight, surface()]), undefined, { outputSupported: false }).status).toBe('unverified')
+  const unknown = marks.connector({ ...fields, endpoints: undefined, geometry: { kind: 'line', x1: 5, y1: 30, x2: 95, y2: 30 } }, '<line x1="5" y1="30" x2="95" y2="30" stroke="#111"/>')
+  expect(certifyScenePaint(scene([unknown, surface()])).status).toBe('unverified')
+})
+
+test('the native Architecture BUG-37 route cannot receive a passed public certificate', () => {
+  const source = `${SIDE_CONSTRAINED_ARCHITECTURE.slice(0, SIDE_CONSTRAINED_ARCHITECTURE.indexOf('  s1_0:L'))}  s0_0:L --> L:s1_0
+  s0_0:T --> T:s0_1
+  s0_2:L --> L:s1_0
+  s0_1:L --> L:s1_0`
+  expect(() => renderMermaidSVGWithReceipt(source, { layoutSafety: 'strict' })).toThrow('Final paint certification failed')
+  const verified = verifyMermaid(source)
+  expect(verified.ok).toBe(false)
+  expect(verified.layoutCertification?.status).toBe('failed')
+  expect(verified.layoutCertification?.issues).toContainEqual(expect.objectContaining({ code: 'CONNECTOR_CARD_CROSSING', by: expect.stringContaining('s0_2') }))
+})
+
+test.each(['dashed', 'zero-width', 'transparent', 'zero-opacity'] as const)('%s shaft paint never proves hidden ink from an unpainted crossing', mode => {
+  const paint = { stroke: mode === 'transparent' ? 'rgba(0,0,0,0)' : '#111', strokeWidth: mode === 'zero-width' ? '0' : '1', ...(mode === 'zero-opacity' ? { opacity: '0' } : {}), ...(mode === 'dashed' ? { strokeDasharray: '1 100' } : {}) }
+  const edge = marks.connector({ id: 'route', role: 'edge', lineStyle: 'solid', geometry: { kind: 'line', x1: 5, y1: 30, x2: 95, y2: 30 }, paint, endpoints: { from: 'A', to: 'B' } }, '<line x1="5" y1="30" x2="95" y2="30"/>')
+  const proof = certifyScenePaint(scene([edge, surface()]))
+  expect(proof.status).toBe(mode === 'dashed' ? 'unverified' : 'passed')
+  expect(proof.issues.some(issue => issue.code === 'CONNECTOR_CARD_CROSSING')).toBe(false)
+})
+
+test('shaft checks use composed final transforms and preserve only incident card exemptions', () => {
+  const edge = marks.connector({ id: 'route', role: 'edge', owner: { id: 'route', role: 'edge' }, lineStyle: 'solid', geometry: { kind: 'line', x1: 5, y1: 30, x2: 95, y2: 30 }, paint: { stroke: '#111' }, endpoints: { from: 'A', to: 'B' } }, '<line x1="5" y1="30" x2="95" y2="30" stroke="#111"/>')
+  const card = marks.shape({ id: 'unrelated', role: 'node', owner: { id: 'C', role: 'node' }, geometry: { kind: 'rect', x: 10, y: 10, width: 80, height: 60 }, paint: { fill: '#fff' } }, '<rect x="10" y="10" width="80" height="60" fill="#fff"/>')
+  const group = marks.group({ id: 'translated', role: 'chrome', transform: { kind: 'matrix', a: 2, b: 0, c: 0, d: 3, e: 100, f: 50 }, open: '<g transform="matrix(2 0 0 3 100 50)">', close: '</g>', children: [{ node: edge, indent: 0 }, { node: card, indent: 0 }] })
+  expect(certifyScenePaint({ ...scene([group]), width: 400, height: 400 }).issues).toContainEqual(expect.objectContaining({ code: 'CONNECTOR_CARD_CROSSING', id: 'route', by: 'unrelated' }))
+  const ownCard = marks.shape({ ...card, owner: { id: 'B', role: 'node' } }, '<rect x="10" y="10" width="80" height="60" fill="#fff"/>')
+  expect(certifyScenePaint(scene([edge, ownCard])).status).toBe('passed')
+})
+
+test('typed shaft parsing shares the finite final-check work budget', () => {
+  const d = `M5 5${' L95 5 L5 5'.repeat(35_000)}`
+  const edge = marks.connector({ id: 'long-route', role: 'edge', lineStyle: 'solid', geometry: { kind: 'path', d, points: [{ x: 5, y: 5 }, { x: 95, y: 5 }, { x: 5, y: 5 }] }, paint: { stroke: '#111' }, endpoints: { from: 'A', to: 'B' } }, `<path d="${d}" stroke="#111"/>`)
+  const proof = certifyScenePaint(scene([edge, surface()]))
+  expect(proof.status).toBe('unverified')
+  expect(proof.checks.operations).toBeLessThanOrEqual(proof.checks.maxOperations)
+  expect(proof.issues).toContainEqual(expect.objectContaining({ code: 'CHECK_BUDGET' }))
+})
+
+test('drawing or repainting a semantic shaft above an unrelated card does not excuse the crossing', () => {
+  const fields = { id: 'route', role: 'edge' as const, lineStyle: 'solid' as const, geometry: { kind: 'line' as const, x1: 5, y1: 30, x2: 95, y2: 30 }, paint: { stroke: '#111' }, endpoints: { from: 'A', to: 'B' } }
+  const svg = '<line x1="5" y1="30" x2="95" y2="30" stroke="#111"/>'
+  const edge = marks.connector(fields, svg)
+  const repaint = marks.connector({ ...fields, id: 'repaint', role: 'chrome', owner: { id: 'route', role: 'edge' } }, svg)
+  for (const parts of [[surface(), edge], [edge, surface(), repaint]]) {
+    const proof = certifyScenePaint(scene(parts))
+    expect(proof.status).toBe('failed')
+    expect(proof.issues).toContainEqual(expect.objectContaining({ code: 'CONNECTOR_CARD_CROSSING', by: 'cover' }))
+  }
+})
+
+test('downscaled non-scaling shafts retain their world-unit collision envelope', () => {
+  const edge = marks.connector({ id: 'scaled', role: 'edge', geometry: { kind: 'line', x1: 100, y1: 100, x2: 900, y2: 100 }, lineStyle: 'solid', paint: { stroke: '#f00', strokeWidth: '10', vectorEffect: 'non-scaling-stroke' }, transform: { kind: 'matrix', a: 0.1, b: 0, c: 0, d: 0.1, e: 0, f: 0 }, endpoints: { from: 'A', to: 'B' } }, '<line x1="100" y1="100" x2="900" y2="100" stroke="#f00" stroke-width="10" vector-effect="non-scaling-stroke" transform="matrix(.1 0 0 .1 0 0)"/>')
+  const card = marks.shape({ id: 'C', role: 'node', geometry: { kind: 'rect', x: 30, y: 12, width: 40, height: 30 }, paint: { fill: '#fff' } }, '<rect x="30" y="12" width="40" height="30" fill="#fff"/>')
+  const proof = certifyScenePaint(scene([edge, card]))
+  expect(proof.status).toBe('unverified')
+  expect(proof.issues).toContainEqual(expect.objectContaining({ code: 'POTENTIAL_OCCLUSION', id: 'scaled', by: 'C' }))
+  expect(proof.issues.some(issue => issue.code === 'CONNECTOR_CARD_CROSSING')).toBe(false)
+})
+
+test.each(['miter', 'square'] as const)('%s shaft ink outside its centerline remains an uncertain card intersection', mode => {
+  const points = mode === 'miter' ? [{ x: 20, y: 80 }, { x: 50, y: 50 }, { x: 35, y: 85 }] : [{ x: 30, y: 30 }, { x: 50, y: 50 }]
+  const geometry = mode === 'miter' ? { kind: 'polyline' as const, points } : { kind: 'line' as const, x1: 30, y1: 30, x2: 50, y2: 50 }
+  const edge = marks.connector({ id: 'join-or-cap', role: 'edge', geometry, lineStyle: 'solid', paint: { stroke: '#f00', strokeWidth: '10', strokeLinejoin: 'miter', strokeMiterlimit: '10', ...(mode === 'square' ? { strokeLinecap: 'square' } : {}) }, endpoints: { from: 'A', to: 'B' } }, mode === 'miter' ? '<polyline points="20,80 50,50 35,85" stroke="#f00" stroke-width="10" stroke-linejoin="miter" stroke-miterlimit="10"/>' : '<line x1="30" y1="30" x2="50" y2="50" stroke="#f00" stroke-width="10" stroke-linecap="square"/>')
+  const cardGeometry = mode === 'miter' ? { kind: 'rect' as const, x: 60, y: 26, width: 10, height: 10 } : { kind: 'rect' as const, x: 55.5, y: 48, width: 1, height: 4 }
+  const card = marks.shape({ id: 'C', role: 'node', geometry: cardGeometry, paint: { fill: '#fff' } }, `<rect x="${cardGeometry.x}" y="${cardGeometry.y}" width="${cardGeometry.width}" height="${cardGeometry.height}" fill="#fff"/>`)
+  const proof = certifyScenePaint({ ...scene([edge, card]), height: 100 })
+  expect(proof.status).toBe('unverified')
+  expect(proof.issues).toContainEqual(expect.objectContaining({ code: 'POTENTIAL_OCCLUSION', id: 'join-or-cap', by: 'C' }))
+  expect(proof.issues.some(issue => issue.code === 'CONNECTOR_CARD_CROSSING')).toBe(false)
+})
+
+test('authored edge and card names do not share an ownership exemption across roles', () => {
+  expect(() => renderMermaidSVGWithReceipt('flowchart LR\nA C@--> B\nC[Unrelated]', { layoutSafety: 'strict' })).not.toThrow()
+  const edge = marks.connector({ id: 'edge:C', identity: { id: 'C' }, role: 'edge', geometry: { kind: 'line', x1: 10, y1: 30, x2: 90, y2: 30 }, lineStyle: 'solid', paint: { stroke: '#111' }, endpoints: { from: 'A', to: 'B' } }, '<line x1="10" y1="30" x2="90" y2="30" stroke="#111"/>')
+  const card = marks.shape({ id: 'node:C', identity: { id: 'C' }, role: 'node', geometry: { kind: 'rect', x: 30, y: 10, width: 40, height: 60 }, paint: { fill: '#fff' } }, '<rect x="30" y="10" width="40" height="60" fill="#fff"/>')
+  expect(certifyScenePaint(scene([edge, card]))).toMatchObject({ status: 'failed', issues: [expect.objectContaining({ code: 'CONNECTOR_CARD_CROSSING', id: 'edge:C', by: 'node:C' })] })
+})
+
+test('native Class note attachments identify their actual class and note subjects', () => {
+  const source = 'classDiagram\nclass Account\nnote for Account "Owner"'
+  expect(renderMermaidSVGWithReceipt(source, { layoutSafety: 'strict' }).receipt.layoutCertification?.status).toBe('passed')
+  const request = resolveRenderRequestForExecution(source, {}, 'svg')
+  const result = positionResolvedFamily('class', request)
+  const inspection = inspectScenePrimitives(lowerPositionedFamilyScene(request, result))
+  const primitive = inspection.primitives.find(primitive => primitive.id === 'class-note:0:connector')!
+  const connector = scenePrimitiveSource(primitive)!
+  expect(connector.kind).toBe('connector')
+  if (connector.kind !== 'connector') throw new Error('Expected the native note attachment')
+  expect(connector.endpoints).toMatchObject({ from: 'Account', to: 'class-note:0' })
+  expect(inspection.primitives.some(primitive => primitive.owner.id === connector.endpoints?.from && primitive.owner.role === 'class-box')).toBe(true)
+  expect(inspection.primitives.some(primitive => primitive.owner.id === connector.endpoints?.to && primitive.owner.role === 'note')).toBe(true)
 })

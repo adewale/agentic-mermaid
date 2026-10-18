@@ -513,6 +513,7 @@ function renderClassNote(note: PositionedClassNote, style: ResolvedRenderStyle, 
       id: `class-note:${index}:connector`, role: 'relationship',
       geometry: { kind: 'line', x1: note.targetX, y1: note.targetY, x2: note.noteX ?? note.x, y2: note.noteY ?? note.y + note.height / 2 },
       lineStyle: 'dashed', paint: { stroke, strokeWidth: '1', strokeDasharray: '4 3' },
+      ...(note.for ? { endpoints: { from: note.for, to: `class-note:${index}` } } : {}),
     }, `<line class="class-note-connector" x1="${note.targetX}" y1="${note.targetY}" x2="${note.noteX ?? note.x}" y2="${note.noteY ?? note.y + note.height / 2}" stroke="${escapeAttr(stroke)}" stroke-width="1" stroke-dasharray="4 3" />`), indent: 2 })
   }
   children.push({ node: marks.shape({
