@@ -4,7 +4,39 @@ This changelog tracks user-facing changes for **Agentic Mermaid**, a fork of `lu
 
 ## Unreleased
 
+### Known limitations
+
+- A preexisting combined Sequence box/`alt` case can omit the header and divider
+  from terminal ink while retaining them in SVG. The witness is recorded in
+  `docs/project/divergences.md`; CONS-46's text work does not fix this CONS-45
+  geometry limit.
+- The #363 decision record distinguishes generous reads from portable
+  structured output. Quadrant text/style exports, unsupported Architecture
+  IDs/icons and empty Class output retain named limitations; Class, Quadrant
+  and Architecture also have accepted-source reader gaps. The decisions are
+  complete, but those runtime follow-ups remain in `TODO.md`.
+- These source changes do not establish publication or deployment. Default
+  verbatim wrapper preservation is distinct from canonical rewriting;
+  successful structural verification alone is not a general lossless-editing
+  guarantee.
+
 ### Fixed
+
+- Context codecs preserve entity-derived tags, emphasis and backslash-n as
+  literal text beside authored formatting in Flowchart, ER, Sequence and Class.
+  Parsed aliases and labels retain their meaning through edits and reload;
+  typed entity-looking strings remain literal without caller pre-escaping.
+- Sequence aliases, messages and notes share prepared display text with their
+  graphical and terminal projections. Physical message line breaks serialize
+  as Mermaid break markup. Class members and annotations share their display
+  formatter with layout and label metrics (CONS-46).
+- Flowchart labels affected by upstream's quote preprocessor remain readable
+  and receive `UNSUPPORTED_SYNTAX` with `flowchart_preprocessor_quote_rewrite`;
+  canonical output uses a portable entity spelling (#372).
+- State descriptions, aliases, transition labels and notes retain literal `%%`
+  in text contexts. Mindmap labels, icons and class payloads retain that text
+  too; actual comments still follow their grammar context. State block-note
+  lines beginning with `%%` intentionally remain note content (#372).
 - ER edits retain entity order and group ownership through export and reload,
   including removing the entity or relationship that first introduced them
   (#372). The old BUG-10 estimate of about 0.6% of fuzzed edits is historical,
@@ -100,9 +132,12 @@ This changelog tracks user-facing changes for **Agentic Mermaid**, a fork of `lu
   a trailing `%%`, or `\"`, `\`, `%` or an empty name, in ER quoted text; a
   `linkStyle` index past the links above it; `A @{…}` spacing and mixed-stroke
   text arrows (`A -- b ==> B`); a participant declared in a second `box`.
-  Serializers write only what Mermaid reads, except a blank class diagram,
-  which has no Mermaid spelling. A flowchart node id holding `--` or `-.` is
-  still rejected, because its meaning is unclear.
+  This records the original 11.16 compatibility pass. The current 12.2 grammar
+  accepts the previously rejected Architecture title punctuation. Remaining
+  writer limits and source-preserved extensions are distinguished in the #363
+  decision record; serialization does not repair every such extension. A
+  flowchart node id holding `--` or `-.` is still rejected when its meaning is
+  unclear.
 - Flowchart: a `;` inside an asymmetric label (`A>x;y]`) is label text, and
   `@{` inside a quoted label no longer turns the diagram opaque.
 - ER relations written without spaces (`id1||--||id2 : label`) parse and draw.
@@ -115,8 +150,9 @@ This changelog tracks user-facing changes for **Agentic Mermaid**, a fork of `lu
   tie-break: `activate` creates no participant; `properties` and `details`
   lines create theirs; a box does not list an actor created before it (the
   frame still draws it); `style X` creates node X where it stands, so a
-  style-only node is drawn; a node or ER entity listed by two subgraphs belongs
-  to the first to close and is drawn once. Issue #363 reviews these choices.
+  style-only node is drawn. Repeated node/entity mentions have one deterministic
+  subgraph owner and are drawn once; the mention-specific tie-break and other
+  decisions are documented in the #363 record.
 - `examples/index.json` lists the 16 Style × Palette example cards as
   `stylePaletteExamples`; they were the only rendered cards missing.
 - `am batch --help` documents `--jsonl`.
