@@ -98,6 +98,53 @@ function groupMeaning(value: Record<string, unknown>) {
   return groups.map(group => ({ label: displayed(group.label), parent: group.parent, members: group.members })).sort((a, b) => JSON.stringify(a).localeCompare(JSON.stringify(b)))
 }
 
+test('Mindmap anonymous multiline Markdown retains identities, formatting and child membership', async () => {
+  const source = `mindmap
+    ["\`**Root** with
+a second line
+Unicode works too: 🤓\`"]
+      id2["\`The dog in **the** hog... a *very long text* that wraps to a new line\`"]
+      id3[Rgular labels still works]`
+  const before = await modern.parse(source)
+  expect(before.ok).toBe(true)
+  const parsed = am.parseRegisteredMermaid(source)
+  expect(parsed.ok).toBe(true)
+  if (!parsed.ok) throw new Error(JSON.stringify(parsed.error))
+  const serialized = am.serializeMermaid(parsed.value)
+  const after = await modern.parse(serialized)
+  expect(after).toMatchObject({ ok: true, type: 'mindmap' })
+  await grammar.prepare('mindmap', getFamily('mindmap')!.example)
+  const original = await grammar.parse('mindmap', source)
+  const written = await grammar.parse('mindmap', serialized)
+  expect(original.accepted).toBe(true)
+  expect(written.accepted).toBe(true)
+  const expected = projectReferenceSemantic('mindmap', original)!.value as Record<string, unknown>
+  const actual = projectReferenceSemantic('mindmap', written)!.value as Record<string, unknown>
+  expect(actual.root).toEqual(expected.root)
+  if (target === root) {
+    const native = inspectAgenticGrammar('mindmap', source).native.observation.semantic!.value as Record<string, unknown>
+    const reparsed = inspectAgenticGrammar('mindmap', serialized).native.observation.semantic!.value as Record<string, unknown>
+    expect(reparsed.root).toEqual(native.root)
+    // Mermaid retains formatting in an anonymous identity; ours uses its
+    // plain label. Each parser must keep its identities and parents,
+    // while both retain the same labelled tree and explicit child identities.
+    const meaning = (value: unknown, parent = '', ids = new Set<string>()): unknown => {
+      const node = value as { id: string; parent: string; label: string; shape: string; icon: string; classes: string[]; children: unknown[] }
+      expect(node.parent).toBe(parent)
+      expect(ids.has(node.id)).toBe(false)
+      ids.add(node.id)
+      return {
+        ...(parent ? { id: node.id } : {}),
+        label: node.label.replace(/<b>([\s\S]*?)<\/b>/gi, '**$1**').replace(/<i>([\s\S]*?)<\/i>/gi, '*$1*'),
+        shape: node.shape, icon: node.icon, classes: node.classes,
+        children: node.children.map(child => meaning(child, node.id, ids)),
+      }
+    }
+    expect(meaning(native.root)).toEqual(meaning(expected.root))
+  }
+  results.push({ name: 'Mindmap anonymous multiline Markdown', family: 'mindmap', source, serialized, before, after, original, written })
+})
+
 test.each([
   'flowchart TD\nA_B_2[Important]\nsubgraph A_B[Explicit]\nC\nend\nsubgraph "A--B"\nD\nend',
   'flowchart TD\nsubgraph "A<br>B"\nX\nend\nsubgraph "A\\nB"\nY\nend',

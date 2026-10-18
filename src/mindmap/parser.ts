@@ -258,8 +258,8 @@ export function serializeMindmap(diagram: MindmapDiagram): string {
     // Keep nested delimiters as text rather than ending the node early.
     if (node.shape !== 'default' && !label.startsWith('"`') && /[()\]}]/.test(label)) label = `"${label}"`
     // Anonymous shapes derive their logical ID from the description. An ID
-    // containing delimiters cannot be promoted to a nodeWithId prefix.
-    const id = node.id === plainLabel(node.label) && /[()[\]{}]/.test(node.id) ? '' : node.id
+    // containing delimiters or line breaks cannot be a nodeWithId prefix.
+    const id = node.id === plainLabel(node.label) && /[()[\]{}\r\n]/.test(node.id) ? '' : node.id
     const text = node.shape === 'default' ? label
       : node.shape === 'rect' ? `${id}[${label}]`
       : node.shape === 'rounded' ? `${id}(${label})`

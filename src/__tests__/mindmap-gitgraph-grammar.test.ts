@@ -16,6 +16,13 @@ Unicode works too: 🤓\`"]
     id2["\`The dog in **the** hog... a *very long text* that wraps to a new line\`"]
     id3[Regular labels still works]`
 
+const ANONYMOUS_MULTILINE_MINDMAP = `mindmap
+    ["\`**Root** with
+a second line
+Unicode works too: 🤓\`"]
+      id2["\`The dog in **the** hog... a *very long text* that wraps to a new line\`"]
+      id3[Rgular labels still works]`
+
 describe('Mindmap grammar, round-trip, and branch geometry', () => {
   test('anonymous delimiter identities, shaped comments and cloud closing tokens retain their meaning', async () => {
     const upstream = startUpstreamMermaid()
@@ -77,6 +84,28 @@ describe('Mindmap grammar, round-trip, and branch geometry', () => {
     expect(terminal).toContain('Root with')
     expect(terminal).toContain('Unicode works too: 🤓')
     expect(terminal).not.toMatch(/<\/?[bi]>/)
+  })
+
+  test('anonymous multiline Markdown identities retain their text and children after serialization', async () => {
+    const upstream = startUpstreamMermaid()
+    try {
+      expect(await upstream.accepts(ANONYMOUS_MULTILINE_MINDMAP)).toBe(true)
+      const parsed = parseMindmap(ANONYMOUS_MULTILINE_MINDMAP)
+      expect(parsed.root).toMatchObject({
+        id: 'Root with\na second line\nUnicode works too: 🤓',
+        label: '<b>Root</b> with\na second line\nUnicode works too: 🤓',
+        shape: 'rect', markdown: true,
+      })
+      expect(parsed.root.children.map(node => ({ id: node.id, label: node.label }))).toEqual([
+        { id: 'id2', label: 'The dog in <b>the</b> hog... a <i>very long text</i> that wraps to a new line' },
+        { id: 'id3', label: 'Rgular labels still works' },
+      ])
+      const canonical = serializeMindmap(parsed)
+      expect(canonical).toStartWith('mindmap\n  ["`**Root** with\n')
+      expect(await upstream.accepts(canonical)).toBe(true)
+      expect(parseMindmap(canonical)).toEqual(parsed)
+      expect(serializeMindmap(parseMindmap(canonical))).toBe(canonical)
+    } finally { upstream.close() }
   })
 
   test('reserved decorations, metadata, and shaped-node prefixes fail closed instead of changing meaning on serialization', () => {
