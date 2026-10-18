@@ -1321,6 +1321,13 @@ function localPaintResourceReferences(node: unknown, path: string): Array<{ id: 
   return references
 }
 
+/** The rule set `validateSceneDoc` applies to a document under `options`. */
+export function sceneValidationMode(value: unknown, options: SceneValidationOptions = {}): 'internal' | 'external' {
+  if (options.mode === 'external' || options.mode === 'internal') return options.mode
+  const family = record(value) && typeof value.family === 'string' ? parseExtensionId(value.family) : undefined
+  return family?.kind === 'family' ? 'external' : 'internal'
+}
+
 /** Validate an unknown value against the current Scene behavioral contract. */
 export function validateSceneDoc(value: unknown, options: SceneValidationOptions = {}): SceneValidationResult {
   const diagnostics: MutableDiagnostic[] = []
@@ -1330,8 +1337,7 @@ export function validateSceneDoc(value: unknown, options: SceneValidationOptions
       diagnostics: Object.freeze([{ code: 'SCENE_DOCUMENT', path: 'scene', message: 'must be a Scene document object' } as const]),
     })
   }
-  const parsedFamily = typeof value.family === 'string' ? parseExtensionId(value.family) : undefined
-  const external = options.mode === 'external' || (options.mode !== 'internal' && parsedFamily?.kind === 'family')
+  const external = sceneValidationMode(value, options) === 'external'
   if (external) rejectUnknownKeys(value, ['family', 'width', 'height', 'colors', 'transparent', 'parts'], 'scene', diagnostics)
   boundedString(value.family, 'scene.family', diagnostics)
   const widthOk = finite(value.width, 'scene.width', diagnostics, external ? { positive: true } : { nonNegative: true })

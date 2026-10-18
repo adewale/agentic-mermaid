@@ -249,7 +249,8 @@ export function measureFormattedTextWidth(
 ): number {
   const segments = HAS_FORMAT_TAGS.test(text) ? parseInlineFormatting(text) : [{ text, bold: false }]
   const glyphText = segments.map(segment => segment.text).join('')
-  const tracking = Math.max(0, graphemes(glyphText).length - 1) * letterSpacing
+  // Untracked text (the common case) needs no grapheme segmentation.
+  const tracking = letterSpacing === 0 ? 0 : Math.max(0, graphemes(glyphText).length - 1) * letterSpacing
   const measured = segments.reduce((width, segment) =>
     width + measureTextWidth(segment.text, fontSize, segment.bold ? Math.max(700, fontWeight) : fontWeight), 0)
   return Math.max(0, measured + tracking)

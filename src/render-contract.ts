@@ -805,6 +805,8 @@ function validateSchemaValue(
   return []
 }
 
+let validationRootSchema: JsonSchemaNode | undefined
+
 /** Validate the shared advanced JSON object used by CLI/MCP/editor adapters. */
 export function validateSerializableRenderOptions(value: unknown): string[] {
   if (!isPlainRecord(value)) return ['render options must be a plain JSON object']
@@ -812,7 +814,8 @@ export function validateSerializableRenderOptions(value: unknown): string[] {
   if (admissionProblems.length > 0) return admissionProblems
   const problems: string[] = []
   const allowed = new Set<string>(SHARED_RENDER_OPTION_FIELDS)
-  const rootSchema = sharedRenderOptionsJsonSchema()
+  // The schema is a projection of frozen module constants: build it once.
+  const rootSchema = validationRootSchema ??= deepFreeze(sharedRenderOptionsJsonSchema())
   for (const [field, fieldValue] of Object.entries(value)) {
     if (!allowed.has(field)) {
       problems.push(`unknown render option "${field}"`)

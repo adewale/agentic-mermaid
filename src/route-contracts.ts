@@ -753,10 +753,27 @@ function pillRect(cx: number, cy: number, m: { width: number; height: number }):
   return { x: cx - w / 2, y: cy - h / 2, w, h }
 }
 
+/** Measured label sizes. Lane proofs ask for every other edge's label on every
+ * probe, and the size is a pure function of the key, so each is measured once.
+ * Cleared when full so a long-lived process cannot grow it without bound. */
+const LABEL_SIZES = new Map<string, { width: number; height: number }>()
+const MAX_LABEL_SIZES = 4096
+
+function labelSize(label: string, style: LabelMetricsStyle): { width: number; height: number } {
+  const key = `${style.edgeLabelFontSize}\u0000${style.edgeLabelFontWeight}\u0000${style.edgeTextTransform ?? ''}\u0000${label}`
+  let size = LABEL_SIZES.get(key)
+  if (size === undefined) {
+    const m = measureMultilineText(applyTextTransform(label, style.edgeTextTransform), style.edgeLabelFontSize, style.edgeLabelFontWeight)
+    size = { width: m.width, height: m.height }
+    if (LABEL_SIZES.size >= MAX_LABEL_SIZES) LABEL_SIZES.clear()
+    LABEL_SIZES.set(key, size)
+  }
+  return size
+}
+
 export function labelRect(e: PositionedEdge, style: LabelMetricsStyle): { x: number; y: number; w: number; h: number } | null {
   if (!e.label || !e.labelPosition) return null
-  const m = measureMultilineText(applyTextTransform(e.label, style.edgeTextTransform), style.edgeLabelFontSize, style.edgeLabelFontWeight)
-  return pillRect(e.labelPosition.x, e.labelPosition.y, m)
+  return pillRect(e.labelPosition.x, e.labelPosition.y, labelSize(e.label, style))
 }
 
 /**

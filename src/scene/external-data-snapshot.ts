@@ -8,7 +8,7 @@
  */
 
 import type { SceneDoc } from './ir.ts'
-import { SCENE_VALIDATION_LIMITS, assertValidSceneDoc } from './scene-validation.ts'
+import { SCENE_VALIDATION_LIMITS, assertValidSceneDoc, sceneValidationMode } from './scene-validation.ts'
 import { boundedUtf8ByteLength } from '../shared/utf8.ts'
 import { transferSceneNodeSerialization } from './serialization.ts'
 
@@ -207,16 +207,33 @@ export function snapshotBoundedExternalData(
   return visit(value, 0, rootPath)
 }
 
+/**
+ * Snapshots that passed admission, with the rule set they passed. A snapshot is
+ * recursively frozen own data, so its validation result cannot change: passing
+ * the same snapshot through another admission gate re-proves nothing. Only this
+ * module's snapshots can be recorded, so a caller cannot forge membership.
+ */
+const ADMITTED_SCENES = new WeakMap<object, 'internal' | 'external'>()
+
+/** Record a snapshot from `snapshotBoundedExternalData` that passed `mode` admission. */
+export function recordAdmittedScene(scene: SceneDoc, mode: 'internal' | 'external'): void {
+  ADMITTED_SCENES.set(scene, mode)
+}
+
 /** The sole public-backend Scene admission waist. Direct backend consumers
  * receive the same validate-the-snapshot/use-the-snapshot guarantee as family
  * rendering. Every document is reduced to bounded, immutable own data before
- * validation. */
+ * validation; a snapshot already admitted under the same rules is returned as is. */
 export function admitBackendSceneDocument(value: unknown): SceneDoc {
+  // Look up before reading any property: a caller Proxy sees no trap here.
+  const prior = typeof value === 'object' && value !== null ? ADMITTED_SCENES.get(value) : undefined
+  if (prior !== undefined && prior === sceneValidationMode(value)) return value as SceneDoc
   const admitted = snapshotBoundedExternalData(
     value,
     EXTERNAL_SCENE_DOCUMENT_SNAPSHOT_LIMITS,
     'scene',
   )
   assertValidSceneDoc(admitted)
+  recordAdmittedScene(admitted as SceneDoc, sceneValidationMode(admitted))
   return admitted as SceneDoc
 }
