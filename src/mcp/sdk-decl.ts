@@ -17,7 +17,7 @@ const SDK_DIAGRAM_BODY_MEMBERS = BUILTIN_FAMILY_METADATA.map(family => `    | ${
 
 const SDK_VALID_DIAGRAM_ALIASES = BUILTIN_FAMILY_METADATA.map(family => `type ${sdkFamilyTypeStem(family)}ValidDiagram = ValidDiagram & { body: ${sdkFamilyBodyType(family)} }`).join('\n')
 
-const SDK_NARROWER_METHOD_DECLARATIONS = BUILTIN_FAMILY_METADATA.map(family => `  ${family.narrower}(d: ValidDiagram): ${sdkFamilyTypeStem(family)}ValidDiagram | null`).join('\n')
+const SDK_NARROWER_METHOD_DECLARATIONS = BUILTIN_FAMILY_METADATA.map(family => `  ${family.narrower}(d: ParsedDiagram): ${sdkFamilyTypeStem(family)}ValidDiagram | null`).join('\n')
 
 const SDK_MUTATE_METHOD_DECLARATIONS = BUILTIN_FAMILY_METADATA.map(family => {
   const stem = sdkFamilyTypeStem(family)
@@ -425,7 +425,7 @@ interface TimelineBody { kind: 'timeline'; direction?: 'LR' | 'TD'; title?: stri
 
 interface ClassNode { id: string; generic?: string; label?: string; members: string[]; namespace?: string; className?: string; style?: Record<string, string>; href?: string; tooltip?: string }
 type ClassRelationKind = 'inheritance' | 'composition' | 'aggregation' | 'association' | 'dependency' | 'realization' | 'link-solid' | 'link-dashed' | 'lollipop'
-interface ClassRelation { from: string; to: string; kind: ClassRelationKind; label?: string; fromCardinality?: string; toCardinality?: string; markerAt?: 'from' | 'to' | 'both' | 'none'; fromKind?: ClassRelationKind; toKind?: ClassRelationKind }
+interface ClassRelation { from: string; to: string; kind: ClassRelationKind; label?: string; fromCardinality?: string; toCardinality?: string; markerAt?: 'from' | 'to' | 'both' | 'none'; fromKind?: ClassRelationKind; toKind?: ClassRelationKind; lineStyle?: 'solid' | 'dashed' }
 interface ClassNote { text: string; for?: string }
 // namespace paths are dot-joined (e.g. 'Platform.Auth'); namespaces render as
 // compound boxes and serialize to "namespace path { ... }" blocks.
@@ -590,7 +590,7 @@ type ClassMutationOp =
   | { kind: 'set_class_generic'; class: string; generic: string | null }
   | { kind: 'add_member'; class: string; text: string }
   | { kind: 'remove_member'; class: string; index: number }
-  | { kind: 'add_relation'; from: string; to: string; relKind: ClassRelationKind; label?: string }
+  | { kind: 'add_relation'; from: string; to: string; relKind: ClassRelationKind; label?: string; markerAt?: ClassRelation['markerAt']; fromKind?: ClassRelationKind; toKind?: ClassRelationKind; lineStyle?: ClassRelation['lineStyle'] }
   | { kind: 'remove_relation'; index: number }
   | { kind: 'add_note'; text: string; for?: string }
   | { kind: 'remove_note'; index: number }

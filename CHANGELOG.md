@@ -21,7 +21,10 @@ This changelog tracks user-facing changes for **Agentic Mermaid**, a fork of `lu
   of endpoint markers. Native parsing, edits, serialization, SVG/Scene and
   terminal output support two-ended and mixed lollipop relationships, including
   escaped endpoint identities. Public relation operations accept endpoint and
-  shaft metadata and refuse contradictory combinations.
+  shaft metadata and refuse contradictory combinations. Exports keep required
+  backticks on reserved endpoint identities, including attached notes and links.
+  Both Code Mode SDK declarations accept parse → narrow → edit workflows;
+  the full declaration exposes the new relation fields.
 - Checked and declarative Class edits accept the supported `lollipop`
   relationship kind, matching direct typed mutation (#407).
 - Class `add_member` and initial `add_class.members` reject LF/CRLF that

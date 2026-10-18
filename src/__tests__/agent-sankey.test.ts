@@ -157,7 +157,7 @@ describe('sankey agent surface · blank-slate authoring and SDK projection', () 
   test('the Code Mode SDK declaration exposes precise sankey types', () => {
     expect(SDK_DECLARATION).toContain("interface SankeyBody { kind: 'sankey'; links: SankeyBodyLink[] }")
     expect(SDK_DECLARATION).toContain('type SankeyMutationOp =')
-    expect(SDK_DECLARATION).toContain('asSankey(d: ValidDiagram): SankeyValidDiagram | null')
+    expect(SDK_DECLARATION).toContain('asSankey(d: ParsedDiagram): SankeyValidDiagram | null')
     expect(SDK_DECLARATION).toContain('sankey?: {')
   })
 

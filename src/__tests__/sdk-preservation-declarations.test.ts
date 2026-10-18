@@ -54,6 +54,41 @@ function expectDeclared(members: Map<string, string[]>, expected: Record<string,
 }
 
 describe('Code Mode preservation declarations', () => {
+  test.each([['full', SDK_DECLARATION], ['core', SDK_CORE_DECLARATION]])('a typed %s Code Mode client can author mixed Class marker and shaft metadata', (label, declaration) => {
+    const path = '/class-sdk-consumer.ts'
+    const source = `${declaration}\n
+const op = {
+  kind: 'add_relation', from: 'Port', to: 'Service', relKind: 'lollipop',
+  markerAt: 'both', fromKind: 'lollipop', toKind: 'aggregation', lineStyle: 'dashed',
+} as const
+const parsed = mermaid.parseRegisteredMermaid('classDiagram\\nclass Port\\nclass Service')
+if (parsed.ok) {
+  const diagram = mermaid.asClass(parsed.value)
+  if (diagram) {
+    const edited = mermaid.mutate(diagram, op)
+    if (edited.ok) mermaid.serializeMermaid(edited.value)
+  }
+}
+${label === 'full' ? `
+const typed: ClassMutationOp = op
+declare const relationship: ClassRelation
+const shaft: 'solid' | 'dashed' | undefined = relationship.lineStyle
+` : ''}
+`
+    const options: ts.CompilerOptions = {
+      strict: true, noEmit: true, skipLibCheck: true, types: [],
+      target: ts.ScriptTarget.ES2022, module: ts.ModuleKind.ESNext,
+      moduleResolution: ts.ModuleResolutionKind.Bundler,
+    }
+    const host = ts.createCompilerHost(options)
+    const original = host.getSourceFile.bind(host)
+    host.getSourceFile = (fileName, languageVersion, onError, shouldCreateNewSourceFile) => fileName === path
+      ? ts.createSourceFile(fileName, source, ts.ScriptTarget.ES2022, true)
+      : original(fileName, languageVersion, onError, shouldCreateNewSourceFile)
+    const program = ts.createProgram([path], options, host)
+    expect(ts.getPreEmitDiagnostics(program).map(diagnostic => ts.flattenDiagnosticMessageText(diagnostic.messageText, '\n'))).toEqual([])
+  })
+
   test('exposes lossless preservation spans and descriptor identity in both declarations', () => {
     for (const [label, declaration] of [['full', SDK_DECLARATION], ['core', SDK_CORE_DECLARATION]] as const) {
       const members = declaredMembers(declaration)

@@ -7,7 +7,7 @@ export const SDK_FAMILIES = BUILTIN_FAMILY_METADATA.map(family => family.id)
 const SDK_FAMILY_SET = new Set<string>(SDK_FAMILIES)
 const DIAGRAM_KIND = SDK_FAMILIES.map(family => `'${family}'`).join(' | ')
 const NARROWERS = BUILTIN_FAMILY_METADATA
-  .map(family => `  ${family.narrower}(diagram: ValidDiagram): ValidDiagram | null`)
+  .map(family => `  ${family.narrower}(diagram: ParsedDiagram): ValidDiagram | null`)
   .join('\n')
 
 /**
