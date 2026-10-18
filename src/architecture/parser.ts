@@ -1,3 +1,4 @@
+import { assertArchitectureDiagramWork, assertDiagramWorkLimit } from '../shared/diagram-limits.ts'
 import { parserObservationActive, observeParserStatement, observeParserMutation } from '../shared/parser-observation.ts'
 import type { MermaidGraph, MermaidSubgraph, Direction } from '../types.ts'
 import { normalizeBrTags } from '../multiline-utils.ts'
@@ -470,6 +471,7 @@ function validateEndpoint(
 }
 
 export function architectureToMermaidGraph(diagram: ArchitectureDiagram): MermaidGraph {
+  assertArchitectureDiagramWork(diagram)
   const nodes = new Map<string, { id: string; label: string; shape: 'rectangle' | 'service' | 'state-start' }>()
 
   for (const service of diagram.services) {
@@ -512,14 +514,18 @@ export function architectureToMermaidGraph(diagram: ArchitectureDiagram): Mermai
 function buildMermaidSubgraphs(groups: ArchitectureGroup[]): MermaidSubgraph[] {
   const byId = new Map(groups.map((group) => [group.id, group]))
 
-  function toMermaidSubgraph(group: ArchitectureGroup): MermaidSubgraph {
+  const seen = new Set<ArchitectureGroup>()
+  function toMermaidSubgraph(group: ArchitectureGroup, depth: number): MermaidSubgraph {
+    if (seen.has(group)) throw new TypeError('Architecture groups must form a tree without repeated groups')
+    seen.add(group)
+    assertDiagramWorkLimit('nesting', depth)
     const nodeIds: string[] = []
     const children: MermaidSubgraph[] = []
 
     for (const child of group.children) {
       if (child.kind === 'group') {
         const nested = byId.get(child.id)
-        if (nested) children.push(toMermaidSubgraph(nested))
+        if (nested) children.push(toMermaidSubgraph(nested, depth + 1))
       } else {
         nodeIds.push(child.id)
       }
@@ -536,7 +542,7 @@ function buildMermaidSubgraphs(groups: ArchitectureGroup[]): MermaidSubgraph[] {
 
   return groups
     .filter((group) => !group.parentId)
-    .map(toMermaidSubgraph)
+    .map(group => toMermaidSubgraph(group, 1))
 }
 
 function detectArchitectureDirection(edges: ArchitectureEdge[]): Direction {

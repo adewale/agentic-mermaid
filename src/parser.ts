@@ -260,6 +260,13 @@ function edgeMetadataStatement(graph: MermaidGraph, line: string): MetadataState
 // Flowchart parser
 // ============================================================================
 
+// Count open containers as well as closed ones without exposing parser work
+// bookkeeping in the authored graph or its observation snapshots.
+const graphContainerCounts = new WeakMap<MermaidGraph, number>()
+function assertGraphNodeInsertion(graph: MermaidGraph): void {
+  assertDiagramWorkLimit('nodes', graph.nodes.size + (graphContainerCounts.get(graph) ?? 0) + 1)
+}
+
 function parseFlowchart(lines: string[]): MermaidGraph {
   const headerMatch = lines[0]!.match(/^(?:(?:graph|swimlane)\s+(TD|TB|LR|BT|RL|[<>^v])|flowchart(?:\s+(TD|TB|LR|BT|RL|[<>^v]))?)\s*$/i)
   if (!headerMatch) {
@@ -391,6 +398,7 @@ function parseFlowchart(lines: string[]): MermaidGraph {
           // Syntax occurrences collect their own bodies; the shared model
           // must not alias an open occurrence that will close again later.
           subgraphsById.set(id, { id, label, nodeIds: [], children: [] })
+          graphContainerCounts.set(graph, subgraphsById.size)
         }
         assertDiagramWorkLimit('nesting', subgraphStack.length + 1)
         subgraphStack.push(sg)
@@ -712,7 +720,7 @@ function parseStateDiagram(lines: string[]): MermaidGraph {
         : ''
       // Upsert: a transition may have referenced the id first (creating a
       // plain rounded node) — the declaration owns the shape either way.
-      if (!graph.nodes.has(stereotype.id)) assertDiagramWorkLimit('nodes', graph.nodes.size + 1)
+      if (!graph.nodes.has(stereotype.id)) assertGraphNodeInsertion(graph)
       graph.nodes.set(stereotype.id, { id: stereotype.id, label, shape })
       if (parserObservationActive('state')) observeParserMutation('state', 'upsert-node', graph.nodes.get(stereotype.id))
       trackInStateScope(compositeStack, stereotype.id)
@@ -732,6 +740,7 @@ function parseStateDiagram(lines: string[]): MermaidGraph {
         // becomes region 1.
         composite = top
         assertDiagramWorkLimit('nodes', graph.nodes.size + ++stateGroupCount)
+        graphContainerCounts.set(graph, stateGroupCount)
         const first: MermaidSubgraph = {
           id: `${composite.id}__r${nextRegion(regionCounts, composite.id)}`,
           label: '',
@@ -743,6 +752,7 @@ function parseStateDiagram(lines: string[]): MermaidGraph {
         if (parserObservationActive('state')) observeParserMutation('state', 'add-region', { id: first.id, parent: composite.id, members: first.nodeIds, children: first.children.map(child => child.id) })
       }
       assertDiagramWorkLimit('nodes', graph.nodes.size + ++stateGroupCount)
+      graphContainerCounts.set(graph, stateGroupCount)
       const next: MermaidSubgraph = {
         id: `${composite.id}__r${nextRegion(regionCounts, composite.id)}`,
         label: '',
@@ -765,7 +775,8 @@ function parseStateDiagram(lines: string[]): MermaidGraph {
         ? normalizeBrTags(compositeMatch[1])
         : (graph.nodes.get(id)?.label ?? id)
       const sg: MermaidSubgraph = { id, label, nodeIds: [], children: [] }
-      assertDiagramWorkLimit('nodes', graph.nodes.size + ++stateGroupCount)
+      assertDiagramWorkLimit('nodes', graph.nodes.size - Number(graph.nodes.has(id)) + ++stateGroupCount)
+      graphContainerCounts.set(graph, stateGroupCount)
       assertDiagramWorkLimit('nesting', compositeStack.length + 1)
       compositeStack.push(sg)
       // Track this ID to avoid creating a duplicate node for the composite state
@@ -911,7 +922,7 @@ function registerStateNode(
 ): void {
   const isNew = !graph.nodes.has(node.id)
   if (isNew) {
-    assertDiagramWorkLimit('nodes', graph.nodes.size + 1)
+    assertGraphNodeInsertion(graph)
     graph.nodes.set(node.id, node)
     if (parserObservationActive('state')) observeParserMutation('state', 'add-node', node)
   }
@@ -1457,7 +1468,7 @@ function defineNode(
  * node. Returns whether the node was created. */
 function mentionNode(graph: MermaidGraph, id: string, declaredSubgraphIds: ReadonlySet<string>): boolean {
   if (graph.nodes.has(id) || declaredSubgraphIds.has(id)) return false
-  assertDiagramWorkLimit('nodes', graph.nodes.size + 1)
+  assertGraphNodeInsertion(graph)
   graph.nodes.set(id, { id, label: id, shape: 'rectangle' })
   if (parserObservationActive('flowchart')) observeParserMutation('flowchart', 'add-node', graph.nodes.get(id))
   return true
@@ -1471,7 +1482,7 @@ function registerNode(
 ): void {
   const isNew = !graph.nodes.has(node.id)
   if (isNew) {
-    assertDiagramWorkLimit('nodes', graph.nodes.size + 1)
+    assertGraphNodeInsertion(graph)
     graph.nodes.set(node.id, node)
     if (parserObservationActive('flowchart')) observeParserMutation('flowchart', 'add-node', node)
   }

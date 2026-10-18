@@ -1,3 +1,4 @@
+import { assertArchitectureDiagramWork } from '../shared/diagram-limits.ts'
 import type { Point, RenderOptions } from '../types.ts'
 import { ARCHITECTURE_DEFAULT_LAYER_SPACING, ARCHITECTURE_DEFAULT_NODE_SPACING, DEFAULT_ARCHITECTURE_VISUAL, architectureLayoutMetrics } from './config.ts'
 import type { ArchitectureLayoutMetrics } from './config.ts'
@@ -58,13 +59,14 @@ export function layoutArchitectureDiagram(
   options: RenderOptions = {},
   metrics?: ArchitectureLayoutMetrics,
 ): PositionedArchitectureDiagram {
+  assertArchitectureDiagramWork(diagram)
   const typography = metrics ?? architectureLayoutMetrics(DEFAULT_ARCHITECTURE_VISUAL)
   const roleBlock = (source: string, role: 'service' | 'group' | 'edge') => preparePixelText(source, {
     display: 'formatted', transform: typography[`${role}TextTransform`], fontSize: typography[`${role}FontSize`],
     fontWeight: typography[`${role}FontWeight`], letterSpacing: typography[`${role}LetterSpacing`],
+    fontFamily: role === 'group' ? typography.groupFont : undefined,
   })
   const serviceText = new Map(diagram.services.map(service => [service.id, roleBlock(service.label, 'service')]))
-    fontFamily: role === 'group' ? typography.groupFont : undefined,
   const groupText = new Map(diagram.groups.map(group => [group.id, roleBlock(group.label, 'group')]))
   const edgeText = diagram.edges.map(edge => edge.label === undefined ? undefined : roleBlock(edge.label, 'edge'))
   const graph = architectureToMermaidGraph(diagram)

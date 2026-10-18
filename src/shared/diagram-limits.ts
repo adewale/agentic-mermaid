@@ -1,3 +1,6 @@
+import type { ArchitectureDiagram } from '../architecture/types.ts'
+import type { ClassDiagram, ClassNamespace } from '../class/types.ts'
+import type { ErDiagram } from '../er/types.ts'
 import type { MermaidGraph, MermaidSubgraph } from '../types.ts'
 
 /** Host work budgets. Mermaid source, frontmatter, and Style cannot raise them. */
@@ -7,9 +10,14 @@ export type DiagramWorkResource = keyof typeof DIAGRAM_WORK_LIMITS
 export class DiagramWorkLimitError extends RangeError {
   readonly code = 'DIAGRAM_WORK_LIMIT'
 
-  constructor(readonly resource: DiagramWorkResource, readonly requested: number) {
-    super(`DIAGRAM_WORK_LIMIT: expanded graph ${resource} ${requested} exceeds the host limit of ${DIAGRAM_WORK_LIMITS[resource]}`)
+  readonly resource: DiagramWorkResource
+  readonly requested: number
+
+  constructor(resource: DiagramWorkResource, requested: number) {
+    super(`DIAGRAM_WORK_LIMIT: expanded graph ${resource} ${requested} exceeds the host limit of ${DIAGRAM_WORK_LIMITS[resource]}; split the diagram or reduce its ${resource}`)
     this.name = 'DiagramWorkLimitError'
+    this.resource = resource
+    this.requested = requested
   }
 }
 
@@ -53,11 +61,63 @@ export function assertLayoutGraphWork(root: LayoutWorkNode): void {
     const { node, depth } = pending.pop()!
     if (seen.has(node)) throw new TypeError('Layout graph must form a tree without repeated node objects')
     seen.add(node)
-    assertDiagramWorkLimit('nesting', depth)
+    // Leaves consume node work, but only containers add syntactic nesting.
+    assertDiagramWorkLimit('nesting', node.children === undefined ? depth - 1 : depth)
     assertDiagramWorkLimit('nodes', ++nodes)
     edges += node.edges?.length ?? 0
     assertDiagramWorkLimit('edges', edges)
     assertDiagramWorkLimit('nodes', nodes + pending.length + (node.children?.length ?? 0))
     for (const child of node.children ?? []) pending.push({ node: child, depth: depth + 1 })
+  }
+}
+
+/** Count authored namespaces before Class measurement or recursive ELK conversion. */
+export function assertClassDiagramWork(diagram: ClassDiagram): void {
+  let nodes = diagram.classes.length + diagram.notes.length
+  assertDiagramWorkLimit('nodes', nodes + diagram.namespaces.length)
+  assertDiagramWorkLimit('edges', diagram.relationships.length)
+  const pending: Array<{ namespace: ClassNamespace; depth: number }> = diagram.namespaces.map(namespace => ({ namespace, depth: 1 }))
+  const seen = new Set<ClassNamespace>()
+  while (pending.length) {
+    const { namespace, depth } = pending.pop()!
+    if (seen.has(namespace)) throw new TypeError('Class namespaces must form a tree without repeated namespace objects')
+    seen.add(namespace)
+    assertDiagramWorkLimit('nesting', depth)
+    assertDiagramWorkLimit('nodes', ++nodes + pending.length + namespace.children.length)
+    for (const child of namespace.children) pending.push({ namespace: child, depth: depth + 1 })
+  }
+}
+
+/** ER frames are authored work even when their entities use a flat ELK graph. */
+export function assertErDiagramWork(diagram: ErDiagram): void {
+  assertFlatGroupWork(diagram.entities.length, diagram.relationships.length, diagram.groups, 'ER')
+}
+
+export function assertArchitectureDiagramWork(diagram: ArchitectureDiagram): void {
+  assertFlatGroupWork(diagram.services.length + diagram.junctions.length, diagram.edges.length, diagram.groups, 'Architecture')
+}
+
+function assertFlatGroupWork(leaves: number, edges: number, authoredGroups: readonly { id: string; parentId?: string }[], family: string): void {
+  assertDiagramWorkLimit('nodes', leaves + authoredGroups.length)
+  assertDiagramWorkLimit('edges', edges)
+  const groups = new Map(authoredGroups.map(group => [group.id, group]))
+  if (groups.size !== authoredGroups.length) throw new TypeError(`${family} groups must have distinct identities`)
+  const depths = new Map<string, number>()
+  for (const group of authoredGroups) {
+    const path: string[] = []
+    const seen = new Set<string>()
+    let current: typeof group | undefined = group
+    while (current && !depths.has(current.id)) {
+      if (seen.has(current.id)) throw new TypeError(`${family} groups must form an acyclic hierarchy`)
+      seen.add(current.id)
+      path.push(current.id)
+      assertDiagramWorkLimit('nesting', path.length)
+      current = current.parentId === undefined ? undefined : groups.get(current.parentId)
+    }
+    let depth = current ? depths.get(current.id)! : 0
+    for (const id of path.reverse()) {
+      assertDiagramWorkLimit('nesting', ++depth)
+      depths.set(id, depth)
+    }
   }
 }

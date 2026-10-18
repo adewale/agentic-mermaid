@@ -1,3 +1,4 @@
+import { assertClassDiagramWork } from '../shared/diagram-limits.ts'
 import { preparePixelText, type PixelTextBlock } from '../shared/prepared-text.ts'
 /**
  * Class diagram layout engine (ELK.js).
@@ -527,6 +528,7 @@ export function layoutClassDiagram(
   options: RenderOptions = {},
   styleFace?: Readonly<InternalStyleFace>,
 ): PositionedClassDiagram {
+  assertClassDiagramWork(diagram)
   if (diagram.classes.length === 0) {
     return { width: 0, height: 0, accessibilityTitle: diagram.accessibilityTitle, accessibilityDescription: diagram.accessibilityDescription, classes: [], relationships: [], notes: [], namespaces: [] }
   }

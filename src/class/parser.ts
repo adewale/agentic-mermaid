@@ -1,3 +1,4 @@
+import { assertClassDiagramWork } from '../shared/diagram-limits.ts'
 import { decodeXML } from 'entities'
 import { normalizeBrTags } from '../multiline-utils.ts'
 import { isSafeActionHref } from '../output-security.ts'
@@ -869,6 +870,7 @@ export function parseClassDiagram(lines: string[], authoredLines?: string[]): Cl
   }
   visit(tree.statements)
   diagram.classes = [...classMap.values()]
+  assertClassDiagramWork(diagram)
   return diagram
 }
 

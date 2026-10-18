@@ -1,3 +1,4 @@
+import { assertErDiagramWork } from '../shared/diagram-limits.ts'
 import { preparePixelText, type PixelTextBlock } from '../shared/prepared-text.ts'
 import { resolveRoleStyle } from '../scene/style-registry.ts'
 /**
@@ -593,6 +594,7 @@ export function layoutErDiagram(
   options: RenderOptions = {},
   styleFace?: Readonly<InternalStyleFace>,
 ): PositionedErDiagram {
+  assertErDiagramWork(diagram)
   if (diagram.entities.length === 0) {
     if (diagram.groups.length > 0) return withErTitle(prepareErText(layoutErGroupsOnly(diagram, resolveRenderStyle(options, ER_STYLE_DEFAULTS, styleFace)), resolveRenderStyle(options, ER_STYLE_DEFAULTS, styleFace), styleFace), diagram.title, resolveRenderStyle(options, ER_STYLE_DEFAULTS, styleFace))
     return { width: 0, height: 0, accessibilityTitle: diagram.accessibilityTitle, accessibilityDescription: diagram.accessibilityDescription, entities: [], relationships: [], groups: [] }

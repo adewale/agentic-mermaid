@@ -1,5 +1,5 @@
 import { graphTextBlock } from './graph-text.ts'
-import { assertMermaidGraphWork } from './shared/diagram-limits.ts'
+import { assertMermaidGraphWork, DiagramWorkLimitError } from './shared/diagram-limits.ts'
 /**
  * Layout engine for Agentic Mermaid (ELK.js based).
  *
@@ -1823,6 +1823,7 @@ function layoutCandidate(
       result = candidate
       break
     } catch (err) {
+      if (err instanceof DiagramWorkLimitError) throw err
       lastError = err
     }
   }

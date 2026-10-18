@@ -1,3 +1,4 @@
+import { assertErDiagramWork } from '../shared/diagram-limits.ts'
 import { parserObservationActive, observeParserStatement, observeParserMutation } from '../shared/parser-observation.ts'
 import type { ErDiagram, ErEntity, ErAttribute, ErRelationship, Cardinality } from './types.ts'
 import type { Direction } from '../types.ts'
@@ -442,6 +443,7 @@ export function parseErDiagram(lines: string[]): ErDiagram {
     if (parserObservationActive('er')) observeParserMutation('er', 'resolveGroup', resolved)
     return resolved
   })
+  assertErDiagramWork(diagram)
   return diagram
 }
 
