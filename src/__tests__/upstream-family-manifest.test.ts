@@ -128,15 +128,14 @@ describe('forward-compatible family classification', () => {
     }
   })
 
-  test('C4 and unknown future sources preserve every authored byte on diagnostics', () => {
-    const c4 = '---\ntitle: Deployment\n---\n%%{init: {"theme":"base"}}%%\n%% keep me\nC4Deployment\n  Deployment_Node(a, "A")\n'
+  test('native C4 and unknown future sources preserve every authored byte', () => {
+    const c4 = '---\ntitle: Deployment\n---\n%%{init: {"theme":"base"}}%%\n%% keep me\nC4Deployment\n  Deployment_Node(a, "A") {\n    Container(api, "API", "HTTP")\n  }\n'
     const c4Result = parseRegisteredMermaid(c4)
-    expect(c4Result.ok).toBe(true)
-    if (c4Result.ok && c4Result.value.body.kind === 'preserved') {
-      expect(c4Result.value.body.diagnostic.code).toBe('UNSUPPORTED_FAMILY')
-      expect(c4Result.value.body.preservation).toMatchObject({
-        classification: 'inventory-only', source: c4, header: 'C4Deployment', upstreamFamilyId: 'c4',
-      })
+    expect(c4Result).toMatchObject({ ok: true, value: { kind: 'c4', body: { kind: 'c4', variant: 'C4Deployment' } } })
+    if (c4Result.ok) {
+      expect(serializeMermaid(c4Result.value)).toBe(c4)
+      expect(renderMermaidSVG(c4)).toContain('API')
+      expect(renderMermaidASCII(c4, { colorMode: 'none' })).toContain('HTTP')
     }
 
     const future = '\uFEFF\n%% untouched\nfutureDiagram-v99\n  opaque { bytes }\n'
@@ -165,8 +164,12 @@ describe('forward-compatible family classification', () => {
         expected: { code: 'UNSUPPORTED_FAMILY', classification: 'unsupported', family: 'requirement', header: 'requirementDiagram' },
       },
       {
-        source: 'C4Context\n  Person(user, "User")\n',
-        expected: { code: 'UNSUPPORTED_FAMILY', classification: 'inventory-only', family: 'c4', header: 'C4Context' },
+        source: 'block-beta\n  A B\n',
+        expected: { code: 'UNSUPPORTED_FAMILY', classification: 'unsupported', family: 'block', header: 'block-beta' },
+      },
+      {
+        source: 'c4-beta\n  preserve the future dialect\n',
+        expected: { code: 'UNKNOWN_HEADER', classification: 'unknown', family: undefined, header: 'c4-beta' },
       },
       {
         source: 'brandNewDiagram-v42\n  keep these bytes\n',

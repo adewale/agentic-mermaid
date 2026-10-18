@@ -16,7 +16,7 @@ export interface PreparedRenderInput {
   readonly expectedFamilyId?: FamilyId
 }
 
-const BODY_OWNED_RENDER_FAMILIES: ReadonlySet<FamilyId> = new Set(['state', 'sequence', 'quadrant', 'xychart', 'pie', 'gantt', 'mindmap', 'gitgraph', 'radar', 'sankey'])
+const BODY_OWNED_RENDER_FAMILIES: ReadonlySet<FamilyId> = new Set(['state', 'sequence', 'quadrant', 'xychart', 'pie', 'gantt', 'mindmap', 'gitgraph', 'radar', 'sankey', 'c4'])
 
 /** One source authority for every ParsedDiagram render transport. Flowcharts
  * and source-order-sensitive families retain canonical authored order; typed

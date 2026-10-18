@@ -15,6 +15,7 @@ describe('async browser SVG entry', () => {
       { id: 'xychart', config: { xyChart: { xAxis: { labelRotation: 30, labelFontSize: 0 } } }, fields: ['xyChart.xAxis.labelFontSize', 'xyChart.xAxis.labelRotation'] },
       { id: 'mindmap', config: { layout: 'unsupported', mindmap: { padding: -1 } }, fields: ['layout', 'mindmap.padding'] },
       { id: 'sankey', config: { sankey: { width: 0.5, nodeWidth: 0.5 } }, fields: ['sankey.nodeWidth', 'sankey.width'] },
+      { id: 'c4', config: { c4: { c4ShapeInRow: 1.5, systemFontWeight: '1001', messageFontSize: 48 } }, fields: ['c4.c4ShapeInRow', 'c4.messageFontSize', 'c4.systemFontWeight'] },
     ].map(entry => ({ ...entry, source: getFamily(entry.id)!.example }))
     const child = Bun.spawn([process.execPath, '-e', `
       import { renderMermaidSVGAsync } from ${JSON.stringify(new URL('../browser-lazy.ts', import.meta.url).pathname)};

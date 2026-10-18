@@ -270,6 +270,88 @@ describe('editor and site interactions in a real browser', () => {
     await page.close()
   }, 60_000)
 
+  test('C4 boundary navigation keeps canonical exports, source identities and interaction indices intact', async () => {
+    const page = await browser.newPage({ viewport: { width: 1280, height: 900 }, acceptDownloads: true })
+    await wrapAdapter(page, 'renderMermaidSVGWithReceipt', `function(original) {
+      return function(source, options) {
+        var artifact = original(source, options);
+        window.__c4Artifact = artifact;
+        return artifact;
+      };
+    }`)
+    const source = `C4Dynamic
+System_Boundary("A\tB","Payments") {
+  Container(api,"API","Go")
+  ContainerDb(db,"Store","SQL")
+}
+Person(user,"Customer")
+System(other,"Unrelated context")
+RelIndex(42,api,db,"First")
+Rel(api,db,"Second")
+Rel_Back(user,api,"Replies")`
+    await page.goto(`${base}/editor/#${shareHash({ source, palette: 'paper', style: 'crisp' })}`, { waitUntil: 'networkidle' })
+    await waitForVerifiedRender(page)
+    const snapshot = () => page.evaluate(() => ({
+      svg: (window as any).__c4Artifact.svg,
+      receipt: (window as any).__c4Artifact.receipt,
+      viewBox: document.querySelector('#preview-inner svg')!.getAttribute('viewBox'),
+      source: (document.getElementById('code-editor') as HTMLTextAreaElement).value,
+    }))
+    const before = await snapshot()
+    expect(await page.locator('#c4-navigation').isVisible()).toBe(true)
+    await page.locator('#c4-boundary-view').selectOption('A\tB')
+    expect(await page.locator('#c4-boundary-view').inputValue()).toBe('A\tB')
+    expect(await snapshot()).toEqual(before)
+    const focused = await page.evaluate(() => {
+      const frame = Array.from(document.querySelectorAll('#preview-inner g.c4-boundary')).find(element => element.getAttribute('data-id') === 'A\tB')!.getBoundingClientRect()
+      const viewport = document.getElementById('preview-body')!.getBoundingClientRect()
+      return frame.left >= viewport.left - 2 && frame.right <= viewport.right + 2 && frame.top >= viewport.top - 2 && frame.bottom <= viewport.bottom + 2
+    })
+    expect(focused).toBe(true)
+    await page.locator('#export-chevron-btn').click()
+    const download = page.waitForEvent('download', { timeout: 30_000 })
+    await page.locator('#export-svg-btn').click()
+    const exported = readFileSync((await (await download).path())!, 'utf8')
+    expect(exported).toContain('data-id="other"')
+    expect(exported).toContain('data-index="42"')
+    expect(exported).toContain('Second')
+    expect(exported).toContain('Replies')
+    await page.locator('#export-chevron-btn').click()
+    const sourceDownload = page.waitForEvent('download', { timeout: 30_000 })
+    await page.locator('#export-source-btn').click()
+    expect(readFileSync((await (await sourceDownload).path())!, 'utf8')).toBe(source)
+    await page.locator('#format-unicode').click()
+    expect(await page.locator('#c4-navigation').isVisible()).toBe(false)
+    await page.locator('#format-diagram').click()
+    expect(await page.locator('#c4-boundary-view').inputValue()).toBe('A\tB')
+    await page.locator('#c4-boundary-view').selectOption('')
+    expect(await snapshot()).toEqual(before)
+    await page.evaluate(() => { document.getElementById('status-text')!.textContent = 'awaiting-test-render' })
+    await page.locator('#code-editor').fill('flowchart LR\nA --> B')
+    await waitForVerifiedRender(page)
+    expect(await page.locator('#c4-navigation').isVisible()).toBe(false)
+    await page.close()
+  }, 60_000)
+
+  test.each([320, 390, 1280])('export actions stay visible and keyboard reachable at %dpx', async width => {
+    const page = await browser.newPage({ viewport: { width, height: 900 }, reducedMotion: 'reduce' })
+    await page.goto(`${base}/editor/?example=flowchart-basic`, { waitUntil: 'networkidle' })
+    await waitForVerifiedRender(page)
+    await page.getByRole('button', { name: 'More export options', exact: true }).click()
+    const sourceAction = page.getByRole('button', { name: 'Save Mermaid source', exact: true })
+    await sourceAction.focus()
+    await page.keyboard.press('Tab')
+    await page.keyboard.press('Shift+Tab')
+    expect(await sourceAction.evaluate(element => element === document.activeElement)).toBe(true)
+    const bounds = await page.getByRole('dialog', { name: 'Export options', exact: true }).boundingBox()
+    expect(bounds).not.toBeNull()
+    expect(bounds!.x).toBeGreaterThanOrEqual(0)
+    expect(bounds!.x + bounds!.width).toBeLessThanOrEqual(width)
+    await page.keyboard.press('Escape')
+    expect(await page.getByRole('button', { name: 'More export options', exact: true }).getAttribute('aria-expanded')).toBe('false')
+    await page.close()
+  }, 60_000)
+
   test('PNG export records unreachable fonts in its receipt and renders at the default scale', async () => {
     const exportPng = async (blockFonts: boolean) => {
       const page = await browser.newPage({ viewport: { width: 1280, height: 900 }, acceptDownloads: true })

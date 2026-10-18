@@ -2,7 +2,7 @@ import { describe, expect, it } from 'bun:test'
 import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { BUILTIN_FAMILY_METADATA } from '../agent/families.ts'
-import { asArchitecture, asClass, asEr, asFlowchart, asGantt, asGitGraph, asJourney, asMindmap, asPie, asQuadrant, asRadar, asSankey, asSequence, asState, asTimeline, asXyChart, layoutMermaid, parseRegisteredMermaid as parseMermaid, serializeMermaid, verifyMermaid } from '../agent/index.ts'
+import { asArchitecture, asC4, asClass, asEr, asFlowchart, asGantt, asGitGraph, asJourney, asMindmap, asPie, asQuadrant, asRadar, asSankey, asSequence, asState, asTimeline, asXyChart, layoutMermaid, parseRegisteredMermaid as parseMermaid, serializeMermaid, verifyMermaid } from '../agent/index.ts'
 import { countStructuralElements, isDrop } from '../agent/structural-count.ts'
 import type { DiagramKind, ParsedDiagram, ValidDiagram } from '../agent/types.ts'
 import { displayText } from '../multiline-utils.ts'
@@ -101,6 +101,7 @@ const companionFamilies = new Set(Object.keys(companionOracle.accounting))
 const documentedReasons = new Set(['api-internal', 'upstream-negative', 'local-parse-gap', 'local-verify-gap', 'local-layout-gap', 'local-roundtrip-gap', 'unsupported-header', 'unsupported-syntax', 'unsupported-structured-syntax', 'unextracted-dynamic-source'])
 const localGapReasons = new Set(['local-parse-gap', 'local-verify-gap', 'local-layout-gap', 'local-roundtrip-gap', 'unsupported-header', 'unsupported-syntax', 'unsupported-structured-syntax'])
 const narrowerByFamily: Record<DiagramKind, (d: ParsedDiagram) => ValidDiagram | null> = {
+  c4: asC4,
   flowchart: asFlowchart,
   state: asState,
   sequence: asSequence,
@@ -184,11 +185,13 @@ describe('BUILD-20 Mermaid upstream parser/DB bench', () => {
     expect(text).toBe(JSON.stringify(JSON.parse(text), null, 2) + '\n')
   })
 
-  it('has a manifest row and portable upstream-derived case for every renderable built-in family', () => {
+  it('has portable upstream-derived cases for every family in the historical manifest', () => {
     const covered = new Set(cases.map(c => c.family))
-    const manifested = new Set(manifest.families.map(f => f.family))
-    const renderable = BUILTIN_FAMILY_METADATA.map(f => f.id)
-    expect(renderable.length).toBeGreaterThan(0)
+    const renderable = new Set(BUILTIN_FAMILY_METADATA.map(f => f.id))
+    // This is the frozen BUILD-20 harvest, not the current family roster.
+    // Newly supported families exercise their official sources in
+    // official-fence-corpus.test.ts and their public API in citizenship tests.
+    expect(manifest.families.length).toBeGreaterThan(0)
     expect(manifest.upstream).toEqual(
       expect.objectContaining({
         repo: 'mermaid-js/mermaid',
@@ -196,10 +199,9 @@ describe('BUILD-20 Mermaid upstream parser/DB bench', () => {
         license: 'MIT',
       }),
     )
-    for (const family of renderable) {
-      expect(manifested.has(family)).toBe(true)
-      const row = manifest.families.find(f => f.family === family)
-      expect(covered.has(family) || Boolean(row?.companionBench && row.importedCases > 0)).toBe(true)
+    for (const row of manifest.families) {
+      expect(renderable.has(row.family as DiagramKind)).toBe(true)
+      expect(covered.has(row.family) || Boolean(row.companionBench && row.importedCases > 0)).toBe(true)
     }
   })
 

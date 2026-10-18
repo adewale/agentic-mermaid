@@ -1,3 +1,5 @@
+import type { C4Body, C4MutationOp } from '../c4/types.ts'
+export type { C4Body, C4MutationOp } from '../c4/types.ts'
 // ============================================================================
 // Agentic Mermaid — IR and verb types (v4)
 //
@@ -26,7 +28,7 @@ export function err<E, T = never>(error: E): Result<T, E> {
 
 // ---- Families -------------------------------------------------------------
 
-export type DiagramKind = 'flowchart' | 'state' | 'sequence' | 'class' | 'er' | 'timeline' | 'journey' | 'xychart' | 'architecture' | 'pie' | 'quadrant' | 'gantt' | 'mindmap' | 'gitgraph' | 'radar' | 'sankey'
+export type DiagramKind = 'flowchart' | 'state' | 'sequence' | 'class' | 'er' | 'timeline' | 'journey' | 'xychart' | 'architecture' | 'pie' | 'quadrant' | 'gantt' | 'mindmap' | 'gitgraph' | 'radar' | 'sankey' | 'c4'
 
 /** Runtime extensions are open but must pass the registry's namespace validator. */
 export type ExternalFamilyId = `family:${string}`
@@ -817,6 +819,7 @@ export type DiagramBody =
   | GitGraphBody
   | RadarBody
   | SankeyBody
+  | C4Body
   /**
    * Opaque body — the parser understood the family header but encountered
    * unmodeled syntax. `source` is the ORIGINAL body with indentation, blank
@@ -948,6 +951,7 @@ export type MindmapValidDiagram = ValidDiagram & { body: MindmapBody }
 export type GitGraphValidDiagram = ValidDiagram & { body: GitGraphBody }
 export type RadarValidDiagram = ValidDiagram & { body: RadarBody }
 export type SankeyValidDiagram = ValidDiagram & { body: SankeyBody }
+export type C4ValidDiagram = ValidDiagram & { body: C4Body }
 export type MutableValidDiagram =
   | FlowchartValidDiagram
   | StateValidDiagram
@@ -965,6 +969,7 @@ export type MutableValidDiagram =
   | GitGraphValidDiagram
   | RadarValidDiagram
   | SankeyValidDiagram
+  | C4ValidDiagram
 
 export function asFlowchart(d: ParsedDiagram): FlowchartValidDiagram | null {
   return d.body.kind === 'flowchart' ? (d as FlowchartValidDiagram) : null
@@ -1010,6 +1015,10 @@ export function asQuadrant(d: ParsedDiagram): QuadrantValidDiagram | null {
 
 export function asRadar(d: ParsedDiagram): RadarValidDiagram | null {
   return d.body.kind === 'radar' ? (d as RadarValidDiagram) : null
+}
+
+export function asC4(d: ParsedDiagram): C4ValidDiagram | null {
+  return d.body.kind === 'c4' ? (d as C4ValidDiagram) : null
 }
 
 export function asSankey(d: ParsedDiagram): SankeyValidDiagram | null {
@@ -1401,6 +1410,7 @@ export type AnyMutationOp =
   | GitGraphMutationOp
   | RadarMutationOp
   | SankeyMutationOp
+  | C4MutationOp
 
 // ---- Branded Finite -------------------------------------------------------
 
@@ -1418,7 +1428,7 @@ export type WarningSeverity = 'error' | 'warning'
 export type WarningTier = 'structural' | 'geometric' | 'lint'
 
 export type Tier1WarningCode = 'EMPTY_DIAGRAM' | 'EDGE_MISANCHORED' | 'OFF_CANVAS' | 'GROUP_BREACH' | 'UNKNOWN_SHAPE' | 'LABEL_OVERFLOW' | 'UNRESOLVABLE_SCHEDULE' | 'RENDER_FAILED'
-export type Tier2WarningCode = 'NODE_OVERLAP' | 'ROUTE_SELF_CROSS' | 'ROUTE_HITCH' | 'ROUTE_UNEXPLAINED_BEND' | 'ROUTE_LABEL_ON_SHARED_TRUNK' | 'ROUTE_SELF_LOOP_OCCUPANCY' | 'ROUTE_CONTAINER_MISANCHOR' | 'ROUTE_SHAPE_MISANCHOR' | 'ROUTE_STALE_AFTER_NODE_MOVE'
+export type Tier2WarningCode = 'NODE_OVERLAP' | 'CONTENT_OCCLUDED' | 'LAYOUT_LIMIT_EXCEEDED' | 'ROUTE_SELF_CROSS' | 'ROUTE_HITCH' | 'ROUTE_UNEXPLAINED_BEND' | 'ROUTE_LABEL_ON_SHARED_TRUNK' | 'ROUTE_SELF_LOOP_OCCUPANCY' | 'ROUTE_CONTAINER_MISANCHOR' | 'ROUTE_SHAPE_MISANCHOR' | 'ROUTE_STALE_AFTER_NODE_MOVE'
 /**
  * Tier 3 (advisory lint). Family-specific quality hints for common agent
  * mistakes that still parse and render. Lint warnings never flip verify.ok.
@@ -1452,6 +1462,10 @@ export type LayoutWarning =
    */
   | { code: 'RENDER_FAILED'; reason: string }
   | { code: 'NODE_OVERLAP'; a: NodeId; b: NodeId; areaPx: number }
+  /** Final measured paint hides authored text or an interaction marker. */
+  | { code: 'CONTENT_OCCLUDED'; target: string; feature: 'label' | 'marker'; line?: number; message: string }
+  /** Content remains intact but cannot fit an explicitly requested layout budget. */
+  | { code: 'LAYOUT_LIMIT_EXCEEDED'; constraint: string; message: string }
   | { code: 'ROUTE_SELF_CROSS'; edge: EdgeId; count: number }
   | { code: 'ROUTE_HITCH'; edge: EdgeId; deviationPx: number }
   | { code: 'ROUTE_UNEXPLAINED_BEND'; edge: EdgeId }
@@ -1538,6 +1552,8 @@ export const WARNING_SEVERITY: Record<WarningCode, WarningSeverity> = {
   UNKNOWN_SHAPE: 'warning',
   LABEL_OVERFLOW: 'warning',
   NODE_OVERLAP: 'warning',
+  CONTENT_OCCLUDED: 'error',
+  LAYOUT_LIMIT_EXCEEDED: 'warning',
   ROUTE_SELF_CROSS: 'warning',
   ROUTE_HITCH: 'warning',
   ROUTE_UNEXPLAINED_BEND: 'warning',
@@ -1572,6 +1588,8 @@ export const WARNING_TIER: Record<WarningCode, WarningTier> = {
   UNKNOWN_SHAPE: 'structural',
   LABEL_OVERFLOW: 'structural',
   NODE_OVERLAP: 'geometric',
+  CONTENT_OCCLUDED: 'geometric',
+  LAYOUT_LIMIT_EXCEEDED: 'geometric',
   ROUTE_SELF_CROSS: 'geometric',
   ROUTE_HITCH: 'geometric',
   ROUTE_UNEXPLAINED_BEND: 'geometric',
@@ -1626,6 +1644,8 @@ export interface RenderedRegion {
 
 export interface RenderedLayoutNode {
   id: NodeId
+  /** Authored immediate container, supplied by families with a typed hierarchy. */
+  parentId?: GroupId
   x: Finite
   y: Finite
   w: Finite
@@ -1718,6 +1738,7 @@ export interface ValidDiagramPayload {
     | GitGraphBody
     | RadarBody
     | SankeyBody
+  | C4Body
     | ExtensionDiagramBody
     | { kind: 'opaque'; family: DiagramKind; source: string; diagnostic?: { code: 'GITGRAPH_DUPLICATE_COMMIT_ID'; id: string } }
 }

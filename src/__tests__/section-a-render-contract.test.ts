@@ -36,9 +36,9 @@ import type { RenderOptions } from '../types.ts'
 const SOURCE = 'flowchart LR\n  A[Start] --> B[Finish]'
 
 const EXPECTED_BUILTIN_OPTION_APPLICABILITY = {
-  padding: ['flowchart', 'state', 'architecture'],
-  nodeSpacing: ['flowchart', 'state', 'class', 'er', 'architecture'],
-  layerSpacing: ['flowchart', 'state', 'class', 'er', 'architecture'],
+  padding: ['flowchart', 'state', 'architecture', 'c4'],
+  nodeSpacing: ['flowchart', 'state', 'class', 'er', 'architecture', 'c4'],
+  layerSpacing: ['flowchart', 'state', 'class', 'er', 'architecture', 'c4'],
   wrappingWidth: ['flowchart'],
   componentSpacing: [],
   interactive: ['xychart', 'pie', 'quadrant'],
@@ -73,6 +73,25 @@ describe('Section A canonical render contracts', () => {
     const schema = sharedRenderOptionsJsonSchema() as { additionalProperties: boolean; properties: Record<string, unknown> }
     expect(schema.additionalProperties).toBe(false)
     expect(Object.keys(schema.properties)).toEqual(expect.arrayContaining(['style', 'mermaidConfig', 'security', 'idPrefix']))
+  })
+
+  test('editing an exported schema cannot change runtime admission or later exports', () => {
+    const exported = sharedRenderOptionsJsonSchema() as {
+      properties: { padding: { minimum: number } }
+      $defs: { jsonValue: { anyOf: unknown[] } }
+    }
+    exported.properties.padding.minimum = -100
+    exported.$defs.jsonValue.anyOf.length = 0
+
+    expect(validateSerializableRenderOptions({ padding: -1 })).toEqual([
+      expect.stringContaining('non-negative'),
+    ])
+    expect(validateSerializableRenderOptions({
+      mermaidConfig: { c4: { personFontSize: 13 }, themeVariables: { primaryColor: '#123456' } },
+    })).toEqual([])
+    const fresh = sharedRenderOptionsJsonSchema() as typeof exported
+    expect(fresh.properties.padding.minimum).toBe(0)
+    expect(fresh.$defs.jsonValue.anyOf).toHaveLength(6)
   })
 
   test('family-limited options publish one applicability authority and diagnose unsupported built-ins', () => {

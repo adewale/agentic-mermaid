@@ -1,3 +1,7 @@
+import { C4_SVG_HOOKS } from './svg-family-hooks/c4.ts'
+import { projectC4Positioned } from './agent/c4-layout.ts'
+import { renderC4Terminal } from './ascii/c4.ts'
+import type { C4Body } from './c4/types.ts'
 import { terminalInputModel } from './ascii/terminal-model.ts'
 import type { AsciiContext, FamilyDescriptor, FamilyPositionedProjectionContext, FamilyPositionedView } from './agent/families.ts'
 import {
@@ -257,6 +261,15 @@ const GITGRAPH_RENDER_HOOKS = {
   }),
 } satisfies BuiltinRenderHooks
 
+const C4_RENDER_HOOKS = {
+  ...C4_SVG_HOOKS,
+  projectPositioned: positionedView(projectC4Positioned),
+  renderAscii: nativeTerminalRenderer(ctx => {
+    const config = ctx.familyConfig as { model: C4Body; c4: Record<string, unknown> }
+    return renderC4Terminal(config.model, ctx.config, ctx.colorMode, ctx.theme, ctx.options.targetWidth, config.c4)
+  }),
+} satisfies BuiltinRenderHooks
+
 export const BUILTIN_RENDER_HOOKS = Object.freeze({
   flowchart: FLOWCHART_RENDER_HOOKS,
   state: STATE_RENDER_HOOKS,
@@ -271,6 +284,7 @@ export const BUILTIN_RENDER_HOOKS = Object.freeze({
   quadrant: QUADRANT_RENDER_HOOKS,
   radar: RADAR_RENDER_HOOKS,
   sankey: SANKEY_RENDER_HOOKS,
+  c4: C4_RENDER_HOOKS,
   gantt: GANTT_RENDER_HOOKS,
   mindmap: MINDMAP_RENDER_HOOKS,
   gitgraph: GITGRAPH_RENDER_HOOKS,

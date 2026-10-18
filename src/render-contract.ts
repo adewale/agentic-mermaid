@@ -451,7 +451,7 @@ const JSON_VALUE_SCHEMA = {
 } as const satisfies JsonSchemaNode
 
 const GRAPH_LAYOUT_OPTION_FAMILIES = [
-  'flowchart', 'state', 'class', 'er', 'architecture',
+  'flowchart', 'state', 'class', 'er', 'architecture', 'c4',
 ] as const satisfies readonly DiagramKind[]
 
 const SHADOW_OPTION_FAMILIES = [
@@ -474,7 +474,7 @@ export const SHARED_RENDER_OPTION_FIELD_DESCRIPTORS = deepFreeze({
   border: { typeScript: 'string', description: 'Node and group border color.', defaultLabel: 'derived', validationExpectation: 'be a safe non-fetching CSS paint', schema: paintSchema('Node and group border color.'), terminal: 'consumed' },
   font: { typeScript: 'string', description: 'CSS font family or stack.', defaultLabel: '`Inter`', validationExpectation: 'be a safe non-fetching CSS font family or stack', schema: fontFamilySchema('CSS font family or stack.', 'Inter'), terminal: 'projected', terminalNote: 'the host terminal owns the font face' },
   style: { typeScript: 'StyleInput | StyleInput[]', description: 'Registered Style/Palette name, inline StyleSpec, or left-to-right stack.', defaultLabel: '`crisp`', validationExpectation: 'be a registered Style name or StyleSpec, or an array of them', schema: STYLE_OPTION_SCHEMA, terminal: 'consumed' },
-  padding: { typeScript: 'number', description: 'Canvas padding in SVG user units.', defaultLabel: '`40`', validationExpectation: 'be a non-negative finite number', schema: nonNegativeNumberSchema('Canvas padding in SVG user units.', 40), terminal: 'not-applicable', terminalNote: 'terminal output uses paddingX, paddingY, and boxBorderPadding', applicableBuiltinFamilies: ['flowchart', 'state', 'architecture'] },
+  padding: { typeScript: 'number', description: 'Canvas padding in SVG user units.', defaultLabel: '`40`', validationExpectation: 'be a non-negative finite number', schema: nonNegativeNumberSchema('Canvas padding in SVG user units.', 40), terminal: 'not-applicable', terminalNote: 'terminal output uses paddingX, paddingY, and boxBorderPadding', applicableBuiltinFamilies: ['flowchart', 'state', 'architecture', 'c4'] },
   nodeSpacing: { typeScript: 'number', description: 'Horizontal spacing between sibling nodes.', defaultLabel: '`24`', validationExpectation: 'be a non-negative finite number', schema: nonNegativeNumberSchema('Horizontal spacing between sibling nodes.', 24), terminal: 'not-applicable', terminalNote: 'terminal layout has a cell-grid spacing contract', applicableBuiltinFamilies: GRAPH_LAYOUT_OPTION_FAMILIES },
   layerSpacing: { typeScript: 'number', description: 'Vertical spacing between graph layers.', defaultLabel: '`40`', validationExpectation: 'be a non-negative finite number', schema: nonNegativeNumberSchema('Vertical spacing between graph layers.', 40), terminal: 'not-applicable', terminalNote: 'terminal layout has a cell-grid spacing contract', applicableBuiltinFamilies: GRAPH_LAYOUT_OPTION_FAMILIES },
   wrappingWidth: { typeScript: 'number', description: 'Flowchart measured-label wrapping budget in pixels.', defaultLabel: 'unset', validationExpectation: 'be a positive finite number', schema: positiveNumberSchema('Flowchart measured-label wrapping budget in pixels.'), terminal: 'not-applicable', terminalNote: 'terminal output uses maxWidth or targetWidth', applicableBuiltinFamilies: ['flowchart'] },

@@ -42,6 +42,7 @@ function invalidateRenderedArtifacts() {
   if (typeof lastRenderedPngArtifact !== "undefined") lastRenderedPngArtifact = null;
   if (typeof lastRenderedSvgExportProjection !== "undefined") lastRenderedSvgExportProjection = null;
   if (typeof updateExportAvailability === "function") updateExportAvailability();
+  if (typeof refreshC4Navigation === "function") refreshC4Navigation();
 }
 
 function scheduleRender(delay) {
@@ -205,32 +206,8 @@ function markTextOutputsDirty() {
   clearTextOutputReceipts();
 }
 
-var VERIFY_TIER_BY_CODE = {
-  RENDER_FAILED: "structural",
-  EMPTY_DIAGRAM: "structural",
-  EDGE_MISANCHORED: "structural",
-  OFF_CANVAS: "structural",
-  GROUP_BREACH: "structural",
-  UNKNOWN_SHAPE: "structural",
-  LABEL_OVERFLOW: "structural",
-  UNRESOLVABLE_SCHEDULE: "structural",
-  NODE_OVERLAP: "geometric",
-  ROUTE_SELF_CROSS: "geometric",
-  ROUTE_HITCH: "geometric",
-  ROUTE_UNEXPLAINED_BEND: "geometric",
-  ROUTE_LABEL_ON_SHARED_TRUNK: "geometric",
-  ROUTE_SELF_LOOP_OCCUPANCY: "geometric",
-  ROUTE_CONTAINER_MISANCHOR: "geometric",
-  ROUTE_SHAPE_MISANCHOR: "geometric",
-  ROUTE_STALE_AFTER_NODE_MOVE: "geometric",
-  DUPLICATE_EDGE: "lint",
-  UNREACHABLE_NODE: "lint",
-  DECISION_BRANCH_UNLABELED: "lint",
-  INEFFECTIVE_CONFIG: "lint",
-  COMMENT_DROPPED: "lint",
-  UNSUPPORTED_SYNTAX: "lint",
-  CONTENT_DROPPED_ON_ROUNDTRIP: "lint",
-};
+var VERIFY_TIER_BY_CODE = (window.__mermaid && window.__mermaid.WARNING_TIER) || {};
+var VERIFY_SEVERITY_BY_CODE = (window.__mermaid && window.__mermaid.WARNING_SEVERITY) || {};
 
 function setVerifyTier(el, labelEl, stateName, text) {
   if (!el || !labelEl) return;
@@ -344,22 +321,24 @@ function updateVerifyPanel(source, renderOptions) {
     var result = verifyMermaid(source, { renderOptions: renderOptions });
     var warnings = result && Array.isArray(result.warnings) ? result.warnings : [];
     var counts = { structural: 0, geometric: 0, lint: 0 };
+    var errors = { structural: 0, geometric: 0, lint: 0 };
     warnings.forEach(function(w) {
       var tier = VERIFY_TIER_BY_CODE[w && w.code] || "lint";
       counts[tier]++;
+      if (VERIFY_SEVERITY_BY_CODE[w && w.code] === "error") errors[tier]++;
     });
     updateVerifyDetails(warnings);
-    var structuralState = counts.structural ? (result.ok ? "warn" : "err") : "ok";
+    var structuralState = counts.structural ? (errors.structural ? "err" : "warn") : "ok";
     setVerifyTier(verifyTierStructural, verifyStructural, structuralState, counts.structural ? counts.structural + " warning" + (counts.structural === 1 ? "" : "s") : "Clear");
-    setVerifyTier(verifyTierGeometric, verifyGeometric, counts.geometric ? "warn" : "ok", counts.geometric ? counts.geometric + " advisory" + (counts.geometric === 1 ? "" : " warnings") : "Clear");
-    setVerifyTier(verifyTierLint, verifyLint, counts.lint ? "warn" : "ok", counts.lint ? counts.lint + " note" + (counts.lint === 1 ? "" : "s") : "Clear");
+    setVerifyTier(verifyTierGeometric, verifyGeometric, counts.geometric ? (errors.geometric ? "err" : "warn") : "ok", errors.geometric ? errors.geometric + " error" + (errors.geometric === 1 ? "" : "s") : counts.geometric ? counts.geometric + " advisory" + (counts.geometric === 1 ? "" : " warnings") : "Clear");
+    setVerifyTier(verifyTierLint, verifyLint, counts.lint ? (errors.lint ? "err" : "warn") : "ok", errors.lint ? errors.lint + " error" + (errors.lint === 1 ? "" : "s") : counts.lint ? counts.lint + " note" + (counts.lint === 1 ? "" : "s") : "Clear");
     markTierCleared(verifyTierStructural, "structural", counts.structural);
     markTierCleared(verifyTierGeometric, "geometric", counts.geometric);
     markTierCleared(verifyTierLint, "lint", counts.lint);
     if (verifySummary) {
       if (result.ok && warnings.length === 0) verifySummary.textContent = "Verified: no warnings";
       else if (result.ok) verifySummary.textContent = "Verified with review notes";
-      else verifySummary.textContent = "Fix structural warnings before export";
+      else verifySummary.textContent = "Fix verification errors before export";
     }
     return result;
   } catch (err) {
@@ -478,6 +457,7 @@ async function doRender(version) {
     lastRenderedSvgArtifact = null;
     resetVerifyPanel("Waiting for source");
     if (typeof updateExportAvailability === "function") updateExportAvailability();
+    if (typeof refreshC4Navigation === "function") refreshC4Navigation();
     return;
   }
 
@@ -525,6 +505,7 @@ async function doRender(version) {
       statusDot.className = "status-dot err";
     }
     if (typeof updateExportAvailability === "function") updateExportAvailability();
+    if (typeof refreshC4Navigation === "function") refreshC4Navigation(true);
     if (verification && verification.ok) updateHash();
   } catch (err) {
     if (!isCurrentRender(version, source)) return;
@@ -546,6 +527,7 @@ async function doRender(version) {
     setVerifyTier(verifyTierStructural, verifyStructural, "err", "Fix source first");
     setTextOutputs("Fix the render error to see Unicode output.", "Fix the render error to see ASCII output.");
     if (typeof updateExportAvailability === "function") updateExportAvailability();
+    if (typeof refreshC4Navigation === "function") refreshC4Navigation();
   } finally {
     if (version === renderRequestVersion) clearRenderSpinner();
   }

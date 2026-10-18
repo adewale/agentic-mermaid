@@ -5,6 +5,7 @@ import { plainTextFromInlineFormatting } from '../../src/shared/inline-format.ts
 import { compareCodePointStrings } from '../../src/shared/deterministic-order.ts'
 import {
   asArchitecture,
+  asC4,
   asClass,
   asEr,
   asFlowchart,
@@ -249,6 +250,7 @@ const FAMILY_CONFIGS: FamilyConfig[] = [
 ]
 
 const narrowers: Record<Family, (d: ValidDiagram) => ValidDiagram | null> = {
+  c4: asC4,
   flowchart: asFlowchart,
   state: asState,
   sequence: asSequence,

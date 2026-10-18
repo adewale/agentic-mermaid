@@ -1,3 +1,5 @@
+import { parseC4Diagram } from '../c4/parser.ts'
+import { parseC4Body, renderC4, mutateC4, lintC4, buildC4SourceMap } from './c4-body.ts'
 // ============================================================================
 // Built-in family agent-operation definitions.
 //
@@ -1344,6 +1346,30 @@ const SANKEY_AGENT_HOOKS = {
   }),
 } satisfies FamilyOperations
 
+const C4_AGENT_HOOKS = {
+  parse: ctx => ok(parseC4Body(ctx.opaqueSource, ctx.meta.accessibility) ?? { kind: 'opaque', family: 'c4', source: ctx.opaqueSource }),
+  serialize: body => {
+    if (body.kind !== 'c4') throw new Error(`C4 serializer received body kind ${body.kind}`)
+    return renderC4(body)
+  },
+  mutate: (body, op) => body.kind === 'c4'
+    ? mutateC4(body, op as never)
+    : err<MutationError>({ code: 'UNSUPPORTED_FAMILY', message: 'C4 source contains unmodeled syntax; preserve it verbatim or edit source explicitly.' }),
+  verify: (body, opts) => body.kind === 'c4' ? lintC4(body, opts) : [],
+  buildSourceMap: (body, source) => body.kind === 'c4' ? buildC4SourceMap(body, source) : { nodes: new Map(), edges: new Map(), groups: new Map(), labels: new Map() },
+  extractLabels: source => {
+    try {
+      const body = parseC4Diagram(source)
+      return [
+        ...(body.title === undefined ? [] : [{ text: body.title, target: 'title' }]),
+        ...body.elements.flatMap(element => [element.label, element.technology, element.description].filter((text): text is string => typeof text === 'string' && text.length > 0).map(text => ({ text, target: element.id }))),
+        ...body.boundaries.map(boundary => ({ text: boundary.label, target: boundary.id })),
+        ...body.relationships.flatMap(relationship => [relationship.label, relationship.technology, relationship.description].filter((text): text is string => typeof text === 'string' && text.length > 0).map(text => ({ text, target: relationship.id }))),
+      ]
+    } catch { return extractLabelsGeneric(source) }
+  },
+} satisfies FamilyOperations
+
 export const BUILTIN_AGENT_HOOKS = Object.freeze({
   flowchart: FLOWCHART_AGENT_HOOKS,
   state: STATE_AGENT_HOOKS,
@@ -1361,4 +1387,5 @@ export const BUILTIN_AGENT_HOOKS = Object.freeze({
   gitgraph: GITGRAPH_AGENT_HOOKS,
   radar: RADAR_AGENT_HOOKS,
   sankey: SANKEY_AGENT_HOOKS,
+  c4: C4_AGENT_HOOKS,
 }) satisfies Readonly<Record<DiagramKind, FamilyOperations>>
