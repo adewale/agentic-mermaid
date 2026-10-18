@@ -5,7 +5,7 @@ import { mkdtempSync, mkdirSync, readFileSync, rmSync, symlinkSync, writeFileSyn
 import { tmpdir } from 'node:os'
 import { join, resolve } from 'node:path'
 import type { RenderOptions } from '../../src/types.ts'
-import type { ClassMutationOp } from '../../src/agent/types.ts'
+import type { AnyMutationOp, ClassMutationOp } from '../../src/agent/types.ts'
 import { getFamily, knownBuiltinFamilies } from '../../src/agent/families.ts'
 import { denseDag } from '../../eval/degenerate-etn/generators.ts'
 import { contactSheetScenarios } from '../../eval/visual-rubric/scenarios.ts'
@@ -17,7 +17,7 @@ if (!base || !head || !destination || ![base, head].every(sha => /^[a-f0-9]{40}$
 }
 const out = resolve(destination)
 mkdirSync(out, { recursive: true })
-interface Fixture { id: string; title: string; source: string; cue: string; renderOptions?: RenderOptions; captureLayout?: true; classMutation?: ClassMutationOp }
+interface Fixture { id: string; title: string; source: string; cue: string; renderOptions?: RenderOptions; captureLayout?: true; classMutation?: ClassMutationOp; mutation?: AnyMutationOp }
 const sequenceSpanSource = 'sequenceDiagram\nparticipant A\nparticipant B\nparticipant C\nA->>C: Label across B\nactivate B\nA->>C: Begin work\nA->>C: Label across active B\ndeactivate B'
 const sankeyIdentitySource = '---\ntitle: Caption\n---\nsankey-beta\nA,B,1\nA,B,2\nA,B#1,3\nlink:A->B#1,X,4\ntitle,title#1,5'
 const parallelReciprocalSource = 'flowchart LR\nA[Client] -->|request 0| B[Server]\nA -->|request 1| B\nB -->|reply| A'
@@ -31,6 +31,9 @@ const trackedRoles: RenderOptions = { style: { roles: {
 } } }
 const literalLabel = '<b>This is a very long label that describes the work in detail</b>'
 const fixtures: Fixture[] = [
+  { id: 'er-order-after-removing-entity', title: 'ER order survives removing the entity that first introduced A (#372)', source: 'erDiagram\n  A ||--o{ X : r\n  subgraph G\n  B\n  end\n  subgraph I\n  A ||--o{ C : s\n  end', mutation: { kind: 'remove_entity', id: 'X' }, cue: 'Both revisions remove X. The intended remaining order is A, B, C, with A/C in I and B in G. Compare the exported declarations and edit sidecar: before, reload moves B ahead of A; after, typed and reloaded order agree. Facts retain ownership and the surviving relationship. Images may be identical; this is a semantic ordering witness, not a pixel-change claim.' },
+  { id: 'journey-all-break-labels', title: 'Journey admits title, section and task labels made entirely of breaks (#367)', source: 'journey\n  title <br/>\n  section <br/>\n  <br/>: 5: Me', cue: 'The baseline rejects the all-break title, and that actual error is the before evidence. The candidate renders this source with the authored title, section and task breaks admitted. Inspect the source and the Me actor; blank label lines intentionally have no text ink. This fixture covers admission and rendering, not every Journey editing operation.' },
+  { id: 'pie-remove-only-slice', title: 'Pie permits removing the only slice while retaining its title (#367)', source: 'pie\n  title Queue\n  "Only" : 1', mutation: { kind: 'remove_slice', label: 'Only' }, cue: 'Both revisions request removal of Only. The baseline refuses its last-slice edit; the candidate exports and renders an intentionally empty pie titled Queue. Inspect the actual refusal, exported source and empty slice facts. This witness exercises direct mutation; checked, CLI and MCP paths have separate owning tests.' },
   { id: 'class-inheritance-after-member-edit', title: 'Class inheritance survives an unrelated member edit (#406)', source: 'classDiagram\nPerson --|> Animal', classMutation: { kind: 'add_member', class: 'Person', text: '+name: String' }, cue: 'Both revisions add the same member to Person. Before, canonical serialization reverses the inheritance triangle toward Person; after, it remains at Animal. Inspect the triangle and exported source, not the unchanged node labels. This witness covers one inheritance relation; the owning tests exercise the other marker kinds.' },
   { id: 'class-dashed-diamond-after-member-edit', title: 'Class dashed diamonds retain their shaft through an edit', source: 'classDiagram\nWhole o..* Part', classMutation: { kind: 'add_member', class: 'Whole', text: '+name: String' }, cue: 'Both revisions add the same member to Whole. Before, export and rendering turn the dashed diamond relationship solid; after, the shaft stays dashed and both diamond endpoints remain. Inspect shaft gaps and the exported o..* spelling. This fixture does not establish every mixed marker combination.' },
   { id: 'class-multi-lollipop-after-member-edit', title: 'Class two-ended lollipops become editable and render natively', source: 'classDiagram\nPort ()..() Service : contract', classMutation: { kind: 'add_member', class: 'Port', text: '+name: String' }, cue: 'The base revision refuses the edit because this relationship stays opaque; its honest error is the before evidence. The head exports and renders the same edit with two circle endpoints and a dashed shaft. Inspect authored Port/Service identities, both circles and the exported ()..() spelling; the image does not prove every public operation path.' },
@@ -143,7 +146,7 @@ const terminalFixtures = [
   { id: 'terminal-compound-parallel-reciprocal', source: 'flowchart TD\nsubgraph Outer["外側 👩‍💻<br>é header"]\nsubgraph Inner["内側<br>second"]\nA["日本<br>👩‍💻 é"]\nB[End]\nend\nX[Outside]\nend\nA -->|界 👩‍💻 = é| X\nX -->|back| B\nA -->|again| X\nX -->|return| A\nB -->|self| B', cue: 'Combined witness: Inner contains A/B and excludes X; all five parallel, reciprocal and self relationships retain their complete labels and physical endpoints. Inspect multiline CJK/ZWJ/combining text together with actual owned paths. Sidecars preserve baseline refusals honestly; the independent test also checks a hard 200-column width.' },
   { id: 'terminal-sankey-public-identities', source: sankeyIdentitySource, cue: 'Compare terminal edge identities/endpoints with the graphical Sankey layout sidecars. Authored names resembling generated IDs stay distinct; the existing complete adjacency text is a compatibility control.' },
 ]
-interface Evidence { svg?: string; png?: string; layout?: unknown; source?: string; error?: string }
+interface Evidence { svg?: string; png?: string; layout?: unknown; source?: string; edit?: unknown; error?: string }
 interface TerminalEvidence { ascii?: string; html?: string; meta?: unknown; error?: string }
 interface RevisionEvidence { renders: Record<string, Evidence>; terminals: Record<string, TerminalEvidence>; classExport: string }
 
@@ -155,7 +158,7 @@ function renderRevision(sha: string): RevisionEvidence {
     symlinkSync(join(ROOT, 'node_modules'), join(checkout, 'node_modules'), 'dir')
     writeFileSync(join(checkout, 'probe.ts'), `
       import { writeFileSync } from 'node:fs'
-      import { renderMermaidSVG, renderMermaidPNG, layoutMermaidWithReceipt, parseRegisteredMermaid, asClass, mutate, serializeMermaid } from './src/agent/index.ts'
+      import { renderMermaidSVG, renderMermaidPNG, layoutMermaidWithReceipt, parseRegisteredMermaid, asClass, mutate, serializeMermaid, describeMermaidFacts } from './src/agent/index.ts'
       import { renderMermaidASCIIWithMeta } from './src/ascii/meta.ts'
       const fixtures = ${JSON.stringify(fixtures)}
       const fixtureOptions = ${JSON.stringify(fixtureOptions)}
@@ -164,6 +167,7 @@ function renderRevision(sha: string): RevisionEvidence {
       for (const fixture of fixtures) {
         try {
           let input = fixture.source
+          let edit
           if (fixture.classMutation) {
             const parsed = parseRegisteredMermaid(fixture.source)
             if (!parsed.ok) throw new Error('Class edit witness did not parse')
@@ -172,11 +176,26 @@ function renderRevision(sha: string): RevisionEvidence {
             const edited = mutate(diagram, fixture.classMutation)
             if (!edited.ok) throw new Error(edited.error.message)
             input = serializeMermaid(edited.value)
+          } else if (fixture.mutation) {
+            const parsed = parseRegisteredMermaid(fixture.source)
+            if (!parsed.ok) throw new Error('Edit witness did not parse')
+            const edited = mutate(parsed.value, fixture.mutation)
+            if (!edited.ok) throw new Error(edited.error.message)
+            input = serializeMermaid(edited.value)
+            const reloaded = parseRegisteredMermaid(input)
+            if (!reloaded.ok) throw new Error('Edited source did not reload')
+            edit = {
+              facts: describeMermaidFacts(edited.value),
+              reloadedFacts: describeMermaidFacts(reloaded.value),
+              ...(edited.value.body.kind === 'er' ? { entityOrder: edited.value.body.entities.map(entity => entity.id) } : {}),
+              ...(reloaded.value.body.kind === 'er' ? { reloadedEntityOrder: reloaded.value.body.entities.map(entity => entity.id) } : {}),
+            }
           }
           renders[fixture.id] = {
             svg: renderMermaidSVG(input, fixtureOptions[fixture.id].svg),
             png: Buffer.from(renderMermaidPNG(input, fixtureOptions[fixture.id].png)).toString('base64'),
-            ...(fixture.classMutation ? { source: input } : {}),
+            ...(fixture.classMutation || fixture.mutation ? { source: input } : {}),
+            ...(edit ? { edit } : {}),
             ...(fixture.captureLayout ? { layout: layoutMermaidWithReceipt(input, { ...fixtureOptions[fixture.id].svg, regions: true }).layout } : {}),
           }
         } catch (error) { renders[fixture.id] = { error: String(error) } }
@@ -217,14 +236,17 @@ const rows = fixtures.map(fixture => {
     }
     if (result.layout) writeFileSync(join(out, `${fixture.id}-${phase}-layout.json`), JSON.stringify(result.layout, null, 2))
     if (result.source) writeFileSync(join(out, `${fixture.id}-${phase}-export.mmd`), result.source)
+    if (result.edit) writeFileSync(join(out, `${fixture.id}-${phase}-edit.json`), JSON.stringify(result.edit, null, 2))
     const semanticSidecar = result.layout ? `<p><a href="${fixture.id}-${phase}-layout.json">${phase} public layout identities and regions</a></p>` : ''
-    const exportedSource = result.source ? `<p><a href="${fixture.id}-${phase}-export.mmd">${phase} exported Class source</a></p><pre>${esc(result.source)}</pre>` : ''
+    const editSidecar = result.edit ? `<p><a href="${fixture.id}-${phase}-edit.json">${phase} typed and reloaded edit facts/order</a></p><pre>${esc(JSON.stringify(result.edit, null, 2))}</pre>` : ''
+    const exportedSource = result.source ? `<p><a href="${fixture.id}-${phase}-export.mmd">${phase} exported Mermaid source</a></p><pre>${esc(result.source)}</pre>` : ''
     return `<figure${fixture.renderOptions?.transparent ? ' class="transparent"' : ''}><figcaption>${phase}</figcaption>${result.png
       ? `<img alt="${phase}: ${esc(fixture.title)}" src="data:image/png;base64,${result.png}">`
-      : `<pre>${esc(result.error ?? 'No render')}</pre>`}${semanticSidecar}${exportedSource}</figure>`
+      : `<pre>${esc(result.error ?? 'No render')}</pre>`}${semanticSidecar}${editSidecar}${exportedSource}</figure>`
   }).join('')
   const optionsCaption = fixture.renderOptions ? `<p>Render options at both revisions: <code>${esc(JSON.stringify(fixture.renderOptions))}</code>.</p>` : ''
-  const mutationCaption = fixture.classMutation ? `<p>Class edit at both revisions: <code>${esc(JSON.stringify(fixture.classMutation))}</code>.</p>` : ''
+  const mutation = fixture.classMutation ?? fixture.mutation
+  const mutationCaption = mutation ? `<p>${fixture.classMutation ? 'Class edit' : 'Edit'} at both revisions: <code>${esc(JSON.stringify(mutation))}</code>.</p>` : ''
   return `<section><h2>${fixture.title}</h2><p>${fixture.cue}</p>${optionsCaption}${mutationCaption}<div class="pair">${panels}</div></section>`
 }).join('')
 const terminalRows = terminalFixtures.map(fixture => {
