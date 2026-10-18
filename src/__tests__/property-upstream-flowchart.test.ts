@@ -1,5 +1,5 @@
 // Grammar-based differential test: flowchart sources generated from a
-// recursive grammar are parsed by the pinned upstream Mermaid (11.16.0,
+// recursive grammar are parsed by the pinned upstream Mermaid (11.16.1,
 // devDependency) and by our public parser, and the two must agree.
 //
 //   (i)   upstream accepts every generated source — validates the generator;

@@ -56,10 +56,9 @@ class:official-syntax/classDiagram.md#29 [ Opaque Unsupported ] # 'callback' / '
 flowchart:official-syntax/flowchart.md#3 [ Opaque Unsupported ] # markdown strings render styled runs but stay source-preserved
 flowchart:official-syntax/flowchart.md#66 [ Opaque Unsupported ] # '@{ icon: ... }' icon shapes are not modelled
 flowchart:official-syntax/flowchart.md#67 [ Opaque Unsupported ] # '@{ img: ... }' renders an offline placeholder instead of fetching the URL
-flowchart:official-syntax/flowchart.md#99 [ Opaque Unsupported ] # subgraph '@{ view: collapsed }' is not modelled (diagnosed as edge metadata)
-flowchart:official-syntax/flowchart.md#100 [ Opaque Unsupported ] # markdown strings render styled runs but stay source-preserved
-flowchart:official-syntax/flowchart.md#101 [ Opaque Unsupported ] # click callbacks/hrefs are preserved but never executable
-flowchart:official-syntax/flowchart.md#102 [ Opaque Unsupported ] # click hrefs with link targets are preserved but never executable
+flowchart:official-syntax/flowchart.md#99 [ Opaque Unsupported ] # markdown strings render styled runs but stay source-preserved
+flowchart:official-syntax/flowchart.md#100 [ Opaque Unsupported ] # click callbacks/hrefs are preserved but never executable
+flowchart:official-syntax/flowchart.md#101 [ Opaque Unsupported ] # click hrefs with link targets are preserved but never executable
 # Gantt
 gantt:official-syntax/gantt.md#6 [ VerifyError RenderError ] # settings-only snippet has no tasks: diagnosed EMPTY_DIAGRAM where Mermaid draws an empty chart
 gantt:official-syntax/gantt.md#10 [ Unsupported VerifyError RenderError ] # inline task comments are diagnosed and canonicalized onto their own line; the undocumented workaround tag still becomes an invalid date

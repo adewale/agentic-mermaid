@@ -1939,4 +1939,10 @@ gantt
   curve docs["Docs"]{3, 4, 3, 3, 5, 5}
   max 5`,
   },
+  {
+    title: 'C4: Checkout system context',
+    category: 'C4',
+    description: 'A customer, nested system boundary, database, queue and external payment system retain distinct interactions.',
+    source: readFileSync(new URL('../../docs/design/families/c4-context-demo.mmd', import.meta.url), 'utf8').trimEnd(),
+  },
 ]

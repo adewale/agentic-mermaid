@@ -157,9 +157,9 @@ describe('#930 watch re-render step (renderFileOnce)', () => {
         authoredHeader: 'futureDiagram&#45;v99',
       },
       {
-        source: 'C4&#68;eployment\n  Deployment_Node(a, "A")',
+        source: 'requirement&#68;iagram\n  requirement test { id: 1 }',
         code: 'UNSUPPORTED_FAMILY',
-        authoredHeader: 'C4&#68;eployment',
+        authoredHeader: 'requirement&#68;iagram',
       },
     ]) {
       const payload = JSON.parse(renderFileOnce(tmp(fixture.source), 'svg'))

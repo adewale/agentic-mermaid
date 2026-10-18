@@ -17,6 +17,7 @@ const htmlDisplayWidth = (output: string): number =>
   )
 
 const LONG_FEASIBLE_SOURCE: Record<DiagramKind, string> = {
+  c4: 'C4Context\n  System(api, "A very descriptive software system label with several words")',
   flowchart: 'flowchart TD\n  A["A very descriptive flowchart node label with several words"]',
   state: 'stateDiagram-v2\n  A\n  note right of A : A very descriptive state note with several words',
   sequence: 'sequenceDiagram\n  participant A as A very descriptive participant label\n  A->>A: a descriptive self message with several words',

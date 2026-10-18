@@ -35,6 +35,7 @@ function identityTuples(svg: string): IdentityTuple[] {
 }
 function primaryNodeIdentities(family: DiagramKind, tuples: IdentityTuple[]): IdentityTuple[] {
   return tuples.filter(({ id, role }) => {
+    if (family === 'c4') return role === 'node' && !id.startsWith('c4:')
     if (family === 'flowchart' || family === 'state') return role === 'node' && !id.startsWith('node-shape:')
     if (family === 'sequence') return role === 'actor' && !id.startsWith('actor:')
     if (family === 'class') return role === 'class-box' && !id.startsWith('class:')
@@ -53,6 +54,7 @@ function primaryNodeIdentities(family: DiagramKind, tuples: IdentityTuple[]): Id
 }
 function primaryGroupIdentities(family: DiagramKind, tuples: IdentityTuple[]): IdentityTuple[] {
   return tuples.filter(({ id, role }) => {
+    if (family === 'c4') return role === 'group' && !id.startsWith('c4:')
     if (family === 'flowchart' || family === 'state') return role === 'group' && !id.startsWith('group-')
     if (family === 'class') return role === 'group' && !id.startsWith('namespace-')
     if (family === 'architecture') return role === 'group' && !id.startsWith('group-')
@@ -111,6 +113,7 @@ function expectedRelationTuples(family: DiagramKind, layout: ReturnType<typeof l
       const occurrence = occurrences.get(key) ?? 0
       occurrences.set(key, occurrence + 1)
       const arrow = `${edge.from}-&gt;${edge.to}`
+      if (family === 'c4') return { id: edge.id, role: 'edge', from: edge.from, to: edge.to }
       if (family === 'sequence') return { id: `message:${arrow}#${occurrence}:line`, role: 'message', from: edge.from, to: edge.to }
       if (family === 'class') return { id: `rel:${arrow}#${occurrence}`, role: 'relationship', from: edge.from, to: edge.to }
       if (family === 'er') return { id: `rel:${edge.from}-${edge.to}#${occurrence}`, role: 'relationship', from: edge.from, to: edge.to }
@@ -148,7 +151,9 @@ describe('all-family SVG semantic identity contract', () => {
       const tuples = identityTuples(first)
       expect(sortedPairs(primaryNodeIdentities(entry.family, tuples).map(({ id, role }) => ({ id, role }))), `${entry.family} complete node identities`).toEqual(expectedNodePairs(entry.family, layout))
       expect(sortedPairs(primaryGroupIdentities(entry.family, tuples).map(({ id, role }) => ({ id, role }))), `${entry.family} complete group identities`).toEqual(expectedGroupPairs(entry.family, layout))
-      expect(sortedTuples(tuples.filter(tuple => tuple.from && tuple.to)), `${entry.family} complete relation identities`).toEqual(expectedRelationTuples(entry.family, layout))
+      // Label companions may carry endpoint metadata, but the connector is
+      // the sole semantic interaction authority.
+      expect(sortedTuples(tuples.filter(tuple => tuple.from && tuple.to && tuple.role !== 'edge-label')), `${entry.family} complete relation identities`).toEqual(expectedRelationTuples(entry.family, layout))
 
       const styled = renderMermaidSVG(source, { embedFontImport: false, style: 'hand-drawn' })
       const styledIds = dataIds(styled)
@@ -160,6 +165,7 @@ describe('all-family SVG semantic identity contract', () => {
 
   test('relations expose normalized data-from/data-to endpoints', () => {
     const cases = [
+      ['c4', 'C4Context\n  System(A,"Alpha")\n  System(B,"Beta")\n  Rel(A,B,"Calls")\n  Rel(A,B,"Retries")'],
       ['flowchart', 'flowchart LR\n  A --> B'],
       ['state', 'stateDiagram-v2\n  A --> B'],
       ['sequence', 'sequenceDiagram\n  participant A\n  participant B\n  A->>B: hi'],
@@ -173,7 +179,7 @@ describe('all-family SVG semantic identity contract', () => {
       const parsed = parseMermaid(source)
       expect(parsed.ok, `${family} typed parse`).toBe(true)
       if (!parsed.ok) continue
-      const actual = identityTuples(renderMermaidSVG(source, { embedFontImport: false })).filter(tuple => tuple.from && tuple.to)
+      const actual = identityTuples(renderMermaidSVG(source, { embedFontImport: false })).filter(tuple => tuple.from && tuple.to && tuple.role !== 'edge-label')
       expect(sortedTuples(actual), `${family} exact relation identity`).toEqual(expectedRelationTuples(family, layoutMermaid(parsed.value)))
     }
   })

@@ -160,10 +160,10 @@ sources we did not write:
   `f3dea583…` compatibility revision and account for all 26/69 official spec
   blocks in a dedicated executable oracle.
 - **Official-fence corpus** (`official-fence-corpus.test.ts`) — every one of
-  the 481 official syntax fences on the 31 pinned upstream pages named by the
-  upstream policy. The 331 fences of rendered families must parse to a
+  the 473 official syntax fences on the 31 pinned upstream pages named by the
+  upstream policy. The 328 fences of rendered families must parse to a
   structured body, verify, render, and keep their structural counts through
-  serialize → re-parse; the 150 fences of unrendered families must be
+  serialize → re-parse; the 145 fences of unrendered families must be
   diagnosed `UNSUPPORTED_FAMILY` with their bytes preserved. Deviations live in
   one small expectations table (`id [ outcomes ] # reason`); a new deviation
   and an unexpected pass both fail, so the table cannot go stale.

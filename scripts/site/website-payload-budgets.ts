@@ -30,7 +30,8 @@ export const WEBSITE_PAYLOAD_BUDGETS: WebsitePayloadBudgets = Object.freeze({
   }),
   examples: Object.freeze({
     maxRequests: 6,
-    maxRawBytes: 412_000,
+    // The new C4 example contributes build-time SVG/HTML, not an eager runtime.
+    maxRawBytes: 425_000,
     maxGzipBytes: 72_500,
     maxBrotliBytes: 57_500,
     required: Object.freeze([
@@ -63,11 +64,12 @@ export const WEBSITE_PAYLOAD_BUDGETS: WebsitePayloadBudgets = Object.freeze({
   }),
   'editor-empty': Object.freeze({
     maxRequests: 2,
-    maxRawBytes: 3_579_000,
-    // Complete State-note routing belongs to the editor's eager terminal code;
-    // its per-change cost is still checked by the separate payload delta gate.
-    maxGzipBytes: 1_065_000,
-    maxBrotliBytes: 842_000,
+    // The synchronous editor adapter includes all native graphical/terminal
+    // families. With C4: 3,590,858 raw / 1,089,260 gzip / 859,297 Brotli bytes;
+    // keep tight headroom. Per-change growth still has its own delta gate.
+    maxRawBytes: 3_610_000,
+    maxGzipBytes: 1_095_000,
+    maxBrotliBytes: 865_000,
     required: Object.freeze([
       '^/editor/$',
       '^/editor/editor-[a-f0-9]{12}\\.js$',

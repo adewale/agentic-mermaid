@@ -23,6 +23,15 @@ const ROOT = join(import.meta.dir, '..', '..')
 /** Extra syntax broadens role coverage beyond each descriptor's minimal
  * discovery example. This is test stimulus, not a family/capability roster. */
 const RICH_SCENE_FIXTURES: Partial<Record<BuiltinFamilyId, string>> = {
+  c4: `C4Container
+  title Payment platform
+  Person(customer, "Customer")
+  System_Boundary(platform, "Platform") {
+    Container(api, "API", "HTTP")
+    ContainerDb_Ext(db, "Store", "SQL")
+  }
+  Rel(customer, api, "Calls", "HTTPS")
+  BiRel(api, db, "Reads and writes")`,
   flowchart: `---
 title: Operations flow
 ---
@@ -176,6 +185,7 @@ sankey-beta
 }
 
 const CAPABILITY_MUTATIONS: Readonly<Record<BuiltinFamilyId, AnyMutationOp>> = {
+  c4: { kind: 'add_element', element: { id: 'CapabilityWitness', label: 'Capability witness', kind: 'system' } },
   flowchart: { kind: 'add_node', id: 'CapabilityWitness', label: 'Capability witness' },
   state: { kind: 'add_state', id: 'CapabilityWitness', label: 'Capability witness' },
   sequence: { kind: 'add_participant', id: 'CapabilityWitness', label: 'Capability witness' },

@@ -361,6 +361,23 @@ export interface SequenceRuntimeConfig extends MermaidConfigMap {
   messageFontWeight?: string | number
 }
 
+/** C4 spacing is pixel-space; terminal layout allocates its own cell geometry. */
+export interface C4RuntimeConfig extends MermaidConfigMap {
+  diagramMarginX?: number
+  diagramMarginY?: number
+  c4ShapeMargin?: number
+  c4ShapePadding?: number
+  width?: number
+  height?: number
+  boxMargin?: number
+  nextLinePaddingX?: number
+  c4ShapeInRow?: number
+  c4BoundaryInRow?: number
+  wrap?: boolean
+  wrapPadding?: number
+  useMaxWidth?: boolean
+}
+
 export interface MermaidRuntimeConfig extends MermaidConfigMap {
   theme?: string
   fontFamily?: string
@@ -374,6 +391,7 @@ export interface MermaidRuntimeConfig extends MermaidConfigMap {
   quadrantChart?: QuadrantRuntimeConfig
   radar?: RadarRuntimeConfig
   sankey?: SankeyRuntimeConfig
+  c4?: C4RuntimeConfig
   gantt?: GanttRuntimeConfig
   sequence?: SequenceRuntimeConfig
   class?: ClassRuntimeConfig

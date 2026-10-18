@@ -42,6 +42,10 @@ function scanTagEnd(source: string, start: number): number {
  * only supplies exact attribute/text ranges without ever interpreting text
  * nodes as markup or CSS. */
 export function scanSvgStartTags(source: string): readonly SvgStartTagToken[] {
+  return scanStartTags(source, false)
+}
+
+function scanStartTags(source: string, firstOnly: boolean): readonly SvgStartTagToken[] {
   const tags: SvgStartTagToken[] = []
   for (let start = source.indexOf('<'); start >= 0; start = source.indexOf('<', start + 1)) {
     if (source.startsWith('<!--', start)) {
@@ -86,6 +90,7 @@ export function scanSvgStartTags(source: string): readonly SvgStartTagToken[] {
       attributes: Object.freeze(attributes),
       selfClosing: /\/\s*>$/.test(source.slice(start, end)),
     })
+    if (firstOnly) break
     start = end - 1
   }
   return Object.freeze(tags)
@@ -94,7 +99,7 @@ export function scanSvgStartTags(source: string): readonly SvgStartTagToken[] {
 export function svgRootStartTag(source: string): SvgStartTagToken | undefined {
   const firstNonWhitespace = source.search(/\S/)
   if (firstNonWhitespace < 0) return undefined
-  const root = scanSvgStartTags(source)[0]
+  const root = scanStartTags(source, true)[0]
   return root?.start === firstNonWhitespace && root.name === 'svg' ? root : undefined
 }
 
@@ -120,11 +125,27 @@ interface Replacement {
 }
 
 function applyReplacements(source: string, replacements: readonly Replacement[]): string {
-  let output = source
-  for (const replacement of [...replacements].sort((left, right) => right.start - left.start)) {
-    output = `${output.slice(0, replacement.start)}${replacement.value}${output.slice(replacement.end)}`
+  if (replacements.length === 0) return source
+  const ordered = [...replacements].sort((left, right) => left.start - right.start)
+  // A style body can contain tag-like text inside CDATA. Preserve the existing
+  // replacement precedence if that produces nested lexical ranges.
+  if (ordered.some((replacement, index) => index > 0 && replacement.start < ordered[index - 1]!.end)) {
+    let output = source
+    for (const replacement of [...replacements].sort((left, right) => right.start - left.start)) {
+      output = `${output.slice(0, replacement.start)}${replacement.value}${output.slice(replacement.end)}`
+    }
+    return output
   }
-  return output
+  // Assemble disjoint ranges once instead of copying the complete SVG for
+  // every changed value.
+  const parts: string[] = []
+  let cursor = 0
+  for (const replacement of ordered) {
+    parts.push(source.slice(cursor, replacement.start), replacement.value)
+    cursor = replacement.end
+  }
+  parts.push(source.slice(cursor))
+  return parts.join('')
 }
 
 export function transformSvgAttributes(

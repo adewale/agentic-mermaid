@@ -2,9 +2,9 @@
   "schemaVersion": 1,
   "status": "approved",
   "artifact": "src/__tests__/testdata/section-b-brand-evidence.png",
-  "artifactSha256": "b2e6c3a54c1e7c625fa5499752c56eeec371552882b34c19df9375e569f9f124",
-  "reviewedAt": "2026-10-17",
-  "reviewer": "Codex agent, PR #401 marker review after rebasing onto prepared-text geometry",
-  "scope": "The 1560×9464 sheet contains 64 family-by-variant cells and retains upstream's prepared-text geometry and prior visual review. Against immutable main 53056ec569781d6f5153f90b5bd563aa70f8c5c7, exactly 4,693 of 14,763,840 pixels change, limited to four Sequence, four Class and four Architecture cells. The other 52 cells are pixel-identical to upstream's reviewed artifact. Codex inspected all twelve changed before/after crops at native size in four 1040×1140 comparison panels: Sequence responses point toward the receiving lifeline, Class triangles and diamonds follow their vertical shafts, and Architecture tips contact their service boundaries. Labels, palettes, routes, prepared text and containment remain unchanged. This is agent review, not human approval, viewer certification or proof of arbitrary input/font coverage. Final-cell terminal tests separately cover ASCII/Unicode semantics.",
+  "artifactSha256": "39b6c470e29e40159fc9bddddb63f711f534d2022b9322f5913834be885972ac",
+  "reviewedAt": "2026-10-18",
+  "reviewer": "Codex agent, PR #411 native C4 extension review",
+  "scope": "The 1560\u00d79464 sheet contains 68 family-by-variant cells. Against PR #411 head 4b6f965e37d40ccde4600d9cf504858759a843ac, exactly 790,384 of 14,763,840 pixels change, confined to four previously empty C4 cells. All 64 existing family-by-variant cells remain pixel-identical and retain their recorded prior review. Codex inspected all four new C4 cells at native size plus an unchanged dark Sankey control: person glyphs, relationship label halos, type legends, typography, card containment and light/dark palette treatments remain legible. This is agent review, not human approval, viewer certification or proof of arbitrary input/font coverage. Final-cell terminal connectivity is reviewed independently.",
   "audit": "eval/section-b-brand-evidence/production-comparison.md"
 }
