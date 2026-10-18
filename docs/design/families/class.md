@@ -102,9 +102,9 @@ lollipops also keep authored identities instead of Mermaid's synthetic
 Class relation facts include effective marker ownership, both endpoint kinds
 when present, and `line solid` / `line dashed`. Public `add_relation` operations
 can author those properties explicitly and reject combinations that would
-change meaning on reload. Member authoring refuses comment-form/blank text and
-decoded line breaks; the source reader still handles comments as source
-metadata. Initial member arrays are copied so later caller changes do not
+change meaning on reload. Member authoring refuses comment-form/blank text,
+accessibility directives and decoded line breaks; the source reader still
+handles comments as source metadata. Initial member arrays are copied so later caller changes do not
 alter the returned diagram. See `docs/api.md` for the complete-fact migration.
 
 The official relationship section's aggregate capability is still only

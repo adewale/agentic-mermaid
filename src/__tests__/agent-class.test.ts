@@ -182,11 +182,18 @@ describe('class — mutate', () => {
     }
   })
 
-  test.each(['%% comment', ' \t%% comment', '%%{init: {"theme":"dark"}}%%', '&#37;&#37; comment', ' \t'])('refuses member text that source preprocessing would remove: %j', text => {
+  test.each([
+    ...['%% comment', ' \t%% comment', '%%{init: {"theme":"dark"}}%%', '&#37;&#37; comment', ' \t'].map(text => ({
+      text, message: 'Class members must contain text, not blank lines, comments or init directives',
+    })),
+    ...['accTitle: lost', ' \tACCTITLE lost', 'accDescr: lost', 'accDescr { lost }', 'accDescr {}', 'accDescr { lost } +kept()', '&#97;ccDescr&#123;lost&#125;', 'accDescr {'].map(text => ({
+      text, message: 'Class members cannot be accessibility directives',
+    })),
+  ])('refuses member text that source preprocessing would remove: $text', ({ text, message }) => {
     const source = 'classDiagram\nclass A'
     const original = asClass(parse(source))!
     const before = JSON.stringify(original)
-    const error = { code: 'INVALID_OP', message: 'Class members must contain text, not blank lines, comments or init directives' } as const
+    const error = { code: 'INVALID_OP', message } as const
     for (const op of [
       { kind: 'add_member', class: 'A', text },
       { kind: 'add_class', id: 'B', namespace: 'New.Nested', members: ['+valid()', text] },
@@ -202,7 +209,7 @@ describe('class — mutate', () => {
     }
   })
 
-  test.each([String.raw`+foo()\n +bar()`, '+foo();+bar()', '+value: 50%%', '+literal(%%{init: {}}%%)', String.raw`\%% literal`])('keeps single-line member text through either authoring op and reload: %j', text => {
+  test.each([String.raw`+foo()\n +bar()`, '+foo();+bar()', '+value: 50%%', '+literal(%%{init: {}}%%)', String.raw`\%% literal`, '+accTitle: String', '+accDescr { kept }', 'accTitle() lost', 'accTitle:'])('keeps single-line member text through either authoring op and reload: %j', text => {
     const original = asClass(parse('classDiagram\nclass A'))!
     for (const op of [
       { kind: 'add_member', class: 'A', text },

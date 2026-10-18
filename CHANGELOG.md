@@ -27,9 +27,10 @@ This changelog tracks user-facing changes for **Agentic Mermaid**, a fork of `lu
 - Class `add_member` and initial `add_class.members` reject LF/CRLF that
   would split a member on reload; bare CR is also rejected under the
   single-line member policy (#408). Literal backslash-n and ordinary
-  single-line member text remain supported. Blank/comment-form members and
-  decoded line breaks are refused too; initial member arrays are copied so a
-  caller cannot change the returned diagram through the supplied array.
+  single-line member text remain supported. Blank/comment-form members,
+  accessibility directives and decoded line breaks are refused too; initial
+  member arrays are copied so a caller cannot change the returned diagram
+  through the supplied array.
 - XY-chart titles wrap to the configured canvas width and reserve space above
   the plot, keeping long titles visible in vertical and horizontal charts.
   Verification names titles that cannot fit the configured title-space budget

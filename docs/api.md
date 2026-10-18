@@ -407,8 +407,10 @@ relationship read back from the emitted source. Contradictory combinations
 return `INVALID_OP` instead of silently changing kind on reload. Cardinalities,
 labels and authored endpoint identities already present in parsed relationships
 survive unrelated edits. Direct `add_class` copies initial members; member
-authoring refuses blank/comment-form text and physical or entity-decoded line
-breaks rather than admitting text that disappears or changes structure.
+authoring refuses blank/comment-form text, accessibility directives and physical
+or entity-decoded line breaks rather than admitting text that disappears or
+changes structure. The source reader still accepts diagram accessibility
+directives; they cannot be authored through a member operation.
 
 Opaque fallback bodies (any unmodeled syntax) are source-level-only: edit source deliberately, then parse and verify again.
 

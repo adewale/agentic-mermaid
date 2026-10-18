@@ -41,6 +41,7 @@ import type { ClassStatementNode } from '../class/parser.ts'
 import { parseMutableStyleProps, serializeStyleProps, unsafeStylePaintError } from '../shared/style-props.ts'
 import { decodeXML } from 'entities'
 import { toMermaidLines } from '../mermaid-source-wrapper.ts'
+import { parseAccessibilityDirective } from '../shared/accessibility-directives.ts'
 
 // ---- Parser ---------------------------------------------------------------
 
@@ -389,11 +390,15 @@ function normalizeGeneric(value: unknown): Result<string, MutationError> {
 
 function validateClassMembers(members: readonly string[]): MutationError | undefined {
   for (const member of members) {
-    if (typeof member !== 'string' || /[\r\n]/.test(decodeXML(member))) {
+    const decoded = typeof member === 'string' ? decodeXML(member) : undefined
+    if (decoded === undefined || /[\r\n]/.test(decoded)) {
       return { code: 'INVALID_OP', message: 'Class members must be single lines; add each member separately' }
     }
-    if (toMermaidLines(decodeXML(member)).length !== 1) {
+    if (toMermaidLines(decoded).length !== 1) {
       return { code: 'INVALID_OP', message: 'Class members must contain text, not blank lines, comments or init directives' }
+    }
+    if (parseAccessibilityDirective([decoded], 0) !== null) {
+      return { code: 'INVALID_OP', message: 'Class members cannot be accessibility directives' }
     }
   }
 }
