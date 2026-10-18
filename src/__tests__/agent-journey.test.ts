@@ -38,6 +38,17 @@ function apply(d: JourneyValidDiagram, op: JourneyMutationOp): JourneyValidDiagr
 }
 
 describe('journey structured parse', () => {
+  test.each(['<br/>', '<BR >', '<br><br/>'])('retains all-break title, section and task text %s', label => {
+    const d = journey(`journey\n  title ${label}\n  section ${label}\n  ${label}: 5: Me`)
+    const text = label === '<br><br/>' ? '\n\n' : '\n'
+    expect(d.body.title).toBe(text)
+    expect(d.body.sections[0]!.label).toBe(text)
+    expect(d.body.sections[0]!.tasks[0]!.text).toBe(text)
+    const next = apply(d, { kind: 'set_task_score', sectionIndex: 0, taskIndex: 0, score: 4 })
+    expect(journey(serializeMermaid(next)).body).toEqual(next.body)
+    expect(verifyMermaid(next).ok).toBe(true)
+  })
+
   test('models title, sections, tasks, scores, and actors', () => {
     const d = journey()
     expect(d.kind).toBe('journey')
