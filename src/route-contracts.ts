@@ -1088,11 +1088,13 @@ function laneSearch(
     push(srcPortLane)
   }
   if (restrictToLane === undefined) {
-    push(edge.points[edge.points.length - 1]![axis.cross])
-    push(edge.points[0]![axis.cross])
-    const crossValues = edge.points.map(p => p[axis.cross])
-    push(Math.min(...crossValues))
-    push(Math.max(...crossValues))
+    if (edge.points.length > 0) {
+      push(edge.points[edge.points.length - 1]![axis.cross])
+      push(edge.points[0]![axis.cross])
+      const crossValues = edge.points.map(p => p[axis.cross])
+      push(Math.min(...crossValues))
+      push(Math.max(...crossValues))
+    }
     push((overlapLo + overlapHi) / 2)
     // Span quartiles: an unlabeled feedback loop's own cross values all sit
     // on the forward lane or outside the span, so the parallel back-lane

@@ -252,11 +252,11 @@ function extractErLayout(
     }
   }
 
+  const originalPositions = new Map(positionedEntities.map(entity => [entity.id, { x: entity.x, y: entity.y }]))
   const relationshipBlocks = diagram.relationships.map(rel => erRelationshipBlock(rel, style, styleFace))
-  const movedByScopedDirection = applyErGroupDirections(diagram, positionedEntities, relationshipBlocks)
+  applyErGroupDirections(diagram, positionedEntities, relationshipBlocks)
   const positionedGroups = deriveErGroups(diagram, positionedEntities, style)
-  const separatedGroups = separateErCompounds(diagram, positionedEntities, positionedGroups, style, relationshipBlocks)
-  const rerouteRelationships = movedByScopedDirection.size > 0 || separatedGroups
+  separateErCompounds(diagram, positionedEntities, positionedGroups, style, relationshipBlocks)
   const boxes = new Map<string, { x: number; y: number; width: number; height: number }>()
   positionedEntities.forEach(entity => boxes.set(entity.id, entity))
   positionedGroups.forEach(group => boxes.set(group.id, group))
@@ -264,18 +264,22 @@ function extractErLayout(
   const relationships: PositionedErRelationship[] = []
   for (let i = 0; i < diagram.relationships.length; i++) {
     const rel = diagram.relationships[i]!
-    const elkEdge = rerouteRelationships
-      ? undefined
-      : edgeById.get(`e${i}`)
+    const from = boxes.get(rel.entity1), to = boxes.get(rel.entity2)
+    const originalFrom = originalPositions.get(rel.entity1), originalTo = originalPositions.get(rel.entity2)
+    const dx = from && originalFrom ? from.x - originalFrom.x : undefined
+    const dy = from && originalFrom ? from.y - originalFrom.y : undefined
+    // A local direction or compound repair must not replace an unrelated
+    // ELK route. Whole-component translations preserve its complete shape.
+    const elkEdge = dx !== undefined && dy !== undefined && to && originalTo &&
+      Math.abs(to.x - originalTo.x - dx) < 0.001 && Math.abs(to.y - originalTo.y - dy) < 0.001
+      ? edgeById.get(`e${i}`) : undefined
     const points: Point[] = []
     if (elkEdge?.sections?.length) {
       const section = elkEdge.sections[0]!
-      points.push({ x: section.startPoint.x, y: section.startPoint.y })
-      for (const bp of section.bendPoints ?? []) points.push({ x: bp.x, y: bp.y })
-      points.push({ x: section.endPoint.x, y: section.endPoint.y })
+      points.push({ x: section.startPoint.x + dx!, y: section.startPoint.y + dy! })
+      for (const bp of section.bendPoints ?? []) points.push({ x: bp.x + dx!, y: bp.y + dy! })
+      points.push({ x: section.endPoint.x + dx!, y: section.endPoint.y + dy! })
     } else {
-      const from = boxes.get(rel.entity1)
-      const to = boxes.get(rel.entity2)
       if (from && to) {
         const fromCenter = { x: from.x + from.width / 2, y: from.y + from.height / 2 }
         const toCenter = { x: to.x + to.width / 2, y: to.y + to.height / 2 }
@@ -483,8 +487,35 @@ function separateErCompounds(diagram: ErDiagram, entities: PositionedErEntity[],
     const childGroups = children.get(parent) ?? []
     for (const group of childGroups) visit(group.id, modelById.get(group.id)?.direction ?? direction)
     const members = directEntities.get(parent) ?? []
+    const memberById = new Map(members.map(entity => [entity.id, entity]))
+    const neighbors = new Map(members.map(entity => [entity.id, [] as string[]]))
+    for (const rel of diagram.relationships) {
+      if (!memberById.has(rel.entity1) || !memberById.has(rel.entity2)) continue
+      neighbors.get(rel.entity1)!.push(rel.entity2)
+      neighbors.get(rel.entity2)!.push(rel.entity1)
+    }
+    const seen = new Set<string>()
+    const components: Item[] = []
+    for (const entity of members) {
+      if (seen.has(entity.id)) continue
+      const component: PositionedErEntity[] = []
+      const pending = [entity.id]
+      while (pending.length) {
+        const id = pending.pop()!
+        if (seen.has(id)) continue
+        seen.add(id)
+        component.push(memberById.get(id)!)
+        pending.push(...neighbors.get(id)!)
+      }
+      const x = Math.min(...component.map(member => member.x)), y = Math.min(...component.map(member => member.y))
+      const box = { x, y, width: Math.max(...component.map(member => member.x + member.width)) - x, height: Math.max(...component.map(member => member.y + member.height)) - y }
+      components.push({ box, ids: new Set(component.map(member => member.id)), move: (dx, dy) => {
+        box.x += dx; box.y += dy
+        for (const member of component) { member.x += dx; member.y += dy }
+      } })
+    }
     const items: Item[] = [
-      ...members.map(entity => ({ box: entity, ids: new Set([entity.id]), move: (dx: number, dy: number) => { entity.x += dx; entity.y += dy } })),
+      ...components,
       ...childGroups.map(group => ({ box: group, ids: idsWithin(group), move: (dx: number, dy: number) => moveGroup(group, dx, dy) })),
     ]
     pack(items, direction)

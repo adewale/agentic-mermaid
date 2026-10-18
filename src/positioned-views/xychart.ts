@@ -11,7 +11,7 @@ export function projectXyChartPositioned({ positioned, options }: FamilyPosition
   positioned.bars.forEach(b => {
     const pointIndex = barPointIndices.get(b.seriesIndex) ?? 0
     barPointIndices.set(b.seriesIndex, pointIndex + 1)
-    nodes.push({ id: `bar#${b.seriesIndex}:pt#${pointIndex}`, x: f(b.x), y: f(b.y), w: f(b.width), h: f(b.height), shape: 'rectangle', label: b.label, role: 'labelled-mark', labelVisibility: 'semantic' })
+    nodes.push({ id: `bar#${b.seriesIndex}:pt#${pointIndex}`, x: f(b.x), y: f(b.y), w: fSpan(b.x, b.width), h: fSpan(b.y, b.height), shape: 'rectangle', label: b.label, role: 'labelled-mark', labelVisibility: 'semantic' })
   })
   // Line series points become small marker boxes so line-only charts are
   // still measured (whitespace/legibility care about node area).
@@ -20,7 +20,7 @@ export function projectXyChartPositioned({ positioned, options }: FamilyPosition
       // These are measurement footprints, not renderer-owned point circles.
       // The viewport clips ink at a boundary; the footprint must describe that
       // visible intersection without inventing off-canvas data geometry.
-      const x = Math.max(0, p.x - 3), y = Math.max(0, p.y - 3)
+      const x = Math.max(0, Math.min(positioned.width, p.x - 3)), y = Math.max(0, Math.min(positioned.height, p.y - 3))
       const right = Math.max(x, Math.min(positioned.width, p.x + 3)), bottom = Math.max(y, Math.min(positioned.height, p.y + 3))
       nodes.push({ id: `line#${ln.seriesIndex}:pt#${pi}`, x: f(x), y: f(y), w: fSpan(x, right - x), h: fSpan(y, bottom - y), shape: 'circle', label: p.label, role: p.label ? 'labelled-mark' : 'mark', labelVisibility: 'semantic' })
     })
@@ -31,8 +31,8 @@ export function projectXyChartPositioned({ positioned, options }: FamilyPosition
       id: 'plot',
       x: f(positioned.plotArea.x),
       y: f(positioned.plotArea.y),
-      w: f(positioned.plotArea.width),
-      h: f(positioned.plotArea.height),
+      w: fSpan(positioned.plotArea.x, positioned.plotArea.width),
+      h: fSpan(positioned.plotArea.y, positioned.plotArea.height),
       members: nodes.filter(node => node.x + node.w / 2 >= positioned.plotArea.x && node.x + node.w / 2 <= positioned.plotArea.x + positioned.plotArea.width && node.y + node.h / 2 >= positioned.plotArea.y && node.y + node.h / 2 <= positioned.plotArea.y + positioned.plotArea.height).map(node => node.id),
     },
   ]
