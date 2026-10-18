@@ -181,6 +181,7 @@
     "eval:family-portfolio": "bun run eval/mermaid-family-portfolio/build.ts",
     "eval:mermaid-modern": "bun run eval/mermaid-modern-compat/run.ts",
     "eval:mermaid-grammar": "bun run eval/mermaid-modern-compat/grammar-run.ts",
+    "reference:mermaid": "bash scripts/setup-mermaid-reference.sh",
     "test:mermaid-modern": "bun test --timeout 30000 eval/mermaid-modern-compat/semantic.test.ts eval/mermaid-modern-compat/native-operations.test.ts eval/mermaid-modern-compat/grammar-regressions.test.ts",
     "eval:degenerate-routes": "bun run eval/degenerate-etn/enumerate.ts",
     "rubric:visual": "bun run eval/visual-rubric/run.ts",
