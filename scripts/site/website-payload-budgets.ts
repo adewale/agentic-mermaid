@@ -32,9 +32,9 @@ export const WEBSITE_PAYLOAD_BUDGETS: WebsitePayloadBudgets = Object.freeze({
     maxRequests: 6,
     // The new C4 example contributes build-time SVG/HTML, not an eager runtime.
     maxRawBytes: 425_000,
-    // C4's prepared legend heading and semantic swatches measured 72,546 B.
+    // Prepared C4 text and the inherited root font rule measure 72,550 B gzip / 57,536 B Brotli.
     maxGzipBytes: 72_600,
-    maxBrotliBytes: 57_500,
+    maxBrotliBytes: 57_600,
     required: Object.freeze([
       '^/examples/$',
       '^/styles\\.css$',
@@ -66,7 +66,7 @@ export const WEBSITE_PAYLOAD_BUDGETS: WebsitePayloadBudgets = Object.freeze({
   'editor-empty': Object.freeze({
     maxRequests: 2,
     // Native parser observations and final text/geometry checks also ship in
-    // the editor: 3,667,912 raw / 1,111,757 gzip / 875,999 Brotli bytes.
+    // the editor: 3,667,915 raw / 1,111,755 gzip / 875,724 Brotli bytes.
     // Per-change growth still has its own delta gate.
     maxRawBytes: 3_670_000,
     maxGzipBytes: 1_113_000,
