@@ -159,6 +159,16 @@ latency. Browser distributions for Beautiful/Zombie were not invented for this
 table. Historical benchmark tables elsewhere retain their original environments,
 versions and populations.
 
+The final CI website capture at `d6f00407007eb67876af22d70113ee3035cb9bce`
+also measured the empty editor: two requests, 3,590,858 raw / 1,089,260 gzip /
+859,297 Brotli bytes. This is the existing synchronous all-family editor
+adapter, including native graphical/terminal receipts and verification, rather
+than the lazy library entry above. C4's additional native code is an intentional
+cost; a browser-first async editor would need a separate loading contract. The
+examples route grew to 418,997 raw bytes because its new C4 card contains
+build-time HTML/SVG; it does not load a C4 runtime. Tight route ceilings were
+reviewed against these measurements, while request/admission rules remain.
+
 The next performance priority is to profile dense routing separately while
 retaining connectivity, obstacle clearance, labels and certification. Narrow
 Node startup entries and smaller usable browser closures are separate work.

@@ -27,6 +27,15 @@ a 137-byte gzip overrun by increasing only GitGraph's cap from 184,500 to
 do not establish every dense layout, font/browser combination or assistive
 technology experience. Final CI status remains recorded on the PR.
 
+Final browser behavioral tests passed, then website payload checks exposed
+intended native-family costs beyond the old route ceilings: the build-time C4
+example takes the examples route to 418,997 raw bytes, and the synchronous
+all-family editor measures 3,590,858 raw / 1,089,260 gzip / 859,297 Brotli bytes.
+Review found no new dependency or accidental layout engine; deferring the
+editor's synchronous adapters requires a separate async loading contract.
+Only those route byte ceilings were adjusted with tight headroom. Their request
+and resource restrictions, and the separate per-PR growth review, remain gates.
+
 ## Contract
 
 Support Mermaid 11.16's five legacy dialects (`C4Context`, `C4Container`,
