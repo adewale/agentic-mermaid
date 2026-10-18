@@ -1,0 +1,34 @@
+// The file protocol between the release benchmark and its isolated Node worker.
+export interface BenchInput {
+  id: string
+  family: string
+  source: string
+}
+export type Outcome = { ok: true; output: string } | { ok: false; error: string }
+export interface OutputFingerprint {
+  ok: boolean
+  sha256: string
+  bytes: number
+  error?: string
+}
+export interface TimeResult {
+  node: string
+  importMs: number
+  firstRenderMs: number
+  firstRender: OutputFingerprint
+  results: Array<{
+    id: string
+    svg: Outcome
+    ascii: OutputFingerprint
+    deterministic: boolean
+    ms: number
+    samplesMs: number[]
+  }>
+}
+export interface MemoryResult {
+  perInput: Array<{ id: string; allocatedBytes: number; peakHeapBytes: number }>
+  passAllocatedBytes: number
+  passPeakHeapBytes: number
+  retainedGrowthBytes: number
+  peakRssBytes: number
+}

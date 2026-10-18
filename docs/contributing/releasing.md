@@ -11,11 +11,12 @@ every export resolves and carries types for Node ESM and bundlers. attw uses its
 `esm-only` profile because the package ships ESM only, and it skips `./browser`
 because that is the classic `<script>` bundle that sets a global, not an import.
 The release workflow retains the registry-derived macOS/Windows smoke and
-runs the [release benchmark](#the-release-benchmark) against the previous npm
-release, then owns only the publish boundary: an unprivileged job builds once, creates a
-real tarball with the pinned publishing npm, compares its contents with the
+owns the publish boundary: an unprivileged job builds once, creates a real
+tarball with the pinned publishing npm, compares its contents with the
 reviewed fail-closed manifest, records its integrity and SHA-256 digest, and
-uploads that immutable artifact under a fixed filename. A minimal OIDC job
+uploads that immutable artifact under a fixed filename. The
+[release benchmark](#the-release-benchmark) installs and measures that exact
+tarball against the previous npm release before publication. A minimal OIDC job
 requires the closed three-file artifact set, binds the manifest to the checksum
 and tarball bytes, then publishes that exact `.tgz` with lifecycle scripts disabled.
 There is no manual `npm publish` step. After npm succeeds, a separate minimal
@@ -98,9 +99,10 @@ client-side exact-identity check.
    fresh empty `## Unreleased` above it.
 4. **Flip the "published" copy** (see below), commit via PR, and merge to `main`.
 5. **Create the GitHub Release** on the merge commit (tag `v<version>`). Its
-   publication fires `publish.yml`, which gates, benchmarks, builds, publishes
+   publication fires `publish.yml`, which gates, builds, benchmarks, publishes
    to npm, and then publishes the matching server metadata to the MCP Registry.
-   The benchmark can take up to 90 minutes; npm packaging waits for it. You do not
+   The benchmark job has a 90-minute limit and a 70-minute measurement budget;
+   npm publication waits for it. You do not
    need to remember this step: once the merge's CI passes, the deploy finds the
    version missing from npm and opens a **release to-do** issue that
    @mentions you, labelled `release-todo`, titled
@@ -173,23 +175,42 @@ The check never deploys or publishes.
 ### The release benchmark
 
 [`release-benchmark.yml`](../../.github/workflows/release-benchmark.yml) runs
-`bun run bench:release --baseline-npm latest` after the release gate and before
-the tarball is built. It renders every official Mermaid syntax fence and a set
-of generated large diagrams with the release build and with npm's `latest`
-version (the previous release), in alternating fresh Node processes on one
-runner, and fails the run on:
+after packaging and before publication. It verifies the downloaded artifact's
+SHA-256 and integrity, then installs the publication tarball in an isolated
+directory with lifecycle scripts disabled. The baseline is installed separately
+from npm's `latest` tag, normally the previous release. Reports record the
+candidate tarball digest and the baseline's resolved version and integrity so
+the comparison identifies the bytes measured.
 
-- a lost SVG or ASCII render, output that does not repeat byte for byte, or an
-  SVG resvg cannot parse;
-- a candidate that does not finish an input within its time budget;
+The benchmark renders every official Mermaid syntax fence and generated large
+diagrams in alternating fresh Node processes on one runner. SVG rendering owns
+the timing and memory measurements; SVG and ASCII both receive correctness
+checks. It fails the run on:
+
+- a lost SVG or ASCII render, output that does not repeat byte for byte, or a
+  newly invalid SVG that resvg cannot parse;
+- a candidate that does not finish an input within its time budget, an exhausted
+  overall measurement budget, or missing observations;
 - corpus render time above 1.25× the baseline, or any large case above 1.5×;
 - corpus allocation or peak RSS above 1.25×, or retained heap growth above
   16 MB per pass.
 
 Changed SVGs are counted per family but never fail a release: releases are
-allowed to change output. The job summary and the `release-benchmark-<sha>`
-artifact (`report.md`, `report.json`) hold the numbers. To see them before
-cutting a release, run the same comparison locally after `bun run build`:
+allowed to change output. Determinism compares repeated renders within each
+process and across measurement rounds. Relative timing and memory comparisons
+use the same stable, parseable SVG inputs in both engines; rejections and newly
+supported inputs do not enter the ratios. Their process RSS includes import,
+warm-up and measurement in a worker restricted to that matched population. The
+absolute retained-heap gate covers the candidate's full successful corpus,
+including newly supported inputs. Heap peaks are estimates sampled at GC
+boundaries, and retained growth covers one settled pass. A comparison with no
+matched successful SVG observations fails; when the corpus is selected, it must
+contribute matched observations too.
+
+The job summary and the `release-benchmark-<sha>` artifact hold `report.md`,
+`report.json`, and incremental raw measurements in `samples.jsonl`. Child time
+budgets are capped by the remaining overall budget, leaving time to write and
+upload the report on failure. To see a comparison locally after `bun run build`:
 
 ```bash
 bun run bench:release --baseline-npm latest            # about 20-30 minutes
@@ -197,7 +218,19 @@ bun run bench:release --baseline-npm latest --rounds 1 --reps 1   # quick look
 ```
 
 It can also be run on demand from the Actions tab (**Release benchmark**,
-with any npm version or tag as the baseline).
+with any npm version or tag as the baseline). An on-demand run builds and
+verifies its own tarball before benchmarking it. To measure a local tarball
+instead of the repository build:
+
+```bash
+bun run bench:release --candidate-tarball release-artifact/package.tgz --baseline-npm latest
+```
+
+For a bounded local probe, select a case and cap the measurement budget:
+
+```bash
+bun run bench:release --baseline-npm latest --case sequence:20-participants-300-messages --rounds 1 --reps 1 --budget-ms 60000
+```
 
 #### When the benchmark fails
 
@@ -205,8 +238,8 @@ A failure stops npm and MCP Registry publication; the GitHub Release and its
 tag already exist. Read the failing gate in the job summary first.
 
 - **Runner noise:** a timing ratio just past its limit with no change that
-  could explain it. Re-run the failed jobs once; the packaging and publish
-  jobs that wait on the benchmark run after it passes.
+  could explain it. Re-run the failed jobs once; publication uses the retained
+  package artifact after the benchmark passes.
 - **A real regression:** fix it on `main` through a PR. The version is not on
   npm yet, so you do not need a new version: delete the GitHub Release and the
   `v<version>` tag, then create the release again on the fixed `main` commit
@@ -217,9 +250,11 @@ tag already exist. Read the failing gate in the job summary first.
   [`eval/benchmark/release-bench.ts`](../../eval/benchmark/release-bench.ts)
   through a PR that says why, then re-release as above.
 
-Re-running `publish.yml` after npm has published the version compares that
-version with itself, so the benchmark passes trivially; it guards the first
-publication only.
+Re-running `publish.yml` after publication may resolve `latest` to the candidate
+version. A matching version number does not prove identical bytes or preserve a
+comparison with the previous release. Inspect the recorded artifact identities
+and use an explicit previous npm version in an on-demand benchmark when that
+comparison is needed.
 
 ### Optional visual review
 
