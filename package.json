@@ -137,6 +137,7 @@
     "dev": "bun run website:dev",
     "bench": "bun run eval/benchmark/sample-bench.ts",
     "bench:micro": "bun run eval/benchmark/micro-bench.ts",
+    "bench:peers": "bun run eval/benchmark/peer-bench.ts",
     "bench:release": "bun run eval/benchmark/release-bench.ts",
     "bench:release:browser": "bun run eval/benchmark/release-browser-bench.ts",
     "harvest:upstream": "bun run eval/mermaid-upstream-suite-bench/harvest.ts",

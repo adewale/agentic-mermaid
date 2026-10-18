@@ -25,6 +25,7 @@ import { execFileSync, spawnSync } from 'node:child_process'
 import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { cpus, release, tmpdir } from 'node:os'
 import { dirname, join } from 'node:path'
+import { allocationProbe, median } from './bench-stats.ts'
 import { type MicroCase, microCases } from './micro-bench-cases.ts'
 import { extractRevisionTree, ROOT, workingRevision } from './revision-tree.ts'
 
@@ -74,39 +75,9 @@ function positive(options: Map<string, string>, key: string, fallback: number): 
   return value
 }
 
-const median = (values: readonly number[]) => {
-  const sorted = [...values].sort((a, b) => a - b)
-  const mid = sorted.length >> 1
-  return sorted.length % 2 ? sorted[mid]! : (sorted[mid - 1]! + sorted[mid]!) / 2
-}
-
 // ---------------------------------------------------------------------------
 // Child: time cases in this process
 // ---------------------------------------------------------------------------
-
-type GcStats = { beforeGC: { heapStatistics: { usedHeapSize: number } }; afterGC: { heapStatistics: { usedHeapSize: number } } }
-type GcProfilerLike = { start(): void; stop(): { statistics: GcStats[] } | undefined }
-
-async function allocationProbe(): Promise<((run: () => void) => number) | undefined> {
-  if (process.versions.bun) return undefined
-  const { GCProfiler, getHeapStatistics } = await import('node:v8')
-  if (typeof GCProfiler !== 'function') return undefined
-  return run => {
-    const profiler = new GCProfiler() as unknown as GcProfilerLike
-    const start = getHeapStatistics().used_heap_size
-    profiler.start()
-    run()
-    const end = getHeapStatistics().used_heap_size
-    const statistics = profiler.stop()?.statistics ?? []
-    let allocated = 0
-    let previous = start
-    for (const gc of statistics) {
-      allocated += Math.max(0, gc.beforeGC.heapStatistics.usedHeapSize - previous)
-      previous = gc.afterGC.heapStatistics.usedHeapSize
-    }
-    return allocated + Math.max(0, end - previous)
-  }
-}
 
 async function measure(entry: MicroCase, options: Options, allocation: Awaited<ReturnType<typeof allocationProbe>>): Promise<CaseResult> {
   const call = await entry.setup()
@@ -130,9 +101,9 @@ async function measure(entry: MicroCase, options: Options, allocation: Awaited<R
     samplesMs.push((performance.now() - start) / iterations)
   }
   const allocBytesPerCall = allocation
-    ? allocation(() => {
+    ? (await allocation(() => {
         for (let i = 0; i < iterations; i++) sink = call()
-      }) / iterations
+      })) / iterations
     : undefined
   ;(globalThis as { __microBenchSink?: unknown }).__microBenchSink = sink
   const medianMs = median(samplesMs)

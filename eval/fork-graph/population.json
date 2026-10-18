@@ -92,7 +92,8 @@
           "publishedFromDefaultBranch": true
         }
       ],
-      "roles": ["observed"]
+      "roles": ["observed"],
+      "wiredInto": ["eval/benchmark/peer-bench.ts"]
     },
     {
       "id": "ramtinJ95/pi-mermaid-tui",
@@ -197,6 +198,7 @@
         }
       ],
       "roles": ["self"],
+      "wiredInto": ["eval/benchmark/peer-bench.ts"],
       "inForkSnapshot": true
     },
     {
@@ -337,6 +339,7 @@
         }
       ],
       "roles": ["peer", "terminal-peer"],
+      "wiredInto": ["eval/benchmark/peer-bench.ts"],
       "citedIn": ["docs/comparison.md", "docs/design/families/c4.md"],
       "notes": "README: \"A maintained fork of beautiful-mermaid\". Also publishes @zombie-mermaid/{core,mermaid-parser,svg-renderer,ascii-renderer,mcp}. Main moved past the 631b1b4c pin in docs/comparison.md."
     },
@@ -1163,6 +1166,7 @@
       "outputs": ["ascii-unicode"],
       "packages": [{ "registry": "pypi", "name": "termaid", "version": "0.9.1", "license": "MIT" }],
       "roles": ["terminal-peer"],
+      "wiredInto": ["eval/benchmark/peer-bench.ts"],
       "citedIn": ["eval/benchmark/RESULTS.md"],
       "notes": "eval/benchmark/RESULTS.md measured it without recording a version."
     },
@@ -1309,6 +1313,7 @@
         { "registry": "pypi", "name": "merman", "version": "0.9.1", "license": "MIT OR Apache-2.0" }
       ],
       "roles": ["peer", "terminal-peer"],
+      "wiredInto": ["eval/benchmark/peer-bench.ts"],
       "citedIn": ["docs/comparison.md", "docs/design/families/c4.md"],
       "notes": "docs/comparison.md records 0.9.0; 0.9.1 was published from branch release/0.9.1 on the check date. Cargo.toml at main head still says 0.9.0."
     },
@@ -1334,7 +1339,7 @@
         }
       ],
       "roles": ["ancestor", "peer"],
-      "wiredInto": ["package.json devDependencies", "src/__tests__/upstream-export-migration.test.ts"],
+      "wiredInto": ["eval/benchmark/peer-bench.ts", "package.json devDependencies", "src/__tests__/upstream-export-migration.test.ts"],
       "citedIn": ["docs/comparison.md", "docs/fork-differences.md"],
       "notes": "SVG renderer is its own; ASCII engine is a port of AlexanderGrooff/mermaid-ascii (see edges)."
     },
@@ -1401,7 +1406,7 @@
         }
       ],
       "roles": ["peer"],
-      "wiredInto": ["eval/benchmark/release-browser-bench.ts", "eval/mermaid-modern-compat/run.ts"],
+      "wiredInto": ["eval/benchmark/peer-bench.ts", "eval/benchmark/release-browser-bench.ts", "eval/mermaid-modern-compat/run.ts"],
       "citedIn": ["docs/comparison.md", "docs/design/families/c4.md"],
       "notes": "Main moved past the 458322a5 pin in docs/comparison.md. Targets Mermaid 12.1.0 syntax (README.md:5, :87) and vendors Mermaid's parser specs and grammar files (README.md:113) beside its own parser, layout and renderer. Packages that only wrap it (comark-pele, streamdown-pele and others) are excluded."
     },
