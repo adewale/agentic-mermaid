@@ -49,8 +49,9 @@ export const WEBSITE_PAYLOAD_BUDGETS: WebsitePayloadBudgets = Object.freeze({
   demo: Object.freeze({
     maxRequests: 31,
     maxRawBytes: 783_000,
-    maxGzipBytes: 295_000,
-    maxBrotliBytes: 267_500,
+    // Retained text fragments: 295,534 B gzip / 268,248 B Brotli.
+    maxGzipBytes: 297_000,
+    maxBrotliBytes: 270_000,
     required: Object.freeze([
       '^/demo/$',
       '^/demo/browser-lazy/index-[a-f0-9]{12}\\.js$',
@@ -66,7 +67,7 @@ export const WEBSITE_PAYLOAD_BUDGETS: WebsitePayloadBudgets = Object.freeze({
   'editor-empty': Object.freeze({
     maxRequests: 2,
     // Retained text, typed artwork and fidelity checks ship in the editor.
-    // Combined measurement: 3,698,251 raw / 1,123,200 gzip / 885,032 Brotli.
+    // Combined measurement: 3,698,335 raw / 1,123,146 gzip / 885,529 Brotli.
     // Per-change growth still has its own delta gate.
     maxRawBytes: 3_700_000,
     maxGzipBytes: 1_125_000,
