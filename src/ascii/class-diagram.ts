@@ -1,7 +1,7 @@
 import { terminalArtifact, serializeTerminalArtifact, type TerminalArtifact } from './terminal-artifact.ts'
 // Class layout keeps integer cards, endpoint demand and label rectangles
 // authoritative before emitting owned terminal primitives.
-import { parseClassDiagram } from '../class/parser.ts'
+import { parseClassDiagram, classRelationshipLineStyle } from '../class/parser.ts'
 import { memberToString } from '../class/layout.ts'
 import type { ClassNode, ClassNamespace, RelationshipType } from '../class/types.ts'
 import type { AsciiConfig, AsciiTheme, ColorMode } from './types.ts'
@@ -212,7 +212,7 @@ export function renderClassTerminal(text: string, config: AsciiConfig, colorMode
     }
     const rel = diagram.relationships[relationIndex]!
     const owner = doc.element({ id: route.relation.id, kind: 'edge', from: rel.from, to: rel.to })
-    paintBoxRoute(doc, route, owner, ascii, rel.type === 'dependency' || rel.type === 'realization' || rel.type === 'link-dashed')
+    paintBoxRoute(doc, route, owner, ascii, classRelationshipLineStyle(rel) === 'dashed')
     for (const [end, port, type, enabled] of [['start', route.source, rel.fromType ?? rel.type, rel.markerAt === 'from' || rel.markerAt === 'both'], ['end', route.target, rel.toType ?? rel.type, rel.markerAt === 'to' || rel.markerAt === 'both']] as const) {
       const marker = enabled ? classMarker(type, port.side, ascii) : undefined
       doc.expectMarkers(owner, end, marker ? [marker] : [])

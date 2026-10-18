@@ -368,6 +368,7 @@ function extractClassLayout(
       from: rel.from,
       to: rel.to,
       type: rel.type,
+      lineStyle: rel.lineStyle,
       markerAt: rel.markerAt,
       fromType: rel.fromType,
       toType: rel.toType,

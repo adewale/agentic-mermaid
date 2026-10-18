@@ -218,6 +218,8 @@ export interface ClassRelation {
   from: string
   to: string
   kind: ClassRelationKind
+  /** Explicit shaft style; omitted values use the endpoint kinds' default. */
+  lineStyle?: 'solid' | 'dashed'
   /** Optional relationship label, e.g., from `A --> B : uses`. */
   label?: string
   /** Optional cardinality on the `from` side (e.g., '"1"'). */
@@ -1177,7 +1179,7 @@ export type ClassMutationOp =
   | { kind: 'set_class_generic'; class: string; generic: string | null }
   | { kind: 'add_member'; class: string; text: string }
   | { kind: 'remove_member'; class: string; index: number }
-  | { kind: 'add_relation'; from: string; to: string; relKind: ClassRelationKind; label?: string }
+  | { kind: 'add_relation'; from: string; to: string; relKind: ClassRelationKind; label?: string; markerAt?: ClassRelation['markerAt']; fromKind?: ClassRelationKind; toKind?: ClassRelationKind; lineStyle?: ClassRelation['lineStyle'] }
   | { kind: 'remove_relation'; index: number }
   | { kind: 'add_note'; text: string; for?: string }
   | { kind: 'remove_note'; index: number }

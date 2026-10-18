@@ -901,128 +901,50 @@ function parseMember(line: string): { member: ClassMember; isMethod: boolean } |
   }
 }
 
-/** Parse a relationship line into a ClassRelationship */
+/** Parse a relationship without confusing marker tokens with authored IDs. */
 export function parseClassRelationship(line: string): (ClassRelationship & { fromGeneric?: string; toGeneric?: string }) | null {
-  // A trailing `%%` comment is not part of the relationship; where Mermaid
-  // accepts one is classCommentRejections' rule.
   const comment = classCommentStart(line)
   if (comment >= 0) line = line.slice(0, comment).trimEnd()
-  const markerless = parseMarkerlessClassRelationship(line)
-  if (markerless) return markerless
-  const marked = parseMarkedClassRelationship(line)
-  if (marked) return marked
+  // Bare links win the ambiguous compact `Ao--B` / `A--oB` spellings.
+  return parseMarkerlessClassRelationship(line) ?? parseMarkedClassRelationship(line)
+}
 
-  // Lollipop interface endpoints are distinct UML semantics, not associations.
-  const lollipop = !isEscapedMarkedClassRelationshipCandidate(line)
-    ? line.match(/^(\S+?)\s+(\(\)--|--\(\))\s+(\S+?)(?:\s*:\s*(.+))?$/)
-    : null
-  if (lollipop) {
-    const fromRef = parseClassReference(lollipop[1]!)
-    const toRef = parseClassReference(lollipop[3]!)
-    if (!fromRef || !toRef || !supportedRelationEndpoint(fromRef.id, lollipop[1]!) || !supportedRelationEndpoint(toRef.id, lollipop[3]!)) return null
-    return {
-      from: fromRef.id, to: toRef.id, type: 'lollipop', markerAt: lollipop[2] === '()--' ? 'from' : 'to',
-      ...(lollipop[4]?.trim() ? { label: normalizeBrTags(lollipop[4]!.trim()) } : {}),
-      ...(fromRef.generic ? { fromGeneric: fromRef.generic } : {}), ...(toRef.generic ? { toGeneric: toRef.generic } : {}),
-    }
-  }
-
-  // Two-ended Mermaid relations: [Relation Type][Link][Relation Type].
-  const twoWay = !isEscapedMarkedClassRelationshipCandidate(line)
-    ? line.match(/^(\S+?)\s+(?:"([^"]*?)"\s+)?(<\||\*|o|<|>)(--|\.\.)(\|>|\*|o|>|<)\s+(?:"([^"]*?)"\s+)?(\S+?)(?:\s*:\s*(.+))?$/)
-    : null
-  if (twoWay) {
-    const fromRef = parseClassReference(twoWay[1]!)
-    const toRef = parseClassReference(twoWay[7]!)
-    if (!fromRef || !toRef || !supportedRelationEndpoint(fromRef.id, twoWay[1]!) || !supportedRelationEndpoint(toRef.id, twoWay[7]!)) return null
-    const dashed = twoWay[4] === '..'
-    const fromType = endpointRelationshipType(twoWay[3]!, dashed)
-    const toType = endpointRelationshipType(twoWay[5]!, dashed)
-    return {
-      from: fromRef.id, to: toRef.id, type: fromType, markerAt: 'both', fromType, toType,
-      ...(twoWay[2] ? { fromCardinality: normalizeBrTags(twoWay[2]!) } : {}),
-      ...(twoWay[6] ? { toCardinality: normalizeBrTags(twoWay[6]!) } : {}),
-      ...(twoWay[8]?.trim() ? { label: normalizeBrTags(twoWay[8]!.trim()) } : {}),
-      ...(fromRef.generic ? { fromGeneric: fromRef.generic } : {}), ...(toRef.generic ? { toGeneric: toRef.generic } : {}),
-    }
-  }
-
-  // Once a one-way arrow has reached the bounded scanner, do not let the
-  // legacy regex re-admit a malformed label or endpoint it rejected.
-  if (isMarkedClassRelationshipCandidate(line) || isEscapedMarkedClassRelationshipCandidate(line)) return null
-
-  // Relationship regex — handles ordinary one-ended arrows.
-  const match = line.match(
-    /^(\S+?)\s+(?:"([^"]*?)"\s+)?(<\|--|<\|\.\.|\*--|o--|-->|--\*|--o|--\|>|\.\.>|\.\.\|>|<--|<\.\.?)\s+(?:"([^"]*?)"\s+)?(\S+?)(?:\s*:\s*(.+))?$/
+function parseMarkedClassRelationship(line: string): (ClassRelationship & { fromGeneric?: string; toGeneric?: string }) | null {
+  const operator = findMarkerlessRelationshipOperator(line)
+  if (operator < 0) return null
+  const before = line.slice(0, operator)
+  const after = line.slice(operator + 2)
+  let fromToken = before.match(/(<\||\(\)|[*o<>])$/)?.[1]
+  let toToken = after.match(/^(\|>|\(\)|[*o<>])/)?.[1]
+  // The letter o belongs to an adjacent bare identifier unless separated.
+  // This also keeps `Foo-->B` and `A o--out` on their authored endpoints.
+  if (fromToken === 'o' && /[\w$]/.test(before[before.length - 2] ?? '')) fromToken = undefined
+  if (toToken === 'o' && /[\w$]/.test(after[1] ?? '')) toToken = undefined
+  if (!fromToken && !toToken) return null
+  const endpoints = parseClassRelationEndpoints(
+    before.slice(0, before.length - (fromToken?.length ?? 0)),
+    after.slice(toToken?.length ?? 0),
   )
-  if (!match) return null
-
-  const fromRef = parseClassReference(match[1]!)
-  const toRef = parseClassReference(match[5]!)
-  if (!fromRef || !toRef || !supportedRelationEndpoint(fromRef.id, match[1]!) || !supportedRelationEndpoint(toRef.id, match[5]!)) return null
-  const from = fromRef.id
-  const rawFromCardinality = match[2]
-  const fromCardinality = rawFromCardinality ? normalizeBrTags(rawFromCardinality) : undefined
-  const arrow = match[3]!.trim()
-  const rawToCardinality = match[4]
-  const toCardinality = rawToCardinality ? normalizeBrTags(rawToCardinality) : undefined
-  const to = toRef.id
-  const rawLabel = match[6]?.trim()
-  const label = rawLabel ? normalizeBrTags(rawLabel) : undefined
-
-  const parsed = parseArrow(arrow)
-  if (!parsed) return null
-
+  if (!endpoints) return null
+  const dashed = line[operator] === '.'
+  const fromType = fromToken ? endpointRelationshipType(fromToken, dashed) : undefined
+  const toType = toToken ? endpointRelationshipType(toToken, dashed) : undefined
+  const type = (fromType ?? toType)!
+  const markerAt = fromType && toType ? 'both' : fromType ? 'from' : 'to'
+  const inferredDashed = [fromType, toType].some(kind => kind === 'dependency' || kind === 'realization')
   return {
-    from, to, type: parsed.type, markerAt: parsed.markerAt, label,
-    fromCardinality, toCardinality,
-    ...(fromRef.generic ? { fromGeneric: fromRef.generic } : {}),
-    ...(toRef.generic ? { toGeneric: toRef.generic } : {}),
+    ...endpoints, type, markerAt,
+    ...(markerAt === 'both' ? { fromType, toType } : {}),
+    ...(dashed && !inferredDashed ? { lineStyle: 'dashed' as const } : {}),
   }
 }
 
-const MARKED_ONE_WAY_ARROWS = [
-  '<|--', '<|..', '--|>', '..|>', '<--', '<..', '-->', '..>', '*--', '--*', 'o--', '--o',
-] as const
-const MARKED_SUFFIX_ARROWS = ['--|>', '-->', '--*', '--o'] as const
-
-/** The legacy marked-link regex needs whitespace-delimited endpoints. Scan
- * the one-way operator outside escaped IDs/cardinalities so compact ordinary
- * links and space-bearing backtick IDs use the same bounded grammar. */
-function parseMarkedClassRelationship(line: string): (ClassRelationship & { fromGeneric?: string; toGeneric?: string }) | null {
-  let inBacktick = false
-  let inQuote = false
-  let inGeneric = false
-  let operator = -1
-  let arrow: string | undefined
-  for (let i = 0; i < line.length; i++) {
-    const char = line[i]!
-    if (inBacktick) { if (char === '`') inBacktick = false; continue }
-    if (inQuote) { if (char === '"') inQuote = false; continue }
-    if (inGeneric) { if (char === '~') inGeneric = false; continue }
-    if (char === '`') { inBacktick = true; continue }
-    if (char === '"') { inQuote = true; continue }
-    if (char === '~') { inGeneric = true; continue }
-    // Arrow-looking bytes after the label separator are label text.
-    if (char === ':' && operator >= 0) break
-    const found = MARKED_ONE_WAY_ARROWS.find(token => line.startsWith(token, i))
-    if (!found) continue
-    // In `Foo-->B`, the final `o` of Foo overlaps `o--` but the complete
-    // suffix arrow starts one byte later. Prefer that arrow. `Ao--B` has no
-    // competing suffix arrow; the markerless parser already handles it as a
-    // bare link from `Ao` to `B`, matching Mermaid. A separate `o--` token
-    // after whitespace (as in `A o--out`) must keep its prefix meaning.
-    if (found === 'o--' && /[\w$]/.test(line[i - 1] ?? '')
-      && MARKED_SUFFIX_ARROWS.some(token => line.startsWith(token, i + 1))) continue
-    if (operator >= 0) return null
-    operator = i
-    arrow = found
-    i += found.length - 1
-  }
-  if (operator < 0 || !arrow) return null
-
-  let left = line.slice(0, operator).trim()
-  let right = line.slice(operator + arrow.length).trim()
+/** Endpoints, generics, cardinalities and labels share one bounded scanner for
+ * one-ended and mixed relationships, including escaped IDs with spaces. */
+function parseClassRelationEndpoints(leftSource: string, rightSource: string):
+  (Omit<ClassRelationship, 'type' | 'markerAt'> & { fromGeneric?: string; toGeneric?: string }) | null {
+  let left = leftSource.trim()
+  let right = rightSource.trim()
   let fromCardinality: string | undefined
   if (left.endsWith('"')) {
     const start = left.lastIndexOf('"', left.length - 2)
@@ -1032,9 +954,9 @@ function parseMarkedClassRelationship(line: string): (ClassRelationship & { from
     }
   }
   let label: string | undefined
-  inBacktick = false
-  inQuote = false
-  inGeneric = false
+  let inBacktick = false
+  let inQuote = false
+  let inGeneric = false
   for (let i = 0; i < right.length; i++) {
     const char = right[i]!
     if (inBacktick) { if (char === '`') inBacktick = false; continue }
@@ -1060,10 +982,9 @@ function parseMarkedClassRelationship(line: string): (ClassRelationship & { from
   }
   const fromRef = parseClassReference(left)
   const toRef = parseClassReference(right)
-  const parsed = parseArrow(arrow)
-  if (!fromRef || !toRef || !parsed || !supportedRelationEndpoint(fromRef.id, left) || !supportedRelationEndpoint(toRef.id, right)) return null
+  if (!fromRef || !toRef || !supportedRelationEndpoint(fromRef.id, left) || !supportedRelationEndpoint(toRef.id, right)) return null
   return {
-    from: fromRef.id, to: toRef.id, type: parsed.type, markerAt: parsed.markerAt,
+    from: fromRef.id, to: toRef.id,
     ...(label ? { label } : {}),
     ...(fromCardinality !== undefined ? { fromCardinality } : {}),
     ...(toCardinality !== undefined ? { toCardinality } : {}),
@@ -1201,9 +1122,7 @@ export function isMarkedClassRelationshipCandidate(line: string): boolean {
 
 /** An escaped *endpoint* on a marked link, as opposed to a backtick in its
  * label or quoted cardinality. Failed scanner parses must stay failed in both
- * the native parser and the agent's legacy regex fallback. Two-ended and
- * lollipop forms are deliberately diagnosed until their line style/synthetic
- * interface semantics can be represented faithfully. */
+ * the native parser and the agent reader. */
 export function isEscapedMarkedClassRelationshipCandidate(line: string): boolean {
   if (!line.includes('`')) return false
   const operator = findMarkerlessRelationshipOperator(line)
@@ -1223,34 +1142,17 @@ export function isEscapedMarkedClassRelationshipCandidate(line: string): boolean
   return after.startsWith('`')
 }
 
-/**
- * Map arrow syntax to relationship type and marker placement side.
- * Prefix markers (`<|--`, `*--`, `o--`) place the UML shape at the 'from' end.
- * Suffix markers (`..|>`, `-->`, `..>`, `--*`, `--o`) place it at the 'to' end.
- */
+/** Marker meaning and shaft style are independent for diamonds and circles. */
 function endpointRelationshipType(token: string, dashed: boolean): RelationshipType {
+  if (token === '()') return 'lollipop'
   if (token === '*' ) return 'composition'
   if (token === 'o') return 'aggregation'
   if (token.includes('|')) return dashed ? 'realization' : 'inheritance'
   return dashed ? 'dependency' : 'association'
 }
 
-function parseArrow(arrow: string): { type: RelationshipType; markerAt: 'from' | 'to' } | null {
-  // Trim whitespace that might be captured by the regex
-  const a = arrow.trim()
-  switch (a) {
-    case '<|--': return { type: 'inheritance',  markerAt: 'from' }
-    case '--|>': return { type: 'inheritance',  markerAt: 'to' }
-    case '<|..': return { type: 'realization',  markerAt: 'from' }
-    case '..|>': return { type: 'realization',  markerAt: 'to' }
-    case '*--':  return { type: 'composition',  markerAt: 'from' }
-    case '--*':  return { type: 'composition',  markerAt: 'to' }
-    case 'o--':  return { type: 'aggregation',  markerAt: 'from' }
-    case '--o':  return { type: 'aggregation',  markerAt: 'to' }
-    case '-->':  return { type: 'association',  markerAt: 'to' }
-    case '<--':  return { type: 'association',  markerAt: 'from' }
-    case '..>':  return { type: 'dependency',   markerAt: 'to' }
-    case '<..':  return { type: 'dependency',   markerAt: 'from' }
-    default:     return null
-  }
+/** Resolve old programmatic defaults while honoring an explicitly authored shaft. */
+export function classRelationshipLineStyle(relation: Pick<ClassRelationship, 'type' | 'fromType' | 'toType' | 'lineStyle'>): 'solid' | 'dashed' {
+  return relation.lineStyle ?? ([relation.type, relation.fromType, relation.toType]
+    .some(kind => kind === 'dependency' || kind === 'realization' || kind === 'link-dashed') ? 'dashed' : 'solid')
 }

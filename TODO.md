@@ -8,7 +8,7 @@ surfaces. IDs are stable names, not ordering.
 
 Status legend: `todo` | `blocked` | `owner-decision` | `parked`.
 
-Reconciled against `main` `aa16b127` and GitHub on 2026-10-17. An open PR is
+Reconciled against `main` `a87ec861` and GitHub on 2026-10-18. An open PR is
 proposed work, not a shipped capability; a closed issue is not completion
 evidence when its acceptance conditions still fail. Plans supply
 design context, never additional queues. Retired IDs are not reused.
@@ -22,6 +22,20 @@ design context, never additional queues. Retired IDs are not reused.
   SHA rather than an old issue-body SHA, finish the changelog, and verify npm,
   site build identity and a hosted capability after publication. A green CI run
   or a deliberately skipped deployment is not delivery evidence.
+  The current Class candidate includes
+  [#406](https://github.com/adewale/agentic-mermaid/issues/406),
+  [#407](https://github.com/adewale/agentic-mermaid/issues/407),
+  and [#408](https://github.com/adewale/agentic-mermaid/issues/408):
+  relationship endpoint/shaft preservation, native multi-ended lollipops,
+  explicit relation metadata, checked lollipop admission, member admission and
+  caller-array ownership. The Class fact additions have an explicit
+  `exact: true` migration example in `docs/api.md`. #406 blocks a safe
+  Class-editing claim until the final candidate passes semantic export/reload
+  and rendered-marker checks. ER entity order (#372) and canonical YAML
+  whitespace (#367/BUG-60) are deferred beyond this candidate, remain open,
+  and must be disclosed as known limitations; this Class fix is not a general
+  lossless-editing guarantee. Do not publish or deploy from local test results;
+  REL-1 still requires final-candidate CI and artifact/delivery verification.
 - [ ] **DEC-6 — Decide the hosted `execute` boundary from usage evidence**
   (`owner-decision`, [#204](https://github.com/adewale/agentic-mermaid/issues/204)).
   Compare hosted direct tools, hosted Code Mode and local Code Mode for real
@@ -70,16 +84,6 @@ design context, never additional queues. Retired IDs are not reused.
 
 
 ## Ready build backlog
-
-- [ ] **BUILD-36 — Prepared text and owned rendering geometry** (in review: [PR #395](https://github.com/adewale/agentic-mermaid/pull/395)).
-  Execute the owner-requested cross-family contract in
-  [`prepared-text-geometry-plan.md`](docs/project/prepared-text-geometry-plan.md):
-  prepared literal/formatted text, complete pixel/cell bounds, owned terminal
-  composition, shared quantitative projection and sequence semantic evaluation.
-  Implementation and independent multi-agent audit complete. Covers #381–#384,
-  #386, #391 and #392, including the compositor and audit fixes from PR #394.
-  See the linked acceptance plan and audit dispositions; final CI/review is
-  tracked on the PR.
 
 - [ ] **BUILD-27 — MCP Apps support** (`todo`). Expose an interactive
   in-agent diagram UI through MCP Apps: `ui://` resources, correct
@@ -305,7 +309,9 @@ design context, never additional queues. Retired IDs are not reused.
   descriptor-owned schemas or diagnostic hooks, then inventory repeated
   transport schemas not already projected from the family, StyleSpec, or
   RenderOptions descriptors. Generate only proven duplicates while retaining
-  transport-neutral `applyOps` and tool dispatch.
+  transport-neutral `applyOps` and tool dispatch. The Class lollipop enum
+  repair (#407) uses the existing schema and is included in the Class
+  candidate; it is not remaining framework work.
 - [ ] **CONS-46 — One text codec per grammar context** (`todo`, in progress). Most Known
   defects were one codec re-implemented per stage (parse, serialize, render,
   ASCII, meta, metrics, source map) and per family. Built so far: the shared
@@ -317,6 +323,8 @@ design context, never additional queues. Retired IDs are not reused.
   grammar context (flowchart bracket/pipe/title, sequence alias/message/note, ER
   quoted text, class label), guarded by `decode(encode(x)) === x` and
   "upstream reads `encode(x)` as `x`". Remaining members: BUG-19, 23, 30, 31, 32.
+  Class member line-control admission (#408) is fixed at the existing mutator
+  in the Class candidate; do not repeat it as remaining codec work.
 - [ ] **CONS-47 — One flowchart tokenizer with source spans** (`todo`). At least
   17 hand-written quote/bracket scanners lex the flowchart line (parser,
   statement splitter, unsupported-syntax gate, analyze masks, source map), and a
@@ -327,9 +335,11 @@ design context, never additional queues. Retired IDs are not reused.
   family-local cell writers and context argument lists onto shared grapheme-safe
   canvas/context helpers without projecting pixel Scene geometry. Build on the
   shared terminal compositor delivered by #394 under
-  [#386](https://github.com/adewale/agentic-mermaid/issues/386). PR #395
-  incorporates an older #394 revision and needs reconciliation with current
-  main before merge; retain #395's distinct prepared-text/XY work.
+  [#386](https://github.com/adewale/agentic-mermaid/issues/386), prepared text
+  landed in #395, shared identities/compound routes in #404, and marker and
+  State-note/atomic-route fixes in #401/#405. The old pre-merge reconciliation
+  is complete. Promote a remaining adapter extraction only with a concrete
+  repeated behavior; this is not a request to redo those delivered contracts.
 
 ## Contribution governance backlog
 
@@ -405,17 +415,6 @@ investigation of the class rather than per-item fixes.
   returning a final expression after preceding statements and replacing the
   nonexistent `applyOps` recovery hint. Verify the public behavior at merge;
   this does not close BUG-61's trailing-comment case.
-- [ ] **BUG-62 — Multiline titles can clip** (`todo`,
-  [#381](https://github.com/adewale/agentic-mermaid/issues/381)). Pie, Sankey and
-  Architecture need complete title geometry; proposed PR #395 also incorporates
-  the XY title fix in PR #380. Keep the nightly #362 collector separate from
-  closure of one counterexample.
-- [ ] **BUG-63 — Quadrant wrapping changes capitalization** (`todo`,
-  [#382](https://github.com/adewale/agentic-mermaid/issues/382)). Apply display
-  transforms before wrapping without changing authored meaning; proposed in #395.
-- [ ] **BUG-64 — Gantt/Radar wrapping duplicates literal formatting tags**
-  (`todo`, [#383](https://github.com/adewale/agentic-mermaid/issues/383)). Prepare
-  display text once rather than reinterpreting wrapped text; proposed in #395.
 
 ## Non-goals
 

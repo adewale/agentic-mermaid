@@ -1,5 +1,10 @@
 # PR 395 independent audit
 
+Delivery status: PR #395 merged on 2026-10-17 at
+`53056ec569781d6f5153f90b5bd563aa70f8c5c7`. The observations below retain
+their original reviewed scope; later source fixes and release status are
+recorded in the [delivery reconciliation](archive/prepared-text-geometry-delivery-2026-10.md).
+
 The owner requested implementation of the cross-family rendering contract and
 an independent multi-agent audit of the resulting PR. Three fresh reviewers
 examined PR [395](https://github.com/adewale/agentic-mermaid/pull/395) after it

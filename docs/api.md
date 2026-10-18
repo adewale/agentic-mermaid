@@ -353,6 +353,67 @@ for the current roster and field schemas, or call `describeOps(family)` and
 same descriptors; this reference deliberately does not copy an exhaustive
 family/operation table.
 
+### Class relation facts and `exact: true`
+
+Class facts retain their existing class/member/relation lines and add endpoint
+marker ownership and shaft style. A caller with a hardcoded complete fact set
+must include these additions when using `exact: true`. For example:
+
+```ts
+const parsed = parseRegisteredMermaid('classDiagram\nPerson --|> Animal')
+if (!parsed.ok) throw new Error('Invalid Class source')
+
+const legacy = [
+  'class Animal',
+  'class Person',
+  'family class',
+  'relation Person inheritance Animal',
+  'relation#0 Person inheritance Animal',
+]
+const expected = [
+  ...legacy,
+  'relation#0 Person inheritance Animal marker to',
+  'relation#0 Person inheritance Animal line solid',
+]
+checkMermaid(parsed.value, { include: expected, exact: true }) // ok: true
+```
+
+Using `legacy` alone returns `ok: false` and lists the two new lines in
+`unexpected`. The expanded expectation also rejects `Person <|-- Animal`,
+because that relationship has `marker from`. Two-ended relationships add
+`relation#0 from marker <kind>` and `relation#0 to marker <kind>` facts so
+different marker kinds at the two ends remain distinguishable. Keep reviewed
+expectations independent of the output being checked; deriving them from that
+same output would accept its mistakes. Subset checks omit `exact: true` and
+must still require the marker/shaft facts whose preservation matters.
+
+### Authoring Class endpoint markers and shafts
+
+Class `add_relation` accepts optional `markerAt`, `fromKind`, `toKind` and
+`lineStyle` fields. Existing calls that omit them retain the relation kind's
+defaults. For example, this operation writes `Port ()..o Service`:
+
+```ts
+const op = {
+  kind: 'add_relation', from: 'Port', to: 'Service',
+  relKind: 'lollipop', markerAt: 'both', toKind: 'aggregation',
+  lineStyle: 'dashed',
+} as const
+```
+
+`markerAt` selects the active endpoints; endpoint kinds on inactive sides are
+refused. The primary `relKind`, endpoint kinds and shaft must agree with the
+relationship read back from the emitted source. Contradictory combinations
+return `INVALID_OP` instead of silently changing kind on reload. Cardinalities,
+labels and authored endpoint identities already present in parsed relationships
+survive unrelated edits. Relationship label/cardinality line breaks export as
+Mermaid `<br/>` markup so they remain on one source line. Direct `add_class`
+copies initial members; member
+authoring refuses blank/comment-form text, accessibility directives and physical
+or entity-decoded line breaks rather than admitting text that disappears or
+changes structure. The source reader still accepts diagram accessibility
+directives; they cannot be authored through a member operation.
+
 Opaque fallback bodies (any unmodeled syntax) are source-level-only: edit source deliberately, then parse and verify again.
 
 ## Capability and extension discovery

@@ -36,9 +36,12 @@ import type {
 } from './types.ts'
 import { ok, err } from './types.ts'
 import { labelOverflowCollector } from './body-utils.ts'
-import { classCommentRejections, classDiagramHasStatement, parseClassBodyAnnotationToken, parseClassRelationship, readClassStatements } from '../class/parser.ts'
+import { classCommentRejections, classDiagramHasStatement, parseClassBodyAnnotationToken, parseClassRelationship, readClassStatements, supportedRelationEndpoint } from '../class/parser.ts'
 import type { ClassStatementNode } from '../class/parser.ts'
 import { parseMutableStyleProps, serializeStyleProps, unsafeStylePaintError } from '../shared/style-props.ts'
+import { decodeXML } from 'entities'
+import { toMermaidLines } from '../mermaid-source-wrapper.ts'
+import { parseAccessibilityDirective } from '../shared/accessibility-directives.ts'
 
 // ---- Parser ---------------------------------------------------------------
 
@@ -51,6 +54,7 @@ function projectClassRelation(shared: NonNullable<ReturnType<typeof parseClassRe
     markerAt: shared.markerAt,
     ...(shared.fromType ? { fromKind: shared.fromType as ClassRelationKind } : {}),
     ...(shared.toType ? { toKind: shared.toType as ClassRelationKind } : {}),
+    ...(shared.lineStyle ? { lineStyle: shared.lineStyle } : {}),
     ...(shared.fromGeneric ? { fromGeneric: shared.fromGeneric } : {}),
     ...(shared.toGeneric ? { toGeneric: shared.toGeneric } : {}),
   }
@@ -206,37 +210,66 @@ function pruneEmptyNamespaces(body: ClassBody): Result<ClassBody, MutationError>
 
 // ---- Serializer -----------------------------------------------------------
 
-const ARROW_FOR: Record<ClassRelationKind, string> = {
-  inheritance: '<|--',
-  composition: '*--',
-  aggregation: 'o--',
-  association: '-->',
-  dependency:  '..>',
-  realization: '..|>',
-  'link-solid': '--',
-  'link-dashed': '..',
-  lollipop: '()--',
+const RELATION_SYNTAX: Record<ClassRelationKind, {
+  from: string; to: string; shaft: '--' | '..'; defaultMarkerAt: 'from' | 'to' | 'none'
+}> = {
+  inheritance: { from: '<|', to: '|>', shaft: '--', defaultMarkerAt: 'from' },
+  composition: { from: '*', to: '*', shaft: '--', defaultMarkerAt: 'from' },
+  aggregation: { from: 'o', to: 'o', shaft: '--', defaultMarkerAt: 'from' },
+  association: { from: '<', to: '>', shaft: '--', defaultMarkerAt: 'to' },
+  dependency: { from: '<', to: '>', shaft: '..', defaultMarkerAt: 'to' },
+  realization: { from: '<|', to: '|>', shaft: '..', defaultMarkerAt: 'to' },
+  'link-solid': { from: '', to: '', shaft: '--', defaultMarkerAt: 'none' },
+  'link-dashed': { from: '', to: '', shaft: '..', defaultMarkerAt: 'none' },
+  lollipop: { from: '()', to: '()', shaft: '--', defaultMarkerAt: 'from' },
+}
+
+/** The same endpoint ownership drives serialization and semantic read-back. */
+export function classRelationMarkers(relation: ClassRelation): {
+  at: NonNullable<ClassRelation['markerAt']>; from?: ClassRelationKind; to?: ClassRelationKind
+} {
+  const at = relation.markerAt ?? RELATION_SYNTAX[relation.kind].defaultMarkerAt
+  return {
+    at,
+    ...(at === 'from' || at === 'both' ? { from: relation.fromKind ?? relation.kind } : {}),
+    ...(at === 'to' || at === 'both' ? { to: relation.toKind ?? relation.kind } : {}),
+  }
+}
+
+export function classRelationLineStyle(relation: ClassRelation): 'solid' | 'dashed' {
+  if (relation.lineStyle !== undefined) return relation.lineStyle
+  const markers = classRelationMarkers(relation)
+  const from = markers.from && RELATION_SYNTAX[markers.from]
+  const to = markers.to && RELATION_SYNTAX[markers.to]
+  const dashed = from?.shaft === '..' || to?.shaft === '..'
+    || (!from && !to && RELATION_SYNTAX[relation.kind].shaft === '..')
+  return dashed ? 'dashed' : 'solid'
 }
 
 function arrowForRelation(relation: ClassRelation): string {
-  if (relation.kind === 'lollipop') return relation.markerAt === 'to' ? '--()' : '()--'
-  if (relation.markerAt === 'both') {
-    const fromKind = relation.fromKind ?? relation.kind
-    const toKind = relation.toKind ?? relation.kind
-    const endpoint = (kind: ClassRelationKind, left: boolean): string => {
-      if (kind === 'inheritance' || kind === 'realization') return left ? '<|' : '|>'
-      if (kind === 'composition') return '*'
-      if (kind === 'aggregation') return 'o'
-      return left ? '<' : '>'
-    }
-    const dashed = fromKind === 'dependency' || fromKind === 'realization' || toKind === 'dependency' || toKind === 'realization'
-    return `${endpoint(fromKind, true)}${dashed ? '..' : '--'}${endpoint(toKind, false)}`
-  }
-  return ARROW_FOR[relation.kind]
+  const markers = classRelationMarkers(relation)
+  const from = markers.from && RELATION_SYNTAX[markers.from]
+  const to = markers.to && RELATION_SYNTAX[markers.to]
+  return `${from?.from ?? ''}${classRelationLineStyle(relation) === 'dashed' ? '..' : '--'}${to?.to ?? ''}`
 }
 
 function quoteIfNeeded(id: string): string {
+  if (/^[\w$]+$/.test(id) && supportedRelationEndpoint(id, id)) {
+    const relation = `${id} -- __endpoint`
+    const statements = readClassStatements([id, relation]).statements
+    if (parseAccessibilityDirective([relation], 0) === null
+      && statements[0]?.value.kind !== 'header'
+      && statements[1]?.value.kind === 'relationship') return id
+  }
+  return `\`${id}\``
+}
+
+function quoteDirectiveTarget(id: string): string {
   return /^[\w$]+$/.test(id) ? id : `\`${id}\``
+}
+
+function serializeRelationText(text: string): string {
+  return text.replace(/\r\n?|\n/g, '<br/>')
 }
 
 /** Emit one class declaration (+ optional member block) at an indent depth. */
@@ -293,7 +326,7 @@ export function renderClass(body: ClassBody): string {
       // nested namespace into one flat name.
       segments.forEach((segment, index) => {
         const label = index === segments.length - 1 && ns.label !== undefined ? `["${ns.label}"]` : ''
-        lines.push(`${'  '.repeat(frame.depth + index)}namespace ${quoteIfNeeded(segment)}${label} {`)
+        lines.push(`${'  '.repeat(frame.depth + index)}namespace ${quoteDirectiveTarget(segment)}${label} {`)
       })
     }
     for (const c of members) pushClassLines(lines, c, '  '.repeat(frame.depth + levels))
@@ -320,15 +353,15 @@ export function renderClass(body: ClassBody): string {
   }
   for (const r of body.relations) {
     const arrow = arrowForRelation(r)
-    const left = r.fromCardinality ? `${quoteIfNeeded(r.from)} "${r.fromCardinality}"` : quoteIfNeeded(r.from)
-    const right = r.toCardinality ? `"${r.toCardinality}" ${quoteIfNeeded(r.to)}` : quoteIfNeeded(r.to)
-    const label = r.label ? ` : ${r.label}` : ''
+    const left = r.fromCardinality ? `${quoteIfNeeded(r.from)} "${serializeRelationText(r.fromCardinality)}"` : quoteIfNeeded(r.from)
+    const right = r.toCardinality ? `"${serializeRelationText(r.toCardinality)}" ${quoteIfNeeded(r.to)}` : quoteIfNeeded(r.to)
+    const label = r.label ? ` : ${serializeRelationText(r.label)}` : ''
     lines.push(`  ${left} ${arrow} ${right}${label}`)
   }
   for (const [name, style] of Object.entries(body.classDefs ?? {})) lines.push(`  classDef ${name} ${serializeStyleProps(style)}`)
   for (const c of body.classes) {
-    if (c.className) lines.push(`  class ${quoteIfNeeded(c.id)} ${c.className}`)
-    if (c.style) lines.push(`  style ${quoteIfNeeded(c.id)} ${serializeStyleProps(c.style)}`)
+    if (c.className) lines.push(`  class ${quoteDirectiveTarget(c.id)} ${c.className}`)
+    if (c.style) lines.push(`  style ${quoteDirectiveTarget(c.id)} ${serializeStyleProps(c.style)}`)
     if (c.href) {
       lines.push(`  click ${quoteIfNeeded(c.id)} href "${c.href.replace(/&/g, '&amp;').replace(/\\/g, '\\\\').replace(/"/g, '\\"')}"${c.tooltip !== undefined ? ` "${c.tooltip.replace(/&/g, '&amp;').replace(/"/g, '&quot;')}"` : ''}`)
     }
@@ -370,6 +403,39 @@ function normalizeGeneric(value: unknown): Result<string, MutationError> {
   return ok(generic)
 }
 
+function validateClassMembers(members: readonly string[]): MutationError | undefined {
+  for (const member of members) {
+    const decoded = typeof member === 'string' ? decodeXML(member) : undefined
+    if (decoded === undefined || /[\r\n]/.test(decoded)) {
+      return { code: 'INVALID_OP', message: 'Class members must be single lines; add each member separately' }
+    }
+    if (toMermaidLines(decoded).length !== 1) {
+      return { code: 'INVALID_OP', message: 'Class members must contain text, not blank lines, comments or init directives' }
+    }
+    if (parseAccessibilityDirective([decoded], 0) !== null) {
+      return { code: 'INVALID_OP', message: 'Class members cannot be accessibility directives' }
+    }
+  }
+}
+
+function validateClassRelation(relation: ClassRelation): MutationError | undefined {
+  const invalid: MutationError = { code: 'INVALID_OP', message: 'Class relation kind, marker endpoints and line style must describe the same Mermaid arrow' }
+  if (!Object.hasOwn(RELATION_SYNTAX, relation.kind)
+    || (relation.fromKind !== undefined && !Object.hasOwn(RELATION_SYNTAX, relation.fromKind))
+    || (relation.toKind !== undefined && !Object.hasOwn(RELATION_SYNTAX, relation.toKind))
+    || (relation.markerAt !== undefined && !['from', 'to', 'both', 'none'].includes(relation.markerAt))
+    || (relation.lineStyle !== undefined && relation.lineStyle !== 'solid' && relation.lineStyle !== 'dashed')) return invalid
+  const markers = classRelationMarkers(relation)
+  if ((relation.fromKind !== undefined && markers.from === undefined)
+    || (relation.toKind !== undefined && markers.to === undefined)) return invalid
+  const reloaded = parseClassRelationSyntax(`A ${arrowForRelation(relation)} B`)
+  if (!reloaded) return invalid
+  const reloadedMarkers = classRelationMarkers(reloaded)
+  if (reloaded.kind !== relation.kind
+    || reloadedMarkers.at !== markers.at || reloadedMarkers.from !== markers.from || reloadedMarkers.to !== markers.to
+    || classRelationLineStyle(reloaded) !== classRelationLineStyle(relation)) return invalid
+}
+
 function declareNamespaceOn(b: ClassBody, path: string): void {
   if (!b.namespaces) b.namespaces = []
   if (!b.namespaces.some(n => n.name === path)) b.namespaces.push({ name: path })
@@ -386,6 +452,8 @@ export function mutateClass(body: ClassBody, op: ClassMutationOp): Result<ClassB
     }
     case 'add_class': {
       if (findClass(op.id)) return err({ code: 'DUPLICATE_CLASS', message: `class ${op.id} already exists` })
+      const invalidMembers = validateClassMembers(op.members ?? [])
+      if (invalidMembers) return err(invalidMembers)
       if (op.namespace !== undefined && !NAMESPACE_PATH_RE.test(op.namespace)) {
         return err({ code: 'INVALID_OP', message: `invalid namespace path "${op.namespace}" — expected dot-joined identifier segments like "Platform.Auth"` })
       }
@@ -395,7 +463,7 @@ export function mutateClass(body: ClassBody, op: ClassMutationOp): Result<ClassB
         if (!parsed.ok) return parsed
         generic = parsed.value
       }
-      b.classes.push({ id: op.id, label: op.label, generic, members: op.members ?? [], namespace: op.namespace })
+      b.classes.push({ id: op.id, label: op.label, generic, members: [...(op.members ?? [])], namespace: op.namespace })
       if (op.namespace !== undefined) declareNamespaceOn(b, op.namespace)
       return ok(b)
     }
@@ -491,6 +559,8 @@ export function mutateClass(body: ClassBody, op: ClassMutationOp): Result<ClassB
     case 'add_member': {
       const c = findClass(op.class)
       if (!c) return err({ code: 'CLASS_NOT_FOUND', message: `class ${op.class} not found` })
+      const invalidMembers = validateClassMembers([op.text])
+      if (invalidMembers) return err(invalidMembers)
       c.members.push(op.text)
       return ok(b)
     }
@@ -504,7 +574,16 @@ export function mutateClass(body: ClassBody, op: ClassMutationOp): Result<ClassB
     case 'add_relation': {
       if (!findClass(op.from)) return err({ code: 'CLASS_NOT_FOUND', message: `class ${op.from} not found` })
       if (!findClass(op.to)) return err({ code: 'CLASS_NOT_FOUND', message: `class ${op.to} not found` })
-      b.relations.push({ from: op.from, to: op.to, kind: op.relKind, label: op.label })
+      const relation: ClassRelation = {
+        from: op.from, to: op.to, kind: op.relKind, label: op.label,
+        ...(op.markerAt !== undefined ? { markerAt: op.markerAt } : {}),
+        ...(op.fromKind !== undefined ? { fromKind: op.fromKind } : {}),
+        ...(op.toKind !== undefined ? { toKind: op.toKind } : {}),
+        ...(op.lineStyle !== undefined ? { lineStyle: op.lineStyle } : {}),
+      }
+      const invalidRelation = validateClassRelation(relation)
+      if (invalidRelation) return err(invalidRelation)
+      b.relations.push(relation)
       return ok(b)
     }
     case 'remove_relation': {

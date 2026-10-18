@@ -214,7 +214,7 @@ describe('Section A canonical render contracts', () => {
     expect(declaredKinds).toEqual(BUILTIN_FAMILY_METADATA.map(family => family.id))
 
     const apiBlock = SDK_DECLARATION.split('declare const mermaid: {')[1]?.split('\n}')[0] ?? ''
-    const declaredNarrowers = Array.from(apiBlock.matchAll(/^  (as[A-Z]\w+)\(d: ValidDiagram\):/gm), match => match[1])
+    const declaredNarrowers = Array.from(apiBlock.matchAll(/^  (as[A-Z]\w+)\(d: ParsedDiagram\):/gm), match => match[1])
     expect(declaredNarrowers).toEqual(BUILTIN_FAMILY_METADATA.map(family => family.narrower))
     for (const family of BUILTIN_FAMILY_METADATA) {
       const stem = family.narrower.slice(2)

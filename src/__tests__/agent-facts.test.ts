@@ -3,6 +3,7 @@ import { writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { parseRegisteredMermaid as parseMermaid } from '../agent/parse.ts'
 import { describeMermaidFacts, describeMermaidFactsSource, checkMermaid } from '../agent/facts.ts'
+import { asClass, mutate, serializeMermaid } from '../agent/index.ts'
 import { runCli } from '../cli/index.ts'
 import { executeInSandbox } from '../mcp/sandbox.ts'
 import { captureCli as capture } from './helpers/cli-capture.ts'
@@ -55,6 +56,81 @@ describe('deterministic Mermaid facts', () => {
 })
 
 describe('checkMermaid semantic read-back', () => {
+  test('distinguishes Class relationships with opposite endpoint marker ownership', () => {
+    const intended = parseMermaid('classDiagram\nPerson --|> Animal')
+    const reversed = parseMermaid('classDiagram\nPerson <|-- Animal')
+    if (!intended.ok || !reversed.ok) throw new Error('expected Class diagrams')
+    const expected = describeMermaidFacts(intended.value)
+    expect(expected).toContain('relation#0 Person inheritance Animal marker to')
+    expect(checkMermaid(intended.value, expected).ok).toBe(true)
+    expect(checkMermaid(reversed.value, expected)).toMatchObject({
+      ok: false, missing: ['relation#0 Person inheritance Animal marker to'],
+    })
+    const legacy = [
+      'class Animal', 'class Person', 'family class',
+      'relation Person inheritance Animal', 'relation#0 Person inheritance Animal',
+    ]
+    expect(checkMermaid(intended.value, { include: legacy, exact: true })).toMatchObject({
+      ok: false, unexpected: [
+        'relation#0 Person inheritance Animal line solid',
+        'relation#0 Person inheritance Animal marker to',
+      ],
+    })
+    expect(checkMermaid(intended.value, { include: [...legacy,
+      'relation#0 Person inheritance Animal line solid',
+      'relation#0 Person inheritance Animal marker to',
+    ], exact: true }).ok).toBe(true)
+  })
+
+  test.each([
+    { dashed: 'o..*', solid: 'o--*', kind: 'aggregation' },
+    { dashed: '()..()', solid: '()--()', kind: 'lollipop' },
+  ])('distinguishes $dashed from $solid and retains shaft facts after an edit', ({ dashed, solid, kind }) => {
+    const intended = parseMermaid(`classDiagram\nA ${dashed} B`)
+    const changed = parseMermaid(`classDiagram\nA ${solid} B`)
+    if (!intended.ok || !changed.ok) throw new Error('expected Class diagrams')
+    const expected = `relation#0 A ${kind} B line dashed`
+    expect(describeMermaidFacts(intended.value)).toContain(expected)
+    expect(checkMermaid(changed.value, [expected])).toMatchObject({ ok: false, missing: [expected] })
+    const editable = asClass(intended.value)
+    if (!editable) throw new Error('expected editable Class diagram')
+    const edited = mutate(editable, { kind: 'add_member', class: 'A', text: '+value: String' })
+    if (!edited.ok) throw new Error(JSON.stringify(edited.error))
+    const reloaded = parseMermaid(serializeMermaid(edited.value))
+    if (!reloaded.ok) throw new Error('expected Class diagram after reload')
+    expect(checkMermaid(reloaded.value, [expected]).ok).toBe(true)
+  })
+
+  test('distinguishes the marker kinds at both Class relationship endpoints', () => {
+    const intended = parseMermaid('classDiagram\nWhole o--* Part')
+    const swapped = parseMermaid('classDiagram\nWhole *--o Part')
+    if (!intended.ok || !swapped.ok) throw new Error('expected Class diagrams')
+    const expected = [
+      'relation#0 Whole aggregation Part marker both',
+      'relation#0 from marker aggregation',
+      'relation#0 to marker composition',
+    ]
+    expect(checkMermaid(intended.value, expected).ok).toBe(true)
+    expect(checkMermaid(swapped.value, expected).ok).toBe(false)
+  })
+
+  test.each([
+    { relKind: 'inheritance', markerAt: 'from' },
+    { relKind: 'dependency', markerAt: 'to' },
+    { relKind: 'link-solid', markerAt: 'none' },
+    { relKind: 'lollipop', markerAt: 'from' },
+  ] as const)('keeps default $relKind marker facts through programmatic creation and reload', ({ relKind, markerAt }) => {
+    const parsed = parseMermaid('classDiagram\nclass A\nclass B')
+    if (!parsed.ok) throw new Error('expected Class diagram')
+    const edited = mutate(asClass(parsed.value)!, { kind: 'add_relation', from: 'A', to: 'B', relKind })
+    if (!edited.ok) throw new Error(JSON.stringify(edited.error))
+    const expected = describeMermaidFacts(edited.value)
+    expect(expected).toContain(`relation#0 A ${relKind} B marker ${markerAt}`)
+    const reloaded = parseMermaid(serializeMermaid(edited.value))
+    if (!reloaded.ok) throw new Error('expected Class diagram after reload')
+    expect(describeMermaidFacts(reloaded.value)).toEqual(expected)
+  })
+
   test('detects verify-green-but-wrong state transition label', () => {
     const parsed = parseMermaid('stateDiagram-v2\n  [*] --> Processing\n  Processing --> [*]')
     expect(parsed.ok).toBe(true)

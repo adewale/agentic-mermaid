@@ -90,11 +90,22 @@ arrow bytes inside escaped IDs or quoted cardinalities with an operator.
 Upstream-reserved endpoint spellings (for example unescaped `o` and escaped
 `\`note\``) remain rejected rather than producing a plausible edge.
 Escaped IDs containing `~` remain diagnosed because Mermaid treats them as
-generic references with a different stable identity. Escaped two-ended and
-lollipop links also remain diagnosed: the current relationship model cannot
-preserve the dashed style of mixed two-ended markers or Mermaid's synthetic
-`interface0` endpoint for lollipop links. Backticks used only in an ordinary
-link's label or quoted cardinality do not trigger these restrictions.
+generic references with a different stable identity. Two-ended and lollipop
+links now share the bounded relationship scanner, including escaped endpoint
+IDs and cardinalities. Their shaft style is stored independently of endpoint
+marker kinds, so `o..*` and `()..()` retain their dashed shafts through
+structured edits, SVG/Scene and terminal output. Mixed lollipop markers such as
+`()-->` and `<--()` retain both authored endpoint identities. One-ended
+lollipops also keep authored identities instead of Mermaid's synthetic
+`interface0`; this choice is recorded in `docs/project/divergences.md`.
+
+Class relation facts include effective marker ownership, both endpoint kinds
+when present, and `line solid` / `line dashed`. Public `add_relation` operations
+can author those properties explicitly and reject combinations that would
+change meaning on reload. Member authoring refuses comment-form/blank text,
+accessibility directives and decoded line breaks; the source reader still
+handles comments as source metadata. Initial member arrays are copied so later caller changes do not
+alter the returned diagram. See `docs/api.md` for the complete-fact migration.
 
 The official relationship section's aggregate capability is still only
 `diagnosed`, not `native`: upstream-valid unescaped hyphenated, dotted, and

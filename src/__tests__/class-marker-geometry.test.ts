@@ -2,6 +2,8 @@ import { describe, expect, test } from 'bun:test'
 
 import { lowerClassScene } from '../class/renderer.ts'
 import { renderMermaidSVG } from '../index.ts'
+import { renderMermaidASCIIWithReceipt } from '../ascii/index.ts'
+import { terminalDocumentOf, type TerminalMarker } from '../ascii/terminal-document.ts'
 import type { MarkerDescriptor } from '../scene/ir.ts'
 
 function markerResources(): readonly MarkerDescriptor[] {
@@ -37,6 +39,56 @@ function markerTag(svg: string, id: string): string {
 }
 
 describe('class endpoint marker geometry (#178)', () => {
+  test.each([
+    { arrow: 'o..*', start: 'cls-aggregation', end: 'cls-composition', glyphs: ['◇', '◆'], dashed: true },
+    { arrow: '*..o', start: 'cls-composition', end: 'cls-aggregation', glyphs: ['◆', '◇'], dashed: true },
+    { arrow: 'o..o', start: 'cls-aggregation', end: 'cls-aggregation', glyphs: ['◇', '◇'], dashed: true },
+    { arrow: '*..*', start: 'cls-composition', end: 'cls-composition', glyphs: ['◆', '◆'], dashed: true },
+    { arrow: '()--()', start: 'cls-lollipop', end: 'cls-lollipop', glyphs: ['○', '○'], dashed: false },
+    { arrow: '()..()', start: 'cls-lollipop', end: 'cls-lollipop', glyphs: ['○', '○'], dashed: true },
+    { arrow: '()-->', start: 'cls-lollipop', end: 'cls-arrow', glyphs: ['○'], dashed: false },
+    { arrow: '<--()', start: 'cls-arrow', end: 'cls-lollipop', glyphs: ['○'], dashed: false },
+    { arrow: 'o..|>', start: 'cls-aggregation', end: 'cls-inherit', glyphs: ['◇'], dashed: true },
+    { arrow: '()..*', start: 'cls-lollipop', end: 'cls-composition', glyphs: ['○', '◆'], dashed: true },
+  ])('$arrow draws its shaft and both endpoint markers in SVG and terminal', ({ arrow, start, end, glyphs, dashed }) => {
+    const source = `classDiagram\nA ${arrow} B`
+    const svg = renderMermaidSVG(source)
+    const relation = svg.match(/<polyline\b[^>]*class="class-relationship"[^>]*>/)?.[0]
+    expect(relation).toBeDefined()
+    expect(relation).toContain('data-from="A" data-to="B"')
+    expect(relation).toContain(`marker-start="url(#${start})"`)
+    expect(relation).toContain(`marker-end="url(#${end})"`)
+    expect(relation!.includes('stroke-dasharray="6 4"')).toBe(dashed)
+    const shapes: Record<string, TerminalMarker['shape']> = {
+      'cls-aggregation': 'hollow-diamond', 'cls-composition': 'filled-diamond',
+      'cls-lollipop': 'lollipop', 'cls-arrow': 'triangle', 'cls-inherit': 'open-arrow',
+    }
+    for (const useAscii of [false, true]) {
+      const terminal = renderMermaidASCIIWithReceipt(source, { useAscii, colorMode: 'none' })
+      const document = terminalDocumentOf(terminal)!
+      const edge = document.regions().find(region => region.kind === 'edge')!
+      expect([edge.from, edge.to]).toEqual(['A', 'B'])
+      expect(edge.ports).toHaveLength(2)
+      for (const port of edge.ports!) {
+        expect(port.nodeId).toBe(port.end === 'start' ? 'A' : 'B')
+        const cell = document.cell(port.x, port.y)!
+        expect(cell.marker?.shape).toBe(shapes[port.end === 'start' ? start : end])
+        expect(cell.owners.some(owner => owner.id === edge.id && owner.kind === 'edge')).toBe(true)
+        expect(terminal.text.split('\n')[port.y]?.[port.x]).toBe(cell.glyph)
+      }
+      const shaft = [...document.entries()].filter(([, , cell]) => cell.stroke
+        && cell.owners.some(owner => owner.id === edge.id && owner.kind === 'edge'))
+      expect(shaft.length).toBeGreaterThan(0)
+      expect(shaft.some(([, , cell]) => cell.stroke?.style === 'dashed')).toBe(dashed)
+      if (!useAscii) {
+        for (const glyph of new Set(glyphs)) {
+          expect([...terminal.text].filter(character => character === glyph)).toHaveLength(glyphs.filter(value => value === glyph).length)
+        }
+        expect(/[┄┊]/.test(terminal.text)).toBe(dashed)
+      }
+    }
+  })
+
   test('typed diamond and lollipop resources anchor their node-facing tip or tangent', () => {
     const resources = markerResources()
     const diamondPoints = [

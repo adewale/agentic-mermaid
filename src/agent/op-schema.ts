@@ -59,7 +59,7 @@ const EDGE_STYLES: readonly EdgeStyle[] = ['solid', 'dotted', 'thick', 'invisibl
 const SEQUENCE_MESSAGE_STYLES: readonly SequenceMessageStyle[] = ['sync', 'reply', 'async', 'async-dashed', 'lost', 'lost-dashed']
 const PARTICIPANT_KINDS = ['participant', 'actor'] as const
 const SEQUENCE_FRAGMENT_KINDS = ['alt', 'opt', 'loop', 'par'] as const
-const CLASS_REL_KINDS: readonly ClassRelationKind[] = ['inheritance', 'composition', 'aggregation', 'association', 'dependency', 'realization', 'link-solid', 'link-dashed']
+const CLASS_REL_KINDS: readonly ClassRelationKind[] = ['inheritance', 'composition', 'aggregation', 'association', 'dependency', 'realization', 'link-solid', 'link-dashed', 'lollipop']
 const ER_CARDINALITIES: readonly ErCardinality[] = ['one-only', 'zero-or-one', 'zero-or-many', 'one-or-many']
 const ARCH_SIDES: readonly ArchitectureSide[] = ['L', 'R', 'T', 'B']
 const ARCH_BOUNDARIES: readonly ArchitectureEndpointBoundary[] = ['item', 'group']
@@ -179,7 +179,12 @@ const CLASS_SCHEMA: Record<string, OpSpec> = {
   set_class_generic: { fields: { class: str(), generic: withNote(strOrNull(), 'parameter text without ~ delimiters; null removes it') } },
   add_member: { fields: { class: str(), text: str() } },
   remove_member: { fields: { class: str(), index: num() } },
-  add_relation: { fields: { from: str(), to: str(), relKind: oneOf(CLASS_REL_KINDS), label: str(false) } },
+  add_relation: { fields: {
+    from: str(), to: str(), relKind: oneOf(CLASS_REL_KINDS), label: str(false),
+    markerAt: withNote(oneOf(['from', 'to', 'both', 'none'], false), 'marker endpoints; omit for the relation kind default'),
+    fromKind: oneOf(CLASS_REL_KINDS, false), toKind: oneOf(CLASS_REL_KINDS, false),
+    lineStyle: withNote(oneOf(['solid', 'dashed'], false), 'independent shaft style; must agree with style-specific endpoint kinds'),
+  } },
   remove_relation: { fields: { index: num() } },
   add_note: { fields: { text: str(), for: str(false) } },
   remove_note: { fields: { index: num() } },

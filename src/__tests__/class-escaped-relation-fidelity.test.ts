@@ -195,14 +195,32 @@ describe('Class escaped relationship IDs', () => {
     }
   })
 
-  test('escaped two-ended/lollipop, tilde, and unescaped hyphenated identities remain diagnosed until modeled', async () => {
+  test('mixed markers retain escaped endpoints, generics, cardinalities and their independent shaft', async () => {
+    const cases = [
+      { arrow: 'o..*', fromType: 'aggregation', toType: 'composition', lineStyle: 'dashed' },
+      { arrow: '()--()', fromType: 'lollipop', toType: 'lollipop' },
+      { arrow: '()..()', fromType: 'lollipop', toType: 'lollipop', lineStyle: 'dashed' },
+      { arrow: '()-->', fromType: 'lollipop', toType: 'association' },
+      { arrow: '<--()', fromType: 'association', toType: 'lollipop' },
+      { arrow: 'o..|>', fromType: 'aggregation', toType: 'realization' },
+      { arrow: '()..*', fromType: 'lollipop', toType: 'composition', lineStyle: 'dashed' },
+    ] as const
+    for (const item of cases) {
+      const statement = `\`From Class\`~T~ "one" ${item.arrow} "many" \`To Class\`~U~ : related`
+      expect(await upstream.accepts(`classDiagram\n${statement}`)).toBe(true)
+      expect(parseClassRelationship(statement)).toEqual({
+        from: 'From Class', to: 'To Class', fromGeneric: 'T', toGeneric: 'U',
+        fromCardinality: 'one', toCardinality: 'many', label: 'related',
+        type: item.fromType, markerAt: 'both', fromType: item.fromType, toType: item.toType,
+        ...('lineStyle' in item ? { lineStyle: item.lineStyle } : {}),
+      })
+      expect(parseClassDiagram(['classDiagram', statement]).classes.map(node => ({ id: node.id, generic: node.generic })))
+        .toEqual([{ id: 'From Class', generic: 'T' }, { id: 'To Class', generic: 'U' }])
+    }
+  })
+
+  test('tilde and unescaped hyphenated identities remain diagnosed until modeled', async () => {
     const diagnosed = [
-      '`A B` <|--|> `C D`',
-      '`A B` *..* `C D`',
-      'A *..* `B`',
-      'A o..o `B`',
-      '`A B` ()-- C',
-      'A --() `C D`',
       '`A~B` --> C',
       '`A~B` -- C',
       '`A~B` .. C',
@@ -211,12 +229,6 @@ describe('Class escaped relationship IDs', () => {
       'A-B --> C',
     ]
     expect(await upstreamLinks(diagnosed)).toEqual([
-      { from: 'A B', to: 'C D', lineType: 0 },
-      { from: 'A B', to: 'C D', lineType: 1 },
-      { from: 'A', to: 'B', lineType: 1 },
-      { from: 'A', to: 'B', lineType: 1 },
-      { from: 'interface0', to: 'C', lineType: 0 },
-      { from: 'A', to: 'interface0', lineType: 0 },
       { from: 'A', to: 'C', lineType: 0 },
       { from: 'A', to: 'C', lineType: 0 },
       { from: 'A', to: 'C', lineType: 1 },

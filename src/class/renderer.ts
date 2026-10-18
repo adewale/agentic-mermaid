@@ -1,6 +1,7 @@
 import { preparePixelText, type PixelTextBlock } from '../shared/prepared-text.ts'
 import { classTextBlock, classMemberBlock } from './layout.ts'
 import type { PositionedClassDiagram, PositionedClassNode, PositionedClassNamespace, PositionedClassRelationship, PositionedClassNote, ClassMember, RelationshipType } from './types.ts'
+import { classRelationshipLineStyle } from './parser.ts'
 import type { RenderContext } from '../types.ts'
 import { svgOpenTag, buildStyleBlock, buildShadowDefs, type DiagramColors } from '../theme.ts'
 import { inkOnNodeFill } from '../color-resolver.ts'
@@ -547,7 +548,7 @@ function renderRelationship(rel: PositionedClassRelationship, style: ResolvedRen
   }
 
   const pathData = rel.points.map(p => `${p.x},${p.y}`).join(' ')
-  const isDashed = rel.type === 'dependency' || rel.type === 'realization' || rel.type === 'link-dashed'
+  const isDashed = classRelationshipLineStyle(rel) === 'dashed'
   const dashArray = isDashed ? ' stroke-dasharray="6 4"' : ''
   const lineStyle = isDashed ? 'dashed' : 'solid'
 

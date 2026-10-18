@@ -1,15 +1,18 @@
 # Prepared text and owned rendering geometry
 
-Status: implementation and independent audit complete in PR 395; root `TODO.md`
-BUILD-36 tracks review and merge. This is the
-acceptance and verification plan; the root backlog owns unfinished work.
+Status: landed in [PR 395](https://github.com/adewale/agentic-mermaid/pull/395)
+on 2026-10-17 at `53056ec569781d6f5153f90b5bd563aa70f8c5c7`.
+BUILD-36 and BUG-62–64 are complete. This is the acceptance and verification
+record; the [delivery reconciliation](archive/prepared-text-geometry-delivery-2026-10.md)
+distinguishes merged source from the still-unpublished release. The root
+backlog owns unfinished work.
 
-PR 394 has landed the terminal compositor, chronology and numbering foundation
-(T8, T10 and T11). PR 395's remaining contribution is prepared display/pixel/cell
+PR 394 landed the terminal compositor, chronology and numbering foundation
+(T8, T10 and T11). PR 395 contributed prepared display/pixel/cell
 text, complete text bounds (T1–T7), additional XY endpoint/fractional tick and
 Radar occurrence corrections, and their compatibility/evidence checks. Its
-branch is refreshed onto landed main at `c361f4b`; the compositor is a dependency,
-not a new feature being delivered again by PR 395.
+branch was refreshed onto landed main at `c361f4b`; the compositor was a dependency,
+not a new feature delivered again by PR 395.
 
 The contract is one interpretation of authored display text, complete measured
 geometry in the output's units, and stable ownership through projection. Each

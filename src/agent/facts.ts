@@ -10,6 +10,7 @@
 import { extractLabelsGeneric, getFamily } from './families.ts'
 import { parseRegisteredMermaid } from './parse.ts'
 import { sequenceMessageContexts } from './sequence-body.ts'
+import { classRelationLineStyle, classRelationMarkers } from './class-body.ts'
 import type { ArchitectureBody, ClassBody, ErBody, GanttBody, GitGraphBody, JourneyBody, MindmapBody, PieBody, QuadrantBody, SequenceBody, StateBody, TimelineBody, XyChartBody } from './types.ts'
 import { err, ok, type ParsedDiagram, type ParseError, type Result } from './types.ts'
 
@@ -261,6 +262,13 @@ function factsClass(out: string[], body: ClassBody): void {
     const cards = `${r.fromCardinality ? ` ${clean(r.fromCardinality)}` : ''}${r.toCardinality ? ` ${clean(r.toCardinality)}` : ''}`
     add(out, `relation ${clean(r.from)} ${r.kind} ${clean(r.to)}${r.label ? ` : ${clean(r.label)}` : ''}`)
     add(out, `relation#${i} ${clean(r.from)} ${r.kind} ${clean(r.to)}${cards}${r.label ? ` : ${clean(r.label)}` : ''}`)
+    const markers = classRelationMarkers(r)
+    add(out, `relation#${i} ${clean(r.from)} ${r.kind} ${clean(r.to)} marker ${markers.at}`)
+    add(out, `relation#${i} ${clean(r.from)} ${r.kind} ${clean(r.to)} line ${classRelationLineStyle(r)}`)
+    if (markers.at === 'both') {
+      add(out, `relation#${i} from marker ${markers.from}`)
+      add(out, `relation#${i} to marker ${markers.to}`)
+    }
   })
   body.notes.forEach((n, i) => add(out, `note#${i}${n.for ? ` ${clean(n.for)}` : ''} : ${clean(n.text)}`))
 }
