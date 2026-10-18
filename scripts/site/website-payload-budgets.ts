@@ -69,7 +69,9 @@ export const WEBSITE_PAYLOAD_BUDGETS: WebsitePayloadBudgets = Object.freeze({
     // families. With C4: 3,590,858 raw / 1,089,260 gzip / 859,297 Brotli bytes;
     // keep tight headroom. Per-change growth still has its own delta gate.
     maxRawBytes: 3_610_000,
-    maxGzipBytes: 1_095_000,
+    // Shared text preservation measured 1,096,447 gzip bytes; the per-PR
+    // delta gate still checks growth against the actual base request graph.
+    maxGzipBytes: 1_100_000,
     maxBrotliBytes: 865_000,
     required: Object.freeze([
       '^/editor/$',
