@@ -6,12 +6,10 @@
 // Used across all diagram types (flowcharts, state, sequence, class, ER).
 // ============================================================================
 
-import { LINE_HEIGHT_RATIO, measureTextWidth, measureSystemFontSafeTextWidth, measureMonospaceTextWidth } from './text-metrics.ts'
-import { customTextMeasurementActive } from './text-measurement-profile.ts'
+import { LINE_HEIGHT_RATIO } from './text-metrics.ts'
 import { HAS_FORMAT_TAGS } from './shared/inline-format.ts'
 import { prepareDisplayText, type DisplayRun, type DisplayTextInput } from './shared/display-text.ts'
 import type { PixelTextBlock } from './shared/prepared-text.ts'
-import { graphemes } from './shared/graphemes.ts'
 import { sanitizeDisplayLines } from './shared/text-controls.ts'
 
 /**
@@ -159,32 +157,9 @@ function renderPreparedLine(block: PixelTextBlock, index: number, cx: number, an
     return `<tspan x="${center}"${baseline === undefined ? '' : ` y="${baseline}"`} text-anchor="middle" data-text-fragment="true">${renderDisplayRuns(line.runs)}</tspan>`
   }
   if (block.letterSpacing === 0) return renderDisplayRuns(line.runs)
-  let x = (anchor === 'middle' ? cx - line.width / 2 : anchor === 'end' ? cx - line.width : cx) + line.originX
-  const result: string[] = []
-  for (const run of line.runs) {
-    const clusters = graphemes(run.text)
-    const groups: Array<{ text: string; natural: boolean; count: number }> = []
-    for (const cluster of clusters) {
-      const natural = /[^\x20-\x7e]/u.test(cluster)
-      const prior = groups.at(-1)
-      // Keep non-ASCII shaping runs intact. Separating Arabic/Indic clusters
-      // would lose joining and ligatures even if every character survived.
-      if (prior && prior.natural === natural && (natural || block.letterSpacing === 0)) {
-        prior.text += cluster; prior.count++
-      } else groups.push({ text: cluster, natural, count: 1 })
-    }
-    for (const [at, group] of groups.entries()) {
-      const weight = run.bold ? Math.max(700, block.fontWeight) : block.fontWeight
-      const measure = block.safeFont ? measureSystemFontSafeTextWidth : measureTextWidth
-      const fontStyle = run.italic ? 'italic' : 'normal'
-      const width = (block.monospace ? measureMonospaceTextWidth(group.text, block.fontSize, 0, weight, fontStyle, block.fontFamily) : measure(group.text, block.fontSize, weight, fontStyle, block.fontFamily) - (at === groups.length - 1 || customTextMeasurementActive() ? 0 : block.fontSize * 0.15)) + (group.count - 1) * block.letterSpacing
-      const fit = group.natural ? '' : ` textLength="${Math.max(0, width)}" lengthAdjust="spacingAndGlyphs"`
-      const tracking = group.natural ? block.letterSpacing : 0
-      result.push(`<tspan x="${x}" text-anchor="start" letter-spacing="${tracking}" data-text-fragment="true"${fit}>${renderDisplayRuns([{ ...run, text: group.text }])}</tspan>`)
-      x += width + block.letterSpacing
-    }
-  }
-  return result.join('')
+  if (!line.fragments) throw new TypeError('Tracked text requires retained fragment allocations')
+  const origin = (anchor === 'middle' ? cx - line.width / 2 : anchor === 'end' ? cx - line.width : cx) + line.originX
+  return line.fragments.map(fragment => `<tspan x="${origin + fragment.x}" text-anchor="start" letter-spacing="0" data-text-fragment="true" textLength="${Math.max(0, fragment.width)}" lengthAdjust="spacingAndGlyphs">${renderDisplayRuns([{ ...line.runs[fragment.runIndex]!, text: fragment.text }])}</tspan>`).join('')
 }
 
 // ============================================================================

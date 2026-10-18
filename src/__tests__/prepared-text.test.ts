@@ -17,6 +17,7 @@ import { attachSceneNodeSerialization, sceneNodeSerialization } from '../scene/s
 import { measureRenderedText, renderedTextReady } from './helpers/rendered-text.ts'
 import { Resvg } from '@resvg/resvg-js'
 import { join } from 'node:path'
+import { createTextMeasurementExecution, withTextMeasurementExecution } from '../text-measurement-profile.ts'
 
 beforeAll(() => renderedTextReady())
 const typography = { fontSize: 18, fontWeight: 600 }
@@ -206,6 +207,21 @@ describe('prepared display text', () => {
     expect(fitPixelText('iiiiiiiiiiii', { ...typography, letterSpacing: -12 }, { width: 1, height: 100 }).kind).toBe('needs-space')
     expect(Object.isFrozen(block.lines)).toBe(true)
     expect(Object.isFrozen(block.lineBlocks[0]!.runs[0])).toBe(true)
+  })
+
+  it.each([3, -12])('retains the actual glyph allocations for tracking %s across measurement contexts', letterSpacing => {
+    const execution = createTextMeasurementExecution({ id: 'test:nonadditive-tracking', version: '1.0.0', measure: ({ text, fontWeight }) => text.length > 1 ? 2 : fontWeight >= 700 ? 9 : 6 }, 'Inter')
+    const block = withTextMeasurementExecution(execution, () => preparePixelText('A<b>B</b>CD', { fontSize: 12, fontWeight: 400, letterSpacing }))
+    expect(block.width).toBe(letterSpacing === 3 ? 36 : 21)
+    const svg = renderMultilineText(block, 10, 20, 12, `text-anchor="start" font-size="12" font-weight="400" letter-spacing="${letterSpacing}"`)
+    expect([...svg.matchAll(/textLength="([^"]+)"/g)].map(match => Number(match[1]))).toEqual([6, 9, 6, 6])
+    expect(svg.replace(/<[^>]+>/g, '')).toBe('ABCD')
+    const node = marks.text({ id: 'tracked', role: 'label', text: block.text, block, x: 10, y: 20, fontSize: 12, anchor: 'start', paint: {} }, svg)
+    const problems: string[] = []
+    nodeProblems(node, 'tracked', problems)
+    expect(problems).toEqual([])
+    expect(Object.isFrozen(block.lineBlocks[0]!.fragments)).toBe(true)
+    expect(Object.isFrozen(block.lineBlocks[0]!.fragments![0])).toBe(true)
   })
 })
 

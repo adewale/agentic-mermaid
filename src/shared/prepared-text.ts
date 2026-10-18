@@ -30,6 +30,15 @@ export interface PixelTextLine {
   readonly width: number
   readonly baseline: number
   readonly originX: number
+  /** ASCII tracking uses these exact prepared advances during emission. */
+  readonly fragments?: readonly PixelTextFragment[]
+}
+
+export interface PixelTextFragment {
+  readonly runIndex: number
+  readonly text: string
+  readonly x: number
+  readonly width: number
 }
 
 export interface PixelTextBlock {
@@ -77,6 +86,7 @@ function advance(runs: readonly DisplayRun[], options: PixelTextOptions): number
   const measure = options.safeFont ? measureSystemFontSafeTextWidth : measureTextWidth
   const grouped = coalesce(runs)
   const text = grouped.map(run => run.text).join('')
+  if ((options.letterSpacing ?? 0) !== 0 && !/[^\x20-\x7e]/u.test(text)) return trackedBounds(grouped, options).width
   const width = options.monospace
     ? customTextMeasurementActive()
       ? grouped.reduce((sum, run) => sum + measureMonospaceTextWidth(run.text, options.fontSize, 0, run.bold ? Math.max(700, options.fontWeight) : options.fontWeight, run.italic ? 'italic' : 'normal', options.fontFamily), 0)
@@ -97,18 +107,40 @@ function advance(runs: readonly DisplayRun[], options: PixelTextOptions): number
   return (options.letterSpacing ?? 0) < 0 ? trackedBounds(grouped, options).width : Math.max(0, width + Math.max(0, graphemes(text).length - 1) * (options.letterSpacing ?? 0))
 }
 
+/** Positioned graphemes must be measured as the same graphemes that SVG will
+ * paint. Whole-run metrics may include kerning or a nonadditive host profile. */
+function trackingLayout(runs: readonly DisplayRun[], options: PixelTextOptions): { width: number; originX: number; fragments: readonly PixelTextFragment[] } {
+  const clusters = runs.flatMap((run, runIndex) => graphemes(run.text).map(text => ({ runIndex, text })))
+  let x = 0, min = 0, max = 0
+  const fragments = clusters.map((cluster, index) => {
+    const run = runs[cluster.runIndex]!, next = clusters[index + 1]
+    const lastInStyle = !next || !sameStyle(run, runs[next.runIndex]!)
+    const width = trackedGlyphWidth(cluster.text, run, lastInStyle, options)
+    const fragment = Object.freeze({ ...cluster, x, width })
+    min = Math.min(min, x); max = Math.max(max, x + width)
+    x += width + (options.letterSpacing ?? 0)
+    return fragment
+  })
+  return { width: max - min, originX: -min, fragments: Object.freeze(fragments) }
+}
+
+function trackedGlyphWidth(text: string, run: DisplayRun, lastInStyle: boolean, options: PixelTextOptions): number {
+  const weight = run.bold ? Math.max(700, options.fontWeight) : options.fontWeight
+  const fontStyle = run.italic ? 'italic' : 'normal'
+  const measure = options.safeFont ? measureSystemFontSafeTextWidth : measureTextWidth
+  return options.monospace ? measureMonospaceTextWidth(text, options.fontSize, 0, weight, fontStyle, options.fontFamily)
+    : measure(text, options.fontSize, weight, fontStyle, options.fontFamily) - (lastInStyle || customTextMeasurementActive() ? 0 : options.fontSize * 0.15)
+}
+
 /** With negative tracking, total advance can be zero while glyph intervals
  * still occupy space. Bounds enclose every interval rather than clamping the
  * final pen position and pretending that nothing is drawn. */
 function trackedBounds(runs: readonly DisplayRun[], options: PixelTextOptions): { width: number; originX: number } {
-  const measure = options.safeFont ? measureSystemFontSafeTextWidth : measureTextWidth
   let x = 0, min = 0, max = 0
   for (const run of runs) {
     const clusters = graphemes(run.text)
     for (const [i, cluster] of clusters.entries()) {
-      const weight = run.bold ? Math.max(700, options.fontWeight) : options.fontWeight
-      const fontStyle = run.italic ? 'italic' : 'normal'
-      const width = options.monospace ? measureMonospaceTextWidth(cluster, options.fontSize, 0, weight, fontStyle, options.fontFamily) : measure(cluster, options.fontSize, weight, fontStyle, options.fontFamily) - (i === clusters.length - 1 || customTextMeasurementActive() ? 0 : options.fontSize * 0.15)
+      const width = trackedGlyphWidth(cluster, run, i === clusters.length - 1, options)
       min = Math.min(min, x); max = Math.max(max, x + width)
       x += width + (options.letterSpacing ?? 0)
     }
@@ -208,7 +240,8 @@ export function preparePixelText(source: DisplayTextInput, options: PixelTextOpt
   const lineBlocks = broken.map((runs, i) => {
     const text = runs.map(run => prepared.display === 'literal' ? run.text : serializeStyledSegment(run)).join('')
     runs.forEach(Object.freeze)
-    return Object.freeze({ runs: Object.freeze(runs), text, width: advance(runs, options), baseline: i * lineHeight + options.fontSize * 0.35, originX: (options.letterSpacing ?? 0) < 0 && !/[^\x20-\x7e]/u.test(runs.map(run => run.text).join('')) ? trackedBounds(runs, options).originX : 0 })
+    const tracking = (options.letterSpacing ?? 0) !== 0 && !/[^\x20-\x7e]/u.test(runs.map(run => run.text).join('')) ? trackingLayout(runs, options) : undefined
+    return Object.freeze({ runs: Object.freeze(runs), text, width: tracking?.width ?? advance(runs, options), baseline: i * lineHeight + options.fontSize * 0.35, originX: tracking?.originX ?? 0, ...(tracking ? { fragments: tracking.fragments } : {}) })
   })
   const lines = lineBlocks.map(line => line.text)
   Object.freeze(lines)
