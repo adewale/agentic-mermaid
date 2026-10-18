@@ -81,10 +81,21 @@ cannot hide a pass-contract error behind another successful layout.
 
 Some priorities require explicit local tradeoffs. Separating ambiguous shared
 duplicate routes can justify a bounded crossing cost for that same proposal.
-Fewer bends alone cannot buy a new crossing. Proven hard feasibility can
-justify losing a preferred port. A merely symmetric reciprocal lane must keep
-an already valid canonical contact. The owning regressions record these cases
-alongside the existing final hard checks.
+Fewer bends alone cannot buy a new crossing. An actual repair of a route through
+a node, a diagonal or an invalid endpoint approach can justify a bounded bend
+cost or losing a preferred port. An endpoint approach is checked against the
+actual shape boundary, separately from its preferred attachment ports.
+Opposite-direction shafts sharing positive-length collinear ink are measured
+separately from ordinary crossings and deliberate same-direction fan trunks.
+A merely symmetric reciprocal lane must keep an already valid canonical
+contact. The owning regressions record these cases alongside the existing final
+hard checks.
+
+Final graph candidates first pass authored correspondence and hard geometry.
+The bounded preference comparison then orders title readability, crossings,
+bends, preferred endpoint contacts, peer alignment and canvas area. A candidate
+with a better lower-priority score cannot displace one with a better earlier
+score. This final comparison does not excuse a production pass-contract error.
 
 A repaired viewport with non-scaling strokes is unverified: keeping the display
 size changes the stroke extent in user units. Endpoint checks allow an arrow’s
