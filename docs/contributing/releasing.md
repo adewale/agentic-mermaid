@@ -10,8 +10,9 @@ Node 22. `bun run lint:package` runs publint and attw on the packed tarball, so
 every export resolves and carries types for Node ESM and bundlers. attw uses its
 `esm-only` profile because the package ships ESM only, and it skips `./browser`
 because that is the classic `<script>` bundle that sets a global, not an import.
-The release workflow retains the registry-derived macOS/Windows smoke,
-then owns only the publish boundary: an unprivileged job builds once, creates a
+The release workflow retains the registry-derived macOS/Windows smoke and
+runs the [release benchmark](#the-release-benchmark) against the previous npm
+release, then owns only the publish boundary: an unprivileged job builds once, creates a
 real tarball with the pinned publishing npm, compares its contents with the
 reviewed fail-closed manifest, records its integrity and SHA-256 digest, and
 uploads that immutable artifact under a fixed filename. A minimal OIDC job
@@ -97,8 +98,9 @@ client-side exact-identity check.
    fresh empty `## Unreleased` above it.
 4. **Flip the "published" copy** (see below), commit via PR, and merge to `main`.
 5. **Create the GitHub Release** on the merge commit (tag `v<version>`). Its
-   publication fires `publish.yml`, which gates, builds, publishes to npm, and
-   then publishes the matching server metadata to the MCP Registry. You do not
+   publication fires `publish.yml`, which gates, benchmarks, builds, publishes
+   to npm, and then publishes the matching server metadata to the MCP Registry.
+   The benchmark can take up to 90 minutes; npm packaging waits for it. You do not
    need to remember this step: once the merge's CI passes, the deploy finds the
    version missing from npm and opens a **release to-do** issue that
    @mentions you, labelled `release-todo`, titled
@@ -167,6 +169,57 @@ than three days. If the pending version is not on npm, publish it (steps 5 and
 6); the publish run triggers the deploy. If that version is already on npm, the
 deploy itself is failing: read the latest "Deploy website to Cloudflare" run.
 The check never deploys or publishes.
+
+### The release benchmark
+
+[`release-benchmark.yml`](../../.github/workflows/release-benchmark.yml) runs
+`bun run bench:release --baseline-npm latest` after the release gate and before
+the tarball is built. It renders every official Mermaid syntax fence and a set
+of generated large diagrams with the release build and with npm's `latest`
+version (the previous release), in alternating fresh Node processes on one
+runner, and fails the run on:
+
+- a lost SVG or ASCII render, output that does not repeat byte for byte, or an
+  SVG resvg cannot parse;
+- a candidate that does not finish an input within its time budget;
+- corpus render time above 1.25× the baseline, or any large case above 1.5×;
+- corpus allocation or peak RSS above 1.25×, or retained heap growth above
+  16 MB per pass.
+
+Changed SVGs are counted per family but never fail a release: releases are
+allowed to change output. The job summary and the `release-benchmark-<sha>`
+artifact (`report.md`, `report.json`) hold the numbers. To see them before
+cutting a release, run the same comparison locally after `bun run build`:
+
+```bash
+bun run bench:release --baseline-npm latest            # about 20-30 minutes
+bun run bench:release --baseline-npm latest --rounds 1 --reps 1   # quick look
+```
+
+It can also be run on demand from the Actions tab (**Release benchmark**,
+with any npm version or tag as the baseline).
+
+#### When the benchmark fails
+
+A failure stops npm and MCP Registry publication; the GitHub Release and its
+tag already exist. Read the failing gate in the job summary first.
+
+- **Runner noise:** a timing ratio just past its limit with no change that
+  could explain it. Re-run the failed jobs once; the packaging and publish
+  jobs that wait on the benchmark run after it passes.
+- **A real regression:** fix it on `main` through a PR. The version is not on
+  npm yet, so you do not need a new version: delete the GitHub Release and the
+  `v<version>` tag, then create the release again on the fixed `main` commit
+  once its CI is green. The release gate requires the tag to point at the
+  released commit.
+- **An intended trade-off** (for example, a correctness fix that costs time):
+  change the threshold in `GATES` in
+  [`eval/benchmark/release-bench.ts`](../../eval/benchmark/release-bench.ts)
+  through a PR that says why, then re-release as above.
+
+Re-running `publish.yml` after npm has published the version compares that
+version with itself, so the benchmark passes trivially; it guards the first
+publication only.
 
 ### Optional visual review
 
