@@ -35,6 +35,13 @@ describe('final terminal cell certification', () => {
     expect(certificate?.issues).toEqual([])
   })
 
+  test('State note attachments retain explicit marker expectations under strict safety', () => {
+    const source = 'stateDiagram-v2\n s1 : Sa Sb\n s1 --> s2 : Ta Tb\n note right of s1 : Na Nb'
+    const rendered = renderMermaidASCIIWithReceipt(source, { colorMode: 'none', layoutSafety: 'strict' })
+    expect(rendered.text).toContain('Na Nb')
+    expect(rendered.receipt.layoutCertification).toMatchObject({ status: 'passed', unit: 'cell', issues: [] })
+  })
+
   test.each(['none', 'ansi16', 'html'] as const)('binds the actual %s output and defers certification until receipt access', colorMode => {
     const evidence = spyOn(TerminalDocument.prototype, 'layoutEvidence')
     try {

@@ -116,6 +116,10 @@ export function certifyScenePaint(scene: SceneDoc, projection?: Pick<RenderedLay
   // geometry, chart coordinates, routes, dates or authored memberships.
   const viewport = Object.freeze({ x: Math.floor(x0), y: Math.floor(y0), width: Math.ceil(x1) - Math.floor(x0), height: Math.ceil(y1) - Math.floor(y0) })
   const finalBounds = viewportBox(viewport)
+  if (repaired && inspection.primitives.some(primitive => {
+    const node = scenePrimitiveSource(primitive)
+    return node?.kind === 'connector' ? node.stroke.nonScaling : node?.kind === 'shape' || node?.kind === 'text' ? node.paint.vectorEffect === 'non-scaling-stroke' : false
+  })) issue({ code: 'OUTPUT_SCOPE', message: 'Viewport expansion changes the user-unit extent of non-scaling strokes; final painted containment is unverified' })
   let labels = 0
   const label = (id: string, bounds: { x: number; y: number; w: number; h: number } | undefined, container?: { x: number; y: number; w: number; h: number }): void => {
     labels++
@@ -144,14 +148,14 @@ export function certifyScenePaint(scene: SceneDoc, projection?: Pick<RenderedLay
   const lastMarkers = new Map<string, { primitive: ScenePaintPrimitive; bounds: AxisAlignedBox }>()
   for (const primitive of inspection.primitives) {
     const node = scenePrimitiveSource(primitive)
-    if (node?.kind !== 'connector' || node.lineStyle === 'invisible' || primitive.visibility === 'conditional') continue
+    if (primitive.kind !== 'connector' || node?.kind !== 'connector' || node.lineStyle === 'invisible' || primitive.visibility === 'conditional') continue
     const ownInverse = inverseMatrix(transformMatrix(node.transform))
     if (!ownInverse) continue
     const [a, b, c, d, e, f] = composeMatrices(scenePrimitiveMatrix(primitive)!, ownInverse)
     const parent: SceneTransform = { kind: 'matrix', a, b, c, d, e, f }
     for (const marker of connectorMarkerPaintRegions(node, parent)) {
       if (!marker.bounds) { issue({ code: 'UNMEASURED_PAINT', id: primitive.id, message: 'Endpoint marker has no painted footprint' }); continue }
-      const key = JSON.stringify([primitive.owner.id, primitive.owner.role, marker.position, marker.resource, marker.anchor])
+      const key = JSON.stringify([primitive.owner.id, primitive.owner.role, marker.position, marker.resource, marker.anchor, marker.repaint])
       lastMarkers.set(key, { primitive, bounds: marker.bounds })
     }
   }
@@ -160,7 +164,9 @@ export function certifyScenePaint(scene: SceneDoc, projection?: Pick<RenderedLay
     if (!branch.leaves) { markerCheck(branch.left, target); markerCheck(branch.right, target); return }
     for (const surface of branch.leaves) {
       if (++pairs > MAX_OCCLUSION_PAIRS) { exhausted = true; return }
-      if (surface.primitive.order > target.primitive.order && surface.interior && contains(surface.interior, target.bounds)) issue({ code: 'MARKER_OCCLUDED', id: target.primitive.id, by: surface.primitive.id, message: 'Endpoint marker is fully covered by later opaque artwork with no owned repaint' }, true)
+      if (surface.primitive.order <= target.primitive.order || !overlaps(surface.bounds, target.bounds)) continue
+      if (surface.interior && contains(surface.interior, target.bounds)) issue({ code: 'MARKER_OCCLUDED', id: target.primitive.id, by: surface.primitive.id, message: 'Endpoint marker is fully covered by later opaque artwork with no owned repaint' }, true)
+      else issue({ code: 'POTENTIAL_OCCLUSION', id: target.primitive.id, by: surface.primitive.id, message: 'Later filled artwork overlaps an endpoint marker; its exact ink intersection is unverified' })
     }
   }
   for (const target of lastMarkers.values()) markerCheck(surfaces, target)

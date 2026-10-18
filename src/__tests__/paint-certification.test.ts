@@ -45,6 +45,12 @@ test('endpoint symbols use final owned repaint order rather than marker counts',
   const visible = certifyScenePaint(scene([edge, surface(), repaint]))
   expect(visible.status).toBe('passed')
   expect(visible.checks.markers).toBe(1)
+  const path = marks.shape({ id: 'path-cover', role: 'node', geometry: { kind: 'path', d: 'M10 10 L90 10 L90 70 L10 70 Z' }, paint: { fill: '#fff' } }, '<path d="M10 10 L90 10 L90 70 L10 70 Z" fill="#fff"/>')
+  const unknown = certifyScenePaint(scene([edge, path]))
+  expect(unknown.status).toBe('unverified')
+  expect(unknown.issues).toContainEqual(expect.objectContaining({ code: 'POTENTIAL_OCCLUSION', id: 'relationship', by: 'path-cover' }))
+  expect(certifyScenePaint(scene([edge, path, repaint])).status).toBe('passed')
+
 })
 
 test('one viewport repair contains negative coordinates, stroke and endpoint artwork without moving identities', () => {
@@ -117,4 +123,15 @@ test('the production render boundary rejects newly occluded text and verify repo
     expect(verification.layoutCertification?.status).toBe('failed')
     expect(lowerings).toBe(2)
   } finally { restore() }
+})
+
+
+test('inline connector text participates in actual final paint order and prepared-text coverage', () => {
+  const block = preparePixelText('Read', { fontSize: 12, fontWeight: 400 })
+  const edge = marks.connector({ id: 'relationship', role: 'edge', lineStyle: 'solid', geometry: { kind: 'line', x1: 5, y1: 5, x2: 95, y2: 5 }, paint: { stroke: '#111' }, labels: [{ id: 'inline-label', text: 'Read', block, anchor: { x: 20, y: 30 }, paint: { fill: '#111' }, fontSize: 12, fontWeight: 400, textAnchor: 'start', visual: { kind: 'inline' } }] }, '<line x1="5" y1="5" x2="95" y2="5" stroke="#111"/>')
+  const hidden = certifyScenePaint(scene([edge, surface()]))
+  expect(hidden.status).toBe('failed')
+  expect(hidden.coverage.preparedText).toBe(1)
+  expect(hidden.issues).toContainEqual(expect.objectContaining({ code: 'TEXT_OCCLUDED', id: 'inline-label', by: 'cover' }))
+  expect(certifyScenePaint(scene([surface(), edge])).status).toBe('passed')
 })

@@ -149,6 +149,7 @@ function markerBoundsAt(
   anchor: ScenePoint | undefined,
   strokeWidth: number,
   painted = false,
+  angle?: number,
 ): AxisAlignedBox | undefined {
   if (!marker || !anchor) return undefined
   const geometry = marker.geometry ? geometryBounds(marker.geometry) : undefined
@@ -190,6 +191,12 @@ function markerBoundsAt(
   // SVG's omitted markerUnits default is strokeWidth.
   const unitScale = (marker.units ?? 'strokeWidth') === 'strokeWidth' ? strokeWidth : 1
   const scale = Math.max(painted ? 1 : 0, marker.scale ?? 1) * unitScale
+  if (angle !== undefined) {
+    const radians = angle * Math.PI / 180, cosine = Math.cos(radians), sine = Math.sin(radians)
+    const corners = [[viewportLocal.x0, viewportLocal.y0], [viewportLocal.x0, viewportLocal.y1], [viewportLocal.x1, viewportLocal.y0], [viewportLocal.x1, viewportLocal.y1]]
+      .map(([x, y]) => ({ x: anchor.x + ((x! - refX) * cosine - (y! - refY) * sine) * scale, y: anchor.y + ((x! - refX) * sine + (y! - refY) * cosine) * scale }))
+    return corners.every(point => Number.isFinite(point.x) && Number.isFinite(point.y)) ? pointsBounds(corners) : undefined
+  }
   // Auto orientation may rotate around the marker ref. A radial square is a
   // conservative AABB for every tangent and avoids path parsing.
   const extentX = Math.max(Math.abs(viewportLocal.x0 - refX), Math.abs(viewportLocal.x1 - refX))
@@ -207,6 +214,7 @@ export interface ConnectorMarkerPaintRegion {
   position: 'start' | 'mid' | 'end'
   resource: string
   anchor: ScenePoint
+  repaint: string
   bounds?: AxisAlignedBox
 }
 
@@ -216,13 +224,19 @@ export function connectorMarkerPaintRegions(node: ConnectorMark, parentTransform
   const mids = connectorMidpoints(geometry, node.route.closed)
   const transform = composedTransform(parentTransform, node.transform)
   const result: ConnectorMarkerPaintRegion[] = []
-  const include = (position: ConnectorMarkerPaintRegion['position'], marker: MarkerDescriptor | undefined, anchor: ScenePoint | undefined): void => {
+  const include = (position: ConnectorMarkerPaintRegion['position'], marker: MarkerDescriptor | undefined, anchor: ScenePoint | undefined, tangent?: ScenePoint): void => {
     if (!marker || !anchor) return
-    const local = markerBoundsAt(marker, anchor, numericStrokeWidth(node.stroke.width), true)
-    result.push({ position, resource: marker.id, anchor: transformPoint(anchor, transformMatrix(transform)), ...(local ? { bounds: transformedBounds(local, transform) } : {}) })
+    const angle = typeof marker.orient === 'number' ? marker.orient : marker.orient === undefined ? 0 : tangent ? Math.atan2(tangent.y, tangent.x) * 180 / Math.PI + (position === 'start' && marker.orient === 'auto-start-reverse' ? 180 : 0) : undefined
+    const strokeWidth = numericStrokeWidth(node.stroke.width)
+    const local = markerBoundsAt(marker, anchor, strokeWidth, true, angle)
+    const matrix = transformMatrix(transform)
+    // Equality is about the actual resource, orientation, unit scale and
+    // composed linear transform, rather than an owner or resource count.
+    const repaint = JSON.stringify([marker, angle ?? ['unknown', geometry], marker.units === 'userSpaceOnUse' ? 1 : strokeWidth, matrix.slice(0, 4)])
+    result.push({ position, resource: marker.id, anchor: transformPoint(anchor, matrix), repaint, ...(local ? { bounds: transformedBounds(local, transform) } : {}) })
   }
-  for (const anchor of endpoints.starts) include('start', node.markers.start, anchor)
-  for (const anchor of endpoints.ends) include('end', node.markers.end, anchor)
+  endpoints.starts.forEach((anchor, index) => include('start', node.markers.start, anchor, node.route.contours[index]?.startTangent))
+  endpoints.ends.forEach((anchor, index) => include('end', node.markers.end, anchor, node.route.contours[index]?.endTangent))
   if (node.markers.mid.length === 1) for (const anchor of mids) include('mid', node.markers.mid[0], anchor)
   else node.markers.mid.forEach((marker, index) => include('mid', marker, mids[index]))
   return result
