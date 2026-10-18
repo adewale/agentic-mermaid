@@ -7,28 +7,47 @@
 // `memory` mode (run with --expose-gc) records allocation, peak heap, retained
 // growth and peak RSS. Keeping them apart keeps GC accounting out of timings.
 
+import { createHash } from 'node:crypto'
 import { readFileSync, writeFileSync } from 'node:fs'
 import { pathToFileURL } from 'node:url'
 import { GCProfiler } from 'node:v8'
+import type { BenchInput, MemoryResult, Outcome, OutputFingerprint, TimeResult } from './release-bench-types.ts'
 
-interface Input { id: string; family: string; source: string }
-interface Job { entry: string; mode: 'time' | 'memory'; inputs: Input[]; reps: number }
+interface Job {
+  entry: string
+  mode: 'time' | 'memory'
+  inputs: BenchInput[]
+  reps: number
+}
 interface Renderer {
   renderMermaidSVG(source: string): string
   renderMermaidASCII(source: string): string
 }
-type Outcome = { ok: true; output: string } | { ok: false; error: string }
-
 const [jobPath, resultPath] = process.argv.slice(2)
 const job = JSON.parse(readFileSync(jobPath!, 'utf8')) as Job
+if (!Number.isSafeInteger(job.reps) || job.reps < 1) throw new Error('reps must be a positive integer')
 
 function attempt(render: () => string): Outcome {
   try {
-    return { ok: true, output: render() }
+    const output = render()
+    if (typeof output !== 'string') throw new TypeError('Renderer must return a string')
+    return { ok: true, output }
   } catch (error) {
-    return { ok: false, error: String(error instanceof Error ? error.message : error).split('\n')[0]!.slice(0, 200) }
+    return { ok: false, error: String(error instanceof Error ? error.message : error) }
   }
 }
+
+function fingerprint(outcome: Outcome): OutputFingerprint {
+  const text = outcome.ok ? outcome.output : outcome.error
+  return {
+    ok: outcome.ok,
+    sha256: createHash('sha256').update(text, 'utf8').digest('hex'),
+    bytes: Buffer.byteLength(text, 'utf8'),
+    ...(!outcome.ok ? { error: outcome.error } : {}),
+  }
+}
+
+const same = (a: OutputFingerprint, b: OutputFingerprint) => a.ok === b.ok && a.sha256 === b.sha256 && a.bytes === b.bytes
 
 function median(values: number[]): number {
   const sorted = [...values].sort((a, b) => a - b)
@@ -36,26 +55,29 @@ function median(values: number[]): number {
 }
 
 const importStart = performance.now()
-const mod = await import(pathToFileURL(job.entry).href) as Renderer
+const mod = (await import(pathToFileURL(job.entry).href)) as Renderer
 const importMs = performance.now() - importStart
 
-function timeMode(): unknown {
+function timeMode(): TimeResult {
   const firstStart = performance.now()
-  attempt(() => mod.renderMermaidSVG('flowchart TD\n  A --> B'))
+  const first = attempt(() => mod.renderMermaidSVG('flowchart TD\n  A --> B'))
   const firstRenderMs = performance.now() - firstStart
+  const firstRender = fingerprint(first)
 
   // Correctness: render twice to check determinism; ASCII once each way too.
+  const svgFingerprints: OutputFingerprint[] = []
   const results = job.inputs.map(input => {
     const svg = attempt(() => mod.renderMermaidSVG(input.source))
-    const again = attempt(() => mod.renderMermaidSVG(input.source))
-    const ascii = attempt(() => mod.renderMermaidASCII(input.source))
-    const asciiAgain = attempt(() => mod.renderMermaidASCII(input.source))
-    const same = (a: Outcome, b: Outcome) => a.ok === b.ok && (a.ok ? a.output === (b as typeof a).output : a.error === (b as typeof a).error)
+    const svgFingerprint = fingerprint(svg)
+    svgFingerprints.push(svgFingerprint)
+    const again = fingerprint(attempt(() => mod.renderMermaidSVG(input.source)))
+    const ascii = fingerprint(attempt(() => mod.renderMermaidASCII(input.source)))
+    const asciiAgain = fingerprint(attempt(() => mod.renderMermaidASCII(input.source)))
     return {
       id: input.id,
       svg,
-      ascii: ascii.ok ? { ok: true as const, bytes: ascii.output.length } : ascii,
-      deterministic: same(svg, again) && same(ascii, asciiAgain),
+      ascii,
+      deterministic: same(svgFingerprint, again) && same(ascii, asciiAgain),
     }
   })
 
@@ -64,15 +86,19 @@ function timeMode(): unknown {
   for (let rep = 0; rep < job.reps; rep++) {
     job.inputs.forEach((input, index) => {
       const start = performance.now()
-      attempt(() => mod.renderMermaidSVG(input.source))
+      const rendered = attempt(() => mod.renderMermaidSVG(input.source))
       samples[index]!.push(performance.now() - start)
+      // Consume and compare the complete output after the measured API call.
+      const current = fingerprint(rendered)
+      results[index]!.deterministic &&= same(svgFingerprints[index]!, current)
     })
   }
   return {
     node: process.versions.node,
     importMs,
     firstRenderMs,
-    results: results.map((result, index) => ({ ...result, ms: median(samples[index]!) })),
+    firstRender,
+    results: results.map((result, index) => ({ ...result, ms: median(samples[index]!), samplesMs: samples[index]! })),
   }
 }
 
@@ -80,7 +106,7 @@ function used(stats: { heapStatistics: { usedHeapSize: number } }): number {
   return stats.heapStatistics.usedHeapSize
 }
 
-/** Bytes allocated and peak used heap while `work` runs, from V8's GC log. */
+/** Bytes allocated and an estimated heap peak, sampled at GC boundaries. */
 function measureHeap(work: () => void): { allocatedBytes: number; peakHeapBytes: number } {
   const gc = globalThis.gc!
   gc()
@@ -102,16 +128,24 @@ function measureHeap(work: () => void): { allocatedBytes: number; peakHeapBytes:
   return { allocatedBytes, peakHeapBytes }
 }
 
-function memoryMode(): unknown {
+function memoryMode(): MemoryResult {
   const gc = globalThis.gc
   if (!gc) throw new Error('memory mode needs node --expose-gc')
-  const pass = () => { for (const input of job.inputs) attempt(() => mod.renderMermaidSVG(input.source)) }
+  const render = (input: BenchInput) => {
+    const outcome = attempt(() => mod.renderMermaidSVG(input.source))
+    if (!outcome.ok) throw new Error(`${input.id}: memory render failed: ${outcome.error}`)
+  }
+  const pass = () => {
+    for (const input of job.inputs) render(input)
+  }
   // The first pass loads lazy modules and fills bounded caches; steady state
   // is what a long-lived host pays, so allocation and retention use later passes.
   pass()
+  const perInput = job.inputs.map(input => ({ id: input.id, ...measureHeap(() => render(input)) }))
+  // Keep reporting objects alive before settling so retention covers one pass,
+  // without including the per-input measurements or their bookkeeping.
   gc()
   const settled = process.memoryUsage().heapUsed
-  const perInput = job.inputs.map(input => ({ id: input.id, ...measureHeap(() => attempt(() => mod.renderMermaidSVG(input.source))) }))
   const corpusPass = measureHeap(pass)
   gc()
   const retainedGrowthBytes = Math.max(0, process.memoryUsage().heapUsed - settled)

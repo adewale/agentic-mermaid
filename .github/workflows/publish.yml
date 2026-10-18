@@ -76,14 +76,16 @@ jobs:
 
   benchmark:
     name: Release benchmark
-    needs: release-gate
+    needs: package
     permissions:
       contents: read
     uses: ./.github/workflows/release-benchmark.yml
+    with:
+      candidate-artifact: npm-package-${{ github.sha }}
 
   package:
     name: Build and verify the exact npm tarball
-    needs: [release-gate, platform-smoke, benchmark]
+    needs: [release-gate, platform-smoke]
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -134,7 +136,7 @@ jobs:
 
   publish:
     name: Publish verified tarball to npm
-    needs: package
+    needs: [package, benchmark]
     runs-on: ubuntu-latest
     permissions:
       contents: read
