@@ -1,164 +1,111 @@
-// Release benchmark: performance, memory and correctness of a built candidate
-// package, compared with a baseline package (normally the last npm release),
-// measured in alternating fresh Node processes on the same machine.
-//
-//   bun run bench:release --baseline-npm latest
-//   bun run bench:release --baseline ../agentic-mermaid-main [--rounds 1 --reps 1]
-//
-// Inputs: every official Mermaid syntax fence (all families, including the
-// ones we only diagnose) plus generated large diagrams per layout family. The
-// corpus runs in one process; each large case runs in its own, under a time
-// budget, so one pathological case cannot stall or starve the rest. A baseline
-// that runs out of budget is reported; a candidate that does fails.
-// Writes report.json and report.md to --out and exits non-zero when a gate
-// fails. Nothing here is committed: baselines are measured, never stored.
-
+// Compare built packages in alternating fresh Node processes. Publication runs
+// use --candidate-tarball: the measured bytes are the bytes queued for npm.
+// Reports are generated evidence, never committed baselines.
 import { spawnSync } from 'node:child_process'
+import { createHash } from 'node:crypto'
 import { appendFileSync, existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
-import { tmpdir } from 'node:os'
+import { cpus, release, tmpdir } from 'node:os'
 import { join, resolve } from 'node:path'
 import { Resvg } from '@resvg/resvg-js'
 import { extractOfficialCorpus } from '../shared/official-fences.ts'
 import { releaseBenchCases } from './release-bench-cases.ts'
+import type { BenchInput, MemoryResult, Outcome, OutputFingerprint, TimeResult } from './release-bench-types.ts'
 
-interface Input { id: string; family: string; source: string; kind: 'corpus' | 'scaling' }
-interface Group { name: string; inputs: Input[]; budgetMs: number }
-interface Engine { label: string; entry: string; version: string }
-type Outcome = { ok: true; output: string } | { ok: false; error: string }
-interface Rendered { svg: Outcome; ascii: { ok: boolean }; deterministic: boolean; ms: number }
-interface TimeResult {
-  node: string
-  importMs: number
-  firstRenderMs: number
-  results: (Rendered & { id: string })[]
+interface Input extends BenchInput {
+  kind: 'corpus' | 'scaling'
 }
-interface MemoryResult {
-  perInput: { id: string; allocatedBytes: number; peakHeapBytes: number }[]
-  passAllocatedBytes: number
-  passPeakHeapBytes: number
-  retainedGrowthBytes: number
-  peakRssBytes: number
+interface Group {
+  name: string
+  inputs: Input[]
+  budgetMs: number
 }
-interface EngineRun {
+interface Identity {
+  kind: 'directory' | 'npm' | 'tarball'
+  requested: string
+  sha256?: string
+  integrity?: string
+}
+interface Engine {
   label: string
+  entry: string
   version: string
+  identity: Identity
+}
+interface Rendered {
+  svg: Outcome
+  ascii: OutputFingerprint
+  deterministic: boolean
+  validSvg: boolean
+  mediansMs: number[]
+  samplesMs: number[][]
+}
+interface EngineRun extends Engine {
   node?: string
-  importMs?: number
-  firstRenderMs?: number
+  importMs: number[]
+  firstRenderMs: number[]
+  firstRender?: OutputFingerprint
+  coldDeterministic: boolean
   results: Map<string, Rendered>
-  heap: Map<string, { allocatedBytes: number; peakHeapBytes: number; peakRssBytes: number }>
-  corpusMemory?: Omit<MemoryResult, 'perInput'>
-  /** Groups that ran out of budget or crashed, with the reason. */
+  memory: Map<string, MemoryResult & { inputIds: string[] }>
   failures: Map<string, string>
 }
-
+interface Check {
+  name: string
+  ok: boolean | null
+  detail: string
+}
 const ROOT = resolve(import.meta.dir, '..', '..')
 const WORKER = join(import.meta.dir, 'release-bench-worker.ts')
-
-// Gates. Timing ratios compare min-of-medians across interleaved rounds, so
-// they tolerate runner noise; anything past them is a real regression.
-const GATES = {
-  corpusSlowdown: 1.25,
-  caseSlowdown: 1.5,
-  allocationGrowth: 1.25,
-  rssGrowth: 1.25,
-  retainedGrowthBytes: 16 * 1024 * 1024,
-}
+const GATES = { corpusSlowdown: 1.25, caseSlowdown: 1.5, allocationGrowth: 1.25, rssGrowth: 1.25, retainedGrowthBytes: 16 * 1024 * 1024 }
 const CORPUS_BUDGET_MS = 30 * 60 * 1000
 const CASE_BUDGET_MS = 10 * 60 * 1000
+const DEFAULT_BUDGET_MS = 70 * 60 * 1000
 
 function args(): Map<string, string> {
-  const out = new Map<string, string>()
+  const allowed = new Set(['out', 'rounds', 'reps', 'budget-ms', 'baseline', 'baseline-npm', 'candidate', 'candidate-tarball', 'candidate-sha256', 'case'])
+  const options = new Map<string, string>()
   const argv = process.argv.slice(2)
   for (let i = 0; i < argv.length; i++) {
-    const key = argv[i]!
-    if (!key.startsWith('--')) throw new Error(`Unexpected argument ${key}`)
-    out.set(key.slice(2), argv[i + 1]?.startsWith('--') || argv[i + 1] === undefined ? 'true' : argv[++i]!)
+    const key = argv[i]!.slice(2)
+    const value = argv[++i]
+    if (!argv[i - 1]!.startsWith('--') || !allowed.has(key)) throw new Error(`Unknown option ${argv[i - 1]}`)
+    if (!value || value.startsWith('--') || options.has(key)) throw new Error(`Provide one value for --${key}`)
+    options.set(key, value)
   }
-  return out
+  for (const [a, b] of [
+    ['baseline', 'baseline-npm'],
+    ['candidate', 'candidate-tarball'],
+  ] as const) {
+    if (options.has(a) && options.has(b)) throw new Error(`Use only one of --${a} and --${b}`)
+  }
+  if (options.has('candidate-sha256') && (!options.has('candidate-tarball') || !/^[a-f0-9]{64}$/.test(options.get('candidate-sha256')!))) {
+    throw new Error('--candidate-sha256 requires --candidate-tarball and a lowercase SHA-256 digest')
+  }
+  return options
 }
-
-function packageAt(dir: string, label: string): Engine {
+function positive(options: Map<string, string>, key: string, fallback: number): number {
+  const value = Number(options.get(key) ?? fallback)
+  if (!Number.isSafeInteger(value) || value < 1) throw new Error(`--${key} must be a positive integer`)
+  return value
+}
+function packageAt(dir: string, label: string, identity: Identity): Engine {
   const entry = join(dir, 'dist', 'index.js')
   if (!existsSync(entry)) throw new Error(`${label}: ${entry} does not exist; build the package first`)
-  const version = (JSON.parse(readFileSync(join(dir, 'package.json'), 'utf8')) as { version: string }).version
-  return { label, entry, version }
+  const pkg = JSON.parse(readFileSync(join(dir, 'package.json'), 'utf8')) as { name: string; version: string }
+  if (pkg.name !== 'agentic-mermaid') throw new Error(`${label}: expected agentic-mermaid, got ${pkg.name}`)
+  return { label, entry, version: pkg.version, identity }
 }
-
-function installFromNpm(spec: string): string {
-  const prefix = mkdtempSync(join(tmpdir(), 'am-bench-baseline-'))
-  const result = spawnSync('npm', ['install', '--prefix', prefix, '--ignore-scripts', '--no-audit', '--no-fund', `agentic-mermaid@${spec}`], { stdio: 'inherit' })
-  if (result.status !== 0) throw new Error(`npm install agentic-mermaid@${spec} failed`)
-  return join(prefix, 'node_modules', 'agentic-mermaid')
+const fingerprint = (outcome: Outcome): OutputFingerprint => {
+  const text = outcome.ok ? outcome.output : outcome.error
+  return { ok: outcome.ok, sha256: createHash('sha256').update(text).digest('hex'), bytes: Buffer.byteLength(text) }
 }
-
-function runWorker(out: string, engine: Engine, mode: 'time' | 'memory', group: Group, reps: number): { ok: true; value: unknown } | { ok: false; reason: string } {
-  const job = join(out, `job-${mode}.json`)
-  const result = join(out, `result-${mode}.json`)
-  rmSync(result, { force: true })
-  writeFileSync(job, JSON.stringify({ entry: engine.entry, mode, inputs: group.inputs, reps }))
-  const flags = mode === 'memory' ? ['--expose-gc'] : []
-  const run = spawnSync('node', [...flags, '--no-warnings', WORKER, job, result], { stdio: 'inherit', timeout: group.budgetMs })
-  if (run.status === 0) return { ok: true, value: JSON.parse(readFileSync(result, 'utf8')) }
-  const reason = run.signal === 'SIGTERM' ? `exceeded ${group.budgetMs / 60000} min` : `exited with ${run.status ?? run.signal}`
-  console.log(`  ${engine.label} ${group.name} (${mode}): ${reason}`)
-  return { ok: false, reason }
-}
-
-/** Interleave engines round by round so drift on the runner hits both alike;
- * keep each input's fastest median and the first round's correctness record. */
-function measure(out: string, engines: Engine[], groups: Group[], rounds: number, reps: number): EngineRun[] {
-  const runs = new Map(engines.map(engine => [engine.label, {
-    label: engine.label,
-    version: engine.version,
-    results: new Map(),
-    heap: new Map(),
-    failures: new Map(),
-  } as EngineRun]))
-  for (let round = 0; round < rounds; round++) {
-    const order = round % 2 === 0 ? engines : [...engines].reverse()
-    for (const group of groups) {
-      for (const engine of order) {
-        const run = runs.get(engine.label)!
-        if (run.failures.has(group.name)) continue
-        console.log(`round ${round + 1}/${rounds}: ${engine.label} ${engine.version} ${group.name}`)
-        const timed = runWorker(out, engine, 'time', group, reps)
-        if (!timed.ok) {
-          run.failures.set(group.name, timed.reason)
-          for (const input of group.inputs) run.results.delete(input.id)
-          continue
-        }
-        const value = timed.value as TimeResult
-        run.node = value.node
-        if (group.name === 'corpus') {
-          run.importMs = Math.min(run.importMs ?? Infinity, value.importMs)
-          run.firstRenderMs = Math.min(run.firstRenderMs ?? Infinity, value.firstRenderMs)
-        }
-        for (const { id, ...rendered } of value.results) {
-          const previous = run.results.get(id)
-          run.results.set(id, previous ? { ...previous, ms: Math.min(previous.ms, rendered.ms) } : rendered)
-        }
-      }
-    }
-  }
-  for (const engine of engines) {
-    const run = runs.get(engine.label)!
-    for (const group of groups) {
-      if (run.failures.has(group.name)) continue
-      console.log(`memory: ${engine.label} ${engine.version} ${group.name}`)
-      const measured = runWorker(out, engine, 'memory', group, reps)
-      if (!measured.ok) {
-        run.failures.set(group.name, `memory: ${measured.reason}`)
-        continue
-      }
-      const { perInput, ...pass } = measured.value as MemoryResult
-      for (const { id, ...heap } of perInput) run.heap.set(id, { ...heap, peakRssBytes: pass.peakRssBytes })
-      if (group.name === 'corpus') run.corpusMemory = pass
-    }
-  }
-  return engines.map(engine => runs.get(engine.label)!)
-}
-
+const same = (a: OutputFingerprint, b: OutputFingerprint) => a.ok === b.ok && a.sha256 === b.sha256 && a.bytes === b.bytes
+const median = (values: number[]) => [...values].sort((a, b) => a - b)[values.length >> 1]
+const sum = (values: number[]) => values.reduce((total, value) => total + value, 0)
+const ratio = (a: number | undefined, b: number | undefined) => (a !== undefined && b !== undefined && b > 0 ? a / b : undefined)
+const ms = (n: number | undefined) => (n === undefined ? '—' : `${n.toFixed(n < 10 ? 2 : 0)} ms`)
+const mb = (n: number | undefined) => (n === undefined ? '—' : `${(n / 1024 / 1024).toFixed(1)} MB`)
+const times = (n: number | undefined) => (n === undefined ? '—' : `${n.toFixed(2)}×`)
 function parsesAsSvg(svg: string): boolean {
   try {
     new Resvg(svg, { font: { loadSystemFonts: false } })
@@ -167,195 +114,291 @@ function parsesAsSvg(svg: string): boolean {
     return false
   }
 }
-
-const sum = (values: number[]) => values.reduce((total, value) => total + value, 0)
-const ms = (value: number | undefined) => value === undefined ? '—' : value < 10 ? `${value.toFixed(2)} ms` : `${value.toFixed(0)} ms`
-const mb = (bytes: number | undefined) => bytes === undefined ? '—' : `${(bytes / 1024 / 1024).toFixed(1)} MB`
-const ratio = (candidate: number, baseline: number) => baseline > 0 ? candidate / baseline : 1
-const times = (value: number | undefined) => value === undefined ? '—' : `${value.toFixed(2)}×`
-const sameSvg = (a: Outcome, b: Outcome) => a.ok === b.ok && (!a.ok || a.output === (b as typeof a).output)
-
-interface Check { name: string; ok: boolean; detail: string }
-
-function report(inputs: Input[], groups: Group[], runs: EngineRun[]): { checks: Check[]; markdown: string; summary: unknown } {
-  const candidate = runs.at(-1)!
-  const baseline = runs.length > 1 ? runs[0]! : undefined
-  const corpus = inputs.filter(input => input.kind === 'corpus')
-  const scaling = inputs.filter(input => input.kind === 'scaling')
-  const measured = (list: Input[]) => list.filter(input => candidate.results.has(input.id) && (!baseline || baseline.results.has(input.id)))
-  // Timing compares like with like: an input one engine renders and the other
-  // rejects is a correctness difference (gated above), not a speed one.
-  const comparable = (list: Input[]) => measured(list).filter(input => baseline!.results.get(input.id)!.svg.ok === candidate.results.get(input.id)!.svg.ok)
-  const total = (run: EngineRun, list: Input[]) => sum(list.map(input => run.results.get(input.id)!.ms))
-  const checks: Check[] = []
-
-  // Correctness.
-  const failed = [...candidate.failures].map(([group, reason]) => `${group}: ${reason}`)
-  checks.push({ name: 'Every input completes', ok: failed.length === 0, detail: failed.join('; ') || 'within budget' })
-  const nondeterministic = [...candidate.results].filter(([, result]) => !result.deterministic).map(([id]) => id)
-  checks.push({ name: 'Deterministic output', ok: nondeterministic.length === 0, detail: nondeterministic.join(', ') || 'every SVG and ASCII render repeats byte for byte' })
-  const unparsable = [...candidate.results].filter(([id, result]) => {
-    if (!result.svg.ok || parsesAsSvg(result.svg.output)) return false
-    const before = baseline?.results.get(id)?.svg
-    return !before?.ok || parsesAsSvg(before.output)
-  }).map(([id]) => id)
-  checks.push({ name: 'SVG parses (resvg)', ok: unparsable.length === 0, detail: unparsable.join(', ') || 'every rendered SVG parses' })
-  if (baseline) {
-    const both = measured(inputs)
-    const lostSvg = both.filter(input => baseline.results.get(input.id)!.svg.ok && !candidate.results.get(input.id)!.svg.ok)
-    const lostAscii = both.filter(input => baseline.results.get(input.id)!.ascii.ok && !candidate.results.get(input.id)!.ascii.ok)
-    checks.push({ name: 'No lost SVG renders', ok: lostSvg.length === 0, detail: lostSvg.map(input => `${input.id}: ${(candidate.results.get(input.id)!.svg as { error: string }).error}`).join('; ') || 'none' })
-    checks.push({ name: 'No lost ASCII renders', ok: lostAscii.length === 0, detail: lostAscii.map(input => input.id).join(', ') || 'none' })
-  }
-
-  // Performance.
-  if (baseline) {
-    const shared = comparable(corpus)
-    if (measured(corpus).length === corpus.length) {
-      const corpusRatio = ratio(total(candidate, shared), total(baseline, shared))
-      const excluded = corpus.length - shared.length
-      checks.push({
-        name: `Corpus render time ≤ ${GATES.corpusSlowdown}× baseline`,
-        ok: corpusRatio <= GATES.corpusSlowdown,
-        detail: `${times(corpusRatio)}${excluded > 0 ? ` over ${shared.length} fences both engines handle alike` : ''}`,
-      })
-    }
-    const slow = comparable(scaling).filter(input => ratio(candidate.results.get(input.id)!.ms, baseline.results.get(input.id)!.ms) > GATES.caseSlowdown)
-    const unmeasured = scaling.filter(input => candidate.results.has(input.id) && !baseline.results.has(input.id))
-    const unlike = measured(scaling).filter(input => !comparable([input]).length)
-    checks.push({
-      name: `Each large case ≤ ${GATES.caseSlowdown}× baseline`,
-      ok: slow.length === 0,
-      detail: [
-        slow.map(input => `${input.id} ${times(ratio(candidate.results.get(input.id)!.ms, baseline.results.get(input.id)!.ms))}`).join(', ') || 'all within',
-        ...(unmeasured.length > 0 ? [`baseline did not finish ${unmeasured.map(input => input.id).join(', ')}`] : []),
-        ...(unlike.length > 0 ? [`rendered by one engine only ${unlike.map(input => input.id).join(', ')}`] : []),
-      ].join('; '),
-    })
-  }
-
-  // Memory.
-  if (baseline?.corpusMemory && candidate.corpusMemory) {
-    const allocationRatio = ratio(candidate.corpusMemory.passAllocatedBytes, baseline.corpusMemory.passAllocatedBytes)
-    const rssRatio = ratio(candidate.corpusMemory.peakRssBytes, baseline.corpusMemory.peakRssBytes)
-    checks.push({ name: `Corpus allocation ≤ ${GATES.allocationGrowth}× baseline`, ok: allocationRatio <= GATES.allocationGrowth, detail: times(allocationRatio) })
-    checks.push({ name: `Corpus peak RSS ≤ ${GATES.rssGrowth}× baseline`, ok: rssRatio <= GATES.rssGrowth, detail: times(rssRatio) })
-  }
-  if (candidate.corpusMemory) {
-    checks.push({
-      name: `Retained heap growth per pass ≤ ${mb(GATES.retainedGrowthBytes)}`,
-      ok: candidate.corpusMemory.retainedGrowthBytes <= GATES.retainedGrowthBytes,
-      detail: mb(candidate.corpusMemory.retainedGrowthBytes),
-    })
-  }
-
-  // Markdown.
-  const engines = runs.map(run => `${run.label} ${run.version}`)
-  const md: string[] = []
-  const ok = checks.every(check => check.ok)
-  md.push(`# Release benchmark: ${ok ? 'pass' : 'FAIL'}`, '')
-  md.push(`Engines: ${engines.join(' vs ')}. Inputs: ${corpus.length} official syntax fences across ${new Set(corpus.map(input => input.family)).size} families, ${scaling.length} generated large diagrams. Node ${[...new Set(runs.map(run => run.node))].join(', ')}.`, '')
-  md.push('| Gate | Result | Detail |', '|---|---|---|')
-  for (const check of checks) md.push(`| ${check.name} | ${check.ok ? 'pass' : '**FAIL**'} | ${check.detail.replace(/\|/g, '\\|')} |`)
-
-  const column = (run: EngineRun, list: Input[]) => list.every(input => run.results.has(input.id))
-    ? {
-        rendered: list.filter(input => run.results.get(input.id)!.svg.ok).length,
-        ms: total(run, list),
-        allocated: list.every(input => run.heap.has(input.id)) ? sum(list.map(input => run.heap.get(input.id)!.allocatedBytes)) : undefined,
-        peak: list.every(input => run.heap.has(input.id)) ? Math.max(...list.map(input => run.heap.get(input.id)!.peakHeapBytes)) : undefined,
-        rss: list.every(input => run.heap.has(input.id)) ? Math.max(...list.map(input => run.heap.get(input.id)!.peakRssBytes)) : undefined,
-      }
-    : undefined
-  const changedCount = (list: Input[]) => baseline
-    ? measured(list).filter(input => !sameSvg(baseline.results.get(input.id)!.svg, candidate.results.get(input.id)!.svg)).length
-    : 0
-
-  md.push('', '## Corpus by family', '')
-  const families = [...new Set(corpus.map(input => input.family))].sort()
-  if (baseline) {
-    md.push('| Family | Fences | Rendered (base → cand) | Changed SVGs | Time (base → cand) | Speed-up | Allocated (base → cand) |', '|---|---|---|---|---|---|---|')
-  } else {
-    md.push('| Family | Fences | Rendered | Time | Allocated |', '|---|---|---|---|---|')
-  }
-  for (const family of [...families, 'all']) {
-    const list = family === 'all' ? corpus : corpus.filter(input => input.family === family)
-    const c = column(candidate, list)
-    const name = family === 'all' ? '**all**' : family
-    if (baseline) {
-      const b = column(baseline, list)
-      md.push(`| ${name} | ${list.length} | ${b?.rendered ?? '—'} → ${c?.rendered ?? '—'} | ${changedCount(list)} | ${ms(b?.ms)} → ${ms(c?.ms)} | ${b && c ? times(ratio(b.ms, c.ms)) : '—'} | ${mb(b?.allocated)} → ${mb(c?.allocated)} |`)
-    } else {
-      md.push(`| ${name} | ${list.length} | ${c?.rendered ?? '—'} | ${ms(c?.ms)} | ${mb(c?.allocated)} |`)
-    }
-  }
-
-  md.push('', '## Large generated diagrams', '')
-  md.push(baseline
-    ? '| Case | Time (base → cand) | Speed-up | Allocated (base → cand) | Peak heap (base → cand) | Peak RSS (base → cand) | SVG changed |\n|---|---|---|---|---|---|---|'
-    : '| Case | Time | Allocated | Peak heap | Peak RSS |\n|---|---|---|---|---|')
-  for (const input of scaling) {
-    const c = column(candidate, [input])
-    if (baseline) {
-      const b = column(baseline, [input])
-      const changed = b && c ? (changedCount([input]) > 0 ? 'yes' : 'no') : '—'
-      const bTime = b ? ms(b.ms) : `did not finish (${baseline.failures.get(input.id)})`
-      md.push(`| ${input.id} | ${bTime} → ${ms(c?.ms)} | ${b && c ? times(ratio(b.ms, c.ms)) : '—'} | ${mb(b?.allocated)} → ${mb(c?.allocated)} | ${mb(b?.peak)} → ${mb(c?.peak)} | ${mb(b?.rss)} → ${mb(c?.rss)} | ${changed} |`)
-    } else {
-      md.push(`| ${input.id} | ${ms(c?.ms)} | ${mb(c?.allocated)} | ${mb(c?.peak)} | ${mb(c?.rss)} |`)
-    }
-  }
-
-  md.push('', '## Corpus process', '')
-  md.push(`| Metric | ${engines.join(' | ')} |`, `|---|${engines.map(() => '---').join('|')}|`)
-  md.push(`| Import | ${runs.map(run => ms(run.importMs)).join(' | ')} |`)
-  md.push(`| First render | ${runs.map(run => ms(run.firstRenderMs)).join(' | ')} |`)
-  md.push(`| Allocated per corpus pass | ${runs.map(run => mb(run.corpusMemory?.passAllocatedBytes)).join(' | ')} |`)
-  md.push(`| Peak heap during pass | ${runs.map(run => mb(run.corpusMemory?.passPeakHeapBytes)).join(' | ')} |`)
-  md.push(`| Retained heap growth per pass | ${runs.map(run => mb(run.corpusMemory?.retainedGrowthBytes)).join(' | ')} |`)
-  md.push(`| Peak RSS | ${runs.map(run => mb(run.corpusMemory?.peakRssBytes)).join(' | ')} |`)
-  md.push('', 'Times are the fastest per-input median across interleaved rounds. Allocation is V8 heap allocated between GCs, measured in separate processes; each large case runs in its own process.')
-
-  const summary = {
-    ok,
-    checks,
-    groups: groups.map(group => group.name),
-    engines: runs.map(run => ({
-      label: run.label,
-      version: run.version,
-      node: run.node,
-      importMs: run.importMs,
-      firstRenderMs: run.firstRenderMs,
-      corpusMs: column(run, corpus)?.ms,
-      cases: Object.fromEntries(scaling.map(input => [input.id, run.results.get(input.id)?.ms ?? null])),
-      corpusMemory: run.corpusMemory,
-      failures: Object.fromEntries(run.failures),
-    })),
-  }
-  return { checks, markdown: md.join('\n') + '\n', summary }
+function successful(run: EngineRun, input: Input, rounds: number): boolean {
+  const result = run.results.get(input.id)
+  return !!result?.svg.ok && result.validSvg && result.deterministic && result.mediansMs.length === rounds
 }
 
-const options = args()
-const out = resolve(options.get('out') ?? join(ROOT, 'bench-report'))
-mkdirSync(out, { recursive: true })
-const rounds = Number(options.get('rounds') ?? 3)
-const reps = Number(options.get('reps') ?? 5)
-const engines: Engine[] = []
-const baselineDir = options.get('baseline') ?? (options.has('baseline-npm') ? installFromNpm(options.get('baseline-npm')!) : undefined)
-if (baselineDir) engines.push(packageAt(resolve(baselineDir), 'baseline'))
-engines.push(packageAt(resolve(options.get('candidate') ?? ROOT), 'candidate'))
+function measure(out: string, engines: Engine[], groups: Group[], rounds: number, reps: number, deadline: number): EngineRun[] {
+  const runs: EngineRun[] = engines.map(engine => ({ ...engine, importMs: [], firstRenderMs: [], coldDeterministic: true, results: new Map(), memory: new Map(), failures: new Map() }))
+  const record = (value: unknown) => appendFileSync(join(out, 'samples.jsonl'), `${JSON.stringify(value)}\n`)
+  function worker(run: EngineRun, mode: 'time' | 'memory', group: Group, round?: number): TimeResult | MemoryResult | undefined {
+    const budgetMs = Math.min(group.budgetMs, deadline - Date.now())
+    let reason: string | undefined
+    if (budgetMs <= 0) reason = 'overall benchmark budget exhausted'
+    else {
+      const job = join(out, 'job.json')
+      const result = join(out, 'result.json')
+      rmSync(result, { force: true })
+      writeFileSync(job, JSON.stringify({ entry: run.entry, mode, inputs: group.inputs, reps }))
+      const child = spawnSync('node', [...(mode === 'memory' ? ['--expose-gc'] : []), '--no-warnings', WORKER, job, result], { stdio: 'inherit', timeout: budgetMs, killSignal: 'SIGKILL' })
+      if (child.status === 0) {
+        const value = JSON.parse(readFileSync(result, 'utf8')) as TimeResult | MemoryResult
+        const evidence =
+          mode === 'time'
+            ? {
+                ...value,
+                results: (value as TimeResult).results.map(({ svg, ...rest }) => ({ ...rest, svg: fingerprint(svg) })),
+              }
+            : value
+        record({ engine: run.label, group: group.name, mode, round, inputIds: group.inputs.map(input => input.id), value: evidence })
+        return value
+      }
+      reason = child.error?.message ?? `exited with ${child.status ?? child.signal}`
+    }
+    run.failures.set(`${mode}:${group.name}`, reason)
+    record({ engine: run.label, group: group.name, mode, round, failure: reason })
+    return undefined
+  }
+  for (let round = 0; round < rounds; round++) {
+    const order = round % 2 === 0 ? runs : [...runs].reverse()
+    for (const group of groups) {
+      for (const run of order) {
+        if (run.failures.has(`time:${group.name}`)) continue
+        console.log(`round ${round + 1}/${rounds}: ${run.label} ${run.version} ${group.name}`)
+        const value = worker(run, 'time', group, round + 1) as TimeResult | undefined
+        if (!value) continue
+        run.node = value.node
+        run.importMs.push(value.importMs)
+        run.firstRenderMs.push(value.firstRenderMs)
+        run.coldDeterministic &&= !run.firstRender || same(run.firstRender, value.firstRender)
+        run.firstRender ??= value.firstRender
+        for (const { id, svg, ascii, deterministic, ms: elapsed, samplesMs } of value.results) {
+          const previous = run.results.get(id)
+          if (previous) {
+            previous.deterministic &&= deterministic && same(fingerprint(previous.svg), fingerprint(svg)) && same(previous.ascii, ascii)
+            previous.mediansMs.push(elapsed)
+            previous.samplesMs.push(samplesMs)
+          } else run.results.set(id, { svg, ascii, deterministic, validSvg: svg.ok && parsesAsSvg(svg.output), mediansMs: [elapsed], samplesMs: [samplesMs] })
+        }
+      }
+    }
+    if (Date.now() >= deadline || runs.every(run => groups.every(group => run.failures.has(`time:${group.name}`)))) break
+  }
+  // A fresh memory process sees only the common, stable successful population.
+  // Unsupported inputs and newly supported families cannot skew its caches/RSS.
+  for (const group of groups) {
+    const inputs = group.inputs.filter(input => runs.every(run => successful(run, input, rounds)))
+    if (!inputs.length) continue
+    for (const run of runs) {
+      console.log(`memory: ${run.label} ${run.version} ${group.name} (${inputs.length} shared inputs)`)
+      const value = worker(run, 'memory', { ...group, inputs }) as MemoryResult | undefined
+      if (value) run.memory.set(group.name, { ...value, inputIds: inputs.map(input => input.id) })
+    }
+  }
+  const candidate = runs.at(-1)!
+  const corpus = groups.find(group => group.name === 'corpus')
+  const candidateInputs = corpus?.inputs.filter(input => successful(candidate, input, rounds)) ?? []
+  const matchedCount = corpus?.inputs.filter(input => runs.every(run => successful(run, input, rounds))).length ?? 0
+  if (corpus && candidateInputs.length && candidateInputs.length !== matchedCount) {
+    console.log(`memory: candidate ${candidate.version} full successful corpus (${candidateInputs.length} inputs)`)
+    const value = worker(candidate, 'memory', { ...corpus, name: 'candidate-corpus', inputs: candidateInputs }) as MemoryResult | undefined
+    if (value) candidate.memory.set('candidate-corpus', { ...value, inputIds: candidateInputs.map(input => input.id) })
+  }
+  rmSync(join(out, 'job.json'), { force: true })
+  rmSync(join(out, 'result.json'), { force: true })
+  return runs
+}
 
-const corpusInputs = extractOfficialCorpus().map(fence => ({ ...fence, kind: 'corpus' as const }))
-const caseInputs = releaseBenchCases().map(benchCase => ({ ...benchCase, kind: 'scaling' as const }))
-const groups: Group[] = [
-  { name: 'corpus', inputs: corpusInputs, budgetMs: CORPUS_BUDGET_MS },
-  ...caseInputs.map(input => ({ name: input.id, inputs: [input], budgetMs: CASE_BUDGET_MS })),
-]
-const inputs: Input[] = [...corpusInputs, ...caseInputs]
-const runs = measure(out, engines, groups, rounds, reps)
-const { checks, markdown, summary } = report(inputs, groups, runs)
-writeFileSync(join(out, 'report.json'), JSON.stringify(summary, null, 2))
-writeFileSync(join(out, 'report.md'), markdown)
-if (process.env.GITHUB_STEP_SUMMARY) appendFileSync(process.env.GITHUB_STEP_SUMMARY, markdown)
-console.log(markdown)
-if (!checks.every(check => check.ok)) process.exit(1)
+function report(inputs: Input[], groups: Group[], runs: EngineRun[], rounds: number) {
+  const candidate = runs.at(-1)!
+  const baseline = runs.length > 1 ? runs[0]! : undefined
+  const measured = (list: Input[]) => list.filter(input => runs.every(run => run.results.get(input.id)?.mediansMs.length === rounds))
+  const shared = (list: Input[]) => list.filter(input => runs.every(run => successful(run, input, rounds)))
+  const total = (run: EngineRun, list: Input[]) => (list.length ? sum(list.map(input => median(run.results.get(input.id)!.mediansMs)!)) : undefined)
+  const corpus = inputs.filter(input => input.kind === 'corpus')
+  const scaling = inputs.filter(input => input.kind === 'scaling')
+  const checks: Check[] = []
+  const addRatio = (name: string, value: number | undefined, limit: number) => checks.push({ name, ok: value === undefined ? null : value <= limit, detail: value === undefined ? 'not compared: no matched measurement' : times(value) })
+  const incomplete = inputs.filter(input => candidate.results.get(input.id)?.mediansMs.length !== rounds)
+  checks.push({ name: 'Every candidate measurement completes', ok: candidate.failures.size === 0 && !incomplete.length, detail: [...candidate.failures].map(([group, reason]) => `${group}: ${reason}`).join('; ') || `${inputs.length - incomplete.length}/${inputs.length} inputs completed ${rounds} rounds` })
+  checks.push({ name: 'Cold SVG render succeeds', ok: candidate.firstRender?.ok === true, detail: candidate.firstRender?.error ?? (candidate.firstRender?.ok ? 'flowchart rendered' : 'not measured') })
+  const unstable = [...candidate.results].filter(([, result]) => !result.deterministic).map(([id]) => id)
+  checks.push({ name: 'Deterministic SVG and ASCII output', ok: candidate.coldDeterministic && !unstable.length, detail: unstable.join(', ') || (candidate.coldDeterministic ? 'all repeats and fresh processes agree' : 'cold renders differ between processes') })
+  const invalid = [...candidate.results].filter(([id, result]) => result.svg.ok && !result.validSvg && !(baseline?.results.get(id)?.svg.ok && !baseline.results.get(id)!.validSvg)).map(([id]) => id)
+  checks.push({ name: 'No newly invalid SVGs (resvg)', ok: !invalid.length, detail: invalid.join(', ') || 'none; existing baseline parse failures are excluded from comparisons' })
+  if (baseline) {
+    checks.push({ name: 'Baseline has comparable successful SVG measurements', ok: shared(inputs).length > 0 && (!corpus.length || shared(corpus).length > 0), detail: `${shared(inputs).length}/${inputs.length} total; ${shared(corpus).length}/${corpus.length} corpus inputs compared` })
+    for (const format of ['svg', 'ascii'] as const) {
+      const lost = measured(inputs).filter(input => baseline.results.get(input.id)![format].ok && !candidate.results.get(input.id)![format].ok)
+      checks.push({ name: `No lost ${format.toUpperCase()} renders`, ok: !lost.length, detail: lost.map(input => input.id).join(', ') || 'none' })
+    }
+    addRatio(`Corpus render time ≤ ${GATES.corpusSlowdown}× baseline`, ratio(total(candidate, shared(corpus)), total(baseline, shared(corpus))), GATES.corpusSlowdown)
+    const comparable = shared(scaling)
+    const slow = comparable.filter(input => ratio(total(candidate, [input]), total(baseline, [input]))! > GATES.caseSlowdown)
+    checks.push({ name: `Each large case ≤ ${GATES.caseSlowdown}× baseline`, ok: comparable.length ? !slow.length : null, detail: `${comparable.length}/${scaling.length} compared${slow.length ? `; slow: ${slow.map(input => input.id).join(', ')}` : ''}` })
+    const before = baseline.memory.get('corpus')
+    const after = candidate.memory.get('corpus')
+    addRatio(`Corpus allocation ≤ ${GATES.allocationGrowth}× baseline`, ratio(after?.passAllocatedBytes, before?.passAllocatedBytes), GATES.allocationGrowth)
+    addRatio(`Corpus peak RSS ≤ ${GATES.rssGrowth}× baseline`, ratio(after?.peakRssBytes, before?.peakRssBytes), GATES.rssGrowth)
+  }
+  const memory = candidate.memory.get('candidate-corpus') ?? candidate.memory.get('corpus')
+  checks.push({
+    name: `Retained heap growth per corpus pass ≤ ${mb(GATES.retainedGrowthBytes)}`,
+    ok: memory ? memory.retainedGrowthBytes <= GATES.retainedGrowthBytes : null,
+    detail: memory ? `${mb(memory.retainedGrowthBytes)} across ${memory.inputIds.length} successful candidate inputs` : 'not measured: no successful corpus inputs',
+  })
+  const ok = checks.every(check => check.ok !== false)
+  const md = [`# Release benchmark: ${ok ? 'pass' : 'FAIL'}`, '', `Engines: ${runs.map(run => `${run.label} ${run.version}`).join(' vs ')}. Inputs: ${corpus.length} official syntax fences and ${scaling.length} generated large diagrams.`, '', '| Gate | Result | Detail |', '|---|---|---|']
+  for (const check of checks) md.push(`| ${check.name} | ${check.ok === null ? 'not compared' : check.ok ? 'pass' : '**FAIL**'} | ${check.detail.replace(/\|/g, '\\|').replace(/\n/g, ' ')} |`)
+  if (baseline?.failures.size) md.push('', `Baseline measurements unavailable: ${[...baseline.failures].map(([group, reason]) => `${group}: ${reason}`).join('; ')}.`, '')
+  md.push(
+    '',
+    '## Matched successful SVG renders',
+    '',
+    'All time, allocation and RSS comparisons use the same stable, parseable SVG inputs in both engines. Rejections are excluded. Counts of rendered SVGs include every measured input; newly supported inputs are reported without a speed comparison.',
+    '',
+    '| Family / case | Measured | SVG renders (base → cand) | Changed SVGs | Compared | Time (base → cand) | Speed-up | Allocated (base → cand) |',
+    '|---|---|---|---|---|---|---|---|',
+  )
+  const allocation = (run: EngineRun, list: Input[]) => {
+    const heaps = [...run.memory.values()].flatMap(value => value.perInput)
+    const selected = list.map(input => heaps.find(heap => heap.id === input.id))
+    return selected.length && selected.every(Boolean) ? sum(selected.map(heap => heap!.allocatedBytes)) : undefined
+  }
+  const row = (name: string, list: Input[]) => {
+    const comparable = shared(list)
+    const rendered = (run: EngineRun | undefined) => (run ? list.filter(input => run.results.get(input.id)?.svg.ok).length : '—')
+    const changed = baseline
+      ? measured(list).filter(input => {
+          const before = baseline.results.get(input.id)!.svg
+          const after = candidate.results.get(input.id)!.svg
+          return (before.ok || after.ok) && !same(fingerprint(before), fingerprint(after))
+        }).length
+      : '—'
+    md.push(
+      `| ${name} | ${measured(list).length}/${list.length} | ${rendered(baseline)} → ${rendered(candidate)} | ${changed} | ${comparable.length} | ${baseline ? ms(total(baseline, comparable)) : '—'} → ${ms(total(candidate, comparable))} | ${baseline ? times(ratio(total(baseline, comparable), total(candidate, comparable))) : '—'} | ${baseline ? mb(allocation(baseline, comparable)) : '—'} → ${mb(allocation(candidate, comparable))} |`,
+    )
+  }
+  for (const family of [...new Set(corpus.map(input => input.family))].sort())
+    row(
+      family,
+      corpus.filter(input => input.family === family),
+    )
+  if (corpus.length) row('**all corpus**', corpus)
+  for (const input of scaling) row(input.id, [input])
+  md.push('', '## Fresh processes and memory', '', `| Metric | ${runs.map(run => `${run.label} ${run.version}`).join(' | ')} |`, `|---|${runs.map(() => '---').join('|')}|`)
+  const metric = (name: string, values: string[]) => md.push(`| ${name} | ${values.join(' | ')} |`)
+  metric(
+    'Import (median)',
+    runs.map(run => ms(median(run.importMs))),
+  )
+  metric(
+    'First SVG render after import (median)',
+    runs.map(run => ms(median(run.firstRenderMs))),
+  )
+  for (const group of [...groups, { name: 'candidate-corpus' }]) {
+    if (!runs.some(run => run.memory.has(group.name))) continue
+    metric(
+      `${group.name}: measured inputs`,
+      runs.map(run => String(run.memory.get(group.name)?.inputIds.length ?? '—')),
+    )
+    for (const [key, label] of [
+      ['passAllocatedBytes', 'allocated / pass'],
+      ['passPeakHeapBytes', 'peak heap during pass'],
+      ['retainedGrowthBytes', 'retained heap / pass'],
+      ['peakRssBytes', 'whole worker peak RSS'],
+    ] as const)
+      metric(
+        `${group.name}: ${label}`,
+        runs.map(run => mb(run.memory.get(group.name)?.[key])),
+      )
+  }
+  md.push(
+    '',
+    'Times are medians of per-process medians across interleaved rounds. Cold measurements include import and first render separately, without process launch or a cold filesystem. Memory comparisons use separate fresh processes restricted to the matched inputs; an additional candidate corpus pass includes newly supported inputs for the absolute retained-heap gate. Allocation and peak heap are V8 estimates sampled at GC boundaries. Retained heap covers one settled pass. Whole-worker RSS includes import, warm-up and measurement. ASCII is checked for correctness, not timed. Full samples, output fingerprints, package identities and machine metadata accompany this report.',
+  )
+  return {
+    ok,
+    markdown: `${md.join('\n')}\n`,
+    summary: {
+      ok,
+      status: 'completed',
+      checks,
+      groups: groups.map(group => ({ name: group.name, inputIds: group.inputs.map(input => input.id), comparedInputIds: shared(group.inputs).map(input => input.id) })),
+      engines: runs.map(run => ({
+        label: run.label,
+        version: run.version,
+        identity: run.identity,
+        node: run.node,
+        importMs: run.importMs,
+        firstRenderMs: run.firstRenderMs,
+        firstRender: run.firstRender,
+        coldDeterministic: run.coldDeterministic,
+        results: Object.fromEntries([...run.results].map(([id, { svg, ...result }]) => [id, { ...result, svg: { ...fingerprint(svg), ...(!svg.ok ? { error: svg.error } : {}) } }])),
+        memory: Object.fromEntries(run.memory),
+        failures: Object.fromEntries(run.failures),
+      })),
+    },
+  }
+}
+
+function main() {
+  const options = args()
+  const rounds = positive(options, 'rounds', 3)
+  const reps = positive(options, 'reps', 5)
+  const budgetMs = positive(options, 'budget-ms', DEFAULT_BUDGET_MS)
+  const all: Input[] = [...extractOfficialCorpus().map(fence => ({ ...fence, kind: 'corpus' as const })), ...releaseBenchCases().map(input => ({ ...input, kind: 'scaling' as const }))]
+  const selected = options.get('case')?.split(',')
+  if (selected?.some(id => !all.some(input => input.id === id))) throw new Error('--case must name an existing input ID (comma-separated)')
+  const inputs = selected ? all.filter(input => selected.includes(input.id)) : all
+  const corpus = inputs.filter(input => input.kind === 'corpus')
+  const groups: Group[] = [...(corpus.length ? [{ name: 'corpus', inputs: corpus, budgetMs: CORPUS_BUDGET_MS }] : []), ...inputs.filter(input => input.kind === 'scaling').map(input => ({ name: input.id, inputs: [input], budgetMs: CASE_BUDGET_MS }))]
+  const out = resolve(options.get('out') ?? join(ROOT, 'bench-report'))
+  mkdirSync(out, { recursive: true })
+  const startedAt = new Date().toISOString()
+  // Leave time to finalize reports before the workflow's outer timeout.
+  const deadline = Date.now() + budgetMs
+  const metadata = { startedAt, config: { rounds, reps, budgetMs, gates: GATES }, environment: { node: process.versions.node, bun: process.versions.bun, platform: process.platform, arch: process.arch, osRelease: release(), cpu: cpus()[0]?.model, logicalCpus: cpus().length } }
+  writeFileSync(join(out, 'samples.jsonl'), `${JSON.stringify({ ...metadata, status: 'started' })}\n`)
+  writeFileSync(join(out, 'report.json'), JSON.stringify({ ...metadata, ok: false, status: 'running' }, null, 2))
+  writeFileSync(join(out, 'report.md'), '# Release benchmark: incomplete\n')
+  const temporary: string[] = []
+  function install(spec: string, label: string, identity: Identity, prefix?: string): Engine {
+    const dir = prefix ?? mkdtempSync(join(tmpdir(), 'am-bench-'))
+    if (!prefix) temporary.push(dir)
+    const remaining = Math.min(5 * 60 * 1000, deadline - Date.now())
+    if (remaining <= 0) throw new Error('Overall benchmark budget exhausted during package installation')
+    const result = spawnSync('npm', ['install', '--prefix', dir, '--ignore-scripts', '--no-audit', '--no-fund', spec], { stdio: 'inherit', timeout: remaining, killSignal: 'SIGKILL' })
+    if (result.status !== 0) throw new Error(`${label}: npm install failed: ${result.error?.message ?? result.status ?? result.signal}`)
+    const lock = JSON.parse(readFileSync(join(dir, 'package-lock.json'), 'utf8')) as { packages: Record<string, { integrity?: string }> }
+    return packageAt(join(dir, 'node_modules', 'agentic-mermaid'), label, { ...identity, integrity: identity.integrity ?? lock.packages['node_modules/agentic-mermaid']?.integrity })
+  }
+  try {
+    const engines: Engine[] = []
+    const baseline = options.get('baseline')
+    const npm = options.get('baseline-npm')
+    if (baseline) engines.push(packageAt(resolve(baseline), 'baseline', { kind: 'directory', requested: resolve(baseline) }))
+    else if (npm) engines.push(install(`agentic-mermaid@${npm}`, 'baseline', { kind: 'npm', requested: npm }))
+    const tarball = options.get('candidate-tarball')
+    if (tarball) {
+      const bytes = readFileSync(resolve(tarball))
+      const sha256 = createHash('sha256').update(bytes).digest('hex')
+      if (options.has('candidate-sha256') && options.get('candidate-sha256') !== sha256) throw new Error('Candidate tarball SHA-256 does not match the verified publication artifact')
+      const dir = mkdtempSync(join(tmpdir(), 'am-bench-candidate-'))
+      temporary.push(dir)
+      const staged = join(dir, 'package.tgz')
+      writeFileSync(staged, bytes)
+      engines.push(install(staged, 'candidate', { kind: 'tarball', requested: resolve(tarball), sha256, integrity: `sha512-${createHash('sha512').update(bytes).digest('base64')}` }, dir))
+    } else {
+      const dir = resolve(options.get('candidate') ?? ROOT)
+      engines.push(packageAt(dir, 'candidate', { kind: 'directory', requested: dir }))
+    }
+    appendFileSync(join(out, 'samples.jsonl'), `${JSON.stringify({ engines })}\n`)
+    const runs = measure(out, engines, groups, rounds, reps, deadline)
+    const result = report(inputs, groups, runs, rounds)
+    writeFileSync(join(out, 'report.json'), JSON.stringify({ ...metadata, finishedAt: new Date().toISOString(), ...result.summary }, null, 2))
+    writeFileSync(join(out, 'report.md'), result.markdown)
+    if (process.env.GITHUB_STEP_SUMMARY) appendFileSync(process.env.GITHUB_STEP_SUMMARY, result.markdown)
+    console.log(result.markdown)
+    if (!result.ok) process.exitCode = 1
+  } catch (error) {
+    const reason = error instanceof Error ? error.message : String(error)
+    writeFileSync(join(out, 'report.json'), JSON.stringify({ ...metadata, ok: false, status: 'failed', error: reason }, null, 2))
+    writeFileSync(join(out, 'report.md'), `# Release benchmark: FAIL\n\n${reason}\n`)
+    throw error
+  } finally {
+    for (const dir of temporary) rmSync(dir, { recursive: true, force: true })
+  }
+}
+main()
