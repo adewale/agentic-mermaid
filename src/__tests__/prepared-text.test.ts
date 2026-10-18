@@ -152,8 +152,8 @@ describe('prepared display text', () => {
     const decoded = replaceDisplayTextTokens(prepareDisplayText('#lt;b#gt;'), /#\w+;/g, decodeMermaidEntities)
     const input = structuredClone(decoded)
     const block = preparePixelText(input, { fontSize: 12, fontWeight: 400 })
-    ;(input as { source: string }).source = 'Forged'
-    ;(input.lines[0]![0]! as { text: string }).text = 'Lost'
+    Object.assign(input, { source: 'Forged' })
+    Object.assign(input.lines[0]!, { 0: { ...input.lines[0]![0]!, text: 'Lost' } })
     expect(block.prepared.source).toBe('#lt;b#gt;')
     expect(block.lineBlocks[0]!.runs.map(run => run.text).join('')).toBe('<b>')
     expect(block.prepared.lines[0]![0]!.text).toBe('<b>')
