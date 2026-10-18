@@ -1,3 +1,4 @@
+import type { LabelContent } from '../shared/display-text.ts'
 import type { PixelTextBlock } from '../shared/prepared-text.ts'
 // ============================================================================
 // Class diagram types
@@ -35,6 +36,7 @@ export interface ClassNode {
   /** Stable bare identity; Mermaid `~T~` parameters are stored separately. */
   id: string
   label: string
+  labelContent?: LabelContent
   /** Generic type parameter text from `ClassName~T~`. */
   generic?: string
   /** Annotation like <<interface>>, <<abstract>>, <<service>>, <<enumeration>> */
@@ -75,6 +77,7 @@ export interface ClassMember {
 /** Relationship types following UML conventions */
 export interface ClassNote {
   text: string
+  textContent?: LabelContent
   for?: string
 }
 
@@ -107,10 +110,13 @@ export interface ClassRelationship {
   toType?: RelationshipType
   /** Label on the relationship line */
   label?: string
+  labelContent?: LabelContent
   /** Cardinality at the "from" end (e.g., "1", "*", "0..1") */
   fromCardinality?: string
+  fromCardinalityContent?: LabelContent
   /** Cardinality at the "to" end */
   toCardinality?: string
+  toCardinalityContent?: LabelContent
 }
 
 /**
@@ -123,6 +129,7 @@ export interface ClassNamespace {
   name: string
   /** Optional display label from `namespace X["Label"]` (upstream v11.15+). */
   label?: string
+  labelContent?: LabelContent
   /** Ids of classes declared directly in this namespace. */
   classIds: string[]
   /** Nested child namespaces. */
@@ -156,6 +163,7 @@ export interface PositionedClassNamespace {
   name: string
   /** Display label to draw in the header (label ?? name). */
   label: string
+  labelContent?: LabelContent
   /** Parent namespace's full path (undefined = top-level). */
   parentId?: string
   /** Ids of classes declared directly in this namespace. */
@@ -178,6 +186,7 @@ export interface PositionedClassNode {
   methodBlocks?: PixelTextBlock[]
   id: string
   label: string
+  labelContent?: LabelContent
   annotation?: string
   attributes: ClassMember[]
   methods: ClassMember[]
@@ -200,6 +209,7 @@ export interface PositionedClassNode {
 export interface PositionedClassNote {
   textBlock?: PixelTextBlock
   text: string
+  textContent?: LabelContent
   for?: string
   x: number
   y: number
@@ -224,8 +234,11 @@ export interface PositionedClassRelationship {
   fromType?: RelationshipType
   toType?: RelationshipType
   label?: string
+  labelContent?: LabelContent
   fromCardinality?: string
+  fromCardinalityContent?: LabelContent
   toCardinality?: string
+  toCardinalityContent?: LabelContent
   /** Path points from source to target */
   points: Array<{ x: number; y: number }>
   /** Dagre-computed label center position (avoids overlaps between nearby edges) */

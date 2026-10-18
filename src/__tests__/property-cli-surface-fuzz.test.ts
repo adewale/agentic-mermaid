@@ -148,16 +148,15 @@ describe('cli-surface fuzz: runBatchLine', () => {
     })
   })
 
-  it('batch mutate preserves verify diagnostics on rejected commits', () => {
+  it('batch mutate preserves empty diagnostics on intentional removal', () => {
     const result = runBatchLine(JSON.stringify({
       op: 'mutate',
       source: 'flowchart TD\n  A[Only]',
       mutation: { kind: 'remove_node', id: 'A' },
     }))
     expect(result).toMatchObject({
-      ok: false,
-      error: { code: 'VERIFY_FAILED', details: [{ code: 'EMPTY_DIAGRAM' }] },
-      verify: { ok: false, warnings: [{ code: 'EMPTY_DIAGRAM' }] },
+      ok: true,
+      data: { source: 'flowchart TD\n', verify: { ok: false, warnings: [{ code: 'EMPTY_DIAGRAM' }] } },
     })
   })
 

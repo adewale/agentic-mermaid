@@ -619,7 +619,7 @@ function renderMessage(msg: PositionedMessage, style: ResolvedRenderStyle, scene
           : startMarker ? 'reverse' : endMarker ? 'forward' : 'undirected',
     },
     route: { ownership: 'layout' },
-    labels: msg.label ? [{ text: msg.label }] : [],
+    labels: msg.label ? [{ text: msg.label, ...(msg.labelContent ? { textContent: msg.labelContent } : {}) }] : [],
   } as const
 
   // Semantic wrapper with message metadata

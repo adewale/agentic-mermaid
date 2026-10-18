@@ -2,6 +2,12 @@
 
 import { describe, test, expect } from 'bun:test'
 import { parseRegisteredMermaid as parseMermaid, asEr, mutate, serializeMermaid, verifyMermaid } from '../agent/index.ts'
+import { decodeXML } from 'entities'
+import { parseErDiagram } from '../er/parser.ts'
+import { erAttributeBlocks } from '../er/layout.ts'
+import { normalizeMermaidSource } from '../mermaid-source.ts'
+import { renderMermaidSVG } from '../index.ts'
+import { escapeXml } from '../multiline-utils.ts'
 
 const parse = (s: string) => {
   const r = parseMermaid(s)
@@ -162,10 +168,35 @@ describe('ER — round-trip', () => {
 })
 
 describe('ER — verify', () => {
-  test('long attribute → LABEL_OVERFLOW', () => {
-    const long = 'X'.repeat(80)
-    const d = parse(`erDiagram\n  CUSTOMER {\n    string ${long}\n  }`)
-    const v = verifyMermaid(d)
-    expect(v.warnings.filter(w => w.code === 'LABEL_OVERFLOW').length).toBeGreaterThan(0)
+  test.each([
+    ['entity codes and grammar padding', 'string value PK, FK, UK "_word_ #lt;b#gt;literal#lt;/b#gt;"', ['string', 'value', 'PK,FK,UK', '_word_ <b>literal</b>'], 21],
+    ['comment whitespace and breaks', 't n "  a<br/>  b   c  "', ['t', 'n', '', 'a b c'], 5],
+    ['long type', `${'T'.repeat(37)} n`, ['T'.repeat(37), 'n', '', ''], 37],
+    ['long name', `t ${'N'.repeat(38)}`, ['t', 'N'.repeat(38), '', ''], 38],
+    ['long literal comment', `t n "_${'x'.repeat(37)}_"`, ['t', 'n', '', `_${'x'.repeat(37)}_`], 39],
+    ['keys', 't n PK, FK, UK', ['t', 'n', 'PK,FK,UK', ''], 8],
+    ['XML-encoded literal comment', 't n "&#95;word&#95; &lt;i&gt;tag&lt;/i&gt;"', ['t', 'n', '', '_word_ <i>tag</i>'], 17],
+    ['entity-produced backslash n', 't n "#92;n"', ['t', 'n', '', String.raw`\n`], 2],
+  ] as const)('%s measures the widest drawn column through source, edit and reload', (_name, attribute, columns, charCount) => {
+    const source = `erDiagram\n  A {\n    ${attribute}\n  }`
+    const parsed = parse(source)
+    const edited = mutate(asEr(parse('erDiagram\n  A'))!, { kind: 'add_attribute', entity: 'A', text: attribute })
+    if (!edited.ok) throw new Error('attribute edit refused')
+    const written = serializeMermaid(edited.value)
+    const reloaded = parse(written)
+    expect(serializeMermaid(reloaded)).toBe(written)
+    for (const input of [source, parsed, edited.value, written, reloaded]) {
+      const warningsAt = (labelCharCap: number) => verifyMermaid(input, { labelCharCap }).warnings.filter(warning => warning.code === 'LABEL_OVERFLOW')
+      expect(warningsAt(36)).toEqual(charCount > 36 ? [{ code: 'LABEL_OVERFLOW', target: 'A#a0', charCount, limit: 36 }] : [])
+      expect(warningsAt(charCount)).toEqual([])
+      expect(warningsAt(charCount - 1)).toEqual([{ code: 'LABEL_OVERFLOW', target: 'A#a0', charCount, limit: charCount - 1 }])
+    }
+    for (const candidate of [source, written]) {
+      const attr = parseErDiagram(normalizeMermaidSource(decodeXML(candidate)).familyLines).entities[0]!.attributes[0]!
+      const blocks = erAttributeBlocks(attr)
+      expect([blocks.type.text, blocks.name.text, blocks.keys.text, blocks.comment?.text ?? '']).toEqual([...columns])
+      const svg = renderMermaidSVG(candidate)
+      for (const column of columns.filter(Boolean)) expect(svg).toContain(`>${escapeXml(column)}</text>`)
+    }
   })
 })

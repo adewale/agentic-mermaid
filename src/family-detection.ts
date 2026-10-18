@@ -13,6 +13,7 @@ import {
   UPSTREAM_MERMAID_FAMILY_INDEX,
   type UpstreamHeaderMatch,
 } from './upstream-family-index.ts'
+import { matchMermaidFrontmatter } from './mermaid-source-wrapper.ts'
 import { parseAccessibilityDirective } from './shared/accessibility-directives.ts'
 
 export type MermaidFamilyClassification =
@@ -132,8 +133,8 @@ function universalDirectiveSpans(
   PreservedSourceSpans,
   'frontmatter' | 'initDirectives' | 'accessibilityDirectives'
 > {
-  const frontmatter = source.match(/^\uFEFF?\s*---\s*\r?\n[\s\S]*?\r?\n\s*---\s*(?:\r?\n|$)/)
-  const frontmatterEnd = frontmatter ? frontmatter.index! + frontmatter[0].length : 0
+  const frontmatter = matchMermaidFrontmatter(source)
+  const frontmatterEnd = frontmatter?.source.length ?? 0
   const initDirectives = matchingSpans(
     // Source normalization recognizes init/initialize directives anywhere
     // after frontmatter, not only in the leading wrapper. Trace the same
@@ -147,7 +148,7 @@ function universalDirectiveSpans(
   const accessibilityDirectives = accessibilityDirectiveSpans(source, bodyStart, lineStarts)
   return {
     ...(frontmatter
-      ? { frontmatter: sourceSpan(lineStarts, frontmatter.index!, frontmatter.index! + frontmatter[0].length) }
+      ? { frontmatter: sourceSpan(lineStarts, 0, frontmatterEnd) }
       : {}),
     ...(initDirectives.length > 0 ? { initDirectives } : {}),
     ...(accessibilityDirectives.length > 0 ? { accessibilityDirectives: Object.freeze(accessibilityDirectives) } : {}),

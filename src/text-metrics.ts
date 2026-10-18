@@ -16,6 +16,7 @@
 import { isWideRange, isZeroWidth, VS_EMOJI, VS_TEXT } from './shared/unicode-ranges.ts'
 import { HAS_FORMAT_TAGS, parseInlineFormatting } from './shared/inline-format.ts'
 import { graphemes } from './shared/graphemes.ts'
+import type { DisplayTextInput } from './shared/display-text.ts'
 import { customTextMeasurementActive, profileTextWidth } from './text-measurement-profile.ts'
 
 /**
@@ -300,11 +301,21 @@ export interface MultilineMetrics {
  * @returns Metrics including width, height, lines array, and lineHeight
  */
 export function measureMultilineText(
-  text: string,
+  text: DisplayTextInput,
   fontSize: number,
   fontWeight: number,
   letterSpacing = 0,
 ): MultilineMetrics {
+  if (typeof text !== 'string') {
+    const lines = text.lines.map(runs => runs.map(run => run.text).join(''))
+    const width = text.lines.reduce((widest, runs, index) => {
+      const tracking = letterSpacing === 0 ? 0 : Math.max(0, graphemes(lines[index]!).length - 1) * letterSpacing
+      const measured = runs.reduce((sum, run) => sum + measureTextWidth(run.text, fontSize, run.bold ? Math.max(700, fontWeight) : fontWeight), 0)
+      return Math.max(widest, measured + tracking)
+    }, 0)
+    const lineHeight = fontSize * LINE_HEIGHT_RATIO
+    return { width, height: lines.length * lineHeight, lines, lineHeight }
+  }
   const lines = text.split('\n')
   const lineHeight = fontSize * LINE_HEIGHT_RATIO
 

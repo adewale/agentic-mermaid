@@ -9,6 +9,7 @@
 //   - normalized, trimmed diagram lines for downstream parsers
 // ============================================================================
 
+import { scanStateComments } from './state/comment.ts'
 import YAML from 'yaml'
 import { detectInstalledFamilyFromFirstLine } from './agent/family-router.ts'
 import type { FamilyId } from './agent/types.ts'
@@ -25,7 +26,7 @@ import {
 import { splitSequenceStatementLines } from './sequence/statements.ts'
 import { parseMermaidYaml } from './shared/mermaid-yaml.ts'
 import { syntaxError } from './shared/syntax-error.ts'
-import { FRONTMATTER_REGEX, INIT_DIRECTIVE_REGEX, toMermaidLines } from './mermaid-source-wrapper.ts'
+import { matchMermaidFrontmatter, INIT_DIRECTIVE_REGEX, toMermaidLines } from './mermaid-source-wrapper.ts'
 
 export { toMermaidLines }
 
@@ -535,7 +536,10 @@ export function normalizeMermaidSource(
   const accessibilityScan = scanAccessibilityDirectives(accessibilityLines)
   const envelope = sourceEnvelopeMetadata(text, accessibilityScan.accessibility)
   const familyBody = accessibilityScan.familyLines.join('\n')
-  const familyLines = toMermaidLines(familyBody)
+  const state = /^stateDiagram(?:-v2)?(?=$|[\s;%])/i.test(processed.lines[0] ?? '')
+  const familyLines = state
+    ? scanStateComments(accessibilityScan.familyLines).filter(line => line.noteBody || line.text.length > 0).map(line => line.text)
+    : toMermaidLines(familyBody)
 
   return {
     originalText: text,
@@ -578,25 +582,25 @@ function sourceEnvelopeMetadata(text: string, accessibility: MermaidSourceAccess
   comments: MermaidSourceComment[]
   accessibility: MermaidSourceAccessibility
 } {
-  const frontmatter = text.match(FRONTMATTER_REGEX)
+  const frontmatter = matchMermaidFrontmatter(text)
   // A standalone UTF-8 BOM is universal envelope syntax too. Treat it as an
   // exact one-byte wrapper even without frontmatter so family-owned source
   // starts at the header and source-map ownership agrees with serialization.
-  const frontmatterEnd = frontmatter?.[0].length ?? (text.startsWith('\uFEFF') ? 1 : 0)
+  const frontmatterEnd = frontmatter?.source.length ?? (text.startsWith('\uFEFF') ? 1 : 0)
   const initDirectives = mermaidInitDirectives(text.slice(frontmatterEnd))
 
   // Mask universal config instead of deleting it so comment locations remain
   // physical line numbers in the authored source, including after frontmatter
   // and multiline init directives.
   const maskExceptNewlines = (value: string): string => value.replace(/[^\r\n]/g, ' ')
-  const withoutUniversalConfig = text
-    .replace(FRONTMATTER_REGEX, maskExceptNewlines)
+  const withoutUniversalConfig = (frontmatter ? maskExceptNewlines(frontmatter.source) + text.slice(frontmatter.source.length) : text)
     .replace(new RegExp(INIT_DIRECTIVE_REGEX.source, 'gm'), maskExceptNewlines)
   const comments: MermaidSourceComment[] = []
   const lines = withoutUniversalConfig.split(/\r?\n/)
   const firstStatement = lines.find(line => line.trim().length > 0 && !COMMENT_LINE_REGEX.test(line))?.trim() ?? ''
   const stateComments = /^stateDiagram(?:-v2)?(?=$|[\s;%])/i.test(firstStatement)
   const sequenceComments = /^sequenceDiagram\b/i.test(firstStatement)
+  const stateLines = stateComments ? scanStateComments(lines) : undefined
   const recordPackedSequenceComment = (source: string, physicalLine: number): void => {
     if (!sequenceComments) return
     const comment = splitSequenceStatementLines([source])
@@ -612,13 +616,14 @@ function sourceEnvelopeMetadata(text: string, accessibility: MermaidSourceAccess
       continue
     }
     const line = lines[index]!
+    const stateLine = stateLines?.[index]
+    if (stateLine) {
+      if (stateLine.commentIndex >= 0) comments.push({ text: line.slice(stateLine.commentIndex + 2).trim(), line: index + 1 })
+      continue
+    }
     const comment = line.match(COMMENT_LINE_REGEX)
     if (comment) comments.push({ text: comment[1]!, line: index + 1 })
     else if (sequenceComments) recordPackedSequenceComment(line, index + 1)
-    else if (stateComments) {
-      const marker = line.indexOf('%%')
-      if (marker >= 0) comments.push({ text: line.slice(marker + 2).trim(), line: index + 1 })
-    }
   }
 
   let wrapperEnd = frontmatterEnd
@@ -650,9 +655,9 @@ export function preprocessMermaidSource(
   text: string,
   baseFrontmatter: MermaidFrontmatterMap = {},
 ): ProcessedMermaidSource {
-  const frontmatterMatch = text.match(FRONTMATTER_REGEX)
-  const yamlFrontmatter = frontmatterMatch ? canonicalizeFrontmatterMap(parseYamlDocument(frontmatterMatch[1]!)) : {}
-  const rawBody = frontmatterMatch ? text.slice(frontmatterMatch[0].length) : text
+  const frontmatterMatch = matchMermaidFrontmatter(text)
+  const yamlFrontmatter = frontmatterMatch ? canonicalizeFrontmatterMap(parseYamlDocument(frontmatterMatch.yaml)) : {}
+  const rawBody = frontmatterMatch ? text.slice(frontmatterMatch.source.length) : text
   const { body, frontmatter: directiveFrontmatter } = extractInitDirectives(rawBody)
   const frontmatter = mergeFrontmatterMaps(
     mergeFrontmatterMaps(canonicalizeFrontmatterMap(baseFrontmatter), yamlFrontmatter),

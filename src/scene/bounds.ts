@@ -2,6 +2,7 @@ import { rotateBoxBounds, type AxisAlignedBox } from '../shared/transformed-boun
 import type { ConnectorLabelDescriptor, ConnectorMark, Geometry, MarkerDescriptor, SceneNode, ScenePoint } from './ir.ts'
 import { connectorEndpointAnchors, connectorMidpoints } from './connector-geometry.ts'
 import { preparePixelText, type PixelTextBlock } from '../shared/prepared-text.ts'
+import { resolveLabelContent } from '../shared/display-text.ts'
 
 function pointsBounds(points: Array<{ x: number; y: number }>): AxisAlignedBox | undefined {
   if (points.length === 0) return undefined
@@ -147,9 +148,11 @@ const connectorLabelBlocks = new WeakMap<ConnectorLabelDescriptor, PixelTextBloc
 /** One prepared text authority for connector-owned emission and visual bounds.
  * Default literal interpretation preserves External Scene v1's escaped text. */
 export function connectorInlineLabelText(label: ConnectorLabelDescriptor): PixelTextBlock {
+  const input = resolveLabelContent(label.text, label.textContent)
+  const source = typeof input === 'string' ? input : input.source
   if (label.block) {
     const block = label.block
-    if (block.prepared.source !== label.text
+    if (block.prepared.source !== source
       || (label.fontSize !== undefined && label.fontSize !== block.fontSize)
       || (label.fontWeight !== undefined && label.fontWeight !== block.fontWeight)
       || (label.letterSpacing !== undefined && label.letterSpacing !== block.letterSpacing)
@@ -163,10 +166,10 @@ export function connectorInlineLabelText(label: ConnectorLabelDescriptor): Pixel
   const letterSpacing = label.letterSpacing ?? 0
   const display = label.display ?? 'literal'
   const prior = connectorLabelBlocks.get(label)
-  if (prior && prior.prepared.source === label.text && prior.fontSize === fontSize
+  if (prior && (typeof input === 'string' ? prior.prepared.source === source : prior.prepared === input) && prior.fontSize === fontSize
     && prior.fontWeight === fontWeight && prior.letterSpacing === letterSpacing
     && prior.prepared.display === display) return prior
-  const block = preparePixelText(label.text, { display, fontSize, fontWeight, letterSpacing })
+  const block = preparePixelText(input, { display, fontSize, fontWeight, letterSpacing })
   connectorLabelBlocks.set(label, block)
   return block
 }

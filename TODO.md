@@ -8,10 +8,11 @@ surfaces. IDs are stable names, not ordering.
 
 Status legend: `todo` | `blocked` | `owner-decision` | `parked`.
 
-Reconciled against `main` `a87ec861` and GitHub on 2026-10-18. An open PR is
-proposed work, not a shipped capability; a closed issue is not completion
-evidence when its acceptance conditions still fail. Plans supply
-design context, never additional queues. Retired IDs are not reused.
+Reconciliation updated on 2026-10-18 after merged #410 and against the current
+follow-up candidates. Candidate implementation does not establish merge,
+publication or deployment; a closed issue is not completion evidence when its
+acceptance conditions still fail. Plans supply design context, never additional
+queues. Retired IDs are not reused.
 
 ## Release / owner decisions
 
@@ -22,20 +23,28 @@ design context, never additional queues. Retired IDs are not reused.
   SHA rather than an old issue-body SHA, finish the changelog, and verify npm,
   site build identity and a hosted capability after publication. A green CI run
   or a deliberately skipped deployment is not delivery evidence.
-  The current Class candidate includes
+  Merged PR [#410](https://github.com/adewale/agentic-mermaid/pull/410) resolves
   [#406](https://github.com/adewale/agentic-mermaid/issues/406),
   [#407](https://github.com/adewale/agentic-mermaid/issues/407),
   and [#408](https://github.com/adewale/agentic-mermaid/issues/408):
   relationship endpoint/shaft preservation, native multi-ended lollipops,
   explicit relation metadata, checked lollipop admission, member admission and
   caller-array ownership. The Class fact additions have an explicit
-  `exact: true` migration example in `docs/api.md`. #406 blocks a safe
-  Class-editing claim until the final candidate passes semantic export/reload
-  and rendered-marker checks. ER entity order (#372) and canonical YAML
-  whitespace (#367/BUG-60) are deferred beyond this candidate, remain open,
-  and must be disclosed as known limitations; this Class fix is not a general
-  lossless-editing guarantee. Do not publish or deploy from local test results;
-  REL-1 still requires final-candidate CI and artifact/delivery verification.
+  `exact: true` migration example in `docs/api.md`. Its semantic export/reload,
+  rendered-marker and installed-package checks passed before merge; that is
+  source completion, not publication or a general lossless-editing guarantee.
+  [PR #418](https://github.com/adewale/agentic-mermaid/pull/418) implements ER
+  entity order (#372) and the remaining Journey, empty-edit and YAML fixes
+  (#367). [PR #419](https://github.com/adewale/agentic-mermaid/pull/419) implements
+  CONS-46 and the remaining #372 text work. Completion of #372 depends on PR #418's ER fix and this candidate being
+  integrated and verified together; final CI and merge remain pending. The
+  completed #363 disposition record can close its investigation independently
+  of the runtime follow-ups it identifies. Config ownership in
+  [PR #416](https://github.com/adewale/agentic-mermaid/pull/416) is a separate
+  candidate, not a dependency of those text decisions. Qualify release claims
+  with [the remaining export limits](docs/project/divergences.md#mermaid-input-decisions-363)
+  and the preexisting Sequence terminal omission under CONS-45. REL-1 still
+  requires final-candidate CI and artifact/delivery verification.
 - [ ] **DEC-6 — Decide the hosted `execute` boundary from usage evidence**
   (`owner-decision`, [#204](https://github.com/adewale/agentic-mermaid/issues/204)).
   Compare hosted direct tools, hosted Code Mode and local Code Mode for real
@@ -302,29 +311,15 @@ design context, never additional queues. Retired IDs are not reused.
   cohesive pass implementations out of `layout/passes/index.ts` one at a time
   behind the checked manifest; preserve order, mutation declarations,
   certificate reissue, layout bytes, and SVG bytes.
-- [ ] **CONS-44 — Finish config and residual adapter schema authority**
-  (`todo`). Family descriptors own config sections, keys and no-op declarations,
-  but built-in value rules and richer resolver diagnostics remain centralized in
-  `src/shared/family-config-diagnostics.ts`. Move those rules behind
-  descriptor-owned schemas or diagnostic hooks, then inventory repeated
-  transport schemas not already projected from the family, StyleSpec, or
-  RenderOptions descriptors. Generate only proven duplicates while retaining
-  transport-neutral `applyOps` and tool dispatch. The Class lollipop enum
-  repair (#407) uses the existing schema and is included in the Class
-  candidate; it is not remaining framework work.
-- [ ] **CONS-46 — One text codec per grammar context** (`todo`, in progress). Most Known
-  defects were one codec re-implemented per stage (parse, serialize, render,
-  ASCII, meta, metrics, source map) and per family. Built so far: the shared
-  Mermaid entity layer (`src/shared/mermaid-entities.ts`, from Pie's), one YAML
-  reader for `@{}` metadata and frontmatter (`src/shared/mermaid-yaml.ts`, with
-  per-family block lexers), and one display rule for label text that SVG,
-  ASCII, meta and metrics all read (`displayText` in `src/multiline-utils.ts`).
-  What remains is adopting the entity layer and a `decode`/`encode` pair per
-  grammar context (flowchart bracket/pipe/title, sequence alias/message/note, ER
-  quoted text, class label), guarded by `decode(encode(x)) === x` and
-  "upstream reads `encode(x)` as `x`". Remaining members: BUG-19, 23, 30, 31, 32.
-  Class member line-control admission (#408) is fixed at the existing mutator
-  in the Class candidate; do not repeat it as remaining codec work.
+- [ ] **CONS-44 — Integrate the config authority candidate** (`todo`). Source
+  implementation is complete in separate PR
+  [#416](https://github.com/adewale/agentic-mermaid/pull/416): family-owned
+  diagnostic hooks include public extension verification, and repeated
+  terminal/MCP schemas use their existing contracts. The candidate includes
+  native C4's family hook; final-head checks are recorded in the PR, and merge
+  remains pending. This PR is not a
+  dependency of the #363 dispositions or CONS-46 text
+  implementation; release delivery remains under REL-1.
 - [ ] **CONS-47 — One flowchart tokenizer with source spans** (`todo`). At least
   17 hand-written quote/bracket scanners lex the flowchart line (parser,
   statement splitter, unsupported-syntax gate, analyze masks, source map), and a
@@ -340,6 +335,11 @@ design context, never additional queues. Retired IDs are not reused.
   State-note/atomic-route fixes in #401/#405. The old pre-merge reconciliation
   is complete. Promote a remaining adapter extraction only with a concrete
   repeated behavior; this is not a request to redo those delivered contracts.
+  A preexisting combined Sequence box/`alt` case omits the header and divider
+  from terminal ink while SVG retains them. The exact witness and baseline are
+  recorded in [divergences](docs/project/divergences.md#preexisting-sequence-terminal-limit);
+  separate box and fragment tests do not prove that composition. CONS-46 does
+  not fix or qualify this geometry as complete.
 
 ## Contribution governance backlog
 
@@ -367,12 +367,14 @@ design context, never additional queues. Retired IDs are not reused.
   original cases have since been fixed. Reproduce each remaining source,
   typed-edit, terminal and error-reporting claim on current main before keeping
   or closing it; its original before/after table is historical, not today's state.
-- [ ] **TRIAGE-2 — Resolve the unfinished ER/preprocessor exploration** (`todo`,
-  [#372](https://github.com/adewale/agentic-mermaid/issues/372)). Reproduce the
-  ER entity-order witness separately from the proposed serializer rewrite and
-  existing BUG-9/BUG-10. Do not merge the known-failing WIP wholesale. Evaluate
-  the proposed flowchart preprocessor rejection against the current input-language
-  policy; upstream-only rejection is not automatically a product requirement.
+
+TRIAGE-2 is retired. PR #418 supplies #372's bounded ER order fix; the wholesale
+serializer WIP is superseded. The Flowchart rejection proposal is declined in
+favor of read-and-warn, and the Sequence proposal is replaced by context codecs.
+State/Mindmap text handling is implemented in this candidate. CONS-46's source
+implementation is complete and leaves the active backlog; final combined CI,
+merge and #372's dependency on PR #418 remain tracked under REL-1. Terminal
+geometry and Flowchart source-map tokenization remain under CONS-45 and CONS-47.
 
 ## Known defects
 
@@ -384,27 +386,24 @@ Only differences a user sees without comparing against Mermaid are listed
 here (see "Mermaid is our input language, not our spec" in `CLAUDE.md`).
 Differences that exist only against Mermaid, such as which subgraph wins a
 tie, participant creation order, sources only Mermaid rejects and display
-choices, are collected in
-[#363](https://github.com/adewale/agentic-mermaid/issues/363) for one
-investigation of the class rather than per-item fixes.
+choices, have explicit dispositions in
+[the #363 decision record](docs/project/divergences.md#mermaid-input-decisions-363).
+That investigation is complete; the reader/writer defects below remain runtime
+work. BUG-9 is retired: its ER attribute-insertion witness already passes an
+owning regression test. The completed CONS-46 candidate covers the
+BUG-19/23/30/31/32 source/display work; its final checks and merge are tracked
+under REL-1.
 
-- [ ] **BUG-9 — ER `add_attribute` can move an entity ahead of others** (`todo`). It inserts the declaration before the first relation naming the entity, so re-parse creates it before that relation's other end; the serializer compensates unless that end belongs to a subgraph (`D ||--o{ B`, then `subgraph G` / `D ||--o{ B` / `end`, `add_attribute B` re-parses as B before D). Inserting after that relation keeps the order.
-- [ ] **BUG-10 — ER order a declaration in the entity's own subgraph cannot keep** (`todo`). A top-level entity whose body position falls between two entities of one subgraph (`D ||--o{ C : r0` / `subgraph G0` / `D` / `E` / `end`, remove `r0` → D, E, C), or a `style`-created entity inside a subgraph, re-parses in a different position. About 0.6% of fuzzed edits.
-- [ ] **BUG-19 — Entity codes stay literal in flowchart (other than `#quot;`), sequence and ER text** (`todo`). Upstream renders `#9829;` as ♥, `#35;` as `#` and `#amp;` as `&` in labels, aliases and messages; ours shows the code. Decoding `#lt;`/`#gt;` must not inject formatting tags. `src/pie/parser.ts` already implements upstream's full entity pipeline and has a browser oracle; reuse it.
 - [ ] **BUG-20 — Flowchart ellipse shape `A(-a-)` is unsupported** (`todo`). We read it as a rounded node labelled `-a-`.
-- [ ] **BUG-23 — Flowchart labels containing a literal backslash-n or `#quot;` don't round-trip** (`todo`). Upstream's DB keeps `\n` as two characters, but since 11.13 its renderer draws it as a line break in plain labels, as ours does. The display difference is in markdown strings, where upstream keeps `\n` literal and ours breaks the line. A typed label containing a literal backslash-n, or the text `#quot;`, re-parses differently; the serializer should write them with upstream's entities (`#92;n`, `#35;quot;`).
 - [ ] **BUG-26 — Flowchart source-map scanners still honour `\` escapes and `'` quotes** (`todo`). `flowchart-body.ts` and `source-map-spans.ts` disagree with the parser on those lines, so spans can be wrong.
-- [ ] **BUG-30 — ER quoted text accepts and writes `\"`** (`todo`). Upstream has no escapes in ER quoted strings and rejects `A["a\"b"]` and `A ||--o{ B : "l\"m"`; `src/er/parser.ts` unescapes them and `quoteErText` writes them, so serialized ER text containing `"` is source upstream can't read. Write `"` as `#quot;`, as flowchart does.
-- [ ] **BUG-31 — Sequence and ER aliases get markdown emphasis at parse time, and the serializer rewrites the source** (`todo`). Upstream stores `participant A as *x* y` and `A["p*q*"]` as written; ours stores `<i>x</i> y` and `p<i>q</i>`, so any typed edit writes `as <i>x</i> y` and `A["p<i>q</i>"]`.
-- [ ] **BUG-32 — Sequence message text differs between the renderer and the typed body** (`todo`). For `A->>B: m*a*n c\nd` the renderer draws `m<i>a</i>n` and a line break, while the typed body stores `m*a*n` and `c\nd`, as upstream's DB does.
 - [ ] **BUG-35 — Contact-sheet case AJ routes an edge label onto a shared trunk** (`todo`). `ROUTE_LABEL_ON_SHARED_TRUNK` on `D->E` is allow-listed in `heuristic-tracker.test.ts`.
 - [ ] **BUG-37 — Architecture router sends an edge through a card** (`todo`). The nightly finder's seed `AM_FC_SEED=1102132276` in `architecture-layout.test.ts` routes `s0_0:T --> T:s0_1` through `s0_2` (three services in one group, each linked left to a service in a second group). Pinned as a fast-check example in that file.
 - [ ] **BUG-42 — ELK throws on an edge between a nested subgraph's node and its enclosing subgraph** (`todo`). With `direction TB` overrides, `B --> Outer` or `Outer --> B` (B inside Inner inside Outer) raises `UnsupportedGraphException` and the render fails. Pinned in `subgraph-hierarchy-exhaustive.test.ts`.
 - [ ] **BUG-43 — Edges between a subgraph and its own contents break routing rules** (`todo`). Nine such pairs (for example `A --> Outer`, `Inner --> Outer`) render but leave an endpoint off the outline, route through a node, or misanchor on the container; `verify` reports them. Pinned in `subgraph-hierarchy-exhaustive.test.ts`.
 - [ ] **BUG-46 — SVG output carries unrounded floats** (`todo`). The default style emits `36.900000000000006` (state) and `4.199999999999999` (timeline, pie), and hand-drawn styles emit `stroke-width="2.0999999999999996"`. Round once where numbers become SVG text, shared by Scene and SVG; goldens that pin these values change with the fix.
-- [ ] **BUG-47 — A Journey title, section or task that is only `<br/>` is rejected** (`todo`). Mermaid draws `<br/>` as text there; ours reports "Invalid user journey line". Pinned `it.failing` in `property-svg-wellformedness.test.ts`.
-- [ ] **BUG-52 — Mutators keep "don't empty" floors that predate renderable empty charts** (`todo`). `set_title` on `createMermaid('pie')` is refused ("Pie must keep at least one slice"); the Architecture and Journey mutators keep similar floors.
-- [ ] **BUG-60 — A YAML string whose first line is only spaces does not round-trip through frontmatter** (`todo`). The `yaml` writer turns ` \n` into a block scalar that reads back as `\n`. Pinned `test.failing` in `metadata-yaml.test.ts`.
+- [ ] **BUG-54 — Quote Quadrant text in its grammar context** (`todo`; #363). Clear keyword and semicolon labels draw, but some lack portability warnings and serialize to rejected source. Keep generous reading; finish canonical quoting and warnings at the Quadrant reader/writer.
+- [ ] **BUG-56 — Close accepted-source reader gaps** (`todo`; #363). Class style comments and `classDiagram-v2`, Quadrant empty far-axis labels and statement separators, and Architecture declaration text/spacing remain unsupported or fail rendering. The lollipop case is already fixed by #410. Work belongs in the existing family readers; completed grammar-consolidation issues stay closed.
+- [ ] **BUG-58 — Enforce portable Quadrant style authoring** (`todo`; #363). Functional colors, variables, fractional radii and unknown properties can produce rejected structured output. Keep clear source extensions with warnings; refuse regeneration without a meaning-preserving portable spelling. The initial strict subset is supported hexadecimal colors and integer radii, as specified in the decision record; do not round, resolve page variables or drop fields.
 - [ ] **BUG-61 — Code Mode trailing line comments break the wrapper** (`todo`,
   [#366](https://github.com/adewale/agentic-mermaid/issues/366)). Protect
   multi-statement snippets ending in `//` from swallowing wrapper syntax.
@@ -415,6 +414,13 @@ investigation of the class rather than per-item fixes.
   returning a final expression after preceding statements and replacing the
   nonexistent `applyOps` recovery hint. Verify the public behavior at merge;
   this does not close BUG-61's trailing-comment case.
+
+The #363 record also retains two export limits: unsupported Architecture IDs
+and icons may draw with warnings but still emit rejected structured source;
+an empty Class diagram has no accepted bare-header spelling. Use explicit
+source preservation/refusal boundaries, without renaming IDs, replacing icons
+or inventing classes. BUG-57's consistent Quadrant reading is a documented
+divergence, not another runtime defect.
 
 ## Non-goals
 

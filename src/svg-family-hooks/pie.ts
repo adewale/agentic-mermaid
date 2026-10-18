@@ -1,3 +1,4 @@
+import { diagnosePieConfig } from '../pie/config-diagnostics.ts'
 import { projectPiePositioned } from '../positioned-views/pie.ts'
 import { withFrontmatterTitle } from '../mermaid-source.ts'
 import { layoutResult, positionedView, scene, type BrowserSvgFamilyHooks } from '../browser-lazy/family.ts'
@@ -9,6 +10,7 @@ import { lowerPieScene } from '../pie/renderer.ts'
 /** The pie SVG hooks: one definition for the complete renderer
  * (src/render-family-hooks.ts) and the lazy browser chunk. */
 export const PIE_SVG_HOOKS = {
+  configDiagnostics: diagnosePieConfig,
   normalizeRequest: ctx => ({
     familyConfig: { visual: resolvePieVisualConfig(ctx.source.frontmatter) },
   }),

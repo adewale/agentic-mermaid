@@ -55,6 +55,7 @@ import {
 import { projectRenderErrorDiagnostic } from '../render-error-diagnostic.ts'
 import { boundedUtf8ByteLength } from '../shared/utf8.ts'
 import { DEFAULT_EXECUTE_TIMEOUT_MS } from './execute-limits.ts'
+import { terminalOutputOptionSchema } from '../terminal-contract.ts'
 import {
   admitMcpMessage,
   type AdmittedMcpMessage,
@@ -115,6 +116,10 @@ const BUILTIN_PALETTE_NAMES = knownStyleDescriptors()
   .filter(descriptor => descriptor.kind === 'palette')
   .map(descriptor => descriptor.inputName)
 
+function mutationBatchSchema(description: string): Record<string, unknown> {
+  return { type: 'array', minItems: 1, items: { type: 'object' }, description }
+}
+
 export const HOSTED_TOOLS = [
   createExecuteTool({ sdkDeclaration: SDK_CORE_DECLARATION, hosted: true }),
   withClosedMcpInputSchema(createDescribeSdkTool()),
@@ -148,8 +153,8 @@ targetWidth sets a hard terminal display-cell bound; impossible bounds return a 
       additionalProperties: false,
       properties: {
         source: { type: 'string', description: 'Mermaid source.' },
-        useAscii: { type: 'boolean', description: 'true = ASCII characters, false = Unicode (default).' },
-        targetWidth: { type: 'integer', minimum: 1, description: 'Hard maximum line width in terminal display cells.' },
+        useAscii: { ...terminalOutputOptionSchema('useAscii'), description: 'true = ASCII characters, false = Unicode (default).' },
+        targetWidth: { ...terminalOutputOptionSchema('targetWidth'), description: 'Hard maximum line width in terminal display cells.' },
         ...mcpRenderOptionSchemaProperties('Shared advanced RenderOptions object, including style/palette/config/security.'),
       },
       required: ['source'],
@@ -197,7 +202,7 @@ field types, enum values, defaults, and constraints.`,
       additionalProperties: false,
       properties: {
         source: { type: 'string', description: 'Mermaid source to edit.' },
-        ops: { type: 'array', minItems: 1, items: { type: 'object' }, description: 'Non-empty ordered list of edit ops; each is { kind, ...fields }.' },
+        ops: mutationBatchSchema('Non-empty ordered list of edit ops; each is { kind, ...fields }.'),
       },
       required: ['source', 'ops'],
     },
@@ -216,7 +221,7 @@ Call \`describe_sdk\` for the family before authoring unfamiliar ops.`,
       additionalProperties: false,
       properties: {
         family: { type: 'string', description: `Diagram family to author (one of: ${Object.keys(MUTATION_OPS_BY_FAMILY).join(', ')}).` },
-        ops: { type: 'array', minItems: 1, items: { type: 'object' }, description: 'Non-empty ordered list of ops; each is { kind, ...fields }.' },
+        ops: mutationBatchSchema('Non-empty ordered list of ops; each is { kind, ...fields }.'),
       },
       required: ['family', 'ops'],
     },

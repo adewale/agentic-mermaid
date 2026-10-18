@@ -4,6 +4,8 @@ import { metadataText, readMetadataBlock } from '../shared/metadata-yaml.ts'
 import { observeParserMutation, observeParserStatement, parserObservationActive } from '../shared/parser-observation.ts'
 import { syntaxError } from '../shared/syntax-error.ts'
 import { continuationBelongsToBlock, parseSequenceBlockContinuation, parseSequenceBlockOpener, type SequenceBlockContinuation, type SequenceBlockOpener } from './block-keywords.ts'
+import { readSequenceLabel } from './text.ts'
+import { concatDisplayText, prepareDisplayText, resolveLabelContent, type DisplayTextInput, type LabelContent } from '../shared/display-text.ts'
 import { isCssColorToken, sequenceRectColor } from './colors.ts'
 import { type ParticipantEvent, SequenceParticipantFold } from './participants.ts'
 import { isSequenceCommentLine, type SequenceSourceSpan, scanSequenceStatementLines, splitSequenceStatementLines } from './statements.ts'
@@ -203,7 +205,7 @@ export function parseSequenceDiagram(lines: string[], opts: { showSequenceNumber
   const boundaryIssue = source.issues.find(issue => issue.syntax === 'sequence_block_boundary')
   if (boundaryIssue) throw new Error(`SEQUENCE_BLOCK_BOUNDARY: line ${boundaryIssue.line + 2}: ${boundaryIssue.message}`)
   // Render data is keyed by shared statement identity, not another scope parser.
-  const blocks = new Map<number, { type: Block['type']; label: string; color?: string; startIndex: number; dividers: Block['dividers']; dividerNoteIndices: number[]; parent?: number; parentSection: number; noteIndices: number[]; childBlockIndices: number[]; childSectionIndices: number[] }>()
+  const blocks = new Map<number, { type: Block['type']; label: string; labelContent?: LabelContent; color?: string; startIndex: number; dividers: Block['dividers']; dividerNoteIndices: number[]; parent?: number; parentSection: number; noteIndices: number[]; childBlockIndices: number[]; childSectionIndices: number[] }>()
   const boundaries: Array<Omit<SequenceBlockBoundary, 'blockIndex'> & { blockId: number }> = []
   const blockIndexById = new Map<number, number>()
   // Visibility is independent of the message counter. Hiding or enabling it
@@ -220,7 +222,7 @@ export function parseSequenceDiagram(lines: string[], opts: { showSequenceNumber
     const msg: Message = {
       from,
       to,
-      label: normalizeBrTags(message.label.trim()),
+      ...readSequenceLabel(message.label.trim()),
       lineStyle: endpoint.lineStyle,
       startHead: endpoint.startHead,
       endHead: endpoint.endHead,
@@ -287,11 +289,14 @@ export function parseSequenceDiagram(lines: string[], opts: { showSequenceNumber
     case 'actor-data':
       break
 
-      // --- title <text> (Mermaid's sequence title statement) ---
-      case 'title':
-      diagram.title = normalizeBrTags(statement.text)
-        if (parserObservationActive('sequence')) observeParserMutation('sequence', 'set-title', diagram.title)
-        break
+    // --- title <text> (Mermaid's sequence title statement) ---
+    case 'title': {
+      const title = readSequenceLabel(statement.text)
+      diagram.title = title.label
+      diagram.titleContent = title.labelContent
+      if (parserObservationActive('sequence')) observeParserMutation('sequence', 'set-title', diagram.title)
+      break
+    }
 
       // --- autonumber [off | <start> [<step>]] ---
       case 'autonumber':
@@ -323,10 +328,10 @@ export function parseSequenceDiagram(lines: string[], opts: { showSequenceNumber
           label = rest.slice(firstWord.length).trim()
         }
       }
-      if (label) box.label = normalizeBrTags(label)
-        // Boxes never nest; the fold places the actors of the statements
-        // inside (upstream's `currentBox`).
-        diagram.boxes!.push(box)
+      if (label) Object.assign(box, readSequenceLabel(label))
+      // Boxes never nest; the fold places the actors of the statements
+      // inside (upstream's `currentBox`).
+      diagram.boxes!.push(box)
       participants.openBox(box)
         if (parserObservationActive('sequence')) observeParserMutation('sequence', 'open-box', { index: diagram.boxes!.length - 1, box })
         break
@@ -341,10 +346,12 @@ export function parseSequenceDiagram(lines: string[], opts: { showSequenceNumber
       // --- Note ---
       case 'note': {
       const { note } = statement
+      const text = readSequenceLabel(note.text)
       const noteIndex = diagram.notes.length
       diagram.notes.push({
         actorIds: note.actorIds,
-        text: normalizeBrTags(note.text),
+        text: text.label,
+        ...(text.labelContent ? { textContent: text.labelContent } : {}),
         position: note.position,
         afterIndex: diagram.messages.length - 1,
         })
@@ -358,26 +365,26 @@ export function parseSequenceDiagram(lines: string[], opts: { showSequenceNumber
       // --- Block start: loop, alt, opt, par, critical, break, rect ---
       case 'block': {
       const { opener } = statement
-        // Keep the pre-existing `par_over` render disposition until that
-        // separate upstream construct receives its own semantic slice.
-        const blockType = opener.type === 'par_over' ? 'par' : opener.type
-        // The old `par` prefix match exposed the untouched `_over...` suffix as
-        // its label. Keep that exact spacing/punctuation until `par_over` gains
-        // its own native semantics; the shared classifier trims opener labels.
-        const label = opener.type === 'rect'
+      // Keep the pre-existing `par_over` render disposition until that
+      // separate upstream construct receives its own semantic slice.
+      const blockType = opener.type === 'par_over' ? 'par' : opener.type
+      // The old `par` prefix match exposed the untouched `_over...` suffix as
+      // its label. Keep that exact spacing/punctuation until `par_over` gains
+      // its own native semantics; the shared classifier trims opener labels.
+      const text = readSequenceLabel(opener.type === 'rect'
         ? ''
-        : normalizeBrTags(opener.type === 'par_over' ? `_over${line.slice(8)}`.trim() : opener.label)
-        // Mermaid permits a bare `rect` (default fill). A hash comment after
-        // the keyword also leaves the color empty; the shared statement scanner
-        // already keeps its remainder out of the message stream.
-        const rectArgument = opener.type === 'rect' && opener.label.startsWith('#') ? '' : opener.label
+        : opener.type === 'par_over' ? `_over${line.slice(8)}`.trim() : opener.label)
+      // Mermaid permits a bare `rect` (default fill). A hash comment after
+      // the keyword also leaves the color empty; the shared statement scanner
+      // already keeps its remainder out of the message stream.
+      const rectArgument = opener.type === 'rect' && opener.label.startsWith('#') ? '' : opener.label
       const color = opener.type === 'rect' ? sequenceRectColor(rectArgument) : undefined
       if (opener.type === 'rect' && rectArgument && !color) {
         throw new Error('SEQUENCE_RECT_COLOR_UNSUPPORTED: rect requires a safe concrete CSS color')
       }
       blocks.set(index, {
         type: blockType,
-        label,
+        ...text,
         ...(color ? { color } : {}),
         startIndex: diagram.messages.length,
         dividers: [],
@@ -399,7 +406,7 @@ export function parseSequenceDiagram(lines: string[], opts: { showSequenceNumber
       if (top) {
         boundaries.push({ kind: 'divider', blockId: entry.parent!, messageIndex: diagram.messages.length, noteIndex: diagram.notes.length, dividerIndex: top.dividers.length })
         top.dividerNoteIndices.push(diagram.notes.length)
-        top.dividers.push({ index: diagram.messages.length, label: normalizeBrTags(statement.continuation.label) })
+        top.dividers.push({ index: diagram.messages.length, ...readSequenceLabel(statement.continuation.label) })
           if (parserObservationActive('sequence')) observeParserMutation('sequence', 'divide-block', { parent: entry.parent, divider: top.dividers.at(-1), type: statement.continuation.type })
       }
       break
@@ -416,6 +423,7 @@ export function parseSequenceDiagram(lines: string[], opts: { showSequenceNumber
         const blockObj: Block = {
           type: completed.type,
           label: completed.label,
+          ...(completed.labelContent ? { labelContent: completed.labelContent } : {}),
           ...(completed.color ? { color: completed.color } : {}),
           startIndex: completed.startIndex,
           endIndex: Math.max(diagram.messages.length - 1, completed.startIndex),
@@ -460,7 +468,7 @@ export function parseSequenceDiagram(lines: string[], opts: { showSequenceNumber
   }
 
   diagram.actors = participants.list().map(({ id, label, type, links, box }) => ({
-    id, label, type,
+    id, ...readSequenceLabel(label), type,
     ...(links ? { links } : {}),
     ...(box !== undefined ? { box } : {}),
     ...(createdAt.has(id) ? { createMessageIndex: createdAt.get(id)! } : {}),
@@ -667,7 +675,7 @@ export function parseActorDeclaration(line: string): ParsedActorDeclaration | nu
     const alias = metadataAlias !== undefined && (asText === undefined || asText === id) ? metadataAlias : asText
     const unmodeledMetadata = [...entries.keys()].filter(key => key !== 'type' && key !== 'alias')
     return {
-      id, label: normalizeBrTags(alias ?? id), type, keyword: baseType, aliased: alias !== undefined,
+      id, label: alias ?? id, type, keyword: baseType, aliased: alias !== undefined,
       ...(unmodeledMetadata.length ? { unmodeledMetadata } : {}),
     }
   }
@@ -677,7 +685,7 @@ export function parseActorDeclaration(line: string): ParsedActorDeclaration | nu
   const id = ordinary[2]!
   const keyword = ordinary[1]!.toLowerCase() as 'participant' | 'actor'
   return {
-    id, label: normalizeBrTags(ordinary[4]?.trim() ?? id), type: keyword, keyword, aliased: ordinary[4] !== undefined,
+    id, label: ordinary[4]?.trim() ?? id, type: keyword, keyword, aliased: ordinary[4] !== undefined,
     ...(ordinary[3] === '' ? { unspacedAlias: true } : {}),
   }
 }
@@ -688,7 +696,7 @@ export function parseSequenceCreateLine(line: string): Pick<Actor, 'id' | 'label
   const match = line.match(/^create\s+(participant|actor)\s+(\S+?)(?:\s+as\s+(.+))?$/i)
   if (!match) return null
   const id = match[2]!
-  return { id, label: normalizeBrTags(match[3]?.trim() ?? id), type: match[1]!.toLowerCase() as 'participant' | 'actor' }
+  return { id, label: match[3]?.trim() ?? id, type: match[1]!.toLowerCase() as 'participant' | 'actor' }
 }
 
 export function parseActorLinks(line: string): { actorId: string; links: Record<string, string> } | null {
@@ -750,4 +758,10 @@ function bindLifecycle(
  *  layout and the ASCII renderer so the surfaces cannot drift. */
 export function displayMessageLabel(msg: Pick<Message, 'label' | 'number'>): string {
   return msg.number !== undefined ? `${msg.number}. ${msg.label}` : msg.label
+}
+
+/** Prefix the prepared reading without turning literal tags into markup. */
+export function displayMessageContent(msg: Pick<Message, 'label' | 'labelContent' | 'number'>): DisplayTextInput {
+  const content = resolveLabelContent(msg.label, msg.labelContent)
+  return msg.number !== undefined ? concatDisplayText([`${msg.number}. `, typeof content === 'string' ? prepareDisplayText(content) : content]) : content
 }

@@ -1,3 +1,4 @@
+import { diagnoseC4Config } from '../c4/config-diagnostics.ts'
 import { layoutResult, positionedView, scene, type BrowserSvgFamilyHooks } from '../browser-lazy/family.ts'
 import { projectC4Positioned } from '../positioned-views/c4.ts'
 import { layoutC4Diagram } from '../c4/layout.ts'
@@ -9,6 +10,7 @@ import { frontmatterTitle, normalizeMermaidSource } from '../mermaid-source.ts'
 /** Parse authored identities once at the request boundary, before any output
  * display admission. Pixel and cell adapters consume this same semantic plan. */
 export const C4_SVG_HOOKS = {
+  configDiagnostics: diagnoseC4Config,
   normalizeRequest: ctx => {
     const authored = normalizeMermaidSource(ctx.source.originalText)
     const wrapper = authored.wrapperSource ?? ''

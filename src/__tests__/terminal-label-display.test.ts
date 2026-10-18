@@ -10,7 +10,9 @@
 // their SVG does; they are covered by the meta check only.
 import { describe, expect, it } from 'bun:test'
 import fc from 'fast-check'
-import { renderMermaidASCII } from '../index.ts'
+import { renderMermaidASCII, renderMermaidASCIIWithReceipt, renderMermaidSVG } from '../index.ts'
+import { decodeXML } from 'entities'
+import { parseRegisteredMermaid, mutate, serializeMermaid } from '../agent/core.ts'
 import { renderMermaidASCIIWithMeta, type AsciiRegion } from '../ascii/meta.ts'
 import { visualWidth } from '../ascii/multiline-utils.ts'
 
@@ -61,6 +63,82 @@ function claims(source: string): Array<{ id: string; projectedText: string; draw
 }
 
 describe('terminal labels draw their display text', () => {
+  const svgText = (source: string) => [...renderMermaidSVG(source).matchAll(/<text\b[^>]*>([\s\S]*?)<\/text>/g)]
+    .map(match => decodeXML(match[1]!.replace(/<[^>]+>/g, '')))
+
+  it('Sequence encoded tags remain literal in every formatted label context', () => {
+    const tag = (text: string) => `#lt;b#gt;${text}#lt;/b#gt;`
+    const source = `sequenceDiagram
+title ${tag('Title')}
+box transparent ${tag('Box')}
+participant A@{ "type": "boundary" } as ${tag('Alias')}
+participant B
+end
+autonumber
+alt ${tag('Header')}
+A->>B: ${tag('Message')}
+Note over A: ${tag('Note')}
+else ${tag('Divider')}
+B->>A: done
+end`
+    // Box frames and control frames have independent terminal placement. Test
+    // the text contexts separately so overlap does not become a text oracle.
+    const withoutBox = source.replace(`box transparent ${tag('Box')}\n`, '').replace('participant B\nend', 'participant B')
+    const drawn = svgText(source).join('\n')
+    for (const name of ['Title', 'Box', 'Alias', 'Header', 'Message', 'Note', 'Divider']) {
+      const literal = `<b>${name}</b>`
+      expect(drawn).toContain(literal)
+      const terminalSource = name === 'Header' || name === 'Divider' ? withoutBox : source
+      for (const useAscii of [false, true]) expect(renderMermaidASCII(terminalSource, { colorMode: 'none', useAscii })).toContain(literal)
+    }
+    for (const claim of claims(withoutBox)) expect(claim.projectedText).toBe(claim.drawn)
+  })
+
+  it('Sequence entities cannot create emphasis or line breaks after decoding', () => {
+    const payload = '#42;literal#42; *styled* #92;n #lt;br#gt;'
+    const source = `sequenceDiagram\nparticipant A as ${payload}\nA->>B: ${payload}\nNote over B: ${payload}`
+    const visible = String.raw`*literal* styled \n <br>`
+    expect(svgText(source).filter(text => text === visible)).toHaveLength(3)
+    expect(renderMermaidASCII(source, { colorMode: 'none' })).toContain(visible)
+    for (const claim of claims(source)) expect(claim.projectedText).toBe(claim.drawn)
+  })
+
+  it.each([
+    ['Sequence', 'message', 'sequenceDiagram\nautonumber\nA->>B: #lt;b#gt;literal#lt;/b#gt; *real*\nB->>B: #42;literal#42; <b>real</b>\nB->>A: MiXeD ß *word*', ['1. <b>literal</b> real', '2. *literal* real', '3. MiXeD ß word']],
+    ['Flowchart ordinary', 'edge', 'flowchart LR\nA -->|<b>MiXeD</b>| B', ['MiXeD']],
+    ['Flowchart literal', 'edge', 'flowchart LR\nA -->|#lt;b#gt;literal#lt;/b#gt; <b>MiXeD</b>| B', ['<b>literal</b> MiXeD']],
+    ['ER ordinary', 'relationship', 'erDiagram\nA ||--o{ B : "**MiXeD**"', ['MiXeD']],
+    ['ER literal', 'relationship', 'erDiagram\nA ||--o{ B : "#lt;b#gt;literal#lt;/b#gt; **MiXeD**"', ['<b>literal</b> MiXeD']],
+    ['Class ordinary', 'relationship', 'classDiagram\nA --> B : **MiXeD**', ['MiXeD']],
+    ['Class literal', 'relationship', 'classDiagram\nA --> B : #lt;b#gt;literal#lt;/b#gt; **MiXeD**', ['<b>literal</b> MiXeD']],
+  ] as const)('%s connector receipts keep untransformed display text', (_family, role, source, expected) => {
+    for (const useAscii of [false, true]) {
+      for (const style of [undefined, { roles: { edge: { textTransform: 'uppercase' as const, letterSpacing: 2 } } }]) {
+        const rendered = renderMermaidASCIIWithReceipt(source, { colorMode: 'none', useAscii, style })
+        const messages = rendered.terminalStyle.connectorProjection.connectors.filter(connector => connector.role === role)
+        expect(messages.flatMap(message => message.labels.map(label => label.text))).toEqual([...expected])
+        for (const label of expected) expect(rendered.text).toContain(label)
+      }
+    }
+    for (const claim of claims(source)) expect(claim.projectedText).toBe(claim.drawn)
+  })
+
+  it('Sequence typed strings interpret formatting but keep entity-looking text literal', () => {
+    const parsed = parseRegisteredMermaid('sequenceDiagram\nA->>B: #lt;b#gt;X#lt;/b#gt;')
+    if (!parsed.ok) throw new Error('Sequence fixture failed')
+    expect(svgText(serializeMermaid(parsed.value))).toContain('<b>X</b>')
+    const styled = mutate(parsed.value, { kind: 'set_message_text', index: 0, text: '<b>Y</b>' })
+    if (!styled.ok) throw new Error(styled.error.message)
+    expect(svgText(serializeMermaid(styled.value))).toContain('Y')
+    expect(svgText(serializeMermaid(styled.value))).not.toContain('<b>Y</b>')
+    const literal = mutate(styled.value, { kind: 'set_message_text', index: 0, text: '#quot;\nnext' })
+    if (!literal.ok) throw new Error(literal.error.message)
+    const exported = serializeMermaid(literal.value)
+    expect(svgText(exported)).toContain('#quot;next')
+    expect(renderMermaidASCII(exported, { colorMode: 'none' })).toContain('#quot;')
+    expect(renderMermaidASCII(exported, { colorMode: 'none' })).toContain('next')
+  })
+
   it.each(FORMATTED)('%s: formatting adds no characters', (family, formatted, plain) => {
     for (const useAscii of [false, true]) {
       expect({ family, useAscii, ascii: renderMermaidASCII(formatted, { colorMode: 'none', useAscii }) })

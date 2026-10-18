@@ -2,6 +2,7 @@ import { BUILTIN_FAMILY_METADATA, type BuiltinFamilyMetadata } from '../agent/fa
 import { architectureVisualOverridesTypeScriptDeclaration, RENDER_CONTRACT_VERSION, RENDER_OUTPUT_DESCRIPTORS, sharedRenderOptionsTypeScriptDeclaration } from '../render-contract.ts'
 import { styleSpecTypeScriptDeclaration } from '../scene/style-spec.ts'
 import { NEW_DIAGRAM_POLICY } from '../shared/agent-workflow.ts'
+import { terminalOutputOptionsTypeScriptFields, terminalOutputPolicyTypeScriptDeclaration } from '../terminal-contract.ts'
 
 function sdkFamilyTypeStem(family: BuiltinFamilyMetadata): string {
   return family.narrower.slice(2)
@@ -70,14 +71,7 @@ interface SvgRenderOptions extends SharedRenderOptions {
 }
 
 interface AsciiRenderOptions extends SharedRenderOptions {
-  useAscii?: boolean
-  paddingX?: number
-  paddingY?: number
-  boxBorderPadding?: number
-  colorMode?: 'auto' | 'none' | 'ansi16' | 'ansi256' | 'truecolor' | 'html'
-  theme?: { fg?: string; border?: string; line?: string; arrow?: string; accent?: string; bg?: string; corner?: string; junction?: string }
-  maxWidth?: number
-  targetWidth?: number
+${terminalOutputOptionsTypeScriptFields()}
   onConfigDiagnostic?: (diagnostic: ConfigDiagnostic) => void
   onProjectionDiagnostic?: (diagnostic: TerminalProjectionDiagnostic) => void
 }
@@ -123,7 +117,31 @@ const CODE_MODE_CORE_SHARED_RENDER_OPTIONS_DECLARATION = compactInterfaceDeclara
 const CODE_MODE_CORE_OUTPUT_RENDER_OPTION_DECLARATIONS = compactInterfaceDeclarations(CODE_MODE_OUTPUT_RENDER_OPTION_DECLARATIONS)
 const CODE_MODE_CORE_RENDER_RECEIPT_DECLARATIONS = compactInterfaceDeclarations(CODE_MODE_RENDER_RECEIPT_DECLARATIONS)
 
-export const CODE_MODE_RENDER_OPTION_DECLARATIONS = `${styleSpecTypeScriptDeclaration()}
+export const CODE_MODE_RENDER_OPTION_DECLARATIONS = `interface DisplayRun {
+  readonly text: string
+  readonly bold: boolean
+  readonly italic: boolean
+  readonly underline: boolean
+  readonly strikethrough: boolean
+  readonly sourceStart: number
+  readonly sourceEnd: number
+  readonly clusters?: readonly { text: string; sourceStart: number; sourceEnd: number }[]
+}
+interface PreparedDisplayText {
+  readonly source: string
+  readonly display: 'formatted' | 'literal'
+  readonly transform?: 'uppercase' | 'lowercase' | 'capitalize'
+  readonly lines: readonly (readonly DisplayRun[])[]
+  readonly lineStarts: readonly number[]
+}
+interface LabelContent {
+  readonly value: string
+  readonly prepared: PreparedDisplayText
+  // Family lexical payload before display/entity normalization, not diagram source coordinates.
+  readonly authored?: string
+}
+
+${styleSpecTypeScriptDeclaration()}
 
 ${architectureVisualOverridesTypeScriptDeclaration()}
 
@@ -141,7 +159,7 @@ interface TerminalConnectorProjection {
   direction: 'forward' | 'reverse' | 'bidirectional' | 'undirected' | 'self'
   relationship: string
   markers: { start?: { id: string; shape: string }; mid: readonly { id: string; shape: string }[]; end?: { id: string; shape: string } }
-  labels: readonly { id?: string; text: string }[]
+  labels: readonly { id?: string; text: string; textContent?: LabelContent }[]
   lineStyle: 'solid' | 'dotted' | 'dashed' | 'thick' | 'invisible'
   strokeLosses: readonly string[]
   diagnostics: readonly string[]
@@ -154,17 +172,7 @@ interface ResolvedTerminalStyle {
   connectorProjection: { evidence: 'scene' | 'unavailable' | 'not-evaluated'; count: number; topologies: Readonly<Record<'line' | 'polyline' | 'path', number>>; realizations: Readonly<Record<string, number>>; relationships: readonly string[]; directions: readonly string[]; markerPositions: Readonly<{ start: number; mid: number; end: number }>; labelCount: number; connectors: readonly TerminalConnectorProjection[]; digest: string }
   digest: string
 }
-interface ResolvedTerminalOutputPolicy {
-  version: 1
-  useAscii: boolean
-  paddingX: number
-  paddingY: number
-  boxBorderPadding: number
-  colorMode: 'none' | 'ansi16' | 'ansi256' | 'truecolor' | 'html'
-  theme: Readonly<{ fg?: string; border?: string; line?: string; arrow?: string; accent?: string; bg?: string; corner?: string; junction?: string }>
-  maxWidth?: number
-  targetWidth?: number
-}
+${terminalOutputPolicyTypeScriptDeclaration()}
 interface RenderedSvg { svg: string; receipt: RenderRequestReceipt }
 interface RenderedAscii { text: string; receipt: RenderRequestReceipt; terminalStyle: ResolvedTerminalStyle; outputPolicy: ResolvedTerminalOutputPolicy }
 interface RenderedLayoutArtifact { layout: VerifyResult['layout']; receipt: RenderRequestReceipt }`
@@ -374,21 +382,38 @@ type ParsedDiagram = ValidDiagram | ExtensionValidDiagram | PreservedValidDiagra
 
 ${SDK_VALID_DIAGRAM_ALIASES}
 
+interface PixelTextBlock {
+  readonly unit: 'px'
+  readonly prepared: PreparedDisplayText
+  readonly text: string
+  readonly lines: string[]
+  readonly lineBlocks: readonly { readonly runs: readonly DisplayRun[]; readonly text: string; readonly width: number; readonly baseline: number; readonly originX: number }[]
+  readonly breaks: readonly { readonly kind: 'authored' | 'wrap' | 'hyphen'; readonly sourceOffset: number; readonly replacedText?: string }[]
+  readonly width: number
+  readonly height: number
+  readonly lineHeight: number
+  readonly fontSize: number
+  readonly fontWeight: number
+  readonly letterSpacing: number
+  readonly monospace: boolean
+  readonly safeFont: boolean
+}
+
 interface FlowchartGraph {
   direction: 'TD' | 'TB' | 'LR' | 'BT' | 'RL'
   // semanticShape/authoredShape carry Mermaid v11 @{ shape } metadata: shape
   // stays the drawn geometry, semanticShape the canonical v11 id, and
   // authoredShape the exact spelling that serializes back.
-  nodes: Map<string, { id: string; label: string; shape: string; semanticShape?: string; authoredShape?: string; markdownLabel?: true; icon?: string; image?: string; iconForm?: 'square' | 'circle' | 'rounded'; href?: string }>
+  nodes: Map<string, { id: string; label: string; labelContent?: LabelContent; labelBlock?: PixelTextBlock; shape: string; semanticShape?: string; authoredShape?: string; markdownLabel?: true; icon?: string; image?: string; iconForm?: 'square' | 'circle' | 'rounded'; href?: string }>
   edges: {
     // id = authored v11.6 edge ID ('e1@-->'): round-trips verbatim and is a
     // valid remove_edge/set_label target selector.
     id?: string
-    source: string; target: string; label?: string; style: string
+    source: string; target: string; label?: string; labelContent?: LabelContent; style: string
     hasArrowStart?: boolean; hasArrowEnd?: boolean; startMarker?: string; endMarker?: string
     curve?: string; animate?: boolean; animation?: 'fast' | 'slow'; length?: number
   }[]
-  subgraphs: { id: string; label: string; nodeIds: string[]; children: FlowchartGraph['subgraphs']; direction?: FlowchartGraph['direction']; concurrencyRegion?: true }[]
+  subgraphs: { id: string; label: string; labelContent?: LabelContent; nodeIds: string[]; children: FlowchartGraph['subgraphs']; direction?: FlowchartGraph['direction']; concurrencyRegion?: true }[]
   classDefs: Map<string, Record<string, string>>
   classAssignments: Map<string, string>
   nodeStyles: Map<string, Record<string, string>>
@@ -402,11 +427,11 @@ interface StateNote { target: string; side: 'left' | 'right'; text: string }
 interface StateBody { kind: 'state'; states: StateNode[]; transitions: StateTransition[]; notes?: StateNote[]; direction?: 'TD' | 'TB' | 'LR' | 'BT' | 'RL'; classDefs?: Record<string, Record<string, string>>; defaultTransitionStyle?: Record<string, string> }
 
 type SeqParticipantKind = 'participant' | 'actor' | 'boundary' | 'control' | 'entity' | 'database' | 'collections' | 'queue'
-interface SeqParticipant { id: string; label: string; kind: SeqParticipantKind; declaration?: 'participant' | 'actor'; links?: Record<string, string> }
-interface SeqMessage { from: string; to: string; text: string; style: string; arrow?: string; centralStart?: boolean; centralEnd?: boolean; activate?: boolean; deactivate?: boolean }
+interface SeqParticipant { id: string; label: string; labelContent?: LabelContent; kind: SeqParticipantKind; declaration?: 'participant' | 'actor'; links?: Record<string, string> }
+interface SeqMessage { from: string; to: string; text: string; textContent?: LabelContent; style: string; arrow?: string; centralStart?: boolean; centralEnd?: boolean; activate?: boolean; deactivate?: boolean }
 type SeqFragmentKind = 'alt' | 'opt' | 'loop' | 'par'
-interface SeqFragmentBranch { label?: string; messages: SeqMessage[] }
-interface SeqFragment { fragmentKind: SeqFragmentKind; label?: string; branches: SeqFragmentBranch[]; rawLines?: string[] }
+interface SeqFragmentBranch { label?: string; labelContent?: LabelContent; messages: SeqMessage[] }
+interface SeqFragment { fragmentKind: SeqFragmentKind; label?: string; labelContent?: LabelContent; branches: SeqFragmentBranch[]; rawLines?: string[] }
 // BUILD-18: ordered statement list. participant/message refs index into the
 // participants/messages arrays; direct-message common fragments are typed;
 // opaque-block carries all remaining unmodeled lines verbatim.
@@ -424,20 +449,20 @@ interface TimelineSection { id: string; label?: string; periods: TimelinePeriod[
 // direction: explicit \`timeline TD\`/\`timeline LR\` header token (TD = vertical, upstream PR #7270); undefined = LR default.
 interface TimelineBody { kind: 'timeline'; direction?: 'LR' | 'TD'; title?: string; accessibilityTitle?: string; accessibilityDescription?: string; sections: TimelineSection[] }
 
-interface ClassNode { id: string; generic?: string; label?: string; members: string[]; namespace?: string; className?: string; style?: Record<string, string>; href?: string; tooltip?: string }
+interface ClassNode { id: string; generic?: string; label?: string; labelContent?: LabelContent; members: string[]; namespace?: string; className?: string; style?: Record<string, string>; href?: string; tooltip?: string }
 type ClassRelationKind = 'inheritance' | 'composition' | 'aggregation' | 'association' | 'dependency' | 'realization' | 'link-solid' | 'link-dashed' | 'lollipop'
-interface ClassRelation { from: string; to: string; kind: ClassRelationKind; label?: string; fromCardinality?: string; toCardinality?: string; markerAt?: 'from' | 'to' | 'both' | 'none'; fromKind?: ClassRelationKind; toKind?: ClassRelationKind; lineStyle?: 'solid' | 'dashed' }
-interface ClassNote { text: string; for?: string }
+interface ClassRelation { from: string; to: string; kind: ClassRelationKind; label?: string; labelContent?: LabelContent; fromCardinality?: string; fromCardinalityContent?: LabelContent; toCardinality?: string; toCardinalityContent?: LabelContent; markerAt?: 'from' | 'to' | 'both' | 'none'; fromKind?: ClassRelationKind; toKind?: ClassRelationKind; lineStyle?: 'solid' | 'dashed' }
+interface ClassNote { text: string; textContent?: LabelContent; for?: string }
 // namespace paths are dot-joined (e.g. 'Platform.Auth'); namespaces render as
 // compound boxes and serialize to "namespace path { ... }" blocks.
-interface ClassNamespaceDecl { name: string; label?: string }
+interface ClassNamespaceDecl { name: string; label?: string; labelContent?: LabelContent }
 interface ClassBody { kind: 'class'; title?: string; classes: ClassNode[]; relations: ClassRelation[]; notes: ClassNote[]; namespaces?: ClassNamespaceDecl[]; classDefs?: Record<string, Record<string, string>> }
 
 type ErCardinality = 'one-only' | 'zero-or-one' | 'zero-or-many' | 'one-or-many'
 interface ErAttribute { text: string }
-interface ErEntity { id: string; label?: string; attributes: ErAttribute[]; className?: string; style?: Record<string, string>; groupId?: string }
-interface ErGroup { id: string; label: string; parentId?: string; direction?: 'TD' | 'TB' | 'LR' | 'BT' | 'RL' }
-interface ErRelation { from: string; to: string; leftCard: ErCardinality; rightCard: ErCardinality; dashed: boolean; label?: string }
+interface ErEntity { id: string; label?: string; labelContent?: LabelContent; attributes: ErAttribute[]; className?: string; style?: Record<string, string>; groupId?: string }
+interface ErGroup { id: string; label: string; labelContent?: LabelContent; parentId?: string; direction?: 'TD' | 'TB' | 'LR' | 'BT' | 'RL' }
+interface ErRelation { from: string; to: string; leftCard: ErCardinality; rightCard: ErCardinality; dashed: boolean; label?: string; labelContent?: LabelContent }
 type ErStatement = { kind: 'entity'; id: string } | { kind: 'relation'; ref: number } | { kind: 'direction'; groupId?: string } | { kind: 'group-open'; id: string } | { kind: 'group-close'; id: string } | { kind: 'opaque'; lines: string[] }
 interface ErBody { kind: 'er'; entities: ErEntity[]; relations: ErRelation[]; groups?: ErGroup[]; direction?: 'TD' | 'TB' | 'LR' | 'BT' | 'RL'; classDefs?: Record<string, Record<string, string>>; statements?: ErStatement[] }
 

@@ -261,7 +261,7 @@ describe('xychart mutation ops', () => {
     expect(legacy.xAxis.categories).toHaveLength(3)
   })
 
-  test('error paths: missing series, non-finite values, bad text, emptying floor', () => {
+  test('error paths: missing series, non-finite values, bad text', () => {
     const cases: Array<[XyChartMutationOp, import('../agent/types.ts').MutationError['code']]> = [
       [{ kind: 'remove_series', index: 9 }, 'SERIES_NOT_FOUND'],
       [{ kind: 'set_series_values', index: 9, values: [1] }, 'SERIES_NOT_FOUND'],
@@ -279,10 +279,6 @@ describe('xychart mutation ops', () => {
       const r = mutate(xychart(), op)
       expect({ op: op.kind, ok: r.ok, code: r.ok ? null : r.error.code }).toEqual({ op: op.kind, ok: false, code })
     }
-    // The floor: an xychart must keep at least one series.
-    const single = xychart('xychart-beta\n  bar [1, 2]')
-    const r = mutate(single, { kind: 'remove_series', index: 0 })
-    expect(r.ok).toBe(false)
   })
 
   test('mutation does not alias the input diagram', () => {

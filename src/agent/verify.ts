@@ -18,6 +18,7 @@ import { walkJourneyLines } from '../journey/parse-core.ts'
 import { auditRouteContracts, findRouteHitches } from '../route-contracts.ts'
 import { evaluateBrandConstraints } from '../scene/brand-constraints.ts'
 import { isSequenceCommentLine } from '../sequence/statements.ts'
+import { readSequenceText } from '../sequence/text.ts'
 import { wcagCssContrastRatio } from '../shared/color-math.ts'
 import { sameExtensionIdentity } from '../shared/extension-identity.ts'
 import { familyConfigDiagnostics } from '../shared/family-config-diagnostics.ts'
@@ -34,6 +35,7 @@ import { builtinFamilyMetadata, extractLabelsGeneric, getFamily } from './famili
 import { FamilyLayoutError, ganttGeometryWarnings, ganttScheduleWarning, layoutGeometryWarnings, type ProjectedFamilyArtifact, positionFamilyArtifact } from './family-layouts.ts'
 import { flowchartUnsupportedSyntaxWarnings, flowchartUpstreamRejectedSyntaxWarnings } from './flowchart-unsupported.ts'
 import { labelOverflowWarning } from './label-metrics.ts'
+import { resolveLabelContent } from '../shared/display-text.ts'
 import { emptyRenderedLayout } from './layout-to-rendered.ts'
 import { parseRegisteredMermaid } from './parse.ts'
 import { quadrantUnsupportedSyntaxWarnings } from './quadrant-body.ts'
@@ -49,7 +51,8 @@ import type { PositionedC4Diagram } from '../c4/layout.ts'
 
 function familyConfigShapeWarnings(d: ValidDiagram): LayoutWarning[] {
   const roots: unknown[] = [d.meta.frontmatter, ...d.meta.initDirectives.map(directive => directive.parsed)]
-  return familyConfigDiagnostics(d.kind, roots, getFamily(d.kind)?.config)
+  const family = getFamily(d.kind)
+  return familyConfigDiagnostics(d.kind, roots, family?.config, family?.configDiagnostics)
 }
 
 const KNOWN_SHAPES = new Set(['rectangle', 'service', 'rounded', 'diamond', 'stadium', 'circle', 'subroutine', 'doublecircle', 'hexagon', 'cylinder', 'asymmetric', 'trapezoid', 'trapezoid-alt', 'lean-r', 'lean-l', 'state-start', 'state-end', 'state-fork', 'state-join', 'state-choice', 'state-history'])
@@ -461,7 +464,12 @@ function quadrantHiddenLabelWarnings(positioned: VerificationArtifact): LayoutWa
 }
 
 export function configWarningsForDiagram(d: ParsedDiagram): LayoutWarning[] {
-  if (d.body.kind === 'extension' || d.body.kind === 'preserved') return []
+  if (d.body.kind === 'preserved') return []
+  if (d.body.kind === 'extension') {
+    const family = getFamily(d.kind)
+    return family?.configDiagnostics ? familyConfigDiagnostics(d.kind,
+      [d.meta.frontmatter, ...d.meta.initDirectives.map(directive => directive.parsed)], family.config, family.configDiagnostics) : []
+  }
   const builtin = d as ValidDiagram
   const familySpecific = builtin.kind === 'gantt' ? ganttTodayMarkerWarnings(builtin) : []
   return dedupedConcat(familySpecific, familyConfigShapeWarnings(builtin))
@@ -485,15 +493,15 @@ function verifyStructure(parsed: ParsedDiagram, opts: VerifyOptions, positioned:
   // so the loss is announced rather than silent.
   const metaWarnings: LayoutWarning[] = parsed.meta.droppedComments?.length ? [{ code: 'COMMENT_DROPPED', count: parsed.meta.droppedComments.length, lines: parsed.meta.droppedComments.map(c => c.line) }] : []
   const dispatchedWarnings = dispatchFamilyVerify(parsed, opts)
+  const configWarnings = configWarningsForDiagram(parsed)
   if (parsed.body.kind === 'extension') {
-    return verifyExtension(parsed as ExtensionValidDiagram, cap, opts, dedupedConcat(metaWarnings, dispatchedWarnings), positioned)
+    return verifyExtension(parsed as ExtensionValidDiagram, cap, opts, dedupedConcat(dedupedConcat(metaWarnings, dispatchedWarnings), configWarnings), positioned)
   }
 
   const d = parsed as ValidDiagram
   const familySourceWarnings = d.kind === 'flowchart' ? dedupedConcat(flowchartUnsupportedSyntaxWarnings(d.canonicalSource), flowchartShapeSubstitutionWarnings(d)) : d.kind === 'quadrant' ? quadrantInertStyleWarnings(d) : d.kind === 'journey' ? journeySemicolonExtensionWarnings(d) : []
   const sourceWarnings = dedupedConcat(familySourceWarnings, upstreamRejectedSyntaxWarnings(d))
   const faithfulnessWarnings = roundtripFaithfulnessWarnings(d)
-  const configWarnings = configWarningsForDiagram(d)
   const bareHeader = hasOnlyHeader(d)
   let pluginWarnings = dedupedConcat(dedupedConcat(dedupedConcat(dedupedConcat(dedupedConcat(metaWarnings, dispatchedWarnings), sourceWarnings), faithfulnessWarnings), configWarnings), bareHeader ? [{ code: 'EMPTY_DIAGRAM' }] : [])
   // Mermaid treats universal accessibility metadata as renderable document
@@ -706,11 +714,11 @@ function verifyGraph(graph: import('../types.ts').MermaidGraph, d: ValidDiagram,
   for (const [id, node] of graph.nodes) {
     if (!KNOWN_SHAPES.has(node.shape)) warnings.push({ code: 'UNKNOWN_SHAPE', node: id, shape: String(node.shape) })
     // Parsed labels already carry their formatting as tags; a literal `*` is drawn.
-    const w = labelOverflowWarning(id, node.label, cap, 'plain')
+    const w = labelOverflowWarning(id, resolveLabelContent(node.label, node.labelContent), cap, 'plain')
     if (w) warnings.push(w)
   }
   for (const edge of graph.edges) {
-    const w = edge.label ? labelOverflowWarning(`${edge.source}->${edge.target}`, edge.label, cap, 'plain') : null
+    const w = edge.label ? labelOverflowWarning(`${edge.source}->${edge.target}`, resolveLabelContent(edge.label, edge.labelContent), cap, 'plain') : null
     if (w) warnings.push(w)
   }
   // Tier 1 + Tier 2 — box and polyline geometry.
@@ -964,22 +972,22 @@ function verifySequence(d: ValidDiagram & { body: SequenceBody }, cap: number, o
         to: ids.has(m.to) ? m.to : undefined,
       })
     }
-    const w = labelOverflowWarning(`msg#${i}:${m.from}->${m.to}`, m.text, cap)
+    const w = labelOverflowWarning(`msg#${i}:${m.from}->${m.to}`, resolveLabelContent(m.text, m.textContent), cap)
     if (w) warnings.push(w)
   })
   for (const p of body.participants) {
-    const w = labelOverflowWarning(p.id, p.label, cap)
+    const w = labelOverflowWarning(p.id, resolveLabelContent(p.label, p.labelContent), cap)
     if (w) warnings.push(w)
   }
   for (const statement of body.statements)
     if (statement.kind === 'fragment') {
       if (statement.fragment.label) {
-        const w = labelOverflowWarning(`fragment:${statement.fragment.fragmentKind}`, statement.fragment.label, cap)
+        const w = labelOverflowWarning(`fragment:${statement.fragment.fragmentKind}`, resolveLabelContent(statement.fragment.label, statement.fragment.labelContent), cap)
         if (w) warnings.push(w)
       }
       for (const [index, branch] of statement.fragment.branches.entries())
         if (branch.label) {
-          const w = labelOverflowWarning(`fragment:${statement.fragment.fragmentKind}:branch#${index}`, branch.label, cap)
+          const w = labelOverflowWarning(`fragment:${statement.fragment.fragmentKind}:branch#${index}`, resolveLabelContent(branch.label, branch.labelContent), cap)
           if (w) warnings.push(w)
         }
     }
@@ -998,7 +1006,8 @@ function verifySequence(d: ValidDiagram & { body: SequenceBody }, cap: number, o
     const labels = (plugin?.extractLabels ?? extractLabelsGeneric)(opaqueLines.join('\n'))
     const seen = new Set<string>()
     for (const lbl of labels) {
-      const w = labelOverflowWarning(lbl.target, lbl.text, cap)
+      const text = readSequenceText(lbl.text)
+      const w = labelOverflowWarning(lbl.target, resolveLabelContent(text.value, text.content), cap)
       if (!w) continue
       const key = `${lbl.target}:${lbl.text}`
       if (seen.has(key)) continue

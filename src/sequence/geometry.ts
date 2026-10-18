@@ -1,6 +1,8 @@
 import { preparePixelText, type PixelTextBlock } from '../shared/prepared-text.ts'
 import type { Actor, Block, Message, PositionedActor, PositionedBlock, PositionedBlockDivider, PositionedBlockHeader, PositionedMessage, PositionedNote, PositionedSequenceDiagram, PositionedSequenceLabel, SequenceBounds, SequenceDiagram } from './types.ts'
 import { displayMessageLabel, getSequenceBlockScope, type SequenceBlockScope } from './parser.ts'
+import { displayMessageContent } from './parser.ts'
+import { concatDisplayText, prepareDisplayText, resolveLabelContent, type LabelContent } from '../shared/display-text.ts'
 import { ARROW_HEAD, type ResolvedRenderStyle } from '../styles.ts'
 import { LINE_HEIGHT_RATIO, type MultilineMetrics } from '../text-metrics.ts'
 import type { resolveRoleStyle } from '../scene/style-registry.ts'
@@ -105,7 +107,7 @@ export function measureSequenceActorSpec(actor: Actor, style: ResolvedRenderStyl
   const letterSpacing = roleStyle?.letterSpacing ?? style.nodeLetterSpacing
   const paddingX = roleStyle?.paddingX ?? style.nodePaddingX
   const paddingY = roleStyle?.paddingY ?? style.nodePaddingY
-  const block = preparePixelText(actor.label, { transform, fontSize, fontWeight, letterSpacing })
+  const block = preparePixelText(resolveLabelContent(actor.label, actor.labelContent), { transform, fontSize, fontWeight, letterSpacing })
   const displayLabel = block.text
   const labelMetrics = block
   const width = Math.max(labelMetrics.width + paddingX * 2, minActorWidth)
@@ -197,6 +199,7 @@ export function translatePositionedActor(actor: PositionedActor, dx: number, dy:
 
 export interface SequenceMessageGeometrySpec {
   label: string
+  labelContent: LabelContent
   displayLabel: string
   block: PixelTextBlock
   labelMetrics: MultilineMetrics
@@ -211,7 +214,8 @@ export interface SequenceMessageGeometrySpec {
 
 export function measureSequenceMessageSpec(message: Message, style: ResolvedRenderStyle, activationWidth: number): SequenceMessageGeometrySpec {
   const label = displayMessageLabel(message)
-  const block = preparePixelText(label, { transform: style.edgeTextTransform, fontSize: style.edgeLabelFontSize, fontWeight: style.edgeLabelFontWeight, letterSpacing: style.edgeLetterSpacing })
+  const labelContent = Object.freeze({ value: label, prepared: prepareDisplayText(displayMessageContent(message)) })
+  const block = preparePixelText(labelContent.prepared, { transform: style.edgeTextTransform, fontSize: style.edgeLabelFontSize, fontWeight: style.edgeLabelFontWeight, letterSpacing: style.edgeLetterSpacing })
   const displayLabel = block.text
   const defaultLineHeight = style.edgeLabelFontSize * LINE_HEIGHT_RATIO
   const labelMetrics: MultilineMetrics = label ? block : { width: 0, height: 0, lines: [], lineHeight: defaultLineHeight }
@@ -226,6 +230,7 @@ export function measureSequenceMessageSpec(message: Message, style: ResolvedRend
 
   return {
     label,
+    labelContent,
     displayLabel,
     block,
     labelMetrics,
@@ -265,6 +270,7 @@ export function positionSequenceMessage(message: Message, spec: SequenceMessageG
       from: message.from,
       to: message.to,
       label: spec.label,
+      labelContent: spec.labelContent,
       lineStyle: message.lineStyle,
       startHead: message.startHead,
       endHead: message.endHead,
@@ -305,6 +311,7 @@ export function positionSequenceMessage(message: Message, spec: SequenceMessageG
     from: message.from,
     to: message.to,
     label: spec.label,
+    labelContent: spec.labelContent,
     lineStyle: message.lineStyle,
     startHead: message.startHead,
     endHead: message.endHead,
@@ -394,7 +401,10 @@ export function resolveSequenceBlockScopes(diagram: SequenceDiagram): SequenceBl
 }
 
 export function measureSequenceBlockSpec(block: Block, style: ResolvedRenderStyle, baseBlockPadTop: number, baseBlockHeaderExtra: number, baseDividerExtra: number, edgeTextHeight: number): SequenceBlockGeometrySpec {
-  const prepared = preparePixelText(block.type === 'rect' ? '' : `${block.type}${block.label ? ` [${block.label}]` : ''}`, { transform: style.groupTextTransform, fontSize: style.groupHeaderFontSize, fontWeight: style.groupHeaderFontWeight, letterSpacing: style.groupLetterSpacing, fontFamily: style.groupFont })
+  const header = block.type === 'rect' ? '' : block.label
+    ? concatDisplayText([`${block.type} [`, prepareDisplayText(resolveLabelContent(block.label, block.labelContent)), ']'])
+    : block.type
+  const prepared = preparePixelText(header, { transform: style.groupTextTransform, fontSize: style.groupHeaderFontSize, fontWeight: style.groupHeaderFontWeight, letterSpacing: style.groupLetterSpacing, fontFamily: style.groupFont })
   const headerText = prepared.text
   const defaultHeaderLineHeight = style.groupHeaderFontSize * LINE_HEIGHT_RATIO
   const headerMetrics: MultilineMetrics = headerText ? prepared : { width: 0, height: 0, lines: [], lineHeight: defaultHeaderLineHeight }
@@ -407,7 +417,7 @@ export function measureSequenceBlockSpec(block: Block, style: ResolvedRenderStyl
   const enclosingHeaderStep = block.type === 'rect' ? style.groupPaddingY : tabHeight + style.groupPaddingY
 
   const dividers: SequenceDividerGeometrySpec[] = block.dividers.map(d => {
-    const prepared = preparePixelText(d.label ? `[${d.label}]` : '', { transform: style.edgeTextTransform, fontSize: style.edgeLabelFontSize, fontWeight: style.edgeLabelFontWeight, letterSpacing: style.edgeLetterSpacing })
+    const prepared = preparePixelText(d.label ? concatDisplayText(['[', prepareDisplayText(resolveLabelContent(d.label, d.labelContent)), ']']) : '', { transform: style.edgeTextTransform, fontSize: style.edgeLabelFontSize, fontWeight: style.edgeLabelFontWeight, letterSpacing: style.edgeLetterSpacing })
     const displayLabel = prepared.text
     const metrics: MultilineMetrics = d.label ? prepared : { width: 0, height: 0, lines: [], lineHeight: edgeTextHeight }
     const firstLineOffset = Math.max(14, Math.ceil(metrics.lineHeight / 2 + 6))

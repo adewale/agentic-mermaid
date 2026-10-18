@@ -6,6 +6,7 @@ import { LayoutMetricBudgetError } from './pass.ts'
 import { DiagramWorkLimitError } from '../shared/diagram-limits.ts'
 import { LayoutCertificationError, type LayoutCertificationAttempt } from './certification-error.ts'
 import type { PixelTextBlock } from '../shared/prepared-text.ts'
+import { prepareDisplayText, resolveLabelContent, type DisplayTextInput } from '../shared/display-text.ts'
 
 export { LayoutCertificationError, type LayoutCertificationAttempt } from './certification-error.ts'
 
@@ -59,10 +60,23 @@ export interface LayoutCertificationCandidate {
 
 function correspondenceViolations(graph: MermaidGraph, positioned: PositionedGraph, style: ResolvedRenderStyle): string[] {
   const failures: string[] = []
-  const retainedText = (id: string, label: string, block: PixelTextBlock | undefined, role: 'node' | 'edge' | 'group'): void => {
+  const retainedText = (id: string, label: DisplayTextInput, block: PixelTextBlock | undefined, role: 'node' | 'edge' | 'group'): void => {
     if (!block) return
     const transform = role === 'node' ? style.nodeTextTransform : role === 'edge' ? style.edgeTextTransform : style.groupTextTransform
-    if (block.prepared.source !== label || block.prepared.display !== 'formatted' || block.prepared.transform !== transform) {
+    const expected = prepareDisplayText(label, 'formatted', transform), actual = block.prepared
+    const sameRuns = actual.lines.length === expected.lines.length && actual.lines.every((runs, line) =>
+      runs.length === expected.lines[line]!.length && runs.every((run, index) => {
+        const authored = expected.lines[line]![index]!
+        return run.text === authored.text && run.bold === authored.bold && run.italic === authored.italic &&
+          run.underline === authored.underline && run.strikethrough === authored.strikethrough &&
+          run.sourceStart === authored.sourceStart && run.sourceEnd === authored.sourceEnd &&
+          run.clusters?.length === authored.clusters?.length && (run.clusters?.every((cluster, clusterIndex) => {
+            const source = authored.clusters![clusterIndex]!
+            return cluster.text === source.text && cluster.sourceStart === source.sourceStart && cluster.sourceEnd === source.sourceEnd
+          }) ?? true)
+      }))
+    if (actual.source !== expected.source || actual.display !== expected.display || actual.transform !== expected.transform ||
+        actual.lineStarts.length !== expected.lineStarts.length || actual.lineStarts.some((start, line) => start !== expected.lineStarts[line]) || !sameRuns) {
       failures.push(`${id}: changed retained prepared text`)
     }
   }
@@ -96,14 +110,17 @@ function correspondenceViolations(graph: MermaidGraph, positioned: PositionedGra
     nodeIds.add(node.id)
     if (!graph.nodes.has(node.id)) failures.push(`node ${node.id}: unexpected identity`)
     else if (node.label !== graph.nodes.get(node.id)!.label) failures.push(`node ${node.id}: changed label`)
-    else retainedText(`node ${node.id}`, graph.nodes.get(node.id)!.label, node.labelBlock, 'node')
+    else {
+      const authored = graph.nodes.get(node.id)!
+      retainedText(`node ${node.id}`, resolveLabelContent(authored.label, authored.labelContent), node.labelBlock, 'node')
+    }
   }
   for (const id of graph.nodes.keys()) if (!nodeIds.has(id) && !actualGroups.has(id)) failures.push(`node ${id}: missing identity`)
   for (const [id, authored] of authoredGroups) {
     const group = positionedGroups.get(id)
     if (!group) continue
     if (group.label !== authored.label) failures.push(`group ${id}: changed label`)
-    retainedText(`group ${id}`, authored.label, group.labelBlock, 'group')
+    retainedText(`group ${id}`, resolveLabelContent(authored.label, authored.labelContent), group.labelBlock, 'group')
     const parent = positionedGroups.get(expectedGroups.get(id) ?? '')
     if (parent && (group.x < parent.x - 0.5 || group.y < parent.y - 0.5 || group.x + group.width > parent.x + parent.width + 0.5 || group.y + group.height > parent.y + parent.height + 0.5)) {
       failures.push(`group ${id}: outside authored parent ${parent.id}`)
@@ -126,7 +143,7 @@ function correspondenceViolations(graph: MermaidGraph, positioned: PositionedGra
       failures.push(`edge ${identity}: unexpected identity`)
       continue
     }
-    if (authored.label !== undefined) retainedText(`edge ${identity}`, authored.label, edge.labelBlock, 'edge')
+    if (authored.label !== undefined) retainedText(`edge ${identity}`, resolveLabelContent(authored.label, authored.labelContent), edge.labelBlock, 'edge')
     if (
       edge.source !== authored.source ||
       edge.target !== authored.target ||

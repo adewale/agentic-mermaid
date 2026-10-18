@@ -15,12 +15,14 @@
 // ============================================================================
 
 import { unknownOpMessage } from './mutation-ops.ts'
+import { decodeXML } from 'entities'
 import type {
   ErBody, ErEntity, ErRelation, ErCardinality, ErAttribute, ErStatement, ErGroup,
   ErMutationOp, MutationError, Result, LayoutWarning, VerifyOptions,
 } from './types.ts'
 import { ok, err } from './types.ts'
 import { labelOverflowCollector } from './body-utils.ts'
+import { prepareDisplayText, resolveLabelContent } from '../shared/display-text.ts'
 import {
   parseErAttribute,
   parseErEntityId,
@@ -31,7 +33,7 @@ import {
   readErStatements,
 } from '../er/parser.ts'
 import { createErCreationFold, type ErCreationFold } from '../er/creation.ts'
-import { decodeErText, writeErName, writeErRelationLabel, writeErTitle } from '../er/text.ts'
+import { decodeErText, erCommentText, erTextLabel, writeErName, writeErRelationLabel, writeErTitle } from '../er/text.ts'
 import { parseAccessibilityDirective } from '../shared/accessibility-directives.ts'
 import { parseMutableStyleProps, serializeStyleProps, unsafeStylePaintError } from '../shared/style-props.ts'
 
@@ -139,7 +141,7 @@ function readErBody(lines: string[]): ErBody | null {
       }
       case 'group-open': {
         if (!writableErId(statement.id) || statement.title === '') return null
-        const group: ErGroup = { id: statement.id, label: decodeErText(statement.title ?? statement.id) }
+        const group: ErGroup = { id: statement.id, ...erTextLabel(statement.title ?? statement.id) }
         body.groups!.push(group)
         groupById.set(group.id, group)
         statements.push({ kind: 'group-open', id: group.id })
@@ -178,7 +180,7 @@ function readErBody(lines: string[]): ErBody | null {
           leftCard: AGENT_CARDINALITY[left],
           rightCard: AGENT_CARDINALITY[right],
           dashed: !relation.identifying,
-          label: decodeErText(relation.label) || undefined,
+          ...(relation.label ? erTextLabel(relation.label) : { label: undefined }),
         })
         for (const end of [relation.entity1, relation.entity2]) {
           if (entry.relationEntityIds!.includes(end.id)) upsert(end.id, end.className)
@@ -218,7 +220,7 @@ function readErBody(lines: string[]): ErBody | null {
     const owner = placement.owner.get(id)
     return {
       ...paint,
-      ...(alias !== undefined ? { label: decodeErText(alias) } : {}),
+      ...(alias !== undefined ? erTextLabel(alias) : {}),
       attributes,
       ...(owner !== undefined ? { groupId: owner } : {}),
     }
@@ -244,7 +246,7 @@ function renderErEntityReference(entity: ErEntity): string {
   // A quoted id is kept as written, and a quoted name cannot hold `"`, `%`
   // or `\`, so it needs no encoding.
   const renderedId = bare ? entity.id : `"${entity.id}"`
-  return entity.label === undefined ? renderedId : `${renderedId}[${writeErName(entity.label)}]`
+  return entity.label === undefined ? renderedId : `${renderedId}[${writeErName(entity.label, entity.labelContent)}]`
 }
 
 /** A trailing `style` line re-creates an entity by itself only when there is
@@ -256,9 +258,13 @@ function styleCreatesErEntity(entity: ErEntity): boolean {
 
 /** The subgraph re-reading the body's statements alone gives each entity
  * they name: the shared creation fold (src/er/creation.ts) over them. */
-function statementErGroups(body: ErBody): ReadonlyMap<string, string> {
+function statementErGroups(body: ErBody, predeclared: ReadonlySet<string>): ReadonlyMap<string, string> {
   const fold = createErCreationFold()
-  for (const statement of body.statements ?? []) foldErStatement(fold, body, statement)
+  for (const statement of body.statements ?? []) {
+    // A declaration moved into the prefix is omitted at its former position.
+    // Its owner may therefore need a bare mention before that group closes.
+    if (statement.kind !== 'entity' || !predeclared.has(statement.id)) foldErStatement(fold, body, statement)
+  }
   return fold.finish().owner
 }
 
@@ -291,10 +297,29 @@ function insertAfterCreatingStatement(body: ErBody, id: string, statement: ErSta
 }
 
 export function renderEr(body: ErBody): string {
+  const written = writeEr(body, [])
+  const position = new Map(written.order.map((id, index) => [id, index]))
+  // The suffix after the rightmost inversion already appears in body order.
+  // Predeclaring the preceding prefix at top level fixes creation order
+  // independently of later group membership. This needs one further write,
+  // never a search over groups, and leaves faithful statement streams alone.
+  let next = Infinity
+  for (let index = body.entities.length - 1; index >= 0; index--) {
+    const at = position.get(body.entities[index]!.id) ?? Infinity
+    if (at >= next) return writeEr(body, body.entities.slice(0, index + 1)).source
+    next = at
+  }
+  return written.source
+}
+
+function writeEr(body: ErBody, prefix: readonly ErEntity[]): { source: string; order: readonly string[] } {
   const lines: string[] = ['erDiagram']
+  const fold = createErCreationFold()
+  const predeclared = new Set(prefix.map(entity => entity.id))
   const entityById = new Map(body.entities.map(entity => [entity.id, entity]))
   const groupById = new Map((body.groups ?? []).map(group => [group.id, group]))
   const pushEntity = (entity: ErEntity): void => {
+    fold.declare(entity.id)
     const reference = renderErEntityReference(entity)
     if (entity.attributes.length === 0) lines.push(`  ${reference}`)
     else {
@@ -304,6 +329,8 @@ export function renderEr(body: ErBody): string {
     }
   }
   const pushRelation = (relation: ErRelation): void => {
+    fold.relationEnd(relation.from)
+    fold.relationEnd(relation.to)
     const left = LEFT_GLYPH[relation.leftCard]
     const right = RIGHT_GLYPH[relation.rightCard]
     const link = relation.dashed ? '..' : '--'
@@ -313,11 +340,12 @@ export function renderEr(body: ErBody): string {
     const to = entityById.get(relation.to)
     const fromRef = from ? renderErEntityReference({ ...from, label: undefined }) : relation.from
     const toRef = to ? renderErEntityReference({ ...to, label: undefined }) : relation.to
-    lines.push(`  ${fromRef} ${left}${link}${right} ${toRef} : ${writeErRelationLabel(label)}`)
+    lines.push(`  ${fromRef} ${left}${link}${right} ${toRef} : ${writeErRelationLabel(label, relation.labelContent)}`)
   }
 
   const styleCreated = new Set<string>()
   if (body.statements) {
+    for (const entity of prefix) pushEntity(entity)
     // Re-parsing creates each entity at the first statement that names it and
     // puts it in the subgraph statementErGroups reports. Where either would
     // differ from the body, declare the entity inside its own subgraph, before
@@ -326,17 +354,20 @@ export function renderEr(body: ErBody): string {
     // same order and subgraphs.
     const { entities, statements } = body
     const order = new Map(entities.map((entity, index) => [entity.id, index]))
-    const statementGroups = statementErGroups(body)
+    const statementGroups = statementErGroups(body, predeclared)
     const regroup = new Set(entities.filter(entity => statementGroups.get(entity.id) !== entity.groupId).map(entity => entity.id))
-    const created = new Set<string>()
+    const created = new Set(predeclared)
     let firstUncreated = 0
     // Entities whose declaration, attributes included, is already written; a
     // later declaration only places the entity in its subgraph.
-    const declared = new Set<string>()
+    const declared = new Set(predeclared)
     const declaredByStatement = new Set(statements.flatMap(statement => statement.kind === 'entity' ? [statement.id] : []))
     const openGroups: string[] = []
     const declare = (entity: ErEntity): void => {
-      if (declared.has(entity.id)) lines.push(`  ${renderErEntityReference(entity)}`)
+      if (declared.has(entity.id)) {
+        lines.push(`  ${renderErEntityReference(entity)}`)
+        fold.declare(entity.id)
+      }
       else pushEntity(entity)
       declared.add(entity.id)
       created.add(entity.id)
@@ -408,7 +439,8 @@ export function renderEr(body: ErBody): string {
         const group = groupById.get(statement.id)
         if (group) {
           const id = /\s/.test(group.id) ? `"${group.id}"` : group.id
-          lines.push(`  subgraph ${id}${group.label !== decodeErText(group.id) ? ` [${writeErTitle(group.label)}]` : ''}`)
+          lines.push(`  subgraph ${id}${group.label !== decodeErText(group.id) ? ` [${writeErTitle(group.label, group.labelContent)}]` : ''}`)
+          fold.open(statement.id)
         }
         openGroups.push(statement.id)
       } else if (statement.kind === 'group-close') {
@@ -420,6 +452,7 @@ export function renderEr(body: ErBody): string {
         for (const entity of own) if (regroup.has(entity.id)) declare(entity)
         openGroups.pop()
         lines.push('  end')
+        fold.close()
       } else {
         for (const line of statement.lines) lines.push(line)
       }
@@ -440,11 +473,12 @@ export function renderEr(body: ErBody): string {
     const reference = renderErEntityReference({ ...entity, label: undefined })
     const classLine = entity.className ? `  class ${reference} ${entity.className.trim().split(/[ \t]+/).join(',')}` : undefined
     const styleLine = entity.style ? `  style ${reference} ${serializeStyleProps(entity.style)}` : undefined
+    if (styleLine) fold.style(entity.id)
     // `class` applies only to an entity that exists, so it follows the `style`
     // line that creates one.
     for (const line of styleCreated.has(entity.id) ? [styleLine, classLine] : [classLine, styleLine]) if (line) lines.push(line)
   }
-  return lines.join('\n') + '\n'
+  return { source: lines.join('\n') + '\n', order: fold.finish().order }
 }
 
 // ---- Mutator --------------------------------------------------------------
@@ -455,6 +489,7 @@ function cloneEr(body: ErBody): ErBody {
     entities: body.entities.map(e => ({
       id: e.id,
       ...(e.label !== undefined ? { label: e.label } : {}),
+      ...(e.labelContent ? { labelContent: e.labelContent } : {}),
       attributes: e.attributes.map(a => ({ ...a })),
       ...(e.className ? { className: e.className } : {}),
       ...(e.style ? { style: { ...e.style } } : {}),
@@ -569,6 +604,7 @@ export function mutateEr(body: ErBody, op: ErMutationOp): Result<ErBody, Mutatio
       if (!e) return err({ code: 'ENTITY_NOT_FOUND', message: `entity ${op.entity} not found` })
       const label = normalizeErEntityLabel(op.label, 'label')
       if (!label.ok) return label
+      if (label.value !== e.label) delete e.labelContent
       if (label.value === undefined) delete e.label
       else e.label = label.value
       return ok(b)
@@ -666,11 +702,16 @@ export function verifyErBody(body: ErBody, opts: VerifyOptions): LayoutWarning[]
   }
   const ids = new Set([...body.entities.map(e => e.id), ...(body.groups ?? []).map(group => group.id)])
   const overflow = labelOverflowCollector(warnings, opts)
-  for (const group of body.groups ?? []) overflow(group.id, group.label)
+  for (const group of body.groups ?? []) overflow(group.id, resolveLabelContent(group.label, group.labelContent))
   for (const e of body.entities) {
-    if (e.label) overflow(e.id, e.label)
+    if (e.label) overflow(e.id, resolveLabelContent(e.label, e.labelContent))
     for (let i = 0; i < e.attributes.length; i++) {
-      overflow(`${e.id}#a${i}`, e.attributes[i]!.text)
+      const attr = parseErAttribute(decodeXML(e.attributes[i]!.text))
+      if (!attr) continue
+      // Each column is a literal label. Separate lines let the shared cap
+      // measure the widest column once, without counting grammar or padding.
+      const columns = [attr.type, attr.name, attr.keys.join(','), erCommentText(attr.comment ?? '', attr.commentContent)]
+      overflow(`${e.id}#a${i}`, prepareDisplayText(columns.join('\n'), 'literal'))
     }
   }
   for (let i = 0; i < body.relations.length; i++) {
@@ -681,7 +722,7 @@ export function verifyErBody(body: ErBody, opts: VerifyOptions): LayoutWarning[]
         from: ids.has(r.from) ? r.from : undefined, to: ids.has(r.to) ? r.to : undefined,
       })
     }
-    if (r.label) overflow(`rel#${i}`, r.label)
+    if (r.label) overflow(`rel#${i}`, resolveLabelContent(r.label, r.labelContent))
   }
   return warnings
 }

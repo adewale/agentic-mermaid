@@ -1,4 +1,6 @@
 import { sanitizeDisplayLines } from './shared/text-controls.ts'
+import { resolveLabelContent } from './shared/display-text.ts'
+import { displayText } from './multiline-utils.ts'
 // ============================================================================
 // ResolvedAppearance -> terminal projection.
 //
@@ -309,8 +311,8 @@ function projectConnectorScene(
   const projectedConnectors: TerminalConnectorProjection[] = []
   const signatures = new Map<string, { realization: ConnectorMark['terminalProjection']['realization']; topology: ConnectorMark['terminalProjection']['topology']; count: number }>()
   let connectorControlsReplaced = false
-  const clean = (value: string): string => {
-    const sanitized = sanitizeTerminalText(value)
+  const clean = (value: string, lines = false): string => {
+    const sanitized = lines ? sanitizeDisplayLines(value) : sanitizeTerminalText(value)
     if (sanitized !== value) connectorControlsReplaced = true
     return sanitized
   }
@@ -321,11 +323,26 @@ function projectConnectorScene(
       id: connector.id,
       role: connector.role,
       labels: Object.freeze(projection.labels.map(label => {
-        const text = sanitizeDisplayLines(label.text)
-        if (text !== label.text) connectorControlsReplaced = true
-        return Object.freeze({ ...label, text })
+        const input = resolveLabelContent(label.text, label.textContent)
+        const visible = typeof input === 'string' ? input : displayText(input)
+        const text = clean(visible, true)
+        // Pixel blocks are not terminal evidence. Copy valid semantic runs
+        // without reparsing them, neutralizing provenance as well as ink.
+        // Replacements preserve UTF-16 lengths, so source ranges stay valid.
+        const { textContent, block: _block, ...fields } = label as typeof label & { block?: unknown }
+        return Object.freeze({ ...fields, text, ...(typeof input !== 'string' && textContent ? { textContent: Object.freeze({
+          ...textContent, value: text,
+          ...(textContent.authored === undefined ? {} : { authored: clean(textContent.authored, true) }),
+          prepared: Object.freeze({
+            ...input, source: clean(input.source, true), lineStarts: Object.freeze([...input.lineStarts]),
+            lines: Object.freeze(input.lines.map(line => Object.freeze(line.map(run => Object.freeze({
+              ...run, text: clean(run.text),
+              ...(run.clusters ? { clusters: Object.freeze(run.clusters.map(cluster => Object.freeze({ ...cluster, text: clean(cluster.text) }))) } : {}),
+            }))))),
+          }),
+        }) } : {}) })
       })),
-      diagnostics: Object.freeze(projection.diagnostics.map(clean)),
+      diagnostics: Object.freeze(projection.diagnostics.map(value => clean(value))),
     })
     projectedConnectors.push(projected)
     topologies[projection.topology]++

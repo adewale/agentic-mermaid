@@ -49,18 +49,10 @@ const FAMILY_SOURCES: ReadonlyArray<readonly [string, (label: string) => string]
   ['xychart', label => `xychart\n  title "${label}"\n  x-axis ["${label}", "b"]\n  bar [1, 2]`],
 ]
 
-// Known product bug (found by this generator, reported with the BUG-41 fix):
-// Journey rejects a title, section or task that is only a line break
-// ("Invalid user journey line"), where upstream draws the text `<br/>`. The
-// Journey property skips that one label shape; the pin below fails until the
-// parser accepts it.
-const onlyLineBreaks = (label: string): boolean => label.replace(/<br\/>/g, '').trim() === ''
-
 describe('SVG is well-formed XML for labels full of XML metacharacters', () => {
-  it.each(FAMILY_SOURCES)('%s', (family, sourceFor) => {
+  it.each(FAMILY_SOURCES)('%s', (_family, sourceFor) => {
     fc.assert(
       fc.property(labelArb, label => {
-        fc.pre(family !== 'journey' || !onlyLineBreaks(label))
         const source = sourceFor(label)
         expectWellFormedXml(renderMermaidSVG(source), source)
       }),
@@ -73,7 +65,7 @@ describe('SVG is well-formed XML for labels full of XML metacharacters', () => {
     expectWellFormedXml(renderMermaidSVG(source), source)
   })
 
-  it.failing('journey: a label that is only a line break renders well-formed XML', () => {
+  it('journey: a label that is only a line break renders well-formed XML', () => {
     const source = 'journey\n  title t\n  section <br/>\n  task: 5: me'
     expectWellFormedXml(renderMermaidSVG(source), source)
   })

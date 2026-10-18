@@ -5,7 +5,7 @@ import { mkdtempSync, mkdirSync, readFileSync, rmSync, symlinkSync, writeFileSyn
 import { tmpdir } from 'node:os'
 import { join, resolve } from 'node:path'
 import type { RenderOptions } from '../../src/types.ts'
-import type { ClassMutationOp } from '../../src/agent/types.ts'
+import type { AnyMutationOp, ClassMutationOp } from '../../src/agent/types.ts'
 import { getFamily, knownBuiltinFamilies } from '../../src/agent/families.ts'
 import { denseDag } from '../../eval/degenerate-etn/generators.ts'
 import { collectSamples } from '../../eval/layout-compare/run.ts'
@@ -19,7 +19,7 @@ if (!base || !head || !destination || ![base, head].every(sha => /^[a-f0-9]{40}$
 }
 const out = resolve(destination)
 mkdirSync(out, { recursive: true })
-interface Fixture { id: string; title: string; source: string; cue: string; renderOptions?: RenderOptions; pngWidth?: number; captureLayout?: true; classMutation?: ClassMutationOp }
+interface Fixture { id: string; title: string; source: string; cue: string; renderOptions?: RenderOptions; pngWidth?: number; captureLayout?: true; classMutation?: ClassMutationOp; mutation?: AnyMutationOp; directFragmentLabel?: string }
 const sequenceSpanSource = 'sequenceDiagram\nparticipant A\nparticipant B\nparticipant C\nA->>C: Label across B\nactivate B\nA->>C: Begin work\nA->>C: Label across active B\ndeactivate B'
 const sankeyIdentitySource = '---\ntitle: Caption\n---\nsankey-beta\nA,B,1\nA,B,2\nA,B#1,3\nlink:A->B#1,X,4\ntitle,title#1,5'
 const parallelReciprocalSource = 'flowchart LR\nA[Client] -->|request 0| B[Server]\nA -->|request 1| B\nB -->|reply| A'
@@ -32,6 +32,7 @@ const trackedRoles: RenderOptions = { style: { roles: {
   group: { fontSize: 22, fontWeight: 800, letterSpacing: 2, textTransform: 'capitalize' },
 } } }
 const literalLabel = '<b>This is a very long label that describes the work in detail</b>'
+const sequenceEntitySource = 'sequenceDiagram\nparticipant A as #lt;b#gt;code#lt;/b#gt; and *styled*\nparticipant B as Receiver\nA->>B: #lt;i#gt;literal#lt;/i#gt; and **bold**\nB-->>A: #42;stars#42; and *italic*'
 const c4AncestorSource = 'C4Deployment\nNode(parent,"Parent","Cloud") {\nContainer(child,"Child","JS")\n}\nRel(child,parent,"Reports up")'
 const c4DenseSource = 'C4Container\nSystem_Boundary(app,"Application") {\n' + Array.from({ length: 7 }, (_, index) => `Container(n${index},"Service ${index}","HTTP")`).join('\n') + '\n}\n' + Array.from({ length: 7 }, (_, from) => Array.from({ length: 6 - from }, (_, offset) => `Rel(n${from},n${from + offset + 1},"Interaction ${from} to ${from + offset + 1}","HTTPS")`).join('\n')).join('\n')
 const c4OfficialFixtures: Fixture[] = extractOfficialCorpus().filter(fence => fence.family === 'c4').map((fence, index) => ({
@@ -40,6 +41,16 @@ const c4OfficialFixtures: Fixture[] = extractOfficialCorpus().filter(fence => fe
 }))
 const corpusSamples = collectSamples()
 const fixtures: Fixture[] = [
+  { id: 'er-order-after-removing-entity', title: 'ER order survives removing the entity that first introduced A (#372)', source: 'erDiagram\n  A ||--o{ X : r\n  subgraph G\n  B\n  end\n  subgraph I\n  A ||--o{ C : s\n  end', mutation: { kind: 'remove_entity', id: 'X' }, cue: 'PR418 edit witness: request removal of X at both revisions. The intended remaining order is A, B, C, with A/C in I and B in G. Compare any baseline refusal, exported declarations and typed/reloaded order and ownership facts in the sidecars. Images can be identical; they do not alone establish semantic order. This repair is owned by PR418.' },
+  { id: 'journey-all-break-labels', title: 'Journey admits title, section and task labels made entirely of breaks (#367)', source: 'journey\n  title <br/>\n  section <br/>\n  <br/>: 5: Me', cue: 'PR418 admission witness: render title, section and task labels made entirely of breaks at both revisions. Inspect any actual baseline refusal and the Me actor; blank label lines intentionally have no text ink. This earlier repair is owned by PR418. The fixture covers admission and rendering, not every Journey editing operation.' },
+  { id: 'pie-remove-only-slice', title: 'Pie permits removing the only slice while retaining its title (#367)', source: 'pie\n  title Queue\n  "Only" : 1', mutation: { kind: 'remove_slice', label: 'Only' }, cue: 'PR418 edit witness: request removal of Only at both revisions. Inspect any actual baseline refusal, exported source and empty slice facts. The resulting empty pie retains Queue. This earlier repair is owned by PR418; checked, CLI and MCP paths have separate owning tests.' },
+  { id: 'flowchart-literal-runs-wrapped', title: 'Flowchart keeps literal entity tags beside bold text through wrapping and casing (CONS-46)', source: 'flowchart LR\nA["#lt;b#gt;code#lt;/b#gt; and <b>real bold</b>"] --> B[Done]', renderOptions: { wrappingWidth: 140, style: { roles: { node: { fontSize: 16, letterSpacing: 1, textTransform: 'uppercase' } } } }, cue: 'Inspect A: the literal &lt;B&gt;CODE&lt;/B&gt; delimiters remain visible, while REAL BOLD alone carries the authored bold style. Both revisions receive the same 140px wrapping budget, uppercase transform and tracking. This pair shows public SVG/PNG rendering; source-span and edit preservation have separate owning tests.' },
+  { id: 'er-literal-runs', title: 'ER distinguishes entity-produced delimiters from authored formatting (CONS-46)', source: 'erDiagram\nA["#lt;b#gt;code#lt;/b#gt; and **bold**"] ||--o{ B["Other"] : "#lt;i#gt;link#lt;/i#gt; and *styled*"', cue: 'Inspect the entity header and relationship: literal &lt;b&gt;code&lt;/b&gt; and &lt;i&gt;link&lt;/i&gt; delimiters stay visible beside genuinely bold and italic words. The endpoints and cardinality markers are controls. Spacing between formatted fragments remains imperfect in bundled-font PNGs at both revisions; the SVG retains the authored spaces. This pair establishes text interpretation, not a spacing repair, mutation behavior or upstream visual parity.' },
+  { id: 'class-entity-label-members', title: 'Class decodes label, annotation and member entities as literal display text (CONS-46)', source: 'classDiagram\nclass A["#lt;b#gt;code#lt;/b#gt;"]\nclass A {\n <<#lt;i#gt;tag#lt;/i#gt;>>\n +String field#35;tag\n}\nA --> B : unchanged', cue: 'Inspect A’s literal &lt;b&gt;code&lt;/b&gt; label, the &lt;i&gt;tag&lt;/i&gt; text inside its annotation brackets, and the # in field#tag. Entity expansion must not create formatting or alter the member’s public visibility. The unchanged relationship is a control; this fixture does not exercise member editing.' },
+  { id: 'sequence-literal-runs', title: 'Sequence aliases and messages retain literal entity text beside real emphasis (CONS-46)', source: sequenceEntitySource, cue: 'Inspect the visible &lt;b&gt;code&lt;/b&gt; alias, &lt;i&gt;literal&lt;/i&gt; message and *stars* characters. Authored styled, bold and italic words retain their actual emphasis. Compare both message directions and their arrowheads as controls. Spacing between formatted fragments remains imperfect in bundled-font PNGs at both revisions; the SVG retains the authored spaces. This pair covers graphical text interpretation; the matching terminal fixture shows plain cell text separately.' },
+  { id: 'state-literal-percent-pairs', title: 'State description, transition and note retain literal percent pairs (#372)', source: 'stateDiagram-v2\nA : 100%% ready\nA --> B : status%%complete\nnote right of B : keep%%note', cue: 'Inspect all three complete text values: 100%% ready, status%%complete and keep%%note. Percent pairs inside these label contexts must remain visible instead of starting comments. This is a public render witness; source-loss warnings and editing paths have separate owning tests.' },
+  { id: 'mindmap-literal-percent-pairs', title: 'Mindmap labels retain percent pairs while a real trailing comment stays hidden (#372)', source: 'mindmap\n root[100%% ready]\n  child[keep%%label]\n  final[Done] %% actual trailing comment', cue: 'Inspect the complete 100%% ready root and keep%%label child; Done remains a control, and actual trailing comment is not label text. The baseline panel records its actual refusal after truncating the root at the percent pair. This pair covers these bounded label/comment contexts, not every Mindmap delimiter form.' },
+  { id: 'sequence-matching-fragment-setter', title: 'A matching Sequence setter publishes a directly changed fragment caption', source: 'sequenceDiagram\nalt Previous\nA->>B: request\nelse Alternate\nB->>A: reply\nend', directFragmentLabel: 'Updated', mutation: { kind: 'set_fragment_label', index: 0, label: 'Updated' }, cue: 'At both revisions, change the mutable fragment label to Updated and call its matching public setter. Inspect alt Updated in the rendered export and matching facts/reloadedFacts in the edit sidecar. The audited 1d397dfd candidate kept Previous; main already publishes Updated. Owning tests cover first and continuation branch setters too. This does not establish serialization support for arbitrary direct body writes.' },
   { id: 'flowchart-anonymous-group-identity', title: 'Anonymous group allocation preserves authored identities', source: 'flowchart TD\nsubgraph A_B[Explicit]\nC[First member]\nend\nsubgraph "A--B"\nD[Second member]\nend', captureLayout: true, cue: 'Inspect two separate frames, Explicit and A--B, owning their respective members. Main preserves these groups; the audited intermediate PR head merged them. Use the recorded base/head receipt to distinguish the main comparison from the follow-up comparison against the audited candidate. The layout sidecar independently records the two identities and memberships.' },
   { id: 'xychart-visible-point-labels', title: 'XY point labels remain visible at range extremes', source: 'xychart-beta\n x-axis [A,B]\n y-axis 0 --> 10\n line [10 "Top",0 "Bottom"]', captureLayout: true, cue: 'Inspect the complete Top and Bottom text inside the viewport. Previously Top was drawn at y=-1 and clipped; the candidate moves only text, retaining both authored data coordinates. Painted text bounds appear separately in layout.labels, so this measurement does not invent data nodes.' },
   { id: 'flowchart-repeated-group-content', title: 'Repeated Flowchart group declarations retain both members', source: 'flowchart LR\nsubgraph S[First]\nA[Alpha]\nend\nsubgraph S[Later]\nB[Beta]\nend\nA e1@-->B\nB e2@-->A', captureLayout: true, cue: 'The baseline cannot render this repeated declaration; its actual error remains in the before panel. After, inspect one S frame containing Alpha and Beta, with the first authored title, First. Public layout sidecars expose group membership and reciprocal endpoints; SVG data-id attributes retain e1/e2. Complete labels alone do not establish correct containment.' },
@@ -50,6 +61,7 @@ const fixtures: Fixture[] = [
   { id: 'class-multi-lollipop-after-member-edit', title: 'Class two-ended lollipops become editable and render natively', source: 'classDiagram\nPort ()..() Service : contract', classMutation: { kind: 'add_member', class: 'Port', text: '+name: String' }, cue: 'The base revision refuses the edit because this relationship stays opaque; its honest error is the before evidence. The head exports and renders the same edit with two circle endpoints and a dashed shaft. Inspect authored Port/Service identities, both circles and the exported ()..() spelling; the image does not prove every public operation path.' },
   { id: 'mermaid-12-yaml-labels', title: 'Mermaid 12 metadata keeps numeric-looking labels as text', source: 'flowchart LR\nA@{ label: 1_0 } --> B@{ label: 1e309 }', cue: 'Inspect both authored labels: the baseline converts 1_0 to 10 and 1e309 to Infinity; the candidate retains 1_0 and 1e309 as the pinned Mermaid 12 YAML reader does. This focused witness checks scalar interpretation, not general layout quality.' },
   { id: 'mermaid-12-yaml-alias', title: 'Mermaid 12 participant alias keeps numeric separators', source: 'sequenceDiagram\nparticipant A@{ alias: 1_0 }\nA->>B: unchanged message', cue: 'Inspect A’s participant header: the baseline displays 10; the candidate preserves the authored 1_0 alias. The same message endpoints and text remain as a control.' },
+  { id: 'yaml-flow-anchor-wrapper', title: 'An anchored multiline YAML value keeps its supported frontmatter footer', source: '---\nconfig: {custom: &a "foo\n  x: |\n    bar"}\n    ---\nflowchart TD\nA-->B', cue: 'The same anchored multiline value and indented footer reach both revisions. Inspect the native A-to-B Flowchart rather than preserved unknown-family source. The audited 8900adb7 candidate refused this render; main already renders it. Owning tests also cover tags and quoted keys. This witness proves family detection and rendering, not every YAML construct.' },
   { id: 'c4-ancestor-clearance', title: 'C4 ancestor relationship with a visible arrow', source: c4AncestorSource, captureLayout: true, cue: 'At source6724062 the Reports up halo covers the entire shaft and arrow. Inspect a complete label and a visible marker connecting Child to the actual Parent frame. The geometry test checks emitted halo and marker envelopes.' },
   { id: 'c4-dense-labels', title: 'C4 seven cards and twenty-one distinct interactions', source: c4DenseSource, captureLayout: true, cue: 'Inspect every complete interaction label and its arrow; the previous native C4 output had nine overlapping label pairs. Any remaining measured visibility limitation must appear in verification. This finite topology does not establish arbitrary dense graph readability.' },
   ...c4OfficialFixtures,
@@ -110,6 +122,7 @@ const fixtures: Fixture[] = [
   { id: 'sankey-public-identities', title: 'Sankey duplicate rows and generated-looking authored names', source: sankeyIdentitySource, captureLayout: true, cue: 'The ribbons are a visual compatibility control. Inspect the SVG data-id attributes and public layout sidecars: every authored link keeps distinct identity and correct endpoints, including the literal node link:A->B#1. Pixels cannot establish identity uniqueness.' },
 ]
 const terminalFixtures = [
+  { id: 'terminal-sequence-literal-runs', source: sequenceEntitySource, cue: 'Current text-change witness: visible alias and message cells retain <b>code</b>, <i>literal</i> and *stars*, with entity codes decoded once. Terminal output shows the plain visible words for genuine emphasis. Inspect complete text and both message directions; the separate owning test establishes connector receipt correspondence. All following terminal panels are retained historical controls.' },
   { id: 'terminal-c4-compact', source: '---\nconfig:\n  c4:\n    compact: true\n---\nC4Container\nPerson(user,"User")\nContainer(api,"API","Go")\nContainerDb(db,"Store","SQL")\nRel(user,api,"Calls")\nRel(api,db,"Reads")', cue: 'The same opt-in compact setting at both revisions reduces terminal spacing using independently measured cells. Inspect all three complete type labels, both relationship labels and connected owned routes; no pixel drawing is downscaled.' },
   { id: 'terminal-c4-checkout', source: readFileSync(join(ROOT, 'docs/design/families/c4-context-demo.mmd'), 'utf8'), cue: 'The baseline refuses C4. The candidate owns a separate cell layout with the complete boundary, metadata text and five connected interactions. Compare node/edge identities and parents with the graphical sidecar; terminal geometry is checked independently by owned-cell connectivity tests.' },
   { id: 'terminal-state-nested-note', source: 'stateDiagram-v2\nstate Outer {\n B\n}\nnote right of B: Note', cue: 'Before, the dotted attachment stops at the Outer frame while metadata declares a connected note. After, visible owned ink reaches the note through a perpendicular frame crossing. Inspect the retained frame and both physical endpoint ports in the sidecars.' },
@@ -173,7 +186,7 @@ const fixtureOptions = Object.fromEntries(fixtures.map(fixture => {
   const svg = { security: 'strict' as const, ...fixture.renderOptions }
   return [fixture.id, { svg, png: { ...svg, background: svg.transparent ? '#00000000' : '#ffffff', ...(fixture.pngWidth ? { fitTo: { width: fixture.pngWidth } } : {}) } }]
 }))
-interface Evidence { svg?: string; png?: string; layout?: unknown; source?: string; error?: string }
+interface Evidence { svg?: string; png?: string; layout?: unknown; source?: string; edit?: unknown; error?: string }
 interface TerminalEvidence { ascii?: string; html?: string; meta?: unknown; error?: string }
 interface RevisionEvidence { renders: Record<string, Evidence>; terminals: Record<string, TerminalEvidence>; classExport: string }
 
@@ -185,7 +198,7 @@ function renderRevision(sha: string): RevisionEvidence {
     symlinkSync(join(ROOT, 'node_modules'), join(checkout, 'node_modules'), 'dir')
     writeFileSync(join(checkout, 'probe.ts'), `
       import { writeFileSync } from 'node:fs'
-      import { renderMermaidSVG, renderMermaidPNG, layoutMermaidWithReceipt, parseRegisteredMermaid, asClass, mutate, serializeMermaid } from './src/agent/index.ts'
+      import { renderMermaidSVG, renderMermaidPNG, layoutMermaidWithReceipt, parseRegisteredMermaid, asClass, asSequence, mutate, serializeMermaid, describeMermaidFacts } from './src/agent/index.ts'
       import { renderMermaidASCIIWithMeta } from './src/ascii/meta.ts'
       const fixtures = ${JSON.stringify(fixtures)}
       const fixtureOptions = ${JSON.stringify(fixtureOptions)}
@@ -194,6 +207,7 @@ function renderRevision(sha: string): RevisionEvidence {
       for (const fixture of fixtures) {
         try {
           let input = fixture.source
+          let edit
           if (fixture.classMutation) {
             const parsed = parseRegisteredMermaid(fixture.source)
             if (!parsed.ok) throw new Error('Class edit witness did not parse')
@@ -202,11 +216,31 @@ function renderRevision(sha: string): RevisionEvidence {
             const edited = mutate(diagram, fixture.classMutation)
             if (!edited.ok) throw new Error(edited.error.message)
             input = serializeMermaid(edited.value)
+          } else if (fixture.mutation) {
+            const parsed = parseRegisteredMermaid(fixture.source)
+            if (!parsed.ok) throw new Error('Edit witness did not parse')
+            if (fixture.directFragmentLabel !== undefined) {
+              const fragment = asSequence(parsed.value)?.body.statements.find(statement => statement.kind === 'fragment')
+              if (!fragment) throw new Error('Sequence edit witness had no fragment')
+              fragment.fragment.label = fixture.directFragmentLabel
+            }
+            const edited = mutate(parsed.value, fixture.mutation)
+            if (!edited.ok) throw new Error(edited.error.message)
+            input = serializeMermaid(edited.value)
+            const reloaded = parseRegisteredMermaid(input)
+            if (!reloaded.ok) throw new Error('Edited source did not reload')
+            edit = {
+              facts: describeMermaidFacts(edited.value),
+              reloadedFacts: describeMermaidFacts(reloaded.value),
+              ...(edited.value.body.kind === 'er' ? { entityOrder: edited.value.body.entities.map(entity => entity.id) } : {}),
+              ...(reloaded.value.body.kind === 'er' ? { reloadedEntityOrder: reloaded.value.body.entities.map(entity => entity.id) } : {}),
+            }
           }
           renders[fixture.id] = {
             svg: renderMermaidSVG(input, fixtureOptions[fixture.id].svg),
             png: Buffer.from(renderMermaidPNG(input, fixtureOptions[fixture.id].png)).toString('base64'),
-            ...(fixture.classMutation ? { source: input } : {}),
+            ...(fixture.classMutation || fixture.mutation ? { source: input } : {}),
+            ...(edit ? { edit } : {}),
             ...(fixture.captureLayout ? { layout: layoutMermaidWithReceipt(input, { ...fixtureOptions[fixture.id].svg, regions: true }).layout } : {}),
           }
         } catch (error) { renders[fixture.id] = { error: String(error) } }
@@ -247,15 +281,18 @@ const rows = fixtures.map(fixture => {
     }
     if (result.layout) writeFileSync(join(out, `${fixture.id}-${phase}-layout.json`), JSON.stringify(result.layout, null, 2))
     if (result.source) writeFileSync(join(out, `${fixture.id}-${phase}-export.mmd`), result.source)
+    if (result.edit) writeFileSync(join(out, `${fixture.id}-${phase}-edit.json`), JSON.stringify(result.edit, null, 2))
     const semanticSidecar = result.layout ? `<p><a href="${fixture.id}-${phase}-layout.json">${phase} public layout identities and regions</a></p>` : ''
-    const exportedSource = result.source ? `<p><a href="${fixture.id}-${phase}-export.mmd">${phase} exported Class source</a></p><pre>${esc(result.source)}</pre>` : ''
+    const editSidecar = result.edit ? `<p><a href="${fixture.id}-${phase}-edit.json">${phase} typed and reloaded edit facts/order</a></p><pre>${esc(JSON.stringify(result.edit, null, 2))}</pre>` : ''
+    const exportedSource = result.source ? `<p><a href="${fixture.id}-${phase}-export.mmd">${phase} exported Mermaid source</a></p><pre>${esc(result.source)}</pre>` : ''
     return `<figure${fixture.renderOptions?.transparent ? ' class="transparent"' : ''}><figcaption>${phase}</figcaption>${result.png
       ? `<img alt="${phase}: ${esc(fixture.title)}" src="data:image/png;base64,${result.png}">`
-      : `<pre>${esc(result.error ?? 'No render')}</pre>`}${semanticSidecar}${exportedSource}</figure>`
+      : `<pre>${esc(result.error ?? 'No render')}</pre>`}${semanticSidecar}${editSidecar}${exportedSource}</figure>`
   }).join('')
   const optionsCaption = (fixture.renderOptions ? `<p>Render options at both revisions: <code>${esc(JSON.stringify(fixture.renderOptions))}</code>.</p>` : '')
     + (fixture.pngWidth ? `<p>PNG previews are scaled to ${fixture.pngWidth}px wide at both revisions; SVG and layout sidecars retain native geometry.</p>` : '')
-  const mutationCaption = fixture.classMutation ? `<p>Class edit at both revisions: <code>${esc(JSON.stringify(fixture.classMutation))}</code>.</p>` : ''
+  const mutation = fixture.classMutation ?? fixture.mutation
+  const mutationCaption = mutation ? `<p>${fixture.classMutation ? 'Class edit' : 'Edit'} at both revisions: <code>${esc(JSON.stringify(mutation))}</code>.</p>` : ''
   return `<section><h2>${fixture.title}</h2><p>${fixture.cue}</p>${optionsCaption}${mutationCaption}<div class="pair">${panels}</div></section>`
 }).join('')
 const terminalRows = terminalFixtures.map(fixture => {
@@ -269,7 +306,7 @@ const terminalRows = terminalFixtures.map(fixture => {
   return `<section><h2>${fixture.id}</h2><p>${esc(fixture.cue)}</p><div class="pair">${panels}</div></section>`
 }).join('')
 for (const phase of ['before', 'after'] as const) writeFileSync(join(out, `class-export-${phase}.mmd`), revisions[phase].classExport)
-writeFileSync(join(out, 'review.html'), `<!doctype html><html lang="en"><meta charset="utf-8"><meta name="viewport" content="width=device-width"><title>Diagram meaning: before and after</title><style>body{font:16px/1.5 system-ui;margin:40px auto;padding:0 24px;max-width:1100px;color:#222;background:white}.pair{display:grid;grid-template-columns:1fr 1fr;gap:24px}section{border-top:1px solid #ddd;margin-top:32px}figure{margin:0}figcaption{font-weight:bold}img{display:block;width:100%;height:auto}figure.transparent img{background-color:white;background-image:conic-gradient(#ddd 25%,transparent 0 50%,#ddd 0 75%,transparent 0);background-size:16px 16px}pre{white-space:pre-wrap;background:#f6f6f6;padding:16px}@media(max-width:700px){.pair{grid-template-columns:1fr}}</style><h1>Diagram meaning: before and after</h1><p>Baseline SHA: <code>${base}</code><br>Head SHA: <code>${head}</code></p><p>Same sources and render options at both revisions, with strict security and bundled PNG fonts. Default style and opaque PNGs use a white background unless a fixture states otherwise; explicit options are shown beside that fixture and recorded in receipt.json. Focused witnesses do not prove all-layout or cross-platform visual parity.</p>${rows}<section><h2>Class export after deleting A</h2><p>Compare the serialized result after deleting A: class B should remain and the empty namespace should be omitted.</p><div class="pair"><pre>${esc(revisions.before.classExport)}</pre><pre>${esc(revisions.after.classExport)}</pre></div></section></html>`)
+writeFileSync(join(out, 'review.html'), `<!doctype html><html lang="en"><meta charset="utf-8"><meta name="viewport" content="width=device-width"><title>Diagram meaning: before and after</title><style>body{font:16px/1.5 system-ui;margin:40px auto;padding:0 24px;max-width:1100px;color:#222;background:white}.pair{display:grid;grid-template-columns:1fr 1fr;gap:24px}section{border-top:1px solid #ddd;margin-top:32px}figure{margin:0}figcaption{font-weight:bold}img{display:block;width:100%;height:auto}figure.transparent img{background-color:white;background-image:conic-gradient(#ddd 25%,transparent 0 50%,#ddd 0 75%,transparent 0);background-size:16px 16px}pre{white-space:pre-wrap;background:#f6f6f6;padding:16px}@media(max-width:700px){.pair{grid-template-columns:1fr}}</style><h1>Diagram meaning: before and after</h1><p>Baseline SHA: <code>${base}</code><br>Head SHA: <code>${head}</code></p><p>Same sources and render options at both revisions, with strict security and bundled PNG fonts. Default style and opaque PNGs use a white background unless a fixture states otherwise; explicit options are shown beside that fixture and recorded in receipt.json. The first three panels retain the PR418 edit witnesses; the next six show the current literal-text changes. Later panels and the final Class export are historical controls: their captions describe original repair scenarios that may already be fixed at this baseline, so only the displayed outputs establish a difference between these revisions. Focused witnesses do not prove all-layout or cross-platform visual parity.</p>${rows}<section><h2>Class export after deleting A</h2><p>Compare the serialized result after deleting A: class B should remain and the empty namespace should be omitted.</p><div class="pair"><pre>${esc(revisions.before.classExport)}</pre><pre>${esc(revisions.after.classExport)}</pre></div></section></html>`)
 writeFileSync(join(out, 'terminal-review.html'), `<!doctype html><html lang="en"><meta charset="utf-8"><title>Terminal composition review</title><style>body{font:16px/1.5 system-ui;margin:32px;color:#222;background:white}.pair{display:grid;grid-template-columns:1fr 1fr;gap:20px}figure{min-width:0;margin:0}pre.terminal{white-space:pre;overflow:auto;font:12px/1.3 Menlo,Consolas,monospace;background:#f7f7f7;padding:12px}section{border-top:1px solid #ddd;margin-top:24px}</style><h1>Terminal composition: same input before and after</h1><p>Baseline SHA: ${base}<br>Head SHA: ${head}<br>Bun: ${Bun.version}</p><p>Production ASCII text files and exact metadata accompany every pair. Browser monospace/font coverage is a visual limitation; independent owned-cell and grapheme tests establish logical geometry and encoding parity.</p>${terminalRows}</html>`)
 writeFileSync(join(out, 'receipt.json'), JSON.stringify({ base, head, bun: Bun.version, fixtures: fixtures.map(fixture => fixture.id), terminalFixtures: terminalFixtures.map(fixture => fixture.id), terminalOptions: { ascii: { colorMode: 'none', useAscii: true }, unicode: { colorMode: 'html', useAscii: false } }, options: { security: 'strict', style: 'default unless fixtureOptions overrides it', fonts: 'bundled' }, fixtureOptions }, null, 2) + '\n')
 console.log(`Wrote immutable before/after evidence to ${out}`)

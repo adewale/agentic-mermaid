@@ -170,7 +170,7 @@ describe('pie mutation ops', () => {
     expect(d.body.slices.map(s => s.label)).toEqual(['Cats', 'Rats', 'Dogs'])
   })
 
-  test('error paths: not-found, duplicate, bad value, emptying floor', () => {
+  test('error paths: not-found, duplicate, bad value', () => {
     const cases: Array<[PieMutationOp, import('../agent/types.ts').MutationError['code']]> = [
       [{ kind: 'remove_slice', label: 'Nope' }, 'SLICE_NOT_FOUND'],
       [{ kind: 'set_slice_value', label: 'Nope', value: 1 }, 'SLICE_NOT_FOUND'],
@@ -187,9 +187,6 @@ describe('pie mutation ops', () => {
       const r = mutate(pie(), op)
       expect({ op: op.kind, ok: r.ok, code: r.ok ? null : r.error.code }).toEqual({ op: op.kind, ok: false, code })
     }
-    // The floor: a pie must keep at least one slice.
-    const single = pie('pie\n  "Only" : 1')
-    expect(mutate(single, { kind: 'remove_slice', label: 'Only' }).ok).toBe(false)
   })
 
   test('mutation does not alias the input diagram', () => {

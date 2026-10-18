@@ -159,27 +159,42 @@ describe('structured-floor relaxation (build-up from empty)', () => {
     const r = mutate(d, { kind: 'set_title', title: 'T' })
     expect(r.ok).toBe(true)
   })
-  test('journey: emptying a NON-empty journey is still refused', () => {
+  test('journey: an emptied and reloaded journey can reuse its named section', () => {
     const built = buildMermaid('journey', [
+      { kind: 'set_title', title: 'J' },
       { kind: 'add_section', label: 'S' },
       { kind: 'add_task', sectionIndex: 0, text: 't', score: 3 },
     ])
     expect(built.ok).toBe(true)
     if (!built.ok) return
     const r = mutate(built.value, { kind: 'remove_task', sectionIndex: 0, taskIndex: 0 })
-    expect(!r.ok && r.error.code).toBe('INVALID_OP')
+    expect(r.ok).toBe(true)
+    if (!r.ok) return
+    const reloaded = parseMermaid(serializeMermaid(r.value))
+    expect(reloaded.ok).toBe(true)
+    if (!reloaded.ok) return
+    const filled = mutate(reloaded.value, { kind: 'add_task', sectionIndex: 0, text: 'Next', score: 5, actors: ['Me'] })
+    expect(filled.ok && serializeMermaid(filled.value)).toBe('journey\n  title J\n  section S\n    Next: 5: Me\n')
+    expect(filled.ok && verifyMermaid(filled.value).ok).toBe(true)
   })
   test('xychart: ops may keep an EMPTY body empty while building up', () => {
     const d = createMermaid('xychart')
     const r = mutate(d, { kind: 'set_title', title: 'T' })
     expect(r.ok).toBe(true)
   })
-  test('xychart: removing the last series of a NON-empty chart is still refused', () => {
-    const built = buildMermaid('xychart', [{ kind: 'add_series', kind2: 'bar', values: [1] }])
+  test('xychart: an emptied and reloaded chart can replace its series', () => {
+    const built = buildMermaid('xychart', [{ kind: 'set_title', title: 'X' }, { kind: 'add_series', kind2: 'bar', values: [1] }])
     expect(built.ok).toBe(true)
     if (!built.ok) return
     const r = mutate(built.value, { kind: 'remove_series', index: 0 })
-    expect(!r.ok && r.error.code).toBe('INVALID_OP')
+    expect(r.ok).toBe(true)
+    if (!r.ok) return
+    const reloaded = parseMermaid(serializeMermaid(r.value))
+    expect(reloaded.ok).toBe(true)
+    if (!reloaded.ok) return
+    const filled = mutate(reloaded.value, { kind: 'add_series', kind2: 'line', values: [2, 3] })
+    expect(filled.ok && serializeMermaid(filled.value)).toBe('xychart-beta\n  title X\n  line [2, 3]\n')
+    expect(filled.ok && verifyMermaid(filled.value).ok).toBe(true)
   })
 })
 

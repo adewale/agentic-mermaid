@@ -1,3 +1,4 @@
+import { diagnoseGitGraphConfig } from '../gitgraph/config-diagnostics.ts'
 import { projectGitGraphPositioned } from '../positioned-views/gitgraph.ts'
 import { layoutResult, positionedView, scene, type BrowserSvgFamilyHooks } from '../browser-lazy/family.ts'
 import { parseGitGraph } from '../gitgraph/parser.ts'
@@ -8,6 +9,7 @@ import { withAccessibilityFields } from '../shared/accessibility-directives.ts'
 /** The gitgraph SVG hooks: one definition for the complete renderer
  * (src/render-family-hooks.ts) and the lazy browser chunk. */
 export const GITGRAPH_SVG_HOOKS = {
+  configDiagnostics: diagnoseGitGraphConfig,
   normalizeRequest: ctx => ({
     familyConfig: {
       position: resolveGitGraphPositionConfig(ctx.source.config.gitGraph, ctx.source.config.themeVariables),

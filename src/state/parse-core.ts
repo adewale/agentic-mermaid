@@ -15,6 +15,7 @@
 // ============================================================================
 
 import { normalizeBrTags } from '../multiline-utils.ts'
+import { STATE_NOTE_OPEN_RE, STATE_NOTE_END_RE } from './comment.ts'
 
 export type StateNoteSide = 'left' | 'right'
 
@@ -41,8 +42,6 @@ export interface StateStereotypeMatch {
 }
 
 const NOTE_LINE_RE = /^note\s+(left|right)\s+of\s+([\w\p{L}-]+)\s*:\s*(.+)$/iu
-const NOTE_OPEN_RE = /^note\s+(left|right)\s+of\s+([\w\p{L}-]+)\s*$/iu
-const NOTE_END_RE = /^end\s+note$/i
 const STEREOTYPE_RE = /^state\s+(?:"([^"]+)"\s+as\s+)?([\w\p{L}-]+)\s*<<\s*(fork|join|choice|history|deephistory|H\*|H)\s*>>$/u
 const SEPARATOR_RE = /^-{2,}$/
 /** History transition endpoints: bare `[H]`/`[H*]` or suffixed `Base[H]`/`Base[H*]`. */
@@ -88,7 +87,7 @@ export function matchNoteLine(line: string): StateNoteLineMatch | null {
 
 /** `note left|right of X` — opens a block note terminated by `end note`. */
 export function matchNoteOpen(line: string): StateNoteOpenMatch | null {
-  const m = line.match(NOTE_OPEN_RE)
+  const m = line.match(STATE_NOTE_OPEN_RE)
   if (!m) return null
   return { side: m[1]!.toLowerCase() as StateNoteSide, target: m[2]! }
 }
@@ -102,7 +101,7 @@ export function stateNoteText(bodyLines: readonly string[]): string {
 
 /** `end note` — closes a block note. */
 export function isNoteEnd(line: string): boolean {
-  return NOTE_END_RE.test(line)
+  return STATE_NOTE_END_RE.test(line)
 }
 
 /** `state X <<fork>>` (optionally `state "Label" as X <<…>>`). */
