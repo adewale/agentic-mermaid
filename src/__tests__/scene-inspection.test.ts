@@ -96,3 +96,17 @@ test.each(['transparent', 'rgba(0,0,0,0)', '#00000000'])('invisible %s strokes c
   const node = marks.shape({ id: 'filled', role: 'node', geometry: { kind: 'rect', x: 0, y: 0, width: 10, height: 20 }, paint: { fill: '#fff', stroke, strokeWidth: '1000' } }, `<rect x="0" y="0" width="10" height="20" fill="#fff" stroke="${stroke}" stroke-width="1000"/>`)
   expect(nodePaintBounds(node)).toEqual({ x0: 0, y0: 0, x1: 10, y1: 20 })
 })
+
+
+test.each([
+  ['visible', 'invisible', '#111', undefined, 'measured'],
+  ['no-fill', 'solid', 'none', undefined, 'non-painting'],
+  ['alpha-zero', 'solid', 'rgba(0,0,0,0)', undefined, 'non-painting'],
+  ['opacity-zero', 'solid', '#111', '0', 'non-painting'],
+] as const)('inline %s text visibility is independent of its route', (_name, lineStyle, fill, opacity, coverage) => {
+  const block = preparePixelText('Read', { fontSize: 12, fontWeight: 400 })
+  const edge = marks.connector({ id: 'relationship', role: 'edge', lineStyle, geometry: { kind: 'line', x1: 5, y1: 5, x2: 95, y2: 5 }, paint: { stroke: '#111' }, labels: [{ id: 'inline-label', text: 'Read', block, anchor: { x: 20, y: 30 }, paint: { fill, opacity }, fontSize: 12, fontWeight: 400, textAnchor: 'start', visual: { kind: 'inline' } }] }, lineStyle === 'invisible' ? '' : '<line x1="5" y1="5" x2="95" y2="5" stroke="#111"/>')
+  const inspection = inspectScenePrimitives(scene([edge]))
+  expect(inspection.primitives[1]).toMatchObject({ id: 'inline-label', coverage })
+  expect(inspection.coverage.preparedText).toBe(coverage === 'measured' ? 1 : 0)
+})

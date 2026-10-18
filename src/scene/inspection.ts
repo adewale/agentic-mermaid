@@ -1,4 +1,5 @@
-import type { SceneDoc, SceneNode, SceneOwner, SceneRole, SceneTransform } from './ir.ts'
+import { tryParseCssColor } from '../shared/color-math.ts'
+import type { MarkPaint, SceneDoc, SceneNode, SceneOwner, SceneRole, SceneTransform } from './ir.ts'
 import { connectorInlineLabelVisualBounds, nodePaintBounds, transformedBounds } from './bounds.ts'
 import { composeMatrices, IDENTITY_MATRIX, transformMatrix, type AffineMatrix } from './transforms.ts'
 import { sceneNodeSerialization } from './serialization.ts'
@@ -48,15 +49,21 @@ function finite(box: AxisAlignedBox): boolean {
   return [box.x0, box.x1, box.y0, box.y1].every(Number.isFinite) && box.x0 <= box.x1 && box.y0 <= box.y1
 }
 
+function absentPaint(value: string | undefined): boolean {
+  return value === 'none' || value === 'transparent' || !!value && tryParseCssColor(value)?.[3] === 0
+}
+function textPaints(text: string, paint: MarkPaint): boolean {
+  return /\S/u.test(text) && Number(paint.opacity ?? 1) !== 0 && (!absentPaint(paint.fill) || paint.stroke !== undefined && !absentPaint(paint.stroke) && Number.parseFloat(paint.strokeWidth ?? '1') !== 0)
+}
+
 function nonPainting(node: SceneNode): boolean {
   if (node.kind === 'document') return node.element !== 'content' || node.nonPaint !== undefined || sceneNodeSerialization(node).trim() === ''
-  if (node.kind === 'text' && !/\S/u.test(node.block?.text ?? node.text)) return true
+  if (node.kind === 'text') return !textPaints(node.block ? node.block.lineBlocks.map(line => line.runs.map(run => run.text).join('')).join('\n') : node.text, node.paint)
   if (node.kind === 'connector') return node.lineStyle === 'invisible'
   if (node.kind === 'shape' || node.kind === 'text') {
     if (node.kind === 'shape' && node.conditionalPaint) return false
     if (node.paint.opacity !== undefined && Number(node.paint.opacity) === 0) return true
-    const absent = (paint: string | undefined) => paint === 'none' || paint === 'transparent'
-    return absent(node.paint.fill) && (node.paint.stroke === undefined || absent(node.paint.stroke))
+    return absentPaint(node.paint.fill) && (node.paint.stroke === undefined || absentPaint(node.paint.stroke))
   }
   return false
 }
@@ -102,26 +109,32 @@ export function inspectScenePrimitives(scene: SceneDoc): ScenePaintInspection {
         if (node.measurement === 'prepared') coverage.preparedText++
         else coverage.fallbackText++
       }
-      if (node.kind === 'connector' && !hidden) node.labels.forEach((label, labelIndex) => {
+      if (node.kind === 'connector') node.labels.forEach((label, labelIndex) => {
         if (label.visual?.kind !== 'inline') return
-        const local = connectorInlineLabelVisualBounds(label)
+        const displayed = label.block ? label.block.lineBlocks.map(line => line.runs.map(run => run.text).join('')).join('\n') : label.text
+        const paint = { ...label.paint, ...(label.halo ? { stroke: label.halo.color ?? 'var(--bg)', strokeWidth: String(label.halo.width) } : {}) }
+        const hidden = !textPaints(displayed, paint)
+        const local = hidden ? undefined : connectorInlineLabelVisualBounds(label)
         const [la, lb, lc, ld, le, lf] = composeMatrices(parent, transformMatrix(node.transform))
         const bounds = local && transformedBounds(local, { kind: 'matrix', a: la, b: lb, c: lc, d: ld, e: le, f: lf })
         const measured = !!bounds && finite(bounds)
         const inline: ScenePaintPrimitive = Object.freeze({
           key: `${key}.label.${labelIndex}`, id: label.id ?? `${node.id}:label:${labelIndex}`, kind: 'text', role: 'label',
           owner: primitive.owner, ancestors: primitive.ancestors, order: primitives.length,
-          coverage: measured ? 'measured' : 'unmeasured',
+          coverage: hidden ? 'non-painting' : measured ? 'measured' : 'unmeasured',
           ...(primitive.visibility ? { visibility: primitive.visibility } : {}),
-          ...(measured ? { bounds: Object.freeze(bounds!) } : { reason: 'missing-inline-label-geometry' }),
-          text: Object.freeze({ source: label.block?.prepared.source ?? label.text, displayed: label.block ? label.block.lineBlocks.map(line => line.runs.map(run => run.text).join('')).join('\n') : label.text, measurement: label.block ? 'prepared' : 'fallback' }),
+          ...(measured ? { bounds: Object.freeze(bounds!) } : !hidden ? { reason: 'missing-inline-label-geometry' } : {}),
+          text: Object.freeze({ source: label.block?.prepared.source ?? label.text, displayed, measurement: label.block ? 'prepared' : 'fallback' }),
         })
         sources.set(inline, node)
         primitives.push(inline)
-        if (measured) coverage.measured++
-        else coverage.unmeasured++
-        if (label.block) coverage.preparedText++
-        else coverage.fallbackText++
+        if (hidden) coverage.nonPainting++
+        else {
+          if (measured) coverage.measured++
+          else coverage.unmeasured++
+          if (label.block) coverage.preparedText++
+          else coverage.fallbackText++
+        }
       })
     })
   }
