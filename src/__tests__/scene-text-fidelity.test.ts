@@ -176,7 +176,7 @@ describe('fidelity oracle checks text x/y/anchor', () => {
 
   it('compares complete escaped Timeline literals without mistaking them for markup', () => {
     const make = (semantic: string, crispText: string) => marks.text(
-      { id: 'event', role: 'label', text: semantic, x: 10, y: 20, fontSize: 12, anchor: 'start', paint: {} },
+      { id: 'event', role: 'label', text: semantic, display: 'literal', x: 10, y: 20, fontSize: 12, anchor: 'start', paint: {} },
       `<text x="10" y="20" font-size="12" class="timeline-event-text">${crispText}</text>`,
     )
     const faithful: string[] = []

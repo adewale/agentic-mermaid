@@ -239,6 +239,16 @@ export function nodeProblems(node: SceneNode, path: string, problems: string[]):
       if (fs !== undefined && num(fs) !== node.fontSize) {
         problems.push(`${path}(text:${node.id}).fontSize: semantic ${node.fontSize} != crisp ${fs}`)
       }
+      for (const [attribute, field] of [['font-weight', 'fontWeight'], ['letter-spacing', 'letterSpacing']] as const) {
+        const actual = el.attrs.get(attribute)
+        const expected = node.block?.[field] ?? node[field]
+        if (actual !== undefined && expected !== undefined) {
+          const numeric = attribute === 'font-weight'
+            ? actual === 'normal' ? 400 : actual === 'bold' ? 700 : num(actual)
+            : actual === 'normal' ? 0 : num(actual.replace(/px$/, ''))
+          if (numeric !== expected) problems.push(`${path}(text:${node.id}).${field}: retained ${expected} != crisp ${actual}`)
+        }
+      }
       // Text geometry: semantic x/y/anchor must match the drawn attributes.
       // Every emitter anchors <text> at the semantic point and applies
       // baseline shifts via dy/tspans, so x/y compare exactly (0.5px rounding
@@ -281,12 +291,15 @@ export function nodeProblems(node: SceneNode, path: string, problems: string[]):
       // Crisp markup is the emitter's own SVG elements; authored text in it is
       // entity-escaped, so dropping the elements leaves exactly the drawn text.
       const drawn = (svg: string) => shown(unescapeXml(svg.replace(/<[^>]+>/g, '')))
+      if (node.block) {
+        const actualBlockText = unescapeXml(serialized.replace(/<tspan\b(?![^>]*\bdata-text-fragment=)[^>]*\s(?:x|dy)="[^"]*"[^>]*>/g, '\n').replace(/<[^>]+>/g, '')).replace(/\s+/g, ' ').trim()
+        if (node.block.lineBlocks.map(line => line.runs.map(run => run.text).join('')).join(' ').replace(/\s+/g, ' ').trim() !== actualBlockText) problems.push(`${path}(text:${node.id}).block: retained prepared text differs from actual SVG`)
+      }
       if (node.prepared) {
         const expected = (node.preparedLines ? node.preparedLines.map(line => line.map(run => run.text).join('')).join('\n') : displayText(node.text, node.display)).replace(/\s+/g, ' ').trim()
         const actual = unescapeXml(serialized
           .replace(/<tspan\b(?![^>]*\bdata-text-fragment=)[^>]*\s(?:x|dy)="[^"]*"[^>]*>/g, '\n')
           .replace(/<[^>]+>/g, '')).replace(/\s+/g, ' ').trim()
-        if (node.block && node.block.lineBlocks.map(line => line.runs.map(run => run.text).join('')).join(' ').replace(/\s+/g, ' ').trim() !== actual) problems.push(`${path}(text:${node.id}).block: retained prepared text differs from actual SVG`)
         if (actual !== expected) problems.push(`${path}(text:${node.id}): prepared text "${expected.slice(0, 40)}" differs from crisp "${actual.slice(0, 40)}"`)
       } else if (node.role === 'member') {
         // Class members are literal source text, not emphasis markup. Compare

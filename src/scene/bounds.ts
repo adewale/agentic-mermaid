@@ -309,6 +309,7 @@ export function nodeWorldBounds(node: SceneNode): AxisAlignedBox | undefined {
 }
 
 function transformedBounds(box: AxisAlignedBox, transform?: SceneTransform): AxisAlignedBox | undefined {
+  if (![box.x0, box.y0, box.x1, box.y1].every(Number.isFinite)) return undefined
   if (!transform) return box
   if (transform.kind === 'rotate') return rotateBoxBounds(box, { x: transform.cx, y: transform.cy }, transform.angle)
   const m = transformMatrix(transform)
@@ -338,7 +339,8 @@ function paintedStrokeExtent(paint: MarkPaint, hasJoins: boolean): number | unde
   const join = hasJoins && (miter === 'miter' || miter === 'miter-clip') ? half * limit : half
   // A square cap rotated relative to the axes can extend sqrt(2)*half on
   // either axis. Round/butt caps stay inside the half-width envelope.
-  return Math.max(join, paint.strokeLinecap === 'square' ? half * Math.SQRT2 : half)
+  const extent = Math.max(join, paint.strokeLinecap === 'square' ? half * Math.SQRT2 : half)
+  return Number.isFinite(extent) ? extent : undefined
 }
 
 function paintedBox(box: AxisAlignedBox, extent: number, nonScaling: boolean, transform?: SceneTransform): AxisAlignedBox | undefined {
@@ -403,7 +405,8 @@ function paintBounds(node: SceneNode, parentTransform?: SceneTransform): AxisAli
     if (!node.conditionalPaint) return base
     const alternate = paintedStrokeExtent(node.conditionalPaint, ['polygon', 'polyline', 'path', 'compound'].includes(node.geometry.kind))
     if (!base || alternate === undefined) return undefined
-    return unionSceneBounds(base, paintedBox(local, alternate, node.conditionalPaint.vectorEffect === 'non-scaling-stroke', transform))
+    const alternateBounds = paintedBox(local, alternate, node.conditionalPaint.vectorEffect === 'non-scaling-stroke', transform)
+    return alternateBounds ? unionSceneBounds(base, alternateBounds) : undefined
   } else if (node.kind === 'connector') {
     return connectorPaintBounds(node, transform)
   } else if (node.kind === 'text') {
