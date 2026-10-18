@@ -31,10 +31,38 @@ import { renderPngGraphicalProjection, renderPortablePngGraphicalProjection } fr
 import { decodePng } from './helpers/png-pixels.ts'
 import { createRenderPngTool, validateMcpToolArguments } from '../mcp/tool-surface.ts'
 import { PNG_CLI_FLAG_BINDINGS } from '../cli/index.ts'
+import { ensureWebsiteBuilt } from './website-public-fixture.ts'
 
 const SOURCE = 'flowchart LR\n  A[Start] --> B[Finish]'
 
 describe('canonical PNG output-option authority', () => {
+  test('initializes the hosted styled PNG adapter in a fresh process', () => {
+    ensureWebsiteBuilt()
+    const adapter = join(import.meta.dir, '..', '..', 'website', 'src', 'png-wasm.ts')
+    const probe = `
+      import { readFileSync } from 'node:fs'
+      Bun.plugin({ name: 'worker-resources', setup(build) {
+        build.onLoad({ filter: /\\.(?:ttf|wasm)$/ }, ({ path }) => {
+          const file = readFileSync(path)
+          const bytes = file.buffer.slice(file.byteOffset, file.byteOffset + file.byteLength)
+          return { loader: 'object', exports: {
+            default: path.endsWith('.wasm') ? new WebAssembly.Module(bytes) : bytes,
+          } }
+        })
+      } })
+      const { renderMermaidPNGWasm } = await import(${JSON.stringify(adapter)})
+      const artifact = await renderMermaidPNGWasm('flowchart LR\\n A --> B', {
+        style: 'hand-drawn', scale: 0.1, minLabelPx: 0,
+      })
+      console.log(JSON.stringify({ bytes: artifact.png.byteLength,
+        backend: artifact.receipt.executionDecision.backend.selectedId }))
+    `
+    const result = spawnSync(process.execPath, ['--eval', probe], { encoding: 'utf8' })
+    expect(result.status, result.stderr).toBe(0)
+    expect(JSON.parse(result.stdout)).toMatchObject({ backend: 'backend:rough' })
+    expect(JSON.parse(result.stdout).bytes).toBeGreaterThan(0)
+  }, 60000)
+
   test('projects exact portable, native-policy, and native-host field sets', () => {
     expect(PNG_OUTPUT_OPTION_FIELDS).toEqual([
       'scale', 'background', 'fitTo', 'minLabelPx', 'fontDirs', 'loadSystemFonts', 'onWarning',

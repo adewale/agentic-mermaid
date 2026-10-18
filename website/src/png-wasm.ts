@@ -8,6 +8,9 @@
 // Worker-only module: the .wasm/.ttf imports resolve via wrangler bundling
 // rules. build.ts copies the artifacts into ./generated/.
 
+// This adapter can load before the MCP server. Enroll its render descriptors
+// explicitly instead of depending on the server's full family registry.
+import '../../src/browser-lazy/generated/synchronous.ts'
 import { initWasm, Resvg } from '@resvg/resvg-wasm'
 import resvgWasmModule from './generated/resvg.wasm'
 import fontInterRegular from './generated/Inter-Regular.ttf'
