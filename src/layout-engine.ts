@@ -1,4 +1,6 @@
+import { resolveLabelContent, type DisplayTextInput } from './shared/display-text.ts'
 import { graphTextBlock } from './graph-text.ts'
+import type { PixelTextBlock } from './shared/prepared-text.ts'
 import { assertMermaidGraphWork, DiagramWorkLimitError } from './shared/diagram-limits.ts'
 /**
  * Layout engine for Agentic Mermaid (ELK.js based).
@@ -198,9 +200,9 @@ function sourceAwareNodeOrder(nodeIds: string[], edges: Array<Pick<MermaidEdge, 
 // Node sizing (same logic as Dagre adapter)
 // ============================================================================
 
-function estimateNodeSize(id: string, label: string, shape: string, style: ResolvedRenderStyle, direction: Direction = 'TB', stateVisual?: ResolvedStateVisualConfig): { width: number; height: number } {
+function estimateNodeSize(id: string, label: DisplayTextInput, shape: string, style: ResolvedRenderStyle, direction: Direction = 'TB', stateVisual?: ResolvedStateVisualConfig, labelBlock?: PixelTextBlock): { width: number; height: number } {
   void id
-  const metrics = graphTextBlock(label, style, 'node')
+  const metrics = labelBlock ?? graphTextBlock(label, style, 'node')
 
   // State pseudostates (plan §State 2): fork/join bars run PERPENDICULAR to
   // the flow (wide+thin in vertical flows, tall+thin in horizontal flows);
@@ -397,7 +399,7 @@ function corankFanInBalancingLabels(
     let width = 0
     let height = 0
     for (const i of labeled) {
-      const metrics = graphTextBlock(graph.edges[i]!.label!, style, 'edge')
+      const metrics = graphTextBlock(resolveLabelContent(graph.edges[i]!.label!, graph.edges[i]!.labelContent), style, 'edge')
       const label = metrics.text
       width = Math.max(width, metrics.width + 8)
       height = Math.max(height, metrics.height + 6)
@@ -659,7 +661,7 @@ function mermaidToElk(
       targets: [routePortHints.byEndpoint.get(endpointKey(index, 'target'))?.portId ?? edge.target],
     }
     if (edge.label && !layoutEnvFlag('APL_DECOUPLE_LABELS')) {
-      const metrics = graphTextBlock(edge.label, style, 'edge')
+      const metrics = graphTextBlock(resolveLabelContent(edge.label, edge.labelContent), style, 'edge')
       const label = metrics.text
       elkEdge.labels = [{
         text: label,
@@ -881,7 +883,7 @@ function elkPortSide(side: 'N' | 'E' | 'S' | 'W'): 'NORTH' | 'EAST' | 'SOUTH' | 
 }
 
 function nodeToElkLeaf(id: string, node: MermaidNode, style: ResolvedRenderStyle, hints: RoutePortHints, direction: Direction = 'TB', stateVisual?: ResolvedStateVisualConfig): ElkGraphNode {
-  const size = estimateNodeSize(id, node.label, node.shape, style, direction, stateVisual)
+  const size = estimateNodeSize(id, resolveLabelContent(node.label, node.labelContent), node.shape, style, direction, stateVisual, node.labelBlock)
   const elkNode: ElkGraphNode = {
     id,
     width: size.width,
@@ -917,7 +919,7 @@ function crossHierarchyElkEdge(
     targets: targetSubgraph && targetSubgraph !== hostSubgraph ? [`${targetSubgraph}_in_${index}`] : [edge.target],
   }
   if (edge.label && !layoutEnvFlag('APL_DECOUPLE_LABELS')) {
-    const metrics = graphTextBlock(edge.label, style, 'edge')
+    const metrics = graphTextBlock(resolveLabelContent(edge.label, edge.labelContent), style, 'edge')
     const label = metrics.text
     elkEdge.labels = [{
       text: label,
@@ -944,9 +946,9 @@ function usesSeparateHierarchy(graph: MermaidGraph, opts: Pick<ElkConversionOpti
 /** The width a titled group needs so its header title stays inside the frame.
  * A group with nothing in it is laid out without one: it has no frame to hold
  * the title, which is drawn from where the group sits. */
-function groupTitleWidth(sg: Pick<MermaidSubgraph, 'label' | 'concurrencyRegion' | 'titleOffset' | 'nodeIds' | 'children'>, style: ResolvedRenderStyle): number {
+function groupTitleWidth(sg: Pick<MermaidSubgraph, 'label' | 'labelContent' | 'concurrencyRegion' | 'titleOffset' | 'nodeIds' | 'children'>, style: ResolvedRenderStyle): number {
   if (!sg.label || sg.concurrencyRegion || (sg.nodeIds.length === 0 && sg.children.length === 0)) return 0
-  const width = graphTextBlock(sg.label, style, 'group').width
+  const width = graphTextBlock(resolveLabelContent(sg.label, sg.labelContent), style, 'group').width
   return Math.ceil((sg.titleOffset ?? style.groupLabelPaddingX) + width + style.groupLabelPaddingX)
 }
 
@@ -978,7 +980,7 @@ function subgraphToElk(
 ): ElkGraphNode {
   // Concurrency regions draw no header band of their own, so they reserve
   // only the plain padding at the top (plan §State 2c).
-  const groupBlock = graphTextBlock(sg.label, style, 'group')
+  const groupBlock = graphTextBlock(resolveLabelContent(sg.label, sg.labelContent), style, 'group')
   const groupHeaderHeight = sg.concurrencyRegion ? 0 : style.groupHeaderFontSize + 16 + groupBlock.height - groupBlock.lineHeight
   const dividerMargin = sg.concurrencyRegion ? (opts.stateVisual?.dividerMargin ?? 0) : 0
   // Effective direction of THIS scope — drives direction-dependent node
@@ -1057,7 +1059,7 @@ function subgraphToElk(
       targets: [routePortHints.byEndpoint.get(endpointKey(index, 'target'))?.portId ?? edge.target],
     }
     if (edge.label && !layoutEnvFlag('APL_DECOUPLE_LABELS')) {
-      const metrics = graphTextBlock(edge.label, style, 'edge')
+      const metrics = graphTextBlock(resolveLabelContent(edge.label, edge.labelContent), style, 'edge')
       const label = metrics.text
       elkEdge.labels = [{
         text: label,
@@ -1423,10 +1425,10 @@ export const LAYOUT_PIPELINE: ReadonlyArray<LayoutPass<LayoutPassContext>> = [
 
 /** Prepared text survives all subsequent geometry-only passes. */
 function retainGraphText(positioned: Pick<PositionedGraph, 'nodes' | 'edges' | 'groups'>, style: ResolvedRenderStyle): void {
-  for (const node of positioned.nodes) node.labelBlock ??= graphTextBlock(node.label, style, 'node')
-  for (const edge of positioned.edges) if (edge.label !== undefined) edge.labelBlock ??= graphTextBlock(edge.label, style, 'edge')
+  for (const node of positioned.nodes) node.labelBlock ??= graphTextBlock(resolveLabelContent(node.label, node.labelContent), style, 'node')
+  for (const edge of positioned.edges) if (edge.label !== undefined) edge.labelBlock ??= graphTextBlock(resolveLabelContent(edge.label, edge.labelContent), style, 'edge')
   const group = (value: PositionedGroup): void => {
-    value.labelBlock ??= graphTextBlock(value.label, style, 'group')
+    value.labelBlock ??= graphTextBlock(resolveLabelContent(value.label, value.labelContent), style, 'group')
     value.headerHeight = value.concurrencyRegion ? 0 : style.groupHeaderFontSize + 16 + value.labelBlock.height - value.labelBlock.lineHeight
     value.children.forEach(group)
   }
@@ -1516,7 +1518,7 @@ function placeStateNotes(
     const anchor = node ?? group
     if (!anchor) continue
 
-    const metrics = graphTextBlock(spec.text, style, 'note')
+    const metrics = graphTextBlock(resolveLabelContent(spec.text, spec.textContent), style, 'note')
     const w = metrics.width + NOTE_PADDING_X * 2
     const h = metrics.height + NOTE_PADDING_Y * 2
     const y = anchor.y + (anchor.height - h) / 2
@@ -1533,7 +1535,7 @@ function placeStateNotes(
       x = spec.side === 'left' ? hit.x - NOTE_CLEARANCE - w : hit.x + hit.w + NOTE_CLEARANCE
     }
 
-    placed.push({ id: spec.id, target: spec.target, side: spec.side, text: spec.text, textBlock: metrics, x, y, width: w, height: h })
+    placed.push({ id: spec.id, target: spec.target, side: spec.side, text: spec.text, ...(spec.textContent ? { textContent: spec.textContent } : {}), textBlock: metrics, x, y, width: w, height: h })
   }
 
   // Uniform shift when any note went negative (left-side notes beside the
@@ -1685,6 +1687,7 @@ function extractNodesAndGroups(
       groups.push({
         id: child.id,
         label: mermaidSg?.label ?? '',
+        ...(mermaidSg?.labelContent ? { labelContent: mermaidSg.labelContent } : {}),
         x,
         y,
         width,
@@ -1704,6 +1707,8 @@ function extractNodesAndGroups(
         nodes.push({
           id: child.id,
           label: mNode.label,
+          ...(mNode.labelContent ? { labelContent: mNode.labelContent } : {}),
+          ...(mNode.labelBlock ? { labelBlock: mNode.labelBlock } : {}),
           shape: mNode.shape,
           ...(mNode.semanticShape !== undefined ? { semanticShape: mNode.semanticShape } : {}),
           x,

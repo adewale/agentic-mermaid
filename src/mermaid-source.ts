@@ -9,6 +9,7 @@
 //   - normalized, trimmed diagram lines for downstream parsers
 // ============================================================================
 
+import { scanStateComments } from './state/comment.ts'
 import YAML from 'yaml'
 import { detectInstalledFamilyFromFirstLine } from './agent/family-router.ts'
 import type { FamilyId } from './agent/types.ts'
@@ -535,7 +536,10 @@ export function normalizeMermaidSource(
   const accessibilityScan = scanAccessibilityDirectives(accessibilityLines)
   const envelope = sourceEnvelopeMetadata(text, accessibilityScan.accessibility)
   const familyBody = accessibilityScan.familyLines.join('\n')
-  const familyLines = toMermaidLines(familyBody)
+  const state = /^stateDiagram(?:-v2)?(?=$|[\s;%])/i.test(processed.lines[0] ?? '')
+  const familyLines = state
+    ? scanStateComments(accessibilityScan.familyLines).filter(line => line.noteBody || line.text.length > 0).map(line => line.text)
+    : toMermaidLines(familyBody)
 
   return {
     originalText: text,
@@ -596,6 +600,7 @@ function sourceEnvelopeMetadata(text: string, accessibility: MermaidSourceAccess
   const firstStatement = lines.find(line => line.trim().length > 0 && !COMMENT_LINE_REGEX.test(line))?.trim() ?? ''
   const stateComments = /^stateDiagram(?:-v2)?(?=$|[\s;%])/i.test(firstStatement)
   const sequenceComments = /^sequenceDiagram\b/i.test(firstStatement)
+  const stateLines = stateComments ? scanStateComments(lines) : undefined
   const recordPackedSequenceComment = (source: string, physicalLine: number): void => {
     if (!sequenceComments) return
     const comment = splitSequenceStatementLines([source])
@@ -611,13 +616,14 @@ function sourceEnvelopeMetadata(text: string, accessibility: MermaidSourceAccess
       continue
     }
     const line = lines[index]!
+    const stateLine = stateLines?.[index]
+    if (stateLine) {
+      if (stateLine.commentIndex >= 0) comments.push({ text: line.slice(stateLine.commentIndex + 2).trim(), line: index + 1 })
+      continue
+    }
     const comment = line.match(COMMENT_LINE_REGEX)
     if (comment) comments.push({ text: comment[1]!, line: index + 1 })
     else if (sequenceComments) recordPackedSequenceComment(line, index + 1)
-    else if (stateComments) {
-      const marker = line.indexOf('%%')
-      if (marker >= 0) comments.push({ text: line.slice(marker + 2).trim(), line: index + 1 })
-    }
   }
 
   let wrapperEnd = frontmatterEnd

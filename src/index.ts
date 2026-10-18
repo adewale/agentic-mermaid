@@ -19,6 +19,8 @@
 // browser entry intentionally does not import this module.
 import './agent/families.ts'
 
+export type { LabelContent, PreparedDisplayText, DisplayRun } from './shared/display-text.ts'
+
 export type { RenderOptions, RenderContext, ConfigDiagnostic, MermaidGraph, PositionedDiagram, PositionedGraph, RouteCertificate, EdgeRouteCertificate, FamilyEdgeRouteCertificate, RegionContainmentCertificate, FamilyRouteCertificate, LayoutRouteCertificate, LayoutRouteClass, RouteClass, RouteBlocker, RoutePortAssignment, PortSemanticRole, AnyPort, PortSide, DiamondFacet } from './types.ts'
 export type { ArchitectureVisualOverrides } from './architecture/config.ts'
 export type { DiagramColors, ResolvedColors } from './theme.ts'

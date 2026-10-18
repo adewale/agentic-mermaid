@@ -36,12 +36,14 @@ import type {
 } from './types.ts'
 import { ok, err } from './types.ts'
 import { labelOverflowCollector } from './body-utils.ts'
-import { classCommentRejections, classDiagramHasStatement, parseClassBodyAnnotationToken, parseClassRelationship, readClassStatements, supportedRelationEndpoint } from '../class/parser.ts'
+import { prepareDisplayText, resolveLabelContent } from '../shared/display-text.ts'
+import { classCommentRejections, classDiagramHasStatement, parseClassBodyAnnotationToken, parseClassMember, parseClassRelationship, readClassStatements, supportedRelationEndpoint } from '../class/parser.ts'
 import type { ClassStatementNode } from '../class/parser.ts'
 import { parseMutableStyleProps, serializeStyleProps, unsafeStylePaintError } from '../shared/style-props.ts'
 import { decodeXML } from 'entities'
 import { toMermaidLines } from '../mermaid-source-wrapper.ts'
 import { parseAccessibilityDirective } from '../shared/accessibility-directives.ts'
+import { classTextLabel, decodeClassText, memberToString, writeClassText } from '../class/text.ts'
 
 // ---- Parser ---------------------------------------------------------------
 
@@ -49,8 +51,11 @@ function projectClassRelation(shared: NonNullable<ReturnType<typeof parseClassRe
   return {
     from: shared.from, to: shared.to, kind: shared.type as ClassRelationKind,
     ...(shared.label ? { label: shared.label } : {}),
+    ...(shared.labelContent ? { labelContent: shared.labelContent } : {}),
     ...(shared.fromCardinality ? { fromCardinality: shared.fromCardinality } : {}),
     ...(shared.toCardinality ? { toCardinality: shared.toCardinality } : {}),
+    ...(shared.fromCardinalityContent ? { fromCardinalityContent: shared.fromCardinalityContent } : {}),
+    ...(shared.toCardinalityContent ? { toCardinalityContent: shared.toCardinalityContent } : {}),
     markerAt: shared.markerAt,
     ...(shared.fromType ? { fromKind: shared.fromType as ClassRelationKind } : {}),
     ...(shared.toType ? { toKind: shared.toType as ClassRelationKind } : {}),
@@ -73,11 +78,11 @@ export function parseClassBody(lines: string[]): ClassBody | null {
   const upsert = (id: string, label?: string, generic?: string): ClassNode => {
     let cls = classMap.get(id)
     if (!cls) {
-      cls = { id, label, generic, members: [] }
+      cls = { id, ...(label !== undefined ? classTextLabel(label, false) : { label }), generic, members: [] }
       classMap.set(id, cls)
       body.classes.push(cls)
     } else {
-      if (label !== undefined) cls.label = label
+      if (label !== undefined) { delete cls.labelContent; Object.assign(cls, classTextLabel(label, false)) }
       if (generic !== undefined && !cls.generic) cls.generic = generic
     }
     return cls
@@ -113,9 +118,9 @@ export function parseClassBody(lines: string[]): ClassBody | null {
           const namespacePath = [path, ...value.path].filter(Boolean).join('.')
           let namespace = namespaces.find(candidate => candidate.name === namespacePath)
           if (!namespace) {
-            namespace = { name: namespacePath, ...(value.label !== undefined ? { label: value.label } : {}) }
+            namespace = { name: namespacePath, ...(value.label !== undefined ? classTextLabel(value.label, false) : {}) }
             namespaces.push(namespace)
-          } else if (value.label !== undefined) namespace.label = value.label
+          } else if (value.label !== undefined) { delete namespace.labelContent; Object.assign(namespace, classTextLabel(value.label, false)) }
           frames.push({ nodes: node.children!, path: namespacePath, owner: undefined, index: 0 })
           break
         }
@@ -153,7 +158,10 @@ export function parseClassBody(lines: string[]): ClassBody | null {
           // Class note. Keep authored source rather than expose an unsafe edit.
           if (/[\r\n]/.test(value.text)) return false
           if (value.reference) upsert(value.reference.id, undefined, value.reference.generic)
-          body.notes.push({ text: value.text, for: value.reference?.id })
+          {
+            const { label: text, labelContent: textContent } = classTextLabel(value.text, false)
+            body.notes.push({ text, for: value.reference?.id, ...(textContent ? { textContent } : {}) })
+          }
           break
         case 'title': body.title = value.text; break
         case 'relationship': {
@@ -268,13 +276,9 @@ function quoteDirectiveTarget(id: string): string {
   return /^[\w$]+$/.test(id) ? id : `\`${id}\``
 }
 
-function serializeRelationText(text: string): string {
-  return text.replace(/\r\n?|\n/g, '<br/>')
-}
-
 /** Emit one class declaration (+ optional member block) at an indent depth. */
 function pushClassLines(lines: string[], c: ClassNode, indent: string, deferredMembers: string[]): void {
-  const head = `class ${quoteIfNeeded(c.id)}${c.generic ? `~${c.generic}~` : ''}${c.label ? `["${c.label}"]` : ''}`
+  const head = `class ${quoteIfNeeded(c.id)}${c.generic ? `~${c.generic}~` : ''}${c.label ? `["${writeClassText(c.label, c.labelContent)}"]` : ''}`
   if (c.members.length === 0) {
     lines.push(`${indent}${head}`)
   } else if (c.members.some(member => /[{}]/.test(member))) {
@@ -340,12 +344,12 @@ export function renderClass(body: ClassBody): string {
     const segments = relativePath.split('.')
     const levels = segments.every(segment => /^[\w$]+$/.test(segment)) ? 1 : segments.length
     if (segments.every(segment => /^[\w$]+$/.test(segment))) {
-      lines.push(`${'  '.repeat(frame.depth)}namespace ${relativePath}${ns.label !== undefined ? `["${ns.label}"]` : ''} {`)
+      lines.push(`${'  '.repeat(frame.depth)}namespace ${relativePath}${ns.label !== undefined ? `["${writeClassText(ns.label, ns.labelContent)}"]` : ''} {`)
     } else {
       // Preserve each path atom: quoting the entire dotted path would turn a
       // nested namespace into one flat name.
       segments.forEach((segment, index) => {
-        const label = index === segments.length - 1 && ns.label !== undefined ? `["${ns.label}"]` : ''
+        const label = index === segments.length - 1 && ns.label !== undefined ? `["${writeClassText(ns.label, ns.labelContent)}"]` : ''
         lines.push(`${'  '.repeat(frame.depth + index)}namespace ${quoteDirectiveTarget(segment)}${label} {`)
       })
     }
@@ -368,15 +372,17 @@ export function renderClass(body: ClassBody): string {
   // Notes can introduce a class on read. Emit them after declarations so a
   // reload cannot move their target ahead of the authored class identities.
   for (const n of body.notes) {
-    const text = n.text.replace(/&/g, '&amp;').replace(/\\/g, '&#92;').replace(/"/g, '&quot;')
+    const text = n.textContent || /#\w+;/.test(n.text)
+      ? writeClassText(n.text, n.textContent, '"&\\')
+      : n.text.replace(/&/g, '&amp;').replace(/\\/g, '&#92;').replace(/"/g, '&quot;')
     if (n.for) lines.push(`  note for ${quoteIfNeeded(n.for)} "${text}"`)
     else lines.push(`  note "${text}"`)
   }
   for (const r of body.relations) {
     const arrow = arrowForRelation(r)
-    const left = r.fromCardinality ? `${quoteIfNeeded(r.from)} "${serializeRelationText(r.fromCardinality)}"` : quoteIfNeeded(r.from)
-    const right = r.toCardinality ? `"${serializeRelationText(r.toCardinality)}" ${quoteIfNeeded(r.to)}` : quoteIfNeeded(r.to)
-    const label = r.label ? ` : ${serializeRelationText(r.label)}` : ''
+    const left = r.fromCardinality ? `${quoteIfNeeded(r.from)} "${writeClassText(r.fromCardinality, r.fromCardinalityContent)}"` : quoteIfNeeded(r.from)
+    const right = r.toCardinality ? `"${writeClassText(r.toCardinality, r.toCardinalityContent)}" ${quoteIfNeeded(r.to)}` : quoteIfNeeded(r.to)
+    const label = r.label ? ` : ${writeClassText(r.label, r.labelContent, ':;"')}` : ''
     lines.push(`  ${left} ${arrow} ${right}${label}`)
   }
   for (const [name, style] of Object.entries(body.classDefs ?? {})) lines.push(`  classDef ${name} ${serializeStyleProps(style)}`)
@@ -398,6 +404,7 @@ function cloneClass(body: ClassBody): ClassBody {
     title: body.title,
     classes: body.classes.map(c => ({
       id: c.id, label: c.label, generic: c.generic, members: [...c.members], namespace: c.namespace,
+      ...(c.labelContent ? { labelContent: c.labelContent } : {}),
       ...(c.className ? { className: c.className } : {}),
       ...(c.style ? { style: { ...c.style } } : {}),
       ...(c.href ? { href: c.href } : {}),
@@ -701,13 +708,17 @@ export function verifyClass(body: ClassBody, opts: VerifyOptions): LayoutWarning
 
   const ids = new Set(body.classes.map(c => c.id))
   for (const c of body.classes) {
-    if (c.label) overflow(c.id, c.label)
+    if (c.label) overflow(c.id, resolveLabelContent(c.label, c.labelContent))
     for (let i = 0; i < c.members.length; i++) {
-      overflow(`${c.id}#m${i}`, c.members[i]!)
+      const authored = decodeXML(c.members[i]!)
+      const annotation = parseClassBodyAnnotationToken(authored)
+      const member = annotation === null ? parseClassMember(authored) : null
+      const text = annotation !== null ? `<<${decodeClassText(annotation)}>>` : member ? memberToString(member.member) : ''
+      overflow(`${c.id}#m${i}`, prepareDisplayText(text, 'literal'))
     }
   }
   for (const ns of body.namespaces ?? []) {
-    if (ns.label) overflow(`namespace:${ns.name}`, ns.label)
+    if (ns.label) overflow(`namespace:${ns.name}`, resolveLabelContent(ns.label, ns.labelContent))
   }
   for (let i = 0; i < body.relations.length; i++) {
     const r = body.relations[i]!
@@ -717,11 +728,11 @@ export function verifyClass(body: ClassBody, opts: VerifyOptions): LayoutWarning
         from: ids.has(r.from) ? r.from : undefined, to: ids.has(r.to) ? r.to : undefined,
       })
     }
-    if (r.label) overflow(`rel#${i}`, r.label)
+    if (r.label) overflow(`rel#${i}`, resolveLabelContent(r.label, r.labelContent))
   }
   for (let i = 0; i < body.notes.length; i++) {
     const n = body.notes[i]!
-    overflow(`note#${i}`, n.text)
+    overflow(`note#${i}`, resolveLabelContent(n.text, n.textContent))
     if (n.for && !ids.has(n.for)) {
       warnings.push({ code: 'EDGE_MISANCHORED', edge: `note#${i}->${n.for}`, from: undefined, to: undefined })
     }

@@ -28,6 +28,7 @@ import {
   scanFlowchart,
 } from '../flowchart-lexer.ts'
 import { parseFlowchartLabel, writeFlowchartLabelText } from '../flowchart-labels.ts'
+import type { LabelContent } from '../shared/display-text.ts'
 import { quoteMetadataString } from '../shared/metadata-yaml.ts'
 import type { MermaidGraph, MermaidNode, MermaidEdge, MermaidSubgraph, NodeShape, Direction } from '../types.ts'
 import type {
@@ -451,7 +452,7 @@ export function renderFlowchart(graph: MermaidGraph, headerKind: 'flowchart' | '
   // shape declaration) inside the block first makes round-trip stable.
   const membersDeclared = new Set<string>()
   const renderSubgraph = (sg: MermaidGraph['subgraphs'][number], indent: string) => {
-    lines.push(`${indent}subgraph ${sg.id}${sg.label !== sg.id ? `[${escapeNodeLabel(sg.label)}]` : ''}`)
+    lines.push(`${indent}subgraph ${sg.id}${sg.label !== sg.id ? `[${escapeNodeLabel(sg.label, sg.labelContent)}]` : ''}`)
     if (sg.direction) lines.push(`${indent}  direction ${sg.direction}`)
     for (const child of sg.children) renderSubgraph(child, indent + '  ')
     for (const nid of sg.nodeIds) {
@@ -514,7 +515,7 @@ function renderShape(node: MermaidNode): string {
     const entries = [
       node.icon !== undefined ? `icon: ${quoteMetadataString(node.icon)}` : `img: ${quoteMetadataString(node.image!)}`,
       ...(node.iconForm ? [`form: ${node.iconForm}`] : []),
-      ...(node.label !== node.id ? [`label: ${quoteMetadataLabel(node.label)}`] : []),
+      ...(node.label !== node.id ? [`label: ${quoteMetadataLabel(node.label, node.labelContent)}`] : []),
     ]
     return `@{ ${entries.join(', ')} }`
   }
@@ -522,10 +523,10 @@ function renderShape(node: MermaidNode): string {
   // — the AUTHORED alias round-trips verbatim (repo #44); the label uses the
   // same quoting table as every other emitted label.
   if (node.authoredShape !== undefined) {
-    const label = node.label !== node.id ? `, label: ${quoteMetadataLabel(node.label)}` : ''
+    const label = node.label !== node.id ? `, label: ${quoteMetadataLabel(node.label, node.labelContent)}` : ''
     return `@{ shape: ${node.authoredShape}${label} }`
   }
-  const lbl = escapeNodeLabel(node.label)
+  const lbl = escapeNodeLabel(node.label, node.labelContent)
   switch (node.shape) {
     case 'rectangle': return `[${lbl}]`
     case 'rounded': return `(${lbl})`
@@ -557,16 +558,17 @@ function renderShape(node: MermaidNode): string {
  *  label codec's text (flowchart-labels.ts), which spells `"` as `#quot;`
  *  because upstream's quoted strings have no escapes. A leading backtick is
  *  written `#96;`: `"` and a backtick open a markdown string. */
-function quoteLabel(label: string): string {
-  const text = writeFlowchartLabelText(label)
-  return `"${text.startsWith('`') ? `#96;${text.slice(1)}` : text}"`
+function quoteLabel(label: string, content?: LabelContent): string {
+  const text = writeFlowchartLabelText(label, content)
+  const authoredMarkdown = content?.value === label && content.authored?.startsWith('`') && content.authored.endsWith('`')
+  return `"${text.startsWith('`') && !authoredMarkdown ? `#96;${text.slice(1)}` : text}"`
 }
 
 /** A `@{ label: … }` value: the label codec's text written as the YAML
  *  double-quoted scalar that upstream's `@{}` reader, and ours
  *  (shared/metadata-yaml.ts), reads back. */
-function quoteMetadataLabel(label: string): string {
-  return quoteMetadataString(writeFlowchartLabelText(label))
+function quoteMetadataLabel(label: string, content?: LabelContent): string {
+  return quoteMetadataString(writeFlowchartLabelText(label, content))
 }
 
 /** A `click` href: `"` and `\` backslash-escaped, the form its parser reads
@@ -576,13 +578,13 @@ function quoteValue(value: string): string {
   return `"${normalized.replace(/["\\]/g, '\\$&')}"`
 }
 
-function escapeLabel(label: string): string {
+function escapeLabel(label: string, content?: LabelContent): string {
   // Mermaid rejects an empty quoted label; a lone space trims back to empty.
   if (label === '') return '" "'
   // Upstream rejects a bracket, `|`, `"` or `@` in a bare label, and a leading
   // `~~~` (its invisible-link token).
-  if (/[\[\]{}()|"@]|^~~~/.test(label)) return quoteLabel(label)
-  return writeFlowchartLabelText(label)
+  if (/[\[\]{}()|"@]|^~~~/.test(label) || (content?.value === label && content.authored?.startsWith('`'))) return quoteLabel(label, content)
+  return writeFlowchartLabelText(label, content)
 }
 
 /** `;` separates statements and no bracket shields it in an asymmetric
@@ -591,14 +593,14 @@ function escapeLabel(label: string): string {
  *  ellipse), so a node label or subgraph title holding either is quoted. (A
  *  pipe label needs no quotes for these: the statement splitter skips `|…|`.)
  *  A title's line break stays on the `subgraph` line as `<br>`. */
-function escapeNodeLabel(label: string): string {
-  return /;|^[-/\\]/.test(label) ? quoteLabel(label) : escapeLabel(label)
+function escapeNodeLabel(label: string, content?: LabelContent): string {
+  return /;|^[-/\\]/.test(label) ? quoteLabel(label, content) : escapeLabel(label, content)
 }
 
 function renderEdge(edge: MermaidEdge, nodes: Map<string, MermaidNode>, declaredInline: Set<string>): string {
   const src = inlineNodeRef(edge.source, nodes, declaredInline)
   const dst = inlineNodeRef(edge.target, nodes, declaredInline)
-  const labelPart = edge.label ? `|${escapeLabel(edge.label)}|` : ''
+  const labelPart = edge.label ? `|${escapeLabel(edge.label, edge.labelContent)}|` : ''
   // v11.6 edge identity: the authored `id@` prefix round-trips verbatim.
   const idPrefix = edge.id ? `${edge.id}@` : ''
   return `${src} ${idPrefix}${renderEdgeArrow(edge)}${labelPart} ${dst}`
@@ -705,11 +707,17 @@ export function mutateFlowchart(body: FlowchartBody, op: FlowchartMutationOp): R
     case 'set_label': {
       if (graph.nodes.has(op.target)) {
         const n = graph.nodes.get(op.target)!
+        if (op.label.trim() !== n.label) delete n.labelContent
         graph.nodes.set(op.target, { ...n, label: op.label.trim() })
         return done()
       }
       const idx = findEdgeIndexById(graph, op.target)
-      if (idx >= 0) { graph.edges[idx]!.label = edgeLabelInput(op.label); return done() }
+      if (idx >= 0) {
+        const edge = graph.edges[idx]!, label = edgeLabelInput(op.label)
+        if (label !== edge.label) delete edge.labelContent
+        edge.label = label
+        return done()
+      }
       return err({ code: 'NODE_NOT_FOUND', message: `Target "${op.target}" matches no node or edge` })
     }
     case 'add_edge': {
@@ -979,5 +987,5 @@ function cloneGraph(graph: MermaidGraph): MermaidGraph {
   }
 }
 function cloneSubgraph(sg: MermaidGraph['subgraphs'][number]): MermaidGraph['subgraphs'][number] {
-  return { id: sg.id, label: sg.label, nodeIds: [...sg.nodeIds], children: sg.children.map(cloneSubgraph), direction: sg.direction }
+  return { id: sg.id, label: sg.label, ...(sg.labelContent ? { labelContent: sg.labelContent } : {}), nodeIds: [...sg.nodeIds], children: sg.children.map(cloneSubgraph), direction: sg.direction }
 }

@@ -291,7 +291,7 @@ export function nodeProblems(node: SceneNode, path: string, problems: string[]):
       // entity-escaped, so dropping the elements leaves exactly the drawn text.
       const drawn = (svg: string) => shown(unescapeXml(svg.replace(/<[^>]+>/g, '')))
       if (node.prepared) {
-        const expected = displayText(node.text, node.display).replace(/\s+/g, ' ').trim()
+        const expected = (node.preparedLines ? node.preparedLines.map(line => line.map(run => run.text).join('')).join('\n') : displayText(node.text, node.display)).replace(/\s+/g, ' ').trim()
         const actual = unescapeXml(serialized
           .replace(/<tspan\b(?![^>]*\bdata-text-fragment=)[^>]*\s(?:x|dy)="[^"]*"[^>]*>/g, '\n')
           .replace(/<[^>]+>/g, '')).replace(/\s+/g, ' ').trim()

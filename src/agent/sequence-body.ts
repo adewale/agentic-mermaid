@@ -36,6 +36,7 @@ import { parseAccessibilityDirective } from '../shared/accessibility-directives.
 import { SequenceParticipantFold, type ParticipantEvent, type SequenceParticipantFoldOptions, type SequenceParticipantRecord } from '../sequence/participants.ts'
 import { isSequenceCommentLine, splitSequenceStatementLines } from '../sequence/statements.ts'
 import { appendOpaqueSegment } from './opaque-segments.ts'
+import { normalizeSequenceMessageText, readSequenceText, writeSequenceText } from '../sequence/text.ts'
 
 // ---- Parser -----------------------------------------------------------------
 
@@ -152,8 +153,10 @@ const sequenceOpaqueBlock = (lines: string[]): SequenceStatement => ({ kind: 'op
 /** A folded participant as the typed body's participant; the declaration
  * keyword is kept only where it differs from the visual type. */
 function typedParticipant({ id, label, type: kind, keyword, links }: SequenceParticipantRecord): SequenceParticipant {
+  const text = readSequenceText(label)
   return {
-    id, label, kind,
+    id, label: text.value, kind,
+    ...(text.content ? { labelContent: text.content } : {}),
     ...(keyword && keyword !== kind ? { declaration: keyword } : {}),
     ...(links && Object.keys(links).length > 0 ? { links } : {}),
   }
@@ -169,8 +172,10 @@ function preservedLineEvents(rawLine: string): ParticipantEvent[] {
 }
 
 function sequenceMessageFromParsed(msg: ReturnType<typeof parseSequenceMessageLine> & {}): SequenceMessage {
+  const text = readSequenceText(msg.label.trim())
   return {
-    from: msg.from, to: msg.to, text: msg.label.trim(), style: styleForArrow(msg.arrow),
+    from: msg.from, to: msg.to, text: text.value, style: styleForArrow(msg.arrow),
+    ...(text.content ? { textContent: text.content } : {}),
     arrow: msg.arrow as import('./types.ts').SequenceMessageArrow,
     ...(msg.centralStart ? { centralStart: true } : {}), ...(msg.centralEnd ? { centralEnd: true } : {}),
     ...(msg.activationMark === '+' ? { activate: true } : {}), ...(msg.activationMark === '-' ? { deactivate: true } : {}),
@@ -192,15 +197,18 @@ function parseTypedFragment(entries: SequenceSourceStatement[]): SequenceFragmen
     const inner = entry.syntax
     if (inner?.kind === 'continuation') {
       const continuation = inner.continuation
-      branches.push({ ...(continuation.label ? { label: continuation.label } : {}), messages: [] })
+      const text = readSequenceText(continuation.label)
+      branches.push({ ...(text.value ? { label: text.value } : {}), ...(text.content ? { labelContent: text.content } : {}), messages: [] })
       continue
     }
     if (inner?.kind !== 'message') return null
     branches.at(-1)!.messages.push(sequenceMessageFromParsed(inner.message))
   }
+  const text = readSequenceText(opener.label)
   return {
     fragmentKind,
-    ...(opener.label ? { label: opener.label } : {}),
+    ...(text.value ? { label: text.value } : {}),
+    ...(text.content ? { labelContent: text.content } : {}),
     branches,
     rawLines: entries.map(entry => entry.raw),
   }
@@ -340,9 +348,13 @@ export function renderSequence(body: SequenceBody): string {
 
 function renderFragment(fragment: SequenceFragment): string[] {
   if (fragment.rawLines) return [...fragment.rawLines]
-  const lines = [`  ${fragment.fragmentKind}${fragment.label ? ` ${fragment.label}` : ''}`]
+  const prefix = `  ${fragment.fragmentKind} `
+  const lines = [fragment.label ? prefix + writeSequenceText(fragment.label, fragment.labelContent, prefix) : prefix.trimEnd()]
   fragment.branches.forEach((branch, index) => {
-    if (index > 0) lines.push(`  ${fragment.fragmentKind === 'par' ? 'and' : 'else'}${branch.label ? ` ${branch.label}` : ''}`)
+    if (index > 0) {
+      const branchPrefix = `  ${fragment.fragmentKind === 'par' ? 'and' : 'else'} `
+      lines.push(branch.label ? branchPrefix + writeSequenceText(branch.label, branch.labelContent, branchPrefix) : branchPrefix.trimEnd())
+    }
     for (const message of branch.messages) lines.push(`  ${renderMessage(message).trimStart()}`)
   })
   lines.push('  end')
@@ -354,8 +366,9 @@ function renderParticipant(p: SequenceParticipant, redeclared: boolean): string 
   // The keyword gives its own type; any other type (`actor A@{ "type":
   // "participant" }` included) needs the metadata to survive a re-parse.
   const metadata = p.kind !== tag ? `@{ "type": "${p.kind}" }` : ''
-  const label = p.label.replace(/\r?\n/g, '<br/>')
-  return `  ${tag} ${p.id}${metadata}${label !== p.id || redeclared ? ` as ${label}` : ''}`
+  const prefix = `  ${tag} ${p.id}${metadata}`
+  const label = writeSequenceText(p.label, p.labelContent, `${prefix} as `)
+  return `${prefix}${label !== p.id || redeclared ? ` as ${label}` : ''}`
 }
 
 /** The participant ids a statement names, in the order Mermaid meets them. */
@@ -373,7 +386,8 @@ function statementParticipantIds(statement: SequenceStatement, participants: Seq
 function renderMessage(m: SequenceMessage): string {
   const from = `${m.from}${m.centralStart ? '()' : ''}`
   const to = `${m.centralEnd ? '()' : ''}${m.activate ? '+' : m.deactivate ? '-' : ''}${m.to}`
-  return `  ${from}${m.arrow ?? arrowForStyle(m.style)}${to}: ${m.text}`
+  const prefix = `  ${from}${m.arrow ?? arrowForStyle(m.style)}${to}: `
+  return prefix + writeSequenceText(m.text, m.textContent, prefix)
 }
 
 export function arrowForStyle(s: SequenceMessageStyle): string {
@@ -403,6 +417,9 @@ export function mutateSequence(body: SequenceBody, op: SequenceMutationOp): Resu
   switch (op.kind) {
     case 'add_participant': {
       if (participants.some(p => p.id === op.id)) return err({ code: 'DUPLICATE_PARTICIPANT', message: `Participant "${op.id}" already exists` })
+      if (op.label !== undefined && (!op.label.trim() || /[\r\n]/.test(op.label))) {
+        return err({ code: 'INVALID_OP', message: 'Sequence participant label must be a non-empty single line' })
+      }
       participants.push({ id: op.id, label: op.label ?? op.id, kind: op.participantKind ?? 'participant' })
       // A new participant comes after every existing one: declare it right
       // after the statement that creates the last of them (at the top when
@@ -436,7 +453,7 @@ export function mutateSequence(body: SequenceBody, op: SequenceMutationOp): Resu
       ensureParticipant(participants, op.from)
       ensureParticipant(participants, op.to)
       const index = op.index ?? messages.length
-      messages.splice(index, 0, { from: op.from, to: op.to, text: op.text, style: op.style ?? 'sync' })
+      messages.splice(index, 0, { from: op.from, to: op.to, text: normalizeSequenceMessageText(op.text), style: op.style ?? 'sync' })
       insertMessageStatement(statements, index)
       break
     }
@@ -460,6 +477,7 @@ export function mutateSequence(body: SequenceBody, op: SequenceMutationOp): Resu
       if (!label || /[\r\n]/.test(label)) {
         return err({ code: 'INVALID_OP', message: 'Sequence participant label must be a non-empty single line' })
       }
+      if (p.label !== label || p.labelContent?.value !== p.label) delete p.labelContent
       p.label = label
       // As in Mermaid, a participant's first mention places it and its last
       // aliased declaration names it. The label only survives serialize →
@@ -491,7 +509,10 @@ export function mutateSequence(body: SequenceBody, op: SequenceMutationOp): Resu
     }
     case 'set_message_text': {
       if (op.index < 0 || op.index >= messages.length) return err({ code: 'MESSAGE_NOT_FOUND', message: `No message at index ${op.index}` })
-      messages[op.index]!.text = op.text
+      const message = messages[op.index]!
+      const text = normalizeSequenceMessageText(op.text)
+      if (message.text !== text || message.textContent?.value !== message.text) delete message.textContent
+      message.text = text
       break
     }
     case 'add_fragment': {
@@ -516,7 +537,10 @@ export function mutateSequence(body: SequenceBody, op: SequenceMutationOp): Resu
       if (!target) return err({ code: 'INVALID_OP', message: `No sequence fragment at index ${op.index}` })
       const label = normalizeFragmentLabel(op.label)
       if (!label.ok) return label
+      // A matching setter can follow a direct body edit. Rebuild the source;
+      // valid labelContent still preserves the label's authored spelling.
       delete target.statement.fragment.rawLines
+      if (target.statement.fragment.label !== label.value || target.statement.fragment.labelContent?.value !== target.statement.fragment.label) delete target.statement.fragment.labelContent
       if (label.value) target.statement.fragment.label = label.value
       else delete target.statement.fragment.label
       break
@@ -539,14 +563,18 @@ export function mutateSequence(body: SequenceBody, op: SequenceMutationOp): Resu
       const label = normalizeFragmentLabel(op.label)
       if (!label.ok) return label
       delete target.statement.fragment.rawLines
+      if (branch.value.label !== label.value || branch.value.labelContent?.value !== branch.value.label) delete branch.value.labelContent
       if (op.branchIndex === 0) {
         // Mermaid spells the first branch label on the fragment opener (`alt x`),
         // not on an `else`/`and` continuation line.
+        if (target.statement.fragment.label !== label.value || target.statement.fragment.labelContent?.value !== target.statement.fragment.label) delete target.statement.fragment.labelContent
         if (label.value) target.statement.fragment.label = label.value
         else delete target.statement.fragment.label
         delete branch.value.label
-      } else if (label.value) branch.value.label = label.value
-      else delete branch.value.label
+      } else {
+        if (label.value) branch.value.label = label.value
+        else delete branch.value.label
+      }
       break
     }
     case 'add_fragment_message': {
@@ -559,7 +587,7 @@ export function mutateSequence(body: SequenceBody, op: SequenceMutationOp): Resu
       ensureParticipant(participants, op.from)
       ensureParticipant(participants, op.to)
       delete target.statement.fragment.rawLines
-      branch.value.messages.splice(index, 0, { from: op.from, to: op.to, text: op.text, style: op.style ?? 'sync' })
+      branch.value.messages.splice(index, 0, { from: op.from, to: op.to, text: normalizeSequenceMessageText(op.text), style: op.style ?? 'sync' })
       break
     }
     case 'remove_fragment_message': {
@@ -580,7 +608,9 @@ export function mutateSequence(body: SequenceBody, op: SequenceMutationOp): Resu
       const message = branch.value.messages[op.index]
       if (!message) return err({ code: 'MESSAGE_NOT_FOUND', message: `No fragment message at index ${op.index}` })
       delete target.statement.fragment.rawLines
-      message.text = op.text
+      const text = normalizeSequenceMessageText(op.text)
+      if (message.text !== text || message.textContent?.value !== message.text) delete message.textContent
+      message.text = text
       break
     }
     default: {

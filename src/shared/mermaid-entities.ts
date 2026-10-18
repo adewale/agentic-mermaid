@@ -142,3 +142,10 @@ export function encodeMermaidEntities(text: string, reserved = ''): string {
   }
   return out
 }
+
+/** Re-emit a parsed text payload without turning its entity tokens into
+ * literal codes. Grammar-reserved characters between tokens still need the
+ * strict writer. Callers must validate the authored-value snapshot first. */
+export function encodeMermaidAuthoredEntities(text: string, reserved = ''): string {
+  return text.split(/(#\w+;)/g).map((part, index) => index % 2 ? part : encodeMermaidEntities(part, reserved)).join('')
+}

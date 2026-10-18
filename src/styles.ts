@@ -1,4 +1,4 @@
-import { prepareDisplayText } from './shared/display-text.ts'
+import { prepareDisplayText, type DisplayTextInput, type PreparedDisplayText } from './shared/display-text.ts'
 // ============================================================================
 // Font metrics — character width estimates for Inter at different sizes.
 // Used to approximate text bounding boxes without DOM measurement.
@@ -249,7 +249,11 @@ function textTransform(...values: Array<string | undefined>): TextTransform | un
 
 /** Preserve authored formatting syntax while transforming the complete visible
  * word. Source ranges keep tags from introducing false capitalization points. */
-export function applyTextTransform(text: string, transform: TextTransform | undefined): string {
+export function applyTextTransform(text: string, transform: TextTransform | undefined): string
+export function applyTextTransform(text: PreparedDisplayText, transform: TextTransform | undefined): PreparedDisplayText
+export function applyTextTransform(text: DisplayTextInput, transform: TextTransform | undefined): DisplayTextInput
+export function applyTextTransform(text: DisplayTextInput, transform: TextTransform | undefined): DisplayTextInput {
+  if (typeof text !== 'string') return prepareDisplayText(text, text.display, transform)
   if (!transform) return text
   const prepared = prepareDisplayText(text, 'formatted', transform)
   let cursor = 0, result = ''
@@ -345,7 +349,7 @@ export interface DiagramTitleBand {
 }
 
 export function diagramTitleBand(
-  title: string | undefined,
+  title: DisplayTextInput | undefined,
   style: Pick<ResolvedRenderStyle, 'groupTextTransform' | 'groupLetterSpacing' | 'groupFont'>,
 ): DiagramTitleBand | undefined {
   if (title === undefined) return undefined

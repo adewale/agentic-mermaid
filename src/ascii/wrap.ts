@@ -14,13 +14,14 @@
 // ============================================================================
 
 import { prepareCellText } from './prepared-text.ts'
+import type { DisplayTextInput } from '../shared/display-text.ts'
 
 export { graphemes } from '../shared/graphemes.ts'
 
 export interface WrapOptions { hyphenate?: boolean }
 
 /** Compatibility entry point for already interpreted display text. */
-export function wrapText(text: string, maxWidth: number | undefined, options?: WrapOptions): string[] {
+export function wrapText(text: DisplayTextInput, maxWidth: number | undefined, options?: WrapOptions): string[] {
   return [...prepareCellText(text, { maxWidth, ...options }).lines]
 }
 

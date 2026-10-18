@@ -1,3 +1,4 @@
+import type { LabelContent } from './shared/display-text.ts'
 import type { PixelTextBlock } from './shared/prepared-text.ts'
 import type { MermaidRuntimeConfig } from './mermaid-source.ts'
 import type { DiagramColors } from './theme.ts'
@@ -40,6 +41,7 @@ export interface StateNoteSpec {
   side: 'left' | 'right'
   /** Note text; block-note body lines are joined with '\n'. */
   text: string
+  textContent?: LabelContent
 }
 
 export type Direction = 'TD' | 'TB' | 'LR' | 'BT' | 'RL'
@@ -47,6 +49,9 @@ export type Direction = 'TD' | 'TB' | 'LR' | 'BT' | 'RL'
 export interface MermaidNode {
   id: string
   label: string
+  labelContent?: LabelContent
+  /** Runtime pixel wrapping; the authored label and its display runs stay intact. */
+  labelBlock?: PixelTextBlock
   shape: NodeShape
   /** Mermaid v11 `@{ shape: ... }` semantic shape, normalized to the canonical
    *  short name (e.g. 'sl-rect' for `manual-input`). Set only for
@@ -104,6 +109,7 @@ export interface MermaidEdge {
    *  by remove_edge/set_label as a target selector. */
   id?: string
   label?: string
+  labelContent?: LabelContent
   style: EdgeStyle
   /** Whether to render a marker at the start (source end) of the edge */
   hasArrowStart: boolean
@@ -133,6 +139,7 @@ export type EdgeMarker = 'arrow' | 'circle' | 'cross'
 export interface MermaidSubgraph {
   id: string
   label: string
+  labelContent?: LabelContent
   nodeIds: string[]
   children: MermaidSubgraph[]
   /** Optional direction override for this subgraph's internal layout */
@@ -194,6 +201,7 @@ export interface PositionedStateNote {
   target: string
   side: 'left' | 'right'
   text: string
+  textContent?: LabelContent
   x: number
   y: number
   width: number
@@ -204,6 +212,7 @@ export interface PositionedNode {
   labelBlock?: PixelTextBlock
   id: string
   label: string
+  labelContent?: LabelContent
   shape: NodeShape
   /** Mermaid v11 semantic shape id when the node was declared via
    *  `@{ shape: ... }` metadata — emitted as the SVG data-semantic-shape. */
@@ -229,6 +238,7 @@ export interface PositionedEdge {
   /** Authored Mermaid v11.6 edge ID (`e1@-->`) — SVG identity (data-id). */
   id?: string
   label?: string
+  labelContent?: LabelContent
   style: EdgeStyle
   hasArrowStart: boolean
   hasArrowEnd: boolean
@@ -441,6 +451,7 @@ export interface PositionedGroup {
   labelBlock?: PixelTextBlock
   id: string
   label: string
+  labelContent?: LabelContent
   x: number
   y: number
   width: number

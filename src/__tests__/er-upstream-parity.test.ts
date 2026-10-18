@@ -9,13 +9,15 @@
 // (ER_READ_GENEROUSLY).
 
 import { afterAll, describe, expect, test } from 'bun:test'
-import { asEr, mutate, parseRegisteredMermaid, renderMermaidSVG, serializeMermaid, verifyMermaid } from '../agent/index.ts'
+import { asEr, mutate, parseRegisteredMermaid, renderMermaidSVG, serializeMermaid, verifyMermaid, describeMermaidFacts } from '../agent/index.ts'
 import { parseErDiagram } from '../er/parser.ts'
+import { erAttributeBlocks } from '../er/layout.ts'
 import { normalizeMermaidSource } from '../mermaid-source.ts'
 import { displayText, escapeXml } from '../multiline-utils.ts'
 import { fromEntityMarkers } from '../shared/mermaid-entities.ts'
 import { projectEntityMarkers } from '../shared/mermaid-entity-display.ts'
 import { startUpstreamMermaid } from './helpers/upstream-mermaid.ts'
+import { renderMermaidASCII } from '../index.ts'
 
 const upstream = startUpstreamMermaid()
 afterAll(() => upstream.close())
@@ -241,11 +243,77 @@ describe('ER text as drawn', () => {
     expect(reread.ok && asEr(reread.value)?.body.groups?.[0]?.label).toBe('p*q* r')
   })
 
-  // Known bug (BUG-19's residual): the normalized label form has no spelling
-  // for a literal formatting tag, so a code that spells one formats. Upstream
-  // draws the tag as text.
-  test.failing('an entity code that spells a formatting tag is drawn as text', () => {
-    const diagram = parseErDiagram(normalizeMermaidSource('erDiagram\n  A["#lt;b#gt;x#lt;/b#gt;"]').familyLines)
-    expect(displayText(diagram.entities[0]!.label)).toBe('<b>x</b>')
+  test.each([
+    ['#lt;b#gt;x#lt;/b#gt;', '<b>x</b>'],
+    ['#42;x#42;', '*x*'],
+    ['#lt;br#gt;', '<br>'],
+  ])('an unrelated edit preserves literal %s in aliases, labels and titles', async (authored, visible) => {
+    const source = `erDiagram\n  subgraph G ["${authored}"]\n  A["${authored}"]\n  A ||--o{ B : "${authored}"\n  end`
+    const parsed = parseRegisteredMermaid(source)
+    if (!parsed.ok) throw new Error('fixture rejected')
+    const edited = mutate(parsed.value, { kind: 'add_entity', id: 'C' })
+    if (!edited.ok) throw new Error('edit refused')
+    const written = serializeMermaid(edited.value)
+    expect(await upstream.accepts(written)).toBe(true)
+    for (const candidate of [source, written]) {
+      const reread = parseRegisteredMermaid(candidate)
+      const body = reread.ok && asEr(reread.value)?.body
+      if (!body) throw new Error('structured ER required')
+      expect([body.entities[0]?.label, body.relations[0]?.label, body.groups?.[0]?.label]).toEqual([visible, visible, visible])
+      expect(renderMermaidSVG(candidate)).toContain(escapeXml(visible))
+      expect(renderMermaidASCII(candidate)).toContain(visible)
+    }
+    const reread = parseRegisteredMermaid(written)
+    if (!reread.ok) throw new Error('writer rejected')
+    expect(serializeMermaid(reread.value)).toBe(written)
+  })
+
+  test.each([
+    ['#lt;br#gt;', '<br>', ['<br>']],
+    ['_word_', '_word_', ['_word_']],
+    ['_word_ #9829;', '_word_ ♥', ['_word_ ♥']],
+    ['_word_ #lt;i#gt;tag#lt;/i#gt; #92;n', String.raw`_word_ <i>tag</i> \n`, [String.raw`_word_ <i>tag</i> \n`]],
+    ['_word_<br/>next #9829;', '_word_ next ♥', ['_word_', 'next ♥']],
+  ] as const)('attribute comment %s retains its literal reading through edits, metrics and outputs', async (authored, visible, terminalParts) => {
+    const source = `erDiagram\n  A {\n    string value "${authored}"\n  }`
+    const parsed = parseRegisteredMermaid(source)
+    if (!parsed.ok) throw new Error('comment fixture rejected')
+    const edited = mutate(parsed.value, { kind: 'add_entity', id: 'B' })
+    if (!edited.ok) throw new Error('edit refused')
+    const written = serializeMermaid(edited.value)
+    const reread = parseRegisteredMermaid(written)
+    if (!reread.ok) throw new Error('written comment rejected')
+    expect(describeMermaidFacts(reread.value)).toEqual(describeMermaidFacts(edited.value))
+    expect(serializeMermaid(reread.value)).toBe(written)
+    for (const candidate of [source, written]) {
+      const attribute = parseErDiagram(normalizeMermaidSource(candidate).familyLines).entities[0]!.attributes[0]!
+      expect(erAttributeBlocks(attribute).comment?.text).toBe(visible)
+      expect(renderMermaidSVG(candidate)).toContain(escapeXml(visible))
+      // SVG keeps comments in one row; terminal preserves authored breaks.
+      const terminal = renderMermaidASCII(candidate)
+      for (const part of terminalParts) expect(terminal).toContain(part)
+    }
+    expect(await upstream.accepts(written)).toBe(true)
+  })
+
+  test('same-value ER labels keep literal runs beside markdown and changed labels acquire their own meaning', async () => {
+    const source = 'erDiagram\n A["**real** #42;literal#42; #lt;b#gt;tag#lt;/b#gt;"]'
+    const parsed = parseRegisteredMermaid(source)
+    if (!parsed.ok) throw new Error('fixture rejected')
+    const label = asEr(parsed.value)?.body.entities[0]?.label
+    if (!label) throw new Error('missing alias')
+    const same = mutate(parsed.value, { kind: 'set_entity_label', entity: 'A', label })
+    if (!same.ok) throw new Error('same-value edit refused')
+    const written = serializeMermaid(same.value)
+    expect(await upstream.accepts(written)).toBe(true)
+    expect(renderMermaidASCII(written)).toContain('real *literal* <b>tag</b>')
+    expect(renderMermaidSVG(written)).toContain('&lt;b&gt;tag&lt;/b&gt;')
+    const changed = mutate(same.value, { kind: 'set_entity_label', entity: 'A', label: '**changed** literal #quot;' })
+    if (!changed.ok) throw new Error('changed-label edit refused')
+    const changedSource = serializeMermaid(changed.value)
+    expect(await upstream.accepts(changedSource)).toBe(true)
+    const reparsed = parseRegisteredMermaid(changedSource)
+    expect(reparsed.ok && asEr(reparsed.value)?.body.entities[0]?.label).toBe('**changed** literal #quot;')
+    expect(renderMermaidASCII(changedSource)).toContain('changed literal #quot;')
   })
 })

@@ -129,6 +129,24 @@ describe('bounded final layout certification', () => {
     expect(certifyLayoutCandidates(graph, style, [{ strategy: 'styled', produce: () => clean }]).certification?.status).toBe('passed')
   })
 
+  test.each(['node', 'group', 'edge'] as const)('retained %s text preserves decoded literal meaning through certification', kind => {
+    const graph = parseMermaid('flowchart LR\nsubgraph S["#lt;b#gt;Outer#lt;/b#gt;"]\nA["#lt;i#gt;Alpha#lt;/i#gt;"] -- "#lt;b#gt;mixed case#lt;/b#gt;" --> B[Beta]\nend')
+    const request = resolveRenderRequestForExecution('flowchart LR\nA --> B', { style: { roles: { node: { textTransform: 'uppercase' }, group: { textTransform: 'lowercase' }, edge: { textTransform: 'capitalize' } } } }, 'svg')
+    const options = { styleFace: request.appearance.face }
+    const style = resolveRenderStyle(options)
+    const clean = layoutGraphSync(graph, options)
+    const owner = kind === 'node' ? clean.nodes[0]! : kind === 'group' ? clean.groups[0]! : clean.edges[0]!
+    const expected = kind === 'node' ? '<I>ALPHA</I>' : kind === 'group' ? '<b>outer</b>' : '<B>Mixed Case</B>'
+    expect(owner.labelBlock!.text).toBe(expected)
+    expect(owner.labelBlock!.prepared.source).not.toBe(owner.label)
+    expect(certifyLayoutCandidates(graph, style, [{ strategy: 'literal', produce: () => clean }]).certification?.status).toBe('passed')
+
+    // Re-reading the authored entity source keeps source/display/transform but
+    // loses the family's token decoding. Certification must catch that loss.
+    owner.labelBlock = graphTextBlock(owner.labelBlock!.prepared.source, style, kind)
+    expect(() => certifyLayoutCandidates(graph, style, [{ strategy: 'reinterpreted', produce: () => clean }])).toThrow(/prepared.*text/)
+  })
+
   test.each(['display', 'transform'] as const)('retained text cannot change its prepared %s interpretation', field => {
     const graph = parseMermaid('flowchart LR\nA[<b>Alpha</b>] --> B')
     const invalid = layoutGraphSync(graph)

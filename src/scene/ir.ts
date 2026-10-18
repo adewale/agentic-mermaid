@@ -18,6 +18,7 @@ import type { SvgSemanticAccessibility } from './accessibility.ts'
 import type { PrimitiveRealization } from './capabilities.ts'
 import type { LabelDisplay } from '../multiline-utils.ts'
 import type { PixelTextBlock } from '../shared/prepared-text.ts'
+import type { DisplayRun, LabelContent } from '../shared/display-text.ts'
 
 /** Version of the extension-facing Scene document/mark behavioral contract. */
 export { SCENE_CONTRACT_VERSION } from './version.ts'
@@ -259,6 +260,7 @@ export interface ConnectorStroke {
 export interface ConnectorLabelDescriptor {
   id?: string
   text: string
+  textContent?: LabelContent
   anchor?: ScenePoint
   bounds?: SceneBox
   halo?: { color?: string; width: number }
@@ -312,6 +314,7 @@ export interface ConnectorTerminalMarkerPlacement {
 export interface ConnectorTerminalLabelProjection {
   readonly id?: string
   readonly text: string
+  readonly textContent?: LabelContent
   readonly anchor?: ScenePoint
   readonly bounds?: SceneBox
   readonly halo?: { readonly color?: string; readonly width: number }
@@ -379,6 +382,8 @@ export interface TextMark extends SceneNodeBase {
   letterSpacing?: number
   display?: LabelDisplay
   prepared?: boolean
+  /** Fitted runs, including explicit wrapping/hyphenation, retained for fidelity. */
+  preparedLines?: readonly (readonly DisplayRun[])[]
   /** Measured occupied band from family layout. Source/runs remain in the
    * family block; Scene retains only the geometry needed by its consumers. */
   textLayout?: { width: number; height: number; lineHeight: number; offsetY: number }

@@ -73,6 +73,24 @@ ${label === 'full' ? `
 const typed: ClassMutationOp = op
 declare const relationship: ClassRelation
 const shaft: 'solid' | 'dashed' | undefined = relationship.lineStyle
+// A client can read literal/formatted runs without parsing the compatibility string again.
+function visible(content: LabelContent | undefined): string | undefined {
+  return content?.prepared.lines.map(line => line.map(run => run.text).join('')).join('\\n')
+}
+declare const flow: FlowchartGraph
+declare const sequence: SequenceBody
+declare const er: ErBody
+declare const uml: ClassBody
+const displayed = [
+  visible(flow.nodes.get('A')?.labelContent), visible(flow.edges[0]?.labelContent), visible(flow.subgraphs[0]?.labelContent),
+  visible(sequence.participants[0]?.labelContent), visible(sequence.messages[0]?.textContent),
+  visible(er.entities[0]?.labelContent), visible(er.relations[0]?.labelContent), visible(er.groups?.[0]?.labelContent),
+  visible(uml.classes[0]?.labelContent), visible(uml.namespaces?.[0]?.labelContent), visible(uml.notes[0]?.textContent),
+  visible(relationship.labelContent), visible(relationship.fromCardinalityContent), visible(relationship.toCardinalityContent),
+]
+const authored: string | undefined = relationship.labelContent?.authored
+const sourceStart: number | undefined = relationship.labelContent?.prepared.lines[0]?.[0]?.sourceStart
+const fittedWidth: number | undefined = flow.nodes.get('A')?.labelBlock?.lineBlocks[0]?.width
 ` : ''}
 `
     const options: ts.CompilerOptions = {

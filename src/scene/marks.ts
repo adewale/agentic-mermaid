@@ -21,7 +21,8 @@ import type { DiagramColors } from '../theme.ts'
 import type { SvgSemanticIdentity } from './identity.ts'
 import { ensureSvgIdentity, semanticIdentityForSvg } from './identity.ts'
 import { ensureSvgAccessibility, relationAccessibility, relationAccessibilityForSvg } from './accessibility.ts'
-import { escapeAttr, escapeXml, renderMultilineText } from '../multiline-utils.ts'
+import { displayText, escapeAttr, escapeXml, renderMultilineText } from '../multiline-utils.ts'
+import { resolveLabelContent } from '../shared/display-text.ts'
 import type { LabelDisplay } from '../multiline-utils.ts'
 import { preparePixelText, type PixelTextBlock } from '../shared/prepared-text.ts'
 import {
@@ -344,7 +345,11 @@ export function connector(fields: ConnectorFields, crisp: string): ConnectorMark
     kind: fields.relationship?.kind ?? fields.role,
     direction: fields.relationship?.direction ?? connectorDirection(endpoints, markerStart, markerEnd),
   }
-  const labels = (fields.labels ?? []).map(label => ({ ...label, text: sanitizeDisplayLines(label.text) }))
+  const labels = (fields.labels ?? []).map(label => {
+    const input = resolveLabelContent(label.text, label.textContent)
+    const text = sanitizeDisplayLines(label.text)
+    return { ...label, text, ...(typeof input !== 'string' ? { textContent: { ...label.textContent!, value: text } } : {}) }
+  })
   const identity: SvgSemanticIdentity = {
     id: fields.identity?.id ?? fields.id,
     role: fields.role,
@@ -355,7 +360,7 @@ export function connector(fields: ConnectorFields, crisp: string): ConnectorMark
   const firstLabel = labels[0]
   const accessibleLabel = firstLabel?.visual?.kind === 'inline'
     ? connectorInlineLabelText(firstLabel).lineBlocks.map(line => line.runs.map(run => run.text).join('')).join('\n')
-    : firstLabel?.text
+    : firstLabel ? displayText(resolveLabelContent(firstLabel.text, firstLabel.textContent), firstLabel.display ?? 'literal') : undefined
   const accessibility = relationAccessibility(identity, accessibleLabel)
   const projectedMarkers = projectConnectorMarkerReferences(fields.id, crisp, {
     ...(markerStart ? { start: markerStart.id } : {}),
@@ -553,7 +558,7 @@ export function text(fields: {
     ? relationAccessibility(identity)
     : relationAccessibilityForSvg(crisp, identity)
   const decorated = ensureSvgAccessibility(ensureSvgIdentity(crisp, identity), accessibility)
-  return attachSceneNodeSerialization({ kind: 'text', ...semantic, identity, accessibility, ...(block ? { prepared: true } : {}), fontWeight: weight, letterSpacing: spacing, display, textLayout: { width: measured.width, height: measured.height, lineHeight: measured.lineHeight, offsetY } }, decorated)
+  return attachSceneNodeSerialization({ kind: 'text', ...semantic, identity, accessibility, ...(block ? { prepared: true, preparedLines: block.lineBlocks.map(line => line.runs) } : {}), fontWeight: weight, letterSpacing: spacing, display, textLayout: { width: measured.width, height: measured.height, lineHeight: measured.lineHeight, offsetY } }, decorated)
 }
 
 export function documentContent(fields: {

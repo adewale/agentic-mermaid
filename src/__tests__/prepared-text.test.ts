@@ -1,7 +1,11 @@
 import fc from 'fast-check'
 import { applyTextTransform } from '../styles.ts'
 import { beforeAll, describe, expect, it } from 'bun:test'
-import { prepareDisplayText } from '../shared/display-text.ts'
+import { concatDisplayText, prepareDisplayText, preparedDisplayTextValue, replaceDisplayTextTokens, resolveLabelContent, writeDisplayText } from '../shared/display-text.ts'
+import { decodeMermaidEntities } from '../shared/mermaid-entity-display.ts'
+import { encodeMermaidEntities } from '../shared/mermaid-entities.ts'
+import { prepareCellText } from '../ascii/prepared-text.ts'
+import { labelDisplayLength } from '../agent/label-metrics.ts'
 import { preparePixelText, fitPixelText } from '../shared/prepared-text.ts'
 import { renderMultilineText } from '../multiline-utils.ts'
 import { nodeWorldBounds } from '../scene/bounds.ts'
@@ -18,6 +22,48 @@ beforeAll(() => renderedTextReady())
 const typography = { fontSize: 18, fontWeight: 600 }
 
 describe('prepared display text', () => {
+  it('keeps decoded tags and emphasis literal through fitting, Scene fidelity, metrics and writing', () => {
+    const source = '#lt;b#gt;X#lt;/b#gt; <b>Y</b> #42;z#42; #92;n\nEND'
+    const decode = (text: string) => replaceDisplayTextTokens(prepareDisplayText(text), /#\w+;/g, decodeMermaidEntities)
+    const prepared = decode(source)
+    const visible = '<b>X</b> Y *z* \\n\nEND'
+    expect(preparedDisplayTextValue(prepared)).toBe(visible)
+    expect(prepared.lines[0]!.filter(run => run.bold).map(run => run.text)).toEqual(['Y'])
+    expect(prepared.lines[0]![0]!.clusters![0]).toEqual({ text: '<', sourceStart: 0, sourceEnd: 4 })
+    const block = preparePixelText(prepared, typography)
+    expect(prepareCellText(prepared).lines.join('\n')).toBe(visible)
+    expect(labelDisplayLength(prepared)).toBe(visible.split('\n')[0]!.length)
+    const svg = renderMultilineText(block, 100, 50, typography.fontSize, 'text-anchor="middle"')
+    expect(svg).toContain('&lt;b&gt;X&lt;/b&gt;')
+    expect(svg).toContain('<tspan font-weight="bold">Y</tspan>')
+    const mark = marks.text({ id: 'decoded-literal', role: 'label', text: block.text, block, x: 100, y: 50, fontSize: typography.fontSize, anchor: 'middle', paint: {} }, svg)
+    const problems: string[] = []
+    nodeProblems(mark, 'decoded-literal', problems)
+    expect(problems).toEqual([])
+    const encoded = writeDisplayText(prepared, text => encodeMermaidEntities(text, '<*_~\\'))
+    const reread = decode(encoded.replaceAll('<br>', '\n'))
+    expect(preparedDisplayTextValue(reread)).toBe(visible)
+    expect(reread.lines[0]!.filter(run => run.bold).map(run => run.text)).toEqual(['Y'])
+    const content = { value: '<b>X</b>', prepared }
+    expect(resolveLabelContent(content.value, content)).toBe(prepared)
+    expect(resolveLabelContent('changed', content)).toBe('changed')
+  })
+
+  it('combines literal adornments with prepared content without losing source ranges or casing context', () => {
+    const label = replaceDisplayTextTokens(prepareDisplayText('#lt;b#gt;ß\n<b>end</b>'), /#\w+;/g, decodeMermaidEntities)
+    const combined = concatDisplayText(['1. [', label, ']'])
+    expect(preparedDisplayTextValue(combined)).toBe('1. [<b>ß\nend]')
+    expect(combined.lines[0]![1]!.clusters![0]).toEqual({ text: '<', sourceStart: 4, sourceEnd: 8 })
+    const upper = preparePixelText(combined, { ...typography, transform: 'uppercase' })
+    expect(upper.lineBlocks.map(line => line.runs.map(run => run.text).join(''))).toEqual(['1. [<B>SS', 'END]'])
+    expect(upper.prepared.lines[0]![1]!.clusters!.at(-1)!.sourceEnd).toBe(14)
+    expect(prepareDisplayText(upper.prepared)).toBe(upper.prepared)
+    expect(() => replaceDisplayTextTokens(upper.prepared, /x/g, value => value)).toThrow(/before text transforms/)
+    const inert = replaceDisplayTextTokens(prepareDisplayText('token'), /token/g, () => '\n\u001b')
+    expect(preparedDisplayTextValue(inert)).toBe('??')
+    expect(inert.lines).toHaveLength(1)
+  })
+
   it('keeps source ranges while preparing inert controls for pixel fitting', () => {
     const source = 'a\t<b>b\u001b</b>\r c\nend'
     const prepared = prepareDisplayText(source, 'formatted', 'uppercase')

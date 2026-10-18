@@ -1,7 +1,7 @@
 import { terminalArtifact, serializeTerminalArtifact, type TerminalArtifact } from './terminal-artifact.ts'
 // Terminal sequence layout owns cell bounds before painting. Lexical fragment
 // boundaries distinguish notes and empty sections sharing a message cursor.
-import { parseSequenceDiagram, displayMessageLabel, getSequenceBlockBoundaries } from '../sequence/parser.ts'
+import { parseSequenceDiagram, displayMessageContent, getSequenceBlockBoundaries } from '../sequence/parser.ts'
 import { resolveSequenceBlockScopes } from '../sequence/geometry.ts'
 import type { SequenceMessageHead } from '../sequence/types.ts'
 import type { ResolvedSequenceConfig } from '../sequence/config.ts'
@@ -9,9 +9,10 @@ import type { AsciiConfig, AsciiTheme, ColorMode, CharRole } from './types.ts'
 import { TerminalDocument, type TerminalMarker, type TerminalOwner } from './terminal-document.ts'
 import { visualWidth } from './width.ts'
 import { wrapText } from './wrap.ts'
-import { displayText, normalizeBrTags } from '../multiline-utils.ts'
+import { normalizeBrTags } from '../multiline-utils.ts'
 import { terminalIds } from './identity.ts'
 import { paintTerminalFrame } from './terminal-geometry.ts'
+import { concatDisplayText, prepareDisplayText, resolveLabelContent, type DisplayTextInput } from '../shared/display-text.ts'
 
 interface CellBounds { x: number; y: number; width: number; height: number }
 interface PositionedText extends CellBounds { lines: string[]; index: number; parentId?: string }
@@ -28,21 +29,24 @@ export function renderSequenceTerminal(text: string, config: AsciiConfig, colorM
   diagram.title ??= config.title === undefined ? undefined : normalizeBrTags(config.title)
   if (!diagram.actors.length && !diagram.blocks.length) {
     const empty = new TerminalDocument()
-    if (diagram.title) for (const line of wrapText(displayText(diagram.title), targetWidth)) empty.line([{ text: line, owner: { id: 'title', kind: 'label' }, role: 'text' }])
+    if (diagram.title) for (const line of wrapText(prepareDisplayText(resolveLabelContent(diagram.title, diagram.titleContent)), targetWidth)) empty.line([{ text: line, owner: { id: 'title', kind: 'label' }, role: 'text' }])
     return terminalArtifact(empty, { colorMode, theme, trimEnd: true })
   }
   const generated = terminalIds(diagram.actors.map(actor => actor.id))
   const ascii = config.useAscii
   const actorIndex = new Map(diagram.actors.map((actor, index) => [actor.id, index]))
   const budget = targetWidth === undefined ? undefined : Math.max(1, Math.floor(targetWidth / 3))
-  const prepared = (value: string) => wrapText(displayText(value), budget)
-  const actorLines = diagram.actors.map(actor => prepared(actor.type === 'participant' || actor.type === 'actor' ? actor.label : `«${actor.type}»\n${actor.label}`))
-  const messageLines = diagram.messages.map(message => prepared(displayMessageLabel(message)))
-  const noteLines = diagram.notes.map(note => prepared(note.text))
-  const headerLines = diagram.blocks.map(block => prepared(block.label ? `${block.type} [${block.label}]` : block.type))
-  const dividerLines = diagram.blocks.map(block => block.dividers.map(divider => divider.label ? prepared(`[${divider.label}]`) : ['']))
+  const prepared = (value: DisplayTextInput) => wrapText(prepareDisplayText(value), budget)
+  const actorLines = diagram.actors.map(actor => {
+    const label = prepareDisplayText(resolveLabelContent(actor.label, actor.labelContent))
+    return prepared(actor.type === 'participant' || actor.type === 'actor' ? label : concatDisplayText([`«${actor.type}»\n`, label]))
+  })
+  const messageLines = diagram.messages.map(message => prepared(displayMessageContent(message)))
+  const noteLines = diagram.notes.map(note => prepared(resolveLabelContent(note.text, note.textContent)))
+  const headerLines = diagram.blocks.map(block => prepared(block.label ? concatDisplayText([`${block.type} [`, prepareDisplayText(resolveLabelContent(block.label, block.labelContent)), ']']) : block.type))
+  const dividerLines = diagram.blocks.map(block => block.dividers.map(divider => divider.label ? prepared(concatDisplayText(['[', prepareDisplayText(resolveLabelContent(divider.label, divider.labelContent)), ']'])) : ['']))
   const actorWidths = actorLines.map(lines => Math.max(0, ...lines.map(visualWidth)) + 4)
-  const boxHeaders = (diagram.boxes ?? []).map(box => box.label ? prepared(box.label) : [])
+  const boxHeaders = (diagram.boxes ?? []).map(box => box.label ? prepared(resolveLabelContent(box.label, box.labelContent)) : [])
   diagram.boxes?.forEach((box, index) => {
     const members = diagram.actors.flatMap((actor, ai) => actor.box === index ? [ai] : [])
     if (members.length !== 1) return
@@ -321,7 +325,7 @@ export function renderSequenceTerminal(text: string, config: AsciiConfig, colorM
     doc.textBlock(positioned.x + 2, positioned.y + 1, positioned.lines, { owner: element, role: 'text', kind: 'text' })
   }
   if (diagram.title) {
-    const lines = wrapText(displayText(diagram.title), targetWidth)
+    const lines = wrapText(prepareDisplayText(resolveLabelContent(diagram.title, diagram.titleContent)), targetWidth)
     const titled = new TerminalDocument(Math.max(doc.width, ...lines.map(visualWidth)), doc.height + lines.length + 1)
     const element = owner('title', 'label')
     titled.scope(element, () => lines.forEach((line, y) => titled.text(Math.floor((titled.width - visualWidth(line)) / 2), y, line, { role: 'text', kind: 'text' })))

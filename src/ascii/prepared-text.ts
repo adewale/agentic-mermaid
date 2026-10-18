@@ -1,4 +1,4 @@
-import { prepareDisplayText, type PreparedDisplayText } from '../shared/display-text.ts'
+import { prepareDisplayText, type DisplayTextInput, type PreparedDisplayText } from '../shared/display-text.ts'
 import type { LabelDisplay } from '../multiline-utils.ts'
 import type { TextTransform } from '../types.ts'
 import { graphemes } from '../shared/graphemes.ts'
@@ -28,7 +28,7 @@ export interface CellTextBlock {
 /** Cell fitting consumes the same display reading as pixel fitting. A wide
  * cluster remains whole even when a hard budget will subsequently refuse it.
  * Soft breaks retain the source range and any replaced separator. */
-export function prepareCellText(source: string, options: CellTextOptions = {}): CellTextBlock {
+export function prepareCellText(source: DisplayTextInput, options: CellTextOptions = {}): CellTextBlock {
   const prepared = prepareDisplayText(source, options.display ?? 'literal', options.transform)
   const limit = options.maxWidth && Number.isFinite(options.maxWidth) && options.maxWidth > 0 ? Math.max(1, Math.floor(options.maxWidth)) : Infinity
   const lines: string[] = [], breaks: CellTextBreak[] = []

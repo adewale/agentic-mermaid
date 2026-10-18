@@ -1,8 +1,9 @@
+import { resolveLabelContent, type DisplayTextInput } from '../shared/display-text.ts'
 import { terminalArtifact, serializeTerminalArtifact, type TerminalArtifact } from './terminal-artifact.ts'
 // Class layout keeps integer cards, endpoint demand and label rectangles
 // authoritative before emitting owned terminal primitives.
 import { parseClassDiagram, classRelationshipLineStyle } from '../class/parser.ts'
-import { memberToString } from '../class/layout.ts'
+import { memberToString } from '../class/text.ts'
 import type { ClassNode, ClassNamespace, RelationshipType } from '../class/types.ts'
 import type { AsciiConfig, AsciiTheme, ColorMode } from './types.ts'
 import { TerminalDocument, type TerminalMarker, type TerminalOwner } from './terminal-document.ts'
@@ -22,7 +23,7 @@ interface PlacedNamespace extends TerminalBox { labelLines: string[]; parentId?:
 function classSections(cls: ClassNode, width?: number): string[][] {
   const header = [
     ...(cls.annotation === undefined ? [] : wrapText(`<<${cls.annotation}>>`, width)),
-    ...wrapText(displayText(cls.label), width),
+    ...wrapText(displayText(resolveLabelContent(cls.label, cls.labelContent)), width),
   ]
   const attrs = cls.attributes.flatMap(member => wrapText(memberToString(member), width))
   const methods = cls.methods.flatMap(member => wrapText(memberToString(member), width))
@@ -52,14 +53,14 @@ export function renderClassTerminal(text: string, config: AsciiConfig, colorMode
   const namespaceIds = (items: ClassNamespace[], parent = ''): string[] => items.flatMap(item => { const id = parent ? `${parent}.${item.name}` : item.name; return [id, ...namespaceIds(item.children, id)] })
   const generated = terminalIds([...diagram.classes.map(cls => cls.id), ...namespaceIds(diagram.namespaces)])
   const direction = diagram.direction ?? 'TB', horizontal = direction === 'LR' || direction === 'RL'
-  const prepared = (value: string) => wrapText(displayText(value), targetWidth ? Math.max(1, Math.floor(targetWidth / 3)) : undefined)
+  const prepared = (value: DisplayTextInput) => wrapText(displayText(value), targetWidth ? Math.max(1, Math.floor(targetWidth / 3)) : undefined)
   const relations: BoxRelation[] = diagram.relationships.map((rel, index) => ({
     id: generated(`relationship:${index}`), from: rel.from, to: rel.to,
-    ...(rel.label ? { lines: prepared(rel.label) } : {}),
-    ...(rel.fromCardinality ? { fromLines: prepared(rel.fromCardinality) } : {}),
-    ...(rel.toCardinality ? { toLines: prepared(rel.toCardinality) } : {}),
+    ...(rel.label ? { lines: prepared(resolveLabelContent(rel.label, rel.labelContent)) } : {}),
+    ...(rel.fromCardinality ? { fromLines: prepared(resolveLabelContent(rel.fromCardinality, rel.fromCardinalityContent)) } : {}),
+    ...(rel.toCardinality ? { toLines: prepared(resolveLabelContent(rel.toCardinality, rel.toCardinalityContent)) } : {}),
   }))
-  const notePlans = diagram.notes.map((note, index) => ({ id: generated(`note:${index}`), parentId: note.for, lines: wrapText(displayText(note.text), targetWidth ? Math.max(1, targetWidth - 8) : undefined) }))
+  const notePlans = diagram.notes.map((note, index) => ({ id: generated(`note:${index}`), parentId: note.for, lines: wrapText(displayText(resolveLabelContent(note.text, note.textContent)), targetWidth ? Math.max(1, targetWidth - 8) : undefined) }))
   const noteRelations: BoxRelation[] = notePlans.flatMap(note => note.parentId ? [{ id: generated(`${note.id}:connector`), from: note.parentId, to: note.id }] : [])
   const faceSizes = boxFaceSizes([...relations, ...noteRelations], direction)
   const sections = new Map(diagram.classes.map(cls => [cls.id, classSections(cls, targetWidth ? Math.max(1, targetWidth - 8) : undefined)]))
@@ -126,7 +127,7 @@ export function renderClassTerminal(text: string, config: AsciiConfig, colorMode
   }
   const namespaceByClass = new Map<string, string>(), namespaces: PlacedNamespace[] = []
   if (diagram.namespaces.length) {
-    const header = (ns: ClassNamespace) => prepared(normalizeBrTags(ns.label ?? ns.name))
+    const header = (ns: ClassNamespace) => prepared(ns.labelContent?.value === (ns.label ?? ns.name) ? ns.labelContent.prepared : normalizeBrTags(ns.label ?? ns.name))
     // Keep normal port approaches and a free routing row inside each frame.
     const frameClearance = 4
     const depthOf = (items: ClassNamespace[], depth = 1): number => Math.max(depth, ...items.map(ns => depthOf(ns.children, depth + 1)))

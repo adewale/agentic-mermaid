@@ -1,3 +1,4 @@
+import { resolveLabelContent } from '../shared/display-text.ts'
 import { terminalArtifact, serializeTerminalArtifact, type TerminalArtifact } from './terminal-artifact.ts'
 import type { MermaidGraph, StateNoteSpec } from '../types.ts'
 import { Left, Right, type AsciiConfig, type AsciiGraph, type AsciiNode, type AsciiSubgraph, type AsciiTheme, type ColorMode, type GridCoord } from './types.ts'
@@ -31,7 +32,7 @@ function overlayNotes(graph: AsciiGraph, notes: StateNoteSpec[], targetWidth?: n
   const drawings = notes.map(note => ({
     note,
     canvas: drawMultiBox([
-      displayText(note.text).split(/\r?\n/).flatMap(line => noteLineWidth ? wrapText(line, noteLineWidth) : [line]),
+      displayText(resolveLabelContent(note.text, note.textContent)).split(/\r?\n/).flatMap(line => noteLineWidth ? wrapText(line, noteLineWidth) : [line]),
     ], graph.config.useAscii, 1),
   }))
   let shift = 0

@@ -149,6 +149,8 @@ function readNodeFrame(source: string): NodeFrame | null {
 }
 
 function stripInlineComment(line: string, shapedLabel = true): string {
+  if (line.trimStart().startsWith(':::')) return line
+  const inlineDirective = parseAccessibilityDirective([line], 0)?.form === 'inline'
   const trimmed = line.trimStart()
   const frame = shapedLabel && !trimmed.startsWith('::') ? readNodeFrame(trimmed) : null
   if (frame) {
@@ -162,7 +164,13 @@ function stripInlineComment(line: string, shapedLabel = true): string {
     if (escaped) { escaped = false; continue }
     if (char === '\\') { escaped = true; continue }
     if (char === '"') { quoted = !quoted; continue }
-    if (!quoted && char === '%' && line[index + 1] === '%') return line.slice(0, index)
+    if (quoted || char !== '%' || line[index + 1] !== '%') continue
+    const prefix = line.slice(0, index).trim()
+    // Bare-node, shape, icon and class payloads consume %% as text. Once a
+    // shape or icon closes, the lexer can start a trailing comment again.
+    if (!prefix || inlineDirective || /^::icon\([^)]*\)$/.test(prefix)) return line.slice(0, index)
+    const node = parseNode(prefix)
+    if (node && node.shape !== 'default') return line.slice(0, index)
   }
   return line
 }

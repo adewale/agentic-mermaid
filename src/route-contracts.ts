@@ -1,3 +1,4 @@
+import { resolveLabelContent } from './shared/display-text.ts'
 /**
  * Route contracts — principled routing without hitches (docs/design/system/route-contracts.md).
  *
@@ -756,7 +757,7 @@ function pillRect(cx: number, cy: number, m: { width: number; height: number }):
 
 export function labelRect(e: PositionedEdge, style: LabelMetricsStyle): { x: number; y: number; w: number; h: number } | null {
   if (!e.label || !e.labelPosition) return null
-  const m = e.labelBlock ?? graphEdgeTextBlock(e.label, style)
+  const m = e.labelBlock ?? graphEdgeTextBlock(resolveLabelContent(e.label, e.labelContent), style)
   return pillRect(e.labelPosition.x, e.labelPosition.y, m)
 }
 
@@ -824,7 +825,7 @@ export function directLaneBlockers(
   }
 
   if (edge.label) {
-    const m = (edge.labelBlock ?? graphEdgeTextBlock(edge.label, ctx.style))
+    const m = (edge.labelBlock ?? graphEdgeTextBlock(resolveLabelContent(edge.label, edge.labelContent), ctx.style))
     const span = (axis.main === 'x' ? m.width : m.height) + 2 * LABEL_PILL_PADDING
     if (mainHi - mainLo < span + LABEL_CLEARANCE) {
       blockers.push({ kind: 'label', id: edgeId(edge) })
@@ -853,7 +854,7 @@ export function findLabelSlot(
   ctx: LaneContext,
 ): Point | null {
   if (!edge.label) return { x: (start.x + end.x) / 2, y: (start.y + end.y) / 2 }
-  const m = (edge.labelBlock ?? graphEdgeTextBlock(edge.label, ctx.style))
+  const m = (edge.labelBlock ?? graphEdgeTextBlock(resolveLabelContent(edge.label, edge.labelContent), ctx.style))
   const PAD = 2
   const rectsOverlap = (
     ax: number, ay: number, aw: number, ah: number,
@@ -1979,7 +1980,7 @@ export function applyRouteContracts(
     // rubric's self-loop rule measures pill-RECT-to-route, so a 4px gap is
     // well inside its allowance.
     const pill = edge.label
-      ? (edge.labelBlock ?? graphEdgeTextBlock(edge.label, style))
+      ? (edge.labelBlock ?? graphEdgeTextBlock(resolveLabelContent(edge.label, edge.labelContent), style))
       : null
     const pillMain = (side: PortSide): number => pill
       ? (side === 'N' || side === 'S' ? pill.height : pill.width) + 2 * LABEL_PILL_PADDING
@@ -2527,7 +2528,7 @@ function sharedTrunkConflict(
   style: LabelMetricsStyle,
 ): PositionedEdge | null {
   if (!edge.label || !edge.labelPosition) return null
-  const m = (edge.labelBlock ?? graphEdgeTextBlock(edge.label, style))
+  const m = (edge.labelBlock ?? graphEdgeTextBlock(resolveLabelContent(edge.label, edge.labelContent), style))
   const pill = pillRect(edge.labelPosition.x, edge.labelPosition.y, m)
   for (const other of edges) {
     if (other === edge || (edge.edgeIndex !== undefined && other.edgeIndex === edge.edgeIndex)) continue
@@ -2590,7 +2591,7 @@ export function repairLabelsOnSharedTrunks(
   for (const edge of positioned.edges) {
     if (!edge.label || !edge.labelPosition || edge.points.length < 2) continue
     if (!sharedTrunkConflict(edge, positioned.edges, style)) continue
-    const m = (edge.labelBlock ?? graphEdgeTextBlock(edge.label, style))
+    const m = (edge.labelBlock ?? graphEdgeTextBlock(resolveLabelContent(edge.label, edge.labelContent), style))
     const pw = m.width + 2 * LABEL_PILL_PADDING, ph = m.height + 2 * LABEL_PILL_PADDING
 
     const segs: Array<{ a: Point; b: Point; vertical: boolean; len: number; i: number }> = []
@@ -2663,7 +2664,7 @@ export function repairLabelsOffOwnRoute(
   for (const edge of positioned.edges) {
     if (!edge.label || !edge.labelPosition || edge.points.length < 2) continue
     if (edge.source === edge.target) continue // self-loop label sits beside the stub — correct, not off-route
-    const m = (edge.labelBlock ?? graphEdgeTextBlock(edge.label, style))
+    const m = (edge.labelBlock ?? graphEdgeTextBlock(resolveLabelContent(edge.label, edge.labelContent), style))
     const pw = m.width + 2 * LABEL_PILL_PADDING, ph = m.height + 2 * LABEL_PILL_PADDING
     const allow = ph / 2 + 4 // exactly the rubric's labelOffRoute allowance
     const routeDist = (p: Point): number => {
@@ -2771,7 +2772,7 @@ export function separateEdgeLabelPills(
       inner.y - HALO < n.y + n.height && inner.y + inner.h + HALO > n.y)
 
   const trySlide = (edge: PositionedEdge, others: PositionedEdge[]): boolean => {
-    const m = (edge.labelBlock ?? graphEdgeTextBlock(edge.label!, style))
+    const m = (edge.labelBlock ?? graphEdgeTextBlock(resolveLabelContent(edge.label!, edge.labelContent), style))
     const pw = m.width + 2 * LABEL_PILL_PADDING, ph = m.height + 2 * LABEL_PILL_PADDING
     const clearAt = (x: number, y: number): boolean => {
       const inner = pillRect(x, y, m)

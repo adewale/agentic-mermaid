@@ -26,7 +26,8 @@ import { getFrontmatterScalar } from './mermaid-source.ts'
 import type { MermaidGraph, RenderOptions } from './types.ts'
 import type { InternalStyleFace } from './scene/style-registry.ts'
 import { resolveRenderStyle } from './styles.ts'
-import { wrapLabelToWidth } from './shared/label-wrap.ts'
+import { preparePixelText } from './shared/prepared-text.ts'
+import { resolveLabelContent } from './shared/display-text.ts'
 
 /** Upstream's default `flowchart.wrappingWidth` (applies to markdown-string
  *  labels even when the key is absent — upstream parity). */
@@ -61,13 +62,12 @@ function configNumber(frontmatter: MermaidFrontmatterMap, key: string): number |
 }
 
 /**
- * Measured-width auto-wrap of node labels (mutates the parsed graph before
- * layout sizing, so ELK, the renderer, and the SVG all see the same lines):
+ * Prepare measured-width node labels before layout sizing, so ELK and the
+ * renderer consume the same fitted runs without rewriting authored labels:
  *   - every node label wraps at options.wrappingWidth when it is set;
  *   - markdown-string labels additionally wrap at the upstream default of
  *     200 even when the option is absent (upstream wraps ONLY those).
- * Uses the shared measured-pixel wrap (src/shared/label-wrap.ts) with the
- * node-label font the layout measures with — no second wrap implementation.
+ * Uses the shared pixel fitter with the resolved node typography.
  */
 export function applyFlowchartLabelWrapping(
   graph: MermaidGraph,
@@ -78,8 +78,13 @@ export function applyFlowchartLabelWrapping(
   const style = resolveRenderStyle(options, undefined, styleFace)
   for (const node of graph.nodes.values()) {
     const budget = explicit ?? (node.markdownLabel ? FLOWCHART_DEFAULT_WRAPPING_WIDTH : undefined)
-    if (budget === undefined || !node.label) continue
-    const wrapped = wrapLabelToWidth(node.label, budget, style.nodeLabelFontSize, style.nodeLabelFontWeight)
-    if (wrapped !== node.label) node.label = wrapped
+    if (budget === undefined || !node.label) { delete node.labelBlock; continue }
+    node.labelBlock = preparePixelText(resolveLabelContent(node.label, node.labelContent), {
+      maxWidth: budget,
+      transform: style.nodeTextTransform,
+      fontSize: style.nodeLabelFontSize,
+      fontWeight: style.nodeLabelFontWeight,
+      letterSpacing: style.nodeLetterSpacing,
+    })
   }
 }

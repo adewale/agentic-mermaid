@@ -1,4 +1,5 @@
 import type { PixelTextBlock } from '../shared/prepared-text.ts'
+import type { LabelContent } from '../shared/display-text.ts'
 // ============================================================================
 // Sequence diagram types
 //
@@ -13,6 +14,7 @@ import type { PositionedDiagram } from '../types.ts'
 export interface SequenceDiagram {
   /** The diagram's title (`title` statement, or frontmatter `title:`). */
   title?: string
+  titleContent?: LabelContent
   /** Optional accessibility title (Mermaid accTitle) */
   accessibilityTitle?: string
   /** Optional accessibility description (Mermaid accDescr) */
@@ -39,6 +41,7 @@ export type SequenceMessageHead = 'none' | 'filled' | 'open' | 'cross' | 'half-t
 export interface Actor {
   id: string
   label: string
+  labelContent?: LabelContent
   /** Closed official participant-glyph vocabulary. */
   type: SequenceActorType
   /** Safe actor-menu links; callbacks and unsafe schemes are rejected. */
@@ -59,6 +62,7 @@ export interface Actor {
 export interface SequenceBoxGroup {
   /** Title text drawn at the top of the box (may be absent). */
   label?: string
+  labelContent?: LabelContent
   /** Explicit CSS color from the source (named color, #hex, rgb()/rgba(),
    *  hsl()/hsla(), or 'transparent'). Absent = theme-derived fill. */
   color?: string
@@ -79,6 +83,7 @@ export interface Message {
   from: string
   to: string
   label: string
+  labelContent?: LabelContent
   /** Arrow style: solid line or dashed line */
   lineStyle: 'solid' | 'dashed'
   /** Exact source and target endpoint semantics. */
@@ -100,6 +105,7 @@ export interface Block {
   type: 'loop' | 'alt' | 'opt' | 'par' | 'critical' | 'break' | 'rect'
   /** Label for the block header */
   label: string
+  labelContent?: LabelContent
   /** Source-controlled background paint for a `rect` block. */
   color?: string
   /** Index of the first message inside this block */
@@ -107,7 +113,7 @@ export interface Block {
   /** Index of the last message inside this block (inclusive) */
   endIndex: number
   /** For alt/par blocks: indices where "else"/"and" dividers appear (message indices) */
-  dividers: Array<{ index: number; label: string }>
+  dividers: Array<{ index: number; label: string; labelContent?: LabelContent }>
 }
 
 export interface Note {
@@ -115,6 +121,7 @@ export interface Note {
   actorIds: string[]
   /** Note text content */
   text: string
+  textContent?: LabelContent
   /** Position relative to the actor(s) */
   position: 'left' | 'right' | 'over'
   /** Message index after which this note appears */
@@ -223,6 +230,8 @@ export interface PositionedMessage {
   from: string
   to: string
   label: string
+  /** Untransformed message display meaning, including the autonumber prefix. */
+  labelContent?: LabelContent
   lineStyle: 'solid' | 'dashed'
   startHead: SequenceMessageHead
   endHead: SequenceMessageHead
