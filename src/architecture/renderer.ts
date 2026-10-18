@@ -261,7 +261,7 @@ function lowerGroup(group: PositionedArchitectureGroup, visual: ArchitectureVisu
     })
   }
 
-  const block = group.labelBlock ?? preparePixelText(group.label, { display: 'formatted', transform: visual.groupTextTransform, fontSize: visual.groupFontSize, fontWeight: visual.groupFontWeight, letterSpacing: visual.groupLetterSpacing })
+  const block = group.labelBlock ?? preparePixelText(group.label, { display: 'formatted', transform: visual.groupTextTransform, fontSize: visual.groupFontSize, fontWeight: visual.groupFontWeight, letterSpacing: visual.groupLetterSpacing, fontFamily: visual.groupFont })
   const labelText = block.text
   const labelX = group.x + (group.icon ? ARCHITECTURE_GROUP_ICON_TITLE_OFFSET : visual.groupLabelPaddingX)
   const labelY = group.y + (group.headerHeight ?? visual.groupHeaderHeight) / 2

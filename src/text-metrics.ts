@@ -157,6 +157,7 @@ export interface TextMeasurementInput {
   fontSize: number
   fontWeight: number
   fontStyle?: 'normal' | 'italic'
+  fontFamily?: string
 }
 
 export interface TextMeasurementResult {
@@ -200,8 +201,8 @@ export function measureText(input: TextMeasurementInput): TextMeasurementResult 
   }
 }
 
-export function measureTextWidth(text: string, fontSize: number, fontWeight: number, fontStyle: 'normal' | 'italic' = 'normal'): number {
-  return measureText({ text, fontSize, fontWeight, fontStyle }).width
+export function measureTextWidth(text: string, fontSize: number, fontWeight: number, fontStyle: 'normal' | 'italic' = 'normal', fontFamily?: string): number {
+  return measureText({ text, fontSize, fontWeight, fontStyle, fontFamily }).width
 }
 
 /**
@@ -210,8 +211,8 @@ export function measureTextWidth(text: string, fontSize: number, fontWeight: num
  * W/M at up to 1.10em at weight 700; 1.85 width units reserve 1.11em while
  * leaving the shared Inter-calibrated contract unchanged for other families.
  */
-export function measureSystemFontSafeTextWidth(text: string, fontSize: number, fontWeight: number, fontStyle: 'normal' | 'italic' = 'normal'): number {
-  const measured = measureText({ text, fontSize, fontWeight, fontStyle })
+export function measureSystemFontSafeTextWidth(text: string, fontSize: number, fontWeight: number, fontStyle: 'normal' | 'italic' = 'normal', fontFamily?: string): number {
+  const measured = measureText({ text, fontSize, fontWeight, fontStyle, fontFamily })
   if (customTextMeasurementActive()) return measured.width
   let extraVeryWideUnits = 0
   for (const char of text) {
@@ -231,10 +232,11 @@ export function measureMonospaceTextWidth(
   letterSpacing = 0,
   fontWeight = 400,
   fontStyle: 'normal' | 'italic' = 'normal',
+  fontFamily?: string,
 ): number {
   const clusters = graphemes(text)
   const tracking = Math.max(0, clusters.length - 1) * letterSpacing
-  const custom = profileTextWidth({ text, fontSize, fontWeight, fontStyle, monospace: true })
+  const custom = profileTextWidth({ text, fontSize, fontWeight, fontStyle, fontFamily, monospace: true })
   if (custom !== undefined) return Math.max(0, custom + tracking)
   let cells = 0
   for (const cluster of clusters) {
@@ -255,13 +257,14 @@ export function measureFormattedTextWidth(
   fontWeight: number,
   letterSpacing = 0,
   fontStyle: 'normal' | 'italic' = 'normal',
+  fontFamily?: string,
 ): number {
   const segments = HAS_FORMAT_TAGS.test(text) ? parseInlineFormatting(text) : [{ text, bold: false }]
   const glyphText = segments.map(segment => segment.text).join('')
   // Untracked text (the common case) needs no grapheme segmentation.
   const tracking = letterSpacing === 0 ? 0 : Math.max(0, graphemes(glyphText).length - 1) * letterSpacing
   const measured = segments.reduce((width, segment) =>
-    width + measureTextWidth(segment.text, fontSize, segment.bold ? Math.max(700, fontWeight) : fontWeight, ('italic' in segment && segment.italic) || fontStyle === 'italic' ? 'italic' : 'normal'), 0)
+    width + measureTextWidth(segment.text, fontSize, segment.bold ? Math.max(700, fontWeight) : fontWeight, ('italic' in segment && segment.italic) || fontStyle === 'italic' ? 'italic' : 'normal', fontFamily), 0)
   return Math.max(0, measured + tracking)
 }
 

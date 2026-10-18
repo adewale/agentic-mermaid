@@ -72,6 +72,39 @@ describe('trusted host pixel measurement profiles', () => {
     expect(inputs.some(input => input.monospace && input.fontFamily === 'JetBrains Mono' && input.text.includes('run'))).toBe(true)
   })
 
+  test('the measured font follows group overrides and distinct font widths do not share a cache entry', () => {
+    const inputs: ProfileTextMeasurementInput[] = []
+    const renderer = createMermaidRenderer({ textMeasurement: profile(input => {
+      inputs.push(input)
+      return [...input.text].length * (input.fontFamily === 'Georgia' ? 30 : 10)
+    }) })
+    const svg = renderer.renderMermaidSVG('flowchart TD\nsubgraph S[Header]\nA[Header]\nend', {
+      font: 'Inter',
+      style: { roles: { node: { fontSize: 12, fontWeight: 600 }, group: { fontFamily: 'Georgia' } } },
+    })
+    expect(inputs).toContainEqual({ text: 'Header', fontFamily: 'Inter', fontSize: 12, fontWeight: 600, fontStyle: 'normal', monospace: false })
+    expect(inputs).toContainEqual({ text: 'Header', fontFamily: 'Georgia', fontSize: 12, fontWeight: 600, fontStyle: 'normal', monospace: false })
+    expect(svg).toMatch(/<text[^>]*font-family="Georgia"[^>]*textLength="180"[^>]*>Header<\/text>/)
+    expect(svg).toMatch(/<text[^>]*textLength="60"[^>]*>Header<\/text>/)
+  })
+
+  test.each([
+    ['architecture', 'architecture-beta\ngroup S(cloud)[Header]\nservice A(server)[Node] in S'],
+    ['class', 'classDiagram\nnamespace Header {\nclass A\n}'],
+    ['sequence', 'sequenceDiagram\nparticipant A\nloop Header\nA->>A: ping\nend'],
+    ['journey', 'journey\nsection Header\nTask: 4: User'],
+    ['timeline', 'timeline\nsection Header\n2026: Launch'],
+  ])('%s measures its group text in the font it paints', (_family, source) => {
+    const inputs: ProfileTextMeasurementInput[] = []
+    const renderer = createMermaidRenderer({ textMeasurement: profile(input => {
+      inputs.push(input)
+      return [...input.text].length * 10
+    }) })
+    const svg = renderer.renderMermaidSVG(source, { style: { roles: { group: { fontFamily: 'Georgia' } } } })
+    expect(svg).toContain('font-family="Georgia"')
+    expect(inputs.some(input => input.text.includes('Header') && input.fontFamily === 'Georgia')).toBe(true)
+  })
+
   test('custom shaping widths and negative tracking use one measured band', () => {
     const renderer = createMermaidRenderer({ textMeasurement: profile() })
     const unicode = renderer.renderMermaidSVG('flowchart TD\nA["界é"]')

@@ -208,7 +208,7 @@ export function layoutJourneyDiagram(
     const fontSize = semanticStyle?.fontSize ?? style.groupHeaderFontSize
     const fontWeight = semanticStyle?.fontWeight ?? style.groupHeaderFontWeight
     const letterSpacing = semanticStyle?.letterSpacing ?? style.groupLetterSpacing
-    const block = section.label ? preparePixelText(section.label, { transform: semanticStyle?.textTransform ?? style.groupTextTransform, fontSize, fontWeight, letterSpacing, maxWidth: visual.maxLabelWidth }) : undefined
+    const block = section.label ? preparePixelText(section.label, { transform: semanticStyle?.textTransform ?? style.groupTextTransform, fontSize, fontWeight, letterSpacing, fontFamily: semanticStyle?.fontFamily ?? style.groupFont, maxWidth: visual.maxLabelWidth }) : undefined
     const label = block?.text
     const labelMetrics = block
     const labelWidth = labelMetrics?.width ?? 0

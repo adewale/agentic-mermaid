@@ -345,7 +345,7 @@ function computeSectionMetrics(
 ): SectionMetric[] {
   const mainOf = (width: number, height: number): number => (vertical ? height : width)
   return diagram.sections.map(section => {
-    const block = section.label ? preparePixelText(section.label, { display: 'literal', transform: style.groupTextTransform, fontSize: style.groupHeaderFontSize, fontWeight: style.groupHeaderFontWeight, letterSpacing: style.groupLetterSpacing, maxWidth: TL.sectionWrapWidth }) : undefined
+    const block = section.label ? preparePixelText(section.label, { display: 'literal', transform: style.groupTextTransform, fontSize: style.groupHeaderFontSize, fontWeight: style.groupHeaderFontWeight, letterSpacing: style.groupLetterSpacing, fontFamily: style.groupFont, maxWidth: TL.sectionWrapWidth }) : undefined
     const wrappedSectionLabel = block?.text
     const periodMetrics: PeriodMetric[] = section.periods.map(period => {
       const pillText = preparePixelText(period.label, { display: 'literal', transform: style.edgeTextTransform, fontSize: style.edgeLabelFontSize, fontWeight: style.edgeLabelFontWeight, letterSpacing: style.edgeLetterSpacing, maxWidth: caps.pill })

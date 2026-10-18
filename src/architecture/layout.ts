@@ -64,6 +64,7 @@ export function layoutArchitectureDiagram(
     fontWeight: typography[`${role}FontWeight`], letterSpacing: typography[`${role}LetterSpacing`],
   })
   const serviceText = new Map(diagram.services.map(service => [service.id, roleBlock(service.label, 'service')]))
+    fontFamily: role === 'group' ? typography.groupFont : undefined,
   const groupText = new Map(diagram.groups.map(group => [group.id, roleBlock(group.label, 'group')]))
   const edgeText = diagram.edges.map(edge => edge.label === undefined ? undefined : roleBlock(edge.label, 'edge'))
   const graph = architectureToMermaidGraph(diagram)

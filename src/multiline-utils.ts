@@ -177,7 +177,7 @@ function renderPreparedLine(block: PixelTextBlock, index: number, cx: number, an
       const weight = run.bold ? Math.max(700, block.fontWeight) : block.fontWeight
       const measure = block.safeFont ? measureSystemFontSafeTextWidth : measureTextWidth
       const fontStyle = run.italic ? 'italic' : 'normal'
-      const width = (block.monospace ? measureMonospaceTextWidth(group.text, block.fontSize, 0, weight, fontStyle) : measure(group.text, block.fontSize, weight, fontStyle) - (at === groups.length - 1 || customTextMeasurementActive() ? 0 : block.fontSize * 0.15)) + (group.count - 1) * block.letterSpacing
+      const width = (block.monospace ? measureMonospaceTextWidth(group.text, block.fontSize, 0, weight, fontStyle, block.fontFamily) : measure(group.text, block.fontSize, weight, fontStyle, block.fontFamily) - (at === groups.length - 1 || customTextMeasurementActive() ? 0 : block.fontSize * 0.15)) + (group.count - 1) * block.letterSpacing
       const fit = group.natural ? '' : ` textLength="${Math.max(0, width)}" lengthAdjust="spacingAndGlyphs"`
       const tracking = group.natural ? block.letterSpacing : 0
       result.push(`<tspan x="${x}" text-anchor="start" letter-spacing="${tracking}" data-text-fragment="true"${fit}>${renderDisplayRuns([{ ...run, text: group.text }])}</tspan>`)

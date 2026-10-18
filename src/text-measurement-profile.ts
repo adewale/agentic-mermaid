@@ -44,7 +44,7 @@ export function snapshotTextMeasurementProfile(profile: TextMeasurementProfile |
 /** Per-request cache shared by layout and drawing, held only in the private plan. */
 export interface TextMeasurementExecution {
   readonly identity: TextMeasurementProfileIdentity
-  readonly width: (input: Omit<ProfileTextMeasurementInput, 'fontFamily'>) => number
+  readonly width: (input: Omit<ProfileTextMeasurementInput, 'fontFamily'> & { fontFamily?: string }) => number
 }
 
 const MAX_WIDTH = 1_000_000
@@ -60,15 +60,16 @@ export function createTextMeasurementExecution(
   const widths = new Map<string, number>()
   return Object.freeze({
     identity,
-    width(input: Omit<ProfileTextMeasurementInput, 'fontFamily'>): number {
-      const key = JSON.stringify([input.text, input.fontSize, input.fontWeight, input.fontStyle, input.monospace])
+    width(input: Omit<ProfileTextMeasurementInput, 'fontFamily'> & { fontFamily?: string }): number {
+      const selectedFont = input.fontFamily ?? (input.monospace ? 'JetBrains Mono' : fontFamily)
+      const key = JSON.stringify([input.text, selectedFont, input.fontSize, input.fontWeight, input.fontStyle, input.monospace])
       const cached = widths.get(key)
       if (cached !== undefined) return cached
       // A host callback may use the default estimator or render another diagram.
       // It must never recursively call itself or inherit its caller's profile.
       const width = withTextMeasurementExecution(undefined, () => snapshot.measure(Object.freeze({
         ...input,
-        fontFamily: input.monospace ? 'JetBrains Mono' : fontFamily,
+        fontFamily: selectedFont,
       })))
       if (typeof width !== 'number' || !Number.isFinite(width) || width < 0 || width > MAX_WIDTH) {
         throw new RangeError(`Text measurement profile ${identity.id}@${identity.version} must return a finite width between 0 and ${MAX_WIDTH} pixels`)
@@ -99,6 +100,6 @@ export function customTextMeasurementActive(): boolean {
   return activeExecution !== undefined
 }
 
-export function profileTextWidth(input: Omit<ProfileTextMeasurementInput, 'fontFamily'>): number | undefined {
+export function profileTextWidth(input: Omit<ProfileTextMeasurementInput, 'fontFamily'> & { fontFamily?: string }): number | undefined {
   return activeExecution?.width(input)
 }
