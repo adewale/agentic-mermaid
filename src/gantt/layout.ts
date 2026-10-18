@@ -752,6 +752,26 @@ export function layoutGantt(model: GanttModel, schedule: GanttSchedule, options:
     return [{ taskIndex, href: token.replace(/\\(["\\])/g, '$1') }]
   })
 
+  const labelRows = new Map<number, typeof bars>()
+  for (const bar of bars) {
+    const row = labelRows.get(bar.y) ?? []
+    row.push(bar)
+    labelRows.set(bar.y, row)
+  }
+  for (const row of labelRows.values()) {
+    row.sort((a, b) => a.x - b.x)
+    row.forEach((bar, index) => {
+      const block = bar.labelBlock
+      if (!block) return
+      const y = bar.y + bar.h / 2
+      const leftLimit = index > 0 ? row[index - 1]!.x + row[index - 1]!.w + 4 : 2
+      const rightLimit = index + 1 < row.length ? row[index + 1]!.x - 4 : width - 2
+      bar.labelPosition = !compact ? { x: 16, y, anchor: 'start' }
+        : bar.x - 6 - block.width >= leftLimit ? { x: bar.x - 6, y, anchor: 'end' }
+          : bar.x + bar.w + 6 + block.width <= rightLimit ? { x: bar.x + bar.w + 6, y, anchor: 'start' }
+            : { x: 16, y, anchor: 'start' }
+    })
+  }
   return {
     title: titleBlock?.text,
     titleBlock,

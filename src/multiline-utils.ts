@@ -7,6 +7,7 @@
 // ============================================================================
 
 import { LINE_HEIGHT_RATIO, measureTextWidth, measureSystemFontSafeTextWidth, measureMonospaceTextWidth } from './text-metrics.ts'
+import { customTextMeasurementActive } from './text-measurement-profile.ts'
 import { HAS_FORMAT_TAGS } from './shared/inline-format.ts'
 import { prepareDisplayText, type DisplayRun } from './shared/display-text.ts'
 import type { PixelTextBlock } from './shared/prepared-text.ts'
@@ -175,7 +176,8 @@ function renderPreparedLine(block: PixelTextBlock, index: number, cx: number, an
     for (const [at, group] of groups.entries()) {
       const weight = run.bold ? Math.max(700, block.fontWeight) : block.fontWeight
       const measure = block.safeFont ? measureSystemFontSafeTextWidth : measureTextWidth
-      const width = (block.monospace ? measureMonospaceTextWidth(group.text, block.fontSize) : measure(group.text, block.fontSize, weight) - (at === groups.length - 1 ? 0 : block.fontSize * 0.15)) + (group.count - 1) * block.letterSpacing
+      const fontStyle = run.italic ? 'italic' : 'normal'
+      const width = (block.monospace ? measureMonospaceTextWidth(group.text, block.fontSize, 0, weight, fontStyle, block.fontFamily) : measure(group.text, block.fontSize, weight, fontStyle, block.fontFamily) - (at === groups.length - 1 || customTextMeasurementActive() ? 0 : block.fontSize * 0.15)) + (group.count - 1) * block.letterSpacing
       const fit = group.natural ? '' : ` textLength="${Math.max(0, width)}" lengthAdjust="spacingAndGlyphs"`
       const tracking = group.natural ? block.letterSpacing : 0
       result.push(`<tspan x="${x}" text-anchor="start" letter-spacing="${tracking}" data-text-fragment="true"${fit}>${renderDisplayRuns([{ ...run, text: group.text }])}</tspan>`)

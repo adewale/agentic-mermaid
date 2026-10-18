@@ -14,6 +14,7 @@
  */
 
 import type { ElkNode } from 'elkjs'
+import { assertLayoutGraphWork } from './shared/diagram-limits.ts'
 // @ts-ignore — static import of bundled ELK
 import ELKBundled from 'elkjs/lib/elk.bundled.js'
 
@@ -84,6 +85,7 @@ function ensureElk(): void {
  *     replacing rawWorker.onmessage with a direct interceptor
  */
 export function elkLayoutSync(graph: ElkNode): ElkNode {
+  assertLayoutGraphWork(graph)
   ensureElk()
 
   let result: ElkNode | undefined

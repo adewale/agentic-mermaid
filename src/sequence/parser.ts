@@ -1,12 +1,13 @@
-import type { SequenceDiagram, Actor, Message, Block, Note, SequenceBoxGroup, SequenceActorType, SequenceMessageHead } from './types.ts'
 import { normalizeBrTags } from '../multiline-utils.ts'
 import { scanAccessibilityDirectives } from '../shared/accessibility-directives.ts'
-import { isCssColorToken, sequenceRectColor } from './colors.ts'
-import { isSequenceCommentLine, scanSequenceStatementLines, splitSequenceStatementLines, type SequenceSourceSpan } from './statements.ts'
 import { metadataText, readMetadataBlock } from '../shared/metadata-yaml.ts'
+import { observeParserMutation, observeParserStatement, parserObservationActive } from '../shared/parser-observation.ts'
 import { syntaxError } from '../shared/syntax-error.ts'
 import { continuationBelongsToBlock, parseSequenceBlockContinuation, parseSequenceBlockOpener, type SequenceBlockContinuation, type SequenceBlockOpener } from './block-keywords.ts'
-import { SequenceParticipantFold, type ParticipantEvent } from './participants.ts'
+import { isCssColorToken, sequenceRectColor } from './colors.ts'
+import { type ParticipantEvent, SequenceParticipantFold } from './participants.ts'
+import { isSequenceCommentLine, type SequenceSourceSpan, scanSequenceStatementLines, splitSequenceStatementLines } from './statements.ts'
+import type { Actor, Block, Message, Note, SequenceActorType, SequenceBoxGroup, SequenceDiagram, SequenceMessageHead } from './types.ts'
 
 // Mermaid's half-arrow heads have multi-character spellings. Keep complete
 // tokens here, longest first in the regex, so a prefix cannot leak into an
@@ -48,8 +49,7 @@ const SEQUENCE_SPACED_CENTRAL_RESERVED_SENDERS = new Set([
   'over', 'off', 'properties', 'details', 'sequencediagram', 'par_over',
 ])
 const SEQUENCE_SPACED_CENTRAL_RESERVED_RECEIVERS = new Set([
-  ...SEQUENCE_SPACED_CENTRAL_RESERVED_SENDERS, 'acctitle', 'accdescr',
-])
+  ...SEQUENCE_SPACED_CENTRAL_RESERVED_SENDERS, 'acctitle', 'accdescr'])
 
 export interface ParsedSequenceMessageLine {
   from: string
@@ -178,6 +178,7 @@ export function parseSequenceMessageLine(line: string): ParsedSequenceMessageLin
 export function parseSequenceDiagram(lines: string[], opts: { showSequenceNumbers?: boolean } = {}): SequenceDiagram {
   const accessibility = scanAccessibilityDirectives(splitSequenceStatementLines(lines))
   lines = accessibility.familyLines.map(line => line.trim()).filter(Boolean)
+  if (parserObservationActive('sequence') && lines[0] !== undefined) observeParserStatement('sequence', 'header', lines[0], { line: 1, unit: 'normalized' })
   const diagram: SequenceDiagram = {
     actors: [],
     messages: [],
@@ -238,14 +239,24 @@ export function parseSequenceDiagram(lines: string[], opts: { showSequenceNumber
     // Bind pending create/destroy directives to this message when it involves
     // the actor (upstream ties creation to the message the actor receives and
     // destruction to the next message it sends or receives).
-    bindLifecycle(pendingCreates, id => id === to, id => createdAt.set(id, diagram.messages.length))
-    bindLifecycle(pendingDestroys, id => id === from || id === to, id => destroyedAt.set(id, diagram.messages.length))
+    bindLifecycle(pendingCreates, id => id === to, id => {
+        createdAt.set(id, diagram.messages.length)
+        if (parserObservationActive('sequence')) observeParserMutation('sequence', 'bind-create', { id, messageIndex: diagram.messages.length })
+      },
+    )
+    bindLifecycle(pendingDestroys, id => id === from || id === to, id => {
+        destroyedAt.set(id, diagram.messages.length)
+        if (parserObservationActive('sequence')) observeParserMutation('sequence', 'bind-destroy', { id, messageIndex: diagram.messages.length })
+      },
+    )
 
     diagram.messages.push(msg)
+    if (parserObservationActive('sequence')) observeParserMutation('sequence', 'add-message', msg)
   }
 
   for (const [index, entry] of source.statements.entries()) {
     const line = entry.raw.trim()
+    if (parserObservationActive('sequence')) observeParserStatement('sequence', entry.syntax?.kind ?? 'unrecognized', entry.raw, { line: entry.line + 2, column: entry.column + 1, unit: 'normalized' })
     if (entry.error) throw entry.error
     const statement = entry.syntax
     if (!statement) {
@@ -256,46 +267,51 @@ export function parseSequenceDiagram(lines: string[], opts: { showSequenceNumber
       if (line && !isSequenceCommentLine(line)) throw new Error(`SEQUENCE_UNSUPPORTED_STATEMENT: line ${entry.line + 2}: ${line}`)
       continue
     }
-    participants.applyAll(participantEventsOf(statement))
+    for (const event of participantEventsOf(statement)) {
+      participants.apply(event)
+      if (parserObservationActive('sequence')) observeParserMutation('sequence', 'participant.apply', event)
+    }
 
     switch (statement.kind) {
-    // --- Participant / Actor declaration, including Mermaid 11 metadata;
-    //     `create participant|actor X` binds at the next message X receives. ---
-    case 'declaration':
+      // --- Participant / Actor declaration, including Mermaid 11 metadata;
+      //     `create participant|actor X` binds at the next message X receives. ---
+      case 'declaration':
     case 'create': {
       if (statement.kind === 'create') pendingCreates.push(statement.declaration.id)
       break
     }
 
-    // --- Safe actor menus (`link` and JSON `links`) and undrawn actor data
-    //     (`properties`, `details`): the fold records what they create. ---
-    case 'links':
+      // --- Safe actor menus (`link` and JSON `links`) and undrawn actor data
+      //     (`properties`, `details`): the fold records what they create. ---
+      case 'links':
     case 'actor-data':
       break
 
-    // --- title <text> (Mermaid's sequence title statement) ---
-    case 'title':
+      // --- title <text> (Mermaid's sequence title statement) ---
+      case 'title':
       diagram.title = normalizeBrTags(statement.text)
-      break
+        if (parserObservationActive('sequence')) observeParserMutation('sequence', 'set-title', diagram.title)
+        break
 
-    // --- autonumber [off | <start> [<step>]] ---
-    case 'autonumber':
+      // --- autonumber [off | <start> [<step>]] ---
+      case 'autonumber':
       autonumber.visible = statement.numbering !== null
       if (statement.numbering?.next !== undefined) {
         autonumber.next = statement.numbering.next
         autonumber.step = statement.numbering.step ?? 1
       }
-      break
+        if (parserObservationActive('sequence')) observeParserMutation('sequence', 'set-autonumber', autonumber)
+        break
 
-    // --- box [<color>] [Label] … end ---
-    case 'box': {
+      // --- box [<color>] [Label] … end ---
+      case 'box': {
       const rest = statement.text
       const box: SequenceBoxGroup = { actorIds: [] }
-      // The leading token is a color when it IS one (color functions may
-      // contain spaces, so match them before splitting on whitespace);
-      // `box transparent <label>` is the upstream escape hatch for labels
-      // that look like colors.
-      const fnColor = rest.match(/^((?:rgb|rgba|hsl|hsla)\([^)]*\))\s*(.*)$/i)
+        // The leading token is a color when it IS one (color functions may
+        // contain spaces, so match them before splitting on whitespace);
+        // `box transparent <label>` is the upstream escape hatch for labels
+        // that look like colors.
+        const fnColor = rest.match(/^((?:rgb|rgba|hsl|hsla)\([^)]*\))\s*(.*)$/i)
       let label = rest
       if (fnColor && isCssColorToken(fnColor[1]!)) {
         box.color = fnColor[1]!
@@ -308,20 +324,22 @@ export function parseSequenceDiagram(lines: string[], opts: { showSequenceNumber
         }
       }
       if (label) box.label = normalizeBrTags(label)
-      // Boxes never nest; the fold places the actors of the statements
-      // inside (upstream's `currentBox`).
-      diagram.boxes!.push(box)
+        // Boxes never nest; the fold places the actors of the statements
+        // inside (upstream's `currentBox`).
+        diagram.boxes!.push(box)
       participants.openBox(box)
-      break
+        if (parserObservationActive('sequence')) observeParserMutation('sequence', 'open-box', { index: diagram.boxes!.length - 1, box })
+        break
     }
 
-    // --- destroy lifecycle directive ---
-    case 'destroy':
+      // --- destroy lifecycle directive ---
+      case 'destroy':
       pendingDestroys.push(statement.actorId)
+        if (parserObservationActive('sequence')) observeParserMutation('sequence', 'pending-destroy', statement.actorId)
       break
 
-    // --- Note ---
-    case 'note': {
+      // --- Note ---
+      case 'note': {
       const { note } = statement
       const noteIndex = diagram.notes.length
       diagram.notes.push({
@@ -329,29 +347,30 @@ export function parseSequenceDiagram(lines: string[], opts: { showSequenceNumber
         text: normalizeBrTags(note.text),
         position: note.position,
         afterIndex: diagram.messages.length - 1,
-      })
+        })
+        if (parserObservationActive('sequence')) observeParserMutation('sequence', 'add-note', { note: diagram.notes.at(-1), parent: entry.parent })
       for (let p = entry.parent; p !== undefined; p = blocks.get(p)?.parent) {
         blocks.get(p)?.noteIndices.push(noteIndex)
       }
       break
     }
 
-    // --- Block start: loop, alt, opt, par, critical, break, rect ---
-    case 'block': {
+      // --- Block start: loop, alt, opt, par, critical, break, rect ---
+      case 'block': {
       const { opener } = statement
-      // Keep the pre-existing `par_over` render disposition until that
-      // separate upstream construct receives its own semantic slice.
-      const blockType = opener.type === 'par_over' ? 'par' : opener.type
-      // The old `par` prefix match exposed the untouched `_over...` suffix as
-      // its label. Keep that exact spacing/punctuation until `par_over` gains
-      // its own native semantics; the shared classifier trims opener labels.
-      const label = opener.type === 'rect'
+        // Keep the pre-existing `par_over` render disposition until that
+        // separate upstream construct receives its own semantic slice.
+        const blockType = opener.type === 'par_over' ? 'par' : opener.type
+        // The old `par` prefix match exposed the untouched `_over...` suffix as
+        // its label. Keep that exact spacing/punctuation until `par_over` gains
+        // its own native semantics; the shared classifier trims opener labels.
+        const label = opener.type === 'rect'
         ? ''
         : normalizeBrTags(opener.type === 'par_over' ? `_over${line.slice(8)}`.trim() : opener.label)
-      // Mermaid permits a bare `rect` (default fill). A hash comment after
-      // the keyword also leaves the color empty; the shared statement scanner
-      // already keeps its remainder out of the message stream.
-      const rectArgument = opener.type === 'rect' && opener.label.startsWith('#') ? '' : opener.label
+        // Mermaid permits a bare `rect` (default fill). A hash comment after
+        // the keyword also leaves the color empty; the shared statement scanner
+        // already keeps its remainder out of the message stream.
+        const rectArgument = opener.type === 'rect' && opener.label.startsWith('#') ? '' : opener.label
       const color = opener.type === 'rect' ? sequenceRectColor(rectArgument) : undefined
       if (opener.type === 'rect' && rectArgument && !color) {
         throw new Error('SEQUENCE_RECT_COLOR_UNSUPPORTED: rect requires a safe concrete CSS color')
@@ -364,29 +383,31 @@ export function parseSequenceDiagram(lines: string[], opts: { showSequenceNumber
         dividers: [],
         dividerNoteIndices: [],
         parent: entry.parent,
-        parentSection: entry.parent === undefined ? 0 : blocks.get(entry.parent)?.dividers.length ?? 0,
+        parentSection: entry.parent === undefined ? 0 : (blocks.get(entry.parent)?.dividers.length ?? 0),
         noteIndices: [],
         childBlockIndices: [],
         childSectionIndices: [],
       })
       boundaries.push({ kind: 'open', blockId: index, messageIndex: diagram.messages.length, noteIndex: diagram.notes.length })
+        if (parserObservationActive('sequence')) observeParserMutation('sequence', 'open-block', { id: index, block: blocks.get(index) })
       break
     }
 
-    // --- Block divider: else, and, option (only on their owning blocks) ---
-    case 'continuation': {
+      // --- Block divider: else, and, option (only on their owning blocks) ---
+      case 'continuation': {
       const top = entry.parent !== undefined ? blocks.get(entry.parent) : undefined
       if (top) {
         boundaries.push({ kind: 'divider', blockId: entry.parent!, messageIndex: diagram.messages.length, noteIndex: diagram.notes.length, dividerIndex: top.dividers.length })
         top.dividerNoteIndices.push(diagram.notes.length)
         top.dividers.push({ index: diagram.messages.length, label: normalizeBrTags(statement.continuation.label) })
+          if (parserObservationActive('sequence')) observeParserMutation('sequence', 'divide-block', { parent: entry.parent, divider: top.dividers.at(-1), type: statement.continuation.type })
       }
       break
     }
 
-    // --- Block end, else box end (boxes only wrap participant
-    //     declarations, so an `end` with no open block closes the open box) ---
-    case 'end': {
+      // --- Block end, else box end (boxes only wrap participant
+      //     declarations, so an `end` with no open block closes the open box) ---
+      case 'end': {
       const completed = blocks.get(entry.closes!)
       if (completed) {
         const blockIndex = diagram.blocks.length
@@ -413,24 +434,27 @@ export function parseSequenceDiagram(lines: string[], opts: { showSequenceNumber
           blocks.get(completed.parent)?.childSectionIndices.push(completed.parentSection)
         }
         diagram.blocks.push(blockObj)
-      } else {
+          if (parserObservationActive('sequence')) observeParserMutation('sequence', 'close-block', { id: entry.closes, parent: completed.parent, parentSection: completed.parentSection, block: blockObj, notes: completed.noteIndices, children: completed.childBlockIndices })
+        } else {
         participants.closeBox()
+          if (parserObservationActive('sequence')) observeParserMutation('sequence', 'close-box', null)
       }
       break
     }
 
-    // --- Message. Full recognition keeps endpoint semantics out of actor IDs. ---
-    case 'message':
+      // --- Message. Full recognition keeps endpoint semantics out of actor IDs. ---
+      case 'message':
       pushMessage(statement.message)
       break
 
-    // --- activate / deactivate explicit commands (they create no actor) ---
-    case 'activation':
+      // --- activate / deactivate explicit commands (they create no actor) ---
+      case 'activation':
       diagram.activationEvents!.push({
         actorId: statement.actorId,
         kind: statement.activate ? 'activate' : 'deactivate',
         messageIndex: diagram.messages.length,
       })
+        if (parserObservationActive('sequence')) observeParserMutation('sequence', 'activation', diagram.activationEvents!.at(-1))
       break
     }
   }
@@ -442,7 +466,8 @@ export function parseSequenceDiagram(lines: string[], opts: { showSequenceNumber
     ...(createdAt.has(id) ? { createMessageIndex: createdAt.get(id)! } : {}),
     ...(destroyedAt.has(id) ? { destroyMessageIndex: destroyedAt.get(id)! } : {}),
   }))
-  blockBoundaries.set(diagram, boundaries.map(({ blockId, ...boundary }) => ({ ...boundary, blockIndex: blockIndexById.get(blockId)! })))
+  blockBoundaries.set(diagram, boundaries.map(({ blockId, ...boundary }) => ({ ...boundary, blockIndex: blockIndexById.get(blockId)! })),
+  )
   return diagram
 }
 
@@ -504,7 +529,8 @@ export function readSequenceStatements(lines: readonly string[]): { statements: 
     } else if (syntax.kind === 'end') {
       const closes = stack.pop()
       if (closes === undefined) issue(entry, 'sequence_block_boundary', 'Sequence end has no open block or box')
-      else { entry.closes = closes; statements[closes]!.endIndex = index }
+      else { entry.closes = closes
+        statements[closes]!.endIndex = index }
     } else if (syntax.kind === 'continuation') {
       const parent = entry.parent !== undefined ? statements[entry.parent]!.syntax : null
       if (parent?.kind !== 'block' || !continuationBelongsToBlock(syntax.continuation.type, parent.opener.type)) {
@@ -584,13 +610,15 @@ export function participantEventsOf(statement: SequenceStatementSyntax | null): 
       return [{ kind: 'declare', id, keyword: type === 'actor' ? 'actor' : 'participant', type, label, create: true }]
     }
     case 'links':
-      return [{ kind: 'mention', id: statement.actorId }, { kind: 'links', id: statement.actorId, links: statement.links }]
+      return [{ kind: 'mention', id: statement.actorId }, { kind: 'links', id: statement.actorId, links: statement.links },
+      ]
     case 'actor-data':
       return [{ kind: 'mention', id: statement.actorId }]
     case 'note':
       return statement.note.actorIds.map(id => ({ kind: 'mention', id }))
     case 'message':
-      return [{ kind: 'mention', id: statement.message.from }, { kind: 'mention', id: statement.message.to }]
+      return [{ kind: 'mention', id: statement.message.from }, { kind: 'mention', id: statement.message.to },
+      ]
     default:
       return []
   }
@@ -708,8 +736,7 @@ function parseMessageArrow(arrow: string): { lineStyle: 'solid' | 'dashed'; star
 function bindLifecycle(
   pending: string[],
   matches: (id: string) => boolean,
-  bind: (id: string) => void,
-): void {
+  bind: (id: string) => void): void {
   for (let i = pending.length - 1; i >= 0; i--) {
     const id = pending[i]!
     if (!matches(id)) continue

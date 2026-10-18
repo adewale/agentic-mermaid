@@ -46,6 +46,23 @@ const BOXED = `sequenceDiagram
   B-->>A: two`
 
 describe('sequence serializer → renderer-parser conformance (new constructs)', () => {
+  test.each([
+    'sequenceDiagram A->>B: first',
+    'sequenceDiagram participant A as Alice\nA->>B: first',
+    'sequenceDiagram A->>B: first; B-->>A: second',
+  ])('inline header content survives opaque parse and serialization: %s', source => {
+    const parsed = parseMermaid(source)
+    expect(parsed.ok).toBe(true)
+    if (!parsed.ok) throw new Error(JSON.stringify(parsed.error))
+    expect(parsed.value.body.kind).toBe('opaque')
+    const serialized = serializeMermaid(parsed.value)
+    expect(serialized.trim()).toBe(source)
+    const reloaded = parseMermaid(serialized)
+    expect(reloaded.ok).toBe(true)
+    if (!reloaded.ok) throw new Error(JSON.stringify(reloaded.error))
+    expect(serializeMermaid(reloaded.value)).toBe(serialized)
+  })
+
   test('boxed body: serialize keeps the box parseable by the renderer', () => {
     const d = sequence(BOXED)
     const rendered = renderParse(serializeMermaid(d))

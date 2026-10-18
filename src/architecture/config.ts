@@ -59,6 +59,7 @@ export interface ArchitectureVisualConfig {
 export type ArchitectureVisualOverrides = Partial<ArchitectureVisualConfig>
 
 export interface ArchitectureLayoutMetrics {
+  serviceIconSize?: number
   groupFontSize: number
   groupFontWeight: number
   groupLetterSpacing: number
@@ -303,6 +304,7 @@ export function resolveArchitectureRenderOptions(
 
 export function architectureLayoutMetrics(visual: ArchitectureVisualConfig): ArchitectureLayoutMetrics {
   return {
+    serviceIconSize: visual.serviceIconSize,
     groupFontSize: visual.groupFontSize,
     groupFontWeight: visual.groupFontWeight,
     groupLetterSpacing: visual.groupLetterSpacing,

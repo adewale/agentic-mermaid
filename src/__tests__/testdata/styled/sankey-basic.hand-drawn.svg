@@ -1,7 +1,7 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="648" height="448" viewBox="0 0 648 448" style="--bg:#f7f5ef;--fg:#1a1a1e;--line:#26262b;--accent:#26262b;--border:#26262b;--font:Caveat;background:#f7f5ef" aria-roledescription="sankey diagram" role="img" class="am-0jwq1671gm57xd">
+<svg xmlns="http://www.w3.org/2000/svg" width="648" height="448" viewBox="0 0 648 448" style="--bg:#f7f5ef;--fg:#1a1a1e;--line:#26262b;--accent:#26262b;--border:#26262b;--font:Caveat;background:#f7f5ef" aria-roledescription="sankey diagram" role="img" class="am-1w6atlx14a9nsr">
 <style>
-  .am-0jwq1671gm57xd text { font-family: var(--font, 'Caveat'), system-ui, sans-serif; }
-  svg.am-0jwq1671gm57xd {
+  svg.am-1w6atlx14a9nsr { font-family: var(--font, 'Caveat'), system-ui, sans-serif; }
+  svg.am-1w6atlx14a9nsr {
     /* Derived from --bg and --fg (overridable via --line, --accent, etc.) */
     --_text:          #1a1a1e;
     --_text-sec:      #4b4a4c;

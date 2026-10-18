@@ -5,10 +5,28 @@ import { fitUncalibratedSvgText } from '../custom-font-geometry.ts'
 import { HOSTED_FONT_RESOURCES } from '../font-manifest.ts'
 import { measureFormattedTextWidth, measureMonospaceTextWidth, measureTextWidth } from '../text-metrics.ts'
 import { decodePng, inkColumns } from './helpers/png-pixels.ts'
+import { createTextMeasurementExecution, withTextMeasurementExecution } from '../text-measurement-profile.ts'
 
 const BUNDLED_FONT_FAMILIES = [...new Set(HOSTED_FONT_RESOURCES.map(resource => resource.family))]
 
 describe('deterministic custom-font geometry', () => {
+  test('trusted metrics receive inherited SVG fonts and keep their advances separate', () => {
+    const fonts: string[] = []
+    const execution = createTextMeasurementExecution({
+      id: 'test:svg-fonts', version: '1.0.0',
+      measure(input) {
+        fonts.push(input.fontFamily)
+        return input.text.length * (input.fontFamily === 'Georgia' ? 30 : input.monospace ? 20 : 10)
+      },
+    }, 'Inter')
+    const projected = withTextMeasurementExecution(execution, () => fitUncalibratedSvgText(
+      '<svg><g font-family="Georgia"><text font-size="12">Header</text></g><text font-size="12">Header</text><text class="mono" font-size="12">Header</text></svg>',
+      'Inter',
+    ))
+    expect(fonts).toEqual(['Georgia', 'Inter', 'JetBrains Mono'])
+    expect(projected.match(/textLength="\d+"/g)).toEqual(['textLength="180"', 'textLength="60"', 'textLength="120"'])
+  })
+
   test('resource availability never masquerades as metric calibration', () => {
     const svg = '<svg><text font-size="14">Natural</text></svg>'
     for (const family of BUNDLED_FONT_FAMILIES) {

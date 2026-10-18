@@ -190,7 +190,7 @@ describe('xychart structured-or-opaque fallback', () => {
 
   // Mermaid's xychart syntax quotes text, and the family's own example did too —
   // quoting must NOT drop the whole chart to opaque (it caused an eval failure).
-  // Quoted title/axis/series/category parse STRUCTURED and canonicalize unquoted.
+  // Quoted text stays STRUCTURED; the writer keeps quotes where they preserve meaning.
   const quotedStructured: Array<[string, string]> = [
     ['quoted title', 'xychart-beta\n  title "Monthly Revenue"\n  bar [1, 2]'],
     ['quoted category', 'xychart-beta\n  x-axis ["Jan", "Feb"]\n  bar [1, 2]'],
@@ -204,9 +204,10 @@ describe('xychart structured-or-opaque fallback', () => {
       if (!r.ok) return
       expect(r.value.body.kind).toBe('xychart')
       expect(asXyChart(r.value)).not.toBeNull()
-      // Canonicalizes unquoted, and the round-trip re-parses structured.
+      // Simple words can canonicalize unquoted; spaces must survive upstream's lexer.
       const out = serializeMermaid(r.value)
-      expect(out).not.toContain('"')
+      if (name === 'quoted title') expect(out).toContain('title "Monthly Revenue"')
+      else expect(out).not.toContain('"')
       const re = parseMermaid(out)
       expect(re.ok && re.value.body.kind).toBe('xychart')
     })

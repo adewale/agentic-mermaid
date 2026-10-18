@@ -1,7 +1,7 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="573.54" height="176.4" viewBox="0 0 573.54 176.4" style="--bg:#fff5df;--fg:#2b2725;--line:#1f3d5a;--accent:#ff5a5f;--muted:#876a52;--surface:#ffd166;--border:#1f3d5a;--font:EB Garamond;background:#fff5df" aria-labelledby="mindmap-title" aria-roledescription="mindmap" role="img" class="am-1c986r004cbplh">
+<svg xmlns="http://www.w3.org/2000/svg" width="573.54" height="176.4" viewBox="0 0 573.54 176.4" style="--bg:#fff5df;--fg:#2b2725;--line:#1f3d5a;--accent:#ff5a5f;--muted:#876a52;--surface:#ffd166;--border:#1f3d5a;--font:EB Garamond;background:#fff5df" aria-labelledby="mindmap-title" aria-roledescription="mindmap" role="img" class="am-0q1u7rd1wjmjnx">
 <style>
-  .am-1c986r004cbplh text { font-family: var(--font, 'EB Garamond'), system-ui, sans-serif; }
-  svg.am-1c986r004cbplh {
+  svg.am-0q1u7rd1wjmjnx { font-family: var(--font, 'EB Garamond'), system-ui, sans-serif; }
+  svg.am-0q1u7rd1wjmjnx {
     /* Derived from --bg and --fg (overridable via --line, --accent, etc.) */
     --_text:          #2b2725;
     --_text-sec:      #876a52;

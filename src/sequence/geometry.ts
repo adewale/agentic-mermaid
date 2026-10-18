@@ -394,7 +394,7 @@ export function resolveSequenceBlockScopes(diagram: SequenceDiagram): SequenceBl
 }
 
 export function measureSequenceBlockSpec(block: Block, style: ResolvedRenderStyle, baseBlockPadTop: number, baseBlockHeaderExtra: number, baseDividerExtra: number, edgeTextHeight: number): SequenceBlockGeometrySpec {
-  const prepared = preparePixelText(block.type === 'rect' ? '' : `${block.type}${block.label ? ` [${block.label}]` : ''}`, { transform: style.groupTextTransform, fontSize: style.groupHeaderFontSize, fontWeight: style.groupHeaderFontWeight, letterSpacing: style.groupLetterSpacing })
+  const prepared = preparePixelText(block.type === 'rect' ? '' : `${block.type}${block.label ? ` [${block.label}]` : ''}`, { transform: style.groupTextTransform, fontSize: style.groupHeaderFontSize, fontWeight: style.groupHeaderFontWeight, letterSpacing: style.groupLetterSpacing, fontFamily: style.groupFont })
   const headerText = prepared.text
   const defaultHeaderLineHeight = style.groupHeaderFontSize * LINE_HEIGHT_RATIO
   const headerMetrics: MultilineMetrics = headerText ? prepared : { width: 0, height: 0, lines: [], lineHeight: defaultHeaderLineHeight }

@@ -209,6 +209,9 @@ const SEQUENCE_AGENT_HOOKS = {
   extractLabels: extractSequenceLabels,
   parse: ({ source, lines, opaqueSource }) => {
     const expandedLines = splitSequenceStatementLines(lines).map(line => line.trim()).filter(Boolean)
+    // The typed body starts after the header. Preserve a header's inline
+    // statement rather than silently discarding it with that first line.
+    if (!/^sequenceDiagram$/i.test(expandedLines[0] ?? '')) return ok({ kind: 'opaque', family: 'sequence', source: opaqueSource })
     const rawBodyLines = sequenceRawBodyLines(source.familyBody, expandedLines)
     const body = parseSequenceBody(expandedLines.slice(1), rawBodyLines)
     return ok(body ?? { kind: 'opaque', family: 'sequence', source: opaqueSource })

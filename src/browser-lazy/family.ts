@@ -1,18 +1,26 @@
 import type {
   FamilyDescriptor,
   FamilyLayoutResult,
+  FamilyPositionedProjectionContext,
+  FamilyPositionedView,
 } from '../agent/families.ts'
 import type { PositionedDiagram, RenderContext } from '../types.ts'
 
 export type BrowserSvgFamilyHooks = Pick<
   FamilyDescriptor,
   'normalizeRequest' | 'layout' | 'lowerScene'
->
+> & Required<Pick<FamilyDescriptor, 'projectPositioned'>>
 
 type BrowserFamilyDescriptorData = Omit<
   FamilyDescriptor,
   keyof BrowserSvgFamilyHooks | 'contractVersion' | 'capabilityEvidence'
 >
+
+export function positionedView<TPositioned extends PositionedDiagram>(
+  projector: (ctx: FamilyPositionedProjectionContext<TPositioned>) => FamilyPositionedView,
+): NonNullable<FamilyDescriptor['projectPositioned']> {
+  return ctx => projector(ctx as FamilyPositionedProjectionContext<TPositioned>)
+}
 
 export function scene<TPositioned extends PositionedDiagram>(
   lowerer: (ctx: RenderContext<TPositioned>) => ReturnType<NonNullable<FamilyDescriptor['lowerScene']>>,
@@ -28,8 +36,8 @@ export function layoutResult<TPositioned extends PositionedDiagram>(
 }
 
 /** Assemble the SVG-only descriptor loaded by the async browser entry.
- * Agent, ASCII, and positioned-layout hooks deliberately stay out of these
- * chunks; the synchronous entry remains the complete API. */
+ * Agent editing and ASCII stay out of these chunks. Each family retains its
+ * pure positioned view so final geometry is certified before lowering. */
 export function createBrowserFamilyDescriptor(
   data: BrowserFamilyDescriptorData,
   hooks: BrowserSvgFamilyHooks,

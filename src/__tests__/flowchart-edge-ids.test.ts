@@ -22,6 +22,7 @@ import { renderMermaidSVG } from '../index.ts'
 import { layoutGraphSync } from '../layout-engine.ts'
 import { lowerGraphScene } from '../renderer.ts'
 import { asFlowchart, mutate, parseRegisteredMermaid as parseMermaid, serializeMermaid, verifyMermaid } from '../agent/index.ts'
+import { startUpstreamMermaid } from './helpers/upstream-mermaid.ts'
 
 const SOURCE = 'flowchart LR\n  A e1@--> B\n'
 
@@ -53,6 +54,24 @@ describe('flowchart edge IDs — parse', () => {
 })
 
 describe('flowchart edge IDs — round-trip', () => {
+  it('writes metadata declarations separately from named links without losing their identities', async () => {
+    const upstream = startUpstreamMermaid()
+    try {
+      for (const metadata of ["A@{ shape: 'rect' }", 'A@{ shape: diamond, label: "Question" }\nB@{ shape: rounded }']) {
+        const source = `flowchart LR\nA id1@-->B\n${metadata}`
+        const diagram = parseAgent(source)
+        const serialized = serializeMermaid(diagram)
+        expect(await upstream.accepts(source)).toBe(true)
+        expect(await upstream.accepts(serialized)).toBe(true)
+        const reparsed = asFlowchart(parseAgent(serialized))!
+        expect(reparsed.body.graph.nodes).toEqual(asFlowchart(diagram)!.body.graph.nodes)
+        expect(reparsed.body.graph.edges).toEqual(asFlowchart(diagram)!.body.graph.edges)
+        expect(serializeMermaid(reparsed)).toBe(serialized)
+        expect(renderMermaidSVG(serialized)).toContain('data-id="id1"')
+      }
+    } finally { upstream.close() }
+  })
+
   it('agent parse is structured and serialization is byte-identical', () => {
     const diagram = parseAgent(SOURCE)
     expect(diagram.body.kind).toBe('flowchart')

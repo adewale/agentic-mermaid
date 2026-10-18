@@ -3,6 +3,7 @@ import { parseRegisteredMermaid as parseMermaid } from '../agent/parse.ts'
 import { mutate } from '../agent/mutate.ts'
 import type { SourceSpan } from '../agent/types.ts'
 import { sourcePreservationSpans } from '../family-detection.ts'
+import { DIAGRAM_WORK_LIMITS } from '../shared/diagram-limits.ts'
 import { expectNearLinearGrowth } from './helpers/complexity.ts'
 
 function textAt(source: string, span: SourceSpan | undefined): string | undefined {
@@ -658,16 +659,18 @@ A -->|lab| B`
       { length: count },
       (_, index) => `N${index}`,
     ).join('\n')}`
-    const source = sourceFor(8_000)
+    const count = DIAGRAM_WORK_LIMITS.nodes
+    const source = sourceFor(count)
     const parsed = parseMermaid(source)
     expect(parsed.ok).toBe(true)
     if (parsed.ok) {
-      const last = parsed.value.source.spans!.nodes.get('N7999')!
-      expect(last.start).toEqual({ offset: source.lastIndexOf('N7999'), line: 8_001, col: 1 })
+      const id = `N${count - 1}`
+      const last = parsed.value.source.spans!.nodes.get(id)!
+      expect(last.start).toEqual({ offset: source.lastIndexOf(id), line: count + 1, col: 1 })
     }
     expectNearLinearGrowth('mapped objects', size => {
       expect(parseMermaid(sourceFor(size)).ok).toBe(true)
-    }, 8_000)
+    }, count)
   })
 
   test('keeps same-line and repeated-node chains within a linear-time envelope', () => {
@@ -679,7 +682,7 @@ A -->|lab| B`
     }, 150)
     expectNearLinearGrowth('same-line chain of shaped nodes', size => {
       expect(parseMermaid(`flowchart LR\n${Array.from({ length: size }, (_, index) => `N${index}[L${index}]`).join('-->')}`).ok).toBe(true)
-    }, 9_600)
+    }, DIAGRAM_WORK_LIMITS.nodes)
   })
 
   test('indexes preservation coordinates and merges accessibility spans linearly', () => {
