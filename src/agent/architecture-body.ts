@@ -626,12 +626,6 @@ export function mutateArchitecture(body: ArchitectureBody, op: ArchitectureMutat
     }
   }
 
-  // Preserve the structured floor: visible title furniture or at least one
-  // node must remain, so canonical output always has renderable content.
-  if (next.groups.length === 0 && next.services.length === 0 && next.junctions.length === 0
-    && next.title === undefined && next.accessibilityTitle === undefined && next.accessibilityDescription === undefined) {
-    return err({ code: 'INVALID_OP', message: 'Architecture diagram must keep a title, accessibility directive, group, service, or junction' })
-  }
 
   return ok(next)
 }

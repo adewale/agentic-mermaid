@@ -5,6 +5,7 @@
 
 import type { Node as AcornNode } from 'acorn'
 import { parse as parseJavaScript } from 'acorn'
+import { verifyMutationResult } from '../agent/apply.ts'
 import * as mermaid from '../agent/core.ts'
 import { BUILTIN_FAMILY_METADATA } from '../agent/families.ts'
 import type { DiagramKind } from '../agent/types.ts'
@@ -606,9 +607,9 @@ export function createTracingMermaid(trace?: ExecutionTraceCall[], makeSandboxEr
       const candidate = rawObj && typeof rawObj === 'object' && !Array.isArray(rawObj) && (rawObj as { ok?: unknown }).ok === true && 'value' in (rawObj as object) ? rawOf((rawObj as { value: unknown }).value) : rawObj
       if (isDiagramLike(candidate) && trusted.has(candidate as object)) {
         const d = candidate as unknown as Parameters<typeof mermaid.serializeMermaid>[0] & { kind: DiagramKind }
-        const verification = mermaid.verifyMermaid(d)
+        const { accepted, verification } = verifyMutationResult(d)
         const summary = mermaid.verifySummary(verification)
-        if (!verification.ok) {
+        if (!accepted) {
           return {
             ok: false,
             family: d.kind,

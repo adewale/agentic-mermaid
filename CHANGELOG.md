@@ -4,14 +4,18 @@ This changelog tracks user-facing changes for **Agentic Mermaid**, a fork of `lu
 
 ## Unreleased
 
-### Known limitations
-- This release candidate's Class fixes do not resolve the ER entity-order
-  defect tracked in #372 or canonical YAML whitespace preservation in #367.
-  Those fixes are deferred beyond this candidate; default verbatim wrapper
-  preservation is distinct from canonical YAML rewriting. Do not infer general
-  semantic closure from a successful structural verification.
-
 ### Fixed
+- ER edits retain entity order and group ownership through export and reload,
+  including removing the entity or relationship that first introduced them
+  (#372). The old BUG-10 estimate of about 0.6% of fuzzed edits is historical,
+  rather than a measurement of this candidate.
+- Journey admits title, section and task labels made entirely of line breaks.
+  Intentional empty Pie, Architecture, Journey and XY edits succeed when their
+  emitted source renders; standalone verification still reports emptiness
+  (#367).
+- Canonical YAML output preserves whitespace-only scalar lines and trailing
+  newlines. Frontmatter boundaries retain supported footer indentation without
+  consuming block-scalar content (#367).
 - Class relationship markers keep their authored endpoint through unrelated
   edits, serialization and reload (#406). Semantic facts now include marker
   ownership, both-ended marker kinds and shaft style; existing fact strings

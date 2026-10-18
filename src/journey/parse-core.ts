@@ -51,13 +51,12 @@ export function normalizeJourneyText(value: string): string {
   return normalizeJourneyLabel(value)
     .split(/\r?\n/)
     .map(part => part.trim())
-    .filter(Boolean)
     .join('\n')
 }
 
 /** Actor labels are single-line: multiline markup collapses to `a / b`. */
 export function normalizeJourneyActor(value: string): string {
-  return normalizeJourneyText(value).split('\n').join(' / ')
+  return normalizeJourneyText(value).split('\n').filter(Boolean).join(' / ')
 }
 
 export function isJourneyComment(line: string): boolean {

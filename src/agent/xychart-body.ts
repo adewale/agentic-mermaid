@@ -332,13 +332,6 @@ export function mutateXyChart(body: XyChartBody, op: XyChartMutationOp): Result<
     }
   }
 
-  // Preserve the structured floor: an xychart must keep at least one series so
-  // it always renders. Only mutations that EMPTY a non-empty chart are refused;
-  // a body that starts empty (createMermaid/buildMermaid) may stay empty while
-  // ops build it up — title/axes first, series after.
-  if (body.series.length > 0 && next.series.length === 0) {
-    return err({ code: 'INVALID_OP', message: 'XY chart must keep at least one series' })
-  }
 
   return ok(next)
 }

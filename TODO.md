@@ -22,18 +22,16 @@ design context, never additional queues. Retired IDs are not reused.
   SHA rather than an old issue-body SHA, finish the changelog, and verify npm,
   site build identity and a hosted capability after publication. A green CI run
   or a deliberately skipped deployment is not delivery evidence.
-  The current Class candidate includes
+  The Class fixes merged in #410 include
   [#406](https://github.com/adewale/agentic-mermaid/issues/406),
   [#407](https://github.com/adewale/agentic-mermaid/issues/407),
   and [#408](https://github.com/adewale/agentic-mermaid/issues/408):
   relationship endpoint/shaft preservation, native multi-ended lollipops,
   explicit relation metadata, checked lollipop admission, member admission and
   caller-array ownership. The Class fact additions have an explicit
-  `exact: true` migration example in `docs/api.md`. #406 blocks a safe
-  Class-editing claim until the final candidate passes semantic export/reload
-  and rendered-marker checks. ER entity order (#372) and canonical YAML
-  whitespace (#367/BUG-60) are deferred beyond this candidate, remain open,
-  and must be disclosed as known limitations; this Class fix is not a general
+  `exact: true` migration example in `docs/api.md`. PR #418 implements ER
+  entity order (#372) and the remaining Journey, empty-edit and canonical YAML
+  fixes (#367); its final CI and merge remain pending. This is not a general
   lossless-editing guarantee. Do not publish or deploy from local test results;
   REL-1 still requires final-candidate CI and artifact/delivery verification.
 - [ ] **DEC-6 — Decide the hosted `execute` boundary from usage evidence**
@@ -389,7 +387,6 @@ choices, are collected in
 investigation of the class rather than per-item fixes.
 
 - [ ] **BUG-9 — ER `add_attribute` can move an entity ahead of others** (`todo`). It inserts the declaration before the first relation naming the entity, so re-parse creates it before that relation's other end; the serializer compensates unless that end belongs to a subgraph (`D ||--o{ B`, then `subgraph G` / `D ||--o{ B` / `end`, `add_attribute B` re-parses as B before D). Inserting after that relation keeps the order.
-- [ ] **BUG-10 — ER order a declaration in the entity's own subgraph cannot keep** (`todo`). A top-level entity whose body position falls between two entities of one subgraph (`D ||--o{ C : r0` / `subgraph G0` / `D` / `E` / `end`, remove `r0` → D, E, C), or a `style`-created entity inside a subgraph, re-parses in a different position. About 0.6% of fuzzed edits.
 - [ ] **BUG-19 — Entity codes stay literal in flowchart (other than `#quot;`), sequence and ER text** (`todo`). Upstream renders `#9829;` as ♥, `#35;` as `#` and `#amp;` as `&` in labels, aliases and messages; ours shows the code. Decoding `#lt;`/`#gt;` must not inject formatting tags. `src/pie/parser.ts` already implements upstream's full entity pipeline and has a browser oracle; reuse it.
 - [ ] **BUG-20 — Flowchart ellipse shape `A(-a-)` is unsupported** (`todo`). We read it as a rounded node labelled `-a-`.
 - [ ] **BUG-23 — Flowchart labels containing a literal backslash-n or `#quot;` don't round-trip** (`todo`). Upstream's DB keeps `\n` as two characters, but since 11.13 its renderer draws it as a line break in plain labels, as ours does. The display difference is in markdown strings, where upstream keeps `\n` literal and ours breaks the line. A typed label containing a literal backslash-n, or the text `#quot;`, re-parses differently; the serializer should write them with upstream's entities (`#92;n`, `#35;quot;`).
@@ -402,9 +399,6 @@ investigation of the class rather than per-item fixes.
 - [ ] **BUG-42 — ELK throws on an edge between a nested subgraph's node and its enclosing subgraph** (`todo`). With `direction TB` overrides, `B --> Outer` or `Outer --> B` (B inside Inner inside Outer) raises `UnsupportedGraphException` and the render fails. Pinned in `subgraph-hierarchy-exhaustive.test.ts`.
 - [ ] **BUG-43 — Edges between a subgraph and its own contents break routing rules** (`todo`). Nine such pairs (for example `A --> Outer`, `Inner --> Outer`) render but leave an endpoint off the outline, route through a node, or misanchor on the container; `verify` reports them. Pinned in `subgraph-hierarchy-exhaustive.test.ts`.
 - [ ] **BUG-46 — SVG output carries unrounded floats** (`todo`). The default style emits `36.900000000000006` (state) and `4.199999999999999` (timeline, pie), and hand-drawn styles emit `stroke-width="2.0999999999999996"`. Round once where numbers become SVG text, shared by Scene and SVG; goldens that pin these values change with the fix.
-- [ ] **BUG-47 — A Journey title, section or task that is only `<br/>` is rejected** (`todo`). Mermaid draws `<br/>` as text there; ours reports "Invalid user journey line". Pinned `it.failing` in `property-svg-wellformedness.test.ts`.
-- [ ] **BUG-52 — Mutators keep "don't empty" floors that predate renderable empty charts** (`todo`). `set_title` on `createMermaid('pie')` is refused ("Pie must keep at least one slice"); the Architecture and Journey mutators keep similar floors.
-- [ ] **BUG-60 — A YAML string whose first line is only spaces does not round-trip through frontmatter** (`todo`). The `yaml` writer turns ` \n` into a block scalar that reads back as `\n`. Pinned `test.failing` in `metadata-yaml.test.ts`.
 - [ ] **BUG-61 — Code Mode trailing line comments break the wrapper** (`todo`,
   [#366](https://github.com/adewale/agentic-mermaid/issues/366)). Protect
   multi-statement snippets ending in `//` from swallowing wrapper syntax.

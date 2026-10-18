@@ -202,5 +202,15 @@ export function parseMermaidYaml(source: string): MermaidYamlResult {
 /** Write a value as YAML that `parseMermaidYaml` (and upstream) reads back:
  * a string that would resolve as a number, boolean or null is quoted. */
 export function stringifyMermaidYaml(value: unknown): string {
-  return YAML.stringify(value, MERMAID_YAML_OPTIONS)
+  const document = new YAML.Document(value, MERMAID_YAML_OPTIONS)
+  YAML.visit(document, {
+    Scalar(_key, node) {
+      // Block scalars can discard spaces on otherwise blank lines. Quote only
+      // those strings; ordinary multiline text retains readable block syntax.
+      if (typeof node.value === 'string' && /(?:^|\n)[ \t]+\r?(?:\n|$)/.test(node.value)) {
+        node.type = YAML.Scalar.QUOTE_DOUBLE
+      }
+    },
+  })
+  return document.toString()
 }

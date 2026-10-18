@@ -25,7 +25,7 @@ import {
 import { splitSequenceStatementLines } from './sequence/statements.ts'
 import { parseMermaidYaml } from './shared/mermaid-yaml.ts'
 import { syntaxError } from './shared/syntax-error.ts'
-import { FRONTMATTER_REGEX, INIT_DIRECTIVE_REGEX, toMermaidLines } from './mermaid-source-wrapper.ts'
+import { matchMermaidFrontmatter, INIT_DIRECTIVE_REGEX, toMermaidLines } from './mermaid-source-wrapper.ts'
 
 export { toMermaidLines }
 
@@ -578,19 +578,18 @@ function sourceEnvelopeMetadata(text: string, accessibility: MermaidSourceAccess
   comments: MermaidSourceComment[]
   accessibility: MermaidSourceAccessibility
 } {
-  const frontmatter = text.match(FRONTMATTER_REGEX)
+  const frontmatter = matchMermaidFrontmatter(text)
   // A standalone UTF-8 BOM is universal envelope syntax too. Treat it as an
   // exact one-byte wrapper even without frontmatter so family-owned source
   // starts at the header and source-map ownership agrees with serialization.
-  const frontmatterEnd = frontmatter?.[0].length ?? (text.startsWith('\uFEFF') ? 1 : 0)
+  const frontmatterEnd = frontmatter?.source.length ?? (text.startsWith('\uFEFF') ? 1 : 0)
   const initDirectives = mermaidInitDirectives(text.slice(frontmatterEnd))
 
   // Mask universal config instead of deleting it so comment locations remain
   // physical line numbers in the authored source, including after frontmatter
   // and multiline init directives.
   const maskExceptNewlines = (value: string): string => value.replace(/[^\r\n]/g, ' ')
-  const withoutUniversalConfig = text
-    .replace(FRONTMATTER_REGEX, maskExceptNewlines)
+  const withoutUniversalConfig = (frontmatter ? maskExceptNewlines(frontmatter.source) + text.slice(frontmatter.source.length) : text)
     .replace(new RegExp(INIT_DIRECTIVE_REGEX.source, 'gm'), maskExceptNewlines)
   const comments: MermaidSourceComment[] = []
   const lines = withoutUniversalConfig.split(/\r?\n/)
@@ -650,9 +649,9 @@ export function preprocessMermaidSource(
   text: string,
   baseFrontmatter: MermaidFrontmatterMap = {},
 ): ProcessedMermaidSource {
-  const frontmatterMatch = text.match(FRONTMATTER_REGEX)
-  const yamlFrontmatter = frontmatterMatch ? canonicalizeFrontmatterMap(parseYamlDocument(frontmatterMatch[1]!)) : {}
-  const rawBody = frontmatterMatch ? text.slice(frontmatterMatch[0].length) : text
+  const frontmatterMatch = matchMermaidFrontmatter(text)
+  const yamlFrontmatter = frontmatterMatch ? canonicalizeFrontmatterMap(parseYamlDocument(frontmatterMatch.yaml)) : {}
+  const rawBody = frontmatterMatch ? text.slice(frontmatterMatch.source.length) : text
   const { body, frontmatter: directiveFrontmatter } = extractInitDirectives(rawBody)
   const frontmatter = mergeFrontmatterMaps(
     mergeFrontmatterMaps(canonicalizeFrontmatterMap(baseFrontmatter), yamlFrontmatter),
