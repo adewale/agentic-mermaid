@@ -11,7 +11,7 @@ import { resolveInlineNodeTextColor, toneOnFill } from './color-resolver.ts'
 import type { ConnectorLabelDescriptor, MarkerDescriptor, SceneDoc, SceneNode, SemanticChannels } from './scene/ir.ts'
 import * as marks from './scene/marks.ts'
 import { pathArtwork } from './scene/artwork.ts'
-import { preparePixelText } from './shared/prepared-text.ts'
+import { iconFallbackToken } from './shared/icon-fallback.ts'
 import { DefaultBackend } from './scene/backend.ts'
 import type { ResolvedStateVisualConfig } from './state/config.ts'
 import { resolveMindmapIcon } from './mindmap/icons.ts'
@@ -859,9 +859,9 @@ function renderFlowchartMedia(node: PositionedNode, ink: string): SceneNode | nu
         paint: { fill: ink, stroke: ink, strokeWidth: '0.8' },
       })
     }
-    const token = node.icon.split(/[:/\s-]+/).filter(Boolean).at(-1)?.slice(0, 2).toUpperCase() || '?'
+    const token = iconFallbackToken(node.icon)
     return marks.text({ id: `node:${node.id}:icon`, role: 'icon', owner: { id: node.id, role: 'node' }, text: token,
-      block: preparePixelText(token, { fontSize: 10, fontWeight: 400 }),
+      block: node.iconFallbackBlock,
       x: cx, y: y + size / 2, fontSize: 10, anchor: 'middle', paint: { fill: ink } }, `<text class="flowchart-icon-fallback" data-icon="${escapeAttr(node.icon)}" x="${cx}" y="${y + size / 2}" text-anchor="middle" font-size="10" fill="${color}">${escapeXml(token)}</text>`)
   }
   if (node.image) {

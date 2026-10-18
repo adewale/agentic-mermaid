@@ -229,6 +229,9 @@ describe('prepared text at the graphical boundary', () => {
     const text = valid.parts.find(node => node.kind === 'text')!
     if (text.kind !== 'text') throw new Error('fixture must have text')
     for (const [field, value] of [
+      ['owner', { id: 'absent', role: 'node' }],
+      ['measurement', 'prepared'], ['prepared', true],
+      ['block', { ...text.block!, text: 'Forged content', prepared: { ...text.block!.prepared, source: 'Forged content' } }],
       ['fontWeight', 900], ['letterSpacing', 30], ['display', 'formatted'],
       ['textLayout', { ...text.textLayout, width: 0 }],
       ['textLayout', { ...text.textLayout, offsetY: 10 }],
@@ -238,7 +241,7 @@ describe('prepared text at the graphical boundary', () => {
       const forgedText = attachSceneNodeSerialization({ ...text, [field]: value }, sceneNodeSerialization(text))
       const result = validateSceneDoc({ ...valid, parts: valid.parts.map(node => node === text ? forgedText : node) }, { mode: 'external' })
       expect(result.valid).toBe(false)
-      expect(result.diagnostics).toContainEqual(expect.objectContaining({ code: 'SCENE_FIDELITY', path: expect.stringMatching(new RegExp(`\\.${field}$`)) }))
+      expect(result.diagnostics).toContainEqual(expect.objectContaining({ code: field === 'owner' ? 'SCENE_REFERENCE' : 'SCENE_FIDELITY', path: expect.stringMatching(new RegExp(`\\.${field}$`)) }))
     }
   })
   it('compares the complete prepared label instead of accepting only its first word', () => {

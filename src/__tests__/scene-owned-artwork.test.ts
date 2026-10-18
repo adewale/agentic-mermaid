@@ -5,7 +5,14 @@ import { positionResolvedFamily } from '../positioning.ts'
 import { inspectScenePrimitives } from '../scene/inspection.ts'
 import { sceneFidelityProblems } from '../scene/fidelity.ts'
 import type { SceneDoc, SceneNode } from '../scene/ir.ts'
-import type { RenderOptions } from '../types.ts'
+import type { PositionedGraph, RenderOptions } from '../types.ts'
+import type { PositionedMindmapDiagram } from '../mindmap/types.ts'
+import type { PositionedArchitectureDiagram } from '../architecture/types.ts'
+import type { PositionedXYChart } from '../xychart/types.ts'
+import type { PositionedPieChart } from '../pie/types.ts'
+import type { PositionedQuadrantChart } from '../quadrant/types.ts'
+import type { TooltipLayout } from '../shared/tooltip-layout.ts'
+import { nodePaintBounds, nodeWorldBounds } from '../scene/bounds.ts'
 import type { PositionedErDiagram } from '../er/types.ts'
 
 function lower(source: string, options: RenderOptions = {}, measure?: (text: string) => number) {
@@ -49,9 +56,25 @@ describe('owned source artwork retains its actual primitives', () => {
     ['xychart', 'xychart-beta\nx-axis [A,B]\nbar [3,7]\nline [2,8]'],
     ['quadrant', 'quadrantChart\nAlpha: [0.3,0.4]'],
     ['pie', 'pie\n"Alpha": 4\n"Beta": 6'],
-  ])('%s interactive artwork distinguishes conditional tooltip paint from transparent hits and metadata', (_family, source) => {
-    const { scene } = lower(source, { interactive: true })
+  ])('%s interactive artwork distinguishes conditional tooltip paint from transparent hits and metadata', (family, source) => {
+    const { scene, positioned } = lower(source, { interactive: true }, text => text.length * 17)
     const nodes = leaves(scene)
+    const plans: TooltipLayout[] = family === 'xychart'
+      ? [...(positioned as PositionedXYChart).bars.map(bar => bar.tooltip!), ...(positioned as PositionedXYChart).lines.flatMap(line => line.points.map(point => point.tooltip!))]
+      : family === 'pie' ? (positioned as PositionedPieChart).slices.map(slice => slice.tooltip!)
+        : (positioned as PositionedQuadrantChart).points.map(point => point.tooltip!)
+    expect(plans.every(Boolean)).toBe(true)
+    expect(plans.map(plan => plan.text)).toEqual(family === 'xychart' ? ['3', '7', '2', '8'] : family === 'pie' ? ['Alpha: 4 (40.0%)', 'Beta: 6 (60.0%)'] : ['Alpha: [0.3, 0.4]'])
+    for (const plan of plans) {
+      const painted = nodes.find(node => node.kind === 'text' && node.block === plan.block)
+      expect(painted?.kind).toBe('text')
+      if (painted?.kind !== 'text') throw new Error('tooltip did not consume its positioned block')
+      expect(painted.block).toBe(plan.block)
+      expect(painted.text).toBe(plan.text.replace(/[\t\n\r ]+/g, ' ').trim())
+      expect(painted.block!.width).toBe(plan.block.lineBlocks[0]!.runs.map(run => run.text).join('').length * 17)
+      expect(painted.x).toBe(Math.round(plan.textX * 100) / 100)
+      expect(painted.y).toBe(Math.round(plan.textY * 100) / 100)
+    }
     expect(nodes.some(node => node.kind === 'group' && node.visibility === 'conditional')).toBe(true)
     expect(nodes.some(node => node.kind === 'shape' && node.paint.fill === 'transparent')).toBe(true)
     expect(nodes.every(node => node.kind !== 'document' || node.element !== 'content' || node.nonPaint === 'interaction-metadata')).toBe(true)
@@ -60,6 +83,44 @@ describe('owned source artwork retains its actual primitives', () => {
     expect(inspection.coverage.fallbackText).toBe(0)
     expect(inspection.primitives.some(primitive => primitive.visibility === 'conditional' && primitive.text?.measurement === 'prepared')).toBe(true)
     expect(sceneFidelityProblems(scene)).toEqual([])
+  })
+
+  test.each([
+    ['flowchart', 'flowchart LR\nA@{icon: "unknown:private", label: "Fallback"}'],
+    ['mindmap', 'mindmap\n root((Root))\n  other[Fallback]\n   ::icon(unknown:private)'],
+    ['architecture', '---\nconfig:\n  architecture:\n    iconSize: 32\n---\narchitecture-beta\ngroup g(unknown:groupprivate)[Group]\nservice a(unknown:private)[Fallback] in g'],
+  ])('%s fallback icons retain the actual positioned text object and measurement', (family, source) => {
+    const { scene, positioned } = lower(source, {}, text => ['PR', 'P', 'G'].includes(text) ? 91 : text.length * 8)
+    const blocks = family === 'flowchart' ? (positioned as PositionedGraph).nodes.map(node => node.iconFallbackBlock)
+      : family === 'mindmap' ? (positioned as PositionedMindmapDiagram).nodes.map(node => node.iconFallbackBlock)
+        : [...(positioned as PositionedArchitectureDiagram).services.map(service => service.iconFallbackBlock), ...(positioned as PositionedArchitectureDiagram).groups.map(group => group.iconFallbackBlock)]
+    const retained = blocks.filter(block => block !== undefined)
+    expect(retained).toHaveLength(family === 'architecture' ? 2 : 1)
+    const text = leaves(scene).filter(node => node.kind === 'text' && node.role === 'icon')
+    expect(text).toHaveLength(retained.length)
+    for (const block of retained) {
+      const painted = text.find(node => node.kind === 'text' && node.block === block)
+      expect(painted?.kind).toBe('text')
+      if (painted?.kind !== 'text') throw new Error('icon did not consume its positioned block')
+      expect(painted.block).toBe(block)
+      expect(painted.block!.width).toBe(91)
+      expect(painted.text).toBe(block.prepared.source)
+      expect(painted.fontSize).toBe(block.fontSize)
+    }
+  })
+
+  test('Pie hover-only emphasis retains its future foreground ink bounds', () => {
+    const { scene } = lower('---\nconfig:\n  pie:\n    highlightSlice: hover\n---\npie\n"Alpha": 4\n"Beta": 6', { interactive: false })
+    const hit = leaves(scene).find(node => node.kind === 'shape' && node.conditionalPaint)
+    expect(hit?.kind).toBe('shape')
+    if (hit?.kind !== 'shape') throw new Error('missing conditional Pie emphasis')
+    expect(hit.paint.fill).toBe('transparent')
+    expect(hit.conditionalPaint).toMatchObject({ fill: 'transparent', stroke: 'var(--fg)' })
+    const geometry = nodeWorldBounds(hit)!, ink = nodePaintBounds(hit)!
+    expect(ink.x0).toBeLessThan(geometry.x0)
+    expect(ink.x1).toBeGreaterThan(geometry.x1)
+    expect(inspectScenePrimitives(scene).primitives.find(primitive => primitive.id === hit.id)).toMatchObject({ visibility: 'conditional', coverage: 'measured', bounds: ink })
+    expect(leaves(scene).some(node => node.kind === 'text' && node.id.endsWith(':body:text'))).toBe(false)
   })
 
   test('class marker carriers retain both real marker resources without becoming semantic relationships', () => {

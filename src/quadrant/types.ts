@@ -1,3 +1,4 @@
+import type { TooltipLayout } from '../shared/tooltip-layout.ts'
 // ============================================================================
 // Quadrant chart types
 //
@@ -105,6 +106,7 @@ export interface QuadrantLabelBox {
 }
 
 export interface PositionedQuadrantPoint {
+  tooltip?: TooltipLayout
   label: string
   labelBlock?: import('../shared/prepared-text.ts').PixelTextBlock
   /** Original normalized coordinates. */

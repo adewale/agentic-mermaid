@@ -3,7 +3,7 @@ import type { RenderContext, RenderOptions } from '../types.ts'
 import { svgOpenTag, buildStyleBlock, buildShadowDefs } from '../theme.ts'
 import { TEXT_BASELINE_SHIFT, applyTextTransform, estimateTextWidth, STROKE_WIDTHS, resolveRenderStyle } from '../styles.ts'
 import type { RenderStyleDefaults } from '../styles.ts'
-import { LEGEND_SWATCH_GAP, LEGEND_SWATCH_SIZE, XY_STYLE_DEFAULTS } from './layout.ts'
+import { LEGEND_SWATCH_GAP, LEGEND_SWATCH_SIZE, XY_DOT_RADIUS, XY_STYLE_DEFAULTS } from './layout.ts'
 import { escapeXml, renderMultilineText } from '../multiline-utils.ts'
 import { CHART_ACCENT_FALLBACK } from './colors.ts'
 import { categoricalPalette } from '../shared/categorical-palette.ts'
@@ -36,7 +36,7 @@ const CHART_FONT = {
   titleWeight: 500,
   axisTitleWeight: 400,
   labelWeight: 400,
-  dotRadius: 4,
+  dotRadius: XY_DOT_RADIUS,
   lineWidth: 3,
 } as const
 
@@ -164,8 +164,6 @@ export function lowerXYChartScene(
     if (interactive) {
       const tipText = formatBarValue(bar.value)
       const tipTitle = bar.label ? `${bar.label}: ${tipText}` : tipText
-      const tipAnchorX = chart.horizontal ? bar.x + bar.width : bar.x + bar.width / 2
-      const tipAnchorY = chart.horizontal ? bar.y + bar.height / 2 : bar.y
       const owner = { id: barId, role: 'bar' as const }
       barOverlay.push(marks.group({ id: `tooltip:${barId}`, role: 'chrome', owner,
         open: '<g class="xychart-bar-group">', close: '</g>', join: '', children: [
@@ -173,7 +171,7 @@ export function lowerXYChartScene(
             geometry: { kind: 'rect', x: rn(bar.x), y: rn(bar.y), width: rn(bar.width), height: rn(bar.height) }, paint: { fill: 'transparent' },
           }, `<rect x="${r(bar.x)}" y="${r(bar.y)}" width="${r(bar.width)}" height="${r(bar.height)}" fill="transparent"/>`) },
           { indent: 0, node: marks.documentContent({ id: `${barId}:title`, role: 'chrome', nonPaint: 'interaction-metadata' }, `<title>${escapeXml(tipTitle)}</title>`) },
-          { indent: 0, node: tooltipArtwork('xychart', tipAnchorX, tipAnchorY, tipText, `${barId}:tooltip`, owner) },
+          { indent: 0, node: tooltipArtwork('xychart', bar.tooltip, `${barId}:tooltip`, owner) },
         ],
       }))
     }
@@ -274,7 +272,7 @@ export function lowerXYChartScene(
               indent: 0,
             },
             {
-              node: tooltipArtwork('xychart', point.x, point.y - CHART_FONT.dotRadius, tipText, `tooltip:${pointId}`, { id: pointId, role: 'point' }),
+              node: tooltipArtwork('xychart', point.tooltip, `tooltip:${pointId}`, { id: pointId, role: 'point' }),
               indent: 0,
             },
           ],

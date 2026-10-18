@@ -41,17 +41,17 @@ export function connectorHitDistance(connector: ConnectorMark, point: ScenePoint
 function hitsTransformed(connector: ConnectorMark, point: ScenePoint, tolerance: number, parent: AffineMatrix): boolean {
   if (connector.hit.pointerEvents === 'none') return false
   const matrix = composeMatrices(parent, transformMatrix(connector.transform))
+  const inverse = inverseMatrix(matrix)
+  if (!inverse) return false
   if (connector.stroke.nonScaling) {
     const distance = transformedHitDistance(connector, point, parent)
     return distance !== undefined && distance <= connector.hit.strokeWidth / 2 + Math.max(0, tolerance)
   }
-  const inverse = inverseMatrix(matrix)
-  if (!inverse) return false
   const local = transformPoint(point, inverse)
   // A world-space tolerance expands conservatively under an affine inverse;
   // the declared local hit stroke itself is tested exactly, including scale.
-  const inverseExtent = Math.hypot(inverse[0], inverse[1], inverse[2], inverse[3])
-  const threshold = connector.hit.strokeWidth / 2 + Math.max(0, tolerance) * inverseExtent
+  const inverseExtent = (Math.hypot(inverse[0] + inverse[3], inverse[1] - inverse[2]) + Math.hypot(inverse[0] - inverse[3], inverse[1] + inverse[2])) / 2
+  const threshold = connector.hit.strokeWidth / 2 + (tolerance > 0 ? tolerance * inverseExtent : 0)
   return connectorSegments(connector.hit.geometry, connector.hit.closed).some(segment => distanceToSegment(local, segment.start, segment.end) <= threshold)
 }
 

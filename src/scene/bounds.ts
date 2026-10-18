@@ -3,7 +3,7 @@ import type { ConnectorLabelDescriptor, ConnectorMark, Geometry, MarkPaint, Mark
 import { connectorEndpointAnchors, connectorMidpoints } from './connector-geometry.ts'
 import { preparePixelText, type PixelTextBlock } from '../shared/prepared-text.ts'
 import { resolveLabelContent } from '../shared/display-text.ts'
-import { composeMatrices, transformMatrix, transformPoint } from './transforms.ts'
+import { composeMatrices, inverseMatrix, transformMatrix, transformPoint } from './transforms.ts'
 
 function pointsBounds(points: Array<{ x: number; y: number }>): AxisAlignedBox | undefined {
   if (points.length === 0) return undefined
@@ -393,12 +393,17 @@ export function nodePaintBounds(node: SceneNode, parentTransform?: SceneTransfor
 
 function paintBounds(node: SceneNode, parentTransform?: SceneTransform): AxisAlignedBox | undefined {
   const transform = composedTransform(parentTransform, node.transform)
+  if (!inverseMatrix(transformMatrix(transform))) return undefined
   let local: AxisAlignedBox | undefined
   if (node.kind === 'shape') {
     local = geometryBounds(node.geometry)
     const extent = paintedStrokeExtent(node.paint, ['polygon', 'polyline', 'path', 'compound'].includes(node.geometry.kind))
     if (!local || extent === undefined) return undefined
-    return paintedBox(local, extent, node.paint.vectorEffect === 'non-scaling-stroke', transform)
+    const base = paintedBox(local, extent, node.paint.vectorEffect === 'non-scaling-stroke', transform)
+    if (!node.conditionalPaint) return base
+    const alternate = paintedStrokeExtent(node.conditionalPaint, ['polygon', 'polyline', 'path', 'compound'].includes(node.geometry.kind))
+    if (!base || alternate === undefined) return undefined
+    return unionSceneBounds(base, paintedBox(local, alternate, node.conditionalPaint.vectorEffect === 'non-scaling-stroke', transform))
   } else if (node.kind === 'connector') {
     return connectorPaintBounds(node, transform)
   } else if (node.kind === 'text') {

@@ -53,6 +53,7 @@ export function shape(fields: {
   visibility?: 'conditional'
   geometry: Geometry
   paint: MarkPaint
+  conditionalPaint?: MarkPaint
   surfaceFragment?: boolean
   channels?: SemanticChannels
   transform?: SceneTransform
@@ -74,6 +75,7 @@ export function shape(fields: {
     ...(accessibility ? { accessibility } : {}),
     geometry: fields.geometry,
     paint: fields.paint,
+    ...(fields.conditionalPaint ? { conditionalPaint: fields.conditionalPaint } : {}),
     ...(fields.surfaceFragment !== undefined ? { surfaceFragment: fields.surfaceFragment } : {}),
     ...(fields.channels ? { channels: fields.channels } : {}),
     ...(fields.transform ? { transform: fields.transform } : {}),
@@ -262,7 +264,7 @@ function connectorInlineLabelSvg(
     ...(block.letterSpacing ? [`letter-spacing="${block.letterSpacing}"`] : []),
     `text-anchor="${label.textAnchor}"`,
   ]
-  if (transform?.kind === 'rotate') attrs.push(`transform="rotate(${transform.angle} ${transform.cx} ${transform.cy})"`)
+  if (transform) attrs.push(`transform="${serializeTransform(transform)}"`)
   const paint: MarkPaint = {
     ...label.paint,
     ...(label.halo ? {
@@ -553,6 +555,11 @@ export function text(fields: {
   transform?: SceneTransform
 }, crisp: string): TextMark {
   const { block, ...semantic } = fields
+  if (block) {
+    for (const field of ['fontSize', 'fontWeight', 'letterSpacing'] as const) {
+      if (fields[field] !== undefined && fields[field] !== block[field]) throw new TypeError(`Text "${fields.id}" ${field} differs from its retained prepared block`)
+    }
+  }
   const open = crisp.match(/<text\b[^>]*>/)?.[0] ?? ''
   const weight = fields.fontWeight ?? block?.fontWeight ?? Number(open.match(/\bfont-weight="(\d+)"/)?.[1] ?? 400)
   const spacing = fields.letterSpacing ?? block?.letterSpacing ?? Number(open.match(/\bletter-spacing="(-?[\d.]+)"/)?.[1] ?? 0)

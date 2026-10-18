@@ -343,11 +343,7 @@ export function lowerPieScene(
   // hover-highlight mode the overlay exists even when tooltips are disabled;
   // <title> and the styled tip remain conditional on `interactive`.
   if (interactive || hoverHighlight) {
-    const labelRadius = chart.radius * visual.textPosition
     for (const [index, slice] of chart.slices.entries()) {
-      const mid = (slice.startAngle + slice.endAngle) / 2
-      const anchorX = rnd(chart.cx + labelRadius * Math.sin(mid))
-      const anchorY = rnd(chart.cy - labelRadius * Math.cos(mid))
       const tipText = `${(slice.displayLabel ?? slice.label).replace(/\n/g, ' ')}: ${formatPieValue(slice.value)} (${formatPiePercent(slice.fraction)})`
       const hoverTargetAttrs = hoverHighlight
         ? ` class="pie-slice-hover-target" stroke="transparent" stroke-width="${hoverEmphasisStrokeWidth}"`
@@ -357,13 +353,13 @@ export function lowerPieScene(
       parts.push(marks.group({ id, role: 'chrome', owner,
         open: '<g class="pie-slice-group">', close: '</g>', join: '', children: [
           { indent: 0, node: marks.shape({ id: `${id}:hit`, role: 'chrome', owner,
-            ...(hoverHighlight ? { visibility: 'conditional' as const } : {}),
+            ...(hoverHighlight ? { visibility: 'conditional' as const, conditionalPaint: { fill: 'transparent', stroke: 'var(--fg)', strokeWidth: String(hoverEmphasisStrokeWidth) } } : {}),
             geometry: { kind: 'path', d: slice.path },
             paint: { fill: 'transparent', ...(hoverHighlight ? { stroke: 'transparent', strokeWidth: String(hoverEmphasisStrokeWidth) } : {}) },
           }, `<path d="${slice.path}" fill="transparent"${hoverTargetAttrs}/>` ) },
           ...(interactive ? [
             { indent: 0, node: marks.documentContent({ id: `${id}:title`, role: 'chrome', nonPaint: 'interaction-metadata' }, `<title>${escapeXml(tipText)}</title>`) },
-            { indent: 0, node: tooltipArtwork('pie', anchorX, anchorY, tipText, `${id}:body`, owner) },
+            { indent: 0, node: tooltipArtwork('pie', slice.tooltip, `${id}:body`, owner) },
           ] : []),
         ],
       }))

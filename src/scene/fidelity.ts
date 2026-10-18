@@ -286,6 +286,7 @@ export function nodeProblems(node: SceneNode, path: string, problems: string[]):
         const actual = unescapeXml(serialized
           .replace(/<tspan\b(?![^>]*\bdata-text-fragment=)[^>]*\s(?:x|dy)="[^"]*"[^>]*>/g, '\n')
           .replace(/<[^>]+>/g, '')).replace(/\s+/g, ' ').trim()
+        if (node.block && node.block.lineBlocks.map(line => line.runs.map(run => run.text).join('')).join(' ').replace(/\s+/g, ' ').trim() !== actual) problems.push(`${path}(text:${node.id}).block: retained prepared text differs from actual SVG`)
         if (actual !== expected) problems.push(`${path}(text:${node.id}): prepared text "${expected.slice(0, 40)}" differs from crisp "${actual.slice(0, 40)}"`)
       } else if (node.role === 'member') {
         // Class members are literal source text, not emphasis markup. Compare

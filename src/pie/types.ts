@@ -1,3 +1,4 @@
+import type { TooltipLayout } from '../shared/tooltip-layout.ts'
 // ============================================================================
 // Pie chart types
 //
@@ -58,6 +59,7 @@ export interface PieSliceLabel {
 }
 
 export interface PositionedPieSlice {
+  tooltip?: TooltipLayout
   /** The original entry label. */
   label: string
   /** Visible tooltip label when Mermaid's entity projection changes text. */

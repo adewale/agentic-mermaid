@@ -46,4 +46,13 @@ test('admission rejects false non-painting and prepared-text claims', () => {
   expect(validateSceneDoc(scene([visible]), { mode: 'internal' }).diagnostics.some(d => d.path.endsWith('.nonPaint'))).toBe(true)
   const text = marks.text({ id: 'missing', role: 'label', text: 'Lost', x: 10, y: 20, fontSize: 12, anchor: 'start', paint: {} }, '<text x="10" y="20" font-size="12">Lost</text>')
   expect(validateSceneDoc(scene([{ ...text, measurement: 'prepared', block: undefined }]), { mode: 'internal' }).valid).toBe(false)
+  const forged = preparePixelText('Forged', { fontSize: 1, fontWeight: 900 })
+  const falsePlan = { ...text, measurement: 'prepared' as const, prepared: true as const, block: forged, textLayout: { ...text.textLayout!, width: forged.width, height: forged.height, lineHeight: forged.lineHeight } }
+  expect(validateSceneDoc(scene([falsePlan]), { mode: 'internal' }).valid).toBe(false)
+  expect(() => marks.text({ id: 'mismatch', role: 'label', text: 'Forged', block: forged, x: 10, y: 20, fontSize: 12, anchor: 'start', paint: {} }, '<text x="10" y="20" font-size="12">Forged</text>')).toThrow('retained prepared block')
+})
+
+test('transparent hit targets paint nothing, and singular composed transforms supply no paint or hit evidence', () => {
+  const target = marks.shape({ id: 'hit', role: 'chrome', geometry: { kind: 'rect', x: 0, y: 0, width: 100, height: 80 }, paint: { fill: 'transparent' } }, '<rect x="0" y="0" width="100" height="80" fill="transparent"/>')
+  expect(inspectScenePrimitives(scene([target])).primitives[0]?.coverage).toBe('non-painting')
 })

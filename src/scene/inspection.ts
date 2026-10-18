@@ -53,9 +53,10 @@ function nonPainting(node: SceneNode): boolean {
   if (node.kind === 'text' && !/\S/u.test(node.block?.text ?? node.text)) return true
   if (node.kind === 'connector') return node.lineStyle === 'invisible'
   if (node.kind === 'shape' || node.kind === 'text') {
+    if (node.kind === 'shape' && node.conditionalPaint) return false
     if (node.paint.opacity !== undefined && Number(node.paint.opacity) === 0) return true
     const absent = (paint: string | undefined) => paint === 'none' || paint === 'transparent'
-    return absent(node.paint.fill) && absent(node.paint.stroke)
+    return absent(node.paint.fill) && (node.paint.stroke === undefined || absent(node.paint.stroke))
   }
   return false
 }
@@ -90,7 +91,7 @@ export function inspectScenePrimitives(scene: SceneDoc): ScenePaintInspection {
         ...(conditional || node.visibility === 'conditional' ? { visibility: 'conditional' as const } : {}),
         ...(measured ? { bounds: Object.freeze(bounds!) } : {}),
         ...(!hidden && !measured ? { reason: node.kind === 'document' ? 'opaque-visible-content' : 'missing-paint-geometry' } : {}),
-        ...(node.kind === 'text' ? { text: Object.freeze({ source: node.block?.prepared.source ?? node.text, displayed: node.block?.text ?? node.text, measurement: node.measurement ?? 'unavailable', ...(node.block?.fontFamily ? { fontFamily: node.block.fontFamily } : {}) }) } : {}),
+        ...(node.kind === 'text' ? { text: Object.freeze({ source: node.block?.prepared.source ?? node.text, displayed: node.block ? node.block.lineBlocks.map(line => line.runs.map(run => run.text).join('')).join('\n') : node.text, measurement: node.measurement ?? 'unavailable', ...(node.block?.fontFamily ? { fontFamily: node.block.fontFamily } : {}) }) } : {}),
       })
       sources.set(primitive, node)
       primitives.push(primitive)

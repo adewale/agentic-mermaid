@@ -1,3 +1,4 @@
+import { layoutTooltip } from '../shared/tooltip-layout.ts'
 import type {
   QuadrantChart,
   PositionedQuadrantChart,
@@ -369,6 +370,7 @@ export function layoutQuadrantChart(
       labelY: round((chosen ?? candidates[0]!).y),
       labelAnchor: (chosen ?? candidates[0]!).anchor,
     }
+    positioned.tooltip = layoutTooltip(cx, cy - vis.radius, `${label}: [${p.x}, ${p.y}]`)
     if (vis.fill !== undefined) positioned.fill = vis.fill
     if (vis.stroke !== undefined) positioned.stroke = vis.stroke
     if (vis.strokeWidth !== undefined) positioned.strokeWidth = vis.strokeWidth

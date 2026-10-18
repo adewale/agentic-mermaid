@@ -1,3 +1,4 @@
+import { architectureIconFallbackBlock } from './icon-layout.ts'
 import { assertArchitectureDiagramWork } from '../shared/diagram-limits.ts'
 import type { Point, RenderOptions } from '../types.ts'
 import { ARCHITECTURE_DEFAULT_LAYER_SPACING, ARCHITECTURE_DEFAULT_NODE_SPACING, DEFAULT_ARCHITECTURE_VISUAL, architectureLayoutMetrics } from './config.ts'
@@ -131,7 +132,7 @@ export function layoutArchitectureDiagram(
     const bounds = { x: node.x, y: node.y, width: node.width, height: node.height }
     if (servicesById.has(node.id)) {
       const service = servicesById.get(node.id)!
-      services.push({ ...bounds, id: service.id, label: service.label, labelBlock: serviceText.get(service.id), icon: service.icon, parentId: service.parentId })
+      services.push({ ...bounds, id: service.id, label: service.label, labelBlock: serviceText.get(service.id), iconFallbackBlock: architectureIconFallbackBlock(service.icon, typography.serviceIconSize ?? DEFAULT_ARCHITECTURE_VISUAL.serviceIconSize), icon: service.icon, parentId: service.parentId })
       serviceBounds.set(node.id, bounds)
     } else if (junctionIds.has(node.id)) {
       const junction = diagram.junctions.find((entry) => entry.id === node.id)!
@@ -168,7 +169,10 @@ export function layoutArchitectureDiagram(
 
   const flatGroups = new Map<string, PositionedArchitectureGroup>()
   const groups = positioned.groups.map((group) => mapGroup(group, groupsById, flatGroups))
-  for (const group of flatGroups.values()) group.labelBlock = groupText.get(group.id)
+  for (const group of flatGroups.values()) {
+    group.labelBlock = groupText.get(group.id)
+    group.iconFallbackBlock = architectureIconFallbackBlock(group.icon, typography.iconSize ?? DEFAULT_ARCHITECTURE_VISUAL.iconSize)
+  }
   expandGroupBounds(groups, services, junctions, diagram.alignments.length > 0)
   const sideConstraintsChanged = applyArchitectureSideConstraints(
     diagram,

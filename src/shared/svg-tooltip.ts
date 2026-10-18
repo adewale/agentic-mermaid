@@ -15,52 +15,18 @@
 
 import { TEXT_BASELINE_SHIFT } from '../styles.ts'
 import { escapeXml } from '../multiline-utils.ts'
-import { preparePixelText } from './prepared-text.ts'
+import { layoutTooltip, TIP, type TooltipLayout } from './tooltip-layout.ts'
+export { TIP } from './tooltip-layout.ts'
 import type { GroupMark, SceneOwner } from '../scene/ir.ts'
 import * as marks from '../scene/marks.ts'
-
-export const TIP = {
-  fontSize: 15,
-  fontWeight: 500,
-  height: 32,
-  padX: 14,
-  offsetY: 12,
-  rx: 8,
-  minY: 4,
-  pointerSize: 6,
-} as const
 
 function r(value: number): string {
   return (Math.round(value * 100) / 100).toString()
 }
 
-/**
- * Tooltip markup centered above (cx, topY): background pill + pointer + text,
- * classed `{prefix}-tip` so the matching CSS (tooltipCss) can reveal it.
- */
-function tooltipPlan(cx: number, topY: number, text: string) {
-  const block = preparePixelText(text.replace(/[\t\n\r ]+/g, ' ').trim(), { display: 'literal', fontSize: TIP.fontSize, fontWeight: TIP.fontWeight })
-  const textW = block.width
-  const bgW = textW + TIP.padX * 2
-  const bgX = cx - bgW / 2
-  let bgY = topY - TIP.offsetY - TIP.height
-  let ptrY = bgY + TIP.height
-
-  if (bgY < TIP.minY) {
-    bgY = TIP.minY
-    ptrY = bgY + TIP.height
-  }
-
-  const textX = cx
-  const textY = bgY + TIP.height / 2
-  const p = TIP.pointerSize
-  const ptrPath = `M${r(cx - p)},${r(ptrY)} L${r(cx + p)},${r(ptrY)} L${r(cx)},${r(ptrY + p)} Z`
-
-  return { block, bgW, bgX, bgY, textX, textY, ptrPath }
-}
-
+/** Direct string consumers own their own text/layout preparation. */
 export function tooltipMarkup(prefix: string, cx: number, topY: number, text: string): string {
-  const { bgW, bgX, bgY, textX, textY, ptrPath } = tooltipPlan(cx, topY, text)
+  const { bgW, bgX, bgY, textX, textY, ptrPath } = layoutTooltip(cx, topY, text)
   return (
     `<g class="${prefix}-tip">` +
     `<rect x="${r(bgX)}" y="${r(bgY)}" width="${r(bgW)}" height="${TIP.height}" rx="${TIP.rx}" class="${prefix}-tip ${prefix}-tip-bg"/>` +
@@ -71,8 +37,9 @@ export function tooltipMarkup(prefix: string, cx: number, topY: number, text: st
 }
 
 /** The same owned tooltip geometry, retained as paint rather than opaque SVG. */
-export function tooltipArtwork(prefix: string, cx: number, topY: number, text: string, id: string, owner: SceneOwner): GroupMark {
-  const { block, bgW, bgX, bgY, textX, textY, ptrPath } = tooltipPlan(cx, topY, text)
+export function tooltipArtwork(prefix: string, plan: TooltipLayout | undefined, id: string, owner: SceneOwner): GroupMark {
+  if (!plan) throw new TypeError(`Missing retained tooltip layout for ${id}`)
+  const { text, block, bgW, bgX, bgY, textX, textY, ptrPath } = plan
   const n = (value: number) => Number(r(value))
   return marks.group({ id, role: 'chrome', owner, visibility: 'conditional',
     open: `<g class="${prefix}-tip">`, close: '</g>', join: '',

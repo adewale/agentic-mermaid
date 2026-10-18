@@ -270,7 +270,7 @@ export function lowerQuadrantScene(
             geometry: { kind: 'circle', cx: point.cx, cy: point.cy, r: point.radius + 6 }, paint: { fill: 'transparent' },
           }, `<circle cx="${point.cx}" cy="${point.cy}" r="${point.radius + 6}" fill="transparent"/>`) },
           { indent: 0, node: marks.documentContent({ id: `${pointId}:title`, role: 'chrome', nonPaint: 'interaction-metadata' }, `<title>${escapeXml(tipText)}</title>`) },
-          { indent: 0, node: tooltipArtwork('quadrant', point.cx, point.cy - point.radius, tipText, `${pointId}:tooltip`, owner) },
+          { indent: 0, node: tooltipArtwork('quadrant', point.tooltip, `${pointId}:tooltip`, owner) },
         ],
       }))
     }

@@ -26,6 +26,7 @@ export interface MindmapDiagram {
 
 export interface PositionedMindmapNode {
   labelBlock?: PixelTextBlock
+  iconFallbackBlock?: PixelTextBlock
   id: string
   label: string
   shape: MindmapShape
