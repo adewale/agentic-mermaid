@@ -229,7 +229,7 @@ export function renderSequenceTerminal(text: string, config: AsciiConfig, colorM
   // Participant-group frames are background geometry with distinct ownership.
   participantGroups.forEach(group => {
     const element = doc.element({ id: generated(`box:${group.index}`), kind: 'group', members: group.members })
-    frame({ x: group.x, y: 0, width: group.width, height: footerY + actorBoxH + 1 }, element)
+    paintTerminalFrame(doc, { x: group.x, y: 0, width: group.width, height: footerY + actorBoxH + 1 }, element, ascii, false, reservedForeground)
     doc.scope(element, () => group.lines.forEach((line, y) => doc.text(group.x + 1, y, line, { role: 'text', kind: 'text' })))
   })
   diagram.actors.forEach((actor, index) => {

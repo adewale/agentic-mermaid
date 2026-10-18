@@ -2,9 +2,9 @@
   "schemaVersion": 1,
   "status": "approved",
   "artifact": "src/__tests__/testdata/section-b-brand-evidence.png",
-  "artifactSha256": "3aee18640b52271ee8a0f0f15a817f8abe3c4ad32c7692185ba45cb9624354c1",
+  "artifactSha256": "147a364dca5e02da89bd6b01c438c2ed3d21949f1051bd0a45d95e299a195cbb",
   "reviewedAt": "2026-10-18",
-  "reviewer": "Independent Codex audit agent, PR #420 integration with #421 outline contrast",
-  "scope": "Independent agent review after merging main ba37758062ed8daf805a2be6a472a49ef0c2222b. The 1560×9464 sheet contains 68 family-by-variant cells. Relative to main, exactly 132,756 pixels change in the four C4 cells: Sentinel 35,487; Editorial 32,357; Technical 33,272; Operations 31,640. All 64 other cells and headings remain pixel-identical. Relative to the prior PR #420 sheet, exactly 10,071 pixels change in the three upstream Timeline holdout cells; C4 cells remain identical. An independent agent inspected all C4 and Timeline treatments at native 520×380 against both revisions: labels, arrowheads, cards, descriptions, topology and legend remain complete. This is agent review, not human approval or arbitrary palette/font coverage.",
+  "reviewer": "Independent Codex AI audit agent, final paint certification refresh",
+  "scope": "Production candidate 366eae2a5e75703a05a83c0d91d40b7e34ffb915. Compared with the previously approved artifact 3aee18640b52271ee8a0f0f15a817f8abe3c4ad32c7692185ba45cb9624354c1, the 1560×9464 sheet changes 76,480 pixels in eight of its 68 family-by-variant cells: Journey Sentinel/Technical/Operations, XY all four treatments, and Flowchart Operations. The other 60 cells and all headings are pixel-identical. The independent AI agent inspected all eight changed before/after pairs at native 520×380 and verified the final regenerated crops match those reviewed bytes. Journey retains task, actor and score labels plus the full rail arrow; XY retains title, axis labels, ticks, categories and authored relative bar heights; Flowchart retains both branch labels, routes and complete arrowheads. This is agent review, not human approval, deployed-site parity or arbitrary input/font coverage.",
   "audit": "eval/section-b-brand-evidence/production-comparison.md"
 }

@@ -130,9 +130,9 @@ function widenPositioned(result: FamilyLayoutResult | PositionedDiagram, by: num
   return { ...rest, positioned: { ...positioned, width: positioned.width + by } }
 }
 
-function viewBoxWidth(svg: string): number {
-  const match = /<svg\b[^>]*\bviewBox="[-\d.]+ [-\d.]+ ([\d.]+) [\d.]+"/.exec(svg)
-  if (!match) throw new Error('rendered SVG has no numeric viewBox')
+function intrinsicWidth(svg: string): number {
+  const match = /<svg\b[^>]*\bwidth="([\d.]+)"/.exec(svg) ?? /<svg\b[^>]*\bmax-width:([\d.]+)px/.exec(svg)
+  if (!match) throw new Error('rendered SVG has no numeric display width')
   return Number(match[1])
 }
 
@@ -185,7 +185,7 @@ describe('property: FamilyDescriptor render waist', () => {
 
         // layout: a widened positioned artifact widens the SVG canvas.
         withFamilyHooks(publicKind, { ...original, layout: ctx => widenPositioned(layout(ctx), PERTURBED_WIDTH) }, () => {
-          expect(viewBoxWidth(renderSvg())).toBeCloseTo(viewBoxWidth(svg) + PERTURBED_WIDTH, 6)
+          expect(intrinsicWidth(renderSvg())).toBeCloseTo(intrinsicWidth(svg) + PERTURBED_WIDTH, 6)
         })
 
         // layout and lowerScene: SVG rendering surfaces a failing hook. The

@@ -1,3 +1,5 @@
+import { positionedPaintCertification } from '../scene/positioned.ts'
+import { PaintLayoutCertificationError, retainRenderedPaintCertification } from '../scene/paint-certification.ts'
 // ============================================================================
 // Canonical positioned-artifact → RenderedLayout projections.
 //
@@ -105,6 +107,7 @@ export function positionResolvedFamilyArtifact(d: ParsedDiagram, request: Resolv
     throw new Error(`Resolved request planned family ${descriptor.id}, not ${d.kind}`)
   }
   if (!descriptor.layout || !descriptor.projectPositioned) return null
+  if (request.renderOptions.layoutSafety === 'strict' && (!descriptor.lowerScene || d.kind.startsWith('family:'))) throw new FamilyLayoutError(d.kind, 'projectPositioned', new Error('Strict layout safety requires native Scene evidence'))
   let result: ReturnType<typeof positionResolvedFamily>
   try {
     result = positionResolvedFamily(d.kind, request, request.source, options)
@@ -118,12 +121,14 @@ export function positionResolvedFamilyArtifact(d: ParsedDiagram, request: Resolv
   } catch (error) {
     throw new FamilyLayoutError(d.kind, 'projectPositioned', error)
   }
-  return {
-    request,
-    layoutResult: result,
-    positioned: result.positioned,
-    rendered: stampFamilyKind(d.kind, view),
+  const rendered = stampFamilyKind(d.kind, view)
+  if (descriptor.lowerScene && !d.kind.startsWith('family:')) {
+    const certification = positionedPaintCertification(request, result)
+    if (request.renderOptions.layoutSafety === 'strict' && certification.status !== 'passed') throw new PaintLayoutCertificationError(certification)
+    retainRenderedPaintCertification(rendered, certification)
+    if (options.debug) rendered.paintCertification = certification
   }
+  return { request, layoutResult: result, positioned: result.positioned, rendered }
 }
 
 function structuredBodyExpectsNodes(d: ParsedDiagram): boolean {

@@ -1,4 +1,5 @@
 import { afterAll, describe, expect, test } from 'bun:test'
+import { decodeXML } from 'entities'
 import { asClass, mutate, parseRegisteredMermaid, serializeMermaid, verifyMermaid } from '../agent/index.ts'
 import { renderMermaidSVGAsync } from '../browser-lazy.ts'
 import { parseClassAnnotationStatement, parseClassDiagram } from '../class/parser.ts'
@@ -174,7 +175,9 @@ describe('Class official annotation forms', () => {
     if (!parsed.ok) return
     expect(verifyMermaid(parsed.value).warnings).toEqual([])
     const name = renderMermaidSVG(source).match(/<text\b[^>]*font-weight="700"[^>]*>(.*?)<\/text>/)?.[1]
-    expect(name).toBe('A&lt;<tspan font-weight="bold">&gt;</tspan>')
+    expect(name).toBeDefined()
+    expect(decodeXML(name!.replace(/<[^>]*>/g, ''))).toBe('A<>')
+    expect(name).toMatch(/<tspan\b[^>]*\bfont-weight="(?:bold|700)"[^>]*>&gt;<\/tspan>/)
   })
 
   test('direct parser ignores annotation text in full-line comments', () => {

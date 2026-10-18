@@ -154,7 +154,8 @@ export function layoutSequenceDiagram(diagram: SequenceDiagram, options: RenderO
     const first = Math.min(from, to)
     const last = Math.max(from, to)
     const span = last - first
-    const requiredPerGap = spec.requiredSpanWidth / span
+    const createdHeaderWidth = diagram.actors[to]!.createMessageIndex === mi && diagram.actors[to]!.type === 'participant' ? actorWidths[to]! / 2 : 0
+    const requiredPerGap = (spec.requiredSpanWidth + createdHeaderWidth) / span
     for (let gap = first; gap < last; gap++) {
       messageGapRequirements[gap] = Math.max(messageGapRequirements[gap]!, requiredPerGap)
     }
@@ -491,7 +492,11 @@ export function layoutSequenceDiagram(diagram: SequenceDiagram, options: RenderO
     }
     messageY += extra + msgSpec.extraAboveHeight
     const x1 = actorCenterX[fromIdx]!
-    const x2 = actorCenterX[toIdx]!
+    const centerX2 = actorCenterX[toIdx]!
+    const createdHeader = diagram.actors[toIdx]!.createMessageIndex === msgIdx && diagram.actors[toIdx]!.type === 'participant'
+    // A creation message meets the header's boundary; later messages use the
+    // lifeline. Ending at its centre puts the arrow under the opaque card.
+    const x2 = createdHeader && !isSelf ? centerX2 - Math.sign(centerX2 - x1) * actorWidths[toIdx]! / 2 : centerX2
     const positionRow = (): PositionedMessage => {
       const positioned = positionSequenceMessage(msg, msgSpec, style, x1, x2, messageY)
       messages[msgIdx] = positioned

@@ -158,7 +158,7 @@ export function renderSankeyTerminal(lines: string[], config: AsciiConfig, color
           document.line([
             { text: `  ${prefix}`, role: 'line', kind: 'stroke', owner: edgeOwner },
             { text: line, role: 'text', textGroup: id, owner: { id: link.target, kind: 'node' } },
-            { text: ' '.repeat(Math.max(0, labelWidth - visualWidth(line)) + 2) },
+            { text: ' '.repeat(Math.max(0, labelWidth - visualWidth(line)) + 2), kind: 'surface' },
             { text: valuePart, role: 'text', owner: { id: generated(`${id}:value`, ['link-value', id]), kind: 'label', parent: { id, kind: 'edge' } } },
             { text: bar, role: 'arrow', kind: 'mark', color, owner: edgeOwner },
           ])

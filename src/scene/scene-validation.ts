@@ -924,6 +924,17 @@ function validateNode(value: unknown, path: string, state: ValidationState, dept
         if (endpoint.point !== undefined) validatePoint(endpoint.point, `${path}.endpoints.${field}.point`, state.diagnostics, state.budget, state.external)
         if (endpoint.id !== undefined) boundedString(endpoint.id, `${path}.endpoints.${field}.id`, state.diagnostics, { externalId: state.external })
         if (endpoint.portId !== undefined) boundedString(endpoint.portId, `${path}.endpoints.${field}.portId`, state.diagnostics, { externalId: state.external })
+        if (endpoint.owner !== undefined) {
+          const ownerPath = `${path}.endpoints.${field}.owner`
+          if (!record(endpoint.owner)) add(state.diagnostics, 'SCENE_REFERENCE', ownerPath, 'must be a semantic owner')
+          else {
+            boundedString(endpoint.owner.id, `${ownerPath}.id`, state.diagnostics)
+            if (typeof endpoint.owner.role !== 'string' || (!Object.hasOwn(BUILTIN_SCENE_ROLE_TRAITS, endpoint.owner.role) && !NAMESPACED_ROLE.test(endpoint.owner.role))) add(state.diagnostics, 'SCENE_ROLE', `${ownerPath}.role`, 'must be a Scene role')
+            const id = value.endpoints[field === 'start' ? 'from' : 'to']
+            if (id !== undefined && endpoint.owner.id !== id) add(state.diagnostics, 'SCENE_FIDELITY', ownerPath, 'must retain the authored endpoint identity')
+            state.ownerReferences.push({ key: JSON.stringify([endpoint.owner.id, endpoint.owner.role]), path: ownerPath })
+          }
+        }
       }
     }
   } else add(state.diagnostics, 'SCENE_REFERENCE', `${path}.endpoints`, 'must be a typed endpoint object')

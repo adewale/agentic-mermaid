@@ -38,24 +38,39 @@ export function expandSceneBounds(box: AxisAlignedBox, amount: number): AxisAlig
 /** Conservative bounds from the typed path authority, never from serialized
  * SVG. Béziers stay inside their control hull; arcs stay inside their complete
  * rotated ellipse. Invalid input has no bound, rather than a partial one. */
-function pathBounds(d: string): AxisAlignedBox | undefined {
+export interface TypedPathSegment {
+  readonly bounds: AxisAlignedBox
+  /** Exact straight ink authority; a curve's control hull is only an envelope. */
+  readonly line?: readonly [ScenePoint, ScenePoint]
+}
+
+function pathBounds(d: string, visit?: (segment: TypedPathSegment) => boolean, work?: () => boolean): AxisAlignedBox | undefined {
   const number = /[+-]?(?:\d+\.?\d*|\.\d+)(?:[eE][+-]?\d+)?/y
   let index = 0, x = 0, y = 0, startX = 0, startY = 0
   let command = '', previous = ''
   let control: ScenePoint | undefined
   let result: AxisAlignedBox | undefined
-  const skip = (): void => { while (index < d.length && /[\s,]/.test(d[index]!)) index++ }
+  let segmentBounds: AxisAlignedBox | undefined
+  let stopped = false
+  const consume = (count: number): boolean => {
+    if (work) for (let i = 0; i < count; i++) if (!work()) { stopped = true; return false }
+    return true
+  }
+  const skip = (): void => { while (index < d.length && /[\s,]/.test(d[index]!)) { if (!consume(1)) return; index++ } }
   const read = (flag = false): number | undefined => {
     skip()
+    if (stopped) return undefined
     if (flag) {
       const value = d[index]
       if (value !== '0' && value !== '1') return undefined
+      if (!consume(1)) return undefined
       index++
       return Number(value)
     }
     number.lastIndex = index
     const match = number.exec(d)
     if (!match) return undefined
+    if (!consume(match[0].length)) return undefined
     index = number.lastIndex
     const value = Number(match[0])
     return Number.isFinite(value) ? value : undefined
@@ -63,21 +78,26 @@ function pathBounds(d: string): AxisAlignedBox | undefined {
   const include = (px: number, py: number): boolean => {
     if (!Number.isFinite(px) || !Number.isFinite(py)) return false
     result = unionSceneBounds(result, { x0: px, y0: py, x1: px, y1: py })
+    if (visit) segmentBounds = unionSceneBounds(segmentBounds, { x0: px, y0: py, x1: px, y1: py })
     return true
   }
   while (true) {
     skip()
+    if (stopped) return undefined
     if (index >= d.length) return result
     if (/[a-zA-Z]/.test(d[index]!)) {
+      if (!consume(1)) return undefined
       command = d[index++]!
       if (!/[MmLlHhVvCcSsQqTtAaZz]/.test(command) || (!result && command.toUpperCase() !== 'M')) return undefined
       if (command.toUpperCase() === 'Z') {
+        if (visit && !visit({ bounds: { x0: Math.min(x, startX), y0: Math.min(y, startY), x1: Math.max(x, startX), y1: Math.max(y, startY) }, line: [{ x, y }, { x: startX, y: startY }] })) return undefined
         x = startX; y = startY; previous = 'Z'; control = undefined; command = ''
         continue
       }
     }
     if (!command) return undefined
     const upper = command.toUpperCase(), relative = command !== upper
+    if (visit) segmentBounds = { x0: x, y0: y, x1: x, y1: y }
     const count = upper === 'A' ? 7 : upper === 'C' ? 6 : upper === 'S' || upper === 'Q' ? 4 : upper === 'H' || upper === 'V' ? 1 : 2
     const args: number[] = []
     for (let i = 0; i < count; i++) {
@@ -119,8 +139,15 @@ function pathBounds(d: string): AxisAlignedBox | undefined {
       if (upper === 'M') { startX = nextX; startY = nextY; command = relative ? 'l' : 'L' }
     }
     if (!include(nextX, nextY)) return undefined
+    if (visit && upper !== 'M' && !visit({ bounds: segmentBounds!, ...(['L', 'H', 'V'].includes(upper) ? { line: [{ x, y }, { x: nextX, y: nextY }] as const } : {}) })) return undefined
     x = nextX; y = nextY; control = nextControl; previous = upper
   }
+}
+
+/** Visit the same admitted typed-path segments used by geometry bounds.
+ * Returning false stops bounded consumers without accepting a partial path. */
+export function visitTypedPathSegments(d: string, visit: (segment: TypedPathSegment) => boolean, work?: () => boolean): boolean {
+  return pathBounds(d, visit, work) !== undefined
 }
 
 export function geometryBounds(geometry: Geometry): AxisAlignedBox | undefined {
@@ -149,6 +176,7 @@ function markerBoundsAt(
   anchor: ScenePoint | undefined,
   strokeWidth: number,
   painted = false,
+  angle?: number,
 ): AxisAlignedBox | undefined {
   if (!marker || !anchor) return undefined
   const geometry = marker.geometry ? geometryBounds(marker.geometry) : undefined
@@ -190,6 +218,12 @@ function markerBoundsAt(
   // SVG's omitted markerUnits default is strokeWidth.
   const unitScale = (marker.units ?? 'strokeWidth') === 'strokeWidth' ? strokeWidth : 1
   const scale = Math.max(painted ? 1 : 0, marker.scale ?? 1) * unitScale
+  if (angle !== undefined) {
+    const radians = angle * Math.PI / 180, cosine = Math.cos(radians), sine = Math.sin(radians)
+    const corners = [[viewportLocal.x0, viewportLocal.y0], [viewportLocal.x0, viewportLocal.y1], [viewportLocal.x1, viewportLocal.y0], [viewportLocal.x1, viewportLocal.y1]]
+      .map(([x, y]) => ({ x: anchor.x + ((x! - refX) * cosine - (y! - refY) * sine) * scale, y: anchor.y + ((x! - refX) * sine + (y! - refY) * cosine) * scale }))
+    return corners.every(point => Number.isFinite(point.x) && Number.isFinite(point.y)) ? pointsBounds(corners) : undefined
+  }
   // Auto orientation may rotate around the marker ref. A radial square is a
   // conservative AABB for every tangent and avoids path parsing.
   const extentX = Math.max(Math.abs(viewportLocal.x0 - refX), Math.abs(viewportLocal.x1 - refX))
@@ -201,6 +235,55 @@ function markerBoundsAt(
     x1: anchor.x + radius,
     y1: anchor.y + radius,
   }
+}
+
+export interface ConnectorMarkerPaintRegion {
+  position: 'start' | 'mid' | 'end'
+  resource: string
+  anchor: ScenePoint
+  repaint: string
+  hull?: readonly ScenePoint[]
+  padding?: number
+  bounds?: AxisAlignedBox
+}
+
+/** Individual marker occurrences from the native connector authority. */
+export function connectorMarkerPaintRegions(node: ConnectorMark, parentTransform?: SceneTransform): ConnectorMarkerPaintRegion[] {
+  const geometry = node.route.geometry, endpoints = connectorEndpointAnchors(geometry, node.route.closed)
+  const mids = connectorMidpoints(geometry, node.route.closed)
+  const transform = composedTransform(parentTransform, node.transform)
+  const result: ConnectorMarkerPaintRegion[] = []
+  const include = (position: ConnectorMarkerPaintRegion['position'], marker: MarkerDescriptor | undefined, anchor: ScenePoint | undefined, tangent?: ScenePoint): void => {
+    if (!marker || !anchor) return
+    const angle = typeof marker.orient === 'number' ? marker.orient : tangent ? Math.atan2(tangent.y, tangent.x) * 180 / Math.PI + (position === 'start' && marker.orient === 'auto-start-reverse' ? 180 : 0) : undefined
+    const strokeWidth = numericStrokeWidth(node.stroke.width)
+    const local = markerBoundsAt(marker, anchor, strokeWidth, true, angle)
+    const matrix = transformMatrix(transform)
+    // Equality is about the actual resource, orientation, unit scale and
+    // composed linear transform, rather than an owner or resource count.
+    const repaint = JSON.stringify([{ ...marker, orient: marker.orient ?? 'auto' }, angle ?? ['unknown', geometry], marker.units === 'userSpaceOnUse' ? 1 : strokeWidth, matrix.slice(0, 4)])
+    let hull: ScenePoint[] | undefined, padding: number | undefined
+    if (angle !== undefined && marker.geometry?.kind === 'polygon' && marker.geometry.points.length <= 64) {
+      const sizeScale = marker.viewBox && marker.size ? Math.min(marker.size.width / marker.viewBox.width, marker.size.height / marker.viewBox.height) : 1
+      const scale = sizeScale * Math.max(1, marker.scale ?? 1) * (marker.units === 'userSpaceOnUse' ? 1 : strokeWidth)
+      const radians = angle * Math.PI / 180, cosine = Math.cos(radians), sine = Math.sin(radians)
+      hull = marker.geometry.points.map(point => {
+        const x = (point.x - (marker.ref?.x ?? 0)) * scale, y = (point.y - (marker.ref?.y ?? 0)) * scale
+        return transformPoint({ x: anchor.x + x * cosine - y * sine, y: anchor.y + x * sine + y * cosine }, matrix)
+      })
+      const [a, b, c, d] = matrix
+      const norm = (Math.hypot(a + d, b - c) + Math.hypot(a - d, b + c)) / 2
+      const extent = paintedStrokeExtent(marker.paint ?? {}, true)
+      padding = extent === undefined ? undefined : extent * scale * norm
+      if (padding === undefined || !Number.isFinite(padding) || !hull.every(p => Number.isFinite(p.x) && Number.isFinite(p.y))) hull = undefined
+    }
+    result.push({ position, resource: marker.id, anchor: transformPoint(anchor, matrix), repaint, ...(hull ? { hull, padding } : {}), ...(local ? { bounds: transformedBounds(local, transform) } : {}) })
+  }
+  endpoints.starts.forEach((anchor, index) => include('start', node.markers.start, anchor, node.route.contours[index]?.startTangent))
+  endpoints.ends.forEach((anchor, index) => include('end', node.markers.end, anchor, node.route.contours[index]?.endTangent))
+  if (node.markers.mid.length === 1) for (const anchor of mids) include('mid', node.markers.mid[0], anchor)
+  else node.markers.mid.forEach((marker, index) => include('mid', marker, mids[index]))
+  return result
 }
 
 function numericStrokeWidth(width: string | number): number {
@@ -328,7 +411,7 @@ function composedTransform(parent: SceneTransform | undefined, child: SceneTrans
 
 /** Numeric user-unit/px strokes have a typed extent. Relative and unresolved
  * CSS units do not: treating `1em` or `var(...)` as one pixel would undercount. */
-function paintedStrokeExtent(paint: MarkPaint, hasJoins: boolean): number | undefined {
+export function paintedStrokeExtent(paint: MarkPaint, hasJoins: boolean): number | undefined {
   if (paint.stroke === undefined || paint.stroke === 'none' || paint.stroke === 'transparent' || tryParseCssColor(paint.stroke)?.[3] === 0) return 0
   const raw = paint.strokeWidth ?? '1'
   if (!/^\s*(?:\d+\.?\d*|\.\d+)(?:[eE][+-]?\d+)?(?:px)?\s*$/.test(raw)) return undefined
@@ -350,12 +433,32 @@ function paintedBox(box: AxisAlignedBox, extent: number, nonScaling: boolean, tr
   return world ? expandSceneBounds(world, extent) : undefined
 }
 
+/** A single symmetric cubic with horizontal endpoint tangents has no joins.
+ * Its normal's horizontal component is bounded by the midpoint slope; butt
+ * caps add no tangent extension. This keeps thick flow ribbons measurable
+ * without applying an unrelated polyline miter envelope to the whole curve.
+ */
+function symmetricCubicStrokeBounds(d: string, halfWidth: number): AxisAlignedBox | undefined {
+  if (!/^[\s,0-9eE.+\-MC]+$/.test(d)) return undefined
+  const tokens = d.match(/[MC]|[+-]?(?:\d+\.?\d*|\.\d+)(?:[eE][+-]?\d+)?/g)
+  if (!tokens || tokens.length !== 10 || tokens[0] !== 'M' || tokens[3] !== 'C') return undefined
+  const values = tokens.filter(token => token !== 'M' && token !== 'C').map(Number)
+  if (!values.every(Number.isFinite)) return undefined
+  const [x0, y0, x1, y1, x2, y2, x3, y3] = values as [number, number, number, number, number, number, number, number]
+  const dx = (x3 - x0) / 2, dy = y3 - y0
+  if (dx === 0 || x1 !== x2 || Math.abs(x1 - (x0 + x3) / 2) > 1e-8 || y1 !== y0 || y2 !== y3) return undefined
+  const horizontal = halfWidth * Math.abs(dy) / Math.hypot(dx, dy)
+  return { x0: Math.min(x0, x3) - horizontal, y0: Math.min(y0, y3) - halfWidth, x1: Math.max(x0, x3) + horizontal, y1: Math.max(y0, y3) + halfWidth }
+}
+
 function connectorPaintBounds(node: ConnectorMark, transform?: SceneTransform): AxisAlignedBox | undefined {
   const geometry = node.route.geometry
   const local = geometryBounds(geometry)
   const extent = paintedStrokeExtent({ stroke: node.stroke.color, strokeWidth: String(node.stroke.width), strokeLinecap: node.stroke.lineCap, strokeLinejoin: node.stroke.lineJoin, strokeMiterlimit: String(node.stroke.miterLimit) }, geometry.kind !== 'line')
   if (!local || extent === undefined) return undefined
-  let result = paintedBox(local, extent, node.stroke.nonScaling, transform)
+  const singleCubic = geometry.kind === 'path' && node.stroke.lineCap === 'butt' && !node.stroke.nonScaling
+    ? symmetricCubicStrokeBounds(geometry.d, numericStrokeWidth(node.stroke.width) / 2) : undefined
+  let result = singleCubic ? transformedBounds(singleCubic, transform) : paintedBox(local, extent, node.stroke.nonScaling, transform)
   if (!result) return undefined
   const width = numericStrokeWidth(node.stroke.width)
   const anchors = connectorEndpointAnchors(geometry, node.route.closed)

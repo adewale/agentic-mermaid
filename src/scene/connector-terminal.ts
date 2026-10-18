@@ -109,8 +109,8 @@ export function deriveConnectorTerminalProjection(
     markerPlacements,
     endpoints: {
       ...input.endpoints,
-      ...(input.endpoints.start ? { start: { ...input.endpoints.start, ...(input.endpoints.start.point ? { point: { ...input.endpoints.start.point } } : {}) } } : {}),
-      ...(input.endpoints.end ? { end: { ...input.endpoints.end, ...(input.endpoints.end.point ? { point: { ...input.endpoints.end.point } } : {}) } } : {}),
+      ...(input.endpoints.start ? { start: { ...input.endpoints.start, ...(input.endpoints.start.owner ? { owner: { ...input.endpoints.start.owner } } : {}), ...(input.endpoints.start.point ? { point: { ...input.endpoints.start.point } } : {}) } } : {}),
+      ...(input.endpoints.end ? { end: { ...input.endpoints.end, ...(input.endpoints.end.owner ? { owner: { ...input.endpoints.end.owner } } : {}), ...(input.endpoints.end.point ? { point: { ...input.endpoints.end.point } } : {}) } } : {}),
     },
     route: {
       ownership: input.route.ownership,

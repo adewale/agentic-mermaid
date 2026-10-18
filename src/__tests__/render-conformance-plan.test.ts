@@ -45,10 +45,13 @@ function assertSvg(svg: string, context: string): void {
   expect(svg, context).toContain('<svg')
   expect(svg, context).toContain('</svg>')
   expect(svg, context).not.toMatch(/(?:NaN|Infinity|undefined)/)
-  const viewBox = /viewBox="0 0 ([\d.]+) ([\d.]+)"/u.exec(svg)
+  const viewBox = /viewBox="([^"]+)"/u.exec(svg)
   expect(viewBox, `${context}: viewBox`).not.toBeNull()
-  expect(Number(viewBox![1]), `${context}: width`).toBeGreaterThan(0)
-  expect(Number(viewBox![2]), `${context}: height`).toBeGreaterThan(0)
+  const viewport = viewBox![1]!.trim().split(/\s+/).map(Number)
+  expect(viewport, `${context}: finite four-coordinate viewport`).toHaveLength(4)
+  expect(viewport.every(Number.isFinite), `${context}: finite viewport`).toBe(true)
+  expect(viewport[2], `${context}: width`).toBeGreaterThan(0)
+  expect(viewport[3], `${context}: height`).toBeGreaterThan(0)
 }
 
 const GEOMETRY_ATTRIBUTES = ['x', 'y', 'width', 'height', 'rx', 'ry', 'cx', 'cy', 'r', 'x1', 'y1', 'x2', 'y2', 'points', 'd', 'transform', 'data-id', 'data-role', 'class']

@@ -66,7 +66,7 @@ test('Pie authored formatting-looking text remains literal across SVG, terminal,
     expect(chart.entries[0]!.displayLabel).toBe(label)
     expect(decodeXML(titleXml(source))).toBe(title)
     expect(decodeXML(legendXml(source))).toStartWith(`${label} [1]`)
-    expect(renderMermaidSVG(source)).not.toMatch(/<tspan[^>]*font-(?:weight="700|style="italic)/)
+    expect(renderMermaidSVG(source)).not.toMatch(/<tspan\b[^>]*\b(?:font-weight="(?:bold|700)"|font-style="italic")/)
     expect(renderMermaidASCII(source, { colorMode: 'none' })).toStartWith(`${title}\n${label}`)
     const meta = renderMermaidASCIIWithMeta(source, { colorMode: 'none' })
     expect(meta.regions.filter(region => region.kind === 'node' || region.id === 'title').map(region => region.projectedText)).toEqual([title, label])
@@ -232,7 +232,7 @@ test('reviewed Pie title, named-reference, formatting, and escaped-newline sourc
   ]) {
     expect(titleXml(source)).toBe(title)
     expect(legendXml(source)).toBe(legend)
-    expect(renderMermaidSVG(source)).not.toMatch(/<tspan[^>]*font-(?:weight="700|style="italic)/)
+    expect(renderMermaidSVG(source)).not.toMatch(/<tspan\b[^>]*\b(?:font-weight="(?:bold|700)"|font-style="italic")/)
   }
 })
 
@@ -381,7 +381,7 @@ test('entity-produced tag lookalikes remain literal Pie legend and metadata text
   ] as const) {
     const source = `pie\n  "${sourceLabel}" : 1\n`
     const svg = renderMermaidSVG(source)
-    expect(svg).not.toContain('<tspan font-weight="bold">')
+    expect(svg).not.toMatch(/<tspan\b[^>]*\bfont-weight="(?:bold|700)"/)
     expect(decodeXML(legendXml(source))).toStartWith(visible)
     expect(renderMermaidASCII(source, { colorMode: 'none' })).toStartWith(visible)
     expect(renderMermaidASCIIWithMeta(source, { colorMode: 'none' }).regions[0]?.projectedText).toBe(visible)

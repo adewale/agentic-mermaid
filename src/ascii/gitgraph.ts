@@ -85,8 +85,8 @@ export function renderGitGraphTerminal(diagram: GitGraphDiagram, config: AsciiCo
     const { commit, parent, source, target, id } = plan
     const shared = root(index)
     const element = doc.element({ id, kind: 'edge', from: parent.id, to: commit.id, ...((counts.get(shared) ?? 0) > 1 ? { bundle: generated(`shared-rail:${plans[shared]!.id}`, ['shared-rail', plans[shared]!.id]) } : {}) })
-    doc.port(element, { nodeId: parent.id, ...source, side: vertical ? 'B' : 'R', end: 'start' })
-    doc.port(element, { nodeId: commit.id, ...target, side: vertical ? source.x === target.x ? 'T' : source.x < target.x ? 'L' : 'R' : source.y === target.y ? 'L' : source.y < target.y ? 'T' : 'B', end: 'end' })
+    doc.port(element, { nodeId: parent.id, ...source, side: vertical ? 'B' : 'R', end: 'start', markers: [] })
+    doc.port(element, { nodeId: commit.id, ...target, side: vertical ? source.x === target.x ? 'T' : source.x < target.x ? 'L' : 'R' : source.y === target.y ? 'L' : source.y < target.y ? 'T' : 'B', end: 'end', markers: [] })
     const points = [source, vertical ? { x: source.x, y: target.y } : { x: target.x, y: source.y }, target]
     const cells = new Map<string, { x: number; y: number; mask: number }>()
     const add = (x: number, y: number, mask: number): void => { const key = `${x},${y}`, cell = cells.get(key); if (cell) cell.mask |= mask; else cells.set(key, { x, y, mask }) }

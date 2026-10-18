@@ -205,7 +205,12 @@ export function shapeCardinalPorts(node: PositionedNode): ShapeCardinalPorts {
   }
 }
 
-/** Exact point where one declared side meets an axis-aligned lane. */
+/** Exact boundary intersection, independent of preferred attachment policies. */
+export function pointOnRoutingBoundary(boundary: ShapeRoutingBoundary, side: PortSide, crossCoordinate: number): Point | null {
+  return boundaryIntersection(boundary, side === 'E' || side === 'W' ? 'x' : 'y', crossCoordinate, side === 'E' || side === 'S')
+}
+
+/** Exact point on a declared attachment side, including port-only policies. */
 export function pointOnShapeSide(
   profile: ShapeRoutingProfile,
   side: PortSide,
@@ -214,9 +219,7 @@ export function pointOnShapeSide(
   const attachment = profile.sides[side]
   if (attachment.kind === 'none') return null
   if (attachment.kind === 'port') return attachment.point
-  const mainAxis = side === 'E' || side === 'W' ? 'x' : 'y'
-  const positive = side === 'E' || side === 'S'
-  return boundaryIntersection(profile.boundary, mainAxis, crossCoordinate, positive)
+  return pointOnRoutingBoundary(profile.boundary, side, crossCoordinate)
 }
 
 function boundaryCardinalPoint(boundary: ShapeRoutingBoundary, side: PortSide): Point | null {

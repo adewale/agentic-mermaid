@@ -135,8 +135,8 @@ function shiftRight(graph: AsciiGraph, delta: number): void {
 
 function attachNote(background: TerminalDocument, layer: TerminalDocument, graph: AsciiGraph, cards: readonly Box[], target: NoteTarget, note: Box, noteBoxes: readonly Box[], reserved: readonly GridCoord[], side: StateNoteSpec['side'], owner: TerminalOwner): void {
   const right = side === 'right', dx = right ? 1 : -1
-  const source = { nodeId: owner.from!, end: 'start' as const, side: right ? 'R' as const : 'L' as const, x: right ? target.box.x + target.box.width - 1 : target.box.x, y: target.box.y + Math.floor(target.box.height / 2) }
-  const destination = { nodeId: owner.to!, end: 'end' as const, side: right ? 'L' as const : 'R' as const, x: right ? note.x : note.x + note.width - 1, y: note.y + Math.floor(note.height / 2) }
+  const source = { nodeId: owner.from!, markers: [], end: 'start' as const, side: right ? 'R' as const : 'L' as const, x: right ? target.box.x + target.box.width - 1 : target.box.x, y: target.box.y + Math.floor(target.box.height / 2) }
+  const destination = { nodeId: owner.to!, markers: [], end: 'end' as const, side: right ? 'L' as const : 'R' as const, x: right ? note.x : note.x + note.width - 1, y: note.y + Math.floor(note.height / 2) }
   const end = { x: destination.x - dx, y: destination.y }
   const frames = new Set(target.frames.filter(frame => target.kind !== 'cluster' || frame.id !== owner.from).map(frame => frame.id))
   const forbidden = [...cards]

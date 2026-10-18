@@ -493,6 +493,7 @@ const SHADOW_OPTION_FAMILIES = [
  * width/encoding), but must not re-declare or hand-forward this set.
  */
 export const SHARED_RENDER_OPTION_FIELD_DESCRIPTORS = deepFreeze({
+  layoutSafety: { typeScript: "'report' | 'strict'", description: 'Report bounded layout evidence, or require a passed final certificate. Strict mode rejects missing or unverified evidence.', defaultLabel: '`report`', validationExpectation: 'be report or strict', schema: { type: 'string', enum: ['report', 'strict'], default: 'report', description: 'Require a passed final native layout certificate.' }, terminal: 'consumed' },
   bg: { typeScript: 'string', description: 'Background color or CSS variable.', defaultLabel: '`#FFFFFF`', validationExpectation: 'be a safe non-fetching CSS paint', schema: paintSchema('Background color or CSS variable.', '#FFFFFF'), terminal: 'consumed' },
   fg: { typeScript: 'string', description: 'Primary foreground and text color.', defaultLabel: '`#27272A`', validationExpectation: 'be a safe non-fetching CSS paint', schema: paintSchema('Primary foreground and text color.', '#27272A'), terminal: 'consumed' },
   line: { typeScript: 'string', description: 'Connector and secondary-line color.', defaultLabel: 'derived', validationExpectation: 'be a safe non-fetching CSS paint', schema: paintSchema('Connector and secondary-line color.'), terminal: 'consumed' },
@@ -972,6 +973,8 @@ export interface ResolvedRenderRequest {
 }
 
 export interface RenderRequestReceipt {
+  /** Bounded evidence from the actual pixel or terminal-cell projection. */
+  layoutCertification?: import('./scene/paint-certification.ts').PaintLayoutCertification | import('./ascii/terminal-certification.ts').TerminalLayoutCertification
   version: typeof RENDER_CONTRACT_VERSION
   output: RenderOutput
   sharedRequestDigest: string

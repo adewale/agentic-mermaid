@@ -15,11 +15,12 @@
  */
 
 import type { MermaidGraph, Point, PositionedEdge, PositionedGraph, PositionedGroup, PositionedNode } from './types.ts'
-import { diamondFacetPorts, findRouteHitches, PORT_EXACT, shapePorts } from './route-contracts.ts'
+import { diamondFacetPorts, findRouteHitches, invalidEndpointApproaches, PORT_EXACT, shapePorts } from './route-contracts.ts'
 import { renderedEndpointContact } from './rendered-endpoint-diagnostics.ts'
 import { graphTextBlock } from './graph-text.ts'
 import { resolveRenderStyle } from './styles.ts'
 import type { ResolvedRenderStyle } from './styles.ts'
+import type { PassMetrics, RubricMetric } from './layout/pass.ts'
 
 /**
  * Evidence-based impact rank for a violation, mirroring the QualityBounds
@@ -249,6 +250,100 @@ function segmentsIntersect(a: Point, b: Point, c: Point, d: Point): boolean {
   return t > 0.001 && t < 0.999 && u > 0.001 && u < 0.999
 }
 
+/** Exact rubric predicate after an x/y bounding-box broad phase. Only passes
+ * that declare a crossing budget request this potentially pairwise metric. */
+export function countEdgeCrossings(edges: readonly PositionedEdge[], involved?: ReadonlySet<number>): number {
+  const segments = edges.flatMap((edge, edgeIndex) => edge.points.slice(1).map((b, index) => {
+    const a = edge.points[index]!
+    return { a, b, edgeIndex, minX: Math.min(a.x, b.x), maxX: Math.max(a.x, b.x), minY: Math.min(a.y, b.y), maxY: Math.max(a.y, b.y) }
+  })).sort((a, b) => a.minX - b.minX || a.minY - b.minY || a.edgeIndex - b.edgeIndex)
+  let active: typeof segments = []
+  let crossings = 0
+  for (const segment of segments) {
+    active = active.filter(other => other.maxX >= segment.minX)
+    for (const other of active) {
+      if (other.edgeIndex === segment.edgeIndex || (involved && !involved.has(other.edgeIndex) && !involved.has(segment.edgeIndex)) || other.maxY < segment.minY || other.minY > segment.maxY) continue
+      if (segmentsIntersect(segment.a, segment.b, other.a, other.b)) crossings++
+    }
+    active.push(segment)
+  }
+  return crossings
+}
+
+/** Same-endpoint parallel routes sharing visible collinear ink cannot be
+ * distinguished along that span. Endpoint distance alone does not prove this. */
+export function countParallelRouteOverlaps(edges: readonly PositionedEdge[], involved?: ReadonlySet<number>): number {
+  const pairs = new Map<string, Array<{ edge: PositionedEdge; index: number }>>()
+  edges.forEach((edge, index) => {
+    if (edge.style === 'invisible' || edge.source === edge.target) return
+    const key = JSON.stringify([edge.source, edge.target])
+    const group = pairs.get(key) ?? []
+    group.push({ edge, index }); pairs.set(key, group)
+  })
+  const sharesSpan = (a: PositionedEdge, b: PositionedEdge): boolean => {
+    for (let i = 1; i < a.points.length; i++) for (let j = 1; j < b.points.length; j++) {
+      const p = a.points[i - 1]!, q = a.points[i]!, r = b.points[j - 1]!, s = b.points[j]!
+      if (Math.abs(p.x - q.x) <= 0.01 && Math.abs(r.x - s.x) <= 0.01 && Math.abs(p.x - r.x) <= 0.5 && Math.min(Math.max(p.y, q.y), Math.max(r.y, s.y)) - Math.max(Math.min(p.y, q.y), Math.min(r.y, s.y)) > 1) return true
+      if (Math.abs(p.y - q.y) <= 0.01 && Math.abs(r.y - s.y) <= 0.01 && Math.abs(p.y - r.y) <= 0.5 && Math.min(Math.max(p.x, q.x), Math.max(r.x, s.x)) - Math.max(Math.min(p.x, q.x), Math.min(r.x, s.x)) > 1) return true
+    }
+    return false
+  }
+  let overlaps = 0
+  for (const group of pairs.values()) for (let i = 0; i < group.length; i++) for (let j = i + 1; j < group.length; j++) {
+    const a = group[i]!, b = group[j]!
+    if ((!involved || involved.has(a.index) || involved.has(b.index)) && sharesSpan(a.edge, b.edge)) overlaps++
+  }
+  return overlaps
+}
+
+/** Opposite-direction shafts sharing positive-length collinear ink conceal
+ * which route owns that span. Same-direction fan trunks and mere endpoint
+ * contacts are excluded. Row buckets and an interval sweep avoid unrelated
+ * segment pairs; a pair of edges counts once even when several runs overlap. */
+export function countOpposingRouteOverlaps(edges: readonly PositionedEdge[]): number {
+  const segments = edges.flatMap((edge, edgeIndex) => edge.style === 'invisible' ? [] : edge.points.slice(1).flatMap((b, index) => {
+    const a = edge.points[index]!
+    const horizontal = Math.abs(a.y - b.y) <= 0.01
+    if (!horizontal && Math.abs(a.x - b.x) > 0.01) return []
+    const from = horizontal ? a.x : a.y, to = horizontal ? b.x : b.y
+    if (Math.abs(to - from) <= 0.01) return []
+    const cross = horizontal ? a.y : a.x
+    return [{ edgeIndex, horizontal, cross, bucket: Math.floor(cross / 0.01), lo: Math.min(from, to), hi: Math.max(from, to), sign: Math.sign(to - from) }]
+  })).sort((a, b) => a.lo - b.lo || a.edgeIndex - b.edgeIndex)
+  const rows = new Map<string, typeof segments>()
+  const pairs = new Set<string>()
+  for (const segment of segments) {
+    for (let offset = -1; offset <= 1; offset++) {
+      const key = `${segment.horizontal}:${segment.bucket + offset}`
+      const active = (rows.get(key) ?? []).filter(other => other.hi - segment.lo > 0.01)
+      rows.set(key, active)
+      for (const other of active) {
+        if (other.edgeIndex === segment.edgeIndex || other.sign === segment.sign || Math.abs(other.cross - segment.cross) > 0.01 ||
+          Math.min(segment.hi, other.hi) - segment.lo <= 0.01) continue
+        pairs.add(`${Math.min(segment.edgeIndex, other.edgeIndex)}:${Math.max(segment.edgeIndex, other.edgeIndex)}`)
+      }
+    }
+    const key = `${segment.horizontal}:${segment.bucket}`
+    rows.get(key)!.push(segment)
+  }
+  return pairs.size
+}
+
+export function portEndpointRate(positioned: Pick<PositionedGraph, 'nodes' | 'edges'>, visibleOnly = false): number {
+  const nodes = new Map(positioned.nodes.map(node => [node.id, node]))
+  let measured = 0, attached = 0
+  for (const edge of positioned.edges) {
+    if (visibleOnly && edge.style === 'invisible') continue
+    for (const [id, point] of [[edge.source, edge.points[0]], [edge.target, edge.points.at(-1)]] as const) {
+      const node = nodes.get(id)
+      if (!node) continue
+      measured++
+      if (point && onDesignatedPort(node, point)) attached++
+    }
+  }
+  return measured === 0 ? 1 : attached / measured
+}
+
 function pointToSegmentDistance(p: Point, a: Point, b: Point): number {
   const dx = b.x - a.x
   const dy = b.y - a.y
@@ -430,6 +525,10 @@ function peerBarycenterDelta(positioned: PositionedGraph, graph: MermaidGraph): 
  * identical input produces identical metrics.
  */
 export function assessLayout(graph: MermaidGraph, positioned: PositionedGraph, style: ResolvedRenderStyle = resolveRenderStyle({})): RubricResult {
+  return assessLayoutGeometry(graph, positioned, style, true)
+}
+
+function assessLayoutGeometry(graph: MermaidGraph, positioned: PositionedGraph, style: ResolvedRenderStyle, withSoftMetrics: boolean): RubricResult {
   // Built without severity, then enriched + sorted by impact at the return.
   const violations: Array<Omit<RubricViolation, 'severity'>> = []
   const nodeMap = new Map(positioned.nodes.map(n => [n.id, n]))
@@ -440,9 +539,7 @@ export function assessLayout(graph: MermaidGraph, positioned: PositionedGraph, s
   let labelOffRoute = 0
   let totalBends = 0
   let maxBends = 0
-  let portEnds = 0
   let portAnchoredEdges = 0
-  let measuredEnds = 0
   let worstLabelOffset = 0
 
   for (const e of positioned.edges) {
@@ -483,16 +580,14 @@ export function assessLayout(graph: MermaidGraph, positioned: PositionedGraph, s
     ] as const) {
       const node = nodeMap.get(nodeId)
       if (!node) continue
-      measuredEnds++
-      if (!onShapeOutline(node, pt)) {
+      if (!pt || !onShapeOutline(node, pt)) {
         offOutline++
-        violations.push({ metric: 'offOutlineEndpoints', detail: `${id} ${label} on ${nodeId}(${node.shape}) at (${pt.x.toFixed(1)},${pt.y.toFixed(1)})` })
+        violations.push({ metric: 'offOutlineEndpoints', detail: pt ? `${id} ${label} on ${nodeId}(${node.shape}) at (${pt.x.toFixed(1)},${pt.y.toFixed(1)})` : `${id} missing ${label} endpoint on ${nodeId}` })
       }
-      if (onDesignatedPort(node, pt)) portEnds++
     }
     const srcNode = nodeMap.get(e.source)
     const tgtNode = nodeMap.get(e.target)
-    const onPort = (node: PositionedNode | undefined, pt: Point) => node ? onDesignatedPort(node, pt) : false
+    const onPort = (node: PositionedNode | undefined, pt: Point | undefined) => node && pt ? onDesignatedPort(node, pt) : false
     if (onPort(srcNode, e.points[0]!) || onPort(tgtNode, e.points[e.points.length - 1]!)) portAnchoredEdges++
 
     if (e.label && e.labelPosition && e.points.length >= 2) {
@@ -516,7 +611,7 @@ export function assessLayout(graph: MermaidGraph, positioned: PositionedGraph, s
         violations.push({ metric: 'labelOffRoute', detail: `${id} label ${best.toFixed(1)}px from its route (allowed ${allow.toFixed(1)})` })
       }
       // SOFT label-CENTRING aggregate: track the worst (most off-centre) label.
-      worstLabelOffset = Math.max(worstLabelOffset, labelMidpointOffset(e))
+      if (withSoftMetrics) worstLabelOffset = Math.max(worstLabelOffset, labelMidpointOffset(e))
     }
   }
 
@@ -534,17 +629,7 @@ export function assessLayout(graph: MermaidGraph, positioned: PositionedGraph, s
     }
   }
 
-  let crossings = 0
-  for (let i = 0; i < positioned.edges.length; i++) {
-    for (let j = i + 1; j < positioned.edges.length; j++) {
-      const e1 = positioned.edges[i]!, e2 = positioned.edges[j]!
-      for (let s = 1; s < e1.points.length; s++) {
-        for (let q = 1; q < e2.points.length; q++) {
-          if (segmentsIntersect(e1.points[s - 1]!, e1.points[s]!, e2.points[q - 1]!, e2.points[q]!)) crossings++
-        }
-      }
-    }
-  }
+  const crossings = withSoftMetrics ? countEdgeCrossings(positioned.edges) : 0
 
   let nodeOverlaps = 0
   for (let i = 0; i < positioned.nodes.length; i++) {
@@ -575,15 +660,45 @@ export function assessLayout(graph: MermaidGraph, positioned: PositionedGraph, s
       edgeCrossings: crossings,
       totalBends,
       maxBendsPerEdge: maxBends,
-      portEndpointRate: measuredEnds === 0 ? 1 : portEnds / measuredEnds,
+      portEndpointRate: portEndpointRate(positioned),
       portAnchoredEdgeRate: positioned.edges.length === 0 ? 1 : portAnchoredEdges / positioned.edges.length,
-      peerBarycenterDelta: peerBarycenterDelta(positioned, graph),
+      peerBarycenterDelta: withSoftMetrics ? peerBarycenterDelta(positioned, graph) : 0,
       worstLabelOffset,
     },
     violations: violations
       .map(v => ({ ...v, severity: rubricSeverity(v.metric) }))
       .sort((a, b) => RUBRIC_SEVERITY_ORDER[a.severity] - RUBRIC_SEVERITY_ORDER[b.severity]),
   }
+}
+
+/** Requested pass-budget metrics share the final rubric's predicates without
+ * running unrelated hard checks, collision pairs or label/hitch searches. */
+export function measureRubricMetrics(
+  graph: MermaidGraph,
+  positioned: PositionedGraph,
+  requested: readonly RubricMetric[],
+  style: ResolvedRenderStyle,
+  bundled: ReadonlySet<PositionedEdge> = new Set(),
+): PassMetrics {
+  const result: PassMetrics = {}
+  for (const metric of requested) {
+    switch (metric) {
+      case 'hard': result.hard = hardViolations(assessLayoutGeometry(graph, positioned, style, false)).length; break
+      case 'crossings': result.crossings = countEdgeCrossings(positioned.edges); break
+      case 'portRate': result.portRate = portEndpointRate(positioned, true); break
+      case 'symErr': result.symErr = peerBarycenterDelta(positioned, graph); break
+      case 'parallelOverlaps': result.parallelOverlaps = countParallelRouteOverlaps(positioned.edges); break
+      case 'opposingOverlaps': result.opposingOverlaps = countOpposingRouteOverlaps(positioned.edges); break
+      case 'endpointApproaches': {
+        const nodes = new Map(positioned.nodes.map(node => [node.id, node]))
+        result.endpointApproaches = positioned.edges.reduce((sum, edge) => sum + (edge.style === 'invisible' ? 0 : invalidEndpointApproaches(edge, nodes.get(edge.source), nodes.get(edge.target))), 0)
+        break
+      }
+      case 'bends': result.bends = positioned.edges.reduce((sum, edge) => sum + (edge.style === 'invisible' || bundled.has(edge) || edge.routeCertificate?.invariant === 'bundle' ? 0 : Math.max(0, edge.points.length - 2)), 0); break
+      case 'straight': result.straight = positioned.edges.filter(edge => edge.style !== 'invisible' && edge.points.length === 2).length; break
+    }
+  }
+  return result
 }
 
 /** The hard rubric metrics — must be zero for every diagram, always. */

@@ -34,14 +34,15 @@ export function allocateFacePort(box: TerminalBounds, side: TerminalSide, index:
 }
 
 /** Frames share occupied geometry; headers and containment remain family-owned. */
-export function paintTerminalFrame(document: TerminalDocument, box: TerminalBounds, owner: TerminalOwner, ascii: boolean, opaque = false): void {
+export function paintTerminalFrame(document: TerminalDocument, box: TerminalBounds, owner: TerminalOwner, ascii: boolean, opaque = false, reservedBorderCell?: (x: number, y: number) => boolean): void {
   owner = document.element(owner)
   if (box.width < 2 || box.height < 2) throw new RangeError('Terminal frames need room for opposite borders')
   document.region(owner, box)
   if (opaque) document.fill(box.x, box.y, box.width, box.height, { owner, kind: 'surface' })
   const paint = { owner, role: 'border' as const, ascii }
-  for (let x = box.x + 1; x < box.x + box.width - 1; x++) { document.stroke(x, box.y, 10, paint); document.stroke(x, box.y + box.height - 1, 10, paint) }
-  for (let y = box.y + 1; y < box.y + box.height - 1; y++) { document.stroke(box.x, y, 5, paint); document.stroke(box.x + box.width - 1, y, 5, paint) }
-  document.stroke(box.x, box.y, 6, paint); document.stroke(box.x + box.width - 1, box.y, 12, paint)
-  document.stroke(box.x, box.y + box.height - 1, 3, paint); document.stroke(box.x + box.width - 1, box.y + box.height - 1, 9, paint)
+  const stroke = (x: number, y: number, mask: number) => { if (!reservedBorderCell?.(x, y)) document.stroke(x, y, mask, paint) }
+  for (let x = box.x + 1; x < box.x + box.width - 1; x++) { stroke(x, box.y, 10); stroke(x, box.y + box.height - 1, 10) }
+  for (let y = box.y + 1; y < box.y + box.height - 1; y++) { stroke(box.x, y, 5); stroke(box.x + box.width - 1, y, 5) }
+  stroke(box.x, box.y, 6); stroke(box.x + box.width - 1, box.y, 12)
+  stroke(box.x, box.y + box.height - 1, 3); stroke(box.x + box.width - 1, box.y + box.height - 1, 9)
 }

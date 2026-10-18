@@ -47,13 +47,13 @@ import type { InternalStyleFace } from './scene/style-registry.ts'
 import type { ResolvedStateVisualConfig, StateRenderOptions } from './state/config.ts'
 import { elkLayoutSync } from './elk-instance.ts'
 import { clipEdgeToShape } from './shape-clipping.ts'
-import { onShapeOutline, assessLayout, hardViolations } from './layout-rubric.ts'
-import { applyRouteContracts, classifyRoutes, closeRouteContracts, diamondFacetPorts, labelRect, PORT_EXACT, repairLabelsOffOwnRoute, repairLabelsOnSharedTrunks, separateEdgeLabelPills, shapePorts, simplifyPolyline } from './route-contracts.ts'
+import { onShapeOutline, assessLayout, hardViolations, measureRubricMetrics } from './layout-rubric.ts'
+import { applyRouteContracts, classifyRoutes, closeRouteContracts, diamondFacetPorts, labelRect, PORT_EXACT, repairLabelsOffOwnRoute, repairLabelsOnSharedTrunks, separateEdgeLabelPills, shapePorts, simplifyPolyline, trimBoundaryEndpointRuns } from './route-contracts.ts'
 import type { LabelMetricsStyle } from './route-contracts.ts'
 import { resolveEdgeInlineStyle, resolveNodeInlineStyle } from './color-resolver.ts'
 import { runPipeline } from './layout/pass.ts'
 import type { LayoutPass, PassContextBase } from './layout/pass.ts'
-import type { PassMetrics } from './layout/pass.ts'
+import type { PassMetrics, RubricMetric } from './layout/pass.ts'
 import { certifyLayoutCandidates, positionedGeometryViolations, LayoutCertificationError, type LayoutCertificationCandidate } from './layout/certification.ts'
 import {
   DEFAULTS,
@@ -110,7 +110,7 @@ interface LayoutEngineOptions extends RenderOptions {
   /** @internal The diagram's title (frontmatter `title:`), drawn in a band
    * above the graph. */
   diagramTitle?: string
-  /** @internal Exercise declared per-pass geometry budgets in audits/CI. */
+  /** @internal Compatibility audit flag; production pass contracts always apply. */
   checkLayoutPasses?: boolean
   /** @internal Bounded certification alternative; never changes global process state. */
   disableCorankFanIn?: boolean
@@ -1261,6 +1261,19 @@ export interface LayoutPassContext extends PassContextBase {
   frozen: boolean
 }
 
+/** Necessary precondition for lane splitters. Avoid measuring their crossing
+ * budgets when the diagram has no directed parallel pair to separate. */
+function hasParallelPair(edges: readonly PositionedEdge[], labeledOnly = false): boolean {
+  const seen = new Set<string>()
+  for (const edge of edges) {
+    if (edge.source === edge.target || (labeledOnly && !edge.label)) continue
+    const pair = JSON.stringify([edge.source, edge.target])
+    if (seen.has(pair)) return true
+    seen.add(pair)
+  }
+  return false
+}
+
 // The post-ELK geometry pipeline, reified (docs/design/system/layout-pass-pipeline.md).
 // The array IS the execution path; each `run` delegates to the existing pass function
 // with byte-identical arguments. The three symmetric passes carry no `after` among each
@@ -1335,12 +1348,14 @@ export const LAYOUT_PIPELINE: ReadonlyArray<LayoutPass<LayoutPassContext>> = [
   {
     id: 'clipEdgeToShape', doc: 'clip edge endpoints to real (non-rect) shape outlines',
     after: ['bundleEdgePaths'], mutates: ['edges'], determinism: 'in-place',
-    mayChangeMetrics: { portRate: 'improve-only' },
+    mayChangeMetrics: { portRate: { worsenBy: 1, whenImproves: 'endpointApproaches' }, endpointApproaches: 'improve-only' },
     run: c => {
       const nodeMap = new Map(c.nodes.map(n => [n.id, n]))
       for (const edge of c.edges) {
+        edge.points = edge.points.filter((point, index, points) => index === 0 || Math.hypot(point.x - points[index - 1]!.x, point.y - points[index - 1]!.y) > 0.01)
         const sourceNode = nodeMap.get(edge.source)
         const targetNode = nodeMap.get(edge.target)
+        trimBoundaryEndpointRuns(edge, sourceNode, targetNode)
         if (sourceNode) edge.points = clipEdgeToShape(edge.points, sourceNode, true)
         if (targetNode) edge.points = clipEdgeToShape(edge.points, targetNode, false)
       }
@@ -1355,13 +1370,17 @@ export const LAYOUT_PIPELINE: ReadonlyArray<LayoutPass<LayoutPassContext>> = [
   {
     id: 'applySymmetricParallelEdgeLanes', doc: 'separate parallel edges into symmetric non-crossing lanes',
     after: ['clipEdgeToShape'], mutates: ['edges'], determinism: 'in-place',
+    enabled: context => hasParallelPair(context.edges, true),
     mayChangeMetrics: { symErr: 'improve-only', crossings: 'improve-only' },
     run: c => { applySymmetricParallelEdgeLanes(c.nodes, c.edges, c.groups, c.graph, c.bundled, c.style) },
   },
   {
     id: 'applyParallelDuplicateLanes', doc: 'split exact duplicate edges into separated lanes',
     after: ['clipEdgeToShape'], mutates: ['edges'], determinism: 'in-place',
-    mayChangeMetrics: { crossings: 'improve-only' },
+    enabled: context => hasParallelPair(context.edges),
+    // Separating genuinely shared duplicate ink preserves authored multiplicity.
+    // A local lane proposal may spend at most one crossing per repaired pair.
+    mayChangeMetrics: { crossings: { worsenBy: 1, whenImproves: 'parallelOverlaps', perImprovement: true }, parallelOverlaps: 'improve-only' },
     run: c => { applyParallelDuplicateLanes(c.nodes, c.edges, c.groups, c.graph, c.bundled) },
   },
   {
@@ -1378,7 +1397,14 @@ export const LAYOUT_PIPELINE: ReadonlyArray<LayoutPass<LayoutPassContext>> = [
   {
     id: 'applyRouteContracts', doc: 'classify -> simplify -> straighten (fixed-point) -> certify; FREEZES node geometry',
     after: ['reassignBundledSiblingLabels'], mutates: ['edges'], determinism: 'fixed-point', freezesNodes: true,
-    mayChangeMetrics: { straight: 'improve-only', bends: 'improve-only', portRate: { worsenBy: 1, whenImproves: 'bends' } },
+    // An uncertified two-point route can still be diagonal or cross a node.
+    // Hard/terminal repairs and fewer crossings may cost up to four bends
+    // per removed defect. Mere preferred-port or symmetry changes may not.
+    mayChangeMetrics: {
+      straight: { worsenBy: 1, whenImproves: ['hard', 'crossings', 'endpointApproaches'], perImprovement: true },
+      bends: { worsenBy: 4, whenImproves: ['hard', 'crossings', 'endpointApproaches'], perImprovement: true },
+      portRate: { worsenBy: 1, whenImproves: ['hard', 'crossings', 'bends', 'endpointApproaches', 'opposingOverlaps'] },
+    },
     run: c => { applyRouteContracts({ nodes: c.nodes, edges: c.edges, groups: c.groups }, c.graph, c.bundled, c.style) },
   },
   {
@@ -1447,18 +1473,9 @@ function retainGraphText(positioned: Pick<PositionedGraph, 'nodes' | 'edges' | '
 
 /** Measure the pass's current geometry. Bundle ownership justifies bends
  * immediately, rather than waiting for a later certificate to change a score. */
-function measureLayoutPass(context: LayoutPassContext): PassMetrics {
+function measureLayoutPass(context: LayoutPassContext, requested: readonly RubricMetric[]): PassMetrics {
   const positioned = { nodes: context.nodes, edges: context.edges, groups: context.groups, width: 0, height: 0 }
-  const rubric = assessLayout(context.graph, positioned, context.style)
-  const visible = context.edges.filter(edge => edge.style !== 'invisible')
-  return {
-    hard: hardViolations(rubric).length,
-    crossings: rubric.metrics.edgeCrossings,
-    bends: visible.reduce((sum, edge) => sum + (context.bundled.has(edge) || edge.routeCertificate?.invariant === 'bundle' ? 0 : Math.max(0, edge.points.length - 2)), 0),
-    straight: visible.filter(edge => edge.points.length === 2).length,
-    portRate: rubric.metrics.portEndpointRate,
-    symErr: rubric.metrics.peerBarycenterDelta,
-  }
+  return measureRubricMetrics(context.graph, positioned, requested, context.style, context.bundled)
 }
 
 // ============================================================================

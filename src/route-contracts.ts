@@ -31,9 +31,10 @@ import type {
   RoutePortAssignment,
 } from './types.ts'
 import { graphEdgeTextBlock } from './graph-text.ts'
+import { graphEdgeMarkerPaintRegions } from './graph-connectors.ts'
 import { resolveRenderStyle } from './styles.ts'
 import { clipEdgeToShape } from './shape-clipping.ts'
-import { pointOnShapeSide, shapeCardinalPorts, shapeRoutingProfile } from './shape-outline.ts'
+import { pointOnRoutingBoundary, pointOnShapeSide, shapeCardinalPorts, shapeRoutingProfile } from './shape-outline.ts'
 import { renderedEndpointContact } from './rendered-endpoint-diagnostics.ts'
 
 type DraftRouteCertificate = Omit<RouteCertificate, 'invariant' | 'straightened'> & {
@@ -135,6 +136,49 @@ function portAt(node: PositionedNode, pt: Point): AnyPort | undefined {
   return undefined
 }
 
+/** Count terminal shafts that approach an exact outline from inside or along
+ * its boundary. Position alone cannot prove a usable attachment: a horizontal
+ * shaft ending at a rectangle's north port is tangent to its painted border.
+ * Conservative envelopes have no exact approach proof and are excluded. */
+export function invalidEndpointApproaches(edge: PositionedEdge, source?: PositionedNode, target?: PositionedNode): number {
+  let invalid = 0
+  for (const [node, start] of [[source, true], [target, false]] as const) {
+    if (!node) continue
+    const profile = shapeRoutingProfile(node)
+    if (profile.boundary.kind === 'envelope' || profile.boundary.kind === 'none') continue
+    const points = start ? edge.points : [...edge.points].reverse()
+    const end = points[0]
+    const adjacent = end && points.find(point => Math.hypot(point.x - end.x, point.y - end.y) > EPS)
+    if (!end || !adjacent) { invalid++; continue }
+    const dx = adjacent.x - end.x, dy = adjacent.y - end.y
+    if (Math.abs(dx) > EPS && Math.abs(dy) > EPS) continue // the diagonal metric owns this case
+    const side: PortSide = Math.abs(dx) > Math.abs(dy) ? dx > 0 ? 'E' : 'W' : dy > 0 ? 'S' : 'N'
+    const boundary = pointOnRoutingBoundary(profile.boundary, side, side === 'E' || side === 'W' ? end.y : end.x)
+    if (!boundary || Math.hypot(boundary.x - end.x, boundary.y - end.y) > PORT_TOLERANCE) invalid++
+  }
+  return invalid
+}
+
+/** Remove a shaft that runs along its own node border before leaving it.
+ * Keeping the last boundary point preserves the outward segment, while a
+ * second clip of the tangent run can reverse it through the node instead. */
+export function trimBoundaryEndpointRuns(edge: PositionedEdge, source?: PositionedNode, target?: PositionedNode): void {
+  for (const [node, start] of [[source, true], [target, false]] as const) {
+    if (!node) continue
+    const profile = shapeRoutingProfile(node)
+    if (profile.boundary.kind === 'envelope' || profile.boundary.kind === 'none') continue
+    while (edge.points.length > 2) {
+      const points = start ? edge.points : [...edge.points].reverse()
+      const [end, next] = points
+      const middle = { x: (end!.x + next!.x) / 2, y: (end!.y + next!.y) / 2 }
+      if (![end!, next!, middle].every(point => renderedEndpointContact(node, point, EPS).onBoundary)) break
+      const candidate = { ...edge, points: start ? edge.points.slice(1) : edge.points.slice(0, -1) }
+      if (invalidEndpointApproaches(candidate, start ? node : undefined, start ? undefined : node) !== 0) break
+      edge.points = candidate.points
+    }
+  }
+}
+
 /** Straightenable: rect-likes and diamonds anywhere on a side/facet; other
  *  PORT_EXACT shapes only through their exact ports. */
 function isStraightenable(node: PositionedNode): boolean {
@@ -153,6 +197,9 @@ export interface LabelMetricsStyle {
   edgeLabelFontWeight: number
   edgeTextTransform?: 'uppercase' | 'lowercase' | 'capitalize'
   edgeLetterSpacing?: number
+  lineWidth?: number
+  edgeStrokeColor?: string
+  edgeBendRadius?: number
 }
 
 // ============================================================================
@@ -1166,6 +1213,30 @@ function tryStraighten(
       blockers.push(...proven.blockers)
       continue
     }
+    const current = simplifyPolyline(edge.points)
+    if (current.length === 2 && Math.abs(current[0]![axis.cross] - current[1]![axis.cross]) <= EPS) {
+      const priorContacts = Number(Boolean(portAt(source, current[0]!))) + Number(Boolean(portAt(target, current[1]!)))
+      const nextContacts = Number(Boolean(portAt(source, proven.start))) + Number(Boolean(portAt(target, proven.end)))
+      if (nextContacts < priorContacts && countRouteCrossings([proven.start, proven.end], edge, ctx) >= countRouteCrossings(current, edge, ctx)) {
+        const lane = current[0]![axis.cross]
+        // The aesthetic inset may exclude an existing valid contact near a
+        // corner. Re-prove its actual boundary and clear lane, rather than
+        // replacing a canonical contact solely to satisfy that inset.
+        const priorProof = proveLane(edge, source, target, lane, ctx, axis, {
+          ...search,
+          overlapLo: Math.min(search.overlapLo, lane), overlapHi: Math.max(search.overlapHi, lane),
+          relaxedLo: Math.min(search.relaxedLo, lane), relaxedHi: Math.max(search.relaxedHi, lane),
+        })
+        // Symmetric reciprocal spacing cannot outrank already-clear canonical
+        // contacts. Retain the current lane only when it independently proves.
+        if (!('blockers' in priorProof) &&
+          Math.hypot(priorProof.start.x - current[0]!.x, priorProof.start.y - current[0]!.y) <= EPS &&
+          Math.hypot(priorProof.end.x - current[1]!.x, priorProof.end.y - current[1]!.y) <= EPS) {
+          if (edge.label) edge.labelPosition = priorProof.slot ?? undefined
+          return { applied: true, blockers: [] }
+        }
+      }
+    }
     edge.points = [proven.start, proven.end]
     if (edge.label) edge.labelPosition = proven.slot ?? undefined
     return { applied: true, blockers: [], usedCandidateIndex: candidateIndex }
@@ -1504,12 +1575,18 @@ export function applyRouteContracts(
           const pt = (main: number, cross: number): Point =>
             axis.main === 'x' ? { x: main, y: cross } : { x: cross, y: main }
           const route = [pt(srcMain, c1), pt(jog, c1), pt(jog, c2), pt(tgtMain, c2)]
+          const priorContacts = Number(Boolean(portAt(source, edge.points[0]!))) + Number(Boolean(portAt(target, edge.points.at(-1)!)))
+          const nextContacts = Number(Boolean(portAt(source, route[0]!))) + Number(Boolean(portAt(target, route.at(-1)!)))
+          const priorCrossings = countRouteCrossings(edge.points, edge, ctx)
+          const nextCrossings = countRouteCrossings(route, edge, ctx)
           // Crossings may not increase — unless the current route passes
           // THROUGH a node (a hard defect, e.g. a later pass moved a node
           // into the routed corridor): a legal crossing always beats an
           // occlusion. The Z itself is lane-proved through clear space.
-          if (!repairingOcclusion &&
-            countRouteCrossings(route, edge, ctx) > countRouteCrossings(edge.points, edge, ctx)) continue
+          if (!repairingOcclusion && nextCrossings > priorCrossings) continue
+          if (!repairingOcclusion && nextCrossings >= priorCrossings &&
+            invalidEndpointApproaches({ ...edge, points: route }, source, target) >= invalidEndpointApproaches(edge, source, target) &&
+            (bendCount(route) > bendCount(edge.points) || (bendCount(route) === bendCount(edge.points) && nextContacts < priorContacts))) continue
           if (edge.label) {
             const labelLane: [Point, Point] = longFirst ? [route[0]!, route[1]!] : [route[2]!, route[3]!]
             const slot = findLabelSlot(edge, labelLane[0], labelLane[1], ctx)
@@ -2740,8 +2817,9 @@ export function repairLabelsOffOwnRoute(
  * stays satisfied by construction) to the nearest slot whose pill clears every
  * other pill and every node; if the later edge has no clear slot, the earlier
  * edge tries; when neither clears, both stay (honest residual, surfaced by
- * eval/overlap-audit). Fires only on measured pill intersection, so
- * label-clean layouts are byte-identical.
+ * eval/overlap-audit). Also repairs initial halos covering endpoint markers.
+ * Fires only on measured pill or marker intersection, so clear layouts are
+ * byte-identical.
  */
 export function separateEdgeLabelPills(
   positioned: { nodes: PositionedNode[]; edges: PositionedEdge[]; groups: PositionedGroup[] },
@@ -2749,15 +2827,18 @@ export function separateEdgeLabelPills(
   style: LabelMetricsStyle = resolveRenderStyle({}),
 ): void {
   const labeled = positioned.edges.filter(e => e.label && e.labelPosition && e.points.length >= 2)
-  if (labeled.length < 2) return
-  // The renderer's halo pads the pill by a further max(4, 2×strokeWidth) per
-  // side (renderEdgeLabel); separating inner pills can still leave the DRAWN
-  // halos touching. Inflate by the thick-edge worst case so cleared means
-  // visually cleared.
-  const HALO = 8
+  if (labeled.length === 0) return
+  // Match renderEdgeLabel's halo beyond each measured pill, including thick
+  // edges. Separating inner pills alone can leave opaque painted halos touching.
+  const haloOf = (edge: PositionedEdge): number => {
+    const lineWidth = (style as LabelMetricsStyle & { lineWidth?: number }).lineWidth ?? 1
+    const strokeWidth = lineWidth * (edge.style === 'thick' ? 2 : 1)
+    return Math.max(4, strokeWidth * 2)
+  }
   const rectOf = (e: PositionedEdge): { x: number; y: number; w: number; h: number } | null => {
     const r = labelRect(e, style)
-    return r && { x: r.x - HALO, y: r.y - HALO, w: r.w + 2 * HALO, h: r.h + 2 * HALO }
+    const halo = haloOf(e)
+    return r && { x: r.x - halo, y: r.y - halo, w: r.w + 2 * halo, h: r.h + 2 * halo }
   }
   const intersects = (a: { x: number; y: number; w: number; h: number }, b: { x: number; y: number; w: number; h: number }): boolean =>
     Math.min(a.x + a.w, b.x + b.w) - Math.max(a.x, b.x) > 0.5 &&
@@ -2766,18 +2847,28 @@ export function separateEdgeLabelPills(
   // Unlike the other label repairs, do NOT exempt the edge's own endpoints: a
   // slid label that clears its sibling pill by parking its halo on the target
   // node has traded one occlusion for another (the audit's state-corpus case).
-  const haloOverAnyNode = (inner: { x: number; y: number; w: number; h: number }): boolean =>
+  const haloOverAnyNode = (inner: { x: number; y: number; w: number; h: number }, halo: number): boolean =>
     positioned.nodes.some(n =>
-      inner.x - HALO < n.x + n.width && inner.x + inner.w + HALO > n.x &&
-      inner.y - HALO < n.y + n.height && inner.y + inner.h + HALO > n.y)
+      inner.x - halo < n.x + n.width && inner.x + inner.w + halo > n.x &&
+      inner.y - halo < n.y + n.height && inner.y + inner.h + halo > n.y)
 
-  const trySlide = (edge: PositionedEdge, others: PositionedEdge[]): boolean => {
+  // Labels paint after every connector. Protect their own terminal symbols
+  // and all neighboring symbols with the same resource geometry and units.
+  const markers = positioned.edges.flatMap(edge => graphEdgeMarkerPaintRegions(edge, style))
+  const overlapsMarker = (pill: { x: number; y: number; w: number; h: number }): boolean => markers.some(marker => {
+    const box = marker.bounds
+    return !!box && pill.x < box.x1 && pill.x + pill.w > box.x0 && pill.y < box.y1 && pill.y + pill.h > box.y0
+  })
+
+  const slots = function* (edge: PositionedEdge, others: PositionedEdge[], overhang = false): Generator<Point> {
     const m = (edge.labelBlock ?? graphEdgeTextBlock(resolveLabelContent(edge.label!, edge.labelContent), style))
     const pw = m.width + 2 * LABEL_PILL_PADDING, ph = m.height + 2 * LABEL_PILL_PADDING
+    const halo = haloOf(edge)
     const clearAt = (x: number, y: number): boolean => {
       const inner = pillRect(x, y, m)
-      if (haloOverAnyNode(inner)) return false
-      const pill = { x: inner.x - HALO, y: inner.y - HALO, w: inner.w + 2 * HALO, h: inner.h + 2 * HALO }
+      if (haloOverAnyNode(inner, halo)) return false
+      const pill = { x: inner.x - halo, y: inner.y - halo, w: inner.w + 2 * halo, h: inner.h + 2 * halo }
+      if (overlapsMarker(pill)) return false
       for (const o of others) {
         const r = rectOf(o)
         if (r && intersects(pill, r)) return false
@@ -2801,9 +2892,9 @@ export function separateEdgeLabelPills(
     for (const d of [0, allow - 1, -(allow - 1), (allow - 1) / 2, -(allow - 1) / 2]) {
       for (const seg of segs) {
         const half = (seg.vertical ? ph : pw) / 2
-        if (seg.len <= 2 * half) continue // pill can't sit here without overhanging a bend
+        if (!overhang && seg.len <= 2 * half) continue
         const nx = seg.vertical ? 1 : 0, ny = seg.vertical ? 0 : 1 // unit perpendicular
-        const tMargin = half / seg.len
+        const tMargin = overhang ? 0 : half / seg.len
         const ts: number[] = []
         const N = 11
         for (let k = 0; k < N; k++) ts.push(tMargin + (1 - 2 * tMargin) * (k / (N - 1)))
@@ -2811,8 +2902,36 @@ export function separateEdgeLabelPills(
         for (const t of ts) {
           const cx = seg.a.x + (seg.b.x - seg.a.x) * t + nx * d
           const cy = seg.a.y + (seg.b.y - seg.a.y) * t + ny * d
-          if (clearAt(cx, cy)) { edge.labelPosition = { x: cx, y: cy }; return true }
+          if (clearAt(cx, cy)) yield { x: cx, y: cy }
         }
+      }
+    }
+  }
+  const trySlide = (edge: PositionedEdge, others: PositionedEdge[]): boolean => {
+    for (const point of slots(edge, others)) { edge.labelPosition = point; return true }
+    return false
+  }
+  const tryPair = (a: PositionedEdge, b: PositionedEdge): boolean => {
+    const others = labeled.filter(edge => edge !== a && edge !== b)
+    // Search only after neither label can move alone. Each label still clears
+    // every node and foreign pill; joint candidates also clear each other.
+    // A final fallback may span an interior bend while its center stays on
+    // its own route. This admits long pills on almost-collinear short runs.
+    for (const overhang of [false, true]) {
+      const candidates = (edge: PositionedEdge): Point[] => {
+        const result: Point[] = []
+        for (const point of slots(edge, others, overhang)) {
+          result.push(point)
+          if (result.length === 64) break
+        }
+        return result
+      }
+      const first = candidates(a), second = candidates(b)
+      for (const p of first) for (const q of second) {
+        const ra = rectOf({ ...a, labelPosition: p })!, rb = rectOf({ ...b, labelPosition: q })!
+        if (intersects(ra, rb)) continue
+        a.labelPosition = p; b.labelPosition = q
+        return true
       }
     }
     return false
@@ -2823,13 +2942,21 @@ export function separateEdgeLabelPills(
   // conflict set and the cap is a defensive bound, not an expected exit.
   for (let sweep = 0; sweep < 3; sweep++) {
     let conflicts = 0
+    // Initial ELK labels can hide terminal symbols without touching another
+    // pill. Repair those with the same route slots and painted clearances.
+    for (const edge of labeled) {
+      const halo = rectOf(edge)
+      if (!halo || !overlapsMarker(halo)) continue
+      conflicts++
+      trySlide(edge, labeled.filter(other => other !== edge))
+    }
     for (let i = 0; i < labeled.length; i++) {
       for (let j = i + 1; j < labeled.length; j++) {
         const a = labeled[i]!, b = labeled[j]!
         const ra = rectOf(a), rb = rectOf(b)
         if (!ra || !rb || !intersects(ra, rb)) continue
         conflicts++
-        if (!trySlide(b, labeled.filter(e => e !== b))) trySlide(a, labeled.filter(e => e !== a))
+        if (!trySlide(b, labeled.filter(e => e !== b)) && !trySlide(a, labeled.filter(e => e !== a))) tryPair(a, b)
       }
     }
     if (conflicts === 0) break

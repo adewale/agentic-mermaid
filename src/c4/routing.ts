@@ -4,6 +4,7 @@ import type { C4Box } from './placement.ts'
 import { simplifyPolyline, applyRouteContracts, repairLabelsOffOwnRoute, separateEdgeLabelPills, closeRouteContracts, laneContextFor, findLabelSlot, recertifyReroutedEdge, type LabelMetricsStyle } from '../route-contracts.ts'
 import { rerouteEdgesThroughNodes } from '../layout/passes/index.ts'
 import { calculatePathMidpoint } from '../layout/geometry.ts'
+import { segmentThroughShape } from '../layout-rubric.ts'
 
 type Side = 'T' | 'R' | 'B' | 'L'
 interface Rect { x: number; y: number; width: number; height: number }
@@ -27,8 +28,65 @@ function port(box: C4Box, side: Side, index: number, count: number): Point {
   const header = box.container ? box.headerHeight ?? 0 : box.cylinder ? 8 : 0
   return { x: box.x + (side === 'R' ? box.width : 0), y: box.y + header + (box.height - header - (box.cylinder ? 8 : 0)) * t }
 }
+
+export class C4RouteWorkLimitError extends RangeError {
+  readonly code = 'C4_ROUTE_WORK_LIMIT'
+  constructor() { super('C4_ROUTE_WORK_LIMIT: physical corridor checks exceed 400000; split the diagram or reduce its relationships'); this.name = 'C4RouteWorkLimitError' }
+}
+
+/** Sample nearby obstacle faces plus the exterior. At most 16 coordinates per
+ * axis and five interior segments per candidate; all physical checks share the
+ * request budget. This repairs failed local routes without a grid search. */
+function physicalCorridor(start: Point, end: Point, obstacles: PositionedNode[], through: (a: Point, b: Point, node: PositionedNode) => boolean): Point[] | undefined {
+  const coordinates = (axis: 'x' | 'y', size: 'width' | 'height') => {
+    const values = [...new Set(obstacles.flatMap(node => [node[axis] - 10, node[axis] + node[size] + 10]))]
+    const exterior = [Math.min(start[axis], end[axis], ...values), Math.max(start[axis], end[axis], ...values)]
+    const distance = (value: number) => Math.min(Math.abs(value - start[axis]), Math.abs(value - end[axis]))
+    return [...new Set([...exterior, ...values.sort((a, b) => distance(a) - distance(b) || a - b).slice(0, 14)])]
+  }
+  const xs = coordinates('x', 'width'), ys = coordinates('y', 'height')
+  const candidates: Point[][] = []
+  for (const x of xs) candidates.push([start, { x, y: start.y }, { x, y: end.y }, end])
+  for (const y of ys) candidates.push([start, { x: start.x, y }, { x: end.x, y }, end])
+  for (const x of xs) for (const y of ys) {
+    candidates.push([start, { x: start.x, y }, { x, y }, { x, y: end.y }, end])
+    candidates.push([start, { x, y: start.y }, { x, y }, { x: end.x, y }, end])
+  }
+  const length = (points: Point[]) => points.slice(1).reduce((sum, point, index) => sum + Math.hypot(point.x - points[index]!.x, point.y - points[index]!.y), 0)
+  const clear = (a: Point, b: Point) => obstacles.every(node => !through(a, b, node))
+  const choose = (routes: Point[][]) => routes.map(simplifyPolyline).sort((a, b) => length(a) - length(b) || a.length - b.length)
+    .find(points => points.slice(1).every((point, index) => clear(points[index]!, point)))
+  const simple = choose(candidates)
+  if (simple) return simple
+  // A nested header can require separate departure and arrival bands: first
+  // leave the card's row, go around the header, then enter the target's row.
+  const startYs = ys.filter(y => clear(start, { x: start.x, y })), endYs = ys.filter(y => clear({ x: end.x, y }, end))
+  const startXs = xs.filter(x => clear(start, { x, y: start.y })), endXs = xs.filter(x => clear({ x, y: end.y }, end))
+  const nested: Point[][] = []
+  for (const x of xs) for (const a of startYs) for (const b of endYs) nested.push([start, { x: start.x, y: a }, { x, y: a }, { x, y: b }, { x: end.x, y: b }, end])
+  for (const y of ys) for (const a of startXs) for (const b of endXs) nested.push([start, { x: a, y: start.y }, { x: a, y }, { x: b, y }, { x: b, y: end.y }, end])
+  return choose(nested)
+}
 export function routeC4Pixels(boxes: ReadonlyMap<string, C4Box>, positioned: { nodes: PositionedNode[]; groups: PositionedGroup[]; edges: PositionedEdge[] }, graph: MermaidGraph, style: LabelMetricsStyle, identities: ReturnType<typeof planC4Identity>): void {
   const { edges } = positioned
+  const headerNodes: PositionedNode[] = [...boxes.values()].filter(box => box.container).map(box => ({ ...box, id: identities.generated(`c4-header-obstacle:${box.id}`, ['c4', 'header-obstacle', box.id]), height: box.headerHeight ?? 1, shape: 'rectangle', label: '' }))
+  const physicalObstacles = [...positioned.nodes, ...headerNodes]
+  let physicalChecks = 0
+  const charge = () => { if (++physicalChecks > 400_000) throw new C4RouteWorkLimitError() }
+  const through = (a: Point, b: Point, node: PositionedNode) => { charge(); return segmentThroughShape(a, b, node) }
+  const exit = (point: Point, side: Side, sign: number, lane: number, owner: string): Point => {
+    const ray = { x: delta[side].x * sign, y: delta[side].y * sign }
+    let distance = lane
+    for (const node of physicalObstacles) {
+      charge()
+      if (node.id === owner) continue
+      const aligned = ray.x ? point.y > node.y && point.y < node.y + node.height : point.x > node.x && point.x < node.x + node.width
+      if (!aligned) continue
+      const entry = ray.x > 0 ? node.x - point.x : ray.x < 0 ? point.x - node.x - node.width : ray.y > 0 ? node.y - point.y : point.y - node.y - node.height
+      if (entry >= 0) distance = Math.min(distance, Math.max(0, entry - 2))
+    }
+    return { x: point.x + ray.x * distance, y: point.y + ray.y * distance }
+  }
   const stubs = new Map<PositionedEdge, { start: Point; end: Point; startExit: Point; endExit: Point; seed?: Point[] }>()
   const counts = new Map<string, number>(), cursors = new Map<string, number>()
   const plans = edges.flatMap(edge => { const source = boxes.get(edge.source), target = boxes.get(edge.target); if (!source || !target) return []; const [startSide, endSide] = sides(source, target); for (const [id, side] of [[source.id, startSide], [target.id, endSide]]) { const key = `${id}\0${side}`; counts.set(key, (counts.get(key) ?? 0) + 1) }; return [{ edge, source, target, startSide, endSide }] })
@@ -46,8 +104,8 @@ export function routeC4Pixels(boxes: ReadonlyMap<string, C4Box>, positioned: { n
       : Math.max(24, ...pair.map(item => (item.edge.labelBlock?.height ?? 0) + 24))
     const shift = (pair.indexOf(plan) - (pair.length - 1) / 2) * corridor
     const lane = 14 + (index % 5) * 4
-    const startExit = { x: start.x + delta[startSide].x * lane * startSign, y: start.y + delta[startSide].y * lane * startSign }
-    const endExit = { x: end.x + delta[endSide].x * lane * endSign, y: end.y + delta[endSide].y * lane * endSign }
+    const startExit = exit(start, startSide, startSign, lane, source.id)
+    const endExit = exit(end, endSide, endSign, lane, target.id)
     stubs.set(edge, { start, end, startExit, endExit })
     // C4 owns only the physical face choice and initial corridor. Shared graph
     // route passes repair crossings, allocate labels and certify final routes.
@@ -71,7 +129,6 @@ export function routeC4Pixels(boxes: ReadonlyMap<string, C4Box>, positioned: { n
   repairLabelsOffOwnRoute(positioned, graph, style)
   separateEdgeLabelPills(positioned, graph, style)
   closeRouteContracts(positioned, graph, style)
-  const headerNodes: PositionedNode[] = [...boxes.values()].filter(box => box.container).map(box => ({ ...box, id: identities.generated(`c4-header-obstacle:${box.id}`, ['c4', 'header-obstacle', box.id]), height: box.headerHeight ?? 1, shape: 'rectangle', label: '' }))
   // Container frames are endpoint surfaces, not solid interior obstacles. Give
   // the shared rerouter the actual endpoint frame plus the opaque header bands
   // and leaf cards. This preserves boundary references without blocking every
@@ -91,6 +148,12 @@ export function routeC4Pixels(boxes: ReadonlyMap<string, C4Box>, positioned: { n
     const obstacles = [...positioned.nodes, ...headerNodes].map(node => node.id === edge.source || node.id === edge.target
       ? node : { ...node, x: node.x - padX, y: node.y - padY, width: node.width + padX * 2, height: node.height + padY * 2 })
     rerouteEdgesThroughNodes([...obstacles, anchorSource, anchorTarget], [interior], { ...graph, direction })
+    // A full label halo cannot fit through every nested boundary exit. If that
+    // stronger corridor has no solution, still route the shaft clear of actual
+    // cards and opaque headers. The final C4 allocator separately places the
+    // retained label halo; its visibility checks remain authoritative.
+    const blocked = interior.points.slice(1).some((end, index) => physicalObstacles.some(node => through(interior.points[index]!, end, node)))
+    if (blocked) interior.points = physicalCorridor(stub.startExit, stub.endExit, physicalObstacles, through) ?? interior.points
     edge.points = simplifyPolyline([stub.start, ...interior.points, stub.end])
     edge.labelPosition = calculatePathMidpoint(edge.points)
   }

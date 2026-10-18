@@ -146,10 +146,10 @@ export function renderRadarTerminal(
         if (legend.length > 0 && (lineIndex > 0 || (targetWidth !== undefined && width + 3 + itemWidth > targetWidth))) {
           document.line(legend); legend = []; width = 0
         }
-        if (legend.length > 0) { legend.push({ text: '   ' }); width += 3 }
+        if (legend.length > 0) { legend.push({ text: '   ', kind: 'surface' }); width += 3 }
         legend.push(
           { text: glyph, role: 'arrow', kind: 'marker', color: colors[index]!, owner: { id: `${id}:legend`, kind: 'label', parent: { id, kind: 'node' } } },
-          { text: ' ' },
+          { text: ' ', kind: 'surface' },
           { text, role: 'text', textGroup: 'legend', owner: { id, kind: 'node' } },
         )
         width += itemWidth
@@ -189,7 +189,7 @@ export function renderRadarTerminal(
   if (drawable.length === 0) {
     for (const [index, axis] of chart.axes.entries()) {
       for (const text of cellLines(axis.label, axisBudget)) {
-        document.line([{ text, role: 'text', textGroup: 'axis', owner: { id: axisOwners[index]!, kind: 'node' } }, { text: ' '.repeat(Math.max(0, axisWidth - visualWidth(text)) + 2) + sep, role: 'border', kind: 'stroke', color: visual.axisColor }])
+        document.line([{ text, role: 'text', textGroup: 'axis', owner: { id: axisOwners[index]!, kind: 'node' } }, { text: ' '.repeat(Math.max(0, axisWidth - visualWidth(text)) + 2) + sep, role: 'border', kind: 'stroke', color: visual.axisColor, owner: { id: axisOwners[index]!, kind: 'node' } }])
       }
     }
   }
@@ -209,9 +209,9 @@ export function renderRadarTerminal(
         const valueCol = row === 0 ? ` ${fmt(value).padStart(valWidth)}` : ''
         document.line([
           { text: axisLines[row] ?? '', role: 'text', textGroup: 'axis', ...(curveIndex === 0 ? { owner: { id: axisId, kind: 'node' as const } } : {}) },
-          { text: ' '.repeat(Math.max(0, axisWidth - visualWidth(axisLines[row] ?? '')) + 2) },
+          { text: ' '.repeat(Math.max(0, axisWidth - visualWidth(axisLines[row] ?? '')) + 2), kind: 'surface' },
           { text: curveLines[row] ?? '', role: 'text', textGroup: `table:${axisId}`, owner: { id: curveId, kind: 'node' } },
-          { text: ' '.repeat(Math.max(0, curveWidth - visualWidth(curveLines[row] ?? '')) + 1) + sep + ' ', role: 'border', kind: 'stroke', color: visual.axisColor },
+          { text: ' '.repeat(Math.max(0, curveWidth - visualWidth(curveLines[row] ?? '')) + 1) + sep + ' ', role: 'border', kind: 'stroke', color: visual.axisColor, owner: { id: axisId, kind: 'node' } },
           { text: row === 0 ? bar : '', role: 'arrow', kind: 'mark', color: colors[paletteIndex]!, owner: { id: `${curveId}:${axisId}`, kind: 'plot', parent: { id: curveId, kind: 'node' } } },
           { text: valueCol, role: 'text', owner: { id: `${curveId}:${axisId}:value`, kind: 'label', parent: { id: curveId, kind: 'node' } } },
         ])

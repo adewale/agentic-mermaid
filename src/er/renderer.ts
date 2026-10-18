@@ -2,16 +2,16 @@ import { prepareDisplayText, resolveLabelContent } from '../shared/display-text.
 import type { PixelTextBlock } from '../shared/prepared-text.ts'
 import { erHeaderBlock, erRelationshipBlock, erAttributeBlocks, erGroupBlock, erEmptyAttributeBlock } from './layout.ts'
 import type { PositionedErDiagram, PositionedErEntity, PositionedErRelationship, PositionedErGroup, ErAttribute, Cardinality } from './types.ts'
-import type { RenderContext } from '../types.ts'
+import type { RenderContext, Point } from '../types.ts'
 import { svgOpenTag, buildStyleBlock, buildShadowDefs, type DiagramColors } from '../theme.ts'
 import { inkOnNodeFill } from '../color-resolver.ts'
-import { FONT_SIZES, FONT_WEIGHTS, STROKE_WIDTHS, TEXT_BASELINE_SHIFT, resolveRenderStyle, diagramTitleMark } from '../styles.ts'
+import { FONT_SIZES, FONT_WEIGHTS, STROKE_WIDTHS, resolveRenderStyle, diagramTitleMark } from '../styles.ts'
 import type { RenderStyleDefaults, ResolvedRenderStyle } from '../styles.ts'
 import { ER_STYLE_DEFAULTS, erCommentColumnWidth, erCommentText } from './layout.ts'
 import { buildAccessibilityAttrs } from '../shared/svg-a11y.ts'
 import { breakLineTags, renderMultilineText, escapeAttr, escapeDisplayAttr, escapeXml as escapeXmlUtil } from '../multiline-utils.ts'
 import { topRoundedRectPath } from '../svg-paths.ts'
-import type { Geometry, SceneDoc, SceneNode } from '../scene/ir.ts'
+import type { Geometry, SceneDoc, SceneNode, SceneOwner } from '../scene/ir.ts'
 import { hashId } from '../scene/seed.ts'
 import * as marks from '../scene/marks.ts'
 import { DefaultBackend } from '../scene/backend.ts'
@@ -120,11 +120,13 @@ export function lowerErScene(
 
   // 1. Relationship lines
   const lineOccurrence = new Map<string, number>()
+  const groupIds = new Set(diagram.groups.map(group => group.id))
+  const endpointOwner = (id: string): SceneOwner => ({ id, role: groupIds.has(id) ? 'group' : 'entity' })
   for (const rel of diagram.relationships) {
     const pairKey = `${rel.entity1}-${rel.entity2}`
     const k = lineOccurrence.get(pairKey) ?? 0
     lineOccurrence.set(pairKey, k + 1)
-    parts.push(renderRelationshipLine(rel, style, resolved.styleFace, `rel:${pairKey}#${k}`))
+    parts.push(renderRelationshipLine(rel, style, resolved.styleFace, `rel:${pairKey}#${k}`, endpointOwner))
   }
 
   // 2. Entity boxes
@@ -298,8 +300,8 @@ function renderEntityBox(entity: PositionedErEntity, style: ResolvedRenderStyle,
         anchor: 'middle',
         paint: { fill: emptyColor },
       },
-        `<text x="${x + width / 2}" y="${attrTop + rowHeight / 2}" text-anchor="middle" dy="${TEXT_BASELINE_SHIFT}" ` +
-        `font-size="${ER_FONT.attrSize}" fill="${escapeAttr(emptyColor)}" font-style="italic">(no attributes)</text>`),
+        renderMultilineText(block, x + width / 2, attrTop + rowHeight / 2, ER_FONT.attrSize,
+          `text-anchor="middle" font-size="${ER_FONT.attrSize}" fill="${escapeAttr(emptyColor)}"`)),
     })
   }
 
@@ -444,13 +446,14 @@ function renderRelationshipLine(
   style: ResolvedRenderStyle,
   styleFace: Readonly<InternalStyleFace> | undefined,
   sceneId: string,
+  endpointOwner: (id: string) => SceneOwner,
 ): SceneNode {
   const lineStyle = rel.identifying ? 'solid' as const : 'dashed' as const
   const channels = { category: rel.identifying ? 'identifying' : 'non-identifying' }
   const roleStyle = resolveRoleStyle(styleFace, 'relationship', channels, { includeFallback: false })
   const bendRadius = roleStyle?.bendRadius ?? style.edgeBendRadius
   const connectorSemantics = {
-    endpoints: { from: rel.entity1, to: rel.entity2 },
+    endpoints: { from: rel.entity1, to: rel.entity2, start: { owner: endpointOwner(rel.entity1) }, end: { owner: endpointOwner(rel.entity2) } },
     relationship: { kind: rel.identifying ? 'identifying' : 'non-identifying' },
     route: { ownership: 'layout', bendRadius },
     labels: rel.label ? [{ text: rel.label, textContent: { value: rel.label, prepared: prepareDisplayText(resolveLabelContent(rel.label, rel.labelContent)) } }] : [],
@@ -529,6 +532,11 @@ function renderRelationshipLine(
  * and every entity box wins; the midpoint stays when nothing clears (surfaced
  * by eval/overlap-audit rather than hidden).
  */
+export class ErLabelWorkLimitError extends RangeError {
+  readonly code = 'ER_LABEL_WORK_LIMIT'
+  constructor() { super('ER_LABEL_WORK_LIMIT: label-slot search exceeds 400000 operations; split the diagram or reduce its relationships'); this.name = 'ErLabelWorkLimitError' }
+}
+
 export function separateRelationshipLabels(
   diagram: PositionedErDiagram,
   style: ResolvedRenderStyle,
@@ -538,7 +546,10 @@ export function separateRelationshipLabels(
   const out = new Map<PositionedErRelationship, { x: number; y: number }>()
   const intersects = (a: Box, b: Box): boolean =>
     Math.min(a.x1, b.x1) - Math.max(a.x0, b.x0) > 0.5 && Math.min(a.y1, b.y1) - Math.max(a.y0, b.y0) > 0.5
-  const entityBoxes: Box[] = diagram.entities.map(e => ({ x0: e.x, y0: e.y, x1: e.x + e.width, y1: e.y + e.height }))
+  const entityBoxes: Box[] = [
+    ...diagram.entities.map(e => ({ x0: e.x, y0: e.y, x1: e.x + e.width, y1: e.y + e.height })),
+    ...diagram.groups.map(g => ({ x0: g.x, y0: g.y, x1: g.x + g.width, y1: g.y + g.headerHeight })),
+  ]
   // Crow's-foot/cardinality glyphs occupy a small zone around every route
   // endpoint. Treat those zones as reserved so a displaced relationship label
   // cannot become readable against boxes yet straddle a marker.
@@ -548,6 +559,9 @@ export function separateRelationshipLabels(
     return endpoints.map(point => ({ x0: point.x - 18, y0: point.y - 18, x1: point.x + 18, y1: point.y + 18 }))
   })
   const placed: Box[] = []
+  let searchWork = 0
+  const charge = (count = 1) => { searchWork += count; if (searchWork > 400_000) throw new ErLabelWorkLimitError() }
+  charge(entityBoxes.length + endpointBoxes.length)
   for (const rel of diagram.relationships) {
     if (!rel.label || rel.points.length < 2) continue
     const m = rel.labelBlock ?? erRelationshipBlock(rel, style, styleFace)
@@ -555,16 +569,19 @@ export function separateRelationshipLabels(
     // (8px per side), not merely the smaller painted pill dimensions.
     const bgW = m.width + 16, bgH = m.height + 16
     const boxAt = (cx: number, cy: number): Box => ({ x0: cx - bgW / 2, y0: cy - bgH / 2, x1: cx + bgW / 2, y1: cy + bgH / 2 })
-    const collides = (b: Box): boolean =>
-      b.x0 < 0 || b.y0 < 0 || b.x1 > diagram.width || b.y1 > diagram.height
-      || placed.some(o => intersects(b, o)) || entityBoxes.some(o => intersects(b, o)) || endpointBoxes.some(o => intersects(b, o))
+    const collides = (b: Box): boolean => {
+      charge()
+      return b.x0 < 0 || b.y0 < 0 || b.x1 > diagram.width || b.y1 > diagram.height
+      || placed.some(o => { charge(); return intersects(b, o) }) || entityBoxes.some(o => { charge(); return intersects(b, o) }) || endpointBoxes.some(o => { charge(); return intersects(b, o) })
+    }
     const pts = rel.points
     const segLens: number[] = []
     let total = 0
-    for (let i = 1; i < pts.length; i++) { const l = Math.hypot(pts[i]!.x - pts[i - 1]!.x, pts[i]!.y - pts[i - 1]!.y); segLens.push(l); total += l }
+    for (let i = 1; i < pts.length; i++) { charge(); const l = Math.hypot(pts[i]!.x - pts[i - 1]!.x, pts[i]!.y - pts[i - 1]!.y); segLens.push(l); total += l }
     const at = (dist: number): { x: number; y: number } => {
       let d = dist
       for (let i = 0; i < segLens.length; i++) {
+        charge()
         if (d <= segLens[i]! || i === segLens.length - 1) {
           const t = segLens[i]! === 0 ? 0 : Math.max(0, Math.min(1, d / segLens[i]!))
           return { x: pts[i]!.x + (pts[i + 1]!.x - pts[i]!.x) * t, y: pts[i]!.y + (pts[i + 1]!.y - pts[i]!.y) * t }
@@ -573,15 +590,67 @@ export function separateRelationshipLabels(
       }
       return pts[pts.length - 1]!
     }
+    charge(pts.length * 2)
     const mid = midpoint(pts)
     let chosen = { x: mid.x, y: mid.y }
     let chosenBox = boxAt(mid.x, mid.y)
-    if (collides(chosenBox)) {
+    let needsSlot = collides(chosenBox)
+    if (needsSlot) {
       for (const f of [0.4, 0.6, 0.3, 0.7, 0.25, 0.75, 0.2, 0.8, 0.15, 0.85]) {
         const q = at(total * f)
         const b = boxAt(q.x, q.y)
-        if (!collides(b)) { chosen = q; chosenBox = b; break }
+        if (!collides(b)) { chosen = q; chosenBox = b; needsSlot = false; break }
       }
+    }
+    if (needsSlot) {
+      // Samples can miss a narrow clear slot. Subtract the actual occupied
+      // intervals from each orthogonal segment, retaining the nearest free
+      // point to the midpoint. Earlier clear placements remain unchanged.
+      charge(entityBoxes.length + endpointBoxes.length + placed.length)
+      const obstacles = [...entityBoxes, ...endpointBoxes, ...placed]
+      let best: { point: Point; distance: number } | undefined, walked = 0
+      for (let i = 1; i < pts.length; i++) {
+        charge()
+        const a = pts[i - 1]!, b = pts[i]!, length = segLens[i - 1]!
+        const vertical = a.x === b.x, horizontal = a.y === b.y
+        if (length === 0 || !vertical && !horizontal) { walked += length; continue }
+        const fixed = vertical ? a.x : a.y, halfCross = (vertical ? bgW : bgH) / 2, halfMain = (vertical ? bgH : bgW) / 2
+        const viewportCross = vertical ? diagram.width : diagram.height, viewportMain = vertical ? diagram.height : diagram.width
+        if (fixed - halfCross < 0 || fixed + halfCross > viewportCross) { walked += length; continue }
+        const lo = Math.max(Math.min(vertical ? a.y : a.x, vertical ? b.y : b.x), halfMain)
+        const hi = Math.min(Math.max(vertical ? a.y : a.x, vertical ? b.y : b.x), viewportMain - halfMain)
+        if (lo >= hi) { walked += length; continue }
+        const forbidden: Array<[number, number]> = []
+        for (const obstacle of obstacles) {
+          charge()
+          const crossLo = vertical ? obstacle.x0 : obstacle.y0, crossHi = vertical ? obstacle.x1 : obstacle.y1
+          if (Math.min(fixed + halfCross, crossHi) - Math.max(fixed - halfCross, crossLo) <= .5) continue
+          forbidden.push([(vertical ? obstacle.y0 : obstacle.x0) - halfMain + .5, (vertical ? obstacle.y1 : obstacle.x1) + halfMain - .5])
+        }
+        forbidden.sort((a, b) => { charge(); return a[0] - b[0] || a[1] - b[1] })
+        const start = vertical ? a.y : a.x, sign = Math.sign((vertical ? b.y : b.x) - start)
+        const preferred = start + sign * (total / 2 - walked)
+        const consider = (from: number, to: number) => {
+          charge()
+          const inset = Math.max(1e-6, Number.EPSILON * Math.max(1, Math.abs(from), Math.abs(to)) * 8)
+          if (to - from <= inset * 2) return
+          const value = Math.max(from + inset, Math.min(to - inset, preferred))
+          const distance = Math.abs(walked + Math.abs(value - start) - total / 2)
+          if (!best || distance < best.distance) best = { point: vertical ? { x: fixed, y: value } : { x: value, y: fixed }, distance }
+        }
+        let cursor = lo
+        for (const [from, to] of forbidden) {
+          charge()
+          if (to <= cursor) continue
+          if (from > hi) break
+          if (from > cursor) consider(cursor, Math.min(hi, from))
+          cursor = Math.max(cursor, to)
+          if (cursor >= hi) break
+        }
+        if (cursor < hi) consider(cursor, hi)
+        walked += length
+      }
+      if (best && !collides(boxAt(best.point.x, best.point.y))) { chosen = best.point; chosenBox = boxAt(chosen.x, chosen.y) }
     }
     placed.push(chosenBox)
     out.set(rel, chosen)

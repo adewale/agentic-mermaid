@@ -137,16 +137,16 @@ export function renderQuadrantTerminal(
     const whole = prefix + near + (far ? `  |  top: ${far}` : '')
     if (targetWidth === undefined || visualWidth(whole) <= targetWidth) {
       document.line([
-        { text: prefix, role: 'border', kind: 'text' },
+        { text: prefix, role: 'border', kind: 'text', owner: { id: 'y-axis-near:prefix', kind: 'label', parent: { id: 'y-axis-near', kind: 'label' } } },
         { text: near, role: 'text', owner: { id: 'y-axis-near', kind: 'label' } },
-        ...(far ? [{ text: '  |  top: ', role: 'border' as const, kind: 'text' as const }, { text: far, role: 'text' as const, owner: { id: 'y-axis-far', kind: 'label' as const } }] : []),
+        ...(far ? [{ text: '  |  top: ', role: 'border' as const, kind: 'text' as const, owner: { id: 'y-axis-far:prefix', kind: 'label' as const, parent: { id: 'y-axis-far', kind: 'label' as const } } }, { text: far, role: 'text' as const, owner: { id: 'y-axis-far', kind: 'label' as const } }] : []),
       ])
     } else {
       for (const [id, label, value] of [['y-axis-near', 'bottom: ', near], ['y-axis-far', 'top: ', far]] as const) {
         if (value === undefined) continue
         const lines = wrapText(value, Math.max(1, targetWidth - visualWidth(label)))
         const row = document.height
-        document.textBlock(0, row, label, { role: 'border', kind: 'text' })
+        document.textBlock(0, row, label, { role: 'border', kind: 'text', owner: { id: `${id}:prefix`, kind: 'label', parent: { id, kind: 'label' } } })
         document.textBlock(visualWidth(label), row, lines.join('\n'), { role: 'text', owner: { id, kind: 'label' } })
       }
     }
@@ -158,7 +158,7 @@ export function renderQuadrantTerminal(
     const prefix = `quadrant-${quadrant}: `
     const lines = wrapText(text, Math.max(1, (targetWidth ?? GRID_W + 2) - visualWidth(prefix)))
     lines.forEach((line, index) => document.line([
-      { text: index === 0 ? prefix : ' '.repeat(visualWidth(prefix)), role: 'border', kind: 'text' },
+      { text: index === 0 ? prefix : ' '.repeat(visualWidth(prefix)), role: 'border', kind: index === 0 ? 'text' : 'surface', owner: { id: `quadrant-label#${quadrant}:prefix`, kind: 'label', parent: { id: `quadrant-label#${quadrant}`, kind: 'label' } } },
       { text: line, role: 'text', textGroup: 'label', owner: { id: `quadrant-label#${quadrant}`, kind: 'label' } },
     ]))
   }
@@ -171,7 +171,7 @@ export function renderQuadrantTerminal(
       const labelLines = wrapText(displayText(p.label), targetWidth ? Math.max(1, targetWidth - visualWidth(suffix) - 2) : undefined)
       labelLines.forEach((text, index) => document.line([
         { text: pointMarkers[pointIndex]!.glyph, role: 'arrow', kind: 'marker', color: pointMarkers[pointIndex]!.color, owner: { id: `point-${pointIndex}:legend`, kind: 'label', parent: { id: `point-${pointIndex}`, kind: 'node' } } },
-        { text: ' ' },
+        { text: ' ', kind: 'surface' },
         { text, role: 'text', textGroup: 'legend', owner: { id: `point-${pointIndex}`, kind: 'node' } },
         { text: index === labelLines.length - 1 ? suffix : '', role: 'text', owner: { id: `point-${pointIndex}:coordinates`, kind: 'label', parent: { id: `point-${pointIndex}`, kind: 'node' } } },
       ]))

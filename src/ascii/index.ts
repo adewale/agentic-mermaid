@@ -57,11 +57,13 @@ import { AsciiWidthError } from './width-error.ts'
 import { parsePieChart } from '../pie/parser.ts'
 import { safePieTerminalText } from './pie.ts'
 import { retainTerminalDocument, TerminalDocument } from './terminal-document.ts'
+import { certifyTerminalLayout } from './terminal-certification.ts'
 import { nativeTerminalArtifact } from './terminal-artifact.ts'
 import { terminalInputModel, type TerminalInputModel } from './terminal-model.ts'
 
 // Re-export types for external use
 export type { AsciiTheme, ColorMode }
+export type { TerminalLayoutCertification } from './terminal-certification.ts'
 export { DEFAULT_ASCII_THEME, detectColorMode, diagramColorsToAsciiTheme }
 export { AsciiWidthError } from './width-error.ts'
 export type { AsciiWidthErrorReason } from './width-error.ts'
@@ -313,9 +315,12 @@ export function executeTerminalRender(
     : admitExternalTerminalOutput(renderedOutput, colorMode)
   let receipt: RenderRequestReceipt | undefined
   const resultOf = (text: string): RenderedAscii => {
+    let certification: ReturnType<typeof certifyTerminalLayout> | undefined
+    const certificate = () => certification ??= certifyTerminalLayout(drawing, text, colorMode)
+    if (request.renderOptions.layoutSafety === 'strict' && certificate().status !== 'passed') throw new Error(`Strict terminal layout safety failed: ${certificate().issues.map(issue => issue.message).join('; ')}`)
     const result = {
       text,
-      get receipt() { return receipt ??= receiptOf(request, terminalStyle().diagnostics) },
+      get receipt() { return receipt ??= Object.freeze({ ...receiptOf(request, terminalStyle().diagnostics), layoutCertification: certificate() }) },
       get terminalStyle() { return terminalStyle() },
       outputPolicy,
     }

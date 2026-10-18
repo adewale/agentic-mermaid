@@ -3,18 +3,22 @@ import { denseDag, diamondFan } from '../../eval/degenerate-etn/generators.ts'
 import { layoutGraphSync } from '../layout-engine.ts'
 import { parseMermaid } from '../parser.ts'
 import { closeRouteContracts, findRouteHitches } from '../route-contracts.ts'
+import { assessLayout, hardViolations } from '../layout-rubric.ts'
 import { resolveRenderStyle } from '../styles.ts'
 
 describe('final route-contract closer invariants (issue #88)', () => {
-  test('a real late-closure regression is straight and byte-idempotent', () => {
+  test('dense settled routes remain proved and byte-idempotent when shared lanes block straightening', () => {
     const graph = parseMermaid(denseDag(1656))
     const positioned = layoutGraphSync(graph)
     const edge = positioned.edges.find(item => item.source === 'N1' && item.target === 'N4')!
 
-    // This route has four points on main at 027cb4b0. Final closure removes
-    // both bends, and invoking the same proof again must preserve every byte.
-    expect(edge.points).toHaveLength(2)
-    expect(edge.routeCertificate).toMatchObject({ invariant: 'straight', bendCount: 0, directLaneClear: true })
+    // Shared channels and settled label pills can block the old straight
+    // candidate. The final hitch proof must agree with the final route,
+    // and invoking that proof again must preserve every byte.
+    expect(hardViolations(assessLayout(graph, positioned))).toEqual([])
+    expect(findRouteHitches(positioned, graph)).toEqual([])
+    expect(edge.routeCertificate).toMatchObject({ invariant: 'explained-detour', bendCount: 2, directLaneClear: false })
+    expect(edge.routeCertificate?.directLaneBlockedBy?.some(blocker => blocker.kind === 'channel' || blocker.kind === 'label')).toBe(true)
     const once = JSON.stringify(positioned.edges)
     closeRouteContracts(positioned, graph, resolveRenderStyle({}))
     expect(JSON.stringify(positioned.edges)).toBe(once)

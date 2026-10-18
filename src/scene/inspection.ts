@@ -40,6 +40,8 @@ export interface ScenePaintInspection {
 }
 
 const sources = new WeakMap<ScenePaintPrimitive, SceneNode>()
+const worldMatrices = new WeakMap<ScenePaintPrimitive, AffineMatrix>()
+export function scenePrimitiveMatrix(primitive: ScenePaintPrimitive): AffineMatrix | undefined { return worldMatrices.get(primitive) }
 
 export function scenePrimitiveSource(primitive: ScenePaintPrimitive): SceneNode | undefined {
   return sources.get(primitive)
@@ -101,6 +103,7 @@ export function inspectScenePrimitives(scene: SceneDoc): ScenePaintInspection {
         ...(node.kind === 'text' ? { text: Object.freeze({ source: node.block?.prepared.source ?? node.text, displayed: node.block ? node.block.lineBlocks.map(line => line.runs.map(run => run.text).join('')).join('\n') : node.text, measurement: node.measurement ?? 'unavailable', ...(node.block?.fontFamily ? { fontFamily: node.block.fontFamily } : {}) }) } : {}),
       })
       sources.set(primitive, node)
+      worldMatrices.set(primitive, composeMatrices(parent, transformMatrix(node.transform)))
       primitives.push(primitive)
       if (hidden) coverage.nonPainting++
       else if (measured) coverage.measured++
@@ -127,6 +130,7 @@ export function inspectScenePrimitives(scene: SceneDoc): ScenePaintInspection {
           text: Object.freeze({ source: label.block?.prepared.source ?? label.text, displayed, measurement: label.block ? 'prepared' : 'fallback' }),
         })
         sources.set(inline, node)
+        worldMatrices.set(inline, composeMatrices(parent, transformMatrix(node.transform)))
         primitives.push(inline)
         if (hidden) coverage.nonPainting++
         else {

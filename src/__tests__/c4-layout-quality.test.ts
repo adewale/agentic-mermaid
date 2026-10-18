@@ -8,6 +8,8 @@ import { renderLoadedFamilySvg } from '../browser-lazy/render-core.ts'
 import { measureQuality } from '../agent/quality.ts'
 import type { PositionedC4Diagram } from '../c4/layout.ts'
 import { preparePixelText } from '../shared/prepared-text.ts'
+import { extractOfficialCorpus } from '../../eval/shared/official-fences.ts'
+import { C4RouteWorkLimitError } from '../c4/routing.ts'
 
 interface Box { x: number; y: number; width: number; height: number }
 const overlaps = (a: Box, b: Box) => Math.min(a.x + a.width, b.x + b.width) - Math.max(a.x, b.x) > .01 && Math.min(a.y + a.height, b.y + b.height) - Math.max(a.y, b.y) > .01
@@ -50,6 +52,43 @@ const PARALLEL = 'C4Deployment\nNode(parent,"Parent","Cloud") {\nContainer(child
 const DENSE = `C4Container\nSystem_Boundary(app,"Application") {\n${Array.from({ length: 7 }, (_, i) => `Container(n${i},"Service ${i}","HTTP")`).join('\n')}\n}\n${Array.from({ length: 7 }, (_, from) => Array.from({ length: 6 - from }, (_, j) => `Rel(n${from},n${from + j + 1},"Interaction ${from} to ${from + j + 1}","HTTPS")`).join('\n')).join('\n')}`
 
 describe('C4 measured pixel layout quality', () => {
+  test('native and lazy rendering expose exhausted physical route work instead of retaining an unchecked route', async () => {
+    const source = ['C4Context', ...Array.from({ length: 201 }, (_, i) => `System(n${i},"Card ${i}")`), ...Array.from({ length: 1000 }, () => 'Rel(n0,n1,"Repeated")')].join('\n')
+    expect(() => renderMermaidSVG(source)).toThrow(C4RouteWorkLimitError)
+    const { default: browser } = await import('../browser-lazy/families/c4.ts')
+    await expect(renderLoadedFamilySvg(source, {}, browser)).rejects.toMatchObject({ name: 'C4RouteWorkLimitError', code: 'C4_ROUTE_WORK_LIMIT' })
+  })
+
+  test.each([2, 4])('official C4 fence %s keeps final relationship shafts clear of unrelated cards', index => {
+    const source = extractOfficialCorpus().find(fence => fence.id === `c4:official-syntax/c4.md#${index}`)!.source
+    expect(() => renderMermaidSVG(source)).not.toThrow()
+    expect(verifyMermaid(source).ok).toBe(true)
+    const parsed = parseRegisteredMermaid(source)
+    if (!parsed.ok || parsed.value.body.kind !== 'c4') throw new Error('Expected structured official C4 source')
+    const layout = layoutMermaid(parsed.value, { debug: true })
+    expect(layout.edges).toHaveLength(parsed.value.body.relationships.length)
+    for (const edge of layout.edges) {
+      const authored = parsed.value.body.relationships.find(relationship => relationship.id === edge.id)!
+      expect([edge.from, edge.to]).toEqual([authored.source, authored.target])
+      expect(edge.label?.text).toContain(authored.label)
+      for (const [id, point] of [[edge.from, edge.path[0]!], [edge.to, edge.path.at(-1)!]] as const) {
+        const card = layout.nodes.find(node => node.id === id)!
+        expect(point[0] >= card.x - .01 && point[0] <= card.x + card.w + .01 && point[1] >= card.y - .01 && point[1] <= card.y + card.h + .01).toBe(true)
+        expect(Math.min(Math.abs(point[0] - card.x), Math.abs(point[0] - card.x - card.w), Math.abs(point[1] - card.y), Math.abs(point[1] - card.y - card.h))).toBeLessThan(.01)
+      }
+      for (const card of layout.nodes) {
+        if (card.id === edge.from || card.id === edge.to) continue
+        for (let i = 1; i < edge.path.length; i++) {
+          const [ax, ay] = edge.path[i - 1]!, [bx, by] = edge.path[i]!
+          const crossed = ax === bx
+            ? ax > card.x + .01 && ax < card.x + card.w - .01 && Math.min(Math.max(ay, by), card.y + card.h) - Math.max(Math.min(ay, by), card.y) > .01
+            : ay === by && ay > card.y + .01 && ay < card.y + card.h - .01 && Math.min(Math.max(ax, bx), card.x + card.w) - Math.max(Math.min(ax, bx), card.x) > .01
+          expect(crossed, `${edge.id} crosses ${card.id}`).toBe(false)
+        }
+      }
+    }
+  })
+
   test('public C4 projections retain the text drawn on cards, frames, routes, title and legend', () => {
     const source = 'C4Deployment\ntitle Runtime\nNode(parent,"Production","Linux") {\nContainer(api,"API","Go")\n}\nPerson(user,"User")\nRel(user,api,"Calls","HTTPS")'
     const parsed = parseRegisteredMermaid(source)

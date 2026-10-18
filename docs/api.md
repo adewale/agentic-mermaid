@@ -264,6 +264,7 @@ remain in their respective sections.
 <!-- BEGIN GENERATED SHARED RENDER OPTIONS -->
 | Option | Type | Effective default | Meaning | Built-in families | Terminal |
 |---|---|---|---|---|---|
+| `layoutSafety` | `'report' \| 'strict'` | `report` | Report bounded layout evidence, or require a passed final certificate. Strict mode rejects missing or unverified evidence. | all | consumed |
 | `bg` | `string` | `#FFFFFF` | Background color or CSS variable. | all | consumed |
 | `fg` | `string` | `#27272A` | Primary foreground and text color. | all | consumed |
 | `line` | `string` | derived | Connector and secondary-line color. | all | consumed |

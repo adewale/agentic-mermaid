@@ -18,8 +18,8 @@ This doc is the *map*. The route-engine details live in
 Implemented boundary: the Flowchart/State graph engine certifies final retained
 geometry and hard rubric invariants over at most four deterministic strategy
 candidates, then returns a receipt or explicit failure. Per-pass metric budgets
-are enforceable with debug/CI invariant checking. This does not implement every
-construction or exact-predicate proposal below. Every native family's final
+are enforced in production, alongside pass order and frozen-geometry contracts.
+This does not implement every construction or exact-predicate proposal below. Every native family's final
 projection also passes the family rubric's hard geometry checks at the common
 positioning boundary; specialized layouters have one attempt and fail explicitly.
 They do not inherit the graph route certificate. See

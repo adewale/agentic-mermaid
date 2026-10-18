@@ -1,8 +1,8 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="951.768" height="158" viewBox="0 0 951.768 158" style="--bg:#123a63;--fg:#eaf2fb;--line:#dbe9f7;--accent:#ffffff;--muted:#b8cfe6;--surface:#1c4a78;--border:#dbe9f7;--font:Share Tech Mono;background:#123a63" class="am-1fy4k3g07h89rk">
+<svg xmlns="http://www.w3.org/2000/svg" width="951.768" height="158" viewBox="0 0 951.768 158" style="--bg:#123a63;--fg:#eaf2fb;--line:#dbe9f7;--accent:#ffffff;--muted:#b8cfe6;--surface:#1c4a78;--border:#dbe9f7;--font:Share Tech Mono;background:#123a63" class="am-0gyps3z14bcxk7">
 <style>
-  svg.am-1fy4k3g07h89rk { font-family: var(--font, 'Share Tech Mono'), system-ui, sans-serif; }
-  .am-1fy4k3g07h89rk .mono { font-family: 'JetBrains Mono', 'SF Mono', 'Fira Code', ui-monospace, monospace; }
-  svg.am-1fy4k3g07h89rk {
+  svg.am-0gyps3z14bcxk7 { font-family: var(--font, 'Share Tech Mono'), system-ui, sans-serif; }
+  .am-0gyps3z14bcxk7 .mono { font-family: 'JetBrains Mono', 'SF Mono', 'Fira Code', ui-monospace, monospace; }
+  svg.am-0gyps3z14bcxk7 {
     /* Derived from --bg and --fg (overridable via --line, --accent, etc.) */
     --_text:          #eaf2fb;
     --_text-sec:      #b8cfe6;
@@ -102,7 +102,7 @@
   <path d="M771.06 51.47 C800.46 50.56, 828.38 51.62, 911.06 50.96 M911.94 51.7 C912.23 62.27, 911.63 73.56, 912.04 84.56 M912.34 84.26 C875.4 85.82, 838.99 85.81, 771.4 84.57 M771.75 84.48 C772.41 72.92, 771.94 60.89, 771.03 50.55" fill="none" stroke="#dbe9f7" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round" />
   <text paint-order="stroke" stroke="#123a63" stroke-width="3" stroke-linejoin="round" stroke-linecap="round" x="841.768" y="68" text-anchor="middle" font-size="13" font-weight="700" fill="#eaf2fb" data-prepared-text="true" dy="4.55" textLength="74.49000000000001" lengthAdjust="spacingAndGlyphs" data-font-metrics="deterministic-fit">LINE_ITEM</text>
   <line x1="771.768" y1="85" x2="911.768" y2="85" stroke="#dbe9f7" stroke-width="0.75" />
-  <text paint-order="stroke" stroke="#123a63" stroke-width="3" stroke-linejoin="round" stroke-linecap="round" x="841.768" y="96" text-anchor="middle" dy="0.35em" font-size="11" fill="#b8cfe6" font-style="italic" data-id="entity-empty:LINE_ITEM" data-role="attribute" textLength="65.208" lengthAdjust="spacingAndGlyphs" data-font-metrics="deterministic-fit">(no attributes)</text>
+  <text paint-order="stroke" stroke="#123a63" stroke-width="3" stroke-linejoin="round" stroke-linecap="round" x="841.768" y="96" text-anchor="middle" font-size="11" fill="#b8cfe6" data-prepared-text="true" dy="3.8499999999999996" data-id="entity-empty:LINE_ITEM" data-role="attribute"><tspan x="809.164" text-anchor="start" letter-spacing="0" data-text-fragment="true" textLength="65.20800000000001" lengthAdjust="spacingAndGlyphs" font-style="italic">(no attributes)</tspan></text>
 </g>
 <line x1="184" y1="73" x2="184" y2="85" stroke="#dbe9f7" stroke-width="1.25" data-id="card:CUSTOMER-ORDER#0:1" data-role="cardinality" />
 <line x1="188" y1="73" x2="188" y2="85" stroke="#dbe9f7" stroke-width="1.25" />

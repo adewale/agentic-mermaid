@@ -1,3 +1,5 @@
+export { PaintLayoutCertificationError, type PaintLayoutCertification } from '../scene/paint-certification.ts'
+import { renderedPaintCertification, retainRenderedPaintCertification } from '../scene/paint-certification.ts'
 // ============================================================================
 // agentic-mermaid — runtime-neutral agent surface (v4).
 // Everything here is pure JS/TS (elkjs bundled build included) and safe to
@@ -478,7 +480,7 @@ export function layoutMermaidWithReceipt(input: ParsedDiagram | string, opts: La
   if (!familyLayout) throw new Error(`No public layout projection registered for Mermaid family "${diagram.kind}"`)
   return {
     layout: enrichRenderedLayout(diagram, familyLayout, layoutOptions),
-    receipt: _receiptOf(request),
+    receipt: { ..._receiptOf(request), ...(renderedPaintCertification(familyLayout) ? { layoutCertification: renderedPaintCertification(familyLayout) } : {}) },
   }
 }
 
@@ -501,6 +503,8 @@ function enrichRenderedLayout(d: ParsedDiagram, layout: RenderedLayout, opts: La
     const renderedIds = new Set<string>([...layout.nodes, ...layout.groups, ...layout.edges].map(element => element.id))
     next.actions = (d.body.kind === 'extension' || d.body.kind === 'preserved' ? [] : collectRenderedActionRecords(d as ValidDiagram)).filter(a => renderedIds.has(a.target)).map(a => ({ ...a, regionId: a.regionId ?? `node:${a.target}` }))
   }
+  const certification = renderedPaintCertification(layout)
+  if (certification) retainRenderedPaintCertification(next, certification)
   return next
 }
 

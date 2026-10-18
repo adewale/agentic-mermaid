@@ -23,9 +23,16 @@ import { parseErDiagram } from '../er/parser.ts'
 import { parseRegisteredMermaid as parseMermaid, serializeMermaid, verifyMermaid, layoutMermaid } from '../agent/index.ts'
 import { toMermaidLines } from '../mermaid-source.ts'
 import { assessRenderedLayout, familyHardViolations } from '../family-rubric.ts'
-import { layoutErDiagram, ER_STYLE_DEFAULTS } from '../er/layout.ts'
+import { layoutErDiagram, ER_STYLE_DEFAULTS, ErRouteWorkLimitError } from '../er/layout.ts'
 import { separateRelationshipLabels } from '../er/renderer.ts'
 import { resolveRenderStyle } from '../styles.ts'
+import { renderLoadedFamilySvg } from '../browser-lazy/render-core.ts'
+import { resolveRenderRequestForExecution } from '../render-contract.ts'
+import { positionResolvedFamily } from '../positioning.ts'
+import { lowerPositionedFamilyScene } from '../graphical-render.ts'
+import { inspectScenePrimitives, scenePrimitiveSource } from '../scene/inspection.ts'
+import { nodePaintBounds } from '../scene/bounds.ts'
+import type { PositionedErDiagram } from '../er/types.ts'
 
 const UPSTREAM_FORM = `erDiagram subgraph WithRL
 direction RL
@@ -40,6 +47,20 @@ const BODY_FORM = `erDiagram
   ORDER ||--|| INVOICE : bills`
 
 describe('er subgraph native rendering (#103)', () => {
+  it('native and lazy rendering expose exhausted contained-route work', async () => {
+    const source = ['erDiagram', 'subgraph p', 'subgraph c', 'A', 'end', ...Array.from({ length: 40 }, (_, i) => `B${i}`), 'end', ...Array.from({ length: 1000 }, () => 'p ||--|| c : contains')].join('\n')
+    expect(() => renderMermaidSVG(source)).toThrow(ErRouteWorkLimitError)
+    const { default: browser } = await import('../browser-lazy/families/er.ts')
+    await expect(renderLoadedFamilySvg(source, {}, browser)).rejects.toMatchObject({ name: 'ErRouteWorkLimitError', code: 'ER_ROUTE_WORK_LIMIT' })
+  })
+
+  it('native and lazy rendering expose exhausted retained-label work', async () => {
+    const source = ['erDiagram', ...Array.from({ length: 400 }, (_, i) => `N${i} ||--|| N${i + 1} : links`)].join('\n')
+    expect(() => renderMermaidSVG(source)).toThrow(/ER_LABEL_WORK_LIMIT/)
+    const { default: browser } = await import('../browser-lazy/families/er.ts')
+    await expect(renderLoadedFamilySvg(source, {}, browser)).rejects.toThrow(/ER_LABEL_WORK_LIMIT/)
+  })
+
   for (const [name, source] of Object.entries({
     'nested group beside an unrelated group': `erDiagram
 subgraph title1
@@ -90,21 +111,162 @@ end
 A ||--|| TOP : links
 TOP ||--|| B : links
 B1 ||--|| B2 : links`,
+    'ancestor frame to descendant frame beside retained content': `erDiagram
+subgraph commerce [Commerce Domain]
+CUSTOMER
+subgraph orders [Order Domain]
+ORDER
+end
+end
+commerce ||--o{ orders : contains
+"This **is** _Markdown_"
+C ||--|| D : unrelated`,
+    'descendant frame to ancestor frame': `erDiagram
+subgraph commerce
+CUSTOMER
+subgraph orders
+ORDER
+end
+end
+orders }o--|| commerce : belongs`,
+    'indirect ancestor with repeated and entity relationships': `erDiagram
+subgraph outer
+subgraph middle
+subgraph inner
+ITEM
+end
+end
+end
+outer ||--o{ inner : contains
+inner }o--|| outer : belongs
+outer ||--|| ITEM : owns`,
+    'empty nested frames in both directions': `erDiagram
+subgraph outer
+subgraph inner
+end
+end
+outer ||--o{ inner : contains
+inner }o--|| outer : belongs`,
+    'descendant frame before a lower sibling card': `erDiagram
+subgraph p
+subgraph c
+A
+end
+B
+end
+p ||--|| c : contains`,
+    'empty nested frame to an external frame beyond its parent header': `erDiagram
+direction TB
+subgraph ext
+end
+subgraph outer
+subgraph inner
+end
+end
+inner ||--|| ext : links`,
+    'a descendant frame and unrelated entity with the same authored name': `erDiagram
+subgraph p
+subgraph q
+X
+end
+q
+end
+p ||--|| q : contains`,
+    'different descendant frame lanes': `erDiagram
+subgraph p
+subgraph c
+A
+end
+subgraph d
+B
+end
+end
+p ||--|| c : first
+p ||--|| d : second`,
+    'indirect descendant frame before a lower sibling': `erDiagram
+subgraph p
+subgraph middle
+subgraph c
+A
+end
+B
+end
+end
+p ||--|| c : contains`,
+    'tracked repeated ancestor labels': `erDiagram
+subgraph p
+subgraph c
+A
+end
+B
+end
+p ||--|| c : first
+p ||--|| c : second
+c ||--|| p : reply`,
+    'tracked empty reverse frame labels': `erDiagram
+subgraph p
+subgraph c
+end
+end
+p ||--|| c : contains
+c ||--|| p : belongs`,
+    'tracked empty external frame label': `erDiagram
+direction TB
+subgraph ext
+end
+subgraph outer
+subgraph inner
+end
+end
+inner ||--|| ext : links`,
   })) {
     it(`separates ${name} without losing ownership or relationships`, () => {
+      const options = name.startsWith('tracked ') ? { style: { roles: { relationship: { fontSize: 22, letterSpacing: 1 }, group: { fontSize: 18 } } } } : {}
+      expect(() => renderMermaidSVG(source, options)).not.toThrow()
+      if (name.startsWith('tracked ')) expect(() => renderMermaidSVG(source, { ...options, layoutSafety: 'strict' })).not.toThrow()
+      expect(verifyMermaid(source, { renderOptions: options }).ok).toBe(true)
       const parsed = parseMermaid(source)
       expect(parsed.ok).toBe(true)
       if (!parsed.ok) return
-      const view = layoutMermaid(parsed.value)
+      const view = layoutMermaid(parsed.value, options)
       const rubric = assessRenderedLayout(view)
       expect(familyHardViolations(rubric)).toEqual([])
       expect(rubric.metrics.regionIntrusions).toBe(0)
       const model = parseErDiagram(toMermaidLines(source))
-      const positioned = layoutErDiagram(model)
+      const request = resolveRenderRequestForExecution(source, options, 'svg')
+      const artifact = positionResolvedFamily('er', request)
+      const positioned = artifact.positioned as PositionedErDiagram
+      const paint = inspectScenePrimitives(lowerPositionedFamilyScene(request, artifact))
+      const markers = paint.primitives.filter(primitive => primitive.role === 'cardinality')
+      const pills = paint.primitives.filter(primitive => primitive.id.startsWith('rel-label:') && primitive.id.endsWith(':bg'))
+      expect(markers).toHaveLength(positioned.relationships.length * 2)
+      for (const marker of markers) {
+        const node = scenePrimitiveSource(marker)!
+        if (node.kind !== 'shape' || node.geometry.kind !== 'compound') throw new Error('Expected native cardinality pieces')
+        expect(node.geometry.children.length).toBeGreaterThan(0)
+        for (const pill of pills) {
+          expect(pill.bounds).toBeDefined()
+          for (const geometry of node.geometry.children) {
+            const a = nodePaintBounds({ ...node, geometry })!, b = pill.bounds!
+            expect(Math.min(a.x1, b.x1) - Math.max(a.x0, b.x0) > .01 && Math.min(a.y1, b.y1) - Math.max(a.y0, b.y0) > .01).toBe(false)
+          }
+        }
+      }
+      const unrelated = positioned.relationships.find(relation => relation.label === 'unrelated')
+      if (unrelated) {
+        const baseline = layoutErDiagram({ ...model, relationships: model.relationships.filter(relation => relation.label !== 'contains') }).relationships.find(relation => relation.label === 'unrelated')!
+        expect(unrelated.points).toHaveLength(2)
+        const dx = unrelated.points[0]!.x - baseline.points[0]!.x, dy = unrelated.points[0]!.y - baseline.points[0]!.y
+        unrelated.points.forEach((point, i) => {
+          expect(point.x - dx).toBeCloseTo(baseline.points[i]!.x, 6)
+          expect(point.y - dy).toBeCloseTo(baseline.points[i]!.y, 6)
+        })
+      }
       expect(positioned.entities.map(entity => entity.id)).toEqual(model.entities.map(entity => entity.id))
       expect(positioned.groups.map(group => [group.id, group.parentId])).toEqual(model.groups.map(group => [group.id, group.parentId]))
       expect(positioned.relationships.map(relation => [relation.entity1, relation.entity2, relation.label])).toEqual(model.relationships.map(relation => [relation.entity1, relation.entity2, relation.label]))
       const byId = new Map([...positioned.entities, ...positioned.groups].map(box => [box.id, box]))
+      const routeObstacles = [...positioned.entities.map(box => ({ box, header: false })), ...positioned.groups.map(group => ({ box: { ...group, height: group.headerHeight }, header: true }))]
       const labels = separateRelationshipLabels(positioned, resolveRenderStyle({}, ER_STYLE_DEFAULTS))
       const labelBoxes: { x: number; y: number; width: number; height: number }[] = []
       for (const relationship of positioned.relationships) {
@@ -124,7 +286,7 @@ B1 ||--|| B2 : links`,
             expect(onRoute).toBe(true)
             const block = relationship.labelBlock!
             const pill = { x: at.x - (block.width + 8) / 2, y: at.y - (block.height + 6) / 2, width: block.width + 8, height: block.height + 6 }
-            for (const other of [...positioned.entities, ...labelBoxes]) {
+            for (const other of [...positioned.entities, ...positioned.groups.map(group => ({ ...group, height: group.headerHeight })), ...labelBoxes]) {
               const overlapX = Math.min(pill.x + pill.width, other.x + other.width) - Math.max(pill.x, other.x)
               const overlapY = Math.min(pill.y + pill.height, other.y + other.height) - Math.max(pill.y, other.y)
               expect(overlapX > 0.5 && overlapY > 0.5).toBe(false)
@@ -136,8 +298,8 @@ B1 ||--|| B2 : links`,
         for (let i = 1; i < relationship.points.length; i++) {
           const a = relationship.points[i - 1]!, b = relationship.points[i]!
           expect(Math.abs(a.x - b.x) < 0.01 || Math.abs(a.y - b.y) < 0.01).toBe(true)
-          for (const entity of positioned.entities) {
-            if (entity.id === relationship.entity1 || entity.id === relationship.entity2) continue
+          for (const { box: entity, header } of routeObstacles) {
+            if (!header && !positioned.groups.some(group => group.id === entity.id) && (entity.id === relationship.entity1 || entity.id === relationship.entity2)) continue
             const throughVertical = Math.abs(a.x - b.x) < 0.01 && a.x > entity.x + 0.5 && a.x < entity.x + entity.width - 0.5 &&
               Math.min(Math.max(a.y, b.y), entity.y + entity.height) - Math.max(Math.min(a.y, b.y), entity.y) > 0.5
             const throughHorizontal = Math.abs(a.y - b.y) < 0.01 && a.y > entity.y + 0.5 && a.y < entity.y + entity.height - 0.5 &&
@@ -155,6 +317,9 @@ B1 ||--|| B2 : links`,
       if (model.groups.some(group => group.id === 'B1')) {
         expect(byId.get('I1')!.x).toBeGreaterThan(byId.get('F1')!.x)
         expect(byId.get('I2')!.y).toBeGreaterThan(byId.get('F2')!.y)
+      }
+      if (name === 'different descendant frame lanes') {
+        expect(new Set(positioned.relationships.map(relation => JSON.stringify(relation.points[0]))).size).toBe(2)
       }
     })
   }

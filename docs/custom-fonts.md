@@ -274,17 +274,20 @@ visually or with a font-specific render fixture.
 By default, diagram geometry uses the deterministic proportional measurement
 contract recorded in `TEXT_MEASUREMENT_CONTRACT`; it never reads ambient
 system-font state. A trusted measurement profile can explicitly replace those
-widths as described above. Continuous painted text advances—bundled,
-monospace, or custom—receive
-SVG `textLength` with `lengthAdjust="spacingAndGlyphs"`, because loading a font
-resource does not calibrate its metrics to the layout estimator. Independently
-positioned multiline tspans are fitted per line, while nested formatting
-contributes inherited size, weight, and tracking to that line's width. Explicit
-emitter-owned `textLength` remains authoritative. Native and browser PNG consume
-the same secured SVG, so a materially wider face cannot silently overflow its
-measured box. The tradeoff is explicit: unusually wide or narrow glyphs may be
-horizontally fitted rather than changing deterministic layout. Test long labels
-across target families for visual quality, especially for extreme proportions.
+widths as described above. Prepared ASCII text receives SVG `textLength`
+with `lengthAdjust="spacingAndGlyphs"`, because loading a font resource does not
+calibrate its metrics to the layout estimator. Plain lines are fitted as a
+whole. Mixed formatting retains each style run's position and width; tracked
+text retains each grapheme's allocation. The fitted span carries its own weight,
+style and decorations so native and browser PNG can consume the same secured
+SVG without relying on nested-span fitting behavior. Unusually wide or narrow
+glyphs may be horizontally fitted rather than changing deterministic layout.
+
+Non-ASCII text keeps native shaping for joining scripts and combining clusters.
+Its conservative measured band does not prove exact glyph pixels for arbitrary
+installed fonts or host CSS. Final certificates state their native Scene scope;
+they are not post-raster glyph checks. Test long and formatted labels across
+target families and output formats for visual quality.
 
 ## Troubleshooting
 

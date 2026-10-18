@@ -2,12 +2,63 @@ import { describe, expect, it } from 'bun:test'
 import fc from 'fast-check'
 import { buildRoutePortHints, layoutGraphSync } from '../layout-engine.ts'
 import { parseMermaid } from '../parser.ts'
-import { applyRouteContracts, auditRouteContracts, classifyRoutes, diamondFacetPorts, directLaneBlockers, findLabelSlot, findRouteHitches, shapePorts, simplifyPolyline } from '../route-contracts.ts'
+import { applyRouteContracts, auditRouteContracts, classifyRoutes, diamondFacetPorts, directLaneBlockers, findLabelSlot, findRouteHitches, shapePorts, simplifyPolyline, separateEdgeLabelPills } from '../route-contracts.ts'
 import { onShapeOutline } from '../layout-rubric.ts'
 import { measureMultilineText } from '../text-metrics.ts'
 import { layoutMermaid, parseRegisteredMermaid as agentParse, verifyMermaid } from '../agent/index.ts'
 import type { AnyPort, Point, PositionedEdge, PositionedGraph, PositionedGroup, PositionedNode } from '../types.ts'
 import { EDGE_FORMS, renderEdgeLine } from './helpers/edge-vocabulary.ts'
+import { gen } from '../../eval/overlap-audit/generators.ts'
+import { renderMermaidSVG } from '../index.ts'
+import { labelRect } from '../route-contracts.ts'
+import { resolveRenderStyle } from '../styles.ts'
+import { graphEdgeMarkerPaintRegions } from '../graph-connectors.ts'
+
+describe('colliding duplicate labels', () => {
+  it.each([4, 5, 13, 29])('keeps both authored labels visible when neither can clear alone: case %s', index => {
+    const source = gen.flowchart!(index), graph = parseMermaid(source), positioned = layoutGraphSync(graph)
+    const labels = positioned.edges.filter(edge => edge.label)
+    expect(labels.map(edge => edge.label)).toEqual(graph.edges.filter(edge => edge.label).map(edge => edge.label))
+    expect(() => renderMermaidSVG(source)).not.toThrow()
+    for (let i = 0; i < labels.length; i++) for (let j = i + 1; j < labels.length; j++) {
+      const a = labels[i]!, b = labels[j]!
+      if (a.source !== b.source || a.target !== b.target) continue
+      const ra = labelRect(a, resolveRenderStyle())!, rb = labelRect(b, resolveRenderStyle())!
+      // These fixtures paint four-pixel halos beyond the measured pills.
+      const width = Math.min(ra.x + ra.w + 4, rb.x + rb.w + 4) - Math.max(ra.x - 4, rb.x - 4)
+      const height = Math.min(ra.y + ra.h + 4, rb.y + rb.h + 4) - Math.max(ra.y - 4, rb.y - 4)
+      expect(width > 0.5 && height > 0.5).toBe(false)
+    }
+  })
+})
+
+describe('label candidate endpoint clearance', () => {
+  for (const marker of ['arrow', 'circle', 'cross'] as const) for (const endpoint of ['start', 'end'] as const) {
+    it.each(['default', 'scaled', 'fixed'] as const)(`${marker} ${endpoint}: preserves neighboring marker ink with %s stroke units`, units => {
+      const labeled: PositionedEdge[] = [100, 110].map((y, i) => ({
+        id: `label-${i}`, source: `source-${i}`, target: `target-${i}`, style: 'solid', label: `${i ? 'b' : 'a'} label`,
+        labelPosition: { x: 150, y }, hasArrowStart: false, hasArrowEnd: false, points: [{ x: 0, y }, { x: 300, y }],
+      }))
+      // Without the terminal reservation, the second label moves to x=74.3832
+      // and its opaque halo covers this real arrow/circle/cross resource.
+      const protectedEdge: PositionedEdge = {
+        id: 'protected', source: 'from', target: 'to', style: 'solid',
+        hasArrowStart: endpoint === 'start', hasArrowEnd: endpoint === 'end', startMarker: marker, endMarker: marker,
+        points: endpoint === 'start' ? [{ x: 75, y: 110 }, { x: 75, y: 250 }] : [{ x: 75, y: -30 }, { x: 75, y: 110 }],
+        ...(units === 'fixed' ? { inlineStyle: { 'stroke-width': '9', stroke: '#123456' } } : {}),
+      }
+      const style = { ...resolveRenderStyle(), lineWidth: units === 'scaled' ? 4 : 1 }
+      separateEdgeLabelPills({ nodes: [], groups: [], edges: [...labeled, protectedEdge] }, parseMermaid('flowchart LR\nA-->B'), style)
+      const protectedInk = graphEdgeMarkerPaintRegions(protectedEdge, style)[0]!.bounds!
+      expect(labeled[1]!.labelPosition).not.toEqual({ x: 150, y: 110 })
+      for (const edge of labeled) {
+        const pill = labelRect(edge, style)!, halo = Math.max(4, style.lineWidth * 2)
+        expect(pill.x - halo < protectedInk.x1 && pill.x + pill.w + halo > protectedInk.x0 && pill.y - halo < protectedInk.y1 && pill.y + pill.h + halo > protectedInk.y0).toBe(false)
+        expect(edge.labelPosition!.y).toBe(edge.points[0]!.y)
+      }
+    })
+  }
+})
 
 /** The MFA/login regression from issue #25 — every dogleg here had a clear direct lane. */
 const MFA_SOURCE = `flowchart LR
@@ -989,6 +1040,8 @@ describe('duplicate parallel edges (fast-check counterexample, pinned)', () => {
 
 describe('straightened certificate finality (fast-check counterexample, pinned)', () => {
   it('does not expose straightened on a final detour', () => {
+    // Exercise the default candidate's late detour. Preference exploration
+    // can select a different candidate with a valid straight route instead.
     const positioned = layoutGraphSync(parseMermaid(`flowchart BT
   N1 -- No --> N4
   N4 -- yes --> N1
@@ -998,7 +1051,7 @@ describe('straightened certificate finality (fast-check counterexample, pinned)'
   N4 --> N2
   N2 -- yes --> N0
   N1 -- No --> N2
-  N3 -- on error --> N0`))
+  N3 -- on error --> N0`), { compareRoutePreferences: false })
     const e = positioned.edges.find(e => e.source === 'N0' && e.target === 'N2' && e.label === undefined)!
     expect(e.points.length).toBeGreaterThan(2)
     expect(e.routeCertificate?.invariant).toBe('explained-detour')

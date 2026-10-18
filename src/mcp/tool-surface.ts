@@ -581,7 +581,7 @@ security:'strict' and embedFontImport:false.
     name: 'execute',
     title: 'Execute Mermaid SDK code',
     description: `Run JavaScript in ${runtime}; return a value.
-One call composes edits. Submit JavaScript; declaration types are guidance.
+Compose edits in one call; submit JavaScript.
 No promises, async/await, dynamic import, or type annotations.
 ${hostedNote}SDK declaration:
 ${options.sdkDeclaration}`,

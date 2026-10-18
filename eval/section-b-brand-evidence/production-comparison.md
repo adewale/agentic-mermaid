@@ -336,3 +336,41 @@ paint without changing dates, event text or geometry. The reviewed 1560×9464
 PNG SHA-256 is
 `3aee18640b52271ee8a0f0f15a817f8abe3c4ad32c7692185ba45cb9624354c1`.
 This is agent review, not human approval or arbitrary palette/font coverage.
+
+## Final paint certification refresh — 2026-10-18
+
+The production candidate at
+`366eae2a5e75703a05a83c0d91d40b7e34ffb915` regenerates the existing
+1560×9464, 68-cell sheet. Compared with the previously approved PNG
+`3aee18640b52271ee8a0f0f15a817f8abe3c4ad32c7692185ba45cb9624354c1`,
+exactly 76,480 pixels change in eight cells:
+
+| Family | Treatment | Changed pixels |
+|---|---|---:|
+| Journey | Sentinel | 18,730 |
+| Journey | Light technical | 10,253 |
+| Journey | Dark operations | 12,234 |
+| XY chart | Sentinel | 8,382 |
+| XY chart | Warm editorial | 6,752 |
+| XY chart | Light technical | 6,535 |
+| XY chart | Dark operations | 7,125 |
+| Flowchart | Dark operations | 6,469 |
+
+The other 60 cells and every heading remain pixel-identical. The independent
+Codex AI auditor inspected all eight changed before/after pairs at native
+520×380 and confirmed that the final regenerated crops match those reviewed
+bytes. Journey's fitted viewport retains the task and actor labels, score
+positions and complete rail arrow. XY retains its Revenue title, USD axis,
+0–100 ticks, Q1–Q3 categories and authored relative bar heights after viewport
+fitting. Flowchart's NO label moves into the decision-side corridor while YES,
+both destination labels, connecting routes and arrowheads remain complete.
+These counts describe final artifact differences rather than attributing every
+pixel to one repair.
+
+The reviewed PNG SHA-256 is
+`147a364dca5e02da89bd6b01c438c2ed3d21949f1051bd0a45d95e299a195cbb`.
+This is independent AI agent review, not human approval or deployed-site
+parity. The sheet does not establish arbitrary input, font or dense-layout
+coverage. Separate owned-geometry regressions exercise initially occluded
+endpoint markers, including a single feedback label that previously bypassed
+repair; the sheet is not presented as a reproduction of that defect.
