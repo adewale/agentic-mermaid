@@ -14,6 +14,8 @@ import {
   createRenderPngTool,
   dispatchAdmittedMcpRequest,
   isValidExecuteTimeout,
+  isMcpPngOutputMode,
+  MCP_PNG_OUTPUT_MODES,
   projectMcpRenderOptions,
   surfaceSupportedVersions,
   withClosedMcpInputSchema,
@@ -184,9 +186,9 @@ async function handleToolCall(id: number | string | null, params: unknown, conte
 
 function handleRenderPng(id: number | string | null, args: Record<string, unknown>, context: McpRequestContext): JsonRpcResponse {
   const source = (args as { source?: string }).source
-  const output = (args.output ?? 'base64') as 'base64' | 'file' | 'url'
+  const output = args.output ?? 'base64'
   if (typeof source !== 'string') return error(id, -32602, 'render_png requires `source` (string)')
-  if (!['base64', 'file', 'url'].includes(output)) return error(id, -32602, 'render_png output must be one of: base64, file, url')
+  if (!isMcpPngOutputMode(output)) return error(id, -32602, `render_png output must be one of: ${MCP_PNG_OUTPUT_MODES.join(', ')}`)
   try {
     const fontWarnings: Array<Record<string, unknown>> = []
     const pngOutput = projectNativePngOutputPolicyInput(args)
