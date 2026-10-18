@@ -9,7 +9,7 @@
 import { describe, it, expect } from 'bun:test'
 import { parseSequenceDiagram } from '../sequence/parser.ts'
 import { layoutSequenceDiagram } from '../sequence/layout.ts'
-import { renderMermaidSVG } from '../index.ts'
+import { renderMermaidSVG, renderMermaidSVGWithReceipt } from '../index.ts'
 
 function parse(text: string) {
   const lines = text.split('\n').map(l => l.trim()).filter(l => l.length > 0 && !l.startsWith('%%'))
@@ -91,6 +91,23 @@ describe('sequence create/destroy layout', () => {
     expect(donald.y).toBeGreaterThan(p.actors.find(a => a.id === 'A')!.y)
     expect(createMsg.y).toBeGreaterThanOrEqual(donald.y)
     expect(createMsg.y).toBeLessThanOrEqual(donald.y + donald.height)
+  })
+
+  it.each([
+    ['right', 'participant A\ncreate participant C as Created\nA->>C: Welcome'],
+    ['left', 'create participant C as Created\nA->>C: Welcome'],
+  ])('creation arrows meet the %s participant header without losing their labels', (_direction, body) => {
+    const p = layoutSequenceDiagram(parse(`sequenceDiagram\n${body}`))
+    const message = p.messages[0]!, source = p.actors.find(actor => actor.id === 'A')!, target = p.actors.find(actor => actor.id === 'C')!
+    const attachment = source.x < target.x ? target.bounds.x : target.bounds.x + target.bounds.width
+    expect(message.x1).toBe(source.x)
+    expect(message.x2).toBe(attachment)
+    expect(message.x2).not.toBe(target.x)
+    expect(message.points.at(-1)).toEqual({ x: attachment, y: message.y })
+    expect(message).toMatchObject({ from: 'A', to: 'C', endHead: 'filled', label: 'Welcome' })
+    expect(renderMermaidSVGWithReceipt(`sequenceDiagram\n${body}`, { layoutSafety: 'strict' }).receipt.layoutCertification?.status).toBe('passed')
+    expect(message.labelPosition.bounds.x).toBeGreaterThanOrEqual(Math.min(message.x1, message.x2))
+    expect(message.labelPosition.bounds.x + message.labelPosition.bounds.width).toBeLessThanOrEqual(Math.max(message.x1, message.x2))
   })
 
   it('emits an X cross at the destroy point', () => {
