@@ -272,13 +272,23 @@ describe('am exit codes', () => {
     }
   })
 
-  test('mutate verifies before emitting invalid output', () => {
-    const r = runAm(['mutate', '-', '--op', '{"kind":"remove_node","id":"A"}', '--json'], 'flowchart LR\n  A[Only]\n')
-    expect(r.status).toBe(3)
+  test.each([
+    { name: 'renderable empty Flowchart', source: 'flowchart LR\n  A[Only]\n', op: { kind: 'remove_node', id: 'A' }, expectedSource: 'flowchart LR\n' },
+    { name: 'unrenderable empty Sankey', source: 'sankey-beta\nA,B,1\n', op: { kind: 'remove_link', source: 'A', target: 'B' }, expectedSource: undefined },
+  ])('mutate verifies $name before emitting output', ({ source, op, expectedSource }) => {
+    const r = runAm(['mutate', '-', '--op', JSON.stringify(op), '--json'], source)
+    expect(r.status).toBe(expectedSource === undefined ? 3 : 0)
     const payload = JSON.parse(r.stdout)
-    expect(payload.ok).toBe(false)
-    expect(payload.error.code).toBe('VERIFY_FAILED')
-    expect(payload.source).toBeUndefined()
+    if (expectedSource === undefined) {
+      expect(payload.ok).toBe(false)
+      expect(payload.error.code).toBe('VERIFY_FAILED')
+      expect(payload.source).toBeUndefined()
+    } else {
+      expect(payload.ok).toBe(true)
+      expect(payload.source).toBe(expectedSource)
+      expect(payload.verify.ok).toBe(false)
+      expect(payload.verify.warnings).toContainEqual(expect.objectContaining({ code: 'EMPTY_DIAGRAM' }))
+    }
   })
 
   test('Loop 8 P: render --format png writes a valid PNG to --output file', () => {
