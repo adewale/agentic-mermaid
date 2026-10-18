@@ -1,6 +1,7 @@
 # Plan: Twitter/X cards for Agentic Mermaid diagrams
 
-Status: proposal (rev 2, post multi-agent audit) · Branch: `claude/twitter-card-diagrams-4hfvw8`
+Status: proposal (rev 3 — rebased onto `main` @ `8a49c28`, re-grounded, simplified) ·
+Branch: `claude/twitter-card-diagrams-4hfvw8`
 
 ## Goal
 
@@ -13,318 +14,344 @@ the actual diagram — without repeating the RGBA failure documented in
 
 - Redesigning the generic site card art.
 - Server-rendering the editor app (it stays client-side/local-first).
-- Indexing shared diagrams in search.
+- Indexing user-shared diagrams in search.
 
-## Background — verified current state
+## What changed in rev 3
 
-Confirmed against production (`Twitterbot/1.0` fetch) and the source tree:
+Rebasing onto current `main` and re-checking every claim against the code
+changed the plan in three ways:
 
-- Every shipped page already emits a valid `summary_large_image` card
-  (`website/build.ts:109`, `:533`; guarded by `src/__tests__/website-build.test.ts:1211`).
-- The deployed `og-image.png` is **1200×630, 8-bit RGB (colortype 2), no alpha,
-  62 KB** — it already meets the atlas contract (it came from a design tool, not
-  our renderer).
-- **Diagrams never appear**: editor share links carry the diagram in the URL
-  `#fragment` (`editor/js/sharing.js:261`), which crawlers never see.
-- **The atlas trap is live for any dynamic render**: resvg-wasm
-  (`website/src/png-wasm.ts:85`) emits **RGBA (colortype 6)**; `applyPngColorProfile`
-  does not change colour type. A card built the obvious way ships RGBA — exactly
-  what X refused for atlas.
+1. **Tier 1's premise was wrong.** Rev 2 said "pre-render cards for `/examples/*`
+   pages". There are no per-example pages: examples are anchors on three gallery
+   pages (`/examples/`, `/examples/style-palette/`, `/examples/corpus/`), and
+   "Open in editor" hand-offs use a `#fragment` (`scripts/site/editor-state-url.ts:59`).
+   A card needs a crawlable URL of its own. Rev 3 adds small static
+   **per-example landing pages** (§2b) built from the same template Tier 2 would
+   use.
+2. **The hardest Tier 1 component is about 30 lines, not a new subsystem.** Audit
+   #2 rated "RGB encoder + fit-inside compositor" High and net-new. A prototype on
+   current `main` showed two things. Wrapping the diagram SVG in a 1200×630 SVG
+   with a nested `<svg preserveAspectRatio="xMidYMid meet">` makes resvg draw the
+   letterbox, so no pixel compositor is needed. Dropping alpha from resvg's
+   `.pixels` and writing a colortype-2 PNG with `node:zlib` takes about 15 lines.
+   No new dependency is needed. Run over all 17 curated editor examples it
+   produced **1200×630, colortype 2, no `tRNS`, 8–35 KB** each, about 4 s for the
+   whole set. The letterbox and aspect ratio were checked visually.
+3. **The cheapest fix is now separate.** The meta-tag fixes (Slack head position,
+   explicit `twitter:image`, image dimensions and alt) are about 20 lines in one
+   function, fix a live bug, and need no card pipeline. They become **Tier 0**.
 
----
+The rev-3 plan also follows the repo's current `CLAUDE.md` rules. Cards are
+generated into the gitignored `website/public/` and never committed. The
+byte-determinism test is dropped, because PNG rasterization is not a determinism
+contract: `scripts/site/hero.ts` notes that it varies with the resvg build and
+fonts. New tests extend the existing table-driven social-metadata test instead of
+adding near-duplicates. Implementation PRs should close an issue filed by the
+owner.
 
-## 1. Complexity reconsideration (read this first)
+## Background — verified against `main` @ `8a49c28`
 
-The original design (now **Tier 3** below) was a stateless dynamic endpoint that
-decodes an attacker-controlled `?s=<encoded diagram>` from the URL and rasters it
-in the Worker on demand. A six-lens audit (see §7) showed that **almost every
-serious finding is a direct consequence of that one choice**:
-
-- rendering arbitrary URL-borne payloads ⇒ decompression-bomb + unbounded
-  layout-CPU DoS, needs a hard decompressed-size/node cap + rate limiting;
-- source embedded in a cached, crawler-visible URL ⇒ **unrecallable** (no delete
-  path; lands in history, `Referer`, logs, edge + crawler caches for a year);
-- per-request rendering of untrusted text ⇒ `<head>` injection, cache poisoning,
-  codec-drift, per-colo cache multiplication, and ~6 new test surfaces.
-
-The value we actually want — *our diagrams show up on Twitter* — does **not**
-require rendering arbitrary user input at request time. Two simpler designs
-deliver it with a fraction of the surface:
-
-| Tier | What it is | Delivers | Surface / risk | Recommendation |
-|------|-----------|----------|----------------|----------------|
-| **1** | Static hardening + **curated cards pre-rendered at build** for `/examples/*` and showcase diagrams | Rich cards for the site + the diagrams we promote | Low — no endpoint, no untrusted input, build-time render (napi, deterministic, no CPU limit) | **Ship this.** |
-| **2** | **Opaque-token** dynamic cards: user explicitly "publishes" a diagram → stored under a random id in KV/R2 → `/d/<id>` + cached card rendered from the *stored* source | Any user can turn their own diagram into a card | Medium — a render endpoint, but the key space is our own ids (not attacker payloads), so abuse is bounded at the create step; gives a real **delete** path | Optional follow-up, only if user-share cards are wanted. |
-| **3** | Stateless **source-in-URL** (`?s=`) rendered on demand (original "Approach A") | Same as Tier 2, statelessly | **High** — maximises *both* the abuse surface *and* the privacy liability (unrecallable) | **Not recommended.** Kept in §4 for the record. |
-
-**Key realization:** Tier 2's opaque token is not just better for privacy — it
-also *collapses the abuse surface*, because the renderer only ever runs on
-sources we chose to store (rate-limited at the create step), never on arbitrary
-URL payloads. So the privacy-motivated design is also the security-motivated one.
-Tier 3 is worst-of-both and should be dropped.
-
-**The one component all three share** is the RGB card encoder/compositor
-(F1/F2). Tier 1 runs it at **build time** (Node `zlib`, deterministic napi
-renderer, no Worker limits, no abuse) — which is where it is easiest and safest.
-Building that module for Tier 1 also unlocks Tier 2 later at no extra cost.
-
-Recommendation: **do Tier 1 now.** Treat Tier 2 as a separate, later decision
-gated on real demand and a retention-policy sign-off. Do not build Tier 3.
+| Claim | Status on current `main` |
+|---|---|
+| Every page emits `summary_large_image` + `og:image` | ✅ `socialMetaTags` `website/build.ts:136`; guarded by the table-driven test `src/__tests__/website-build.test.ts:1731` (tag strings only) |
+| No `twitter:image`, `og:image:width/height`, or `alt` | ✅ still missing (`build.ts:136-150`) |
+| Static `og-image.png` is RGB 1200×630 | ✅ `public/og-image.png`: 1200×630, 8-bit, **colortype 2**, no `tRNS`, 62,911 B |
+| Editor share links use the `#fragment` | ✅ `editor/js/sharing.js:241` (`replaceState(... '#' + encoded)`) |
+| Editor meta lands after ~72 KB of inline CSS | ✅ 11 CSS files = **72,101 B** inlined in `<head>` (`scripts/site/editor.ts:227`); `addSocialMeta` inserts before `</head>` (`build.ts:161`) |
+| Worker renders RGBA | ✅ `website/src/png-wasm.ts:93` `applyPngColorProfile(resvg.render().asPng())` |
+| Worker config | ✅ unchanged: `run_worker_first: true`, full log sampling, no KV/R2/rate-limit bindings (`website/wrangler.jsonc`) |
+| **New:** `/editor/?example=<id>` loads a curated example | `editor/js/sharing.js:214` (`getQueryExampleId`), 17 ids in `editor/examples.ts` |
+| **New:** Node-side share codec with bounded inflate | `scripts/site/editor-state-url.ts` (strict base64url, `maxOutputLength`, fatal UTF-8, allowed-key check). Covers most audit-#9 drift points, but only on the Node side |
+| `website:check` compares generated bytes | ❌ no — it regenerates both trees and checks build-time contracts only (`build.ts:3077`), so build-generated cards fit |
 
 ---
 
-## 2. Tier 1 — static hardening + curated build-time cards (recommended)
+## 1. Tiers at a glance
 
-No Worker endpoint. Everything is emitted at build and served as a normal static
-asset. Two parts:
+| Tier | What | Surface / risk | Recommendation |
+|------|------|----------------|----------------|
+| **0** | Meta-tag hardening on every page | ~20 lines in `build.ts`; fixes a live Slack bug | **Ship first.** |
+| **1** | Curated diagram cards: build-time PNG per curated example + a small static `/examples/<id>/` landing page | Build-only; no Worker change, no untrusted input | **Ship next.** |
+| **2** | Opaque-token cards for user diagrams (`/d/<id>`, same landing template, stored source) | Create endpoint + storage + retention policy | Optional; needs a retention/TTL decision first |
+| **3** | Stateless source-in-URL (`?s=`) rendered on demand | Worst of both: largest abuse surface and unrecallable privacy | **Rejected** (§4) |
 
-**2a. Meta-tag hardening (applies to every page):**
-
-- **F4** `twitter:image` (explicit; never empty — an empty value breaks the
-  `og:image` fallback). **F5** `og:image:width=1200`/`height=630`. **F6**
-  `og:image:alt`/`twitter:image:alt`.
-- **Head position (audit #4):** move the social-meta block to the **top of
-  `<head>`**, before the editor's ~72 KB of inlined CSS — Slackbot reads only the
-  first 32 KB, so tags emitted before `</head>` (`build.ts:134`) are invisible to
-  it today. Emit them right after `<head>` opens.
-- **`og:url` correctness (audit #3):** each page's `og:url` must be its own URL
-  (already true for static pages via `emitShell`); keep it that way for the
-  curated example pages so each diagram card has a distinct social identity.
-
-**2b. Curated diagram cards (build-time render):**
-
-- For `/examples/*` and any showcase diagram, render the diagram to a card PNG at
-  build via the **napi** renderer (deterministic, no CPU limit), through the new
-  **F1/F2 encoder/compositor** module, and emit it as a static asset
-  (`/cards/<slug>.png`). Point that page's `og:image`/`twitter:image` at it.
-- **F1** flatten to **opaque RGB colortype 2** (an opaque background alone yields
-  colortype-6-with-alpha-255 — still the atlas trap; the alpha channel must be
-  *dropped*, audit #2). **F2** fit-inside + centre-blit onto a fixed opaque
-  **1200×630** canvas (the render pipeline only does width-XOR-height and forces
-  `preserveAspectRatio="none"` = stretch, so the letterbox is net-new compositing,
-  audit #2). Build on resvg's `.pixels` (exposed) → composite → encode; at build,
-  IDAT deflation is Node `zlib` (deterministic).
-- **F3 (corrected):** enforce **< 5 MB**, and target **< 300 KB** so WhatsApp
-  renders it (audit #11). Note: `MAX_HOSTED_PNG_BYTES` is **8 MB and gates
-  *pixels*, not bytes** (`png-contract.ts:22`) — it is *not* a 5 MB byte guard;
-  add an explicit byte check.
-
-**2c. Static-image discipline:**
-
-- **F20** RGB + 1200×630 regression guard on `public/og-image.png` and every
-  curated card (add `inspectPngColorType()` next to `inspectPngDimensions()` in
-  `output-color-profile.ts`).
-- **F21** rename-on-change (content-hash the filename) so editing a card actually
-  busts X's cache.
-
-Tier 1 neutralises audit findings #1, #5–#9, #11 entirely (no dynamic endpoint,
-no untrusted input, no privacy/retention problem) and reduces #3/#4/#10 to simple
-build-time concerns.
+Why the tiers are split this way: almost every serious audit finding (§7) comes
+from **rendering arbitrary, URL-borne input at request time**. Tiers 0–1 never do
+that. Tier 2 renders only sources we stored behind a rate-limited create step.
+Tier 3 renders whatever the URL contains, which is why it is rejected.
 
 ---
 
-## 3. Tier 2 — opaque-token dynamic cards (optional follow-up)
+## 2. Tier 0 and Tier 1 (recommended)
 
-Only if there is real demand for "any user turns their own diagram into a card."
-Chosen over Tier 3 because it bounds abuse and enables deletion.
+### 2a. Tier 0 — meta-tag hardening (every page)
 
-**Flow:** an explicit, opt-in **Publish preview** action (distinct from the
-private `Copy link` fragment button, never reusing it) POSTs the diagram to a
-`/d/create` endpoint → server stores `{source, palette, style, seed, config}` in
-KV/R2 under a **random id** with a **bounded TTL** → returns `/d/<id>`.
+All changes are in `socialMetaTags` / `addSocialMeta` (`website/build.ts:136-162`):
 
-`/d/<id>` serves a **minimal landing page** — *not* the editor: OG/Twitter meta
-at the top of `<head>` plus an `<img>` of `/card/<id>.png`, both rendered from the
-*stored* source on first crawl, then cached. Crawlers get a clean card and the
-page's own `/d/<id>` is the `og:url`. **Humans** who open `/d/<id>` are bounced
-into the editor at `/editor/#<source>` (a click-through, or a one-line
-`location.replace('/editor/#' + source)`), so the **`#fragment` restores the
-private local-editing experience** and the human never puts the source into a
-server-visible URL either.
+- **F4** add `twitter:image`. Never emit it empty: an empty value suppresses the
+  `og:image` fallback.
+- **F5** add `og:image:width` = 1200 and `og:image:height` = 630.
+- **F6** add `og:image:alt` and `twitter:image:alt`.
+- **F8 head position (audit #4):** insert the social block **ahead of any inline
+  `<style>`** rather than before `</head>`, and keep `<meta charset>` first. On
+  the editor page the tags currently start after 72 KB of CSS. Slackbot is
+  reported to read only the first ~32 KB of a page. The move costs nothing even
+  if that limit turns out to be larger.
 
-**Do not** make `/d/<id>` *redirect* to a source-bearing `?s=` URL (a tempting
-"URL-shortener in front of Tier 3" shortcut). A redirect would re-expose the
-source (history/`Referer`/logs), move the card identity onto the resolved URL
-(recreating the `og:url` collision — audit #3), and leaves the render endpoint
-just as reachable — indirection is not protection. Serve the card **at** the
-opaque URL; only *humans* hop onward, and only to the private `#fragment`.
+### 2b. Tier 1 — curated diagram cards (build time only)
+
+For each curated example (start with the 17 ids in `editor/examples.ts`; the
+corpus can follow later on the same pipeline):
+
+1. **Render the card (F1/F2), prototype-verified:**
+   - `renderMermaidSVG(example.source, example.options)`.
+   - Strip the root `width`/`height`, then nest the SVG in a 1200×630 SVG: a
+     background `<rect>` in the diagram's own background colour, then
+     `<svg x y width height preserveAspectRatio="xMidYMid meet">` with padding.
+     resvg draws the letterbox, so there is no pixel compositor.
+   - Rasterize with `@resvg/resvg-js` (already a dependency; `scripts/site/hero.ts`
+     is the precedent) using the bundled `assets/fonts` and `loadSystemFonts: false`.
+   - Copy RGB from `.pixels` (drop alpha) and write the PNG with a ~15-line
+     encoder: IHDR with colortype 2, `deflateSync` IDAT, `crc32`, IEND.
+   - An opaque background alone is **not** enough: resvg still emits colortype 6
+     with alpha 255, which is the atlas trap. The alpha channel must be dropped.
+2. **F3:** assert the card is < 5 MB (X's limit) and aim for < 300 KB (WhatsApp).
+   The prototype's cards are 8–35 KB. `MAX_HOSTED_PNG_BYTES` is 8 MB and limits
+   *pixels*, so it cannot serve as this byte check.
+3. **F21:** emit the card as `cards/<id>.<hash8>.png`, hashing the shipped
+   bytes. `CLAUDE.md` allows hashes on bytes we ship. Changing a diagram then
+   changes the URL, which busts X's cache.
+4. **F22 landing page:** emit `/examples/<id>/` with the existing `pageShell`. It
+   contains the title and description from the example's `label`/`description`
+   (**F7**, our own curated text, escaped by `escapeAttr` as today), `og:image`
+   set to the card, `og:url` set to the page (audit #3 does not arise), the card
+   image, and an **Open in editor** link to `/editor/?example=<id>`. That query
+   parameter already exists, so no fragment is needed. These are legitimate
+   curated pages, so they go in the sitemap. At build, check that no id collides
+   with `style-palette` or `corpus`.
+
+Considered and rejected: having the Worker rewrite the editor's `og:image` for
+`/editor/?example=<id>`. It would add a runtime HTMLRewriter pass over the 72 KB
+editor page and a Worker test surface. Static landing pages need no Worker code,
+and Tier 2 can reuse their template unchanged.
+
+Cost: about +4 s of build time, +17 small pages, and about 330 KB of PNG. Under
+`run_worker_first`, each card fetch is an ordinary asset invocation with **no**
+raster CPU. That is the same as any other static asset; it is not free.
+
+Open design detail: a small diagram looks small at 1200×630 (the prototype's
+flowchart fills about 30% of the width). Tighter padding or a thin branded frame
+are options. Decide during review using the generated cards.
+
+---
+
+## 3. Tier 2 — opaque-token cards for user diagrams (optional)
+
+Build only if there is real demand for "any user turns their own diagram into a
+card", and only after a product decision on TTL and delete UX.
+
+**Flow:**
+
+1. An explicit, opt-in **Publish preview** action POSTs
+   `{source, palette, style, seed, config}` to `/d/create`. It is a separate
+   action from the private `Copy link` (fragment) button and never reuses it.
+2. The server stores the state in KV/R2 under a **random id** with a **bounded
+   TTL**.
+3. `/d/<id>` serves the **same minimal landing template as Tier 1**: meta at the
+   top of `<head>` and an `<img>` of `/card/<id>.png`. The card is rendered from
+   the stored source on first crawl and then cached.
+4. Crawlers get a clean card whose `og:url` is `/d/<id>`. **Humans** continue to
+   `/editor/#<source>`, so the fragment restores private local editing.
+
+**Do not** make `/d/<id>` redirect to a source-bearing `?s=` URL (a
+URL-shortener in front of Tier 3). The redirect re-exposes the source in
+history, `Referer`, and logs. It also moves the card identity onto the resolved
+URL (audit #3), and it leaves the render endpoint just as reachable. Serve the
+card *at* the opaque URL.
 
 **Why this is safer than Tier 3:**
 
-- The renderer only runs on ids we minted, so the decompression-bomb / unbounded
-  layout-CPU vectors are gone from the read path; rate-limit the **create** step
-  instead (audit #1).
-- The share URL holds only an opaque id — no source in history/`Referer`/logs;
-  logs record the id, not user content (audit #6, security #4).
-- A real **delete** path exists (purge KV/R2 record + edge cache) and TTL expiry
-  bounds retention (privacy #3/#4).
-- The public surface is a **tiny Worker-generated page**, not the 72 KB editor,
-  so the Slack 32 KB head cutoff and the `og:url` collision (audit #3/#4) never
-  arise, and humans are handed back the private `#fragment` editor rather than a
-  source-bearing URL.
+- The renderer only runs on ids we minted, so the decompression-bomb and
+  unbounded layout-CPU vectors are gone from the read path. Rate-limit the
+  **create** step instead (audit #1).
+- The URL holds only an opaque id, so no source reaches history or logs.
+- There is a real **delete** path (purge the record and the edge cache), and the
+  TTL bounds retention.
+- The public surface is a tiny page rather than the 72 KB editor (audit #3/#4).
 
 **Controls (from the audit):**
 
-- **Create-step rate limit:** the in-Worker **`RATE_LIMITER` binding** (GA
-  2025-09-19, plan-independent, works on this project's existing Paid plan),
-  keyed by a normalized-source hash and/or IP. This is the primary control —
-  **do not depend on a zone WAF tier** (per-IP-path rules exist on all tiers, but
-  ASN/path/complexity limiting is Enterprise-only; audit answer to Q1).
-- **Decompressed-size + node-count cap** at create (deterministic backstop; the
-  `RATE_LIMITER` binding is per-colo/eventually-consistent, a soft throttle).
-- **Kill switch** (config/secret) to disable create + render without a deploy.
-- **Landing-page meta** is generated by the Worker with safe escaping (build the
-  tags via `setAttribute`/a safe template, never string-concatenate the diagram
-  title — audit #5), with **`og:url` = the `/d/<id>` URL** (Facebook keys its
-  cache on `og:url`; a wrong value collapses every card onto one entry — audit #3)
-  and `og:image` = `/card/<id>.png`. Because the page is Worker-generated and
-  minimal, there is no HTMLRewriter pass over the editor and the meta cannot land
-  past a crawler's byte cutoff. Keep `noindex` as a **meta tag** (not an HTTP
-  header, which suppresses iMessage — audit #11).
-- **Cache** by the stored id; `cache-control` bounded (not `immutable`, so a
-  deleted preview can actually expire — privacy #3); cache **only confirmed
-  successful** renders, and serve the fallback `no-store` (audit #8).
-- **Codec / render fidelity:** extract the share codec into **one shared module**
-  imported by editor + Worker (not a re-port — 6 concrete drift points, audit #9),
-  and replay palette/style/seed/config so the card matches what the sharer saw.
-- **Consent:** a blocking dialog naming the consequences ("creates a public
-  preview; your diagram is sent to our server and cached by social networks; may
-  persist after you delete the link"), an affirmative control, and a persistent
-  public-state badge (privacy #1/#2).
-
-Storage/retention policy (TTL length, delete UX, whether any PII handling is
-implied) needs product sign-off before this tier is built.
-
----
-
-## 4. Tier 3 — stateless source-in-URL (NOT recommended; original Approach A)
-
-Recorded so the decision is legible. Design: `?s=<encoded>` in the URL, decoded
-and rendered in the Worker per request, cached by the encoded source.
-
-Why it is rejected: it maximises the abuse surface (arbitrary URL payloads ⇒
-decompression bomb + unbounded layout CPU ⇒ needs hard caps + rate limiting;
-concrete cost: a trivial unique-key flood at 20 req/s ≈ **$155/mo** CPU, 200 req/s
-≈ **$1,550/mo**, bomb payloads ~10× — unbounded, no default ceiling) **and** the
-privacy liability (source embedded in a `cache-control: immutable` URL is
-**unrecallable** — no delete path, lands in logs/history/`Referer`/crawler
-caches). Tier 2 delivers the same user-facing feature without either problem, so
-there is no reason to build Tier 3.
+- **Create-step rate limit:** the in-Worker `RATE_LIMITER` binding (GA
+  2025-09-19). It does not depend on the zone plan and works on this project's
+  Paid plan. Key it by a normalized-source hash and/or IP. Do not depend on a
+  zone WAF tier: ASN, path, and complexity limiting are Enterprise-only.
+- **Decompressed-size + node-count cap** at create. This is the deterministic
+  backstop, because the rate limiter is per-colo and only a soft throttle.
+- **Kill switch:** a config value that disables create and render without a
+  deploy.
+- **Landing-page meta:**
+  - Generate it in the Worker with `setAttribute` or a safe template; never
+    string-concatenate (audit #5).
+  - Set `og:url` to `/d/<id>`.
+  - Use a `noindex` **meta tag**, not a response header; the header form is
+    reported to suppress iMessage previews (audit #11).
+- **Cache:**
+  - Key by the stored id.
+  - Use a bounded TTL (never `immutable`) so deleted previews can expire.
+  - Cache only successful renders, and serve the fallback card `no-store`
+    (audit #8).
+- **Codec:** extend `scripts/site/editor-state-url.ts` into a single module that
+  both runtimes can use. It currently imports `node:zlib`, and the Worker does not
+  enable `nodejs_compat`, so the Worker build needs a `DecompressionStream` path
+  with the same streaming cap (audit #9). Replay palette, style, seed, and config
+  so the card matches what the sharer saw.
+- **Card rendering in the Worker:** use the same SVG-wrapper letterbox through
+  `renderMermaidPNGWasm`'s strict pipeline. For the RGB writer,
+  `CompressionStream('deflate')` output already has the zlib framing PNG IDAT
+  needs, plus a small crc32 table.
+- **Consent:**
+  - A blocking dialog that states the consequences: a public preview is created,
+    the source is sent to the server and cached by social networks, and it may
+    persist after deletion.
+  - An affirmative control.
+  - A persistent "public" badge.
 
 ---
 
-## 5. Fix list (by tier)
+## 4. Tier 3 — stateless source-in-URL (rejected; the original "Approach A")
+
+Design: put `?s=<encoded>` in the URL, then decode and render it in the Worker on
+every request. It has the largest abuse surface:
+
+- Arbitrary payloads allow decompression bombs and unbounded layout CPU.
+- A unique-key flood at 20 req/s costs about **$155/mo** in CPU; at 200 req/s
+  about **$1,550/mo**.
+- Nothing caps that spend by default.
+
+It also has the worst privacy: source embedded in an `immutable`-cached,
+crawler-visible URL can never be recalled. Tier 2 delivers the same feature
+without either problem.
+
+---
+
+## 5. Fix list
 
 | ID | Fix | Tier |
 |----|-----|------|
-| F1 | Flatten resvg RGBA → **opaque RGB colortype 2** (drop alpha; not just an opaque bg) | 1 (build), reused by 2 |
-| F2 | Fit-inside + centre-blit onto fixed opaque **1200×630** (net-new compositor on `.pixels`) | 1, reused by 2 |
-| F3 | Enforce **< 5 MB** *and* target **< 300 KB** (explicit byte check; `MAX_HOSTED_PNG_BYTES` is 8 MB/pixels, not a byte guard) | 1, 2 |
-| F4 | `twitter:image` (never empty) | 1 |
-| F5 | `og:image:width`/`height` | 1 |
-| F6 | `og:image:alt`/`twitter:image:alt` | 1 |
-| F7 | Per-diagram `og:title`/`description`, attribute-escaped via `setAttribute` | 1 (curated, trusted), 2 |
-| F8 | Curated cards emitted as static assets; **social meta at top of `<head>`** | 1 |
-| F20 | RGB + 1200×630 regression guard (static image + every curated card) | 1 |
-| F21 | Rename-on-change (content-hash filename) | 1 |
-| F10 | **Shared codec module** (editor + Worker), not a re-port | 2 |
-| F11 | Opaque-token create/store + **minimal `/d/<id>` landing page** + `/card/<id>.png` (render from stored source); **human hop to `/editor/#<source>`**; never redirect to a `?s=` URL | 2 |
-| F12 | Worker-generated landing-page meta, safe-escaped; **`og:url` = `/d/<id>`**, `og:image` = `/card/<id>.png` (no editor rewrite) | 2 |
-| F13 | Absolute HTTPS image URLs from `url.origin` | 2 |
-| F14 | Cache by stored id; **bounded** TTL (not immutable); cache successes only; fallback `no-store` | 2 |
-| F15 | Graceful fallback to static card on error (200, `no-store`, counted in a metric so it alarms) | 2 |
-| F16 | Server-side strict render policy (no external fonts/scripts); route only through `renderMermaidPNGWasm` (never raw SVG) — SSRF verified closed by 3 layers | 2 |
-| F17 | Fuzz attribute-escaping of diagram-derived meta | 1, 2 |
-| F18 | Create-step `RATE_LIMITER` + decompressed-size/node cap + kill switch + hash-only cost-proxy logs | 2 |
-| F19 | `noindex` **meta tag** (not header) + `og:url` = share URL; keep `/d/` out of `sitemap.xml` | 2 |
-| F9 | Opt-in **Publish preview** distinct from private `Copy link`; consent dialog + public badge | 2 |
+| F4 | `twitter:image` (never empty) | 0 |
+| F5 | `og:image:width`/`height` | 0 |
+| F6 | `og:image:alt`/`twitter:image:alt` | 0 |
+| F8 | Social meta ahead of inline `<style>` (Slack ~32 KB) | 0 |
+| F1 | Drop alpha → **colortype 2** RGB PNG (~15-line `node:zlib` writer) | 1 (reused by 2) |
+| F2 | Letterbox via nested-SVG `preserveAspectRatio="xMidYMid meet"` inside resvg (no pixel compositor) | 1 (reused by 2) |
+| F3 | Card < 5 MB, aim < 300 KB (explicit byte check) | 1, 2 |
+| F7 | Per-diagram title/description (curated text in Tier 1; `setAttribute` in Tier 2) | 1, 2 |
+| F20 | RGB/1200×630/no-`tRNS` contract on `og-image.png` and every card | 1 |
+| F21 | Content-hashed card filenames (hash of shipped bytes) | 1 |
+| F22 | Static `/examples/<id>/` landing pages → `/editor/?example=<id>` | 1 |
+| F9 | Opt-in **Publish preview**, separate from `Copy link`; consent dialog + badge | 2 |
+| F10 | Shared codec (`editor-state-url.ts` + a Worker-safe inflate path) | 2 |
+| F11 | `/d/create` + stored state + `/d/<id>` (Tier 1 template) + `/card/<id>.png`; human hop to `/editor/#…`; never redirect to `?s=` | 2 |
+| F12 | Worker-generated landing meta via `setAttribute`; `og:url` = `/d/<id>` | 2 |
+| F14 | Cache by id; bounded TTL; successes only; fallback `no-store` | 2 |
+| F15 | Fallback to the static card on error (200, `no-store`, counted in a metric) | 2 |
+| F16 | Strict render policy; only through `renderMermaidPNGWasm`, never raw SVG | 2 |
+| F17 | Escaping fuzz on diagram-derived meta | 2 |
+| F18 | `RATE_LIMITER` at create + decompressed/node cap + kill switch + hash-only logs | 2 |
+| F19 | `noindex` meta tag; `/d/` kept out of the sitemap | 2 |
 
 ---
 
-## 6. Test & verification plan
+## 6. Tests and verification
 
-**Tier 1 (all in `bun run test`, the deterministic gate):**
+Test at the owning boundary, once, and extend existing tables (`CLAUDE.md`).
 
-1. **Static-image guard (F20):** decode `public/og-image.png` IHDR → colortype 2,
-   **no `tRNS`**, 1200×630.
-2. **Card encoder guard (F1/F2) — decode PIXELS, not just the IHDR byte:** assert
-   (a) colortype 2 + no `tRNS`, (b) the four padding regions equal the opaque
-   letterbox colour, (c) the diagram's aspect ratio is preserved (a wide test
-   diagram leaves top/bottom bars; a tall one leaves side bars — assert the bar
-   geometry), (d) a centre pixel is non-background, (e) < 5 MB. **Red→green:**
-   removing the flatten (→ colortype 6) *or* the letterbox (→ stretch) must fail
-   this. A header-only check would pass over a garbled/stretched card (audit #2/#10).
-3. **Determinism:** same diagram → byte-identical card (Node `zlib`, napi — this
-   path *is* deterministic, unlike the wasm disclaimer).
-4. **Meta:** every page has non-empty absolute-HTTPS `twitter:image`/`og:image`,
-   `width`/`height`/`alt`, and the social block sits within the first 32 KB of the
-   response (Slack guard, audit #4).
-5. **Escaping fuzz (F17):** hostile diagram titles (`">`, `</head>`, `&`) round-trip
-   as inert text in the meta.
+**Tier 0** (red→green: both assertions fail on current `main`):
 
-**Tier 2 (added only if built):** landing-page meta test (safe-escaped `og:title`,
-`og:url` = `/d/<id>`, `og:image` = `/card/<id>.png`, meta within the first 32 KB —
-trivially true for the tiny page); a **no-redirect** assertion (`/d/<id>` returns
-`200` with the card, never a `3xx` to a `?s=` URL); a **human-hop** test (browser
-path lands at `/editor/#<source>`, and the source never appears in a
-server-visible URL/log); kill-switch test (flag set → static card, zero rasters
-via a `renderPng` spy); codec-parity fuzz on the shared module; create-step
-cap/rate-limit; concurrency/burst raster-count; delete path (purge → subsequent
-fetch 404s/expires); sanitation (mirror `editor-security-closures.test.ts`).
+- Extend the table in `src/__tests__/website-build.test.ts:1731`. For each page
+  in the table, plus one Tier 1 landing page, assert:
+  - `twitter:image` and `og:image` are non-empty absolute `https://…png` URLs;
+  - `og:image:width/height` and `alt` are present;
+  - `og:image` appears within the **first 32 KB** of the HTML. The editor fails
+    this on `main`, where it sits after ~72 KB.
 
-**Crawler-fidelity (automatable, both tiers) — promote to a required pre-announce
-job:** against a Cloudflare preview deploy, fetch as `Twitterbot` **and**
-`facebookexternalhit`, extract the card URL, fetch it with the crawler UA, assert
-200 / `image/png` / colortype 2 / 1200×630. This is the automatable core of the
-atlas "raw bot response + deployed bytes" gate.
+**Tier 1** (red→green: emitting `.asPng()` output, colortype 6, or a stretched
+fit fails):
 
-**Manual release gate (not automatable):** post one canary link, confirm the card
-in X's Tweet Composer preview (X's validator was retired ~2023), run Facebook's
-Sharing Debugger (forces a re-scrape) — as a committed checklist with sign-off
-boxes, not ad hoc. Only this proves a card renders on the platform; the automated
-tiers are necessary but not sufficient (the atlas lesson).
+- One table-driven card-contract test on the card function. Cases: a wide
+  diagram, a tall diagram, and the static `og-image.png`. Decode each with the
+  existing `src/__tests__/helpers/png-pixels.ts` and assert:
+  - 1200×630, IHDR colortype 2, no `tRNS`;
+  - corner pixels equal the letterbox colour;
+  - **bar geometry**: the wide case has top/bottom bars and the tall case has
+    side bars, which proves no stretch;
+  - the centre pixel is not background;
+  - the file is < 300 KB.
+- Dropped from rev 2:
+  - The byte-determinism test: raster bytes are not a contract here.
+  - The Tier 1 escaping fuzz: inputs are our own curated text, already passed
+    through `escapeAttr`. The fuzz moves to Tier 2 as F17.
+
+**Tier 2** (only if built):
+
+- Landing-page meta: escaping, `og:url` = `/d/<id>`.
+- **No-redirect**: `/d/<id>` returns 200, never a 3xx to `?s=`.
+- **Human hop**: the source never appears in a server-visible URL or log.
+- Kill switch: zero rasters, checked with a `renderPng` spy.
+- Codec parity: a fuzz shared with `property-editor-codec-fuzz.test.ts`.
+- Create-step cap and rate limit.
+- Burst raster count.
+- Delete path: purge, then the next fetch expires.
+- Strict-policy sanitation.
+
+**Crawler fidelity:** make this a required job before announcing.
+
+- Against a preview deploy, fetch a landing page as `Twitterbot` and as
+  `facebookexternalhit`.
+- Follow `og:image`.
+- Assert 200, `image/png`, colortype 2, 1200×630.
+
+**Manual release gate:**
+
+- Post a canary link and check X's composer preview.
+- Run Facebook's Sharing Debugger.
+- Use a committed checklist with sign-off boxes.
+
+The automated tiers are necessary but not sufficient; only the platforms prove a
+card renders (the atlas lesson).
 
 ---
 
-## 7. Multi-agent audit (captured)
+## 7. Multi-agent audit (captured; verdicts updated in rev 3)
 
-Six independent reviewer lenses + reconciliation. Consolidated, de-duplicated,
-ranked; "Raised by" = independent lenses that hit it (agreement = confidence).
+Six independent reviewer lenses plus a reconciliation pass. "Raised by" lists the
+lenses that independently found the issue.
 
 | # | Sev | Finding | Raised by | Verdict | Addressed by |
 |---|-----|---------|-----------|---------|-------------|
-| 1 | Critical | Input cap is on *encoded* bytes; real cost is layout+resvg CPU (scales with element count, not pixels); `deflate:` bomb inflates a tiny payload into a huge diagram; fixed canvas bounds memory, not CPU | Security, Cloudflare, Rendering | CONFIRMED | Gone in Tier 1; Tier 2 caps at create step |
-| 2 | High | F1/F2 are net-new (colortype-2 encoder + fit-inside compositor); opaque bg ≠ colortype 2; raster forces `preserveAspectRatio="none"` = stretch; resvg exposes `.pixels` | Rendering, Test | CONFIRMED | F1/F2 scoped as a real module; test #2 decodes pixels |
-| 3 | High | `og:url` never rewritten; asset bakes `/editor/`; FB/WhatsApp/LinkedIn key cache on `og:url` → all diagrams collapse onto one generic card; contradicts F19 | Crawler | CONFIRMED | Tier 1 static `og:url` per page; Tier 2 F12 sets `og:url`=`/d/<id>` |
-| 4 | High | Slack reads first 32 KB; ~72 KB inlined CSS precedes the meta → Slack sees no card | Crawler | CONFIRMED | F8: social meta at top of `<head>` |
-| 5 | High | `<head>` markup injection via diagram-derived `og:title` (raw interpolation, `build.ts:111`); `<meta refresh>` open-redirect bypasses CSP | Security, Test | CONFIRMED | `setAttribute` (F12); trusted content in Tier 1; F17 fuzz |
-| 6 | High | Source-in-URL is unrecallable (immutable cache, no store to delete from; logs/history/crawler caches) | Privacy, Security | CONFIRMED | Tier 2 opaque token + TTL + delete; Tier 3 rejected |
-| 7 | Med | Cache key must be decoded/normalized source, not raw `?s=`; Cache API is **per-colo** → N cold rasters per diagram | Security, Rendering, Cloudflare | CONFIRMED | Tier 2 keys by stored id; consider Tiered Cache |
-| 8 | Med | Immutable-caching the error fallback permanently pins the generic card | Security | CONFIRMED | F14/F15: successes only; fallback `no-store` |
-| 9 | Med | "Port the codec" → 6 drift points; must replay palette/style/seed/config | Rendering, Security | CONFIRMED | F10 shared module |
-| 10 | Med | Untested: F2 composite, F9 default-private, F19, F18 kill switch, F17 escaping; some ride Tier B (off the CI gate) | Test | CONFIRMED | §6 adds each |
-| 11 | Med | WhatsApp/iMessage drop images >~300 KB; `noindex` header suppresses iMessage; large `?s=` URLs exceed paste limits | Crawler | PLAUSIBLE | F3 <300 KB target; F19 meta not header; Tier 2 short id not payload |
-| 12 | Low | Plan factual errors: `MAX_HOSTED_PNG_BYTES` is 8 MB/pixels (not a 5 MB byte guard); "precomputed cards = free serves" false under `run_worker_first` (saves CPU, not the invocation) | Rendering, Cloudflare | CONFIRMED | Corrected in F3 and below |
+| 1 | Critical | The input cap counts *encoded* bytes; the real cost is layout+resvg CPU, and a `deflate:` bomb inflates a tiny payload | Security, Cloudflare, Rendering | CONFIRMED | Does not arise in Tiers 0–1; Tier 2 caps at create |
+| 2 | ~~High~~ **Low** | F1/F2 seemed to need a net-new encoder + compositor | Rendering, Test | **Downgraded in rev 3**: the prototype does the letterbox in resvg via a nested SVG plus a ~15-line RGB writer, verified on all 17 examples | F1/F2 + Tier 1 card-contract test |
+| 3 | High | `og:url` collision: Facebook, WhatsApp and LinkedIn key their cache on `og:url` | Crawler | CONFIRMED | Each landing page owns its `og:url` (Tier 1); `/d/<id>` (Tier 2) |
+| 4 | High | Slack ~32 KB: the editor's meta comes after 72,101 B of inline CSS | Crawler | CONFIRMED on `main` | F8 (Tier 0) |
+| 5 | High | `<head>` injection through diagram-derived `og:title` | Security, Test | CONFIRMED | Tier 1 uses curated text; Tier 2 uses `setAttribute` + F17 |
+| 6 | High | Source in the URL can never be recalled | Privacy, Security | CONFIRMED | Tier 3 rejected; Tier 2 opaque id + TTL + delete |
+| 7 | Med | Cache key / per-colo multiplication | Security, Rendering, Cloudflare | CONFIRMED | Tier 2 keys by id |
+| 8 | Med | Immutable-caching the fallback pins the generic card | Security | CONFIRMED | F14/F15 |
+| 9 | Med | Re-porting the codec drifts | Rendering, Security | CONFIRMED; partly addressed on `main` by `editor-state-url.ts` (Node only) | F10 |
+| 10 | Med | Untested invariants | Test | CONFIRMED | §6 |
+| 11 | Med | WhatsApp ~300 KB; an iMessage `noindex` header; URL length | Crawler | PLAUSIBLE | F3; F19 as a meta tag; Tier 2 uses short ids |
+| 12 | Low | Plan factual errors (8 MB pixel cap; "free" precomputed serves) | Rendering, Cloudflare | CONFIRMED | Corrected in F3 and §2b |
 
-**SSRF (Security #9):** *refuted as a live risk* — three layers close it (first-party
-SVG serializers, forced `security:'strict'` rejecting external refs/`<image>`,
-resvg-wasm has no network). Guardrail: route only through `renderMermaidPNGWasm`,
-never raw SVG (F16).
-
-**Cost-model correction:** under `run_worker_first: true` the Worker already runs
-on every request, so curated cards are **not** "free static serves" — they save
-the *raster CPU*, not the *invocation* (which is unchanged from today's assets).
+**SSRF** is refuted as a live risk: three layers close it (first-party
+serializers, forced `security:'strict'`, and no network in resvg-wasm). The Tier 2
+guardrail is to render only through `renderMermaidPNGWasm`.
 
 ## 8. Open questions
 
-- **Q1 (rate limiting) — resolved:** use the in-Worker `RATE_LIMITER` binding
-  (plan-independent, GA); it only matters for Tier 2's create step. Zone WAF tier
-  is a *complementary* edge layer, not a dependency (ASN/complexity limiting is
-  Enterprise-only).
-- **Q2 (privacy) — resolved into a design:** if user-share cards are wanted, use
-  Tier 2 (opaque token), not Tier 3. Still needs a product sign-off on TTL length
-  and delete UX before building.
-- **Remaining decision:** ship Tier 1 only, or commit to Tier 2 as a follow-up?
-  Tier 1 delivers "our diagrams show up on Twitter" for the site + curated
-  diagrams at low risk; Tier 2 adds arbitrary user-diagram cards at the cost of a
-  storage/retention policy.
+- **Issue:** the owner files an issue for Tier 0 (and one for Tier 1), and each
+  implementation PR closes it (`CLAUDE.md`).
+- **Card framing:** plain diagram on its own background, or a thin branded frame?
+  Decide by looking at the generated cards.
+- **Landing-page route:** `/examples/<id>/` is proposed. Should corpus examples
+  join in a follow-up?
+- **Tier 2:** still gated on demand plus a TTL and delete-UX decision.
