@@ -46,6 +46,25 @@ describe('xychart layout – dimensions and bounds', () => {
     expect(svg).not.toContain('class="xychart-dot ')
   })
 
+  it('retains in-canvas point-label anchors without moving authored samples', () => {
+    for (const orientation of ['', ' horizontal']) {
+      const prefix = `xychart-beta${orientation}\n x-axis [A,B]\n y-axis 0 --> 10\n`
+      const bare = layout(`${prefix} line [10,0]`)
+      const labelled = layout(`${prefix} line [10 "Top",0 "Bottom"]`)
+      expect(labelled.lines[0]!.points.map(({ x, y, value }) => ({ x, y, value })))
+        .toEqual(bare.lines[0]!.points.map(({ x, y, value }) => ({ x, y, value })))
+      for (const point of labelled.lines[0]!.points) {
+        expect(point.textBlock).toBeDefined()
+        const at = point.textPosition
+        expect(at).toBeDefined()
+        expect(at!.x).toBeGreaterThanOrEqual(0)
+        expect(at!.y - point.textBlock!.height / 2).toBeGreaterThanOrEqual(0)
+        expect(at!.y + point.textBlock!.height / 2).toBeLessThanOrEqual(labelled.height)
+      }
+      expect(renderMermaidSVG(`${prefix} line [10 "Top",0 "Bottom"]`)).not.toContain('y="-1" class="xychart-point-label')
+    }
+  })
+
   it('uses Mermaid width and height as total chart dimensions', () => {
     const chart = layout(`---
 config:

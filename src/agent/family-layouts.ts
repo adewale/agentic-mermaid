@@ -155,6 +155,7 @@ function stampFamilyKind(kind: FamilyId, view: FamilyPositionedView): RenderedLa
   // Assignment preserves that serialization order while keeping the view
   // projector family-neutral.
   if (view.certificates !== undefined) rendered.certificates = view.certificates
+  if (view.labels !== undefined) rendered.labels = view.labels
   return rendered
 }
 
@@ -281,6 +282,12 @@ export function layoutGeometryWarnings(layout: RenderedLayout, opts: { edgeAncho
         break
       }
     }
+  }
+  for (const label of layout.labels ?? []) {
+    if (label.visibility === 'hidden' || label.visibility === 'semantic' || !label.bounds) continue
+    const { x, y, w, h } = label.bounds
+    if (x < -TOL || x + w > layout.bounds.w + TOL) warnings.push({ code: 'OFF_CANVAS', target: label.id, axis: 'x' })
+    if (y < -TOL || y + h > layout.bounds.h + TOL) warnings.push({ code: 'OFF_CANVAS', target: label.id, axis: 'y' })
   }
   if (opts.nodeOverlaps) {
     for (let i = 0; i < layout.nodes.length; i++) {

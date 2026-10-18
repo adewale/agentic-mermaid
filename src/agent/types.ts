@@ -1645,6 +1645,15 @@ export interface RenderedRegion {
 /** Retained bounds in the renderer's pixel coordinate system. */
 export interface RenderedLabelBounds { x: Finite; y: Finite; w: Finite; h: Finite }
 
+/** Painted text independent of a semantic node, such as chart ticks or titles. */
+export interface RenderedLayoutLabel {
+  id: string
+  text: string
+  bounds?: RenderedLabelBounds
+  container?: RenderedLabelBounds
+  visibility?: 'visible' | 'hidden' | 'semantic'
+}
+
 export interface RenderedLayoutNode {
   id: NodeId
   /** Authored immediate container, supplied by families with a typed hierarchy. */
@@ -1696,6 +1705,8 @@ export interface RenderedLayout {
   nodes: RenderedLayoutNode[]
   edges: RenderedLayoutEdge[]
   groups: RenderedLayoutGroup[]
+  /** Retained painted text that does not create a semantic node or data mark. */
+  labels?: RenderedLayoutLabel[]
   /** Region-containment certificates for non-edge invariants; present only under layoutMermaid(d, { debug: true }). */
   certificates?: RegionContainmentCertificate[]
   /** Optional region sidecar for renderer/action alignment; debug-only in layoutMermaid V1. */

@@ -319,7 +319,16 @@ export interface PositionedBar {
 
 export interface PositionedLine {
   /** Polyline points */
-  points: Array<{ x: number; y: number; value: number; label?: string; textLabel?: string; textBlock?: PixelTextBlock }>
+  points: Array<{
+    x: number
+    y: number
+    value: number
+    label?: string
+    textLabel?: string
+    textBlock?: PixelTextBlock
+    /** Renderer-owned text anchor; changing it never changes the sample. */
+    textPosition?: { x: number; y: number; anchor: 'start' | 'middle' | 'end'; placement: 'above' | 'below' | 'left' | 'right' }
+  }>
   /** Series index within line type (for layout grouping) */
   seriesIndex: number
   /** Global color index across all series */

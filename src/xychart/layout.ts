@@ -62,7 +62,7 @@ export const XY_STYLE_DEFAULTS: RenderStyleDefaults = {
  * chart reserves room for the text it actually draws. */
 interface XYTextMeasure {
   wrapTitle(title: string, fontSize: number, width: number): PixelTextBlock
-  block(role: 'tick' | 'legend' | 'axisTitle' | 'data', source: string, fontSize: number): PixelTextBlock
+  block(role: 'tick' | 'legend' | 'axisTitle' | 'data', source: string, fontSize: number, maxWidth?: number): PixelTextBlock
   /** Axis tick labels: categories and values. */
   tick(label: string, fontSize: number): number
   legend(label: string, fontSize: number): number
@@ -71,12 +71,12 @@ interface XYTextMeasure {
 
 function xyTextMeasure(style: ResolvedRenderStyle): XYTextMeasure {
   const cache = new Map<string, PixelTextBlock>()
-  const block = (role: 'tick' | 'legend' | 'axisTitle' | 'data', source: string, fontSize: number): PixelTextBlock => {
-    const key = JSON.stringify([role, source, fontSize])
+  const block = (role: 'tick' | 'legend' | 'axisTitle' | 'data', source: string, fontSize: number, maxWidth?: number): PixelTextBlock => {
+    const key = JSON.stringify([role, source, fontSize, maxWidth])
     let prepared = cache.get(key)
     if (!prepared) {
       const edge = role === 'axisTitle'
-      prepared = preparePixelText(source, { display: 'literal', fontSize, fontWeight: edge ? style.edgeLabelFontWeight : style.nodeLabelFontWeight, letterSpacing: edge ? style.edgeLetterSpacing : style.nodeLetterSpacing, transform: role === 'axisTitle' || role === 'tick' ? style.edgeTextTransform : style.nodeTextTransform })
+      prepared = preparePixelText(source, { display: 'literal', fontSize, fontWeight: edge ? style.edgeLabelFontWeight : style.nodeLabelFontWeight, letterSpacing: edge ? style.edgeLetterSpacing : style.nodeLetterSpacing, transform: role === 'axisTitle' || role === 'tick' ? style.edgeTextTransform : style.nodeTextTransform, maxWidth })
       cache.set(key, prepared)
     }
     return prepared
@@ -119,12 +119,36 @@ export function layoutXYChart(
   const positioned = chart.horizontal ? layoutHorizontal(chart, config, measure) : layoutVertical(chart, config, measure)
   for (const axis of [positioned.xAxis, positioned.yAxis]) {
     if (axis.title) axis.title.block = measure.block('axisTitle', axis.title.text, axis.config.titleFontSize)
-    for (const tick of axis.ticks) tick.block = measure.block('tick', tick.label, axis.config.labelFontSize)
+    for (const tick of axis.ticks) {
+      const block = tick.block = measure.block('tick', tick.label, axis.config.labelFontSize)
+      const left = tick.textAnchor === 'start' ? 0 : tick.textAnchor === 'end' ? block.width : block.width / 2
+      tick.labelX = Math.max(left, Math.min(positioned.width - block.width + left, tick.labelX))
+      tick.labelY = Math.max(block.height / 2, Math.min(positioned.height - block.height / 2, tick.labelY))
+    }
   }
   for (const item of positioned.legend) item.block = measure.block('legend', item.label, positioned.config.legendFontSize)
   for (const label of positioned.dataLabels) label.block = measure.block('data', label.text, label.fontSize)
   for (const line of positioned.lines) for (const point of line.points) {
-    if (point.textLabel !== undefined) point.textBlock = measure.block('data', point.textLabel, 12)
+    if (point.textLabel !== undefined) {
+      const block = point.textBlock = measure.block('data', point.textLabel, 12, Math.max(1, positioned.width - 8))
+      const clamp = (value: number, min: number, max: number) => Math.max(min, Math.min(max, value))
+      if (positioned.horizontal) {
+        const right = point.x + 8 + block.width <= positioned.width - 4
+        const anchor = right ? 'start' : 'end'
+        point.textPosition = {
+          x: right ? clamp(point.x + 8, 4, positioned.width - 4 - block.width) : clamp(point.x - 8, block.width + 4, positioned.width - 4),
+          y: clamp(point.y, block.height / 2, positioned.height - block.height / 2),
+          anchor, placement: right ? 'right' : 'left',
+        }
+      } else {
+        const above = point.y - 8 - block.height >= positioned.plotArea.y
+        point.textPosition = {
+          x: clamp(point.x, block.width / 2, positioned.width - block.width / 2),
+          y: clamp(point.y + (above ? -1 : 1) * (8 + block.height / 2), block.height / 2, positioned.height - block.height / 2),
+          anchor: 'middle', placement: above ? 'above' : 'below',
+        }
+      }
+    }
   }
   return positioned
 }

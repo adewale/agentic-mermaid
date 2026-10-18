@@ -202,7 +202,10 @@ geometry assertions, screenshot/PNG review, or human inspection.
 - **No font-substitution check.** Quality checks consume retained prepared pixel
   text and renderer anchors; they do not guess width from character count.
   `labelMeasurement` reports measured, unmeasured, hidden and semantic-only
-  labels, and missing visible-label evidence makes `checkQuality` warn. A trusted
+  labels, and missing visible-label evidence makes `checkQuality` warn. Painted
+  text in `layout.labels` participates without changing semantic node counts;
+  XYChart retains its point text and chart chrome there. Final canvas and
+  readability checks consume those retained bounds. A trusted
   host measurement profile can improve pixel metrics, but neither that profile
   nor a prepared block proves which font the display ultimately substituted.
 - **Contrast needs resolved paints.** `measureQuality(layout)` scores the crisp

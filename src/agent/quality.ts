@@ -35,6 +35,10 @@ export interface QualityMetrics {
     semanticNodes: number
     measuredEdges: number
     unmeasuredEdges: number
+    measuredLabels: number
+    unmeasuredLabels: number
+    hiddenLabels: number
+    semanticLabels: number
   }
   whitespaceBalance: number  // 0..1 — fill ratio
   labelEdgeProximity: number  // pixels; Infinity if no edge labels
@@ -182,7 +186,7 @@ export function measureQuality(
 ): QualityMetrics {
   return {
     edgeCrossings: countEdgeCrossings(layout.edges),
-    labelLegibility: measureLabelLegibility(layout.nodes),
+    labelLegibility: measureLabelLegibility(layout),
     labelMeasurement: {
       measuredNodes: layout.nodes.filter(node => node.label && node.labelVisibility !== 'hidden' && node.labelVisibility !== 'semantic' && node.labelBounds).length,
       unmeasuredNodes: layout.nodes.filter(node => node.label && node.labelVisibility !== 'hidden' && node.labelVisibility !== 'semantic' && !node.labelBounds).length,
@@ -190,6 +194,10 @@ export function measureQuality(
       semanticNodes: layout.nodes.filter(node => node.label && node.labelVisibility === 'semantic').length,
       measuredEdges: layout.edges.filter(edge => edge.label?.bounds).length,
       unmeasuredEdges: layout.edges.filter(edge => edge.label && !edge.label.bounds).length,
+      measuredLabels: (layout.labels ?? []).filter(label => label.text && label.visibility !== 'hidden' && label.visibility !== 'semantic' && label.bounds).length,
+      unmeasuredLabels: (layout.labels ?? []).filter(label => label.text && label.visibility !== 'hidden' && label.visibility !== 'semantic' && !label.bounds).length,
+      hiddenLabels: (layout.labels ?? []).filter(label => label.text && label.visibility === 'hidden').length,
+      semanticLabels: (layout.labels ?? []).filter(label => label.text && label.visibility === 'semantic').length,
     },
     whitespaceBalance: measureWhitespaceBalance(layout),
     labelEdgeProximity: measureLabelEdgeProximity(layout),
@@ -241,6 +249,9 @@ export function checkQuality(
   }
   if (m.labelMeasurement.unmeasuredEdges > 0) {
     flag('labelEdgeProximity', `edge-label clearance unmeasured for ${m.labelMeasurement.unmeasuredEdges} labels`)
+  }
+  if (m.labelMeasurement.unmeasuredLabels > 0) {
+    flag('labelLegibility', `label fit unmeasured for ${m.labelMeasurement.unmeasuredLabels} painted labels`)
   }
   // Data plots preserve authored positions inside a fixed plot. Occupied mark
   // area is diagnostic; enlarging/moving marks to hit a box-fill band corrupts
@@ -478,13 +489,18 @@ function segmentsCross(p1: [number, number], p2: [number, number], p3: [number, 
 
 // ---- label legibility -----------------------------------------------------
 
-function measureLabelLegibility(nodes: RenderedLayoutNode[]): number {
-  const measured = nodes.filter(node => node.label && node.labelVisibility !== 'hidden' && node.labelVisibility !== 'semantic' && node.labelBounds)
+function measureLabelLegibility(layout: RenderedLayout): number {
+  const canvas = { x: 0, y: 0, w: layout.bounds.w, h: layout.bounds.h }
+  const labels = [
+    ...layout.nodes.map(node => ({ text: node.label, bounds: node.labelBounds, container: node.labelContainer ?? nodeBox(node), visibility: node.labelVisibility })),
+    ...(layout.labels ?? []).map(label => ({ ...label, container: label.container ?? canvas })),
+  ]
+  const measured = labels.filter(label => label.text && label.visibility !== 'hidden' && label.visibility !== 'semantic' && label.bounds)
   if (measured.length === 0) return 1
   let fits = 0
   for (const n of measured) {
-    const text = n.labelBounds!
-    const region = n.labelContainer ?? nodeBox(n)
+    const text = n.bounds!
+    const region = n.container
     if (text.x >= region.x - GEOM_EPS && text.y >= region.y - GEOM_EPS &&
         text.x + text.w <= region.x + region.w + GEOM_EPS && text.y + text.h <= region.y + region.h + GEOM_EPS) fits++
   }

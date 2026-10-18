@@ -370,6 +370,13 @@ Core functions:
 | `measureQuality(layout, colors?)` / `checkQuality(layout, bounds?, colors?)` | Perceptual quality metrics, including fail-closed contrast (`null` when requested paints are unresolved), nearest-node spacing, and element density. Rendered audits can supply exact foreground/background associations through `textPairs`. |
 | `describeMermaid(d, { format })` | Prose, AX-tree, or facts summary (`format: "text" | "json" | "facts"`). |
 
+Layout JSON can include `labels`: painted text with stable IDs, retained bounds,
+available containers and visibility. XYChart uses this field for point labels,
+titles, axes, ticks, legends and bar values. These entries participate in text
+quality and final canvas checks without adding semantic nodes or changing mark
+density. `labelMeasurement.measuredLabels` and `unmeasuredLabels` report their
+coverage separately from node and edge text.
+
 #### Observe a native parser
 
 The root library exports `withParserObservation(family, observer, parse)`. Wrap

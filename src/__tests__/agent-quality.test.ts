@@ -65,6 +65,29 @@ describe('quality metrics — deterministic', () => {
     expect(measured).toBeGreaterThan(10)
   })
 
+  test('XY quality measures painted point labels and chart chrome without adding semantic nodes', () => {
+    const source = '---\nconfig:\n xyChart:\n  showDataLabel: true\n---\nxychart-beta\n title Revenue\n x-axis Month [A,B]\n y-axis Amount 0 --> 10\n bar Sales [8,2]\n line Trend [10 "Top",0 "Bottom"]'
+    const parsed = parseMermaid(source)
+    if (!parsed.ok) throw new Error('XY fixture did not parse')
+    const layout = layoutMermaid(parsed.value)
+    expect(layout.nodes).toHaveLength(4)
+    const ids = new Set(layout.labels?.map(label => label.id))
+    for (const id of ['title', 'axis:x:title', 'axis:y:title', 'legend:label:0', 'legend:label:1', 'point-label:0:0', 'point-label:0:1', 'data-label:0']) expect(ids.has(id)).toBe(true)
+    const top = layout.labels!.find(label => label.text === 'Top')!
+    expect(top.bounds).toBeDefined()
+    const good = measureQuality(layout)
+    expect(good.labelLegibility).toBe(1)
+    expect(good.labelMeasurement.measuredLabels).toBe(layout.labels!.length)
+    expect(good.labelMeasurement.unmeasuredLabels).toBe(0)
+    const clipped = structuredClone(layout)
+    clipped.labels!.find(label => label.text === 'Top')!.bounds!.y = f(-20)
+    expect(measureQuality(clipped).labelLegibility).toBeLessThan(1)
+    const unmeasured = structuredClone(layout)
+    delete unmeasured.labels!.find(label => label.text === 'Top')!.bounds
+    expect(measureQuality(unmeasured).labelMeasurement.unmeasuredLabels).toBe(1)
+    expect(checkQuality(unmeasured).ranked.some(violation => violation.message.includes('unmeasured'))).toBe(true)
+  })
+
   test('repeated calls produce identical metrics (determinism)', () => {
     const p = parseMermaid('flowchart TD\n  A[Start] --> B{Check}\n  B -->|yes| C[Done]\n  B -->|no| A')
     expect(p.ok && p.value.kind).toBe('flowchart')
@@ -107,7 +130,7 @@ describe('quality metrics — deterministic', () => {
     const layout = layoutMermaid(p.value, { style: { roles: { node: { fontSize: 24, letterSpacing: 2 } } } })
     const metrics = measureQuality(layout)
     expect(metrics.labelLegibility).toBe(1)
-    expect(metrics.labelMeasurement).toEqual({ measuredNodes: 2, unmeasuredNodes: 0, hiddenNodes: 0, semanticNodes: 0, measuredEdges: 0, unmeasuredEdges: 0 })
+    expect(metrics.labelMeasurement).toEqual({ measuredNodes: 2, unmeasuredNodes: 0, hiddenNodes: 0, semanticNodes: 0, measuredEdges: 0, unmeasuredEdges: 0, measuredLabels: 0, unmeasuredLabels: 0, hiddenLabels: 0, semanticLabels: 0 })
     expect(checkQuality(layout).ranked.map(item => item.metric)).not.toContain('labelLegibility')
   })
 

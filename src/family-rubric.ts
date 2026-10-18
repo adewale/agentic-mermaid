@@ -222,6 +222,23 @@ export function assessRenderedLayout(layout: RenderedLayout): FamilyRubricResult
       violations.push({ metric: 'offCanvas', detail: `node ${n.id} at (${n.x},${n.y}) ${n.w}×${n.h}` })
     }
   }
+  const checkText = (id: string, bounds: { x: number; y: number; w: number; h: number } | undefined): void => {
+    if (!bounds) return
+    if (!finiteRect(bounds.x, bounds.y, bounds.w, bounds.h)) {
+      nonFinite++
+      violations.push({ metric: 'nonFiniteGeometry', detail: `label ${id}` })
+    } else if (bounds.x < -TOL || bounds.y < -TOL || bounds.x + bounds.w > layout.bounds.w + TOL || bounds.y + bounds.h > layout.bounds.h + TOL) {
+      offCanvas++
+      violations.push({ metric: 'offCanvas', detail: `label ${id}` })
+    }
+  }
+  for (const node of layout.nodes) {
+    if (node.labelVisibility !== 'hidden' && node.labelVisibility !== 'semantic') checkText(node.id, node.labelBounds)
+  }
+  for (const edge of layout.edges) checkText(edge.id, edge.label?.bounds)
+  for (const label of layout.labels ?? []) {
+    if (label.visibility !== 'hidden' && label.visibility !== 'semantic') checkText(label.id, label.bounds)
+  }
   for (const e of layout.edges) {
     let flagged = false
     for (const [x, y] of e.path) {

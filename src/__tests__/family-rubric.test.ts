@@ -10,6 +10,7 @@ import {
   FAMILY_HARD_METRICS,
 } from '../family-rubric.ts'
 import type { RenderedLayout } from '../agent/types.ts'
+import { toFinite } from '../agent/types.ts'
 import { parseJourneyDiagram } from '../journey/parser.ts'
 import { layoutJourneyDiagram, resolveJourneyRequestAppearance } from '../journey/layout.ts'
 import { preprocessMermaidLines } from '../mermaid-source.ts'
@@ -59,6 +60,24 @@ describe('family rubric hard metrics discriminate', () => {
       nodes: [{ id: 'a', x: 190, y: 10, w: 50, h: 20, shape: 'rectangle', label: 'A' }],
     }))
     expect(r.metrics.offCanvas).toBe(1)
+  })
+
+  it('checks retained visible text even when its owning mark is inside the canvas', () => {
+    const layout = baseLayout()
+    layout.nodes[0]!.labelBounds = { x: 10, y: -4, w: 20, h: 12 } as NonNullable<RenderedLayout['nodes'][number]['labelBounds']>
+    const result = assessRenderedLayout(layout)
+    expect(result.metrics.offCanvas).toBe(1)
+    expect(familyHardViolations(result)).toContainEqual(expect.objectContaining({ metric: 'offCanvas', detail: expect.stringContaining('label') }))
+  })
+
+  it('checks separate painted labels without inventing semantic nodes', () => {
+    const layout = baseLayout()
+    layout.labels = [{ id: 'point-label', text: 'Top', bounds: { x: 10, y: -4, w: 20, h: 12 } }] as NonNullable<RenderedLayout['labels']>
+    expect(assessRenderedLayout(layout).metrics.offCanvas).toBe(1)
+    layout.labels[0]!.bounds!.y = toFinite(5)
+    expect(familyHardViolations(assessRenderedLayout(layout))).toEqual([])
+    layout.labels[0]!.bounds!.w = Number.NaN as NonNullable<RenderedLayout['nodes'][number]['labelBounds']>['w']
+    expect(assessRenderedLayout(layout).metrics.nonFiniteGeometry).toBe(1)
   })
 
   it('flags overlapping text boxes but not coinciding data marks', () => {
