@@ -1,4 +1,5 @@
 import type { PositionedC4Diagram } from '../c4/layout.ts'
+import { effectiveC4Shape } from '../c4/config.ts'
 import type { PositionedGroup } from '../types.ts'
 import type { FamilyPositionedProjectionContext, FamilyPositionedView } from './families.ts'
 import { toFinite } from './types.ts'
@@ -24,7 +25,7 @@ export function projectC4Positioned({ positioned, options }: FamilyPositionedPro
       return element ? [{
         id: element.id,
         x: toFinite(node.x), y: toFinite(node.y), w: toFinite(node.width), h: toFinite(node.height),
-        shape: element.shape, label: element.label, role: 'box' as const,
+        shape: effectiveC4Shape(element), label: element.label, role: 'box' as const,
         ...(element.parentId !== undefined ? { parentId: element.parentId } : {}),
       }] : []
     }),

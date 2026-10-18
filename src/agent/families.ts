@@ -47,7 +47,7 @@ import { BUILTIN_RENDER_HOOKS } from '../render-family-hooks.ts'
 import { UPSTREAM_MERMAID_FAMILY_INDEX } from '../upstream-family-index.ts'
 import { boundedUtf8ByteLength } from '../shared/utf8.ts'
 import { compareCodePointStrings } from '../shared/deterministic-order.ts'
-import { C4_CONFIG_KEYS } from '../c4/config.ts'
+import { C4_CONFIG_KEYS, C4_NOOP_CONFIG_KEYS } from '../c4/config.ts'
 import {
   detectsFlowchartFamily,
   detectsStateFamily,
@@ -748,7 +748,7 @@ gitGraph LR:
   Electricity,Homes,120
   Electricity,Industry,60` },
   { id: 'c4', upstreamId: 'c4', maturity: 'experimental', label: 'C4', headers: ['C4Context', 'C4Container', 'C4Component', 'C4Dynamic', 'C4Deployment'], narrower: 'asC4', editorDiagramType: 'C4', editorLabel: 'C4 architecture', editorDescription: 'People, software systems, containers and components within nested architecture boundaries.', editorExampleId: 'c4-basic', editorGlyph: 'C4',
-    config: { section: 'c4', keys: [...C4_CONFIG_KEYS, 'useMaxWidth'], noopKeys: ['useMaxWidth'] },
+    config: { section: 'c4', keys: [...C4_CONFIG_KEYS, ...C4_NOOP_CONFIG_KEYS], noopKeys: C4_NOOP_CONFIG_KEYS },
     semanticChannels: ['category', 'status'],
     detect: (line: string) => /^c4(?:context|container|component|dynamic|deployment)(?:\s|$)/.test(line),
     detectLoose: (line: string) => /^c4(?:context|container|component|dynamic|deployment)(?:\s|$)/.test(line),

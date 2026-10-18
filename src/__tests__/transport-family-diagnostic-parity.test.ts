@@ -19,10 +19,10 @@ const FIXTURES = [
     semanticHeader: 'futureDiagram-v99',
   },
   {
-    source: 'C4&#68;eployment\n  Deployment_Node(a, "A")',
+    source: 'requirement&#68;iagram\n  requirement r {\n    id: 1\n    text: Preserved requirement\n    risk: low\n    verifymethod: test\n  }',
     code: 'UNSUPPORTED_FAMILY',
-    authoredHeader: 'C4&#68;eployment',
-    semanticHeader: 'C4Deployment',
+    authoredHeader: 'requirement&#68;iagram',
+    semanticHeader: 'requirementDiagram',
   },
 ] as const
 

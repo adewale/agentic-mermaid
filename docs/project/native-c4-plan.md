@@ -4,13 +4,15 @@ Implementation baseline: `a87ec8612c3df98a5b9e8f52ac0e35814b02c523`
 (17 October 2026). This work implements the contract requested for #387;
 it does not reopen the retired fidelity programme.
 
-Implemented and validated on 18 October 2026. The final candidate passes the
+Initial focused validation on 18 October 2026 passed the
 native/official-example/citizenship and all-style C4 checks, both typechecks,
 lint, browser and package builds, lazy payload budgets, website regeneration
 and ESM package validation. Independent review rechecked 20 SVGs, 35 routed
 connectors and 35 complete label rectangles after the final allocation and
 halo-clearance refinements, including 100 label/card comparisons.
 These are bounded witnesses, not a universal layout guarantee or a deployment.
+[PR #411](https://github.com/adewale/agentic-mermaid/pull/411) records the
+combined-head validation and independent review after the Pele comparison.
 
 ## Contract
 
@@ -86,3 +88,26 @@ An untested layout or deployment is not made complete by a passing parser test.
 Use existing tests and evidence paths. Tests assert explicit authored semantics,
 real DOM identities and emitted ownership/connectivity, not pixel parity with
 another renderer or values produced by the implementation under test.
+
+## Remaining order and release gates
+
+Hard dependencies are unchanged: source identity and display interpretation
+precede adapter projection; measured allocation precedes route/label emission;
+serialization closure precedes typed editing claims. A source release requires
+the combined head's native/public/packaged/browser contracts and independent
+audit to pass. Publishing and then verifying the matching deployment are
+separate delivery steps; the 0.4.1 installation is not native-C4 evidence.
+
+Preferred next priorities, independently schedulable after those gates, are:
+
+1. Profile dense routing and main-entry startup before changing algorithms;
+   preserve measured labels, connectivity, containment and security evidence.
+2. Design opt-in browser mount/reflow using explicit available-width/font inputs,
+   keeping deterministic standalone rendering. It does not block this C4 model.
+3. Prioritize additional native families by demand, with their own editing,
+   metadata and output dispositions. A 33-family smoke roster is not a reason
+   to weaken the semantic contract or a hard dependency of C4 delivery.
+
+The prior preservation-only C4 plan and waiting for already-merged primitives
+are superseded. No additional issue, generic router rewrite, global lexer
+framework or duplicated audit infrastructure is required by the reproduced cases.

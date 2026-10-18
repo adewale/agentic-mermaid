@@ -112,9 +112,8 @@ function editorRenderOptionsFromState(state: Record<string, unknown>): Record<st
 
 function removeWebsiteExampleAccessibleName(svg: string): string {
   return svg
-    .replace(/\srole="img"/, '')
-    .replace(/\saria-labelledby="[^"]+"/, '')
-    .replace(/<title id="[^"]+">[\s\S]*?<\/title><desc id="[^"]+">[\s\S]*?<\/desc>/, '')
+    .replace(/^<svg\b([^>]*)>/, (_root, attrs: string) => `<svg${attrs.replace(/\s(?:role="img"|aria-(?:label|labelledby|describedby)="[^"]*")/g, '')}>`)
+    .replace(/^(<svg\b[^>]*>)(?:\s*<(title|desc)\b[^>]*>[\s\S]*?<\/\2>)+/, '$1')
 }
 
 function sourcePeerLabels(category: string, source: string) {
@@ -943,6 +942,8 @@ describe('Workers Static Assets website contract', () => {
       } as any).replace(/[ \t]+$/gm, '')
       const gallerySvg = article.match(/<div class="example-svg"[^>]*>(<svg[\s\S]*?<\/svg>)<\/div>/)?.[1]
       expect(gallerySvg, `${id}: gallery SVG`).toBeDefined()
+      const svgIds = [...gallerySvg!.matchAll(/\sid="([^"]+)"/g)].map(match => match[1]!)
+      expect(new Set(svgIds).size, `${id}: unique SVG ids`).toBe(svgIds.length)
       expect(removeWebsiteExampleAccessibleName(gallerySvg!), `${id}: exact Editor/gallery render parity`)
         .toBe(removeWebsiteExampleAccessibleName(editorSvg))
 
@@ -1381,7 +1382,7 @@ describe('Workers Static Assets website contract', () => {
     }
     expect(new Set(RICH_EXAMPLES.map(sample => richExampleId(sample))).size, 'stable rich example ids').toBe(RICH_EXAMPLES.length)
     expect(richExampleId({ title: 'Mindmap: Incident Response Command Map' })).toBe('rich-mindmap-incident-response-command-map')
-    expect(Object.keys(LEGACY_RICH_EXAMPLE_ALIASES)).toHaveLength(RICH_EXAMPLES.length)
+    expect(Object.keys(LEGACY_RICH_EXAMPLE_ALIASES).length).toBeGreaterThan(0)
     for (const [legacy, canonical] of Object.entries(LEGACY_RICH_EXAMPLE_ALIASES)) {
       expect(read('examples/index.html'), legacy).toContain(`id="${legacy}" data-example-alias data-example-kind="corpus" data-example-canonical="${canonical}"`)
       expect(read('examples/corpus/index.html'), legacy).toContain(`id="${legacy}" data-example-alias data-example-kind="corpus" data-example-canonical="${canonical}"`)

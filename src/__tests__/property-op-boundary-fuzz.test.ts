@@ -71,6 +71,7 @@ const valueForType = (type: string): fc.Arbitrary<unknown> => {
     case 'boolean | null': return fc.option(fc.boolean(), { nil: null })
     case 'string[]': return fc.array(fc.constantFrom(...ID_VOCAB), { maxLength: 2 })
     case 'number[]': return fc.array(fc.integer({ min: 0, max: 3 }), { maxLength: 2 })
+    case 'object[]': return fc.array(fc.dictionary(fc.constantFrom('id', 'label', 'value'), fc.constantFrom(...ID_VOCAB), { maxKeys: 3 }), { maxLength: 2 })
     case 'object | null': return fc.constant(null)
     default: throw new Error(`op-boundary fuzz: no generator for field type ${type}`)
   }

@@ -36,9 +36,9 @@ import type { RenderOptions } from '../types.ts'
 const SOURCE = 'flowchart LR\n  A[Start] --> B[Finish]'
 
 const EXPECTED_BUILTIN_OPTION_APPLICABILITY = {
-  padding: ['flowchart', 'state', 'architecture'],
-  nodeSpacing: ['flowchart', 'state', 'class', 'er', 'architecture'],
-  layerSpacing: ['flowchart', 'state', 'class', 'er', 'architecture'],
+  padding: ['flowchart', 'state', 'architecture', 'c4'],
+  nodeSpacing: ['flowchart', 'state', 'class', 'er', 'architecture', 'c4'],
+  layerSpacing: ['flowchart', 'state', 'class', 'er', 'architecture', 'c4'],
   wrappingWidth: ['flowchart'],
   componentSpacing: [],
   interactive: ['xychart', 'pie', 'quadrant'],

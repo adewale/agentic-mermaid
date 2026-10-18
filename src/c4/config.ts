@@ -29,6 +29,18 @@ const number = (value: unknown, fallback: number, minimum = 0): number => {
 }
 const integer = (value: unknown, fallback: number): number => { const result = number(value, fallback, 1); if (!Number.isSafeInteger(result)) throw new RangeError(`Invalid C4 row count ${JSON.stringify(value)}; expected a positive integer`); return result }
 export function resolveC4Config(input: C4ConfigInput = {}, themeVariables: C4ConfigInput = {}): C4Config {
+  // Invalid documented values are diagnosed at the existing config boundary.
+  // Drop them here so they cannot change layout or throw after that warning.
+  input = Object.fromEntries(Object.entries(input).filter(([key, value]) => {
+    const minimum = C4_NUMERIC_CONFIG_MINIMUM[key] ?? (/Font(?:Size|Weight)$/.test(key) && C4_CONFIG_KEYS.includes(key) ? 1 : undefined)
+    if (minimum !== undefined) {
+      const numeric = /FontWeight$/.test(key) && typeof value === 'string' && /^\d+$/.test(value) ? Number(value) : value
+      const maximum = /FontWeight$/.test(key) ? 1000 : 10000
+      return typeof numeric === 'number' && Number.isFinite(numeric) && numeric >= minimum && numeric <= maximum
+        && (!['c4ShapeInRow', 'c4BoundaryInRow'].includes(key) || Number.isSafeInteger(numeric))
+    }
+    return key !== 'wrap' || typeof value === 'boolean'
+  }))
   return { marginX: number(input.diagramMarginX, 24), marginY: number(input.diagramMarginY, 24),
     gap: number(input.c4ShapeMargin, 56), padding: number(input.c4ShapePadding, 16, 4),
     minimumWidth: number(input.width, 150, 24), minimumHeight: number(input.height, 76, 24),
@@ -59,3 +71,7 @@ export function c4Appearance(item: C4Element | C4Boundary, config: C4Config): { 
 
 const C4_CONFIG_TYPES = ['person', 'external_person', ...['system', 'container', 'component'].flatMap(kind => ['', 'external_'].flatMap(prefix => ['', '_db', '_queue'].map(shape => `${prefix}${kind}${shape}`))), 'boundary', 'node']
 export const C4_CONFIG_KEYS: readonly string[] = Object.freeze(['diagramMarginX', 'diagramMarginY', 'c4ShapeMargin', 'c4ShapePadding', 'width', 'height', 'boxMargin', 'nextLinePaddingX', 'c4ShapeInRow', 'c4BoundaryInRow', 'wrap', 'wrapPadding', ...C4_CONFIG_TYPES.flatMap(kind => [`${kind}FontSize`, `${kind}FontWeight`, `${kind}_bg_color`, `${kind}_border_color`])])
+/** Shared Scene typography owns the actual font; these official C4 settings
+ * remain preserved compatibility inputs with an explicit no-effect warning. */
+export const C4_NOOP_CONFIG_KEYS: readonly string[] = Object.freeze(['useMaxWidth', ...[...C4_CONFIG_TYPES, 'message'].flatMap(kind => [`${kind}Font`, `${kind}FontFamily`]), 'messageFontSize', 'messageFontWeight'])
+const C4_NUMERIC_CONFIG_MINIMUM: Readonly<Record<string, number>> = Object.freeze({ diagramMarginX: 0, diagramMarginY: 0, c4ShapeMargin: 0, c4ShapePadding: 4, width: 24, height: 24, boxMargin: 12, nextLinePaddingX: 0, c4ShapeInRow: 1, c4BoundaryInRow: 1, wrapPadding: 40 })
