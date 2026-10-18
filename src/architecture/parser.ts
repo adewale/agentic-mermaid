@@ -47,7 +47,7 @@ const EDGE_RE = /^(\S+)\s+(.+)\s+(\S+)$/
 
 // Mermaid's architecture lexer terminals. An id is word characters with
 // dashes only inside (ID); an icon is word characters, `-` and `:`
-// (ARCH_ICON); a [title] is words and spaces, or one "…" or '…' string with
+// (ARCH_ICON); a [title] is non-bracket text, or one "…" or '…' string with
 // backslash escapes, which Mermaid reads without its quotes (ARCH_TITLE).
 // `\w` is ASCII here, as in Mermaid's lexer. Both parsers read the looser
 // statement shapes above as written, verify reports what these terminals
@@ -55,7 +55,8 @@ const EDGE_RE = /^(\S+)\s+(.+)\s+(\S+)$/
 // mutator write titles, ids and icons only in a form they accept.
 const ID_TERMINAL_RE = /^\w(?:[\w-]*\w)?$/
 const ICON_TERMINAL_RE = /^[\w:-]+$/
-const UNQUOTED_TITLE_RE = /^[\w ]+$/
+const UNQUOTED_TITLE_RE = /^[\w ]+$/ // Keep the writer's conservative bare spelling.
+const UNQUOTED_TITLE_TERMINAL_RE = /^[^[\]\r\n]+$/
 const QUOTED_TITLE_RE = /^(?:"(?:[^"\\]|\\.)*"|'(?:[^'\\]|\\.)*')$/
 
 /** The syntax error Mermaid's lexer raises for an id, if any. */
@@ -108,8 +109,8 @@ export function architectureTerminalRejections(statement: string): Array<{ termi
     if (value !== undefined && architectureIdError(value)) rejections.push({ terminal: 'id', what: `Architecture id "${value}" starts or ends with "-" and is read as written` })
   }
   const title = (content: string | undefined): void => {
-    if (content !== undefined && !UNQUOTED_TITLE_RE.test(content) && !QUOTED_TITLE_RE.test(content)) {
-      rejections.push({ terminal: 'title', what: `Architecture title [${content}] is neither words and spaces nor one quoted string, and is read as written` })
+    if (content !== undefined && !UNQUOTED_TITLE_TERMINAL_RE.test(content) && !QUOTED_TITLE_RE.test(content)) {
+      rejections.push({ terminal: 'title', what: `Architecture title [${content}] has unquoted brackets or a line break, and is read as written` })
     }
   }
   const declaration = line.match(GROUP_RE) ?? line.match(SERVICE_RE)

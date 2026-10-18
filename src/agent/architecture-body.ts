@@ -652,7 +652,7 @@ const ARCHITECTURE_PORTABLE_FORM = {
   title: 'put the whole title in double quotes',
 } as const
 
-/** Architecture source ours reads where Mermaid 11.16 rejects it, each on its
+/** Architecture source ours reads where pinned Mermaid rejects it, each on its
  * canonical line: an id, (icon) or [title] outside Mermaid's lexer terminal is
  * read as written. */
 export function architectureUnsupportedSyntaxWarnings(canonicalSource: string): LayoutWarning[] {
@@ -672,7 +672,7 @@ export function architectureUnsupportedSyntaxWarnings(canonicalSource: string): 
         code: 'UNSUPPORTED_SYNTAX',
         syntax: `architecture_${terminal}`,
         line: index + 1,
-        message: `${what}. Mermaid 11.16 rejects this; ${ARCHITECTURE_PORTABLE_FORM[terminal]}.`,
+        message: `${what}. Pinned Mermaid rejects this; ${ARCHITECTURE_PORTABLE_FORM[terminal]}.`,
       })
     }
   }

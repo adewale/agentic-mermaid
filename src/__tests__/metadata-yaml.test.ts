@@ -1,5 +1,5 @@
 // `@{…}` metadata and frontmatter share one YAML reader
-// (src/shared/metadata-yaml.ts). The oracle is pinned upstream Mermaid 11.16,
+// (src/shared/metadata-yaml.ts). The oracle is pinned upstream Mermaid,
 // which reads all three with js-yaml's JSON_SCHEMA behind a lexer that
 // decides where a `@{…}` block ends.
 
@@ -25,9 +25,10 @@ import { parseMermaidYaml, stringifyMermaidYaml } from '../shared/mermaid-yaml.t
 import { startUpstreamMermaid, type UpstreamMermaid } from './helpers/upstream-mermaid.ts'
 
 describe('parseMermaidYaml resolves plain scalars as js-yaml JSON_SCHEMA does', () => {
-  test('numbers, booleans and null, including js-yaml\'s `0b`, `_` and signed hex forms', () => {
+  test('numbers, booleans and null, including js-yaml\'s `0b` and signed hex forms', () => {
     const cases: Array<[string, unknown]> = [
-      ['0b11', 3], ['1_000', 1000], ['-0x1F', -31], ['0o17', 15], ['+12', 12], ['00_1', 1], ['0_1', 1], ['1_000.5', 1000.5],
+      ['0b11', 3], ['1_000', '1_000'], ['-0x1F', -31], ['0o17', 15], ['+12', 12], ['00_1', '00_1'], ['0_1', '0_1'], ['1_000.5', '1_000.5'],
+      ['1_0', '1_0'], ['0b1_0', '0b1_0'], ['1e999', '1e999'], ['9'.repeat(400), '9'.repeat(400)],
       ['1e5', 100000], ['.5e3', 500], ['1.', 1], ['+.inf', Number.POSITIVE_INFINITY], ['True', true], ['FALSE', false],
       ['~', null], ['Null', null], ['-.5', '-.5'], ['1_', '1_'], ['0x_', '0x_'], ['0B1', '0B1'], ['yes', 'yes'],
     ]
@@ -39,7 +40,7 @@ describe('parseMermaidYaml resolves plain scalars as js-yaml JSON_SCHEMA does', 
   })
 
   test('errors and unknown tags fail; a writer quotes every string that would not read back', () => {
-    for (const bad of ['a: [unclosed', 'a: 1\na: 2', 'a: !foo x', 'a: b: c', 'a: |#c\n  x']) {
+    for (const bad of ['a: [unclosed', 'a: 1\na: 2', 'a: !foo x', 'a: b: c', 'a: |#c\n  x', 'a: !!int 1_0', 'a: !!float 1e999', `a: !!int ${'9'.repeat(400)}`]) {
       expect({ bad, ok: parseMermaidYaml(bad).ok }).toEqual({ bad, ok: false })
     }
     // js-yaml takes a `#` straight after `,` or a quoted scalar as a comment.
@@ -66,7 +67,7 @@ describe('parseMermaidYaml resolves plain scalars as js-yaml JSON_SCHEMA does', 
   })
 })
 
-// Pinned Mermaid bundles js-yaml 4.1.1 in one dist chunk that exports exactly
+// Pinned Mermaid bundles js-yaml in one dist chunk that exports exactly
 // `JSON_SCHEMA` and `load`: the reader upstream runs on `@{}` and frontmatter.
 const JS_YAML_DIR = join(import.meta.dir, '..', '..', 'node_modules', 'mermaid', 'dist', 'chunks', 'mermaid.core')
 const jsYamlChunk = readdirSync(JS_YAML_DIR)
@@ -89,7 +90,7 @@ describe('parseMermaidYaml agrees with pinned upstream\'s js-yaml', () => {
   // collections, block scalars, anchors, tags, and quoted scalars that span
   // lines at any indentation (js-yaml ignores it; the yaml package does not).
   const VALUES = [
-    'x', '0b1', '1_0', 'True', '~', '-.5', 'a #c', 'x,#y', '', '"q"', '"t\\tx"', '" m\n  n "', '" m\nn\n"', '"a\\"b"',
+    'x', '0b1', '1_0', '1e999', 'True', '~', '-.5', 'a #c', 'x,#y', '', '"q"', '"t\\tx"', '" m\n  n "', '" m\nn\n"', '"a\\"b"',
     "'it''s'", "'m\n n'", "'u", '{a: 1}', '[1, 2]', '{: x}', '|\n  lit\n', '>-\n  fold\n  ed\n', '"x"#c', 'a: b', '- x',
     '&a x', '*a', '!!str 1', '? a', '\t', 'x \t y', '"\\x41"', "'\\'",
   ]
@@ -244,6 +245,9 @@ describe('pinned upstream Mermaid reads @{} metadata as we do', () => {
       { metadata: 'label: "a}b;c"', label: 'a}b;c' },
       { metadata: 'label: "a\\u0041\\/b"', label: 'aA/b' },
       { metadata: 'label: 12', label: '12' },
+      { metadata: 'label: 1_0', label: '1_0' },
+      { metadata: 'label: 0b1_0', label: '0b1_0' },
+      { metadata: 'label: 1e999', label: '1e999' },
       { metadata: "label: 'a}b;c'" },
       { metadata: "label: 'x\\'y'" },
       { metadata: 'label: "a\\qb"' },
@@ -260,13 +264,17 @@ describe('pinned upstream Mermaid reads @{} metadata as we do', () => {
       const typed = agent.ok && agent.value.body.kind === 'flowchart' ? agent.value.body.graph.nodes.get('A')?.label : undefined
       expect({ source, upstreamLabel, rendererLabel, typed, agentError: !agent.ok })
         .toEqual({ source, upstreamLabel: label, rendererLabel: label, typed: label, agentError: label === undefined })
+      if (agent.ok && label !== undefined) {
+        const reparsed = await upstream.parse(serializeMermaid(agent.value))
+        expect(reparsed.ok && reparsed.flowchart?.vertices.find(vertex => vertex.id === 'A')?.text).toBe(label)
+      }
     }
   })
 
   test('BUG-24: a typed label round-trips through `@{ label }` and upstream reads it back', async () => {
     const parsed = parseRegisteredMermaid('flowchart TD\n  A@{ shape: delay, label: "x" }')
     if (!parsed.ok || parsed.value.body.kind !== 'flowchart') throw new Error('fixture must parse as a typed flowchart')
-    for (const label of ['t\tx', 'a}b;c', 'q"u\\o\'te', 'x41 ^ #35', 'line\nbreak']) {
+    for (const label of ['t\tx', 'a}b;c', 'q"u\\o\'te', 'x41 ^ #35', 'line\nbreak', '1_0', '1e999']) {
       const node = parsed.value.body.graph.nodes.get('A')!
       parsed.value.body.graph.nodes.set('A', { ...node, label })
       const serialized = serializeMermaid(parsed.value)
@@ -283,6 +291,9 @@ describe('pinned upstream Mermaid reads @{} metadata as we do', () => {
       { metadata: '"alias": "t\\tx\\x41"', label: 't\txA' },
       { metadata: "alias: 'it''s'", label: "it's" },
       { metadata: 'alias: x y', label: 'x y' },
+      { metadata: 'alias: 1_0', label: '1_0' },
+      { metadata: 'alias: 0b1_0', label: '0b1_0' },
+      { metadata: 'alias: 1e999', label: '1e999' },
       { metadata: '"type": "database", alias: "Q"', label: 'Q' },
       { metadata: "'alias': 'x\\'y'" },
       { metadata: '"type": "database", alias: "a}b"' },
@@ -299,6 +310,12 @@ describe('pinned upstream Mermaid reads @{} metadata as we do', () => {
       try { renderMermaidSVG(source) } catch { rendered = false }
       expect({ source, upstreamLabel, rendererLabel, rendered })
         .toEqual({ source, upstreamLabel: label, rendererLabel: label, rendered: label !== undefined })
+      if (label !== undefined) {
+        const agent = parseRegisteredMermaid(source)
+        if (!agent.ok) throw new Error(JSON.stringify(agent.error))
+        const reparsed = await upstream.parse(serializeMermaid(agent.value))
+        expect(reparsed.ok && reparsed.sequence?.actors.find(actor => actor.name === 'B')?.description).toBe(label)
+      }
     }
   })
 
@@ -325,6 +342,8 @@ describe('pinned upstream Mermaid reads @{} metadata as we do', () => {
       { yaml: 'just text', frontmatter: {} },
       { yaml: '~', frontmatter: {} },
       { yaml: 'title: Sales', frontmatter: { title: 'Sales' } },
+      { yaml: 'title: 1_0', frontmatter: { title: '1_0' } },
+      { yaml: 'title: 1e999', frontmatter: { title: '1e999' } },
     ]
     for (const { yaml, frontmatter } of cases) {
       const source = `---\n${yaml}\n---\nflowchart TD\n  A --> B`

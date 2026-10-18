@@ -74,7 +74,7 @@ describe('Class escaped relationship IDs', () => {
     })).toEqual(upstreamRelations)
   })
 
-  test('pinned Mermaid 11.16 retains space-bearing endpoint identity and arrow meaning', async () => {
+  test('pinned Mermaid retains space-bearing endpoint identity and arrow meaning', async () => {
     const relations: Array<Record<string, unknown>> = await upstream.projectAll(cases.map(item => `classDiagram\n${item.statement}`), diagram => {
       const relation = diagram.db.getRelations()[0]
       return { classes: [...diagram.db.getClasses().keys()], from: relation?.id1, to: relation?.id2,

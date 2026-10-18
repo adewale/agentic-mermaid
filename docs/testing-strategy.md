@@ -156,20 +156,22 @@ sources we did not write:
 - **upstream-suite bench** (`eval/mermaid-upstream-suite-bench/`, 736
   executable cases / 746 imported blocks from pinned upstream commits) — with
   a **ratchet** (`ratchet.json`) that fails the build if coverage drops or
-  per-family local-gap budgets grow. Mindmap/GitGraph use their declared
-  `f3dea583…` compatibility revision and account for all 26/69 official spec
-  blocks in a dedicated executable oracle.
+  per-family local-gap budgets grow. These imported corpora retain the source
+  revisions recorded in their manifests. Mindmap/GitGraph retain their
+  `f3dea583…` source revision and account for all 26/69 official spec blocks in
+  a dedicated executable oracle; that historical corpus pin is separate from
+  the current writing/reference target.
 - **Official-fence corpus** (`official-fence-corpus.test.ts`) — every one of
-  the 481 official syntax fences on the 31 pinned upstream pages named by the
-  upstream policy. The 331 fences of rendered families must parse to a
+  the Mermaid syntax fences on the pinned upstream pages named by the
+  upstream policy. The fences of rendered families must parse to a
   structured body, verify, render, and keep their structural counts through
-  serialize → re-parse; the 150 fences of unrendered families must be
+  serialize → re-parse; the fences of unrendered families must be
   diagnosed `UNSUPPORTED_FAMILY` with their bytes preserved. Deviations live in
   one small expectations table (`id [ outcomes ] # reason`); a new deviation
   and an unexpected pass both fail, so the table cannot go stale.
 - **Grammar-based differentials** (`property-upstream-flowchart.test.ts`,
   `property-upstream-sequence.test.ts`) — recursive `fc.letrec` grammars
-  generate sources that pinned upstream Mermaid 11.16 must accept; ours must
+  generate sources that pinned upstream Mermaid 12.2.0 must accept; ours must
   accept them too, agree on node/edge/participant counts, shapes, labels, and
   arrows, and round-trip. A long-lived upstream worker
   (`helpers/upstream-mermaid.ts`) lets async properties shrink. Known

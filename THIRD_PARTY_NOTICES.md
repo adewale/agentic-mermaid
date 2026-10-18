@@ -17,6 +17,16 @@ at runtime and does not bundle the full npm package. The published
 `@iconify-json/mdi@1.2.3` tarball contains no upstream `NOTICE` file to
 reproduce.
 
+## Mermaid syntax references
+
+The Mermaid syntax references under
+`skills/agentic-mermaid-diagram-workflow/references/upstream/` are copied from
+Mermaid 12.2.0, source commit `1fb7869866dd619168d840291c9c54b4f129758b`.
+
+- Source: <https://github.com/mermaid-js/mermaid/tree/1fb7869866dd619168d840291c9c54b4f129758b/docs/syntax>
+- Copyright: © 2014–2022 Knut Sveidqvist
+- License: **MIT**, reproduced in `LICENSES/Mermaid-MIT.txt` and included in the npm package.
+
 ## Mermaid pinned test specifications
 
 The revision-bound oracle vendors two upstream Mermaid test specifications at

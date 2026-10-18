@@ -49,7 +49,9 @@ const descriptorData = Object.freeze({
       "noteFont",
       "messageFont",
       "useMaxWidth",
-      "useWidth"
+      "useWidth",
+      "look",
+      "theme"
     ],
     "noopKeys": [
       "actorFont",
@@ -64,6 +66,7 @@ const descriptorData = Object.freeze({
       "hideUnusedParticipants",
       "labelBoxHeight",
       "labelBoxWidth",
+      "look",
       "messageAlign",
       "messageFont",
       "messageFontFamily",
@@ -76,6 +79,7 @@ const descriptorData = Object.freeze({
       "noteFontSize",
       "noteFontWeight",
       "rightAngles",
+      "theme",
       "useMaxWidth",
       "useWidth",
       "wrap",
