@@ -1,9 +1,10 @@
 import { describe, expect, test } from 'bun:test'
 import { readFileSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
+import { decodeXML } from 'entities'
 import {
   asC4, describeMermaid, describeMermaidFacts, layoutMermaid, mutate, parseRegisteredMermaid, renderMermaidASCII,
-  renderMermaidPNGWithReceipt, renderMermaidSVG, renderMermaidWithActions,
+  renderMermaidASCIIWithReceipt, renderMermaidPNGWithReceipt, renderMermaidSVG, renderMermaidWithActions,
   serializeMermaid, verifyMermaid,
 } from '../agent/index.ts'
 import { executeInSandbox } from '../mcp/sandbox.ts'
@@ -133,6 +134,39 @@ BiRel(client,store,"Synchronizes")`)
     expect(Array.from(artifact.png.subarray(0, 8))).toEqual([137, 80, 78, 71, 13, 10, 26, 10])
     expect(artifact.receipt.output).toBe('png')
     expect(new DataView(artifact.png.buffer, artifact.png.byteOffset).getUint32(16)).toBe(640)
+  })
+
+  test.each([
+    { authored: '<b>MiXeD</b>', expected: '<b>MiXeD</b>', edit: false },
+    { authored: '#lt;i#gt;MiXeD#lt;/i#gt; #35;quot;', expected: '<i>MiXeD</i> #quot;', edit: false },
+    { authored: 'Before', expected: 'He said "Hi"; #quot; <b>MiXeD</b>', edit: true },
+  ])('literal relationship receipts survive casing and reload: $expected', ({ authored, expected, edit }) => {
+    const source = `C4Context\nPerson(a,"A")\nSystem(b,"B")\nRel(a,b,"${authored}")`
+    const parsed = parseRegisteredMermaid(source)
+    if (!parsed.ok) throw new Error(JSON.stringify(parsed.error))
+    const c4 = asC4(parsed.value)!
+    const result = edit
+      ? mutate(c4, { kind: 'update_relationship', id: c4.body.relationships[0]!.id, changes: { label: expected } })
+      : parsed
+    if (!result.ok) throw new Error(JSON.stringify(result.error))
+    const exported = serializeMermaid(result.value), reloaded = parseRegisteredMermaid(exported)
+    if (!reloaded.ok) throw new Error(JSON.stringify(reloaded.error))
+    expect(asC4(reloaded.value)!.body.relationships[0]!.label).toBe(expected)
+    expect(describeMermaidFacts(reloaded.value)).toEqual(describeMermaidFacts(result.value))
+    // Exercise the typed body as well as source dispatch. Pixel casing must
+    // never replace the untransformed text claimed by terminal receipts.
+    for (const input of [result.value, reloaded.value, edit ? exported : source]) {
+      for (const style of [undefined, { roles: { edge: { textTransform: 'uppercase' as const, letterSpacing: 2 } } }]) {
+        const svg = renderMermaidSVG(input, { style })
+        const ink = [...svg.matchAll(/<text\b[^>]*>([\s\S]*?)<\/text>/g)].map(match => decodeXML(match[1]!.replace(/<[^>]+>/g, '')))
+        expect(ink).toContain(style ? expected.toUpperCase() : expected)
+        for (const useAscii of [false, true]) {
+          const terminal = renderMermaidASCIIWithReceipt(input, { colorMode: 'none', useAscii, style })
+          expect(terminal.text).toContain(expected)
+          expect(terminal.terminalStyle.connectorProjection.connectors.flatMap(connector => connector.labels.map(label => label.text))).toEqual([expected])
+        }
+      }
+    }
   })
 
   test('element, boundary and interaction actions point to their rendered owners', () => {
