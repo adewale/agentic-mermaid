@@ -3,6 +3,7 @@ import { ARROW_HEAD } from '../styles.ts'
 import type { C4Body, C4Diagnostic } from './types.ts'
 
 export interface C4LabelRect { x: number; y: number; width: number; height: number }
+interface C4MarkerRect extends C4LabelRect { endpoint: string; polygon: Point[]; strokePadding: number }
 /** The exact opaque halo emitted by the C4 Scene adapter. */
 export function c4LabelRect(edge: PositionedEdge): C4LabelRect | undefined {
   if (!edge.label || !edge.labelPosition || !edge.labelBlock) return undefined
@@ -25,10 +26,12 @@ function segmentHits(a: Point, b: Point, box: C4LabelRect): boolean {
   }
   return lo < hi
 }
-function markers(edge: PositionedEdge, lineWidth: number): Array<C4LabelRect & { endpoint: string }> {
-  const result: Array<C4LabelRect & { endpoint: string }> = []
+export function c4MarkerRects(edge: PositionedEdge, lineWidth: number): C4MarkerRect[] {
+  const result: C4MarkerRect[] = []
   const scale = edge.inlineStyle?.['stroke-width'] ? 1 : lineWidth * (edge.style === 'thick' ? 2 : 1)
-  const length = ARROW_HEAD.width * scale + 1, half = (edge.inlineStyle?.['stroke-width'] ? ARROW_HEAD.width : ARROW_HEAD.height) * scale / 2 + 1
+  // Shared arrow resources use strokeWidth units unless an inline width
+  // selects their fixed 8x8 variant. Their round 0.75px outline scales too.
+  const length = ARROW_HEAD.width * scale, half = (edge.inlineStyle?.['stroke-width'] ? ARROW_HEAD.width : ARROW_HEAD.height) * scale / 2, strokePadding = .375 * scale
   for (const start of [true, false]) {
     if (!(start ? edge.hasArrowStart : edge.hasArrowEnd)) continue
     const tip = edge.points.at(start ? 0 : -1)
@@ -37,9 +40,23 @@ function markers(edge: PositionedEdge, lineWidth: number): Array<C4LabelRect & {
     const magnitude = Math.hypot(tip.x - before.x, tip.y - before.y), ux = (tip.x - before.x) / magnitude, uy = (tip.y - before.y) / magnitude
     const points = [tip, { x: tip.x - ux * length - uy * half, y: tip.y - uy * length + ux * half }, { x: tip.x - ux * length + uy * half, y: tip.y - uy * length - ux * half }]
     const x = Math.min(...points.map(point => point.x)), y = Math.min(...points.map(point => point.y))
-    result.push({ x, y, width: Math.max(...points.map(point => point.x)) - x, height: Math.max(...points.map(point => point.y)) - y, endpoint: start ? edge.source : edge.target })
+    result.push({ ...inflate({ x, y, width: Math.max(...points.map(point => point.x)) - x, height: Math.max(...points.map(point => point.y)) - y }, strokePadding), endpoint: start ? edge.source : edge.target, polygon: points, strokePadding })
   }
   return result
+}
+function markerOverlap(a: C4MarkerRect, b: C4MarkerRect): boolean {
+  if (overlap(a, b) <= .01) return false
+  // Convex arrowheads can have intersecting bounding boxes while their ink
+  // remains separate. Check their actual triangle projections, including the
+  // shared round outline, before reporting one marker hiding another.
+  for (const polygon of [a.polygon, b.polygon]) for (const [index, point] of polygon.entries()) {
+    const next = polygon[(index + 1) % polygon.length]!, nx = -(next.y - point.y), ny = next.x - point.x, magnitude = Math.hypot(nx, ny)
+    if (magnitude < .001) continue
+    const project = (marker: C4MarkerRect) => marker.polygon.map(vertex => (vertex.x * nx + vertex.y * ny) / magnitude)
+    const left = project(a), right = project(b)
+    if (Math.max(...left) + a.strokePadding <= Math.min(...right) - b.strokePadding + .01 || Math.max(...right) + b.strokePadding <= Math.min(...left) - a.strokePadding + .01) return false
+  }
+  return true
 }
 function blockers(nodes: PositionedNode[], groups: PositionedGroup[]): C4LabelRect[] {
   return [...nodes, ...frames(groups).flatMap(group => [
@@ -55,7 +72,7 @@ function blockers(nodes: PositionedNode[], groups: PositionedGroup[]): C4LabelRe
  * certificates remain owned by the existing route adapter. Candidate count is
  * bounded by route segments; no viewport-dependent search or wall-clock exit. */
 export function placeC4PixelLabels(positioned: { nodes: PositionedNode[]; groups: PositionedGroup[]; edges: PositionedEdge[] }, lineWidth: number): void {
-  const { edges } = positioned, obstacles = blockers(positioned.nodes, positioned.groups), heads = edges.flatMap(edge => markers(edge, lineWidth)), accepted: C4LabelRect[] = []
+  const { edges } = positioned, obstacles = blockers(positioned.nodes, positioned.groups), heads = edges.flatMap(edge => c4MarkerRects(edge, lineWidth)), accepted: C4LabelRect[] = []
   const routes = edges.flatMap(edge => edge.points.slice(1).map((end, index) => ({ edge, start: edge.points[index]!, end })))
   const ordered = edges.map((edge, index) => ({ edge, index, rect: c4LabelRect(edge) })).filter(item => item.rect).sort((a, b) => b.rect!.width * b.rect!.height - a.rect!.width * a.rect!.height || a.index - b.index)
   for (const { edge, rect } of ordered) {
@@ -98,16 +115,17 @@ export function placeC4PixelLabels(positioned: { nodes: PositionedNode[]; groups
 /** Diagnose final geometry after authored label offsets. These are limitations
  * of this rendered artifact, never syntax errors or a claim that text was lost
  * from the authored model. */
-export function c4PixelVisibilityDiagnostics(body: C4Body, positioned: { nodes: PositionedNode[]; groups: PositionedGroup[]; edges: PositionedEdge[] }, lineWidth: number): C4Diagnostic[] {
+export function c4PixelVisibilityDiagnostics(body: C4Body, positioned: { nodes: PositionedNode[]; groups: PositionedGroup[]; edges: PositionedEdge[] }, lineWidth: number, canvas?: { width: number; height: number }): C4Diagnostic[] {
   const diagnostics: C4Diagnostic[] = [], { edges, nodes, groups } = positioned, obstacles = blockers(nodes, groups), labels = edges.map(edge => ({ edge, box: c4LabelRect(edge) })).filter(item => item.box)
   const statementId = (edge: PositionedEdge) => body.relationships.find(item => item.id === edge.id)?.statementId
   for (const { edge, box } of labels) {
     if (obstacles.some(obstacle => overlap(box!, obstacle) > .01) || labels.some(other => other.edge !== edge && overlap(box!, other.box!) > .01) || edges.some(other => other !== edge && other.points.slice(1).some((point, index) => segmentHits(other.points[index]!, point, box!)))) diagnostics.push({ code: 'C4_LABEL_COLLISION', severity: 'warning', statementId: statementId(edge), message: `Relationship ${edge.id} has a label halo overlapping another label, card, boundary header/frame or relationship route; all authored text is retained.` })
   }
   const headers = frames(groups).map(group => ({ ...group, height: group.headerHeight ?? 0 }))
+  const allHeads = edges.flatMap(edge => c4MarkerRects(edge, lineWidth).map(head => ({ edge, head })))
   for (const edge of edges) {
-    const heads = markers(edge, lineWidth)
-    if ((edge.hasArrowEnd || edge.hasArrowStart) && !heads.length || heads.some(head => labels.some(label => overlap(head, label.box!) > .01) || [...nodes, ...headers].some(node => node.id !== head.endpoint && overlap(head, node) > .01))) diagnostics.push({ code: 'C4_ARROW_OCCLUDED', severity: 'warning', statementId: statementId(edge), message: `Relationship ${edge.id} has an arrowhead obscured by a label, card or boundary header, or lacks a nonzero terminal segment.` })
+    const heads = allHeads.filter(item => item.edge === edge).map(item => item.head)
+    if ((edge.hasArrowEnd || edge.hasArrowStart) && !heads.length || heads.some(head => labels.some(label => overlap(head, label.box!) > .01) || [...nodes, ...headers].some(node => node.id !== head.endpoint && overlap(head, node) > .01) || allHeads.some(other => other.head !== head && markerOverlap(head, other.head)) || canvas && (head.x < -.01 || head.y < -.01 || head.x + head.width > canvas.width + .01 || head.y + head.height > canvas.height + .01))) diagnostics.push({ code: 'C4_ARROW_OCCLUDED', severity: 'warning', statementId: statementId(edge), message: `Relationship ${edge.id} has an arrowhead overlapping a label, card, boundary header or another arrowhead, exceeds the final canvas, or lacks a nonzero terminal segment.` })
   }
   return diagnostics
 }

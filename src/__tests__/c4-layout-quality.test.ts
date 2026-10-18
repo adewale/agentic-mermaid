@@ -13,11 +13,59 @@ function painted(svg: string) {
     routes: tags.filter(tag => tag.name === 'polyline' && tag.attrs['data-c4-macro']).map(tag => ({ id: tag.attrs['data-id']!, points: tag.attrs.points!.split(' ').map(pair => pair.split(',').map(Number) as [number, number]), start: tag.attrs['data-arrow-start'] === 'true', end: tag.attrs['data-arrow-end'] === 'true' })),
   }
 }
+function emittedMarkerBoxes(svg: string): Box[] {
+  const tags = scanSvgStartTags(svg).map(tag => ({ name: tag.name, attrs: Object.fromEntries(tag.attributes.map(attr => [attr.name, attr.value])) }))
+  const resources = new Map(tags.flatMap((tag, index) => tag.name === 'marker' && tags[index + 1]?.name === 'polygon' ? [[tag.attrs.id!, { attrs: tag.attrs, polygon: tags[index + 1]!.attrs }] as const] : []))
+  const boxes: Box[] = []
+  for (const tag of tags.filter(tag => tag.name === 'polyline' && tag.attrs['data-c4-macro'])) {
+    const points = tag.attrs.points!.split(' ').map(pair => pair.split(',').map(Number) as [number, number])
+    for (const end of ['start', 'end'] as const) {
+      const href = tag.attrs[`marker-${end}`]
+      if (!href) continue
+      const marker = resources.get(href.slice(5, -1))!, tip = points.at(end === 'start' ? 0 : -1)!
+      const before = (end === 'start' ? points.slice(1) : points.slice(0, -1).reverse()).find(point => point[0] !== tip[0] || point[1] !== tip[1])!
+      const angle = end === 'start' ? Math.atan2(before[1] - tip[1], before[0] - tip[0]) : Math.atan2(tip[1] - before[1], tip[0] - before[0])
+      const scale = marker.attrs.markerUnits === 'userSpaceOnUse' ? 1 : Number(tag.attrs['stroke-width'] ?? 1)
+      const values = marker.polygon.points!.replaceAll(',', ' ').trim().split(/\s+/).map(Number), transformed: Array<[number, number]> = []
+      for (let index = 0; index < values.length; index += 2) {
+        const x = (values[index]! - Number(marker.attrs.refX ?? 0)) * scale, y = (values[index + 1]! - Number(marker.attrs.refY ?? 0)) * scale
+        transformed.push([tip[0] + x * Math.cos(angle) - y * Math.sin(angle), tip[1] + x * Math.sin(angle) + y * Math.cos(angle)])
+      }
+      const pad = Number(marker.polygon['stroke-width'] ?? 0) * scale / 2, xs = transformed.map(point => point[0]), ys = transformed.map(point => point[1])
+      const x = Math.min(...xs) - pad, y = Math.min(...ys) - pad
+      boxes.push({ x, y, width: Math.max(...xs) + pad - x, height: Math.max(...ys) + pad - y })
+    }
+  }
+  return boxes
+}
 const ANCESTOR = 'C4Deployment\nNode(parent,"Parent","Cloud") {\nContainer(child,"Child","JS")\n}\nRel(child,parent,"Reports up")'
 const PARALLEL = 'C4Deployment\nNode(parent,"Parent","Cloud") {\nContainer(child,"Child","JS")\n}\nRel(parent,child,"Deploys")\nRel(child,parent,"Reports")\nBiRel(parent,child,"Coordinates")\nRel(parent,parent,"Maintains")'
 const DENSE = `C4Container\nSystem_Boundary(app,"Application") {\n${Array.from({ length: 7 }, (_, i) => `Container(n${i},"Service ${i}","HTTP")`).join('\n')}\n}\n${Array.from({ length: 7 }, (_, from) => Array.from({ length: 6 - from }, (_, j) => `Rel(n${from},n${from + j + 1},"Interaction ${from} to ${from + j + 1}","HTTPS")`).join('\n')).join('\n')}`
 
 describe('C4 measured pixel layout quality', () => {
+  test('scaled SVG arrowheads, including their painted stroke, remain inside the final viewport', () => {
+    for (const source of ['C4Context\nSystem(a,"A")\nRel(a,a,"Self")', PARALLEL]) for (const lineWidth of [12, 8]) {
+      const svg = renderMermaidSVG(source, { style: { roles: { edge: { lineWidth } } } })
+      const viewBox = scanSvgStartTags(svg).find(tag => tag.name === 'svg')!.attributes.find(attr => attr.name === 'viewBox')!.value.split(' ').map(Number)
+      const markers = emittedMarkerBoxes(svg)
+      expect(markers.length).toBeGreaterThan(0)
+      for (const marker of markers) {
+        expect(marker.x).toBeGreaterThanOrEqual(viewBox[0]!)
+        expect(marker.y).toBeGreaterThanOrEqual(viewBox[1]!)
+        expect(marker.x + marker.width).toBeLessThanOrEqual(viewBox[0]! + viewBox[2]!)
+        expect(marker.y + marker.height).toBeLessThanOrEqual(viewBox[1]! + viewBox[3]!)
+      }
+    }
+  })
+  test('overlapping scaled self-interaction markers are reported as visibility errors', () => {
+    const source = 'C4Dynamic\nContainer(a,"API","HTTP")\n' + Array.from({ length: 4 }, (_, index) => `Rel(a,a,"Retry ${index}","Timer")`).join('\n')
+    const options = { style: { roles: { edge: { lineWidth: 12 } } } }, svg = renderMermaidSVG(source, options), boxes = emittedMarkerBoxes(svg)
+    expect(boxes).toHaveLength(4)
+    expect(boxes.some((box, index) => boxes.slice(0, index).some(other => overlaps(box, other)))).toBe(true)
+    const verification = verifyMermaid(source, { renderOptions: options })
+    expect(verification.ok).toBe(false)
+    for (const target of ['c4-rel-1', 'c4-rel-2', 'c4-rel-3', 'c4-rel-4']) expect(verification.warnings).toContainEqual(expect.objectContaining({ code: 'CONTENT_OCCLUDED', target, feature: 'marker' }))
+  })
   for (const [name, source, count] of [['ancestor', ANCESTOR, 1], ['parallel ancestor and self', PARALLEL, 4]] as const) test(`${name} retains visible arrowheads and unobscured relationship labels`, () => {
     const output = painted(renderMermaidSVG(source))
     expect(output.routes).toHaveLength(count)

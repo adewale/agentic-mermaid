@@ -11,7 +11,7 @@ import { routeC4Pixels } from './routing.ts'
 import { c4LegendEntries, type C4LegendEntry } from './legend.ts'
 import type { PixelTextBlock } from '../shared/prepared-text.ts'
 import { planC4Identity } from './identity.ts'
-import { c4LabelRect, placeC4PixelLabels, c4PixelVisibilityDiagnostics } from './pixel-labels.ts'
+import { c4LabelRect, c4MarkerRects, placeC4PixelLabels, c4PixelVisibilityDiagnostics } from './pixel-labels.ts'
 
 export interface PositionedC4Diagram extends PositionedGraph {
   body: C4Body; config: C4Config; diagnostics: C4Diagnostic[]
@@ -90,15 +90,16 @@ export function layoutC4Diagram(body: C4Body, options: RenderOptions & { diagram
   placeC4PixelLabels({ nodes, groups: roots, edges }, style.lineWidth)
   for (const [index, edge] of edges.entries()) if (edge.labelPosition) { const authored = body.relationships[index]!.style; const dx = Number(authored.offsetX ?? 0), dy = Number(authored.offsetY ?? 0); if (Number.isFinite(dx)) edge.labelPosition.x += dx; if (Number.isFinite(dy)) edge.labelPosition.y += dy }
   const labelBoxes: PositionedNode[] = edges.flatMap(edge => { const box = c4LabelRect(edge); return box ? [{ ...box, id: edge.id!, label: '', shape: 'rectangle' }] : [] })
-  translateGeometryToNonNegativeOrigin([...nodes, ...labelBoxes], edges, roots, Math.max(config.marginX, config.marginY) + (title?.height ?? 0))
-  const allBoxes = [...nodes, ...groups.values(), ...labelBoxes]
+  const markerBoxes: PositionedNode[] = edges.flatMap(edge => c4MarkerRects(edge, style.lineWidth).map(box => ({ ...box, id: edge.id!, label: '', shape: 'rectangle' as const })))
+  translateGeometryToNonNegativeOrigin([...nodes, ...labelBoxes, ...markerBoxes], edges, roots, Math.max(config.marginX, config.marginY) + (title?.height ?? 0))
+  const allBoxes = [...nodes, ...groups.values(), ...labelBoxes, ...markerBoxes]
   let width = Math.max(placement.width, ...allBoxes.map(box => box.x + box.width + config.marginX), ...edges.flatMap(edge => [...edge.points.map(p => p.x + config.marginX), (edge.labelPosition?.x ?? 0) + (edge.labelBlock?.width ?? 0) / 2 + config.marginX]), title ? title.width + config.marginX * 2 : 0)
   let height = Math.max(placement.height, ...allBoxes.map(box => box.y + box.height + config.marginY), ...edges.flatMap(edge => [...edge.points.map(p => p.y + config.marginY), (edge.labelPosition?.y ?? 0) + (edge.labelBlock?.height ?? 0) / 2 + config.marginY]))
   const entries = c4LegendEntries(body, config).map(entry => ({ ...entry, block: preparePixelText(entry.label, { display: 'literal', fontSize: style.edgeLabelFontSize, fontWeight: style.edgeLabelFontWeight, letterSpacing: style.edgeLetterSpacing, transform: style.edgeTextTransform, ...(config.maxWidth === undefined ? {} : { maxWidth: Math.max(24, config.maxWidth - config.marginX * 2 - 64) }) }) }))
   const legendHeading = preparePixelText('Legend', { display: 'literal', fontSize: styleFace?.text?.fontSize ?? 13, fontWeight: styleFace?.text?.fontWeight ?? 600, letterSpacing: styleFace?.text?.letterSpacing ?? 0, transform: styleFace?.text?.textTransform, ...(config.maxWidth === undefined ? {} : { maxWidth: Math.max(24, config.maxWidth - config.marginX * 2 - 24) }) })
   const legend = entries.length ? { x: config.marginX, y: height + 12, width: Math.max(legendHeading.width + 24, ...entries.map(entry => entry.block.width + 64)), height: legendHeading.height + 20 + entries.reduce((sum, entry) => sum + entry.block.height + 10, 0), heading: legendHeading, entries } : undefined
   if (legend) { width = Math.max(width, legend.x + legend.width + config.marginX); height = legend.y + legend.height + config.marginY }
-  const diagnostics = [...placement.diagnostics, ...c4PixelVisibilityDiagnostics(body, { nodes, groups: roots, edges }, style.lineWidth)]
+  const diagnostics = [...placement.diagnostics, ...c4PixelVisibilityDiagnostics(body, { nodes, groups: roots, edges }, style.lineWidth, { width, height })]
   if (config.maxWidth !== undefined && width > config.maxWidth + .01) diagnostics.push({ code: 'C4_WIDTH_EXCEEDED', severity: 'warning', message: `The requested C4 width ${config.maxWidth}px cannot contain the ${Math.ceil(width)}px artifact without shrinking or clipping content; minimum card widths, nesting, explicit direction constraints and authored offsets retain precedence.` })
   return { width, height, ...(legend ? { legend } : {}), nodes, groups: roots, edges, ...(title ? { title: positionDiagramTitle(title, width, config.marginY) } : {}), body, config, diagnostics, identities: planC4Identity(body) }
 }
