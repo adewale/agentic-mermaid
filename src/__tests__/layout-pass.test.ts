@@ -3,12 +3,18 @@
 import { describe, expect, test } from 'bun:test'
 import { complicatedFixtures, simpleFixtures } from '../../eval/visual-rubric/fixtures.ts'
 import type { LayoutPass, PassContextBase } from '../layout/pass.ts'
-import { assertTopologicalOrder, LayoutMetricBudgetError, LayoutPassContractError, runPipeline } from '../layout/pass.ts'
+import * as passContract from '../layout/pass.ts'
+const { assertTopologicalOrder, LayoutMetricBudgetError, LayoutPassContractError, runPipeline } = passContract
 import { LAYOUT_PIPELINE, layoutGraphSync } from '../layout-engine.ts'
 import { parseMermaid } from '../parser.ts'
-import { assessLayout, countParallelRouteOverlaps, measureRubricMetrics } from '../layout-rubric.ts'
+import * as rubric from '../layout-rubric.ts'
+const { assessLayout, countParallelRouteOverlaps, measureRubricMetrics, onShapeOutline } = rubric
 import { resolveRenderStyle } from '../styles.ts'
-import type { PositionedGraph } from '../types.ts'
+import { labelRect } from '../route-contracts.ts'
+import { applySymmetricParallelEdgeLanes } from '../layout/passes/index.ts'
+import { graphEdgeTextBlock } from '../graph-text.ts'
+import { createTextMeasurementExecution, withTextMeasurementExecution } from '../text-measurement-profile.ts'
+import type { PositionedEdge, PositionedGraph, PositionedNode } from '../types.ts'
 
 describe('LAYOUT_PIPELINE manifest', () => {
   test('array order is a valid topological order of `after`', () => {
@@ -124,6 +130,62 @@ describe('declared pass budgets on actual native geometry', () => {
     const pair = positioned.edges.filter(edge => edge.source === 'N2' && edge.target === 'N0')
     expect(pair[0]!.points).not.toEqual(pair[1]!.points)
     expect(assessLayout(graph, positioned).metrics.edgeCrossings).toBe(0)
+  })
+
+  test('labeled parallel lanes retain a crossing-free feedback route and both labels', () => {
+    const graph = parseMermaid('flowchart LR\nN2-.-|note 0|N0\nN0-.-N1\nN2-.-|note 5|N0\nN1-.-N2')
+    const positioned = layoutGraphSync(graph)
+    expect(positioned.certification?.status).toBe('passed')
+    expect(positioned.edges).toHaveLength(4)
+    const pair = positioned.edges.filter(edge => edge.source === 'N2' && edge.target === 'N0')
+    expect(pair.map(edge => edge.label)).toEqual(['note 0', 'note 5'])
+    expect(pair[0]!.points).not.toEqual(pair[1]!.points)
+    for (const edge of pair) {
+      expect(edge.labelPosition).toBeDefined()
+      expect(edge.labelBlock).toBeDefined()
+    }
+    for (const edge of positioned.edges) {
+      expect(onShapeOutline(positioned.nodes.find(node => node.id === edge.source)!, edge.points[0]!)).toBe(true)
+      expect(onShapeOutline(positioned.nodes.find(node => node.id === edge.target)!, edge.points.at(-1)!)).toBe(true)
+    }
+    const { metrics } = assessLayout(graph, positioned)
+    expect(metrics.edgeCrossings).toBe(0)
+    expect(metrics.labelOffRoute).toBe(0)
+    const boxes = pair.map(edge => labelRect(edge, resolveRenderStyle())!)
+    for (const box of boxes) {
+      for (const node of positioned.nodes) {
+        const overlapWidth = Math.min(box.x + box.w, node.x + node.width) - Math.max(box.x, node.x)
+        const overlapHeight = Math.min(box.y + box.h, node.y + node.height) - Math.max(box.y, node.y)
+        expect(overlapWidth > 0 && overlapHeight > 0).toBe(false)
+      }
+    }
+    const [first, second] = boxes
+    expect(Math.min(first!.x + first!.w, second!.x + second!.w) <= Math.max(first!.x, second!.x)
+      || Math.min(first!.y + first!.h, second!.y + second!.h) <= Math.max(first!.y, second!.y)).toBe(true)
+    expect(countParallelRouteOverlaps(pair)).toBe(0)
+  })
+
+  test.each([true, false])('parallel label lanes reserve transformed, tracked text width (retained: %s)', retained => {
+    const graph = parseMermaid('flowchart TB\nA-->|straße|B\nA-->|straße|B')
+    const style = resolveRenderStyle({ styleFace: { edge: { textTransform: 'uppercase', letterSpacing: 6 } } })
+    const block = retained
+      ? withTextMeasurementExecution(createTextMeasurementExecution({
+        id: 'test:retained-lane-labels', version: '1.0.0', measure: ({ text }) => text.length * 20,
+      }, 'Inter'), () => graphEdgeTextBlock('straße', style))
+      : graphEdgeTextBlock('straße', style)
+    const nodes: PositionedNode[] = [
+      { id: 'A', label: 'A', shape: 'rectangle', x: 200, y: 0, width: 100, height: 40 },
+      { id: 'B', label: 'B', shape: 'rectangle', x: 200, y: 400, width: 100, height: 40 },
+    ]
+    const edges: PositionedEdge[] = graph.edges.map((edge, edgeIndex) => ({
+      ...edge, edgeIndex, labelBlock: retained ? block : undefined,
+      points: [{ x: 225 + edgeIndex * 50, y: 40 }, { x: 225 + edgeIndex * 50, y: 400 }],
+    }))
+    applySymmetricParallelEdgeLanes(nodes, edges, [], graph, new Set(), style)
+    expect(block.text).toBe('STRASSE')
+    expect(edges[0]!.labelPosition!.x + (block.width + 16) / 2).toBeLessThanOrEqual(200 - 18)
+    expect(edges[1]!.labelPosition!.x - (block.width + 16) / 2).toBeGreaterThanOrEqual(300 + 18)
+    if (retained) for (const edge of edges) expect(edge.labelBlock).toBe(block)
   })
 
   test('one crossing may resolve one actual collapsed duplicate route, without losing either authored edge', () => {

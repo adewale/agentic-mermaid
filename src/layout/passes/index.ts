@@ -1,4 +1,4 @@
-import { resolveLabelContent, type DisplayTextInput } from '../../shared/display-text.ts'
+import { resolveLabelContent } from '../../shared/display-text.ts'
 // Post-ELK geometry passes, relocated from layout-engine.ts
 // (docs/design/system/layout-pass-pipeline.md §4 step 2).
 //
@@ -18,7 +18,7 @@ import type {
 } from '../../types.ts'
 import { ARROW_HEAD, FLOWCHART_DOTTED_DASH } from '../../styles.ts'
 import type { ResolvedRenderStyle } from '../../styles.ts'
-import { measureMultilineText } from '../../text-metrics.ts'
+import { graphEdgeTextBlock } from '../../graph-text.ts'
 import { clipEdgeToShape } from '../../shape-clipping.ts'
 import { countEdgeCrossings, countParallelRouteOverlaps, onShapeOutline, portEndpointRate, segmentThroughShape } from '../../layout-rubric.ts'
 import { classifyRoutes, diamondFacetPorts, labelRect, laneContextFor, PORT_EXACT, recertifyReroutedEdge, shapePorts, simplifyPolyline, straightLaneFor } from '../../route-contracts.ts'
@@ -1378,8 +1378,8 @@ export function collapseTinyBundledHitches(nodes: PositionedNode[], edges: Posit
     }
   }
 }
-function labelBoxAt(label: DisplayTextInput, center: Point, style: LabelMetricsStyle): { x: number; y: number; width: number; height: number } {
-  const metrics = measureMultilineText(label, style.edgeLabelFontSize, style.edgeLabelFontWeight)
+function labelBoxAt(edge: PositionedEdge, center: Point, style: LabelMetricsStyle): { x: number; y: number; width: number; height: number } {
+  const metrics = edge.labelBlock ?? graphEdgeTextBlock(resolveLabelContent(edge.label!, edge.labelContent), style)
   return {
     x: center.x - (metrics.width + 16) / 2,
     y: center.y - (metrics.height + 16) / 2,
@@ -1497,7 +1497,7 @@ function terminalLabelRunLength(
 ): number {
   if (!edge.label) return 0
   const f = layoutFlow(direction)
-  const box = labelBoxAt(resolveLabelContent(edge.label, edge.labelContent), { x: 0, y: 0 }, style)
+  const box = labelBoxAt(edge, { x: 0, y: 0 }, style)
   const labelExtent = f.isHorizontal ? box.width : box.height
   const visibleGap = Math.max(
     labelPortStubGap(style),
@@ -1512,7 +1512,7 @@ function terminalLabelRunLength(
 }
 function terminalLabelCorridorLength(edge: PositionedEdge, direction: Direction, style: LabelMetricsStyle): number {
   if (!edge.label) return 0
-  const box = labelBoxAt(resolveLabelContent(edge.label, edge.labelContent), { x: 0, y: 0 }, style)
+  const box = labelBoxAt(edge, { x: 0, y: 0 }, style)
   const labelExtent = layoutFlow(direction).isHorizontal ? box.width : box.height
   const visibleGap = Math.max(
     labelPortStubGap(style),
@@ -1535,14 +1535,14 @@ function bundledLabelCandidates(edge: PositionedEdge, points: Point[], nodes: Po
     if (length === 0) continue
     const flowAligned = segmentAlignedWithFlow(a, b, direction)
     const terminalSegment = (edge.hasArrowStart && i === 1) || (edge.hasArrowEnd && i === points.length - 1)
-    const baseBox = labelBoxAt(resolveLabelContent(edge.label, edge.labelContent), { x: 0, y: 0 }, style)
+    const baseBox = labelBoxAt(edge, { x: 0, y: 0 }, style)
     const gaps = labelEndpointGaps(edge, points, i, style)
     const segmentSlots = [...slots, ...feasibleLabelSlots(baseBox, a, b, gaps)]
       .filter((slot, index, all) => slot >= 0 && slot <= 1 && all.findIndex(other => Math.abs(other - slot) < 0.001) === index)
     for (let order = 0; order < segmentSlots.length; order++) {
       const t = segmentSlots[order]!
       const point = { x: a.x + (b.x - a.x) * t, y: a.y + (b.y - a.y) * t }
-      const box = labelBoxAt(resolveLabelContent(edge.label, edge.labelContent), point, style)
+      const box = labelBoxAt(edge, point, style)
       if (nodes.some(node => rectsOverlap(box, node, 2))) continue
       if (!clearsTerminalMarkers(edge, points, i, point, box, style)) continue
       const fitsInsideSegment = labelFitsInsideSegment(box, point, a, b, gaps)
@@ -1679,7 +1679,7 @@ function recenterBundledLabelOnMainAxis(
   const currentOffset = Math.abs(labelArcFraction(edge.labelPosition, points) - 0.5)
   const targetOffset = Math.abs(labelArcFraction(target, points) - 0.5)
   if (targetOffset >= currentOffset - 1e-6) return
-  const box = labelBoxAt(resolveLabelContent(edge.label, edge.labelContent), target, style)
+  const box = labelBoxAt(edge, target, style)
   if (nodes.some(node => rectsOverlap(box, node, 2))) return
   if (siblingBoxes.some(other => rectsOverlap(box, other, siblingGap))) return
   // Terminal-marker clearance on the segment the re-centred point lands on (the
@@ -1761,7 +1761,7 @@ function assignBundledFanoutLabels(
   const siblingBoxes: Array<{ x: number; y: number; width: number; height: number }> = []
   const gap = readableLabelGap(style)
   for (const { edge } of labeled) {
-    if (edge.labelPosition) siblingBoxes.push(labelBoxAt(resolveLabelContent(edge.label!, edge.labelContent), edge.labelPosition, style))
+    if (edge.labelPosition) siblingBoxes.push(labelBoxAt(edge, edge.labelPosition, style))
   }
   for (let i = 0; i < labeled.length; i++) {
     const { edge, points } = labeled[i]!
@@ -1769,7 +1769,7 @@ function assignBundledFanoutLabels(
     const others = siblingBoxes.filter((_, j) => j !== i)
     recenterBundledLabelOnMainAxis(edge, points, nodes, direction, style, others, gap)
     // Keep the sibling-box list current so a later edge sees this one's new spot.
-    if (edge.labelPosition && edge.labelPosition !== before) siblingBoxes[i] = labelBoxAt(resolveLabelContent(edge.label!, edge.labelContent), edge.labelPosition, style)
+    if (edge.labelPosition && edge.labelPosition !== before) siblingBoxes[i] = labelBoxAt(edge, edge.labelPosition, style)
   }
 }
 export function reassignBundledSiblingLabels(
@@ -2021,8 +2021,9 @@ export function applySymmetricParallelEdgeLanes(
     if (group.length !== 2) continue
     const source = nodeMap.get(group[0]!.source)!
     const target = nodeMap.get(group[0]!.target)!
-    const labelWidths = group.map(e => measureMultilineText(resolveLabelContent(e.label!, e.labelContent), style.edgeLabelFontSize, style.edgeLabelFontWeight).width + 16)
-    const labelHeights = group.map(e => measureMultilineText(resolveLabelContent(e.label!, e.labelContent), style.edgeLabelFontSize, style.edgeLabelFontWeight).height + 16)
+    const labelBoxes = group.map(edge => labelBoxAt(edge, { x: 0, y: 0 }, style))
+    const labelWidths = labelBoxes.map(box => box.width)
+    const labelHeights = labelBoxes.map(box => box.height)
     const lanePadding = (f.isHorizontal ? Math.max(...labelHeights) : Math.max(...labelWidths)) / 2 + 18
     const gaps = [lanePadding, lanePadding + 16, lanePadding + 32, lanePadding + 52]
     const slots = [[1 / 3, 2 / 3], [1 / 6, 1 / 3], [2 / 3, 5 / 6]]
@@ -2076,11 +2077,10 @@ export function applySymmetricParallelEdgeLanes(
         proposed[1]!.label = labels[1].point
       }
       for (const p of proposed) {
-        const metrics = measureMultilineText(resolveLabelContent(p.edge.label!, p.edge.labelContent), style.edgeLabelFontSize, style.edgeLabelFontWeight)
-        const box = { x: p.label.x - (metrics.width + 16) / 2, y: p.label.y - (metrics.height + 16) / 2, w: metrics.width + 16, h: metrics.height + 16 }
-        if (source.shape !== 'diamond' && labelTouchesNeighborRoute(p.edge, box, edges)) ok = false
+        const box = labelBoxAt(p.edge, p.label, style)
+        if (source.shape !== 'diamond' && labelTouchesNeighborRoute(p.edge, { x: box.x, y: box.y, w: box.width, h: box.height }, edges)) ok = false
       }
-      if (!ok) continue
+      if (!ok || !parallelLaneProposalAllowed(edges, proposed)) continue
       for (const { edge, points, label } of proposed) {
         edge.points = points
         edge.labelPosition = label
@@ -2114,7 +2114,7 @@ export function applySymmetricParallelEdgeLanes(
  * owned by `applySymmetricParallelEdgeLanes` (they need outer lanes for their
  * labels); everything else is left to the certifying route contracts.
  */
-function parallelLaneProposalAllowed(edges: PositionedEdge[], proposed: Array<{ edge: PositionedEdge; points: Point[] }>): boolean {
+function parallelLaneProposalAllowed(edges: PositionedEdge[], proposed: Array<{ edge: PositionedEdge; points: Point[] }>, options?: { allowCrossingsForOverlap: boolean }): boolean {
   const points = new Map(proposed.map(candidate => [candidate.edge, candidate.points]))
   const involved = new Set<number>()
   const candidate = edges.map((edge, index) => {
@@ -2124,6 +2124,7 @@ function parallelLaneProposalAllowed(edges: PositionedEdge[], proposed: Array<{ 
     return { ...edge, points: route }
   })
   const extraCrossings = countEdgeCrossings(candidate, involved) - countEdgeCrossings(edges, involved)
+  if (!options?.allowCrossingsForOverlap) return extraCrossings <= 0
   const repairedPairs = countParallelRouteOverlaps(edges, involved) - countParallelRouteOverlaps(candidate, involved)
   if (repairedPairs < 0) return false
   if (extraCrossings <= 0) return true
@@ -2268,7 +2269,7 @@ export function applyParallelDuplicateLanes(
       }
       proposed.push({ edge, points: clipped })
     }
-    if (!parallelLaneProposalAllowed(edges, proposed)) return false
+    if (!parallelLaneProposalAllowed(edges, proposed, { allowCrossingsForOverlap: true })) return false
     for (const { edge, points } of proposed) {
       edge.points = points
       edge.labelPosition = edge.label ? longestSegmentMidpoint(points) : undefined
@@ -2404,7 +2405,7 @@ export function applyParallelDuplicateLanes(
       }
       proposed.push({ edge, points: pts })
     }
-    if (!ok || !parallelLaneProposalAllowed(edges, proposed)) return
+    if (!ok || !parallelLaneProposalAllowed(edges, proposed, { allowCrossingsForOverlap: true })) return
     for (const { edge, points } of proposed) {
       edge.points = points
       edge.labelPosition = undefined
