@@ -15,12 +15,13 @@ const temp = useTempDirs()
 
 const REPO = join(import.meta.dir, '..', '..')
 const workflow = parseYaml(readFileSync(join(REPO, '.github', 'workflows', 'publish.yml'), 'utf8'))
+const benchmarkWorkflow = parseYaml(readFileSync(join(REPO, '.github', 'workflows', 'release-benchmark.yml'), 'utf8'))
 
 interface Step { name?: string; run?: string; env?: Record<string, string> }
 
-function step(job: string, name: string): Step & { run: string } {
-  const found = (workflow.jobs[job]?.steps as Step[] | undefined)?.find(candidate => candidate.name === name)
-  if (!found?.run) throw new Error(`publish.yml ${job} has no run step named "${name}"`)
+function step(job: string, name: string, source = workflow): Step & { run: string } {
+  const found = (source.jobs[job]?.steps as Step[] | undefined)?.find(candidate => candidate.name === name)
+  if (!found?.run) throw new Error(`${job} has no run step named "${name}"`)
   return found as Step & { run: string }
 }
 
@@ -95,12 +96,13 @@ describe('release gate: exact-SHA canonical CI attestation', () => {
   })
 })
 
-// Both OIDC jobs re-verify the downloaded artifact before acting on it.
+// Every downloaded-artifact consumer checks the bytes before acting on them.
 describe.each([
-  ['publish', 'Verify the transferred tarball digest'],
-  ['publish-mcp', 'Verify the tarball and extract registry metadata'],
-])('%s job: transferred artifact verification', (job, name) => {
-  const verify = step(job, name)
+  ['publish', 'Verify the transferred tarball digest', workflow],
+  ['publish-mcp', 'Verify the tarball and extract registry metadata', workflow],
+  ['benchmark', 'Verify the candidate artifact identity', benchmarkWorkflow],
+])('%s job: transferred artifact verification', (job, name, source) => {
+  const verify = step(job, name, source)
 
   function artifact(tamper: (dir: string, bytes: Buffer) => void = () => {}) {
     const dir = tempDir()
@@ -123,6 +125,17 @@ describe.each([
     const { result } = artifact()
     expect({ status: result.status, stderr: result.stderr }).toEqual({ status: 0, stderr: '' })
   })
+
+  if (job === 'benchmark') {
+    test('rejects a manifest with mismatched SHA-512 integrity', () => {
+      const { result } = artifact(dir => {
+        const path = join(dir, 'package-manifest.json')
+        const manifest = JSON.parse(readFileSync(path, 'utf8'))
+        writeFileSync(path, JSON.stringify({ ...manifest, integrity: sriSha512(Buffer.from('other bytes')) }))
+      })
+      expect(result.status).not.toBe(0)
+    })
+  }
 
   test.each([
     ['a tarball changed after packing', (dir: string, bytes: Buffer) => writeFileSync(join(dir, 'package.tgz'), Buffer.concat([bytes, Buffer.from('x')]))],
