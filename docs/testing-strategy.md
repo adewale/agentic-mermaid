@@ -490,8 +490,10 @@ table here, which would drift. In broad strokes:
   complete occurrence corpus, with shared-success ratios and complete/lazy JS
   payloads. **Does not prove:** PNG performance, arbitrary semantic/visual fidelity,
   or real-network/paint latency; absolute timings vary by machine.
-- **Manual / periodic:** `layout-compare` before/after, the benchmark vs competitors, the real
-  LLM-as-judge run, and the production freshness check
+- **Manual / periodic:** `layout-compare` before/after, the benchmark vs competitors,
+  `bun run bench:micro` (per-stage hotspot timings, allocation per call under
+  `--runtime node`, and `--baseline <ref>` for interleaved revision ratios;
+  advisory, never a gate), the real LLM-as-judge run, and the production freshness check
   (`scripts/ci/production-freshness.ts`, in `docs/contributing/releasing.md`).
   That check compares the build agentic-mermaid.dev serves with the `main`
   commit it is given (the tip of `main`, in the documented command) and fails
