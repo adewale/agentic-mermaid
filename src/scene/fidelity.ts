@@ -9,7 +9,7 @@ import { decodeXML } from 'entities'
 // every divergence in a lowering.
 // ============================================================================
 
-import type { Geometry, SceneDoc, SceneNode } from './ir.ts'
+import type { Geometry, SceneDoc, SceneNode, TextMark } from './ir.ts'
 import { hasDomSvgIdentityRole } from './identity.ts'
 import { sceneNodeSerialization } from './serialization.ts'
 import { breakLineTags, displayText } from '../multiline-utils.ts'
@@ -174,6 +174,119 @@ function transformProblems(node: SceneNode, attrs: Map<string, string> | undefin
   }
 }
 
+/** The owned text format has line wrappers, positioned shaping fragments and
+ * style-only descendants. Bind each to the retained lines, without measuring
+ * again or interpreting the authored display source a second time. */
+function preparedTextPlacementProblems(node: TextMark, serialized: string, path: string, problems: string[]): void {
+  const block = node.block
+  if (!block || node.measurement !== 'prepared') return
+  const fail = (message: string) => problems.push(`${path}(text:${node.id}).placement: ${message}`)
+  const textTags = scanSvgStartTags(serialized).filter(tag => tag.name === 'text')
+  const textEnd = textTags[0] && serialized.indexOf('</text>', textTags[0].end)
+  if (textTags.length !== 1 || textEnd === undefined || textEnd < 0) { fail('prepared text must have one complete text wrapper'); return }
+  // Some legacy label chunks retain their pill background beside the text.
+  serialized = serialized.slice(textTags[0]!.start, textEnd + '</text>'.length)
+  const close = (a: number, b: number) => Math.abs(a - b) <= 0.5
+  const length = (value: string | undefined, fallback = 0): number => {
+    if (value === undefined) return fallback
+    const match = /^([-+]?(?:\d+\.?\d*|\.\d+)(?:[eE][-+]?\d+)?)(px|em)?$/.exec(value)
+    return match ? Number(match[1]) * (match[2] === 'em' ? block.fontSize : 1) : Number.NaN
+  }
+  const expected = block.lineBlocks.map(line => line.runs.map(run => run.text).join(''))
+  const firstBaseline = node.y + (node.textLayout?.offsetY ?? 0) - (expected.length - 1) * block.lineHeight / 2 + block.fontSize * 0.35
+  const baseline = (line: number) => firstBaseline + line * block.lineHeight
+  type Frame = { tag: string; line: number; fragment: boolean; text: string; x?: number; width?: number; anchor?: string; weight: number }
+  const stack: Frame[] = []
+  const lines = expected.map(() => '')
+  const runs = expected.map(() => ({ index: 0, offset: 0 }))
+  let wrappers = 0, directText = false, y = node.y, cursor = 0
+  const starts = scanSvgStartTags(serialized)
+  const tokens = [
+    ...starts.map(tag => ({ start: tag.start, end: tag.end, tag })),
+    ...[...serialized.matchAll(/<\/(text|tspan)\s*>/g)].map(match => ({ start: match.index!, end: match.index! + match[0].length, tag: undefined })),
+  ].sort((a, b) => a.start - b.start)
+  const append = (end: number) => {
+    const text = unescapeXml(serialized.slice(cursor, end))
+    const frame = stack.at(-1)
+    if (!frame) { if (text.trim()) fail('text occurs outside its owned wrapper'); return }
+    if (frame.line >= lines.length) return
+    if (text.length && !close(y, baseline(frame.line))) fail(`line ${frame.line} has a different baseline from its retained block`)
+    const position = runs[frame.line]!
+    let remaining = text.length
+    while (remaining > 0) {
+      const run = block.lineBlocks[frame.line]!.runs[position.index]
+      if (!run) break
+      if (frame.weight !== (run.bold ? 700 : block.fontWeight) && frame.weight !== (run.bold ? Math.max(700, block.fontWeight) : block.fontWeight)) fail('a descendant changes the retained run weight')
+      const take = Math.min(remaining, run.text.length - position.offset)
+      position.offset += take; remaining -= take
+      if (position.offset === run.text.length) { position.index++; position.offset = 0 }
+    }
+    lines[frame.line] += text
+    for (const ancestor of stack) if (ancestor.fragment) ancestor.text += text
+    if (stack.length === 1 && text.length) directText = true
+  }
+  for (const token of tokens) {
+    append(token.start)
+    cursor = token.end
+    if (!token.tag) {
+      const frame = stack.pop()
+      if (frame?.fragment && frame.line < expected.length) {
+        const line = block.lineBlocks[frame.line]!
+        const width = frame.width ?? (frame.text === expected[frame.line] ? line.width : Number.NaN)
+        const x = frame.x! - (frame.anchor === 'middle' ? width / 2 : frame.anchor === 'end' ? width : 0)
+        const start = node.x - (node.anchor === 'middle' ? line.width / 2 : node.anchor === 'end' ? line.width : 0)
+        if (!Number.isFinite(x) || !Number.isFinite(width) || width < 0 || frame.text.trim() && width <= Number.EPSILON * Math.max(1, line.width) || x < start - 0.5 || x + width > start + line.width + 0.5) fail('a positioned fragment escapes its retained line band')
+      }
+      continue
+    }
+    const tag = token.tag
+    if (tag.name !== 'text' && tag.name !== 'tspan') { fail(`unsupported <${tag.name}> inside prepared text`); continue }
+    const attrs = new Map(tag.attributes.map(attribute => [attribute.name, unescapeXml(attribute.value)]))
+    const parent = stack.at(-1)
+    const fragment = attrs.has('data-text-fragment')
+    const positioned = ['x', 'y', 'dx', 'dy'].some(name => attrs.has(name))
+    const wrapper = tag.name === 'tspan' && !fragment && stack.length === 1 && attrs.has('x') && (attrs.has('y') || attrs.has('dy'))
+    const line = wrapper ? wrappers++ : parent?.line ?? 0
+    const lineBlock = block.lineBlocks[line]
+    if (attrs.has('y')) y = length(attrs.get('y'))
+    y += length(attrs.get('dy'))
+    const anchor = attrs.get('text-anchor') ?? (fragment ? parent?.anchor : undefined) ?? node.anchor
+    const x = length(attrs.get('x'), node.x) + length(attrs.get('dx'))
+    if (tag.name === 'text') {
+      if (stack.length || !close(x, node.x) || !close(length(attrs.get('y'), node.y), node.y) || length(attrs.get('dx')) !== 0) fail('outer coordinates differ from the retained text anchor')
+    } else {
+      if (attrs.has('transform') || attrs.has('rotate') || attrs.has('style') || attrs.has('baseline-shift') || attrs.has('dominant-baseline') || attrs.has('alignment-baseline')) fail('a descendant introduces unsupported text placement')
+      if (attrs.has('font-size') && length(attrs.get('font-size')) !== block.fontSize) fail('a descendant changes the retained font size')
+      if (attrs.has('font-family') && attrs.get('font-family') !== block.fontFamily) fail('a descendant changes the retained font family')
+      if (fragment) {
+        if (attrs.get('data-text-fragment') !== 'true' || !attrs.has('x') || !['start', 'middle', 'end'].includes(anchor)) fail('a shaping fragment has unsupported positioning')
+        if (length(attrs.get('dy')) !== 0 || parent?.fragment) fail('a shaping fragment introduces an unsupported baseline advance')
+        if (attrs.has('letter-spacing') && length(attrs.get('letter-spacing')) !== (attrs.has('textLength') ? 0 : block.letterSpacing)) fail('a shaping fragment changes its retained tracking')
+      } else if (wrapper) {
+        if (!close(x, node.x) || anchor !== node.anchor || attrs.has('dx')) fail('a line wrapper changes its retained x or anchor')
+      } else if (positioned || attrs.has('text-anchor') || attrs.has('textLength') || attrs.has('lengthAdjust')) fail('a style span introduces unchecked placement')
+    }
+    if ((wrapper || fragment) && lineBlock && !close(y, baseline(line))) fail(`line ${line} has a different baseline from its retained block`)
+    if (attrs.has('textLength')) {
+      const width = length(attrs.get('textLength'))
+      if (!Number.isFinite(width) || width < 0 || !lineBlock || width > lineBlock.width + 0.5 || (tag.name === 'text' && expected.length !== 1)) fail('textLength exceeds its retained line')
+      if (attrs.get('lengthAdjust') !== 'spacingAndGlyphs') fail('textLength has no bounded glyph fitting policy')
+      if (!fragment && lineBlock && Math.abs(width - lineBlock.width) > 1e-6 * Math.max(1, lineBlock.width)) fail('textLength differs from its retained line width')
+      if (fragment && (block.letterSpacing === 0 || expected[line]?.trim() && width <= Number.EPSILON * Math.max(1, lineBlock?.width ?? 1))) fail('a fitted fragment has no retained tracking allocation')
+    }
+    if (attrs.has('lengthAdjust') && !attrs.has('textLength')) fail('lengthAdjust has no retained fitted width')
+    if (!fragment && attrs.has('letter-spacing') && length(attrs.get('letter-spacing')) !== block.letterSpacing) fail('a descendant changes retained tracking')
+    const rawWeight = attrs.get('font-weight')
+    const weight = rawWeight === undefined ? parent?.weight ?? block.fontWeight : rawWeight === 'bold' ? 700 : rawWeight === 'normal' ? 400 : length(rawWeight)
+    const frame: Frame = { tag: tag.name, line, fragment, text: '', x, anchor, weight, ...(attrs.has('textLength') ? { width: length(attrs.get('textLength')) } : {}) }
+    if (!tag.selfClosing) stack.push(frame)
+  }
+  append(serialized.length)
+  if (stack.length) fail('prepared text wrappers are incomplete')
+  if ((wrappers || 1) !== expected.length || wrappers && directText) fail('emitted line wrappers differ from the retained line count')
+  for (let line = 0; line < expected.length; line++) if (lines[line] !== expected[line]) fail(`line ${line} differs from its retained displayed text`)
+}
+
 export function nodeProblems(node: SceneNode, path: string, problems: string[]): void {
   const serialized = sceneNodeSerialization(node)
   if (node.kind !== 'document') {
@@ -291,6 +404,7 @@ export function nodeProblems(node: SceneNode, path: string, problems: string[]):
       // Crisp markup is the emitter's own SVG elements; authored text in it is
       // entity-escaped, so dropping the elements leaves exactly the drawn text.
       const drawn = (svg: string) => shown(unescapeXml(svg.replace(/<[^>]+>/g, '')))
+      preparedTextPlacementProblems(node, serialized, path, problems)
       if (node.block) {
         const actualBlockText = unescapeXml(serialized.replace(/<tspan\b(?![^>]*\bdata-text-fragment=)[^>]*\s(?:x|dy)="[^"]*"[^>]*>/g, '\n').replace(/<[^>]+>/g, '')).replace(/\s+/g, ' ').trim()
         if (node.block.lineBlocks.map(line => line.runs.map(run => run.text).join('')).join(' ').replace(/\s+/g, ' ').trim() !== actualBlockText) problems.push(`${path}(text:${node.id}).block: retained prepared text differs from actual SVG`)

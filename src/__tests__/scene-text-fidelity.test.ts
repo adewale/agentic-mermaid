@@ -18,7 +18,8 @@ import { layoutQuadrantChart } from '../quadrant/layout.ts'
 import { toMermaidLines } from '../mermaid-source.ts'
 import type { SceneDoc } from '../scene/ir.ts'
 import { sceneNodeSerialization } from '../scene/serialization.ts'
-import { preparePixelText } from '../shared/prepared-text.ts'
+import { pixelTextLine, preparePixelText } from '../shared/prepared-text.ts'
+import { renderMultilineText } from '../multiline-utils.ts'
 
 function textMark(semantic: { x: number; y: number; anchor: 'start' | 'middle' | 'end' }, crisp: string) {
   return marks.text(
@@ -28,6 +29,47 @@ function textMark(semantic: { x: number; y: number; anchor: 'start' | 'middle' |
 }
 
 describe('fidelity oracle checks text x/y/anchor', () => {
+  it.each([
+    ['extra positioned line', 'A B', '<tspan x="10" dy="0">A</tspan><tspan x="10" dy="200">B</tspan>'],
+    ['wrong second baseline', 'A\nB', '<tspan x="10" dy="0">A</tspan><tspan x="10" dy="200">B</tspan>'],
+    ['shifted line x', 'A\nB', '<tspan x="10" dy="0">A</tspan><tspan x="300" dy="15.6">B</tspan>'],
+    ['changed line anchor', 'A\nB', '<tspan x="10" dy="0">A</tspan><tspan x="10" dy="15.6" text-anchor="end">B</tspan>'],
+    ['shifted shaping fragment', 'A B', '<tspan x="10" dy="200" data-text-fragment="true">A B</tspan>'],
+    ['fragment outside line', 'A B', '<tspan x="300" data-text-fragment="true">A B</tspan>'],
+    ['fragment length outside line', 'A B', '<tspan x="10" data-text-fragment="true" textLength="300">A B</tspan>'],
+    ['collapsed fitted line', 'A B', '<tspan x="10" dy="0" textLength="0" lengthAdjust="spacingAndGlyphs">A B</tspan>'],
+    ['nearly collapsed fitted line', 'A B', '<tspan x="10" dy="0" textLength="0.0001" lengthAdjust="spacingAndGlyphs">A B</tspan>'],
+    ['unbounded fragment fitting', 'A B', '<tspan x="10" data-text-fragment="true" textLength="10" lengthAdjust="spacing">A B</tspan>'],
+    ['changed fragment tracking', 'A B', '<tspan x="10" data-text-fragment="true" letter-spacing="200">A B</tspan>'],
+    ['changed fragment weight', 'A B', '<tspan x="10" data-text-fragment="true" font-weight="900">A B</tspan>'],
+    ['shifted style span', 'A B', '<tspan dx="200">A B</tspan>'],
+    ['transformed style span', 'A B', '<tspan transform="translate(200 0)">A B</tspan>'],
+    ['oversized style span', 'A B', '<tspan font-size="200">A B</tspan>'],
+  ])('rejects retained text with %s', (_name, source, contents) => {
+    const block = preparePixelText(source, { fontSize: 12, fontWeight: 400 })
+    const mark = marks.text({ id: 'line', role: 'label', text: source, block, x: 10, y: 20, fontSize: 12, anchor: 'start', paint: {} }, `<text x="10" y="20" font-size="12">${contents}</text>`)
+    const problems: string[] = []
+    nodeProblems(mark, 'p', problems)
+    expect(problems.join('\n')).toContain('.placement:')
+  })
+
+  it('accepts retained native line wrappers, RTL shaping, tracking and projected Gantt lines', () => {
+    for (const [source, letterSpacing] of [['A B\nC D', 0], ['אב ג\nש ד', 0], ['界 é\n👩‍💻', 0], ['AB CD\nEF GH', -2], ['A B', 2]] as const) {
+      const block = preparePixelText(source, { fontSize: 12, fontWeight: 400, letterSpacing })
+      for (const retained of [block, pixelTextLine(block, block.lines.length - 1)!]) {
+        const mark = marks.text({ id: 'line', role: 'label', text: retained.text, block: retained, x: 10, y: 20, fontSize: 12, anchor: 'middle', paint: {} }, renderMultilineText(retained, 10, 20, 12, 'font-size="12" text-anchor="middle"'))
+        const problems: string[] = []
+        nodeProblems(mark, 'p', problems)
+        expect({ source, letterSpacing, problems }).toEqual({ source, letterSpacing, problems: [] })
+      }
+    }
+    const block = preparePixelText('+ field: String', { display: 'literal', fontSize: 12, fontWeight: 400 })
+    const mark = marks.text({ id: 'member', role: 'member', text: block.text, block, x: 10, y: 20, fontSize: 12, anchor: 'start', paint: {} }, '<text x="10" y="20" font-size="12" dy="4.2"><tspan fill="#777">+ </tspan><tspan fill="#111">field</tspan><tspan fill="#777">: String</tspan></text>')
+    const problems: string[] = []
+    nodeProblems(mark, 'p', problems)
+    expect(problems).toEqual([])
+  })
+
   it('retains the family prepared block, source spans and font inputs without changing SVG', () => {
     const block = preparePixelText('Straße <b>release</b> notes', {
       display: 'formatted', transform: 'uppercase', fontSize: 14, fontWeight: 600,
