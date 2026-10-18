@@ -389,6 +389,16 @@ table here, which would drift. In broad strokes:
   version closes it (`scripts/ci/release-todo.ts`, tested with a fake `gh` in
   `release-todo.test.ts`). It adds no schedule and never fails a run. **Does
   not prove:** what production serves; it only reports the skip.
+- **Per release (`release-benchmark.yml`, called by `publish.yml`):**
+  `bun run bench:release` renders every official syntax fence and a set of
+  generated large diagrams with the built package and with the last npm
+  release, in alternating fresh Node processes on one runner. It fails the
+  release on a lost SVG/ASCII render, nondeterministic output, an SVG resvg
+  cannot parse, a corpus slowdown past 1.25× (1.5× for any large case),
+  allocation or peak RSS growth past 1.25×, or retained heap growth past
+  16 MB per pass; the report lists changed SVGs per family. Run it locally
+  with `--baseline <built checkout>` or `--baseline-npm <version>`. **Does not
+  prove:** browser or PNG performance; absolute timings vary by machine.
 - **Manual / periodic:** `layout-compare` before/after, the benchmark vs competitors, the real
   LLM-as-judge run, and the production freshness check
   (`scripts/ci/production-freshness.ts`, in `docs/contributing/releasing.md`).
@@ -527,8 +537,9 @@ gates rather than adding new machinery:
    weak oracles locally. The diff-scoped mutation proposal #355 was closed
    `not_planned`; it is not an active implementation commitment. Line coverage
    remains a finder, not an adequacy score.
-3. The benchmark is not on the PR gate (timing variance). Browser/screenshot
-   e2e and the heuristic-tracker ratchet now are.
+3. The benchmark is not on the PR gate (timing variance); it gates releases,
+   against the previous release measured on the same runner. Browser/screenshot
+   e2e and the heuristic-tracker ratchet are on the PR gate.
 4. Determinism is proven Bun↔Node on one architecture; cross-architecture
    byte equality is not asserted.
 5. `QualityBounds` thresholds are now provenance-tagged, but the `chosen`

@@ -5,6 +5,7 @@ import { sceneNodePrimitives } from './capabilities.ts'
 import type { SceneDoc, SceneNode, SemanticChannelName } from './ir.ts'
 import {
   EXTERNAL_SCENE_DOCUMENT_SNAPSHOT_LIMITS,
+  recordAdmittedScene,
   snapshotBoundedExternalData,
 } from './external-data-snapshot.ts'
 import {
@@ -82,5 +83,6 @@ export function admitFamilyScene(descriptor: FamilyDescriptor, value: unknown): 
   })
 
   if (diagnostics.length > 0) throw new SceneValidationError(Object.freeze(diagnostics))
+  recordAdmittedScene(scene, external ? 'external' : 'internal')
   return scene
 }

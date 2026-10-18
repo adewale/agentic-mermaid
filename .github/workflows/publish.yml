@@ -74,9 +74,16 @@ jobs:
       - name: Run registry-derived cross-platform rendering contracts
         run: bun test src/__tests__/render-conformance-plan.test.ts --timeout 120000
 
+  benchmark:
+    name: Release benchmark
+    needs: release-gate
+    permissions:
+      contents: read
+    uses: ./.github/workflows/release-benchmark.yml
+
   package:
     name: Build and verify the exact npm tarball
-    needs: [release-gate, platform-smoke]
+    needs: [release-gate, platform-smoke, benchmark]
     runs-on: ubuntu-latest
     permissions:
       contents: read

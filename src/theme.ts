@@ -601,8 +601,9 @@ export function inlineResolvedColors(svg: string, colors: DiagramColors): string
   // before using them in style-block fallbacks. Learn those up front so
   // var(--family-token, fallback) prefers the authored token over fallback.
   const cssDefRegex = /--([\w-]+)\s*:\s*(#[0-9a-fA-F]{3,8})\s*;?/g
+  const initialCssText = svgCssText(svg)
   let initialDefMatch
-  while ((initialDefMatch = cssDefRegex.exec(svgCssText(svg))) !== null) {
+  while ((initialDefMatch = cssDefRegex.exec(initialCssText)) !== null) {
     vars.set(initialDefMatch[1]!, initialDefMatch[2]!)
   }
 

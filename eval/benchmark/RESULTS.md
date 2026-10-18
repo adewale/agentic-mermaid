@@ -5,7 +5,8 @@ Bun 1.3.13). Competitor numbers are measured live where the tool ran, and
 labeled "from architecture" where it could not. No head-to-head latency is
 fabricated.
 
-Reproduce ours: `bun run eval/benchmark/run-bench.ts`
+Historical numbers. The release benchmark (`bun run bench:release`,
+see `docs/testing-strategy.md`) is the current measurement of ours.
 
 ## Ours — measured
 

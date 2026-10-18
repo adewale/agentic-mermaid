@@ -119,12 +119,29 @@ interface Replacement {
   readonly value: string
 }
 
-function applyReplacements(source: string, replacements: readonly Replacement[]): string {
+function applyReplacementsRightToLeft(source: string, replacements: readonly Replacement[]): string {
   let output = source
   for (const replacement of [...replacements].sort((left, right) => right.start - left.start)) {
     output = `${output.slice(0, replacement.start)}${replacement.value}${output.slice(replacement.end)}`
   }
   return output
+}
+
+// Replacement ranges are normally disjoint (attribute values, style text), so
+// one forward pass assembles the result instead of re-copying it per range.
+// Overlap is possible only for tag-like text inside <style>; it keeps the
+// original right-to-left semantics.
+function applyReplacements(source: string, replacements: readonly Replacement[]): string {
+  if (replacements.length === 0) return source
+  const parts: string[] = []
+  let cursor = 0
+  for (const replacement of [...replacements].sort((left, right) => left.start - right.start)) {
+    if (replacement.start < cursor) return applyReplacementsRightToLeft(source, replacements)
+    parts.push(source.slice(cursor, replacement.start), replacement.value)
+    cursor = replacement.end
+  }
+  parts.push(source.slice(cursor))
+  return parts.join('')
 }
 
 export function transformSvgAttributes(
