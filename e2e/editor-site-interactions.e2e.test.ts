@@ -228,8 +228,8 @@ describe('editor and site interactions in a real browser', () => {
     const page = await browser.newPage({ viewport: { width: 1280, height: 900 } })
     await page.addInitScript(() => { (window as any).__smuggledRan = 0 })
     await wrapAdapter(page, 'renderMermaidSVGWithReceipt', `function(original) {
-      return function(source, options) {
-        var artifact = original(source, options);
+      return async function(source, options) {
+        var artifact = await original(source, options);
         if (source.indexOf('Smuggle') >= 0) {
           return Object.assign({}, artifact, { svg: artifact.svg + '<p id="smuggled-by-renderer">smuggled</p>' });
         }
@@ -273,8 +273,8 @@ describe('editor and site interactions in a real browser', () => {
   test('C4 boundary navigation keeps canonical exports, source identities and interaction indices intact', async () => {
     const page = await browser.newPage({ viewport: { width: 1280, height: 900 }, acceptDownloads: true })
     await wrapAdapter(page, 'renderMermaidSVGWithReceipt', `function(original) {
-      return function(source, options) {
-        var artifact = original(source, options);
+      return async function(source, options) {
+        var artifact = await original(source, options);
         window.__c4Artifact = artifact;
         return artifact;
       };
