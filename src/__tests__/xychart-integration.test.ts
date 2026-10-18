@@ -88,14 +88,16 @@ xychart
   line [25, 55, 50]`
 
 function getSvgSize(svg: string): { width: number; height: number } {
-  // The configured display size survives a paint-containment viewBox repair.
-  const root = /<svg\b[^>]*>/.exec(svg)?.[0]
-  const width = root && /\bwidth="([^"]+)"/.exec(root)
-  const height = root && /\bheight="([^"]+)"/.exec(root)
-  if (!width || !height) throw new Error('SVG missing display dimensions')
+  const viewBox = /<svg\b[^>]*\bviewBox="([^"]+)"/.exec(svg)
+  if (!viewBox) throw new Error('SVG missing viewBox attribute')
+  const coordinates = viewBox[1]!.trim().split(/\s+/).map(Number)
+  expect(coordinates).toHaveLength(4)
+  expect(coordinates.every(Number.isFinite)).toBe(true)
+  expect(coordinates[2]).toBeGreaterThan(0)
+  expect(coordinates[3]).toBeGreaterThan(0)
   return {
-    width: Number(width[1]),
-    height: Number(height[1]),
+    width: coordinates[2]!,
+    height: coordinates[3]!,
   }
 }
 
@@ -254,6 +256,7 @@ describe('xychart – Mermaid parity', () => {
     expect(svg).not.toContain('>Revenue</text>')
     expect(svg).toMatch(/class="xychart-label xychart-x-label"[^>]*>A<\/text>/)
     expect(svg).toMatch(/class="xychart-axis-title xychart-y-axis-title"[^>]*>Users<\/text>/)
+    expect(svg).toContain('max-width:720px')
     expect(configuredSize.width).toBeGreaterThan(defaultSize.width)
     expect(configuredSize.height).toBeLessThan(defaultSize.height)
   })
