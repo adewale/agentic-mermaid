@@ -67,8 +67,9 @@ export const WEBSITE_PAYLOAD_BUDGETS: WebsitePayloadBudgets = Object.freeze({
     maxRequests: 2,
     // Native parser observations and final text/geometry checks also ship in
     // the editor: 3,667,915 raw / 1,111,755 gzip / 875,724 Brotli bytes.
-    // Per-change growth still has its own delta gate.
-    maxRawBytes: 3_670_000,
+    // Typed Scene serialization and bounded layout preference add 2,528 raw
+    // bytes (902 gzip) on the same runner; per-change growth still gates.
+    maxRawBytes: 3_674_000,
     maxGzipBytes: 1_113_000,
     maxBrotliBytes: 877_000,
     required: Object.freeze([

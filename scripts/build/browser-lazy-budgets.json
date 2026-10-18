@@ -15,10 +15,10 @@
     "pie": {"requests": 29, "raw": 634000, "gzip": 208500, "brotli": 185500},
     "quadrant": {"requests": 26, "raw": 594000, "gzip": 189000, "brotli": 166000},
     "gantt": {"requests": 25, "raw": 637000, "gzip": 198000, "brotli": 175500},
-    "mindmap": {"requests": 27, "raw": 591000, "gzip": 190000, "brotli": 167000},
-    "gitgraph": {"requests": 27, "raw": 600000, "gzip": 192000, "brotli": 169000},
+    "mindmap": {"requests": 27, "raw": 594000, "gzip": 190000, "brotli": 168000},
+    "gitgraph": {"requests": 27, "raw": 603000, "gzip": 193000, "brotli": 170000},
     "radar": {"requests": 27, "raw": 602000, "gzip": 193000, "brotli": 170000},
     "sankey": {"requests": 26, "raw": 597000, "gzip": 191000, "brotli": 168000},
-    "c4": {"requests": 27, "raw": 750000, "gzip": 241000, "brotli": 211000}
+    "c4": {"requests": 28, "raw": 752000, "gzip": 242000, "brotli": 212000}
   }
 }
