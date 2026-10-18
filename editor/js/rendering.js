@@ -42,6 +42,7 @@ function invalidateRenderedArtifacts() {
   if (typeof lastRenderedPngArtifact !== "undefined") lastRenderedPngArtifact = null;
   if (typeof lastRenderedSvgExportProjection !== "undefined") lastRenderedSvgExportProjection = null;
   if (typeof updateExportAvailability === "function") updateExportAvailability();
+  if (typeof refreshC4Navigation === "function") refreshC4Navigation();
 }
 
 function scheduleRender(delay) {
@@ -215,6 +216,8 @@ var VERIFY_TIER_BY_CODE = {
   LABEL_OVERFLOW: "structural",
   UNRESOLVABLE_SCHEDULE: "structural",
   NODE_OVERLAP: "geometric",
+  CONTENT_OCCLUDED: "geometric",
+  LAYOUT_LIMIT_EXCEEDED: "geometric",
   ROUTE_SELF_CROSS: "geometric",
   ROUTE_HITCH: "geometric",
   ROUTE_UNEXPLAINED_BEND: "geometric",
@@ -478,6 +481,7 @@ async function doRender(version) {
     lastRenderedSvgArtifact = null;
     resetVerifyPanel("Waiting for source");
     if (typeof updateExportAvailability === "function") updateExportAvailability();
+    if (typeof refreshC4Navigation === "function") refreshC4Navigation();
     return;
   }
 
@@ -525,6 +529,7 @@ async function doRender(version) {
       statusDot.className = "status-dot err";
     }
     if (typeof updateExportAvailability === "function") updateExportAvailability();
+    if (typeof refreshC4Navigation === "function") refreshC4Navigation(true);
     if (verification && verification.ok) updateHash();
   } catch (err) {
     if (!isCurrentRender(version, source)) return;
@@ -546,6 +551,7 @@ async function doRender(version) {
     setVerifyTier(verifyTierStructural, verifyStructural, "err", "Fix source first");
     setTextOutputs("Fix the render error to see Unicode output.", "Fix the render error to see ASCII output.");
     if (typeof updateExportAvailability === "function") updateExportAvailability();
+    if (typeof refreshC4Navigation === "function") refreshC4Navigation();
   } finally {
     if (version === renderRequestVersion) clearRenderSpinner();
   }
