@@ -228,13 +228,13 @@ export function connectorMarkerPaintRegions(node: ConnectorMark, parentTransform
   const result: ConnectorMarkerPaintRegion[] = []
   const include = (position: ConnectorMarkerPaintRegion['position'], marker: MarkerDescriptor | undefined, anchor: ScenePoint | undefined, tangent?: ScenePoint): void => {
     if (!marker || !anchor) return
-    const angle = typeof marker.orient === 'number' ? marker.orient : marker.orient === undefined ? 0 : tangent ? Math.atan2(tangent.y, tangent.x) * 180 / Math.PI + (position === 'start' && marker.orient === 'auto-start-reverse' ? 180 : 0) : undefined
+    const angle = typeof marker.orient === 'number' ? marker.orient : tangent ? Math.atan2(tangent.y, tangent.x) * 180 / Math.PI + (position === 'start' && marker.orient === 'auto-start-reverse' ? 180 : 0) : undefined
     const strokeWidth = numericStrokeWidth(node.stroke.width)
     const local = markerBoundsAt(marker, anchor, strokeWidth, true, angle)
     const matrix = transformMatrix(transform)
     // Equality is about the actual resource, orientation, unit scale and
     // composed linear transform, rather than an owner or resource count.
-    const repaint = JSON.stringify([marker, angle ?? ['unknown', geometry], marker.units === 'userSpaceOnUse' ? 1 : strokeWidth, matrix.slice(0, 4)])
+    const repaint = JSON.stringify([{ ...marker, orient: marker.orient ?? 'auto' }, angle ?? ['unknown', geometry], marker.units === 'userSpaceOnUse' ? 1 : strokeWidth, matrix.slice(0, 4)])
     let hull: ScenePoint[] | undefined, padding: number | undefined
     if (angle !== undefined && marker.geometry?.kind === 'polygon' && marker.geometry.points.length <= 64) {
       const sizeScale = marker.viewBox && marker.size ? Math.min(marker.size.width / marker.viewBox.width, marker.size.height / marker.viewBox.height) : 1

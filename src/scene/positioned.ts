@@ -31,6 +31,6 @@ export function positionedPaintCertification(request: ResolvedRenderRequest, lay
   const entry = retained.get(layout)!.get(request)!
   if (entry.certification) return entry.certification
   const plan = resolvedRenderExecutionPlanOf(request)
-  const supported = !request.appearance.styled && (plan.mode === 'layout' || (plan.mode === 'scene' && plan.backend?.inputName === 'default'))
+  const supported = !request.appearance.colors.shadow && (plan.mode === 'layout' ? request.appearance.inferredBackend === 'default' : plan.mode === 'scene' && plan.backend?.inputName === 'default')
   return entry.certification = certifyScenePaint(scene, retainedFamilyProjection(layout), { outputSupported: supported })
 }

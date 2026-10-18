@@ -152,7 +152,7 @@ function renderPositionedWithTextMeasurement(
   if (executionPlan.mode === 'scene') {
     const scene = lowerPositionedFamilyScene(request, layout)
     layoutCertification = positionedPaintCertification(request, layout)
-    if ((effectiveOptions.layoutSafety === 'strict' && layoutCertification.status !== 'passed') || (layoutCertification.status === 'failed' && executionPlan.backend?.inputName === 'default' && !request.appearance.styled)) throw new PaintLayoutCertificationError(layoutCertification)
+    if ((effectiveOptions.layoutSafety === 'strict' && layoutCertification.status !== 'passed') || (layoutCertification.status === 'failed' && executionPlan.backend?.inputName === 'default')) throw new PaintLayoutCertificationError(layoutCertification)
     rawSvg = executionPlan.backend!.backend.render(scene, {
       seed: effectiveOptions.seed ?? 0,
       ...(request.appearance.styled ? { style: request.appearance.style } : {}),
@@ -164,7 +164,7 @@ function renderPositionedWithTextMeasurement(
   assertFinalSvgByteBudget(rawSvg, 'backend/family SVG output')
 
   let svg = inlineResolvedColors(rawSvg, context.colors)
-  if (layoutCertification?.repairs.length && executionPlan.backend?.inputName === 'default' && !request.appearance.styled) svg = expandSvgViewport(svg, layoutCertification.viewport)
+  if (layoutCertification?.repairs.length && executionPlan.backend?.inputName === 'default') svg = expandSvgViewport(svg, layoutCertification.viewport)
   assertFinalSvgByteBudget(svg, 'color-resolved SVG output')
   svg = fitUncalibratedSvgText(svg, request.appearance.font)
   assertFinalSvgByteBudget(svg, 'font-geometry-fitted SVG output')

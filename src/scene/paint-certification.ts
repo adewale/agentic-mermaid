@@ -74,7 +74,7 @@ function solidInteriors(scene: SceneDoc, primitives: readonly ScenePaintPrimitiv
   const outlineKey = (primitive: ScenePaintPrimitive, geometry: Geometry) => JSON.stringify([primitive.owner, geometry, scenePrimitiveMatrix(primitive)])
   for (const primitive of primitives) {
     const node = scenePrimitiveSource(primitive)
-    if (node?.kind !== 'shape' || primitive.coverage !== 'measured' || primitive.visibility === 'conditional' || !node.paint.stroke || node.paint.stroke === 'none' || node.paint.stroke === 'transparent' || Number(node.paint.opacity ?? 1) !== 1) continue
+    if (node?.kind !== 'shape' || node.paint.vectorEffect === 'non-scaling-stroke' || primitive.coverage !== 'measured' || primitive.visibility === 'conditional' || !node.paint.stroke || !opaque(node.paint.stroke) || node.paint.stroke === 'none' || node.paint.stroke === 'transparent' || Number(node.paint.opacity ?? 1) !== 1) continue
     const width = Number(node.paint.strokeWidth?.replace(/px$/, '') ?? 1)
     if (Number.isFinite(width)) outlines.set(outlineKey(primitive, node.geometry), width)
   }
@@ -100,7 +100,7 @@ function solidInteriors(scene: SceneDoc, primitives: readonly ScenePaintPrimitiv
 /** Conservative marker envelopes can overlap empty corners of endpoint shapes.
  * A separating side or radius proves absence; other intersections stay unknown.
  */
-function outsideFilledBody(surface: Surface, bounds: AxisAlignedBox, attached: boolean, hull?: readonly ScenePoint[], padding = 0): boolean {
+function outsideFilledBody(surface: Surface, bounds: AxisAlignedBox, attached: boolean, hull?: readonly ScenePoint[], padding = 0, work: () => boolean = () => true): boolean {
   const shape = scenePrimitiveSource(surface.primitive)
   if (shape?.kind !== 'shape') return false
   const inverse = inverseMatrix(scenePrimitiveMatrix(surface.primitive)!)
@@ -112,22 +112,23 @@ function outsideFilledBody(surface: Surface, bounds: AxisAlignedBox, attached: b
   // that declared border band; a marker entering the filled body stays checked.
   const inset = attached ? Math.max(0, (surface.borderWidth ?? 0) / 2) : 0
   const outside = (g: Geometry): boolean => {
-  if (g.kind === 'compound') return g.children.length <= 64 && g.children.every(outside)
-  if (g.kind === 'circle') {
-    const x = Math.max(Math.min(...corners.map(p => p.x)), Math.min(g.cx, Math.max(...corners.map(p => p.x))))
-    const y = Math.max(Math.min(...corners.map(p => p.y)), Math.min(g.cy, Math.max(...corners.map(p => p.y))))
-    return Math.hypot(x - g.cx, y - g.cy) >= g.r - inset + margin - 1e-8
-  }
-  const points = g.kind === 'rect' ? [{ x: g.x, y: g.y }, { x: g.x + g.width, y: g.y }, { x: g.x + g.width, y: g.y + g.height }, { x: g.x, y: g.y + g.height }] : g.kind === 'polygon' ? g.points : undefined
-  if (!points || points.length < 3 || points.length > 64) return false
-  const cross = (a: { x: number; y: number }, b: { x: number; y: number }, p: { x: number; y: number }) => (b.x - a.x) * (p.y - a.y) - (b.y - a.y) * (p.x - a.x)
-  const area = points.reduce((sum, a, i) => { const b = points[(i + 1) % points.length]!; return sum + a.x * b.y - b.x * a.y }, 0)
-  const direction = Math.sign(area)
-  if (!direction || points.some((a, i) => direction * cross(a, points[(i + 1) % points.length]!, points[(i + 2) % points.length]!) < 0)) return false
-  return points.some((a, i) => {
-    const b = points[(i + 1) % points.length]!, length = Math.hypot(b.x - a.x, b.y - a.y)
-    return length > 0 && corners.every(p => direction * cross(a, b, p) <= (inset - margin + 1e-8) * length)
-  })
+    if (!work()) return false
+    if (g.kind === 'compound') return g.children.length <= 64 && g.children.every(outside)
+    if (g.kind === 'circle') {
+      const x = Math.max(Math.min(...corners.map(p => p.x)), Math.min(g.cx, Math.max(...corners.map(p => p.x))))
+      const y = Math.max(Math.min(...corners.map(p => p.y)), Math.min(g.cy, Math.max(...corners.map(p => p.y))))
+      return Math.hypot(x - g.cx, y - g.cy) >= g.r - inset + margin - 1e-8
+    }
+    const points = g.kind === 'rect' ? [{ x: g.x, y: g.y }, { x: g.x + g.width, y: g.y }, { x: g.x + g.width, y: g.y + g.height }, { x: g.x, y: g.y + g.height }] : g.kind === 'polygon' ? g.points : undefined
+    if (!points || points.length < 3 || points.length > 64) return false
+    const cross = (a: { x: number; y: number }, b: { x: number; y: number }, p: { x: number; y: number }) => (b.x - a.x) * (p.y - a.y) - (b.y - a.y) * (p.x - a.x)
+    const area = points.reduce((sum, a, i) => { const b = points[(i + 1) % points.length]!; return sum + a.x * b.y - b.x * a.y }, 0)
+    const direction = Math.sign(area)
+    if (!direction || !points.every((a, i) => points.every(point => work() && direction * cross(a, points[(i + 1) % points.length]!, point) >= -1e-8))) return false
+    return points.some((a, i) => {
+      const b = points[(i + 1) % points.length]!, length = Math.hypot(b.x - a.x, b.y - a.y)
+      return length > 0 && corners.every(p => work() && direction * cross(a, b, p) <= (inset - margin + 1e-8) * length)
+    })
   }
   return outside(shape.geometry)
 }
@@ -158,7 +159,13 @@ export function certifyScenePaint(scene: SceneDoc, projection?: Pick<RenderedLay
   const repaired = x0 < 0 || y0 < 0 || x1 > scene.width || y1 > scene.height
   // Outward rounding adds a bounded safety margin without moving semantic
   // geometry, chart coordinates, routes, dates or authored memberships.
-  const viewport = Object.freeze(repaired ? { x: Math.floor(x0), y: Math.floor(y0), width: Math.ceil(x1) - Math.floor(x0), height: Math.ceil(y1) - Math.floor(y0) } : { x: 0, y: 0, width: scene.width, height: scene.height })
+  const expanded = { x: Math.floor(x0), y: Math.floor(y0), width: Math.ceil(x1) - Math.floor(x0), height: Math.ceil(y1) - Math.floor(y0) }
+  if (repaired && scene.width > 0 && scene.height > 0) {
+    const ratio = scene.width / scene.height
+    if (expanded.width / expanded.height > ratio) expanded.height = expanded.width / ratio
+    else expanded.width = expanded.height * ratio
+  }
+  const viewport = Object.freeze(repaired ? expanded : { x: 0, y: 0, width: scene.width, height: scene.height })
   const finalBounds = viewportBox(viewport)
   if (repaired && inspection.primitives.some(primitive => {
     const node = scenePrimitiveSource(primitive)
@@ -217,11 +224,14 @@ export function certifyScenePaint(scene: SceneDoc, projection?: Pick<RenderedLay
       if (!work()) return
       if (++pairs > MAX_OCCLUSION_PAIRS) { exhausted = true; return }
       if (surface.primitive.order <= target.primitive.order || !overlaps(surface.bounds, target.bounds)) continue
+      if (surface.interior && contains(surface.interior, target.bounds)) {
+        issue({ code: 'MARKER_OCCLUDED', id: target.primitive.id, by: surface.primitive.id, message: 'Endpoint marker is fully covered by later opaque artwork with no owned repaint' }, true)
+        continue
+      }
       const connector = scenePrimitiveSource(target.primitive)
       const attached = connector?.kind === 'connector' && [connector.endpoints?.from, connector.endpoints?.to].includes(surface.primitive.owner.id)
-      if (outsideFilledBody(surface, target.bounds, attached, target.hull, target.padding)) continue
-      if (surface.interior && contains(surface.interior, target.bounds)) issue({ code: 'MARKER_OCCLUDED', id: target.primitive.id, by: surface.primitive.id, message: 'Endpoint marker is fully covered by later opaque artwork with no owned repaint' }, true)
-      else issue({ code: 'POTENTIAL_OCCLUSION', id: target.primitive.id, by: surface.primitive.id, message: 'Later filled artwork overlaps an endpoint marker; its exact ink intersection is unverified' })
+      if (outsideFilledBody(surface, target.bounds, attached, target.hull, target.padding, work)) continue
+      issue({ code: 'POTENTIAL_OCCLUSION', id: target.primitive.id, by: surface.primitive.id, message: 'Later filled artwork overlaps an endpoint marker; its exact ink intersection is unverified' })
     }
   }
   for (const target of lastMarkers.values()) markerCheck(surfaces, target)

@@ -1,5 +1,6 @@
 import { expect, test } from 'bun:test'
 import * as marks from '../scene/marks.ts'
+import { connectorMarkerPaintRegions } from '../scene/bounds.ts'
 import { certifyScenePaint } from '../scene/paint-certification.ts'
 import type { SceneDoc, SceneNode } from '../scene/ir.ts'
 import { preparePixelText } from '../shared/prepared-text.ts'
@@ -59,6 +60,7 @@ test('one viewport repair contains negative coordinates, stroke and endpoint art
   expect(proof.status).toBe('passed')
   expect(proof.attempts).toBe(2)
   expect(proof.repairs).toEqual(['expand-viewport'])
+  expect(proof.viewport.width / proof.viewport.height).toBeCloseTo(100 / 80, 10)
   expect(proof.viewport.x).toBeLessThanOrEqual(-12)
   expect(proof.viewport.x + proof.viewport.width).toBeGreaterThanOrEqual(117)
   expect(edge.endpoints).toMatchObject({ from: 'authored', to: 'edge' })
@@ -98,6 +100,13 @@ test('strict layout safety rejects unverified graphical states and certifies eve
   expect(renderMermaidSVGWithReceipt(source, { interactive: true }).receipt.layoutCertification?.status).toBe('unverified')
   expect(() => renderMermaidSVGWithReceipt(source, { interactive: true, layoutSafety: 'strict' })).toThrow('Final paint certification failed')
   for (const family of knownBuiltinFamilies()) expect(renderMermaidASCIIWithReceipt(getFamily(family)!.example, { layoutSafety: 'strict' }).receipt.layoutCertification?.status, family).toBe('passed')
+})
+
+test('palette and crisp role styling retain native proof while shadows remain unverified', () => {
+  const source = 'flowchart LR\nA[Visible]-->B[Read]'
+  const proof = renderMermaidSVGWithReceipt(source, { style: 'paper', layoutSafety: 'strict' }).receipt.layoutCertification
+  expect(proof?.status).toBe('passed')
+  expect(renderMermaidSVGWithReceipt(source, { shadow: true }).receipt.layoutCertification?.status).toBe('unverified')
 })
 
 test('Sankey thick cubic ribbons retain compact native paint bounds', () => {
@@ -181,4 +190,31 @@ test('separated leaves cannot evade the final occlusion traversal budget', () =>
   expect(proof.checks.occlusionPairs).toBe(0)
   expect(proof.checks.operations).toBeLessThanOrEqual(proof.checks.maxOperations)
   expect(proof.issues).toContainEqual(expect.objectContaining({ code: 'CHECK_BUDGET' }))
+})
+
+
+test('self-crossing filled polygons cannot prove that an overlapped marker is visible', () => {
+  const points = [0, 2, 4, 1, 3].map(i => ({ x: 50 + 45 * Math.cos(-Math.PI / 2 + 2 * Math.PI * i / 5), y: 50 + 45 * Math.sin(-Math.PI / 2 + 2 * Math.PI * i / 5) }))
+  const edge = marks.connector({ id: 'edge', role: 'edge', lineStyle: 'solid', geometry: { kind: 'line', x1: 40, y1: 15, x2: 50, y2: 15 }, paint: { stroke: '#111' }, markers: { end: { id: 'arrow', shape: 'arrow', bounds: { x0: -1, y0: -1, x1: 1, y1: 1 }, units: 'userSpaceOnUse' } } }, '<line x1="40" y1="15" x2="50" y2="15" stroke="#111" marker-end="url(#arrow)"/>')
+  const cover = marks.shape({ id: 'star', role: 'node', geometry: { kind: 'polygon', points }, paint: { fill: '#fff' } }, `<polygon points="${points.map(p => `${p.x},${p.y}`).join(' ')}" fill="#fff"/>`)
+  expect(certifyScenePaint(scene([edge, cover]))).toMatchObject({ status: 'unverified', issues: [expect.objectContaining({ code: 'POTENTIAL_OCCLUSION', by: 'star' })] })
+})
+
+
+test.each(['non-scaling-stroke', 'rgba(0,0,0,0)', '#00000000'] as const)('%s outlines cannot hide a marker inside their endpoint body', mode => {
+  const edge = marks.connector({ id: 'edge', role: 'edge', lineStyle: 'solid', geometry: { kind: 'line', x1: 10, y1: 50, x2: 40, y2: 50 }, paint: { stroke: '#111' }, endpoints: { from: 'outside', to: 'node' }, markers: { end: { id: 'arrow', shape: 'arrow', bounds: { x0: -1, y0: -1, x1: 1, y1: 1 }, units: 'userSpaceOnUse' } } }, '<line x1="10" y1="50" x2="40" y2="50" stroke="#111" marker-end="url(#arrow)"/>')
+  const cover = marks.shape({ id: 'node', role: 'node', geometry: { kind: 'rect', x: 2, y: 2, width: 6, height: 6 }, paint: { fill: '#fff', stroke: mode === 'non-scaling-stroke' ? '#111' : mode, strokeWidth: '10', ...(mode === 'non-scaling-stroke' ? { vectorEffect: mode } : {}) }, transform: { kind: 'matrix', a: 10, b: 0, c: 0, d: 10, e: 0, f: 0 } }, '<rect x="2" y="2" width="6" height="6" fill="#fff" stroke="#111" stroke-width="10" vector-effect="non-scaling-stroke" transform="matrix(10 0 0 10 0 0)"/>')
+  expect(certifyScenePaint({ ...scene([edge, cover]), height: 100 })).toMatchObject({ status: 'failed', issues: [expect.objectContaining({ code: 'MARKER_OCCLUDED', by: 'node' })] })
+})
+
+
+test('omitted marker orientation follows the emitted auto tangent', () => {
+  const marker = { id: 'arrow', shape: 'arrow' as const, units: 'userSpaceOnUse' as const, ref: { x: 8, y: 2.5 }, geometry: { kind: 'polygon' as const, points: [{ x: 0, y: 0 }, { x: 8, y: 2.5 }, { x: 0, y: 5 }] }, paint: { fill: '#111' } }
+  const edge = marks.connector({ id: 'edge', role: 'edge', lineStyle: 'solid', geometry: { kind: 'line', x1: 10, y1: 10, x2: 10, y2: 50 }, paint: { stroke: '#111' }, markers: { end: marker } }, '<line x1="10" y1="10" x2="10" y2="50" stroke="#111" marker-end="url(#arrow)"/>')
+  const hull = connectorMarkerPaintRegions(edge)[0]!.hull!
+  expect(hull[0]!.x).toBeCloseTo(12.5)
+  expect(hull[0]!.y).toBeCloseTo(42)
+  expect(hull[1]).toEqual({ x: 10, y: 50 })
+  expect(hull[2]!.x).toBeCloseTo(7.5)
+  expect(hull[2]!.y).toBeCloseTo(42)
 })

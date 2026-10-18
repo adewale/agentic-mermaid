@@ -3,7 +3,8 @@
 All 17 native families expose layout evidence through the existing SVG, PNG,
 ASCII and layout receipt APIs. `verifyMermaid` includes graphical evidence;
 debug layout includes `paintCertification`, which `measureQuality` and
-`checkQuality` consume. A certificate reports `passed`, `failed` or `unverified`,
+`checkQuality` consume. Quality reports paint confidence under its own
+`paintCertification` metric; it does not change the label-fit score. A certificate reports `passed`, `failed` or `unverified`,
 its native coordinate unit, coverage, bounded work and limitations.
 
 ```ts
@@ -29,20 +30,23 @@ envelopes. Unknown artwork and lowering-time text fallback are explicit.
 One outward viewport expansion can contain these envelopes without moving
 nodes, changing data values, rerouting relationships or changing membership.
 The final viewport is checked again. The SVG keeps its requested display
-dimensions; its viewBox describes the expanded user-unit region. The receipt
+dimensions and aspect ratio; its viewBox describes the expanded user-unit region. The receipt
 binds the proof to the secured SVG digest also used for PNG rasterization.
 
 Paint order determines occlusion. A later opaque rectangle that contains a
 whole occupied text region proves that text is hidden. Conservative path
 envelopes, rotated empty corners and partial intersections do not prove hidden
-ink; an unresolved candidate remains unverified. Tree visits and primitive comparisons share an explicit 400,000-operation budget, in addition to the 100,000-pair limit. Identical marker artwork
+ink; an unresolved candidate remains unverified. Tree visits and primitive
+comparisons share a 400,000-operation budget, in addition to the 100,000-pair
+limit. Identical marker artwork
 repainted by an owned carrier is evaluated at its final paint position.
 Occlusion scans stop at their explicit comparison budget instead of returning
 a successful result from an unfinished scan.
 
 These are native geometry guarantees. They do not prove every antialiased
 pixel for an arbitrary installed font, host stylesheet, custom backend or
-interactive state. Declared translucency and intentional overlap between data
+interactive state. Crisp palettes and role styles use the same retained native
+geometry; rough backends and shadow ink remain outside the proof. Declared translucency and intentional overlap between data
 marks retain their meaning. Text/source correspondence and quantitative chart
 placement remain separate from aesthetic preferences.
 
@@ -66,7 +70,7 @@ complete route-connectivity proof are outside this cell certificate.
 
 Preserve authored identities, labels, endpoints, membership and chart values.
 Then satisfy hard geometry and content visibility. Route clarity, crossings,
-preferred ports, bends, symmetry and compactness can improve within those
+bends, preferred ports, symmetry and compactness can improve within those
 constraints; a lower-priority preference cannot silently break a higher one.
 
 Production passes enforce their declared order, geometry freeze, metric
