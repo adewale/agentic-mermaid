@@ -118,9 +118,9 @@ export function parseClassBody(lines: string[]): ClassBody | null {
           const namespacePath = [path, ...value.path].filter(Boolean).join('.')
           let namespace = namespaces.find(candidate => candidate.name === namespacePath)
           if (!namespace) {
-            namespace = { name: namespacePath, ...(value.label !== undefined ? classTextLabel(value.label, false, false) : {}) }
+            namespace = { name: namespacePath, ...(value.label !== undefined ? classTextLabel(value.label, false) : {}) }
             namespaces.push(namespace)
-          } else if (value.label !== undefined) { delete namespace.labelContent; Object.assign(namespace, classTextLabel(value.label, false, false)) }
+          } else if (value.label !== undefined) { delete namespace.labelContent; Object.assign(namespace, classTextLabel(value.label, false)) }
           frames.push({ nodes: node.children!, path: namespacePath, owner: undefined, index: 0 })
           break
         }

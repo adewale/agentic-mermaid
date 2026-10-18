@@ -741,7 +741,7 @@ export function parseClassDiagram(lines: string[], authoredLines?: string[]): Cl
     if (label !== undefined) {
       const namespace = namespaces.get(path)!
       delete namespace.labelContent
-      Object.assign(namespace, classTextLabel(label, false, false))
+      Object.assign(namespace, classTextLabel(label))
     }
     return path
   }

@@ -11,7 +11,9 @@
  * cannot emit a namespace block the renderer would drop.
  */
 import { describe, test, expect } from 'bun:test'
+import { decodeXML } from 'entities'
 import { parseClassDiagram } from '../class/parser.ts'
+import { layoutClassDiagram } from '../class/layout.ts'
 import type { ClassNamespace } from '../class/types.ts'
 import { parseRegisteredMermaid as parseMermaid, serializeMermaid, mutate, asClass, describeMermaidFacts, renderMermaidSVG, renderMermaidASCII, verifyMermaid } from '../agent/index.ts'
 import type { ClassValidDiagram, ClassMutationOp } from '../agent/types.ts'
@@ -105,6 +107,40 @@ test('Class labels preserve real formatting beside literal entity-produced marku
   expect(renderMermaidASCII(written)).toContain('real *literal* <b>tag</b>')
   expect(renderMermaidSVG(written)).toContain('&lt;b&gt;tag&lt;/b&gt;')
   expect(verifyMermaid(edited, { labelCharCap: 20 }).warnings.some(warning => warning.code === 'LABEL_OVERFLOW' && warning.target === 'A')).toBe(true)
+})
+
+test.each([
+  ['literal heart', 'Top<br/>Bottom ♥', 'Bottom ♥', false],
+  ['numeric heart', 'Top<br/>Bottom #9829;', 'Bottom ♥', false],
+  ['mixed formatting and encoded breaks', '**Top**<br/>Bottom #9829; #lt;br#gt; #92;n', 'Bottom ♥ <br> \\n', false],
+  ['updated declaration', '**Top**<br/>Bottom #9829; #lt;br#gt; #92;n', 'Bottom ♥ <br> \\n', true],
+] as const)('namespace title round-trip: %s', (_name, authored, bottom, redeclared) => {
+  const source = `classDiagram\n${redeclared ? 'namespace G["Earlier"] { class Old }\n' : ''}namespace G["${authored}"] {\nclass A\n}`
+  const edited = apply(classDiagram(source), { kind: 'add_member', class: 'A', text: '+value' })
+  const written = serializeMermaid(edited)
+  const reloaded = classDiagram(written)
+  expect(describeMermaidFacts(reloaded)).toEqual(describeMermaidFacts(edited))
+  expect(reloaded.body.namespaces?.[0]?.label).toBe(`${authored.startsWith('**') ? '**Top**' : 'Top'}<br/>${bottom}`)
+  expect(serializeMermaid(reloaded)).toBe(written)
+  for (const current of [source, written]) {
+    const positioned = layoutClassDiagram(renderParse(current))
+    const namespace = positioned.namespaces[0]!
+    const block = namespace.labelBlock!
+    expect(block.prepared.lines.map(line => line.map(run => run.text).join(''))).toEqual(['Top', bottom])
+    expect(namespace.headerHeight).toBeGreaterThanOrEqual(block.height)
+    for (const cls of positioned.classes) expect(cls.y).toBeGreaterThanOrEqual(namespace.y + namespace.headerHeight)
+    const drawn = [...renderMermaidSVG(current).matchAll(/<text\b[^>]*>([\s\S]*?)<\/text>/g)]
+      .map(match => decodeXML(match[1]!.replace(/<[^>]*>/g, '')))
+    expect(drawn).toContain(`Top${bottom}`)
+    for (const useAscii of [false, true]) {
+      const rows = renderMermaidASCII(current, { colorMode: 'none', useAscii }).split('\n')
+      expect(rows.some(row => row.includes('Top') && !row.includes('Bottom'))).toBe(true)
+      expect(rows.some(row => row.includes(bottom) && !row.includes('Top'))).toBe(true)
+    }
+  }
+  expect(verifyMermaid(reloaded, { labelCharCap: bottom.length - 1 }).warnings).toContainEqual({
+    code: 'LABEL_OVERFLOW', target: 'namespace:G', charCount: bottom.length, limit: bottom.length - 1,
+  })
 })
 
 test.each([
