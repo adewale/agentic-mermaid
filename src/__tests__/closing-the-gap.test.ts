@@ -235,7 +235,23 @@ describe('Closing The Gap — official Mermaid 11.16 contracts', () => {
     A ||--|| B : local
   end
   C ||--|| D : unrelated`))).relationships.find(relation => relation.entity1 === 'C' && relation.entity2 === 'D')!
-    expect(unrelated.points).toEqual(withoutScopedDirection.points)
+    // Reserving the taller scoped frame may translate the other component,
+    // but it must not stagger C/D or replace their clear direct route.
+    expect(unrelated.points).toHaveLength(2)
+    const dx = unrelated.points[0]!.x - withoutScopedDirection.points[0]!.x
+    const dy = unrelated.points[0]!.y - withoutScopedDirection.points[0]!.y
+    for (let index = 0; index < unrelated.points.length; index++) {
+      expect(unrelated.points[index]!.x - dx).toBeCloseTo(withoutScopedDirection.points[index]!.x, 6)
+      expect(unrelated.points[index]!.y - dy).toBeCloseTo(withoutScopedDirection.points[index]!.y, 6)
+    }
+    const c = routed.entities.find(entity => entity.id === 'C')!, d = routed.entities.find(entity => entity.id === 'D')!
+    expect(c.y).toBeCloseTo(d.y, 6)
+    expect(unrelated.points[0]).toEqual({ x: c.x + c.width, y: c.y + c.height / 2 })
+    expect(unrelated.points[1]).toEqual({ x: d.x, y: d.y + d.height / 2 })
+    const local = routed.groups.find(group => group.id === 'local')!
+    for (const entity of [c, d]) {
+      expect(entity.x < local.x + local.width && entity.x + entity.width > local.x && entity.y < local.y + local.height && entity.y + entity.height > local.y).toBe(false)
+    }
     for (let index = 1; index < unrelated.points.length; index++) {
       const a = unrelated.points[index - 1]!, b = unrelated.points[index]!
       expect(Math.abs(a.x - b.x) < 0.01 || Math.abs(a.y - b.y) < 0.01).toBe(true)

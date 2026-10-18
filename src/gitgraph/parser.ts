@@ -1,3 +1,4 @@
+import { parserObservationActive, observeParserStatement, observeParserMutation } from '../shared/parser-observation.ts'
 import type {
   GitGraphBranch, GitGraphCommit, GitGraphCommitType, GitGraphDiagram,
   GitGraphDirection, GitGraphStatement,
@@ -27,6 +28,7 @@ export function parseGitGraph(source: string, options: GitGraphParseOptions = {}
   if (headerIndex < 0) throw new GitGraphParseError('gitGraph source must start with a gitGraph header')
   const header = lines[headerIndex]!.trim().match(/^gitGraph(?:\s+(LR|TB|BT))?\s*:?[ \t]*$/i)
   if (!header) throw new GitGraphParseError('Invalid gitGraph header; expected gitGraph, gitGraph LR:, gitGraph TB:, or gitGraph BT:', headerIndex + 1)
+  if (parserObservationActive('gitgraph')) observeParserStatement('gitgraph', 'header', lines[headerIndex]!, { line: headerIndex + 1, unit: 'normalized' })
   const direction = (header[1]?.toUpperCase() ?? 'LR') as GitGraphDirection
   const mainBranchName = typeof options.mainBranchName === 'string' && options.mainBranchName.trim() ? options.mainBranchName.trim() : 'main'
   const mainOrder = finiteOrder(options.mainBranchOrder, 0)
@@ -39,6 +41,7 @@ export function parseGitGraph(source: string, options: GitGraphParseOptions = {}
   let sequence = 0
   const accessibilityTitle = scanned.accessibility.title
   const accessibilityDescription = scanned.accessibility.descr
+  if (parserObservationActive('gitgraph')) observeParserMutation('gitgraph', 'initialize', { direction, mainBranchName, title, branch: branches.get(mainBranchName), currentBranch, accessibilityTitle, accessibilityDescription })
 
   const addCommit = (
     attrs: ParsedAttrs,
@@ -65,8 +68,10 @@ export function parseGitGraph(source: string, options: GitGraphParseOptions = {}
       ...extra,
     }
     commits.push(commit)
+    if (parserObservationActive('gitgraph')) observeParserMutation('gitgraph', 'addCommit', commit, { line, unit: 'normalized' })
     commitById.set(id, commit)
     branch.head = id
+    if (parserObservationActive('gitgraph')) observeParserMutation('gitgraph', 'setBranchHead', { branch: currentBranch, head: id }, { line, unit: 'normalized' })
     return commit
   }
 
@@ -75,6 +80,7 @@ export function parseGitGraph(source: string, options: GitGraphParseOptions = {}
     if (!text || text.startsWith('%%')) continue
     const commitLine = text.match(/^commit(?:\s+(.*))?$/i)
     if (commitLine) {
+      if (parserObservationActive('gitgraph')) observeParserStatement('gitgraph', 'commit', text, { line: index + 1, unit: 'normalized' })
       const payload = commitLine[1] ?? ''
       const legacyMessage = payload.match(/^"((?:\\.|[^"])*)"$/)
       const attrs = legacyMessage
@@ -82,10 +88,12 @@ export function parseGitGraph(source: string, options: GitGraphParseOptions = {}
         : parseAttrs(payload, index + 1, ['id', 'tag', 'type', 'msg'])
       const commit = addCommit(attrs, 'commit', index + 1)
       statements.push({ kind: 'commit', ref: commit.id })
+      if (parserObservationActive('gitgraph')) observeParserMutation('gitgraph', 'appendStatement', statements.at(-1), { line: index + 1, unit: 'normalized' })
       continue
     }
     const branchLine = text.match(/^branch\s+("(?:\\.|[^"])+"|\S+)(?:\s+order\s*:\s*(-?\d+))?$/i)
     if (branchLine) {
+      if (parserObservationActive('gitgraph')) observeParserStatement('gitgraph', 'branch', text, { line: index + 1, unit: 'normalized' })
       const name = unquote(branchLine[1]!)
       if (branches.has(name)) throw new GitGraphParseError(`Trying to create existing branch '${name}'; use checkout ${quoteToken(name)} instead.`, index + 1)
       // Pinned Mermaid semantics place unordered branches before explicit
@@ -96,20 +104,27 @@ export function parseGitGraph(source: string, options: GitGraphParseOptions = {}
       if (explicitOrder !== undefined && explicitOrder <= 0) throw new GitGraphParseError('Branch order must be a positive integer.', index + 1)
       const order = explicitOrder ?? implicitBranchOrder(branches.size)
       branches.set(name, { name, order, sequence: branches.size, ...(branches.get(currentBranch)?.head ? { head: branches.get(currentBranch)!.head } : {}) })
+      if (parserObservationActive('gitgraph')) observeParserMutation('gitgraph', 'addBranch', branches.get(name), { line: index + 1, unit: 'normalized' })
       currentBranch = name
+      if (parserObservationActive('gitgraph')) observeParserMutation('gitgraph', 'setCurrentBranch', name, { line: index + 1, unit: 'normalized' })
       statements.push({ kind: 'branch', name, ...(branchLine[2] !== undefined ? { order } : {}) })
+      if (parserObservationActive('gitgraph')) observeParserMutation('gitgraph', 'appendStatement', statements.at(-1), { line: index + 1, unit: 'normalized' })
       continue
     }
     const checkout = text.match(/^(checkout|switch)\s+("(?:\\.|[^"])+"|\S+)$/i)
     if (checkout) {
+      if (parserObservationActive('gitgraph')) observeParserStatement('gitgraph', 'checkout', text, { line: index + 1, unit: 'normalized' })
       const name = unquote(checkout[2]!)
       if (!branches.has(name)) throw new GitGraphParseError(`Trying to checkout branch '${name}' before it is created.`, index + 1)
       currentBranch = name
+      if (parserObservationActive('gitgraph')) observeParserMutation('gitgraph', 'setCurrentBranch', name, { line: index + 1, unit: 'normalized' })
       statements.push({ kind: 'checkout', branch: name, keyword: checkout[1]!.toLowerCase() as 'checkout' | 'switch' })
+      if (parserObservationActive('gitgraph')) observeParserMutation('gitgraph', 'appendStatement', statements.at(-1), { line: index + 1, unit: 'normalized' })
       continue
     }
     const mergeLine = text.match(/^merge\s+("(?:\\.|[^"])+"|\S+)(?:\s+(.*))?$/i)
     if (mergeLine) {
+      if (parserObservationActive('gitgraph')) observeParserStatement('gitgraph', 'merge', text, { line: index + 1, unit: 'normalized' })
       const other = unquote(mergeLine[1]!)
       const attrs = parseAttrs(mergeLine[2] ?? '', index + 1, ['id', 'tag', 'type'])
       if (other === currentBranch) throw new GitGraphParseError(`Cannot merge branch '${other}' into itself.`, index + 1)
@@ -125,10 +140,12 @@ export function parseGitGraph(source: string, options: GitGraphParseOptions = {}
         ...(attrs.type ? { customType: attrs.type } : {}),
       }, [current.head, source.head])
       statements.push({ kind: 'merge', ref: merged.id, branch: other })
+      if (parserObservationActive('gitgraph')) observeParserMutation('gitgraph', 'appendStatement', statements.at(-1), { line: index + 1, unit: 'normalized' })
       continue
     }
     const cherryLine = text.match(/^cherry-pick\s+(.+)$/i)
     if (cherryLine) {
+      if (parserObservationActive('gitgraph')) observeParserStatement('gitgraph', 'cherry-pick', text, { line: index + 1, unit: 'normalized' })
       const attrs = parseAttrs(cherryLine[1]!, index + 1, ['id', 'tag', 'parent'])
       if (!attrs.id) throw new GitGraphParseError('cherry-pick requires id:"existing commit".', index + 1)
       const source = commitById.get(attrs.id)
@@ -151,8 +168,10 @@ export function parseGitGraph(source: string, options: GitGraphParseOptions = {}
         ...(syntheticCherryTag ? { syntheticCherryTag } : {}),
       }, [current.head, source.id])
       statements.push({ kind: 'cherry-pick', ref: picked.id, source: source.id, ...(attrs.parent ? { parent: attrs.parent } : {}) })
+      if (parserObservationActive('gitgraph')) observeParserMutation('gitgraph', 'appendStatement', statements.at(-1), { line: index + 1, unit: 'normalized' })
       continue
     }
+    if (parserObservationActive('gitgraph')) observeParserStatement('gitgraph', 'invalid', text, { line: index + 1, unit: 'normalized' })
     throw new GitGraphParseError(`Unsupported gitGraph statement on line ${index + 1}: ${text}`, index + 1)
   }
 

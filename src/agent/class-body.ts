@@ -273,10 +273,29 @@ function serializeRelationText(text: string): string {
 }
 
 /** Emit one class declaration (+ optional member block) at an indent depth. */
-function pushClassLines(lines: string[], c: ClassNode, indent: string): void {
+function pushClassLines(lines: string[], c: ClassNode, indent: string, deferredMembers: string[]): void {
   const head = `class ${quoteIfNeeded(c.id)}${c.generic ? `~${c.generic}~` : ''}${c.label ? `["${c.label}"]` : ''}`
   if (c.members.length === 0) {
     lines.push(`${indent}${head}`)
+  } else if (c.members.some(member => /[{}]/.test(member))) {
+    // Inline members consume braces as text; a class block treats them as
+    // structure. Inline syntax cannot represent every block member (including
+    // colons and annotations). Defer ordered runs until namespaces close;
+    // reopening the existing class keeps its identity and namespace claim.
+    lines.push(`${indent}${head}`)
+    let block: string[] = []
+    const flushBlock = (): void => {
+      if (block.length === 0) return
+      deferredMembers.push(`  class ${quoteIfNeeded(c.id)} {`, ...block.map(member => `    ${member}`), '  }')
+      block = []
+    }
+    for (const member of c.members) {
+      if (/[{}]/.test(member)) {
+        flushBlock()
+        deferredMembers.push(`  ${quoteIfNeeded(c.id)} : ${member}`)
+      } else block.push(member)
+    }
+    flushBlock()
   } else {
     lines.push(`${indent}${head} {`)
     for (const m of c.members) lines.push(`${indent}  ${m}`)
@@ -286,6 +305,7 @@ function pushClassLines(lines: string[], c: ClassNode, indent: string): void {
 
 export function renderClass(body: ClassBody): string {
   const lines: string[] = ['classDiagram']
+  const deferredMembers: string[] = []
   if (body.title) lines.push(`  title ${body.title}`)
   // Dot paths imply unlabeled parents. A labeled parent without direct
   // classes must wrap its descendants: an empty standalone block is invalid.
@@ -329,7 +349,7 @@ export function renderClass(body: ClassBody): string {
         lines.push(`${'  '.repeat(frame.depth + index)}namespace ${quoteDirectiveTarget(segment)}${label} {`)
       })
     }
-    for (const c of members) pushClassLines(lines, c, '  '.repeat(frame.depth + levels))
+    for (const c of members) pushClassLines(lines, c, '  '.repeat(frame.depth + levels), deferredMembers)
     if (members.length === 0 && descendants.length > 0) {
       frame.entries = frame.entries.filter(candidate => !candidate.name.startsWith(`${ns.name}.`))
       frames.push({ entries: descendants, index: 0, prefix: `${ns.name}.`, depth: frame.depth + levels, closes: levels })
@@ -342,8 +362,9 @@ export function renderClass(body: ClassBody): string {
   const known = new Set(registryPaths)
   for (const c of body.classes) {
     if (c.namespace !== undefined && known.has(c.namespace)) continue
-    pushClassLines(lines, c, '  ')
+    pushClassLines(lines, c, '  ', deferredMembers)
   }
+  lines.push(...deferredMembers)
   // Notes can introduce a class on read. Emit them after declarations so a
   // reload cannot move their target ahead of the authored class identities.
   for (const n of body.notes) {

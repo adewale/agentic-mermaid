@@ -1,3 +1,4 @@
+import { assertClassDiagramWork } from '../shared/diagram-limits.ts'
 import { preparePixelText, type PixelTextBlock } from '../shared/prepared-text.ts'
 /**
  * Class diagram layout engine (ELK.js).
@@ -101,7 +102,7 @@ export function classTextBlock(text: string, style: ResolvedRenderStyle, role: '
     ? preparePixelText(text, { transform: style.nodeTextTransform, fontSize: style.nodeLabelFontSize, fontWeight: style.nodeLabelFontWeight, letterSpacing: style.nodeLetterSpacing, maxWidth })
     : role === 'edge'
       ? preparePixelText(text, { transform: style.edgeTextTransform, fontSize: style.edgeLabelFontSize, fontWeight: style.edgeLabelFontWeight, letterSpacing: style.edgeLetterSpacing, maxWidth })
-      : preparePixelText(text, { transform: style.groupTextTransform, fontSize: style.groupHeaderFontSize, fontWeight: style.groupHeaderFontWeight, letterSpacing: style.groupLetterSpacing, maxWidth })
+      : preparePixelText(text, { transform: style.groupTextTransform, fontSize: style.groupHeaderFontSize, fontWeight: style.groupHeaderFontWeight, letterSpacing: style.groupLetterSpacing, fontFamily: style.groupFont, maxWidth })
 }
 
 export function classMemberBlock(member: ClassMember): PixelTextBlock {
@@ -255,8 +256,11 @@ function buildClassElkGraph(
     const edge: ElkExtendedEdge = { id: `e${i}`, sources: [rel.from], targets: [rel.to] }
     if (rel.label) {
       const metrics = classTextBlock(rel.label, style, 'edge')
-      const label = metrics.text
-      edge.labels = [{ text: label, width: metrics.width + 8, height: metrics.height + 6 }]
+      // Empty formatted text has no painted label. ELK can leave its label
+      // box at the origin, which would invent off-canvas text geometry.
+      if (metrics.lineBlocks.some(line => line.runs.some(run => run.text.trim().length > 0))) {
+        edge.labels = [{ text: metrics.text, width: metrics.width + 8, height: metrics.height + 6 }]
+      }
     }
     const fromChain = ancestorsOf(rel.from)
     const toChain = ancestorsOf(rel.to)
@@ -527,6 +531,7 @@ export function layoutClassDiagram(
   options: RenderOptions = {},
   styleFace?: Readonly<InternalStyleFace>,
 ): PositionedClassDiagram {
+  assertClassDiagramWork(diagram)
   if (diagram.classes.length === 0) {
     return { width: 0, height: 0, accessibilityTitle: diagram.accessibilityTitle, accessibilityDescription: diagram.accessibilityDescription, classes: [], relationships: [], notes: [], namespaces: [] }
   }

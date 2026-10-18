@@ -3,6 +3,8 @@
  */
 import { describe, it, expect } from 'bun:test'
 import { renderMermaidSVG } from '../index.ts'
+import { parseClassDiagram } from '../class/parser.ts'
+import { layoutClassDiagram } from '../class/layout.ts'
 
 // Every class SVG defines all marker ids in <defs>, so marker assertions must
 // read the drawn relationship element's own marker reference.
@@ -98,6 +100,28 @@ describe('renderMermaidSVG – class diagrams', () => {
     const svg = renderMermaidSVG(`classDiagram
       Customer --> Order : places`)
     expect(svg).toContain('places')
+  })
+
+  it.each(['</b>', '<b>', '<i></i>'])('retains formatting-only relationship source without inventing painted geometry: %s', label => {
+    const source = `classDiagram\nclass A {\n+f(</b>) int\n}\nA <|-- B : ${label}`
+    const positioned = layoutClassDiagram(parseClassDiagram(source.split('\n')))
+    const relationship = positioned.relationships[0]!
+    expect(relationship.label).toBe(label)
+    expect(relationship.labelBlock?.prepared.source).toBe(label)
+    expect(relationship.labelBlock?.text).toBe('')
+    expect(relationship.labelPosition).toBeUndefined()
+    const svg = renderMermaidSVG(source)
+    // Members use literal display even when relationship text is formatting.
+    expect(svg).toContain('&lt;/b&gt;')
+    expect(relationshipTag(svg)).toContain('marker-start="url(#cls-inherit)"')
+  })
+
+  it('keeps unknown tag-like relationship text visible and measured', () => {
+    const source = 'classDiagram\nA --> B : </c>'
+    const relationship = layoutClassDiagram(parseClassDiagram(source.split('\n'))).relationships[0]!
+    expect(relationship.labelBlock?.text).toBe('</c>')
+    expect(relationship.labelPosition).toBeDefined()
+    expect(renderMermaidSVG(source)).toContain('&lt;/c&gt;')
   })
 
   it('renders class compartments with divider lines', () => {

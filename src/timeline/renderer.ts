@@ -482,7 +482,7 @@ function lowerEvent(
       role: 'label',
       text: event.text,
         block: event.block,
-      x: event.x + style.nodePaddingX,
+      x: event.labelX ?? event.x + style.nodePaddingX,
       y: event.y + event.height / 2,
       fontSize: style.nodeLabelFontSize,
       anchor: 'start',
@@ -490,7 +490,7 @@ function lowerEvent(
     },
     renderMultilineText(
       event.block ?? event.text,
-      event.x + style.nodePaddingX,
+      event.labelX ?? event.x + style.nodePaddingX,
       event.y + event.height / 2,
       style.nodeLabelFontSize,
       `class="timeline-event-text" text-anchor="start" font-size="${style.nodeLabelFontSize}" font-weight="${style.nodeLabelFontWeight}" data-literal-text="true"${letterAttr(style.nodeLetterSpacing)}`,

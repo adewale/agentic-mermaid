@@ -18,6 +18,7 @@ import { shapePorts, diamondFacetPorts } from '../route-contracts.ts'
 import { EDGE_FORMS, renderEdgeLine } from './helpers/edge-vocabulary.ts'
 import { complicatedFixtures, simpleFixtures } from '../../eval/visual-rubric/fixtures.ts'
 import { scoreFixture } from '../../eval/visual-rubric/run.ts'
+import { resolveStyleStackWithFace } from '../scene/style-registry.ts'
 
 describe('visual rubric — simple battery (every pattern x direction x shape)', () => {
   for (const fixture of simpleFixtures()) {
@@ -38,6 +39,14 @@ describe('visual rubric — complicated set', () => {
 })
 
 describe('rubric ratchets — the MFA regression scores stay at least this good', () => {
+  it('checks retained styled label geometry rather than default font metrics', () => {
+    const graph = parseMermaid('flowchart LR\nA -- first --> B\nB -- second --> A')
+    const styleFace = resolveStyleStackWithFace({ roles: { edge: { fontSize: 24 } } }).face
+    const positioned = layoutGraphSync(graph, { styleFace })
+    expect(positioned.edges.find(edge => edge.source === 'B')?.labelBlock?.height).toBeCloseTo(31.2)
+    expect(assessLayout(graph, positioned).metrics.labelOffRoute).toBe(0)
+  })
+
   it('mfa-login: zero crossings, every edge port-anchored or explained', () => {
     const fixture = complicatedFixtures().find(f => f.id === 'mfa-login')!
     const graph = parseMermaid(fixture.source)

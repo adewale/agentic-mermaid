@@ -14,7 +14,7 @@ const parse = (s: string) => {
 }
 
 describe('class — parse', () => {
-  test('deeply nested namespaces retain the class and source identity without exhausting the call stack', () => {
+  test('deep namespaces retain editable source identity while native work obeys the host limit', () => {
     const depth = 15000
     const lines = [...Array<string>(depth).fill('namespace N {'), 'class A', ...Array<string>(depth).fill('}')]
     const source = `classDiagram\n${lines.join('\n')}`
@@ -25,7 +25,7 @@ describe('class — parse', () => {
       { id: 'A', namespace: `${'N.'.repeat(depth - 1)}N` },
     ])
     expect(diagram.source.nodes.get('A')).toEqual({ line: depth + 2, col: 7 })
-    expect(parseClassDiagram(['classDiagram', ...lines]).classes.map(node => node.id)).toEqual(['A'])
+    expect(() => parseClassDiagram(['classDiagram', ...lines])).toThrow(/DIAGRAM_WORK_LIMIT/)
     expect(classUnsupportedSyntaxWarnings(source)).toEqual([])
   })
 

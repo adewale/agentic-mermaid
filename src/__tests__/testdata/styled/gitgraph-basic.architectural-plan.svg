@@ -1,7 +1,7 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="750.055" height="511.536" viewBox="0 0 750.055 511.536" style="--bg:#fbf7ea;--fg:#202a2f;--line:#38535e;--accent:#1f6f8b;--muted:#60727a;--surface:#fffaf0;--border:#38535e;--font:Share Tech Mono;background:#fbf7ea" aria-labelledby="gitgraph-title" aria-roledescription="git graph" role="img" class="am-1ia1hut09cezpx">
+<svg xmlns="http://www.w3.org/2000/svg" width="750.055" height="511.536" viewBox="0 0 750.055 511.536" style="--bg:#fbf7ea;--fg:#202a2f;--line:#38535e;--accent:#1f6f8b;--muted:#60727a;--surface:#fffaf0;--border:#38535e;--font:Share Tech Mono;background:#fbf7ea" aria-labelledby="gitgraph-title" aria-roledescription="git graph" role="img" class="am-0uw9a1f1cat3wq">
 <style>
-  .am-1ia1hut09cezpx text { font-family: var(--font, 'Share Tech Mono'), system-ui, sans-serif; }
-  svg.am-1ia1hut09cezpx {
+  svg.am-0uw9a1f1cat3wq { font-family: var(--font, 'Share Tech Mono'), system-ui, sans-serif; }
+  svg.am-0uw9a1f1cat3wq {
     /* Derived from --bg and --fg (overridable via --line, --accent, etc.) */
     --_text:          #202a2f;
     --_text-sec:      #60727a;

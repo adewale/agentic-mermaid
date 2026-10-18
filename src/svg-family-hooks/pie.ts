@@ -1,5 +1,6 @@
+import { projectPiePositioned } from '../positioned-views/pie.ts'
 import { withFrontmatterTitle } from '../mermaid-source.ts'
-import { layoutResult, scene, type BrowserSvgFamilyHooks } from '../browser-lazy/family.ts'
+import { layoutResult, positionedView, scene, type BrowserSvgFamilyHooks } from '../browser-lazy/family.ts'
 import { resolvePieVisualConfig } from '../pie/config.ts'
 import { layoutPieChart } from '../pie/layout.ts'
 import { parsePieChart } from '../pie/parser.ts'
@@ -18,5 +19,6 @@ export const PIE_SVG_HOOKS = {
       ?? resolvePieVisualConfig(),
     ctx.styleFace,
   )),
+  projectPositioned: positionedView(projectPiePositioned),
   lowerScene: scene(lowerPieScene),
 } satisfies BrowserSvgFamilyHooks

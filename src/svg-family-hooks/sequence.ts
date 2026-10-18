@@ -1,4 +1,5 @@
-import { layoutResult, scene, type BrowserSvgFamilyHooks } from '../browser-lazy/family.ts'
+import { projectSequencePositioned } from '../positioned-views/sequence.ts'
+import { layoutResult, positionedView, scene, type BrowserSvgFamilyHooks } from '../browser-lazy/family.ts'
 import { withFrontmatterTitle } from '../mermaid-source.ts'
 import { resolveSequenceConfig } from '../sequence/config.ts'
 import { layoutSequenceDiagram } from '../sequence/layout.ts'
@@ -27,5 +28,6 @@ export const SEQUENCE_SVG_HOOKS = {
     ), ctx.source.frontmatter)
     return layoutResult(layoutSequenceDiagram(diagram, ctx.renderOptions, seqConfig, ctx.styleFace))
   },
+  projectPositioned: positionedView(projectSequencePositioned),
   lowerScene: scene(lowerSequenceScene),
 } satisfies BrowserSvgFamilyHooks

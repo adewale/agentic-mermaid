@@ -4,6 +4,7 @@ import { LINE_HEIGHT_RATIO, measureTextWidth, measureSystemFontSafeTextWidth, me
 import { graphemes } from './graphemes.ts'
 import { serializeStyledSegment } from './inline-format.ts'
 import { prepareDisplayText, type DisplayRun, type PreparedDisplayText } from './display-text.ts'
+import { customTextMeasurementActive } from '../text-measurement-profile.ts'
 
 export interface PixelTextOptions {
   display?: LabelDisplay
@@ -14,6 +15,7 @@ export interface PixelTextOptions {
   maxWidth?: number
   safeFont?: boolean
   monospace?: boolean
+  fontFamily?: string
 }
 
 export interface TextBreak {
@@ -45,6 +47,7 @@ export interface PixelTextBlock {
   readonly letterSpacing: number
   readonly monospace: boolean
   readonly safeFont: boolean
+  readonly fontFamily?: string
 }
 
 function sameStyle(a: DisplayRun, b: DisplayRun): boolean {
@@ -66,11 +69,15 @@ function advance(runs: readonly DisplayRun[], options: PixelTextOptions): number
   const measure = options.safeFont ? measureSystemFontSafeTextWidth : measureTextWidth
   const grouped = coalesce(runs)
   const text = grouped.map(run => run.text).join('')
-  const width = options.monospace ? measureMonospaceTextWidth(text, options.fontSize) : grouped.reduce((sum, run) => sum + measure(run.text, options.fontSize, run.bold ? Math.max(700, options.fontWeight) : options.fontWeight), 0)
+  const width = options.monospace
+    ? customTextMeasurementActive()
+      ? grouped.reduce((sum, run) => sum + measureMonospaceTextWidth(run.text, options.fontSize, 0, run.bold ? Math.max(700, options.fontWeight) : options.fontWeight, run.italic ? 'italic' : 'normal', options.fontFamily), 0)
+      : measureMonospaceTextWidth(text, options.fontSize)
+    : grouped.reduce((sum, run) => sum + measure(run.text, options.fontSize, run.bold ? Math.max(700, options.fontWeight) : options.fontWeight, run.italic ? 'italic' : 'normal', options.fontFamily), 0)
   // Native shaping may apply tracking to several code points in a cluster
   // (flags are a common example). Negative tracking can reverse occupied
   // intervals; reserve their envelope rather than shrinking to final advance.
-  if (/[^\x20-\x7e]/u.test(text)) {
+  if (!customTextMeasurementActive() && /[^\x20-\x7e]/u.test(text)) {
     // Unknown fallback faces need an em envelope, rather than the Latin bucket
     // for Ω/Ш/etc. Count visible code points: a fallback can draw separate
     // glyphs for components of a flag or a ZWJ cluster. Zero-width marks stay
@@ -91,7 +98,9 @@ function trackedBounds(runs: readonly DisplayRun[], options: PixelTextOptions): 
   for (const run of runs) {
     const clusters = graphemes(run.text)
     for (const [i, cluster] of clusters.entries()) {
-      const width = options.monospace ? measureMonospaceTextWidth(cluster, options.fontSize) : measure(cluster, options.fontSize, run.bold ? Math.max(700, options.fontWeight) : options.fontWeight) - (i === clusters.length - 1 ? 0 : options.fontSize * 0.15)
+      const weight = run.bold ? Math.max(700, options.fontWeight) : options.fontWeight
+      const fontStyle = run.italic ? 'italic' : 'normal'
+      const width = options.monospace ? measureMonospaceTextWidth(cluster, options.fontSize, 0, weight, fontStyle, options.fontFamily) : measure(cluster, options.fontSize, weight, fontStyle, options.fontFamily) - (i === clusters.length - 1 || customTextMeasurementActive() ? 0 : options.fontSize * 0.15)
       min = Math.min(min, x); max = Math.max(max, x + width)
       x += width + (options.letterSpacing ?? 0)
     }
@@ -197,7 +206,7 @@ export function preparePixelText(source: string, options: PixelTextOptions): Pix
   Object.freeze(lines)
   breaks.forEach(Object.freeze)
   const width = lineBlocks.reduce((max, line) => Math.max(max, line.width), 0)
-  return Object.freeze({ unit: 'px', prepared, text: lines.join('\n'), lines, lineBlocks: Object.freeze(lineBlocks), breaks: Object.freeze(breaks), width, height: lines.length * lineHeight, lineHeight, fontSize: options.fontSize, fontWeight: options.fontWeight, letterSpacing: options.letterSpacing ?? 0, monospace: options.monospace ?? false, safeFont: options.safeFont ?? false })
+  return Object.freeze({ unit: 'px', prepared, text: lines.join('\n'), lines, lineBlocks: Object.freeze(lineBlocks), breaks: Object.freeze(breaks), width, height: lines.length * lineHeight, lineHeight, fontSize: options.fontSize, fontWeight: options.fontWeight, letterSpacing: options.letterSpacing ?? 0, monospace: options.monospace ?? false, safeFont: options.safeFont ?? false, ...(options.fontFamily ? { fontFamily: options.fontFamily } : {}) })
 }
 
 export type PixelTextFit =

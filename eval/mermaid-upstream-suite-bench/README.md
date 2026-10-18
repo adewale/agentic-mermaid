@@ -107,7 +107,7 @@ interface ManifestFamily {
 - Imported coverage must stay above the ratchet floor, and local-gap budgets may only hold steady or decrease.
 - Upstream refreshes are explicit: the harvester checks the pinned checkout revision, and the refresh check fails when newer upstream commits change the harvested diagram spec files.
 
-Current BUILD-20 accounting: **1,265** considered upstream parser/DB blocks,
-**746** imported blocks, **519** excluded/accounted blocks, and **0** deferred
-blocks. The executable case count is **736**, including the 68-case Gantt and
-89-case Mindmap/GitGraph companion benches.
+Current BUILD-20 accounting: **1,292** considered upstream parser/DB blocks,
+**752** imported blocks, **540** excluded/accounted blocks, and **0** deferred
+blocks. The imported executable case count is **742**, including the 68-case
+Gantt bench and 88 imported Mindmap/GitGraph companion cases.

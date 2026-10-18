@@ -2,14 +2,35 @@
 // so external stylesheets can target semantic node classes.
 
 import { describe, test, expect } from 'bun:test'
-import { renderMermaidSVG } from '../index.ts'
+import { renderMermaidSVG, renderMermaidASCII } from '../index.ts'
 import { applyOps } from '../agent/core.ts'
+import { parseMermaid } from '../parser.ts'
+import { resolveNodeInlineStyle, resolveEdgeInlineStyle } from '../color-resolver.ts'
 
 function nodeG(svg: string, id: string): string | undefined {
   return svg.split('\n').find(l => l.includes(`data-id="${id}"`))?.trim()
 }
 
 describe('#81 external CSS class emission', () => {
+  test('accumulated node and edge classes retain paint and identities through mutation and both renderers', () => {
+    const source = 'flowchart LR\nA:::warm e1@--> B\nclassDef warm fill:#ff0000,color:#ffffff\nclassDef cool stroke:#0000ff,stroke-width:3px\nclass A cool\nclass A warm\nclass e1 warm\nclass e1 cool'
+    const graph = parseMermaid(source)
+    expect(graph.classAssignments.get('A')).toBe('warm cool warm')
+    expect(resolveNodeInlineStyle('A', graph)).toEqual({ fill: '#ff0000', color: '#ffffff', stroke: '#0000ff', 'stroke-width': '3px' })
+    expect(resolveEdgeInlineStyle(0, graph)).toMatchObject({ fill: '#ff0000', stroke: '#0000ff' })
+    const changed = applyOps({ source, ops: [{ kind: 'rename_node', from: 'A', to: 'Renamed' }] })
+    expect(changed.ok).toBe(true)
+    if (!changed.ok) return
+    const serialized = changed.source
+    expect(parseMermaid(serialized).classAssignments.get('Renamed')).toBe('warm cool warm')
+    expect(nodeG(renderMermaidSVG(serialized), 'Renamed')).toContain('class="node warm cool warm"')
+    expect(renderMermaidSVG(serialized)).toContain('#ff0000')
+    const terminal = renderMermaidASCII(serialized, { colorMode: 'html' })
+    expect(terminal).toContain('#0000ff')
+    expect(terminal).toContain('Renamed')
+    expect(terminal).toContain('B')
+  })
+
   test('assigned class appears in the node group class attribute', () => {
     const svg = renderMermaidSVG('flowchart TD\n  A --> B\n  classDef hot fill:#f00\n  class A hot')
     expect(nodeG(svg, 'A')).toContain('class="node hot"')

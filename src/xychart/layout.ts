@@ -62,7 +62,7 @@ export const XY_STYLE_DEFAULTS: RenderStyleDefaults = {
  * chart reserves room for the text it actually draws. */
 interface XYTextMeasure {
   wrapTitle(title: string, fontSize: number, width: number): PixelTextBlock
-  block(role: 'tick' | 'legend' | 'axisTitle' | 'data', source: string, fontSize: number): PixelTextBlock
+  block(role: 'tick' | 'legend' | 'axisTitle' | 'data', source: string, fontSize: number, maxWidth?: number): PixelTextBlock
   /** Axis tick labels: categories and values. */
   tick(label: string, fontSize: number): number
   legend(label: string, fontSize: number): number
@@ -71,12 +71,12 @@ interface XYTextMeasure {
 
 function xyTextMeasure(style: ResolvedRenderStyle): XYTextMeasure {
   const cache = new Map<string, PixelTextBlock>()
-  const block = (role: 'tick' | 'legend' | 'axisTitle' | 'data', source: string, fontSize: number): PixelTextBlock => {
-    const key = JSON.stringify([role, source, fontSize])
+  const block = (role: 'tick' | 'legend' | 'axisTitle' | 'data', source: string, fontSize: number, maxWidth?: number): PixelTextBlock => {
+    const key = JSON.stringify([role, source, fontSize, maxWidth])
     let prepared = cache.get(key)
     if (!prepared) {
       const edge = role === 'axisTitle'
-      prepared = preparePixelText(source, { display: 'literal', fontSize, fontWeight: edge ? style.edgeLabelFontWeight : style.nodeLabelFontWeight, letterSpacing: edge ? style.edgeLetterSpacing : style.nodeLetterSpacing, transform: role === 'axisTitle' || role === 'tick' ? style.edgeTextTransform : style.nodeTextTransform })
+      prepared = preparePixelText(source, { display: 'literal', fontSize, fontWeight: edge ? style.edgeLabelFontWeight : style.nodeLabelFontWeight, letterSpacing: edge ? style.edgeLetterSpacing : style.nodeLetterSpacing, transform: role === 'axisTitle' || role === 'tick' ? style.edgeTextTransform : style.nodeTextTransform, maxWidth })
       cache.set(key, prepared)
     }
     return prepared
@@ -119,12 +119,36 @@ export function layoutXYChart(
   const positioned = chart.horizontal ? layoutHorizontal(chart, config, measure) : layoutVertical(chart, config, measure)
   for (const axis of [positioned.xAxis, positioned.yAxis]) {
     if (axis.title) axis.title.block = measure.block('axisTitle', axis.title.text, axis.config.titleFontSize)
-    for (const tick of axis.ticks) tick.block = measure.block('tick', tick.label, axis.config.labelFontSize)
+    for (const tick of axis.ticks) {
+      const block = tick.block = measure.block('tick', tick.label, axis.config.labelFontSize)
+      const left = tick.textAnchor === 'start' ? 0 : tick.textAnchor === 'end' ? block.width : block.width / 2
+      tick.labelX = Math.max(left, Math.min(positioned.width - block.width + left, tick.labelX))
+      tick.labelY = Math.max(block.height / 2, Math.min(positioned.height - block.height / 2, tick.labelY))
+    }
   }
   for (const item of positioned.legend) item.block = measure.block('legend', item.label, positioned.config.legendFontSize)
   for (const label of positioned.dataLabels) label.block = measure.block('data', label.text, label.fontSize)
   for (const line of positioned.lines) for (const point of line.points) {
-    if (point.textLabel !== undefined) point.textBlock = measure.block('data', point.textLabel, 12)
+    if (point.textLabel !== undefined) {
+      const block = point.textBlock = measure.block('data', point.textLabel, 12, Math.max(1, positioned.width - 8))
+      const clamp = (value: number, min: number, max: number) => Math.max(min, Math.min(max, value))
+      if (positioned.horizontal) {
+        const right = point.x + 8 + block.width <= positioned.width - 4
+        const anchor = right ? 'start' : 'end'
+        point.textPosition = {
+          x: right ? clamp(point.x + 8, 4, positioned.width - 4 - block.width) : clamp(point.x - 8, block.width + 4, positioned.width - 4),
+          y: clamp(point.y, block.height / 2, positioned.height - block.height / 2),
+          anchor, placement: right ? 'right' : 'left',
+        }
+      } else {
+        const above = point.y - 8 - block.height >= positioned.plotArea.y
+        point.textPosition = {
+          x: clamp(point.x, block.width / 2, positioned.width - block.width / 2),
+          y: clamp(point.y + (above ? -1 : 1) * (8 + block.height / 2), block.height / 2, positioned.height - block.height / 2),
+          anchor: 'middle', placement: above ? 'above' : 'below',
+        }
+      }
+    }
   }
   return positioned
 }
@@ -235,6 +259,7 @@ function layoutVertical(chart: XYChart, config: ResolvedXYChartConfig, measure: 
     lines,
     gridLines,
     legend: legend.items,
+    hiddenLegendLabels: legend.hiddenLabels,
     hiddenCategoryLabels: hiddenCategoryLabels(chart, config, xAxisConfig.config, xTicks),
     ...planBarDataLabels(bars, false, plotArea, config, measure),
     config,
@@ -344,6 +369,7 @@ function layoutHorizontal(chart: XYChart, config: ResolvedXYChartConfig, measure
     lines,
     gridLines,
     legend: legend.items,
+    hiddenLegendLabels: legend.hiddenLabels,
     hiddenCategoryLabels: hiddenCategoryLabels(chart, config, leftAxisConfig.config, leftTicks),
     ...planBarDataLabels(bars, true, plotArea, config, measure),
     config,
@@ -367,16 +393,16 @@ function fitLegend(
   plotTop: number,
   plotHeight: number,
   measure: XYTextMeasure,
-): { items: LegendItem[]; size: number } {
-  if (!config.showLegend) return { items: [], size: 0 }
+): { items: LegendItem[]; size: number; hiddenLabels: string[] } {
+  if (!config.showLegend) return { items: [], size: 0, hiddenLabels: [] }
   const entries = legendEntries(chart.series)
-  if (entries.length === 0) return { items: [], size: 0 }
+  if (entries.length === 0) return { items: [], size: 0, hiddenLabels: [] }
 
   const maxLabelWidth = Math.ceil(Math.max(...entries.map(entry => measure.legend(entry.label, config.legendFontSize))))
   const width = config.legendPadding * 2 + LEGEND_SWATCH_SIZE + LEGEND_SWATCH_GAP + maxLabelWidth
   const rowHeight = Math.max(...entries.map(entry => measure.block('legend', entry.label, config.legendFontSize).height), LEGEND_SWATCH_SIZE) + config.legendPadding
   const height = config.legendPadding + entries.length * rowHeight
-  if (width > budget || height > plotHeight) return { items: [], size: 0 }
+  if (width > budget || height > plotHeight) return { items: [], size: 0, hiddenLabels: entries.map(entry => entry.label) }
 
   const swatchX = totalW - width + config.legendPadding
   const items: LegendItem[] = entries.map((entry, index) => ({
@@ -387,7 +413,7 @@ function fitLegend(
     seriesIndex: entry.seriesIndex,
     colorIndex: entry.colorIndex,
   }))
-  return { items, size: width }
+  return { items, size: width, hiddenLabels: [] }
 }
 
 function fitChartTitle(title: string | undefined, config: ResolvedXYChartConfig, budget: number, measure: XYTextMeasure): { height: number; title?: PositionedXYChart['title'] } {

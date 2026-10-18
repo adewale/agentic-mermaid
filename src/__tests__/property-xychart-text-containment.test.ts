@@ -46,6 +46,18 @@ const chartArb = fc.integer({ min: 1, max: 12 }).chain(count => fc.record({
 }))
 
 describe('xychart text stays on the canvas', () => {
+  it.each(['', ' horizontal'])('keeps point-label glyphs inside the viewport%s', orientation => {
+    const source = `xychart-beta${orientation}\n x-axis [A,B]\n y-axis 0 --> 10\n line [10 "Top",0 "${'Wide '.repeat(20)}"]`
+    const svg = renderMermaidSVG(source)
+    const [, , width, height] = svg.match(/viewBox="([^"]+)"/)![1]!.split(' ').map(Number)
+    const box = new Resvg(textOnly(svg), { font: { loadSystemFonts: false, fontDirs: [FONT_DIR], defaultFontFamily: 'Inter' } }).getBBox()
+    expect(box).toBeDefined()
+    expect(box!.x).toBeGreaterThanOrEqual(-TOLERANCE)
+    expect(box!.y).toBeGreaterThanOrEqual(-TOLERANCE)
+    expect(box!.x + box!.width).toBeLessThanOrEqual(width! + TOLERANCE)
+    expect(box!.y + box!.height).toBeLessThanOrEqual(height! + TOLERANCE)
+  })
+
   it('keeps every rendered glyph and bar inside the viewBox', () => {
     fc.assert(
       fc.property(chartArb, chart => {

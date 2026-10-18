@@ -8,8 +8,8 @@
 // What's measured:
 //   - edgeCrossings: number of pairwise edge-segment intersections (excluding
 //     shared endpoints). Lower is better.
-//   - labelLegibility: fraction of node labels whose rendered length fits the
-//     node's width at a 12px font baseline.
+//   - labelLegibility: fraction of measured visible node labels that fit their
+//     retained available region. Missing evidence is reported separately.
 //   - whitespaceBalance: ratio of node-occupied area to total canvas area
 //     (0..1). Targets a band — too dense AND too sparse both lose points.
 //   - labelEdgeProximity: min pixel distance between any edge-label bbox and
@@ -22,14 +22,24 @@
 // ============================================================================
 
 import type { RenderedLayout, RenderedLayoutNode, RenderedLayoutEdge } from './types.ts'
-import { measureMultilineText } from '../text-metrics.ts'
-import { FONT_SIZES, FONT_WEIGHTS } from '../styles.ts'
 import { luminanceContrastRatio, srgbRelativeLuminance, tryParseCssColor } from '../shared/color-math.ts'
 import { compareCodePointStrings } from '../shared/deterministic-order.ts'
 
 export interface QualityMetrics {
   edgeCrossings: number
   labelLegibility: number  // 0..1 — fraction of labels that fit
+  labelMeasurement: {
+    measuredNodes: number
+    unmeasuredNodes: number
+    hiddenNodes: number
+    semanticNodes: number
+    measuredEdges: number
+    unmeasuredEdges: number
+    measuredLabels: number
+    unmeasuredLabels: number
+    hiddenLabels: number
+    semanticLabels: number
+  }
   whitespaceBalance: number  // 0..1 — fill ratio
   labelEdgeProximity: number  // pixels; Infinity if no edge labels
   minimumNodeSpacing: number  // pixels; Infinity when fewer than two nodes
@@ -124,7 +134,7 @@ export const BOUND_PROVENANCE: Record<
   },
   labelLegibility: {
     basis: 'derived', severity: 'secondary',
-    note: 'Labels that exceed node width are mechanically unreadable; the 7px/char model under-estimates fit under condensed fonts.',
+    note: 'Prepared text must fit its retained available region. Labels without retained geometry are reported as unmeasured.',
   },
   labelEdgeProximity: {
     basis: 'chosen', severity: 'secondary',
@@ -168,8 +178,6 @@ export const BOUND_PROVENANCE: Record<
 // counts as justified, while an off-lane jog with a clear straight lane (hitches)
 // or a bend on a 'straight'-certified edge (unexplainedBends) stays a violation.
 
-const CHAR_PX = 7  // approx character width at 12px font
-const EDGE_LABEL_BOX_PADDING = 8
 const GEOM_EPS = 1e-9
 
 export function measureQuality(
@@ -178,7 +186,19 @@ export function measureQuality(
 ): QualityMetrics {
   return {
     edgeCrossings: countEdgeCrossings(layout.edges),
-    labelLegibility: measureLabelLegibility(layout.nodes),
+    labelLegibility: measureLabelLegibility(layout),
+    labelMeasurement: {
+      measuredNodes: layout.nodes.filter(node => node.label && node.labelVisibility !== 'hidden' && node.labelVisibility !== 'semantic' && node.labelBounds).length,
+      unmeasuredNodes: layout.nodes.filter(node => node.label && node.labelVisibility !== 'hidden' && node.labelVisibility !== 'semantic' && !node.labelBounds).length,
+      hiddenNodes: layout.nodes.filter(node => node.label && node.labelVisibility === 'hidden').length,
+      semanticNodes: layout.nodes.filter(node => node.label && node.labelVisibility === 'semantic').length,
+      measuredEdges: layout.edges.filter(edge => edge.label?.bounds).length,
+      unmeasuredEdges: layout.edges.filter(edge => edge.label && !edge.label.bounds).length,
+      measuredLabels: (layout.labels ?? []).filter(label => label.text && label.visibility !== 'hidden' && label.visibility !== 'semantic' && label.bounds).length,
+      unmeasuredLabels: (layout.labels ?? []).filter(label => label.text && label.visibility !== 'hidden' && label.visibility !== 'semantic' && !label.bounds).length,
+      hiddenLabels: (layout.labels ?? []).filter(label => label.text && label.visibility === 'hidden').length,
+      semanticLabels: (layout.labels ?? []).filter(label => label.text && label.visibility === 'semantic').length,
+    },
     whitespaceBalance: measureWhitespaceBalance(layout),
     labelEdgeProximity: measureLabelEdgeProximity(layout),
     minimumNodeSpacing: measureMinimumNodeSpacing(layout),
@@ -224,7 +244,20 @@ export function checkQuality(
   if (m.labelLegibility < b.minLabelLegibility) {
     flag('labelLegibility', `label legibility ${(m.labelLegibility * 100).toFixed(0)}% < min ${(b.minLabelLegibility * 100).toFixed(0)}%`)
   }
-  if (m.whitespaceBalance < b.whitespaceBand[0] || m.whitespaceBalance > b.whitespaceBand[1]) {
+  if (m.labelMeasurement.unmeasuredNodes > 0) {
+    flag('labelLegibility', `label fit unmeasured for ${m.labelMeasurement.unmeasuredNodes} visible labels`)
+  }
+  if (m.labelMeasurement.unmeasuredEdges > 0) {
+    flag('labelEdgeProximity', `edge-label clearance unmeasured for ${m.labelMeasurement.unmeasuredEdges} labels`)
+  }
+  if (m.labelMeasurement.unmeasuredLabels > 0) {
+    flag('labelLegibility', `label fit unmeasured for ${m.labelMeasurement.unmeasuredLabels} painted labels`)
+  }
+  // Data plots preserve authored positions inside a fixed plot. Occupied mark
+  // area is diagnostic; enlarging/moving marks to hit a box-fill band corrupts
+  // their meaning. Box-based diagrams retain the existing density gate.
+  const fixedDataPlot = layout.kind === 'quadrant' || layout.kind === 'xychart' || layout.kind === 'radar'
+  if ((!fixedDataPlot || bounds.whitespaceBand !== undefined) && (m.whitespaceBalance < b.whitespaceBand[0] || m.whitespaceBalance > b.whitespaceBand[1])) {
     flag('whitespaceBalance', `whitespace balance ${(m.whitespaceBalance * 100).toFixed(1)}% outside band [${b.whitespaceBand[0] * 100}–${b.whitespaceBand[1] * 100}]%`)
   }
   if (m.labelEdgeProximity < b.minLabelEdgeProximity) {
@@ -295,6 +328,8 @@ function radarMarkIdentity(node: RenderedLayoutNode): RadarMarkIdentity | undefi
 }
 
 function spacingComparable(kind: RenderedLayout['kind'], a: RenderedLayoutNode, b: RenderedLayoutNode): boolean {
+  if (kind === 'quadrant' && a.dataPosition && b.dataPosition &&
+      a.dataPosition.x === b.dataPosition.x && a.dataPosition.y === b.dataPosition.y) return false
   if (kind === 'xychart') {
     const left = xyMarkIdentity(a)
     const right = xyMarkIdentity(b)
@@ -454,15 +489,22 @@ function segmentsCross(p1: [number, number], p2: [number, number], p3: [number, 
 
 // ---- label legibility -----------------------------------------------------
 
-function measureLabelLegibility(nodes: RenderedLayoutNode[]): number {
-  if (nodes.length === 0) return 1
+function measureLabelLegibility(layout: RenderedLayout): number {
+  const canvas = { x: 0, y: 0, w: layout.bounds.w, h: layout.bounds.h }
+  const labels = [
+    ...layout.nodes.map(node => ({ text: node.label, bounds: node.labelBounds, container: node.labelContainer ?? nodeBox(node), visibility: node.labelVisibility })),
+    ...(layout.labels ?? []).map(label => ({ ...label, container: label.container ?? canvas })),
+  ]
+  const measured = labels.filter(label => label.text && label.visibility !== 'hidden' && label.visibility !== 'semantic' && label.bounds)
+  if (measured.length === 0) return 1
   let fits = 0
-  for (const n of nodes) {
-    if (!n.label) { fits++; continue }
-    const renderedWidth = n.label.length * CHAR_PX
-    if (renderedWidth <= n.w) fits++
+  for (const n of measured) {
+    const text = n.bounds!
+    const region = n.container
+    if (text.x >= region.x - GEOM_EPS && text.y >= region.y - GEOM_EPS &&
+        text.x + text.w <= region.x + region.w + GEOM_EPS && text.y + text.h <= region.y + region.h + GEOM_EPS) fits++
   }
-  return fits / nodes.length
+  return fits / measured.length
 }
 
 // ---- whitespace balance --------------------------------------------------
@@ -482,13 +524,6 @@ type Point = [number, number]
 
 function nodeBox(n: RenderedLayoutNode): Rect {
   return { x: n.x, y: n.y, w: n.w, h: n.h }
-}
-
-function edgeLabelBox(label: NonNullable<RenderedLayoutEdge['label']>): Rect {
-  const metrics = measureMultilineText(label.text, FONT_SIZES.edgeLabel, FONT_WEIGHTS.edgeLabel)
-  const w = metrics.width + EDGE_LABEL_BOX_PADDING * 2
-  const h = metrics.height + EDGE_LABEL_BOX_PADDING * 2
-  return { x: label.x - w / 2, y: label.y - h / 2, w, h }
 }
 
 function rectDistance(a: Rect, b: Rect): number {
@@ -569,8 +604,8 @@ function rectToSegmentDistance(r: Rect, a: Point, b: Point): number {
 function measureLabelEdgeProximity(layout: RenderedLayout): number {
   let min = Infinity
   const labels = layout.edges
-    .filter((e): e is RenderedLayoutEdge & { label: NonNullable<RenderedLayoutEdge['label']> } => e.label !== undefined)
-    .map(e => ({ edge: e, box: edgeLabelBox(e.label) }))
+    .filter((e): e is RenderedLayoutEdge & { label: NonNullable<RenderedLayoutEdge['label']> & { bounds: Rect } } => e.label?.bounds !== undefined)
+    .map(e => ({ edge: e, box: e.label.bounds }))
 
   for (const { edge, box } of labels) {
     for (const n of layout.nodes) {

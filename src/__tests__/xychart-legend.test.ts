@@ -22,6 +22,7 @@ import { applyXYChartFrontmatterConfig, parseXYChart } from '../xychart/parser.t
 import { layoutXYChart } from '../xychart/layout.ts'
 import { estimateTextWidth } from '../styles.ts'
 import { resolveStyleStackWithFace } from '../scene/style-registry.ts'
+import { verifyMermaid } from '../agent/index.ts'
 
 function layout(text: string, style?: string) {
   const processed = preprocessMermaidSource(text)
@@ -182,16 +183,20 @@ describe('xychart legend – layout containment (no clipping)', () => {
   })
 
   it('drops the legend deterministically rather than clip when it cannot fit', () => {
-    const chart = layout(`---
+    const source = `---
 config:
   xyChart:
     width: 120
+    showLegend: true
 ---
 xychart
   x-axis [a]
   bar An Extremely Long Series Name That Cannot Fit [1]
-  line Second Extremely Long Series Name [2]`)
+  line Second Extremely Long Series Name [2]`
+    const chart = layout(source)
     expect(chart.legend).toEqual([])
+    expect(chart.hiddenLegendLabels).toEqual(['An Extremely Long Series Name That Cannot Fit', 'Second Extremely Long Series Name'])
+    expect(verifyMermaid(source).warnings).toContainEqual(expect.objectContaining({ code: 'LABELS_HIDDEN', target: 'legend', labels: chart.hiddenLegendLabels }))
     // Chart itself still renders inside its box.
     expect(chart.plotArea.x + chart.plotArea.width).toBeLessThanOrEqual(chart.width)
   })

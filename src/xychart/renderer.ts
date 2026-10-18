@@ -211,10 +211,11 @@ export function lowerXYChartScene(
   for (const line of chart.lines) {
     line.points.forEach((point, pointIndex) => {
       if (point.textLabel === undefined) return
-      const position = chart.horizontal ? 'right' : 'above'
-      const x = point.x + (chart.horizontal ? 8 : 0)
-      const y = point.y + (chart.horizontal ? 4 : -8)
-      const anchor = chart.horizontal ? 'start' : 'middle'
+      const at = point.textPosition
+      const position = at?.placement ?? (chart.horizontal ? 'right' : 'above')
+      const x = at?.x ?? point.x + (chart.horizontal ? 8 : 0)
+      const y = at?.y ?? point.y + (chart.horizontal ? 4 : -8)
+      const anchor = at?.anchor ?? (chart.horizontal ? 'start' : 'middle')
       parts.push(marks.shape({
         id: `point-label-dot:${line.seriesIndex}:${pointIndex}`, role: 'point',
         geometry: { kind: 'circle', cx: rn(point.x), cy: rn(point.y), r: CHART_FONT.dotRadius },
@@ -227,7 +228,7 @@ export function lowerXYChartScene(
         paint: { fill: `var(--xychart-color-${line.colorIndex})` },
         channels: { category: `line-${line.seriesIndex}`, value: normalized(point.value) },
       }, renderMultilineText(point.textBlock ?? point.textLabel, rn(x), rn(y), 12,
-        `class="xychart-point-label xychart-color-${line.colorIndex}" data-label-position="${position}" text-anchor="${anchor}" font-size="12" font-weight="${style.nodeLabelFontWeight}"${letterAttr(style.nodeLetterSpacing)} fill="var(--xychart-color-${line.colorIndex})"`, 0, true)))
+        `class="xychart-point-label xychart-color-${line.colorIndex}" data-label-position="${position}" text-anchor="${anchor}" font-size="12" font-weight="${style.nodeLabelFontWeight}"${letterAttr(style.nodeLetterSpacing)} fill="var(--xychart-color-${line.colorIndex})"`, at ? 0.35 : 0, true)))
     })
   }
 

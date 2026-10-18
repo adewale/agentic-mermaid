@@ -339,14 +339,14 @@ export function buildStyleBlock(font: string, hasMonoFont: boolean, shadow?: boo
     ? '\n  .node, .class-node, .entity, .actor[data-type="participant"], .note, .block, .timeline-event, .journey-task, .sankey-node { filter: url(#bm-shadow); }'
     : ''
 
-  // CSS variable --font lets consumers swap the family post-render by mutating
-  // `style="--font:Roboto"` on the SVG root. The literal default family is the
-  // last-ditch fallback so SVGs viewed without the variable still render OK.
+  // Text inherits the default from the root so explicit role fonts and their
+  // descendants retain normal SVG cascade precedence. Consumers can retheme
+  // inheriting text with `style="--font:Roboto"` on that root.
   // Plain names are single-quoted (current wire format); var() references and
   // multi-family stacks pass through unquoted — quoting those would make the
   // fallback a bogus single family literally named e.g. "var(--brand-font)".
   const fontFallback = isPlainFontFamily(font) ? `'${font}'` : font
-  const fontFamilyDecl = `  text { font-family: var(--font, ${fontFallback}), system-ui, sans-serif; }`
+  const fontFamilyDecl = `  svg { font-family: var(--font, ${fontFallback}), system-ui, sans-serif; }`
 
   // Only emit @import lines when there are any (embedFontImport=false, or the
   // family import was suppressed for a non-plain font and no mono face is

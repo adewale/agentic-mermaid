@@ -17,8 +17,9 @@
 import type { MermaidGraph, Point, PositionedEdge, PositionedGraph, PositionedGroup, PositionedNode } from './types.ts'
 import { diamondFacetPorts, findRouteHitches, PORT_EXACT, shapePorts } from './route-contracts.ts'
 import { renderedEndpointContact } from './rendered-endpoint-diagnostics.ts'
-import { measureMultilineText } from './text-metrics.ts'
+import { graphTextBlock } from './graph-text.ts'
 import { resolveRenderStyle } from './styles.ts'
+import type { ResolvedRenderStyle } from './styles.ts'
 
 /**
  * Evidence-based impact rank for a violation, mirroring the QualityBounds
@@ -428,8 +429,7 @@ function peerBarycenterDelta(positioned: PositionedGraph, graph: MermaidGraph): 
  * Score a positioned layout against the rubric. Pure and deterministic:
  * identical input produces identical metrics.
  */
-export function assessLayout(graph: MermaidGraph, positioned: PositionedGraph): RubricResult {
-  const style = resolveRenderStyle({})
+export function assessLayout(graph: MermaidGraph, positioned: PositionedGraph, style: ResolvedRenderStyle = resolveRenderStyle({})): RubricResult {
   // Built without severity, then enriched + sorted by impact at the return.
   const violations: Array<Omit<RubricViolation, 'severity'>> = []
   const nodeMap = new Map(positioned.nodes.map(n => [n.id, n]))
@@ -496,7 +496,9 @@ export function assessLayout(graph: MermaidGraph, positioned: PositionedGraph): 
     if (onPort(srcNode, e.points[0]!) || onPort(tgtNode, e.points[e.points.length - 1]!)) portAnchoredEdges++
 
     if (e.label && e.labelPosition && e.points.length >= 2) {
-      const m = measureMultilineText(e.label, style.edgeLabelFontSize, style.edgeLabelFontWeight)
+      // Layout retains the text the renderer actually draws. The explicit
+      // style fallback admits callers constructing older unprepared artifacts.
+      const m = e.labelBlock ?? graphTextBlock(e.label, style, 'edge')
       const allow = (m.height + 16) / 2 + 4
       // A self-loop's label legitimately sits BESIDE the small loop stub (ELK's
       // native placement), so its CENTRE is a pill-width from the stub while its
@@ -557,7 +559,7 @@ export function assessLayout(graph: MermaidGraph, positioned: PositionedGraph): 
     }
   }
 
-  const hitchList = findRouteHitches(positioned, graph)
+  const hitchList = findRouteHitches(positioned, graph, style)
   for (const h of hitchList) violations.push({ metric: 'hitches', detail: `${h.edge} deviates ${h.deviationPx}px with a clear lane` })
 
   return {

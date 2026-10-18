@@ -1,4 +1,4 @@
-import type { PositionedGraph, PositionedNode, PositionedGroup, PositionedEdge, RenderOptions } from '../types.ts'
+import type { PositionedGraph, PositionedNode, PositionedGroup, PositionedEdge, RenderOptions, TextTransform } from '../types.ts'
 import type { InternalStyleFace } from '../scene/style-registry.ts'
 import type { C4Body, C4Diagnostic } from './types.ts'
 import { preparePixelText } from '../shared/prepared-text.ts'
@@ -12,13 +12,16 @@ import { c4LegendEntries, type C4LegendEntry } from './legend.ts'
 import type { PixelTextBlock } from '../shared/prepared-text.ts'
 import { planC4Identity } from './identity.ts'
 import { c4LabelRect, c4MarkerRects, placeC4PixelLabels, c4PixelVisibilityDiagnostics } from './pixel-labels.ts'
+import { assertC4DiagramWork } from '../shared/diagram-limits.ts'
 
 export interface PositionedC4Diagram extends PositionedGraph {
   body: C4Body; config: C4Config; diagnostics: C4Diagnostic[]
+  textContext: { node?: TextTransform; edge?: TextTransform; group?: TextTransform; legendHeading?: TextTransform; title?: string }
   identities: ReturnType<typeof planC4Identity>
   legend?: { x: number; y: number; width: number; height: number; heading: PixelTextBlock; entries: Array<C4LegendEntry & { block: PixelTextBlock }> }
 }
 export function layoutC4Diagram(body: C4Body, options: RenderOptions & { diagramTitle?: string } = {}, styleFace?: InternalStyleFace, c4Config: C4ConfigInput = {}, themeVariables: C4ConfigInput = {}): PositionedC4Diagram {
+  assertC4DiagramWork(body)
   const config = resolveC4Config({ ...(options.padding === undefined ? {} : { diagramMarginX: options.padding, diagramMarginY: options.padding }), ...(options.nodeSpacing === undefined ? {} : { c4ShapeMargin: options.nodeSpacing }), ...(options.layerSpacing === undefined ? {} : { nextLinePaddingX: options.layerSpacing }), ...c4Config }, themeVariables), style = resolveRenderStyle(options, undefined, styleFace)
   const graph = projectC4Graph(body, config), sizes = new Map<string, C4Box>()
   const parents = new Map([...body.elements, ...body.boundaries].map(item => [item.id, item.parentId]))
@@ -32,7 +35,7 @@ export function layoutC4Diagram(body: C4Body, options: RenderOptions & { diagram
   }
   const text = (item: typeof body.elements[number] | typeof body.boundaries[number], label: string, group = false) => {
     const appearance = c4Appearance(item, config)
-    return preparePixelText(label, { display: 'literal', fontSize: appearance.fontSize ?? (group ? style.groupHeaderFontSize : style.nodeLabelFontSize), fontWeight: appearance.fontWeight ?? (group ? style.groupHeaderFontWeight : style.nodeLabelFontWeight), transform: group ? style.groupTextTransform : style.nodeTextTransform, maxWidth: wrapWidth(item.id), letterSpacing: group ? style.groupLetterSpacing : style.nodeLetterSpacing })
+    return preparePixelText(label, { display: 'literal', fontSize: appearance.fontSize ?? (group ? style.groupHeaderFontSize : style.nodeLabelFontSize), fontWeight: appearance.fontWeight ?? (group ? style.groupHeaderFontWeight : style.nodeLabelFontWeight), transform: group ? style.groupTextTransform : style.nodeTextTransform, maxWidth: wrapWidth(item.id), letterSpacing: group ? style.groupLetterSpacing : style.nodeLetterSpacing, fontFamily: appearance.fontFamily ?? (group ? style.groupFont : undefined) })
   }
   const nodes: PositionedNode[] = body.elements.map(item => {
     const label = c4ElementText(item), labelBlock = text(item, label), shape = effectiveC4Shape(item), glyphHeight = shape === 'person' ? 38 : shape === 'database' ? 16 : 0
@@ -73,7 +76,7 @@ export function layoutC4Diagram(body: C4Body, options: RenderOptions & { diagram
     else box.width = Math.max(box.width, (parallel + 1) * width, (incident.length + 1) * 16)
   }
   const titleText = options.diagramTitle ?? body.title
-  const titleBlock = titleText === undefined ? undefined : preparePixelText(titleText, { display: 'literal', fontSize: DIAGRAM_TITLE_FONT_SIZE, fontWeight: DIAGRAM_TITLE_FONT_WEIGHT, transform: style.groupTextTransform, letterSpacing: style.groupLetterSpacing, ...(config.maxWidth === undefined ? {} : { maxWidth: Math.max(24, config.maxWidth - config.marginX * 2) }) })
+  const titleBlock = titleText === undefined ? undefined : preparePixelText(titleText, { display: 'literal', fontSize: DIAGRAM_TITLE_FONT_SIZE, fontWeight: DIAGRAM_TITLE_FONT_WEIGHT, transform: style.groupTextTransform, letterSpacing: style.groupLetterSpacing, fontFamily: style.groupFont, ...(config.maxWidth === undefined ? {} : { maxWidth: Math.max(24, config.maxWidth - config.marginX * 2) }) })
   const title = titleBlock ? { text: titleBlock.text, width: titleBlock.width, height: titleBlock.height + DIAGRAM_TITLE_GAP, block: titleBlock } : undefined, gapX = Math.max(config.gap, ...edges.map(edge => (edge.labelBlock?.width ?? 0) + 32)), gapY = Math.max(config.rowGap, ...edges.map(edge => (edge.labelBlock?.height ?? 0) + 36))
   const pairCounts = new Map<string, number>()
   for (const edge of edges) {
@@ -101,5 +104,6 @@ export function layoutC4Diagram(body: C4Body, options: RenderOptions & { diagram
   if (legend) { width = Math.max(width, legend.x + legend.width + config.marginX); height = legend.y + legend.height + config.marginY }
   const diagnostics = [...placement.diagnostics, ...c4PixelVisibilityDiagnostics(body, { nodes, groups: roots, edges }, style.lineWidth, { width, height })]
   if (config.maxWidth !== undefined && width > config.maxWidth + .01) diagnostics.push({ code: 'C4_WIDTH_EXCEEDED', severity: 'warning', message: `The requested C4 width ${config.maxWidth}px cannot contain the ${Math.ceil(width)}px artifact without shrinking or clipping content; minimum card widths, nesting, explicit direction constraints and authored offsets retain precedence.` })
-  return { width, height, ...(legend ? { legend } : {}), nodes, groups: roots, edges, ...(title ? { title: positionDiagramTitle(title, width, config.marginY) } : {}), body, config, diagnostics, identities: planC4Identity(body) }
+  return { width, height, ...(legend ? { legend } : {}), nodes, groups: roots, edges, ...(title ? { title: positionDiagramTitle(title, width, config.marginY) } : {}), body, config, diagnostics, identities: planC4Identity(body),
+    textContext: { node: style.nodeTextTransform, edge: style.edgeTextTransform, group: style.groupTextTransform, legendHeading: styleFace?.text?.textTransform, title: titleText } }
 }

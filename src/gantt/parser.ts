@@ -1,3 +1,4 @@
+import { parserObservationActive, observeParserStatement, observeParserMutation } from '../shared/parser-observation.ts'
 // ============================================================================
 // Gantt syntax parser — Mermaid-compatible `gantt` source → GanttModel.
 //
@@ -222,6 +223,8 @@ export function parseGanttModel(lines: string[]): GanttModel {
     throw new GanttError('GANTT_BAD_DIRECTIVE', `Expected "gantt" header, got "${header}"`, 1)
   }
 
+  if (parserObservationActive('gantt')) observeParserStatement('gantt', 'header', lines[0] ?? '', { line: 1, unit: 'normalized' })
+
   const model: GanttModel = {
     dateFormat: 'YYYY-MM-DD',
     inclusiveEndDates: false,
@@ -234,16 +237,22 @@ export function parseGanttModel(lines: string[]): GanttModel {
     tasks: [],
     clicks: [],
   }
+  if (parserObservationActive('gantt')) observeParserMutation('gantt', 'initialize', model)
   const seenIds = new Set<string>()
   let currentSection = 0
 
   for (const statement of readGanttStatements(lines.slice(1))) {
     const lineNo = statement.startLine + 1
+    if (parserObservationActive('gantt')) observeParserStatement('gantt', statement.kind === 'directive' ? statement.name : statement.kind, statement.raw.join('\n'), { line: lineNo, unit: 'normalized' })
     if (statement.kind === 'invalid') throw new GanttError(statement.code, statement.message, lineNo)
     if (statement.kind === 'accessibility') {
       if (statement.directive.title) model.accTitle = statement.directive.value
       else model.accDescr = statement.directive.value.replace(/\s*\n\s*/g, ' ')
-    } else if (statement.kind === 'title') model.title = statement.value
+      if (parserObservationActive('gantt')) observeParserMutation('gantt', statement.directive.title ? 'setAccessibilityTitle' : 'setAccessibilityDescription', statement.directive.title ? model.accTitle : model.accDescr, { line: lineNo, unit: 'normalized' })
+    } else if (statement.kind === 'title') {
+      model.title = statement.value
+      if (parserObservationActive('gantt')) observeParserMutation('gantt', 'setTitle', model.title, { line: lineNo, unit: 'normalized' })
+    }
     else if (statement.kind === 'directive') {
       const value = statement.value
       switch (statement.name) {
@@ -256,17 +265,34 @@ export function parseGanttModel(lines: string[]): GanttModel {
         }
         case 'inclusiveEndDates': model.inclusiveEndDates = true; break
         case 'topAxis': model.topAxis = true; break
-        case 'excludes': model.excludes.push(...parseCalendarTokens(value)); break
-        case 'includes': model.includes.push(...parseCalendarTokens(value)); break
+        case 'excludes': {
+          const tokens = parseCalendarTokens(value)
+          model.excludes.push(...tokens)
+          if (parserObservationActive('gantt')) observeParserMutation('gantt', 'appendExcludes', tokens, { line: lineNo, unit: 'normalized' })
+          break
+        }
+        case 'includes': {
+          const tokens = parseCalendarTokens(value)
+          model.includes.push(...tokens)
+          if (parserObservationActive('gantt')) observeParserMutation('gantt', 'appendIncludes', tokens, { line: lineNo, unit: 'normalized' })
+          break
+        }
         case 'todayMarker': model.todayMarker = value.toLowerCase() === 'off' ? { off: true } : { off: false, style: value }; break
         case 'weekday': model.weekStart = value.toLowerCase() as GanttWeekday; break
         case 'weekend': model.weekendStart = value.toLowerCase() as 'friday' | 'saturday'; break
       }
+      if (parserObservationActive('gantt')) {
+        const field = statement.name === 'weekday' ? 'weekStart' : statement.name === 'weekend' ? 'weekendStart' : statement.name
+        // A malformed tick interval is consumed but intentionally does not write.
+        if (statement.name !== 'excludes' && statement.name !== 'includes' && (statement.name !== 'tickInterval' || TICK_INTERVAL_RE.test(value))) observeParserMutation('gantt', `set:${field}`, model[field], { line: lineNo, unit: 'normalized' })
+      }
     } else if (statement.kind === 'click') {
       model.clicks.push({ taskId: statement.taskId, action: statement.action, rest: statement.rest, line: lineNo })
+      if (parserObservationActive('gantt')) observeParserMutation('gantt', 'addClick', model.clicks.at(-1), { line: lineNo, unit: 'normalized' })
     } else if (statement.kind === 'section') {
       model.sections.push({ label: statement.value, taskIndexes: [], line: lineNo })
       currentSection = model.sections.length - 1
+      if (parserObservationActive('gantt')) observeParserMutation('gantt', 'addSection', { index: currentSection, ...model.sections[currentSection] }, { line: lineNo, unit: 'normalized' })
     } else if (statement.kind === 'task') {
       const { label, meta } = statement
       if (meta.id !== undefined) {
@@ -284,7 +310,9 @@ export function parseGanttModel(lines: string[]): GanttModel {
         line: lineNo,
       }
       model.tasks.push(task)
+      if (parserObservationActive('gantt')) observeParserMutation('gantt', 'addTask', task, { line: lineNo, unit: 'normalized' })
       model.sections[currentSection]!.taskIndexes.push(task.index)
+      if (parserObservationActive('gantt')) observeParserMutation('gantt', 'attachTask', { sectionIndex: currentSection, taskIndex: task.index, taskId: task.id }, { line: lineNo, unit: 'normalized' })
     }
   }
 

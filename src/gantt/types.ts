@@ -203,6 +203,8 @@ export interface GanttTick {
 }
 
 export interface GanttBarLayout {
+  /** Final task-label anchor, shared by drawing and quality projection. */
+  labelPosition?: { x: number; y: number; anchor: 'start' | 'end' }
   taskIndex: number
   id?: string
   label: string

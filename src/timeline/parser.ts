@@ -1,3 +1,4 @@
+import { parserObservationActive, observeParserStatement, observeParserMutation } from '../shared/parser-observation.ts'
 import type { TimelineDiagram, TimelineSection, TimelinePeriod, TimelineEvent } from './types.ts'
 import { syntaxError } from '../shared/syntax-error.ts'
 import type { MermaidSourceAccessibility } from '../mermaid-source.ts'
@@ -56,12 +57,17 @@ export function parseTimelineDiagram(
   const header = parseTimelineHeader(lines[0] ?? '')
   if (header?.kind === 'unsupported') throw unsupportedTimelineHeaderError(header.suffix)
   if (header?.direction) diagram.direction = header.direction
+  if (parserObservationActive('timeline')) {
+    observeParserStatement('timeline', 'header', lines[0] ?? '', { line: 1, unit: 'normalized' })
+    observeParserMutation('timeline', 'initialize', diagram)
+  }
 
   let currentSection: TimelineSection | undefined
   let currentPeriod: TimelinePeriod | undefined
   let sectionIndex = 0
   let periodIndex = 0
   let eventIndex = 0
+  let observationLine = 1
 
   const ensureSection = (): TimelineSection => {
     if (currentSection) return currentSection
@@ -70,6 +76,7 @@ export function parseTimelineDiagram(
       periods: [],
     }
     diagram.sections.push(currentSection)
+    if (parserObservationActive('timeline')) observeParserMutation('timeline', 'addImplicitSection', currentSection, { line: observationLine, unit: 'normalized' })
     return currentSection
   }
 
@@ -83,11 +90,13 @@ export function parseTimelineDiagram(
         text: normalized,
       }
       period.events.push(event)
+      if (parserObservationActive('timeline')) observeParserMutation('timeline', 'addEvent', { ...event, periodId: period.id }, { line: observationLine, unit: 'normalized' })
     }
   }
 
   for (let i = 1; i < lines.length; i++) {
     const line = lines[i]!
+    observationLine = i + 1
 
     if (isTimelineCommentLine(line)) continue
 
@@ -95,24 +104,29 @@ export function parseTimelineDiagram(
     if (titleMatch) {
       // Pinned Mermaid draws Timeline titles as raw text; unlike node labels,
       // exact <br> is visible text rather than a line break here.
+      if (parserObservationActive('timeline')) observeParserStatement('timeline', 'title', line, { line: i + 1, unit: 'normalized' })
       diagram.title = titleMatch[1]!.trim()
+      if (parserObservationActive('timeline')) observeParserMutation('timeline', 'setTitle', diagram.title, { line: i + 1, unit: 'normalized' })
       continue
     }
 
     const sectionMatch = line.match(TIMELINE_SECTION_RE)
     if (sectionMatch) {
+      if (parserObservationActive('timeline')) observeParserStatement('timeline', 'section', line, { line: i + 1, unit: 'normalized' })
       currentSection = {
         id: `section-${sectionIndex++}`,
         label: normalizeTimelineBreaks(sectionMatch[1]!.trim()),
         periods: [],
       }
       diagram.sections.push(currentSection)
+      if (parserObservationActive('timeline')) observeParserMutation('timeline', 'addSection', currentSection, { line: i + 1, unit: 'normalized' })
       currentPeriod = undefined
       continue
     }
 
     const continuationMatch = line.match(TIMELINE_CONTINUATION_RE)
     if (continuationMatch) {
+      if (parserObservationActive('timeline')) observeParserStatement('timeline', 'continuation', line, { line: i + 1, unit: 'normalized' })
       if (!currentPeriod) {
         throw new Error('Timeline continuation found before any period was declared')
       }
@@ -122,6 +136,7 @@ export function parseTimelineDiagram(
 
     const periodMatch = line.match(TIMELINE_PERIOD_RE)
     if (periodMatch) {
+      if (parserObservationActive('timeline')) observeParserStatement('timeline', 'period', line, { line: i + 1, unit: 'normalized' })
       const periodLabel = normalizeTimelineBreaks(periodMatch[1]!.trim())
       const events = splitTimelineEvents(periodMatch[2]!)
 
@@ -146,6 +161,7 @@ export function parseTimelineDiagram(
       }
 
       ensureSection().periods.push(period)
+      if (parserObservationActive('timeline')) observeParserMutation('timeline', 'addPeriod', { ...period, sectionId: currentSection!.id }, { line: i + 1, unit: 'normalized' })
       currentPeriod = period
       continue
     }
@@ -154,16 +170,19 @@ export function parseTimelineDiagram(
     // mermaid renders these, and the upstream suite's two-task sections rely
     // on it. Malformed colon lines still fall through to the loud throw.
     if (!line.includes(':') && line.trim().length > 0) {
+      if (parserObservationActive('timeline')) observeParserStatement('timeline', 'bare-period', line, { line: i + 1, unit: 'normalized' })
       const period: TimelinePeriod = {
         id: `period-${periodIndex++}`,
         label: normalizeTimelineBreaks(line.trim()),
         events: [],
       }
       ensureSection().periods.push(period)
+      if (parserObservationActive('timeline')) observeParserMutation('timeline', 'addPeriod', { ...period, sectionId: currentSection!.id }, { line: i + 1, unit: 'normalized' })
       currentPeriod = period
       continue
     }
 
+    if (parserObservationActive('timeline')) observeParserStatement('timeline', 'invalid', line, { line: i + 1, unit: 'normalized' })
     throw syntaxError({
       what: `Unsupported timeline syntax: "${line}"`,
       expectedForm: 'a title, a section, or a period (Period : Event…)',

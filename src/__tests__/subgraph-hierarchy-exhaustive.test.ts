@@ -22,16 +22,8 @@ const MODES = [['INCLUDE_CHILDREN', false], ['SEPARATE', true]] as const
 // UnsupportedGraphException, so the render fails (CLI RENDER_FAILED).
 // BUG-43 (TODO.md): other edges between a subgraph and
 // its own descendants, or across both levels, break a hard rubric metric or a
-// route contract (verify reports them; the render does not fail).
+// route contract. Final certification rejects these invalid candidates.
 const KNOWN_UNSUPPORTED: Readonly<Record<string, string>> = {
-  'INCLUDE_CHILDREN A->Outer': 'BUG-43 offOutlineEndpoints',
-  'INCLUDE_CHILDREN B->Inner': 'BUG-43 edgeThroughNode (through A)',
-  'INCLUDE_CHILDREN B->Outer': 'BUG-43 edgeThroughNode (through X)',
-  'INCLUDE_CHILDREN Inner->B': 'BUG-43 offOutlineEndpoints',
-  'INCLUDE_CHILDREN Inner->Outer': 'BUG-43 ROUTE_CONTAINER_MISANCHOR',
-  'INCLUDE_CHILDREN Outer->A': 'BUG-43 offOutlineEndpoints',
-  'INCLUDE_CHILDREN Outer->B': 'BUG-43 edgeThroughNode (through A)',
-  'INCLUDE_CHILDREN Outer->Inner': 'BUG-43 ROUTE_CONTAINER_MISANCHOR',
   'SEPARATE X->B': 'BUG-43 offOutlineEndpoints',
   'SEPARATE B->Outer': 'BUG-42 ELK UnsupportedGraphException',
   'SEPARATE Outer->B': 'BUG-42 ELK UnsupportedGraphException',

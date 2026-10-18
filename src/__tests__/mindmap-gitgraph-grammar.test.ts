@@ -7,6 +7,7 @@ import {
 } from '../index.ts'
 import { layoutGitGraph } from '../gitgraph/layout.ts'
 import { mutate, parseRegisteredMermaid, serializeMermaid, verifyMermaid } from '../agent/index.ts'
+import { startUpstreamMermaid } from './helpers/upstream-mermaid.ts'
 
 const OFFICIAL_MARKDOWN_MINDMAP = `mindmap
   id1["\`**Root** with
@@ -15,7 +16,56 @@ Unicode works too: 🤓\`"]
     id2["\`The dog in **the** hog... a *very long text* that wraps to a new line\`"]
     id3[Regular labels still works]`
 
+const ANONYMOUS_MULTILINE_MINDMAP = `mindmap
+    ["\`**Root** with
+a second line
+Unicode works too: 🤓\`"]
+      id2["\`The dog in **the** hog... a *very long text* that wraps to a new line\`"]
+      id3[Rgular labels still works]`
+
 describe('Mindmap grammar, round-trip, and branch geometry', () => {
+  test('anonymous delimiter identities, shaped comments and cloud closing tokens retain their meaning', async () => {
+    const upstream = startUpstreamMermaid()
+    try {
+      for (const [source, expected] of [
+        ['mindmap\n  (r[oot)', { id: 'r[oot', label: 'r[oot', shape: 'rounded' }],
+        ['mindmap\n  (r{{oot)', { id: 'r{{oot', label: 'r{{oot', shape: 'rounded' }],
+        ['mindmap\n  (Cloud))', { id: 'Cloud', label: 'Cloud', shape: 'cloud' }],
+        ['mindmap\n  (Keep %% literal)', { id: 'Keep %% literal', label: 'Keep %% literal', shape: 'rounded' }],
+        ['mindmap\n  node[Keep %% literal] %% trailing comment', { id: 'node', label: 'Keep %% literal', shape: 'rect' }],
+        ['mindmap\n  id)I am ["quoted(', { id: 'id', label: 'I am ["quoted', shape: 'cloud' }],
+      ] as const) {
+        expect(await upstream.accepts(source)).toBe(true)
+        const parsed = parseMindmap(source)
+        expect(parsed.root).toMatchObject(expected)
+        const canonical = serializeMindmap(parsed)
+        expect(await upstream.accepts(canonical)).toBe(true)
+        expect(parseMindmap(canonical)).toEqual(parsed)
+      }
+    } finally { upstream.close() }
+  })
+
+  test('quotes shaped labels containing delimiters so canonical output remains valid Mermaid', async () => {
+    const upstream = startUpstreamMermaid()
+    try {
+      for (const source of [
+        'mindmap\n  root["String containing []"]',
+        'mindmap\n  root("String containing ()")',
+        'mindmap\n  root(("String containing ()"))',
+        'mindmap\n  root{{"String containing }}"}}',
+        'mindmap\n  root)"String containing ("(',
+        'mindmap\n  root))"String containing (("((',
+      ]) {
+        const parsed = parseMindmap(source)
+        const serialized = serializeMindmap(parsed)
+        expect(await upstream.accepts(source)).toBe(true)
+        expect(await upstream.accepts(serialized)).toBe(true)
+        expect(parseMindmap(serialized)).toEqual(parsed)
+        expect(serializeMindmap(parseMindmap(serialized))).toBe(serialized)
+      }
+    } finally { upstream.close() }
+  })
+
   test('parses, formats, renders, and round-trips the official multiline Markdown String example', () => {
     const parsed = parseMindmap(OFFICIAL_MARKDOWN_MINDMAP)
     expect(parsed.root).toMatchObject({ id: 'id1', shape: 'rect', markdown: true })
@@ -34,6 +84,28 @@ describe('Mindmap grammar, round-trip, and branch geometry', () => {
     expect(terminal).toContain('Root with')
     expect(terminal).toContain('Unicode works too: 🤓')
     expect(terminal).not.toMatch(/<\/?[bi]>/)
+  })
+
+  test('anonymous multiline Markdown identities retain their text and children after serialization', async () => {
+    const upstream = startUpstreamMermaid()
+    try {
+      expect(await upstream.accepts(ANONYMOUS_MULTILINE_MINDMAP)).toBe(true)
+      const parsed = parseMindmap(ANONYMOUS_MULTILINE_MINDMAP)
+      expect(parsed.root).toMatchObject({
+        id: 'Root with\na second line\nUnicode works too: 🤓',
+        label: '<b>Root</b> with\na second line\nUnicode works too: 🤓',
+        shape: 'rect', markdown: true,
+      })
+      expect(parsed.root.children.map(node => ({ id: node.id, label: node.label }))).toEqual([
+        { id: 'id2', label: 'The dog in <b>the</b> hog... a <i>very long text</i> that wraps to a new line' },
+        { id: 'id3', label: 'Rgular labels still works' },
+      ])
+      const canonical = serializeMindmap(parsed)
+      expect(canonical).toStartWith('mindmap\n  ["`**Root** with\n')
+      expect(await upstream.accepts(canonical)).toBe(true)
+      expect(parseMindmap(canonical)).toEqual(parsed)
+      expect(serializeMindmap(parseMindmap(canonical))).toBe(canonical)
+    } finally { upstream.close() }
   })
 
   test('reserved decorations, metadata, and shaped-node prefixes fail closed instead of changing meaning on serialization', () => {

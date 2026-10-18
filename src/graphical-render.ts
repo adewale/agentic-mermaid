@@ -33,6 +33,7 @@ import { emitResolvedConfigDiagnostics } from './render-config-diagnostics.ts'
 import { admitFamilyScene } from './scene/admission.ts'
 import { assertFinalSvgByteBudget } from './scene/scene-validation.ts'
 import type { SceneDoc } from './scene/ir.ts'
+import { withTextMeasurementExecution } from './text-measurement-profile.ts'
 
 export interface ResolvedGraphicalExecution {
   readonly svg: string
@@ -81,7 +82,8 @@ export function lowerPositionedFamilyScene(
     throw new Error(`Resolved ${request.output} request has no Scene execution plan`)
   }
   const family = executionPlan.family
-  return admitFamilyScene(family, family.lowerScene!(renderContextForPositionedFamily(request, layout)))
+  return withTextMeasurementExecution(executionPlan.textMeasurement, () =>
+    admitFamilyScene(family, family.lowerScene!(renderContextForPositionedFamily(request, layout))))
 }
 
 function escapeXmlText(value: string): string {
@@ -118,6 +120,15 @@ function injectAccessibility(
 
 /** Render an exact descriptor layout result; this function never positions. */
 export function renderPositionedMermaidSVG(
+  request: ResolvedRenderRequest,
+  layout: FamilyLayoutResult,
+  securityDiagnostics: OutputSecurityDiagnostic[],
+): ResolvedGraphicalExecution {
+  return withTextMeasurementExecution(resolvedRenderExecutionPlanOf(request).textMeasurement, () =>
+    renderPositionedWithTextMeasurement(request, layout, securityDiagnostics))
+}
+
+function renderPositionedWithTextMeasurement(
   request: ResolvedRenderRequest,
   layout: FamilyLayoutResult,
   securityDiagnostics: OutputSecurityDiagnostic[],

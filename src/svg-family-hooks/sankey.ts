@@ -1,4 +1,5 @@
-import { layoutResult, scene, type BrowserSvgFamilyHooks } from '../browser-lazy/family.ts'
+import { projectSankeyPositioned } from '../positioned-views/sankey.ts'
+import { layoutResult, positionedView, scene, type BrowserSvgFamilyHooks } from '../browser-lazy/family.ts'
 import { resolveSankeyVisualConfig } from '../sankey/config.ts'
 import { layoutSankeyDiagram } from '../sankey/layout.ts'
 import { parseSankeyDiagram } from '../sankey/parser.ts'
@@ -19,5 +20,6 @@ export const SANKEY_SVG_HOOKS = {
       ?? resolveSankeyVisualConfig(ctx.source.frontmatter),
     ctx.styleFace,
   )),
+  projectPositioned: positionedView(projectSankeyPositioned),
   lowerScene: scene(lowerSankeyScene),
 } satisfies BrowserSvgFamilyHooks
