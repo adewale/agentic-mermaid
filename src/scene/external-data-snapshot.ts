@@ -8,8 +8,9 @@
  */
 
 import type { SceneDoc } from './ir.ts'
-import { SCENE_VALIDATION_LIMITS, assertValidSceneDoc } from './scene-validation.ts'
+import { SCENE_VALIDATION_LIMITS, assertValidSceneDoc, type SceneValidationOptions } from './scene-validation.ts'
 import { boundedUtf8ByteLength } from '../shared/utf8.ts'
+import { parseExtensionId } from '../shared/extension-identity.ts'
 import { transferSceneNodeSerialization } from './serialization.ts'
 
 export interface ExternalDataSnapshotLimits {
@@ -207,16 +208,28 @@ export function snapshotBoundedExternalData(
   return visit(value, 0, rootPath)
 }
 
+// Only snapshots created and validated here can carry this evidence. A frozen
+// caller object, a shallow clone, or a Proxy around an admitted document is not
+// owned evidence and must still pass the complete snapshot/validation boundary.
+const ADMITTED_SCENES = new WeakMap<object, 'internal' | 'external'>()
+
 /** The sole public-backend Scene admission waist. Direct backend consumers
  * receive the same validate-the-snapshot/use-the-snapshot guarantee as family
  * rendering. Every document is reduced to bounded, immutable own data before
- * validation. */
-export function admitBackendSceneDocument(value: unknown): SceneDoc {
-  const admitted = snapshotBoundedExternalData(
-    value,
-    EXTERNAL_SCENE_DOCUMENT_SNAPSHOT_LIMITS,
-    'scene',
-  )
-  assertValidSceneDoc(admitted)
-  return admitted as SceneDoc
+ * validation. Reusing that exact owned snapshot avoids repeating the same work
+ * between family admission and backend serialization. */
+export function admitBackendSceneDocument(value: unknown, options: SceneValidationOptions = {}): SceneDoc {
+  const previous = value !== null && typeof value === 'object' ? ADMITTED_SCENES.get(value) : undefined
+  const admitted = (previous ? value : snapshotBoundedExternalData(
+    value, EXTERNAL_SCENE_DOCUMENT_SNAPSHOT_LIMITS, 'scene',
+  )) as SceneDoc
+  // Read family only from our own immutable snapshot, never from caller data.
+  const external = options.mode === 'external' || (options.mode !== 'internal'
+    && typeof admitted?.family === 'string' && parseExtensionId(admitted.family)?.kind === 'family')
+  const mode = external ? 'external' : 'internal'
+  if (previous !== 'external' && previous !== mode) {
+    assertValidSceneDoc(admitted, { mode })
+    ADMITTED_SCENES.set(admitted, mode)
+  }
+  return admitted
 }

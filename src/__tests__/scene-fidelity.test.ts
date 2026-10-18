@@ -19,6 +19,9 @@ import { resolveRenderRequest, resolvedRenderExecutionPlanOf } from '../render-c
 import { positionResolvedFamily } from '../positioning.ts'
 import { BUILTIN_RENDER_HOOKS } from '../render-family-hooks.ts'
 import { getFamily, knownBuiltinFamilies } from '../agent/families.ts'
+import { admitBackendSceneDocument } from '../scene/external-data-snapshot.ts'
+import { admitFamilyScene } from '../scene/admission.ts'
+import { buildExternalScene, EXTERNAL_SCENE_API_VERSION } from '../scene/external-scene.ts'
 
 interface Lowered {
   id: string
@@ -75,6 +78,44 @@ function lowerAll(): { scenes: Lowered[]; dropped: Array<{ id: string; reason: s
 
 describe('scene fidelity', () => {
   const { scenes, dropped } = lowerAll()
+
+  test('reuses only its own immutable admitted Scene without retaining mutable caller data', () => {
+    const source = { ...scenes[0]!.doc }
+    const admitted = admitBackendSceneDocument(source)
+    expect(admitted).not.toBe(source)
+    expect(admitBackendSceneDocument(admitted)).toBe(admitted)
+    expect(Object.isFrozen(admitted.parts)).toBe(true)
+    expect(Object.isFrozen(admitted.parts[0])).toBe(true)
+    const svg = DefaultBackend.render(admitted, { seed: 0 })
+    source.width = Number.NaN
+    expect(DefaultBackend.render(admitted, { seed: 0 })).toBe(svg)
+    expect(() => admitBackendSceneDocument(source)).toThrow()
+    const unownedFrozen = Object.freeze({ ...admitted })
+    expect(admitBackendSceneDocument(unownedFrozen)).not.toBe(unownedFrozen)
+    const proxy = new Proxy(admitted, {})
+    expect(admitBackendSceneDocument(proxy)).not.toBe(admitted)
+  })
+
+  test('admitted Scene reuse retains stricter validation modes and family role authority', () => {
+    const internalOnly = admitBackendSceneDocument({
+      ...scenes[0]!.doc,
+      family: 'family:test/needs-external-validation',
+    }, { mode: 'internal' })
+    expect(() => admitBackendSceneDocument(internalOnly)).toThrow()
+    expect(() => admitBackendSceneDocument(internalOnly, { mode: 'external' })).toThrow()
+    const external = admitBackendSceneDocument(buildExternalScene({
+      version: EXTERNAL_SCENE_API_VERSION,
+      family: 'family:test/admission-mode-reuse', width: 100, height: 100,
+      colors: { bg: '#fff', fg: '#111' }, metadata: { title: 'Admitted' }, parts: [],
+    }), { mode: 'external' })
+    expect(admitBackendSceneDocument(external, { mode: 'internal' })).toBe(external)
+    expect(admitBackendSceneDocument(external)).toBe(external)
+    const builtIn = scenes[0]!
+    const family = getFamily(builtIn.family)!
+    const admitted = admitFamilyScene(family, builtIn.doc)
+    expect(admitBackendSceneDocument(admitted)).toBe(admitted)
+    expect(() => admitFamilyScene({ ...family, semanticRoles: [] }, admitted)).toThrow(/undeclared role/)
+  })
 
   test('the corpus exercises every built-in family with a scene lowering', () => {
     const lowering = Object.entries(BUILTIN_RENDER_HOOKS).filter(([, hooks]) => 'lowerScene' in hooks).map(([id]) => id).sort()
