@@ -217,20 +217,26 @@ describe('C4 measured pixel layout quality', () => {
     expect(verifyMermaid(source, { renderOptions: options }).warnings.some(warning => warning.code === 'LAYOUT_LIMIT_EXCEEDED' && warning.constraint === 'c4.maxWidth')).toBe(true)
   })
 
-  test('authored offsets remain authoritative and verification rejects the resulting hidden marker', () => {
+  test('authored offsets displace clear labels and allocation avoids otherwise hidden markers', () => {
     const source = 'C4Context\nSystem(a,"Alpha")\nSystem(b,"Beta")\nRel(a,b,"Visible text")'
     const parsed = parseRegisteredMermaid(source)
     if (!parsed.ok) throw new Error(JSON.stringify(parsed.error))
     const edge = layoutMermaid(parsed.value).edges[0]!, tip = edge.path.at(-1)!
+    const shiftedClear = parseRegisteredMermaid(`${source}\nUpdateRelStyle(a,b,$offsetX="5",$offsetY="3")`)
+    if (!shiftedClear.ok) throw new Error(JSON.stringify(shiftedClear.error))
+    const clearOffset = layoutMermaid(shiftedClear.value).edges[0]!.label!
+    expect(clearOffset.x - edge.label!.x).toBeCloseTo(5, 8)
+    expect(clearOffset.y - edge.label!.y).toBeCloseTo(3, 8)
     const shifted = `${source}\nUpdateRelStyle(a,b,$offsetX="${tip[0] - edge.label!.x}",$offsetY="${tip[1] - edge.label!.y}")`
     const output = painted(renderMermaidSVG(shifted)), verification = verifyMermaid(shifted)
-    expect(output.halos.some(halo => output.cards.some(card => overlaps(halo, card)))).toBe(true)
-    expect(verification.ok).toBe(false)
-    expect(verification.warnings).toContainEqual(expect.objectContaining({ code: 'CONTENT_OCCLUDED', target: 'c4-rel-1', feature: 'marker' }))
-    expect(verification.warnings).toContainEqual(expect.objectContaining({ code: 'CONTENT_OCCLUDED', target: 'c4-rel-1', feature: 'label' }))
+    expect(output.halos).toHaveLength(1)
+    expect(output.halos.some(halo => output.cards.some(card => overlaps(halo, card)))).toBe(false)
+    for (const marker of emittedMarkerBoxes(renderMermaidSVG(shifted))) expect(overlaps(marker, output.halos[0]!)).toBe(false)
+    expect(verification.ok).toBe(true)
+    expect(verification.warnings.some(warning => warning.code === 'CONTENT_OCCLUDED')).toBe(false)
   })
 
-  test('a label that hides a different interaction shaft is diagnosed even without another label or card collision', () => {
+  test('an authored displacement is scored against other interaction shafts before selecting a label slot', () => {
     const source = 'C4Context\nSystem(a,"Alpha")\nSystem(b,"Beta")\nSystem(c,"Gamma")\nSystem(d,"Delta")\nUpdateLayoutConfig($c4ShapeInRow="2")\nRel(a,b,"x")\nRel(c,d,"")'
     const parsed = parseRegisteredMermaid(source)
     if (!parsed.ok) throw new Error(JSON.stringify(parsed.error))
@@ -241,8 +247,16 @@ describe('C4 measured pixel layout quality', () => {
     expect(output.routes).toHaveLength(2)
     expect(output.halos).toHaveLength(1)
     expect(output.cards.every(card => !overlaps(output.halos[0]!, card))).toBe(true)
-    expect(verification.ok).toBe(false)
-    expect(verification.warnings).toContainEqual(expect.objectContaining({ code: 'CONTENT_OCCLUDED', target: 'c4-rel-1', feature: 'label' }))
+    const halo = output.halos[0]!, other = output.routes.find(route => route.id === 'c4-rel-2')!
+    for (const [index, point] of other.points.slice(1).entries()) {
+      const before = other.points[index]!
+      const horizontal = Math.abs(point[1] - before[1]) < .001
+      const crosses = horizontal ? point[1] > halo.y && point[1] < halo.y + halo.height && Math.max(point[0], before[0]) > halo.x && Math.min(point[0], before[0]) < halo.x + halo.width
+        : point[0] > halo.x && point[0] < halo.x + halo.width && Math.max(point[1], before[1]) > halo.y && Math.min(point[1], before[1]) < halo.y + halo.height
+      expect(crosses).toBe(false)
+    }
+    expect(verification.ok).toBe(true)
+    expect(verification.warnings.some(warning => warning.code === 'CONTENT_OCCLUDED')).toBe(false)
   })
 
   test('nested reflow preserves parent membership and routes while compact uses independent measured extents', () => {

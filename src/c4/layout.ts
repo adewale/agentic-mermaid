@@ -77,7 +77,10 @@ export function layoutC4Diagram(body: C4Body, options: RenderOptions & { diagram
   }
   const titleText = options.diagramTitle ?? body.title
   const titleBlock = titleText === undefined ? undefined : preparePixelText(titleText, { display: 'literal', fontSize: DIAGRAM_TITLE_FONT_SIZE, fontWeight: DIAGRAM_TITLE_FONT_WEIGHT, transform: style.groupTextTransform, letterSpacing: style.groupLetterSpacing, fontFamily: style.groupFont, ...(config.maxWidth === undefined ? {} : { maxWidth: Math.max(24, config.maxWidth - config.marginX * 2) }) })
-  const title = titleBlock ? { text: titleBlock.text, width: titleBlock.width, height: titleBlock.height + DIAGRAM_TITLE_GAP, block: titleBlock } : undefined, gapX = Math.max(config.gap, ...edges.map(edge => (edge.labelBlock?.width ?? 0) + 32)), gapY = Math.max(config.rowGap, ...edges.map(edge => (edge.labelBlock?.height ?? 0) + 36))
+  // A centerline shared with another interaction needs room for a full opaque
+  // halo on either side. A single label band leaves no clear candidate even
+  // when its route, cards and physical ports are individually feasible.
+  const title = titleBlock ? { text: titleBlock.text, width: titleBlock.width, height: titleBlock.height + DIAGRAM_TITLE_GAP, block: titleBlock } : undefined, gapX = Math.max(config.gap, ...edges.map(edge => (edge.labelBlock?.width ?? 0) * 2 + 48)), gapY = Math.max(config.rowGap, ...edges.map(edge => (edge.labelBlock?.height ?? 0) * 2 + 48))
   const pairCounts = new Map<string, number>()
   for (const edge of edges) {
     const key = JSON.stringify([edge.source, edge.target].sort())
@@ -90,8 +93,7 @@ export function layoutC4Diagram(body: C4Body, options: RenderOptions & { diagram
   const roots: PositionedGroup[] = []
   for (const item of body.boundaries) { const group = groups.get(item.id)!; Object.assign(group, placement.boxes.get(item.id)); const parent = item.parentId && groups.get(item.parentId); if (parent) parent.children.push(group); else roots.push(group) }
   routeC4Pixels(placement.boxes, { nodes, groups: roots, edges }, graph, style, planC4Identity(body))
-  placeC4PixelLabels({ nodes, groups: roots, edges }, style.lineWidth)
-  for (const [index, edge] of edges.entries()) if (edge.labelPosition) { const authored = body.relationships[index]!.style; const dx = Number(authored.offsetX ?? 0), dy = Number(authored.offsetY ?? 0); if (Number.isFinite(dx)) edge.labelPosition.x += dx; if (Number.isFinite(dy)) edge.labelPosition.y += dy }
+  placeC4PixelLabels({ nodes, groups: roots, edges }, style.lineWidth, body)
   const labelBoxes: PositionedNode[] = edges.flatMap(edge => { const box = c4LabelRect(edge); return box ? [{ ...box, id: edge.id!, label: '', shape: 'rectangle' }] : [] })
   const markerBoxes: PositionedNode[] = edges.flatMap(edge => c4MarkerRects(edge, style.lineWidth).map(box => ({ ...box, id: edge.id!, label: '', shape: 'rectangle' as const })))
   translateGeometryToNonNegativeOrigin([...nodes, ...labelBoxes, ...markerBoxes], edges, roots, Math.max(config.marginX, config.marginY) + (title?.height ?? 0))

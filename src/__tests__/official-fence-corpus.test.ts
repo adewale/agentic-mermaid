@@ -44,12 +44,6 @@ const SYNTAX_LOSS = new Set(['UNSUPPORTED_SYNTAX', 'CONTENT_DROPPED_ON_ROUNDTRIP
 // listed: registered families default to [ Pass ], unsupported families to a
 // diagnosed UNSUPPORTED_FAMILY. Remove a line when its fence starts passing.
 const EXPECTATIONS = `
-# C4: rendered visibility failures; syntax and structural counts remain supported.
-c4:official-syntax/c4.md#0 [ VerifyError ] # authored offsets hide the e-mail label under SystemAA; another label halo crosses an unrelated relationship shaft
-c4:official-syntax/c4.md#1 [ VerifyError ] # label halos overlap cards, the boundary header, other labels and routes; the shifted Uses label covers part of the e-mail arrowhead
-c4:official-syntax/c4.md#2 [ VerifyError ] # authored offsets place relationship labels beneath database/mainframe cards and the API header; route/halo crossings also remain without offsets
-c4:official-syntax/c4.md#3 [ VerifyError ] # authored offsets place labels beneath the SPA/database cards and completely cover the database relationship arrowhead
-c4:official-syntax/c4.md#4 [ VerifyError ] # the authored api-to-db label offset places its opaque halo over the dn deployment frame's bottom stroke
 # Class: whole-diagram opaque fallbacks.
 class:official-syntax/classDiagram.md#27 [ Opaque Unsupported ] # class-level 'direction RL' statement is not modelled
 class:official-syntax/classDiagram.md#30 [ Opaque Unsupported ] # 'callback' / 'click ... call' interaction lines are not modelled (callbacks never run offline)

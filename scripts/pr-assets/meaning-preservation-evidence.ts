@@ -10,6 +10,7 @@ import { getFamily, knownBuiltinFamilies } from '../../src/agent/families.ts'
 import { denseDag } from '../../eval/degenerate-etn/generators.ts'
 import { collectSamples } from '../../eval/layout-compare/run.ts'
 import { contactSheetScenarios } from '../../eval/visual-rubric/scenarios.ts'
+import { extractOfficialCorpus } from '../../eval/shared/official-fences.ts'
 
 const ROOT = resolve(import.meta.dir, '../..')
 const [base, head, destination, ...selectedFixtureIds] = process.argv.slice(2)
@@ -33,6 +34,10 @@ const trackedRoles: RenderOptions = { style: { roles: {
 const literalLabel = '<b>This is a very long label that describes the work in detail</b>'
 const c4AncestorSource = 'C4Deployment\nNode(parent,"Parent","Cloud") {\nContainer(child,"Child","JS")\n}\nRel(child,parent,"Reports up")'
 const c4DenseSource = 'C4Container\nSystem_Boundary(app,"Application") {\n' + Array.from({ length: 7 }, (_, index) => `Container(n${index},"Service ${index}","HTTP")`).join('\n') + '\n}\n' + Array.from({ length: 7 }, (_, from) => Array.from({ length: 6 - from }, (_, offset) => `Rel(n${from},n${from + offset + 1},"Interaction ${from} to ${from + offset + 1}","HTTPS")`).join('\n')).join('\n')
+const c4OfficialFixtures: Fixture[] = extractOfficialCorpus().filter(fence => fence.family === 'c4').map((fence, index) => ({
+  id: `c4-official-${index}`, title: `Official C4 example ${index}: visible relationship ownership`, source: fence.source, captureLayout: true,
+  cue: 'Inspect halos clear of cards, boundary headers and other relationship routes; visible arrowheads; and retained authored offsets. Compare complete labels, endpoint identities and layout sidecars alongside the pixels. Measured corridors grow rather than shrinking text or removing markers; these official examples do not establish arbitrary dense graph readability.',
+}))
 const corpusSamples = collectSamples()
 const fixtures: Fixture[] = [
   { id: 'flowchart-anonymous-group-identity', title: 'Anonymous group allocation preserves authored identities', source: 'flowchart TD\nsubgraph A_B[Explicit]\nC[First member]\nend\nsubgraph "A--B"\nD[Second member]\nend', captureLayout: true, cue: 'Inspect two separate frames, Explicit and A--B, owning their respective members. Main preserves these groups; the audited intermediate PR head merged them. Use the recorded base/head receipt to distinguish the main comparison from the follow-up comparison against the audited candidate. The layout sidecar independently records the two identities and memberships.' },
@@ -47,6 +52,7 @@ const fixtures: Fixture[] = [
   { id: 'mermaid-12-yaml-alias', title: 'Mermaid 12 participant alias keeps numeric separators', source: 'sequenceDiagram\nparticipant A@{ alias: 1_0 }\nA->>B: unchanged message', cue: 'Inspect A’s participant header: the baseline displays 10; the candidate preserves the authored 1_0 alias. The same message endpoints and text remain as a control.' },
   { id: 'c4-ancestor-clearance', title: 'C4 ancestor relationship with a visible arrow', source: c4AncestorSource, captureLayout: true, cue: 'At source6724062 the Reports up halo covers the entire shaft and arrow. Inspect a complete label and a visible marker connecting Child to the actual Parent frame. The geometry test checks emitted halo and marker envelopes.' },
   { id: 'c4-dense-labels', title: 'C4 seven cards and twenty-one distinct interactions', source: c4DenseSource, captureLayout: true, cue: 'Inspect every complete interaction label and its arrow; the previous native C4 output had nine overlapping label pairs. Any remaining measured visibility limitation must appear in verification. This finite topology does not establish arbitrary dense graph readability.' },
+  ...c4OfficialFixtures,
   { id: 'c4-responsive-width', title: 'C4 measured reflow within a 500-pixel budget', source: 'C4Context\nSystem(a,"Alpha")\nSystem(b,"Beta")\nSystem(c,"Gamma")\nSystem(d,"Delta")', renderOptions: { mermaidConfig: { c4: { maxWidth: 500 } } }, captureLayout: true, cue: 'The same width request at both revisions changes row packing. Cards retain readable measured text and size; this is reflow rather than shrinking the completed picture. Impossible minimum geometry is separately diagnosed.' },
   { id: 'c4-checkout', title: 'Native C4 checkout with nested boundary and repeated interactions', source: readFileSync(join(ROOT, 'docs/design/families/c4-context-demo.mmd'), 'utf8'), captureLayout: true, cue: 'The baseline refuses C4. The candidate preserves the nested checkout boundary, external/database/queue distinctions, technology and all five distinct interactions. Inspect the complete Publishes order / AMQP label beside the database; public layout sidecars establish identity and parentage beyond the pixels.' },
   { id: 'c4-person-tight-padding', title: 'C4 person silhouette with zero vertical padding', source: 'C4Context\nPerson(a,"Customer","Uses the shop")', renderOptions: { style: { roles: { node: { paddingY: 0 } } } }, cue: 'The baseline refuses C4. The candidate reserves the person silhouette above the complete label even when node paddingY is zero; the figure must not strike through Customer.' },
