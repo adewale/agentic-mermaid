@@ -26,7 +26,7 @@ export function renderSourceForParsedDiagram(input: ParsedDiagram): string {
   // A replaced registration must not inspect data owned by its predecessor.
   const current = input.body.kind !== 'extension' || ('descriptorIdentity' in input && sameExtensionIdentity(input.descriptorIdentity, family?.identity))
   const policy = current ? family?.renderSource : undefined
-  const source = policy?.(input.body) ?? (input.body.kind === 'extension' ? 'serialized' : 'canonical')
+  const source = policy ? policy(input.body) : (input.body.kind === 'extension' ? 'serialized' : 'canonical')
   if (source !== 'canonical' && source !== 'serialized') throw new TypeError(`Family ${input.kind} returned an invalid render source policy`)
   return source === 'serialized' ? serializeMermaid(input) : input.canonicalSource
 }

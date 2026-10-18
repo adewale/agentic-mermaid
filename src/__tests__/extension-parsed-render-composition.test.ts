@@ -88,6 +88,13 @@ function parsedExtension(): ParsedDiagram {
 }
 
 describe('open parsed-diagram render composition', () => {
+  test.each([undefined, null, 'invalid'])('rejects an invalid source policy result %s at registration', result => {
+    expect(() => registerFamily({
+      ...descriptor(),
+      renderSource: (() => result) as unknown as NonNullable<FamilyDescriptor['renderSource']>,
+    })).toThrow(/invalid render source policy/)
+  })
+
   test.each(['canonical', 'serialized'] as const)('all render transports use the registered %s source authority', authority => {
     const original = descriptor()
     let observed = ''
