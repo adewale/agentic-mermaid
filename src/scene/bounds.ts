@@ -1,8 +1,9 @@
 import { rotateBoxBounds, type AxisAlignedBox } from '../shared/transformed-bounds.ts'
-import type { ConnectorLabelDescriptor, ConnectorMark, Geometry, MarkerDescriptor, SceneNode, ScenePoint } from './ir.ts'
+import type { ConnectorLabelDescriptor, ConnectorMark, Geometry, MarkPaint, MarkerDescriptor, SceneNode, ScenePoint, SceneTransform } from './ir.ts'
 import { connectorEndpointAnchors, connectorMidpoints } from './connector-geometry.ts'
 import { preparePixelText, type PixelTextBlock } from '../shared/prepared-text.ts'
 import { resolveLabelContent } from '../shared/display-text.ts'
+import { composeMatrices, transformMatrix, transformPoint } from './transforms.ts'
 
 function pointsBounds(points: Array<{ x: number; y: number }>): AxisAlignedBox | undefined {
   if (points.length === 0) return undefined
@@ -33,6 +34,94 @@ export function expandSceneBounds(box: AxisAlignedBox, amount: number): AxisAlig
   return { x0: box.x0 - safe, y0: box.y0 - safe, x1: box.x1 + safe, y1: box.y1 + safe }
 }
 
+/** Conservative bounds from the typed path authority, never from serialized
+ * SVG. Béziers stay inside their control hull; arcs stay inside their complete
+ * rotated ellipse. Invalid input has no bound, rather than a partial one. */
+function pathBounds(d: string): AxisAlignedBox | undefined {
+  const number = /[+-]?(?:\d+\.?\d*|\.\d+)(?:[eE][+-]?\d+)?/y
+  let index = 0, x = 0, y = 0, startX = 0, startY = 0
+  let command = '', previous = ''
+  let control: ScenePoint | undefined
+  let result: AxisAlignedBox | undefined
+  const skip = (): void => { while (index < d.length && /[\s,]/.test(d[index]!)) index++ }
+  const read = (flag = false): number | undefined => {
+    skip()
+    if (flag) {
+      const value = d[index]
+      if (value !== '0' && value !== '1') return undefined
+      index++
+      return Number(value)
+    }
+    number.lastIndex = index
+    const match = number.exec(d)
+    if (!match) return undefined
+    index = number.lastIndex
+    const value = Number(match[0])
+    return Number.isFinite(value) ? value : undefined
+  }
+  const include = (px: number, py: number): boolean => {
+    if (!Number.isFinite(px) || !Number.isFinite(py)) return false
+    result = unionSceneBounds(result, { x0: px, y0: py, x1: px, y1: py })
+    return true
+  }
+  while (true) {
+    skip()
+    if (index >= d.length) return result
+    if (/[a-zA-Z]/.test(d[index]!)) {
+      command = d[index++]!
+      if (!/[MmLlHhVvCcSsQqTtAaZz]/.test(command) || (!result && command.toUpperCase() !== 'M')) return undefined
+      if (command.toUpperCase() === 'Z') {
+        x = startX; y = startY; previous = 'Z'; control = undefined; command = ''
+        continue
+      }
+    }
+    if (!command) return undefined
+    const upper = command.toUpperCase(), relative = command !== upper
+    const count = upper === 'A' ? 7 : upper === 'C' ? 6 : upper === 'S' || upper === 'Q' ? 4 : upper === 'H' || upper === 'V' ? 1 : 2
+    const args: number[] = []
+    for (let i = 0; i < count; i++) {
+      const value = read(upper === 'A' && (i === 3 || i === 4))
+      if (value === undefined) return undefined
+      args.push(value)
+    }
+    const px = (i: number): number => args[i]! + (relative ? x : 0)
+    const py = (i: number): number => args[i]! + (relative ? y : 0)
+    let nextX: number, nextY: number, nextControl: ScenePoint | undefined
+    if (upper === 'H') { nextX = px(0); nextY = y }
+    else if (upper === 'V') { nextX = x; nextY = py(0) }
+    else if (upper === 'C' || upper === 'S' || upper === 'Q' || upper === 'T') {
+      const reflected = control && (upper === 'S' ? previous === 'C' || previous === 'S' : previous === 'Q' || previous === 'T')
+        ? { x: 2 * x - control.x, y: 2 * y - control.y } : { x, y }
+      if ((upper === 'S' || upper === 'T') && !include(reflected.x, reflected.y)) return undefined
+      for (let i = 0; i < count - 2; i += 2) if (!include(px(i), py(i + 1))) return undefined
+      nextX = px(count - 2); nextY = py(count - 1)
+      nextControl = upper === 'T' ? reflected : { x: px(count - 4), y: py(count - 3) }
+    } else if (upper === 'A') {
+      nextX = px(5); nextY = py(6)
+      let rx = Math.abs(args[0]!), ry = Math.abs(args[1]!)
+      if (rx > 0 && ry > 0 && (nextX !== x || nextY !== y)) {
+        const angle = args[2]! % 360 * Math.PI / 180, cos = Math.cos(angle), sin = Math.sin(angle)
+        const dx = (x - nextX) / 2, dy = (y - nextY) / 2
+        const xp = cos * dx + sin * dy, yp = -sin * dx + cos * dy
+        const correction = Math.hypot(xp / rx, yp / ry)
+        if (correction > 1) { rx *= correction; ry *= correction }
+        const ratio = (xp / rx) ** 2 + (yp / ry) ** 2
+        const factor = (args[3] === args[4] ? -1 : 1) * Math.sqrt(Math.max(0, (1 - ratio) / ratio))
+        const cxp = factor * rx * yp / ry, cyp = -factor * ry * xp / rx
+        const cx = cos * cxp - sin * cyp + (x + nextX) / 2
+        const cy = sin * cxp + cos * cyp + (y + nextY) / 2
+        const extentX = Math.hypot(rx * cos, ry * sin), extentY = Math.hypot(rx * sin, ry * cos)
+        if (!include(cx - extentX, cy - extentY) || !include(cx + extentX, cy + extentY)) return undefined
+      }
+    } else {
+      nextX = px(0); nextY = py(1)
+      if (upper === 'M') { startX = nextX; startY = nextY; command = relative ? 'l' : 'L' }
+    }
+    if (!include(nextX, nextY)) return undefined
+    x = nextX; y = nextY; control = nextControl; previous = upper
+  }
+}
+
 export function geometryBounds(geometry: Geometry): AxisAlignedBox | undefined {
   switch (geometry.kind) {
     case 'rect': return { x0: geometry.x, y0: geometry.y, x1: geometry.x + geometry.width, y1: geometry.y + geometry.height }
@@ -42,14 +131,15 @@ export function geometryBounds(geometry: Geometry): AxisAlignedBox | undefined {
     case 'polygon':
     case 'polyline': return pointsBounds(geometry.points)
     case 'compound': {
-      const children = geometry.children.map(geometryBounds).filter((box): box is AxisAlignedBox => box !== undefined)
-      if (children.length === 0) return undefined
+      const children = geometry.children.map(geometryBounds)
+      if (children.length === 0 || children.some(box => box === undefined)) return undefined
+      const measured = children as AxisAlignedBox[]
       return {
-        x0: Math.min(...children.map(box => box.x0)), y0: Math.min(...children.map(box => box.y0)),
-        x1: Math.max(...children.map(box => box.x1)), y1: Math.max(...children.map(box => box.y1)),
+        x0: Math.min(...measured.map(box => box.x0)), y0: Math.min(...measured.map(box => box.y0)),
+        x1: Math.max(...measured.map(box => box.x1)), y1: Math.max(...measured.map(box => box.y1)),
       }
     }
-    case 'path': return undefined
+    case 'path': return pathBounds(geometry.d)
   }
 }
 
@@ -57,20 +147,27 @@ function markerBoundsAt(
   marker: MarkerDescriptor | undefined,
   anchor: ScenePoint | undefined,
   strokeWidth: number,
+  painted = false,
 ): AxisAlignedBox | undefined {
   if (!marker || !anchor) return undefined
-  const local = marker.bounds
-    ?? (marker.geometry ? geometryBounds(marker.geometry) : undefined)
+  const geometry = marker.geometry ? geometryBounds(marker.geometry) : undefined
+  if (painted && marker.geometry && !geometry) return undefined
+  let local = marker.bounds
+    ?? geometry
     ?? (marker.viewBox ? {
       x0: marker.viewBox.x,
       y0: marker.viewBox.y,
       x1: marker.viewBox.x + marker.viewBox.width,
       y1: marker.viewBox.y + marker.viewBox.height,
     } : undefined)
-    // Path marker geometry is intentionally not reparsed for bounds. Its
-    // required marker viewport is the conservative local authority instead.
     ?? (marker.size ? { x0: 0, y0: 0, x1: marker.size.width, y1: marker.size.height } : undefined)
   if (!local) return undefined
+  if (painted) {
+    local = unionSceneBounds(local, geometry)!
+    const extent = paintedStrokeExtent(marker.paint ?? {}, true)
+    if (extent === undefined) return undefined
+    local = expandSceneBounds(local, extent)
+  }
   let refX = marker.ref?.x ?? 0
   let refY = marker.ref?.y ?? 0
   let viewportLocal = local
@@ -91,13 +188,12 @@ function markerBoundsAt(
   }
   // SVG's omitted markerUnits default is strokeWidth.
   const unitScale = (marker.units ?? 'strokeWidth') === 'strokeWidth' ? strokeWidth : 1
-  const scale = Math.max(0, marker.scale ?? 1) * unitScale
+  const scale = Math.max(painted ? 1 : 0, marker.scale ?? 1) * unitScale
   // Auto orientation may rotate around the marker ref. A radial square is a
   // conservative AABB for every tangent and avoids path parsing.
-  const radius = Math.max(
-    Math.abs(viewportLocal.x0 - refX), Math.abs(viewportLocal.x1 - refX),
-    Math.abs(viewportLocal.y0 - refY), Math.abs(viewportLocal.y1 - refY),
-  ) * scale
+  const extentX = Math.max(Math.abs(viewportLocal.x0 - refX), Math.abs(viewportLocal.x1 - refX))
+  const extentY = Math.max(Math.abs(viewportLocal.y0 - refY), Math.abs(viewportLocal.y1 - refY))
+  const radius = (painted ? Math.hypot(extentX, extentY) : Math.max(extentX, extentY)) * scale
   return {
     x0: anchor.x - radius,
     y0: anchor.y - radius,
@@ -209,9 +305,116 @@ export function nodeWorldBounds(node: SceneNode): AxisAlignedBox | undefined {
     const offsetY = 'offsetY' in metrics ? metrics.offsetY : -node.fontSize * 0.35
     local = { x0, y0: node.y + offsetY - metrics.height / 2, x1: x0 + width, y1: node.y + offsetY + metrics.height / 2 }
   } else return undefined
-  if (!local || !node.transform) return local
-  if (node.transform.kind === 'rotate') {
-    return rotateBoxBounds(local, { x: node.transform.cx, y: node.transform.cy }, node.transform.angle)
+  return local ? transformedBounds(local, node.transform) : undefined
+}
+
+function transformedBounds(box: AxisAlignedBox, transform?: SceneTransform): AxisAlignedBox | undefined {
+  if (!transform) return box
+  if (transform.kind === 'rotate') return rotateBoxBounds(box, { x: transform.cx, y: transform.cy }, transform.angle)
+  const m = transformMatrix(transform)
+  const corners = [[box.x0, box.y0], [box.x0, box.y1], [box.x1, box.y0], [box.x1, box.y1]]
+    .map(([x, y]) => transformPoint({ x: x!, y: y! }, m))
+  return corners.every(point => Number.isFinite(point.x) && Number.isFinite(point.y)) ? pointsBounds(corners) : undefined
+}
+
+function composedTransform(parent: SceneTransform | undefined, child: SceneTransform | undefined): SceneTransform | undefined {
+  if (!parent) return child
+  if (!child) return parent
+  const [a, b, c, d, e, f] = composeMatrices(transformMatrix(parent), transformMatrix(child))
+  return { kind: 'matrix', a, b, c, d, e, f }
+}
+
+/** Numeric user-unit/px strokes have a typed extent. Relative and unresolved
+ * CSS units do not: treating `1em` or `var(...)` as one pixel would undercount. */
+function paintedStrokeExtent(paint: MarkPaint, hasJoins: boolean): number | undefined {
+  if (paint.stroke === undefined || paint.stroke === 'none') return 0
+  const raw = paint.strokeWidth ?? '1'
+  if (!/^\s*(?:\d+\.?\d*|\.\d+)(?:[eE][+-]?\d+)?(?:px)?\s*$/.test(raw)) return undefined
+  const half = Number.parseFloat(raw) / 2
+  if (!Number.isFinite(half)) return undefined
+  const miter = paint.strokeLinejoin ?? 'miter'
+  const limit = Number(paint.strokeMiterlimit ?? 4)
+  if (!Number.isFinite(limit) || limit < 1) return undefined
+  const join = hasJoins && (miter === 'miter' || miter === 'miter-clip') ? half * limit : half
+  // A square cap rotated relative to the axes can extend sqrt(2)*half on
+  // either axis. Round/butt caps stay inside the half-width envelope.
+  return Math.max(join, paint.strokeLinecap === 'square' ? half * Math.SQRT2 : half)
+}
+
+function paintedBox(box: AxisAlignedBox, extent: number, nonScaling: boolean, transform?: SceneTransform): AxisAlignedBox | undefined {
+  if (!nonScaling) return transformedBounds(expandSceneBounds(box, extent), transform)
+  const world = transformedBounds(box, transform)
+  return world ? expandSceneBounds(world, extent) : undefined
+}
+
+function connectorPaintBounds(node: ConnectorMark, transform?: SceneTransform): AxisAlignedBox | undefined {
+  const geometry = node.route.geometry
+  const local = geometryBounds(geometry)
+  const extent = paintedStrokeExtent({ stroke: node.stroke.color, strokeWidth: String(node.stroke.width), strokeLinecap: node.stroke.lineCap, strokeLinejoin: node.stroke.lineJoin, strokeMiterlimit: String(node.stroke.miterLimit) }, geometry.kind !== 'line')
+  if (!local || extent === undefined) return undefined
+  let result = paintedBox(local, extent, node.stroke.nonScaling, transform)
+  if (!result) return undefined
+  const width = numericStrokeWidth(node.stroke.width)
+  const anchors = connectorEndpointAnchors(geometry, node.route.closed)
+  const mids = connectorMidpoints(geometry, node.route.closed)
+  const markers: Array<{ marker: MarkerDescriptor; anchor: ScenePoint | undefined }> = [
+    ...anchors.starts.flatMap(anchor => node.markers.start ? [{ marker: node.markers.start, anchor }] : []),
+    ...anchors.ends.flatMap(anchor => node.markers.end ? [{ marker: node.markers.end, anchor }] : []),
+    ...(node.markers.mid.length === 1
+      ? mids.map(anchor => ({ marker: node.markers.mid[0]!, anchor }))
+      : node.markers.mid.map((marker, index) => ({ marker, anchor: mids[index] }))),
+  ]
+  for (const { marker, anchor } of markers) {
+    const bounds = markerBoundsAt(marker, anchor, width, true)
+    const world = bounds && transformedBounds(bounds, transform)
+    if (!world) return undefined
+    result = unionSceneBounds(result, world)!
   }
+  for (const label of node.labels) {
+    // Companion TextMarks own their own artwork and transform. Inline labels
+    // belong to this connector; legacy declared bounds remain conservative.
+    const bounds = unionSceneBounds(label.bounds, connectorInlineLabelVisualBounds(label))
+    if (label.visual?.kind === 'inline' && !bounds) return undefined
+    if (bounds) {
+      const world = transformedBounds(bounds, transform)
+      if (!world) return undefined
+      result = unionSceneBounds(result, world)!
+    }
+  }
+  return result
+}
+
+/** Conservative painted bounds, independent of legacy layout/hit envelopes.
+ * Pass the ancestor transform before stroke expansion, so non-scaling strokes
+ * retain their world-space width. Unknown artwork is wholly unmeasured. */
+export function nodePaintBounds(node: SceneNode, parentTransform?: SceneTransform): AxisAlignedBox | undefined {
+  return paintBounds(node, parentTransform)
+}
+
+function paintBounds(node: SceneNode, parentTransform?: SceneTransform): AxisAlignedBox | undefined {
+  const transform = composedTransform(parentTransform, node.transform)
+  let local: AxisAlignedBox | undefined
+  if (node.kind === 'shape') {
+    local = geometryBounds(node.geometry)
+    const extent = paintedStrokeExtent(node.paint, ['polygon', 'polyline', 'path', 'compound'].includes(node.geometry.kind))
+    if (!local || extent === undefined) return undefined
+    return paintedBox(local, extent, node.paint.vectorEffect === 'non-scaling-stroke', transform)
+  } else if (node.kind === 'connector') {
+    return connectorPaintBounds(node, transform)
+  } else if (node.kind === 'text') {
+    // nodeWorldBounds already uses the retained occupied band/offset. Apply
+    // the transform only once, after optional text stroke expansion.
+    local = nodeWorldBounds({ ...node, transform: undefined })
+    const extent = paintedStrokeExtent(node.paint, false)
+    if (!local || extent === undefined) return undefined
+    return paintedBox(local, extent, node.paint.vectorEffect === 'non-scaling-stroke', transform)
+  } else if (node.kind === 'group') {
+    for (const child of node.children) {
+      if (child.node.kind === 'document' && child.node.nonPaint) continue
+      const bounds = paintBounds(child.node, transform)
+      if (!bounds) return undefined
+      local = unionSceneBounds(local, bounds)
+    }
+  } else return undefined
   return local
 }

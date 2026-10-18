@@ -13,8 +13,11 @@
 // callout above the anchor; clamps to the canvas top.
 // ============================================================================
 
-import { TEXT_BASELINE_SHIFT, estimateTextWidth } from '../styles.ts'
+import { TEXT_BASELINE_SHIFT } from '../styles.ts'
 import { escapeXml } from '../multiline-utils.ts'
+import { preparePixelText } from './prepared-text.ts'
+import type { GroupMark, SceneOwner } from '../scene/ir.ts'
+import * as marks from '../scene/marks.ts'
 
 export const TIP = {
   fontSize: 15,
@@ -35,8 +38,9 @@ function r(value: number): string {
  * Tooltip markup centered above (cx, topY): background pill + pointer + text,
  * classed `{prefix}-tip` so the matching CSS (tooltipCss) can reveal it.
  */
-export function tooltipMarkup(prefix: string, cx: number, topY: number, text: string): string {
-  const textW = estimateTextWidth(text, TIP.fontSize, TIP.fontWeight)
+function tooltipPlan(cx: number, topY: number, text: string) {
+  const block = preparePixelText(text.replace(/[\t\n\r ]+/g, ' ').trim(), { display: 'literal', fontSize: TIP.fontSize, fontWeight: TIP.fontWeight })
+  const textW = block.width
   const bgW = textW + TIP.padX * 2
   const bgX = cx - bgW / 2
   let bgY = topY - TIP.offsetY - TIP.height
@@ -52,6 +56,11 @@ export function tooltipMarkup(prefix: string, cx: number, topY: number, text: st
   const p = TIP.pointerSize
   const ptrPath = `M${r(cx - p)},${r(ptrY)} L${r(cx + p)},${r(ptrY)} L${r(cx)},${r(ptrY + p)} Z`
 
+  return { block, bgW, bgX, bgY, textX, textY, ptrPath }
+}
+
+export function tooltipMarkup(prefix: string, cx: number, topY: number, text: string): string {
+  const { bgW, bgX, bgY, textX, textY, ptrPath } = tooltipPlan(cx, topY, text)
   return (
     `<g class="${prefix}-tip">` +
     `<rect x="${r(bgX)}" y="${r(bgY)}" width="${r(bgW)}" height="${TIP.height}" rx="${TIP.rx}" class="${prefix}-tip ${prefix}-tip-bg"/>` +
@@ -59,6 +68,26 @@ export function tooltipMarkup(prefix: string, cx: number, topY: number, text: st
     `<text x="${r(textX)}" y="${r(textY)}" text-anchor="middle" dy="${TEXT_BASELINE_SHIFT}" class="${prefix}-tip ${prefix}-tip-text">${escapeXml(text)}</text>` +
     `</g>`
   )
+}
+
+/** The same owned tooltip geometry, retained as paint rather than opaque SVG. */
+export function tooltipArtwork(prefix: string, cx: number, topY: number, text: string, id: string, owner: SceneOwner): GroupMark {
+  const { block, bgW, bgX, bgY, textX, textY, ptrPath } = tooltipPlan(cx, topY, text)
+  const n = (value: number) => Number(r(value))
+  return marks.group({ id, role: 'chrome', owner, visibility: 'conditional',
+    open: `<g class="${prefix}-tip">`, close: '</g>', join: '',
+    children: [
+      { indent: 0, node: marks.shape({ id: `${id}:background`, role: 'chrome', owner,
+        geometry: { kind: 'rect', x: n(bgX), y: n(bgY), width: n(bgW), height: TIP.height, rx: TIP.rx }, paint: { fill: 'var(--_text)' },
+      }, `<rect x="${r(bgX)}" y="${r(bgY)}" width="${r(bgW)}" height="${TIP.height}" rx="${TIP.rx}" class="${prefix}-tip ${prefix}-tip-bg"/>`) },
+      { indent: 0, node: marks.shape({ id: `${id}:pointer`, role: 'chrome', owner,
+        geometry: { kind: 'path', d: ptrPath }, paint: { fill: 'var(--_text)' },
+      }, `<path d="${ptrPath}" class="${prefix}-tip ${prefix}-tip-ptr"/>`) },
+      { indent: 0, node: marks.text({ id: `${id}:text`, role: 'label', owner,
+        text: block.text, block, x: n(textX), y: n(textY), fontSize: TIP.fontSize, fontWeight: TIP.fontWeight, anchor: 'middle', paint: { fill: 'var(--bg)' },
+      }, `<text x="${r(textX)}" y="${r(textY)}" text-anchor="middle" dy="${TEXT_BASELINE_SHIFT}" class="${prefix}-tip ${prefix}-tip-text">${escapeXml(text)}</text>`) },
+    ],
+  })
 }
 
 /**

@@ -13,7 +13,7 @@ import { formatBarValue } from './axis-utils.ts'
 import type { MarkPaint, SceneDoc, SceneNode } from '../scene/ir.ts'
 import * as marks from '../scene/marks.ts'
 import { DefaultBackend } from '../scene/backend.ts'
-import { tooltipMarkup, tooltipCss } from '../shared/svg-tooltip.ts'
+import { tooltipArtwork, tooltipCss } from '../shared/svg-tooltip.ts'
 import { resolveRoleStyle, type InternalStyleFace } from '../scene/style-registry.ts'
 
 // ============================================================================
@@ -90,8 +90,8 @@ export function lowerXYChartScene(
   const shadowDefs = buildShadowDefs(colors)
   if (shadowDefs) parts.push(marks.definitions({ id: 'shadow-defs' }, `<defs>${shadowDefs}</defs>`))
   if (defs) parts.push(marks.definitions({ id: 'defs' }, defs))
-  if (svgMeta.title) parts.push(marks.documentContent({ id: 'acc-title', role: 'chrome' }, svgMeta.title))
-  if (svgMeta.description) parts.push(marks.documentContent({ id: 'acc-desc', role: 'chrome' }, svgMeta.description))
+  if (svgMeta.title) parts.push(marks.documentContent({ id: 'acc-title', role: 'chrome', nonPaint: 'accessibility' }, svgMeta.title))
+  if (svgMeta.description) parts.push(marks.documentContent({ id: 'acc-desc', role: 'chrome', nonPaint: 'accessibility' }, svgMeta.description))
 
   // Grid lines are always derived from the value (y) axis tick values, in
   // both orientations; the tick value itself is not carried through layout,
@@ -166,14 +166,16 @@ export function lowerXYChartScene(
       const tipTitle = bar.label ? `${bar.label}: ${tipText}` : tipText
       const tipAnchorX = chart.horizontal ? bar.x + bar.width : bar.x + bar.width / 2
       const tipAnchorY = chart.horizontal ? bar.y + bar.height / 2 : bar.y
-      // Pure interaction chrome (invisible hover rect + tooltip) — stays raw.
-      barOverlay.push(marks.documentContent({ id: `tooltip:${barId}`, role: 'chrome' },
-        `<g class="xychart-bar-group">` +
-        `<rect x="${r(bar.x)}" y="${r(bar.y)}" width="${r(bar.width)}" height="${r(bar.height)}" fill="transparent"/>` +
-        `<title>${escapeXml(tipTitle)}</title>` +
-        tooltipMarkup('xychart', tipAnchorX, tipAnchorY, tipText) +
-        `</g>`,
-      ))
+      const owner = { id: barId, role: 'bar' as const }
+      barOverlay.push(marks.group({ id: `tooltip:${barId}`, role: 'chrome', owner,
+        open: '<g class="xychart-bar-group">', close: '</g>', join: '', children: [
+          { indent: 0, node: marks.shape({ id: `${barId}:hit`, role: 'chrome', owner,
+            geometry: { kind: 'rect', x: rn(bar.x), y: rn(bar.y), width: rn(bar.width), height: rn(bar.height) }, paint: { fill: 'transparent' },
+          }, `<rect x="${r(bar.x)}" y="${r(bar.y)}" width="${r(bar.width)}" height="${r(bar.height)}" fill="transparent"/>`) },
+          { indent: 0, node: marks.documentContent({ id: `${barId}:title`, role: 'chrome', nonPaint: 'interaction-metadata' }, `<title>${escapeXml(tipTitle)}</title>`) },
+          { indent: 0, node: tooltipArtwork('xychart', tipAnchorX, tipAnchorY, tipText, `${barId}:tooltip`, owner) },
+        ],
+      }))
     }
   }
 
@@ -250,7 +252,9 @@ export function lowerXYChartScene(
           join: '',
           children: [
             {
-              node: marks.documentContent({ id: `hit:${pointId}`, role: 'chrome' },
+              node: marks.shape({ id: `hit:${pointId}`, role: 'chrome', owner: { id: pointId, role: 'point' },
+                geometry: { kind: 'circle', cx: rn(point.x), cy: rn(point.y), r: CHART_FONT.dotRadius * 3 }, paint: { fill: 'transparent' },
+              },
                 `<circle cx="${r(point.x)}" cy="${r(point.y)}" r="${CHART_FONT.dotRadius * 3}" fill="transparent" class="xychart-hit"/>`),
               indent: 0,
             },
@@ -266,9 +270,11 @@ export function lowerXYChartScene(
               indent: 0,
             },
             {
-              node: marks.documentContent({ id: `tooltip:${pointId}`, role: 'chrome' },
-                `<title>${escapeXml(tipTitle)}</title>` +
-                tooltipMarkup('xychart', point.x, point.y - CHART_FONT.dotRadius, tipText)),
+              node: marks.documentContent({ id: `title:${pointId}`, role: 'chrome', nonPaint: 'interaction-metadata' }, `<title>${escapeXml(tipTitle)}</title>`),
+              indent: 0,
+            },
+            {
+              node: tooltipArtwork('xychart', point.x, point.y - CHART_FONT.dotRadius, tipText, `tooltip:${pointId}`, { id: pointId, role: 'point' }),
               indent: 0,
             },
           ],

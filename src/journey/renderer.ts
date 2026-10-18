@@ -138,17 +138,17 @@ export function lowerJourneyScene(
     openJourneySvgTag(diagram, colors, transparent, accessibility, titleId, descId, appearance.useMaxWidth),
   ))
   if (accessibility.title) {
-    parts.push(marks.documentContent({ id: 'a11y-title', role: 'chrome' },
+    parts.push(marks.documentContent({ id: 'a11y-title', role: 'chrome', nonPaint: 'accessibility' },
       `<title id="${titleId}">${escapeXml(accessibility.title)}</title>`))
   }
   if (accessibility.description) {
-    parts.push(marks.documentContent({ id: 'a11y-desc', role: 'chrome' },
+    parts.push(marks.documentContent({ id: 'a11y-desc', role: 'chrome', nonPaint: 'accessibility' },
       `<desc id="${descId}">${escapeXml(accessibility.description)}</desc>`))
   }
-  parts.push(marks.documentContent({ id: 'style', role: 'chrome' },
+  parts.push(marks.documentContent({ id: 'style', role: 'chrome', nonPaint: 'stylesheet' },
     buildStyleBlock(font, false, colors.shadow, colors.embedFontImport)))
   parts.push(marks.definitions({ id: 'defs', markerResources: [arrowMarker] }, buildJourneyDefs(colors, arrowMarker)))
-  parts.push(marks.documentContent({ id: 'journey-style', role: 'chrome' }, journeyCss))
+  parts.push(marks.documentContent({ id: 'journey-style', role: 'chrome', nonPaint: 'stylesheet' }, journeyCss))
 
   parts.push(renderScoreGuide(diagram.scoreGuide, style, arrowMarker))
 

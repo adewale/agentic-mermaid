@@ -123,13 +123,13 @@ export function lowerTimelineScene(
 
   if (accessibleTitle) {
     parts.push(marks.documentContent(
-      { id: 'a11y-title', role: 'chrome' },
+      { id: 'a11y-title', role: 'chrome', nonPaint: 'accessibility' },
       `<title id="${titleId}">${escapeXml(accessibleTitle)}</title>`,
     ))
   }
   if (accessibleDescription) {
     parts.push(marks.documentContent(
-      { id: 'a11y-desc', role: 'chrome' },
+      { id: 'a11y-desc', role: 'chrome', nonPaint: 'accessibility' },
       `<desc id="${descId}">${escapeXml(accessibleDescription)}</desc>`,
     ))
   }

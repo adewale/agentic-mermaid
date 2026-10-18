@@ -9,12 +9,13 @@ import { decodeXML } from 'entities'
 // every divergence in a lowering.
 // ============================================================================
 
-import type { Geometry, SceneDoc, SceneNode, SceneTransform } from './ir.ts'
+import type { Geometry, SceneDoc, SceneNode } from './ir.ts'
 import { hasDomSvgIdentityRole } from './identity.ts'
 import { sceneNodeSerialization } from './serialization.ts'
 import { breakLineTags, displayText } from '../multiline-utils.ts'
 import { decodedSvgAttributeValue, scanSvgStartTags } from '../svg-structure.ts'
 import { hasMarkerCss } from '../output-security.ts'
+import { parseSvgTransform, transformMatrix } from './transforms.ts'
 
 /** Parse the top-level SVG elements out of a crisp chunk (self-closed or
  *  paired), ignoring nested content. Good enough for our own emitters. */
@@ -154,32 +155,22 @@ function timelineLiteralText(serialized: string): string | undefined {
   return depth === 0 ? result : undefined
 }
 
-function parsedTransform(value: string | undefined): SceneTransform | undefined {
-  if (!value) return undefined
-  const match = /^rotate\(\s*([-+\d.eE]+)[,\s]+([-+\d.eE]+)[,\s]+([-+\d.eE]+)\s*\)$/.exec(value)
-  if (!match) return undefined
-  const [angle, cx, cy] = match.slice(1).map(Number)
-  if (![angle, cx, cy].every(Number.isFinite)) return undefined
-  return { kind: 'rotate', angle: angle!, cx: cx!, cy: cy! }
-}
-
 function transformProblems(node: SceneNode, attrs: Map<string, string> | undefined, path: string, problems: string[]): void {
   const raw = attrs?.get('transform')
-  const crisp = parsedTransform(raw)
+  const crisp = raw ? parseSvgTransform(raw) : undefined
   if (raw && !crisp) {
     problems.push(`${path}(${node.kind}:${node.id}).transform: unsupported crisp transform ${raw}`)
     return
   }
-  if (!node.transform && crisp) {
-    problems.push(`${path}(${node.kind}:${node.id}).transform: crisp rotation is missing from semantic fields`)
+  if (!!node.transform !== !!crisp) {
+    problems.push(`${path}(${node.kind}:${node.id}).transform: typed transform and SVG transform disagree`)
     return
   }
-  if (node.transform && !crisp) {
-    problems.push(`${path}(${node.kind}:${node.id}).transform: semantic rotation is missing from crisp SVG`)
-    return
-  }
-  if (node.transform && crisp && (node.transform.kind !== crisp.kind || node.transform.angle !== crisp.angle || node.transform.cx !== crisp.cx || node.transform.cy !== crisp.cy)) {
-    problems.push(`${path}(${node.kind}:${node.id}).transform: semantic ${JSON.stringify(node.transform)} != crisp ${JSON.stringify(crisp)}`)
+  if (node.transform && crisp) {
+    const semantic = transformMatrix(node.transform)
+    if (semantic.some((value, index) => Math.abs(value - crisp[index]!) > 1e-9 * Math.max(1, Math.abs(value), Math.abs(crisp[index]!)))) {
+      problems.push(`${path}(${node.kind}:${node.id}).transform: semantic ${JSON.stringify(node.transform)} != crisp ${raw}`)
+    }
   }
 }
 

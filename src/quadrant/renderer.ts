@@ -9,7 +9,7 @@ import type { ResolvedRenderStyle } from '../styles.ts'
 import type { SceneDoc, SceneNode } from '../scene/ir.ts'
 import * as marks from '../scene/marks.ts'
 import { DefaultBackend } from '../scene/backend.ts'
-import { tooltipMarkup, tooltipCss } from '../shared/svg-tooltip.ts'
+import { tooltipArtwork, tooltipCss } from '../shared/svg-tooltip.ts'
 import { buildAccessibilityAttrs } from '../shared/svg-a11y.ts'
 import { hashId } from '../scene/seed.ts'
 
@@ -263,13 +263,16 @@ export function lowerQuadrantScene(
       // Hover target + native title + tooltip: pure interaction chrome. The
       // tooltip carries the full label even when dense placement hid it.
       const tipText = `${point.label}: [${point.nx}, ${point.ny}]`
-      pointOverlay.push(marks.documentContent({ id: `tooltip:${pointId}`, role: 'chrome' },
-        `<g class="quadrant-point-group">` +
-        `<circle cx="${point.cx}" cy="${point.cy}" r="${point.radius + 6}" fill="transparent"/>` +
-        `<title>${escapeXml(tipText)}</title>` +
-        tooltipMarkup('quadrant', point.cx, point.cy - point.radius, tipText) +
-        `</g>`,
-      ))
+      const owner = { id: pointId, role: 'point' as const }
+      pointOverlay.push(marks.group({ id: `tooltip:${pointId}`, role: 'chrome', owner,
+        open: '<g class="quadrant-point-group">', close: '</g>', join: '', children: [
+          { indent: 0, node: marks.shape({ id: `${pointId}:hit`, role: 'chrome', owner,
+            geometry: { kind: 'circle', cx: point.cx, cy: point.cy, r: point.radius + 6 }, paint: { fill: 'transparent' },
+          }, `<circle cx="${point.cx}" cy="${point.cy}" r="${point.radius + 6}" fill="transparent"/>`) },
+          { indent: 0, node: marks.documentContent({ id: `${pointId}:title`, role: 'chrome', nonPaint: 'interaction-metadata' }, `<title>${escapeXml(tipText)}</title>`) },
+          { indent: 0, node: tooltipArtwork('quadrant', point.cx, point.cy - point.radius, tipText, `${pointId}:tooltip`, owner) },
+        ],
+      }))
     }
   }
   parts.push(...pointOverlay)

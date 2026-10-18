@@ -14,7 +14,7 @@ import {
 import type { PieVisualConfig } from './config.ts'
 import { pieSliceColors } from './palette.ts'
 import { contrastTextColor } from '../color-resolver.ts'
-import { tooltipMarkup, tooltipCss } from '../shared/svg-tooltip.ts'
+import { tooltipArtwork, tooltipCss } from '../shared/svg-tooltip.ts'
 import { resolveRenderStyle } from '../styles.ts'
 import type { ResolvedRenderStyle } from '../styles.ts'
 import type { SceneDoc, SceneNode } from '../scene/ir.ts'
@@ -149,6 +149,7 @@ export function lowerPieScene(
   // Slices. Duplicate labels get occurrence suffixes so scene ids stay
   // unique (the §8 seed contract keys substreams on them).
   const labelOccurrence = new Map<string, number>()
+  const sliceIds: string[] = []
   const occurrenceId = (prefix: string, label: string) => {
     const key = `${prefix}:${label}`
     const k = labelOccurrence.get(key) ?? 0
@@ -189,9 +190,11 @@ export function lowerPieScene(
       sliceRole.strokeColor !== undefined || sliceRole.borderColor !== undefined
       || sliceRole.lineWidth !== undefined || cue !== 'none'
     )
+    const sliceId = occurrenceId('slice', slice.label)
+    sliceIds[index] = sliceId
     parts.push(marks.shape(
       {
-        id: occurrenceId('slice', slice.label),
+        id: sliceId,
         role: 'pie-slice',
         geometry: { kind: 'path', d: slice.path },
         // Semantic paint mirrors the CSS result so styled backends preserve
@@ -341,7 +344,7 @@ export function lowerPieScene(
   // <title> and the styled tip remain conditional on `interactive`.
   if (interactive || hoverHighlight) {
     const labelRadius = chart.radius * visual.textPosition
-    for (const slice of chart.slices) {
+    for (const [index, slice] of chart.slices.entries()) {
       const mid = (slice.startAngle + slice.endAngle) / 2
       const anchorX = rnd(chart.cx + labelRadius * Math.sin(mid))
       const anchorY = rnd(chart.cy - labelRadius * Math.cos(mid))
@@ -349,15 +352,21 @@ export function lowerPieScene(
       const hoverTargetAttrs = hoverHighlight
         ? ` class="pie-slice-hover-target" stroke="transparent" stroke-width="${hoverEmphasisStrokeWidth}"`
         : ''
-      parts.push(marks.documentContent(
-        { id: occurrenceId('tooltip:slice', slice.label), role: 'chrome' },
-        `<g class="pie-slice-group">` +
-          `<path d="${slice.path}" fill="transparent"${hoverTargetAttrs}/>` +
-          (interactive
-            ? `<title>${escapeXml(tipText)}</title>` + tooltipMarkup('pie', anchorX, anchorY, tipText)
-            : '') +
-          `</g>`,
-      ))
+      const id = occurrenceId('tooltip:slice', slice.label)
+      const owner = { id: sliceIds[index]!, role: 'pie-slice' as const }
+      parts.push(marks.group({ id, role: 'chrome', owner,
+        open: '<g class="pie-slice-group">', close: '</g>', join: '', children: [
+          { indent: 0, node: marks.shape({ id: `${id}:hit`, role: 'chrome', owner,
+            ...(hoverHighlight ? { visibility: 'conditional' as const } : {}),
+            geometry: { kind: 'path', d: slice.path },
+            paint: { fill: 'transparent', ...(hoverHighlight ? { stroke: 'transparent', strokeWidth: String(hoverEmphasisStrokeWidth) } : {}) },
+          }, `<path d="${slice.path}" fill="transparent"${hoverTargetAttrs}/>` ) },
+          ...(interactive ? [
+            { indent: 0, node: marks.documentContent({ id: `${id}:title`, role: 'chrome', nonPaint: 'interaction-metadata' }, `<title>${escapeXml(tipText)}</title>`) },
+            { indent: 0, node: tooltipArtwork('pie', anchorX, anchorY, tipText, `${id}:body`, owner) },
+          ] : []),
+        ],
+      }))
     }
   }
 

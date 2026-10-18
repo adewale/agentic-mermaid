@@ -484,7 +484,7 @@ const BUILTIN_FAMILY_DESCRIPTOR_SEEDS = [
     aliases: ['swimlane'],
     semanticChannels: [],
     detect: detectsFlowchartFamily,
-    sceneRoles: [nativeSceneRole('prelude', 'document'), nativeSceneRole('title', 'text'), nativeSceneRole('defs', 'document', 'marker'), nativeSceneRole('chrome', 'document', 'shape'), nativeSceneRole('group', 'container', 'shape'), nativeSceneRole('group-header', 'text', 'shape'), nativeSceneRole('edge', 'connector'), nativeSceneRole('edge-label', 'container'), nativeSceneRole('node', 'container', 'shape'), nativeSceneRole('label', 'text'), nativeSceneRole('icon', 'document', 'text')],
+    sceneRoles: [nativeSceneRole('prelude', 'document'), nativeSceneRole('title', 'text'), nativeSceneRole('defs', 'document', 'marker'), nativeSceneRole('chrome', 'document', 'shape'), nativeSceneRole('group', 'container', 'shape'), nativeSceneRole('group-header', 'text', 'shape'), nativeSceneRole('edge', 'connector'), nativeSceneRole('edge-label', 'container'), nativeSceneRole('node', 'container', 'shape'), nativeSceneRole('label', 'text'), nativeSceneRole('icon', 'container', 'shape', 'text')],
     example: 'flowchart TD\n  A[Start] --> B{Ship?}\n  B -->|yes| C[Deploy]\n  B -->|no| D[Fix]',
     editorExample: `flowchart TD
   A[Start] --> B{Decision?}
@@ -511,7 +511,7 @@ const BUILTIN_FAMILY_DESCRIPTOR_SEEDS = [
     semanticChannels: ['category'],
     detect: (line: string) => /^sequencediagram\s*$/.test(line),
     detectLoose: (line: string) => /^sequencediagram(?:\s|$)/.test(line),
-    sceneRoles: [nativeSceneRole('prelude', 'document'), nativeSceneRole('title', 'text'), nativeSceneRole('defs', 'document', 'marker'), nativeSceneRole('chrome', 'document', 'shape'), nativeSceneRole('actor', 'container', 'shape'), nativeSceneRole('lifeline', 'container', 'connector'), nativeSceneRole('activation', 'container', 'shape'), nativeSceneRole('message', 'container', 'connector'), nativeSceneRole('block', 'container', 'connector', 'shape'), nativeSceneRole('group', 'container', 'shape'), nativeSceneRole('note', 'container', 'shape'), nativeSceneRole('label', 'text'), nativeSceneRole('icon', 'document', 'text', 'shape')],
+    sceneRoles: [nativeSceneRole('prelude', 'document'), nativeSceneRole('title', 'text'), nativeSceneRole('defs', 'document', 'marker'), nativeSceneRole('chrome', 'document', 'shape'), nativeSceneRole('actor', 'container', 'shape'), nativeSceneRole('lifeline', 'container', 'connector'), nativeSceneRole('activation', 'container', 'shape'), nativeSceneRole('message', 'container', 'connector'), nativeSceneRole('block', 'container', 'connector', 'shape'), nativeSceneRole('group', 'container', 'shape'), nativeSceneRole('note', 'container', 'shape'), nativeSceneRole('label', 'text'), nativeSceneRole('icon', 'container', 'shape', 'text')],
     example: 'sequenceDiagram\n  participant U as User\n  participant S as Server\n  U->>S: request\n  S-->>U: response',
     editorExample: `sequenceDiagram
   participant User
@@ -541,7 +541,7 @@ const BUILTIN_FAMILY_DESCRIPTOR_SEEDS = [
     semanticChannels: [],
     detect: (line: string) => /^classdiagram\s*$/.test(line),
     detectLoose: (line: string) => /^classdiagram(?:\s|$)/.test(line),
-    sceneRoles: [nativeSceneRole('prelude', 'document'), nativeSceneRole('title', 'text'), nativeSceneRole('defs', 'document', 'marker'), nativeSceneRole('chrome', 'document', 'shape'), nativeSceneRole('group', 'container', 'shape'), nativeSceneRole('group-header', 'text', 'shape'), nativeSceneRole('class-box', 'container', 'shape'), nativeSceneRole('member', 'text'), nativeSceneRole('relationship', 'connector'), nativeSceneRole('cardinality', 'text'), nativeSceneRole('note', 'container', 'shape'), nativeSceneRole('label', 'text')],
+    sceneRoles: [nativeSceneRole('prelude', 'document'), nativeSceneRole('title', 'text'), nativeSceneRole('defs', 'document', 'marker'), nativeSceneRole('chrome', 'document', 'shape', 'connector'), nativeSceneRole('group', 'container', 'shape'), nativeSceneRole('group-header', 'text', 'shape'), nativeSceneRole('class-box', 'container', 'shape'), nativeSceneRole('member', 'text'), nativeSceneRole('relationship', 'connector'), nativeSceneRole('cardinality', 'text'), nativeSceneRole('note', 'container', 'shape'), nativeSceneRole('label', 'text')],
     example: 'classDiagram\n  class Account {\n    +id: string\n    +close() void\n  }\n  Account <|-- Savings\n  Account "1" o-- "*" Transaction : logs',
     editorExample: `classDiagram
   class Renderer {
@@ -598,7 +598,7 @@ const BUILTIN_FAMILY_DESCRIPTOR_SEEDS = [
     semanticChannels: [],
     detect: (line: string) => /^architecture(?:-beta)?\s*$/.test(line),
     detectLoose: (line: string) => /^architecture(?:-beta)?(?:\s|$)/.test(line),
-    sceneRoles: [nativeSceneRole('prelude', 'document'), nativeSceneRole('defs', 'document', 'marker'), nativeSceneRole('chrome', 'document', 'shape'), nativeSceneRole('title', 'text'), nativeSceneRole('group', 'container', 'shape'), nativeSceneRole('group-header', 'shape'), nativeSceneRole('icon', 'document'), nativeSceneRole('label', 'text'), nativeSceneRole('service', 'container', 'shape'), nativeSceneRole('junction', 'container', 'shape'), nativeSceneRole('edge', 'connector')],
+    sceneRoles: [nativeSceneRole('prelude', 'document'), nativeSceneRole('defs', 'document', 'marker'), nativeSceneRole('chrome', 'document', 'shape'), nativeSceneRole('title', 'text'), nativeSceneRole('group', 'container', 'shape'), nativeSceneRole('group-header', 'shape'), nativeSceneRole('icon', 'container', 'shape', 'text'), nativeSceneRole('label', 'text'), nativeSceneRole('service', 'container', 'shape'), nativeSceneRole('junction', 'container', 'shape'), nativeSceneRole('edge', 'connector')],
     example: 'architecture-beta\n  group backend(cloud)[Backend]\n  service api(server)[API] in backend\n  service db(database)[Database] in backend\n  service cache(disk)[Cache] in backend\n  api:R --> L:db\n  api:B -[reads]-> T:cache',
     editorExample: `architecture-beta
   group app(cloud)[Application]
@@ -612,7 +612,7 @@ const BUILTIN_FAMILY_DESCRIPTOR_SEEDS = [
     config: { section: 'xyChart', keys: ['width', 'height', 'useMaxWidth', 'useWidth', 'titleFontSize', 'titlePadding', 'chartOrientation', 'plotReservedSpacePercent', 'showDataLabel', 'showDataLabelOutsideBar', 'showTitle', 'showLegend', 'legendFontSize', 'legendPadding', 'xAxis', 'yAxis'] },
     semanticChannels: ['value', 'category'],
     detect: (line: string) => /^xychart(?:-beta)?(?:\s|$)/.test(line),
-    sceneRoles: [nativeSceneRole('prelude', 'document'), nativeSceneRole('defs', 'document'), nativeSceneRole('chrome', 'container', 'document'), nativeSceneRole('grid', 'shape'), nativeSceneRole('bar', 'shape', 'data-mark'), nativeSceneRole('series', 'connector'), nativeSceneRole('point', 'shape', 'data-mark'), nativeSceneRole('axis', 'text', 'shape'), nativeSceneRole('legend', 'container', 'text', 'shape'), nativeSceneRole('title', 'text'), nativeSceneRole('label', 'text')],
+    sceneRoles: [nativeSceneRole('prelude', 'document'), nativeSceneRole('defs', 'document'), nativeSceneRole('chrome', 'container', 'document', 'shape', 'text'), nativeSceneRole('grid', 'shape'), nativeSceneRole('bar', 'shape', 'data-mark'), nativeSceneRole('series', 'connector'), nativeSceneRole('point', 'shape', 'data-mark'), nativeSceneRole('axis', 'text', 'shape'), nativeSceneRole('legend', 'container', 'text', 'shape'), nativeSceneRole('title', 'text'), nativeSceneRole('label', 'text')],
     example: 'xychart-beta\n  title "Revenue"\n  x-axis [Q1, Q2, Q3]\n  y-axis "USD" 0 --> 100\n  bar [45, 62, 80]',
     editorExample: `xychart
   title "Weekly renders"
@@ -624,7 +624,7 @@ const BUILTIN_FAMILY_DESCRIPTOR_SEEDS = [
     config: { section: 'pie', keys: ['textPosition', 'donutHole', 'legendPosition', 'highlightSlice', 'useMaxWidth', 'useWidth'], noopKeys: ['useMaxWidth', 'useWidth'] },
     semanticChannels: ['value', 'category', 'emphasis'],
     detect: (line: string) => /^pie(?:\s|$)/.test(line),
-    sceneRoles: [nativeSceneRole('prelude', 'document'), nativeSceneRole('chrome', 'document', 'shape'), nativeSceneRole('pie-slice', 'shape', 'data-mark'), nativeSceneRole('legend', 'text', 'shape', 'data-mark'), nativeSceneRole('title', 'text'), nativeSceneRole('label', 'text')],
+    sceneRoles: [nativeSceneRole('prelude', 'document'), nativeSceneRole('chrome', 'document', 'shape', 'container', 'text'), nativeSceneRole('pie-slice', 'shape', 'data-mark'), nativeSceneRole('legend', 'text', 'shape', 'data-mark'), nativeSceneRole('title', 'text'), nativeSceneRole('label', 'text')],
     example: 'pie title Plans\n  "Free" : 60\n  "Pro" : 30\n  "Enterprise" : 10',
     editorExample: `pie showData
   title Export requests by format
@@ -638,7 +638,7 @@ const BUILTIN_FAMILY_DESCRIPTOR_SEEDS = [
     semanticChannels: ['category'],
     detect: (line: string) => /^quadrant(?:chart)?\s*$/.test(line),
     detectLoose: (line: string) => /^quadrant(?:chart)?(?:\s|$)/.test(line),
-    sceneRoles: [nativeSceneRole('prelude', 'document'), nativeSceneRole('chrome', 'document', 'shape'), nativeSceneRole('plate', 'shape'), nativeSceneRole('grid', 'shape'), nativeSceneRole('point', 'shape'), nativeSceneRole('axis', 'text'), nativeSceneRole('title', 'text'), nativeSceneRole('label', 'text')],
+    sceneRoles: [nativeSceneRole('prelude', 'document'), nativeSceneRole('chrome', 'document', 'shape', 'container', 'text'), nativeSceneRole('plate', 'shape'), nativeSceneRole('grid', 'shape'), nativeSceneRole('point', 'shape'), nativeSceneRole('axis', 'text'), nativeSceneRole('title', 'text'), nativeSceneRole('label', 'text')],
     example: 'quadrantChart\n  title Prioritize\n  x-axis Low Effort --> High Effort\n  y-axis Low Value --> High Value\n  Quick win: [0.2, 0.8]\n  Money pit: [0.8, 0.2]',
     editorExample: `quadrantChart
   title Feature priorities
@@ -674,7 +674,7 @@ const BUILTIN_FAMILY_DESCRIPTOR_SEEDS = [
     semanticChannels: ['importance', 'category'],
     detect: (line: string) => /^mindmap\s*$/.test(line),
     detectLoose: (line: string) => /^mindmap(?:\s|$)/.test(line),
-    sceneRoles: [nativeSceneRole('prelude', 'document'), nativeSceneRole('title', 'text'), nativeSceneRole('chrome', 'document', 'shape'), nativeSceneRole('edge', 'connector'), nativeSceneRole('node', 'container'), nativeSceneRole('icon', 'document', 'text'), nativeSceneRole('label', 'text')],
+    sceneRoles: [nativeSceneRole('prelude', 'document'), nativeSceneRole('title', 'text'), nativeSceneRole('chrome', 'document', 'shape'), nativeSceneRole('edge', 'connector'), nativeSceneRole('node', 'container'), nativeSceneRole('icon', 'container', 'shape', 'text'), nativeSceneRole('label', 'text')],
     example: 'mindmap\n  root((Product))\n    Research\n      Interviews\n      Evidence\n    Delivery\n      Launch',
     editorExample: `mindmap
   root((Agent-native release))

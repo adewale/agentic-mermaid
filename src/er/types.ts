@@ -122,6 +122,7 @@ export interface PositionedErGroup {
 
 export interface PositionedErEntity {
   labelBlock?: PixelTextBlock
+  emptyAttributeBlock?: PixelTextBlock
   attributeBlocks?: { type: PixelTextBlock; name: PixelTextBlock; keys: PixelTextBlock; comment?: PixelTextBlock }[]
   id: string
   label: string

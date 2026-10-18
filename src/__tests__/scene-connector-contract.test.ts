@@ -14,6 +14,15 @@ import { attachSceneNodeSerialization, sceneNodeSerialization } from '../scene/s
 import { nodeProblems } from '../scene/fidelity.ts'
 
 describe('typed Scene connector contract', () => {
+  test('hit testing composes group transforms and preserves scaled stroke regions', () => {
+    const edge = marks.connector({ id: 'scaled', role: 'edge', geometry: { kind: 'line', x1: 0, y1: 0, x2: 10, y2: 0 }, lineStyle: 'solid', paint: { stroke: '#111', strokeWidth: '2' }, hit: { strokeWidth: 4 }, transform: { kind: 'matrix', a: 2, b: 0, c: 0, d: 3, e: 0, f: 0 } }, '<line x1="0" y1="0" x2="10" y2="0" stroke="#111" stroke-width="2" transform="matrix(2 0 0 3 0 0)"/>')
+    expect(hitTestConnector(edge, { x: 10, y: 5.5 })).toBe(true)
+    expect(hitTestConnector(edge, { x: 10, y: 6.5 })).toBe(false)
+    const group = marks.group({ id: 'translated', role: 'group', open: '<g transform="translate(50 20)">', close: '</g>', transform: { kind: 'matrix', a: 1, b: 0, c: 0, d: 1, e: 50, f: 20 }, children: [{ node: edge, indent: 0 }] })
+    const scene = { family: 'flowchart', width: 100, height: 100, colors: { bg: '#fff', fg: '#111' }, transparent: false, parts: [group] }
+    expect(hitTestSceneConnectors(scene, { x: 60, y: 25.5 }).map(hit => hit.id)).toEqual(['scaled'])
+    expect(hitTestSceneConnectors(scene, { x: 10, y: 5.5 })).toEqual([])
+  })
   const crisp = '<line data-id="typed-id" data-role="edge" data-from="typed-a" data-to="typed-b" x1="0" y1="2" x2="10" y2="2" stroke="#00aa55" stroke-width="4" stroke-opacity="0" stroke-dasharray="9 2" stroke-dashoffset="0" stroke-linecap="square" stroke-linejoin="bevel" stroke-miterlimit="7" pathLength="40" paint-order="stroke fill" vector-effect="non-scaling-stroke" marker-end="url(#typed-arrow)" />'
   const connector = marks.connector({
     id: 'typed-id',

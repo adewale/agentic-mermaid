@@ -127,10 +127,15 @@ export function erAttributeBlocks(attr: ErAttribute) {
   }
 }
 
+export function erEmptyAttributeBlock(): PixelTextBlock {
+  return preparePixelText('<i>(no attributes)</i>', { fontSize: ER.attrFontSize, fontWeight: ER.attrFontWeight })
+}
+
 function prepareErText(positioned: PositionedErDiagram, style: ResolvedRenderStyle, styleFace?: Readonly<InternalStyleFace>): PositionedErDiagram {
   for (const entity of positioned.entities) {
     entity.labelBlock = erHeaderBlock(resolveLabelContent(entity.label, entity.labelContent), style)
     entity.attributeBlocks = entity.attributes.map(erAttributeBlocks)
+    if (entity.attributes.length === 0) entity.emptyAttributeBlock = erEmptyAttributeBlock()
   }
   for (const group of positioned.groups) group.labelBlock ??= erGroupBlock(resolveLabelContent(group.label, group.labelContent), style)
   for (const rel of positioned.relationships) rel.labelBlock ??= erRelationshipBlock(rel, style, styleFace)
@@ -162,7 +167,7 @@ function buildErElkGraph(
   for (const entity of diagram.entities) {
     const labelBlock = erHeaderBlock(resolveLabelContent(entity.label, entity.labelContent), style)
     const headerTextW = labelBlock.width
-    let maxAttrW = 0
+    let maxAttrW = entity.attributes.length === 0 ? erEmptyAttributeBlock().width : 0
     const commentColumn = erCommentColumnWidth(entity.attributes)
     for (const attr of entity.attributes) {
       const blocks = erAttributeBlocks(attr)

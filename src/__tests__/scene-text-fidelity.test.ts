@@ -18,6 +18,7 @@ import { layoutQuadrantChart } from '../quadrant/layout.ts'
 import { toMermaidLines } from '../mermaid-source.ts'
 import type { SceneDoc } from '../scene/ir.ts'
 import { sceneNodeSerialization } from '../scene/serialization.ts'
+import { preparePixelText } from '../shared/prepared-text.ts'
 
 function textMark(semantic: { x: number; y: number; anchor: 'start' | 'middle' | 'end' }, crisp: string) {
   return marks.text(
@@ -27,6 +28,54 @@ function textMark(semantic: { x: number; y: number; anchor: 'start' | 'middle' |
 }
 
 describe('fidelity oracle checks text x/y/anchor', () => {
+  it('retains the family prepared block, source spans and font inputs without changing SVG', () => {
+    const block = preparePixelText('Straße <b>release</b> notes', {
+      display: 'formatted', transform: 'uppercase', fontSize: 14, fontWeight: 600,
+      letterSpacing: 0.3, maxWidth: 100, fontFamily: 'Inter',
+    })
+    const mark = marks.text({
+      id: 'caption', role: 'label', text: block.text, block,
+      x: 10, y: 20, fontSize: 14, anchor: 'start', paint: {},
+    }, '<text x="10" y="20" font-size="14">STRASSE release notes</text>')
+    expect(mark.block).toBe(block)
+    expect(mark.measurement).toBe('prepared')
+    expect(mark.block!.prepared.source).toBe('Straße <b>release</b> notes')
+    expect(mark.block!.prepared.transform).toBe('uppercase')
+    expect(mark.block!.lineBlocks.flatMap(line => line.runs).some(run => run.bold)).toBe(true)
+    expect(mark.block!.fontFamily).toBe('Inter')
+    expect(mark.block!.breaks.length).toBeGreaterThan(0)
+    expect(sceneNodeSerialization(mark)).toBe('<text x="10" y="20" font-size="14">STRASSE release notes</text>')
+  })
+
+  it('marks fallback preparation explicitly instead of claiming retained family measurement', () => {
+    const mark = textMark({ x: 10, y: 20, anchor: 'start' }, '<text x="10" y="20" font-size="12">Hi</text>')
+    expect(mark.measurement).toBe('fallback')
+    expect(mark.prepared).toBeUndefined()
+    expect(mark.block?.prepared.source).toBe('Hi')
+    expect(mark.block?.width).toBe(mark.textLayout?.width)
+  })
+
+  it('inherits semantic group ownership without mutating reusable children or changing serialization', () => {
+    const child = textMark({ x: 10, y: 20, anchor: 'start' }, '<text x="10" y="20" font-size="12">Hi</text>')
+    const inner = marks.group({ id: 'local-inner', role: 'node', open: '<g data-id="authored-inner">', close: '</g>', children: [{ node: child, indent: 2 }] })
+    const outer = marks.group({ id: 'outer', role: 'group', open: '<g>', close: '</g>', children: [{ node: inner, indent: 2 }] })
+    const sibling = marks.group({ id: 'sibling', role: 'node', open: '<g>', close: '</g>', children: [{ node: child, indent: 2 }] })
+    expect(child.owner).toBeUndefined()
+    expect(inner.children[0]!.node.owner).toEqual({ id: 'authored-inner', role: 'node' })
+    expect((outer.children[0]!.node as typeof inner).children[0]!.node.owner).toEqual({ id: 'authored-inner', role: 'node' })
+    expect(sibling.children[0]!.node.owner).toEqual({ id: 'sibling', role: 'node' })
+    expect(sceneNodeSerialization(sibling.children[0]!.node)).toBe(sceneNodeSerialization(child))
+  })
+
+  it('preserves explicitly supplied ownership inside a different wrapper', () => {
+    const child = marks.text({
+      id: 'caption', role: 'label', owner: { id: 'edge-1', role: 'edge' },
+      text: 'Hi', x: 10, y: 20, fontSize: 12, anchor: 'start', paint: {},
+    }, '<text x="10" y="20" font-size="12">Hi</text>')
+    const wrapper = marks.group({ id: 'wrapper', role: 'group', open: '<g>', close: '</g>', children: [{ node: child, indent: 2 }] })
+    expect(wrapper.children[0]!.node.owner).toEqual({ id: 'edge-1', role: 'edge' })
+  })
+
   it('keeps typed public text identity separate from its bounded mark ID and authoritative over crisp attributes', () => {
     const mark = marks.text({
       id: 'local-caption', role: 'title', identity: { id: 'title#2' },

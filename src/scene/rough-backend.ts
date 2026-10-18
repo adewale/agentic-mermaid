@@ -1,3 +1,4 @@
+import { serializeTransform } from './transforms.ts'
 // ============================================================================
 // RoughBackend (SPEC §3.2/§11 phase 3) — rough.js-backed sketch serialization
 // of the SceneGraph. Headless (RoughGenerator + opsToPath, no DOM), version-
@@ -289,8 +290,7 @@ function suppressStroke(element: string, tag: string): string {
 
 function transformedStyledGeometry(svg: string, transform: SceneTransform | undefined): string {
   if (!transform || svg === '') return svg
-  if (transform.kind === 'rotate') return `<g transform="rotate(${transform.angle} ${transform.cx} ${transform.cy})">${svg}</g>`
-  return svg
+  return `<g transform="${serializeTransform(transform)}">${svg}</g>`
 }
 
 function sketchShape(node: ShapeMark, walk: Walk): string {

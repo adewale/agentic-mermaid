@@ -87,6 +87,7 @@ export function translateSequenceLabel<T extends PositionedSequenceLabel>(label:
 // ============================================================================
 
 export interface SequenceActorGeometrySpec {
+  menuBlock?: PixelTextBlock
   fontSize: number
   fontWeight: number
   letterSpacing: number
@@ -121,6 +122,7 @@ export function measureSequenceActorSpec(actor: Actor, style: ResolvedRenderStyl
     paddingY,
     displayLabel,
     block,
+    ...(actor.links ? { menuBlock: preparePixelText('⋯', { display: 'literal', fontSize: 10, fontWeight: 400 }) } : {}),
     labelMetrics,
     width,
     height,
@@ -141,6 +143,7 @@ export function positionSequenceActor(actor: Actor, spec: SequenceActorGeometryS
       label: actor.label,
       type: actor.type,
       ...(actor.links ? { links: { ...actor.links } } : {}),
+      ...(spec.menuBlock ? { menuBlock: spec.menuBlock } : {}),
       x: centerX,
       y: topY,
       width: spec.width,
@@ -177,6 +180,7 @@ export function positionSequenceActor(actor: Actor, spec: SequenceActorGeometryS
     label: actor.label,
     type: actor.type,
     ...(actor.links ? { links: { ...actor.links } } : {}),
+    ...(spec.menuBlock ? { menuBlock: spec.menuBlock } : {}),
     x: centerX,
     y: topY,
     width: spec.width,

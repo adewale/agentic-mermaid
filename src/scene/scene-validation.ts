@@ -5,6 +5,7 @@
  * reference, and non-fetching checks before a backend can observe them.
  */
 
+import { scanSvgStartTags } from '../svg-structure.ts'
 import { applyOutputSecurityPolicy } from '../output-security.ts'
 import { buildStyleBlock, svgOpenTag, type DiagramColors } from '../theme.ts'
 import { escapeAttr, escapeXml } from '../multiline-utils.ts'
@@ -676,10 +677,10 @@ function validateNode(value: unknown, path: string, state: ValidationState, dept
     add(state.diagnostics, 'SCENE_DOCUMENT', path, `${kind} marks must be top-level document furniture`)
   }
   if (state.external) {
-    const base = ['kind', 'id', 'role', 'identity', 'accessibility', 'channels', 'transform']
+    const base = ['kind', 'id', 'role', 'identity', 'accessibility', 'channels', 'transform', 'owner']
     const fields: Record<string, readonly string[]> = {
       shape: [...base, 'geometry', 'paint'],
-      text: [...base, 'text', 'x', 'y', 'fontSize', 'anchor', 'paint', 'fontWeight', 'letterSpacing', 'display', 'textLayout'],
+      text: [...base, 'text', 'x', 'y', 'fontSize', 'anchor', 'paint', 'fontWeight', 'letterSpacing', 'display', 'textLayout', 'block', 'measurement', 'prepared'],
       group: [...base, 'open', 'close', 'children', 'join'],
       'document': [...base, 'element', 'text', 'domId', 'markerResources'],
       connector: [
@@ -727,15 +728,23 @@ function validateNode(value: unknown, path: string, state: ValidationState, dept
     )
   }
   if (value.transform !== undefined) {
-    if (!record(value.transform) || value.transform.kind !== 'rotate') {
-      add(state.diagnostics, 'SCENE_DOCUMENT', `${path}.transform`, 'must be a rotate transform')
+    if (!record(value.transform) || !['rotate', 'matrix'].includes(String(value.transform.kind))) {
+      add(state.diagnostics, 'SCENE_DOCUMENT', `${path}.transform`, 'must be a rotate or matrix transform')
     } else {
-      finite(value.transform.angle, `${path}.transform.angle`, state.diagnostics)
-      finite(value.transform.cx, `${path}.transform.cx`, state.diagnostics)
-      finite(value.transform.cy, `${path}.transform.cy`, state.diagnostics)
+      const fields = value.transform.kind === 'matrix' ? ['a', 'b', 'c', 'd', 'e', 'f'] : ['angle', 'cx', 'cy']
+      for (const field of fields) finite(value.transform[field], `${path}.transform.${field}`, state.diagnostics)
     }
     if (state.external) add(state.diagnostics, 'SCENE_DOCUMENT', `${path}.transform`, 'external Scene transforms are not exposed by the declarative builder')
   }
+
+  if (value.owner !== undefined) {
+    if (!record(value.owner)) add(state.diagnostics, 'SCENE_REFERENCE', `${path}.owner`, 'must be a semantic owner')
+    else {
+      boundedString(value.owner.id, `${path}.owner.id`, state.diagnostics)
+      if (typeof value.owner.role !== 'string' || (!(value.owner.role in BUILTIN_SCENE_ROLE_TRAITS) && !parseExtensionId(value.owner.role))) add(state.diagnostics, 'SCENE_ROLE', `${path}.owner.role`, 'must be a Scene role')
+    }
+  }
+  if (value.visibility !== undefined && value.visibility !== 'conditional') add(state.diagnostics, 'SCENE_DOCUMENT', `${path}.visibility`, 'must be conditional')
 
   if (kind === 'shape') {
     if (value.surfaceFragment !== undefined && typeof value.surfaceFragment !== 'boolean') {
@@ -756,6 +765,12 @@ function validateNode(value: unknown, path: string, state: ValidationState, dept
     if (value.fontWeight !== undefined) finite(value.fontWeight, `${path}.fontWeight`, state.diagnostics, { positive: true })
     if (value.letterSpacing !== undefined) finite(value.letterSpacing, `${path}.letterSpacing`, state.diagnostics)
     if (value.display !== undefined && value.display !== 'literal' && value.display !== 'formatted') add(state.diagnostics, 'SCENE_DOCUMENT', `${path}.display`, 'must be literal or formatted')
+    if (value.measurement !== undefined && !['prepared', 'fallback'].includes(String(value.measurement))) add(state.diagnostics, 'SCENE_DOCUMENT', `${path}.measurement`, 'must identify prepared or fallback measurement')
+    if (value.measurement === 'prepared' && (!record(value.block) || value.block.unit !== 'px' || !record(value.block.prepared))) add(state.diagnostics, 'SCENE_DOCUMENT', `${path}.block`, 'prepared text must retain its actual pixel block')
+    if (record(value.block)) {
+      for (const field of ['width', 'height', 'fontSize', 'fontWeight', 'lineHeight']) finite(value.block[field], `${path}.block.${field}`, state.diagnostics, { nonNegative: true })
+      if (record(value.textLayout) && (value.block.width !== value.textLayout.width || value.block.height !== value.textLayout.height || value.block.lineHeight !== value.textLayout.lineHeight)) add(state.diagnostics, 'SCENE_FIDELITY', `${path}.block`, 'retained block differs from occupied text geometry')
+    }
     if (value.textLayout !== undefined) {
       if (!record(value.textLayout)) add(state.diagnostics, 'SCENE_DOCUMENT', `${path}.textLayout`, 'must be measured text geometry')
       else {
@@ -791,6 +806,13 @@ function validateNode(value: unknown, path: string, state: ValidationState, dept
     return
   }
   if (kind === 'document') {
+    if (value.nonPaint !== undefined) {
+      const tags: Record<string, readonly string[]> = { accessibility: ['title', 'desc'], stylesheet: ['style'], 'interaction-metadata': ['title', 'desc'] }
+      const allowed = tags[String(value.nonPaint)]
+      if (value.element !== 'content' || !allowed || serialized === undefined || scanSvgStartTags(serialized).some(tag => !allowed.includes(tag.name))) {
+        add(state.diagnostics, 'SCENE_DOCUMENT', `${path}.nonPaint`, 'must describe only closed non-painting metadata elements')
+      }
+    }
     if (!['open', 'title', 'description', 'definitions', 'content', 'close'].includes(String(value.element))) {
       add(state.diagnostics, 'SCENE_DOCUMENT', `${path}.element`, 'has an unknown document element')
     }
