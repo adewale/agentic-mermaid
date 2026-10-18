@@ -1,7 +1,7 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="706" height="218" viewBox="0 0 706 218" style="--bg:#17362f;--fg:#f5f1df;--line:#ece6cf;--accent:#ffe08a;--muted:#c7d2c4;--surface:#17362f;--border:#f3ecd5;--font:Caveat;background:#17362f" class="am-1ytyzu31fqqyf7">
+<svg xmlns="http://www.w3.org/2000/svg" width="706" height="218" viewBox="0 0 706 218" style="--bg:#17362f;--fg:#f5f1df;--line:#ece6cf;--accent:#ffe08a;--muted:#c7d2c4;--surface:#17362f;--border:#f3ecd5;--font:Caveat;background:#17362f" class="am-1g04n2i0r3ibwu">
 <style>
-  .am-1ytyzu31fqqyf7 text { font-family: var(--font, 'Caveat'), system-ui, sans-serif; }
-  svg.am-1ytyzu31fqqyf7 {
+  svg.am-1g04n2i0r3ibwu { font-family: var(--font, 'Caveat'), system-ui, sans-serif; }
+  svg.am-1g04n2i0r3ibwu {
     /* Derived from --bg and --fg (overridable via --line, --accent, etc.) */
     --_text:          #f5f1df;
     --_text-sec:      #c7d2c4;
@@ -18,20 +18,20 @@
   }
 </style>
 <style>
-  .am-1ytyzu31fqqyf7 .gantt-section-band { fill: #17362f; opacity: 0.07; }
-  .am-1ytyzu31fqqyf7 .gantt-grid-line { stroke: #f5f1df; stroke-width: 1.8; opacity: 0.6; }
-  .am-1ytyzu31fqqyf7 .gantt-bar { fill: #ffe08a; stroke: #f5f1df; stroke-width: 0.75; opacity: 0.92; }
-  .am-1ytyzu31fqqyf7 .gantt-bar-active { fill: #ffe08a; stroke: #f5f1df; stroke-width: 1.5; opacity: 1; }
-  .am-1ytyzu31fqqyf7 .gantt-bar-done { fill: #c7d2c4; opacity: 0.55; }
-  .am-1ytyzu31fqqyf7 .gantt-bar-crit { fill: #f5f1df; stroke: #f5f1df; stroke-width: 1.5; opacity: 0.95; }
-  .am-1ytyzu31fqqyf7 .gantt-milestone { fill: #ffe08a; stroke: #f5f1df; stroke-width: 1; }
-  .am-1ytyzu31fqqyf7 .gantt-milestone-crit { fill: #f5f1df; stroke: #f5f1df; stroke-width: 1.5; }
-  .am-1ytyzu31fqqyf7 .gantt-vert-marker { stroke: #f5f1df; stroke-width: 2; stroke-dasharray: 6 3; }
-  .am-1ytyzu31fqqyf7 .gantt-today-marker { stroke: #f5f1df; stroke-width: 2; stroke-dasharray: 4 3; }
-  .am-1ytyzu31fqqyf7 .gantt-title { fill: #f5f1df; }
-  .am-1ytyzu31fqqyf7 .gantt-section-label { fill: #f5f1df; }
-  .am-1ytyzu31fqqyf7 .gantt-task-label { fill: #f5f1df; }
-  .am-1ytyzu31fqqyf7 .gantt-axis-label { fill: #f5f1df; }
+  .am-1g04n2i0r3ibwu .gantt-section-band { fill: #17362f; opacity: 0.07; }
+  .am-1g04n2i0r3ibwu .gantt-grid-line { stroke: #f5f1df; stroke-width: 1.8; opacity: 0.6; }
+  .am-1g04n2i0r3ibwu .gantt-bar { fill: #ffe08a; stroke: #f5f1df; stroke-width: 0.75; opacity: 0.92; }
+  .am-1g04n2i0r3ibwu .gantt-bar-active { fill: #ffe08a; stroke: #f5f1df; stroke-width: 1.5; opacity: 1; }
+  .am-1g04n2i0r3ibwu .gantt-bar-done { fill: #c7d2c4; opacity: 0.55; }
+  .am-1g04n2i0r3ibwu .gantt-bar-crit { fill: #f5f1df; stroke: #f5f1df; stroke-width: 1.5; opacity: 0.95; }
+  .am-1g04n2i0r3ibwu .gantt-milestone { fill: #ffe08a; stroke: #f5f1df; stroke-width: 1; }
+  .am-1g04n2i0r3ibwu .gantt-milestone-crit { fill: #f5f1df; stroke: #f5f1df; stroke-width: 1.5; }
+  .am-1g04n2i0r3ibwu .gantt-vert-marker { stroke: #f5f1df; stroke-width: 2; stroke-dasharray: 6 3; }
+  .am-1g04n2i0r3ibwu .gantt-today-marker { stroke: #f5f1df; stroke-width: 2; stroke-dasharray: 4 3; }
+  .am-1g04n2i0r3ibwu .gantt-title { fill: #f5f1df; }
+  .am-1g04n2i0r3ibwu .gantt-section-label { fill: #f5f1df; }
+  .am-1g04n2i0r3ibwu .gantt-task-label { fill: #f5f1df; }
+  .am-1g04n2i0r3ibwu .gantt-axis-label { fill: #f5f1df; }
 </style>
 <rect width="706" height="218" fill="#17362f" data-backdrop="page" />
 <rect class="gantt-section-band" x="88" y="16" width="600" height="90" data-id="section-band:Build#0" data-role="section" />

@@ -1,8 +1,8 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="360" height="317.8" viewBox="0 0 360 317.8" style="--bg:#fdfbf6;--fg:#31302c;--line:#4d4a44;--accent:#7a6a52;--surface:#ead9b9;--border:#5a564e;--font:Caveat;background:#fdfbf6" class="am-01xvqm11nk9qvy">
+<svg xmlns="http://www.w3.org/2000/svg" width="360" height="317.8" viewBox="0 0 360 317.8" style="--bg:#fdfbf6;--fg:#31302c;--line:#4d4a44;--accent:#7a6a52;--surface:#ead9b9;--border:#5a564e;--font:Caveat;background:#fdfbf6" class="am-0264urs1frpy21">
 <style>
-  .am-01xvqm11nk9qvy text { font-family: var(--font, 'Caveat'), system-ui, sans-serif; }
-  .am-01xvqm11nk9qvy .mono { font-family: 'JetBrains Mono', 'SF Mono', 'Fira Code', ui-monospace, monospace; }
-  svg.am-01xvqm11nk9qvy {
+  svg.am-0264urs1frpy21 { font-family: var(--font, 'Caveat'), system-ui, sans-serif; }
+  .am-0264urs1frpy21 .mono { font-family: 'JetBrains Mono', 'SF Mono', 'Fira Code', ui-monospace, monospace; }
+  svg.am-0264urs1frpy21 {
     /* Derived from --bg and --fg (overridable via --line, --accent, etc.) */
     --_text:          #31302c;
     --_text-sec:      #5e5d58;
