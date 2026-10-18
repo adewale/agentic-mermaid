@@ -339,6 +339,9 @@ request/resource restrictions and the separate PR growth gate remain intact.
 
 ### Rebased candidate, 18 October 2026 at 09:11 UTC
 
+These measurements precede the merge of performance PR #412 and remain
+historical. The incremental comparison against that newer main follows below.
+
 The performance comparison was repeated at
 `56e463243e2361b2eb742c256a38eb8c8f9f54fe`, rebased onto main
 `5442a3cce1e847953e2e5fcbc79a01662f96ecb7`. Both sides use that committed
@@ -380,6 +383,58 @@ produce `INEFFECTIVE_CONFIG` through `verifyMermaid`; that source warning is
 not included in the SVG receipt. Callers requiring source diagnostics must
 consume verification as well as rendering. The rebase introduces no observed
 failure in these checks; it is not a new full-browser or all-family audit.
+
+### Incremental XML fast paths after PR #412, 18 October 2026 at 09:22–09:23 UTC
+
+Candidate `1465fafb77d540af2d884fc2d4afec9b646984ca` is rebased onto
+`26a481284b80371ccd0d7d104cd5ab20006d3cac`. Main now supplies the Scene
+snapshot reuse, SVG assembly, schema cache, route-label cache and text-metric
+optimizations. Those implementations are identical in both sides of this new
+A/B. The before build replaces only `svg-structure.ts` and
+`output-security.ts` with that main commit's versions. The remaining branch
+changes replace per-character XML name regexes with equivalent code-unit
+checks and skip entity decoding for values containing no ampersand.
+
+The method remains the same small C4 input, Node **24.19.0**, Bun **1.4.2**,
+Node-target ESM builds, Mermaid **12.2.0**, `yaml` **2.9.0**, and AMD EPYC 9V74
+five-vCPU host. A coordinated quiet window contains 40 warmups and 120 samples
+per side/path in six alternating-order batches. Complete receipts are JSON
+serialized within timed work, and every returned string is consumed as UTF-8
+bytes. This compares the remaining two-file change against current main's
+implementation with C4 and all other candidate source held constant.
+
+| Small C4 public path | Node median before→after, ms | Node p95 before→after, ms | Bun median before→after, ms | Bun p95 before→after, ms |
+| --- | ---: | ---: | ---: | ---: |
+| SVG text | 10.554→8.965 | 13.345→10.878 | 13.381→13.237 | 19.768→19.161 |
+| SVG plus complete receipt | 10.279→8.093 | 13.454→10.381 | 13.775→12.811 | 20.983→16.844 |
+| Terminal text | 3.577→3.622 | 6.412→6.588 | 6.631→6.899 | 11.001→10.434 |
+| Terminal plus complete receipt | 9.590→8.987 | 13.217→13.089 | 15.325→15.087 | 21.288→21.047 |
+
+Within-path median reductions are 15.1%/21.3% for Node SVG text/receipt and
+1.1%/7.0% for Bun SVG text/receipt. Terminal-receipt medians fall 6.3% on Node
+and 1.6% on Bun. Plain terminal medians instead increase 1.3% and 4.0%, and
+Node terminal p95 also increases. No plain-terminal speedup is claimed.
+The roughly 1–2% changes are sensitive to timing noise. Plain terminal output
+uses safe-paint admission; complete terminal receipts additionally materialize
+pixel Scene evidence, so their timings describe different executed work.
+This single bounded run establishes no general tail-latency or cross-runtime,
+cross-path, dense-layout, startup, memory, download or competitor advantage.
+
+All timed output/receipt bytes match within each runtime pair. The repeated
+parity checks also match 42 complete output/receipt artifacts (772,864 bytes),
+nine terminal metadata artifacts and 1,088 XML/security cases. Updated Scene
+fidelity, schema, security and post-pass tests pass: 53 tests and 2,137
+assertions. Four additional public Scene admission tests pass 27 assertions
+covering proxy snapshots, late-swapping data and inherited properties.
+The adapted mode test confirms that family admission under internal rules
+cannot satisfy the backend's inferred external rules; family role declarations
+remain checked. No production admission changes were added by this rebase.
+
+The combined C4/shared closure measures XyChart at 189,685 gzip bytes,
+185 above its former ceiling. Its gzip cap changes 189,500→189,700; request,
+raw and Brotli ceilings remain unchanged. The inspected graph still excludes
+ELK from XyChart and all 12 non-ELK families, and initial lazy gzip remains
+4,460 bytes. This records a measured integration cost, not a download saving.
 
 ## Zombie Mermaid and C4 bloodlines
 

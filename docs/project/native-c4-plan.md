@@ -1,6 +1,23 @@
 # Native C4 implementation
 
-Current rebase candidate: `6dcd68317a82c3b859d0c1c517a85dd8bbc8db3a`
+Current rebase candidate: `1465fafb77d540af2d884fc2d4afec9b646984ca`
+(18 October 2026), based on main
+`26a481284b80371ccd0d7d104cd5ab20006d3cac` after PR #412. The branch adopts
+main's shared Scene admission reuse, SVG assembly and schema caching while
+retaining C4 geometry and the XML fast paths in `svg-structure.ts` and
+`output-security.ts`. The performance comparison at
+`56e463243e2361b2eb742c256a38eb8c8f9f54fe` remains historical; its measured
+delta is not the delta against this newer main.
+
+Independent review reconfirmed all 34 imported reference files match this main
+byte for byte and Mermaid 12.2.0 remains installed. With the official-fence
+extractor now owned by `eval/shared/official-fences.ts`, the full 537-fence
+corpus and focused C4 contracts again pass 84 tests and 661 assertions. Five
+fresh visibility SVGs and three PNGs match the audited `cb799434` artifacts
+byte for byte: the thick self-marker fits, and overlapping thick markers
+still fail verification. The existing layout limitations remain.
+
+First Mermaid 12.2.0 rebase candidate: `6dcd68317a82c3b859d0c1c517a85dd8bbc8db3a`
 (18 October 2026), based on Agentic main
 `5442a3cce1e847953e2e5fcbc79a01662f96ecb7` after PR #413. The current syntax
 and installed dependency pin is Mermaid 12.2.0, source
@@ -38,9 +55,10 @@ Opt-in `c4.maxWidth` and `c4.compact` provide measured reflow and tighter spacin
 Impossible budgets retain content and diagnose their limit. Automatic type
 legends are configurable and consume existing palette/style contracts. Boundary
 navigation uses the editor's existing camera; canonical whole-diagram exports
-and exact source export retain interaction semantics. The shared performance
-change removes repeated schema cloning and equivalent XML scanning work;
-paired results must bind the final candidate and fully consumed receipts.
+and exact source export retain interaction semantics. The initial shared
+performance work removed repeated schema cloning and equivalent XML scanning
+work; main now owns the shared changes noted above. Paired results must bind
+their exact candidate, baseline and fully consumed receipts.
 
 The three independent reviewers found and closed four concrete integration
 findings: invalid row settings disabling compact packing; geometric errors
