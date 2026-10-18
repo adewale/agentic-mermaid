@@ -16,6 +16,7 @@ code/tests, not dated inventories.
 | [Brand/family design record](brand-primitives-plan.md) | Design rationale and completed rollout; current architecture lives in the [system hub](../design/system/README.md). Old report/receipt tables are not current gates. |
 | [Divergences](divergences.md) | Deliberate product boundaries, not feature requests. |
 | [Lessons learned](lessons-learned.md) | Engineering lessons, not mandatory restoration of historical machinery. |
+| [0.5 performance investigation](0.5-performance-investigation.md) | Dated profile of where time, bytes and memory go, as input for the 0.5 refactor; delete once consumed. |
 
 ## Completed and superseded work
 
