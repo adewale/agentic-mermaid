@@ -1,7 +1,7 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="679.73" height="402.3" viewBox="0 0 679.73 402.3" style="--bg:#ffffff;--fg:#050505;--line:#111111;--accent:#005fcc;--muted:#333333;--surface:#ffffff;--border:#050505;--font:Inter;background:#ffffff;--arch-group-fill:#ffffff;--arch-group-stroke:#050505;--arch-group-label:#050505;--arch-service-fill:#ffffff;--arch-service-stroke:#050505;--arch-service-label:#050505;--arch-edge-stroke:#050505;--arch-edge-label:#050505" class="am-0wvvoma1xqmtdv">
+<svg xmlns="http://www.w3.org/2000/svg" width="679.73" height="402.3" viewBox="0 0 679.73 402.3" style="--bg:#ffffff;--fg:#050505;--line:#111111;--accent:#005fcc;--muted:#333333;--surface:#ffffff;--border:#050505;--font:Inter;background:#ffffff;--arch-group-fill:#ffffff;--arch-group-stroke:#050505;--arch-group-label:#050505;--arch-service-fill:#ffffff;--arch-service-stroke:#050505;--arch-service-label:#050505;--arch-edge-stroke:#050505;--arch-edge-label:#050505" class="am-0spodkz1ndnw1o">
 <style>
-  svg.am-0wvvoma1xqmtdv { font-family: var(--font, 'Inter'), system-ui, sans-serif; }
-  svg.am-0wvvoma1xqmtdv {
+  svg.am-0spodkz1ndnw1o { font-family: var(--font, 'Inter'), system-ui, sans-serif; }
+  svg.am-0spodkz1ndnw1o {
     /* Derived from --bg and --fg (overridable via --line, --accent, etc.) */
     --_text:          #050505;
     --_text-sec:      #333333;
@@ -18,28 +18,28 @@
   }
 </style>
 <style>
-  .am-0wvvoma1xqmtdv .architecture-group-frame { fill: #ffffff; stroke: none; }
-  .am-0wvvoma1xqmtdv .architecture-group-band { fill: #f2f7fc; stroke: none; }
-  .am-0wvvoma1xqmtdv .architecture-group-outline { fill: none; stroke: #050505; stroke-width: 2.2; }
-  .am-0wvvoma1xqmtdv .architecture-group-label { fill: #333333; }
-  .am-0wvvoma1xqmtdv .architecture-service-card { fill: #ffffff; stroke: none; }
-  .am-0wvvoma1xqmtdv .architecture-service-outline { fill: none; stroke: #050505; stroke-width: 2.4; }
-  .am-0wvvoma1xqmtdv .architecture-service-label { fill: #050505; }
-  .am-0wvvoma1xqmtdv .architecture-edge { fill: none; stroke: #111111; stroke-width: 2.6; stroke-linejoin: round; }
-  .am-0wvvoma1xqmtdv .architecture-edge-label-bg { fill: #fefefe; stroke: #d4d4d4; stroke-width: 0.75; }
-  .am-0wvvoma1xqmtdv .architecture-edge-label-text { fill: #333333; }
-  .am-0wvvoma1xqmtdv .architecture-junction-ring { fill: #ffffff; stroke: #005fcc; stroke-width: 1.25; }
-  .am-0wvvoma1xqmtdv .architecture-junction-core { fill: #c2d9f3; stroke: #005fcc; stroke-width: 0.75; }
-  .am-0wvvoma1xqmtdv .architecture-icon-mark { fill: none; stroke: #005fcc; stroke-width: 1.25; stroke-linecap: round; stroke-linejoin: round; }
-  .am-0wvvoma1xqmtdv .architecture-icon-glyph { fill: #005fcc; }
+  .am-0spodkz1ndnw1o .architecture-group-frame { fill: #ffffff; stroke: none; }
+  .am-0spodkz1ndnw1o .architecture-group-band { fill: #f3f3f3; stroke: none; }
+  .am-0spodkz1ndnw1o .architecture-group-outline { fill: none; stroke: #050505; stroke-width: 2.2; }
+  .am-0spodkz1ndnw1o .architecture-group-label { fill: #050505; }
+  .am-0spodkz1ndnw1o .architecture-service-card { fill: #ffffff; stroke: none; }
+  .am-0spodkz1ndnw1o .architecture-service-outline { fill: none; stroke: #050505; stroke-width: 2.4; }
+  .am-0spodkz1ndnw1o .architecture-service-label { fill: #050505; }
+  .am-0spodkz1ndnw1o .architecture-edge { fill: none; stroke: #050505; stroke-width: 2.6; stroke-linejoin: round; }
+  .am-0spodkz1ndnw1o .architecture-edge-label-bg { fill: #fefefe; stroke: #d2d2d2; stroke-width: 0.75; }
+  .am-0spodkz1ndnw1o .architecture-edge-label-text { fill: #050505; }
+  .am-0spodkz1ndnw1o .architecture-junction-ring { fill: #ffffff; stroke: #050505; stroke-width: 1.25; }
+  .am-0spodkz1ndnw1o .architecture-junction-core { fill: #c3c3c3; stroke: #050505; stroke-width: 0.75; }
+  .am-0spodkz1ndnw1o .architecture-icon-mark { fill: none; stroke: #050505; stroke-width: 1.25; stroke-linecap: round; stroke-linejoin: round; }
+  .am-0spodkz1ndnw1o .architecture-icon-glyph { fill: #050505; }
 </style>
 <rect width="679.73" height="402.3" fill="#ffffff" data-backdrop="page" />
 <defs>
   <marker id="architecture-arrow-end" markerWidth="8" markerHeight="5" refX="8" refY="2.5" orient="auto">
-    <polygon points="0 0, 8 2.5, 0 5" fill="#005fcc" stroke="#005fcc" stroke-width="0.75" stroke-linejoin="round" />
+    <polygon points="0 0, 8 2.5, 0 5" fill="#050505" stroke="#050505" stroke-width="0.75" stroke-linejoin="round" />
   </marker>
   <marker id="architecture-arrow-start" markerWidth="8" markerHeight="5" refX="0" refY="2.5" orient="auto">
-    <polygon points="8 0, 0 2.5, 8 5" fill="#005fcc" stroke="#005fcc" stroke-width="0.75" stroke-linejoin="round" />
+    <polygon points="8 0, 0 2.5, 8 5" fill="#050505" stroke="#050505" stroke-width="0.75" stroke-linejoin="round" />
   </marker>
 </defs>
 <g class="architecture-group" data-id="api" data-label="API" data-role="group">

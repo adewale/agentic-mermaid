@@ -15,7 +15,7 @@
 // Types
 // ============================================================================
 
-import { svgCssText, transformSvgCssValues } from './svg-structure.ts'
+import { scanSvgStartTags, transformSvgCssValues } from './svg-structure.ts'
 
 /**
  * Diagram color configuration.
@@ -27,7 +27,7 @@ import { svgCssText, transformSvgCssValues } from './svg-structure.ts'
  */
 import { parseHex, toHex, mixHex, isHexColor, luma255, contrastRatio, ensureContrast, tryParseCssColor, WCAG_AA_NON_TEXT_CONTRAST, WCAG_AA_TEXT_CONTRAST } from './shared/color-math.ts'
 import { requireSafeCssFontFamily } from './shared/css-font.ts'
-import { requireSafeCssPaint } from './shared/css-color.ts'
+import { requireSafeCssPaint, safeCssPaint } from './shared/css-color.ts'
 
 export interface DiagramColors {
   /** Background color → CSS variable --bg */
@@ -592,6 +592,25 @@ export function resolvedColorValue(value: string, colors: DiagramColors): string
   return diagramColorVariables(colors)?.get(reference[1]!) ?? reference[2]
 }
 
+/** Read each owned CSS context separately: a final root declaration need not
+ * end with a semicolon. Family aliases may contain exact non-hex paints or
+ * live references, including intentionally absent outlines. */
+function cssPaintDefinitions(svg: string): Map<string, string> {
+  const definitions = new Map<string, string>()
+  for (const tag of scanSvgStartTags(svg)) {
+    const contexts = tag.attributes.filter(attribute => attribute.name === 'style').map(attribute => attribute.value)
+    if (tag.name === 'style' && !tag.selfClosing) {
+      const close = svg.indexOf('</style', tag.end)
+      if (close >= 0) contexts.push(svg.slice(tag.end, close))
+    }
+    for (const css of contexts) for (const match of css.matchAll(/--([\w-]+)\s*:\s*([^;{}]+)/g)) {
+      const value = match[2]!.trim()
+      if (value === 'none' || value.toLowerCase() === 'currentcolor' || tryParseCssColor(value) || (value.startsWith('var(') && safeCssPaint(value))) definitions.set(match[1]!, value)
+    }
+  }
+  return definitions
+}
+
 /**
  * Resolve all CSS var() and color-mix() expressions in an SVG string to
  * concrete hex color values. This makes the SVG render correctly in
@@ -623,12 +642,11 @@ export function inlineResolvedColors(svg: string, colors: DiagramColors): string
   // Some family renderers define concrete custom properties on the SVG root
   // before using them in style-block fallbacks. Learn those up front so
   // var(--family-token, fallback) prefers the authored token over fallback.
-  const cssDefRegex = /--([\w-]+)\s*:\s*(#[0-9a-fA-F]{3,8})\s*;?/g
-  const initialCssText = svgCssText(svg)
-  let initialDefMatch
-  while ((initialDefMatch = cssDefRegex.exec(initialCssText)) !== null) {
-    vars.set(initialDefMatch[1]!, initialDefMatch[2]!)
-  }
+  for (const [name, value] of cssPaintDefinitions(svg)) vars.set(name, value)
+  // Literal RGB/named pages were normalized for concrete color-mix math;
+  // their authored root tokens must not undo that internal normalization.
+  vars.set('bg', rc.bg)
+  vars.set('fg', rc.fg)
 
   // Derived internal variables
   for (const [name, value] of palette) if (name.startsWith('_')) vars.set(name, value)
@@ -679,13 +697,7 @@ export function inlineResolvedColors(svg: string, colors: DiagramColors): string
 
   // Phase 2: Extract CSS variable definitions from <style> blocks and resolve
   // any remaining var() references (e.g. --xychart-color-0 defined in style)
-  const cssDefs = new Map<string, string>()
-  const defRegex = /--([\w-]+)\s*:\s*(#[0-9a-fA-F]{3,8})\s*;/g
-  const cssText = svgCssText(text)
-  let defMatch
-  while ((defMatch = defRegex.exec(cssText)) !== null) {
-    cssDefs.set(defMatch[1]!, defMatch[2]!)
-  }
+  const cssDefs = cssPaintDefinitions(text)
 
   if (cssDefs.size > 0) {
     for (let pass = 0; pass < 5; pass++) {

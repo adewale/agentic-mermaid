@@ -2,9 +2,9 @@
   "schemaVersion": 1,
   "status": "approved",
   "artifact": "src/__tests__/testdata/section-b-brand-evidence.png",
-  "artifactSha256": "95768feda747cc4f5e0c4e2d42041ad01442fcf923f0593d27705bf596203f3b",
+  "artifactSha256": "dd707f32962780fc84421ab722b45741bf34d160c38b199736d941b9db4e768d",
   "reviewedAt": "2026-10-18",
-  "reviewer": "Codex agent, PR #411 C4 visibility and presentation follow-up",
-  "scope": "The 1560\u00d79464 sheet contains 68 family-by-variant cells. Against 6724062c5da0e13401ab63744b3e7c11efc2684f, exactly 29,346 of 14,763,840 pixels change, confined to the four C4 cells; all 64 other cells remain pixel-identical. Codex inspected all four C4 cells at native size: person/type legend cues, prepared typography, the Uses/HTTPS relationship and light/dark palette treatments remain legible. The changed C4 production tree is included in 3b25e98336d820345a5f5390de7838e7c9cb139d. This is agent review, not human approval or proof of arbitrary input/font coverage; ancestor/dense geometry and terminal connectivity have independent behavioral checks.",
+  "reviewer": "Codex agent, outline and authored-paint review after the main font and prepared-text rebases",
+  "scope": "Revalidated without regeneration at candidate a6e4f9c9986897b7d733b4ae289b570b2c4e8d4b after rebasing onto main 83218d6c23f1f5c277bd9f7b6b860f26ca012b64. The public PNG owner reproduces the exact reviewed artifact hash above; that main's committed comparison PNG is byte-identical to the earlier reviewed base a3b06894a21396aed5c822c195e87f1082a4da84. The artifact was originally regenerated and visually reviewed at candidate c37bbc6f5938f8639cb8a1c27cb733ef031928d5. The 1560×9464 sheet contains 68 family-by-variant cells. Compared with the recorded main bases, exactly 10,071 of 14,763,840 pixels change, confined to the three Timeline holdout cells; the other 65 cells remain pixel-identical. Codex inspected all three changed cells at native size in before/after pairs: period/event labels, card outlines, stems and marker rings now honor the authored family/role paint aliases; text, dates, geometry and cell layout remain unchanged. This is agent review of local public PNG outputs, not human approval, deployment validation, arbitrary font coverage or a claim about every antialiased pixel. The linked production-comparison document remains historical and does not describe these rebases or a current deployment.",
   "audit": "eval/section-b-brand-evidence/production-comparison.md"
 }

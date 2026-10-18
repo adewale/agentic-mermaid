@@ -15,7 +15,7 @@ import {
 import { COMPLEXITY_STRATA, FAMILY_CONFORMANCE_PROFILES } from './family-conformance-profiles.ts'
 
 const registeredLooks = (): string[] => knownStyleDescriptors()
-  .filter(descriptor => descriptor.kind === 'look' && !descriptor.isDefault)
+  .filter(descriptor => descriptor.kind === 'look')
   .map(descriptor => descriptor.inputName)
   .sort(compareCodePointStrings)
 const registeredPalettes = (): string[] => knownStyleDescriptors()
