@@ -5,6 +5,7 @@ import { tipAnchoredArrow } from './scene/marker-resources.ts'
 import { projectConnectorPath, projectRoundedConnectorPath, type ConnectorPathProjection, type ConnectorPathProjectionSegment } from './scene/connector-geometry.ts'
 import { connector } from './scene/marks.ts'
 import { connectorMarkerPaintRegions, type ConnectorMarkerPaintRegion } from './scene/bounds.ts'
+import { canonicalTextDigest } from './render-contract.ts'
 
 /**
  * Reusable arrow head markers — both forward (end) and pre-rotated start variants.
@@ -87,11 +88,16 @@ export function markerIdPrefix(marker: EdgeMarker): string {
   return 'arrowhead'
 }
 
-/** Sanitize a color value into a collision-free SVG ID suffix.
- *  Non-alphanumeric chars are hex-encoded so distinct inputs never collapse
- *  (e.g. "var(--line-1)" → "var28--line2d129", "var(--line1)" → "var28--line129"). */
+/** Keep established hex/named-color IDs. Other paints use separate literal
+ * and digest namespaces. Long values retain the existing 256-character Scene
+ * resource bound; marker serialization rejects any digest collision. */
 export function markerSuffix(color: string): string {
-  return color.replace(/[^a-zA-Z0-9]/g, (ch) => ch.charCodeAt(0).toString(16))
+  if (/^#(?:[0-9a-f]{3,4}|[0-9a-f]{6}|[0-9a-f]{8})$/i.test(color)) return `23${color.slice(1)}`
+  if (/^[a-z]+$/i.test(color)) return color
+  const literal = `color-u-${Array.from(color, char => char.codePointAt(0)!.toString(16)).join('-')}`
+  // Reserve 23 characters for the longest resource wrapper:
+  // circlehead-start-<suffix>-fixed.
+  return literal.length <= 233 ? literal : `color-h-${canonicalTextDigest(color).slice('fnv1a64:'.length)}`
 }
 
 function pointsToCurveProjection(points: Point[]): ConnectorPathProjection {
