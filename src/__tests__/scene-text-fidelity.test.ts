@@ -45,6 +45,9 @@ describe('fidelity oracle checks text x/y/anchor', () => {
     ['shifted style span', 'A B', '<tspan dx="200">A B</tspan>'],
     ['transformed style span', 'A B', '<tspan transform="translate(200 0)">A B</tspan>'],
     ['oversized style span', 'A B', '<tspan font-size="200">A B</tspan>'],
+    ['unmeasured word spacing', 'A B', '<tspan x="10" dy="4.2" word-spacing="200">A B</tspan>'],
+    ['vertical writing mode', 'A B', '<tspan x="10" dy="4.2" writing-mode="vertical-rl">A B</tspan>'],
+    ['changed text orientation', 'A B', '<tspan x="10" dy="4.2" text-orientation="upright">A B</tspan>'],
   ])('rejects retained text with %s', (_name, source, contents) => {
     const block = preparePixelText(source, { fontSize: 12, fontWeight: 400 })
     const mark = marks.text({ id: 'line', role: 'label', text: source, block, x: 10, y: 20, fontSize: 12, anchor: 'start', paint: {} }, `<text x="10" y="20" font-size="12">${contents}</text>`)

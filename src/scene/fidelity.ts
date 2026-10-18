@@ -197,6 +197,7 @@ function preparedTextPlacementProblems(node: TextMark, serialized: string, path:
   const baseline = (line: number) => firstBaseline + line * block.lineHeight
   type Frame = { tag: string; line: number; fragment: boolean; text: string; x?: number; width?: number; anchor?: string; weight: number }
   const stack: Frame[] = []
+  const spanAttributes = new Set(['x', 'y', 'dx', 'dy', 'text-anchor', 'textLength', 'lengthAdjust', 'font-size', 'font-family', 'font-weight', 'font-style', 'text-decoration', 'letter-spacing', 'fill', 'data-text-fragment', 'data-font-metrics', 'xml:space'])
   const lines = expected.map(() => '')
   const runs = expected.map(() => ({ index: 0, offset: 0 }))
   let wrappers = 0, directText = false, y = node.y, cursor = 0
@@ -242,6 +243,7 @@ function preparedTextPlacementProblems(node: TextMark, serialized: string, path:
     const tag = token.tag
     if (tag.name !== 'text' && tag.name !== 'tspan') { fail(`unsupported <${tag.name}> inside prepared text`); continue }
     const attrs = new Map(tag.attributes.map(attribute => [attribute.name, unescapeXml(attribute.value)]))
+    if (['writing-mode', 'word-spacing', 'text-orientation', 'baseline-shift', 'rotate'].some(name => attrs.has(name))) fail('unsupported text placement override')
     const parent = stack.at(-1)
     const fragment = attrs.has('data-text-fragment')
     const positioned = ['x', 'y', 'dx', 'dy'].some(name => attrs.has(name))
@@ -255,7 +257,7 @@ function preparedTextPlacementProblems(node: TextMark, serialized: string, path:
     if (tag.name === 'text') {
       if (stack.length || !close(x, node.x) || !close(length(attrs.get('y'), node.y), node.y) || length(attrs.get('dx')) !== 0) fail('outer coordinates differ from the retained text anchor')
     } else {
-      if (attrs.has('transform') || attrs.has('rotate') || attrs.has('style') || attrs.has('baseline-shift') || attrs.has('dominant-baseline') || attrs.has('alignment-baseline')) fail('a descendant introduces unsupported text placement')
+      if ([...attrs.keys()].some(name => !spanAttributes.has(name))) fail('a descendant introduces unsupported text placement')
       if (attrs.has('font-size') && length(attrs.get('font-size')) !== block.fontSize) fail('a descendant changes the retained font size')
       if (attrs.has('font-family') && attrs.get('font-family') !== block.fontFamily) fail('a descendant changes the retained font family')
       if (fragment) {
