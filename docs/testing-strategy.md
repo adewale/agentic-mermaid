@@ -180,8 +180,8 @@ sources we did not write:
   The checks do not compare Mermaid geometry or styling. Existing State, Architecture
   and Sequence syntax gaps are recorded as diagnostics, not permanent expected
   failures. This gate has an explicit local command and the dedicated **Modern
-  Mermaid semantic compatibility** workflow runs it for changes to source,
-  evaluation and dependency inputs; it does not change the normal product
+  Mermaid semantic compatibility** workflow is a required reusable lane of canonical CI
+  for every PR and main revision, including reference policy and corpus changes; it does not change the normal product
   compatibility pin or development dependency.
   The job also publishes all-family documentation outcomes and 100 seeded
   mutations as a seven-day diagnostic artifact. Those counts do not gate

@@ -298,3 +298,41 @@ the existing palette treatments. The reviewed artifact SHA-256 is
 `95768feda747cc4f5e0c4e2d42041ad01442fcf923f0593d27705bf596203f3b`.
 This is agent review, not human approval. It does not establish arbitrary dense
 layout quality; those limitations are explicitly verified on separate inputs.
+
+## PR #420 C4 relationship clearance
+
+The 18 October 2026 independent audit compares the same 68 cells against
+`a3b06894a21396aed5c822c195e87f1082a4da84`. Exactly 132,756 pixels change,
+confined to C4: 35,487 Sentinel, 32,357 warm editorial, 33,272 light technical
+and 31,640 dark operations. The 1560×9464 canvas, all headings and the 64 other
+family/treatment cells remain pixel-identical.
+
+The auditor inspected all four C4 before/after pairs at native 520×380. The
+Uses/HTTPS label is centered in a measured shaft gap with full background
+clearance; the target arrowhead, Customer/Person and API/System text,
+description and legend remain complete in each palette treatment. The wider
+layout uses the same public PNG scale-to-cell presentation. The reviewed PNG
+SHA-256 is `68a5b52113cc918048c3016ea0a5b6203f51eee169b689f99dd44d2159484c9d`.
+
+This is agent review, not human approval or arbitrary input/font coverage.
+The five official C4 inputs and independent owned-ink checks cover the broader
+visibility repair separately; this four-style witness establishes only its
+rendered presentation on the existing sheet.
+
+## PR #420 integration with #421 outline contrast
+
+The independent review after merging main
+`ba37758062ed8daf805a2be6a472a49ef0c2222b` preserves both changes. Against that
+main, exactly 132,756 pixels change in the same four C4 cells: 35,487 Sentinel,
+32,357 Editorial, 33,272 Technical and 31,640 Operations. All 64 other cells
+and every heading remain pixel-identical. Against the earlier #420 sheet,
+exactly 10,071 pixels change in the three upstream Timeline holdout cells:
+2,665 Editorial, 3,585 Technical and 3,821 Operations.
+
+The auditor inspected native 520×380 comparisons of all C4 and Timeline
+treatments. C4 keeps the centered Uses/HTTPS halo in a clear shaft gap, complete
+arrowheads, person/card text, API description and legend. Timeline changes
+paint without changing dates, event text or geometry. The reviewed 1560×9464
+PNG SHA-256 is
+`3aee18640b52271ee8a0f0f15a817f8abe3c4ad32c7692185ba45cb9624354c1`.
+This is agent review, not human approval or arbitrary palette/font coverage.

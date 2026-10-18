@@ -3,22 +3,14 @@ name: Modern Mermaid semantic compatibility
 # This semantic gate does not require Mermaid's layout, appearance or
 # rejection policy to become the product's rendering contract.
 on:
-  push:
-    branches: [main]
-    paths:
-      - 'src/**'
-      - 'eval/mermaid-modern-compat/**'
-      - 'package.json'
-      - 'bun.lock'
-      - '.github/workflows/modern-mermaid.yml'
-  pull_request:
-    branches: [main]
-    paths:
-      - 'src/**'
-      - 'eval/mermaid-modern-compat/**'
-      - 'package.json'
-      - 'bun.lock'
-      - '.github/workflows/modern-mermaid.yml'
+  # Canonical CI calls this lane for every revision, including changes to
+  # reference policy and corpus inputs outside src/. Its result gates release.
+  workflow_call:
+    inputs:
+      mutations_per_family:
+        description: Seeded diagnostic mutations per modern core family
+        type: number
+        default: 100
   workflow_dispatch:
     inputs:
       mutations_per_family:
@@ -73,7 +65,7 @@ jobs:
         env:
           MERMAID_UPSTREAM_DIR: ${{ runner.temp }}/mermaid
           MERMAID_REFERENCE_DIR: ${{ runner.temp }}/mermaid-reference
-          GRAMMAR_FUZZ: ${{ github.event_name == 'workflow_dispatch' && format('{0}', inputs.mutations_per_family) || github.event_name == 'schedule' && '5000' || '100' }}
+          GRAMMAR_FUZZ: ${{ github.event_name == 'workflow_dispatch' && format('{0}', inputs.mutations_per_family) || github.event_name == 'schedule' && '5000' || format('{0}', inputs.mutations_per_family) }}
         run: bun run eval:mermaid-grammar --fuzz "$GRAMMAR_FUZZ" --seed 7 --workers 4
       - name: Retain assertions and separate diagnostic gaps
         if: always()

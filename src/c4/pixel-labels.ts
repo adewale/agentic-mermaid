@@ -70,13 +70,20 @@ function blockers(nodes: PositionedNode[], groups: PositionedGroup[]): C4LabelRe
 /** Final C4-specific allocation uses the painted halo, not the generic graph
  * label pill. It moves labels only: ports, authored endpoints and route
  * certificates remain owned by the existing route adapter. Candidate count is
- * bounded by route segments; no viewport-dependent search or wall-clock exit. */
-export function placeC4PixelLabels(positioned: { nodes: PositionedNode[]; groups: PositionedGroup[]; edges: PositionedEdge[] }, lineWidth: number): void {
+ * bounded by route segments; no viewport-dependent search or wall-clock exit.
+ * Authored offsets displace each candidate before collision scoring, rather
+ * than invalidating a clear slot after allocation. */
+export function placeC4PixelLabels(positioned: { nodes: PositionedNode[]; groups: PositionedGroup[]; edges: PositionedEdge[] }, lineWidth: number, body: C4Body): void {
   const { edges } = positioned, obstacles = blockers(positioned.nodes, positioned.groups), heads = edges.flatMap(edge => c4MarkerRects(edge, lineWidth)), accepted: C4LabelRect[] = []
+  const authoredStyles = new Map(body.relationships.map(relationship => [relationship.id, relationship.style]))
   const routes = edges.flatMap(edge => edge.points.slice(1).map((end, index) => ({ edge, start: edge.points[index]!, end })))
   const ordered = edges.map((edge, index) => ({ edge, index, rect: c4LabelRect(edge) })).filter(item => item.rect).sort((a, b) => b.rect!.width * b.rect!.height - a.rect!.width * a.rect!.height || a.index - b.index)
   for (const { edge, rect } of ordered) {
-    const original = edge.labelPosition!, candidates: Point[] = [original], width = rect!.width, height = rect!.height
+    const authored = authoredStyles.get(edge.id!)
+    const finiteOffset = (value: string | undefined) => Number.isFinite(Number(value)) ? Number(value) : 0
+    const dx = finiteOffset(authored?.offsetX), dy = finiteOffset(authored?.offsetY)
+    const shifted = (point: Point): Point => ({ x: point.x + dx, y: point.y + dy })
+    const original = shifted(edge.labelPosition!), candidates: Point[] = [original], width = rect!.width, height = rect!.height
     const penalty = (candidate: Point): number[] => {
       const box = { x: candidate.x - width / 2, y: candidate.y - height / 2, width, height }, clearance = inflate(box, 3)
       return [
@@ -88,7 +95,7 @@ export function placeC4PixelLabels(positioned: { nodes: PositionedNode[]; groups
     }
     let best = original, bestPenalty = penalty(original)
     // A clear unchanged position is already the nearest possible candidate.
-    if (bestPenalty.every(value => value === 0)) { accepted.push(rect!); continue }
+    if (bestPenalty.every(value => value === 0)) { edge.labelPosition = original; accepted.push(c4LabelRect(edge)!); continue }
     const segments = routes.filter(route => route.edge === edge).sort((a, b) => Math.hypot(b.end.x - b.start.x, b.end.y - b.start.y) - Math.hypot(a.end.x - a.start.x, a.end.y - a.start.y))
     for (const { start, end } of segments) {
       const length = Math.hypot(end.x - start.x, end.y - start.y)
@@ -96,7 +103,7 @@ export function placeC4PixelLabels(positioned: { nodes: PositionedNode[]; groups
       const nx = -(end.y - start.y) / length, ny = (end.x - start.x) / length
       const normalSize = Math.abs(nx) * width / 2 + Math.abs(ny) * height / 2
       for (const fraction of [.5, .25, .75, .1, .9]) for (const offset of [0, normalSize + 6, -normalSize - 6, normalSize + 20, -normalSize - 20]) {
-        candidates.push({ x: start.x + (end.x - start.x) * fraction + nx * offset, y: start.y + (end.y - start.y) * fraction + ny * offset })
+        candidates.push(shifted({ x: start.x + (end.x - start.x) * fraction + nx * offset, y: start.y + (end.y - start.y) * fraction + ny * offset }))
       }
     }
     // If no completely clear slot exists, preserve arrow visibility before

@@ -106,7 +106,9 @@ the requested number of mutations of at most 4,000 characters; oversized
 attempts are counted and replaced. Raw syntax disagreement is not a bug count
 under the write-strict/read-generously policy.
 
-The dedicated workflow runs 100 mutations **per family** on PRs/main, 5,000
+Canonical CI calls the reusable semantic workflow for every PR/main revision,
+and its success is required by `CI complete` and exact-commit release attestation.
+This includes policy and corpus changes outside source paths. It runs 100 mutations **per family**, 5,000
 weekly (Monday 04:17 UTC), and defaults to 5,000 on manual dispatch. Grammar
 infrastructure failures fail that step; unsupported syntax and families remain reported diagnostics.
 Use `--families flowchart,sequence`, `--docs-only`, `--fuzz`, `--seed`,
@@ -119,7 +121,7 @@ and an independent matching installed reference, with no production dependency c
 `../mermaid` and `../mermaid-reference`; override them with
 `MERMAID_UPSTREAM_DIR` and `MERMAID_REFERENCE_DIR`. The dedicated GitHub workflow
 **Modern Mermaid semantic compatibility** installs those references and runs
-the gate on PRs and main-branch changes to its code inputs; it can
+the gate as a required canonical CI lane on every PR and main revision; it can
 also be dispatched manually.
 After the reviewed assertions, CI also records documentation coverage for
 every core family and 100 mutations with seed 7. It retains the assertion report,

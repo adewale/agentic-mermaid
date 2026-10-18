@@ -1,4 +1,4 @@
-import { assessLayout, hardViolations } from '../layout-rubric.ts'
+import { assessLayout, hardViolations, type RubricMetrics } from '../layout-rubric.ts'
 import { labelRect } from '../route-contracts.ts'
 import type { ResolvedRenderStyle } from '../styles.ts'
 import type { MermaidGraph, MermaidSubgraph, PositionedGraph, PositionedGroup } from '../types.ts'
@@ -11,12 +11,39 @@ import { prepareDisplayText, resolveLabelContent, type DisplayTextInput } from '
 export { LayoutCertificationError, type LayoutCertificationAttempt } from './certification-error.ts'
 
 export const MAX_LAYOUT_CANDIDATES = 4
+// Quality exploration is deterministic and bounded independently of machine
+// speed. Larger graphs keep the existing first-certified fallback behavior.
+export const MAX_PREFERENCE_NODES = 64
+export const MAX_PREFERENCE_EDGES = 128
+
+export interface LayoutPreferenceScore {
+  unreadableTitles: 0 | 1
+  edgeCrossings: number
+  totalBends: number
+  nonCanonicalEndpointRate: number
+  peerBarycenterDelta: number
+  /** Candidate canvas before document title-band projection. */
+  area: number
+}
+
+type PreferenceCriterion = keyof LayoutPreferenceScore
+const PREFERENCE_ORDER: readonly PreferenceCriterion[] = [
+  'unreadableTitles', 'edgeCrossings', 'totalBends',
+  'nonCanonicalEndpointRate', 'peerBarycenterDelta', 'area',
+]
+
+export interface LayoutPreferenceEvidence {
+  selectedScore: LayoutPreferenceScore
+  reason: PreferenceCriterion | 'candidate-order' | 'first-certified' | 'work-budget' | 'no-alternative' | 'alternative-invalid'
+  compared: readonly { strategy: string; score: LayoutPreferenceScore }[]
+}
 
 export interface LayoutCertificationReceipt {
   status: 'passed'
   strategy: string
   attempts: number
   hardViolations: 0
+  preference: LayoutPreferenceEvidence
 }
 
 export interface LayoutCertificationCandidate {
@@ -25,6 +52,10 @@ export interface LayoutCertificationCandidate {
   /** Try the next bounded candidate first, retaining this already certified
    * result if the preferred alternative fails. Runs inside this attempt. */
   preferNext?: (positioned: PositionedGraph) => boolean
+  /** A fallback may be identical for this graph (for example hierarchy mode
+   * without groups). It remains available after failure, but is not a quality
+   * probe. At most one eligible alternative is produced after certification. */
+  qualityAlternative?: boolean
 }
 
 function correspondenceViolations(graph: MermaidGraph, positioned: PositionedGraph, style: ResolvedRenderStyle): string[] {
@@ -184,37 +215,87 @@ export function positionedGeometryViolations(positioned: PositionedGraph, style:
   return failures
 }
 
-/** At most four independent candidates; an uncertified candidate never becomes success. */
+function preferenceScore(positioned: PositionedGraph, metrics: RubricMetrics, preferNext: boolean): LayoutPreferenceScore {
+  return {
+    unreadableTitles: preferNext ? 1 : 0,
+    edgeCrossings: metrics.edgeCrossings,
+    totalBends: metrics.totalBends,
+    nonCanonicalEndpointRate: 1 - metrics.portEndpointRate,
+    peerBarycenterDelta: Math.round(metrics.peerBarycenterDelta * 1000) / 1000,
+    area: positioned.width * positioned.height,
+  }
+}
+
+function withinPreferenceBudget(graph: MermaidGraph): boolean {
+  let nodes = graph.nodes.size
+  const count = (groups: readonly MermaidSubgraph[]): void => {
+    for (const group of groups) {
+      nodes++
+      count(group.children)
+    }
+  }
+  count(graph.subgraphs)
+  return nodes <= MAX_PREFERENCE_NODES && graph.edges.length <= MAX_PREFERENCE_EDGES
+}
+
+/** Hard feasibility gates every candidate. One additional certified alternative
+ * may improve a title or a small crossing graph, with stable candidate-order
+ * ties. Cosmetic scores never initiate another expensive layout production. */
 export function certifyLayoutCandidates(graph: MermaidGraph, style: ResolvedRenderStyle, candidates: readonly LayoutCertificationCandidate[]): PositionedGraph {
   const attempts: LayoutCertificationAttempt[] = []
   const bounded = candidates.slice(0, MAX_LAYOUT_CANDIDATES)
-  let deferred: { positioned: PositionedGraph; strategy: string } | undefined
-  const accept = (positioned: PositionedGraph, strategy: string): PositionedGraph => {
-    retainAuthoredMembership(graph, positioned)
-    positioned.certification = { status: 'passed', strategy, attempts: attempts.length, hardViolations: 0 }
-    return positioned
+  type Certified = { positioned: PositionedGraph; strategy: string; score: LayoutPreferenceScore }
+  let deferred: Certified | undefined
+  let probe: 'readability' | 'crossings' | undefined
+  const compared: Array<{ strategy: string; score: LayoutPreferenceScore }> = []
+  const accept = (selected: Certified, reason: LayoutPreferenceEvidence['reason']): PositionedGraph => {
+    retainAuthoredMembership(graph, selected.positioned)
+    selected.positioned.certification = {
+      status: 'passed', strategy: selected.strategy, attempts: attempts.length, hardViolations: 0,
+      preference: { selectedScore: selected.score, reason, compared },
+    }
+    return selected.positioned
   }
   for (const [index, candidate] of bounded.entries()) {
+    if (deferred && probe === 'crossings' && candidate.qualityAlternative === false) continue
     try {
       const positioned = candidate.produce()
       const violations = [...correspondenceViolations(graph, positioned, style), ...positionedGeometryViolations(positioned, style)]
-      if (!violations.length) violations.push(...hardViolations(assessLayout(graph, positioned, style)).map(violation => `${violation.metric}: ${violation.detail}`))
-      const preferNext = violations.length === 0 && index + 1 < bounded.length && candidate.preferNext?.(positioned)
+      const rubric = violations.length === 0 ? assessLayout(graph, positioned, style) : undefined
+      if (rubric) violations.push(...hardViolations(rubric).map(violation => `${violation.metric}: ${violation.detail}`))
+      const preferNext = violations.length === 0 && (candidate.preferNext?.(positioned) ?? false)
       attempts.push({ strategy: candidate.strategy, violations })
-      if (violations.length === 0) {
-        if (preferNext) {
-          deferred = { positioned, strategy: candidate.strategy }
+      if (violations.length === 0 && rubric) {
+        const certified = { positioned, strategy: candidate.strategy, score: preferenceScore(positioned, rubric.metrics, preferNext) }
+        compared.push({ strategy: certified.strategy, score: certified.score })
+        if (deferred) {
+          for (const criterion of PREFERENCE_ORDER) {
+            if (certified.score[criterion] < deferred.score[criterion]) return accept(certified, criterion)
+            if (certified.score[criterion] > deferred.score[criterion]) return accept(deferred, criterion)
+          }
+          return accept(deferred, 'candidate-order')
+        }
+        const alternatives = bounded.slice(index + 1)
+        if (preferNext && alternatives.length > 0) {
+          deferred = certified
+          probe = 'readability'
           continue
         }
-        return accept(positioned, candidate.strategy)
+        if (rubric.metrics.edgeCrossings === 0) return accept(certified, 'first-certified')
+        if (!withinPreferenceBudget(graph)) return accept(certified, 'work-budget')
+        if (!alternatives.some(alternative => alternative.qualityAlternative !== false)) return accept(certified, 'no-alternative')
+        deferred = certified
+        probe = 'crossings'
+        continue
       }
     } catch (error) {
-      // This diagnostic opt-in validates each pass. A different successful
-      // layout strategy must not make a broken pass's budget appear to pass CI.
+      // A successful alternative cannot hide a broken pass or exceeded input
+      // work limit. These diagnostics intentionally stop certification.
       if (error instanceof LayoutMetricBudgetError || error instanceof DiagramWorkLimitError) throw error
       attempts.push({ strategy: candidate.strategy, violations: [error instanceof Error ? error.message : String(error)] })
     }
-    if (deferred) return accept(deferred.positioned, deferred.strategy)
+    if (deferred) return accept(deferred, 'alternative-invalid')
   }
+  if (deferred) return accept(deferred, 'no-alternative')
   throw new LayoutCertificationError(attempts)
 }

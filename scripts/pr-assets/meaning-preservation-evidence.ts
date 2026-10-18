@@ -10,6 +10,7 @@ import { getFamily, knownBuiltinFamilies } from '../../src/agent/families.ts'
 import { denseDag } from '../../eval/degenerate-etn/generators.ts'
 import { collectSamples } from '../../eval/layout-compare/run.ts'
 import { contactSheetScenarios } from '../../eval/visual-rubric/scenarios.ts'
+import { extractOfficialCorpus } from '../../eval/shared/official-fences.ts'
 
 const ROOT = resolve(import.meta.dir, '../..')
 const [base, head, destination, ...selectedFixtureIds] = process.argv.slice(2)
@@ -18,7 +19,7 @@ if (!base || !head || !destination || ![base, head].every(sha => /^[a-f0-9]{40}$
 }
 const out = resolve(destination)
 mkdirSync(out, { recursive: true })
-interface Fixture { id: string; title: string; source: string; cue: string; renderOptions?: RenderOptions; captureLayout?: true; classMutation?: ClassMutationOp; mutation?: AnyMutationOp; directFragmentLabel?: string }
+interface Fixture { id: string; title: string; source: string; cue: string; renderOptions?: RenderOptions; pngWidth?: number; captureLayout?: true; classMutation?: ClassMutationOp; mutation?: AnyMutationOp; directFragmentLabel?: string }
 const sequenceSpanSource = 'sequenceDiagram\nparticipant A\nparticipant B\nparticipant C\nA->>C: Label across B\nactivate B\nA->>C: Begin work\nA->>C: Label across active B\ndeactivate B'
 const sankeyIdentitySource = '---\ntitle: Caption\n---\nsankey-beta\nA,B,1\nA,B,2\nA,B#1,3\nlink:A->B#1,X,4\ntitle,title#1,5'
 const parallelReciprocalSource = 'flowchart LR\nA[Client] -->|request 0| B[Server]\nA -->|request 1| B\nB -->|reply| A'
@@ -36,6 +37,10 @@ const c4AncestorSource = 'C4Deployment\nNode(parent,"Parent","Cloud") {\nContain
 const c4OutlineSource = 'C4Context\nSystem_Boundary(app,"Application") {\nSystem(a,"Card")\n}'
 const architectureOutlineSource = 'architecture-beta\ngroup app(cloud)[Application]\nservice api(server)[Public API] in app\nservice db(database)[Primary DB]\napi:R --> L:db'
 const c4DenseSource = 'C4Container\nSystem_Boundary(app,"Application") {\n' + Array.from({ length: 7 }, (_, index) => `Container(n${index},"Service ${index}","HTTP")`).join('\n') + '\n}\n' + Array.from({ length: 7 }, (_, from) => Array.from({ length: 6 - from }, (_, offset) => `Rel(n${from},n${from + offset + 1},"Interaction ${from} to ${from + offset + 1}","HTTPS")`).join('\n')).join('\n')
+const c4OfficialFixtures: Fixture[] = extractOfficialCorpus().filter(fence => fence.family === 'c4').map((fence, index) => ({
+  id: `c4-official-${index}`, title: `Official C4 example ${index}: visible relationship ownership`, source: fence.source, captureLayout: true, pngWidth: 2400,
+  cue: 'Inspect halos clear of cards, boundary headers and other relationship routes; visible arrowheads; and retained authored offsets. Compare complete labels, endpoint identities and layout sidecars alongside the pixels. Measured corridors grow rather than shrinking text or removing markers; these official examples do not establish arbitrary dense graph readability.',
+}))
 const corpusSamples = collectSamples()
 const fixtures: Fixture[] = [
   ...[
@@ -68,6 +73,7 @@ const fixtures: Fixture[] = [
   { id: 'yaml-flow-anchor-wrapper', title: 'An anchored multiline YAML value keeps its supported frontmatter footer', source: '---\nconfig: {custom: &a "foo\n  x: |\n    bar"}\n    ---\nflowchart TD\nA-->B', cue: 'The same anchored multiline value and indented footer reach both revisions. Inspect the native A-to-B Flowchart rather than preserved unknown-family source. The audited 8900adb7 candidate refused this render; main already renders it. Owning tests also cover tags and quoted keys. This witness proves family detection and rendering, not every YAML construct.' },
   { id: 'c4-ancestor-clearance', title: 'C4 ancestor relationship with a visible arrow', source: c4AncestorSource, captureLayout: true, cue: 'At source6724062 the Reports up halo covers the entire shaft and arrow. Inspect a complete label and a visible marker connecting Child to the actual Parent frame. The geometry test checks emitted halo and marker envelopes.' },
   { id: 'c4-dense-labels', title: 'C4 seven cards and twenty-one distinct interactions', source: c4DenseSource, captureLayout: true, cue: 'Inspect every complete interaction label and its arrow; the previous native C4 output had nine overlapping label pairs. Any remaining measured visibility limitation must appear in verification. This finite topology does not establish arbitrary dense graph readability.' },
+  ...c4OfficialFixtures,
   { id: 'c4-responsive-width', title: 'C4 measured reflow within a 500-pixel budget', source: 'C4Context\nSystem(a,"Alpha")\nSystem(b,"Beta")\nSystem(c,"Gamma")\nSystem(d,"Delta")', renderOptions: { mermaidConfig: { c4: { maxWidth: 500 } } }, captureLayout: true, cue: 'The same width request at both revisions changes row packing. Cards retain readable measured text and size; this is reflow rather than shrinking the completed picture. Impossible minimum geometry is separately diagnosed.' },
   { id: 'c4-checkout', title: 'Native C4 checkout with nested boundary and repeated interactions', source: readFileSync(join(ROOT, 'docs/design/families/c4-context-demo.mmd'), 'utf8'), captureLayout: true, cue: 'The baseline refuses C4. The candidate preserves the nested checkout boundary, external/database/queue distinctions, technology and all five distinct interactions. Inspect the complete Publishes order / AMQP label beside the database; public layout sidecars establish identity and parentage beyond the pixels.' },
   { id: 'c4-person-tight-padding', title: 'C4 person silhouette with zero vertical padding', source: 'C4Context\nPerson(a,"Customer","Uses the shop")', renderOptions: { style: { roles: { node: { paddingY: 0 } } } }, cue: 'The baseline refuses C4. The candidate reserves the person silhouette above the complete label even when node paddingY is zero; the figure must not strike through Customer.' },
@@ -187,7 +193,7 @@ if (selectedFixtureIds.length > 0) {
 }
 const fixtureOptions = Object.fromEntries(fixtures.map(fixture => {
   const svg = { security: 'strict' as const, ...fixture.renderOptions }
-  return [fixture.id, { svg, png: { ...svg, background: svg.transparent ? '#00000000' : '#ffffff' } }]
+  return [fixture.id, { svg, png: { ...svg, background: svg.transparent ? '#00000000' : '#ffffff', ...(fixture.pngWidth ? { fitTo: { width: fixture.pngWidth } } : {}) } }]
 }))
 interface Evidence { svg?: string; png?: string; layout?: unknown; source?: string; edit?: unknown; error?: string }
 interface TerminalEvidence { ascii?: string; html?: string; meta?: unknown; error?: string }
@@ -292,7 +298,8 @@ const rows = fixtures.map(fixture => {
       ? `<img alt="${phase}: ${esc(fixture.title)}" src="data:image/png;base64,${result.png}">`
       : `<pre>${esc(result.error ?? 'No render')}</pre>`}${semanticSidecar}${editSidecar}${exportedSource}</figure>`
   }).join('')
-  const optionsCaption = fixture.renderOptions ? `<p>Render options at both revisions: <code>${esc(JSON.stringify(fixture.renderOptions))}</code>.</p>` : ''
+  const optionsCaption = (fixture.renderOptions ? `<p>Render options at both revisions: <code>${esc(JSON.stringify(fixture.renderOptions))}</code>.</p>` : '')
+    + (fixture.pngWidth ? `<p>PNG previews are scaled to ${fixture.pngWidth}px wide at both revisions; SVG and layout sidecars retain native geometry.</p>` : '')
   const mutation = fixture.classMutation ?? fixture.mutation
   const mutationCaption = mutation ? `<p>${fixture.classMutation ? 'Class edit' : 'Edit'} at both revisions: <code>${esc(JSON.stringify(mutation))}</code>.</p>` : ''
   return `<section><h2>${fixture.title}</h2><p>${fixture.cue}</p>${optionsCaption}${mutationCaption}<div class="pair">${panels}</div></section>`

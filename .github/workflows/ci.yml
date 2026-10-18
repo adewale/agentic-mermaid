@@ -11,6 +11,12 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  semantic:
+    name: Independent semantic conformance
+    permissions:
+      contents: read
+    uses: ./.github/workflows/modern-mermaid.yml
+
   unit:
     name: Unit tests (${{ matrix.shard }})
     runs-on: ubuntu-latest
@@ -412,12 +418,13 @@ jobs:
   ci-complete:
     name: CI complete
     runs-on: ubuntu-latest
-    needs: [test, e2e, red-green, expire-label-approvals]
+    needs: [test, e2e, red-green, expire-label-approvals, semantic]
     if: ${{ always() }}
     timeout-minutes: 5
     steps:
       - name: Require every CI lane to pass
         env:
+          SEMANTIC_RESULT: ${{ needs.semantic.result }}
           TEST_RESULT: ${{ needs.test.result }}
           E2E_RESULT: ${{ needs.e2e.result }}
           RED_GREEN_RESULT: ${{ needs.red-green.result }}
@@ -425,7 +432,7 @@ jobs:
         run: |
           # red-green runs only for pull requests, and label expiry only when a
           # push adds commits to one; other events skip them.
-          if [[ "$TEST_RESULT" != "success" || "$E2E_RESULT" != "success" || ( "$RED_GREEN_RESULT" != "success" && "$RED_GREEN_RESULT" != "skipped" ) || ( "$EXPIRE_RESULT" != "success" && "$EXPIRE_RESULT" != "skipped" ) ]]; then
-            echo "test=$TEST_RESULT e2e=$E2E_RESULT red-green=$RED_GREEN_RESULT expire-label-approvals=$EXPIRE_RESULT"
+          if [[ "$SEMANTIC_RESULT" != "success" || "$TEST_RESULT" != "success" || "$E2E_RESULT" != "success" || ( "$RED_GREEN_RESULT" != "success" && "$RED_GREEN_RESULT" != "skipped" ) || ( "$EXPIRE_RESULT" != "success" && "$EXPIRE_RESULT" != "skipped" ) ]]; then
+            echo "semantic=$SEMANTIC_RESULT test=$TEST_RESULT e2e=$E2E_RESULT red-green=$RED_GREEN_RESULT expire-label-approvals=$EXPIRE_RESULT"
             exit 1
           fi

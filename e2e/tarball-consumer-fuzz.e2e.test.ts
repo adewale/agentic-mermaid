@@ -26,7 +26,7 @@ import { tmpdir } from 'node:os'
 import { createHash } from 'node:crypto'
 import fc from 'fast-check'
 import '../src/__tests__/fc-seed.preload.ts'
-import { verifyMermaid, renderMermaidSVG, renderMermaidASCII } from '../src/agent/index.ts'
+import { verifyMermaid, renderMermaidSVG, renderMermaidASCII, BUILTIN_FAMILY_METADATA } from '../src/agent/index.ts'
 
 const REPO = join(import.meta.dir, '..')
 const BUILD_TIMEOUT_MS = 180_000
@@ -77,11 +77,9 @@ const flowchartArb = fc.tuple(
 
 const SPECIAL_CHARS = ['[', ']', '{', '}', '(', ')', '|', ':', ';', '-', '=', '"', "'", '\\', '/', '\n', '\t', ' ', '​', '￿']
 const specialCharStringArb = fc.array(fc.constantFrom(...SPECIAL_CHARS), { maxLength: 60 }).map(c => c.join(''))
-const familyHeaderArb = fc.constantFrom(
-  'sequenceDiagram', 'stateDiagram-v2', 'classDiagram', 'erDiagram', 'timeline',
-  'journey', 'pie', 'quadrantChart', 'gantt', 'xychart-beta', 'architecture-beta',
-  'mindmap', 'gitGraph',
-)
+// Every built-in enters the real installed-consumer transport. The canonical
+// examples are packaging parity witnesses, not semantic expectations.
+const familyHeaderArb = fc.constantFrom(...BUILTIN_FAMILY_METADATA.map(family => family.headers[0]!))
 const mixedArb = fc.oneof(
   flowchartArb,
   fc.tuple(familyHeaderArb, fc.array(fc.string({ maxLength: 30 }), { maxLength: 6 })).map(([h, b]) => [h, ...b].join('\n')),
@@ -199,12 +197,13 @@ describe('installed tarball — library', () => {
     }
   })
 
-  test('resolves all three entry points and renders identically to source (crash parity + flowchart byte-equality)', () => {
+  test('resolves all three entry points and renders every registered family identically to source', () => {
     expect(haveConsumer).toBe(true)
     const flow = fc.sample(flowchartArb, 50)
     const mixed = fc.sample(mixedArb, 50)
-    const inputs = [...flow, ...PACKAGE_FAMILY_FIXTURES.map(fixture => fixture.source), ...mixed]
-    const fixtureStart = flow.length
+    const canonicalInputs = BUILTIN_FAMILY_METADATA.map(family => family.example)
+    const inputs = [...flow, ...canonicalInputs, ...PACKAGE_FAMILY_FIXTURES.map(fixture => fixture.source), ...mixed]
+    const fixtureStart = flow.length + canonicalInputs.length
     writeFileSync(join(work, 'inputs.json'), JSON.stringify(inputs))
     const r = spawnSync(NODE!, ['--input-type=module', '-e', LIB_DRIVER], {
       cwd: work, encoding: 'utf8', timeout: RUN_TIMEOUT_MS, maxBuffer: 64 * 1024 * 1024,
@@ -230,11 +229,17 @@ describe('installed tarball — library', () => {
         const refThrew = ref[ch] === 'THREW'
         const gotThrew = results[i]![ch] === 'THREW'
         if (refThrew !== gotThrew) crashParity.push({ src: inputs[i], ch, ref: refThrew, got: gotThrew })
-        else if (!refThrew && (i < flow.length || (i >= fixtureStart && i < fixtureStart + PACKAGE_FAMILY_FIXTURES.length)) && ref[ch] !== results[i]![ch]) equivalence.push({ src: inputs[i], ch })
+        else if (!refThrew && i < fixtureStart + PACKAGE_FAMILY_FIXTURES.length && ref[ch] !== results[i]![ch]) equivalence.push({ src: inputs[i], ch })
       }
     }
     expect(crashParity).toEqual([])
     expect(equivalence).toEqual([])
+    BUILTIN_FAMILY_METADATA.forEach((family, index) => {
+      const result = results[flow.length + index]!
+      expect(result.kind, family.id).toBe(family.id)
+      expect(result.svg, family.id).not.toBe('THREW')
+      expect(result.ascii, family.id).not.toBe('THREW')
+    })
     PACKAGE_FAMILY_FIXTURES.forEach((fixture, index) => {
       expect(results[fixtureStart + index]!.kind).toBe(fixture.family)
       expect(results[fixtureStart + index]!.svg).not.toBe('THREW')

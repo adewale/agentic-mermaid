@@ -307,6 +307,10 @@ export interface FamilyConfigContract {
 }
 
 export interface FamilyOperations {
+  /** Parsed rendering uses the family's source authority. Omission preserves
+   * legacy extension behavior; family admission still validates the result. */
+  renderSource?: (body: Readonly<FamilyParsedBody>) => 'canonical' | 'serialized'
+
   /** Diagnose one authored or explicit config root. Common dispatch preserves
    * root boundaries, deterministic ordering and duplicate suppression. */
   configDiagnostics?: (context: {
@@ -874,6 +878,7 @@ const FAMILY_DESCRIPTOR_FIELDS = Object.freeze([
   'scenePrimitiveEvidence',
   'capabilityEvidence',
   'example',
+  'renderSource',
   'normalizeRequest',
   'configDiagnostics',
   'extractLabels',
@@ -1158,6 +1163,7 @@ function validateDescriptor(
   if (!Array.isArray(descriptor.headers) || descriptor.headers.length === 0 || descriptor.headers.some(header => !validDeclaredHeader(header))) {
     throw new Error(`Family "${descriptor.id}" must declare at least one canonical header without surrounding whitespace, controls, or semicolons`)
   }
+  if (descriptor.renderSource !== undefined && typeof descriptor.renderSource !== 'function') throw new TypeError(`Family ${descriptor.id} renderSource must be a function`)
   if (typeof descriptor.detect !== 'function') throw new Error(`Family "${descriptor.id}" must declare a detector`)
   if (!Number.isSafeInteger(descriptor.collisionPriority)) throw new Error(`Family "${descriptor.id}" must declare an integer collisionPriority`)
 
