@@ -394,6 +394,17 @@ var copyLinkBtn = document.getElementById('copy-link-btn');
 
 document.getElementById('export-png-btn').addEventListener('click', exportPNG);
 document.getElementById('export-svg-btn').addEventListener('click', exportSVG);
+var exportSourceBtn = document.getElementById('export-source-btn');
+if (exportSourceBtn) exportSourceBtn.addEventListener('click', function() {
+  var url = URL.createObjectURL(new Blob([editor.value], { type: 'text/plain;charset=utf-8' }));
+  var link = document.createElement('a');
+  link.href = url;
+  link.download = 'diagram.mmd';
+  link.click();
+  URL.revokeObjectURL(url);
+  setExportDropdownOpen(false, false);
+  showToast('Mermaid source saved.');
+});
 if (copyPngBtn) copyPngBtn.addEventListener('click', copyPNG);
 copyLinkBtn.addEventListener('click', function() { copyURL(copyLinkBtn); });
 updateExportAvailability();

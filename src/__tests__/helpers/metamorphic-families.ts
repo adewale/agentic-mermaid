@@ -44,6 +44,14 @@ const range = (k: number) => Array.from({ length: k }, (_, i) => i)
 const lines = (...xs: string[]) => xs.join('\n')
 
 export const METAMORPHIC_FAMILIES: Record<DiagramKind, FamilyMetamorphic> = {
+  c4: {
+    family: 'c4',
+    build: (k, t) => lines('C4Container', `  System_Boundary(${t}g, "Platform") {`, ...range(k).map(i => `    Container(${t}${i}, "Service ${i}", "HTTP")`), '  }', ...range(k - 1).map(i => `  Rel(${t}${i}, ${t}${i + 1}, "Call ${i}")`)),
+    kRange: [2, 5],
+    addPrimary: { snippet: (_k, t) => `\n  System_Ext(${t}x, "Partner")`, nodeDelta: 1 },
+    // A second interaction between an existing pair must remain a new edge.
+    addRelation: (_k, t) => `\n  Rel(${t}0, ${t}1, "Retry")`,
+  },
   flowchart: {
     family: 'flowchart',
     build: (k, t) => lines('flowchart TD', ...range(k).map(i => `  ${t}${i}["N${i}"]`), ...range(k - 1).map(i => `  ${t}${i} --> ${t}${i + 1}`)),

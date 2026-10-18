@@ -45,6 +45,7 @@ import { countStructuralElements, faithfulnessWarning } from './structural-count
 import { logToolInvocation } from './trace-log.ts'
 import type { ExtensionValidDiagram, LayoutWarning, ParsedDiagram, RenderedLayout, SequenceBody, ValidDiagram, VerifyOptions, VerifyResult, WarningCode } from './types.ts'
 import { DEFAULT_LABEL_CHAR_CAP, WARNING_SEVERITY } from './types.ts'
+import type { PositionedC4Diagram } from '../c4/layout.ts'
 
 function familyConfigShapeWarnings(d: ValidDiagram): LayoutWarning[] {
   const roots: unknown[] = [d.meta.frontmatter, ...d.meta.initDirectives.map(directive => directive.parsed)]
@@ -367,6 +368,27 @@ function radarAuthoredContrastWarnings(positioned: VerificationArtifact): Layout
   }
 }
 
+/** C4 placement can reject a contradictory hint while retaining every
+ * interaction. Surface that disposition from the exact artifact being checked. */
+function c4LayoutWarnings(positioned: VerificationArtifact): LayoutWarning[] {
+  try {
+    const layout = positioned()?.layoutResult.positioned as PositionedC4Diagram | undefined
+    if (layout?.body.kind !== 'c4') return []
+    return layout.diagnostics.map((diagnostic): LayoutWarning => {
+      const statement = layout.body.statements.find(item => item.id === diagnostic.statementId)
+      if (diagnostic.code === 'C4_LABEL_COLLISION' || diagnostic.code === 'C4_ARROW_OCCLUDED') {
+        return {
+          code: 'CONTENT_OCCLUDED', target: statement?.entityId ?? 'C4 layout',
+          feature: diagnostic.code === 'C4_ARROW_OCCLUDED' ? 'marker' : 'label',
+          line: statement?.span.line, message: `${diagnostic.code}: ${diagnostic.message}`,
+        }
+      }
+      if (diagnostic.code === 'C4_WIDTH_EXCEEDED') return { code: 'LAYOUT_LIMIT_EXCEEDED', constraint: 'c4.maxWidth', message: `${diagnostic.code}: ${diagnostic.message}` }
+      return { code: 'UNSUPPORTED_SYNTAX', line: statement?.span.line, syntax: statement?.raw ?? 'C4 layout', message: `${diagnostic.code}: ${diagnostic.message}` }
+    })
+  } catch { return [] } // The render-parity gate owns layout failures.
+}
+
 /** Chart text the XY layout left out because it did not fit (LABELS_HIDDEN).
  * The layout records what it omitted, so this reports it without re-deriving
  * the fitting rules. */
@@ -506,7 +528,7 @@ function verifyStructure(parsed: ParsedDiagram, opts: VerifyOptions, positioned:
     return finalize(dedupedConcat(pluginWarnings, geometric), layout, opts)
   }
 
-  if (d.body.kind === 'class' || d.body.kind === 'er' || d.body.kind === 'journey' || d.body.kind === 'architecture' || d.body.kind === 'xychart' || d.body.kind === 'pie' || d.body.kind === 'quadrant' || d.body.kind === 'mindmap' || d.body.kind === 'gitgraph' || d.body.kind === 'radar' || d.body.kind === 'sankey') {
+  if (d.body.kind === 'class' || d.body.kind === 'er' || d.body.kind === 'journey' || d.body.kind === 'architecture' || d.body.kind === 'xychart' || d.body.kind === 'pie' || d.body.kind === 'quadrant' || d.body.kind === 'mindmap' || d.body.kind === 'gitgraph' || d.body.kind === 'radar' || d.body.kind === 'sankey' || d.body.kind === 'c4') {
     // QUAL-1: verify.layout is now truthful — the real positioned layout from
     // the family adapters (was emptyRenderedLayout). #33 adds zero-noise
     // class/ER semantic geometry tripwires: relationship endpoints must sit on
@@ -519,15 +541,16 @@ function verifyStructure(parsed: ParsedDiagram, opts: VerifyOptions, positioned:
           // boxes (family-layouts.ts), so containment is a reportable breach.
           layoutGeometryWarnings(layout, { edgeAnchors: true, nodeOverlaps: true, groupContainment: d.body.kind === 'class' })
         : layoutGeometryWarnings(layout, {
-            nodeOverlaps: d.body.kind === 'journey',
+            nodeOverlaps: d.body.kind === 'journey' || d.body.kind === 'c4',
             // Journey sections are groups with task members (family-layouts.ts),
             // so a task laid outside its section band is a reportable breach.
-            groupContainment: d.body.kind === 'xychart' || d.body.kind === 'quadrant' ? 'center' : d.body.kind === 'journey',
+            groupContainment: d.body.kind === 'xychart' || d.body.kind === 'quadrant' ? 'center' : d.body.kind === 'journey' || d.body.kind === 'c4',
           })
     const appearanceWarnings = d.body.kind === 'radar'
       ? radarAuthoredContrastWarnings(positioned)
       : d.body.kind === 'xychart' ? xychartHiddenLabelWarnings(positioned)
-        : d.body.kind === 'quadrant' ? quadrantHiddenLabelWarnings(positioned) : []
+        : d.body.kind === 'quadrant' ? quadrantHiddenLabelWarnings(positioned)
+          : d.body.kind === 'c4' ? c4LayoutWarnings(positioned) : []
     return finalize(dedupedConcat(dedupedConcat(dedupedConcat(pluginWarnings, familyGeometry), layoutOutcome.warnings), appearanceWarnings), layout, opts)
   }
 

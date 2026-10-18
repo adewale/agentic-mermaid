@@ -87,6 +87,21 @@ export function collectActionRecords(d: ParsedDiagram): DiagramActionRecord[] {
   if (d.kind === 'class') records.push(...collectClassActions(source))
   if (d.kind === 'sequence') records.push(...collectSequenceActions(source))
   if (d.body.kind === 'gantt') records.push(...collectGanttActions(d))
+  if (d.body.kind === 'c4') {
+    const body = d.body
+    for (const [items, regions, prefix] of [
+      [body.elements, d.source.nodes, 'node'],
+      [body.boundaries, d.source.groups, 'group'],
+      [body.relationships, d.source.edges, 'edge'],
+    ] as const) for (const item of items) {
+      const link = item.effectiveLink ?? item.link
+      if (link !== undefined) records.push({
+        ...actionRecord('c4', item.id, 'href', link, regions.get(item.id)?.line, link),
+        regionId: `${prefix}:${item.id}`,
+      })
+    }
+  }
+
   const seen = new Map<string, number>()
   return records.map(record => {
     const key = `${record.family}:${record.target}`

@@ -27,6 +27,7 @@ const FAMILY_LOADERS = Object.freeze({
   gitgraph: () => import('./browser-lazy/families/gitgraph.ts'),
   radar: () => import('./browser-lazy/families/radar.ts'),
   sankey: () => import('./browser-lazy/families/sankey.ts'),
+  c4: () => import('./browser-lazy/families/c4.ts'),
 } satisfies Record<BrowserBuiltinFamilyId, FamilyLoader>)
 
 export class BrowserFamilyDetectionError extends Error {

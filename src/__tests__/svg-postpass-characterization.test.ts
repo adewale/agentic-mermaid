@@ -11,6 +11,12 @@ const SOURCE = `flowchart TD
   click A "https://example.com/private"`
 
 describe('SVG post-pass interaction contract', () => {
+  test('CSS substitutions preserve tag-like text inside a CDATA style body', () => {
+    const svg = '<svg xmlns="http://www.w3.org/2000/svg"><style><![CDATA[.x{content:\'<g fill="red">\';fill:var(--fg)}]]></style><rect class="x" width="10" height="10"/></svg>'
+    expect(inlineResolvedColors(svg, { bg: '#ffffff', fg: '#112233' }))
+      .toBe(svg.replace('var(--fg)', '#112233'))
+  })
+
   for (const style of [undefined, 'hand-drawn'] as const) {
     test(`${style ?? 'crisp'}: colors, identity, ARIA, strict security, namespacing, and compacting compose`, () => {
       const options = { idPrefix: 'probe-', security: 'strict' as const, compact: true, ...(style ? { style, seed: 7 } : {}) }

@@ -93,6 +93,18 @@ export const WARNING_CATALOG: Readonly<Record<WarningCode, WarningDescription>> 
     triggers: 'The deterministic layout separates nodes by construction, so no small flowchart source fires this — it appears only when a family adapter or post-pass produces colliding boxes on dense inputs. It is a tripwire, not an everyday lint.',
     fix: 'Shorten the labels of the named pair or reduce local density; if the overlap persists on a stable input, treat it as a layout defect and report the source.',
   },
+  CONTENT_OCCLUDED: {
+    summary: 'Final layout hides authored text or an interaction marker',
+    what: 'a measured label plate, card or header covers authored text or an interaction marker in the final drawing.',
+    triggers: 'Dense relationships competing for a label corridor, containment relationships with insufficient clearance, or authored label offsets that move text over protected content. The warning names the affected interaction.',
+    fix: 'Remove the conflicting label offset, increase available space or split the view. Persistent occlusion without authored offsets is a renderer defect. Verification fails because retained metadata alone does not make hidden content readable.',
+  },
+  LAYOUT_LIMIT_EXCEEDED: {
+    summary: 'Preserved content exceeds an explicitly requested layout budget',
+    what: 'the minimum measured geometry or explicit placement constraints exceed a requested layout budget.',
+    triggers: 'A compact C4 width budget smaller than a card, nested boundary, protected label corridor or authored placement constraint can accommodate. Content is retained at its legible size.',
+    fix: 'Increase the requested width, allow wrapping, remove explicit placement constraints or split the diagram. The warning reports a limitation rather than silently shrinking or dropping content.',
+  },
   ROUTE_SELF_CROSS: {
     summary: 'An edge route crosses itself',
     what: 'a single edge’s routed polyline crosses over itself.',

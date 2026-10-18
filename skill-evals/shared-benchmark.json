@@ -26,6 +26,29 @@
   },
   "cases": [
     {
+      "id": "pos-family-c4-context-fixture",
+      "split": "tune",
+      "kind": "positive",
+      "domain": "diagram-editing",
+      "difficulty": "extended",
+      "success_goals": ["outcome", "process"],
+      "trigger_type": "explicit",
+      "prompt": "Use the attached C4 context fixture. With the library channel, rename the payments element to provider while retaining both separate Shop-to-Payments interactions. Add an external System called audit with label Audit service and a Shop-to-Audit relationship labeled Records purchase. Verify the result, inspect the semantic facts, then serialize. Write outputs/c4-context/final.mmd and outputs/c4-context/verify.json and include both contents. Show the typed C4 mutation path and preserve the existing interaction labels and HTTPS technology.",
+      "files": ["fixtures/c4-context/input.mmd"],
+      "tags": ["family:c4", "channel:library", "fixture", "artifact", "positive"],
+      "expected_behavior": [
+        "Uses asC4 and kind-discriminated rename_element, add_element and add_relationship operations.",
+        "Retains both Authorizes and Checks status interactions after renaming their shared endpoint to provider.",
+        "Verifies and inspects semantic facts before serializing; does not rewrite C4 as a flowchart."
+      ],
+      "assertions": [
+        { "name": "artifact-final", "type": "file_exists", "path": "outputs/c4-context/final.mmd" },
+        { "name": "artifact-verify", "type": "file_exists", "path": "outputs/c4-context/verify.json" },
+        { "name": "c4-loop", "type": "contains_all", "values": ["asC4", "rename_element", "add_element", "add_relationship", "verifyMermaid", "describeMermaidFacts", "serializeMermaid"] },
+        { "name": "preserved-interactions", "type": "contains_all", "values": ["Authorizes", "Checks status", "HTTPS", "Records purchase", "provider"] }
+      ]
+    },
+    {
       "id": "pos-diagram-existing-flowchart-safe-edit",
       "split": "tune",
       "kind": "positive",

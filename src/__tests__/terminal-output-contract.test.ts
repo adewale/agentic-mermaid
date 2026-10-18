@@ -347,7 +347,7 @@ describe('canonical terminal output policy', () => {
   })
 
   test('metadata rejects a preserved parsed family before recovering drawing failures', () => {
-    const parsed = parseRegisteredMermaid('C4Context\nPerson(user, User)')
+    const parsed = parseRegisteredMermaid('requirementDiagram\nrequirement r {\n  id: 1\n  text: Preserved requirement\n  risk: low\n  verifymethod: test\n}')
     expect(parsed.ok).toBe(true)
     if (!parsed.ok) return
     expect(parsed.value.body.kind).toBe('preserved')

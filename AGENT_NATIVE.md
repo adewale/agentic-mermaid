@@ -104,14 +104,16 @@ Derived from parsed structure or character-level source properties. Deterministi
 | `RENDER_FAILED` | error | Any family: the source parses but the strict render parser, layout, or theme colors reject it, so rendering would fail. Generalizes `UNRESOLVABLE_SCHEDULE`'s seam-closing — a clean verify proves the diagram actually renders; the payload's `reason` carries the renderer error. |
 <!-- END GENERATED: warning-table:structural -->
 
-### Tier 2 — Geometric (advisory)
+### Tier 2 — Geometric
 
-Correctly detect what they claim to detect, but the occurrence may be intentional. Suppress when intent is clear; do not gate CI on them alone.
+Measured content occlusion is an error. Other geometric warnings can be intentional and remain advisory; inspect their severity and the rendered artifact before suppressing them.
 
 <!-- BEGIN GENERATED: warning-table:geometric -->
 | Code | Severity | Description |
 |---|---|---|
 | `NODE_OVERLAP` | warning | Two laid-out node bounding boxes intersect |
+| `CONTENT_OCCLUDED` | error | Final layout hides authored text or an interaction marker |
+| `LAYOUT_LIMIT_EXCEEDED` | warning | Preserved content exceeds an explicitly requested layout budget |
 | `ROUTE_SELF_CROSS` | warning | An edge route crosses itself |
 | `ROUTE_HITCH` | warning | An edge bends although a direct lane for it is provably clear (route-contract tripwire) |
 | `ROUTE_UNEXPLAINED_BEND` | warning | An edge contains a diagonal segment under orthogonal routing (route-contract tripwire) |
