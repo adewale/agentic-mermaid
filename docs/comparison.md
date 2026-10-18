@@ -75,8 +75,10 @@ Node 24.19.0, with sequential public API calls. Comparators were Beautiful npm
 Zombie current source `3610098ca328947cd252ebc6ee36934850cacbb1` was
 spot-checked separately; its source-bundle timings are not package startup data.
 Agentic is this PR's 0.4.2 source build, not the published 0.4.1 package. The
-principal matrix precedes the final configuration/metadata refinements; the
-isolated three-case comparison below includes the final SVG fast-path guard.
+principal matrix precedes the final configuration/metadata refinements. The
+isolated three-case comparison below binds production commit
+`6895af7c2aac29e9c7b1f6db1173e1b95f364be7`; subsequent commit
+`315f8619961181545b9ce48cfd7e60e36debbfb1` changes only a test and payload budget.
 
 The six matched inputs contain 5 nodes/6 edges, 50- and 100-node ternary trees,
 a seeded 50-node/69-edge mesh with 20 labels, a 20-message sequence, and a
@@ -106,11 +108,14 @@ avoidable work. Richer semantics do not excuse the measured speed gap.
 The shared Scene-admission and SVG-postpass changes were isolated in a paired
 A/B using identical source/dependencies and build mode: 20 warmups, seven
 alternating rounds of 20 calls. Complete SVG and receipt bytes matched. Median
-time fell 17.395→13.675ms for the five-node flow, 31.604→20.951ms for the
-sequence and 13.612→10.451ms for C4 (21.4%, 33.7%, 23.2%). The CDATA overlap
+time fell 18.833→14.958ms for the five-node flow, 33.992→22.347ms for the
+sequence and 13.790→10.390ms for C4 (20.6%, 34.3%, 24.7%). The CDATA overlap
 guard preserves the prior behavior for nested lexical ranges; common disjoint
 outputs retain byte parity. The final paired run includes that guard and
-complete output/receipt parity. These are three bounded improvements, not a
+complete output/receipt parity. The before build replaces only the three
+performance files with their `4239b17554a78658ef46483617870ac9c7fe152a`
+versions; C4 configuration, accessibility and other production code are held
+constant. These are three bounded improvements, not a
 cross-product speed claim. Complete terminal receipts changed only by
 noise-sized variation; no terminal speedup is claimed from these changes.
 
