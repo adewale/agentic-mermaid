@@ -9,7 +9,8 @@ import type { RenderStyleDefaults, ResolvedRenderStyle } from '../styles.ts'
 import { SEQUENCE_STYLE_DEFAULTS } from './layout.ts'
 import { buildAccessibilityAttrs } from '../shared/svg-a11y.ts'
 import { renderMultilineText, escapeAttr, escapeDisplayAttr, escapeXml as escapeXmlUtil } from '../multiline-utils.ts'
-import type { MarkerDescriptor, SceneDoc, SceneNode } from '../scene/ir.ts'
+import type { Geometry, MarkerDescriptor, SceneDoc, SceneNode } from '../scene/ir.ts'
+import { pathArtwork } from '../scene/artwork.ts'
 import { hashId } from '../scene/seed.ts'
 import * as marks from '../scene/marks.ts'
 import { DefaultBackend } from '../scene/backend.ts'
@@ -94,11 +95,11 @@ export function lowerSequenceScene(
   parts.push(marks.definitions({ id: 'defs', markerResources }, defsParts.join('\n')))
 
   if (diagram.accessibilityTitle) {
-    parts.push(marks.documentContent({ id: 'a11y-title', role: 'chrome' },
+    parts.push(marks.documentContent({ id: 'a11y-title', role: 'chrome', nonPaint: 'accessibility' },
       `<title id="${titleId}">${escapeXml(diagram.accessibilityTitle)}</title>`))
   }
   if (diagram.accessibilityDescription) {
-    parts.push(marks.documentContent({ id: 'a11y-desc', role: 'chrome' },
+    parts.push(marks.documentContent({ id: 'a11y-desc', role: 'chrome', nonPaint: 'accessibility' },
       `<desc id="${descId}">${escapeXml(diagram.accessibilityDescription)}</desc>`))
   }
 
@@ -390,19 +391,20 @@ function renderActor(
     const sw = lineWidth / s  // compensate for scale transform
     const iconStroke = escapeAttr(roleStyle?.borderColor ?? style.edgeStrokeColor ?? 'var(--_line)')
 
-    // The figure lives inside a <g transform=...> wrapper, which the shape
-    // geometry contract can't express — kept as a raw icon mark.
     children.push({
       indent: 2,
-      node: marks.documentContent({ id: `actor:${id}:icon`, role: 'icon', channels: { category: id } },
-        `<g transform="translate(${tx},${ty}) scale(${s})">` +
-        // Outer circle
-        `\n  <path d="M21 12C21 16.9706 16.9706 21 12 21C7.02944 21 3 16.9706 3 12C3 7.02944 7.02944 3 12 3C16.9706 3 21 7.02944 21 12Z" fill="none" stroke="${iconStroke}" stroke-width="${sw}" />` +
-        // Head
-        `\n  <path d="M15 10C15 11.6569 13.6569 13 12 13C10.3431 13 9 11.6569 9 10C9 8.34315 10.3431 7 12 7C13.6569 7 15 8.34315 15 10Z" fill="none" stroke="${iconStroke}" stroke-width="${sw}" />` +
-        // Shoulders
-        `\n  <path d="M5.62842 18.3563C7.08963 17.0398 9.39997 16 12 16C14.6 16 16.9104 17.0398 18.3716 18.3563" fill="none" stroke="${iconStroke}" stroke-width="${sw}" />` +
-        `\n</g>`),
+      node: pathArtwork({ id: `actor:${id}:icon`, owner: { id, role: 'actor' }, channels: { category: id },
+        open: `<g transform="translate(${tx},${ty}) scale(${s})">`,
+        transform: { kind: 'matrix', a: s, b: 0, c: 0, d: s, e: tx, f: ty },
+        paint: { fill: 'none', stroke: roleStyle?.borderColor ?? style.edgeStrokeColor ?? 'var(--_line)', strokeWidth: String(sw) },
+        join: '\n', indent: 2,
+        paths: [
+          'M21 12C21 16.9706 16.9706 21 12 21C7.02944 21 3 16.9706 3 12C3 7.02944 7.02944 3 12 3C16.9706 3 21 7.02944 21 12Z',
+          'M15 10C15 11.6569 13.6569 13 12 13C10.3431 13 9 11.6569 9 10C9 8.34315 10.3431 7 12 7C13.6569 7 15 8.34315 15 10Z',
+          'M5.62842 18.3563C7.08963 17.0398 9.39997 16 12 16C14.6 16 16.9104 17.0398 18.3716 18.3563',
+        ],
+        serializePath: path => `<path d="${path}" fill="none" stroke="${iconStroke}" stroke-width="${sw}" />`,
+      }),
     })
     // Label below the icon (supports multi-line)
     children.push({
@@ -427,21 +429,40 @@ function renderActor(
     const top = y + 2
     const w = width
     const h = Math.max(24, height - 4)
-    const glyph = type === 'database'
-      ? `<ellipse cx="${x}" cy="${top + 5}" rx="${w / 2}" ry="5"/><path d="M${left} ${top + 5}V${top + h - 5}A${w / 2} 5 0 0 0 ${left + w} ${top + h - 5}V${top + 5}"/><ellipse cx="${x}" cy="${top + h - 5}" rx="${w / 2}" ry="5"/>`
-      : type === 'collections'
-        ? `<rect x="${left + 6}" y="${top}" width="${w - 6}" height="${h - 6}"/><rect x="${left}" y="${top + 6}" width="${w - 6}" height="${h - 6}"/>`
-        : type === 'queue'
-          ? `<rect x="${left}" y="${top}" width="${w}" height="${h}" rx="${h / 2}"/><line x1="${left + 8}" y1="${top + h / 2}" x2="${left + w - 8}" y2="${top + h / 2}"/>`
-          : type === 'entity'
-            ? `<circle cx="${x}" cy="${top + h / 2 - 3}" r="${Math.min(w, h) / 2 - 3}"/><line x1="${left + 5}" y1="${top + h}" x2="${left + w - 5}" y2="${top + h}"/>`
-            : type === 'boundary'
-              ? `<circle cx="${x + 3}" cy="${top + h / 2}" r="${Math.min(w, h) / 2 - 3}"/><line x1="${left + 3}" y1="${top + 2}" x2="${left + 3}" y2="${top + h - 2}"/>`
-              : type === 'control'
-                ? `<circle cx="${x}" cy="${top + h / 2}" r="${Math.min(w, h) / 2 - 3}"/><path d="M${x - 4} ${top + 4}L${x + 4} ${top}L${x + 2} ${top + 8}"/>`
-                : `<circle cx="${x}" cy="${top + h / 2}" r="${Math.min(w, h) / 2 - 3}"/>`
-    children.push({ indent: 2, node: marks.documentContent({ id: `actor:${id}:icon`, role: 'icon', channels: { category: id } },
-      `<g class="sequence-actor-glyph sequence-actor-${type}" fill="${rawFill}" stroke="${rawStroke}" stroke-width="${lineWidth}">${glyph}</g>`) })
+    const glyphs: SceneNode[] = []
+    const owner = { id, role: 'actor' as const }
+    const paint = { fill: rawFillColor, stroke: roleStyle?.borderColor ?? style.edgeStrokeColor ?? 'var(--_line)', strokeWidth: String(lineWidth) }
+    const add = (geometry: Geometry, svg: string): void => {
+      glyphs.push(marks.shape({ id: semanticChildId(`actor:${id}:icon`, 'part', glyphs.length), role: 'icon', owner, geometry, paint }, svg))
+    }
+    const path = (d: string): void => add({ kind: 'path', d }, `<path d="${d}"/>`)
+    const circle = (cx: number, cy: number, r: number): void => add({ kind: 'circle', cx, cy, r }, `<circle cx="${cx}" cy="${cy}" r="${r}"/>`)
+    const line = (x1: number, y1: number, x2: number, y2: number): void => add({ kind: 'line', x1, y1, x2, y2 }, `<line x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}"/>`)
+    const rect = (x: number, y: number, width: number, height: number, rx?: number): void => add({ kind: 'rect', x, y, width, height, ...(rx === undefined ? {} : { rx }) }, `<rect x="${x}" y="${y}" width="${width}" height="${height}"${rx === undefined ? '' : ` rx="${rx}"`}/>`)
+    if (type === 'database') {
+      add({ kind: 'ellipse', cx: x, cy: top + 5, rx: w / 2, ry: 5 }, `<ellipse cx="${x}" cy="${top + 5}" rx="${w / 2}" ry="5"/>`)
+      path(`M${left} ${top + 5}V${top + h - 5}A${w / 2} 5 0 0 0 ${left + w} ${top + h - 5}V${top + 5}`)
+      add({ kind: 'ellipse', cx: x, cy: top + h - 5, rx: w / 2, ry: 5 }, `<ellipse cx="${x}" cy="${top + h - 5}" rx="${w / 2}" ry="5"/>`)
+    } else if (type === 'collections') {
+      rect(left + 6, top, w - 6, h - 6)
+      rect(left, top + 6, w - 6, h - 6)
+    } else if (type === 'queue') {
+      rect(left, top, w, h, h / 2)
+      line(left + 8, top + h / 2, left + w - 8, top + h / 2)
+    } else if (type === 'entity') {
+      circle(x, top + h / 2 - 3, Math.min(w, h) / 2 - 3)
+      line(left + 5, top + h, left + w - 5, top + h)
+    } else if (type === 'boundary') {
+      circle(x + 3, top + h / 2, Math.min(w, h) / 2 - 3)
+      line(left + 3, top + 2, left + 3, top + h - 2)
+    } else if (type === 'control') {
+      circle(x, top + h / 2, Math.min(w, h) / 2 - 3)
+      path(`M${x - 4} ${top + 4}L${x + 4} ${top}L${x + 2} ${top + 8}`)
+    } else circle(x, top + h / 2, Math.min(w, h) / 2 - 3)
+    children.push({ indent: 2, node: marks.group({ id: `actor:${id}:icon`, role: 'icon', owner, channels: { category: id },
+      open: `<g class="sequence-actor-glyph sequence-actor-${type}" fill="${rawFill}" stroke="${rawStroke}" stroke-width="${lineWidth}">`,
+      close: '</g>', join: '', children: glyphs.map(node => ({ node, indent: 0 })),
+    }) })
     children.push({ indent: 2, node: marks.text({
       id: `actor:${id}:label`, role: 'label', text: displayLabel, block: actor.labelPosition.block, x: labelX, y: labelY,
       fontSize, anchor: 'middle', paint: { fill: below.ink, ...haloPaint(below) }, channels: { category: id },
@@ -483,7 +504,7 @@ function renderActor(
 
   const menuColor = type === 'participant' ? boxTextColor : rawTextColor
   if (actor.links) children.push({ indent: 2, node: marks.text({
-    id: `actor:${id}:menu`, role: 'icon', text: '⋯', x: x + width / 2 - 7, y: y + 10,
+    id: `actor:${id}:menu`, role: 'icon', text: '⋯', block: actor.menuBlock, x: x + width / 2 - 7, y: y + 10,
     fontSize: 10, anchor: 'middle', paint: { fill: menuColor }, channels: { category: id },
   }, `<text class="sequence-actor-menu" x="${x + width / 2 - 7}" y="${y + 10}" text-anchor="middle" font-size="10" fill="${escapeAttr(menuColor)}">⋯</text>`) })
 

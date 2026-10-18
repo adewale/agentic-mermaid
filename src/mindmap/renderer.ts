@@ -5,6 +5,8 @@ import { MINDMAP_BANG_INNER_RADIUS_RATIO } from './geometry.ts'
 import type { SceneDoc, SceneNode } from '../scene/ir.ts'
 import { serializeGeometryShape, type SerializableShapeGeometry } from '../scene/svg-serialize.ts'
 import * as marks from '../scene/marks.ts'
+import { pathArtwork } from '../scene/artwork.ts'
+import { iconFallbackToken } from '../shared/icon-fallback.ts'
 import { DefaultBackend } from '../scene/backend.ts'
 import { svgOpenTag, buildStyleBlock, buildShadowDefs, resolveColors } from '../theme.ts'
 import { ensureContrast, isHexColor, mixHex } from '../shared/color-math.ts'
@@ -124,13 +126,18 @@ function renderNode(
       const x = node.x + node.width / 2 - size / 2
       const y = node.y + 4
       const scale = size / 24
-      const paths = glyph.paths.map(path => `<path d="${path}" />`).join('')
-      children.push({ node: marks.documentContent({ id: semanticChildId(node.id, 'icon'), role: 'icon' },
-        `<g class="mindmap-icon-glyph" data-icon="${escapeAttr(node.icon)}" data-icon-source="${escapeAttr(glyph.source)}" transform="translate(${round(x)} ${round(y)}) scale(${round(scale)})" fill="${textColor}" stroke="${textColor}" stroke-width="0.8">${paths}</g>`), indent: 2 })
+      children.push({ node: pathArtwork({ id: semanticChildId(node.id, 'icon'), paths: glyph.paths,
+        owner: { id: node.id, role: 'node' },
+        open: `<g class="mindmap-icon-glyph" data-icon="${escapeAttr(node.icon)}" data-icon-source="${escapeAttr(glyph.source)}" transform="translate(${round(x)} ${round(y)}) scale(${round(scale)})" fill="${textColor}" stroke="${textColor}" stroke-width="0.8">`,
+        transform: { kind: 'matrix', a: round(scale), b: 0, c: 0, d: round(scale), e: round(x), f: round(y) },
+        paint: { fill: textColor, stroke: textColor, strokeWidth: '0.8' },
+        serializePath: path => `<path d="${path}" />`,
+      }), indent: 2 })
     } else {
-      const token = node.icon.split(/[:\s/-]+/).filter(Boolean).at(-1)?.slice(0, 2).toUpperCase() || '?'
+      const token = iconFallbackToken(node.icon)
       children.push({ node: marks.text({
-        id: semanticChildId(node.id, 'icon'), role: 'icon', text: token, x: node.x + node.width / 2,
+        id: semanticChildId(node.id, 'icon'), role: 'icon', owner: { id: node.id, role: 'node' }, text: token,
+        block: node.iconFallbackBlock, x: node.x + node.width / 2,
         y: node.y + 12, fontSize: 9, anchor: 'middle', paint: { fill: textColor },
       }, `<text class="mindmap-icon-fallback" data-icon="${escapeAttr(node.icon)}" x="${round(node.x + node.width / 2)}" y="${round(node.y + 12)}" text-anchor="middle" font-size="9" fill="${textColor}">${escapeXml(token)}</text>`), indent: 2 })
     }

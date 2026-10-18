@@ -1,6 +1,6 @@
 import { prepareDisplayText, resolveLabelContent } from '../shared/display-text.ts'
 import { preparePixelText, type PixelTextBlock } from '../shared/prepared-text.ts'
-import { classTextBlock, classMemberBlock } from './layout.ts'
+import { classTextBlock, classMemberBlock, classAnnotationBlock } from './layout.ts'
 import type { PositionedClassDiagram, PositionedClassNode, PositionedClassNamespace, PositionedClassRelationship, PositionedClassNote, ClassMember, RelationshipType } from './types.ts'
 import { classRelationshipLineStyle } from './parser.ts'
 import { decodeClassText, memberToString } from './text.ts'
@@ -103,10 +103,10 @@ export function lowerClassScene(
   parts.push(marks.definitions({ id: 'defs', markerResources }, defsParts.join('\n')))
 
   if (diagram.accessibilityTitle) {
-    parts.push(marks.documentContent({ id: 'title', role: 'chrome' }, `<title id="${titleId}">${escapeXml(diagram.accessibilityTitle)}</title>`))
+    parts.push(marks.documentContent({ id: 'title', role: 'chrome', nonPaint: 'accessibility' }, `<title id="${titleId}">${escapeXml(diagram.accessibilityTitle)}</title>`))
   }
   if (diagram.accessibilityDescription) {
-    parts.push(marks.documentContent({ id: 'desc', role: 'chrome' }, `<desc id="${descId}">${escapeXml(diagram.accessibilityDescription)}</desc>`))
+    parts.push(marks.documentContent({ id: 'desc', role: 'chrome', nonPaint: 'accessibility' }, `<desc id="${descId}">${escapeXml(diagram.accessibilityDescription)}</desc>`))
   }
 
   // The diagram's frontmatter title, in the band layout reserved above.
@@ -137,8 +137,13 @@ export function lowerClassScene(
   // with its connector, so the relationship pass behind boxes lets the later
   // node fill erase the marker tip/base. Repaint only the marker attachment on
   // an invisible carrier; the semantic connector and its line remain behind.
+  const overlayOccurrence = new Map<string, number>()
   diagram.relationships.forEach((rel, index) => {
-    parts.push(renderRelationshipMarkerOverlay(rel, style, index))
+    const pairKey = `${rel.from}->${rel.to}`
+    const occurrence = overlayOccurrence.get(pairKey) ?? 0
+    overlayOccurrence.set(pairKey, occurrence + 1)
+    const overlay = renderRelationshipMarkerOverlay(rel, style, index, `rel:${pairKey}#${occurrence}`)
+    if (overlay) parts.push(overlay)
   })
 
   // 3. Notes are first-class UML marks; anchored notes include a connector.
@@ -292,7 +297,7 @@ function renderClassBox(cls: PositionedClassNode, style: ResolvedRenderStyle, in
   if (includeInteraction && cls.href && cls.tooltip !== undefined) {
     children.push({
       indent: 2,
-      node: marks.documentContent({ id: `class:${cls.id}:tooltip`, role: 'chrome' },
+      node: marks.documentContent({ id: `class:${cls.id}:tooltip`, role: 'chrome', nonPaint: 'interaction-metadata' },
         `<title>${escapeXmlUtil(cls.tooltip)}</title>`),
     })
   }
@@ -339,7 +344,7 @@ function renderClassBox(cls: PositionedClassNode, style: ResolvedRenderStyle, in
   // Annotation (<<interface>>, <<abstract>>, etc.)
   let nameY = y + headerHeight / 2
   if (cls.annotation !== undefined) {
-    const annotationBlock = cls.annotationBlock ?? preparePixelText(`<<${cls.annotation}>>`, { display: 'literal', fontSize: 10, fontWeight: 500 })
+    const annotationBlock = cls.annotationBlock ?? classAnnotationBlock(cls.annotation)
     const annotY = y + 12
     const annotColor = headerInk(style.nodeTextColor ?? 'var(--_text-muted)')
     children.push({
@@ -643,31 +648,46 @@ function renderRelationship(rel: PositionedClassRelationship, style: ResolvedRen
 }
 
 /** Marker-only carrier painted after class boxes. The connector remains the
- * semantic authority; this raw chrome exists only to prevent node surfaces
+ * semantic authority; this carrier exists only to prevent node surfaces
  * from occluding endpoint symbols. */
 function renderRelationshipMarkerOverlay(
   rel: PositionedClassRelationship,
   style: ResolvedRenderStyle,
   index: number,
-): SceneNode {
-  if (rel.points.length < 2) return marks.documentContent({ id: `marker-overlay:${index}`, role: 'chrome' }, '')
+  relationshipId: string,
+): SceneNode | null {
+  if (rel.points.length < 2) return null
   const startType = rel.markerAt === 'from' || rel.markerAt === 'both' ? rel.fromType ?? rel.type : undefined
   const endType = rel.markerAt === 'to' || rel.markerAt === 'both' ? rel.toType ?? rel.type : undefined
   const startId = startType ? getMarkerDefId(startType) : null
   const endId = endType ? getMarkerDefId(endType) : null
-  if (!startId && !endId) return marks.documentContent({ id: `marker-overlay:${index}`, role: 'chrome' }, '')
+  if (!startId && !endId) return null
   const markers = `${startId ? ` marker-start="url(#${startId})"` : ''}${endId ? ` marker-end="url(#${endId})"` : ''}`
   const carrierPaint = `fill="none" stroke="${escapeAttr(style.edgeStrokeColor ?? 'var(--_line)')}" stroke-width="${style.lineWidth}" stroke-opacity="0"${markers} pointer-events="none" aria-hidden="true"`
+  const resources = classMarkerResources(style)
+  const markerStart = resources.find(marker => marker.id === startId)
+  const markerEnd = resources.find(marker => marker.id === endId)
+  const fields = {
+    id: `marker-overlay:${index}`, role: 'chrome' as const,
+    owner: { id: relationshipId, role: 'relationship' as const },
+    lineStyle: 'solid' as const,
+    paint: { fill: 'none', stroke: style.edgeStrokeColor ?? 'var(--_line)', strokeWidth: String(style.lineWidth) },
+    stroke: { opacity: 0 },
+    endpoints: { from: rel.from, to: rel.to },
+    relationship: { kind: 'marker-carrier' },
+    markers: { ...(markerStart ? { start: markerStart } : {}), mid: [], ...(markerEnd ? { end: markerEnd } : {}) },
+    hit: { pointerEvents: 'none' as const },
+  }
   if (style.edgeBendRadius > 0 && rel.points.length > 2) {
     const projection = projectRoundedConnectorPath(rel.points, style.edgeBendRadius, {
       metric: 'manhattan',
       precision: 3,
     })
-    return marks.documentContent({ id: `marker-overlay:${index}`, role: 'chrome' },
+    return marks.connector({ ...fields, geometry: projection.geometry, route: { contours: projection.contours } },
       `<path class="class-marker-overlay" d="${projection.geometry.d}" ${carrierPaint} />`)
   }
   const points = rel.points.map(point => `${point.x},${point.y}`).join(' ')
-  return marks.documentContent({ id: `marker-overlay:${index}`, role: 'chrome' },
+  return marks.connector({ ...fields, geometry: { kind: 'polyline', points: rel.points } },
     `<polyline class="class-marker-overlay" points="${points}" ${carrierPaint} />`)
 }
 

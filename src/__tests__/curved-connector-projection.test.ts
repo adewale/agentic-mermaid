@@ -36,7 +36,7 @@ function connectors(doc: SceneDoc): ConnectorMark[] {
 }
 
 function onlyConnector(doc: SceneDoc): ConnectorMark {
-  const found = connectors(doc)
+  const found = connectors(doc).filter(connector => connector.role !== 'chrome')
   expect(found).toHaveLength(1)
   return found[0]!
 }

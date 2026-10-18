@@ -68,7 +68,6 @@ const CONNECTOR_OR_GROUP: readonly SceneMarkKind[] = ['connector', 'group']
 const DOCUMENT: readonly SceneMarkKind[] = ['document']
 const TEXT_OR_GROUP: readonly SceneMarkKind[] = ['text', 'group']
 const TEXT_OR_DOCUMENT: readonly SceneMarkKind[] = ['text', 'document']
-const SHAPE_TEXT_OR_DOCUMENT: readonly SceneMarkKind[] = ['shape', 'text', 'document']
 const PRELUDE: readonly SceneMarkKind[] = ['document']
 
 type BehavioralTraitOptions = Partial<Pick<SceneRoleTraits,
@@ -141,7 +140,7 @@ export const BUILTIN_SCENE_ROLE_TRAITS: Readonly<Record<BuiltinSceneRole, SceneR
   junction: traits('junction', SHAPE_OR_GROUP, 'node', { domIdentity: true }),
   // Text glyphs a sketch look draws always sit on its page halo; icons and
   // titles can be text too.
-  icon: traits('icon', SHAPE_TEXT_OR_DOCUMENT, 'node', { textHalo: true }),
+  icon: traits('icon', ['shape', 'text', 'group', 'document'], 'node', { textHalo: true }),
   title: traits('title', ANY_MARK, 'label', { domIdentity: true, textHalo: true }),
   defs: traits('defs', DOCUMENT, 'label'),
   prelude: traits('prelude', PRELUDE, 'label'),

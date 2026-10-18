@@ -210,6 +210,7 @@ export interface PositionedStateNote {
 
 export interface PositionedNode {
   labelBlock?: PixelTextBlock
+  iconFallbackBlock?: PixelTextBlock
   id: string
   label: string
   labelContent?: LabelContent

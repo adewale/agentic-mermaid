@@ -3,7 +3,7 @@ import * as marks from '../scene/marks.ts'
 import { DefaultBackend } from '../scene/backend.ts'
 import { RoughBackend } from '../scene/rough-backend.ts'
 import { HybridBackend } from '../scene/hybrid-backend.ts'
-import { nodeWorldBounds } from '../scene/bounds.ts'
+import { nodeWorldBounds, nodePaintBounds } from '../scene/bounds.ts'
 import { resolveSceneRoleTraits, sceneRoleTraits } from '../scene/roles.ts'
 import { validatePrimitiveCapabilities } from '../scene/capabilities.ts'
 import { hitTestConnector, hitTestSceneConnectors } from '../scene/hit-test.ts'
@@ -14,6 +14,26 @@ import { attachSceneNodeSerialization, sceneNodeSerialization } from '../scene/s
 import { nodeProblems } from '../scene/fidelity.ts'
 
 describe('typed Scene connector contract', () => {
+  test('hit testing composes group transforms and preserves scaled stroke regions', () => {
+    const edge = marks.connector({ id: 'scaled', role: 'edge', geometry: { kind: 'line', x1: 0, y1: 0, x2: 10, y2: 0 }, lineStyle: 'solid', paint: { stroke: '#111', strokeWidth: '2' }, hit: { strokeWidth: 4 }, transform: { kind: 'matrix', a: 2, b: 0, c: 0, d: 3, e: 0, f: 0 } }, '<line x1="0" y1="0" x2="10" y2="0" stroke="#111" stroke-width="2" transform="matrix(2 0 0 3 0 0)"/>')
+    expect(hitTestConnector(edge, { x: 10, y: 5.5 })).toBe(true)
+    expect(hitTestConnector(edge, { x: 10, y: 6.5 })).toBe(false)
+    const group = marks.group({ id: 'translated', role: 'group', open: '<g transform="translate(50 20)">', close: '</g>', transform: { kind: 'matrix', a: 1, b: 0, c: 0, d: 1, e: 50, f: 20 }, children: [{ node: edge, indent: 0 }] })
+    const scene = { family: 'flowchart', width: 100, height: 100, colors: { bg: '#fff', fg: '#111' }, transparent: false, parts: [group] }
+    expect(hitTestSceneConnectors(scene, { x: 60, y: 25.5 }).map(hit => hit.id)).toEqual(['scaled'])
+    expect(hitTestSceneConnectors(scene, { x: 10, y: 5.5 })).toEqual([])
+  })
+  test('tolerance stays in world units and singular transforms have no painted or interactive stroke', () => {
+    const edge = marks.connector({ id: 'hit', role: 'edge', geometry: { kind: 'line', x1: 0, y1: 0, x2: 10, y2: 0 }, lineStyle: 'solid', paint: { stroke: '#111', strokeWidth: '2' }, hit: { strokeWidth: 4 } }, '<line x1="0" y1="0" x2="10" y2="0" stroke="#111" stroke-width="2"/>')
+    expect(hitTestConnector(edge, { x: 5, y: 2.9 }, 1)).toBe(true)
+    expect(hitTestConnector(edge, { x: 5, y: 3.2 }, 1)).toBe(false)
+    const singular = marks.connector({ id: 'singular', role: 'edge', geometry: edge.route.geometry, lineStyle: 'solid', paint: { stroke: '#111', strokeWidth: '2' }, stroke: { nonScaling: true }, transform: { kind: 'matrix', a: 0, b: 0, c: 0, d: 0, e: 20, f: 20 } }, '<line x1="0" y1="0" x2="10" y2="0" stroke="#111" stroke-width="2" vector-effect="non-scaling-stroke" transform="matrix(0 0 0 0 20 20)"/>')
+    expect(hitTestConnector(singular, { x: 20, y: 20 })).toBe(false)
+    expect(nodePaintBounds(singular)).toBeUndefined()
+    const group = marks.group({ id: 'singular-parent', role: 'group', open: '<g transform="matrix(0 0 0 0 20 20)">', close: '</g>', transform: { kind: 'matrix', a: 0, b: 0, c: 0, d: 0, e: 20, f: 20 }, children: [{ node: edge, indent: 0 }] })
+    expect(nodePaintBounds(group)).toBeUndefined()
+    expect(hitTestSceneConnectors({ family: 'flowchart', width: 100, height: 100, colors: { bg: '#fff', fg: '#111' }, transparent: false, parts: [group] }, { x: 20, y: 20 })).toEqual([])
+  })
   const crisp = '<line data-id="typed-id" data-role="edge" data-from="typed-a" data-to="typed-b" x1="0" y1="2" x2="10" y2="2" stroke="#00aa55" stroke-width="4" stroke-opacity="0" stroke-dasharray="9 2" stroke-dashoffset="0" stroke-linecap="square" stroke-linejoin="bevel" stroke-miterlimit="7" pathLength="40" paint-order="stroke fill" vector-effect="non-scaling-stroke" marker-end="url(#typed-arrow)" />'
   const connector = marks.connector({
     id: 'typed-id',

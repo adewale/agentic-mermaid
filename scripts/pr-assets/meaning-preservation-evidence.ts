@@ -19,7 +19,10 @@ if (!base || !head || !destination || ![base, head].every(sha => /^[a-f0-9]{40}$
 }
 const out = resolve(destination)
 mkdirSync(out, { recursive: true })
-interface Fixture { id: string; title: string; source: string; cue: string; renderOptions?: RenderOptions; pngWidth?: number; captureLayout?: true; classMutation?: ClassMutationOp; mutation?: AnyMutationOp; directFragmentLabel?: string }
+interface Fixture { id: string; title: string; source: string; cue: string; renderOptions?: RenderOptions; pngWidth?: number; pngScale?: number; measurementProfile?: 'nonadditive-tracking'; captureLayout?: true; classMutation?: ClassMutationOp; mutation?: AnyMutationOp; directFragmentLabel?: string }
+const measurementProfiles = {
+  'nonadditive-tracking': { id: 'pr422:nonadditive-tracking', version: '1.0.0', wholeStringWidth: 2, glyphWidth: 18, boldGlyphWidth: 27 },
+} as const
 const sequenceSpanSource = 'sequenceDiagram\nparticipant A\nparticipant B\nparticipant C\nA->>C: Label across B\nactivate B\nA->>C: Begin work\nA->>C: Label across active B\ndeactivate B'
 const sankeyIdentitySource = '---\ntitle: Caption\n---\nsankey-beta\nA,B,1\nA,B,2\nA,B#1,3\nlink:A->B#1,X,4\ntitle,title#1,5'
 const parallelReciprocalSource = 'flowchart LR\nA[Client] -->|request 0| B[Server]\nA -->|request 1| B\nB -->|reply| A'
@@ -43,6 +46,8 @@ const c4OfficialFixtures: Fixture[] = extractOfficialCorpus().filter(fence => fe
 }))
 const corpusSamples = collectSamples()
 const fixtures: Fixture[] = [
+  { id: 'tracked-host-metrics', title: 'Retained tracked glyphs determine the node allocation', source: 'flowchart LR\nA["ABCD"]', renderOptions: { font: 'Inter', style: { roles: { node: { fontSize: 36, fontWeight: 400, letterSpacing: 4 } } } }, pngScale: 2, measurementProfile: 'nonadditive-tracking', cue: 'Nonadditive host-profile stress case, not ordinary bundled-font metrics: the same host callback returns 2px for whole strings and 18px per glyph (27px when bold, unused here) at both revisions. SVG explicitly fits each tracked glyph to its selected width. Inspect C/D leaving the narrow baseline node and D clipping at the viewport; retained glyph allocations let the candidate size its node before painting. Source, Inter 36px, weight 400, tracking 4px, strict security, white PNG background and scale 2 are identical. The receipt records the profile configuration and render options.' },
+  { id: 'class-watercolor-preservation', title: 'Class watercolor artwork preservation control', source: readFileSync(join(ROOT, 'eval', 'layout-compare', 'fixtures', 'class-basic.mmd'), 'utf8'), renderOptions: { style: 'watercolor' }, cue: 'Ordinary bundled-font preservation control using the existing Class watercolor golden source and style. Compare complete labels, members, relationships and painted artwork. These revisions are expected to render the same image; this pair does not claim a visual improvement or establish the nonadditive host-profile repair.' },
   ...[
     { id: 'crisp', style: 'crisp' },
     { id: 'hand-drawn-dracula', style: ['hand-drawn', 'dracula'] },
@@ -193,7 +198,7 @@ if (selectedFixtureIds.length > 0) {
 }
 const fixtureOptions = Object.fromEntries(fixtures.map(fixture => {
   const svg = { security: 'strict' as const, ...fixture.renderOptions }
-  return [fixture.id, { svg, png: { ...svg, background: svg.transparent ? '#00000000' : '#ffffff', ...(fixture.pngWidth ? { fitTo: { width: fixture.pngWidth } } : {}) } }]
+  return [fixture.id, { svg, png: { ...svg, background: svg.transparent ? '#00000000' : '#ffffff', ...(fixture.pngWidth ? { fitTo: { width: fixture.pngWidth } } : {}), ...(fixture.pngScale !== undefined ? { scale: fixture.pngScale } : {}) }, ...(fixture.measurementProfile ? { measurementProfile: { kind: fixture.measurementProfile, ...measurementProfiles[fixture.measurementProfile] } } : {}) }]
 }))
 interface Evidence { svg?: string; png?: string; layout?: unknown; source?: string; edit?: unknown; error?: string }
 interface TerminalEvidence { ascii?: string; html?: string; meta?: unknown; error?: string }
@@ -207,7 +212,8 @@ function renderRevision(sha: string): RevisionEvidence {
     symlinkSync(join(ROOT, 'node_modules'), join(checkout, 'node_modules'), 'dir')
     writeFileSync(join(checkout, 'probe.ts'), `
       import { writeFileSync } from 'node:fs'
-      import { renderMermaidSVG, renderMermaidPNG, layoutMermaidWithReceipt, parseRegisteredMermaid, asClass, asSequence, mutate, serializeMermaid, describeMermaidFacts } from './src/agent/index.ts'
+      import { renderMermaidSVG, renderMermaidPNG, createMermaidPNGRenderer, layoutMermaidWithReceipt, parseRegisteredMermaid, asClass, asSequence, mutate, serializeMermaid, describeMermaidFacts } from './src/agent/index.ts'
+      import { createMermaidRenderer } from './src/index.ts'
       import { renderMermaidASCIIWithMeta } from './src/ascii/meta.ts'
       const fixtures = ${JSON.stringify(fixtures)}
       const fixtureOptions = ${JSON.stringify(fixtureOptions)}
@@ -245,9 +251,14 @@ function renderRevision(sha: string): RevisionEvidence {
               ...(reloaded.value.body.kind === 'er' ? { reloadedEntityOrder: reloaded.value.body.entities.map(entity => entity.id) } : {}),
             }
           }
+          const measurement = fixtureOptions[fixture.id].measurementProfile
+          const host = measurement ? { textMeasurement: {
+            id: measurement.id, version: measurement.version,
+            measure: ({ text, fontWeight }) => text.length > 1 ? measurement.wholeStringWidth : fontWeight >= 700 ? measurement.boldGlyphWidth : measurement.glyphWidth,
+          } } : undefined
           renders[fixture.id] = {
-            svg: renderMermaidSVG(input, fixtureOptions[fixture.id].svg),
-            png: Buffer.from(renderMermaidPNG(input, fixtureOptions[fixture.id].png)).toString('base64'),
+            svg: host ? createMermaidRenderer(host).renderMermaidSVG(input, fixtureOptions[fixture.id].svg) : renderMermaidSVG(input, fixtureOptions[fixture.id].svg),
+            png: Buffer.from(host ? createMermaidPNGRenderer(host).renderMermaidPNG(input, fixtureOptions[fixture.id].png) : renderMermaidPNG(input, fixtureOptions[fixture.id].png)).toString('base64'),
             ...(fixture.classMutation || fixture.mutation ? { source: input } : {}),
             ...(edit ? { edit } : {}),
             ...(fixture.captureLayout ? { layout: layoutMermaidWithReceipt(input, { ...fixtureOptions[fixture.id].svg, regions: true }).layout } : {}),
@@ -300,6 +311,8 @@ const rows = fixtures.map(fixture => {
   }).join('')
   const optionsCaption = (fixture.renderOptions ? `<p>Render options at both revisions: <code>${esc(JSON.stringify(fixture.renderOptions))}</code>.</p>` : '')
     + (fixture.pngWidth ? `<p>PNG previews are scaled to ${fixture.pngWidth}px wide at both revisions; SVG and layout sidecars retain native geometry.</p>` : '')
+    + (fixture.pngScale !== undefined ? `<p>PNG scale at both revisions: ${fixture.pngScale}.</p>` : '')
+    + (fixture.measurementProfile ? `<p>Host measurement profile at both revisions: <code>${esc(JSON.stringify({ kind: fixture.measurementProfile, ...measurementProfiles[fixture.measurementProfile] }))}</code>. The callback is bound through the public renderer constructors.</p>` : '')
   const mutation = fixture.classMutation ?? fixture.mutation
   const mutationCaption = mutation ? `<p>${fixture.classMutation ? 'Class edit' : 'Edit'} at both revisions: <code>${esc(JSON.stringify(mutation))}</code>.</p>` : ''
   return `<section><h2>${fixture.title}</h2><p>${fixture.cue}</p>${optionsCaption}${mutationCaption}<div class="pair">${panels}</div></section>`
@@ -315,7 +328,7 @@ const terminalRows = terminalFixtures.map(fixture => {
   return `<section><h2>${fixture.id}</h2><p>${esc(fixture.cue)}</p><div class="pair">${panels}</div></section>`
 }).join('')
 for (const phase of ['before', 'after'] as const) writeFileSync(join(out, `class-export-${phase}.mmd`), revisions[phase].classExport)
-writeFileSync(join(out, 'review.html'), `<!doctype html><html lang="en"><meta charset="utf-8"><meta name="viewport" content="width=device-width"><title>Diagram meaning: before and after</title><style>body{font:16px/1.5 system-ui;margin:40px auto;padding:0 24px;max-width:1100px;color:#222;background:white}.pair{display:grid;grid-template-columns:1fr 1fr;gap:24px}section{border-top:1px solid #ddd;margin-top:32px}figure{margin:0}figcaption{font-weight:bold}img{display:block;width:100%;height:auto}figure.transparent img{background-color:white;background-image:conic-gradient(#ddd 25%,transparent 0 50%,#ddd 0 75%,transparent 0);background-size:16px 16px}pre{white-space:pre-wrap;background:#f6f6f6;padding:16px}@media(max-width:700px){.pair{grid-template-columns:1fr}}</style><h1>Diagram meaning: before and after</h1><p>Baseline SHA: <code>${base}</code><br>Head SHA: <code>${head}</code></p><p>Same sources and render options at both revisions, with strict security and bundled PNG fonts. Default style and opaque PNGs use a white background unless a fixture states otherwise; explicit options are shown beside that fixture and recorded in receipt.json. The first three panels retain the PR418 edit witnesses; the next six show the current literal-text changes. Later panels and the final Class export are historical controls: their captions describe original repair scenarios that may already be fixed at this baseline, so only the displayed outputs establish a difference between these revisions. Focused witnesses do not prove all-layout or cross-platform visual parity.</p>${rows}<section><h2>Class export after deleting A</h2><p>Compare the serialized result after deleting A: class B should remain and the empty namespace should be omitted.</p><div class="pair"><pre>${esc(revisions.before.classExport)}</pre><pre>${esc(revisions.after.classExport)}</pre></div></section></html>`)
+writeFileSync(join(out, 'review.html'), `<!doctype html><html lang="en"><meta charset="utf-8"><meta name="viewport" content="width=device-width"><title>Diagram meaning: before and after</title><style>body{font:16px/1.5 system-ui;margin:40px auto;padding:0 24px;max-width:1100px;color:#222;background:white}.pair{display:grid;grid-template-columns:1fr 1fr;gap:24px}section{border-top:1px solid #ddd;margin-top:32px}figure{margin:0}figcaption{font-weight:bold}img{display:block;width:100%;height:auto}figure.transparent img{background-color:white;background-image:conic-gradient(#ddd 25%,transparent 0 50%,#ddd 0 75%,transparent 0);background-size:16px 16px}pre{white-space:pre-wrap;background:#f6f6f6;padding:16px}@media(max-width:700px){.pair{grid-template-columns:1fr}}</style><h1>Diagram meaning: before and after</h1><p>Baseline SHA: <code>${base}</code><br>Head SHA: <code>${head}</code></p><p>Same sources and render options at both revisions, with strict security and bundled PNG fonts. Default style and opaque PNGs use a white background unless a fixture states otherwise; explicit options are shown beside that fixture and recorded in receipt.json. Captions identify repair witnesses, host-measurement stress profiles and artwork-preservation controls. Historical fixtures and the final Class export may already be fixed at this baseline; only the displayed outputs establish a difference between these revisions. Focused witnesses do not prove all-layout or cross-platform visual parity.</p>${rows}<section><h2>Class export after deleting A</h2><p>Compare the serialized result after deleting A: class B should remain and the empty namespace should be omitted.</p><div class="pair"><pre>${esc(revisions.before.classExport)}</pre><pre>${esc(revisions.after.classExport)}</pre></div></section></html>`)
 writeFileSync(join(out, 'terminal-review.html'), `<!doctype html><html lang="en"><meta charset="utf-8"><title>Terminal composition review</title><style>body{font:16px/1.5 system-ui;margin:32px;color:#222;background:white}.pair{display:grid;grid-template-columns:1fr 1fr;gap:20px}figure{min-width:0;margin:0}pre.terminal{white-space:pre;overflow:auto;font:12px/1.3 Menlo,Consolas,monospace;background:#f7f7f7;padding:12px}section{border-top:1px solid #ddd;margin-top:24px}</style><h1>Terminal composition: same input before and after</h1><p>Baseline SHA: ${base}<br>Head SHA: ${head}<br>Bun: ${Bun.version}</p><p>Production ASCII text files and exact metadata accompany every pair. Browser monospace/font coverage is a visual limitation; independent owned-cell and grapheme tests establish logical geometry and encoding parity.</p>${terminalRows}</html>`)
-writeFileSync(join(out, 'receipt.json'), JSON.stringify({ base, head, bun: Bun.version, fixtures: fixtures.map(fixture => fixture.id), terminalFixtures: terminalFixtures.map(fixture => fixture.id), terminalOptions: { ascii: { colorMode: 'none', useAscii: true }, unicode: { colorMode: 'html', useAscii: false } }, options: { security: 'strict', style: 'default unless fixtureOptions overrides it', fonts: 'bundled' }, fixtureOptions }, null, 2) + '\n')
+writeFileSync(join(out, 'receipt.json'), JSON.stringify({ base, head, bun: Bun.version, fixtures: fixtures.map(fixture => fixture.id), sources: Object.fromEntries(fixtures.map(fixture => [fixture.id, fixture.source])), terminalFixtures: terminalFixtures.map(fixture => fixture.id), terminalOptions: { ascii: { colorMode: 'none', useAscii: true }, unicode: { colorMode: 'html', useAscii: false } }, options: { security: 'strict', style: 'default unless fixtureOptions overrides it', fonts: 'bundled' }, fixtureOptions }, null, 2) + '\n')
 console.log(`Wrote immutable before/after evidence to ${out}`)

@@ -292,7 +292,11 @@ function reportTerminalControlReplacement(diagnostics: TerminalProjectionDiagnos
 
 function connectorMarks(nodes: readonly SceneNode[]): ConnectorMark[] {
   const result: ConnectorMark[] = []
-  visitSceneNodes(nodes, node => { if (node.kind === 'connector') result.push(node) })
+  visitSceneNodes(nodes, node => {
+    // A chrome carrier contributes artwork to its declared subject; it does
+    // not add a second semantic relationship to terminal adapters.
+    if (node.kind === 'connector' && !(node.role === 'chrome' && node.owner && node.owner.id !== node.identity?.id)) result.push(node)
+  })
   return result
 }
 

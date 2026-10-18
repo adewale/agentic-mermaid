@@ -249,7 +249,7 @@ describe('canonical terminal field applicability', () => {
       interaction: projected.hit.pointerEvents === 'stroke',
       'hit-geometry': projected.hit.geometry.kind === 'path' && projected.hit.strokeWidth === 6,
       stroke: projected.stroke.color === '#123456' && projected.stroke.width === '3',
-      transform: projected.transform?.angle === 90,
+      transform: projected.transform?.kind === 'rotate' && projected.transform.angle === 90,
       'stroke-opacity': projected.stroke.opacity === 0.5,
       'stroke-cap': projected.stroke.lineCap === 'square',
       'stroke-join': projected.stroke.lineJoin === 'miter',

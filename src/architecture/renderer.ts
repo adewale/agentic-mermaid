@@ -13,9 +13,11 @@ import { svgOpenTag, buildStyleBlock, resolvedColorValue, type DiagramColors } f
 import { toneOnFill } from '../color-resolver.ts'
 import { mixHex } from '../shared/color-math.ts'
 import { escapeAttr, escapeDisplayAttr, renderMultilineText, renderMultilineTextWithBackground, escapeXml } from '../multiline-utils.ts'
-import { preparePixelText } from '../shared/prepared-text.ts'
+import { preparePixelText, type PixelTextBlock } from '../shared/prepared-text.ts'
+import { fallbackIconGlyph, normalizeIconName } from './icon-layout.ts'
 import { topRoundedRectPath } from '../svg-paths.ts'
-import type { MarkerDescriptor, SceneDoc, SceneNode } from '../scene/ir.ts'
+import type { Geometry, MarkPaint, MarkerDescriptor, SceneDoc, SceneNode, SceneOwner, SceneTransform } from '../scene/ir.ts'
+import { semanticChildId } from '../scene/identity.ts'
 import { hashId } from '../scene/seed.ts'
 import * as marks from '../scene/marks.ts'
 import { DefaultBackend } from '../scene/backend.ts'
@@ -254,10 +256,7 @@ function lowerGroup(group: PositionedArchitectureGroup, visual: ArchitectureVisu
     // (which indents every line).
     children.push({
       indent: 0,
-      node: marks.documentContent(
-        { id: `icon:${group.id}`, role: 'icon' },
-        `  ${renderIcon(group.x + 10, group.y + 6, visual.iconSize, group.icon, true)}`,
-      ),
+      node: renderIcon(group.x + 10, group.y + 6, visual.iconSize, group.icon, true, `icon:${group.id}`, { id: group.id, role: 'group' }, group.iconFallbackBlock),
     })
   }
 
@@ -337,10 +336,7 @@ function lowerService(service: PositionedArchitectureService, visual: Architectu
     // Same first-line-only indent as group icons (see lowerGroup).
     children.push({
       indent: 0,
-      node: marks.documentContent(
-        { id: `icon:${service.id}`, role: 'icon' },
-        `  ${renderIcon(iconX, iconY, visual.serviceIconSize, service.icon, false)}`,
-      ),
+      node: renderIcon(iconX, iconY, visual.serviceIconSize, service.icon, false, `icon:${service.id}`, { id: service.id, role: 'service' }, service.iconFallbackBlock),
     })
   }
 
@@ -521,8 +517,7 @@ function lowerEdgeLabel(edge: PositionedArchitectureEdge, visual: ArchitectureVi
   ]
 }
 
-function renderIcon(x: number, y: number, size: number, icon: string, compact: boolean): string {
-  const parts: string[] = []
+function renderIcon(x: number, y: number, size: number, icon: string, compact: boolean, id: string, owner: SceneOwner, fallbackBlock?: PixelTextBlock): SceneNode {
   const rawName = icon.trim().toLowerCase()
   const native = !rawName.includes(':') && !rawName.includes('/')
     && ['cloud', 'database', 'disk', 'internet', 'server'].includes(rawName)
@@ -530,86 +525,65 @@ function renderIcon(x: number, y: number, size: number, icon: string, compact: b
   const metadata = resolved
     ? ` data-icon-source="${resolved.source}" data-icon-license="${resolved.license}"`
     : ''
-  parts.push(`<g class="architecture-icon" data-icon="${escapeAttr(icon)}"${metadata}>`)
-  parts.push(`  ${renderIconGlyph(x, y, size, icon, compact, resolved)}`)
-  parts.push('</g>')
-  return parts.join('\n')
-}
-
-function renderIconGlyph(
-  x: number,
-  y: number,
-  size: number,
-  icon: string,
-  compact: boolean,
-  resolved: ReturnType<typeof resolveArchitectureIcon>,
-): string {
-  const name = normalizeIconName(icon)
-  const cx = x + size / 2
-  const cy = y + size / 2
-  const s = compact ? size * 0.92 : size
-
-  if (resolved) {
-    const inset = (size - s) / 2
-    const scale = s / 24
-    return `<path class="architecture-icon-glyph" d="${resolved.path}" transform="translate(${x + inset} ${y + inset}) scale(${scale})" />`
+  const ink = 'var(--arch-edge-stroke, var(--_arrow))'
+  const stroke: MarkPaint = { fill: 'none', stroke: ink, strokeWidth: '1.25', strokeLinecap: 'round', strokeLinejoin: 'round' }
+  const children: SceneNode[] = []
+  const add = (geometry: Geometry, svg: string, paint = stroke, transform?: SceneTransform): void => {
+    children.push(marks.shape({ id: semanticChildId(id, 'part', children.length), role: 'icon', owner, geometry, paint,
+      ...(transform ? { transform } : {}),
+    }, svg))
   }
-
-  switch (name) {
+  const path = (d: string): void => add({ kind: 'path', d }, `<path class="architecture-icon-mark" d="${d}" />`)
+  const circle = (cx: number, cy: number, r: number): void => add({ kind: 'circle', cx, cy, r }, `<circle class="architecture-icon-mark" cx="${cx}" cy="${cy}" r="${r}" />`)
+  const ellipse = (cx: number, cy: number, rx: number, ry: number): void => add({ kind: 'ellipse', cx, cy, rx, ry }, `<ellipse class="architecture-icon-mark" cx="${cx}" cy="${cy}" rx="${rx}" ry="${ry}" />`)
+  const name = normalizeIconName(icon), cx = x + size / 2, cy = y + size / 2, s = compact ? size * 0.92 : size
+  if (resolved) {
+    const inset = (size - s) / 2, scale = s / 24
+    add({ kind: 'path', d: resolved.path }, `<path class="architecture-icon-glyph" d="${resolved.path}" transform="translate(${x + inset} ${y + inset}) scale(${scale})" />`,
+      { fill: ink }, { kind: 'matrix', a: scale, b: 0, c: 0, d: scale, e: x + inset, f: y + inset })
+  } else switch (name) {
     case 'cloud':
-      return [
-        `<circle class="architecture-icon-mark" cx="${cx - s * 0.18}" cy="${cy + s * 0.02}" r="${s * 0.16}" />`,
-        `<circle class="architecture-icon-mark" cx="${cx + s * 0.02}" cy="${cy - s * 0.08}" r="${s * 0.2}" />`,
-        `<circle class="architecture-icon-mark" cx="${cx + s * 0.2}" cy="${cy + s * 0.02}" r="${s * 0.15}" />`,
-        `<path class="architecture-icon-mark" d="M ${cx - s * 0.34} ${cy + s * 0.16} H ${cx + s * 0.33}" />`,
-      ].join('\n')
+      circle(cx - s * 0.18, cy + s * 0.02, s * 0.16)
+      circle(cx + s * 0.02, cy - s * 0.08, s * 0.2)
+      circle(cx + s * 0.2, cy + s * 0.02, s * 0.15)
+      path(`M ${cx - s * 0.34} ${cy + s * 0.16} H ${cx + s * 0.33}`)
+      break
     case 'database':
-      return [
-        `<ellipse class="architecture-icon-mark" cx="${cx}" cy="${cy - s * 0.16}" rx="${s * 0.24}" ry="${s * 0.1}" />`,
-        `<path class="architecture-icon-mark" d="M ${cx - s * 0.24} ${cy - s * 0.16} V ${cy + s * 0.2}" />`,
-        `<path class="architecture-icon-mark" d="M ${cx + s * 0.24} ${cy - s * 0.16} V ${cy + s * 0.2}" />`,
-        `<ellipse class="architecture-icon-mark" cx="${cx}" cy="${cy + s * 0.02}" rx="${s * 0.24}" ry="${s * 0.1}" />`,
-        `<ellipse class="architecture-icon-mark" cx="${cx}" cy="${cy + s * 0.2}" rx="${s * 0.24}" ry="${s * 0.1}" />`,
-      ].join('\n')
+      ellipse(cx, cy - s * 0.16, s * 0.24, s * 0.1)
+      path(`M ${cx - s * 0.24} ${cy - s * 0.16} V ${cy + s * 0.2}`)
+      path(`M ${cx + s * 0.24} ${cy - s * 0.16} V ${cy + s * 0.2}`)
+      ellipse(cx, cy + s * 0.02, s * 0.24, s * 0.1)
+      ellipse(cx, cy + s * 0.2, s * 0.24, s * 0.1)
+      break
     case 'disk':
-      return [
-        `<circle class="architecture-icon-mark" cx="${cx}" cy="${cy}" r="${s * 0.26}" />`,
-        `<circle class="architecture-icon-mark" cx="${cx}" cy="${cy}" r="${s * 0.09}" />`,
-      ].join('\n')
+      circle(cx, cy, s * 0.26)
+      circle(cx, cy, s * 0.09)
+      break
     case 'internet':
-      return [
-        `<circle class="architecture-icon-mark" cx="${cx}" cy="${cy}" r="${s * 0.26}" />`,
-        `<path class="architecture-icon-mark" d="M ${cx - s * 0.26} ${cy} H ${cx + s * 0.26}" />`,
-        `<path class="architecture-icon-mark" d="M ${cx} ${cy - s * 0.26} V ${cy + s * 0.26}" />`,
-        `<path class="architecture-icon-mark" d="M ${cx - s * 0.14} ${cy - s * 0.22} Q ${cx} ${cy} ${cx - s * 0.14} ${cy + s * 0.22}" />`,
-        `<path class="architecture-icon-mark" d="M ${cx + s * 0.14} ${cy - s * 0.22} Q ${cx} ${cy} ${cx + s * 0.14} ${cy + s * 0.22}" />`,
-      ].join('\n')
+      circle(cx, cy, s * 0.26)
+      path(`M ${cx - s * 0.26} ${cy} H ${cx + s * 0.26}`)
+      path(`M ${cx} ${cy - s * 0.26} V ${cy + s * 0.26}`)
+      path(`M ${cx - s * 0.14} ${cy - s * 0.22} Q ${cx} ${cy} ${cx - s * 0.14} ${cy + s * 0.22}`)
+      path(`M ${cx + s * 0.14} ${cy - s * 0.22} Q ${cx} ${cy} ${cx + s * 0.14} ${cy + s * 0.22}`)
+      break
     case 'server':
-      return [
-        `<rect class="architecture-icon-mark" x="${cx - s * 0.22}" y="${cy - s * 0.24}" width="${s * 0.44}" height="${s * 0.48}" rx="0" ry="0" />`,
-        `<path class="architecture-icon-mark" d="M ${cx - s * 0.16} ${cy - s * 0.08} H ${cx + s * 0.16}" />`,
-        `<path class="architecture-icon-mark" d="M ${cx - s * 0.16} ${cy + s * 0.06} H ${cx + s * 0.16}" />`,
-      ].join('\n')
+      add({ kind: 'rect', x: cx - s * 0.22, y: cy - s * 0.24, width: s * 0.44, height: s * 0.48, rx: 0, ry: 0 }, `<rect class="architecture-icon-mark" x="${cx - s * 0.22}" y="${cy - s * 0.24}" width="${s * 0.44}" height="${s * 0.48}" rx="0" ry="0" />`)
+      path(`M ${cx - s * 0.16} ${cy - s * 0.08} H ${cx + s * 0.16}`)
+      path(`M ${cx - s * 0.16} ${cy + s * 0.06} H ${cx + s * 0.16}`)
+      break
     default: {
-      const glyph = fallbackIconGlyph(icon)
-      return renderMultilineText(
-        glyph,
-        cx,
-        cy,
-        Math.max(10, size * 0.56),
-        `class="architecture-icon-glyph architecture-icon-fallback" data-fallback="true" text-anchor="middle" font-size="${Math.max(10, size * 0.56)}" font-weight="700"`,
-      )
+      const glyph = fallbackIconGlyph(icon), fontSize = Math.max(10, size * 0.56)
+      const block = fallbackBlock
+      children.push(marks.text({ id: semanticChildId(id, 'fallback'), role: 'icon', owner, text: glyph, block,
+        x: cx, y: cy, fontSize, fontWeight: 700, anchor: 'middle', paint: { fill: ink },
+      }, renderMultilineText(block ?? glyph, cx, cy, fontSize,
+        `class="architecture-icon-glyph architecture-icon-fallback" data-fallback="true" text-anchor="middle" font-size="${fontSize}" font-weight="700"`)))
     }
   }
-}
-
-function normalizeIconName(icon: string): string {
-  return icon.trim().toLowerCase().split(/[:/]/).pop() ?? icon.trim().toLowerCase()
-}
-
-function fallbackIconGlyph(icon: string): string {
-  const token = normalizeIconName(icon).replace(/[^a-z0-9]/g, '')
-  return (token[0] ?? '?').toUpperCase()
+  return marks.group({ id, role: 'icon', owner,
+    open: `  <g class="architecture-icon" data-icon="${escapeAttr(icon)}"${metadata}>`, close: '</g>',
+    children: children.map((node, index) => ({ node, indent: index === 0 ? 2 : 0 })),
+  })
 }
 
 const ARCHITECTURE_MARKER_PAINT = {

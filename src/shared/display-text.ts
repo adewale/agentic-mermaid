@@ -18,6 +18,21 @@ export interface PreparedDisplayText {
   readonly lineStarts: readonly number[]
 }
 
+const retainedPlans = new WeakSet<object>()
+function retainPlan(plan: PreparedDisplayText): PreparedDisplayText { retainedPlans.add(plan); return plan }
+
+/** Capture a supplied interpretation without reading its source a second time. */
+function immutablePlan(plan: PreparedDisplayText): PreparedDisplayText {
+  if (retainedPlans.has(plan)) return plan
+  return retainPlan(Object.freeze({
+    source: plan.source, display: plan.display, ...(plan.transform ? { transform: plan.transform } : {}),
+    lineStarts: Object.freeze([...plan.lineStarts]),
+    lines: Object.freeze(plan.lines.map(line => Object.freeze(line.map(run => Object.freeze({
+      ...run, ...(run.clusters ? { clusters: Object.freeze(run.clusters.map(cluster => Object.freeze({ ...cluster }))) } : {}),
+    }))))),
+  }))
+}
+
 /** A family's public string and the display reading that produced it. The
  * snapshot prevents a later direct string edit from reusing stale runs. */
 export interface LabelContent {
@@ -42,6 +57,7 @@ export function preparedDisplayTextValue(prepared: PreparedDisplayText): string 
 /** Decode tokens only after formatting has been read. A replacement retains
  * the whole token's span in the normalized, pre-expansion source. */
 export function replaceDisplayTextTokens(prepared: PreparedDisplayText, pattern: RegExp, replace: (token: string) => string): PreparedDisplayText {
+  prepared = immutablePlan(prepared)
   if (prepared.transform) throw new TypeError('Display tokens must be decoded before text transforms')
   const tokens = new RegExp(pattern.source, pattern.flags.includes('g') ? pattern.flags : pattern.flags + 'g')
   const lines = prepared.lines.map(line => Object.freeze(line.map(run => {
@@ -73,7 +89,7 @@ export function replaceDisplayTextTokens(prepared: PreparedDisplayText, pattern:
     append(run.text.slice(cursor), cursor, run.text.length, false)
     return Object.freeze({ ...run, text: clusters.map(cluster => cluster.text).join(''), clusters: Object.freeze(clusters) })
   })))
-  return Object.freeze({ ...prepared, lines: Object.freeze(lines) })
+  return retainPlan(Object.freeze({ ...prepared, lines: Object.freeze(lines) }))
 }
 
 /** The inverse display layer: encode literal run text before adding its real
@@ -103,7 +119,7 @@ export function concatDisplayText(parts: readonly DisplayTextInput[]): PreparedD
     }
     source += prepared.source
   }
-  return Object.freeze({ source, display, lines: Object.freeze(lines.map(line => Object.freeze(line))), lineStarts: Object.freeze(lineStarts) })
+  return retainPlan(Object.freeze({ source, display, lines: Object.freeze(lines.map(line => Object.freeze(line))), lineStarts: Object.freeze(lineStarts) }))
 }
 
 /** Transform visible characters, never serialized formatting instructions. */
@@ -120,6 +136,7 @@ export function transformDisplayText(text: string, transform?: TextTransform): s
  * source and cluster ranges retain their original values. */
 export function prepareDisplayText(source: DisplayTextInput, display: LabelDisplay = 'formatted', transform?: TextTransform): PreparedDisplayText {
   if (typeof source !== 'string') {
+    source = immutablePlan(source)
     if (!transform || source.transform === transform) return source
     if (source.transform) throw new TypeError('A prepared display transform cannot be replaced without its original runs')
     return transformPreparedDisplayText(source, transform)
@@ -156,7 +173,7 @@ export function prepareDisplayText(source: DisplayTextInput, display: LabelDispl
     offset += line.length + 1
     return Object.freeze(runs)
   })
-  const prepared = Object.freeze({ source, display, lines: Object.freeze(lines), lineStarts: Object.freeze(lineStarts) })
+  const prepared = retainPlan(Object.freeze({ source, display, lines: Object.freeze(lines), lineStarts: Object.freeze(lineStarts) }))
   return transform ? transformPreparedDisplayText(prepared, transform) : prepared
 }
 
@@ -177,5 +194,5 @@ function transformPreparedDisplayText(prepared: PreparedDisplayText, transform: 
       return Object.freeze({ ...run, text: transformed.slice(start, transformedAt), clusters: Object.freeze(clusters) })
     }))
   })
-  return Object.freeze({ ...prepared, transform, lines: Object.freeze(lines) })
+  return retainPlan(Object.freeze({ ...prepared, transform, lines: Object.freeze(lines) }))
 }

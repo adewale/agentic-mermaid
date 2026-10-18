@@ -202,6 +202,7 @@ export interface PositionedBlockHeader {
 }
 
 export interface PositionedActor {
+  menuBlock?: PixelTextBlock
   id: string
   label: string
   type: SequenceActorType

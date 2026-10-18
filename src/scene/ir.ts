@@ -86,7 +86,17 @@ export interface MarkPaint {
   opacity?: string
 }
 
-export type SceneTransform = { kind: 'rotate'; angle: number; cx: number; cy: number }
+export type SceneTransform =
+  | { kind: 'rotate'; angle: number; cx: number; cy: number }
+  /** SVG affine matrix: x' = a*x + c*y + e, y' = b*x + d*y + f. */
+  | { kind: 'matrix'; a: number; b: number; c: number; d: number; e: number; f: number }
+
+/** Semantic subject whose artwork this mark contributes. This is an authored
+ * identity or an explicit family identity, never a guessed id-prefix parent. */
+export interface SceneOwner {
+  id: string
+  role: SceneRole
+}
 
 export interface SceneNodeBase {
   /** Stable identifier for seeding and cross-references. Derived from source
@@ -96,6 +106,10 @@ export interface SceneNodeBase {
   role: SceneRole
   /** Typed DOM identity mirrored as data-id/data-role on structured SVG marks. */
   identity?: SvgSemanticIdentity
+  /** Explicit subject, or the nearest enclosing semantic group's identity. */
+  owner?: SceneOwner
+  /** Artwork shown only in an interactive state, such as a tooltip. */
+  visibility?: 'conditional'
   /** Typed accessibility semantics mirrored into ARIA on relation marks. */
   accessibility?: SvgSemanticAccessibility
   channels?: SemanticChannels
@@ -107,6 +121,8 @@ export interface ShapeMark extends SceneNodeBase {
   kind: 'shape'
   geometry: Geometry
   paint: MarkPaint
+  /** Alternate ink admitted for a declared interactive state. */
+  conditionalPaint?: MarkPaint
   /** Internal fill-only piece of an outlined surface. Sketch fill policies still
    * apply to its default surface color after the outline is separated. */
   surfaceFragment?: boolean
@@ -382,10 +398,13 @@ export interface TextMark extends SceneNodeBase {
   letterSpacing?: number
   display?: LabelDisplay
   prepared?: boolean
-  /** Fitted runs, including explicit wrapping/hyphenation, retained for fidelity. */
+  /** Fitted runs retained for text fidelity and existing consumers. */
   preparedLines?: readonly (readonly DisplayRun[])[]
-  /** Measured occupied band from family layout. Source/runs remain in the
-   * family block; Scene retains only the geometry needed by its consumers. */
+  /** Exact family-prepared text, including source, typography and measured geometry. */
+  block?: PixelTextBlock
+  /** Whether layout retained the block or the constructor prepared fallback metrics. */
+  measurement?: 'prepared' | 'fallback'
+  /** Occupied band and placement offset retained for existing consumers. */
   textLayout?: { width: number; height: number; lineHeight: number; offsetY: number }
   anchor: 'start' | 'middle' | 'end'
   paint: MarkPaint
@@ -416,6 +435,9 @@ export interface DocumentMark extends SceneNodeBase {
   element: 'open' | 'title' | 'description' | 'definitions' | 'content' | 'close'
   text?: string
   domId?: string
+  /** Closed non-paint purpose, validated against the actual document elements.
+   * Hidden or conditional artwork is not metadata. */
+  nonPaint?: 'accessibility' | 'stylesheet' | 'interaction-metadata'
   /** Typed marker resources owned by the definitions mark. Backends may
    * reserialize these without inspecting the private SVG definition string. */
   markerResources?: readonly MarkerDescriptor[]

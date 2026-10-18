@@ -1,3 +1,4 @@
+import type { TooltipLayout } from '../shared/tooltip-layout.ts'
 import type { PixelTextBlock } from '../shared/prepared-text.ts'
 // ============================================================================
 // XY Chart types
@@ -302,6 +303,7 @@ export interface PositionedDataLabel {
 }
 
 export interface PositionedBar {
+  tooltip?: TooltipLayout
   /** Bar rectangle in SVG coordinates */
   x: number
   y: number
@@ -326,6 +328,7 @@ export interface PositionedLine {
     label?: string
     textLabel?: string
     textBlock?: PixelTextBlock
+    tooltip?: TooltipLayout
     /** Renderer-owned text anchor; changing it never changes the sample. */
     textPosition?: { x: number; y: number; anchor: 'start' | 'middle' | 'end'; placement: 'above' | 'below' | 'left' | 'right' }
   }>

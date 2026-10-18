@@ -17,6 +17,7 @@ import { attachSceneNodeSerialization, sceneNodeSerialization } from '../scene/s
 import { measureRenderedText, renderedTextReady } from './helpers/rendered-text.ts'
 import { Resvg } from '@resvg/resvg-js'
 import { join } from 'node:path'
+import { createTextMeasurementExecution, withTextMeasurementExecution } from '../text-measurement-profile.ts'
 
 beforeAll(() => renderedTextReady())
 const typography = { fontSize: 18, fontWeight: 600 }
@@ -148,6 +149,19 @@ describe('prepared display text', () => {
     })
   }
 
+  it('captures mutable prepared input without reinterpreting its decoded content', () => {
+    const decoded = replaceDisplayTextTokens(prepareDisplayText('#lt;b#gt;'), /#\w+;/g, decodeMermaidEntities)
+    const input = structuredClone(decoded)
+    const block = preparePixelText(input, { fontSize: 12, fontWeight: 400 })
+    Object.assign(input, { source: 'Forged' })
+    Object.assign(input.lines[0]!, { 0: { ...input.lines[0]![0]!, text: 'Lost' } })
+    expect(block.prepared.source).toBe('#lt;b#gt;')
+    expect(block.lineBlocks[0]!.runs.map(run => run.text).join('')).toBe('<b>')
+    expect(block.prepared.lines[0]![0]!.text).toBe('<b>')
+    expect(Object.isFrozen(block.prepared)).toBe(true)
+    expect(Object.isFrozen(block.prepared.lines[0]![0]!.clusters)).toBe(true)
+  })
+
   it('keeps monospace metrics distinct from proportional text', () => {
     const block = preparePixelText('iii界', { ...typography, display: 'literal', monospace: true })
     expect(block.width).toBe(5 * 18 * 0.6)
@@ -194,6 +208,21 @@ describe('prepared display text', () => {
     expect(Object.isFrozen(block.lines)).toBe(true)
     expect(Object.isFrozen(block.lineBlocks[0]!.runs[0])).toBe(true)
   })
+
+  it.each([3, -12])('retains the actual glyph allocations for tracking %s across measurement contexts', letterSpacing => {
+    const execution = createTextMeasurementExecution({ id: 'test:nonadditive-tracking', version: '1.0.0', measure: ({ text, fontWeight }) => text.length > 1 ? 2 : fontWeight >= 700 ? 9 : 6 }, 'Inter')
+    const block = withTextMeasurementExecution(execution, () => preparePixelText('A<b>B</b>CD', { fontSize: 12, fontWeight: 400, letterSpacing }))
+    expect(block.width).toBe(letterSpacing === 3 ? 36 : 21)
+    const svg = renderMultilineText(block, 10, 20, 12, `text-anchor="start" font-size="12" font-weight="400" letter-spacing="${letterSpacing}"`)
+    expect([...svg.matchAll(/textLength="([^"]+)"/g)].map(match => Number(match[1]))).toEqual([6, 9, 6, 6])
+    expect(svg.replace(/<[^>]+>/g, '')).toBe('ABCD')
+    const node = marks.text({ id: 'tracked', role: 'label', text: block.text, block, x: 10, y: 20, fontSize: 12, anchor: 'start', paint: {} }, svg)
+    const problems: string[] = []
+    nodeProblems(node, 'tracked', problems)
+    expect(problems).toEqual([])
+    expect(Object.isFrozen(block.lineBlocks[0]!.fragments)).toBe(true)
+    expect(Object.isFrozen(block.lineBlocks[0]!.fragments![0])).toBe(true)
+  })
 })
 
 describe('prepared text at the graphical boundary', () => {
@@ -229,6 +258,9 @@ describe('prepared text at the graphical boundary', () => {
     const text = valid.parts.find(node => node.kind === 'text')!
     if (text.kind !== 'text') throw new Error('fixture must have text')
     for (const [field, value] of [
+      ['owner', { id: 'absent', role: 'node' }],
+      ['measurement', 'prepared'], ['prepared', true],
+      ['block', { ...text.block!, text: 'Forged content', prepared: { ...text.block!.prepared, source: 'Forged content' } }],
       ['fontWeight', 900], ['letterSpacing', 30], ['display', 'formatted'],
       ['textLayout', { ...text.textLayout, width: 0 }],
       ['textLayout', { ...text.textLayout, offsetY: 10 }],
@@ -238,7 +270,7 @@ describe('prepared text at the graphical boundary', () => {
       const forgedText = attachSceneNodeSerialization({ ...text, [field]: value }, sceneNodeSerialization(text))
       const result = validateSceneDoc({ ...valid, parts: valid.parts.map(node => node === text ? forgedText : node) }, { mode: 'external' })
       expect(result.valid).toBe(false)
-      expect(result.diagnostics).toContainEqual(expect.objectContaining({ code: 'SCENE_FIDELITY', path: expect.stringMatching(new RegExp(`\\.${field}$`)) }))
+      expect(result.diagnostics).toContainEqual(expect.objectContaining({ code: field === 'owner' ? 'SCENE_REFERENCE' : 'SCENE_FIDELITY', path: expect.stringMatching(new RegExp(`\\.${field}$`)) }))
     }
   })
   it('compares the complete prepared label instead of accepting only its first word', () => {

@@ -1,3 +1,4 @@
+import { layoutTooltip } from '../shared/tooltip-layout.ts'
 import type {
   PieChart,
   PositionedPieChart,
@@ -307,6 +308,12 @@ export function layoutPieChart(
     })
   })
 
+  for (const slice of slices) {
+    const mid = (slice.startAngle + slice.endAngle) / 2
+    const labelRadius = radius * visual.textPosition
+    const text = `${(slice.displayLabel ?? slice.label).replace(/\n/g, ' ')}: ${formatPieValue(slice.value)} (${formatPiePercent(slice.fraction)})`
+    slice.tooltip = layoutTooltip(round(round(cx) + labelRadius * Math.sin(mid)), round(round(cy) - labelRadius * Math.cos(mid)), text)
+  }
   placeSliceLabels(slices, cx, cy, radius, visual)
   for (const slice of slices) if (slice.pctLabel) slice.pctLabel.block = preparePixelText(slice.pctLabel.text, { display: 'literal', fontSize: slice.pctLabel.fontSize, fontWeight: PIE.sliceLabelFontWeight })
 

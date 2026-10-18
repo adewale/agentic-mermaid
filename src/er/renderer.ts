@@ -1,6 +1,6 @@
 import { prepareDisplayText, resolveLabelContent } from '../shared/display-text.ts'
 import type { PixelTextBlock } from '../shared/prepared-text.ts'
-import { erHeaderBlock, erRelationshipBlock, erAttributeBlocks, erGroupBlock } from './layout.ts'
+import { erHeaderBlock, erRelationshipBlock, erAttributeBlocks, erGroupBlock, erEmptyAttributeBlock } from './layout.ts'
 import type { PositionedErDiagram, PositionedErEntity, PositionedErRelationship, PositionedErGroup, ErAttribute, Cardinality } from './types.ts'
 import type { RenderContext } from '../types.ts'
 import { svgOpenTag, buildStyleBlock, buildShadowDefs, type DiagramColors } from '../theme.ts'
@@ -104,11 +104,11 @@ export function lowerErScene(
   parts.push(marks.definitions({ id: 'defs' }, defsParts.join('\n')))
 
   if (diagram.accessibilityTitle) {
-    parts.push(marks.documentContent({ id: 'acc-title', role: 'chrome' },
+    parts.push(marks.documentContent({ id: 'acc-title', role: 'chrome', nonPaint: 'accessibility' },
       `<title id="${titleId}">${escapeXml(diagram.accessibilityTitle)}</title>`))
   }
   if (diagram.accessibilityDescription) {
-    parts.push(marks.documentContent({ id: 'acc-desc', role: 'chrome' },
+    parts.push(marks.documentContent({ id: 'acc-desc', role: 'chrome', nonPaint: 'accessibility' },
       `<desc id="${descId}">${escapeXml(diagram.accessibilityDescription)}</desc>`))
   }
 
@@ -284,12 +284,14 @@ function renderEntityBox(entity: PositionedErEntity, style: ResolvedRenderStyle,
   // Empty row placeholder when no attributes
   if (attributes.length === 0) {
     const emptyColor = ink(style.nodeTextColor ?? 'var(--_text-muted)')
+    const block = entity.emptyAttributeBlock ?? erEmptyAttributeBlock()
     children.push({
       indent: 2,
       node: marks.text({
         id: `entity-empty:${id}`,
         role: 'attribute',
-        text: '(no attributes)',
+        text: block.text,
+        block,
         x: x + width / 2,
         y: attrTop + rowHeight / 2,
         fontSize: ER_FONT.attrSize,

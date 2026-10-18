@@ -10,6 +10,8 @@ import { topRoundedRectPath } from './svg-paths.ts'
 import { resolveInlineNodeTextColor, toneOnFill } from './color-resolver.ts'
 import type { ConnectorLabelDescriptor, MarkerDescriptor, SceneDoc, SceneNode, SemanticChannels } from './scene/ir.ts'
 import * as marks from './scene/marks.ts'
+import { pathArtwork } from './scene/artwork.ts'
+import { iconFallbackToken } from './shared/icon-fallback.ts'
 import { DefaultBackend } from './scene/backend.ts'
 import type { ResolvedStateVisualConfig } from './state/config.ts'
 import { resolveMindmapIcon } from './mindmap/icons.ts'
@@ -850,15 +852,31 @@ function renderFlowchartMedia(node: PositionedNode, ink: string): SceneNode | nu
     const glyph = resolveMindmapIcon(node.icon)
     if (glyph) {
       const scale = size / 24
-      const paths = glyph.paths.map(path => `<path d="${path}"/>`).join('')
-      return marks.documentContent({ id: `node:${node.id}:icon`, role: 'icon' }, `<g class="flowchart-icon" data-icon="${escapeAttr(node.icon)}" transform="translate(${cx - size / 2} ${y}) scale(${scale})" fill="${color}" stroke="${color}" stroke-width="0.8">${paths}</g>`)
+      return pathArtwork({ id: `node:${node.id}:icon`, paths: glyph.paths,
+        owner: { id: node.id, role: 'node' },
+        open: `<g class="flowchart-icon" data-icon="${escapeAttr(node.icon)}" transform="translate(${cx - size / 2} ${y}) scale(${scale})" fill="${color}" stroke="${color}" stroke-width="0.8">`,
+        transform: { kind: 'matrix', a: scale, b: 0, c: 0, d: scale, e: cx - size / 2, f: y },
+        paint: { fill: ink, stroke: ink, strokeWidth: '0.8' },
+      })
     }
-    const token = node.icon.split(/[:/\s-]+/).filter(Boolean).at(-1)?.slice(0, 2).toUpperCase() || '?'
-    return marks.text({ id: `node:${node.id}:icon`, role: 'icon', text: token, x: cx, y: y + size / 2, fontSize: 10, anchor: 'middle', paint: { fill: color } }, `<text class="flowchart-icon-fallback" data-icon="${escapeAttr(node.icon)}" x="${cx}" y="${y + size / 2}" text-anchor="middle" font-size="10" fill="${color}">${escapeXml(token)}</text>`)
+    const token = iconFallbackToken(node.icon)
+    return marks.text({ id: `node:${node.id}:icon`, role: 'icon', owner: { id: node.id, role: 'node' }, text: token,
+      block: node.iconFallbackBlock,
+      x: cx, y: y + size / 2, fontSize: 10, anchor: 'middle', paint: { fill: ink } }, `<text class="flowchart-icon-fallback" data-icon="${escapeAttr(node.icon)}" x="${cx}" y="${y + size / 2}" text-anchor="middle" font-size="10" fill="${color}">${escapeXml(token)}</text>`)
   }
   if (node.image) {
     const left = cx - size / 2
-    return marks.documentContent({ id: `node:${node.id}:image`, role: 'icon' }, `<g class="flowchart-image-placeholder" data-image-src="${escapeAttr(node.image)}" fill="none" stroke="${color}" stroke-width="1.2"><rect x="${left}" y="${y}" width="${size}" height="${size * 0.72}" rx="2"/><circle cx="${left + size * 0.72}" cy="${y + size * 0.2}" r="${size * 0.08}"/><path d="M${left + 2} ${y + size * 0.66}L${left + size * 0.36} ${y + size * 0.36}L${left + size * 0.52} ${y + size * 0.5}L${left + size * 0.7} ${y + size * 0.32}L${left + size - 2} ${y + size * 0.66}"/></g>`)
+    const d = `M${left + 2} ${y + size * 0.66}L${left + size * 0.36} ${y + size * 0.36}L${left + size * 0.52} ${y + size * 0.5}L${left + size * 0.7} ${y + size * 0.32}L${left + size - 2} ${y + size * 0.66}`
+    const paint = { fill: 'none', stroke: ink, strokeWidth: '1.2' }
+    const owner = { id: node.id, role: 'node' as const }
+    return marks.group({ id: `node:${node.id}:image`, role: 'icon', owner,
+      open: `<g class="flowchart-image-placeholder" data-image-src="${escapeAttr(node.image)}" fill="none" stroke="${color}" stroke-width="1.2">`, close: '</g>', join: '',
+      children: [
+        { indent: 0, node: marks.shape({ id: `node:${node.id}:image:frame`, role: 'icon', owner, geometry: { kind: 'rect', x: left, y, width: size, height: size * 0.72, rx: 2 }, paint }, `<rect x="${left}" y="${y}" width="${size}" height="${size * 0.72}" rx="2"/>`) },
+        { indent: 0, node: marks.shape({ id: `node:${node.id}:image:sun`, role: 'icon', owner, geometry: { kind: 'circle', cx: left + size * 0.72, cy: y + size * 0.2, r: size * 0.08 }, paint }, `<circle cx="${left + size * 0.72}" cy="${y + size * 0.2}" r="${size * 0.08}"/>`) },
+        { indent: 0, node: marks.shape({ id: `node:${node.id}:image:landscape`, role: 'icon', owner, geometry: { kind: 'path', d }, paint }, `<path d="${d}"/>`) },
+      ],
+    })
   }
   return null
 }

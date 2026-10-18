@@ -7,6 +7,7 @@
  * iterators, and post-admission mutation never remain live past this point.
  */
 
+import { transferRetainedPixelText } from '../shared/prepared-text.ts'
 import type { SceneDoc } from './ir.ts'
 import { SCENE_VALIDATION_LIMITS, assertValidSceneDoc, sceneValidationMode } from './scene-validation.ts'
 import { boundedUtf8ByteLength } from '../shared/utf8.ts'
@@ -198,6 +199,7 @@ export function snapshotBoundedExternalData(
           writable: false,
         })
       }
+      transferRetainedPixelText(candidate, snapshot)
       return Object.freeze(snapshot)
     } finally {
       active.delete(candidate)

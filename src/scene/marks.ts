@@ -15,7 +15,7 @@ import type {
   ConnectorHitGeometry, ConnectorLabelDescriptor, ConnectorMark, ConnectorRelationship,
   ConnectorRoute, ConnectorStroke, ConnectorTerminalProjection, DocumentMark, GroupMark,
   Geometry, LinearGradientDescriptor, MarkPaint, MarkerDescriptor,
-  SceneNode, SceneRole, SceneTransform, SemanticChannels, ShapeMark, TextMark,
+  SceneNode, SceneOwner, SceneRole, SceneTransform, SemanticChannels, ShapeMark, TextMark,
 } from './ir.ts'
 import type { DiagramColors } from '../theme.ts'
 import type { SvgSemanticIdentity } from './identity.ts'
@@ -37,6 +37,7 @@ import { connectorInlineLabelText } from './bounds.ts'
 import { deriveConnectorTerminalProjection } from './connector-terminal.ts'
 import { decodedSvgAttributeValue, scanSvgStartTags } from '../svg-structure.ts'
 import { hasMarkerCss } from '../output-security.ts'
+import { serializeTransform } from './transforms.ts'
 import {
   attachSceneNodeSerialization,
   canonicalizeSceneNodeSerialization,
@@ -48,8 +49,11 @@ export function shape(fields: {
   role: SceneRole
   /** Optional public DOM identity when the bounded Scene key is internal. */
   identity?: Omit<SvgSemanticIdentity, 'role'>
+  owner?: SceneOwner
+  visibility?: 'conditional'
   geometry: Geometry
   paint: MarkPaint
+  conditionalPaint?: MarkPaint
   surfaceFragment?: boolean
   channels?: SemanticChannels
   transform?: SceneTransform
@@ -66,9 +70,12 @@ export function shape(fields: {
     id: fields.id,
     role: fields.role,
     identity,
+    ...(fields.owner ? { owner: fields.owner } : {}),
+    ...(fields.visibility ? { visibility: fields.visibility } : {}),
     ...(accessibility ? { accessibility } : {}),
     geometry: fields.geometry,
     paint: fields.paint,
+    ...(fields.conditionalPaint ? { conditionalPaint: fields.conditionalPaint } : {}),
     ...(fields.surfaceFragment !== undefined ? { surfaceFragment: fields.surfaceFragment } : {}),
     ...(fields.channels ? { channels: fields.channels } : {}),
     ...(fields.transform ? { transform: fields.transform } : {}),
@@ -84,6 +91,8 @@ export interface ConnectorFields {
   paint: MarkPaint
   /** Typed identity is authoritative; connector() never inspects crisp SVG. */
   identity?: Omit<SvgSemanticIdentity, 'role'>
+  owner?: SceneOwner
+  visibility?: 'conditional'
   endpoints?: ConnectorEndpoints
   relationship?: Partial<ConnectorRelationship>
   route?: Partial<Omit<ConnectorRoute, 'geometry' | 'labelAnchors'>> & {
@@ -103,7 +112,7 @@ export interface ConnectorFields {
 // Runtime admission is closed too: TypeScript permits extra spread properties.
 const CONNECTOR_FIELDS: Record<keyof ConnectorFields, true> = {
   id: true, role: true, geometry: true, lineStyle: true, paint: true,
-  identity: true, endpoints: true, relationship: true, route: true, stroke: true,
+  identity: true, owner: true, visibility: true, endpoints: true, relationship: true, route: true, stroke: true,
   markers: true, labels: true, hit: true, terminalProjection: true, channels: true, transform: true,
 }
 const CONNECTOR_MARKER_FIELDS: Record<keyof NonNullable<ConnectorFields['markers']>, true> = { start: true, mid: true, end: true }
@@ -212,7 +221,7 @@ function ensureConnectorTransformProjection(crisp: string, transform: SceneTrans
   if (crisp === '' || !transform) return crisp
   const opening = crisp.match(/^\s*<(?:line|polyline|path)\b[^>]*>/)?.[0]
   if (!opening || /\stransform=/.test(opening)) return crisp
-  const value = `rotate(${transform.angle} ${transform.cx} ${transform.cy})`
+  const value = serializeTransform(transform)
   return crisp.replace(opening, opening.replace(/\s*\/?>$/, ending => ` transform="${value}"${ending}`))
 }
 
@@ -255,7 +264,7 @@ function connectorInlineLabelSvg(
     ...(block.letterSpacing ? [`letter-spacing="${block.letterSpacing}"`] : []),
     `text-anchor="${label.textAnchor}"`,
   ]
-  if (transform?.kind === 'rotate') attrs.push(`transform="rotate(${transform.angle} ${transform.cx} ${transform.cy})"`)
+  if (transform) attrs.push(`transform="${serializeTransform(transform)}"`)
   const paint: MarkPaint = {
     ...label.paint,
     ...(label.halo ? {
@@ -515,6 +524,8 @@ export function connector(fields: ConnectorFields, crisp: string): ConnectorMark
     hit,
     terminalProjection,
     identity,
+    ...(fields.owner ? { owner: fields.owner } : {}),
+    ...(fields.visibility ? { visibility: fields.visibility } : {}),
     ...(accessibility ? { accessibility } : {}),
     ...(fields.channels ? { channels: fields.channels } : {}),
     ...(fields.transform ? { transform: fields.transform } : {}),
@@ -527,6 +538,8 @@ export function text(fields: {
   role: SceneRole
   /** Optional public DOM identity when the bounded Scene key is internal. */
   identity?: Omit<SvgSemanticIdentity, 'role'>
+  owner?: SceneOwner
+  visibility?: 'conditional'
   text: string
   x: number
   y: number
@@ -542,6 +555,11 @@ export function text(fields: {
   transform?: SceneTransform
 }, crisp: string): TextMark {
   const { block, ...semantic } = fields
+  if (block) {
+    for (const field of ['fontSize', 'fontWeight', 'letterSpacing'] as const) {
+      if (fields[field] !== undefined && fields[field] !== block[field]) throw new TypeError(`Text "${fields.id}" ${field} differs from its retained prepared block`)
+    }
+  }
   const open = crisp.match(/<text\b[^>]*>/)?.[0] ?? ''
   const weight = fields.fontWeight ?? block?.fontWeight ?? Number(open.match(/\bfont-weight="(\d+)"/)?.[1] ?? 400)
   const spacing = fields.letterSpacing ?? block?.letterSpacing ?? Number(open.match(/\bletter-spacing="(-?[\d.]+)"/)?.[1] ?? 0)
@@ -558,12 +576,13 @@ export function text(fields: {
     ? relationAccessibility(identity)
     : relationAccessibilityForSvg(crisp, identity)
   const decorated = ensureSvgAccessibility(ensureSvgIdentity(crisp, identity), accessibility)
-  return attachSceneNodeSerialization({ kind: 'text', ...semantic, identity, accessibility, ...(block ? { prepared: true, preparedLines: block.lineBlocks.map(line => line.runs) } : {}), fontWeight: weight, letterSpacing: spacing, display, textLayout: { width: measured.width, height: measured.height, lineHeight: measured.lineHeight, offsetY } }, decorated)
+  return attachSceneNodeSerialization({ kind: 'text', ...semantic, identity, accessibility, block: measured, measurement: block ? 'prepared' : 'fallback', ...(block ? { prepared: true, preparedLines: block.lineBlocks.map(line => line.runs) } : {}), fontWeight: weight, letterSpacing: spacing, display, textLayout: { width: measured.width, height: measured.height, lineHeight: measured.lineHeight, offsetY } }, decorated)
 }
 
 export function documentContent(fields: {
   id: string
   role: SceneRole
+  nonPaint?: DocumentMark['nonPaint']
   channels?: SemanticChannels
 }, svg: string): DocumentMark {
   return attachSceneNodeSerialization({ kind: 'document', element: 'content', ...fields }, svg)
@@ -609,6 +628,9 @@ export function indentLines(s: string, n: number): string {
 export function group(fields: {
   id: string
   role: SceneRole
+  owner?: SceneOwner
+  visibility?: 'conditional'
+  transform?: SceneTransform
   open: string
   close: string
   children: Array<{ node: SceneNode; indent: number }>
@@ -617,12 +639,21 @@ export function group(fields: {
 }): GroupMark {
   const join = fields.join ?? '\n'
   const identity = semanticIdentityForSvg(fields.open, fields)
+  const owner = fields.owner ?? { id: identity.id, role: identity.role }
+  // A mark can participate in more than one document. Ownership belongs to
+  // this composition, so never mutate a caller's reusable child in place.
+  const children = fields.children.map(child => ({
+    ...child,
+    node: child.node.owner || child.node.kind === 'document' || child.node.kind === 'group'
+      ? child.node
+      : attachSceneNodeSerialization({ ...child.node, owner }, sceneNodeSerialization(child.node)),
+  }))
   // Relation accessibility belongs to the typed ConnectorMark. Composite
   // wrappers may carry grouping metadata, but must not create a second ARIA
   // relation beside the connector authority.
   const open = canonicalizeSceneNodeSerialization(ensureSvgIdentity(fields.open, identity))
   const segments: string[] = [open]
-  for (const child of fields.children) {
+  for (const child of children) {
     segments.push(indentLines(sceneNodeSerialization(child.node), child.indent))
   }
   segments.push(fields.close)
@@ -632,10 +663,13 @@ export function group(fields: {
     role: fields.role,
     open,
     close: fields.close,
-    children: fields.children,
+    children,
     join,
     channels: fields.channels,
     identity,
+    owner,
+    ...(fields.visibility ? { visibility: fields.visibility } : {}),
+    ...(fields.transform ? { transform: fields.transform } : {}),
   }, segments.join(join))
 }
 

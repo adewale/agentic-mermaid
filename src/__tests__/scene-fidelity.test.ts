@@ -11,6 +11,8 @@
 
 import { describe, test, expect } from 'bun:test'
 import type { RenderOptions } from '../types.ts'
+import { inspectScenePrimitives } from '../scene/inspection.ts'
+import { SECTION_B_FAMILY_CENSUS_FIXTURES } from '../scene/section-b-census-fixtures.ts'
 import { sceneFidelityProblems } from '../scene/fidelity.ts'
 import { DefaultBackend } from '../scene/backend.ts'
 import type { SceneDoc } from '../scene/ir.ts'
@@ -63,6 +65,7 @@ function lowerAll(): { scenes: Lowered[]; dropped: Array<{ id: string; reason: s
   const dropped: Array<{ id: string; reason: string }> = []
   const samples: Array<{ id: string; family: string; source: string; options?: RenderOptions }> = [
     ...collectSamples(),
+    ...Object.entries(SECTION_B_FAMILY_CENSUS_FIXTURES).map(([family, source]) => ({ id: `composition/${family}`, family, source })),
     ...knownBuiltinFamilies().map(family => ({ id: `registry/${family}`, family, source: getFamily(family)!.example })),
   ]
   const gantt = samples.find(sample => sample.id === 'fixture/gantt-basic.mmd')!
@@ -141,6 +144,18 @@ describe('scene fidelity', () => {
     if (problems.length > 0) {
       throw new Error(`scene fidelity violations (${problems.length}):\n` + problems.slice(0, 40).join('\n'))
     }
+  })
+
+  test('all final artwork is measured or explicitly non-painting across the corpus', () => {
+    const missing: string[] = []
+    for (const scene of scenes) {
+      const inspection = inspectScenePrimitives(scene.doc)
+      for (const primitive of inspection.primitives) {
+        if (primitive.coverage === 'unmeasured') missing.push(`${scene.id}: ${primitive.id}: ${primitive.reason}`)
+        if (primitive.text && primitive.coverage !== 'non-painting' && primitive.text.measurement !== 'prepared') missing.push(`${scene.id}: ${primitive.id}: text was not retained from layout`)
+      }
+    }
+    expect(missing).toEqual([])
   })
 
   test('sequence label gaps preserve unique identities beside delimiter-bearing actor ids', () => {

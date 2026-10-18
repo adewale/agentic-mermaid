@@ -1,3 +1,5 @@
+import { resolveMindmapIcon } from './icons.ts'
+import { iconFallbackToken } from '../shared/icon-fallback.ts'
 import type { MindmapDiagram, MindmapNode, PositionedMindmapDiagram, PositionedMindmapEdge, PositionedMindmapNode } from './types.ts'
 import { diagramTitleBand, positionDiagramTitle } from '../styles.ts'
 import type { ResolvedRenderStyle } from '../styles.ts'
@@ -40,7 +42,9 @@ function measureNodes(root: MindmapNode, maxNodeWidth: number, style: MindmapLay
     if (node.shape === 'circle') width = height = Math.max(width, height, 54)
     if (node.shape === 'bang' || node.shape === 'cloud') { width += 18; height += 10 }
     entries.set(node.id, {
-      id: node.id, label, labelBlock, shape: node.shape, markdown: node.markdown, icon: node.icon, className: node.className,
+      id: node.id, label, labelBlock,
+      iconFallbackBlock: node.icon && !resolveMindmapIcon(node.icon) ? preparePixelText(iconFallbackToken(node.icon), { fontSize: 9, fontWeight: 400 }) : undefined,
+      shape: node.shape, markdown: node.markdown, icon: node.icon, className: node.className,
       ...(parentId ? { parentId } : {}), depth, side: depth === 0 ? 'root' : 'right', x: 0, y: 0, width, height,
     })
     for (const child of node.children) measure(child, depth + 1, node.id)

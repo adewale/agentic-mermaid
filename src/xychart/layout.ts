@@ -1,3 +1,4 @@
+import { layoutTooltip } from '../shared/tooltip-layout.ts'
 import { preparePixelText, type PixelTextBlock } from '../shared/prepared-text.ts'
 import type {
   AxisTick,
@@ -36,6 +37,7 @@ const BAR_PADDING_PERCENT = 0.05
 const BOTTOM_LABEL_RENDERED_ALLOWANCE_EM = 0.6
 
 /** Legend swatch geometry, shared with the renderer and pinned by tests. */
+export const XY_DOT_RADIUS = 4
 export const LEGEND_SWATCH_SIZE = 12
 export const LEGEND_SWATCH_GAP = 6
 
@@ -149,6 +151,10 @@ export function layoutXYChart(
         }
       }
     }
+  }
+  {
+    for (const bar of positioned.bars) bar.tooltip = layoutTooltip(positioned.horizontal ? bar.x + bar.width : bar.x + bar.width / 2, positioned.horizontal ? bar.y + bar.height / 2 : bar.y, formatBarValue(bar.value))
+    for (const line of positioned.lines) for (const point of line.points) point.tooltip = layoutTooltip(point.x, point.y - XY_DOT_RADIUS, formatBarValue(point.value))
   }
   return positioned
 }

@@ -318,15 +318,6 @@ const descriptorData = Object.freeze({
     },
     {
       "role": "icon",
-      "primitive": "document",
-      "applicability": "applicable",
-      "realization": "native",
-      "evidence": [
-        "src/__tests__/section-a-family-descriptor-conformance.test.ts"
-      ]
-    },
-    {
-      "role": "icon",
       "primitive": "text",
       "applicability": "applicable",
       "realization": "native",
@@ -337,6 +328,15 @@ const descriptorData = Object.freeze({
     {
       "role": "icon",
       "primitive": "shape",
+      "applicability": "applicable",
+      "realization": "native",
+      "evidence": [
+        "src/__tests__/section-a-family-descriptor-conformance.test.ts"
+      ]
+    },
+    {
+      "role": "icon",
+      "primitive": "container",
       "applicability": "applicable",
       "realization": "native",
       "evidence": [

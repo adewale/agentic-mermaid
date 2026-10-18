@@ -5,6 +5,8 @@
  * reference, and non-fetching checks before a backend can observe them.
  */
 
+import { isRetainedPixelText } from '../shared/prepared-text.ts'
+import { scanSvgStartTags } from '../svg-structure.ts'
 import { applyOutputSecurityPolicy } from '../output-security.ts'
 import { buildStyleBlock, svgOpenTag, type DiagramColors } from '../theme.ts'
 import { escapeAttr, escapeXml } from '../multiline-utils.ts'
@@ -24,6 +26,7 @@ import type {
   SceneNode,
   SceneRole,
   SemanticChannels,
+  SceneOwner,
 } from './ir.ts'
 import { deriveConnectorTerminalProjection } from './connector-terminal.ts'
 import {
@@ -628,6 +631,8 @@ interface ValidationState {
   readonly diagnostics: MutableDiagnostic[]
   readonly external: boolean
   readonly ids: Map<string, { path: string; kind: string }>
+  readonly subjects: Set<string>
+  readonly ownerReferences: Array<{ key: string; path: string }>
   readonly domIds: Map<string, string>
   readonly markerIds: Map<string, MarkerDescriptor>
   readonly gradientIds: Map<string, LinearGradientDescriptor>
@@ -676,10 +681,10 @@ function validateNode(value: unknown, path: string, state: ValidationState, dept
     add(state.diagnostics, 'SCENE_DOCUMENT', path, `${kind} marks must be top-level document furniture`)
   }
   if (state.external) {
-    const base = ['kind', 'id', 'role', 'identity', 'accessibility', 'channels', 'transform']
+    const base = ['kind', 'id', 'role', 'identity', 'accessibility', 'channels', 'transform', 'owner']
     const fields: Record<string, readonly string[]> = {
       shape: [...base, 'geometry', 'paint'],
-      text: [...base, 'text', 'x', 'y', 'fontSize', 'anchor', 'paint', 'fontWeight', 'letterSpacing', 'display', 'textLayout'],
+      text: [...base, 'text', 'x', 'y', 'fontSize', 'anchor', 'paint', 'fontWeight', 'letterSpacing', 'display', 'textLayout', 'block', 'measurement', 'prepared'],
       group: [...base, 'open', 'close', 'children', 'join'],
       'document': [...base, 'element', 'text', 'domId', 'markerResources'],
       connector: [
@@ -704,6 +709,9 @@ function validateNode(value: unknown, path: string, state: ValidationState, dept
     else state.domIds.set(value.domId, `${path}.domId`)
   }
   validateRole(kind, value.role, `${path}.role`, state)
+  if (typeof value.id === 'string' && typeof value.role === 'string') state.subjects.add(JSON.stringify([value.id, value.role]))
+  if (record(value.identity) && typeof value.identity.id === 'string' && typeof value.identity.role === 'string') state.subjects.add(JSON.stringify([value.identity.id, value.identity.role]))
+  if (record(value.owner) && typeof value.owner.id === 'string' && typeof value.owner.role === 'string') state.ownerReferences.push({ key: JSON.stringify([value.owner.id, value.owner.role]), path: `${path}.owner` })
   validateChannels(value.channels, `${path}.channels`, state.diagnostics)
   let serialized: string | undefined
   try {
@@ -727,15 +735,23 @@ function validateNode(value: unknown, path: string, state: ValidationState, dept
     )
   }
   if (value.transform !== undefined) {
-    if (!record(value.transform) || value.transform.kind !== 'rotate') {
-      add(state.diagnostics, 'SCENE_DOCUMENT', `${path}.transform`, 'must be a rotate transform')
+    if (!record(value.transform) || !['rotate', 'matrix'].includes(String(value.transform.kind))) {
+      add(state.diagnostics, 'SCENE_DOCUMENT', `${path}.transform`, 'must be a rotate or matrix transform')
     } else {
-      finite(value.transform.angle, `${path}.transform.angle`, state.diagnostics)
-      finite(value.transform.cx, `${path}.transform.cx`, state.diagnostics)
-      finite(value.transform.cy, `${path}.transform.cy`, state.diagnostics)
+      const fields = value.transform.kind === 'matrix' ? ['a', 'b', 'c', 'd', 'e', 'f'] : ['angle', 'cx', 'cy']
+      for (const field of fields) finite(value.transform[field], `${path}.transform.${field}`, state.diagnostics)
     }
     if (state.external) add(state.diagnostics, 'SCENE_DOCUMENT', `${path}.transform`, 'external Scene transforms are not exposed by the declarative builder')
   }
+
+  if (value.owner !== undefined) {
+    if (!record(value.owner)) add(state.diagnostics, 'SCENE_REFERENCE', `${path}.owner`, 'must be a semantic owner')
+    else {
+      boundedString(value.owner.id, `${path}.owner.id`, state.diagnostics)
+      if (typeof value.owner.role !== 'string' || (!Object.hasOwn(BUILTIN_SCENE_ROLE_TRAITS, value.owner.role) && !NAMESPACED_ROLE.test(value.owner.role))) add(state.diagnostics, 'SCENE_ROLE', `${path}.owner.role`, 'must be a Scene role')
+    }
+  }
+  if (value.visibility !== undefined && value.visibility !== 'conditional') add(state.diagnostics, 'SCENE_DOCUMENT', `${path}.visibility`, 'must be conditional')
 
   if (kind === 'shape') {
     if (value.surfaceFragment !== undefined && typeof value.surfaceFragment !== 'boolean') {
@@ -746,6 +762,10 @@ function validateNode(value: unknown, path: string, state: ValidationState, dept
       add(state.diagnostics, 'SCENE_BOUNDS', `${path}.geometry`, 'external shapes must use a directly bounded structured geometry')
     }
     validatePaint(value.paint, `${path}.paint`, state.diagnostics, state.external)
+    if (value.conditionalPaint !== undefined) {
+      if (value.visibility !== 'conditional') add(state.diagnostics, 'SCENE_DOCUMENT', `${path}.conditionalPaint`, 'requires an explicit conditional state')
+      validatePaint(value.conditionalPaint, `${path}.conditionalPaint`, state.diagnostics, state.external)
+    }
     return
   }
   if (kind === 'text') {
@@ -756,6 +776,16 @@ function validateNode(value: unknown, path: string, state: ValidationState, dept
     if (value.fontWeight !== undefined) finite(value.fontWeight, `${path}.fontWeight`, state.diagnostics, { positive: true })
     if (value.letterSpacing !== undefined) finite(value.letterSpacing, `${path}.letterSpacing`, state.diagnostics)
     if (value.display !== undefined && value.display !== 'literal' && value.display !== 'formatted') add(state.diagnostics, 'SCENE_DOCUMENT', `${path}.display`, 'must be literal or formatted')
+    if (value.measurement !== undefined && !['prepared', 'fallback'].includes(String(value.measurement))) add(state.diagnostics, 'SCENE_DOCUMENT', `${path}.measurement`, 'must identify prepared or fallback measurement')
+    if (value.measurement === 'prepared' && (!record(value.block) || value.block.unit !== 'px' || !record(value.block.prepared))) add(state.diagnostics, 'SCENE_DOCUMENT', `${path}.block`, 'prepared text must retain its actual pixel block')
+    if (record(value.block)) {
+      if (!isRetainedPixelText(value.block)) add(state.diagnostics, 'SCENE_FIDELITY', `${path}.block`, 'must retain the actual immutable pixel text preparation')
+      for (const field of ['fontSize', 'fontWeight', 'letterSpacing'] as const) {
+        if (value[field] !== undefined && value[field] !== value.block[field]) add(state.diagnostics, 'SCENE_FIDELITY', `${path}.block.${field}`, 'must equal the retained text typography')
+      }
+      for (const field of ['width', 'height', 'fontSize', 'fontWeight', 'lineHeight']) finite(value.block[field], `${path}.block.${field}`, state.diagnostics, { nonNegative: true })
+      if (record(value.textLayout) && (value.block.width !== value.textLayout.width || value.block.height !== value.textLayout.height || value.block.lineHeight !== value.textLayout.lineHeight)) add(state.diagnostics, 'SCENE_FIDELITY', `${path}.textLayout`, 'retained block differs from occupied text geometry')
+    }
     if (value.textLayout !== undefined) {
       if (!record(value.textLayout)) add(state.diagnostics, 'SCENE_DOCUMENT', `${path}.textLayout`, 'must be measured text geometry')
       else {
@@ -791,6 +821,13 @@ function validateNode(value: unknown, path: string, state: ValidationState, dept
     return
   }
   if (kind === 'document') {
+    if (value.nonPaint !== undefined) {
+      const tags: Record<string, readonly string[]> = { accessibility: ['title', 'desc'], stylesheet: ['style'], 'interaction-metadata': ['title', 'desc'] }
+      const allowed = tags[String(value.nonPaint)]
+      if (value.element !== 'content' || !allowed || serialized === undefined || scanSvgStartTags(serialized).some(tag => !allowed.includes(tag.name))) {
+        add(state.diagnostics, 'SCENE_DOCUMENT', `${path}.nonPaint`, 'must describe only closed non-painting metadata elements')
+      }
+    }
     if (!['open', 'title', 'description', 'definitions', 'content', 'close'].includes(String(value.element))) {
       add(state.diagnostics, 'SCENE_DOCUMENT', `${path}.element`, 'has an unknown document element')
     }
@@ -1010,6 +1047,7 @@ function validateNode(value: unknown, path: string, state: ValidationState, dept
         }
       }
       if (label.clearance !== undefined) finite(label.clearance, `${path}.labels[${index}].clearance`, state.diagnostics, { nonNegative: true })
+      if (label.block !== undefined && (!record(label.block) || !isRetainedPixelText(label.block))) add(state.diagnostics, 'SCENE_FIDELITY', `${path}.labels[${index}].block`, 'must retain the actual immutable pixel text preparation')
       if (label.fontSize !== undefined) finite(label.fontSize, `${path}.labels[${index}].fontSize`, state.diagnostics, { positive: true })
       if (label.fontWeight !== undefined) finite(label.fontWeight, `${path}.labels[${index}].fontWeight`, state.diagnostics, { positive: true })
       if (label.letterSpacing !== undefined) finite(label.letterSpacing, `${path}.labels[${index}].letterSpacing`, state.diagnostics)
@@ -1215,6 +1253,7 @@ function validateCanonicalExternalNode(
   node: SceneNode,
   path: string,
   diagnostics: MutableDiagnostic[],
+  parent?: SceneOwner,
 ): void {
   if (node.kind === 'document') return
   let expected: SceneNode
@@ -1224,6 +1263,8 @@ function validateCanonicalExternalNode(
     add(diagnostics, 'SCENE_FIDELITY', path, error instanceof Error ? error.message : String(error))
     return
   }
+  const expectedOwner = node.kind === 'group' ? expected.owner : parent
+  if (!structurallyEqual(node.owner, expectedOwner)) add(diagnostics, 'SCENE_FIDELITY', `${path}.owner`, 'must equal ownership derived from the external container tree')
   if (sceneNodeSerialization(node) !== sceneNodeSerialization(expected)) {
     add(diagnostics, 'SCENE_FIDELITY', path, 'must equal the canonical serialization generated from the external Scene fields')
   }
@@ -1236,11 +1277,11 @@ function validateCanonicalExternalNode(
     }
     node.children.forEach((child, index) => {
       if (child.indent !== 2) add(diagnostics, 'SCENE_FIDELITY', `${path}.children[${index}].indent`, 'external container children must use the canonical two-space indent')
-      validateCanonicalExternalNode(child.node, `${path}.children[${index}].node`, diagnostics)
+      validateCanonicalExternalNode(child.node, `${path}.children[${index}].node`, diagnostics, { id: node.identity?.id ?? node.id, role: node.role })
     })
   }
   if (node.kind === 'text' && expected.kind === 'text') {
-    for (const field of ['fontWeight', 'letterSpacing', 'display', 'textLayout'] as const) {
+    for (const field of ['fontWeight', 'letterSpacing', 'display', 'textLayout', 'block', 'measurement', 'prepared'] as const) {
       if (!structurallyEqual(node[field], expected[field])) add(diagnostics, 'SCENE_FIDELITY', `${path}.${field}`, 'must equal text geometry derived by the external Scene builder')
     }
   }
@@ -1373,6 +1414,8 @@ export function validateSceneDoc(value: unknown, options: SceneValidationOptions
       diagnostics,
       external,
       ids: new Map(),
+      subjects: new Set(),
+      ownerReferences: [],
       domIds: new Map(),
       markerIds: new Map(),
       gradientIds: new Map(),
@@ -1512,6 +1555,7 @@ export function validateSceneDoc(value: unknown, options: SceneValidationOptions
       }
     }
 
+    for (const reference of state.ownerReferences) if (!state.subjects.has(reference.key)) add(diagnostics, 'SCENE_REFERENCE', reference.path, 'must reference an actual Scene subject identity and role')
     for (const reference of state.companionLabelReferences) {
       const target = state.ids.get(reference.id)
       if (!target) add(diagnostics, 'SCENE_REFERENCE', reference.path, `references unknown companion Text mark "${reference.id}"`)

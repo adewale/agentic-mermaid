@@ -1,4 +1,4 @@
-import { resolveLabelContent, type DisplayTextInput } from '../shared/display-text.ts'
+import { prepareDisplayText, resolveLabelContent, type DisplayTextInput } from '../shared/display-text.ts'
 import { assertClassDiagramWork } from '../shared/diagram-limits.ts'
 import { preparePixelText, type PixelTextBlock } from '../shared/prepared-text.ts'
 import { memberToString } from './text.ts'
@@ -109,7 +109,16 @@ export function classTextBlock(text: DisplayTextInput, style: ResolvedRenderStyl
 }
 
 export function classMemberBlock(member: ClassMember): PixelTextBlock {
-  return preparePixelText(memberToString(member), { display: 'literal', fontSize: CLS.memberFontSize, fontWeight: 400, monospace: true })
+  return preparePixelText(classLiteralPlan(memberToString(member), member.isAbstract), { display: 'literal', fontSize: CLS.memberFontSize, fontWeight: 400, monospace: true })
+}
+
+function classLiteralPlan(text: string, italic = false): DisplayTextInput {
+  const prepared = prepareDisplayText(text, 'literal')
+  return italic ? { ...prepared, lines: prepared.lines.map(line => line.map(run => ({ ...run, italic: true }))) } : prepared
+}
+
+export function classAnnotationBlock(annotation: string): PixelTextBlock {
+  return preparePixelText(classLiteralPlan(`<<${annotation}>>`, true), { display: 'literal', fontSize: 10, fontWeight: 500 })
 }
 
 type ClassSizeMap = Map<string, { width: number; height: number; headerHeight: number; attrHeight: number; methodHeight: number }>
@@ -168,7 +177,7 @@ function buildClassElkGraph(
       ? cls.methods.length * CLS.memberRowHeight + style.nodePaddingY
       : CLS.emptySectionHeight
 
-    const annotationWidth = cls.annotation === undefined ? 0 : preparePixelText(`<<${cls.annotation}>>`, { display: 'literal', fontSize: 10, fontWeight: 500 }).width
+    const annotationWidth = cls.annotation === undefined ? 0 : classAnnotationBlock(cls.annotation).width
     const headerTextW = Math.max(labelBlock.width, annotationWidth)
     const maxAttrW = maxMemberWidth(cls.attributes)
     const maxMethodW = maxMemberWidth(cls.methods)
@@ -563,7 +572,7 @@ export function layoutClassDiagram(
     cls.labelBlock = classTextBlock(resolveLabelContent(cls.label, cls.labelContent), style, 'node')
     cls.attributeBlocks = cls.attributes.map(classMemberBlock)
     cls.methodBlocks = cls.methods.map(classMemberBlock)
-    if (cls.annotation !== undefined) cls.annotationBlock = preparePixelText(`<<${cls.annotation}>>`, { display: 'literal', fontSize: 10, fontWeight: 500 })
+    if (cls.annotation !== undefined) cls.annotationBlock = classAnnotationBlock(cls.annotation)
   }
   for (const ns of positioned!.namespaces) ns.labelBlock = classTextBlock(resolveLabelContent(ns.label, ns.labelContent), style, 'group', ns.width - 2 * style.groupLabelPaddingX)
   for (const note of positioned!.notes) note.textBlock = preparePixelText(resolveLabelContent(note.text, note.textContent), { fontSize: 12, fontWeight: 400 })
