@@ -256,8 +256,11 @@ function buildClassElkGraph(
     const edge: ElkExtendedEdge = { id: `e${i}`, sources: [rel.from], targets: [rel.to] }
     if (rel.label) {
       const metrics = classTextBlock(rel.label, style, 'edge')
-      const label = metrics.text
-      edge.labels = [{ text: label, width: metrics.width + 8, height: metrics.height + 6 }]
+      // Empty formatted text has no painted label. ELK can leave its label
+      // box at the origin, which would invent off-canvas text geometry.
+      if (metrics.lineBlocks.some(line => line.runs.some(run => run.text.trim().length > 0))) {
+        edge.labels = [{ text: metrics.text, width: metrics.width + 8, height: metrics.height + 6 }]
+      }
     }
     const fromChain = ancestorsOf(rel.from)
     const toChain = ancestorsOf(rel.to)
