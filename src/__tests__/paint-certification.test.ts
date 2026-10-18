@@ -81,6 +81,10 @@ test('native families expose request-bound graphical, verification, layout and q
     const proof = rendered.receipt.layoutCertification
     expect(proof?.status, family).toBe('passed')
     expect(proof?.outputDigest, family).toBe(renderedSvgDigest(rendered.svg))
+    if (proof?.unit === 'px') {
+      const actual = rendered.svg.match(/viewBox="([^"]+)"/)![1]!.split(/\s+/).map(Number)
+      expect([proof.viewport.x, proof.viewport.y, proof.viewport.width, proof.viewport.height], family).toEqual(actual)
+    }
     const layout = layoutMermaidWithReceipt(source, { debug: true, layoutSafety: 'strict' })
     expect(layout.receipt.layoutCertification?.status, family).toBe('passed')
     expect(layout.layout.paintCertification?.status, family).toBe('passed')
@@ -134,4 +138,47 @@ test('inline connector text participates in actual final paint order and prepare
   expect(hidden.coverage.preparedText).toBe(1)
   expect(hidden.issues).toContainEqual(expect.objectContaining({ code: 'TEXT_OCCLUDED', id: 'inline-label', by: 'cover' }))
   expect(certifyScenePaint(scene([surface(), edge])).status).toBe('passed')
+})
+
+
+test.each(['transparent', 'rgba(0,0,0,0)', '#00000000'])('invisible %s native outlines preserve the final viewport', stroke => {
+  const rendered = renderMermaidSVGWithReceipt(`flowchart LR\nA[Visible]\nstyle A stroke:${stroke},stroke-width:1000px`)
+  const proof = rendered.receipt.layoutCertification!
+  expect(proof.status).toBe('passed')
+  if (proof.unit === 'px') {
+    expect(proof.repairs).toEqual([])
+    expect(proof.viewport.width).toBeLessThan(200)
+    expect(proof.viewport.height).toBeLessThan(150)
+  }
+})
+
+test('repaired non-scaling strokes remain explicitly outside final containment proof', () => {
+  const shape = marks.shape({ id: 'border', role: 'node', geometry: { kind: 'rect', x: 0, y: 0, width: 100, height: 80 }, paint: { stroke: '#000', strokeWidth: '10', vectorEffect: 'non-scaling-stroke' } }, '<rect x="0" y="0" width="100" height="80" stroke="#000" stroke-width="10" vector-effect="non-scaling-stroke"/>')
+  expect(certifyScenePaint(scene([shape]))).toMatchObject({ status: 'unverified', repairs: ['expand-viewport'], issues: [expect.objectContaining({ code: 'OUTPUT_SCOPE' })] })
+})
+
+test('a differently scaled marker carrier cannot erase earlier occluded artwork', () => {
+  const marker = { id: 'arrow', shape: 'arrow' as const, bounds: { x0: -1, y0: -1, x1: 1, y1: 1 } }
+  const fields = { id: 'relationship', role: 'edge' as const, lineStyle: 'solid' as const, geometry: { kind: 'line' as const, x1: 20, y1: 30, x2: 30, y2: 30 }, paint: { stroke: '#111', strokeWidth: '10' }, markers: { end: marker } }
+  const edge = marks.connector(fields, '<line x1="20" y1="30" x2="30" y2="30" stroke="#111" stroke-width="10" marker-end="url(#arrow)"/>')
+  const repaint = marks.connector({ ...fields, id: 'small-carrier', role: 'chrome', owner: { id: 'relationship', role: 'edge' }, paint: { stroke: '#111', strokeWidth: '1' } }, '<line x1="20" y1="30" x2="30" y2="30" stroke="#111" stroke-width="1" marker-end="url(#arrow)"/>')
+  const proof = certifyScenePaint(scene([edge, surface(), repaint]))
+  expect(proof.status).toBe('failed')
+  expect(proof.checks.markers).toBe(2)
+  expect(proof.issues).toContainEqual(expect.objectContaining({ code: 'MARKER_OCCLUDED', id: 'relationship' }))
+})
+
+test('separated leaves cannot evade the final occlusion traversal budget', () => {
+  const parts: SceneNode[] = [], count = 2048
+  for (let i = 0; i < count; i++) {
+    const y = Math.floor(i / 8) % 2 === 0 ? 100 : -100
+    parts.push(marks.shape({ id: `surface:${i}`, role: 'node', geometry: { kind: 'rect', x: 0, y, width: 1000, height: 10 }, paint: { fill: '#fff' } }, `<rect x="0" y="${y}" width="1000" height="10" fill="#fff"/>`))
+  }
+  const block = preparePixelText('X', { fontSize: 12, fontWeight: 400 })
+  for (let i = 0; i < count; i++) parts.push(marks.text({ id: `text:${i}`, role: 'label', text: 'X', block, x: 500, y: 0, fontSize: 12, anchor: 'start', paint: { fill: '#111' } }, '<text x="500" y="0" font-size="12">X</text>'))
+  const proof = certifyScenePaint({ ...scene(parts), width: 1000, height: 200 })
+  expect(proof.status).toBe('unverified')
+  expect(proof.checks.occlusionPairs).toBe(0)
+  expect(proof.checks.operations).toBeLessThanOrEqual(proof.checks.maxOperations)
+  expect(proof.issues).toContainEqual(expect.objectContaining({ code: 'CHECK_BUDGET' }))
 })

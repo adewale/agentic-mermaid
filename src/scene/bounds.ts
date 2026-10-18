@@ -215,6 +215,8 @@ export interface ConnectorMarkerPaintRegion {
   resource: string
   anchor: ScenePoint
   repaint: string
+  hull?: readonly ScenePoint[]
+  padding?: number
   bounds?: AxisAlignedBox
 }
 
@@ -233,7 +235,22 @@ export function connectorMarkerPaintRegions(node: ConnectorMark, parentTransform
     // Equality is about the actual resource, orientation, unit scale and
     // composed linear transform, rather than an owner or resource count.
     const repaint = JSON.stringify([marker, angle ?? ['unknown', geometry], marker.units === 'userSpaceOnUse' ? 1 : strokeWidth, matrix.slice(0, 4)])
-    result.push({ position, resource: marker.id, anchor: transformPoint(anchor, matrix), repaint, ...(local ? { bounds: transformedBounds(local, transform) } : {}) })
+    let hull: ScenePoint[] | undefined, padding: number | undefined
+    if (angle !== undefined && marker.geometry?.kind === 'polygon' && marker.geometry.points.length <= 64) {
+      const sizeScale = marker.viewBox && marker.size ? Math.min(marker.size.width / marker.viewBox.width, marker.size.height / marker.viewBox.height) : 1
+      const scale = sizeScale * Math.max(1, marker.scale ?? 1) * (marker.units === 'userSpaceOnUse' ? 1 : strokeWidth)
+      const radians = angle * Math.PI / 180, cosine = Math.cos(radians), sine = Math.sin(radians)
+      hull = marker.geometry.points.map(point => {
+        const x = (point.x - (marker.ref?.x ?? 0)) * scale, y = (point.y - (marker.ref?.y ?? 0)) * scale
+        return transformPoint({ x: anchor.x + x * cosine - y * sine, y: anchor.y + x * sine + y * cosine }, matrix)
+      })
+      const [a, b, c, d] = matrix
+      const norm = (Math.hypot(a + d, b - c) + Math.hypot(a - d, b + c)) / 2
+      const extent = paintedStrokeExtent(marker.paint ?? {}, true)
+      padding = extent === undefined ? undefined : extent * scale * norm
+      if (padding === undefined || !Number.isFinite(padding) || !hull.every(p => Number.isFinite(p.x) && Number.isFinite(p.y))) hull = undefined
+    }
+    result.push({ position, resource: marker.id, anchor: transformPoint(anchor, matrix), repaint, ...(hull ? { hull, padding } : {}), ...(local ? { bounds: transformedBounds(local, transform) } : {}) })
   }
   endpoints.starts.forEach((anchor, index) => include('start', node.markers.start, anchor, node.route.contours[index]?.startTangent))
   endpoints.ends.forEach((anchor, index) => include('end', node.markers.end, anchor, node.route.contours[index]?.endTangent))

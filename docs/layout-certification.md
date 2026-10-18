@@ -35,7 +35,7 @@ binds the proof to the secured SVG digest also used for PNG rasterization.
 Paint order determines occlusion. A later opaque rectangle that contains a
 whole occupied text region proves that text is hidden. Conservative path
 envelopes, rotated empty corners and partial intersections do not prove hidden
-ink; an unresolved candidate remains unverified. Identical marker artwork
+ink; an unresolved candidate remains unverified. Tree visits and primitive comparisons share an explicit 400,000-operation budget, in addition to the 100,000-pair limit. Identical marker artwork
 repainted by an owned carrier is evaluated at its final paint position.
 Occlusion scans stop at their explicit comparison budget instead of returning
 a successful result from an unfinished scan.
@@ -81,3 +81,9 @@ Fewer bends alone cannot buy a new crossing. Proven hard feasibility can
 justify losing a preferred port. A merely symmetric reciprocal lane must keep
 an already valid canonical contact. The owning regressions record these cases
 alongside the existing final hard checks.
+
+A repaired viewport with non-scaling strokes is unverified: keeping the display
+size changes the stroke extent in user units. Endpoint checks allow an arrow’s
+stroke to meet its declared endpoint’s owned outline; the marker body must stay
+outside the filled interior. Repaint equality includes resource geometry,
+orientation, stroke units and the composed transform.

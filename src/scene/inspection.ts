@@ -130,6 +130,7 @@ export function inspectScenePrimitives(scene: SceneDoc): ScenePaintInspection {
           text: Object.freeze({ source: label.block?.prepared.source ?? label.text, displayed, measurement: label.block ? 'prepared' : 'fallback' }),
         })
         sources.set(inline, node)
+        worldMatrices.set(inline, composeMatrices(parent, transformMatrix(node.transform)))
         primitives.push(inline)
         if (hidden) coverage.nonPainting++
         else {
