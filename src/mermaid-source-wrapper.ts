@@ -49,7 +49,12 @@ export function matchMermaidFrontmatter(text: string): { source: string; yaml: s
             else { quote = ''; previous = char }
           }
         } else if (char === '#' && (index === 0 || /[ \t,]/.test(value[index - 1]!))) break
-        else if ((char === '"' || char === "'") && nodeStart) { quote = char; nodeStart = false }
+        else if (nodeStart && char === '?' && /[ \t]/.test(value[index + 1] ?? '')) continue
+        else if (nodeStart && (char === '&' || char === '!')) {
+          // Flow-node properties precede the value; its quote can still open.
+          const property = /^(?:!<[^>]*>|[!&][^ \t,[\]{}]*)/.exec(value.slice(index))!
+          index += property[0].length - 1
+        } else if ((char === '"' || char === "'") && nodeStart) { quote = char; nodeStart = false }
         else if (!/[ \t]/.test(char)) {
           nodeStart = '[{,'.includes(char) || char === ':' && (previous === '"' || previous === "'" || /[ \t]/.test(value[index + 1] ?? ''))
           previous = char
