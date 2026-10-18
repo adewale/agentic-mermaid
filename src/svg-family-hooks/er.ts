@@ -1,5 +1,6 @@
 import { diagnoseErConfig } from '../er/config-diagnostics.ts'
-import { layoutResult, scene, type BrowserSvgFamilyHooks } from '../browser-lazy/family.ts'
+import { projectErPositioned } from '../positioned-views/er.ts'
+import { layoutResult, positionedView, scene, type BrowserSvgFamilyHooks } from '../browser-lazy/family.ts'
 import { applyErFrontmatterDirection, layoutErDiagram, resolveErRenderOptions } from '../er/layout.ts'
 import { parseErDiagram } from '../er/parser.ts'
 import { lowerErScene } from '../er/renderer.ts'
@@ -25,5 +26,6 @@ export const ER_SVG_HOOKS = {
     checkAllClassLikeAuthoredStyles(diagram.classDefs, diagram.entities)
     return layoutResult(layoutErDiagram(diagram, ctx.renderOptions, ctx.styleFace))
   },
+  projectPositioned: positionedView(projectErPositioned),
   lowerScene: scene(lowerErScene),
 } satisfies BrowserSvgFamilyHooks

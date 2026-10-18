@@ -48,7 +48,7 @@ const OPTIONAL_TEXT_CASES: Case[] = [
   ['radar', { kind: 'set_title', title: 'Skills<br>2' }, { ok: true, source: 'radar-beta\n  title Skills<br/>2\n  axis a["A"], b["B"], c["C"]\n  curve x["X"]{1, 2, 3}\n' }],
   ['radar', { kind: 'set_title', title: ' ' }, { ok: false, error: { code: 'INVALID_OP', message: 'Radar title must be non-empty text' } }],
   ['xychart', { kind: 'set_title', title: null }, { ok: true, source: 'xychart-beta\n  x-axis [jan, feb]\n  y-axis Revenue 0 --> 10\n  bar [3, 5]\n' }],
-  ['xychart', { kind: 'set_title', title: 'Sales 2' }, { ok: true, source: 'xychart-beta\n  title Sales 2\n  x-axis [jan, feb]\n  y-axis Revenue 0 --> 10\n  bar [3, 5]\n' }],
+  ['xychart', { kind: 'set_title', title: 'Sales 2' }, { ok: true, source: 'xychart-beta\n  title "Sales 2"\n  x-axis [jan, feb]\n  y-axis Revenue 0 --> 10\n  bar [3, 5]\n' }],
   ['xychart', { kind: 'set_title', title: 3 }, { ok: false, error: { code: 'INVALID_OP', message: 'XY chart title must be a string' } }],
   ['xychart', { kind: 'set_x_axis', axis: null }, { ok: true, source: 'xychart-beta\n  title Sales\n  y-axis Revenue 0 --> 10\n  bar [3, 5]\n' }],
   ['xychart', { kind: 'set_y_axis', axis: null }, { ok: true, source: 'xychart-beta\n  title Sales\n  x-axis [jan, feb]\n  bar [3, 5]\n' }],

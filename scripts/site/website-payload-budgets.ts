@@ -32,9 +32,9 @@ export const WEBSITE_PAYLOAD_BUDGETS: WebsitePayloadBudgets = Object.freeze({
     maxRequests: 6,
     // The new C4 example contributes build-time SVG/HTML, not an eager runtime.
     maxRawBytes: 425_000,
-    // C4's prepared legend heading and semantic swatches measured 72,546 B.
+    // Prepared C4 text and the inherited root font rule measure 72,550 B gzip / 57,536 B Brotli.
     maxGzipBytes: 72_600,
-    maxBrotliBytes: 57_500,
+    maxBrotliBytes: 57_600,
     required: Object.freeze([
       '^/examples/$',
       '^/styles\\.css$',
@@ -47,9 +47,9 @@ export const WEBSITE_PAYLOAD_BUDGETS: WebsitePayloadBudgets = Object.freeze({
     ]),
   }),
   demo: Object.freeze({
-    maxRequests: 29,
+    maxRequests: 31,
     maxRawBytes: 783_000,
-    maxGzipBytes: 293_000,
+    maxGzipBytes: 295_000,
     maxBrotliBytes: 267_500,
     required: Object.freeze([
       '^/demo/$',
@@ -65,12 +65,12 @@ export const WEBSITE_PAYLOAD_BUDGETS: WebsitePayloadBudgets = Object.freeze({
   }),
   'editor-empty': Object.freeze({
     maxRequests: 2,
-    // The synchronous editor adapter includes all native graphical/terminal
-    // families. With C4: 3,590,858 raw / 1,089,260 gzip / 859,297 Brotli bytes;
-    // keep tight headroom. Per-change growth still has its own delta gate.
-    maxRawBytes: 3_610_000,
-    maxGzipBytes: 1_095_000,
-    maxBrotliBytes: 865_000,
+    // Native parser observations and final text/geometry checks also ship in
+    // the editor: 3,667,915 raw / 1,111,755 gzip / 875,724 Brotli bytes.
+    // Per-change growth still has its own delta gate.
+    maxRawBytes: 3_670_000,
+    maxGzipBytes: 1_113_000,
+    maxBrotliBytes: 877_000,
     required: Object.freeze([
       '^/editor/$',
       '^/editor/editor-[a-f0-9]{12}\\.js$',

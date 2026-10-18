@@ -1,8 +1,8 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="951.768" height="158" viewBox="0 0 951.768 158" style="--bg:#123a63;--fg:#eaf2fb;--line:#dbe9f7;--accent:#ffffff;--muted:#b8cfe6;--surface:#1c4a78;--border:#dbe9f7;--font:Share Tech Mono;background:#123a63" class="am-13kjtx21stdjn7">
+<svg xmlns="http://www.w3.org/2000/svg" width="951.768" height="158" viewBox="0 0 951.768 158" style="--bg:#123a63;--fg:#eaf2fb;--line:#dbe9f7;--accent:#ffffff;--muted:#b8cfe6;--surface:#1c4a78;--border:#dbe9f7;--font:Share Tech Mono;background:#123a63" class="am-1fy4k3g07h89rk">
 <style>
-  .am-13kjtx21stdjn7 text { font-family: var(--font, 'Share Tech Mono'), system-ui, sans-serif; }
-  .am-13kjtx21stdjn7 .mono { font-family: 'JetBrains Mono', 'SF Mono', 'Fira Code', ui-monospace, monospace; }
-  svg.am-13kjtx21stdjn7 {
+  svg.am-1fy4k3g07h89rk { font-family: var(--font, 'Share Tech Mono'), system-ui, sans-serif; }
+  .am-1fy4k3g07h89rk .mono { font-family: 'JetBrains Mono', 'SF Mono', 'Fira Code', ui-monospace, monospace; }
+  svg.am-1fy4k3g07h89rk {
     /* Derived from --bg and --fg (overridable via --line, --accent, etc.) */
     --_text:          #eaf2fb;
     --_text-sec:      #b8cfe6;

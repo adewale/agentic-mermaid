@@ -453,7 +453,7 @@ export function lowerGanttScene(
       const baseId = taskLabelId(bar.id ?? bar.label)
       lines.forEach((line, li) => {
         const id = li === 0 ? baseId : `${baseId}/${li}`
-        parts.push(textMark(id, 'label', 16, bar.y + bar.h / 2 + li * (bar.labelBlock?.lineHeight ?? taskLineHeight), line, 'gantt-task-label', style.nodeLabelFontSize, style.nodeLabelFontWeight, palette.taskText, 'start', style.nodeLetterSpacing, undefined, pixelLine(bar.labelBlock, li)))
+        parts.push(textMark(id, 'label', bar.labelPosition?.x ?? 16, (bar.labelPosition?.y ?? bar.y + bar.h / 2) + li * (bar.labelBlock?.lineHeight ?? taskLineHeight), line, 'gantt-task-label', style.nodeLabelFontSize, style.nodeLabelFontWeight, palette.taskText, 'start', style.nodeLetterSpacing, undefined, pixelLine(bar.labelBlock, li)))
       })
     }
   } else {
@@ -470,6 +470,10 @@ export function lowerGanttScene(
         const label = block.text
         const w = block.width
         const cy = bar.y + bar.h / 2
+        if (bar.labelPosition) {
+          parts.push(textMark(taskLabelId(bar.id ?? bar.label), 'label', bar.labelPosition.x, bar.labelPosition.y, label, 'gantt-task-label', style.nodeLabelFontSize, style.nodeLabelFontWeight, palette.taskText, bar.labelPosition.anchor, style.nodeLetterSpacing, undefined, block))
+          return
+        }
         const leftLimit = i > 0 ? row[i - 1]!.x + row[i - 1]!.w + 4 : 2
         const rightLimit = i + 1 < row.length ? row[i + 1]!.x - 4 : layout.width - 2
         if (bar.x - 6 - w >= leftLimit) {

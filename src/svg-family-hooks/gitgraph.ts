@@ -1,5 +1,6 @@
 import { diagnoseGitGraphConfig } from '../gitgraph/config-diagnostics.ts'
-import { layoutResult, scene, type BrowserSvgFamilyHooks } from '../browser-lazy/family.ts'
+import { projectGitGraphPositioned } from '../positioned-views/gitgraph.ts'
+import { layoutResult, positionedView, scene, type BrowserSvgFamilyHooks } from '../browser-lazy/family.ts'
 import { parseGitGraph } from '../gitgraph/parser.ts'
 import { positionGitGraph, resolveGitGraphPositionConfig } from '../gitgraph/position.ts'
 import { lowerGitGraphScene, resolveGitGraphThemeProjection } from '../gitgraph/renderer.ts'
@@ -33,5 +34,6 @@ export const GITGRAPH_SVG_HOOKS = {
     }), ctx.source.accessibility)
     return layoutResult(positionGitGraph(diagram, config, ctx.renderOptions, ctx.styleFace), { injectAccessibility: false })
   },
+  projectPositioned: positionedView(projectGitGraphPositioned),
   lowerScene: scene(lowerGitGraphScene),
 } satisfies BrowserSvgFamilyHooks

@@ -222,6 +222,23 @@ export function assessRenderedLayout(layout: RenderedLayout): FamilyRubricResult
       violations.push({ metric: 'offCanvas', detail: `node ${n.id} at (${n.x},${n.y}) ${n.w}×${n.h}` })
     }
   }
+  const checkText = (id: string, bounds: { x: number; y: number; w: number; h: number } | undefined): void => {
+    if (!bounds) return
+    if (!finiteRect(bounds.x, bounds.y, bounds.w, bounds.h)) {
+      nonFinite++
+      violations.push({ metric: 'nonFiniteGeometry', detail: `label ${id}` })
+    } else if (bounds.x < -TOL || bounds.y < -TOL || bounds.x + bounds.w > layout.bounds.w + TOL || bounds.y + bounds.h > layout.bounds.h + TOL) {
+      offCanvas++
+      violations.push({ metric: 'offCanvas', detail: `label ${id}` })
+    }
+  }
+  for (const node of layout.nodes) {
+    if (node.labelVisibility !== 'hidden' && node.labelVisibility !== 'semantic') checkText(node.id, node.labelBounds)
+  }
+  for (const edge of layout.edges) checkText(edge.id, edge.label?.bounds)
+  for (const label of layout.labels ?? []) {
+    if (label.visibility !== 'hidden' && label.visibility !== 'semantic') checkText(label.id, label.bounds)
+  }
   for (const e of layout.edges) {
     let flagged = false
     for (const [x, y] of e.path) {
@@ -275,9 +292,19 @@ export function assessRenderedLayout(layout: RenderedLayout): FamilyRubricResult
   // Group containment, honouring each family's guaranteed axes.
   const axes = GROUP_CONTAINMENT_AXES[layout.kind as DiagramKind] ?? 'both'
   let groupBreaches = 0
+  const groupById = new Map(layout.groups.map(g => [g.id, g]))
   if (axes !== 'none') {
     const nodeById = new Map(layout.nodes.map(n => [n.id, n]))
     for (const g of layout.groups) {
+      const parent = g.parentId ? groupById.get(g.parentId) : undefined
+      if (parent && finiteRect(g.x, g.y, g.w, g.h) && finiteRect(parent.x, parent.y, parent.w, parent.h)) {
+        const xOk = axes === 'center' ? g.x + g.w / 2 >= parent.x - TOL && g.x + g.w / 2 <= parent.x + parent.w + TOL : g.x >= parent.x - TOL && g.x + g.w <= parent.x + parent.w + TOL
+        const yOk = axes === 'x' || (axes === 'center' ? g.y + g.h / 2 >= parent.y - TOL && g.y + g.h / 2 <= parent.y + parent.h + TOL : g.y >= parent.y - TOL && g.y + g.h <= parent.y + parent.h + TOL)
+        if (!xOk || !yOk) {
+          groupBreaches++
+          violations.push({ metric: 'groupBreaches', detail: `${g.id} outside parent ${parent.id}` })
+        }
+      }
       for (const memberId of g.members) {
         const n = nodeById.get(memberId)
         if (!n || !finiteRect(n.x, n.y, n.w, n.h)) continue
@@ -295,7 +322,6 @@ export function assessRenderedLayout(layout: RenderedLayout): FamilyRubricResult
   // checked both via parentId (architecture's flattened tree) and geometric
   // containment (sequence blocks nest without parentId).
   let groupOverlaps = 0
-  const groupById = new Map(layout.groups.map(g => [g.id, g]))
   for (let i = 0; i < layout.groups.length; i++) {
     for (let j = i + 1; j < layout.groups.length; j++) {
       const a = layout.groups[i]!,

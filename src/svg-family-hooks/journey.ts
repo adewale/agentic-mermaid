@@ -1,6 +1,7 @@
 import { diagnoseJourneyConfig } from '../journey/config-diagnostics.ts'
+import { projectJourneyPositioned } from '../positioned-views/journey.ts'
 import { withFrontmatterTitle } from '../mermaid-source.ts'
-import { layoutResult, scene, type BrowserSvgFamilyHooks } from '../browser-lazy/family.ts'
+import { layoutResult, positionedView, scene, type BrowserSvgFamilyHooks } from '../browser-lazy/family.ts'
 import { layoutJourneyDiagram, resolveJourneyRequestAppearance } from '../journey/layout.ts'
 import { parseJourneyDiagram } from '../journey/parser.ts'
 import { lowerJourneyScene } from '../journey/renderer.ts'
@@ -19,5 +20,6 @@ export const JOURNEY_SVG_HOOKS = {
     ctx.renderOptions,
     ctx.styleFace,
   )),
+  projectPositioned: positionedView(projectJourneyPositioned),
   lowerScene: scene(lowerJourneyScene),
 } satisfies BrowserSvgFamilyHooks

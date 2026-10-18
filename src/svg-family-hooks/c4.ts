@@ -1,5 +1,6 @@
-import { layoutResult, scene, type BrowserSvgFamilyHooks } from '../browser-lazy/family.ts'
 import { diagnoseC4Config } from '../c4/config-diagnostics.ts'
+import { layoutResult, positionedView, scene, type BrowserSvgFamilyHooks } from '../browser-lazy/family.ts'
+import { projectC4Positioned } from '../positioned-views/c4.ts'
 import { layoutC4Diagram } from '../c4/layout.ts'
 import { parseC4Diagram } from '../c4/parser.ts'
 import { lowerC4Scene } from '../c4/renderer.ts'
@@ -40,5 +41,6 @@ export const C4_SVG_HOOKS = {
     }
     return layoutResult(layoutC4Diagram(config.model, ctx.renderOptions, ctx.styleFace, config.c4, config.themeVariables))
   },
+  projectPositioned: positionedView(projectC4Positioned),
   lowerScene: scene(lowerC4Scene),
 } satisfies BrowserSvgFamilyHooks

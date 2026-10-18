@@ -176,7 +176,7 @@ export function layoutSequenceDiagram(diagram: SequenceDiagram, options: RenderO
   //    the actor boxes, so boxed diagrams reserve extra headroom for it.
   const boxGroups = (diagram.boxes ?? []).flatMap((box, index) => {
     const memberIdxs = diagram.actors.flatMap((actor, i) => (actor.box === index ? [i] : []))
-    const block = box.label ? preparePixelText(box.label, { transform: style.groupTextTransform, fontSize: style.groupHeaderFontSize, fontWeight: style.groupHeaderFontWeight, letterSpacing: style.groupLetterSpacing }) : undefined
+    const block = box.label ? preparePixelText(box.label, { transform: style.groupTextTransform, fontSize: style.groupHeaderFontSize, fontWeight: style.groupHeaderFontWeight, letterSpacing: style.groupLetterSpacing, fontFamily: style.groupFont }) : undefined
     return memberIdxs.length > 0 ? [{ box, memberIdxs, block }] : []
   })
   const boxTitleHeight = Math.max(SEQ.boxTitleSpace, ...boxGroups.map(group => (group.block?.height ?? 0) + 8))

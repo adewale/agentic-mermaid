@@ -55,8 +55,9 @@ export function auditReadability(layout: RenderedLayout): ReadabilityFinding[] {
   const labelBoxes: Array<{ id: string; box: Box }> = []
   for (const e of layout.edges) {
     if (!e.label) continue
-    const m = measureMultilineText(e.label.text, style.edgeLabelFontSize, style.edgeLabelFontWeight)
-    const box: Box = { x: e.label.x - (m.width + 2 * PILL_PAD) / 2, y: e.label.y - (m.height + 2 * PILL_PAD) / 2, w: m.width + 2 * PILL_PAD, h: m.height + 2 * PILL_PAD }
+    const retained = e.label.bounds
+    const m = retained ? undefined : measureMultilineText(e.label.text, style.edgeLabelFontSize, style.edgeLabelFontWeight)
+    const box: Box = retained ?? { x: e.label.x - (m!.width + 2 * PILL_PAD) / 2, y: e.label.y - (m!.height + 2 * PILL_PAD) / 2, w: m!.width + 2 * PILL_PAD, h: m!.height + 2 * PILL_PAD }
     if (!within(box)) findings.push({ code: 'LABEL_CLIPPED', element: e.id })
     for (const n of layout.nodes) {
       if (n.id === e.from || n.id === e.to) continue
@@ -79,13 +80,18 @@ export function auditReadability(layout: RenderedLayout): ReadabilityFinding[] {
     return n.w + 1 >= m.width && n.h + 1 >= m.height
   }
   for (const n of NODE_LINK_KINDS.has(layout.kind) ? layout.nodes : []) {
-    if (!hasText(n.label) || !labelFitsBox(n)) continue
-    const box = nodeBox(n)
+    if (!hasText(n.label) || n.labelVisibility === 'hidden' || n.labelVisibility === 'semantic' || (!n.labelBounds && !labelFitsBox(n))) continue
+    const box = n.labelBounds ?? nodeBox(n)
     if (!within(box)) findings.push({ code: 'LABEL_CLIPPED', element: n.id })
     for (const other of layout.nodes) {
       if (other.id === n.id) continue
       if (overlaps(box, nodeBox(other))) { findings.push({ code: 'LABEL_OCCLUDED', element: n.id, by: other.id }); break }
     }
+  }
+
+  for (const label of layout.labels ?? []) {
+    if (!hasText(label.text) || label.visibility === 'hidden' || label.visibility === 'semantic' || !label.bounds) continue
+    if (!within(label.bounds)) findings.push({ code: 'LABEL_CLIPPED', element: label.id })
   }
 
   return findings

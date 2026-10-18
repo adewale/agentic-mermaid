@@ -115,7 +115,7 @@ export interface FamilyRequestNormalizationResult {
  */
 export type FamilyPositionedView = Pick<
   RenderedLayout,
-  'version' | 'nodes' | 'edges' | 'groups' | 'certificates' | 'bounds'
+  'version' | 'nodes' | 'edges' | 'groups' | 'labels' | 'certificates' | 'bounds'
 >
 
 export interface FamilyPositionedProjectionOptions {

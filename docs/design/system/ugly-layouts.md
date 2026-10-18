@@ -32,8 +32,10 @@ layouts only when forced, and ranked below.
 
 ### Soft ranking (good layouts minimize these, in this priority order)
 
-The operative priority, distilled from Purchase 1997/2002 and Ware 2002 and
-from the choices made across this project:
+This historical ranking is superseded by the current policy in
+[quality.md](../../quality.md#layout-priorities-and-their-limits), which places
+crossings ahead of continuity and distinguishes outline attachment from preferred
+canonical ports. The older ranking explains earlier implementation choices:
 
 1. **Straightness / continuity** — fewest bends; a multi-edge path reads as a
    line. (Beats everything below.)

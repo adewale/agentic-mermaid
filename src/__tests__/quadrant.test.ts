@@ -117,7 +117,7 @@ describe('quadrant parser — sad paths error loudly', () => {
     // Unknown keys with SAFE values are upstream-legal (preserved verbatim,
     // inert in render — see quadrant-style.test.ts); only unsafe values err.
     { name: 'unknown point style metadata with unsafe value', src: 'quadrantChart\n  A: [0.5, 0.5] banana: "spl;it"', match: /style/i },
-    { name: 'x-axis arrow but no far label', src: 'quadrantChart\n  x-axis Left -->', match: /no far label/i },
+    { name: 'x-axis arrow but no near label', src: 'quadrantChart\n  x-axis --> Right', match: /missing its left label/i },
   ]
 
   for (const b of bad) {

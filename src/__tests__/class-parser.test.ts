@@ -42,6 +42,23 @@ describe('parseClassDiagram – class definitions', () => {
     expect(diagram.namespaces[0]!.classIds).toEqual(['A', 'B'])
   })
 
+  it('a member followed by a closing brace leaves later classes in their namespace', () => {
+    const source = 'classDiagram\nnamespace N {\nclass A {\n+foo : string\nTriangle }\nclass B {\n+bar : int\n}\n}\nA --> B'
+    const parsed = parseRegisteredMermaid(source)
+    if (!parsed.ok) throw new Error(JSON.stringify(parsed.error))
+    expect(asClass(parsed.value)?.body.classes).toEqual([
+      { id: 'A', namespace: 'N', members: ['+foo : string', 'Triangle'] },
+      { id: 'B', namespace: 'N', members: ['+bar : int'] },
+    ])
+    const diagram = parse(source)
+    expect(diagram.classes.map(node => ({ id: node.id, members: node.attributes.map(member => member.sourceText) }))).toEqual([
+      { id: 'A', members: ['+foo : string', 'Triangle'] },
+      { id: 'B', members: ['+bar : int'] },
+    ])
+    expect(diagram.namespaces).toEqual([{ name: 'N', classIds: ['A', 'B'], children: [] }])
+    expect(diagram.relationships).toEqual([{ from: 'A', to: 'B', type: 'association', markerAt: 'to' }])
+  })
+
   it('declaration shorthand styles the declared identity and its members', () => {
     const diagram = parse('classDiagram\nclass A:::hot\nclass B:::cold {\n+int count\n}\nclassDef hot fill:red\nclassDef cold fill:blue')
     expect(diagram.classes.map(node => ({ id: node.id, className: node.className, attributes: node.attributes.map(member => member.sourceText) }))).toEqual([

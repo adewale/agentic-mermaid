@@ -1,3 +1,4 @@
+import { assertMermaidGraphWork } from '../shared/diagram-limits.ts'
 import { OccupancyMap } from './occupancy.ts'
 // ============================================================================
 // ASCII renderer — MermaidGraph → AsciiGraph converter
@@ -28,6 +29,7 @@ import { resolveNodeInlineStyle, resolveEdgeInlineStyle } from '../color-resolve
  * - Node labels are used as display names (not raw IDs)
  */
 export function convertToAsciiGraph(parsed: MermaidGraph, config: AsciiConfig, containerKind: 'subgraph' | 'cluster' = 'subgraph'): AsciiGraph {
+  assertMermaidGraphWork(parsed)
   const width = config.maxWidth === undefined ? undefined : Math.max(config.targetWidth === undefined ? 8 : 1, Math.floor(config.maxWidth / 3))
   const label = (text: string): string => wrapText(displayText(text), width).join('\n')
   const subgraphIds = collectSubgraphIds(parsed.subgraphs)

@@ -1,4 +1,5 @@
 import { graphTextBlock } from './graph-text.ts'
+import { assertMermaidGraphWork, DiagramWorkLimitError } from './shared/diagram-limits.ts'
 /**
  * Layout engine for Agentic Mermaid (ELK.js based).
  *
@@ -47,6 +48,8 @@ import type { LabelMetricsStyle } from './route-contracts.ts'
 import { resolveEdgeInlineStyle, resolveNodeInlineStyle } from './color-resolver.ts'
 import { runPipeline } from './layout/pass.ts'
 import type { LayoutPass, PassContextBase } from './layout/pass.ts'
+import type { PassMetrics } from './layout/pass.ts'
+import { certifyLayoutCandidates, positionedGeometryViolations, LayoutCertificationError, type LayoutCertificationCandidate } from './layout/certification.ts'
 import {
   DEFAULTS,
   flattenGroupBounds,
@@ -102,10 +105,14 @@ interface LayoutEngineOptions extends RenderOptions {
   /** @internal The diagram's title (frontmatter `title:`), drawn in a band
    * above the graph. */
   diagramTitle?: string
+  /** @internal Exercise declared per-pass geometry budgets in audits/CI. */
+  checkLayoutPasses?: boolean
+  /** @internal Bounded certification alternative; never changes global process state. */
+  disableCorankFanIn?: boolean
 }
 
 type ElkConversionOptions = Required<Pick<RenderOptions, 'font' | 'padding' | 'nodeSpacing' | 'layerSpacing'>> &
-  Pick<LayoutEngineOptions, 'preserveSubgraphChildOrder' | 'separateHierarchy'> & { stateVisual?: ResolvedStateVisualConfig }
+  Pick<LayoutEngineOptions, 'preserveSubgraphChildOrder' | 'separateHierarchy' | 'disableCorankFanIn'> & { stateVisual?: ResolvedStateVisualConfig }
 
 // ============================================================================
 // Layout options
@@ -455,7 +462,7 @@ function mermaidToElk(
   // empty when APL_NO_CORANK_FANIN is set). Applied at every label-injection
   // site below so the rank balance holds wherever the edge is hosted (root,
   // subgraph-internal, cross-hierarchy).
-  const balancingLabels = corankFanInBalancingLabels(graph, style)
+  const balancingLabels = opts.disableCorankFanIn ? new Map<number, BalancingLabel>() : corankFanInBalancingLabels(graph, style)
 
   // Build node-to-subgraph mapping for edge distribution
   const nodeToSubgraph = buildNodeToSubgraphMap(graph.subgraphs)
@@ -1253,7 +1260,7 @@ export const LAYOUT_PIPELINE: ReadonlyArray<LayoutPass<LayoutPassContext>> = [
   {
     id: 'extractEdgesRecursively', doc: 'flatten ELK edges to absolute coords (+orthogonalize cross-hierarchy)',
     after: [], mutates: ['extract'], determinism: 'pure-order',
-    run: c => { extractEdgesRecursively(c.elkResult, c.graph, c.edges, 0, 0, c.margins) },
+    run: c => { extractEdgesRecursively(c.elkResult, c.graph, c.edges, 0, 0, c.margins); retainGraphText(c, c.style) },
   },
   {
     id: 'alignLayerNodes', doc: 'snap same-layer nodes onto a shared flow-axis line',
@@ -1264,7 +1271,8 @@ export const LAYOUT_PIPELINE: ReadonlyArray<LayoutPass<LayoutPassContext>> = [
   {
     id: 'equalizePeerNodeDimensions', doc: 'equalize peer box sizes + pack layers so symmetry is visible downstream',
     after: ['alignLayerNodes'], mutates: ['positions', 'dimensions'], determinism: 'in-place',
-    mayChangeMetrics: { symErr: 'improve-only' },
+    // This preparation pass equalizes dimensions and may move peer centers.
+    // The following alignment passes own the final barycenter contract.
     run: c => { equalizePeerNodeDimensions(c.nodes, c.edges, c.groups, c.graph) },
   },
   {
@@ -1361,7 +1369,7 @@ export const LAYOUT_PIPELINE: ReadonlyArray<LayoutPass<LayoutPassContext>> = [
   {
     id: 'applyRouteContracts', doc: 'classify -> simplify -> straighten (fixed-point) -> certify; FREEZES node geometry',
     after: ['reassignBundledSiblingLabels'], mutates: ['edges'], determinism: 'fixed-point', freezesNodes: true,
-    mayChangeMetrics: { straight: 'improve-only', bends: 'improve-only', portRate: 'improve-only' },
+    mayChangeMetrics: { straight: 'improve-only', bends: 'improve-only', portRate: { worsenBy: 1, whenImproves: 'bends' } },
     run: c => { applyRouteContracts({ nodes: c.nodes, edges: c.edges, groups: c.groups }, c.graph, c.bundled, c.style) },
   },
   {
@@ -1398,7 +1406,7 @@ export const LAYOUT_PIPELINE: ReadonlyArray<LayoutPass<LayoutPassContext>> = [
   {
     id: 'translateGeometryToNonNegativeOrigin', doc: 'shift whole graph to a non-negative origin (allowed after freeze)',
     after: ['closeRouteContracts'], mutates: ['translate'], determinism: 'in-place',
-    run: c => { translateGeometryToNonNegativeOrigin(c.nodes, c.edges, c.groups, c.layoutPadding) },
+    run: c => { translateGeometryToNonNegativeOrigin(c.nodes, c.edges, c.groups, c.layoutPadding, c.style) },
   },
   {
     // State diagrams only (plan §State 1, repo #118): place each note box on
@@ -1412,6 +1420,34 @@ export const LAYOUT_PIPELINE: ReadonlyArray<LayoutPass<LayoutPassContext>> = [
     run: c => { c.notes = placeStateNotes(c.nodes, c.edges, c.groups, c.graph, c.style, c.layoutPadding, c.stateNoteMargin) },
   },
 ]
+
+/** Prepared text survives all subsequent geometry-only passes. */
+function retainGraphText(positioned: Pick<PositionedGraph, 'nodes' | 'edges' | 'groups'>, style: ResolvedRenderStyle): void {
+  for (const node of positioned.nodes) node.labelBlock ??= graphTextBlock(node.label, style, 'node')
+  for (const edge of positioned.edges) if (edge.label !== undefined) edge.labelBlock ??= graphTextBlock(edge.label, style, 'edge')
+  const group = (value: PositionedGroup): void => {
+    value.labelBlock ??= graphTextBlock(value.label, style, 'group')
+    value.headerHeight = value.concurrencyRegion ? 0 : style.groupHeaderFontSize + 16 + value.labelBlock.height - value.labelBlock.lineHeight
+    value.children.forEach(group)
+  }
+  positioned.groups.forEach(group)
+}
+
+/** Measure the pass's current geometry. Bundle ownership justifies bends
+ * immediately, rather than waiting for a later certificate to change a score. */
+function measureLayoutPass(context: LayoutPassContext): PassMetrics {
+  const positioned = { nodes: context.nodes, edges: context.edges, groups: context.groups, width: 0, height: 0 }
+  const rubric = assessLayout(context.graph, positioned, context.style)
+  const visible = context.edges.filter(edge => edge.style !== 'invisible')
+  return {
+    hard: hardViolations(rubric).length,
+    crossings: rubric.metrics.edgeCrossings,
+    bends: visible.reduce((sum, edge) => sum + (context.bundled.has(edge) || edge.routeCertificate?.invariant === 'bundle' ? 0 : Math.max(0, edge.points.length - 2)), 0),
+    straight: visible.filter(edge => edge.points.length === 2).length,
+    portRate: rubric.metrics.portEndpointRate,
+    symErr: rubric.metrics.peerBarycenterDelta,
+  }
+}
 
 // ============================================================================
 // State-diagram note placement (plan §State 1)
@@ -1528,6 +1564,7 @@ function elkToPositioned(
   layoutPadding: number = DEFAULTS.padding,
   style: ResolvedRenderStyle = resolveRenderStyle({}),
   stateNoteMargin: number = 18,
+  checkLayoutPasses = false,
 ): PositionedGraph {
   const nodes: PositionedNode[] = []
   const edges: PositionedEdge[] = []
@@ -1570,7 +1607,8 @@ function elkToPositioned(
     stateNoteMargin,
     frozen: false,
   }
-  runPipeline(ctx, LAYOUT_PIPELINE)
+  retainGraphText(ctx, style)
+  runPipeline(ctx, LAYOUT_PIPELINE, { checkInvariants: checkLayoutPasses, measureMetrics: measureLayoutPass })
 
   // Calculate final bounds including all edge points
   // ELK should include edges in its dimensions, but we verify and expand if needed
@@ -1592,9 +1630,12 @@ function elkToPositioned(
       width = Math.max(width, p.x + arrowMargin + padding)
       height = Math.max(height, p.y + arrowMargin + padding)
     }
-    if (edge.labelPosition) {
-      width = Math.max(width, edge.labelPosition.x + 60 + padding)
-      height = Math.max(height, edge.labelPosition.y + 20 + padding)
+    const pill = edge.labelBlock ? labelRect(edge, style) : null
+    if (pill) {
+      // Retain the established minimum label-area clearance while expanding
+      // it for the actual prepared footprint of larger/styled labels.
+      width = Math.max(width, edge.labelPosition!.x + 60 + padding, pill.x + pill.w + padding)
+      height = Math.max(height, edge.labelPosition!.y + 20 + padding, pill.y + pill.h + padding)
     }
   }
   for (const note of ctx.notes) {
@@ -1706,16 +1747,10 @@ export function layoutGraphSync(
   graph: MermaidGraph,
   options: LayoutEngineOptions = {}
 ): PositionedGraph {
+  assertMermaidGraphWork(graph)
   const positioned = layoutUntitledGraph(graph, options)
   const style = resolveRenderStyle(options, (options as StateRenderOptions).stateVisual?.styleDefaults, options.styleFace)
-  for (const node of positioned.nodes) node.labelBlock = graphTextBlock(node.label, style, 'node')
-  for (const edge of positioned.edges) if (edge.label !== undefined) edge.labelBlock = graphTextBlock(edge.label, style, 'edge')
-  const prepareGroup = (group: PositionedGroup): void => {
-    group.labelBlock = graphTextBlock(group.label, style, 'group')
-    group.headerHeight = group.concurrencyRegion ? 0 : style.groupHeaderFontSize + 16 + group.labelBlock.height - group.labelBlock.lineHeight
-    group.children.forEach(prepareGroup)
-  }
-  positioned.groups.forEach(prepareGroup)
+  retainGraphText(positioned, style)
   const band = diagramTitleBand(options.diagramTitle, resolveRenderStyle(options, (options as StateRenderOptions).stateVisual?.styleDefaults, options.styleFace))
   if (!band) return positioned
   // The title takes a band above everything the layout placed; the graph
@@ -1725,6 +1760,8 @@ export function layoutGraphSync(
   positioned.height += band.height
   positioned.width = Math.max(positioned.width, band.width + 2 * padding)
   positioned.title = positionDiagramTitle(band, positioned.width, padding)
+  const violations = positionedGeometryViolations(positioned, style)
+  if (violations.length) throw new LayoutCertificationError([{ strategy: 'final-title-projection', violations }])
   return positioned
 }
 
@@ -1742,7 +1779,7 @@ function translatePositionedGraph(positioned: PositionedGraph, dy: number): void
   for (const note of positioned.notes ?? []) note.y += dy
 }
 
-function layoutUntitledGraph(
+function layoutCandidate(
   graph: MermaidGraph,
   options: LayoutEngineOptions,
 ): PositionedGraph {
@@ -1786,61 +1823,30 @@ function layoutUntitledGraph(
       result = candidate
       break
     } catch (err) {
+      if (err instanceof DiagramWorkLimitError) throw err
       lastError = err
     }
   }
   if (!result) throw lastError
-  const positioned = elkToPositioned(result, graph, DEFAULTS.mergeEdges, opts.padding, style, stateVisual?.noteMargin ?? 18)
-
-  // A group narrower than its title means ELK (INCLUDE_CHILDREN) ignored the
-  // compound's minimum width; lay out again with the hierarchy handling that
-  // honors it, and keep that layout only when it certifies (the doctrine of the
-  // co-rank fallback below). SEPARATE handling does not route every
-  // cross-hierarchy edge — a nested state's edge to a sibling composite comes
-  // back with no route, which the route contracts reject — so such graphs keep
-  // this layout. Graphs whose titles fit never take this path.
-  if (!opts.separateHierarchy && groupsNarrowerThanTitles(positioned.groups, graph, style)) {
-    const separate = separateHierarchyLayout(graph, options)
-    if (separate && hardViolations(assessLayout(graph, separate)).length === 0) return separate
-  }
-
-  // Co-rank certify-or-fallback (the robustness-doc doctrine). The co-rank
-  // balancing labels re-rank a mixed-label fan-in's sources; on rare graphs
-  // (observed in RL/reverse-flow when a co-ranked source also carries an
-  // upstream neighbor) that re-rank, after peer-dimension equalization, can push
-  // a source box into an UNRELATED node — a HARD node-overlap the co-rank
-  // introduced. We never ship a HARD violation: if the co-rank layout has any
-  // hard violation AND the disabled layout is clean, fall back to the disabled
-  // (base) layout, which is byte-equal to APL_NO_CORANK_FANIN. Only runs the
-  // extra assessment when the graph actually used co-rank (the balancing map is
-  // non-empty), so the common path pays nothing. Deterministic: layout is fully
-  // synchronous, so the env toggle is saved/restored within this call with no
-  // interleaving, and the fallback is a pure re-derivation of the same input.
-  if (!layoutEnvFlag('APL_NO_CORANK_FANIN') &&
-      corankFanInBalancingLabels(graph, style).size > 0 &&
-      hardViolations(assessLayout(graph, positioned)).length > 0) {
-    const saved = (globalThis as typeof globalThis & { process?: { env?: Record<string, string | undefined> } }).process?.env
-    const prev = saved?.APL_NO_CORANK_FANIN
-    if (saved) saved.APL_NO_CORANK_FANIN = '1'
-    try {
-      const fallback = layoutUntitledGraph(graph, options)
-      if (hardViolations(assessLayout(graph, fallback)).length === 0) return fallback
-      // Disabled layout is itself not clean (not a co-rank regression): keep the
-      // original rather than mask an unrelated pre-existing hard violation.
-    } finally {
-      if (saved) { if (prev === undefined) delete saved.APL_NO_CORANK_FANIN; else saved.APL_NO_CORANK_FANIN = prev }
-    }
-  }
-  return positioned
+  return elkToPositioned(result, graph, DEFAULTS.mergeEdges, opts.padding, style, stateVisual?.noteMargin ?? 18, options.checkLayoutPasses ?? layoutEnvFlag('APL_CHECK_LAYOUT_PASSES'))
 }
 
-/** The layout under SEPARATE hierarchy handling, or undefined when it fails. */
-function separateHierarchyLayout(graph: MermaidGraph, options: LayoutEngineOptions): PositionedGraph | undefined {
-  try {
-    return layoutUntitledGraph(graph, { ...options, separateHierarchy: true })
-  } catch {
-    return undefined
+/** Four deterministic strategy combinations, each with the existing bounded
+ * ELK option degradation ladder. No recursive retry or process-env mutation. */
+function layoutUntitledGraph(graph: MermaidGraph, options: LayoutEngineOptions): PositionedGraph {
+  const style = resolveRenderStyle(options, options.stateVisual?.styleDefaults, options.styleFace)
+  const candidates: LayoutCertificationCandidate[] = [{
+    strategy: 'default', produce: () => layoutCandidate(graph, options),
+    preferNext: (positioned: PositionedGraph) => !options.separateHierarchy && groupsNarrowerThanTitles(positioned.groups, graph, style),
+  }]
+  if (!options.separateHierarchy) {
+    candidates.push({ strategy: 'separate-hierarchy', produce: () => layoutCandidate(graph, { ...options, separateHierarchy: true }) })
   }
+  if (!options.disableCorankFanIn && !layoutEnvFlag('APL_NO_CORANK_FANIN')) {
+    candidates.push({ strategy: 'without-corank', produce: () => layoutCandidate(graph, { ...options, disableCorankFanIn: true }) })
+    if (!options.separateHierarchy) candidates.push({ strategy: 'separate-without-corank', produce: () => layoutCandidate(graph, { ...options, separateHierarchy: true, disableCorankFanIn: true }) })
+  }
+  return certifyLayoutCandidates(graph, style, candidates)
 }
 
 function groupsNarrowerThanTitles(groups: readonly PositionedGroup[], graph: MermaidGraph, style: ResolvedRenderStyle): boolean {

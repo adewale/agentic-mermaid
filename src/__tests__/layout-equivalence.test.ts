@@ -19,11 +19,11 @@
 // Review the diff and list each changed golden under src/__tests__/testdata/
 // and why it changed in the PR description.
 
-import { describe, test, expect } from 'bun:test'
-import { readFileSync, writeFileSync, existsSync } from 'node:fs'
+import { describe, expect, test } from 'bun:test'
+import { existsSync, readFileSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
-import { parseRegisteredMermaid as parseMermaid, layoutMermaid } from '../agent/index.ts'
 import { collectSamples } from '../../eval/layout-compare/run.ts'
+import { layoutMermaid, parseRegisteredMermaid as parseMermaid } from '../agent/index.ts'
 import type { RenderedLayout } from '../agent/types.ts'
 import { compareCodePointStrings } from '../shared/deterministic-order.ts'
 
@@ -52,9 +52,27 @@ function currentGeometry(): Map<string, Record_> {
   return out
 }
 
-/** Canonical string form for byte comparison. Object key order is fixed by
- *  positionedToRenderedLayout, so JSON.stringify is a stable canonicaliser. */
-const canon = (r: Record_ | undefined): string => JSON.stringify(r ?? null)
+/** Compare paint placement, not newly retained measurement evidence. Text
+ * footprints/visibility are asserted against renderer-owned prepared text at
+ * their own boundaries; adding those observations must not bless moved nodes,
+ * routes, labels, identities, membership or canvas bounds in this gate. */
+function geometryOnly(record: Record_ | undefined): Record_ | null {
+  if (!record?.ok) return record ?? null
+  return {
+    ok: true,
+    layout: {
+      ...record.layout,
+      nodes: record.layout.nodes.map(({ labelBounds: _bounds, labelContainer: _container, labelVisibility: _visibility, dataPosition: _data, ...node }) => node),
+      edges: record.layout.edges.map(edge => {
+        if (!edge.label) return edge
+        const { bounds: _bounds, ...label } = edge.label
+        return { ...edge, label }
+      }),
+    },
+  }
+}
+
+const canon = (r: Record_ | undefined): string => JSON.stringify(geometryOnly(r))
 
 /** Serialise one entry per line (id → compact record) so a geometry change
  *  shows up as a surgical one-line git diff, and so golden review localises to
@@ -62,7 +80,7 @@ const canon = (r: Record_ | undefined): string => JSON.stringify(r ?? null)
  *  independent file. */
 function serializeBaseline(m: Map<string, Record_>): string {
   const entries = [...m.entries()].sort((a, b) => compareCodePointStrings(a[0], b[0]))
-  return '{\n' + entries.map(([k, v]) => `${JSON.stringify(k)}: ${JSON.stringify(v)}`).join(',\n') + '\n}\n'
+  return '{\n' + entries.map(([k, v]) => `${JSON.stringify(k)}: ${JSON.stringify(geometryOnly(v))}`).join(',\n') + '\n}\n'
 }
 
 function loadBaseline(): Record<string, Record_> {
@@ -75,7 +93,8 @@ function describeDiff(id: string, base: Record_ | undefined, cur: Record_ | unde
   if (!cur) return `${id}: REMOVED (dropped from corpus)`
   if (base.ok !== cur.ok) return `${id}: lays-out ${base.ok} → ${cur.ok}`
   if (!base.ok || !cur.ok) return `${id}: differs`
-  const b = base.layout, c = cur.layout
+  const b = base.layout,
+    c = cur.layout
   if (b.kind !== c.kind) return `${id}: kind ${b.kind} → ${c.kind}`
   if (b.bounds.w !== c.bounds.w || b.bounds.h !== c.bounds.h) return `${id}: bounds ${b.bounds.w}×${b.bounds.h} → ${c.bounds.w}×${c.bounds.h}`
   if (b.nodes.length !== c.nodes.length) return `${id}: node count ${b.nodes.length} → ${c.nodes.length}`
@@ -83,7 +102,8 @@ function describeDiff(id: string, base: Record_ | undefined, cur: Record_ | unde
   if (b.groups.length !== c.groups.length) return `${id}: group count ${b.groups.length} → ${c.groups.length}`
   for (let i = 0; i < c.nodes.length; i++) {
     if (canon({ ok: true, layout: { ...b, nodes: [b.nodes[i]!] } }) !== canon({ ok: true, layout: { ...c, nodes: [c.nodes[i]!] } })) {
-      const bn = b.nodes[i]!, cn = c.nodes[i]!
+      const bn = b.nodes[i]!,
+        cn = c.nodes[i]!
       return `${id}: node ${cn.id} {x:${bn.x},y:${bn.y},w:${bn.w},h:${bn.h}} → {x:${cn.x},y:${cn.y},w:${cn.w},h:${cn.h}}`
     }
   }
@@ -124,11 +144,7 @@ describe('layout-equivalence gate', () => {
     if (diffs.length > 0) {
       const shown = diffs.slice(0, 25).join('\n  ')
       const more = diffs.length > 25 ? `\n  …and ${diffs.length - 25} more` : ''
-      throw new Error(
-        `${diffs.length} of ${current.size} diagram(s) diverged from the geometry baseline:\n  ${shown}${more}\n\n` +
-        `If intentional: UPDATE_LAYOUT_BASELINE=1 bun test src/__tests__/layout-equivalence.test.ts, ` +
-        `review the golden diff, and list each changed golden and why in the PR description.`,
-      )
+      throw new Error(`${diffs.length} of ${current.size} diagram(s) diverged from the geometry baseline:\n  ${shown}${more}\n\n` + `If intentional: UPDATE_LAYOUT_BASELINE=1 bun test src/__tests__/layout-equivalence.test.ts, ` + `review the golden diff, and list each changed golden and why in the PR description.`)
     }
   })
 })

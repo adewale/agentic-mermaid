@@ -1,0 +1,169 @@
+import { parseC4Diagram } from '../../src/c4/parser.ts'
+import { knownBuiltinFamilies, parseRegisteredMermaid, serializeMermaid } from '../../src/agent/core.ts'
+import { parseArchitectureDiagram } from '../../src/architecture/parser.ts'
+import { parseClassDiagram } from '../../src/class/parser.ts'
+import { parseErDiagram } from '../../src/er/parser.ts'
+import { parseGanttModel } from '../../src/gantt/parser.ts'
+import { parseGitGraph } from '../../src/gitgraph/parser.ts'
+import { resolveGitGraphPositionConfig } from '../../src/gitgraph/position.ts'
+import { parseJourneyDiagram } from '../../src/journey/parser.ts'
+import { normalizeMermaidSource } from '../../src/mermaid-source.ts'
+import { parseMindmap } from '../../src/mindmap/parser.ts'
+import { parseMermaid } from '../../src/parser.ts'
+import { parsePieChart } from '../../src/pie/parser.ts'
+import { parseQuadrantChart } from '../../src/quadrant/parser.ts'
+import { parseRadarChart } from '../../src/radar/parser.ts'
+import { resolvedFamilyRenderContextOf, resolvedRenderExecutionPlanOf, resolveRenderRequestForExecution } from '../../src/render-contract.ts'
+import { parseSankeyDiagram } from '../../src/sankey/parser.ts'
+import { resolveSequenceConfig } from '../../src/sequence/config.ts'
+import { parseSequenceDiagram } from '../../src/sequence/parser.ts'
+import { type ParserObservation, snapshotParserObservationValue, withParserObservation } from '../../src/shared/parser-observation.ts'
+import { parseTimelineDiagram } from '../../src/timeline/parser.ts'
+import { parseXYChart } from '../../src/xychart/parser.ts'
+import { projectNativeSemantic } from './grammar-native-semantics.ts'
+import type { NativeParserObservation } from './grammar-types.ts'
+
+export interface AgenticGrammarResult {
+  native: { status: 'accepted' | 'rejected' | 'unsupported'; stage?: 'request' | 'parser'; error?: string; observation: NativeParserObservation }
+  envelope: { status: 'accepted' | 'rejected'; family?: string; representation?: 'structured' | 'opaque' | 'preserved'; error?: string }
+  serialized?: string
+}
+
+const message = (error: unknown): string => String(error instanceof Error ? error.message : error).slice(0, 2000)
+const nativeFamilies = new Set<string>(knownBuiltinFamilies())
+
+function unavailable(reason: string): NativeParserObservation {
+  return { statements: { status: 'unavailable', reason }, tokens: { status: 'unavailable', reason }, mutations: { status: 'unavailable', reason } }
+}
+
+/** Actual renderer request normalization followed by the selected native parser.
+ * Native fragments/statements and builder operations are observed in its own
+ * implementation, never synthesized by re-lexing canonical Mermaid output.
+ */
+export function inspectAgenticGrammar(family: string, source: string, options: { observe?: boolean } = {}): AgenticGrammarResult {
+  if (!nativeFamilies.has(family)) return { native: { status: 'unsupported', observation: unavailable('No native parser for this family') }, envelope: inspectEnvelope(source).envelope }
+  let native: AgenticGrammarResult['native']
+  let stage: 'request' | 'parser' = 'request'
+  try {
+    // The same waist as the public renderer: entities decode, the family is
+    // selected, and authored Class/Pie views remain available. It does no
+    // layout. Calling a low-level parser on raw encoded text would measure a
+    // different input language from the one a consumer can actually render.
+    const request = resolveRenderRequestForExecution(source, {}, 'svg')
+    const selected = resolvedRenderExecutionPlanOf(request).family.id
+    if (selected !== family) throw new Error(`Source routes to ${selected}, not requested family ${family}`)
+    const normalized = request.source
+    const context = resolvedFamilyRenderContextOf(request)
+    const lines = normalized.familyLines
+    stage = 'parser'
+    const parse = (): unknown => {
+      switch (family) {
+        case 'flowchart':
+        case 'state':
+          return parseMermaid(normalized.familyText)
+        case 'c4': {
+          const authored = normalizeMermaidSource(normalized.originalText)
+          return parseC4Diagram(authored.originalText.slice((authored.wrapperSource ?? '').length))
+        }
+        case 'architecture':
+          return parseArchitectureDiagram(lines)
+        case 'class':
+          return parseClassDiagram(lines, normalizeMermaidSource(normalized.originalText).familyLines)
+        case 'er':
+          return parseErDiagram(lines)
+        case 'gantt':
+          return parseGanttModel(lines)
+        case 'gitgraph': {
+          const config = resolveGitGraphPositionConfig(normalized.config.gitGraph, normalized.config.themeVariables)
+          return parseGitGraph(normalized.familyBody, { mainBranchName: config.mainBranchName, mainBranchOrder: config.mainBranchOrder })
+        }
+        case 'journey':
+          return parseJourneyDiagram(lines, normalized.accessibility)
+        case 'mindmap':
+          return parseMindmap(normalized.familyBody)
+        case 'pie':
+          return parsePieChart(normalized.authoredPieFamilyLines ?? lines)
+        case 'quadrant':
+          return parseQuadrantChart(lines)
+        case 'radar':
+          return parseRadarChart(normalized.lines)
+        case 'sankey':
+          return parseSankeyDiagram(normalized.body.split(/\r?\n/))
+        case 'sequence':
+          return parseSequenceDiagram(lines, (context.familyConfig as { sequence?: ReturnType<typeof resolveSequenceConfig> } | undefined)?.sequence ?? {})
+        case 'timeline':
+          return parseTimelineDiagram(lines, normalized.accessibility)
+        case 'xychart':
+          return parseXYChart(lines)
+        default:
+          throw new Error(`Missing renderer-parser adapter for native family ${family}`)
+      }
+    }
+    const events: ParserObservation[] = []
+    const attempt = (run: () => unknown): { accepted: boolean; raw?: unknown; model?: ReturnType<typeof snapshotParserObservationValue>; error?: string } => {
+      try {
+        const raw = run()
+        return { accepted: true, raw, model: snapshotParserObservationValue(raw) }
+      } catch (error) {
+        return { accepted: false, error: message(error) }
+      }
+    }
+    if (options.observe === false) {
+      const result = attempt(parse)
+      native = { status: result.accepted ? 'accepted' : 'rejected', stage, ...(result.error ? { error: result.error } : {}), observation: unavailable('Observation was not requested') }
+    } else {
+      const observed = attempt(() => withParserObservation(family, event => events.push(event), parse))
+      const control = attempt(parse)
+      const same = observed.accepted === control.accepted && observed.error === control.error && JSON.stringify(observed.model) === JSON.stringify(control.model)
+      let semantic: ReturnType<typeof projectNativeSemantic>, projectionError: string | undefined
+      if (observed.accepted) {
+        try {
+          semantic = projectNativeSemantic(family, observed.raw)
+        } catch (error) {
+          projectionError = message(error)
+        }
+      }
+      const observation: NativeParserObservation = {
+        statements: { status: 'available', method: 'Actual native consumed classified statements; positions identify the parser-supplied physical or normalized view', value: events.filter(event => event.unit === 'statement') },
+        tokens:
+          family === 'flowchart' || family === 'c4'
+            ? { status: 'available', method: family === 'c4' ? 'Actual forward C4 scanner chunks; physical UTF16 offsets and Unicode-code-point columns, not Mermaid terminals' : 'Actual native consumed compound node/link fragments, not Mermaid terminal kinds; positions unavailable where the consumer has only a remaining suffix', value: events.filter(event => event.unit === 'token') }
+            : { status: 'unavailable', reason: 'This native parser exposes classified statements, not a homologous lexer token stream' },
+        mutations: { status: 'available', method: 'Actual native builder writes/operations in execution order; values copied at call time, including parent and membership fields', value: events.filter(event => event.unit === 'mutation') },
+        ...(observed.model !== undefined ? { model: observed.model } : {}),
+        ...(semantic ? { semantic } : {}),
+        ...(projectionError ? { instrumentationErrors: [`Native semantic projection: ${projectionError}`] } : {}),
+        control: { same, observedAccepted: observed.accepted, unobservedAccepted: control.accepted, ...(observed.error ? { observedError: observed.error } : {}), ...(control.error ? { unobservedError: control.error } : {}) },
+      }
+      native = { status: observed.accepted ? 'accepted' : 'rejected', stage, ...(observed.error ? { error: observed.error } : {}), observation }
+    }
+  } catch (error) {
+    native = { status: 'rejected', stage, error: message(error), observation: unavailable('The public request was refused before this native parser could run') }
+  }
+  return { native, ...inspectEnvelope(source) }
+}
+
+function inspectEnvelope(source: string): Omit<AgenticGrammarResult, 'native'> {
+  try {
+    const parsed = parseRegisteredMermaid(source)
+    if (!parsed.ok)
+      return {
+        envelope: {
+          status: 'rejected',
+          error: parsed.error
+            .map(error => error.message)
+            .join('; ')
+            .slice(0, 2000),
+        },
+      }
+    const diagram = parsed.value
+    const representation = diagram.body.kind === 'preserved' ? 'preserved' : diagram.body.kind === 'opaque' ? 'opaque' : 'structured'
+    return {
+      envelope: { status: 'accepted', family: diagram.kind, representation },
+      // Preserved/opaque bytes are not evidence of native model fidelity.
+      ...(representation === 'structured' ? { serialized: serializeMermaid(diagram) } : {}),
+    }
+  } catch (error) {
+    return { envelope: { status: 'rejected', error: message(error) } }
+  }
+}

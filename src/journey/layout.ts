@@ -179,7 +179,7 @@ export function layoutJourneyDiagram(
   const style = resolveRenderStyle(options, appearance.styleDefaults, styleFace)
   const hasNamedSections = diagram.sections.some(section => !!section.label)
 
-  const titleBlock = diagram.title ? preparePixelText(diagram.title, { transform: style.groupTextTransform, fontSize: visual.titleFontSize, fontWeight: JY.titleFontWeight, letterSpacing: style.groupLetterSpacing }) : undefined
+  const titleBlock = diagram.title ? preparePixelText(diagram.title, { transform: style.groupTextTransform, fontSize: visual.titleFontSize, fontWeight: JY.titleFontWeight, letterSpacing: style.groupLetterSpacing, fontFamily: visual.titleFontFamily }) : undefined
   const titleText = titleBlock?.text
   const titleMetrics = titleBlock
   const actorLabels = collectActors(diagram).map(actor => {
@@ -208,7 +208,7 @@ export function layoutJourneyDiagram(
     const fontSize = semanticStyle?.fontSize ?? style.groupHeaderFontSize
     const fontWeight = semanticStyle?.fontWeight ?? style.groupHeaderFontWeight
     const letterSpacing = semanticStyle?.letterSpacing ?? style.groupLetterSpacing
-    const block = section.label ? preparePixelText(section.label, { transform: semanticStyle?.textTransform ?? style.groupTextTransform, fontSize, fontWeight, letterSpacing, maxWidth: visual.maxLabelWidth }) : undefined
+    const block = section.label ? preparePixelText(section.label, { transform: semanticStyle?.textTransform ?? style.groupTextTransform, fontSize, fontWeight, letterSpacing, fontFamily: semanticStyle?.fontFamily ?? style.groupFont, maxWidth: visual.maxLabelWidth }) : undefined
     const label = block?.text
     const labelMetrics = block
     const labelWidth = labelMetrics?.width ?? 0
@@ -421,7 +421,7 @@ function measureTask(
   // Task labels share the actor-legend wrap cap: a long label wraps into a
   // taller box instead of stretching the whole plot (Mermaid clips here —
   // upstream issue #6243; we wrap).
-  const block = preparePixelText(text, { transform: style.nodeTextTransform, fontSize: style.nodeLabelFontSize, fontWeight: style.nodeLabelFontWeight, letterSpacing: style.nodeLetterSpacing, maxWidth: visual.maxLabelWidth })
+  const block = preparePixelText(text, { transform: style.nodeTextTransform, fontSize: style.nodeLabelFontSize, fontWeight: style.nodeLabelFontWeight, letterSpacing: style.nodeLetterSpacing, fontFamily: visual.taskFontFamily, maxWidth: visual.maxLabelWidth })
   const taskText = block.text
   const textMetrics = block
   const actorDotsWidth = actorCount > 0

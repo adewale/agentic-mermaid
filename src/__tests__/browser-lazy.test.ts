@@ -1,8 +1,11 @@
 import { describe, expect, test } from 'bun:test'
 import { getFamily, knownBuiltinFamilies } from '../agent/families.ts'
+import type { FamilyDescriptor } from '../agent/families.ts'
 import { BrowserFamilyDetectionError, renderMermaidSVGAsync } from '../browser-lazy.ts'
 import { detectBrowserBuiltinFamilyFromFirstLine } from '../browser-lazy/generated/catalog.ts'
+import { renderLoadedFamilySvg } from '../browser-lazy/render-core.ts'
 import { renderMermaidSVG } from '../index.ts'
+import { LayoutCertificationError } from '../layout/certification-error.ts'
 import { detectDiagramTypeFromFirstLine } from '../mermaid-source.ts'
 import type { ConfigDiagnostic } from '../types.ts'
 import type { MermaidRuntimeConfig } from '../mermaid-source.ts'
@@ -38,6 +41,28 @@ describe('async browser SVG entry', () => {
       expect(diagnostics.map(item => item.field)).toEqual(entry.fields)
       expect(results[index]).toEqual({ svg, diagnostics })
     }
+  })
+
+  test('rejects invalid browser-only final geometry before lowering', async () => {
+    const { default: descriptor } = await import('../browser-lazy/families/timeline.ts')
+    let layoutCalls = 0
+    let loweringCalls = 0
+    const invalid: FamilyDescriptor = {
+      ...descriptor,
+      layout: context => {
+        layoutCalls++
+        const result = descriptor.layout!(context)
+        const positioned = 'positioned' in result ? result.positioned : result
+        return { positioned: { ...positioned, width: 1, height: 1 } }
+      },
+      lowerScene: context => {
+        loweringCalls++
+        return descriptor.lowerScene!(context)
+      },
+    }
+    await expect(renderLoadedFamilySvg('timeline\n2026 : Launch', {}, invalid)).rejects.toBeInstanceOf(LayoutCertificationError)
+    expect(layoutCalls).toBe(1)
+    expect(loweringCalls).toBe(0)
   })
 
   test('renders every enrolled family with byte-exact synchronous parity', async () => {

@@ -1,5 +1,6 @@
 import { diagnoseFlowchartConfig } from '../flowchart/config-diagnostics.ts'
-import { layoutResult, scene, type BrowserSvgFamilyHooks } from '../browser-lazy/family.ts'
+import { projectGraphPositioned } from '../positioned-views/graph.ts'
+import { layoutResult, positionedView, scene, type BrowserSvgFamilyHooks } from '../browser-lazy/family.ts'
 import { resolveFlowchartRenderOptions, applyFlowchartLabelWrapping } from '../flowchart-config.ts'
 import { layoutGraphSync } from '../layout-engine.ts'
 import { parseMermaid } from '../parser.ts'
@@ -30,5 +31,6 @@ export const FLOWCHART_SVG_HOOKS = {
       ...(diagramTitle ? { diagramTitle } : {}),
     }))
   },
+  projectPositioned: positionedView(projectGraphPositioned),
   lowerScene: scene(lowerGraphScene),
 } satisfies BrowserSvgFamilyHooks

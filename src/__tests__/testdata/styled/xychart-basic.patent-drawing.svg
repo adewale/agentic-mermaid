@@ -1,7 +1,7 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="100%" height="100%" viewBox="0 0 700 500" style="--bg:#ffffff;--fg:#111111;--line:#111111;--accent:#111111;--muted:#444444;--surface:#ffffff;--border:#111111;--font:EB Garamond;background:#ffffff;max-width:700px" aria-roledescription="xychart" class="xychart am-1qcoyzj16y85wk" data-xychart-colors="1" id="mermaid-kh95x8">
+<svg xmlns="http://www.w3.org/2000/svg" width="100%" height="100%" viewBox="0 0 700 500" style="--bg:#ffffff;--fg:#111111;--line:#111111;--accent:#111111;--muted:#444444;--surface:#ffffff;--border:#111111;--font:EB Garamond;background:#ffffff;max-width:700px" aria-roledescription="xychart" class="xychart am-04wgevl1o2o3sv" data-xychart-colors="1" id="mermaid-kh95x8">
 <style>
-  .am-1qcoyzj16y85wk text { font-family: var(--font, 'EB Garamond'), system-ui, sans-serif; }
-  svg.am-1qcoyzj16y85wk {
+  svg.am-04wgevl1o2o3sv { font-family: var(--font, 'EB Garamond'), system-ui, sans-serif; }
+  svg.am-04wgevl1o2o3sv {
     /* Derived from --bg and --fg (overridable via --line, --accent, etc.) */
     --_text:          #111111;
     --_text-sec:      #444444;
@@ -18,35 +18,35 @@
   }
 </style>
 <style>
-  .am-1qcoyzj16y85wk .xychart-grid { stroke: #111111; stroke-width: 1; opacity: 0.25; }
-  .am-1qcoyzj16y85wk .xychart-axis-line { fill: none; }
-  .am-1qcoyzj16y85wk .xychart-tick { fill: none; }
-  .am-1qcoyzj16y85wk .xychart-x-axis-line { stroke: #111111; }
-  .am-1qcoyzj16y85wk .xychart-y-axis-line { stroke: #111111; }
-  .am-1qcoyzj16y85wk .xychart-x-tick { stroke: #111111; }
-  .am-1qcoyzj16y85wk .xychart-y-tick { stroke: #111111; }
-  .am-1qcoyzj16y85wk .xychart-bar { stroke: none; }
-  .am-1qcoyzj16y85wk .xychart-line { fill: none; stroke-width: 1.45; stroke-linecap: round; stroke-linejoin: round; }
-  .am-1qcoyzj16y85wk .xychart-dot { stroke: #ffffff; stroke-width: 2; }
-  .am-1qcoyzj16y85wk .xychart-label { fill: #111111; }
-  .am-1qcoyzj16y85wk .xychart-x-label { fill: #111111; }
-  .am-1qcoyzj16y85wk .xychart-y-label { fill: #111111; }
-  .am-1qcoyzj16y85wk .xychart-axis-title { fill: #111111; }
-  .am-1qcoyzj16y85wk .xychart-x-axis-title { fill: #111111; }
-  .am-1qcoyzj16y85wk .xychart-y-axis-title { fill: #111111; }
-  .am-1qcoyzj16y85wk .xychart-title { fill: #111111; }
-  .am-1qcoyzj16y85wk .xychart-data-label { pointer-events: none; }
-  .am-1qcoyzj16y85wk .xychart-legend-label { fill: #111111; }
-  svg.am-1qcoyzj16y85wk {
+  .am-04wgevl1o2o3sv .xychart-grid { stroke: #111111; stroke-width: 1; opacity: 0.25; }
+  .am-04wgevl1o2o3sv .xychart-axis-line { fill: none; }
+  .am-04wgevl1o2o3sv .xychart-tick { fill: none; }
+  .am-04wgevl1o2o3sv .xychart-x-axis-line { stroke: #111111; }
+  .am-04wgevl1o2o3sv .xychart-y-axis-line { stroke: #111111; }
+  .am-04wgevl1o2o3sv .xychart-x-tick { stroke: #111111; }
+  .am-04wgevl1o2o3sv .xychart-y-tick { stroke: #111111; }
+  .am-04wgevl1o2o3sv .xychart-bar { stroke: none; }
+  .am-04wgevl1o2o3sv .xychart-line { fill: none; stroke-width: 1.45; stroke-linecap: round; stroke-linejoin: round; }
+  .am-04wgevl1o2o3sv .xychart-dot { stroke: #ffffff; stroke-width: 2; }
+  .am-04wgevl1o2o3sv .xychart-label { fill: #111111; }
+  .am-04wgevl1o2o3sv .xychart-x-label { fill: #111111; }
+  .am-04wgevl1o2o3sv .xychart-y-label { fill: #111111; }
+  .am-04wgevl1o2o3sv .xychart-axis-title { fill: #111111; }
+  .am-04wgevl1o2o3sv .xychart-x-axis-title { fill: #111111; }
+  .am-04wgevl1o2o3sv .xychart-y-axis-title { fill: #111111; }
+  .am-04wgevl1o2o3sv .xychart-title { fill: #111111; }
+  .am-04wgevl1o2o3sv .xychart-data-label { pointer-events: none; }
+  .am-04wgevl1o2o3sv .xychart-legend-label { fill: #111111; }
+  svg.am-04wgevl1o2o3sv {
     --xychart-color-0: #111111;
     --xychart-color-1: #8a2835;
   }
-  .am-1qcoyzj16y85wk .xychart-bar.xychart-color-0 { fill: #111111; }
-  .am-1qcoyzj16y85wk path.xychart-color-0, .am-1qcoyzj16y85wk line.xychart-color-0 { stroke: #111111; }
-  .am-1qcoyzj16y85wk circle.xychart-color-0 { fill: #111111; }
-  .am-1qcoyzj16y85wk .xychart-bar.xychart-color-1 { fill: #8a2835; }
-  .am-1qcoyzj16y85wk path.xychart-color-1, .am-1qcoyzj16y85wk line.xychart-color-1 { stroke: #8a2835; }
-  .am-1qcoyzj16y85wk circle.xychart-color-1 { fill: #8a2835; }
+  .am-04wgevl1o2o3sv .xychart-bar.xychart-color-0 { fill: #111111; }
+  .am-04wgevl1o2o3sv path.xychart-color-0, .am-04wgevl1o2o3sv line.xychart-color-0 { stroke: #111111; }
+  .am-04wgevl1o2o3sv circle.xychart-color-0 { fill: #111111; }
+  .am-04wgevl1o2o3sv .xychart-bar.xychart-color-1 { fill: #8a2835; }
+  .am-04wgevl1o2o3sv path.xychart-color-1, .am-04wgevl1o2o3sv line.xychart-color-1 { stroke: #8a2835; }
+  .am-04wgevl1o2o3sv circle.xychart-color-1 { fill: #8a2835; }
 </style>
 <rect width="700" height="500" fill="#ffffff" data-backdrop="page" />
 <line x1="60.71" y1="469.55" x2="633" y2="469.55" class="xychart-grid"/>

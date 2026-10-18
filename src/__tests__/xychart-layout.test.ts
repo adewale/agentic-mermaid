@@ -8,6 +8,9 @@ import { describe, it, expect } from 'bun:test'
 import { preprocessMermaidSource } from '../mermaid-source.ts'
 import { applyXYChartFrontmatterConfig, parseXYChart } from '../xychart/parser.ts'
 import { layoutXYChart } from '../xychart/layout.ts'
+import { renderMermaidSVG } from '../index.ts'
+import { layoutMermaidWithReceipt } from '../agent/index.ts'
+import { projectXyChartPositioned } from '../positioned-views/xychart.ts'
 
 function layout(text: string) {
   const processed = preprocessMermaidSource(text)
@@ -15,6 +18,53 @@ function layout(text: string) {
 }
 
 describe('xychart layout – dimensions and bounds', () => {
+  it('rounds a fractional plot frame by its endpoints without inventing off-canvas geometry', () => {
+    const source = '---\nconfig:\n  xyChart:\n    showDataLabel: true\n---\nxychart-beta horizontal\nx-axis [c0,c1,c2,c3,c4,c5,c6,c7]\nbar s0 [0,0,0,0,0,0,0,0]'
+    const projected = layoutMermaidWithReceipt(source, { style: 'risograph' }).layout
+    const plot = projected.groups.find(group => group.id === 'plot')!
+    expect(plot.y + plot.h).toBe(projected.bounds.h)
+    const svg = renderMermaidSVG(source, { style: 'risograph' })
+    expect(svg).toContain('viewBox="0 0 700 500"')
+  })
+
+  it('an invisible out-of-domain single line sample retains its value without an off-canvas measurement footprint', () => {
+    const source = '---\nconfig:\n  xyChart:\n    width: 300\n    height: 241\n    showDataLabel: false\n---\nxychart-beta\nx-axis [a]\ny-axis 0 --> 100\nline S0 [-17]'
+    const positioned = layout(source)
+    const point = positioned.lines[0]!.points[0]!
+    expect(point.value).toBe(-17)
+    expect(point.y).toBeGreaterThan(positioned.height)
+    const original = { ...point }
+    const projected = projectXyChartPositioned({ positioned, options: {} })
+    const sample = projected.nodes.find(node => node.id === 'line#0:pt#0')!
+    expect(Number(sample.y)).toBe(241)
+    expect(Number(sample.h)).toBe(0)
+    expect(point).toEqual(original)
+    const svg = renderMermaidSVG(source)
+    // A lone sample has neither a connector nor an unrequested marker. Its
+    // semantic datum survives even though it paints no series ink here.
+    expect(svg).not.toContain('class="xychart-line ')
+    expect(svg).not.toContain('class="xychart-dot ')
+  })
+
+  it('retains in-canvas point-label anchors without moving authored samples', () => {
+    for (const orientation of ['', ' horizontal']) {
+      const prefix = `xychart-beta${orientation}\n x-axis [A,B]\n y-axis 0 --> 10\n`
+      const bare = layout(`${prefix} line [10,0]`)
+      const labelled = layout(`${prefix} line [10 "Top",0 "Bottom"]`)
+      expect(labelled.lines[0]!.points.map(({ x, y, value }) => ({ x, y, value })))
+        .toEqual(bare.lines[0]!.points.map(({ x, y, value }) => ({ x, y, value })))
+      for (const point of labelled.lines[0]!.points) {
+        expect(point.textBlock).toBeDefined()
+        const at = point.textPosition
+        expect(at).toBeDefined()
+        expect(at!.x).toBeGreaterThanOrEqual(0)
+        expect(at!.y - point.textBlock!.height / 2).toBeGreaterThanOrEqual(0)
+        expect(at!.y + point.textBlock!.height / 2).toBeLessThanOrEqual(labelled.height)
+      }
+      expect(renderMermaidSVG(`${prefix} line [10 "Top",0 "Bottom"]`)).not.toContain('y="-1" class="xychart-point-label')
+    }
+  })
+
   it('uses Mermaid width and height as total chart dimensions', () => {
     const chart = layout(`---
 config:

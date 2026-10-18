@@ -1,5 +1,6 @@
 import { diagnoseRadarConfig } from '../radar/config-diagnostics.ts'
-import { layoutResult, scene, type BrowserSvgFamilyHooks } from '../browser-lazy/family.ts'
+import { projectRadarPositioned } from '../positioned-views/radar.ts'
+import { layoutResult, positionedView, scene, type BrowserSvgFamilyHooks } from '../browser-lazy/family.ts'
 import { resolveRadarVisualConfig } from '../radar/config.ts'
 import { layoutRadarChart } from '../radar/layout.ts'
 import { parseRadarChart } from '../radar/parser.ts'
@@ -21,5 +22,6 @@ export const RADAR_SVG_HOOKS = {
       ?? resolveRadarVisualConfig(ctx.source.frontmatter),
     ctx.styleFace,
   ), { injectAccessibility: false }),
+  projectPositioned: positionedView(projectRadarPositioned),
   lowerScene: scene(lowerRadarScene),
 } satisfies BrowserSvgFamilyHooks

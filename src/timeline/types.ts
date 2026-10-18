@@ -110,6 +110,7 @@ export interface PositionedTimelinePeriod {
 
 export interface PositionedTimelineEvent {
   block?: PixelTextBlock
+  labelX?: number
   id: string
   sectionId: string
   periodId: string

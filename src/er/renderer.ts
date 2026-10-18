@@ -580,21 +580,6 @@ export function separateRelationshipLabels(
         if (!collides(b)) { chosen = q; chosenBox = b; break }
       }
     }
-    // Group-to-group routes can cross every internal relationship, leaving no
-    // collision-free point on the polyline. Search deterministic normal lanes
-    // around its midpoint rather than accepting an unreadable overlap.
-    if (collides(chosenBox)) {
-      const first = pts[0]!, last = pts[pts.length - 1]!
-      const vx = last.x - first.x, vy = last.y - first.y
-      const length = Math.hypot(vx, vy) || 1
-      const nx = -vy / length, ny = vx / length
-      const step = Math.max(18, bgH + 6)
-      for (const multiple of [1, -1, 2, -2, 3, -3]) {
-        const q = { x: mid.x + nx * step * multiple, y: mid.y + ny * step * multiple }
-        const b = boxAt(q.x, q.y)
-        if (!collides(b)) { chosen = q; chosenBox = b; break }
-      }
-    }
     placed.push(chosenBox)
     out.set(rel, chosen)
   }

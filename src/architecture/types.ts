@@ -87,6 +87,7 @@ export interface PositionedArchitectureService {
   id: string
   label: string
   labelBlock?: import('../shared/prepared-text.ts').PixelTextBlock
+  labelPosition?: Point
   icon?: string
   parentId?: string
   x: number

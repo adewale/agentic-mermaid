@@ -1,7 +1,7 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="462.48" height="274.9" viewBox="0 0 462.48 274.9" style="--bg:#08111f;--fg:#e6f4ff;--line:#5a7c99;--accent:#2dd4bf;--muted:#8aa6bf;--surface:#102033;--border:#2e4c63;--font:Inter;background:#08111f" aria-roledescription="pie chart" role="img" class="am-1k7ss4y15dsmun">
+<svg xmlns="http://www.w3.org/2000/svg" width="462.48" height="274.9" viewBox="0 0 462.48 274.9" style="--bg:#08111f;--fg:#e6f4ff;--line:#5a7c99;--accent:#2dd4bf;--muted:#8aa6bf;--surface:#102033;--border:#2e4c63;--font:Inter;background:#08111f" aria-roledescription="pie chart" role="img" class="am-08c8gyy1xm9ei0">
 <style>
-  .am-1k7ss4y15dsmun text { font-family: var(--font, 'Inter'), system-ui, sans-serif; }
-  svg.am-1k7ss4y15dsmun {
+  svg.am-08c8gyy1xm9ei0 { font-family: var(--font, 'Inter'), system-ui, sans-serif; }
+  svg.am-08c8gyy1xm9ei0 {
     /* Derived from --bg and --fg (overridable via --line, --accent, etc.) */
     --_text:          #e6f4ff;
     --_text-sec:      #8aa6bf;
@@ -18,14 +18,14 @@
   }
 </style>
 <style>
-  .am-1k7ss4y15dsmun .pie-slice { stroke: #e6f4ff; stroke-width: 1.4; }
-  .am-1k7ss4y15dsmun .pie-slice.highlighted { stroke: #e6f4ff; stroke-width: 2.5; opacity: 1; }
-  .am-1k7ss4y15dsmun .pie-slice.highlighted-on-hover:hover { stroke: #e6f4ff; stroke-width: 2.5; opacity: 1; }
-  .am-1k7ss4y15dsmun .pie-legend-swatch { stroke: #e6f4ff; stroke-width: 1.4; }
-  .am-1k7ss4y15dsmun .pie-legend-text { fill: #e6f4ff; }
-  .am-1k7ss4y15dsmun .pie-title { fill: #e6f4ff; }
-  .am-1k7ss4y15dsmun .pie-slice.pie-dim { opacity: 0.4; }
-  .am-1k7ss4y15dsmun .pie-legend-swatch.pie-dim { opacity: 0.4; }
+  .am-08c8gyy1xm9ei0 .pie-slice { stroke: #e6f4ff; stroke-width: 1.4; }
+  .am-08c8gyy1xm9ei0 .pie-slice.highlighted { stroke: #e6f4ff; stroke-width: 2.5; opacity: 1; }
+  .am-08c8gyy1xm9ei0 .pie-slice.highlighted-on-hover:hover { stroke: #e6f4ff; stroke-width: 2.5; opacity: 1; }
+  .am-08c8gyy1xm9ei0 .pie-legend-swatch { stroke: #e6f4ff; stroke-width: 1.4; }
+  .am-08c8gyy1xm9ei0 .pie-legend-text { fill: #e6f4ff; }
+  .am-08c8gyy1xm9ei0 .pie-title { fill: #e6f4ff; }
+  .am-08c8gyy1xm9ei0 .pie-slice.pie-dim { opacity: 0.4; }
+  .am-08c8gyy1xm9ei0 .pie-legend-swatch.pie-dim { opacity: 0.4; }
 </style>
 <rect width="462.48" height="274.9" fill="#08111f" data-backdrop="page" />
 <path class="pie-slice highlighted" d="M 119 155.9 L 119 60.9 A 95 95 0 0 1 129.72 250.29 Z" fill="#2dd4bf" data-label="Images" data-value="48.2" data-percent="48.2%" data-highlighted="true" data-id="slice:Images" data-role="pie-slice" />

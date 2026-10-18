@@ -64,6 +64,13 @@ export { resolveArchitectureIcon, architectureIconManifest, ARCHITECTURE_ICON_LI
 export type { ResolvedArchitectureIcon } from './architecture/icons.ts'
 export { TEXT_MEASUREMENT_CONTRACT, measureText, measureTextWidth } from './text-metrics.ts'
 export type { TextMeasurementContract, TextMeasurementInput, TextMeasurementResult } from './text-metrics.ts'
+export { DEFAULT_TEXT_MEASUREMENT_PROFILE } from './text-measurement-profile.ts'
+export type { TextMeasurementProfile, TextMeasurementProfileIdentity, ProfileTextMeasurementInput } from './text-measurement-profile.ts'
+export { LayoutCertificationError } from './layout/certification.ts'
+export type { LayoutCertificationReceipt, LayoutCertificationAttempt } from './layout/certification.ts'
+export { LayoutMetricBudgetError } from './layout/pass.ts'
+export { withParserObservation } from './shared/parser-observation.ts'
+export type { ParserObservation, ParserObservationSource, ParserObservationValue, ParserObserver } from './shared/parser-observation.ts'
 export { MermaidFamilyDetectionError, classifyMermaidFamilyFromFirstLine } from './family-detection.ts'
 export type { MermaidFamilyClassification, FamilyDetectionDiagnostic } from './family-detection.ts'
 
@@ -75,6 +82,7 @@ import {
 } from './render-contract.ts'
 import { snapshotHostBackendPolicy, type HostBackendPolicy } from './scene/backend.ts'
 import { executeGraphicalRequest } from './graphical-render.ts'
+import { snapshotTextMeasurementProfile, type TextMeasurementProfile } from './text-measurement-profile.ts'
 
 export {
   registerStyle, getStyle, knownStyles, knownStyleDescriptors, resolveStyleReference,
@@ -267,10 +275,12 @@ export interface RenderedSvg {
 
 /**
  * Trusted host-only renderer construction options. These values are never
- * copied into RenderOptions, receipts, CLI/MCP payloads, or editor state.
+ * copied into RenderOptions, CLI/MCP payloads, or editor state. Receipts contain
+ * only the selected measurement profile's id/version, never its callback.
  */
 export interface MermaidRendererHostOptions {
   readonly backendPolicy?: HostBackendPolicy
+  readonly textMeasurement?: TextMeasurementProfile
 }
 
 /** A renderer bound to trusted in-process host policy. */
@@ -286,7 +296,8 @@ export interface MermaidRenderer {
  */
 export function createMermaidRenderer(hostOptions: MermaidRendererHostOptions = {}): MermaidRenderer {
   const backendPolicy = snapshotHostBackendPolicy(hostOptions.backendPolicy)
-  const host = Object.freeze({ ...(backendPolicy ? { backendPolicy } : {}) })
+  const textMeasurement = snapshotTextMeasurementProfile(hostOptions.textMeasurement)
+  const host = Object.freeze({ ...(backendPolicy ? { backendPolicy } : {}), ...(textMeasurement ? { textMeasurement } : {}) })
   return Object.freeze({
     renderMermaidSVG(text: ParsedDiagram | string, options: RenderOptions = {}): string {
       const input = prepareRenderInput(text)
