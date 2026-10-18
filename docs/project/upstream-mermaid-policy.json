@@ -1,13 +1,13 @@
 {
   "schemaVersion": 2,
   "pin": {
-    "version": "11.16.0",
-    "commit": "f3dea58385fd5c7dd1f4e9c9c1876751ae6943cc",
+    "version": "12.2.0",
+    "commit": "1fb7869866dd619168d840291c9c54b4f129758b",
     "inputs": [
       "packages/mermaid/src/diagram-api/diagram-orchestration.ts",
       "packages/mermaid/src/diagram-api/detectType.ts",
       "packages/mermaid/src/diagrams/**/**Detector.ts",
-      "packages/mermaid/src/config.schema.yaml",
+      "packages/mermaid/src/schemas/config.schema.yaml",
       "https://mermaid.ai/open-source/syntax/",
       "skills/agentic-mermaid-diagram-workflow/references/upstream/*.md"
     ]
@@ -43,7 +43,9 @@
     "wardley": "wardley.md",
     "cynefin": "cynefin.md",
     "treeview": "treeView.md",
-    "railroad": "railroad.md"
+    "railroad": "railroad.md",
+    "agentflow": "agentflow.md",
+    "usecase": "usecase.md"
   },
   "families": [
     {
@@ -53,7 +55,6 @@
       "maturity": "stable",
       "upstreamDetectorIds": [
         "flowchart-v2",
-        "flowchart",
         "flowchart-elk"
       ],
       "headers": [
@@ -107,8 +108,7 @@
       "source": "core",
       "maturity": "stable",
       "upstreamDetectorIds": [
-        "classDiagram",
-        "class"
+        "classDiagram"
       ],
       "headers": [
         {
@@ -127,8 +127,7 @@
       "source": "core",
       "maturity": "stable",
       "upstreamDetectorIds": [
-        "stateDiagram",
-        "state"
+        "stateDiagram"
       ],
       "headers": [
         {
@@ -590,6 +589,36 @@
         },
         {
           "value": "railroad-peg-beta",
+          "agenticStatus": "unsupported"
+        }
+      ]
+    },
+    {
+      "id": "agentflow",
+      "label": "Agentflow",
+      "source": "core",
+      "maturity": "beta",
+      "upstreamDetectorIds": [
+        "agentflow"
+      ],
+      "headers": [
+        {
+          "value": "agentflow-beta",
+          "agenticStatus": "unsupported"
+        }
+      ]
+    },
+    {
+      "id": "usecase",
+      "label": "Use Case",
+      "source": "core",
+      "maturity": "beta",
+      "upstreamDetectorIds": [
+        "usecase"
+      ],
+      "headers": [
+        {
+          "value": "usecase-beta",
           "agenticStatus": "unsupported"
         }
       ]

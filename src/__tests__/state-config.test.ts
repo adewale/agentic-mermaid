@@ -2,7 +2,7 @@ import { describe, expect, test } from 'bun:test'
 import { parseRegisteredMermaid as parseMermaid, verifyMermaid } from '../agent/index.ts'
 import { renderMermaidSVG } from '../index.ts'
 import {
-  STATE_CONFIG_FIELDS, STATE_LEGACY_CONFIG_FIELDS, STATE_WIRED_CONFIG_FIELDS,
+  STATE_CONFIG_FIELDS, STATE_LEGACY_CONFIG_FIELDS, STATE_NOOP_CONFIG_FIELDS, STATE_WIRED_CONFIG_FIELDS,
   stateConfigDiagnostics,
 } from '../state/config.ts'
 import { SDK_DECLARATION } from '../mcp/sdk-decl.ts'
@@ -44,11 +44,12 @@ describe('state runtime config is wire-or-warn', () => {
     const expected = [
       'arrowMarkerAbsolute', 'compositTitleSize', 'defaultRenderer', 'dividerMargin',
       'edgeLengthFactor', 'fontSize', 'fontSizeFactor', 'forkHeight', 'forkWidth',
-      'labelHeight', 'miniPadding', 'nodeSpacing', 'noteMargin', 'padding', 'radius',
-      'rankSpacing', 'sizeUnit', 'textHeight', 'titleShift', 'titleTopMargin',
+      'labelHeight', 'layout', 'look', 'miniPadding', 'minNodeWidth', 'nodeSpacing',
+      'noteMargin', 'padding', 'radius', 'rankSpacing', 'sizeUnit', 'textHeight',
+      'theme', 'titleShift', 'titleTopMargin', 'wrappingWidth',
     ]
     expect([...STATE_CONFIG_FIELDS] as string[]).toEqual(expected)
-    const classified = [...STATE_WIRED_CONFIG_FIELDS, ...STATE_LEGACY_CONFIG_FIELDS, 'defaultRenderer']
+    const classified = [...STATE_WIRED_CONFIG_FIELDS, ...STATE_LEGACY_CONFIG_FIELDS, ...STATE_NOOP_CONFIG_FIELDS, 'defaultRenderer']
     expect(new Set(classified)).toEqual(new Set(expected))
     expect(classified).toHaveLength(expected.length)
   })
@@ -116,7 +117,7 @@ describe('state runtime config is wire-or-warn', () => {
     expect(suppressedConsole).toHaveLength(1)
   })
 
-  test.each([...STATE_LEGACY_CONFIG_FIELDS])('%s warns with a qualified field through frontmatter and init', field => {
+  test.each([...STATE_LEGACY_CONFIG_FIELDS, ...STATE_NOOP_CONFIG_FIELDS])('%s warns with a qualified field through frontmatter and init', field => {
     const frontmatter = warnings(`    ${field}: ${field === 'arrowMarkerAbsolute' ? 'true' : field === 'edgeLengthFactor' ? '"1"' : '10'}`)
     expect(frontmatter).toContainEqual(expect.objectContaining({ code: 'INEFFECTIVE_CONFIG', field: `state.${field}` }))
 

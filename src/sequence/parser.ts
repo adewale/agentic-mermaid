@@ -513,7 +513,7 @@ export function readSequenceStatements(lines: readonly string[]): { statements: 
     } else if (syntax.kind === 'declaration' && syntax.declaration.unmodeledMetadata?.length) {
       issue(entry, 'sequence_participant_metadata', `Participant metadata fields ${syntax.declaration.unmodeledMetadata.join(', ')} are not modeled; the declaration is preserved as source`)
     } else if (syntax.kind === 'declaration' && syntax.declaration.unspacedAlias) {
-      issue(entry, 'sequence_unspaced_alias', 'Participant text immediately following as is read as its alias. Mermaid 11.16 can reject this or read it as part of the ID; write as <label> with a separating space')
+      issue(entry, 'sequence_unspaced_alias', 'Participant text immediately following as is read as its alias. Pinned Mermaid can reject this or read it as part of the ID; write as <label> with a separating space')
     }
   }
   for (const index of stack) issue(statements[index]!, 'sequence_block_boundary', 'Sequence block or box is never closed by end')

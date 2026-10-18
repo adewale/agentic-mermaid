@@ -27,7 +27,10 @@ const descriptorData = Object.freeze({
       "curve",
       "padding",
       "defaultRenderer",
-      "inheritDir"
+      "inheritDir",
+      "look",
+      "minNodeWidth",
+      "theme"
     ],
     "noopKeys": [
       "arrowMarkerAbsolute",
@@ -36,8 +39,11 @@ const descriptorData = Object.freeze({
       "diagramPadding",
       "htmlLabels",
       "inheritDir",
+      "look",
+      "minNodeWidth",
       "padding",
       "subGraphTitleMargin",
+      "theme",
       "titleTopMargin"
     ]
   },

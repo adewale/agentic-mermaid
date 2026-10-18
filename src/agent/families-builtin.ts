@@ -1261,7 +1261,7 @@ const GITGRAPH_AGENT_HOOKS = {
       return [{
         code: 'UNSUPPORTED_SYNTAX',
         syntax: 'gitgraph_duplicate_commit_id',
-        message: 'Mermaid 11.16 warns and continues on duplicate GitGraph commit IDs, but Agentic Mermaid requires unique IDs for deterministic identity. The source is preserved; native rendering and typed mutation are unavailable. Rename one duplicate ID to render or mutate it.',
+        message: 'Pinned Mermaid warns and continues on duplicate GitGraph commit IDs, but Agentic Mermaid requires unique IDs for deterministic identity. The source is preserved; native rendering and typed mutation are unavailable. Rename one duplicate ID to render or mutate it.',
       }]
     }
     return []

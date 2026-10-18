@@ -25,7 +25,11 @@ distinguishes implemented outputs from preserved source and proposals.
 
 ## Comparison scope — checked 2026-10-17
 
-The syntax/fixture baseline is Mermaid 11.16. The Beautiful package comparator
+This dated comparison used a Mermaid 11.16 syntax/fixture baseline. The current
+writing/reference target is Mermaid 12.2.0 (source commit
+`1fb7869866dd619168d840291c9c54b4f129758b`), recorded in the
+[upstream policy](./project/upstream-mermaid-policy.json); imported fixtures and
+comparison renders retain their recorded provenance. The Beautiful package comparator
 is **1.1.3**, not every unmerged contribution. Its inspected main is
 [`2ac8bbbb`](https://github.com/lukilabs/beautiful-mermaid/tree/2ac8bbbb060ca0a65a6a21f3200bd99b1587b488).
 Agentic claims here refer to source
@@ -158,7 +162,7 @@ visually worse render.
 ## Compatibility notes
 
 Mermaid is our input language, not a pixel or bug-for-bug specification. Write
-valid Mermaid 11.16; read unambiguous intent generously with diagnostics, and
+valid Mermaid 12.2.0; read unambiguous intent generously with diagnostics, and
 reject input whose meaning cannot be determined. Display/layout choices remain
 ours. Preserving source does not imply native rendering or structural
 verification: unsupported families receive an explicit diagnostic, and opaque

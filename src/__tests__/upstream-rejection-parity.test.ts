@@ -1,4 +1,4 @@
-// Write strictly, read generously, warn. Where pinned Mermaid 11.16 rejects a
+// Write strictly, read generously, warn. Where pinned Mermaid rejects a
 // construct whose meaning is clear, ours reads it: the typed parser models it,
 // the renderer draws it, and verify reports UNSUPPORTED_SYNTAX naming the
 // construct on its authored line. The accepted neighbours (the quoted form, a
@@ -68,14 +68,10 @@ const QUADRANT_READ_GENEROUSLY: ReadonlyArray<GenerousRow> = [
   ['a string after unquoted text', 'quadrantChart\n  title Growth\n  quadrant-1 Grow "fast"', 'Grow', 'quadrant_unquoted_text', 3],
 ]
 
-// Mermaid's architecture lexer terminals: an unquoted [title] is words and
-// spaces, an (icon) is word characters, - and :, an id has dashes only inside.
+// Mermaid's architecture lexer terminals: an (icon) is word characters, -
+// and :, an id has dashes only inside. Unquoted titles now accept punctuation.
 const ARCHITECTURE_READ_GENEROUSLY: ReadonlyArray<GenerousRow> = [
-  ['a <br/> in an unquoted service title', 'architecture-beta\n  service api(server)[Public<br/>API]', 'Public', 'architecture_title', 2],
-  ['a dash in an unquoted group title', 'architecture-beta\n  group edge(cloud)[Edge-Layer]', 'Edge-Layer', 'architecture_title', 2],
-  ['a non-ASCII letter in an unquoted title', 'architecture-beta\n  service db(database)[Café]', 'Café', 'architecture_title', 2],
-  ['a dash in an unquoted edge title', 'architecture-beta\n  service a(server)[A]\n  service b(server)[B]\n  a:R -[fan-out]-> L:b', 'fan-out', 'architecture_title', 4],
-  ['text after a quoted title', 'architecture-beta\n  service api(server)["Public" API]', 'API', 'architecture_title', 2],
+  ['a nested bracket in an unquoted title', 'architecture-beta\n  service api(server)[Public[API]]', 'Public[API]', 'architecture_title', 2],
   ['a dot in an icon name', 'architecture-beta\n  service api(se.rver)[API]', 'data-icon="se.rver"', 'architecture_icon', 2],
   ['a space in an icon name', 'architecture-beta\n  service api(my server)[API]', 'data-icon="my server"', 'architecture_icon', 2],
   ['an id ending in a dash', 'architecture-beta\n  service api-(server)[API]', 'API', 'architecture_id', 2],
@@ -104,6 +100,11 @@ const ACCEPTED: ReadonlyArray<readonly [BuiltinFamilyId, string, string]> = [
   ['architecture', 'a quoted edge title', 'architecture-beta\n  service a(server)[A]\n  service b(server)[B]\n  a:R -["fan-out"]-> L:b'],
   ['architecture', 'words, digits, _ and spaces unquoted', 'architecture-beta\n  service db_1(database)[Primary DB 2]\n  junction hub-a'],
   ['architecture', 'an icon with a prefix and dashes', 'architecture-beta\n  service fn(logos:aws-lambda)[Handler]'],
+  ['architecture', 'a <br/> in an unquoted service title', 'architecture-beta\n  service api(server)[Public<br/>API]'],
+  ['architecture', 'a dash in an unquoted group title', 'architecture-beta\n  group edge(cloud)[Edge-Layer]'],
+  ['architecture', 'a non-ASCII letter in an unquoted title', 'architecture-beta\n  service db(database)[Café]'],
+  ['architecture', 'a dash in an unquoted edge title', 'architecture-beta\n  service a(server)[A]\n  service b(server)[B]\n  a:R -[fan-out]-> L:b'],
+  ['architecture', 'text after a quoted title', 'architecture-beta\n  service api(server)["Public" API]'],
 ]
 
 describe('read generously what pinned Mermaid rejects, and warn', () => {
@@ -115,7 +116,8 @@ describe('read generously what pinned Mermaid rejects, and warn', () => {
     expect(readGenerously(source, text)).toEqual({ typed: 'quadrant', draws: true, reported: expect.arrayContaining([`${syntax}@${line}`]) })
   })
 
-  test.each(ARCHITECTURE_READ_GENEROUSLY)('architecture: %s is read, drawn and reported', (_construct, source, text, syntax, line) => {
+  test.each(ARCHITECTURE_READ_GENEROUSLY)('architecture: %s is read, drawn and reported', async (_construct, source, text, syntax, line) => {
+    expect((await upstream.parse(source)).ok).toBe(false)
     expect(readGenerously(source, text)).toEqual({ typed: 'architecture', draws: true, reported: expect.arrayContaining([`${syntax}@${line}`]) })
   })
 })
@@ -124,6 +126,7 @@ describe('accept what pinned Mermaid accepts', () => {
   test.each(ACCEPTED)('%s: %s is accepted, as Mermaid accepts it', async (family, _construct, source) => {
     expect({ mermaid: (await upstream.parse(source)).ok, ...ours(source) })
       .toEqual({ mermaid: true, typed: family, error: undefined })
+    if (family === 'architecture') expect(verifyMermaid(source).warnings.filter(warning => warning.code === 'UNSUPPORTED_SYNTAX')).toEqual([])
   })
 
   // The typed serializer must write what Mermaid reads: text that is only

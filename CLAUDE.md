@@ -43,7 +43,7 @@ into tiny near-identical steps, each paying the full integration cost.
 
 Write strictly, read generously, warn.
 
-1. What we **write** (serializers, `createMermaid`) must be valid Mermaid 11.16.
+1. What we **write** (serializers, `createMermaid`) must be valid Mermaid 12.2.0.
 2. What we **read** may be more generous than Mermaid. If the author's meaning
    is clear, parse and draw it, and have `verify` report `UNSUPPORTED_SYNTAX`
    saying Mermaid rejects it (see `journeySemicolonExtensionWarnings`). Reject
@@ -57,6 +57,12 @@ Write strictly, read generously, warn.
    Mermaid: lost or garbled content, a crash, a wrong drawing, our own surfaces
    (renderer, typed body, serializer, ASCII) disagreeing, or output Mermaid
    cannot read. Otherwise it is a divergence, not a backlog item.
+
+The current syntax/reference pin is Mermaid 12.2.0, source commit
+`1fb7869866dd619168d840291c9c54b4f129758b`, recorded in
+`docs/project/upstream-mermaid-policy.json`. Imported test corpora and dated
+comparisons retain their own source revisions; upgrading the current pin does
+not rewrite historical provenance or imply native support for every family.
 
 ### Tests protect behaviour, not other tests
 

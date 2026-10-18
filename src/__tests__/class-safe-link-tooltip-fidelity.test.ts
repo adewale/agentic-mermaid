@@ -22,7 +22,7 @@ const links = [
 ] as const
 
 describe('Class safe-link tooltip fidelity', () => {
-  test('pinned Mermaid 11.16 assigns both safe-link forms the same tooltip', async () => {
+  test('pinned Mermaid assigns both safe-link forms the same tooltip', async () => {
     expect(await upstream.projectAll(links.map(statement => `classDiagram\nclass A\n${statement}`), diagram => {
       const cls = diagram.db.getClasses().get('A')
       return { link: cls?.link, tooltip: cls?.tooltip }

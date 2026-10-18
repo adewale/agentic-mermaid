@@ -65,7 +65,7 @@ export interface TimelineRuntimeConfig extends MermaidConfigMap {
   sectionColours?: string[]
 }
 
-/** Mermaid stateDiagram config. Faithful ELK/measured-text fields are wired; legacy fields warn. */
+/** Mermaid stateDiagram config. Faithful ELK/measured-text fields are wired; unsupported fields warn. */
 export interface StateRuntimeConfig extends MermaidConfigMap {
   titleTopMargin?: number
   arrowMarkerAbsolute?: boolean
@@ -87,6 +87,11 @@ export interface StateRuntimeConfig extends MermaidConfigMap {
   compositTitleSize?: number
   radius?: number
   defaultRenderer?: 'dagre-d3' | 'dagre-wrapper' | 'elk'
+  layout?: string
+  look?: string
+  minNodeWidth?: number
+  theme?: string
+  wrappingWidth?: number
 }
 
 export interface XyChartRuntimeConfig extends MermaidConfigMap {

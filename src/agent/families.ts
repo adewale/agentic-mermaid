@@ -468,7 +468,7 @@ function nativeSceneRole(
 
 const BUILTIN_FAMILY_DESCRIPTOR_SEEDS = [
   { id: 'flowchart', upstreamId: 'flowchart-v2', maturity: 'stable', label: 'Flowchart', headers: ['flowchart', 'graph'], narrower: 'asFlowchart', editorDiagramType: 'Flowchart', editorLabel: 'Flowchart', editorDescription: 'Decision flow with labeled branches.', editorExampleId: 'flowchart-basic', editorGlyph: 'F',
-    config: { section: 'flowchart', keys: ['nodeSpacing', 'rankSpacing', 'wrappingWidth', 'titleTopMargin', 'subGraphTitleMargin', 'arrowMarkerAbsolute', 'diagramPadding', 'htmlLabels', 'curve', 'padding', 'defaultRenderer', 'inheritDir'], noopKeys: ['arrowMarkerAbsolute', 'curve', 'defaultRenderer', 'diagramPadding', 'htmlLabels', 'inheritDir', 'padding', 'subGraphTitleMargin', 'titleTopMargin'] },
+    config: { section: 'flowchart', keys: ['nodeSpacing', 'rankSpacing', 'wrappingWidth', 'titleTopMargin', 'subGraphTitleMargin', 'arrowMarkerAbsolute', 'diagramPadding', 'htmlLabels', 'curve', 'padding', 'defaultRenderer', 'inheritDir', 'look', 'minNodeWidth', 'theme'], noopKeys: ['arrowMarkerAbsolute', 'curve', 'defaultRenderer', 'diagramPadding', 'htmlLabels', 'inheritDir', 'look', 'minNodeWidth', 'padding', 'subGraphTitleMargin', 'theme', 'titleTopMargin'] },
     aliases: ['swimlane'],
     semanticChannels: [],
     detect: detectsFlowchartFamily,
@@ -481,7 +481,7 @@ const BUILTIN_FAMILY_DESCRIPTOR_SEEDS = [
   C --> E[End]
   D --> E` },
   { id: 'state', upstreamId: 'stateDiagram', maturity: 'stable', label: 'State', headers: ['stateDiagram', 'stateDiagram-v2'], narrower: 'asState', editorDiagramType: 'State', editorLabel: 'State diagram', editorDescription: 'Lifecycle using Mermaid stateDiagram-v2 syntax.', editorExampleId: 'state-basic', editorGlyph: 'S',
-    config: { section: 'state', keys: ['arrowMarkerAbsolute', 'compositTitleSize', 'defaultRenderer', 'dividerMargin', 'edgeLengthFactor', 'fontSize', 'fontSizeFactor', 'forkHeight', 'forkWidth', 'labelHeight', 'miniPadding', 'nodeSpacing', 'noteMargin', 'padding', 'radius', 'rankSpacing', 'sizeUnit', 'textHeight', 'titleShift', 'titleTopMargin'] },
+    config: { section: 'state', keys: ['arrowMarkerAbsolute', 'compositTitleSize', 'defaultRenderer', 'dividerMargin', 'edgeLengthFactor', 'fontSize', 'fontSizeFactor', 'forkHeight', 'forkWidth', 'labelHeight', 'layout', 'look', 'miniPadding', 'minNodeWidth', 'nodeSpacing', 'noteMargin', 'padding', 'radius', 'rankSpacing', 'sizeUnit', 'textHeight', 'theme', 'titleShift', 'titleTopMargin', 'wrappingWidth'] },
     semanticChannels: ['status'],
     detect: detectsStateFamily,
     detectLoose: detectsStateFamilyLoose,
@@ -495,7 +495,7 @@ const BUILTIN_FAMILY_DESCRIPTOR_SEEDS = [
   Failed --> Idle: retry
   Complete --> [*]` },
   { id: 'sequence', upstreamId: 'sequence', maturity: 'stable', label: 'Sequence', headers: ['sequenceDiagram'], narrower: 'asSequence', editorDiagramType: 'Sequence', editorLabel: 'Sequence', editorDescription: 'Request/response messages between participants.', editorExampleId: 'sequence-basic', editorGlyph: 'Q',
-    config: { section: 'sequence', keys: ['actorMargin', 'width', 'height', 'diagramMarginX', 'diagramMarginY', 'messageMargin', 'noteMargin', 'activationWidth', 'showSequenceNumbers', 'boxMargin', 'boxTextMargin', 'messageAlign', 'mirrorActors', 'bottomMarginAdj', 'rightAngles', 'wrap', 'wrapPadding', 'labelBoxWidth', 'labelBoxHeight', 'hideUnusedParticipants', 'forceMenus', 'arrowMarkerAbsolute', 'noteAlign', 'actorFontSize', 'actorFontFamily', 'actorFontWeight', 'noteFontSize', 'noteFontFamily', 'noteFontWeight', 'messageFontSize', 'messageFontFamily', 'messageFontWeight', 'actorFont', 'noteFont', 'messageFont', 'useMaxWidth', 'useWidth'], noopKeys: ['actorFont', 'actorFontFamily', 'actorFontSize', 'actorFontWeight', 'arrowMarkerAbsolute', 'bottomMarginAdj', 'boxMargin', 'boxTextMargin', 'forceMenus', 'hideUnusedParticipants', 'labelBoxHeight', 'labelBoxWidth', 'messageAlign', 'messageFont', 'messageFontFamily', 'messageFontSize', 'messageFontWeight', 'mirrorActors', 'noteAlign', 'noteFont', 'noteFontFamily', 'noteFontSize', 'noteFontWeight', 'rightAngles', 'useMaxWidth', 'useWidth', 'wrap', 'wrapPadding'] },
+    config: { section: 'sequence', keys: ['actorMargin', 'width', 'height', 'diagramMarginX', 'diagramMarginY', 'messageMargin', 'noteMargin', 'activationWidth', 'showSequenceNumbers', 'boxMargin', 'boxTextMargin', 'messageAlign', 'mirrorActors', 'bottomMarginAdj', 'rightAngles', 'wrap', 'wrapPadding', 'labelBoxWidth', 'labelBoxHeight', 'hideUnusedParticipants', 'forceMenus', 'arrowMarkerAbsolute', 'noteAlign', 'actorFontSize', 'actorFontFamily', 'actorFontWeight', 'noteFontSize', 'noteFontFamily', 'noteFontWeight', 'messageFontSize', 'messageFontFamily', 'messageFontWeight', 'actorFont', 'noteFont', 'messageFont', 'useMaxWidth', 'useWidth', 'look', 'theme'], noopKeys: ['actorFont', 'actorFontFamily', 'actorFontSize', 'actorFontWeight', 'arrowMarkerAbsolute', 'bottomMarginAdj', 'boxMargin', 'boxTextMargin', 'forceMenus', 'hideUnusedParticipants', 'labelBoxHeight', 'labelBoxWidth', 'look', 'messageAlign', 'messageFont', 'messageFontFamily', 'messageFontSize', 'messageFontWeight', 'mirrorActors', 'noteAlign', 'noteFont', 'noteFontFamily', 'noteFontSize', 'noteFontWeight', 'rightAngles', 'theme', 'useMaxWidth', 'useWidth', 'wrap', 'wrapPadding'] },
     semanticChannels: ['category'],
     detect: (line: string) => /^sequencediagram\s*$/.test(line),
     detectLoose: (line: string) => /^sequencediagram(?:\s|$)/.test(line),
@@ -525,7 +525,7 @@ const BUILTIN_FAMILY_DESCRIPTOR_SEEDS = [
   2024 Q2 : Public editor
           : SVG export` },
   { id: 'class', upstreamId: 'classDiagram', maturity: 'stable', label: 'Class', headers: ['classDiagram'], narrower: 'asClass', editorDiagramType: 'Class', editorLabel: 'Class', editorDescription: 'Classes with members, inheritance, and composition.', editorExampleId: 'class-basic', editorGlyph: 'C',
-    config: { section: 'class', keys: ['nodeSpacing', 'rankSpacing', 'titleTopMargin', 'arrowMarkerAbsolute', 'dividerMargin', 'padding', 'textHeight', 'defaultRenderer', 'diagramPadding', 'htmlLabels', 'hideEmptyMembersBox', 'hierarchicalNamespaces'], noopKeys: ['arrowMarkerAbsolute', 'defaultRenderer', 'diagramPadding', 'dividerMargin', 'hideEmptyMembersBox', 'htmlLabels', 'padding', 'textHeight', 'titleTopMargin'] },
+    config: { section: 'class', keys: ['nodeSpacing', 'rankSpacing', 'titleTopMargin', 'arrowMarkerAbsolute', 'dividerMargin', 'padding', 'textHeight', 'defaultRenderer', 'diagramPadding', 'htmlLabels', 'hideEmptyMembersBox', 'hierarchicalNamespaces', 'look', 'theme'], noopKeys: ['arrowMarkerAbsolute', 'defaultRenderer', 'diagramPadding', 'dividerMargin', 'hideEmptyMembersBox', 'htmlLabels', 'look', 'padding', 'textHeight', 'theme', 'titleTopMargin'] },
     semanticChannels: [],
     detect: (line: string) => /^classdiagram\s*$/.test(line),
     detectLoose: (line: string) => /^classdiagram(?:\s|$)/.test(line),
@@ -545,7 +545,7 @@ const BUILTIN_FAMILY_DESCRIPTOR_SEEDS = [
   Renderer <|-- SVGRenderer
   RenderPipeline *-- SVGRenderer : owns` },
   { id: 'er', upstreamId: 'er', maturity: 'stable', label: 'ER', headers: ['erDiagram'], narrower: 'asEr', editorDiagramType: 'ER', editorLabel: 'ER diagram', editorDescription: 'Entities, attributes, keys, and cardinality markers.', editorExampleId: 'er-basic', editorGlyph: 'ER',
-    config: { section: 'er', keys: ['layoutDirection', 'nodeSpacing', 'rankSpacing', 'titleTopMargin', 'diagramPadding', 'minEntityWidth', 'minEntityHeight', 'entityPadding', 'stroke', 'fill', 'fontSize'], noopKeys: ['diagramPadding', 'entityPadding', 'fill', 'fontSize', 'minEntityHeight', 'minEntityWidth', 'stroke', 'titleTopMargin'] },
+    config: { section: 'er', keys: ['layoutDirection', 'nodeSpacing', 'rankSpacing', 'titleTopMargin', 'diagramPadding', 'minEntityWidth', 'minEntityHeight', 'entityPadding', 'stroke', 'fill', 'fontSize', 'look', 'theme'], noopKeys: ['diagramPadding', 'entityPadding', 'fill', 'fontSize', 'look', 'minEntityHeight', 'minEntityWidth', 'stroke', 'theme', 'titleTopMargin'] },
     semanticChannels: ['category'],
     detect: (line: string) => /^erdiagram(?:\s+subgraph\b.*)?\s*$/.test(line),
     detectLoose: (line: string) => /^erdiagram(?:\s|$)/.test(line),
@@ -658,7 +658,7 @@ const BUILTIN_FAMILY_DESCRIPTOR_SEEDS = [
     Crit review    :crit, rev1, after des3, 2d
     Release        :milestone, m1, after rev1, 0d` },
   { id: 'mindmap', upstreamId: 'mindmap', maturity: 'stable', label: 'Mindmap', headers: ['mindmap'], narrower: 'asMindmap', editorDiagramType: 'Mindmap', editorLabel: 'Mindmap', editorDescription: 'A centered, bilateral hierarchy with shapes, Markdown, Unicode, accessibility, and deep quality branches.', editorExampleId: 'mindmap-basic', editorGlyph: 'M',
-    config: { section: 'mindmap', keys: ['padding', 'maxNodeWidth', 'layoutAlgorithm'], noopKeys: ['layoutAlgorithm'] },
+    config: { section: 'mindmap', keys: ['padding', 'maxNodeWidth', 'layoutAlgorithm', 'colorBy'], noopKeys: ['colorBy', 'layoutAlgorithm'] },
     semanticChannels: ['importance', 'category'],
     detect: (line: string) => /^mindmap\s*$/.test(line),
     detectLoose: (line: string) => /^mindmap(?:\s|$)/.test(line),
