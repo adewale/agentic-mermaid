@@ -3,6 +3,7 @@ import { labelRect } from '../route-contracts.ts'
 import type { ResolvedRenderStyle } from '../styles.ts'
 import type { MermaidGraph, MermaidSubgraph, PositionedGraph, PositionedGroup } from '../types.ts'
 import { LayoutMetricBudgetError } from './pass.ts'
+import { DiagramWorkLimitError } from '../shared/diagram-limits.ts'
 import { LayoutCertificationError, type LayoutCertificationAttempt } from './certification-error.ts'
 
 export { LayoutCertificationError, type LayoutCertificationAttempt } from './certification-error.ts'
@@ -28,9 +29,12 @@ function correspondenceViolations(graph: MermaidGraph, positioned: PositionedGra
   const failures: string[] = []
   const expectedGroups = new Map<string, string>(),
     actualGroups = new Map<string, string>()
+  const authoredGroups = new Map<string, MermaidSubgraph>(),
+    positionedGroups = new Map<string, PositionedGroup>()
   const expected = (groups: MermaidSubgraph[], parent = ''): void => {
     for (const group of groups) {
       expectedGroups.set(group.id, parent)
+      authoredGroups.set(group.id, group)
       expected(group.children, group.id)
     }
   }
@@ -38,6 +42,7 @@ function correspondenceViolations(graph: MermaidGraph, positioned: PositionedGra
     for (const group of groups) {
       if (actualGroups.has(group.id)) failures.push(`group ${group.id}: duplicate identity`)
       actualGroups.set(group.id, parent)
+      positionedGroups.set(group.id, group)
       actual(group.children, group.id)
     }
   }
@@ -46,12 +51,26 @@ function correspondenceViolations(graph: MermaidGraph, positioned: PositionedGra
   for (const [id, parent] of expectedGroups) if (actualGroups.get(id) !== parent) failures.push(`group ${id}: missing or changed parent`)
   for (const id of actualGroups.keys()) if (!expectedGroups.has(id)) failures.push(`group ${id}: unexpected identity`)
   const nodeIds = new Set<string>()
+  const positionedNodes = new Map(positioned.nodes.map(node => [node.id, node]))
   for (const node of positioned.nodes) {
     if (nodeIds.has(node.id)) failures.push(`node ${node.id}: duplicate identity`)
     nodeIds.add(node.id)
     if (!graph.nodes.has(node.id)) failures.push(`node ${node.id}: unexpected identity`)
+    else if (node.label !== graph.nodes.get(node.id)!.label) failures.push(`node ${node.id}: changed label`)
   }
   for (const id of graph.nodes.keys()) if (!nodeIds.has(id) && !actualGroups.has(id)) failures.push(`node ${id}: missing identity`)
+  for (const [id, authored] of authoredGroups) {
+    const group = positionedGroups.get(id)
+    if (!group) continue
+    if (group.label !== authored.label) failures.push(`group ${id}: changed label`)
+    for (const memberId of authored.nodeIds) {
+      if (authoredGroups.has(memberId)) continue
+      const member = positionedNodes.get(memberId)
+      if (member && (member.x < group.x - 0.5 || member.y < group.y - 0.5 || member.x + member.width > group.x + group.width + 0.5 || member.y + member.height > group.y + group.height + 0.5)) {
+        failures.push(`member ${memberId}: outside authored group ${id}`)
+      }
+    }
+  }
   const edgeIndices = new Set<number>()
   for (const [index, edge] of positioned.edges.entries()) {
     const identity = edge.edgeIndex ?? index,
@@ -80,6 +99,24 @@ function correspondenceViolations(graph: MermaidGraph, positioned: PositionedGra
     if (!edgeIndices.has(index)) failures.push(`edge ${index}: missing identity`)
   })
   return failures
+}
+
+function retainAuthoredMembership(graph: MermaidGraph, positioned: PositionedGraph): void {
+  const authored = new Map<string, MermaidSubgraph>()
+  const collect = (groups: MermaidSubgraph[]): void => {
+    for (const group of groups) {
+      authored.set(group.id, group)
+      collect(group.children)
+    }
+  }
+  collect(graph.subgraphs)
+  const retain = (groups: PositionedGroup[]): void => {
+    for (const group of groups) {
+      group.nodeIds = authored.get(group.id)!.nodeIds.filter(id => graph.nodes.has(id) && !authored.has(id))
+      retain(group.children)
+    }
+  }
+  retain(positioned.groups)
 }
 
 /** Bounds are checked on final retained geometry, independently of ELK's success flag. */
@@ -121,6 +158,7 @@ export function certifyLayoutCandidates(graph: MermaidGraph, style: ResolvedRend
   const bounded = candidates.slice(0, MAX_LAYOUT_CANDIDATES)
   let deferred: { positioned: PositionedGraph; strategy: string } | undefined
   const accept = (positioned: PositionedGraph, strategy: string): PositionedGraph => {
+    retainAuthoredMembership(graph, positioned)
     positioned.certification = { status: 'passed', strategy, attempts: attempts.length, hardViolations: 0 }
     return positioned
   }
@@ -141,7 +179,7 @@ export function certifyLayoutCandidates(graph: MermaidGraph, style: ResolvedRend
     } catch (error) {
       // This diagnostic opt-in validates each pass. A different successful
       // layout strategy must not make a broken pass's budget appear to pass CI.
-      if (error instanceof LayoutMetricBudgetError) throw error
+      if (error instanceof LayoutMetricBudgetError || error instanceof DiagramWorkLimitError) throw error
       attempts.push({ strategy: candidate.strategy, violations: [error instanceof Error ? error.message : String(error)] })
     }
     if (deferred) return accept(deferred.positioned, deferred.strategy)

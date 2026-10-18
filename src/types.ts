@@ -435,6 +435,8 @@ export interface Point {
 }
 
 export interface PositionedGroup {
+  /** Authored direct leaf ownership, retained independently of geometry. */
+  nodeIds?: string[]
   headerHeight?: number
   labelBlock?: PixelTextBlock
   id: string

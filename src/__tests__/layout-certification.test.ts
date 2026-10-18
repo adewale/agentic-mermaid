@@ -2,11 +2,13 @@ import '../index.ts'
 import { describe, expect, test } from 'bun:test'
 import { certifyLayoutCandidates, LayoutCertificationError, MAX_LAYOUT_CANDIDATES } from '../layout/certification.ts'
 import { LayoutMetricBudgetError } from '../layout/pass.ts'
+import { DiagramWorkLimitError } from '../shared/diagram-limits.ts'
 import { LAYOUT_PIPELINE, layoutGraphSync } from '../layout-engine.ts'
 import { parseMermaid } from '../parser.ts'
 import { positionResolvedFamily } from '../positioning.ts'
 import { resolveRenderRequestForExecution } from '../render-contract.ts'
 import { resolveRenderStyle } from '../styles.ts'
+import { positionedToRenderedLayout } from '../agent/layout-to-rendered.ts'
 import type { PositionedGraph } from '../types.ts'
 
 const source = 'flowchart LR\nA -- first --> B\nB -- second --> A'
@@ -66,15 +68,44 @@ describe('bounded final layout certification', () => {
     expect(() => certifyLayoutCandidates(graph, resolveRenderStyle({}), [{ strategy: 'missing-label-geometry', produce: () => invalid }])).toThrow(/missing retained geometry/)
   })
 
-  test.each(['node', 'edge', 'marker', 'label', 'parent'] as const)('a candidate cannot pass by losing or changing an authored %s', field => {
+  test.each(['node', 'edge', 'marker', 'label', 'node-label', 'group-label', 'parent'] as const)('a candidate cannot pass by losing or changing an authored %s', field => {
     const graph = parseMermaid('flowchart LR\nsubgraph S\nA -- meaningful --> B\nend')
     const invalid = layoutGraphSync(graph)
     if (field === 'node') invalid.nodes.pop()
     if (field === 'edge') invalid.edges.pop()
     if (field === 'marker') invalid.edges[0]!.hasArrowEnd = false
     if (field === 'label') invalid.edges[0]!.label = 'changed'
+    if (field === 'node-label') invalid.nodes[0]!.label = 'changed'
+    if (field === 'group-label') invalid.groups[0]!.label = 'changed'
     if (field === 'parent') invalid.groups = []
     expect(() => certifyLayoutCandidates(graph, resolveRenderStyle({}), [{ strategy: 'lost-content', produce: () => invalid }])).toThrow(LayoutCertificationError)
+  })
+
+  test('a candidate cannot exchange authored members between intact group frames', () => {
+    const graph = parseMermaid('flowchart LR\nsubgraph S[Left]\nA[Alpha]\nend\nsubgraph T[Right]\nB[Beta]\nend')
+    const invalid = layoutGraphSync(graph)
+    const a = invalid.nodes.find(node => node.id === 'A')!
+    const b = invalid.nodes.find(node => node.id === 'B')!
+    const { x, y } = a
+    a.x = b.x
+    a.y = b.y
+    b.x = x
+    b.y = y
+    expect(() => certifyLayoutCandidates(graph, resolveRenderStyle({}), [{ strategy: 'exchanged-members', produce: () => invalid }])).toThrow(/member|ownership/)
+  })
+
+  test('public group membership retains authored identities instead of inferring ownership from coordinates', () => {
+    const graph = parseMermaid('flowchart LR\nsubgraph S[Left]\nA[Alpha]\nend\nsubgraph T[Right]\nB[Beta]\nend')
+    const positioned = layoutGraphSync(graph)
+    const a = positioned.nodes.find(node => node.id === 'A')!
+    const b = positioned.nodes.find(node => node.id === 'B')!
+    const { x, y } = a
+    a.x = b.x
+    a.y = b.y
+    b.x = x
+    b.y = y
+    const view = positionedToRenderedLayout(positioned, 'flowchart')
+    expect(view.groups.map(group => [group.id, group.members])).toEqual([['S', ['A']], ['T', ['B']]])
   })
 
   test('exhaustion stops after four attempts and never returns the least-bad candidate', () => {
@@ -163,7 +194,10 @@ describe('bounded final layout certification', () => {
     expect(positioned.certification).toEqual({ status: 'passed', strategy: 'default', attempts: 2, hardViolations: 0 })
   })
 
-  test('debug pass-budget failures cannot be hidden by an otherwise clean fallback', () => {
+  test.each([
+    new LayoutMetricBudgetError('straighten', 'bends', 0, 4, 2),
+    new DiagramWorkLimitError('nodes', 5_001),
+  ])('a non-recoverable %s cannot be hidden by an otherwise clean fallback', error => {
     const graph = parseMermaid(source)
     const clean = layoutGraphSync(graph)
     let alternateCalls = 0
@@ -172,7 +206,7 @@ describe('bounded final layout certification', () => {
         {
           strategy: 'budget-fails',
           produce: () => {
-            throw new LayoutMetricBudgetError('straighten', 'bends', 0, 4, 2)
+            throw error
           },
         },
         {
@@ -183,7 +217,7 @@ describe('bounded final layout certification', () => {
           },
         },
       ]),
-    ).toThrow(LayoutMetricBudgetError)
+    ).toThrow(error)
     expect(alternateCalls).toBe(0)
   })
 })

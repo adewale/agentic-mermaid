@@ -74,8 +74,9 @@ function renderedGroups(groups: PositionedGroup[], nodes: PositionedNode[]): Ren
   const containsNode = (g: PositionedGroup, n: PositionedNode): boolean =>
     n.x >= g.x - 0.5 && n.y >= g.y - 0.5 && n.x + n.width <= g.x + g.width + 0.5 && n.y + n.height <= g.y + g.height + 0.5
   const visit = (g: PositionedGroup, parentId?: string): void => {
+    const authoredMembers = g.nodeIds ? new Set(g.nodeIds) : undefined
     const members = nodes
-      .filter(n => containsNode(g, n) && !g.children.some(child => containsNode(child, n)))
+      .filter(n => authoredMembers ? authoredMembers.has(n.id) : containsNode(g, n) && !g.children.some(child => containsNode(child, n)))
       .map(n => n.id)
     out.push({
       id: g.id,
