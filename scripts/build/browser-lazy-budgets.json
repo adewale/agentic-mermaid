@@ -5,8 +5,8 @@
   "families": {
     "flowchart": {"requests": 29, "raw": 2304000, "gzip": 704000, "brotli": 565500},
     "state": {"requests": 29, "raw": 2302000, "gzip": 703000, "brotli": 564000},
-    "sequence": {"requests": 26, "raw": 637000, "gzip": 201000, "brotli": 177000},
-    "timeline": {"requests": 24, "raw": 591000, "gzip": 186000, "brotli": 164000},
+    "sequence": {"requests": 26, "raw": 637000, "gzip": 202000, "brotli": 178000},
+    "timeline": {"requests": 24, "raw": 591000, "gzip": 186500, "brotli": 164000},
     "class": {"requests": 28, "raw": 2316000, "gzip": 708000, "brotli": 569000},
     "er": {"requests": 31, "raw": 2311000, "gzip": 707500, "brotli": 570500},
     "journey": {"requests": 26, "raw": 609000, "gzip": 193000, "brotli": 170000},
