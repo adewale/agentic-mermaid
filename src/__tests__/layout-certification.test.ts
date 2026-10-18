@@ -10,9 +10,17 @@ import { resolveRenderRequestForExecution } from '../render-contract.ts'
 import { resolveRenderStyle } from '../styles.ts'
 import { positionedToRenderedLayout } from '../agent/layout-to-rendered.ts'
 import { graphTextBlock } from '../graph-text.ts'
-import type { PositionedGraph } from '../types.ts'
+import type { MermaidGraph, PositionedGraph } from '../types.ts'
 
 const source = 'flowchart LR\nA -- first --> B\nB -- second --> A'
+
+function routeWitness(graph: MermaidGraph, positions: Record<string, [number, number]>, routes: Array<Array<[number, number]>>, width = 360, height = 280): PositionedGraph {
+  return {
+    width, height, groups: [],
+    nodes: [...graph.nodes.values()].map(node => ({ ...node, x: positions[node.id]![0], y: positions[node.id]![1], width: 40, height: 40 })),
+    edges: graph.edges.map((edge, index) => ({ ...edge, edgeIndex: index, points: routes[index]!.map(([x, y]) => ({ x, y })) })),
+  }
+}
 
 describe('bounded final layout certification', () => {
   test('a failing primary producer is contained inside the public fallback budget', () => {
@@ -26,7 +34,7 @@ describe('bounded final layout certification', () => {
     try {
       const positioned = layoutGraphSync(parseMermaid('flowchart LR\nA --> B'))
       expect(calls).toBe(2)
-      expect(positioned.certification).toEqual({ status: 'passed', strategy: 'separate-hierarchy', attempts: 2, hardViolations: 0 })
+      expect(positioned.certification).toMatchObject({ status: 'passed', strategy: 'separate-hierarchy', attempts: 2, hardViolations: 0 })
       expect(positioned.nodes.map(node => node.id).sort()).toEqual(['A', 'B'])
     } finally {
       firstPass.run = run
@@ -51,8 +59,148 @@ describe('bounded final layout certification', () => {
       { strategy: 'missing-route', produce: () => invalid },
       { strategy: 'clean', produce: () => clean },
     ])
-    expect(selected.certification).toEqual({ status: 'passed', strategy: 'clean', attempts: 2, hardViolations: 0 })
+    expect(selected.certification).toMatchObject({ status: 'passed', strategy: 'clean', attempts: 2, hardViolations: 0 })
     expect(selected.edges[0]!.points.length).toBeGreaterThanOrEqual(2)
+  })
+
+  test('readable container titles take precedence over a crossing reduction', () => {
+    const graph = parseMermaid('flowchart LR\nsubgraph S[A deliberately long container heading whose complete readable text needs additional horizontal space]\nA --> B\nend\nC --> D')
+    const narrow = routeWitness(graph, { A: [20, 100], B: [260, 100], C: [20, 20], D: [300, 220] }, [
+      [[60, 120], [260, 120]], [[40, 60], [40, 80], [320, 80], [320, 220]],
+    ])
+    const wide = routeWitness(graph, { A: [20, 100], B: [260, 100], C: [140, 20], D: [140, 220] }, [
+      [[60, 120], [260, 120]], [[160, 60], [160, 220]],
+    ], 900)
+    const title = graph.subgraphs[0]!.label, style = resolveRenderStyle({})
+    narrow.groups = [{ id: 'S', label: title, x: 0, y: 80, width: 320, height: 80, children: [] }]
+    wide.groups = [{ id: 'S', label: title, x: 0, y: 80, width: 880, height: 80, children: [] }]
+    const preferNext = (positioned: PositionedGraph) => positioned.groups[0]!.width < graphTextBlock(title, style, 'group').width + 24
+    const selected = certifyLayoutCandidates(graph, style, [
+      { strategy: 'narrow-clear', produce: () => narrow, preferNext },
+      { strategy: 'readable-crossing', produce: () => wide, preferNext },
+    ])
+    expect(selected).toBe(wide)
+    expect(selected.certification?.preference).toMatchObject({ reason: 'unreadableTitles', selectedScore: { unreadableTitles: 0, edgeCrossings: 1 } })
+    expect(selected.certification?.preference.compared[0]?.score).toMatchObject({ unreadableTitles: 1, edgeCrossings: 0 })
+  })
+
+  test('crossing reduction outranks fewer bends and a smaller canvas among feasible routes', () => {
+    const graph = parseMermaid('flowchart LR\nA --> B\nC --> D')
+    const crossing = routeWitness(graph, { A: [20, 100], B: [260, 100], C: [140, 20], D: [140, 220] }, [
+      [[60, 120], [260, 120]], [[160, 60], [160, 220]],
+    ], 320)
+    const detour = routeWitness(graph, { A: [20, 100], B: [260, 100], C: [20, 20], D: [300, 220] }, [
+      [[60, 120], [260, 120]], [[40, 60], [40, 80], [320, 80], [320, 220]],
+    ])
+    const selected = certifyLayoutCandidates(graph, resolveRenderStyle({}), [
+      { strategy: 'short-crossing', produce: () => crossing }, { strategy: 'clear-detour', produce: () => detour },
+    ])
+    expect(selected).toBe(detour)
+    expect(selected.certification?.preference).toMatchObject({ reason: 'edgeCrossings', selectedScore: { edgeCrossings: 0, totalBends: 2, area: 100800 } })
+    expect(selected.certification?.preference.compared[0]?.score).toMatchObject({ edgeCrossings: 1, totalBends: 0, area: 89600 })
+  })
+
+  test('continuity outranks canonical ports when crossings are equal', () => {
+    const graph = parseMermaid('flowchart LR\nA --> B\nC --> D')
+    const bends = routeWitness(graph, { A: [20, 100], B: [260, 100], C: [140, 20], D: [200, 220] }, [
+      [[60, 120], [260, 120]], [[160, 60], [160, 180], [220, 180], [220, 220]],
+    ])
+    const straight = routeWitness(graph, { A: [20, 100], B: [260, 100], C: [140, 20], D: [140, 220] }, [
+      [[60, 110], [260, 110]], [[160, 60], [160, 220]],
+    ])
+    const selected = certifyLayoutCandidates(graph, resolveRenderStyle({}), [
+      { strategy: 'canonical-bends', produce: () => bends }, { strategy: 'straight-offset-ports', produce: () => straight },
+    ])
+    expect(selected).toBe(straight)
+    expect(selected.certification?.preference).toMatchObject({ reason: 'totalBends', selectedScore: { edgeCrossings: 1, totalBends: 0, nonCanonicalEndpointRate: 0.5 } })
+    expect(selected.certification?.preference.compared[0]?.score).toMatchObject({ totalBends: 2, nonCanonicalEndpointRate: 0 })
+  })
+
+  test('canonical ports outrank symmetry, which outranks compactness', () => {
+    const graph = parseMermaid('flowchart LR\nA --> B\nE --> B\nC --> D')
+    const fan = (hubY: number, width: number) => routeWitness(graph, { A: [20, 100], B: [260, hubY], C: [140, 20], D: [140, 260], E: [20, 180] }, [
+      [[60, 120], [220, 120], [220, hubY + 20], [260, hubY + 20]],
+      [[60, 200], [240, 200], [240, hubY + 20], [260, hubY + 20]],
+      [[160, 60], [160, 260]],
+    ], width, 320)
+    const asymmetric = fan(130, 320), symmetric = fan(140, 360), offset = structuredClone(symmetric)
+    offset.edges[0]!.points = [{ x: 60, y: 110 }, { x: 220, y: 110 }, { x: 220, y: 150 }, { x: 260, y: 150 }]
+    const style = resolveRenderStyle({})
+    const canonical = certifyLayoutCandidates(graph, style, [
+      { strategy: 'symmetric-offset', produce: () => offset }, { strategy: 'canonical-asymmetric', produce: () => asymmetric },
+    ])
+    expect(canonical).toBe(asymmetric)
+    expect(canonical.certification?.preference).toMatchObject({ reason: 'nonCanonicalEndpointRate', selectedScore: { edgeCrossings: 2, totalBends: 4, nonCanonicalEndpointRate: 0, peerBarycenterDelta: 10 } })
+    const balanced = certifyLayoutCandidates(graph, style, [
+      { strategy: 'compact-asymmetric', produce: () => asymmetric }, { strategy: 'larger-symmetric', produce: () => symmetric },
+    ])
+    expect(balanced).toBe(symmetric)
+    expect(balanced.certification?.preference).toMatchObject({ reason: 'peerBarycenterDelta', selectedScore: { peerBarycenterDelta: 0, area: 115200 } })
+    expect(balanced.certification?.preference.compared[0]?.score.area).toBe(102400)
+  })
+
+  test('compactness breaks quality ties and exact ties retain candidate order', () => {
+    const graph = parseMermaid('flowchart LR\nA --> B\nC --> D')
+    const large = routeWitness(graph, { A: [20, 100], B: [260, 100], C: [140, 20], D: [140, 220] }, [
+      [[60, 120], [260, 120]], [[160, 60], [160, 220]],
+    ])
+    const small = { ...structuredClone(large), width: 320 }, same = structuredClone(small)
+    const selected = certifyLayoutCandidates(graph, resolveRenderStyle({}), [
+      { strategy: 'large', produce: () => large }, { strategy: 'small', produce: () => small },
+    ])
+    expect(selected).toBe(small)
+    expect(selected.certification?.preference.reason).toBe('area')
+    const tied = certifyLayoutCandidates(graph, resolveRenderStyle({}), [
+      { strategy: 'first', produce: () => small }, { strategy: 'same', produce: () => same },
+    ])
+    expect(tied).toBe(small)
+    expect(tied.certification?.preference.reason).toBe('candidate-order')
+  })
+
+  test.each([['nodes', 64, 2], ['nodes', 65, 1], ['edges', 128, 2], ['edges', 129, 1]] as const)('quality production respects the deterministic %s work bound at %i', (kind, size, expectedCalls) => {
+    const graph = parseMermaid('flowchart LR\nA --> B\nC --> D')
+    const positions: Record<string, [number, number]> = { A: [20, 100], B: [260, 100], C: [140, 20], D: [140, 220] }
+    const routes: Array<Array<[number, number]>> = [[[60, 120], [260, 120]], [[160, 60], [160, 220]]]
+    if (kind === 'nodes') for (let i = 4; i < size; i++) {
+      graph.nodes.set(`N${i}`, { id: `N${i}`, label: `N${i}`, shape: 'rectangle' })
+      positions[`N${i}`] = [500 + i % 8 * 60, Math.floor(i / 8) * 60]
+    }
+    if (kind === 'edges') while (graph.edges.length < size) {
+      graph.edges.push({ ...graph.edges[0]! })
+      routes.push([[60, 120], [260, 120]])
+    }
+    const first = routeWitness(graph, positions, routes, 1100, 1000), next = structuredClone(first)
+    let calls = 0
+    const selected = certifyLayoutCandidates(graph, resolveRenderStyle({}), [
+      { strategy: 'first', produce: () => { calls++; return first } },
+      { strategy: 'next', produce: () => { calls++; return next } },
+    ])
+    expect(calls).toBe(expectedCalls)
+    expect(selected.certification?.preference.reason).toBe(expectedCalls === 1 ? 'work-budget' : 'candidate-order')
+  })
+
+  test('ordinary zero-crossing graphs and no-op strategies do not produce a cosmetic alternative', () => {
+    const firstPass = LAYOUT_PIPELINE[0]!, run = firstPass.run
+    let calls = 0
+    firstPass.run = context => { calls++; run(context) }
+    try {
+      const ordinary = layoutGraphSync(parseMermaid('flowchart LR\nA --> B --> C'))
+      expect(calls).toBe(1)
+      expect(ordinary.certification?.preference.reason).toBe('first-certified')
+      calls = 0
+      const crossing = layoutGraphSync(parseMermaid('flowchart TD\nA[Start] --> B{Is it?}\nB -->|Yes| C[OK]\nC --> D[Rethink]\nD --> B\nB ---->|No| E[End]'))
+      expect(calls).toBe(1)
+      expect(crossing.certification?.preference).toMatchObject({ reason: 'no-alternative', selectedScore: { edgeCrossings: 1 } })
+    } finally { firstPass.run = run }
+  })
+
+  test('a real small crossing graph compares one alternate hierarchy and records its routing trade-off', () => {
+    const graph = parseMermaid('flowchart TB\nc1-->a2\nsubgraph one\na1-->a2\nend\nsubgraph two\nb1-->b2\nend\nsubgraph three\nc1-->c2\nend\none --> two\nthree --> two\ntwo --> c2')
+    const positioned = layoutGraphSync(graph), preference = positioned.certification!.preference
+    expect(positioned.certification).toMatchObject({ strategy: 'separate-hierarchy', attempts: 2 })
+    expect(preference).toMatchObject({ reason: 'totalBends', selectedScore: { edgeCrossings: 1, totalBends: 3 } })
+    expect(preference.compared[0]?.score).toMatchObject({ edgeCrossings: 1, totalBends: 4 })
+    expect(preference.selectedScore.area).toBeGreaterThan(preference.compared[0]!.score.area)
   })
 
   test('no candidate succeeds on non-finite geometry, even when an outline checker could miss it', () => {
@@ -200,9 +348,9 @@ describe('bounded final layout certification', () => {
     expect(positioned.certification?.attempts).toBe(2)
   })
 
-  test('a certified title fallback survives an invalid preferred alternative without an extra production', () => {
-    const graph = parseMermaid(source)
-    const clean = layoutGraphSync(graph)
+  test.each(['title', 'quality'] as const)('a certified fallback survives an invalid %s alternative without an extra production', preference => {
+    const graph = parseMermaid('flowchart LR\nA --> B\nC --> D')
+    const clean = routeWitness(graph, { A: [20, 100], B: [260, 100], C: [140, 20], D: [140, 220] }, [[[60, 120], [260, 120]], [[160, 60], [160, 220]]])
     const invalid = structuredClone(clean)
     invalid.edges[0]!.points = []
     let calls = 0
@@ -213,7 +361,7 @@ describe('bounded final layout certification', () => {
           calls++
           return clean
         },
-        preferNext: () => true,
+        preferNext: () => preference === 'title',
       },
       {
         strategy: 'preferred',
@@ -231,7 +379,7 @@ describe('bounded final layout certification', () => {
       },
     ])
     expect(calls).toBe(2)
-    expect(positioned.certification).toEqual({ status: 'passed', strategy: 'default', attempts: 2, hardViolations: 0 })
+    expect(positioned.certification).toMatchObject({ status: 'passed', strategy: 'default', attempts: 2, hardViolations: 0 })
   })
 
   test.each([

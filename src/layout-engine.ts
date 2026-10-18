@@ -1835,16 +1835,17 @@ function layoutCandidate(
  * ELK option degradation ladder. No recursive retry or process-env mutation. */
 function layoutUntitledGraph(graph: MermaidGraph, options: LayoutEngineOptions): PositionedGraph {
   const style = resolveRenderStyle(options, options.stateVisual?.styleDefaults, options.styleFace)
+  const preferReadableTitles = (positioned: PositionedGraph) => groupsNarrowerThanTitles(positioned.groups, graph, style)
   const candidates: LayoutCertificationCandidate[] = [{
     strategy: 'default', produce: () => layoutCandidate(graph, options),
-    preferNext: (positioned: PositionedGraph) => !options.separateHierarchy && groupsNarrowerThanTitles(positioned.groups, graph, style),
+    preferNext: preferReadableTitles,
   }]
   if (!options.separateHierarchy) {
-    candidates.push({ strategy: 'separate-hierarchy', produce: () => layoutCandidate(graph, { ...options, separateHierarchy: true }) })
+    candidates.push({ strategy: 'separate-hierarchy', produce: () => layoutCandidate(graph, { ...options, separateHierarchy: true }), preferNext: preferReadableTitles, qualityAlternative: graph.subgraphs.length > 0 })
   }
   if (!options.disableCorankFanIn && !layoutEnvFlag('APL_NO_CORANK_FANIN')) {
-    candidates.push({ strategy: 'without-corank', produce: () => layoutCandidate(graph, { ...options, disableCorankFanIn: true }) })
-    if (!options.separateHierarchy) candidates.push({ strategy: 'separate-without-corank', produce: () => layoutCandidate(graph, { ...options, separateHierarchy: true, disableCorankFanIn: true }) })
+    candidates.push({ strategy: 'without-corank', produce: () => layoutCandidate(graph, { ...options, disableCorankFanIn: true }), preferNext: preferReadableTitles, qualityAlternative: corankFanInBalancingLabels(graph, style).size > 0 })
+    if (!options.separateHierarchy) candidates.push({ strategy: 'separate-without-corank', produce: () => layoutCandidate(graph, { ...options, separateHierarchy: true, disableCorankFanIn: true }), preferNext: preferReadableTitles, qualityAlternative: graph.subgraphs.length > 0 })
   }
   return certifyLayoutCandidates(graph, style, candidates)
 }
