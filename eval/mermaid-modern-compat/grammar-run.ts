@@ -11,6 +11,9 @@ import type { GrammarObservation, GrammarReferenceReply } from './grammar-types.
 import { admitModernReference } from './reference.ts'
 
 const HERE = dirname(fileURLToPath(import.meta.url))
+const agenticRoot = resolve(HERE, '../..')
+const agenticCommit = execFileSync('git', ['rev-parse', 'HEAD'], { cwd: agenticRoot, encoding: 'utf8' }).trim()
+const agenticDirty = execFileSync('git', ['status', '--porcelain'], { cwd: agenticRoot, encoding: 'utf8' }).trim().length > 0
 const args = process.argv.slice(2)
 function option(name: string, fallback: string): string {
   const at = args.indexOf(name)
@@ -478,8 +481,10 @@ results.sort((a, b) => (a as { family: string }).family.localeCompare((b as { fa
 const summary = {
   generatedAt: new Date().toISOString(),
   reference,
-  agenticCommit: execFileSync('git', ['rev-parse', 'HEAD'], { cwd: resolve(HERE, '../..'), encoding: 'utf8' }).trim(),
-  agenticDirty: execFileSync('git', ['status', '--porcelain'], { cwd: resolve(HERE, '../..'), encoding: 'utf8' }).trim().length > 0,
+  agenticCommit,
+  agenticDirty,
+  agenticCommitAtCompletion: execFileSync('git', ['rev-parse', 'HEAD'], { cwd: agenticRoot, encoding: 'utf8' }).trim(),
+  agenticDirtyAtCompletion: execFileSync('git', ['status', '--porcelain'], { cwd: agenticRoot, encoding: 'utf8' }).trim().length > 0,
   invocation: process.argv.slice(2),
   method: {
     reference: 'Actual selected Mermaid grammar, tokens and semantic actions or AST; forced family also on malformed headers.',

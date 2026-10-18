@@ -84,6 +84,8 @@ if (!Number.isSafeInteger(seed)) throw new Error('--seed must be an integer')
 const referenceAdmission = admitModernReference(upstream, referenceDir)
 const referencePackage = { version: referenceAdmission.version }
 const git = (dir: string, ...args: string[]): string => execFileSync('git', ['-C', dir, ...args], { encoding: 'utf8' }).trim()
+const agenticCommit = git(ROOT, 'rev-parse', 'HEAD')
+const agenticDirty = Boolean(git(ROOT, 'status', '--porcelain'))
 const upstreamCommit = referenceAdmission.commit
 const upstreamTags = referenceAdmission.tags
 
@@ -251,8 +253,10 @@ const summary = {
     referenceDomVersion: referenceAdmission.domVersion,
     upstreamCommit,
     upstreamTags,
-    agenticCommit: git(ROOT, 'rev-parse', 'HEAD'),
-    agenticDirty: Boolean(git(ROOT, 'status', '--porcelain')),
+    agenticCommit,
+    agenticDirty,
+    agenticCommitAtCompletion: git(ROOT, 'rev-parse', 'HEAD'),
+    agenticDirtyAtCompletion: Boolean(git(ROOT, 'status', '--porcelain')),
     peleCommit: peleDir ? git(peleDir, 'rev-parse', 'HEAD') : null,
     referenceDom: 'jsdom; real DOMPurify; parser/DB only, no reference rendering',
     args: argv,
