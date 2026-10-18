@@ -22,11 +22,11 @@
 // Treat small timing ratios as noise, and confirm with `bench:release`.
 
 import { execFileSync, spawnSync } from 'node:child_process'
-import { cpSync, existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, symlinkSync, writeFileSync } from 'node:fs'
+import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { cpus, release, tmpdir } from 'node:os'
-import { dirname, join, resolve } from 'node:path'
-import { fileURLToPath } from 'node:url'
+import { dirname, join } from 'node:path'
 import { type MicroCase, microCases } from './micro-bench-cases.ts'
+import { extractRevisionTree, ROOT, workingRevision } from './revision-tree.ts'
 
 interface Options {
   filter?: RegExp
@@ -53,8 +53,6 @@ interface Side {
   runner: string[]
 }
 
-const HERE = dirname(fileURLToPath(import.meta.url))
-const ROOT = resolve(HERE, '../..')
 const SCRIPT_PATH = 'eval/benchmark/micro-bench.ts'
 
 function parseArgs(argv: readonly string[]): Map<string, string> {
@@ -158,10 +156,6 @@ async function runChild(options: Options, out: string): Promise<void> {
 // Parent: prepare sides, interleave rounds, report
 // ---------------------------------------------------------------------------
 
-function git(args: string[], cwd = ROOT): string {
-  return execFileSync('git', args, { cwd, encoding: 'utf8' }).trim()
-}
-
 // Like the published build: runtime dependencies stay external, everything
 // else (including roughjs, whose extensionless subpath Node cannot resolve) is
 // bundled.
@@ -183,29 +177,6 @@ function prepareSide(label: Side['label'], root: string, revision: string, runti
   const bundle = label === 'candidate' ? CANDIDATE_NODE_BUNDLE : join(root, 'micro-bench.node.mjs')
   const runner = runtime === 'node' ? ['node', bundleForNode(root, bundle)] : ['bun', script]
   return { label, root, revision, runner }
-}
-
-function extractBaseline(ref: string, scratch: string): { root: string; revision: string } {
-  const revision = git(['rev-parse', '--verify', `${ref}^{commit}`])
-  const root = join(scratch, 'baseline')
-  mkdirSync(root, { recursive: true })
-  const archive = spawnSync('git', ['archive', '--format=tar', revision, 'src', 'tsconfig.json'], { cwd: ROOT, maxBuffer: 512 * 1024 * 1024 })
-  if (archive.status !== 0) throw new Error(`git archive ${revision} failed`)
-  const untar = spawnSync('tar', ['-x', '-C', root], { input: archive.stdout })
-  if (untar.status !== 0) throw new Error('tar extraction failed')
-  cpSync(join(ROOT, 'eval/benchmark'), join(root, 'eval/benchmark'), { recursive: true })
-  symlinkSync(join(ROOT, 'node_modules'), join(root, 'node_modules'), 'dir')
-  // A bundler resolves every import() at build time. A module the cases name
-  // but the revision lacks becomes a stub that throws when imported, so only
-  // the cases using it are reported as unavailable.
-  const cases = readFileSync(join(root, 'eval/benchmark/micro-bench-cases.ts'), 'utf8')
-  for (const [, specifier] of cases.matchAll(/import\('(\.\.\/\.\.\/src\/[^']+)'\)/g)) {
-    const target = resolve(root, 'eval/benchmark', specifier!)
-    if (existsSync(target)) continue
-    mkdirSync(dirname(target), { recursive: true })
-    writeFileSync(target, `throw new Error('${specifier} is not present at ${revision.slice(0, 12)}')\n`)
-  }
-  return { root, revision }
 }
 
 function runSide(side: Side, passthrough: string[], scratch: string, round: number): Map<string, CaseResult> {
@@ -251,10 +222,9 @@ async function main(): Promise<void> {
   const passthrough = ['filter', 'samples', 'min-sample-ms', 'max-case-ms', 'warmup-ms'].flatMap(key => (args.has(key) ? [`--${key}`, args.get(key)!] : []))
   const scratch = mkdtempSync(join(tmpdir(), 'agentic-mermaid-micro-'))
   try {
-    const dirty = git(['status', '--porcelain', '--', 'src']).length > 0
-    const sides = [prepareSide('candidate', ROOT, `${git(['rev-parse', 'HEAD'])}${dirty ? '+dirty-src' : ''}`, runtime)]
+    const sides = [prepareSide('candidate', ROOT, workingRevision(), runtime)]
     if (baselineRef) {
-      const baseline = extractBaseline(baselineRef, scratch)
+      const baseline = extractRevisionTree(baselineRef, scratch, 'baseline', 'eval/benchmark/micro-bench-cases.ts')
       sides.push(prepareSide('baseline', baseline.root, baseline.revision, runtime))
     }
     const perRound: Array<Record<string, Map<string, CaseResult>>> = []
