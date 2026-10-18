@@ -1,3 +1,4 @@
+import { renderedPaintCertification } from '../scene/paint-certification.ts'
 // ============================================================================
 // Perceptual quality metrics for rendered diagrams.
 //
@@ -26,6 +27,8 @@ import { luminanceContrastRatio, srgbRelativeLuminance, tryParseCssColor } from 
 import { compareCodePointStrings } from '../shared/deterministic-order.ts'
 
 export interface QualityMetrics {
+  /** Evidence from the actual native paint projection, when this layout retains it. */
+  paintCertification?: import('../scene/paint-certification.ts').PaintLayoutCertification
   edgeCrossings: number
   labelLegibility: number  // 0..1 — fraction of labels that fit
   labelMeasurement: {
@@ -185,6 +188,7 @@ export function measureQuality(
   options: QualityMeasurementOptions = {},
 ): QualityMetrics {
   return {
+    ...(renderedPaintCertification(layout) ? { paintCertification: renderedPaintCertification(layout) } : {}),
     edgeCrossings: countEdgeCrossings(layout.edges),
     labelLegibility: measureLabelLegibility(layout),
     labelMeasurement: {
@@ -237,6 +241,7 @@ export function checkQuality(
   const ranked: RankedViolation[] = []
   const flag = (metric: keyof typeof BOUND_PROVENANCE, message: string) =>
     ranked.push({ metric, severity: BOUND_PROVENANCE[metric].severity, message })
+  if (m.paintCertification && m.paintCertification.status !== 'passed') flag('labelLegibility', `paint layout ${m.paintCertification.status}: ${m.paintCertification.issues.map(issue => issue.message).join('; ')}`)
   const pairs = Math.max(1, m.edgeCount * (m.edgeCount - 1) / 2)
   if (m.edgeCrossings / pairs > b.maxCrossingsRatio) {
     flag('edgeCrossings', `edge crossings ${m.edgeCrossings}/${pairs} (${(m.edgeCrossings / pairs * 100).toFixed(1)}%) > cap ${(b.maxCrossingsRatio * 100).toFixed(1)}%`)

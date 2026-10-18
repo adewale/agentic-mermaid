@@ -1713,6 +1713,8 @@ export interface RenderedLayoutGroup {
   regionKind?: Exclude<RenderedRegionKind, 'node' | 'edge' | 'label' | 'canvas'>
 }
 export interface RenderedLayout {
+  /** Bounded native paint evidence, included by debug layout projection. */
+  paintCertification?: import('../scene/paint-certification.ts').PaintLayoutCertification
   version: 1
   /** Open family id so registered extensions can expose the same layout envelope. */
   kind: FamilyId
@@ -1731,6 +1733,8 @@ export interface RenderedLayout {
 }
 
 export interface VerifyResult {
+  /** Final graphical proof or its explicit coverage limitations. */
+  layoutCertification?: import('../scene/paint-certification.ts').PaintLayoutCertification
   ok: boolean
   warnings: LayoutWarning[]
   layout: RenderedLayout

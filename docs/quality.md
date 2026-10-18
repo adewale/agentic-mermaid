@@ -95,8 +95,14 @@ directions:
   prepared text and final containing bounds supply that evidence; missing
   measurements produce an explicit quality warning.
 
-The pass runner enforces declared before/after metric budgets in debug/CI,
-including conditional allowances. The graph engine independently certifies the
+The pass runner enforces declared before/after metric budgets in production,
+including conditional allowances. A duplicate-lane proposal may introduce at
+most one crossing per actual shared duplicate route pair it separates; unrelated
+bucket improvements cannot pay for that proposal. Preferred endpoint spacing or
+fewer bends alone cannot buy a crossing. Canonical ports may yield when the
+certifying route owner measurably repairs hard geometry, reduces crossings or
+removes bends.
+The graph engine independently certifies the
 final candidate before returning it, with at most four deterministic candidates
 and an explicit `LAYOUT_CERTIFICATION_FAILED` error on exhaustion. This certifies
 hard graph geometry, not minimum crossings or universal aesthetic quality.

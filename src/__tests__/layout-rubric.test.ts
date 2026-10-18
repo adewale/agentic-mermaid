@@ -13,7 +13,7 @@ import { describe, expect, it } from 'bun:test'
 import fc from 'fast-check'
 import { layoutGraphSync } from '../layout-engine.ts'
 import { parseMermaid } from '../parser.ts'
-import { assessLayout, hardViolations, onShapeOutline } from '../layout-rubric.ts'
+import { assessLayout, countParallelRouteOverlaps, hardViolations, onShapeOutline } from '../layout-rubric.ts'
 import { shapePorts, diamondFacetPorts } from '../route-contracts.ts'
 import { EDGE_FORMS, renderEdgeLine } from './helpers/edge-vocabulary.ts'
 import { complicatedFixtures, simpleFixtures } from '../../eval/visual-rubric/fixtures.ts'
@@ -59,6 +59,20 @@ describe('rubric ratchets — the MFA regression scores stay at least this good'
 })
 
 describe('rubric ratchets — endpoint outline regressions', () => {
+  it('keeps crossings ahead of preferred duplicate endpoint spacing in mixed parallel feedback routes', () => {
+    const graph = parseMermaid('flowchart LR\nN0((n0))\nN1[\\n1/]\nN2[[n2]]\nN2 -- go --> N1\nN2 -- go --> N1\nN2 --> N1\nN1 --> N2\nN0 --> N1\nN2 --> N1\nN1 --> N2')
+    const positioned = layoutGraphSync(graph)
+    // The previous lane rewrite bought >11px spacing with six crossings.
+    // Keeping this feasible candidate removes all six; spacing stays positive.
+    expect(assessLayout(graph, positioned).metrics.edgeCrossings).toBe(0)
+    expect(countParallelRouteOverlaps(positioned.edges)).toBe(0)
+    const pair = positioned.edges.filter(edge => edge.source === 'N2' && edge.target === 'N1' && !edge.label)
+    expect(pair).toHaveLength(2)
+    expect(pair[0]!.points).not.toEqual(pair[1]!.points)
+    const distance = (a: { x: number; y: number }, b: { x: number; y: number }) => Math.hypot(a.x - b.x, a.y - b.y)
+    expect(distance(pair[0]!.points[0]!, pair[1]!.points[0]!)).toBeGreaterThan(0)
+    expect(distance(pair[0]!.points.at(-1)!, pair[1]!.points.at(-1)!)).toBeGreaterThan(0)
+  })
   it('duplicate detours re-anchor source and target endpoints onto shape outlines', () => {
     const graph = parseMermaid(`flowchart LR
   N0[n0]
@@ -372,7 +386,9 @@ describe('property: ports and outlines (mathematical oracles over random diagram
   // few pairs still land < 11px apart at one end. Downward ratchet; target 0.
   it('unseparated duplicate pairs stay at or below the pinned baseline (ratchet, target 0)', () => {
     const MIN_SEP = 11
-    const UNSEPARATED_DUPLICATE_BASELINE = 7
+    // One additional sub-11px pair removes six crossings, remains distinct,
+    // and shares no route span; the exact priority witness is tested above.
+    const UNSEPARATED_DUPLICATE_BASELINE = 8
     const dist = (p: RubricPt, q: RubricPt) => Math.hypot(p.x - q.x, p.y - q.y)
     let unseparated = 0
     for (const edges of ratchetEdges()) {

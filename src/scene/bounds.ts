@@ -203,6 +203,31 @@ function markerBoundsAt(
   }
 }
 
+export interface ConnectorMarkerPaintRegion {
+  position: 'start' | 'mid' | 'end'
+  resource: string
+  anchor: ScenePoint
+  bounds?: AxisAlignedBox
+}
+
+/** Individual marker occurrences from the native connector authority. */
+export function connectorMarkerPaintRegions(node: ConnectorMark, parentTransform?: SceneTransform): ConnectorMarkerPaintRegion[] {
+  const geometry = node.route.geometry, endpoints = connectorEndpointAnchors(geometry, node.route.closed)
+  const mids = connectorMidpoints(geometry, node.route.closed)
+  const transform = composedTransform(parentTransform, node.transform)
+  const result: ConnectorMarkerPaintRegion[] = []
+  const include = (position: ConnectorMarkerPaintRegion['position'], marker: MarkerDescriptor | undefined, anchor: ScenePoint | undefined): void => {
+    if (!marker || !anchor) return
+    const local = markerBoundsAt(marker, anchor, numericStrokeWidth(node.stroke.width), true)
+    result.push({ position, resource: marker.id, anchor: transformPoint(anchor, transformMatrix(transform)), ...(local ? { bounds: transformedBounds(local, transform) } : {}) })
+  }
+  for (const anchor of endpoints.starts) include('start', node.markers.start, anchor)
+  for (const anchor of endpoints.ends) include('end', node.markers.end, anchor)
+  if (node.markers.mid.length === 1) for (const anchor of mids) include('mid', node.markers.mid[0], anchor)
+  else node.markers.mid.forEach((marker, index) => include('mid', marker, mids[index]))
+  return result
+}
+
 function numericStrokeWidth(width: string | number): number {
   const parsed = typeof width === 'number' ? width : parseFloat(width)
   return Number.isFinite(parsed) ? Math.max(0, parsed) : 1
@@ -350,12 +375,32 @@ function paintedBox(box: AxisAlignedBox, extent: number, nonScaling: boolean, tr
   return world ? expandSceneBounds(world, extent) : undefined
 }
 
+/** A single symmetric cubic with horizontal endpoint tangents has no joins.
+ * Its normal's horizontal component is bounded by the midpoint slope; butt
+ * caps add no tangent extension. This keeps thick flow ribbons measurable
+ * without applying an unrelated polyline miter envelope to the whole curve.
+ */
+function symmetricCubicStrokeBounds(d: string, halfWidth: number): AxisAlignedBox | undefined {
+  if (!/^[\s,0-9eE.+\-MC]+$/.test(d)) return undefined
+  const tokens = d.match(/[MC]|[+-]?(?:\d+\.?\d*|\.\d+)(?:[eE][+-]?\d+)?/g)
+  if (!tokens || tokens.length !== 10 || tokens[0] !== 'M' || tokens[3] !== 'C') return undefined
+  const values = tokens.filter(token => token !== 'M' && token !== 'C').map(Number)
+  if (!values.every(Number.isFinite)) return undefined
+  const [x0, y0, x1, y1, x2, y2, x3, y3] = values as [number, number, number, number, number, number, number, number]
+  const dx = (x3 - x0) / 2, dy = y3 - y0
+  if (dx === 0 || x1 !== x2 || Math.abs(x1 - (x0 + x3) / 2) > 1e-8 || y1 !== y0 || y2 !== y3) return undefined
+  const horizontal = halfWidth * Math.abs(dy) / Math.hypot(dx, dy)
+  return { x0: Math.min(x0, x3) - horizontal, y0: Math.min(y0, y3) - halfWidth, x1: Math.max(x0, x3) + horizontal, y1: Math.max(y0, y3) + halfWidth }
+}
+
 function connectorPaintBounds(node: ConnectorMark, transform?: SceneTransform): AxisAlignedBox | undefined {
   const geometry = node.route.geometry
   const local = geometryBounds(geometry)
   const extent = paintedStrokeExtent({ stroke: node.stroke.color, strokeWidth: String(node.stroke.width), strokeLinecap: node.stroke.lineCap, strokeLinejoin: node.stroke.lineJoin, strokeMiterlimit: String(node.stroke.miterLimit) }, geometry.kind !== 'line')
   if (!local || extent === undefined) return undefined
-  let result = paintedBox(local, extent, node.stroke.nonScaling, transform)
+  const singleCubic = geometry.kind === 'path' && node.stroke.lineCap === 'butt' && !node.stroke.nonScaling
+    ? symmetricCubicStrokeBounds(geometry.d, numericStrokeWidth(node.stroke.width) / 2) : undefined
+  let result = singleCubic ? transformedBounds(singleCubic, transform) : paintedBox(local, extent, node.stroke.nonScaling, transform)
   if (!result) return undefined
   const width = numericStrokeWidth(node.stroke.width)
   const anchors = connectorEndpointAnchors(geometry, node.route.closed)

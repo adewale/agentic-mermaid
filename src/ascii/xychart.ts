@@ -90,7 +90,7 @@ export function renderXYChartTerminal(
     const prefix = `${secondaryId}: `
     const lines = wrapText(secondaryAxis.title, widthBudget === undefined ? undefined : Math.max(1, widthBudget - visualWidth(prefix)))
     lines.forEach((text, index) => rendered.line([
-      { text: index === 0 ? prefix : ' '.repeat(visualWidth(prefix)), role: 'border', kind: 'text' },
+      { text: index === 0 ? prefix : ' '.repeat(visualWidth(prefix)), role: 'border', kind: index === 0 ? 'text' : 'surface', owner: { id: `${secondaryId}:prefix`, kind: 'label', parent: { id: secondaryId, kind: 'label' } } },
       { text, role: 'text', textGroup: secondaryId, owner: { id: secondaryId, kind: 'label' } },
     ]))
   }
@@ -754,7 +754,7 @@ function chartHeader(chart: XYChart, ch: typeof UNI | typeof ASC, colors: string
     let runs: import('./terminal-document.ts').TerminalRun[] = []
     let used = 0
     const flush = () => {
-      if (runs.length > 0) { document.line([{ text: ' '.repeat(Math.max(0, Math.floor((width - used) / 2))) }, ...runs]); runs = []; used = 0 }
+      if (runs.length > 0) { document.line([{ text: ' '.repeat(Math.max(0, Math.floor((width - used) / 2))), kind: 'surface' }, ...runs]); runs = []; used = 0 }
     }
     for (const entry of legendEntries(chart.series)) {
       const symbol = entry.type === 'bar' ? ch.bar : ch.hLine
@@ -763,8 +763,8 @@ function chartHeader(chart: XYChart, ch: typeof UNI | typeof ASC, colors: string
       lines.forEach((text, index) => {
         const size = 2 + visualWidth(text)
         if (runs.length > 0 && (index > 0 || used + 2 + size > width)) flush()
-        if (runs.length > 0) { runs.push({ text: '  ' }); used += 2 }
-        runs.push({ text: symbol, role: 'arrow', kind: 'marker', color: colors[entry.colorIndex]!, owner }, { text: ' ' }, { text, role: 'text', textGroup: 'legend', owner })
+        if (runs.length > 0) { runs.push({ text: '  ', kind: 'surface' }); used += 2 }
+        runs.push({ text: symbol, role: 'arrow', kind: 'marker', color: colors[entry.colorIndex]!, owner }, { text: ' ', kind: 'surface' }, { text, role: 'text', textGroup: 'legend', owner })
         used += size
       })
     }

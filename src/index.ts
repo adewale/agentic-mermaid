@@ -1,3 +1,4 @@
+export { PaintLayoutCertificationError, type PaintLayoutCertification } from './scene/paint-certification.ts'
 // ============================================================================
 // Agentic Mermaid — public API (published as agentic-mermaid)
 //

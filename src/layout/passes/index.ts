@@ -20,7 +20,7 @@ import { ARROW_HEAD, FLOWCHART_DOTTED_DASH } from '../../styles.ts'
 import type { ResolvedRenderStyle } from '../../styles.ts'
 import { measureMultilineText } from '../../text-metrics.ts'
 import { clipEdgeToShape } from '../../shape-clipping.ts'
-import { onShapeOutline, segmentThroughShape } from '../../layout-rubric.ts'
+import { countEdgeCrossings, countParallelRouteOverlaps, onShapeOutline, portEndpointRate, segmentThroughShape } from '../../layout-rubric.ts'
 import { classifyRoutes, diamondFacetPorts, labelRect, laneContextFor, PORT_EXACT, recertifyReroutedEdge, shapePorts, simplifyPolyline, straightLaneFor } from '../../route-contracts.ts'
 import type { LabelMetricsStyle } from '../../route-contracts.ts'
 import { resolveEdgeInlineStyle } from '../../color-resolver.ts'
@@ -2114,6 +2114,24 @@ export function applySymmetricParallelEdgeLanes(
  * owned by `applySymmetricParallelEdgeLanes` (they need outer lanes for their
  * labels); everything else is left to the certifying route contracts.
  */
+function parallelLaneProposalAllowed(edges: PositionedEdge[], proposed: Array<{ edge: PositionedEdge; points: Point[] }>): boolean {
+  const points = new Map(proposed.map(candidate => [candidate.edge, candidate.points]))
+  const involved = new Set<number>()
+  const candidate = edges.map((edge, index) => {
+    const route = points.get(edge)
+    if (!route) return edge
+    involved.add(index)
+    return { ...edge, points: route }
+  })
+  const extraCrossings = countEdgeCrossings(candidate, involved) - countEdgeCrossings(edges, involved)
+  const repairedPairs = countParallelRouteOverlaps(edges, involved) - countParallelRouteOverlaps(candidate, involved)
+  if (repairedPairs < 0) return false
+  if (extraCrossings <= 0) return true
+  // Evaluate this proposal alone: unrelated bucket improvements cannot pay for
+  // a crossing introduced solely to reduce bends or move preferred ports.
+  return extraCrossings <= repairedPairs
+}
+
 export function applyParallelDuplicateLanes(
   nodes: PositionedNode[],
   edges: PositionedEdge[],
@@ -2250,6 +2268,7 @@ export function applyParallelDuplicateLanes(
       }
       proposed.push({ edge, points: clipped })
     }
+    if (!parallelLaneProposalAllowed(edges, proposed)) return false
     for (const { edge, points } of proposed) {
       edge.points = points
       edge.labelPosition = edge.label ? longestSegmentMidpoint(points) : undefined
@@ -2385,7 +2404,7 @@ export function applyParallelDuplicateLanes(
       }
       proposed.push({ edge, points: pts })
     }
-    if (!ok) return
+    if (!ok || !parallelLaneProposalAllowed(edges, proposed)) return
     for (const { edge, points } of proposed) {
       edge.points = points
       edge.labelPosition = undefined
@@ -2876,6 +2895,19 @@ export function alignPortLanes(
   groups: PositionedGroup[],
   direction: Direction,
   style: LabelMetricsStyle,
+): void {
+  const candidateNodes = nodes.map(node => ({ ...node }))
+  const candidateEdges = edges.map(edge => ({ ...edge, points: edge.points.map(point => ({ ...point })), ...(edge.labelPosition ? { labelPosition: { ...edge.labelPosition } } : {}) }))
+  alignPortLaneCandidate(candidateNodes, candidateEdges, groups, direction, style)
+  // Centering is preparatory, but may not silently break more canonical
+  // contacts than it establishes. Keep the prior layout when it does.
+  if (portEndpointRate({ nodes: candidateNodes, edges: candidateEdges }, true) + 1e-6 < portEndpointRate({ nodes, edges }, true)) return
+  nodes.forEach((node, index) => { node.x = candidateNodes[index]!.x; node.y = candidateNodes[index]!.y })
+  edges.forEach((edge, index) => { edge.points = candidateEdges[index]!.points; edge.labelPosition = candidateEdges[index]!.labelPosition })
+}
+
+function alignPortLaneCandidate(
+  nodes: PositionedNode[], edges: PositionedEdge[], groups: PositionedGroup[], direction: Direction, style: LabelMetricsStyle,
 ): void {
   const isHorizontal = direction === 'LR' || direction === 'RL'
   const cross = isHorizontal ? ('y' as const) : ('x' as const)

@@ -1,3 +1,4 @@
+import { PaintLayoutCertificationError } from '../scene/paint-certification.ts'
 // ============================================================================
 // verifyMermaid — Tier 1 (source/structure) + Tier 2 (geometric) + Tier 3 (lint).
 //
@@ -155,6 +156,7 @@ export function verifyMermaid(input: ParsedDiagram | string, opts: VerifyOptions
     const structured = verifyStructure(parsed.value, opts, positioned)
     return withRenderParity(withBrandConstraints(structured, opts, positioned), opts, positioned)
   } catch (error) {
+    if (error instanceof PaintLayoutCertificationError) return { ...finalize([{ code: 'RENDER_FAILED', reason: error.message }], emptyRenderedLayout(parsed.value.kind), opts, false), layoutCertification: error.certification }
     if (!(error instanceof FamilyLayoutError || error instanceof RenderOptionColorError || error instanceof ThemeVariableColorError)) throw error
     return finalize([{ code: 'RENDER_FAILED', reason: error.message }], emptyRenderedLayout(parsed.value.kind), opts, false)
   }
@@ -229,11 +231,11 @@ function withRenderParity(result: VerifyResult, opts: VerifyOptions, positioned:
   try {
     const artifact = positioned()
     if (!artifact) throw new Error(`Mermaid family "${result.layout.kind}" has no positioned graphical artifact`)
-    renderPositionedMermaidSVG(artifact.request, artifact.layoutResult, [])
-    return result
+    const rendered = renderPositionedMermaidSVG(artifact.request, artifact.layoutResult, [])
+    return { ...result, ...(rendered.layoutCertification ? { layoutCertification: rendered.layoutCertification } : {}) }
   } catch (e) {
     const reason = e instanceof Error ? e.message : String(e)
-    return { ...result, ok: false, warnings: [...result.warnings, { code: 'RENDER_FAILED', reason }] }
+    return { ...result, ok: false, ...(e instanceof PaintLayoutCertificationError ? { layoutCertification: e.certification } : {}), warnings: [...result.warnings, { code: 'RENDER_FAILED', reason }] }
   }
 }
 

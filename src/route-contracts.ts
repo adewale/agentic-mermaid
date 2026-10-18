@@ -1166,6 +1166,17 @@ function tryStraighten(
       blockers.push(...proven.blockers)
       continue
     }
+    const current = simplifyPolyline(edge.points)
+    if (current.length === 2 && Math.abs(current[0]![axis.cross] - current[1]![axis.cross]) <= EPS) {
+      const priorContacts = Number(Boolean(portAt(source, current[0]!))) + Number(Boolean(portAt(target, current[1]!)))
+      const nextContacts = Number(Boolean(portAt(source, proven.start))) + Number(Boolean(portAt(target, proven.end)))
+      if (nextContacts < priorContacts && countRouteCrossings([proven.start, proven.end], edge, ctx) >= countRouteCrossings(current, edge, ctx)) {
+        const priorProof = proveLane(edge, source, target, current[0]![axis.cross], ctx, axis, search)
+        // Symmetric reciprocal spacing cannot outrank already-clear canonical
+        // contacts. Retain the current lane only when it independently proves.
+        if (!('blockers' in priorProof)) continue
+      }
+    }
     edge.points = [proven.start, proven.end]
     if (edge.label) edge.labelPosition = proven.slot ?? undefined
     return { applied: true, blockers: [], usedCandidateIndex: candidateIndex }

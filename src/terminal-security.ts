@@ -68,7 +68,7 @@ export function terminalOutputLineWidth(line: string, colorMode: ColorMode): num
   return visualWidth(terminalOutputPlainText(line, colorMode))
 }
 
-function terminalOutputPlainText(value: string, colorMode: ColorMode): string {
+export function terminalOutputPlainText(value: string, colorMode: ColorMode): string {
   if (colorMode === 'none') return value
   if (colorMode !== 'html') return withoutAllowedSgr(value, colorMode)
   return value

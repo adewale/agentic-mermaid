@@ -483,6 +483,8 @@ export interface ConfigDiagnostic {
 }
 
 export interface RenderOptions {
+  /** Require complete native layout evidence, or report explicit limitations. */
+  layoutSafety?: 'report' | 'strict'
   /** Background color → CSS variable --bg. Default: '#FFFFFF' */
   bg?: string
   /** Foreground / primary text color → CSS variable --fg. Default: '#27272A' */

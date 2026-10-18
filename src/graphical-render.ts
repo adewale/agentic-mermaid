@@ -30,7 +30,8 @@ import type { OutputSecurityDiagnostic } from './output-security.ts'
 import { replaceSvgRootStartTag, svgAttribute, svgRootStartTag } from './svg-structure.ts'
 import { scopeSvgStyles } from './svg-style-scope.ts'
 import { emitResolvedConfigDiagnostics } from './render-config-diagnostics.ts'
-import { admitFamilyScene } from './scene/admission.ts'
+import { retainedPositionedScene, positionedPaintCertification } from './scene/positioned.ts'
+import { PaintLayoutCertificationError, type PaintLayoutCertification, type PaintViewport } from './scene/paint-certification.ts'
 import { assertFinalSvgByteBudget } from './scene/scene-validation.ts'
 import type { SceneDoc } from './scene/ir.ts'
 import { withTextMeasurementExecution } from './text-measurement-profile.ts'
@@ -38,6 +39,7 @@ import { withTextMeasurementExecution } from './text-measurement-profile.ts'
 export interface ResolvedGraphicalExecution {
   readonly svg: string
   readonly executionDecision: RenderExecutionDecision
+  readonly layoutCertification?: PaintLayoutCertification
 }
 
 /** Private receipt-bearing artifact consumed by public SVG and PNG adapters. */
@@ -78,12 +80,8 @@ export function lowerPositionedFamilyScene(
   layout: FamilyLayoutResult,
 ): SceneDoc {
   const executionPlan = resolvedRenderExecutionPlanOf(request)
-  if (executionPlan.mode !== 'scene') {
-    throw new Error(`Resolved ${request.output} request has no Scene execution plan`)
-  }
-  const family = executionPlan.family
-  return withTextMeasurementExecution(executionPlan.textMeasurement, () =>
-    admitFamilyScene(family, family.lowerScene!(renderContextForPositionedFamily(request, layout))))
+  if (executionPlan.mode !== 'scene') throw new Error(`Resolved ${request.output} request has no Scene execution plan`)
+  return retainedPositionedScene(request, layout)
 }
 
 function escapeXmlText(value: string): string {
@@ -118,6 +116,15 @@ function injectAccessibility(
   return replaceSvgRootStartTag(svg, root, `${open.slice(0, -1)}${add}>${children.join('')}`)
 }
 
+function expandSvgViewport(svg: string, viewport: PaintViewport): string {
+  const root = svgRootStartTag(svg)
+  if (!root) throw new Error('Cannot certify a graphical output with no SVG root')
+  const original = svg.slice(root.start, root.end)
+  const rewritten = original.replace(/\sviewBox="[^"]*"/g, '')
+  const attrs = ` viewBox="${viewport.x} ${viewport.y} ${viewport.width} ${viewport.height}"`
+  return replaceSvgRootStartTag(svg, root, rewritten.slice(0, -1) + attrs + '>')
+}
+
 /** Render an exact descriptor layout result; this function never positions. */
 export function renderPositionedMermaidSVG(
   request: ResolvedRenderRequest,
@@ -141,18 +148,23 @@ function renderPositionedWithTextMeasurement(
   const family = executionPlan.family
   const context = renderContextForPositionedFamily(request, layout)
   let rawSvg: string
+  let layoutCertification: PaintLayoutCertification | undefined
   if (executionPlan.mode === 'scene') {
     const scene = lowerPositionedFamilyScene(request, layout)
+    layoutCertification = positionedPaintCertification(request, layout)
+    if ((effectiveOptions.layoutSafety === 'strict' && layoutCertification.status !== 'passed') || (layoutCertification.status === 'failed' && executionPlan.backend?.inputName === 'default' && !request.appearance.styled)) throw new PaintLayoutCertificationError(layoutCertification)
     rawSvg = executionPlan.backend!.backend.render(scene, {
       seed: effectiveOptions.seed ?? 0,
       ...(request.appearance.styled ? { style: request.appearance.style } : {}),
     })
   } else {
+    if (effectiveOptions.layoutSafety === 'strict') throw new Error('Strict layout safety requires native Scene evidence')
     rawSvg = family.renderSvg!(context)
   }
   assertFinalSvgByteBudget(rawSvg, 'backend/family SVG output')
 
   let svg = inlineResolvedColors(rawSvg, context.colors)
+  if (layoutCertification?.repairs.length && executionPlan.backend?.inputName === 'default' && !request.appearance.styled) svg = expandSvgViewport(svg, layoutCertification.viewport)
   assertFinalSvgByteBudget(svg, 'color-resolved SVG output')
   svg = fitUncalibratedSvgText(svg, request.appearance.font)
   assertFinalSvgByteBudget(svg, 'font-geometry-fitted SVG output')
@@ -189,6 +201,7 @@ function renderPositionedWithTextMeasurement(
   return Object.freeze({
     svg,
     executionDecision: executionPlan.executionDecision,
+    ...(layoutCertification ? { layoutCertification } : {}),
   })
 }
 
@@ -234,6 +247,7 @@ export function executeGraphicalRequest(
       ...receipt,
       graphicalProjectionDigest: renderedSvgDigest(rendered.svg),
       executionDecision: rendered.executionDecision,
+      ...(rendered.layoutCertification ? { layoutCertification: Object.freeze({ ...rendered.layoutCertification, outputDigest: renderedSvgDigest(rendered.svg) }) } : {}),
     }),
   })
 }

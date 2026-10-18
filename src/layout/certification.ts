@@ -2,7 +2,7 @@ import { assessLayout, hardViolations, type RubricMetrics } from '../layout-rubr
 import { labelRect } from '../route-contracts.ts'
 import type { ResolvedRenderStyle } from '../styles.ts'
 import type { MermaidGraph, MermaidSubgraph, PositionedGraph, PositionedGroup } from '../types.ts'
-import { LayoutMetricBudgetError } from './pass.ts'
+import { LayoutPassContractError } from './pass.ts'
 import { DiagramWorkLimitError } from '../shared/diagram-limits.ts'
 import { LayoutCertificationError, type LayoutCertificationAttempt } from './certification-error.ts'
 import type { PixelTextBlock } from '../shared/prepared-text.ts'
@@ -291,7 +291,7 @@ export function certifyLayoutCandidates(graph: MermaidGraph, style: ResolvedRend
     } catch (error) {
       // A successful alternative cannot hide a broken pass or exceeded input
       // work limit. These diagnostics intentionally stop certification.
-      if (error instanceof LayoutMetricBudgetError || error instanceof DiagramWorkLimitError) throw error
+      if (error instanceof LayoutPassContractError || error instanceof DiagramWorkLimitError) throw error
       attempts.push({ strategy: candidate.strategy, violations: [error instanceof Error ? error.message : String(error)] })
     }
     if (deferred) return accept(deferred, 'alternative-invalid')
