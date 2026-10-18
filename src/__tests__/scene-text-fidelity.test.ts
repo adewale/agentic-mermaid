@@ -74,6 +74,18 @@ describe('fidelity oracle checks text x/y/anchor', () => {
     expect(problems).toEqual([])
   })
 
+  it.each(['collapsed positions', 'squashed widths'])('rejects tracked text with %s even inside its retained line band', change => {
+    const block = preparePixelText('ABCD', { fontSize: 12, fontWeight: 400, letterSpacing: 3 })
+    const original = renderMultilineText(block, 50, 20, 12, 'text-anchor="start" font-size="12" letter-spacing="3"')
+    const svg = change === 'collapsed positions'
+      ? original.replace(/<tspan x="[^"]+"/g, '<tspan x="50"')
+      : original.replace(/textLength="[^"]+"/g, 'textLength="0.1"')
+    const mark = marks.text({ id: 'tracked', role: 'label', text: block.text, block, x: 50, y: 20, fontSize: 12, anchor: 'start', paint: {} }, svg)
+    const problems: string[] = []
+    nodeProblems(mark, 'tracked', problems)
+    expect(problems.join('\n')).toContain('retained ordered allocation')
+  })
+
   it('retains the family prepared block, source spans and font inputs without changing SVG', () => {
     const block = preparePixelText('Straße <b>release</b> notes', {
       display: 'formatted', transform: 'uppercase', fontSize: 14, fontWeight: 600,

@@ -199,6 +199,7 @@ function preparedTextPlacementProblems(node: TextMark, serialized: string, path:
   const stack: Frame[] = []
   const spanAttributes = new Set(['x', 'y', 'dx', 'dy', 'text-anchor', 'textLength', 'lengthAdjust', 'font-size', 'font-family', 'font-weight', 'font-style', 'text-decoration', 'letter-spacing', 'fill', 'data-text-fragment', 'data-font-metrics', 'xml:space'])
   const lines = expected.map(() => '')
+  const fragments = expected.map(() => 0)
   const runs = expected.map(() => ({ index: 0, offset: 0 }))
   let wrappers = 0, directText = false, y = node.y, cursor = 0
   const starts = scanSvgStartTags(serialized)
@@ -238,6 +239,13 @@ function preparedTextPlacementProblems(node: TextMark, serialized: string, path:
         const x = frame.x! - (frame.anchor === 'middle' ? width / 2 : frame.anchor === 'end' ? width : 0)
         const start = node.x - (node.anchor === 'middle' ? line.width / 2 : node.anchor === 'end' ? line.width : 0)
         if (!Number.isFinite(x) || !Number.isFinite(width) || width < 0 || frame.text.trim() && width <= Number.EPSILON * Math.max(1, line.width) || x < start - 0.5 || x + width > start + line.width + 0.5) fail('a positioned fragment escapes its retained line band')
+        if (line.fragments) {
+          const retained = line.fragments[fragments[frame.line]!]
+          if (!retained || frame.text !== retained.text || frame.anchor !== 'start' ||
+            Math.abs(frame.x! - (start + line.originX + retained.x)) > 1e-6 ||
+            frame.width === undefined || Math.abs(frame.width - Math.max(0, retained.width)) > 1e-6) fail('a positioned fragment differs from its retained ordered allocation')
+          fragments[frame.line] = fragments[frame.line]! + 1
+        }
       }
       continue
     }
@@ -291,6 +299,9 @@ function preparedTextPlacementProblems(node: TextMark, serialized: string, path:
   if (stack.length) fail('prepared text wrappers are incomplete')
   if ((wrappers || 1) !== expected.length || wrappers && directText) fail('emitted line wrappers differ from the retained line count')
   for (let line = 0; line < expected.length; line++) if (lines[line] !== expected[line]) fail(`line ${line} differs from its retained displayed text`)
+  block.lineBlocks.forEach((line, index) => {
+    if (line.fragments && fragments[index] !== line.fragments.length) fail(`line ${index} differs from its retained fragment count`)
+  })
 }
 
 export function nodeProblems(node: SceneNode, path: string, problems: string[]): void {
