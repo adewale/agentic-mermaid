@@ -1,13 +1,13 @@
 # Mermaid fork graph
 
-The projects that keep 0.5 honest: browserless renderers to compare on speed and payload, terminal renderers to compare on output, and parsers to compare on meaning. [`population.json`](./population.json) records who they are, how they relate (fork, port, binding or independent reimplementation), and what each had published on 18 October 2026. Most of the 80 nodes are `observed` (in the graph, with no comparison value); the table below lists the rest.
+The projects that keep 0.5 honest: browserless renderers to compare on speed and payload, terminal renderers to compare on output, and parsers to compare on meaning. [`population.json`](./population.json) records who they are, how they relate (fork, port, binding, or independent reimplementation that may vendor Mermaid's grammar and specs, as Pele does), and what each had published on 18 October 2026. Most of the 80 nodes are `observed` (in the graph, with no comparison value); the table below lists the rest.
 
 ## How the population was chosen
 
 - **Seeds:** everything named in [`docs/comparison.md`](../../docs/comparison.md), every fork in the July star-ranked [`fork-snapshot.json`](../mindmap-gitgraph-content-corpus/fork-snapshot.json), Agentic itself and `mermaid-ast`.
 - **Discovery:** npm registry search (the queries are in `method.npmQueries`, including the parents' verbatim descriptions to catch republished forks), PyPI names, and one hop along provenance files (`UPSTREAM.md`, `THIRD_PARTY.md`, README credits).
 - **Kept:** projects that parse or render Mermaid themselves. Integrations whose dependencies name `mermaid`, `beautiful-mermaid`, `zombie-mermaid`, `pele` or Merman are in `excluded`, with the reason. Of mermaid-js/mermaid's GitHub forks, only snapshot forks and forks that publish their own npm package are listed.
-- **Lineage without the GitHub API:** a fork shares its parent's root commit. Port and binding claims cite the file that makes them. Repos that could not be reached are in `unresolved`.
+- **Lineage without the GitHub API:** a fork shares its parent's root commit. Port, binding and vendors claims cite the file that makes them. Repos that could not be reached are in `unresolved`.
 
 ## Peers
 
