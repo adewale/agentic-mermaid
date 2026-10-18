@@ -16,7 +16,7 @@ import { applyResolvedXYChartConfig, applyXYChartFrontmatterConfig, parseXYChart
 import type { XYChart, XYChartConfig, XYChartTheme } from '../xychart/types.ts'
 import type { MermaidFrontmatterMap } from '../mermaid-source.ts'
 import type { AsciiConfig, AsciiTheme, ColorMode, CharRole } from './types.ts'
-import { TerminalDocument, type TerminalOwner } from './terminal-document.ts'
+import { measuredText, TerminalDocument, type MeasuredTerminalText, type TerminalOwner } from './terminal-document.ts'
 import { CHART_ACCENT_FALLBACK } from '../xychart/colors.ts'
 import { categoricalPalette } from '../shared/categorical-palette.ts'
 import { isLegendWorthy, legendEntries } from '../xychart/legend.ts'
@@ -37,6 +37,27 @@ const PLOT_HEIGHT = 20
 // Decorative glyphs; connected geometry lowers logical ports centrally.
 const UNI = { ascii: false, hLine: '─', bar: '█', grid: '·' } as const
 const ASC = { ascii: true, hLine: '-', bar: '#', grid: '.' } as const
+
+/** Numeric labels own foreground cells before the plot's background paint. */
+function valueLabelReservations() {
+  const plans = new Map<string, { x: number; y: number; text: MeasuredTerminalText; color: string; owner: TerminalOwner }>()
+  const rows = new Map<number, Set<number>>()
+  return {
+    reserve(x: number, y: number, text: MeasuredTerminalText, color: string, owner: TerminalOwner) {
+      plans.set(owner.id, { x, y, text, color, owner })
+      for (const [row, clusters] of text.lines.entries()) {
+        const columns = rows.get(y + row) ?? new Set<number>()
+        rows.set(y + row, columns)
+        for (const cluster of clusters) for (let offset = 0; offset < cluster.width; offset++) columns.add(x + cluster.x + offset)
+      }
+    },
+    has(x: number, y: number) { return rows.get(y)?.has(x) ?? false },
+    paint(canvas: TerminalDocument, id: string) {
+      const plan = plans.get(id)
+      if (plan) canvas.textBlock(plan.x, plan.y, plan.text, { role: 'text', color: plan.color, owner: plan.owner, textGroup: plan.owner.id })
+    },
+  }
+}
 
 // ============================================================================
 // Multi-series color support
@@ -187,10 +208,12 @@ function renderVertical(
   const showXLabels = chart.config.xAxis?.showLabel !== false
   const yGutter = showYLabels ? Math.max(...yLabels.map(visualWidth)) + 1 : 0
 
+  const barEntries = chart.series.flatMap((series, globalIdx) => series.type === 'bar' ? [{ data: series.data, globalIdx, labels: chart.config.showDataLabel ? series.data.map(value => measuredText(formatTickValue(value))) : [] }] : [])
+  const valueLabelWidth = barEntries.reduce((maximum, entry) => entry.labels.reduce((width, label) => Math.max(width, label.width), maximum), 0)
   const naturalPlotW = Math.max(PLOT_WIDTH, dataCount * 6)
   const availablePlotW = targetWidth === undefined ? naturalPlotW : targetWidth - yGutter - 3
-  const barSeriesCount = chart.series.filter(series => series.type === 'bar').length
-  const minimumBandW = Math.max(2, barSeriesCount * 2 + 1)
+  const barSeriesCount = barEntries.length
+  const minimumBandW = Math.max(2, barSeriesCount * Math.max(1, valueLabelWidth) + Math.max(0, barSeriesCount - 1) + 2)
   const plotW = Math.max(dataCount * minimumBandW, Math.min(naturalPlotW, availablePlotW))
   const plotH = PLOT_HEIGHT
   const bandW = Math.floor(plotW / dataCount)
@@ -224,6 +247,10 @@ function renderVertical(
   const projection = valueProjection(yRange, plotH, ch.ascii)
   const valueToRow = projection.position
   const bandCenter = (i: number): number => plotLeft + Math.floor(bandW * (i + 0.5))
+  const barWidth = Math.max(1, Math.min(Math.floor((Math.max(1, bandW - 2) - Math.max(0, barSeriesCount - 1)) / Math.max(1, barSeriesCount)), 8))
+  const barSlotWidth = Math.max(barWidth, valueLabelWidth)
+  const barGroupWidth = barSlotWidth * barSeriesCount + Math.max(0, barSeriesCount - 1)
+  const barX = (category: number, series: number) => bandCenter(category) - Math.floor(barGroupWidth / 2) + series * (barSlotWidth + 1) + Math.floor((barSlotWidth - barWidth) / 2)
 
   // 3. Y-axis line + ticks + labels
   for (let row = 0; chart.config.yAxis?.showAxisLine !== false && row <= plotH; row++) {
@@ -266,60 +293,48 @@ function renderVertical(
     writeText(canvas, xTitleRow + row, Math.max(0, Math.floor((totalW - visualWidth(title)) / 2)), title, 'text', { id: 'x-axis', kind: 'label' })
   })
 
+  const dataLabels = valueLabelReservations()
+  if (chart.config.showDataLabel) for (const [barIndex, entry] of barEntries.entries()) {
+    const baselineEdge = projection.edge(barBaselineValue(yRange))
+    for (const [index, value] of entry.data.entries()) {
+      const label = entry.labels[index]!, valueEdge = projection.edge(value)
+      const top = plotTop + plotH - Math.ceil(Math.max(baselineEdge, valueEdge))
+      const bottom = plotTop + plotH - Math.floor(Math.min(baselineEdge, valueEdge))
+      const row = value >= 0 ? Math.max(plotTop, top - 1) : Math.min(xAxisRow - 1, bottom + 1)
+      const column = Math.max(plotLeft, barX(index, barIndex) + Math.floor(barWidth / 2) - Math.floor(label.width / 2))
+      dataLabels.reserve(column, row, label, seriesColors[entry.globalIdx]!, { id: `series-${entry.globalIdx}:value-${index}`, kind: 'label', parent: { id: `series-${entry.globalIdx}`, kind: 'node' } })
+    }
+  }
+
   // 6. Grid lines (subtle horizontal dots at y-tick positions)
   for (const tick of yTicks) {
     const row = valueToRow(tick)
     if (row < 0 || row > plotH) continue
     const displayRow = plotTop + plotH - row
     for (let c = plotLeft; c < plotLeft + bandW * dataCount; c++) {
-      if (get(canvas, displayRow, c) === ' ') {
+      if (!dataLabels.has(c, displayRow) && get(canvas, displayRow, c) === ' ') {
         set(canvas, displayRow, c, ch.grid, 'line')
       }
     }
   }
 
   // 7. Bars — track global series index for per-series colors
-  const barEntries: { data: number[]; globalIdx: number }[] = []
-  for (let si = 0; si < chart.series.length; si++) {
-    if (chart.series[si]!.type === 'bar') barEntries.push({ data: chart.series[si]!.data, globalIdx: si })
-  }
-
   if (barEntries.length > 0) {
-    const barCount = barEntries.length
-    const usable = Math.max(1, bandW - 2)
-    const singleBarW = Math.max(1, Math.min(Math.floor((usable - (barCount - 1)) / barCount), 8))
-    const groupW = singleBarW * barCount + (barCount - 1)
     const baseline = barBaselineValue(yRange)
 
     for (let bIdx = 0; bIdx < barEntries.length; bIdx++) {
       const entry = barEntries[bIdx]!
       const hexColor = seriesColors[entry.globalIdx]!
       for (let i = 0; i < entry.data.length; i++) {
-        const cx = bandCenter(i)
-        const groupLeft = cx - Math.floor(groupW / 2)
-        const bx = groupLeft + bIdx * (singleBarW + 1)
+        const bx = barX(i, bIdx)
         const value = entry.data[i]!
-        const baselineEdge = projection.edge(baseline)
-        const valueEdge = projection.edge(value)
-        const fromRow = Math.min(baselineEdge, valueEdge)
-        const toRow = Math.max(baselineEdge, valueEdge)
         canvas.scope({ id: `series-${entry.globalIdx}`, kind: 'node' }, () => {
           for (const { cell, coverage } of projection.coverage(baseline, value)) {
             const displayRow = plotTop + plotH - 1 - cell
-            for (let c = bx; c < bx + singleBarW; c++) canvas.numericMark(c, displayRow, { axis: 'vertical', coverage, ascii: ch.ascii }, { role: 'arrow', color: hexColor })
+            for (let c = bx; c < bx + barWidth; c++) canvas.numericMark(c, displayRow, { axis: 'vertical', coverage, ascii: ch.ascii }, { role: 'arrow', color: hexColor })
           }
         })
-
-        if (chart.config.showDataLabel) {
-          const label = formatTickValue(entry.data[i]!)
-          const topDisplayRow = plotTop + plotH - Math.ceil(toRow)
-          const bottomDisplayRow = plotTop + plotH - Math.floor(fromRow)
-          const labelRow = entry.data[i]! >= 0
-            ? Math.max(plotTop, topDisplayRow - 1)
-            : Math.min(xAxisRow - 1, bottomDisplayRow + 1)
-          const labelCol = Math.max(plotLeft, cx - Math.floor(visualWidth(label) / 2))
-          writeColoredText(canvas, labelRow, labelCol, label, 'text', hexColor, { id: `series-${entry.globalIdx}:value-${i}`, kind: 'label', parent: { id: `series-${entry.globalIdx}`, kind: 'node' } })
-        }
+        if (chart.config.showDataLabel) dataLabels.paint(canvas, `series-${entry.globalIdx}:value-${i}`)
       }
     }
   }
@@ -335,7 +350,7 @@ function renderVertical(
     if (entry.data.length === 0) continue
     const hexColor = seriesColors[entry.globalIdx]!
     canvas.scope({ id: `series-${entry.globalIdx}`, kind: 'node' }, () => {
-      drawStaircaseLine(canvas, entry.data, bandCenter, valueToRow, plotTop, plotH, plotLeft, bandW * dataCount, ch, hexColor)
+      drawStaircaseLine(canvas, entry.data, bandCenter, valueToRow, plotTop, plotH, plotLeft, bandW * dataCount, ch, hexColor, dataLabels.has)
     })
   }
 
@@ -466,27 +481,35 @@ function renderHorizontal(
     writeText(canvas, totalH - yTitleLines.length + row, Math.max(0, Math.floor((totalW - visualWidth(title)) / 2)), title, 'text', { id: 'y-axis', kind: 'label' })
   })
 
+  const barEntries = chart.series.flatMap((series, globalIdx) => series.type === 'bar' ? [{ data: series.data, globalIdx, labels: chart.config.showDataLabel ? series.data.map(value => measuredText(formatTickValue(value))) : [] }] : [])
+  const singleBarH = 1
+  const groupH = singleBarH * barEntries.length + (barEntries.length - 1)
+  const dataLabels = valueLabelReservations()
+  if (chart.config.showDataLabel) for (const [barIndex, entry] of barEntries.entries()) {
+    const baselineEdge = plotLeft + projection.edge(barBaselineValue(yRange))
+    for (const [index, value] of entry.data.entries()) {
+      const label = entry.labels[index]!, valueEdge = plotLeft + projection.edge(value)
+      const column = value >= 0
+        ? Math.min(totalW - label.width, Math.ceil(Math.max(baselineEdge, valueEdge)) + 2)
+        : Math.max(plotLeft, Math.floor(Math.min(baselineEdge, valueEdge)) - label.width - 1)
+      const row = bandMid(index) - Math.floor(groupH / 2) + barIndex * (singleBarH + 1)
+      dataLabels.reserve(column, row, label, seriesColors[entry.globalIdx]!, { id: `series-${entry.globalIdx}:value-${index}`, kind: 'label', parent: { id: `series-${entry.globalIdx}`, kind: 'node' } })
+    }
+  }
+
   // Grid lines (vertical at value tick positions)
   for (const tick of valueTicks) {
     const cx = valueToCol(tick)
     if (cx < plotLeft || cx > plotLeft + plotW) continue
     for (let r = plotTop; r < plotTop + plotH; r++) {
-      if (get(canvas, r, cx) === ' ') {
+      if (!dataLabels.has(cx, r) && get(canvas, r, cx) === ' ') {
         set(canvas, r, cx, ch.grid, 'line')
       }
     }
   }
 
   // Bars (horizontal) — with per-series colors
-  const barEntries: { data: number[]; globalIdx: number }[] = []
-  for (let si = 0; si < chart.series.length; si++) {
-    if (chart.series[si]!.type === 'bar') barEntries.push({ data: chart.series[si]!.data, globalIdx: si })
-  }
-
   if (barEntries.length > 0) {
-    const barCount = barEntries.length
-    const singleBarH = 1
-    const groupH = singleBarH * barCount + (barCount - 1)
     const baseline = barBaselineValue(yRange)
 
     for (let bIdx = 0; bIdx < barEntries.length; bIdx++) {
@@ -497,23 +520,12 @@ function renderHorizontal(
         const groupTop = my - Math.floor(groupH / 2)
         const by = groupTop + bIdx * (singleBarH + 1)
         const value = entry.data[i]!
-        const baselineEdge = plotLeft + projection.edge(baseline)
-        const valueEdge = plotLeft + projection.edge(value)
-        const fromCol = Math.min(baselineEdge, valueEdge)
-        const toCol = Math.max(baselineEdge, valueEdge)
         canvas.scope({ id: `series-${entry.globalIdx}`, kind: 'node' }, () => {
           for (let r = by; r < by + singleBarH; r++) {
             for (const { cell, coverage } of projection.coverage(baseline, value)) canvas.numericMark(plotLeft + cell, r, { axis: 'horizontal', coverage, ascii: ch.ascii }, { role: 'arrow', color: hexColor })
           }
         })
-
-        if (chart.config.showDataLabel) {
-          const label = formatTickValue(entry.data[i]!)
-          const labelCol = entry.data[i]! >= 0
-            ? Math.min(totalW - visualWidth(label), Math.ceil(toCol) + 2)
-            : Math.max(plotLeft, Math.floor(fromCol) - visualWidth(label) - 1)
-          writeColoredText(canvas, by, labelCol, label, 'text', hexColor, { id: `series-${entry.globalIdx}:value-${i}`, kind: 'label', parent: { id: `series-${entry.globalIdx}`, kind: 'node' } })
-        }
+        if (chart.config.showDataLabel) dataLabels.paint(canvas, `series-${entry.globalIdx}:value-${i}`)
       }
     }
   }
@@ -529,7 +541,7 @@ function renderHorizontal(
     if (entry.data.length === 0) continue
     const hexColor = seriesColors[entry.globalIdx]!
     canvas.scope({ id: `series-${entry.globalIdx}`, kind: 'node' }, () => {
-      drawHorizontalStaircaseLine(canvas, entry.data, bandMid, valueToCol, plotTop, plotH, plotLeft, plotW, ch, hexColor)
+      drawHorizontalStaircaseLine(canvas, entry.data, bandMid, valueToCol, plotTop, plotH, plotLeft, plotW, ch, hexColor, dataLabels.has)
     })
   }
 
@@ -557,6 +569,7 @@ function drawStaircaseLine(
   plotTotalW: number,
   ch: typeof UNI | typeof ASC,
   hexColor?: string | null,
+  reserved?: (x: number, y: number) => boolean,
 ): void {
   if (data.length === 0) return
 
@@ -568,7 +581,7 @@ function drawStaircaseLine(
   // Helper to draw on the canvas (row 0 = bottom, displayed inverted)
   const drawAt = (col: number, row: number, ports: number) => {
     const displayRow = plotTop + plotH - row
-    if (displayRow >= 0 && col >= plotLeft && col < plotLeft + plotTotalW) {
+    if (displayRow >= 0 && col >= plotLeft && col < plotLeft + plotTotalW && !reserved?.(col, displayRow)) {
       stroke(canvas, displayRow, col, ports, ch, 'arrow', hexColor, true)
     }
   }
@@ -667,6 +680,7 @@ function drawHorizontalStaircaseLine(
   plotW: number,
   ch: typeof UNI | typeof ASC,
   hexColor?: string | null,
+  reserved?: (x: number, y: number) => boolean,
 ): void {
   if (data.length === 0) return
 
@@ -676,7 +690,7 @@ function drawHorizontalStaircaseLine(
   }))
 
   const drawAt = (row: number, col: number, ports: number) => {
-    if (row >= plotTop && row < plotTop + plotH && col >= plotLeft && col <= plotLeft + plotW) {
+    if (row >= plotTop && row < plotTop + plotH && col >= plotLeft && col <= plotLeft + plotW && !reserved?.(col, row)) {
       stroke(canvas, row, col, ports, ch, 'arrow', hexColor, true)
     }
   }
@@ -795,10 +809,6 @@ function get(canvas: TerminalDocument, row: number, col: number): string {
 
 function writeText(canvas: TerminalDocument, row: number, col: number, text: string, role: CharRole, owner?: TerminalOwner): void {
   if (col >= 0 && row >= 0) canvas.textBlock(col, row, text, { role, owner, textGroup: owner?.id })
-}
-
-function writeColoredText(canvas: TerminalDocument, row: number, col: number, text: string, role: CharRole, color: string, owner?: TerminalOwner): void {
-  if (col >= 0 && row >= 0) canvas.text(col, row, text, { role, color, owner, textGroup: owner?.id })
 }
 
 

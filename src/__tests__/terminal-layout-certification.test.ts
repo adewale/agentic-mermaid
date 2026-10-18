@@ -3,7 +3,7 @@ import { describe, expect, spyOn, test } from 'bun:test'
 import { BUILTIN_FAMILY_METADATA } from '../agent/families.ts'
 import { renderMermaidASCIIWithReceipt } from '../ascii/index.ts'
 import { certifyTerminalLayout, TERMINAL_CERTIFICATION_LIMITS } from '../ascii/terminal-certification.ts'
-import { measuredText, TerminalDocument, type TerminalOwner } from '../ascii/terminal-document.ts'
+import { measuredText, terminalDocumentOf, TerminalDocument, type TerminalOwner } from '../ascii/terminal-document.ts'
 import { renderContractDigest } from '../render-contract.ts'
 import { secureTerminalHtmlOutput } from '../terminal-security.ts'
 import type { ColorMode } from '../ascii/types.ts'
@@ -40,6 +40,47 @@ describe('final terminal cell certification', () => {
     const rendered = renderMermaidASCIIWithReceipt(source, { colorMode: 'none', layoutSafety: 'strict' })
     expect(rendered.text).toContain('Na Nb')
     expect(rendered.receipt.layoutCertification).toMatchObject({ status: 'passed', unit: 'cell', issues: [] })
+  })
+
+  test.each([
+    ['vertical grid', 'xychart\nx-axis [comedy, romance, mystery, crime, other, last]\ny-axis 0 --> 30\nbar [12,2,20,25,17,24]', [12, 2, 20, 25, 17, 24], 1],
+    ['vertical mixed series', 'xychart\nx-axis [jan,feb,mar,apr,may,jun,jul,aug,sep,oct,nov,dec]\ny-axis 4000 --> 11000\nbar [5000,6000,7500,8200,9500,10500,11000,10200,9200,8500,7000,6000]\nline [5000,6000,7500,8200,9500,10500,11000,10200,9200,8500,7000,6000]', [5000, 6000, 7500, 8200, 9500, 10500, 11000, 10200, 9200, 8500, 7000, 6000], 1],
+    ['horizontal mixed series', 'xychart horizontal\nx-axis [A,B,C]\ny-axis 0 --> 30\nbar [2,17,24]\nline [2,17,24]', [2, 17, 24], 1],
+    ['paired vertical bars', 'xychart\nx-axis [A,B,C,D,E,F]\ny-axis 4000 --> 11000\nbar [10500,11000,10200,9200,8500,7000]\nbar [10500,11000,10200,9200,8500,7000]', [10500, 11000, 10200, 9200, 8500, 7000], 2],
+  ] as const)('retained %s value labels reserve their actual cells before plot paint', (_name, body, values, seriesCount) => {
+    const source = `---\nconfig:\n  xyChart:\n    showDataLabel: true\n---\n${body}`
+    for (const colorMode of ['none', 'ansi16', 'html'] as const) {
+      const rendered = renderMermaidASCIIWithReceipt(source, { colorMode, layoutSafety: 'strict' })
+      expect(rendered.receipt.layoutCertification).toMatchObject({ status: 'passed', issues: [] })
+      const document = terminalDocumentOf(rendered)!
+      const allocations = [...document.layoutEvidence().textAllocations]
+      for (let series = 0; series < seriesCount; series++) for (const [index, value] of values.entries()) {
+        const allocation = allocations.find(item => item.owners.some(identity => identity.id === `series-${series}:value-${index}`))!
+        expect(allocation.text.lines.map(line => line.map(cluster => cluster.glyph).join('')).join('\n')).toBe(String(value))
+        for (const cluster of allocation.text.lines[0]!) {
+          const cell = document.cell(allocation.x + cluster.x, allocation.y)!
+          expect(cell.glyph).toBe(cluster.glyph)
+          expect(cell.owners).toContainEqual(expect.objectContaining({ id: `series-${series}:value-${index}`, kind: 'label' }))
+        }
+        if (seriesCount > 1) expect(document.cell(allocation.x + Math.floor(allocation.text.width / 2), allocation.y + 1)?.owners).toContainEqual(expect.objectContaining({ id: `series-${series}`, kind: 'node' }))
+      }
+    }
+  })
+
+  test('cross-group Sequence message text reserves its full footprint before participant frames', () => {
+    const source = 'sequenceDiagram\nbox Purple Alice & John\nparticipant A\nparticipant J\nend\nbox Another Group\nparticipant B\nparticipant C\nend\nA->>J: Hello John, how are you?\nJ->>A: Great!\nA->>B: Hello Bob, how is Charley?\nB->>C: Hello Charley, how are you?'
+    for (const colorMode of ['none', 'ansi16', 'html'] as const) {
+      const rendered = renderMermaidASCIIWithReceipt(source, { colorMode, layoutSafety: 'strict' })
+      expect(rendered.receipt.layoutCertification).toMatchObject({ status: 'passed', issues: [] })
+      const document = terminalDocumentOf(rendered)!
+      const allocation = [...document.layoutEvidence().textAllocations].find(item => item.owners.some(identity => identity.id === 'message:2'))!
+      expect(allocation.text.lines[0]!.map(cluster => cluster.glyph).join('')).toBe('Hello Bob, how is Charley?')
+      for (const cluster of allocation.text.lines[0]!) {
+        const cell = document.cell(allocation.x + cluster.x, allocation.y)!
+        expect(cell.glyph).toBe(cluster.glyph)
+        expect(cell.owners).toContainEqual(expect.objectContaining({ id: 'message:2', kind: 'edge', from: 'A', to: 'B' }))
+      }
+    }
   })
 
   test.each(['none', 'ansi16', 'html'] as const)('binds the actual %s output and defers certification until receipt access', colorMode => {
