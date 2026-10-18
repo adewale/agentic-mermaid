@@ -162,9 +162,10 @@ retained obligations; there is no published candidate report to serve as a gate.
 The strongest defense against our own blind spots is testing against
 sources we did not write:
 
-- **Modern semantic gate** (`bun run test:mermaid-modern`) — selected assertions
-  from the current Mermaid policy pin, with the exact source commit and independently
-  installed parser admitted before execution. Repeated subgraph declarations
+- **Modern semantic gate** (`bun run test:mermaid-modern`, after
+  `bun run reference:mermaid` installs the pinned source and reference locally)
+  — selected assertions from the current Mermaid policy pin, with the exact
+  source commit and independently installed parser admitted before execution. Repeated subgraph declarations
   must retain both member identities and the first title in public IR, typed
   editing, positioned layout and SVG. Repeated class assignments must survive
   typed rename and serialization in author order. Two official XYChart

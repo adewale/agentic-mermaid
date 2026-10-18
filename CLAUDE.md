@@ -21,6 +21,9 @@ editing surface. Source lives in `src/`; the layout pipeline is in
   `AM_FC_SEED=random` is finder mode (see `docs/testing-strategy.md` §4).
 - `bun run typecheck` — canonical typecheck across core and repository surfaces.
 - `bun run track` — heuristic layout-quality tracker (improvements/regressions vs baseline).
+- `bun run reference:mermaid` — clone the pinned Mermaid source to `../mermaid` and install
+  the matching reference in `../mermaid-reference` (idempotent); `bun run test:mermaid-modern`
+  needs both.
 - `bun run bin/am.ts render <file> --format png --output out.png` — render a diagram.
 - `bun run website` — build the Cloudflare Workers site into `website/public/`, a
   **gitignored build artifact** (rebuilt at deploy by `deploy-cloudflare.yml`, and
