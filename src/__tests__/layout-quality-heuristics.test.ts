@@ -138,9 +138,22 @@ describe('programmatic bad-layout heuristics', () => {
     expect(layout.bounds.h).toBeGreaterThan(layout.bounds.w * 2)
     expect(edgeNodeCollisions(layout)).toEqual([])
     const metrics = measureQuality(layout)
+    expect(metrics.paintCertification?.status).toBe('passed')
+    expect(metrics.paintCertification?.issues).toEqual([])
     expect(metrics.edgeCrossings).toBe(0)
     expect(metrics.labelLegibility).toBe(1)
     expect(checkQuality(layout, { aspectBand: [0.1, 5] }).ranked.map(item => item.message)).toEqual([])
+  })
+
+  test('a lone feedback label clears its own endpoint marker', () => {
+    const layout = layoutOf(`flowchart TD
+      A[Research] --> B[Validate research]
+      B -->|fail| A`)
+    const metrics = measureQuality(layout)
+    expect(metrics.paintCertification?.status).toBe('passed')
+    expect(metrics.paintCertification?.issues).toEqual([])
+    expect(metrics.edgeCrossings).toBe(0)
+    expect(edgeNodeCollisions(layout)).toEqual([])
   })
 
   // upstream: mermaid-js/mermaid#6336 (state) / #6049 (flowchart) — ugly self-loops

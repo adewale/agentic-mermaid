@@ -2817,8 +2817,9 @@ export function repairLabelsOffOwnRoute(
  * stays satisfied by construction) to the nearest slot whose pill clears every
  * other pill and every node; if the later edge has no clear slot, the earlier
  * edge tries; when neither clears, both stay (honest residual, surfaced by
- * eval/overlap-audit). Fires only on measured pill intersection, so
- * label-clean layouts are byte-identical.
+ * eval/overlap-audit). Also repairs initial halos covering endpoint markers.
+ * Fires only on measured pill or marker intersection, so clear layouts are
+ * byte-identical.
  */
 export function separateEdgeLabelPills(
   positioned: { nodes: PositionedNode[]; edges: PositionedEdge[]; groups: PositionedGroup[] },
@@ -2826,7 +2827,7 @@ export function separateEdgeLabelPills(
   style: LabelMetricsStyle = resolveRenderStyle({}),
 ): void {
   const labeled = positioned.edges.filter(e => e.label && e.labelPosition && e.points.length >= 2)
-  if (labeled.length < 2) return
+  if (labeled.length === 0) return
   // Match renderEdgeLabel's halo beyond each measured pill, including thick
   // edges. Separating inner pills alone can leave opaque painted halos touching.
   const haloOf = (edge: PositionedEdge): number => {
@@ -2854,6 +2855,10 @@ export function separateEdgeLabelPills(
   // Labels paint after every connector. Protect their own terminal symbols
   // and all neighboring symbols with the same resource geometry and units.
   const markers = positioned.edges.flatMap(edge => graphEdgeMarkerPaintRegions(edge, style))
+  const overlapsMarker = (pill: { x: number; y: number; w: number; h: number }): boolean => markers.some(marker => {
+    const box = marker.bounds
+    return !!box && pill.x < box.x1 && pill.x + pill.w > box.x0 && pill.y < box.y1 && pill.y + pill.h > box.y0
+  })
 
   const slots = function* (edge: PositionedEdge, others: PositionedEdge[], overhang = false): Generator<Point> {
     const m = (edge.labelBlock ?? graphEdgeTextBlock(resolveLabelContent(edge.label!, edge.labelContent), style))
@@ -2863,10 +2868,7 @@ export function separateEdgeLabelPills(
       const inner = pillRect(x, y, m)
       if (haloOverAnyNode(inner, halo)) return false
       const pill = { x: inner.x - halo, y: inner.y - halo, w: inner.w + 2 * halo, h: inner.h + 2 * halo }
-      if (markers.some(marker => {
-        const box = marker.bounds
-        return box && pill.x < box.x1 && pill.x + pill.w > box.x0 && pill.y < box.y1 && pill.y + pill.h > box.y0
-      })) return false
+      if (overlapsMarker(pill)) return false
       for (const o of others) {
         const r = rectOf(o)
         if (r && intersects(pill, r)) return false
@@ -2940,6 +2942,14 @@ export function separateEdgeLabelPills(
   // conflict set and the cap is a defensive bound, not an expected exit.
   for (let sweep = 0; sweep < 3; sweep++) {
     let conflicts = 0
+    // Initial ELK labels can hide terminal symbols without touching another
+    // pill. Repair those with the same route slots and painted clearances.
+    for (const edge of labeled) {
+      const halo = rectOf(edge)
+      if (!halo || !overlapsMarker(halo)) continue
+      conflicts++
+      trySlide(edge, labeled.filter(other => other !== edge))
+    }
     for (let i = 0; i < labeled.length; i++) {
       for (let j = i + 1; j < labeled.length; j++) {
         const a = labeled[i]!, b = labeled[j]!
