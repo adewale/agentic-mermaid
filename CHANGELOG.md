@@ -30,6 +30,10 @@ This changelog tracks user-facing changes for **Agentic Mermaid**, a fork of `lu
   graphical and terminal projections. Physical message line breaks serialize
   as Mermaid break markup. Class members and annotations share their display
   formatter with layout and label metrics (CONS-46).
+- Class namespace labels use the same break and formatting rules in native and
+  typed rendering. ER attribute diagnostics measure rendered columns rather
+  than entity spellings or grammar delimiters. C4 relationship receipts retain
+  literal tags and untransformed text under graphical casing and tracking.
 - Flowchart labels affected by upstream's quote preprocessor remain readable
   and receive `UNSUPPORTED_SYNTAX` with `flowchart_preprocessor_quote_rewrite`;
   canonical output uses a portable entity spelling (#372).

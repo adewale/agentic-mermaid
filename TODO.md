@@ -315,8 +315,9 @@ queues. Retired IDs are not reused.
   implementation is complete in separate PR
   [#416](https://github.com/adewale/agentic-mermaid/pull/416): family-owned
   diagnostic hooks include public extension verification, and repeated
-  terminal/MCP schemas use their existing contracts. Its final-head CI passes;
-  merge remains pending. This PR is not a
+  terminal/MCP schemas use their existing contracts. The candidate includes
+  native C4's family hook; final-head checks are recorded in the PR, and merge
+  remains pending. This PR is not a
   dependency of the #363 dispositions or CONS-46 text
   implementation; release delivery remains under REL-1.
 - [ ] **CONS-47 — One flowchart tokenizer with source spans** (`todo`). At least
