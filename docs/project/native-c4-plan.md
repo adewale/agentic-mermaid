@@ -1,6 +1,23 @@
 # Native C4 implementation
 
-Follow-up production candidate: `cb7994341c309e4da1ebb54fa5045548bacc63b4`
+Current rebase candidate: `6dcd68317a82c3b859d0c1c517a85dd8bbc8db3a`
+(18 October 2026), based on Agentic main
+`5442a3cce1e847953e2e5fcbc79a01662f96ecb7` after PR #413. The current syntax
+and installed dependency pin is Mermaid 12.2.0, source
+`1fb7869866dd619168d840291c9c54b4f129758b`. Independent review confirmed all
+34 imported reference files (33 syntax pages and their README) match that main
+revision byte for byte. The five C4 fences are unchanged and retain their
+precise `VerifyError` expectations for real occlusion; the earlier pages were
+not restored over the new references.
+
+Fresh validation passed 84 tests and 661 assertions across the complete
+537-fence official corpus and the C4 layout-quality, presentation, rendering
+and public-contract test files. C4 production geometry is unchanged from the
+audited pre-rebase candidate. These checks bind the rebased source and installed
+dependency; they do not replace the historical measurements or establish a
+package publication, deployment or universal layout guarantee.
+
+Pre-rebase follow-up production candidate: `cb7994341c309e4da1ebb54fa5045548bacc63b4`
 (18 October 2026). The renewed derivative comparison at `6724062c` found an
 ancestor arrow hidden by its label and unreadable dense labels despite clean
 verification. The earlier bounded audits below did not cover those witnesses.
@@ -82,7 +99,7 @@ This is a test-only correction, not a new cancellation API or production seam.
 
 ## Contract
 
-Support Mermaid 11.16's five legacy dialects (`C4Context`, `C4Container`,
+Support the current Mermaid 12.2.0 contract for the five legacy dialects (`C4Context`, `C4Container`,
 `C4Component`, `C4Dynamic`, `C4Deployment`) as one native family. Preserve
 element kind, external/database/queue distinctions, technology, description,
 nested boundaries, deployment nodes, directed/reversed/bidirectional relations,
@@ -140,8 +157,9 @@ Release validation is source semantics/edit closure, public output and ownership
 family citizenship, typecheck/lint, browser/package build, and website generation.
 An untested layout or deployment is not made complete by a passing parser test.
 
-- Mermaid 11.16 C4 syntax and grammar: the pinned local upstream reference and
-  installed `mermaid@11.16.1`; C4's domain reference is <https://c4model.com/>.
+- Initial grammar research used Mermaid 11.16 C4 syntax and
+  `mermaid@11.16.1`; the current reference/dependency pin and rebase validation
+  are recorded above. C4's domain reference is <https://c4model.com/>.
 - Beautiful PR #34 (`b8bea07b`) and #71 (`45b6ce78`): parser/layout examples;
   public terminal dispatch and technology retention differ.
 - Zombie C4: dedicated boundary/interaction layout and repeated dynamic

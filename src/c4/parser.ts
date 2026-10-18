@@ -302,7 +302,7 @@ export function readC4Source(input: string | readonly string[]): C4Body {
   for (const statement of body.statements) {
     const text = statement.raw.trim()
     if (statement.kind === 'trivia') {
-      if (!text.startsWith('%%') && text.includes(';')) diagnostic(body, statement.id, 'Semicolon statement separators are a reader extension; Mermaid 11.16 C4 requires line breaks')
+      if (!text.startsWith('%%') && text.includes(';')) diagnostic(body, statement.id, 'Semicolon statement separators are a reader extension; pinned Mermaid C4 requires line breaks')
       continue
     }
     if (!header) {
@@ -342,7 +342,7 @@ export function readC4Source(input: string | readonly string[]): C4Body {
     }
     const macro = call[1]!, args = parseC4Arguments(call[2]!)
     if (/[\r\n]/.test(call[2]!.replace(/"[^"]*"|'[^']*'/g, ''))) diagnostic(body, statement.id, 'Line breaks between C4 arguments are a reader extension; quoted multiline text remains supported')
-    if (args.some(arg => arg.name && arg.value === '')) diagnostic(body, statement.id, 'Empty named arguments are retained; Mermaid 11.16 requires a positional empty slot')
+    if (args.some(arg => arg.name && arg.value === '')) diagnostic(body, statement.id, 'Empty named arguments are retained; pinned Mermaid requires a positional empty slot')
     const element = ELEMENT.exec(macro)
     if (element && !(element[1] === 'Person' && element[2])) {
       if (call[3]) throw new Error(`C4: ${macro} cannot open a boundary`)
@@ -384,12 +384,12 @@ export function readC4Source(input: string | readonly string[]): C4Body {
         order: body.relationships.length + 1, bidirectional: macro === 'BiRel', reversed, direction: DIRECTIONS[macro.slice(4)],
       }
       body.relationships.push(record); statement.kind = 'relationship'
-      if (macro === 'RelIndex' && args.slice(4).some(arg => !arg.name)) diagnostic(body, statement.id, 'RelIndex positional metadata follows documented tags/link slots; Mermaid 11.16 instead treats them as technology/description. Named $tags/$link avoids this ambiguity')
+      if (macro === 'RelIndex' && args.slice(4).some(arg => !arg.name)) diagnostic(body, statement.id, 'RelIndex positional metadata follows documented tags/link slots; pinned Mermaid instead treats them as technology/description. Named $tags/$link avoids this ambiguity')
     } else {
       const directive: C4Directive = { id: statement.id, name: macro, args, category: c4DirectiveCategory(macro), statementId: statement.id }
       body.directives.push(directive); statement.kind = 'directive'; statement.entityId = directive.id; statement.signature = c4RecordSignature(directive)
       if (directive.category === 'unknown') diagnostic(body, statement.id, `${macro} is preserved but has no native interpretation`, 'error')
-      else if (!macro.startsWith('Update')) diagnostic(body, statement.id, `${macro} is a reader extension; Mermaid 11.16 does not accept this directive`)
+      else if (!macro.startsWith('Update')) diagnostic(body, statement.id, `${macro} is a reader extension; pinned Mermaid does not accept this directive`)
     }
     const knownNames = element ? c4ElementFields(macro) : BOUNDARIES[macro] ? c4BoundaryFields(macro) : RELATIONS.has(macro) ? c4RelationshipFields(macro)
       : macro === 'UpdateElementStyle' ? ELEMENT_STYLE : macro === 'UpdateRelStyle' ? REL_STYLE
@@ -424,7 +424,7 @@ export function readC4Source(input: string | readonly string[]): C4Body {
   resolveC4Directives(body)
   const occupiedBoundaries = new Set([...body.elements, ...body.boundaries].map(record => record.parentId))
   for (const boundary of body.boundaries) {
-    if (!occupiedBoundaries.has(boundary.id)) diagnostic(body, boundary.statementId, 'An empty boundary is retained as a native draft; Mermaid 11.16 requires a declaration inside its block')
+    if (!occupiedBoundaries.has(boundary.id)) diagnostic(body, boundary.statementId, 'An empty boundary is retained as a native draft; pinned Mermaid requires a declaration inside its block')
   }
   if (body.directives.some(directive => directive.name === 'direction')) {
     const direction = body.directives.find(directive => directive.name === 'direction')!

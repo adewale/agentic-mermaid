@@ -318,7 +318,7 @@ UpdateElementStyle(g,$borderColor="navy")`
     expect(renderC4(body)).toBe(source)
   })
 
-  test('canonical edited quotes, literal entities, Unicode and whitespace aliases parse in Mermaid 11.16', async () => {
+  test('canonical edited quotes, literal entities, Unicode and whitespace aliases parse in pinned Mermaid', async () => {
     const upstream = startUpstreamMermaid()
     try {
       const label = 'He said "hello"; #quot; <br/> <b>literal</b>\nNext, %% text'

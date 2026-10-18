@@ -475,7 +475,7 @@ export function mutateC4(body: C4Body, op: C4MutationOp): Result<C4Body, Mutatio
       case 'add_directive': case 'update_directive': {
         const previous = op.kind === 'update_directive' ? next.directives.find(record => record.id === op.id) ?? missing('directive', op.id) : undefined
         const name = op.kind === 'add_directive' ? op.name : previous!.name
-        if (!['UpdateElementStyle', 'UpdateRelStyle', 'UpdateLayoutConfig'].includes(name)) throw new Error('Typed C4 directives must use Mermaid 11.16 UpdateElementStyle, UpdateRelStyle, or UpdateLayoutConfig; reader extensions remain source-preserved')
+        if (!['UpdateElementStyle', 'UpdateRelStyle', 'UpdateLayoutConfig'].includes(name)) throw new Error('Typed C4 directives must use UpdateElementStyle, UpdateRelStyle, or UpdateLayoutConfig supported by pinned Mermaid; reader extensions remain source-preserved')
         if (!Array.isArray(op.args)) throw new Error('C4 directive args must be an array')
         const args: C4Argument[] = op.args.map((value: C4ArgumentInput) => {
           if (!value || typeof value !== 'object' || typeof value.value !== 'string' || (value.name !== undefined && !/^[A-Za-z_][A-Za-z_0-9]*$/.test(value.name))) throw new Error('C4 directive arguments require text value and an optional parameter name')
