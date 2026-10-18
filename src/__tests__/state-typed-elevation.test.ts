@@ -24,6 +24,61 @@ function apply(diagram: StateValidDiagram, op: StateMutationOp): StateValidDiagr
 }
 
 describe('typed State residual elevation (B07)', () => {
+  test('writes accepted State descriptions, notes and reserved endpoint spellings without changing their text', async () => {
+    const cases = [
+      ['namedState1: Small St"ate 1', 'namedState1', 'Small St"ate 1'],
+      ['foo: b note "Quoted" as N1', 'foo', 'b note "Quoted" as N1'],
+      ['A --> State: continue', 'State', undefined],
+      ['state assstateDiagram-v2', 'assstateDiagram-v2', undefined],
+      ['style note fill:#ff0000', 'note', undefined],
+      ['class S--econd pinned', 'S--econd', undefined],
+    ] as const
+    const upstream = startUpstreamMermaid()
+    try {
+      for (const [body, id, label] of cases) {
+        const source = `stateDiagram-v2\n${body}`
+        const diagram = state(source)
+        const serialized = serializeMermaid(diagram)
+        expect(await upstream.accepts(source), source).toBe(true)
+        expect(await upstream.accepts(serialized), serialized).toBe(true)
+        expect(diagram.body.states.find(node => node.id === id)?.label).toBe(label)
+        expect(state(serialized).body).toEqual(diagram.body)
+        expect(parseRenderGraph(serialized).nodes.get(id)?.label).toBe(label ?? id)
+      }
+      for (const text of ['fill:white    a note with punctuation', 'this sentence: keeps its colon']) {
+        const source = `stateDiagram-v2\nState1\nnote right of State1\n${text}\nend note\nState1 --> State2`
+        const diagram = state(source)
+        const serialized = serializeMermaid(diagram)
+        expect(await upstream.accepts(source)).toBe(true)
+        expect(await upstream.accepts(serialized), serialized).toBe(true)
+        expect(diagram.body.notes).toEqual([{ target: 'State1', side: 'right', text }])
+        expect(state(serialized).body.notes).toEqual(diagram.body.notes)
+        expect(parseRenderGraph(serialized).stateNotes?.[0]?.text).toBe(text)
+      }
+    } finally { upstream.close() }
+  })
+
+  test('a classed transition followed by a standalone state preserves both statements', async () => {
+    const source = 'stateDiagram-v2\nMoving --> Crash:::mov pinnedement'
+    const diagram = state(source)
+    expect(diagram.body.transitions).toEqual([{ from: 'Moving', to: 'Crash' }])
+    expect(diagram.body.states.map(node => node.id).sort()).toEqual(['Crash', 'Moving', 'pinnedement'])
+    expect(diagram.body.states.find(node => node.id === 'Crash')?.className).toBe('mov')
+    const serialized = serializeMermaid(diagram)
+    const upstream = startUpstreamMermaid()
+    try {
+      expect(await upstream.accepts(source)).toBe(true)
+      expect(await upstream.accepts(serialized)).toBe(true)
+    } finally { upstream.close() }
+    for (const text of [source, serialized]) {
+      const graph = parseRenderGraph(text)
+      expect(graph.edges.map(edge => [edge.source, edge.target, edge.label])).toEqual([['Moving', 'Crash', undefined]])
+      expect(graph.nodes.has('pinnedement')).toBe(true)
+      expect(graph.classAssignments.get('Crash')).toBe('mov')
+    }
+    expect(state(serialized).body).toEqual(diagram.body)
+  })
+
   test.each([
     ['state A\nstate "Running" as A\nA --> B', 'Running'],
     ['state "A" as A\nstate "Running" as A\nA --> B', 'A'],

@@ -18,6 +18,7 @@ import type { RenderRequestReceipt } from './render-contract.ts'
 import type { RenderExecutionResolutionOptions } from './render-contract.ts'
 import type { RenderOptions } from './types.ts'
 import { snapshotHostBackendPolicy, type HostBackendPolicy } from './scene/backend.ts'
+import { snapshotTextMeasurementProfile, type TextMeasurementProfile } from './text-measurement-profile.ts'
 import type { ParsedDiagram } from './agent/types.ts'
 import { prepareRenderInput } from './agent/render-input.ts'
 import { inlineFontVarForRaster } from './theme.ts'
@@ -84,6 +85,7 @@ export const BROWSER_CANVAS_RUNTIME: BrowserPngRuntimeProvenance = Object.freeze
 export interface MermaidBrowserPNGRendererHostOptions {
   readonly rasterize: BrowserPngRasterizer
   readonly backendPolicy?: HostBackendPolicy
+  readonly textMeasurement?: TextMeasurementProfile
 }
 
 export interface MermaidBrowserPNGRenderer {
@@ -104,7 +106,8 @@ export function createMermaidBrowserPNGRenderer(
   const rasterize = hostOptions.rasterize
   if (typeof rasterize !== 'function') throw new TypeError('browser PNG rasterizer must be a function')
   const backendPolicy = snapshotHostBackendPolicy(hostOptions.backendPolicy)
-  const host = Object.freeze({ rasterize, ...(backendPolicy ? { backendPolicy } : {}) })
+  const textMeasurement = snapshotTextMeasurementProfile(hostOptions.textMeasurement)
+  const host = Object.freeze({ rasterize, ...(backendPolicy ? { backendPolicy } : {}), ...(textMeasurement ? { textMeasurement } : {}) })
   return Object.freeze({
     async renderMermaidPNG(
       source: ParsedDiagram | string,
@@ -216,7 +219,7 @@ async function renderMermaidPNGInBrowserWithReceiptForHost(
     source,
     options,
     output,
-    { backendPolicy: hostOptions.backendPolicy, expectedFamilyId: hostOptions.expectedFamilyId },
+    { backendPolicy: hostOptions.backendPolicy, textMeasurement: hostOptions.textMeasurement, expectedFamilyId: hostOptions.expectedFamilyId },
   )
   if (graphical.receipt.output !== 'png') throw new Error('browser PNG adapter received a non-PNG receipt')
   const rasterSvg = prepareSvgForPngRasterization(

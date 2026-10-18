@@ -404,7 +404,7 @@ export function measureSequenceBlockSpec(block: Block, style: ResolvedRenderStyl
   const header = block.type === 'rect' ? '' : block.label
     ? concatDisplayText([`${block.type} [`, prepareDisplayText(resolveLabelContent(block.label, block.labelContent)), ']'])
     : block.type
-  const prepared = preparePixelText(header, { transform: style.groupTextTransform, fontSize: style.groupHeaderFontSize, fontWeight: style.groupHeaderFontWeight, letterSpacing: style.groupLetterSpacing })
+  const prepared = preparePixelText(header, { transform: style.groupTextTransform, fontSize: style.groupHeaderFontSize, fontWeight: style.groupHeaderFontWeight, letterSpacing: style.groupLetterSpacing, fontFamily: style.groupFont })
   const headerText = prepared.text
   const defaultHeaderLineHeight = style.groupHeaderFontSize * LINE_HEIGHT_RATIO
   const headerMetrics: MultilineMetrics = headerText ? prepared : { width: 0, height: 0, lines: [], lineHeight: defaultHeaderLineHeight }

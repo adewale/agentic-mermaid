@@ -16,7 +16,7 @@ export interface MermaidGraph {
   edges: MermaidEdge[]
   subgraphs: MermaidSubgraph[]
   classDefs: Map<string, Record<string, string>>
-  /** Maps node IDs to their class names (from `class X className` or `:::className` shorthand) */
+  /** Maps node/edge IDs to authored class names in assignment order, separated by spaces. */
   classAssignments: Map<string, string>
   /** Maps node IDs to inline styles (from `style X fill:#f00,stroke:#333`) */
   nodeStyles: Map<string, Record<string, string>>
@@ -190,6 +190,8 @@ export interface PositionedGraph extends PositionedDiagram {
   notes?: PositionedStateNote[]
   /** The diagram's frontmatter title, in its band above the graph. */
   title?: PositionedDiagramTitle
+  /** Final hard-geometry certification, after bounded layout alternatives. */
+  certification?: import('./layout/certification.ts').LayoutCertificationReceipt
 }
 
 /** A placed state-diagram note box. */
@@ -443,6 +445,8 @@ export interface Point {
 }
 
 export interface PositionedGroup {
+  /** Authored direct leaf ownership, retained independently of geometry. */
+  nodeIds?: string[]
   headerHeight?: number
   labelBlock?: PixelTextBlock
   id: string

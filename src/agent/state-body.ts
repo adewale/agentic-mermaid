@@ -322,6 +322,7 @@ export function parseStateBody(lines: string[]): StateBody | null {
       const transition: StateTransition = { from, to, ...(label !== undefined ? { label } : {}) }
       scope.transitions.push(transition)
       transitionOrder.push(transition)
+      for (const id of tr.followingStates ?? []) ensureState(scope, id).declaredBare = true
       continue
     }
 
@@ -423,7 +424,9 @@ function renderScope(states: StateNode[], transitions: StateTransition[], direct
   for (const s of states) {
     if (s.states !== undefined || s.transitions !== undefined || s.regions !== undefined) {
       // Composite block (ordinary or `--`-partitioned concurrency regions).
-      const header = s.label !== undefined ? `state "${serializeStateLabel(s.label)}" as ${s.id} {` : `state ${s.id} {`
+      const separateDescription = s.label?.includes('"') ?? false
+      if (separateDescription) out.push(`${indent}${s.id}: ${serializeStateLabel(s.label!)}`)
+      const header = s.label !== undefined && !separateDescription ? `state "${serializeStateLabel(s.label)}" as ${s.id} {` : `state ${s.id} {`
       out.push(`${indent}${header}`)
       if (s.regions) {
         if (s.direction !== undefined) out.push(`${indent}  direction ${s.direction}`)
@@ -438,19 +441,26 @@ function renderScope(states: StateNode[], transitions: StateTransition[], direct
     } else if (s.stereotype !== undefined) {
       // Pseudostate declaration (fork/join/choice/history) — canonical marker
       // spelling; `<<H>>`/`<<H*>>` shorthands normalize on parse.
-      const alias = s.label !== undefined ? `"${serializeStateLabel(s.label)}" as ` : ''
+      const separateDescription = s.label?.includes('"') ?? false
+      const alias = s.label !== undefined && !separateDescription ? `"${serializeStateLabel(s.label)}" as ` : ''
       out.push(`${indent}state ${alias}${s.id} ${stereotypeMarker(s.stereotype)}`)
+      if (separateDescription) out.push(`${indent}${s.id}: ${serializeStateLabel(s.label!)}`)
     } else if (s.label !== undefined) {
-      out.push(isCompositeId(s.id)
+      out.push(isCompositeId(s.id) && !s.label.includes('"')
         ? `${indent}state "${serializeStateLabel(s.label)}" as ${s.id}`
-        : `${indent}${s.id} : ${serializeStateLabel(s.label)}`)
+        : `${indent}${s.id}: ${serializeStateLabel(s.label)}`)
     } else if (s.declaredBare) {
-      out.push(`${indent}${s.id}`)
+      // A bare hyphen/keyword is a lexer operator/directive in Mermaid. The
+      // explicit declaration keeps its authored identity in the state context.
+      const explicit = /-|^(?:state|note|scale|default|classDef|class|style|click|href|stateDiagram|hide)$/i.test(s.id)
+      out.push(`${indent}${explicit ? 'state ' : ''}${s.id}`)
     }
     // Implicit transition endpoints need no standalone declaration.
   }
   for (const t of transitions) {
-    const label = t.label !== undefined ? ` : ${serializeStateLabel(t.label)}` : ''
+    // `state` followed by whitespace enters Mermaid's declaration lexer.
+    const separator = /^state$/i.test(t.to) ? ':' : ' :'
+    const label = t.label !== undefined ? `${separator} ${serializeStateLabel(t.label)}` : ''
     out.push(`${indent}${t.from} --> ${t.to}${label}`)
   }
 }
@@ -458,11 +468,11 @@ function renderScope(states: StateNode[], transitions: StateTransition[], direct
 export function renderState(body: StateBody): string {
   const out: string[] = ['stateDiagram-v2']
   renderScope(body.states, body.transitions, body.direction, '  ', out)
-  // Notes last: single-line form when the text has no line break, block form
-  // (`note … end note`) otherwise. Note text is canonical by construction
+  // Notes last: colons and semicolons terminate Mermaid single-line notes,
+  // so punctuation-bearing or multiline text uses `note … end note`. Note text is canonical by construction
   // (validNoteText): trimmed lines, no blank lines, no `end note` line.
   for (const n of body.notes ?? []) {
-    if (n.text.includes('\n')) {
+    if (/[\n:;]/.test(n.text)) {
       out.push(`  note ${n.side} of ${n.target}`)
       for (const line of n.text.split('\n')) out.push(`    ${line}`)
       out.push('  end note')

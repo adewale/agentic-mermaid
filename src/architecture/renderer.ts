@@ -261,7 +261,7 @@ function lowerGroup(group: PositionedArchitectureGroup, visual: ArchitectureVisu
     })
   }
 
-  const block = group.labelBlock ?? preparePixelText(group.label, { display: 'formatted', transform: visual.groupTextTransform, fontSize: visual.groupFontSize, fontWeight: visual.groupFontWeight, letterSpacing: visual.groupLetterSpacing })
+  const block = group.labelBlock ?? preparePixelText(group.label, { display: 'formatted', transform: visual.groupTextTransform, fontSize: visual.groupFontSize, fontWeight: visual.groupFontWeight, letterSpacing: visual.groupLetterSpacing, fontFamily: visual.groupFont })
   const labelText = block.text
   const labelX = group.x + (group.icon ? ARCHITECTURE_GROUP_ICON_TITLE_OFFSET : visual.groupLabelPaddingX)
   const labelY = group.y + (group.headerHeight ?? visual.groupHeaderHeight) / 2
@@ -304,9 +304,9 @@ function lowerService(service: PositionedArchitectureService, visual: Architectu
   const hasIcon = Boolean(service.icon)
   const iconX = service.x + visual.servicePaddingX
   const iconY = service.y + service.height / 2 - visual.serviceIconSize / 2
-  const labelX = hasIcon
+  const labelX = service.labelPosition?.x ?? (hasIcon
     ? iconX + visual.serviceIconSize + Math.max(10, visual.servicePaddingX * 0.7)
-    : service.x + visual.servicePaddingX
+    : service.x + visual.servicePaddingX)
 
   const open =
     `<g class="architecture-service" data-id="${escapeAttr(service.id)}" data-label="${escapeDisplayAttr(service.label)}">`
@@ -344,7 +344,7 @@ function lowerService(service: PositionedArchitectureService, visual: Architectu
     })
   }
 
-  const labelY = service.y + service.height / 2
+  const labelY = service.labelPosition?.y ?? service.y + service.height / 2
   const block = service.labelBlock ?? preparePixelText(service.label, { display: 'formatted', transform: visual.serviceTextTransform, fontSize: visual.serviceFontSize, fontWeight: visual.serviceFontWeight, letterSpacing: visual.serviceLetterSpacing })
   const labelText = block.text
   children.push({

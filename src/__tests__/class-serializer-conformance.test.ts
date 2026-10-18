@@ -162,6 +162,42 @@ test.each([
   try { expect(await upstream.accepts(source)).toBe(true) } finally { await upstream.close() }
 })
 
+test('literal braces in inline members remain text through class serialization', async () => {
+  const upstream = startUpstreamMermaid()
+  try {
+    for (const declaration of ['class A', 'namespace N {\nclass A\n}']) {
+      const source = `classDiagram\n${declaration}\nA : String map{key}\nA : +run() Result}\nA : {literal`
+      const original = classDiagram(source)
+      expect(original.body.classes[0]!.members).toEqual(['String map{key}', '+run() Result}', '{literal'])
+      const serialized = serializeMermaid(original)
+      expect(await upstream.accepts(source)).toBe(true)
+      expect(await upstream.accepts(serialized)).toBe(true)
+      expect(classDiagram(serialized).body.classes).toEqual(original.body.classes)
+      expect(renderParse(serialized).classes).toEqual(renderParse(source).classes)
+      expect(renderParse(serialized).namespaces).toEqual(renderParse(source).namespaces)
+    }
+  } finally { upstream.close() }
+})
+
+test('mixed member syntax keeps order, class identity and namespace across serialization', async () => {
+  const source = 'classDiagram\nnamespace N["Domain"] {\nclass A~T~["Display"] {\n<<interface>>\n+foo : string\n}\n}\nA : String map{key}\nclass A {\n+bar : int\n}\nA : +run() Result}\nclass A {\n+last : bool\n}'
+  const original = classDiagram(source)
+  expect(original.body.classes).toEqual([{
+    id: 'A', namespace: 'N', label: 'Display', generic: 'T',
+    members: ['<<interface>>', '+foo : string', 'String map{key}', '+bar : int', '+run() Result}', '+last : bool'],
+  }])
+  const serialized = serializeMermaid(original)
+  const upstream = startUpstreamMermaid()
+  try {
+    expect(await upstream.accepts(source)).toBe(true)
+    expect(await upstream.accepts(serialized)).toBe(true)
+  } finally { upstream.close() }
+  expect(classDiagram(serialized).body.classes).toEqual(original.body.classes)
+  expect(classDiagram(serialized).body.namespaces).toEqual(original.body.namespaces)
+  expect(renderParse(serialized).classes).toEqual(renderParse(source).classes)
+  expect(renderParse(serialized).namespaces).toEqual(renderParse(source).namespaces)
+})
+
 /** Flatten a namespace tree to { path → classIds } for structural equality. */
 function membershipByPath(namespaces: ClassNamespace[], prefix = ''): Map<string, string[]> {
   const out = new Map<string, string[]>()
@@ -185,6 +221,26 @@ class Free
 Triangle --> Free : points at`
 
 describe('class labeled declaration conformance', () => {
+  test.each([
+    ['<--', 'association', 'from'], ['-->', 'association', 'to'],
+    ['<..', 'dependency', 'from'], ['..>', 'dependency', 'to'],
+    ['<|--', 'inheritance', 'from'], ['--|>', 'inheritance', 'to'],
+    ['<|..', 'realization', 'from'], ['..|>', 'realization', 'to'],
+    ['*--', 'composition', 'from'], ['--*', 'composition', 'to'],
+    ['o--', 'aggregation', 'from'], ['--o', 'aggregation', 'to'],
+  ] as const)('keeps the marked endpoint when serializing %s', (arrow, kind, markerAt) => {
+    const source = `classDiagram\nA "one" ${arrow} "many" B : relates`
+    const diagram = classDiagram(source)
+    const expected = { from: 'A', to: 'B', kind, markerAt, fromCardinality: 'one', toCardinality: 'many', label: 'relates' }
+    expect(diagram.body.relations).toEqual([expected])
+    const serialized = serializeMermaid(diagram)
+    expect(classDiagram(serialized).body.relations).toEqual([expected])
+    expect(renderParse(serialized).relationships).toEqual([expect.objectContaining({
+      from: 'A', to: 'B', type: kind, markerAt,
+      fromCardinality: 'one', toCardinality: 'many', label: 'relates',
+    })])
+  })
+
   test('serializer labels resolve to one logical renderer class and relations attach to it', () => {
     let d = classDiagram('classDiagram\n  class B')
     d = apply(d, { kind: 'add_class', id: 'A', label: 'Alpha' })

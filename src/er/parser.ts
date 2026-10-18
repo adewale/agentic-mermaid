@@ -1,3 +1,5 @@
+import { assertErDiagramWork } from '../shared/diagram-limits.ts'
+import { parserObservationActive, observeParserStatement, observeParserMutation } from '../shared/parser-observation.ts'
 import type { ErDiagram, ErEntity, ErAttribute, ErRelationship, Cardinality } from './types.ts'
 import type { Direction } from '../types.ts'
 import { normalizeBrTags } from '../multiline-utils.ts'
@@ -251,16 +253,19 @@ export function readErStatements(lines: readonly string[], report?: (what: strin
     const context = { raw, line, column: 0, endColumn: raw.length, ...(fold.innermost !== undefined ? { groupId: fold.innermost } : {}), ...(entityId !== undefined ? { entityId } : {}) }
     if (!text || text.startsWith('%%')) {
       statements.push({ ...context, syntax: { kind: text ? 'comment' : 'blank' } })
+      if (parserObservationActive('er')) observeParserStatement('er', text ? 'comment' : 'blank', raw, { line: line + 2, unit: 'normalized' })
       continue
     }
     if (entityId !== undefined) {
       const attributeText = stripTrailingComment(text)
       if (attributeText === '}') {
         statements.push({ ...context, syntax: { kind: 'block-close' } })
+        if (parserObservationActive('er')) observeParserStatement('er', 'block-close', raw, { line: line + 2, unit: 'normalized' })
         entityId = undefined
       } else {
         const attribute = parseErAttribute(attributeText)
         statements.push({ ...context, syntax: attribute ? { kind: 'attribute', attribute, text: attributeText } : { kind: 'unknown' } })
+        if (parserObservationActive('er')) observeParserStatement('er', attribute ? 'attribute' : 'unknown', raw, { line: line + 2, unit: 'normalized' })
       }
       continue
     }
@@ -268,20 +273,45 @@ export function readErStatements(lines: readonly string[], report?: (what: strin
       report ? (what, portable) => report(what, portable, line) : undefined) ?? { kind: 'unknown' as const }
     const entry: ErSourceStatement = { ...context, syntax }
     statements.push(entry)
+    if (parserObservationActive('er')) observeParserStatement('er', syntax.kind, raw, { line: line + 2, unit: 'normalized' })
     switch (syntax.kind) {
-      case 'group-open': fold.open(syntax.id); break
-      case 'end': fold.close(); break
-      case 'block-open': entityId = syntax.reference.id; fold.declare(entityId, syntax.reference.alias); break
-      case 'entity': fold.declare(syntax.reference.id, syntax.reference.alias); break
+      case 'group-open':
+        fold.open(syntax.id)
+        if (parserObservationActive('er')) observeParserMutation('er', 'openGroup', { id: syntax.id, enclosingGroupId: context.groupId }, { line: line + 2, unit: 'normalized' })
+        break
+      case 'end':
+        fold.close()
+        if (parserObservationActive('er')) observeParserMutation('er', 'closeGroup', { id: context.groupId, enclosingGroupId: fold.innermost }, { line: line + 2, unit: 'normalized' })
+        break
+      case 'block-open':
+        entityId = syntax.reference.id
+        fold.declare(entityId, syntax.reference.alias)
+        if (parserObservationActive('er')) observeParserMutation('er', 'declareEntity', { ...syntax.reference, groupId: context.groupId }, { line: line + 2, unit: 'normalized' })
+        break
+      case 'entity':
+        fold.declare(syntax.reference.id, syntax.reference.alias)
+        if (parserObservationActive('er')) observeParserMutation('er', 'declareEntity', { ...syntax.reference, groupId: context.groupId }, { line: line + 2, unit: 'normalized' })
+        break
       case 'relation':
         entry.relationEntityIds = [syntax.relation.entity1, syntax.relation.entity2]
-          .filter(end => fold.relationEnd(end.id, end.alias)).map(end => end.id)
+          .filter(end => {
+            const isEntity = fold.relationEnd(end.id, end.alias)
+            if (parserObservationActive('er')) observeParserMutation('er', 'nameRelationshipEndpoint', { ...end, isEntity, groupId: context.groupId }, { line: line + 2, unit: 'normalized' })
+            return isEntity
+          }).map(end => end.id)
         break
-      case 'style': for (const id of syntax.ids) fold.style(id); break
+      case 'style':
+        for (const id of syntax.ids) {
+          fold.style(id)
+          if (parserObservationActive('er')) observeParserMutation('er', 'ensureStyledEntity', { id }, { line: line + 2, unit: 'normalized' })
+        }
+        break
     }
   }
   if (entityId !== undefined) throw new Error(`ER_UNCLOSED_ENTITY: entity '${entityId}' needs a closing }`)
-  return { statements, placement: fold.finish() }
+  const placement = fold.finish()
+  if (parserObservationActive('er')) observeParserMutation('er', 'resolvePlacement', placement)
+  return { statements, placement }
 }
 
 /**
@@ -305,6 +335,11 @@ export function parseErDiagram(lines: string[]): ErDiagram {
       : {}),
   }
 
+  if (parserObservationActive('er')) {
+    observeParserStatement('er', 'header', lines[0] ?? '', { line: 1, unit: 'normalized' })
+    observeParserMutation('er', 'initialize', diagram)
+  }
+
   // Which statement creates each entity, and which subgraph keeps it.
   const source = readErStatements(lines.slice(1))
   // Entity records by id; their order and subgraphs come from the fold.
@@ -313,7 +348,10 @@ export function parseErDiagram(lines: string[]): ErDiagram {
   const classNamesByEntity = new Map<string, string[]>()
   const ensureStyledEntity = (id: string, className?: string): ErEntity => {
     const entity = ensureEntity(entityMap, id)
-    if (className) recordErClassNames(classNamesByEntity, id, className.split(' '))
+    if (className) {
+      recordErClassNames(classNamesByEntity, id, className.split(' '))
+      if (parserObservationActive('er')) observeParserMutation('er', 'appendEntityClasses', { id, classNames: classNamesByEntity.get(id) })
+    }
     return entity
   }
   const declare = (reference: ParsedErEntityReference): ErEntity => {
@@ -328,31 +366,41 @@ export function parseErDiagram(lines: string[]): ErDiagram {
         throw new Error(`ER_UNSUPPORTED_STATEMENT: line ${entry.line + 2}: ${entry.raw.trim()}`)
       case 'attribute':
         entityMap.get(entry.entityId!)!.attributes.push(statement.attribute)
+        if (parserObservationActive('er')) observeParserMutation('er', 'addAttribute', { entityId: entry.entityId, attribute: statement.attribute }, { line: entry.line + 2, unit: 'normalized' })
         break
       case 'direction': {
         const group = entry.groupId !== undefined ? groupById.get(entry.groupId) : undefined
         if (group) group.direction = statement.direction
         else diagram.direction = statement.direction
+        if (parserObservationActive('er')) observeParserMutation('er', 'setDirection', { direction: statement.direction, groupId: group?.id }, { line: entry.line + 2, unit: 'normalized' })
         break
       }
       case 'group-open':
         groupById.set(statement.id, { id: statement.id, ...erTextLabel(statement.title ?? statement.id, true) })
+        if (parserObservationActive('er')) observeParserMutation('er', 'upsertGroup', groupById.get(statement.id), { line: entry.line + 2, unit: 'normalized' })
         break
       case 'end':
         break
       case 'class-def':
-        for (const name of statement.names) diagram.classDefs.set(name, { ...statement.props })
+        for (const name of statement.names) {
+          diagram.classDefs.set(name, { ...statement.props })
+          if (parserObservationActive('er')) observeParserMutation('er', 'setClassDefinition', { name, props: diagram.classDefs.get(name) }, { line: entry.line + 2, unit: 'normalized' })
+        }
         break
       case 'class':
         for (const id of statement.ids) {
           // Mermaid only applies `class` to entities that already exist.
-          if (entityMap.has(id)) recordErClassNames(classNamesByEntity, id, statement.classNames)
+          if (entityMap.has(id)) {
+            recordErClassNames(classNamesByEntity, id, statement.classNames)
+            if (parserObservationActive('er')) observeParserMutation('er', 'appendEntityClasses', { id, classNames: classNamesByEntity.get(id) }, { line: entry.line + 2, unit: 'normalized' })
+          }
         }
         break
       case 'style':
         for (const id of statement.ids) {
           const entity = ensureEntity(entityMap, id)
           entity.inlineStyle = { ...entity.inlineStyle, ...statement.props }
+          if (parserObservationActive('er')) observeParserMutation('er', 'setEntityStyle', { id, props: entity.inlineStyle }, { line: entry.line + 2, unit: 'normalized' })
         }
         break
       case 'block-open':
@@ -360,6 +408,7 @@ export function parseErDiagram(lines: string[]): ErDiagram {
         break
       case 'relation': {
         diagram.relationships.push(relationshipFrom(statement.relation, entry.raw))
+        if (parserObservationActive('er')) observeParserMutation('er', 'addRelationship', diagram.relationships.at(-1), { line: entry.line + 2, unit: 'normalized' })
         // Group endpoints retain group identity instead of minting phantom entities.
         for (const end of [statement.relation.entity1, statement.relation.entity2]) {
           if (entry.relationEntityIds!.includes(end.id)) ensureStyledEntity(end.id, end.className)
@@ -374,18 +423,27 @@ export function parseErDiagram(lines: string[]): ErDiagram {
   }
 
   const placement = source.placement
-  for (const [id, names] of classNamesByEntity) entityMap.get(id)!.className = names.join(' ')
+  for (const [id, names] of classNamesByEntity) {
+    entityMap.get(id)!.className = names.join(' ')
+    if (parserObservationActive('er')) observeParserMutation('er', 'resolveEntityClasses', { id, className: entityMap.get(id)!.className })
+  }
   diagram.entities = placement.order.map(id => {
     const entity = entityMap.get(id)!
     Object.assign(entity, erEntityDisplayText(id, placement.alias.get(id)))
     const owner = placement.owner.get(id)
+    if (parserObservationActive('er')) observeParserMutation('er', 'resolveEntity', { ...entity, groupId: owner })
     return owner !== undefined ? { ...entity, groupId: owner } : entity
   })
-  diagram.groups = placement.groups.map(group => ({
-    ...groupById.get(group.id)!,
-    ...(group.parentId !== undefined ? { parentId: group.parentId } : {}),
-    entityIds: group.entityIds,
-  }))
+  diagram.groups = placement.groups.map(group => {
+    const resolved = {
+      ...groupById.get(group.id)!,
+      ...(group.parentId !== undefined ? { parentId: group.parentId } : {}),
+      entityIds: group.entityIds,
+    }
+    if (parserObservationActive('er')) observeParserMutation('er', 'resolveGroup', resolved)
+    return resolved
+  })
+  assertErDiagramWork(diagram)
   return diagram
 }
 
@@ -396,6 +454,7 @@ function ensureEntity(entityMap: Map<string, ErEntity>, id: string): ErEntity {
   if (!entity) {
     entity = { id, label: id, attributes: [] }
     entityMap.set(id, entity)
+    if (parserObservationActive('er')) observeParserMutation('er', 'createEntity', entity)
   }
   return entity
 }

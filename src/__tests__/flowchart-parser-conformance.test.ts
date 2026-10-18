@@ -3,6 +3,9 @@ import { describe, expect, test } from 'bun:test'
 import { parseMermaid as parseGraph } from '../parser.ts'
 import { parseRegisteredMermaid as parseMermaid, serializeMermaid, verifyMermaid } from '../agent/index.ts'
 import { renderMermaidSVG } from '../index.ts'
+import { applyOps } from '../agent/core.ts'
+import { renderMermaidASCIIWithMeta } from '../ascii/meta.ts'
+import { startUpstreamMermaid } from './helpers/upstream-mermaid.ts'
 
 function nodeIds(source: string): string[] {
   return [...parseGraph(source).nodes.keys()]
@@ -19,6 +22,131 @@ function parseAgent(source: string) {
 }
 
 describe('flowchart parser conformance safety floor (issue #36)', () => {
+  test('anonymous group titles containing link syntax write a valid stable identifier', async () => {
+    const source = 'graph TD;A-->B;subgraph "title in quotes --xs";c-->d;end;'
+    const diagram = parseAgent(source)
+    const serialized = serializeMermaid(diagram)
+    const upstream = startUpstreamMermaid()
+    try {
+      expect(await upstream.accepts(source)).toBe(true)
+      expect(await upstream.accepts(serialized), serialized).toBe(true)
+    } finally { upstream.close() }
+    for (const text of [source, serialized]) {
+      const graph = parseGraph(text)
+      expect(graph.subgraphs[0]?.label).toBe('title in quotes --xs')
+      expect(graph.subgraphs[0]?.nodeIds).toEqual(['c', 'd'])
+      expect(graph.edges.map(edge => [edge.source, edge.target])).toEqual([['A', 'B'], ['c', 'd']])
+    }
+    expect(serializeMermaid(parseAgent(serialized))).toBe(serialized)
+  })
+
+  test('anonymous group IDs reserve authored nodes and containers regardless of declaration order', async () => {
+    const declarations = 'subgraph "A--B"\nD[Delta]\nend\nsubgraph "A  B"\nE[Echo]\nend'
+    const authored = 'A_B[Important]\nA_B_2[Also important]\nsubgraph A_B_3[Explicit]\nC[Charlie]\nend'
+    const upstream = startUpstreamMermaid()
+    try {
+      for (const source of [`flowchart TD\n${authored}\n${declarations}`, `flowchart TD\n${declarations}\n${authored}`]) {
+        expect(await upstream.accepts(source)).toBe(true)
+        const serialized = serializeMermaid(parseAgent(source))
+        expect(await upstream.accepts(serialized), serialized).toBe(true)
+        for (const text of [source, serialized]) {
+          const graph = parseGraph(text)
+          expect(graph.nodes.get('A_B')?.label).toBe('Important')
+          expect(graph.nodes.get('A_B_2')?.label).toBe('Also important')
+          expect(graph.subgraphs.map(group => [group.label, group.nodeIds]).sort()).toEqual([
+            ['A  B', ['E']], ['A--B', ['D']], ['Explicit', ['C']],
+          ])
+          expect(new Set(graph.subgraphs.map(group => group.id)).size).toBe(3)
+          expect(graph.subgraphs.every(group => !graph.nodes.has(group.id))).toBe(true)
+          const svg = renderMermaidSVG(text)
+          for (const label of ['Important', 'Also important', 'Explicit', 'Delta', 'Echo']) expect(svg).toContain(label)
+        }
+        expect(serializeMermaid(parseAgent(serialized))).toBe(serialized)
+      }
+    } finally { upstream.close() }
+  })
+
+  test('anonymous IDs cannot hide endpoints in compact marker links', () => {
+    const source = 'flowchart TD\nXo--xY\nsubgraph "X?"\nA\nend\nsubgraph "Y?"\nB\nend'
+    for (const text of [source, serializeMermaid(parseAgent(source))]) {
+      const graph = parseGraph(text)
+      expect([...graph.nodes.keys()].sort()).toEqual(['A', 'B', 'X', 'Y'])
+      expect(graph.edges.map(edge => [edge.source, edge.target, edge.startMarker, edge.endMarker])).toEqual([['X', 'Y', 'circle', 'cross']])
+      expect(graph.subgraphs.every(group => !graph.nodes.has(group.id))).toBe(true)
+    }
+  })
+
+  test.each([
+    ['A<br>B', 'A\\nB', 'A\nB'],
+    ['A--B', 'A#45;#45;B', 'A--B'],
+  ])('distinct anonymous spellings retain separate groups with the same visible title: %s / %s', (first, second, label) => {
+    const source = `flowchart TD\nsubgraph "${first}"\nX\nend\nsubgraph "${second}"\nY\nend`
+    for (const text of [source, serializeMermaid(parseAgent(source))]) {
+      const graph = parseGraph(text)
+      expect(graph.subgraphs.map(group => [group.label, group.nodeIds])).toEqual([[label, ['X']], [label, ['Y']]])
+      expect(new Set(graph.subgraphs.map(group => group.id)).size).toBe(2)
+      expect(renderMermaidSVG(text).match(/class="subgraph"/g)).toHaveLength(2)
+    }
+  })
+
+  test.each([
+    ['direct', 'subgraph S[First]\nsubgraph S[First]\nA[Alpha]\nend\nB[Beta]\nend', ['A', 'B'], []],
+    ['through another group', 'subgraph S[First]\nsubgraph T[Middle]\nsubgraph S[First]\nA[Alpha]\nend\nB[Beta]\nend\nC[Gamma]\nend', ['A', 'C'], ['B']],
+  ] as const)('nested redeclaration %s keeps one acyclic group and all authored nodes', (_name, body, members, innerMembers) => {
+    const source = `flowchart LR\n${body}\nA e1@-->B\nB e2@-->A`
+    const canonical = serializeMermaid(parseAgent(source))
+    for (const text of [source, canonical]) {
+      const graph = parseGraph(text)
+      expect(graph.subgraphs).toHaveLength(1)
+      const group = graph.subgraphs[0]!
+      expect(group).toMatchObject({ id: 'S', label: 'First', nodeIds: [...members] })
+      expect(group.children.map(child => child.id)).toEqual(innerMembers.length ? ['T'] : [])
+      if (innerMembers.length) expect(group.children[0]).toMatchObject({ id: 'T', nodeIds: [...innerMembers], children: [] })
+      expect(graph.edges.map(edge => [edge.source, edge.target])).toEqual([['A', 'B'], ['B', 'A']])
+      const svg = renderMermaidSVG(text)
+      const terminal = renderMermaidASCIIWithMeta(text, { colorMode: 'none' })
+      for (const [id, label] of [['A', 'Alpha'], ['B', 'Beta'], ...(innerMembers.length ? [['C', 'Gamma']] : [])]) {
+        expect(svg.match(new RegExp(`class="node[^\\"]*" data-id="${id}"`, 'g'))).toHaveLength(1)
+        expect(svg).toContain(label!)
+        expect(terminal.ascii).toContain(label!)
+        expect(terminal.regions.find(region => region.id === id)?.parentId).toBe(id === 'B' && innerMembers.length ? 'T' : 'S')
+      }
+    }
+  })
+
+  test.each(['', 'subgraph Outer[Outside]\n'])('repeated containers keep their members and reciprocal edges in every output: %s', outer => {
+    const source = `flowchart LR\n${outer}subgraph S[First]\nA[Alpha]\nend\nsubgraph S[Later]\nB[Beta]\nend\n${outer ? 'end\n' : ''}A e1@-->B\nB e2@-->A`
+    const edited = applyOps({ source, ops: [{ kind: 'add_node', id: 'C', label: 'Gamma' }] })
+    expect(edited.ok).toBe(true)
+    if (!edited.ok) return
+    for (const text of [source, edited.source]) {
+      const graph = parseGraph(text)
+      const containers = outer ? graph.subgraphs[0]!.children : graph.subgraphs
+      expect(containers).toHaveLength(1)
+      expect(containers[0]).toMatchObject({ id: 'S', label: 'First', nodeIds: ['A', 'B'] })
+      expect(graph.edges.map(edge => [edge.id, edge.source, edge.target])).toEqual([['e1', 'A', 'B'], ['e2', 'B', 'A']])
+      const svg = renderMermaidSVG(text)
+      expect(svg.match(/class="node[^\"]*" data-id="A"/g)).toHaveLength(1)
+      expect(svg.match(/class="node[^\"]*" data-id="B"/g)).toHaveLength(1)
+      expect(svg).toContain('Alpha')
+      expect(svg).toContain('Beta')
+      expect(svg).toContain('data-from="A" data-to="B"')
+      expect(svg).toContain('data-from="B" data-to="A"')
+      const terminal = renderMermaidASCIIWithMeta(text, { colorMode: 'none' })
+      expect(terminal.ascii).toContain('Alpha')
+      expect(terminal.ascii).toContain('Beta')
+      expect(terminal.ascii).toContain('First')
+      for (const [id, from, to] of [['e1', 'A', 'B'], ['e2', 'B', 'A']]) {
+        const region = terminal.regions.find(region => region.id === id)!
+        expect(region).toMatchObject({ kind: 'edge', from, to })
+        const rows = terminal.ascii.split('\n')
+        const ink = region.ownedCellSpans!.map(span => rows[span.row]!.slice(span.start, span.end)).join('')
+        expect(ink).toMatch(/[►◄▼▲]/)
+      }
+      for (const id of ['A', 'B']) expect(terminal.regions.find(region => region.id === id)?.parentId).toBe('S')
+    }
+  })
+
   test.each([
     ['flowchart LR\n  A-->B', ['A', 'B'], [['A', 'B', undefined]]],
     ['flowchart LR\n  A-->|text|B', ['A', 'B'], [['A', 'B', 'text']]],

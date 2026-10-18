@@ -2416,7 +2416,13 @@ export function extractEdgesRecursively(
 ): void {
   // First pass: collect all edge segments
   const segments = new Map<number, { external?: EdgeSegment; incoming?: EdgeSegment; outgoing?: EdgeSegment }>()
-  collectEdgeSegments(elkNode, segments, 0, 0)
+  const origins = new Map<string, Point>()
+  const indexOrigins = (node: ElkNode, x: number, y: number): void => {
+    origins.set(node.id, { x, y })
+    for (const child of node.children ?? []) indexOrigins(child, x + (child.x ?? 0), y + (child.y ?? 0))
+  }
+  indexOrigins(elkNode, offsetX, offsetY)
+  collectEdgeSegments(elkNode, segments, offsetX, offsetY, origins)
 
   // Track margin-routed edge count for spacing offsets
   let marginEdgeIndex = 0
@@ -2582,7 +2588,8 @@ function collectEdgeSegments(
   elkNode: ElkNode,
   segments: Map<number, { external?: EdgeSegment; incoming?: EdgeSegment; outgoing?: EdgeSegment }>,
   offsetX: number,
-  offsetY: number
+  offsetY: number,
+  origins: ReadonlyMap<string, Point>,
 ): void {
   if (elkNode.edges) {
     for (const elkEdge of elkNode.edges) {
@@ -2591,22 +2598,27 @@ function collectEdgeSegments(
       const edgeIndex = parseInt(elkEdge.id.substring(1), 10)
       if (isNaN(edgeIndex)) continue
 
+      // ELK can keep an edge in its authored host's array while reporting
+      // section/label coordinates in another container (including root).
+      const origin = elkEdge.container ? origins.get(elkEdge.container) : undefined
+      const edgeOffsetX = origin?.x ?? offsetX, edgeOffsetY = origin?.y ?? offsetY
+
       // Extract points
       const points: Point[] = []
       if (elkEdge.sections && elkEdge.sections.length > 0) {
         const section = elkEdge.sections[0]!
         points.push({
-          x: section.startPoint.x + offsetX,
-          y: section.startPoint.y + offsetY,
+          x: section.startPoint.x + edgeOffsetX,
+          y: section.startPoint.y + edgeOffsetY,
         })
         if (section.bendPoints) {
           for (const bp of section.bendPoints) {
-            points.push({ x: bp.x + offsetX, y: bp.y + offsetY })
+            points.push({ x: bp.x + edgeOffsetX, y: bp.y + edgeOffsetY })
           }
         }
         points.push({
-          x: section.endPoint.x + offsetX,
-          y: section.endPoint.y + offsetY,
+          x: section.endPoint.x + edgeOffsetX,
+          y: section.endPoint.y + edgeOffsetY,
         })
       }
 
@@ -2616,8 +2628,8 @@ function collectEdgeSegments(
         const label = elkEdge.labels[0]!
         if (label.x != null && label.y != null) {
           labelPosition = {
-            x: label.x + (label.width ?? 0) / 2 + offsetX,
-            y: label.y + (label.height ?? 0) / 2 + offsetY,
+            x: label.x + (label.width ?? 0) / 2 + edgeOffsetX,
+            y: label.y + (label.height ?? 0) / 2 + edgeOffsetY,
           }
         }
       }
@@ -2652,7 +2664,7 @@ function collectEdgeSegments(
   // Recurse into children with accumulated offset
   if (elkNode.children) {
     for (const child of elkNode.children) {
-      collectEdgeSegments(child, segments, offsetX + (child.x ?? 0), offsetY + (child.y ?? 0))
+      collectEdgeSegments(child, segments, offsetX + (child.x ?? 0), offsetY + (child.y ?? 0), origins)
     }
   }
 }

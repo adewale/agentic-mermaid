@@ -1,3 +1,5 @@
+import { assertC4DiagramWork, assertDiagramWorkLimit } from '../shared/diagram-limits.ts'
+import { observeParserMutation, observeParserStatement, observeParserToken, parserObservationActive } from '../shared/parser-observation.ts'
 import { generatedIds } from '../shared/generated-identity.ts'
 import { decodeMermaidEntities } from '../shared/mermaid-entity-display.ts'
 import { parseAccessibilityDirective } from '../shared/accessibility-directives.ts'
@@ -26,6 +28,12 @@ export function emptyC4Body(variant: C4Variant = 'C4Context'): C4Body {
   return { kind: 'c4', variant, elements: [], boundaries: [], relationships: [], directives: [], statements: [], diagnostics: [], layout: { hints: [] } }
 }
 
+function observeC4Statement(statement: C4Statement, kind: string): void {
+  if (!parserObservationActive('c4')) return
+  const { start, end, line, column } = statement.span
+  observeParserStatement('c4', kind, statement.raw, { line, column, offset: start, endOffset: end, unit: 'physical' })
+}
+
 /** A bounded, forward-only scanner: delimiters inside strings and nested
  * helper calls never become statements, and each source byte advances once. */
 function statements(source: string): C4Statement[] {
@@ -34,6 +42,7 @@ function statements(source: string): C4Statement[] {
   const emit = (end: number, kind: C4Statement['kind'] = 'unknown'): void => {
     const raw = source.slice(offset, end)
     result.push({ id: `c4-statement-${result.length + 1}`, kind, raw, span: { start: offset, end, line, column } })
+    if (parserObservationActive('c4')) observeParserToken('c4', `chunk:${kind}`, raw, { line, column, offset, endOffset: end, unit: 'physical' })
     for (const character of raw) {
       if (character === '\n') { line++; column = 1 } else column++
     }
@@ -214,9 +223,13 @@ function styleFields(fields: Record<string, string>, omit: readonly string[]): C
 
 /** Re-resolve cascade after typed directive/tag edits. This is semantic work,
  * shared by both projections; neither renderer silently reparses directives. */
-export function resolveC4Directives(body: C4Body): void {
-  for (const record of [...body.elements, ...body.boundaries, ...body.relationships]) { record.style = {}; delete record.effectiveLink }
+export function resolveC4Directives(body: C4Body, admitWork = false): void {
+  for (const record of [...body.elements, ...body.boundaries, ...body.relationships]) {
+    record.style = {}; delete record.effectiveLink
+    if (parserObservationActive('c4')) observeParserMutation('c4', 'reset-presentation', { id: record.id, style: record.style })
+  }
   body.layout = { hints: [] }
+  if (parserObservationActive('c4')) observeParserMutation('c4', 'reset-layout', body.layout)
   const declarations = new Map([...body.elements, ...body.boundaries].map(record => [record.id, record]))
   const pairs = new Map<string, C4Relationship[]>()
   const pairKey = (from: string | undefined, to: string | undefined): string => JSON.stringify([from, to])
@@ -237,15 +250,23 @@ export function resolveC4Directives(body: C4Body): void {
     if (directive.category !== 'element-tag' && directive.category !== 'relationship-tag') continue
     const fields = directiveFields(directive, directive.category === 'element-tag' ? ELEMENT_TAG : REL_TAG)
     ;(directive.category === 'element-tag' ? elementTags : relationTags).set(fields.tagStereo ?? '', styleFields(fields, ['tagStereo']))
+    if (parserObservationActive('c4')) observeParserMutation('c4', 'define-tag', { category: directive.category, tag: fields.tagStereo ?? '', style: (directive.category === 'element-tag' ? elementTags : relationTags).get(fields.tagStereo ?? '') })
   }
-  for (const record of [...body.elements, ...body.boundaries]) for (const tag of record.tags) Object.assign(record.style, elementTags.get(tag))
-  for (const record of body.relationships) for (const tag of record.tags) Object.assign(record.style, relationTags.get(tag))
+  for (const record of [...body.elements, ...body.boundaries]) for (const tag of record.tags) {
+    Object.assign(record.style, elementTags.get(tag))
+    if (parserObservationActive('c4')) observeParserMutation('c4', 'apply-tag', { id: record.id, tag, style: record.style })
+  }
+  for (const record of body.relationships) for (const tag of record.tags) {
+    Object.assign(record.style, relationTags.get(tag))
+    if (parserObservationActive('c4')) observeParserMutation('c4', 'apply-tag', { id: record.id, tag, style: record.style })
+  }
   for (const directive of body.directives) {
     if (directive.category === 'element-style') {
       const fields = directiveFields(directive, ELEMENT_STYLE)
       const target = declarations.get(fields.elementName!)
       if (!target) throw new Error(`C4: UpdateElementStyle references undeclared alias ${JSON.stringify(fields.elementName)}`)
       Object.assign(target.style, styleFields(fields, ['elementName']))
+      if (parserObservationActive('c4')) observeParserMutation('c4', 'set-element-style', { id: target.id, style: target.style })
     } else if (directive.category === 'relationship-style') {
       const fields = c4ArgumentFields(directive.args, REL_STYLE)
       const matching = pairs.get(pairKey(fields.from, fields.to))
@@ -253,6 +274,7 @@ export function resolveC4Directives(body: C4Body): void {
       for (const offset of ['offsetX', 'offsetY']) if (fields[offset] !== undefined && !Number.isFinite(Number(fields[offset]))) throw new Error(`C4: ${offset} must be finite`)
       for (const target of matching) {
         Object.assign(target.style, styleFields(fields, ['from', 'to']))
+        if (parserObservationActive('c4')) observeParserMutation('c4', 'set-relationship-style', { id: target.id, style: target.style })
       }
     } else if (directive.name === 'UpdateLayoutConfig') {
       const fields = c4ArgumentFields(directive.args, ['c4ShapeInRow', 'c4BoundaryInRow'])
@@ -261,23 +283,36 @@ export function resolveC4Directives(body: C4Body): void {
         const value = Number(fields[source])
         if (!Number.isSafeInteger(value) || value < 1) throw new Error(`C4: ${source} must be a positive integer`)
         body.layout[target] = value
+        if (parserObservationActive('c4')) observeParserMutation('c4', 'set-layout-option', { name: target, value })
       }
     } else if (directive.name.startsWith('Lay_')) {
       const direction = DIRECTIONS[directive.name.slice(4)]
       const fields = c4ArgumentFields(directive.args, ['from', 'to'])
       if (!direction || !fields.from || !fields.to || !declarations.has(fields.from) || !declarations.has(fields.to)) throw new Error(`C4: ${directive.name} requires two declared aliases`)
-      if (direction && fields.from && fields.to) body.layout.hints.push({ from: fields.from, to: fields.to, direction, statementId: directive.statementId })
+      if (direction && fields.from && fields.to) {
+        if (admitWork) assertDiagramWorkLimit('edges', body.relationships.length + body.layout.hints.length + 1)
+        body.layout.hints.push({ from: fields.from, to: fields.to, direction, statementId: directive.statementId })
+        if (parserObservationActive('c4')) observeParserMutation('c4', 'add-layout-hint', body.layout.hints.at(-1))
+      }
     } else if (directive.name === 'direction') {
       body.layout.direction = directive.args[0]?.value as C4Direction
-    } else if (directive.name === 'LAYOUT_LEFT_RIGHT') body.layout.direction = 'LR'
-    else if (directive.name === 'LAYOUT_TOP_DOWN') body.layout.direction = 'TB'
-    else if (directive.name === 'AddElementLink') {
+      if (parserObservationActive('c4')) observeParserMutation('c4', 'set-direction', body.layout.direction)
+    } else if (directive.name === 'LAYOUT_LEFT_RIGHT' || directive.name === 'LAYOUT_TOP_DOWN') {
+      body.layout.direction = directive.name === 'LAYOUT_LEFT_RIGHT' ? 'LR' : 'TB'
+      if (parserObservationActive('c4')) observeParserMutation('c4', 'set-direction', body.layout.direction)
+    } else if (directive.name === 'AddElementLink') {
       const fields = c4ArgumentFields(directive.args, ['alias', 'link'])
       const target = declarations.get(fields.alias!)
-      if (target) target.effectiveLink = fields.link
+      if (target) {
+        target.effectiveLink = fields.link
+        if (parserObservationActive('c4')) observeParserMutation('c4', 'set-effective-link', { id: target.id, link: target.effectiveLink })
+      }
     } else if (directive.name === 'AddRelLink') {
       const fields = c4ArgumentFields(directive.args, ['from', 'to', 'link'])
-      for (const target of pairs.get(pairKey(fields.from, fields.to)) ?? []) target.effectiveLink = fields.link
+      for (const target of pairs.get(pairKey(fields.from, fields.to)) ?? []) {
+        target.effectiveLink = fields.link
+        if (parserObservationActive('c4')) observeParserMutation('c4', 'set-effective-link', { id: target.id, link: target.effectiveLink })
+      }
     }
   }
   const legendIds = generatedIds([...body.elements, ...body.boundaries, ...body.relationships].map(record => record.id))
@@ -288,13 +323,19 @@ export function resolveC4Directives(body: C4Body): void {
       ...[...relationTags.entries()].map(([tag, style]) => ({ id: legendIds(`c4-tag-${tag}`, ['relationship-tag', tag]), label: style.legendText ?? tag, kind: 'relationship' as const, style: { ...style } })),
     ],
   }
+  if (parserObservationActive('c4')) observeParserMutation('c4', 'set-legend', body.legend)
 }
 
 /** Lossless semantic reader. Unknown source is explicit and retained; strict
  * rendering calls parseC4Diagram instead, which refuses deferred semantics. */
 export function readC4Source(input: string | readonly string[]): C4Body {
+  return readC4(input, false)
+}
+
+function readC4(input: string | readonly string[], admitWork: boolean): C4Body {
   const source = typeof input === 'string' ? input : input.join('\n')
   const body = emptyC4Body()
+  if (parserObservationActive('c4')) observeParserMutation('c4', 'initialize', body)
   body.statements = statements(source)
   const parents: string[] = []
   const ids = new Set<string>()
@@ -302,6 +343,7 @@ export function readC4Source(input: string | readonly string[]): C4Body {
   for (const statement of body.statements) {
     const text = statement.raw.trim()
     if (statement.kind === 'trivia') {
+      observeC4Statement(statement, 'trivia')
       if (!text.startsWith('%%') && text.includes(';')) diagnostic(body, statement.id, 'Semicolon statement separators are a reader extension; pinned Mermaid C4 requires line breaks')
       continue
     }
@@ -309,34 +351,49 @@ export function readC4Source(input: string | readonly string[]): C4Body {
       const headerText = decodeXML(text)
       const variant = C4_VARIANTS.find(candidate => candidate.toLowerCase() === headerText.toLowerCase())
       if (!variant) throw new Error('C4: expected C4Context, C4Container, C4Component, C4Dynamic, or C4Deployment')
-      body.variant = variant; statement.kind = 'header'; statement.signature = variant; header = true; continue
+      observeC4Statement(statement, 'header')
+      body.variant = variant
+      if (parserObservationActive('c4')) observeParserMutation('c4', 'set-variant', variant)
+      statement.kind = 'header'; statement.signature = variant; header = true; continue
     }
     if (statement.kind === 'boundary-close') {
+      observeC4Statement(statement, 'boundary-close')
       const parent = parents.pop()
       if (!parent) throw new Error(`C4: unmatched closing boundary at line ${statement.span.line}`)
+      if (parserObservationActive('c4')) observeParserMutation('c4', 'close-boundary', { id: parent })
       statement.entityId = parent; continue
     }
     if (/^title\s/i.test(text)) {
+      observeC4Statement(statement, 'title')
       body.title = decodeMermaidEntities(breakLineTags(text.replace(/^title\s+/i, '')))
+      if (parserObservationActive('c4')) observeParserMutation('c4', 'set-title', body.title)
       statement.kind = 'title'; statement.signature = body.title; continue
     }
     const accessibility = parseAccessibilityDirective(text.split('\n'), 0)
     if (accessibility) {
+      observeC4Statement(statement, 'accessibility')
       if (accessibility.title) body.accessibilityTitle = accessibility.value
       else body.accessibilityDescription = accessibility.value
+      if (parserObservationActive('c4')) observeParserMutation('c4', accessibility.title ? 'set-accessibility-title' : 'set-accessibility-description', accessibility.value)
       statement.kind = 'accessibility'; statement.entityId = accessibility.title ? 'title' : 'description'; statement.signature = accessibility.value; continue
     }
     if (/^accDescription\s+/i.test(text)) {
+      observeC4Statement(statement, 'accessibility')
       body.accessibilityDescription = text.replace(/^accDescription\s+/i, '')
+      if (parserObservationActive('c4')) observeParserMutation('c4', 'set-accessibility-description', body.accessibilityDescription)
       statement.kind = 'accessibility'; statement.entityId = 'description'; statement.signature = body.accessibilityDescription; continue
     }
     const direction = /^direction\s+(LR|RL|TB|BT)\s*$/.exec(text)
     if (direction) {
+      observeC4Statement(statement, 'direction')
       const directive: C4Directive = { id: statement.id, name: 'direction', args: [{ value: direction[1]!, raw: direction[1]! }], category: 'layout', statementId: statement.id }
-      body.directives.push(directive); statement.kind = 'directive'; statement.entityId = directive.id; statement.signature = c4RecordSignature(directive); continue
+      body.directives.push(directive)
+      if (parserObservationActive('c4')) observeParserMutation('c4', 'add-directive', directive)
+      statement.kind = 'directive'; statement.entityId = directive.id; statement.signature = c4RecordSignature(directive); continue
     }
     const call = /^([A-Za-z_][A-Za-z_0-9]*)\s*\(([\s\S]*)\)\s*(\{)?$/.exec(text)
     if (!call) {
+      observeC4Statement(statement, 'unknown')
       diagnostic(body, statement.id, `C4 statement is preserved but has no native interpretation: ${text.slice(0, 100)}`, 'error')
       continue
     }
@@ -345,6 +402,7 @@ export function readC4Source(input: string | readonly string[]): C4Body {
     if (args.some(arg => arg.name && arg.value === '')) diagnostic(body, statement.id, 'Empty named arguments are retained; pinned Mermaid requires a positional empty slot')
     const element = ELEMENT.exec(macro)
     if (element && !(element[1] === 'Person' && element[2])) {
+      observeC4Statement(statement, 'element')
       if (call[3]) throw new Error(`C4: ${macro} cannot open a boundary`)
       const fields = c4ArgumentFields(args, c4ElementFields(macro))
       const id = required(fields, 'alias', macro)
@@ -357,8 +415,12 @@ export function readC4Source(input: string | readonly string[]): C4Body {
         technology: optional(c4DisplayArgument(args, c4ElementFields(macro), 'techn')), description: optional(c4DisplayArgument(args, c4ElementFields(macro), 'descr')),
         parentId: parents.at(-1), tags: tags(fields.tags), link: optional(fields.link), sprite: optional(fields.sprite), style: {}, args, statementId: statement.id,
       }
-      body.elements.push(record); statement.kind = 'element'; statement.entityId = id; statement.signature = c4RecordSignature(record)
+      if (admitWork) assertDiagramWorkLimit('nodes', body.elements.length + body.boundaries.length + 1)
+      body.elements.push(record)
+      if (parserObservationActive('c4')) observeParserMutation('c4', 'add-element', record)
+      statement.kind = 'element'; statement.entityId = id; statement.signature = c4RecordSignature(record)
     } else if (BOUNDARIES[macro]) {
+      observeC4Statement(statement, 'boundary-open')
       if (!call[3]) throw new Error(`C4: ${macro} requires a boundary block`)
       const fields = c4ArgumentFields(args, c4BoundaryFields(macro))
       const id = required(fields, 'alias', macro)
@@ -370,8 +432,15 @@ export function readC4Source(input: string | readonly string[]): C4Body {
         parentId: parents.at(-1), tags: tags(fields.tags), link: optional(fields.link), sprite: optional(fields.sprite), style: {}, args, statementId: statement.id,
         ...(macro === 'Node_L' ? { alignment: 'left' } : macro === 'Node_R' ? { alignment: 'right' } : {}),
       }
-      body.boundaries.push(record); parents.push(id); statement.entityId = id; statement.signature = c4RecordSignature(record)
+      if (admitWork) {
+        assertDiagramWorkLimit('nodes', body.elements.length + body.boundaries.length + 1)
+        assertDiagramWorkLimit('nesting', parents.length + 1)
+      }
+      body.boundaries.push(record); parents.push(id)
+      if (parserObservationActive('c4')) observeParserMutation('c4', 'open-boundary', record)
+      statement.entityId = id; statement.signature = c4RecordSignature(record)
     } else if (RELATIONS.has(macro)) {
+      observeC4Statement(statement, 'relationship')
       const fields = c4ArgumentFields(args, c4RelationshipFields(macro))
       const from = required(fields, 'from', macro), to = required(fields, 'to', macro)
       const reversed = macro === 'Rel_Back'
@@ -383,11 +452,17 @@ export function readC4Source(input: string | readonly string[]): C4Body {
         index: macro === 'RelIndex' ? required(fields, 'index', macro) : undefined,
         order: body.relationships.length + 1, bidirectional: macro === 'BiRel', reversed, direction: DIRECTIONS[macro.slice(4)],
       }
-      body.relationships.push(record); statement.kind = 'relationship'
+      if (admitWork) assertDiagramWorkLimit('edges', body.relationships.length + body.layout.hints.length + 1)
+      body.relationships.push(record)
+      if (parserObservationActive('c4')) observeParserMutation('c4', 'add-relationship', record)
+      statement.kind = 'relationship'
       if (macro === 'RelIndex' && args.slice(4).some(arg => !arg.name)) diagnostic(body, statement.id, 'RelIndex positional metadata follows documented tags/link slots; pinned Mermaid instead treats them as technology/description. Named $tags/$link avoids this ambiguity')
     } else {
+      observeC4Statement(statement, 'directive')
       const directive: C4Directive = { id: statement.id, name: macro, args, category: c4DirectiveCategory(macro), statementId: statement.id }
-      body.directives.push(directive); statement.kind = 'directive'; statement.entityId = directive.id; statement.signature = c4RecordSignature(directive)
+      body.directives.push(directive)
+      if (parserObservationActive('c4')) observeParserMutation('c4', 'add-directive', directive)
+      statement.kind = 'directive'; statement.entityId = directive.id; statement.signature = c4RecordSignature(directive)
       if (directive.category === 'unknown') diagnostic(body, statement.id, `${macro} is preserved but has no native interpretation`, 'error')
       else if (!macro.startsWith('Update')) diagnostic(body, statement.id, `${macro} is a reader extension; pinned Mermaid does not accept this directive`)
     }
@@ -413,15 +488,17 @@ export function readC4Source(input: string | readonly string[]): C4Body {
   }
   if (!header) throw new Error('C4: missing diagram header')
   if (parents.length) throw new Error(`C4: unclosed boundary ${JSON.stringify(parents.at(-1))}`)
+  if (admitWork) assertC4DiagramWork(body)
   const allocate = generatedIds(ids)
   const statementById = new Map(body.statements.map(statement => [statement.id, statement]))
   for (const relationship of body.relationships) {
     relationship.id = allocate(`c4-rel-${relationship.order}`, ['c4-relationship', relationship.order])
+    if (parserObservationActive('c4')) observeParserMutation('c4', 'set-relationship-identity', { id: relationship.id, order: relationship.order })
     if (!ids.has(relationship.from) || !ids.has(relationship.to)) throw new Error(`C4: relationship ${relationship.id} references an undeclared endpoint`)
     const statement = statementById.get(relationship.statementId)!
     statement.entityId = relationship.id; statement.signature = c4RecordSignature(relationship)
   }
-  resolveC4Directives(body)
+  resolveC4Directives(body, admitWork)
   const occupiedBoundaries = new Set([...body.elements, ...body.boundaries].map(record => record.parentId))
   for (const boundary of body.boundaries) {
     if (!occupiedBoundaries.has(boundary.id)) diagnostic(body, boundary.statementId, 'An empty boundary is retained as a native draft; pinned Mermaid requires a declaration inside its block')
@@ -446,7 +523,7 @@ export function readC4Source(input: string | readonly string[]): C4Body {
 }
 
 export function parseC4Diagram(input: string | readonly string[]): C4Body {
-  const body = readC4Source(input)
+  const body = readC4(input, true)
   const unsupported = body.diagnostics.find(item => item.severity === 'error')
   if (unsupported) throw new Error(`C4 unsupported syntax: ${unsupported.message}`)
   return body

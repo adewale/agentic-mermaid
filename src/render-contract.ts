@@ -58,6 +58,12 @@ import { RENDER_OUTPUTS, type RenderOutput } from './render-outputs.ts'
 import { PNG_OUTPUT_POLICY_VERSION, TERMINAL_OUTPUT_POLICY_VERSION } from './output-policy-versions.ts'
 import { explicitFamilyConfigDiagnostics } from './shared/family-config-diagnostics.ts'
 import { deepFreeze, isPlainRecord } from './shared/plain-data.ts'
+import {
+  createTextMeasurementExecution,
+  type TextMeasurementExecution,
+  type TextMeasurementProfile,
+  type TextMeasurementProfileIdentity,
+} from './text-measurement-profile.ts'
 export { RENDER_OUTPUTS } from './render-outputs.ts'
 export type { RenderOutput } from './render-outputs.ts'
 
@@ -978,6 +984,8 @@ export interface RenderRequestReceipt {
   graphicalProjectionDigest?: string
   /** Family/backend selected at execution, including trusted host policy. */
   executionDecision?: RenderExecutionDecision
+  /** Pixel metrics used by graphical outputs; contains no executable host inputs. */
+  textMeasurement?: TextMeasurementProfileIdentity
 }
 
 export interface RenderExecutionDecision {
@@ -986,11 +994,13 @@ export interface RenderExecutionDecision {
     | { readonly mode: 'scene'; readonly requestedId: string; readonly selectedId: string; readonly version: string; readonly hostPolicy: boolean }
     | { readonly mode: 'family-svg' }
   readonly digest: string
+  readonly textMeasurement?: TextMeasurementProfileIdentity
 }
 
 /** Trusted, non-serializable inputs used while freezing an execution plan. */
 export interface RenderExecutionResolutionOptions {
   readonly backendPolicy?: HostBackendPolicy
+  readonly textMeasurement?: TextMeasurementProfile
   /** Internal identity assertion carried by ParsedDiagram adapters. */
   readonly expectedFamilyId?: FamilyId
   /** Internal browser-lazy seam: one already-classified, already-loaded family. */
@@ -1029,6 +1039,7 @@ export interface InternalRenderExecutionPlan {
   readonly onConfigDiagnostic?: NonNullable<RenderOptions['onConfigDiagnostic']>
   readonly capabilityDecision: CapabilityDecision
   readonly executionDecision?: RenderExecutionDecision
+  readonly textMeasurement?: TextMeasurementExecution
 }
 
 /** Structured preflight failure for hosts that need more than an error string. */
@@ -1135,7 +1146,8 @@ export function receiptOf(
   request: ResolvedRenderRequest,
   diagnostics: readonly RenderArtifactDiagnostic[] = [],
 ): RenderRequestReceipt {
-  const executionDecision = EXECUTION_PLAN_BY_REQUEST.get(request)?.executionDecision
+  const executionPlan = EXECUTION_PLAN_BY_REQUEST.get(request)
+  const executionDecision = executionPlan?.executionDecision
   return Object.freeze({
     version: request.version,
     output: request.output,
@@ -1145,6 +1157,7 @@ export function receiptOf(
     capabilityDecision: request.capabilityDecision,
     diagnostics: receiptDiagnostics(request, diagnostics),
     ...(executionDecision ? { executionDecision } : {}),
+    ...(executionPlan?.textMeasurement ? { textMeasurement: executionPlan.textMeasurement.identity } : {}),
   })
 }
 
@@ -1739,6 +1752,9 @@ function resolveExecutionPlan(
     throw executionCapabilityError(output, family, appearance, mode, backend, capabilityDecision)
   }
 
+  const textMeasurement = mode === 'terminal'
+    ? undefined
+    : createTextMeasurementExecution(resolutionOptions.textMeasurement, appearance.font)
   let executionDecision: RenderExecutionDecision | undefined
   if (mode === 'scene' || mode === 'family-svg') {
     const backendDecision: RenderExecutionDecision['backend'] = mode === 'scene'
@@ -1753,6 +1769,7 @@ function resolveExecutionPlan(
     const decisionBody = {
       family: Object.freeze({ id: family.identity.id, version: family.identity.version }),
       backend: backendDecision,
+      ...(textMeasurement ? { textMeasurement: textMeasurement.identity } : {}),
     }
     executionDecision = Object.freeze({
       ...decisionBody,
@@ -1775,6 +1792,7 @@ function resolveExecutionPlan(
     ...(onConfigDiagnostic ? { onConfigDiagnostic } : {}),
     capabilityDecision,
     ...(executionDecision ? { executionDecision } : {}),
+    ...(textMeasurement ? { textMeasurement } : {}),
   })
 }
 
@@ -1989,6 +2007,7 @@ export function resolveRenderRequestForExecution(
     options: serializableOptions(renderOptions),
     appearance: appearance.digest,
     ...(familyConfig ? { familyConfig } : {}),
+    ...(executionPlan.textMeasurement ? { textMeasurement: executionPlan.textMeasurement.identity } : {}),
     capabilities: sharedCapabilityDecision,
   }
   const sharedRequestDigest = renderContractDigest(sharedRequestReceipt)

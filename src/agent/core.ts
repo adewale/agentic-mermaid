@@ -172,6 +172,8 @@ export type {
   RenderedLayout,
   RenderedLayoutEdge,
   RenderedLayoutGroup,
+  RenderedLayoutLabel,
+  RenderedLabelBounds,
   RenderedLayoutNode,
   RenderedRegion,
   RenderedRegionKind,

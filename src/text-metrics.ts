@@ -17,6 +17,7 @@ import { isWideRange, isZeroWidth, VS_EMOJI, VS_TEXT } from './shared/unicode-ra
 import { HAS_FORMAT_TAGS, parseInlineFormatting } from './shared/inline-format.ts'
 import { graphemes } from './shared/graphemes.ts'
 import type { DisplayTextInput } from './shared/display-text.ts'
+import { customTextMeasurementActive, profileTextWidth } from './text-measurement-profile.ts'
 
 /**
  * Narrow characters - visually thin glyphs.
@@ -156,6 +157,8 @@ export interface TextMeasurementInput {
   text: string
   fontSize: number
   fontWeight: number
+  fontStyle?: 'normal' | 'italic'
+  fontFamily?: string
 }
 
 export interface TextMeasurementResult {
@@ -188,7 +191,8 @@ export function measureText(input: TextMeasurementInput): TextMeasurementResult 
   const minPadding = input.fontSize * 0.15
   return {
     contract: TEXT_MEASUREMENT_CONTRACT,
-    width: charWidthUnits * input.fontSize * baseRatio + minPadding,
+    width: profileTextWidth({ ...input, fontStyle: input.fontStyle ?? 'normal', monospace: false })
+      ?? charWidthUnits * input.fontSize * baseRatio + minPadding,
     charWidthUnits,
     codePointCount,
     fontSize: input.fontSize,
@@ -198,8 +202,8 @@ export function measureText(input: TextMeasurementInput): TextMeasurementResult 
   }
 }
 
-export function measureTextWidth(text: string, fontSize: number, fontWeight: number): number {
-  return measureText({ text, fontSize, fontWeight }).width
+export function measureTextWidth(text: string, fontSize: number, fontWeight: number, fontStyle: 'normal' | 'italic' = 'normal', fontFamily?: string): number {
+  return measureText({ text, fontSize, fontWeight, fontStyle, fontFamily }).width
 }
 
 /**
@@ -208,8 +212,9 @@ export function measureTextWidth(text: string, fontSize: number, fontWeight: num
  * W/M at up to 1.10em at weight 700; 1.85 width units reserve 1.11em while
  * leaving the shared Inter-calibrated contract unchanged for other families.
  */
-export function measureSystemFontSafeTextWidth(text: string, fontSize: number, fontWeight: number): number {
-  const measured = measureText({ text, fontSize, fontWeight })
+export function measureSystemFontSafeTextWidth(text: string, fontSize: number, fontWeight: number, fontStyle: 'normal' | 'italic' = 'normal', fontFamily?: string): number {
+  const measured = measureText({ text, fontSize, fontWeight, fontStyle, fontFamily })
+  if (customTextMeasurementActive()) return measured.width
   let extraVeryWideUnits = 0
   for (const char of text) {
     if (VERY_WIDE_CHARS.has(char)) extraVeryWideUnits += 1.85 - 1.5
@@ -226,8 +231,14 @@ export function measureMonospaceTextWidth(
   text: string,
   fontSize: number,
   letterSpacing = 0,
+  fontWeight = 400,
+  fontStyle: 'normal' | 'italic' = 'normal',
+  fontFamily?: string,
 ): number {
   const clusters = graphemes(text)
+  const tracking = Math.max(0, clusters.length - 1) * letterSpacing
+  const custom = profileTextWidth({ text, fontSize, fontWeight, fontStyle, fontFamily, monospace: true })
+  if (custom !== undefined) return Math.max(0, custom + tracking)
   let cells = 0
   for (const cluster of clusters) {
     let width = 0
@@ -238,7 +249,6 @@ export function measureMonospaceTextWidth(
     }
     cells += width
   }
-  const tracking = Math.max(0, clusters.length - 1) * letterSpacing
   return Math.max(0, cells * fontSize * 0.6 + tracking)
 }
 
@@ -247,13 +257,15 @@ export function measureFormattedTextWidth(
   fontSize: number,
   fontWeight: number,
   letterSpacing = 0,
+  fontStyle: 'normal' | 'italic' = 'normal',
+  fontFamily?: string,
 ): number {
   const segments = HAS_FORMAT_TAGS.test(text) ? parseInlineFormatting(text) : [{ text, bold: false }]
   const glyphText = segments.map(segment => segment.text).join('')
   // Untracked text (the common case) needs no grapheme segmentation.
   const tracking = letterSpacing === 0 ? 0 : Math.max(0, graphemes(glyphText).length - 1) * letterSpacing
   const measured = segments.reduce((width, segment) =>
-    width + measureTextWidth(segment.text, fontSize, segment.bold ? Math.max(700, fontWeight) : fontWeight), 0)
+    width + measureTextWidth(segment.text, fontSize, segment.bold ? Math.max(700, fontWeight) : fontWeight, ('italic' in segment && segment.italic) || fontStyle === 'italic' ? 'italic' : 'normal', fontFamily), 0)
   return Math.max(0, measured + tracking)
 }
 

@@ -138,7 +138,10 @@ function taskMeta(task: GanttBodyTask): ParsedTaskMeta {
 }
 
 function renderTaskLine(task: GanttBodyTask): string {
-  return `  ${task.label} :${renderGanttTaskMeta(taskMeta(task))}`
+  const metadata = renderGanttTaskMeta(taskMeta(task))
+  // Without this separator Mermaid's comment rule consumes a colon followed
+  // by percent, even though the same metadata with whitespace is valid.
+  return `  ${task.label} :${metadata.startsWith('%') ? ' ' : ''}${metadata}`
 }
 
 export function renderGantt(body: GanttBody): string {

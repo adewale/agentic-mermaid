@@ -150,12 +150,66 @@ retained obligations; there is no published candidate report to serve as a gate.
 The strongest defense against our own blind spots is testing against
 sources we did not write:
 
+- **Modern semantic gate** (`bun run test:mermaid-modern`) — selected assertions
+  from the current Mermaid policy pin, with the exact source commit and independently
+  installed parser admitted before execution. Repeated subgraph declarations
+  must retain both member identities and the first title in public IR, typed
+  editing, positioned layout and SVG. Repeated class assignments must survive
+  typed rename and serialization in author order. Two official XYChart
+  examples must serialize to valid Mermaid with their titles, axes, values and
+  point labels intact. Reference projections contain those semantic fields;
+  Class arrow markers, metadata-shaped Flowchart named edges, quoted Mindmap
+  delimiters and reserved Quadrant axis text also have reviewed writer
+  assertions. These preservation assertions are complemented by reviewed seeded writer
+  regressions and operation checks: each native family's canonical example plus focused
+  witnesses compares selected ordered builder operands against the real
+  reference. The operation scopes are declared per family and do not imply
+  equality of all internal calls.
+  The checks do not compare Mermaid geometry or styling. Existing State, Architecture
+  and Sequence syntax gaps are recorded as diagnostics, not permanent expected
+  failures. This gate has an explicit local command and the dedicated **Modern
+  Mermaid semantic compatibility** workflow runs it for changes to source,
+  evaluation and dependency inputs; it does not change the normal product
+  compatibility pin or development dependency.
+  The job also publishes all-family documentation outcomes and 100 seeded
+  mutations as a seven-day diagnostic artifact. Those counts do not gate
+  unsupported families or expand the reviewed assertions.
+
+  **All-family grammar assessment** (`bun run eval:mermaid-grammar`) uses the
+  actual selected Mermaid 12+ grammar for every core family, including families
+  without native Agentic support. It records lexer tokens, Jison model calls or
+  Langium/Chevrotain syntax trees and native renderer-parser admission. Hooks
+  inside all 17 native parsers record consumed classified statements and actual
+  semantic writes, with values copied before later mutation; Flowchart also
+  records its consumed compound fragments. Every observed native attempt has
+  an unobserved acceptance/error/model control. A changed result fails the
+  assessment as an instrumentation failure.
+
+  Independent per-family adapters compare selected native semantic fields
+  against actual reference getters/actions/AST, retaining logical IDs, marker
+  sides, labels and parents where applicable. Additional adapters compare
+  ordered operands from actual native mutation events and actual reference
+  calls, expanding recorded batch arguments rather than returned IR. These
+  arrays are never sorted. Each case declares the compared operation scopes
+  and counts omitted kinds, methods and batch operands; empty scoped traces
+  are unavailable evidence. Stable-getter and original-to-serialized reference
+  comparisons remain separate. Parent fields are retained, and generated-looking
+  authored strings are not globally rewritten. None of these selected scopes
+  proves full semantic fidelity. The default is 5,000
+  seeded mutations per family; CI uses 100 per family on PRs/main and the full
+  default weekly and on manual dispatch. Per-input JSONL and detailed counterexamples are
+  ignored build artifacts. This measures native admission and reference grammar
+  round trips as well as the scoped native semantics/operations. Agentic has
+  no homologous Mermaid token/`yy` interface, so exact protocol equality
+  remains unavailable; the actual native units are labelled separately. Exact reference stream differences
+  need semantic review and are not conflated with lost content or layout.
+
 - **mermaid-docs corpus** (271 entries) — harvested from Mermaid's own
   documentation; gates parse, verify, and round-trip.
 - **MermaidSeqBench** (132 IBM-curated sequence diagrams) — parse rate,
   structured-vs-opaque split, verify rate, round-trip stability.
-- **upstream-suite bench** (`eval/mermaid-upstream-suite-bench/`, 736
-  executable cases / 746 imported blocks from pinned upstream commits) — with
+- **upstream-suite bench** (`eval/mermaid-upstream-suite-bench/`, 742
+  executable cases / 752 imported blocks from pinned upstream commits) — with
   a **ratchet** (`ratchet.json`) that fails the build if coverage drops or
   per-family local-gap budgets grow. These imported corpora retain the source
   revisions recorded in their manifests. Mindmap/GitGraph retain their
@@ -184,15 +238,32 @@ right way" — they encode what real sources contain (wrapper-fidelity
 lesson). The `@{shape}` silent-loss and ER `}o` bugs both escaped 2,200+
 self-authored tests and were caught only by docs-derived sources.
 
-**Runs:** every PR (corpus + seqbench + upstream-suite ratchet).
+Harvesting an upstream source is different from porting its assertions. A
+fixture count recorded from our own implementation protects existing behavior;
+it does not independently establish agreement with Mermaid's semantic model.
+The selected modern assertions use reviewed upstream expectations and narrow
+reference projections to close that gap for the covered behavior.
+
+**Runs:** every PR (corpus + seqbench + upstream-suite ratchet); a separate CI
+job installs the pinned modern reference for the selected semantic gate when
+its code inputs change. Its broader
+[`eval/mermaid-modern-compat`](../eval/mermaid-modern-compat/README.md) runner
+reports documentation coverage across every modern core family, including
+unsupported families. Optional extracted spec literals and seeded mutations
+remain diagnostic seed corpora. Extracted test titles, CSS fragments and empty
+scaffolds are not feature support or ported upstream assertions. Raw getter
+differences are drift candidates requiring review; only the narrow assertions
+above fail the semantic gate.
 **Faithfulness count-oracle:** the corpus gate now also asserts that the
 structured `{nodes, edges, groups}` tally survives a parse → serialize →
 re-parse cycle for **every** renderable family
 (`eval/shared/structural-count.ts`, gated in `agent-mermaid-corpus.test.ts`).
-Round-trip *byte*-stability only proves serialize∘parse is idempotent; this
-count check proves parse did not silently drop content — the ER `}o` class of
-bug ("100% parse success is not faithfulness", Loop 17) now fails CI directly
-rather than only where a hand-written oracle happened to bite.
+Round-trip *byte*-stability only proves serialize∘parse is idempotent. The
+count check detects changes in the number of nodes, edges and groups, including
+the ER `}o` class of bug. It cannot establish that identities, labels, class
+assignments or group membership remain correct, or that SVG displays every
+parsed element. The modern semantic gate checks selected identity and content
+contracts through independent upstream expectations and actual output.
 
 ## 4. Metamorphic oracles — relations instead of ground truth
 

@@ -350,10 +350,10 @@ export interface DiagramTitleBand {
 
 export function diagramTitleBand(
   title: DisplayTextInput | undefined,
-  style: Pick<ResolvedRenderStyle, 'groupTextTransform' | 'groupLetterSpacing'>,
+  style: Pick<ResolvedRenderStyle, 'groupTextTransform' | 'groupLetterSpacing' | 'groupFont'>,
 ): DiagramTitleBand | undefined {
   if (title === undefined) return undefined
-  const block = preparePixelText(title, { display: 'formatted', transform: style.groupTextTransform, fontSize: DIAGRAM_TITLE_FONT_SIZE, fontWeight: DIAGRAM_TITLE_FONT_WEIGHT, letterSpacing: style.groupLetterSpacing })
+  const block = preparePixelText(title, { display: 'formatted', transform: style.groupTextTransform, fontSize: DIAGRAM_TITLE_FONT_SIZE, fontWeight: DIAGRAM_TITLE_FONT_WEIGHT, letterSpacing: style.groupLetterSpacing, fontFamily: style.groupFont })
   return { text: block.text, width: block.width, height: block.height + DIAGRAM_TITLE_GAP, block }
 }
 

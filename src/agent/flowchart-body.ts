@@ -35,6 +35,7 @@ import type {
   DiagramBody, FlowchartMutationOp, MutationError, ParseError, Result, SourceMap,
 } from './types.ts'
 import { ok, err } from './types.ts'
+import { graphClassNames } from '../shared/graph-classes.ts'
 
 export type FlowchartBody = Extract<DiagramBody, { kind: 'flowchart' }>
 
@@ -469,6 +470,15 @@ export function renderFlowchart(graph: MermaidGraph, headerKind: 'flowchart' | '
   for (const sg of graph.subgraphs) renderSubgraph(sg, '  ')
 
   for (const edge of graph.edges) {
+    // A metadata block followed by a named link is not one upstream vertex
+    // expression. Declare its endpoints first, then link their bare identities.
+    if (edge.id) for (const id of [edge.source, edge.target]) {
+      const node = graph.nodes.get(id)
+      if (node && !declaredInline.has(id) && (node.authoredShape !== undefined || node.icon !== undefined || node.image !== undefined)) {
+        lines.push(`  ${id}${renderShape(node)}`)
+        declaredInline.add(id)
+      }
+    }
     lines.push('  ' + renderEdge(edge, graph.nodes, declaredInline))
     const metadata = renderEdgeMetadata(edge)
     if (metadata) lines.push('  ' + metadata)
@@ -481,7 +491,7 @@ export function renderFlowchart(graph: MermaidGraph, headerKind: 'flowchart' | '
   }
 
   for (const [name, props] of graph.classDefs) lines.push(`  classDef ${name} ${styleProps(props)}`)
-  for (const [id, cls] of graph.classAssignments) lines.push(`  class ${id} ${cls}`)
+  for (const [id, names] of graph.classAssignments) for (const name of graphClassNames(names)) lines.push(`  class ${id} ${name}`)
   for (const [id, style] of graph.nodeStyles) lines.push(`  style ${id} ${styleProps(style)}`)
   // Mermaid rejects an index that names no link, and its style draws nothing.
   for (const [idx, style] of graph.linkStyles) {

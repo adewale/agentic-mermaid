@@ -19,6 +19,7 @@ import { contrastRatio } from '../shared/color-math.ts'
 import { DEFAULTS } from '../theme.ts'
 import { BUILTIN_PALETTE_DEFINITIONS } from '../palette-catalog.ts'
 import { connectorUnitTangent } from '../scene/connector-geometry.ts'
+import { assessRenderedLayout, familyHardViolations } from '../family-rubric.ts'
 
 const MINDMAP = `mindmap
   accTitle: Product map
@@ -47,6 +48,41 @@ const GITGRAPH = `gitGraph LR:
   merge feature id:"merge" type:HIGHLIGHT tag:"v1"
   cherry-pick id:"patch" tag:"backport"
 `
+
+test('fractional GitGraph branch extents contain their rounded commit boxes', () => {
+  const source = `gitGraph
+commit id: "1"
+commit id: "2"
+branch nice_feature
+checkout nice_feature
+commit id: "3"
+checkout main
+commit id: "4"
+checkout nice_feature
+branch very_nice_feature
+checkout very_nice_feature
+commit id: "5"
+checkout main
+commit id: "6"
+checkout nice_feature
+commit id: "7"
+checkout main
+merge nice_feature id: "customID" tag: "customTag" type: REVERSE
+checkout very_nice_feature
+commit id: "8"
+checkout main
+commit id: "9"`
+  const parsed = parseMermaid(source)
+  expect(parsed.ok).toBe(true)
+  if (!parsed.ok) return
+  const view = layoutMermaid(parsed.value)
+  expect(familyHardViolations(assessRenderedLayout(view))).toEqual([])
+  for (const group of view.groups) for (const id of group.members) {
+    const node = view.nodes.find(node => node.id === id)!
+    expect(node.x + node.w).toBeLessThanOrEqual(group.x + group.w)
+    expect(node.y + node.h).toBeLessThanOrEqual(group.y + group.h)
+  }
+})
 
 describe('Mindmap full-family citizenship', () => {
   test('preserves indentation semantics, shapes, icons, classes, and accessibility on stable round-trip', () => {

@@ -37,7 +37,18 @@ type ScenarioGeometry = {
 
 function geometryOf(title: string, source: string): ScenarioGeometry {
   const { nodes, edges, groups, ...shell } = verifyMermaid(source).layout
-  return { title, shell, nodes, edges, groups }
+  // Retained text measurements are checked at their owning boundaries. Keep
+  // this golden focused on unchanged positions, routes and authored meaning.
+  return {
+    title, shell,
+    nodes: nodes.map(({ labelBounds: _bounds, labelContainer: _container, labelVisibility: _visibility, dataPosition: _data, ...node }) => node),
+    edges: edges.map(edge => {
+      if (!edge.label) return edge
+      const { bounds: _bounds, ...label } = edge.label
+      return { ...edge, label }
+    }),
+    groups,
+  }
 }
 
 /** One block per scenario and one node, edge or group per line, so a moved

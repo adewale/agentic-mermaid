@@ -1,7 +1,7 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="1373.5610000000001" height="625.6" viewBox="0 0 1373.5610000000001 625.6" style="--bg:#ffffff;--fg:#1e1e1e;--line:#1e1e1e;--accent:#4263eb;--surface:#f1f3f5;--font:Caveat;background:#ffffff" role="img" aria-label="C4 architecture diagram" class="am-01frfwq02q4e2e">
+<svg xmlns="http://www.w3.org/2000/svg" width="1373.5610000000001" height="625.6" viewBox="0 0 1373.5610000000001 625.6" style="--bg:#ffffff;--fg:#1e1e1e;--line:#1e1e1e;--accent:#4263eb;--surface:#f1f3f5;--font:Caveat;background:#ffffff" role="img" aria-label="C4 architecture diagram" class="am-1ts6isj15jfp1j">
 <style>
-  .am-01frfwq02q4e2e text { font-family: var(--font, 'Caveat'), system-ui, sans-serif; }
-  svg.am-01frfwq02q4e2e {
+  svg.am-1ts6isj15jfp1j { font-family: var(--font, 'Caveat'), system-ui, sans-serif; }
+  svg.am-1ts6isj15jfp1j {
     /* Derived from --bg and --fg (overridable via --line, --accent, etc.) */
     --_text:          #1e1e1e;
     --_text-sec:      #505050;

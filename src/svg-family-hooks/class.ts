@@ -1,4 +1,5 @@
-import { layoutResult, scene, type BrowserSvgFamilyHooks } from '../browser-lazy/family.ts'
+import { projectClassPositioned } from '../positioned-views/class.ts'
+import { layoutResult, positionedView, scene, type BrowserSvgFamilyHooks } from '../browser-lazy/family.ts'
 import { layoutClassDiagram, resolveClassRenderOptions } from '../class/layout.ts'
 import { parseClassDiagram } from '../class/parser.ts'
 import { lowerClassScene } from '../class/renderer.ts'
@@ -20,5 +21,6 @@ export const CLASS_SVG_HOOKS = {
     checkAllClassLikeAuthoredStyles(diagram.classDefs, diagram.classes)
     return layoutResult(layoutClassDiagram(diagram, ctx.renderOptions, ctx.styleFace))
   },
+  projectPositioned: positionedView(projectClassPositioned),
   lowerScene: scene(lowerClassScene),
 } satisfies BrowserSvgFamilyHooks

@@ -1,5 +1,6 @@
+import { projectArchitecturePositioned } from '../positioned-views/architecture.ts'
 import { withFrontmatterTitle } from '../mermaid-source.ts'
-import { layoutResult, scene, type BrowserSvgFamilyHooks } from '../browser-lazy/family.ts'
+import { layoutResult, positionedView, scene, type BrowserSvgFamilyHooks } from '../browser-lazy/family.ts'
 import { resolveArchitectureVisualConfig } from '../architecture/config.ts'
 import { layoutArchitectureDiagram } from '../architecture/layout.ts'
 import { parseArchitectureDiagram } from '../architecture/parser.ts'
@@ -35,5 +36,6 @@ export const ARCHITECTURE_SVG_HOOKS = {
       injectAccessibility: false,
     })
   },
+  projectPositioned: positionedView(projectArchitecturePositioned),
   lowerScene: scene(lowerArchitectureScene),
 } satisfies BrowserSvgFamilyHooks

@@ -1,9 +1,9 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="982" height="482.3" viewBox="0 0 982 482.3" style="--bg:#fffff8;--fg:#111111;--line:#4a4a45;--accent:#a00000;--muted:#6b6b64;--border:#8a8a80;--font:EB Garamond;background:#fffff8" aria-labelledby="journey-1f5nxlm-title" aria-roledescription="user journey" role="img" class="am-1wti4w30h9zbxa">
+<svg xmlns="http://www.w3.org/2000/svg" width="982" height="482.3" viewBox="0 0 982 482.3" style="--bg:#fffff8;--fg:#111111;--line:#4a4a45;--accent:#a00000;--muted:#6b6b64;--border:#8a8a80;--font:EB Garamond;background:#fffff8" aria-labelledby="journey-1f5nxlm-title" aria-roledescription="user journey" role="img" class="am-1dt399z0gplkik">
 <rect width="982" height="482.3" fill="#fffff8" data-backdrop="page" />
 <title id="journey-1f5nxlm-title">My working day</title>
 <style>
-  .am-1wti4w30h9zbxa text { font-family: var(--font, 'EB Garamond'), system-ui, sans-serif; }
-  svg.am-1wti4w30h9zbxa {
+  svg.am-1dt399z0gplkik { font-family: var(--font, 'EB Garamond'), system-ui, sans-serif; }
+  svg.am-1dt399z0gplkik {
     /* Derived from --bg and --fg (overridable via --line, --accent, etc.) */
     --_text:          #111111;
     --_text-sec:      #6b6b64;
@@ -25,31 +25,31 @@
   </marker>
 </defs>
 <style>
-  .am-1wti4w30h9zbxa .journey-title { fill: #111111; }
-  .am-1wti4w30h9zbxa .journey-section-bg { fill: #f7ebe4; stroke: #8a8a80; stroke-width: 0.8; }
-  .am-1wti4w30h9zbxa .journey-section-0 { fill: #f7ebe4; stroke: #d79490; }
-  .am-1wti4w30h9zbxa .journey-section-1 { fill: #faede7; stroke: #e9b3b1; }
-  .am-1wti4w30h9zbxa .journey-section-label-band { fill: #f2dbd5; stroke: none; }
-  .am-1wti4w30h9zbxa .journey-section-band-0 { fill: #f2dbd5; }
-  .am-1wti4w30h9zbxa .journey-section-band-1 { fill: #f6dfda; }
-  .am-1wti4w30h9zbxa .journey-section-label { fill: #111111; }
-  .am-1wti4w30h9zbxa .journey-section-label-0 { fill: #111111; }
-  .am-1wti4w30h9zbxa .journey-section-label-1 { fill: #111111; }
-  .am-1wti4w30h9zbxa .journey-task-box { fill: #f8f8f1; stroke: #8a8a80; stroke-width: 0.8; }
-  .am-1wti4w30h9zbxa .journey-task-text { fill: #111111; }
-  .am-1wti4w30h9zbxa .journey-track { stroke: #a4a49a; stroke-width: 0.8; stroke-dasharray: 4 7; }
-  .am-1wti4w30h9zbxa .journey-curve { fill: none; stroke: #cb7370; stroke-width: 2; stroke-linecap: round; }
-  .am-1wti4w30h9zbxa .journey-guide { stroke: #b6b6ae; stroke-width: 1; }
-  .am-1wti4w30h9zbxa .journey-score-label { fill: #686862; }
-  .am-1wti4w30h9zbxa .journey-baseline { stroke: #a00000; stroke-width: 2; }
-  .am-1wti4w30h9zbxa .journey-score-face { fill: #eac7c1; stroke: #a00000; stroke-width: 1.2; }
-  .am-1wti4w30h9zbxa .journey-face-eye { fill: #111111; }
-  .am-1wti4w30h9zbxa .journey-face-mouth { fill: none; stroke: #111111; stroke-width: 1.6; stroke-linecap: round; }
-  .am-1wti4w30h9zbxa .journey-actor-legend-title { fill: #686862; }
-  .am-1wti4w30h9zbxa .journey-actor-legend-text { fill: #686862; }
-  .am-1wti4w30h9zbxa .journey-actor-dot { stroke: #fffff8; stroke-width: 1; }
-  .am-1wti4w30h9zbxa .journey-actor-0 { fill: #a71b1b; }
-  .am-1wti4w30h9zbxa .journey-actor-1 { fill: #1ba744; }
+  .am-1dt399z0gplkik .journey-title { fill: #111111; }
+  .am-1dt399z0gplkik .journey-section-bg { fill: #f7ebe4; stroke: #8a8a80; stroke-width: 0.8; }
+  .am-1dt399z0gplkik .journey-section-0 { fill: #f7ebe4; stroke: #d79490; }
+  .am-1dt399z0gplkik .journey-section-1 { fill: #faede7; stroke: #e9b3b1; }
+  .am-1dt399z0gplkik .journey-section-label-band { fill: #f2dbd5; stroke: none; }
+  .am-1dt399z0gplkik .journey-section-band-0 { fill: #f2dbd5; }
+  .am-1dt399z0gplkik .journey-section-band-1 { fill: #f6dfda; }
+  .am-1dt399z0gplkik .journey-section-label { fill: #111111; }
+  .am-1dt399z0gplkik .journey-section-label-0 { fill: #111111; }
+  .am-1dt399z0gplkik .journey-section-label-1 { fill: #111111; }
+  .am-1dt399z0gplkik .journey-task-box { fill: #f8f8f1; stroke: #8a8a80; stroke-width: 0.8; }
+  .am-1dt399z0gplkik .journey-task-text { fill: #111111; }
+  .am-1dt399z0gplkik .journey-track { stroke: #a4a49a; stroke-width: 0.8; stroke-dasharray: 4 7; }
+  .am-1dt399z0gplkik .journey-curve { fill: none; stroke: #cb7370; stroke-width: 2; stroke-linecap: round; }
+  .am-1dt399z0gplkik .journey-guide { stroke: #b6b6ae; stroke-width: 1; }
+  .am-1dt399z0gplkik .journey-score-label { fill: #686862; }
+  .am-1dt399z0gplkik .journey-baseline { stroke: #a00000; stroke-width: 2; }
+  .am-1dt399z0gplkik .journey-score-face { fill: #eac7c1; stroke: #a00000; stroke-width: 1.2; }
+  .am-1dt399z0gplkik .journey-face-eye { fill: #111111; }
+  .am-1dt399z0gplkik .journey-face-mouth { fill: none; stroke: #111111; stroke-width: 1.6; stroke-linecap: round; }
+  .am-1dt399z0gplkik .journey-actor-legend-title { fill: #686862; }
+  .am-1dt399z0gplkik .journey-actor-legend-text { fill: #686862; }
+  .am-1dt399z0gplkik .journey-actor-dot { stroke: #fffff8; stroke-width: 1; }
+  .am-1dt399z0gplkik .journey-actor-0 { fill: #a71b1b; }
+  .am-1dt399z0gplkik .journey-actor-1 { fill: #1ba744; }
 </style>
 <g class="journey-score-guide" data-score-min="1" data-score-max="5">
   <line class="journey-guide" x1="176" y1="256.3" x2="950" y2="256.3" data-relationship="grid" data-direction="undirected" />

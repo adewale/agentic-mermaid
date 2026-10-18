@@ -43,6 +43,23 @@ function srcArb(fam: typeof METAMORPHIC_FAMILIES[keyof typeof METAMORPHIC_FAMILI
 }
 
 describe('auditReadability (the mechanism)', () => {
+  test('clipping checks use retained node text and independent painted labels', () => {
+    const f = toFinite
+    const layout: RenderedLayout = {
+      version: 1, kind: 'flowchart',
+      nodes: [{ id: 'A', x: f(10), y: f(10), w: f(60), h: f(40), shape: 'rectangle', label: 'A', labelBounds: { x: f(20), y: f(-8), w: f(20), h: f(12) } }],
+      labels: [{ id: 'title', text: 'Heading', bounds: { x: f(20), y: f(90), w: f(60), h: f(20) } }],
+      edges: [], groups: [], bounds: { w: f(100), h: f(100) },
+    }
+    expect(auditReadability(layout)).toEqual([
+      { code: 'LABEL_CLIPPED', element: 'A' },
+      { code: 'LABEL_CLIPPED', element: 'title' },
+    ])
+    layout.nodes[0]!.labelBounds!.y = f(20)
+    layout.labels![0]!.bounds!.y = f(75)
+    expect(auditReadability(layout)).toEqual([])
+  })
+
   test('flags an edge label drawn over a non-incident node', () => {
     const f = toFinite
     // Synthetic layout: A→B's label pill sits squarely on node C's box.

@@ -4,6 +4,7 @@ import { syntaxError } from '../shared/syntax-error.ts'
 import { parsePointStyleEntries, parseClassDefTail, splitPointClassSuffix } from './point-style.ts'
 import { requireClosedAccessibility, scanAccessibilityDirectives } from '../shared/accessibility-directives.ts'
 import { stripTrailingComment } from '../shared/trailing-comment.ts'
+import { parserObservationActive, observeParserStatement, observeParserMutation } from '../shared/parser-observation.ts'
 
 // ============================================================================
 // Quadrant chart parser
@@ -75,7 +76,10 @@ export type QuadrantTextReport = (what: string) => void
 function quadrantText(text: string, construct: string, report?: QuadrantTextReport): string {
   const error = quadrantTextError(text)
   if (error !== undefined) report?.(`Quadrant ${construct} ${JSON.stringify(text)} has ${JSON.stringify(error)} outside a quoted string`)
-  return normalizeBrTags(text)
+  // A quoted first token can be followed by ordinary text. Remove only its
+  // grammar delimiters, preserving whitespace and arrows inside the token.
+  const quoted = /^"([^"]*)"/.exec(text)
+  return normalizeBrTags(quoted ? quoted[1]! + text.slice(quoted[0].length) : text)
 }
 
 /** What Mermaid's quadrant lexer rejects in one statement line's unquoted
@@ -110,6 +114,7 @@ export function parseQuadrantChart(lines: string[], report?: QuadrantTextReport)
   if (!/^quadrant(?:Chart)?\b\s*$/i.test(header)) {
     throw new Error(`Quadrant chart must start with "quadrant" or "quadrantChart", got: "${header}"`)
   }
+  if (parserObservationActive('quadrant')) observeParserStatement('quadrant', 'header', header, { line: 1, unit: 'normalized' })
 
   let title: string | undefined
   const accessibility: NonNullable<QuadrantChart['accessibility']> = {
@@ -136,33 +141,42 @@ export function parseQuadrantChart(lines: string[], report?: QuadrantTextReport)
 
     // classDef <name> <styles> — modeled (upstream point styling contract).
     if ((m = line.match(CLASSDEF_RE))) {
+      if (parserObservationActive('quadrant')) observeParserStatement('quadrant', 'classDef', line, { line: i + 1, unit: 'normalized' })
       const parsed = parseClassDefTail(m[1]!)
       if (!parsed.ok) {
         throw new Error(`Invalid quadrant classDef: ${parsed.error}`)
       }
       classDefs[parsed.name] = parsed.style
+      if (parserObservationActive('quadrant')) observeParserMutation('quadrant', 'setClassDef', { name: parsed.name, style: parsed.style }, { line: i + 1, unit: 'normalized' })
       continue
     }
 
     if ((m = line.match(TITLE_RE))) {
+      if (parserObservationActive('quadrant')) observeParserStatement('quadrant', 'title', line, { line: i + 1, unit: 'normalized' })
       title = normalizeBrTags(m[1]!.trim())
+      if (parserObservationActive('quadrant')) observeParserMutation('quadrant', 'setTitle', title, { line: i + 1, unit: 'normalized' })
       continue
     }
 
     if ((m = line.match(AXIS_RE))) {
+      if (parserObservationActive('quadrant')) observeParserStatement('quadrant', 'axis', line, { line: i + 1, unit: 'normalized' })
       const axis = parseAxis(m[2]!.trim(), m[1]!.toLowerCase(), report)
       if (m[1]!.toLowerCase() === 'x') xAxis = axis
       else yAxis = axis
+      if (parserObservationActive('quadrant')) observeParserMutation('quadrant', 'setAxis', { axis: m[1]!.toLowerCase(), value: axis }, { line: i + 1, unit: 'normalized' })
       continue
     }
 
     if ((m = line.match(QUADRANT_RE))) {
+      if (parserObservationActive('quadrant')) observeParserStatement('quadrant', 'quadrant', line, { line: i + 1, unit: 'normalized' })
       const idx = Number.parseInt(m[1]!, 10) - 1
       quadrants[idx] = quadrantText(m[2]!.trim(), `quadrant-${m[1]} label`, report)
+      if (parserObservationActive('quadrant')) observeParserMutation('quadrant', 'setQuadrant', { quadrant: idx + 1, label: quadrants[idx] }, { line: i + 1, unit: 'normalized' })
       continue
     }
 
     if ((m = line.match(POINT_RE))) {
+      if (parserObservationActive('quadrant')) observeParserStatement('quadrant', 'point', line, { line: i + 1, unit: 'normalized' })
       const { label: rawLabel, className } = splitPointClassSuffix(m[1]!.trim())
       const label = quadrantText(rawLabel, 'point label', report)
       const styleTail = m[4]!.trim()
@@ -179,21 +193,32 @@ export function parseQuadrantChart(lines: string[], report?: QuadrantTextReport)
         throw new Error(`Duplicate quadrant point label: "${label}"`)
       }
       seenPointLabels.add(label)
+      if (parserObservationActive('quadrant')) observeParserMutation('quadrant', 'addPointLabel', label, { line: i + 1, unit: 'normalized' })
       const point: QuadrantPoint = { label, x, y }
-      if (className !== undefined) point.className = className
-      if (parsedStyle.style !== undefined) point.style = parsedStyle.style
+      if (parserObservationActive('quadrant')) observeParserMutation('quadrant', 'createPoint', point, { line: i + 1, unit: 'normalized' })
+      if (className !== undefined) {
+        point.className = className
+        if (parserObservationActive('quadrant')) observeParserMutation('quadrant', 'setPointClass', { label, className }, { line: i + 1, unit: 'normalized' })
+      }
+      if (parsedStyle.style !== undefined) {
+        point.style = parsedStyle.style
+        if (parserObservationActive('quadrant')) observeParserMutation('quadrant', 'setPointStyle', { label, style: parsedStyle.style }, { line: i + 1, unit: 'normalized' })
+      }
       points.push(point)
+      if (parserObservationActive('quadrant')) observeParserMutation('quadrant', 'appendPoint', point, { line: i + 1, unit: 'normalized' })
       continue
     }
 
     // A line that has a `:` looks like a point but didn't match the strict
     // shape (missing/malformed brackets) — surface it loudly.
     if (line.includes(':')) {
+      if (parserObservationActive('quadrant')) observeParserStatement('quadrant', 'invalidPoint', line, { line: i + 1, unit: 'normalized' })
       throw new Error(
         `Invalid quadrant point: "${line}". Expected: Label: [x, y] with x,y in [0,1]`,
       )
     }
 
+    if (parserObservationActive('quadrant')) observeParserStatement('quadrant', 'unrecognized', line, { line: i + 1, unit: 'normalized' })
     throw syntaxError({
       what: `Unrecognized quadrant chart line: "${line}"`,
       expectedForm: 'a title, x-axis/y-axis, a quadrant-N label, a point (Label: [x, y]), or a classDef',
@@ -215,13 +240,21 @@ export function parseQuadrantChart(lines: string[], report?: QuadrantTextReport)
 /** Parse an axis declaration tail (`<near> [--> <far>]`). */
 function parseAxis(tail: string, which: string, report?: QuadrantTextReport): QuadrantAxis {
   const side = which === 'x' ? 'left' : 'bottom'
-  const arrowIdx = tail.indexOf('-->')
+  let quoted = false, arrowIdx = -1, arrowLength = 0
+  for (let index = 0; index < tail.length; index++) {
+    if (tail[index] === '"') quoted = !quoted
+    if (quoted || tail[index] !== '-') continue
+    const delimiter = /^--+>/.exec(tail.slice(index))
+    if (delimiter) { arrowIdx = index; arrowLength = delimiter[0].length; break }
+  }
   if (arrowIdx >= 0) {
     const near = quadrantText(tail.slice(0, arrowIdx).trim(), `${which}-axis text`, report)
-    const far = quadrantText(tail.slice(arrowIdx + 3).trim(), `${which}-axis text`, report)
+    const farSource = tail.slice(arrowIdx + arrowLength).trim()
     if (!near) throw new Error(`Quadrant ${which}-axis is missing its ${side} label: "${tail}"`)
-    if (!far) throw new Error(`Quadrant ${which}-axis has "-->" but no far label: "${tail}"`)
-    return { near, far }
+    // Mermaid's grammar renders a trailing delimiter as an arrow in the one
+    // near label. Keep that authored content rather than inventing a far side.
+    if (!farSource) return { near: near + ' ⟶ ' }
+    return { near, far: quadrantText(farSource, `${which}-axis text`, report) }
   }
   const near = quadrantText(tail.trim(), `${which}-axis text`, report)
   if (!near) throw new Error(`Quadrant ${which}-axis is missing its ${side} label`)
