@@ -88,6 +88,52 @@ function parsedExtension(): ParsedDiagram {
 }
 
 describe('open parsed-diagram render composition', () => {
+  test.each(['canonical', 'serialized'] as const)('all render transports use the registered %s source authority', authority => {
+    const original = descriptor()
+    let observed = ''
+    const unregister = registerFamily({
+      ...original,
+      renderSource: () => authority,
+      layout: context => { observed = context.source.familyText.trimEnd(); return original.layout!(context) },
+      renderAscii: context => { observed = context.source.familyText.trimEnd(); return original.renderAscii!(context) },
+    })
+    try {
+      const parsed = parsedExtension()
+      if (parsed.body.kind !== 'extension') throw new Error('Expected the source-preserved extension envelope')
+      const bodySource = 'parsedRenderCompositionDiagram\n  body-owned payload'
+      parsed.body.source = bodySource
+      const expected = authority === 'serialized' ? 'parsedRenderCompositionDiagram\nbody-owned payload' : 'parsedRenderCompositionDiagram\nfuture payload'
+      const options = { security: 'strict' as const, embedFontImport: false }
+      observed = ''
+      renderMermaidSVGWithReceipt(parsed, options)
+      expect(observed).toBe(expected)
+      observed = ''
+      renderMermaidASCIIWithReceipt(parsed, { ...options, colorMode: 'none' })
+      expect(observed).toBe(expected)
+      observed = ''
+      layoutMermaidWithReceipt(parsed, options)
+      expect(observed).toBe(expected)
+    } finally { unregister() }
+  })
+
+  test("an upgraded source policy cannot consume its predecessor's parsed data", () => {
+    const removeOriginal = registerFamily(descriptor())
+    const parsed = parsedExtension()
+    removeOriginal()
+    const upgraded = descriptor()
+    let calls = 0
+    const removeUpgraded = registerFamily({
+      ...upgraded,
+      identity: createExtensionIdentity({ ...upgraded.identity, version: '1.1.0' }),
+      renderSource: () => { calls++; return 'canonical' },
+    })
+    try {
+      calls = 0
+      renderMermaidSVGWithReceipt(parsed, { security: 'strict', embedFontImport: false })
+      expect(calls).toBe(0)
+    } finally { removeUpgraded() }
+  })
+
   test('entity-encoded headers compose through parse and every renderer', async () => {
     const authored = 'flowchart&#32;TD\n  A --> B'
     const decoded = 'flowchart TD\n  A --> B'
