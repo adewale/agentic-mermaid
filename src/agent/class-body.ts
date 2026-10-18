@@ -268,6 +268,10 @@ function quoteDirectiveTarget(id: string): string {
   return /^[\w$]+$/.test(id) ? id : `\`${id}\``
 }
 
+function serializeRelationText(text: string): string {
+  return text.replace(/\r\n?|\n/g, '<br/>')
+}
+
 /** Emit one class declaration (+ optional member block) at an indent depth. */
 function pushClassLines(lines: string[], c: ClassNode, indent: string): void {
   const head = `class ${quoteIfNeeded(c.id)}${c.generic ? `~${c.generic}~` : ''}${c.label ? `["${c.label}"]` : ''}`
@@ -349,9 +353,9 @@ export function renderClass(body: ClassBody): string {
   }
   for (const r of body.relations) {
     const arrow = arrowForRelation(r)
-    const left = r.fromCardinality ? `${quoteIfNeeded(r.from)} "${r.fromCardinality}"` : quoteIfNeeded(r.from)
-    const right = r.toCardinality ? `"${r.toCardinality}" ${quoteIfNeeded(r.to)}` : quoteIfNeeded(r.to)
-    const label = r.label ? ` : ${r.label}` : ''
+    const left = r.fromCardinality ? `${quoteIfNeeded(r.from)} "${serializeRelationText(r.fromCardinality)}"` : quoteIfNeeded(r.from)
+    const right = r.toCardinality ? `"${serializeRelationText(r.toCardinality)}" ${quoteIfNeeded(r.to)}` : quoteIfNeeded(r.to)
+    const label = r.label ? ` : ${serializeRelationText(r.label)}` : ''
     lines.push(`  ${left} ${arrow} ${right}${label}`)
   }
   for (const [name, style] of Object.entries(body.classDefs ?? {})) lines.push(`  classDef ${name} ${serializeStyleProps(style)}`)

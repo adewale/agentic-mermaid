@@ -22,7 +22,8 @@ This changelog tracks user-facing changes for **Agentic Mermaid**, a fork of `lu
   terminal output support two-ended and mixed lollipop relationships, including
   escaped endpoint identities. Public relation operations accept endpoint and
   shaft metadata and refuse contradictory combinations. Exports keep required
-  backticks on reserved endpoint identities, including attached notes and links.
+  backticks on reserved endpoint identities, including attached notes and links,
+  and write relationship label/cardinality line breaks as Mermaid markup.
   Both Code Mode SDK declarations accept parse → narrow → edit workflows;
   the full declaration exposes the new relation fields.
 - Checked and declarative Class edits accept the supported `lollipop`

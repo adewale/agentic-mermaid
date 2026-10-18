@@ -380,6 +380,38 @@ describe('class — mutate', () => {
 })
 
 describe('class — round-trip', () => {
+  test.each([
+    { arrow: '()..*', lineBreak: '<br>' },
+    { arrow: '()..()', lineBreak: '<br/>' },
+    { arrow: '-->', lineBreak: '<br />' },
+  ])('keeps $lineBreak relation text and entities portable through edits of $arrow', async ({ arrow, lineBreak }) => {
+    const source = `classDiagram\nA "&amp;amp;${lineBreak}one" ${arrow} "&amp;quot;${lineBreak}two" B : top & middle${lineBreak}bottom`
+    const original = asClass(parse(source))!
+    expect(original.body.relations).toEqual([expect.objectContaining({
+      label: 'top & middle\nbottom', fromCardinality: '&amp;amp;\none', toCardinality: '&amp;quot;\ntwo',
+    })])
+    const upstream = startUpstreamMermaid()
+    try {
+      expect(await upstream.accepts(source)).toBe(true)
+      for (const apply of [mutate, mutateChecked]) {
+        const edited = apply(original, { kind: 'add_member', class: 'B', text: '+active()' })
+        if (!edited.ok) throw new Error(JSON.stringify(edited.error))
+        const exported = serializeMermaid(edited.value)
+        expect(exported).toContain(`A "&amp;amp;<br/>one" ${arrow} "&amp;quot;<br/>two" B : top & middle<br/>bottom`)
+        expect(await upstream.accepts(exported)).toBe(true)
+        expect(asClass(parse(exported))?.body.relations).toEqual(original.body.relations)
+        expect(verifyMermaid(edited.value).warnings).toEqual([])
+        for (const input of [edited.value, exported]) {
+          const svg = renderMermaidSVG(input)
+          expect(svg).toContain('data-from-cardinality="&amp;amp;&#10;one"')
+          expect(svg).toContain('data-to-cardinality="&amp;quot;&#10;two"')
+        }
+      }
+    } finally {
+      await upstream.close()
+    }
+  })
+
   test('keeps directive targets valid when their class names need relation quoting', async () => {
     const upstream = startUpstreamMermaid()
     try {

@@ -406,7 +406,9 @@ refused. The primary `relKind`, endpoint kinds and shaft must agree with the
 relationship read back from the emitted source. Contradictory combinations
 return `INVALID_OP` instead of silently changing kind on reload. Cardinalities,
 labels and authored endpoint identities already present in parsed relationships
-survive unrelated edits. Direct `add_class` copies initial members; member
+survive unrelated edits. Relationship label/cardinality line breaks export as
+Mermaid `<br/>` markup so they remain on one source line. Direct `add_class`
+copies initial members; member
 authoring refuses blank/comment-form text, accessibility directives and physical
 or entity-decoded line breaks rather than admitting text that disappears or
 changes structure. The source reader still accepts diagram accessibility
