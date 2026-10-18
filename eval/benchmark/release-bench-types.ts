@@ -3,6 +3,8 @@ export interface BenchInput {
   id: string
   family: string
   source: string
+  expectedSvgLabels?: readonly string[]
+  workflow?: 'edit-flowchart'
 }
 export type Outcome = { ok: true; output: string } | { ok: false; error: string }
 export interface OutputFingerprint {
@@ -23,6 +25,7 @@ export interface TimeResult {
     deterministic: boolean
     ms: number
     samplesMs: number[]
+    missingSvgLabels: string[]
   }>
 }
 export interface MemoryResult {

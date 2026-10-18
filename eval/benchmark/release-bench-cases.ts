@@ -9,6 +9,7 @@ export interface BenchCase {
   id: string
   family: DiagramKind
   source: string
+  expectedSvgLabels?: readonly string[]
 }
 
 function lcg(seed: number): () => number {
@@ -47,11 +48,11 @@ function flowchartSubgraphs(groups: number, perGroup: number): string {
 // boundary. The type closes enrollment without a second family inventory.
 const WORKLOADS = {
   flowchart: [
-    { id: 'tree-300', source: flowchartTree(300) },
-    { id: 'mesh-120-labelled-40', source: flowchartMesh(120, 40) },
+    { id: 'tree-300', source: flowchartTree(300), expectedSvgLabels: Array.from({ length: 300 }, (_, i) => `Node ${i}`) },
+    { id: 'mesh-120-labelled-40', source: flowchartMesh(120, 40), expectedSvgLabels: Array.from({ length: 40 }, (_, i) => `label ${i}`) },
     { id: 'subgraphs-12x8', source: flowchartSubgraphs(12, 8) },
   ],
-  sequence: [{ id: '20-participants-300-messages', source: lines('sequenceDiagram', 300, i => `  P${i % 20}->>P${(i * 7 + 1) % 20}: message ${i}`) }],
+  sequence: [{ id: '20-participants-300-messages', source: lines('sequenceDiagram', 300, i => `  P${i % 20}->>P${(i * 7 + 1) % 20}: message ${i}`), expectedSvgLabels: Array.from({ length: 300 }, (_, i) => `message ${i}`) }],
   class: [{ id: '80-classes', source: lines('classDiagram', 80, i => [`  class C${i} {`, `    +int field${i}`, `    +method${i}()`, '  }', ...(i > 0 ? [`  C${Math.floor((i - 1) / 2)} <|-- C${i}`] : [])]) }],
   state: [{ id: '80-states', source: lines('stateDiagram-v2', 80, i => [`  S${i} --> S${i + 1}: e${i}`, ...(i % 5 === 0 ? [`  S${i + 1} --> S${Math.max(0, i - 3)}`] : [])]) }],
   er: [{ id: '40-entities', source: lines('erDiagram', 40, i => [`  E${i} {`, '    int id PK', `    string name${i}`, '  }', ...(i > 0 ? [`  E${Math.floor((i - 1) / 2)} ||--o{ E${i} : has`] : [])]) }],
@@ -77,7 +78,7 @@ const WORKLOADS = {
     },
   ],
   c4: [{ id: '40-services', source: ['C4Container', ...Array.from({ length: 40 }, (_, i) => [`  Container(s${i}, "Service ${i}", "Node", "Capability ${i}")`, ...(i > 0 ? [`  Rel(s${i - 1}, s${i}, "Calls ${i}")`] : [])]).flat()].join('\n') }],
-} satisfies Record<DiagramKind, readonly { id: string; source: string }[]>
+} satisfies Record<DiagramKind, readonly { id: string; source: string; expectedSvgLabels?: readonly string[] }[]>
 
 export function releaseBenchCases(): readonly BenchCase[] {
   return Object.entries(WORKLOADS).flatMap(([family, cases]) => cases.map(input => ({ ...input, id: `${family}:${input.id}`, family: family as DiagramKind })))

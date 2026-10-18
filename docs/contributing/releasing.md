@@ -180,12 +180,22 @@ The check never deploys or publishes.
 after packaging and before publication. It verifies the downloaded artifact's
 SHA-256 and integrity, then installs the publication tarball in an isolated
 directory with lifecycle scripts disabled. The baseline is installed separately
-from npm's `latest` tag, normally the previous release. Reports record the
+from npm's `latest` tag, normally the previous release. That selector is resolved
+once to an exact version and integrity in `baseline.json`, persisted as a
+workflow-run artifact **before** measurement. Retries restore that identity;
+they do not resolve `latest` again. If the artifact has expired, start an
+on-demand run naming the previous version explicitly. Reports record the
 candidate tarball digest and the baseline's resolved version and integrity so
 the comparison identifies the bytes measured.
 
-The benchmark renders every official Mermaid syntax fence and generated large
-diagrams in alternating fresh Node processes on one runner. Every native family
+The Node benchmark renders distinct examples from the policy's reviewed official
+syntax pages and generated large diagrams in alternating fresh processes on one
+runner. Existing example IDs remain stable. `corpus.json` separately inventories
+every fence occurrence across all vendored syntax pages, including duplicates
+and the mixed `examples.md` page: upstream version/commit, fetched document
+hashes, source lines, occurrence-to-release-example IDs, distinct and occurrence
+counts, and why a page is outside the Node release population. The browser
+scorecard uses the full occurrence inventory without exclusions. Every native family
 has an explicit scaling workload; the family type makes new enrollment mandatory. SVG rendering owns
 the timing and memory measurements; SVG and ASCII both receive correctness
 checks. It fails the run on:
@@ -193,8 +203,11 @@ checks. It fails the run on:
 - a lost SVG or ASCII render, output that does not repeat byte for byte, or a
   newly invalid SVG that resvg cannot parse;
 - a candidate that does not finish an input within its time budget, an exhausted
-  overall measurement budget, or missing observations;
-- corpus render time above 1.25× the baseline, or any large case above 1.5×;
+  overall measurement budget, or missing required baseline/candidate observations;
+- a failed scaling or agent workload, including one the baseline cannot render;
+- missing expected visible SVG labels on enrolled scaling/agent workloads;
+- corpus render time above 1.25× the baseline, or any compared family or large
+  case above 1.5×;
 - corpus allocation or peak RSS above 1.25×, or retained heap growth above
   16 MB per pass.
 
@@ -210,8 +223,43 @@ boundaries, and retained growth covers one settled pass. A comparison with no
 matched successful SVG observations fails; when the corpus is selected, it must
 contribute matched observations too.
 
+Timing sums each matched rep before taking its within-process median; ratios
+pair the same round before taking their median. Reports retain per-round totals,
+p50/p95/max call latencies for the matched population, and the ten largest
+candidate time contributors. Percentiles describe examples/repeats, not confidence
+intervals. Correctness passes warm the complete selected corpus before timing.
+The agent workload performs parse → typed edit → verify → serialize → re-parse
+→ fact checks → SVG render, checking the requested change and preserved original
+facts. Visible-label checks inspect emitted text outside the timer; neither
+those checks nor resvg prove arbitrary diagram fidelity.
+
+#### Advisory browser and competitor scorecard
+
+After the Node gate, the workflow independently installs the same verified
+candidate tarball, the persisted baseline, **Pele 1.6.0**, and **Mermaid 12.2.0**.
+It records package integrity, candidate tarball SHA-256, Chromium version and
+measurement policy. No competitor dependency is added to the runtime package.
+
+In one Chromium tab, with engine order reversed on alternate rounds, each engine
+warms the complete selected corpus before timed public SVG calls. Coverage keeps
+all fence occurrences; speed ratios use only inputs that return SVG in every
+round in both engines. Failures retain their messages and are grouped as
+unsupported, remote-asset/environment, or other render errors. Remote requests
+are blocked; asset failures remain in the denominator. SVG acceptance does not
+claim semantic or visual fidelity, and the timing excludes browser paint.
+
+`browser-report.md` and `.json` show absolute acceptance, paired competitor and
+baseline ratios, complete monolithic gzip bytes, and actual JS requests/bytes
+through the lazy loader and the first flowchart for candidate and baseline.
+These use the installed package, complementing the existing build/PR payload
+budgets. Cold lazy timings include localhost module fetches; they are not a
+network-transfer benchmark. Raw calls are in `browser-samples.jsonl`. This
+scorecard has a 12-minute workflow budget and is advisory: a competitor gap or
+scorecard setup failure does not block publication.
+
 The job summary and the `release-benchmark-<sha>` artifact hold `report.md`,
-`report.json`, and incremental raw measurements in `samples.jsonl`. Child time
+`report.json`, `corpus.json`, `browser-report.*`, and incremental raw measurements
+in `samples.jsonl` and `browser-samples.jsonl`. Child time
 budgets are capped by the remaining overall budget, leaving time to write and
 upload the report on failure. To see a comparison locally after `bun run build`:
 
@@ -228,6 +276,21 @@ instead of the repository build:
 ```bash
 bun run bench:release --candidate-tarball release-artifact/package.tgz --baseline-npm latest
 ```
+
+Local npm comparisons also reuse `<out>/baseline.json`; use a new output directory
+or remove that lock intentionally to resolve a selector again. An explicit
+`--baseline-lock path/to/baseline.json` shares the workflow's persisted identity.
+To run the browser scorecard after packing, install Chromium once with
+`bunx playwright install chromium`, then:
+
+```bash
+candidate_sha="$(jq -r .sha256 release-artifact/package-manifest.json)"
+bun run bench:release:browser --candidate-tarball release-artifact/package.tgz --candidate-sha256 "$candidate_sha" --baseline-lock bench-report/baseline.json
+```
+
+Browser probes support `--rounds 1`, `--case <occurrence-id,...>` from
+`corpus.json`, and `--executable /path/to/chromium` for a system installation.
+Selected probes report their subset denominator explicitly.
 
 For a bounded local probe, select a case and cap the measurement budget:
 
@@ -253,11 +316,10 @@ tag already exist. Read the failing gate in the job summary first.
   [`eval/benchmark/release-bench.ts`](../../eval/benchmark/release-bench.ts)
   through a PR that says why, then re-release as above.
 
-Re-running `publish.yml` after publication may resolve `latest` to the candidate
-version. A matching version number does not prove identical bytes or preserve a
-comparison with the previous release. Inspect the recorded artifact identities
-and use an explicit previous npm version in an on-demand benchmark when that
-comparison is needed.
+Re-running `publish.yml` restores the original baseline artifact. A matching
+version number alone still does not prove identical bytes: both consumers check
+the persisted integrity. Use an explicit previous npm version in a new on-demand
+run when that comparison is needed.
 
 ### Optional visual review
 

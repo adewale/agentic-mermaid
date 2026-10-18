@@ -79,6 +79,7 @@ jobs:
     needs: package
     permissions:
       contents: read
+      actions: read
     uses: ./.github/workflows/release-benchmark.yml
     with:
       candidate-artifact: npm-package-${{ github.sha }}
