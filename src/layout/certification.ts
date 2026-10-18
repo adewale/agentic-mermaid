@@ -5,6 +5,7 @@ import type { MermaidGraph, MermaidSubgraph, PositionedGraph, PositionedGroup } 
 import { LayoutMetricBudgetError } from './pass.ts'
 import { DiagramWorkLimitError } from '../shared/diagram-limits.ts'
 import { LayoutCertificationError, type LayoutCertificationAttempt } from './certification-error.ts'
+import type { PixelTextBlock } from '../shared/prepared-text.ts'
 
 export { LayoutCertificationError, type LayoutCertificationAttempt } from './certification-error.ts'
 
@@ -25,8 +26,15 @@ export interface LayoutCertificationCandidate {
   preferNext?: (positioned: PositionedGraph) => boolean
 }
 
-function correspondenceViolations(graph: MermaidGraph, positioned: PositionedGraph): string[] {
+function correspondenceViolations(graph: MermaidGraph, positioned: PositionedGraph, style: ResolvedRenderStyle): string[] {
   const failures: string[] = []
+  const retainedText = (id: string, label: string, block: PixelTextBlock | undefined, role: 'node' | 'edge' | 'group'): void => {
+    if (!block) return
+    const transform = role === 'node' ? style.nodeTextTransform : role === 'edge' ? style.edgeTextTransform : style.groupTextTransform
+    if (block.prepared.source !== label || block.prepared.display !== 'formatted' || block.prepared.transform !== transform) {
+      failures.push(`${id}: changed retained prepared text`)
+    }
+  }
   const expectedGroups = new Map<string, string>(),
     actualGroups = new Map<string, string>()
   const authoredGroups = new Map<string, MermaidSubgraph>(),
@@ -57,12 +65,18 @@ function correspondenceViolations(graph: MermaidGraph, positioned: PositionedGra
     nodeIds.add(node.id)
     if (!graph.nodes.has(node.id)) failures.push(`node ${node.id}: unexpected identity`)
     else if (node.label !== graph.nodes.get(node.id)!.label) failures.push(`node ${node.id}: changed label`)
+    else retainedText(`node ${node.id}`, graph.nodes.get(node.id)!.label, node.labelBlock, 'node')
   }
   for (const id of graph.nodes.keys()) if (!nodeIds.has(id) && !actualGroups.has(id)) failures.push(`node ${id}: missing identity`)
   for (const [id, authored] of authoredGroups) {
     const group = positionedGroups.get(id)
     if (!group) continue
     if (group.label !== authored.label) failures.push(`group ${id}: changed label`)
+    retainedText(`group ${id}`, authored.label, group.labelBlock, 'group')
+    const parent = positionedGroups.get(expectedGroups.get(id) ?? '')
+    if (parent && (group.x < parent.x - 0.5 || group.y < parent.y - 0.5 || group.x + group.width > parent.x + parent.width + 0.5 || group.y + group.height > parent.y + parent.height + 0.5)) {
+      failures.push(`group ${id}: outside authored parent ${parent.id}`)
+    }
     for (const memberId of authored.nodeIds) {
       if (authoredGroups.has(memberId)) continue
       const member = positionedNodes.get(memberId)
@@ -81,6 +95,7 @@ function correspondenceViolations(graph: MermaidGraph, positioned: PositionedGra
       failures.push(`edge ${identity}: unexpected identity`)
       continue
     }
+    if (authored.label !== undefined) retainedText(`edge ${identity}`, authored.label, edge.labelBlock, 'edge')
     if (
       edge.source !== authored.source ||
       edge.target !== authored.target ||
@@ -165,7 +180,7 @@ export function certifyLayoutCandidates(graph: MermaidGraph, style: ResolvedRend
   for (const [index, candidate] of bounded.entries()) {
     try {
       const positioned = candidate.produce()
-      const violations = [...correspondenceViolations(graph, positioned), ...positionedGeometryViolations(positioned, style)]
+      const violations = [...correspondenceViolations(graph, positioned, style), ...positionedGeometryViolations(positioned, style)]
       if (!violations.length) violations.push(...hardViolations(assessLayout(graph, positioned, style)).map(violation => `${violation.metric}: ${violation.detail}`))
       const preferNext = violations.length === 0 && index + 1 < bounded.length && candidate.preferNext?.(positioned)
       attempts.push({ strategy: candidate.strategy, violations })

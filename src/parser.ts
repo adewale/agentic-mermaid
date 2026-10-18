@@ -167,12 +167,15 @@ function parseFlowchartSubgraphDeclaration(rest: string): { id: string; label: s
     return { id, label: parseFlowchartLabel(rest.slice(labelStart + 1, -1)).text, generated: false, identity: id }
   }
   const label = parseFlowchartLabel(rest).text
+  // Identity comes from the logical source spelling, before display decoding.
+  // Two titles can paint identically without naming the same container.
+  const identity = rest.replace(/^"([\s\S]*)"$/, '$1').trim()
   // Mermaid identifiers are Unicode-aware everywhere else in this parser.
   // Preserve non-Latin letters/numbers when deriving the implicit container id
   // instead of silently collapsing a CJK title to an empty string.
   const id = rest.replace(/\s+/g, '_').replace(/[^\p{L}\p{N}_-]/gu, '').replace(/-{2,}/g, '_')
-  const generated = id !== label || !isMermaidIdentifier(label) || flowchartIdLength(label, label.length) !== label.length
-  return { id: id || 'group', label, generated, identity: label }
+  const generated = id !== identity || !isMermaidIdentifier(identity) || flowchartIdLength(identity, identity.length) !== identity.length
+  return { id: id || 'group', label, generated, identity }
 }
 
 /** Shared statement splitter for renderer and source-side action analysis:

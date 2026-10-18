@@ -9,6 +9,7 @@ import { positionResolvedFamily } from '../positioning.ts'
 import { resolveRenderRequestForExecution } from '../render-contract.ts'
 import { resolveRenderStyle } from '../styles.ts'
 import { positionedToRenderedLayout } from '../agent/layout-to-rendered.ts'
+import { graphTextBlock } from '../graph-text.ts'
 import type { PositionedGraph } from '../types.ts'
 
 const source = 'flowchart LR\nA -- first --> B\nB -- second --> A'
@@ -106,6 +107,45 @@ describe('bounded final layout certification', () => {
     b.y = y
     const view = positionedToRenderedLayout(positioned, 'flowchart')
     expect(view.groups.map(group => [group.id, group.members])).toEqual([['S', ['A']], ['T', ['B']]])
+  })
+
+  test.each(['node', 'group', 'edge'] as const)('a retained %s text block cannot replace the authored label', kind => {
+    const graph = parseMermaid('flowchart LR\nsubgraph S[Alpha]\nA[Alpha] -- Alpha --> B[Beta]\nend')
+    const invalid = layoutGraphSync(graph)
+    const style = resolveRenderStyle({})
+    const owner = kind === 'node' ? invalid.nodes[0]! : kind === 'group' ? invalid.groups[0]! : invalid.edges[0]!
+    owner.labelBlock = graphTextBlock('Zebra', style, kind)
+    expect(() => certifyLayoutCandidates(graph, style, [{ strategy: 'changed-painted-text', produce: () => invalid }])).toThrow(/retained.*text|prepared.*text/)
+  })
+
+  test('retained formatted and transformed labels preserve their authored source', () => {
+    const graph = parseMermaid('flowchart LR\nsubgraph S[<b>Outer</b>]\nA[<i>Alpha</i>] -- mixed case --> B[Beta]\nend')
+    const request = resolveRenderRequestForExecution('flowchart LR\nA --> B', { style: { roles: { node: { textTransform: 'uppercase' }, group: { textTransform: 'lowercase' }, edge: { textTransform: 'capitalize' } } } }, 'svg')
+    const options = { styleFace: request.appearance.face }
+    const style = resolveRenderStyle(options)
+    const clean = layoutGraphSync(graph, options)
+    expect(clean.nodes[0]!.labelBlock!.prepared.source).toBe('<i>Alpha</i>')
+    expect(clean.nodes[0]!.labelBlock!.text).not.toBe(clean.nodes[0]!.label)
+    expect(certifyLayoutCandidates(graph, style, [{ strategy: 'styled', produce: () => clean }]).certification?.status).toBe('passed')
+  })
+
+  test.each(['display', 'transform'] as const)('retained text cannot change its prepared %s interpretation', field => {
+    const graph = parseMermaid('flowchart LR\nA[<b>Alpha</b>] --> B')
+    const invalid = layoutGraphSync(graph)
+    const block = invalid.nodes[0]!.labelBlock!
+    invalid.nodes[0]!.labelBlock = { ...block, prepared: { ...block.prepared, [field]: field === 'display' ? 'literal' : 'uppercase' } }
+    expect(() => certifyLayoutCandidates(graph, resolveRenderStyle({}), [{ strategy: 'changed-interpretation', produce: () => invalid }])).toThrow(/prepared.*text/)
+  })
+
+  test('an authored child frame cannot escape its parent with its members', () => {
+    const graph = parseMermaid('flowchart LR\nsubgraph S[Outer]\nsubgraph T[Inner]\nA[Alpha]\nend\nend')
+    const invalid = layoutGraphSync(graph)
+    const outer = invalid.groups[0]!, inner = outer.children[0]!
+    const dx = outer.x + outer.width + 30 - inner.x
+    inner.x += dx
+    invalid.nodes[0]!.x += dx
+    invalid.width = inner.x + inner.width + 30
+    expect(() => certifyLayoutCandidates(graph, resolveRenderStyle({}), [{ strategy: 'escaped-child', produce: () => invalid }])).toThrow(/parent|contain/)
   })
 
   test('exhaustion stops after four attempts and never returns the least-bad candidate', () => {

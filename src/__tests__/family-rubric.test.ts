@@ -116,6 +116,17 @@ describe('family rubric hard metrics discriminate', () => {
     expect(r.metrics.groupBreaches).toBe(1)
   })
 
+  it('flags a child frame outside its authored parent even when its own members remain contained', () => {
+    const layout = baseLayout({
+      kind: 'flowchart', nodes: [{ id: 'A', x: 220, y: 20, w: 30, h: 20, shape: 'rectangle', label: 'A' }],
+      groups: [
+        { id: 'S', x: 0, y: 0, w: 150, h: 100, members: [], label: 'Outer' },
+        { id: 'T', x: 200, y: 10, w: 70, h: 50, members: ['A'], label: 'Inner', parentId: 'S' },
+      ], bounds: { w: 300, h: 120 },
+    })
+    expect(familyHardViolations(assessRenderedLayout(layout))).toContainEqual(expect.objectContaining({ metric: 'groupBreaches' }))
+  })
+
   it('flags partially overlapping sibling groups but allows full nesting', () => {
     const partial = assessRenderedLayout(baseLayout({
       groups: [
