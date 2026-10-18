@@ -84,6 +84,31 @@ for (const witness of regressions)
     }
   })
 
+test('Flowchart derived group identities preserve authored groups, nodes and membership on collision', async () => {
+  const source = 'flowchart TD\nA_B_2[Important]\nsubgraph A_B[Explicit]\nC\nend\nsubgraph "A--B"\nD\nend'
+  const parsed = am.parseRegisteredMermaid(source)
+  expect(parsed.ok).toBe(true)
+  if (!parsed.ok) throw new Error(JSON.stringify(parsed.error))
+  const serialized = am.serializeMermaid(parsed.value)
+  await grammar.prepare('flowchart', getFamily('flowchart')!.example)
+  const original = await grammar.parse('flowchart', source)
+  const written = await grammar.parse('flowchart', serialized)
+  expect(original.accepted).toBe(true)
+  expect(written.accepted).toBe(true)
+  const expected = projectReferenceSemantic('flowchart', original)!.value as Record<string, unknown>
+  const actual = projectReferenceSemantic('flowchart', written)!.value as Record<string, unknown>
+  // Derived names may differ; distinct authored frames and their membership
+  // must survive. The explicit group and node retain their original names.
+  const groups = (value: Record<string, unknown>) => (value.groups as Array<{ id: string; parent: string; label: string; members: string[] }>).map(group => ({ label: group.label, parent: group.parent, members: group.members })).sort((a, b) => a.label.localeCompare(b.label))
+  expect(groups(actual)).toEqual(groups(expected))
+  expect(actual.nodes).toEqual(expected.nodes)
+  expect(actual.groups).toContainEqual(expect.objectContaining({ id: 'A_B', label: 'Explicit', members: ['C'] }))
+  const native = inspectAgenticGrammar('flowchart', source).native.observation.semantic!.value as Record<string, unknown>
+  expect(groups(native)).toEqual(groups(expected))
+  expect(native.nodes).toEqual(expected.nodes)
+  results.push({ name: 'Flowchart derived identity collisions', family: 'flowchart', source, serialized, original, written })
+})
+
 afterAll(() => {
   modern.close()
   grammar.close()

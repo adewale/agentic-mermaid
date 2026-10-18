@@ -40,6 +40,42 @@ describe('flowchart parser conformance safety floor (issue #36)', () => {
     expect(serializeMermaid(parseAgent(serialized))).toBe(serialized)
   })
 
+  test('anonymous group IDs reserve authored nodes and containers regardless of declaration order', async () => {
+    const declarations = 'subgraph "A--B"\nD[Delta]\nend\nsubgraph "A  B"\nE[Echo]\nend'
+    const authored = 'A_B[Important]\nA_B_2[Also important]\nsubgraph A_B_3[Explicit]\nC[Charlie]\nend'
+    const upstream = startUpstreamMermaid()
+    try {
+      for (const source of [`flowchart TD\n${authored}\n${declarations}`, `flowchart TD\n${declarations}\n${authored}`]) {
+        expect(await upstream.accepts(source)).toBe(true)
+        const serialized = serializeMermaid(parseAgent(source))
+        expect(await upstream.accepts(serialized), serialized).toBe(true)
+        for (const text of [source, serialized]) {
+          const graph = parseGraph(text)
+          expect(graph.nodes.get('A_B')?.label).toBe('Important')
+          expect(graph.nodes.get('A_B_2')?.label).toBe('Also important')
+          expect(graph.subgraphs.map(group => [group.label, group.nodeIds]).sort()).toEqual([
+            ['A  B', ['E']], ['A--B', ['D']], ['Explicit', ['C']],
+          ])
+          expect(new Set(graph.subgraphs.map(group => group.id)).size).toBe(3)
+          expect(graph.subgraphs.every(group => !graph.nodes.has(group.id))).toBe(true)
+          const svg = renderMermaidSVG(text)
+          for (const label of ['Important', 'Also important', 'Explicit', 'Delta', 'Echo']) expect(svg).toContain(label)
+        }
+        expect(serializeMermaid(parseAgent(serialized))).toBe(serialized)
+      }
+    } finally { upstream.close() }
+  })
+
+  test('anonymous IDs cannot hide endpoints in compact marker links', () => {
+    const source = 'flowchart TD\nXo--xY\nsubgraph "X?"\nA\nend\nsubgraph "Y?"\nB\nend'
+    for (const text of [source, serializeMermaid(parseAgent(source))]) {
+      const graph = parseGraph(text)
+      expect([...graph.nodes.keys()].sort()).toEqual(['A', 'B', 'X', 'Y'])
+      expect(graph.edges.map(edge => [edge.source, edge.target, edge.startMarker, edge.endMarker])).toEqual([['X', 'Y', 'circle', 'cross']])
+      expect(graph.subgraphs.every(group => !graph.nodes.has(group.id))).toBe(true)
+    }
+  })
+
   test.each([
     ['direct', 'subgraph S[First]\nsubgraph S[First]\nA[Alpha]\nend\nB[Beta]\nend', ['A', 'B'], []],
     ['through another group', 'subgraph S[First]\nsubgraph T[Middle]\nsubgraph S[First]\nA[Alpha]\nend\nB[Beta]\nend\nC[Gamma]\nend', ['A', 'C'], ['B']],

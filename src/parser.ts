@@ -154,7 +154,7 @@ function endsInsideMarkdownString(text: string): boolean {
   return text.includes('"`') && scanFlowchart(text).openAtEnd.includes('markdown')
 }
 
-function parseFlowchartSubgraphDeclaration(rest: string): { id: string; label: string } {
+function parseFlowchartSubgraphDeclaration(rest: string): { id: string; label: string; generated: boolean; identity: string } {
   // Delimiter scanning is deliberately linear. A lazy `(.+?)` matcher followed
   // by a bracketed label backtracked quadratically over long unterminated runs
   // of `[` — an input shape that fits the hosted 64 KiB source limit.
@@ -164,14 +164,15 @@ function parseFlowchartSubgraphDeclaration(rest: string): { id: string; label: s
     if (!isMermaidIdentifier(id)) {
       throw new Error(`Invalid flowchart subgraph identifier ${JSON.stringify(id)}`)
     }
-    return { id, label: parseFlowchartLabel(rest.slice(labelStart + 1, -1)).text }
+    return { id, label: parseFlowchartLabel(rest.slice(labelStart + 1, -1)).text, generated: false, identity: id }
   }
   const label = parseFlowchartLabel(rest).text
   // Mermaid identifiers are Unicode-aware everywhere else in this parser.
   // Preserve non-Latin letters/numbers when deriving the implicit container id
   // instead of silently collapsing a CJK title to an empty string.
   const id = rest.replace(/\s+/g, '_').replace(/[^\p{L}\p{N}_-]/gu, '').replace(/-{2,}/g, '_')
-  return { id, label }
+  const generated = id !== label || !isMermaidIdentifier(label) || flowchartIdLength(label, label.length) !== label.length
+  return { id: id || 'group', label, generated, identity: label }
 }
 
 /** Shared statement splitter for renderer and source-side action analysis:
@@ -286,7 +287,8 @@ function parseFlowchart(lines: string[]): MermaidGraph {
   const subgraphStack: MermaidSubgraph[] = []
   const subgraphsById = new Map<string, MermaidSubgraph>()
   const placedSubgraphs = new Set<string>()
-  const declaredSubgraphIds = collectDeclaredFlowchartSubgraphIds(lines.slice(1))
+  const declarations = collectFlowchartSubgraphDeclarations(lines.slice(1))
+  const declaredSubgraphIds = new Set([...declarations.values()].map(group => group.id))
   // Upstream's membership rule: the first subgraph to close keeps a node.
   const membership = createSubgraphMembership()
 
@@ -382,7 +384,7 @@ function parseFlowchart(lines: string[]): MermaidGraph {
       const subgraphMatch = line.match(/^subgraph\s+(.+)$/)
       if (subgraphMatch) {
         const rest = subgraphMatch[1]!.trim()
-        const { id, label } = parseFlowchartSubgraphDeclaration(rest)
+        const { id, label } = declarations.get(rest)!
         const sg: MermaidSubgraph = { id, label, nodeIds: [], children: [] }
         if (!subgraphsById.has(id)) {
           assertDiagramWorkLimit('nodes', graph.nodes.size + subgraphsById.size + 1)
@@ -444,17 +446,56 @@ function invalidFlowchartStatement(line: string, parsed: Extract<EdgeLineParseRe
   return new Error(`${where}: could not fully consume ${parsed.reason}; remaining input: "${parsed.remaining}"`)
 }
 
-function collectDeclaredFlowchartSubgraphIds(lines: string[]): Set<string> {
-  const ids = new Set<string>()
+/** Allocate derived names after reserving authored identities, including names
+ * declared later in the source. Repeated logical groups reuse one allocation. */
+function collectFlowchartSubgraphDeclarations(lines: string[]): Map<string, { id: string; label: string }> {
+  const declarations = new Map<string, ReturnType<typeof parseFlowchartSubgraphDeclaration>>()
+  const reserved = new Set<string>()
   for (const raw of lines) {
     for (const line of splitFlowchartStatements(raw)) {
-      const subgraphMatch = line.match(/^subgraph\s+(.+)$/)
-      if (!subgraphMatch) continue
-      const rest = subgraphMatch[1]!.trim()
-      ids.add(parseFlowchartSubgraphDeclaration(rest).id)
+      const match = line.match(/^subgraph\s+(.+)$/)
+      if (match) {
+        const rest = match[1]!.trim()
+        const declaration = parseFlowchartSubgraphDeclaration(rest)
+        declarations.set(rest, declaration)
+        if (!declaration.generated) reserved.add(declaration.id)
+      } else {
+        // Reserving identifier runs also covers declarations inside compound
+        // chains and metadata without executing their Cartesian expansion.
+        for (const token of line.matchAll(new RegExp(MERMAID_IDENTIFIER_SOURCE, 'gu'))) {
+          const end = token.index + token[0].length
+          let start = token.index
+          // Compact links can share one identifier run (Xo--xY). Reserve
+          // each actual endpoint, as well as the unbroken directive operand.
+          reserved.add(token[0])
+          for (let index = start; index < end; index++) {
+            const link = matchFlowchartLink(line, index)
+            if (!link) continue
+            if (index > start) reserved.add(line.slice(start, index))
+            start = link.end
+            index = link.end - 1
+          }
+          if (start < end) {
+            const suffix = line.slice(start)
+            reserved.add(suffix.slice(0, flowchartIdLength(suffix, end - start)))
+          }
+        }
+      }
     }
   }
-  return ids
+  const allocated = new Map<string, string>()
+  for (const declaration of declarations.values()) {
+    if (!declaration.generated) continue
+    const prior = allocated.get(declaration.identity)
+    if (prior) { declaration.id = prior; continue }
+    const base = declaration.id
+    let id = base
+    for (let suffix = 2; reserved.has(id); suffix++) id = `${base}_${suffix}`
+    allocated.set(declaration.identity, id)
+    reserved.add(id)
+    declaration.id = id
+  }
+  return declarations
 }
 
 function normalizeFlowchartDirection(raw: string): Direction {
