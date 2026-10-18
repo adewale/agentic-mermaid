@@ -1,3 +1,4 @@
+import { decodeXML } from 'entities'
 import { afterAll, expect, test } from 'bun:test'
 import { mkdirSync, writeFileSync } from 'node:fs'
 import { dirname, join } from 'node:path'
@@ -26,6 +27,7 @@ interface Regression {
   source: string
   /** Selected semantic fields whose values must survive this writer fix. */
   fields?: string[]
+  groups?: boolean
 }
 
 // Reviewed reductions of seed-7 failures from the all-family grammar run.
@@ -35,7 +37,7 @@ const regressions: Regression[] = [
   { name: 'Quadrant single axis keeps a quoted delimiter inside its label', family: 'quadrant', source: 'quadrantChart\nx-axis "Urgent(* +=-->[❤"', fields: ['xAxis'] },
   { name: 'Quadrant separates axes only outside quoted text', family: 'quadrant', source: 'quadrantChart\ny-axis "Ur --> not urgent(* +=[❤" --> "Not Urgent (* +=[❤"', fields: ['yAxis'] },
   { name: 'Quadrant preserves the visible arrow of a trailing axis delimiter', family: 'quadrant', source: 'quadrantChart\nx-axis "Urgent(* x-axis 低い --> 高い y-axis =[❤" -->', fields: ['xAxis'] },
-  { name: 'Flowchart anonymous link-like group title writes a safe identity', family: 'flowchart', source: 'graph TD;A-->B;subgraph "title in quotes --xs";c-->d;end;', fields: ['nodes', 'edges'] },
+  { name: 'Flowchart anonymous link-like group title writes a safe identity', family: 'flowchart', source: 'graph TD;A-->B;subgraph "title in quotes --xs";c-->d;end;', fields: ['nodes', 'edges'], groups: true },
   { name: 'State reserved endpoint retains its transition label', family: 'state', source: 'stateDiagram-v2\nA --> State: continue', fields: ['states', 'transitions'] },
   { name: 'State descriptions retain literal quotes', family: 'state', source: 'stateDiagram-v2\nnamedState1: Small St"ate 1', fields: ['states'] },
   { name: 'State block notes retain colons as text', family: 'state', source: 'stateDiagram-v2\nState1\nnote right of State1\nfill:white    a note with punctuation\nend note\nState1 --> State2', fields: ['states', 'transitions'] },
@@ -81,11 +83,26 @@ for (const witness of regressions)
         expect(actual?.[field]).toEqual(expected?.[field])
         if (target === root) expect(native?.[field]).toEqual(expected?.[field])
       }
+      if (witness.groups) {
+        for (const value of [actual!, ...(target === root ? [native!] : [])]) expect(groupMeaning(value)).toEqual(groupMeaning(expected!))
+      }
     }
   })
 
-test('Flowchart derived group identities preserve authored groups, nodes and membership on collision', async () => {
-  const source = 'flowchart TD\nA_B_2[Important]\nsubgraph A_B[Explicit]\nC\nend\nsubgraph "A--B"\nD\nend'
+function groupMeaning(value: Record<string, unknown>) {
+  const groups = value.groups as Array<{ id: string; parent: string; label: string; members: string[] }>
+  expect(new Set(groups.map(group => group.id)).size).toBe(groups.length)
+  // The reference stores #entity; labels in Mermaid's internal placeholder
+  // spelling (utils.decodeEntities); compare their decoded authored text.
+  const displayed = (label: string) => decodeXML(label.replace(/ﬂ°°/g, '&#').replace(/ﬂ°/g, '&').replace(/¶ß/g, ';'))
+  return groups.map(group => ({ label: displayed(group.label), parent: group.parent, members: group.members })).sort((a, b) => JSON.stringify(a).localeCompare(JSON.stringify(b)))
+}
+
+test.each([
+  'flowchart TD\nA_B_2[Important]\nsubgraph A_B[Explicit]\nC\nend\nsubgraph "A--B"\nD\nend',
+  'flowchart TD\nsubgraph "A<br>B"\nX\nend\nsubgraph "A\\\\nB"\nY\nend',
+  'flowchart TD\nsubgraph "A--B"\nX\nend\nsubgraph "A#45;#45;B"\nY\nend',
+])('Flowchart distinct group identities retain labels and membership: %s', async source => {
   const parsed = am.parseRegisteredMermaid(source)
   expect(parsed.ok).toBe(true)
   if (!parsed.ok) throw new Error(JSON.stringify(parsed.error))
@@ -99,12 +116,11 @@ test('Flowchart derived group identities preserve authored groups, nodes and mem
   const actual = projectReferenceSemantic('flowchart', written)!.value as Record<string, unknown>
   // Derived names may differ; distinct authored frames and their membership
   // must survive. The explicit group and node retain their original names.
-  const groups = (value: Record<string, unknown>) => (value.groups as Array<{ id: string; parent: string; label: string; members: string[] }>).map(group => ({ label: group.label, parent: group.parent, members: group.members })).sort((a, b) => a.label.localeCompare(b.label))
-  expect(groups(actual)).toEqual(groups(expected))
+  expect(groupMeaning(actual)).toEqual(groupMeaning(expected))
   expect(actual.nodes).toEqual(expected.nodes)
-  expect(actual.groups).toContainEqual(expect.objectContaining({ id: 'A_B', label: 'Explicit', members: ['C'] }))
+  if (source.includes('subgraph A_B[')) expect(actual.groups).toContainEqual(expect.objectContaining({ id: 'A_B', label: 'Explicit', members: ['C'] }))
   const native = inspectAgenticGrammar('flowchart', source).native.observation.semantic!.value as Record<string, unknown>
-  expect(groups(native)).toEqual(groups(expected))
+  expect(groupMeaning(native)).toEqual(groupMeaning(expected))
   expect(native.nodes).toEqual(expected.nodes)
   results.push({ name: 'Flowchart derived identity collisions', family: 'flowchart', source, serialized, original, written })
 })

@@ -15,10 +15,12 @@ import { tryParseCssColor, toHex } from '../shared/color-math.ts'
 import { projectC4Graph } from '../c4/projection.ts'
 import { c4LegendEntries } from '../c4/legend.ts'
 import { visualWidth } from './width.ts'
+import { assertC4DiagramWork } from '../shared/diagram-limits.ts'
 
 /** Native cell-space C4 cards and compound frames. Neither coordinates nor
  * text lines are reconstructed from a pixel drawing or serialized SVG. */
 export function renderC4Terminal(body: C4Body, config: AsciiConfig, colorMode?: ColorMode, theme?: AsciiTheme, targetWidth?: number, c4Config: C4ConfigInput = {}): TerminalArtifact {
+  assertC4DiagramWork(body)
   const options = resolveC4Config(c4Config), identities = planC4Identity(body), doc = new TerminalDocument(), ascii = config.useAscii
   doc.titleHandled = true
   projectC4Graph(body, options) // shared authored paint admission for nodes and relationships

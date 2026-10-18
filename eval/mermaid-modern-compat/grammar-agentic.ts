@@ -1,3 +1,4 @@
+import { parseC4Diagram } from '../../src/c4/parser.ts'
 import { knownBuiltinFamilies, parseRegisteredMermaid, serializeMermaid } from '../../src/agent/core.ts'
 import { parseArchitectureDiagram } from '../../src/architecture/parser.ts'
 import { parseClassDiagram } from '../../src/class/parser.ts'
@@ -60,6 +61,10 @@ export function inspectAgenticGrammar(family: string, source: string, options: {
         case 'flowchart':
         case 'state':
           return parseMermaid(normalized.familyText)
+        case 'c4': {
+          const authored = normalizeMermaidSource(normalized.originalText)
+          return parseC4Diagram(authored.originalText.slice((authored.wrapperSource ?? '').length))
+        }
         case 'architecture':
           return parseArchitectureDiagram(lines)
         case 'class':
@@ -121,8 +126,8 @@ export function inspectAgenticGrammar(family: string, source: string, options: {
       const observation: NativeParserObservation = {
         statements: { status: 'available', method: 'Actual native consumed classified statements; positions identify the parser-supplied physical or normalized view', value: events.filter(event => event.unit === 'statement') },
         tokens:
-          family === 'flowchart'
-            ? { status: 'available', method: 'Actual native consumed compound node/link fragments, not Mermaid terminal kinds; positions unavailable where the consumer has only a remaining suffix', value: events.filter(event => event.unit === 'token') }
+          family === 'flowchart' || family === 'c4'
+            ? { status: 'available', method: family === 'c4' ? 'Actual forward C4 scanner chunks; physical UTF16 offsets and Unicode-code-point columns, not Mermaid terminals' : 'Actual native consumed compound node/link fragments, not Mermaid terminal kinds; positions unavailable where the consumer has only a remaining suffix', value: events.filter(event => event.unit === 'token') }
             : { status: 'unavailable', reason: 'This native parser exposes classified statements, not a homologous lexer token stream' },
         mutations: { status: 'available', method: 'Actual native builder writes/operations in execution order; values copied at call time, including parent and membership fields', value: events.filter(event => event.unit === 'mutation') },
         ...(observed.model !== undefined ? { model: observed.model } : {}),

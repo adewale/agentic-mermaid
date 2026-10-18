@@ -179,7 +179,7 @@ sources we did not write:
   actual selected Mermaid 12+ grammar for every core family, including families
   without native Agentic support. It records lexer tokens, Jison model calls or
   Langium/Chevrotain syntax trees and native renderer-parser admission. Hooks
-  inside all 16 native parsers record consumed classified statements and actual
+  inside all 17 native parsers record consumed classified statements and actual
   semantic writes, with values copied before later mutation; Flowchart also
   records its consumed compound fragments. Every observed native attempt has
   an unobserved acceptance/error/model control. A changed result fails the

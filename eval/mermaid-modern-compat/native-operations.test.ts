@@ -43,6 +43,22 @@ async function assertOperations(family: string, source: string) {
 describe('actual native builder operations agree with the pinned modern reference in declared scopes', () => {
   for (const family of knownBuiltinFamilies()) test(`${family}: canonical operations retain operand values and order`, () => assertOperations(family, getFamily(family)!.example))
 
+  test.each([
+    ['C4Container', 'System_Boundary(domain, "Domain") {\nContainer(api, "API", $descr="Serves requests", $techn="TypeScript")\nContainerDb_Ext(db, "Database", "SQL", "Stores data")\n}\nPerson(user, "User")\nBiRel(user, api, "Talks", "HTTPS")\nRel_Back(api, db, "Reads", "SQL")'],
+    ['C4Deployment', 'Deployment_Node(region, "Region", "Cloud") {\nNode_L(vm, "VM", "Linux", "Worker") {\nComponent(worker, "Worker", "TypeScript", "Runs jobs")\n}\n}\nPerson(user, "User")\nRel_R(user, worker, "Starts", "HTTPS")'],
+  ])('C4 %s retains declaration parentage, text slots and relationship marker sides', async (variant, body) => {
+    const parsed = await assertOperations('c4', `${variant}\n${body}`)
+    expect(parsed.nativeSemantic?.value).toEqual(projectReferenceSemantic('c4', parsed.referenceReply)?.value)
+  })
+  test('C4 repeated interaction writes remain ordered when the reference getter upserts pairs', async () => {
+    const parsed = await assertOperations('c4', 'C4Dynamic\nPerson(a, "A")\nSystem(b, "B")\nRel(a, b, "First")\nRel_Back(a, b, "Second")\nBiRel(a, b, "Third")')
+    const native = parsed.nativeSemantic?.value as Record<string, unknown>
+    const reference = projectReferenceSemantic('c4', parsed.referenceReply)!.value as Record<string, unknown>
+    expect(native.relationships).toHaveLength(3)
+    expect(reference.relationships).toHaveLength(1)
+    expect(parsed.native?.operations.filter(operation => Array.isArray(operation) && operation[0] === 'relationship')).toHaveLength(3)
+  })
+
   test('Flowchart retains class append order around edge creation', () => assertOperations('flowchart', 'flowchart TD\nA --> B\nclass A warm\nclass A cool\nB --> C\nclass A warm'))
   test('Flowchart retains authored named-edge identifiers in actual link operands', () => assertOperations('flowchart', 'flowchart LR\nA e1@--> B\nB e2@==> C'))
   test('Class preserves one-ended marker sides in relationship creation order', () => assertOperations('class', 'classDiagram\nA <-- B : calls\nC --|> D\nE o-- F\nG ..> H : uses'))

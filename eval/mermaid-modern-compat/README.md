@@ -33,16 +33,17 @@ The assessment distinguishes these observations and comparisons:
   (for example, raw `themeCSS`) is not a grammar rejection.
   The structured/opaque/preserved public envelope is reported
   separately. Unsupported families have no native acceptance verdict.
-- **Native consumption and operations:** optional hooks inside all 16 native
+- **Native consumption and operations:** optional hooks inside all 17 native
   parsers record actual classified statements and semantic builder writes in
   execution order. Flowchart additionally exposes consumed compound node/link
-  fragments. Values are copied at the write site, before later mutation, and
+  fragments; C4 records forward scanner chunks with physical UTF16 offsets and
+  Unicode-code-point columns. Values are copied at the write site, before later mutation, and
   retain endpoint markers, logical IDs, memberships and parents. Coordinates
   state whether they refer to physical or normalized input. These are each
   native parser's own units, not invented Mermaid terminals or `yy` calls.
   Every observed native attempt is repeated without hooks; acceptance, error
   and complete native model must remain equal or the assessment fails.
-- **Selected native semantics:** independent adapters for all 16 families
+- **Selected native semantics:** independent adapters for all 17 families
   compare declared semantic fields in actual native models against actual
   reference getters, builder calls or AST. They retain ordered values and
   parent relationships, normalize documented defaults and generated identities,
@@ -60,6 +61,13 @@ The assessment distinguishes these observations and comparisons:
   period-construction order differs from the reference. Empty scoped traces
   provide no comparison evidence. These checks cover selected semantics,
   rather than equivalence of the engines' entire builder protocols.
+  C4 compares declaration, boundary open/close and relationship calls, including
+  their ordered operands. Variant, title, styles, tags, links, generated IDs and
+  `RelIndex` are outside this operation scope. Native observations still retain
+  those writes, including deferred styles. Mermaid commits the variant last,
+  drops the `RelIndex` index and upserts repeated endpoint pairs in its getters;
+  Agentic retains independent interactions. Ordered calls can therefore agree
+  while the selected result models differ, as the reviewed repeated-pair case asserts.
 - **Grammar round trip:** compares reference tokens, ordered model calls or
   AST, and stable model values for the original source against the reference
   parsing Agentic's structured serialization. Exact token/action differences
@@ -81,7 +89,7 @@ difference; every case retains native statements, operations, controls and its
 selected native/reference semantic values. Detailed examples also retain
 reference tokens, actions, AST and model snapshots.
 The CI semantic command runs the reviewed preservation assertions, reduced
-seeded writer regressions and ordered-operation assertions over all 16 canonical
+seeded writer regressions and ordered-operation assertions over all 17 canonical
 native examples plus focused witnesses. Operation assertion reports retain
 their exact scope and unmapped-method counts in `output/native-operations-gate.json`. Seeded writer
 regressions publish `output/grammar-regressions-gate.json` and use actual default
@@ -164,7 +172,7 @@ The source checkout must be clean and at its matching `mermaid@<version>` releas
 
 All core syntax pages are included, even families Agentic Mermaid does not support. `examples.md` is not a family; external ZenUML is outside this core comparison. `info` is a separately labelled manual pseudo-diagram probe. Documentation fences are trimmed at their outer boundaries and deduplicated by the resulting source while retaining every file/line origin. Mermaid itself classifies accepted inputs by its diagram type; detector aliases collapse to canonical families. Inputs rejected by the reference remain visible and are excluded from support denominators.
 
-For each input the runner records public `parseRegisteredMermaid` results, structured/opaque/preserved representation, `verifyMermaid` warnings, actual SVG rendering, finite coordinate checks, repeated-render determinism, and whether Mermaid accepts Agentic's serialized output. The standalone SVG renderer is checked even if structured parsing rejects the input. Preserved unsupported-family envelopes do not count as native parsing. Per-family counts and a mean of the 16 native families' rendering rates are reported alongside case-weighted totals.
+For each input the runner records public `parseRegisteredMermaid` results, structured/opaque/preserved representation, `verifyMermaid` warnings, actual SVG rendering, finite coordinate checks, repeated-render determinism, and whether Mermaid accepts Agentic's serialized output. The standalone SVG renderer is checked even if structured parsing rejects the input. Preserved unsupported-family envelopes do not count as native parsing. Per-family counts and a mean of the 17 native families' rendering rates are reported alongside case-weighted totals.
 
 Reference DB getter snapshots before and after serialization identify **conservative drift candidates**, not confirmed semantic losses. The original source is also parsed twice as a control: getters that change under that repeat are recorded and excluded from the serialization comparison. Generated commit identifiers, unordered maps and some rendering/config metadata are normalized; ordered semantic arrays are preserved. Getter availability varies by family, autogenerated counters/defaults may still differ, and an unchanged snapshot does not establish full fidelity. Snapshots cover serialization, not whether the SVG displays every authored element.
 

@@ -1,5 +1,4 @@
 import { C4_SVG_HOOKS } from './svg-family-hooks/c4.ts'
-import { projectC4Positioned } from './agent/c4-layout.ts'
 import { renderC4Terminal } from './ascii/c4.ts'
 import type { C4Body } from './c4/types.ts'
 import { terminalInputModel } from './ascii/terminal-model.ts'
@@ -223,7 +222,6 @@ const GITGRAPH_RENDER_HOOKS = {
 
 const C4_RENDER_HOOKS = {
   ...C4_SVG_HOOKS,
-  projectPositioned: positionedView(projectC4Positioned),
   renderAscii: nativeTerminalRenderer(ctx => {
     const config = ctx.familyConfig as { model: C4Body; c4: Record<string, unknown> }
     return renderC4Terminal(config.model, ctx.config, ctx.colorMode, ctx.theme, ctx.options.targetWidth, config.c4)

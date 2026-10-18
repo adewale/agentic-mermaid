@@ -1,5 +1,6 @@
 import type { ArchitectureDiagram } from '../architecture/types.ts'
 import type { ClassDiagram, ClassNamespace } from '../class/types.ts'
+import type { C4Body } from '../c4/types.ts'
 import type { ErDiagram } from '../er/types.ts'
 import type { MermaidGraph, MermaidSubgraph } from '../types.ts'
 
@@ -95,6 +96,20 @@ export function assertErDiagramWork(diagram: ErDiagram): void {
 
 export function assertArchitectureDiagramWork(diagram: ArchitectureDiagram): void {
   assertFlatGroupWork(diagram.services.length + diagram.junctions.length, diagram.edges.length, diagram.groups, 'Architecture')
+}
+
+/** C4 lays out relationships and authored direction constraints independently. */
+export function assertC4DiagramWork(diagram: C4Body): void {
+  assertFlatGroupWork(diagram.elements.length, diagram.relationships.length + diagram.layout.hints.length, diagram.boundaries, 'C4')
+  const boundaries = new Set(diagram.boundaries.map(boundary => boundary.id))
+  const identities = new Set(boundaries)
+  for (const element of diagram.elements) {
+    if (identities.has(element.id)) throw new TypeError(`C4 elements and boundaries must have distinct identities: ${element.id}`)
+    identities.add(element.id)
+  }
+  for (const item of [...diagram.elements, ...diagram.boundaries]) {
+    if (item.parentId !== undefined && !boundaries.has(item.parentId)) throw new TypeError(`C4 ${item.id} has no boundary parent ${item.parentId}`)
+  }
 }
 
 function assertFlatGroupWork(leaves: number, edges: number, authoredGroups: readonly { id: string; parentId?: string }[], family: string): void {

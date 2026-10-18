@@ -1,3 +1,4 @@
+import { parseC4Diagram } from '../c4/parser.ts'
 import { describe, expect, test } from 'bun:test'
 import { parseArchitectureDiagram } from '../architecture/parser.ts'
 import { parseErDiagram } from '../er/parser.ts'
@@ -15,6 +16,33 @@ function observe<T>(family: string, parse: () => T): { result: T; events: Readon
 }
 
 describe('line-family native parser observation', () => {
+  test('C4 consumes physical chunks and snapshots declarations before deferred styles and generated IDs', () => {
+    const source = 'C4Container\nSystem_Boundary(outer, "Outer") {\nContainer(a, "Alpha", "TS")\nContainerDb_Ext(b, "Beta", "SQL", "Store")\n}\nRel_Back(a, b, "Reads", "HTTP")\nUpdateElementStyle(a, $bgColor="red")\nUpdateElementStyle(a, $bgColor="blue")\nUpdateRelStyle(a, b, $lineColor="green")'
+    const { result, events } = observe('c4', () => parseC4Diagram(source))
+    expect(result).toEqual(parseC4Diagram(source))
+    expect(events.find(event => event.kind === 'add-element')?.value).toMatchObject({ id: 'a', label: 'Alpha', parentId: 'outer', style: {} })
+    expect(events.filter(event => event.kind === 'set-element-style').map(event => event.value)).toEqual([
+      { id: 'a', style: { bgColor: 'red' } }, { id: 'a', style: { bgColor: 'blue' } },
+    ])
+    expect(events.find(event => event.kind === 'add-relationship')?.value).toMatchObject({ id: '', from: 'a', to: 'b', source: 'b', target: 'a', reversed: true, bidirectional: false })
+    expect(events.find(event => event.kind === 'set-relationship-identity')?.value).toEqual({ id: 'c4-rel-1', order: 1 })
+    expect(events.filter(event => event.kind === 'close-boundary').map(event => event.value)).toEqual([{ id: 'outer' }])
+    const chunks = events.filter(event => event.unit === 'token')
+    expect(chunks.map(event => event.text).join('')).toBe(source)
+    for (const chunk of chunks) {
+      expect(chunk.source?.unit).toBe('physical')
+      expect(source.slice(chunk.source!.offset, chunk.source!.endOffset)).toBe(chunk.text!)
+    }
+  })
+
+  test('C4 observation retains completed writes when later endpoint validation rejects', () => {
+    const events: ParserObservation[] = []
+    expect(() => withParserObservation('c4', event => events.push(event), () => parseC4Diagram('C4Context\nPerson(a, "Alice")\nRel(a, missing, "Lost")'))).toThrow('undeclared endpoint')
+    expect(events.filter(event => event.kind === 'add-element').map(event => event.value)).toEqual([expect.objectContaining({ id: 'a', label: 'Alice', style: {} })])
+    expect(events.filter(event => event.kind === 'reset-presentation')).toEqual([])
+    expect(events.find(event => event.kind === 'set-relationship-identity')).toBeDefined()
+  })
+
   test('architecture records declaration snapshots before attachments and preserves group endpoint markers', () => {
     const lines = ['architecture-beta', 'group cloud(cloud)[Cloud]', 'service api(server)[API] in cloud', 'service db(database)[DB]', 'api{group}:R <--> L:db']
     const { result, events } = observe('architecture', () => parseArchitectureDiagram(lines))

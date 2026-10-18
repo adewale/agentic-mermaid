@@ -102,7 +102,9 @@ function snapshot(db) {
   const collect = (target, prefix = '') => {
     for (const name of methodsOf(target).sort()) {
       if (!/^get[A-Z]|^(?:topAxisEnabled|inclusiveEndDates)$/.test(name) || /Config|Logger|DomId|Tooltip|Mapping|Position/.test(name)) continue;
-      if (target[name].length !== 0) continue;
+      // C4 exposes complete collections through optional-parent getters.
+      // Calling them without a parent returns their actual whole DB value.
+      if (target[name].length !== 0 && !['getC4ShapeArray', 'getBoundaries'].includes(name)) continue;
       try {
         const value = target[name]();
         if (value && typeof value.then === 'function') continue;

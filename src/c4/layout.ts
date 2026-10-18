@@ -12,6 +12,7 @@ import { c4LegendEntries, type C4LegendEntry } from './legend.ts'
 import type { PixelTextBlock } from '../shared/prepared-text.ts'
 import { planC4Identity } from './identity.ts'
 import { c4LabelRect, c4MarkerRects, placeC4PixelLabels, c4PixelVisibilityDiagnostics } from './pixel-labels.ts'
+import { assertC4DiagramWork } from '../shared/diagram-limits.ts'
 
 export interface PositionedC4Diagram extends PositionedGraph {
   body: C4Body; config: C4Config; diagnostics: C4Diagnostic[]
@@ -19,6 +20,7 @@ export interface PositionedC4Diagram extends PositionedGraph {
   legend?: { x: number; y: number; width: number; height: number; heading: PixelTextBlock; entries: Array<C4LegendEntry & { block: PixelTextBlock }> }
 }
 export function layoutC4Diagram(body: C4Body, options: RenderOptions & { diagramTitle?: string } = {}, styleFace?: InternalStyleFace, c4Config: C4ConfigInput = {}, themeVariables: C4ConfigInput = {}): PositionedC4Diagram {
+  assertC4DiagramWork(body)
   const config = resolveC4Config({ ...(options.padding === undefined ? {} : { diagramMarginX: options.padding, diagramMarginY: options.padding }), ...(options.nodeSpacing === undefined ? {} : { c4ShapeMargin: options.nodeSpacing }), ...(options.layerSpacing === undefined ? {} : { nextLinePaddingX: options.layerSpacing }), ...c4Config }, themeVariables), style = resolveRenderStyle(options, undefined, styleFace)
   const graph = projectC4Graph(body, config), sizes = new Map<string, C4Box>()
   const parents = new Map([...body.elements, ...body.boundaries].map(item => [item.id, item.parentId]))
