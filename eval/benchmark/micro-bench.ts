@@ -16,8 +16,10 @@
 // current cases and the current node_modules, so the comparison isolates
 // production source. Cases missing at the baseline are reported, not fatal.
 // Under Node, allocation per call is estimated from GC boundaries (as in the
-// release benchmark). Shared or loaded machines inflate absolute numbers;
-// compare ratios from interleaved rounds, and confirm with `bench:release`.
+// release benchmark). Shared or loaded machines inflate absolute numbers: an
+// A/A run of identical source on a shared 4-vCPU sandbox spread 0.82–1.11×
+// with the defaults, while allocation per call repeated to three digits.
+// Treat small timing ratios as noise, and confirm with `bench:release`.
 
 import { execFileSync, spawnSync } from 'node:child_process'
 import { cpSync, mkdirSync, mkdtempSync, readFileSync, rmSync, symlinkSync, writeFileSync } from 'node:fs'
