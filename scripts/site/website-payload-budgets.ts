@@ -64,10 +64,10 @@ export const WEBSITE_PAYLOAD_BUDGETS: WebsitePayloadBudgets = Object.freeze({
   'editor-empty': Object.freeze({
     maxRequests: 2,
     maxRawBytes: 3_579_000,
-    // Complete State-note routing belongs to the editor's eager terminal code;
-    // its per-change cost is still checked by the separate payload delta gate.
-    maxGzipBytes: 1_065_000,
-    maxBrotliBytes: 842_000,
+    // Prepared literal runs and context codecs are part of the eager editor.
+    // Per-change growth remains checked by the separate payload delta gate.
+    maxGzipBytes: 1_070_000,
+    maxBrotliBytes: 845_000,
     required: Object.freeze([
       '^/editor/$',
       '^/editor/editor-[a-f0-9]{12}\\.js$',

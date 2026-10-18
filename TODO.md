@@ -35,8 +35,8 @@ queues. Retired IDs are not reused.
   source completion, not publication or a general lossless-editing guarantee.
   [PR #418](https://github.com/adewale/agentic-mermaid/pull/418) implements ER
   entity order (#372) and the remaining Journey, empty-edit and YAML fixes
-  (#367). This text candidate implements CONS-46 and the remaining #372 text
-  work. Completion of #372 depends on PR #418's ER fix and this candidate being
+  (#367). [PR #419](https://github.com/adewale/agentic-mermaid/pull/419) implements
+  CONS-46 and the remaining #372 text work. Completion of #372 depends on PR #418's ER fix and this candidate being
   integrated and verified together; final CI and merge remain pending. The
   completed #363 disposition record can close its investigation independently
   of the runtime follow-ups it identifies. Config ownership in
@@ -315,8 +315,9 @@ queues. Retired IDs are not reused.
   implementation is complete in separate PR
   [#416](https://github.com/adewale/agentic-mermaid/pull/416): family-owned
   diagnostic hooks include public extension verification, and repeated
-  terminal/MCP schemas use their existing contracts. Final CI and merge remain
-  pending. This PR is not a dependency of the #363 dispositions or CONS-46 text
+  terminal/MCP schemas use their existing contracts. Its final-head CI passes;
+  merge remains pending. This PR is not a
+  dependency of the #363 dispositions or CONS-46 text
   implementation; release delivery remains under REL-1.
 - [ ] **CONS-47 — One flowchart tokenizer with source spans** (`todo`). At least
   17 hand-written quote/bracket scanners lex the flowchart line (parser,

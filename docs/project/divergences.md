@@ -234,7 +234,7 @@ pending. Source completion is separate from npm publication and hosted delivery.
 - CONS-44 is implemented in separate, unmerged
   [PR #416](https://github.com/adewale/agentic-mermaid/pull/416), with family-owned
   config diagnostic hooks and transport schemas projected from existing
-  contracts. Final CI and merge remain pending. It is not a dependency of
+  contracts. Its final-head CI passes; merge remains pending. It is not a dependency of
   CONS-46 or of completing these grammar dispositions.
 
 The #363 investigation is complete independently of those runtime delivery
