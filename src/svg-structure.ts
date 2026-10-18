@@ -26,6 +26,14 @@ function isNameChar(char: string | undefined): boolean {
     || (code >= 48 && code <= 57) || code === 95 || code === 46 || code === 58 || code === 45
 }
 
+/** Exactly JavaScript's `\s`, without a regex call per ASCII character. */
+function isWhitespace(char: string | undefined): boolean {
+  if (char === undefined) return false
+  const code = char.charCodeAt(0)
+  if (code < 128) return code === 32 || (code >= 9 && code <= 13)
+  return /\s/.test(char)
+}
+
 function scanTagEnd(source: string, start: number): number {
   let quote: '"' | "'" | undefined
   for (let cursor = start; cursor < source.length; cursor++) {
@@ -68,16 +76,16 @@ function scanStartTags(source: string): readonly SvgStartTagToken[] {
     const attributes: SvgAttributeToken[] = []
     let cursor = nameEnd
     while (cursor < end - 1) {
-      while (/\s/.test(source[cursor] ?? '')) cursor++
+      while (isWhitespace(source[cursor])) cursor++
       if (source[cursor] === '>' || (source[cursor] === '/' && source[cursor + 1] === '>')) break
       const nameStart = cursor
       while (isNameChar(source[cursor])) cursor++
       if (cursor === nameStart) break
       const name = source.slice(nameStart, cursor)
-      while (/\s/.test(source[cursor] ?? '')) cursor++
+      while (isWhitespace(source[cursor])) cursor++
       if (source[cursor] !== '=') break
       cursor++
-      while (/\s/.test(source[cursor] ?? '')) cursor++
+      while (isWhitespace(source[cursor])) cursor++
       const quote = source[cursor]
       if (quote !== '"' && quote !== "'") break
       cursor++
@@ -87,12 +95,15 @@ function scanStartTags(source: string): readonly SvgStartTagToken[] {
       attributes.push(Object.freeze({ name, value: source.slice(valueStart, cursor), quote, nameStart, valueStart, valueEnd: cursor }))
       cursor++
     }
+    // `/\s*>` at the end of the tag, read backwards without slicing it.
+    let beforeClose = end - 2
+    while (beforeClose > start && isWhitespace(source[beforeClose])) beforeClose--
     tags.push(Object.freeze({
       name: source.slice(start + 1, nameEnd),
       start,
       end,
       attributes: Object.freeze(attributes),
-      selfClosing: /\/\s*>$/.test(source.slice(start, end)),
+      selfClosing: source[beforeClose] === '/',
     }))
     start = end - 1
   }
