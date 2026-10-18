@@ -4,6 +4,7 @@ import { BUILTIN_FAMILY_METADATA, isBuiltinFamilyId, type BuiltinFamilyMetadata 
 import { parseRegisteredMermaid } from '../../agent/parse.ts'
 import type { DiagramKind } from '../../agent/types.ts'
 import type { RenderOptions } from '../../types.ts'
+import type { SceneRole } from '../../scene/roles.ts'
 import { compareCodePointStrings } from '../../shared/deterministic-order.ts'
 import { METAMORPHIC_FAMILIES } from './metamorphic-families.ts'
 
@@ -23,6 +24,10 @@ export type ComplexityStratum = typeof COMPLEXITY_STRATA[number]
 
 export interface FamilyConformanceProfile {
   readonly family: DiagramKind
+  /** Required role coverage across the portfolio; every automatic outline is inspected. */
+  readonly outlines:
+    | { readonly kind: 'automatic'; readonly roles: readonly [SceneRole, ...SceneRole[]] }
+    | { readonly kind: 'none'; readonly reason: string }
   readonly riskFixture: string
   readonly riskOptions: RenderOptions
   readonly textStressSource: string
@@ -38,76 +43,93 @@ export interface FamilyConformanceProfile {
 export const FAMILY_CONFORMANCE_PROFILES: Readonly<Record<DiagramKind, FamilyConformanceProfile>> = {
   c4: {
     family: 'c4', riskFixture: 'c4-context-demo.mmd', riskOptions: {},
+    outlines: { kind: 'automatic', roles: ['node', 'group', 'group-header'] },
     textStressSource: 'C4Container\n  Person(user, "東京 café é 👩‍💻", "שלום")\n  Container(api, "مرحبا بالعالم", "HTTP", "長い説明")\n  Rel(user, api, "長いラベル", "HTTPS")',
     externalReferenceSource: 'C4Context\n  System(docs, "Docs", $link="https://example.com/docs")',
   },
   flowchart: {
     family: 'flowchart', riskFixture: 'flowchart-v11-shapes-demo.mmd', riskOptions: {},
-    textStressSource: 'flowchart LR\n  A["東京 café é 👩‍💻 שלום"] -->|長いラベル| B["مرحبا بالعالم"]',
+    outlines: { kind: 'automatic', roles: ['node', 'group', 'group-header'] },
+    textStressSource: 'flowchart LR\n  subgraph app[Application]\n    A["東京 café é 👩‍💻 שלום"] -->|長いラベル| B["مرحبا بالعالم"]\n  end',
     externalReferenceSource: 'flowchart LR\n  A[Docs] --> B[Done]\n  click A href "https://example.com/docs"',
   },
   state: {
     family: 'state', riskFixture: 'state-pseudostates-demo.mmd', riskOptions: {},
+    outlines: { kind: 'automatic', roles: ['node', 'group', 'group-header'] },
     textStressSource: 'stateDiagram-v2\n  state "東京 café 👩‍💻" as A\n  state "שלום é" as B\n  A --> B : 長いラベル',
   },
   sequence: {
     family: 'sequence', riskFixture: 'sequence-config-demo.mmd', riskOptions: {},
-    textStressSource: 'sequenceDiagram\n  participant A as 東京 👩‍💻\n  participant B as שלום é\n  A->>B: مرحبا بالعالم',
+    outlines: { kind: 'automatic', roles: ['actor', 'activation', 'block', 'note'] },
+    textStressSource: 'sequenceDiagram\n  participant A as 東京 👩‍💻\n  participant B as שלום é\n  A->>B: مرحبا بالعالم\n  activate B\n  alt Accepted\n    B-->>A: 長いラベル\n  else Retry\n    Note right of B: café 👩‍💻\n    B-->>A: שלום\n  end\n  deactivate B',
     externalReferenceSource: 'sequenceDiagram\n  participant A as Alice\n  link A: profile @ https://example.com/alice\n  A->>A: inspect',
   },
   timeline: {
     family: 'timeline', riskFixture: 'timeline-vertical-demo.mmd', riskOptions: {},
+    outlines: { kind: 'automatic', roles: ['event', 'section', 'group-header'] },
     textStressSource: 'timeline\n  title 東京 café 👩‍💻\n  section שלום é\n    2026 : مرحبا بالعالم : 長いイベント',
   },
   class: {
     family: 'class', riskFixture: 'class-generics-demo.mmd', riskOptions: {},
+    outlines: { kind: 'automatic', roles: ['class-box', 'group-header', 'chrome', 'note'] },
     textStressSource: 'classDiagram\n  class Account {\n    +名前: string\n    +café()\n  }\n  note for Account "東京 👩‍💻 שלום é"',
     externalReferenceSource: 'classDiagram\n  class Docs\n  click Docs href "https://example.com/docs"',
   },
   er: {
     family: 'er', riskFixture: 'er-direction-demo.mmd', riskOptions: {},
+    outlines: { kind: 'automatic', roles: ['entity', 'group-header', 'chrome'] },
     textStressSource: 'erDiagram\n  CUSTOMER ||--o{ ORDER : "東京 café 👩‍💻"\n  CUSTOMER {\n    string name "שלום é مرحبا"\n  }',
   },
   journey: {
     family: 'journey', riskFixture: 'journey-section-overlap-demo.mmd', riskOptions: {},
+    outlines: { kind: 'automatic', roles: ['task'] },
     textStressSource: 'journey\n  title 東京 café 👩‍💻\n  section שלום é\n    مرحبا بالعالم: 4: 利用者',
   },
   architecture: {
     family: 'architecture', riskFixture: 'architecture-align-demo.mmd', riskOptions: {},
+    outlines: { kind: 'automatic', roles: ['service', 'group'] },
     textStressSource: 'architecture-beta\n  group g(cloud)["東京 café 👩‍💻"]\n  service a(server)["שלום é"] in g\n  service b(database)["مرحبا بالعالم"] in g\n  a:R --> L:b',
   },
   xychart: {
     family: 'xychart', riskFixture: 'xychart-legend-demo.mmd', riskOptions: {},
+    outlines: { kind: 'none', reason: 'Data-series bars and lines use series paints; axes and grids do not use the shared automatic node outline.' },
     textStressSource: 'xychart-beta\n  title "東京 café 👩‍💻"\n  x-axis [שלום, مرحبا, é]\n  y-axis 0 --> 10\n  bar [2, 5, 8]',
   },
   pie: {
     family: 'pie', riskFixture: 'pie-donut-labels-demo.mmd', riskOptions: {},
+    outlines: { kind: 'automatic', roles: ['legend'] },
     textStressSource: 'pie title 東京 café 👩‍💻\n  "שלום é" : 4\n  "مرحبا بالعالم" : 3\n  "長いラベル" : 2',
   },
   quadrant: {
     family: 'quadrant', riskFixture: 'quadrant-styling-demo.mmd', riskOptions: {},
+    outlines: { kind: 'automatic', roles: ['chrome'] },
     textStressSource: 'quadrantChart\n  title 東京 café 👩‍💻\n  x-axis שלום --> مرحبا\n  y-axis é --> 長い\n  نقطة: [0.3, 0.7]',
   },
   gantt: {
     family: 'gantt', riskFixture: 'gantt-dependency-overlay-demo.mmd',
+    outlines: { kind: 'none', reason: 'Tasks and milestones use status paints; their outlines and the grid do not use the shared automatic node outline.' },
     riskOptions: { gantt: { dependencyArrows: true, criticalPath: true } },
     textStressSource: 'gantt\n  title 東京 café 👩‍💻\n  dateFormat YYYY-MM-DD\n  section שלום é\n  مرحبا بالعالم :a, 2026-01-01, 2d\n  長いタスク :after a, 1d',
     externalReferenceSource: 'gantt\n  dateFormat YYYY-MM-DD\n  section Links\n  Docs :docs, 2026-01-01, 1d\n  click docs href "https://example.com/docs"',
   },
   mindmap: {
     family: 'mindmap', riskFixture: 'mindmap-demo.mmd', riskOptions: {},
+    outlines: { kind: 'none', reason: 'Root and branch outlines use categorical root and branch paints, not the shared automatic node outline.' },
     textStressSource: 'mindmap\n  root((東京 café 👩‍💻))\n    שלום é\n      مرحبا بالعالم\n    長いラベル',
   },
   gitgraph: {
     family: 'gitgraph', riskFixture: 'gitgraph-demo.mmd', riskOptions: {},
+    outlines: { kind: 'none', reason: 'Commit, branch, and rail marks use branch or status paints, not the shared automatic node outline.' },
     textStressSource: 'gitGraph\n  commit id:"base" msg:"東京 café 👩‍💻"\n  branch feature\n  commit id:"work" msg:"שלום é مرحبا"',
   },
   radar: {
     family: 'radar', riskFixture: 'radar-demo.mmd', riskOptions: {},
+    outlines: { kind: 'automatic', roles: ['legend'] },
     textStressSource: 'radar-beta\n  title 東京 café 👩‍💻\n  axis a["שלום é"], b["مرحبا"], c["長い"]\n  curve now["現在 👩‍💻"]{3,4,5}\n  max 5',
   },
   sankey: {
     family: 'sankey', riskFixture: 'sankey-flows-demo.mmd', riskOptions: {},
+    outlines: { kind: 'automatic', roles: ['bar'] },
     textStressSource: 'sankey-beta\n  東京 café 👩‍💻,שלום é,10\n  שלום é,مرحبا بالعالم,10',
   },
 }

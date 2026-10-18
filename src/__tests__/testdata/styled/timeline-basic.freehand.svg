@@ -1,7 +1,7 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="731.072" height="335.8" viewBox="0 0 731.072 335.8" style="--bg:#fbfaf7;--fg:#16161a;--line:#1d1d22;--accent:#1d1d22;--border:#1d1d22;--font:Architects Daughter;background:#fbfaf7" aria-labelledby="tl-lnfrja-title" role="img" class="am-1gdtqy61kgmdra">
+<svg xmlns="http://www.w3.org/2000/svg" width="731.072" height="335.8" viewBox="0 0 731.072 335.8" style="--bg:#fbfaf7;--fg:#16161a;--line:#1d1d22;--accent:#1d1d22;--border:#1d1d22;--font:Architects Daughter;background:#fbfaf7" aria-labelledby="tl-lnfrja-title" role="img" class="am-1wtsxb21me1rf4">
 <style>
-  svg.am-1gdtqy61kgmdra { font-family: var(--font, 'Architects Daughter'), system-ui, sans-serif; }
-  svg.am-1gdtqy61kgmdra {
+  svg.am-1wtsxb21me1rf4 { font-family: var(--font, 'Architects Daughter'), system-ui, sans-serif; }
+  svg.am-1wtsxb21me1rf4 {
     /* Derived from --bg and --fg (overridable via --line, --accent, etc.) */
     --_text:          #16161a;
     --_text-sec:      #48484b;
@@ -18,18 +18,18 @@
   }
 </style>
 <style>
-  .am-1gdtqy61kgmdra .timeline-title { fill: #16161a; }
-  .am-1gdtqy61kgmdra .timeline-rail { stroke: #1d1d22; stroke-width: 1.5; stroke-linecap: round; }
-  .am-1gdtqy61kgmdra .timeline-section-bg { fill: #f5f4f1; stroke: #1d1d22; stroke-width: 1; }
-  .am-1gdtqy61kgmdra .timeline-section-band { fill: #e9e8e6; stroke: #1d1d22; stroke-width: 1; }
-  .am-1gdtqy61kgmdra .timeline-section-label { fill: #48484b; }
-  .am-1gdtqy61kgmdra .timeline-stem { stroke: #1d1d22; stroke-width: 1.125; stroke-dasharray: 3 4; }
-  .am-1gdtqy61kgmdra .timeline-marker-ring { fill: #fbfaf7; stroke: #1d1d22; stroke-width: 1.5; }
-  .am-1gdtqy61kgmdra .timeline-marker-core { fill: #1d1d22; }
-  .am-1gdtqy61kgmdra .timeline-period-pill { fill: #ebebe8; stroke: #cfcecc; stroke-width: 1; }
-  .am-1gdtqy61kgmdra .timeline-period-text { fill: #16161a; }
-  .am-1gdtqy61kgmdra .timeline-event-card { fill: #f4f3f0; stroke: #1d1d22; stroke-width: 1; }
-  .am-1gdtqy61kgmdra .timeline-event-text { fill: #646465; }
+  .am-1wtsxb21me1rf4 .timeline-title { fill: #16161a; }
+  .am-1wtsxb21me1rf4 .timeline-rail { stroke: #1d1d22; stroke-width: 1.5; stroke-linecap: round; }
+  .am-1wtsxb21me1rf4 .timeline-section-bg { fill: #f5f4f1; stroke: #1d1d22; stroke-width: 1; }
+  .am-1wtsxb21me1rf4 .timeline-section-band { fill: #e9e8e6; stroke: #1d1d22; stroke-width: 1; }
+  .am-1wtsxb21me1rf4 .timeline-section-label { fill: #16161a; }
+  .am-1wtsxb21me1rf4 .timeline-stem { stroke: #1d1d22; stroke-width: 1.125; stroke-dasharray: 3 4; }
+  .am-1wtsxb21me1rf4 .timeline-marker-ring { fill: #fbfaf7; stroke: #1d1d22; stroke-width: 1.5; }
+  .am-1wtsxb21me1rf4 .timeline-marker-core { fill: #1d1d22; }
+  .am-1wtsxb21me1rf4 .timeline-period-pill { fill: #ebebe8; stroke: #cfcecc; stroke-width: 1; }
+  .am-1wtsxb21me1rf4 .timeline-period-text { fill: #16161a; }
+  .am-1wtsxb21me1rf4 .timeline-event-card { fill: #f4f3f0; stroke: #1d1d22; stroke-width: 1; }
+  .am-1wtsxb21me1rf4 .timeline-event-text { fill: #16161a; }
 </style>
 <rect width="731.072" height="335.8" fill="#fbfaf7" data-backdrop="page" />
 <title id="tl-lnfrja-title">History of Social Media</title>
