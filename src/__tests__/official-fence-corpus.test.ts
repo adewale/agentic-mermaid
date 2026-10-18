@@ -7,8 +7,6 @@
 // deviation and a fixed one ("unexpected pass") both fail with the fence ids.
 
 import { describe, expect, test } from 'bun:test'
-import { readFileSync } from 'node:fs'
-import { join } from 'node:path'
 import {
   isBuiltinFamilyId,
   MermaidFamilyDetectionError,
@@ -19,9 +17,7 @@ import {
 } from '../agent/index.ts'
 import { countStructuralElements, countsEqual } from '../agent/structural-count.ts'
 import { compareCodePointStrings } from '../shared/deterministic-order.ts'
-
-const ROOT = join(import.meta.dir, '..', '..')
-const UPSTREAM_DOCS = join(ROOT, 'skills', 'agentic-mermaid-diagram-workflow', 'references', 'upstream')
+import { extractOfficialCorpus, type OfficialFence } from '../../eval/shared/official-fences.ts'
 
 /** Outcomes that deviate from the default rule, named per observation. */
 const REGISTERED_DEVIATIONS = [
@@ -100,34 +96,6 @@ function parseExpectations(text: string): Map<string, Expectation> {
     expectations.set(match[1]!, { deviations: [...new Set(deviations as Deviation[])].sort(), reason: match[3]! })
   }
   return expectations
-}
-
-interface OfficialFence {
-  id: string
-  family: string
-  source: string
-}
-
-/** The reviewed family -> official syntax page mapping. */
-const officialPages = Object.entries((JSON.parse(readFileSync(join(ROOT, 'docs', 'project', 'upstream-mermaid-policy.json'), 'utf8')) as {
-  officialSyntaxPages: Record<string, string>
-}).officialSyntaxPages)
-
-/** Distinct Mermaid fences of a markdown page in first-occurrence order. */
-function extractMermaidFences(markdown: string): string[] {
-  const sources: string[] = []
-  for (const match of markdown.matchAll(/^```mermaid(?:-example)?[^\S\r\n]*\r?\n([\s\S]*?)\r?\n```[^\S\r\n]*$/gm)) {
-    const source = match[1]!.trim()
-    if (source && !sources.includes(source)) sources.push(source)
-  }
-  return sources
-}
-
-/** Every fence, named `<family>:official-syntax/<page>#<index>`. */
-function extractOfficialCorpus(): OfficialFence[] {
-  return officialPages.flatMap(([family, file]) =>
-    extractMermaidFences(readFileSync(join(UPSTREAM_DOCS, file), 'utf8'))
-      .map((source, index) => ({ id: `${family}:official-syntax/${file}#${index}`, family, source })))
 }
 
 function deviationsOf(fence: OfficialFence): Deviation[] {
