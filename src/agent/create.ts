@@ -1,3 +1,6 @@
+import { emptyC4Body } from '../c4/parser.ts'
+import type { C4Variant } from '../c4/types.ts'
+import type { C4MutationOp, C4ValidDiagram } from './types.ts'
 // ============================================================================
 // createMermaid / buildMermaid: blank-slate authoring through the typed
 // surface. Editing an existing diagram already goes parse → narrow → mutate;
@@ -61,6 +64,8 @@ import type {
 import { err, ok } from './types.ts'
 
 export interface CreateMermaidOptions {
+  /** Legacy C4 dialect for a new diagram (default C4Context). */
+  c4Variant?: C4Variant
   /** Layout direction for flowchart/state diagrams (default TD). Ignored elsewhere. */
   direction?: Direction
 }
@@ -121,6 +126,8 @@ function emptyBody(kind: DiagramKind, opts: CreateMermaidOptions): Exclude<Diagr
       return { kind: 'radar', axes: [], curves: [], min: 0, ticks: 5, graticule: 'circle', showLegend: true }
     case 'sankey':
       return { kind: 'sankey', links: [] }
+    case 'c4':
+      return emptyC4Body(opts.c4Variant)
   }
 }
 
@@ -139,6 +146,7 @@ export function createMermaid(kind: 'gantt', opts?: CreateMermaidOptions): Gantt
 export function createMermaid(kind: 'mindmap', opts?: CreateMermaidOptions): MindmapValidDiagram
 export function createMermaid(kind: 'gitgraph', opts?: CreateMermaidOptions): GitGraphValidDiagram
 export function createMermaid(kind: 'radar', opts?: CreateMermaidOptions): RadarValidDiagram
+export function createMermaid(kind: 'c4', opts?: CreateMermaidOptions): C4ValidDiagram
 export function createMermaid(kind: 'sankey', opts?: CreateMermaidOptions): SankeyValidDiagram
 export function createMermaid(kind: DiagramKind, opts?: CreateMermaidOptions): MutableValidDiagram
 export function createMermaid(kind: DiagramKind, opts: CreateMermaidOptions = {}): MutableValidDiagram {
@@ -172,6 +180,7 @@ export function buildMermaid(kind: 'gantt', ops: GanttMutationOp[], opts?: Creat
 export function buildMermaid(kind: 'mindmap', ops: MindmapMutationOp[], opts?: CreateMermaidOptions): Result<MindmapValidDiagram, BuildError>
 export function buildMermaid(kind: 'gitgraph', ops: GitGraphMutationOp[], opts?: CreateMermaidOptions): Result<GitGraphValidDiagram, BuildError>
 export function buildMermaid(kind: 'radar', ops: RadarMutationOp[], opts?: CreateMermaidOptions): Result<RadarValidDiagram, BuildError>
+export function buildMermaid(kind: 'c4', ops: C4MutationOp[], opts?: CreateMermaidOptions): Result<C4ValidDiagram, BuildError>
 export function buildMermaid(kind: 'sankey', ops: SankeyMutationOp[], opts?: CreateMermaidOptions): Result<SankeyValidDiagram, BuildError>
 export function buildMermaid(kind: DiagramKind, ops: AnyMutationOp[], opts?: CreateMermaidOptions): Result<MutableValidDiagram, BuildError>
 export function buildMermaid(kind: DiagramKind, ops: AnyMutationOp[], opts: CreateMermaidOptions = {}): Result<MutableValidDiagram, BuildError> {

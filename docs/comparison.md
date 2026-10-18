@@ -1,4 +1,72 @@
-# Mermaid, Beautiful Mermaid, and Agentic Mermaid
+# Mermaid renderers and Agentic Mermaid
+
+## Pele comparison — checked 18 October 2026
+
+[Pele](https://github.com/obsidianmd/pele) is an independently maintained,
+browserless SVG renderer. Its inspected main is
+[`458322a5b8abb1ae57ddf127c32017ab9fb14a92`](https://github.com/obsidianmd/pele/tree/458322a5b8abb1ae57ddf127c32017ab9fb14a92)
+(17 October 2026). Published **1.6.0**, released 17 October, has npm provenance
+pointing to `659c3593ce43794dce7ec7ab45d424ad2de182a5`; the intervening main
+changes do not change library code. Public source and installed-package APIs
+were exercised separately. The fetched documentation at <https://pele.run/api>
+describes that API; fetching documentation does not establish deployment bytes.
+
+Pele targets Mermaid **12.1.0**, whereas Agentic's writing contract remains
+**11.16.1**. Its source/package registry renders 33 family examples; Agentic's
+current source registers 17 native families including C4. Those are breadth
+observations, not construct-fidelity scores. Agentic npm and the live
+capabilities endpoint still report **0.4.1** at this check: native C4 in this
+branch is not available merely by installing that release.
+
+| Dimension | Pele 1.6.0 / inspected source | Agentic current source |
+| --- | --- | --- |
+| Primary workflow | Render SVG; browser `mount`, refresh, zoom and error display | Parse, edit, verify, serialize and render through library, CLI and MCP |
+| Syntax breadth | All 33 registered families, targeting Mermaid 12.1.0 | 17 native families; unsupported source preservation has an explicit disposition |
+| Output | SVG and dimensions; host can rasterize it separately | SVG, offline PNG, connected ASCII/Unicode, layout, facts, action metadata and receipts |
+| Model and edits | Public parsed models; render authority is associated with the original model, so a JSON-rehydrated model is rejected; no public mutation/serialization API found | Typed edits and serialization closure; unknown syntax stays verbatim and prevents unsafe edits |
+| C4 interactions | Measured repeated-pair witness overwrites the first interaction; explicit RelIndex 99 is displayed as an ordinal | Each occurrence, explicit index and source order remain distinct; Back/BiRel semantics survive both projections and edits |
+| C4 presentation | Explicit shape overrides, formatted labels and responsive reflow | Explicit bounded shape overrides, literal label policy, recursive boundaries, independently measured cell geometry and diagnosed projection losses |
+| Browser usability | Font-aware `mount`, ResizeObserver-driven width adaptation, zoom, CSS variables and host sanitizer callback | Lazy family loading, editor/export flows, composable looks and palettes; no equivalent public automatic mount/reflow API |
+| Accessibility | Default SVG document role and C4 description; authored accessibility directives | C4 root name/role, authored directives, structured semantic tree, facts and owned actions; no screen-reader usability study claimed |
+| Security | Escaping, filtered links/styles, bounded source/output; supplied icon SVG is trusted host content | Shared immutable Scene admission, final output security, safe paint/URL admission; safe actions remain inert metadata until host activation |
+| Extension model | Register/load supported detector families; registering an arbitrary new type does not add a detector | Public family/backend extension contracts with declared roles, primitives, capabilities and validation |
+| Runtime/package | Node >=20, no runtime dependencies; monolithic, core, lazy and per-family entries | Node >=22 or Bun >=1.4; native raster dependency for Node PNG; separate browser lazy entry and measured request graphs |
+| Resource bounds | Default 50,000-character source and 4,000,000-character SVG limits; bounded collision work and host-terminable workers for hard deadlines | Immutable Scene/data and final SVG byte bounds; existing execution sandbox, explicit terminal-width refusal and forward lexer progress; no standalone lexer cancellation API |
+| Licensing and reuse | MIT library with separately attributed Mermaid grammar/spec fixtures | MIT fork with inherited notices; this C4 work adds no dependency or copied Pele implementation |
+| Quality evidence | Mermaid parser specs, differential fuzzing and its own layout tests | Source/edit properties, upstream accepted syntax, Scene fidelity, emitted geometry, actual terminal ink, transports and packaged/browser contracts |
+
+The repeated-interaction observation was reproduced through both Pele source
+and its published package. For `Rel(a,b,"First")`, `Rel(a,b,"Second")`,
+`RelIndex(99,b,a,"Back")`, Pele emits two interactions and loses First and the
+displayed 99. Agentic emits three. This is a semantic usability difference,
+not a request for pixel parity. Conversely, Pele's four-system C4 fixture
+reflows from 1180px to 232px with `maxWidth:320`; deterministic Agentic geometry
+does not offer that browser width-adaptation contract.
+
+This review adopted explicit shape selection using existing Agentic motifs,
+fixed person/label collisions under zero padding and retained outlines in
+hatched styles. It also enriches C4's accessible semantic tree. It rejects
+pair deduplication, treating source order as an explicit dynamic index, inferring
+shape from arbitrary sprite/tag names, and silently claiming an unsupported
+shape effect. `rounded` and `component` shape overrides remain preserved and
+diagnosed instead of being collapsed into a box without warning.
+
+Pele's open [C4 spacing PR #2](https://github.com/obsidianmd/pele/pull/2),
+head `08b7d6772bee7f6591714ce18f6f16162f865577`, explicitly leaves compact
+width/high-font cases unresolved. Its [compound crossing PR #4](https://github.com/obsidianmd/pele/pull/4),
+head `57913413aa1f553650b03e2ddaa5100a142c94dd`, remains a proposal; its
+author's timing claims were not adopted as current measurements. Useful next
+work is opt-in browser mount/reflow and better compact/dense layouts, measured
+separately from preserving their meaning. Broader native families require their
+own parser, editing, output and metadata contracts; a smoke-render total cannot
+substitute for those boundaries.
+
+Shared Mermaid syntax and MIT-licensed grammar/spec fixtures establish language
+and test lineage. They do not establish Pele as a Beautiful/Agentic fork.
+Agentic and Zombie do descend from Beautiful; the related terminal projects and
+C4 proposals below supply behavioral examples with their own ancestry.
+
+The three-project comparison below retains its original dated evidence.
 
 Use this page to decide which of the three projects fits your task. The
 table maps the three primary projects; the related Zombie/C4 comparison below
@@ -60,7 +128,7 @@ than treating this dated page as a continuously verified scorecard.
 ## What each does that the others don't
 
 **Only Mermaid:** the full diagram-type catalogue, including families neither
-other project renders (requirement, C4, block, packet, kanban, treemap,
+other project renders (requirement, block, packet, kanban, treemap,
 ZenUML, and newer additions like venn, wardley, treeview, event modeling —
 see `am capabilities --json` for what Agentic Mermaid registers); native
 rendering inside GitHub, GitLab, Notion, Obsidian, and hundreds of tools;
@@ -96,11 +164,11 @@ Its published **5.7.1** tag points to
 [`3e688e4e`](https://github.com/dfadler/zombie-mermaid/tree/3e688e4e5e00ec9f92444af4757e0ec7c449e84b),
 which predates that main head; do not call every inspected main change released.
 
-At those source points Agentic has **16 native SVG/terminal families** and
+At those historical source points Agentic had **16 native SVG/terminal families** and
 Zombie has **nine when State is counted separately** (its registry groups
 Flowchart/State into one of eight type categories). These are family-level
 counts, not construct-fidelity scores. Agentic is broader, but **not a strict
-superset**: Zombie renders C4, while Agentic only preserves its source envelope.
+superset**: Zombie rendered C4, while that Agentic baseline only preserved its source envelope.
 The [Agentic descriptors](https://github.com/adewale/agentic-mermaid/blob/3ef2fb8beff21359fb6e3b798e025a3d69311539/src/agent/families.ts)
 and Zombie's [SVG](https://github.com/dfadler/zombie-mermaid/blob/9a4a667dec24cc37a5bc3eea8434ff8d6eb52400/packages/svg-renderer/src/registry.ts)
 and [terminal](https://github.com/dfadler/zombie-mermaid/blob/9a4a667dec24cc37a5bc3eea8434ff8d6eb52400/packages/ascii-renderer/src/registry.ts)
@@ -113,6 +181,12 @@ registries are the capability evidence; this page is not a second full roster.
 | [Zombie C4 SVG](https://github.com/dfadler/zombie-mermaid/blob/9a4a667dec24cc37a5bc3eea8434ff8d6eb52400/packages/svg-renderer/src/c4/renderer.ts) and [terminal renderer](https://github.com/dfadler/zombie-mermaid/blob/9a4a667dec24cc37a5bc3eea8434ff8d6eb52400/packages/ascii-renderer/src/c4-diagram.ts) | Native renderer | Dedicated boundary/element layout and routed relations | Not merely captured gallery SVG or a relationship list. Terminal orientation and unsupported constructs still have limits; native does not mean complete parity. |
 | [pgavlin terminal renderer](https://github.com/pgavlin/mermaid-ascii/blob/ab8074a98bef86a951c3443910363a8d1415135b/pkg/c4/renderer.go) | Not established by this text renderer | Stacked boxes plus textual relationship list | Useful text output, but not relationships routed between C4 elements. Do not equate it with Zombie's terminal geometry. |
 | Agentic source at the checked baseline | Unsupported family | Unsupported family | Recognized C4 headers/source envelopes can round-trip through the open preservation API; no native C4 layout or typed edits. [#387](https://github.com/adewale/agentic-mermaid/issues/387) is a proposal, not a shipped capability. |
+
+The current working source adds native C4, including all five legacy dialects,
+typed edits, nested boundaries, distinct repeated interactions and connected
+terminal output. The [C4 design](./design/families/c4.md) records current
+dispositions and refreshed peer pins. This is a source change, not evidence of
+an npm release or live deployment; the dated comparison above remains historical.
 
 Native C4 support must be established at its own parser, layout, output and
 editing boundaries. Recognizing a header, preserving source, drawing a screenshot

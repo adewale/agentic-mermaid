@@ -122,6 +122,41 @@ export function describeMermaidFacts(d: ParsedDiagram): string[] {
       add(out, `scale ${d.body.min}..${d.body.max ?? 'auto'} ticks ${d.body.ticks} graticule ${d.body.graticule}`)
       break
     }
+    case 'c4': {
+      const body = d.body
+      // Alias whitespace is identity, even when display whitespace is folded.
+      const identity = (value: string): string => /^[A-Za-z_][A-Za-z_0-9-]*$/.test(value) ? value : JSON.stringify(value)
+      add(out, `variant ${body.variant}`)
+      if (body.title !== undefined) add(out, `title ${clean(body.title)}`)
+      for (const boundary of body.boundaries) {
+        add(out, `boundary ${identity(boundary.id)} ${boundary.kind} : ${clean(boundary.label)}`)
+        if (boundary.parentId !== undefined) add(out, `boundary ${identity(boundary.id)} parent ${identity(boundary.parentId)}`)
+        if (boundary.type !== undefined) add(out, `boundary ${identity(boundary.id)} type ${clean(boundary.type)}`)
+        if (boundary.description !== undefined) add(out, `boundary ${identity(boundary.id)} description ${clean(boundary.description)}`)
+      }
+      for (const element of body.elements) {
+        add(out, `element ${identity(element.id)} ${element.kind} ${element.external ? 'external' : 'internal'} ${element.shape} : ${clean(element.label)}`)
+        if (element.parentId !== undefined) add(out, `element ${identity(element.id)} parent ${identity(element.parentId)}`)
+        if (element.technology !== undefined) add(out, `element ${identity(element.id)} technology ${clean(element.technology)}`)
+        if (element.description !== undefined) add(out, `element ${identity(element.id)} description ${clean(element.description)}`)
+      }
+      for (const relation of body.relationships) {
+        add(out, `interaction#${relation.order} ${identity(relation.id)} ${identity(relation.source)} ${relation.bidirectional ? '<->' : '->'} ${identity(relation.target)} : ${clean(relation.label)}`)
+        add(out, `interaction#${relation.order} macro ${relation.macro} authored ${identity(relation.from)} -> ${identity(relation.to)}`)
+        if (relation.index !== undefined) add(out, `interaction#${relation.order} index ${clean(relation.index)}`)
+        if (relation.technology !== undefined) add(out, `interaction#${relation.order} technology ${clean(relation.technology)}`)
+        if (relation.description !== undefined) add(out, `interaction#${relation.order} description ${clean(relation.description)}`)
+        if (relation.direction !== undefined) add(out, `interaction#${relation.order} direction ${relation.direction}`)
+      }
+      for (const record of [...body.elements, ...body.boundaries, ...body.relationships]) {
+        if (record.tags.length) add(out, `c4 ${identity(record.id)} tags ${record.tags.map(identity).join(',')}`)
+        if (record.link !== undefined) add(out, `c4 ${identity(record.id)} link ${JSON.stringify(record.link)}`)
+        if (record.effectiveLink !== undefined) add(out, `c4 ${identity(record.id)} effective link ${JSON.stringify(record.effectiveLink)}`)
+        if (record.sprite !== undefined) add(out, `c4 ${identity(record.id)} sprite ${JSON.stringify(record.sprite)}`)
+        for (const key of Object.keys(record.style).sort()) add(out, `c4 ${identity(record.id)} style ${key} ${JSON.stringify(record.style[key])}`)
+      }
+      break
+    }
     case 'sankey': {
       d.body.links.forEach((link, i) => add(out, `link#${i} ${clean(link.source)} -> ${clean(link.target)} : ${link.value}`))
       break

@@ -1,5 +1,5 @@
 // Grammar-based differential test for sequence diagrams against the pinned
-// upstream Mermaid (11.16.0), the companion of property-upstream-flowchart.
+// upstream Mermaid (11.16.1), the companion of property-upstream-flowchart.
 //
 //   (i)   upstream accepts every generated source — validates the generator;
 //   (ii)  parseRegisteredMermaid accepts it as a structured sequence diagram;

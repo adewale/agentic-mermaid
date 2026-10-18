@@ -15,7 +15,7 @@ artifacts, rather than to every rendering format or every possible layout.
 | SVG, PNG and graphical layout | Use their existing Scene and pixel adapters; terminal admission does not validate their geometry or semantic identities. |
 | Family placement and routing | Remain family-specific; composition checks admitted geometry but cannot make every requested arrangement feasible. |
 | String-only extension hooks | Keep text output support and report unavailable ownership instead of inventing geometry. |
-| Native C4 | Remains unsupported; reusable terminal primitives do not implement a family. |
+| Native C4 | C4-owned hierarchy and placement consume the shared card, frame, port, route and text primitives; see [C4](../design/families/c4.md). |
 
 The represented-content-or-explicit-diagnostic contract does not promise that
 every label or route can be placed. Compound membership and complete
@@ -256,7 +256,7 @@ The independent route-verification policy remains
 
 | Work | Next deliverable |
 | --- | --- |
-| [#387: native C4](https://github.com/adewale/agentic-mermaid/issues/387) | Family admission, lossless source/editing semantics, graphical layout and a native terminal projection through the existing registry. |
+| [#387: native C4](https://github.com/adewale/agentic-mermaid/issues/387) | Implemented in source through the existing registry; output-specific dispositions and evidence live in [C4](../design/families/c4.md). Publication is a separate release step. |
 | String-only extensions | Preserve explicit ownership-unavailable diagnostics; design an opt-in native artifact contract when a concrete extension consumer needs it. |
 
 The combined fixes for [#400](https://github.com/adewale/agentic-mermaid/issues/400),
@@ -277,12 +277,12 @@ labels, Gantt axis/cursor ownership and one XY quantizer for ticks, baseline,
 bars and lines. Tests inspect emitted cells, owners and physical bounds as
 well as ordinary public output and reviewed goldens.
 
-The same card, compartment, frame, port and route primitives can support a
-future native C4 family through the existing family registry. They also give
+The native C4 family uses the same card, compartment, frame, port and route
+primitives through the existing family registry. They also give
 terminal hit testing precise cells and let future accessibility or selection
 surfaces distinguish repeated text without new label-search heuristics.
-C4 admission, typed editing/serialization, and pixel layout still require
-their own implementation; this migration does not claim them.
+C4 admission, typed editing/serialization and pixel layout have their own
+family implementation; compositor guarantees alone do not prove those paths.
 
 Format-specific projections remain explicit. Pie uses a bar list, Sankey uses
 adjacency output, and Radar uses a numeric ruler/bar table. Authored graphical

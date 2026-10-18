@@ -47,6 +47,7 @@ import { BUILTIN_RENDER_HOOKS } from '../render-family-hooks.ts'
 import { UPSTREAM_MERMAID_FAMILY_INDEX } from '../upstream-family-index.ts'
 import { boundedUtf8ByteLength } from '../shared/utf8.ts'
 import { compareCodePointStrings } from '../shared/deterministic-order.ts'
+import { C4_CONFIG_KEYS } from '../c4/config.ts'
 import {
   detectsFlowchartFamily,
   detectsStateFamily,
@@ -746,6 +747,24 @@ gitGraph LR:
   Solar,Electricity,40
   Electricity,Homes,120
   Electricity,Industry,60` },
+  { id: 'c4', upstreamId: 'c4', maturity: 'experimental', label: 'C4', headers: ['C4Context', 'C4Container', 'C4Component', 'C4Dynamic', 'C4Deployment'], narrower: 'asC4', editorDiagramType: 'C4', editorLabel: 'C4 architecture', editorDescription: 'People, software systems, containers and components within nested architecture boundaries.', editorExampleId: 'c4-basic', editorGlyph: 'C4',
+    config: { section: 'c4', keys: [...C4_CONFIG_KEYS, 'useMaxWidth'], noopKeys: ['useMaxWidth'] },
+    semanticChannels: ['category', 'status'],
+    detect: (line: string) => /^c4(?:context|container|component|dynamic|deployment)(?:\s|$)/.test(line),
+    detectLoose: (line: string) => /^c4(?:context|container|component|dynamic|deployment)(?:\s|$)/.test(line),
+    sceneRoles: [nativeSceneRole('prelude', 'document'), nativeSceneRole('title', 'text'), nativeSceneRole('defs', 'document', 'marker'), nativeSceneRole('chrome', 'document', 'shape'), nativeSceneRole('group', 'container', 'shape'), nativeSceneRole('group-header', 'text', 'shape'), nativeSceneRole('edge', 'connector'), nativeSceneRole('edge-label', 'container'), nativeSceneRole('node', 'container', 'shape'), nativeSceneRole('label', 'text'), nativeSceneRole('legend', 'container', 'shape', 'text')],
+    example: 'C4Context\n  Person(user, "Customer")\n  System(api, "API", "Serves requests")\n  Rel(user, api, "Uses", "HTTPS")',
+    editorExample: `C4Container
+  title Internet banking
+  Person(customer, "Customer", "Checks balances and makes payments")
+  System_Boundary(bank, "Internet banking") {
+    Container(web, "Web application", "TypeScript", "Customer portal")
+    Container(api, "API", "Node.js", "Accounts and payments")
+    ContainerDb(db, "Accounts", "PostgreSQL", "Balances and transactions")
+  }
+  Rel(customer, web, "Uses", "HTTPS")
+  Rel(web, api, "Calls", "JSON/HTTPS")
+  Rel(api, db, "Reads and writes", "SQL")` },
 ] as const satisfies readonly BuiltinFamilyDescriptorSeed[]
 
 export type BuiltinFamilyId = typeof BUILTIN_FAMILY_DESCRIPTOR_SEEDS[number]['id']

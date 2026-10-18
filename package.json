@@ -82,6 +82,7 @@
     "git-graph",
     "radar-chart",
     "sankey-diagram",
+    "c4-diagram",
     "visualization",
     "theming",
     "styles",

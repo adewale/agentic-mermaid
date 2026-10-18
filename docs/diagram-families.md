@@ -231,6 +231,27 @@ sankey-beta
 
 Sankey diagrams accept the `sankey` or `sankey-beta` header followed by one `source,target,value` CSV row per link (an RFC 4180 subset: quoted fields may contain commas, `""` is a literal quote, and blank lines and `%%` comments are allowed). Nodes are implied by the labels, values are non-negative numbers, and self-loops or cycles are rejected. Malformed rows fall back to a lossless opaque body that verification reports (`UNSUPPORTED_SYNTAX`, `RENDER_FAILED`) rather than rendering a partial diagram. Verify also emits the `FLOW_IMBALANCE` lint when an intermediate node receives a different total than it emits. Sankey is structured when narrowed through `asSankey`; use `describeOps('sankey')` for the exact link and rename operation schema. See [`design/families/sankey.md`](./design/families/sankey.md) for layout, config, and terminal notes.
 
+## C4
+
+```mermaid
+C4Container
+  Person(customer, "Customer")
+  System_Boundary(shop, "Online shop") {
+    Container(api, "API", "TypeScript", "Accepts orders")
+    ContainerDb(db, "Orders", "PostgreSQL")
+  }
+  Rel(customer, api, "Places order", "HTTPS")
+  Rel(api, db, "Stores order", "SQL")
+```
+
+All five legacy headers (`C4Context`, `C4Container`, `C4Component`,
+`C4Dynamic`, `C4Deployment`) use the typed `C4Body`. Narrow with `asC4` and
+discover edits with `describeOps('c4')`. Elements, recursive boundaries,
+deployment nodes and individual repeated interactions retain source identity
+across graphical and terminal projections. Unknown statements are preserved,
+diagnosed and block partial rendering. See [C4 semantics and output
+dispositions](./design/families/c4.md) for editing, config and portability.
+
 ## Output formats
 
 All built-in renderable families use the same public output paths:
@@ -238,8 +259,8 @@ All built-in renderable families use the same public output paths:
 Terminal output uses the [shared terminal compositor](https://github.com/adewale/agentic-mermaid/blob/main/docs/project/terminal-composition.md)
 for owned cell geometry and encoding. SVG/PNG use their graphical pipeline.
 Shared entry points do not imply identical geometry, feature projections or
-layout feasibility. Native C4 remains unsupported; string-only extension output
-does not supply native terminal ownership.
+layout feasibility. C4 has native connected terminal geometry. String-only
+extension output does not supply native terminal ownership.
 
 ```ts
 import { renderMermaidSVG, renderMermaidPNG, renderMermaidASCII } from 'agentic-mermaid/agent'

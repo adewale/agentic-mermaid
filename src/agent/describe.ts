@@ -16,6 +16,9 @@ import { toMermaidLines } from '../mermaid-source.ts'
 import { describeMermaidFacts } from './facts.ts'
 import { extractLabelsGeneric, getFamily } from './families.ts'
 import { parseRegisteredMermaid } from './parse.ts'
+import { c4ElementText, c4BoundaryText, c4RelationshipText } from '../c4/projection.ts'
+import { effectiveC4Shape } from '../c4/config.ts'
+import type { C4Element, C4Boundary, C4Relationship, C4Shape } from '../c4/types.ts'
 import { sequenceMessageContexts, sequenceMessages } from './sequence-body.ts'
 import type { ClassValidDiagram, ErValidDiagram, FamilyId, FlowchartValidDiagram, ParsedDiagram, SequenceValidDiagram, TimelineValidDiagram, ValidDiagram } from './types.ts'
 
@@ -35,12 +38,21 @@ export interface DescribeOptions {
 /** Structured accessibility tree (#7349): the graph as a list of nodes + edges. */
 export interface DescribeTree {
   kind: string
-  nodes: Array<{ id: string; label: string }>
+  nodes: Array<{
+    id: string
+    label: string
+    c4?: ({ category: 'element'; effectiveShape: C4Shape } & Pick<C4Element, 'kind' | 'external' | 'shape' | 'parentId'>)
+      | ({ category: 'boundary' } & Pick<C4Boundary, 'kind' | 'parentId'>)
+  }>
   edges: Array<{
     from: string
     to: string
     label?: string
     sequence?: { fragmentIndex: number; branchIndex: number; fragmentKind: string; branchLabel?: string }
+    c4?: Pick<C4Relationship, 'id' | 'order' | 'index' | 'macro' | 'direction' | 'bidirectional' | 'reversed'> & {
+      authoredFrom: string
+      authoredTo: string
+    }
   }>
   entryPoints: string[]
   sinks: string[]
@@ -82,6 +94,7 @@ export function describeMermaid(d: ParsedDiagram, opts: DescribeOptions = {}): s
     const title = d.body.title ? `"${d.body.title}" ` : ''
     return `A radar chart ${title}comparing ${d.body.curves.length} curve(s)${curves ? ` (${curves})` : ''} across ${d.body.axes.length} axis/axes${axes ? ` (${axes})` : ''}.`
   }
+  if (d.body.kind === 'c4') return `A ${d.body.variant} architecture diagram${d.body.title ? ` \"${d.body.title}\"` : ''} with ${d.body.elements.length} element(s), ${d.body.boundaries.length} boundary/boundaries and ${d.body.relationships.length} interaction(s).`
   if (d.body.kind === 'sankey') {
     const nodes = new Set<string>()
     for (const link of d.body.links) {
@@ -215,6 +228,22 @@ export function describeMermaidTree(d: ParsedDiagram): DescribeTree {
     // Axes and curves are the nodes of a radar AX tree; charts have no edges.
     d.body.axes.forEach((a, i) => tree.nodes.push({ id: `axis-${i}`, label: a.label }))
     d.body.curves.forEach((c, i) => tree.nodes.push({ id: `curve-${i}`, label: c.label }))
+  } else if (d.body.kind === 'c4') {
+    for (const boundary of d.body.boundaries) tree.nodes.push({
+      id: boundary.id, label: c4BoundaryText(boundary),
+      c4: { category: 'boundary', kind: boundary.kind, ...(boundary.parentId === undefined ? {} : { parentId: boundary.parentId }) },
+    })
+    for (const element of d.body.elements) tree.nodes.push({
+      id: element.id, label: c4ElementText(element),
+      c4: { category: 'element', kind: element.kind, external: element.external, shape: element.shape, effectiveShape: effectiveC4Shape(element), ...(element.parentId === undefined ? {} : { parentId: element.parentId }) },
+    })
+    for (const relationship of d.body.relationships) {
+      const { id, order, index, macro, direction, bidirectional, reversed } = relationship
+      tree.edges.push({
+        from: relationship.source, to: relationship.target, label: c4RelationshipText(d.body, relationship),
+        c4: { id, order, macro, bidirectional, reversed, authoredFrom: relationship.from, authoredTo: relationship.to, ...(index === undefined ? {} : { index }), ...(direction === undefined ? {} : { direction }) },
+      })
+    }
   } else if (d.body.kind === 'sankey') {
     // Flow nodes are the AX nodes; each CSV row is a directed edge, so the
     // generic entry/sink pass below reports sources and terminal sinks.
@@ -246,6 +275,7 @@ export function describeMermaidTree(d: ParsedDiagram): DescribeTree {
   // Entry points (no incoming) and sinks (no outgoing) from the edge list.
   const incoming = new Set(tree.edges.map(e => e.to))
   const outgoing = new Set(tree.edges.map(e => e.from))
+  for (const edge of tree.edges) if (edge.c4?.bidirectional) { incoming.add(edge.from); outgoing.add(edge.to) }
   for (const n of tree.nodes) {
     if (!incoming.has(n.id) && outgoing.has(n.id)) tree.entryPoints.push(n.id)
     if (!outgoing.has(n.id) && incoming.has(n.id)) tree.sinks.push(n.id)

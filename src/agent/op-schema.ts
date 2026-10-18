@@ -31,7 +31,7 @@ export type OpFamily = MutableFamilyId
 
 /** Primitive kinds a field may hold. `enum` carries an explicit value list;
  *  `nullable` lets an enum/primitive also accept `null` (e.g. set_task_status). */
-type FieldType = { type: 'string' } | { type: 'number' } | { type: 'boolean' } | { type: 'number-or-null' } | { type: 'boolean-or-null' } | { type: 'string-or-null' } | { type: 'enum'; values: readonly string[]; nullable?: boolean } | { type: 'string-array' } | { type: 'number-array' } | { type: 'object-or-null' } // a nested record (deep shape validated by the mutator)
+type FieldType = { type: 'string' } | { type: 'number' } | { type: 'boolean' } | { type: 'number-or-null' } | { type: 'boolean-or-null' } | { type: 'string-or-null' } | { type: 'enum'; values: readonly string[]; nullable?: boolean } | { type: 'string-array' } | { type: 'number-array' } | { type: 'object-or-null' } | { type: 'object-array' } // a nested record (deep shape validated by the mutator)
 
 /** A field type plus its required flag. Intersection (not `extends`) because
  *  FieldType is a union — an interface cannot extend a union. */
@@ -81,6 +81,7 @@ const strOrNull = (required = true): FieldSpec => ({ type: 'string-or-null', req
 const strArr = (required = true): FieldSpec => ({ type: 'string-array', required })
 const numArr = (required = true): FieldSpec => ({ type: 'number-array', required })
 const objOrNull = (required = true): FieldSpec => ({ type: 'object-or-null', required })
+const objArr = (required = true): FieldSpec => ({ type: 'object-array', required })
 const oneOf = (values: readonly string[], required = true, nullable = false): FieldSpec => ({ type: 'enum', values, nullable, required })
 /** Attach a discovery note (mutator-enforced constraint or omit-default) to a
  *  field spec without changing its shape validation. */
@@ -361,6 +362,27 @@ const SANKEY_SCHEMA: Record<string, OpSpec> = {
   rename_node: { fields: { from: str(), to: withNote(str(), 'rejects an existing label — renaming must not merge nodes') } },
 }
 
+const C4_SCHEMA: Record<string, OpSpec> = {
+  add_element: { fields: { element: withNote(objOrNull(), 'required record: id, label; optional macro, kind (person/system/container/component), shape (person/rectangle/database/queue), external, technology, description, parentId, tags, link, sprite; null is refused') } },
+  update_element: { fields: { id: str(), changes: withNote(objOrNull(), 'element fields to change; use rename_element/reparent_element for identity or containment') } },
+  rename_element: { fields: { from: str(), to: str() } },
+  reparent_element: { fields: { id: str(), parentId: strOrNull() } },
+  remove_element: { fields: { id: str(), cascade: withNote(bool(false), 'default false: refuse referenced elements; true also removes referencing relationships') } },
+  add_boundary: { fields: { boundary: withNote(objOrNull(), 'required record: id, label; optional macro, kind (boundary/enterprise/system/container/deployment), type, description, parentId, tags, link, sprite; null is refused') } },
+  update_boundary: { fields: { id: str(), changes: objOrNull() } },
+  rename_boundary: { fields: { from: str(), to: str() } },
+  reparent_boundary: { fields: { id: str(), parentId: strOrNull() } },
+  remove_boundary: { fields: { id: str(), cascade: withNote(bool(false), 'default false: refuse nonempty/referenced boundaries; true removes subtree and referencing relationships') } },
+  add_relationship: { fields: { relationship: withNote(objOrNull(), 'required record: from, to, label; optional macro (Rel/BiRel/Rel_Back/Rel_U/Rel_D/Rel_L/Rel_R/RelIndex), technology, description, index, tags, link, sprite; parallel relationships remain distinct') } },
+  update_relationship: { fields: { id: str(), changes: withNote(objOrNull(), 'relationship fields to change, addressed by the unique interaction id, not an endpoint pair') } },
+  remove_relationship: { fields: { id: str() } },
+  set_title: { fields: { title: strOrNull() } },
+  set_variant: { fields: { variant: oneOf(['C4Context', 'C4Container', 'C4Component', 'C4Dynamic', 'C4Deployment']) } },
+  add_directive: { fields: { name: withNote(str(), 'portable Mermaid UpdateElementStyle, UpdateRelStyle or UpdateLayoutConfig'), args: withNote(objArr(), 'ordered records {value:string,name?:string}; named arguments omit the $ prefix') } },
+  update_directive: { fields: { id: str(), args: objArr() } },
+  remove_directive: { fields: { id: str() } },
+}
+
 const SCHEMAS: Record<OpFamily, Record<string, OpSpec>> = {
   flowchart: FLOWCHART_SCHEMA,
   state: STATE_SCHEMA,
@@ -378,6 +400,7 @@ const SCHEMAS: Record<OpFamily, Record<string, OpSpec>> = {
   gitgraph: GITGRAPH_SCHEMA,
   radar: RADAR_SCHEMA,
   sankey: SANKEY_SCHEMA,
+  c4: C4_SCHEMA,
 }
 
 /** True when `family` has a shape schema (i.e. is a mutable structured family).
@@ -452,6 +475,8 @@ function typeName(f: FieldType): string {
       return 'string[]'
     case 'number-array':
       return 'number[]'
+    case 'object-array':
+      return 'object[]'
     case 'object-or-null':
       return 'object | null'
     case 'enum':
@@ -477,6 +502,8 @@ function matchesType(spec: FieldType, value: unknown): boolean {
       return Array.isArray(value) && value.every(v => typeof v === 'string')
     case 'number-array':
       return Array.isArray(value) && value.every(v => typeof v === 'number' && Number.isFinite(v))
+    case 'object-array':
+      return Array.isArray(value) && value.every(item => item !== null && typeof item === 'object' && !Array.isArray(item))
     case 'object-or-null':
       return value === null || (typeof value === 'object' && !Array.isArray(value))
     case 'enum':

@@ -1,8 +1,8 @@
 {
   "schemaVersion": 2,
   "pin": {
-    "version": "11.16.0",
-    "commit": "f3dea58385fd5c7dd1f4e9c9c1876751ae6943cc",
+    "version": "11.16.1",
+    "commit": "7ecca0cd7f1658ef74f4e7e91f925724ef403bbf",
     "inputs": [
       "packages/mermaid/src/diagram-api/diagram-orchestration.ts",
       "packages/mermaid/src/diagram-api/detectType.ts",
@@ -261,23 +261,23 @@
       "headers": [
         {
           "value": "C4Context",
-          "agenticStatus": "inventory-only"
+          "agenticStatus": "native"
         },
         {
           "value": "C4Container",
-          "agenticStatus": "inventory-only"
+          "agenticStatus": "native"
         },
         {
           "value": "C4Component",
-          "agenticStatus": "inventory-only"
+          "agenticStatus": "native"
         },
         {
           "value": "C4Dynamic",
-          "agenticStatus": "inventory-only"
+          "agenticStatus": "native"
         },
         {
           "value": "C4Deployment",
-          "agenticStatus": "inventory-only"
+          "agenticStatus": "native"
         }
       ]
     },
