@@ -19,7 +19,10 @@ export interface SvgStartTagToken {
 }
 
 function isNameChar(char: string | undefined): boolean {
-  return char !== undefined && /[A-Za-z0-9_.:-]/.test(char)
+  if (char === undefined) return false
+  const code = char.charCodeAt(0)
+  return (code >= 65 && code <= 90) || (code >= 97 && code <= 122)
+    || (code >= 48 && code <= 57) || code === 95 || code === 46 || code === 58 || code === 45
 }
 
 function scanTagEnd(source: string, start: number): number {

@@ -76,11 +76,16 @@ function isXmlWhitespace(char: string | undefined): boolean {
 }
 
 function isXmlNameStart(char: string | undefined): boolean {
-  return char !== undefined && /[A-Za-z_]/.test(char)
+  if (char === undefined) return false
+  const code = char.charCodeAt(0)
+  return (code >= 65 && code <= 90) || (code >= 97 && code <= 122) || code === 95
 }
 
 function isXmlNameChar(char: string | undefined): boolean {
-  return char !== undefined && /[A-Za-z0-9_.:-]/.test(char)
+  if (char === undefined) return false
+  const code = char.charCodeAt(0)
+  return (code >= 65 && code <= 90) || (code >= 97 && code <= 122)
+    || (code >= 48 && code <= 57) || code === 95 || code === 46 || code === 58 || code === 45
 }
 
 function readXmlName(source: string, start: number): { name: string; end: number } | undefined {
@@ -307,6 +312,7 @@ export function verifySvgDocumentEnvelope(svg: string): boolean {
 /** XML parsers resolve character references before interpreting attributes.
  * Inspect that same value, including one layer of HTML double-encoding. */
 function decodeXmlReferences(input: string): string {
+  if (!input.includes('&')) return input
   let value = input
   for (let pass = 0; pass < 3; pass++) {
     const decoded = value
