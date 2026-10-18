@@ -5,6 +5,7 @@ import { mkdtempSync, mkdirSync, readFileSync, rmSync, symlinkSync, writeFileSyn
 import { tmpdir } from 'node:os'
 import { join, resolve } from 'node:path'
 import type { RenderOptions } from '../../src/types.ts'
+import type { ClassMutationOp } from '../../src/agent/types.ts'
 import { getFamily, knownBuiltinFamilies } from '../../src/agent/families.ts'
 import { denseDag } from '../../eval/degenerate-etn/generators.ts'
 import { contactSheetScenarios } from '../../eval/visual-rubric/scenarios.ts'
@@ -16,7 +17,7 @@ if (!base || !head || !destination || ![base, head].every(sha => /^[a-f0-9]{40}$
 }
 const out = resolve(destination)
 mkdirSync(out, { recursive: true })
-interface Fixture { id: string; title: string; source: string; cue: string; renderOptions?: RenderOptions; captureLayout?: true }
+interface Fixture { id: string; title: string; source: string; cue: string; renderOptions?: RenderOptions; captureLayout?: true; classMutation?: ClassMutationOp }
 const sequenceSpanSource = 'sequenceDiagram\nparticipant A\nparticipant B\nparticipant C\nA->>C: Label across B\nactivate B\nA->>C: Begin work\nA->>C: Label across active B\ndeactivate B'
 const sankeyIdentitySource = '---\ntitle: Caption\n---\nsankey-beta\nA,B,1\nA,B,2\nA,B#1,3\nlink:A->B#1,X,4\ntitle,title#1,5'
 const parallelReciprocalSource = 'flowchart LR\nA[Client] -->|request 0| B[Server]\nA -->|request 1| B\nB -->|reply| A'
@@ -30,6 +31,7 @@ const trackedRoles: RenderOptions = { style: { roles: {
 } } }
 const literalLabel = '<b>This is a very long label that describes the work in detail</b>'
 const fixtures: Fixture[] = [
+  { id: 'class-inheritance-after-member-edit', title: 'Class inheritance survives an unrelated member edit (#406)', source: 'classDiagram\nPerson --|> Animal', classMutation: { kind: 'add_member', class: 'Person', text: '+name: String' }, cue: 'Both revisions add the same member to Person. Before, canonical serialization reverses the inheritance triangle toward Person; after, it remains at Animal. Inspect the triangle and exported source, not the unchanged node labels. This witness covers one inheritance relation; the owning tests exercise the other marker kinds.' },
   { id: 'sankey-whitespace-identities', title: 'Sankey authored whitespace identities', source: whitespaceIdentitySource, captureLayout: true, cue: 'The identity oracle is the decoded XML DOM and graphical/terminal sidecars: TAB, LF, CR and quoted empty rows must remain distinct from spaces, including repeated links and generated-looking names. Display controls stay inert. Pixels alone do not prove identity preservation.' },
   { id: 'pie-five-line-title', title: 'Pie authored multiline title (#381)', source: withTitle('pie\n "n0" : 1\n "n1" : 2'), cue: 'All five title lines stay on the canvas and clear the pie and legend. This is the original multiline-title failure family.' },
   { id: 'sankey-five-line-title', title: 'Sankey authored multiline title (#381)', source: withTitle('sankey-beta\n n0,nsink,1'), cue: 'The complete centered title owns a band above the flows, without clipping its first lines or overlapping node labels.' },
@@ -137,7 +139,7 @@ const terminalFixtures = [
   { id: 'terminal-compound-parallel-reciprocal', source: 'flowchart TD\nsubgraph Outer["外側 👩‍💻<br>é header"]\nsubgraph Inner["内側<br>second"]\nA["日本<br>👩‍💻 é"]\nB[End]\nend\nX[Outside]\nend\nA -->|界 👩‍💻 = é| X\nX -->|back| B\nA -->|again| X\nX -->|return| A\nB -->|self| B', cue: 'Combined witness: Inner contains A/B and excludes X; all five parallel, reciprocal and self relationships retain their complete labels and physical endpoints. Inspect multiline CJK/ZWJ/combining text together with actual owned paths. Sidecars preserve baseline refusals honestly; the independent test also checks a hard 200-column width.' },
   { id: 'terminal-sankey-public-identities', source: sankeyIdentitySource, cue: 'Compare terminal edge identities/endpoints with the graphical Sankey layout sidecars. Authored names resembling generated IDs stay distinct; the existing complete adjacency text is a compatibility control.' },
 ]
-interface Evidence { svg?: string; png?: string; layout?: unknown; error?: string }
+interface Evidence { svg?: string; png?: string; layout?: unknown; source?: string; error?: string }
 interface TerminalEvidence { ascii?: string; html?: string; meta?: unknown; error?: string }
 interface RevisionEvidence { renders: Record<string, Evidence>; terminals: Record<string, TerminalEvidence>; classExport: string }
 
@@ -157,10 +159,21 @@ function renderRevision(sha: string): RevisionEvidence {
       const terminals = {}
       for (const fixture of fixtures) {
         try {
+          let input = fixture.source
+          if (fixture.classMutation) {
+            const parsed = parseRegisteredMermaid(fixture.source)
+            if (!parsed.ok) throw new Error('Class edit witness did not parse')
+            const diagram = asClass(parsed.value)
+            if (!diagram) throw new Error('Class edit witness was not editable')
+            const edited = mutate(diagram, fixture.classMutation)
+            if (!edited.ok) throw new Error(edited.error.message)
+            input = serializeMermaid(edited.value)
+          }
           renders[fixture.id] = {
-            svg: renderMermaidSVG(fixture.source, fixtureOptions[fixture.id].svg),
-            png: Buffer.from(renderMermaidPNG(fixture.source, fixtureOptions[fixture.id].png)).toString('base64'),
-            ...(fixture.captureLayout ? { layout: layoutMermaidWithReceipt(fixture.source, { ...fixtureOptions[fixture.id].svg, regions: true }).layout } : {}),
+            svg: renderMermaidSVG(input, fixtureOptions[fixture.id].svg),
+            png: Buffer.from(renderMermaidPNG(input, fixtureOptions[fixture.id].png)).toString('base64'),
+            ...(fixture.classMutation ? { source: input } : {}),
+            ...(fixture.captureLayout ? { layout: layoutMermaidWithReceipt(input, { ...fixtureOptions[fixture.id].svg, regions: true }).layout } : {}),
           }
         } catch (error) { renders[fixture.id] = { error: String(error) } }
       }
@@ -199,13 +212,16 @@ const rows = fixtures.map(fixture => {
       writeFileSync(join(out, `${fixture.id}-${phase}.png`), Buffer.from(result.png, 'base64'))
     }
     if (result.layout) writeFileSync(join(out, `${fixture.id}-${phase}-layout.json`), JSON.stringify(result.layout, null, 2))
+    if (result.source) writeFileSync(join(out, `${fixture.id}-${phase}-export.mmd`), result.source)
     const semanticSidecar = result.layout ? `<p><a href="${fixture.id}-${phase}-layout.json">${phase} public layout identities and regions</a></p>` : ''
+    const exportedSource = result.source ? `<p><a href="${fixture.id}-${phase}-export.mmd">${phase} exported Class source</a></p><pre>${esc(result.source)}</pre>` : ''
     return `<figure${fixture.renderOptions?.transparent ? ' class="transparent"' : ''}><figcaption>${phase}</figcaption>${result.png
       ? `<img alt="${phase}: ${esc(fixture.title)}" src="data:image/png;base64,${result.png}">`
-      : `<pre>${esc(result.error ?? 'No render')}</pre>`}${semanticSidecar}</figure>`
+      : `<pre>${esc(result.error ?? 'No render')}</pre>`}${semanticSidecar}${exportedSource}</figure>`
   }).join('')
   const optionsCaption = fixture.renderOptions ? `<p>Render options at both revisions: <code>${esc(JSON.stringify(fixture.renderOptions))}</code>.</p>` : ''
-  return `<section><h2>${fixture.title}</h2><p>${fixture.cue}</p>${optionsCaption}<div class="pair">${panels}</div></section>`
+  const mutationCaption = fixture.classMutation ? `<p>Class edit at both revisions: <code>${esc(JSON.stringify(fixture.classMutation))}</code>.</p>` : ''
+  return `<section><h2>${fixture.title}</h2><p>${fixture.cue}</p>${optionsCaption}${mutationCaption}<div class="pair">${panels}</div></section>`
 }).join('')
 const terminalRows = terminalFixtures.map(fixture => {
   writeFileSync(join(out, `${fixture.id}.mmd`), `${fixture.source}\n`)
