@@ -462,15 +462,15 @@ function verifyStructure(parsed: ParsedDiagram, opts: VerifyOptions, positioned:
   // so the loss is announced rather than silent.
   const metaWarnings: LayoutWarning[] = parsed.meta.droppedComments?.length ? [{ code: 'COMMENT_DROPPED', count: parsed.meta.droppedComments.length, lines: parsed.meta.droppedComments.map(c => c.line) }] : []
   const dispatchedWarnings = dispatchFamilyVerify(parsed, opts)
+  const configWarnings = configWarningsForDiagram(parsed)
   if (parsed.body.kind === 'extension') {
-    return verifyExtension(parsed as ExtensionValidDiagram, cap, opts, dedupedConcat(metaWarnings, dispatchedWarnings), positioned)
+    return verifyExtension(parsed as ExtensionValidDiagram, cap, opts, dedupedConcat(dedupedConcat(metaWarnings, dispatchedWarnings), configWarnings), positioned)
   }
 
   const d = parsed as ValidDiagram
   const familySourceWarnings = d.kind === 'flowchart' ? dedupedConcat(flowchartUnsupportedSyntaxWarnings(d.canonicalSource), flowchartShapeSubstitutionWarnings(d)) : d.kind === 'quadrant' ? quadrantInertStyleWarnings(d) : d.kind === 'journey' ? journeySemicolonExtensionWarnings(d) : []
   const sourceWarnings = dedupedConcat(familySourceWarnings, upstreamRejectedSyntaxWarnings(d))
   const faithfulnessWarnings = roundtripFaithfulnessWarnings(d)
-  const configWarnings = configWarningsForDiagram(d)
   const bareHeader = hasOnlyHeader(d)
   let pluginWarnings = dedupedConcat(dedupedConcat(dedupedConcat(dedupedConcat(dedupedConcat(metaWarnings, dispatchedWarnings), sourceWarnings), faithfulnessWarnings), configWarnings), bareHeader ? [{ code: 'EMPTY_DIAGRAM' }] : [])
   // Mermaid treats universal accessibility metadata as renderable document

@@ -6,6 +6,7 @@ import {
   getFamily,
   getFamilyConformanceReport,
   registerFamily,
+  verifyMermaid,
   type ExternalFamilyId,
   type FamilyDescriptor,
 } from '../agent/index.ts'
@@ -149,7 +150,9 @@ describe('external family executable registration conformance', () => {
     const expected = [warnings[1]!, warnings[0]!]
     const config = { section: 'custom', keys: ['limit', 'z'] }
     let reads = 0
+    let calls = 0
     const hook: NonNullable<FamilyDescriptor['configDiagnostics']> = ({ root, config: captured }) => {
+      calls++
       expect(captured.keys).toEqual(['limit', 'z'])
       return root && typeof root === 'object' && 'custom' in root ? warnings : []
     }
@@ -166,6 +169,9 @@ describe('external family executable registration conformance', () => {
       const source = `---\nconfig:\n  custom:\n    limit: -1\n    z: true\n---\n%%{init: ${JSON.stringify(root)}}%%\n${base.example}`
       expect(configWarningsForMermaid(source)).toEqual(expected)
       expect(explicitFamilyConfigDiagnostics(base.id, root)).toEqual(expected)
+      const callsBeforeVerify = calls
+      expect(verifyMermaid(source).warnings).toEqual(expected)
+      expect(calls - callsBeforeVerify).toBe(2)
       const diagnostics: ConfigDiagnostic[] = []
       renderMermaidSVG(base.example, {
         mermaidConfig: root, onConfigDiagnostic: item => diagnostics.push(item),
@@ -183,7 +189,9 @@ describe('external family executable registration conformance', () => {
     const unregister = registerFamily({ ...base, config: { section: 'custom', keys: ['legacy'], noopKeys: ['legacy'] } })
     try {
       const root = { custom: { legacy: true, unknown: true } }
-      expect(configWarningsForMermaid(`%%{init: ${JSON.stringify(root)}}%%\n${base.example}`)).toEqual([])
+      const source = `%%{init: ${JSON.stringify(root)}}%%\n${base.example}`
+      expect(configWarningsForMermaid(source)).toEqual([])
+      expect(verifyMermaid(source).warnings).toEqual([])
       expect(explicitFamilyConfigDiagnostics(base.id, root)).toEqual([
         { code: 'INEFFECTIVE_CONFIG', field: 'custom.legacy', message: `${base.id} config field "legacy" is accepted for compatibility but has no effect on this renderer.` },
         { code: 'INEFFECTIVE_CONFIG', field: 'custom.unknown', message: `${base.id} config field "unknown" is unknown and has no effect; check the spelling or remove it.` },
