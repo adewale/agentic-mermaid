@@ -1011,6 +1011,8 @@ describe('duplicate parallel edges (fast-check counterexample, pinned)', () => {
 
 describe('straightened certificate finality (fast-check counterexample, pinned)', () => {
   it('does not expose straightened on a final detour', () => {
+    // Exercise the default candidate's late detour. Preference exploration
+    // can select a different candidate with a valid straight route instead.
     const positioned = layoutGraphSync(parseMermaid(`flowchart BT
   N1 -- No --> N4
   N4 -- yes --> N1
@@ -1020,7 +1022,7 @@ describe('straightened certificate finality (fast-check counterexample, pinned)'
   N4 --> N2
   N2 -- yes --> N0
   N1 -- No --> N2
-  N3 -- on error --> N0`))
+  N3 -- on error --> N0`), { compareRoutePreferences: false })
     const e = positioned.edges.find(e => e.source === 'N0' && e.target === 'N2' && e.label === undefined)!
     expect(e.points.length).toBeGreaterThan(2)
     expect(e.routeCertificate?.invariant).toBe('explained-detour')

@@ -13,7 +13,7 @@ describe('final route-contract closer invariants (issue #88)', () => {
     const edge = positioned.edges.find(item => item.source === 'N1' && item.target === 'N4')!
 
     // Shared channels and settled label pills can block the old straight
-    // candidate. The independent hitch proof must agree with the final route,
+    // candidate. The final hitch proof must agree with the final route,
     // and invoking that proof again must preserve every byte.
     expect(hardViolations(assessLayout(graph, positioned))).toEqual([])
     expect(findRouteHitches(positioned, graph)).toEqual([])
