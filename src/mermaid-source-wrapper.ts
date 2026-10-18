@@ -34,11 +34,27 @@ export function matchMermaidFrontmatter(text: string): { source: string; yaml: s
     // Capture the sequence prefix and optional mapping key, then skip any
     // tags/anchors. Keeping the prefix width preserves a sequence key's column.
     const prefix = /^((?:-[ \t]+)*)(?:("(?:[^"\\]|\\.)*"|'(?:[^']|'')*'|[^"':](?:[^:]|:(?![ \t]))*):[ \t]+)?(?:[!&][^ \t]+[ \t]+)*/.exec(trimmed)!
-    // Reuse the complete-value recognizer for continuations by restoring
-    // their opening quote. Escapes and doubled apostrophes stay inside it.
+    // Restore a continuation's opening quote. Flow collections can contain
+    // quoted nodes too; quotes embedded in plain scalars are ordinary text.
     const value = quote ? quote + trimmed : trimmed.slice(prefix[0].length)
-    if (/^["']/.test(value)) {
-      quote = /^(?:"(?:[^"\\]|\\.)*"|'(?:[^']|'')*'(?!'))/.test(value) ? '' : value[0]!
+    if (/^["'[{]/.test(value)) {
+      quote = ''
+      let nodeStart = true, previous = ''
+      for (let index = 0; index < value.length; index++) {
+        const char = value[index]!
+        if (quote) {
+          if (quote === '"' && char === '\\') index++
+          else if (char === quote) {
+            if (quote === "'" && value[index + 1] === "'") index++
+            else { quote = ''; previous = char }
+          }
+        } else if (char === '#' && (index === 0 || /[ \t,]/.test(value[index - 1]!))) break
+        else if ((char === '"' || char === "'") && nodeStart) { quote = char; nodeStart = false }
+        else if (!/[ \t]/.test(char)) {
+          nodeStart = '[{,'.includes(char) || char === ':' && (previous === '"' || previous === "'" || /[ \t]/.test(value[index + 1] ?? ''))
+          previous = char
+        }
+      }
       continue
     }
     if (/^[|>](?:[+-][1-9]?|[1-9][+-]?)?(?:[ \t]+#.*)?$/.test(value)) {
