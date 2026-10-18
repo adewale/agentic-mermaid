@@ -18,6 +18,7 @@ import * as agentTypes from '../agent/types.ts'
 
 /** A label-carrying edit each family accepts; `text` is the label under test. */
 const LABEL_EDIT_BY_FAMILY: Record<DiagramKind, (text: string) => Record<string, unknown>> = {
+  c4: text => ({ kind: 'add_element', element: { id: 'Zebra', label: text, kind: 'system' } }),
   flowchart: text => ({ kind: 'add_node', id: 'Zebra', label: text }),
   state: text => ({ kind: 'add_state', id: 'Zebra', label: text }),
   sequence: text => ({ kind: 'add_message', from: 'U', to: 'S', text }),

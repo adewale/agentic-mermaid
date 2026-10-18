@@ -224,6 +224,7 @@ type MermaidRuntimeConfig = {
   mindmap?: { [key: string]: MermaidConfigValue | undefined; padding?: number; maxNodeWidth?: number }
   gitGraph?: { [key: string]: MermaidConfigValue | undefined; showBranches?: boolean; showCommitLabel?: boolean; mainBranchName?: string; mainBranchOrder?: number; parallelCommits?: boolean; rotateCommitLabel?: boolean }
   radar?: { [key: string]: MermaidConfigValue | undefined; width?: number; height?: number; marginTop?: number; marginRight?: number; marginBottom?: number; marginLeft?: number; axisScaleFactor?: number; axisLabelFactor?: number; curveTension?: number; useMaxWidth?: boolean; tickLabels?: boolean }
+  c4?: { [key: string]: MermaidConfigValue | undefined; diagramMarginX?: number; diagramMarginY?: number; c4ShapeMargin?: number; c4ShapePadding?: number; width?: number; height?: number; c4ShapeInRow?: number; c4BoundaryInRow?: number; useMaxWidth?: boolean }
   sankey?: { [key: string]: MermaidConfigValue | undefined; width?: number; height?: number; linkColor?: string; nodeAlignment?: 'justify' | 'center' | 'left' | 'right'; showValues?: boolean; prefix?: string; suffix?: string; labelStyle?: 'legacy' | 'outlined'; nodeWidth?: number; nodePadding?: number; nodeColors?: Record<string, string>; useMaxWidth?: boolean }
   // Wired sequence keys (unlisted documented keys are accepted and named by
   // verify's INEFFECTIVE_CONFIG lint — see src/sequence/config.ts).
@@ -482,6 +483,40 @@ interface RadarBody { kind: 'radar'; title?: string; axes: RadarBodyAxis[]; curv
 // the labels (the label IS the node identity); parallel duplicate rows are legal.
 interface SankeyBodyLink { source: string; target: string; value: number }
 interface SankeyBody { kind: 'sankey'; links: SankeyBodyLink[] }
+
+type C4Variant = 'C4Context' | 'C4Container' | 'C4Component' | 'C4Dynamic' | 'C4Deployment'
+type C4Direction = 'LR' | 'RL' | 'TB' | 'BT'
+type C4Style = { [property: string]: string | undefined; bgColor?: string; fontColor?: string; borderColor?: string; textColor?: string; lineColor?: string; offsetX?: string; offsetY?: string }
+interface C4ArgumentInput { name?: string; value: string }
+interface C4Argument extends C4ArgumentInput { raw: string }
+interface C4ElementInput { id: string; label: string; macro?: string; kind?: 'person'|'system'|'container'|'component'; shape?: 'person'|'rectangle'|'database'|'queue'; external?: boolean; technology?: string; description?: string; parentId?: string; tags?: string[]; link?: string; sprite?: string }
+interface C4BoundaryInput { id: string; label: string; macro?: string; kind?: 'boundary'|'enterprise'|'system'|'container'|'deployment'; type?: string; description?: string; parentId?: string; tags?: string[]; link?: string; sprite?: string }
+interface C4RelationshipInput { id?: string; from: string; to: string; label: string; macro?: string; technology?: string; description?: string; index?: string; tags?: string[]; link?: string; sprite?: string }
+interface C4Element extends C4ElementInput { effectiveLink?: string; macro: string; kind: 'person'|'system'|'container'|'component'; shape: 'person'|'rectangle'|'database'|'queue'; external: boolean; tags: string[]; style: C4Style; args: C4Argument[]; statementId: string }
+interface C4Boundary extends C4BoundaryInput { effectiveLink?: string; macro: string; kind: 'boundary'|'enterprise'|'system'|'container'|'deployment'; tags: string[]; style: C4Style; args: C4Argument[]; statementId: string; alignment?: 'left'|'right' }
+interface C4Relationship extends C4RelationshipInput { effectiveLink?: string; id: string; macro: string; source: string; target: string; order: number; bidirectional: boolean; reversed: boolean; direction?: C4Direction; tags: string[]; style: C4Style; args: C4Argument[]; statementId: string }
+interface C4Directive { id: string; name: string; args: C4Argument[]; category: string; statementId: string }
+interface C4Body { kind: 'c4'; variant: C4Variant; title?: string; accessibilityTitle?: string; accessibilityDescription?: string; elements: C4Element[]; boundaries: C4Boundary[]; relationships: C4Relationship[]; directives: C4Directive[]; statements: { id:string;kind:string;raw:string;span:{start:number;end:number;line:number;column:number};entityId?:string;signature?:string }[]; diagnostics: {code:string;message:string;severity:'warning'|'error';statementId?:string}[]; layout:{direction?:C4Direction;shapesPerRow?:number;boundariesPerRow?:number;hints:{from:string;to:string;direction:C4Direction;statementId:string}[]} }
+type C4MutationOp =
+  | { kind: 'add_element'; element: C4ElementInput }
+  | { kind: 'update_element'; id: string; changes: Partial<Omit<C4ElementInput,'id'|'parentId'>> }
+  | { kind: 'rename_element'; from: string; to: string }
+  | { kind: 'reparent_element'; id: string; parentId: string|null }
+  | { kind: 'remove_element'; id: string; cascade?: boolean }
+  | { kind: 'add_boundary'; boundary: C4BoundaryInput }
+  | { kind: 'update_boundary'; id: string; changes: Partial<Omit<C4BoundaryInput,'id'|'parentId'>> }
+  | { kind: 'rename_boundary'; from: string; to: string }
+  | { kind: 'reparent_boundary'; id: string; parentId: string|null }
+  | { kind: 'remove_boundary'; id: string; cascade?: boolean }
+  | { kind: 'add_relationship'; relationship: C4RelationshipInput }
+  | { kind: 'update_relationship'; id: string; changes: Partial<Omit<C4RelationshipInput,'id'>> }
+  | { kind: 'remove_relationship'; id: string }
+  | { kind: 'set_title'; title: string|null }
+  | { kind: 'set_variant'; variant: C4Variant }
+  | { kind: 'add_directive'; name: string; args: C4ArgumentInput[] }
+  | { kind: 'update_directive'; id: string; args: C4ArgumentInput[] }
+  | { kind: 'remove_directive'; id: string }
+
 
 type GanttTaskTag = 'active' | 'done' | 'crit' | 'milestone' | 'vert'
 // start: a date in the diagram's dateFormat or 'after id…'; undefined = previous task's end.
@@ -802,8 +837,8 @@ declare const mermaid: {
   // buildMermaid folds a typed op list over that empty diagram; on failure the
   // error carries opIndex of the op that failed. direction applies to
   // flowchart/state only.
-  createMermaid(kind: DiagramKind, opts?: { direction?: 'TD' | 'TB' | 'LR' | 'BT' | 'RL' }): ValidDiagram
-  buildMermaid(kind: DiagramKind, ops: AnyMutationOp[], opts?: { direction?: 'TD' | 'TB' | 'LR' | 'BT' | 'RL' }): Result<ValidDiagram, { code: string; message: string; opIndex: number }>
+  createMermaid(kind: DiagramKind, opts?: { direction?: 'TD' | 'TB' | 'LR' | 'BT' | 'RL'; c4Variant?: C4Variant }): ValidDiagram
+  buildMermaid(kind: DiagramKind, ops: AnyMutationOp[], opts?: { direction?: 'TD' | 'TB' | 'LR' | 'BT' | 'RL'; c4Variant?: C4Variant }): Result<ValidDiagram, { code: string; message: string; opIndex: number }>
 ${SDK_NARROWER_METHOD_DECLARATIONS}
 ${SDK_MUTATE_METHOD_DECLARATIONS}
   verifyMermaid(input: ParsedDiagram | string, opts?: { suppress?: WarningCode[]; labelCharCap?: number; renderOptions?: SharedRenderOptions }): VerifyResult

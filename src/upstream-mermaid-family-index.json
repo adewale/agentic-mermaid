@@ -137,23 +137,23 @@
       "headers": [
         {
           "value": "C4Context",
-          "agenticStatus": "inventory-only"
+          "agenticStatus": "native"
         },
         {
           "value": "C4Container",
-          "agenticStatus": "inventory-only"
+          "agenticStatus": "native"
         },
         {
           "value": "C4Component",
-          "agenticStatus": "inventory-only"
+          "agenticStatus": "native"
         },
         {
           "value": "C4Dynamic",
-          "agenticStatus": "inventory-only"
+          "agenticStatus": "native"
         },
         {
           "value": "C4Deployment",
-          "agenticStatus": "inventory-only"
+          "agenticStatus": "native"
         }
       ]
     },

@@ -734,6 +734,7 @@ const FAMILY_AGENT_TASK: Record<BuiltinFamilyId, { prompt: string; trace: string
   gitgraph:     { prompt: 'Add a release branch and merge it back with a tagged commit.', trace: 'asGitGraph · mutate(create_branch/merge_branch) · verify' },
   radar:        { prompt: 'Add a Reliability axis (filling existing curves) and a target curve, then verify.', trace: 'asRadar · mutate(add_axis/add_curve) · verify' },
   sankey:       { prompt: 'Add a Losses flow out of Electricity generation and keep every existing row.', trace: 'asSankey · mutate(add_link) · verify' },
+  c4:           { prompt: 'Add a database inside the system boundary and connect one distinct interaction without changing its peers.', trace: 'asC4 · mutate(add_element/add_relationship) · verify' },
 }
 // One-per-family supported examples are the canonical render for their family, so
 // anchor them by family id — old /gallery/#<family> deep links resolve here after
@@ -769,6 +770,7 @@ const STYLE_THEME_PAIR_BY_FAMILY: Record<BuiltinFamilyId, { look: string; theme:
   gitgraph: { look: 'ops-schematic', theme: 'github-light', seed: 11 },
   radar: { look: 'watercolor', theme: 'catppuccin-latte', seed: 12 },
   sankey: { look: 'hand-drawn', theme: 'solarized-light', seed: 13 },
+  c4: { look: 'architectural-plan', theme: 'paper', seed: 14 },
 }
 
 function displayStyleName(name: string) {

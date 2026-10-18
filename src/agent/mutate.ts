@@ -1,3 +1,4 @@
+import type { C4MutationOp, C4ValidDiagram } from './types.ts'
 // ============================================================================
 // mutate: typed structural edits. Overloaded by family.
 // ============================================================================
@@ -31,6 +32,7 @@ export function mutate(d: PieValidDiagram, op: PieMutationOp): Result<PieValidDi
 export function mutate(d: QuadrantValidDiagram, op: QuadrantMutationOp): Result<QuadrantValidDiagram, MutationError>
 export function mutate(d: GanttValidDiagram, op: GanttMutationOp): Result<GanttValidDiagram, MutationError>
 export function mutate(d: RadarValidDiagram, op: RadarMutationOp): Result<RadarValidDiagram, MutationError>
+export function mutate(d: C4ValidDiagram, op: C4MutationOp): Result<C4ValidDiagram, MutationError>
 export function mutate(d: SankeyValidDiagram, op: SankeyMutationOp): Result<SankeyValidDiagram, MutationError>
 // General form for callers holding the union (e.g. the CLI): dispatch is by
 // registry at runtime either way, so kind-agnostic call sites don't need a

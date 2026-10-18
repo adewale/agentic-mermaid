@@ -9,7 +9,7 @@
       "capabilities": {
         "tools": {}
       },
-      "instructions": "agentic-mermaid Code Mode server. Primary tool execute runs synchronous JavaScript against the typed mermaid.* SDK in a sandbox; async/await and Promise jobs are not supported. describe_sdk progressively discloses one family's version-matched mutation schema; call it before authoring unfamiliar ops. render_png and describe are narrow helpers. render_png can return base64, managed file paths, or managed URLs when the transport config provides an artifact store. There is no mutate tool on this server: structured edits go through the SDK's mermaid.mutate(...) inside execute; narrow via asFlowchart/asState/asSequence/asTimeline/asClass/asEr/asJourney/asArchitecture/asXyChart/asPie/asQuadrant/asGantt/asMindmap/asGitGraph/asRadar/asSankey. Every built-in renderable family ships a typed path when the body narrows; only opaque fallback bodies are source-level only. Layout is deterministic; there is no layout seed (the optional style seed only re-rolls ink of styled looks, never geometry)."
+      "instructions": "agentic-mermaid Code Mode server. Primary tool execute runs synchronous JavaScript against the typed mermaid.* SDK in a sandbox; async/await and Promise jobs are not supported. describe_sdk progressively discloses one family's version-matched mutation schema; call it before authoring unfamiliar ops. render_png and describe are narrow helpers. render_png can return base64, managed file paths, or managed URLs when the transport config provides an artifact store. There is no mutate tool on this server: structured edits go through the SDK's mermaid.mutate(...) inside execute; narrow via asFlowchart/asState/asSequence/asTimeline/asClass/asEr/asJourney/asArchitecture/asXyChart/asPie/asQuadrant/asGantt/asMindmap/asGitGraph/asRadar/asSankey/asC4. Every built-in renderable family ships a typed path when the body narrows; only opaque fallback bodies are source-level only. Layout is deterministic; there is no layout seed (the optional style seed only re-rolls ink of styled looks, never geometry)."
     },
     "tools": [
       {
@@ -47,7 +47,7 @@
           "idempotentHint": true,
           "openWorldHint": false
         },
-        "inputSchemaSha256": "80cf8f1bbc639b4f97b328e1690902673026fff2e680b7fa24a83e405cbe7926",
+        "inputSchemaSha256": "ce5c3c6374f57b48133815ec06700308debe4a00b3fe18f97ec7f21157961e20",
         "inputSchemaShape": {
           "type": "object",
           "additionalProperties": false,
@@ -80,7 +80,8 @@
                 "mindmap",
                 "gitgraph",
                 "radar",
-                "sankey"
+                "sankey",
+                "c4"
               ]
             }
           }
@@ -95,7 +96,7 @@
           "idempotentHint": false,
           "openWorldHint": false
         },
-        "inputSchemaSha256": "5cc456308d7dc21db9fd7503792844e7b262d7fbe7c3ad386f98780a3975eb79",
+        "inputSchemaSha256": "7508384fc60c0b47ced5d595c95140ac9b5b9839ef10a3e7dbf7347c1fe5d7e6",
         "inputSchemaShape": {
           "type": "object",
           "additionalProperties": false,
@@ -367,7 +368,7 @@
           "capabilities": {
             "tools": {}
           },
-          "instructions": "agentic-mermaid Code Mode server. Primary tool execute runs synchronous JavaScript against the typed mermaid.* SDK in a sandbox; async/await and Promise jobs are not supported. describe_sdk progressively discloses one family's version-matched mutation schema; call it before authoring unfamiliar ops. render_png and describe are narrow helpers. render_png can return base64, managed file paths, or managed URLs when the transport config provides an artifact store. There is no mutate tool on this server: structured edits go through the SDK's mermaid.mutate(...) inside execute; narrow via asFlowchart/asState/asSequence/asTimeline/asClass/asEr/asJourney/asArchitecture/asXyChart/asPie/asQuadrant/asGantt/asMindmap/asGitGraph/asRadar/asSankey. Every built-in renderable family ships a typed path when the body narrows; only opaque fallback bodies are source-level only. Layout is deterministic; there is no layout seed (the optional style seed only re-rolls ink of styled looks, never geometry).",
+          "instructions": "agentic-mermaid Code Mode server. Primary tool execute runs synchronous JavaScript against the typed mermaid.* SDK in a sandbox; async/await and Promise jobs are not supported. describe_sdk progressively discloses one family's version-matched mutation schema; call it before authoring unfamiliar ops. render_png and describe are narrow helpers. render_png can return base64, managed file paths, or managed URLs when the transport config provides an artifact store. There is no mutate tool on this server: structured edits go through the SDK's mermaid.mutate(...) inside execute; narrow via asFlowchart/asState/asSequence/asTimeline/asClass/asEr/asJourney/asArchitecture/asXyChart/asPie/asQuadrant/asGantt/asMindmap/asGitGraph/asRadar/asSankey/asC4. Every built-in renderable family ships a typed path when the body narrows; only opaque fallback bodies are source-level only. Layout is deterministic; there is no layout seed (the optional style seed only re-rolls ink of styled looks, never geometry).",
           "_meta": {
             "io.modelcontextprotocol/serverInfo": {
               "name": "agentic-mermaid-mcp",
@@ -519,7 +520,7 @@
           "idempotentHint": true,
           "openWorldHint": false
         },
-        "inputSchemaSha256": "80cf8f1bbc639b4f97b328e1690902673026fff2e680b7fa24a83e405cbe7926",
+        "inputSchemaSha256": "ce5c3c6374f57b48133815ec06700308debe4a00b3fe18f97ec7f21157961e20",
         "inputSchemaShape": {
           "type": "object",
           "additionalProperties": false,
@@ -552,7 +553,8 @@
                 "mindmap",
                 "gitgraph",
                 "radar",
-                "sankey"
+                "sankey",
+                "c4"
               ]
             }
           }
@@ -567,7 +569,7 @@
           "idempotentHint": true,
           "openWorldHint": false
         },
-        "inputSchemaSha256": "590412976494d0a4e971800df82ce4e9773d095fe1ff1d1bfd906327240d67af",
+        "inputSchemaSha256": "19e817cb3d1197e4e99824cf4fda477cee53c2d52367aa3cdde94840226d9ae0",
         "inputSchemaShape": {
           "type": "object",
           "additionalProperties": false,
@@ -706,7 +708,7 @@
           "idempotentHint": true,
           "openWorldHint": false
         },
-        "inputSchemaSha256": "abaa553a904ecbaefc27404725f781a63394817dec1a255dc3594160093e00e1",
+        "inputSchemaSha256": "ea2883a672e692db62e34642f3282730604caf22797634bdba9643d57505ad27",
         "inputSchemaShape": {
           "type": "object",
           "additionalProperties": false,
@@ -851,7 +853,7 @@
           "idempotentHint": true,
           "openWorldHint": false
         },
-        "inputSchemaSha256": "7127254a7ea28006d8d464935eca2bfef2ae41f1b3d058382fa3b2218a7498b2",
+        "inputSchemaSha256": "260cfd40715c0679a8237795be2183d46a8a40a6e01668bceb90b4e0ec400fad",
         "inputSchemaShape": {
           "type": "object",
           "additionalProperties": false,
@@ -1092,7 +1094,7 @@
           "idempotentHint": true,
           "openWorldHint": false
         },
-        "inputSchemaSha256": "61fcd87dde6ee368a3440613cf22fbcbf5b66b42c65efd6a980d7fca6b5d4d1e",
+        "inputSchemaSha256": "4e04cd1a967f97e1d18838838b74e35562a29b0b587b64d4d4a9e9d49a09da69",
         "inputSchemaShape": {
           "type": "object",
           "additionalProperties": false,

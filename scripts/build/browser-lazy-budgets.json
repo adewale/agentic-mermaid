@@ -3,21 +3,22 @@
   "elkFamilies": ["flowchart", "state", "class", "er", "architecture"],
   "initial": { "requests": 6, "raw": 138000, "gzip": 45000, "brotli": 40000 },
   "families": {
-    "flowchart": { "requests": 27, "raw": 2304000, "gzip": 704000, "brotli": 565500 },
-    "state": { "requests": 26, "raw": 2302000, "gzip": 703000, "brotli": 564000 },
+    "flowchart": { "requests": 28, "raw": 2304000, "gzip": 704000, "brotli": 565500 },
+    "state": { "requests": 28, "raw": 2302000, "gzip": 703000, "brotli": 564000 },
     "sequence": { "requests": 24, "raw": 620000, "gzip": 195000, "brotli": 172000 },
     "timeline": { "requests": 24, "raw": 585000, "gzip": 180000, "brotli": 159000 },
     "class": { "requests": 28, "raw": 2316000, "gzip": 708000, "brotli": 569000 },
-    "er": { "requests": 28, "raw": 2311000, "gzip": 707500, "brotli": 570500 },
+    "er": { "requests": 29, "raw": 2311000, "gzip": 707500, "brotli": 570500 },
     "journey": { "requests": 26, "raw": 606000, "gzip": 188000, "brotli": 166000 },
     "architecture": { "requests": 25, "raw": 2318000, "gzip": 707500, "brotli": 568500 },
     "xychart": { "requests": 25, "raw": 612000, "gzip": 189500, "brotli": 167000 },
-    "pie": { "requests": 26, "raw": 634000, "gzip": 208500, "brotli": 185500 },
+    "pie": { "requests": 27, "raw": 634000, "gzip": 208500, "brotli": 185500 },
     "quadrant": { "requests": 26, "raw": 588000, "gzip": 183000, "brotli": 161500 },
     "gantt": { "requests": 25, "raw": 637000, "gzip": 198000, "brotli": 175500 },
     "mindmap": { "requests": 27, "raw": 586000, "gzip": 183500, "brotli": 162500 },
     "gitgraph": { "requests": 26, "raw": 591000, "gzip": 184500, "brotli": 163000 },
     "radar": { "requests": 27, "raw": 597000, "gzip": 187000, "brotli": 165500 },
-    "sankey": { "requests": 26, "raw": 591000, "gzip": 184500, "brotli": 163000 }
+    "sankey": { "requests": 26, "raw": 591000, "gzip": 184500, "brotli": 163000 },
+    "c4": { "requests": 26, "raw": 730000, "gzip": 235000, "brotli": 205000 }
   }
 }

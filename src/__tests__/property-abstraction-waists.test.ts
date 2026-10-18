@@ -56,6 +56,8 @@ function sceneContext(
 
 function headerFor(kind: DiagramKind): string {
   switch (kind) {
+    case 'c4':
+      return 'C4'
     case 'flowchart':
       return 'flowchart'
     case 'state':
