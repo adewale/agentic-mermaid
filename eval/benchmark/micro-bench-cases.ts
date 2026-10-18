@@ -160,11 +160,12 @@ function sceneCases(workload: Workload): MicroCase[] {
     },
     {
       id: `scene:snapshot-${workload}`,
-      description: `snapshotBoundedExternalData on an internal lowered Scene, ${workload}`,
+      description: `snapshotBoundedExternalData, first-party path as built-in admission uses it, ${workload}`,
       async setup() {
         const { scene } = await staged(workload)
         const { snapshotBoundedExternalData, EXTERNAL_SCENE_DOCUMENT_SNAPSHOT_LIMITS } = await src.snapshot()
-        return () => snapshotBoundedExternalData(scene, EXTERNAL_SCENE_DOCUMENT_SNAPSHOT_LIMITS, 'scene')
+        // The fourth argument is ignored by revisions without a first-party path.
+        return () => snapshotBoundedExternalData(scene, EXTERNAL_SCENE_DOCUMENT_SNAPSHOT_LIMITS, 'scene', { firstParty: true })
       },
     },
     {
