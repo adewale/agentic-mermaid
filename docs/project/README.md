@@ -30,6 +30,9 @@ today's build, protocol, CI or deployment. In particular:
   by the derived-artifact policy in `CLAUDE.md`.
 - CONS-26's State/Timeline defects (#368) were fixed in #379. Do not keep their
   old reproductions as an unfinished consolidation task.
+- [Prepared text and terminal delivery](archive/prepared-text-geometry-delivery-2026-10.md)
+  records BUILD-36/BUG-62–64 completion and #380's superseded runtime work.
+  Merged source is distinct from REL-1's publication/deployment work.
 - The #248 delivery plan has been removed. #248 was closed `not_planned`, and
   #361 dismantled its harness/report/receipt programme. Useful assertions now
   belong in ordinary owning tests; the deleted plan remains recoverable in Git.

@@ -4,7 +4,24 @@ This changelog tracks user-facing changes for **Agentic Mermaid**, a fork of `lu
 
 ## Unreleased
 
+### Known limitations
+- This release candidate's Class fixes do not resolve the ER entity-order
+  defect tracked in #372 or canonical YAML whitespace preservation in #367.
+  Those fixes are deferred beyond this candidate; default verbatim wrapper
+  preservation is distinct from canonical YAML rewriting. Do not infer general
+  semantic closure from a successful structural verification.
+
 ### Fixed
+- Class relationship markers keep their authored endpoint through unrelated
+  edits, serialization and reload (#406). Semantic facts now include marker
+  ownership and both-ended marker kinds; existing fact strings remain, but
+  callers using `checkMermaid` with `exact: true` must include the new facts.
+- Checked and declarative Class edits accept the supported `lollipop`
+  relationship kind, matching direct typed mutation (#407).
+- Class `add_member` and initial `add_class.members` reject LF/CRLF that
+  would split a member on reload; bare CR is also rejected under the
+  single-line member policy (#408). Literal backslash-n and ordinary
+  single-line member text remain supported.
 - XY-chart titles wrap to the configured canvas width and reserve space above
   the plot, keeping long titles visible in vertical and horizontal charts.
   Verification names titles that cannot fit the configured title-space budget
