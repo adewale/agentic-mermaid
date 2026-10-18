@@ -383,7 +383,7 @@ describe('family descriptor capability authority', () => {
 
       const observed = new Set<string>()
       const observedCells = new Set<string>()
-      const sources = [descriptor.example, RICH_SCENE_FIXTURES[id]].filter((source): source is string => source !== undefined)
+      const sources = [descriptor.example, RICH_SCENE_FIXTURES[id], ...(id === 'architecture' ? ['architecture-beta\nservice fallback(unknown)[Fallback]'] : [])].filter((source): source is string => source !== undefined)
       for (const source of sources) {
         const scene = lowerFixture(id, source)
         const markerResources = new Map<string, NonNullable<Extract<SceneNode, { kind: 'document' }>['markerResources']>[number]>()

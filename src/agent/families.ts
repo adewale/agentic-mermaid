@@ -612,7 +612,7 @@ const BUILTIN_FAMILY_DESCRIPTOR_SEEDS = [
     config: { section: 'xyChart', keys: ['width', 'height', 'useMaxWidth', 'useWidth', 'titleFontSize', 'titlePadding', 'chartOrientation', 'plotReservedSpacePercent', 'showDataLabel', 'showDataLabelOutsideBar', 'showTitle', 'showLegend', 'legendFontSize', 'legendPadding', 'xAxis', 'yAxis'] },
     semanticChannels: ['value', 'category'],
     detect: (line: string) => /^xychart(?:-beta)?(?:\s|$)/.test(line),
-    sceneRoles: [nativeSceneRole('prelude', 'document'), nativeSceneRole('defs', 'document'), nativeSceneRole('chrome', 'container', 'document', 'shape', 'text'), nativeSceneRole('grid', 'shape'), nativeSceneRole('bar', 'shape', 'data-mark'), nativeSceneRole('series', 'connector'), nativeSceneRole('point', 'shape', 'data-mark'), nativeSceneRole('axis', 'text', 'shape'), nativeSceneRole('legend', 'container', 'text', 'shape'), nativeSceneRole('title', 'text'), nativeSceneRole('label', 'text')],
+    sceneRoles: [nativeSceneRole('prelude', 'document'), nativeSceneRole('defs', 'document'), nativeSceneRole('chrome', 'container', 'document', 'shape'), nativeSceneRole('grid', 'shape'), nativeSceneRole('bar', 'shape', 'data-mark'), nativeSceneRole('series', 'connector'), nativeSceneRole('point', 'shape', 'data-mark'), nativeSceneRole('axis', 'text', 'shape'), nativeSceneRole('legend', 'container', 'text', 'shape'), nativeSceneRole('title', 'text'), nativeSceneRole('label', 'text')],
     example: 'xychart-beta\n  title "Revenue"\n  x-axis [Q1, Q2, Q3]\n  y-axis "USD" 0 --> 100\n  bar [45, 62, 80]',
     editorExample: `xychart
   title "Weekly renders"
@@ -624,7 +624,7 @@ const BUILTIN_FAMILY_DESCRIPTOR_SEEDS = [
     config: { section: 'pie', keys: ['textPosition', 'donutHole', 'legendPosition', 'highlightSlice', 'useMaxWidth', 'useWidth'], noopKeys: ['useMaxWidth', 'useWidth'] },
     semanticChannels: ['value', 'category', 'emphasis'],
     detect: (line: string) => /^pie(?:\s|$)/.test(line),
-    sceneRoles: [nativeSceneRole('prelude', 'document'), nativeSceneRole('chrome', 'document', 'shape', 'container', 'text'), nativeSceneRole('pie-slice', 'shape', 'data-mark'), nativeSceneRole('legend', 'text', 'shape', 'data-mark'), nativeSceneRole('title', 'text'), nativeSceneRole('label', 'text')],
+    sceneRoles: [nativeSceneRole('prelude', 'document'), nativeSceneRole('chrome', 'document', 'shape', 'container'), nativeSceneRole('pie-slice', 'shape', 'data-mark'), nativeSceneRole('legend', 'text', 'shape', 'data-mark'), nativeSceneRole('title', 'text'), nativeSceneRole('label', 'text')],
     example: 'pie title Plans\n  "Free" : 60\n  "Pro" : 30\n  "Enterprise" : 10',
     editorExample: `pie showData
   title Export requests by format
@@ -638,7 +638,7 @@ const BUILTIN_FAMILY_DESCRIPTOR_SEEDS = [
     semanticChannels: ['category'],
     detect: (line: string) => /^quadrant(?:chart)?\s*$/.test(line),
     detectLoose: (line: string) => /^quadrant(?:chart)?(?:\s|$)/.test(line),
-    sceneRoles: [nativeSceneRole('prelude', 'document'), nativeSceneRole('chrome', 'document', 'shape', 'container', 'text'), nativeSceneRole('plate', 'shape'), nativeSceneRole('grid', 'shape'), nativeSceneRole('point', 'shape'), nativeSceneRole('axis', 'text'), nativeSceneRole('title', 'text'), nativeSceneRole('label', 'text')],
+    sceneRoles: [nativeSceneRole('prelude', 'document'), nativeSceneRole('chrome', 'document', 'shape', 'container'), nativeSceneRole('plate', 'shape'), nativeSceneRole('grid', 'shape'), nativeSceneRole('point', 'shape'), nativeSceneRole('axis', 'text'), nativeSceneRole('title', 'text'), nativeSceneRole('label', 'text')],
     example: 'quadrantChart\n  title Prioritize\n  x-axis Low Effort --> High Effort\n  y-axis Low Value --> High Value\n  Quick win: [0.2, 0.8]\n  Money pit: [0.8, 0.2]',
     editorExample: `quadrantChart
   title Feature priorities

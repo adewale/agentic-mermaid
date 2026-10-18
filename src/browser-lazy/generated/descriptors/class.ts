@@ -126,6 +126,15 @@ const descriptorData = Object.freeze({
       ]
     },
     {
+      "role": "chrome",
+      "primitive": "connector",
+      "applicability": "applicable",
+      "realization": "native",
+      "evidence": [
+        "src/__tests__/section-a-family-descriptor-conformance.test.ts"
+      ]
+    },
+    {
       "role": "group",
       "primitive": "shape",
       "applicability": "applicable",

@@ -741,7 +741,7 @@ function validateNode(value: unknown, path: string, state: ValidationState, dept
     if (!record(value.owner)) add(state.diagnostics, 'SCENE_REFERENCE', `${path}.owner`, 'must be a semantic owner')
     else {
       boundedString(value.owner.id, `${path}.owner.id`, state.diagnostics)
-      if (typeof value.owner.role !== 'string' || (!(value.owner.role in BUILTIN_SCENE_ROLE_TRAITS) && !parseExtensionId(value.owner.role))) add(state.diagnostics, 'SCENE_ROLE', `${path}.owner.role`, 'must be a Scene role')
+      if (typeof value.owner.role !== 'string' || (!Object.hasOwn(BUILTIN_SCENE_ROLE_TRAITS, value.owner.role) && !NAMESPACED_ROLE.test(value.owner.role))) add(state.diagnostics, 'SCENE_ROLE', `${path}.owner.role`, 'must be a Scene role')
     }
   }
   if (value.visibility !== undefined && value.visibility !== 'conditional') add(state.diagnostics, 'SCENE_DOCUMENT', `${path}.visibility`, 'must be conditional')
@@ -769,7 +769,7 @@ function validateNode(value: unknown, path: string, state: ValidationState, dept
     if (value.measurement === 'prepared' && (!record(value.block) || value.block.unit !== 'px' || !record(value.block.prepared))) add(state.diagnostics, 'SCENE_DOCUMENT', `${path}.block`, 'prepared text must retain its actual pixel block')
     if (record(value.block)) {
       for (const field of ['width', 'height', 'fontSize', 'fontWeight', 'lineHeight']) finite(value.block[field], `${path}.block.${field}`, state.diagnostics, { nonNegative: true })
-      if (record(value.textLayout) && (value.block.width !== value.textLayout.width || value.block.height !== value.textLayout.height || value.block.lineHeight !== value.textLayout.lineHeight)) add(state.diagnostics, 'SCENE_FIDELITY', `${path}.block`, 'retained block differs from occupied text geometry')
+      if (record(value.textLayout) && (value.block.width !== value.textLayout.width || value.block.height !== value.textLayout.height || value.block.lineHeight !== value.textLayout.lineHeight)) add(state.diagnostics, 'SCENE_FIDELITY', `${path}.textLayout`, 'retained block differs from occupied text geometry')
     }
     if (value.textLayout !== undefined) {
       if (!record(value.textLayout)) add(state.diagnostics, 'SCENE_DOCUMENT', `${path}.textLayout`, 'must be measured text geometry')
