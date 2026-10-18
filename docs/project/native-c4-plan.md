@@ -36,6 +36,14 @@ editor's synchronous adapters requires a separate async loading contract.
 Only those route byte ceilings were adjusted with tight headroom. Their request
 and resource restrictions, and the separate per-PR growth review, remain gates.
 
+A subsequent CI runner completed an existing 1,200-node timeout witness inside
+its two-second budget. That successful execution was valid; the test's assumed
+runtime was not a deadline contract. Its replacement runs real automatic
+verification on a tiny trusted diagram, fixes elapsed time at 750ms and observes
+the actual commit watchdog receiving the remaining 1,250ms of a 2,000ms budget.
+An isolated fresh-budget mutant receives 2,000ms and fails the same assertion.
+This is a test-only correction, not a new cancellation API or production seam.
+
 ## Contract
 
 Support Mermaid 11.16's five legacy dialects (`C4Context`, `C4Container`,
