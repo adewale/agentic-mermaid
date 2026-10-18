@@ -25,6 +25,18 @@ export interface HonestySample {
 const titled = (title: string, body: string): string => `---\ntitle: ${title}\n---\n${body}`
 
 export const HONESTY_SAMPLES: Record<DiagramKind, readonly HonestySample[]> = {
+  c4: [
+    {
+      name: 'nested architecture title, boundary and relationship detail',
+      source: 'C4Container\n  title Payments across the customer and platform boundary\n  Person(customer, "Customer", "Places an order")\n  System_Boundary(platform, "The payment platform that owns the checkout service") {\n    Container(api, "Checkout API", "TypeScript", "Validates the order before charging")\n  }\n  Rel(customer, api, "Submits order", "HTTPS", "Includes the basket and payment token")',
+      expectText: ['Payments across the customer and platform boundary', 'Customer', 'Places an order', 'The payment platform that owns the checkout service', 'Checkout API', 'TypeScript', 'Validates the order before charging', 'Submits order', 'HTTPS', 'Includes the basket and payment token'],
+    },
+    {
+      name: 'authored colors and repeated dynamic interactions',
+      source: 'C4Dynamic\n  System(a, "Client")\n  SystemDb_Ext(b, "Store")\n  Rel(a, b, "First request", "HTTP")\n  Rel(a, b, "Second request", "HTTP")\n  UpdateElementStyle(a, $bgColor="#0f172a", $fontColor="#ffffff")\n  UpdateElementStyle(b, $bgColor="#fef9c3", $fontColor="#111827")\n  UpdateRelStyle(a, b, $lineColor="#334155")',
+      expectText: ['Client', 'Store', 'First request', 'Second request', 'HTTP'],
+    },
+  ],
   flowchart: [
     {
       name: 'late label and long group title',

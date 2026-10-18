@@ -16,6 +16,7 @@ import {
   verifyNoExternalRefs,
 } from './index.ts'
 import { verifyMermaid } from './agent/verify.ts'
+import { WARNING_SEVERITY, WARNING_TIER } from './agent/types.ts'
 import {
   renderMermaidASCII,
   renderMermaidASCIIWithReceipt,
@@ -47,6 +48,8 @@ export const BROWSER_EDITOR_ADAPTER = {
   validateSerializableRenderOptions,
   verifyNoExternalRefs,
   verifyMermaid,
+  WARNING_TIER: Object.freeze({ ...WARNING_TIER }),
+  WARNING_SEVERITY: Object.freeze({ ...WARNING_SEVERITY }),
   renderMermaidASCII,
   renderMermaidASCIIWithReceipt,
   renderMermaidUnicodeWithReceipt,

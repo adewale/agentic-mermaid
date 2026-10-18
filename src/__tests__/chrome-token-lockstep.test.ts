@@ -15,6 +15,7 @@
 import { describe, expect, test } from 'bun:test'
 import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
+import { BROWSER_EDITOR_ADAPTER } from '../browser.ts'
 import { evaluateBrowserScript } from './browser-script-harness.ts'
 
 const REPO = join(import.meta.dir, '..', '..')
@@ -33,7 +34,7 @@ function cssHex(css: string, name: string): string {
 function chromeThemeColors(isDark: boolean): { bg: string; fg: string; accent: string } {
   const colors = evaluateBrowserScript<{ bg: string; fg: string; accent: string }>(
     renderingJs,
-    { isDark, verifyDetailsBtn: null },
+    { isDark, verifyDetailsBtn: null, window: { __mermaid: BROWSER_EDITOR_ADAPTER } },
     'chromeThemeColors()',
   )
   return { bg: colors.bg.toUpperCase(), fg: colors.fg.toUpperCase(), accent: colors.accent.toUpperCase() }

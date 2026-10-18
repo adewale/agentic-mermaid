@@ -55,7 +55,7 @@ export type {
 export type {
   MermaidRuntimeConfig, MermaidThemeVariables, TimelineRuntimeConfig,
   JourneyRuntimeConfig, StateRuntimeConfig, XyChartRuntimeConfig,
-  PieRuntimeConfig, QuadrantRuntimeConfig, MindmapRuntimeConfig, GitGraphRuntimeConfig, RadarRuntimeConfig, SankeyRuntimeConfig,
+  PieRuntimeConfig, QuadrantRuntimeConfig, MindmapRuntimeConfig, GitGraphRuntimeConfig, RadarRuntimeConfig, SankeyRuntimeConfig, C4RuntimeConfig,
 } from './mermaid-source.ts'
 export { parseArchitectureDiagram, architectureToMermaidGraph } from './architecture/parser.ts'
 export { parseMindmap, serializeMindmap, MindmapDuplicateIdError, MindmapParseError } from './mindmap/parser.ts'

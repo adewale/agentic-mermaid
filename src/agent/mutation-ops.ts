@@ -78,6 +78,7 @@ export const MUTATION_OPS_BY_FAMILY = {
   gitgraph: ['append_commit', 'create_branch', 'checkout_branch', 'merge_branch', 'cherry_pick', 'set_commit_message', 'set_commit_type', 'set_commit_tags', 'rename_branch', 'set_accessibility_title', 'set_accessibility_description'],
   radar: ['set_title', 'add_axis', 'remove_axis', 'rename_axis', 'set_axis_label', 'reorder_axis', 'add_curve', 'remove_curve', 'set_curve_values', 'set_curve_value', 'set_curve_label', 'rename_curve', 'reorder_curve', 'set_config'],
   sankey: ['add_link', 'remove_link', 'set_link_value', 'rename_node'],
+  c4: ['add_element', 'update_element', 'rename_element', 'reparent_element', 'remove_element', 'add_boundary', 'update_boundary', 'rename_boundary', 'reparent_boundary', 'remove_boundary', 'add_relationship', 'update_relationship', 'remove_relationship', 'set_title', 'set_variant', 'add_directive', 'update_directive', 'remove_directive'],
 } as const satisfies Record<BuiltinFamilyId, readonly string[]>
 
 export type MutableFamilyId = keyof typeof MUTATION_OPS_BY_FAMILY

@@ -50,6 +50,25 @@ Explicit zero starts and zero increments remain meaningful values, unlike pinned
 
 `participant A asAlice` is read as participant `A` with alias `Alice`, rather than pinned Mermaid's surprising participant ID `A asAlice`. Other unspaced aliases, such as an alias containing `:`, are rejected upstream but have equally clear authored meaning. Verification emits `UNSUPPORTED_SYNTAX` with `sequence_unspaced_alias`; canonical serialization writes `participant A as Alice`, preserving the intended identity and label in portable Mermaid.
 
+### C4 retains distinct interactions and authored dynamic indices
+
+The five legacy C4 dialects share a native typed model. Every relationship
+occurrence survives, including repeated endpoint pairs, reciprocal interactions,
+self interactions and boundary endpoints. `Rel_Back` retains its authored pair
+separately from its effective arrow direction. `RelIndex` retains its explicit
+index and displays it; other `C4Dynamic` relationships display their lexical
+ordinal. Mermaid 11.16's repeated-pair overwrite and discarded explicit indices
+are not the intended semantics here.
+
+C4 interaction IDs select occurrences in the current artifact. Standard C4
+source cannot encode durable arbitrary edge IDs: structural edits can reallocate
+them, and callers must read returned IDs before their next edit. Both output
+adapters, facts and a fresh parse of the edited source agree on the new IDs.
+Directional relationship hints constrain placement when compatible; contradictory
+hints are diagnosed. Empty boundaries and multiline arguments are generous
+reader extensions, preserved with portability warnings. Their preservation does
+not imply that Mermaid 11.16 accepts them. See [C4](../design/families/c4.md).
+
 ### Structured-or-opaque is load-bearing
 
 Known-family input must never be partially parsed and then re-emitted with unknown constructs dropped. If the structured parser cannot preserve a construct, the body stays opaque/source-preserved and serializes from `body.source`.

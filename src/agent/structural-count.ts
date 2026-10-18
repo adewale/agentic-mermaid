@@ -134,6 +134,8 @@ export function countStructuralElements(d: ParsedDiagram): StructuralCount | nul
     case 'radar':
       // Vertices (curves × axes) are the marks; axes are the reference groups.
       return { nodes: body.curves.reduce((sum, c) => sum + c.values.length, 0), edges: 0, groups: body.axes.length }
+    case 'c4':
+      return { nodes: body.elements.length, edges: body.relationships.length, groups: body.boundaries.length }
     case 'sankey': {
       // Distinct labels are the nodes; each CSV row is one edge.
       const labels = new Set<string>()

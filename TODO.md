@@ -161,9 +161,9 @@ queues. Retired IDs are not reused.
   supplies the recognition floor: official and unknown headers are
   preserved or diagnosed and never fall through to Flowchart. Maturity comes
   from reviewed upstream evidence rather than a `-beta` spelling heuristic.
-  Native C4 is a design proposal in
-  [#387](https://github.com/adewale/agentic-mermaid/issues/387), not a currently
-  native family or an automatic priority over confirmed defects.
+  Native C4 from [#387](https://github.com/adewale/agentic-mermaid/issues/387)
+  is implemented in source; see [its dispositions and validation](docs/design/families/c4.md).
+  Native admission does not imply a published package or deployed site update.
 - [ ] **BUILD-34 — Measure peer colors as drawn (chart honesty H5)** (`todo`).
   Palettes separate peers where colors are generated (`categoricalPalette`,
   ΔE_OK ≥ 0.10), but a scene-keyed census of every family's honesty corpus in

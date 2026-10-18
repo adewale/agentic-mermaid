@@ -58,6 +58,7 @@ describe('metamorphic: relations across all renderable families', () => {
   // would pass silently. Regenerate by probing build(kRange[0], 'q0') if a
   // generator legitimately changes.
   const BASE_COUNTS: Record<string, { nodes: number; edges: number; groups: number }> = {
+    c4: { nodes: 2, edges: 1, groups: 1 }, // 2 declared containers in 1 boundary
     flowchart: { nodes: 2, edges: 1, groups: 0 },
     state: { nodes: 5, edges: 2, groups: 0 }, // chain + nested composite
     sequence: { nodes: 2, edges: 1, groups: 0 },

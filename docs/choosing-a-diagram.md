@@ -27,6 +27,7 @@ renders and what mutates is `am capabilities --json`, not this page.
 | See stored data and how records relate | ER | Behavior and methods matter, not storage: class |
 | See code structure, types, and inheritance | Class | Only the persistence shape matters: er |
 | See services, their grouping, and physical links | Architecture | The flow is logical rather than deployed: flowchart |
+| Explain people, software responsibilities and nested system or deployment boundaries | C4 | The reader needs infrastructure ports and physical links: architecture; protocol timing: sequence |
 | Follow commits, branches, and merges | GitGraph | — |
 | Explore ideas radiating from one center | Mindmap | Branches share children (the structure is a graph, not a tree): flowchart |
 
@@ -64,6 +65,10 @@ Know which constraints apply before you author:
 - **Terminal delivery is real delivery.** Every registered family renders
   ASCII. A width the diagram cannot honestly meet throws `AsciiWidthError`
   with the required width instead of squeezing the layout.
+- **C4 interactions have occurrence identity.** Repeated endpoint pairs are
+  separate interactions. Dynamic order and explicit indices survive, while
+  generated interaction selectors can change after structural edits; read the
+  successful result before the next edit. See [C4](./design/families/c4.md).
 
 ## Prefer the smallest structure that carries the meaning
 
@@ -79,8 +84,9 @@ Know which constraints apply before you author:
    the Style + Palette render options, not to the source.
 
 If the construct you want is not modeled, check whether another family owns
-that metaphor before bending this one. Unmodeled syntax still parses, renders,
-and round-trips as an opaque body; what stops is structured mutation.
+that metaphor before bending this one. Source preservation does not establish
+render support: C4 refuses a partial drawing when a retained statement has no
+native interpretation. Check the family's documented disposition.
 
 ## Defaults that mislead
 

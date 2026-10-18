@@ -1,11 +1,12 @@
 // Sandbox + MCP, including sad paths (which I skipped in prior loops).
 
-import { beforeAll, describe, expect, test } from 'bun:test'
+import { beforeAll, describe, expect, spyOn, test } from 'bun:test'
 import { spawnSync } from 'node:child_process'
 import { writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { applyOps, createMermaid, mutate, mutateChecked, parseRegisteredMermaid, serializeMermaid, verifyMermaid } from '../agent/core.ts'
 import { renderMermaidSVG } from '../index.ts'
+import vm from 'node:vm'
 import pkg from '../../package.json'
 import { BUILTIN_FAMILY_METADATA } from '../agent/families.ts'
 import { runCli } from '../cli/index.ts'
@@ -307,18 +308,24 @@ describe('sandbox — isolation + sad paths', () => {
   })
 
   test('trusted-diagram auto-verification shares the execute deadline', async () => {
-    // The code/parser phase is cheap; layout verification at the return commit
-    // is deliberately the expensive part. Before the commit watchdog this ran
-    // outside node:vm's timeout and could occupy the MCP process indefinitely.
-    const source = 'flowchart TD\n' + Array.from({ length: 1_200 }, (_, index) => `N${index} --> N${index + 1}`).join('\n')
-    const r = await executeInSandbox(`return mermaid.parseRegisteredMermaid(${JSON.stringify(source)}).value`, { timeoutMs: 2_000 })
-    expect(r.ok).toBe(false)
-    // The commit-phase watchdog fired: the error names the deadline and phase.
-    expect(r.error).toContain('timed out after 2000ms while committing the result')
-    // Result work must stay bounded rather than scale with layout; the test's
-    // own 5 s timeout is that bound (a wall-clock assertion on top of it only
-    // flaked under load).
-  }, 5_000)
+    // Observe the real commit watchdog after 750ms of the shared budget has
+    // elapsed. A fixed diagram size need not run slowly on every machine.
+    const commitTimeouts: Array<number | undefined> = []
+    const originalRun = vm.runInContext
+    const watchdog = spyOn(vm, 'runInContext').mockImplementation((code, context, options) => {
+      if (code.startsWith('globalThis["__pi_marshal_')) commitTimeouts.push(typeof options === 'object' ? options?.timeout : undefined)
+      return originalRun(code, context, options)
+    })
+    const clock = spyOn(performance, 'now').mockReturnValueOnce(0).mockReturnValue(750)
+    try {
+      const r = await executeInSandbox('return mermaid.parseRegisteredMermaid("flowchart TD\\n A --> B").value', { timeoutMs: 2_000 })
+      expect(r).toMatchObject({ ok: true, value: { ok: true, family: 'flowchart', source: 'flowchart TD\n  A --> B\n', verify: { ok: true } } })
+      expect(commitTimeouts).toEqual([1_250])
+    } finally {
+      clock.mockRestore()
+      watchdog.mockRestore()
+    }
+  })
 
   test('the post-close commit watchdog never exposes a raw host callable', async () => {
     const r = await executeInSandbox(`

@@ -221,7 +221,7 @@ export type {
   XyChartSeries,
   XyChartValidDiagram,
 } from './types.ts'
-export { asArchitecture, asClass, asEr, asFlowchart, asGantt, asGitGraph, asJourney, asMindmap, asPie, asQuadrant, asRadar, asSankey, asSequence, asState, asTimeline, asXyChart, DEFAULT_LABEL_CHAR_CAP, err, ok, toFinite, WARNING_SEVERITY, WARNING_TIER } from './types.ts'
+export { asC4, asArchitecture, asClass, asEr, asFlowchart, asGantt, asGitGraph, asJourney, asMindmap, asPie, asQuadrant, asRadar, asSankey, asSequence, asState, asTimeline, asXyChart, DEFAULT_LABEL_CHAR_CAP, err, ok, toFinite, WARNING_SEVERITY, WARNING_TIER } from './types.ts'
 export { verifyMermaid } from './verify.ts'
 
 import { renderMermaidSVG as _svg, renderMermaidSVGWithReceipt as _svgWithReceipt } from '../index.ts'
@@ -496,8 +496,8 @@ function enrichRenderedLayout(d: ParsedDiagram, layout: RenderedLayout, opts: La
   const next: RenderedLayout = { ...layout }
   if (wantRegions) next.regions = buildRenderedRegions(d, layout)
   if (wantActions) {
-    const nodeIds = new Set<string>(layout.nodes.map(n => n.id))
-    next.actions = (d.body.kind === 'extension' || d.body.kind === 'preserved' ? [] : collectRenderedActionRecords(d as ValidDiagram)).filter(a => nodeIds.has(a.target)).map(a => ({ ...a, regionId: a.regionId ?? `node:${a.target}` }))
+    const renderedIds = new Set<string>([...layout.nodes, ...layout.groups, ...layout.edges].map(element => element.id))
+    next.actions = (d.body.kind === 'extension' || d.body.kind === 'preserved' ? [] : collectRenderedActionRecords(d as ValidDiagram)).filter(a => renderedIds.has(a.target)).map(a => ({ ...a, regionId: a.regionId ?? `node:${a.target}` }))
   }
   return next
 }
@@ -528,7 +528,7 @@ function buildRenderedRegions(d: ParsedDiagram, layout: RenderedLayout): Rendere
       id: `node:${node.id}`,
       kind: 'node',
       elementId: node.id,
-      parentId: groupByMember.has(node.id) ? `group:${groupByMember.get(node.id)!}` : 'canvas',
+      parentId: node.parentId !== undefined ? `group:${node.parentId}` : groupByMember.has(node.id) ? `group:${groupByMember.get(node.id)!}` : 'canvas',
       bounds: { x: node.x, y: node.y, w: node.w, h: node.h },
       sourceLine: d.source.nodes.get(node.id)?.line ?? sourceLines.nodes.get(node.id),
     })
@@ -611,3 +611,6 @@ function sourceLineHints(d: ParsedDiagram): { nodes: Map<string, number>; groups
   }
   return { nodes, groups }
 }
+
+export type { C4Body, C4MutationOp, C4ValidDiagram } from './types.ts'
+export type { C4Element, C4Boundary, C4Relationship, C4Variant, C4ElementInput, C4BoundaryInput, C4RelationshipInput, C4Style, C4Argument, C4ArgumentInput, C4Directive, C4Statement, C4Diagnostic, C4Direction, C4ElementKind, C4BoundaryKind, C4Shape } from '../c4/types.ts'

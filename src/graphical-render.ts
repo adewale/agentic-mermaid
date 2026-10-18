@@ -92,6 +92,7 @@ function injectAccessibility(
   svg: string,
   accessibility: { title?: string; descr?: string },
   idPrefix: string,
+  fallbackName?: string,
 ): string {
   const titleId = `${idPrefix}svg-title`
   const descId = `${idPrefix}svg-desc`
@@ -105,10 +106,11 @@ function injectAccessibility(
     rootAttrs.push(`aria-describedby="${descId}"`)
     children.push(`<desc id="${descId}">${escapeXmlText(accessibility.descr)}</desc>`)
   }
-  if (children.length === 0) return svg
+  if (children.length === 0 && !fallbackName) return svg
   const root = svgRootStartTag(svg)
   if (!root) return svg
   if (svgAttribute(root, 'aria-labelledby') || svgAttribute(root, 'aria-describedby')) return svg
+  if (fallbackName && !accessibility.title && !svgAttribute(root, 'aria-label')) rootAttrs.push(`aria-label="${escapeXmlText(fallbackName).replace(/"/g, '&quot;')}"`)
   const add = `${svgAttribute(root, 'role') ? '' : ' role="img"'} ${rootAttrs.join(' ')}`
   const open = svg.slice(root.start, root.end)
   return replaceSvgRootStartTag(svg, root, `${open.slice(0, -1)}${add}>${children.join('')}`)
@@ -149,8 +151,9 @@ export function renderPositionedMermaidSVG(
     assertFinalSvgByteBudget(svg, 'namespaced SVG output')
   }
   const accessibility = request.source.accessibility
-  if ((layout.injectAccessibility ?? true) && (accessibility.title || accessibility.descr)) {
-    svg = injectAccessibility(svg, accessibility, idPrefix)
+  const fallbackName = family.id === 'c4' ? 'C4 architecture diagram' : undefined
+  if ((layout.injectAccessibility ?? true) && (accessibility.title || accessibility.descr || fallbackName)) {
+    svg = injectAccessibility(svg, accessibility, idPrefix, fallbackName)
     assertFinalSvgByteBudget(svg, 'accessibility-projected SVG output')
   }
   svg = scopeSvgStyles(svg)

@@ -25,6 +25,7 @@ const REPO = join(import.meta.dir, '..', '..')
 
 /** One declared, representative edit per built-in family; each introduces "zebra". */
 const TYPED_EDIT_BY_FAMILY: Partial<Record<DiagramKind, { kind: string } & Record<string, unknown>>> = {
+  c4: { kind: 'add_element', element: { id: 'Zebra', label: 'Zebra', kind: 'system' } },
   flowchart: { kind: 'add_node', id: 'Zebra', label: 'Zebra' },
   state: { kind: 'add_state', id: 'Zebra' },
   sequence: { kind: 'add_participant', id: 'Zebra' },
@@ -253,6 +254,7 @@ describe('Code Mode SDK declaration matches the runtime', () => {
     const advertised = [...new Set(Array.from(SDK_DECLARATION.matchAll(/\bas[A-Z]\w+/g), m => m[0]))]
     expect(advertised.length).toBeGreaterThanOrEqual(9)
     const SOURCES: Record<string, string> = {
+      asC4: 'C4Context\\n  System(a, "A")',
       asFlowchart: 'flowchart TD\\n  A --> B',
       asState: 'stateDiagram-v2\\n  [*] --> A',
       asSequence: 'sequenceDiagram\\n  A->>B: hi',
