@@ -24,7 +24,7 @@ type Real = { diagram: ErValidDiagram }
 
 /** The facts describeMermaidFacts must report for a model (facts.ts factsEr). */
 function modelFacts(model: Model): string[] {
-  const facts = new Set(['family er', 'er group G label G'])
+  const facts = new Set(['family er', 'er group G label G', 'er group H label H', 'er group I label I parent H'])
   for (const [id, entity] of model.entities) {
     facts.add(`entity ${id}${entity.label ? ` label ${entity.label}` : ''}${entity.group ? ` group ${entity.group}` : ''}`)
     if (entity.className) facts.add(`entity ${id} class ${entity.className}`)
@@ -173,7 +173,7 @@ class ErCommand implements fc.Command<Model, Real> {
   }
 }
 
-const ids = fc.constantFrom('CUSTOMER', 'ORDER', 'LINE-ITEM', 'Product', 'b2')
+const ids = fc.constantFrom('CUSTOMER', 'ORDER', 'LINE-ITEM', 'Product', 'b2', 'SHIPMENT')
 const words = fc.array(fc.constantFrom('Buyer', 'order', 'Line', 'item', 'Big', 'x7'), { minLength: 1, maxLength: 3 }).map(parts => parts.join(' '))
 const attribute = fc
   .tuple(
@@ -205,7 +205,8 @@ const commands = [
 // level, and CUSTOMER, which it created inside G, only in the top-level
 // `bills` (as removing ORDER does). Removing `ships` leaves b2, created before
 // G's entities, with no statement. LINE-ITEM is declared only by `bills`, and
-// Product only by its `style` line. Each must keep its subgraph and position.
+// Product only by its `style` line. I closes before H and keeps SHIPMENT and
+// b2, which was created before G. Each must keep its subgraph and position.
 const INITIAL = [
   'erDiagram',
   '  ORDER {',
@@ -216,6 +217,12 @@ const INITIAL = [
   '  CUSTOMER ||--o{ ORDER : places',
   '  end',
   '  LINE-ITEM }|--|| CUSTOMER : bills',
+  '  subgraph H',
+  '  SHIPMENT',
+  '  subgraph I',
+  '  b2 ||--o{ SHIPMENT : carries',
+  '  end',
+  '  end',
   '  style Product fill:#f00',
   '',
 ].join('\n')
@@ -283,6 +290,36 @@ describe('ER typed editing API against a shadow model', () => {
     )
   })
 
+  test.each([
+    {
+      name: 'a surviving relation creates an earlier entity only in a later subgraph (#372)',
+      source: 'erDiagram\n  A ||--o{ X : r\n  subgraph G\n  B\n  end\n  subgraph I\n  A ||--o{ C : s\n  end',
+      ops: [{ kind: 'remove_entity', id: 'X' }],
+      entities: ['A in I', 'B in G', 'C in I'],
+    },
+    {
+      name: 'a top-level entity lies between entities in one subgraph (BUG-10)',
+      source: 'erDiagram\n  D ||--o{ C : r0\n  subgraph G0\n  D\n  E\n  end',
+      ops: [{ kind: 'remove_relation', index: 0 }],
+      entities: ['D in G0', 'C', 'E in G0'],
+    },
+    {
+      name: 'a style creates a top-level entity inside a subgraph',
+      source: 'erDiagram\n  subgraph G\n  A\n  style B fill:#f00\n  C\n  end',
+      ops: [{ kind: 'add_entity', id: 'D' }],
+      entities: ['A in G', 'B', 'C in G', 'D'],
+    },
+  ] satisfies Array<{ name: string; source: string; ops: ErMutationOp[]; entities: string[] }>)('$name preserves order, ownership and a serialization fixed point', ({ source, ops, entities }) => {
+    expectRoundTrip(source, ops, undefined, entities)
+  })
+
+  test('order repair leaves opaque segments anchored around their subgraphs', () => {
+    const source = 'erDiagram\n  A ||--o{ X : r\n  vendor before\n  subgraph G\n  %% inside G\n  B\n  end\n  vendor between\n  subgraph I\n  A ||--o{ C : s\n  end\n  %% after I'
+    const written = expectRoundTrip(source, [{ kind: 'remove_entity', id: 'X' }], undefined, ['A in I', 'B in G', 'C in I'])
+    const anchored = written.split('\n').map(line => line.trim()).filter(line => /^(?:vendor |%% |subgraph |end$)/.test(line))
+    expect(anchored).toEqual(['vendor before', 'subgraph G', '%% inside G', 'end', 'vendor between', 'subgraph I', 'end', '%% after I'])
+  })
+
   test('a class on an entity that only its style line creates survives serialization', () => {
     // `class` applies only to an entity that already exists, so it follows the `style` line.
     expectRoundTrip('erDiagram\n  style A fill:#f00\n  class A hot', [], 'erDiagram\n  style A fill:#f00\n  class A hot\n', ['A'])
@@ -314,7 +351,7 @@ describe('ER typed editing API against a shadow model', () => {
 
 /** Apply `ops` to `source` and pin the serialized text; re-parsing it must give
  * back the same entities (order and subgraphs included), facts and bytes. */
-function expectRoundTrip(source: string, ops: ErMutationOp[], serialized: string, entities: string[]): void {
+function expectRoundTrip(source: string, ops: ErMutationOp[], serialized: string | undefined, entities: string[]): string {
   const parsed = parseRegisteredMermaid(source)
   if (!parsed.ok) throw new Error(`rejected:\n${source}`)
   let diagram: ParsedDiagram = parsed.value
@@ -323,14 +360,16 @@ function expectRoundTrip(source: string, ops: ErMutationOp[], serialized: string
     if (!result.ok) throw new Error(`${op.kind} refused on:\n${source}`)
     diagram = result.value
   }
-  expect({ source, ops, serialized: serializeMermaid(diagram) }).toEqual({ source, ops, serialized })
-  const reparsed = parseRegisteredMermaid(serialized)
-  if (!reparsed.ok) throw new Error(`serialized source rejected:\n${serialized}`)
+  const written = serializeMermaid(diagram)
+  if (serialized !== undefined) expect({ source, ops, serialized: written }).toEqual({ source, ops, serialized })
+  const reparsed = parseRegisteredMermaid(written)
+  if (!reparsed.ok) throw new Error(`serialized source rejected:\n${written}`)
   const body = asEr(reparsed.value)?.body
   expect({ source, entities: body?.entities.map(entity => entity.groupId ? `${entity.id} in ${entity.groupId}` : entity.id) }).toEqual({ source, entities })
   expect(body?.entities).toEqual(asEr(diagram)?.body.entities)
   expect(describeMermaidFacts(reparsed.value)).toEqual(describeMermaidFacts(diagram))
-  expect(serializeMermaid(reparsed.value)).toBe(serialized)
+  expect(serializeMermaid(reparsed.value)).toBe(written)
+  return written
 }
 
 function initialDiagram(): ErValidDiagram {
@@ -345,15 +384,17 @@ function initialModel(): Model {
   return {
     entities: new Map<string, ModelEntity>([
       ['ORDER', { attributes: ['int id PK'], group: 'G' }],
-      ['b2', { attributes: [] }],
+      ['b2', { attributes: [], group: 'I' }],
       ['CUSTOMER', { attributes: [], group: 'G' }],
       ['LINE-ITEM', { attributes: [] }],
+      ['SHIPMENT', { attributes: [], group: 'I' }],
       ['Product', { attributes: [], styled: true }],
     ]),
     relations: [
       { from: 'b2', to: 'ORDER', leftCard: 'one-only', rightCard: 'zero-or-many', dashed: false, label: 'ships' },
       { from: 'CUSTOMER', to: 'ORDER', leftCard: 'one-only', rightCard: 'zero-or-many', dashed: false, label: 'places' },
       { from: 'LINE-ITEM', to: 'CUSTOMER', leftCard: 'one-or-many', rightCard: 'one-only', dashed: false, label: 'bills' },
+      { from: 'b2', to: 'SHIPMENT', leftCard: 'one-only', rightCard: 'zero-or-many', dashed: false, label: 'carries' },
     ],
   }
 }
