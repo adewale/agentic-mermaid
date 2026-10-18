@@ -17,7 +17,7 @@
  *   - editor/html/ – HTML partials (topbar, left-panel, right-panel)
  */
 
-import { join } from 'node:path'
+import { basename, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { EDITOR_EXAMPLES } from '../../editor/examples.ts'
 import { HOSTED_FONT_RESOURCES, hostedFontFaceCss } from '../../src/font-manifest.ts'
@@ -194,17 +194,32 @@ async function readHtmlPartials(themeItems: string): Promise<{
 
 async function generateEditorHtml(): Promise<string> {
   const fontPrefix = process.env.AM_EDITOR_FONT_PREFIX || 'assets/fonts/'
+  const runtimeDirectory = process.env.AM_EDITOR_RUNTIME_DIR
   const buildResult = await Bun.build({
-    entrypoints: [fileURLToPath(new URL('../../src/browser.ts', import.meta.url))],
+    entrypoints: [fileURLToPath(new URL(runtimeDirectory ? '../../src/browser-hosted.ts' : '../../src/browser.ts', import.meta.url))],
     target: 'browser',
     format: 'esm',
     minify: true,
+    ...(runtimeDirectory ? {
+      splitting: true,
+      outdir: runtimeDirectory,
+      naming: { entry: '[name]-[hash].js', chunk: 'chunk-[hash].js' },
+    } : {}),
   })
   if (!buildResult.success) {
     console.error('Bundle failed:', buildResult.logs)
     process.exit(1)
   }
-  const bundleJs = await buildResult.outputs[0]!.text()
+  let bundleJs: string
+  if (runtimeDirectory) {
+    // Bun materializes outputs when outdir is set. Writing a file-backed
+    // BuildArtifact onto its own path would truncate the emitted module.
+    const entry = buildResult.outputs.find(output => output.kind === 'entry-point')
+    if (!entry) throw new Error('Hosted editor runtime entry not found')
+    bundleJs = `import ${JSON.stringify(`/editor/runtime/${basename(entry.path)}`)};`
+  } else {
+    bundleJs = await buildResult.outputs[0]!.text()
+  }
   console.log(`Browser bundle: ${(bundleJs.length / 1024).toFixed(1)} KB`)
 
   const themeItems = themeItemsHtml()

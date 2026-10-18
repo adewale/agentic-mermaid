@@ -8,6 +8,8 @@
 // innerHTML.
 // ============================================================================
 
+import { inspectSvgOnce } from './svg-inspection-cache.ts'
+
 export const OUTPUT_SECURITY_POLICY_VERSION = 2 as const
 export type OutputSecurityMode = 'default' | 'strict'
 
@@ -162,6 +164,10 @@ function hasWellFormedXmlReferences(source: string): boolean {
  * quoted attributes, no DTD/processing instructions, balanced tags, valid
  * characters/references, and no duplicate attributes. */
 export function verifySvgDocumentEnvelope(svg: string): boolean {
+  return inspectSvgOnce('xml-envelope', svg, () => verifyDocumentEnvelope(svg))
+}
+
+function verifyDocumentEnvelope(svg: string): boolean {
   if (!hasOnlyXmlCharacters(svg)) return false
   const stack: XmlElementFrame[] = []
   let rootSeen = false
@@ -418,14 +424,20 @@ export function validateRawThemeCss(value: unknown, mode: OutputSecurityMode): s
   return `Raw Mermaid themeCSS is not allowed in ${mode} security mode because selectors can escape an imported SVG; use a declarative StyleSpec`
 }
 
-function attributeSecurityFindings(svg: string): string[] {
+function securityFindings(svg: string): { readonly active: readonly string[]; readonly refs: readonly string[] } {
+  return inspectSvgOnce('security', svg, () => inspectSecurity(svg))
+}
+
+function inspectSecurity(svg: string): { readonly active: readonly string[]; readonly refs: readonly string[] } {
+  const markup = svg.replace(/<!--[\s\S]*?-->/g, '')
   const refs: string[] = []
-  for (const tag of startTags(svg)) {
+  const active: string[] = []
+  for (const tag of startTags(markup)) {
     for (const match of tag.matchAll(new RegExp(ATTRIBUTE.source, 'g'))) {
       const qualified = match[1]!
       const name = qualified.slice(qualified.lastIndexOf(':') + 1).toLowerCase()
       const value = unquoteAttribute(match[2]!)
-      if (/^on[a-z]/.test(name)) refs.push('inline-event-handler')
+      if (/^on[a-z]/.test(name)) { refs.push('inline-event-handler'); active.push('inline-event-handler') }
       // A fragment is same-document only in the absence of XML Base. With an
       // external xml:base, href="#mark" and url(#mark) resolve against that
       // external document and can fetch after DOM insertion. Reject the base
@@ -434,25 +446,11 @@ function attributeSecurityFindings(svg: string): string[] {
       if ((name === 'href' || name === 'src' || name === 'data') && isUnsafeReference(value)) {
         refs.push(normalizedReference(value).startsWith('javascript:') ? 'javascript-url' : value)
       }
+      if ((name === 'href' || name === 'src' || name === 'data') && isActiveReference(value)) active.push(`${qualified}=${value}`)
       if ((CSS_VALUE_ATTRIBUTES.has(name) || name === 'values' || name === 'from' || name === 'to') && unsafeCssOrAnimatedValue(value)) {
         refs.push(`${qualified}=${value}`)
       }
-    }
-  }
-  return refs
-}
-
-function activeContentFindings(svg: string): string[] {
-  const markup = svg.replace(/<!--[\s\S]*?-->/g, '')
-  const refs: string[] = []
-  for (const tag of startTags(markup)) {
-    for (const match of tag.matchAll(new RegExp(ATTRIBUTE.source, 'g'))) {
-      const qualified = match[1]!
-      const name = qualified.slice(qualified.lastIndexOf(':') + 1).toLowerCase()
-      const value = unquoteAttribute(match[2]!)
-      if (/^on[a-z]/.test(name)) refs.push('inline-event-handler')
-      if ((name === 'href' || name === 'src' || name === 'data') && isActiveReference(value)) refs.push(`${qualified}=${value}`)
-      if ((CSS_VALUE_ATTRIBUTES.has(name) || name === 'values' || name === 'from' || name === 'to') && unsafeActiveCss(value)) refs.push(`${qualified}=${value}`)
+      if ((CSS_VALUE_ATTRIBUTES.has(name) || name === 'values' || name === 'from' || name === 'to') && unsafeActiveCss(value)) active.push(`${qualified}=${value}`)
     }
   }
   // Character references are decoded inside attribute values and CSS, where
@@ -460,48 +458,38 @@ function activeContentFindings(svg: string): string[] {
   // escaped label text such as `&lt;script&gt;` remains text in XML and must not
   // be mistaken for a structural element.
   for (const style of markup.matchAll(/<style\b[^>]*>([\s\S]*?)<\/style>/gi)) {
-    if (unsafeActiveCss(style[1]!)) refs.push('active-css')
+    if (unsafeActiveCss(style[1]!)) active.push('active-css')
+    refs.push(...unsafeCssReferences(style[1]!))
   }
-  if (/<(?:[^\s<>/:]+:)?script\b/i.test(markup)) refs.push('<script>')
-  if (/<(?:[^\s<>/:]+:)?foreignObject\b/i.test(markup)) refs.push('<foreignObject>')
-  if (/<(?:[^\s<>/:]+:)?object\b/i.test(markup)) refs.push('<object>')
-  if (/<(?:[^\s<>/:]+:)?embed\b/i.test(markup)) refs.push('<embed>')
-  if (/<(?:[^\s<>/:]+:)?iframe\b/i.test(markup)) refs.push('<iframe>')
-  if (ANIMATION_TAG.test(markup)) refs.push('<animation>')
-  return refs
+  for (const tag of ['script', 'foreignObject', 'image', 'object', 'embed', 'iframe']) {
+    if (new RegExp(`<(?:[^\\s<>/:]+:)?${tag}\\b`, 'i').test(markup)) {
+      refs.push(`<${tag}>`)
+      if (tag !== 'image') active.push(`<${tag}>`)
+    }
+  }
+  if (ANIMATION_TAG.test(markup)) { refs.push('<animation>'); active.push('<animation>') }
+  return Object.freeze({ active: Object.freeze(active), refs: Object.freeze(refs) })
 }
 
 export function verifyNoExternalRefs(svg: string): { ok: boolean; refs: string[] } {
-  const markup = svg.replace(/<!--[\s\S]*?-->/g, '')
-  const refs: string[] = attributeSecurityFindings(markup)
-  for (const style of markup.matchAll(/<style\b[^>]*>([\s\S]*?)<\/style>/gi)) {
-    refs.push(...unsafeCssReferences(style[1]!))
-  }
-  if (/<(?:[^\s<>/:]+:)?script\b/i.test(markup)) refs.push('<script>')
-  if (/<(?:[^\s<>/:]+:)?foreignObject\b/i.test(markup)) refs.push('<foreignObject>')
-  if (/<(?:[^\s<>/:]+:)?image\b/i.test(markup)) refs.push('<image>')
-  if (/<(?:[^\s<>/:]+:)?object\b/i.test(markup)) refs.push('<object>')
-  if (/<(?:[^\s<>/:]+:)?embed\b/i.test(markup)) refs.push('<embed>')
-  if (/<(?:[^\s<>/:]+:)?iframe\b/i.test(markup)) refs.push('<iframe>')
-  if (ANIMATION_TAG.test(markup)) refs.push('<animation>')
-  return { ok: refs.length === 0, refs }
+  const { refs } = securityFindings(svg)
+  return { ok: refs.length === 0, refs: [...refs] }
 }
 
 export function applyOutputSecurityPolicy(svg: string, mode: OutputSecurityMode = 'default'): OutputSecurityResult {
   if (!verifySvgDocumentEnvelope(svg)) {
     throw new Error('OutputSecurityPolicy rejected an invalid SVG document envelope')
   }
-  const active = activeContentFindings(svg)
+  const { active, refs } = securityFindings(svg)
   if (active.length > 0) {
     throw new Error(`OutputSecurityPolicy rejected active content: ${active.join(', ')}`)
   }
-  const scan = verifyNoExternalRefs(svg)
-  if (mode === 'strict' && !scan.ok) {
-    throw new Error(`OutputSecurityPolicy strict verification failed: ${scan.refs.join(', ')}`)
+  if (mode === 'strict' && refs.length) {
+    throw new Error(`OutputSecurityPolicy strict verification failed: ${refs.join(', ')}`)
   }
   return {
     svg,
-    diagnostics: mode === 'strict' ? [] : scan.refs.map(reference => ({
+    diagnostics: mode === 'strict' ? [] : refs.map(reference => ({
       code: 'EXTERNAL_REFERENCE' as const,
       reference,
     })),

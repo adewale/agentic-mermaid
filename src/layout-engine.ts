@@ -1819,6 +1819,20 @@ function layoutCandidate(
   const opts = { ...DEFAULTS, ...options, ...(stateVisual ? { stateVisual } : {}) }
   const style = resolveRenderStyle(options, stateVisual?.styleDefaults, options.styleFace)
   const elkGraph = mermaidToElk(graph, opts, style)
+  // An unconnected leaf has no ranking, crossing, packing or routing choice.
+  // Use the same measured node and padding, then retain the complete geometry
+  // pipeline and certification. Compound/state/connected graphs still use ELK.
+  if (graph.nodes.size === 1 && graph.edges.length === 0 && graph.subgraphs.length === 0
+    && !graph.stateNotes?.length && !stateVisual && elkGraph.children?.length === 1) {
+    const child = elkGraph.children[0]!
+    const result = {
+      ...elkGraph,
+      width: child.width! + 2 * opts.padding,
+      height: child.height! + 2 * opts.padding,
+      children: [{ ...child, x: opts.padding, y: opts.padding }],
+    }
+    return elkToPositioned(result, graph, DEFAULTS.mergeEdges, opts.padding, style, 18, options.checkLayoutPasses ?? layoutEnvFlag('APL_CHECK_LAYOUT_PASSES'))
+  }
   // ELK's bundled (GWT-compiled) code can throw internal exceptions on rare
   // dense multigraphs — observed with feedbackEdges routing, and pre-existing
   // with post-compaction + forced model order. Crash-freedom is part of this

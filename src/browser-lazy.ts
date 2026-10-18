@@ -55,12 +55,20 @@ export async function renderMermaidSVGAsync(
   source: string,
   options: RenderOptions = {},
 ): Promise<string> {
+  return (await renderMermaidSVGWithReceiptAsync(source, options)).svg
+}
+
+/** Receipt-bearing lazy rendering retains the complete canonical contract. */
+export async function renderMermaidSVGWithReceiptAsync(
+  source: string,
+  options: RenderOptions = {},
+): Promise<import('./svg-api.ts').RenderedSvg> {
   const familyId = detectFamily(source)
-  const [{ default: family }, { renderLoadedFamilySvg }] = await Promise.all([
+  const [{ default: family }, { renderLoadedFamilySvgWithReceipt }] = await Promise.all([
     FAMILY_LOADERS[familyId](),
     import('./browser-lazy/render-core.ts'),
   ])
-  return renderLoadedFamilySvg(source, options, family)
+  return renderLoadedFamilySvgWithReceipt(source, options, family)
 }
 
 export type { RenderOptions }

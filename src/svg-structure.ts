@@ -1,4 +1,5 @@
 import { decodeXML } from 'entities'
+import { inspectSvgOnce } from './svg-inspection-cache.ts'
 
 export interface SvgAttributeToken {
   readonly name: string
@@ -45,6 +46,10 @@ function scanTagEnd(source: string, start: number): number {
  * only supplies exact attribute/text ranges without ever interpreting text
  * nodes as markup or CSS. */
 export function scanSvgStartTags(source: string): readonly SvgStartTagToken[] {
+  return inspectSvgOnce('start-tags', source, () => scanStartTags(source))
+}
+
+function scanStartTags(source: string): readonly SvgStartTagToken[] {
   const tags: SvgStartTagToken[] = []
   for (let start = source.indexOf('<'); start >= 0; start = source.indexOf('<', start + 1)) {
     if (source.startsWith('<!--', start)) {
@@ -79,16 +84,16 @@ export function scanSvgStartTags(source: string): readonly SvgStartTagToken[] {
       const valueStart = cursor
       while (cursor < end - 1 && source[cursor] !== quote) cursor++
       if (source[cursor] !== quote) break
-      attributes.push({ name, value: source.slice(valueStart, cursor), quote, nameStart, valueStart, valueEnd: cursor })
+      attributes.push(Object.freeze({ name, value: source.slice(valueStart, cursor), quote, nameStart, valueStart, valueEnd: cursor }))
       cursor++
     }
-    tags.push({
+    tags.push(Object.freeze({
       name: source.slice(start + 1, nameEnd),
       start,
       end,
       attributes: Object.freeze(attributes),
       selfClosing: /\/\s*>$/.test(source.slice(start, end)),
-    })
+    }))
     start = end - 1
   }
   return Object.freeze(tags)
@@ -97,7 +102,10 @@ export function scanSvgStartTags(source: string): readonly SvgStartTagToken[] {
 export function svgRootStartTag(source: string): SvgStartTagToken | undefined {
   const firstNonWhitespace = source.search(/\S/)
   if (firstNonWhitespace < 0) return undefined
-  const root = scanSvgStartTags(source)[0]
+  // A root lookup needs only its opening tag, not every mark in the drawing.
+  const end = scanTagEnd(source, firstNonWhitespace)
+  if (end < 0) return undefined
+  const root = scanSvgStartTags(source.slice(0, end))[0]
   return root?.start === firstNonWhitespace && root.name === 'svg' ? root : undefined
 }
 

@@ -1,6 +1,6 @@
 import { createHash } from 'node:crypto'
 import { execFileSync } from 'node:child_process'
-import { mkdir, readdir, rm, unlink, writeFile } from 'node:fs/promises'
+import { mkdir, mkdtemp, readdir, rm, unlink, writeFile } from 'node:fs/promises'
 import { existsSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { dirname, join, resolve, sep } from 'node:path'
@@ -462,13 +462,17 @@ const EXAMPLES_STYLE_SOURCE = await Bun.file(join(SOURCE_ASSETS, 'examples.css')
 const EXAMPLES_STYLE_REL = `examples-${sha256(EXAMPLES_STYLE_SOURCE).slice(0, 12)}.css`
 
 async function generateEditorHtml() {
+  const runtimeDirectory = await mkdtemp(join(tmpdir(), 'am-editor-runtime-'))
   const result = Bun.spawnSync(['bun', 'run', 'scripts/site/editor.ts'], {
     cwd: ROOT,
-    env: { ...process.env, AM_EDITOR_FONT_PREFIX: '/fonts/' },
+    env: { ...process.env, AM_EDITOR_FONT_PREFIX: '/fonts/', AM_EDITOR_RUNTIME_DIR: runtimeDirectory },
   })
   if (result.exitCode !== 0) {
+    await rm(runtimeDirectory, { recursive: true, force: true })
     throw new Error(`scripts/site/editor.ts failed:\n${result.stderr.toString()}`)
   }
+  try { await copyDir(runtimeDirectory, 'editor/runtime') }
+  finally { await rm(runtimeDirectory, { recursive: true, force: true }) }
   const path = join(ROOT, 'editor.html')
   const html = await Bun.file(path).text()
   try { await unlink(path) } catch {}

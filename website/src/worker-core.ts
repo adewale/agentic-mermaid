@@ -98,6 +98,7 @@ const IMMUTABLE_CACHE = 'public, max-age=31536000, immutable'
 type ImmutableAssetRule = Readonly<{ path: RegExp, contentTypes: readonly string[] }>
 const IMMUTABLE_ASSET_RULES: readonly ImmutableAssetRule[] = Object.freeze([
   Object.freeze({ path: /^\/(?:editor\/editor-(?:(?:app|renderer)-)?[a-f0-9]{12}|vendor\/mermaid-[a-f0-9]{12}\.min)\.js$/i, contentTypes: ['text/javascript', 'application/javascript'] }),
+  Object.freeze({ path: /^\/editor\/runtime\/(?:browser-hosted|chunk)-[a-z0-9]{8}\.js$/i, contentTypes: ['text/javascript', 'application/javascript'] }),
   Object.freeze({ path: /^\/examples\/fragments\/(?:style-palette|corpus)-[a-f0-9]{12}$/i, contentTypes: ['text/html'] }),
   Object.freeze({ path: /^\/(?:examples|generated\/inline)-[a-f0-9]{12}\.js$/i, contentTypes: ['text/javascript', 'application/javascript'] }),
   // The /demo/ lazy ESM graph: both its entry and tsup chunks are content-hashed.

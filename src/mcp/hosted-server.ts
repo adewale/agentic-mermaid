@@ -16,7 +16,7 @@ import { MUTATION_OPS_BY_FAMILY } from '../agent/mutation-ops.ts'
 import { knownStyleDescriptors } from '../scene/style-registry.ts'
 import { BUILTIN_FAMILY_METADATA } from '../agent/families.ts'
 import { renderMermaidSVGWithReceipt, renderMermaidASCIIWithReceipt } from '../agent/core.ts'
-import { verifyNoExternalRefs } from '../index.ts'
+import { verifyNoExternalRefs } from '../output-security.ts'
 import { unsupportedCodeReason } from './facade.ts'
 import { rpcError, toolResult, type JsonRpcRequest, type JsonRpcResponse } from './protocol.ts'
 import {

@@ -384,7 +384,7 @@ function countSourceLines(source) {
   return n;
 }
 
-function renderTextOutputs(source) {
+async function renderTextOutputs(source) {
   if (!renderMermaidAsciiWithReceipt || !renderMermaidUnicodeWithReceipt) return;
   if (!hasCurrentVerifiedSvgArtifact()) {
     markTextOutputsDirty();
@@ -392,6 +392,7 @@ function renderTextOutputs(source) {
     return;
   }
   var key = textOutputKey(source);
+  var svgArtifactAtStart = lastRenderedSvgArtifact;
   if (textOutputCacheKey === key) {
     if (activeCanvasFormat() === "unicode") fitUnicodeOutput();
     return;
@@ -407,8 +408,13 @@ function renderTextOutputs(source) {
   }
   try {
     var opts = Object.assign({}, buildOptions(), { colorMode: "none" });
-    var unicodeArtifact = renderMermaidUnicodeWithReceipt(source, opts);
-    var asciiArtifact = renderMermaidAsciiWithReceipt(source, Object.assign({}, opts, { useAscii: true }));
+    var artifacts = await Promise.all([
+      renderMermaidUnicodeWithReceipt(source, opts),
+      renderMermaidAsciiWithReceipt(source, Object.assign({}, opts, { useAscii: true }))
+    ]);
+    if (source !== currentEditorSource() || lastRenderedSvgArtifact !== svgArtifactAtStart) return;
+    var unicodeArtifact = artifacts[0];
+    var asciiArtifact = artifacts[1];
     retainTextOutputArtifact("unicode", unicodeArtifact);
     retainTextOutputArtifact("ascii", asciiArtifact);
     setTextOutputs(
@@ -418,6 +424,7 @@ function renderTextOutputs(source) {
     textOutputCacheKey = key;
     if (activeCanvasFormat() === "unicode") fitUnicodeOutput();
   } catch (err) {
+    if (source !== currentEditorSource() || lastRenderedSvgArtifact !== svgArtifactAtStart) return;
     textOutputCacheKey = "";
     clearTextOutputReceipts();
     setTextOutputs("Text output failed: " + String(err || "unknown error"), "Text output failed: " + String(err || "unknown error"));

@@ -3,17 +3,29 @@ import { installLoadedFamilyDescriptor } from '../agent/family-router.ts'
 import { executeGraphicalRequest } from '../graphical-render.ts'
 import type { HtmlEntityTableNotLoadedError } from '../shared/html-entity-table.ts'
 import type { RenderOptions } from '../types.ts'
+import type { GraphicalSvgArtifact } from '../graphical-render.ts'
+import { captureRenderOptions, capturedRenderBackend } from '../render-contract.ts'
 
 export async function renderLoadedFamilySvg(
   source: string,
   options: RenderOptions,
   family: FamilyDescriptor,
 ): Promise<string> {
+  return (await renderLoadedFamilySvgWithReceipt(source, options, family)).svg
+}
+
+export async function renderLoadedFamilySvgWithReceipt(
+  source: string,
+  options: RenderOptions,
+  family: FamilyDescriptor,
+): Promise<GraphicalSvgArtifact> {
+  options = captureRenderOptions(options)
+  if (capturedRenderBackend(options) !== 'default') await import('../scene/builtin-backends.ts')
   installLoadedFamilyDescriptor(family)
   const render = () => executeGraphicalRequest(source, options, 'svg', undefined, {
     expectedFamilyId: family.id,
     familyDescriptor: family,
-  }).svg
+  })
   try {
     return render()
   } catch (error) {

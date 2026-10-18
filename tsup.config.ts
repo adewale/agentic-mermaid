@@ -3,6 +3,8 @@ import { defineConfig } from 'tsup'
 export default defineConfig({
   entry: {
     index: 'src/index.ts',
+    svg: 'src/svg.ts',
+    'svg-styles': 'src/svg-styles.ts',
     agent: 'src/agent/index.ts',
     'agent-core': 'src/agent/core.ts',
     // Node-runnable bins for npm consumers (shebang preserved from source).
@@ -11,7 +13,7 @@ export default defineConfig({
   },
   format: ['esm'],
   // Type declarations only for importable library entries, not CLI bins.
-  dts: { entry: { index: 'src/index.ts', agent: 'src/agent/index.ts', 'agent-core': 'src/agent/core.ts' } },
+  dts: { entry: { index: 'src/index.ts', svg: 'src/svg.ts', 'svg-styles': 'src/svg-styles.ts', agent: 'src/agent/index.ts', 'agent-core': 'src/agent/core.ts' } },
   // All ESM entries share the renderer and agent substrate. Emit shared chunks
   // instead of publishing multi-megabyte copies.
   splitting: true,

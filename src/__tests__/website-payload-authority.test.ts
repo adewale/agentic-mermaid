@@ -23,7 +23,7 @@ const SAMPLE_REQUESTS: Record<string, string[]> = {
   home: ['/', '/styles.css', '/fonts/Inter-Regular.subset-0123456789ab.woff2', '/fonts/Inter-Medium.subset-0123456789ab.woff2'],
   examples: ['/examples/', '/styles.css', '/examples-0123456789ab.js', '/examples-0123456789ab.css'],
   demo: ['/demo/', '/demo/browser-lazy/index-0123456789ab.js', '/demo/browser-lazy/chunks/timeline-ABCD2345.js', '/generated/inline-0123456789ab.js'],
-  'editor-empty': ['/editor/', '/editor/editor-0123456789ab.js'],
+  'editor-empty': ['/editor/', '/editor/editor-0123456789ab.js', '/editor/runtime/browser-hosted-abcd1234.js'],
 }
 
 function sampleReport(): WebsitePayloadReport {

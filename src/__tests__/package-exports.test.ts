@@ -46,6 +46,8 @@ describe('package exports', () => {
       './agent',
       './agent/core',
       './browser',
+      './svg',
+      './svg/styles',
       './browser/lazy',
       './style-spec.schema.json',
       './package.json',
