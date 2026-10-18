@@ -179,6 +179,30 @@ describe('Section B semantic policy', () => {
     }))
   })
 
+  test('constraint diagnostics measure the repaired literal-CSS palette used by SVG', () => {
+    const source = 'flowchart TD\nsubgraph app[Application]\nA[Card]\nend'
+    for (const colors of [
+      { bg: 'white', fg: 'gainsboro' },
+      { bg: 'rgb(255 255 255)', fg: 'hsl(0 0% 86%)' },
+    ]) {
+      const options = { style: {
+        colors,
+        // Force a diagnostic even after repair so its measured ink is visible.
+        constraints: [{ kind: 'contrast', action: 'warn', role: 'group-header', minimum: 21 }],
+      } } as const
+      const svg = renderMermaidSVG(source, options)
+      const painted = svg.match(/<text\b[^>]*fill="([^"]+)"[^>]*>Application<\/text>/)?.[1]
+      expect(painted).toBeDefined()
+      const result = verifyMermaid(source, { renderOptions: options })
+      expect(result.warnings).toContainEqual(expect.objectContaining({
+        constraint: 'contrast', measurement: 'measurable', mark: 'group-label:app',
+        foreground: painted, ratio: expect.any(Number),
+      }))
+      const measured = result.warnings.find(item => item.code === 'BRAND_CONSTRAINT_WARNING' && item.constraint === 'contrast')
+      expect(measured && 'ratio' in measured ? measured.ratio : undefined).toBeGreaterThanOrEqual(4.5)
+    }
+  })
+
   test('nested text inherits the nearest preceding containing surface for contrast', () => {
     const shape: SceneNode = {
       kind: 'shape', id: 'surface', role: 'node',

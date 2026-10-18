@@ -130,13 +130,25 @@ Style registries and mandatory family conformance profiles generate:
   palette-sensitive role, external-reference and contact-sheet obligations;
 - a separate SVG/PNG/ASCII/Unicode portfolio with every-family Unicode stress.
 
+Each family profile declares its automatic-outline roles or explains why they
+do not apply. The SVG portfolio binds those Scene obligations to the actual
+emitted primitives, including class-styled swatches and sketched outline
+siblings. It checks positive visible ink and 3:1 source-paint contrast against
+known opaque pages, preserves declared opacity, and requires every applicable
+family/role/backend to have a witness. Representative looks without explicit
+border roles exercise all six strata, including the default crisp look.
+Deliberate role colors, `none`, and authored zero-width borders have separate
+preservation checks; active family paint aliases are treated as overrides.
+These checks do not certify every antialiased pixel or an unknown transparent
+host background.
+
 The planner and tuple-verifier helpers describe the interaction obligations;
 the retained tests exercise family-profile closure, resolver behavior,
 rendered output and determinism. Do not infer current enforcement merely from
 the existence of a helper or from the historical plan's removed sabotage suite.
-A new `DiagramKind`
-cannot compile without its minimal, representative, dense, text-stress,
-family-risk and eval-corpus-outlier conformance material.
+A new `DiagramKind` requires typed profiles and generators, including an
+outline declaration. Missing fixture files or eval-corpus examples fail when
+the conformance inputs are constructed.
 
 **Runs:** executable conformance runs per PR. The
 larger citizenship/interaction/outlier contact sheets run when visual inputs

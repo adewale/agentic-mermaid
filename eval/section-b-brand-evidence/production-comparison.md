@@ -318,3 +318,21 @@ This is agent review, not human approval or arbitrary input/font coverage.
 The five official C4 inputs and independent owned-ink checks cover the broader
 visibility repair separately; this four-style witness establishes only its
 rendered presentation on the existing sheet.
+
+## PR #420 integration with #421 outline contrast
+
+The independent review after merging main
+`ba37758062ed8daf805a2be6a472a49ef0c2222b` preserves both changes. Against that
+main, exactly 132,756 pixels change in the same four C4 cells: 35,487 Sentinel,
+32,357 Editorial, 33,272 Technical and 31,640 Operations. All 64 other cells
+and every heading remain pixel-identical. Against the earlier #420 sheet,
+exactly 10,071 pixels change in the three upstream Timeline holdout cells:
+2,665 Editorial, 3,585 Technical and 3,821 Operations.
+
+The auditor inspected native 520×380 comparisons of all C4 and Timeline
+treatments. C4 keeps the centered Uses/HTTPS halo in a clear shaft gap, complete
+arrowheads, person/card text, API description and legend. Timeline changes
+paint without changing dates, event text or geometry. The reviewed 1560×9464
+PNG SHA-256 is
+`3aee18640b52271ee8a0f0f15a817f8abe3c4ad32c7692185ba45cb9624354c1`.
+This is agent review, not human approval or arbitrary palette/font coverage.

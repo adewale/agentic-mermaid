@@ -2,9 +2,9 @@
   "schemaVersion": 1,
   "status": "approved",
   "artifact": "src/__tests__/testdata/section-b-brand-evidence.png",
-  "artifactSha256": "68a5b52113cc918048c3016ea0a5b6203f51eee169b689f99dd44d2159484c9d",
+  "artifactSha256": "3aee18640b52271ee8a0f0f15a817f8abe3c4ad32c7692185ba45cb9624354c1",
   "reviewedAt": "2026-10-18",
-  "reviewer": "Independent Codex audit agent, PR #420 infrastructure and primitive convergence",
-  "scope": "The 1560×9464 sheet contains 68 family-by-variant cells. Against base a3b06894a21396aed5c822c195e87f1082a4da84, exactly 132,756 of 14,763,840 pixels change, confined to the four C4 cells; 64 other cells and all headings remain pixel-identical. An independent agent inspected all four before/after pairs at native 520×380: centered Uses/HTTPS label with background clearance, complete target arrowhead, Customer/Person and API/System text, description, legend and light/dark palette remain legible. This is agent review, not human approval or arbitrary input/font coverage.",
+  "reviewer": "Independent Codex audit agent, PR #420 integration with #421 outline contrast",
+  "scope": "Independent agent review after merging main ba37758062ed8daf805a2be6a472a49ef0c2222b. The 1560×9464 sheet contains 68 family-by-variant cells. Relative to main, exactly 132,756 pixels change in the four C4 cells: Sentinel 35,487; Editorial 32,357; Technical 33,272; Operations 31,640. All 64 other cells and headings remain pixel-identical. Relative to the prior PR #420 sheet, exactly 10,071 pixels change in the three upstream Timeline holdout cells; C4 cells remain identical. An independent agent inspected all C4 and Timeline treatments at native 520×380 against both revisions: labels, arrowheads, cards, descriptions, topology and legend remain complete. This is agent review, not human approval or arbitrary palette/font coverage.",
   "audit": "eval/section-b-brand-evidence/production-comparison.md"
 }
