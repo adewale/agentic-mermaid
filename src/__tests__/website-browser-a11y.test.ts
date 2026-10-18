@@ -333,8 +333,8 @@ describeBrowser('website browser accessibility smoke', () => {
         get() { return mermaidValue },
         set(value) {
           const original = value.renderMermaidSVGWithReceipt
-          value.renderMermaidSVGWithReceipt = function(source: string, options: unknown) {
-            const artifact = original(source, options)
+          value.renderMermaidSVGWithReceipt = async function(source: string, options: unknown) {
+            const artifact = await original(source, options)
             ;(window as any).__examplesEditorRender = { source, options, artifact }
             return artifact
           }

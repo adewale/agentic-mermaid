@@ -6,11 +6,40 @@ the diagram source known before the page is served?**
 | Your case | Use | JS shipped |
 |---|---|---|
 | Source is fixed at publish time — blog post, docs page, README | [Pre-render before delivery](#framework-neutral-pre-rendering) | none |
-| Source is authored or edited in the page — editor, playground, user input | [Async family-loaded renderer](#async-family-loaded-esm) | 41 KB initial; 162 KB for a first Timeline render, gzip |
-| One classic script with a synchronous global matters more than transfer | [Compatibility bundle](#classic-one-file-compatibility-bundle) | 896 KB gzip |
+| Source is authored or edited in the page — editor, playground, user input | [Async family-loaded renderer](#async-family-loaded-esm) | loader plus the selected family and shared core |
+| Synchronous source-to-SVG without editing or terminal APIs | [Focused SVG entry](#focused-synchronous-svg) | SVG families and the default backend |
+| One classic script with a synchronous global matters more than transfer | [Compatibility bundle](#classic-one-file-compatibility-bundle) | complete renderer and library APIs |
 
 Most sites are the first row. `renderMermaidSVG` is synchronous and needs no DOM,
 so a static site never has to ship the renderer to a reader.
+
+## Focused synchronous SVG
+
+Use `agentic-mermaid/svg` when a consumer needs source-to-SVG rendering without
+the typed editing, terminal, or PNG APIs. It uses the same request, security,
+geometry and final-paint certification pipeline as the complete library, and
+offers `renderMermaidSVGWithReceipt` as well as the string projection:
+
+```ts
+import { renderMermaidSVGWithReceipt } from 'agentic-mermaid/svg'
+const { svg, receipt } = renderMermaidSVGWithReceipt('flowchart LR\n API --> DB', {
+  security: 'strict',
+})
+```
+
+This entry accepts Mermaid source strings. Parsed diagrams and extension
+registration remain on the complete library/agent entries. Palette changes use
+the default backend. To enable sketch looks synchronously, explicitly import
+`agentic-mermaid/svg/styles` before rendering with a sketch style. Browser
+bundlers can consume the same focused ESM entry. A second monolithic SVG bundle
+is deliberately not shipped: it would duplicate ELK in every npm installation.
+
+The async browser entry loads optional sketch backends on demand and also
+exports `renderMermaidSVGWithReceiptAsync`. An unloaded loader is not a usable
+renderer: compare the complete first-family request graph when choosing an entry.
+
+The hosted editor uses separate modules for rendering, verification, text output
+and PNG export. The standalone `bun run editor` build remains self-contained.
 
 ## Framework-neutral pre-rendering
 

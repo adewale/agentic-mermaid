@@ -143,12 +143,14 @@ async function renderPass(page: Page, engine: Engine, origin: string, inputs: Ar
 
 async function main() {
   const options = new Map<string, string>()
-  const allowed = new Set(['candidate-tarball', 'candidate-sha256', 'baseline-lock', 'out', 'rounds', 'case', 'executable'])
+  const allowed = new Set(['candidate-tarball', 'candidate-sha256', 'baseline-lock', 'baseline-tarball', 'baseline-sha256', 'out', 'rounds', 'case', 'executable'])
   for (let i = 2; i < process.argv.length; i += 2) {
     const flag = process.argv[i]!.replace(/^--/, ''), value = process.argv[i + 1]
     if (!allowed.has(flag) || !value || value.startsWith('--') || options.has(flag)) throw new Error(`Invalid option ${process.argv[i]}`)
     options.set(flag, value)
   }
+  if (options.has('baseline-tarball') && options.has('baseline-lock')) throw new Error('Use baseline-tarball or baseline-lock, not both')
+  if (options.has('baseline-tarball') !== options.has('baseline-sha256')) throw new Error('Provide both baseline-tarball and baseline-sha256')
   const out = resolve(options.get('out') ?? 'bench-report')
   mkdirSync(out, { recursive: true })
   const reportPath = join(out, 'browser-report.json')
@@ -175,6 +177,14 @@ async function main() {
     const candidate = install(resolve(tarball), 'agentic-mermaid', 'candidate', temporary, `sha512-${createHash('sha512').update(bytes).digest('base64')}`)
     candidate.identity.tarballSha256 = expectedSha
     const engines = [candidate]
+    if (options.has('baseline-tarball')) {
+      const baselineBytes = readFileSync(resolve(options.get('baseline-tarball')!))
+      const sha256 = createHash('sha256').update(baselineBytes).digest('hex')
+      if (sha256 !== options.get('baseline-sha256')) throw new Error('Baseline tarball SHA-256 mismatch')
+      const baseline = install(resolve(options.get('baseline-tarball')!), 'agentic-mermaid', 'baseline', temporary, `sha512-${createHash('sha512').update(baselineBytes).digest('base64')}`)
+      baseline.identity.tarballSha256 = sha256
+      engines.push(baseline)
+    }
     const lockPath = options.get('baseline-lock')
     if (lockPath) {
       const lock = JSON.parse(readFileSync(lockPath, 'utf8')) as BaselineLock
@@ -200,11 +210,25 @@ async function main() {
     // unbounded network fetch hidden inside a renderer timing.
     await context.route('**/*', route => new URL(route.request().url()).origin === origin ? route.continue() : route.abort())
     const payload: Record<string, unknown> = {}
+    // Measure a real consumer bundle from the installed publication artifact.
+    // It is distinct from the complete shipped IIFE and lazy request graph.
+    const focusedEntry = join(candidate.root, 'dist/svg.js')
+    let focusedGzip: number | undefined
+    if (existsSync(focusedEntry)) {
+      const build = await Bun.build({ entrypoints: [focusedEntry], target: 'browser', format: 'esm', minify: true })
+      if (!build.success || build.outputs.length !== 1) throw new Error('Focused SVG consumer bundle failed')
+      const bytes = Buffer.from(await build.outputs[0]!.arrayBuffer())
+      focusedGzip = gzipSync(bytes, { level: 9 }).byteLength
+      writeFileSync(join(out, 'focused-svg-consumer.js'), bytes)
+      payload.focusedConsumer = { entry: 'agentic-mermaid/svg', bundler: `Bun ${Bun.version}`, raw: bytes.byteLength, gzip: focusedGzip, sha256: createHash('sha256').update(bytes).digest('hex') }
+    }
     for (const engine of engines) {
       const bundle = readFileSync(join(engine.root, engine.bundle))
       const page = await context.newPage()
       const monolithic = { file: engine.bundle, raw: bundle.byteLength, gzip: gzipSync(bundle, { level: 9 }).byteLength, sha256: createHash('sha256').update(bundle).digest('hex') }
-      payload[engine.label] = { monolithic, ...(engine.kind === 'agentic' ? { lazy: await lazyPayload(page, engine, origin) } : {}) }
+      payload[engine.label] = { monolithic, ...(engine.kind === 'agentic' ? {
+        lazy: await lazyPayload(page, engine, origin),
+      } : {}) }
       await page.close()
     }
     const page = await context.newPage()
@@ -245,6 +269,7 @@ async function main() {
       const value = payload[engine.label] as { lazy: Awaited<ReturnType<typeof lazyPayload>> }
       lines.push(`| ${engine.label} | ${(value.lazy.initial.gzip / 1024).toFixed(1)} KiB / ${value.lazy.initial.requests} | ${(value.lazy.throughFirstFlow.gzip / 1024).toFixed(1)} KiB / ${value.lazy.throughFirstFlow.requests} |`)
     }
+    if (focusedGzip !== undefined) lines.push('', `Bundled focused SVG ESM consumer (Bun ${Bun.version}): **${(focusedGzip / 1024).toFixed(1)} KiB gzip**. This excludes optional sketch backends, terminal output and typed editing; it is a consumer build from the installed tarball, not a second shipped IIFE. The complete-bundle comparison above retains the full API.`)
     lines.push('', 'Acceptance means returned SVG, not semantic or visual fidelity. Complete bundles are measured separately from lazy delivery; an unloaded loader is not a usable renderer. Cold lazy timings include localhost module fetches and are diagnostic, not network or paint benchmarks. Remote images/fonts are blocked and failures remain in the denominator. Full failures, per-round samples, fetched module paths, compression sizes and package identities accompany this report. No competitor threshold gates publication.', '')
     const markdown = lines.join('\n')
     writeFileSync(join(out, 'browser-report.md'), markdown)

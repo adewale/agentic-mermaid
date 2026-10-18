@@ -1168,13 +1168,19 @@ export function receiptOf(
 export function resolvedFamilyRenderContextOf(
   request: ResolvedRenderRequest,
 ): ResolvedFamilyRenderContext {
-  return Object.freeze({
+  const prior = FAMILY_CONTEXT_BY_REQUEST.get(request)
+  if (prior) return prior
+  const context = Object.freeze({
     renderOptions: request.renderOptions,
     ...(request.appearance.face ? { styleFace: request.appearance.face } : {}),
     ...(request.familyConfig ? { familyConfig: request.familyConfig } : {}),
     ...(request.appearance.family ? { familyAppearance: request.appearance.family } : {}),
   })
+  if (EXECUTION_PLAN_BY_REQUEST.has(request)) FAMILY_CONTEXT_BY_REQUEST.set(request, context)
+  return context
 }
+
+const FAMILY_CONTEXT_BY_REQUEST = new WeakMap<ResolvedRenderRequest, ResolvedFamilyRenderContext>()
 
 function applyStyleDefaults(
   options: RenderOptions,
@@ -1500,8 +1506,13 @@ export function canonicalTextDigest(text: string): string {
  * Clone and deeply freeze one request snapshot. Shared references are allowed;
  * cycles are not, because receipts must have a finite canonical form.
  */
+const IMMUTABLE_SNAPSHOTS = new WeakSet<object>()
+
 function immutableSnapshot<T>(value: T, path = '$', ancestors = new Set<object>()): T {
   if (value === null || typeof value !== 'object') return value
+  // Object.isFrozen is insufficient: an externally frozen object may retain
+  // getters or mutable descendants. Reuse only snapshots created here.
+  if (IMMUTABLE_SNAPSHOTS.has(value)) return value
   if (ancestors.has(value)) throw new TypeError(`render request contains a cycle at ${path}`)
   const proto = Object.getPrototypeOf(value)
   if (!Array.isArray(value) && proto !== Object.prototype && proto !== null) {
@@ -1513,6 +1524,7 @@ function immutableSnapshot<T>(value: T, path = '$', ancestors = new Set<object>(
     : Object.fromEntries(Object.entries(value as Record<string, unknown>).map(([key, child]) =>
         [key, immutableSnapshot(child, `${path}.${key}`, ancestors)]))
   ancestors.delete(value)
+  IMMUTABLE_SNAPSHOTS.add(clone as object)
   return Object.freeze(clone) as T
 }
 
@@ -1531,6 +1543,34 @@ function boundedImmutableJsonSnapshot<T>(value: T, context: string): T {
 interface AdmittedRenderOptions {
   readonly serializable: Readonly<RenderOptions>
   readonly onConfigDiagnostic?: NonNullable<RenderOptions['onConfigDiagnostic']>
+  readonly capturedStyle?: ReturnType<typeof resolveStyleStackWithFace>
+}
+
+const EMPTY_ADMITTED_OPTIONS: AdmittedRenderOptions = Object.freeze({
+  serializable: immutableSnapshot({}),
+})
+const CAPTURED_OPTIONS = new WeakMap<object, AdmittedRenderOptions>()
+const CAPTURED_STYLE_REFERENCES = new WeakMap<object, readonly ResolvedStyleReference[]>()
+
+/** Snapshot once before an async feature load. Only this private membership,
+ * never a caller's freeze or object identity, authorizes admission reuse. */
+export function captureRenderOptions(options: RenderOptions): Readonly<RenderOptions> {
+  if (CAPTURED_OPTIONS.has(options)) return options
+  const admitted = admitRenderOptionsInput(options)
+  const capturedStyle = immutableSnapshot(resolveStyleStackWithFace(admitted.serializable.style))
+  const problems = validateSerializableRenderOptions(admitted.serializable)
+  if (problems.length) throw new TypeError(`Invalid RenderOptions: ${problems.join('; ')}`)
+  const references = namedStyleReferences(admitted.serializable.style)
+  const captured = Object.freeze({ ...admitted.serializable, ...(admitted.onConfigDiagnostic ? { onConfigDiagnostic: admitted.onConfigDiagnostic } : {}) })
+  CAPTURED_OPTIONS.set(captured, Object.freeze({ ...admitted, capturedStyle }))
+  CAPTURED_STYLE_REFERENCES.set(admitted.serializable, references)
+  return captured
+}
+
+export function capturedRenderBackend(options: RenderOptions): string {
+  const captured = CAPTURED_OPTIONS.get(options)?.capturedStyle
+  if (!captured) throw new TypeError('Render options have not been captured')
+  return captured.style ? inferBackend(captured.style) : 'default'
 }
 
 /** Capture the complete enumerable RenderOptions surface once. The sole
@@ -1540,6 +1580,8 @@ function admitRenderOptionsInput(untrusted: RenderOptions): AdmittedRenderOption
   if ((typeof untrusted !== 'object' && typeof untrusted !== 'function') || untrusted === null) {
     throw new TypeError('Invalid RenderOptions: render options must be an object')
   }
+  const prior = CAPTURED_OPTIONS.get(untrusted)
+  if (prior) return prior
   const serializableEntries: Array<[string, unknown]> = []
   let onConfigDiagnostic: unknown
   for (const [field, value] of Object.entries(untrusted)) {
@@ -1552,6 +1594,7 @@ function admitRenderOptionsInput(untrusted: RenderOptions): AdmittedRenderOption
   if (onConfigDiagnostic !== undefined && typeof onConfigDiagnostic !== 'function') {
     throw new TypeError('Invalid RenderOptions: onConfigDiagnostic must be a function')
   }
+  if (serializableEntries.length === 0 && onConfigDiagnostic === undefined) return EMPTY_ADMITTED_OPTIONS
   const candidate = Object.fromEntries(serializableEntries)
   let serializable: Readonly<RenderOptions>
   try {
@@ -1866,7 +1909,7 @@ export function resolveAppearance(input: ResolveAppearanceInput): ResolvedAppear
   )
 
   const colors = immutableSnapshot(normalized.colors)
-  const styleReferences = namedStyleReferences(options.style)
+  const styleReferences = CAPTURED_STYLE_REFERENCES.get(options) ?? namedStyleReferences(options.style)
   const rejectedThemeColors = unsafeThemeColorKeys(source)
   const appearanceReceipt = {
     version: RENDER_CONTRACT_VERSION,
@@ -1925,10 +1968,10 @@ export function resolveRenderRequestForExecution(
   // reported as `Invalid style spec` instead of being relabelled as a generic
   // RenderOptions failure. It also avoids resolving mutable registry state
   // twice while constructing one canonical request.
-  const resolvedStyle = resolveStyleStackWithFace(admittedOptions.style)
+  const resolvedStyle = admitted.capturedStyle ?? resolveStyleStackWithFace(admittedOptions.style)
   const style = resolvedStyle.style
   const face = immutableSnapshot(resolvedStyle.face)
-  const optionProblems = validateSerializableRenderOptions(serializableOptionsCandidate)
+  const optionProblems = admitted.capturedStyle ? [] : validateSerializableRenderOptions(serializableOptionsCandidate)
   if (optionProblems.length > 0) {
     throw new TypeError(`Invalid RenderOptions: ${optionProblems.join('; ')}`)
   }

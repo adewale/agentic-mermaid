@@ -48,10 +48,11 @@ export const WEBSITE_PAYLOAD_BUDGETS: WebsitePayloadBudgets = Object.freeze({
   }),
   demo: Object.freeze({
     maxRequests: 31,
-    // Final connector/card and typed-owner checks: 805,295 raw / 304,813 gzip / 276,131 Brotli.
-    maxRawBytes: 806_000,
-    maxGzipBytes: 305_000,
-    maxBrotliBytes: 277_000,
+    // Optional sketch code stays out of the default Timeline delivery graph.
+    // Measured: 766,462 raw / 292,528 gzip / 265,232 Brotli.
+    maxRawBytes: 780_000,
+    maxGzipBytes: 300_000,
+    maxBrotliBytes: 272_000,
     required: Object.freeze([
       '^/demo/$',
       '^/demo/browser-lazy/index-[a-f0-9]{12}\\.js$',
@@ -65,16 +66,16 @@ export const WEBSITE_PAYLOAD_BUDGETS: WebsitePayloadBudgets = Object.freeze({
     ]),
   }),
   'editor-empty': Object.freeze({
-    maxRequests: 2,
-    // Native paint/cell certification and production pass budgets ship here.
-    // Combined measurement: 3,754,949 raw / 1,144,430 gzip / 900,642 Brotli.
-    // Per-change growth still has its own delta gate.
-    maxRawBytes: 3_755_000,
-    maxGzipBytes: 1_145_000,
-    maxBrotliBytes: 901_000,
+    maxRequests: 3,
+    // App plus schema/bootstrap; engines and feature modules wait for work.
+    // Measured: 695,625 raw / 207,845 gzip / 178,555 Brotli.
+    maxRawBytes: 710_000,
+    maxGzipBytes: 215_000,
+    maxBrotliBytes: 185_000,
     required: Object.freeze([
       '^/editor/$',
       '^/editor/editor-[a-f0-9]{12}\\.js$',
+      '^/editor/runtime/browser-hosted-[a-z0-9]{8}\\.js$',
     ]),
     forbidden: Object.freeze([]),
   }),

@@ -4,13 +4,10 @@ import type { FamilyDescriptor } from '../agent/families.ts'
 import { sceneNodePrimitives } from './capabilities.ts'
 import type { SceneDoc, SceneNode, SemanticChannelName } from './ir.ts'
 import {
-  EXTERNAL_SCENE_DOCUMENT_SNAPSHOT_LIMITS,
-  recordAdmittedScene,
-  snapshotBoundedExternalData,
+  admitSceneDocument,
 } from './external-data-snapshot.ts'
 import {
   SceneValidationError,
-  assertValidSceneDoc,
   type SceneValidationDiagnostic,
 } from './scene-validation.ts'
 
@@ -29,13 +26,7 @@ function visit(nodes: readonly SceneNode[], callback: (node: SceneNode, path: st
  */
 export function admitFamilyScene(descriptor: FamilyDescriptor, value: unknown): SceneDoc {
   const external = descriptor.id.startsWith('family:')
-  const admitted = snapshotBoundedExternalData(
-    value,
-    EXTERNAL_SCENE_DOCUMENT_SNAPSHOT_LIMITS,
-    'scene',
-  )
-  assertValidSceneDoc(admitted, { mode: external ? 'external' : 'internal' })
-  const scene = admitted as SceneDoc
+  const scene = admitSceneDocument(value, external ? 'external' : 'internal')
   const diagnostics: SceneValidationDiagnostic[] = []
 
   if (external && scene.family !== descriptor.id) {
@@ -83,6 +74,5 @@ export function admitFamilyScene(descriptor: FamilyDescriptor, value: unknown): 
   })
 
   if (diagnostics.length > 0) throw new SceneValidationError(Object.freeze(diagnostics))
-  recordAdmittedScene(scene, external ? 'external' : 'internal')
   return scene
 }

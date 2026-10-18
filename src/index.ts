@@ -19,6 +19,7 @@ export { PaintLayoutCertificationError, type PaintLayoutCertification } from './
 // Install the complete synchronous built-in/extension resolver. The lazy
 // browser entry intentionally does not import this module.
 import './agent/families.ts'
+import './scene/builtin-backends.ts'
 
 export type { LabelContent, PreparedDisplayText, DisplayRun } from './shared/display-text.ts'
 

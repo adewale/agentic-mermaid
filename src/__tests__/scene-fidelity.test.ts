@@ -116,6 +116,7 @@ describe('scene fidelity', () => {
     expect(admitBackendSceneDocument(external)).toBe(external)
     expect(DefaultBackend.render(external, { seed: 0 })).toContain('<svg')
     const admitted = admitFamilyScene(family, builtIn.doc)
+    expect(admitFamilyScene(family, admitted)).toBe(admitted)
     expect(admitBackendSceneDocument(admitted)).toBe(admitted)
     expect(() => admitFamilyScene({ ...family, semanticRoles: [] }, admitted)).toThrow(/undeclared role/)
   })

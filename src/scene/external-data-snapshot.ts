@@ -227,15 +227,21 @@ export function recordAdmittedScene(scene: SceneDoc, mode: 'internal' | 'externa
  * rendering. Every document is reduced to bounded, immutable own data before
  * validation; a snapshot already admitted under the same rules is returned as is. */
 export function admitBackendSceneDocument(value: unknown): SceneDoc {
+  return admitSceneDocument(value)
+}
+
+/** Family admission chooses its rule set explicitly; backend admission infers
+ * it from the captured snapshot. Both reuse only our admitted immutable data. */
+export function admitSceneDocument(value: unknown, mode?: 'internal' | 'external'): SceneDoc {
   // Look up before reading any property: a caller Proxy sees no trap here.
   const prior = typeof value === 'object' && value !== null ? ADMITTED_SCENES.get(value) : undefined
-  if (prior !== undefined && prior === sceneValidationMode(value)) return value as SceneDoc
+  if (prior !== undefined && prior === (mode ?? sceneValidationMode(value))) return value as SceneDoc
   const admitted = snapshotBoundedExternalData(
     value,
     EXTERNAL_SCENE_DOCUMENT_SNAPSHOT_LIMITS,
     'scene',
   )
-  assertValidSceneDoc(admitted)
-  recordAdmittedScene(admitted as SceneDoc, sceneValidationMode(admitted))
+  assertValidSceneDoc(admitted, { mode })
+  recordAdmittedScene(admitted as SceneDoc, mode ?? sceneValidationMode(admitted))
   return admitted as SceneDoc
 }

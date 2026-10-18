@@ -3,7 +3,8 @@ import { getFamily, knownBuiltinFamilies } from '../agent/families.ts'
 import type { FamilyDescriptor } from '../agent/families.ts'
 import { BrowserFamilyDetectionError, renderMermaidSVGAsync } from '../browser-lazy.ts'
 import { detectBrowserBuiltinFamilyFromFirstLine } from '../browser-lazy/generated/catalog.ts'
-import { renderLoadedFamilySvg } from '../browser-lazy/render-core.ts'
+import { renderLoadedFamilySvg, renderLoadedFamilySvgWithReceipt } from '../browser-lazy/render-core.ts'
+import { registerStyle } from '../scene/style-registry.ts'
 import { renderMermaidSVG } from '../index.ts'
 import { LayoutCertificationError } from '../layout/certification-error.ts'
 import { detectDiagramTypeFromFirstLine } from '../mermaid-source.ts'
@@ -11,6 +12,40 @@ import type { ConfigDiagnostic } from '../types.ts'
 import type { MermaidRuntimeConfig } from '../mermaid-source.ts'
 
 describe('async browser SVG entry', () => {
+  test('retains the admitted named style and its receipt through an async registry replacement', async () => {
+    const { default: descriptor } = await import('../browser-lazy/families/pie.ts')
+    const style = 'look:test/async-registry-snapshot'
+    const source = 'pie\n "One" : 1'
+    const dispose = registerStyle({ formatVersion: 1, name: style, stroke: 'jittered' })
+    let replacement: (() => void) | undefined
+    try {
+      const expected = await renderLoadedFamilySvgWithReceipt(source, { style }, descriptor)
+      const pending = renderLoadedFamilySvgWithReceipt(source, { style }, descriptor)
+      dispose()
+      replacement = registerStyle({ formatVersion: 1, name: style, stroke: 'freehand', colors: { fg: '#ff0000' } })
+      expect(await pending).toEqual(expected)
+      expect((await renderLoadedFamilySvgWithReceipt(source, { style }, descriptor)).svg).not.toBe(expected.svg)
+    } finally { replacement?.(); dispose() }
+  })
+  test('palette-only styles keep optional sketch backends unloaded', async () => {
+    const child = Bun.spawn([process.execPath, '-e', `
+      import { renderMermaidSVGAsync } from ${JSON.stringify(new URL('../browser-lazy.ts', import.meta.url).pathname)};
+      import { knownBackendDescriptors } from ${JSON.stringify(new URL('../scene/backend.ts', import.meta.url).pathname)};
+      await renderMermaidSVGAsync('pie\\n "One" : 1', { style: ['crisp', 'paper'], security: 'strict' });
+      console.log(JSON.stringify(knownBackendDescriptors().map(value => value.inputName)));
+    `], { stdout: 'pipe', stderr: 'pipe' })
+    const [stdout, stderr, exitCode] = await Promise.all([new Response(child.stdout).text(), new Response(child.stderr).text(), child.exited])
+    expect(exitCode, stderr).toBe(0)
+    expect(JSON.parse(stdout)).toEqual(['default'])
+  })
+  test('captures accessor options once before optional-backend loading', async () => {
+    const { default: descriptor } = await import('../browser-lazy/families/pie.ts')
+    let reads = 0
+    const options = Object.freeze({ get style() { reads++; return 'hand-drawn' } })
+    const source = 'pie\n "One" : 1'
+    expect(await renderLoadedFamilySvg(source, options, descriptor)).toBe(renderMermaidSVG(source, { style: 'hand-drawn' }))
+    expect(reads).toBe(1)
+  })
   test('loads descriptor diagnostics without the complete registry and matches explicit synchronous output', async () => {
     const cases = [
       { id: 'state', config: { state: { nodeSpacing: -1, defaultRenderer: 'dagre' } }, fields: ['state.defaultRenderer', 'state.nodeSpacing'] },

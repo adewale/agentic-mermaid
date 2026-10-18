@@ -1,3 +1,7 @@
+// PNG is a complete graphical adapter, including sketch looks. Enroll its
+// backends here so direct native/browser/hosted imports do not depend on the
+// complete library entry having run first. SVG-only entries stay independent.
+import './scene/builtin-backends.ts'
 import { executeGraphicalRequest, type GraphicalSvgArtifact } from './graphical-render.ts'
 import type { RenderOptions } from './types.ts'
 import type { RenderExecutionResolutionOptions } from './render-contract.ts'

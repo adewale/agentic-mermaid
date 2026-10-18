@@ -5,7 +5,7 @@
 // verification prove renderability from the exact artifact it already
 // inspected, without serializing, parsing, or laying out again.
 
-import './scene/builtin-backends.ts'
+import './scene/default-backend.ts'
 
 import { compactSvg, namespaceSvgIds } from './renderer.ts'
 import { fitUncalibratedSvgText } from './custom-font-geometry.ts'
@@ -35,6 +35,8 @@ import { PaintLayoutCertificationError, type PaintLayoutCertification, type Pain
 import { assertFinalSvgByteBudget } from './scene/scene-validation.ts'
 import type { SceneDoc } from './scene/ir.ts'
 import { withTextMeasurementExecution } from './text-measurement-profile.ts'
+import { withSvgInspectionCache } from './svg-inspection-cache.ts'
+import { measureRenderStage } from './render-stages.ts'
 
 export interface ResolvedGraphicalExecution {
   readonly svg: string
@@ -150,16 +152,16 @@ function renderPositionedWithTextMeasurement(
   let rawSvg: string
   let layoutCertification: PaintLayoutCertification | undefined
   if (executionPlan.mode === 'scene') {
-    const scene = lowerPositionedFamilyScene(request, layout)
-    layoutCertification = positionedPaintCertification(request, layout)
+    const scene = measureRenderStage('scene', () => lowerPositionedFamilyScene(request, layout))
+    layoutCertification = measureRenderStage('paint-certification', () => positionedPaintCertification(request, layout))
     if ((effectiveOptions.layoutSafety === 'strict' && layoutCertification.status !== 'passed') || (layoutCertification.status === 'failed' && executionPlan.backend?.inputName === 'default')) throw new PaintLayoutCertificationError(layoutCertification)
-    rawSvg = executionPlan.backend!.backend.render(scene, {
+    rawSvg = measureRenderStage('backend', () => executionPlan.backend!.backend.render(scene, {
       seed: effectiveOptions.seed ?? 0,
       ...(request.appearance.styled ? { style: request.appearance.style } : {}),
-    })
+    }))
   } else {
     if (effectiveOptions.layoutSafety === 'strict') throw new Error('Strict layout safety requires native Scene evidence')
-    rawSvg = family.renderSvg!(context)
+    rawSvg = measureRenderStage('backend', () => family.renderSvg!(context))
   }
   assertFinalSvgByteBudget(rawSvg, 'backend/family SVG output')
 
@@ -194,7 +196,7 @@ function renderPositionedWithTextMeasurement(
   // security intent, while no native/WASM/browser rasterizer can receive a
   // fetching reference from a conditional host backend.
   const outputSecurity = request.output === 'png' ? 'strict' : effectiveOptions.security
-  const secured = applyOutputSecurityPolicy(svg, outputSecurity)
+  const secured = measureRenderStage('svg-security', () => applyOutputSecurityPolicy(svg, outputSecurity))
   securityDiagnostics.push(...secured.diagnostics)
   svg = secured.svg
   assertFinalSvgByteBudget(svg, 'final SVG output')
@@ -213,7 +215,7 @@ export function renderResolvedMermaidSVG(
   const familyId = resolvedRenderExecutionPlanOf(request).family.id
   return renderPositionedMermaidSVG(
     request,
-    positionResolvedFamily(familyId, request),
+    measureRenderStage('layout', () => positionResolvedFamily(familyId, request)),
     securityDiagnostics,
   )
 }
@@ -230,24 +232,35 @@ export function executeGraphicalRequest(
   outputOptions?: unknown,
   resolutionOptions: RenderExecutionResolutionOptions = {},
 ): GraphicalSvgArtifact {
-  const request = resolveRenderRequestForExecution(
+  return withSvgInspectionCache(() => executeInspectedGraphicalRequest(text, options, output, outputOptions, resolutionOptions))
+}
+
+function executeInspectedGraphicalRequest(
+  text: string,
+  options: RenderOptions,
+  output: 'svg' | 'png',
+  outputOptions: unknown,
+  resolutionOptions: RenderExecutionResolutionOptions,
+): GraphicalSvgArtifact {
+  const request = measureRenderStage('request', () => resolveRenderRequestForExecution(
     text,
     options,
     output,
     outputOptions,
     resolutionOptions,
-  )
+  ))
   emitResolvedConfigDiagnostics(request)
   const securityDiagnostics: OutputSecurityDiagnostic[] = []
   const rendered = renderResolvedMermaidSVG(request, securityDiagnostics)
   const receipt = receiptOf(request, securityDiagnostics)
+  const outputDigest = renderedSvgDigest(rendered.svg)
   return Object.freeze({
     svg: rendered.svg,
     receipt: Object.freeze({
       ...receipt,
-      graphicalProjectionDigest: renderedSvgDigest(rendered.svg),
+      graphicalProjectionDigest: outputDigest,
       executionDecision: rendered.executionDecision,
-      ...(rendered.layoutCertification ? { layoutCertification: Object.freeze({ ...rendered.layoutCertification, outputDigest: renderedSvgDigest(rendered.svg) }) } : {}),
+      ...(rendered.layoutCertification ? { layoutCertification: Object.freeze({ ...rendered.layoutCertification, outputDigest }) } : {}),
     }),
   })
 }

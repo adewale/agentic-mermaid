@@ -891,7 +891,10 @@ describe('Workers Static Assets website contract', () => {
     expect(editor).not.toContain('Browser bundle:')
     expect(statSync(join(SITE, 'editor/index.html')).size).toBeLessThan(250_000)
     expect(gzipSync(read('editor/index.html')).byteLength).toBeLessThan(80_000)
-    expect(read(editorScript).length).toBeGreaterThan(1_000_000)
+    expect(read(editorScript).length).toBeLessThan(250_000)
+    const runtime = read(editorScript).match(/import "\/(editor\/runtime\/browser-hosted-[a-z0-9]{8}\.js)"/)?.[1]
+    expect(runtime).toBeDefined()
+    expect(read(runtime!).length).toBeGreaterThan(1000)
   })
 
   test('every generated editor-state link uses the canonical codec and round-trips', () => {

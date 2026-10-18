@@ -39,6 +39,7 @@ import { assertRenderableMarker, serializeMarkerResources } from './marker-resou
 import { assertRenderableLinearGradient, LINEAR_GRADIENT_LIMITS, serializeLinearGradientResources } from './gradient-resources.ts'
 import { BUILTIN_SCENE_ROLE_TRAITS, sceneRoleTraits } from './roles.ts'
 import { boundedUtf8ByteLength } from '../shared/utf8.ts'
+import { inspectSvgOnce } from '../svg-inspection-cache.ts'
 import { canonicalizeSceneNodeSerialization, sceneNodeSerialization } from './serialization.ts'
 
 export const SCENE_VALIDATION_VERSION = 2 as const
@@ -125,7 +126,7 @@ type MutableDiagnostic = SceneValidationDiagnostic
  * neither extension output nor namespace/accessibility expansion can bypass it. */
 export function assertFinalSvgByteBudget(value: unknown, stage = 'final SVG'): asserts value is string {
   if (typeof value !== 'string') throw new TypeError(`${stage} must be a string`)
-  if (boundedUtf8ByteLength(value, MAX_FINAL_SVG_BYTES) > MAX_FINAL_SVG_BYTES) {
+  if (!inspectSvgOnce('final-svg-budget', value, () => boundedUtf8ByteLength(value, MAX_FINAL_SVG_BYTES) <= MAX_FINAL_SVG_BYTES)) {
     throw new RangeError(`${stage} exceeds the ${MAX_FINAL_SVG_BYTES}-byte final SVG limit`)
   }
 }

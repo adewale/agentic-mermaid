@@ -64,6 +64,13 @@ export function detectBrowserBuiltinFamilyFromFirstLine(firstLine: string): Brow
 `
 writeGenerated(join(GENERATED, 'catalog.ts'), catalog)
 
+writeGenerated(join(GENERATED, 'synchronous.ts'), `${generatedHeader()}
+import { installLoadedFamilyDescriptor } from '../../agent/family-router.ts'
+${ids.map(id => `import family_${id} from '../families/${id}.ts'`).join('\n')}
+
+for (const family of [${ids.map(id => `family_${id}`).join(', ')}]) installLoadedFamilyDescriptor(family)
+`)
+
 for (const descriptor of descriptors) {
   const data = {
     id: descriptor.id,

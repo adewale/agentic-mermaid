@@ -24,6 +24,16 @@
       "default": "./dist/agent-core.js"
     },
     "./browser": "./dist/browser.global.js",
+    "./svg": {
+      "types": "./dist/svg.d.ts",
+      "import": "./dist/svg.js",
+      "default": "./dist/svg.js"
+    },
+    "./svg/styles": {
+      "types": "./dist/svg-styles.d.ts",
+      "import": "./dist/svg-styles.js",
+      "default": "./dist/svg-styles.js"
+    },
     "./browser/lazy": {
       "types": "./dist/browser-lazy/index.d.ts",
       "import": "./dist/browser-lazy/index.js",
