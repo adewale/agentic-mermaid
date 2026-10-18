@@ -11,9 +11,11 @@ changes do not change library code. Public source and installed-package APIs
 were exercised separately. The fetched documentation at <https://pele.run/api>
 describes that API; fetching documentation does not establish deployment bytes.
 
-Pele targets Mermaid **12.1.0**, whereas Agentic's writing contract remains
-**11.16.1**. Its source/package registry renders 33 family examples; Agentic's
-current source registers 17 native families including C4. Those are breadth
+At this initial comparison snapshot, Pele targeted Mermaid **12.1.0** and
+Agentic's writing contract was **11.16.1**. The rebased candidate below updates
+Agentic's pin to **12.2.0** without relabeling these historical measurements.
+Pele's source/package registry rendered 33 family examples; Agentic's
+source registered 17 native families including C4. Those are breadth
 observations, not construct-fidelity scores. Agentic npm and the live
 capabilities endpoint still report **0.4.1** at this check: native C4 in this
 branch is not available merely by installing that release.
@@ -304,6 +306,9 @@ rusty-mermaid, Sebastian0.8.0 and mermaid-rs-renderer0.3.1. Their recognition,
 visible relationships, indices, terminal output and editing must be assessed
 separately. No universal Agentic rendering or performance superiority follows.
 
+The following `cb799434` performance and payload observations predate the
+Mermaid 12.2.0 rebase and remain historical evidence.
+
 The final three-file performance A/B binds production
 `cb7994341c309e4da1ebb54fa5045548bacc63b4`, Node 24.19.0 and Bun 1.4.2,
 on the same AMD EPYC 9V74 five-vCPU host. Identical committed C4 source,
@@ -331,6 +336,50 @@ Fresh browser requests after the follow-up measure the all-family editor at
 raw / 72,546 gzip / 57,465 Brotli bytes. The examples gzip ceiling increases
 72,500→72,600 for its prepared C4 legend/swatch content; other absolute caps,
 request/resource restrictions and the separate PR growth gate remain intact.
+
+### Rebased candidate, 18 October 2026 at 09:11 UTC
+
+The performance comparison was repeated at
+`56e463243e2361b2eb742c256a38eb8c8f9f54fe`, rebased onto main
+`5442a3cce1e847953e2e5fcbc79a01662f96ecb7`. Both sides use that committed
+source, the same frozen dependencies (including Mermaid **12.2.0**, source pin
+`1fb7869866dd619168d840291c9c54b4f129758b`, and `yaml` **2.9.0**), and
+the same Node-target ESM build. Only `render-contract.ts`, `svg-structure.ts`
+and `output-security.ts` revert to their pre-optimization versions from
+`6724062c5da0e13401ab63744b3e7c11efc2684f` in the before build. This isolates
+the three bounded optimizations; it does not measure the dependency upgrade.
+
+The same three-node/two-interaction C4 input ran on Node **24.19.0** and Bun
+**1.4.2**, on the AMD EPYC 9V74 five-vCPU host during a coordinated quiet
+window. Each implementation/path received 40 warmups and 120 samples in six
+alternating-order batches. Timed receipt paths include full JSON serialization;
+every returned string is consumed as UTF-8 bytes.
+
+| Small C4 public path | Node median before→after, ms | Node p95 before→after, ms | Bun median before→after, ms | Bun p95 before→after, ms |
+| --- | ---: | ---: | ---: | ---: |
+| SVG text | 11.150→8.690 | 14.771→11.780 | 15.713→12.489 | 22.654→16.433 |
+| SVG plus complete receipt | 10.497→8.290 | 12.822→11.457 | 12.566→11.145 | 16.267→14.416 |
+| Terminal text | 4.194→3.630 | 6.829→6.233 | 7.315→6.396 | 17.752→10.847 |
+| Terminal plus complete receipt | 10.212→9.107 | 13.978→12.688 | 15.286→14.396 | 20.379→19.354 |
+
+All four outputs/receipts match exactly within both runtime pairs. The repeated
+broader check matches 42 full output/receipt artifacts (772,864 bytes), nine
+terminal metadata artifacts and 1,088 security cases. Within each path's A/B,
+Node median reductions range from 10.8–22.1% and Bun reductions from 5.8–20.5%.
+All sampled p95s improve in this run; the earlier Bun p95 regressions remain
+reported above. These bounded warm measurements
+establish no general tail-latency, dense-layout, startup, memory, download or
+competitor performance claim. Earlier tables retain their original provenance.
+
+The changed YAML semantics also pass the existing 63-test contract/security
+selection with 3,276 assertions, including the installed Mermaid 12.2.0 oracle.
+Additional public C4 probes preserve plain `1_0`, `0b1_0` and `1e999` titles
+through SVG, terminal output and serialization. Invalid explicit numeric tags
+are rejected. Invalid numeric configuration strings use default geometry and
+produce `INEFFECTIVE_CONFIG` through `verifyMermaid`; that source warning is
+not included in the SVG receipt. Callers requiring source diagnostics must
+consume verification as well as rendering. The rebase introduces no observed
+failure in these checks; it is not a new full-browser or all-family audit.
 
 ## Zombie Mermaid and C4 bloodlines
 
