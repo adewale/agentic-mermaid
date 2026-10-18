@@ -474,15 +474,22 @@ table here, which would drift. In broad strokes:
   `release-todo.test.ts`). It adds no schedule and never fails a run. **Does
   not prove:** what production serves; it only reports the skip.
 - **Per release (`release-benchmark.yml`, called by `publish.yml`):**
-  `bun run bench:release` renders every official syntax fence and a set of
+  `bun run bench:release` renders distinct official syntax examples and a set of
   generated large diagrams with the built package and with the last npm
   release, in alternating fresh Node processes on one runner. It fails the
-  release on a lost SVG/ASCII render, nondeterministic output, an SVG resvg
-  cannot parse, a corpus slowdown past 1.25× (1.5× for any large case),
+  release on incomplete baseline/candidate observations, a lost SVG/ASCII render,
+  nondeterministic output, an SVG resvg cannot parse, missing asserted visible
+  labels, a failed scaling/agent workflow, a corpus slowdown past 1.25× (1.5× for
+  any compared family or large case),
   allocation or peak RSS growth past 1.25×, or retained heap growth past
   16 MB per pass; the report lists changed SVGs per family. Run it locally
-  with `--baseline <built checkout>` or `--baseline-npm <version>`. **Does not
-  prove:** browser or PNG performance; absolute timings vary by machine.
+  with `--baseline <built checkout>` or `--baseline-npm <version>`. The npm baseline
+  version/integrity survives workflow retries. Full fence accounting and paired
+  round/latency diagnostics accompany the report. An advisory browser scorecard
+  measures the exact packed candidate, baseline, pinned Pele and Mermaid on the
+  complete occurrence corpus, with shared-success ratios and complete/lazy JS
+  payloads. **Does not prove:** PNG performance, arbitrary semantic/visual fidelity,
+  or real-network/paint latency; absolute timings vary by machine.
 - **Manual / periodic:** `layout-compare` before/after, the benchmark vs competitors, the real
   LLM-as-judge run, and the production freshness check
   (`scripts/ci/production-freshness.ts`, in `docs/contributing/releasing.md`).

@@ -68,6 +68,48 @@ function tarball(dir: string, packageJson: Record<string, unknown>, extra: Recor
 const sha256 = (bytes: Buffer) => createHash('sha256').update(bytes).digest('hex')
 const sriSha512 = (bytes: Buffer) => `sha512-${createHash('sha512').update(bytes).digest('base64')}`
 
+describe('release benchmark: baseline identity across workflow retries', () => {
+  const resolve = step('benchmark', 'Restore and resolve the immutable benchmark baseline', benchmarkWorkflow)
+  function restore(options: { attempt?: string; artifact?: boolean; downloadFails?: boolean } = {}) {
+    const dir = tempDir()
+    writeFileSync(join(dir, 'baseline.json'), JSON.stringify({ requested: 'latest', version: '0.4.1', integrity: sriSha512(Buffer.from('original')) }))
+    stub(dir, 'gh', `
+      if [ "$1" = api ]; then
+        ${options.artifact ? 'echo 123' : ':'}
+      else
+        ${options.downloadFails ? 'exit 1' : 'cp "$MOCK_ROOT/baseline.json" benchmark-baseline/baseline.json'}
+      fi
+    `)
+    stub(dir, 'npm', `echo queried >> "$MOCK_ROOT/npm-calls"\nprintf '%s' '{"version":"0.4.2","dist.integrity":"${sriSha512(Buffer.from('new'))}"}'`)
+    // Execute the real resolver, replacing only the workflow's Bun launcher.
+    stub(dir, 'bun', `shift\nexec '${process.execPath}' '${join(REPO, 'eval/benchmark/release-baseline.ts')}' "$2" "$3"`)
+    const result = execute(resolve, dir, { BASELINE: 'latest', GITHUB_REPOSITORY: 'owner/repo', GITHUB_RUN_ID: '1', GITHUB_RUN_ATTEMPT: options.attempt ?? '2', BASELINE_ARTIFACT: 'release-benchmark-baseline-1' })
+    return { result, dir, queries: lines(join(dir, 'npm-calls')) }
+  }
+
+  test('restores the original version without querying a changed latest tag', () => {
+    const { result, dir, queries } = restore({ artifact: true })
+    expect(result.status).toBe(0)
+    expect(queries).toEqual([])
+    expect(JSON.parse(readFileSync(join(dir, 'benchmark-baseline/baseline.json'), 'utf8')).version).toBe('0.4.1')
+  })
+
+  test('a missing or failed restore cannot silently choose a new mutable baseline', () => {
+    for (const options of [{}, { artifact: true, downloadFails: true }]) {
+      const { result, queries } = restore(options)
+      expect(result.status).not.toBe(0)
+      expect(queries).toEqual([])
+    }
+  })
+
+  test('the initial attempt resolves and persists the baseline before measuring', () => {
+    const { result, dir, queries } = restore({ attempt: '1' })
+    expect(result.status).toBe(0)
+    expect(queries).toEqual(['queried'])
+    expect(JSON.parse(readFileSync(join(dir, 'benchmark-baseline/baseline.json'), 'utf8')).version).toBe('0.4.2')
+  })
+})
+
 describe('release gate: exact-SHA canonical CI attestation', () => {
   const gate = step('release-gate', 'Require successful canonical CI for the exact release commit')
   const SHA = '0123456789abcdef0123456789abcdef01234567'

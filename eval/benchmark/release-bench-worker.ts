@@ -12,6 +12,7 @@ import { readFileSync, writeFileSync } from 'node:fs'
 import { pathToFileURL } from 'node:url'
 import { GCProfiler } from 'node:v8'
 import type { BenchInput, MemoryResult, Outcome, OutputFingerprint, TimeResult } from './release-bench-types.ts'
+import { missingSvgLabels, renderAgentEdit } from './release-bench-fidelity.ts'
 
 interface Job {
   entry: string
@@ -57,6 +58,8 @@ function median(values: number[]): number {
 const importStart = performance.now()
 const mod = (await import(pathToFileURL(job.entry).href)) as Renderer
 const importMs = performance.now() - importStart
+const agent = job.inputs.some(input => input.workflow) ? await import(pathToFileURL(job.entry.replace(/index\.js$/, 'agent.js')).href) as Parameters<typeof renderAgentEdit>[0] : undefined
+const renderSvg = (input: BenchInput) => input.workflow ? renderAgentEdit(agent!, input.source) : mod.renderMermaidSVG(input.source)
 
 function timeMode(): TimeResult {
   const firstStart = performance.now()
@@ -67,10 +70,10 @@ function timeMode(): TimeResult {
   // Correctness: render twice to check determinism; ASCII once each way too.
   const svgFingerprints: OutputFingerprint[] = []
   const results = job.inputs.map(input => {
-    const svg = attempt(() => mod.renderMermaidSVG(input.source))
+    const svg = attempt(() => renderSvg(input))
     const svgFingerprint = fingerprint(svg)
     svgFingerprints.push(svgFingerprint)
-    const again = fingerprint(attempt(() => mod.renderMermaidSVG(input.source)))
+    const again = fingerprint(attempt(() => renderSvg(input)))
     const ascii = fingerprint(attempt(() => mod.renderMermaidASCII(input.source)))
     const asciiAgain = fingerprint(attempt(() => mod.renderMermaidASCII(input.source)))
     return {
@@ -78,6 +81,7 @@ function timeMode(): TimeResult {
       svg,
       ascii,
       deterministic: same(svgFingerprint, again) && same(ascii, asciiAgain),
+      missingSvgLabels: svg.ok ? missingSvgLabels(svg.output, input.expectedSvgLabels) : [],
     }
   })
 
@@ -86,11 +90,14 @@ function timeMode(): TimeResult {
   for (let rep = 0; rep < job.reps; rep++) {
     job.inputs.forEach((input, index) => {
       const start = performance.now()
-      const rendered = attempt(() => mod.renderMermaidSVG(input.source))
+      const rendered = attempt(() => renderSvg(input))
       samples[index]!.push(performance.now() - start)
       // Consume and compare the complete output after the measured API call.
       const current = fingerprint(rendered)
       results[index]!.deterministic &&= same(svgFingerprints[index]!, current)
+      if (rendered.ok) for (const label of missingSvgLabels(rendered.output, input.expectedSvgLabels)) {
+        if (!results[index]!.missingSvgLabels.includes(label)) results[index]!.missingSvgLabels.push(label)
+      }
     })
   }
   return {
@@ -132,7 +139,7 @@ function memoryMode(): MemoryResult {
   const gc = globalThis.gc
   if (!gc) throw new Error('memory mode needs node --expose-gc')
   const render = (input: BenchInput) => {
-    const outcome = attempt(() => mod.renderMermaidSVG(input.source))
+    const outcome = attempt(() => renderSvg(input))
     if (!outcome.ok) throw new Error(`${input.id}: memory render failed: ${outcome.error}`)
   }
   const pass = () => {

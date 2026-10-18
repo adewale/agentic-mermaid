@@ -24,12 +24,13 @@ on:
 
 permissions:
   contents: read
+  actions: read
 
 jobs:
   benchmark:
     name: Benchmark against agentic-mermaid@${{ inputs.baseline }}
     runs-on: ubuntu-latest
-    timeout-minutes: 90
+    timeout-minutes: 105
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
 
@@ -56,6 +57,32 @@ jobs:
         run: |
           npm install -g npm@11.18.0 --ignore-scripts
           test "$(npm --version)" = "11.18.0"
+
+      - name: Restore and resolve the immutable benchmark baseline
+        env:
+          GH_TOKEN: ${{ github.token }}
+          BASELINE: ${{ inputs.baseline }}
+          BASELINE_ARTIFACT: release-benchmark-baseline-${{ github.run_id }}
+        run: |
+          mkdir -p benchmark-baseline
+          artifacts="$(gh api --paginate "repos/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID/artifacts" \
+            --jq '.artifacts[] | select(.name == env.BASELINE_ARTIFACT and .expired == false) | .id')"
+          if [ -n "$artifacts" ]; then
+            gh run download "$GITHUB_RUN_ID" --name "$BASELINE_ARTIFACT" --dir benchmark-baseline
+          elif [ "$GITHUB_RUN_ATTEMPT" -gt 1 ] && ! [[ "$BASELINE" =~ ^[0-9]+\.[0-9]+\.[0-9]+(-[A-Za-z0-9.-]+)?$ ]]; then
+            echo "The previous baseline artifact is unavailable. Start an on-demand run with an explicit previous npm version." >&2
+            exit 1
+          fi
+          bun run eval/benchmark/release-baseline.ts "$BASELINE" benchmark-baseline/baseline.json
+
+      - name: Persist the baseline before measuring
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
+        with:
+          name: release-benchmark-baseline-${{ github.run_id }}
+          path: benchmark-baseline/baseline.json
+          if-no-files-found: error
+          overwrite: true
+          retention-days: 30
 
       - name: Pack and verify the candidate package
         if: inputs.candidate-artifact == ''
@@ -92,7 +119,21 @@ jobs:
           BASELINE: ${{ inputs.baseline }}
         run: |
           candidate_sha="$(jq -er '.sha256' release-artifact/package-manifest.json)"
-          bun run bench:release --candidate-tarball release-artifact/package.tgz --candidate-sha256 "$candidate_sha" --baseline-npm "$BASELINE" --out bench-report
+          bun run bench:release --candidate-tarball release-artifact/package.tgz --candidate-sha256 "$candidate_sha" --baseline-npm "$BASELINE" --baseline-lock benchmark-baseline/baseline.json --out bench-report
+
+      - name: Install Chromium for the advisory browser scorecard
+        if: ${{ !cancelled() }}
+        continue-on-error: true
+        timeout-minutes: 5
+        run: bunx playwright install --with-deps chromium
+
+      - name: Measure exact-artifact browser and competitor performance
+        if: ${{ !cancelled() }}
+        continue-on-error: true
+        timeout-minutes: 13
+        run: |
+          candidate_sha="$(jq -er '.sha256' release-artifact/package-manifest.json)"
+          timeout 12m bun run bench:release:browser --candidate-tarball release-artifact/package.tgz --candidate-sha256 "$candidate_sha" --baseline-lock benchmark-baseline/baseline.json --out bench-report
 
       - name: Upload the benchmark report
         if: always()
@@ -100,7 +141,7 @@ jobs:
         with:
           name: release-benchmark-${{ github.sha }}
           path: |
-            bench-report/report.*
-            bench-report/samples.jsonl
+            bench-report/
+            benchmark-baseline/baseline.json
           if-no-files-found: warn
           overwrite: true

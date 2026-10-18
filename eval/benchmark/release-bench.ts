@@ -7,14 +7,16 @@ import { appendFileSync, existsSync, mkdirSync, mkdtempSync, readFileSync, rmSyn
 import { cpus, release, tmpdir } from 'node:os'
 import { join, resolve } from 'node:path'
 import { Resvg } from '@resvg/resvg-js'
-import { extractOfficialCorpus } from '../shared/official-fences.ts'
+import { extractOfficialCorpus, officialCorpusInventory } from '../shared/official-fences.ts'
 import { releaseBenchCases } from './release-bench-cases.ts'
+import { agentEditCase } from './release-bench-fidelity.ts'
+import { resolveBaseline } from './release-baseline.ts'
 import type { BenchInput, MemoryResult, Outcome, OutputFingerprint, TimeResult } from './release-bench-types.ts'
 
-interface Input extends BenchInput {
-  kind: 'corpus' | 'scaling'
+export interface Input extends BenchInput {
+  kind: 'corpus' | 'scaling' | 'workflow'
 }
-interface Group {
+export interface Group {
   name: string
   inputs: Input[]
   budgetMs: number
@@ -38,8 +40,9 @@ interface Rendered {
   validSvg: boolean
   mediansMs: number[]
   samplesMs: number[][]
+  missingSvgLabels: string[]
 }
-interface EngineRun extends Engine {
+export interface EngineRun extends Engine {
   node?: string
   importMs: number[]
   firstRenderMs: number[]
@@ -56,13 +59,13 @@ interface Check {
 }
 const ROOT = resolve(import.meta.dir, '..', '..')
 const WORKER = join(import.meta.dir, 'release-bench-worker.ts')
-const GATES = { corpusSlowdown: 1.25, caseSlowdown: 1.5, allocationGrowth: 1.25, rssGrowth: 1.25, retainedGrowthBytes: 16 * 1024 * 1024 }
+const GATES = { corpusSlowdown: 1.25, familySlowdown: 1.5, caseSlowdown: 1.5, allocationGrowth: 1.25, rssGrowth: 1.25, retainedGrowthBytes: 16 * 1024 * 1024 }
 const CORPUS_BUDGET_MS = 30 * 60 * 1000
 const CASE_BUDGET_MS = 10 * 60 * 1000
 const DEFAULT_BUDGET_MS = 70 * 60 * 1000
 
 function args(): Map<string, string> {
-  const allowed = new Set(['out', 'rounds', 'reps', 'budget-ms', 'baseline', 'baseline-npm', 'candidate', 'candidate-tarball', 'candidate-sha256', 'case'])
+  const allowed = new Set(['out', 'rounds', 'reps', 'budget-ms', 'baseline', 'baseline-npm', 'baseline-lock', 'candidate', 'candidate-tarball', 'candidate-sha256', 'case'])
   const options = new Map<string, string>()
   const argv = process.argv.slice(2)
   for (let i = 0; i < argv.length; i++) {
@@ -81,6 +84,7 @@ function args(): Map<string, string> {
   if (options.has('candidate-sha256') && (!options.has('candidate-tarball') || !/^[a-f0-9]{64}$/.test(options.get('candidate-sha256')!))) {
     throw new Error('--candidate-sha256 requires --candidate-tarball and a lowercase SHA-256 digest')
   }
+  if (options.has('baseline-lock') && !options.has('baseline-npm')) throw new Error('--baseline-lock requires --baseline-npm')
   return options
 }
 function positive(options: Map<string, string>, key: string, fallback: number): number {
@@ -116,7 +120,7 @@ function parsesAsSvg(svg: string): boolean {
 }
 function successful(run: EngineRun, input: Input, rounds: number): boolean {
   const result = run.results.get(input.id)
-  return !!result?.svg.ok && result.validSvg && result.deterministic && result.mediansMs.length === rounds
+  return !!result?.svg.ok && result.validSvg && result.deterministic && !result.missingSvgLabels.length && result.mediansMs.length === rounds
 }
 
 function measure(out: string, engines: Engine[], groups: Group[], rounds: number, reps: number, deadline: number): EngineRun[] {
@@ -163,13 +167,14 @@ function measure(out: string, engines: Engine[], groups: Group[], rounds: number
         run.firstRenderMs.push(value.firstRenderMs)
         run.coldDeterministic &&= !run.firstRender || same(run.firstRender, value.firstRender)
         run.firstRender ??= value.firstRender
-        for (const { id, svg, ascii, deterministic, ms: elapsed, samplesMs } of value.results) {
+        for (const { id, svg, ascii, deterministic, ms: elapsed, samplesMs, missingSvgLabels } of value.results) {
           const previous = run.results.get(id)
           if (previous) {
             previous.deterministic &&= deterministic && same(fingerprint(previous.svg), fingerprint(svg)) && same(previous.ascii, ascii)
             previous.mediansMs.push(elapsed)
             previous.samplesMs.push(samplesMs)
-          } else run.results.set(id, { svg, ascii, deterministic, validSvg: svg.ok && parsesAsSvg(svg.output), mediansMs: [elapsed], samplesMs: [samplesMs] })
+            previous.missingSvgLabels = [...new Set([...previous.missingSvgLabels, ...missingSvgLabels])]
+          } else run.results.set(id, { svg, ascii, deterministic, validSvg: svg.ok && parsesAsSvg(svg.output), mediansMs: [elapsed], samplesMs: [samplesMs], missingSvgLabels })
         }
       }
     }
@@ -200,14 +205,21 @@ function measure(out: string, engines: Engine[], groups: Group[], rounds: number
   return runs
 }
 
-function report(inputs: Input[], groups: Group[], runs: EngineRun[], rounds: number) {
+export function report(inputs: Input[], groups: Group[], runs: EngineRun[], rounds: number) {
   const candidate = runs.at(-1)!
   const baseline = runs.length > 1 ? runs[0]! : undefined
   const measured = (list: Input[]) => list.filter(input => runs.every(run => run.results.get(input.id)?.mediansMs.length === rounds))
   const shared = (list: Input[]) => list.filter(input => runs.every(run => successful(run, input, rounds)))
-  const total = (run: EngineRun, list: Input[]) => (list.length ? sum(list.map(input => median(run.results.get(input.id)!.mediansMs)!)) : undefined)
+  // Aggregate the same rep/round before comparing engines. A sum of independent
+  // per-input medians is not an observed corpus pass and loses round covariance.
+  const roundTotals = (run: EngineRun, list: Input[]) => list.length ? Array.from({ length: rounds }, (_, round) => {
+    const samples = list.map(input => run.results.get(input.id)!.samplesMs[round]!)
+    return median(samples[0]!.map((_, rep) => sum(samples.map(values => values[rep]!))))!
+  }) : []
+  const total = (run: EngineRun, list: Input[]) => list.length ? median(roundTotals(run, list)) : undefined
+  const timeRatio = (list: Input[]) => baseline && list.length ? median(roundTotals(candidate, list).map((value, round) => value / roundTotals(baseline, list)[round]!)) : undefined
   const corpus = inputs.filter(input => input.kind === 'corpus')
-  const scaling = inputs.filter(input => input.kind === 'scaling')
+  const scaling = inputs.filter(input => input.kind !== 'corpus')
   const checks: Check[] = []
   const addRatio = (name: string, value: number | undefined, limit: number) => checks.push({ name, ok: value === undefined ? null : value <= limit, detail: value === undefined ? 'not compared: no matched measurement' : times(value) })
   const incomplete = inputs.filter(input => candidate.results.get(input.id)?.mediansMs.length !== rounds)
@@ -217,18 +229,30 @@ function report(inputs: Input[], groups: Group[], runs: EngineRun[], rounds: num
   checks.push({ name: 'Deterministic SVG and ASCII output', ok: candidate.coldDeterministic && !unstable.length, detail: unstable.join(', ') || (candidate.coldDeterministic ? 'all repeats and fresh processes agree' : 'cold renders differ between processes') })
   const invalid = [...candidate.results].filter(([id, result]) => result.svg.ok && !result.validSvg && !(baseline?.results.get(id)?.svg.ok && !baseline.results.get(id)!.validSvg)).map(([id]) => id)
   checks.push({ name: 'No newly invalid SVGs (resvg)', ok: !invalid.length, detail: invalid.join(', ') || 'none; existing baseline parse failures are excluded from comparisons' })
+  const missingContent = [...candidate.results].filter(([, result]) => result.missingSvgLabels.length)
+  checks.push({ name: 'Expected SVG labels survive rendering', ok: !missingContent.length, detail: missingContent.map(([id, result]) => `${id}: ${result.missingSvgLabels.join(', ')}`).join('; ') || 'all enrolled label assertions pass' })
+  const failedWorkloads = scaling.filter(input => !successful(candidate, input, rounds))
+  checks.push({ name: 'Every scaling and agent workflow succeeds', ok: !failedWorkloads.length, detail: failedWorkloads.map(input => input.id).join(', ') || `${scaling.length} workloads passed` })
   if (baseline) {
+    const incompleteBaseline = inputs.filter(input => baseline.results.get(input.id)?.mediansMs.length !== rounds)
+    checks.push({ name: 'Every required baseline measurement completes', ok: baseline.failures.size === 0 && !incompleteBaseline.length, detail: [...baseline.failures].map(([group, reason]) => `${group}: ${reason}`).join('; ') || `${inputs.length - incompleteBaseline.length}/${inputs.length} inputs completed ${rounds} rounds` })
     checks.push({ name: 'Baseline has comparable successful SVG measurements', ok: shared(inputs).length > 0 && (!corpus.length || shared(corpus).length > 0), detail: `${shared(inputs).length}/${inputs.length} total; ${shared(corpus).length}/${corpus.length} corpus inputs compared` })
     for (const format of ['svg', 'ascii'] as const) {
       const lost = measured(inputs).filter(input => baseline.results.get(input.id)![format].ok && !candidate.results.get(input.id)![format].ok)
       checks.push({ name: `No lost ${format.toUpperCase()} renders`, ok: !lost.length, detail: lost.map(input => input.id).join(', ') || 'none' })
     }
-    addRatio(`Corpus render time ≤ ${GATES.corpusSlowdown}× baseline`, ratio(total(candidate, shared(corpus)), total(baseline, shared(corpus))), GATES.corpusSlowdown)
+    addRatio(`Corpus render time ≤ ${GATES.corpusSlowdown}× baseline`, timeRatio(shared(corpus)), GATES.corpusSlowdown)
+    const slowFamilies = [...new Set(corpus.map(input => input.family))].filter(family => {
+      const list = shared(corpus.filter(input => input.family === family))
+      return list.length && timeRatio(list)! > GATES.familySlowdown
+    })
+    checks.push({ name: `Each compared family ≤ ${GATES.familySlowdown}× baseline`, ok: !slowFamilies.length, detail: slowFamilies.join(', ') || 'no family regression on shared successes' })
     const comparable = shared(scaling)
-    const slow = comparable.filter(input => ratio(total(candidate, [input]), total(baseline, [input]))! > GATES.caseSlowdown)
+    const slow = comparable.filter(input => timeRatio([input])! > GATES.caseSlowdown)
     checks.push({ name: `Each large case ≤ ${GATES.caseSlowdown}× baseline`, ok: comparable.length ? !slow.length : null, detail: `${comparable.length}/${scaling.length} compared${slow.length ? `; slow: ${slow.map(input => input.id).join(', ')}` : ''}` })
     const before = baseline.memory.get('corpus')
     const after = candidate.memory.get('corpus')
+    if (shared(corpus).length) checks.push({ name: 'Required matched corpus memory measurements complete', ok: !!before && !!after, detail: before && after ? `${before.inputIds.length} shared inputs` : 'incomplete: missing baseline or candidate memory observations' })
     addRatio(`Corpus allocation ≤ ${GATES.allocationGrowth}× baseline`, ratio(after?.passAllocatedBytes, before?.passAllocatedBytes), GATES.allocationGrowth)
     addRatio(`Corpus peak RSS ≤ ${GATES.rssGrowth}× baseline`, ratio(after?.peakRssBytes, before?.peakRssBytes), GATES.rssGrowth)
   }
@@ -239,7 +263,7 @@ function report(inputs: Input[], groups: Group[], runs: EngineRun[], rounds: num
     detail: memory ? `${mb(memory.retainedGrowthBytes)} across ${memory.inputIds.length} successful candidate inputs` : 'not measured: no successful corpus inputs',
   })
   const ok = checks.every(check => check.ok !== false)
-  const md = [`# Release benchmark: ${ok ? 'pass' : 'FAIL'}`, '', `Engines: ${runs.map(run => `${run.label} ${run.version}`).join(' vs ')}. Inputs: ${corpus.length} official syntax fences and ${scaling.length} generated large diagrams.`, '', '| Gate | Result | Detail |', '|---|---|---|']
+  const md = [`# Release benchmark: ${ok ? 'pass' : 'FAIL'}`, '', `Engines: ${runs.map(run => `${run.label} ${run.version}`).join(' vs ')}. Inputs: ${corpus.length} distinct official examples and ${scaling.length} scaling/agent workloads. Full upstream fence accounting is in corpus.json; browser/competitor results are advisory in browser-report.md.`, '', '| Gate | Result | Detail |', '|---|---|---|']
   for (const check of checks) md.push(`| ${check.name} | ${check.ok === null ? 'not compared' : check.ok ? 'pass' : '**FAIL**'} | ${check.detail.replace(/\|/g, '\\|').replace(/\n/g, ' ')} |`)
   if (baseline?.failures.size) md.push('', `Baseline measurements unavailable: ${[...baseline.failures].map(([group, reason]) => `${group}: ${reason}`).join('; ')}.`, '')
   md.push(
@@ -267,7 +291,7 @@ function report(inputs: Input[], groups: Group[], runs: EngineRun[], rounds: num
         }).length
       : '—'
     md.push(
-      `| ${name} | ${measured(list).length}/${list.length} | ${rendered(baseline)} → ${rendered(candidate)} | ${changed} | ${comparable.length} | ${baseline ? ms(total(baseline, comparable)) : '—'} → ${ms(total(candidate, comparable))} | ${baseline ? times(ratio(total(baseline, comparable), total(candidate, comparable))) : '—'} | ${baseline ? mb(allocation(baseline, comparable)) : '—'} → ${mb(allocation(candidate, comparable))} |`,
+      `| ${name} | ${measured(list).length}/${list.length} | ${rendered(baseline)} → ${rendered(candidate)} | ${changed} | ${comparable.length} | ${baseline ? ms(total(baseline, comparable)) : '—'} → ${ms(total(candidate, comparable))} | ${baseline ? times(timeRatio(comparable) === undefined ? undefined : 1 / timeRatio(comparable)!) : '—'} | ${baseline ? mb(allocation(baseline, comparable)) : '—'} → ${mb(allocation(candidate, comparable))} |`,
     )
   }
   for (const family of [...new Set(corpus.map(input => input.family))].sort())
@@ -277,6 +301,20 @@ function report(inputs: Input[], groups: Group[], runs: EngineRun[], rounds: num
     )
   if (corpus.length) row('**all corpus**', corpus)
   for (const input of scaling) row(input.id, [input])
+  const commonCorpus = shared(corpus)
+  md.push('', '## Paired corpus rounds', '', '| Round | Baseline | Candidate | Candidate / baseline |', '|---|---:|---:|---:|')
+  const beforeRounds = baseline ? roundTotals(baseline, commonCorpus) : []
+  const afterRounds = roundTotals(candidate, commonCorpus)
+  afterRounds.forEach((value, round) => md.push(`| ${round + 1} | ${ms(beforeRounds[round])} | ${ms(value)} | ${times(ratio(value, beforeRounds[round]))} |`))
+  const contributors = commonCorpus.map(input => ({ id: input.id, family: input.family, medianMs: total(candidate, [input])!, baselineMs: baseline ? total(baseline, [input]) : undefined })).sort((a, b) => b.medianMs - a.medianMs).slice(0, 10)
+  const latency = runs.map(run => {
+    const values = commonCorpus.flatMap(input => run.results.get(input.id)!.samplesMs.flat()).sort((a, b) => a - b)
+    return { engine: run.label, samples: values.length, p50Ms: median(values), p95Ms: values[Math.ceil(values.length * 0.95) - 1], maxMs: values.at(-1) }
+  })
+  md.push('', 'Matched-corpus call latency (same input population; distribution across examples/repeats, not a confidence interval):', '', '| Engine | Samples | p50 | p95 | Max |', '|---|---:|---:|---:|---:|')
+  for (const row of latency) md.push(`| ${row.engine} | ${row.samples} | ${ms(row.p50Ms)} | ${ms(row.p95Ms)} | ${ms(row.maxMs)} |`)
+  md.push('', '## Largest candidate time contributors', '', '| Input | Candidate median | Baseline median |', '|---|---:|---:|')
+  for (const input of contributors) md.push(`| ${input.id} | ${ms(input.medianMs)} | ${ms(input.baselineMs)} |`)
   md.push('', '## Fresh processes and memory', '', `| Metric | ${runs.map(run => `${run.label} ${run.version}`).join(' | ')} |`, `|---|${runs.map(() => '---').join('|')}|`)
   const metric = (name: string, values: string[]) => md.push(`| ${name} | ${values.join(' | ')} |`)
   metric(
@@ -306,7 +344,7 @@ function report(inputs: Input[], groups: Group[], runs: EngineRun[], rounds: num
   }
   md.push(
     '',
-    'Times are medians of per-process medians across interleaved rounds. Cold measurements include import and first render separately, without process launch or a cold filesystem. Memory comparisons use separate fresh processes restricted to the matched inputs; an additional candidate corpus pass includes newly supported inputs for the absolute retained-heap gate. Allocation and peak heap are V8 estimates sampled at GC boundaries. Retained heap covers one settled pass. Whole-worker RSS includes import, warm-up and measurement. ASCII is checked for correctness, not timed. Full samples, output fingerprints, package identities and machine metadata accompany this report.',
+    'Times aggregate each observed rep over the matched inputs, take its within-process median, and report the median across interleaved rounds. Ratios pair the same round before taking their median. All SVG/ASCII correctness passes precede warm timings. Cold measurements include import and first render separately, without process launch or a cold filesystem. Memory comparisons use separate fresh processes restricted to the matched inputs; an additional candidate corpus pass includes newly supported inputs for the absolute retained-heap gate. Allocation and peak heap are V8 estimates sampled at GC boundaries. Retained heap covers one settled pass. Whole-worker RSS includes import, warm-up and measurement. ASCII is checked for correctness, not timed. The agent workload measures parse, mutate, verify, serialize, re-parse, fact checks and SVG render together. Full samples, output fingerprints, package identities and machine metadata accompany this report.',
   )
   return {
     ok,
@@ -315,6 +353,9 @@ function report(inputs: Input[], groups: Group[], runs: EngineRun[], rounds: num
       ok,
       status: 'completed',
       checks,
+      pairedCorpus: { inputIds: commonCorpus.map(input => input.id), baselineMs: beforeRounds, candidateMs: afterRounds, candidateOverBaseline: timeRatio(commonCorpus) },
+      largestContributors: contributors,
+      matchedLatency: latency,
       groups: groups.map(group => ({ name: group.name, inputIds: group.inputs.map(input => input.id), comparedInputIds: shared(group.inputs).map(input => input.id) })),
       engines: runs.map(run => ({
         label: run.label,
@@ -338,18 +379,21 @@ function main() {
   const rounds = positive(options, 'rounds', 3)
   const reps = positive(options, 'reps', 5)
   const budgetMs = positive(options, 'budget-ms', DEFAULT_BUDGET_MS)
-  const all: Input[] = [...extractOfficialCorpus().map(fence => ({ ...fence, kind: 'corpus' as const })), ...releaseBenchCases().map(input => ({ ...input, kind: 'scaling' as const }))]
+  const all: Input[] = [...extractOfficialCorpus().map(fence => ({ ...fence, kind: 'corpus' as const })), ...releaseBenchCases().map(input => ({ ...input, kind: 'scaling' as const })), { ...agentEditCase, kind: 'workflow' }]
   const selected = options.get('case')?.split(',')
   if (selected?.some(id => !all.some(input => input.id === id))) throw new Error('--case must name an existing input ID (comma-separated)')
   const inputs = selected ? all.filter(input => selected.includes(input.id)) : all
   const corpus = inputs.filter(input => input.kind === 'corpus')
-  const groups: Group[] = [...(corpus.length ? [{ name: 'corpus', inputs: corpus, budgetMs: CORPUS_BUDGET_MS }] : []), ...inputs.filter(input => input.kind === 'scaling').map(input => ({ name: input.id, inputs: [input], budgetMs: CASE_BUDGET_MS }))]
+  const groups: Group[] = [...(corpus.length ? [{ name: 'corpus', inputs: corpus, budgetMs: CORPUS_BUDGET_MS }] : []), ...inputs.filter(input => input.kind !== 'corpus').map(input => ({ name: input.id, inputs: [input], budgetMs: CASE_BUDGET_MS }))]
   const out = resolve(options.get('out') ?? join(ROOT, 'bench-report'))
   mkdirSync(out, { recursive: true })
+  writeFileSync(join(out, 'corpus.json'), `${JSON.stringify(officialCorpusInventory(), null, 2)}\n`)
   const startedAt = new Date().toISOString()
   // Leave time to finalize reports before the workflow's outer timeout.
   const deadline = Date.now() + budgetMs
-  const metadata = { startedAt, config: { rounds, reps, budgetMs, gates: GATES }, environment: { node: process.versions.node, bun: process.versions.bun, platform: process.platform, arch: process.arch, osRelease: release(), cpu: cpus()[0]?.model, logicalCpus: cpus().length } }
+  const metadata = { startedAt, sourceRevision: process.env.GITHUB_SHA, config: { rounds, reps, budgetMs, gates: GATES }, environment: { node: process.versions.node, bun: process.versions.bun, platform: process.platform, arch: process.arch, osRelease: release(), cpu: cpus()[0]?.model, logicalCpus: cpus().length,
+    cpuQuota: existsSync('/sys/fs/cgroup/cpu.max') ? readFileSync('/sys/fs/cgroup/cpu.max', 'utf8').trim() : undefined,
+    memoryLimit: existsSync('/sys/fs/cgroup/memory.max') ? readFileSync('/sys/fs/cgroup/memory.max', 'utf8').trim() : undefined } }
   writeFileSync(join(out, 'samples.jsonl'), `${JSON.stringify({ ...metadata, status: 'started' })}\n`)
   writeFileSync(join(out, 'report.json'), JSON.stringify({ ...metadata, ok: false, status: 'running' }, null, 2))
   writeFileSync(join(out, 'report.md'), '# Release benchmark: incomplete\n')
@@ -362,14 +406,19 @@ function main() {
     const result = spawnSync('npm', ['install', '--prefix', dir, '--ignore-scripts', '--no-audit', '--no-fund', spec], { stdio: 'inherit', timeout: remaining, killSignal: 'SIGKILL' })
     if (result.status !== 0) throw new Error(`${label}: npm install failed: ${result.error?.message ?? result.status ?? result.signal}`)
     const lock = JSON.parse(readFileSync(join(dir, 'package-lock.json'), 'utf8')) as { packages: Record<string, { integrity?: string }> }
-    return packageAt(join(dir, 'node_modules', 'agentic-mermaid'), label, { ...identity, integrity: identity.integrity ?? lock.packages['node_modules/agentic-mermaid']?.integrity })
+    const integrity = lock.packages['node_modules/agentic-mermaid']?.integrity
+    if (identity.integrity && identity.integrity !== integrity) throw new Error(`${label}: installed package integrity differs from the locked identity`)
+    return packageAt(join(dir, 'node_modules', 'agentic-mermaid'), label, { ...identity, integrity })
   }
   try {
     const engines: Engine[] = []
     const baseline = options.get('baseline')
     const npm = options.get('baseline-npm')
     if (baseline) engines.push(packageAt(resolve(baseline), 'baseline', { kind: 'directory', requested: resolve(baseline) }))
-    else if (npm) engines.push(install(`agentic-mermaid@${npm}`, 'baseline', { kind: 'npm', requested: npm }))
+    else if (npm) {
+      const locked = resolveBaseline(npm, resolve(options.get('baseline-lock') ?? join(out, 'baseline.json')))
+      engines.push(install(`agentic-mermaid@${locked.version}`, 'baseline', { kind: 'npm', requested: npm, integrity: locked.integrity }))
+    }
     const tarball = options.get('candidate-tarball')
     if (tarball) {
       const bytes = readFileSync(resolve(tarball))
@@ -401,4 +450,4 @@ function main() {
     for (const dir of temporary) rmSync(dir, { recursive: true, force: true })
   }
 }
-main()
+if (import.meta.main) main()
