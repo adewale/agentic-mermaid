@@ -19,7 +19,7 @@ if (!base || !head || !destination || ![base, head].every(sha => /^[a-f0-9]{40}$
 }
 const out = resolve(destination)
 mkdirSync(out, { recursive: true })
-interface Fixture { id: string; title: string; source: string; cue: string; renderOptions?: RenderOptions; captureLayout?: true; classMutation?: ClassMutationOp }
+interface Fixture { id: string; title: string; source: string; cue: string; renderOptions?: RenderOptions; pngWidth?: number; captureLayout?: true; classMutation?: ClassMutationOp }
 const sequenceSpanSource = 'sequenceDiagram\nparticipant A\nparticipant B\nparticipant C\nA->>C: Label across B\nactivate B\nA->>C: Begin work\nA->>C: Label across active B\ndeactivate B'
 const sankeyIdentitySource = '---\ntitle: Caption\n---\nsankey-beta\nA,B,1\nA,B,2\nA,B#1,3\nlink:A->B#1,X,4\ntitle,title#1,5'
 const parallelReciprocalSource = 'flowchart LR\nA[Client] -->|request 0| B[Server]\nA -->|request 1| B\nB -->|reply| A'
@@ -35,7 +35,7 @@ const literalLabel = '<b>This is a very long label that describes the work in de
 const c4AncestorSource = 'C4Deployment\nNode(parent,"Parent","Cloud") {\nContainer(child,"Child","JS")\n}\nRel(child,parent,"Reports up")'
 const c4DenseSource = 'C4Container\nSystem_Boundary(app,"Application") {\n' + Array.from({ length: 7 }, (_, index) => `Container(n${index},"Service ${index}","HTTP")`).join('\n') + '\n}\n' + Array.from({ length: 7 }, (_, from) => Array.from({ length: 6 - from }, (_, offset) => `Rel(n${from},n${from + offset + 1},"Interaction ${from} to ${from + offset + 1}","HTTPS")`).join('\n')).join('\n')
 const c4OfficialFixtures: Fixture[] = extractOfficialCorpus().filter(fence => fence.family === 'c4').map((fence, index) => ({
-  id: `c4-official-${index}`, title: `Official C4 example ${index}: visible relationship ownership`, source: fence.source, captureLayout: true,
+  id: `c4-official-${index}`, title: `Official C4 example ${index}: visible relationship ownership`, source: fence.source, captureLayout: true, pngWidth: 2400,
   cue: 'Inspect halos clear of cards, boundary headers and other relationship routes; visible arrowheads; and retained authored offsets. Compare complete labels, endpoint identities and layout sidecars alongside the pixels. Measured corridors grow rather than shrinking text or removing markers; these official examples do not establish arbitrary dense graph readability.',
 }))
 const corpusSamples = collectSamples()
@@ -171,7 +171,7 @@ if (selectedFixtureIds.length > 0) {
 }
 const fixtureOptions = Object.fromEntries(fixtures.map(fixture => {
   const svg = { security: 'strict' as const, ...fixture.renderOptions }
-  return [fixture.id, { svg, png: { ...svg, background: svg.transparent ? '#00000000' : '#ffffff' } }]
+  return [fixture.id, { svg, png: { ...svg, background: svg.transparent ? '#00000000' : '#ffffff', ...(fixture.pngWidth ? { fitTo: { width: fixture.pngWidth } } : {}) } }]
 }))
 interface Evidence { svg?: string; png?: string; layout?: unknown; source?: string; error?: string }
 interface TerminalEvidence { ascii?: string; html?: string; meta?: unknown; error?: string }
@@ -253,7 +253,8 @@ const rows = fixtures.map(fixture => {
       ? `<img alt="${phase}: ${esc(fixture.title)}" src="data:image/png;base64,${result.png}">`
       : `<pre>${esc(result.error ?? 'No render')}</pre>`}${semanticSidecar}${exportedSource}</figure>`
   }).join('')
-  const optionsCaption = fixture.renderOptions ? `<p>Render options at both revisions: <code>${esc(JSON.stringify(fixture.renderOptions))}</code>.</p>` : ''
+  const optionsCaption = (fixture.renderOptions ? `<p>Render options at both revisions: <code>${esc(JSON.stringify(fixture.renderOptions))}</code>.</p>` : '')
+    + (fixture.pngWidth ? `<p>PNG previews are scaled to ${fixture.pngWidth}px wide at both revisions; SVG and layout sidecars retain native geometry.</p>` : '')
   const mutationCaption = fixture.classMutation ? `<p>Class edit at both revisions: <code>${esc(JSON.stringify(fixture.classMutation))}</code>.</p>` : ''
   return `<section><h2>${fixture.title}</h2><p>${fixture.cue}</p>${optionsCaption}${mutationCaption}<div class="pair">${panels}</div></section>`
 }).join('')
