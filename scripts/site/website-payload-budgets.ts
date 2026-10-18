@@ -65,12 +65,12 @@ export const WEBSITE_PAYLOAD_BUDGETS: WebsitePayloadBudgets = Object.freeze({
   }),
   'editor-empty': Object.freeze({
     maxRequests: 2,
-    // Authored text, family config, typed geometry and outline repair ship here.
-    // Combined measurement: 3,677,080 raw / 1,115,690 gzip / 879,181 Brotli.
+    // Retained text, typed artwork and fidelity checks ship in the editor.
+    // Combined measurement: 3,698,251 raw / 1,123,200 gzip / 885,032 Brotli.
     // Per-change growth still has its own delta gate.
-    maxRawBytes: 3_679_000,
-    maxGzipBytes: 1_117_000,
-    maxBrotliBytes: 881_000,
+    maxRawBytes: 3_700_000,
+    maxGzipBytes: 1_125_000,
+    maxBrotliBytes: 887_000,
     required: Object.freeze([
       '^/editor/$',
       '^/editor/editor-[a-f0-9]{12}\\.js$',
