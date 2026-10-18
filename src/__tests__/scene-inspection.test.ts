@@ -55,7 +55,7 @@ test('admission rejects false non-painting and prepared-text claims', () => {
   const invalid = validateSceneDoc(scene([falsePlan]), { mode: 'internal' })
   expect(invalid.diagnostics).toContainEqual(expect.objectContaining({ code: 'SCENE_FIDELITY', message: expect.stringContaining('.block: retained prepared text differs from actual SVG') }))
   const sourceOnly = retained({ ...text, block: { ...text.block!, prepared: { ...text.block!.prepared, source: 'Forged' } } })
-  expect(validateSceneDoc(scene([sourceOnly]), { mode: 'internal' }).diagnostics).toContainEqual(expect.objectContaining({ code: 'SCENE_FIDELITY', path: 'scene.parts[0].block.prepared' }))
+  expect(validateSceneDoc(scene([sourceOnly]), { mode: 'internal' }).diagnostics).toContainEqual(expect.objectContaining({ code: 'SCENE_FIDELITY', path: 'scene.parts[0].block' }))
 
   expect(() => marks.text({ id: 'mismatch', role: 'label', text: 'Forged', block: forged, x: 10, y: 20, fontSize: 13, anchor: 'start', paint: {} }, '<text x="10" y="20" font-size="12">Forged</text>')).toThrow('retained prepared block')
 })
@@ -79,4 +79,20 @@ test('overflowing current and conditional strokes remain unmeasured', () => {
     expect(nodePaintBounds(node)).toBeUndefined()
     expect(inspectScenePrimitives(scene([node])).primitives[0]?.coverage).toBe('unmeasured')
   }
+})
+
+
+test('inline connector labels expose their actual retained text, owner, order and final bounds', () => {
+  const block = preparePixelText('Read', { fontSize: 12, fontWeight: 400 })
+  const edge = marks.connector({ id: 'relationship', role: 'edge', lineStyle: 'solid', geometry: { kind: 'line', x1: 5, y1: 5, x2: 95, y2: 5 }, paint: { stroke: '#111' }, labels: [{ id: 'inline-label', text: 'Read', block, anchor: { x: 20, y: 30 }, paint: { fill: '#111' }, fontSize: 12, fontWeight: 400, textAnchor: 'start', visual: { kind: 'inline' } }] }, '<line x1="5" y1="5" x2="95" y2="5" stroke="#111"/>')
+  const primitive = inspectScenePrimitives(scene([edge])).primitives[1]!
+  expect(primitive).toMatchObject({ id: 'inline-label', kind: 'text', owner: { id: 'relationship', role: 'edge' }, order: 1, coverage: 'measured', text: { source: 'Read', measurement: 'prepared' } })
+  expect(primitive.bounds?.x0).toBe(20)
+  expect(primitive.bounds?.x1).toBe(20 + block.width)
+})
+
+
+test.each(['transparent', 'rgba(0,0,0,0)', '#00000000'])('invisible %s strokes cannot enlarge visible paint', stroke => {
+  const node = marks.shape({ id: 'filled', role: 'node', geometry: { kind: 'rect', x: 0, y: 0, width: 10, height: 20 }, paint: { fill: '#fff', stroke, strokeWidth: '1000' } }, `<rect x="0" y="0" width="10" height="20" fill="#fff" stroke="${stroke}" stroke-width="1000"/>`)
+  expect(nodePaintBounds(node)).toEqual({ x0: 0, y0: 0, x1: 10, y1: 20 })
 })

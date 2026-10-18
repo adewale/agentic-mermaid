@@ -50,6 +50,14 @@ export interface PixelTextBlock {
   readonly fontFamily?: string
 }
 
+// This evidence belongs to actual preparation, not to a caller-supplied copy
+// of the metrics. Scene admission carries it across its own immutable snapshot.
+const preparedBlocks = new WeakSet<object>()
+export function isRetainedPixelText(value: object): boolean { return preparedBlocks.has(value) }
+export function transferRetainedPixelText(source: object, snapshot: object): void {
+  if (preparedBlocks.has(source)) preparedBlocks.add(snapshot)
+}
+
 function sameStyle(a: DisplayRun, b: DisplayRun): boolean {
   return a.bold === b.bold && a.italic === b.italic && a.underline === b.underline && a.strikethrough === b.strikethrough
 }
@@ -206,7 +214,21 @@ export function preparePixelText(source: DisplayTextInput, options: PixelTextOpt
   Object.freeze(lines)
   breaks.forEach(Object.freeze)
   const width = lineBlocks.reduce((max, line) => Math.max(max, line.width), 0)
-  return Object.freeze({ unit: 'px', prepared, text: lines.join('\n'), lines, lineBlocks: Object.freeze(lineBlocks), breaks: Object.freeze(breaks), width, height: lines.length * lineHeight, lineHeight, fontSize: options.fontSize, fontWeight: options.fontWeight, letterSpacing: options.letterSpacing ?? 0, monospace: options.monospace ?? false, safeFont: options.safeFont ?? false, ...(options.fontFamily ? { fontFamily: options.fontFamily } : {}) })
+  const block: PixelTextBlock = Object.freeze({ unit: 'px', prepared, text: lines.join('\n'), lines, lineBlocks: Object.freeze(lineBlocks), breaks: Object.freeze(breaks), width, height: lines.length * lineHeight, lineHeight, fontSize: options.fontSize, fontWeight: options.fontWeight, letterSpacing: options.letterSpacing ?? 0, monospace: options.monospace ?? false, safeFont: options.safeFont ?? false, ...(options.fontFamily ? { fontFamily: options.fontFamily } : {}) })
+  preparedBlocks.add(block)
+  return block
+}
+
+/** A line projection keeps the measured runs and their original preparation. */
+export function pixelTextLine(block: PixelTextBlock | undefined, index: number): PixelTextBlock | undefined {
+  const line = block?.lineBlocks[index]
+  if (!block || !line) return undefined
+  if (!isRetainedPixelText(block)) throw new TypeError('Pixel line projection requires retained preparation')
+  const lines = [line.text]
+  Object.freeze(lines)
+  const projected: PixelTextBlock = Object.freeze({ ...block, text: line.text, lines, lineBlocks: Object.freeze([Object.freeze({ ...line, baseline: block.fontSize * 0.35 })]), breaks: Object.freeze([]), width: line.width, height: block.lineHeight })
+  preparedBlocks.add(projected)
+  return projected
 }
 
 export type PixelTextFit =

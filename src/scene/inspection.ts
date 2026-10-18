@@ -1,5 +1,5 @@
 import type { SceneDoc, SceneNode, SceneOwner, SceneRole, SceneTransform } from './ir.ts'
-import { nodePaintBounds } from './bounds.ts'
+import { connectorInlineLabelVisualBounds, nodePaintBounds, transformedBounds } from './bounds.ts'
 import { composeMatrices, IDENTITY_MATRIX, transformMatrix, type AffineMatrix } from './transforms.ts'
 import { sceneNodeSerialization } from './serialization.ts'
 import type { AxisAlignedBox } from '../shared/transformed-bounds.ts'
@@ -102,6 +102,27 @@ export function inspectScenePrimitives(scene: SceneDoc): ScenePaintInspection {
         if (node.measurement === 'prepared') coverage.preparedText++
         else coverage.fallbackText++
       }
+      if (node.kind === 'connector' && !hidden) node.labels.forEach((label, labelIndex) => {
+        if (label.visual?.kind !== 'inline') return
+        const local = connectorInlineLabelVisualBounds(label)
+        const [la, lb, lc, ld, le, lf] = composeMatrices(parent, transformMatrix(node.transform))
+        const bounds = local && transformedBounds(local, { kind: 'matrix', a: la, b: lb, c: lc, d: ld, e: le, f: lf })
+        const measured = !!bounds && finite(bounds)
+        const inline: ScenePaintPrimitive = Object.freeze({
+          key: `${key}.label.${labelIndex}`, id: label.id ?? `${node.id}:label:${labelIndex}`, kind: 'text', role: 'label',
+          owner: primitive.owner, ancestors: primitive.ancestors, order: primitives.length,
+          coverage: measured ? 'measured' : 'unmeasured',
+          ...(primitive.visibility ? { visibility: primitive.visibility } : {}),
+          ...(measured ? { bounds: Object.freeze(bounds!) } : { reason: 'missing-inline-label-geometry' }),
+          text: Object.freeze({ source: label.block?.prepared.source ?? label.text, displayed: label.block ? label.block.lineBlocks.map(line => line.runs.map(run => run.text).join('')).join('\n') : label.text, measurement: label.block ? 'prepared' : 'fallback' }),
+        })
+        sources.set(inline, node)
+        primitives.push(inline)
+        if (measured) coverage.measured++
+        else coverage.unmeasured++
+        if (label.block) coverage.preparedText++
+        else coverage.fallbackText++
+      })
     })
   }
   walk(scene.parts, 'scene', IDENTITY_MATRIX, [])

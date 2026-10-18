@@ -5,7 +5,7 @@
  * reference, and non-fetching checks before a backend can observe them.
  */
 
-import { prepareDisplayText } from '../shared/display-text.ts'
+import { isRetainedPixelText } from '../shared/prepared-text.ts'
 import { scanSvgStartTags } from '../svg-structure.ts'
 import { applyOutputSecurityPolicy } from '../output-security.ts'
 import { buildStyleBlock, svgOpenTag, type DiagramColors } from '../theme.ts'
@@ -779,26 +779,7 @@ function validateNode(value: unknown, path: string, state: ValidationState, dept
     if (value.measurement !== undefined && !['prepared', 'fallback'].includes(String(value.measurement))) add(state.diagnostics, 'SCENE_DOCUMENT', `${path}.measurement`, 'must identify prepared or fallback measurement')
     if (value.measurement === 'prepared' && (!record(value.block) || value.block.unit !== 'px' || !record(value.block.prepared))) add(state.diagnostics, 'SCENE_DOCUMENT', `${path}.block`, 'prepared text must retain its actual pixel block')
     if (record(value.block)) {
-      const block = value.block
-      if (!record(block.prepared) || typeof block.prepared.source !== 'string' || block.prepared.source.length > MAX_TEXT_LENGTH || (block.prepared.transform !== undefined && !['uppercase', 'lowercase', 'capitalize'].includes(String(block.prepared.transform))) || !['literal', 'formatted'].includes(String(block.prepared.display)) || !Array.isArray(block.lineBlocks) || !Array.isArray(block.breaks)) add(state.diagnostics, 'SCENE_FIDELITY', `${path}.block`, 'must retain a complete display plan')
-      else {
-        const lineBlocks = block.lineBlocks
-        const breaks = block.breaks
-        const canonical = prepareDisplayText(block.prepared.source, block.prepared.display as 'literal' | 'formatted', block.prepared.transform as 'uppercase' | 'lowercase' | 'capitalize' | undefined)
-        if (!structurallyEqual(block.prepared, canonical)) add(state.diagnostics, 'SCENE_FIDELITY', `${path}.block.prepared`, 'source and display runs must describe the same text')
-        let reconstructed = ''
-        let complete = breaks.length === Math.max(0, lineBlocks.length - 1)
-        lineBlocks.forEach((line, index) => {
-          if (!record(line) || !Array.isArray(line.runs) || line.runs.some(run => !record(run) || typeof run.text !== 'string')) { complete = false; return }
-          const boundary = breaks[index]
-          reconstructed += line.runs.filter(run => !(record(boundary) && boundary.kind === 'hyphen' && record(run) && run.text === '-' && run.sourceStart === run.sourceEnd)).map(run => (run as { text: string }).text).join('')
-          if (index < lineBlocks.length - 1) {
-            if (!record(boundary)) complete = false
-            else reconstructed += boundary.kind === 'authored' ? '\n' : typeof boundary.replacedText === 'string' ? boundary.replacedText : ''
-          }
-        })
-        if (!complete || reconstructed !== canonical.lines.map(runs => runs.map(run => run.text).join('')).join('\n')) add(state.diagnostics, 'SCENE_FIDELITY', `${path}.block.lineBlocks`, 'wrapped runs must preserve their prepared source text')
-      }
+      if (!isRetainedPixelText(value.block)) add(state.diagnostics, 'SCENE_FIDELITY', `${path}.block`, 'must retain the actual immutable pixel text preparation')
       for (const field of ['fontSize', 'fontWeight', 'letterSpacing'] as const) {
         if (value[field] !== undefined && value[field] !== value.block[field]) add(state.diagnostics, 'SCENE_FIDELITY', `${path}.block.${field}`, 'must equal the retained text typography')
       }
@@ -1066,6 +1047,7 @@ function validateNode(value: unknown, path: string, state: ValidationState, dept
         }
       }
       if (label.clearance !== undefined) finite(label.clearance, `${path}.labels[${index}].clearance`, state.diagnostics, { nonNegative: true })
+      if (label.block !== undefined && (!record(label.block) || !isRetainedPixelText(label.block))) add(state.diagnostics, 'SCENE_FIDELITY', `${path}.labels[${index}].block`, 'must retain the actual immutable pixel text preparation')
       if (label.fontSize !== undefined) finite(label.fontSize, `${path}.labels[${index}].fontSize`, state.diagnostics, { positive: true })
       if (label.fontWeight !== undefined) finite(label.fontWeight, `${path}.labels[${index}].fontWeight`, state.diagnostics, { positive: true })
       if (label.letterSpacing !== undefined) finite(label.letterSpacing, `${path}.labels[${index}].letterSpacing`, state.diagnostics)

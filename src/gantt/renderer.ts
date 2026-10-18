@@ -1,4 +1,4 @@
-import { preparePixelText, type PixelTextBlock } from '../shared/prepared-text.ts'
+import { pixelTextLine, preparePixelText, type PixelTextBlock } from '../shared/prepared-text.ts'
 import { HAS_FORMAT_TAGS } from '../shared/inline-format.ts'
 // ============================================================================
 // Gantt SVG renderer (docs/design/families/gantt.md §4).
@@ -208,11 +208,6 @@ function text(
     `font-size="${size}" font-weight="${weight}"${letter}${HAS_FORMAT_TAGS.test(content) ? ' data-literal-text="true"' : ''}>${escapeXml(content)}</text>`
 }
 
-function pixelLine(block: PixelTextBlock | undefined, index: number): PixelTextBlock | undefined {
-  const line = block?.lineBlocks[index]
-  if (!block || !line) return undefined
-  return { ...block, text: line.text, lines: [line.text], lineBlocks: [{ ...line, baseline: block.fontSize * 0.35 }], breaks: [], width: line.width, height: block.lineHeight }
-}
 
 /** Build a TextMark whose crisp is the shared text() template. */
 function textMark(
@@ -431,7 +426,7 @@ export function lowerGanttScene(
       const lines = s.labelBlock?.lines ?? s.labelLines ?? [applyTextTransform(s.label, style.groupTextTransform)]
       lines.forEach((line, li) => {
         const id = li === 0 ? `section-label:${s.label}#${k}` : `section-label:${s.label}#${k}/${li}`
-        parts.push(textMark(id, 'section', 8, s.y + layout.barHeight / 2 + 4 + li * (s.labelBlock?.lineHeight ?? sectionLineHeight), line, 'gantt-section-label', style.groupHeaderFontSize, style.groupHeaderFontWeight, palette.groupText, 'start', style.groupLetterSpacing, { category: s.label }, pixelLine(s.labelBlock, li)))
+        parts.push(textMark(id, 'section', 8, s.y + layout.barHeight / 2 + 4 + li * (s.labelBlock?.lineHeight ?? sectionLineHeight), line, 'gantt-section-label', style.groupHeaderFontSize, style.groupHeaderFontWeight, palette.groupText, 'start', style.groupLetterSpacing, { category: s.label }, pixelTextLine(s.labelBlock, li)))
       })
     }
   }
@@ -453,7 +448,7 @@ export function lowerGanttScene(
       const baseId = taskLabelId(bar.id ?? bar.label)
       lines.forEach((line, li) => {
         const id = li === 0 ? baseId : `${baseId}/${li}`
-        parts.push(textMark(id, 'label', bar.labelPosition?.x ?? 16, (bar.labelPosition?.y ?? bar.y + bar.h / 2) + li * (bar.labelBlock?.lineHeight ?? taskLineHeight), line, 'gantt-task-label', style.nodeLabelFontSize, style.nodeLabelFontWeight, palette.taskText, 'start', style.nodeLetterSpacing, undefined, pixelLine(bar.labelBlock, li)))
+        parts.push(textMark(id, 'label', bar.labelPosition?.x ?? 16, (bar.labelPosition?.y ?? bar.y + bar.h / 2) + li * (bar.labelBlock?.lineHeight ?? taskLineHeight), line, 'gantt-task-label', style.nodeLabelFontSize, style.nodeLabelFontWeight, palette.taskText, 'start', style.nodeLetterSpacing, undefined, pixelTextLine(bar.labelBlock, li)))
       })
     }
   } else {

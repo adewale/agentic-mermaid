@@ -1,3 +1,4 @@
+import { tryParseCssColor } from '../shared/color-math.ts'
 import { rotateBoxBounds, type AxisAlignedBox } from '../shared/transformed-bounds.ts'
 import type { ConnectorLabelDescriptor, ConnectorMark, Geometry, MarkPaint, MarkerDescriptor, SceneNode, ScenePoint, SceneTransform } from './ir.ts'
 import { connectorEndpointAnchors, connectorMidpoints } from './connector-geometry.ts'
@@ -308,7 +309,7 @@ export function nodeWorldBounds(node: SceneNode): AxisAlignedBox | undefined {
   return local ? transformedBounds(local, node.transform) : undefined
 }
 
-function transformedBounds(box: AxisAlignedBox, transform?: SceneTransform): AxisAlignedBox | undefined {
+export function transformedBounds(box: AxisAlignedBox, transform?: SceneTransform): AxisAlignedBox | undefined {
   if (![box.x0, box.y0, box.x1, box.y1].every(Number.isFinite)) return undefined
   if (!transform) return box
   if (transform.kind === 'rotate') return rotateBoxBounds(box, { x: transform.cx, y: transform.cy }, transform.angle)
@@ -328,7 +329,7 @@ function composedTransform(parent: SceneTransform | undefined, child: SceneTrans
 /** Numeric user-unit/px strokes have a typed extent. Relative and unresolved
  * CSS units do not: treating `1em` or `var(...)` as one pixel would undercount. */
 function paintedStrokeExtent(paint: MarkPaint, hasJoins: boolean): number | undefined {
-  if (paint.stroke === undefined || paint.stroke === 'none') return 0
+  if (paint.stroke === undefined || paint.stroke === 'none' || paint.stroke === 'transparent' || tryParseCssColor(paint.stroke)?.[3] === 0) return 0
   const raw = paint.strokeWidth ?? '1'
   if (!/^\s*(?:\d+\.?\d*|\.\d+)(?:[eE][+-]?\d+)?(?:px)?\s*$/.test(raw)) return undefined
   const half = Number.parseFloat(raw) / 2
