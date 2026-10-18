@@ -267,6 +267,71 @@ for zero-install render/verify/describe and structured edits, and tested
 byte-identical determinism within the tested environment. These are additional
 workflow contracts, not a claim that other renderers cannot be used by agents.
 
+## C4 follow-up, 18 October 2026
+
+The refreshed comparison at Agentic `6724062c5da0e13401ab63744b3e7c11efc2684f`
+found two counterexamples missed by the earlier finite audits: a child→ancestor
+arrow entirely covered by its label and dense relationship labels obscuring one
+another. Production candidate `cb7994341c309e4da1ebb54fa5045548bacc63b4`
+reserves ancestor clearance, places measured halos and detects final occlusion
+after authored offsets. The ancestor and parallel/self witnesses now verify
+cleanly. The seven-node/21-interaction witness remains a limitation: nine label
+overlap pairs become seven, and sixteen visibility errors now prevent clean
+verification. Neither retained strings nor path counts prove readability.
+
+The candidate adds opt-in measured C4 width reflow, compact pixel/cell spacing,
+optional automatic type legends, palette/style-consistent legend marks and
+editor boundary navigation. Full source and canonical graphical exports retain
+all context and explicit indices. Existing performance tables above remain
+historical; they must not be relabeled with this newer candidate.
+
+Peer pins refreshed in this pass include Zombie main
+`631b1b4cbeaa25a5951ba4c889e9bc511a553e07` (18 October), npm5.7.1 at
+`3e688e4e5e00ec9f92444af4757e0ec7c449e84b` (16 October), Mermaid12.2.0 at
+`1fb7869866dd619168d840291c9c54b4f129758b` (13 October publication), and Pele
+main `458322a5b8abb1ae57ddf127c32017ab9fb14a92` with npm1.6.0 (17 October).
+Zombie source/npm matched59 tested output pairs; Pele matched15. These establish
+only those outputs. Mermaid12.2 can render the tested boundary relationship
+that11.16.1 rejects, although its shaft crosses child text.
+
+Historical correction: Beautiful PR34 at
+`b8bea07b2649bf375c8b089acfd1991c80f01000` exposes C4 through public-root
+`renderMermaidAscii`; it is not merely an inaccessible helper. PR71 at
+`45b6ce784ff24cd7665140e4381f8aaca31eddba` has public async SVG but rejects
+terminal C4. Both remain unmerged. Additional executed native C4 peers include
+Mermansi0.1.6, Figurehead0.4.3, Merman0.9.0/current source, Mermaider0.15.1,
+rusty-mermaid, Sebastian0.8.0 and mermaid-rs-renderer0.3.1. Their recognition,
+visible relationships, indices, terminal output and editing must be assessed
+separately. No universal Agentic rendering or performance superiority follows.
+
+The final three-file performance A/B binds production
+`cb7994341c309e4da1ebb54fa5045548bacc63b4`, Node 24.19.0 and Bun 1.4.2,
+on the same AMD EPYC 9V74 five-vCPU host. Identical committed C4 source,
+dependencies and Node-target ESM build differ only in render-contract.ts,
+svg-structure.ts and output-security.ts. Forty warmups precede 120 samples
+per implementation/path in six alternating-order batches. JSON serialization
+and UTF-8 byte consumption include complete receipts.
+
+| Small C4 public path | Node median before→after, ms | Bun median before→after, ms |
+| --- | ---: | ---: |
+| SVG text | 12.054→9.365 | 14.974→13.083 |
+| SVG plus complete receipt | 10.922→8.513 | 13.249→12.065 |
+| Terminal text | 4.376→3.661 | 8.326→7.408 |
+| Terminal plus complete receipt | 11.131→9.493 | 16.594→15.479 |
+
+All four outputs/receipts match exactly in both runtime pairs. The broader
+parity check matches 42 fully consumed artifacts, nine terminal metadata
+artifacts and 1,088 security cases. Node medians improve 14.7–22.3%; Bun
+improves 6.7–12.6%. Bun terminal p95s slightly worsen, so this is no tail-latency
+guarantee. The one three-node/two-interaction input establishes neither dense
+layout speed nor startup, memory, download or competitor performance.
+
+Fresh browser requests after the follow-up measure the all-family editor at
+3,603,397 raw / 1,093,679 gzip / 862,600 Brotli bytes. Examples measure 419,327
+raw / 72,546 gzip / 57,465 Brotli bytes. The examples gzip ceiling increases
+72,500→72,600 for its prepared C4 legend/swatch content; other absolute caps,
+request/resource restrictions and the separate PR growth gate remain intact.
+
 ## Zombie Mermaid and C4 bloodlines
 
 [Zombie Mermaid](https://github.com/dfadler/zombie-mermaid) is an independently

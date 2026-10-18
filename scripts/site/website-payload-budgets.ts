@@ -32,7 +32,8 @@ export const WEBSITE_PAYLOAD_BUDGETS: WebsitePayloadBudgets = Object.freeze({
     maxRequests: 6,
     // The new C4 example contributes build-time SVG/HTML, not an eager runtime.
     maxRawBytes: 425_000,
-    maxGzipBytes: 72_500,
+    // C4's prepared legend heading and semantic swatches measured 72,546 B.
+    maxGzipBytes: 72_600,
     maxBrotliBytes: 57_500,
     required: Object.freeze([
       '^/examples/$',

@@ -1,5 +1,41 @@
 # Native C4 implementation
 
+Follow-up production candidate: `cb7994341c309e4da1ebb54fa5045548bacc63b4`
+(18 October 2026). The renewed derivative comparison at `6724062c` found an
+ancestor arrow hidden by its label and unreadable dense labels despite clean
+verification. The earlier bounded audits below did not cover those witnesses.
+
+The follow-up applies #409's family-adapter approach: retain the existing
+semantic model, prepared text, identity plan, Scene/style system and independent
+terminal geometry. Ancestor clearance now reserves real frame space; final
+label allocation and visibility diagnostics use the emitted halo geometry.
+Measured occlusion is a geometric error, rather than a syntax warning.
+
+The seven-card/21-interaction witness remains crowded: overlapping label pairs
+decrease from nine to seven, and verification now fails with sixteen targeted
+visibility diagnostics, including shaft/frame conflicts. It is an explicit
+layout limitation, not a solved dense-layout claim. Ancestor and parallel/self
+witnesses have visible markers and labels and verify cleanly.
+
+Opt-in `c4.maxWidth` and `c4.compact` provide measured reflow and tighter spacing.
+Impossible budgets retain content and diagnose their limit. Automatic type
+legends are configurable and consume existing palette/style contracts. Boundary
+navigation uses the editor's existing camera; canonical whole-diagram exports
+and exact source export retain interaction semantics. The shared performance
+change removes repeated schema cloning and equivalent XML scanning work;
+paired results must bind the final candidate and fully consumed receipts.
+
+The three independent reviewers found and closed four concrete integration
+findings: invalid row settings disabling compact packing; geometric errors
+shown as advisory in the editor; thick self-markers clipped by the viewport;
+and overlapping thick markers passing verification. The final candidate sizes
+the viewport around actual marker envelopes and diagnoses marker overlap. Two
+marker regressions fail against the earlier `40790299` production tree.
+
+This delivers a focused C4 slice of #409. It neither closes that delivery epic
+nor adds another family registry, layout engine, runtime dependency or audit
+framework. The remaining historical evidence is retained at its original pins.
+
 Implementation baseline: `a87ec8612c3df98a5b9e8f52ac0e35814b02c523`
 (17 October 2026). This work implements the contract requested for #387;
 it does not reopen the retired fidelity programme.

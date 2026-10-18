@@ -282,3 +282,19 @@ This is agent review of the rendered artifact, not human approval or a claim
 of published-package or deployed-site parity. Separate bounded probes cover
 C4 nested boundaries, repeated/reversed/self relationships, shape overrides,
 person padding, full label halos and owned terminal connectivity.
+
+## PR #411 C4 presentation follow-up
+
+On 18 October 2026, the follow-up review compares the same four treatments
+against `6724062c5da0e13401ab63744b3e7c11efc2684f`. Exactly 29,346 pixels
+change, confined to C4: 10,808 Sentinel, 7,288 warm editorial, 5,927 light
+technical and 5,323 dark operations. All 64 other family/treatment cells remain
+pixel-identical. The canvas remains 1560×9464.
+
+Codex inspected all four C4 cells at native size. Automatic legend marks now
+distinguish Person from System, shared label typography is prepared before
+measurement/emission, and the card/relationship/legend text stays readable in
+the existing palette treatments. The reviewed artifact SHA-256 is
+`95768feda747cc4f5e0c4e2d42041ad01442fcf923f0593d27705bf596203f3b`.
+This is agent review, not human approval. It does not establish arbitrary dense
+layout quality; those limitations are explicitly verified on separate inputs.

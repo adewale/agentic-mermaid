@@ -2,9 +2,9 @@
   "schemaVersion": 1,
   "status": "approved",
   "artifact": "src/__tests__/testdata/section-b-brand-evidence.png",
-  "artifactSha256": "39b6c470e29e40159fc9bddddb63f711f534d2022b9322f5913834be885972ac",
+  "artifactSha256": "95768feda747cc4f5e0c4e2d42041ad01442fcf923f0593d27705bf596203f3b",
   "reviewedAt": "2026-10-18",
-  "reviewer": "Codex agent, PR #411 native C4 extension review",
-  "scope": "The 1560\u00d79464 sheet contains 68 family-by-variant cells. Against PR #411 head 4b6f965e37d40ccde4600d9cf504858759a843ac, exactly 790,384 of 14,763,840 pixels change, confined to four previously empty C4 cells. All 64 existing family-by-variant cells remain pixel-identical and retain their recorded prior review. Codex inspected all four new C4 cells at native size plus an unchanged dark Sankey control: person glyphs, relationship label halos, type legends, typography, card containment and light/dark palette treatments remain legible. This is agent review, not human approval, viewer certification or proof of arbitrary input/font coverage. Final-cell terminal connectivity is reviewed independently.",
+  "reviewer": "Codex agent, PR #411 C4 visibility and presentation follow-up",
+  "scope": "The 1560\u00d79464 sheet contains 68 family-by-variant cells. Against 6724062c5da0e13401ab63744b3e7c11efc2684f, exactly 29,346 of 14,763,840 pixels change, confined to the four C4 cells; all 64 other cells remain pixel-identical. Codex inspected all four C4 cells at native size: person/type legend cues, prepared typography, the Uses/HTTPS relationship and light/dark palette treatments remain legible. The changed C4 production tree is included in 3b25e98336d820345a5f5390de7838e7c9cb139d. This is agent review, not human approval or proof of arbitrary input/font coverage; ancestor/dense geometry and terminal connectivity have independent behavioral checks.",
   "audit": "eval/section-b-brand-evidence/production-comparison.md"
 }
