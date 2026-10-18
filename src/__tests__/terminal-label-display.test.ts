@@ -103,16 +103,18 @@ end`
     for (const claim of claims(source)) expect(claim.projectedText).toBe(claim.drawn)
   })
 
-  it('Sequence connector receipts keep literal tags beside real formatting and message numbers', () => {
-    const source = 'sequenceDiagram\nautonumber\nA->>B: #lt;b#gt;literal#lt;/b#gt; *real*\nB->>B: #42;literal#42; <b>real</b>'
-    const expected = ['1. <b>literal</b> real', '2. *literal* real']
+  it('Sequence connector receipts keep untransformed text, literal tags and message numbers', () => {
+    const source = 'sequenceDiagram\nautonumber\nA->>B: #lt;b#gt;literal#lt;/b#gt; *real*\nB->>B: #42;literal#42; <b>real</b>\nB->>A: MiXeD ß *word*'
+    const expected = ['1. <b>literal</b> real', '2. *literal* real', '3. MiXeD ß word']
     for (const useAscii of [false, true]) {
-      const rendered = renderMermaidASCIIWithReceipt(source, { colorMode: 'none', useAscii })
-      const messages = rendered.terminalStyle.connectorProjection.connectors.filter(connector => connector.role === 'message')
-      expect(messages.flatMap(message => message.labels.map(label => label.text))).toEqual(expected)
-      for (const label of expected) expect(rendered.text).toContain(label)
-      for (const claim of claims(source)) expect(claim.projectedText).toBe(claim.drawn)
+      for (const style of [undefined, { roles: { edge: { textTransform: 'uppercase' as const, letterSpacing: 2 } } }]) {
+        const rendered = renderMermaidASCIIWithReceipt(source, { colorMode: 'none', useAscii, style })
+        const messages = rendered.terminalStyle.connectorProjection.connectors.filter(connector => connector.role === 'message')
+        expect(messages.flatMap(message => message.labels.map(label => label.text))).toEqual(expected)
+        for (const label of expected) expect(rendered.text).toContain(label)
+      }
     }
+    for (const claim of claims(source)) expect(claim.projectedText).toBe(claim.drawn)
   })
 
   it('Sequence typed strings interpret formatting but keep entity-looking text literal', () => {

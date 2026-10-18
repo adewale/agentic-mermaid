@@ -230,6 +230,8 @@ export interface PositionedMessage {
   from: string
   to: string
   label: string
+  /** Untransformed message display meaning, including the autonumber prefix. */
+  labelContent?: LabelContent
   lineStyle: 'solid' | 'dashed'
   startHead: SequenceMessageHead
   endHead: SequenceMessageHead

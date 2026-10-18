@@ -2,7 +2,7 @@ import { preparePixelText, type PixelTextBlock } from '../shared/prepared-text.t
 import type { Actor, Block, Message, PositionedActor, PositionedBlock, PositionedBlockDivider, PositionedBlockHeader, PositionedMessage, PositionedNote, PositionedSequenceDiagram, PositionedSequenceLabel, SequenceBounds, SequenceDiagram } from './types.ts'
 import { displayMessageLabel, getSequenceBlockScope, type SequenceBlockScope } from './parser.ts'
 import { displayMessageContent } from './parser.ts'
-import { concatDisplayText, prepareDisplayText, resolveLabelContent } from '../shared/display-text.ts'
+import { concatDisplayText, prepareDisplayText, resolveLabelContent, type LabelContent } from '../shared/display-text.ts'
 import { ARROW_HEAD, type ResolvedRenderStyle } from '../styles.ts'
 import { LINE_HEIGHT_RATIO, type MultilineMetrics } from '../text-metrics.ts'
 import type { resolveRoleStyle } from '../scene/style-registry.ts'
@@ -199,6 +199,7 @@ export function translatePositionedActor(actor: PositionedActor, dx: number, dy:
 
 export interface SequenceMessageGeometrySpec {
   label: string
+  labelContent: LabelContent
   displayLabel: string
   block: PixelTextBlock
   labelMetrics: MultilineMetrics
@@ -213,7 +214,8 @@ export interface SequenceMessageGeometrySpec {
 
 export function measureSequenceMessageSpec(message: Message, style: ResolvedRenderStyle, activationWidth: number): SequenceMessageGeometrySpec {
   const label = displayMessageLabel(message)
-  const block = preparePixelText(displayMessageContent(message), { transform: style.edgeTextTransform, fontSize: style.edgeLabelFontSize, fontWeight: style.edgeLabelFontWeight, letterSpacing: style.edgeLetterSpacing })
+  const labelContent = Object.freeze({ value: label, prepared: prepareDisplayText(displayMessageContent(message)) })
+  const block = preparePixelText(labelContent.prepared, { transform: style.edgeTextTransform, fontSize: style.edgeLabelFontSize, fontWeight: style.edgeLabelFontWeight, letterSpacing: style.edgeLetterSpacing })
   const displayLabel = block.text
   const defaultLineHeight = style.edgeLabelFontSize * LINE_HEIGHT_RATIO
   const labelMetrics: MultilineMetrics = label ? block : { width: 0, height: 0, lines: [], lineHeight: defaultLineHeight }
@@ -228,6 +230,7 @@ export function measureSequenceMessageSpec(message: Message, style: ResolvedRend
 
   return {
     label,
+    labelContent,
     displayLabel,
     block,
     labelMetrics,
@@ -267,6 +270,7 @@ export function positionSequenceMessage(message: Message, spec: SequenceMessageG
       from: message.from,
       to: message.to,
       label: spec.label,
+      labelContent: spec.labelContent,
       lineStyle: message.lineStyle,
       startHead: message.startHead,
       endHead: message.endHead,
@@ -307,6 +311,7 @@ export function positionSequenceMessage(message: Message, spec: SequenceMessageG
     from: message.from,
     to: message.to,
     label: spec.label,
+    labelContent: spec.labelContent,
     lineStyle: message.lineStyle,
     startHead: message.startHead,
     endHead: message.endHead,
