@@ -88,11 +88,14 @@ xychart
   line [25, 55, 50]`
 
 function getSvgSize(svg: string): { width: number; height: number } {
-  const sizeMatch = svg.match(/<svg[^>]*viewBox="0 0 (\d+) (\d+)"/)
-  if (!sizeMatch) throw new Error('SVG missing viewBox attribute')
+  // The configured display size survives a paint-containment viewBox repair.
+  const root = /<svg\b[^>]*>/.exec(svg)?.[0]
+  const width = root && /\bwidth="([^"]+)"/.exec(root)
+  const height = root && /\bheight="([^"]+)"/.exec(root)
+  if (!width || !height) throw new Error('SVG missing display dimensions')
   return {
-    width: Number(sizeMatch[1]),
-    height: Number(sizeMatch[2]),
+    width: Number(width[1]),
+    height: Number(height[1]),
   }
 }
 
