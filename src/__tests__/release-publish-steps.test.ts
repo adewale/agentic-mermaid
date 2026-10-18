@@ -16,6 +16,7 @@ const temp = useTempDirs()
 const REPO = join(import.meta.dir, '..', '..')
 const workflow = parseYaml(readFileSync(join(REPO, '.github', 'workflows', 'publish.yml'), 'utf8'))
 const benchmarkWorkflow = parseYaml(readFileSync(join(REPO, '.github', 'workflows', 'release-benchmark.yml'), 'utf8'))
+const ciWorkflow = parseYaml(readFileSync(join(REPO, '.github', 'workflows', 'ci.yml'), 'utf8'))
 
 interface Step { name?: string; run?: string; env?: Record<string, string> }
 
@@ -302,5 +303,19 @@ cp "$MOCK_ROOT/served.tar.gz" "$output"
     const served = installWith(undefined).servedDigest
     const matched = installWith(served)
     expect({ status: matched.status, extracted: matched.extracted }).toEqual({ status: 0, extracted: true })
+  })
+})
+
+// Release attests the entire canonical run, including independent semantics.
+describe('canonical CI: semantic conformance is required for release approval', () => {
+  const complete = step('ci-complete', 'Require every CI lane to pass', ciWorkflow)
+  const passing = { SEMANTIC_RESULT: 'success', TEST_RESULT: 'success', E2E_RESULT: 'success', RED_GREEN_RESULT: 'skipped', EXPIRE_RESULT: 'skipped' }
+
+  test('accepts the completed lanes and expected non-PR skips', () => {
+    expect(execute(complete, tempDir(), passing).status).toBe(0)
+  })
+
+  test.each(['failure', 'cancelled', 'skipped', ''])('refuses release approval when independent semantics is %s', result => {
+    expect(execute(complete, tempDir(), { ...passing, SEMANTIC_RESULT: result }).status).not.toBe(0)
   })
 })

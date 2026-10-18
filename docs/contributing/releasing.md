@@ -2,7 +2,9 @@
 
 The package is published by [`.github/workflows/publish.yml`](../../.github/workflows/publish.yml),
 which triggers on a **published GitHub Release**. The workflow requires a
-successful canonical `ci.yml` run for the exact release commit. CI owns tests,
+successful canonical `ci.yml` run for the exact release commit. Its required
+independent semantic lane checks the pinned Mermaid parser/DB; failure, cancellation
+or non-execution blocks `CI complete` and publication. CI owns tests,
 dependency/palette/sketch/whole-corpus quality, TypeScript and Biome checks,
 browser contracts, `hero:check`, `website:check`, golden drift,
 and packed-consumer fuzzing under Node 24 and the minimum supported
@@ -183,7 +185,8 @@ candidate tarball digest and the baseline's resolved version and integrity so
 the comparison identifies the bytes measured.
 
 The benchmark renders every official Mermaid syntax fence and generated large
-diagrams in alternating fresh Node processes on one runner. SVG rendering owns
+diagrams in alternating fresh Node processes on one runner. Every native family
+has an explicit scaling workload; the family type makes new enrollment mandatory. SVG rendering owns
 the timing and memory measurements; SVG and ASCII both receive correctness
 checks. It fails the run on:
 
