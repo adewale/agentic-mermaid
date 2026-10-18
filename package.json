@@ -147,6 +147,7 @@
     "check:browser-lazy": "bun run scripts/build/browser-lazy-report.ts",
     "generate:browser-families": "bun run scripts/build/generate-browser-family-catalog.ts",
     "check:browser-families": "bun run scripts/build/generate-browser-family-catalog.ts --check",
+    "check:output-identity": "bun run eval/benchmark/output-identity.ts",
     "build:binary": "bun build ./bin/am.ts --compile --outfile dist/am",
     "website": "bun run website/build.ts",
     "website:check": "bun run website/build.ts --check",
