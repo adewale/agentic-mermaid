@@ -1,9 +1,10 @@
 // Phase C: structured class diagram support.
 
 import { describe, test, expect } from 'bun:test'
-import { parseRegisteredMermaid as parseMermaid, asClass, mutate, serializeMermaid, verifyMermaid } from '../agent/index.ts'
+import { parseRegisteredMermaid as parseMermaid, asClass, mutate, mutateChecked, serializeMermaid, verifyMermaid, renderMermaidSVG } from '../agent/index.ts'
 import { parseClassDiagram } from '../class/parser.ts'
 import { classUnsupportedSyntaxWarnings } from '../agent/class-body.ts'
+import type { ClassMutationOp } from '../agent/types.ts'
 
 const parse = (s: string) => {
   const r = parseMermaid(s)
@@ -161,6 +162,39 @@ note for A "A \"quote\" and \\ path"`)
 })
 
 describe('class — mutate', () => {
+  test.each(['\n', '\r', '\r\n'])('refuses multiline members through either authoring op without changing the diagram: %j', lineBreak => {
+    const original = asClass(parse('classDiagram\nclass A'))!
+    const text = `+foo()${lineBreak}+bar()`
+    for (const op of [
+      { kind: 'add_member', class: 'A', text },
+      { kind: 'add_class', id: 'B', members: ['+valid()', text] },
+    ] satisfies ClassMutationOp[]) {
+      for (const apply of [mutate, mutateChecked]) {
+        expect(apply(original, op)).toEqual({ ok: false, error: {
+          code: 'INVALID_OP', message: 'Class members must be single lines; add each member separately',
+        } })
+        expect(original.body.classes).toEqual([{ id: 'A', label: undefined, generic: undefined, members: [] }])
+        expect(serializeMermaid(original)).toBe('classDiagram\n  class A\n')
+      }
+    }
+  })
+
+  test.each([String.raw`+foo()\n +bar()`, '+foo();+bar()'])('keeps single-line member text through either authoring op and reload: %j', text => {
+    const original = asClass(parse('classDiagram\nclass A'))!
+    for (const op of [
+      { kind: 'add_member', class: 'A', text },
+      { kind: 'add_class', id: 'B', members: [text] },
+    ] satisfies ClassMutationOp[]) {
+      for (const apply of [mutate, mutateChecked]) {
+        const edited = apply(original, op)
+        if (!edited.ok) throw new Error(JSON.stringify(edited.error))
+        const reloaded = asClass(parse(serializeMermaid(edited.value)))!
+        expect(reloaded.body.classes.at(-1)!.members).toEqual([text])
+        expect(verifyMermaid(edited.value).warnings).toEqual([])
+      }
+    }
+  })
+
   test.each(['\n', '\r', '\r\n'])('refuses an unsupported multiline note without changing the diagram: %j', lineBreak => {
     const original = parse('classDiagram\nclass A')
     const typed = asClass(original)
@@ -235,6 +269,49 @@ describe('class — mutate', () => {
 })
 
 describe('class — round-trip', () => {
+  test.each([
+    { arrow: '<|--', kind: 'inheritance', markerAt: 'from', start: 'cls-inherit', end: '' },
+    { arrow: '--|>', kind: 'inheritance', markerAt: 'to', start: '', end: 'cls-inherit' },
+    { arrow: '*--', kind: 'composition', markerAt: 'from', start: 'cls-composition', end: '' },
+    { arrow: '--*', kind: 'composition', markerAt: 'to', start: '', end: 'cls-composition' },
+    { arrow: 'o--', kind: 'aggregation', markerAt: 'from', start: 'cls-aggregation', end: '' },
+    { arrow: '--o', kind: 'aggregation', markerAt: 'to', start: '', end: 'cls-aggregation' },
+    { arrow: '<--', kind: 'association', markerAt: 'from', start: 'cls-arrow', end: '' },
+    { arrow: '-->', kind: 'association', markerAt: 'to', start: '', end: 'cls-arrow' },
+    { arrow: '<..', kind: 'dependency', markerAt: 'from', start: 'cls-arrow', end: '' },
+    { arrow: '..>', kind: 'dependency', markerAt: 'to', start: '', end: 'cls-arrow' },
+    { arrow: '<|..', kind: 'realization', markerAt: 'from', start: 'cls-inherit', end: '' },
+    { arrow: '..|>', kind: 'realization', markerAt: 'to', start: '', end: 'cls-inherit' },
+    { arrow: '()--', kind: 'lollipop', markerAt: 'from', start: 'cls-lollipop', end: '' },
+    { arrow: '--()', kind: 'lollipop', markerAt: 'to', start: '', end: 'cls-lollipop' },
+    { arrow: '--', kind: 'link-solid', markerAt: 'none', start: '', end: '' },
+    { arrow: '..', kind: 'link-dashed', markerAt: 'none', start: '', end: '' },
+    { arrow: '<-->', kind: 'association', markerAt: 'both', start: 'cls-arrow', end: 'cls-arrow' },
+    { arrow: 'o--*', kind: 'aggregation', markerAt: 'both', start: 'cls-aggregation', end: 'cls-composition' },
+  ])('keeps $arrow marker ownership after an unrelated edit, export and reload', ({ arrow, kind, markerAt, start, end }) => {
+    const relationSource = kind === 'lollipop' ? `Person ${arrow} Animal : related` : `Person "one" ${arrow} "many" Animal : related`
+    const source = `classDiagram\n${relationSource}`
+    const original = asClass(parse(source))!
+    const expected = { from: 'Person', to: 'Animal', kind, markerAt, label: 'related', ...(kind === 'lollipop' ? {} : { fromCardinality: 'one', toCardinality: 'many' }) }
+    expect(original.body.relations).toEqual([expect.objectContaining(expected)])
+    const edited = mutate(original, { kind: 'add_member', class: 'Person', text: '+name: String' })
+    if (!edited.ok) throw new Error(JSON.stringify(edited.error))
+    const exported = serializeMermaid(edited.value)
+    expect(exported).toContain(relationSource)
+    const reloaded = asClass(parse(exported))!
+    expect(edited.value.body.relations).toEqual([expect.objectContaining(expected)])
+    expect(reloaded.body.relations).toEqual(edited.value.body.relations)
+    expect(verifyMermaid(edited.value).warnings).toEqual([])
+    for (const input of [edited.value, exported]) {
+      const svg = renderMermaidSVG(input)
+      const relation = svg.match(/<polyline\b[^>]*class="class-relationship"[^>]*>/)?.[0]
+      expect(relation).toBeDefined()
+      expect(relation).toContain('data-from="Person" data-to="Animal"')
+      expect(relation!.match(/marker-start="url\(#([^)]*)\)"/)?.[1] ?? '').toBe(start)
+      expect(relation!.match(/marker-end="url\(#([^)]*)\)"/)?.[1] ?? '').toBe(end)
+    }
+  })
+
   test('serialize → parse → serialize is stable', () => {
     const src = `classDiagram\n  class Animal {\n    +String name\n    +eat()\n  }\n  class Dog\n  Animal <|-- Dog`
     const d = parse(src)

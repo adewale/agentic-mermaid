@@ -206,33 +206,39 @@ function pruneEmptyNamespaces(body: ClassBody): Result<ClassBody, MutationError>
 
 // ---- Serializer -----------------------------------------------------------
 
-const ARROW_FOR: Record<ClassRelationKind, string> = {
-  inheritance: '<|--',
-  composition: '*--',
-  aggregation: 'o--',
-  association: '-->',
-  dependency:  '..>',
-  realization: '..|>',
-  'link-solid': '--',
-  'link-dashed': '..',
-  lollipop: '()--',
+const RELATION_SYNTAX: Record<ClassRelationKind, {
+  from: string; to: string; shaft: '--' | '..'; defaultMarkerAt: 'from' | 'to' | 'none'
+}> = {
+  inheritance: { from: '<|', to: '|>', shaft: '--', defaultMarkerAt: 'from' },
+  composition: { from: '*', to: '*', shaft: '--', defaultMarkerAt: 'from' },
+  aggregation: { from: 'o', to: 'o', shaft: '--', defaultMarkerAt: 'from' },
+  association: { from: '<', to: '>', shaft: '--', defaultMarkerAt: 'to' },
+  dependency: { from: '<', to: '>', shaft: '..', defaultMarkerAt: 'to' },
+  realization: { from: '<|', to: '|>', shaft: '..', defaultMarkerAt: 'to' },
+  'link-solid': { from: '', to: '', shaft: '--', defaultMarkerAt: 'none' },
+  'link-dashed': { from: '', to: '', shaft: '..', defaultMarkerAt: 'none' },
+  lollipop: { from: '()', to: '()', shaft: '--', defaultMarkerAt: 'from' },
+}
+
+/** The same endpoint ownership drives serialization and semantic read-back. */
+export function classRelationMarkers(relation: ClassRelation): {
+  at: NonNullable<ClassRelation['markerAt']>; from?: ClassRelationKind; to?: ClassRelationKind
+} {
+  const at = relation.markerAt ?? RELATION_SYNTAX[relation.kind].defaultMarkerAt
+  return {
+    at,
+    ...(at === 'from' || at === 'both' ? { from: relation.fromKind ?? relation.kind } : {}),
+    ...(at === 'to' || at === 'both' ? { to: relation.toKind ?? relation.kind } : {}),
+  }
 }
 
 function arrowForRelation(relation: ClassRelation): string {
-  if (relation.kind === 'lollipop') return relation.markerAt === 'to' ? '--()' : '()--'
-  if (relation.markerAt === 'both') {
-    const fromKind = relation.fromKind ?? relation.kind
-    const toKind = relation.toKind ?? relation.kind
-    const endpoint = (kind: ClassRelationKind, left: boolean): string => {
-      if (kind === 'inheritance' || kind === 'realization') return left ? '<|' : '|>'
-      if (kind === 'composition') return '*'
-      if (kind === 'aggregation') return 'o'
-      return left ? '<' : '>'
-    }
-    const dashed = fromKind === 'dependency' || fromKind === 'realization' || toKind === 'dependency' || toKind === 'realization'
-    return `${endpoint(fromKind, true)}${dashed ? '..' : '--'}${endpoint(toKind, false)}`
-  }
-  return ARROW_FOR[relation.kind]
+  const markers = classRelationMarkers(relation)
+  const from = markers.from && RELATION_SYNTAX[markers.from]
+  const to = markers.to && RELATION_SYNTAX[markers.to]
+  const dashed = from?.shaft === '..' || to?.shaft === '..'
+    || (!from && !to && RELATION_SYNTAX[relation.kind].shaft === '..')
+  return `${from?.from ?? ''}${dashed ? '..' : '--'}${to?.to ?? ''}`
 }
 
 function quoteIfNeeded(id: string): string {
@@ -370,6 +376,12 @@ function normalizeGeneric(value: unknown): Result<string, MutationError> {
   return ok(generic)
 }
 
+function validateClassMembers(members: readonly string[]): MutationError | undefined {
+  if (members.some(member => typeof member !== 'string' || /[\r\n]/.test(member))) {
+    return { code: 'INVALID_OP', message: 'Class members must be single lines; add each member separately' }
+  }
+}
+
 function declareNamespaceOn(b: ClassBody, path: string): void {
   if (!b.namespaces) b.namespaces = []
   if (!b.namespaces.some(n => n.name === path)) b.namespaces.push({ name: path })
@@ -386,6 +398,8 @@ export function mutateClass(body: ClassBody, op: ClassMutationOp): Result<ClassB
     }
     case 'add_class': {
       if (findClass(op.id)) return err({ code: 'DUPLICATE_CLASS', message: `class ${op.id} already exists` })
+      const invalidMembers = validateClassMembers(op.members ?? [])
+      if (invalidMembers) return err(invalidMembers)
       if (op.namespace !== undefined && !NAMESPACE_PATH_RE.test(op.namespace)) {
         return err({ code: 'INVALID_OP', message: `invalid namespace path "${op.namespace}" — expected dot-joined identifier segments like "Platform.Auth"` })
       }
@@ -491,6 +505,8 @@ export function mutateClass(body: ClassBody, op: ClassMutationOp): Result<ClassB
     case 'add_member': {
       const c = findClass(op.class)
       if (!c) return err({ code: 'CLASS_NOT_FOUND', message: `class ${op.class} not found` })
+      const invalidMembers = validateClassMembers([op.text])
+      if (invalidMembers) return err(invalidMembers)
       c.members.push(op.text)
       return ok(b)
     }
