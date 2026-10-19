@@ -10,7 +10,8 @@
 import { MermaidFrontmatterError, normalizeMermaidSource } from '../mermaid-source.ts'
 import { splitHeaderStatement } from '../mermaid-source-wrapper.ts'
 import { stripStateComment } from '../state/comment.ts'
-import { trailingCommentStart } from '../shared/trailing-comment.ts'
+import { statementText, trailingCommentStart } from '../shared/trailing-comment.ts'
+import { statementEndAt } from '../shared/accessibility-directives.ts'
 import { splitAuthoredPieTitleLine } from '../pie/source-title.ts'
 import { decodeXML } from 'entities'
 import {
@@ -332,7 +333,7 @@ export function parseRegisteredMermaid(source: string): Result<ParsedDiagram, Pa
       kind === 'flowchart' ? 'flowchart' : 'generic',
     )
     const diagram: ValidDiagram = { kind, meta, body: parsed.value, source: sourceMap, canonicalSource }
-    markDroppedComments(diagram, source)
+    markDroppedComments(diagram, source, plugin.statementEnds)
     return ok(diagram)
   }
 
@@ -365,7 +366,7 @@ function attachUniversalAccessibility(body: import('./types.ts').DiagramBody, me
  * verify can surface the Tier 3 COMMENT_DROPPED lint. Opaque bodies preserve
  * everything and never reach here.
  */
-function markDroppedComments(diagram: ValidDiagram, authoredSource: string): void {
+function markDroppedComments(diagram: ValidDiagram, authoredSource: string, statementEnds?: (lines: readonly string[]) => readonly number[]): void {
   // Structured Sequence bodies keep comments as source-preserved segments;
   // whole-body opaque Sequence and wrapper comments are preserved as before.
   if (diagram.kind === 'sequence' || diagram.kind === 'c4' || diagram.body.kind === 'opaque') return
@@ -375,10 +376,21 @@ function markDroppedComments(diagram: ValidDiagram, authoredSource: string): voi
   // grammar ends that statement there; elsewhere it is text the serializer
   // keeps. So a trailing comment counts as dropped when its bytes are gone.
   const commentLines = new Set(diagram.meta.comments.map(comment => comment.line))
-  const trailing = sourceLines.flatMap((line, index) => {
-    const start = trailingCommentStart(line)
-    return start > 0 && !commentLines.has(index + 1) ? [{ line: index + 1, comment: line.slice(start) }] : []
-  })
+  // Quoted text that runs onto later lines holds its `%%` as text, so each
+  // statement is read whole, by the family's string rule; the wrapper holds none.
+  const wrapperLines = (diagram.meta.wrapperSource?.match(/\n/g) ?? []).length
+  const ends = statementEnds && authoredSource.includes('%%') ? statementEnds(sourceLines.map((line, index) => index < wrapperLines ? '' : line)) : undefined
+  const trailing: Array<{ line: number; comment: string }> = []
+  for (let index = 0; index < sourceLines.length; index++) {
+    const end = statementEndAt(ends, index, sourceLines.length)
+    const statement = statementText(sourceLines, index, end)
+    const start = trailingCommentStart(statement)
+    if (start > 0) {
+      const line = index + 1 + (statement.slice(0, start).match(/\n/g) ?? []).length
+      if (!commentLines.has(line)) trailing.push({ line, comment: statement.slice(start).split('\n', 1)[0]! })
+    }
+    index = end
+  }
   if (diagram.meta.comments.length === 0 && trailing.length === 0) return
 
   const serialized = serializeMermaid(diagram)
