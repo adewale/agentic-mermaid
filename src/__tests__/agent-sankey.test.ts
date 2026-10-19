@@ -52,20 +52,24 @@ describe('sankey generated CSV and mutation contracts', () => {
   })
 
   test('rendering an edited parsed diagram paints the new identity without changing its input', () => {
+    const paintedLabels = (svg: string): string[] => [...svg.matchAll(/<text\b[^>]*\bclass="sankey-node-label"[^>]*>([\s\S]*?)<\/text>/g)]
+      .map(match => decodeXML(match[1]!.replace(/<[^>]+>/g, '')))
     fc.assert(fc.property(csvTextArb, suffix => {
       const oldLabel = `old-label ${suffix}`.trim()
       const newLabel = `new-label ${suffix}`.trim()
       const original = sankey(`sankey-beta\n${csv(oldLabel)},sink,1`)
+      const before = paintedLabels(renderMermaidSVG(original))
+      expect(before).toHaveLength(2)
+      expect(before.filter(label => label.startsWith('old-label'))).toHaveLength(1)
       const edited = mutate(original, { kind: 'rename_node', from: oldLabel, to: newLabel })
       expect(edited.ok).toBe(true)
       if (!edited.ok) throw new Error(JSON.stringify(edited.error))
       expect(edited.value.body.links).toEqual([{ source: newLabel, target: 'sink', value: 1 }])
       expect(original.body.links).toEqual([{ source: oldLabel, target: 'sink', value: 1 }])
-      const painted = [...renderMermaidSVG(edited.value).matchAll(/<text\b[^>]*>([\s\S]*?)<\/text>/g)]
-        .map(match => decodeXML(match[1]!.replace(/<[^>]+>/g, ''))).join('\n')
-      expect(painted).toContain('new-label')
-      expect(painted).not.toContain('old-label')
-    }), fcParameters({ numRuns: 100 }))
+      // Only the plain prefix changes. Preserve the entire displayed suffix,
+      // including formatting/entities, without reimplementing display parsing.
+      expect(paintedLabels(renderMermaidSVG(edited.value))).toEqual(before.map(label => label.replace(/^old-label/, 'new-label')))
+    }), fcParameters({ numRuns: 100, examples: [['old-label'], ['<b>old-label</b>'], ['#111;ld-label'], ['東京👩‍💻é']] }))
   })
 })
 
