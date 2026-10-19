@@ -257,7 +257,7 @@ const initVars = (body: string, themeVariables: Record<string, unknown>): string
 const shown = (value: unknown): string => typeof value === 'string' ? value : JSON.stringify(value)
 const refusal = (path: string, value: unknown): string =>
   `${path}: ${JSON.stringify(shown(value))} is not a CSS color`
-const renderFailed = (reason: string) => ({ code: 'RENDER_FAILED' as const, reason: expect.stringContaining(reason) })
+const renderFailed = (reason: string) => ({ code: 'RENDER_FAILED' as const, reason: expect.stringContaining(reason), origin: 'config' as const })
 
 function diagnosticFor(path: string, value: unknown): Record<string, string> {
   return path.startsWith('themeVariables.')
@@ -341,7 +341,7 @@ describe.each([...FAMILIES])('theme color admission (#303): $family', row => {
   test('every paint admits each drawable CSS paint, and verify agrees', () => {
     const everyPaint = (value: string): string => init(row.body, ...row.paints.map((path): Entry => [path, value]))
     for (const value of VALID) expect(() => renderMermaidSVG(everyPaint(value)), value).not.toThrow()
-    expect(verifyMermaid(everyPaint(SINK)).warnings).not.toContainEqual({ code: 'RENDER_FAILED', reason: expect.any(String) })
+    expect(verifyMermaid(everyPaint(SINK)).warnings).not.toContainEqual(expect.objectContaining({ code: 'RENDER_FAILED' }))
   })
 
   test.each(Object.entries(row.sinks))('%s keeps an admitted var() paint at its SVG sink', (path, sink) => {
@@ -436,7 +436,7 @@ describe('theme color admission (#303): Architecture derived paint', () => {
       const source = initVars(ARCHITECTURE, { [key]: 'none' })
       expect(renderMermaidSVG(source, colors), key).toContain('<svg')
       expect(verifyMermaid(source, { renderOptions: colors }).warnings, key)
-        .not.toContainEqual({ code: 'RENDER_FAILED', reason: expect.any(String) })
+        .not.toContainEqual(expect.objectContaining({ code: 'RENDER_FAILED' }))
     }
   })
 

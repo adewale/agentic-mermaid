@@ -241,24 +241,27 @@ describe('built-in Scene cross-checks', () => {
         const attempt = run => { try { run(); return 'rendered' } catch (error) { return error.message } }
         const render = attempt(() => renderMermaidSVG(source))
         const strict = attempt(() => renderMermaidSVG(source, { layoutSafety: 'strict' }))
-        const verify = verifyMermaid(source).warnings.filter(warning => warning.code === 'RENDER_FAILED').map(warning => warning.reason)
+        const verify = verifyMermaid(source).warnings.filter(warning => warning.code === 'RENDER_FAILED' || warning.code === 'INTERNAL_ERROR')
         const ascii = renderMermaidASCIIWithReceipt(source).terminalStyle.diagnostics.map(diagnostic => diagnostic.code)
         console.log(JSON.stringify({ render, strict, verify, ascii }))
       `], { cwd: join(import.meta.dir, '..', '..'), env, encoding: 'utf8' })
       expect({ status: result.status, stderr: result.stderr }).toEqual({ status: 0, stderr: '' })
-      return JSON.parse(result.stdout) as { render: string; strict: string; verify: string[]; ascii: string[] }
+      return JSON.parse(result.stdout) as { render: string; strict: string; verify: unknown[]; ascii: string[] }
     }
     const projectionMismatch = /terminalProjection: must equal the canonical projection derived from connector semantics/
+    // The mismatch is a lowering defect, never the source's: verify reports it
+    // as INTERNAL_ERROR and says whether an ordinary render still draws.
+    const defect = (defaultRender: string) => [{ code: 'INTERNAL_ERROR', reason: expect.stringMatching(projectionMismatch), defaultRender }]
     const off = probe(false)
     expect(off.render).toBe('rendered')
     // Strict layout safety, verify and the ASCII connector projection, which
     // all rely on the derived facts, still cross-check them.
     expect(off.strict).toMatch(projectionMismatch)
-    expect(off.verify.join('\n')).toMatch(projectionMismatch)
+    expect(off.verify).toEqual(defect('succeeds-unchecked'))
     expect(off.ascii).toContain('TERMINAL_CONNECTOR_PROJECTION_UNAVAILABLE')
     const on = probe(true)
     expect(on.render).toMatch(projectionMismatch)
-    expect(on.verify.join('\n')).toMatch(projectionMismatch)
+    expect(on.verify).toEqual(defect('fails'))
   })
 })
 

@@ -235,6 +235,21 @@ export interface FamilyConformanceReport {
   readonly capabilities: readonly FamilyCapabilityConformanceResult[]
 }
 
+/** Thrown by registerFamily when a native claim has no witness. Declared beside
+ * its report, so verify's error classification need not load registration. */
+export class FamilyConformanceError extends Error {
+  readonly report: FamilyConformanceReport
+
+  constructor(report: FamilyConformanceReport) {
+    const failures = report.capabilities
+      .filter(result => result.status === 'failed')
+      .map(result => `${result.capability}: ${result.diagnostic}`)
+    super(`Family "${report.familyId}" failed executable registration conformance: ${failures.join('; ')}`)
+    this.name = 'FamilyConformanceError'
+    this.report = report
+  }
+}
+
 export type FamilyScenePrimitiveApplicability = 'applicable' | 'not-applicable'
 
 /** One complete family-role/Scene-primitive contract cell. */

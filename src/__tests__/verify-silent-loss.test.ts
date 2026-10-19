@@ -1,5 +1,6 @@
 import { describe, expect, test } from 'bun:test'
 import { verifyMermaid } from '../agent/index.ts'
+import { DIAGRAM_WORK_LIMITS } from '../shared/diagram-limits.ts'
 
 /**
  * Audit fix: broken input must not verify clean.
@@ -90,17 +91,23 @@ describe('render-parity gate (RENDER_FAILED)', () => {
   // The seam found by the onboarding probes: agents followed
   // verify-before-commit and still shipped sources the render parser
   // rejects. A clean verify must prove the diagram actually renders.
-  test('unrenderable-but-parseable sources flip ok with RENDER_FAILED', () => {
+  test('unrenderable-but-parseable sources flip ok with RENDER_FAILED naming what to fix', () => {
+    const nesting = DIAGRAM_WORK_LIMITS.nesting + 1
     const cases = [
-      'quadrantChart\n  title T\n  x-axis L --> R\n  y-axis B --> T2\n  Company A: 0.8, 0.75', // missing [x, y] brackets
-      'architecture-beta\n  service a(database)[A]\n  end', // stray end
-    ]
-    for (const source of cases) {
-      const r = verifyMermaid(source)
-      expect({ source, ok: r.ok, hasRenderFailed: r.warnings.some(w => w.code === 'RENDER_FAILED') })
-        .toEqual({ source, ok: false, hasRenderFailed: true })
-      const reason = (r.warnings.find(w => w.code === 'RENDER_FAILED') as { reason?: string }).reason
-      expect(reason && reason.length > 0).toBe(true)
+      { source: 'quadrantChart\n  title T\n  x-axis L --> R\n  y-axis B --> T2\n  Company A: 0.8, 0.75', origin: 'source' }, // missing [x, y] brackets
+      { source: 'architecture-beta\n  service a(database)[A]\n  end', origin: 'source' }, // stray end
+      // A host work limit the author can act on, though it is a RangeError.
+      { source: `classDiagram\n${'namespace N {\n'.repeat(nesting)}class A\n${'}\n'.repeat(nesting)}`, origin: 'source' },
+      { source: '%%{init: {"themeVariables": {"primaryColor": "notacolor"}}}%%\nflowchart LR\n  A --> B', origin: 'config' },
+      { source: 'flowchart LR\n  A --> B', renderOptions: { bg: 'url(https://example.test/x)' }, origin: 'config' },
+      { source: 'flowchart LR\n  A --> B', renderOptions: { style: 'no-such-style' }, origin: 'config' },
+    ] as const
+    for (const { source, origin, ...opts } of cases) {
+      const r = verifyMermaid(source, opts)
+      const failures = r.warnings.filter(w => w.code === 'RENDER_FAILED' || w.code === 'INTERNAL_ERROR')
+      expect({ source, ok: r.ok, codes: [...new Set(failures.map(w => w.code))], origins: [...new Set(failures.map(w => 'origin' in w ? w.origin : undefined))] })
+        .toEqual({ source, ok: false, codes: ['RENDER_FAILED'], origins: [origin] })
+      expect(failures.every(w => w.reason.length > 0)).toBe(true)
     }
   })
 

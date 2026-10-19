@@ -16,9 +16,10 @@ import { parseRegisteredMermaid } from '../agent/parse.ts'
 import type { PngOptions, PngRasterWarning } from '../agent/png.ts'
 import { serializeMermaid, synthesizeFromGraph } from '../agent/serialize.ts'
 import { logToolInvocation } from '../agent/trace-log.ts'
-import type { AnyMutationOp, LayoutWarning, MutableValidDiagram, MutationError, ParsedDiagram, ParseError, Result, ValidDiagram, WarningCode, WarningSeverity } from '../agent/types.ts'
+import type { AnyMutationOp, LayoutWarning, MutableValidDiagram, MutationError, ParsedDiagram, ParseError, Result, ValidDiagram, WarningCode, WarningOrigin, WarningSeverity } from '../agent/types.ts'
 import { WARNING_SEVERITY, WARNING_TIER } from '../agent/types.ts'
 import { configWarningsForMermaid, verifyMermaid } from '../agent/verify.ts'
+import { WARNING_CATALOG } from '../agent/warning-catalog.ts'
 import { familyDetectionDiagnosticFromPreservedBody, MermaidFamilyDetectionError } from '../family-detection.ts'
 import { PNG_DEFAULT_SCALE, type PngOutputOptionField } from '../png-contract.ts'
 import type { CliRenderFormat, RenderRequestReceipt } from '../render-contract.ts'
@@ -314,7 +315,7 @@ Exit codes:
   0  ok
   2  arg / parse error (bad flag, missing file, malformed JSON)
   3  verify reported errors (severity 'error')
-  4  uncaught internal failure
+  4  uncaught internal failure, or verify errors that are all INTERNAL_ERROR
 `
 
 /** Warning codes of one severity, comma-separated and wrapped for help text. */
@@ -374,13 +375,16 @@ Always emits JSON: {ok, warnings[], layout}.
                     inspect-only Brand constraints evaluate the styled Scene.
 Error codes flip ok=false:
 ${codesWithSeverity('error')}.
-RENDER_FAILED: the strict render parser, layout, or theme colors reject the source.
+RENDER_FAILED: the strict render parser, layout, or theme colors reject the source
+or its configuration; origin says which.
+INTERNAL_ERROR: an Agentic Mermaid defect, not the source; defaultRender says
+whether an ordinary render still produces output. Report it with the source.
 BRAND_CONSTRAINT_ERROR: only when a Style constraint explicitly selects action=error.
 Warning codes:
 ${codesWithSeverity('warning')}.
 LABEL_OVERFLOW counts characters against --label-cap.
 Brand constraints inspect without repainting or relayout; other Tier-3 lint is advisory.
-Exit 0 if ok, 3 if verify reports severity='error'.`,
+Exit 0 if ok, 3 if verify reports severity='error', 4 if every such error is INTERNAL_ERROR.`,
   parse: `am parse <file|->
 Emits ValidDiagram JSON (Maps serialized to objects). Exit 2 on parse error.
 Pipe to 'am serialize' to round-trip.`,
@@ -392,7 +396,8 @@ Applies one or more MutationOps, verifies the final diagram, then emits source.
 Registered families with mutationOps have typed mutation; discover the live roster,
 narrowers, and op names with 'am capabilities --json'. Opaque-fallback diagrams
 (unmodeled syntax) return a structured UNSUPPORTED_FAMILY error (exit 2). Verify failures
-exit 3 and omit source.`,
+exit 3 (4 when every error is INTERNAL_ERROR) and omit source. An INTERNAL_ERROR the
+source already had does not block the edit.`,
   preview: `am preview <file|-> [--output preview.html] [--open] [--json] [--security strict]
 Writes a standalone HTML preview containing strict-mode rendered SVG. Without
 --output, emits HTML to stdout unless --open is set, in which case a temp HTML
@@ -410,7 +415,7 @@ it as {ok,text}. --format json emits the structured AX tree
   capabilities: `am capabilities [--json]
 Emits a single JSON object describing the SDK's capability surface:
   { sdkVersion, families: [{ id, hasMutate, hasExtractLabels, mutationOps, editPolicy, example }],
-    warningCodes: [{ code, tier, severity }],
+    warningCodes: [{ code, tier, severity, origins }],
     outputFormats: ${JSON.stringify(CLI_RENDER_FORMATS)} }
 editPolicy is "structured-when-narrowed" or "source-level-only". Use this to
 introspect what the CLI can do without running every command.`,
@@ -960,7 +965,14 @@ function cmdVerify(args: ParsedArgs): number {
     ...(style ? { renderOptions: { style } } : {}),
   })
   process.stdout.write(JSON.stringify(r, replacer) + '\n')
-  return r.ok ? EXIT_OK : EXIT_VERIFY_FAILED
+  return r.ok ? EXIT_OK : verifyFailureExit(r.warnings)
+}
+
+/** A verify failure whose every error is INTERNAL_ERROR is an engine defect,
+ * not the diagram's, so it exits with the internal status. */
+function verifyFailureExit(warnings: readonly LayoutWarning[]): number {
+  const errors = warnings.filter(warning => WARNING_SEVERITY[warning.code] === 'error')
+  return errors.length > 0 && errors.every(warning => warning.code === 'INTERNAL_ERROR') ? EXIT_INTERNAL : EXIT_VERIFY_FAILED
 }
 
 function cmdParse(args: ParsedArgs): number {
@@ -1054,7 +1066,7 @@ export function mutateSource(source: string, ops: AnyMutationOp[]): MutationRunR
     }
     current = next.value
   }
-  const { accepted, verification: verify } = verifyMutationResult(current)
+  const { accepted, verification: verify } = verifyMutationResult(current, r0.value)
   if (!accepted) {
     return {
       ok: false,
@@ -1078,7 +1090,7 @@ function cmdMutate(args: ParsedArgs, json: boolean): number {
 function emitMutationRun(r: MutationRunResult, json: boolean): number {
   if (!r.ok) {
     process.stdout.write(JSON.stringify({ ok: false, error: r.error, verify: r.verify }, replacer) + '\n')
-    return r.error.code === 'VERIFY_FAILED' ? EXIT_VERIFY_FAILED : EXIT_ARG_ERROR
+    return r.error.code === 'VERIFY_FAILED' ? verifyFailureExit(r.verify?.warnings ?? []) : EXIT_ARG_ERROR
   }
   process.stdout.write(json ? JSON.stringify({ ok: true, source: r.source, verify: r.verify }, replacer) + '\n' : r.source)
   return EXIT_OK
@@ -1211,7 +1223,7 @@ function cmdDescribe(args: ParsedArgs, json: boolean): number {
     }
     if (json || format === 'json') process.stdout.write(JSON.stringify(env, replacer) + '\n')
     else process.stderr.write(`describe: verify failed: ${verification.warnings.map(warning => warning.code).join(', ')}\n`)
-    return EXIT_VERIFY_FAILED
+    return verifyFailureExit(verification.warnings)
   }
   const described = describeMermaid(parsed.value, { format })
   if (format === 'json') {
@@ -1269,6 +1281,8 @@ interface WarningCodeCapability {
   code: WarningCode
   tier: string
   severity: string
+  /** Who can cause this code: the source, its configuration, or the engine. */
+  origins: readonly WarningOrigin[]
 }
 
 interface CapabilitiesEnvelope {
@@ -1344,6 +1358,7 @@ export function buildCapabilities(): CapabilitiesEnvelope {
     code,
     tier: WARNING_TIER[code],
     severity: WARNING_SEVERITY[code],
+    origins: WARNING_CATALOG[code].origins,
   }))
   return {
     sdkVersion,
@@ -1461,7 +1476,7 @@ you haven't inspected.
 - styles [--json] — list registered styles (default + full looks + palette-only themes)
 - parse — diagram → ValidDiagram JSON
 - serialize — ValidDiagram JSON on stdin → canonical source (the inverse of parse)
-- verify — structural validation (exit 3 if invalid)
+- verify — structural validation (exit 3 if invalid, 4 if only INTERNAL_ERROR)
 - mutate --op '<json>' / --ops '<json array|file>' — apply typed mutation(s), verify, then emit source
 - preview [--output file.html] [--open] — standalone strict-mode HTML preview for user inspection
 - format — normalize / canonicalize source
@@ -1472,7 +1487,7 @@ you haven't inspected.
 - llms-txt — this document
 - init-agent [--dir .] [--force] — write AGENTS.md section, root skills/ bundle, and .mcp.json sample
 
-Exit codes: 0 ok, 2 arg error, 3 verify-failed, 4 internal.
+Exit codes: 0 ok, 2 arg error, 3 verify-failed, 4 internal (including a verify whose errors are all INTERNAL_ERROR).
 
 ## MCP tools
 

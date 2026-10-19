@@ -856,6 +856,48 @@ descriptorUpgradeDiagram
     expect(getFamily(layoutFailure.id)).toBeUndefined()
   })
 
+  test('verify reports a registered hook defect as INTERNAL_ERROR with the ordinary render outcome', () => {
+    // Hooks that witness their example but raise a runtime error on other
+    // input: a defect in the family, not in the author's source.
+    const base = extensionDescriptor('runtime-defect', 'runtimeDefectDiagram')
+    const defective: FamilyDescriptor = {
+      ...base,
+      verify: body => {
+        if (body.kind === 'extension' && body.source.includes('verify-defect')) throw new TypeError('verify defect')
+        return []
+      },
+      layout: context => {
+        if (context.source.text.includes('layout-defect')) throw new TypeError('layout defect')
+        return { width: 120, height: 40, projectionDefect: context.source.text.includes('projection-defect') } as { width: number; height: number }
+      },
+      projectPositioned: context => {
+        if ((context.positioned as { projectionDefect?: boolean }).projectionDefect) throw new TypeError('projection defect')
+        return base.projectPositioned!(context)
+      },
+    }
+    const unregister = registerFamily(defective)
+    try {
+      for (const [payload, reason, defaultRender] of [
+        // Only verify runs the verify hook and projects the positioned view,
+        // so an ordinary render still draws what nothing has checked.
+        ['verify-defect', 'verify hook failed: verify defect', 'succeeds-unchecked'],
+        ['projection-defect', 'projectPositioned hook failed: projection defect', 'succeeds-unchecked'],
+        // Every render lays out.
+        ['layout-defect', 'layout hook failed: layout defect', 'fails'],
+      ] as const) {
+        const source = `runtimeDefectDiagram\n  ${payload}`
+        if (defaultRender === 'fails') expect(() => renderMermaidSVG(source), payload).toThrow()
+        else expect(renderMermaidSVG(source), payload).toContain('<svg')
+        const result = verifyMermaid(source)
+        expect(result.ok, payload).toBe(false)
+        expect(result.warnings.filter(warning => warning.code === 'RENDER_FAILED' || warning.code === 'INTERNAL_ERROR'), payload)
+          .toEqual([{ code: 'INTERNAL_ERROR', reason: expect.stringContaining(reason), defaultRender }])
+      }
+    } finally {
+      unregister()
+    }
+  })
+
   test('reports unavailable layout/verify capabilities and keeps extension mutation diagnosed', () => {
     const base = extensionDescriptor('unavailable', 'unavailableDiagram')
     const unavailable: FamilyDescriptor = {

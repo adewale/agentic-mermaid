@@ -243,6 +243,18 @@ This changelog tracks user-facing changes for **Agentic Mermaid**, a fork of `lu
   website, and full and lazy browser bundles.
 
 ### Changed
+- `verify` no longer blames the diagram for a defect in Agentic Mermaid. A
+  render-path failure raised by one of the engine's own consistency checks or
+  by a runtime error such as a `TypeError` is the new Tier 1 error
+  `INTERNAL_ERROR`; its `defaultRender` says whether an ordinary render still
+  produces output (`succeeds-unchecked`, unchecked) or throws (`fails`).
+  `RENDER_FAILED` now covers faults in the source or its configuration only,
+  and its new `origin` field says which. `am verify`, `am mutate` and
+  `am describe` exit 4 when every error is `INTERNAL_ERROR`; a typed edit to a
+  diagram that already had the defect is accepted; `am capabilities --json`
+  lists each code's possible `origins`. Invalid render options and Style
+  inputs, and sources too long for the request receipt, are now typed
+  refusals rather than plain runtime errors.
 - The npm package no longer ships `docs/mutation-testing.md`; mutation testing
   and its CI jobs are gone. The repository no longer commits generated reports,
   receipts, upstream-corpus hashes or eval evidence, and `CLAUDE.md` records

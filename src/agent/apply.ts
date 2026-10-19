@@ -20,7 +20,7 @@ import { parseRegisteredMermaid } from './parse.ts'
 import { serializeMermaid } from './serialize.ts'
 import { createMermaid, type CreateMermaidOptions } from './create.ts'
 import { mutateChecked } from './mutate.ts'
-import { verifyMermaid } from './verify.ts'
+import { renderFailureWarning, verifyMermaid } from './verify.ts'
 import { hasOpSchema, type OpFamily, type OpValidationError } from './op-schema.ts'
 import type { MutableValidDiagram, VerifyResult, DiagramKind, MutationError, Result } from './types.ts'
 import { getFamily } from './families.ts'
@@ -164,6 +164,7 @@ export function applyOps(input: ApplyOpsInput): OpEnvelope {
   }
 
   let d: MutableValidDiagram
+  let before: ParsedDiagram
 
   if (typeof source === 'string' && source.trim().length > 0) {
     const parsed = parseRegisteredMermaid(source)
@@ -179,6 +180,7 @@ export function applyOps(input: ApplyOpsInput): OpEnvelope {
       }
     }
     d = parsed.value as MutableValidDiagram
+    before = d
     if (!hasOpSchema(d.kind)) {
       return { ok: false, family: d.kind, error: { code: 'INVALID_OP', message: `family "${d.kind}" has no structured ops; edit it as source text` } }
     }
@@ -208,17 +210,25 @@ export function applyOps(input: ApplyOpsInput): OpEnvelope {
     if (!r.ok) return { ok: false, family: d.kind, opIndex: i, error: r.error }
     d = r.value
   }
-  return verifiedEnvelope(d)
+  return verifiedEnvelope(d, before)
 }
 
 /** Shared post-edit gate, internal to the public adapters. Empty is still an
  * error for standalone verification, but a deliberate structured result can
  * be published when emptiness is its only blocking diagnostic and its emitted
- * source actually renders. Empty scaffolds below a grammar floor still fail. */
-export function verifyMutationResult(diagram: ParsedDiagram): { accepted: boolean; verification: VerifyResult } {
+ * source actually renders. Empty scaffolds below a grammar floor still fail.
+ * An edit is not blamed for an engine defect it did not introduce: when every
+ * blocking finding is INTERNAL_ERROR and the pre-edit diagram (`before`)
+ * already had one, the edit is accepted and its verification keeps reporting
+ * the defect. */
+export function verifyMutationResult(diagram: ParsedDiagram, before?: ParsedDiagram): { accepted: boolean; verification: VerifyResult } {
   const verification = verifyMermaid(diagram)
   if (verification.ok) return { accepted: true, verification }
   const blocking = verification.warnings.filter(warning => WARNING_SEVERITY[warning.code] === 'error')
+  if (before && blocking.every(warning => warning.code === 'INTERNAL_ERROR')
+    && verifyMermaid(before).warnings.some(warning => warning.code === 'INTERNAL_ERROR')) {
+    return { accepted: true, verification }
+  }
   if (diagram.body.kind === 'opaque' || diagram.body.kind === 'preserved' || diagram.body.kind === 'extension'
     || !getFamily(diagram.kind)?.mutate
     || blocking.length === 0 || blocking.some(warning => warning.code !== 'EMPTY_DIAGRAM')) {
@@ -228,13 +238,13 @@ export function verifyMutationResult(diagram: ParsedDiagram): { accepted: boolea
     renderMermaidSVG(serializeMermaid(diagram))
     return { accepted: true, verification }
   } catch (error) {
-    const reason = error instanceof Error ? error.message : String(error)
-    return { accepted: false, verification: { ...verification, warnings: [...verification.warnings, { code: 'RENDER_FAILED', reason }] } }
+    // This is the ordinary render, so an engine defect here fails it.
+    return { accepted: false, verification: { ...verification, warnings: [...verification.warnings, renderFailureWarning(error, () => 'fails')] } }
   }
 }
 
-function verifiedEnvelope(diagram: MutableValidDiagram): OpEnvelope {
-  const { accepted, verification } = verifyMutationResult(diagram)
+function verifiedEnvelope(diagram: MutableValidDiagram, before?: ParsedDiagram): OpEnvelope {
+  const { accepted, verification } = verifyMutationResult(diagram, before)
   const summary = verifySummary(verification)
   if (!accepted) {
     return {

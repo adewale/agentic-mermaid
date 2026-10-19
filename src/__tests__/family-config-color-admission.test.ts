@@ -21,7 +21,7 @@ describe('family config color admission (#303, Timeline/Journey)', () => {
       const input = source(family, { sectionFills: ['#f96', 42] })
       expect(() => renderMermaidSVG(input)).toThrow(`${family}.sectionFills[1]: "42" is not a CSS color`)
       expect(verifyMermaid(input).warnings).toContainEqual({
-        code: 'RENDER_FAILED', reason: expect.stringContaining(`${family}.sectionFills[1]: "42"`),
+        code: 'RENDER_FAILED', reason: expect.stringContaining(`${family}.sectionFills[1]: "42"`), origin: 'config',
       })
       expect(() => renderMermaidSVG(source(family, { sectionFills: '#f96' })))
         .toThrow(`${family}.sectionFills: "#f96" is not an array of CSS colors`)

@@ -113,7 +113,7 @@ native interpretation. Check the family's documented disposition.
 Choosing well is checkable. After authoring or editing, run `verifyMermaid`
 (or `am verify`):
 
-- **Tier 1 — structural:** <!-- BEGIN GENERATED: warning-codes:structural -->`EMPTY_DIAGRAM`, `EDGE_MISANCHORED`, `OFF_CANVAS`, `GROUP_BREACH`, `UNKNOWN_SHAPE`, `LABEL_OVERFLOW`, `UNRESOLVABLE_SCHEDULE`, `RENDER_FAILED`<!-- END GENERATED: warning-codes:structural -->
+- **Tier 1 — structural:** <!-- BEGIN GENERATED: warning-codes:structural -->`EMPTY_DIAGRAM`, `EDGE_MISANCHORED`, `OFF_CANVAS`, `GROUP_BREACH`, `UNKNOWN_SHAPE`, `LABEL_OVERFLOW`, `UNRESOLVABLE_SCHEDULE`, `RENDER_FAILED`, `INTERNAL_ERROR`<!-- END GENERATED: warning-codes:structural -->
   must be empty before committing; they mean the source or render contract is
   broken, not merely ugly.
 - **Tier 2 — geometric:** `NODE_OVERLAP` and route warnings flag layouts

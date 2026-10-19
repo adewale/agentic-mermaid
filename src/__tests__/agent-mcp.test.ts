@@ -8,7 +8,7 @@ import { applyOps, createMermaid, mutate, mutateChecked, parseRegisteredMermaid,
 import { renderMermaidSVG } from '../index.ts'
 import vm from 'node:vm'
 import pkg from '../../package.json'
-import { BUILTIN_FAMILY_METADATA } from '../agent/families.ts'
+import { BUILTIN_FAMILY_METADATA, getFamily, replaceFamilyForTest } from '../agent/families.ts'
 import { runCli } from '../cli/index.ts'
 import { parseMcpCliOptions, runMcpCli } from '../mcp/mcp-cli.ts'
 import { executeInSandbox } from '../mcp/sandbox.ts'
@@ -868,13 +868,58 @@ describe('CLI — sad paths via runCli', () => {
     expect(out).toContain('+quack()')
   })
 
-  test('verify exit code 3 on empty (Loop 7: EXIT_VERIFY_FAILED)', () => {
-    // Was 2 in Loop ≤6 (when verify-failed shared an exit code with arg
-    // errors); Loop 7 split out a dedicated EXIT_VERIFY_FAILED=3 so a CI
-    // script can branch on cause-of-failure.
-    const tmp = tmpFile('empty.mmd', '')
-    const { code } = capture(() => runCli(['verify', tmp]))
-    expect(code).toBe(3)
+  // A flowchart layout that raises a TypeError for any diagram naming a
+  // `Defect` node: an engine fault, which no diagram or edit should be blamed for.
+  const withLayoutDefect = (run: () => void): void => {
+    const flowchart = getFamily('flowchart')!
+    const restore = replaceFamilyForTest('flowchart', {
+      ...flowchart,
+      layout: context => {
+        if (context.source.text.includes('Defect')) throw new TypeError('layout defect')
+        return flowchart.layout!(context)
+      },
+    })
+    try {
+      run()
+    } finally {
+      restore()
+    }
+  }
+  const layoutDefect = expect.objectContaining({ code: 'INTERNAL_ERROR', defaultRender: 'fails' })
+
+  test('verify exits 3 for errors in the diagram and 4 when every error is INTERNAL_ERROR', () => {
+    // Exit 3 was 2 in Loop ≤6 (when verify-failed shared an exit code with
+    // arg errors); Loop 7 split out EXIT_VERIFY_FAILED=3 so a CI script can
+    // branch on cause-of-failure. An engine defect is not the diagram's
+    // failure, so it takes the internal code.
+    withLayoutDefect(() => {
+      for (const [name, source, exit] of [
+        ['empty', '', 3],
+        ['authored style color', 'flowchart LR\n  A --> B\n  style A fill:notacolor', 3],
+        ['engine defect', 'flowchart LR\n  Defect --> B', 4],
+      ] as const) {
+        const { code, out } = capture(() => runCli(['verify', tmpFile('verify-exit.mmd', source)]))
+        expect({ name, code }).toEqual({ name, code: exit })
+        if (exit === 4) expect(JSON.parse(out).warnings).toContainEqual(layoutDefect)
+      }
+    })
+  })
+
+  test('an edit is blocked by an engine defect only when the edit introduces it', () => {
+    withLayoutDefect(() => {
+      // The defect predates the edit: accept it, and keep reporting the defect.
+      const before = 'flowchart LR\n  Defect --> B'
+      const addC = { kind: 'add_node', id: 'C', label: 'C' }
+      expect(applyOps({ source: before, ops: [addC] })).toMatchObject({ ok: true, verify: { ok: false, warnings: expect.arrayContaining([layoutDefect]) } })
+      const accepted = capture(() => runCli(['mutate', tmpFile('defect-before.mmd', before), '--op', JSON.stringify(addC), '--json']))
+      expect(accepted.code).toBe(0)
+      expect(JSON.parse(accepted.out)).toMatchObject({ ok: true, verify: { warnings: expect.arrayContaining([layoutDefect]) } })
+      // The edit introduces it: reject the edit, with the internal exit code.
+      const addDefect = { kind: 'add_node', id: 'Defect', label: 'Defect' }
+      expect(applyOps({ source: 'flowchart LR\n  A --> B', ops: [addDefect] })).toMatchObject({ ok: false, error: { code: 'VERIFY_FAILED', details: expect.arrayContaining([layoutDefect]) } })
+      const rejected = capture(() => runCli(['mutate', tmpFile('defect-after.mmd', 'flowchart LR\n  A --> B'), '--op', JSON.stringify(addDefect)]))
+      expect(rejected.code).toBe(4)
+    })
   })
 
   test('verify resolves and safely admits file-backed Styles so constraints match render', () => {

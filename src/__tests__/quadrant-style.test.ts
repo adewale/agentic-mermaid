@@ -131,7 +131,7 @@ describe('quadrant authored paint admission (#303)', () => {
           if (agent.ok) expect(agent.value.body.kind).toBe('opaque')
           const verdict = verifyMermaid(source)
           expect(verdict.ok).toBe(false)
-          expect(verdict.warnings).toContainEqual({ code: 'RENDER_FAILED', reason: expect.stringContaining(named) })
+          expect(verdict.warnings).toContainEqual({ code: 'RENDER_FAILED', reason: expect.stringContaining(named), origin: 'source' })
         }
       }
     }
@@ -142,7 +142,7 @@ describe('quadrant authored paint admission (#303)', () => {
       const source = `quadrantChart\n  A: [0.5, 0.5] color: ${value}, stroke-color: ${value}`
       expect(() => renderMermaidSVG(source), value).not.toThrow()
       expect(() => renderMermaidASCII(source), value).not.toThrow()
-      expect(verifyMermaid(source).warnings).not.toContainEqual({ code: 'RENDER_FAILED', reason: expect.any(String) })
+      expect(verifyMermaid(source).warnings).not.toContainEqual(expect.objectContaining({ code: 'RENDER_FAILED' }))
     }
   })
 
