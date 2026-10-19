@@ -83,9 +83,10 @@ export function erUnsupportedSyntaxWarnings(canonicalSource: string): LayoutWarn
         message: 'A relationship label of several unquoted words is read whole. Pinned Mermaid reads only its first word as the label and declares the others as entities; quote the label',
       })
       // Mermaid's `.*direction\s+LR` rule makes a line holding a direction a
-      // direction statement, whatever else it holds.
+      // direction statement, whatever else it holds, from where the line is
+      // lexed outside a block.
       if (syntax.kind !== 'direction' && entry.entityId === undefined && !['attribute', 'block-close', 'comment', 'blank'].includes(syntax.kind)
-        && /direction\s+(?:TB|BT|LR|RL)/i.test(grammar[entry.line] ?? '') && !directionLines.has(entry.line)) {
+        && /direction\s+(?:TB|BT|LR|RL)/i.test((grammar[entry.line] ?? '').slice(entry.column)) && !directionLines.has(entry.line)) {
         directionLines.add(entry.line)
         warnings.push({
           code: 'UNSUPPORTED_SYNTAX', syntax: 'er_direction_line', line: header + entry.line + 2,
@@ -265,6 +266,9 @@ const LEFT_GLYPH: Record<ErCardinality, string> = {
 const RIGHT_GLYPH: Record<ErCardinality, string> = {
   'one-only': '||', 'zero-or-one': 'o|', 'zero-or-many': 'o{', 'one-or-many': '|{',
 }
+
+// Mermaid's style-state id token.
+const ER_STYLE_TEXT = /^(?:[^\x00-\x7F]|\w|-|\*)+$/
 
 function renderErEntityReference(entity: ErEntity): string {
   const bare = parseErEntityId(entity.id) !== null && !erNameNeedsQuotes(entity.id)
@@ -496,8 +500,13 @@ function writeEr(body: ErBody, prefix: readonly ErEntity[]): { source: string; o
   for (const [name, style] of Object.entries(body.classDefs ?? {})) lines.push(`  classDef ${name} ${serializeStyleProps(style)}`)
   for (const entity of body.entities) {
     const reference = renderErEntityReference({ ...entity, label: undefined })
-    const classLine = entity.className ? `  class ${reference} ${entity.className.trim().split(/[ \t]+/).join(',')}` : undefined
-    const styleLine = entity.style ? `  style ${reference} ${serializeStyleProps(entity.style)}` : undefined
+    const classes = entity.className?.trim().split(/[ \t]+/).join(',')
+    // A `style` line lexes its id as style text, so a keyword or a number is
+    // written bare there; a `class` line cannot name one at all, so its class
+    // goes on the entity itself (`"one":::foo`).
+    const classLine = classes === undefined ? undefined
+      : erNameNeedsQuotes(entity.id) ? `  ${reference}:::${classes}` : `  class ${reference} ${classes}`
+    const styleLine = entity.style ? `  style ${ER_STYLE_TEXT.test(entity.id) ? entity.id : reference} ${serializeStyleProps(entity.style)}` : undefined
     if (styleLine) fold.style(entity.id)
     // `class` applies only to an entity that exists, so it follows the `style`
     // line that creates one.

@@ -161,6 +161,13 @@ describe('ER source Mermaid rejects, read generously', () => {
     // statement. The existing public comment policy must account for that loss.
     if (syntax === 'er_trailing_comment') expect(warnings).toContainEqual(expect.objectContaining({ code: 'COMMENT_DROPPED', count: 1, lines: [line] }))
   })
+
+  // Mermaid lexes that line's text inside the block, where `.*direction` does not apply.
+  test('a direction in an attribute comment is not a direction line', async () => {
+    const source = 'erDiagram\n  A {\n  int x "direction TB" } B'
+    await expectParity(source)
+    expect(verifyMermaid(source).warnings.filter(warning => warning.code === 'UNSUPPORTED_SYNTAX')).toEqual([])
+  })
 })
 
 describe('ER comments against pinned Mermaid', () => {
@@ -211,7 +218,7 @@ describe('typed ER text is written as Mermaid reads it', () => {
 describe('typed ER names are written as Mermaid reads them', () => {
   // Mermaid's lexer reads these bare names as a keyword, a cardinality, a
   // link marker or a number first; written quoted, each is one name.
-  test.each(['end', 'one', 'u-turn', '2px'])('%j', async id => {
+  test.each(['end', 'one', 'u-turn', '2px', '1.2.3', '1.x'])('%j', async id => {
     const parsed = parseRegisteredMermaid('erDiagram\n  A')
     if (!parsed.ok) throw new Error('fixture rejected')
     const added = mutate(parsed.value, { kind: 'add_entity', id })
@@ -220,6 +227,18 @@ describe('typed ER names are written as Mermaid reads them', () => {
     const expected: ErReading = { entities: [['A'], [id]], relations: [] }
     expect({ source, mermaid: await mermaidReads(source) }).toEqual({ source, mermaid: expected })
     expect({ source, ours: oursReads(source) }).toEqual({ source, ours: expected })
+  })
+
+  // A `style` line reads its id as style text, where a keyword or number is
+  // bare; a `class` line cannot name one, so the class goes on the entity.
+  test.each(['end', 'one', '2px'])('%j keeps its class and style', async id => {
+    const parsed = parseRegisteredMermaid(`erDiagram\n  "${id}":::foo\n  classDef foo fill:#f00\n  style ${id} stroke:#0f0`)
+    if (!parsed.ok) throw new Error('fixture rejected')
+    const source = serializeMermaid(parsed.value)
+    const json = await upstream.database(source)
+    const entities = json === undefined ? 'rejected' : (JSON.parse(json) as { getEntities: Array<[string, { cssClasses: string; cssStyles: string[] }]> }).getEntities
+      .map(([key, entity]) => [key, entity.cssClasses, entity.cssStyles])
+    expect({ source, entities }).toEqual({ source, entities: [[id, 'default foo', ['stroke:#0f0']]] })
   })
 })
 
