@@ -1,4 +1,5 @@
-import type { Geometry } from './scene/ir.ts'
+import type { Geometry, MarkPaint } from './scene/ir.ts'
+import { serializeSvgEmission, snapshotSvgEmissionRecipe, svgValue as v, type SvgAttribute, type SvgEmissionRecipe } from './scene/svg-emission.ts'
 import { STROKE_WIDTHS } from './styles.ts'
 import type { Point, PortSide, PositionedNode } from './types.ts'
 
@@ -16,7 +17,9 @@ export type ShapeRoutingBoundary =
 
 export interface RenderedShapeOutline {
   geometry: Geometry
-  crisp: string
+  readonly emission: SvgEmissionRecipe
+  /** Compatibility view for internal outline consumers, never retained. */
+  readonly crisp: string
   routing: ShapeRoutingBoundary
 }
 
@@ -58,25 +61,62 @@ const ROUTING_PROFILE_CACHE = new WeakMap<PositionedNode, CachedShapeRoutingProf
 
 interface Paint { fill: string; stroke: string; strokeWidth: string }
 
-const pointsText = (points: Point[]) => points.map(point => `${point.x},${point.y}`).join(' ')
-const polygon = (points: Point[], paint: Paint): RenderedShapeOutline => ({
-  geometry: { kind: 'polygon', points },
-  crisp: `<polygon points="${pointsText(points)}" fill="${paint.fill}" stroke="${paint.stroke}" stroke-width="${paint.strokeWidth}" />`,
-  routing: { kind: 'polygon', points },
+const attr = (name: SvgAttribute['name'], value: SvgAttribute['value']): SvgAttribute => ({ name, value })
+const PAINT_ATTRIBUTES = [attr('fill', v.paint('fill')), attr('stroke', v.paint('stroke')), attr('stroke-width', v.paint('strokeWidth'))]
+const LINE_ATTRIBUTES = [attr('stroke', v.paint('stroke')), attr('stroke-width', v.paint('strokeWidth'))]
+const geometryAttributes = (...fields: Parameters<typeof v.geometry>[0][]): SvgAttribute[] => fields.map(field => attr(field, v.geometry(field)))
+const primitive = (coordinates: SvgAttribute[], paint = PAINT_ATTRIBUTES, piece?: number): SvgEmissionRecipe => ({
+  kind: 'primitive', ...(piece === undefined ? {} : { piece }), attributes: [...coordinates, ...paint],
 })
+const RECT_EMISSION = snapshotSvgEmissionRecipe(primitive(geometryAttributes('x', 'y', 'width', 'height', 'rx', 'ry')))
+const CIRCLE_EMISSION = snapshotSvgEmissionRecipe(primitive(geometryAttributes('cx', 'cy', 'r')))
+const POLYGON_EMISSION = snapshotSvgEmissionRecipe(primitive(geometryAttributes('points')))
+const PATH_EMISSION = snapshotSvgEmissionRecipe(primitive(geometryAttributes('d')))
+const OPEN_PATH_EMISSION = snapshotSvgEmissionRecipe(primitive(geometryAttributes('d'), [attr('fill', v.meta('none')), ...LINE_ATTRIBUTES]))
+const TEXT_EMISSION = snapshotSvgEmissionRecipe(primitive(geometryAttributes('d'), [attr('fill', v.meta('none')), attr('stroke', v.meta('none'))]))
+const SOLID_CIRCLE_EMISSION = snapshotSvgEmissionRecipe(primitive(geometryAttributes('cx', 'cy', 'r'), [attr('fill', v.paint('stroke')), ...LINE_ATTRIBUTES]))
+const SOLID_RECT_EMISSION = snapshotSvgEmissionRecipe(primitive(geometryAttributes('x', 'y', 'width', 'height'), [attr('fill', v.paint('stroke')), ...LINE_ATTRIBUTES]))
+const STATE_START_EMISSION = snapshotSvgEmissionRecipe(primitive(geometryAttributes('cx', 'cy', 'r'), [attr('fill', v.paint('fill')), attr('stroke', v.paint('stroke'))]))
+const STATE_BAR_EMISSION = snapshotSvgEmissionRecipe(primitive(geometryAttributes('x', 'y', 'width', 'height', 'rx', 'ry'), [attr('fill', v.paint('fill')), attr('stroke', v.paint('stroke'))]))
+const DOUBLE_CIRCLE_EMISSION = snapshotSvgEmissionRecipe({ kind: 'sequence', join: '\n', children: [
+  primitive(geometryAttributes('cx', 'cy', 'r'), PAINT_ATTRIBUTES, 0), primitive(geometryAttributes('cx', 'cy', 'r'), PAINT_ATTRIBUTES, 1),
+] })
+const SUBROUTINE_EMISSION = snapshotSvgEmissionRecipe({ kind: 'sequence', join: '\n', children: [
+  primitive(geometryAttributes('x', 'y', 'width', 'height', 'rx', 'ry'), PAINT_ATTRIBUTES, 0),
+  primitive(geometryAttributes('x1', 'y1', 'x2', 'y2'), LINE_ATTRIBUTES, 1), primitive(geometryAttributes('x1', 'y1', 'x2', 'y2'), LINE_ATTRIBUTES, 2),
+] })
+const CYLINDER_EMISSION = snapshotSvgEmissionRecipe({ kind: 'sequence', join: '\n', children: [
+  primitive(geometryAttributes('x', 'y', 'width', 'height'), [attr('fill', v.paint('fill')), attr('stroke', v.meta('none'))], 0),
+  primitive(geometryAttributes('x1', 'y1', 'x2', 'y2'), LINE_ATTRIBUTES, 1), primitive(geometryAttributes('x1', 'y1', 'x2', 'y2'), LINE_ATTRIBUTES, 2),
+  primitive(geometryAttributes('cx', 'cy', 'rx', 'ry'), PAINT_ATTRIBUTES, 3), primitive(geometryAttributes('cx', 'cy', 'rx', 'ry'), PAINT_ATTRIBUTES, 4),
+] })
+const STATE_END_EMISSION = snapshotSvgEmissionRecipe({ kind: 'sequence', join: '\n', children: [
+  primitive(geometryAttributes('cx', 'cy', 'r'), [attr('fill', v.meta('none')), attr('stroke', v.paint('stroke')), attr('stroke-width', v.meta(STROKE_WIDTHS.innerBox * 2))], 0),
+  primitive(geometryAttributes('cx', 'cy', 'r'), [attr('fill', v.paint('fill')), attr('stroke', v.meta('none'))], 1),
+] })
+
+/** Routing asks only for geometry. Serialization is a shared-emitter view, so
+ * producing a routing profile never constructs or retains SVG. */
+function outline(geometry: Geometry, paint: MarkPaint, routing: ShapeRoutingBoundary, emission: SvgEmissionRecipe): RenderedShapeOutline {
+  return { geometry, routing, emission,
+    get crisp() { return serializeSvgEmission({ kind: 'shape', id: 'outline', role: 'node', geometry, paint }, emission) },
+  }
+}
+
+const polygon = (points: Point[], paint: Paint): RenderedShapeOutline => outline(
+  { kind: 'polygon', points }, paint, { kind: 'polygon', points }, POLYGON_EMISSION,
+)
 const path = (
   node: PositionedNode,
   d: string,
   paint: Paint,
   options: { fill?: 'normal' | 'none'; reason?: string } = {},
-): RenderedShapeOutline => ({
-  geometry: { kind: 'path', d },
-  crisp: `<path d="${d}" fill="${options.fill === 'none' ? 'none' : paint.fill}" stroke="${paint.stroke}" stroke-width="${paint.strokeWidth}" />`,
-  routing: {
+): RenderedShapeOutline => outline(
+  { kind: 'path', d }, paint, {
     kind: 'envelope', x: node.x, y: node.y, width: node.width, height: node.height,
     reason: options.reason ?? 'closed curved path uses a conservative routing envelope',
-  },
-})
+  }, options.fill === 'none' ? OPEN_PATH_EMISSION : PATH_EMISSION,
+)
 
 /**
  * The single renderer/routing authority for flowchart and state node shapes.
@@ -103,11 +143,8 @@ export function shapeOutline(
       ], paint)
     case 'stadium': {
       const r = h / 2
-      return {
-        geometry: { kind: 'rect', x, y, width: w, height: h, rx: r, ry: r },
-        crisp: `<rect x="${x}" y="${y}" width="${w}" height="${h}" rx="${r}" ry="${r}" fill="${paint.fill}" stroke="${paint.stroke}" stroke-width="${paint.strokeWidth}" />`,
-        routing: { kind: 'stadium', cx, cy, halfWidth: w / 2, radius: r },
-      }
+      return outline({ kind: 'rect', x, y, width: w, height: h, rx: r, ry: r }, paint,
+        { kind: 'stadium', cx, cy, halfWidth: w / 2, radius: r }, RECT_EMISSION)
     }
     case 'circle':
     case 'state-history': return circle(cx, cy, Math.min(w, h) / 2, paint)
@@ -446,49 +483,54 @@ function semanticOutline(node: PositionedNode, paint: Paint): RenderedShapeOutli
     case 'bow-rect': return path(node, `M${x} ${y}Q${x + 12} ${cy} ${x} ${bottom}H${right}Q${right - 12} ${cy} ${right} ${y}Z`, paint)
     case 'tag-doc': return path(node, `M${x + 10} ${y}H${right}V${bottom - 8}Q${x + w * .7} ${bottom} ${cx} ${bottom - 8}Q${x + w * .25} ${bottom - 16} ${x} ${bottom - 8}V${y + 10}ZM${x} ${y + 10}L${x + 10} ${y}`, paint)
     case 'tag-rect': return polygon([{ x: x + 10, y }, { x: right, y }, { x: right, y: bottom }, { x, y: bottom }, { x, y: y + 10 }], paint)
-    case 'text': return { geometry: { kind: 'path', d: `M${x} ${y}` }, crisp: `<path d="M${x} ${y}" fill="none" stroke="none" />`, routing: { kind: 'none', reason: 'text blocks have no painted enclosure' } }
+    case 'text': return outline({ kind: 'path', d: `M${x} ${y}` }, paint, { kind: 'none', reason: 'text blocks have no painted enclosure' }, TEXT_EMISSION)
     default: return null
   }
 }
 
 function rect(x: number, y: number, w: number, h: number, paint: Paint, radius: number): RenderedShapeOutline {
-  return {
-    geometry: { kind: 'rect', x, y, width: w, height: h, rx: radius, ry: radius },
-    crisp: `<rect x="${x}" y="${y}" width="${w}" height="${h}" rx="${radius}" ry="${radius}" fill="${paint.fill}" stroke="${paint.stroke}" stroke-width="${paint.strokeWidth}" />`,
-    routing: { kind: 'rect', x, y, width: w, height: h },
-  }
+  return outline({ kind: 'rect', x, y, width: w, height: h, rx: radius, ry: radius }, paint,
+    { kind: 'rect', x, y, width: w, height: h }, RECT_EMISSION)
 }
 function circle(cx: number, cy: number, r: number, paint: Paint): RenderedShapeOutline {
-  return { geometry: { kind: 'circle', cx, cy, r }, crisp: `<circle cx="${cx}" cy="${cy}" r="${r}" fill="${paint.fill}" stroke="${paint.stroke}" stroke-width="${paint.strokeWidth}" />`, routing: { kind: 'ellipse', cx, cy, rx: r, ry: r } }
+  return outline({ kind: 'circle', cx, cy, r }, paint, { kind: 'ellipse', cx, cy, rx: r, ry: r }, CIRCLE_EMISSION)
 }
 function solidCircle(cx: number, cy: number, r: number, color: string, strokeWidth: string): RenderedShapeOutline {
-  return { geometry: { kind: 'circle', cx, cy, r }, crisp: `<circle cx="${cx}" cy="${cy}" r="${r}" fill="${color}" stroke="${color}" stroke-width="${strokeWidth}" />`, routing: { kind: 'ellipse', cx, cy, rx: r, ry: r } }
+  return outline({ kind: 'circle', cx, cy, r }, { fill: color, stroke: color, strokeWidth },
+    { kind: 'ellipse', cx, cy, rx: r, ry: r }, SOLID_CIRCLE_EMISSION)
 }
 function doubleCircle(cx: number, cy: number, outerR: number, paint: Paint): RenderedShapeOutline {
   const innerR = Math.max(0, outerR - 5)
-  return { geometry: { kind: 'compound', children: [{ kind: 'circle', cx, cy, r: outerR }, { kind: 'circle', cx, cy, r: innerR }] }, crisp: `<circle cx="${cx}" cy="${cy}" r="${outerR}" fill="${paint.fill}" stroke="${paint.stroke}" stroke-width="${paint.strokeWidth}" />\n<circle cx="${cx}" cy="${cy}" r="${innerR}" fill="${paint.fill}" stroke="${paint.stroke}" stroke-width="${paint.strokeWidth}" />`, routing: { kind: 'ellipse', cx, cy, rx: outerR, ry: outerR } }
+  return outline({ kind: 'compound', children: [{ kind: 'circle', cx, cy, r: outerR }, { kind: 'circle', cx, cy, r: innerR }] }, paint,
+    { kind: 'ellipse', cx, cy, rx: outerR, ry: outerR }, DOUBLE_CIRCLE_EMISSION)
 }
 function subroutine(x: number, y: number, w: number, h: number, paint: Paint, radius: number): RenderedShapeOutline {
   const inset = 8
-  return { geometry: { kind: 'compound', children: [{ kind: 'rect', x, y, width: w, height: h, rx: radius, ry: radius }, { kind: 'line', x1: x + inset, y1: y, x2: x + inset, y2: y + h }, { kind: 'line', x1: x + w - inset, y1: y, x2: x + w - inset, y2: y + h }] }, crisp: `<rect x="${x}" y="${y}" width="${w}" height="${h}" rx="${radius}" ry="${radius}" fill="${paint.fill}" stroke="${paint.stroke}" stroke-width="${paint.strokeWidth}" />\n<line x1="${x + inset}" y1="${y}" x2="${x + inset}" y2="${y + h}" stroke="${paint.stroke}" stroke-width="${paint.strokeWidth}" />\n<line x1="${x + w - inset}" y1="${y}" x2="${x + w - inset}" y2="${y + h}" stroke="${paint.stroke}" stroke-width="${paint.strokeWidth}" />`, routing: { kind: 'rect', x, y, width: w, height: h } }
+  return outline({ kind: 'compound', children: [{ kind: 'rect', x, y, width: w, height: h, rx: radius, ry: radius }, { kind: 'line', x1: x + inset, y1: y, x2: x + inset, y2: y + h }, { kind: 'line', x1: x + w - inset, y1: y, x2: x + w - inset, y2: y + h }] }, paint,
+    { kind: 'rect', x, y, width: w, height: h }, SUBROUTINE_EMISSION)
 }
 function cylinder(x: number, y: number, w: number, h: number, paint: Paint): RenderedShapeOutline {
   const ry = 7, cx = x + w / 2, bodyTop = y + ry, bodyH = h - 2 * ry
-  return { geometry: { kind: 'compound', children: [{ kind: 'rect', x, y: bodyTop, width: w, height: bodyH }, { kind: 'line', x1: x, y1: bodyTop, x2: x, y2: bodyTop + bodyH }, { kind: 'line', x1: x + w, y1: bodyTop, x2: x + w, y2: bodyTop + bodyH }, { kind: 'ellipse', cx, cy: y + h - ry, rx: w / 2, ry }, { kind: 'ellipse', cx, cy: bodyTop, rx: w / 2, ry }] }, crisp: `<rect x="${x}" y="${bodyTop}" width="${w}" height="${bodyH}" fill="${paint.fill}" stroke="none" />\n<line x1="${x}" y1="${bodyTop}" x2="${x}" y2="${bodyTop + bodyH}" stroke="${paint.stroke}" stroke-width="${paint.strokeWidth}" />\n<line x1="${x + w}" y1="${bodyTop}" x2="${x + w}" y2="${bodyTop + bodyH}" stroke="${paint.stroke}" stroke-width="${paint.strokeWidth}" />\n<ellipse cx="${cx}" cy="${y + h - ry}" rx="${w / 2}" ry="${ry}" fill="${paint.fill}" stroke="${paint.stroke}" stroke-width="${paint.strokeWidth}" />\n<ellipse cx="${cx}" cy="${bodyTop}" rx="${w / 2}" ry="${ry}" fill="${paint.fill}" stroke="${paint.stroke}" stroke-width="${paint.strokeWidth}" />`, routing: { kind: 'cylinder', cx, y, width: w, height: h, capRadiusY: ry } }
+  return outline({ kind: 'compound', children: [{ kind: 'rect', x, y: bodyTop, width: w, height: bodyH }, { kind: 'line', x1: x, y1: bodyTop, x2: x, y2: bodyTop + bodyH }, { kind: 'line', x1: x + w, y1: bodyTop, x2: x + w, y2: bodyTop + bodyH }, { kind: 'ellipse', cx, cy: y + h - ry, rx: w / 2, ry }, { kind: 'ellipse', cx, cy: bodyTop, rx: w / 2, ry }] }, paint,
+    { kind: 'cylinder', cx, y, width: w, height: h, capRadiusY: ry }, CYLINDER_EMISSION)
 }
 function stateStart(cx: number, cy: number, r: number): RenderedShapeOutline {
-  return { geometry: { kind: 'circle', cx, cy, r }, crisp: `<circle cx="${cx}" cy="${cy}" r="${r}" fill="var(--_text)" stroke="none" />`, routing: { kind: 'ellipse', cx, cy, rx: r, ry: r } }
+  return outline({ kind: 'circle', cx, cy, r }, { fill: 'var(--_text)', stroke: 'none' },
+    { kind: 'ellipse', cx, cy, rx: r, ry: r }, STATE_START_EMISSION)
 }
 function stateEnd(cx: number, cy: number, outerR: number): RenderedShapeOutline {
   const innerR = Math.max(0, outerR - 4)
-  return { geometry: { kind: 'compound', children: [{ kind: 'circle', cx, cy, r: outerR }, { kind: 'circle', cx, cy, r: innerR }] }, crisp: `<circle cx="${cx}" cy="${cy}" r="${outerR}" fill="none" stroke="var(--_text)" stroke-width="${STROKE_WIDTHS.innerBox * 2}" />\n<circle cx="${cx}" cy="${cy}" r="${innerR}" fill="var(--_text)" stroke="none" />`, routing: { kind: 'ellipse', cx, cy, rx: outerR, ry: outerR } }
+  return outline({ kind: 'compound', children: [{ kind: 'circle', cx, cy, r: outerR }, { kind: 'circle', cx, cy, r: innerR }] }, { fill: 'var(--_text)', stroke: 'var(--_text)' },
+    { kind: 'ellipse', cx, cy, rx: outerR, ry: outerR }, STATE_END_EMISSION)
 }
 function stateBar(x: number, y: number, w: number, h: number): RenderedShapeOutline {
   const r = Math.min(w, h) / 2
-  return { geometry: { kind: 'rect', x, y, width: w, height: h, rx: r, ry: r }, crisp: `<rect x="${x}" y="${y}" width="${w}" height="${h}" rx="${r}" ry="${r}" fill="var(--_text)" stroke="none" />`, routing: { kind: 'rect', x, y, width: w, height: h } }
+  return outline({ kind: 'rect', x, y, width: w, height: h, rx: r, ry: r }, { fill: 'var(--_text)', stroke: 'none' },
+    { kind: 'rect', x, y, width: w, height: h }, STATE_BAR_EMISSION)
 }
 function solidRect(x: number, y: number, w: number, h: number, color: string, strokeWidth: string): RenderedShapeOutline {
-  return { geometry: { kind: 'rect', x, y, width: w, height: h }, crisp: `<rect x="${x}" y="${y}" width="${w}" height="${h}" fill="${color}" stroke="${color}" stroke-width="${strokeWidth}" />`, routing: { kind: 'rect', x, y, width: w, height: h } }
+  return outline({ kind: 'rect', x, y, width: w, height: h }, { fill: color, stroke: color, strokeWidth },
+    { kind: 'rect', x, y, width: w, height: h }, SOLID_RECT_EMISSION)
 }
 /** Shapes whose outline does not paint the node's fill, so a label drawn in
  * them sits on something else: text blocks and open symbols (drawn with

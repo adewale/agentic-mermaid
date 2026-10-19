@@ -762,7 +762,7 @@ function renderFlowchartMedia(node: PositionedNode, ink: string): SceneNode | nu
 }
 
 function renderNodeShape(node: PositionedNode, style: ResolvedRenderStyle): SceneNode {
-  const { x, y, width, height, shape, inlineStyle } = node
+  const { shape, inlineStyle } = node
 
   // Resolve fill and stroke — inline styles (from mermaid `style` directives)
   // override the CSS variable defaults. When no inline style is present, the
@@ -770,11 +770,7 @@ function renderNodeShape(node: PositionedNode, style: ResolvedRenderStyle): Scen
   const rawFill = inlineStyle?.fill ?? style.nodeFillColor ?? 'var(--_node-fill)'
   const rawStroke = inlineStyle?.stroke ?? style.nodeBorderColor ?? 'var(--_node-stroke)'
   const rawSw = inlineStyle?.['stroke-width'] ?? String(style.nodeLineWidth)
-  const fill = escapeAttr(rawFill)
-  const stroke = escapeAttr(rawStroke)
-  const sw = escapeAttr(rawSw)
-
-  const piece = shapeOutline(node, { fill, stroke, strokeWidth: sw }, style.cornerRadius)
+  const piece = shapeOutline(node, { fill: rawFill, stroke: rawStroke, strokeWidth: rawSw }, style.cornerRadius)
 
   const paint = shape === 'state-start' || shape === 'state-fork' || shape === 'state-join'
     ? { fill: 'var(--_text)', stroke: 'none' }
@@ -787,7 +783,7 @@ function renderNodeShape(node: PositionedNode, style: ResolvedRenderStyle): Scen
     role: 'node',
     geometry: piece.geometry,
     paint,
-  }, piece.crisp)
+  }, piece.emission)
 }
 
 // ============================================================================
