@@ -95,6 +95,10 @@ const MINDMAP_READ_GENEROUSLY: ReadonlyArray<GenerousRow> = [
   ['parentheses inside an anonymous rect', 'mindmap\n  root\n    [text (x)]', 'text (x)', 'mindmap_nested_shape_delimiters', 3],
   ['parentheses paired inside cloud text', 'mindmap\n  root\n    id)a (b) c(', 'a (b) c', 'mindmap_nested_shape_delimiters', 3],
   ['brackets paired in text across lines', 'mindmap\n  root[a\n  [b] c]', '[b] c', 'mindmap_nested_shape_delimiters', 2],
+  // Mermaid's lexer reads the space after the header, with its line break,
+  // as one token that its grammar accepts there only before a line break.
+  ['a blank line after the header', 'mindmap\n  \n    root[The r\r\noot]\n    :::m-4 p-8', 'oot', 'mindmap_space_after_header', 1],
+  ['whitespace ending the header line', '%% lead\nmindmap \n  root', 'root', 'mindmap_space_after_header', 2],
 ]
 
 // [family, construct, source]
@@ -134,6 +138,8 @@ const ACCEPTED: ReadonlyArray<readonly [BuiltinFamilyId, string, string]> = [
   ['architecture', 'quoted titles across lines', 'architecture-beta\n  group g(cloud)["G\n  H"]\n  service a(server)["line1\n  line2"] in g\n  service b(server)[\'sq\n  line\'] in g\n  a:R -["multi\n  line"]- L:b'],
   ['radar', 'a quoted axis label across lines', 'radar-beta\n  axis a["A\n  long"], b, c\n  curve x{1, 2, 3}'],
   ['mindmap', 'delimiters Mermaid reads as shape text', 'mindmap\n  (a [b)\n    ["text (x)"]\n    c{{d [e}}'],
+  // Mermaid removes a `%%` line with the blank lines before it.
+  ['mindmap', 'a blank line before a comment after the header', 'mindmap\n\n%% c\n  root\n\n    a'],
 ]
 
 describe('read generously what pinned Mermaid rejects, and warn', () => {

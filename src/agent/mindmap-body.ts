@@ -7,9 +7,32 @@ import { mindmapNestedShapeLines, parseMindmap, serializeMindmap } from '../mind
 import { labelOverflowCollector, setOptionalField } from './body-utils.ts'
 import { unknownOpMessage } from './mutation-ops.ts'
 
-export function parseMindmapBody(source: string): MindmapBody {
+/** Parsed bodies whose authored header pinned Mermaid rejects for the space
+ * after it, with the header's authored line. The canonical source keeps no
+ * blank line or trailing whitespace, so parsing records it for verify. */
+const spaceAfterHeader = new WeakMap<MindmapBody, number>()
+
+/** `authored` is the authored source from the header on, which starts on
+ * authored line `line`. */
+export function parseMindmapBody(source: string, authored?: { source: string; line: number }): MindmapBody {
   const diagram = parseMindmap(source)
-  return { kind: 'mindmap', ...diagram }
+  const body: MindmapBody = { kind: 'mindmap', ...diagram }
+  if (authored && mermaidRejectsSpaceAfterHeader(authored.source)) spaceAfterHeader.set(body, authored.line)
+  return body
+}
+
+/** Mermaid's mindmap lexer takes whitespace at the end of the header line, or
+ * a blank line after it, together with the line break, as one SPACELINE
+ * token, which its grammar accepts after the header only before another line
+ * break. It first removes each directive, leaving its line, and each `%%`
+ * line together with the blank lines before it. */
+function mermaidRejectsSpaceAfterHeader(authored: string): boolean {
+  const text = authored.replace(/\r\n?/g, '\n')
+    .replace(/%%\{[\s\S]*?\}%%/g, '')
+    .replace(/^\s*%%(?!\{)[^\n]+\n?/gm, '')
+    .replace(/^\s*mindmap/i, '')
+  const space = /^\s*/.exec(text)![0]
+  return space.lastIndexOf('\n') > 0 && space.length < text.length
 }
 
 export function renderMindmapBody(body: MindmapBody): string {
@@ -218,5 +241,14 @@ export function verifyMindmap(body: MindmapBody, opts: VerifyOptions): LayoutWar
     node.children.forEach(visit)
   }
   visit(body.root)
+  const headerLine = spaceAfterHeader.get(body)
+  if (headerLine !== undefined) {
+    warnings.push({
+      code: 'UNSUPPORTED_SYNTAX',
+      syntax: 'mindmap_space_after_header',
+      line: headerLine,
+      message: 'Whitespace at the end of the mindmap header line, or a blank line right after it, is ignored. Pinned Mermaid rejects the diagram; remove it, as the writer does.',
+    })
+  }
   return warnings
 }

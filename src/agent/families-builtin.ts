@@ -1256,9 +1256,11 @@ const ARCHITECTURE_AGENT_HOOKS = {
 const MINDMAP_AGENT_HOOKS = {
   renderSource: body => body.kind === 'opaque' ? 'canonical' : 'serialized',
   extractLabels: extractLabelsGeneric,
-  parse: ({ source }) => {
+  parse: ({ source, opaqueSource, meta }) => {
     try {
-      return ok(parseMindmapBody(source.familyBody))
+      // The opaque source starts at the header, after the wrapper's lines.
+      const line = (meta.wrapperSource?.match(/\n/g)?.length ?? 0) + 1
+      return ok(parseMindmapBody(source.familyBody, { source: opaqueSource, line }))
     } catch (error) {
       return err([{ code: 'PARSE_FAILED', message: error instanceof Error ? error.message : String(error) }])
     }
