@@ -118,7 +118,7 @@ jobs:
         env:
           BASE_SHA: ${{ github.event.pull_request.base.sha }}
           HEAD_SHA: ${{ github.event.pull_request.head.sha }}
-          AGENTIC_MERMAID_EXPERIMENTS: indexed-layout
+          AGENTIC_MERMAID_EXPERIMENTS: text-spans,indexed-layout
         run: bun run scripts/pr-assets/meaning-preservation-evidence.ts "$BASE_SHA" "$HEAD_SHA" "$RUNNER_TEMP/meaning-review/flagged-forest" performance-forest
 
       - name: Upload PR review evidence

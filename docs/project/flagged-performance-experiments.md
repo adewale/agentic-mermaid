@@ -34,8 +34,10 @@ documents to compare configurations.
 ## Reproduce the selection
 
 The feature matrix uses sequential fresh processes, counterbalanced order,
-complete output-byte consumption inside its render timer, and output
-fingerprints outside timing. `--baseline-ref` builds production source from
+public render return plus an output byte-length check inside its timer
+(receipt cases include JSON serialization), and complete-output hashing and
+validation outside timing. This does not promise UTF-8 encoding or physical
+traversal of every output byte. `--baseline-ref` builds production source from
 that revision with the current harness. The reserved `baseline` configuration
 has no flags; an additional empty `off` configuration measures current code
 with every experiment disabled. Failed or incomplete configurations receive
@@ -120,3 +122,11 @@ base are diagnostic only. Rebase review also exposed two correctness gaps:
 C4 identity callbacks require positioned-cache bypass, and inline connector
 labels must inherit enclosing group opacity in both inspection paths. Both
 have behavioral red-to-green regressions.
+
+## Measured selection
+
+The [dated results and ranked opportunities](flagged-performance-results-2026-10-19.md)
+report the complete frozen study. The conditional `text-spans,indexed-layout`
+profile has repeatable cold forest gains and lower matched browser-corpus time.
+Small broad Node/Bun and normal-cache changes remain unresolved against controls.
+Released browser heap and shipped code grow; all flags stay off by default.
