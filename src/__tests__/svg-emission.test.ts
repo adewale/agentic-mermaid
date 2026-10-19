@@ -111,6 +111,27 @@ describe('private typed SVG recipes', () => {
     expect(svgEmissionMetadataCounts(snapshot).objects).toBeGreaterThan(0)
   })
 
+  test('projects the historical translate-scale spelling only from an equivalent typed matrix', () => {
+    const recipe = snapshotSvgEmissionRecipe({ kind: 'primitive', attributes: [
+      { name: 'transform', value: { source: 'transform', form: 'translate-scale' } },
+    ] })
+    const mark = rectangle()
+    mark.transform = { kind: 'matrix', a: 0.5, b: 0, c: 0, d: 0.5, e: 12.25, f: -3 }
+    expect(serializeSvgEmission(mark, recipe)).toBe('<rect transform="translate(12.25,-3) scale(0.5)" />')
+    for (const transform of [
+      { kind: 'matrix', a: 0.5, b: 1, c: 0, d: 0.5, e: 12.25, f: -3 },
+      { kind: 'matrix', a: 0.5, b: 0, c: 1, d: 0.5, e: 12.25, f: -3 },
+      { kind: 'matrix', a: 0.5, b: 0, c: 0, d: 2, e: 12.25, f: -3 },
+      { kind: 'rotate', angle: 20, cx: 0, cy: 0 },
+    ] as const) {
+      mark.transform = transform
+      expect(() => serializeSvgEmission(mark, recipe)).toThrow('uniform unrotated matrix')
+    }
+    expect(() => snapshotSvgEmissionRecipe({ kind: 'primitive', attributes: [
+      { name: 'transform', value: { source: 'transform', form: 'translate-scale', separator: 'comma' } },
+    ] })).toThrow('fixed lexical separators')
+  })
+
   test('rejects executable or opaque markup slots and snapshots without invoking accessors', () => {
     let reads = 0
     const accessor = { kind: 'primitive', get attributes() { reads++; return [] } }

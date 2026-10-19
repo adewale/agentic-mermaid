@@ -39,7 +39,7 @@ export type SvgValue =
   | { readonly source: 'accessibility'; readonly field: 'label' | 'role' | 'roleDescription' }
   | { readonly source: 'connector'; readonly field: SvgConnectorField }
   | { readonly source: 'channel'; readonly field: SemanticChannelName }
-  | { readonly source: 'transform'; readonly separator?: 'space' | 'comma' }
+  | { readonly source: 'transform'; readonly separator?: 'space' | 'comma'; readonly form?: 'translate-scale' }
   | { readonly source: 'marker'; readonly position: 'start' | 'mid' | 'end' }
   | { readonly source: 'connectorLabel'; readonly index: number }
   | { readonly source: 'colorMix'; readonly primary: SvgValue; readonly secondary: SvgValue; readonly amount: number }
@@ -265,7 +265,15 @@ export function svgEmissionValue(node: SceneNode, value: SvgValue, recipe?: SvgP
     }
     case 'accessibility': return node.accessibility?.[value.field]
     case 'channel': return node.channels?.[value.field]
-    case 'transform': return node.transform ? serializeTransform(node.transform, value.separator) : undefined
+    case 'transform': {
+      const transform = node.transform
+      if (!transform) return undefined
+      if (value.form === 'translate-scale') {
+        if (transform.kind !== 'matrix' || transform.b !== 0 || transform.c !== 0 || transform.a !== transform.d) throw new TypeError('SVG translate-scale requires a uniform unrotated matrix')
+        return `translate(${transform.e},${transform.f}) scale(${transform.a})`
+      }
+      return serializeTransform(transform, value.separator)
+    }
     case 'marker': {
       if (node.kind !== 'connector') return undefined
       const marker = value.position === 'mid' ? node.markers.mid[0] : node.markers[value.position]
@@ -627,7 +635,13 @@ export function validateSvgEmissionRecipe(recipe: SvgEmissionRecipe): void {
       optionalNumber(typeof item.value === 'number' ? item.value : undefined)
       return
     }
-    if (source === 'transform') { object(value, ['source', 'separator']); oneOf(item.separator, ['space', 'comma']); return }
+    if (source === 'transform') {
+      object(value, ['source', 'separator', 'form'])
+      oneOf(item.separator, ['space', 'comma'])
+      oneOf(item.form, ['translate-scale'])
+      if (item.form !== undefined && item.separator !== undefined) throw new TypeError('SVG translate-scale has fixed lexical separators')
+      return
+    }
     object(value, source === 'geometry' || source === 'paint' ? ['source', 'field', 'piece'] : ['source', 'field'])
     index(item.piece)
     switch (source) {
