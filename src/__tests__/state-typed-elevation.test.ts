@@ -488,6 +488,13 @@ describe('State statements across and within lines', () => {
     ['state "first\n// second\nthird" as X\nX --> Y', ['X:rounded:first\n// second\nthird', 'Y:rounded:Y', 'X->Y'], []],
     // Mermaid reads the rest of the line after `as` into the name, `}` too.
     ['state X {\nstate "x" as A }', ['A:rounded:x', 'X:X{A}'], ['state_brace_after_name@3']],
+    // Mermaid splits the name after `as` at `:`: the text describes A, as
+    // `A : desc` would (a description adds a line to the label). It drops a
+    // class after `:::` and text after a second colon, which ours keeps.
+    ['state "x" as A : desc\nA --> B', ['A:rounded:x\ndesc', 'B:rounded:B', 'A->B'], []],
+    ['state "x" as A:::hot', ['A:rounded:x', 'A:::hot'], ['state_alias_suffix@2']],
+    ['state "x" as A : d1 : d2', ['A:rounded:x\nd1 : d2'], ['state_alias_suffix@2']],
+    ['state X {\nstate "x" as A : desc }', ['A:rounded:x\ndesc', 'X:X{A}'], ['state_brace_after_description@3']],
     // A line inside the string is its text, never an accTitle.
     ['state X {\nstate "x\naccTitle: y" as A }', ['A:rounded:x\naccTitle: y', 'X:X{A}'], ['state_brace_after_name@3']],
   ] as const)('%j is read alike by the renderer, the typed body, its output and verify', async (body, expected, warnings) => {

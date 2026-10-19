@@ -1198,6 +1198,10 @@ export function stateUnsupportedSyntaxWarnings(canonicalSource: string): LayoutW
       code: 'UNSUPPORTED_SYNTAX' as const, syntax: 'state_brace_after_description', line: header + index + 2,
       message: 'A `}` ending the last description or transition label is read as closing its composite, which nothing else closes. Pinned Mermaid reads the `}` into the text and then rejects the unclosed composite. Put the `}` on a line of its own.',
     })),
+    ...scan.aliasSuffixLines.map(index => ({
+      code: 'UNSUPPORTED_SYNTAX' as const, syntax: 'state_alias_suffix', line: header + index + 2,
+      message: 'After `state "…" as A`, `:::c` is read as the class of A and `: text` as its description, as each reads on a line of its own. Pinned Mermaid splits the rest of the line at every `:` and keeps only the text before a second colon as the description: it drops the class after `:::` (drawing an empty description instead) and the text after a colon inside the description. Write `class A c` or `A : text` on a line of its own.',
+    })),
     ...scan.unclosedLines.map(index => ({
       code: 'UNSUPPORTED_SYNTAX' as const, syntax: 'state_composite_unclosed', line: header + index + 2,
       message: 'This composite state is never closed by `}`, so where it ends cannot be told and the diagram is not drawn; pinned Mermaid rejects it too. Add a `}` where the composite ends.',
