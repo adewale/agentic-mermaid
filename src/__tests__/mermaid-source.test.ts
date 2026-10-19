@@ -118,6 +118,8 @@ describe('normalizeMermaidSource', () => {
     ['quadrantChart\n  x-axis "a\naccTitle: b" --> High\n  p: [0.5, 0.5]', 'a\naccTitle: b'],
     ['architecture-beta\n  service a(server)["x\naccDescr {\ny }"]', 'x\naccDescr {\ny }'],
     ['radar-beta\n  axis a["x\naccTitle: y"], b\n  curve c{1, 2}', 'x\naccTitle: y'],
+    // Class keeps a label's line break as <br>.
+    ['classDiagram\n  class A["x\naccTitle: y"]', 'x<br>accTitle: y'],
   ])('%j keeps a directive-shaped line inside its quoted text', (statements, text) => {
     // The comment after the string is still the envelope's, on its line.
     const source = `${statements}\n  %% note`

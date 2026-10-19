@@ -594,6 +594,38 @@ function splitClassBlockStatement(text: string, inNamespace: boolean): string[] 
 /** Single owner of namespace and class-body boundaries, classification and
  * malformed/unknown disposition. Retain unknown nodes for lossless callers;
  * renderers must refuse diagnostics instead of drawing a partial diagram. */
+/**
+ * For each line, the last line of the statement that starts there: a quoted
+ * note, label or cardinality runs on to its closing quote, as the statement
+ * reader joins it (FamilyOperations.statementEnds).
+ */
+export function classStatementEnds(lines: readonly string[]): number[] {
+  const ends = lines.map((_, index) => index)
+  let tree: ClassStatementTree
+  try {
+    tree = readClassStatements(lines)
+  } catch {
+    return ends
+  }
+  const starts: number[] = []
+  let offset = 0
+  for (const line of lines) {
+    starts.push(offset)
+    offset += line.length + 1
+  }
+  const visit = (nodes: readonly ClassStatementNode[]): void => {
+    for (const node of nodes) {
+      const first = node.source.line - 1
+      let last = first
+      while (last + 1 < lines.length && starts[last + 1]! <= node.source.end) last++
+      if (last > ends[first]!) ends[first] = last
+      visit(node.children ?? [])
+    }
+  }
+  visit(tree.statements)
+  return ends
+}
+
 export function readClassStatements(lines: readonly string[], authoredLines?: readonly (string | undefined)[]): ClassStatementTree {
   const tree: ClassStatementTree = { source: lines.join('\n'), statements: [], diagnostics: [] }
   const stack: ClassStatementNode[] = []
@@ -881,7 +913,7 @@ export function parseAuthoredClassInteraction(line: string): ReturnType<typeof p
  * Expects the first line to be "classDiagram".
  */
 export function parseClassDiagram(lines: string[], authoredLines?: string[]): ClassDiagram {
-  const accessibility = scanAccessibilityDirectives(lines)
+  const accessibility = scanAccessibilityDirectives(lines, classStatementEnds(lines))
   requireClosedAccessibility(accessibility)
   const familyLines = accessibility.familyLines
   const authoredExpanded = authoredLines ? authoredClassStatements(authoredLines) : undefined
