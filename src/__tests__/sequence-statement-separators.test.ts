@@ -73,9 +73,13 @@ describe('Sequence newline and semicolon statement equivalence', () => {
     expect(cost).toBeLessThan(5_000)
   })
 
-  test('block boundaries and continuations have the same message order', () => {
-    const source = 'sequenceDiagram; alt yes; A->>B: one; else no; B-->>A: two; end; A->>B: three;'
-    const native = parseSequenceDiagram([source])
+  // `end` takes no argument, so Mermaid reads what follows it as the next
+  // statement even without a separator.
+  test.each([
+    'sequenceDiagram; alt yes; A->>B: one; else no; B-->>A: two; end; A->>B: three;',
+    'sequenceDiagram\nalt yes\nA->>B: one\nelse no\nB-->>A: two\nend A->>B: three',
+  ])('block boundaries and continuations have the same message order: %j', source => {
+    const native = parseSequenceDiagram(source.split('\n'))
     expect(native.messages.map(message => message.label)).toEqual(['one', 'two', 'three'])
     expect(native.blocks).toMatchObject([{ type: 'alt', label: 'yes', dividers: [{ label: 'no' }] }])
     const agent = parseRegisteredMermaid(source)

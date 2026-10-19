@@ -70,6 +70,15 @@ export function scanSequenceStatementLines(lines: readonly string[]): SequenceSo
           index = closing
           continue
         }
+        // `end` takes no argument: Mermaid reads what follows it as the next
+        // statement (`end A->>B: y`, `end end`).
+        const end = /^\s*end(?=[^\S\r\n]+\S)/i.exec(line.slice(start))
+        if (end) {
+          pushStatement(line.slice(start, start + end[0].length), start)
+          start += end[0].length
+          index = start - 1
+          continue
+        }
         if (/^(?:rect|box)\s+#(?:[0-9a-f]{3,4}|[0-9a-f]{6}|[0-9a-f]{8});/i.test(remainder)
           || isSequenceCommentLine(remainder)
           || /^(?:accTitle|accDescr)(?:\s*:|\s+)/i.test(remainder)) {
