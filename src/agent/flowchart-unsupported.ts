@@ -68,17 +68,19 @@ export function flowchartUnsupportedSyntaxWarnings(source: string): LayoutWarnin
  * canonical line: a `@{…}` block with a space before `@` or inside `@{`, a
  * text-arrow label that a link of another stroke closes, a `linkStyle`
  * index past the links defined above it, an `end` with no subgraph open
- * (alone or before a statement: `end B`), and quoted text whose boundaries
- * pinned Mermaid's HTML-like preprocessor rewrites. */
+ * (alone or before a statement: `end B`), a subgraph no `end` closes, and
+ * quoted text whose boundaries pinned Mermaid's HTML-like preprocessor
+ * rewrites. */
 export function flowchartUpstreamRejectedSyntaxWarnings(source: string): LayoutWarning[] {
   const statements = flowchartStatements(source)
   const warnings: LayoutWarning[] = []
   const rewritten = preprocessorQuoteRewriteWarning(source)
   if (rewritten) warnings.push(rewritten)
-  let openSubgraphs = 0
+  // The lines of the subgraphs open so far.
+  const openSubgraphs: number[] = []
   for (const { text, line } of statements) {
-    if (/^subgraph(?![\w-])/.test(text)) openSubgraphs++
-    else if (text === 'end' && openSubgraphs > 0) openSubgraphs--
+    if (/^subgraph(?![\w-])/.test(text)) openSubgraphs.push(line)
+    else if (text === 'end' && openSubgraphs.length > 0) openSubgraphs.pop()
     else if (text === 'end') {
       warnings.push({ code: 'UNSUPPORTED_SYNTAX', line, syntax: 'flowchart_stray_end', message: 'An `end` with no subgraph open closes nothing and is ignored. Pinned Mermaid rejects this; remove it.' })
     }
@@ -90,6 +92,9 @@ export function flowchartUpstreamRejectedSyntaxWarnings(source: string): LayoutW
         warnings.push({ code: 'UNSUPPORTED_SYNTAX', line, syntax: 'flowchart_mixed_link_label', message: 'A link label opened with one stroke and closed by a link of another (A -- b ==> B) is read as one labelled link. Pinned Mermaid rejects this; close the label with a link of its own stroke (A == b ==> B), or use a pipe label (A ==>|b| B).' })
       }
     }
+  }
+  for (const line of openSubgraphs) {
+    warnings.push({ code: 'UNSUPPORTED_SYNTAX', line, syntax: 'flowchart_unclosed_subgraph', message: 'A subgraph with no `end` holds everything after it, to the end of the diagram. Pinned Mermaid rejects this; close it with `end`.' })
   }
   return [...warnings, ...linkStyleIndexWarnings(source, statements)]
 }

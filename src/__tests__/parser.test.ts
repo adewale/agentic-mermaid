@@ -734,6 +734,15 @@ describe('parseMermaid – subgraphs', () => {
     expect(tree(parseMermaid(serializeMermaid(parsed.value)).subgraphs)).toEqual(expected)
   })
 
+  // Mermaid rejects a subgraph with no `end`; ours closes it at the end of
+  // the source, with what it holds (verify reports flowchart_unclosed_subgraph).
+  it('closes the subgraphs still open at the end of the source', () => {
+    const g = parseMermaid('flowchart TB\n  subgraph S\n    A\n    subgraph T\n      B\n    end\n    C --> D')
+    const tree = (subgraphs: typeof g.subgraphs): unknown[] =>
+      subgraphs.map(s => ({ id: s.id, nodeIds: s.nodeIds, children: tree(s.children) }))
+    expect(tree(g.subgraphs)).toEqual([{ id: 'S', nodeIds: ['A', 'C', 'D'], children: [{ id: 'T', nodeIds: ['B'], children: [] }] }])
+  })
+
   it('nests a listed subgraph once, in the first lister to close, never in itself', () => {
     const tree = (source: string): unknown[] => {
       const walk = (subgraphs: ReturnType<typeof parseMermaid>['subgraphs']): unknown[] =>
@@ -884,7 +893,8 @@ describe('parseMermaid – edge cases', () => {
   // Mermaid rejects each of these, but what it means is clear, so ours reads
   // it, draws it, and verify reports it: a linkStyle index past the links
   // above it, a text-arrow label closed by a link of another stroke, a
-  // space before or inside `@{`, and an `end` with no subgraph open.
+  // space before or inside `@{`, an `end` with no subgraph open, and a
+  // subgraph no `end` closes, which holds the rest of the source.
   // [construct, source, text the render draws, syntax verify reports, its line]
   const FLOWCHART_READ_GENEROUSLY: ReadonlyArray<readonly [string, string, string, string, number]> = [
     ['a linkStyle index that names no link', 'flowchart TD\n  A --> B\n  linkStyle 99 stroke:#ff0000', '>B<', 'flowchart_link_style_index', 3],
@@ -897,6 +907,7 @@ describe('parseMermaid – edge cases', () => {
     ['a space between a shape and @{', 'flowchart LR\n  A[a] @{ label: b }', '>b<', 'flowchart_metadata_spacing', 2],
     ['an end with no subgraph open', 'flowchart LR\n  subgraph S\n    A\n  end\n  end', '>A<', 'flowchart_stray_end', 5],
     ['a statement after an end with no subgraph open', 'flowchart LR\n  end B --> C', '>C<', 'flowchart_stray_end', 2],
+    ['a subgraph no end closes', 'flowchart LR\n  A\n  subgraph S[Stage]\n    B --> C', '>Stage<', 'flowchart_unclosed_subgraph', 3],
   ]
 
   it.each(FLOWCHART_READ_GENEROUSLY)('%s is read, drawn and reported', (_construct, source, drawn, syntax, line) => {

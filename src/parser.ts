@@ -271,6 +271,31 @@ function parseFlowchart(lines: string[]): MermaidGraph {
   const listedSubgraphs = new Map<MermaidSubgraph, string[]>()
   const listings: Array<{ lister: string; ids: string[] }> = []
 
+  /** Close the innermost open subgraph, if any. */
+  const closeSubgraph = (): void => {
+    const completed = subgraphStack.pop()
+    if (!completed) return
+    // A repeated declaration extends one container; every projection
+    // sees the same members, first title and unique group identity.
+    const canonical = subgraphsById.get(completed.id)!
+    const members = membership.close(completed.id, completed.nodeIds)
+    const listed = listedSubgraphs.get(completed)
+    if (listed) listings.push({ lister: completed.id, ids: listed })
+    canonical.nodeIds = [...new Set([...canonical.nodeIds, ...members])]
+    for (const child of completed.children) if (child !== canonical && !canonical.children.some(existing => existing.id === child.id)) canonical.children.push(child)
+    canonical.direction ??= completed.direction
+    const parent = subgraphStack.at(-1)
+    // A redeclaration inside its own ancestor extends that ancestor;
+    // attaching it here would make a self-edge or an S -> T -> S cycle.
+    if (!placedSubgraphs.has(completed.id) && !subgraphStack.some(ancestor => ancestor.id === completed.id)) {
+      if (parent) parent.children.push(canonical)
+      else graph.subgraphs.push(canonical)
+      placedSubgraphs.add(completed.id)
+      if (parserObservationActive('flowchart')) observeParserMutation('flowchart', 'attach-group', { id: completed.id, parent: parent?.id })
+    }
+    if (parserObservationActive('flowchart')) observeParserMutation('flowchart', 'close-group', { id: canonical.id, label: canonical.label, members: canonical.nodeIds, children: canonical.children.map(child => child.id), direction: canonical.direction })
+  }
+
   for (let i = 1; i < lines.length; i++) {
     for (const line of splitFlowchartStatements(lines[i]!)) {
       if (parserObservationActive('flowchart')) observeParserStatement('flowchart', 'statement', line, { line: i + 1, unit: 'normalized' })
@@ -380,28 +405,7 @@ function parseFlowchart(lines: string[]): MermaidGraph {
 
       // --- subgraph end ---
       if (line === 'end') {
-        const completed = subgraphStack.pop()
-        if (completed) {
-          // A repeated declaration extends one container; every projection
-          // sees the same members, first title and unique group identity.
-          const canonical = subgraphsById.get(completed.id)!
-          const members = membership.close(completed.id, completed.nodeIds)
-          const listed = listedSubgraphs.get(completed)
-          if (listed) listings.push({ lister: completed.id, ids: listed })
-          canonical.nodeIds = [...new Set([...canonical.nodeIds, ...members])]
-          for (const child of completed.children) if (child !== canonical && !canonical.children.some(existing => existing.id === child.id)) canonical.children.push(child)
-          canonical.direction ??= completed.direction
-          const parent = subgraphStack.at(-1)
-          // A redeclaration inside its own ancestor extends that ancestor;
-          // attaching it here would make a self-edge or an S -> T -> S cycle.
-          if (!placedSubgraphs.has(completed.id) && !subgraphStack.some(ancestor => ancestor.id === completed.id)) {
-            if (parent) parent.children.push(canonical)
-            else graph.subgraphs.push(canonical)
-            placedSubgraphs.add(completed.id)
-            if (parserObservationActive('flowchart')) observeParserMutation('flowchart', 'attach-group', { id: completed.id, parent: parent?.id })
-          }
-          if (parserObservationActive('flowchart')) observeParserMutation('flowchart', 'close-group', { id: canonical.id, label: canonical.label, members: canonical.nodeIds, children: canonical.children.map(child => child.id), direction: canonical.direction })
-        }
+        closeSubgraph()
         continue
       }
 
@@ -425,6 +429,9 @@ function parseFlowchart(lines: string[]): MermaidGraph {
     }
   }
 
+  // A subgraph no `end` closes runs to the end of the source, where Mermaid
+  // rejects the diagram; verify reports it (flowchart_unclosed_subgraph).
+  while (subgraphStack.length > 0) closeSubgraph()
   listSubgraphs(graph, listings.map(({ lister, ids }) => ({ lister: subgraphsById.get(lister)!, ids: ids.map(id => subgraphsById.get(id)) })))
   return graph
 }
