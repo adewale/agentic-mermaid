@@ -24,6 +24,12 @@ export default defineConfig({
   clean: true,
   target: 'es2022',
   outDir: 'dist',
+  // Compact shipped Node code without renaming the public callables. Browser
+  // builds already minify; keep this build's identifiers and lazy ELK loader.
+  esbuildOptions(options) {
+    options.minifySyntax = true
+    options.minifyWhitespace = true
+  },
   // Bundle roughjs/perfect-freehand into every installed entry: Node ESM
   // cannot resolve roughjs' extensionless bin/generator subpath. They remain
   // development inputs, not runtime dependencies of the published artifact.
