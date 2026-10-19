@@ -11,6 +11,8 @@ import {
 } from '../scene/svg-emission.ts'
 import { SvgWriter } from '../scene/svg-writer.ts'
 import { sceneDocumentEmission } from '../scene/serialization.ts'
+import { renderDefaultScene } from '../scene/backend.ts'
+import { SceneValidationError } from '../scene/scene-validation.ts'
 import { preparePixelText } from '../shared/prepared-text.ts'
 import { createTextMeasurementExecution, withTextMeasurementExecution } from '../text-measurement-profile.ts'
 
@@ -377,6 +379,78 @@ describe('actual typed text emission witness', () => {
     emission.writeNode(root)
     expect(writer.finish()).toBe(`<g><g>${fitted}${xml}</g></g>`)
     expect(emission.textAlreadyFitted).toBe(alreadyFitted)
+  })
+})
+
+describe('typed text backgrounds', () => {
+  const background = { padding: 4, rx: 2, ry: 3, paint: { fill: '#ffffff', stroke: '#111111', strokeWidth: '1' } }
+  const text = (padding = 4) => withTextMeasurementExecution(createTextMeasurementExecution({ id: 'test:background-metrics', version: '1.0.0', measure: () => 42 }, 'Inter'), () => {
+    const block = preparePixelText('Alpha', { display: 'literal', fontSize: 20, fontWeight: 400 })
+    return marks.text({ id: 'pill', role: 'member', text: 'Alpha', block, x: 100, y: 50, fontSize: 20, anchor: 'start', paint: {} }, {
+      kind: 'text', layout: 'multiline', attributes: [{ name: 'font-size', value: v.text('fontSize') }], background: { ...background, padding },
+    })
+  })
+
+  test('derives rectangle metrics and keeps semantic identity on its first carrier', () => {
+    const writer = new SvgWriter()
+    sceneDocumentEmission(writer).writeNode(text())
+    expect(writer.finish()).toBe('<rect x="75" y="33" width="50" height="34" rx="2" ry="3" fill="#ffffff" stroke="#111111" stroke-width="1" data-id="pill" data-role="member" />\n<text x="100" y="50" font-size="20" data-prepared-text="true" dy="7" textLength="42" lengthAdjust="spacingAndGlyphs" data-font-metrics="deterministic-fit">Alpha</text>')
+  })
+
+  test('rejects competing geometry, paint and forged identity at actual metadata capture', () => {
+    for (const attribute of [
+      { name: 'x', value: v.geometry('x') }, { name: 'fill', value: v.paint('fill') },
+      { name: 'data-id', value: v.meta('forged') }, { name: 'data-id', value: v.identity('role') },
+    ] as const) {
+      expect(() => snapshotSvgEmissionRecipe({ kind: 'text', layout: 'multiline', attributes: [], background: { ...background, attributes: [attribute] } }))
+        .toThrow('background attributes must project semantic identity or accessibility')
+    }
+    for (const field of ['padding', 'rx', 'ry'] as const) {
+      expect(() => snapshotSvgEmissionRecipe({ kind: 'text', layout: 'multiline', attributes: [], background: { ...background, [field]: -1 } })).toThrow('non-negative')
+    }
+    expect(() => snapshotSvgEmissionRecipe({ kind: 'text', layout: 'multiline', attributes: [], background: { ...background, paint: { ...background.paint, fill: 'url(https://example.com)' } } })).toThrow('text background fill')
+  })
+
+  test('finite padding whose derived geometry overflows throws before any bytes', () => {
+    const node = text(Number.MAX_VALUE)
+    const writer = new SvgWriter()
+    expect(() => sceneDocumentEmission(writer).writeNode(node)).toThrow('background geometry must be finite')
+    expect(writer.finish()).toBe('')
+  })
+})
+
+describe('typed document output limits', () => {
+  const document = (titles: readonly string[]): SceneDoc => {
+    const colors = { bg: '#ffffff', fg: '#111111' }
+    return { family: 'flowchart', width: 20, height: 20, colors, transparent: false, parts: [
+      marks.documentOpen({ id: 'prelude', width: 20, height: 20, colors, transparent: false, font: 'Inter', hasMonoFont: false }, {
+        kind: 'prelude', width: 20, height: 20, colors, transparent: false, font: 'Inter', hasMonoFont: false, children: [],
+      }),
+      ...titles.map((text, index) => marks.documentText({ id: `title-${index}`, element: 'title', text })),
+      marks.documentClose(),
+    ] }
+  }
+
+  test('the actual default emitter preserves the public eight-million-byte limit diagnostic', () => {
+    // Each title expands to four million bytes plus its tags, below the
+    // five-million-byte node cap; their joined document exceeds eight million.
+    const title = '&'.repeat(800_000)
+    let error: unknown
+    try { renderDefaultScene(document([title, title]), { seed: 0 }, 8_000_000) } catch (caught) { error = caught }
+    expect(error).toBeInstanceOf(RangeError)
+    expect((error as Error).message).toBe('backend/family SVG output exceeds the 8000000-byte final SVG limit')
+  })
+
+  test('an oversized node keeps its earlier Scene validation diagnostic', () => {
+    // Escaping exactly one million ampersands fills the node cap before its
+    // closing tag; the semantic title itself is still within the text limit.
+    let error: unknown
+    try { renderDefaultScene(document(['&'.repeat(1_000_000)]), { seed: 0 }, 8_000_000) } catch (caught) { error = caught }
+    expect(error).toBeInstanceOf(SceneValidationError)
+    expect((error as SceneValidationError).diagnostics).toContainEqual({
+      code: 'SCENE_DOCUMENT', path: 'scene.parts[1]', message: 'SVG serialization exceeds 5000000 bytes',
+    })
+    expect((error as Error).message).not.toContain('8000000-byte final SVG limit')
   })
 })
 
