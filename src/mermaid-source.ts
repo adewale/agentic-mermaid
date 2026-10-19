@@ -889,6 +889,9 @@ function canonicalizeFrontmatterMap(raw: MermaidFrontmatterMap): MermaidFrontmat
   return configRoot ? mergeFrontmatterMaps(configRoot, topLevel) : topLevel
 }
 
+/** Frontmatter that is not valid YAML, which rejects the diagram, as upstream. */
+export class MermaidFrontmatterError extends Error {}
+
 /** Frontmatter is read as upstream reads it (shared/metadata-yaml.ts): YAML
  * that does not parse rejects the diagram; a document that parses but is not
  * a mapping (a scalar, a list, nothing) is empty metadata. */
@@ -896,11 +899,11 @@ function parseYamlDocument(text: string): MermaidFrontmatterMap {
   assertJsonConfigSourceTextAdmission(text, 'Mermaid frontmatter')
   const parsed = parseMermaidYaml(text)
   if (!parsed.ok) {
-    throw syntaxError({
+    throw new MermaidFrontmatterError(syntaxError({
       what: `Mermaid frontmatter is not valid YAML: ${parsed.message}`,
       expectedForm: 'a YAML mapping between the two `---` lines',
       example: '---\ntitle: "Order flow: v2"\n---',
-    })
+    }).message)
   }
   assertJsonConfigAdmission(parsed.value, 'Mermaid frontmatter')
   return toFrontmatterMap(parsed.value) ?? {}

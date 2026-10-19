@@ -7,7 +7,7 @@
 // than silently dropping the unrecognized construct.
 // ============================================================================
 
-import { normalizeMermaidSource } from '../mermaid-source.ts'
+import { MermaidFrontmatterError, normalizeMermaidSource } from '../mermaid-source.ts'
 import { splitHeaderStatement } from '../mermaid-source-wrapper.ts'
 import { stripStateComment } from '../state/comment.ts'
 import { trailingCommentStart } from '../shared/trailing-comment.ts'
@@ -164,7 +164,15 @@ export function parseRegisteredMermaid(source: string): Result<ParsedDiagram, Pa
   const errors: ParseError[] = []
   // Normalize once and reuse its frontmatter in extractMeta, rather than
   // re-running the full preprocess a second time just for frontmatter.
-  const authoredEnvelope = normalizeMermaidSource(source)
+  let authoredEnvelope: ReturnType<typeof normalizeMermaidSource>
+  try {
+    authoredEnvelope = normalizeMermaidSource(source)
+  } catch (error) {
+    // Source Mermaid rejects is a parse error, not a thrown one; a refused
+    // config stays a thrown admission error.
+    if (error instanceof MermaidFrontmatterError) return err([{ code: 'INVALID_FRONTMATTER', message: error.message }])
+    throw error
+  }
   const familyLineBoundary = authoredEnvelope.wrapperSource?.length ?? 0
   const familyLine = semanticFamilyLineSource(source, familyLineBoundary)
   const normalizedSemanticSource = familyLine.source === source

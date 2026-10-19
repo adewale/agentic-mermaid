@@ -8,7 +8,7 @@ import { readdirSync, readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import fc from 'fast-check'
 import { fcParameters } from './helpers/fc-parameters.ts'
-import { parseRegisteredMermaid, serializeMermaid } from '../agent/index.ts'
+import { parseRegisteredMermaid, serializeMermaid, verifyMermaid } from '../agent/index.ts'
 import { renderMermaidSVG } from '../index.ts'
 import { mermaidFirstLine } from '../mermaid-source-wrapper.ts'
 import { normalizeMermaidSource } from '../mermaid-source.ts'
@@ -442,8 +442,10 @@ describe('pinned upstream Mermaid reads @{} metadata as we do', () => {
       try { ours = normalizeMermaidSource(source).frontmatter } catch (error) { ours = error instanceof Error ? 'rejected' : error }
       let rendered = true
       try { renderMermaidSVG(source) } catch { rendered = false }
-      expect({ yaml, upstream: parsed.ok, ours, rendered })
-        .toEqual({ yaml, upstream: frontmatter !== undefined, ours: frontmatter ?? 'rejected', rendered: frontmatter !== undefined })
+      // The agent API reports the rejection rather than throwing it.
+      const typed = parseRegisteredMermaid(source)
+      expect({ yaml, upstream: parsed.ok, ours, rendered, typed: typed.ok || typed.error[0]?.code, verified: verifyMermaid(source).ok })
+        .toEqual({ yaml, upstream: frontmatter !== undefined, ours: frontmatter ?? 'rejected', rendered: frontmatter !== undefined, typed: frontmatter !== undefined || 'INVALID_FRONTMATTER', verified: frontmatter !== undefined })
     }
     expect(() => normalizeMermaidSource('---\ntitle: [unclosed\n---\nflowchart TD\n  A')).toThrow('Mermaid frontmatter is not valid YAML')
   })

@@ -132,7 +132,8 @@ export function verifyMermaid(input: ParsedDiagram | string, opts: VerifyOptions
     // Report them alongside the hard failure instead of making malformed
     // delimiters and dangling edges disappear merely because admission failed.
     // These are flowchart lints: another family's text is not read by them.
-    const sourceWarnings = typeof input === 'string' && detectsFlowchartFamily(normalizeMermaidSource(input).firstLine) ? flowchartUnsupportedSyntaxWarnings(input) : []
+    const flowchart = typeof input === 'string' && parsed.error[0]?.code !== 'INVALID_FRONTMATTER' && detectsFlowchartFamily(normalizeMermaidSource(input).firstLine)
+    const sourceWarnings = flowchart ? flowchartUnsupportedSyntaxWarnings(input) : []
     return finalize([{ code: 'EMPTY_DIAGRAM' }, ...sourceWarnings], emptyRenderedLayout('flowchart'), opts)
   }
   if (parsed.value.body.kind === 'preserved') {
