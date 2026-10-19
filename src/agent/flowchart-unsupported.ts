@@ -1,7 +1,7 @@
 import type { LayoutWarning } from './types.ts'
 import { normalizeV11Shape } from '../flowchart-shapes.ts'
 import { parseMermaid, splitFlowchartStatements } from '../parser.ts'
-import { coalesceFlowchartMetadataLines, matchTextArrow, scanFlowchart } from '../flowchart-lexer.ts'
+import { coalesceFlowchartLines, matchTextArrow, scanFlowchart } from '../flowchart-lexer.ts'
 import { metadataText, readMetadataBlock } from '../shared/metadata-yaml.ts'
 
 type MetadataEntries = ReadonlyMap<string, unknown>
@@ -265,7 +265,7 @@ function malformedFlowchartStatement(statement: string): { syntax: string; messa
   if (scan.regions.some(region => region.kind === 'metadata' || region.kind === 'markdown')) return null
 
   if (/[A-Za-z0-9_\]\)\}]\s*(?:-->|---|-\.->|==>|~~~|--o|--x)(?:\s*\|[^|]*\|)?\s*$/.test(statement)) {
-    return { syntax: 'flowchart_dangling_edge', message: 'Dangling edge operator has no target; Mermaid drops the edge during tolerant parsing. Add the endpoint or remove the operator.' }
+    return { syntax: 'flowchart_dangling_edge', message: 'Dangling edge operator has no target, so Mermaid rejects the diagram. Add the endpoint or remove the operator.' }
   }
 
   // What the lexer leaves open at the end of the statement (quoted labels
@@ -284,12 +284,13 @@ function malformedFlowchartStatement(statement: string): { syntax: string; messa
 
 export function flowchartStatements(source: string): FlowchartStatement[] {
   const statements: FlowchartStatement[] = []
-  // A `id@{ ... }` metadata block may span lines (the form Mermaid's docs
-  // use). Join it into ONE statement anchored at the opening line, exactly as
-  // the parser does, so the node-metadata lint sees the same unit the parser
-  // tokenizes — otherwise the multiline form silently misses the
-  // UNSUPPORTED_SYNTAX warning the single-line form gets.
-  for (const { text: raw, line } of coalesceFlowchartMetadataLines(source.split(/\r?\n/).slice(1))) {
+  // A `id@{ ... }` metadata block, a label or a link may span lines (the
+  // form Mermaid's docs use for metadata). Join it into ONE statement anchored
+  // at the opening line, exactly as the parser does, so the lints see the same
+  // unit the parser tokenizes — otherwise the multiline form silently misses
+  // the UNSUPPORTED_SYNTAX warning the single-line form gets, or reports a
+  // delimiter or link the next line closes.
+  for (const { text: raw, line } of coalesceFlowchartLines(source.split(/\r?\n/).slice(1))) {
     for (const text of splitFlowchartStatements(raw)) {
       const trimmed = text.trim()
       if (!trimmed || trimmed.startsWith('%%')) continue

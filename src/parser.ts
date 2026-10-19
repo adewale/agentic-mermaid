@@ -26,7 +26,7 @@ import type { Direction, EdgeMarker, EdgeStyle, MermaidEdge, MermaidGraph, Merma
 export { parseStyleProps } from './shared/style-props.ts'
 import { detectCompatibilityGraphFamilyFromFirstLine } from './agent/family-router.ts'
 import { classifyMermaidFamilyFromFirstLine } from './family-detection.ts'
-import { coalesceFlowchartMetadataLines, flowchartRegionAt, flowchartStatementSpans, matchFlowchartLink, matchTextArrow, scanFlowchart } from './flowchart-lexer.ts'
+import { coalesceFlowchartLines, flowchartRegionAt, flowchartStatementSpans, matchFlowchartLink, matchTextArrow } from './flowchart-lexer.ts'
 import { consumeClassShorthandPrefix,
   consumeMermaidIdentifier,
   isMermaidIdentifier, MERMAID_IDENTIFIER_SOURCE, parseClassShorthandStatement } from './shared/mermaid-identifiers.ts'
@@ -57,7 +57,7 @@ export function parseMermaid(text: string): MermaidGraph {
   const state = /^stateDiagram(?:-v2)?(?=$|[\s;%])/i.test(firstStatement)
   const lines = expandInlineHeaderStatements(state
     ? scanStateComments(rawLines).filter(line => line.noteBody || (line.text.length > 0 && !line.text.startsWith('//'))).map(line => line.text)
-    : coalesceMetadataLines(coalesceMarkdownStringLines(rawLines)).map(line => line.trim()).filter(line => line.length > 0 && !line.startsWith('%%')))
+    : coalesceStatementLines(rawLines).map(line => line.trim()).filter(line => line.length > 0 && !line.startsWith('%%')))
 
   if (lines.length === 0) {
     throw new Error('Empty mermaid diagram')
@@ -96,52 +96,14 @@ function expandInlineHeaderStatements(lines: string[]): string[] {
 }
 
 /**
- * Mermaid v11 uses `id@{ ... }` metadata blocks for flowchart nodes. The
- * legacy parser is line-oriented; without this coalescing pass, multiline
- * metadata keys such as `shape:` and `label:` are treated as standalone node
- * statements. Keep the whole metadata object attached to its node token so the
- * node consumer can handle it as one unit (flowchart-lexer.ts joins the lines
- * as upstream's lexer reads them).
+ * The parser is line-oriented, but upstream's lexer is not: a string, label,
+ * `@{…}` block or link may run across lines. flowchart-lexer.ts joins each
+ * such run into one line, a label's line breaks as '<br>' — the label
+ * pipeline's canonical line-break token — so the single-line shape grammars
+ * keep matching and the label normalizer restores '\n'.
  */
-function coalesceMetadataLines(lines: string[]): string[] {
-  return coalesceFlowchartMetadataLines(lines).map(group => group.text)
-}
-
-/**
- * Mermaid markdown strings ("`…`") may contain literal newlines as explicit
- * line breaks. The parser is line-oriented, so a line that ends inside a
- * markdown string (flowchart-lexer.ts) joins the following lines until the
- * string closes. The break is joined as '<br>' — the label pipeline's
- * canonical line-break token — so the single-line shape grammars keep
- * matching and the label normalizer restores '\n'.
- * Comment lines outside an open string pass through untouched.
- */
-function coalesceMarkdownStringLines(lines: string[]): string[] {
-  const out: string[] = []
-  let current: string[] | null = null
-  for (const line of lines) {
-    if (current) {
-      current.push(line.trim())
-      if (!endsInsideMarkdownString(current.join('<br>'))) {
-        out.push(current.join('<br>'))
-        current = null
-      }
-      continue
-    }
-    if (line.trim().startsWith('%%')) { out.push(line)
-      continue }
-    if (endsInsideMarkdownString(line)) {
-      current = [line]
-      continue
-    }
-    out.push(line)
-  }
-  if (current) out.push(current.join('<br>'))
-  return out
-}
-
-function endsInsideMarkdownString(text: string): boolean {
-  return text.includes('"`') && scanFlowchart(text).openAtEnd.includes('markdown')
+function coalesceStatementLines(lines: string[]): string[] {
+  return coalesceFlowchartLines(lines).map(group => group.text)
 }
 
 function parseFlowchartSubgraphDeclaration(rest: string): Pick<MermaidSubgraph, 'id' | 'label' | 'labelContent'> & { generated: boolean; identity: string } {
@@ -1226,11 +1188,11 @@ function consumeNodeGroup(
   const ids = [first.id]
   let remaining = first.remaining.trim()
 
-  // Check for & separators
+  // Check for & separators. One that no node follows (upstream reads one on
+  // its line only) stays unconsumed, so the statement fails.
   while (remaining.startsWith('&')) {
     if (parserObservationActive('flowchart')) observeParserToken('flowchart', 'parallel-separator', '&')
-    remaining = remaining.slice(1).trim()
-    const next = consumeNode(remaining, graph, subgraphStack, declaredSubgraphIds)
+    const next = consumeNode(remaining.slice(1).trim(), graph, subgraphStack, declaredSubgraphIds)
     if (!next) break
     ids.push(next.id)
     remaining = next.remaining.trim()

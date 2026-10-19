@@ -20,7 +20,8 @@
  *     text-arrow label, which runs to the link of its stroke that closes it
  *     (`;`, brackets and `|` inside it are text). Where no link of its stroke
  *     follows, ours also closes it with a link of another stroke
- *     (`A -- b ==> B`), which upstream rejects; verify reports that.
+ *     (`A -- b ==> B`), which upstream rejects; verify reports that. One that
+ *     no link closes runs to the end of the text.
  *   - At statement level, `@{` opens a metadata block, which
  *     shared/metadata-block-scan.ts delimits. A quoted label masks it. Ours
  *     also reads `@ {`, which upstream rejects; verify reports that.
@@ -55,6 +56,9 @@ export interface FlowchartScan {
   readonly topLevel: readonly boolean[]
   /** Offsets of the `;` characters that end statements. */
   readonly separators: readonly number[]
+  /** The statement-level links, in order: each link, and the opening and
+   * closing link of each text-arrow label. */
+  readonly links: readonly FlowchartTextRange[]
   /** The regions still open at the end of the text, outermost first: a
    * line that ends inside one continues on the next. */
   readonly openAtEnd: readonly FlowchartRegionKind[]
@@ -228,11 +232,9 @@ function lex(text: string, from: number, single: boolean): FlowchartScan {
   // A single region needs no statement-level map, and must not pay for one.
   const topLevel = single ? [] : Array<boolean>(text.length).fill(false)
   const separators: number[] = []
+  const links: FlowchartTextRange[] = []
   // Open regions, innermost last (indices into `regions`).
   const stack: number[] = []
-  // Once a text arrow of one stroke fails to close, none of that stroke that
-  // opens later can close.
-  const exhaustedStrokes = new Set<TextArrowStroke>()
 
   const open = (kind: FlowchartRegionKind, start: number, contentStart: number): void => {
     regions.push({ kind, start, end: text.length, contentStart, contentEnd: text.length, closed: false, parent: stack.at(-1) ?? -1 })
@@ -302,13 +304,13 @@ function lex(text: string, from: number, single: boolean): FlowchartScan {
     if (char === '-' || char === '=' || char === '<' || char === '~') {
       const link = matchFlowchartLink(text, index)
       if (link) {
+        links.push({ start: index, end: link.end })
         topLevel.fill(true, index, link.end)
         index = link.end - 1
         continue
       }
       const opener = stickyMatch(TEXT_ARROW_OPEN_RE, text, index)
-      const stroke = opener ? textArrowStroke(opener[2]!) : undefined
-      const arrow = stroke === undefined || exhaustedStrokes.has(stroke) ? null : matchTextArrow(text, index)
+      const arrow = opener ? matchTextArrow(text, index) : null
       if (arrow) {
         const regionIndex = regions.length
         regions.push({ kind: 'edge-text', start: index, end: arrow.end, contentStart: arrow.labelStart, contentEnd: arrow.labelEnd, closed: true, parent: -1 })
@@ -320,10 +322,16 @@ function lex(text: string, from: number, single: boolean): FlowchartScan {
         const closeStart = arrow.end - arrow.closeOp.length
         topLevel.fill(true, closeStart, arrow.end)
         if (!single) for (let cursor = arrow.labelEnd; cursor < closeStart; cursor++) topLevel[cursor] = true
+        links.push({ start: index, end: index + opener![0].length }, { start: closeStart, end: arrow.end })
         index = arrow.end - 1
         continue
       }
-      if (stroke !== undefined) exhaustedStrokes.add(stroke)
+      if (opener) {
+        links.push({ start: index, end: index + opener[0].length })
+        topLevel.fill(true, index, index + opener[0].length)
+        open('edge-text', index, index + opener[0].length)
+        break
+      }
     }
     // A `>` that no link consumed opens asymmetric shape text (`A>x]`).
     if (char === '>') { open('shape', index, index + 1); continue }
@@ -331,40 +339,106 @@ function lex(text: string, from: number, single: boolean): FlowchartScan {
     if (char === ';') separators.push(index)
   }
 
-  return { regions, topLevel, separators, openAtEnd: stack.map(region => regions[region]!.kind) }
+  return { regions, topLevel, separators, links, openAtEnd: stack.map(region => regions[region]!.kind) }
 }
 
 /** The statements of one line: the text between statement-level `;`, with
- * each statement's trimmed offset. Empty statements are dropped. */
+ * each statement's trimmed offset. Empty statements are dropped. Upstream's
+ * `end` token takes the whitespace after it, so a statement may follow it on
+ * its line (`end B`). */
 export function flowchartStatementSpans(text: string, scan: FlowchartScan = scanFlowchart(text)): Array<{ text: string; start: number }> {
   const out: Array<{ text: string; start: number }> = []
   let start = 0
   for (const end of [...scan.separators, text.length]) {
     const raw = text.slice(start, end)
     const trimmed = raw.trim()
-    if (trimmed) out.push({ text: trimmed, start: start + raw.length - raw.trimStart().length })
+    const at = start + raw.length - raw.trimStart().length
+    const keyword = /^end\s+/.exec(trimmed)
+    if (keyword) out.push({ text: 'end', start: at }, { text: trimmed.slice(keyword[0].length), start: at + keyword[0].length })
+    else if (trimmed) out.push({ text: trimmed, start: at })
     start = end + 1
   }
   return out
 }
 
+/** A statement whose text no link or label continues onto another line. */
+const KEYWORD_STATEMENT_RE = /^(?:subgraph|classDef|class|style|linkStyle|click|href|accTitle|accDescr)(?![\w-])/
+
 /**
- * Join physical lines while a line ends inside a `@{…}` block, so a
- * multi-line block reaches the parser as one statement. Lines are joined with
- * `\n`, indentation intact: upstream parses a multi-line body as block YAML,
- * where both matter. `line` is the 0-based index of each group's first line.
+ * Join physical lines into the statements upstream's lexer reads, for which
+ * a line break does not always end one. A line joins the next while it ends
+ * inside a `@{…}` block, with `\n`, indentation intact (upstream parses a
+ * multi-line body as block YAML, where both matter), or inside a string,
+ * markdown string, shape text, pipe label or text-arrow label, with `<br>`,
+ * the label pipeline's line break (a space where the break would begin or end
+ * the text, which upstream trims). Upstream's link token takes the whitespace
+ * around it, line breaks included, so a line that ends with a link joins the
+ * next, and one that begins with a link joins the last, with a space and past
+ * blank and comment lines. In a keyword statement (`subgraph`, `style`, …) a
+ * bracket or a link is text, so only a markdown string or a metadata block
+ * continues one. `line` is the 0-based index of each group's first line.
  */
-export function coalesceFlowchartMetadataLines(lines: readonly string[]): Array<{ text: string; line: number }> {
+export function coalesceFlowchartLines(lines: readonly string[]): Array<{ text: string; line: number }> {
   const out: Array<{ text: string; line: number }> = []
+  let group: { text: string; line: number } | undefined
+  // The last line of `group` as lexed (behind the openers that put the lexer
+  // in the state it began in), and whether its last statement is a keyword
+  // statement.
+  let scanned = ''
+  let scan = scanFlowchart(scanned)
+  let keyword = false
   for (let index = 0; index < lines.length; index++) {
-    const line = index
-    let text = lines[index]!
-    while (index + 1 < lines.length && text.includes('@') && scanFlowchart(text).openAtEnd.includes('metadata')) {
-      text += `\n${lines[++index]!}`
+    const raw = lines[index]!
+    const trimmed = raw.trim()
+    const open = scan.openAtEnd
+    const inRegion = group !== undefined && open.length > 0 && (open[0] === 'metadata' || open.includes('markdown') || !keyword)
+    if (!inRegion && (!trimmed || trimmed.startsWith('%%'))) {
+      out.push({ text: raw, line: index })
+      continue
     }
-    out.push({ text, line })
+    let text = trimmed
+    let joint: string | undefined
+    let lineScan: FlowchartScan
+    if (inRegion && open[0] === 'metadata') {
+      text = `${scanned}\n${raw}`
+      lineScan = scanFlowchart(text)
+      joint = '\n'
+    } else if (inRegion) {
+      const continued = continuationPrefix(scanned, scan)
+      text = `${continued.prefix}${trimmed}`
+      lineScan = scanFlowchart(text)
+      const inner = lineScan.regions[open.length - 1]!
+      const blankEnd = inner.closed && text.slice(continued.prefix.length, inner.contentEnd).trim() === ''
+      joint = continued.blank || blankEnd ? ' ' : '<br>'
+    } else {
+      lineScan = scanFlowchart(text)
+      const endsWithLink = open.length === 0 && scan.links.at(-1)?.end === scanned.trimEnd().length
+      if (group && !keyword && (endsWithLink || lineScan.links[0]?.start === 0)) joint = ' '
+    }
+    if (joint === undefined) {
+      group = { text: raw, line: index }
+      out.push(group)
+    } else {
+      group!.text += `${joint}${joint === '\n' ? raw : trimmed}`
+    }
+    const last = flowchartStatementSpans(text, lineScan).at(-1)
+    if (joint === undefined || (last && last.start > 0)) keyword = last !== undefined && KEYWORD_STATEMENT_RE.test(last.text)
+    scanned = text
+    scan = lineScan
   }
   return out
+}
+
+/** Text that leaves the lexer in the state `scan` ends in: the openers of the
+ * regions open at the end of `text`, then, when the innermost holds text, a
+ * stand-in for it (its first character for a pipe or text-arrow label, whose
+ * quoting and closing depend on it). */
+function continuationPrefix(text: string, scan: FlowchartScan): { prefix: string; blank: boolean } {
+  const open = scan.regions.filter(region => !region.closed)
+  const inner = open.at(-1)!
+  const first = text.slice(inner.contentStart).trimStart()[0]
+  const standIn = first === undefined ? '' : inner.kind === 'pipe' || inner.kind === 'edge-text' ? `${first} ` : '_ '
+  return { prefix: `${open.map(region => text.slice(region.start, region.contentStart)).join('')} ${standIn}`, blank: first === undefined }
 }
 
 /** The trimmed text-arrow labels of a line. */

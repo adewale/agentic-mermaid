@@ -16,7 +16,7 @@ import { parseMermaid } from '../parser.ts'
 import { parseSequenceDiagram } from '../sequence/parser.ts'
 import { splitSequenceStatementLines } from '../sequence/statements.ts'
 import { toEntityMarkers } from '../shared/mermaid-entities.ts'
-import { coalesceFlowchartMetadataLines } from '../flowchart-lexer.ts'
+import { coalesceFlowchartLines } from '../flowchart-lexer.ts'
 import {
   metadataText,
   quoteMetadataString,
@@ -228,7 +228,7 @@ describe('scanMetadataBlock delimits a block by the family\'s upstream lexer', (
   })
 
   test('a multi-line flowchart block is joined with its line breaks and indentation', () => {
-    expect(coalesceFlowchartMetadataLines(['A@{', '  shape: rect', '  label: "x"', '}', 'A --> B']))
+    expect(coalesceFlowchartLines(['A@{', '  shape: rect', '  label: "x"', '}', 'A --> B']))
       .toEqual([{ text: 'A@{\n  shape: rect\n  label: "x"\n}', line: 0 }, { text: 'A --> B', line: 4 }])
   })
 })
@@ -293,7 +293,7 @@ describe('pinned upstream Mermaid reads @{} metadata as we do', () => {
     await fc.assert(fc.asyncProperty(flowchartValueArb, async value => {
       const source = `flowchart TD\n  A@{ label: ${value} }`
       const theirs = upstreamOutcome(await upstream.parse(source), p => p.flowchart?.vertices.find(v => v.id === 'A')?.text)
-      const line = coalesceFlowchartMetadataLines(source.split('\n'))[1]!.text
+      const line = coalesceFlowchartLines(source.split('\n'))[1]!.text
       const ours = ourOutcome(() => parseMermaid(source), line, 'flowchart', 'label')
       expect({ source, ours }).toEqual({ source, ours: theirs })
       if ('accepted' in theirs) accepted++

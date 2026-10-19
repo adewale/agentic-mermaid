@@ -198,12 +198,55 @@ describe('flowchart parser conformance safety floor (issue #36)', () => {
       'frobnicate keep-me',
       'A -- bad ??? B',
       'A -->',
+      // A `&` takes its node from its own line, as upstream: none follows.
+      'A --> B &',
+      'A &\n  B --> C',
+      'A --> B & \n  C',
     ]) {
       const source = `flowchart TD\n  A --> B\n  ${statement}`
       expect(() => parseGraph(source), statement).toThrow(/fully consume|invalid flowchart statement/i)
       const parsed = parseMermaid(source)
       expect(parsed.ok, statement).toBe(false)
     }
+  })
+
+  // Upstream's lexer reads a string, a label's text and a text-arrow label
+  // across line breaks, and its link token takes the whitespace around it,
+  // line breaks included (flow.jison), so one statement may span lines.
+  test.each([
+    ['A["line1\n  line2"] --> B', ['A:rectangle:line1\nline2', 'B:rectangle:B', 'A-solid->B']],
+    ['A[l1\n  l2] --> B', ['A:rectangle:l1\nl2', 'B:rectangle:B', 'A-solid->B']],
+    ['A(r\n  t)', ['A:rounded:r\nt']],
+    ['A{d\n  m}', ['A:diamond:d\nm']],
+    ['A -->|some\n  text| B', ['A:rectangle:A', 'B:rectangle:B', 'A-solid->B:some\ntext']],
+    ['A -- some\n  text --> B', ['A:rectangle:A', 'B:rectangle:B', 'A-solid->B:some\ntext']],
+    // Upstream trims a label, so a break at either end of it is not text.
+    ['A -- some\n  --> B', ['A:rectangle:A', 'B:rectangle:B', 'A-solid->B:some']],
+    ['A[\n  foo]', ['A:rectangle:foo']],
+    ['A -->\n  B', ['A:rectangle:A', 'B:rectangle:B', 'A-solid->B']],
+    ['A ==>\n  B', ['A:rectangle:A', 'B:rectangle:B', 'A-thick->B']],
+    ['A -.->\n\n  %% note\n  B', ['A:rectangle:A', 'B:rectangle:B', 'A-dotted->B']],
+    ['A["a"] -->\n   B -->\n   C', ['A:rectangle:a', 'B:rectangle:B', 'C:rectangle:C', 'A-solid->B', 'B-solid->C']],
+    ['A\n  --> B', ['A:rectangle:A', 'B:rectangle:B', 'A-solid->B']],
+    ['A --> B\n  --> C', ['A:rectangle:A', 'B:rectangle:B', 'C:rectangle:C', 'A-solid->B', 'B-solid->C']],
+    // Upstream folds `\nx-->` into one link and loses x; ours keeps the node.
+    ['A --> B\n  x--> C', ['A:rectangle:A', 'B:rectangle:B', 'x:rectangle:x', 'C:rectangle:C', 'A-solid->B', 'x-solid->C']],
+    // Upstream's `end` token takes the whitespace after it.
+    ['subgraph S\n    A\n  end B', ['A:rectangle:A', 'B:rectangle:B', 'S{A}']],
+  ])('%j is read alike by the renderer, the typed body, its output and verify', (body, expected) => {
+    const readingOf = (graph: ReturnType<typeof parseGraph>) => [
+      ...[...graph.nodes.values()].map(node => `${node.id}:${node.shape}:${node.label}`),
+      ...graph.edges.map(edge => `${edge.source}-${edge.style}->${edge.target}${edge.label ? `:${edge.label}` : ''}`),
+      ...graph.subgraphs.map(group => `${group.id}{${group.nodeIds.join(' ')}}`),
+    ]
+    const source = `flowchart TD\n  ${body}`
+    expect(readingOf(parseGraph(source))).toEqual(expected)
+    const typed = parseAgent(source)
+    expect(typed.body.kind === 'flowchart' && readingOf(typed.body.graph)).toEqual(expected)
+    expect(readingOf(parseGraph(serializeMermaid(typed)))).toEqual(expected)
+    const verify = verifyMermaid(source)
+    expect(verify.ok).toBe(true)
+    expect(verify.warnings.filter(warning => warning.code === 'UNSUPPORTED_SYNTAX')).toEqual([])
   })
 
   test('root direction directives override the graph without becoming phantom nodes', () => {
