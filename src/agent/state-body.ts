@@ -554,7 +554,9 @@ export function renderState(body: StateBody): string {
     const text = writeStateText(n.text, n.textContent)
     if (/[\n:;]/.test(n.text)) {
       out.push(`  note ${n.side} of ${n.target}`)
-      for (const line of text.split('\n')) out.push(`    ${line}`)
+      // Mermaid reads a block whose text starts with a colon as a one-line
+      // note, and then rejects its `end note`; `#58;` reads as the colon.
+      for (const line of text.replace(/^:/, '#58;').split('\n')) out.push(`    ${line}`)
       out.push('  end note')
     } else {
       out.push(`  note ${n.side} of ${n.target} : ${text}`)

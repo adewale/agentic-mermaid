@@ -759,16 +759,18 @@ describe('State statements across and within lines', () => {
   test('a one-line note whose text holds a colon or `;` is read whole, and reported', async () => {
     // Mermaid ends a one-line note's text at a colon or `;`, after reading
     // entity codes: it rejects the colon, and reads on from the `;`.
-    const sources = ['a; b', 'see http://x', 'a #59; b #58; c'].map(text => `stateDiagram-v2\nA --> B\nnote right of A : ${text}`)
-    expect(sources.map(source => parseRenderGraph(source).stateNotes?.[0]?.text)).toEqual(['a; b', 'see http://x', 'a ; b : c'])
-    expect(sources.map(unsupportedSyntax)).toEqual([['state_note_text_cut@3'], ['state_note_text_cut@3'], []])
+    const sources = ['a; b', 'see http://x', 'a #59; b #58; c', ': x'].map(text => `stateDiagram-v2\nA --> B\nnote right of A : ${text}`)
+    expect(sources.map(source => parseRenderGraph(source).stateNotes?.[0]?.text)).toEqual(['a; b', 'see http://x', 'a ; b : c', ': x'])
+    expect(sources.map(unsupportedSyntax)).toEqual([['state_note_text_cut@3'], ['state_note_text_cut@3'], [], ['state_note_text_cut@3']])
     const notes = (mermaid: UpstreamDiagram): string[] => mermaid.db.rootDoc.flatMap((item: any) => item.note ? [item.note.text] : [])
     expect((await upstream.projectEach(sources, notes)).map(read => read.ok ? read.value.map(text => projectEntityMarkers(text)) : 'rejected'))
-      .toEqual([['a'], 'rejected', ['a ; b : c']])
-    // The writer writes a block note, which Mermaid reads whole.
+      .toEqual([['a'], 'rejected', ['a ; b : c'], 'rejected'])
+    // The writer writes a block note, which Mermaid reads whole: a colon
+    // starting it as `#58;`, or Mermaid would read a one-line note there.
     const written = sources.map(source => serializeMermaid(state(source)))
+    expect(written.map(source => parseRenderGraph(source).stateNotes?.[0]?.text)).toEqual(['a; b', 'see http://x', 'a ; b : c', ': x'])
     expect(written.map(unsupportedSyntax)).toEqual(written.map(() => []))
-    expect((await upstream.projectAll(written, notes)).map(texts => texts.map(text => projectEntityMarkers(text)))).toEqual([['a; b'], ['see http://x'], ['a ; b : c']])
+    expect((await upstream.projectAll(written, notes)).map(texts => texts.map(text => projectEntityMarkers(text)))).toEqual([['a; b'], ['see http://x'], ['a ; b : c'], [': x']])
   })
 
   test('a direction is read in any case, as Mermaid reads it', () => {
