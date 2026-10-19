@@ -51,11 +51,13 @@ import type {
 import { ok, err } from './types.ts'
 import { labelOverflowCollector } from './body-utils.ts'
 import { normalizeBrTags } from '../multiline-utils.ts'
+import { readStateLabel, readStateText, writeStateText } from '../state/text.ts'
+import type { LabelContent } from '../shared/display-text.ts'
 import { parseAccessibilityDirective, scanAccessibilityDirectives, statementEndAt } from '../shared/accessibility-directives.ts'
 import {
   matchNoteLine, matchNoteOpen, isNoteEnd, matchStereotypeDecl,
   matchTransitionLine, readStateStatements, stateStatementEnds, isConcurrencySeparator, isHistoryEndpoint, matchHistoryEndpoint,
-  isStateNodeId, matchStateDeclarationLine, matchStateLayoutDirective, stereotypeMarker, stripStateComment, matchStateClassAssignment, stateNoteText,
+  isStateNodeId, matchStateDeclarationLine, matchStateLayoutDirective, stereotypeMarker, stripStateComment, matchStateClassAssignment,
   STATE_DIRECTION_RE, STATE_ALIAS_RE, STATE_COMPOSITE_OPEN_RE, STATE_DESCRIPTION_RE,
   STATE_CLASS_DEF_RE, STATE_STYLE_RE, STATE_LINK_STYLE_RE,
 } from '../state/parse-core.ts'
@@ -129,7 +131,7 @@ export function parseStateBody(lines: string[]): StateBody | null {
     if (compositeIds.has(id)) return null
     compositeIds.add(id)
   }
-  const pendingCompositeLabels = new Map<string, string>()
+  const pendingCompositeLabels = new Map<string, readonly string[]>()
   // The composites opened so far. Ids are global, so a later mention in any
   // scope names the composite; one before its block waits in
   // pendingCompositeLabels.
@@ -148,8 +150,19 @@ export function parseStateBody(lines: string[]): StateBody | null {
   // Open block note (`note left of X` … `end note`), collecting body lines.
   let openNote: { target: string; side: 'left' | 'right'; lines: string[] } | null = null
 
-  const pushNote = (scope: ParseScope, target: string, side: 'left' | 'right', text: string): void => {
-    notes.push({ target, side, text })
+  // Each state's label as written, one piece per line (a label and the
+  // descriptions under it), read through the State text codec.
+  const labelPieces = new Map<StateNode, readonly string[]>()
+  const labelState = (node: StateNode, pieces: readonly string[]): void => {
+    labelPieces.set(node, pieces)
+    const { text, content } = readStateLabel(pieces)
+    node.label = text
+    if (content) node.labelContent = content
+    else delete node.labelContent
+  }
+  const pushNote = (scope: ParseScope, target: string, side: 'left' | 'right', authored: string): void => {
+    const { text, content } = readStateText(authored)
+    notes.push({ target, side, text, ...(content ? { textContent: content } : {}) })
     // A note on an undeclared state declares it (mirrors the render parser).
     if (!compositeIds.has(target)) ensureState(scope, target)
   }
@@ -162,7 +175,7 @@ export function parseStateBody(lines: string[]): StateBody | null {
     // --- open block note: collect body lines until `end note` ---
     if (openNote) {
       if (isNoteEnd(line)) {
-        pushNote(scope, openNote.target, openNote.side, stateNoteText(openNote.lines))
+        pushNote(scope, openNote.target, openNote.side, openNote.lines.join('\n'))
         openNote = null
       } else {
         openNote.lines.push(line)
@@ -175,7 +188,7 @@ export function parseStateBody(lines: string[]): StateBody | null {
     // --- notes (before the ::: gate: note TEXT may legally contain :::) ---
     const noteLine = matchNoteLine(line)
     if (noteLine) {
-      pushNote(scope, noteLine.target, noteLine.side, stateNoteText([noteLine.text]))
+      pushNote(scope, noteLine.target, noteLine.side, noteLine.text)
       continue
     }
     const noteOpen = matchNoteOpen(line)
@@ -252,7 +265,7 @@ export function parseStateBody(lines: string[]): StateBody | null {
       if (!isCompositeId(stereo.id) || (compositeIds.has(stereo.id) && !scope.byId.has(stereo.id))) return null
       const node = ensureState(scope, stereo.id)
       node.stereotype = stereo.stereotype
-      if (stereo.label !== undefined && node.label === undefined) node.label = normalizeBrTags(stereo.label)
+      if (stereo.label !== undefined && node.label === undefined) labelState(node, [stereo.label])
       continue
     }
 
@@ -261,11 +274,10 @@ export function parseStateBody(lines: string[]): StateBody | null {
     if (open) {
       const id = open[2]!
       if (!isCompositeId(id)) return null
-      const label = open[1] !== undefined
-        ? normalizeBrTags(open[1]!)
-        : pendingCompositeLabels.get(id)
+      const pieces = open[1] !== undefined ? [open[1]] : pendingCompositeLabels.get(id)
       const child = newScope()
-      const node: StateNode = { id, ...(label !== undefined ? { label } : {}), states: child.states, transitions: child.transitions }
+      const node: StateNode = { id, states: child.states, transitions: child.transitions }
+      if (pieces !== undefined) labelState(node, pieces)
       // Reuse any existing node slot (a prior transition may have referenced it),
       // but the legacy parser deletes the simple node and makes it a composite.
       const prior = scope.byId.get(id)
@@ -310,16 +322,16 @@ export function parseStateBody(lines: string[]): StateBody | null {
     const alias = line.match(STATE_ALIAS_RE)
     if (alias) {
       const id = alias[2]!
-      const label = normalizeBrTags(alias[1]!)
+      const pieces = [alias[1]!]
       const composite = composites.get(id)
       if (composite) {
-        if (composite.label === undefined) composite.label = label
+        if (composite.label === undefined) labelState(composite, pieces)
       } else if (compositeIds.has(id)) {
-        if (!pendingCompositeLabels.has(id)) pendingCompositeLabels.set(id, label)
+        if (!pendingCompositeLabels.has(id)) pendingCompositeLabels.set(id, pieces)
       } else {
         const node = ensureState(scope, id)
         // Definition-before-use: only set if not already labeled.
-        if (node.label === undefined) node.label = label
+        if (node.label === undefined) labelState(node, pieces)
       }
       continue
     }
@@ -328,7 +340,7 @@ export function parseStateBody(lines: string[]): StateBody | null {
     const tr = matchTransitionLine(line)
     if (tr) {
       const { from, to } = tr
-      const label = tr.label ? normalizeBrTags(tr.label) : undefined
+      const label = tr.label ? readStateText(tr.label) : undefined
       if (!isEndpointId(from) || !isEndpointId(to)) return null
       // A `[*]` or history endpoint is no state, so its class stays on the
       // transition: `[*]:::c --> A` is its only Mermaid spelling. Mermaid's
@@ -346,7 +358,7 @@ export function parseStateBody(lines: string[]): StateBody | null {
         from, to,
         ...(tr.fromClass && contextual(from) ? { fromClass: tr.fromClass } : {}),
         ...(tr.toClass && contextual(to) ? { toClass: tr.toClass } : {}),
-        ...(label !== undefined ? { label } : {}),
+        ...(label !== undefined ? { label: label.text, ...(label.content ? { labelContent: label.content } : {}) } : {}),
       }
       scope.transitions.push(transition)
       transitionOrder.push(transition)
@@ -364,13 +376,13 @@ export function parseStateBody(lines: string[]): StateBody | null {
     const desc = line.match(STATE_DESCRIPTION_RE)
     if (desc) {
       const id = desc[1]!
-      const label = normalizeBrTags(desc[2]!.trim())
+      const piece = desc[2]!.trim()
       if (compositeIds.has(id) && !composites.has(id)) {
-        const previous = pendingCompositeLabels.get(id)
-        pendingCompositeLabels.set(id, previous === undefined ? label : `${previous}\n${label}`)
+        pendingCompositeLabels.set(id, [...(pendingCompositeLabels.get(id) ?? []), piece])
       } else {
+        // A description adds a line under any label the state has.
         const node = composites.get(id) ?? ensureState(scope, id)
-        node.label = node.label === undefined ? label : `${node.label}\n${label}`
+        labelState(node, [...(labelPieces.get(node) ?? []), piece])
       }
       continue
     }
@@ -440,6 +452,7 @@ export function parseStateBody(lines: string[]): StateBody | null {
       else if (state.states) unlabelBare(state.states)
       else if (state.stereotype === undefined && state.label === state.id && !hasBareSpelling(state.id)) {
         delete state.label
+        delete state.labelContent
         state.declaredBare = true
       }
     }
@@ -469,8 +482,16 @@ function hasBareSpelling(id: string): boolean {
   return !/-|^(?:state|note|scale|default|classDef|class|style|click|href|stateDiagram)$/i.test(id)
 }
 
-function serializeStateLabel(label: string): string {
-  return label.replace(/\r\n?|\n/g, '<br/>')
+/** Whether a label is written as `X: label` beside the declaration, as one
+ *  holding a `"` is where `X` reads alone; elsewhere the quoted label spells
+ *  its `"` as `#quot;`. */
+function describedApart(s: StateNode): boolean {
+  return (s.label?.includes('"') ?? false) && hasBareSpelling(s.id)
+}
+
+/** A label as written in source: its line breaks as `<br/>`. */
+function serializeStateLabel(label: string, content?: LabelContent, reserved = ''): string {
+  return writeStateText(label, content, reserved).replace(/\r\n?|\n/g, '<br/>')
 }
 
 function renderScope(states: StateNode[], transitions: StateTransition[], direction: StateNode['direction'] | undefined, indent: string, out: string[]): void {
@@ -479,9 +500,9 @@ function renderScope(states: StateNode[], transitions: StateTransition[], direct
   for (const s of states) {
     if (s.states !== undefined || s.transitions !== undefined || s.regions !== undefined) {
       // Composite block (ordinary or `--`-partitioned concurrency regions).
-      const separateDescription = s.label?.includes('"') ?? false
-      if (separateDescription) out.push(`${indent}${s.id}: ${serializeStateLabel(s.label!)}`)
-      const header = s.label !== undefined && !separateDescription ? `state "${serializeStateLabel(s.label)}" as ${s.id} {` : `state ${s.id} {`
+      const separateDescription = describedApart(s)
+      if (separateDescription) out.push(`${indent}${s.id}: ${serializeStateLabel(s.label!, s.labelContent)}`)
+      const header = s.label !== undefined && !separateDescription ? `state "${serializeStateLabel(s.label, s.labelContent, '"')}" as ${s.id} {` : `state ${s.id} {`
       out.push(`${indent}${header}`)
       if (s.regions) {
         if (s.direction !== undefined) out.push(`${indent}  direction ${s.direction}`)
@@ -496,14 +517,14 @@ function renderScope(states: StateNode[], transitions: StateTransition[], direct
     } else if (s.stereotype !== undefined) {
       // Pseudostate declaration (fork/join/choice/history) — canonical marker
       // spelling; `<<H>>`/`<<H*>>` shorthands normalize on parse.
-      const separateDescription = s.label?.includes('"') ?? false
-      const alias = s.label !== undefined && !separateDescription ? `"${serializeStateLabel(s.label)}" as ` : ''
+      const separateDescription = describedApart(s)
+      const alias = s.label !== undefined && !separateDescription ? `"${serializeStateLabel(s.label, s.labelContent, '"')}" as ` : ''
       out.push(`${indent}state ${alias}${s.id} ${stereotypeMarker(s.stereotype)}`)
-      if (separateDescription) out.push(`${indent}${s.id}: ${serializeStateLabel(s.label!)}`)
+      if (separateDescription) out.push(`${indent}${s.id}: ${serializeStateLabel(s.label!, s.labelContent)}`)
     } else if (s.label !== undefined) {
-      out.push(isCompositeId(s.id) && !s.label.includes('"')
-        ? `${indent}state "${serializeStateLabel(s.label)}" as ${s.id}`
-        : `${indent}${s.id}: ${serializeStateLabel(s.label)}`)
+      out.push(isCompositeId(s.id) && !describedApart(s)
+        ? `${indent}state "${serializeStateLabel(s.label, s.labelContent, '"')}" as ${s.id}`
+        : `${indent}${s.id}: ${serializeStateLabel(s.label, s.labelContent)}`)
     } else if (s.declaredBare) {
       out.push(`${indent}${hasBareSpelling(s.id) ? s.id : `state "${s.id}" as ${s.id}`}`)
     }
@@ -512,7 +533,7 @@ function renderScope(states: StateNode[], transitions: StateTransition[], direct
   for (const t of transitions) {
     // `state` followed by whitespace enters Mermaid's declaration lexer.
     const separator = /^state$/i.test(t.to) ? ':' : ' :'
-    const label = t.label !== undefined ? `${separator} ${serializeStateLabel(t.label)}` : ''
+    const label = t.label !== undefined ? `${separator} ${serializeStateLabel(t.label, t.labelContent)}` : ''
     const endpoint = (id: string, className: string | undefined): string => className === undefined ? id : `${id}:::${className}`
     out.push(`${indent}${endpoint(t.from, t.fromClass)} --> ${endpoint(t.to, t.toClass)}${label}`)
   }
@@ -525,12 +546,13 @@ export function renderState(body: StateBody): string {
   // so punctuation-bearing or multiline text uses `note … end note`. Note text is canonical by construction
   // (validNoteText): trimmed lines, no blank lines, no `end note` line.
   for (const n of body.notes ?? []) {
+    const text = writeStateText(n.text, n.textContent)
     if (/[\n:;]/.test(n.text)) {
       out.push(`  note ${n.side} of ${n.target}`)
-      for (const line of n.text.split('\n')) out.push(`    ${line}`)
+      for (const line of text.split('\n')) out.push(`    ${line}`)
       out.push('  end note')
     } else {
-      out.push(`  note ${n.side} of ${n.target} : ${n.text}`)
+      out.push(`  note ${n.side} of ${n.target} : ${text}`)
     }
   }
   const styleText = (style: Record<string, string>): string => Object.entries(style).map(([key, value]) => `${key}:${value}`).join(',')
@@ -581,6 +603,7 @@ function cloneState(s: StateNode): StateNode {
   return {
     id: s.id,
     ...(s.label !== undefined ? { label: s.label } : {}),
+    ...(s.labelContent !== undefined ? { labelContent: s.labelContent } : {}),
     ...(s.declaredBare ? { declaredBare: true as const } : {}),
     ...(s.stereotype !== undefined ? { stereotype: s.stereotype } : {}),
     ...(s.className !== undefined ? { className: s.className } : {}),
@@ -791,6 +814,7 @@ export function mutateState(body: StateBody, op: StateMutationOp): Result<StateB
     case 'set_state_label': {
       const loc = locate(next, op.id)
       if (!loc) return err({ code: 'STATE_NOT_FOUND', message: `State '${op.id}' not found` })
+      delete loc.node.labelContent
       if (op.label === null) { delete loc.node.label; loc.node.declaredBare = true; break }
       const l = validLabel(op.label, 'label')
       if (!l.ok) return l
@@ -847,6 +871,7 @@ export function mutateState(body: StateBody, op: StateMutationOp): Result<StateB
       if (op.index !== undefined) t = list[op.index]
       else if (op.from !== undefined && op.to !== undefined) t = list.find(tr => tr.from === op.from && tr.to === op.to)
       if (!t) return err({ code: 'TRANSITION_NOT_FOUND', message: 'transition not found (need a valid index or from/to pair)' })
+      delete t.labelContent
       if (op.label === null) { delete t.label; break }
       const l = validLabel(op.label, 'transition label')
       if (!l.ok) return l
@@ -942,6 +967,7 @@ export function mutateState(body: StateBody, op: StateMutationOp): Result<StateB
       const text = validNoteText(op.text)
       if (!text.ok) return text
       notes[op.index]!.text = text.value
+      delete notes[op.index]!.textContent
       break
     }
     case 'define_class': {

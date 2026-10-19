@@ -1,0 +1,61 @@
+// ============================================================================
+// State text: the one codec for a state's label, a transition label and a
+// note's text, for the render parser (src/parser.ts) and the typed body
+// (src/agent/state-body.ts) alike.
+//
+// Layers, in the order Mermaid reads them:
+//   entity   `#name;` / `#123;` codes (src/shared/mermaid-entities.ts), which
+//            upstream turns into markers before its State grammar runs.
+//   display  `<br>` and markdown emphasis (normalizeBrTags), read from the
+//            text as written, before its entity codes: an entity never forms
+//            a line break or emphasis.
+//
+// The public string holds the codes read; a sidecar (LabelContent) keeps the
+// text as written and its display reading, so an entity-produced `<b>` stays
+// literal and the writer spells the codes back as they were written.
+// ============================================================================
+
+import { normalizeBrTags } from '../multiline-utils.ts'
+import { encodeMermaidAuthoredEntities, encodeMermaidEntities } from '../shared/mermaid-entities.ts'
+import { decodeMermaidEntities, type EntityRefusal } from '../shared/mermaid-entity-display.ts'
+import { prepareDisplayText, replaceDisplayTextTokens, type LabelContent } from '../shared/display-text.ts'
+
+const STATE_ENTITY_REFUSAL: EntityRefusal = { subject: 'State text entity', example: 'A : I #9829; states' }
+const ENTITY_CODE = /#\w+;/g
+const decodeStateEntity = (token: string): string => decodeMermaidEntities(token, STATE_ENTITY_REFUSAL)
+
+/** State text as written (a transition label, a note's lines joined with
+ *  `\n`): the string it displays, and, where it holds an entity code, the
+ *  sidecar that keeps how it was written. */
+export function readStateText(authored: string): { text: string; content?: LabelContent } {
+  return read(normalizeBrTags(authored), authored)
+}
+
+/** A state's label as written, one piece per line (a `state "…" as` name and
+ *  the descriptions under it), read as readStateText reads text. The text as
+ *  written spells its line breaks `<br/>`, as the writer does, so the label
+ *  reads back the same from either. */
+export function readStateLabel(pieces: readonly string[]): { text: string; content?: LabelContent } {
+  return read(pieces.map(piece => normalizeBrTags(piece)).join('\n'), pieces.join('\n').replace(/\r\n?|\n/g, '<br/>'))
+}
+
+function read(normalized: string, authored: string): { text: string; content?: LabelContent } {
+  const text = decodeMermaidEntities(normalized, STATE_ENTITY_REFUSAL)
+  if (!/#\w+;/.test(authored)) return { text }
+  const prepared = replaceDisplayTextTokens(prepareDisplayText(normalized), ENTITY_CODE, decodeStateEntity)
+  return { text, content: Object.freeze({ value: text, prepared, authored }) }
+}
+
+/**
+ * Write State text so that Mermaid and ours read `text` back: as written
+ * while `content` still describes it, else with `#`, a backslash before `n`
+ * and the `reserved` characters spelled as entity codes. Line breaks stay
+ * `\n`; a label's writer spells them `<br/>`.
+ */
+export function writeStateText(text: string, content?: LabelContent, reserved = ''): string {
+  const authored = content?.value === text ? content.authored : undefined
+  if (authored !== undefined && ![...reserved].some(character => authored.includes(character))) {
+    return encodeMermaidAuthoredEntities(authored, reserved)
+  }
+  return encodeMermaidEntities(text, reserved).replace(/\\(?=n)/g, '#92;')
+}

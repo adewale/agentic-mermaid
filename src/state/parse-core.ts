@@ -15,7 +15,6 @@
 // and the statements on the lines (readStateStatements, at the end).
 // ============================================================================
 
-import { normalizeBrTags } from '../multiline-utils.ts'
 import { STATE_NOTE_OPEN_RE, STATE_NOTE_OPEN_TEXT_RE, STATE_NOTE_END_RE, scanStateComments, type StateSourceLine } from './comment.ts'
 
 export type StateNoteSide = 'left' | 'right'
@@ -93,12 +92,6 @@ export function matchNoteOpen(line: string): StateNoteOpenMatch | null {
   return { side: m[1]!.toLowerCase() as StateNoteSide, target: m[2]! }
 }
 
-/** A note's text from its body lines (one for a single-line note). Note text
- *  is a label like any other: `<br>` breaks it and markdown-lite emphasis
- *  formats it, as upstream's note nodes do, whichever form wrote it. */
-export function stateNoteText(bodyLines: readonly string[]): string {
-  return normalizeBrTags(bodyLines.join('\n'))
-}
 
 /** `end note` — closes a block note. */
 export function isNoteEnd(line: string): boolean {

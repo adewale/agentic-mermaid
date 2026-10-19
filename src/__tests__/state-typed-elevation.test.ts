@@ -393,6 +393,38 @@ stateDiagram-v2
     expect(apply(diagram, { kind: 'set_state_class', id: 'A', className: 'd' }).body.states.find(node => node.id === 'A')?.className).toBe('d')
   })
 
+  test('reads Mermaid entity codes in State text, and writes them back as Mermaid reads them', async () => {
+    const source = 'stateDiagram-v2\n  state "I #9829; states" as A\n  A : x #lt;b#gt;y#lt;/b#gt;\n  A --> B : t #35;1\n  note right of B : n #quot;q#quot;'
+    const diagram = state(source)
+    expect(diagram.body.states.find(node => node.id === 'A')?.label).toBe('I ♥ states\nx <b>y</b>')
+    expect(diagram.body.transitions[0]?.label).toBe('t #1')
+    expect(diagram.body.notes?.[0]?.text).toBe('n "q"')
+    const graph = parseRenderGraph(source)
+    expect([graph.nodes.get('A')?.label, graph.edges[0]?.label, graph.stateNotes?.[0]?.text]).toEqual(['I ♥ states\nx <b>y</b>', 't #1', 'n "q"'])
+    // An entity-produced tag is text, not formatting.
+    expect(renderMermaidSVG(source)).toContain('x &lt;b&gt;y&lt;/b&gt;')
+    const serialized = serializeMermaid(diagram)
+    expect(state(serialized).body).toEqual(diagram.body)
+    // Text an edit gives is literal: its `#` is written so it stays one.
+    const edited = apply(diagram, { kind: 'set_state_label', id: 'B', label: 'C#35; sharp' })
+    expect(state(serializeMermaid(edited)).body.states.find(node => node.id === 'B')?.label).toBe('C#35; sharp')
+    const upstream = startUpstreamMermaid()
+    try {
+      // A label and the descriptions under it, which ours writes as one label.
+      const text = (mermaid: { db: any }) => {
+        const data = mermaid.db.getData()
+        return [...data.nodes.map((node: { id: string; label: string; description?: string[] }) => [node.id, [node.label, ...node.description ?? []].join('<br/>')]), ...data.edges.map((edge: { label: unknown }) => edge.label)]
+      }
+      const [original, written, writtenEdit] = await upstream.projectAll([source, serialized, serializeMermaid(edited)], text)
+      expect(written).toEqual(original)
+      expect(writtenEdit).toContainEqual(['B', 'Cﬂ°°35¶ß35; sharp'])
+      // A `"` in the label of a state written `state "…" as X` is `#quot;`.
+      const quoted = state('stateDiagram-v2\n  default : x"y')
+      expect(quoted.body.states[0]?.label).toBe('x"y')
+      expect(await upstream.projectAll([serializeMermaid(quoted)], text)).toEqual([[['default', 'xﬂ°quot¶ßy']]])
+    } finally { upstream.close() }
+  })
+
   test('a class named like an Object.prototype key is an ordinary class', () => {
     const parsed = state('stateDiagram-v2\n  classDef __proto__ fill:#ff0000\n  A:::__proto__')
     const defined = apply(state('stateDiagram-v2\n  A:::__proto__'), { kind: 'define_class', name: '__proto__', style: 'fill:#0000ff' })

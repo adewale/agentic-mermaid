@@ -615,8 +615,11 @@ export interface GanttBody {
  */
 export interface StateNode {
   id: string
-  /** Optional display label (`state "Label" as id` / `id : Label`). */
+  /** Optional display label (`state "Label" as id` / `id : Label`), its
+   *  Mermaid entity codes (`#35;`) read. */
   label?: string
+  /** The label as written, while `label` still holds what it reads. */
+  labelContent?: LabelContent
   /** Authored/synthesized standalone declaration; implicit transition endpoints omit it. */
   declaredBare?: true
   /** Pseudostate stereotype (`state id <<fork|join|choice|history|…>>`) —
@@ -659,6 +662,8 @@ export interface StateTransition {
   /** classDef name on a `[*]` or history `to` (`A --> [*]:::hot`). */
   toClass?: string
   label?: string
+  /** The label as written, while `label` still holds what it reads. */
+  labelContent?: LabelContent
   /** Inline edge paint represented canonically as a linkStyle directive. */
   style?: Record<string, string>
 }
@@ -673,6 +678,8 @@ export interface StateNote {
   side: 'left' | 'right'
   /** Note text; multi-line text serializes as the block form (`end note`). */
   text: string
+  /** The text as written, while `text` still holds what it reads. */
+  textContent?: LabelContent
 }
 
 export interface StateBody {
