@@ -8,6 +8,7 @@ import { verifyMermaid } from '../agent/verify.ts'
 import { renderMermaidSVG, renderMermaidASCII } from '../index.ts'
 import { describeMermaidFacts } from '../agent/facts.ts'
 import { startUpstreamMermaid } from './helpers/upstream-mermaid.ts'
+import { projectEntityMarkers } from '../shared/mermaid-entity-display.ts'
 
 function state(source: string): StateValidDiagram {
   const parsed = parseMermaid(source)
@@ -422,6 +423,28 @@ stateDiagram-v2
       const quoted = state('stateDiagram-v2\n  default : x"y')
       expect(quoted.body.states[0]?.label).toBe('x"y')
       expect(await upstream.projectAll([serializeMermaid(quoted)], text)).toEqual([[['default', 'xﬂ°quot¶ßy']]])
+    } finally { upstream.close() }
+  })
+
+  test('writes a `;` or a colon run in a description or label so Mermaid reads the whole text', async () => {
+    // Mermaid's description token ends at `;`, at `::` and at a final `:`.
+    const labels = ['a; b', 'a::b', 'ends:', 'x # y; z', 'classDef x:y; z']
+    const sources = [
+      ...['a; b', 'a::b', 'ends:', 'x #35; y; z', 'classDef x:y; z'].map(text => `stateDiagram-v2\n  A --> B : ${text}`),
+      'stateDiagram-v2\n  A : say "hi"; ok',
+    ]
+    const written = sources.map(source => serializeMermaid(state(source)))
+    expect(sources.map(source => { const body = state(source).body; return body.transitions[0]?.label ?? body.states[0]?.label }))
+      .toEqual([...labels, 'say "hi"; ok'])
+    expect(written.map(source => { const body = state(source).body; return body.transitions[0]?.label ?? body.states[0]?.label }))
+      .toEqual([...labels, 'say "hi"; ok'])
+    const upstream = startUpstreamMermaid()
+    try {
+      const read = await upstream.projectAll(written, mermaid => {
+        const data = mermaid.db.getData()
+        return data.edges[0]?.label ?? data.nodes.find((node: { id: string }) => node.id === 'A').label
+      })
+      expect(read.map(text => projectEntityMarkers(text))).toEqual([...labels, 'say "hi"; ok'])
     } finally { upstream.close() }
   })
 

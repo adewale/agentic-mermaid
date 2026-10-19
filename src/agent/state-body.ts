@@ -51,7 +51,7 @@ import type {
 import { ok, err } from './types.ts'
 import { labelOverflowCollector } from './body-utils.ts'
 import { normalizeBrTags } from '../multiline-utils.ts'
-import { readStateLabel, readStateText, writeStateText } from '../state/text.ts'
+import { readStateLabel, readStateText, writeStateDescription, writeStateText } from '../state/text.ts'
 import type { LabelContent } from '../shared/display-text.ts'
 import { parseAccessibilityDirective, scanAccessibilityDirectives, statementEndAt } from '../shared/accessibility-directives.ts'
 import {
@@ -489,6 +489,11 @@ function describedApart(s: StateNode): boolean {
   return (s.label?.includes('"') ?? false) && hasBareSpelling(s.id)
 }
 
+/** `line` and the description or transition label after it. */
+function describe(line: string, label: string, content?: LabelContent): string {
+  return line + writeStateDescription(label, content, line)
+}
+
 /** A label as written in source: its line breaks as `<br/>`. */
 function serializeStateLabel(label: string, content?: LabelContent, reserved = ''): string {
   return writeStateText(label, content, reserved).replace(/\r\n?|\n/g, '<br/>')
@@ -501,7 +506,7 @@ function renderScope(states: StateNode[], transitions: StateTransition[], direct
     if (s.states !== undefined || s.transitions !== undefined || s.regions !== undefined) {
       // Composite block (ordinary or `--`-partitioned concurrency regions).
       const separateDescription = describedApart(s)
-      if (separateDescription) out.push(`${indent}${s.id}: ${serializeStateLabel(s.label!, s.labelContent)}`)
+      if (separateDescription) out.push(describe(`${indent}${s.id}: `, s.label!, s.labelContent))
       const header = s.label !== undefined && !separateDescription ? `state "${serializeStateLabel(s.label, s.labelContent, '"')}" as ${s.id} {` : `state ${s.id} {`
       out.push(`${indent}${header}`)
       if (s.regions) {
@@ -520,11 +525,11 @@ function renderScope(states: StateNode[], transitions: StateTransition[], direct
       const separateDescription = describedApart(s)
       const alias = s.label !== undefined && !separateDescription ? `"${serializeStateLabel(s.label, s.labelContent, '"')}" as ` : ''
       out.push(`${indent}state ${alias}${s.id} ${stereotypeMarker(s.stereotype)}`)
-      if (separateDescription) out.push(`${indent}${s.id}: ${serializeStateLabel(s.label!, s.labelContent)}`)
+      if (separateDescription) out.push(describe(`${indent}${s.id}: `, s.label!, s.labelContent))
     } else if (s.label !== undefined) {
       out.push(isCompositeId(s.id) && !describedApart(s)
         ? `${indent}state "${serializeStateLabel(s.label, s.labelContent, '"')}" as ${s.id}`
-        : `${indent}${s.id}: ${serializeStateLabel(s.label, s.labelContent)}`)
+        : describe(`${indent}${s.id}: `, s.label, s.labelContent))
     } else if (s.declaredBare) {
       out.push(`${indent}${hasBareSpelling(s.id) ? s.id : `state "${s.id}" as ${s.id}`}`)
     }
@@ -533,9 +538,9 @@ function renderScope(states: StateNode[], transitions: StateTransition[], direct
   for (const t of transitions) {
     // `state` followed by whitespace enters Mermaid's declaration lexer.
     const separator = /^state$/i.test(t.to) ? ':' : ' :'
-    const label = t.label !== undefined ? `${separator} ${serializeStateLabel(t.label, t.labelContent)}` : ''
     const endpoint = (id: string, className: string | undefined): string => className === undefined ? id : `${id}:::${className}`
-    out.push(`${indent}${endpoint(t.from, t.fromClass)} --> ${endpoint(t.to, t.toClass)}${label}`)
+    const arrow = `${indent}${endpoint(t.from, t.fromClass)} --> ${endpoint(t.to, t.toClass)}`
+    out.push(t.label !== undefined ? describe(`${arrow}${separator} `, t.label, t.labelContent) : arrow)
   }
 }
 

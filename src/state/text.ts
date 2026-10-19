@@ -16,7 +16,7 @@
 // ============================================================================
 
 import { normalizeBrTags } from '../multiline-utils.ts'
-import { encodeMermaidAuthoredEntities, encodeMermaidEntities } from '../shared/mermaid-entities.ts'
+import { encodeMermaidAuthoredEntities, encodeMermaidEntities, mermaidEntityPrepass } from '../shared/mermaid-entities.ts'
 import { decodeMermaidEntities, type EntityRefusal } from '../shared/mermaid-entity-display.ts'
 import { prepareDisplayText, replaceDisplayTextTokens, type LabelContent } from '../shared/display-text.ts'
 
@@ -54,8 +54,21 @@ function read(normalized: string, authored: string): { text: string; content?: L
  */
 export function writeStateText(text: string, content?: LabelContent, reserved = ''): string {
   const authored = content?.value === text ? content.authored : undefined
-  if (authored !== undefined && ![...reserved].some(character => authored.includes(character))) {
+  // A quoted label's `"` is read as quoting, which `#quot;` would not be.
+  if (authored !== undefined && !(reserved.includes('"') && authored.includes('"'))) {
     return encodeMermaidAuthoredEntities(authored, reserved)
   }
   return encodeMermaidEntities(text, reserved).replace(/\\(?=n)/g, '#92;')
+}
+
+/**
+ * Write the text after a description or transition-label colon, after
+ * `line` on its line. Mermaid's DESCR token ends at a `;`, at a `:` another
+ * follows and at a final `:`, so those are written as entity codes; where
+ * upstream's style/classDef prepass would strip a `;` from the line, every
+ * colon of the text is, as the Sequence writer does.
+ */
+export function writeStateDescription(text: string, content: LabelContent | undefined, line: string): string {
+  const written = writeStateText(text, content, ';').replace(/\r\n?|\n/g, '<br/>').replace(/:(?=:|$)/g, '#58;')
+  return mermaidEntityPrepass(line + written) === line + written ? written : written.replace(/:/g, '#58;')
 }
