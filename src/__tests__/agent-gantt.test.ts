@@ -169,6 +169,21 @@ describe('gantt structured parse', () => {
     expect(out.indexOf('dateFormat')).toBeLessThan(out.indexOf('section Build'))
   })
 
+  // Mermaid reads the href only on the line after the task id; ours also
+  // reads it after blank or comment lines, which the renderer never sees.
+  test.each([
+    ['the next line', ['  click a1', '    href "https://x.y"']],
+    ['a line after a blank line', ['  click a1', '', '    href "https://x.y"']],
+    ['a line after a comment', ['  click a1', '  %% note', '    href "https://x.y"']],
+  ])('a click whose href starts %s renders and rides along as one statement', (_where, click) => {
+    const source = `gantt\n  dateFormat YYYY-MM-DD\n  section S\n  Task :a1, 2024-01-01, 3d\n${click.join('\n')}\n  Next :a2, after a1, 1d\n`
+    const d = gantt(source)
+    expect(d.body.sections[0]!.tasks.map(task => task.label)).toEqual(['Task', 'Next'])
+    expect(d.body.statements!.filter(s => s.kind === 'opaque-block').at(-1)).toEqual({ kind: 'opaque-block', lines: click })
+    expect(serializeMermaid(d)).toContain(`${click.join('\n')}\n`)
+    expect(verifyMermaid(d).warnings).toEqual([])
+  })
+
   test('serialize is idempotent and bodies are equal across cycles', () => {
     const d = gantt()
     const s1 = serializeMermaid(d)

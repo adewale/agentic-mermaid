@@ -114,6 +114,22 @@ const DIRECTIVE_RES = {
   click: /^click\s+([\w-]+)\s+(href|call)\s+(.+)$/i,
 } as const
 
+// Mermaid's lexer takes the line break after a click's task id with the id,
+// so its href or call may start the next line. Ours also reads it after blank
+// and comment lines: the normalized line view the renderer reads has dropped
+// them, so the lossless body must read past them too to agree with it.
+const CLICK_TASK_RE = /^click\s+[\w-]+$/i
+const CLICK_ACTION_RE = /^(?:href|call)\s/i
+
+/** The line holding the href or call of the `click <id>` on `lines[index]`,
+ * or -1 when that click is complete or has none. */
+function ganttClickActionLine(lines: readonly string[], index: number): number {
+  if (!CLICK_TASK_RE.test(lines[index]!.trim())) return -1
+  let next = index + 1
+  while (next < lines.length && (!lines[next]!.trim() || lines[next]!.trim().startsWith('%%'))) next++
+  return next < lines.length && CLICK_ACTION_RE.test(lines[next]!.trim()) ? next : -1
+}
+
 type GanttSyntax =
   | { kind: 'comment' | 'blank' }
   | { kind: 'accessibility'; directive: ParsedAccessibilityDirective }
@@ -138,8 +154,8 @@ export function readGanttStatements(lines: readonly string[]): GanttSourceStatem
   for (let index = 0; index < lines.length; index++) {
     const start = index
     const rawLine = lines[index]!
-    const line = rawLine.trim()
-    const append = (syntax: GanttSyntax, raw = [rawLine]): void => {
+    let line = rawLine.trim()
+    const append = (syntax: GanttSyntax, raw = lines.slice(start, index + 1)): void => {
       const valueColumn = syntax.kind === 'section' || syntax.kind === 'title'
         ? rawLine.indexOf(syntax.value, rawLine.search(/\S/) + syntax.kind.length) + 1
         : undefined
@@ -169,6 +185,11 @@ export function readGanttStatements(lines: readonly string[]): GanttSourceStatem
           valueColumn: statement.valueColumn === undefined ? undefined : statement.valueColumn + offset })))
       }
       continue
+    }
+    const action = ganttClickActionLine(lines, index)
+    if (action > index) {
+      index = action
+      line = `${line}\n${lines[index]!.trim()}`
     }
     let matched = false
     for (const [name, pattern] of Object.entries(DIRECTIVE_RES)) {
