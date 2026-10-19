@@ -73,6 +73,18 @@ test('ASCII fitting preserves entity and transformed source spans and falls back
     const options = { fontSize: 13, fontWeight: 400, maxWidth }
     expect(experiments(['text-spans'], () => preparePixelText(source, options))).toEqual(experiments([], () => preparePixelText(source, options)))
   }
+  for (const offset of [0.5, -10, 2 ** 32 + 100]) {
+    const text = 'ABCDEFGHIJKLM'
+    const source: PreparedDisplayText = {
+      source: text, display: 'literal', lineStarts: [0],
+      lines: [[{ text, bold: false, italic: false, underline: false, strikethrough: false, sourceStart: offset, sourceEnd: offset + text.length,
+        clusters: Array.from(text, (text, index) => ({ text, sourceStart: offset + index, sourceEnd: offset + index + 1 })) }]],
+    }
+    const options = { fontSize: 12, fontWeight: 400, maxWidth: 30 }
+    const result = experiments(['text-spans'], () => preparePixelText(source, options))
+    expect(result.breaks.map(value => value.sourceOffset)).toEqual([offset + 3, offset + 6, offset + 9, offset + 12])
+    expect(result).toEqual(experiments([], () => preparePixelText(source, options)))
+  }
 })
 
 test('ASCII fitting retains general shaping for styled, tracked, monospace and custom-metric wrapping', () => {
