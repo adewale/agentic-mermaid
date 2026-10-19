@@ -123,6 +123,10 @@ describe('normalizeMermaidSource', () => {
     ['pie showData "a": 1', 'pie showData\n"a": 1'],
     ['xychart-beta horizontal title "T"\nbar [1, 2]', 'xychart-beta horizontal\ntitle "T"\nbar [1, 2]'],
     ['radar-beta axis a, b\ncurve x{1, 2}', 'radar-beta\naxis a, b\ncurve x{1, 2}'],
+    ['radar-beta:axis a, b\ncurve x{1, 2}', 'radar-beta:\naxis a, b\ncurve x{1, 2}'],
+    ['gitGraph:commit\ncommit', 'gitGraph:\ncommit\ncommit'],
+    // A Mindmap root's leading whitespace is its level.
+    ['mindmap root\n  a', 'mindmap\n root\n  a'],
     ['erDiagram subgraph S\nA\nend', 'erDiagram\nsubgraph S\nA\nend'],
   ])('%j reads its header-line statement as a line of its own', (oneLine, twoLines) => {
     expect(normalizeMermaidSource(oneLine).familyLines).toEqual(normalizeMermaidSource(twoLines).familyLines)
@@ -131,6 +135,20 @@ describe('normalizeMermaidSource', () => {
     if (!parsed.ok || !expected.ok) throw new Error(JSON.stringify(parsed.ok ? expected : parsed))
     expect(parsed.value.body.kind).not.toBe('opaque')
     expect(parsed.value.body).toEqual(expected.value.body)
+  })
+
+  // Mermaid rejects these, so the statement is not read off the header line.
+  it.each([
+    'erDiagram direction LR\n  A ||--o{ B : r',
+    'stateDiagram-v2 direction TB\n  A',
+    'stateDiagram-v2 A --> B : direction LR',
+    'gitGraph LR commit\n  commit',
+    'erDiagram&#32;A ||--o{ B : r',
+    'pie&#32;"a": 1',
+    'mindmap  root\n  a',
+  ])('%j is no typed diagram', source => {
+    const parsed = parseRegisteredMermaid(source)
+    expect(parsed.ok && !['opaque', 'preserved'].includes(parsed.value.body.kind) ? parsed.value.body.kind : 'untyped').toBe('untyped')
   })
 
   it('leaves an unclosed accessibility block visible to family error handling', () => {

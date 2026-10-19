@@ -99,11 +99,20 @@ export function splitHeaderStatement(body: string): string {
   const at = lines.findIndex(line => line.trim() !== '' && !line.trim().startsWith('%%'))
   const header = at < 0 ? null : HEADER_WITH_STATEMENT_RE.exec(lines[at]!)
   const statement = header ? lines[at]!.slice(header[0].length) : ''
+  if (!header || !statement.trim()) return body
+  // Mermaid rejects these, so they stay on the header line, unread, as
+  // before: a direction on an ER or State header line (its `.*direction`
+  // rule takes the whole line) and a gitGraph direction without its `:`.
+  if (/^\s*(?:erDiagram|stateDiagram)/i.test(header[0]) && /direction\s+(?:TB|BT|LR|RL)/i.test(statement)) return body
+  if (/^\s*gitGraph\s+(?:LR|TB|BT)$/i.test(header[0])) return body
   // State also moves a statement after `;`, which pinned Mermaid rejects; the
-  // State reader keeps the `;` as a separator and verify reports it.
-  const stateSemicolon = header !== null && /^\s*stateDiagram/i.test(header[0]) && /^[^\S\r\n]*;/.test(statement)
-  if (!header || !(stateSemicolon || /^[^\S\r\n]+(?!%%)\S/.test(statement))) return body
-  lines.splice(at, 1, header[0], statement.trim())
+  // State reader keeps the `;` as a separator and verify reports it. After a
+  // header's `:` no space is needed (`gitGraph:commit`).
+  const stateSemicolon = /^\s*stateDiagram/i.test(header[0]) && /^[^\S\r\n]*;/.test(statement)
+  const separated = header[0].endsWith(':') ? /^[^\S\r\n]*(?!%%)\S/ : /^[^\S\r\n]+(?!%%)\S/
+  if (!stateSemicolon && !separated.test(statement)) return body
+  // A Mindmap root keeps its leading whitespace, which is its level.
+  lines.splice(at, 1, header[0], /^\s*mindmap/i.test(header[0]) ? statement.trimEnd() : statement.trim())
   return lines.join('\n')
 }
 

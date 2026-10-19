@@ -144,10 +144,13 @@ function semanticFamilyLineSource(
   const headerStart = lineStart + relativeStart
   const headerEnd = headerStart + authoredHeader.length
   // Pie permits an inline title in its header. Decode only the grammar
-  // prefix, even when XML references spell its whitespace or letters.
+  // prefix, even when XML references spell its whitespace or letters. An
+  // entity-spelled space after a header is no separator (Mermaid rejects
+  // `erDiagram&#32;A`), so decoding must not make it one.
+  const decodedHeader = decodeXML(authoredHeader)
   const semanticHeader = pieInlineTitle
     ? `${pieInlineTitle.decodedPrefix}${pieInlineTitle.authoredTitle}`
-    : decodeXML(authoredHeader)
+    : splitHeaderStatement(decodedHeader) === decodedHeader ? decodedHeader : authoredHeader
   return {
     source: semanticHeader === authoredHeader
       ? routedSource
