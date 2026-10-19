@@ -6,7 +6,7 @@ import {
   requireClosedAccessibility,
   scanAccessibilityDirectives,
 } from '../shared/accessibility-directives.ts'
-import { stripTrailingComment } from '../shared/trailing-comment.ts'
+import { joinQuotedTextLines, stripTrailingComment, type QuotedTextRule } from '../shared/trailing-comment.ts'
 import { parserObservationActive, observeParserStatement, observeParserMutation } from '../shared/parser-observation.ts'
 
 // ============================================================================
@@ -34,6 +34,9 @@ const QUOTED_TOKEN = String.raw`(?:"(?:\\.|[^"\\])*"|'(?:\\.|[^'\\])*')`
 const ID_LABEL_RE = new RegExp(String.raw`^(${ID_TOKEN})\s*(?:\[\s*(${QUOTED_TOKEN})\s*\])?$`)
 const CURVE_ITEM_RE = new RegExp(String.raw`^(${ID_TOKEN})\s*(?:\[\s*(${QUOTED_TOKEN})\s*\])?\s*\{([\s\S]*)\}$`)
 const KEYED_ENTRY_RE = new RegExp(String.raw`^(${ID_TOKEN})(?:\s*:\s*|\s+)(.+)$`)
+/** A "…" or '…' label runs to its closing quote across line breaks; a title
+ * or accessibility directive runs to the end of its line. */
+const RADAR_QUOTED_TEXT: QuotedTextRule = { spanning: `"'`, wholeLine: line => /^(?:title|accTitle|accDescr)(?=[\s:{]|$)/i.test(line) }
 
 export interface RadarParseOptions {
   /** YAML frontmatter title. An in-body `title` statement wins when present. */
@@ -293,9 +296,12 @@ function parseCurveItem(item: string, axes: RadarAxis[]): RadarCurve {
 /** Parse Mermaid radar source after wrapper normalization/comment extraction. */
 export function parseRadarChart(lines: string[], options: RadarParseOptions = {}): RadarChart {
   // Mermaid's hidden SINGLE_LINE_COMMENT token applies after every statement,
-  // including title/accessibility free text and multiline curve blocks. Apply
-  // that family rule first, then let the universal scanner own accessibility.
-  const scanned = scanAccessibilityDirectives(lines.join('\n').split(/\r?\n/).map(stripTrailingComment))
+  // including title/accessibility free text and multiline curve blocks, but
+  // not inside a quoted label, which runs to its closing quote across line
+  // breaks. Apply that family rule first, then let the universal scanner own
+  // accessibility.
+  const physical = joinQuotedTextLines(lines.join('\n').split(/\r?\n/), RADAR_QUOTED_TEXT)
+  const scanned = scanAccessibilityDirectives(physical.map(stripTrailingComment))
   requireClosedAccessibility(scanned)
   const source = scanned.familyLines.join('\n').trimStart()
   if (!source) throw new Error('Radar chart is empty')
