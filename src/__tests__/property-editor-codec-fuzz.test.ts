@@ -10,6 +10,7 @@ import { describe, expect, it } from 'bun:test'
 import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import fc from 'fast-check'
+import { fcParameters } from './helpers/fc-parameters.ts'
 
 import { SHARED_RENDER_OPTION_FIELDS } from '../render-contract.ts'
 
@@ -113,7 +114,7 @@ describe('editor-codec fuzz: decodeSource is total', () => {
       } else {
         expect(api.hashDecodeFailure).toBeNull()
       }
-    }), { numRuns: NUM_RUNS })
+    }), fcParameters({ numRuns: NUM_RUNS }))
   }, 60_000)
 })
 
@@ -126,7 +127,7 @@ describe('editor-codec fuzz: encode -> decode round-trip', () => {
       const decoded = await api.decodeSource(encoded)
       expect(decoded).toBe(src)
       expect(api.hashDecodeFailure).toBeNull()
-    }), { numRuns: NUM_RUNS })
+    }), fcParameters({ numRuns: NUM_RUNS }))
   }, 60_000)
 
   it('full share-hash JSON round-trips source, and getHashSource never throws', async () => {
@@ -137,7 +138,7 @@ describe('editor-codec fuzz: encode -> decode round-trip', () => {
       ;(window.location as { hash: string }).hash = '#' + encoded
       const recovered = await api.getHashSource()
       expect(recovered).toBe(src)
-    }), { numRuns: NUM_RUNS })
+    }), fcParameters({ numRuns: NUM_RUNS }))
   }, 60_000)
 })
 
@@ -169,7 +170,7 @@ describe('editor-codec fuzz: sanitizeEditorConfig allowlist', () => {
         // ...and must never be an editor-host-owned policy field (SEC-1).
         expect(EDITOR_OWNED.has(key)).toBe(false)
       }
-    }), { numRuns: NUM_RUNS })
+    }), fcParameters({ numRuns: NUM_RUNS }))
   })
 
   it('share appearance is a complete snapshot and cannot inherit recipient state', async () => {
@@ -229,6 +230,6 @@ describe('editor-codec fuzz: draft persistence round-trip', () => {
       // Inputs are short and never blank, so every draft is within the cap and
       // must restore.
       expect(draft?.source).toBe(editor.value)
-    }), { numRuns: NUM_RUNS })
+    }), fcParameters({ numRuns: NUM_RUNS }))
   })
 })

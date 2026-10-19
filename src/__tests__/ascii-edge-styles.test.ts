@@ -4,6 +4,7 @@
 
 import { describe, it, expect } from 'bun:test'
 import fc from 'fast-check'
+import { fcParameters } from './helpers/fc-parameters.ts'
 import { renderMermaidASCII } from '../ascii/index.ts'
 
 function rowContaining(rendered: string, ...tokens: string[]): string {
@@ -75,7 +76,7 @@ describe('ASCII edge styles', () => {
             return true
           },
         ),
-        { numRuns: 500 },
+        fcParameters({ numRuns: 500 }),
       )
     })
   })

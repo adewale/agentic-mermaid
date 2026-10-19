@@ -8,6 +8,7 @@
 
 import { describe, test, expect } from 'bun:test'
 import fc from 'fast-check'
+import { fcParameters } from './helpers/fc-parameters.ts'
 import { contrastTextColor } from '../color-resolver.ts'
 import { renderMermaidSVG } from '../index.ts'
 import { wcagContrastRatio } from '../shared/color-math.ts'
@@ -73,14 +74,14 @@ describe('auto-contrast ink contract', () => {
       const ink = contrastTextColor(fill)!
       const other = ink === '#000000' ? '#FFFFFF' : '#000000'
       expect(wcagContrastRatio(ink, fill)!).toBeGreaterThanOrEqual(Math.max(4.5, wcagContrastRatio(other, fill)!))
-    }), { numRuns: 2000 })
+    }), fcParameters({ numRuns: 2000 }))
   })
 
   test('node text on a custom fill clears WCAG AA end to end', () => {
     fc.assert(fc.property(hexArb, fill => {
       const svg = renderMermaidSVG(`flowchart TD\n  A\n  style A fill:${fill}`)
       expect(wcagContrastRatio(firstTextFill(svg)!, fill)!).toBeGreaterThanOrEqual(4.5)
-    }), { numRuns: 60 })
+    }), fcParameters({ numRuns: 60 }))
   })
 })
 

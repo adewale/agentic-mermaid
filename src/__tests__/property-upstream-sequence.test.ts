@@ -19,6 +19,7 @@
 
 import { afterAll, beforeAll, describe, expect, test } from 'bun:test'
 import fc from 'fast-check'
+import { fcParameters } from './helpers/fc-parameters.ts'
 import { asSequence, describeMermaidFacts, mutate, parseRegisteredMermaid, serializeMermaid } from '../agent/index.ts'
 import { countStructuralElements } from '../agent/structural-count.ts'
 import type { SequenceBody, SequenceMessage, SequenceMutationOp } from '../agent/types.ts'
@@ -314,7 +315,7 @@ describe('sequence grammar differential against pinned upstream Mermaid', () => 
         expect({ output, ours: ours(parseOurs(output)), upstream: upstreamRelabelled.ok ? relabelledProjection(theirs(upstreamRelabelled)) : upstreamRelabelled.error })
           .toEqual({ output, ours: expect.objectContaining({ participants, links: expected.links }), upstream: { participants, linksOursMisses: [] } })
       }),
-      { numRuns: 100 },
+      fcParameters({ numRuns: 100 }),
     )
   }, 20_000)
 
@@ -389,7 +390,7 @@ describe('sequence grammar differential against pinned upstream Mermaid', () => 
         expect({ op, output, ours: { participants: reparsed.participants, links: reparsed.links }, upstream: upstreamParse.ok ? { participants: theirs(upstreamParse).participants, linksOursMisses: linksOursMisses(theirs(upstreamParse).links, expected.links) } : upstreamParse.error })
           .toEqual({ op, output, ours: expected, upstream: { participants: expected.participants, linksOursMisses: [] } })
       }),
-      { numRuns: 150 },
+      fcParameters({ numRuns: 150 }),
     )
   }, 30_000)
 

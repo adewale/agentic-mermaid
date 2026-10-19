@@ -5,6 +5,7 @@
 // hold fixed sources to every style; this varies the structure and the title.
 import { beforeAll, describe, expect, it } from 'bun:test'
 import fc from 'fast-check'
+import { fcParameters } from './helpers/fc-parameters.ts'
 import { decodeXML } from 'entities'
 import { renderMermaidSVG } from '../index.ts'
 
@@ -34,13 +35,13 @@ describe('chart honesty: generated diagrams with random titles', () => {
           const sample = { name: `k=${k}`, source: `---\ntitle: ${JSON.stringify(title)}\n---\n${untitled(family.build(k, 'n'))}`, expectText: [title] }
           expect(describeViolations(kind, sample, textHonestyViolations(sample, [style]))).toEqual([])
         }),
-        {
+        fcParameters({
           numRuns: fc.readConfigureGlobal().numRuns ?? 6,
           // Nightly finder #362: the one-line title exceeded the fixed canvas.
           examples: kind === 'xychart'
             ? [[1, 'Quarterly Quarterly Quarterly Quarterly Quarterly Quarterly Quarterly Quarterly', undefined]]
             : [],
-        },
+        }),
       )
     }, 120_000)
 

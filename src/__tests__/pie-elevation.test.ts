@@ -25,6 +25,7 @@
 
 import { describe, it, expect } from 'bun:test'
 import fc from 'fast-check'
+import { fcParameters } from './helpers/fc-parameters.ts'
 import { parsePieChart } from '../pie/parser.ts'
 import {
   layoutPieChart,
@@ -197,7 +198,7 @@ describe('pie on-slice percentage labels', () => {
           }
         },
       ),
-      { numRuns: 80 },
+      fcParameters({ numRuns: 80 }),
     )
   })
 })

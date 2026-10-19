@@ -11,6 +11,7 @@
  */
 import { describe, it, expect } from 'bun:test'
 import fc from 'fast-check'
+import { fcParameters } from './helpers/fc-parameters.ts'
 import { spawnSync } from 'node:child_process'
 import { join } from 'node:path'
 import { parseMermaid } from '../parser.ts'
@@ -548,7 +549,7 @@ describe('parseMermaid – quoted shape labels and Unicode identifiers', () => {
         expect(graph.nodes.get('A')?.label).toBe(label.trim())
         expect(graph.edges).toHaveLength(1)
       },
-    ), { numRuns: 60 })
+    ), fcParameters({ numRuns: 60 }))
   })
 
   it('parses bare and shaped CJK identifiers without producing an empty graph', () => {

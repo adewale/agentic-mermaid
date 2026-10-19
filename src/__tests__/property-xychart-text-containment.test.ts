@@ -9,6 +9,7 @@
 // category label's descenders crossed it.
 import { describe, expect, it } from 'bun:test'
 import fc from 'fast-check'
+import { fcParameters } from './helpers/fc-parameters.ts'
 import { Resvg } from '@resvg/resvg-js'
 import { join } from 'node:path'
 
@@ -93,7 +94,7 @@ describe('xychart text stays on the canvas', () => {
         expect({ left: box.x >= -TOLERANCE, top: box.y >= -TOLERANCE, right: box.x + box.width <= width! + TOLERANCE, bottom: box.y + box.height <= height! + TOLERANCE })
           .toEqual({ left: true, top: true, right: true, bottom: true })
       }),
-      { numRuns: 150 },
+      fcParameters({ numRuns: 150 }),
     )
   })
 })

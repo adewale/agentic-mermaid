@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'bun:test'
 import fc from 'fast-check'
+import { fcParameters } from './helpers/fc-parameters.ts'
 
 import { toMermaidLines } from '../mermaid-source.ts'
 import { parseArchitectureDiagram } from '../architecture/parser.ts'
@@ -254,7 +255,7 @@ describe('property-based architecture layout bounds', () => {
           }
         }
       }),
-      { numRuns: PROPERTY_RUNS },
+      fcParameters({ numRuns: PROPERTY_RUNS }),
     )
   })
 
@@ -293,7 +294,7 @@ describe('property-based architecture layout bounds', () => {
           }
         }
       }),
-      { numRuns: PROPERTY_RUNS },
+      fcParameters({ numRuns: PROPERTY_RUNS }),
     )
   })
 
@@ -321,7 +322,7 @@ describe('property-based architecture layout bounds', () => {
           }
         }
       }),
-      { numRuns: PROPERTY_RUNS },
+      fcParameters({ numRuns: PROPERTY_RUNS }),
     )
   })
 })
@@ -377,7 +378,7 @@ describe('property-based sequence layout bounds', () => {
           expect(lifeline.bottomY >= lifeline.topY).toBe(true)
         }
       }),
-      { numRuns: PROPERTY_RUNS },
+      fcParameters({ numRuns: PROPERTY_RUNS }),
     )
   })
 
@@ -425,7 +426,7 @@ describe('property-based sequence layout bounds', () => {
           expect(note.height > 0).toBe(true)
         }
       }),
-      { numRuns: PROPERTY_RUNS },
+      fcParameters({ numRuns: PROPERTY_RUNS }),
     )
   })
 
@@ -460,7 +461,7 @@ describe('property-based sequence layout bounds', () => {
           expect(activation.bottomY >= activation.topY).toBe(true)
         }
       }),
-      { numRuns: PROPERTY_RUNS },
+      fcParameters({ numRuns: PROPERTY_RUNS }),
     )
   })
 })
@@ -543,7 +544,7 @@ describe('property-based timeline layout bounds', () => {
           }
         }
       }),
-      { numRuns: PROPERTY_RUNS },
+      fcParameters({ numRuns: PROPERTY_RUNS }),
     )
   })
 
@@ -583,7 +584,7 @@ describe('property-based timeline layout bounds', () => {
           }
         }
       }),
-      { numRuns: PROPERTY_RUNS },
+      fcParameters({ numRuns: PROPERTY_RUNS }),
     )
   })
 })
@@ -669,7 +670,7 @@ describe('property-based journey layout bounds', () => {
           }
         }
       }),
-      { numRuns: PROPERTY_RUNS },
+      fcParameters({ numRuns: PROPERTY_RUNS }),
     )
   })
 
@@ -706,7 +707,7 @@ describe('property-based journey layout bounds', () => {
           }
         }
       }),
-      { numRuns: PROPERTY_RUNS },
+      fcParameters({ numRuns: PROPERTY_RUNS }),
     )
   })
 })

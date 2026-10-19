@@ -6,6 +6,7 @@
 // meet the contract keep their exact bytes.
 import { describe, expect, it } from 'bun:test'
 import fc from 'fast-check'
+import { fcParameters } from './helpers/fc-parameters.ts'
 
 import { BUILTIN_PALETTE_DEFINITIONS } from '../palette-catalog.ts'
 import { renderMermaidSVG } from '../index.ts'
@@ -30,7 +31,7 @@ describe('peer-category palette contract', () => {
         if (count > 1) expect(minPairwiseDeltaEOK(colors)!).toBeGreaterThanOrEqual(MIN_DELTA_E)
         for (const color of colors) expect(visible(color, bg)).toBe(true)
       }),
-      { numRuns: 400 },
+      fcParameters({ numRuns: 400 }),
     )
   })
 
@@ -41,7 +42,7 @@ describe('peer-category palette contract', () => {
         const meets = (count < 2 || minPairwiseDeltaEOK(ladder)! >= MIN_DELTA_E) && ladder.every(color => visible(color, bg))
         if (meets) expect(categoricalPalette(count, { accent, bg })).toEqual(ladder)
       }),
-      { numRuns: 400 },
+      fcParameters({ numRuns: 400 }),
     )
   })
 

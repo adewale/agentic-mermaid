@@ -14,6 +14,7 @@
 // Seed is pinned globally (fc-seed.preload.ts).
 import { describe, expect, it } from 'bun:test'
 import fc from 'fast-check'
+import { fcParameters } from './helpers/fc-parameters.ts'
 
 import { validateOp, applyOps, mutateChecked, hasOpSchema, describeOps } from '../agent/core.ts'
 import { createMermaid } from '../agent/create.ts'
@@ -115,7 +116,7 @@ describe('op-boundary fuzz: validateOp', () => {
         // diagram. A shape rejection must never itself echo a bare "undefined".
         expect(r.message).not.toMatch(/\bclass undefined\b|\bnode undefined\b/)
       }
-    }), { numRuns: NUM_RUNS })
+    }), fcParameters({ numRuns: NUM_RUNS }))
   })
 })
 
@@ -141,7 +142,7 @@ describe('op-boundary fuzz: applyOps / mutateChecked', () => {
         expect(typeof env.error.message).toBe('string')
         expect(env.error.message.length).toBeGreaterThan(0)
       }
-    }), { numRuns: NUM_RUNS })
+    }), fcParameters({ numRuns: NUM_RUNS }))
     expect(appliedSeen).toBeGreaterThan(0)
     expect(shapeRejectedSeen).toBeGreaterThan(0)
   })
@@ -152,13 +153,13 @@ describe('op-boundary fuzz: applyOps / mutateChecked', () => {
       const r = mutateChecked(d, op)
       expect(typeof r.ok).toBe('boolean')
       if (!r.ok) expect(typeof r.error.message).toBe('string')
-    }), { numRuns: NUM_RUNS })
+    }), fcParameters({ numRuns: NUM_RUNS }))
   })
 
   it('applyOps is deterministic for identical input', () => {
     fc.assert(fc.property(familyArb, fc.array(opArb, { maxLength: 4 }), (family, ops) => {
       expect(applyOps({ family, ops })).toEqual(applyOps({ family, ops }))
-    }), { numRuns: NUM_RUNS })
+    }), fcParameters({ numRuns: NUM_RUNS }))
   })
 })
 
@@ -260,6 +261,6 @@ describe('op-boundary fuzz: hosted mutate/build handlers', () => {
         expect(typeof err.code).toBe('number')
         expect(typeof err.message).toBe('string')
       }
-    }), { numRuns: NUM_RUNS })
+    }), fcParameters({ numRuns: NUM_RUNS }))
   }, 60_000)
 })

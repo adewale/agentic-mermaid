@@ -13,6 +13,7 @@
 
 import { describe, expect, test } from 'bun:test'
 import fc from 'fast-check'
+import { fcParameters } from './helpers/fc-parameters.ts'
 import { asEr, describeMermaidFacts, mutate, parseRegisteredMermaid, serializeMermaid } from '../agent/index.ts'
 import type { ErCardinality, ErMutationOp, ErValidDiagram, ParsedDiagram } from '../agent/types.ts'
 
@@ -344,7 +345,7 @@ describe('ER typed editing API against a shadow model', () => {
       fc.property(fc.commands(commands, { maxCommands: 20, size: 'max' }), sequence => {
         fc.modelRun(() => ({ model: initialModel(), real: { diagram: initialDiagram() } }), sequence)
       }),
-      { numRuns: 100 },
+      fcParameters({ numRuns: 100 }),
     )
   })
 })

@@ -79,6 +79,11 @@ already catch it. Then:
   staleness checks, no tests of test helpers.
 - No copied inventories, manifests or export lists, no source greps, and no
   expected values produced by the code under test.
+- For property tests, apply the Hegel guidance in `docs/testing-strategy.md`
+  while keeping fast-check. Wrap explicit runner options with `fcParameters`
+  so finder/replay controls override local pins and raise case counts. Check
+  generated values against independent expectations, choose string domains
+  explicitly, and keep reduced counterexamples as `examples`.
 
 ### Don't commit derived artifacts
 

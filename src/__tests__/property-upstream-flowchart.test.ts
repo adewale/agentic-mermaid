@@ -15,6 +15,7 @@
 
 import { afterAll, beforeAll, describe, expect, test } from 'bun:test'
 import fc from 'fast-check'
+import { fcParameters } from './helpers/fc-parameters.ts'
 import { asFlowchart, type FlowchartMutationOp, mutate, parseRegisteredMermaid, serializeMermaid, verifyMermaid } from '../agent/index.ts'
 import { renderMermaidASCII, renderMermaidSVG } from '../index.ts'
 import { countStructuralElements } from '../agent/structural-count.ts'
@@ -299,7 +300,7 @@ describe('flowchart grammar differential against pinned upstream Mermaid', () =>
     expect(rewrittenByUpstreamPreprocess(untouched)).toBe(false)
     expect((await upstream.parse(untouched)).ok).toBe(true)
     // The seed reproduces such sources from the unfiltered grammar.
-    expect(fc.sample(sourceArb, { numRuns: 5000, seed: 7 }).filter(rewrittenByUpstreamPreprocess)).toEqual([])
+    expect(fc.sample(sourceArb, fcParameters({ numRuns: 5000, seed: 7 })).filter(rewrittenByUpstreamPreprocess)).toEqual([])
   })
 
   test('the #372 preprocessing witness stays readable and exports portably with a precise warning', async () => {
@@ -396,7 +397,7 @@ describe('flowchart grammar differential against pinned upstream Mermaid', () =>
         expect({ serialized, upstream: upstreamReparse.ok ? theirs(upstreamReparse) : upstreamReparse.error })
           .toEqual({ serialized, upstream: expected })
       }),
-      { numRuns: 100 },
+      fcParameters({ numRuns: 100 }),
     )
   }, 20_000)
 

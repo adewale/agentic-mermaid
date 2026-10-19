@@ -4,6 +4,7 @@
 
 import { describe, test, expect } from 'bun:test'
 import fc from 'fast-check'
+import { fcParameters } from './helpers/fc-parameters.ts'
 import { parseRegisteredMermaid as parseMermaid } from '../agent/parse.ts'
 import { serializeMermaid } from '../agent/serialize.ts'
 import { mutate } from '../agent/mutate.ts'
@@ -497,7 +498,7 @@ describe('journey round-trip property', () => {
           expect(serializeMermaid(d2)).toBe(out)
         },
       ),
-      { numRuns: 50 },
+      fcParameters({ numRuns: 50 }),
     )
   })
 })

@@ -16,6 +16,7 @@
 
 import { describe, expect, test } from 'bun:test'
 import fc from 'fast-check'
+import { fcParameters } from './helpers/fc-parameters.ts'
 import { layoutMermaid, parseRegisteredMermaid as parseMermaid, renderMermaidSVG } from '../agent/index.ts'
 import type { DiagramKind, ParsedDiagram } from '../agent/types.ts'
 import { CHANNEL_THEME_KEYS } from '../color-resolver.ts'
@@ -180,7 +181,7 @@ describe('MR5 colour invariance: colour inputs never move geometry', () => {
           expect(layoutMermaid(diagram, { ...colours, ...quiet })).toEqual(layoutMermaid(diagram, quiet))
           expect(geometry(renderMermaidSVG(source, { ...colours, ...quiet }))).toBe(geometry(renderMermaidSVG(source, quiet)))
         }),
-        { numRuns: 25 },
+        fcParameters({ numRuns: 25 }),
       )
     })
   }
@@ -243,7 +244,7 @@ describe('MR5b colour admission: an invalid painted colour is refused by name', 
           })
           expect(got).toEqual(paths.map(target => `${target.path}: ${target.painted ? 'refused by name' : 'rendered without it'}`))
         }),
-        { numRuns: 8 },
+        fcParameters({ numRuns: 8 }),
       )
     })
   }

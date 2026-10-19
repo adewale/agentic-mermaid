@@ -26,6 +26,7 @@
 
 import { describe, expect, it } from 'bun:test'
 import fc from 'fast-check'
+import { fcParameters } from './helpers/fc-parameters.ts'
 
 import { convertToAsciiGraph } from '../ascii/converter.ts'
 import { createMapping } from '../ascii/grid.ts'
@@ -184,7 +185,7 @@ describe('characterisation · Tier A · universal invariants', () => {
         const out = renderMermaidASCII(src, U)
         expect(out.length).toBeGreaterThan(0)
       }),
-      { numRuns: RUNS },
+      fcParameters({ numRuns: RUNS }),
     )
   })
 
@@ -201,7 +202,7 @@ describe('characterisation · Tier A · universal invariants', () => {
       fc.property(generalGraphArb, ({ src }) => {
         expect(hasDiagonalLines(renderMermaidASCII(src, U))).toBe(false)
       }),
-      { numRuns: RUNS },
+      fcParameters({ numRuns: RUNS }),
     )
   })
 
@@ -214,7 +215,7 @@ describe('characterisation · Tier A · universal invariants', () => {
         const widths = new Set(renderMermaidASCII(src, U).split('\n').map((l) => l.length))
         expect(widths.size).toBe(1)
       }),
-      { numRuns: RUNS },
+      fcParameters({ numRuns: RUNS }),
     )
   })
 })
@@ -233,7 +234,7 @@ describe('characterisation · Tier B · structural (trees & chains)', () => {
           const out = renderMermaidASCII(src, U)
           for (const id of ns) expect(out).toContain(id)
         }),
-        { numRuns: 40 },
+        fcParameters({ numRuns: 40 }),
       )
     })
   }
@@ -253,7 +254,7 @@ describe('characterisation · Tier B · structural (trees & chains)', () => {
           }
         }
       }),
-      { numRuns: RUNS },
+      fcParameters({ numRuns: RUNS }),
     )
   })
 
@@ -275,7 +276,7 @@ describe('characterisation · Tier B · structural (trees & chains)', () => {
           if (su && sv) { edgesChecked++; expect(sv.top).toBeGreaterThan(su.top) }
         }
       }),
-      { numRuns: RUNS },
+      fcParameters({ numRuns: RUNS }),
     )
     expect(edgesChecked).toBeGreaterThanOrEqual(0.95 * edgesSeen)
   })
@@ -291,7 +292,7 @@ describe('characterisation · Tier B · structural (trees & chains)', () => {
           if (su && sv) { edgesChecked++; expect(sv.left).toBeGreaterThan(su.left) }
         }
       }),
-      { numRuns: RUNS },
+      fcParameters({ numRuns: RUNS }),
     )
     expect(edgesChecked).toBeGreaterThanOrEqual(0.95 * edgesSeen)
   })
@@ -315,7 +316,7 @@ describe('characterisation · Tier B · structural (trees & chains)', () => {
         expect(nodeLines).toBe(n)
         expect(edgeLines).toBe(n - 1)
       }),
-      { numRuns: 30 },
+      fcParameters({ numRuns: 30 }),
     )
   })
 })
@@ -338,7 +339,7 @@ describe('characterisation · Tier C · metamorphic & topology regressions', () 
         const bt = renderMermaidASCII(['graph BT', ...decls, ...links].join('\n'), A)
         expect(flipVertically(td)).toBe(bt)
       }),
-      { numRuns: 20 },
+      fcParameters({ numRuns: 20 }),
     )
   })
 
@@ -353,7 +354,7 @@ describe('characterisation · Tier C · metamorphic & topology regressions', () 
         for (const [parent, child] of edges) expect(labelColumn(rl, child)).toBeLessThan(labelColumn(rl, parent))
         expect(rl).not.toBe(lr)
       }),
-      { numRuns: 40 },
+      fcParameters({ numRuns: 40 }),
     )
   })
 
@@ -367,7 +368,7 @@ describe('characterisation · Tier C · metamorphic & topology regressions', () 
         const rl = renderMermaidASCII(['graph RL', ...declarations, ...links].join('\n'), A)
         expect(rl).toBe(flipHorizontally(lr))
       }),
-      { numRuns: 20 },
+      fcParameters({ numRuns: 20 }),
     )
   })
 
@@ -413,7 +414,7 @@ describe('characterisation · Tier C · metamorphic & topology regressions', () 
         const b = renderMermaidASCII(src.replace(/N(\d)/g, 'Z$1'), U)
         expect(skeleton(b)).toBe(skeleton(a))
       }),
-      { numRuns: RUNS },
+      fcParameters({ numRuns: RUNS }),
     )
   })
 

@@ -17,8 +17,9 @@
 // cross-run reproducibility; the rest of the property suite is pinned by the
 // fc-seed.preload.ts global seed.
 
-import { describe, expect, test } from 'bun:test'
+import { beforeAll, describe, expect, test } from 'bun:test'
 import fc from 'fast-check'
+import { fcParameters } from './helpers/fc-parameters.ts'
 import { BUILTIN_FAMILY_METADATA } from '../agent/families.ts'
 import { layoutFamilyToRendered } from '../agent/family-layouts.ts'
 import { describeMermaidFacts, layoutMermaid, parseRegisteredMermaid as parseMermaid, renderMermaidSVG, serializeMermaid } from '../agent/index.ts'
@@ -32,6 +33,9 @@ import { auditRouteContracts } from '../route-contracts.ts'
 import { compareCodePointStrings } from '../shared/deterministic-order.ts'
 import type { MermaidGraph } from '../types.ts'
 import { METAMORPHIC_FAMILIES } from './helpers/metamorphic-families.ts'
+import { expectWellFormedXml, svgXmlReady } from './helpers/svg-xml.ts'
+
+beforeAll(svgXmlReady)
 
 const SEED = 0x5eed1234
 const tagArb = fc.integer({ min: 0, max: 1_000_000 }).map(n => `q${n.toString(36)}`)
@@ -57,9 +61,7 @@ function assertFiniteGeometry(layout: RenderedLayout): void {
 }
 
 function assertWellFormedSvg(svg: string): void {
-  expect(svg).toContain('<svg')
-  expect(svg).toContain('</svg>')
-  expect(svg.includes('NaN') || svg.includes('Infinity') || svg.includes('undefined')).toBe(false)
+  expectWellFormedXml(svg, svg.slice(0, 200))
 }
 
 interface SemanticInventory {
@@ -326,7 +328,7 @@ describe('universal fuzz: every renderable family (strong output oracles)', () =
           expect(rendererSemanticProjection(layoutMermaid(reparsed.value))).toEqual(rendererSemanticProjection(layoutMermaid(original.value)))
           assertWellFormedSvg(renderMermaidSVG(canonical))
         }),
-        { numRuns: 30, seed: SEED ^ 0x51a1 },
+        fcParameters({ numRuns: 30, seed: SEED ^ 0x51a1 }),
       )
     })
 
@@ -348,7 +350,7 @@ describe('universal fuzz: every renderable family (strong output oracles)', () =
           const graph = graphFor(p.value)
           if (graph) expect(auditRouteContracts(layoutGraphSync(graph), graph)).toEqual([])
         }),
-        { numRuns: 40, seed: SEED },
+        fcParameters({ numRuns: 40, seed: SEED }),
       )
     })
   }

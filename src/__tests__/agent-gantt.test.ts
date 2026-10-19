@@ -9,6 +9,7 @@
 
 import { describe, test, expect } from 'bun:test'
 import fc from 'fast-check'
+import { fcParameters } from './helpers/fc-parameters.ts'
 import { parseRegisteredMermaid as parseMermaid } from '../agent/parse.ts'
 import { serializeMermaid } from '../agent/serialize.ts'
 import { mutate } from '../agent/mutate.ts'
@@ -614,7 +615,7 @@ describe('gantt round-trip property (generated diagrams)', () => {
       const reloaded = gantt(serialized)
       expect(meaning(reloaded)).toEqual(expected)
       expect(serializeMermaid(reloaded)).toBe(serialized)
-    }), { numRuns: 60 })
+    }), fcParameters({ numRuns: 60 }))
   })
 })
 

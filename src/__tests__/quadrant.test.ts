@@ -15,6 +15,7 @@
 
 import { describe, it, expect } from 'bun:test'
 import fc from 'fast-check'
+import { fcParameters } from './helpers/fc-parameters.ts'
 import { parseQuadrantChart } from '../quadrant/parser.ts'
 import { layoutQuadrantChart } from '../quadrant/layout.ts'
 import { renderMermaidSVG, renderMermaidASCII } from '../index.ts'
@@ -346,7 +347,7 @@ describe('quadrant property tests', () => {
           expect(svg).toContain(label)
         }
       }),
-      { numRuns: 60 },
+      fcParameters({ numRuns: 60 }),
     )
   })
 })

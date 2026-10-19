@@ -17,6 +17,7 @@
 
 import { describe, expect, it } from 'bun:test'
 import fc from 'fast-check'
+import { fcParameters } from './helpers/fc-parameters.ts'
 import { layoutGraphSync } from '../layout-engine.ts'
 import { parseMermaid } from '../parser.ts'
 import { assessLayout, hardViolations } from '../layout-rubric.ts'
@@ -319,7 +320,7 @@ describe('property: issue #37 edge vocabulary reaches route contracts uniformly'
           expect(hardViolations(assessLayout(graph, positioned))).toEqual([])
         },
       ),
-      { numRuns: 80 },
+      fcParameters({ numRuns: 80 }),
     )
   })
 })
@@ -583,7 +584,7 @@ describe('syntax range — & multi-edge chains hit the same fan heuristics', () 
           expect(rectsOverlap(labelRects[0]!, labelRects[1]!, readableLabelGap(style))).toBe(false)
         },
       ),
-      { numRuns: 40 },
+      fcParameters({ numRuns: 40 }),
     )
   })
 

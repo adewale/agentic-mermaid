@@ -16,6 +16,7 @@
 // Seed pinned globally (fc-seed.preload.ts).
 import { describe, expect, test } from 'bun:test'
 import fc from 'fast-check'
+import { fcParameters } from './helpers/fc-parameters.ts'
 
 import { renderMermaidSVG } from '../index.ts'
 import { buildMermaid, serializeMermaid } from '../agent/index.ts'
@@ -60,7 +61,7 @@ describe('color validators admit only what their parsers read', () => {
       expect(tryParseHex(text) !== null).toBe(admitted)
       if (/^#[0-9a-f]*$/i.test(text)) expect(tryParseCssColor(text) !== null).toBe(admitted)
       if (admitted) expect(channelsInRange(parseHex(text))).toBe(true)
-    }), { numRuns: NUM_RUNS })
+    }), fcParameters({ numRuns: NUM_RUNS }))
   })
 
   test('a box header color is one the box painter and the scene can read', () => {
@@ -73,7 +74,7 @@ describe('color validators admit only what their parsers read', () => {
       expect(safeCssPaint(text)).toBeDefined()
       const hex = boxColorToHex(text)
       if (hex !== null) expect(isSixDigitHex(hex)).toBe(true)
-    }), { numRuns: NUM_RUNS })
+    }), fcParameters({ numRuns: NUM_RUNS }))
   })
 
   test('a box header takes a color only through the gate and otherwise keeps its words', () => {
@@ -87,7 +88,7 @@ describe('color validators admit only what their parsers read', () => {
         expect(isCssColorToken(box!.color)).toBe(true)
         expect(box!.label).toBe('Team')
       }
-    }), { numRuns: NUM_RUNS })
+    }), fcParameters({ numRuns: NUM_RUNS }))
   })
 
   test('compositing a translucent color stays within 0..255', () => {
@@ -107,7 +108,7 @@ describe('color validators admit only what their parsers read', () => {
       const composite = compositeCssColor(text, '#ffffff')
       if (composite !== null) expect(channelsInRange(composite)).toBe(true)
       expect([undefined, '#000000', '#FFFFFF']).toContain(contrastTextColor(text))
-    }), { numRuns: NUM_RUNS })
+    }), fcParameters({ numRuns: NUM_RUNS }))
   })
 })
 
@@ -184,7 +185,7 @@ describe('an authored color renders, or is refused because it cannot be drawn', 
       for (const [, hex] of [...svg.matchAll(HEX_PAINT_ATTRIBUTE), ...svg.matchAll(HEX_CUSTOM_PROPERTY)]) {
         expect(isHexColor(hex!)).toBe(true)
       }
-    }), {
+    }), fcParameters({
       numRuns: RENDER_RUNS,
       // Inputs that crashed before each gate agreed with its parser.
       examples: [
@@ -194,7 +195,7 @@ describe('an authored color renders, or is refused because it cannot be drawn', 
         ['sequence box', 'constructor'],
         ['pie theme color', '#abcd'],
       ],
-    })
+    }))
   }, 120_000)
 })
 
@@ -223,6 +224,6 @@ describe('a typed style op accepts a color exactly when the scene can draw it', 
       }
       expect(built.ok).toBe(true)
       if (built.ok) expect(() => renderMermaidSVG(serializeMermaid(built.value))).not.toThrow()
-    }), { numRuns: RENDER_RUNS })
+    }), fcParameters({ numRuns: RENDER_RUNS }))
   }, 120_000)
 })

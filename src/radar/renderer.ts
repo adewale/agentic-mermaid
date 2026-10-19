@@ -2,7 +2,7 @@ import type { PositionedRadarChart } from './types.ts'
 import type { RenderContext } from '../types.ts'
 import type { DiagramColors } from '../theme.ts'
 import { svgOpenTag, buildStyleBlock, buildShadowDefs } from '../theme.ts'
-import { escapeXml, renderMultilineText } from '../multiline-utils.ts'
+import { escapeAttr, escapeXml, renderMultilineText } from '../multiline-utils.ts'
 import { radarStyleDefaults } from './layout.ts'
 import { resolveRenderStyle } from '../styles.ts'
 import type { ResolvedRenderStyle } from '../styles.ts'
@@ -195,7 +195,7 @@ export function lowerRadarScene(ctx: RenderContext<PositionedRadarChart>): Scene
           channels,
         },
         `<polygon class="radar-area" points="${pts}" fill="${escapeXml(fill)}" stroke="${escapeXml(stroke)}"${roleStyleAttr} ` +
-          `fill-opacity="${curveOpacity}" data-curve="${escapeXml(curve.label)}" />`,
+          `fill-opacity="${curveOpacity}" data-curve="${escapeAttr(curve.label)}" />`,
       ))
     } else {
       parts.push(marks.shape(
@@ -207,7 +207,7 @@ export function lowerRadarScene(ctx: RenderContext<PositionedRadarChart>): Scene
           channels,
         },
         `<path class="radar-area" d="${curve.areaPath}" fill="${escapeXml(fill)}" stroke="${escapeXml(stroke)}"${roleStyleAttr} ` +
-          `fill-opacity="${curveOpacity}" data-curve="${escapeXml(curve.label)}" />`,
+          `fill-opacity="${curveOpacity}" data-curve="${escapeAttr(curve.label)}" />`,
       ))
     }
   }
@@ -308,7 +308,7 @@ export function lowerRadarScene(ctx: RenderContext<PositionedRadarChart>): Scene
         paint: { fill: axisTextColor },
       },
       renderMultilineText(axis.block ?? lines.join('\n'), axis.labelX, axis.labelY, chart.typography.axisFontSize,
-        `class="radar-axis-label" aria-label="${escapeXml(axis.label)}" text-anchor="${axis.anchor}" dominant-baseline="middle" font-size="${chart.typography.axisFontSize}" font-weight="${chart.typography.axisFontWeight}"${style.edgeLetterSpacing ? ` letter-spacing="${style.edgeLetterSpacing}"` : ''}`, 0, true),
+        `class="radar-axis-label" aria-label="${escapeAttr(axis.label)}" text-anchor="${axis.anchor}" dominant-baseline="middle" font-size="${chart.typography.axisFontSize}" font-weight="${chart.typography.axisFontWeight}"${style.edgeLetterSpacing ? ` letter-spacing="${style.edgeLetterSpacing}"` : ''}`, 0, true),
     ))
   }
 

@@ -7,6 +7,7 @@ import { afterAll, beforeAll, describe, expect, test } from 'bun:test'
 import { readdirSync, readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import fc from 'fast-check'
+import { fcParameters } from './helpers/fc-parameters.ts'
 import { parseRegisteredMermaid, serializeMermaid } from '../agent/index.ts'
 import { renderMermaidSVG } from '../index.ts'
 import { mermaidFirstLine } from '../mermaid-source-wrapper.ts'
@@ -52,7 +53,7 @@ describe('parseMermaidYaml resolves plain scalars as js-yaml JSON_SCHEMA does', 
     fc.assert(fc.property(strings, text => {
       const parsed = parseMermaidYaml(stringifyMermaidYaml({ title: text }))
       expect({ text, read: parsed.ok ? (parsed.value as { title: unknown }).title : parsed.message }).toEqual({ text, read: text })
-    }), { numRuns: 300 })
+    }), fcParameters({ numRuns: 300 }))
   })
 
   test('a string whose first line is only spaces survives the YAML writer', () => {
@@ -187,7 +188,7 @@ describe('parseMermaidYaml agrees with pinned upstream\'s js-yaml', () => {
       const theirs = upstreamYaml(text)
       expect({ text, ours: ourYaml(text) }).toEqual({ text, ours: theirs })
       if (theirs.ok) accepted++
-    }), { numRuns: 1000 })
+    }), fcParameters({ numRuns: 1000 }))
     expect(accepted).toBeGreaterThan(0)
   })
 
@@ -241,7 +242,7 @@ describe('quoteMetadataString', () => {
       const read = readMetadataBlock(line, line.indexOf('{'), 'flowchart')
       expect({ value, read: read.ok ? { end: read.end, label: read.entries.get('label') } : read.message })
         .toEqual({ value, read: { end: line.length - 1, label: value } })
-    }), { numRuns: 300 })
+    }), fcParameters({ numRuns: 300 }))
   })
 })
 
@@ -296,7 +297,7 @@ describe('pinned upstream Mermaid reads @{} metadata as we do', () => {
       const ours = ourOutcome(() => parseMermaid(source), line, 'flowchart', 'label')
       expect({ source, ours }).toEqual({ source, ours: theirs })
       if ('accepted' in theirs) accepted++
-    }), { numRuns: 200 })
+    }), fcParameters({ numRuns: 200 }))
     expect(accepted).toBeGreaterThan(0)
   }, 60_000)
 
@@ -314,7 +315,7 @@ describe('pinned upstream Mermaid reads @{} metadata as we do', () => {
       const ours = ourOutcome(() => parseSequenceDiagram(source.split('\n')), line, 'sequence', 'alias')
       expect({ source, ours }).toEqual({ source, ours: theirs })
       if ('accepted' in theirs) accepted++
-    }), { numRuns: 200 })
+    }), fcParameters({ numRuns: 200 }))
     expect(accepted).toBeGreaterThan(0)
   }, 60_000)
 

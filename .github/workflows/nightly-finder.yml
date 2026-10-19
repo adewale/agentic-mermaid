@@ -2,7 +2,7 @@ name: Nightly finder
 
 # Randomness belongs in finder lanes, not in the PR gate (docs/testing-strategy.md,
 # "Seed policy: pinned gates, rolling finders"). Every property suite rolls fresh
-# fast-check seeds with a raised default run count. A failure never blocks a pull
+# fast-check seeds with a raised minimum run count. A failure never blocks a pull
 # request; it files (or comments on) one issue with the seed and counterexample so
 # it can be fixed and kept as a permanent fast-check `examples` entry.
 

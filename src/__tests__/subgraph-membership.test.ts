@@ -5,6 +5,7 @@
 
 import { afterAll, beforeAll, describe, expect, test } from 'bun:test'
 import fc from 'fast-check'
+import { fcParameters } from './helpers/fc-parameters.ts'
 import { createSubgraphMembership, resolveSubgraphMembership } from '../shared/subgraph-membership.ts'
 import { startUpstreamMermaid, type UpstreamMermaid } from './helpers/upstream-mermaid.ts'
 
@@ -82,7 +83,7 @@ describe('pinned upstream Mermaid assigns subgraph members by the same rule', ()
       expect({ source, members: resolveSubgraphMembership(closeOrder) as unknown }).toEqual({ source, members: theirs })
       const mentioned = closeOrder.flatMap(subgraph => subgraph.members)
       if (new Set(mentioned).size < mentioned.length) contested++
-    }), { numRuns: 150 })
+    }), fcParameters({ numRuns: 150 }))
     // Non-vacuity: some programs mention one id in two subgraphs (or twice).
     expect(contested).toBeGreaterThan(0)
   }, 30_000)

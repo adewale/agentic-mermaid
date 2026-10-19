@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'bun:test'
 import fc from 'fast-check'
+import { fcParameters } from './helpers/fc-parameters.ts'
 
 import { parseClassDiagram } from '../class/parser.ts'
 import { parseSequenceDiagram } from '../sequence/parser.ts'
@@ -66,7 +67,7 @@ describe('property-based sequence parsing', () => {
           expect(actorIds.has(message.to)).toBe(true)
         }
       }),
-      { numRuns: PROPERTY_RUNS },
+      fcParameters({ numRuns: PROPERTY_RUNS }),
     )
   })
 })
@@ -113,7 +114,7 @@ describe('property-based timeline parsing', () => {
         expect(new Set(periods.map(period => period.id)).size).toBe(periods.length)
         expect(new Set(events.map(event => event.id)).size).toBe(events.length)
       }),
-      { numRuns: PROPERTY_RUNS },
+      fcParameters({ numRuns: PROPERTY_RUNS }),
     )
   })
 })
@@ -180,7 +181,7 @@ describe('property-based class parsing', () => {
         expect(Object.fromEntries(diagram.namespaces.map(namespace => [namespace.name, [...namespace.classIds].sort()])))
           .toEqual(Object.fromEntries(namespaces.map(namespace => [namespace.name, [...namespace.members].sort()])))
       }),
-      { numRuns: PROPERTY_RUNS },
+      fcParameters({ numRuns: PROPERTY_RUNS }),
     )
   })
 })

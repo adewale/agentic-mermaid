@@ -1,5 +1,6 @@
 import { describe, expect, test } from 'bun:test'
 import fc from 'fast-check'
+import { fcParameters } from './helpers/fc-parameters.ts'
 
 import { parseMermaid as parseGraph } from '../parser.ts'
 import {
@@ -119,7 +120,7 @@ describe('flowchart @{...} node metadata preservation (issue #29)', () => {
         expect(graph.edges[0]!.source).toBe(id)
         expect(graph.edges[0]!.target).toBe('B')
       }),
-      { numRuns: 30 },
+      fcParameters({ numRuns: 30 }),
     )
   })
 })

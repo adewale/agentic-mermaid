@@ -11,6 +11,7 @@
 
 import { describe, test, expect } from 'bun:test'
 import fc from 'fast-check'
+import { fcParameters } from './helpers/fc-parameters.ts'
 import { parseRegisteredMermaid as parseMermaid } from '../agent/parse.ts'
 import { serializeMermaid } from '../agent/serialize.ts'
 import { mutate } from '../agent/mutate.ts'
@@ -538,7 +539,7 @@ describe('state fast-check round-trip property', () => {
         states: states.map(id => ({ id, label: `${id} label`, children: null })),
         transitions: transitions.map((t, i) => ({ ...t, label: `step ${i}` })),
       })
-    }), { numRuns: 200 })
+    }), fcParameters({ numRuns: 200 }))
   })
 
   test('generated nested composites (depth ≤ 2) round-trip stably', () => {
@@ -567,7 +568,7 @@ describe('state fast-check round-trip property', () => {
         }],
         transitions: [],
       })
-    }), { numRuns: 100 })
+    }), fcParameters({ numRuns: 100 }))
   })
 })
 

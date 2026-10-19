@@ -19,6 +19,7 @@
 
 import { describe, it, expect } from 'bun:test'
 import fc from 'fast-check'
+import { fcParameters } from './helpers/fc-parameters.ts'
 import { parseQuadrantChart } from '../quadrant/parser.ts'
 import { layoutQuadrantChart } from '../quadrant/layout.ts'
 import { resolveQuadrantVisualConfig } from '../quadrant/config.ts'
@@ -177,7 +178,7 @@ describe('label placement property: invariants hold for arbitrary point sets', (
           expect(JSON.stringify(layout(src))).toBe(JSON.stringify(positioned))
         },
       ),
-      { numRuns: 40 },
+      fcParameters({ numRuns: 40 }),
     )
   })
 })

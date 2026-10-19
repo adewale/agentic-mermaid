@@ -16,6 +16,7 @@
 
 import { describe, test, expect } from 'bun:test'
 import fc from 'fast-check'
+import { fcParameters } from './helpers/fc-parameters.ts'
 import { renderMermaidSVG } from '../index.ts'
 import { parseGanttModel, applyGanttFrontmatterConfig } from '../gantt/parser.ts'
 import { resolveGanttSchedule, DAY_MS, startOfDay } from '../gantt/schedule.ts'
@@ -94,7 +95,7 @@ describe('gantt excluded-day shading — layout bands', () => {
           expect(schedule.isExcludedDay(day)).toBe(true)
         }
       }
-    }), { numRuns: 40 })
+    }), fcParameters({ numRuns: 40 }))
   })
 })
 

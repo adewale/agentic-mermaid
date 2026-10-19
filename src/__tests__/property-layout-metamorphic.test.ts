@@ -23,6 +23,7 @@
 
 import { describe, expect, test } from 'bun:test'
 import fc from 'fast-check'
+import { fcParameters } from './helpers/fc-parameters.ts'
 import { BUILTIN_FAMILY_METADATA } from '../agent/families.ts'
 import { layoutMermaid, measureQuality, parseRegisteredMermaid as parseMermaid, serializeMermaid, verifyMermaid } from '../agent/index.ts'
 import { countStructuralElements, type StructuralCount } from '../agent/structural-count.ts'
@@ -122,7 +123,7 @@ describe('metamorphic: relations across all renderable families', () => {
           const rubric = assessRenderedLayout(layoutMermaid(p.value))
           expect(familyHardViolations(rubric)).toEqual([])
         }),
-        { numRuns: 40 },
+        fcParameters({ numRuns: 40 }),
       )
     })
 
@@ -134,7 +135,7 @@ describe('metamorphic: relations across all renderable families', () => {
             pb = parseMermaid(fam.build(k, b))
           if (pa.ok && pb.ok) expect(verifyMermaid(pb.value).ok).toBe(verifyMermaid(pa.value).ok)
         }),
-        { numRuns: 40 },
+        fcParameters({ numRuns: 40 }),
       )
     })
 
@@ -148,7 +149,7 @@ describe('metamorphic: relations across all renderable families', () => {
             expect(ca.nodes).toBe(cb.nodes + ap.nodeDelta)
             expect(ca.edges).toBe(cb.edges)
           }),
-          { numRuns: 40 },
+          fcParameters({ numRuns: 40 }),
         )
       })
     }
@@ -163,7 +164,7 @@ describe('metamorphic: relations across all renderable families', () => {
             expect(ca.edges).toBe(cb.edges + 1)
             expect(ca.nodes).toBe(cb.nodes)
           }),
-          { numRuns: 40 },
+          fcParameters({ numRuns: 40 }),
         )
       })
     }

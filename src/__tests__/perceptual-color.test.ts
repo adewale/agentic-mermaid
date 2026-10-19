@@ -4,6 +4,7 @@
 
 import { describe, it, expect } from 'bun:test'
 import fc from 'fast-check'
+import { fcParameters } from './helpers/fc-parameters.ts'
 import {
   hexToOklab,
   oklabToHex,
@@ -55,7 +56,7 @@ describe('OKLab / OKLCH conversions', () => {
       fc.property(hexColorArb, hex => {
         expect(oklchToHex(hexToOklch(hex)!)).toBe(hex)
       }),
-      { numRuns: 300 },
+      fcParameters({ numRuns: 300 }),
     )
   })
 
@@ -64,7 +65,7 @@ describe('OKLab / OKLCH conversions', () => {
       fc.property(hexColorArb, hex => {
         expect(oklabToHex(hexToOklab(hex)!)).toBe(hex)
       }),
-      { numRuns: 300 },
+      fcParameters({ numRuns: 300 }),
     )
   })
 
@@ -82,7 +83,7 @@ describe('OKLab / OKLCH conversions', () => {
         expect(h).toBeLessThan(360)
         expect(C).toBeGreaterThanOrEqual(0)
       }),
-      { numRuns: 200 },
+      fcParameters({ numRuns: 200 }),
     )
   })
 
@@ -100,7 +101,7 @@ describe('ΔE_OK perceptual distance', () => {
         expect(deltaEOK(a, a)).toBe(0)
         expect(deltaEOK(a, b)).toBeCloseTo(deltaEOK(b, a)!, 10)
       }),
-      { numRuns: 200 },
+      fcParameters({ numRuns: 200 }),
     )
   })
 
@@ -147,7 +148,7 @@ describe('APCA lightness contrast', () => {
       fc.property(hexColorArb, hex => {
         expect(apcaLc(hex, hex)).toBe(0)
       }),
-      { numRuns: 100 },
+      fcParameters({ numRuns: 100 }),
     )
   })
 

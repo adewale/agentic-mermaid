@@ -11,6 +11,7 @@
 
 import { afterAll, beforeAll, describe, expect, test } from 'bun:test'
 import fc from 'fast-check'
+import { fcParameters } from './helpers/fc-parameters.ts'
 import { asFlowchart, describeMermaidFacts, layoutMermaid, parseRegisteredMermaid as parseMermaid, renderMermaidSVG } from '../agent/index.ts'
 import type { DiagramKind, ParsedDiagram } from '../agent/types.ts'
 import { type FamilyMetamorphic, METAMORPHIC_FAMILIES } from './helpers/metamorphic-families.ts'
@@ -123,7 +124,7 @@ describe('MR6 comment and blank-line insertion preserves the SVG drawing', () =>
             expect(drawing(renderMermaidSVG(insertLines(source, insertions)))).toBe(drawing(renderMermaidSVG(source)))
           },
         ),
-        { numRuns: 25 },
+        fcParameters({ numRuns: 25 }),
       )
     })
   }
@@ -193,7 +194,7 @@ describe('MR7 flowchart: a chained edge equals its pairwise split', () => {
           expect(renderMermaidSVG(chained)).toBe(renderMermaidSVG(split))
         },
       ),
-      { numRuns: 30 },
+      fcParameters({ numRuns: 30 }),
     )
   })
 })

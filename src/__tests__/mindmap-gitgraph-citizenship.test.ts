@@ -1,5 +1,6 @@
 import { describe, expect, test } from 'bun:test'
 import fc from 'fast-check'
+import { fcParameters } from './helpers/fc-parameters.ts'
 import { startUpstreamMermaid } from './helpers/upstream-mermaid.ts'
 import { describeMermaidFacts } from '../agent/facts.ts'
 
@@ -261,7 +262,7 @@ describe('Mindmap full-family citizenship', () => {
       expect(layout.nodes).toHaveLength(labels.length + 1)
       expect(layout.edges).toHaveLength(labels.length)
       expect(serializeMindmap(parseMindmap(serializeMindmap(parsed)))).toBe(serializeMindmap(parsed))
-    }), { numRuns: 30, seed: 1501 })
+    }), fcParameters({ numRuns: 30, seed: 1501 }))
   })
 })
 
@@ -447,6 +448,6 @@ describe('GitGraph full-family citizenship', () => {
       expect(second).toEqual(first)
       expect(first.commits.map(commit => commit.id)).toEqual(Array.from({ length }, (_, index) => `c${index}`))
       expect(first.commits.reduce((sum, commit) => sum + commit.parents.length, 0)).toBe(length - 1)
-    }), { numRuns: 30, seed: 1601 })
+    }), fcParameters({ numRuns: 30, seed: 1601 }))
   })
 })

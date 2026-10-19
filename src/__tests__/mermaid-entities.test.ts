@@ -10,6 +10,7 @@
 import { afterAll, beforeAll, describe, expect, test } from 'bun:test'
 import { decodeHTML } from 'entities'
 import fc from 'fast-check'
+import { fcParameters } from './helpers/fc-parameters.ts'
 import { encodeMermaidEntities, fromEntityMarkers, mermaidEntityPrepass, toEntityMarkers } from '../shared/mermaid-entities.ts'
 import { decodeMermaidEntities, projectEntityMarkers } from '../shared/mermaid-entity-display.ts'
 import { startUpstreamMermaid, type UpstreamMermaid } from './helpers/upstream-mermaid.ts'
@@ -75,7 +76,7 @@ describe('encodeMermaidEntities', () => {
     fc.assert(fc.property(textArb, reservedArb, (text, reserved) => {
       expect({ text, reserved, decoded: decodeMermaidEntities(encodeMermaidEntities(text, reserved)) })
         .toEqual({ text, reserved, decoded: text })
-    }), { numRuns: 500 })
+    }), fcParameters({ numRuns: 500 }))
   })
 
   test('the encoding is canonical: it re-encodes to itself and leaves plain text alone', () => {
@@ -85,7 +86,7 @@ describe('encodeMermaidEntities', () => {
         .toEqual({ text, reserved, again: encoded })
       const needsEscape = [...reserved].some(char => text.includes(char)) || /#\w+;|ﬂ°|¶ß/.test(text)
       if (!needsEscape) expect({ text, reserved, encoded }).toEqual({ text, reserved, encoded: text })
-    }), { numRuns: 500 })
+    }), fcParameters({ numRuns: 500 }))
   })
 
   test('no reserved character or marker piece survives literally, and the spellings are upstream\'s', () => {
@@ -98,7 +99,7 @@ describe('encodeMermaidEntities', () => {
       const grammarView = toEntityMarkers(encoded)
       expect({ encoded, reserved, literal: [...reserved].filter(char => grammarView.includes(char)), markerPieces: /ﬂ°|¶ß/.test(encoded) })
         .toEqual({ encoded, reserved, literal: [], markerPieces: false })
-    }), { numRuns: 300 })
+    }), fcParameters({ numRuns: 300 }))
     expect(encodeMermaidEntities('say "hi" #1; & <b>', '"&<>')).toBe('say #quot;hi#quot; #35;1; #amp; #lt;b#gt;')
     expect(encodeMermaidEntities('a;b#c', ';#')).toBe('a#59;b#35;c')
     expect(encodeMermaidEntities('#quot; and #', '')).toBe('#35;quot; and #')
@@ -142,7 +143,7 @@ describe('pinned upstream Mermaid displays encodeMermaidEntities output as the t
       expect({ source, displayed: label === undefined ? label : upstreamDisplayed(label, 'html') })
         .toEqual({ source, displayed: text })
       checked++
-    }), { numRuns: 150 })
+    }), fcParameters({ numRuns: 150 }))
     expect(checked).toBeGreaterThan(0)
   }, 30_000)
 
@@ -155,7 +156,7 @@ describe('pinned upstream Mermaid displays encodeMermaidEntities output as the t
       expect({ source, displayed: message === undefined ? message : upstreamDisplayed(message, 'svg-text') })
         .toEqual({ source, displayed: text })
       checked++
-    }), { numRuns: 150 })
+    }), fcParameters({ numRuns: 150 }))
     expect(checked).toBeGreaterThan(0)
   }, 30_000)
 })
