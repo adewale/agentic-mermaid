@@ -340,13 +340,26 @@ function readC4(input: string | readonly string[], admitWork: boolean): C4Body {
   const parents: string[] = []
   const ids = new Set<string>()
   let header = false
+  // Pinned Mermaid C4 needs a line break after each statement and after a
+  // boundary's `{`; only a closing `}` may share the line before it. Its
+  // comments take the line breaks after them, so one after a statement leaves
+  // that statement without one.
+  let sharesLine = false
+  let commented = false
   for (const statement of body.statements) {
     const text = statement.raw.trim()
     if (statement.kind === 'trivia') {
       observeC4Statement(statement, 'trivia')
-      if (!text.startsWith('%%') && text.includes(';')) diagnostic(body, statement.id, 'Semicolon statement separators are a reader extension; pinned Mermaid C4 requires line breaks')
+      if (!text.startsWith('%%') && text.includes(';')) {
+        diagnostic(body, statement.id, 'Semicolon statement separators are a reader extension; pinned Mermaid C4 requires line breaks')
+        sharesLine = commented = false
+      } else if (text.startsWith('%%')) commented ||= sharesLine
+      else if (statement.raw.includes('\n') && !commented) sharesLine = false
       continue
     }
+    if (sharesLine && statement.kind !== 'boundary-close') diagnostic(body, statement.id, 'Statements sharing a line are a reader extension; pinned Mermaid C4 requires a line break after each statement and after `{`, and a comment after a statement takes its line break')
+    sharesLine = true
+    commented = false
     if (!header) {
       const headerText = decodeXML(text)
       const variant = C4_VARIANTS.find(candidate => candidate.toLowerCase() === headerText.toLowerCase())
