@@ -121,8 +121,8 @@ describe('ER text against pinned Mermaid', () => {
   ])('%j is rejected as Mermaid rejects it', expectParity)
 })
 
-// Mermaid rejects each of these, but what it means is clear, so ours reads it
-// and verify reports it. ER quoted text has no escapes upstream, and a quoted
+// Mermaid rejects each of these, or reads it otherwise, but what it means is
+// clear, so ours reads it and verify reports it. ER quoted text has no escapes upstream, and a quoted
 // name holds no `%` or backslash and is never empty: ours reads `\"` as `"`
 // (BUG-30's writer still writes `#quot;`). Mermaid ER has no trailing
 // comments: ours reads a `%%` after a statement as one. The typed body leaves
@@ -143,6 +143,9 @@ const ER_READ_GENEROUSLY: ReadonlyArray<readonly [string, 'er' | 'opaque', strin
   ['erDiagram\n  A %% c', 'er', '>A<', 'er_trailing_comment', 2],
   ['erDiagram\n  A {\n    int x %% c\n  }', 'er', '>x<', 'er_trailing_comment', 3],
   ['erDiagram\n  A\n  style A fill:#f00 %% c', 'er', 'fill="#f00"', 'er_trailing_comment', 3],
+  ['erDiagram\n  A\n  end', 'er', '>end<', 'er_keyword_name', 3],
+  ['erDiagram\n  A ||--o{ B : places order', 'er', '>places order<', 'er_label_words', 2],
+  ['erDiagram\n  A ||--o{ B : direction LR', 'er', '>direction LR<', 'er_direction_line', 2],
 ]
 
 describe('ER source Mermaid rejects, read generously', () => {
@@ -200,6 +203,21 @@ describe('typed ER text is written as Mermaid reads it', () => {
     if (!related.ok) throw new Error(`add_relation refused ${JSON.stringify(text)}`)
     const source = serializeMermaid(related.value)
     const expected: ErReading = { entities: [['A', text], ['B']], relations: [['A', 'B', text]] }
+    expect({ source, mermaid: await mermaidReads(source) }).toEqual({ source, mermaid: expected })
+    expect({ source, ours: oursReads(source) }).toEqual({ source, ours: expected })
+  })
+})
+
+describe('typed ER names are written as Mermaid reads them', () => {
+  // Mermaid's lexer reads these bare names as a keyword, a cardinality, a
+  // link marker or a number first; written quoted, each is one name.
+  test.each(['end', 'one', 'u-turn', '2px'])('%j', async id => {
+    const parsed = parseRegisteredMermaid('erDiagram\n  A')
+    if (!parsed.ok) throw new Error('fixture rejected')
+    const added = mutate(parsed.value, { kind: 'add_entity', id })
+    if (!added.ok) throw new Error(`add_entity refused ${JSON.stringify(id)}`)
+    const source = serializeMermaid(added.value)
+    const expected: ErReading = { entities: [['A'], [id]], relations: [] }
     expect({ source, mermaid: await mermaidReads(source) }).toEqual({ source, mermaid: expected })
     expect({ source, ours: oursReads(source) }).toEqual({ source, ours: expected })
   })

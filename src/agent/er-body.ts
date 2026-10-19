@@ -24,6 +24,8 @@ import { ok, err } from './types.ts'
 import { labelOverflowCollector } from './body-utils.ts'
 import { prepareDisplayText, resolveLabelContent } from '../shared/display-text.ts'
 import {
+  erNameNeedsQuotes,
+  isErKeywordName,
   parseErAttribute,
   parseErEntityId,
   parseErEntityReference,
@@ -64,10 +66,33 @@ export function erUnsupportedSyntaxWarnings(canonicalSource: string): LayoutWarn
   }
   try {
     const source = readErStatements(grammar, (what, portable, index) => warn(header + index + 1, 'er_quoted_text', what, portable))
-    for (const entry of source.statements) if (entry.syntax.kind === 'unknown') warnings.push({
-      code: 'UNSUPPORTED_SYNTAX', syntax: 'er_statement', line: header + entry.line + 2,
-      message: `ER statement is preserved in source but not drawn: ${entry.raw.trim()}`,
-    })
+    const directionLines = new Set<number>()
+    for (const entry of source.statements) {
+      const { syntax } = entry
+      if (syntax.kind === 'unknown') warnings.push({
+        code: 'UNSUPPORTED_SYNTAX', syntax: 'er_statement', line: header + entry.line + 2,
+        message: `ER statement is preserved in source but not drawn: ${entry.raw.trim()}`,
+      })
+      const references = syntax.kind === 'entity' || syntax.kind === 'block-open' ? [syntax.reference]
+        : syntax.kind === 'relation' ? [syntax.relation.entity1, syntax.relation.entity2] : []
+      for (const reference of references) {
+        if (!reference.quoted && isErKeywordName(reference.id)) warn(header + entry.line + 1, 'er_keyword_name', `ER name ${reference.id} is read as a name, where Mermaid reads a keyword`, `quote it ("${reference.id}")`)
+      }
+      if (syntax.kind === 'relation' && syntax.relation.unquotedWords) warnings.push({
+        code: 'UNSUPPORTED_SYNTAX', syntax: 'er_label_words', line: header + entry.line + 2,
+        message: 'A relationship label of several unquoted words is read whole. Pinned Mermaid reads only its first word as the label and declares the others as entities; quote the label',
+      })
+      // Mermaid's `.*direction\s+LR` rule makes a line holding a direction a
+      // direction statement, whatever else it holds.
+      if (syntax.kind !== 'direction' && entry.entityId === undefined && !['attribute', 'block-close', 'comment', 'blank'].includes(syntax.kind)
+        && /direction\s+(?:TB|BT|LR|RL)/i.test(grammar[entry.line] ?? '') && !directionLines.has(entry.line)) {
+        directionLines.add(entry.line)
+        warnings.push({
+          code: 'UNSUPPORTED_SYNTAX', syntax: 'er_direction_line', line: header + entry.line + 2,
+          message: 'A line holding direction TB (BT, LR, RL) beside other text is read statement by statement. Pinned Mermaid reads the whole line as a direction and drops the rest; put the direction on a line of its own',
+        })
+      }
+    }
   } catch {
     // A statement ours cannot read fails the render; verify reports that.
   }
@@ -242,7 +267,7 @@ const RIGHT_GLYPH: Record<ErCardinality, string> = {
 }
 
 function renderErEntityReference(entity: ErEntity): string {
-  const bare = parseErEntityId(entity.id) !== null
+  const bare = parseErEntityId(entity.id) !== null && !erNameNeedsQuotes(entity.id)
   // A quoted id is kept as written, and a quoted name cannot hold `"`, `%`
   // or `\`, so it needs no encoding.
   const renderedId = bare ? entity.id : `"${entity.id}"`

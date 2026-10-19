@@ -46,6 +46,8 @@ export interface ParsedErEntityReference {
   alias?: string
   /** Mermaid `:::class1,class2` styling in source order, space-separated. */
   className?: string
+  /** Set when the id was written quoted. */
+  quoted?: true
 }
 
 /** Shared renderer/agent grammar for bare and aliased ER entity references.
@@ -59,6 +61,7 @@ export function parseErEntityReference(value: string, report?: ErQuotedTextRepor
     id,
     ...(alias !== undefined ? { alias } : {}),
     ...(match[4] ? { className: match[4].replaceAll(',', ' ') } : {}),
+    ...(match[1]!.startsWith('"') ? { quoted: true as const } : {}),
   }
 }
 
@@ -239,6 +242,19 @@ const ER_LINK_TOKEN_RE = new RegExp(String.raw`^(?:\|\||\|o|o\||\}o|o\{|\}\||\|\
 // What Mermaid's lexer reads as a keyword, never a name: a statement keyword,
 // or `direction TB` (BT, LR, RL), which makes the whole line a direction.
 const ER_RUN_KEYWORD_RE = /^(?:(?:subgraph|end|style|classDef|class|erDiagram)(?!\w)|direction\s+(?:TB|BT|LR|RL))/i
+
+/** Whether Mermaid's lexer reads this bare name as a keyword, a cardinality
+ * or a link (`end`, `one`, `u-turn`), so it cannot be the name it spells. */
+export function isErKeywordName(id: string): boolean {
+  return ER_RUN_KEYWORD_RE.test(id) || ER_LINK_TOKEN_RE.test(id)
+}
+
+/** Whether a name must be written quoted for Mermaid to read it back as one
+ * name: a keyword name, or one that starts with a number, which Mermaid's
+ * lexer takes first (`2px` reads as `2` and `px`). */
+export function erNameNeedsQuotes(id: string): boolean {
+  return isErKeywordName(id) || /^\d+(?:\.\d+)?[^\d.]/.test(id)
+}
 
 /** Offset of the `}` that ends an attribute block in `text`, or -1: the
  * first one outside a quoted comment. */
@@ -806,6 +822,9 @@ export interface ParsedErRelationshipSyntax {
   identifying: boolean
   /** The label as written, quotes removed (src/er/text.ts reads it). */
   label: string
+  /** Set when the label is several unquoted words: Mermaid's label is one
+   * token, so it reads the first word as the label and the rest as entities. */
+  unquotedWords?: true
 }
 
 /** Shared relationship grammar. Alias text may contain spaces; entity styling
@@ -828,6 +847,7 @@ export function parseErRelationshipSyntax(line: string, report?: ErQuotedTextRep
     rightToken: match[6] ?? match[7]!,
     identifying: operator === '--' || operator === 'to',
     label: readErRelationLabel(match[9] ?? '', report),
+    ...(/^[^"\s]\S*\s+\S/.test(match[9]?.trim() ?? '') ? { unquotedWords: true as const } : {}),
   }
 }
 
