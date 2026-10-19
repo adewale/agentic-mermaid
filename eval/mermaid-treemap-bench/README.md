@@ -17,4 +17,10 @@ captured from the independent Mermaid 12.2.0 reference in Node/jsdom, not from
 Agentic output. Mermaid renderer DOM/pixels are not compared. The public native
 parse/edit/serialize/SVG/terminal/layout behavior has separate family tests.
 
+inline-row-regressions.json retains seven additional accepted grammar mutations
+and independently captured pinned parent/value/class expectations. They cover
+entries sharing one physical line, where each grammar row's immediately
+preceding whitespace determines its hierarchy level. The native family tests
+protect their meaning through public canonical serialization.
+
 Run `bun test src/__tests__/treemap-upstream-bench.test.ts`.

@@ -99,6 +99,20 @@ The six `eval/mermaid-*-bench/README.md` files give the precise scope and rerun
 commands. Existing corpus, editing, metamorphic, runtime and release benchmarks
 remain separate checks of Agentic's own contracts.
 
+A further grammar diagnostic run covered these six families with seed 7 and
+100 mutations per family. Kanban's 75 raw model differences were canonical
+indentation levels (73) and upstream section padding defaults (2), with no
+selected semantic or ordered-operation mismatch. Forced-family parser
+admissions of corrupted headers are separate from public source admission;
+Packet also retains authored double spaces that its pinned title reader
+collapses. The run exposed seven real Treemap parent-topology errors in entries
+sharing a physical line. Their exact accepted inputs and independent pinned
+parent expectations are retained as regressions; the corrected Treemap rerun
+has zero model, selected-semantic or ordered-operation drift candidates and no
+writer rejection. This bounded diagnostic sample establishes neither universal
+grammar parity nor perfect semantics across the broader 400-input rendering
+cohort.
+
 ## Browser and discovery cost
 
 The 23-entry lazy build factors more shared modules: established family graphs

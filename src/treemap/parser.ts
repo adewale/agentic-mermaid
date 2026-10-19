@@ -32,22 +32,25 @@ export function parseTreemapDiagram(input: string | readonly string[]): TreemapB
       continue
     }
     const indent = raw.match(/^[\t ]*/)?.[0].length ?? 0
+    let rowIndent = indent
     let remaining = line
     while (remaining) {
       const match = /^(?:"([^"]*)"|'([^']*)')(?:\s*[:,]\s*([0-9_.,]+))?(?:\s*:::\s*([A-Za-z_]\w*))?/.exec(remaining)
       if (!match) throw new Error(`Invalid Treemap statement at line ${i + 1}: ${remaining}`)
       if (body.nodes.length >= 10000) throw new Error('Treemap exceeds the 10000-node limit')
-      while (stack.length && stack.at(-1)!.indent >= indent) stack.pop()
+      while (stack.length && stack.at(-1)!.indent >= rowIndent) stack.pop()
       const parentId = stack.at(-1)?.node.id
-      // The grammar admits several quoted siblings on one physical line.
-      // Their leading indentation, not their token column, sets parentage.
+      // Each quoted entry is a grammar row. Its indentation is the whitespace
+      // immediately before that entry, even when another row shares the line.
       const value = match[3] === undefined ? undefined : Number(match[3].replace(/[,_]/g, ''))
       if (value !== undefined && (!Number.isFinite(value) || value < 0)) throw new Error(`Invalid Treemap value at line ${i + 1}`)
       const node: TreemapNode = { id: `treemap-${body.nodes.length}`, label: match[1] ?? match[2]!, ...(parentId ? { parentId } : {}), ...(value === undefined ? {} : { value }), ...(match[4] ? { className: match[4] } : {}) }
       body.nodes.push(node)
       if (parserObservationActive('treemap')) observeParserMutation('treemap', 'add-node', node, { line: i + 1, column: indent + line.length - remaining.length + 1, unit: 'normalized' })
-      if (value === undefined) stack.push({ indent, node })
-      remaining = remaining.slice(match[0].length).trimStart()
+      if (value === undefined) stack.push({ indent: rowIndent, node })
+      const suffix = remaining.slice(match[0].length)
+      rowIndent = suffix.match(/^[\t ]*/)?.[0].length ?? 0
+      remaining = suffix.slice(rowIndent)
     }
   }
   return body

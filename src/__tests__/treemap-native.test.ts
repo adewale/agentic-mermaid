@@ -1,10 +1,19 @@
 import { describe, expect, test } from 'bun:test'
+import { readFileSync } from 'node:fs'
 import fc from 'fast-check'
+import { asTreemap, describeMermaidFacts, mutate, parseRegisteredMermaid, renderMermaidASCII, renderMermaidSVG, serializeMermaid, verifyMermaid } from '../agent/core.ts'
+import { mutateTreemap, renderTreemap } from '../agent/treemap-body.ts'
+import { layoutTreemapDiagram, resolveTreemapConfig, squarifyTreemap } from '../treemap/layout.ts'
 import { parseTreemapDiagram } from '../treemap/parser.ts'
-import { layoutTreemapDiagram, squarifyTreemap, resolveTreemapConfig } from '../treemap/layout.ts'
-import { renderTreemap, mutateTreemap } from '../agent/treemap-body.ts'
-import { parseRegisteredMermaid, asTreemap, mutate, serializeMermaid, verifyMermaid, renderMermaidSVG, renderMermaidASCII, describeMermaidFacts } from '../agent/core.ts'
 import { fcParameters } from './helpers/fc-parameters.ts'
+
+const inlineRows = JSON.parse(readFileSync(new URL('../../eval/mermaid-treemap-bench/inline-row-regressions.json', import.meta.url), 'utf8')) as {
+  cases: { id: string; source: string; expectedNodes: { label: string; parent: number | null; value: number | null; className: string }[] }[]
+}
+function hierarchy(body: ReturnType<typeof parseTreemapDiagram>) {
+  const indices = new Map(body.nodes.map((node, index) => [node.id, index]))
+  return body.nodes.map(node => ({ label: node.label, parent: node.parentId === undefined ? null : indices.get(node.parentId), value: node.value ?? null, className: node.className ?? '' }))
+}
 
 describe('native Treemap', () => {
   test('retains indentation, sibling order, duplicate labels and late class definitions', () => {
@@ -49,17 +58,33 @@ describe('native Treemap', () => {
     )
   })
 
-  test('quoted siblings on one physical line retain line indentation and following nested children', () => {
+  test('same-line rows use their own whitespace indentation for following children', () => {
     const body = parseTreemapDiagram('treemap\n"Root"\n  "A":1 "Section"\n    "B":2\n  "C":3')
     expect(body.nodes.map(node => [node.label, node.parentId, node.value])).toEqual([
       ['Root', undefined, undefined],
       ['A', 'treemap-0', 1],
       ['Section', 'treemap-0', undefined],
       ['B', 'treemap-2', 2],
-      ['C', 'treemap-0', 3],
+      ['C', 'treemap-2', 3],
     ])
     expect(parseTreemapDiagram(renderTreemap(body))).toEqual(body)
   })
+
+  for (const regression of inlineRows.cases)
+    test(`${regression.id} retains the independent pinned parent topology through public serialization`, () => {
+      const parsed = parseRegisteredMermaid(regression.source)
+      if (!parsed.ok) throw Error(JSON.stringify(parsed.error))
+      const diagram = asTreemap(parsed.value)
+      if (!diagram) throw Error('Accepted inline grammar rows must retain a native body')
+      expect(hierarchy(diagram.body)).toEqual(regression.expectedNodes)
+      const canonical = serializeMermaid(diagram),
+        reparsed = parseRegisteredMermaid(canonical)
+      if (!reparsed.ok) throw Error(JSON.stringify(reparsed.error))
+      const again = asTreemap(reparsed.value)
+      if (!again) throw Error('Canonical inline grammar rows must retain a native body')
+      expect(hierarchy(again.body)).toEqual(regression.expectedNodes)
+      expect(serializeMermaid(again)).toBe(canonical)
+    })
 
   test('typed edits reject cycles and preserve unrelated branches through canonical reload', () => {
     const parsed = parseRegisteredMermaid('treemap\n"Root"\n  "A": 20\n  "Branch"\n    "B": 30')
