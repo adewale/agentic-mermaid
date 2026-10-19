@@ -641,7 +641,8 @@ function getString(root: MermaidFrontmatterMap, path: readonly string[]): string
 function expandXYChartStatements(lines: string[], strict: boolean): string[] {
   const statements: string[] = []
   let inAccDescrBlock = false
-  const ends = quotedTextEnds(lines)
+  // Mermaid's xychart strings have no escapes: `"C:\"` closes at its second quote.
+  const ends = quotedTextEnds(lines, { escapes: false })
 
   for (let lineIndex = 0; lineIndex < lines.length; lineIndex++) {
     let line = lines[lineIndex]!.trim()

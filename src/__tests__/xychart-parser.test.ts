@@ -82,6 +82,12 @@ describe('parseXYChart – syntax', () => {
     }
     // A data list cannot span lines.
     expect(() => parse('xychart-beta\nbar [1, 2,\n3]')).toThrow()
+    // Mermaid's strings have no escapes, so its `"` closes `"C:\"`: a string
+    // only a backslash escape leaves open ends with its line.
+    expect(parse('xychart-beta\ntitle "C:\\"\nx-axis [Mon, Tue]\nbar [10, 20]\nline "Trend" [12, 18]')).toMatchObject({
+      xAxis: { categories: ['Mon', 'Tue'] },
+      series: [{ type: 'bar', data: [10, 20] }, { type: 'line', label: 'Trend', data: [12, 18] }],
+    })
   })
 
   it('treats axis titles, ranges, and categories as independent component updates', () => {
