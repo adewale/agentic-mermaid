@@ -245,7 +245,7 @@ export function microCases(): readonly MicroCase[] {
   return [
     {
       id: 'text:graphemes-ascii',
-      description: 'graphemes() on a 38-character ASCII label (Intl.Segmenter)',
+      description: 'graphemes() on a 38-character ASCII label (printable-ASCII fast path)',
       async setup() {
         const { graphemes } = await src.graphemes()
         return () => graphemes(ASCII_LABEL)
