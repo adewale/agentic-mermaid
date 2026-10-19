@@ -694,6 +694,26 @@ describe('parseMermaid – subgraphs', () => {
     expect(g.subgraphs[0]!.label).toBe('My Group')
   })
 
+  // A subgraph id, written or a title upstream reads as one, follows the node
+  // id rule, so a link to it ends at the subgraph rather than at a new node.
+  // A markdown title's id is its text.
+  it.each([
+    ['a.b', 'a.b', 'a.b'],
+    ['a.b[Title]', 'a.b', 'Title'],
+    ['"a.b"', 'a.b', 'a.b'],
+    ['a&b', 'a&b', 'a&b'],
+    ['**Two**', '**Two**', '**Two**'],
+    ['"`**Two**`"', '**Two**', '<b>Two</b>'],
+  ])('reads `subgraph %s` with the id upstream reads, which a link names', (title, id, label) => {
+    const source = `flowchart TD\n  subgraph ${title}\n    A\n  end\n  X --> ${id}`
+    const parsed = parseRegisteredMermaid(source)
+    for (const g of [parseMermaid(source), ...(parsed.ok && parsed.value.body.kind === 'flowchart' ? [parseMermaid(serializeMermaid(parsed.value))] : [])]) {
+      expect(g.subgraphs.map(s => [s.id, s.label, s.nodeIds])).toEqual([[id, label, ['A']]])
+      expect([...g.nodes.keys()]).toEqual(['A', 'X'])
+      expect(g.edges.map(edge => [edge.source, edge.target])).toEqual([['X', id]])
+    }
+  })
+
   // A title that runs across lines joins them with `<br>`; neither that nor
   // an authored tag is id text.
   it.each(['"a<br>b"', '"a\nb"', '"a<br/>b"'])('slugifies the title %j with its line break as `_`', title => {

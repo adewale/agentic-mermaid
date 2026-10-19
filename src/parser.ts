@@ -135,7 +135,7 @@ function parseFlowchartSubgraphDeclaration(rest: string): Pick<MermaidSubgraph, 
   const labelStart = rest.indexOf('[')
   if (labelStart > 0 && labelStart < rest.length - 1 && rest.endsWith(']')) {
     const id = rest.slice(0, labelStart).trim()
-    if (!isMermaidIdentifier(id)) {
+    if (!isFlowchartNodeId(id)) {
       throw new Error(`Invalid flowchart subgraph identifier ${JSON.stringify(id)}`)
     }
     const parsed = parseFlowchartLabel(rest.slice(labelStart + 1, -1))
@@ -143,16 +143,27 @@ function parseFlowchartSubgraphDeclaration(rest: string): Pick<MermaidSubgraph, 
   }
   const parsed = parseFlowchartLabel(rest)
   // Identity comes from the logical source spelling, before display decoding.
-  // Two titles can paint identically without naming the same container.
-  const identity = rest.replace(/^"([\s\S]*)"$/, '$1').trim()
+  // Two titles can paint identically without naming the same container. A
+  // markdown string's identity is its text, as upstream's id is.
+  const unquoted = rest.replace(/^"([\s\S]*)"$/, '$1').trim()
+  const identity = unquoted !== rest && /^`[\s\S]*`$/.test(unquoted) ? unquoted.slice(1, -1).trim() : unquoted
+  // A title that is one node id (`a.b`, `**Two**`) is the subgraph's id, as
+  // upstream reads it there, so a link to that id ends at the subgraph.
+  if (isFlowchartNodeId(identity)) {
+    return { id: identity, label: parsed.text, ...(parsed.labelContent ? { labelContent: parsed.labelContent } : {}), generated: false, identity }
+  }
   // Mermaid identifiers are Unicode-aware everywhere else in this parser.
   // Preserve non-Latin letters/numbers when deriving the implicit container id
   // instead of silently collapsing a CJK title to an empty string. A markup
   // tag separates words like a space: a line break the title runs across is
   // `<br>` here (coalesceFlowchartLines), and `a<br>b` is `a_b`, not `abrb`.
   const id = identity.replace(/<\/?[a-z][^<>]*>/gi, ' ').trim().replace(/\s+/g, '_').replace(/[^\p{L}\p{N}_-]/gu, '').replace(/-{2,}/g, '_')
-  const generated = id !== identity || !isMermaidIdentifier(identity) || flowchartNodeIdLength(identity) !== identity.length
-  return { id: id || 'group', label: parsed.text, ...(parsed.labelContent ? { labelContent: parsed.labelContent } : {}), generated, identity }
+  return { id: id || 'group', label: parsed.text, ...(parsed.labelContent ? { labelContent: parsed.labelContent } : {}), generated: true, identity }
+}
+
+/** Whether `text` is one whole node id (flowchartNodeIdLength). */
+function isFlowchartNodeId(text: string): boolean {
+  return text.length > 0 && flowchartNodeIdLength(text) === text.length
 }
 
 /** Shared statement splitter for renderer and source-side action analysis:

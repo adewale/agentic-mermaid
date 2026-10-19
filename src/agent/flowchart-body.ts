@@ -438,7 +438,7 @@ function nodeLabelColumn(segment: SourceStatementSegment, label: string, afterCo
 }
 
 function mapSubgraphSource(sg: MermaidSubgraph, lines: string[], map: SourceMap): void {
-  const re = new RegExp(`^\\s*subgraph\\s+${escapeRegex(sg.id)}(?:\\b|\\[|$)`, 'i')
+  const re = new RegExp(`^\\s*subgraph\\s+${escapeRegex(sg.id)}(?=\\s|\\[|$)`, 'i')
   for (let i = 0; i < lines.length; i++) {
     const line = lines[i]!
     if (!re.test(line)) continue

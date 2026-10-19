@@ -36,6 +36,13 @@ describe('flowchart SourceMap', () => {
     expect(parsed.value.source.edges.get('edge#1:B->A')).toEqual({ line: 7, col: 1 })
   })
 
+  test('maps a subgraph to its own declaration, not one whose id begins with it', () => {
+    const source = 'flowchart LR\n  subgraph S-x\n    A\n  end\n  subgraph S\n    B\n  end\n  subgraph **Two** [t]\n    C\n  end'
+    const parsed = parseMermaid(source)
+    if (!parsed.ok) throw new Error(JSON.stringify(parsed.error))
+    expect(['S-x', 'S', '**Two**'].map(id => parsed.value.source.groups.get(id)?.line)).toEqual([2, 5, 8])
+  })
+
   // The parser reads a label, string or link across lines, and ER statements
   // may share a line: each location is on the line its text came from, and a
   // span covers its statement alone.
