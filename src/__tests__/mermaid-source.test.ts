@@ -109,6 +109,30 @@ describe('normalizeMermaidSource', () => {
     expect(normalized.familyLines).toEqual(['flowchart TD', 'A --> B'])
   })
 
+  // Mermaid reads a statement written on these families' header lines.
+  it.each([
+    ['sequenceDiagram A->>B: hi', 'sequenceDiagram\nA->>B: hi'],
+    ['stateDiagram-v2 A --> B', 'stateDiagram-v2\nA --> B'],
+    ['mindmap root\n  A', 'mindmap\nroot\n  A'],
+    ['architecture-beta service a(server)[A]', 'architecture-beta\nservice a(server)[A]'],
+    ['gitGraph LR: commit\ncommit', 'gitGraph LR:\ncommit\ncommit'],
+    ['gantt dateFormat YYYY-MM-DD\nTask :a, 2024-01-01, 1d', 'gantt\ndateFormat YYYY-MM-DD\nTask :a, 2024-01-01, 1d'],
+    ['journey title T\nsection S\nA: 5: Me', 'journey\ntitle T\nsection S\nA: 5: Me'],
+    ['quadrantChart title T', 'quadrantChart\ntitle T'],
+    ['timeline LR title T\n2020 : a', 'timeline LR\ntitle T\n2020 : a'],
+    ['pie showData "a": 1', 'pie showData\n"a": 1'],
+    ['xychart-beta horizontal title "T"\nbar [1, 2]', 'xychart-beta horizontal\ntitle "T"\nbar [1, 2]'],
+    ['radar-beta axis a, b\ncurve x{1, 2}', 'radar-beta\naxis a, b\ncurve x{1, 2}'],
+    ['erDiagram subgraph S\nA\nend', 'erDiagram\nsubgraph S\nA\nend'],
+  ])('%j reads its header-line statement as a line of its own', (oneLine, twoLines) => {
+    expect(normalizeMermaidSource(oneLine).familyLines).toEqual(normalizeMermaidSource(twoLines).familyLines)
+    const parsed = parseRegisteredMermaid(oneLine)
+    const expected = parseRegisteredMermaid(twoLines)
+    if (!parsed.ok || !expected.ok) throw new Error(JSON.stringify(parsed.ok ? expected : parsed))
+    expect(parsed.value.body.kind).not.toBe('opaque')
+    expect(parsed.value.body).toEqual(expected.value.body)
+  })
+
   it('leaves an unclosed accessibility block visible to family error handling', () => {
     const normalized = normalizeMermaidSource(`journey
   accDescr {

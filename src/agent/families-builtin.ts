@@ -749,9 +749,9 @@ const ER_AGENT_HOOKS = {
   verify: (body, opts) => (body.kind === 'er' ? verifyErBody(body, opts) : []),
   buildSourceMap: buildErSourceMap,
   ...structuredFamilyHooks('er', {
-    // A header-riding subgraph clause (`erDiagram subgraph X`, repo #103) is
-    // tolerated by the renderer but unmodeled here: keep the body opaque so
-    // the clause round-trips verbatim instead of being dropped on serialize.
+    // Source normalization moves a statement written on the header line
+    // (`erDiagram subgraph X`, repo #103) onto a line of its own
+    // (splitHeaderStatement), so a structured header is bare.
     headerOk: h => /^erdiagram\s*$/i.test(h),
     parseBody: (lines, _accessibility, rawBodyLines) => parseErBody(lines, rawBodyLines),
     serialize: renderEr,

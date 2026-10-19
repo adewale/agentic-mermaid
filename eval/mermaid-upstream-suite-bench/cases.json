@@ -1568,15 +1568,14 @@
       ]
     },
     "assertions": {
-      "expectStructured": false,
-      "nodeCount": 3,
+      "nodeCount": 2,
       "edgeCount": 0,
-      "groupCount": 0,
-      "minNodes": 3,
+      "groupCount": 1,
+      "minNodes": 2,
       "labelsContain": [
         "A",
         "B",
-        "end"
+        "WithRL"
       ]
     }
   },

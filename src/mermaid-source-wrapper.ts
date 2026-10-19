@@ -82,10 +82,32 @@ export function toMermaidLines(text: string): string[] {
     .filter(line => line && !line.startsWith('%%'))
 }
 
+// The header, with the options its grammar keeps on that line, of each family
+// whose Mermaid grammar also reads a statement there (`gantt dateFormat …`,
+// `pie "a": 1`, `gitGraph LR: commit`). Flowchart, class, sankey and C4 need a
+// line break after the header (flowchart also takes `;`).
+// Gantt and timeline move only a keyword statement or one with a `:` (a task,
+// a `period : event`): a bare word (`gantt LR`, `timeline TB`) is more likely a
+// mistyped option, which stays a diagnosed header suffix, than the task or
+// period Mermaid reads it as.
+const HEADER_WITH_STATEMENT_RE = /^[^\S\r\n]*(?:sequenceDiagram|stateDiagram(?:-v2)?|mindmap|architecture(?:-beta)?|gitGraph(?:[^\S\r\n]+(?:LR|TB|BT))?(?:[^\S\r\n]*:)?|gantt(?=[^\S\r\n]+(?:(?:dateFormat|inclusiveEndDates|topAxis|axisFormat|tickInterval|includes|excludes|todayMarker|weekday|weekend|title|accTitle|accDescr|section|click)\b|[^\r\n]*:))|journey|quadrantChart|timeline(?:[^\S\r\n]+(?:LR|TD))?(?=[^\S\r\n]+(?:(?:title|section|accTitle|accDescr)\b|[^\r\n]*:))|pie(?:[^\S\r\n]+showData)?|xychart(?:-beta)?(?:[^\S\r\n]+(?:horizontal|vertical))?|radar-beta(?:[^\S\r\n]*:)?|erDiagram)/i
+
+/** Move a statement written on the header line onto a line of its own, as
+ * Mermaid reads it, so every family reader sees the header alone. */
+export function splitHeaderStatement(body: string): string {
+  const lines = body.split('\n')
+  const at = lines.findIndex(line => line.trim() !== '' && !line.trim().startsWith('%%'))
+  const header = at < 0 ? null : HEADER_WITH_STATEMENT_RE.exec(lines[at]!)
+  const statement = header ? lines[at]!.slice(header[0].length) : ''
+  if (!header || !/^[^\S\r\n]+(?!%%)\S/.test(statement)) return body
+  lines.splice(at, 1, header[0], statement.trim())
+  return lines.join('\n')
+}
+
 /** The first family line, lowercased: the line `normalizeMermaidSource`
  * reports as `firstLine`, found without parsing frontmatter or directives. */
 export function mermaidFirstLine(text: string): string {
-  return toMermaidLines(
+  return toMermaidLines(splitHeaderStatement(
     text.slice(matchMermaidFrontmatter(text)?.source.length ?? 0).replace(INIT_DIRECTIVE_REGEX, ''),
-  )[0]?.toLowerCase() ?? ''
+  ))[0]?.toLowerCase() ?? ''
 }

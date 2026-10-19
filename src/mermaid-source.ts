@@ -26,7 +26,7 @@ import {
 import { splitSequenceStatementLines } from './sequence/statements.ts'
 import { parseMermaidYaml } from './shared/mermaid-yaml.ts'
 import { syntaxError } from './shared/syntax-error.ts'
-import { matchMermaidFrontmatter, INIT_DIRECTIVE_REGEX, toMermaidLines } from './mermaid-source-wrapper.ts'
+import { matchMermaidFrontmatter, INIT_DIRECTIVE_REGEX, splitHeaderStatement, toMermaidLines } from './mermaid-source-wrapper.ts'
 
 export { toMermaidLines }
 
@@ -658,7 +658,8 @@ export function preprocessMermaidSource(
   const frontmatterMatch = matchMermaidFrontmatter(text)
   const yamlFrontmatter = frontmatterMatch ? canonicalizeFrontmatterMap(parseYamlDocument(frontmatterMatch.yaml)) : {}
   const rawBody = frontmatterMatch ? text.slice(frontmatterMatch.source.length) : text
-  const { body, frontmatter: directiveFrontmatter } = extractInitDirectives(rawBody)
+  const { body: directiveFreeBody, frontmatter: directiveFrontmatter } = extractInitDirectives(rawBody)
+  const body = splitHeaderStatement(directiveFreeBody)
   const frontmatter = mergeFrontmatterMaps(
     mergeFrontmatterMaps(canonicalizeFrontmatterMap(baseFrontmatter), yamlFrontmatter),
     canonicalizeFrontmatterMap(directiveFrontmatter),
