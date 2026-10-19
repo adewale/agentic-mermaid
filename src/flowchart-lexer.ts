@@ -511,7 +511,8 @@ const KEYWORD_STATEMENT_RE = /^(?:(?:end|subgraph|classDef|class|style|linkStyle
  * next, and one that begins with a link joins the last, with a space and past
  * blank and comment lines. In a keyword statement (`subgraph`, `style`, …) a
  * bracket or a link is text, so only a markdown string or a metadata block
- * continues one. `line` is the 0-based index of each group's first line.
+ * continues one, or a string in a `click` or `href` statement (its link or
+ * tooltip). `line` is the 0-based index of each group's first line.
  *
  * Upstream's lexer reads `accTitle:` to the end of its line and `accDescr {`
  * to its `}`, whatever they hold. A line that begins a statement with one of
@@ -533,6 +534,9 @@ export function coalesceFlowchartLines(lines: readonly string[]): FlowchartLineG
   let scanned = ''
   let scan = scanLine(scanned)
   let keyword = false
+  // Of the keyword statements, upstream lexes a `click` or `href` statement's
+  // strings (its link, its tooltip) as strings, which run on across lines.
+  let clickString = false
   // Of the keyword statements, upstream lexes a subgraph's `id[…]` or `"…"`
   // title as a label, which runs on across lines to its closer. Ours carries
   // it on only when the first later line to hold one of its delimiters closes
@@ -576,7 +580,7 @@ export function coalesceFlowchartLines(lines: readonly string[]): FlowchartLineG
     const midLabelString = scan.regions.some(region => region.kind === 'string' && region.parent >= 0 && region.start !== scan.regions[region.parent]!.contentStart)
     const subgraphTitle = title !== undefined && titleClosesFrom(index, title)
     const inRegion = group !== undefined && open.length > 0 && open.length <= MAX_CONTINUED_REGIONS && !midLabelString
-      && (open[0] === 'metadata' || open.includes('markdown') || !keyword || subgraphTitle)
+      && (open[0] === 'metadata' || open.includes('markdown') || !keyword || subgraphTitle || (clickString && open.length === 1 && open[0] === 'string'))
       // Upstream's lexer rejects a text-arrow label that takes in a `--`
       // (`==`) that does not close it (findTextArrow): a line that would put
       // one in is no part of the label.
@@ -597,6 +601,7 @@ export function coalesceFlowchartLines(lines: readonly string[]): FlowchartLineG
       scanned = ''
       scan = scanLine(scanned)
       keyword = true
+      clickString = false
       title = undefined
       continue
     }
@@ -631,6 +636,7 @@ export function coalesceFlowchartLines(lines: readonly string[]): FlowchartLineG
     const last = flowchartStatementSpans(text, lineScan).at(-1)
     if (joint === undefined || (last && last.start > 0)) {
       keyword = last !== undefined && KEYWORD_STATEMENT_RE.test(last.text)
+      clickString = last !== undefined && /^(?:click|href)\s/.test(last.text)
       title = last !== undefined && /^subgraph\s/.test(last.text) ? subgraphTitleAt(text, lineScan, last) : undefined
     }
     scanned = text

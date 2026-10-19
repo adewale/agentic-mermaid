@@ -422,6 +422,14 @@ describe('flowchart parser conformance safety floor (issue #36)', () => {
     expect(verifyMermaid(source).warnings).not.toContainEqual(expect.objectContaining({ syntax: 'flowchart_interaction_directive' }))
   })
 
+  // Upstream's lexer reads a click statement's string (its link, its
+  // tooltip) across lines, as any string: the lines inside it are text.
+  test('a click tooltip that runs across lines makes no statements', () => {
+    const graph = parseGraph('flowchart LR\n  A-->B\n  click A call cb() "tool\n  C --> D\n  tip"\n  B --> E')
+    expect([...graph.nodes.keys()]).toEqual(['A', 'B', 'E'])
+    expect(graph.edges.map(e => `${e.source}->${e.target}`)).toEqual(['A->B', 'B->E'])
+  })
+
   test('node metadata @{ shape } is modeled for documented names, opaque + warned otherwise, no phantom nodes', () => {
     const source = 'flowchart LR\n  A@{ shape: rounded, label: "Start" }\n  A --> B\n'
     const graph = parseGraph(source)
