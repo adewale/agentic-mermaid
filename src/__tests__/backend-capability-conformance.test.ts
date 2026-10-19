@@ -4,6 +4,7 @@ import { describe, expect, test } from 'bun:test'
 import {
   DefaultBackend,
   createMermaidBrowserPNGRenderer,
+  createMermaidRenderer,
   applyOutputSecurityPolicy,
   knownBackendDescriptors,
   registerBackend,
@@ -86,6 +87,50 @@ describe('claim-keyed backend capability conformance', () => {
           .replace('</svg>', '<style>.x{color:javascript:alert(1)}</style></svg>')
       },
     }, BACKEND_REGISTRATION_OPTIONS)).toThrow(/output-security.*active content/i)
+  })
+
+  test('checks every host SVG after backend registration and isolates failed requests', () => {
+    const id = 'backend:test/conditional-svg-policy'
+    let content = ''
+    const unregister = registerBackend({
+      ...DefaultBackend,
+      id,
+      capabilities: DefaultBackend.capabilities.map(claim => ({ ...claim, target: id })),
+      render(document, context) {
+        return DefaultBackend.render(document, context).replace('</svg>', `${content}</svg>`)
+      },
+    }, BACKEND_REGISTRATION_OPTIONS)
+    try {
+      const renderer = createMermaidRenderer({ backendPolicy: { selectBackend: () => id } })
+      const source = 'flowchart LR\n  A[Alpha] --> B[Beta]'
+      const safe = renderer.renderMermaidSVG(source)
+      expect(safe).toContain('>Alpha</text>')
+      expect(safe).toContain('>Beta</text>')
+      for (const security of ['default', 'strict'] as const) {
+        for (const [markup, diagnostic] of [
+          ['<g onload="alert(1)"/>', 'active content'],
+          ['<a href="javascript&#x3a;alert(1)"><rect/></a>', 'active content'],
+          ['<rect x="1" x="2"/>', 'invalid SVG document envelope'],
+        ] as const) {
+          content = markup
+          expect(() => renderer.renderMermaidSVG(source, { security })).toThrow(diagnostic)
+          expect(() => renderer.renderMermaidSVGWithReceipt(source, { security })).toThrow(diagnostic)
+          content = ''
+          expect(renderer.renderMermaidSVG(source, { security })).toBe(safe)
+        }
+      }
+      content = '<a href="https://example.invalid/host-link"><rect/></a>'
+      const external = renderer.renderMermaidSVGWithReceipt(source)
+      expect(external.svg).toContain(content)
+      expect(external.receipt.diagnostics).toContainEqual({
+        code: 'EXTERNAL_REFERENCE', reference: 'https://example.invalid/host-link',
+      })
+      expect(() => renderer.renderMermaidSVG(source, { security: 'strict' })).toThrow('strict verification failed')
+      content = ''
+      expect(renderer.renderMermaidSVGWithReceipt(source).svg).toBe(safe)
+    } finally {
+      unregister()
+    }
   })
 
   test('rejects malformed XML during backend admission and final envelope validation', () => {
