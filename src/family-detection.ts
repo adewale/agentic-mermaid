@@ -13,7 +13,7 @@ import {
   UPSTREAM_MERMAID_FAMILY_INDEX,
   type UpstreamHeaderMatch,
 } from './upstream-family-index.ts'
-import { matchMermaidFrontmatter } from './mermaid-source-wrapper.ts'
+import { matchMermaidFrontmatter, splitHeaderStatement } from './mermaid-source-wrapper.ts'
 import { parseAccessibilityDirective } from './shared/accessibility-directives.ts'
 
 export type MermaidFamilyClassification =
@@ -189,15 +189,18 @@ export function sourcePreservationSpans(
     // String trimming already treats U+FEFF as whitespace. Locate the header
     // in the untouched line instead of adding a second BOM offset.
     const trimmed = raw.trim()
-    if (trimmed === header || (trimmed.startsWith(header) && /^\s*;/.test(trimmed.slice(header.length)))) {
+    // A statement may follow the header on its line, after `;` or, where the
+    // family's grammar reads one there, a space; it belongs to the body.
+    const suffix = trimmed.startsWith(header) ? trimmed.slice(header.length) : ''
+    const semicolon = /^\s*;/.test(suffix)
+    if (trimmed === header || semicolon || (/^\s/.test(suffix) && splitHeaderStatement(trimmed) !== trimmed)) {
       const relativeStart = raw.indexOf(header)
       headerStart = lineStart + relativeStart
       headerEnd = headerStart + header.length
       if (trimmed === header) {
         payloadStart = newline < 0 ? source.length : newline + 1
       } else {
-        const semicolon = raw.indexOf(';', relativeStart + header.length)
-        payloadStart = semicolon + 1
+        payloadStart = semicolon ? source.indexOf(';', headerEnd) + 1 : headerEnd
         while (payloadStart < lineEnd && /[ \t]/.test(source[payloadStart]!)) payloadStart++
       }
       break

@@ -8,6 +8,7 @@
 // ============================================================================
 
 import { normalizeMermaidSource } from '../mermaid-source.ts'
+import { splitHeaderStatement } from '../mermaid-source-wrapper.ts'
 import { stripStateComment } from '../state/comment.ts'
 import { trailingCommentStart } from '../shared/trailing-comment.ts'
 import { splitAuthoredPieTitleLine } from '../pie/source-title.ts'
@@ -134,7 +135,10 @@ function semanticFamilyLineSource(
     semicolon = index
     break
   }
-  const authoredHeader = (semicolon >= 0 ? authoredLine.slice(0, semicolon) : authoredLine).trimEnd()
+  // So is a statement after the header and a space, where the family's
+  // grammar reads one there.
+  const beforeSemicolon = (semicolon >= 0 ? authoredLine.slice(0, semicolon) : authoredLine).trimEnd()
+  const authoredHeader = pieInlineTitle ? beforeSemicolon : splitHeaderStatement(beforeSemicolon).split('\n')[0]!.trimEnd()
   if (!authoredHeader) return { source: routedSource, authoredHeader }
   const relativeStart = line.indexOf(authoredHeader)
   const headerStart = lineStart + relativeStart

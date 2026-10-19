@@ -299,6 +299,22 @@ accDescr: {
     }
   })
 
+  // Behind a wrapper too, and after a space where the family reads a statement
+  // on its header line; its statement spans stand on that line.
+  test.each([
+    ['%% c\nflowchart LR; A --> B', 'flowchart LR', 'A --> B', ''],
+    ['---\ntitle: T\n---\nflowchart LR; A --> B', 'flowchart LR', 'A --> B', ''],
+    ['erDiagram A ||--o{ B : x', 'erDiagram', 'A ||--o{ B : x', 'rel#0:A->B'],
+    ['sequenceDiagram A->>B: hi', 'sequenceDiagram', 'A->>B: hi', ''],
+    ['gitGraph LR: commit', 'gitGraph LR:', 'commit', ''],
+  ])('separates the header of %j from the statement after it', (source, header, body, edge) => {
+    const parsed = parseMermaid(source)
+    if (!parsed.ok) throw new Error(JSON.stringify(parsed.error))
+    const spans = parsed.value.source.spans!
+    expect([textAt(source, spans.preserved.header), textAt(source, spans.preserved.body)]).toEqual([header, body])
+    if (edge) expect(textAt(source, spans.edges.get(edge))).toBe(body)
+  })
+
   test('maps duplicate indexed objects to their distinct authored occurrences', () => {
     const flow = `flowchart LR
  A --> B

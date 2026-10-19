@@ -1,5 +1,6 @@
 import { type FlowchartScan, type FlowchartTextRange, flowchartTextArrowLabelRanges, scanFlowchart } from '../flowchart-lexer.ts'
 import type { PreservedSourceSpans, SourceLocation, SourceMap, SourceMapSpans, SourceSpan, SourceSpanPoint } from './types.ts'
+import { splitHeaderStatement } from '../mermaid-source-wrapper.ts'
 
 interface PhysicalLine {
   text: string
@@ -61,6 +62,14 @@ function authoredLineMap(canonicalSource: string, authoredSource: string, preser
   // authored line prevents Mermaid-looking YAML block-scalar content from
   // capturing semantic lines before the real diagram begins.
   let cursor = Math.max(0, preserved.header.start.line - 1)
+  // A statement written on the header line is read as a line of its own;
+  // match it where it stands on that line.
+  const header = authored[cursor]
+  const split = header && splitHeaderStatement(header.text).split('\n')
+  if (header && split?.length === 2) {
+    authored.splice(cursor, 1, { text: split[0]!, start: header.start },
+      { text: split[1]!, start: header.start + header.text.indexOf(split[1]!, split[0]!.length) })
+  }
   for (let index = 0; index < canonical.length; index++) {
     const wanted = canonical[index]!.text.trim()
     if (!wanted) continue
