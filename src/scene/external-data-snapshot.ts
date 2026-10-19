@@ -241,7 +241,16 @@ export function freezeBoundedFirstPartyData(
   let properties = 0
   let propertyKeyBytes = 0
 
-  const visit = (candidate: unknown, depth: number, path: string): void => {
+  // Only diagnostics need a full path. Keep raw ancestor segments while
+  // descending objects; ordinary scalar values create no path strings.
+  const ancestors: Array<string | number> = []
+  const path = (leaf?: string | number): string => {
+    let result = rootPath
+    for (const segment of ancestors) result += typeof segment === 'number' ? `[${segment}]` : `.${segment}`
+    if (leaf !== undefined) result += typeof leaf === 'number' ? `[${leaf}]` : `.${leaf}`
+    return result
+  }
+  const visit = (candidate: unknown, depth: number, segment?: string | number): void => {
     if (typeof candidate === 'string') {
       const remaining = Math.max(0, limits.maxTextBytes - textBytes)
       const bytes = boundedUtf8ByteLength(candidate, remaining)
@@ -253,7 +262,7 @@ export function freezeBoundedFirstPartyData(
     }
     if (candidate === null || typeof candidate !== 'object') {
       if (typeof candidate === 'function' || typeof candidate === 'symbol' || typeof candidate === 'bigint') {
-        throw new TypeError(`External Scene ${path} must be declarative data`)
+        throw new TypeError(`External Scene ${path(segment)} must be declarative data`)
       }
       return
     }
@@ -266,14 +275,15 @@ export function freezeBoundedFirstPartyData(
     if (active.has(candidate)) throw new Error('External Scene input must be acyclic')
     if (frozen.has(candidate)) return
     active.add(candidate)
+    if (segment !== undefined) ancestors.push(segment)
     try {
       if (Array.isArray(candidate)) {
         if (Object.getPrototypeOf(candidate) !== Array.prototype) {
-          throw new TypeError(`External Scene ${path} must be a plain array`)
+          throw new TypeError(`External Scene ${path()} must be a plain array`)
         }
         const length = candidate.length
         if (length > limits.maxArrayEntries) {
-          throw new Error(`External Scene ${path} contains too many entries`)
+          throw new Error(`External Scene ${path()} contains too many entries`)
         }
         arrayEntries += length
         if (arrayEntries > limits.maxAggregateArrayEntries) {
@@ -281,17 +291,17 @@ export function freezeBoundedFirstPartyData(
         }
         for (let index = 0; index < length; index++) {
           // A hole would otherwise read through Array.prototype.
-          if (!Object.hasOwn(candidate, index)) throw new TypeError(`External Scene ${path} must not be sparse`)
-          visit(candidate[index], depth + 1, `${path}[${index}]`)
+          if (!Object.hasOwn(candidate, index)) throw new TypeError(`External Scene ${path()} must not be sparse`)
+          visit(candidate[index], depth + 1, index)
         }
       } else {
         const prototype = Object.getPrototypeOf(candidate)
         if (prototype !== Object.prototype && prototype !== null) {
-          throw new TypeError(`External Scene ${path} must be a plain object`)
+          throw new TypeError(`External Scene ${path()} must be a plain object`)
         }
         const keys = Object.keys(candidate)
         if (keys.length > limits.maxPropertiesPerObject) {
-          throw new Error(`External Scene ${path} contains too many properties`)
+          throw new Error(`External Scene ${path()} contains too many properties`)
         }
         properties += keys.length
         if (properties > limits.maxAggregateProperties) {
@@ -301,7 +311,7 @@ export function freezeBoundedFirstPartyData(
           const remaining = Math.max(0, limits.maxAggregatePropertyKeyBytes - propertyKeyBytes)
           const bytes = boundedUtf8ByteLength(key, Math.min(limits.maxPropertyKeyBytes, remaining))
           if (bytes > limits.maxPropertyKeyBytes) {
-            throw new Error(`External Scene ${path} contains a property key longer than ${limits.maxPropertyKeyBytes} bytes`)
+            throw new Error(`External Scene ${path()} contains a property key longer than ${limits.maxPropertyKeyBytes} bytes`)
           }
           if (bytes > remaining) {
             throw new Error(`External Scene property keys exceed the aggregate ${limits.maxAggregatePropertyKeyBytes}-byte limit`)
@@ -309,16 +319,17 @@ export function freezeBoundedFirstPartyData(
           propertyKeyBytes += bytes
         }
         const record = candidate as Record<string, unknown>
-        for (const key of keys) visit(record[key], depth + 1, `${path}.${key}`)
+        for (const key of keys) visit(record[key], depth + 1, key)
       }
       Object.freeze(candidate)
       frozen.add(candidate)
     } finally {
+      if (segment !== undefined) ancestors.pop()
       active.delete(candidate)
     }
   }
 
-  visit(value, 0, rootPath)
+  visit(value, 0)
   return value
 }
 
