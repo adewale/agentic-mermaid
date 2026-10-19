@@ -1,0 +1,19 @@
+---
+title: Authored service grid
+---
+block
+  columns 3
+  client["Client"] space gateway["Gateway"]
+  block:services["Services"]:3
+    columns 3
+    ingest["Ingest"] queue[("Queue")] worker["Worker"]
+    audit["Audit"] space store[("Store")]
+    ingest -- "Enqueue" --> queue
+    queue --> worker
+    worker --> store
+    ingest --> audit
+  end
+  client --> gateway
+  gateway --> ingest
+  classDef durable fill:#e0f2fe,stroke:#0369a1
+  class queue,store durable

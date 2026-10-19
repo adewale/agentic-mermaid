@@ -112,7 +112,9 @@ describe('op-schema shape validation (§1–3, §5)', () => {
     const checked = mutateChecked(parsed.value, op)
     const declarative = applyOps({ source, ops: [op] })
     expect({ direct: direct.ok, checked: checked.ok, declarative: declarative.ok }).toEqual({
-      direct: true, checked: true, declarative: true,
+      direct: true,
+      checked: true,
+      declarative: true,
     })
     if (!direct.ok || !checked.ok || !declarative.ok) return
 
@@ -121,9 +123,7 @@ describe('op-schema shape validation (§1–3, §5)', () => {
       const reparsed = parseMermaid(result)
       expect(reparsed.ok).toBe(true)
       if (!reparsed.ok || reparsed.value.body.kind !== 'class') throw new Error('Expected a structured class diagram')
-      expect(reparsed.value.body.relations).toEqual([
-        { from: 'Port', to: 'Service', kind: 'lollipop', label: 'provides', markerAt: 'from' },
-      ])
+      expect(reparsed.value.body.relations).toEqual([{ from: 'Port', to: 'Service', kind: 'lollipop', label: 'provides', markerAt: 'from' }])
     }
   })
 
@@ -260,6 +260,12 @@ describe('schema covers every mutable family (§11)', () => {
     radar: { kind: 'add_axis', id: 'a' },
     sankey: { kind: 'add_link', source: 'A', target: 'B', value: 1 },
     c4: { kind: 'add_element', element: { id: 'service', label: 'Service', kind: 'system' } },
+    packet: { kind: 'add_field', label: 'Byte', bits: 8 },
+    kanban: { kind: 'add_column', id: 'todo', label: 'To do' },
+    requirement: { kind: 'add_requirement', requirement: { name: 'response', text: 'Respond promptly' } },
+    treemap: { kind: 'add_node', label: 'Investment', value: 10 },
+    ishikawa: { kind: 'set_effect', label: 'Release delay' },
+    block: { kind: 'add_block', block: { id: 'service', label: 'Service', type: 'square' } },
   }
 
   test('every family in MUTATION_OPS_BY_FAMILY has a schema and builds a valid op', () => {

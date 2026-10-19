@@ -2,9 +2,9 @@
   "schemaVersion": 1,
   "status": "approved",
   "artifact": "src/__tests__/testdata/section-b-brand-evidence.png",
-  "artifactSha256": "1c911e827bb74398ea18fc9f448a0a12230a86900aafec30af3f27f8a5574c27",
+  "artifactSha256": "130a1f28d004859aecb3dec977fad890f6767d1497f9b2cd992a58a3656dd806",
   "reviewedAt": "2026-10-19",
-  "reviewer": "Claude Code agent, typed SVG writer refresh",
-  "scope": "Candidate on branch claude/0.5-render-pipeline, where every shape, text and connector is written from its typed fields. Compared with the previously approved artifact 147a364dca5e02da89bd6b01c438c2ed3d21949f1051bd0a45d95e299a195cbb, the 1560×9464 sheet changes 272,385 pixels in five of its 68 family-by-variant cells: Sankey in all four treatments and Pie Sentinel. The other 63 cells and all headings are pixel-identical. Every Sankey difference is at most 2/255 per channel (link stroke opacity is now written unrounded) and is not visible. Pie Sentinel's highlighted Pro slice now draws the 5px emphasis border its typed paint already certified (its bound 'selected' slot width 4, plus 1); a stylesheet rule built from the base slice width used to override it to 4px. The agent inspected both changed Pie crops at native 520×380 and 3× zoom: wedge geometry, fills, labels, legend and the other slices are unchanged. This is agent review, not human approval, deployed-site parity or arbitrary input/font coverage.",
-  "audit": "eval/section-b-brand-evidence/production-comparison.md"
+  "reviewer": "Codex agent, stable-family implementation review",
+  "scope": "92 family-by-variant cells: reviewed the 24 newly enrolled Packet, Kanban, Requirement, Treemap, Ishikawa and Block cells at native 520x380 size in four 1560x1140 crop sheets. The prior 68 diagram-body crops are pixel-identical after aligning the new variant bands; six existing captions have small raster differences from their changed absolute sheet positions. Inspected domain geometry, complete labels, marker direction, nested areas, typography and light/dark palette contrast. This is agent review, not human approval, deployed-site parity or arbitrary input/font coverage.",
+  "audit": "eval/section-b-brand-evidence/stable-families-review.md"
 }

@@ -380,6 +380,212 @@ interface PreservedValidDiagram {
 
 type ParsedDiagram = ValidDiagram | ExtensionValidDiagram | PreservedValidDiagram
 
+interface PacketField { id: string; start: number; end: number; label: string }
+interface PacketBody {
+  kind: 'packet'
+  title?: string
+  accessibilityTitle?: string
+  accessibilityDescription?: string
+  fields: PacketField[]
+}
+type PacketMutationOp =
+  | { kind: 'set_title'; title?: string }
+  | { kind: 'set_accessibility_title'; title?: string }
+  | { kind: 'set_accessibility_description'; description?: string }
+  | { kind: 'add_field'; label: string; bits: number; index?: number }
+  | { kind: 'remove_field'; index: number }
+  | { kind: 'set_field_label'; index: number; label: string }
+  | { kind: 'set_field_bits'; index: number; bits: number }
+  | { kind: 'move_field'; from: number; to: number }
+interface KanbanItem {
+  /** Collision-free public identity; sourceId retains repeated authored IDs. */
+  id: string
+  sourceId: string
+  implicitId?: boolean
+  label: string
+  metadata: Record<string, unknown>
+  icon?: string
+  className?: string
+}
+interface KanbanColumn extends KanbanItem { tasks: KanbanItem[] }
+interface KanbanBody {
+  kind: 'kanban'
+  columns: KanbanColumn[]
+  /** Display-only title supplied by the universal frontmatter envelope. */
+  title?: string
+  accessibilityTitle?: string
+  accessibilityDescription?: string
+}
+type KanbanMutationOp =
+  | { kind: 'add_column'; id: string; label: string; index?: number }
+  | { kind: 'remove_column'; id: string; removeTasks?: boolean }
+  | { kind: 'set_column_label'; id: string; label: string }
+  | { kind: 'move_column'; id: string; index: number }
+  | { kind: 'add_task'; column: string; id: string; label: string; metadata?: Record<string, unknown>; index?: number }
+  | { kind: 'remove_task'; id: string }
+  | { kind: 'set_task_label'; id: string; label: string }
+  | { kind: 'set_task_metadata'; id: string; metadata: Record<string, unknown> | null }
+  | { kind: 'move_task'; id: string; column: string; index?: number }
+  | { kind: 'set_icon'; id: string; icon?: string }
+  | { kind: 'set_class'; id: string; className?: string }
+  | { kind: 'set_accessibility_title'; title?: string }
+  | { kind: 'set_accessibility_description'; description?: string }
+interface Requirement {
+  name: string;
+  type: string;
+  requirementId: string;
+  text: string;
+  risk: string;
+  verifyMethod: string;
+  cssStyles: string[];
+  classes: string[];
+  directStyles?: string[];
+}
+interface RequirementElement {
+  name: string;
+  type: string;
+  docRef: string;
+  cssStyles: string[];
+  classes: string[];
+  directStyles?: string[];
+}
+interface Relation {
+  type: string;
+  src: string;
+  dst: string;
+}
+interface RequirementClass {
+  id: string;
+  styles: string[];
+  textStyles: string[];
+}
+interface RequirementRelation extends Relation { id: string }
+interface RequirementBody {
+  kind: 'requirement'
+  direction: 'TB' | 'BT' | 'LR' | 'RL'
+  requirements: Requirement[]
+  elements: RequirementElement[]
+  relations: RequirementRelation[]
+  classDefs: RequirementClass[]
+  title?: string
+  accessibilityTitle?: string
+  accessibilityDescription?: string
+}
+type RequirementInput = Pick<Requirement, 'name'> & Partial<Omit<Requirement, 'name' | 'cssStyles'>>
+type RequirementElementInput = Pick<RequirementElement, 'name'> & Partial<Omit<RequirementElement, 'name' | 'cssStyles'>>
+type RequirementMutationOp =
+  | { kind: 'set_title'; title: string | null }
+  | { kind: 'set_direction'; direction: RequirementBody['direction'] }
+  | { kind: 'add_requirement'; requirement: RequirementInput }
+  | { kind: 'update_requirement'; id: string; changes: Partial<Omit<RequirementInput, 'name'>> }
+  | { kind: 'add_element'; element: RequirementElementInput }
+  | { kind: 'update_element'; id: string; changes: Partial<Omit<RequirementElementInput, 'name'>> }
+  | { kind: 'rename_node'; from: string; to: string }
+  | { kind: 'remove_node'; id: string; cascade?: boolean }
+  | { kind: 'add_relation'; relation: Omit<RequirementRelation, 'id'> & { id?: string } }
+  | { kind: 'remove_relation'; id: string }
+  | { kind: 'define_class'; name: string; style: string }
+  | { kind: 'set_node_class'; id: string; className: string | null }
+  | { kind: 'set_node_style'; id: string; style: string | null }
+interface Block {
+  id: string;
+  type?: string;
+  label?: string;
+  children?: Block[];
+  columns?: number;
+  widthInColumns?: number;
+  // Number of cells a \`space\` statement asked for.
+  width?: number;
+  directions?: string[];
+  classes?: string[];
+  styles?: string[];
+  colorIndex?: number;
+  start?: string;
+  end?: string;
+  arrowTypeStart?: string;
+  arrowTypeEnd?: string;
+  thickness?: string;
+  pattern?: string;
+  css?: string;
+  styleClass?: string;
+  stylesStr?: string;
+}
+type Statement = Block | Block[];
+interface BlockClassDef {
+  id: string;
+  styles: string[];
+  textStyles: string[];
+}
+interface BlockBody {
+  kind: 'block'
+  root: Block
+  edges: Block[]
+  classDefs: BlockClassDef[]
+  title?: string
+  accessibilityTitle?: string
+  accessibilityDescription?: string
+}
+interface BlockInput {
+  id: string; label?: string; type?: string; widthInColumns?: number
+  columns?: number; directions?: string[]; classes?: string[]; styles?: string[]
+  width?: number
+  children?: BlockInput[]
+}
+type BlockMutationOp =
+  | { kind: 'set_title'; title: string | null }
+  | { kind: 'set_columns'; columns: number; parentId?: string }
+  | { kind: 'add_block'; block: BlockInput; parentId?: string; index?: number }
+  | { kind: 'update_block'; id: string; changes: Partial<Omit<BlockInput, 'id'>> }
+  | { kind: 'rename_block'; from: string; to: string }
+  | { kind: 'remove_block'; id: string; cascade?: boolean }
+  | { kind: 'move_block'; id: string; parentId?: string; index?: number }
+  | { kind: 'add_edge'; from: string; to: string; label?: string; style?: 'solid' | 'dotted' | 'thick'; arrowStart?: string; arrowEnd?: string }
+  | { kind: 'remove_edge'; id: string }
+  | { kind: 'define_class'; name: string; style: string }
+  | { kind: 'set_node_class'; id: string; className: string | null }
+  | { kind: 'set_node_style'; id: string; style: string | null }
+interface TreemapNode {
+  id: string
+  label: string
+  parentId?: string
+  value?: number
+  className?: string
+}
+interface TreemapBody {
+  kind: 'treemap'
+  title?: string
+  accessibilityTitle?: string
+  accessibilityDescription?: string
+  nodes: TreemapNode[]
+  classDefs: Record<string, Record<string, string>>
+}
+type TreemapMutationOp =
+  | { kind: 'set_title'; title: string | null }
+  | { kind: 'add_node'; label: string; value?: number; parentId?: string; className?: string }
+  | { kind: 'remove_node'; id: string }
+  | { kind: 'set_label'; id: string; label: string }
+  | { kind: 'set_value'; id: string; value: number }
+  | { kind: 'move_node'; id: string; parentId?: string; index?: number }
+  | { kind: 'define_class'; name: string; style: string }
+  | { kind: 'set_node_class'; id: string; className: string | null }
+  | { kind: 'set_accessibility_title'; title: string | null }
+  | { kind: 'set_accessibility_description'; description: string | null }
+interface IshikawaNode { id: string; label: string; parentId?: string }
+interface IshikawaBody {
+  kind: 'ishikawa'
+  nodes: IshikawaNode[]
+  accessibilityTitle?: string
+  accessibilityDescription?: string
+}
+type IshikawaMutationOp =
+  | { kind: 'set_effect'; label: string }
+  | { kind: 'add_cause'; label: string; parentId?: string }
+  | { kind: 'remove_cause'; id: string }
+  | { kind: 'set_label'; id: string; label: string }
+  | { kind: 'move_cause'; id: string; parentId: string; index?: number }
+  | { kind: 'set_accessibility_title'; title: string | null }
+  | { kind: 'set_accessibility_description'; description: string | null }
+
 ${SDK_VALID_DIAGRAM_ALIASES}
 
 interface PixelTextBlock {

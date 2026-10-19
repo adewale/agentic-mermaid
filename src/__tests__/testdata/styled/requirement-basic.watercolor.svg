@@ -1,0 +1,48 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="246.072" height="509.40000000000003" viewBox="0 0 246.072 509.40000000000003" style="--bg:#fdfbf6;--fg:#31302c;--line:#4d4a44;--accent:#7a6a52;--surface:#ead9b9;--border:#5a564e;--font:Caveat;background:#fdfbf6" class="am-12kks0x0zf9lwi"><style>
+  svg.am-12kks0x0zf9lwi { font-family: var(--font, 'Caveat'), system-ui, sans-serif; }
+  svg.am-12kks0x0zf9lwi {
+    /* Derived from --bg and --fg (overridable via --line, --accent, etc.) */
+    --_text:          #31302c;
+    --_text-sec:      #5e5d58;
+    --_text-muted:    #767571;
+    --_text-faint:    #8f8d89;
+    --_line:          #4d4a44;
+    --_arrow:         #7a6a52;
+    --_node-fill:     #ead9b9;
+    --_node-stroke:   #5a564e;
+    --_group-fill:    #fdfbf6;
+    --_group-hdr:     #f3f1ec;
+    --_inner-stroke:  #e5e3de;
+    --_key-badge:     #e9e7e2;
+  }
+</style>
+<rect width="246.072" height="509.40000000000003" fill="#fdfbf6" data-backdrop="page" />
+<defs>  <marker id="requirement-arrow" markerWidth="9" markerHeight="7" refX="9" refY="3.5" orient="auto" markerUnits="userSpaceOnUse">
+    <polygon points="0 0, 9 3.5, 0 7" fill="none" stroke="#7a6a52" stroke-width="1" />
+  </marker>
+  <marker id="requirement-contains" markerWidth="12" markerHeight="12" refX="0" refY="6" orient="auto" markerUnits="userSpaceOnUse">
+    <circle cx="6" cy="6" r="5" fill="#fdfbf6" stroke="#7a6a52" stroke-width="1" />
+    <path d="M2 6H10M6 2V10" fill="#fdfbf6" stroke="#7a6a52" stroke-width="1" />
+  </marker></defs>
+<g class="requirement-node" data-id="fast" data-role="node">
+  <rect x="32" y="300" width="182.072" height="177.40000000000003" fill="#ead9b9" stroke="#5a564e" stroke-width="0.75" />
+  <line x1="32" y1="357.8" x2="214.072" y2="357.8" stroke="#5a564e" stroke-width="0.75" />
+  <text paint-order="stroke" stroke="#fdfbf6" stroke-width="3" stroke-linejoin="round" stroke-linecap="round" x="123.036" y="328.9" text-anchor="middle" font-size="13" font-weight="500" fill="#31302c" data-prepared-text="true"><tspan x="123.036" dy="-3.9000000000000012" textLength="105.69" lengthAdjust="spacingAndGlyphs" data-font-metrics="deterministic-fit">&lt;&lt;Requirement&gt;&gt;</tspan><tspan x="123.036" dy="16.900000000000002" textLength="22.697999999999997" lengthAdjust="spacingAndGlyphs" data-font-metrics="deterministic-fit">fast</tspan></text>
+  <text paint-order="stroke" stroke="#fdfbf6" stroke-width="3" stroke-linejoin="round" stroke-linecap="round" x="48" y="374.25" text-anchor="start" font-size="13" font-weight="400" fill="#31302c" data-id="field:fast:0" data-role="attribute" data-prepared-text="true" dy="4.55" textLength="20.903999999999996" lengthAdjust="spacingAndGlyphs" data-font-metrics="deterministic-fit">ID: 1</text>
+  <text paint-order="stroke" stroke="#fdfbf6" stroke-width="3" stroke-linejoin="round" stroke-linecap="round" x="48" y="400.15000000000003" text-anchor="start" font-size="13" font-weight="400" fill="#31302c" data-id="field:fast:1" data-role="attribute" data-prepared-text="true" dy="4.55" textLength="150.072" lengthAdjust="spacingAndGlyphs" data-font-metrics="deterministic-fit">Text: Respond within 100ms</text>
+  <text paint-order="stroke" stroke="#fdfbf6" stroke-width="3" stroke-linejoin="round" stroke-linecap="round" x="48" y="426.05" text-anchor="start" font-size="13" font-weight="400" fill="#31302c" data-id="field:fast:2" data-role="attribute" data-prepared-text="true" dy="4.55" textLength="57.40800000000001" lengthAdjust="spacingAndGlyphs" data-font-metrics="deterministic-fit">Risk: High</text>
+  <text paint-order="stroke" stroke="#fdfbf6" stroke-width="3" stroke-linejoin="round" stroke-linecap="round" x="48" y="451.95000000000005" text-anchor="start" font-size="13" font-weight="400" fill="#31302c" data-id="field:fast:3" data-role="attribute" data-prepared-text="true" dy="4.55" textLength="95.31600000000002" lengthAdjust="spacingAndGlyphs" data-font-metrics="deterministic-fit">Verification: Test</text>
+</g>
+<g class="requirement-node" data-id="benchmark" data-role="node">
+  <rect x="53.036" y="32" width="140" height="99.70000000000002" fill="#ead9b9" stroke="#5a564e" stroke-width="0.75" />
+  <line x1="53.036" y1="89.80000000000001" x2="193.036" y2="89.80000000000001" stroke="#5a564e" stroke-width="0.75" />
+  <text paint-order="stroke" stroke="#fdfbf6" stroke-width="3" stroke-linejoin="round" stroke-linecap="round" x="123.036" y="60.900000000000006" text-anchor="middle" font-size="13" font-weight="500" fill="#31302c" data-prepared-text="true"><tspan x="123.036" dy="-3.9000000000000012" textLength="77.532" lengthAdjust="spacingAndGlyphs" data-font-metrics="deterministic-fit">&lt;&lt;Element&gt;&gt;</tspan><tspan x="123.036" dy="16.900000000000002" textLength="68.64" lengthAdjust="spacingAndGlyphs" data-font-metrics="deterministic-fit">benchmark</tspan></text>
+  <text paint-order="stroke" stroke="#fdfbf6" stroke-width="3" stroke-linejoin="round" stroke-linecap="round" x="69.036" y="106.25000000000001" text-anchor="start" font-size="13" font-weight="400" fill="#31302c" data-id="field:benchmark:0" data-role="attribute" data-prepared-text="true" dy="4.55" textLength="56.00400000000001" lengthAdjust="spacingAndGlyphs" data-font-metrics="deterministic-fit">Type: test</text>
+</g>
+<polyline stroke-opacity="0" points="123.036,131.70000000000002 123.036,300" fill="none" stroke="#4d4a44" stroke-width="1" marker-end="url(#requirement-arrow)" data-relationship="verifies" data-direction="forward" data-id="relation-1" data-role="relationship" data-from="benchmark" data-to="fast" role="graphics-symbol" aria-roledescription="relation" aria-label="benchmark to fast: &lt;&lt;verifies&gt;&gt;" />
+<path d="M123.95 130.9 C124.1 180.49, 125 226.1, 121.68 298.84" fill="none" stroke="#4d4a44" stroke-width="1.5" stroke-linecap="butt" stroke-linejoin="miter" stroke-miterlimit="4" />
+<g class="requirement-edge-label">
+  <rect x="45.98599999999999" y="204.70000000000002" width="73.05000000000001" height="22.3" fill="#fdfbf6" stroke="none" />
+  <text x="82.511" y="215.85000000000002" text-anchor="middle" font-size="11" font-weight="400" fill="#31302c" data-prepared-text="true" dy="3.8499999999999996" textLength="61.050000000000004" lengthAdjust="spacingAndGlyphs" data-font-metrics="deterministic-fit">&lt;&lt;verifies&gt;&gt;</text>
+</g>
+</svg>

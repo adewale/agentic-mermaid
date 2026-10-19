@@ -366,6 +366,13 @@ export function createTracingMermaid(trace?: ExecutionTraceCall[], makeSandboxEr
     asRadar: mermaid.asRadar,
     asSankey: mermaid.asSankey,
     asC4: mermaid.asC4,
+    asPacket: mermaid.asPacket,
+    asKanban: mermaid.asKanban,
+    asRequirement: mermaid.asRequirement,
+    asTreemap: mermaid.asTreemap,
+    asIshikawa: mermaid.asIshikawa,
+    asBlock: mermaid.asBlock,
+
     mutate: mermaid.mutate,
     verifyMermaid: mermaid.verifyMermaid,
     analyzeMermaid: mermaid.analyzeMermaid,

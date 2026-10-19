@@ -1,3 +1,4 @@
+import { isStableFamilyBody, stableFamilyTree, stableFamilyCount } from './stable-family-adapters.ts'
 // ============================================================================
 // describeMermaid — natural-language summary of a diagram.
 //
@@ -41,8 +42,9 @@ export interface DescribeTree {
   nodes: Array<{
     id: string
     label: string
-    c4?: ({ category: 'element'; effectiveShape: C4Shape } & Pick<C4Element, 'kind' | 'external' | 'shape' | 'parentId'>)
-      | ({ category: 'boundary' } & Pick<C4Boundary, 'kind' | 'parentId'>)
+    parentId?: string
+    value?: number
+    c4?: ({ category: 'element'; effectiveShape: C4Shape } & Pick<C4Element, 'kind' | 'external' | 'shape' | 'parentId'>) | ({ category: 'boundary' } & Pick<C4Boundary, 'kind' | 'parentId'>)
   }>
   edges: Array<{
     from: string
@@ -103,6 +105,10 @@ export function describeMermaid(d: ParsedDiagram, opts: DescribeOptions = {}): s
     }
     const total = d.body.links.reduce((sum, link) => sum + link.value, 0)
     return `A sankey diagram flowing ${total} across ${d.body.links.length} link(s) between ${nodes.size} node(s).`
+  }
+  if (isStableFamilyBody(d.body)) {
+    const count = stableFamilyCount(d.body)
+    return `A ${d.kind} diagram with ${count.nodes} item(s), ${count.groups} group(s) and ${count.edges} relationship(s).`
   }
   if (d.body.kind === 'opaque') return describeOpaque(d.kind, d.body.source)
   if (d.body.kind === 'extension') return describeOpaque(d.kind, d.body.source)
@@ -229,18 +235,24 @@ export function describeMermaidTree(d: ParsedDiagram): DescribeTree {
     d.body.axes.forEach((a, i) => tree.nodes.push({ id: `axis-${i}`, label: a.label }))
     d.body.curves.forEach((c, i) => tree.nodes.push({ id: `curve-${i}`, label: c.label }))
   } else if (d.body.kind === 'c4') {
-    for (const boundary of d.body.boundaries) tree.nodes.push({
-      id: boundary.id, label: c4BoundaryText(boundary),
-      c4: { category: 'boundary', kind: boundary.kind, ...(boundary.parentId === undefined ? {} : { parentId: boundary.parentId }) },
-    })
-    for (const element of d.body.elements) tree.nodes.push({
-      id: element.id, label: c4ElementText(element),
-      c4: { category: 'element', kind: element.kind, external: element.external, shape: element.shape, effectiveShape: effectiveC4Shape(element), ...(element.parentId === undefined ? {} : { parentId: element.parentId }) },
-    })
+    for (const boundary of d.body.boundaries)
+      tree.nodes.push({
+        id: boundary.id,
+        label: c4BoundaryText(boundary),
+        c4: { category: 'boundary', kind: boundary.kind, ...(boundary.parentId === undefined ? {} : { parentId: boundary.parentId }) },
+      })
+    for (const element of d.body.elements)
+      tree.nodes.push({
+        id: element.id,
+        label: c4ElementText(element),
+        c4: { category: 'element', kind: element.kind, external: element.external, shape: element.shape, effectiveShape: effectiveC4Shape(element), ...(element.parentId === undefined ? {} : { parentId: element.parentId }) },
+      })
     for (const relationship of d.body.relationships) {
       const { id, order, index, macro, direction, bidirectional, reversed } = relationship
       tree.edges.push({
-        from: relationship.source, to: relationship.target, label: c4RelationshipText(d.body, relationship),
+        from: relationship.source,
+        to: relationship.target,
+        label: c4RelationshipText(d.body, relationship),
         c4: { id, order, macro, bidirectional, reversed, authoredFrom: relationship.from, authoredTo: relationship.to, ...(index === undefined ? {} : { index }), ...(direction === undefined ? {} : { direction }) },
       })
     }
@@ -256,6 +268,10 @@ export function describeMermaidTree(d: ParsedDiagram): DescribeTree {
       }
       tree.edges.push({ from: link.source, to: link.target, label: String(link.value) })
     }
+  } else if (isStableFamilyBody(d.body)) {
+    const semantics = stableFamilyTree(d.body)
+    tree.nodes.push(...semantics.nodes)
+    tree.edges.push(...semantics.edges)
   } else if (d.body.kind === 'opaque') {
     const plugin = getFamily(d.kind)
     const labels = (plugin?.extractLabels ?? extractLabelsGeneric)(d.body.source)
@@ -275,7 +291,11 @@ export function describeMermaidTree(d: ParsedDiagram): DescribeTree {
   // Entry points (no incoming) and sinks (no outgoing) from the edge list.
   const incoming = new Set(tree.edges.map(e => e.to))
   const outgoing = new Set(tree.edges.map(e => e.from))
-  for (const edge of tree.edges) if (edge.c4?.bidirectional) { incoming.add(edge.from); outgoing.add(edge.to) }
+  for (const edge of tree.edges)
+    if (edge.c4?.bidirectional) {
+      incoming.add(edge.from)
+      outgoing.add(edge.to)
+    }
   for (const n of tree.nodes) {
     if (!incoming.has(n.id) && outgoing.has(n.id)) tree.entryPoints.push(n.id)
     if (!outgoing.has(n.id) && incoming.has(n.id)) tree.sinks.push(n.id)

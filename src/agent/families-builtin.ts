@@ -1,3 +1,4 @@
+import { STABLE_FAMILY_AGENT_HOOKS } from './stable-family-adapters.ts'
 import { parseC4Diagram } from '../c4/parser.ts'
 import { parseC4Body, renderC4, mutateC4, lintC4, buildC4SourceMap } from './c4-body.ts'
 // ============================================================================
@@ -163,7 +164,7 @@ function extractStateLabels(source: string): ExtractedLabel[] {
 }
 
 const STATE_AGENT_HOOKS = {
-  renderSource: body => body.kind === 'opaque' ? 'canonical' : 'serialized',
+  renderSource: body => (body.kind === 'opaque' ? 'canonical' : 'serialized'),
   extractLabels: extractStateLabels,
   // The verify hook covers body-level structural Tier 1 (EMPTY/MISANCHORED/
   // LABEL_OVERFLOW); verify.ts adds geometric Tier 2 via the graph projection.
@@ -208,10 +209,12 @@ function extractSequenceLabels(source: string): ExtractedLabel[] {
 // body INCLUDING the header line, with original indentation/blank lines/
 // comments intact — drop its header and pass alongside the trimmed lines.
 const SEQUENCE_AGENT_HOOKS = {
-  renderSource: body => body.kind === 'opaque' ? 'canonical' : 'serialized',
+  renderSource: body => (body.kind === 'opaque' ? 'canonical' : 'serialized'),
   extractLabels: extractSequenceLabels,
   parse: ({ source, lines, opaqueSource }) => {
-    const expandedLines = splitSequenceStatementLines(lines).map(line => line.trim()).filter(Boolean)
+    const expandedLines = splitSequenceStatementLines(lines)
+      .map(line => line.trim())
+      .filter(Boolean)
     // The typed body starts after the header. Preserve a header's inline
     // statement rather than silently discarding it with that first line.
     if (!/^sequenceDiagram$/i.test(expandedLines[0] ?? '')) return ok({ kind: 'opaque', family: 'sequence', source: opaqueSource })
@@ -232,9 +235,7 @@ const SEQUENCE_AGENT_HOOKS = {
 function sequenceRawBodyLines(opaqueSource: string, expandedLines: string[]): string[] {
   const raw = opaqueSource.split(/\r?\n/)
   const headerAt = raw.findIndex(l => /^sequenceDiagram\b/i.test(l.trim()))
-  return headerAt >= 0
-    ? splitSequenceStatementLines(raw.slice(headerAt)).slice(1)
-    : expandedLines.slice(1)
+  return headerAt >= 0 ? splitSequenceStatementLines(raw.slice(headerAt)).slice(1) : expandedLines.slice(1)
 }
 
 // ---- Timeline -------------------------------------------------------------
@@ -268,13 +269,15 @@ function verifyOpaqueTimeline(body: FamilyParsedBody): LayoutWarning[] {
   const lines = body.source.split(/\r?\n/)
   const header = lines.map(line => parseTimelineHeader(decodeXML(line))).find(candidate => candidate !== null)
   if (header?.kind !== 'unsupported') return []
-  return [{
-    code: 'UNSUPPORTED_SYNTAX',
-    // The opaque body excludes the authored wrapper, so its relative line
-    // cannot truthfully be reported as an authored-document location.
-    syntax: 'timeline_header_direction',
-    message: `Unsupported timeline header suffix "${header.suffix}"; only LR and TD are direction tokens. The source is preserved, but rendering is rejected instead of silently using LR.`,
-  }]
+  return [
+    {
+      code: 'UNSUPPORTED_SYNTAX',
+      // The opaque body excludes the authored wrapper, so its relative line
+      // cannot truthfully be reported as an authored-document location.
+      syntax: 'timeline_header_direction',
+      message: `Unsupported timeline header suffix "${header.suffix}"; only LR and TD are direction tokens. The source is preserved, but rendering is rejected instead of silently using LR.`,
+    },
+  ]
 }
 
 const TIMELINE_AGENT_HOOKS = {
@@ -285,9 +288,7 @@ const TIMELINE_AGENT_HOOKS = {
     const header = parseTimelineHeader(lines[0] ?? '')
     // Native rendering accepts inline header comments, but the structured
     // serializer does not retain them. Preserve authored source instead.
-    const body = header?.kind === 'supported' && !header.hasInlineComment
-      ? parseTimelineBody(lines.slice(1), meta.accessibility)
-      : null
+    const body = header?.kind === 'supported' && !header.hasInlineComment ? parseTimelineBody(lines.slice(1), meta.accessibility) : null
     if (body && header?.kind === 'supported' && header.direction) body.direction = header.direction
     return ok(body ?? { kind: 'opaque', family: 'timeline', source: opaqueSource })
   },
@@ -434,7 +435,10 @@ function buildClassSourceMap(body: DiagramBody, canonicalSource: string): Source
     const frames = [{ nodes, owner, index: 0 }]
     while (frames.length) {
       const frame = frames.at(-1)!
-      if (frame.index === frame.nodes.length) { frames.pop(); continue }
+      if (frame.index === frame.nodes.length) {
+        frames.pop()
+        continue
+      }
       const node = frame.nodes[frame.index++]!
       const { owner } = frame
       const source = locate(node)
@@ -513,7 +517,9 @@ function buildErSourceMap(body: DiagramBody, canonicalSource: string): SourceMap
   const tree = readErStatements(lines.slice(headerAt + 1))
   for (const entry of tree.statements) {
     const source: LocatedSourceLine = {
-      line: entry.raw, trimmed: entry.raw.trim(), lineIndex: headerAt + entry.line + 1,
+      line: entry.raw,
+      trimmed: entry.raw.trim(),
+      lineIndex: headerAt + entry.line + 1,
       start: entry.raw.length - entry.raw.trimStart().length,
     }
     const syntax = entry.syntax
@@ -937,7 +943,7 @@ function splitXyLabelStatements(line: string): string[] {
 }
 
 const XYCHART_AGENT_HOOKS = {
-  renderSource: body => body.kind === 'opaque' ? 'canonical' : 'serialized',
+  renderSource: body => (body.kind === 'opaque' ? 'canonical' : 'serialized'),
   extractLabels: extractXyChartLabels,
   // BUILD-16: xychart is structured-when-narrowed. The verify hook covers the
   // structured body; opaque fallbacks (accTitle/accDescr, quoted text,
@@ -1015,7 +1021,7 @@ function parsePieHeader(header: string): { showData: boolean; title?: string } |
 }
 
 const PIE_AGENT_HOOKS = {
-  renderSource: body => body.kind === 'opaque' ? 'canonical' : 'serialized',
+  renderSource: body => (body.kind === 'opaque' ? 'canonical' : 'serialized'),
   extractLabels: extractPieLabels,
   // Pie is structured-when-narrowed. The verify hook covers the structured
   // body; opaque fallbacks keep the universal label-extraction path. The header
@@ -1128,7 +1134,7 @@ function verifyOpaqueQuadrant(body: DiagramBody): LayoutWarning[] {
 }
 
 const QUADRANT_AGENT_HOOKS = {
-  renderSource: body => body.kind === 'opaque' ? 'canonical' : 'serialized',
+  renderSource: body => (body.kind === 'opaque' ? 'canonical' : 'serialized'),
   extractLabels: extractQuadrantLabels,
   // Quadrant is structured-when-narrowed. The verify hook covers the structured
   // body; opaque fallbacks keep the universal label-extraction path and warn
@@ -1170,7 +1176,7 @@ function ganttRawBodyLines(opaqueSource: string): string[] {
 }
 
 const GANTT_AGENT_HOOKS = {
-  renderSource: body => body.kind === 'opaque' ? 'canonical' : 'serialized',
+  renderSource: body => (body.kind === 'opaque' ? 'canonical' : 'serialized'),
   extractLabels: extractGanttLabels,
   // Source-level structural checks (EMPTY/LABEL_OVERFLOW/EDGE_MISANCHORED on
   // after/until refs); see docs/design/families/gantt.md §Verification.
@@ -1221,7 +1227,7 @@ const ARCHITECTURE_AGENT_HOOKS = {
 
 // ---- Mindmap ---------------------------------------------------------------
 const MINDMAP_AGENT_HOOKS = {
-  renderSource: body => body.kind === 'opaque' ? 'canonical' : 'serialized',
+  renderSource: body => (body.kind === 'opaque' ? 'canonical' : 'serialized'),
   extractLabels: extractLabelsGeneric,
   parse: ({ source }) => {
     try {
@@ -1240,7 +1246,7 @@ const MINDMAP_AGENT_HOOKS = {
 
 // ---- GitGraph --------------------------------------------------------------
 const GITGRAPH_AGENT_HOOKS = {
-  renderSource: body => body.kind !== 'opaque' || body.diagnostic?.code === 'GITGRAPH_DUPLICATE_COMMIT_ID' ? 'serialized' : 'canonical',
+  renderSource: body => (body.kind !== 'opaque' || body.diagnostic?.code === 'GITGRAPH_DUPLICATE_COMMIT_ID' ? 'serialized' : 'canonical'),
   extractLabels: extractLabelsGeneric,
   parse: ({ source, meta, opaqueSource }) => {
     try {
@@ -1263,8 +1269,7 @@ const GITGRAPH_AGENT_HOOKS = {
       // deterministic identity model cannot safely mutate the ambiguous graph.
       // Keep the authored source losslessly while native rendering rejects it.
       if (error instanceof GitGraphDuplicateCommitError) {
-        return ok({ kind: 'opaque', family: 'gitgraph', source: opaqueSource,
-          diagnostic: { code: error.code, id: error.id } })
+        return ok({ kind: 'opaque', family: 'gitgraph', source: opaqueSource, diagnostic: { code: error.code, id: error.id } })
       }
       return err([{ code: 'PARSE_FAILED', message: error instanceof Error ? error.message : String(error) }])
     }
@@ -1277,11 +1282,13 @@ const GITGRAPH_AGENT_HOOKS = {
   verify: (body, opts): LayoutWarning[] => {
     if (body.kind === 'gitgraph') return verifyGitGraph(body, opts)
     if (body.kind === 'opaque' && body.diagnostic?.code === 'GITGRAPH_DUPLICATE_COMMIT_ID') {
-      return [{
-        code: 'UNSUPPORTED_SYNTAX',
-        syntax: 'gitgraph_duplicate_commit_id',
-        message: 'Pinned Mermaid warns and continues on duplicate GitGraph commit IDs, but Agentic Mermaid requires unique IDs for deterministic identity. The source is preserved; native rendering and typed mutation are unavailable. Rename one duplicate ID to render or mutate it.',
-      }]
+      return [
+        {
+          code: 'UNSUPPORTED_SYNTAX',
+          syntax: 'gitgraph_duplicate_commit_id',
+          message: 'Pinned Mermaid warns and continues on duplicate GitGraph commit IDs, but Agentic Mermaid requires unique IDs for deterministic identity. The source is preserved; native rendering and typed mutation are unavailable. Rename one duplicate ID to render or mutate it.',
+        },
+      ]
     }
     return []
   },
@@ -1313,7 +1320,7 @@ function extractRadarLabels(source: string): ExtractedLabel[] {
 }
 
 const RADAR_AGENT_HOOKS = {
-  renderSource: body => body.kind === 'opaque' ? 'canonical' : 'serialized',
+  renderSource: body => (body.kind === 'opaque' ? 'canonical' : 'serialized'),
   extractLabels: extractRadarLabels,
   // Radar is structured-when-narrowed. The verify hook covers the structured
   // body; opaque fallbacks keep the universal label-extraction path.
@@ -1366,17 +1373,15 @@ const SANKEY_AGENT_HOOKS = {
 } satisfies FamilyOperations
 
 const C4_AGENT_HOOKS = {
-  renderSource: body => body.kind === 'opaque' ? 'canonical' : 'serialized',
+  renderSource: body => (body.kind === 'opaque' ? 'canonical' : 'serialized'),
   parse: ctx => ok(parseC4Body(ctx.opaqueSource, ctx.meta.accessibility) ?? { kind: 'opaque', family: 'c4', source: ctx.opaqueSource }),
   serialize: body => {
     if (body.kind !== 'c4') throw new Error(`C4 serializer received body kind ${body.kind}`)
     return renderC4(body)
   },
-  mutate: (body, op) => body.kind === 'c4'
-    ? mutateC4(body, op as never)
-    : err<MutationError>({ code: 'UNSUPPORTED_FAMILY', message: 'C4 source contains unmodeled syntax; preserve it verbatim or edit source explicitly.' }),
-  verify: (body, opts) => body.kind === 'c4' ? lintC4(body, opts) : [],
-  buildSourceMap: (body, source) => body.kind === 'c4' ? buildC4SourceMap(body, source) : { nodes: new Map(), edges: new Map(), groups: new Map(), labels: new Map() },
+  mutate: (body, op) => (body.kind === 'c4' ? mutateC4(body, op as never) : err<MutationError>({ code: 'UNSUPPORTED_FAMILY', message: 'C4 source contains unmodeled syntax; preserve it verbatim or edit source explicitly.' })),
+  verify: (body, opts) => (body.kind === 'c4' ? lintC4(body, opts) : []),
+  buildSourceMap: (body, source) => (body.kind === 'c4' ? buildC4SourceMap(body, source) : { nodes: new Map(), edges: new Map(), groups: new Map(), labels: new Map() }),
   extractLabels: source => {
     try {
       const body = parseC4Diagram(source)
@@ -1386,7 +1391,9 @@ const C4_AGENT_HOOKS = {
         ...body.boundaries.map(boundary => ({ text: boundary.label, target: boundary.id })),
         ...body.relationships.flatMap(relationship => [relationship.label, relationship.technology, relationship.description].filter((text): text is string => typeof text === 'string' && text.length > 0).map(text => ({ text, target: relationship.id }))),
       ]
-    } catch { return extractLabelsGeneric(source) }
+    } catch {
+      return extractLabelsGeneric(source)
+    }
   },
 } satisfies FamilyOperations
 
@@ -1408,4 +1415,5 @@ export const BUILTIN_AGENT_HOOKS = Object.freeze({
   radar: RADAR_AGENT_HOOKS,
   sankey: SANKEY_AGENT_HOOKS,
   c4: C4_AGENT_HOOKS,
+  ...STABLE_FAMILY_AGENT_HOOKS,
 }) satisfies Readonly<Record<DiagramKind, FamilyOperations>>

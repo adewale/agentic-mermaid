@@ -20,15 +20,23 @@ describe('#930 pathname watch lifecycle', () => {
     const replacement = `${input}.replacement`
     const observed: string[] = []
     let notify: (() => void) | undefined
-    const waitForChange = () => new Promise<void>((resolve, reject) => {
-      const timeout = setTimeout(() => reject(new Error('watch change timed out')), 10_000)
-      notify = () => { clearTimeout(timeout); resolve() }
-    })
-    const handle = watchPathForChanges(input, () => {
-      observed.push(readFileSync(input, 'utf8'))
-      notify?.()
-      notify = undefined
-    }, 5)
+    const waitForChange = () =>
+      new Promise<void>((resolve, reject) => {
+        const timeout = setTimeout(() => reject(new Error('watch change timed out')), 10_000)
+        notify = () => {
+          clearTimeout(timeout)
+          resolve()
+        }
+      })
+    const handle = watchPathForChanges(
+      input,
+      () => {
+        observed.push(readFileSync(input, 'utf8'))
+        notify?.()
+        notify = undefined
+      },
+      5,
+    )
     try {
       // Yield once after watcher construction: Linux/Bun may register the
       // inotify subscription on the following event-loop turn under coverage.
@@ -58,7 +66,10 @@ describe('#930 pathname watch lifecycle', () => {
     let notify: (() => void) | undefined
     const changed = new Promise<void>((resolve, reject) => {
       const timeout = setTimeout(() => reject(new Error('watch polling timed out')), 2_000)
-      notify = () => { clearTimeout(timeout); resolve() }
+      notify = () => {
+        clearTimeout(timeout)
+        resolve()
+      }
     })
     const handle = watchPathForChanges(input, () => notify?.(), 5, silentWatch)
     try {
@@ -157,9 +168,9 @@ describe('#930 watch re-render step (renderFileOnce)', () => {
         authoredHeader: 'futureDiagram&#45;v99',
       },
       {
-        source: 'requirement&#68;iagram\n  requirement test { id: 1 }',
+        source: 'zen&#117;ml\n  A->B: hello',
         code: 'UNSUPPORTED_FAMILY',
-        authoredHeader: 'requirement&#68;iagram',
+        authoredHeader: 'zen&#117;ml',
       },
     ]) {
       const payload = JSON.parse(renderFileOnce(tmp(fixture.source), 'svg'))

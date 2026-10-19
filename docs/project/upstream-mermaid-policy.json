@@ -53,10 +53,7 @@
       "label": "Flowchart",
       "source": "core",
       "maturity": "stable",
-      "upstreamDetectorIds": [
-        "flowchart-v2",
-        "flowchart-elk"
-      ],
+      "upstreamDetectorIds": ["flowchart-v2", "flowchart-elk"],
       "headers": [
         {
           "value": "flowchart",
@@ -77,9 +74,7 @@
       "label": "Swimlanes",
       "source": "core",
       "maturity": "beta",
-      "upstreamDetectorIds": [
-        "swimlane"
-      ],
+      "upstreamDetectorIds": ["swimlane"],
       "headers": [
         {
           "value": "swimlane-beta",
@@ -92,9 +87,7 @@
       "label": "Sequence",
       "source": "core",
       "maturity": "stable",
-      "upstreamDetectorIds": [
-        "sequence"
-      ],
+      "upstreamDetectorIds": ["sequence"],
       "headers": [
         {
           "value": "sequenceDiagram",
@@ -107,9 +100,7 @@
       "label": "Class",
       "source": "core",
       "maturity": "stable",
-      "upstreamDetectorIds": [
-        "classDiagram"
-      ],
+      "upstreamDetectorIds": ["classDiagram"],
       "headers": [
         {
           "value": "classDiagram",
@@ -126,9 +117,7 @@
       "label": "State",
       "source": "core",
       "maturity": "stable",
-      "upstreamDetectorIds": [
-        "stateDiagram"
-      ],
+      "upstreamDetectorIds": ["stateDiagram"],
       "headers": [
         {
           "value": "stateDiagram",
@@ -145,9 +134,7 @@
       "label": "Entity Relationship",
       "source": "core",
       "maturity": "stable",
-      "upstreamDetectorIds": [
-        "er"
-      ],
+      "upstreamDetectorIds": ["er"],
       "headers": [
         {
           "value": "erDiagram",
@@ -160,9 +147,7 @@
       "label": "User Journey",
       "source": "core",
       "maturity": "stable",
-      "upstreamDetectorIds": [
-        "journey"
-      ],
+      "upstreamDetectorIds": ["journey"],
       "headers": [
         {
           "value": "journey",
@@ -175,9 +160,7 @@
       "label": "Gantt",
       "source": "core",
       "maturity": "stable",
-      "upstreamDetectorIds": [
-        "gantt"
-      ],
+      "upstreamDetectorIds": ["gantt"],
       "headers": [
         {
           "value": "gantt",
@@ -190,9 +173,7 @@
       "label": "Pie",
       "source": "core",
       "maturity": "stable",
-      "upstreamDetectorIds": [
-        "pie"
-      ],
+      "upstreamDetectorIds": ["pie"],
       "headers": [
         {
           "value": "pie",
@@ -205,9 +186,7 @@
       "label": "Quadrant",
       "source": "core",
       "maturity": "stable",
-      "upstreamDetectorIds": [
-        "quadrantChart"
-      ],
+      "upstreamDetectorIds": ["quadrantChart"],
       "headers": [
         {
           "value": "quadrantChart",
@@ -220,17 +199,15 @@
       "label": "Requirement",
       "source": "core",
       "maturity": "stable",
-      "upstreamDetectorIds": [
-        "requirement"
-      ],
+      "upstreamDetectorIds": ["requirement"],
       "headers": [
         {
           "value": "requirementDiagram",
-          "agenticStatus": "unsupported"
+          "agenticStatus": "native"
         },
         {
           "value": "requirement",
-          "agenticStatus": "unsupported"
+          "agenticStatus": "native"
         }
       ]
     },
@@ -239,9 +216,7 @@
       "label": "GitGraph",
       "source": "core",
       "maturity": "stable",
-      "upstreamDetectorIds": [
-        "gitGraph"
-      ],
+      "upstreamDetectorIds": ["gitGraph"],
       "headers": [
         {
           "value": "gitGraph",
@@ -254,9 +229,7 @@
       "label": "C4",
       "source": "core",
       "maturity": "experimental",
-      "upstreamDetectorIds": [
-        "c4"
-      ],
+      "upstreamDetectorIds": ["c4"],
       "headers": [
         {
           "value": "C4Context",
@@ -285,9 +258,7 @@
       "label": "Mindmap",
       "source": "core",
       "maturity": "stable",
-      "upstreamDetectorIds": [
-        "mindmap"
-      ],
+      "upstreamDetectorIds": ["mindmap"],
       "headers": [
         {
           "value": "mindmap",
@@ -300,9 +271,7 @@
       "label": "Timeline",
       "source": "core",
       "maturity": "experimental",
-      "upstreamDetectorIds": [
-        "timeline"
-      ],
+      "upstreamDetectorIds": ["timeline"],
       "headers": [
         {
           "value": "timeline",
@@ -315,9 +284,7 @@
       "label": "ZenUML",
       "source": "external-first-party",
       "maturity": "experimental",
-      "upstreamDetectorIds": [
-        "zenuml"
-      ],
+      "upstreamDetectorIds": ["zenuml"],
       "headers": [
         {
           "value": "zenuml",
@@ -330,9 +297,7 @@
       "label": "Sankey",
       "source": "core",
       "maturity": "stable",
-      "upstreamDetectorIds": [
-        "sankey"
-      ],
+      "upstreamDetectorIds": ["sankey"],
       "headers": [
         {
           "value": "sankey",
@@ -349,9 +314,7 @@
       "label": "XY Chart",
       "source": "core",
       "maturity": "stable",
-      "upstreamDetectorIds": [
-        "xychart"
-      ],
+      "upstreamDetectorIds": ["xychart"],
       "headers": [
         {
           "value": "xychart",
@@ -368,17 +331,15 @@
       "label": "Block",
       "source": "core",
       "maturity": "stable",
-      "upstreamDetectorIds": [
-        "block"
-      ],
+      "upstreamDetectorIds": ["block"],
       "headers": [
         {
           "value": "block",
-          "agenticStatus": "unsupported"
+          "agenticStatus": "native"
         },
         {
           "value": "block-beta",
-          "agenticStatus": "unsupported"
+          "agenticStatus": "native"
         }
       ]
     },
@@ -387,17 +348,15 @@
       "label": "Packet",
       "source": "core",
       "maturity": "stable",
-      "upstreamDetectorIds": [
-        "packet"
-      ],
+      "upstreamDetectorIds": ["packet"],
       "headers": [
         {
           "value": "packet",
-          "agenticStatus": "unsupported"
+          "agenticStatus": "native"
         },
         {
           "value": "packet-beta",
-          "agenticStatus": "unsupported"
+          "agenticStatus": "native"
         }
       ]
     },
@@ -406,13 +365,11 @@
       "label": "Kanban",
       "source": "core",
       "maturity": "stable",
-      "upstreamDetectorIds": [
-        "kanban"
-      ],
+      "upstreamDetectorIds": ["kanban"],
       "headers": [
         {
           "value": "kanban",
-          "agenticStatus": "unsupported"
+          "agenticStatus": "native"
         }
       ]
     },
@@ -421,9 +378,7 @@
       "label": "Architecture",
       "source": "core",
       "maturity": "stable",
-      "upstreamDetectorIds": [
-        "architecture"
-      ],
+      "upstreamDetectorIds": ["architecture"],
       "headers": [
         {
           "value": "architecture",
@@ -440,9 +395,7 @@
       "label": "Radar",
       "source": "core",
       "maturity": "beta",
-      "upstreamDetectorIds": [
-        "radar"
-      ],
+      "upstreamDetectorIds": ["radar"],
       "headers": [
         {
           "value": "radar-beta",
@@ -455,9 +408,7 @@
       "label": "Event Modeling",
       "source": "core",
       "maturity": "experimental",
-      "upstreamDetectorIds": [
-        "eventmodeling"
-      ],
+      "upstreamDetectorIds": ["eventmodeling"],
       "headers": [
         {
           "value": "eventmodeling",
@@ -470,17 +421,15 @@
       "label": "Treemap",
       "source": "core",
       "maturity": "stable",
-      "upstreamDetectorIds": [
-        "treemap"
-      ],
+      "upstreamDetectorIds": ["treemap"],
       "headers": [
         {
           "value": "treemap",
-          "agenticStatus": "unsupported"
+          "agenticStatus": "native"
         },
         {
           "value": "treemap-beta",
-          "agenticStatus": "unsupported"
+          "agenticStatus": "native"
         }
       ]
     },
@@ -489,9 +438,7 @@
       "label": "Venn",
       "source": "core",
       "maturity": "beta",
-      "upstreamDetectorIds": [
-        "venn"
-      ],
+      "upstreamDetectorIds": ["venn"],
       "headers": [
         {
           "value": "venn-beta",
@@ -504,17 +451,15 @@
       "label": "Ishikawa",
       "source": "core",
       "maturity": "stable",
-      "upstreamDetectorIds": [
-        "ishikawa"
-      ],
+      "upstreamDetectorIds": ["ishikawa"],
       "headers": [
         {
           "value": "ishikawa",
-          "agenticStatus": "unsupported"
+          "agenticStatus": "native"
         },
         {
           "value": "ishikawa-beta",
-          "agenticStatus": "unsupported"
+          "agenticStatus": "native"
         }
       ]
     },
@@ -523,9 +468,7 @@
       "label": "Wardley",
       "source": "core",
       "maturity": "beta",
-      "upstreamDetectorIds": [
-        "wardley"
-      ],
+      "upstreamDetectorIds": ["wardley"],
       "headers": [
         {
           "value": "wardley-beta",
@@ -538,9 +481,7 @@
       "label": "Cynefin",
       "source": "core",
       "maturity": "beta",
-      "upstreamDetectorIds": [
-        "cynefin"
-      ],
+      "upstreamDetectorIds": ["cynefin"],
       "headers": [
         {
           "value": "cynefin-beta",
@@ -553,9 +494,7 @@
       "label": "TreeView",
       "source": "core",
       "maturity": "beta",
-      "upstreamDetectorIds": [
-        "treeView"
-      ],
+      "upstreamDetectorIds": ["treeView"],
       "headers": [
         {
           "value": "treeView-beta",
@@ -568,12 +507,7 @@
       "label": "Railroad",
       "source": "core",
       "maturity": "beta",
-      "upstreamDetectorIds": [
-        "railroad",
-        "railroadEbnf",
-        "railroadAbnf",
-        "railroadPeg"
-      ],
+      "upstreamDetectorIds": ["railroad", "railroadEbnf", "railroadAbnf", "railroadPeg"],
       "headers": [
         {
           "value": "railroad-beta",
@@ -598,9 +532,7 @@
       "label": "Agentflow",
       "source": "core",
       "maturity": "beta",
-      "upstreamDetectorIds": [
-        "agentflow"
-      ],
+      "upstreamDetectorIds": ["agentflow"],
       "headers": [
         {
           "value": "agentflow-beta",
@@ -613,9 +545,7 @@
       "label": "Use Case",
       "source": "core",
       "maturity": "beta",
-      "upstreamDetectorIds": [
-        "usecase"
-      ],
+      "upstreamDetectorIds": ["usecase"],
       "headers": [
         {
           "value": "usecase-beta",
@@ -628,23 +558,17 @@
     {
       "id": "error",
       "kind": "pseudo",
-      "headers": [
-        "error"
-      ]
+      "headers": ["error"]
     },
     {
       "id": "info",
       "kind": "pseudo",
-      "headers": [
-        "info"
-      ]
+      "headers": ["info"]
     },
     {
       "id": "frontmatter",
       "kind": "internal",
-      "headers": [
-        "---"
-      ]
+      "headers": ["---"]
     }
   ]
 }

@@ -1,3 +1,4 @@
+import { stableFamilyFacts } from './stable-family-adapters.ts'
 // ============================================================================
 // Mermaid semantic facts/checks.
 //
@@ -126,7 +127,7 @@ export function describeMermaidFacts(d: ParsedDiagram): string[] {
     case 'c4': {
       const body = d.body
       // Alias whitespace is identity, even when display whitespace is folded.
-      const identity = (value: string): string => /^[A-Za-z_][A-Za-z_0-9-]*$/.test(value) ? value : JSON.stringify(value)
+      const identity = (value: string): string => (/^[A-Za-z_][A-Za-z_0-9-]*$/.test(value) ? value : JSON.stringify(value))
       add(out, `variant ${body.variant}`)
       if (body.title !== undefined) add(out, `title ${clean(body.title)}`)
       for (const boundary of body.boundaries) {
@@ -162,6 +163,14 @@ export function describeMermaidFacts(d: ParsedDiagram): string[] {
       d.body.links.forEach((link, i) => add(out, `link#${i} ${clean(link.source)} -> ${clean(link.target)} : ${link.value}`))
       break
     }
+    case 'packet':
+    case 'kanban':
+    case 'requirement':
+    case 'block':
+    case 'treemap':
+    case 'ishikawa':
+      out.push(...stableFamilyFacts(d.body))
+      break
     case 'opaque': {
       add(out, `opaque ${d.body.family}`)
       const plugin = getFamily(d.kind)

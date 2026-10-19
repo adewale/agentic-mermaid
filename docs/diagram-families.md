@@ -252,6 +252,84 @@ across graphical and terminal projections. Unknown statements are preserved,
 diagnosed and block partial rendering. See [C4 semantics and output
 dispositions](./design/families/c4.md) for editing, config and portability.
 
+## Requirement
+
+```mermaid
+requirementDiagram
+  requirement reliable {
+    id: R1
+    text: Preserve authored meaning
+    risk: high
+    verifymethod: test
+  }
+  element suite {
+    type: conformance suite
+  }
+  suite - verifies -> reliable
+```
+
+Requirements remain compartmented boxes with ID, text, risk and verification fields, joined by typed traceability relations. Narrow with `asRequirement` and discover typed edits with `describeOps('requirement')`. See [Requirement semantics and output](./design/families/requirement.md) for placement, portability and pin evidence.
+
+## Block
+
+```mermaid
+block
+  columns 2
+  A["API"] B[("Database")]
+  A --> B
+```
+
+Blocks occupy authored grid cells, with explicit column spans, empty cells and nested composites; connectors do not reorder the grid. Narrow with `asBlock` and discover typed edits with `describeOps('block')`. See [Block semantics and output](./design/families/block.md) for placement, portability and pin evidence.
+
+## Packet
+
+```mermaid
+packet
+0-15: "Source port"
+16-31: "Destination port"
++16: "Length"
++16: "Checksum"
+```
+
+A packet displays bit-addressed fields with proportional widths and explicit word rows. Narrow with `asPacket` and discover typed edits with `describeOps('packet')`. See [Packet semantics and output](./design/families/packet.md) for placement, portability and pin evidence.
+
+## Kanban
+
+```mermaid
+kanban
+  column1[Column Title]
+    task1[Task Description]
+```
+
+A Kanban board preserves ordered workflow columns containing ordered task cards. Narrow with `asKanban` and discover typed edits with `describeOps('kanban')`. See [Kanban semantics and output](./design/families/kanban.md) for placement, portability and pin evidence.
+
+## Treemap
+
+```mermaid
+treemap-beta
+"Category A"
+    "Item A1": 10
+    "Item A2": 20
+"Category B"
+    "Item B1": 15
+    "Item B2": 25
+```
+
+Nested rectangles encode hierarchical containment and value-proportional leaf area. Narrow with `asTreemap` and discover typed edits with `describeOps('treemap')`. See [Treemap semantics and output](./design/families/treemap.md) for placement, portability and pin evidence.
+
+## Ishikawa
+
+```mermaid
+ishikawa
+  Delayed release
+  Process
+    Manual approval
+  Tooling
+    Slow builds
+```
+
+A fishbone diagram has a causal spine ending in one effect, with alternating category bones and nested contributing causes. Narrow with `asIshikawa` and discover typed edits with `describeOps('ishikawa')`. See [Ishikawa semantics and output](./design/families/ishikawa.md) for placement, portability and pin evidence.
+
 ## Output formats
 
 All built-in renderable families use the same public output paths:

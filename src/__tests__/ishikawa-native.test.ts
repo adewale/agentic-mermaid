@@ -1,0 +1,59 @@
+import { describe, expect, test } from 'bun:test'
+import { parseIshikawaDiagram } from '../ishikawa/parser.ts'
+import { layoutIshikawaDiagram } from '../ishikawa/layout.ts'
+import { parseRegisteredMermaid, asIshikawa, mutate, serializeMermaid, verifyMermaid, renderMermaidSVG, renderMermaidASCII } from '../agent/core.ts'
+
+describe('native Ishikawa', () => {
+  test('cause indentation has its own baseline even when the effect is more indented', () => {
+    const body = parseIshikawaDiagram('ishikawa\n      Blurry photo\n  Process\n    Focus\n  Equipment\n    Lens\n      Dirt')
+    expect(body.nodes.map(node => [node.label, node.parentId])).toEqual([
+      ['Blurry photo', undefined],
+      ['Process', 'effect'],
+      ['Focus', 'cause-1'],
+      ['Equipment', 'effect'],
+      ['Lens', 'cause-3'],
+      ['Dirt', 'cause-4'],
+    ])
+  })
+  test('nested causes retain parents and actual fishbone branches on both sides of a horizontal spine', () => {
+    const source = 'ishikawa\nSlow release\nProcess\n  Manual checks\n  Queues\n    Approvals\nTooling\n  Builds\n    Cold caches\nPeople\n  Ownership'
+    const model = parseIshikawaDiagram(source)
+    const p = layoutIshikawaDiagram(model)
+    expect(p.branches).toHaveLength(model.nodes.length - 1)
+    expect(p.branches.map(branch => [branch.from, branch.to])).toEqual(expect.arrayContaining(model.nodes.filter(node => node.parentId).map(node => [node.id, node.parentId])))
+    expect(p.spine[0]!.y).toBe(p.spine[1]!.y)
+    const main = p.nodes.filter(node => node.depth === 1)
+    expect(main.some(node => node.y < p.spine[0]!.y)).toBe(true)
+    expect(main.some(node => node.y > p.spine[0]!.y)).toBe(true)
+    for (const n of p.nodes) {
+      expect(n.x).toBeGreaterThanOrEqual(0)
+      expect(n.y).toBeGreaterThanOrEqual(0)
+      expect(n.x + n.width).toBeLessThanOrEqual(p.width)
+      expect(n.y + n.height).toBeLessThanOrEqual(p.height)
+    }
+    expect(layoutIshikawaDiagram(model)).toEqual(p)
+  })
+  test('typed edits preserve unrelated subtrees and reject self-parenting', () => {
+    const parsed = parseRegisteredMermaid('ishikawa\nProblem\nPeople\n  Training\nProcess\n  Review')
+    if (!parsed.ok) throw Error('fixture did not parse')
+    const diagram = asIshikawa(parsed.value)!
+    expect(mutate(diagram, { kind: 'move_cause', id: 'cause-1', parentId: 'cause-2' }).ok).toBe(false)
+    const changed = mutate(diagram, { kind: 'set_label', id: 'cause-2', label: 'Documentation' })
+    expect(changed.ok).toBe(true)
+    if (!changed.ok) return
+    expect(serializeMermaid(changed.value)).toContain('    Documentation')
+    expect(serializeMermaid(changed.value)).toContain('  Process\n    Review')
+    expect(verifyMermaid(changed.value).ok).toBe(true)
+    expect(serializeMermaid(diagram)).toContain('Training')
+  })
+  test('titles, wide graphemes and full cause text survive graphical and declared terminal projections', () => {
+    const source = '---\ntitle: Release analysis\n---\nishikawa\nDelayed release\nPeople\n  東京 café 👩‍💻\nProcess\n  A long approval process with several teams and reviewers'
+    for (const style of ['hand-drawn', 'watercolor', 'blueprint']) {
+      const svg = renderMermaidSVG(source, { style })
+      expect(svg).toContain('Release analysis')
+      expect(svg).toContain('Delayed release')
+      expect(svg).toContain('東京')
+    }
+    expect(renderMermaidASCII(source)).toContain('東京')
+  })
+})

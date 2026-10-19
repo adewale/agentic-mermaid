@@ -1,6 +1,7 @@
-import { projectNativeC4Operations, projectReferenceC4Operations } from './grammar-native-c4.ts'
 import { normalizeBrTags } from '../../src/multiline-utils.ts'
 import type { ParserObservation } from '../../src/shared/parser-observation.ts'
+import { projectNativeC4Operations, projectReferenceC4Operations } from './grammar-native-c4.ts'
+import { projectNativeStableOperations, projectReferenceStableOperations } from './grammar-native-stable.ts'
 import { REFERENCE_SEQUENCE_SIGNALS as SIGNALS } from './grammar-sequence-kinds.ts'
 import type { GrammarReferenceReply } from './grammar-types.ts'
 import type { Json } from './reference.ts'
@@ -56,6 +57,8 @@ function account(result: NativeOperationProjection, kind: string, selected: bool
  */
 export function projectNativeOperations(family: string, events: readonly ParserObservation[]): NativeOperationProjection | undefined {
   if (family === 'c4') return projectNativeC4Operations(events)
+  const stable = projectNativeStableOperations(family, events)
+  if (stable) return stable
   const result = projection(family, events.length)
   if (!result) return undefined
   const add = (...operation: Json[]): void => {
@@ -198,6 +201,8 @@ export function projectNativeOperations(family: string, events: readonly ParserO
  */
 export function projectReferenceOperations(family: string, reply: GrammarReferenceReply): NativeOperationProjection | undefined {
   if (family === 'c4') return projectReferenceC4Operations(reply)
+  const stable = projectReferenceStableOperations(family, reply)
+  if (stable) return stable
   if (reply.actions.status !== 'available') return undefined
   const result = projection(family, reply.actions.value.length)
   if (!result) return undefined

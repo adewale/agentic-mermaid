@@ -5,6 +5,7 @@ import { BUILTIN_FAMILY_METADATA } from '../agent/families.ts'
 import { asArchitecture, asC4, asClass, asEr, asFlowchart, asGantt, asGitGraph, asJourney, asMindmap, asPie, asQuadrant, asRadar, asSankey, asSequence, asState, asTimeline, asXyChart, layoutMermaid, parseRegisteredMermaid as parseMermaid, serializeMermaid, verifyMermaid } from '../agent/index.ts'
 import { countStructuralElements, isDrop } from '../agent/structural-count.ts'
 import type { DiagramKind, ParsedDiagram, ValidDiagram } from '../agent/types.ts'
+import { asBlock, asIshikawa, asKanban, asPacket, asRequirement, asTreemap } from '../agent/types.ts'
 import { displayText } from '../multiline-utils.ts'
 import { compareCodePointStrings } from '../shared/deterministic-order.ts'
 
@@ -101,6 +102,12 @@ const companionFamilies = new Set(Object.keys(companionOracle.accounting))
 const documentedReasons = new Set(['api-internal', 'upstream-negative', 'local-parse-gap', 'local-verify-gap', 'local-layout-gap', 'local-roundtrip-gap', 'unsupported-header', 'unsupported-syntax', 'unsupported-structured-syntax', 'unextracted-dynamic-source'])
 const localGapReasons = new Set(['local-parse-gap', 'local-verify-gap', 'local-layout-gap', 'local-roundtrip-gap', 'unsupported-header', 'unsupported-syntax', 'unsupported-structured-syntax'])
 const narrowerByFamily: Record<DiagramKind, (d: ParsedDiagram) => ValidDiagram | null> = {
+  packet: asPacket,
+  kanban: asKanban,
+  requirement: asRequirement,
+  treemap: asTreemap,
+  ishikawa: asIshikawa,
+  block: asBlock,
   c4: asC4,
   flowchart: asFlowchart,
   state: asState,

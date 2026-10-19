@@ -1,0 +1,19 @@
+---
+title: Framed transport header
+config:
+  packet:
+    bitsPerRow: 32
+    bitOrder: descending
+---
+packet
+0-3: "Version"
+4-7: "Flags"
+8-15: "Header bytes"
+16-31: "Payload length"
+32-63: "Stream identifier"
+64-95: "Sequence number"
+96-103: "Compression"
+104-111: "Priority"
+112-127: "Checksum"
+128-191: "Authentication tag"
+192-255: "Payload begins"

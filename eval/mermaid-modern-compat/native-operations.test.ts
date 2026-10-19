@@ -3,6 +3,12 @@ import { mkdirSync, writeFileSync } from 'node:fs'
 import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { getFamily, knownBuiltinFamilies } from '../../src/agent/core.ts'
+import blockCases from '../mermaid-block-bench/cases.json'
+import ishikawaCases from '../mermaid-ishikawa-bench/cases.json'
+import kanbanCases from '../mermaid-kanban-bench/cases.json'
+import packetCases from '../mermaid-packet-bench/cases.json'
+import requirementCases from '../mermaid-requirement-bench/cases.json'
+import treemapCases from '../mermaid-treemap-bench/cases.json'
 import { inspectAgenticGrammar } from './grammar-agentic.ts'
 import { projectNativeOperations, projectReferenceOperations } from './grammar-native-operations.ts'
 import { projectReferenceSemantic } from './grammar-native-semantics.ts'
@@ -22,7 +28,7 @@ afterAll(() => {
   writeFileSync(output, JSON.stringify({ reference: admitted, method: 'Independent ordered projections of actual native write events and actual reference call operands; each case declares its operation scope and omitted methods. No returned IR is used as an operation trace.', cases }, null, 2) + '\n')
 })
 
-async function assertOperations(family: string, source: string) {
+async function assertOperations(family: string, source: string, requireWrite = true) {
   await oracle.prepare(family, getFamily(family)!.example)
   const reference = await oracle.parse(family, source)
   const local = inspectAgenticGrammar(family, source)
@@ -35,13 +41,54 @@ async function assertOperations(family: string, source: string) {
   expect(local.native.status).toBe('accepted')
   expect(local.native.observation.instrumentationErrors ?? []).toEqual([])
   expect(local.native.observation.control?.same).toBe(true)
-  expect(native?.operations.length).toBeGreaterThan(0)
+  expect(native).toBeDefined()
+  if (requireWrite) expect(native?.operations.length).toBeGreaterThan(0)
   expect(native?.operations).toEqual(expected?.operations)
   return { native, reference: expected, nativeSemantic: local.native.observation.semantic, referenceReply: reference }
 }
 
 describe('actual native builder operations agree with the pinned modern reference in declared scopes', () => {
   for (const family of knownBuiltinFamilies()) test(`${family}: canonical operations retain operand values and order`, () => assertOperations(family, getFamily(family)!.example))
+
+  const stableCorpora: Record<string, readonly { id: string; source: string }[]> = {
+    packet: packetCases.filter(fixture => fixture.reference.ok),
+    kanban: kanbanCases.filter(fixture => fixture.reference.ok),
+    requirement: requirementCases,
+    block: blockCases,
+    treemap: treemapCases,
+    ishikawa: ishikawaCases,
+  }
+  for (const [family, fixtures] of Object.entries(stableCorpora))
+    test(`${family}: every accepted pinned corpus source retains semantic values and ordered writes`, async () => {
+      for (const fixture of fixtures) {
+        // Valid header-only diagrams intentionally write nothing. The canonical
+        // all-family loop above separately proves each family's observation path
+        // emits real writes. Every accepted corpus source is still compared.
+        const parsed = await assertOperations(family, fixture.source, false)
+        expect(parsed.nativeSemantic?.value, fixture.id).toEqual(projectReferenceSemantic(family, parsed.referenceReply)?.value)
+      }
+    })
+
+  test.each([
+    ['packet', 'packet\n+4: "Version"\n+36: "Payload spanning words"\n+24: "Trailer"'],
+    ['packet', '---\ntitle: Register fields\n---\npacket\n+1: "EN"\n+7: "Mode"'],
+    ['kanban', 'kanban\n  todo[To do]\n  :::column-class\n    work[Original label]@{label: "Ship parser", assigned: Alice, ticket: ID-42, priority: High}\n    :::task-class\n    ::icon(bomb)\n      deeper[Still in the same column]\n  done[Done]\n    research[Research]'],
+    ['requirement', 'requirementDiagram\ndirection LR\nfunctionalRequirement fast {\nid: R1\ntext: "Respond within 100ms"\nrisk: high\nverifymethod: test\n}\nelement benchmark {\ntype: "test suite"\ndocref: "Acceptance specification"\n}\nfast <- verifies - benchmark'],
+    ['treemap', 'treemap\n"Product"\n  "Delivery"\n    "Engineering": 60\n    "Design": 40\n  "Learning": 20\n"Operations": 10'],
+    ['ishikawa', 'ishikawa\n  Slow release\n  Process\n    Manual checks\n      Duplicate reviews\n  Tooling\n    Slow builds\n      Cold caches'],
+    ['ishikawa', 'ishikawa\n      Effect\n    First category\n      Nested cause\n  Outdented category\n    New category at the original baseline'],
+    ['block', 'block\ncolumns 2\nblock:services:2\ncolumns 2\nA["API"] B[("Database")]\nend\nA -- "Read" --> B'],
+    ['block', 'block\ncolumns 3\nblock\ncolumns 2\nA["API"]\nblock\nB["Database"]\nend\nend\nspace:3\nA -- "Read" --> B'],
+  ])('%s retains meaningful values and parentage across native writes and independent reference results', async (family, source) => {
+    const parsed = await assertOperations(family, source)
+    expect(parsed.nativeSemantic?.value).toEqual(projectReferenceSemantic(family, parsed.referenceReply)?.value)
+  })
+  test('Block retains authored generated-looking composite IDs while normalizing actual anonymous allocation', async () => {
+    const parsed = await assertOperations('block', 'block\nblock:block_generated_1\nA\nend\nblock\nB\nend\nA --> B')
+    const semantic = parsed.nativeSemantic?.value as { nodes: { id: string }[] }
+    expect(semantic.nodes[0]?.id).toBe('block_generated_1')
+    expect(parsed.nativeSemantic?.value).toEqual(projectReferenceSemantic('block', parsed.referenceReply)?.value)
+  })
 
   test.each([
     ['C4Container', 'System_Boundary(domain, "Domain") {\nContainer(api, "API", $descr="Serves requests", $techn="TypeScript")\nContainerDb_Ext(db, "Database", "SQL", "Stores data")\n}\nPerson(user, "User")\nBiRel(user, api, "Talks", "HTTPS")\nRel_Back(api, db, "Reads", "SQL")'],
@@ -64,11 +111,13 @@ describe('actual native builder operations agree with the pinned modern referenc
   test('Class preserves one-ended marker sides in relationship creation order', () => assertOperations('class', 'classDiagram\nA <-- B : calls\nC --|> D\nE o-- F\nG ..> H : uses'))
   test('Class preserves dashed diamond and lollipop shafts independently of marker kinds', async () => {
     const parsed = await assertOperations('class', 'classDiagram\nA *.. B\nC o.. D\nE ().. F')
-    const shafts = { relationships: [
-      { line: 'dashed', startMarker: 'diamond-filled', endMarker: 'none' },
-      { line: 'dashed', startMarker: 'diamond-open', endMarker: 'none' },
-      { line: 'dashed', startMarker: 'lollipop', endMarker: 'none' },
-    ] }
+    const shafts = {
+      relationships: [
+        { line: 'dashed', startMarker: 'diamond-filled', endMarker: 'none' },
+        { line: 'dashed', startMarker: 'diamond-open', endMarker: 'none' },
+        { line: 'dashed', startMarker: 'lollipop', endMarker: 'none' },
+      ],
+    }
     // Mermaid materializes synthetic lollipop interfaces in its returned DB.
     // Logical endpoints are compared above in the actual builder operands.
     expect(projectReferenceSemantic('class', parsed.referenceReply)?.value).toMatchObject(shafts)

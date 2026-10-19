@@ -23,6 +23,12 @@ const ROOT = join(import.meta.dir, '..', '..')
 /** Extra syntax broadens role coverage beyond each descriptor's minimal
  * discovery example. This is test stimulus, not a family/capability roster. */
 const RICH_SCENE_FIXTURES: Partial<Record<BuiltinFamilyId, string>> = {
+  packet: '---\ntitle: Protocol fields\n---\npacket\n+8: "Source"\n+8: "Destination"\n+48: "Payload"',
+  kanban: '---\ntitle: Delivery board\n---\nkanban\nTodo[To do]\n  task[Build parser]@{assigned: Alice, ticket: ID-42, priority: High}\nDone[Completed]\n  other[Research]',
+  requirement: '---\ntitle: Acceptance evidence\n---\nrequirementDiagram\nrequirement speed {\nid: R1\ntext: "Responses retain authored meaning"\nrisk: high\nverifymethod: test\n}\nelement suite {\ntype: conformance suite\ndocref: "Acceptance specification"\n}\nsuite - verifies -> speed',
+  treemap: '---\ntitle: Product investment\n---\ntreemap\n"Build"\n  "Engineering": 60\n  "Design": 40\n"Learn"\n  "Research": 20',
+  ishikawa: '---\ntitle: Release delay\n---\nishikawa\n  Delayed release\n  Process\n    Manual approvals\n  Tooling\n    Slow builds\n      Cold caches',
+  block: '---\ntitle: Explicit grid\n---\nblock\ncolumns 2\nblock:domain:2\nA["API"] B["Store"]\nend\nA -- \"Read\" --> B',
   c4: `C4Container
   title Payment platform
   Person(customer, "Customer")
@@ -185,6 +191,12 @@ sankey-beta
 }
 
 const CAPABILITY_MUTATIONS: Readonly<Record<BuiltinFamilyId, AnyMutationOp>> = {
+  packet: { kind: 'add_field', label: 'Capability witness', bits: 8 },
+  kanban: { kind: 'add_column', id: 'CapabilityWitness', label: 'Capability witness' },
+  requirement: { kind: 'add_requirement', requirement: { name: 'CapabilityWitness', text: 'Capability witness' } },
+  treemap: { kind: 'add_node', label: 'Capability witness', value: 7 },
+  ishikawa: { kind: 'add_cause', label: 'Capability witness' },
+  block: { kind: 'add_block', block: { id: 'CapabilityWitness', label: 'Capability witness' } },
   c4: { kind: 'add_element', element: { id: 'CapabilityWitness', label: 'Capability witness', kind: 'system' } },
   flowchart: { kind: 'add_node', id: 'CapabilityWitness', label: 'Capability witness' },
   state: { kind: 'add_state', id: 'CapabilityWitness', label: 'Capability witness' },
@@ -295,7 +307,7 @@ describe('family descriptor capability authority', () => {
           : {}),
         normalizeRequest: ctx => {
           hit('normalization')
-          return descriptor.normalizeRequest!(ctx)
+          return descriptor.normalizeRequest?.(ctx) ?? {}
         },
         extractLabels: source => {
           hit('label-extraction')

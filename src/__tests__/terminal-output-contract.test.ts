@@ -1,29 +1,21 @@
 import { describe, expect, test } from 'bun:test'
-import { renderMermaidASCIIWithReceipt } from '../ascii/index.ts'
-import {
-  resolveTerminalOutputPolicy,
-  TerminalOutputPolicyError,
-} from '../terminal-contract.ts'
-import { RENDER_OUTPUT_DESCRIPTORS } from '../render-contract.ts'
-import {
-  getFamily,
-  knownBuiltinFamilies,
-  replaceFamilyForTest,
-} from '../agent/families.ts'
-import { colorizeText } from '../ascii/ansi.ts'
-import { secureTerminalHtmlOutput } from '../terminal-security.ts'
-import { withoutTerminalColor } from './helpers/terminal-text.ts'
-import { renderMermaidASCIIWithMeta } from '../ascii/meta.ts'
-import { TerminalDocument, terminalDocumentOf } from '../ascii/terminal-document.ts'
-import { nativeTerminalRenderer, terminalArtifact } from '../ascii/terminal-artifact.ts'
+import { getFamily, knownBuiltinFamilies, replaceFamilyForTest } from '../agent/families.ts'
 import { parseRegisteredMermaid } from '../agent/parse.ts'
-import { MermaidFamilyDetectionError } from '../family-detection.ts'
 import { serializeMermaid } from '../agent/serialize.ts'
+import { colorizeText } from '../ascii/ansi.ts'
+import { renderMermaidASCIIWithReceipt } from '../ascii/index.ts'
+import { renderMermaidASCIIWithMeta } from '../ascii/meta.ts'
+import { nativeTerminalRenderer, terminalArtifact } from '../ascii/terminal-artifact.ts'
+import { TerminalDocument, terminalDocumentOf } from '../ascii/terminal-document.ts'
+import { MermaidFamilyDetectionError } from '../family-detection.ts'
+import { RENDER_OUTPUT_DESCRIPTORS, resolveRenderRequest } from '../render-contract.ts'
 import { connector } from '../scene/marks.ts'
 import { prepareDisplayText } from '../shared/display-text.ts'
 import { preparePixelText } from '../shared/prepared-text.ts'
+import { resolveTerminalOutputPolicy, TerminalOutputPolicyError } from '../terminal-contract.ts'
+import { secureTerminalHtmlOutput } from '../terminal-security.ts'
 import { projectTerminalStyle } from '../terminal-style.ts'
-import { resolveRenderRequest } from '../render-contract.ts'
+import { withoutTerminalColor } from './helpers/terminal-text.ts'
 
 const SOURCE = 'flowchart LR\n  A[Start] --> B[Finish]'
 const OSC52 = '\u001b]52;c;dGVybWluYWwtZXhmaWx0cmF0aW9u\u0007'
@@ -45,10 +37,12 @@ describe('terminal text security boundary', () => {
       expect(rendered.text).not.toContain('\u0007')
       expect(rendered.text).not.toContain('\u009d')
       expect(containsTerminalControl(withoutTrustedSgr(rendered.text))).toBe(false)
-      expect(rendered.terminalStyle.diagnostics).toContainEqual(expect.objectContaining({
-        code: 'TERMINAL_CONTROL_CHARACTERS_REPLACED',
-        feature: 'terminal-text',
-      }))
+      expect(rendered.terminalStyle.diagnostics).toContainEqual(
+        expect.objectContaining({
+          code: 'TERMINAL_CONTROL_CHARACTERS_REPLACED',
+          feature: 'terminal-text',
+        }),
+      )
     }
   })
 
@@ -59,23 +53,34 @@ describe('terminal text security boundary', () => {
     if (!parsed.ok) return
     const preserved = serializeMermaid(parsed.value)
     const expectedNodes = ['A\nB', 'T\nU', 'A B', 'T U', 'A\tB', 'T\tU', 'A\rB', 'T\rU']
-    const expectedEdges = [['A\nB', 'T\nU'], ['A B', 'T U'], ['A\tB', 'T\tU'], ['A\rB', 'T\rU']]
-    const projected = new Map([['A\nB', 'A\nB'], ['A B', 'A B'], ['A\tB', 'A B'], ['A\rB', 'A?B']])
-    for (const input of [source, parsed.value]) for (const useAscii of [true, false]) {
-      for (const colorMode of ['none', 'ansi16', 'html'] as const) {
-        const result = renderMermaidASCIIWithMeta(input, { useAscii, colorMode })
-        expect(result.regions.filter(region => region.kind === 'node').map(region => region.id)).toEqual(expectedNodes)
-        expect(result.regions.filter(region => region.kind === 'edge').map(region => [region.from, region.to])).toEqual(expectedEdges)
-        for (const [id, text] of projected) {
-          const node = result.regions.find(region => region.kind === 'node' && region.id === id)!
-          expect(node.projectedText).toBe(text)
-          expect(node.ownedCellSpans!.length).toBeGreaterThan(0)
+    const expectedEdges = [
+      ['A\nB', 'T\nU'],
+      ['A B', 'T U'],
+      ['A\tB', 'T\tU'],
+      ['A\rB', 'T\rU'],
+    ]
+    const projected = new Map([
+      ['A\nB', 'A\nB'],
+      ['A B', 'A B'],
+      ['A\tB', 'A B'],
+      ['A\rB', 'A?B'],
+    ])
+    for (const input of [source, parsed.value])
+      for (const useAscii of [true, false]) {
+        for (const colorMode of ['none', 'ansi16', 'html'] as const) {
+          const result = renderMermaidASCIIWithMeta(input, { useAscii, colorMode })
+          expect(result.regions.filter(region => region.kind === 'node').map(region => region.id)).toEqual(expectedNodes)
+          expect(result.regions.filter(region => region.kind === 'edge').map(region => [region.from, region.to])).toEqual(expectedEdges)
+          for (const [id, text] of projected) {
+            const node = result.regions.find(region => region.kind === 'node' && region.id === id)!
+            expect(node.projectedText).toBe(text)
+            expect(node.ownedCellSpans!.length).toBeGreaterThan(0)
+          }
+          expect(containsTerminalControl(withoutTrustedSgr(result.ascii))).toBe(false)
+          expect(result.warnings).not.toContainEqual(expect.objectContaining({ code: 'ASCII_RENDER_FAILED' }))
+          expect(result.warnings).toContainEqual(expect.objectContaining({ code: 'TERMINAL_CONTROL_CHARACTERS_REPLACED' }))
         }
-        expect(containsTerminalControl(withoutTrustedSgr(result.ascii))).toBe(false)
-        expect(result.warnings).not.toContainEqual(expect.objectContaining({ code: 'ASCII_RENDER_FAILED' }))
-        expect(result.warnings).toContainEqual(expect.objectContaining({ code: 'TERMINAL_CONTROL_CHARACTERS_REPLACED' }))
       }
-    }
     expect(serializeMermaid(parsed.value)).toBe(preserved)
   })
 
@@ -89,11 +94,12 @@ describe('terminal text security boundary', () => {
     expect(serializeMermaid(parsed.value)).toBe(source + '\n')
     for (const input of [source, parsed.value]) {
       const result = renderMermaidASCIIWithMeta(input, { colorMode: 'none' })
-      expect(result.regions.filter(region => region.kind === 'node').map(region => region.id)).toEqual([
-        expectedSources[0]!, 'Sink', expectedSources[1]!, 'Other', expectedSources[2]!, 'Indented', expectedSources[3]!, 'Third',
-      ])
+      expect(result.regions.filter(region => region.kind === 'node').map(region => region.id)).toEqual([expectedSources[0]!, 'Sink', expectedSources[1]!, 'Other', expectedSources[2]!, 'Indented', expectedSources[3]!, 'Third'])
       expect(result.regions.filter(region => region.kind === 'edge').map(region => [region.from, region.to])).toEqual([
-        [expectedSources[0]!, 'Sink'], [expectedSources[1]!, 'Other'], [expectedSources[2]!, 'Indented'], [expectedSources[3]!, 'Third'],
+        [expectedSources[0]!, 'Sink'],
+        [expectedSources[1]!, 'Other'],
+        [expectedSources[2]!, 'Indented'],
+        [expectedSources[3]!, 'Third'],
       ])
       expect(result.warnings).not.toContainEqual(expect.objectContaining({ code: 'ASCII_RENDER_FAILED' }))
     }
@@ -103,10 +109,12 @@ describe('terminal text security boundary', () => {
     const source = 'sankey-beta\n"A\u001bB",X,1\n"A?B",Y,2\n"A\u009dB",Z,3'
     for (const colorMode of ['none', 'truecolor', 'html'] as const) {
       const result = renderMermaidASCIIWithMeta(source, { colorMode })
-      expect(result.regions.filter(region => region.kind === 'node').map(region => region.id))
-        .toEqual(['A\u001bB', 'X', 'A?B', 'Y', 'A\u009dB', 'Z'])
-      expect(result.regions.filter(region => region.kind === 'edge').map(region => [region.from, region.to]))
-        .toEqual([['A\u001bB', 'X'], ['A?B', 'Y'], ['A\u009dB', 'Z']])
+      expect(result.regions.filter(region => region.kind === 'node').map(region => region.id)).toEqual(['A\u001bB', 'X', 'A?B', 'Y', 'A\u009dB', 'Z'])
+      expect(result.regions.filter(region => region.kind === 'edge').map(region => [region.from, region.to])).toEqual([
+        ['A\u001bB', 'X'],
+        ['A?B', 'Y'],
+        ['A\u009dB', 'Z'],
+      ])
       for (const id of ['A\u001bB', 'A?B', 'A\u009dB']) {
         expect(result.regions.find(region => region.id === id && region.kind === 'node')?.projectedText).toBe('A?B')
       }
@@ -125,8 +133,10 @@ describe('terminal text security boundary', () => {
       expect(result.regions.filter(region => region.kind === 'node').map(region => region.id)).toEqual(['A\tB', 'A B'])
       expect(result.regions.filter(region => region.kind === 'node').map(region => region.projectedText)).toEqual(['[A B]', '[A B]'])
       expect(result.regions.filter(region => region.kind === 'edge').map(region => [region.from, region.to])).toEqual([['A\tB', 'A B']])
-      expect(result.regions.filter(region => region.kind === 'node').map(region => [region.parentId, region.parentKind]))
-        .toEqual([['branch:main', 'lane'], ['branch:main', 'lane']])
+      expect(result.regions.filter(region => region.kind === 'node').map(region => [region.parentId, region.parentKind])).toEqual([
+        ['branch:main', 'lane'],
+        ['branch:main', 'lane'],
+      ])
       expect(containsTerminalControl(result.ascii)).toBe(false)
     }
   })
@@ -166,13 +176,27 @@ describe('terminal text security boundary', () => {
     const prepared = prepareDisplayText(source)
     const block = preparePixelText(prepared, { fontSize: 12, fontWeight: 400, transform: 'uppercase' })
     const mark = connector({
-      id: 'inline', role: 'edge', geometry: { kind: 'line', x1: 0, y1: 30, x2: 100, y2: 30 },
-      lineStyle: 'solid', paint: { stroke: '#111' }, labels: [{ text: source, textContent: { value: source, prepared, authored: source }, block, anchor: { x: 50, y: 15 }, paint: { fill: '#111' }, fontSize: 12, textAnchor: 'middle', visual: { kind: 'inline' } }],
+      id: 'inline',
+      role: 'edge',
+      geometry: { kind: 'line', x1: 0, y1: 30, x2: 100, y2: 30 },
+      lineStyle: 'solid',
+      paint: { stroke: '#111' },
+      labels: [{ text: source, textContent: { value: source, prepared, authored: source }, block, anchor: { x: 50, y: 15 }, paint: { fill: '#111' }, fontSize: 12, textAnchor: 'middle', visual: { kind: 'inline' } }],
     })
     const before = JSON.stringify(mark)
-    const terminal = projectTerminalStyle(resolveRenderRequest(SOURCE, {}, 'ascii'), 'none', {}, {
-      family: 'test', width: 100, height: 50, colors: { bg: '#fff', fg: '#111' }, transparent: true, parts: [mark],
-    })
+    const terminal = projectTerminalStyle(
+      resolveRenderRequest(SOURCE, {}, 'ascii'),
+      'none',
+      {},
+      {
+        family: 'test',
+        width: 100,
+        height: 50,
+        colors: { bg: '#fff', fg: '#111' },
+        transparent: true,
+        parts: [mark],
+      },
+    )
     const label = terminal.connectorProjection.connectors[0]!.labels[0]!
     expect(label.text).toBe('?MiXeD\n<literal>')
     expect(label).not.toHaveProperty('block')
@@ -184,12 +208,29 @@ describe('terminal text security boundary', () => {
     expect(JSON.stringify(terminal.connectorProjection)).not.toContain('\\u001b')
     expect(terminal.diagnostics.filter(item => item.code === 'TERMINAL_CONTROL_CHARACTERS_REPLACED')).toHaveLength(1)
     expect(JSON.stringify(mark)).toBe(before)
-    const stale = { ...mark, terminalProjection: { ...mark.terminalProjection, labels: mark.terminalProjection.labels.map(item => ({
-      ...item, textContent: { ...item.textContent!, value: 'outdated' },
-    })) } }
-    const staleReceipt = projectTerminalStyle(resolveRenderRequest(SOURCE, {}, 'ascii'), 'none', {}, {
-      family: 'test', width: 100, height: 50, colors: { bg: '#fff', fg: '#111' }, transparent: true, parts: [stale],
-    })
+    const stale = {
+      ...mark,
+      terminalProjection: {
+        ...mark.terminalProjection,
+        labels: mark.terminalProjection.labels.map(item => ({
+          ...item,
+          textContent: { ...item.textContent!, value: 'outdated' },
+        })),
+      },
+    }
+    const staleReceipt = projectTerminalStyle(
+      resolveRenderRequest(SOURCE, {}, 'ascii'),
+      'none',
+      {},
+      {
+        family: 'test',
+        width: 100,
+        height: 50,
+        colors: { bg: '#fff', fg: '#111' },
+        transparent: true,
+        parts: [stale],
+      },
+    )
     const staleLabel = staleReceipt.connectorProjection.connectors[0]!.labels[0]!
     expect(staleLabel).not.toHaveProperty('textContent')
     expect(staleLabel).not.toHaveProperty('block')
@@ -288,11 +329,14 @@ describe('canonical terminal output policy', () => {
   })
 
   test('every registered family preserves terminal semantics in every color mode', () => {
-    const plain = (value: string) => value
-      .replace(/\u001b\[[0-9;]*m/g, '')
-      .replace(/<span style="color:[^"]+">/g, '')
-      .replace(/<\/span>/g, '')
-      .replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&amp;/g, '&')
+    const plain = (value: string) =>
+      value
+        .replace(/\u001b\[[0-9;]*m/g, '')
+        .replace(/<span style="color:[^"]+">/g, '')
+        .replace(/<\/span>/g, '')
+        .replace(/&lt;/g, '<')
+        .replace(/&gt;/g, '>')
+        .replace(/&amp;/g, '&')
     for (const id of knownBuiltinFamilies()) {
       const descriptor = getFamily(id)!
       if (!descriptor.example || !descriptor.renderAscii) continue
@@ -307,8 +351,7 @@ describe('canonical terminal output policy', () => {
           expect(plain(rendered.text), `${id}/${useAscii ? 'ascii' : 'unicode'}/${colorMode}`).toBe(baseline.text)
           expect(terminalDocumentOf(rendered)!.regions(), `${id}/${colorMode} ownership`).toEqual(baselineRegions)
           expect(rendered.receipt.diagnostics, `${id}/${colorMode}`).toEqual(rendered.terminalStyle.diagnostics)
-          expect(rendered.terminalStyle.connectorProjection.digest, `${id}/${colorMode}`)
-            .toBe(baseline.terminalStyle.connectorProjection.digest)
+          expect(rendered.terminalStyle.connectorProjection.digest, `${id}/${colorMode}`).toBe(baseline.terminalStyle.connectorProjection.digest)
         }
       }
     }
@@ -319,30 +362,39 @@ describe('canonical terminal output policy', () => {
     for (const wrapNative of [true, false]) {
       const restore = replaceFamilyForTest('flowchart', {
         ...descriptor,
-        renderAscii(context) { return wrapNative ? `${descriptor.renderAscii!(context)}\nextra` : 'external terminal text' },
+        renderAscii(context) {
+          return wrapNative ? `${descriptor.renderAscii!(context)}\nextra` : 'external terminal text'
+        },
       })
       try {
         const result = renderMermaidASCIIWithMeta(SOURCE, { colorMode: 'none' })
         expect(result.ascii).toContain(wrapNative ? 'extra' : 'external terminal text')
         expect(result.regions).toEqual([])
         expect(result.warnings).toContainEqual(expect.objectContaining({ code: 'TERMINAL_OWNERSHIP_UNAVAILABLE' }))
-      } finally { restore() }
+      } finally {
+        restore()
+      }
     }
   })
 
   test('public warnings retain final cell coordinates when a title translates a native drawing', () => {
     const descriptor = getFamily('flowchart')!
-    const restore = replaceFamilyForTest('flowchart', { ...descriptor, renderAscii: nativeTerminalRenderer(context => {
-      const drawing = new TerminalDocument(4, 2)
-      drawing.text(1, 1, 'X', { owner: { id: 'A', kind: 'node' } })
-      drawing.put(1, 1, '─', { owner: { id: 'route', kind: 'edge' } })
-      return terminalArtifact(drawing, { colorMode: context.colorMode, theme: context.theme })
-    }) })
+    const restore = replaceFamilyForTest('flowchart', {
+      ...descriptor,
+      renderAscii: nativeTerminalRenderer(context => {
+        const drawing = new TerminalDocument(4, 2)
+        drawing.text(1, 1, 'X', { owner: { id: 'A', kind: 'node' } })
+        drawing.put(1, 1, '─', { owner: { id: 'route', kind: 'edge' } })
+        return terminalArtifact(drawing, { colorMode: context.colorMode, theme: context.theme })
+      }),
+    })
     try {
       const result = renderMermaidASCIIWithMeta(`---\ntitle: Heading\n---\n${SOURCE}`, { colorMode: 'none' })
       expect(result.ascii.split('\n')[3]?.[1]).toBe('X')
       expect(result.warnings).toContainEqual(expect.objectContaining({ code: 'TERMINAL_TEXT_COLLISION', cell: { column: 1, row: 3 } }))
-    } finally { restore() }
+    } finally {
+      restore()
+    }
   })
 
   test('native HTML output retains its title, labels and ownership under a width policy', () => {
@@ -361,10 +413,13 @@ describe('canonical terminal output policy', () => {
   test('native text avoids optional graphical work and full receipts memoize its evidence', () => {
     const descriptor = getFamily('flowchart')!
     let calls = 0
-    const restore = replaceFamilyForTest('flowchart', { ...descriptor, layout(context) {
-      calls++
-      return descriptor.layout!(context)
-    } })
+    const restore = replaceFamilyForTest('flowchart', {
+      ...descriptor,
+      layout(context) {
+        calls++
+        return descriptor.layout!(context)
+      },
+    })
     try {
       const rendered = renderMermaidASCIIWithReceipt(SOURCE, { colorMode: 'none' })
       expect(rendered.text).toContain('Start')
@@ -375,7 +430,9 @@ describe('canonical terminal output policy', () => {
       expect(rendered.receipt).toBe(receipt)
       expect(rendered.terminalStyle.connectorProjection.count).toBeGreaterThan(0)
       expect(calls).toBe(1)
-    } finally { restore() }
+    } finally {
+      restore()
+    }
   })
 
   test('native Flowchart and metadata share the same authored parse within one render', () => {
@@ -385,23 +442,34 @@ describe('canonical terminal output policy', () => {
     if (!parsed.ok) return
     const canonicalSource = parsed.value.canonicalSource
     let preparations = 0
-    const input = { ...parsed.value, get canonicalSource() { preparations++; return canonicalSource } }
+    const input = {
+      ...parsed.value,
+      get canonicalSource() {
+        preparations++
+        return canonicalSource
+      },
+    }
     let parses = 0
-    const restore = replaceFamilyForTest('flowchart', { ...descriptor, parse(context) {
-      parses++
-      return descriptor.parse!(context)
-    } })
+    const restore = replaceFamilyForTest('flowchart', {
+      ...descriptor,
+      parse(context) {
+        parses++
+        return descriptor.parse!(context)
+      },
+    })
     try {
       const result = renderMermaidASCIIWithMeta(input, { colorMode: 'none' })
       expect(result.ascii).toContain('Start')
       expect(result.regions.find(region => region.id === 'A')?.sourceLine).toBe(2)
       expect(parses).toBe(1)
       expect(preparations).toBe(1)
-    } finally { restore() }
+    } finally {
+      restore()
+    }
   })
 
   test('metadata rejects a preserved parsed family before recovering drawing failures', () => {
-    const parsed = parseRegisteredMermaid('requirementDiagram\nrequirement r {\n  id: 1\n  text: Preserved requirement\n  risk: low\n  verifymethod: test\n}')
+    const parsed = parseRegisteredMermaid('eventmodeling\n  preserved experimental payload')
     expect(parsed.ok).toBe(true)
     if (!parsed.ok) return
     expect(parsed.value.body.kind).toBe('preserved')
@@ -414,15 +482,20 @@ describe('canonical terminal output policy', () => {
     const descriptor = getFamily('gantt')!
     let calls = 0
     let observedClock: string | undefined
-    const restore = replaceFamilyForTest('gantt', { ...descriptor, layout(context) {
-      calls++
-      observedClock = context.renderOptions.ganttToday
-      return descriptor.layout!(context)
-    } })
+    const restore = replaceFamilyForTest('gantt', {
+      ...descriptor,
+      layout(context) {
+        calls++
+        observedClock = context.renderOptions.ganttToday
+        return descriptor.layout!(context)
+      },
+    })
     try {
       const options = { colorMode: 'none' as const, ganttToday: '2026-10-05' }
       const delayed = renderMermaidASCIIWithReceipt(source, options)
-      const marker = terminalDocumentOf(delayed)!.regions().find(region => region.id === 'today-marker')!
+      const marker = terminalDocumentOf(delayed)!
+        .regions()
+        .find(region => region.id === 'today-marker')!
       expect(marker.ownedCellSpans!.length).toBeGreaterThan(0)
       expect(calls).toBe(0)
       // Mutating the caller's object before consuming the receipt cannot move
@@ -437,7 +510,9 @@ describe('canonical terminal output policy', () => {
       expect(eager.terminalStyle).toEqual(delayedStyle)
       expect(eager.receipt).toEqual(delayed.receipt)
       expect(calls).toBe(2)
-    } finally { restore() }
+    } finally {
+      restore()
+    }
   })
 
   test('model reuse respects admitted entity decoding in labels, headers and grammar', () => {
@@ -511,8 +586,7 @@ describe('canonical terminal output policy', () => {
       { surprise: true },
     ]
     for (const value of invalid) {
-      expect(() => resolveTerminalOutputPolicy(value as never), JSON.stringify(value))
-        .toThrow(TerminalOutputPolicyError)
+      expect(() => resolveTerminalOutputPolicy(value as never), JSON.stringify(value)).toThrow(TerminalOutputPolicyError)
     }
     expect(() => renderMermaidASCIIWithReceipt(SOURCE, { paddingX: -1 })).toThrow(/non-negative finite integer/)
     expect(() => renderMermaidASCIIWithReceipt(SOURCE, { colorMode: 'ansi1024' as never })).toThrow(/colorMode/)

@@ -230,30 +230,33 @@ function memoizedVerificationArtifact(d: ParsedDiagram, opts: VerifyOptions, aut
   let artifact: ProjectedFamilyArtifact | null = null
   let failure: unknown
   let defaultRender: DefaultRender | undefined
-  const failureWarning = (error: unknown, prefix?: string) => renderFailureWarning(error, () => defaultRender ??= ordinaryRenderOutcome(d, opts, authored), prefix)
-  return Object.assign(() => {
-    if (attempted) {
-      if (failure !== undefined) throw failure
-      return artifact
-    }
-    attempted = true
-    try {
-      // Resolve the graphical plan up front, then project its exact positioned
-      // result for geometric verification. The renderability gate consumes
-      // this same request + result and therefore cannot parse or lay out again.
-      // Verify is where a built-in lowering bug should surface, so every Scene
-      // lowered for this artifact is cross-checked.
-      artifact = positionFamilyArtifact(d, {
-        renderOptions: opts.renderOptions,
-        output: 'svg',
-        assertScenes: true,
-      })
-      return artifact
-    } catch (error) {
-      failure = error
-      throw error
-    }
-  }, { failure: failureWarning })
+  const failureWarning = (error: unknown, prefix?: string) => renderFailureWarning(error, () => (defaultRender ??= ordinaryRenderOutcome(d, opts, authored)), prefix)
+  return Object.assign(
+    () => {
+      if (attempted) {
+        if (failure !== undefined) throw failure
+        return artifact
+      }
+      attempted = true
+      try {
+        // Resolve the graphical plan up front, then project its exact positioned
+        // result for geometric verification. The renderability gate consumes
+        // this same request + result and therefore cannot parse or lay out again.
+        // Verify is where a built-in lowering bug should surface, so every Scene
+        // lowered for this artifact is cross-checked.
+        artifact = positionFamilyArtifact(d, {
+          renderOptions: opts.renderOptions,
+          output: 'svg',
+          assertScenes: true,
+        })
+        return artifact
+      } catch (error) {
+        failure = error
+        throw error
+      }
+    },
+    { failure: failureWarning },
+  )
 }
 
 /**
@@ -352,14 +355,34 @@ function journeySemicolonExtensionWarnings(d: ValidDiagram): LayoutWarning[] {
   if (headerIndex < 0) return []
   const lineNumbers = new Set<number>()
   walkJourneyLines(lines, headerIndex + 1, {
-    statementDelimiter: lineIndex => { lineNumbers.add(lineIndex + 1) },
+    statementDelimiter: lineIndex => {
+      lineNumbers.add(lineIndex + 1)
+    },
   })
-  return [...lineNumbers].sort((a, b) => a - b).map(canonicalLine => ({
-    code: 'UNSUPPORTED_SYNTAX',
-    syntax: 'journey_semicolon_statement_extension',
-    line: authoredLineForCanonical(d.source, canonicalLine),
-    message: 'Semicolon-separated Journey statements are an Agentic Mermaid extension; pinned Mermaid rejects this source. Put each statement on its own line for upstream portability.',
-  }))
+  return [...lineNumbers]
+    .sort((a, b) => a - b)
+    .map(canonicalLine => ({
+      code: 'UNSUPPORTED_SYNTAX',
+      syntax: 'journey_semicolon_statement_extension',
+      line: authoredLineForCanonical(d.source, canonicalLine),
+      message: 'Semicolon-separated Journey statements are an Agentic Mermaid extension; pinned Mermaid rejects this source. Put each statement on its own line for upstream portability.',
+    }))
+}
+
+function treemapNumericExtensionWarnings(d: ValidDiagram): LayoutWarning[] {
+  if (d.body.kind !== 'treemap') return []
+  return d.canonicalSource.split(/\r?\n/).flatMap((line, index) =>
+    /["']\s*[:,]\s*[\d.,]*_/.test(line)
+      ? [
+          {
+            code: 'UNSUPPORTED_SYNTAX' as const,
+            syntax: 'treemap_numeric_separator',
+            line: authoredLineForCanonical(d.source, index + 1),
+            message: 'Underscores in Treemap quantities are read as digit separators; Mermaid 12.2.0 does not preserve that quantity. Canonical edits write the full numeric value without underscores.',
+          },
+        ]
+      : [],
+  )
 }
 
 /** Source this repo reads generously where pinned Mermaid rejects it: each
@@ -378,9 +401,7 @@ const UPSTREAM_REJECTED_SYNTAX: Partial<Record<ValidDiagram['kind'], (canonicalS
 function upstreamRejectedSyntaxWarnings(d: ValidDiagram): LayoutWarning[] {
   const rule = UPSTREAM_REJECTED_SYNTAX[d.kind]
   if (!rule) return []
-  return rule(d.canonicalSource).map(warning => warning.code === 'UNSUPPORTED_SYNTAX' && warning.line !== undefined
-    ? { ...warning, line: authoredLineForCanonical(d.source, warning.line) }
-    : warning)
+  return rule(d.canonicalSource).map(warning => (warning.code === 'UNSUPPORTED_SYNTAX' && warning.line !== undefined ? { ...warning, line: authoredLineForCanonical(d.source, warning.line) } : warning))
 }
 
 /** Preserve Mermaid-authored Radar paint exactly and diagnose measurable
@@ -426,15 +447,19 @@ function c4LayoutWarnings(positioned: VerificationArtifact): LayoutWarning[] {
       const statement = layout.body.statements.find(item => item.id === diagnostic.statementId)
       if (diagnostic.code === 'C4_LABEL_COLLISION' || diagnostic.code === 'C4_ARROW_OCCLUDED') {
         return {
-          code: 'CONTENT_OCCLUDED', target: statement?.entityId ?? 'C4 layout',
+          code: 'CONTENT_OCCLUDED',
+          target: statement?.entityId ?? 'C4 layout',
           feature: diagnostic.code === 'C4_ARROW_OCCLUDED' ? 'marker' : 'label',
-          line: statement?.span.line, message: `${diagnostic.code}: ${diagnostic.message}`,
+          line: statement?.span.line,
+          message: `${diagnostic.code}: ${diagnostic.message}`,
         }
       }
       if (diagnostic.code === 'C4_WIDTH_EXCEEDED') return { code: 'LAYOUT_LIMIT_EXCEEDED', constraint: 'c4.maxWidth', message: `${diagnostic.code}: ${diagnostic.message}` }
       return { code: 'UNSUPPORTED_SYNTAX', line: statement?.span.line, syntax: statement?.raw ?? 'C4 layout', message: `${diagnostic.code}: ${diagnostic.message}` }
     })
-  } catch { return [] } // The render-parity gate owns layout failures.
+  } catch {
+    return []
+  } // The render-parity gate owns layout failures.
 }
 
 /** Chart text the XY layout left out because it did not fit (LABELS_HIDDEN).
@@ -457,14 +482,14 @@ function xychartHiddenLabelWarnings(positioned: VerificationArtifact): LayoutWar
     const legend = chart.hiddenLegendLabels ?? []
     if (legend.length > 0) {
       warnings.push({
-        code: 'LABELS_HIDDEN', target: 'legend', labels: legend,
+        code: 'LABELS_HIDDEN',
+        target: 'legend',
+        labels: legend,
         message: `XY chart does not draw ${legend.length} legend ${legend.length === 1 ? 'entry' : 'entries'} because the legend does not fit: ${legend.join(', ')}. Enlarge the chart, shorten the series names, or lower xyChart.plotReservedSpacePercent.`,
       })
     }
     if (categories.length > 0) {
-      const remedy = chart.horizontal
-        ? 'Shorten the category names, widen the chart, or lower xyChart.plotReservedSpacePercent.'
-        : 'Shorten the category names, or call set_orientation {horizontal: true} to list categories down the side.'
+      const remedy = chart.horizontal ? 'Shorten the category names, widen the chart, or lower xyChart.plotReservedSpacePercent.' : 'Shorten the category names, or call set_orientation {horizontal: true} to list categories down the side.'
       warnings.push({
         code: 'LABELS_HIDDEN',
         target: 'x-axis',
@@ -496,12 +521,14 @@ function quadrantHiddenLabelWarnings(positioned: VerificationArtifact): LayoutWa
     const chart = positioned()?.positioned as Partial<PositionedQuadrantChart> | undefined
     const labels = (chart?.points ?? []).filter(point => point.labelHidden).map(point => point.label)
     if (labels.length === 0) return []
-    return [{
-      code: 'LABELS_HIDDEN',
-      target: 'point-labels',
-      labels,
-      message: `Quadrant chart does not draw ${labels.length} point ${labels.length === 1 ? 'label' : 'labels'} because ${labels.length === 1 ? 'it collides' : 'they collide'} with labels placed first: ${labels.join(', ')}. Spread the points, shorten the names, or enlarge the chart.`,
-    }]
+    return [
+      {
+        code: 'LABELS_HIDDEN',
+        target: 'point-labels',
+        labels,
+        message: `Quadrant chart does not draw ${labels.length} point ${labels.length === 1 ? 'label' : 'labels'} because ${labels.length === 1 ? 'it collides' : 'they collide'} with labels placed first: ${labels.join(', ')}. Spread the points, shorten the names, or enlarge the chart.`,
+      },
+    ]
   } catch {
     // Layout failures have their own RENDER_FAILED path.
     return []
@@ -512,8 +539,7 @@ export function configWarningsForDiagram(d: ParsedDiagram): LayoutWarning[] {
   if (d.body.kind === 'preserved') return []
   if (d.body.kind === 'extension') {
     const family = getFamily(d.kind)
-    return family?.configDiagnostics ? familyConfigDiagnostics(d.kind,
-      [d.meta.frontmatter, ...d.meta.initDirectives.map(directive => directive.parsed)], family.config, family.configDiagnostics) : []
+    return family?.configDiagnostics ? familyConfigDiagnostics(d.kind, [d.meta.frontmatter, ...d.meta.initDirectives.map(directive => directive.parsed)], family.config, family.configDiagnostics) : []
   }
   const builtin = d as ValidDiagram
   const familySpecific = builtin.kind === 'gantt' ? ganttTodayMarkerWarnings(builtin) : []
@@ -544,7 +570,8 @@ function verifyStructure(parsed: ParsedDiagram, opts: VerifyOptions, positioned:
   }
 
   const d = parsed as ValidDiagram
-  const familySourceWarnings = d.kind === 'flowchart' ? dedupedConcat(flowchartUnsupportedSyntaxWarnings(d.canonicalSource), flowchartShapeSubstitutionWarnings(d)) : d.kind === 'quadrant' ? quadrantInertStyleWarnings(d) : d.kind === 'journey' ? journeySemicolonExtensionWarnings(d) : []
+  const familySourceWarnings =
+    d.kind === 'flowchart' ? dedupedConcat(flowchartUnsupportedSyntaxWarnings(d.canonicalSource), flowchartShapeSubstitutionWarnings(d)) : d.kind === 'quadrant' ? quadrantInertStyleWarnings(d) : d.kind === 'journey' ? journeySemicolonExtensionWarnings(d) : d.kind === 'treemap' ? treemapNumericExtensionWarnings(d) : []
   const sourceWarnings = dedupedConcat(familySourceWarnings, upstreamRejectedSyntaxWarnings(d))
   const faithfulnessWarnings = roundtripFaithfulnessWarnings(d)
   const bareHeader = hasOnlyHeader(d)
@@ -588,7 +615,26 @@ function verifyStructure(parsed: ParsedDiagram, opts: VerifyOptions, positioned:
     return finalize(dedupedConcat(pluginWarnings, geometric), layout, opts)
   }
 
-  if (d.body.kind === 'class' || d.body.kind === 'er' || d.body.kind === 'journey' || d.body.kind === 'architecture' || d.body.kind === 'xychart' || d.body.kind === 'pie' || d.body.kind === 'quadrant' || d.body.kind === 'mindmap' || d.body.kind === 'gitgraph' || d.body.kind === 'radar' || d.body.kind === 'sankey' || d.body.kind === 'c4') {
+  if (
+    d.body.kind === 'class' ||
+    d.body.kind === 'er' ||
+    d.body.kind === 'journey' ||
+    d.body.kind === 'architecture' ||
+    d.body.kind === 'xychart' ||
+    d.body.kind === 'pie' ||
+    d.body.kind === 'quadrant' ||
+    d.body.kind === 'mindmap' ||
+    d.body.kind === 'gitgraph' ||
+    d.body.kind === 'radar' ||
+    d.body.kind === 'sankey' ||
+    d.body.kind === 'c4' ||
+    d.body.kind === 'packet' ||
+    d.body.kind === 'kanban' ||
+    d.body.kind === 'requirement' ||
+    d.body.kind === 'block' ||
+    d.body.kind === 'treemap' ||
+    d.body.kind === 'ishikawa'
+  ) {
     // QUAL-1: verify.layout is now truthful — the real positioned layout from
     // the family adapters (was emptyRenderedLayout). #33 adds zero-noise
     // class/ER semantic geometry tripwires: relationship endpoints must sit on
@@ -606,11 +652,18 @@ function verifyStructure(parsed: ParsedDiagram, opts: VerifyOptions, positioned:
             // so a task laid outside its section band is a reportable breach.
             groupContainment: d.body.kind === 'xychart' || d.body.kind === 'quadrant' ? 'center' : d.body.kind === 'journey' || d.body.kind === 'c4',
           })
-    const appearanceWarnings = d.body.kind === 'radar'
-      ? radarAuthoredContrastWarnings(positioned)
-      : d.body.kind === 'xychart' ? xychartHiddenLabelWarnings(positioned)
-        : d.body.kind === 'quadrant' ? quadrantHiddenLabelWarnings(positioned)
-          : d.body.kind === 'c4' ? c4LayoutWarnings(positioned) : []
+    const appearanceWarnings =
+      d.body.kind === 'radar'
+        ? radarAuthoredContrastWarnings(positioned)
+        : d.body.kind === 'xychart'
+          ? xychartHiddenLabelWarnings(positioned)
+          : d.body.kind === 'quadrant'
+            ? quadrantHiddenLabelWarnings(positioned)
+            : d.body.kind === 'c4'
+              ? c4LayoutWarnings(positioned)
+              : d.body.kind === 'treemap' && positioned && 'hiddenLabels' in positioned && Array.isArray(positioned.hiddenLabels) && positioned.hiddenLabels.length
+                ? [{ code: 'LABELS_HIDDEN' as const, target: 'data-labels' as const, labels: positioned.hiddenLabels as string[], message: 'Treemap labels do not fit their value-proportional cells; enlarge the canvas or reduce the hierarchy.' }]
+                : []
     return finalize(dedupedConcat(dedupedConcat(dedupedConcat(pluginWarnings, familyGeometry), layoutOutcome.warnings), appearanceWarnings), layout, opts)
   }
 
@@ -1038,8 +1091,10 @@ function verifySequence(d: ValidDiagram & { body: SequenceBody }, cap: number, o
   // BUILD-18: opaque-block segments (Note/alt/loop/par/title lines) still get
   // universal LABEL_OVERFLOW via the family's label extractor, so the safety
   // check survives the move from whole-body-opaque to structured-with-segments.
-  const opaqueLines = body.statements.filter((s): s is Extract<typeof s, { kind: 'opaque-block' }> => s.kind === 'opaque-block')
-    .flatMap(s => s.lines).filter(line => !isSequenceCommentLine(line))
+  const opaqueLines = body.statements
+    .filter((s): s is Extract<typeof s, { kind: 'opaque-block' }> => s.kind === 'opaque-block')
+    .flatMap(s => s.lines)
+    .filter(line => !isSequenceCommentLine(line))
   if (opaqueLines.length > 0) {
     warnings.push({
       code: 'UNSUPPORTED_SYNTAX',

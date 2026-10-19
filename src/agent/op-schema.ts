@@ -1,3 +1,9 @@
+import { PACKET_OP_SCHEMAS } from '../packet/ops.ts'
+import { KANBAN_OP_SCHEMAS } from '../kanban/ops.ts'
+import { REQUIREMENT_OP_SCHEMAS } from './requirement-body.ts'
+import { TREEMAP_OP_SCHEMAS } from './treemap-body.ts'
+import { ISHIKAWA_OP_SCHEMAS } from './ishikawa-body.ts'
+import { BLOCK_OP_SCHEMAS } from './block-body.ts'
 // ============================================================================
 // op-schema: shape validation for every family's structured mutation ops.
 //
@@ -31,7 +37,18 @@ export type OpFamily = MutableFamilyId
 
 /** Primitive kinds a field may hold. `enum` carries an explicit value list;
  *  `nullable` lets an enum/primitive also accept `null` (e.g. set_task_status). */
-type FieldType = { type: 'string' } | { type: 'number' } | { type: 'boolean' } | { type: 'number-or-null' } | { type: 'boolean-or-null' } | { type: 'string-or-null' } | { type: 'enum'; values: readonly string[]; nullable?: boolean } | { type: 'string-array' } | { type: 'number-array' } | { type: 'object-or-null' } | { type: 'object-array' } // a nested record (deep shape validated by the mutator)
+type FieldType =
+  | { type: 'string' }
+  | { type: 'number' }
+  | { type: 'boolean' }
+  | { type: 'number-or-null' }
+  | { type: 'boolean-or-null' }
+  | { type: 'string-or-null' }
+  | { type: 'enum'; values: readonly string[]; nullable?: boolean }
+  | { type: 'string-array' }
+  | { type: 'number-array' }
+  | { type: 'object-or-null' }
+  | { type: 'object-array' } // a nested record (deep shape validated by the mutator)
 
 /** A field type plus its required flag. Intersection (not `extends`) because
  *  FieldType is a union — an interface cannot extend a union. */
@@ -180,12 +197,18 @@ const CLASS_SCHEMA: Record<string, OpSpec> = {
   set_class_generic: { fields: { class: str(), generic: withNote(strOrNull(), 'parameter text without ~ delimiters; null removes it') } },
   add_member: { fields: { class: str(), text: str() } },
   remove_member: { fields: { class: str(), index: num() } },
-  add_relation: { fields: {
-    from: str(), to: str(), relKind: oneOf(CLASS_REL_KINDS), label: str(false),
-    markerAt: withNote(oneOf(['from', 'to', 'both', 'none'], false), 'marker endpoints; omit for the relation kind default'),
-    fromKind: oneOf(CLASS_REL_KINDS, false), toKind: oneOf(CLASS_REL_KINDS, false),
-    lineStyle: withNote(oneOf(['solid', 'dashed'], false), 'independent shaft style; must agree with style-specific endpoint kinds'),
-  } },
+  add_relation: {
+    fields: {
+      from: str(),
+      to: str(),
+      relKind: oneOf(CLASS_REL_KINDS),
+      label: str(false),
+      markerAt: withNote(oneOf(['from', 'to', 'both', 'none'], false), 'marker endpoints; omit for the relation kind default'),
+      fromKind: oneOf(CLASS_REL_KINDS, false),
+      toKind: oneOf(CLASS_REL_KINDS, false),
+      lineStyle: withNote(oneOf(['solid', 'dashed'], false), 'independent shaft style; must agree with style-specific endpoint kinds'),
+    },
+  },
   remove_relation: { fields: { index: num() } },
   add_note: { fields: { text: str(), for: str(false) } },
   remove_note: { fields: { index: num() } },
@@ -406,6 +429,12 @@ const SCHEMAS: Record<OpFamily, Record<string, OpSpec>> = {
   radar: RADAR_SCHEMA,
   sankey: SANKEY_SCHEMA,
   c4: C4_SCHEMA,
+  packet: PACKET_OP_SCHEMAS,
+  kanban: KANBAN_OP_SCHEMAS,
+  requirement: REQUIREMENT_OP_SCHEMAS,
+  treemap: TREEMAP_OP_SCHEMAS,
+  ishikawa: ISHIKAWA_OP_SCHEMAS,
+  block: BLOCK_OP_SCHEMAS,
 }
 
 /** True when `family` has a shape schema (i.e. is a mutable structured family).

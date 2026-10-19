@@ -16,9 +16,9 @@ describe('am capabilities', () => {
     expect(Array.isArray(cap.families)).toBe(true)
     expect(Array.isArray(cap.warningCodes)).toBe(true)
     expect(cap.outputFormats).toEqual([...CLI_RENDER_FORMATS])
-    // The discovery payload grows a few KB per registered family (example,
-    // config keys, ops); the ceiling guards against re-inlining bulk evidence.
-    expect(Buffer.byteLength(JSON.stringify(cap), 'utf8')).toBeLessThan(80 * 1024)
+    // Six additional native families publish their actual schemas and examples.
+    // Keep discovery below 96 KiB; imported corpora never belong in this payload.
+    expect(Buffer.byteLength(JSON.stringify(cap), 'utf8')).toBeLessThan(96 * 1024)
   })
 
   it('includes every registered family in the families list', () => {
@@ -159,7 +159,10 @@ describe('am capabilities', () => {
         expect(Object.prototype.hasOwnProperty.call(warning, k), `${warning.code}.${k}`).toBe(true)
       }
       expect(warning.origins.length, warning.code).toBeGreaterThan(0)
-      expect(warning.origins.every(origin => origins.has(origin)), warning.code).toBe(true)
+      expect(
+        warning.origins.every(origin => origins.has(origin)),
+        warning.code,
+      ).toBe(true)
     }
     expect(schema.properties.outputFormats.items).toEqual(cliRenderFormatJsonSchema())
     const outputFormats = new Set(schema.properties.outputFormats.items.enum)

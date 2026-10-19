@@ -10,8 +10,8 @@ import { join } from 'node:path'
 import { build as buildWithEsbuild } from 'esbuild'
 import ts from 'typescript'
 import { lintAgentTrace, type SdkCall } from '../../eval/agent-usage/harness.ts'
-import { BUILTIN_FAMILY_METADATA } from '../agent/families.ts'
 import { mutate, parseRegisteredMermaid, serializeMermaid } from '../agent/core.ts'
+import { BUILTIN_FAMILY_METADATA } from '../agent/families.ts'
 import type { AnyMutationOp, DiagramKind, MutableValidDiagram, ParsedDiagram } from '../agent/types.ts'
 import * as agentTypes from '../agent/types.ts'
 import { WARNING_SEVERITY, WARNING_TIER } from '../agent/types.ts'
@@ -24,7 +24,7 @@ import { SDK_DECLARATION } from '../mcp/sdk-decl.ts'
 const REPO = join(import.meta.dir, '..', '..')
 
 /** One declared, representative edit per built-in family; each introduces "zebra". */
-const TYPED_EDIT_BY_FAMILY: Partial<Record<DiagramKind, { kind: string } & Record<string, unknown>>> = {
+const TYPED_EDIT_BY_FAMILY: Record<DiagramKind, { kind: string } & Record<string, unknown>> = {
   c4: { kind: 'add_element', element: { id: 'Zebra', label: 'Zebra', kind: 'system' } },
   flowchart: { kind: 'add_node', id: 'Zebra', label: 'Zebra' },
   state: { kind: 'add_state', id: 'Zebra' },
@@ -42,17 +42,22 @@ const TYPED_EDIT_BY_FAMILY: Partial<Record<DiagramKind, { kind: string } & Recor
   gitgraph: { kind: 'create_branch', name: 'zebra' },
   radar: { kind: 'add_axis', id: 'zebra', label: 'Zebra' },
   sankey: { kind: 'add_link', source: 'Zebra', target: 'Industry', value: 1 },
+  packet: { kind: 'add_field', label: 'Zebra', bits: 8 },
+  kanban: { kind: 'add_task', column: 'todo', id: 'zebra', label: 'Zebra' },
+  requirement: { kind: 'add_requirement', requirement: { name: 'zebra', text: 'Zebra retains evidence' } },
+  treemap: { kind: 'add_node', label: 'Zebra', value: 5 },
+  ishikawa: { kind: 'set_effect', label: 'Zebra' },
+  block: { kind: 'add_block', block: { id: 'Zebra', label: 'Zebra' } },
 }
 
 const SDK_AST = ts.createSourceFile('code-mode-sdk.d.ts', SDK_DECLARATION, ts.ScriptTarget.Latest, true, ts.ScriptKind.TS)
 
 /** String-literal members of a `type Name = 'A' | 'B'` alias in the SDK declaration. */
 function sdkStringUnion(name: string): string[] {
-  const alias = SDK_AST.statements.find((statement): statement is ts.TypeAliasDeclaration =>
-    ts.isTypeAliasDeclaration(statement) && statement.name.text === name)
+  const alias = SDK_AST.statements.find((statement): statement is ts.TypeAliasDeclaration => ts.isTypeAliasDeclaration(statement) && statement.name.text === name)
   if (!alias) return []
   const members = ts.isUnionTypeNode(alias.type) ? alias.type.types : [alias.type]
-  return members.flatMap(member => ts.isLiteralTypeNode(member) && ts.isStringLiteral(member.literal) ? [member.literal.text] : [])
+  return members.flatMap(member => (ts.isLiteralTypeNode(member) && ts.isStringLiteral(member.literal) ? [member.literal.text] : []))
 }
 
 /** Method names declared on the SDK's `declare const mermaid: { ... }` global. */
@@ -61,7 +66,7 @@ function sdkMermaidMethodNames(): string[] {
     if (!ts.isVariableStatement(statement)) continue
     for (const declaration of statement.declarationList.declarations) {
       if (!ts.isIdentifier(declaration.name) || declaration.name.text !== 'mermaid' || !declaration.type || !ts.isTypeLiteralNode(declaration.type)) continue
-      return declaration.type.members.flatMap(member => ts.isMethodSignature(member) && ts.isIdentifier(member.name) ? [member.name.text] : [])
+      return declaration.type.members.flatMap(member => (ts.isMethodSignature(member) && ts.isIdentifier(member.name) ? [member.name.text] : []))
     }
   }
   return []
@@ -74,12 +79,9 @@ function sdkDeclarationTypeErrors(): string[] {
   const host = ts.createCompilerHost(options)
   const readSourceFile = host.getSourceFile.bind(host)
   const fileExists = host.fileExists.bind(host)
-  host.getSourceFile = (name, languageVersion, ...rest) => name === fileName
-    ? ts.createSourceFile(name, SDK_DECLARATION, languageVersion, true, ts.ScriptKind.TS)
-    : readSourceFile(name, languageVersion, ...rest)
+  host.getSourceFile = (name, languageVersion, ...rest) => (name === fileName ? ts.createSourceFile(name, SDK_DECLARATION, languageVersion, true, ts.ScriptKind.TS) : readSourceFile(name, languageVersion, ...rest))
   host.fileExists = name => name === fileName || fileExists(name)
-  return ts.getPreEmitDiagnostics(ts.createProgram([fileName], options, host))
-    .map(diagnostic => ts.flattenDiagnosticMessageText(diagnostic.messageText, '\n'))
+  return ts.getPreEmitDiagnostics(ts.createProgram([fileName], options, host)).map(diagnostic => ts.flattenDiagnosticMessageText(diagnostic.messageText, '\n'))
 }
 
 describe('Instructions_for_agents.md', () => {
@@ -201,10 +203,7 @@ describe('agent-facing runnable docs', () => {
           if (!runnable) continue
           // Point published specifiers at in-repo source; a temp cwd keeps any
           // written artifacts (diagram.svg/png) out of the repo.
-          const wired = block
-            .replaceAll("'agentic-mermaid/agent'", AGENT)
-            .replaceAll("'agentic-mermaid/browser/lazy'", BROWSER)
-            .replaceAll("'agentic-mermaid'", CORE)
+          const wired = block.replaceAll("'agentic-mermaid/agent'", AGENT).replaceAll("'agentic-mermaid/browser/lazy'", BROWSER).replaceAll("'agentic-mermaid'", CORE)
           const file = join(dir, `${doc.replace(/[/.]/g, '_')}__${i}.ts`)
           writeFileSync(file, placeholders(block) + '\n' + wired)
           const r = spawnSync('bun', ['run', file], { cwd: dir, encoding: 'utf8' })
@@ -271,6 +270,12 @@ describe('Code Mode SDK declaration matches the runtime', () => {
       asGitGraph: 'gitGraph\\n  commit',
       asRadar: 'radar-beta\\n  axis a, b, c\\n  curve x{1, 2, 3}',
       asSankey: 'sankey-beta\\n  Coal,Electricity,127.93',
+      asPacket: 'packet\\n+8: "Byte"',
+      asKanban: 'kanban\\nTodo\\n  task[Write documentation]',
+      asRequirement: 'requirementDiagram\\nrequirement evidence {\\nid: R1\\ntext: "Retain evidence"\\nrisk: high\\nverifymethod: test\\n}',
+      asTreemap: 'treemap\\n"Build"\\n  "Engineering": 60',
+      asIshikawa: 'ishikawa\\nEffect\\nCause',
+      asBlock: 'block\\ncolumns 2\\nA B\\nA --> B',
     }
     for (const narrower of advertised) {
       const source = SOURCES[narrower]
@@ -295,26 +300,22 @@ describe('Code Mode SDK declaration matches the runtime', () => {
       const kind = family.id
       const edit = TYPED_EDIT_BY_FAMILY[kind]
       expect({ kind, hasEditFixture: edit !== undefined, msg: FAIL }).toEqual({ kind, hasEditFixture: true, msg: FAIL })
-      expect({ kind, opDeclared: (MUTATION_OPS_BY_FAMILY[kind] as readonly string[]).includes(edit!.kind), msg: FAIL })
-        .toEqual({ kind, opDeclared: true, msg: FAIL })
+      expect({ kind, opDeclared: (MUTATION_OPS_BY_FAMILY[kind] as readonly string[]).includes(edit!.kind), msg: FAIL }).toEqual({ kind, opDeclared: true, msg: FAIL })
 
       const parsed = parseRegisteredMermaid(family.example)
       if (!parsed.ok) throw new Error(`${kind} example does not parse`)
       for (const other of BUILTIN_FAMILY_METADATA) {
         const narrowed = typeof narrowers[other.narrower] === 'function' ? narrowers[other.narrower]!(parsed.value) : undefined
-        expect({ kind, narrower: other.narrower, accepts: narrowed !== null && narrowed !== undefined })
-          .toEqual({ kind, narrower: other.narrower, accepts: other.id === kind })
+        expect({ kind, narrower: other.narrower, accepts: narrowed !== null && narrowed !== undefined }).toEqual({ kind, narrower: other.narrower, accepts: other.id === kind })
       }
       const typed = narrowers[family.narrower]!(parsed.value) as MutableValidDiagram
       const mutated = mutate(typed, edit as AnyMutationOp)
       expect({ kind, mutated: mutated.ok ? true : mutated.error, msg: FAIL }).toEqual({ kind, mutated: true, msg: FAIL })
       if (!mutated.ok) continue
       const source = serializeMermaid(mutated.value)
-      expect({ kind, before: /zebra/i.test(serializeMermaid(parsed.value)), after: /zebra/i.test(source) })
-        .toEqual({ kind, before: false, after: true })
+      expect({ kind, before: /zebra/i.test(serializeMermaid(parsed.value)), after: /zebra/i.test(source) }).toEqual({ kind, before: false, after: true })
       const reparsed = parseRegisteredMermaid(source)
-      expect({ kind, reparsedKind: reparsed.ok ? reparsed.value.kind : reparsed.error })
-        .toEqual({ kind, reparsedKind: kind })
+      expect({ kind, reparsedKind: reparsed.ok ? reparsed.value.kind : reparsed.error }).toEqual({ kind, reparsedKind: kind })
       if (reparsed.ok) expect({ kind, stable: serializeMermaid(reparsed.value) === source }).toEqual({ kind, stable: true })
     }
   })
@@ -390,14 +391,16 @@ describe('documented package usage works', () => {
           write: false,
           metafile: true,
           logLevel: 'silent',
-          plugins: [{
-            name: 'agentic-mermaid-browser-entry',
-            setup(build) {
-              build.onResolve({ filter: /^agentic-mermaid\/browser\/lazy$/ }, () => ({
-                path: join(REPO, 'src/browser-lazy.ts'),
-              }))
+          plugins: [
+            {
+              name: 'agentic-mermaid-browser-entry',
+              setup(build) {
+                build.onResolve({ filter: /^agentic-mermaid\/browser\/lazy$/ }, () => ({
+                  path: join(REPO, 'src/browser-lazy.ts'),
+                }))
+              },
             },
-          }],
+          ],
         })
         expect(bundled.outputFiles.length).toBeGreaterThan(0)
         const inputs = Object.keys(bundled.metafile.inputs)
@@ -412,8 +415,16 @@ describe('documented package usage works', () => {
     // the subcommand must be one `am` accepts.
     const pkg = JSON.parse(readFileSync(join(REPO, 'package.json'), 'utf8')) as { name: string; bin: Record<string, string> }
     expect(pkg.bin[pkg.name]).toBe(pkg.bin.am)
-    const docs = ['README.md', 'AGENT_NATIVE.md', 'Instructions_for_agents.md', 'llms.txt', 'website/source/start.md',
-      ...readdirSync(join(REPO, 'docs')).filter(file => file.endsWith('.md')).map(file => `docs/${file}`)]
+    const docs = [
+      'README.md',
+      'AGENT_NATIVE.md',
+      'Instructions_for_agents.md',
+      'llms.txt',
+      'website/source/start.md',
+      ...readdirSync(join(REPO, 'docs'))
+        .filter(file => file.endsWith('.md'))
+        .map(file => `docs/${file}`),
+    ]
     const invocations: Array<{ file: string; pkg: string; sub: string }> = []
     for (const file of docs) {
       const text = readFileSync(join(REPO, file), 'utf8')

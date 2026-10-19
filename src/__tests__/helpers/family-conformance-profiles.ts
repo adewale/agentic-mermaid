@@ -1,33 +1,24 @@
-import { readFileSync, readdirSync } from 'node:fs'
+import { readdirSync, readFileSync } from 'node:fs'
 import { join } from 'node:path'
-import { BUILTIN_FAMILY_METADATA, isBuiltinFamilyId, type BuiltinFamilyMetadata } from '../../agent/families.ts'
+import { BUILTIN_FAMILY_METADATA, type BuiltinFamilyMetadata, isBuiltinFamilyId } from '../../agent/families.ts'
 import { parseRegisteredMermaid } from '../../agent/parse.ts'
 import type { DiagramKind } from '../../agent/types.ts'
-import type { RenderOptions } from '../../types.ts'
 import type { SceneRole } from '../../scene/roles.ts'
 import { compareCodePointStrings } from '../../shared/deterministic-order.ts'
+import type { RenderOptions } from '../../types.ts'
 import { METAMORPHIC_FAMILIES } from './metamorphic-families.ts'
 
 const ROOT = join(import.meta.dir, '..', '..', '..')
 const FAMILY_DEMOS = join(ROOT, 'docs', 'design', 'families')
 const EVAL_ROOT = join(ROOT, 'eval')
 
-export const COMPLEXITY_STRATA = [
-  'minimal',
-  'representative',
-  'dense',
-  'text-stress',
-  'family-risk',
-  'corpus-outlier',
-] as const
-export type ComplexityStratum = typeof COMPLEXITY_STRATA[number]
+export const COMPLEXITY_STRATA = ['minimal', 'representative', 'dense', 'text-stress', 'family-risk', 'corpus-outlier'] as const
+export type ComplexityStratum = (typeof COMPLEXITY_STRATA)[number]
 
 export interface FamilyConformanceProfile {
   readonly family: DiagramKind
   /** Required role coverage across the portfolio; every automatic outline is inspected. */
-  readonly outlines:
-    | { readonly kind: 'automatic'; readonly roles: readonly [SceneRole, ...SceneRole[]] }
-    | { readonly kind: 'none'; readonly reason: string }
+  readonly outlines: { readonly kind: 'automatic'; readonly roles: readonly [SceneRole, ...SceneRole[]] } | { readonly kind: 'none'; readonly reason: string }
   readonly riskFixture: string
   readonly riskOptions: RenderOptions
   readonly textStressSource: string
@@ -41,94 +32,170 @@ export interface FamilyConformanceProfile {
  * particular test.
  */
 export const FAMILY_CONFORMANCE_PROFILES: Readonly<Record<DiagramKind, FamilyConformanceProfile>> = {
+  packet: {
+    family: 'packet',
+    riskFixture: 'packet-demo.mmd',
+    riskOptions: {},
+    outlines: { kind: 'automatic', roles: ['node'] },
+    textStressSource: '---\ntitle: 東京 café é 👩‍💻\nconfig:\n  packet:\n    bitsPerRow: 16\n    bitOrder: descending\n---\npacket\n+8: "שלום مرحبا"\n+8: "長いラベル"\n+5: "界"',
+  },
+  kanban: {
+    family: 'kanban',
+    riskFixture: 'kanban-demo.mmd',
+    riskOptions: {},
+    outlines: { kind: 'automatic', roles: ['node', 'group', 'group-header'] },
+    textStressSource: '---\ntitle: 東京 café é 👩‍💻\n---\nkanban\nTodo[שלום مرحبا]\n  task[長いラベル]@{assigned: "東京 👩‍💻", ticket: ID-42, priority: High}\nDone',
+    externalReferenceSource: '---\nconfig:\n  kanban:\n    ticketBaseUrl: https://example.com/#TICKET#\n---\nkanban\nTodo\n  task[Docs]@{ticket: ID-42}',
+  },
+  requirement: {
+    family: 'requirement',
+    riskFixture: 'requirement-demo.mmd',
+    riskOptions: {},
+    outlines: { kind: 'automatic', roles: ['node'] },
+    textStressSource: 'requirementDiagram\nrequirement r {\nid: R1\ntext: "東京 café é 👩‍💻 שלום مرحبا"\nrisk: high\nverifymethod: test\n}\nelement suite {\ntype: "test"\n}\nsuite - verifies -> r',
+  },
+  treemap: {
+    family: 'treemap',
+    riskFixture: 'treemap-demo.mmd',
+    riskOptions: {},
+    outlines: { kind: 'automatic', roles: ['bar'] },
+    textStressSource: 'treemap\ntitle 東京 café é 👩‍💻\n"שלום مرحبا"\n  "長いラベル": 60\n  "café 東京": 40',
+  },
+  ishikawa: {
+    family: 'ishikawa',
+    riskFixture: 'ishikawa-demo.mmd',
+    riskOptions: {},
+    outlines: { kind: 'automatic', roles: ['node'] },
+    textStressSource: 'ishikawa\n  東京 café é 👩‍💻\n  שלום مرحبا\n    長いラベル\n  Environment\n    café 東京',
+  },
+  block: {
+    family: 'block',
+    riskFixture: 'block-demo.mmd',
+    riskOptions: {},
+    outlines: { kind: 'automatic', roles: ['node', 'group'] },
+    textStressSource: 'block\ncolumns 2\nblock:domain:2\nA["東京 café é 👩‍💻"] B["שלום مرحبا 長いラベル"]\nend\nA --> B',
+  },
   c4: {
-    family: 'c4', riskFixture: 'c4-context-demo.mmd', riskOptions: {},
+    family: 'c4',
+    riskFixture: 'c4-context-demo.mmd',
+    riskOptions: {},
     outlines: { kind: 'automatic', roles: ['node', 'group', 'group-header'] },
     textStressSource: 'C4Container\n  Person(user, "東京 café é 👩‍💻", "שלום")\n  Container(api, "مرحبا بالعالم", "HTTP", "長い説明")\n  Rel(user, api, "長いラベル", "HTTPS")',
     externalReferenceSource: 'C4Context\n  System(docs, "Docs", $link="https://example.com/docs")',
   },
   flowchart: {
-    family: 'flowchart', riskFixture: 'flowchart-v11-shapes-demo.mmd', riskOptions: {},
+    family: 'flowchart',
+    riskFixture: 'flowchart-v11-shapes-demo.mmd',
+    riskOptions: {},
     outlines: { kind: 'automatic', roles: ['node', 'group', 'group-header'] },
     textStressSource: 'flowchart LR\n  subgraph app[Application]\n    A["東京 café é 👩‍💻 שלום"] -->|長いラベル| B["مرحبا بالعالم"]\n  end',
     externalReferenceSource: 'flowchart LR\n  A[Docs] --> B[Done]\n  click A href "https://example.com/docs"',
   },
   state: {
-    family: 'state', riskFixture: 'state-pseudostates-demo.mmd', riskOptions: {},
+    family: 'state',
+    riskFixture: 'state-pseudostates-demo.mmd',
+    riskOptions: {},
     outlines: { kind: 'automatic', roles: ['node', 'group', 'group-header'] },
     textStressSource: 'stateDiagram-v2\n  state "東京 café 👩‍💻" as A\n  state "שלום é" as B\n  A --> B : 長いラベル',
   },
   sequence: {
-    family: 'sequence', riskFixture: 'sequence-config-demo.mmd', riskOptions: {},
+    family: 'sequence',
+    riskFixture: 'sequence-config-demo.mmd',
+    riskOptions: {},
     outlines: { kind: 'automatic', roles: ['actor', 'activation', 'block', 'note'] },
     textStressSource: 'sequenceDiagram\n  participant A as 東京 👩‍💻\n  participant B as שלום é\n  A->>B: مرحبا بالعالم\n  activate B\n  alt Accepted\n    B-->>A: 長いラベル\n  else Retry\n    Note right of B: café 👩‍💻\n    B-->>A: שלום\n  end\n  deactivate B',
     externalReferenceSource: 'sequenceDiagram\n  participant A as Alice\n  link A: profile @ https://example.com/alice\n  A->>A: inspect',
   },
   timeline: {
-    family: 'timeline', riskFixture: 'timeline-vertical-demo.mmd', riskOptions: {},
+    family: 'timeline',
+    riskFixture: 'timeline-vertical-demo.mmd',
+    riskOptions: {},
     outlines: { kind: 'automatic', roles: ['event', 'section', 'group-header'] },
     textStressSource: 'timeline\n  title 東京 café 👩‍💻\n  section שלום é\n    2026 : مرحبا بالعالم : 長いイベント',
   },
   class: {
-    family: 'class', riskFixture: 'class-generics-demo.mmd', riskOptions: {},
+    family: 'class',
+    riskFixture: 'class-generics-demo.mmd',
+    riskOptions: {},
     outlines: { kind: 'automatic', roles: ['class-box', 'group-header', 'chrome', 'note'] },
     textStressSource: 'classDiagram\n  class Account {\n    +名前: string\n    +café()\n  }\n  note for Account "東京 👩‍💻 שלום é"',
     externalReferenceSource: 'classDiagram\n  class Docs\n  click Docs href "https://example.com/docs"',
   },
   er: {
-    family: 'er', riskFixture: 'er-direction-demo.mmd', riskOptions: {},
+    family: 'er',
+    riskFixture: 'er-direction-demo.mmd',
+    riskOptions: {},
     outlines: { kind: 'automatic', roles: ['entity', 'group-header', 'chrome'] },
     textStressSource: 'erDiagram\n  CUSTOMER ||--o{ ORDER : "東京 café 👩‍💻"\n  CUSTOMER {\n    string name "שלום é مرحبا"\n  }',
   },
   journey: {
-    family: 'journey', riskFixture: 'journey-section-overlap-demo.mmd', riskOptions: {},
+    family: 'journey',
+    riskFixture: 'journey-section-overlap-demo.mmd',
+    riskOptions: {},
     outlines: { kind: 'automatic', roles: ['task'] },
     textStressSource: 'journey\n  title 東京 café 👩‍💻\n  section שלום é\n    مرحبا بالعالم: 4: 利用者',
   },
   architecture: {
-    family: 'architecture', riskFixture: 'architecture-align-demo.mmd', riskOptions: {},
+    family: 'architecture',
+    riskFixture: 'architecture-align-demo.mmd',
+    riskOptions: {},
     outlines: { kind: 'automatic', roles: ['service', 'group'] },
     textStressSource: 'architecture-beta\n  group g(cloud)["東京 café 👩‍💻"]\n  service a(server)["שלום é"] in g\n  service b(database)["مرحبا بالعالم"] in g\n  a:R --> L:b',
   },
   xychart: {
-    family: 'xychart', riskFixture: 'xychart-legend-demo.mmd', riskOptions: {},
+    family: 'xychart',
+    riskFixture: 'xychart-legend-demo.mmd',
+    riskOptions: {},
     outlines: { kind: 'none', reason: 'Data-series bars and lines use series paints; axes and grids do not use the shared automatic node outline.' },
     textStressSource: 'xychart-beta\n  title "東京 café 👩‍💻"\n  x-axis [שלום, مرحبا, é]\n  y-axis 0 --> 10\n  bar [2, 5, 8]',
   },
   pie: {
-    family: 'pie', riskFixture: 'pie-donut-labels-demo.mmd', riskOptions: {},
+    family: 'pie',
+    riskFixture: 'pie-donut-labels-demo.mmd',
+    riskOptions: {},
     outlines: { kind: 'automatic', roles: ['legend'] },
     textStressSource: 'pie title 東京 café 👩‍💻\n  "שלום é" : 4\n  "مرحبا بالعالم" : 3\n  "長いラベル" : 2',
   },
   quadrant: {
-    family: 'quadrant', riskFixture: 'quadrant-styling-demo.mmd', riskOptions: {},
+    family: 'quadrant',
+    riskFixture: 'quadrant-styling-demo.mmd',
+    riskOptions: {},
     outlines: { kind: 'automatic', roles: ['chrome'] },
     textStressSource: 'quadrantChart\n  title 東京 café 👩‍💻\n  x-axis שלום --> مرحبا\n  y-axis é --> 長い\n  نقطة: [0.3, 0.7]',
   },
   gantt: {
-    family: 'gantt', riskFixture: 'gantt-dependency-overlay-demo.mmd',
+    family: 'gantt',
+    riskFixture: 'gantt-dependency-overlay-demo.mmd',
     outlines: { kind: 'none', reason: 'Tasks and milestones use status paints; their outlines and the grid do not use the shared automatic node outline.' },
     riskOptions: { gantt: { dependencyArrows: true, criticalPath: true } },
     textStressSource: 'gantt\n  title 東京 café 👩‍💻\n  dateFormat YYYY-MM-DD\n  section שלום é\n  مرحبا بالعالم :a, 2026-01-01, 2d\n  長いタスク :after a, 1d',
     externalReferenceSource: 'gantt\n  dateFormat YYYY-MM-DD\n  section Links\n  Docs :docs, 2026-01-01, 1d\n  click docs href "https://example.com/docs"',
   },
   mindmap: {
-    family: 'mindmap', riskFixture: 'mindmap-demo.mmd', riskOptions: {},
+    family: 'mindmap',
+    riskFixture: 'mindmap-demo.mmd',
+    riskOptions: {},
     outlines: { kind: 'none', reason: 'Root and branch outlines use categorical root and branch paints, not the shared automatic node outline.' },
     textStressSource: 'mindmap\n  root((東京 café 👩‍💻))\n    שלום é\n      مرحبا بالعالم\n    長いラベル',
   },
   gitgraph: {
-    family: 'gitgraph', riskFixture: 'gitgraph-demo.mmd', riskOptions: {},
+    family: 'gitgraph',
+    riskFixture: 'gitgraph-demo.mmd',
+    riskOptions: {},
     outlines: { kind: 'none', reason: 'Commit, branch, and rail marks use branch or status paints, not the shared automatic node outline.' },
     textStressSource: 'gitGraph\n  commit id:"base" msg:"東京 café 👩‍💻"\n  branch feature\n  commit id:"work" msg:"שלום é مرحبا"',
   },
   radar: {
-    family: 'radar', riskFixture: 'radar-demo.mmd', riskOptions: {},
+    family: 'radar',
+    riskFixture: 'radar-demo.mmd',
+    riskOptions: {},
     outlines: { kind: 'automatic', roles: ['legend'] },
     textStressSource: 'radar-beta\n  title 東京 café 👩‍💻\n  axis a["שלום é"], b["مرحبا"], c["長い"]\n  curve now["現在 👩‍💻"]{3,4,5}\n  max 5',
   },
   sankey: {
-    family: 'sankey', riskFixture: 'sankey-flows-demo.mmd', riskOptions: {},
+    family: 'sankey',
+    riskFixture: 'sankey-flows-demo.mmd',
+    riskOptions: {},
     outlines: { kind: 'automatic', roles: ['bar'] },
     textStressSource: 'sankey-beta\n  東京 café 👩‍💻,שלום é,10\n  שלום é,مرحبا بالعالم,10',
   },
@@ -176,10 +243,12 @@ export function collectCorpusOutliers(): Record<DiagramKind, { path: string; sou
   }
   const missing = BUILTIN_FAMILY_METADATA.map(entry => entry.id).filter(id => !selected.has(id))
   if (missing.length > 0) throw new Error(`Eval corpus has no structured source for: ${missing.join(', ')}`)
-  corpusOutlierCache = Object.fromEntries(BUILTIN_FAMILY_METADATA.map(({ id }) => {
-    const entry = selected.get(id)!
-    return [id, { path: entry.path, source: entry.source }]
-  })) as Record<DiagramKind, { path: string; source: string }>
+  corpusOutlierCache = Object.fromEntries(
+    BUILTIN_FAMILY_METADATA.map(({ id }) => {
+      const entry = selected.get(id)!
+      return [id, { path: entry.path, source: entry.source }]
+    }),
+  ) as Record<DiagramKind, { path: string; source: string }>
   return corpusOutlierCache
 }
 
@@ -194,25 +263,48 @@ export function conformanceSourceFor(family: DiagramKind, stratum: ComplexityStr
   const generator = METAMORPHIC_FAMILIES[family]
   const [min, max] = generator.kRange
   switch (stratum) {
-    case 'minimal': return {
-      family, stratum, id: `${family}:minimal`, source: metadataFor(family).example, options: {}, origin: 'registry-example',
-    }
-    case 'representative': return {
-      family, stratum, id: `${family}:representative`, source: generator.build(Math.floor((min + max) / 2), 'rep'), options: {}, origin: 'metamorphic-generator',
-    }
+    case 'minimal':
+      return {
+        family,
+        stratum,
+        id: `${family}:minimal`,
+        source: metadataFor(family).example,
+        options: {},
+        origin: 'registry-example',
+      }
+    case 'representative':
+      return {
+        family,
+        stratum,
+        id: `${family}:representative`,
+        source: generator.build(Math.floor((min + max) / 2), 'rep'),
+        options: {},
+        origin: 'metamorphic-generator',
+      }
     case 'dense': {
       let source = generator.build(max, 'dense')
       if (generator.addPrimary) source += generator.addPrimary.snippet(max, 'dense')
       if (generator.addRelation) source += generator.addRelation(max, 'dense')
       return { family, stratum, id: `${family}:dense`, source, options: {}, origin: 'metamorphic-generator' }
     }
-    case 'text-stress': return {
-      family, stratum, id: `${family}:text-stress`, source: profile.textStressSource, options: {}, origin: 'family-risk-fixture',
-    }
-    case 'family-risk': return {
-      family, stratum, id: `${family}:family-risk`, source: readFileSync(join(FAMILY_DEMOS, profile.riskFixture), 'utf8'),
-      options: profile.riskOptions, origin: 'family-risk-fixture',
-    }
+    case 'text-stress':
+      return {
+        family,
+        stratum,
+        id: `${family}:text-stress`,
+        source: profile.textStressSource,
+        options: {},
+        origin: 'family-risk-fixture',
+      }
+    case 'family-risk':
+      return {
+        family,
+        stratum,
+        id: `${family}:family-risk`,
+        source: readFileSync(join(FAMILY_DEMOS, profile.riskFixture), 'utf8'),
+        options: profile.riskOptions,
+        origin: 'family-risk-fixture',
+      }
     case 'corpus-outlier': {
       const outlier = collectCorpusOutliers()[family]
       return { family, stratum, id: `${family}:corpus-outlier:${outlier.path.slice(ROOT.length + 1)}`, source: outlier.source, options: {}, origin: 'eval-corpus' }

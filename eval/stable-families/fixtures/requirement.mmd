@@ -1,0 +1,36 @@
+---
+title: Native family traceability
+---
+requirementDiagram
+  direction LR
+  requirement faithful {
+    id: "R-1"
+    text: Preserve every authored identity and relation
+    risk: high
+    verifymethod: inspection
+  }
+  functionalRequirement editable {
+    id: "R-2"
+    text: Typed operations preserve valid canonical source
+    risk: medium
+    verifymethod: test
+  }
+  interfaceRequirement measured {
+    id: "R-3"
+    text: Every painted label owns measured geometry
+    risk: high
+    verifymethod: analysis
+  }
+  element parser_suite {
+    type: conformance suite
+    docref: exact pinned parser fixtures
+  }
+  element scene_suite {
+    type: geometric certification
+    docref: native Scene and positioned JSON
+  }
+  faithful - contains -> editable
+  faithful - contains -> measured
+  parser_suite - verifies -> editable
+  scene_suite - verifies -> measured
+  editable - traces -> measured

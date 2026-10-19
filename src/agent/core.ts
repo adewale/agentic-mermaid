@@ -620,3 +620,16 @@ function sourceLineHints(d: ParsedDiagram): { nodes: Map<string, number>; groups
 
 export type { C4Body, C4MutationOp, C4ValidDiagram } from './types.ts'
 export type { C4Element, C4Boundary, C4Relationship, C4Variant, C4ElementInput, C4BoundaryInput, C4RelationshipInput, C4Style, C4Argument, C4ArgumentInput, C4Directive, C4Statement, C4Diagnostic, C4Direction, C4ElementKind, C4BoundaryKind, C4Shape } from '../c4/types.ts'
+
+export { asPacket } from './types.ts'
+export type { PacketBody, PacketMutationOp, PacketValidDiagram } from './types.ts'
+export { asKanban } from './types.ts'
+export type { KanbanBody, KanbanMutationOp, KanbanValidDiagram } from './types.ts'
+export { asRequirement } from './types.ts'
+export type { RequirementBody, RequirementMutationOp, RequirementValidDiagram } from './types.ts'
+export { asTreemap } from './types.ts'
+export type { TreemapBody, TreemapMutationOp, TreemapValidDiagram } from './types.ts'
+export { asIshikawa } from './types.ts'
+export type { IshikawaBody, IshikawaMutationOp, IshikawaValidDiagram } from './types.ts'
+export { asBlock } from './types.ts'
+export type { BlockBody, BlockMutationOp, BlockValidDiagram } from './types.ts'

@@ -1,6 +1,18 @@
 import type { LabelContent } from '../shared/display-text.ts'
 import type { C4Body, C4MutationOp } from '../c4/types.ts'
 export type { C4Body, C4MutationOp } from '../c4/types.ts'
+import type { PacketBody, PacketMutationOp } from '../packet/types.ts'
+import type { KanbanBody, KanbanMutationOp } from '../kanban/types.ts'
+import type { RequirementBody, RequirementMutationOp } from '../requirement/types.ts'
+import type { BlockBody, BlockMutationOp } from '../block/types.ts'
+import type { TreemapBody, TreemapMutationOp } from '../treemap/types.ts'
+import type { IshikawaBody, IshikawaMutationOp } from '../ishikawa/types.ts'
+export type { PacketBody, PacketMutationOp } from '../packet/types.ts'
+export type { KanbanBody, KanbanMutationOp } from '../kanban/types.ts'
+export type { RequirementBody, RequirementMutationOp } from '../requirement/types.ts'
+export type { BlockBody, BlockMutationOp } from '../block/types.ts'
+export type { TreemapBody, TreemapMutationOp } from '../treemap/types.ts'
+export type { IshikawaBody, IshikawaMutationOp } from '../ishikawa/types.ts'
 // ============================================================================
 // Agentic Mermaid — IR and verb types (v4)
 //
@@ -29,7 +41,7 @@ export function err<E, T = never>(error: E): Result<T, E> {
 
 // ---- Families -------------------------------------------------------------
 
-export type DiagramKind = 'flowchart' | 'state' | 'sequence' | 'class' | 'er' | 'timeline' | 'journey' | 'xychart' | 'architecture' | 'pie' | 'quadrant' | 'gantt' | 'mindmap' | 'gitgraph' | 'radar' | 'sankey' | 'c4'
+export type DiagramKind = 'flowchart' | 'state' | 'sequence' | 'class' | 'er' | 'timeline' | 'journey' | 'xychart' | 'architecture' | 'pie' | 'quadrant' | 'gantt' | 'mindmap' | 'gitgraph' | 'radar' | 'sankey' | 'c4' | 'packet' | 'kanban' | 'requirement' | 'treemap' | 'ishikawa' | 'block'
 
 /** Runtime extensions are open but must pass the registry's namespace validator. */
 export type ExternalFamilyId = `family:${string}`
@@ -58,10 +70,45 @@ export type SequenceMessageStyle =
   | 'lost' // -x
   | 'lost-dashed' // --x
 
-export type SequenceMessageArrow = '<<->>' | '<<-->>' | '->>' | '-->>' | '->' | '-->' | '-x' | '--x' | '-)' | '--)'
-  | '-|\\' | '--|\\' | '-|/' | '--|/' | '-\\\\' | '--\\\\' | '-//' | '--//'
-  | '/|-' | '/|--' | '\\|-' | '\\|--' | '//-' | '//--' | '\\\\-' | '\\\\--'
-  | '-|' | '--|' | '-/' | '--/' | '-\\' | '--\\' | '|-' | '|--' | '/-' | '/--' | '\\-' | '\\--'
+export type SequenceMessageArrow =
+  | '<<->>'
+  | '<<-->>'
+  | '->>'
+  | '-->>'
+  | '->'
+  | '-->'
+  | '-x'
+  | '--x'
+  | '-)'
+  | '--)'
+  | '-|\\'
+  | '--|\\'
+  | '-|/'
+  | '--|/'
+  | '-\\\\'
+  | '--\\\\'
+  | '-//'
+  | '--//'
+  | '/|-'
+  | '/|--'
+  | '\\|-'
+  | '\\|--'
+  | '//-'
+  | '//--'
+  | '\\\\-'
+  | '\\\\--'
+  | '-|'
+  | '--|'
+  | '-/'
+  | '--/'
+  | '-\\'
+  | '--\\'
+  | '|-'
+  | '|--'
+  | '/-'
+  | '/--'
+  | '\\-'
+  | '\\--'
 
 export interface SequenceMessage {
   from: string
@@ -834,6 +881,12 @@ export type DiagramBody =
   | RadarBody
   | SankeyBody
   | C4Body
+  | PacketBody
+  | KanbanBody
+  | RequirementBody
+  | TreemapBody
+  | IshikawaBody
+  | BlockBody
   /**
    * Opaque body — the parser understood the family header but encountered
    * unmodeled syntax. `source` is the ORIGINAL body with indentation, blank
@@ -966,6 +1019,12 @@ export type GitGraphValidDiagram = ValidDiagram & { body: GitGraphBody }
 export type RadarValidDiagram = ValidDiagram & { body: RadarBody }
 export type SankeyValidDiagram = ValidDiagram & { body: SankeyBody }
 export type C4ValidDiagram = ValidDiagram & { body: C4Body }
+export type PacketValidDiagram = ValidDiagram & { body: PacketBody }
+export type KanbanValidDiagram = ValidDiagram & { body: KanbanBody }
+export type RequirementValidDiagram = ValidDiagram & { body: RequirementBody }
+export type TreemapValidDiagram = ValidDiagram & { body: TreemapBody }
+export type IshikawaValidDiagram = ValidDiagram & { body: IshikawaBody }
+export type BlockValidDiagram = ValidDiagram & { body: BlockBody }
 export type MutableValidDiagram =
   | FlowchartValidDiagram
   | StateValidDiagram
@@ -984,6 +1043,31 @@ export type MutableValidDiagram =
   | RadarValidDiagram
   | SankeyValidDiagram
   | C4ValidDiagram
+  | PacketValidDiagram
+  | KanbanValidDiagram
+  | RequirementValidDiagram
+  | TreemapValidDiagram
+  | IshikawaValidDiagram
+  | BlockValidDiagram
+
+export function asPacket(d: ParsedDiagram): PacketValidDiagram | null {
+  return d.body.kind === 'packet' ? (d as PacketValidDiagram) : null
+}
+export function asKanban(d: ParsedDiagram): KanbanValidDiagram | null {
+  return d.body.kind === 'kanban' ? (d as KanbanValidDiagram) : null
+}
+export function asRequirement(d: ParsedDiagram): RequirementValidDiagram | null {
+  return d.body.kind === 'requirement' ? (d as RequirementValidDiagram) : null
+}
+export function asTreemap(d: ParsedDiagram): TreemapValidDiagram | null {
+  return d.body.kind === 'treemap' ? (d as TreemapValidDiagram) : null
+}
+export function asIshikawa(d: ParsedDiagram): IshikawaValidDiagram | null {
+  return d.body.kind === 'ishikawa' ? (d as IshikawaValidDiagram) : null
+}
+export function asBlock(d: ParsedDiagram): BlockValidDiagram | null {
+  return d.body.kind === 'block' ? (d as BlockValidDiagram) : null
+}
 
 export function asFlowchart(d: ParsedDiagram): FlowchartValidDiagram | null {
   return d.body.kind === 'flowchart' ? (d as FlowchartValidDiagram) : null
@@ -1425,6 +1509,12 @@ export type AnyMutationOp =
   | RadarMutationOp
   | SankeyMutationOp
   | C4MutationOp
+  | PacketMutationOp
+  | KanbanMutationOp
+  | RequirementMutationOp
+  | TreemapMutationOp
+  | IshikawaMutationOp
+  | BlockMutationOp
 
 // ---- Branded Finite -------------------------------------------------------
 
@@ -1450,7 +1540,20 @@ export type Tier2WarningCode = 'NODE_OVERLAP' | 'CONTENT_OCCLUDED' | 'LAYOUT_LIM
  * Tier 3 (advisory lint). Family-specific quality hints for common agent
  * mistakes that still parse and render. Lint warnings never flip verify.ok.
  */
-export type Tier3WarningCode = 'DUPLICATE_EDGE' | 'UNREACHABLE_NODE' | 'DECISION_BRANCH_UNLABELED' | 'FLOW_IMBALANCE' | 'COMMENT_DROPPED' | 'UNSUPPORTED_SYNTAX' | 'CONTENT_DROPPED_ON_ROUNDTRIP' | 'INEFFECTIVE_CONFIG' | 'LOW_CONTRAST' | 'LABELS_HIDDEN' | 'BAR_RANGE_EXCLUDES_ZERO' | 'VALUES_OUTSIDE_RANGE' | typeof BRAND_CONSTRAINT_WARNING_POLICY.warn.code
+export type Tier3WarningCode =
+  | 'DUPLICATE_EDGE'
+  | 'UNREACHABLE_NODE'
+  | 'DECISION_BRANCH_UNLABELED'
+  | 'FLOW_IMBALANCE'
+  | 'COMMENT_DROPPED'
+  | 'UNSUPPORTED_SYNTAX'
+  | 'CONTENT_DROPPED_ON_ROUNDTRIP'
+  | 'INEFFECTIVE_CONFIG'
+  | 'LOW_CONTRAST'
+  | 'LABELS_HIDDEN'
+  | 'BAR_RANGE_EXCLUDES_ZERO'
+  | 'VALUES_OUTSIDE_RANGE'
+  | typeof BRAND_CONSTRAINT_WARNING_POLICY.warn.code
 export type WarningCode = Tier1WarningCode | Tier2WarningCode | Tier3WarningCode | BrandConstraintWarningCode
 
 export type LayoutWarning =
@@ -1671,7 +1774,12 @@ export interface RenderedRegion {
 }
 
 /** Retained bounds in the renderer's pixel coordinate system. */
-export interface RenderedLabelBounds { x: Finite; y: Finite; w: Finite; h: Finite }
+export interface RenderedLabelBounds {
+  x: Finite
+  y: Finite
+  w: Finite
+  h: Finite
+}
 
 /** Painted text independent of a semantic node, such as chart ticks or titles. */
 export interface RenderedLayoutLabel {
@@ -1792,7 +1900,13 @@ export interface ValidDiagramPayload {
     | GitGraphBody
     | RadarBody
     | SankeyBody
-  | C4Body
+    | C4Body
+    | PacketBody
+    | KanbanBody
+    | RequirementBody
+    | TreemapBody
+    | IshikawaBody
+    | BlockBody
     | ExtensionDiagramBody
     | { kind: 'opaque'; family: DiagramKind; source: string; diagnostic?: { code: 'GITGRAPH_DUPLICATE_COMMIT_ID'; id: string } }
 }

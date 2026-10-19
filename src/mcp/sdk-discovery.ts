@@ -6,9 +6,7 @@ import { PURE_COMPUTE_ANNOTATIONS, type McpToolDefinition } from './tool-surface
 export const SDK_FAMILIES = BUILTIN_FAMILY_METADATA.map(family => family.id)
 const SDK_FAMILY_SET = new Set<string>(SDK_FAMILIES)
 const DIAGRAM_KIND = SDK_FAMILIES.map(family => `'${family}'`).join(' | ')
-const NARROWERS = BUILTIN_FAMILY_METADATA
-  .map(family => `  ${family.narrower}(diagram: ParsedDiagram): ValidDiagram | null`)
-  .join('\n')
+const NARROWERS = BUILTIN_FAMILY_METADATA.map(family => `${family.narrower}(d:ParsedDiagram):ValidDiagram|null`).join('\n')
 
 /**
  * The declaration sent with tools/list. Family IR and mutation unions stay out
@@ -122,7 +120,7 @@ ${NARROWERS}
   layoutMermaidWithReceipt(input: ParsedDiagram | string, opts?: LayoutRenderOptions): RenderedLayoutArtifact
   describeOps(family: DiagramKind): Record<string, { name: string; required: boolean; type: string; note?: string }[]>
   opSignatures(family: DiagramKind): string[]
-}`
+}`.replace(/^[ \t]+/gm, '')
 
 export type DescribeSdkDetail = 'signatures' | 'fields'
 
