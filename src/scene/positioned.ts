@@ -5,6 +5,7 @@ import { retainedFamilyProjection } from '../positioning.ts'
 import { withTextMeasurementExecution } from '../text-measurement-profile.ts'
 import { admitFamilyScene } from './admission.ts'
 import { sceneAssertionsEnabled } from './assertions.ts'
+import { withDeferredTerminalProjections } from './deferred-terminal-projection.ts'
 import type { SceneDoc } from './ir.ts'
 import { certifyScenePaint, type PaintLayoutCertification } from './paint-certification.ts'
 
@@ -22,7 +23,10 @@ export function retainedPositionedScene(request: ResolvedRenderRequest, layout: 
   if (!plan.family.lowerScene) throw new Error(`Resolved ${request.output} family has no Scene lowering`)
   const colors = request.output === 'png' && request.appearance.colors.embedFontImport !== false
     ? { ...request.appearance.colors, embedFontImport: false } : request.appearance.colors
-  const scene = withTextMeasurementExecution(plan.textMeasurement, () => admitFamilyScene(plan.family, plan.family.lowerScene!({ positioned: layout.positioned, colors, resolved: resolvedFamilyRenderContextOf(request) }), sceneAssertionsEnabled(request)))
+  const assertions = sceneAssertionsEnabled(request)
+  const lower = () => plan.family.lowerScene!({ positioned: layout.positioned, colors, resolved: resolvedFamilyRenderContextOf(request) })
+  const scene = withTextMeasurementExecution(plan.textMeasurement, () => admitFamilyScene(plan.family,
+    !assertions && !plan.family.id.startsWith('family:') ? withDeferredTerminalProjections(lower) : lower(), assertions))
   requests.set(request, { scene })
   return scene
 }

@@ -1,13 +1,69 @@
-import { describe, expect, test } from 'bun:test'
+import { describe, expect, spyOn, test } from 'bun:test'
 import { knownBuiltinFamilies, getFamily } from '../agent/families.ts'
-import { renderMermaidSVGWithReceipt as complete } from '../index.ts'
+import { renderMermaidSVG, renderMermaidSVGWithReceipt as complete } from '../index.ts'
 import { renderMermaidSVGWithReceipt as focused } from '../svg.ts'
 import { withRenderStageObserver, type RenderStageSample } from '../render-stages.ts'
 import { convertToElkFormat, layoutGraphSync } from '../layout-engine.ts'
 import { elkLayoutSync } from '../elk-instance.ts'
 import { parseMermaid } from '../parser.ts'
+import { canonicalTextDigest } from '../render-contract.ts'
 
 describe('focused SVG entry', () => {
+  test('plain SVG does not hash unused output evidence, and consumed receipts hash it once', () => {
+    const source = 'sequenceDiagram\n  Alice->>Bob: request'
+    // Complete first-use backend conformance before observing this request.
+    renderMermaidSVG(source)
+    const stringify = JSON.stringify
+    const serializedSvg: string[] = []
+    const observed = spyOn(JSON, 'stringify').mockImplementation(((value: unknown, ...args: unknown[]) => {
+      if (typeof value === 'string' && value.startsWith('<svg')) serializedSvg.push(value)
+      return Reflect.apply(stringify, JSON, [value, ...args])
+    }) as typeof JSON.stringify)
+    try {
+      const plain = renderMermaidSVG(source)
+      const artifact = complete(source)
+      expect(artifact.svg).toBe(plain)
+      expect(serializedSvg).toEqual([])
+      const receipt = artifact.receipt
+      expect(receipt.graphicalProjectionDigest).toBe(canonicalTextDigest(stringify(plain)))
+      expect(serializedSvg).toEqual([plain])
+      expect(artifact.receipt).toBe(receipt)
+      expect(serializedSvg).toEqual([plain])
+    } finally {
+      observed.mockRestore()
+    }
+  })
+
+  test('deferred receipts retain admitted evidence when optional prototype fields change after rendering', () => {
+    const source = 'sequenceDiagram\n  Alice->>Bob: request'
+    const expected = focused(source).receipt
+    const artifact = focused(source)
+    const injected = {
+      resolutionDiagnostics: [{ code: 'INJECTED_AFTER_RENDER' }],
+      textMeasurement: { identity: { id: 'injected-after-render', version: '9.9.9' } },
+    }
+    const descriptors = Object.getOwnPropertyDescriptors(Object.prototype)
+    let reads = 0
+    let actual: typeof expected | undefined
+    try {
+      for (const [key, value] of Object.entries(injected)) {
+        Object.defineProperty(Object.prototype, key, {
+          configurable: true,
+          get() { reads++; return value },
+        })
+      }
+      actual = artifact.receipt
+    } finally {
+      for (const key of Object.keys(injected)) {
+        if (Object.hasOwn(descriptors, key)) Object.defineProperty(Object.prototype, key, descriptors[key]!)
+        else Reflect.deleteProperty(Object.prototype, key)
+      }
+    }
+    expect(reads).toBe(0)
+    expect(actual).toEqual(expected)
+    expect(artifact.receipt).toBe(actual)
+  })
+
   test('preserves complete-library SVG and receipts for every native family', () => {
     for (const id of knownBuiltinFamilies()) {
       const source = getFamily(id)!.example

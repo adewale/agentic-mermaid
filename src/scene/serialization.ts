@@ -1,4 +1,4 @@
-import type { SceneNode } from './ir.ts'
+import type { SceneDoc, SceneNode } from './ir.ts'
 import { compareCodePointStrings } from '../shared/deterministic-order.ts'
 import { writeConnectorSvg, writeShapeSvg, writeTextSvg } from './svg-writer.ts'
 
@@ -16,6 +16,7 @@ const SERIALIZED_SCENE_NODES = new WeakMap<object, string>()
 const WRITABLE_SCENE_NODES = new WeakSet<object>()
 /** Writer output for frozen (admitted) leaf marks, which cannot change after. */
 const WRITTEN_SCENE_NODES = new WeakMap<object, string>()
+const POSSIBLE_FITTED_TEXT = /<\s*text/i
 
 interface SerializedAttribute {
   readonly name: string
@@ -77,6 +78,9 @@ function canonicalOpeningTag(tag: string): string {
  * family elements, text, CSS, comments, or closing tags. This is deliberately
  * one-way: historical root ordering cannot survive as backend output. */
 export function canonicalizeSceneNodeSerialization(svg: string): string {
+  // Only opening <svg> tags are canonicalized. Most document fragments are
+  // styles, definitions or metadata and cannot contain one at all.
+  if (!svg.includes('<svg')) return svg
   let output = ''
   let cursor = 0
   while (cursor < svg.length) {
@@ -165,4 +169,29 @@ export function transferSceneNodeSerialization(source: object, target: object): 
 
 export function hasSceneNodeSerialization(value: object): boolean {
   return SERIALIZED_SCENE_NODES.has(value) || WRITABLE_SCENE_NODES.has(value)
+}
+
+/** A conservative proof for the canonical default writer only. The font-fit
+ * postpass ignores prepared text trees. Opaque fragments can still contain
+ * unprepared text, so an unknown fragment or even a possible text token keeps
+ * that postpass. Styled/custom backends cannot use this proof. */
+export function sceneHasOnlyPreparedText(scene: SceneDoc): boolean {
+  // The fitting pass accepts whitespace after '<' and compares names without
+  // case. Opaque fragments must conservatively cover that same lexical model.
+  const prepared = (node: SceneNode): boolean => {
+    if (node.kind === 'document') {
+      const svg = SERIALIZED_SCENE_NODES.get(node)
+      return svg !== undefined && !POSSIBLE_FITTED_TEXT.test(svg)
+    }
+    if (!WRITABLE_SCENE_NODES.has(node)) return false
+    switch (node.kind) {
+      case 'text': return node.measurement === 'prepared' && node.block !== undefined
+      case 'shape': return true
+      // The connector writer sends every inline label through the prepared
+      // shared text writer; companion labels are separate Text marks.
+      case 'connector': return true
+      case 'group': return !POSSIBLE_FITTED_TEXT.test(node.open) && !POSSIBLE_FITTED_TEXT.test(node.close) && node.children.every(child => prepared(child.node))
+    }
+  }
+  return scene.parts.every(prepared)
 }

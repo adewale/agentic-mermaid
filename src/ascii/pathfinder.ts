@@ -166,6 +166,21 @@ function isFreeInGrid(grid: PathOccupancy, c: GridCoord): boolean {
   return !grid.has(gridKey(c))
 }
 
+/** The clear axis segment is the unique shortest four-neighbour path. This
+ * narrow shortcut is used only where the caller has no extra canStep policy.
+ * Leave longer paths to the ordinary bounded search: 10,000 popped cells is
+ * its minimum work cap, including both endpoints. Occupied endpoints retain
+ * getPath's semantics; only the segment's interior must be free. */
+export function getClearAxisPath(grid: PathOccupancy, from: GridCoord, to: GridCoord): GridCoord[] | null {
+  if (![from.x, from.y, to.x, to.y].every(value => Number.isSafeInteger(value) && value >= 0)) return null
+  if (from.x !== to.x && from.y !== to.y) return null
+  const distance = Math.abs(to.x - from.x) + Math.abs(to.y - from.y)
+  if (distance >= 10_000) return null
+  const dx = Math.sign(to.x - from.x), dy = Math.sign(to.y - from.y)
+  for (let step = 1; step < distance; step++) if (grid.has(`${from.x + dx * step},${from.y + dy * step}`)) return null
+  return Array.from({ length: distance + 1 }, (_, step) => ({ x: from.x + dx * step, y: from.y + dy * step }))
+}
+
 
 /**
  * Find a path from `from` to `to` on the grid using A*.

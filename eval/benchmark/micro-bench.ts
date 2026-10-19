@@ -8,7 +8,7 @@
 //
 // Options: --samples N (12), --min-sample-ms N (25), --max-case-ms N (8000),
 // --warmup-ms N (250), --rounds N (1, or 3 with --baseline), --json PATH,
-// --fail-above RATIO.
+// --fail-above RATIO, --elk-cache off|on (off).
 //
 // Each round runs every selected case in one fresh child process per side;
 // sides alternate order between rounds. A baseline is the revision's `src/`
@@ -57,13 +57,14 @@ interface Side {
   root: string
   revision: string
   runner: string[]
+  elkCache: 'off' | 'on'
 }
 
 const SCRIPT_PATH = 'eval/benchmark/micro-bench.ts'
 
 function parseArgs(argv: readonly string[]): Map<string, string> {
   const flags = new Set(['list', 'child'])
-  const valued = new Set(['filter', 'samples', 'min-sample-ms', 'max-case-ms', 'warmup-ms', 'runtime', 'baseline', 'rounds', 'json', 'fail-above', 'out'])
+  const valued = new Set(['filter', 'samples', 'min-sample-ms', 'max-case-ms', 'warmup-ms', 'runtime', 'baseline', 'rounds', 'json', 'fail-above', 'out', 'elk-cache'])
   const options = new Map<string, string>()
   for (let i = 0; i < argv.length; i++) {
     const key = argv[i]!.replace(/^--/, '')
@@ -156,7 +157,7 @@ function bundleForNode(root: string, outfile: string): string {
 // bundle lives beside a node_modules: a per-run directory in the repository's
 // cache for the candidate, the extracted tree (with its node_modules link) for
 // a baseline.
-function prepareSide(label: Side['label'], root: string, revision: string, runtime: string, candidateBundleDir: string): Side {
+function prepareSide(label: Side['label'], root: string, revision: string, runtime: string, candidateBundleDir: string): Omit<Side, 'elkCache'> {
   const script = join(root, SCRIPT_PATH)
   const bundle = label === 'candidate' ? join(candidateBundleDir, 'candidate.mjs') : join(root, 'micro-bench.node.mjs')
   const runner = runtime === 'node' ? ['node', bundleForNode(root, bundle)] : ['bun', script]
@@ -166,8 +167,9 @@ function prepareSide(label: Side['label'], root: string, revision: string, runti
 function runSide(side: Side, passthrough: string[], scratch: string, round: number): Map<string, CaseResult> {
   const out = join(scratch, `${side.label}-${round}.json`)
   const [command, ...args] = side.runner
-  // Time ELK rather than a cached result, and renders as users get them.
-  const result = spawnSync(command!, [...args, '--child', '--out', out, ...passthrough], { cwd: side.root, stdio: ['ignore', 'inherit', 'inherit'], env: { ...process.env, AGENTIC_MERMAID_ELK_CACHE: '0', AGENTIC_MERMAID_SCENE_ASSERTIONS: '0' } })
+  // Disable caching by default to time ELK itself; opt in explicitly when
+  // measuring the normal warm pipeline. Both revisions use the same policy.
+  const result = spawnSync(command!, [...args, '--child', '--out', out, ...passthrough], { cwd: side.root, stdio: ['ignore', 'inherit', 'inherit'], env: { ...process.env, AGENTIC_MERMAID_ELK_CACHE: side.elkCache === 'on' ? '1' : '0', AGENTIC_MERMAID_SCENE_ASSERTIONS: '0' } })
   if (result.status !== 0) throw new Error(`${side.label} round ${round + 1} exited with ${result.status ?? result.signal}`)
   return new Map((JSON.parse(readFileSync(out, 'utf8')) as CaseResult[]).map(entry => [entry.id, entry]))
 }
@@ -203,6 +205,8 @@ async function main(): Promise<void> {
   const runtime = args.get('runtime') ?? 'bun'
   if (runtime !== 'bun' && runtime !== 'node') throw new Error('--runtime must be bun or node')
   const baselineRef = args.get('baseline')
+  const elkCache = args.get('elk-cache') ?? 'off'
+  if (elkCache !== 'off' && elkCache !== 'on') throw new Error('--elk-cache must be off or on')
   const rounds = positive(args, 'rounds', baselineRef ? 3 : 1)
   const passthrough = ['filter', 'samples', 'min-sample-ms', 'max-case-ms', 'warmup-ms'].flatMap(key => (args.has(key) ? [`--${key}`, args.get(key)!] : []))
   const scratch = mkdtempSync(join(tmpdir(), 'agentic-mermaid-micro-'))
@@ -218,10 +222,10 @@ async function main(): Promise<void> {
     process.exit(130)
   })
   try {
-    const sides = [prepareSide('candidate', ROOT, workingRevision(), runtime, candidateBundleDir)]
+    const sides: Side[] = [{ ...prepareSide('candidate', ROOT, workingRevision(), runtime, candidateBundleDir), elkCache }]
     if (baselineRef) {
       const baseline = extractRevisionTree(baselineRef, scratch, 'baseline', 'eval/benchmark/micro-bench-cases.ts')
-      sides.push(prepareSide('baseline', baseline.root, baseline.revision, runtime, candidateBundleDir))
+      sides.push({ ...prepareSide('baseline', baseline.root, baseline.revision, runtime, candidateBundleDir), elkCache })
     }
     const perRound: Array<Record<string, Map<string, CaseResult>>> = []
     for (let round = 0; round < rounds; round++) {
@@ -296,7 +300,7 @@ async function main(): Promise<void> {
         runtime,
         environment: { runtimeVersion: runtime === 'node' ? execFileSync('node', ['--version'], { encoding: 'utf8' }).trim() : `bun ${process.versions.bun}`, platform: process.platform, arch: process.arch, osRelease: release(), cpu: cpus()[0]?.model, logicalCpus: cpus().length },
         sides: sides.map(side => ({ label: side.label, revision: side.revision })),
-        config: { ...options, filter: options.filter?.source, rounds },
+        config: { ...options, filter: options.filter?.source, rounds, elkCache },
         results: summary,
       }
       writeFileSync(args.get('json')!, `${JSON.stringify(report, null, 2)}\n`)

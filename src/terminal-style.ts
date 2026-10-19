@@ -13,7 +13,7 @@ import type { AsciiTheme, ColorMode } from './ascii/types.ts'
 import { diagramColorsToAsciiTheme } from './ascii/ansi.ts'
 import type { DiagramColors } from './theme.ts'
 import type { ResolvedRenderRequest } from './render-contract.ts'
-import { renderContractDigest, SHARED_RENDER_OPTION_FIELD_DESCRIPTORS } from './render-contract.ts'
+import { deferredRenderContractDigest, renderContractDigest, SHARED_RENDER_OPTION_FIELD_DESCRIPTORS } from './render-contract.ts'
 import { safeCssColor } from './shared/css-color.ts'
 import { compareCodePointStrings } from './shared/deterministic-order.ts'
 import { toHex, tryParseCssColor } from './shared/color-math.ts'
@@ -265,7 +265,8 @@ export function projectTerminalStyle(
   )
   const semanticFallbacks = ['labels', 'symbols', 'markers', 'line-patterns'] as const
   const receipt = { version: TERMINAL_STYLE_VERSION, colorMode, theme, diagnostics, semanticFallbacks, connectorProjection }
-  return Object.freeze({ ...receipt, diagnostics: Object.freeze(diagnostics), digest: renderContractDigest(receipt) })
+  const digest = deferredRenderContractDigest(receipt)
+  return Object.freeze({ ...receipt, diagnostics: Object.freeze(diagnostics), get digest() { return digest() } })
 }
 
 /** Add optional graphical evidence without resolving terminal appearance twice. */
@@ -276,9 +277,16 @@ export function withTerminalConnectorScene(
 ): ResolvedTerminalStyle {
   const diagnostics = [...appearance.diagnostics]
   const connectorProjection = projectConnectorScene(scene, diagnostics, failed)
-  const { digest: _digest, ...base } = appearance
-  const receipt = { ...base, diagnostics, connectorProjection }
-  return Object.freeze({ ...receipt, diagnostics: Object.freeze(diagnostics), digest: renderContractDigest(receipt) })
+  const receipt = {
+    version: appearance.version,
+    colorMode: appearance.colorMode,
+    theme: appearance.theme,
+    diagnostics,
+    semanticFallbacks: appearance.semanticFallbacks,
+    connectorProjection,
+  }
+  const digest = deferredRenderContractDigest(receipt)
+  return Object.freeze({ ...receipt, diagnostics: Object.freeze(diagnostics), get digest() { return digest() } })
 }
 
 function reportTerminalControlReplacement(diagnostics: TerminalProjectionDiagnostic[]): void {
