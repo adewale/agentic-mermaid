@@ -143,6 +143,8 @@ const ER_READ_GENEROUSLY: ReadonlyArray<readonly [string, 'er' | 'opaque', strin
   ['erDiagram\n  A %% c', 'er', '>A<', 'er_trailing_comment', 2],
   ['erDiagram\n  A {\n    int x %% c\n  }', 'er', '>x<', 'er_trailing_comment', 3],
   ['erDiagram\n  A\n  style A fill:#f00 %% c', 'er', 'fill="#f00"', 'er_trailing_comment', 3],
+  ['erDiagram\n  A {\n    int id PK FK\n  }', 'er', '>id<', 'er_attribute_form', 3],
+  ['erDiagram\n  A { int id "c" PK }', 'er', '>c<', 'er_attribute_form', 2],
   ['erDiagram\n  A\n  end', 'er', '>end<', 'er_keyword_name', 3],
   ['erDiagram\n  A ||--o{ B : places order', 'er', '>places order<', 'er_label_words', 2],
   ['erDiagram\n  A ||--o{ B : direction LR', 'er', '>direction LR<', 'er_direction_line', 2],
@@ -212,6 +214,24 @@ describe('typed ER text is written as Mermaid reads it', () => {
     const expected: ErReading = { entities: [['A', text], ['B']], relations: [['A', 'B', text]] }
     expect({ source, mermaid: await mermaidReads(source) }).toEqual({ source, mermaid: expected })
     expect({ source, ours: oursReads(source) }).toEqual({ source, ours: expected })
+  })
+})
+
+describe('typed ER attributes are written as Mermaid reads them', () => {
+  // Keys parted by spaces or after the comment, which Mermaid rejects, are
+  // written as its comma-parted key list before the comment.
+  test.each<[string, unknown[]]>([
+    ['A {\n    int id PK FK\n  }', ['int', 'id', ['PK', 'FK'], '']],
+    ['A { int id "c" PK }', ['int', 'id', ['PK'], 'c']],
+    ['A {\n    int id pk fk "c"\n  }', ['int', 'id', ['PK', 'FK'], 'c']],
+  ])('%j', async (body, expected) => {
+    const parsed = parseRegisteredMermaid(`erDiagram\n  ${body}`)
+    if (!parsed.ok) throw new Error('fixture rejected')
+    const source = serializeMermaid(parsed.value)
+    const json = await upstream.database(source)
+    const attributes = json === undefined ? 'rejected' : (JSON.parse(json) as { getEntities: Array<[string, { attributes: Plain[] }]> }).getEntities
+      .flatMap(([, entity]) => entity.attributes.map(attribute => [attribute.type, attribute.name, attribute.keys, attribute.comment]))
+    expect({ source, attributes }).toEqual({ source, attributes: [expected] })
   })
 })
 

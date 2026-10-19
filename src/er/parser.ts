@@ -374,6 +374,14 @@ function erAttribute(type: string, name: string, keys: ErAttribute['keys'], quot
   return { type, name, keys, comment, ...(commentContent ? { commentContent } : {}) }
 }
 
+/** Whether an attribute's keys form Mermaid's key list, parted by commas
+ * (`PK, FK`); ours also reads keys parted by spaces only (`PK FK`). */
+function erKeysCommaParted({ tokens }: ErOpenAttribute): boolean {
+  const optional = tokens[1]?.text === '?' ? 1 : 0
+  const keys = tokens.slice(2 + optional).filter(token => token.kind === 'word').map(token => token.text).join(' ')
+  return keys === '' || /^(?:PK|FK|UK)(?:\s*,\s*(?:PK|FK|UK))*$/i.test(keys)
+}
+
 /** The attribute a complete ErOpenAttribute spells. */
 function erAttributeOf({ tokens }: ErOpenAttribute): ErAttribute {
   const optional = tokens[1]?.text === '?' ? 1 : 0
@@ -456,7 +464,7 @@ export interface ErSourceStatement {
   entityId?: string
   relationEntityIds?: string[]
   syntax: ErStatementLine
-    | { kind: 'attribute'; attribute: ErAttribute; text: string }
+    | { kind: 'attribute'; attribute: ErAttribute; text: string; generous?: true }
     | { kind: 'block-close' }
     | { kind: 'unknown' | 'comment' | 'blank' }
 }
@@ -488,7 +496,10 @@ function findErStatements(lines: readonly string[], report?: (what: string, port
     const first = attribute.tokens[0]!
     const last = attribute.tokens.at(-1)!
     found.push({
-      syntax: attribute.last === 'type' ? { kind: 'unknown' } : { kind: 'attribute', attribute: erAttributeOf(attribute), text: erAttributeText(lines, attribute) },
+      syntax: attribute.last === 'type' ? { kind: 'unknown' } : {
+        kind: 'attribute', attribute: erAttributeOf(attribute), text: erAttributeText(lines, attribute),
+        ...(erKeysCommaParted(attribute) ? {} : { generous: true as const }),
+      },
       line: first.line, start: first.start, endLine: last.line, end: last.end,
     })
   }
@@ -517,7 +528,7 @@ function findErStatements(lines: readonly string[], report?: (what: string, port
           block.open = undefined
           const run = raw.slice(at, runEnd).trimEnd()
           const attribute = readGenerousErAttribute(run)
-          found.push({ syntax: attribute ? { kind: 'attribute', attribute, text: run } : { kind: 'unknown' }, line, start: at, endLine: line, end: at + run.length })
+          found.push({ syntax: attribute ? { kind: 'attribute', attribute, text: run, generous: true } : { kind: 'unknown' }, line, start: at, endLine: line, end: at + run.length })
         }
         if (close < 0) break
         if (block.open) settle(block.open)
@@ -765,9 +776,31 @@ function ensureEntity(entityMap: Map<string, ErEntity>, id: string): ErEntity {
  */
 export function parseErAttribute(line: string): ErAttribute | null {
   if (trailingCommentStart(line) >= 0 || erBlockEndAt(line) >= 0) return null
+  return readMermaidErAttribute(line) ?? readGenerousErAttribute(line)
+}
+
+/** One attribute as Mermaid's attribute grammar reads it, or none. */
+function readMermaidErAttribute(line: string): ErAttribute | null {
   const read = readErAttributeTokens(undefined, lexErBlockText(line, 0, 0, line.length))
-  if (read?.done.length === 0 && read.open && read.open.last !== 'type') return erAttributeOf(read.open)
-  return readGenerousErAttribute(line)
+  return read?.done.length === 0 && read.open && read.open.last !== 'type' && erKeysCommaParted(read.open) ? erAttributeOf(read.open) : null
+}
+
+/**
+ * An attribute's text as Mermaid can read it. Text only the generous form
+ * reads is written with its keys comma-joined before the comment
+ * (`int id PK, FK "c"`) when Mermaid reads that as the same attribute;
+ * other text is kept as written.
+ */
+export function portableErAttributeText(text: string): string {
+  if (readMermaidErAttribute(text)) return text
+  const generous = parseErAttribute(text)
+  if (!generous) return text
+  const comment = (text.match(/^\S+\s+\S+\s+(.+)$/)?.[1] ?? '').match(/"[^"]*"/)?.[0]
+  const portable = [generous.type, generous.name, generous.keys.join(', '), comment ?? ''].filter(Boolean).join(' ')
+  const read = readMermaidErAttribute(portable)
+  const same = read && read.type === generous.type && read.name === generous.name
+    && read.keys.join() === generous.keys.join() && read.comment === generous.comment
+  return same ? portable : text
 }
 
 /**

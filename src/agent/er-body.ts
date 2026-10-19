@@ -27,6 +27,7 @@ import {
   erNameNeedsQuotes,
   isErKeywordName,
   parseErAttribute,
+  portableErAttributeText,
   parseErEntityId,
   parseErEntityReference,
   recordErClassNames,
@@ -78,6 +79,7 @@ export function erUnsupportedSyntaxWarnings(canonicalSource: string): LayoutWarn
       for (const reference of references) {
         if (!reference.quoted && isErKeywordName(reference.id)) warn(header + entry.line + 1, 'er_keyword_name', `ER name ${reference.id} is read as a name, where Mermaid reads a keyword`, `quote it ("${reference.id}")`)
       }
+      if (syntax.kind === 'attribute' && syntax.generous) warn(header + entry.line + 1, 'er_attribute_form', 'An attribute with keys apart or after its comment is read as its type, name, keys and comment', 'write its keys comma-separated before the comment (`int id PK, FK "c"`)')
       if (syntax.kind === 'relation' && syntax.relation.unquotedWords) warnings.push({
         code: 'UNSUPPORTED_SYNTAX', syntax: 'er_label_words', line: header + entry.line + 2,
         message: 'A relationship label of several unquoted words is read whole. Pinned Mermaid reads only its first word as the label and declares the others as entities; quote the label',
@@ -353,7 +355,7 @@ function writeEr(body: ErBody, prefix: readonly ErEntity[]): { source: string; o
     if (entity.attributes.length === 0) lines.push(`  ${reference}`)
     else {
       lines.push(`  ${reference} {`)
-      for (const attribute of entity.attributes) lines.push(`    ${attribute.text}`)
+      for (const attribute of entity.attributes) lines.push(`    ${portableErAttributeText(attribute.text)}`)
       lines.push('  }')
     }
   }
