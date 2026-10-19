@@ -1,14 +1,12 @@
-import { escapeAttr, escapeDisplayAttr, escapeXml, renderMultilineText } from '../multiline-utils.ts'
 import { pieSliceColors } from '../pie/palette.ts'
 import { DefaultBackend } from '../scene/backend.ts'
-import { serializeLinearGradientResources } from '../scene/gradient-resources.ts'
 import type { LinearGradientDescriptor, SceneDoc, SceneNode } from '../scene/ir.ts'
 import * as marks from '../scene/marks.ts'
+import { snapshotSvgEmissionRecipe, svgValue as v, type SvgAttribute, type SvgEmissionRecipe } from '../scene/svg-emission.ts'
 import { resolveRoleStyle } from '../scene/style-registry.ts'
 import { ensureCompositedBgContrast } from '../shared/categorical-palette.ts'
 import { relativeLuminance } from '../shared/color-math.ts'
 import { resolveRenderStyle } from '../styles.ts'
-import { buildShadowDefs, buildStyleBlock, svgOpenTag } from '../theme.ts'
 import type { RenderContext } from '../types.ts'
 import type { SankeyVisualConfig } from './config.ts'
 import { SANKEY_STYLE_DEFAULTS } from './layout.ts'
@@ -39,6 +37,51 @@ const SANKEY_LINK_OPACITY = 0.5
 
 /** Halo width for node labels. */
 const SANKEY_LABEL_HALO_WIDTH = 3
+
+const LINK_EMISSION = snapshotSvgEmissionRecipe({ kind: 'primitive', attributes: [
+  { name: 'class', value: v.meta('sankey-link') },
+  { name: 'd', value: v.geometry('d') },
+  { name: 'fill', value: v.paint('fill') },
+  { name: 'stroke', value: v.paint('stroke') },
+  { name: 'stroke-width', value: v.paint('strokeWidth') },
+  { name: 'opacity', value: v.paint('opacity') },
+  { name: 'style', value: { source: 'style', declarations: [{ property: 'mix-blend-mode', value: v.connector('mixBlendMode') }] } },
+  { name: 'data-source', value: v.identity('from') },
+  { name: 'data-target', value: v.identity('to') },
+  { name: 'data-value', value: v.channel('value') },
+] })
+
+const NODE_ATTRIBUTES: readonly SvgAttribute[] = [
+  { name: 'class', value: v.meta('sankey-node') },
+  { name: 'x', value: v.geometry('x') }, { name: 'y', value: v.geometry('y') },
+  { name: 'width', value: v.geometry('width') }, { name: 'height', value: v.geometry('height') },
+  { name: 'fill', value: v.paint('fill') }, { name: 'stroke', value: v.paint('stroke') },
+  { name: 'stroke-width', value: v.paint('strokeWidth') },
+  { name: 'data-label', value: v.channel('category'), display: true },
+  { name: 'data-value', value: v.channel('value') },
+]
+
+const LABEL_EMISSION = snapshotSvgEmissionRecipe({ kind: 'text', layout: 'multiline', attributes: [
+  { name: 'class', value: v.meta('sankey-node-label') },
+  { name: 'text-anchor', value: v.text('anchor') },
+  { name: 'dominant-baseline', value: v.meta('middle') },
+  { name: 'font-size', value: v.text('fontSize') },
+  { name: 'font-weight', value: v.text('fontWeight') },
+  { name: 'letter-spacing', value: v.text('letterSpacing'), omit: 'zero' },
+  { name: 'fill', value: v.paint('fill') }, { name: 'stroke', value: v.paint('stroke') },
+  { name: 'stroke-width', value: v.paint('strokeWidth') }, { name: 'paint-order', value: v.paint('paintOrder') },
+] })
+
+const TITLE_EMISSION = snapshotSvgEmissionRecipe({ kind: 'text', layout: 'multiline', attributes: [
+  { name: 'class', value: v.meta('sankey-title') },
+  { name: 'text-anchor', value: v.text('anchor') },
+  { name: 'dominant-baseline', value: v.meta('middle') },
+  { name: 'font-size', value: v.text('fontSize') }, { name: 'font-weight', value: v.text('fontWeight') },
+  { name: 'letter-spacing', value: v.text('letterSpacing'), omit: 'zero' },
+  { name: 'fill', value: v.paint('fill') },
+] })
+
+const GRADIENT_EMISSION = snapshotSvgEmissionRecipe({ kind: 'resources', resources: ['gradients'] })
 
 /**
  * Render a positioned sankey diagram as an SVG string.
@@ -90,15 +133,6 @@ export function lowerSankeyScene(ctx: RenderContext<PositionedSankeyChart>): Sce
 
   // Document shell: sankey <svg> open tag + shared style block + optional
   // shadow defs, in the exact pushed order (derivable from prelude fields).
-  const headParts: string[] = []
-  headParts.push(
-    svgOpenTag(chart.width, chart.height, colors, transparent, {
-      attrs: { role: 'img', 'aria-roledescription': 'sankey diagram' },
-    }),
-  )
-  headParts.push(buildStyleBlock(font, false, colors.shadow, colors.embedFontImport))
-  const shadowDefs = buildShadowDefs(colors)
-  if (shadowDefs) headParts.push(`<defs>${shadowDefs}</defs>`)
   parts.push(
     marks.documentOpen(
       {
@@ -110,7 +144,14 @@ export function lowerSankeyScene(ctx: RenderContext<PositionedSankeyChart>): Sce
         font,
         hasMonoFont: false,
       },
-      headParts.join('\n'),
+      {
+        kind: 'prelude', width: chart.width, height: chart.height, colors, transparent, font, hasMonoFont: false,
+        attributes: [
+          { name: 'role', value: v.meta('img') },
+          { name: 'aria-roledescription', value: v.meta('sankey diagram') },
+        ],
+        children: [{ kind: 'sharedStyle' }, ...(colors.shadow ? [{ kind: 'shadow' as const, colors, wrap: true }] : [])],
+      },
     ),
   )
 
@@ -138,7 +179,7 @@ export function lowerSankeyScene(ctx: RenderContext<PositionedSankeyChart>): Sce
       parts.push(
         marks.definitions(
           { id: 'sankey-gradient-definitions', gradientResources },
-          `<defs>\n${serializeLinearGradientResources(gradientResources)}\n</defs>`,
+          GRADIENT_EMISSION,
         ),
       )
     }
@@ -173,15 +214,21 @@ export function lowerSankeyScene(ctx: RenderContext<PositionedSankeyChart>): Sce
           relationship: { kind: 'flow', direction: 'forward' },
           channels: { category: link.source, value: link.value },
         },
-        `<path class="sankey-link" d="${link.path}" fill="none" ` + `stroke="${escapeAttr(stroke)}" stroke-width="${strokeWidth}" ` + `opacity="${SANKEY_LINK_OPACITY}" style="mix-blend-mode:${linkBlendMode}" data-source="${escapeAttr(link.source)}" ` + `data-target="${escapeAttr(link.target)}" data-value="${link.value}" />`,
+        LINK_EMISSION,
       ),
     )
   }
 
   // Node rectangles.
+  const nodeEmissions = new Map<number, SvgEmissionRecipe>()
   for (const node of chart.nodes) {
     const nodePaint = nodeColor.get(node.label)!
     const fill = nodePaint.color
+    let emission = nodeEmissions.get(node.layer)
+    if (!emission) {
+      emission = snapshotSvgEmissionRecipe({ kind: 'primitive', attributes: [...NODE_ATTRIBUTES, { name: 'data-layer', value: v.meta(node.layer) }] })
+      nodeEmissions.set(node.layer, emission)
+    }
     parts.push(
       marks.shape(
         {
@@ -202,11 +249,7 @@ export function lowerSankeyScene(ctx: RenderContext<PositionedSankeyChart>): Sce
           },
           channels: { category: node.label, value: node.value },
         },
-        `<rect class="sankey-node" x="${node.x0}" y="${node.y0}" ` +
-          `width="${round2(node.x1 - node.x0)}" height="${round2(node.y1 - node.y0)}" ` +
-          `fill="${escapeAttr(fill)}" stroke="${escapeAttr(nodePaint.stroke)}" ` +
-          `stroke-width="${nodePaint.strokeWidth}" ` +
-          `data-label="${escapeDisplayAttr(node.label)}" data-value="${node.value}" data-layer="${node.layer}" />`,
+        emission,
       ),
     )
   }
@@ -216,7 +259,6 @@ export function lowerSankeyScene(ctx: RenderContext<PositionedSankeyChart>): Sce
   // page-colored halo that knocks the ribbon out behind its glyphs; Mermaid
   // draws legacy labels without one. `labelStyle` only chooses placement.
   const labelFill = style.nodeTextColor ?? 'var(--_text)'
-  const haloAttrs = ` stroke="var(--bg)" stroke-width="${SANKEY_LABEL_HALO_WIDTH}" paint-order="stroke fill"`
   for (const node of chart.nodes) {
     const text = node.labelLines.join('\n')
     parts.push(
@@ -228,6 +270,8 @@ export function lowerSankeyScene(ctx: RenderContext<PositionedSankeyChart>): Sce
           x: node.labelX,
           y: node.labelY,
           fontSize: style.nodeLabelFontSize,
+          fontWeight: style.nodeLabelFontWeight,
+          letterSpacing: style.nodeLetterSpacing,
           block: node.labelBlock,
           anchor: node.labelAnchor,
           paint: {
@@ -238,7 +282,7 @@ export function lowerSankeyScene(ctx: RenderContext<PositionedSankeyChart>): Sce
           },
           channels: { category: node.label, value: node.value },
         },
-        renderMultilineText(node.labelBlock ?? text, node.labelX, node.labelY, style.nodeLabelFontSize, `class="sankey-node-label" text-anchor="${node.labelAnchor}" dominant-baseline="middle" ` + `font-size="${style.nodeLabelFontSize}" font-weight="${style.nodeLabelFontWeight}"${style.nodeLetterSpacing ? ` letter-spacing="${style.nodeLetterSpacing}"` : ''} ` + `fill="${escapeAttr(labelFill)}"${haloAttrs}`),
+        LABEL_EMISSION,
       ),
     )
   }
@@ -256,17 +300,13 @@ export function lowerSankeyScene(ctx: RenderContext<PositionedSankeyChart>): Sce
           x: chart.title.x,
           y: chart.title.y,
           fontSize: style.groupHeaderFontSize,
+          fontWeight: style.groupHeaderFontWeight,
+          letterSpacing: style.groupLetterSpacing,
           block: chart.title.block,
           anchor: 'middle',
           paint: { fill: style.groupTextColor ?? style.nodeTextColor ?? 'var(--_text)' },
         },
-        renderMultilineText(
-          chart.title.block ?? title,
-          chart.title.x,
-          chart.title.y,
-          style.groupHeaderFontSize,
-          `class="sankey-title" text-anchor="middle" dominant-baseline="middle" ` + `font-size="${style.groupHeaderFontSize}" font-weight="${style.groupHeaderFontWeight}"${style.groupLetterSpacing ? ` letter-spacing="${style.groupLetterSpacing}"` : ''} ` + `fill="${escapeAttr(style.groupTextColor ?? style.nodeTextColor ?? 'var(--_text)')}"`,
-        ),
+        TITLE_EMISSION,
       ),
     )
   }
