@@ -201,7 +201,10 @@ export const STATE_LINK_STYLE_RE = /^linkStyle\s+(default|[\d,\s]+)\s+(.+)$/
 // which pinned Mermaid reads into a state name. Text after a description
 // colon and a keyword statement (`classDef`, `note`, `direction`, …) run to
 // the end of their line, and a line ours cannot read to its end stays whole,
-// as before.
+// as before. Mermaid rejects a composite the source never closes, and so do
+// both parsers (unclosedLines), rather than draw its members without it; but
+// a `}` ending the source's last description closes a composite nothing else
+// closes, which is what `state X { A : text }` means.
 
 export interface StateStatement {
   text: string
@@ -209,6 +212,8 @@ export interface StateStatement {
   line: number
   /** A block note's body line, read verbatim. */
   noteBody?: boolean
+  /** A `state … {` that opens a composite. */
+  opens?: boolean
 }
 
 export interface StateStatementScan {
@@ -219,6 +224,11 @@ export interface StateStatementScan {
   juxtaposedLines: number[]
   /** Input lines where `}` closes a composite right after a name. */
   braceNameLines: number[]
+  /** Input lines where a `}` ending the source's last description or
+   *  transition label closes a composite nothing else closes. */
+  braceTextLines: number[]
+  /** Input lines of the composites the source never closes. */
+  unclosedLines: number[]
 }
 
 // A name starts with a letter or digit; a hyphen continues it unless it
@@ -261,9 +271,32 @@ export function readStateStatements(lines: readonly StateSourceLine[]): StateSta
   const semicolonLines = new Set<number>()
   const juxtaposedLines = new Set<number>()
   const braceNameLines = new Set<number>()
+  const braceTextLines = new Set<number>()
   // Mermaid's name token takes a `}` right after it.
   const noteBraceAfter = (text: string, index: number, line: number): void => {
     if (text[index] === '}') braceNameLines.add(line)
+  }
+  // The renderer drops `//` lines before it reads (parseMermaid), so they
+  // come after no row here either.
+  let lastRow = logical.length - 1
+  while (lastRow > 0 && !logical[lastRow]!.noteBody && logical[lastRow]!.text.startsWith('//')) lastRow--
+  /** Where the text after a colon ends: the end of its line, as Mermaid
+   *  reads it, except that on the source's last row a `}` the text does not
+   *  open closes a composite still open, which Mermaid rejects as unclosed. */
+  const textEnd = (text: string, colon: number, row: number): number => {
+    let end = text.length
+    if (row !== lastRow) return end
+    let excess = 0
+    for (let index = colon + 1; index < end; index++) excess += text[index] === '}' ? 1 : text[index] === '{' ? -1 : 0
+    const first = skipBlank(text, colon + 1)
+    for (let closes = 0; closes < depth && excess > 0; closes++, excess--) {
+      let brace = end - 1
+      while (text[brace] === ' ' || text[brace] === '\t') brace--
+      // The text keeps at least one character of its own.
+      if (text[brace] !== '}' || brace <= first) break
+      end = brace
+    }
+    return end
   }
   let depth = 0
   let row = 0
@@ -312,8 +345,10 @@ export function readStateStatements(lines: readonly StateSourceLine[]): StateSta
     const text = logical[cursor.row]!.text
     const colon = skipBlank(text, cursor.column)
     if (text[colon] === ':') {
-      statement += ` ${text.slice(colon)}`
-      cursor.column = text.length
+      const end = textEnd(text, colon, cursor.row)
+      if (end < text.length) braceTextLines.add(logical[cursor.row]!.line)
+      statement += ` ${text.slice(colon, end).trimEnd()}`
+      cursor.column = end
     }
     row = cursor.row
     column = cursor.column
@@ -412,7 +447,10 @@ export function readStateStatements(lines: readonly StateSourceLine[]): StateSta
     const statement = declaration?.text ?? (keyword === null ? readIdStatement() : null)
     if (statement !== null) {
       emit(statement, line, declaration?.opens ?? false)
-      if (declaration?.opens) depth++
+      if (declaration?.opens) {
+        statements.at(-1)!.opens = true
+        depth++
+      }
       if (row !== startRow) mark = { statements: statements.length, depth, column }
       continue
     }
@@ -423,9 +461,18 @@ export function readStateStatements(lines: readonly StateSourceLine[]): StateSta
     juxtaposedLines.delete(line)
     semicolonLines.delete(line)
     braceNameLines.delete(line)
+    braceTextLines.delete(line)
     statements.push({ text: text.slice(mark.column).trim(), line })
     row++
     column = 0
   }
-  return { statements, semicolonLines: [...semicolonLines], juxtaposedLines: [...juxtaposedLines], braceNameLines: [...braceNameLines] }
+  const open: number[] = []
+  for (const statement of statements) {
+    if (statement.opens) open.push(statement.line)
+    else if (statement.text === '}' && !statement.noteBody) open.pop()
+  }
+  return {
+    statements, semicolonLines: [...semicolonLines], juxtaposedLines: [...juxtaposedLines],
+    braceNameLines: [...braceNameLines], braceTextLines: [...braceTextLines], unclosedLines: open,
+  }
 }

@@ -1160,7 +1160,8 @@ function renameInTransitions(body: StateBody, from: string, to: string): void {
  * its canonical line: a `;` between statements, which Mermaid reads into a
  * state name (or rejects after the header), and statements sharing a line
  * with nothing between them. Mermaid reads those apart too, but `A B` is
- * usually meant as one name with a space (mermaid#2973). */
+ * usually meant as one name with a space (mermaid#2973). A composite never
+ * closed is reported where it opens: Mermaid and ours both reject it. */
 export function stateUnsupportedSyntaxWarnings(canonicalSource: string): LayoutWarning[] {
   const lines = canonicalSource.split(/\r?\n/)
   const header = lines.findIndex(line => /^stateDiagram(?:-v2)?(?=$|[\s;%])/i.test(line.trim()))
@@ -1187,6 +1188,14 @@ export function stateUnsupportedSyntaxWarnings(canonicalSource: string): LayoutW
     ...scan.braceNameLines.map(index => ({
       code: 'UNSUPPORTED_SYNTAX' as const, syntax: 'state_brace_after_name', line: header + index + 2,
       message: 'A `}` right after a state name is read as closing its composite. Pinned Mermaid reads the `}` into the name (`A}`) and then rejects the unclosed composite. Put a space or a line break before `}`.',
+    })),
+    ...scan.braceTextLines.map(index => ({
+      code: 'UNSUPPORTED_SYNTAX' as const, syntax: 'state_brace_after_description', line: header + index + 2,
+      message: 'A `}` ending the last description or transition label is read as closing its composite, which nothing else closes. Pinned Mermaid reads the `}` into the text and then rejects the unclosed composite. Put the `}` on a line of its own.',
+    })),
+    ...scan.unclosedLines.map(index => ({
+      code: 'UNSUPPORTED_SYNTAX' as const, syntax: 'state_composite_unclosed', line: header + index + 2,
+      message: 'This composite state is never closed by `}`, so where it ends cannot be told and the diagram is not drawn; pinned Mermaid rejects it too. Add a `}` where the composite ends.',
     })),
   ]
   return warnings.sort((left, right) => left.line - right.line)

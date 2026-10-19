@@ -467,6 +467,10 @@ describe('State statements across and within lines', () => {
     ['A --> B; B --> C', ['A:rounded:A', 'B:rounded:B', 'C:rounded:C', 'A->B', 'B->C'], ['state_semicolon_separator@2']],
     ['state X {A}', ['A:rounded:A', 'X:X{A}'], ['state_brace_after_name@2']],
     ['state X { A --> B}', ['A:rounded:A', 'B:rounded:B', 'A->B', 'X:X{A B}'], ['state_brace_after_name@2']],
+    ['state X { A : desc }', ['A:rounded:desc', 'X:X{A}'], ['state_brace_after_description@2']],
+    ['state X {\nA --> B : go }', ['A:rounded:A', 'B:rounded:B', 'A->B:go', 'X:X{A B}'], ['state_brace_after_description@3']],
+    ['state X {\nstate Y {\nA : desc {x} }}', ['A:rounded:desc {x}', 'X:X{}', 'X/Y:Y{A}'], ['state_brace_after_description@4']],
+    ['state X {\nA : desc }\n}', ['A:rounded:desc }', 'X:X{A}'], []],
     ['[*]:::hot --> A', ['_start:state-start:', 'A:rounded:A', '_start->A', '_start:::hot'], []],
     ['state X {\nA --> [*]:::hot : done\n}', ['A:rounded:A', '_end:state-end:', 'A->_end:done', 'X:X{A _end}', '_end:::hot'], []],
     ['note right of A line1\nline2\nend note', ['A:rounded:A', 'note right of A:line1\nline2'], []],
@@ -480,6 +484,23 @@ describe('State statements across and within lines', () => {
     const verified = verifyMermaid(source)
     expect(verified.ok).toBe(true)
     expect(verified.warnings.flatMap(warning => warning.code === 'UNSUPPORTED_SYNTAX' ? [`${warning.syntax}@${warning.line}`] : [])).toEqual([...warnings])
+  })
+
+  // Where a composite that nothing closes was meant to end cannot be told, so
+  // no surface may draw its members without it.
+  test.each([
+    'state X {\nA',
+    'state X {\nA : uses {x}',
+    'state X {\nstate Y {\nA\n}',
+  ])('%j never closes X, so every surface rejects it, as Mermaid does', async body => {
+    const source = `stateDiagram-v2\n${body}`
+    expect(await upstream.accepts(source)).toBe(false)
+    expect(() => parseRenderGraph(source)).toThrow('Composite state "X" is never closed')
+    const parsed = parseMermaid(source)
+    expect(parsed.ok && parsed.value.body.kind).toBe('opaque')
+    const verified = verifyMermaid(source)
+    expect(verified.ok).toBe(false)
+    expect(verified.warnings.map(warning => warning.code === 'UNSUPPORTED_SYNTAX' ? `${warning.syntax}@${warning.line}` : warning.code)).toEqual(['state_composite_unclosed@2', 'RENDER_FAILED'])
   })
 
   test('a statement after `;` on the header line is read, and reported because Mermaid rejects it', async () => {

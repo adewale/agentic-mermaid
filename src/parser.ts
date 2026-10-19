@@ -850,7 +850,19 @@ function parseStateDiagram(lines: string[]): MermaidGraph {
     })
   }
 
-  // An unterminated block note still lands (lenient, like unbalanced braces).
+  // A composite the source never closes cannot be drawn: where it was meant
+  // to end cannot be told, and its members must not appear without it.
+  // Mermaid rejects it too (readStateStatements' unclosedLines).
+  const unclosed = compositeStack.find(group => !group.concurrencyRegion)
+  if (unclosed) {
+    throw syntaxError({
+      what: `Composite state "${unclosed.id}" is never closed`,
+      expectedForm: 'a `}` where the composite ends',
+      example: 'state X { A }',
+    })
+  }
+
+  // An unterminated block note still lands (lenient, like a stray `}`).
   if (openNote) addNote(openNote.target, openNote.side, openNote.lines.join('\n'))
 
   return graph
