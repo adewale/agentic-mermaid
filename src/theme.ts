@@ -695,6 +695,17 @@ export function inlineResolvedColors(svg: string, colors: DiagramColors): string
   // string such as `var(--fg)` or `color-mix(...)`.
   let text = transformSvgCssValues(svg, css => resolveCss(css, vars, 10))
 
+  // Phase 2 rewrites only var() references it may resolve and color-mix()
+  // calls. When neither occurs anywhere in the document it would return the
+  // text unchanged, so skip its rescan of every tag. The lookahead examines
+  // every `var(`, including one inside a skipped name such as `--f_var(`.
+  const mayResolve = (value: string) => {
+    if (value.includes('color-mix(')) return true
+    for (const match of value.matchAll(/var\((?=\s*--([\w-]+))/g)) if (!SKIP_VARS.has(match[1]!)) return true
+    return false
+  }
+  if (!mayResolve(text)) return text
+
   // Phase 2: Extract CSS variable definitions from <style> blocks and resolve
   // any remaining var() references (e.g. --xychart-color-0 defined in style)
   const cssDefs = cssPaintDefinitions(text)
