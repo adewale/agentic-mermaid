@@ -11,12 +11,11 @@ import type {
 } from './types.ts'
 import type { RenderContext } from '../types.ts'
 import type { DiagramColors } from '../theme.ts'
-import { svgOpenTag, buildStyleBlock, buildShadowDefs, resolveColors, resolvedColorValue } from '../theme.ts'
+import { buildStyleText, resolveColors, resolvedColorValue } from '../theme.ts'
 import { toneOnFill } from '../color-resolver.ts'
 import type { JourneyRequestAppearance, JourneyVisualConfig } from './layout.ts'
 import { buildAccessibilityAttrs } from '../shared/svg-a11y.ts'
 import { JOURNEY_ACTOR_COLOR_LIMIT } from './parse-core.ts'
-import { escapeAttr, escapeDisplayAttr, renderMultilineText, escapeXml } from '../multiline-utils.ts'
 import { applyTextTransform, resolveRenderStyle } from '../styles.ts'
 import type { ResolvedRenderStyle } from '../styles.ts'
 import type { MarkerDescriptor, SceneDoc, SceneNode, SemanticChannels } from '../scene/ir.ts'
@@ -28,7 +27,7 @@ import type { InternalStyleFace } from '../scene/style-registry.ts'
 import { categoricalPalette } from '../shared/categorical-palette.ts'
 import { hexToHsl, hslToHex, isDarkBackground } from '../xychart/colors.ts'
 import { isHexColor, legibleInk, mixHex, tryParseCssColor, wcagCssContrastRatio } from '../shared/color-math.ts'
-import { serializeMarkerResource } from '../scene/marker-resources.ts'
+import { snapshotSvgEmissionRecipe, svgValue as v, type SvgAttribute, type SvgEmissionRecipe, type SvgGeometryField } from '../scene/svg-emission.ts'
 import {
   projectConnectorPath,
   type ConnectorPathProjection,
@@ -83,6 +82,39 @@ interface JourneyPaints {
   scoreFaceInk: string
 }
 
+function primitive(className: string, geometry: readonly SvgGeometryField[], extra: readonly SvgAttribute[] = []): SvgEmissionRecipe {
+  return snapshotSvgEmissionRecipe({ kind: 'primitive', attributes: [
+    { name: 'class', value: v.meta(className) }, ...geometry.map(name => ({ name, value: v.geometry(name) })), ...extra,
+  ] })
+}
+const RECT_FIELDS = ['x', 'y', 'width', 'height', 'rx', 'ry'] as const
+const LINE_FIELDS = ['x1', 'y1', 'x2', 'y2'] as const
+const CIRCLE_FIELDS = ['cx', 'cy', 'r'] as const
+const CURVE_EMISSION = primitive('journey-curve', ['d'])
+const GUIDE_EMISSION = primitive('journey-guide', LINE_FIELDS)
+const BASELINE_EMISSION = primitive('journey-baseline', LINE_FIELDS, [{ name: 'marker-end', value: { source: 'marker', position: 'end' } }])
+const TRACK_EMISSION = primitive('journey-track', LINE_FIELDS)
+const TASK_EMISSION = primitive('journey-task-box', RECT_FIELDS)
+const FACE_EMISSION = primitive('journey-score-face', CIRCLE_FIELDS)
+const EYE_EMISSION = primitive('journey-face-eye', CIRCLE_FIELDS)
+const MOUTH_EMISSION = primitive('journey-face-mouth', ['d'])
+const GUIDE_GROUP_EMISSION = snapshotSvgEmissionRecipe({ kind: 'group', attributes: [
+  { name: 'class', value: v.meta('journey-score-guide') },
+  { name: 'data-score-min', value: v.meta(1) }, { name: 'data-score-max', value: v.meta(5) },
+] })
+const LEGEND_GROUP_EMISSION = snapshotSvgEmissionRecipe({ kind: 'group', attributes: [{ name: 'class', value: v.meta('journey-actor-legend') }] })
+function textAttributes(className: string): SvgAttribute[] {
+  return [
+    { name: 'class', value: v.meta(className) }, { name: 'text-anchor', value: v.text('anchor') },
+    { name: 'font-size', value: v.text('fontSize') }, { name: 'font-weight', value: v.text('fontWeight') },
+    { name: 'letter-spacing', value: v.text('letterSpacing'), omit: 'zero' },
+  ]
+}
+const SCORE_TEXT_EMISSION = snapshotSvgEmissionRecipe({ kind: 'text', layout: 'multiline', attributes: textAttributes('journey-score-label') })
+const LEGEND_TITLE_EMISSION = snapshotSvgEmissionRecipe({ kind: 'text', layout: 'multiline', attributes: textAttributes('journey-actor-legend-title') })
+const LEGEND_TEXT_EMISSION = snapshotSvgEmissionRecipe({ kind: 'text', layout: 'multiline', attributes: textAttributes('journey-actor-legend-text') })
+const TASK_TEXT_EMISSION = snapshotSvgEmissionRecipe({ kind: 'text', layout: 'multiline', attributes: textAttributes('journey-task-text') })
+
 /**
  * Render a positioned journey diagram as an SVG string.
  */
@@ -135,20 +167,26 @@ export function lowerJourneyScene(
       hasMonoFont: false,
       extraCss: journeyCss,
     },
-    openJourneySvgTag(diagram, colors, transparent, accessibility, titleId, descId, appearance.useMaxWidth),
+    { kind: 'prelude', width: diagram.width, height: diagram.height, colors, transparent, font, hasMonoFont: false,
+      ...(appearance.useMaxWidth ? { widthAttribute: '100%', heightAttribute: '100%', extraStyle: `max-width:${diagram.width}px` } : {}),
+      attributes: Object.entries(buildAccessibilityAttrs(accessibility.title, accessibility.description, titleId, descId, 'user journey')).map(([name, value]) => ({ name: name as SvgAttribute['name'], value: v.meta(value) })),
+      children: [],
+    },
   ))
   if (accessibility.title) {
     parts.push(marks.documentContent({ id: 'a11y-title', role: 'chrome', nonPaint: 'accessibility' },
-      `<title id="${titleId}">${escapeXml(accessibility.title)}</title>`))
+      { kind: 'documentText', element: 'title', domId: titleId, text: accessibility.title }))
   }
   if (accessibility.description) {
     parts.push(marks.documentContent({ id: 'a11y-desc', role: 'chrome', nonPaint: 'accessibility' },
-      `<desc id="${descId}">${escapeXml(accessibility.description)}</desc>`))
+      { kind: 'documentText', element: 'desc', domId: descId, text: accessibility.description }))
   }
   parts.push(marks.documentContent({ id: 'style', role: 'chrome', nonPaint: 'stylesheet' },
-    buildStyleBlock(font, false, colors.shadow, colors.embedFontImport)))
-  parts.push(marks.definitions({ id: 'defs', markerResources: [arrowMarker] }, buildJourneyDefs(colors, arrowMarker)))
-  parts.push(marks.documentContent({ id: 'journey-style', role: 'chrome', nonPaint: 'stylesheet' }, journeyCss))
+    { kind: 'stylesheet', css: `\n${buildStyleText(font, false, colors.shadow, colors.embedFontImport)}\n` }))
+  parts.push(marks.definitions({ id: 'defs', markerResources: [arrowMarker] }, {
+    kind: 'resources', resources: [...(colors.shadow ? [{ kind: 'shadow' as const, colors }] : []), 'markers'],
+  }))
+  parts.push(marks.documentContent({ id: 'journey-style', role: 'chrome', nonPaint: 'stylesheet' }, { kind: 'stylesheet', css: journeyCss }))
 
   parts.push(renderScoreGuide(diagram.scoreGuide, style, arrowMarker))
 
@@ -187,17 +225,15 @@ export function lowerJourneyScene(
           block: diagram.title.block,
         x: diagram.title.x,
         y: diagram.title.y,
-        fontSize: visual.titleFontSize,
+        fontSize: visual.titleFontSize, fontWeight: JY.titleFontWeight, letterSpacing: style.groupLetterSpacing,
         anchor: 'middle',
         paint: { fill: paints.titleColor },
       },
-      renderMultilineText(
-        diagram.title.block ?? diagram.title.text,
-        diagram.title.x,
-        diagram.title.y,
-        visual.titleFontSize,
-        `class="journey-title" text-anchor="middle" font-size="${escapeAttr(visual.titleFontSizeCss)}" font-weight="${JY.titleFontWeight}"${visual.titleFontFamily ? ` font-family="${escapeAttr(visual.titleFontFamily)}"` : ''}`,
-      ),
+      { kind: 'text', layout: 'multiline', attributes: [
+        { name: 'class', value: v.meta('journey-title') }, { name: 'text-anchor', value: v.text('anchor') },
+        { name: 'font-size', value: v.meta(visual.titleFontSizeCss) }, { name: 'font-weight', value: v.text('fontWeight') },
+        ...(visual.titleFontFamily ? [{ name: 'font-family' as const, value: v.meta(visual.titleFontFamily) }] : []),
+      ] },
     ))
   }
 
@@ -237,37 +273,11 @@ function buildJourneyAccessibility(diagram: PositionedJourneyDiagram): {
   }
 }
 
-function openJourneySvgTag(
-  diagram: PositionedJourneyDiagram,
-  colors: DiagramColors,
-  transparent: boolean,
-  accessibility: { title?: string; description?: string },
-  titleId: string,
-  descId: string,
-  useMaxWidth: boolean,
-): string {
-  // Mermaid's useMaxWidth contract (same shape as the xychart renderer):
-  // a responsive width capped at the natural size, viewBox preserving aspect.
-  return svgOpenTag(diagram.width, diagram.height, colors, transparent, {
-    ...(useMaxWidth ? { width: '100%', height: '100%', style: `max-width:${diagram.width}px` } : {}),
-    attrs: buildAccessibilityAttrs(accessibility.title, accessibility.description, titleId, descId, 'user journey'),
-  })
-}
-
 function journeyArrowMarker(id: string, color: string): MarkerDescriptor {
   return {
     id, shape: 'arrow', size: { width: 10, height: 8 }, ref: { x: 9, y: 4 }, orient: 'auto',
     geometry: { kind: 'path', d: 'M0,0 L10,4 L0,8 Z' }, paint: { fill: color },
   }
-}
-
-function buildJourneyDefs(colors: DiagramColors, arrowMarker: MarkerDescriptor): string {
-  const defs = [
-    buildShadowDefs(colors),
-    serializeMarkerResource(arrowMarker),
-  ].filter(Boolean)
-
-  return `<defs>\n${defs.join('\n')}\n</defs>`
 }
 
 function journeyStyles(style: ResolvedRenderStyle, visual: JourneyVisualConfig, paints: JourneyPaints, drawCurve: boolean): string {
@@ -276,7 +286,7 @@ function journeyStyles(style: ResolvedRenderStyle, visual: JourneyVisualConfig, 
   const sectionLabelPalette = sectionLabelPaletteCss(paints)
   const actorPalette = actorPaletteCss(paints)
 
-  return `<style>
+  return `
   .journey-title { fill: ${paints.titleColor}; }
   .journey-section-bg { fill: ${paints.groupFill}; stroke: ${paints.groupStroke}; stroke-width: ${style.groupLineWidth}; }
 ${sectionPalette}
@@ -298,7 +308,7 @@ ${sectionLabelPalette}
   .journey-actor-legend-text { fill: ${paints.groupText}; }
   .journey-actor-dot { stroke: var(--bg); stroke-width: 1; }
 ${actorPalette}
-</style>`
+`
 }
 
 function renderExperienceCurve(
@@ -320,7 +330,7 @@ function renderExperienceCurve(
       },
       route: { ownership: 'family', contours: projection.contours },
     },
-    `<path class="journey-curve" d="${projection.geometry.d}" />`,
+    CURVE_EMISSION,
   )
 }
 
@@ -360,7 +370,7 @@ function renderScoreGuide(guide: PositionedJourneyScoreGuide, style: ResolvedRen
           },
           channels: { value: tick.score / JOURNEY_MAX_SCORE },
         },
-        `<line class="journey-guide" x1="${tick.x1}" y1="${tick.y}" x2="${tick.x2}" y2="${tick.y}" />`,
+        GUIDE_EMISSION,
       ),
     })
 
@@ -374,18 +384,12 @@ function renderScoreGuide(guide: PositionedJourneyScoreGuide, style: ResolvedRen
           block: tick.block,
           x: tick.labelX,
           y: tick.labelY,
-          fontSize: style.edgeLabelFontSize,
+          fontSize: style.edgeLabelFontSize, fontWeight: style.edgeLabelFontWeight, letterSpacing: style.edgeLetterSpacing,
           anchor: 'end',
           paint: { fill: style.edgeTextColor ?? 'var(--_text-sec)' },
           channels: { value: tick.score / JOURNEY_MAX_SCORE },
         },
-        renderMultilineText(
-          tick.block ?? String(tick.score),
-          tick.labelX,
-          tick.labelY,
-          style.edgeLabelFontSize,
-          `class="journey-score-label" text-anchor="end" font-size="${style.edgeLabelFontSize}" font-weight="${style.edgeLabelFontWeight}"${letterAttr(style.edgeLetterSpacing)}`,
-        ),
+        SCORE_TEXT_EMISSION,
       ),
     })
   }
@@ -405,15 +409,14 @@ function renderScoreGuide(guide: PositionedJourneyScoreGuide, style: ResolvedRen
         },
         markers: { mid: [], end: arrowMarker },
       },
-      `<line class="journey-baseline" x1="${baseline.x1}" y1="${baseline.y1}" x2="${baseline.x2}" y2="${baseline.y2}" marker-end="url(#${escapeAttr(arrowMarker.id)})" />`,
+      BASELINE_EMISSION,
     ),
   })
 
   return marks.group({
     id: 'score-guide',
     role: 'grid',
-    open: `<g class="journey-score-guide" data-score-min="1" data-score-max="5">`,
-    close: '</g>',
+    emission: GUIDE_GROUP_EMISSION,
     children,
   })
 }
@@ -434,17 +437,11 @@ function renderActorLegend(actors: PositionedJourneyActor[], style: ResolvedRend
           block: titleBlock,
           x: titleX,
           y: titleY,
-          fontSize: style.groupHeaderFontSize,
+          fontSize: style.groupHeaderFontSize, fontWeight: style.groupHeaderFontWeight, letterSpacing: style.groupLetterSpacing,
           anchor: 'start',
           paint: { fill: style.groupTextColor ?? 'var(--_text-sec)' },
         },
-        renderMultilineText(
-          titleBlock ?? title,
-          titleX,
-          titleY,
-          style.groupHeaderFontSize,
-          `class="journey-actor-legend-title" text-anchor="start" font-size="${style.groupHeaderFontSize}" font-weight="${style.groupHeaderFontWeight}"${letterAttr(style.groupLetterSpacing)}`,
-        ),
+        LEGEND_TITLE_EMISSION,
       ),
     },
   ]
@@ -460,7 +457,10 @@ function renderActorLegend(actors: PositionedJourneyActor[], style: ResolvedRend
           paint: { fill: actorFill(actor.colorIndex, paints), stroke: 'var(--bg)', strokeWidth: '1' },
           channels: { category: actor.label },
         },
-        `<circle class="journey-actor-dot ${actorClass(actor.colorIndex, paints)}" data-actor="${escapeAttr(actor.label)}" cx="${actor.x}" cy="${actor.y}" r="${JY.legendDotRadius}" />`,
+        { kind: 'primitive', attributes: [
+          { name: 'class', value: v.meta(`journey-actor-dot ${actorClass(actor.colorIndex, paints)}`) },
+          { name: 'data-actor', value: v.channel('category') }, ...CIRCLE_FIELDS.map(name => ({ name, value: v.geometry(name) })),
+        ] },
       ),
     })
 
@@ -474,18 +474,12 @@ function renderActorLegend(actors: PositionedJourneyActor[], style: ResolvedRend
           block: actor.block,
           x: actor.x + JY.legendDotRadius + JY.legendLabelGap,
           y: actor.y,
-          fontSize: style.edgeLabelFontSize,
+          fontSize: style.edgeLabelFontSize, fontWeight: style.edgeLabelFontWeight, letterSpacing: style.edgeLetterSpacing,
           anchor: 'start',
           paint: { fill: style.groupTextColor ?? 'var(--_text-sec)' },
           channels: { category: actor.label },
         },
-        renderMultilineText(
-          actor.block ?? actor.label,
-          actor.x + JY.legendDotRadius + JY.legendLabelGap,
-          actor.y,
-          style.edgeLabelFontSize,
-          `class="journey-actor-legend-text" text-anchor="start" font-size="${style.edgeLabelFontSize}" font-weight="${style.edgeLabelFontWeight}"${letterAttr(style.edgeLetterSpacing)}`,
-        ),
+        LEGEND_TEXT_EMISSION,
       ),
     })
   }
@@ -493,8 +487,7 @@ function renderActorLegend(actors: PositionedJourneyActor[], style: ResolvedRend
   return marks.group({
     id: 'actor-legend',
     role: 'legend',
-    open: `<g class="journey-actor-legend">`,
-    close: '</g>',
+    emission: LEGEND_GROUP_EMISSION,
     children,
   })
 }
@@ -508,7 +501,6 @@ function renderSectionFrame(
   authoredSectionPaint: boolean,
 ): SceneNode {
   const name = section.category
-  const labelAttr = section.label ? ` data-label="${escapeDisplayAttr(section.label)}"` : ''
   const children: Array<{ node: SceneNode; indent: number }> = []
 
   children.push({
@@ -524,7 +516,7 @@ function renderSectionFrame(
           strokeWidth: String(style.groupLineWidth),
         },
       },
-      `<rect class="journey-section-bg journey-section-${sectionIndex % paints.sectionFills.length}" x="${section.x}" y="${section.y}" width="${section.width}" height="${section.height}" rx="${style.groupCornerRadius}" ry="${style.groupCornerRadius}" />`,
+      primitive(`journey-section-bg journey-section-${sectionIndex % paints.sectionFills.length}`, RECT_FIELDS),
     ),
   })
 
@@ -551,17 +543,16 @@ function renderSectionFrame(
           block: section.block,
           x: section.labelX,
           y: section.labelY,
-          fontSize: labelFontSize,
+          fontSize: labelFontSize, fontWeight: labelFontWeight, letterSpacing: labelLetterSpacing,
           anchor: 'middle',
           paint: { fill: labelColor },
         },
-        renderMultilineText(
-          section.block ?? labelText,
-          section.labelX,
-          section.labelY,
-          labelFontSize,
-          `class="journey-section-label journey-section-label-${sectionIndex % paints.sectionTextColors.length}" text-anchor="middle" font-size="${labelFontSize}" font-weight="${labelFontWeight}"${labelFontFamily ? ` font-family="${escapeAttr(labelFontFamily)}"` : ''}${letterAttr(labelLetterSpacing)}${semanticStyle?.textColor && !authoredSectionPaint ? ` style="fill:${escapeAttr(labelColor)}"` : ''}`,
-        ),
+        { kind: 'text', layout: 'multiline', attributes: [
+          ...textAttributes(`journey-section-label journey-section-label-${sectionIndex % paints.sectionTextColors.length}`).filter(attribute => attribute.name !== 'letter-spacing'),
+          ...(labelFontFamily ? [{ name: 'font-family' as const, value: v.meta(labelFontFamily) }] : []),
+          { name: 'letter-spacing', value: v.text('letterSpacing'), omit: 'zero' },
+          ...(semanticStyle?.textColor && !authoredSectionPaint ? [{ name: 'style' as const, value: { source: 'style' as const, declarations: [{ property: 'fill' as const, value: v.paint('fill') }] } }] : []),
+        ] },
       ),
     })
   }
@@ -569,8 +560,10 @@ function renderSectionFrame(
   return marks.group({
     id: `section:${section.id}`,
     role: 'section',
-    open: `<g class="journey-section" data-id="${escapeAttr(section.id)}"${labelAttr}>`,
-    close: '</g>',
+    emission: { kind: 'group', attributes: [
+      { name: 'class', value: v.meta('journey-section') }, { name: 'data-id', value: v.meta(section.id) },
+      ...(section.label ? [{ name: 'data-label' as const, value: v.meta(section.label), display: true }] : []),
+    ] },
     children,
     channels: { category: name },
   })
@@ -597,9 +590,6 @@ function renderSectionLabelBand(
     : baseStrokeWidth
   const strokeDasharray = cueValue === 'pattern' ? '3 2' : cueValue === 'double-line' ? '8 2 2 2' : undefined
   const inline = semanticStyle && (semanticStyle.fillColor !== undefined || stroke !== 'none' || strokeWidth !== undefined || strokeDasharray !== undefined)
-    ? ` style="${escapeAttr([`fill:${fill}`, stroke !== 'none' ? `stroke:${stroke}` : undefined, strokeWidth !== undefined ? `stroke-width:${strokeWidth}` : undefined, strokeDasharray ? `stroke-dasharray:${strokeDasharray}` : undefined].filter(Boolean).join(';'))}"`
-    : ''
-  const cue = cueValue !== 'none' ? ` data-brand-cue="${escapeAttr(cueValue)}"` : ''
   const bandInset = Math.min(6, Math.max(3, section.height / 6))
   const bandHeight = Math.max(18, Math.min(section.height - bandInset * 2, style.groupHeaderFontSize + style.groupPaddingY))
   const bandX = section.x + bandInset
@@ -620,13 +610,21 @@ function renderSectionLabelBand(
       },
       channels,
     },
-    `<rect class="journey-section-label-band journey-section-band-${sectionIndex % paints.sectionBands.length}" x="${bandX}" y="${bandY}" width="${bandWidth}" height="${bandHeight}" rx="${radius}" ry="${radius}"${inline}${cue} />`,
+    { kind: 'primitive', attributes: [
+      { name: 'class', value: v.meta(`journey-section-label-band journey-section-band-${sectionIndex % paints.sectionBands.length}`) },
+      ...RECT_FIELDS.map(name => ({ name, value: v.geometry(name) })),
+      ...(inline ? [{ name: 'style' as const, value: { source: 'style' as const, declarations: [
+        { property: 'fill' as const, value: v.paint('fill') },
+        ...(stroke !== 'none' ? [{ property: 'stroke' as const, value: v.paint('stroke') }] : []),
+        ...(strokeWidth !== undefined ? [{ property: 'stroke-width' as const, value: v.paint('strokeWidth') }] : []),
+        ...(strokeDasharray ? [{ property: 'stroke-dasharray' as const, value: v.paint('strokeDasharray') }] : []),
+      ] } }] : []),
+      ...(cueValue !== 'none' ? [{ name: 'data-brand-cue' as const, value: v.meta(cueValue) }] : []),
+    ] },
   )
 }
 
 function renderTask(task: PositionedJourneyTask, sectionLabel: string | undefined, style: ResolvedRenderStyle, paints: JourneyPaints): SceneNode {
-  const sectionAttr = sectionLabel ? ` data-section="${escapeAttr(sectionLabel)}"` : ''
-  const actorAttr = task.actors.length > 0 ? ` data-actors="${escapeAttr(task.actors.join(', '))}"` : ''
   const value = task.score / JOURNEY_MAX_SCORE
   const channels: SemanticChannels = sectionLabel ? { value, category: sectionLabel } : { value }
   const children: Array<{ node: SceneNode; indent: number }> = [
@@ -644,8 +642,12 @@ function renderTask(task: PositionedJourneyTask, sectionLabel: string | undefine
   return marks.group({
     id: `task:${task.id}`,
     role: 'task',
-    open: `<g class="journey-task" data-id="${escapeAttr(task.id)}" data-score="${task.score}"${sectionAttr}${actorAttr}>`,
-    close: '</g>',
+    emission: { kind: 'group', attributes: [
+      { name: 'class', value: v.meta('journey-task') }, { name: 'data-id', value: v.meta(task.id) },
+      { name: 'data-score', value: v.meta(task.score) },
+      ...(sectionLabel ? [{ name: 'data-section' as const, value: v.channel('category') }] : []),
+      ...(task.actors.length ? [{ name: 'data-actors' as const, value: v.meta(task.actors.join(', ')) }] : []),
+    ] },
     children,
     channels,
   })
@@ -665,7 +667,7 @@ function renderTrack(track: PositionedJourneyTrack, task: PositionedJourneyTask,
       },
       channels: { value: task.score / JOURNEY_MAX_SCORE },
     },
-    `<line class="journey-track" x1="${track.x}" y1="${track.y1}" x2="${track.x}" y2="${track.y2}" />`,
+    TRACK_EMISSION,
   )
 }
 
@@ -682,7 +684,7 @@ function renderTaskBox(task: PositionedJourneyTask, style: ResolvedRenderStyle, 
       },
       channels,
     },
-    `<rect class="journey-task-box" x="${task.x}" y="${task.y}" width="${task.width}" height="${task.height}" rx="${style.cornerRadius ?? 0}" ry="${style.cornerRadius ?? 0}" />`,
+    TASK_EMISSION,
   )
 }
 
@@ -695,18 +697,12 @@ function renderTaskLabel(task: PositionedJourneyTask, style: ResolvedRenderStyle
           block: task.block,
       x: task.textX,
       y: task.textY,
-      fontSize: style.nodeLabelFontSize,
+      fontSize: style.nodeLabelFontSize, fontWeight: style.nodeLabelFontWeight, letterSpacing: style.nodeLetterSpacing,
       anchor: 'middle',
       paint: { fill: paints.taskText },
       channels,
     },
-    renderMultilineText(
-      task.block ?? task.text,
-      task.textX,
-      task.textY,
-      style.nodeLabelFontSize,
-      `class="journey-task-text" text-anchor="middle" font-size="${style.nodeLabelFontSize}" font-weight="${style.nodeLabelFontWeight}"${letterAttr(style.nodeLetterSpacing)}`,
-    ),
+    TASK_TEXT_EMISSION,
   )
 }
 
@@ -719,7 +715,10 @@ function renderActorDot(dot: PositionedJourneyActorDot, taskId: string, paints: 
       paint: { fill: actorFill(dot.colorIndex, paints), stroke: 'var(--bg)', strokeWidth: '1' },
       channels: { category: dot.label },
     },
-    `<circle class="journey-actor-dot ${actorClass(dot.colorIndex, paints)}" data-actor="${escapeAttr(dot.label)}" cx="${dot.x}" cy="${dot.y}" r="${dot.r}" />`,
+    { kind: 'primitive', attributes: [
+      { name: 'class', value: v.meta(`journey-actor-dot ${actorClass(dot.colorIndex, paints)}`) },
+      { name: 'data-actor', value: v.channel('category') }, ...CIRCLE_FIELDS.map(name => ({ name, value: v.geometry(name) })),
+    ] },
   )
 }
 
@@ -732,8 +731,9 @@ function renderScoreMarker(marker: PositionedJourneyScoreMarker, taskId: string,
   return marks.group({
     id: `score-marker:${taskId}`,
     role: 'score',
-    open: `<g class="journey-score-marker" data-score="${marker.score}">`,
-    close: '</g>',
+    emission: { kind: 'group', attributes: [
+      { name: 'class', value: v.meta('journey-score-marker') }, { name: 'data-score', value: v.meta(marker.score) },
+    ] },
     children: [
       {
         indent: 2,
@@ -745,7 +745,7 @@ function renderScoreMarker(marker: PositionedJourneyScoreMarker, taskId: string,
             paint: { fill: paints.scoreFaceFill, stroke: paints.scoreFaceStroke, strokeWidth: '1.2' },
             channels,
           },
-          `<circle class="journey-score-face" cx="${marker.cx}" cy="${marker.cy}" r="${marker.r}" />`,
+          FACE_EMISSION,
         ),
       },
       {
@@ -758,7 +758,7 @@ function renderScoreMarker(marker: PositionedJourneyScoreMarker, taskId: string,
             paint: { fill: paints.scoreFaceInk },
             channels,
           },
-          `<circle class="journey-face-eye" cx="${leftEyeX}" cy="${eyeY}" r="2" />`,
+          EYE_EMISSION,
         ),
       },
       {
@@ -771,7 +771,7 @@ function renderScoreMarker(marker: PositionedJourneyScoreMarker, taskId: string,
             paint: { fill: paints.scoreFaceInk },
             channels,
           },
-          `<circle class="journey-face-eye" cx="${rightEyeX}" cy="${eyeY}" r="2" />`,
+          EYE_EMISSION,
         ),
       },
       {
@@ -784,7 +784,7 @@ function renderScoreMarker(marker: PositionedJourneyScoreMarker, taskId: string,
             paint: { fill: 'none', stroke: paints.scoreFaceInk, strokeWidth: '1.6' },
             channels,
           },
-          `<path class="journey-face-mouth" d="${mouth}" />`,
+          MOUTH_EMISSION,
         ),
       },
     ],
@@ -1048,8 +1048,4 @@ function sectionLabelPaletteCss(paints: JourneyPaints): string {
 
 function actorPaletteCss(paints: JourneyPaints): string {
   return paints.actorColors.map((fill, index) => `  .journey-actor-${index} { fill: ${fill}; }`).join('\n')
-}
-
-function letterAttr(value: number): string {
-  return value !== 0 ? ` letter-spacing="${value}"` : ''
 }
