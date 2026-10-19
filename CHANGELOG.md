@@ -67,10 +67,11 @@ This changelog tracks user-facing changes for **Agentic Mermaid**, a fork of `lu
   slice's role or semantic-slot border and its highlight emphasis, which
   stylesheet rules overrode; abstract, static and non-ASCII Class members,
   which painted in SVG's default black instead of the member ink; a Journey
-  title's letter spacing and an `em`/`ex` `titleFontSize`. Sketch styles now
-  draw Radar areas with the translucent fill and opaque outline the default
-  style draws, XYChart series lines with round caps and joins, and a done
-  Gantt bar's border. Under a sketch look stacked with a dark palette
+  `titleFontSize` in `em`/`ex`, which drew squashed. (A Journey title's letter
+  spacing is now on its `<text>` too, but its per-glyph spans already drew it.)
+  Sketch styles now draw Radar areas with the translucent fill and opaque
+  outline the default style draws, XYChart series lines with round caps and
+  joins, and a done Gantt bar's border. Under a sketch look stacked with a dark palette
   (for example `watercolor` with `dusk`), Architecture labels, Journey task
   text and Timeline event text take the sketch's legible ink instead of a
   family stylesheet's dark ink.
