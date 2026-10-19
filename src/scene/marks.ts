@@ -34,7 +34,7 @@ import {
   sameConnectorPoint,
 } from './connector-geometry.ts'
 import { connectorInlineLabelText } from './bounds.ts'
-import { deriveConnectorTerminalProjection } from './connector-terminal.ts'
+import { setConnectorTerminalProjection, copyDeferredTerminalProjection, deferredTerminalProjectionInput } from './deferred-terminal-projection.ts'
 import { decodedSvgAttributeValue, scanSvgStartTags } from '../svg-structure.ts'
 import { parseSvgTransform, transformMatrix } from './transforms.ts'
 import {
@@ -453,7 +453,7 @@ export function connector(fields: ConnectorFields): ConnectorMark {
     strokeWidth: fields.hit?.strokeWidth ?? Math.max(6, numericStrokeWidth(width)),
     pointerEvents: fields.hit?.pointerEvents ?? (fields.lineStyle === 'invisible' ? 'none' : 'stroke'),
   }
-  const terminalProjection = deriveConnectorTerminalProjection({
+  const terminalInput = {
     geometry: fields.geometry,
     lineStyle: fields.lineStyle,
     endpoints,
@@ -465,7 +465,7 @@ export function connector(fields: ConnectorFields): ConnectorMark {
     hit,
     ...(fields.transform ? { transform: fields.transform } : {}),
     additionalDiagnostics: fields.terminalProjection?.diagnostics,
-  })
+  }
 
   const result: ConnectorMark = {
     kind: 'connector',
@@ -479,7 +479,7 @@ export function connector(fields: ConnectorFields): ConnectorMark {
     markers: { ...(markerStart ? { start: markerStart } : {}), mid: midMarkers, ...(markerEnd ? { end: markerEnd } : {}) },
     labels,
     hit,
-    terminalProjection,
+    terminalProjection: undefined as unknown as ConnectorTerminalProjection,
     identity,
     ...(fields.owner ? { owner: fields.owner } : {}),
     ...(fields.visibility ? { visibility: fields.visibility } : {}),
@@ -488,6 +488,7 @@ export function connector(fields: ConnectorFields): ConnectorMark {
     ...(fields.transform ? { transform: fields.transform } : {}),
     ...(fields.attributes ? { attributes: fields.attributes } : {}),
   }
+  setConnectorTerminalProjection(result, terminalInput)
   return admitWritableSceneNode(result)
 }
 
@@ -622,7 +623,16 @@ export function group(fields: {
   // this composition, so never mutate a caller's reusable child in place.
   const children = fields.children.map(child => {
     if (child.node.owner || child.node.kind === 'document' || child.node.kind === 'group') return child
-    const node = { ...child.node, owner }
+    let node: SceneNode
+    if (deferredTerminalProjectionInput(child.node)) {
+      // A spread would materialize the terminal-only payload. Preserve the
+      // enumerable property's position and install a getter for this copy.
+      const copied: Record<string, unknown> = {}
+      for (const key of Object.keys(child.node)) copied[key] = key === 'terminalProjection' ? undefined : (child.node as unknown as Record<string, unknown>)[key]
+      copied.owner = owner
+      node = copied as unknown as ConnectorMark
+      copyDeferredTerminalProjection(child.node, node)
+    } else node = { ...child.node, owner }
     if (hasSceneNodeSerialization(child.node)) transferSceneNodeSerialization(child.node, node)
     return { ...child, node }
   })

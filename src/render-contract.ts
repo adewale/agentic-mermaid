@@ -1489,9 +1489,9 @@ function canonicalJson(value: unknown): string {
 /** Stable, browser-safe FNV-1a-64 receipt (not a security primitive). */
 /** A request receipt that overflows the digest budget is a source too large
  * for this host, even when the source alone fit the sourceCharacters check. */
-function requestReceiptDigest(receipt: unknown, source: { readonly originalText: string; readonly text: string }): string {
+function deferredRequestReceiptDigest(receipt: unknown, source: { readonly originalText: string; readonly text: string }): () => string {
   try {
-    return renderContractDigest(receipt)
+    return deferredRenderContractDigest(receipt)
   } catch (error) {
     if (error instanceof TypeError && /aggregate limit/.test(error.message)) {
       throw new DiagramWorkLimitError('sourceCharacters', source.originalText.length + source.text.length, true)
@@ -1501,6 +1501,27 @@ function requestReceiptDigest(receipt: unknown, source: { readonly originalText:
 }
 
 export function renderContractDigest(value: unknown): string {
+  return canonicalTextDigest(canonicalJson(admitRenderContractDigestInput(value)))
+}
+
+/** Capture and admit now, but serialize and hash only if evidence is consumed.
+ * The closure never reads caller-owned data or mutable registries. Releasing
+ * the captured graph after hashing also avoids retaining duplicate snapshots
+ * for a long-lived receipt consumer. Internal only: public digest calls remain
+ * eager, including all their admission errors. */
+export function deferredRenderContractDigest(value: unknown): () => string {
+  let snapshot: unknown = admitRenderContractDigestInput(value)
+  let digest: string | undefined
+  return () => {
+    if (digest === undefined) {
+      digest = canonicalTextDigest(canonicalJson(snapshot))
+      snapshot = undefined
+    }
+    return digest
+  }
+}
+
+function admitRenderContractDigestInput(value: unknown): unknown {
   // Public digest callers may supply accessor-backed values. Materialize that
   // graph once under the request-data bounds, then validate and canonicalize
   // only the immutable snapshot. Otherwise a getter can present valid data to
@@ -1516,7 +1537,7 @@ export function renderContractDigest(value: unknown): string {
   assertJsonConfigAdmission(snapshot, 'render contract digest input', {
     allowUndefinedObjectProperties: true,
   })
-  return canonicalTextDigest(canonicalJson(snapshot))
+  return snapshot
 }
 
 /** Internal hash primitive for already-admitted canonical JSON text.
@@ -2095,13 +2116,14 @@ export function resolveRenderRequestForExecution(
     ...(executionPlan.textMeasurement ? { textMeasurement: executionPlan.textMeasurement.identity } : {}),
     capabilities: sharedCapabilityDecision,
   }
-  const sharedRequestDigest = requestReceiptDigest(sharedRequestReceipt, source)
+  const sharedRequestDigest = deferredRequestReceiptDigest(sharedRequestReceipt, source)
   const requestReceipt = {
     ...sharedRequestReceipt,
     output,
     outputOptions,
     capabilities: capabilityDecision,
   }
+  const requestDigest = deferredRequestReceiptDigest(requestReceipt, source)
   const request: ResolvedRenderRequest = Object.freeze({
     version: RENDER_CONTRACT_VERSION,
     output,
@@ -2112,8 +2134,8 @@ export function resolveRenderRequestForExecution(
     capabilityDecision,
     explicitOptionFields,
     ...(resolutionDiagnostics.length === 0 ? {} : { resolutionDiagnostics }),
-    sharedRequestDigest,
-    requestDigest: requestReceiptDigest(requestReceipt, source),
+    get sharedRequestDigest() { return sharedRequestDigest() },
+    get requestDigest() { return requestDigest() },
   })
   EXECUTION_PLAN_BY_REQUEST.set(request, executionPlan)
   return request

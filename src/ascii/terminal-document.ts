@@ -709,7 +709,20 @@ export class TerminalDocument {
     this.resize(x + width, y + 1)
     let row = this.rows.get(y)
     if (!row) { row = new Map(); this.rows.set(y, row) }
-    const cell: TerminalCell = { ...paint, glyph, owners, head: x, width, ...(block ? { textBlock: block } : {}), ...(occludedOwners?.length ? { occludedOwners } : {}) }
+    // Store the cell contract, not call-only stroke settings or an imported
+    // cell's old coordinates. In particular, ascii/style/rounded already live
+    // on the immutable stroke and need not occupy every painted cell as well.
+    const cell: TerminalCell = { glyph, owners, head: x, width }
+    if (paint.owner !== undefined) cell.owner = paint.owner
+    if (paint.role !== undefined) cell.role = paint.role
+    if (paint.color !== undefined) cell.color = paint.color
+    if (paint.kind !== undefined) cell.kind = paint.kind
+    if (paint.textGroup !== undefined) cell.textGroup = paint.textGroup
+    if (paint.stroke !== undefined) cell.stroke = paint.stroke
+    if (paint.marker !== undefined) cell.marker = paint.marker
+    if (paint.numericMark !== undefined) cell.numericMark = paint.numericMark
+    if (block) cell.textBlock = block
+    if (occludedOwners?.length) cell.occludedOwners = occludedOwners
     row.set(x, cell)
     for (let offset = 1; offset < width; offset++) row.set(x + offset, { ...cell, glyph: WIDE_CHAR_CONTINUATION })
     if (this.lineWidths?.[y] !== undefined) this.lineWidths[y] = Math.max(this.lineWidths[y]!, x + width)
@@ -812,10 +825,11 @@ export class TerminalDocument {
     this.retainedTextBlocks.add(block)
     ;(block.allocations ??= []).push({ x, y, text, owners: incoming })
     this.bindTextSurface(block, incoming, previous)
+    const surface = { ...paint, owner, kind: 'surface' as const }
     for (let row = 0; row < text.height; row++) {
       let end = 0
       for (const cluster of text.lines[row]!) { this.place(x + cluster.x, y + row, cluster.glyph, cluster.width, ink, block); end = cluster.x + cluster.width }
-      for (let column = end; column < text.width; column++) this.place(x + column, y + row, ' ', 1, { ...paint, owner, kind: 'surface' }, block)
+      for (let column = end; column < text.width; column++) this.place(x + column, y + row, ' ', 1, surface, block)
     }
     this.recordEmptyRows(block, y, text.emptyRows, incoming)
     this.resize(x + text.width, y + text.height)
@@ -841,9 +855,10 @@ export class TerminalDocument {
       ;(block.allocations ??= []).push({ x, y, text: measured, owners: incoming })
       this.bindTextSurface(block, incoming, previous)
     }
+    const ink = { ...paint, owner, role: paint.role === undefined ? 'text' as const : paint.role, kind }
     let accepted = false
     measured.lines.forEach((line, offsetY) => {
-      for (const cluster of line) accepted = this.place(x + cluster.x, y + offsetY, cluster.glyph, cluster.width, { ...paint, owner, role: paint.role === undefined ? 'text' : paint.role, kind }, kind === 'text' ? block : undefined) || accepted
+      for (const cluster of line) accepted = this.place(x + cluster.x, y + offsetY, cluster.glyph, cluster.width, ink, kind === 'text' ? block : undefined) || accepted
     })
     if (kind === 'text' && (accepted || measured.lines.every(line => line.length === 0))) this.recordEmptyRows(block, y, measured.emptyRows, incoming)
     this.resize(x + bounds.width, y + bounds.height)
@@ -852,8 +867,8 @@ export class TerminalDocument {
 
   fill(x: number, y: number, width: number, height: number, paint: TerminalPaint = {}): void {
     for (const [label, value] of Object.entries({ x, y, width, height })) integer(value, label)
-    paint = this.canonicalPaint(paint)
-    for (let row = y; row < y + height; row++) for (let col = x; col < x + width; col++) this.put(col, row, ' ', { ...paint, kind: 'surface' })
+    const surface = { ...this.canonicalPaint(paint), kind: 'surface' as const }
+    for (let row = y; row < y + height; row++) for (let col = x; col < x + width; col++) this.place(col, row, ' ', 1, surface, undefined)
   }
 
   line(runs: readonly TerminalRun[] = [], defaults?: TerminalPaint): void {
@@ -1064,6 +1079,19 @@ export class TerminalDocument {
       let width = rowWidth
       if (options.trimEnd) while (width > 0 && this.get(width - 1, y) === ' ' && this.cell(width - 1, y)?.kind !== 'text') width--
       widths.push(width)
+      if (mode === 'none') {
+        // Color boundaries do not affect plain bytes. Keep final sanitation:
+        // callers can inspect and mutate retained cells between serializations.
+        let line = ''
+        const row = this.rows.get(y)
+        for (let x = 0; x < width; x++) {
+          const glyph = row?.get(x)?.glyph ?? ' '
+          if (glyph !== WIDE_CHAR_CONTINUATION) line += glyph
+        }
+        lines.push(sanitizeTerminalText(line))
+        this.metrics.outputCells += width
+        continue
+      }
       let line = '', buffer = '', lastRole: CharRole | null | undefined, lastColor: string | undefined
       const flush = (): void => {
         if (!buffer) return

@@ -1,11 +1,11 @@
-import { describe, expect, test } from 'bun:test'
+import { describe, expect, spyOn, test } from 'bun:test'
 import { BUILTIN_FAMILY_METADATA } from '../agent/families.ts'
 import { renderMermaidPNG } from '../agent/png.ts'
 import type { DiagramKind } from '../agent/types.ts'
 import { DEFAULT_ARCHITECTURE_VISUAL } from '../architecture/config.ts'
 import { detectColorMode } from '../ascii/ansi.ts'
 import { renderMermaidASCII, renderMermaidASCIIWithReceipt } from '../ascii/index.ts'
-import { renderMermaidSVGWithReceipt } from '../index.ts'
+import { renderMermaidSVG, renderMermaidSVGWithReceipt } from '../index.ts'
 import { HOSTED_TOOLS } from '../mcp/hosted-server.ts'
 import { SDK_DECLARATION } from '../mcp/sdk-decl.ts'
 import { LOCAL_TOOLS } from '../mcp/server.ts'
@@ -16,6 +16,9 @@ import { applyOutputSecurityPolicy, verifyNoExternalRefs } from '../output-secur
 import {
   ALL_RENDER_FIELDS_ACCOUNTED_FOR,
   CLI_RENDER_FORMATS,
+  canonicalTextDigest,
+  deferredRenderContractDigest,
+  renderContractDigest,
   RENDER_OUTPUT_DESCRIPTORS,
   RENDER_TRANSPORT_SURFACES,
   receiptOf,
@@ -68,6 +71,46 @@ const FAMILY_SCOPED_OPTION_VALUES = {
 } as const satisfies Record<keyof typeof EXPECTED_BUILTIN_OPTION_APPLICABILITY, unknown>
 
 describe('Section A canonical render contracts', () => {
+  test('plain SVG does not hash unused output evidence, and consumed receipts hash it once', () => {
+    const source = 'sequenceDiagram\n  Alice->>Bob: request'
+    // Complete first-use backend conformance before observing this request.
+    renderMermaidSVG(source)
+    const stringify = JSON.stringify
+    const serializedSvg: string[] = []
+    const observed = spyOn(JSON, 'stringify').mockImplementation(((value: unknown, ...args: unknown[]) => {
+      if (typeof value === 'string' && value.startsWith('<svg')) serializedSvg.push(value)
+      return Reflect.apply(stringify, JSON, [value, ...args])
+    }) as typeof JSON.stringify)
+    try {
+      const plain = renderMermaidSVG(source)
+      const artifact = renderMermaidSVGWithReceipt(source)
+      expect(artifact.svg).toBe(plain)
+      expect(serializedSvg).toEqual([])
+      const receipt = artifact.receipt
+      expect(receipt.graphicalProjectionDigest).toBe(canonicalTextDigest(stringify(plain)))
+      expect(serializedSvg).toEqual([plain])
+      expect(artifact.receipt).toBe(receipt)
+      expect(serializedSvg).toEqual([plain])
+    } finally {
+      observed.mockRestore()
+    }
+  })
+
+  test('deferred evidence captures mutable accessors once and rejects invalid data immediately', () => {
+    const data = { label: 'captured' }
+    let reads = 0
+    const digest = deferredRenderContractDigest({ get data() { reads++; return data } })
+    expect(reads).toBe(1)
+    data.label = 'changed after admission'
+    expect(digest()).toBe(renderContractDigest({ data: { label: 'captured' } }))
+    expect(digest()).toBe(digest())
+    expect(reads).toBe(1)
+    const cycle: { next?: unknown } = {}
+    cycle.next = cycle
+    expect(() => deferredRenderContractDigest(cycle)).toThrow(TypeError)
+    expect(() => deferredRenderContractDigest({ value: Number.POSITIVE_INFINITY })).toThrow(TypeError)
+  })
+
   test('the manifest accounts for every RenderOptions field and generates the adapter schema', () => {
     expect(ALL_RENDER_FIELDS_ACCOUNTED_FOR).toBe(true)
     const schema = sharedRenderOptionsJsonSchema() as { additionalProperties: boolean; properties: Record<string, unknown> }
