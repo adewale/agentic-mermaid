@@ -104,25 +104,37 @@ describe('quadrant structured parse', () => {
     expect(serializeMermaid(d2)).toBe(out)
   })
 
-  // Mermaid reads `<br/>` only inside quoted text (a title runs to the end of its line).
+  // A "…" string runs across a line break, so the writer keeps the break
+  // inside the quotes; a title runs to the end of its line, so its break is
+  // written `<br/>`.
   test('serializes parser-normalized line breaks as one Mermaid statement', () => {
-    const d = quadrant(`quadrantChart
+    for (const source of [`quadrantChart
   title Reach<br/>map
   x-axis "Low<br/>reach" --> "High<br/>reach"
   quadrant-1 "Do<br/>first"
-  "Quick<br/>win": [0.2, 0.8]`)
-    expect(d.body).toMatchObject({
-      title: 'Reach\nmap',
-      xAxis: { near: 'Low\nreach', far: 'High\nreach' },
-      quadrants: ['Do\nfirst', undefined, undefined, undefined],
-      points: [{ label: 'Quick\nwin', x: 0.2, y: 0.8 }],
-    })
-    const out = serializeMermaid(d)
-    expect(out).toContain('title Reach<br/>map')
-    expect(out).toContain('x-axis "Low<br/>reach" --> "High<br/>reach"')
-    expect(out).toContain('quadrant-1 "Do<br/>first"')
-    expect(out).toContain('"Quick<br/>win": [0.2, 0.8]')
-    expect(quadrant(out).body).toEqual(d.body)
+  "Quick<br/>win": [0.2, 0.8]`, `quadrantChart
+  title Reach<br/>map
+  x-axis "Low
+    reach" --> "High
+    reach"
+  quadrant-1 "Do
+    first"
+  "Quick
+    win": [0.2, 0.8]`]) {
+      const d = quadrant(source)
+      expect(d.body).toMatchObject({
+        title: 'Reach\nmap',
+        xAxis: { near: 'Low\nreach', far: 'High\nreach' },
+        quadrants: ['Do\nfirst', undefined, undefined, undefined],
+        points: [{ label: 'Quick\nwin', x: 0.2, y: 0.8 }],
+      })
+      const out = serializeMermaid(d)
+      expect(out).toContain('title Reach<br/>map')
+      expect(out).toContain('x-axis "Low\nreach" --> "High\nreach"')
+      expect(out).toContain('quadrant-1 "Do\nfirst"')
+      expect(out).toContain('"Quick\nwin": [0.2, 0.8]')
+      expect(quadrant(out).body).toEqual(d.body)
+    }
   })
 })
 

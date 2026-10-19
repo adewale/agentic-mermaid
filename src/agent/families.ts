@@ -349,6 +349,13 @@ export interface FamilyOperations {
    */
   extractLabels?: (source: string) => ExtractedLabel[]
   /**
+   * For each source line, the last line of the family statement that starts
+   * there: a quoted string may run onto later lines (see quotedTextEnds).
+   * Source normalization reads no line inside a statement as a universal
+   * accTitle/accDescr directive. Omission: each line is its own statement.
+   */
+  statementEnds?: (lines: readonly string[]) => readonly number[]
+  /**
    * Family-specific structured parser. The context carries one normalized
    * source envelope: `lines` is the family grammar view (header included,
    * universal accessibility removed), `envelopeLines` retains those universal
@@ -897,6 +904,7 @@ const FAMILY_DESCRIPTOR_FIELDS = Object.freeze([
   'normalizeRequest',
   'configDiagnostics',
   'extractLabels',
+  'statementEnds',
   'parse',
   'buildSourceMap',
   'serialize',
@@ -1179,6 +1187,7 @@ function validateDescriptor(
     throw new Error(`Family "${descriptor.id}" must declare at least one canonical header without surrounding whitespace, controls, or semicolons`)
   }
   if (descriptor.renderSource !== undefined && typeof descriptor.renderSource !== 'function') throw new TypeError(`Family ${descriptor.id} renderSource must be a function`)
+  if (descriptor.statementEnds !== undefined && typeof descriptor.statementEnds !== 'function') throw new TypeError(`Family ${descriptor.id} statementEnds must be a function`)
   if (typeof descriptor.detect !== 'function') throw new Error(`Family "${descriptor.id}" must declare a detector`)
   if (!Number.isSafeInteger(descriptor.collisionPriority)) throw new Error(`Family "${descriptor.id}" must declare an integer collisionPriority`)
 

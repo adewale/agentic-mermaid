@@ -6,7 +6,7 @@ import {
   requireClosedAccessibility,
   scanAccessibilityDirectives,
 } from '../shared/accessibility-directives.ts'
-import { stripTrailingComment } from '../shared/trailing-comment.ts'
+import { joinQuotedTextLines, quotedTextEnds, stripTrailingComment, type QuotedTextRule } from '../shared/trailing-comment.ts'
 import { parserObservationActive, observeParserStatement, observeParserMutation } from '../shared/parser-observation.ts'
 
 // ============================================================================
@@ -25,7 +25,7 @@ export const MAX_RADAR_AXES = 256
 
 const HEADER_RE = /^radar-beta(?:[\t ]*:)?(?=$|\s)/i
 const TITLE_RE = /^title(?:[\t ]+(.*))?$/i
-const AXIS_RE = /^axis\s+(.+)$/i
+const AXIS_RE = /^axis\s+([\s\S]+)$/i
 const CURVE_RE = /^curve\s+([\s\S]+)$/i
 const OPTION_RE = /^(showLegend|ticks|max|min|graticule)\b(.*)$/i
 const NUMBER_RE = /^(?:0|[1-9]\d*|\d+\.\d+|0\.\d+)$/
@@ -34,6 +34,14 @@ const QUOTED_TOKEN = String.raw`(?:"(?:\\.|[^"\\])*"|'(?:\\.|[^'\\])*')`
 const ID_LABEL_RE = new RegExp(String.raw`^(${ID_TOKEN})\s*(?:\[\s*(${QUOTED_TOKEN})\s*\])?$`)
 const CURVE_ITEM_RE = new RegExp(String.raw`^(${ID_TOKEN})\s*(?:\[\s*(${QUOTED_TOKEN})\s*\])?\s*\{([\s\S]*)\}$`)
 const KEYED_ENTRY_RE = new RegExp(String.raw`^(${ID_TOKEN})(?:\s*:\s*|\s+)(.+)$`)
+/** A "…" or '…' label runs to its closing quote across line breaks; a title
+ * or accessibility directive runs to the end of its line. */
+const RADAR_QUOTED_TEXT: QuotedTextRule = { spanning: `"'`, wholeLine: line => /^(?:title|accTitle|accDescr)(?=[\s:{]|$)/i.test(line) }
+
+/** For each line, the last line of the statement that starts there. */
+export function radarStatementEnds(lines: readonly string[]): number[] {
+  return quotedTextEnds(lines, RADAR_QUOTED_TEXT)
+}
 
 export interface RadarParseOptions {
   /** YAML frontmatter title. An in-body `title` statement wins when present. */
@@ -293,9 +301,12 @@ function parseCurveItem(item: string, axes: RadarAxis[]): RadarCurve {
 /** Parse Mermaid radar source after wrapper normalization/comment extraction. */
 export function parseRadarChart(lines: string[], options: RadarParseOptions = {}): RadarChart {
   // Mermaid's hidden SINGLE_LINE_COMMENT token applies after every statement,
-  // including title/accessibility free text and multiline curve blocks. Apply
-  // that family rule first, then let the universal scanner own accessibility.
-  const scanned = scanAccessibilityDirectives(lines.join('\n').split(/\r?\n/).map(stripTrailingComment))
+  // including title/accessibility free text and multiline curve blocks, but
+  // not inside a quoted label, which runs to its closing quote across line
+  // breaks. Apply that family rule first, then let the universal scanner own
+  // accessibility.
+  const physical = joinQuotedTextLines(lines.join('\n').split(/\r?\n/), RADAR_QUOTED_TEXT)
+  const scanned = scanAccessibilityDirectives(physical.map(stripTrailingComment))
   requireClosedAccessibility(scanned)
   const source = scanned.familyLines.join('\n').trimStart()
   if (!source) throw new Error('Radar chart is empty')
@@ -317,17 +328,28 @@ export function parseRadarChart(lines: string[], options: RadarParseOptions = {}
   let ticks = 5
   let graticule: 'circle' | 'polygon' = 'circle'
   let showLegend = true
+  const statementAccessibility: NonNullable<RadarChart['statementAccessibility']> = {}
 
   for (let i = 0; i < statements.length; i++) {
     const line = statements[i]!
     let match: RegExpMatchArray | null
 
-    const accessibilityDirective = parseAccessibilityDirective([line], 0)
+    // A block reads its lines as the envelope does.
+    const accessibilityDirective = parseAccessibilityDirective(line.split('\n'), 0)
     if (accessibilityDirective === undefined) throw new Error('Radar accDescr block is missing a closing "}"')
+    // Mermaid keeps whichever value is written last. The envelope has taken
+    // the directives on lines of their own out of order, so one of those
+    // wins, as in XYChart (verify reports radar_accessibility_order).
     if (accessibilityDirective !== null) {
-      if (accessibilityDirective.title) accessibility.title = normalizeBrTags(accessibilityDirective.value)
-      else accessibility.description = normalizeBrTags(accessibilityDirective.value)
-      if (parserObservationActive('radar')) observeParserMutation('radar', accessibilityDirective.title ? 'setAccessibilityTitle' : 'setAccessibilityDescription', accessibilityDirective.title ? accessibility.title : accessibility.description)
+      const value = normalizeBrTags(accessibilityDirective.value)
+      if (accessibilityDirective.title) {
+        statementAccessibility.title = accessibilityDirective.value
+        if (scanned.accessibility.title === undefined) accessibility.title = value
+      } else {
+        statementAccessibility.descr = accessibilityDirective.value
+        if (scanned.accessibility.descr === undefined) accessibility.description = value
+      }
+      if (parserObservationActive('radar')) observeParserMutation('radar', accessibilityDirective.title ? 'setAccessibilityTitle' : 'setAccessibilityDescription', value)
       continue
     }
     if ((match = line.match(TITLE_RE))) {
@@ -402,6 +424,7 @@ export function parseRadarChart(lines: string[], options: RadarParseOptions = {}
   return {
     title,
     ...(accessibility.title || accessibility.description ? { accessibility } : {}),
+    ...(Object.keys(statementAccessibility).length > 0 ? { statementAccessibility } : {}),
     axes,
     curves,
     min,

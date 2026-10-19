@@ -1,4 +1,6 @@
 import { scanStateComments } from './state/comment.ts'
+import { readStateLabel, readStateText } from './state/text.ts'
+import type { LabelContent } from './shared/display-text.ts'
 import { parseFlowchartLabel } from './flowchart-labels.ts'
 import { normalizeV11Shape } from './flowchart-shapes.ts'
 import { normalizeBrTags } from './multiline-utils.ts'
@@ -14,22 +16,20 @@ import {
   matchHistoryEndpoint,
   matchNoteLine, matchNoteOpen,
   matchStateClassAssignment, matchStateDeclarationLine, matchStateLayoutDirective,
-  matchStereotypeDecl, matchTransitionLine,
+  matchStereotypeDecl, matchTransitionLine, readStateStatements,
   STATE_ALIAS_RE,
   STATE_CLASS_DEF_RE, STATE_COMPOSITE_OPEN_RE, STATE_DESCRIPTION_RE,
   STATE_DIRECTION_RE,
   STATE_LINK_STYLE_RE, STATE_STYLE_RE,
-  stateNoteText,
 } from './state/parse-core.ts'
 import type { Direction, EdgeMarker, EdgeStyle, MermaidEdge, MermaidGraph, MermaidNode, MermaidSubgraph, NodeShape } from './types.ts'
 
 export { parseStyleProps } from './shared/style-props.ts'
 import { detectCompatibilityGraphFamilyFromFirstLine } from './agent/family-router.ts'
 import { classifyMermaidFamilyFromFirstLine } from './family-detection.ts'
-import { coalesceFlowchartMetadataLines, flowchartRegionAt, flowchartStatementSpans, matchFlowchartLink, matchTextArrow, scanFlowchart } from './flowchart-lexer.ts'
+import { coalesceFlowchartLines, commaInNodeId, continuesNodeId, findTextArrow, FLOWCHART_EDGE_ID_SOURCE, FLOWCHART_LINK_SOURCE, flowchartNodeIdLength, flowchartRegionAt, flowchartStatementSpans, matchFlowchartLink, matchTextArrow } from './flowchart-lexer.ts'
 import { consumeClassShorthandPrefix,
-  consumeMermaidIdentifier,
-  isMermaidIdentifier, MERMAID_IDENTIFIER_SOURCE, parseClassShorthandStatement } from './shared/mermaid-identifiers.ts'
+  MERMAID_IDENTIFIER_SOURCE, parseClassShorthandStatement } from './shared/mermaid-identifiers.ts'
 import { metadataText, readMetadataBlock } from './shared/metadata-yaml.ts'
 import { syntaxError } from './shared/syntax-error.ts'
 
@@ -53,11 +53,19 @@ export function parseMermaid(text: string): MermaidGraph {
   const rawLines = text.split('\n')
   const firstStatement = rawLines.find(line => line.trim().length > 0 && !line.trim().startsWith('%%'))?.trim() ?? ''
   // State note text must not pass through Flowchart's string coalescers or
-  // the generic whole-line comment filter.
+  // the generic whole-line comment filter. A `//` line is dropped only
+  // outside a string, which reads it as text, as the typed body does.
   const state = /^stateDiagram(?:-v2)?(?=$|[\s;%])/i.test(firstStatement)
+  const statements = state ? [] : coalesceStatementLines(rawLines)
   const lines = expandInlineHeaderStatements(state
-    ? scanStateComments(rawLines).filter(line => line.noteBody || (line.text.length > 0 && !line.text.startsWith('//'))).map(line => line.text)
-    : coalesceMetadataLines(coalesceMarkdownStringLines(rawLines)).map(line => line.trim()).filter(line => line.length > 0 && !line.startsWith('%%')))
+    ? scanStateComments(rawLines).filter((line, index, scanned) => line.noteBody
+      || (line.text.length > 0 && (!line.text.startsWith('//') || scanned[index - 1]?.openQuote === true))).map(line => line.text)
+    : statements.map(statement => statement.text))
+  // The statements a header line holds (`flowchart TD; A`) start the lines.
+  const headerStatements = lines.length - statements.length
+  const breaks = headerStatements > 0
+    ? [...Array<undefined>(headerStatements + 1), ...statements.slice(1).map(statement => statement.breaks)]
+    : statements.map(statement => statement.breaks)
 
   if (lines.length === 0) {
     throw new Error('Empty mermaid diagram')
@@ -74,7 +82,7 @@ export function parseMermaid(text: string): MermaidGraph {
   if (familyId === 'state') {
     return parseStateDiagram(lines)
   }
-  if (familyId === 'flowchart') return parseFlowchart(lines)
+  if (familyId === 'flowchart') return parseFlowchart(lines, breaks)
 
   if (detection.kind === 'unknown') throw new Error(`Unknown Mermaid diagram header: ${header}`)
   const detectedFamilyId = detection.kind === 'registered' ? detection.familyId : detection.match.family.id
@@ -86,62 +94,38 @@ export function parseMermaid(text: string): MermaidGraph {
 }
 
 function expandInlineHeaderStatements(lines: string[]): string[] {
-  if (lines.length === 0 || !lines[0]!.includes(';')) return lines
+  const split = lines.length > 0 ? splitInlineHeaderStatements(lines[0]!) : undefined
+  return split ? [split.header, ...split.statements, ...lines.slice(1)] : lines
+}
+
+/** A trimmed header line with statements after `;` (`flowchart TD; A`):
+ * the header, and the statements after it; undefined for a bare header. */
+export function splitInlineHeaderStatements(line: string): { header: string; statements: string[] } | undefined {
+  if (!line.includes(';')) return undefined
   // The header's direction (`graph >`) is not a statement: split after it.
-  const header = lines[0]!.match(/^(?:(?:graph|flowchart|swimlane)(?:[ \t]+(?:TD|TB|LR|BT|RL|[<>^v])(?![\w-]))?|stateDiagram(?:-v2)?)(?=$|[\s;])/i)
-  if (!header) return lines
-  const rest = lines[0]!.slice(header[0].length).trim()
-  if (!rest.startsWith(';')) return lines
-  return [header[0], ...splitFlowchartStatements(rest), ...lines.slice(1)]
+  const header = line.match(/^(?:(?:graph|flowchart|swimlane)(?:[ \t]+(?:TD|TB|LR|BT|RL|[<>^v])(?![\w-]))?|stateDiagram(?:-v2)?)(?=$|[\s;])/i)
+  if (!header) return undefined
+  const rest = line.slice(header[0].length).trim()
+  if (!rest.startsWith(';')) return undefined
+  // The State reader splits its own statements (readStateStatements).
+  return { header: header[0], statements: /^stateDiagram/i.test(header[0]) ? [rest] : splitFlowchartStatements(rest) }
 }
 
 /**
- * Mermaid v11 uses `id@{ ... }` metadata blocks for flowchart nodes. The
- * legacy parser is line-oriented; without this coalescing pass, multiline
- * metadata keys such as `shape:` and `label:` are treated as standalone node
- * statements. Keep the whole metadata object attached to its node token so the
- * node consumer can handle it as one unit (flowchart-lexer.ts joins the lines
- * as upstream's lexer reads them).
+ * The parser is line-oriented, but upstream's lexer is not: a string, label,
+ * `@{…}` block or link may run across lines. flowchart-lexer.ts joins each
+ * such run into one line, a label's line breaks as '<br>' — the label
+ * pipeline's canonical line-break token — so the single-line shape grammars
+ * keep matching and the label normalizer restores '\n'.
  */
-function coalesceMetadataLines(lines: string[]): string[] {
-  return coalesceFlowchartMetadataLines(lines).map(group => group.text)
-}
-
-/**
- * Mermaid markdown strings ("`…`") may contain literal newlines as explicit
- * line breaks. The parser is line-oriented, so a line that ends inside a
- * markdown string (flowchart-lexer.ts) joins the following lines until the
- * string closes. The break is joined as '<br>' — the label pipeline's
- * canonical line-break token — so the single-line shape grammars keep
- * matching and the label normalizer restores '\n'.
- * Comment lines outside an open string pass through untouched.
- */
-function coalesceMarkdownStringLines(lines: string[]): string[] {
-  const out: string[] = []
-  let current: string[] | null = null
-  for (const line of lines) {
-    if (current) {
-      current.push(line.trim())
-      if (!endsInsideMarkdownString(current.join('<br>'))) {
-        out.push(current.join('<br>'))
-        current = null
-      }
-      continue
-    }
-    if (line.trim().startsWith('%%')) { out.push(line)
-      continue }
-    if (endsInsideMarkdownString(line)) {
-      current = [line]
-      continue
-    }
-    out.push(line)
-  }
-  if (current) out.push(current.join('<br>'))
-  return out
-}
-
-function endsInsideMarkdownString(text: string): boolean {
-  return text.includes('"`') && scanFlowchart(text).openAtEnd.includes('markdown')
+function coalesceStatementLines(lines: string[]): Array<{ text: string; breaks?: number[] }> {
+  return coalesceFlowchartLines(lines).flatMap(group => {
+    const text = group.text.trim()
+    if (!text || text.startsWith('%%')) return []
+    // Where each later line joined on, in the trimmed text.
+    const lead = group.text.length - group.text.trimStart().length
+    return [{ text, ...(group.joined ? { breaks: group.joined.map(piece => piece.at - lead) } : {}) }]
+  })
 }
 
 function parseFlowchartSubgraphDeclaration(rest: string): Pick<MermaidSubgraph, 'id' | 'label' | 'labelContent'> & { generated: boolean; identity: string } {
@@ -151,7 +135,7 @@ function parseFlowchartSubgraphDeclaration(rest: string): Pick<MermaidSubgraph, 
   const labelStart = rest.indexOf('[')
   if (labelStart > 0 && labelStart < rest.length - 1 && rest.endsWith(']')) {
     const id = rest.slice(0, labelStart).trim()
-    if (!isMermaidIdentifier(id)) {
+    if (!isFlowchartNodeId(id)) {
       throw new Error(`Invalid flowchart subgraph identifier ${JSON.stringify(id)}`)
     }
     const parsed = parseFlowchartLabel(rest.slice(labelStart + 1, -1))
@@ -159,14 +143,27 @@ function parseFlowchartSubgraphDeclaration(rest: string): Pick<MermaidSubgraph, 
   }
   const parsed = parseFlowchartLabel(rest)
   // Identity comes from the logical source spelling, before display decoding.
-  // Two titles can paint identically without naming the same container.
-  const identity = rest.replace(/^"([\s\S]*)"$/, '$1').trim()
+  // Two titles can paint identically without naming the same container. A
+  // markdown string's identity is its text, as upstream's id is.
+  const unquoted = rest.replace(/^"([\s\S]*)"$/, '$1').trim()
+  const identity = unquoted !== rest && /^`[\s\S]*`$/.test(unquoted) ? unquoted.slice(1, -1).trim() : unquoted
+  // A title that is one node id (`a.b`, `**Two**`) is the subgraph's id, as
+  // upstream reads it there, so a link to that id ends at the subgraph.
+  if (isFlowchartNodeId(identity)) {
+    return { id: identity, label: parsed.text, ...(parsed.labelContent ? { labelContent: parsed.labelContent } : {}), generated: false, identity }
+  }
   // Mermaid identifiers are Unicode-aware everywhere else in this parser.
   // Preserve non-Latin letters/numbers when deriving the implicit container id
-  // instead of silently collapsing a CJK title to an empty string.
-  const id = rest.replace(/\s+/g, '_').replace(/[^\p{L}\p{N}_-]/gu, '').replace(/-{2,}/g, '_')
-  const generated = id !== identity || !isMermaidIdentifier(identity) || flowchartIdLength(identity, identity.length) !== identity.length
-  return { id: id || 'group', label: parsed.text, ...(parsed.labelContent ? { labelContent: parsed.labelContent } : {}), generated, identity }
+  // instead of silently collapsing a CJK title to an empty string. A markup
+  // tag separates words like a space: a line break the title runs across is
+  // `<br>` here (coalesceFlowchartLines), and `a<br>b` is `a_b`, not `abrb`.
+  const id = identity.replace(/<\/?[a-z][^<>]*>/gi, ' ').trim().replace(/\s+/g, '_').replace(/[^\p{L}\p{N}_-]/gu, '').replace(/-{2,}/g, '_')
+  return { id: id || 'group', label: parsed.text, ...(parsed.labelContent ? { labelContent: parsed.labelContent } : {}), generated: true, identity }
+}
+
+/** Whether `text` is one whole node id (flowchartNodeIdLength). */
+function isFlowchartNodeId(text: string): boolean {
+  return text.length > 0 && flowchartNodeIdLength(text) === text.length
 }
 
 /** Shared statement splitter for renderer and source-side action analysis:
@@ -176,12 +173,18 @@ export function splitFlowchartStatements(line: string): string[] {
   return flowchartStatementSpans(line).map(statement => statement.text)
 }
 
+/** A `class` or `style` statement's match, when its first operand is a `,`
+ * list of node ids (flowchartNodeIdLength), else null. */
+function nodeIdListStatement(match: RegExpMatchArray | null): RegExpMatchArray | null {
+  return match && match[1]!.split(',').every(id => id === '' || flowchartNodeIdLength(id) === id.length) ? match : null
+}
+
 function isFlowchartInteractionDirective(line: string): boolean {
   return /^(?:click|href)\s+/i.test(line.trim())
 }
 
 function applyFlowchartInteraction(graph: MermaidGraph, line: string): void {
-  const match = line.trim().match(/^(?:click\s+)?([\w-]+)\s+(?:href\s+)?(?:"((?:\\.|[^"])*)"|(https?:\/\/\S+|mailto:\S+))/i)
+  const match = line.trim().match(/^(?:click\s+)?(\S+)\s+(?:href\s+)?(?:"((?:\\.|[^"])*)"|(https?:\/\/\S+|mailto:\S+))/i)
   if (!match) return
   const href = (match[2] ?? match[3] ?? '').replace(/\\(["\\])/g, '$1')
   if (!/^(?:https?:|mailto:)/i.test(href)) return
@@ -240,11 +243,13 @@ function applyFlowchartEdgeMetadata(graph: MermaidGraph, { id, entries }: Metada
  * reads `id @{…}` and `id@ {…}` (METADATA_OPEN_SOURCE). */
 function edgeMetadataStatement(graph: MermaidGraph, line: string): MetadataStatement | null {
   const statement = line.trim()
-  const head = statement.match(new RegExp(`^([\\w-]+)${METADATA_OPEN_SOURCE}`))
-  if (!head) return null
-  const { end, entries } = readFlowchartMetadata(statement, head[0].length - 1)
+  // Upstream reads the id before `@{` as a node id (`e.1@{…}`).
+  const idLength = flowchartNodeIdLength(statement)
+  const open = idLength > 0 ? statement.slice(idLength).match(new RegExp(`^${METADATA_OPEN_SOURCE}`)) : null
+  if (!open) return null
+  const { end, entries } = readFlowchartMetadata(statement, idLength + open[0].length - 1)
   if (statement.slice(end + 1).trim() !== '') return null
-  const id = head[1]!
+  const id = statement.slice(0, idLength)
   // As upstream's `addVertex`: the block addresses an edge declared so far
   // with that id; otherwise it declares (or refines) a node.
   return graph.edges.some(edge => edge.id === id) ? { id, entries } : null
@@ -261,7 +266,7 @@ function assertGraphNodeInsertion(graph: MermaidGraph): void {
   assertDiagramWorkLimit('nodes', graph.nodes.size + (graphContainerCounts.get(graph) ?? 0) + 1)
 }
 
-function parseFlowchart(lines: string[]): MermaidGraph {
+function parseFlowchart(lines: string[], breaks: ReadonlyArray<readonly number[] | undefined> = []): MermaidGraph {
   const headerMatch = lines[0]!.match(/^(?:(?:graph|swimlane)\s+(TD|TB|LR|BT|RL|[<>^v])|flowchart(?:\s+(TD|TB|LR|BT|RL|[<>^v]))?)\s*$/i)
   if (!headerMatch) {
     throw new Error(`Invalid mermaid header: "${lines[0]}". Expected "graph TD", "flowchart LR", "stateDiagram-v2", etc.`)
@@ -288,10 +293,40 @@ function parseFlowchart(lines: string[]): MermaidGraph {
   const subgraphStack: MermaidSubgraph[] = []
   const subgraphsById = new Map<string, MermaidSubgraph>()
   const placedSubgraphs = new Set<string>()
-  const declarations = collectFlowchartSubgraphDeclarations(lines.slice(1))
+  const declarations = collectFlowchartSubgraphDeclarations(lines.slice(1), breaks.slice(1))
+  let nextDeclaration = 0
   const declaredSubgraphIds = new Set([...declarations.values()].map(group => group.id))
   // Upstream's membership rule: the first subgraph to close keeps a node.
   const membership = createSubgraphMembership()
+  // The subgraph ids each open subgraph lists on their own, and, in the order
+  // the listers close, those lists.
+  const listedSubgraphs = new Map<MermaidSubgraph, string[]>()
+  const listings: Array<{ lister: string; ids: string[] }> = []
+
+  /** Close the innermost open subgraph, if any. */
+  const closeSubgraph = (): void => {
+    const completed = subgraphStack.pop()
+    if (!completed) return
+    // A repeated declaration extends one container; every projection
+    // sees the same members, first title and unique group identity.
+    const canonical = subgraphsById.get(completed.id)!
+    const members = membership.close(completed.id, completed.nodeIds)
+    const listed = listedSubgraphs.get(completed)
+    if (listed) listings.push({ lister: completed.id, ids: listed })
+    canonical.nodeIds = [...new Set([...canonical.nodeIds, ...members])]
+    for (const child of completed.children) if (child !== canonical && !canonical.children.some(existing => existing.id === child.id)) canonical.children.push(child)
+    canonical.direction ??= completed.direction
+    const parent = subgraphStack.at(-1)
+    // A redeclaration inside its own ancestor extends that ancestor;
+    // attaching it here would make a self-edge or an S -> T -> S cycle.
+    if (!placedSubgraphs.has(completed.id) && !subgraphStack.some(ancestor => ancestor.id === completed.id)) {
+      if (parent) parent.children.push(canonical)
+      else graph.subgraphs.push(canonical)
+      placedSubgraphs.add(completed.id)
+      if (parserObservationActive('flowchart')) observeParserMutation('flowchart', 'attach-group', { id: completed.id, parent: parent?.id })
+    }
+    if (parserObservationActive('flowchart')) observeParserMutation('flowchart', 'close-group', { id: canonical.id, label: canonical.label, members: canonical.nodeIds, children: canonical.children.map(child => child.id), direction: canonical.direction })
+  }
 
   for (let i = 1; i < lines.length; i++) {
     for (const line of splitFlowchartStatements(lines[i]!)) {
@@ -321,7 +356,7 @@ function parseFlowchart(lines: string[]): MermaidGraph {
       }
 
       // --- class assignment: `class A,B className` ---
-      const classAssignMatch = line.match(/^class\s+([\w,-]+)\s+([\w-]+)\s*;?$/)
+      const classAssignMatch = nodeIdListStatement(line.match(/^class\s+(\S+)\s+([\w-]+)\s*;?$/))
       if (classAssignMatch) {
         const nodeIds = classAssignMatch[1]!.split(',').map(s => s.trim())
         const className = classAssignMatch[2]!
@@ -333,7 +368,7 @@ function parseFlowchart(lines: string[]): MermaidGraph {
       }
 
       // --- style statement: `style A,B fill:#f00,stroke:#333` ---
-      const styleMatch = line.match(/^style\s+([\w,-]+)\s+(.+)$/)
+      const styleMatch = nodeIdListStatement(line.match(/^style\s+(\S+)\s+(.+)$/))
       if (styleMatch) {
         const nodeIds = styleMatch[1]!.split(',').map(s => s.trim()).filter(Boolean)
         // A styled id is a mention: it creates the node, as upstream's
@@ -384,8 +419,7 @@ function parseFlowchart(lines: string[]): MermaidGraph {
       // --- subgraph start: `subgraph Label` or `subgraph id [Label]` ---
       const subgraphMatch = line.match(/^subgraph\s+(.+)$/)
       if (subgraphMatch) {
-        const rest = subgraphMatch[1]!.trim()
-        const { id, label, labelContent } = declarations.get(rest)!
+        const { id, label, labelContent } = declarations[nextDeclaration++]!
         const sg: MermaidSubgraph = { id, label, ...(labelContent ? { labelContent } : {}), nodeIds: [], children: [] }
         if (!subgraphsById.has(id)) {
           assertDiagramWorkLimit('nodes', graph.nodes.size + subgraphsById.size + 1)
@@ -402,36 +436,55 @@ function parseFlowchart(lines: string[]): MermaidGraph {
 
       // --- subgraph end ---
       if (line === 'end') {
-        const completed = subgraphStack.pop()
-        if (completed) {
-          // A repeated declaration extends one container; every projection
-          // sees the same members, first title and unique group identity.
-          const canonical = subgraphsById.get(completed.id)!
-          const members = membership.close(completed.id, completed.nodeIds)
-          canonical.nodeIds = [...new Set([...canonical.nodeIds, ...members])]
-          for (const child of completed.children) if (child !== canonical && !canonical.children.some(existing => existing.id === child.id)) canonical.children.push(child)
-          canonical.direction ??= completed.direction
-          const parent = subgraphStack.at(-1)
-          // A redeclaration inside its own ancestor extends that ancestor;
-          // attaching it here would make a self-edge or an S -> T -> S cycle.
-          if (!placedSubgraphs.has(completed.id) && !subgraphStack.some(ancestor => ancestor.id === completed.id)) {
-            if (parent) parent.children.push(canonical)
-            else graph.subgraphs.push(canonical)
-            placedSubgraphs.add(completed.id)
-            if (parserObservationActive('flowchart')) observeParserMutation('flowchart', 'attach-group', { id: completed.id, parent: parent?.id })
-          }
-          if (parserObservationActive('flowchart')) observeParserMutation('flowchart', 'close-group', { id: canonical.id, label: canonical.label, members: canonical.nodeIds, children: canonical.children.map(child => child.id), direction: canonical.direction })
-        }
+        closeSubgraph()
         continue
       }
 
       // --- Edge/node definitions ---
       const parsed = parseEdgeLine(line, graph, subgraphStack, declaredSubgraphIds)
       if (!parsed.ok) throw invalidFlowchartStatement(line, parsed)
+      const current = subgraphStack.at(-1)
+      if (current && parsed.listed) {
+        // A statement of ids alone lists them in the subgraph: a node no
+        // subgraph has listed yet joins it, and a subgraph is nested there
+        // (listSubgraphs). A link endpoint claims only a node it creates.
+        for (const id of parsed.listed) {
+          if (declaredSubgraphIds.has(id)) {
+            const listed = listedSubgraphs.get(current) ?? []
+            if (!listed.includes(id)) listedSubgraphs.set(current, [...listed, id])
+          } else if (membership.ownerOf(id) === undefined && !subgraphStack.some(open => open.nodeIds.includes(id))) {
+            trackInSubgraph(subgraphStack, id)
+          }
+        }
+      }
     }
   }
 
+  // A subgraph no `end` closes runs to the end of the source, where Mermaid
+  // rejects the diagram; verify reports it (flowchart_unclosed_subgraph).
+  while (subgraphStack.length > 0) closeSubgraph()
+  listSubgraphs(graph, listings.map(({ lister, ids }) => ({ lister: subgraphsById.get(lister)!, ids: ids.map(id => subgraphsById.get(id)) })))
   return graph
+}
+
+/**
+ * Nest each subgraph a subgraph's body lists on its own (`subgraph A` /
+ * `B` / `end`, upstream's nested subgraphs) in the first lister to close,
+ * when it is top-level. One declared inside another stays there, and none is
+ * nested inside itself or its own descendant.
+ */
+function listSubgraphs(graph: MermaidGraph, listings: ReadonlyArray<{ lister: MermaidSubgraph; ids: ReadonlyArray<MermaidSubgraph | undefined> }>): void {
+  const contains = (outer: MermaidSubgraph, inner: MermaidSubgraph): boolean =>
+    outer === inner || outer.children.some(child => contains(child, inner))
+  for (const { lister, ids } of listings) {
+    for (const child of ids) {
+      const at = child ? graph.subgraphs.indexOf(child) : -1
+      if (at < 0 || contains(child!, lister)) continue
+      graph.subgraphs.splice(at, 1)
+      lister.children.push(child!)
+      if (parserObservationActive('flowchart')) observeParserMutation('flowchart', 'attach-group', { id: child!.id, parent: lister.id })
+    }
+  }
 }
 
 /** The error for a statement the edge grammar could not consume, naming the
@@ -439,61 +492,75 @@ function parseFlowchart(lines: string[]): MermaidGraph {
 function invalidFlowchartStatement(line: string, parsed: Extract<EdgeLineParseResult, { ok: false }>): Error {
   const where = `Invalid flowchart statement "${line}"`
   if (/^<?(?:-{2,}|-\.+|={2,})/.test(parsed.remaining)) {
+    const found = findTextArrow(parsed.remaining, 0)
+    if (found && 'stray' in found) {
+      const stray = parsed.remaining.slice(found.stray, found.stray + 2)
+      return syntaxError({
+        what: `${where}: the link label in "${parsed.remaining}" holds a \`${stray}\` before the link that closes it, which upstream's lexer rejects`,
+        expectedForm: `a label without \`${stray}\`, or a quoted one`,
+        example: `A -- "x ${stray} y" --> B`,
+      })
+    }
     return syntaxError({
       what: `${where}: "${parsed.remaining}" opens a link label that no link closes (\`--\` and \`-.\` always open a link, so a node id cannot hold them)`,
       expectedForm: 'a label closed by a link of the same stroke, or an id without `--`',
       example: 'A -- label --> B, A == label ==> B or A -. label .-> B',
     })
   }
+  const statement = line.trim().replace(/;\s*$/, '').trim()
+  if (statement.endsWith(parsed.remaining) && commaInNodeId(statement, statement.length - parsed.remaining.length)) {
+    return syntaxError({
+      what: `${where}: upstream reads the "," before "${parsed.remaining.slice(1)}" as part of one node id (\`A,B\` is one node there), and ours reads no "," in a node id`,
+      expectedForm: 'a node id without ",", or `&` between nodes',
+      example: 'A & B --> C',
+    })
+  }
   return new Error(`${where}: could not fully consume ${parsed.reason}; remaining input: "${parsed.remaining}"`)
 }
 
-/** Allocate derived names after reserving authored identities, including names
- * declared later in the source. Repeated logical groups reuse one allocation. */
-function collectFlowchartSubgraphDeclarations(lines: string[]): Map<string, ReturnType<typeof parseFlowchartSubgraphDeclaration>> {
-  const declarations = new Map<string, ReturnType<typeof parseFlowchartSubgraphDeclaration>>()
+/** Each `subgraph` statement's declaration, in source order. Derived names are
+ * allocated after reserving authored identities, including names declared
+ * later in the source. A title with no whitespace is its group's identity, so
+ * its repeats reuse one allocation, as upstream reads such a title as the id.
+ * One holding whitespace, or a line break (`breaks`: for each line, the
+ * offsets where a line joined on, coalesceFlowchartLines), names no group:
+ * each such block is a group of its own, as upstream's `subGraphN`. */
+function collectFlowchartSubgraphDeclarations(lines: string[], breaks: ReadonlyArray<readonly number[] | undefined> = []): Array<ReturnType<typeof parseFlowchartSubgraphDeclaration>> {
+  const declarations: Array<ReturnType<typeof parseFlowchartSubgraphDeclaration>> = []
+  const distinct = new Set<ReturnType<typeof parseFlowchartSubgraphDeclaration>>()
   const reserved = new Set<string>()
-  for (const raw of lines) {
-    for (const line of splitFlowchartStatements(raw)) {
+  for (const [lineIndex, raw] of lines.entries()) {
+    for (const { text: line, start } of flowchartStatementSpans(raw)) {
       const match = line.match(/^subgraph\s+(.+)$/)
       if (match) {
         const rest = match[1]!.trim()
         const declaration = parseFlowchartSubgraphDeclaration(rest)
-        declarations.set(rest, declaration)
+        declarations.push(declaration)
         if (!declaration.generated) reserved.add(declaration.id)
+        else if (/\s/.test(declaration.identity) || breaks[lineIndex]?.some(at => at > start && at < start + line.length)) distinct.add(declaration)
       } else {
-        // Reserving identifier runs also covers declarations inside compound
-        // chains and metadata without executing their Cartesian expansion.
-        for (const token of line.matchAll(new RegExp(MERMAID_IDENTIFIER_SOURCE, 'gu'))) {
-          const end = token.index + token[0].length
-          let start = token.index
-          // Compact links can share one identifier run (Xo--xY). Reserve
-          // each actual endpoint, as well as the unbroken directive operand.
-          reserved.add(token[0])
-          for (let index = start; index < end; index++) {
-            const link = matchFlowchartLink(line, index)
-            if (!link) continue
-            if (index > start) reserved.add(line.slice(start, index))
-            start = link.end
-            index = link.end - 1
-          }
-          if (start < end) {
-            const suffix = line.slice(start)
-            reserved.add(suffix.slice(0, flowchartIdLength(suffix, end - start)))
-          }
+        // Reserving every node id the line could hold also covers
+        // declarations inside compound chains and metadata without executing
+        // their Cartesian expansion. Identifier runs keep the unbroken
+        // directive operands (`class A,B c`) reserved too.
+        for (const token of line.matchAll(new RegExp(MERMAID_IDENTIFIER_SOURCE, 'gu'))) reserved.add(token[0])
+        for (let index = 0; index < line.length;) {
+          const length = flowchartNodeIdLength(line, index)
+          if (length > 0) reserved.add(line.slice(index, index + length))
+          index = matchFlowchartLink(line, index)?.end ?? index + Math.max(length, 1)
         }
       }
     }
   }
   const allocated = new Map<string, string>()
-  for (const declaration of declarations.values()) {
+  for (const declaration of declarations) {
     if (!declaration.generated) continue
-    const prior = allocated.get(declaration.identity)
+    const prior = distinct.has(declaration) ? undefined : allocated.get(declaration.identity)
     if (prior) { declaration.id = prior; continue }
     const base = declaration.id
     let id = base
     for (let suffix = 2; reserved.has(id); suffix++) id = `${base}_${suffix}`
-    allocated.set(declaration.identity, id)
+    if (!distinct.has(declaration)) allocated.set(declaration.identity, id)
     reserved.add(id)
     declaration.id = id
   }
@@ -550,10 +617,30 @@ function parseStateDiagram(lines: string[]): MermaidGraph {
   // pushed as synthetic child subgraphs flagged concurrencyRegion, so member
   // tracking lands in the active region automatically.
   const compositeStack: MermaidSubgraph[] = []
-  // Track all composite state IDs to avoid creating duplicate nodes
-  const compositeStateIds = new Set<string>()
+  const statements = readStateStatements(scanStateComments(lines.slice(1))).statements
+  // State ids are global: a composite's id names the composite wherever it
+  // is mentioned, before or after its block, never a second, simple state
+  // (as in the typed body, parseStateBody).
+  const compositeStateIds = new Set(statements.flatMap(statement => {
+    const open = statement.noteBody ? null : statement.text.match(STATE_COMPOSITE_OPEN_RE)
+    return open ? [open[2]!] : []
+  }))
+  const composites = new Map<string, MermaidSubgraph>()
   let stateGroupCount = 0
   const labeledStateIds = new Set<string>()
+  // Each labelled state's or composite's label as written, one piece per line
+  // (a label and the descriptions under it), read by the State text codec.
+  const labelPieces = new Map<string, readonly string[]>()
+  /** Label a composite as `X : text` (`stack`: under an earlier label) or
+   *  `state "L" as X` (only while it has none) labels a simple state. */
+  const labelComposite = (id: string, piece: string, stack: boolean): void => {
+    if (labeledStateIds.has(id) && !stack) return
+    const pieces = [...(labeledStateIds.has(id) ? labelPieces.get(id) ?? [] : []), piece]
+    labelPieces.set(id, pieces)
+    labeledStateIds.add(id)
+    const group = composites.get(id)
+    if (group) Object.assign(group, stateLabel(group, pieces))
+  }
   // Counter for unique [*] pseudostate IDs
   let startCount = 0
   let endCount = 0
@@ -562,9 +649,10 @@ function parseStateDiagram(lines: string[]): MermaidGraph {
   // Open block note (`note left of X` … `end note`), collecting body lines.
   let openNote: { target: string; side: 'left' | 'right'; lines: string[] } | null = null
 
-  const addNote = (target: string, side: 'left' | 'right', text: string): void => {
+  const addNote = (target: string, side: 'left' | 'right', authored: string): void => {
     if (!graph.stateNotes) graph.stateNotes = []
-    graph.stateNotes.push({ id: `note#${graph.stateNotes.length}`, target, side, text })
+    const { text, content } = readStateText(authored)
+    graph.stateNotes.push({ id: `note#${graph.stateNotes.length}`, target, side, text, ...(content ? { textContent: content } : {}) })
     if (parserObservationActive('state')) observeParserMutation('state', 'add-note', graph.stateNotes.at(-1))
     // A note on an undeclared state declares it (upstream parity) — unless the
     // id is (or later becomes) a composite, which the composite opener handles.
@@ -602,14 +690,15 @@ function parseStateDiagram(lines: string[]): MermaidGraph {
     return raw
   }
 
-  for (let i = 1; i < lines.length; i++) {
-    const line = lines[i]!
-    if (parserObservationActive('state')) observeParserStatement('state', openNote ? 'note-body' : 'statement', line, { line: i + 1, unit: 'normalized' })
+  for (const statement of statements) {
+    const line = statement.text
+    const source = { line: statement.line + 2, unit: 'normalized' } as const
+    if (parserObservationActive('state')) observeParserStatement('state', openNote ? 'note-body' : 'statement', line, source)
 
     // --- open block note: collect body lines verbatim until `end note` ---
     if (openNote) {
       if (isNoteEnd(line)) {
-        addNote(openNote.target, openNote.side, stateNoteText(openNote.lines))
+        addNote(openNote.target, openNote.side, openNote.lines.join('\n'))
         openNote = null
       } else {
         openNote.lines.push(line)
@@ -626,7 +715,7 @@ function parseStateDiagram(lines: string[]): MermaidGraph {
     // --- notes: `note left|right of X : text` / `note left|right of X` ---
     const noteLine = matchNoteLine(line)
     if (noteLine) {
-      addNote(noteLine.target, noteLine.side, stateNoteText([noteLine.text]))
+      addNote(noteLine.target, noteLine.side, noteLine.text)
       continue
     }
     const noteOpen = matchNoteOpen(line)
@@ -663,8 +752,8 @@ function parseStateDiagram(lines: string[]): MermaidGraph {
     const stateClassAssignment = matchStateClassAssignment(line)
     if (stateClassAssignment) {
       for (const id of stateClassAssignment.ids) {
-        ensureStateNode(graph, compositeStack, id)
-        graph.classAssignments.set(id, stateClassAssignment.className)
+        if (!compositeStateIds.has(id)) ensureStateNode(graph, compositeStack, id)
+        appendGraphClass(graph.classAssignments, id, stateClassAssignment.className)
         if (parserObservationActive('state')) observeParserMutation('state', 'assign-class', { id, name: stateClassAssignment.className })
       }
       continue
@@ -674,7 +763,7 @@ function parseStateDiagram(lines: string[]): MermaidGraph {
       const ids = stateInlineStyle[1]!.split(',').map(id => id.trim()).filter(Boolean)
       const props = parseStyleProps(stateInlineStyle[2]!)
       for (const id of ids) {
-        ensureStateNode(graph, compositeStack, id)
+        if (!compositeStateIds.has(id)) ensureStateNode(graph, compositeStack, id)
         graph.nodeStyles.set(id, { ...graph.nodeStyles.get(id), ...props })
         if (parserObservationActive('state')) observeParserMutation('state', 'set-node-style', { id, props: graph.nodeStyles.get(id) })
       }
@@ -766,18 +855,20 @@ function parseStateDiagram(lines: string[]): MermaidGraph {
     const compositeMatch = line.match(STATE_COMPOSITE_OPEN_RE)
     if (compositeMatch) {
       const id = compositeMatch[2]!
-      const label = compositeMatch[1] !== undefined
-        ? normalizeBrTags(compositeMatch[1])
-        : (graph.nodes.get(id)?.label ?? id)
-      const sg: MermaidSubgraph = { id, label, nodeIds: [], children: [] }
+      if (compositeMatch[1] !== undefined) {
+        labelPieces.set(id, [compositeMatch[1]])
+        labeledStateIds.add(id)
+      }
+      const pieces = labeledStateIds.has(id) ? labelPieces.get(id) : undefined
+      const sg: MermaidSubgraph = { id, label: id, nodeIds: [], children: [], stateComposite: true }
+      if (pieces !== undefined) Object.assign(sg, stateLabel(sg, pieces))
+      const label = sg.label
       assertDiagramWorkLimit('nodes', graph.nodes.size - Number(graph.nodes.has(id)) + ++stateGroupCount)
       graphContainerCounts.set(graph, stateGroupCount)
       assertDiagramWorkLimit('nesting', compositeStack.length + 1)
       compositeStack.push(sg)
-      // Track this ID to avoid creating a duplicate node for the composite state
-      compositeStateIds.add(id)
-      // Remove any existing node that was created when parsing transitions before
-      // this composite state definition (e.g., "A --> Processing" before "state Processing {")
+      composites.set(id, sg)
+      // A pseudostate declared with this id is the composite now.
       graph.nodes.delete(id)
       if (parserObservationActive('state')) observeParserMutation('state', 'open-group', { id, label, parent: compositeStack.at(-2)?.id })
       continue
@@ -804,14 +895,20 @@ function parseStateDiagram(lines: string[]): MermaidGraph {
     // --- state alias: `state "Description" as s1` (without brace) ---
     const stateAliasMatch = line.match(STATE_ALIAS_RE)
     if (stateAliasMatch) {
-      const label = normalizeBrTags(stateAliasMatch[1]!)
+      const pieces = [stateAliasMatch[1]!]
       const id = stateAliasMatch[2]!
+      if (compositeStateIds.has(id)) {
+        labelComposite(id, stateAliasMatch[1]!, false)
+        continue
+      }
       const existing = graph.nodes.get(id)
       if (existing?.shape === 'rounded' && !labeledStateIds.has(id)) {
-        graph.nodes.set(id, { ...existing, label })
-        if (parserObservationActive('state')) observeParserMutation('state', 'set-label', { id, label })
+        labelPieces.set(id, pieces)
+        graph.nodes.set(id, stateLabel(existing, pieces))
+        if (parserObservationActive('state')) observeParserMutation('state', 'set-label', { id, label: graph.nodes.get(id)!.label })
       }
-      registerStateNode(graph, compositeStack, { id, label, shape: 'rounded' })
+      if (!existing) labelPieces.set(id, pieces)
+      registerStateNode(graph, compositeStack, stateLabel({ id, label: id, shape: 'rounded' }, pieces))
       labeledStateIds.add(id)
       continue
     }
@@ -822,26 +919,26 @@ function parseStateDiagram(lines: string[]): MermaidGraph {
       const sourceId = resolveEndpoint(transition.from, 'source')
       const targetId = resolveEndpoint(transition.to, 'target')
       if (transition.fromClass) {
-        graph.classAssignments.set(sourceId, transition.fromClass)
+        appendGraphClass(graph.classAssignments, sourceId, transition.fromClass)
       if (parserObservationActive('state')) observeParserMutation('state', 'assign-class', { id: sourceId, name: transition.fromClass })
       }
       if (transition.toClass) {
-        graph.classAssignments.set(targetId, transition.toClass)
+        appendGraphClass(graph.classAssignments, targetId, transition.toClass)
         if (parserObservationActive('state')) observeParserMutation('state', 'assign-class', { id: targetId, name: transition.toClass })
       }
-      const edgeLabel = transition.label ? normalizeBrTags(transition.label) : undefined
+      const edgeLabel = transition.label ? readStateText(transition.label) : undefined
 
       assertDiagramWorkLimit('edges', graph.edges.length + 1)
       graph.edges.push({
         source: sourceId,
         target: targetId,
-        label: edgeLabel,
+        label: edgeLabel?.text,
+        ...(edgeLabel?.content ? { labelContent: edgeLabel.content } : {}),
         style: 'solid',
         hasArrowStart: false,
         hasArrowEnd: true,
       })
-      if (parserObservationActive('state')) observeParserMutation('state', 'add-edge', graph.edges.at(-1), { line: i + 1, unit: 'normalized' })
-      for (const id of transition.followingStates ?? []) registerStateNode(graph, compositeStack, { id, label: id, shape: 'rounded' })
+      if (parserObservationActive('state')) observeParserMutation('state', 'add-edge', graph.edges.at(-1), source)
       continue
     }
 
@@ -850,8 +947,8 @@ function parseStateDiagram(lines: string[]): MermaidGraph {
     // never leak into a visible `::highlight` label.
     const stateClass = parseClassShorthandStatement(line)
     if (stateClass) {
-      ensureStateNode(graph, compositeStack, stateClass.id)
-      graph.classAssignments.set(stateClass.id, stateClass.className)
+      if (!compositeStateIds.has(stateClass.id)) ensureStateNode(graph, compositeStack, stateClass.id)
+      appendGraphClass(graph.classAssignments, stateClass.id, stateClass.className)
       if (parserObservationActive('state')) observeParserMutation('state', 'assign-class', { id: stateClass.id, name: stateClass.className })
       continue
     }
@@ -860,25 +957,41 @@ function parseStateDiagram(lines: string[]): MermaidGraph {
     const stateDescMatch = line.match(STATE_DESCRIPTION_RE)
     if (stateDescMatch) {
       const id = stateDescMatch[1]!
-      const label = normalizeBrTags(stateDescMatch[2]!.trim())
+      const piece = stateDescMatch[2]!.trim()
+      if (compositeStateIds.has(id)) {
+        labelComposite(id, piece, true)
+        continue
+      }
       // A description also describes a state a transition already created
       // (Mermaid adds it either way): it replaces the id-only label, and a
       // second description stacks under the first rather than being dropped.
       const existing = graph.nodes.get(id)
+      const pieces = [...(labeledStateIds.has(id) ? labelPieces.get(id) ?? [] : []), piece]
       if (existing && existing.shape === 'rounded') {
-        graph.nodes.set(id, { ...existing, label: labeledStateIds.has(id) ? `${existing.label}\n${label}` : label })
+        labelPieces.set(id, pieces)
+        graph.nodes.set(id, stateLabel(existing, pieces))
         if (parserObservationActive('state')) observeParserMutation('state', 'set-label', { id, label: graph.nodes.get(id)!.label })
       }
-      registerStateNode(graph, compositeStack, { id, label, shape: 'rounded' })
+      if (!existing) labelPieces.set(id, pieces)
+      registerStateNode(graph, compositeStack, stateLabel({ id, label: id, shape: 'rounded' }, pieces))
       labeledStateIds.add(id)
       continue
     }
     const declaredId = matchStateDeclarationLine(line)
     if (declaredId !== null) {
-      registerStateNode(graph, compositeStack, { id: declaredId, label: declaredId, shape: 'rounded' })
+      if (!compositeStateIds.has(declaredId)) registerStateNode(graph, compositeStack, { id: declaredId, label: declaredId, shape: 'rounded' })
       continue
     }
 
+    // Mermaid reads the rest of the line after `as` as one name, so
+    // `state "L" as X Y` names a state `X Y` that no transition can name.
+    const alias = /^state\s+"[^"]*"\s+as\s+/.exec(line)
+    const aliasName = alias ? line.slice(alias[0].length).replace(/\{$/, '').trimEnd() : ''
+    if (/\s/.test(aliasName)) throw syntaxError({
+      what: `Unsupported state syntax: "${line}"`,
+      expectedForm: `one word after \`as\`; pinned Mermaid reads "${aliasName}" as one name, which no transition can refer to`,
+      example: 'state "Long name" as LongName',
+    })
     throw syntaxError({
       what: `Unsupported state syntax: "${line}"`,
       expectedForm: 'a state declaration, transition, composite, note, direction, or paint directive',
@@ -886,7 +999,19 @@ function parseStateDiagram(lines: string[]): MermaidGraph {
     })
   }
 
-  // An unterminated block note still lands (lenient, like unbalanced braces).
+  // A composite the source never closes cannot be drawn: where it was meant
+  // to end cannot be told, and its members must not appear without it.
+  // Mermaid rejects it too (readStateStatements' unclosedLines).
+  const unclosed = compositeStack.find(group => !group.concurrencyRegion)
+  if (unclosed) {
+    throw syntaxError({
+      what: `Composite state "${unclosed.id}" is never closed`,
+      expectedForm: 'a `}` where the composite ends',
+      example: 'state X { A }',
+    })
+  }
+
+  // An unterminated block note still lands (lenient, like a stray `}`).
   if (openNote) addNote(openNote.target, openNote.side, openNote.lines.join('\n'))
 
   return graph
@@ -899,6 +1024,14 @@ function nextRegion(counts: Map<string, number>, compositeId: string): number {
 }
 
 /** Track an id in the innermost composite/region scope (no node creation). */
+/** `target` labelled with State text as written, one piece per line: the
+ *  label it reads, and the text as written where it holds an entity code. */
+function stateLabel<T extends { label: string; labelContent?: LabelContent }>(target: T, pieces: readonly string[]): T {
+  const { text, content } = readStateLabel(pieces)
+  const { labelContent: _previous, ...rest } = target
+  return { ...rest, label: text, ...(content ? { labelContent: content } : {}) } as T
+}
+
 function trackInStateScope(compositeStack: MermaidSubgraph[], id: string): void {
   if (compositeStack.length > 0) {
     const current = compositeStack[compositeStack.length - 1]!
@@ -998,7 +1131,7 @@ function consumePipeLabel(text: string): { rawLabel: string; consumed: number } 
 }
 
 interface ConsumedTextArrow {
-  hasArrowStart: boolean
+  startMarker: EdgeMarker | undefined
   openOp: string
   rawLabel: string
   closeOp: string
@@ -1007,12 +1140,15 @@ interface ConsumedTextArrow {
 
 /** `-- label -->`, `-. label .->`, and `== label ==>` (flowchart-lexer.ts
  * `matchTextArrow`): closer-shaped text inside a wholly quoted label is paint,
- * not syntax. */
+ * not syntax. An `x` or `o` opener (`x-- a --x`) is upstream's start marker
+ * only before a closer with the same end, and its link is invalid otherwise. */
 function consumeTextArrow(text: string): ConsumedTextArrow | null {
   const arrow = matchTextArrow(text, 0)
   if (!arrow) return null
+  const startMarker = arrow.startMark === 'x' ? 'cross' : arrow.startMark === 'o' ? 'circle' : arrow.startMark ? 'arrow' : undefined
+  if ((arrow.startMark === 'x' || arrow.startMark === 'o') && startMarker !== endMarkerForOp(arrow.closeOp)) return null
   return {
-    hasArrowStart: arrow.hasArrowStart,
+    startMarker,
     openOp: arrow.openOp,
     rawLabel: text.slice(arrow.labelStart, arrow.labelEnd),
     closeOp: arrow.closeOp,
@@ -1021,11 +1157,11 @@ function consumeTextArrow(text: string): ConsumedTextArrow | null {
 }
 
 /**
- * Node shape patterns — ordered from most specific delimiters to least.
- * Multi-char delimiters must be tried before single-char to avoid false matches.
+ * Node shape patterns, matched after the node id (flowchartNodeIdLength) —
+ * ordered from most specific delimiters to least. Multi-char delimiters must
+ * be tried before single-char to avoid false matches.
  */
-const flowchartNodeRegex = (suffix: string): RegExp =>
-  new RegExp(`^(${MERMAID_IDENTIFIER_SOURCE})${suffix}`, 'u')
+const flowchartNodeRegex = (suffix: string): RegExp => new RegExp(`^${suffix}`, 'u')
 
 const NODE_PATTERNS: Array<{ regex: RegExp; shape: NodeShape }> = [
   // Triple delimiters (must be first)
@@ -1050,35 +1186,22 @@ const NODE_PATTERNS: Array<{ regex: RegExp; shape: NodeShape }> = [
   { regex: flowchartNodeRegex(String.raw`\{(.+?)\}`), shape: 'diamond' },
 ]
 
-/**
- * How much of the identifier run at the start of `text` (`length`
- * characters) is one node id, by upstream's rule (`flow.jison` NODE_STRING):
- * a `-` belongs to an id only when neither `-` nor `.` follows it, since `--`
- * and `-.` always open a link (`A--a --> B` is A, a text-arrow label, B), and
- * an id ends where a link begins (`Go--xH` is G o--x H).
- */
-function flowchartIdLength(text: string, length: number): number {
-  for (let index = 1; index < length; index++) {
-    if (text[index] === '-' && (text[index + 1] === '-' || text[index + 1] === '.')) return index
-    if (matchFlowchartLink(text, index)) return index
-  }
-  return length
-}
-
+/** The node id at the start of `text`, as upstream's lexer reads one
+ * (flowchartNodeIdLength): `--` and `-.` always open a link, so
+ * `A--a --> B` is A, a text-arrow label, B. */
 function consumeBareNodeId(text: string): { id: string; length: number } | null {
-  const whole = consumeMermaidIdentifier(text)
-  if (!whole) return null
-  const length = flowchartIdLength(text, whole.length)
-  return { id: text.slice(0, length), length }
+  const length = flowchartNodeIdLength(text)
+  return length > 0 ? { id: text.slice(0, length), length } : null
 }
 
-const EDGE_ID_PREFIX_REGEX = /^([\w-]+)@\s*(?=(?:<)?(?:~{3,}|-\.+->|-\.+-|={2,}>|={3,}|o-{2,}[ox]|x-{2,}[ox]|-{2,}[ox]|-{2,}>|-{3,}|(?:-{2,}|-\.+|={2,})\s+))/
+const EDGE_ID_PREFIX_REGEX = new RegExp(String.raw`^(${FLOWCHART_EDGE_ID_SOURCE})@\s*(?=${FLOWCHART_LINK_SOURCE}|(?:-{2,}|-\.+|={2,})\s+)`, 'u')
 
 function consumeClassShorthand(text: string): { className: string; length: number } | null {
   const parsed = consumeClassShorthandPrefix(text)
   if (!parsed) return null
   const rest = text.slice(3)
-  const end = flowchartIdLength(rest, parsed.className.length)
+  const end = Math.min(parsed.className.length, flowchartNodeIdLength(rest))
+  if (end === 0) return null
   return { className: rest.slice(0, end), length: 3 + end }
 }
 
@@ -1087,7 +1210,11 @@ function consumeClassShorthand(text: string): { className: string; length: numbe
  * Handles chaining: A --> B --> C produces edges A→B and B→C.
  * Handles parallel links: A & B --> C & D produces 4 edges.
  */
-type EdgeLineParseResult = { readonly ok: true }
+type EdgeLineParseResult = {
+  readonly ok: true
+  /** A statement of nodes alone (`A`, `A & B:::c`, `A[x]`), no link: their ids. */
+  readonly listed?: readonly string[]
+}
   | { readonly ok: false; readonly remaining: string; readonly reason: 'expected node' | 'expected edge operator' | 'expected edge target' }
 
 function parseEdgeLine(
@@ -1110,6 +1237,7 @@ function parseEdgeLine(
   }
 
   remaining = firstGroup.remaining.trim()
+  if (remaining.length === 0) return { ok: true, listed: firstGroup.ids }
   let prevGroupIds = firstGroup.ids
 
   // Parse arrow + node-group pairs until the line is exhausted.
@@ -1137,14 +1265,17 @@ function parseEdgeLine(
     if (arrowMatch) {
       const arrowOp = arrowMatch.op
       let consumed = arrowMatch.end
-      const labelSuffix = remaining.slice(consumed)
+      // Upstream's link token takes the whitespace after it, so a pipe label
+      // may follow a space (`A --> |yes| B`).
+      const gap = /^\s*/.exec(remaining.slice(consumed))![0].length
+      const labelSuffix = remaining.slice(consumed + gap)
       if (labelSuffix.startsWith('|')) {
         const pipeLabel = consumePipeLabel(labelSuffix)
         if (!pipeLabel) return { ok: false, remaining: labelSuffix, reason: 'expected edge target' }
         const parsedLabel = parseFlowchartLabel(pipeLabel.rawLabel.trim())
         edgeLabel = parsedLabel.text || undefined
         labelContent = parsedLabel.labelContent
-        consumed += pipeLabel.consumed
+        consumed += gap + pipeLabel.consumed
       }
       if (parserObservationActive('flowchart')) observeParserToken('flowchart', 'link', remaining.slice(0, consumed))
       remaining = remaining.slice(consumed).trim()
@@ -1158,7 +1289,6 @@ function parseEdgeLine(
       // Fallback: text-embedded label syntax (-- Yes -->, -. Maybe .->, == Sure ==>)
       const textArrow = consumeTextArrow(remaining)
       if (!textArrow) return { ok: false, remaining, reason: 'expected edge operator' }
-      hasArrowStart = textArrow.hasArrowStart
       const parsedLabel = parseFlowchartLabel(textArrow.rawLabel)
       edgeLabel = parsedLabel.text || undefined
       labelContent = parsedLabel.labelContent
@@ -1166,7 +1296,8 @@ function parseEdgeLine(
       remaining = remaining.slice(textArrow.consumed).trim()
       style = textArrowStyleFromOps(textArrow.openOp, textArrow.closeOp)
       length = textArrowLengthFromOps(textArrow.openOp, textArrow.closeOp)
-      startMarker = hasArrowStart ? 'arrow' : undefined
+      startMarker = textArrow.startMarker
+      hasArrowStart = startMarker !== undefined
       endMarker = endMarkerForOp(textArrow.closeOp)
       hasArrowEnd = endMarker !== undefined
     }
@@ -1226,11 +1357,11 @@ function consumeNodeGroup(
   const ids = [first.id]
   let remaining = first.remaining.trim()
 
-  // Check for & separators
+  // Check for & separators. One that no node follows (upstream reads one on
+  // its line only) stays unconsumed, so the statement fails.
   while (remaining.startsWith('&')) {
     if (parserObservationActive('flowchart')) observeParserToken('flowchart', 'parallel-separator', '&')
-    remaining = remaining.slice(1).trim()
-    const next = consumeNode(remaining, graph, subgraphStack, declaredSubgraphIds)
+    const next = consumeNode(remaining.slice(1).trim(), graph, subgraphStack, declaredSubgraphIds)
     if (!next) break
     ids.push(next.id)
     remaining = next.remaining.trim()
@@ -1249,10 +1380,11 @@ function consumeMetadataNode(
   graph: MermaidGraph,
   subgraphStack: MermaidSubgraph[]
 ): ConsumedNode | null {
-  const start = text.match(new RegExp(`^(${MERMAID_IDENTIFIER_SOURCE})${METADATA_OPEN_SOURCE}`, 'u'))
-  if (!start || flowchartIdLength(text, start[1]!.length) < start[1]!.length) return null
-  const id = start[1]!
-  const { end, entries } = readFlowchartMetadata(text, start[0].length - 1)
+  const identifier = consumeBareNodeId(text)
+  const open = identifier && text.slice(identifier.length).match(new RegExp(`^${METADATA_OPEN_SOURCE}`))
+  if (!identifier || !open) return null
+  const id = identifier.id
+  const { end, entries } = readFlowchartMetadata(text, identifier.length + open[0].length - 1)
   applyNodeMetadata(id, entries, graph, subgraphStack)
   return { id, remaining: text.slice(end + 1) }
 }
@@ -1341,8 +1473,8 @@ function consumeQuotedShapeNode(
   text: string,
   graph: MermaidGraph,
   subgraphStack: MermaidSubgraph[]): ConsumedNode | null {
-  const identifier = consumeMermaidIdentifier(text)
-  if (!identifier || flowchartIdLength(text, identifier.length) < identifier.length) return null
+  const identifier = consumeBareNodeId(text)
+  if (!identifier) return null
   const suffix = text.slice(identifier.length)
   for (const spec of QUOTED_SHAPE_DELIMITERS) {
     if (!suffix.startsWith(`${spec.open}"`)) continue
@@ -1405,22 +1537,24 @@ function consumeNode(
   let remaining: string = text
 
   // Try each node pattern (shape-qualified)
-  for (const { regex, shape } of NODE_PATTERNS) {
-    const match = text.match(regex)
+  const identifier = consumeBareNodeId(text)
+  const shapeText = identifier ? text.slice(identifier.length) : ''
+  for (const { regex, shape } of identifier ? NODE_PATTERNS : []) {
+    const match = shapeText.match(regex)
     if (match) {
-      if (flowchartIdLength(text, match[1]!.length) < match[1]!.length) continue
-      id = match[1]!
-      const { text: label, markdown, labelContent } = parseFlowchartLabel(match[2]!)
+      id = identifier!.id
+      const { text: label, markdown, labelContent } = parseFlowchartLabel(match[1]!)
       defineNode(graph, subgraphStack, { id, label, shape, ...(markdown ? { markdownLabel: true as const } : {}), ...(labelContent ? { labelContent } : {}) })
-      remaining = text.slice(match[0].length)
+      remaining = shapeText.slice(match[0].length)
       break
     }
   }
 
   // Bare node reference — only register if node doesn't exist yet.
   // If it already exists, do NOT track it in the current subgraph: a bare
-  // reference never claims a node (first-defined-wins, docs/fork-differences.md).
-  // Among the subgraphs that do list a node, the first to close keeps it.
+  // reference never claims a node (first-defined-wins, docs/fork-differences.md),
+  // unless its statement lists it alone (parseFlowchart). Among the subgraphs
+  // that do list a node, the first to close keeps it.
   if (id === null) {
     const bare = consumeBareNodeId(text)
     if (bare) {
@@ -1443,6 +1577,11 @@ function consumeNode(
     if (parserObservationActive('flowchart')) observeParserMutation('flowchart', 'append-class', { id, name: classMatch.className, classes: graph.classAssignments.get(id) })
     remaining = remaining.slice(classMatch.length)
   }
+
+  // Upstream's node string runs on through a `.` or `"` right after a class
+  // name (`A:::c.-> B`), which begins no link or string here: the statement
+  // fails.
+  if (continuesNodeId(text, text.length - remaining.length)) return null
 
   if (parserObservationActive('flowchart')) observeParserToken('flowchart', 'node', text.slice(0, text.length - remaining.length))
   return { id, remaining }
@@ -1524,7 +1663,7 @@ function arrowLengthFromOp(op: string): number | undefined {
     extra = (op.match(/\./g)?.length ?? 1) - 1 // -.-> / -.- base = 1 dot
   } else if (op.includes('=')) {
     const eq = op.match(/=/g)?.length ?? 2
-    extra = op.endsWith('>') ? eq - 2 : eq - 3 // ==> base 2, === base 3
+    extra = /[>ox]$/.test(op) ? eq - 2 : eq - 3 // ==> and ==x base 2, === base 3
   } else {
     const dashes = op.match(/-/g)?.length ?? 2
     const terminated = /[>ox]$/.test(op) || /^[ox]/.test(op)
@@ -1556,10 +1695,10 @@ function textArrowLengthFromOps(openOp: string, closeOp: string): number | undef
     extraClose = Math.max(0, count(closeOp, '.') - 1)
   } else if (style === 'thick') {
     extraOpen = Math.max(0, count(openOp, '=') - 2)
-    extraClose = Math.max(0, count(closeOp, '=') - (closeOp.endsWith('>') ? 2 : 3))
+    extraClose = Math.max(0, count(closeOp, '=') - (/[>ox]$/.test(closeOp) ? 2 : 3))
   } else {
     extraOpen = Math.max(0, count(openOp, '-') - 2)
-    extraClose = Math.max(0, count(closeOp, '-') - (closeOp.endsWith('>') ? 2 : 3))
+    extraClose = Math.max(0, count(closeOp, '-') - (/[>ox]$/.test(closeOp) ? 2 : 3))
   }
   const extra = Math.max(extraOpen, extraClose)
   return extra > 0 ? extra + 1 : undefined

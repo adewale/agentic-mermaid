@@ -145,10 +145,19 @@ describe('gantt parser — directives', () => {
       Task :t1, 2024-01-01, 1d
       click t1 href "https://example.com"
       click t1 call doThing(arg1, arg2)
+      click t1
+        href "https://example.com/next"
+      click t1
+        call next()
     `)
-    expect(m.clicks).toHaveLength(2)
-    expect(m.clicks[0]).toMatchObject({ taskId: 't1', action: 'href' })
-    expect(m.clicks[1]).toMatchObject({ taskId: 't1', action: 'call' })
+    expect(m.clicks.map(({ taskId, action, rest, line }) => ({ taskId, action, rest, line }))).toEqual([
+      { taskId: 't1', action: 'href', rest: '"https://example.com"', line: 3 },
+      { taskId: 't1', action: 'call', rest: 'doThing(arg1, arg2)', line: 4 },
+      // Mermaid takes the line break after the task id with the id.
+      { taskId: 't1', action: 'href', rest: '"https://example.com/next"', line: 5 },
+      { taskId: 't1', action: 'call', rest: 'next()', line: 7 },
+    ])
+    expect(() => modelOf('gantt\n  Task :t1, 2024-01-01, 1d\n  click t1\n  Next :t2, 2024-01-02, 1d')).toThrow(GanttError)
   })
 })
 

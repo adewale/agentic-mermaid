@@ -9,7 +9,6 @@
 
 import type { ConfigDiagnostic, RenderOptions, ResolvedFamilyRenderContext } from './types.ts'
 import { decodeXML } from 'entities'
-import { splitAuthoredPieTitleLine } from './pie/source-title.ts'
 import type { ArchitectureVisualConfig } from './architecture/config.ts'
 import type { DiagramColors } from './theme.ts'
 import type { NormalizedMermaidSource } from './mermaid-source.ts'
@@ -1251,22 +1250,6 @@ function capturedRequestFamily(
   )
 }
 
-/** Decode Pie grammar while keeping exact authored quoted keys and titles. */
-function pieLinesWithAuthoredText(authored: NormalizedMermaidSource): string[] {
-  const quotedLabel = /^\s*"(?:[^"\\]|\\.)*"/
-  const hybrid = authored.familyLines.map((line, index) => {
-    // Pie titles are display text, not grammar separators. Keep their entity
-    // spelling for the family-owned projection just as with quoted labels.
-    const title = splitAuthoredPieTitleLine(line, index === 0 ? 'header' : 'body')
-    if (title) return title.decodedPrefix + title.authoredTitle
-    const label = quotedLabel.exec(line)?.[0]
-    return label === undefined ? decodeXML(line) : label + decodeXML(line.slice(label.length))
-  }).join('\n')
-  // Reapply normal comment/line normalization after decoding; an entity may
-  // itself spell a comment opener or a grammar newline outside a label.
-  return normalizeMermaidSource(hybrid).familyLines
-}
-
 function assertFamilyGeometryOptions(
   family: FamilyDescriptor,
   before: RenderOptions,
@@ -2051,13 +2034,8 @@ export function resolveRenderRequestForExecution(
   // same object owns normalization, capability negotiation, layout and
   // lowering for the lifetime of this request.
   const family = resolutionOptions.familyDescriptor ?? capturedRequestFamily(detectedSource, authoredEnvelope)
-  // Mermaid Pie keys sections by the label as authored, including entity
-  // spelling. Decode grammar (header, separators, values) as before, but put
-  // authored label and title text back before Pie's own display projection.
-  const source: NormalizedMermaidSource = family.id === 'pie' && decodedText !== text
-    ? Object.freeze({ ...detectedSource,
-      authoredPieFamilyLines: Object.freeze(pieLinesWithAuthoredText(authoredEnvelope)) as unknown as string[] })
-    : detectedSource
+  // Pie keeps its authored label spelling in its own chunk (pieFamilyLines).
+  const source = detectedSource
   if (resolutionOptions.expectedFamilyId !== undefined && family.id !== resolutionOptions.expectedFamilyId) {
     throw new ParsedDiagramFamilyMismatchError(resolutionOptions.expectedFamilyId, family.id)
   }

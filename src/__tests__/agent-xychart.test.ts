@@ -7,6 +7,7 @@
 
 import { describe, test, expect } from 'bun:test'
 import fc from 'fast-check'
+import { decodeXML } from 'entities'
 import { fcParameters } from './helpers/fc-parameters.ts'
 import { parseRegisteredMermaid as parseMermaid } from '../agent/parse.ts'
 import { serializeMermaid } from '../agent/serialize.ts'
@@ -16,6 +17,7 @@ import { asXyChart } from '../agent/types.ts'
 import type { XyChartValidDiagram, XyChartMutationOp } from '../agent/types.ts'
 import { applyXYChartFrontmatterConfig, parseXYChart } from '../xychart/parser.ts'
 import { normalizeMermaidSource } from '../mermaid-source.ts'
+import { renderMermaidSVG } from '../index.ts'
 
 const SRC = `xychart-beta
   title Sales Report
@@ -130,11 +132,48 @@ describe('xychart structured-or-opaque fallback', () => {
     expect(d.body.series[0]?.values).toEqual([1, 2])
   })
 
-  test('header-line semicolons use the shared grammar and remain structured', () => {
-    const d = xychart('xychart-beta horizontal; accTitle: Accessible; bar [1, 2]')
-    expect(d.body.horizontal).toBe(true)
-    expect(d.body.accessibilityTitle).toBe('Accessible')
-    expect(d.body.series[0]?.values).toEqual([1, 2])
+  test('statements sharing a line and quoted text across lines stay structured through the writer', () => {
+    const d = xychart('xychart-beta\n  title "multi\nline" bar "Sales" [1, 2] line [2, 1]')
+    expect(d.body).toMatchObject({
+      title: 'multi\nline',
+      series: [{ kind: 'bar', name: 'Sales', values: [1, 2] }, { kind: 'line', values: [2, 1] }],
+    })
+    expect(xychart(serializeMermaid(d)).body).toEqual(d.body)
+  })
+
+  test('an accessibility directive after another statement on its line stays structured and joins the envelope', () => {
+    const cases: Array<[string, object, { title?: string; descr?: string }]> = [
+      // An inline directive's value runs to the end of its line, `;` included.
+      ['xychart-beta horizontal; accTitle: Accessible; bar [1, 2]', { horizontal: true, accessibilityTitle: 'Accessible; bar [1, 2]', series: [] }, { title: 'Accessible; bar [1, 2]' }],
+      ['xychart-beta\n  bar [1, 2] accTitle: a; line [3, 4]', { accessibilityTitle: 'a; line [3, 4]', series: [{ values: [1, 2] }] }, { title: 'a; line [3, 4]' }],
+      ['xychart-beta\n  bar [1, 2] accDescr: a; line [3, 4]', { accessibilityDescription: 'a; line [3, 4]', series: [{ values: [1, 2] }] }, { descr: 'a; line [3, 4]' }],
+      ['xychart-beta\n  bar [1, 2] accTitle: hi bar [2, 1]', { accessibilityTitle: 'hi bar [2, 1]', series: [{ values: [1, 2] }] }, { title: 'hi bar [2, 1]' }],
+      ['xychart-beta\n  accTitle: T\n  bar [1] accDescr { x } bar [2]', { accessibilityTitle: 'T', accessibilityDescription: 'x', series: [{ values: [1] }, { values: [2] }] }, { title: 'T', descr: 'x' }],
+      ['xychart-beta\n  bar [1, 2] accTitle: Quarterly revenue\n  accDescr: Two bars\n  line [3, 4]', { accessibilityTitle: 'Quarterly revenue', accessibilityDescription: 'Two bars', series: [{ values: [1, 2] }, { values: [3, 4] }] }, { title: 'Quarterly revenue', descr: 'Two bars' }],
+      // `%%` in the value is text, and a `"` in it opens no string.
+      ['xychart-beta\n  bar [1, 2] accTitle: a %% b', { accessibilityTitle: 'a %% b', series: [{ values: [1, 2] }] }, { title: 'a %% b' }],
+      ['xychart-beta\n  bar [1, 2] accDescr: a %% b\n  line [3, 4]', { accessibilityDescription: 'a %% b', series: [{ values: [1, 2] }, { values: [3, 4] }] }, { descr: 'a %% b' }],
+      ['xychart-beta\n  bar [1, 2] accTitle: a "b\n  line "s" [3, 4]', { accessibilityTitle: 'a "b', series: [{ values: [1, 2] }, { name: 's', values: [3, 4] }] }, { title: 'a "b' }],
+      ['xychart-beta\n  bar [1, 2] accDescr: a "b %% c\n  line "s" [3, 4]', { accessibilityDescription: 'a "b %% c', series: [{ values: [1, 2] }, { name: 's', values: [3, 4] }] }, { descr: 'a "b %% c' }],
+    ]
+    for (const [source, body, accessibility] of cases) {
+      const d = xychart(source)
+      expect(d.body, source).toMatchObject(body)
+      expect(d.meta.accessibility, source).toEqual(accessibility)
+      expect(d.meta.droppedComments, source).toBeUndefined()
+      expect(xychart(serializeMermaid(d)).body).toEqual(d.body)
+      // The drawing names the chart as the body does, each directive wherever it stands.
+      const svg = renderMermaidSVG(source)
+      expect(decodeXML(svg.match(/<title\b[^>]*>([^<]*)<\/title>/)?.[1] ?? '') || undefined, source).toBe(accessibility.title)
+      expect(decodeXML(svg.match(/<desc\b[^>]*>([^<]*)<\/desc>/)?.[1] ?? '') || undefined, source).toBe(accessibility.descr)
+    }
+    // Beside another value on a line of its own, Mermaid keeps the one written
+    // last, which neither reader can order: the source is kept, and said so.
+    const source = 'xychart-beta\n  accTitle: first\n  bar [1] accTitle: second\n'
+    const parsed = parseMermaid(source)
+    expect(parsed.ok && parsed.value.body.kind).toBe('opaque')
+    if (parsed.ok) expect(serializeMermaid(parsed.value)).toBe(source)
+    expect(verifyMermaid(source).warnings).toContainEqual(expect.objectContaining({ code: 'UNSUPPORTED_SYNTAX', syntax: 'xychart_accessibility_order' }))
   })
 
   test('repeated axis directives preserve independently authored components in either order', () => {

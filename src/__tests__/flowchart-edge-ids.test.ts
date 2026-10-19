@@ -48,6 +48,19 @@ describe('flowchart edge IDs — parse', () => {
     expect(text.label).toBe('label')
   })
 
+  // Upstream's LINK_ID is any run of non-space, non-`"` characters before
+  // `@`; a metadata statement names it as a node id. Ours leaves out the
+  // region delimiters and `@` (`e[1`, `e1@x` stay rejected).
+  it.each(['e.1', 'e:1', 'e&1', 'e/1', 'é1'])('reads the edge id %s, its metadata and writes both back', id => {
+    const source = `flowchart LR\n  A ${id}@==x B\n  ${id}@{ animate: true }`
+    const parsed = parseMermaid(source)
+    if (!parsed.ok) throw new Error(JSON.stringify(parsed.error))
+    for (const graph of [parseGraph(source), parseGraph(serializeMermaid(parsed.value))]) {
+      expect([...graph.nodes.keys()]).toEqual(['A', 'B'])
+      expect(graph.edges).toEqual([expect.objectContaining({ id, source: 'A', target: 'B', endMarker: 'cross', animate: true })])
+    }
+  })
+
   it('edges without an authored ID carry none', () => {
     expect(parseGraph('flowchart LR\n  A --> B').edges[0]!.id).toBeUndefined()
   })

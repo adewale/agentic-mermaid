@@ -4,7 +4,7 @@ import { withFrontmatterTitle } from '../mermaid-source.ts'
 import { layoutResult, positionedView, scene, type BrowserSvgFamilyHooks } from '../browser-lazy/family.ts'
 import { resolveArchitectureVisualConfig } from '../architecture/config.ts'
 import { layoutArchitectureDiagram } from '../architecture/layout.ts'
-import { parseArchitectureDiagram } from '../architecture/parser.ts'
+import { architectureStatementEnds, parseArchitectureDiagram } from '../architecture/parser.ts'
 import { lowerArchitectureScene } from '../architecture/renderer.ts'
 import { withAccessibilityFields } from '../shared/accessibility-directives.ts'
 
@@ -12,6 +12,7 @@ import { withAccessibilityFields } from '../shared/accessibility-directives.ts'
  * (src/render-family-hooks.ts) and the lazy browser chunk. */
 export const ARCHITECTURE_SVG_HOOKS = {
   configDiagnostics: diagnoseArchitectureConfig,
+  statementEnds: architectureStatementEnds,
   normalizeRequest: ctx => {
     const resolved = resolveArchitectureVisualConfig(ctx.source.frontmatter, ctx.colors, ctx.renderOptions, ctx.styleFace)
     const renderOptions = {

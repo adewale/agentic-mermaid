@@ -50,7 +50,7 @@ import { clipEdgeToShape } from './shape-clipping.ts'
 import { onShapeOutline, assessLayout, hardViolations, measureRubricMetrics } from './layout-rubric.ts'
 import { applyRouteContracts, classifyRoutes, closeRouteContracts, diamondFacetPorts, labelRect, PORT_EXACT, repairLabelsOffOwnRoute, repairLabelsOnSharedTrunks, separateEdgeLabelPills, shapePorts, simplifyPolyline, trimBoundaryEndpointRuns } from './route-contracts.ts'
 import type { LabelMetricsStyle } from './route-contracts.ts'
-import { resolveEdgeInlineStyle, resolveNodeInlineStyle } from './color-resolver.ts'
+import { resolveClassInlineStyle, resolveEdgeInlineStyle, resolveNodeInlineStyle } from './color-resolver.ts'
 import { runPipeline } from './layout/pass.ts'
 import type { LayoutPass, PassContextBase } from './layout/pass.ts'
 import type { PassMetrics, RubricMetric } from './layout/pass.ts'
@@ -1711,6 +1711,7 @@ function extractNodesAndGroups(
       extractNodesAndGroups(child, graph, subgraphIds, nodes, childGroups, x, y)
 
       const mermaidSg = findSubgraph(graph.subgraphs, child.id)
+      const paint = mermaidSg?.stateComposite ? resolveClassInlineStyle(child.id, graph) : undefined
       groups.push({
         id: child.id,
         label: mermaidSg?.label ?? '',
@@ -1721,6 +1722,7 @@ function extractNodesAndGroups(
         height,
         children: childGroups,
         ...(mermaidSg?.concurrencyRegion ? { concurrencyRegion: true as const } : {}),
+        ...(paint ? { inlineStyle: paint } : {}),
       })
     } else {
       // This is a leaf node

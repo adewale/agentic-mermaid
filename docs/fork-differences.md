@@ -144,9 +144,12 @@ subgraph, once each. An inner subgraph closes before its enclosing subgraph.
 But the families do not collect the same candidates:
 
 - Flowchart node statements and edge endpoints add newly created nodes and
-  explicit shaped/metadata definitions to the current subgraph. A bare reference
-  to an already-known node does not add it; neither does a `style` statement that
-  creates a node. First mention therefore still matters for bare Flowchart references.
+  explicit shaped/metadata definitions to the current subgraph. A link endpoint
+  naming an already-known node does not add it; neither does a `style` statement
+  that creates a node. A statement of node ids alone (`a`, `a & b`, `a:::c`) lists
+  them in the current subgraph if no subgraph has listed them yet, as Mermaid's
+  nested-subgraph spec reads it, and a subgraph id listed this way nests that
+  subgraph there. First mention therefore still matters for link endpoints.
 - ER collects entity declarations and entity endpoints of relations, even for
   entities already named at top level. A prior top-level mention does not prevent
   a later ER subgraph from keeping that entity. A style directive alone does not

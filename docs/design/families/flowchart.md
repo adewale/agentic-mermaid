@@ -132,8 +132,9 @@ Upstream schema verified 2026-07-10
   line so emphasis cannot leak or disappear across a break.
 - Explicit line breaks: real newlines inside the backtick string (and `<br>`)
   become label line breaks. Multiline strings are coalesced pre-parse
-  (`coalesceMarkdownStringLines`), joining on `<br>` — the label pipeline's
-  canonical break token — so single-line shape grammars keep matching.
+  (`coalesceFlowchartLines`, shared with verify and action analysis), joining
+  on `<br>` — the label pipeline's canonical break token — so single-line
+  shape grammars keep matching.
 - Markdown labels auto-wrap at `flowchart.wrappingWidth` (default 200),
   matching upstream's markdown-only auto-wrap default.
 - The agent body stays **opaque** for any backtick source, so the original

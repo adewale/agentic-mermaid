@@ -3,13 +3,37 @@ import type {
 } from './types.ts'
 import { err, ok } from './types.ts'
 import type { MindmapNode, MindmapShape } from '../mindmap/types.ts'
-import { parseMindmap, serializeMindmap } from '../mindmap/parser.ts'
+import { mindmapNestedShapeLines, mindmapStatementEnds, parseMindmap, serializeMindmap } from '../mindmap/parser.ts'
+import { parseAccessibilityDirective } from '../shared/accessibility-directives.ts'
 import { labelOverflowCollector, setOptionalField } from './body-utils.ts'
 import { unknownOpMessage } from './mutation-ops.ts'
 
-export function parseMindmapBody(source: string): MindmapBody {
+/** Parsed bodies whose authored header pinned Mermaid rejects for the space
+ * after it, with the header's authored line. The canonical source keeps no
+ * blank line or trailing whitespace, so parsing records it for verify. */
+const spaceAfterHeader = new WeakMap<MindmapBody, number>()
+
+/** `authored` is the authored source from the header on, which starts on
+ * authored line `line`. */
+export function parseMindmapBody(source: string, authored?: { source: string; line: number }): MindmapBody {
   const diagram = parseMindmap(source)
-  return { kind: 'mindmap', ...diagram }
+  const body: MindmapBody = { kind: 'mindmap', ...diagram }
+  if (authored && mermaidRejectsSpaceAfterHeader(authored.source)) spaceAfterHeader.set(body, authored.line)
+  return body
+}
+
+/** Mermaid's mindmap lexer takes whitespace at the end of the header line, or
+ * a blank line after it, together with the line break, as one SPACELINE
+ * token, which its grammar accepts after the header only before another line
+ * break. It first removes each directive, leaving its line, and each `%%`
+ * line together with the blank lines before it. */
+function mermaidRejectsSpaceAfterHeader(authored: string): boolean {
+  const text = authored.replace(/\r\n?/g, '\n')
+    .replace(/%%\{[\s\S]*?\}%%/g, '')
+    .replace(/^\s*%%(?!\{)[^\n]+\n?/gm, '')
+    .replace(/^\s*mindmap/i, '')
+  const space = /^\s*/.exec(text)![0]
+  return space.lastIndexOf('\n') > 0 && space.length < text.length
 }
 
 export function renderMindmapBody(body: MindmapBody): string {
@@ -199,6 +223,38 @@ export function mutateMindmap(body: MindmapBody, op: MindmapMutationOp): Result<
   }
 }
 
+/** Mindmap source ours reads where pinned Mermaid reads it otherwise, each
+ * on its canonical line: shape text holding its own delimiters in pairs, and
+ * an accessibility directive, which Mermaid's mindmap grammar does not have. */
+export function mindmapUnsupportedSyntaxWarnings(canonicalSource: string): LayoutWarning[] {
+  const warnings: Array<LayoutWarning & { line: number }> = mindmapNestedShapeLines(canonicalSource).map(line => ({
+    code: 'UNSUPPORTED_SYNTAX',
+    syntax: 'mindmap_nested_shape_delimiters',
+    line,
+    message: 'Shape text holding delimiters of its own in pairs, as `root((a (b) c))`, is read whole. Pinned Mermaid ends the shape at the first closing delimiter and rejects the rest; put the whole text in double quotes.',
+  }))
+  const lines = canonicalSource.split(/\r?\n/)
+  const header = lines.findIndex(line => /^\s*mindmap\s*$/i.test(line))
+  // A line inside a shape's text is no directive (mindmapStatementEnds).
+  const ends = mindmapStatementEnds(lines)
+  for (let index = header + 1; header >= 0 && index < lines.length;) {
+    const directive = parseAccessibilityDirective(lines, index)
+    if (directive === undefined) break
+    if (directive === null) {
+      index = ends[index]! + 1
+      continue
+    }
+    warnings.push({
+      code: 'UNSUPPORTED_SYNTAX',
+      syntax: 'mindmap_accessibility',
+      line: index + 1,
+      message: 'An accTitle or accDescr is read as the mindmap\'s accessible title or description, and written before its root. Pinned Mermaid\'s mindmap has no accessibility statements: it reads the line as a node, or rejects it as a second root. Mermaid has no spelling that keeps it.',
+    })
+    index = directive.endIndex + 1
+  }
+  return warnings.sort((left, right) => left.line - right.line)
+}
+
 export function verifyMindmap(body: MindmapBody, opts: VerifyOptions): LayoutWarning[] {
   const warnings: LayoutWarning[] = []
   const overflow = labelOverflowCollector(warnings, opts)
@@ -207,5 +263,14 @@ export function verifyMindmap(body: MindmapBody, opts: VerifyOptions): LayoutWar
     node.children.forEach(visit)
   }
   visit(body.root)
+  const headerLine = spaceAfterHeader.get(body)
+  if (headerLine !== undefined) {
+    warnings.push({
+      code: 'UNSUPPORTED_SYNTAX',
+      syntax: 'mindmap_space_after_header',
+      line: headerLine,
+      message: 'Whitespace at the end of the mindmap header line, or a blank line right after it, is ignored. Pinned Mermaid rejects the diagram; remove it, as the writer does.',
+    })
+  }
   return warnings
 }

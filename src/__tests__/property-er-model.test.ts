@@ -315,10 +315,10 @@ describe('ER typed editing API against a shadow model', () => {
   })
 
   test('order repair leaves opaque segments anchored around their subgraphs', () => {
-    const source = 'erDiagram\n  A ||--o{ X : r\n  vendor before\n  subgraph G\n  %% inside G\n  B\n  end\n  vendor between\n  subgraph I\n  A ||--o{ C : s\n  end\n  %% after I'
+    const source = 'erDiagram\n  A ||--o{ X : r\n  vendor: before\n  subgraph G\n  %% inside G\n  B\n  end\n  vendor: between\n  subgraph I\n  A ||--o{ C : s\n  end\n  %% after I'
     const written = expectRoundTrip(source, [{ kind: 'remove_entity', id: 'X' }], undefined, ['A in I', 'B in G', 'C in I'])
-    const anchored = written.split('\n').map(line => line.trim()).filter(line => /^(?:vendor |%% |subgraph |end$)/.test(line))
-    expect(anchored).toEqual(['vendor before', 'subgraph G', '%% inside G', 'end', 'vendor between', 'subgraph I', 'end', '%% after I'])
+    const anchored = written.split('\n').map(line => line.trim()).filter(line => /^(?:vendor: |%% |subgraph |end$)/.test(line))
+    expect(anchored).toEqual(['vendor: before', 'subgraph G', '%% inside G', 'end', 'vendor: between', 'subgraph I', 'end', '%% after I'])
   })
 
   test('a class on an entity that only its style line creates survives serialization', () => {

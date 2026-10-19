@@ -421,6 +421,30 @@ class Other
     }
   })
 
+  // Pinned Mermaid reads only braces after a block's `}` on its line.
+  test.each([
+    ['class A {\n+x } class Free', undefined, 'class_statement_after_class_close', 3],
+    ['class A {+x} class Free', undefined, 'class_statement_after_class_close', 2],
+    ['class A {\n+x\n} class Free', undefined, 'class_statement_after_class_close', 4],
+    ['namespace Outer {\nclass A\n} class Free', 'Outer', 'class_statement_after_namespace_close', 4],
+  ] as const)('a statement after a closing brace on its line is read and diagnosed: %j', async (body, namespace, syntax, line) => {
+    const source = `classDiagram\n${body}`
+    const diagram = classDiagram(source)
+    const expected = [{ id: 'A', namespace }, { id: 'Free', namespace: undefined }]
+    expect(diagram.body.classes.map(node => ({ id: node.id, namespace: node.namespace }))).toEqual(expected)
+    expect(renderMermaidSVG(source)).toMatch(/<text\b[^>]*>Free<\/text>/)
+    expect(verifyMermaid(source).warnings.filter(warning => warning.code === 'UNSUPPORTED_SYNTAX')).toEqual([expect.objectContaining({ syntax, line })])
+    const serialized = serializeMermaid(diagram)
+    expect(verifyMermaid(serialized).warnings.filter(warning => warning.code === 'UNSUPPORTED_SYNTAX')).toEqual([])
+    const upstream = startUpstreamMermaid()
+    try {
+      expect(await upstream.accepts(source)).toBe(false)
+      expect(await upstream.accepts(serialized)).toBe(true)
+    } finally {
+      await upstream.close()
+    }
+  })
+
   test.each([' class Free', 'class Free', '; class Free', ';class Free', '\nclass Free'])('a statement after a compact namespace retains meaning and diagnoses nonportable separation: %j', async suffix => {
     const source = `classDiagram\nnamespace Outer { class First }${suffix}`
     const diagram = classDiagram(source)
@@ -517,6 +541,19 @@ class Other
       source: 'classDiagram\nnamespace Domain { class First\nclass Second\n}\nclass Free',
       classes: [{ id: 'First', namespace: 'Domain' }, { id: 'Second', namespace: 'Domain' }, { id: 'Free', namespace: undefined }],
       membership: [['Domain', ['First', 'Second']]],
+    },
+    {
+      // Mermaid's lexer reads `}` after a statement as the namespace's end.
+      name: 'a statement may share a line with the brace that closes its namespace',
+      source: 'classDiagram\nnamespace Domain { class First\nclass Second }\nnamespace Other {\nclass Third <<interface>> }\nclass Free',
+      classes: [{ id: 'First', namespace: 'Domain' }, { id: 'Second', namespace: 'Domain' }, { id: 'Third', namespace: 'Other' }, { id: 'Free', namespace: undefined }],
+      membership: [['Domain', ['First', 'Second']], ['Other', ['Third']]],
+    },
+    {
+      name: 'one line may close a class body and the namespaces around it',
+      source: 'classDiagram\nnamespace Outer {\nnamespace Inner {\nclass First\nclass Last:::hot {+id} }}\nclass Free\nclassDef hot fill:red',
+      classes: [{ id: 'First', namespace: 'Outer.Inner' }, { id: 'Last', namespace: 'Outer.Inner' }, { id: 'Free', namespace: undefined }],
+      membership: [['Outer', []], ['Outer.Inner', ['First', 'Last']]],
     },
     {
       name: 'a nested quoted atom remains a child namespace after serialization',
@@ -645,4 +682,32 @@ class Other
     expect(facts.some(f => f.includes('namespace Shapes'))).toBe(true)
     expect(facts.some(f => f.includes('Triangle') && f.includes('Shapes'))).toBe(true)
   })
+})
+
+// Mermaid's cssClass names classes by their ids as written and styles only
+// classes declared before it, and Mermaid reads `class A c` as one class `Ac`.
+// Ours keeps the style class each form means, declares no class for a
+// cssClass, warns where Mermaid reads the source otherwise, and writes
+// `cssClass "A" c`, which Mermaid reads as written.
+test.each<[string, Array<[string, string | null]>, string[]]>([
+  ['class `my class`\ncssClass "my class" hot', [['my class', 'hot']], []],
+  ['class A\ncssClass "B" hot', [['A', null]], []],
+  ['cssClass "A" hot\nclass A', [['A', 'hot']], ['class_css_class_before_class']],
+  ['class A\nclass A hot', [['A', 'hot']], ['class_style_assignment']],
+  ['class A\ncssClass A hot', [['A', 'hot']], ['class_style_assignment']],
+])('the style class of %j', async (body, expected, syntax) => {
+  const source = `classDiagram\n${body}\nclassDef hot fill:#f00`
+  expect(renderParse(source).classes.map(({ id, className }) => [id, className ?? null])).toEqual(expected)
+  const diagram = classDiagram(source)
+  expect(diagram.body.classes.map(({ id, className }) => [id, className ?? null])).toEqual(expected)
+  expect(verifyMermaid(source).warnings.flatMap(warning => warning.code === 'UNSUPPORTED_SYNTAX' ? [warning.syntax] : [])).toEqual(syntax)
+  const written = serializeMermaid(diagram)
+  const upstream = startUpstreamMermaid()
+  try {
+    const classes = await upstream.project(written, mermaid => [...(mermaid.db as unknown as { getClasses(): Map<string, { id: string; cssClasses: string }> }).getClasses().values()]
+      .map(({ id, cssClasses }) => [id, cssClasses.split(' ').find(name => name && name !== 'default') ?? null]))
+    expect({ written, classes }).toEqual({ written, classes: { ok: true, value: expected } })
+  } finally {
+    await upstream.close()
+  }
 })

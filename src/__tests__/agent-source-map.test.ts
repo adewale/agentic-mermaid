@@ -36,6 +36,38 @@ describe('flowchart SourceMap', () => {
     expect(parsed.value.source.edges.get('edge#1:B->A')).toEqual({ line: 7, col: 1 })
   })
 
+  test('maps a subgraph to its own declaration, not one whose id begins with it', () => {
+    const source = 'flowchart LR\n  subgraph S-x\n    A\n  end\n  subgraph S\n    B\n  end\n  subgraph **Two** [t]\n    C\n  end'
+    const parsed = parseMermaid(source)
+    if (!parsed.ok) throw new Error(JSON.stringify(parsed.error))
+    expect(['S-x', 'S', '**Two**'].map(id => parsed.value.source.groups.get(id)?.line)).toEqual([2, 5, 8])
+  })
+
+  // The parser reads a label, string or link across lines, and ER statements
+  // may share a line: each location is on the line its text came from, and a
+  // span covers its statement alone.
+  test.each([
+    ['flowchart TD\nA["see\nC here"]\nB --> C', 'nodes', 'C', { line: 4, col: 7 }, 'B --> C'],
+    ['flowchart TD\nA["see\nC here"]\nB --> C', 'labels', 'node:A', { line: 2, col: 4 }, 'see\nC here'],
+    ['flowchart TD\nA -->\nB', 'edges', 'edge#0:A->B', { line: 2, col: 1 }, 'A -->\nB'],
+    ['flowchart TD\nA["a\nB"] --> B\nB --> C', 'nodes', 'B', { line: 3, col: 9 }, 'A["a\nB"] --> B'],
+    ['flowchart TD\nA["a\nB"] --> B\nB --> C', 'edges', 'edge#0:A->B', { line: 2, col: 1 }, 'A["a\nB"] --> B'],
+    ['flowchart TD\n  A -- some\n    text --> B', 'labels', 'edge#0:A->B', { line: 2, col: 6 }, 'some\n    text'],
+    ['erDiagram\n  A { int id PK string name } B', 'nodes', 'A', { line: 2, col: 1 }, 'A {'],
+    ['erDiagram\n  A { int id PK string name } B', 'nodes', 'B', { line: 2, col: 29 }, 'B'],
+    ['erDiagram\n  A { int id PK string name } B', 'labels', 'er:A:attr#0', { line: 2, col: 5 }, 'int id PK'],
+    ['erDiagram\n  A { int id PK string name } B', 'labels', 'er:A:attr#1', { line: 2, col: 15 }, 'string name'],
+    ['erDiagram\n  A {\n  int\n  id\n  }', 'labels', 'er:A:attr#0', { line: 3, col: 1 }, 'int\n  id'],
+    ['erDiagram\n  A ||--o{ B : r %% c', 'edges', 'rel#0:A->B', { line: 2, col: 1 }, 'A ||--o{ B : r'],
+    ['erDiagram\n  A ||--o{ B : r %% c', 'labels', 'rel#0:A->B', { line: 2, col: 14 }, 'r'],
+    ['erDiagram\n  A ||--o{ B : "r s" %% c', 'labels', 'rel#0:A->B', { line: 2, col: 15 }, 'r s'],
+  ] as const)('maps %j %s %s across lines', (source, kind, key, location, text) => {
+    const parsed = parseMermaid(source)
+    if (!parsed.ok) throw new Error(JSON.stringify(parsed.error))
+    expect(parsed.value.source[kind].get(key)).toEqual(location)
+    expect(textAt(source, parsed.value.source.spans![kind].get(key))).toBe(text)
+  })
+
   test('BUG-26: spans read `\'` as text and `\\` as no escape, as the parser does', () => {
     // An apostrophe opens no string, so it cannot hide the `;` that ends its
     // statement; a `\` before a closing `"` escapes nothing.
@@ -111,6 +143,15 @@ describe('flowchart SourceMap', () => {
     expect(er.value.source.labels.get('er:CUSTOMER:attr#0')).toEqual({ line: 3, col: 1 })
     expect(er.value.source.labels.get('rel#0:CUSTOMER->ORDER:leftCardinality')).toEqual({ line: 5, col: 10 })
     expect(er.value.source.labels.get('rel#0:CUSTOMER->ORDER:rightCardinality')).toEqual({ line: 5, col: 14 })
+
+    // Statements sharing a line with an attribute block are located on it.
+    const inlineEr = parseMermaid('erDiagram\n  CUSTOMER { string email PK int age } CUSTOMER ||--o{ ORDER : places\n')
+    expect(inlineEr.ok).toBe(true)
+    if (!inlineEr.ok) return
+    expect(inlineEr.value.source.labels.get('er:CUSTOMER:attr#0')).toEqual({ line: 2, col: 12 })
+    expect(inlineEr.value.source.labels.get('er:CUSTOMER:attr#1')).toEqual({ line: 2, col: 28 })
+    expect(inlineEr.value.source.labels.get('rel#0:CUSTOMER->ORDER:leftCardinality')).toEqual({ line: 2, col: 47 })
+    expect(inlineEr.value.source.labels.get('rel#0:CUSTOMER->ORDER:rightCardinality')).toEqual({ line: 2, col: 51 })
 
     const chart = parseMermaid(`xychart-beta
   x-axis [Jan, Feb]
@@ -290,6 +331,22 @@ accDescr: {
     }
   })
 
+  // Behind a wrapper too, and after a space where the family reads a statement
+  // on its header line; its statement spans stand on that line.
+  test.each([
+    ['%% c\nflowchart LR; A --> B', 'flowchart LR', 'A --> B', ''],
+    ['---\ntitle: T\n---\nflowchart LR; A --> B', 'flowchart LR', 'A --> B', ''],
+    ['erDiagram A ||--o{ B : x', 'erDiagram', 'A ||--o{ B : x', 'rel#0:A->B'],
+    ['sequenceDiagram A->>B: hi', 'sequenceDiagram', 'A->>B: hi', ''],
+    ['gitGraph LR: commit', 'gitGraph LR:', 'commit', ''],
+  ])('separates the header of %j from the statement after it', (source, header, body, edge) => {
+    const parsed = parseMermaid(source)
+    if (!parsed.ok) throw new Error(JSON.stringify(parsed.error))
+    const spans = parsed.value.source.spans!
+    expect([textAt(source, spans.preserved.header), textAt(source, spans.preserved.body)]).toEqual([header, body])
+    if (edge) expect(textAt(source, spans.edges.get(edge))).toBe(body)
+  })
+
   test('maps duplicate indexed objects to their distinct authored occurrences', () => {
     const flow = `flowchart LR
  A --> B
@@ -387,10 +444,15 @@ accDescr: {
 
     for (const [source, key, expected] of [
       ['pie\n "pie": 1', 'pie:slice#0', 'pie'],
+      ['pie\n "multi\n label": 1\n "b": 2', 'pie:slice#1', 'b'],
       ['quadrantChart\n quadrant: [0.2,0.3]', 'quadrant:point#0', 'quadrant'],
       ['radar-beta\n axis a["Same"], b["Same"]\n curve c{1,2}', 'radar:axis#0', 'a'],
       ['radar-beta\n axis a["Same"], b["Same"]\n curve c{1,2}', 'radar:curve#0', 'c'],
       ['gantt\n dateFormat YYYY-MM-DD\n section S\n Same :a, 2024-01-01, 1d', 'gantt:task:a', 'Same'],
+      // A text-arrow label ends at the link that closes it, a dotted one
+      // without its leading `-` too, and a solid one holds a `.-` as text.
+      ['flowchart LR\n  A -. x .- y .-> B', 'edge#0:A->y', 'x'],
+      ['flowchart LR\n  A -- a.-b --> B', 'edge#0:A->B', 'a.-b'],
     ] as const) {
       const item = parseMermaid(source)
       expect(item.ok).toBe(true)
@@ -537,13 +599,14 @@ Go--xH`
     expect(markedParsed.ok).toBe(true)
     if (markedParsed.ok) {
       expect([...markedParsed.value.source.nodes.keys()].sort())
-        .toEqual(['x', 'A', 'o', 'B', 'C', 'D', 'E', 'F', 'G', 'H'].sort())
+        .toEqual(['x', 'A', 'o', 'B', 'C', 'D', 'E', 'F', 'Go', 'H'].sort())
       for (const [key, statement] of [
         ['edge#0:x->A', 'x-->A'],
         ['edge#1:o->B', 'o==>B'],
         ['edge#2:C->D', 'C--xD'],
         ['edge#3:E->F', 'E--oF'],
-        ['edge#4:G->H', 'Go--xH'],
+        // An `o` after id characters is the id's (upstream's node string).
+        ['edge#4:Go->H', 'Go--xH'],
       ] as const) {
         expect(textAt(marked, markedParsed.value.source.spans!.edges.get(key))).toBe(statement)
       }
