@@ -328,7 +328,7 @@ function isFlowchartInteractionDirective(statement: string): boolean {
 
 function isUnsupportedFlowchartInteraction(statement: string): boolean {
   if (!isFlowchartInteractionDirective(statement)) return false
-  return !/^(?:click\s+)?[\w-]+\s+(?:href\s+)?(?:"(?:https?:|mailto:)[^"]*"|(?:https?:|mailto:)\S+)\s*$/i.test(statement.trim())
+  return !/^(?:click\s+)?\S+\s+(?:href\s+)?(?:"(?:https?:|mailto:)[^"]*"|(?:https?:|mailto:)\S+)\s*$/i.test(statement.trim())
 }
 
 function declaredEdgeIds(statements: FlowchartStatement[]): Set<string> {

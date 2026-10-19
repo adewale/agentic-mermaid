@@ -69,11 +69,13 @@ describe('flowchart parser conformance safety floor (issue #36)', () => {
   })
 
   test('anonymous IDs cannot hide endpoints in compact marker links', () => {
+    // An `o` after id characters is the id's, as upstream's node string
+    // reads it: `Xo--xY` is Xo --x Y.
     const source = 'flowchart TD\nXo--xY\nsubgraph "X?"\nA\nend\nsubgraph "Y?"\nB\nend'
     for (const text of [source, serializeMermaid(parseAgent(source))]) {
       const graph = parseGraph(text)
-      expect([...graph.nodes.keys()].sort()).toEqual(['A', 'B', 'X', 'Y'])
-      expect(graph.edges.map(edge => [edge.source, edge.target, edge.startMarker, edge.endMarker])).toEqual([['X', 'Y', 'circle', 'cross']])
+      expect([...graph.nodes.keys()].sort()).toEqual(['A', 'B', 'Xo', 'Y'])
+      expect(graph.edges.map(edge => [edge.source, edge.target, edge.startMarker, edge.endMarker])).toEqual([['Xo', 'Y', undefined, 'cross']])
       expect(graph.subgraphs.every(group => !graph.nodes.has(group.id))).toBe(true)
     }
   })
@@ -206,8 +208,9 @@ describe('flowchart parser conformance safety floor (issue #36)', () => {
       'A --> B & \n  C',
       // A link at a line's end does not take in a keyword: `end` is no node.
       'subgraph X\n  B -->\n  end',
-      // A string opened after other title text is not the title's, as upstream.
-      'subgraph X "title\n  more"\n  C\n  end',
+      // A string opened after other title text is not the title's, as upstream:
+      // the next line is a statement of its own.
+      'subgraph X "title\n  more" C\n  end',
       // Upstream's edge text holds no `--` (`==`) but the link that closes
       // it, on one line, past a `;` or across lines.
       'A -- x -- y --> B',

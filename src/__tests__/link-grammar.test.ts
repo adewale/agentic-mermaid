@@ -81,8 +81,12 @@ describe('variable-length links preserve style and direction', () => {
   })
 
   // Upstream's node string runs on through a `.` right after an id: `A.-B`
-  // is one node `A.-B` there, which ours cannot hold, so it is no edge here.
-  it.each(['A.-B', 'A.->B', 'A:::c.-> B'])('%s does not read as a dotted link', statement => {
+  // is the one node `A.-B`, and `A.->B` is the id `A.` before `->`, which
+  // no link spells.
+  it('reads A.-B as one node, as upstream does', () => {
+    expect(nodeIds('flowchart LR\n  A.-B')).toEqual(['A.-B'])
+  })
+  it.each(['A.->B', 'A:::c.-> B'])('%s does not read as a dotted link', statement => {
     expect(() => parseMermaid(`flowchart LR\n  ${statement}`)).toThrow()
   })
 })

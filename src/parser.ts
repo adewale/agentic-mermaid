@@ -27,9 +27,8 @@ import type { Direction, EdgeMarker, EdgeStyle, MermaidEdge, MermaidGraph, Merma
 export { parseStyleProps } from './shared/style-props.ts'
 import { detectCompatibilityGraphFamilyFromFirstLine } from './agent/family-router.ts'
 import { classifyMermaidFamilyFromFirstLine } from './family-detection.ts'
-import { coalesceFlowchartLines, dotContinuesId, findTextArrow, flowchartRegionAt, flowchartStatementSpans, matchFlowchartLink, matchTextArrow } from './flowchart-lexer.ts'
+import { coalesceFlowchartLines, continuesNodeId, findTextArrow, flowchartNodeIdLength, flowchartRegionAt, flowchartStatementSpans, matchFlowchartLink, matchTextArrow } from './flowchart-lexer.ts'
 import { consumeClassShorthandPrefix,
-  consumeMermaidIdentifier,
   isMermaidIdentifier, MERMAID_IDENTIFIER_SOURCE, parseClassShorthandStatement } from './shared/mermaid-identifiers.ts'
 import { metadataText, readMetadataBlock } from './shared/metadata-yaml.ts'
 import { syntaxError } from './shared/syntax-error.ts'
@@ -140,7 +139,7 @@ function parseFlowchartSubgraphDeclaration(rest: string): Pick<MermaidSubgraph, 
   // tag separates words like a space: a line break the title runs across is
   // `<br>` here (coalesceFlowchartLines), and `a<br>b` is `a_b`, not `abrb`.
   const id = identity.replace(/<\/?[a-z][^<>]*>/gi, ' ').trim().replace(/\s+/g, '_').replace(/[^\p{L}\p{N}_-]/gu, '').replace(/-{2,}/g, '_')
-  const generated = id !== identity || !isMermaidIdentifier(identity) || flowchartIdLength(identity, identity.length) !== identity.length
+  const generated = id !== identity || !isMermaidIdentifier(identity) || flowchartNodeIdLength(identity) !== identity.length
   return { id: id || 'group', label: parsed.text, ...(parsed.labelContent ? { labelContent: parsed.labelContent } : {}), generated, identity }
 }
 
@@ -151,12 +150,18 @@ export function splitFlowchartStatements(line: string): string[] {
   return flowchartStatementSpans(line).map(statement => statement.text)
 }
 
+/** A `class` or `style` statement's match, when its first operand is a `,`
+ * list of node ids (flowchartNodeIdLength), else null. */
+function nodeIdListStatement(match: RegExpMatchArray | null): RegExpMatchArray | null {
+  return match && match[1]!.split(',').every(id => id === '' || flowchartNodeIdLength(id) === id.length) ? match : null
+}
+
 function isFlowchartInteractionDirective(line: string): boolean {
   return /^(?:click|href)\s+/i.test(line.trim())
 }
 
 function applyFlowchartInteraction(graph: MermaidGraph, line: string): void {
-  const match = line.trim().match(/^(?:click\s+)?([\w-]+)\s+(?:href\s+)?(?:"((?:\\.|[^"])*)"|(https?:\/\/\S+|mailto:\S+))/i)
+  const match = line.trim().match(/^(?:click\s+)?(\S+)\s+(?:href\s+)?(?:"((?:\\.|[^"])*)"|(https?:\/\/\S+|mailto:\S+))/i)
   if (!match) return
   const href = (match[2] ?? match[3] ?? '').replace(/\\(["\\])/g, '$1')
   if (!/^(?:https?:|mailto:)/i.test(href)) return
@@ -325,7 +330,7 @@ function parseFlowchart(lines: string[]): MermaidGraph {
       }
 
       // --- class assignment: `class A,B className` ---
-      const classAssignMatch = line.match(/^class\s+([\w,-]+)\s+([\w-]+)\s*;?$/)
+      const classAssignMatch = nodeIdListStatement(line.match(/^class\s+(\S+)\s+([\w-]+)\s*;?$/))
       if (classAssignMatch) {
         const nodeIds = classAssignMatch[1]!.split(',').map(s => s.trim())
         const className = classAssignMatch[2]!
@@ -337,7 +342,7 @@ function parseFlowchart(lines: string[]): MermaidGraph {
       }
 
       // --- style statement: `style A,B fill:#f00,stroke:#333` ---
-      const styleMatch = line.match(/^style\s+([\w,-]+)\s+(.+)$/)
+      const styleMatch = nodeIdListStatement(line.match(/^style\s+(\S+)\s+(.+)$/))
       if (styleMatch) {
         const nodeIds = styleMatch[1]!.split(',').map(s => s.trim()).filter(Boolean)
         // A styled id is a mention: it creates the node, as upstream's
@@ -494,25 +499,15 @@ function collectFlowchartSubgraphDeclarations(lines: string[]): Map<string, Retu
         declarations.set(rest, declaration)
         if (!declaration.generated) reserved.add(declaration.id)
       } else {
-        // Reserving identifier runs also covers declarations inside compound
-        // chains and metadata without executing their Cartesian expansion.
-        for (const token of line.matchAll(new RegExp(MERMAID_IDENTIFIER_SOURCE, 'gu'))) {
-          const end = token.index + token[0].length
-          let start = token.index
-          // Compact links can share one identifier run (Xo--xY). Reserve
-          // each actual endpoint, as well as the unbroken directive operand.
-          reserved.add(token[0])
-          for (let index = start; index < end; index++) {
-            const link = matchFlowchartLink(line, index)
-            if (!link) continue
-            if (index > start) reserved.add(line.slice(start, index))
-            start = link.end
-            index = link.end - 1
-          }
-          if (start < end) {
-            const suffix = line.slice(start)
-            reserved.add(suffix.slice(0, flowchartIdLength(suffix, end - start)))
-          }
+        // Reserving every node id the line could hold also covers
+        // declarations inside compound chains and metadata without executing
+        // their Cartesian expansion. Identifier runs keep the unbroken
+        // directive operands (`class A,B c`) reserved too.
+        for (const token of line.matchAll(new RegExp(MERMAID_IDENTIFIER_SOURCE, 'gu'))) reserved.add(token[0])
+        for (let index = 0; index < line.length;) {
+          const length = flowchartNodeIdLength(line, index)
+          if (length > 0) reserved.add(line.slice(index, index + length))
+          index = matchFlowchartLink(line, index)?.end ?? index + Math.max(length, 1)
         }
       }
     }
@@ -1119,11 +1114,11 @@ function consumeTextArrow(text: string): ConsumedTextArrow | null {
 }
 
 /**
- * Node shape patterns — ordered from most specific delimiters to least.
- * Multi-char delimiters must be tried before single-char to avoid false matches.
+ * Node shape patterns, matched after the node id (flowchartNodeIdLength) —
+ * ordered from most specific delimiters to least. Multi-char delimiters must
+ * be tried before single-char to avoid false matches.
  */
-const flowchartNodeRegex = (suffix: string): RegExp =>
-  new RegExp(`^(${MERMAID_IDENTIFIER_SOURCE})${suffix}`, 'u')
+const flowchartNodeRegex = (suffix: string): RegExp => new RegExp(`^${suffix}`, 'u')
 
 const NODE_PATTERNS: Array<{ regex: RegExp; shape: NodeShape }> = [
   // Triple delimiters (must be first)
@@ -1148,26 +1143,12 @@ const NODE_PATTERNS: Array<{ regex: RegExp; shape: NodeShape }> = [
   { regex: flowchartNodeRegex(String.raw`\{(.+?)\}`), shape: 'diamond' },
 ]
 
-/**
- * How much of the identifier run at the start of `text` (`length`
- * characters) is one node id, by upstream's rule (`flow.jison` NODE_STRING):
- * a `-` belongs to an id only when neither `-` nor `.` follows it, since `--`
- * and `-.` always open a link (`A--a --> B` is A, a text-arrow label, B), and
- * an id ends where a link begins (`Go--xH` is G o--x H).
- */
-function flowchartIdLength(text: string, length: number): number {
-  for (let index = 1; index < length; index++) {
-    if (text[index] === '-' && (text[index + 1] === '-' || text[index + 1] === '.')) return index
-    if (matchFlowchartLink(text, index)) return index
-  }
-  return length
-}
-
+/** The node id at the start of `text`, as upstream's lexer reads one
+ * (flowchartNodeIdLength): `--` and `-.` always open a link, so
+ * `A--a --> B` is A, a text-arrow label, B. */
 function consumeBareNodeId(text: string): { id: string; length: number } | null {
-  const whole = consumeMermaidIdentifier(text)
-  if (!whole) return null
-  const length = flowchartIdLength(text, whole.length)
-  return { id: text.slice(0, length), length }
+  const length = flowchartNodeIdLength(text)
+  return length > 0 ? { id: text.slice(0, length), length } : null
 }
 
 const EDGE_ID_PREFIX_REGEX = /^([\w-]+)@\s*(?=(?:<)?(?:~{3,}|-?\.+->|-?\.+-|={2,}>|={3,}|o-{2,}[ox]|x-{2,}[ox]|-{2,}[ox]|-{2,}>|-{3,}|(?:-{2,}|-\.+|={2,})\s+))/
@@ -1176,7 +1157,8 @@ function consumeClassShorthand(text: string): { className: string; length: numbe
   const parsed = consumeClassShorthandPrefix(text)
   if (!parsed) return null
   const rest = text.slice(3)
-  const end = flowchartIdLength(rest, parsed.className.length)
+  const end = Math.min(parsed.className.length, flowchartNodeIdLength(rest))
+  if (end === 0) return null
   return { className: rest.slice(0, end), length: 3 + end }
 }
 
@@ -1355,10 +1337,11 @@ function consumeMetadataNode(
   graph: MermaidGraph,
   subgraphStack: MermaidSubgraph[]
 ): ConsumedNode | null {
-  const start = text.match(new RegExp(`^(${MERMAID_IDENTIFIER_SOURCE})${METADATA_OPEN_SOURCE}`, 'u'))
-  if (!start || flowchartIdLength(text, start[1]!.length) < start[1]!.length) return null
-  const id = start[1]!
-  const { end, entries } = readFlowchartMetadata(text, start[0].length - 1)
+  const identifier = consumeBareNodeId(text)
+  const open = identifier && text.slice(identifier.length).match(new RegExp(`^${METADATA_OPEN_SOURCE}`))
+  if (!identifier || !open) return null
+  const id = identifier.id
+  const { end, entries } = readFlowchartMetadata(text, identifier.length + open[0].length - 1)
   applyNodeMetadata(id, entries, graph, subgraphStack)
   return { id, remaining: text.slice(end + 1) }
 }
@@ -1447,8 +1430,8 @@ function consumeQuotedShapeNode(
   text: string,
   graph: MermaidGraph,
   subgraphStack: MermaidSubgraph[]): ConsumedNode | null {
-  const identifier = consumeMermaidIdentifier(text)
-  if (!identifier || flowchartIdLength(text, identifier.length) < identifier.length) return null
+  const identifier = consumeBareNodeId(text)
+  if (!identifier) return null
   const suffix = text.slice(identifier.length)
   for (const spec of QUOTED_SHAPE_DELIMITERS) {
     if (!suffix.startsWith(`${spec.open}"`)) continue
@@ -1511,14 +1494,15 @@ function consumeNode(
   let remaining: string = text
 
   // Try each node pattern (shape-qualified)
-  for (const { regex, shape } of NODE_PATTERNS) {
-    const match = text.match(regex)
+  const identifier = consumeBareNodeId(text)
+  const shapeText = identifier ? text.slice(identifier.length) : ''
+  for (const { regex, shape } of identifier ? NODE_PATTERNS : []) {
+    const match = shapeText.match(regex)
     if (match) {
-      if (flowchartIdLength(text, match[1]!.length) < match[1]!.length) continue
-      id = match[1]!
-      const { text: label, markdown, labelContent } = parseFlowchartLabel(match[2]!)
+      id = identifier!.id
+      const { text: label, markdown, labelContent } = parseFlowchartLabel(match[1]!)
       defineNode(graph, subgraphStack, { id, label, shape, ...(markdown ? { markdownLabel: true as const } : {}), ...(labelContent ? { labelContent } : {}) })
-      remaining = text.slice(match[0].length)
+      remaining = shapeText.slice(match[0].length)
       break
     }
   }
@@ -1551,9 +1535,10 @@ function consumeNode(
     remaining = remaining.slice(classMatch.length)
   }
 
-  // Upstream's node string runs on through a `.` right after the id (`A.-B`
-  // is one id there), which begins no link here: the statement fails.
-  if (dotContinuesId(text, text.length - remaining.length)) return null
+  // Upstream's node string runs on through a `.` or `"` right after a class
+  // name (`A:::c.-> B`), which begins no link or string here: the statement
+  // fails.
+  if (continuesNodeId(text, text.length - remaining.length)) return null
 
   if (parserObservationActive('flowchart')) observeParserToken('flowchart', 'node', text.slice(0, text.length - remaining.length))
   return { id, remaining }

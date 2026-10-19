@@ -153,6 +153,32 @@ describe('parseMermaid – node shapes (original)', () => {
     expect(g.nodes.get('my-node')!.label).toBe('My Node')
   })
 
+  // Upstream's node string (flow.jison NODE_STRING) holds `!"#$%&'*+.`?\/`,
+  // and its id grammar `:`, besides letters, digits, `_` and `-`; a `"`, `&`
+  // or `:` only after an id's first character. An `x` or `o` right after id
+  // characters is the id's, not a link's marker.
+  it.each([
+    ['A.B --> C', ['A.B', 'C']],
+    ['A.-B', ['A.-B']],
+    ['C`"', ['C`"']],
+    ['A"B --> C"', ['A"B', 'C"']],
+    ["A!B & A#B & A$B & A%B & A'B & A*B --> A+B & A?B & A\\B & A/B", ["A!B", 'A#B', 'A$B', 'A%B', "A'B", 'A*B', 'A+B', 'A?B', 'A\\B', 'A/B']],
+    ['A&B --> C & D', ['A&B', 'C', 'D']],
+    ['A:B:::c --> C', ['A:B', 'C']],
+    ['.A --> B. --> 1.5', ['.A', 'B.', '1.5']],
+    ['é.b[label] --> c', ['é.b', 'c']],
+    ['Xo--xY', ['Xo', 'Y']],
+  ])('reads %j with the node ids upstream reads, and writes them back', (statement, ids) => {
+    const source = `flowchart LR\n  ${statement}\n  style ${ids[0]} fill:#f00\n  class ${ids.at(-1)} c`
+    expect([...parseMermaid(source).nodes.keys()]).toEqual(ids)
+    const parsed = parseRegisteredMermaid(source)
+    if (!parsed.ok) throw new Error(JSON.stringify(parsed.error))
+    const written = parseMermaid(serializeMermaid(parsed.value))
+    expect([...written.nodes.keys()].sort()).toEqual([...ids].sort())
+    expect([...written.nodeStyles.keys()]).toEqual([ids[0]!])
+    expect(written.classAssignments.has(ids.at(-1)!)).toBe(true)
+  })
+
   it('first definition wins for shape and label', () => {
     const g = parseMermaid('graph TD\n  A[Start] --> B\n  A --> B')
     expect(g.nodes.get('A')!.shape).toBe('rectangle')

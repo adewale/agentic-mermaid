@@ -588,13 +588,14 @@ Go--xH`
     expect(markedParsed.ok).toBe(true)
     if (markedParsed.ok) {
       expect([...markedParsed.value.source.nodes.keys()].sort())
-        .toEqual(['x', 'A', 'o', 'B', 'C', 'D', 'E', 'F', 'G', 'H'].sort())
+        .toEqual(['x', 'A', 'o', 'B', 'C', 'D', 'E', 'F', 'Go', 'H'].sort())
       for (const [key, statement] of [
         ['edge#0:x->A', 'x-->A'],
         ['edge#1:o->B', 'o==>B'],
         ['edge#2:C->D', 'C--xD'],
         ['edge#3:E->F', 'E--oF'],
-        ['edge#4:G->H', 'Go--xH'],
+        // An `o` after id characters is the id's (upstream's node string).
+        ['edge#4:Go->H', 'Go--xH'],
       ] as const) {
         expect(textAt(marked, markedParsed.value.source.spans!.edges.get(key))).toBe(statement)
       }

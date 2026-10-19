@@ -116,11 +116,46 @@ function stickyMatch(expression: RegExp, text: string, at: number): RegExpExecAr
   return expression.exec(text)
 }
 
-/** Whether the `.` at `at` continues the node id before it, as upstream's
- * node string takes it in (`A.-B` is one id there, `A .-> B` a link). Such
- * a `.` begins no link. */
-export function dotContinuesId(text: string, at: number): boolean {
-  return text[at] === '.' && at > 0 && /[\p{L}\p{N}_]/u.test(text[at - 1]!)
+/** A character of upstream's node string (`flow.jison` NODE_STRING) other
+ * than `-`: a letter or digit of any script, `_`, or one of `!"#$%&'*+.`?\/`. */
+const NODE_STRING_CHAR_RE = /[\p{L}\p{N}_!"#$%&'*+.`?\\/]/u
+
+/**
+ * The length of the node id at `at`, as upstream's lexer reads one: a run of
+ * node-string characters, and `:`, which its id grammar also takes in, where
+ *   - `"` and `&` belong to the id only after its first character (where an
+ *     id would begin, they open a string or join a `&` list);
+ *   - `:` belongs to it unless `:::`, a class, begins there;
+ *   - `-` belongs to it unless `-`, `.` or `>` follows, so `A--x`, `A-.->`
+ *     and `A->` end the id before it, and `A.-B` is one id.
+ * An `x` or `o` in the run is a letter: `Go--xH` is `Go --x H`. Upstream's
+ * `,` is left out, which `style` and `class` here read as a list separator,
+ * and `=`, which upstream's lexer rejects in an id.
+ */
+export function flowchartNodeIdLength(text: string, at = 0): number {
+  let end = at
+  for (; end < text.length; end++) {
+    const char = text[end]!
+    if (char === '-') {
+      const next = text[end + 1]
+      if (next === '-' || next === '.' || next === '>') break
+      continue
+    }
+    if (end === at && (char === '"' || char === '&' || char === ':')) break
+    if (char === ':') {
+      if (text.startsWith(':::', end)) break
+      continue
+    }
+    if (!NODE_STRING_CHAR_RE.test(char)) break
+  }
+  return end - at
+}
+
+/** Whether the `.` or `"` at `at` continues the node id before it, as
+ * upstream's node string takes it in (`A.-B` and `` C`" `` are one id there,
+ * `A .-> B` a link). Such a `.` begins no link, and such a `"` no string. */
+export function continuesNodeId(text: string, at: number): boolean {
+  return (text[at] === '.' || text[at] === '"') && at > 0 && NODE_STRING_CHAR_RE.test(text[at - 1]!)
 }
 
 /** The link operator at `at`, or null. */
@@ -307,7 +342,7 @@ function lex(text: string, from: number, single: boolean, labelStrings: boolean)
       else if (char === '"') open('string', index, index + 1)
       continue
     }
-    if (char === '"' && !(labelStrings && inner?.kind === 'shape' && index !== inner.contentStart)) {
+    if (char === '"' && !(labelStrings && inner?.kind === 'shape' && index !== inner.contentStart) && !(inner === undefined && continuesNodeId(text, index))) {
       if (text[index + 1] === '`') { open('markdown', index, index + 2); index++ }
       else open('string', index, index + 1)
       continue
@@ -347,7 +382,7 @@ function lex(text: string, from: number, single: boolean, labelStrings: boolean)
       continue
     }
     if (SHAPE_OPENERS.has(char)) { open('shape', index, index + 1); continue }
-    if (char === '-' || char === '=' || char === '<' || char === '~' || (char === '.' && !dotContinuesId(text, index))) {
+    if (char === '-' || char === '=' || char === '<' || char === '~' || (char === '.' && !continuesNodeId(text, index))) {
       const link = matchFlowchartLink(text, index)
       if (link) {
         links.push({ start: index, end: link.end })

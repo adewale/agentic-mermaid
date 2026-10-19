@@ -329,7 +329,8 @@ function matchLengthAt(expression: RegExp, line: string, index: number): number 
 }
 
 function nodeIdCharacter(char: string | undefined): boolean {
-  return char !== undefined && /[\p{L}\p{N}_-]/u.test(char)
+  // A character a node id can hold (flowchart-lexer.ts flowchartNodeIdLength).
+  return char !== undefined && /[\p{L}\p{N}_!"#$%&'*+.`?\\/:-]/u.test(char)
 }
 
 function edgeIdOperatorAt(
