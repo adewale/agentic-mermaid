@@ -66,7 +66,8 @@ export interface BackendDescriptor {
   readonly backend: StyleBackend
   /** Stable preferred input for first-party backends. */
   readonly inputName: string
-  /** Claim-keyed executable SVG conformance captured at registration. */
+  /** Claim-keyed executable SVG conformance: run at registration for a host
+   * backend, and at first use (draw, render or this read) for a built-in. */
   readonly conformance: BackendConformanceReport
 }
 
@@ -157,12 +158,75 @@ const HOST_BACKEND_PROVENANCE = Object.freeze({ owner: 'host', source: 'in-proce
 
 const BACKENDS = new Map<string, ExtensionRegistration<StyleBackend, 'backend'>>()
 const BACKEND_INPUT_NAMES = new Map<string, string>()
-const BACKEND_CONFORMANCE = new Map<string, BackendConformanceReport>()
+const BACKEND_CONFORMANCE = new Map<string, () => BackendConformanceReport>()
 
 /** Registration executes caller-owned methods. Keep every registry mutation
  * outside that executable window so a callback cannot install/uninstall a
  * sibling backend or observe a half-committed candidate. */
 let backendConformanceCandidate: string | null = null
+
+interface BuiltInConformance {
+  readonly report: () => BackendConformanceReport
+  readonly running: () => boolean
+}
+
+/** Running every built-in backend's executable SVG conformance at import cost
+ * each process tens to hundreds of milliseconds, mostly for sketch backends a
+ * render may never use. A built-in's report is computed once, on its first
+ * draw or render or the first read of its descriptor, inside the same
+ * mutation guard as a registration. */
+function lazyBuiltInConformance(backend: StyleBackend, id: string): BuiltInConformance {
+  let report: BackendConformanceReport | undefined
+  let running = false
+  return {
+    running: () => running,
+    report: () => {
+      if (report) return report
+      const outer = backendConformanceCandidate
+      backendConformanceCandidate = id
+      running = true
+      try {
+        report = runBackendConformance(backend, id)
+      } finally {
+        running = false
+        backendConformanceCandidate = outer
+      }
+      return report
+    },
+  }
+}
+
+/** A built-in proves its conformance before it first draws or renders, as a
+ * host backend does before it registers, so a built-in that fails in this
+ * runtime never produces output. Direct calls on a registered built-in, such
+ * as `DefaultBackend.render`, are covered too. Calls made while its
+ * conformance runs pass through: that run executes only the conformance
+ * fixtures and never calls host code, so no caller sees unproven output. */
+function refuseUntilConforming(backend: StyleBackend, inputName: string, conformance: BuiltInConformance): StyleBackend {
+  const methods = backend as { drawNode: StyleBackend['drawNode']; render: StyleBackend['render'] }
+  const { drawNode, render } = backend
+  let proven = false
+  const prove = (): void => {
+    if (proven || conformance.running()) return
+    const report = conformance.report()
+    if (!report.passed) {
+      const failures = report.checks
+        .filter(check => !check.passed)
+        .map(check => `${check.id}${check.diagnostic ? `: ${check.diagnostic}` : ''}`)
+      throw new Error(`Built-in backend "${inputName}" failed SVG conformance: ${failures.join('; ')}`)
+    }
+    proven = true
+  }
+  methods.drawNode = (node, ctx) => {
+    prove()
+    return drawNode.call(backend, node, ctx)
+  }
+  methods.render = (doc, ctx) => {
+    prove()
+    return render.call(backend, doc, ctx)
+  }
+  return backend
+}
 
 function assertBackendRegistryMutationAllowed(): void {
   if (backendConformanceCandidate !== null) {
@@ -323,7 +387,7 @@ export function registerBackend(backend: StyleBackend, options: BackendRegistrat
     // No caller-owned code runs after this point. Publish the immutable value
     // and its proof together during the same synchronous mutation window.
     registerExtension(BACKENDS, { identity, value: snapshot })
-    BACKEND_CONFORMANCE.set(id, conformance)
+    BACKEND_CONFORMANCE.set(id, () => conformance)
     const registration = BACKENDS.get(id)!
     return () => {
       assertBackendRegistryMutationAllowed()
@@ -350,14 +414,8 @@ export function registerBuiltInBackend(backend: StyleBackend): void {
     const existingInput = BACKEND_INPUT_NAMES.get(inputName)
     if (existingInput !== undefined) throw new Error(`Backend input name "${inputName}" already selects "${existingInput}"`)
     validateBackendCapabilities(backend, id)
-    const frozen = freezeBuiltInBackend(backend)
-    const conformance = runBackendConformance(frozen, id)
-    if (!conformance.passed) {
-      const failures = conformance.checks
-        .filter(check => !check.passed)
-        .map(check => `${check.id}${check.diagnostic ? `: ${check.diagnostic}` : ''}`)
-      throw new Error(`Built-in backend "${inputName}" failed registration SVG conformance: ${failures.join('; ')}`)
-    }
+    const conformance = lazyBuiltInConformance(backend, id)
+    const frozen = freezeBuiltInBackend(refuseUntilConforming(backend, inputName, conformance))
     registerExtension(BACKENDS, {
       identity: backendIdentity(id, {
         version: CORE_BACKEND_VERSION,
@@ -366,7 +424,7 @@ export function registerBuiltInBackend(backend: StyleBackend): void {
       }),
       value: frozen,
     })
-    BACKEND_CONFORMANCE.set(id, conformance)
+    BACKEND_CONFORMANCE.set(id, conformance.report)
     BACKEND_INPUT_NAMES.set(inputName, id)
   } finally {
     backendConformanceCandidate = null
@@ -374,12 +432,17 @@ export function registerBuiltInBackend(backend: StyleBackend): void {
 }
 
 export function knownBackendDescriptors(): readonly BackendDescriptor[] {
-  return Object.freeze(Array.from(BACKENDS.values(), ({ identity, value }) => Object.freeze({
-    identity,
-    backend: value,
-    inputName: Array.from(BACKEND_INPUT_NAMES.entries()).find(([, target]) => target === identity.id)?.[0] ?? identity.id,
-    conformance: BACKEND_CONFORMANCE.get(identity.id)!,
-  })))
+  return Object.freeze(Array.from(BACKENDS.values(), ({ identity, value }) => {
+    const conformance = BACKEND_CONFORMANCE.get(identity.id)!
+    return Object.freeze({
+      identity,
+      backend: value,
+      inputName: Array.from(BACKEND_INPUT_NAMES.entries()).find(([, target]) => target === identity.id)?.[0] ?? identity.id,
+      get conformance() {
+        return conformance()
+      },
+    })
+  }))
 }
 
 function backendDescriptorFromSnapshot(
