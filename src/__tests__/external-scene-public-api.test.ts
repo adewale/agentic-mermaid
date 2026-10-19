@@ -809,6 +809,45 @@ describe('public external Scene construction and admission', () => {
 
   })
 
+  test('a shared point array keeps each primitive minimum independent of traversal order', () => {
+    const base: ExternalSceneInput = {
+      version: EXTERNAL_SCENE_API_VERSION,
+      family: 'family:test/shared-primitive-points',
+      width: 80,
+      height: 60,
+      colors: { bg: '#fff', fg: '#111' },
+      metadata: { title: 'Shared primitive vertices' },
+      parts: [],
+    }
+    for (const kinds of [['polyline', 'polygon'], ['polygon', 'polyline']] as const) {
+      const two = [{ x: 10, y: 10 }, { x: 30, y: 10 }]
+      const make = (shared: boolean): ExternalSceneInput => ({
+        ...base,
+        parts: kinds.map(kind => ({
+          kind: 'shape', id: kind, role: 'node',
+          geometry: { kind, points: shared ? two : two.map(point => ({ ...point })) },
+        })),
+      })
+      // Aliasing does not add the missing third polygon vertex. Both the
+      // shared graph and its equal-value unaliased form must be rejected.
+      expect(() => buildExternalScene(make(false))).toThrow(/must contain at least 3 points/)
+      expect(() => buildExternalScene(make(true))).toThrow(/must contain at least 3 points/)
+    }
+    const triangle = [{ x: 10, y: 10 }, { x: 30, y: 10 }, { x: 20, y: 30 }]
+    const admitted = buildExternalScene({
+      ...base,
+      parts: [
+        { kind: 'shape', id: 'outline', role: 'node', geometry: { kind: 'polyline', points: triangle } },
+        { kind: 'shape', id: 'face', role: 'node', geometry: { kind: 'polygon', points: triangle } },
+      ],
+    })
+    const svg = DefaultBackend.render(admitted, { seed: 0 })
+    expect(svg).toContain('<polyline points="10,10 30,10 20,30"')
+    expect(svg).toContain('<polygon points="10,10 30,10 20,30"')
+    expect(Object.isFrozen(triangle)).toBe(false)
+    expect(Object.isFrozen(triangle[0])).toBe(false)
+  })
+
   test('applies the point limit to typed point collections rather than x/y-bearing shapes', () => {
     const make = (kind: 'rect' | 'circle'): ExternalSceneInput => ({
       version: EXTERNAL_SCENE_API_VERSION,
