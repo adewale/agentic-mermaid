@@ -103,7 +103,7 @@ client-side exact-identity check.
 5. **Create the GitHub Release** on the merge commit (tag `v<version>`). Its
    publication fires `publish.yml`, which gates, builds, benchmarks, publishes
    to npm, and then publishes the matching server metadata to the MCP Registry.
-   The benchmark job has a 90-minute limit and a 70-minute measurement budget;
+   The benchmark job has a 105-minute limit and a 70-minute measurement budget;
    npm publication waits for it. You do not
    need to remember this step: once the merge's CI passes, the deploy finds the
    version missing from npm and opens a **release to-do** issue that
@@ -233,6 +233,14 @@ The agent workload performs parse → typed edit → verify → serialize → re
 facts. Visible-label checks inspect emitted text outside the timer; neither
 those checks nor resvg prove arbitrary diagram fidelity.
 
+Production measurements explicitly disable Scene assertions. The default
+`--elk-cache off` measures rendering work; repeat separately with `--elk-cache on`
+for default production behavior, including key generation, clones, misses and
+bounded retention. Repeated-input cache hits do not establish distinct-input
+speed. Reports record the effective policy and `APL_*` flags; assertion-enabled
+correctness checks run separately. Use built or verified packed artifacts for
+startup, package and consumer claims.
+
 #### Advisory browser and competitor scorecard
 
 After the Node gate, the workflow independently installs the same verified
@@ -274,7 +282,8 @@ verifies its own tarball before benchmarking it. To measure a local tarball
 instead of the repository build:
 
 ```bash
-bun run bench:release --candidate-tarball release-artifact/package.tgz --baseline-npm latest
+candidate_sha="$(jq -r .sha256 release-artifact/package-manifest.json)"
+bun run bench:release --candidate-tarball release-artifact/package.tgz --candidate-sha256 "$candidate_sha" --baseline-npm latest
 ```
 
 Local npm comparisons also reuse `<out>/baseline.json`; use a new output directory
@@ -297,6 +306,19 @@ For a bounded local probe, select a case and cap the measurement budget:
 ```bash
 bun run bench:release --baseline-npm latest --case sequence:20-participants-300-messages --rounds 1 --reps 1 --budget-ms 60000
 ```
+
+For a refactor campaign, the optional `fixed-baseline-sha` workflow input adds a
+separate runner that rebuilds one full immutable source SHA and verifies its
+packed installation. It compares that baseline with the **same candidate tarball**
+using cache off and on, runs exact-package A/A, pinned Beautiful Mermaid/Pele
+comparisons, and sequential CPU profiles. All comparisons within that job share
+one runner; never combine absolute timings from the normal and fixed jobs.
+The `release-fixed-benchmark-<sha>-<attempt>` artifact retains commands, package
+identities, exact dependency locks, profiles, fingerprints and raw observations.
+Incomplete requested evidence fails after artifact upload. Peer performance is
+advisory; missing peer measurements are incomplete evidence. Neither job publishes
+or deploys. Current findings and noise thresholds live in
+[`eval/benchmark/RESULTS.md`](../../eval/benchmark/RESULTS.md).
 
 #### When the benchmark fails
 

@@ -527,12 +527,17 @@ table here, which would drift. In broad strokes:
   complete occurrence corpus, with shared-success ratios and complete/lazy JS
   payloads. **Does not prove:** PNG performance, arbitrary semantic/visual fidelity,
   or real-network/paint latency; absolute timings vary by machine.
+  Optional `fixed-baseline-sha` evidence runs preserve the same candidate bytes,
+  compare a frozen source baseline with cache off and on, qualify A/A noise, and
+  retain pinned peer results, dependency locks and CPU profiles. Missing required
+  observations fail that evidence job after raw artifacts are retained. This
+  additional scorecard does not replace the normal release baseline or budgets.
 - **Manual / periodic:** `layout-compare` before/after, the benchmark vs competitors,
   `bun run bench:micro` (per-stage hotspot timings, allocation per call under
   `--runtime node`, and `--baseline <ref>` for interleaved revision ratios;
   advisory, never a gate), `bun run bench:peers` (the built package against
-  the pinned browserless and terminal peers in `eval/fork-graph/`, with label
-  checks before timing), `bun run check:output-identity --baseline <ref>`
+  the pinned browserless and terminal peers in `eval/fork-graph/`, checking every
+  returned output outside its timing/allocation interval), `bun run check:output-identity --baseline <ref>`
   (byte identity of the distinct corpus inputs across SVG backends, SVG
   post-passes, ASCII, Unicode and verify, for refactors that must not change
   output), the real LLM-as-judge run, and the production freshness check

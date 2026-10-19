@@ -29,6 +29,13 @@ the same resolved appearance and report losses rather than silently ignoring
 graphical style. Typed parse, serialize, mutate, and verify hooks remain on the
 same family descriptor identity.
 
+Built-in Scene admission freezes its owned data in place under the same bounded
+walk; diagnostic paths are assembled only on failure. External Scene admission
+still snapshots hostile descriptors before validation. Routing uses one collision
+scanner for both early-exit clearance questions and complete ordered certificate
+evidence; only the former may stop at the first blocker. These ownership rules
+avoid copies and scans without moving a security boundary or changing geometry.
+
 ## This figure is dogfooded
 
 The diagram is authored as Mermaid ([`architecture.mmd`](./architecture.mmd)) and
@@ -49,6 +56,7 @@ produced *by* the system.
 - [`chart-honesty.md`](./chart-honesty.md) — what every family owes its reader (legible, contained, drawn-or-reported, style-invariant text; distinguishable peers; proportional quantities), measured on the rasterized output and bound to the registry.
 - [`layout-guarantees-and-robustness.md`](./layout-guarantees-and-robustness.md) — literature + industry synthesis: which invariants we can guarantee by construction vs. only optimize-and-certify, and the path to fuzz-robustness.
 - [`source-preservation-ladder.md`](./source-preservation-ladder.md) — the structured\|opaque family-adoption contract (L0–L4).
+- [`performance results`](../../../eval/benchmark/RESULTS.md) — fixed-baseline findings, tradeoffs, measurement limits and reproduction.
 
 > These design docs are co-located here in `design/system/`; per-family notes live in
 > [`../families/`](../families/README.md).
