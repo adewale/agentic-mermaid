@@ -118,6 +118,22 @@ const DIRECTIVE_RES = {
 // so its href or call may start the next line. Ours also reads it after blank
 // and comment lines: the normalized line view the renderer reads has dropped
 // them, so the lossless body must read past them too to agree with it.
+// Mermaid ends a task's data, and these directives' values, at `;`, and
+// reads what follows as the next statement (a task whose label starts with
+// the `;`). A todayMarker's CSS keeps its `;`.
+const SEMICOLON_DIRECTIVE_RE = /^(?:dateFormat|axisFormat|tickInterval|excludes|includes)\s/i
+const FREE_TEXT_STATEMENT_RE = /^(?:title|section|click|todayMarker|weekday|weekend|acc(?:Title|Descr))\b/i
+
+/** Where `;` ends the statement on `line`, or -1. */
+function ganttSemicolonEnd(line: string): number {
+  if (SEMICOLON_DIRECTIVE_RE.test(line)) return line.indexOf(';')
+  const colon = line.indexOf(':')
+  if (FREE_TEXT_STATEMENT_RE.test(line) || colon <= 0) return -1
+  const semicolon = line.indexOf(';', colon + 1)
+  const comment = trailingCommentStart(line.slice(colon + 1))
+  return comment >= 0 && semicolon > colon + comment ? -1 : semicolon
+}
+
 const CLICK_TASK_RE = /^click\s+[\w-]+$/i
 const CLICK_ACTION_RE = /^(?:href|call)\s/i
 
@@ -145,6 +161,8 @@ export type GanttSourceStatement = GanttSyntax & {
   startLine: number
   endLine: number
   valueColumn?: number
+  /** Follows a `;` that ended the statement before it on its line. */
+  afterSemicolon?: true
 }
 
 /** One statement authority; render and edit projections choose their own
@@ -183,6 +201,24 @@ export function readGanttStatements(lines: readonly string[]): GanttSourceStatem
         const suffix = readGanttStatements([closingLine.slice(offset)])
         statements.push(...suffix.map(statement => ({ ...statement, startLine: index + 1, endLine: index + 1,
           valueColumn: statement.valueColumn === undefined ? undefined : statement.valueColumn + offset })))
+      }
+      continue
+    }
+    if (ganttSemicolonEnd(line) >= 0) {
+      // Read each `;`-separated part as a line of its own.
+      let rest = rawLine
+      let offset = 0
+      for (let part = 0; ; part++) {
+        const semicolon = ganttSemicolonEnd(rest.trim())
+        const end = semicolon < 0 ? rest.length : rest.length - rest.trimStart().length + semicolon
+        statements.push(...readGanttStatements([rest.slice(0, end)]).map((statement, at) => ({
+          ...statement, startLine: index + 1, endLine: index + 1,
+          valueColumn: statement.valueColumn === undefined ? undefined : statement.valueColumn + offset,
+          ...(part > 0 && at === 0 ? { afterSemicolon: true as const } : {}),
+        })))
+        if (semicolon < 0) break
+        offset += end + 1
+        rest = rest.slice(end + 1)
       }
       continue
     }

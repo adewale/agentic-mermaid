@@ -184,6 +184,32 @@ describe('gantt structured parse', () => {
     expect(verifyMermaid(d).warnings).toEqual([])
   })
 
+  // Mermaid ends a task's data, and a date or format value, at `;` and reads
+  // what follows into the next task's label; ours reads the next statement,
+  // reports the `;`, and writes each statement on its own line.
+  test.each([
+    ['Task :a1, 2024-01-01, 3d; Task2 :a2, after a1, 2d', ['Task', 'Task2'], undefined],
+    ['Task :a1, 2024-01-01, 3d;', ['Task'], undefined],
+    ['dateFormat YYYY-MM-DD; title T\n  Task :a1, 2024-01-01, 3d', ['Task'], 'T'],
+  ])('%j reads each `;`-separated statement and reports the `;`', async (body, labels, title) => {
+    const source = `gantt\n  dateFormat YYYY-MM-DD\n  ${body}\n`
+    const d = gantt(source)
+    expect(parseGanttModel(normalizeMermaidSource(source).lines).tasks.map(task => task.label)).toEqual(labels)
+    expect(d.body.sections.flatMap(section => section.tasks.map(task => task.label))).toEqual(labels)
+    expect(d.body.title).toBe(title)
+    expect(verifyMermaid(d).warnings.filter(w => w.code === 'UNSUPPORTED_SYNTAX').map(w => (w as { syntax: string }).syntax)).toEqual(['gantt_semicolon_separator'])
+    const out = serializeMermaid(d)
+    const upstream = startUpstreamMermaid()
+    try { expect(await upstream.accepts(out), out).toBe(true) } finally { upstream.close() }
+    expect(gantt(out).body).toEqual(d.body)
+  })
+
+  test('a todayMarker keeps the `;` of its CSS', () => {
+    const d = gantt('gantt\n  dateFormat YYYY-MM-DD\n  todayMarker stroke:#f00;stroke-width:2px\n  Task :a1, 2024-01-01, 3d\n')
+    expect(serializeMermaid(d)).toContain('  todayMarker stroke:#f00;stroke-width:2px\n')
+    expect(verifyMermaid(d).warnings.filter(w => w.code === 'UNSUPPORTED_SYNTAX')).toEqual([])
+  })
+
   test('serialize is idempotent and bodies are equal across cycles', () => {
     const d = gantt()
     const s1 = serializeMermaid(d)

@@ -44,7 +44,10 @@ export function ganttUnsupportedSyntaxWarnings(source: string): LayoutWarning[] 
     && statements[index - 1]?.kind === 'task' && statements[index - 1]!.endLine === statement.startLine
     ? [{ code: 'UNSUPPORTED_SYNTAX' as const, syntax: 'gantt_inline_task_comment', line: statement.startLine,
       message: 'Inline task metadata comments are read as comments. Pinned Mermaid reads them into the end date; put %% comments on their own line for portability.' }]
-    : [])
+    : statement.afterSemicolon
+      ? [{ code: 'UNSUPPORTED_SYNTAX' as const, syntax: 'gantt_semicolon_separator', line: statement.startLine,
+        message: 'A `;` after task data or a date or format value is read as a statement separator. Pinned Mermaid reads what follows it into the next task\'s label (`; Task`), or rejects it; put each statement on its own line.' }]
+      : [])
 }
 
 /**
