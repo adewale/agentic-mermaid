@@ -137,16 +137,81 @@ describe('private typed SVG recipes', () => {
   })
 
   test('rejects executable or opaque markup slots and snapshots without invoking accessors', () => {
-    let reads = 0
-    const accessor = { kind: 'primitive', get attributes() { reads++; return [] } }
-    expect(() => snapshotSvgEmissionRecipe(accessor as SvgEmissionRecipe)).toThrow(/data properties/)
-    expect(reads).toBe(0)
+    for (const frozen of [false, true]) {
+      let reads = 0
+      const accessor = { kind: 'primitive', get attributes() { reads++; return [] } }
+      if (frozen) Object.freeze(accessor)
+      expect(() => snapshotSvgEmissionRecipe(accessor as SvgEmissionRecipe)).toThrow(/data properties/)
+      expect(reads).toBe(0)
+    }
     for (const extra of [{ raw: '<script/>' }, { serialize: () => '<script/>' }]) {
       expect(() => snapshotSvgEmissionRecipe({ kind: 'primitive', attributes: [], ...extra } as SvgEmissionRecipe)).toThrow()
     }
     const cycle: unknown[] = []
     cycle.push(cycle)
     expect(() => snapshotSvgEmissionRecipe({ kind: 'sequence', children: cycle } as SvgEmissionRecipe)).toThrow(/cycles/)
+  })
+
+  test('a Proxy of owned metadata cannot execute caller reads', () => {
+    const owned = snapshotSvgEmissionRecipe({ kind: 'primitive', attributes: [{ name: 'data-note', value: v.meta('kept') }] })
+    let reads = 0
+    const proxy = new Proxy(owned, { get(target, key, receiver) { reads++; return Reflect.get(target, key, receiver) } })
+    const captured = snapshotSvgEmissionRecipe(proxy)
+    expect(serializeSvgEmission(rectangle(), captured)).toBe('<rect data-note="kept" />')
+    expect(reads).toBe(0)
+  })
+
+  test('a mutable wrapper around owned metadata is still captured without freezing its caller', () => {
+    const owned = snapshotSvgEmissionRecipe({ kind: 'primitive', attributes: [{ name: 'data-note', value: v.meta('kept') }] })
+    const children: SvgEmissionRecipe[] = [owned]
+    const source: SvgEmissionRecipe = { kind: 'sequence', children, join: '' }
+    const captured = snapshotSvgEmissionRecipe(source)
+    children.push({ kind: 'primitive', attributes: [{ name: 'data-note', value: v.meta('late') }] })
+    expect(serializeSvgEmission(rectangle(), captured)).toBe('<rect data-note="kept" />')
+    expect(Object.isFrozen(source)).toBe(false)
+    expect(Object.isFrozen(children)).toBe(false)
+  })
+
+  test('overlapping owned descendants obey a literal six-object enclosing budget', () => {
+    const shared: SvgEmissionRecipe = { kind: 'sequence', children: [] }
+    const owned = snapshotSvgEmissionRecipe({
+      kind: 'sequence', children: [shared, { kind: 'sequence', children: [shared] }],
+    })
+    if (owned.kind !== 'sequence') throw new Error('Expected sequence')
+    const source: SvgEmissionRecipe = { kind: 'sequence', children: [...owned.children] }
+    // Root+array, empty child+array, wrapper child+array: six unique objects.
+    // The empty child is also reached through the wrapper; charge it once.
+    expect(() => snapshotSvgEmissionRecipe(source, { ...SVG_EMISSION_METADATA_LIMITS, maxObjects: 6 })).not.toThrow()
+    expect(() => snapshotSvgEmissionRecipe(source, { ...SVG_EMISSION_METADATA_LIMITS, maxObjects: 5 })).toThrow('object budget')
+  })
+
+  test('owned descendants still consume depth beneath a new parent', () => {
+    let inner: SvgEmissionRecipe = { kind: 'sequence', children: [] }
+    for (let level = 0; level < 16; level++) inner = { kind: 'sequence', children: [inner] }
+    const owned = snapshotSvgEmissionRecipe(inner)
+    expect(() => snapshotSvgEmissionRecipe({ kind: 'sequence', children: [owned] })).not.toThrow()
+    let deep = owned
+    // Together33 sequence edges alternate objects/arrays past data depth64;
+    // the independent grammar's sequence depth remains below64.
+    for (let level = 0; level < 17; level++) deep = { kind: 'sequence', children: [deep] }
+    expect(() => snapshotSvgEmissionRecipe(deep)).toThrow('depth budget')
+  })
+
+  test.each([
+    ['incompatible text layout', () => {
+      const owned = snapshotSvgEmissionRecipe({ kind: 'text', layout: 'multiline', positionFormat: 'round2', attributes: [] })
+      return { ...owned, layout: 'direct' } as SvgEmissionRecipe
+    }, /Projected text coordinates require multiline emission/],
+    ['expanded alias work', () => {
+      let dag: SvgEmissionRecipe = { kind: 'sequence', children: [], join: '' }
+      for (let level = 0; level < 17; level++) dag = { kind: 'sequence', children: [dag, dag], join: '' }
+      const owned = snapshotSvgEmissionRecipe(dag)
+      // The owned child is valid on its own; doubling its262143 projected
+      // steps exceeds400000. Reject admission; never emit this recipe.
+      return { kind: 'sequence', children: [owned, owned], join: '' } as SvgEmissionRecipe
+    }, /expanded emission budget/],
+  ] as const)('a new root with owned children still rejects %s', (_name, source, diagnostic) => {
+    expect(() => snapshotSvgEmissionRecipe(source())).toThrow(diagnostic)
   })
 
   test('private metadata participates in budgets before output exists', () => {
