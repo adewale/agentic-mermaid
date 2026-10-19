@@ -143,6 +143,7 @@ export function parseClassBody(lines: string[]): ClassBody | null {
           const annotation = value.annotation
           if (annotation.placement === 'separate' && !classMap.has(annotation.id)) return false
           const cls = upsert(annotation.id, annotation.label, annotation.generic)
+          if (annotation.className !== undefined) cls.className = annotation.className
           if (!addAnnotation(cls, annotation.annotation)) return false
           if (!claim(cls, path)) return false
           break
@@ -689,6 +690,12 @@ export function classUnsupportedSyntaxWarnings(canonicalSource: string): LayoutW
           message: 'Semicolon-separated statements inside a compact Class namespace are read as separate statements. Pinned Mermaid rejects this source; put each statement on its own line.',
         })
       }
+      const value = node.value
+      if (value.kind === 'annotation' ? value.annotation.placement === 'inline' && value.annotation.className !== undefined
+        : value.kind === 'class' && value.declaration.annotation !== undefined && value.declaration.className !== undefined) warnings.push({
+        code: 'UNSUPPORTED_SYNTAX', syntax: 'class_style_before_annotation', line: header + 1 + node.source.line,
+        message: 'A :::style class before an inline <<annotation>> is read as the class\'s style class. Pinned Mermaid rejects this; put the annotation inside the class body or on a line of its own.',
+      })
       if (node.value.kind === 'note' && node.value.escapedQuotes) warnings.push({
         code: 'UNSUPPORTED_SYNTAX', syntax: 'class_escaped_note_quotes', line: header + 1 + node.source.line,
         message: 'Backslash-escaped quotes in Class notes are read as text. Pinned Mermaid rejects this; use &quot; inside the quoted note.',

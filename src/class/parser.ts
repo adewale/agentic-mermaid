@@ -203,6 +203,8 @@ export interface ParsedClassAnnotationStatement {
   label?: string
   annotation: string
   placement: 'inline' | 'separate' | 'body-inline'
+  /** `class A:::c <<interface>>`: the declaration's style class. */
+  className?: string
   /** The statement goes on to open the class's member block. */
   opensBody?: true
 }
@@ -277,6 +279,7 @@ export function parseClassAnnotationStatement(line: string): ParsedClassAnnotati
         ...(declaration.label !== undefined ? { label: declaration.label } : {}),
         annotation,
         placement: bodyInline ? 'body-inline' : 'inline',
+        ...(declaration.className !== undefined ? { className: declaration.className } : {}),
         ...(block === '{' ? { opensBody: true as const } : {}),
       }
     : null
@@ -457,8 +460,8 @@ function classifyClassStatement(text: string, authored: string | undefined): Cla
   }
   const annotation = parseClassAnnotationStatement(text)
   if (annotation?.opensBody) {
-    const { id, generic, label } = annotation
-    return { kind: 'class', declaration: { id, generic, label, annotation: annotation.annotation, opensBody: true } }
+    const { id, generic, label, className } = annotation
+    return { kind: 'class', declaration: { id, generic, label, ...(className !== undefined ? { className } : {}), annotation: annotation.annotation, opensBody: true } }
   }
   if (annotation) return { kind: 'annotation', annotation }
   const declaration = parseClassDeclaration(text)
@@ -488,32 +491,27 @@ const CLASS_LABEL_STRING_PREFIX_RE = /^(?:note(?:\s+for\s+(?:`[^`]*`|\S+))?\s+|(
 const CLASS_STRING_KEYWORD_RE = /^(?:class|namespace|note|click|link|callback|cssClass|style|classDef|title|direction)\b|^<</i
 
 /** Whether `text` ends inside a quoted note, label or cardinality, whose
- * string Mermaid reads on across the line break. */
+ * string Mermaid reads on across the line break. Mermaid's string has no
+ * escapes: `"C:\"` closes at its second quote. Ours reads `\"` in a note as a
+ * quote, so text runs on only where the string is open in both readings. */
 function continuesClassText(text: string): boolean {
-  let quote: string | undefined
-  let open = -1
-  for (let index = 0; index < text.length; index++) {
-    const character = text[index]!
-    if (quote) {
-      if (character === '\\' && quote === '"') index++
-      else if (character === quote) quote = undefined
-    } else if (character === '"' || character === '`') {
-      quote = character
-      open = index
+  return [false, true].every(escapes => {
+    let quote: string | undefined
+    let open = -1
+    for (let index = 0; index < text.length; index++) {
+      const character = text[index]!
+      if (quote) {
+        if (escapes && character === '\\' && quote === '"') index++
+        else if (character === quote) quote = undefined
+      } else if (character === '"' || character === '`') {
+        quote = character
+        open = index
+      }
     }
-  }
-  if (quote !== '"') return false
-  const before = text.slice(0, open)
-  return CLASS_LABEL_STRING_PREFIX_RE.test(before) || (!CLASS_STRING_KEYWORD_RE.test(text) && !before.includes(':'))
-}
-
-/** Whether a line read inside a string ends it with an unescaped quote. */
-function closesClassString(line: string): boolean {
-  for (let index = 0; index < line.length; index++) {
-    if (line[index] === '\\') index++
-    else if (line[index] === '"') return true
-  }
-  return false
+    if (quote !== '"') return false
+    const before = text.slice(0, open)
+    return CLASS_LABEL_STRING_PREFIX_RE.test(before) || (!CLASS_STRING_KEYWORD_RE.test(text) && !before.includes(':'))
+  })
 }
 
 /** Where a class declaration's member block opens: its first `{` outside a
@@ -605,10 +603,11 @@ export function readClassStatements(lines: readonly string[], authoredLines?: re
     let end = lineIndex
     let statement = last.text
     // At most a relationship's two cardinalities; each scan reads on only to
-    // the next line holding a quote, so the reader stays linear.
+    // the next line holding a quote, which closes Mermaid's string, so the
+    // reader stays linear.
     for (let strings = 0; strings < 2 && stack.at(-1)?.value.kind !== 'class' && continuesClassText(statement); strings++) {
       let closing = end + 1
-      while (closing < lines.length && !closesClassString(lines[closing]!)) closing++
+      while (closing < lines.length && !lines[closing]!.includes('"')) closing++
       if (closing === lines.length) break
       statement = [statement, ...lines.slice(end + 1, closing + 1).map(line => line.trim())].join('<br>')
       end = closing
@@ -979,6 +978,7 @@ export function parseClassDiagram(lines: string[], authoredLines?: string[]): Cl
           }
           const cls = ensureClass(classMap, annotation.id, annotation.generic)
           if (annotation.label !== undefined) { delete cls.labelContent; Object.assign(cls, classTextLabel(annotation.label)) }
+          if (annotation.className !== undefined) cls.className = annotation.className
           applyClassAnnotation(cls, annotation.annotation)
           if (parserObservationActive('class')) observeParserMutation('class', 'set-annotation', { id: cls.id, annotation: cls.annotation, label: cls.label })
           claim(cls.id, path)

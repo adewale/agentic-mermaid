@@ -79,16 +79,20 @@ describe('parseClassDiagram – class definitions', () => {
     expect(() => parse(`classDiagram\n${source}`)).toThrow(reason)
   })
 
-  // Mermaid's string runs on across line breaks. Ours reads the break as the
-  // label line break `<br>` wherever the text can hold one.
+  // Mermaid's string runs on across line breaks to its next quote. Ours reads
+  // the break as the label line break `<br>` wherever the text can hold one.
   it.each([
+    // Mermaid's class string has no escapes: a backslash before the closing
+    // quote is text, and the string ends on its line.
+    { body: 'class A["C:\\"]\nB --> C\nclass D["x"]', native: { classes: [{ id: 'A', label: 'C:\\' }, { id: 'B' }, { id: 'C' }, { id: 'D', label: 'x' }], relationships: [{ from: 'B', to: 'C' }] }, typed: { classes: [{ id: 'A', label: 'C:\\' }, { id: 'B' }, { id: 'C' }, { id: 'D', label: 'x' }], relations: [{ from: 'B', to: 'C' }] }, written: 'class A["C:\\"]' },
+    { body: 'A "0..*\\" --> B\nB "1" --> C', native: { relationships: [{ from: 'A', fromCardinality: '0..*\\' }, { from: 'B', fromCardinality: '1' }] }, typed: { relations: [{ from: 'A', fromCardinality: '0..*\\' }, { from: 'B', fromCardinality: '1' }] }, written: 'A "0..*\\" --> B' },
     { body: 'note for A "l1\nl2"', native: { notes: [{ for: 'A', text: 'l1\nl2' }] }, typed: { notes: [{ for: 'A', text: 'l1<br>l2' }] }, written: 'note for A "l1<br>l2"' },
     { body: 'note "a\nb"', native: { notes: [{ text: 'a\nb' }] }, typed: { notes: [{ text: 'a<br>b' }] }, written: 'note "a<br>b"' },
     { body: 'A "many\nitems" --> B', native: { relationships: [{ fromCardinality: 'many\nitems' }] }, typed: { relations: [{ fromCardinality: 'many\nitems' }] }, written: 'A "many<br/>items" --> B' },
     { body: 'A "x\ny" --> "one\nor\nmore" B : r', native: { relationships: [{ fromCardinality: 'x\ny', toCardinality: 'one\nor\nmore', label: 'r' }] }, typed: { relations: [{ fromCardinality: 'x\ny', toCardinality: 'one\nor\nmore', label: 'r' }] }, written: 'A "x<br/>y" --> "one<br/>or<br/>more" B : r' },
     { body: 'class A["l1\nl2"] {\n+x\n}', native: { classes: [{ id: 'A', label: 'l1\nl2' }] }, typed: { classes: [{ id: 'A', label: 'l1<br>l2', members: ['+x'] }] }, written: 'class A["l1<br>l2"] {' },
     { body: 'namespace N["l1\nl2"] {\nclass A\nnote "a\nb" }', native: { namespaces: [{ name: 'N', label: 'l1\nl2', classIds: ['A'] }], notes: [{ text: 'a\nb' }] }, typed: { namespaces: [{ name: 'N', label: 'l1<br>l2' }], notes: [{ text: 'a<br>b' }] }, written: 'namespace N["l1<br>l2"] {' },
-  ])('reads quoted text spanning lines as one statement: $body', ({ body, native, typed, written }) => {
+  ])('reads quoted text, on one line or across lines, to the quote that closes it: $body', ({ body, native, typed, written }) => {
     const source = `classDiagram\n${body}`
     expect(parse(source)).toMatchObject(native)
     const parsed = parseRegisteredMermaid(source)

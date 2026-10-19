@@ -101,6 +101,26 @@ describe('Class official annotation forms', () => {
     }
   })
 
+  // Pinned Mermaid takes `:::hot` before a class body, not before an inline
+  // annotation. Ours keeps the style class in both places and verify reports
+  // the form Mermaid rejects.
+  test.each([
+    ['class Shape:::hot { <<interface>> }', []],
+    ['class Shape:::hot <<interface>>', ['class_style_before_annotation']],
+    ['class Shape:::hot <<interface>> {}', ['class_style_before_annotation']],
+    ['class Shape:::hot <<interface>> {\n+area() double\n}', ['class_style_before_annotation']],
+  ] as const)('a style class beside an annotation styles its class: %j', async (body, syntax) => {
+    const source = `classDiagram\n${body}\nclassDef hot fill:#f00`
+    const native = parseClassDiagram(source.split('\n').map(line => line.trim()))
+    expect(native.classes.map(({ id, className, annotation }) => ({ id, className, annotation }))).toEqual([{ id: 'Shape', className: 'hot', annotation: 'interface' }])
+    expect(renderMermaidSVG(source)).toMatch(/data-id="Shape"[^>]*data-annotation="interface"[^>]*data-class="hot"/)
+    const parsed = parseRegisteredMermaid(source)
+    if (!parsed.ok) throw new Error(JSON.stringify(parsed.error))
+    expect(asClass(parsed.value)?.body.classes).toEqual([expect.objectContaining({ id: 'Shape', className: 'hot' })])
+    expect(verifyMermaid(parsed.value).warnings.filter(warning => warning.code === 'UNSUPPORTED_SYNTAX').map(warning => warning.syntax)).toEqual([...syntax])
+    expect(await upstream.accepts(source)).toBe(syntax.length === 0)
+  })
+
   test('pinned Mermaid rejects unsupported tokens and separate annotation before a class exists', async () => {
     const sources = [
       'classDiagram\n<<interface>> Shape',
