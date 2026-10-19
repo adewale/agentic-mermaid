@@ -1,3 +1,4 @@
+import { normalizeMermaidSource } from '../mermaid-source.ts'
 import { describe, expect, spyOn, test } from 'bun:test'
 import type { ElkNode } from 'elkjs'
 import { parseMermaid } from '../parser.ts'
@@ -8,7 +9,7 @@ import * as elkAdapter from '../elk-instance.ts'
 import * as terminalGrid from '../ascii/grid.ts'
 import * as terminalConverter from '../ascii/converter.ts'
 import * as preparedText from '../shared/prepared-text.ts'
-import { assertLayoutGraphWork, assertMermaidGraphWork } from '../shared/diagram-limits.ts'
+import { assertLayoutGraphWork, assertMermaidGraphWork, DIAGRAM_WORK_LIMITS, DiagramWorkLimitError } from '../shared/diagram-limits.ts'
 import { parseClassDiagram } from '../class/parser.ts'
 import { parseErDiagram } from '../er/parser.ts'
 import { layoutClassDiagram } from '../class/layout.ts'
@@ -65,6 +66,20 @@ describe('graph work admission', () => {
       elk.mockRestore()
       grid.mockRestore()
     }
+  })
+
+  test('a source too long for the render request receipt is a work limit, not malformed request data', () => {
+    // The receipt digests the authored and the normalized source together, so
+    // a long leading comment alone can exceed its budget.
+    const source = `%% ${'x'.repeat(DIAGRAM_WORK_LIMITS.sourceCharacters)}\nflowchart LR\n  A --> B`
+    expect(() => renderMermaidSVG(source)).toThrow(DiagramWorkLimitError)
+    expect(() => renderMermaidSVG(source)).toThrow(/DIAGRAM_WORK_LIMIT: authored plus normalized source/)
+    // It also digests the parsed configuration, so a source that fits the
+    // character check alone can still exceed it: the same work limit.
+    const configured = `---\ntitle: T\nconfig:\n  themeVariables:\n    primaryColor: "#ffffff"\n---\nflowchart LR\n  A["${'y'.repeat(998_000)}"] --> B`
+    expect(configured.length + normalizeMermaidSource(configured).text.length).toBeLessThanOrEqual(DIAGRAM_WORK_LIMITS.sourceCharacters)
+    expect(() => renderMermaidSVG(configured)).toThrow(DiagramWorkLimitError)
+    expect(() => renderMermaidSVG(configured)).toThrow(/, with its configuration, exceeds/)
   })
 
   test('programmatic graphs are bounded before graph conversion', () => {

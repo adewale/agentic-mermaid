@@ -26,7 +26,7 @@ import { serializeTransform } from './transforms.ts'
 // ============================================================================
 
 import { RoughGenerator } from 'roughjs/bin/generator'
-import type { Geometry, SceneDoc, SceneNode, SceneTransform, ShapeMark, ConnectorMark, TextMark } from './ir.ts'
+import type { Geometry, MarkPaint, SceneDoc, SceneNode, SceneTransform, ShapeMark, ConnectorMark, TextMark } from './ir.ts'
 import { connectorSubpaths } from './connector-geometry.ts'
 import type { StyleBackend, StyleBackendContext } from './backend.ts'
 import { composeGroup, pageRectFor } from './backend.ts'
@@ -71,6 +71,23 @@ export interface SketchStrokeProjection {
   nonScaling?: boolean
 }
 
+/** Semantic opacity of a replacement geometry's fill and of its stroke: a
+ * mark's whole opacity times its fill- or stroke-opacity. */
+export interface SketchOpacity {
+  fill?: string | number
+  stroke?: string | number
+}
+
+/** The opacities an element of a shape's serialization paints with. */
+function elementOpacity(attrs: ReadonlyMap<string, string>, paint: MarkPaint): SketchOpacity | undefined {
+  const whole = attrs.get('opacity') ?? paint.opacity
+  const fill = attrs.get('fill-opacity') ?? paint.fillOpacity
+  const stroke = attrs.get('stroke-opacity') ?? paint.strokeOpacity
+  if (whole === undefined && fill === undefined && stroke === undefined) return undefined
+  const combine = (part: string | undefined) => part === undefined ? whole : whole === undefined ? part : Number(whole) * Number(part)
+  return { fill: combine(fill), stroke: combine(stroke) }
+}
+
 /** A pluggable geometry renderer: return null to fall back to rough.js.
  *  HybridBackend supplies perfect-freehand ribbons and watercolor washes;
  *  RoughBackend uses pure rough.js. */
@@ -85,8 +102,8 @@ export type GeometrySketcher = (
     style: StyleSpec | undefined
     dash: string | undefined
     strokeProjection: SketchStrokeProjection | undefined
-    /** Semantic MarkPaint.opacity for shape replacement geometry. */
-    opacity: string | number | undefined
+    /** Semantic opacity for shape replacement geometry. */
+    opacity: SketchOpacity | undefined
   },
 ) => string | null
 
@@ -150,7 +167,7 @@ function opsToSvg(
   fill: string | undefined,
   p: RoughParams,
   projection: SketchStrokeProjection = {},
-  opacity?: string | number,
+  opacity?: SketchOpacity,
 ): string {
   const out: string[] = []
   const strokeAttrs = projectedStrokeAttributes(projection)
@@ -158,16 +175,17 @@ function opsToSvg(
   // the missing separator when projected attributes and semantic opacity
   // are both present.
   const projectedAttrs = strokeAttrs ? ` ${strokeAttrs}` : ' '
-  const opacityAttr = opacity === undefined ? '' : ` stroke-opacity="${escapeAttr(String(opacity))}"`
+  const opacityAttr = opacity?.stroke === undefined ? '' : ` stroke-opacity="${escapeAttr(String(opacity.stroke))}"`
+  const fillSketchOpacityAttr = opacity?.fill === undefined ? '' : ` stroke-opacity="${escapeAttr(String(opacity.fill))}"`
   for (const set of sets) {
     const d = gen.opsToPath(set as Parameters<typeof gen.opsToPath>[0], 2)
     if (!d) continue
     if (set.type === 'path') {
       out.push(`<path d="${d}" fill="none" stroke="${stroke}" stroke-width="${strokeWidth}"${projectedAttrs}${opacityAttr} />`)
     } else if (set.type === 'fillPath') {
-      out.push(`<path d="${d}" fill="${fill}" fill-opacity="${escapeAttr(String(opacity ?? 0.92))}" stroke="none" />`)
+      out.push(`<path d="${d}" fill="${fill}" fill-opacity="${escapeAttr(String(opacity?.fill ?? 0.92))}" stroke="none" />`)
     } else if (set.type === 'fillSketch') {
-      out.push(`<path d="${d}" fill="none" stroke="${fill}" stroke-width="${p.fillWeight}"${opacityAttr} />`)
+      out.push(`<path d="${d}" fill="none" stroke="${fill}" stroke-width="${p.fillWeight}"${fillSketchOpacityAttr} />`)
     }
   }
   return out.join('\n')
@@ -189,7 +207,7 @@ export function sketchGeometryRough(
   p: RoughParams,
   dash?: string,
   strokeProjection?: SketchStrokeProjection,
-  opacity?: string | number,
+  opacity?: SketchOpacity,
 ): string {
   return sketchGeometry(geom, seed, stroke, strokeWidth, fill, p, dash, strokeProjection, opacity)
 }
@@ -204,7 +222,7 @@ function sketchGeometry(
   p: RoughParams,
   dash?: string,
   strokeProjection?: SketchStrokeProjection,
-  opacity?: string | number,
+  opacity?: SketchOpacity,
 ): string {
   const projection = { ...strokeProjection, ...(dash !== undefined ? { dashArray: dash } : {}) }
   const opts = roughOptions(p, seed, stroke, strokeWidth, fill)
@@ -246,7 +264,7 @@ function sketchGeometryVia(
   fill: string | undefined,
   dash?: string,
   strokeProjection?: SketchStrokeProjection,
-  opacity?: string | number,
+  opacity?: SketchOpacity,
 ): string {
   if (walk.sketcher) {
     const out = walk.sketcher(geom, { seed, stroke, width, fill, p: walk.p, style: walk.ctx.style, dash, strokeProjection, opacity })
@@ -325,7 +343,7 @@ function sketchShape(node: ShapeMark, walk: Walk): string {
       // Stroke-less element (gantt bands, halo chips, state-start dots,
       // width-0 borders): never synthesize an outline (Phase 0 lesson b).
       if (wantFill) {
-        const sketchedFill = sketchGeometryVia(walk, geoms[i]!, seed, 'none', 0, wantFill, dash, undefined, node.paint.opacity)
+        const sketchedFill = sketchGeometryVia(walk, geoms[i]!, seed, 'none', 0, wantFill, dash, undefined, elementOpacity(el.attrs, node.paint))
         if (sketchedFill) {
           out.push(transformedStyledGeometry(sketchedFill, node.transform))
           continue
@@ -335,7 +353,7 @@ function sketchShape(node: ShapeMark, walk: Walk): string {
       continue
     }
     const width = Math.max(0.6, Math.min(p.strokeWidth * widthRatio, p.strokeWidth * 4))
-    const sketched = sketchGeometryVia(walk, geoms[i]!, seed, stroke!, width, wantFill, dash, undefined, node.paint.opacity)
+    const sketched = sketchGeometryVia(walk, geoms[i]!, seed, stroke!, width, wantFill, dash, undefined, elementOpacity(el.attrs, node.paint))
     if (!sketched) { out.push(crispElementOf(i)); continue }
     // Value-colored solid fills stay: when the style suppresses sketch fills
     // but the element carries a non-default fill, under-paint it crisply so

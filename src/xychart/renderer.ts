@@ -1,10 +1,10 @@
 import type { PositionedBar, PositionedXYChart } from './types.ts'
-import type { RenderContext, RenderOptions } from '../types.ts'
+import type { RenderContext } from '../types.ts'
 import { svgOpenTag, buildStyleBlock, buildShadowDefs } from '../theme.ts'
 import { TEXT_BASELINE_SHIFT, applyTextTransform, estimateTextWidth, STROKE_WIDTHS, resolveRenderStyle } from '../styles.ts'
 import type { RenderStyleDefaults } from '../styles.ts'
 import { LEGEND_SWATCH_GAP, LEGEND_SWATCH_SIZE, XY_DOT_RADIUS, XY_STYLE_DEFAULTS } from './layout.ts'
-import { escapeXml, renderMultilineText } from '../multiline-utils.ts'
+import { escapeXml } from '../multiline-utils.ts'
 import { CHART_ACCENT_FALLBACK } from './colors.ts'
 import { categoricalPalette } from '../shared/categorical-palette.ts'
 import { contrastTextColor } from '../color-resolver.ts'
@@ -14,7 +14,7 @@ import type { MarkPaint, SceneDoc, SceneNode } from '../scene/ir.ts'
 import * as marks from '../scene/marks.ts'
 import { DefaultBackend } from '../scene/backend.ts'
 import { tooltipArtwork, tooltipCss } from '../shared/svg-tooltip.ts'
-import { resolveRoleStyle, type InternalStyleFace } from '../scene/style-registry.ts'
+import { resolveRoleStyle } from '../scene/style-registry.ts'
 
 // ============================================================================
 // XY Chart SVG renderer
@@ -71,7 +71,7 @@ export function lowerXYChartScene(
   const svgTag = svgOpenTag(chart.width, chart.height, colors, transparent, svgMeta.openTag)
     .replace('<svg ', `<svg data-xychart-colors="${maxColorIdx}" `)
 
-  const { style: chartStyle, defs } = chartStyles(chart, interactive, colors.accent, colors.bg, options, resolved.styleFace)
+  const { style: chartStyle, defs } = chartStyles(chart, interactive, colors.accent, colors.bg)
   parts.push(marks.documentOpen(
     {
       id: 'prelude',
@@ -107,9 +107,8 @@ export function lowerXYChartScene(
       role: 'grid',
       geometry: { kind: 'line', x1: rn(gridLine.x1), y1: rn(gridLine.y1), x2: rn(gridLine.x2), y2: rn(gridLine.y2) },
       paint: gridPaint,
-    },
-      `<line x1="${r(gridLine.x1)}" y1="${r(gridLine.y1)}" x2="${r(gridLine.x2)}" y2="${r(gridLine.y2)}" class="xychart-grid"/>`,
-    ))
+      attributes: { className: 'xychart-grid' },
+    }))
   })
 
   lowerAxis(parts, chart.xAxis, 'x', chartColors.xAxisLineColor, chartColors.xAxisTickColor)
@@ -133,7 +132,6 @@ export function lowerXYChartScene(
     const catIndex = barSeriesCount.get(bar.seriesIndex) ?? 0
     barSeriesCount.set(bar.seriesIndex, catIndex + 1)
     const barId = `bar:${bar.seriesIndex}:${bar.label ?? catIndex}`
-    const dataAttrs = ` data-value="${bar.value}"${bar.label ? ` data-label="${escapeXml(bar.label)}"` : ''}`
     const channels = { category: `bar-${bar.seriesIndex}`, value: normalized(bar.value) }
     const roleStyle = resolveRoleStyle(resolved.styleFace, 'bar', channels, { includeFallback: false })
     const paletteFill = `var(--xychart-color-${bar.colorIndex})`
@@ -141,25 +139,21 @@ export function lowerXYChartScene(
     barFills.set(bar, hasAuthoredSeriesPalette ? seriesPalette.concrete(bar.colorIndex) : roleStyle?.fillColor ?? seriesPalette.concrete(bar.colorIndex))
     const stroke = roleStyle?.strokeColor ?? roleStyle?.borderColor
     const strokeWidth = roleStyle?.lineWidth
-    const inlineStyle = roleStyleAttr({
-      ...(hasAuthoredSeriesPalette ? {} : { fill: roleStyle?.fillColor }),
-      stroke,
-      strokeWidth,
-    })
     parts.push(marks.shape({
       id: barId,
       role: 'bar',
       geometry: { kind: 'rect', x: rn(bar.x), y: rn(bar.y), width: rn(bar.width), height: rn(bar.height) },
       paint: {
         fill,
-        ...(stroke ? { stroke } : {}),
+        stroke: stroke ?? 'none',
         ...(strokeWidth !== undefined ? { strokeWidth: String(strokeWidth) } : {}),
       },
       channels,
-    },
-      `<rect x="${r(bar.x)}" y="${r(bar.y)}" width="${r(bar.width)}" height="${r(bar.height)}" ` +
-      `class="xychart-bar xychart-color-${bar.colorIndex}"${inlineStyle}${dataAttrs}/>`,
-    ))
+      attributes: {
+        className: `xychart-bar xychart-color-${bar.colorIndex}`,
+        data: { value: String(bar.value), ...(bar.label ? { label: bar.label } : {}) },
+      },
+    }))
 
     if (interactive) {
       const tipText = formatBarValue(bar.value)
@@ -169,7 +163,7 @@ export function lowerXYChartScene(
         open: '<g class="xychart-bar-group">', close: '</g>', join: '', children: [
           { indent: 0, node: marks.shape({ id: `${barId}:hit`, role: 'chrome', owner,
             geometry: { kind: 'rect', x: rn(bar.x), y: rn(bar.y), width: rn(bar.width), height: rn(bar.height) }, paint: { fill: 'transparent' },
-          }, `<rect x="${r(bar.x)}" y="${r(bar.y)}" width="${r(bar.width)}" height="${r(bar.height)}" fill="transparent"/>`) },
+          }) },
           { indent: 0, node: marks.documentContent({ id: `${barId}:title`, role: 'chrome', nonPaint: 'interaction-metadata' }, `<title>${escapeXml(tipTitle)}</title>`) },
           { indent: 0, node: tooltipArtwork('xychart', bar.tooltip, `${barId}:tooltip`, owner) },
         ],
@@ -189,20 +183,15 @@ export function lowerXYChartScene(
     const paletteStroke = `var(--xychart-color-${line.colorIndex})`
     const stroke = hasAuthoredSeriesPalette ? paletteStroke : roleStyle?.strokeColor ?? roleStyle?.borderColor ?? paletteStroke
     const strokeWidth = roleStyle?.lineWidth ?? style.lineWidth
-    const inlineStyle = roleStyleAttr({
-      ...(hasAuthoredSeriesPalette ? {} : { stroke: roleStyle?.strokeColor ?? roleStyle?.borderColor }),
-      strokeWidth: roleStyle?.lineWidth,
-    })
     parts.push(marks.connector({
       id: `series:line-${line.seriesIndex}`,
       role: 'series',
       geometry: { kind: 'path', d, points: line.points },
       lineStyle: 'solid',
-      paint: { stroke, strokeWidth: String(strokeWidth) },
+      paint: { stroke, strokeWidth: String(strokeWidth), strokeLinecap: 'round', strokeLinejoin: 'round' },
       channels,
-    },
-      `<path d="${d}" class="xychart-line xychart-color-${line.colorIndex}"${inlineStyle}/>`,
-    ))
+      attributes: { className: `xychart-line xychart-color-${line.colorIndex}` },
+    }))
   }
 
   // Mermaid 11.16 line-point labels are semantic chart content, not hover
@@ -219,16 +208,18 @@ export function lowerXYChartScene(
       parts.push(marks.shape({
         id: `point-label-dot:${line.seriesIndex}:${pointIndex}`, role: 'point',
         geometry: { kind: 'circle', cx: rn(point.x), cy: rn(point.y), r: CHART_FONT.dotRadius },
-        paint: { fill: `var(--xychart-color-${line.colorIndex})`, stroke: 'var(--bg)', strokeWidth: '1' },
+        paint: { fill: `var(--xychart-color-${line.colorIndex})`, stroke: 'var(--bg)', strokeWidth: '2' },
         channels: { category: `line-${line.seriesIndex}`, value: normalized(point.value) },
-      }, `<circle cx="${r(point.x)}" cy="${r(point.y)}" r="${CHART_FONT.dotRadius}" class="xychart-dot xychart-color-${line.colorIndex}" data-value="${point.value}"/>`))
+        attributes: { className: `xychart-dot xychart-color-${line.colorIndex}`, data: { value: String(point.value) } },
+      }))
       parts.push(marks.text({
         id: `point-label:${line.seriesIndex}:${pointIndex}`, role: 'label', text: point.textBlock?.text ?? point.textLabel, block: point.textBlock,
-        x, y, fontSize: 12, anchor,
+        x: rn(x), y: rn(y), fontSize: 12, fontWeight: style.nodeLabelFontWeight, letterSpacing: style.nodeLetterSpacing,
+        display: 'literal', anchor, baselineShift: at ? 0.35 : 0,
         paint: { fill: `var(--xychart-color-${line.colorIndex})` },
         channels: { category: `line-${line.seriesIndex}`, value: normalized(point.value) },
-      }, renderMultilineText(point.textBlock ?? point.textLabel, rn(x), rn(y), 12,
-        `class="xychart-point-label xychart-color-${line.colorIndex}" data-label-position="${position}" text-anchor="${anchor}" font-size="12" font-weight="${style.nodeLabelFontWeight}"${letterAttr(style.nodeLetterSpacing)} fill="var(--xychart-color-${line.colorIndex})"`, at ? 0.35 : 0, true)))
+        attributes: { className: `xychart-point-label xychart-color-${line.colorIndex}`, data: { 'label-position': position } },
+      }))
     })
   }
 
@@ -237,7 +228,6 @@ export function lowerXYChartScene(
     for (const line of chart.lines) {
       line.points.forEach((point, pointIndex) => {
         const pointId = `point:line-${line.seriesIndex}:${point.label ?? pointIndex}`
-        const dataAttrs = ` data-value="${point.value}"${point.label ? ` data-label="${escapeXml(point.label)}"` : ''}`
         const tipText = formatBarValue(point.value)
         const tipTitle = point.label ? `${point.label}: ${tipText}` : tipText
         // The visible dot is a semantic point mark; the enlarged hit circle
@@ -252,8 +242,8 @@ export function lowerXYChartScene(
             {
               node: marks.shape({ id: `hit:${pointId}`, role: 'chrome', owner: { id: pointId, role: 'point' },
                 geometry: { kind: 'circle', cx: rn(point.x), cy: rn(point.y), r: CHART_FONT.dotRadius * 3 }, paint: { fill: 'transparent' },
-              },
-                `<circle cx="${r(point.x)}" cy="${r(point.y)}" r="${CHART_FONT.dotRadius * 3}" fill="transparent" class="xychart-hit"/>`),
+                attributes: { className: 'xychart-hit' },
+              }),
               indent: 0,
             },
             {
@@ -263,8 +253,11 @@ export function lowerXYChartScene(
                 geometry: { kind: 'circle', cx: rn(point.x), cy: rn(point.y), r: CHART_FONT.dotRadius },
                 paint: { fill: `var(--xychart-color-${line.colorIndex})`, stroke: 'var(--bg)', strokeWidth: '2' },
                 channels: { category: `line-${line.seriesIndex}`, value: normalized(point.value) },
-              },
-                `<circle cx="${r(point.x)}" cy="${r(point.y)}" r="${CHART_FONT.dotRadius}" class="xychart-dot xychart-color-${line.colorIndex}"${dataAttrs}/>`),
+                attributes: {
+                  className: `xychart-dot xychart-color-${line.colorIndex}`,
+                  data: { value: String(point.value), ...(point.label ? { label: point.label } : {}) },
+                },
+              }),
               indent: 0,
             },
             {
@@ -301,21 +294,22 @@ export function lowerXYChartScene(
       role: 'label',
       text,
       block: label.block,
-      x: label.x,
-      y: label.y,
+      x: rn(label.x),
+      y: rn(label.y),
       fontSize: label.fontSize,
+      fontWeight: style.nodeLabelFontWeight,
+      letterSpacing: style.nodeLetterSpacing,
+      display: 'literal',
       anchor: label.anchor,
+      ...(label.dominantBaseline ? { dominantBaseline: label.dominantBaseline } : {}),
+      baselineShift: 0,
       paint: { fill, stroke: halo, strokeWidth: String(DATA_LABEL_HALO_WIDTH), strokeLinejoin: 'round', paintOrder: 'stroke' },
       // Sketch looks halo text with the page color over hatched or washed
       // bars, so an ink chosen against the bar would sit on the page instead.
       ...(onBar ? { pageFill: chartColors.labelColor } : {}),
       channels: { category: `bar-${label.bar.seriesIndex}`, value: normalized(label.bar.value) },
-    },
-      `<text x="${r(label.x)}" y="${r(label.y)}" text-anchor="${label.anchor}" ` +
-      `${label.dominantBaseline ? `dominant-baseline="${label.dominantBaseline}" ` : ''}` +
-      `font-size="${label.fontSize}" font-weight="${style.nodeLabelFontWeight}"${letterAttr(style.nodeLetterSpacing)} fill="${escapeXml(fill)}" ` +
-      `stroke="${escapeXml(halo)}" stroke-width="${DATA_LABEL_HALO_WIDTH}" stroke-linejoin="round" paint-order="stroke" class="xychart-data-label" data-literal-text="true">${escapeXml(text)}</text>`,
-    ))
+      attributes: { className: 'xychart-data-label', data: { 'literal-text': 'true' } },
+    }))
   }
 
   lowerAxisLabels(parts, chart.xAxis.ticks, chart.xAxis.config.labelFontSize, 'x', style, chartColors.xAxisLabelColor)
@@ -325,7 +319,6 @@ export function lowerXYChartScene(
     const title = chart.xAxis.title
     const text = title.block?.text ?? applyTextTransform(title.text, style.edgeTextTransform)
     const rotation = title.rotate ? { kind: 'rotate' as const, angle: title.rotate, cx: title.x, cy: title.y } : undefined
-    const transform = rotation ? ` transform="rotate(${rotation.angle},${rotation.cx},${rotation.cy})"` : ''
     parts.push(marks.text({
       id: 'axis:x:title',
       role: 'axis',
@@ -334,20 +327,20 @@ export function lowerXYChartScene(
       x: title.x,
       y: title.y,
       fontSize: chart.xAxis.config.titleFontSize,
+      fontWeight: style.edgeLabelFontWeight,
+      letterSpacing: style.edgeLetterSpacing,
+      display: 'literal',
       anchor: 'middle',
       paint: { fill: chartColors.xAxisTitleColor },
       transform: rotation,
-    },
-      renderMultilineText(title.block ?? text, title.x, title.y, chart.xAxis.config.titleFontSize,
-        `text-anchor="middle"${transform} font-size="${chart.xAxis.config.titleFontSize}" font-weight="${style.edgeLabelFontWeight}"${letterAttr(style.edgeLetterSpacing)} class="xychart-axis-title xychart-x-axis-title"`, 0.35, true),
-    ))
+      attributes: { className: 'xychart-axis-title xychart-x-axis-title' },
+    }))
   }
 
   if (chart.yAxis.title) {
     const title = chart.yAxis.title
     const text = title.block?.text ?? applyTextTransform(title.text, style.edgeTextTransform)
     const rotation = title.rotate ? { kind: 'rotate' as const, angle: title.rotate, cx: title.x, cy: title.y } : undefined
-    const transform = rotation ? ` transform="rotate(${rotation.angle},${rotation.cx},${rotation.cy})"` : ''
     parts.push(marks.text({
       id: 'axis:y:title',
       role: 'axis',
@@ -356,13 +349,14 @@ export function lowerXYChartScene(
       x: title.x,
       y: title.y,
       fontSize: chart.yAxis.config.titleFontSize,
+      fontWeight: style.edgeLabelFontWeight,
+      letterSpacing: style.edgeLetterSpacing,
+      display: 'literal',
       anchor: 'middle',
       paint: { fill: chartColors.yAxisTitleColor },
       transform: rotation,
-    },
-      renderMultilineText(title.block ?? text, title.x, title.y, chart.yAxis.config.titleFontSize,
-        `text-anchor="middle"${transform} font-size="${chart.yAxis.config.titleFontSize}" font-weight="${style.edgeLabelFontWeight}"${letterAttr(style.edgeLetterSpacing)} class="xychart-axis-title xychart-y-axis-title"`, 0.35, true),
-    ))
+      attributes: { className: 'xychart-axis-title xychart-y-axis-title' },
+    }))
   }
 
   if (chart.title) {
@@ -375,13 +369,13 @@ export function lowerXYChartScene(
       x: chart.title.x,
       y: chart.title.y,
       fontSize: chart.config.titleFontSize,
+      fontWeight: style.groupHeaderFontWeight,
+      letterSpacing: style.groupLetterSpacing,
+      display: 'literal',
       anchor: 'middle',
       paint: { fill: chartColors.titleColor },
-    },
-      renderMultilineText(chart.title.block ?? title, chart.title.x, chart.title.y, chart.config.titleFontSize,
-        `text-anchor="middle" font-size="${chart.config.titleFontSize}" font-weight="${style.groupHeaderFontWeight}"${letterAttr(style.groupLetterSpacing)} class="xychart-title"`,
-        0.35, true),
-    ))
+      attributes: { className: 'xychart-title' },
+    }))
   }
 
   // Right-side legend (layout has already reserved its space inside the
@@ -399,9 +393,8 @@ export function lowerXYChartScene(
             geometry: { kind: 'rect', x: rn(item.x), y: rn(item.y), width: LEGEND_SWATCH_SIZE, height: LEGEND_SWATCH_SIZE, rx: 2, ry: 2 },
             paint: { fill: `var(--xychart-color-${item.colorIndex})` },
             channels: { category: `bar-${item.seriesIndex}` },
-          },
-            `<rect x="${r(item.x)}" y="${r(item.y)}" width="${LEGEND_SWATCH_SIZE}" height="${LEGEND_SWATCH_SIZE}" rx="2" ry="2" ` +
-            `class="xychart-legend-swatch" fill="var(--xychart-color-${item.colorIndex})"/>`),
+            attributes: { className: 'xychart-legend-swatch' },
+          }),
           indent: 2,
         })
       } else {
@@ -412,11 +405,10 @@ export function lowerXYChartScene(
             id: `legend:swatch:${item.colorIndex}`,
             role: 'legend',
             geometry: { kind: 'line', x1: rn(item.x), y1: rn(cy), x2: rn(item.x + LEGEND_SWATCH_SIZE), y2: rn(cy) },
-            paint: { stroke: `var(--xychart-color-${item.colorIndex})`, strokeWidth: String(CHART_FONT.lineWidth) },
+            paint: { stroke: `var(--xychart-color-${item.colorIndex})`, strokeWidth: String(CHART_FONT.lineWidth), strokeLinecap: 'round' },
             channels: { category: `line-${item.seriesIndex}` },
-          },
-            `<line x1="${r(item.x)}" y1="${r(cy)}" x2="${r(item.x + LEGEND_SWATCH_SIZE)}" y2="${r(cy)}" ` +
-            `class="xychart-legend-swatch" stroke="var(--xychart-color-${item.colorIndex})" stroke-width="${CHART_FONT.lineWidth}" stroke-linecap="round"/>`),
+            attributes: { className: 'xychart-legend-swatch' },
+          }),
           indent: 2,
         })
         legendChildren.push({
@@ -426,9 +418,8 @@ export function lowerXYChartScene(
             geometry: { kind: 'circle', cx: rn(item.x + LEGEND_SWATCH_SIZE / 2), cy: rn(cy), r: 2.5 },
             paint: { fill: `var(--xychart-color-${item.colorIndex})`, stroke: 'var(--bg)', strokeWidth: '1' },
             channels: { category: `line-${item.seriesIndex}` },
-          },
-            `<circle cx="${r(item.x + LEGEND_SWATCH_SIZE / 2)}" cy="${r(cy)}" r="2.5" ` +
-            `class="xychart-legend-dot" fill="var(--xychart-color-${item.colorIndex})" stroke="var(--bg)" stroke-width="1"/>`),
+            attributes: { className: 'xychart-legend-dot' },
+          }),
           indent: 2,
         })
       }
@@ -443,11 +434,15 @@ export function lowerXYChartScene(
           x: rn(labelX),
           y: rn(cy),
           fontSize: chart.config.legendFontSize,
+          fontWeight: style.nodeLabelFontWeight,
+          letterSpacing: style.nodeLetterSpacing,
+          display: 'literal',
           anchor: 'start',
+          dominantBaseline: 'middle',
+          baselineShift: 0,
           paint: { fill: chartColors.legendTextColor },
-        },
-          renderMultilineText(item.block ?? label, rn(labelX), rn(cy), chart.config.legendFontSize,
-            `text-anchor="start" dominant-baseline="middle" font-size="${chart.config.legendFontSize}" font-weight="${style.nodeLabelFontWeight}"${letterAttr(style.nodeLetterSpacing)} class="xychart-legend-label"`, 0, true)),
+          attributes: { className: 'xychart-legend-label' },
+        }),
         indent: 2,
       })
     }
@@ -481,10 +476,8 @@ function lowerAxis(
       role: 'axis',
       geometry: { kind: 'line', x1: rn(axis.line.x1), y1: rn(axis.line.y1), x2: rn(axis.line.x2), y2: rn(axis.line.y2) },
       paint: { stroke: lineColor, strokeWidth: String(axis.config.axisLineWidth) },
-    },
-      `<line x1="${r(axis.line.x1)}" y1="${r(axis.line.y1)}" x2="${r(axis.line.x2)}" y2="${r(axis.line.y2)}" ` +
-      `class="xychart-axis-line xychart-${axisName}-axis-line" stroke-width="${axis.config.axisLineWidth}"/>`,
-    ))
+      attributes: { className: `xychart-axis-line xychart-${axisName}-axis-line` },
+    }))
   }
 
   if (!axis.config.showTick) return
@@ -494,10 +487,8 @@ function lowerAxis(
       role: 'axis',
       geometry: { kind: 'line', x1: rn(tick.x), y1: rn(tick.y), x2: rn(tick.tx), y2: rn(tick.ty) },
       paint: { stroke: tickColor, strokeWidth: String(axis.config.tickWidth) },
-    },
-      `<line x1="${r(tick.x)}" y1="${r(tick.y)}" x2="${r(tick.tx)}" y2="${r(tick.ty)}" ` +
-      `class="xychart-tick xychart-${axisName}-tick" stroke-width="${axis.config.tickWidth}"/>`,
-    ))
+      attributes: { className: `xychart-tick xychart-${axisName}-tick` },
+    }))
   }
 }
 
@@ -511,7 +502,8 @@ function lowerAxisLabels(
 ): void {
   for (const tick of ticks) {
     const label = tick.block?.text ?? applyTextTransform(tick.label, style.edgeTextTransform)
-    const middleBaseline = tick.textAnchor === 'end' ? ' dominant-baseline="middle"' : ''
+    // End-anchored labels sit beside a vertical axis, centered on their tick.
+    const middle = tick.textAnchor === 'end'
     parts.push(marks.text({
       id: `axis:${axisName}:label:${tick.label}`,
       role: 'axis',
@@ -520,21 +512,22 @@ function lowerAxisLabels(
       x: tick.labelX,
       y: tick.labelY,
       fontSize,
+      fontWeight: style.nodeLabelFontWeight,
+      letterSpacing: style.nodeLetterSpacing,
+      display: 'literal',
       anchor: tick.textAnchor,
+      ...(middle ? { dominantBaseline: 'middle' as const, baselineShift: 0 } : {}),
       paint: { fill },
-    },
-      renderMultilineText(tick.block ?? label, tick.labelX, tick.labelY, fontSize,
-        `text-anchor="${tick.textAnchor}"${middleBaseline} font-size="${fontSize}" font-weight="${style.nodeLabelFontWeight}"${letterAttr(style.nodeLetterSpacing)} class="xychart-label xychart-${axisName}-label"`, tick.textAnchor === 'end' ? 0 : 0.35, true),
-    ))
+      attributes: { className: `xychart-label xychart-${axisName}-label` },
+    }))
   }
 }
 
-/** Theme/renderStyle color cascade shared by the style block and mark paints. */
+/** Theme/renderStyle color cascade for the mark paints. */
 interface ResolvedChartColors {
   gridStroke: string
   titleColor: string
   labelColor: string
-  axisTitleColor: string
   xAxisLabelColor: string
   yAxisLabelColor: string
   xAxisTickColor: string
@@ -555,7 +548,6 @@ function resolveChartColors(
     gridStroke: renderStyle.edgeStrokeColor ?? 'color-mix(in srgb, var(--fg) 14%, transparent)',
     titleColor: themeOverrides.titleColor ?? renderStyle.groupTextColor ?? renderStyle.nodeTextColor ?? 'var(--_text)',
     labelColor: renderStyle.nodeTextColor ?? 'var(--_text)',
-    axisTitleColor: renderStyle.edgeTextColor ?? renderStyle.nodeTextColor ?? 'var(--_text)',
     xAxisLabelColor: themeOverrides.xAxisLabelColor ?? renderStyle.nodeTextColor ?? 'var(--_text)',
     yAxisLabelColor: themeOverrides.yAxisLabelColor ?? renderStyle.nodeTextColor ?? 'var(--_text)',
     xAxisTickColor: themeOverrides.xAxisTickColor ?? renderStyle.groupTextColor ?? 'var(--_text-sec)',
@@ -605,11 +597,7 @@ function chartStyles(
   interactive: boolean,
   themeAccent?: string,
   bgColor?: string,
-  options: RenderOptions = {},
-  styleFace?: Readonly<InternalStyleFace>,
 ): { style: string; defs: string } {
-  const renderStyle = resolveRenderStyle(options, XY_STYLE_DEFAULTS, styleFace)
-  const cc = resolveChartColors(chart, renderStyle)
   const colorIndices = new Set<number>()
   for (const bar of chart.bars) colorIndices.add(bar.colorIndex)
   for (const line of chart.lines) colorIndices.add(line.colorIndex)
@@ -620,50 +608,18 @@ function chartStyles(
     colorVarDefs.push(`    --xychart-color-${index}: ${seriesPalette.css(index)};`)
   }
 
-  const seriesRules: string[] = []
-  for (const index of [...colorIndices].sort((a, b) => a - b)) {
-    const color = `var(--xychart-color-${index})`
-    seriesRules.push(`  .xychart-bar.xychart-color-${index} { fill: ${color}; }`)
-    seriesRules.push(`  path.xychart-color-${index}, line.xychart-color-${index} { stroke: ${color}; }`)
-    seriesRules.push(`  circle.xychart-color-${index} { fill: ${color}; }`)
-  }
-
   const tipRules = interactive ? tooltipCss('xychart', ['xychart-bar-group', 'xychart-dot-group']) : ''
 
   const colorVarsBlock = colorVarDefs.length > 0 ? `\n  svg {\n${colorVarDefs.join('\n')}\n  }` : ''
 
   const extraThemeCss = chart.theme.themeCss ? `\n${chart.theme.themeCss}\n` : ''
+  // Marks are painted from their typed fields; the stylesheet keeps the
+  // series color variables, interaction rules and authored theme CSS.
   const style = `<style>
-  .xychart-grid { stroke: ${cc.gridStroke}; stroke-width: 1${renderStyle.edgeStrokeColor ? '; opacity: 0.25' : ''}; }
-  .xychart-axis-line { fill: none; }
-  .xychart-tick { fill: none; }
-  .xychart-x-axis-line { stroke: ${cc.xAxisLineColor}; }
-  .xychart-y-axis-line { stroke: ${cc.yAxisLineColor}; }
-  .xychart-x-tick { stroke: ${cc.xAxisTickColor}; }
-  .xychart-y-tick { stroke: ${cc.yAxisTickColor}; }
-  .xychart-bar { stroke: none; }
-  .xychart-line { fill: none; stroke-width: ${renderStyle.lineWidth}; stroke-linecap: round; stroke-linejoin: round; }
-  .xychart-dot { stroke: var(--bg); stroke-width: 2; }
-  .xychart-label { fill: ${cc.labelColor}; }
-  .xychart-x-label { fill: ${cc.xAxisLabelColor}; }
-  .xychart-y-label { fill: ${cc.yAxisLabelColor}; }
-  .xychart-axis-title { fill: ${cc.axisTitleColor}; }
-  .xychart-x-axis-title { fill: ${cc.xAxisTitleColor}; }
-  .xychart-y-axis-title { fill: ${cc.yAxisTitleColor}; }
-  .xychart-title { fill: ${cc.titleColor}; }
-  .xychart-data-label { pointer-events: none; }${chart.legend.length > 0 ? `\n  .xychart-legend-label { fill: ${cc.legendTextColor}; }` : ''}${colorVarsBlock}
-${seriesRules.join('\n')}${tipRules}${extraThemeCss}
+  .xychart-data-label { pointer-events: none; }${colorVarsBlock}${tipRules}${extraThemeCss}
 </style>`
 
   return { style, defs: '' }
-}
-
-function roleStyleAttr(values: { fill?: string; stroke?: string; strokeWidth?: number }): string {
-  const declarations: string[] = []
-  if (values.fill !== undefined) declarations.push(`fill:${escapeXml(values.fill)}`)
-  if (values.stroke !== undefined) declarations.push(`stroke:${escapeXml(values.stroke)}`)
-  if (values.strokeWidth !== undefined) declarations.push(`stroke-width:${values.strokeWidth}`)
-  return declarations.length > 0 ? ` style="${declarations.join(';')}"` : ''
 }
 
 function polylinePath(points: Array<{ x: number; y: number }>): string {
@@ -683,10 +639,6 @@ function rn(value: number): number {
 
 function r(value: number): string {
   return rn(value).toString()
-}
-
-function letterAttr(value: number): string {
-  return value !== 0 ? ` letter-spacing="${value}"` : ''
 }
 
 

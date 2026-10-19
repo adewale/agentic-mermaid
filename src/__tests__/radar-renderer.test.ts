@@ -20,14 +20,14 @@ describe('radar SVG renderer', () => {
   test('showLegend false removes legend marks without removing curve geometry', () => {
     const svg = renderMermaidSVG(BASIC + '\n  showLegend false')
     expect(svg).not.toContain('<rect class="radar-legend-swatch"')
-    expect(svg).not.toContain('<text class="radar-legend-text"')
+    expect(svg).not.toContain('class="radar-legend-text"')
     expect((svg.match(/class="radar-area"/g) ?? [])).toHaveLength(2)
   })
 
   test('circle graticule uses <circle> rings and a smooth <path> area; polygon uses <polygon>', () => {
     const circle = renderMermaidSVG(BASIC)
     expect(circle).toMatch(/<circle class="radar-ring/)
-    expect(circle).toMatch(/<path class="radar-area" d="M[^"]*C/) // Catmull-Rom cubic
+    expect(circle).toMatch(/<path class="radar-area"[^>]* d="M[^"]*C/) // Catmull-Rom cubic
 
     const poly = renderMermaidSVG(BASIC + '\n  graticule polygon')
     expect(poly).toMatch(/<polygon class="radar-ring/)

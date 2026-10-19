@@ -74,10 +74,15 @@ export function displayText(label: DisplayTextInput, display: LabelDisplay = 'fo
   return prepareDisplayText(label, display).lines.map(runs => runs.map(run => run.text).join('')).join('\n')
 }
 
+const XML_SPECIAL = /[&<>"']/
+const ATTRIBUTE_SPECIAL = /[&<>"'\t\n\r]/
+
 /**
  * Escape special XML characters in text content.
  */
 export function escapeXml(text: string): string {
+  // Most values hold none of these; skip the five passes when nothing changes.
+  if (typeof text === 'string' && !XML_SPECIAL.test(text)) return text
   return text
     .replace(/&/g, '&amp;')
     .replace(/</g, '&lt;')
@@ -92,6 +97,7 @@ export function escapeXml(text: string): string {
  * and CR; element text retains its separate display interpretation.
  */
 export function escapeAttr(text: string): string {
+  if (typeof text === 'string' && !ATTRIBUTE_SPECIAL.test(text)) return text
   return escapeXml(text).replace(/[\t\n\r]/g, character => character === '\t' ? '&#9;' : character === '\n' ? '&#10;' : '&#13;')
 }
 

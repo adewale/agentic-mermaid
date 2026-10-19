@@ -503,9 +503,16 @@ function paintBounds(node: SceneNode, parentTransform?: SceneTransform): AxisAli
   let local: AxisAlignedBox | undefined
   if (node.kind === 'shape') {
     local = geometryBounds(node.geometry)
-    const extent = paintedStrokeExtent(node.paint, ['polygon', 'polyline', 'path', 'compound'].includes(node.geometry.kind))
-    if (!local || extent === undefined) return undefined
-    const base = paintedBox(local, extent, node.paint.vectorEffect === 'non-scaling-stroke', transform)
+    if (!local) return undefined
+    const open = ['polygon', 'polyline', 'path', 'compound'].includes(node.geometry.kind)
+    // A compound's pieces may stroke more widely than its summary paint.
+    let base: AxisAlignedBox | undefined
+    for (const paint of [node.paint, ...node.childPaints ?? []]) {
+      const extent = paintedStrokeExtent(paint, open)
+      const box = extent === undefined ? undefined : paintedBox(local, extent, paint.vectorEffect === 'non-scaling-stroke', transform)
+      if (!box) return undefined
+      base = base ? unionSceneBounds(base, box) : box
+    }
     if (!node.conditionalPaint) return base
     const alternate = paintedStrokeExtent(node.conditionalPaint, ['polygon', 'polyline', 'path', 'compound'].includes(node.geometry.kind))
     if (!base || alternate === undefined) return undefined

@@ -192,7 +192,7 @@ export class ErRouteWorkLimitError extends RangeError {
   constructor() { super('ER_ROUTE_WORK_LIMIT: frame corridor checks exceed 400000; split the diagram or reduce its relationships'); this.name = 'ErRouteWorkLimitError' }
 }
 
-class ErRouteGeometryError extends Error {
+export class ErRouteGeometryError extends Error {
   readonly code = 'ER_ROUTE_BLOCKED'
   constructor(from: string, to: string) { super(`ER_ROUTE_BLOCKED: no clear frame corridor from ${from} to ${to}`); this.name = 'ErRouteGeometryError' }
 }

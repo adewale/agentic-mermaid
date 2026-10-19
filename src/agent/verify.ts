@@ -11,7 +11,7 @@ import { PaintLayoutCertificationError } from '../scene/paint-certification.ts'
 import { normalizeV11Shape } from '../flowchart-shapes.ts'
 import { applyGanttFrontmatterConfig, parseGanttModel } from '../gantt/parser.ts'
 import { GANTT_TODAY_MARKER_STYLE_PROPS, parseTodayMarkerStyle } from '../gantt/today-marker.ts'
-import { lowerPositionedFamilyScene, renderPositionedMermaidSVG } from '../graphical-render.ts'
+import { executeGraphicalRequest, lowerPositionedFamilyScene, renderPositionedMermaidSVG } from '../graphical-render.ts'
 import { normalizeMermaidSource, normalizeMermaidSourceWithOverrides } from '../mermaid-source.ts'
 import { resolveRenderRequest } from '../render-contract.ts'
 import { checkFamilyConfigColors, checkThemeVariableColors, RenderOptionColorError, ThemeVariableColorError } from '../theme-color-admission.ts'
@@ -28,6 +28,7 @@ import { formatBarValue } from '../xychart/axis-utils.ts'
 import type { PositionedXYChart } from '../xychart/types.ts'
 import type { PositionedQuadrantChart } from '../quadrant/types.ts'
 import { ensureAccessibilityLines } from './accessibility-envelope.ts'
+import { renderErrorOrigin } from './error-origin.ts'
 import { architectureUnsupportedSyntaxWarnings } from './architecture-body.ts'
 import { classUnsupportedSyntaxWarnings } from './class-body.ts'
 import { ganttUnsupportedSyntaxWarnings } from './gantt-body.ts'
@@ -41,6 +42,7 @@ import { resolveLabelContent } from '../shared/display-text.ts'
 import { emptyRenderedLayout } from './layout-to-rendered.ts'
 import { mindmapUnsupportedSyntaxWarnings } from './mindmap-body.ts'
 import { parseRegisteredMermaid } from './parse.ts'
+import { prepareRenderInput } from './render-input.ts'
 import { quadrantUnsupportedSyntaxWarnings } from './quadrant-body.ts'
 import { sequenceMessages, sequenceUnsupportedSyntaxWarnings } from './sequence-body.ts'
 import { authoredLineForCanonical } from './source-map-spans.ts'
@@ -139,8 +141,9 @@ export function verifyMermaid(input: ParsedDiagram | string, opts: VerifyOptions
   }
   if (parsed.value.body.kind === 'preserved') {
     const { diagnostic } = parsed.value.body
-    return finalize([{ code: 'RENDER_FAILED', reason: `${diagnostic.code}: ${diagnostic.message}` }], emptyRenderedLayout(parsed.value.kind), opts, false)
+    return finalize([{ code: 'RENDER_FAILED', reason: `${diagnostic.code}: ${diagnostic.message}`, origin: 'source' }], emptyRenderedLayout(parsed.value.kind), opts, false)
   }
+  const positioned = memoizedVerificationArtifact(parsed.value, opts, typeof input === 'string' ? input : undefined)
   // Flowchart's canonical body omits the authored config envelope, so the
   // positioned render-parity artifact alone cannot detect bad theme colors.
   // Check the same merged source/options config before all verification tiers.
@@ -154,21 +157,56 @@ export function verifyMermaid(input: ParsedDiagram | string, opts: VerifyOptions
     else checkThemeVariableColors(source.config.themeVariables, parsed.value.kind, opts.renderOptions)
     checkFamilyConfigColors(source.frontmatter, parsed.value.kind)
   } catch (error) {
-    const reason = error instanceof Error ? error.message : String(error)
-    return finalize([{ code: 'RENDER_FAILED', reason }], emptyRenderedLayout(parsed.value.kind), opts, false)
+    return finalize([positioned.failure(error)], emptyRenderedLayout(parsed.value.kind), opts, false)
   }
-  const positioned = memoizedVerificationArtifact(parsed.value, opts)
   try {
     const structured = verifyStructure(parsed.value, opts, positioned)
     return withRenderParity(withBrandConstraints(structured, opts, positioned), opts, positioned)
   } catch (error) {
-    if (error instanceof PaintLayoutCertificationError) return { ...finalize([{ code: 'RENDER_FAILED', reason: error.message }], emptyRenderedLayout(parsed.value.kind), opts, false), layoutCertification: error.certification }
-    if (!(error instanceof FamilyLayoutError || error instanceof RenderOptionColorError || error instanceof ThemeVariableColorError)) throw error
-    return finalize([{ code: 'RENDER_FAILED', reason: error.message }], emptyRenderedLayout(parsed.value.kind), opts, false)
+    if (!(error instanceof PaintLayoutCertificationError || error instanceof FamilyLayoutError || error instanceof RenderOptionColorError || error instanceof ThemeVariableColorError)) throw error
+    const certification = error instanceof PaintLayoutCertificationError ? { layoutCertification: error.certification } : {}
+    return { ...finalize([positioned.failure(error)], emptyRenderedLayout(parsed.value.kind), opts, false), ...certification }
   }
 }
 
-type VerificationArtifact = () => ProjectedFamilyArtifact | null
+type DefaultRender = Extract<LayoutWarning, { code: 'INTERNAL_ERROR' }>['defaultRender']
+
+/**
+ * The one mapping from a caught render-path failure to a verify finding. A
+ * fault in the source or its configuration is the author's to fix:
+ * RENDER_FAILED, with its origin. An engine defect is ours: INTERNAL_ERROR,
+ * whose `defaultRender` comes from `defaultRender()`, called only here, on
+ * the failure path.
+ */
+export function renderFailureWarning(error: unknown, defaultRender: () => DefaultRender, prefix = ''): LayoutWarning {
+  const reason = `${prefix}${error instanceof Error ? error.message : String(error)}`
+  const origin = renderErrorOrigin(error)
+  return origin === 'engine' ? { code: 'INTERNAL_ERROR', reason, defaultRender: defaultRender() } : { code: 'RENDER_FAILED', reason, origin }
+}
+
+/**
+ * Whether an ordinary render of the request verify checks still produces
+ * output: the caller's own source (or the parsed diagram they passed) and
+ * render options, without the Scene cross-checks verify marks its own
+ * requests for. The caller's diagnostic callback is left out; it already
+ * observes verify's own request.
+ */
+function ordinaryRenderOutcome(d: ParsedDiagram, opts: VerifyOptions, authored?: string): DefaultRender {
+  try {
+    const { onConfigDiagnostic: _observer, ...renderOptions } = opts.renderOptions ?? {}
+    const input = prepareRenderInput(authored ?? d)
+    executeGraphicalRequest(input.source, renderOptions, 'svg', undefined, { expectedFamilyId: input.expectedFamilyId })
+    return 'succeeds-unchecked'
+  } catch {
+    return 'fails'
+  }
+}
+
+/** The positioned artifact one verify call checks, and the finding for a
+ * failure on its render path. */
+type VerificationArtifact = (() => ProjectedFamilyArtifact | null) & {
+  failure(error: unknown, prefix?: string): LayoutWarning
+}
 
 function withBrandConstraints(result: VerifyResult, opts: VerifyOptions, positioned: VerificationArtifact): VerifyResult {
   if (!result.ok) return result
@@ -191,12 +229,15 @@ function withBrandConstraints(result: VerifyResult, opts: VerifyOptions, positio
   }
 }
 
-/** One lazy artifact per verify call; failures are memoized as well as values. */
-function memoizedVerificationArtifact(d: ParsedDiagram, opts: VerifyOptions): VerificationArtifact {
+/** One lazy artifact per verify call; failures are memoized as well as values,
+ * and so is the ordinary render an engine failure is checked against. */
+function memoizedVerificationArtifact(d: ParsedDiagram, opts: VerifyOptions, authored?: string): VerificationArtifact {
   let attempted = false
   let artifact: ProjectedFamilyArtifact | null = null
   let failure: unknown
-  return () => {
+  let defaultRender: DefaultRender | undefined
+  const failureWarning = (error: unknown, prefix?: string) => renderFailureWarning(error, () => defaultRender ??= ordinaryRenderOutcome(d, opts, authored), prefix)
+  return Object.assign(() => {
     if (attempted) {
       if (failure !== undefined) throw failure
       return artifact
@@ -218,7 +259,7 @@ function memoizedVerificationArtifact(d: ParsedDiagram, opts: VerifyOptions): Ve
       failure = error
       throw error
     }
-  }
+  }, { failure: failureWarning })
 }
 
 /**
@@ -243,8 +284,7 @@ function withRenderParity(result: VerifyResult, opts: VerifyOptions, positioned:
     const rendered = renderPositionedMermaidSVG(artifact.request, artifact.layoutResult, [])
     return { ...result, ...(rendered.layoutCertification ? { layoutCertification: rendered.layoutCertification } : {}) }
   } catch (e) {
-    const reason = e instanceof Error ? e.message : String(e)
-    return { ...result, ok: false, ...(e instanceof PaintLayoutCertificationError ? { layoutCertification: e.certification } : {}), warnings: [...result.warnings, { code: 'RENDER_FAILED', reason }] }
+    return { ...result, ok: false, ...(e instanceof PaintLayoutCertificationError ? { layoutCertification: e.certification } : {}), warnings: [...result.warnings, positioned.failure(e)] }
   }
 }
 
@@ -507,7 +547,7 @@ function verifyStructure(parsed: ParsedDiagram, opts: VerifyOptions, positioned:
   // (recorded at parse time) surface here as the Tier 3 COMMENT_DROPPED lint,
   // so the loss is announced rather than silent.
   const metaWarnings: LayoutWarning[] = parsed.meta.droppedComments?.length ? [{ code: 'COMMENT_DROPPED', count: parsed.meta.droppedComments.length, lines: parsed.meta.droppedComments.map(c => c.line) }] : []
-  const dispatchedWarnings = dispatchFamilyVerify(parsed, opts)
+  const dispatchedWarnings = dispatchFamilyVerify(parsed, opts, positioned)
   const configWarnings = configWarningsForDiagram(parsed)
   if (parsed.body.kind === 'extension') {
     return verifyExtension(parsed as ExtensionValidDiagram, cap, opts, dedupedConcat(dedupedConcat(metaWarnings, dispatchedWarnings), configWarnings), positioned)
@@ -677,14 +717,14 @@ function familyLayoutForVerify(d: ParsedDiagram, positioned: VerificationArtifac
             {
               code: 'RENDER_FAILED',
               reason: `Mermaid family "${d.kind}" has no public layout projection registered`,
+              origin: 'config',
             },
           ],
         }
   } catch (error) {
-    const reason = error instanceof Error ? error.message : String(error)
     return {
       layout: emptyRenderedLayout(d.kind),
-      warnings: [{ code: 'RENDER_FAILED', reason }],
+      warnings: [positioned.failure(error)],
     }
   }
 }
@@ -700,8 +740,7 @@ function verifyGraph(graph: import('../types.ts').MermaidGraph, d: ValidDiagram,
   try {
     artifact = positionedArtifact()
   } catch (error) {
-    const reason = error instanceof Error ? error.message : String(error)
-    return { warnings: [{ code: 'RENDER_FAILED', reason }], layout: emptyRenderedLayout(d.kind) }
+    return { warnings: [positionedArtifact.failure(error)], layout: emptyRenderedLayout(d.kind) }
   }
   if (!artifact || !isPositionedGraph(artifact.positioned)) {
     return {
@@ -812,9 +851,9 @@ function dedupedConcat(a: LayoutWarning[], b: LayoutWarning[]): LayoutWarning[] 
  * Returns the warnings the descriptor produced. Registered extension families
  * without a hook, and hooks that throw, become explicit verification errors.
  */
-function dispatchFamilyVerify(d: ParsedDiagram, opts: VerifyOptions): LayoutWarning[] {
+function dispatchFamilyVerify(d: ParsedDiagram, opts: VerifyOptions, positioned: VerificationArtifact): LayoutWarning[] {
   const plugin = getFamily(d.kind)
-  if (!plugin?.verify) return d.body.kind === 'extension' ? [{ code: 'RENDER_FAILED', reason: `Mermaid family "${d.kind}" has no verify hook registered` }] : []
+  if (!plugin?.verify) return d.body.kind === 'extension' ? [{ code: 'RENDER_FAILED', reason: `Mermaid family "${d.kind}" has no verify hook registered`, origin: 'config' }] : []
   try {
     let body = d.body
     if (d.body.kind === 'extension') {
@@ -830,6 +869,7 @@ function dispatchFamilyVerify(d: ParsedDiagram, opts: VerifyOptions): LayoutWarn
             {
               code: 'RENDER_FAILED',
               reason: `Mermaid family "${d.kind}" could not reparse source under its current descriptor before verification`,
+              origin: 'source',
             },
           ]
         }
@@ -838,8 +878,7 @@ function dispatchFamilyVerify(d: ParsedDiagram, opts: VerifyOptions): LayoutWarn
     }
     return plugin.verify(body, opts)
   } catch (error) {
-    const reason = error instanceof Error ? error.message : String(error)
-    return [{ code: 'RENDER_FAILED', reason: `Mermaid family "${d.kind}" verify hook failed: ${reason}` }]
+    return [positioned.failure(error, `Mermaid family "${d.kind}" verify hook failed: `)]
   }
 }
 
@@ -861,7 +900,7 @@ function warningKey(w: LayoutWarning): string {
   // node disambiguates per-node lints that share a syntax and carry no line
   // (flowchart_shape_substitution) so two substituted nodes both surface.
   if (w.code === 'UNSUPPORTED_SYNTAX') return `${w.code}:${w.syntax}:${w.line ?? ''}:${w.node ?? ''}`
-  if (w.code === 'RENDER_FAILED') return `${w.code}:${w.reason}`
+  if (w.code === 'RENDER_FAILED' || w.code === 'INTERNAL_ERROR') return `${w.code}:${w.reason}`
   if ('target' in w) return `${w.code}:${w.target}`
   if ('edge' in w) return `${w.code}:${w.edge}`
   if ('node' in w) return `${w.code}:${w.node}`
@@ -1061,12 +1100,13 @@ function finalize(warnings: LayoutWarning[], layout: RenderedLayout, opts: Verif
   // content-less diagrams keep the explicit, ok-flipping EMPTY_DIAGRAM their
   // verify paths already push. Callers whose empty layout means "unmodeled,
   // preserved" rather than "renders nothing" (opaque bodies) opt out via
-  // guardEmptyLayout=false. A RENDER_FAILED already says why the layout is
-  // empty; announcing unsupported syntax beside it would point at the wrong fix.
+  // guardEmptyLayout=false. A RENDER_FAILED or INTERNAL_ERROR already says why
+  // the layout is empty; announcing unsupported syntax beside it would point at
+  // the wrong fix.
   if (
     guardEmptyLayout &&
     !suppress.has('UNSUPPORTED_SYNTAX') &&
-    !kept.some(w => w.code === 'RENDER_FAILED') &&
+    !kept.some(w => w.code === 'RENDER_FAILED' || w.code === 'INTERNAL_ERROR') &&
     layout.nodes.length === 0 &&
     layout.edges.length === 0 &&
     layout.groups.length === 0 &&

@@ -11,9 +11,10 @@ import { FONT_SIZES, FONT_WEIGHTS, STROKE_WIDTHS, resolveRenderStyle, diagramTit
 import type { RenderStyleDefaults, ResolvedRenderStyle } from '../styles.ts'
 import { CLS, CLASS_STYLE_DEFAULTS } from './layout.ts'
 import { buildAccessibilityAttrs } from '../shared/svg-a11y.ts'
-import { renderMultilineText, escapeAttr, escapeDisplayAttr, escapeXml as escapeXmlUtil } from '../multiline-utils.ts'
+import { escapeAttr, escapeDisplayAttr, escapeXml as escapeXmlUtil } from '../multiline-utils.ts'
+import { sanitizeDisplayLines } from '../shared/text-controls.ts'
 import { topRoundedRectPath } from '../svg-paths.ts'
-import type { MarkerDescriptor, SceneDoc, SceneNode } from '../scene/ir.ts'
+import type { MarkAttributes, MarkerDescriptor, SceneDoc, SceneNode, TextMark } from '../scene/ir.ts'
 import { hashId } from '../scene/seed.ts'
 import * as marks from '../scene/marks.ts'
 import { DefaultBackend } from '../scene/backend.ts'
@@ -37,17 +38,26 @@ import { projectRoundedConnectorPath } from '../scene/connector-geometry.ts'
 // ============================================================================
 
 
-/** Font sizes specific to class diagrams */
+/** Font sizes specific to class diagrams (weights belong to the prepared
+ * member and annotation blocks). */
 const CLS_FONT = {
   memberSize: 11,
-  memberWeight: 400,
   annotationSize: 10,
-  annotationWeight: 500,
 } as const
 
-function renderLiteralBlock(block: PixelTextBlock, x: number, y: number, attrs: string, visible?: string): string {
-  const svg = renderMultilineText(block, x, y, block.fontSize, attrs)
-  return visible && block.lines.length === 1 ? svg.replace(`>${escapeXml(block.text)}</text>`, `>${visible}</text>`) : svg
+type HighlightRun = NonNullable<TextMark['spans']>[number]
+
+/** Highlight runs stand in for a line the writer emits as plain characters:
+ * one untracked, unstyled line of printable ASCII whose runs spell the block.
+ * Any other line carries its own positioned fragments and is drawn in the
+ * member's single ink. */
+function highlightRuns(block: PixelTextBlock, spans: readonly HighlightRun[]): Pick<TextMark, 'spans'> {
+  const line = block.lineBlocks.length === 1 ? block.lineBlocks[0]! : undefined
+  const plain = !!line && !line.fragments && block.letterSpacing === 0
+    && /^[\x20-\x7e]*$/.test(block.text)
+    && line.runs.every(run => !run.bold && !run.italic && !run.underline && !run.strikethrough)
+    && spans.map(span => span.text).join('') === block.text
+  return plain ? { spans } : {}
 }
 
 /**
@@ -217,9 +227,7 @@ function renderNamespaceBox(ns: PositionedClassNamespace, style: ResolvedRenderS
       role: 'group',
       geometry: { kind: 'rect', x: ns.x, y: ns.y, width: ns.width, height: ns.height, rx: style.groupCornerRadius, ry: style.groupCornerRadius },
       paint: { fill: rectFill, stroke: rectStroke, strokeWidth: String(style.groupLineWidth) },
-    },
-      `<rect x="${ns.x}" y="${ns.y}" width="${ns.width}" height="${ns.height}" ` +
-      `rx="${style.groupCornerRadius}" ry="${style.groupCornerRadius}" fill="${escapeAttr(rectFill)}" stroke="${escapeAttr(rectStroke)}" stroke-width="${style.groupLineWidth}" />`),
+    }),
   })
 
   // Header band
@@ -232,9 +240,7 @@ function renderNamespaceBox(ns: PositionedClassNamespace, style: ResolvedRenderS
       role: 'group-header',
       geometry: { kind: 'path', d: headerPath },
       paint: { fill: headerFill, stroke: rectStroke, strokeWidth: String(style.groupLineWidth) },
-    },
-      `<path d="${headerPath}" ` +
-      `fill="${escapeAttr(headerFill)}" stroke="${escapeAttr(rectStroke)}" stroke-width="${style.groupLineWidth}" />`),
+    }),
   })
 
   // Header label (display label when given, else the segment name), wrapped
@@ -253,13 +259,7 @@ function renderNamespaceBox(ns: PositionedClassNamespace, style: ResolvedRenderS
       fontSize: style.groupHeaderFontSize,
       anchor: 'start',
       paint: { fill: headerTextColor },
-    }, renderMultilineText(
-      headerBlock,
-      ns.x + style.groupLabelPaddingX,
-      ns.y + ns.headerHeight / 2,
-      style.groupHeaderFontSize,
-      `font-size="${style.groupHeaderFontSize}" font-weight="${style.groupHeaderFontWeight}"${style.groupFont ? ` font-family="${escapeAttr(style.groupFont)}"` : ''}${style.groupLetterSpacing !== 0 ? ` letter-spacing="${style.groupLetterSpacing}"` : ''} fill="${escapeAttr(headerTextColor)}"`
-    )),
+    }),
   })
 
   return marks.group({
@@ -321,9 +321,7 @@ function renderClassBox(cls: PositionedClassNode, style: ResolvedRenderStyle, in
       role: 'class-box',
       geometry: { kind: 'rect', x, y, width, height, rx: style.cornerRadius ?? 0, ry: style.cornerRadius ?? 0 },
       paint: { fill: boxFill, stroke: boxStroke, strokeWidth: String(boxStrokeWidth) },
-    },
-      `<rect x="${x}" y="${y}" width="${width}" height="${height}" ` +
-      `rx="${style.cornerRadius ?? 0}" ry="${style.cornerRadius ?? 0}" fill="${escapeAttr(boxFill)}" stroke="${escapeAttr(boxStroke)}" stroke-width="${boxStrokeWidth}" />`),
+    }),
   })
 
   // Header background
@@ -336,9 +334,7 @@ function renderClassBox(cls: PositionedClassNode, style: ResolvedRenderStyle, in
       role: 'group-header',
       geometry: { kind: 'path', d: headerPath },
       paint: { fill: headerFill, stroke: boxStroke, strokeWidth: String(boxStrokeWidth) },
-    },
-      `<path d="${headerPath}" ` +
-      `fill="${escapeAttr(headerFill)}" stroke="${escapeAttr(boxStroke)}" stroke-width="${boxStrokeWidth}" />`),
+    }),
   })
 
   // Annotation (<<interface>>, <<abstract>>, etc.)
@@ -356,10 +352,10 @@ function renderClassBox(cls: PositionedClassNode, style: ResolvedRenderStyle, in
         x: x + width / 2,
         y: annotY,
         fontSize: CLS_FONT.annotationSize,
+        fontStyle: 'italic',
         anchor: 'middle',
         paint: { fill: annotColor },
-      },
-        renderLiteralBlock(annotationBlock, x + width / 2, annotY, `text-anchor="middle" font-size="${CLS_FONT.annotationSize}" font-weight="${CLS_FONT.annotationWeight}" font-style="italic" fill="${escapeAttr(annotColor)}"`)),
+      }),
     })
     nameY = y + headerHeight / 2 + 6
   }
@@ -379,13 +375,7 @@ function renderClassBox(cls: PositionedClassNode, style: ResolvedRenderStyle, in
       fontSize: style.nodeLabelFontSize,
       anchor: 'middle',
       paint: { fill: nameColor },
-    }, renderMultilineText(
-      labelBlock,
-      x + width / 2,
-      nameY,
-      style.nodeLabelFontSize,
-      `text-anchor="middle" font-size="${style.nodeLabelFontSize}" font-weight="${style.nodeLabelFontWeight}"${letterAttr(style.nodeLetterSpacing)} fill="${escapeAttr(nameColor)}"`
-    )),
+    }),
   })
 
   // Divider line between header and attributes
@@ -429,65 +419,41 @@ function renderDivider(clsId: string, which: 'attrs' | 'methods', x: number, lin
     role: 'chrome',
     geometry: { kind: 'line', x1: x, y1: lineY, x2: x + width, y2: lineY },
     paint: { stroke, strokeWidth: String(strokeWidth) },
-  },
-    `<line x1="${x}" y1="${lineY}" x2="${x + width}" y2="${lineY}" ` +
-    `stroke="${escapeAttr(stroke)}" stroke-width="${strokeWidth}" />`)
+  })
 }
 
 /**
- * Render a single class member with syntax highlighting.
- * Uses <tspan> elements to color each part of the member differently:
+ * Render a single class member with syntax highlighting: differently painted
+ * runs color each part of the member:
  *   - visibility symbol (+/-/#/~) → textMuted (it carries UML meaning)
  *   - member name (incl. parens for methods) → textSecondary
  *   - colon separator → textFaint (decoration)
  *   - type annotation → textMuted
+ * Abstract members are italic and static members underlined.
  */
 function renderMember(member: ClassMember, x: number, y: number, style: ResolvedRenderStyle, sceneId: string, ink: (tone: string) => string, prepared?: PixelTextBlock): SceneNode {
   const block = prepared ?? classMemberBlock(member)
-  const fontStyle = member.isAbstract ? ' font-style="italic"' : ''
-  const decoration = member.isStatic ? ' text-decoration="underline"' : ''
+  const plain = memberToString(member)
+  const nameInk = ink(style.nodeTextColor ?? 'var(--_text-sec)')
+  const spans: HighlightRun[] = []
 
   if (!member.isMethod && member.sourceText) {
-    const plain = memberToString(member)
-    const textInk = ink(style.nodeTextColor ?? 'var(--_text-sec)')
-    const visible = member.visibility && plain.startsWith(member.visibility)
-      ? `<tspan fill="${escapeAttr(ink('var(--_text-faint)'))}">${escapeXml(member.visibility)}</tspan>` +
-        `<tspan fill="${escapeAttr(textInk)}">${escapeXml(plain.slice(1))}</tspan>`
-      : `<tspan fill="${escapeAttr(textInk)}">${escapeXml(plain)}</tspan>`
-    return marks.text({
-      id: sceneId,
-      role: 'member',
-      text: plain, block,
-      x,
-      y,
-      fontSize: CLS_FONT.memberSize,
-      anchor: 'start',
-      paint: { fill: textInk },
-    },
-      renderLiteralBlock(block, x, y, `class="mono" font-size="${CLS_FONT.memberSize}" font-weight="${CLS_FONT.memberWeight}"${fontStyle}${decoration}`, visible))
+    if (member.visibility && plain.startsWith(member.visibility)) {
+      spans.push({ text: member.visibility, fill: ink('var(--_text-faint)') }, { text: plain.slice(1), fill: nameInk })
+    } else {
+      spans.push({ text: plain, fill: nameInk })
+    }
+  } else {
+    if (member.visibility) spans.push({ text: `${member.visibility} `, fill: ink('var(--_text-muted)') })
+    // Add parentheses for methods to distinguish from attributes, including parameters if present
+    const displayName = member.isMethod
+      ? `${member.name}(${member.params || ''})`
+      : member.name
+    spans.push({ text: decodeClassText(displayName), fill: nameInk })
+    if (member.type) {
+      spans.push({ text: ': ', fill: ink('var(--_text-faint)') }, { text: decodeClassText(member.type), fill: ink('var(--_text-muted)') })
+    }
   }
-
-  // Build tspan parts for syntax-highlighted member text
-  const spans: string[] = []
-
-  if (member.visibility) {
-    spans.push(`<tspan fill="${escapeAttr(ink('var(--_text-muted)'))}">${escapeXml(member.visibility)} </tspan>`)
-  }
-
-  // Add parentheses for methods to distinguish from attributes, including parameters if present
-  const displayName = member.isMethod
-    ? `${member.name}(${member.params || ''})`
-    : member.name
-  const nameInk = ink(style.nodeTextColor ?? 'var(--_text-sec)')
-  spans.push(`<tspan fill="${escapeAttr(nameInk)}">${escapeXml(decodeClassText(displayName))}</tspan>`)
-
-  if (member.type) {
-    spans.push(`<tspan fill="${escapeAttr(ink('var(--_text-faint)'))}">: </tspan>`)
-    spans.push(`<tspan fill="${escapeAttr(ink('var(--_text-muted)'))}">${escapeXml(decodeClassText(member.type))}</tspan>`)
-  }
-
-  // Plain signature string (the tspan structure lives in the crisp)
-  const plain = memberToString(member)
 
   return marks.text({
     id: sceneId,
@@ -498,8 +464,11 @@ function renderMember(member: ClassMember, x: number, y: number, style: Resolved
     fontSize: CLS_FONT.memberSize,
     anchor: 'start',
     paint: { fill: nameInk },
-  },
-    renderLiteralBlock(block, x, y, `class="mono" font-size="${CLS_FONT.memberSize}" font-weight="${CLS_FONT.memberWeight}"${fontStyle}${decoration}`, spans.join('')))
+    ...(member.isAbstract ? { fontStyle: 'italic' as const } : {}),
+    ...(member.isStatic ? { textDecoration: 'underline' as const } : {}),
+    ...highlightRuns(block, spans),
+    attributes: { className: 'mono' },
+  })
 }
 
 function renderClassNote(note: PositionedClassNote, style: ResolvedRenderStyle, index: number): SceneNode {
@@ -514,17 +483,18 @@ function renderClassNote(note: PositionedClassNote, style: ResolvedRenderStyle, 
       geometry: { kind: 'line', x1: note.targetX, y1: note.targetY, x2: note.noteX ?? note.x, y2: note.noteY ?? note.y + note.height / 2 },
       lineStyle: 'dashed', paint: { stroke, strokeWidth: '1', strokeDasharray: '4 3' },
       ...(note.for ? { endpoints: { from: note.for, to: `class-note:${index}`, start: { owner: { id: note.for, role: 'class-box' } }, end: { owner: { id: `class-note:${index}`, role: 'note' } } } } : {}),
-    }, `<line class="class-note-connector" x1="${note.targetX}" y1="${note.targetY}" x2="${note.noteX ?? note.x}" y2="${note.noteY ?? note.y + note.height / 2}" stroke="${escapeAttr(stroke)}" stroke-width="1" stroke-dasharray="4 3" />`), indent: 2 })
+      attributes: { className: 'class-note-connector' },
+    }), indent: 2 })
   }
   children.push({ node: marks.shape({
     id: `class-note:${index}:box`, role: 'note',
     geometry: { kind: 'rect', x: note.x, y: note.y, width: note.width, height: note.height, rx: 2, ry: 2 },
     paint: { fill, stroke, strokeWidth: '1' },
-  }, `<rect x="${note.x}" y="${note.y}" width="${note.width}" height="${note.height}" rx="2" fill="${escapeAttr(fill)}" stroke="${escapeAttr(stroke)}" />`), indent: 2 })
+  }), indent: 2 })
   children.push({ node: marks.text({
     id: `class-note:${index}:label`, role: 'label', text: note.text, block: noteBlock,
     x: note.x + note.width / 2, y: note.y + note.height / 2, fontSize: 12, anchor: 'middle', paint: { fill: text },
-  }, renderMultilineText(noteBlock, note.x + note.width / 2, note.y + note.height / 2, 12, `text-anchor="middle" font-size="12" fill="${escapeAttr(text)}"`)), indent: 2 })
+  }), indent: 2 })
   return marks.group({
     id: `class-note:${index}`, role: 'note',
     open: `<g class="class-note" data-note-index="${index}"${note.for ? ` data-for="${escapeAttr(note.for)}"` : ''}>`,
@@ -551,7 +521,7 @@ function renderRelationship(rel: PositionedClassRelationship, style: ResolvedRen
     ...(rel.labelPosition ? { anchor: rel.labelPosition } : {}),
   }] : []
   if (rel.points.length < 2) {
-    // Degenerate relationship — draws nothing (crisp '', like the old '' part).
+    // Degenerate relationship — draws nothing (an invisible connector writes '').
     return marks.connector({
       id: sceneId,
       role: 'relationship',
@@ -561,12 +531,10 @@ function renderRelationship(rel: PositionedClassRelationship, style: ResolvedRen
       endpoints: classRelationshipEndpoints(rel),
       relationship: { kind: rel.type },
       labels,
-    }, '')
+    })
   }
 
-  const pathData = rel.points.map(p => `${p.x},${p.y}`).join(' ')
   const isDashed = classRelationshipLineStyle(rel) === 'dashed'
-  const dashArray = isDashed ? ' stroke-dasharray="6 4"' : ''
   const lineStyle = isDashed ? 'dashed' : 'solid'
 
   const startType = rel.markerAt === 'from' || rel.markerAt === 'both' ? rel.fromType ?? rel.type : undefined
@@ -576,31 +544,25 @@ function renderRelationship(rel: PositionedClassRelationship, style: ResolvedRen
   const markerResources = classMarkerResources(style)
   const startMarker: MarkerDescriptor | undefined = startId ? markerResources.find(marker => marker.id === startId) : undefined
   const endMarker: MarkerDescriptor | undefined = endId ? markerResources.find(marker => marker.id === endId) : undefined
-  const markers = `${startId ? ` marker-start="url(#${startId})"` : ''}${endId ? ` marker-end="url(#${endId})"` : ''}`
 
-  // Build semantic data attributes for relationship inspection:
+  // Inspection hooks for the relationship:
   // - class="class-relationship": CSS targeting
-  // - data-from/data-to: source and target class IDs
   // - data-type: relationship type (inheritance, composition, etc.)
   // - data-marker-at: which end has the marker (from/to)
-  // - data-from-cardinality/data-to-cardinality: multiplicity if present
   // - data-label: relationship label if present
-  const dataAttrs = [
-    'class="class-relationship"',
-    `data-from="${escapeAttr(rel.from)}"`,
-    `data-to="${escapeAttr(rel.to)}"`,
-    `data-type="${rel.type}"`,
-    `data-relation-type="${rel.type}"`,
-    `data-marker-at="${rel.markerAt}"`,
-  ]
-  if (rel.label) {
-    dataAttrs.push(`data-label="${escapeDisplayAttr(rel.label)}"`)
-  }
-  if (rel.fromCardinality) {
-    dataAttrs.push(`data-from-cardinality="${escapeAttr(rel.fromCardinality)}"`)
-  }
-  if (rel.toCardinality) {
-    dataAttrs.push(`data-to-cardinality="${escapeAttr(rel.toCardinality)}"`)
+  // - data-from-cardinality/data-to-cardinality: multiplicity if present
+  // Identity (data-from/data-to: source and target class IDs) comes from the
+  // connector's typed endpoints.
+  const attributes: MarkAttributes = {
+    className: 'class-relationship',
+    data: {
+      type: rel.type,
+      'relation-type': rel.type,
+      'marker-at': rel.markerAt,
+      ...(rel.label ? { label: sanitizeDisplayLines(rel.label) } : {}),
+      ...(rel.fromCardinality ? { 'from-cardinality': rel.fromCardinality } : {}),
+      ...(rel.toCardinality ? { 'to-cardinality': rel.toCardinality } : {}),
+    },
   }
 
   const strokeColor = style.edgeStrokeColor ?? 'var(--_line)'
@@ -634,9 +596,8 @@ function renderRelationship(rel: PositionedClassRelationship, style: ResolvedRen
       markers: { ...(startMarker ? { start: startMarker } : {}), mid: [], ...(endMarker ? { end: endMarker } : {}) },
       ...connectorSemantics,
       route: { ...connectorSemantics.route, contours: projection.contours },
-    },
-      `<path ${dataAttrs.join(' ')} d="${projection.geometry.d}" fill="none" stroke="${escapeAttr(strokeColor)}" ` +
-      `stroke-width="${style.lineWidth}"${dashArray}${markers} />`)
+      attributes,
+    })
   }
 
   return marks.connector({
@@ -647,9 +608,8 @@ function renderRelationship(rel: PositionedClassRelationship, style: ResolvedRen
     paint,
     markers: { ...(startMarker ? { start: startMarker } : {}), mid: [], ...(endMarker ? { end: endMarker } : {}) },
     ...connectorSemantics,
-  },
-    `<polyline ${dataAttrs.join(' ')} points="${pathData}" fill="none" stroke="${escapeAttr(strokeColor)}" ` +
-    `stroke-width="${style.lineWidth}"${dashArray}${markers} />`)
+    attributes,
+  })
 }
 
 /** Marker-only carrier painted after class boxes. The connector remains the
@@ -667,8 +627,6 @@ function renderRelationshipMarkerOverlay(
   const startId = startType ? getMarkerDefId(startType) : null
   const endId = endType ? getMarkerDefId(endType) : null
   if (!startId && !endId) return null
-  const markers = `${startId ? ` marker-start="url(#${startId})"` : ''}${endId ? ` marker-end="url(#${endId})"` : ''}`
-  const carrierPaint = `fill="none" stroke="${escapeAttr(style.edgeStrokeColor ?? 'var(--_line)')}" stroke-width="${style.lineWidth}" stroke-opacity="0"${markers} pointer-events="none" aria-hidden="true"`
   const resources = classMarkerResources(style)
   const markerStart = resources.find(marker => marker.id === startId)
   const markerEnd = resources.find(marker => marker.id === endId)
@@ -682,18 +640,16 @@ function renderRelationshipMarkerOverlay(
     relationship: { kind: 'marker-carrier' },
     markers: { ...(markerStart ? { start: markerStart } : {}), mid: [], ...(markerEnd ? { end: markerEnd } : {}) },
     hit: { pointerEvents: 'none' as const },
+    attributes: { className: 'class-marker-overlay', ariaHidden: true as const },
   }
   if (style.edgeBendRadius > 0 && rel.points.length > 2) {
     const projection = projectRoundedConnectorPath(rel.points, style.edgeBendRadius, {
       metric: 'manhattan',
       precision: 3,
     })
-    return marks.connector({ ...fields, geometry: projection.geometry, route: { contours: projection.contours } },
-      `<path class="class-marker-overlay" d="${projection.geometry.d}" ${carrierPaint} />`)
+    return marks.connector({ ...fields, geometry: projection.geometry, route: { contours: projection.contours } })
   }
-  const points = rel.points.map(point => `${point.x},${point.y}`).join(' ')
-  return marks.connector({ ...fields, geometry: { kind: 'polyline', points: rel.points } },
-    `<polyline class="class-marker-overlay" points="${points}" ${carrierPaint} />`)
+  return marks.connector({ ...fields, geometry: { kind: 'polyline', points: rel.points } })
 }
 
 /**
@@ -744,9 +700,6 @@ function renderRelationshipLabels(rel: PositionedClassRelationship, style: Resol
   // Labels and cardinalities sit beside their edge and can touch it (or a
   // neighbor's) where routes bend; a page-colored halo keeps the line off the
   // glyphs.
-  const textAttrs =
-    `font-size="${style.edgeLabelFontSize}" text-anchor="middle" font-weight="${style.edgeLabelFontWeight}"${letterAttr(style.edgeLetterSpacing)} fill="${escapeAttr(textColor)}" ` +
-    `stroke="var(--bg)" stroke-width="${RELATION_LABEL_HALO_WIDTH}" stroke-linejoin="round" paint-order="stroke"`
   const paint = { fill: textColor, stroke: 'var(--bg)', strokeWidth: String(RELATION_LABEL_HALO_WIDTH), strokeLinejoin: 'round' as const, paintOrder: 'stroke' }
 
   // Label — prefer layout-computed position (collision-aware), fall back to midpoint
@@ -763,7 +716,7 @@ function renderRelationshipLabels(rel: PositionedClassRelationship, style: Resol
       fontSize: style.edgeLabelFontSize,
       anchor: 'middle',
       paint,
-    }, renderMultilineText(labelBlock, pos.x, pos.y - 8, style.edgeLabelFontSize, textAttrs)))
+    }))
   }
 
   // From cardinality (near start)
@@ -782,7 +735,7 @@ function renderRelationshipLabels(rel: PositionedClassRelationship, style: Resol
       fontSize: style.edgeLabelFontSize,
       anchor: 'middle',
       paint,
-    }, renderMultilineText(block, position.x, position.y, style.edgeLabelFontSize, textAttrs)))
+    }))
   }
 
   // To cardinality (near end)
@@ -801,7 +754,7 @@ function renderRelationshipLabels(rel: PositionedClassRelationship, style: Resol
       fontSize: style.edgeLabelFontSize,
       anchor: 'middle',
       paint,
-    }, renderMultilineText(block, position.x, position.y, style.edgeLabelFontSize, textAttrs)))
+    }))
   }
 
   return out
@@ -836,10 +789,6 @@ function cardinalityOffset(
 // ============================================================================
 // Utilities
 // ============================================================================
-
-function letterAttr(value: number): string {
-  return value !== 0 ? ` letter-spacing="${value}"` : ''
-}
 
 // Use shared escapeXml from multiline-utils
 const escapeXml = escapeXmlUtil

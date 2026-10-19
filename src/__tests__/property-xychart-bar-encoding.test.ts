@@ -55,13 +55,14 @@ function sourceFor(chart: { horizontal: boolean; values: number[]; range?: { min
 }
 
 function renderedBars(svg: string): RenderedBar[] {
-  return [...svg.matchAll(/<rect x="([^"]+)" y="([^"]+)" width="([^"]+)" height="([^"]+)" class="xychart-bar[^"]*" data-value="([^"]+)"/g)]
-    .map(match => ({
-      x: Number(match[1]),
-      y: Number(match[2]),
-      width: Number(match[3]),
-      height: Number(match[4]),
-      value: Number(match[5]),
+  const attribute = (tag: string, name: string): number => Number(tag.match(new RegExp(`\\s${name}="([^"]*)"`))?.[1])
+  return [...svg.matchAll(/<rect\b[^>]*\sclass="xychart-bar[^"]*"[^>]*>/g)]
+    .map(([tag]) => ({
+      x: attribute(tag, 'x'),
+      y: attribute(tag, 'y'),
+      width: attribute(tag, 'width'),
+      height: attribute(tag, 'height'),
+      value: attribute(tag, 'data-value'),
     }))
 }
 

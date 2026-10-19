@@ -1,3 +1,4 @@
+import { safeCssFontFamily } from './css-font.ts'
 export interface ConfigValueRule { expected: string; valid: (value: unknown) => boolean }
 export const rule = (expected: string, valid: ConfigValueRule['valid']): ConfigValueRule => ({ expected, valid })
 export const positive = rule('a finite positive number', value => typeof value === 'number' && Number.isFinite(value) && value > 0)
@@ -6,6 +7,8 @@ export const finite = rule('a finite number', value => typeof value === 'number'
 export const boolean = rule('a boolean', value => typeof value === 'boolean')
 export const stringValue = rule('a string', value => typeof value === 'string')
 export const nonEmptyString = rule('a non-empty string', value => typeof value === 'string' && value.trim().length > 0)
+/** A font-family list that is safe to place in CSS (no fetching functions). */
+export const safeFontFamily = rule('a CSS font-family list without url(), @import or other functions besides var()', value => safeCssFontFamily(value) !== undefined)
 export const stringArray = rule('a non-empty array of strings', value => Array.isArray(value) && value.length > 0 && value.every(item => typeof item === 'string'))
 export const oneOf = (...values: string[]): ConfigValueRule => rule(`one of: ${values.join(', ')}`, value => typeof value === 'string' && values.includes(value))
 export const oneOfInsensitive = (...values: string[]): ConfigValueRule => rule(`one of: ${values.join(', ')} (case-insensitive)`, value =>

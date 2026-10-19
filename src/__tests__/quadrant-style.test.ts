@@ -70,7 +70,7 @@ describe('quadrant parser models point styles and classDefs', () => {
     expect(chart.classDefs.mixed!.color).toBe('rgba(10, 20, 30, 0.5)')
     const svg = renderMermaidSVG(`quadrantChart
   RGB: [0.2, 0.8] color: rgb(255, 0, 0), radius: 10`)
-    expect(svg).toContain('fill:rgb(255, 0, 0)')
+    expect(svg).toContain('fill="rgb(255, 0, 0)"')
   })
 
   it('rejects unbalanced color functions loudly', () => {
@@ -131,7 +131,7 @@ describe('quadrant authored paint admission (#303)', () => {
           if (agent.ok) expect(agent.value.body.kind).toBe('opaque')
           const verdict = verifyMermaid(source)
           expect(verdict.ok).toBe(false)
-          expect(verdict.warnings).toContainEqual({ code: 'RENDER_FAILED', reason: expect.stringContaining(named) })
+          expect(verdict.warnings).toContainEqual({ code: 'RENDER_FAILED', reason: expect.stringContaining(named), origin: 'source' })
         }
       }
     }
@@ -142,7 +142,7 @@ describe('quadrant authored paint admission (#303)', () => {
       const source = `quadrantChart\n  A: [0.5, 0.5] color: ${value}, stroke-color: ${value}`
       expect(() => renderMermaidSVG(source), value).not.toThrow()
       expect(() => renderMermaidASCII(source), value).not.toThrow()
-      expect(verifyMermaid(source).warnings).not.toContainEqual({ code: 'RENDER_FAILED', reason: expect.any(String) })
+      expect(verifyMermaid(source).warnings.filter(w => w.code === 'RENDER_FAILED' || w.code === 'INTERNAL_ERROR')).toEqual([])
     }
   })
 
@@ -240,18 +240,18 @@ describe('quadrant SVG renders point styles', () => {
   it('direct styles reach the circle (fill / radius / stroke)', () => {
     const c = circleFor(svg, 'Campaign C')
     expect(c).toContain('r="25"')
-    expect(c).toContain('fill:#00ff33')
-    expect(c).toContain('stroke:#10f0f0')
+    expect(c).toContain('fill="#00ff33"')
+    expect(c).toContain('stroke="#10f0f0"')
     const d = circleFor(svg, 'Campaign D')
-    expect(d).toContain('stroke-width:5px')
+    expect(d).toContain('stroke-width="5px"')
   })
 
   it('a styled point rendered attributes match its classDef', () => {
     const e = circleFor(svg, 'Campaign E')
     expect(e).toContain('r="10"')
-    expect(e).toContain('fill:#908342')
-    expect(e).toContain('stroke:#310085')
-    expect(e).toContain('stroke-width:10px')
+    expect(e).toContain('fill="#908342"')
+    expect(e).toContain('stroke="#310085"')
+    expect(e).toContain('stroke-width="10px"')
   })
 
   it('class names are emitted as CSS classes so external stylesheets can target them', () => {

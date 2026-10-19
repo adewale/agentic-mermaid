@@ -13,6 +13,8 @@ import { SCENE_VALIDATION_LIMITS, assertAdmissibleSceneDoc, sceneValidationMode 
 import { sceneAssertionsEnabled } from './assertions.ts'
 import { boundedUtf8ByteLength } from '../shared/utf8.ts'
 import { transferSceneNodeSerialization } from './serialization.ts'
+import { deferredTerminalProjectionInput, materializeOwnTerminalProjection, reserveDeferredTerminalProjection } from './deferred-terminal-projection.ts'
+import type { ConnectorTerminalProjectionInput } from './connector-terminal.ts'
 
 export interface ExternalDataSnapshotLimits {
   readonly maxObjects: number
@@ -190,11 +192,17 @@ export function snapshotBoundedExternalData(
       for (const key of keys) {
         if (typeof key !== 'string') throw new TypeError(`External Scene ${path} must not contain symbol keys`)
         const descriptor = Reflect.getOwnPropertyDescriptor(candidate, key)
-        if (!descriptor || !('value' in descriptor) || !descriptor.enumerable) {
+        if (!descriptor || !descriptor.enumerable) {
           throw new TypeError(`External Scene ${path}.${key} must be an enumerable data property`)
         }
+        let captured: unknown
+        if ('value' in descriptor) captured = descriptor.value
+        else {
+          captured = materializeOwnTerminalProjection(candidate, key, descriptor)
+          if (captured === undefined) throw new TypeError(`External Scene ${path}.${key} must be an enumerable data property`)
+        }
         Object.defineProperty(snapshot, key, {
-          value: visit(descriptor.value, depth + 1, `${path}.${key}`),
+          value: visit(captured, depth + 1, `${path}.${key}`),
           enumerable: true,
           configurable: false,
           writable: false,
@@ -219,6 +227,8 @@ export function snapshotBoundedExternalData(
  * as that copy does, then freezes each object where it stands. Shapes only a
  * lowering bug could produce are not diagnosed here: symbol and non-enumerable
  * keys and extra array properties are skipped, and accessors are read.
+ * Registered terminal-projection getters may instead reserve their full
+ * payload envelope; near a limit the walk materializes and counts it exactly.
  * Validation still runs on the result. Everything the document references is
  * frozen with it, including first-party objects a lowering shares, such as a
  * layout's edge points and label positions or a family's module-level marker
@@ -233,16 +243,107 @@ export function freezeBoundedFirstPartyData(
   limits: ExternalDataSnapshotLimits,
   rootPath = 'input',
 ): unknown {
+  try {
+    walkFirstPartyData(value, limits, rootPath, false)
+  } catch (error) {
+    if (error !== RECOUNT_EXACTLY) throw error
+    walkFirstPartyData(value, limits, rootPath, true)
+  }
+  return value
+}
+
+/** Thrown when an upper bound on UTF-8 bytes might exceed a limit, so the
+ * walk restarts and counts exactly. */
+const RECOUNT_EXACTLY = Symbol('recount exactly')
+
+/** One walk of `freezeBoundedFirstPartyData`. A UTF-16 code unit encodes to at
+ * most three UTF-8 bytes, so the first walk charges strings and keys three
+ * bytes per unit instead of counting them; only a document whose bound could
+ * pass a limit is walked again with exact counts. The path an error names is
+ * kept as a stack of keys and only joined when the walk throws. */
+function walkFirstPartyData(value: unknown, limits: ExternalDataSnapshotLimits, rootPath: string, exact: boolean): void {
   const active = new WeakSet<object>()
   const frozen = new WeakSet<object>()
+  const keyPath: Array<string | number> = []
+  const path = (): string => keyPath.reduce<string>((prefix, key) => typeof key === 'number' ? `${prefix}[${key}]` : `${prefix}.${key}`, rootPath)
   let objects = 0
   let textBytes = 0
   let arrayEntries = 0
   let properties = 0
   let propertyKeyBytes = 0
+  let reservedProjection = false
 
-  const visit = (candidate: unknown, depth: number, path: string): void => {
+  /** A projection copies selected parts of its normalized input and creates
+   * bounded marker placements/loss diagnostics. Count a generous envelope
+   * without building those copies. Repeated references are deliberately not
+   * deduplicated here. Every input occurrence can account for at most two
+   * placements and their point/descriptor wrappers; factor 32 also covers
+   * copied contours, endpoints, labels, marker fields and their keys. Fixed
+   * overhead covers all projection-only keys, loss strings and diagnostics.
+   * If ANY bound is close, restart with the actual materialized graph, exactly
+   * as the existing conservative UTF-8 pass does. No cap is weakened. */
+  const reserveProjection = (node: object, input: ConnectorTerminalProjectionInput, depth: number): void => {
+    let extraObjects = 64, extraText = 4096, extraEntries = 128, extraProperties = 256, extraKeys = 8192
+    const check = (): void => {
+      if (objects + extraObjects > limits.maxObjects || textBytes + extraText > limits.maxTextBytes
+        || arrayEntries + extraEntries > limits.maxAggregateArrayEntries
+        || properties + extraProperties > limits.maxAggregateProperties
+        || propertyKeyBytes + extraKeys > limits.maxAggregatePropertyKeyBytes) throw RECOUNT_EXACTLY
+    }
+    const measure = (item: unknown, level: number): void => {
+      if (typeof item === 'string') extraText += item.length * 3 * 32
+      else if (item !== null && typeof item === 'object') {
+        if (depth + level + 8 > limits.maxDepth) throw RECOUNT_EXACTLY
+        extraObjects += 32
+        if (Array.isArray(item)) {
+          if (Math.max(18, item.length + 1) > limits.maxArrayEntries) throw RECOUNT_EXACTLY
+          extraEntries += item.length * 32
+          check()
+          for (const entry of item) measure(entry, level + 1)
+        } else {
+          const keys = Object.keys(item)
+          if (Math.max(24, keys.length) > limits.maxPropertiesPerObject) throw RECOUNT_EXACTLY
+          extraProperties += keys.length * 32
+          check()
+          for (const key of keys) {
+            if (Math.max(24, key.length) * 3 > limits.maxPropertyKeyBytes) throw RECOUNT_EXACTLY
+            extraKeys += key.length * 3 * 32
+            measure((item as Record<string, unknown>)[key], level + 1)
+          }
+        }
+      }
+      check()
+    }
+    check()
+    measure(input, 0)
+    // One repeated mid marker contributes its identifier at every interior
+    // vertex. Unlike object/key counts, this string fan-out is not bounded by
+    // a constant multiple of the input's string bytes.
+    if (input.geometry.kind === 'polyline' && input.markers.mid.length > 0) {
+      let longestId = 0
+      for (const marker of input.markers.mid) {
+        if (typeof marker.id !== 'string') throw RECOUNT_EXACTLY
+        longestId = Math.max(longestId, marker.id.length)
+      }
+      extraText += input.geometry.points.length * longestId * 3
+      check()
+    }
+    objects += extraObjects
+    textBytes += extraText
+    arrayEntries += extraEntries
+    properties += extraProperties
+    propertyKeyBytes += extraKeys
+    reservedProjection = true
+    reserveDeferredTerminalProjection(node)
+  }
+
+  const visit = (candidate: unknown, depth: number): void => {
     if (typeof candidate === 'string') {
+      if (!exact) {
+        textBytes += candidate.length * 3
+        if (textBytes > limits.maxTextBytes) throw RECOUNT_EXACTLY
+        return
+      }
       const remaining = Math.max(0, limits.maxTextBytes - textBytes)
       const bytes = boundedUtf8ByteLength(candidate, remaining)
       if (bytes > remaining) {
@@ -253,7 +354,7 @@ export function freezeBoundedFirstPartyData(
     }
     if (candidate === null || typeof candidate !== 'object') {
       if (typeof candidate === 'function' || typeof candidate === 'symbol' || typeof candidate === 'bigint') {
-        throw new TypeError(`External Scene ${path} must be declarative data`)
+        throw new TypeError(`External Scene ${path()} must be declarative data`)
       }
       return
     }
@@ -261,73 +362,92 @@ export function freezeBoundedFirstPartyData(
       throw new Error('External Scene input object graph is too deeply nested')
     }
     if (++objects > limits.maxObjects) {
+      if (!exact && reservedProjection) throw RECOUNT_EXACTLY
       throw new Error('External Scene input object graph is too large')
     }
     if (active.has(candidate)) throw new Error('External Scene input must be acyclic')
     if (frozen.has(candidate)) return
     active.add(candidate)
-    try {
-      if (Array.isArray(candidate)) {
-        if (Object.getPrototypeOf(candidate) !== Array.prototype) {
-          throw new TypeError(`External Scene ${path} must be a plain array`)
-        }
-        const length = candidate.length
-        if (length > limits.maxArrayEntries) {
-          throw new Error(`External Scene ${path} contains too many entries`)
-        }
-        arrayEntries += length
-        if (arrayEntries > limits.maxAggregateArrayEntries) {
-          throw new Error(`External Scene input exceeds the aggregate ${limits.maxAggregateArrayEntries}-array-entry limit`)
-        }
-        for (let index = 0; index < length; index++) {
-          // A hole would otherwise read through Array.prototype.
-          if (!Object.hasOwn(candidate, index)) throw new TypeError(`External Scene ${path} must not be sparse`)
-          visit(candidate[index], depth + 1, `${path}[${index}]`)
-        }
-      } else {
-        const prototype = Object.getPrototypeOf(candidate)
-        if (prototype !== Object.prototype && prototype !== null) {
-          throw new TypeError(`External Scene ${path} must be a plain object`)
-        }
-        const keys = Object.keys(candidate)
-        if (keys.length > limits.maxPropertiesPerObject) {
-          throw new Error(`External Scene ${path} contains too many properties`)
-        }
-        properties += keys.length
-        if (properties > limits.maxAggregateProperties) {
-          throw new Error(`External Scene input exceeds the aggregate ${limits.maxAggregateProperties}-property limit`)
-        }
-        for (const key of keys) {
-          const remaining = Math.max(0, limits.maxAggregatePropertyKeyBytes - propertyKeyBytes)
-          const bytes = boundedUtf8ByteLength(key, Math.min(limits.maxPropertyKeyBytes, remaining))
-          if (bytes > limits.maxPropertyKeyBytes) {
-            throw new Error(`External Scene ${path} contains a property key longer than ${limits.maxPropertyKeyBytes} bytes`)
-          }
-          if (bytes > remaining) {
-            throw new Error(`External Scene property keys exceed the aggregate ${limits.maxAggregatePropertyKeyBytes}-byte limit`)
-          }
-          propertyKeyBytes += bytes
-        }
-        const record = candidate as Record<string, unknown>
-        for (const key of keys) visit(record[key], depth + 1, `${path}.${key}`)
+    if (Array.isArray(candidate)) {
+      if (Object.getPrototypeOf(candidate) !== Array.prototype) {
+        throw new TypeError(`External Scene ${path()} must be a plain array`)
       }
-      Object.freeze(candidate)
-      frozen.add(candidate)
-    } finally {
-      active.delete(candidate)
+      const length = candidate.length
+      if (length > limits.maxArrayEntries) {
+        throw new Error(`External Scene ${path()} contains too many entries`)
+      }
+      arrayEntries += length
+      if (arrayEntries > limits.maxAggregateArrayEntries) {
+        if (!exact && reservedProjection) throw RECOUNT_EXACTLY
+        throw new Error(`External Scene input exceeds the aggregate ${limits.maxAggregateArrayEntries}-array-entry limit`)
+      }
+      for (let index = 0; index < length; index++) {
+        // A hole would otherwise read through Array.prototype.
+        if (!Object.hasOwn(candidate, index)) throw new TypeError(`External Scene ${path()} must not be sparse`)
+        keyPath.push(index)
+        visit(candidate[index], depth + 1)
+        keyPath.pop()
+      }
+    } else {
+      const prototype = Object.getPrototypeOf(candidate)
+      if (prototype !== Object.prototype && prototype !== null) {
+        throw new TypeError(`External Scene ${path()} must be a plain object`)
+      }
+      const keys = Object.keys(candidate)
+      if (keys.length > limits.maxPropertiesPerObject) {
+        throw new Error(`External Scene ${path()} contains too many properties`)
+      }
+      properties += keys.length
+      if (properties > limits.maxAggregateProperties) {
+        if (!exact && reservedProjection) throw RECOUNT_EXACTLY
+        throw new Error(`External Scene input exceeds the aggregate ${limits.maxAggregateProperties}-property limit`)
+      }
+      for (const key of keys) {
+        if (!exact) {
+          // Which limit an over-long key trips depends on the exact aggregate,
+          // so the exact pass reports it.
+          if (key.length * 3 > limits.maxPropertyKeyBytes && boundedUtf8ByteLength(key, limits.maxPropertyKeyBytes) > limits.maxPropertyKeyBytes) throw RECOUNT_EXACTLY
+          propertyKeyBytes += key.length * 3
+          if (propertyKeyBytes > limits.maxAggregatePropertyKeyBytes) throw RECOUNT_EXACTLY
+          continue
+        }
+        const remaining = Math.max(0, limits.maxAggregatePropertyKeyBytes - propertyKeyBytes)
+        const bytes = boundedUtf8ByteLength(key, Math.min(limits.maxPropertyKeyBytes, remaining))
+        if (bytes > limits.maxPropertyKeyBytes) {
+          throw new Error(`External Scene ${path()} contains a property key longer than ${limits.maxPropertyKeyBytes} bytes`)
+        }
+        if (bytes > remaining) {
+          throw new Error(`External Scene property keys exceed the aggregate ${limits.maxAggregatePropertyKeyBytes}-byte limit`)
+        }
+        propertyKeyBytes += bytes
+      }
+      const record = candidate as Record<string, unknown>
+      const deferredInput = !exact ? deferredTerminalProjectionInput(candidate) : undefined
+      for (const key of keys) {
+        if (key === 'terminalProjection' && deferredInput) continue
+        keyPath.push(key)
+        visit(record[key], depth + 1)
+        keyPath.pop()
+      }
+      // All normalized input fields are now deeply frozen. Only private,
+      // copied diagnostic strings live outside the public connector fields.
+      if (deferredInput) reserveProjection(candidate, deferredInput, depth)
     }
+    Object.freeze(candidate)
+    frozen.add(candidate)
+    active.delete(candidate)
   }
 
-  visit(value, 0, rootPath)
-  return value
+  visit(value, 0)
 }
 
 /**
  * Documents that passed admission, with the rule set they passed: copies from
  * `snapshotBoundedExternalData`, and built-in lowerings frozen in place by
- * `freezeBoundedFirstPartyData`. Either is recursively frozen own data (built-in
- * lowerings emit data properties only), so its validation result cannot
- * change: passing it through another admission gate
+ * `freezeBoundedFirstPartyData`. Values are recursively frozen; the one
+ * registered built-in projection getter derives only from admitted own data
+ * within its reserved budget and memoizes a frozen result. Its validation
+ * result therefore cannot change: passing it through another admission gate
  * re-proves nothing. Only this module records documents, so a caller cannot
  * forge membership.
  */
@@ -340,7 +460,7 @@ export function recordAdmittedScene(scene: SceneDoc, mode: 'internal' | 'externa
 
 /** The sole public-backend Scene admission waist. Direct backend consumers
  * receive the same validate-the-snapshot/use-the-snapshot guarantee as family
- * rendering. Every document is reduced to bounded, immutable own data before
+ * rendering. Every document is reduced to bounded, immutable data before
  * validation; a snapshot already admitted under the same rules is returned as is. */
 export function admitBackendSceneDocument(value: unknown): SceneDoc {
   return admitSceneDocument(value)

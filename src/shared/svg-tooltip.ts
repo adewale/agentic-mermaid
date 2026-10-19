@@ -39,20 +39,23 @@ export function tooltipMarkup(prefix: string, cx: number, topY: number, text: st
 /** The same owned tooltip geometry, retained as paint rather than opaque SVG. */
 export function tooltipArtwork(prefix: string, plan: TooltipLayout | undefined, id: string, owner: SceneOwner): GroupMark {
   if (!plan) throw new TypeError(`Missing retained tooltip layout for ${id}`)
-  const { text, block, bgW, bgX, bgY, textX, textY, ptrPath } = plan
+  const { block, bgW, bgX, bgY, textX, textY, ptrPath } = plan
   const n = (value: number) => Number(r(value))
   return marks.group({ id, role: 'chrome', owner, visibility: 'conditional',
     open: `<g class="${prefix}-tip">`, close: '</g>', join: '',
     children: [
       { indent: 0, node: marks.shape({ id: `${id}:background`, role: 'chrome', owner,
         geometry: { kind: 'rect', x: n(bgX), y: n(bgY), width: n(bgW), height: TIP.height, rx: TIP.rx }, paint: { fill: 'var(--_text)' },
-      }, `<rect x="${r(bgX)}" y="${r(bgY)}" width="${r(bgW)}" height="${TIP.height}" rx="${TIP.rx}" class="${prefix}-tip ${prefix}-tip-bg"/>`) },
+        attributes: { className: `${prefix}-tip ${prefix}-tip-bg` },
+      }) },
       { indent: 0, node: marks.shape({ id: `${id}:pointer`, role: 'chrome', owner,
         geometry: { kind: 'path', d: ptrPath }, paint: { fill: 'var(--_text)' },
-      }, `<path d="${ptrPath}" class="${prefix}-tip ${prefix}-tip-ptr"/>`) },
+        attributes: { className: `${prefix}-tip ${prefix}-tip-ptr` },
+      }) },
       { indent: 0, node: marks.text({ id: `${id}:text`, role: 'label', owner,
         text: block.text, block, x: n(textX), y: n(textY), fontSize: TIP.fontSize, fontWeight: TIP.fontWeight, anchor: 'middle', paint: { fill: 'var(--bg)' },
-      }, `<text x="${r(textX)}" y="${r(textY)}" text-anchor="middle" dy="${TEXT_BASELINE_SHIFT}" class="${prefix}-tip ${prefix}-tip-text">${escapeXml(text)}</text>`) },
+        attributes: { className: `${prefix}-tip ${prefix}-tip-text` },
+      }) },
     ],
   })
 }

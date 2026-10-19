@@ -5,10 +5,11 @@ import type { DiagramColors } from './theme.ts'
 import { svgOpenTag, buildStyleBlock, buildShadowDefs } from './theme.ts'
 import { STROKE_WIDTHS, FLOWCHART_DOTTED_DASH, resolveRenderStyle, diagramTitleMark } from './styles.ts'
 import type { ResolvedRenderStyle } from './styles.ts'
-import { renderMultilineText, renderMultilineTextWithBackground, escapeAttr, escapeDisplayAttr, escapeXml } from './multiline-utils.ts'
+import { escapeAttr, escapeDisplayAttr } from './multiline-utils.ts'
 import { topRoundedRectPath } from './svg-paths.ts'
 import { resolveInlineNodeTextColor, toneOnFill } from './color-resolver.ts'
-import type { ConnectorLabelDescriptor, MarkerDescriptor, SceneDoc, SceneNode, SemanticChannels } from './scene/ir.ts'
+import type { ConnectorLabelDescriptor, MarkAttributes, MarkerDescriptor, SceneDoc, SceneNode, SemanticChannels } from './scene/ir.ts'
+import { sanitizeDisplayLines } from './shared/text-controls.ts'
 import * as marks from './scene/marks.ts'
 import { pathArtwork } from './scene/artwork.ts'
 import { iconFallbackToken } from './shared/icon-fallback.ts'
@@ -193,9 +194,7 @@ function renderGroup(group: PositionedGroup, font: string, style: ResolvedRender
       role: 'group',
       geometry: { kind: 'rect', x: group.x, y: group.y, width: group.width, height: group.height, rx: style.groupCornerRadius, ry: style.groupCornerRadius },
       paint: { fill: rectFill, stroke: rectStroke, strokeWidth: rectStrokeWidth },
-    },
-      `<rect x="${group.x}" y="${group.y}" width="${group.width}" height="${group.height}" ` +
-      `rx="${style.groupCornerRadius}" ry="${style.groupCornerRadius}" fill="${escapeAttr(rectFill)}" stroke="${escapeAttr(rectStroke)}" stroke-width="${escapeAttr(rectStrokeWidth)}" />`),
+    }),
   })
 
   // Header band
@@ -208,9 +207,7 @@ function renderGroup(group: PositionedGroup, font: string, style: ResolvedRender
       role: 'group-header',
       geometry: { kind: 'path', d: headerPath },
       paint: { fill: headerFill, stroke: rectStroke, strokeWidth: rectStrokeWidth },
-    },
-      `<path d="${headerPath}" ` +
-      `fill="${escapeAttr(headerFill)}" stroke="${escapeAttr(rectStroke)}" stroke-width="${escapeAttr(rectStrokeWidth)}" />`),
+    }),
   })
 
   // Header label (supports multi-line via <br> tags)
@@ -227,13 +224,7 @@ function renderGroup(group: PositionedGroup, font: string, style: ResolvedRender
       fontSize: style.groupHeaderFontSize,
       anchor: 'start',
       paint: { fill: headerTextColor },
-    }, renderMultilineText(
-      headerBlock,
-      group.x + style.groupLabelPaddingX,
-      group.y + headerHeight / 2,
-      style.groupHeaderFontSize,
-      `font-size="${style.groupHeaderFontSize}" font-weight="${style.groupHeaderFontWeight}"${style.groupFont ? ` font-family="${escapeAttr(style.groupFont)}"` : ''}${style.groupLetterSpacing !== 0 ? ` letter-spacing="${style.groupLetterSpacing}"` : ''} fill="${escapeAttr(headerTextColor)}"`
-    )),
+    }),
   })
 
   // Dashed separators between concurrency regions (`--`): one line in each
@@ -246,9 +237,8 @@ function renderGroup(group: PositionedGroup, font: string, style: ResolvedRender
         role: 'group',
         geometry: { kind: 'line', x1: sep.x1, y1: sep.y1, x2: sep.x2, y2: sep.y2 },
         paint: { stroke: rectStroke, strokeWidth: String(style.groupLineWidth), strokeDasharray: '6 4' },
-      },
-        `<line class="region-separator" x1="${sep.x1}" y1="${sep.y1}" x2="${sep.x2}" y2="${sep.y2}" ` +
-        `stroke="${escapeAttr(rectStroke)}" stroke-width="${style.groupLineWidth}" stroke-dasharray="6 4" />`),
+        attributes: { className: 'region-separator' },
+      }),
     })
   }
 
@@ -323,9 +313,7 @@ function renderStateNote(note: PositionedStateNote, font: string, style: Resolve
           role: 'note',
           geometry: { kind: 'rect', x, y, width: w, height: h, rx: 4, ry: 4 },
           paint: { fill: rawFill, stroke: rawStroke, strokeWidth: String(STROKE_WIDTHS.innerBox) },
-        },
-          `<rect x="${x}" y="${y}" width="${w}" height="${h}" rx="4" ry="4" ` +
-          `fill="${escapeAttr(rawFill)}" stroke="${escapeAttr(rawStroke)}" stroke-width="${STROKE_WIDTHS.innerBox}" />`),
+        }),
       },
       {
         indent: 2,
@@ -338,8 +326,7 @@ function renderStateNote(note: PositionedStateNote, font: string, style: Resolve
           fontSize: style.edgeLabelFontSize,
           anchor: 'middle',
           paint: { fill: rawTextColor },
-        }, renderMultilineText(textBlock, x + w / 2, y + h / 2, style.edgeLabelFontSize,
-          `text-anchor="middle" font-size="${style.edgeLabelFontSize}" font-weight="${style.edgeLabelFontWeight}"${style.edgeLetterSpacing !== 0 ? ` letter-spacing="${style.edgeLetterSpacing}"` : ''} fill="${escapeAttr(rawTextColor)}"`)),
+        }),
       },
     ],
   })
@@ -400,64 +387,51 @@ function renderEdge(
       lineStyle: 'invisible',
       paint: {},
       ...connectorSemantics,
-    }, '')
+    })
   }
 
   const pathProjection = graphEdgePathProjection(edge, style)
-  const pathData = pathProjection?.geometry.d ?? pointsToPolylinePath(edge.points)
   // Section A output is static and active SVG is rejected in every security
   // mode. Preserve authored animation intent as typed metadata plus a stable
   // dashed projection; a future motion layer can consume the same metadata.
   const effectiveDashArray = edge.style === 'dotted'
     ? `${FLOWCHART_DOTTED_DASH.dash} ${FLOWCHART_DOTTED_DASH.gap}`
     : edge.animate ? '8 4' : undefined
-  const dashArray = effectiveDashArray ? ` stroke-dasharray="${effectiveDashArray}"` : ''
   const baseStrokeWidth = edge.style === 'thick' ? style.lineWidth * 2 : style.lineWidth
   const markerColor = edge.inlineStyle?.stroke ?? style.edgeStrokeColor
-  const strokeColor = escapeAttr(markerColor ?? 'var(--_line)')
-  const strokeWidth = escapeAttr(edge.inlineStyle?.['stroke-width'] ?? String(baseStrokeWidth))
 
-  // Build marker attributes based on arrow direction flags
-  // Use color-specific markers when edge has a custom stroke from linkStyle
+  // Color-specific markers when the edge has a custom stroke from linkStyle
   const suffix = `${markerColor ? `-${markerSuffix(markerColor)}` : ''}${edge.inlineStyle?.['stroke-width'] ? '-fixed' : ''}`
-  let markers = ''
   let endMarker: MarkerDescriptor | undefined
   let startMarker: MarkerDescriptor | undefined
   if (edge.hasArrowEnd) {
     const prefix = markerIdPrefix(edge.endMarker ?? 'arrow')
     endMarker = markerResources.find(marker => marker.id === `${prefix}${suffix}`)
     if (!endMarker) throw new Error(`Missing marker resource "${prefix}${suffix}"`)
-    markers += ` marker-end="url(#${prefix}${suffix})"`
   }
   if (edge.hasArrowStart) {
     const prefix = markerIdPrefix(edge.startMarker ?? 'arrow')
     startMarker = markerResources.find(marker => marker.id === `${prefix}-start${suffix}`)
     if (!startMarker) throw new Error(`Missing marker resource "${prefix}-start${suffix}"`)
-    markers += ` marker-start="url(#${prefix}-start${suffix})"`
   }
 
-  // Semantic data attributes for edge identification and inspection:
-  // - class="edge": CSS targeting and type identification
-  // - data-id: authored v11.6 edge ID (`e1@-->`) when present — the stable
-  //   edge identity contract (X4), mirroring node/subgraph data-id
-  // - data-from/data-to: source and target node IDs
-  // - data-style: edge style (solid, dotted, thick)
-  // - data-arrow-start/end: arrow presence flags
-  // - data-label: edge label if present (for quick lookup without traversing DOM)
-  const dataAttrs = [
-    `class="${['edge', ...authoredClassNames].join(' ')}"`,
-    ...(edge.id ? [`data-id="${escapeAttr(edge.id)}"`] : []),
-    `data-from="${escapeAttr(edge.source)}"`,
-    `data-to="${escapeAttr(edge.target)}"`,
-    `data-style="${edge.style}"`,
-    `data-arrow-start="${edge.hasArrowStart}"`,
-    `data-arrow-end="${edge.hasArrowEnd}"`,
-  ]
-  if (edge.hasArrowStart) dataAttrs.push(`data-marker-start="${edge.startMarker ?? 'arrow'}"`)
-  if (edge.hasArrowEnd) dataAttrs.push(`data-marker-end="${edge.endMarker ?? 'arrow'}"`)
-  if (edge.label) dataAttrs.push(`data-label="${escapeDisplayAttr(edge.label)}"`)
-  if (edge.curve) dataAttrs.push(`data-curve="${escapeAttr(edge.curve)}"`)
-  if (edge.animate) dataAttrs.push(`data-animate="true"`, `data-animation="${edge.animation ?? 'slow'}"`)
+  // Inspection hooks: the authored classes, and data-* attributes for the
+  // edge style, arrow presence and markers, the label, curve and animation.
+  // Identity (data-id from an authored v11.6 edge ID, data-from/data-to) comes
+  // from the connector's typed identity.
+  const attributes: MarkAttributes = {
+    className: ['edge', ...authoredClassNames].join(' '),
+    data: {
+      style: edge.style,
+      'arrow-start': String(edge.hasArrowStart),
+      'arrow-end': String(edge.hasArrowEnd),
+      ...(edge.hasArrowStart ? { 'marker-start': edge.startMarker ?? 'arrow' } : {}),
+      ...(edge.hasArrowEnd ? { 'marker-end': edge.endMarker ?? 'arrow' } : {}),
+      ...(edge.label ? { label: sanitizeDisplayLines(edge.label) } : {}),
+      ...(edge.curve ? { curve: edge.curve } : {}),
+      ...(edge.animate ? { animate: 'true', animation: edge.animation ?? 'slow' } : {}),
+    },
+  }
 
   const paint = {
     stroke: markerColor ?? 'var(--_line)',
@@ -476,9 +450,8 @@ function renderEdge(
       markers: { ...(startMarker ? { start: startMarker } : {}), mid: [], ...(endMarker ? { end: endMarker } : {}) },
       ...connectorSemantics,
       route: { ...connectorSemantics.route, contours: pathProjection.contours },
-    },
-      `<path ${dataAttrs.join(' ')} d="${pathData}" fill="none" stroke="${strokeColor}" ` +
-      `stroke-width="${strokeWidth}"${dashArray}${markers} />`)
+      attributes,
+    })
   }
 
   return marks.connector({
@@ -489,20 +462,14 @@ function renderEdge(
     paint,
     markers: { ...(startMarker ? { start: startMarker } : {}), mid: [], ...(endMarker ? { end: endMarker } : {}) },
     ...connectorSemantics,
-  },
-    `<polyline ${dataAttrs.join(' ')} points="${pathData}" fill="none" stroke="${strokeColor}" ` +
-    `stroke-width="${strokeWidth}"${dashArray}${markers} />`)
+    attributes,
+  })
 }
 
 function connectorLabelSceneId(connectorSceneId: string): string {
   return connectorSceneId.startsWith('edge:')
     ? `edge-label:${connectorSceneId.slice('edge:'.length)}`
     : `${connectorSceneId}:label`
-}
-
-/** Convert points to SVG polyline points attribute: "x1,y1 x2,y2 ..." */
-function pointsToPolylinePath(points: Point[]): string {
-  return points.map(p => `${p.x},${p.y}`).join(' ')
 }
 
 /**
@@ -601,10 +568,19 @@ function renderEdgeLabel(edge: PositionedEdge, font: string, style: ResolvedRend
     role: 'chrome',
     geometry: { kind: 'rect', x: haloX, y: haloY, width: haloWidth, height: haloHeight, rx: 4, ry: 4 },
     paint: { fill: 'var(--bg)', stroke: 'none' },
-  }, `<rect class="edge-label-halo" x="${haloX}" y="${haloY}" ` +
-    `width="${haloWidth}" height="${haloHeight}" rx="4" ry="4" fill="var(--bg)" stroke="none" />`)
+    attributes: { className: 'edge-label-halo' },
+  })
 
   // Wrap in <g class="edge-label"> with reference to the edge it belongs to
+  // The label's pill: the text's own band plus padding.
+  const pillWidth = metrics.width + padding * 2
+  const pillHeight = metrics.height + padding * 2
+  const pill = marks.shape({
+    id: `${sceneId}:pill`,
+    role: 'chrome',
+    geometry: { kind: 'rect', x: mid.x - pillWidth / 2, y: mid.y - pillHeight / 2, width: pillWidth, height: pillHeight, rx: 2, ry: 2 },
+    paint: { fill: 'var(--bg)', stroke: 'var(--_inner-stroke)', strokeWidth: '1' },
+  })
   const labelTextColor = style.edgeTextColor ?? 'var(--_text-sec)'
   const content = marks.text({
     id: `${sceneId}:text`,
@@ -615,19 +591,7 @@ function renderEdgeLabel(edge: PositionedEdge, font: string, style: ResolvedRend
     fontSize: style.edgeLabelFontSize,
     anchor: 'middle',
     paint: { fill: labelTextColor },
-  }, renderMultilineTextWithBackground(
-    block,
-    mid.x,
-    mid.y,
-    metrics.width,
-    metrics.height,
-    style.edgeLabelFontSize,
-    padding,
-    // Use --_text-sec for better contrast (was --_text-muted)
-    `text-anchor="middle" font-size="${style.edgeLabelFontSize}" font-weight="${style.edgeLabelFontWeight}"${style.edgeLetterSpacing !== 0 ? ` letter-spacing="${style.edgeLetterSpacing}"` : ''} fill="${escapeAttr(labelTextColor)}"`,
-    // Increased stroke width from 0.5 to 1 for better label separation from edges
-    `rx="2" ry="2" fill="var(--bg)" stroke="var(--_inner-stroke)" stroke-width="1"`
-  ))
+  })
 
   // Semantic wrapper: links label to its edge via data-from/data-to
   return marks.group({
@@ -637,6 +601,7 @@ function renderEdgeLabel(edge: PositionedEdge, font: string, style: ResolvedRend
     close: '</g>',
     children: [
       { indent: 2, node: halo },
+      { indent: 2, node: pill },
       { indent: 2, node: content },
     ],
   })
@@ -727,7 +692,6 @@ function renderNode(node: PositionedNode, font: string, style: ResolvedRenderSty
 }
 
 function renderFlowchartMedia(node: PositionedNode, ink: string): SceneNode | null {
-  const color = escapeAttr(ink)
   const size = Math.min(28, node.height * 0.4)
   const cx = node.x + node.width / 2
   const y = node.y + 6
@@ -737,7 +701,7 @@ function renderFlowchartMedia(node: PositionedNode, ink: string): SceneNode | nu
       const scale = size / 24
       return pathArtwork({ id: `node:${node.id}:icon`, paths: glyph.paths,
         owner: { id: node.id, role: 'node' },
-        open: `<g class="flowchart-icon" data-icon="${escapeAttr(node.icon)}" transform="translate(${cx - size / 2} ${y}) scale(${scale})" fill="${color}" stroke="${color}" stroke-width="0.8">`,
+        open: `<g class="flowchart-icon" data-icon="${escapeAttr(node.icon)}" transform="translate(${cx - size / 2} ${y}) scale(${scale})">`,
         transform: { kind: 'matrix', a: scale, b: 0, c: 0, d: scale, e: cx - size / 2, f: y },
         paint: { fill: ink, stroke: ink, strokeWidth: '0.8' },
       })
@@ -745,7 +709,8 @@ function renderFlowchartMedia(node: PositionedNode, ink: string): SceneNode | nu
     const token = iconFallbackToken(node.icon)
     return marks.text({ id: `node:${node.id}:icon`, role: 'icon', owner: { id: node.id, role: 'node' }, text: token,
       block: node.iconFallbackBlock,
-      x: cx, y: y + size / 2, fontSize: 10, anchor: 'middle', paint: { fill: ink } }, `<text class="flowchart-icon-fallback" data-icon="${escapeAttr(node.icon)}" x="${cx}" y="${y + size / 2}" text-anchor="middle" font-size="10" fill="${color}">${escapeXml(token)}</text>`)
+      x: cx, y: y + size / 2, fontSize: 10, anchor: 'middle', paint: { fill: ink }, baselineShift: 0,
+      attributes: { className: 'flowchart-icon-fallback', data: { icon: node.icon } } })
   }
   if (node.image) {
     const left = cx - size / 2
@@ -753,11 +718,11 @@ function renderFlowchartMedia(node: PositionedNode, ink: string): SceneNode | nu
     const paint = { fill: 'none', stroke: ink, strokeWidth: '1.2' }
     const owner = { id: node.id, role: 'node' as const }
     return marks.group({ id: `node:${node.id}:image`, role: 'icon', owner,
-      open: `<g class="flowchart-image-placeholder" data-image-src="${escapeAttr(node.image)}" fill="none" stroke="${color}" stroke-width="1.2">`, close: '</g>', join: '',
+      open: `<g class="flowchart-image-placeholder" data-image-src="${escapeAttr(node.image)}">`, close: '</g>', join: '',
       children: [
-        { indent: 0, node: marks.shape({ id: `node:${node.id}:image:frame`, role: 'icon', owner, geometry: { kind: 'rect', x: left, y, width: size, height: size * 0.72, rx: 2 }, paint }, `<rect x="${left}" y="${y}" width="${size}" height="${size * 0.72}" rx="2"/>`) },
-        { indent: 0, node: marks.shape({ id: `node:${node.id}:image:sun`, role: 'icon', owner, geometry: { kind: 'circle', cx: left + size * 0.72, cy: y + size * 0.2, r: size * 0.08 }, paint }, `<circle cx="${left + size * 0.72}" cy="${y + size * 0.2}" r="${size * 0.08}"/>`) },
-        { indent: 0, node: marks.shape({ id: `node:${node.id}:image:landscape`, role: 'icon', owner, geometry: { kind: 'path', d }, paint }, `<path d="${d}"/>`) },
+        { indent: 0, node: marks.shape({ id: `node:${node.id}:image:frame`, role: 'icon', owner, geometry: { kind: 'rect', x: left, y, width: size, height: size * 0.72, rx: 2 }, paint }) },
+        { indent: 0, node: marks.shape({ id: `node:${node.id}:image:sun`, role: 'icon', owner, geometry: { kind: 'circle', cx: left + size * 0.72, cy: y + size * 0.2, r: size * 0.08 }, paint }) },
+        { indent: 0, node: marks.shape({ id: `node:${node.id}:image:landscape`, role: 'icon', owner, geometry: { kind: 'path', d }, paint }) },
       ],
     })
   }
@@ -770,27 +735,18 @@ function renderNodeShape(node: PositionedNode, style: ResolvedRenderStyle): Scen
   // Resolve fill and stroke — inline styles (from mermaid `style` directives)
   // override the CSS variable defaults. When no inline style is present, the
   // CSS variable handles theming automatically via color-mix() derivation.
-  const rawFill = inlineStyle?.fill ?? style.nodeFillColor ?? 'var(--_node-fill)'
-  const rawStroke = inlineStyle?.stroke ?? style.nodeBorderColor ?? 'var(--_node-stroke)'
-  const rawSw = inlineStyle?.['stroke-width'] ?? String(style.nodeLineWidth)
-  const fill = escapeAttr(rawFill)
-  const stroke = escapeAttr(rawStroke)
-  const sw = escapeAttr(rawSw)
-
-  const piece = shapeOutline(node, { fill, stroke, strokeWidth: sw }, style.cornerRadius)
-
-  const paint = shape === 'state-start' || shape === 'state-fork' || shape === 'state-join'
-    ? { fill: 'var(--_text)', stroke: 'none' }
-    : shape === 'state-end'
-      ? { fill: 'var(--_text)', stroke: 'var(--_text)' }
-      : { fill: rawFill, stroke: rawStroke, strokeWidth: rawSw }
+  const fill = inlineStyle?.fill ?? style.nodeFillColor ?? 'var(--_node-fill)'
+  const stroke = inlineStyle?.stroke ?? style.nodeBorderColor ?? 'var(--_node-stroke)'
+  const strokeWidth = inlineStyle?.['stroke-width'] ?? String(style.nodeLineWidth)
+  const piece = shapeOutline(node, { fill, stroke, strokeWidth }, style.cornerRadius)
 
   return marks.shape({
     id: `node-shape:${node.id}`,
     role: 'node',
     geometry: piece.geometry,
-    paint,
-  }, piece.crisp)
+    paint: piece.paint,
+    ...(piece.childPaints ? { childPaints: piece.childPaints } : {}),
+  })
 }
 
 // ============================================================================
@@ -818,7 +774,6 @@ function renderNodeLabel(node: PositionedNode, font: string, style: ResolvedRend
   const cx = node.x + node.width / 2
   const cy = node.y + node.height / 2
 
-  const textColor = escapeAttr(rawTextColor)
   const block = node.labelBlock ?? graphTextBlock(resolveLabelContent(node.label, node.labelContent), style, 'node')
   const label = block.text
 
@@ -831,13 +786,7 @@ function renderNodeLabel(node: PositionedNode, font: string, style: ResolvedRend
     fontSize: style.nodeLabelFontSize,
     anchor: 'middle',
     paint: { fill: rawTextColor },
-  }, renderMultilineText(
-    block,
-    cx,
-    cy,
-    style.nodeLabelFontSize,
-    `text-anchor="middle" font-size="${style.nodeLabelFontSize}" font-weight="${style.nodeLabelFontWeight}"${style.nodeLetterSpacing !== 0 ? ` letter-spacing="${style.nodeLetterSpacing}"` : ''} fill="${textColor}"`
-  ))
+  })
 }
 
 // ============================================================================

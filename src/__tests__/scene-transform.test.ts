@@ -10,20 +10,9 @@ describe('Scene transforms are typed semantic geometry', () => {
     ['matrix(,1,1,0,0,0)', { a: 0, b: 1, c: 1, d: 0, e: 0, f: 0 }],
     ['matrix(1,0,0,1,0,)', { a: 1, b: 0, c: 0, d: 1, e: 0, f: 0 }],
     ['translate(,5)', { a: 1, b: 0, c: 0, d: 1, e: 0, f: 5 }],
-  ])('fidelity rejects malformed affine parameters: %s', (raw, matrix) => {
-    const group = marks.group({ id: 'invalid-transform', role: 'group', open: `<g transform="${raw}">`, close: '</g>', transform: { kind: 'matrix', ...matrix }, children: [] })
-    const problems: string[] = []
-    nodeProblems(group, 'group', problems)
-    expect(problems.join('\n')).toContain('unsupported crisp transform')
-  })
-  test('fidelity rejects a crisp transform missing from semantic fields', () => {
-    const mark = marks.text({
-      id: 'label', role: 'label', text: 'release', x: 20, y: 30,
-      fontSize: 12, anchor: 'middle', paint: {},
-    }, '<text x="20" y="30" text-anchor="middle" font-size="12" transform="rotate(45 20 30)">release</text>')
-    const problems: string[] = []
-    nodeProblems(mark, 'label', problems)
-    expect(problems.join('\n')).toContain('transform')
+  ])('a group refuses malformed affine parameters: %s', (raw, matrix) => {
+    expect(() => marks.group({ id: 'invalid-transform', role: 'group', open: `<g transform="${raw}">`, close: '</g>', transform: { kind: 'matrix', ...matrix }, children: [] }))
+      .toThrow('unsupported transform')
   })
 
   test('fidelity accepts an exactly modeled rotation', () => {
@@ -31,7 +20,7 @@ describe('Scene transforms are typed semantic geometry', () => {
     const mark = marks.text({
       id: 'label', role: 'label', text: 'release', x: 20, y: 30,
       fontSize: 12, anchor: 'middle', paint: {}, transform,
-    }, '<text x="20" y="30" text-anchor="middle" font-size="12" transform="rotate(45 20 30)">release</text>')
+    })
     const problems: string[] = []
     nodeProblems(mark, 'label', problems)
     expect(problems).toEqual([])
@@ -42,11 +31,11 @@ describe('Scene transforms are typed semantic geometry', () => {
     const shape = marks.shape({
       id: 'shape', role: 'node', geometry: { kind: 'rect', x: 0, y: 0, width: 20, height: 10 },
       paint: { fill: 'none', stroke: '#000', strokeWidth: '1' }, transform,
-    }, '<rect x="0" y="0" width="20" height="10" fill="none" stroke="#000" transform="rotate(45 10 5)" />')
+    })
     const connector = marks.connector({
       id: 'edge', role: 'edge', geometry: { kind: 'line', x1: 0, y1: 5, x2: 20, y2: 5 },
       lineStyle: 'solid', paint: { fill: 'none', stroke: '#000', strokeWidth: '1' }, transform,
-    }, '<line x1="0" y1="5" x2="20" y2="5" fill="none" stroke="#000" transform="rotate(45 10 5)" />')
+    })
     const group = marks.group({ id: 'group', role: 'group', open: '<g>', close: '</g>', children: [{ node: shape, indent: 2 }] })
     const context = { seed: 1, style: { name: 'look:probe', stroke: 'jittered' as const } }
     for (const node of [shape, connector, group]) {
@@ -60,11 +49,11 @@ describe('Scene transforms are typed semantic geometry', () => {
     const text = marks.text({
       id: 'label', role: 'label', text: 'release', x: 20, y: 30,
       fontSize: 12, anchor: 'middle', paint: {}, transform,
-    }, '<text x="20" y="30" text-anchor="middle" font-size="12" transform="rotate(45 20 30)">release</text>')
+    })
     const rect = marks.shape({
       id: 'backplate', role: 'chrome',
       geometry: { kind: 'rect', x: 10, y: 18, width: 20, height: 18 }, paint: {}, transform,
-    }, '<rect x="10" y="18" width="20" height="18" transform="rotate(45 20 30)" />')
+    })
     const textBounds = nodeWorldBounds(text)
     const rectBounds = nodeWorldBounds(rect)
     expect(textBounds).toBeDefined()
@@ -77,7 +66,7 @@ describe('Scene transforms are typed semantic geometry', () => {
     const shape = marks.shape({
       id: 'box', role: 'node', geometry: { kind: 'rect', x: 10, y: 20, width: 30, height: 40 },
       paint: { fill: 'none', stroke: '#000', strokeWidth: '6' },
-    }, '<rect x="10" y="20" width="30" height="40" fill="none" stroke="#000" stroke-width="6" />')
+    })
     expect(nodeWorldBounds(shape)).toEqual({ x0: 10, y0: 20, x1: 40, y1: 60 })
     expect(nodePaintBounds(shape)).toEqual({ x0: 7, y0: 17, x1: 43, y1: 63 })
     expect(nodePaintBounds({ ...shape, paint: { stroke: '#000', strokeWidth: '1em' } })).toBeUndefined()
@@ -87,12 +76,12 @@ describe('Scene transforms are typed semantic geometry', () => {
     const shape = marks.shape({
       id: 'triangle', role: 'node', geometry: { kind: 'polygon', points: [{ x: 0, y: 0 }, { x: 20, y: 0 }, { x: 10, y: 1 }] },
       paint: { stroke: '#000', strokeWidth: '4', strokeLinejoin: 'miter', strokeMiterlimit: '8' },
-    }, '<polygon points="0,0 20,0 10,1" stroke="#000" stroke-width="4" stroke-linejoin="miter" stroke-miterlimit="8" />')
+    })
     expect(nodePaintBounds(shape)).toEqual({ x0: -16, y0: -16, x1: 36, y1: 17 })
     const diagonal = marks.shape({
       id: 'line', role: 'grid', geometry: { kind: 'line', x1: 0, y1: 0, x2: 10, y2: 10 },
       paint: { stroke: '#000', strokeWidth: '4', strokeLinecap: 'square' },
-    }, '<line x1="0" y1="0" x2="10" y2="10" stroke="#000" stroke-width="4" stroke-linecap="square" />')
+    })
     const bounds = nodePaintBounds(diagonal)!
     expect(bounds.x0).toBeLessThanOrEqual(-Math.SQRT2 * 2)
     expect(bounds.x1).toBeGreaterThanOrEqual(10 + Math.SQRT2 * 2)
@@ -103,7 +92,7 @@ describe('Scene transforms are typed semantic geometry', () => {
       id: 'icon-part', role: 'icon', geometry: { kind: 'rect', x: 0, y: 0, width: 10, height: 5 },
       paint: { stroke: '#000', strokeWidth: '2' },
       transform: { kind: 'matrix', a: -1, b: 0, c: 0, d: 2, e: 10, f: 0 },
-    }, '<rect x="0" y="0" width="10" height="5" stroke="#000" stroke-width="2" transform="matrix(-1 0 0 2 10 0)" />')
+    })
     const group = marks.group({
       id: 'icon', role: 'icon', open: '<g transform="matrix(2 0 0 2 100 50)">', close: '</g>',
       transform: { kind: 'matrix', a: 2, b: 0, c: 0, d: 2, e: 100, f: 50 }, children: [{ node: shape, indent: 2 }],
@@ -118,7 +107,7 @@ describe('Scene transforms are typed semantic geometry', () => {
     const shape = marks.shape({
       id: 'focus', role: 'chrome', geometry: { kind: 'rect', x: 0, y: 0, width: 100, height: 100 },
       paint: { stroke: '#000', strokeWidth: '10', vectorEffect: 'non-scaling-stroke' },
-    }, '<rect x="0" y="0" width="100" height="100" stroke="#000" stroke-width="10" vector-effect="non-scaling-stroke" />')
+    })
     const group = marks.group({
       id: 'tooltip', role: 'group', visibility: 'conditional',
       transform: { kind: 'matrix', a: 0.1, b: 0, c: 0, d: 0.1, e: 10, f: 20 },
@@ -135,7 +124,7 @@ describe('Scene transforms are typed semantic geometry', () => {
       geometry: { kind: 'path', d: 'M0 0 Q50 100 100 0', points: [{ x: 0, y: 0 }, { x: 100, y: 0 }] },
       paint: { stroke: '#000', strokeWidth: '2', strokeLinejoin: 'round' },
       markers: { end: { id: 'square', shape: 'diamond', units: 'userSpaceOnUse', ref: { x: 0, y: 0 }, bounds: { x0: -10, y0: -10, x1: 10, y1: 10 } } },
-    }, '<path d="M0 0 Q50 100 100 0" stroke="#000" stroke-width="2" stroke-linejoin="round" />')
+    })
     const bounds = nodePaintBounds(connector)!
     expect(bounds.y1).toBeGreaterThanOrEqual(101)
     expect(bounds.x1).toBeGreaterThanOrEqual(100 + Math.hypot(10, 10))
@@ -148,7 +137,7 @@ describe('Scene transforms are typed semantic geometry', () => {
     const unknown = { kind: 'path' as const, d: 'M0 0 L10 10 invalid' }
     expect(geometryBounds({ kind: 'compound', children: [known, unknown] })).toBeUndefined()
     const group = marks.group({ id: 'mixed', role: 'group', open: '<g>', close: '</g>', children: [
-      { node: marks.shape({ id: 'box', role: 'node', geometry: known, paint: {} }, '<rect x="0" y="0" width="10" height="10" />'), indent: 2 },
+      { node: marks.shape({ id: 'box', role: 'node', geometry: known, paint: {} }), indent: 2 },
       { node: marks.documentContent({ id: 'untyped', role: 'chrome' }, '<path d="M20 20 L30 30" />'), indent: 2 },
     ] })
     expect(nodePaintBounds(group)).toBeUndefined()

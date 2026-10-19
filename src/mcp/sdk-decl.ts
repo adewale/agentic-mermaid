@@ -813,7 +813,11 @@ type GanttMutationOp =
 //   GROUP_BREACH, UNKNOWN_SHAPE, LABEL_OVERFLOW (rendered-line char count:
 //   <br> splits lines, XML entities decode to one char),
 //   UNRESOLVABLE_SCHEDULE (gantt: parses but schedule cannot resolve; render would fail),
-//   RENDER_FAILED (the strict render parser, layout, or theme colors rejected the source).
+//   RENDER_FAILED (the strict render parser, layout, or theme colors rejected the source
+//   or its configuration; origin: 'source' | 'config'),
+//   INTERNAL_ERROR (an Agentic Mermaid defect, not the source; defaultRender:
+//   'succeeds-unchecked' | 'fails' says whether an ordinary render still produces output;
+//   do not rewrite the diagram to work around it).
 // Tier 2 (geometric): CONTENT_OCCLUDED is an error; LAYOUT_LIMIT_EXCEEDED,
 // NODE_OVERLAP, ROUTE_SELF_CROSS and the following tripwires are advisory.
 // route-contract tripwires ROUTE_HITCH, ROUTE_UNEXPLAINED_BEND,
@@ -833,7 +837,7 @@ interface RenderedLayout { version: 1; kind: DiagramKind | ExternalFamilyId; nod
 
 type WarningCode =
   | 'EMPTY_DIAGRAM' | 'EDGE_MISANCHORED' | 'OFF_CANVAS' | 'GROUP_BREACH'
-  | 'UNKNOWN_SHAPE' | 'LABEL_OVERFLOW' | 'UNRESOLVABLE_SCHEDULE' | 'RENDER_FAILED'
+  | 'UNKNOWN_SHAPE' | 'LABEL_OVERFLOW' | 'UNRESOLVABLE_SCHEDULE' | 'RENDER_FAILED' | 'INTERNAL_ERROR'
   | 'NODE_OVERLAP' | 'CONTENT_OCCLUDED' | 'LAYOUT_LIMIT_EXCEEDED' | 'ROUTE_SELF_CROSS' | 'ROUTE_HITCH'
   | 'ROUTE_UNEXPLAINED_BEND' | 'ROUTE_LABEL_ON_SHARED_TRUNK' | 'ROUTE_SELF_LOOP_OCCUPANCY' | 'ROUTE_CONTAINER_MISANCHOR'
   | 'ROUTE_SHAPE_MISANCHOR' | 'ROUTE_STALE_AFTER_NODE_MOVE'

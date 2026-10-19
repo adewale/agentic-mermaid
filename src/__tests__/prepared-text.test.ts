@@ -12,9 +12,9 @@ import { renderMultilineText } from '../multiline-utils.ts'
 import { nodeWorldBounds } from '../scene/bounds.ts'
 import * as marks from '../scene/marks.ts'
 import { nodeProblems } from '../scene/fidelity.ts'
+import { transferSceneNodeSerialization } from '../scene/serialization.ts'
 import { buildExternalScene } from '../scene/external-scene.ts'
 import { validateSceneDoc } from '../scene/scene-validation.ts'
-import { attachSceneNodeSerialization, sceneNodeSerialization } from '../scene/serialization.ts'
 import { measureRenderedText, renderedTextReady } from './helpers/rendered-text.ts'
 import { Resvg } from '@resvg/resvg-js'
 import { join } from 'node:path'
@@ -38,7 +38,7 @@ describe('prepared display text', () => {
     const svg = renderMultilineText(block, 100, 50, typography.fontSize, 'text-anchor="middle"')
     expect(svg).toContain('&lt;b&gt;X&lt;/b&gt;')
     expect(svg).toMatch(/<tspan\b[^>]*\bfont-weight="(?:bold|700)"[^>]*>Y<\/tspan>/)
-    const mark = marks.text({ id: 'decoded-literal', role: 'label', text: block.text, block, x: 100, y: 50, fontSize: typography.fontSize, anchor: 'middle', paint: {} }, svg)
+    const mark = marks.text({ id: 'decoded-literal', role: 'label', text: block.text, block, x: 100, y: 50, fontSize: typography.fontSize, anchor: 'middle', paint: {} })
     const problems: string[] = []
     nodeProblems(mark, 'decoded-literal', problems)
     expect(problems).toEqual([])
@@ -217,7 +217,7 @@ describe('prepared display text', () => {
     const svg = renderMultilineText(block, 10, 20, 12, `text-anchor="start" font-size="12" font-weight="400" letter-spacing="${letterSpacing}"`)
     expect([...svg.matchAll(/textLength="([^"]+)"/g)].map(match => Number(match[1]))).toEqual([6, 9, 6, 6])
     expect(svg.replace(/<[^>]+>/g, '')).toBe('ABCD')
-    const node = marks.text({ id: 'tracked', role: 'label', text: block.text, block, x: 10, y: 20, fontSize: 12, anchor: 'start', paint: {} }, svg)
+    const node = marks.text({ id: 'tracked', role: 'label', text: block.text, block, x: 10, y: 20, fontSize: 12, anchor: 'start', paint: {} })
     const problems: string[] = []
     nodeProblems(node, 'tracked', problems)
     expect(problems).toEqual([])
@@ -246,22 +246,17 @@ describe('prepared text at the graphical boundary', () => {
     const wrap = (text: string) => `<svg xmlns="http://www.w3.org/2000/svg" width="300" height="120" font-weight="${fontWeight}"><style>text{font-family:Inter;font-size:20px}</style>${text}</svg>`
     const raster = (text: string) => new Resvg(wrap(text), { font: { loadSystemFonts: false, fontDirs: [join(import.meta.dir, '..', '..', 'assets', 'fonts')], defaultFontFamily: 'Inter' } }).render().pixels
     expect(Buffer.from(raster(markup)).equals(Buffer.from(raster(reference)))).toBe(true)
-    const node = marks.text({ id: 'styled-allocations', role: 'label', text: block.text, block, x: 30, y: 73, fontSize: 20, anchor: 'start', paint: {} }, markup)
+    const node = marks.text({ id: 'styled-allocations', role: 'label', text: block.text, block, x: 30, y: 73, fontSize: 20, anchor: 'start', paint: {} })
     const problems: string[] = []
     nodeProblems(node, 'styled-allocations', problems)
     expect(problems).toEqual([])
-    const nested = markup.replace(/(data-text-fragment="true"[^>]*>)([^<]+)/, '$1<tspan>$2</tspan>')
-    const changed = attachSceneNodeSerialization({ ...node }, nested)
-    const changedProblems: string[] = []
-    nodeProblems(changed, 'styled-allocations', changedProblems)
-    expect(changedProblems).toContainEqual(expect.stringContaining('a fitted fragment contains a descendant'))
   })
 
   it.each(['<b>WWW</b>', '<i>WWW</i>', '<u>WWW</u>', '<s>WWW</s>', '<b>A</b> <i>B</i>'])('retains fitted style carriers and zero-width authored whitespace: %s', source => {
     const execution = createTextMeasurementExecution({ id: 'test:zero-space-run', version: '1.0.0', measure: ({ text }) => text.trim() ? 10 : 0 }, 'Inter')
     const block = withTextMeasurementExecution(execution, () => preparePixelText(source, { fontSize: 30, fontWeight: 400 }))
     const markup = renderMultilineText(block, 30, 50, 30, 'text-anchor="start" font-size="30" font-weight="400"')
-    const node = marks.text({ id: 'single-style', role: 'label', text: block.text, block, x: 30, y: 50, fontSize: 30, anchor: 'start', paint: {} }, markup)
+    const node = marks.text({ id: 'single-style', role: 'label', text: block.text, block, x: 30, y: 50, fontSize: 30, anchor: 'start', paint: {} })
     const problems: string[] = []
     nodeProblems(node, 'single-style', problems)
     expect(problems).toEqual([])
@@ -282,7 +277,7 @@ describe('prepared text at the graphical boundary', () => {
       expect(block.lineBlocks[0]!.runs.map(run => run.text)).toEqual(['A', 'B'])
       expect(block.lineBlocks[0]!.fragments).toEqual([{ runIndex: 0, text: 'AB', x: 0, width: 2 }])
       const markup = renderMultilineText(block, 10, 30, 20, 'text-anchor="start" font-size="20" font-weight="800"')
-      const node = marks.text({ id: 'adjacent-style', role: 'label', text: block.text, block, x: 10, y: 30, fontSize: 20, anchor: 'start', paint: {} }, markup)
+      const node = marks.text({ id: 'adjacent-style', role: 'label', text: block.text, block, x: 10, y: 30, fontSize: 20, anchor: 'start', paint: {} })
       const problems: string[] = []
       nodeProblems(node, 'adjacent-style', problems)
       expect(problems).toEqual([])
@@ -299,7 +294,7 @@ describe('prepared text at the graphical boundary', () => {
     const reference = `<text x="250" y="84" text-anchor="middle">${label}</text>`
     const raster = (text: string) => new Resvg(wrap(text), { font: { loadSystemFonts: false, fontDirs: [join(import.meta.dir, '..', '..', 'assets', 'fonts')], defaultFontFamily: 'Inter' } }).render().pixels
     expect(Buffer.from(raster(markup)).equals(Buffer.from(raster(reference)))).toBe(true)
-    const node = marks.text({ id: 'rtl-line', role: 'label', text: block.text, block, x: 250, y: 70, fontSize: 40, anchor: 'middle', paint: {} }, markup)
+    const node = marks.text({ id: 'rtl-line', role: 'label', text: block.text, block, x: 250, y: 70, fontSize: 40, anchor: 'middle', paint: {} })
     expect(node.textLayout!.offsetY).toBeCloseTo(0)
   })
 
@@ -314,7 +309,7 @@ describe('prepared text at the graphical boundary', () => {
     const reference = wrap(lines.map((line, i) => `<text x="100" y="${30 + i * 31.2}" text-anchor="middle">${line}</text>`).join(''))
     const raster = (svg: string) => new Resvg(svg, { font: { loadSystemFonts: false, fontDirs: [join(import.meta.dir, '..', '..', 'assets', 'fonts')], defaultFontFamily: 'Inter' } }).render().pixels
     expect(Buffer.from(raster(actual)).equals(Buffer.from(raster(reference)))).toBe(true)
-    const node = marks.text({ id: 'rtl-lines', role: 'label', text: block.text, block, x: 100, y: 212.65, fontSize: 13, anchor: 'middle', paint: {} }, markup)
+    const node = marks.text({ id: 'rtl-lines', role: 'label', text: block.text, block, x: 100, y: 212.65, fontSize: 13, anchor: 'middle', paint: {} })
     expect(node.textLayout!.offsetY).toBeCloseTo(0)
   })
 
@@ -331,20 +326,14 @@ describe('prepared text at the graphical boundary', () => {
       ['textLayout', { ...text.textLayout, width: 0 }],
       ['textLayout', { ...text.textLayout, offsetY: 10 }],
     ] as const) {
-      // Preserve the real serialization carrier so rejection tests the
-      // geometry mismatch, not an unrelated missing-crisp diagnostic.
-      const forgedText = attachSceneNodeSerialization({ ...text, [field]: value }, sceneNodeSerialization(text))
+      // A forged copy keeps the original's writer admission, so rejection
+      // tests the field, not a missing serialization.
+      const forgedText = { ...text, [field]: value }
+      transferSceneNodeSerialization(text, forgedText)
       const result = validateSceneDoc({ ...valid, parts: valid.parts.map(node => node === text ? forgedText : node) }, { mode: 'external' })
       expect(result.valid).toBe(false)
       expect(result.diagnostics).toContainEqual(expect.objectContaining({ code: field === 'owner' ? 'SCENE_REFERENCE' : 'SCENE_FIDELITY', path: expect.stringMatching(new RegExp(`\\.${field}$`)) }))
     }
-  })
-  it('compares the complete prepared label instead of accepting only its first word', () => {
-    const block = preparePixelText('First word and important suffix', typography)
-    const node = marks.text({ id: 'label', role: 'label', text: block.text, block, x: 10, y: 20, fontSize: 18, anchor: 'start', paint: {} }, '<text x="10" y="20" font-size="18">First word</text>')
-    const problems: string[] = []
-    nodeProblems(node, 'label', problems)
-    expect(problems.join('\n')).toContain('prepared text')
   })
   for (const label of ['WIDE LABEL WITH TRACKING '.repeat(3), '漢字ひらがな É 👩🏽‍💻 👨‍👩‍👧‍👦']) {
     it(`keeps projected ink within the measured band: ${label.slice(0, 16)}`, () => {
@@ -411,7 +400,7 @@ describe('prepared text at the graphical boundary', () => {
 
   it('carries multiline typography into transformed Scene bounds', () => {
     const block = preparePixelText('WIDE\nSECOND\nTHIRD', { fontSize: 24, fontWeight: 800, letterSpacing: 2 })
-    const node = marks.text({ id: 'label', role: 'label', text: block.text, block, x: 100, y: 100, fontSize: 24, anchor: 'middle', paint: {}, transform: { kind: 'rotate', angle: 90, cx: 100, cy: 100 } }, renderMultilineText(block, 100, 100, 24, 'text-anchor="middle" font-size="24" font-weight="800" letter-spacing="2" transform="rotate(90 100 100)"'))
+    const node = marks.text({ id: 'label', role: 'label', text: block.text, block, x: 100, y: 100, fontSize: 24, anchor: 'middle', paint: {}, transform: { kind: 'rotate', angle: 90, cx: 100, cy: 100 } })
     const bounds = nodeWorldBounds(node)!
     expect(bounds.x1 - bounds.x0).toBeCloseTo(3 * 24 * 1.3)
     expect(bounds.y1 - bounds.y0).toBeCloseTo(block.width)

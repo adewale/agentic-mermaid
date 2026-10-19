@@ -1,5 +1,19 @@
 # Visual review and production comparison
 
+## Typed SVG writer refresh — 2026-10-19
+
+The regenerated reviewed PNG is **1560×9464**, with SHA-256
+`1c911e827bb74398ea18fc9f448a0a12230a86900aafec30af3f27f8a5574c27`. A per-cell pixel comparison against the previously approved artifact
+found changes in **five of 68 cells**; the other 63 cells and every heading are
+pixel-identical. A Claude Code agent inspected each changed cell at native
+520×380 beside its predecessor. This is **agent review, not human approval**,
+and no deployed website was rechecked.
+
+| Changed cells | Observations |
+|---|---|
+| Sankey (all four treatments) | At most 2/255 per channel: link stroke opacity is written unrounded. Not visible. |
+| Pie (Sentinel) | The highlighted Pro slice's emphasis border is 5px, the width its typed paint already certified (bound `selected` slot width 4, plus 1). A stylesheet rule computed from the base slice width used to override it to 4px. Wedge geometry, fills, labels and legend are unchanged. |
+
 ## PR #394 final agent review — 2026-10-17
 
 The regenerated reviewed PNG is **1560×9464**, with SHA-256

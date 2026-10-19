@@ -20,6 +20,7 @@ import {
   resolveRenderRequestForExecution,
   resolvedFamilyRenderContextOf,
   resolvedRenderExecutionPlanOf,
+  RenderConfigError,
   type RenderExecutionDecision,
   type RenderExecutionResolutionOptions,
   type RenderRequestReceipt,
@@ -34,6 +35,7 @@ import { retainedPositionedScene, positionedPaintCertification } from './scene/p
 import { PaintLayoutCertificationError, type PaintLayoutCertification, type PaintViewport } from './scene/paint-certification.ts'
 import { assertFinalSvgByteBudget } from './scene/scene-validation.ts'
 import type { SceneDoc } from './scene/ir.ts'
+import { sceneHasOnlyPreparedText } from './scene/serialization.ts'
 import { withTextMeasurementExecution } from './text-measurement-profile.ts'
 import { withSvgInspectionCache } from './svg-inspection-cache.ts'
 import { measureRenderStage } from './render-stages.ts'
@@ -150,6 +152,7 @@ function renderPositionedWithTextMeasurement(
   const family = executionPlan.family
   const context = renderContextForPositionedFamily(request, layout)
   let rawSvg: string
+  let preparedText = false
   let layoutCertification: PaintLayoutCertification | undefined
   if (executionPlan.mode === 'scene') {
     const scene = measureRenderStage('scene', () => lowerPositionedFamilyScene(request, layout))
@@ -159,8 +162,10 @@ function renderPositionedWithTextMeasurement(
       seed: effectiveOptions.seed ?? 0,
       ...(request.appearance.styled ? { style: request.appearance.style } : {}),
     }))
+    preparedText = executionPlan.backend?.inputName === 'default'
+      && !family.id.startsWith('family:') && sceneHasOnlyPreparedText(scene)
   } else {
-    if (effectiveOptions.layoutSafety === 'strict') throw new Error('Strict layout safety requires native Scene evidence')
+    if (effectiveOptions.layoutSafety === 'strict') throw new RenderConfigError('Strict layout safety requires native Scene evidence')
     rawSvg = measureRenderStage('backend', () => family.renderSvg!(context))
   }
   assertFinalSvgByteBudget(rawSvg, 'backend/family SVG output')
@@ -168,7 +173,7 @@ function renderPositionedWithTextMeasurement(
   let svg = inlineResolvedColors(rawSvg, context.colors)
   if (layoutCertification?.repairs.length && executionPlan.backend?.inputName === 'default') svg = expandSvgViewport(svg, layoutCertification.viewport)
   assertFinalSvgByteBudget(svg, 'color-resolved SVG output')
-  svg = fitUncalibratedSvgText(svg, request.appearance.font)
+  if (!preparedText) svg = fitUncalibratedSvgText(svg, request.appearance.font)
   assertFinalSvgByteBudget(svg, 'font-geometry-fitted SVG output')
   const idPrefix = effectiveOptions.idPrefix ?? ''
   if (idPrefix) {
@@ -252,15 +257,31 @@ function executeInspectedGraphicalRequest(
   emitResolvedConfigDiagnostics(request)
   const securityDiagnostics: OutputSecurityDiagnostic[] = []
   const rendered = renderResolvedMermaidSVG(request, securityDiagnostics)
-  const receipt = receiptOf(request, securityDiagnostics)
-  const outputDigest = renderedSvgDigest(rendered.svg)
-  return Object.freeze({
-    svg: rendered.svg,
-    receipt: Object.freeze({
-      ...receipt,
+  const layoutCertification = Object.hasOwn(rendered, 'layoutCertification') ? rendered.layoutCertification : undefined
+  return lazyGraphicalArtifact(rendered.svg, () => {
+    const outputDigest = renderedSvgDigest(rendered.svg)
+    return Object.freeze({
+      ...receiptOf(request, securityDiagnostics),
       graphicalProjectionDigest: outputDigest,
       executionDecision: rendered.executionDecision,
-      ...(rendered.layoutCertification ? { layoutCertification: Object.freeze({ ...rendered.layoutCertification, outputDigest }) } : {}),
-    }),
+      ...(layoutCertification ? { layoutCertification: Object.freeze({ ...layoutCertification, outputDigest }) } : {}),
+    })
+  })
+}
+
+/** Keep the getter in a separate closure so a consumed artifact releases the
+ * request, positioned evidence and diagnostics captured by its builder. */
+function lazyGraphicalArtifact(svg: string, build: () => RenderRequestReceipt): GraphicalSvgArtifact {
+  let pending: (() => RenderRequestReceipt) | undefined = build
+  let receipt: RenderRequestReceipt | undefined
+  return Object.freeze({
+    svg,
+    get receipt() {
+      if (receipt === undefined) {
+        receipt = pending!()
+        pending = undefined
+      }
+      return receipt
+    },
   })
 }

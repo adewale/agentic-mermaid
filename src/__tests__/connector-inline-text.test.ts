@@ -19,7 +19,7 @@ function connector(label: ConnectorLabelDescriptor) {
     id: 'inline-text', role: 'edge',
     geometry: { kind: 'line', x1: 160, y1: 130, x2: 240, y2: 130 },
     lineStyle: 'solid', paint: { stroke: '#111', strokeWidth: '1' }, endpoints: { from: 'a', to: 'b' }, labels: [label],
-  }, '<line x1="160" y1="130" x2="240" y2="130" stroke="#111" />')
+  })
 }
 
 const placed = { anchor: { x: 200, y: 100 }, fontSize: 24, textAnchor: 'middle' as const, paint: { fill: '#111' }, visual: { kind: 'inline' as const } }

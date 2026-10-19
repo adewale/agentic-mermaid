@@ -152,6 +152,15 @@ describe('am capabilities', () => {
       }
       expect(editPolicies.has(family.editPolicy)).toBe(true)
     }
+    const warningSchema = schema.properties.warningCodes.items
+    const origins = new Set(warningSchema.properties.origins.items.enum)
+    for (const warning of cap.warningCodes) {
+      for (const k of warningSchema.required ?? []) {
+        expect(Object.prototype.hasOwnProperty.call(warning, k), `${warning.code}.${k}`).toBe(true)
+      }
+      expect(warning.origins.length, warning.code).toBeGreaterThan(0)
+      expect(warning.origins.every(origin => origins.has(origin)), warning.code).toBe(true)
+    }
     expect(schema.properties.outputFormats.items).toEqual(cliRenderFormatJsonSchema())
     const outputFormats = new Set(schema.properties.outputFormats.items.enum)
     for (const format of cap.outputFormats) expect(outputFormats.has(format)).toBe(true)

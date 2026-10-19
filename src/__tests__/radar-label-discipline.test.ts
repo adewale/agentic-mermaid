@@ -93,7 +93,7 @@ describe('radar label discipline — reverse-flow lessons', () => {
     expect(wcagCssContrastRatio(alphaGuarded, '#ffffff')!).toBeGreaterThanOrEqual(4.5)
 
     const svg = renderMermaidSVG(DEMO)
-    const defaultInk = svg.match(/\.radar-axis-label \{ fill: ([^;]+); \}/)?.[1]
+    const defaultInk = svg.match(/class="radar-axis-label"[^>]* fill="([^"]+)"/)?.[1]
     expect(defaultInk).toBeDefined()
     expect(defaultInk).not.toBe('var(--_line)')
     expect(wcagCssContrastRatio(defaultInk!, '#ffffff')!).toBeGreaterThanOrEqual(4.5)
@@ -106,7 +106,7 @@ config:
 ---
 ${DEMO}`
     const authoredSvg = renderMermaidSVG(authored)
-    expect(authoredSvg).toContain('.radar-axis-label { fill: #dddddd; }')
+    expect(authoredSvg).toMatch(/class="radar-axis-label"[^>]* fill="#dddddd"/)
     expect(verifyMermaid(authored).warnings).toContainEqual(expect.objectContaining({
       code: 'LOW_CONTRAST',
       field: 'themeVariables.radar.axisColor',
@@ -181,7 +181,7 @@ radar-beta
   curve x{1,2,3,4}
   max 5`
     const svg = renderMermaidSVG(source, { style: 'accessible-high-contrast' })
-    const boxes = [...svg.matchAll(/class="radar-tick-box"[^>]*width="([^"]+)"/g)]
+    const boxes = [...svg.matchAll(/class="radar-tick-box"[^>]*\swidth="([^"]+)"/g)]
     const labels = [...svg.matchAll(/class="radar-tick-label"[^>]*font-size="([^"]+)" font-weight="([^"]+)"[^>]*>([^<]+)<\/text>/g)]
     const endpointBox = boxes.at(-1)
     const endpointLabel = labels.at(-1)

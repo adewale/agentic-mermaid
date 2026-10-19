@@ -82,8 +82,8 @@ describe('xychart text stays on the canvas', () => {
         const [, , width, height] = svg.match(/viewBox="([^"]+)"/)![1]!.split(' ').map(Number)
         // Bars clamp both ends into the axis range, so a value beyond an
         // authored range cannot push its bar (or its label) off the canvas.
-        for (const match of svg.matchAll(/<rect x="([^"]+)" y="([^"]+)" width="([^"]+)" height="([^"]+)" class="xychart-bar/g)) {
-          const [x, y, w, h] = match.slice(1, 5).map(Number) as [number, number, number, number]
+        for (const [tag] of svg.matchAll(/<rect\b[^>]*\sclass="xychart-bar[^>]*>/g)) {
+          const [x, y, w, h] = ['x', 'y', 'width', 'height'].map(name => Number(tag.match(new RegExp(`\\s${name}="([^"]+)"`))?.[1])) as [number, number, number, number]
           expect({ bar: [x, y, w, h], inside: x >= 0 && y >= 0 && x + w <= width! + 0.01 && y + h <= height! + 0.01 }).toEqual({ bar: [x, y, w, h], inside: true })
         }
         const box = new Resvg(textOnly(svg), { font: { loadSystemFonts: false, fontDirs: [FONT_DIR], defaultFontFamily: 'Inter' } }).getBBox()

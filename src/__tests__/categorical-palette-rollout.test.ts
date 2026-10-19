@@ -96,8 +96,12 @@ function colorsFromSvg(family: keyof typeof sources, svg: string): string[] {
       .sort((a, b) => Number(a[1]) - Number(b[1])).map(match => match[2]!.toLowerCase())
   }
   if (family === 'journey') {
-    return [...svg.matchAll(/\.journey-actor-(\d+)\s*\{\s*fill:\s*(#[0-9a-f]{6})/gi)]
-      .sort((a, b) => Number(a[1]) - Number(b[1])).map(match => match[2]!.toLowerCase())
+    const byIndex = new Map<number, string>()
+    for (const tag of svg.matchAll(/<circle class="journey-actor-dot journey-actor-(\d+)"[^>]*>/gi)) {
+      const color = tag[0].match(/\sfill="(#[0-9a-f]{6})"/i)?.[1]
+      if (color) byIndex.set(Number(tag[1]), color.toLowerCase())
+    }
+    return [...byIndex.entries()].sort((a, b) => a[0] - b[0]).map(([, color]) => color)
   }
   if (family === 'mindmap') {
     const byIndex = new Map<number, string>()
@@ -275,7 +279,7 @@ describe('controlled {1,2,3} categorical palette rollout', () => {
   section Eight
     H: 2: Hal`
     const sectionSvg = renderMermaidSVG(journeySections, { style, embedFontImport: false })
-    const sectionFills = [...sectionSvg.matchAll(/\.journey-section-(\d+) \{ fill: (#[0-9a-f]{6});/gi)]
+    const sectionFills = [...sectionSvg.matchAll(/<rect class="journey-section-bg journey-section-(\d+)"[^>]*\sfill="(#[0-9a-f]{6})"/gi)]
       .sort((a, b) => Number(a[1]) - Number(b[1]))
       .map(match => match[2]!.toLowerCase())
     expect(sectionFills).toEqual(expected.map((base, index) => mixHex(base, '#3388ff', index === 0 ? 8 : 9)))

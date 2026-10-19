@@ -2833,19 +2833,23 @@ for (const w of capabilities.warningCodes) {
   const demo = detail.example ? warningDemoHtml(w.code, detail.example) : ''
   if (demo) firingDemos++
   const detailHtml = `<p><strong>What triggers it.</strong> ${detail.triggers}</p>\n<p><strong>How to fix it.</strong> ${detail.fix}</p>`
+  // A code only the engine causes is not the diagram's to clear by editing.
+  const triage = detail.origins.every(origin => origin === 'engine')
+    ? 'Run <code>am verify diagram.mmd --json</code> and inspect this code. Agentic Mermaid causes it, not the diagram: follow the fix above and report the source.'
+    : 'Run <code>am verify diagram.mmd --json</code>, inspect this code, and apply the smallest source or typed mutation that clears it. If it persists after two mechanical attempts, return the warning and ask for human review.'
   await emitShell(`warnings/${w.code}/index.html`, w.code, lead, `${detailHtml}${demo}
-<p>Run <code>am verify diagram.mmd --json</code>, inspect this code, and apply the smallest source or typed mutation that clears it. If it persists after two mechanical attempts, return the warning and ask for human review.</p>
+<p>${triage}</p>
 <p class="muted">In the cloned repo, <code>am</code> is <code>bun run bin/am.ts</code>.</p>
 <p class="muted">Machine-readable: <a href="/warnings/${w.code}/index.md">this page as Markdown</a>.</p>
 <p class="muted">Back to <a href="/warnings/">all warning codes</a>, or <a href="${GENERIC_EDITOR_HREF}">open a blank editor</a> to try a fix.</p>`)
   // Markdown sibling: the same triage prose an agent gets from verify, without
   // scraping HTML. Discoverable via the link above and served as text/markdown.
   const md = [`# ${w.code}`, '', `> ${inlineHtmlToMarkdown(lead)}`, '',
-    `- **Tier:** ${w.tier}`, `- **Severity:** ${w.severity}`, '']
+    `- **Tier:** ${w.tier}`, `- **Severity:** ${w.severity}`, `- **Origins:** ${detail.origins.join(', ')}`, '']
   md.push('## What triggers it', '', inlineHtmlToMarkdown(detail.triggers), '')
   md.push('## How to fix it', '', inlineHtmlToMarkdown(detail.fix), '')
   if (detail.example) md.push('## Example', '', '```mermaid', detail.example, '```', '')
-  md.push('Run `am verify diagram.mmd --json`, inspect this code, and apply the smallest source or typed mutation that clears it. If it persists after two mechanical attempts, return the warning and ask for human review.', '',
+  md.push(inlineHtmlToMarkdown(triage), '',
     `Full page: https://agentic-mermaid.dev/warnings/${w.code}/`, '')
   await emit(`warnings/${w.code}/index.md`, md.join('\n'))
 }
@@ -2870,7 +2874,7 @@ const errors: Array<{ id: string; title: string; desc: string; recover: string; 
     id: 'render-error', title: 'Render error',
     desc: 'Rendering failed after parse. Return the error and source; do not fabricate an artifact.',
     recover: 'The diagram parsed but rendering to SVG/PNG/text threw before an artifact existed. Return the error and the source — never a fabricated image; simplify or split the diagram, or retry a lighter format (SVG or ASCII before PNG).',
-    related: 'Surfaces as the <a href="/warnings/RENDER_FAILED/">RENDER_FAILED</a> verify code.',
+    related: 'Surfaces as the <a href="/warnings/RENDER_FAILED/">RENDER_FAILED</a> verify code, or as <a href="/warnings/INTERNAL_ERROR/">INTERNAL_ERROR</a> when a defect in Agentic Mermaid, not the source, caused it.',
   },
   {
     id: 'verify-failed', title: 'Verify failed',

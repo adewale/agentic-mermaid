@@ -17,13 +17,14 @@ import { inspectScenePrimitives } from '../scene/inspection.ts'
 import { SECTION_B_FAMILY_CENSUS_FIXTURES } from '../scene/section-b-census-fixtures.ts'
 import { sceneFidelityProblems } from '../scene/fidelity.ts'
 import { DefaultBackend } from '../scene/backend.ts'
-import type { SceneDoc } from '../scene/ir.ts'
+import type { SceneDoc, SceneNode } from '../scene/ir.ts'
+import { sceneNodeSerialization } from '../scene/serialization.ts'
 import { collectSamples } from '../../eval/layout-compare/run.ts'
 import { resolveRenderRequest, resolvedRenderExecutionPlanOf } from '../render-contract.ts'
 import { positionResolvedFamily } from '../positioning.ts'
 import { BUILTIN_RENDER_HOOKS } from '../render-family-hooks.ts'
 import { getFamily, knownBuiltinFamilies } from '../agent/families.ts'
-import { admitBackendSceneDocument } from '../scene/external-data-snapshot.ts'
+import { admitBackendSceneDocument, EXTERNAL_SCENE_DOCUMENT_SNAPSHOT_LIMITS, freezeBoundedFirstPartyData } from '../scene/external-data-snapshot.ts'
 import { admitFamilyScene } from '../scene/admission.ts'
 import { buildExternalScene, EXTERNAL_SCENE_API_VERSION } from '../scene/external-scene.ts'
 
@@ -154,6 +155,43 @@ describe('scene fidelity', () => {
     }
   })
 
+  test('no family stylesheet restyles what a typed mark draws', () => {
+    // The writer emits a mark's paint and typography as presentation
+    // attributes, which any stylesheet rule overrides; certification reads the
+    // typed fields. So no rule may set them on a class a typed mark carries.
+    // Interactive-state rules (`:hover`) and conditional artwork are excluded.
+    const drawn = /^(?:fill|fill-opacity|stroke|stroke-[a-z]+|opacity|color|paint-order|marker(?:-start|-mid|-end)?|font-size|font-weight|font-style|letter-spacing|text-anchor|text-decoration|dominant-baseline|transform|display|visibility)$/
+    const problems: string[] = []
+    for (const scene of scenes) {
+      const css = scene.doc.parts.filter(part => part.kind === 'document')
+        .flatMap(part => sceneNodeSerialization(part).match(/<style>[\s\S]*?<\/style>/g) ?? []).join('\n')
+      const rules = [...css.replace(/@media[^{]*\{(?:[^{}]*\{[^{}]*\})*[^{}]*\}/g, '').matchAll(/([^{}]+)\{([^{}]*)\}/g)].flatMap(([, selectors, body]) => {
+        const properties = body!.split(';').map(declaration => declaration.split(':')[0]!.trim()).filter(property => drawn.test(property))
+        return properties.length === 0 ? [] : selectors!.split(',').map(selector => selector.trim()).filter(selector => selector && !selector.includes(':')).map(selector => {
+          const compound = selector.split(/[\s>+~]+/).filter(Boolean).at(-1)!
+          return { selector, properties, element: /^[a-z]+/.exec(compound)?.[0], classes: [...compound.matchAll(/\.([\w-]+)/g)].map(match => match[1]!) }
+        })
+      })
+      const visit = (node: SceneNode, conditional: boolean): void => {
+        if (node.kind === 'group') { for (const child of node.children) visit(child.node, conditional || node.visibility === 'conditional'); return }
+        if (node.kind === 'document' || conditional || node.visibility === 'conditional') return
+        const classes = new Set(node.attributes?.className?.split(' ') ?? [])
+        // The elements the writer emits for this mark.
+        const elements = new Set(node.kind === 'text' ? ['text', 'tspan']
+          : node.kind === 'connector' ? [node.route.geometry.kind, 'text']
+            : node.geometry.kind === 'compound' ? node.geometry.children.map(child => child.kind) : [node.geometry.kind])
+        for (const rule of rules) {
+          const matches = rule.classes.length > 0
+            ? rule.classes.every(name => classes.has(name)) && (!rule.element || elements.has(rule.element))
+            : rule.element !== undefined && elements.has(rule.element)
+          if (matches) problems.push(`${scene.id}: "${rule.selector}" sets ${rule.properties.join(', ')} on ${node.kind} ${node.id}`)
+        }
+      }
+      for (const part of scene.doc.parts) visit(part, false)
+    }
+    expect(problems.slice(0, 40)).toEqual([])
+  })
+
   test('all final artwork is measured or explicitly non-painting across the corpus', () => {
     const missing: string[] = []
     for (const scene of scenes) {
@@ -241,23 +279,50 @@ describe('built-in Scene cross-checks', () => {
         const attempt = run => { try { run(); return 'rendered' } catch (error) { return error.message } }
         const render = attempt(() => renderMermaidSVG(source))
         const strict = attempt(() => renderMermaidSVG(source, { layoutSafety: 'strict' }))
-        const verify = verifyMermaid(source).warnings.filter(warning => warning.code === 'RENDER_FAILED').map(warning => warning.reason)
+        const verify = verifyMermaid(source).warnings.filter(warning => warning.code === 'RENDER_FAILED' || warning.code === 'INTERNAL_ERROR')
         const ascii = renderMermaidASCIIWithReceipt(source).terminalStyle.diagnostics.map(diagnostic => diagnostic.code)
         console.log(JSON.stringify({ render, strict, verify, ascii }))
       `], { cwd: join(import.meta.dir, '..', '..'), env, encoding: 'utf8' })
       expect({ status: result.status, stderr: result.stderr }).toEqual({ status: 0, stderr: '' })
-      return JSON.parse(result.stdout) as { render: string; strict: string; verify: string[]; ascii: string[] }
+      return JSON.parse(result.stdout) as { render: string; strict: string; verify: unknown[]; ascii: string[] }
     }
     const projectionMismatch = /terminalProjection: must equal the canonical projection derived from connector semantics/
+    // The mismatch is a lowering defect, never the source's: verify reports it
+    // as INTERNAL_ERROR and says whether an ordinary render still draws.
+    const defect = (defaultRender: string) => [{ code: 'INTERNAL_ERROR', reason: expect.stringMatching(projectionMismatch), defaultRender }]
     const off = probe(false)
     expect(off.render).toBe('rendered')
     // Strict layout safety, verify and the ASCII connector projection, which
     // all rely on the derived facts, still cross-check them.
     expect(off.strict).toMatch(projectionMismatch)
-    expect(off.verify.join('\n')).toMatch(projectionMismatch)
+    expect(off.verify).toEqual(defect('succeeds-unchecked'))
     expect(off.ascii).toContain('TERMINAL_CONNECTOR_PROJECTION_UNAVAILABLE')
     const on = probe(true)
     expect(on.render).toMatch(projectionMismatch)
-    expect(on.verify.join('\n')).toMatch(projectionMismatch)
+    expect(on.verify).toEqual(defect('fails'))
+  })
+})
+
+describe('built-in Scene admission walk', () => {
+  // Small limits stand in for the multi-megabyte production ones. The walk
+  // charges three bytes per UTF-16 unit first and recounts exactly only when
+  // that bound passes a limit, so the exact limit must still decide.
+  const limits = { ...EXTERNAL_SCENE_DOCUMENT_SNAPSHOT_LIMITS, maxTextBytes: 30, maxPropertyKeyBytes: 6, maxAggregatePropertyKeyBytes: 12 }
+  test.each([
+    ['ASCII text under the byte limit but over the three-byte bound', { a: 'x'.repeat(14), b: 'y'.repeat(16) }, undefined],
+    ['ASCII text one byte over', { a: 'x'.repeat(15), b: 'y'.repeat(16) }, 'text values exceed the aggregate 30-byte limit'],
+    ['three-byte characters over', { a: '€'.repeat(11) }, 'text values exceed the aggregate 30-byte limit'],
+    ['keys under the aggregate limit but over the bound', { abcdef: 1, ghijkl: 2 }, undefined],
+    ['keys over the aggregate limit', { abcdef: 1, ghijkl: 2, m: 3 }, 'property keys exceed the aggregate 12-byte limit'],
+    ['a key over the per-key limit', { abcdefg: 1 }, 'property key longer than 6 bytes'],
+    ['a sparse array, named by its path', { parts: [{ points: [0, , 2] }] }, 'External Scene scene.parts[0].points must not be sparse'],
+  ] as const)('%s', (_name, document, error) => {
+    const value = structuredClone(document)
+    const admit = () => freezeBoundedFirstPartyData(value, limits, 'scene')
+    if (error) expect(admit).toThrow(error)
+    else {
+      expect(admit()).toBe(value)
+      expect(Object.isFrozen(value)).toBe(true)
+    }
   })
 })

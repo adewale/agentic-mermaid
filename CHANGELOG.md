@@ -22,6 +22,24 @@ This changelog tracks user-facing changes for **Agentic Mermaid**, a fork of `lu
 
 ### Fixed
 
+- Journey `taskFontFamily` and `titleFontFamily` config values are written
+  into CSS only when they are safe font-family lists; an unsafe value (one
+  that closes the rule or fetches with `url()`) is ignored with an
+  `INEFFECTIVE_CONFIG` warning instead of restyling the whole diagram.
+- C4 relationships between facing cards of different heights run straight.
+  Ports spaced evenly along each face sat a few pixels apart, which drew a
+  small dogleg on each such relationship.
+- Drawings that disagreed with their certified paint now draw it: a Pie
+  slice's role or semantic-slot border and its highlight emphasis, which
+  stylesheet rules overrode; abstract, static and non-ASCII Class members,
+  which painted in SVG's default black instead of the member ink; a Journey
+  title's letter spacing and an `em`/`ex` `titleFontSize`. Sketch styles now
+  draw Radar areas with the translucent fill and opaque outline the default
+  style draws, XYChart series lines with round caps and joins, and a done
+  Gantt bar's border. Under a sketch look stacked with a dark palette
+  (for example `watercolor` with `dusk`), Architecture labels, Journey task
+  text and Timeline event text take the sketch's legible ink instead of a
+  family stylesheet's dark ink.
 - Context codecs preserve entity-derived tags, emphasis and backslash-n as
   literal text beside authored formatting in Flowchart, ER, Sequence and Class.
   Parsed aliases and labels retain their meaning through edits and reload;
@@ -243,6 +261,31 @@ This changelog tracks user-facing changes for **Agentic Mermaid**, a fork of `lu
   website, and full and lazy browser bundles.
 
 ### Changed
+- Every built-in family's shapes, text and connectors are now written by one
+  SVG writer from the typed fields paint certification reads, so a render's
+  certificate describes the drawing it ships. Families no longer attach their
+  own SVG strings, and family stylesheets no longer paint marks (paint is
+  written on each element; hover and tooltip rules remain). SVG bytes change:
+  attribute order, inline paint and omitted SVG defaults. Default-style
+  rasters of the 562-input corpus are unchanged apart from Sankey link
+  opacity (at most 3/255 per channel) and the anti-aliasing of the Sequence
+  actor link-menu glyph. `verify` no longer compares each mark with its SVG,
+  which the writer makes hold by construction.
+- `verify` no longer blames the diagram for a defect in Agentic Mermaid. A
+  render-path failure raised by one of the engine's own consistency checks or
+  by a runtime error such as a `TypeError` is the new Tier 1 error
+  `INTERNAL_ERROR`; its `defaultRender` says whether an ordinary render still
+  produces output (`succeeds-unchecked`, unchecked) or throws (`fails`).
+  `RENDER_FAILED` now covers faults in the source or its configuration only,
+  and its new `origin` field says which. `am verify`, `am mutate` and
+  `am describe` exit 4 when every error is `INTERNAL_ERROR`; a typed edit is
+  accepted when its only errors are the same `INTERNAL_ERROR` defects the
+  diagram already had; `am capabilities --json` lists each code's possible
+  `origins`. Authored values that reach the Scene's range, extent and
+  identity checks (a negative stroke width, an oversized canvas, a reused id)
+  stay `RENDER_FAILED`. Invalid render options, Style inputs and theme fonts,
+  and sources too long for the request receipt (with their configuration),
+  are now typed refusals rather than plain runtime errors.
 - The npm package no longer ships `docs/mutation-testing.md`; mutation testing
   and its CI jobs are gone. The repository no longer commits generated reports,
   receipts, upstream-corpus hashes or eval evidence, and `CLAUDE.md` records
