@@ -268,27 +268,6 @@ jobs:
           jq -n --arg source "$FIXED_BASELINE_SHA" --arg candidate "$GITHUB_SHA" --arg sha256 "$baseline_sha" --arg integrity "$baseline_integrity" \
             '{status:"prepared",fixedBaselineSha:$source,candidateSourceSha:$candidate,baselineTarballSha256:$sha256,baselineIntegrity:$integrity,timingScope:"this job only",baselineTarballRetained:false}' > fixed-evidence/identity.json
           printf 'FIXED_BASELINE_PACKAGE=%s\n' "$fixed_prefix/node_modules/agentic-mermaid" >> "$GITHUB_ENV"
-          cat > fixed-evidence/profile-recipe.sh <<'RECIPE'
-          #!/usr/bin/env bash
-          # Supply either verified package tarball and its recorded digest.
-          # CPU samples include import/correctness/ASCII checks and eight SVG repetitions.
-          set -euo pipefail
-          : "${PACKAGE_TARBALL:?}" "${PACKAGE_SHA256:?}" "${HARNESS_ROOT:?}"
-          profile_out="$(mktemp -d)"
-          printf '%s  %s\n' "$PACKAGE_SHA256" "$PACKAGE_TARBALL" | sha256sum --check
-          npm install --prefix "$profile_out/consumer" --ignore-scripts --no-audit --no-fund "$PACKAGE_TARBALL"
-          export PACKAGE_ENTRY="$profile_out/consumer/node_modules/agentic-mermaid/dist/index.js"
-          export PROFILE_JOB="$profile_out/job.json"
-          bun --eval '
-            const { MICRO_WORKLOADS } = await import(process.env.HARNESS_ROOT + "/eval/benchmark/micro-bench-cases.ts");
-            const { writeFileSync } = await import("node:fs");
-            writeFileSync(process.env.PROFILE_JOB, JSON.stringify({ entry: process.env.PACKAGE_ENTRY, mode: "time", reps: 8,
-              inputs: Object.entries(MICRO_WORKLOADS).map(([id, source]) => ({ id, source, family: "profile" })) }));
-          '
-          AGENTIC_MERMAID_ELK_CACHE=0 AGENTIC_MERMAID_SCENE_ASSERTIONS=0 node --cpu-prof --cpu-prof-dir "$profile_out" \
-            "$HARNESS_ROOT/eval/benchmark/release-bench-worker.ts" "$PROFILE_JOB" "$profile_out/result.json"
-          printf 'Profile and exact runtime lock: %s\n' "$profile_out"
-          RECIPE
 
       - name: Compare the fixed baseline and candidate with ELK cache off
         id: fixed_off
@@ -322,6 +301,43 @@ jobs:
         timeout-minutes: 6
         run: timeout --kill-after=15s 5m bun run bench:peers --peers agentic,beautiful,pele --candidate-tarball release-artifact/package.tgz --candidate-sha256 "$CANDIDATE_SHA256" --rounds 5 --elk-cache on --json fixed-evidence/peers-on.json --markdown fixed-evidence/peers-on.md
 
+      - name: Retain sequential CPU profiles of the exact installed packages
+        id: fixed_profiles
+        if: ${{ !cancelled() && steps.fixed_baseline.outcome == 'success' }}
+        timeout-minutes: 3
+        run: |
+          cat > fixed-evidence/profile-recipe.sh <<'RECIPE'
+          #!/usr/bin/env bash
+          # Worker-wide CPU samples include import, correctness/ASCII checks and
+          # eight SVG repetitions; these are not the local SVG-only profiles.
+          set -euo pipefail
+          profile_out="$PWD/fixed-evidence/profiles"
+          candidate_prefix="$RUNNER_TEMP/agentic-mermaid-profile-consumer"
+          mkdir -p "$profile_out"
+          test ! -e "$candidate_prefix"
+          printf '%s  release-artifact/package.tgz\n' "$CANDIDATE_SHA256" | sha256sum --check
+          npm install --prefix "$candidate_prefix" --ignore-scripts --no-audit --no-fund "$PWD/release-artifact/package.tgz"
+          test "$(jq -er '.packages["node_modules/agentic-mermaid"].integrity' "$candidate_prefix/package-lock.json")" = "$(jq -er '.integrity' release-artifact/package-manifest.json)"
+          cp "$candidate_prefix/package-lock.json" "$profile_out/candidate-runtime.package-lock.json"
+          cp "$candidate_prefix/node_modules/.package-lock.json" "$profile_out/candidate-runtime.installed-package-lock.json"
+          export PROFILE_OUT="$profile_out" BASELINE_ENTRY="$FIXED_BASELINE_PACKAGE/dist/index.js"
+          export CANDIDATE_ENTRY="$candidate_prefix/node_modules/agentic-mermaid/dist/index.js"
+          bun --eval '
+            const { MICRO_WORKLOADS } = await import("./eval/benchmark/micro-bench-cases.ts");
+            const { writeFileSync } = await import("node:fs");
+            const inputs = Object.entries(MICRO_WORKLOADS).map(([id, source]) => ({ id, source, family: "profile" }));
+            for (const [side, entry] of [["baseline", process.env.BASELINE_ENTRY], ["candidate", process.env.CANDIDATE_ENTRY]])
+              writeFileSync(process.env.PROFILE_OUT + "/" + side + "-job.json", JSON.stringify({ entry, mode: "time", reps: 8, inputs }));
+          '
+          for side in baseline candidate; do
+            AGENTIC_MERMAID_ELK_CACHE=0 AGENTIC_MERMAID_SCENE_ASSERTIONS=0 node --cpu-prof --cpu-prof-dir "$profile_out" --cpu-prof-name "$side.cpuprofile" \
+              eval/benchmark/release-bench-worker.ts "$profile_out/$side-job.json" "$profile_out/$side-result.json"
+            test -s "$profile_out/$side.cpuprofile"
+            test -s "$profile_out/$side-result.json"
+          done
+          RECIPE
+          timeout --kill-after=5s 120s bash fixed-evidence/profile-recipe.sh
+
       - name: Record fixed evidence completion and advisory peer outcomes
         if: always()
         env:
@@ -334,11 +350,12 @@ jobs:
           FIXED_AA: ${{ steps.fixed_aa.outcome }}
           PEERS_OFF: ${{ steps.peers_off.outcome }}
           PEERS_ON: ${{ steps.peers_on.outcome }}
+          PROFILES: ${{ steps.fixed_profiles.outcome }}
         run: |
           mkdir -p fixed-evidence
           node --input-type=module <<'JS'
           import { readFileSync, writeFileSync } from 'node:fs'
-          const gates = Object.fromEntries(['CONFIG', 'CANDIDATE', 'CANDIDATE_IDENTITY', 'BASELINE', 'FIXED_OFF', 'FIXED_ON', 'FIXED_AA'].map(key => [key, process.env[key] ?? 'missing']))
+          const gates = Object.fromEntries(['CONFIG', 'CANDIDATE', 'CANDIDATE_IDENTITY', 'BASELINE', 'FIXED_OFF', 'FIXED_ON', 'FIXED_AA', 'PROFILES'].map(key => [key, process.env[key] ?? 'missing']))
           const advisory = Object.fromEntries(['PEERS_OFF', 'PEERS_ON'].map(key => [key, process.env[key] ?? 'missing']))
           const reports = Object.fromEntries(['cache-off/report.json', 'cache-on/report.json', 'aa/report.json', 'peers-off.json', 'peers-on.json'].map(path => {
             try {
@@ -354,7 +371,7 @@ jobs:
               return [path, { status: report.status, ok: report.ok, complete }]
             } catch { return [path, { status: 'missing', complete: false }] }
           }))
-          const complete = Object.values(reports).every(report => report.complete) && Object.values(advisory).every(value => value === 'success')
+          const complete = gates.PROFILES === 'success' && Object.values(reports).every(report => report.complete) && Object.values(advisory).every(value => value === 'success')
           const passed = complete && Object.values(gates).every(value => value === 'success')
           writeFileSync('fixed-evidence/workflow-status.json', JSON.stringify({ status: complete ? 'completed' : 'incomplete', complete, passed, gates, advisory, reports, timingScope: 'this job only' }, null, 2) + '\n')
           JS
