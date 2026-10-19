@@ -7,7 +7,7 @@ import { parseMermaid as parseRenderGraph } from '../parser.ts'
 import { verifyMermaid } from '../agent/verify.ts'
 import { renderMermaidSVG, renderMermaidASCII } from '../index.ts'
 import { describeMermaidFacts } from '../agent/facts.ts'
-import { startUpstreamMermaid } from './helpers/upstream-mermaid.ts'
+import { startUpstreamMermaid, type UpstreamDiagram } from './helpers/upstream-mermaid.ts'
 import { projectEntityMarkers } from '../shared/mermaid-entity-display.ts'
 
 function state(source: string): StateValidDiagram {
@@ -16,6 +16,11 @@ function state(source: string): StateValidDiagram {
   const narrowed = asState(parsed.value)
   if (!narrowed) throw new Error(`expected structured State body, got ${parsed.value.body.kind}`)
   return narrowed
+}
+
+/** Verify's UNSUPPORTED_SYNTAX findings on `source`, as `syntax@line`. */
+function unsupportedSyntax(source: string): string[] {
+  return verifyMermaid(source).warnings.flatMap(warning => warning.code === 'UNSUPPORTED_SYNTAX' ? [`${warning.syntax}@${warning.line}`] : [])
 }
 
 function apply(diagram: StateValidDiagram, op: StateMutationOp): StateValidDiagram {
@@ -439,14 +444,13 @@ stateDiagram-v2
       .toEqual([...labels, 'say "hi"; ok', 'a;'])
     expect(written.map(source => { const body = state(source).body; return body.transitions[0]?.label ?? body.states[0]?.label }))
       .toEqual([...labels, 'say "hi"; ok', 'a;'])
-    const unsupported = (source: string): string[] => verifyMermaid(source).warnings.flatMap(warning => warning.code === 'UNSUPPORTED_SYNTAX' ? [`${warning.syntax}@${warning.line}`] : [])
-    expect(sources.map(unsupported)).toEqual(sources.map(() => ['state_text_cut@2']))
-    expect(written.map(unsupported)).toEqual(written.map(() => []))
+    expect(sources.map(unsupportedSyntax)).toEqual(sources.map(() => ['state_text_cut@2']))
+    expect(written.map(unsupportedSyntax)).toEqual(written.map(() => []))
     // Mermaid reads these whole: a colon text follows, an entity code, the
     // text after `state "…" as`, and a block note.
     const whole = ['A : a:b', 'A --> B : a #59; b', 'state "x" as A : a; b', 'note right of A\n    a; b :: c:\n  end note']
       .map(body => `stateDiagram-v2\n  ${body}`)
-    expect(whole.map(unsupported)).toEqual(whole.map(() => []))
+    expect(whole.map(unsupportedSyntax)).toEqual(whole.map(() => []))
     const upstream = startUpstreamMermaid()
     try {
       const read = await upstream.projectAll(written, mermaid => {
@@ -703,18 +707,32 @@ describe('State statements across and within lines', () => {
   })
 
   test('a note on a state Mermaid cannot name as a note target is read, and reported', async () => {
-    const unsupported = (source: string): string[] => verifyMermaid(source).warnings.flatMap(warning => warning.code === 'UNSUPPORTED_SYNTAX' ? [`${warning.syntax}@${warning.line}`] : [])
     // A keyword names a note's state there; a hyphen does not.
     const oneLine = 'stateDiagram-v2\nnote right of in-flight : x\nnote left of note : y'
     expect(readingOf(parseRenderGraph(oneLine))).toEqual(['in-flight:rounded:in-flight', 'note:rounded:note', 'note right of in-flight:x', 'note left of note:y'].sort())
     expect(await upstream.accepts(oneLine)).toBe(false)
-    expect(unsupported(oneLine)).toEqual(['state_note_target@2'])
+    expect(unsupportedSyntax(oneLine)).toEqual(['state_note_target@2'])
     // Mermaid's note target ends at the hyphen, and the rest is note text.
     const block = 'stateDiagram-v2\nA --> B\nnote left of in-flight\ntext\nend note'
     expect(state(block).body.notes).toEqual([{ target: 'in-flight', side: 'left', text: 'text' }])
     expect(await upstream.project(block, mermaid => mermaid.db.rootDoc.flatMap((item: any) => item.note ? [[item.id, item.note.text]] : [])))
       .toEqual({ ok: true, value: [['in', '-flight\ntext']] })
-    expect(unsupported(block)).toEqual(['state_note_target@3'])
+    expect(unsupportedSyntax(block)).toEqual(['state_note_target@3'])
+  })
+
+  test('a one-line note whose text holds a colon or `;` is read whole, and reported', async () => {
+    // Mermaid ends a one-line note's text at a colon or `;`, after reading
+    // entity codes: it rejects the colon, and reads on from the `;`.
+    const sources = ['a; b', 'see http://x', 'a #59; b #58; c'].map(text => `stateDiagram-v2\nA --> B\nnote right of A : ${text}`)
+    expect(sources.map(source => parseRenderGraph(source).stateNotes?.[0]?.text)).toEqual(['a; b', 'see http://x', 'a ; b : c'])
+    expect(sources.map(unsupportedSyntax)).toEqual([['state_note_text_cut@3'], ['state_note_text_cut@3'], []])
+    const notes = (mermaid: UpstreamDiagram): string[] => mermaid.db.rootDoc.flatMap((item: any) => item.note ? [item.note.text] : [])
+    expect((await upstream.projectEach(sources, notes)).map(read => read.ok ? read.value.map(text => projectEntityMarkers(text)) : 'rejected'))
+      .toEqual([['a'], 'rejected', ['a ; b : c']])
+    // The writer writes a block note, which Mermaid reads whole.
+    const written = sources.map(source => serializeMermaid(state(source)))
+    expect(written.map(unsupportedSyntax)).toEqual(written.map(() => []))
+    expect((await upstream.projectAll(written, notes)).map(texts => texts.map(text => projectEntityMarkers(text)))).toEqual([['a; b'], ['see http://x'], ['a ; b : c']])
   })
 
   test('a direction is read in any case, as Mermaid reads it', () => {

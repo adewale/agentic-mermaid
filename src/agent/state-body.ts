@@ -1290,10 +1290,16 @@ export function stateUnsupportedSyntaxWarnings(canonicalSource: string): LayoutW
   return warnings.sort((left, right) => left.line - right.line)
 }
 
+/** State text as pinned Mermaid's lexer meets it: it reads an entity code
+ *  (`#59;`) before it, so the code's `;` ends no text. */
+function lexedStateText(text: string): string {
+  return text.replace(/#\w+;/g, '#')
+}
+
 /** Statements ours reads that pinned Mermaid reads otherwise, by statement:
  *  `cssClass` and `linkStyle`, which its State grammar lacks; a transition
- *  or note naming a state it cannot name there; a description or transition
- *  label it ends early; and a composite given more than one label or
+ *  or note naming a state it cannot name there; a description, transition
+ *  label or one-line note it ends early; and a composite given more than one label or
  *  description, which it rejects. Each at its authored line. */
 function stateReadOtherwiseWarnings(statements: readonly StateStatement[], header: number, lastLine: (line: number) => string): Array<LayoutWarning & { line: number }> {
   const warnings: Array<LayoutWarning & { line: number }> = []
@@ -1307,7 +1313,7 @@ function stateReadOtherwiseWarnings(statements: readonly StateStatement[], heade
   // lines read here end trimmed, so a colon only blanks follow, which
   // Mermaid reads as text, is reported too.
   const cutText = (statement: StateStatement, value: string): void => {
-    const text = value.replace(/#\w+;/g, '#')
+    const text = lexedStateText(value)
     if (!/;|::/.test(text) && !(text.endsWith(':') && lastLine(statement.line).endsWith(':'))) return
     warn(statement, 'state_text_cut', 'A `;`, a `::` or a colon ending the line in a description or transition label is read as part of the text. Pinned Mermaid ends the text there: it reads the rest of the line from a `;` as further statements, the `;` starting a state name, and rejects a `::` or a colon ending the line. The writer writes them as `#59;` and `#58;`, which Mermaid reads as the text.')
   }
@@ -1336,10 +1342,16 @@ function stateReadOtherwiseWarnings(statements: readonly StateStatement[], heade
       warn(statement, 'state_link_style', '`linkStyle` paints transitions here, and the writer writes transition paint so. Pinned Mermaid\'s State grammar has no `linkStyle`: it reads the words of the line as states, or rejects them, and draws no transition paint.')
       continue
     }
-    const note = matchNoteLine(text) ?? matchNoteOpen(text)
+    const noteLine = matchNoteLine(text)
+    const note = noteLine ?? matchNoteOpen(text)
     if (note) {
       if (note.target.includes('-')) {
         warn(statement, 'state_note_target', `The note is on '${note.target}', which pinned Mermaid cannot read as a note's state: there a state name ends at a hyphen. Mermaid rejects a note whose text follows a colon, and puts a block note on the state named before the hyphen, reading the rest as note text, here and in the output. Rename the state to keep it portable.`)
+      }
+      // Mermaid's one-line note text (NOTE_TEXT, `":"[^:\n;]+`) ends at
+      // any colon or `;`.
+      if (noteLine && /[:;]/.test(lexedStateText(noteLine.text))) {
+        warn(statement, 'state_note_text_cut', 'A colon or `;` in a one-line note\'s text is read as part of the text. Pinned Mermaid ends a one-line note\'s text at either: it rejects a colon there, and reads the rest of the line from a `;` as further statements. The writer writes the note as a block note.')
       }
       continue
     }
