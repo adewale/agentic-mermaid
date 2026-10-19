@@ -128,6 +128,7 @@ export function parseClassBody(lines: string[]): ClassBody | null {
           const declaration = value.declaration
           const cls = upsert(declaration.id, declaration.label, declaration.generic)
           if (declaration.className !== undefined) cls.className = declaration.className
+          if (declaration.annotation !== undefined && !addAnnotation(cls, declaration.annotation)) return false
           if (!claim(cls, path)) return false
           if (node.children) frames.push({ nodes: node.children, path, owner: cls, index: 0 })
           break

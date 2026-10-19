@@ -441,6 +441,7 @@ function buildClassSourceMap(body: DiagramBody, canonicalSource: string): Source
       const value = node.value
       if (value.kind === 'class') {
         declare(value.declaration.id, source)
+        if (value.declaration.annotation !== undefined) addMember(value.declaration.id, `<<${value.declaration.annotation}>>`, source)
         if (node.children) frames.push({ nodes: node.children, owner: value.declaration.id, index: 0 })
       } else if (value.kind === 'namespace') frames.push({ nodes: node.children!, owner: undefined, index: 0 })
       else if (value.kind === 'relationship') relationSources.push(source)

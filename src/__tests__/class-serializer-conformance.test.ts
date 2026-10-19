@@ -519,6 +519,19 @@ class Other
       membership: [['Domain', ['First', 'Second']]],
     },
     {
+      // Mermaid's lexer reads `}` after a statement as the namespace's end.
+      name: 'a statement may share a line with the brace that closes its namespace',
+      source: 'classDiagram\nnamespace Domain { class First\nclass Second }\nnamespace Other {\nclass Third <<interface>> }\nclass Free',
+      classes: [{ id: 'First', namespace: 'Domain' }, { id: 'Second', namespace: 'Domain' }, { id: 'Third', namespace: 'Other' }, { id: 'Free', namespace: undefined }],
+      membership: [['Domain', ['First', 'Second']], ['Other', ['Third']]],
+    },
+    {
+      name: 'one line may close a class body and the namespaces around it',
+      source: 'classDiagram\nnamespace Outer {\nnamespace Inner {\nclass First\nclass Last:::hot {+id} }}\nclass Free\nclassDef hot fill:red',
+      classes: [{ id: 'First', namespace: 'Outer.Inner' }, { id: 'Last', namespace: 'Outer.Inner' }, { id: 'Free', namespace: undefined }],
+      membership: [['Outer', []], ['Outer.Inner', ['First', 'Last']]],
+    },
+    {
       name: 'a nested quoted atom remains a child namespace after serialization',
       source: 'classDiagram\nnamespace Outer {\nnamespace `A::B` { class `IPC::Sender`\n}\n}',
       classes: [{ id: 'IPC::Sender', namespace: 'Outer.A::B' }],

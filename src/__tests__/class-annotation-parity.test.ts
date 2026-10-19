@@ -20,6 +20,10 @@ const sources = [
   'classDiagram\n  class Shape["Thing"] <<interface>>\n  class Other\n  Shape --> Other',
   'classDiagram\n  class Shape << interface >>\n  class Other\n  Shape --> Other',
   'classDiagram\n  class Shape\n  << interface >>Shape\n  class Other\n  Shape --> Other',
+  // Mermaid 11.14: an inline annotation may be followed by the class body.
+  'classDiagram\n  class Shape <<interface>> {\n    +area() double\n  }\n  class Other\n  Shape --> Other',
+  'classDiagram\n  class Shape <<interface>> {+area() double}\n  class Other\n  Shape --> Other',
+  'classDiagram\n  class Shape <<interface>> {}\n  class Other\n  Shape --> Other',
 ]
 
 describe('Class official annotation forms', () => {
@@ -27,7 +31,8 @@ describe('Class official annotation forms', () => {
     const annotations = await upstream.projectAll([...sources, 'classDiagram\n  class Shape <<interface>>\n  <<abstract>> Shape'],
       diagram => diagram.db.getClasses().get('Shape').annotations)
     expect(annotations).toEqual([
-      ['interface'], ['interface'], ['interface'], ['interface'], ['interface'], ['interface'], ['interface'], ['interface'], ['interface', 'abstract'],
+      ['interface'], ['interface'], ['interface'], ['interface'], ['interface'], ['interface'], ['interface'], ['interface'],
+      ['interface'], ['interface'], ['interface'], ['interface', 'abstract'],
     ])
   })
 
@@ -36,6 +41,7 @@ describe('Class official annotation forms', () => {
       const native = parseClassDiagram(source.split('\n').map(line => line.trim()))
       expect(native.classes.find(node => node.id === 'Shape')?.annotation).toBe('interface')
       if (source.includes('["Thing"]')) expect(native.classes.find(node => node.id === 'Shape')?.label).toBe('Thing')
+      expect(native.classes.find(node => node.id === 'Shape')?.methods.map(member => member.name)).toEqual(source.includes('+area()') ? ['area'] : [])
       expect(native.relationships.map(relation => [relation.from, relation.to])).toEqual([['Shape', 'Other']])
       const svg = renderMermaidSVG(source)
       expect(svg).toContain('data-annotation="interface"')
@@ -45,7 +51,7 @@ describe('Class official annotation forms', () => {
       expect(parsed.ok).toBe(true)
       if (!parsed.ok) continue
       const body = asClass(parsed.value)?.body
-      expect(body?.classes.find(node => node.id === 'Shape')?.members).toContain('<<interface>>')
+      expect(body?.classes.find(node => node.id === 'Shape')?.members).toEqual(source.includes('+area()') ? ['<<interface>>', '+area() double'] : ['<<interface>>'])
       if (source.includes('["Thing"]')) expect(body?.classes.find(node => node.id === 'Shape')?.label).toBe('Thing')
       expect(verifyMermaid(parsed.value).ok).toBe(true)
 

@@ -153,6 +153,8 @@ export interface ParsedClassDeclaration {
   label?: string
   generic?: string
   className?: string
+  /** `class A <<interface>> {`: an inline annotation before the body. */
+  annotation?: string
   opensBody: boolean
 }
 
@@ -201,6 +203,8 @@ export interface ParsedClassAnnotationStatement {
   label?: string
   annotation: string
   placement: 'inline' | 'separate' | 'body-inline'
+  /** The statement goes on to open the class's member block. */
+  opensBody?: true
 }
 
 /** A class ID, generic, or quoted label may itself contain `<<...>>`.
@@ -258,6 +262,10 @@ export function parseClassAnnotationStatement(line: string): ParsedClassAnnotati
     declarationText = declarationText.slice(0, -1).trim()
     annotationText = annotationText.slice(0, -1).trim()
   }
+  // The class body may follow an inline annotation (Mermaid 11.14): `{`
+  // opens it, `{}` leaves it empty.
+  const block = bodyInline ? undefined : annotationText.match(/\{\s*\}?$/)?.[0]
+  if (block) annotationText = annotationText.slice(0, -block.length).trim()
   const declaration = parseClassDeclaration(`class ${declarationText}`)
   const annotation = bodyInline
     ? parseClassBodyAnnotationToken(annotationText)
@@ -269,6 +277,7 @@ export function parseClassAnnotationStatement(line: string): ParsedClassAnnotati
         ...(declaration.label !== undefined ? { label: declaration.label } : {}),
         annotation,
         placement: bodyInline ? 'body-inline' : 'inline',
+        ...(block === '{' ? { opensBody: true as const } : {}),
       }
     : null
 }
@@ -445,6 +454,10 @@ function classifyClassStatement(text: string, authored: string | undefined): Cla
     if (refs && Object.keys(props).length > 0) return { kind: 'style', references: refs, props }
   }
   const annotation = parseClassAnnotationStatement(text)
+  if (annotation?.opensBody) {
+    const { id, generic, label } = annotation
+    return { kind: 'class', declaration: { id, generic, label, annotation: annotation.annotation, opensBody: true } }
+  }
   if (annotation) return { kind: 'annotation', annotation }
   const declaration = parseClassDeclaration(text)
   if (declaration) return { kind: 'class', declaration }
@@ -466,6 +479,102 @@ function classifyClassStatement(text: string, authored: string | undefined): Cla
   return { kind: 'unknown', reason: `Unrecognized class${form ? ` ${form}` : ''} statement "${text}"` }
 }
 
+// What comes before a string that holds label text: a note's text, a class's
+// or namespace's ["label"]. A relationship's cardinality is any string before
+// its `: label` in a statement no keyword starts.
+const CLASS_LABEL_STRING_PREFIX_RE = /^(?:note(?:\s+for\s+(?:`[^`]*`|\S+))?\s+|(?:class|namespace)\s[^"]*\[\s*)$/i
+const CLASS_STRING_KEYWORD_RE = /^(?:class|namespace|note|click|link|callback|cssClass|style|classDef|title|direction)\b|^<</i
+
+/** Whether `text` ends inside a quoted note, label or cardinality, whose
+ * string Mermaid reads on across the line break. */
+function continuesClassText(text: string): boolean {
+  let quote: string | undefined
+  let open = -1
+  for (let index = 0; index < text.length; index++) {
+    const character = text[index]!
+    if (quote) {
+      if (character === '\\' && quote === '"') index++
+      else if (character === quote) quote = undefined
+    } else if (character === '"' || character === '`') {
+      quote = character
+      open = index
+    }
+  }
+  if (quote !== '"') return false
+  const before = text.slice(0, open)
+  return CLASS_LABEL_STRING_PREFIX_RE.test(before) || (!CLASS_STRING_KEYWORD_RE.test(text) && !before.includes(':'))
+}
+
+/** Whether a line read inside a string ends it with an unescaped quote. */
+function closesClassString(line: string): boolean {
+  for (let index = 0; index < line.length; index++) {
+    if (line[index] === '\\') index++
+    else if (line[index] === '"') return true
+  }
+  return false
+}
+
+/** Where a class declaration's member block opens: its first `{` outside a
+ * quoted label, a backtick name or a ~generic~. */
+function classBodyOpenAt(text: string): number {
+  let quote: string | undefined
+  for (let index = 0; index < text.length; index++) {
+    const character = text[index]!
+    if (quote) { if (character === quote) quote = undefined }
+    else if (character === '"' || character === '`' || character === '~') quote = character
+    else if (character === '{') return index
+  }
+  return -1
+}
+
+/** The members on the line that opens a class block, split at `;`. Mermaid
+ * reads `{+x; +y()}` as one method named `x; +y`; ours reads the two members
+ * the author wrote (docs/project/divergences.md). A `;` in a parameter list or
+ * ending an entity code (`#59;`, `&amp;`) is text. */
+function splitBlockLineMembers(text: string): string[] {
+  const members: string[] = []
+  let start = 0
+  let parens = 0
+  for (let index = 0; index < text.length; index++) {
+    const character = text[index]!
+    if (character === '(') parens++
+    else if (character === ')') parens = Math.max(0, parens - 1)
+    else if (character === ';' && parens === 0) {
+      let word = index
+      while (word > start && /\w/.test(text[word - 1]!)) word--
+      if (word < index && (text[word - 1] === '#' || text[word - 1] === '&')) continue
+      members.push(text.slice(start, index))
+      start = index + 1
+    }
+  }
+  members.push(text.slice(start))
+  return members.map(member => member.trim()).filter(Boolean)
+}
+
+/** Mermaid's lexer ends a statement at a brace, not only at a line break: a
+ * class block's `{`, members and `}` may share its line (`class A {+x}`), and
+ * a statement's `}` may close the namespace around it (`class B }`). The
+ * statements such a line holds, to read one by one, or null. */
+function splitClassBlockStatement(text: string, inNamespace: boolean): string[] | null {
+  const open = /^class\s/.test(text) ? classBodyOpenAt(text) : -1
+  const head = text.slice(0, open + 1)
+  const declared = open < 0 ? undefined : classifyClassStatement(head, undefined)
+  if (declared?.kind === 'class' && declared.declaration.opensBody) {
+    const rest = text.slice(open + 1)
+    const close = rest.indexOf('}')
+    const after = close < 0 ? '' : rest.slice(close)
+    // After the class's `}` Mermaid reads only braces closing namespaces.
+    if (/^[\s}]*$/.test(after)) return [head, ...splitBlockLineMembers(close < 0 ? rest : rest.slice(0, close)), ...after.match(/\}/g) ?? []]
+  }
+  if (!inNamespace) return null
+  let end = text.length
+  while (end > 0 && /[\s}]/.test(text[end - 1]!)) end--
+  const statement = text.slice(0, end)
+  return end < text.length && statement && classifyClassStatement(statement, undefined).kind !== 'unknown'
+    ? [statement, ...text.slice(end).match(/\}/g)!]
+    : null
+}
+
 /** Single owner of namespace and class-body boundaries, classification and
  * malformed/unknown disposition. Retain unknown nodes for lossless callers;
  * renderers must refuse diagnostics instead of drawing a partial diagram. */
@@ -473,17 +582,50 @@ export function readClassStatements(lines: readonly string[], authoredLines?: re
   const tree: ClassStatementTree = { source: lines.join('\n'), statements: [], diagnostics: [] }
   const stack: ClassStatementNode[] = []
   let offset = 0
-  lines.forEach((raw, lineIndex) => {
+  for (let lineIndex = 0; lineIndex < lines.length; lineIndex++) {
+    let raw = lines[lineIndex]!
     const span = { line: lineIndex + 1, column: 1, start: offset, end: offset + raw.length }
     offset += raw.length + 1
     const authored = authoredLines ? authoredLines[lineIndex] : raw
     const scanned = scanInlineNamespaceStatement(raw.trim())
     const authoredParts = authored === undefined ? [] : expandInlineNamespaceStatement(authored.trim())
-    const fragments = scanned.map((fragment, index) => ({ ...fragment,
+    let fragments: Array<ClassStatementFragment & { authored?: string }> = scanned.map((fragment, index) => ({ ...fragment,
       authored: authoredParts.length === scanned.length ? authoredParts[index] : undefined,
     }))
-    for (let partIndex = 0; partIndex < fragments.length; partIndex++) {
-      const fragment = fragments[partIndex]!
+    // Mermaid's string runs on across line breaks. Where it holds a note, a
+    // cardinality or a label, read the lines it spans as one statement with
+    // `<br>`, the label line break, for each break, as flowchart does for
+    // markdown strings. A link, a tooltip or a backtick name stays on its line.
+    const last = fragments.at(-1)!
+    let end = lineIndex
+    let statement = last.text
+    // At most a relationship's two cardinalities; each scan reads on only to
+    // the next line holding a quote, so the reader stays linear.
+    for (let strings = 0; strings < 2 && stack.at(-1)?.value.kind !== 'class' && continuesClassText(statement); strings++) {
+      let closing = end + 1
+      while (closing < lines.length && !closesClassString(lines[closing]!)) closing++
+      if (closing === lines.length) break
+      statement = [statement, ...lines.slice(end + 1, closing + 1).map(line => line.trim())].join('<br>')
+      end = closing
+    }
+    if (end > lineIndex) {
+      for (const line of lines.slice(lineIndex + 1, end + 1)) offset += line.length + 1
+      span.end = offset - 1
+      lineIndex = end
+      raw = statement
+      fragments = [...fragments.slice(0, -1), ...scanInlineNamespaceStatement(statement).map(fragment => ({ ...last, ...fragment, authored: undefined }))]
+    }
+    // Fragments still to read, the next one last, so a statement read apart
+    // puts its parts back in its place in time linear in the line.
+    const pending = fragments.reverse()
+    const whole = pending.length === 1
+    let split = false
+    const putBack = (fragment: (typeof pending)[number], parts: string[]): void => {
+      for (let index = parts.length - 1; index >= 0; index--) pending.push({ ...fragment, text: parts[index]!, authored: undefined })
+      split = true
+    }
+    while (pending.length > 0) {
+      const fragment = pending.pop()!
       const source = fragment.text
       const owner = stack[stack.length - 1]
       const inClass = owner?.value.kind === 'class'
@@ -492,9 +634,7 @@ export function readClassStatements(lines: readonly string[], authoredLines?: re
       // literal braces. Consume each boundary before classifying its suffix.
       const close = inClass ? source.indexOf('}') : source.startsWith('}') ? 0 : -1
       if (close >= 0 && source !== '}' && !source.startsWith('%%')) {
-        const parts = [source.slice(0, close).trim(), '}', source.slice(close + 1).trim()].filter(Boolean)
-        fragments.splice(partIndex, 1, ...parts.map(text => ({ ...fragment, text, authored: undefined })))
-        partIndex--
+        putBack(fragment, [source.slice(0, close).trim(), '}', source.slice(close + 1).trim()].filter(Boolean))
         continue
       }
       const text = inClass && !source.startsWith('}') ? source : classStatement(source)
@@ -504,7 +644,12 @@ export function readClassStatements(lines: readonly string[], authoredLines?: re
         const annotation = parseClassBodyAnnotationToken(text)
         value = annotation === null ? { kind: 'member', text } : { kind: 'body-annotation', text: annotation }
       } else value = classifyClassStatement(text, fragment.authored)
-      const node: ClassStatementNode = { raw: fragments.length === 1 ? raw : source, text, source: span, value }
+      const parts = value.kind === 'unknown' ? splitClassBlockStatement(text, owner?.value.kind === 'namespace') : null
+      if (parts) {
+        putBack(fragment, parts)
+        continue
+      }
+      const node: ClassStatementNode = { raw: whole && !split ? raw : source, text, source: span, value }
       if (parserObservationActive('class')) observeParserStatement('class', value.kind, text, { line: span.line, column: span.column, offset: span.start, endOffset: span.end, unit: 'normalized' })
       if (fragment.followsNamespaceCloseOnSameLine) node.followsNamespaceCloseOnSameLine = true
       if (fragment.compactSemicolon) node.compactSemicolon = true
@@ -525,7 +670,7 @@ export function readClassStatements(lines: readonly string[], authoredLines?: re
         stack.push(node)
       }
     }
-  })
+  }
   for (const owner of stack) tree.diagnostics.push({
     reason: `Unclosed ${owner.value.kind === 'namespace' ? 'namespace' : 'class'} block`, source: owner.source,
   })
@@ -800,6 +945,10 @@ export function parseClassDiagram(lines: string[], authoredLines?: string[]): Cl
           if (declaration.label !== undefined) { delete cls.labelContent; Object.assign(cls, classTextLabel(declaration.label)) }
           if (declaration.className !== undefined) cls.className = declaration.className
           if (parserObservationActive('class')) observeParserMutation('class', 'declare-class', cls, { line: node.source.line, unit: 'normalized' })
+          if (declaration.annotation !== undefined) {
+            applyClassAnnotation(cls, declaration.annotation)
+            if (parserObservationActive('class')) observeParserMutation('class', 'set-annotation', { id: cls.id, annotation: cls.annotation })
+          }
           claim(cls.id, path)
           if (node.children) frames.push({ nodes: node.children, path, owner: cls, index: 0 })
           break
