@@ -465,7 +465,7 @@ stateDiagram-v2
     } finally { upstream.close() }
   })
 
-  test('a `;` Mermaid\'s entity prepass drops from text is read as text, and reported', async () => {
+  test('a `;` Mermaid\'s entity prepass drops from text is read as text, reported, and written so Mermaid keeps it', async () => {
     // Before it reads entity codes, Mermaid drops the `;` ending a line's
     // `style…:…#…;` run, then its `classDef…:…#…;` run, in that case only.
     const dropped = ['A : style:#f00; x', 'A --> B : style:#f00 x; y', 'A : classDef x:#fff; y', 'state "style:#f00; x" as A', 'note right of A\n    style:#f00; x\n  end note']
@@ -473,10 +473,23 @@ stateDiagram-v2
     expect(dropped.map(unsupportedSyntax)).toEqual([...Array(4).fill(['state_text_prepass@2']), ['state_text_prepass@3']])
     const kept = ['A : style: #f00; x', 'A : Style:#f00; x', 'A --> B\n  style A fill:#f00;'].map(body => `stateDiagram-v2\n  ${body}`)
     expect(kept.map(unsupportedSyntax)).toEqual(kept.map(() => []))
+    // Ours reads the `;`, and an entity code it ends; the writer spells the
+    // text's colons `#58;` there, so the prepass leaves the line whole.
+    const ours = (source: string): string[] => {
+      const graph = parseRenderGraph(source)
+      return [...graph.edges.map(edge => edge.label ?? ''), ...[...graph.nodes.values()].flatMap(node => node.label !== node.id ? [node.label] : []), ...(graph.stateNotes ?? []).map(note => note.text)]
+    }
+    const read = [['style:&f00; x'], ['style:#f00 x; y'], ['classDef x:&fff; y'], ['style:&f00; x'], ['style:&f00; x']]
+    expect(dropped.map(ours)).toEqual(read)
+    const written = dropped.map(source => serializeMermaid(state(source)))
+    expect(written.map(ours)).toEqual(read)
+    expect(written.map(unsupportedSyntax)).toEqual(written.map(() => []))
+    const texts = (mermaid: UpstreamDiagram): string[] => mermaid.db.rootDoc.flatMap((item: any) => item.description ? [item.description] : item.note ? [item.note.text] : [])
     const upstream = startUpstreamMermaid()
     try {
-      expect(await upstream.projectAll(dropped, mermaid => mermaid.db.rootDoc.flatMap((item: any) => item.description ? [item.description] : item.note ? [item.note.text] : [])))
+      expect(await upstream.projectAll(dropped, texts))
         .toEqual([['style:#f00 x'], ['style:#f00 x y'], ['classDef x:#fff y'], ['style:#f00 x'], ['style:#f00 x']])
+      expect((await upstream.projectAll(written, texts)).map(read => read.map(text => projectEntityMarkers(text)))).toEqual(read)
     } finally { upstream.close() }
   })
 

@@ -51,7 +51,7 @@ import type {
 import { ok, err } from './types.ts'
 import { labelOverflowCollector } from './body-utils.ts'
 import { normalizeBrTags } from '../multiline-utils.ts'
-import { readStateLabel, readStateText, writeStateDescription, writeStateText } from '../state/text.ts'
+import { keepStateTextFromPrepass, readStateLabel, readStateText, writeStateDescription, writeStateText } from '../state/text.ts'
 import type { LabelContent } from '../shared/display-text.ts'
 import { parseAccessibilityDirective, scanAccessibilityDirectives, statementEndAt } from '../shared/accessibility-directives.ts'
 import {
@@ -494,9 +494,10 @@ function describe(line: string, label: string, content?: LabelContent): string {
   return line + writeStateDescription(label, content, line)
 }
 
-/** A label as written in source: its line breaks as `<br/>`. */
+/** A label as written in source, in `state "…" as X`: its line breaks as
+ *  `<br/>`, kept from the prepass (nothing before it on its line holds a colon). */
 function serializeStateLabel(label: string, content?: LabelContent, reserved = ''): string {
-  return writeStateText(label, content, reserved).replace(/\r\n?|\n/g, '<br/>')
+  return keepStateTextFromPrepass(writeStateText(label, content, reserved).replace(/\r\n?|\n/g, '<br/>'))
 }
 
 function renderScope(states: StateNode[], transitions: StateTransition[], direction: StateNode['direction'] | undefined, indent: string, out: string[]): void {
@@ -556,7 +557,7 @@ export function renderState(body: StateBody): string {
       out.push(`  note ${n.side} of ${n.target}`)
       // Mermaid reads a block whose text starts with a colon as a one-line
       // note, and then rejects its `end note`; `#58;` reads as the colon.
-      for (const line of text.replace(/^:/, '#58;').split('\n')) out.push(`    ${line}`)
+      for (const line of text.replace(/^:/, '#58;').split('\n')) out.push(`    ${keepStateTextFromPrepass(line)}`)
       out.push('  end note')
     } else {
       out.push(`  note ${n.side} of ${n.target} : ${text}`)

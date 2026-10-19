@@ -63,11 +63,19 @@ export function writeStateText(text: string, content?: LabelContent, reserved = 
 /**
  * Write the text after a description or transition-label colon, after
  * `line` on its line. Mermaid's DESCR token ends at a `;`, at a `:` another
- * follows and at a final `:`, so those are written as entity codes; where
- * upstream's style/classDef prepass would strip a `;` from the line, every
- * colon of the text is, as the Sequence writer does.
+ * follows and at a final `:`, so those are written as entity codes.
  */
 export function writeStateDescription(text: string, content: LabelContent | undefined, line: string): string {
   const written = writeStateText(text, content, ';').replace(/\r\n?|\n/g, '<br/>').replace(/:(?=:|$)/g, '#58;')
-  return mermaidEntityPrepass(line + written) === line + written ? written : written.replace(/:/g, '#58;')
+  return keepStateTextFromPrepass(written, line)
+}
+
+/**
+ * Text written on a line after `before`, kept from upstream's style/classDef
+ * prepass: where that would strip a `;` from the line, every colon of the
+ * text is written `#58;`, as the Sequence writer does, so none is left for
+ * the prepass to match.
+ */
+export function keepStateTextFromPrepass(written: string, before = ''): string {
+  return mermaidEntityPrepass(before + written) === before + written ? written : written.replace(/:/g, '#58;')
 }
