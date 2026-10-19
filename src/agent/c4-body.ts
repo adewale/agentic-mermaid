@@ -1,7 +1,7 @@
 import { encodeMermaidEntities } from '../shared/mermaid-entities.ts'
 import { generatedIds } from '../shared/generated-identity.ts'
 import {
-  C4_VARIANTS, c4ArgumentFields, c4BoundaryFields, c4DirectiveCategory, c4ElementFields,
+  C4_VARIANTS, c4ArgumentFields, c4BoundaryFields, c4DiagnosticMessage, c4DirectiveCategory, c4ElementFields,
   c4RecordSignature, c4RelationshipFields, emptyC4Body, readC4Source, resolveC4Directives,
 } from '../c4/parser.ts'
 import type {
@@ -514,7 +514,7 @@ export function lintC4(body: C4Body, opts: VerifyOptions): LayoutWarning[] {
   }
   for (const diagnostic of body.diagnostics) {
     const statement = body.statements.find(record => record.id === diagnostic.statementId)
-    warnings.push({ code: 'UNSUPPORTED_SYNTAX', syntax: statement?.raw ?? 'C4', line: statement?.span.line, message: diagnostic.message })
+    warnings.push({ code: 'UNSUPPORTED_SYNTAX', syntax: diagnostic.syntax, line: statement?.span.line, message: c4DiagnosticMessage(body, diagnostic) })
   }
   return warnings
 }

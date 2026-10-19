@@ -139,8 +139,19 @@ const GITGRAPH_READ_GENEROUSLY: ReadonlyArray<GenerousRow> = [
   ['an unquoted merge id', 'gitGraph\n  commit\n  branch dev\n  commit\n  checkout main\n  merge dev id: m1', 'm1', 'gitgraph_unquoted_value', 6],
 ]
 
+// C4 reader extensions to Mermaid's C4 grammar, each named by a stable code.
+const C4_READ_GENEROUSLY: ReadonlyArray<GenerousRow> = [
+  ['a semicolon between statements', 'C4Context\n  Person(a, "Ann"); Person(b, "Bob")', 'Bob', 'c4_semicolon_separator', 2],
+  ['two statements on one line', 'C4Context\n  Person(a, "Ann") Person(b, "Bob")', 'Bob', 'c4_statements_on_one_line', 2],
+  ['a line break between arguments', 'C4Context\n  Person(a,\n    "Ann")', 'Ann', 'c4_multiline_arguments', 2],
+  ['an empty named argument', 'C4Context\n  Person(a, "Ann", $descr="")', 'Ann', 'c4_empty_named_argument', 2],
+  ['an empty boundary', 'C4Context\n  Person(a, "Ann")\n  System_Boundary(b, "Bank") {\n  }', 'Bank', 'c4_empty_boundary', 3],
+  ['a standalone direction', 'C4Context\n  direction LR\n  Person(a, "Ann")', 'Ann', 'c4_direction', 2],
+  ['a legend directive', 'C4Context\n  Person(a, "Ann")\n  SHOW_LEGEND()', 'Ann', 'c4_directive_extension', 3],
+]
+
 // [family, construct, source]
-const ACCEPTED: ReadonlyArray<readonly [BuiltinFamilyId, string, string]> = [
+const ACCEPTED:ReadonlyArray<readonly [BuiltinFamilyId, string, string]> = [
   ['class', 'one class after the header', 'classDiagram\n  class Animal'],
   ['class', 'an accTitle after the header', 'classDiagram\n  accTitle: Pets'],
   ['class', 'a comment after the last relationship', 'classDiagram\n  class Cat\n  Animal <|-- Dog %% note'],
@@ -224,6 +235,11 @@ describe('read generously what pinned Mermaid rejects, and warn', () => {
   test.each(STATE_READ_GENEROUSLY)('state: %s is read, drawn and reported', async (_construct, source, text, syntax, line) => {
     expect((await upstream.parse(source)).ok).toBe(false)
     expect(readGenerously(source, text)).toEqual({ typed: 'opaque', draws: true, reported: expect.arrayContaining([`${syntax}@${line}`]) })
+  })
+
+  test.each(C4_READ_GENEROUSLY)('c4: %s is read, drawn and reported', async (_construct, source, text, syntax, line) => {
+    expect((await upstream.parse(source)).ok).toBe(false)
+    expect(readGenerously(source, text)).toEqual({ typed: 'c4', draws: true, reported: [`${syntax}@${line}`] })
   })
 })
 
