@@ -217,6 +217,8 @@ describe('GitGraph grammar and identity', () => {
     expect(svg).toContain('class="git-commit type-cherry_pick"')
   })
 
+  // A line inside the string that starts with `%%` is text, as `%%` later on
+  // a line is; Mermaid drops it before lexing (an intentional divergence).
   test('a quoted string runs to its closing quote across lines, keeping the break, not the indentation', () => {
     const diagram = parseGitGraph(`gitGraph
   commit id: "a
@@ -224,6 +226,7 @@ describe('GitGraph grammar and identity', () => {
     now" tag: "v1
     rc"
   commit "bare
+    %% kept
     msg"
   branch dev
   commit
@@ -232,7 +235,7 @@ describe('GitGraph grammar and identity', () => {
     y"`)
     expect(diagram.commits.map(({ id, message, tags }) => ({ id, message, tags }))).toEqual([
       { id: 'a\nb', message: '50 %% off\nnow', tags: ['v1\nrc'] },
-      { id: 'c1', message: 'bare\nmsg', tags: [] },
+      { id: 'c1', message: 'bare\n%% kept\nmsg', tags: [] },
       { id: 'c2', message: undefined, tags: [] },
       { id: 'c3', message: 'merged branch dev into main', tags: ['x\ny'] },
     ])
