@@ -148,6 +148,7 @@ xychart
     expect(svg).toContain('dominant-baseline="middle"')
     expect(svg).toContain('font-size="13" font-weight="400"')
     expect(svg).toMatch(/font-size="17" font-weight="400" class="xychart-axis-title xychart-y-axis-title"[^>]*>Users<\/text>/)
+    expect(svg).toMatch(/transform="rotate\(-90,[-\d.]+,[-\d.]+\)"[^>]*class="xychart-axis-title xychart-y-axis-title"/)
   })
 
   it('adapts text contrast to backgroundColor and carries the authored background and series palette into PNG', () => {

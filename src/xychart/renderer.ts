@@ -257,7 +257,7 @@ export function lowerXYChartScene(
         x, y, fontSize: 12, fontWeight: style.nodeLabelFontWeight, letterSpacing: style.nodeLetterSpacing, display: 'literal', anchor,
         paint: { fill: `var(--xychart-color-${line.colorIndex})` },
         channels: { category: `line-${line.seriesIndex}`, value: normalized(point.value) },
-      }, { kind: 'text', layout: 'multiline', coordinateFormat: 'round2', baselineShift: at ? 0.35 : 0, attributes: [
+      }, { kind: 'text', layout: 'multiline', positionFormat: 'round2', baselineShift: at ? 0.35 : 0, attributes: [
         { name: 'class', value: v.meta(`xychart-point-label xychart-color-${line.colorIndex}`) },
         { name: 'data-label-position', value: v.meta(position) }, { name: 'text-anchor', value: v.text('anchor') },
         ...fontAttributes(), { name: 'fill', value: v.paint('fill') },
