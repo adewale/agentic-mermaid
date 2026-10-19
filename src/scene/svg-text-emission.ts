@@ -72,6 +72,20 @@ export function writeSceneText(node: TextMark, recipe: SvgTextEmission, writer: 
     }
     if (end !== node.text.length) throw new TypeError('SVG text spans must cover semantic text exactly')
   }
+  if (recipe.background) {
+    if (!node.block) throw new TypeError('SVG text background requires retained text metrics')
+    const background = recipe.background
+    const width = node.block.width + background.padding * 2
+    const height = node.block.height + background.padding * 2
+    writer.write('<rect')
+    writer.attribute('x', String(node.x - width / 2)); writer.attribute('y', String(node.y - height / 2))
+    writer.attribute('width', String(width)); writer.attribute('height', String(height))
+    writer.attribute('rx', String(background.rx)); writer.attribute('ry', String(background.ry))
+    writer.attribute('fill', background.paint.fill); writer.attribute('stroke', background.paint.stroke)
+    writer.attribute('stroke-width', background.paint.strokeWidth)
+    if (background.attributes) writeSvgAttributes(node, background.attributes, writer)
+    writer.write(' />\n')
+  }
   const tail = (): void => { if (recipe.tailAttributes) writeSvgAttributes(node, recipe.tailAttributes, writer) }
   if (recipe.layout === 'direct') {
     if (recipe.content === 'source' && (!block || block.prepared.display !== 'literal')) throw new TypeError('Direct source text requires a retained literal preparation')

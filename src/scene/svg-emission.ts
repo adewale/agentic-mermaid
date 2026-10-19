@@ -20,6 +20,7 @@ export type SvgNumberFormat = 'exact' | 'round2' | 'round3' | 'percent1'
 export type SvgGeometryField = 'x' | 'y' | 'width' | 'height' | 'rx' | 'ry' | 'cx' | 'cy' | 'r' | 'x1' | 'y1' | 'x2' | 'y2' | 'd' | 'points'
 export type SvgTextField = 'text' | 'source' | 'x' | 'y' | 'fontSize' | 'fontWeight' | 'letterSpacing' | 'anchor'
 export type SvgConnectorField = 'color' | 'width' | 'opacity' | 'mixBlendMode' | 'pathLength' | 'lineCap' | 'lineJoin' | 'miterLimit' | 'lineStyle' | 'relationshipKind' | 'direction'
+  | 'hasMarkerStart' | 'hasMarkerEnd' | 'markerStartShape' | 'markerEndShape'
 export type SvgCssProperty = 'mix-blend-mode' | 'fill' | 'stroke' | 'stroke-width' | 'stroke-dasharray' | 'opacity'
   | '--tl-accent' | '--tl-fill' | '--tl-label' | '--tl-line' | '--tl-section-bg' | '--tl-section-band'
   | '--tl-pill-fill' | '--tl-pill-stroke' | '--tl-event-fill'
@@ -116,6 +117,14 @@ export interface SvgTextEmission {
   readonly content?: 'text' | 'source'
   readonly whitespace?: readonly SvgTextWhitespaceEdit[]
   readonly positionFormat?: 'round2' | 'round3'
+  /** A retained text block's historical pill, not a second text/geometry tree. */
+  readonly background?: {
+    readonly padding: number
+    readonly rx: number
+    readonly ry: number
+    readonly paint: Readonly<Required<Pick<MarkPaint, 'fill' | 'stroke' | 'strokeWidth'>>>
+    readonly attributes?: readonly SvgAttribute[]
+  }
 }
 
 export interface SvgStylesheetEmission {
@@ -306,6 +315,10 @@ export function svgEmissionValue(node: SceneNode, value: SvgValue, recipe?: SvgP
         case 'lineStyle': return node.lineStyle
         case 'relationshipKind': return node.relationship.kind
         case 'direction': return node.relationship.direction
+        case 'hasMarkerStart': return !!node.markers.start
+        case 'hasMarkerEnd': return !!node.markers.end
+        case 'markerStartShape': return node.markers.start?.shape
+        case 'markerEndShape': return node.markers.end?.shape
         case 'color': case 'width': case 'opacity': case 'mixBlendMode': case 'pathLength': case 'lineCap': case 'lineJoin': case 'miterLimit': return node.stroke[value.field]
         default: throw new TypeError('Unsupported SVG connector field')
       }
@@ -664,7 +677,7 @@ export function validateSvgEmissionRecipe(recipe: SvgEmissionRecipe): void {
       case 'text': oneOf(item.field, ['text', 'source', 'x', 'y', 'fontSize', 'fontWeight', 'letterSpacing', 'anchor'], false); return
       case 'identity': oneOf(item.field, ['id', 'role', 'from', 'to', 'classNames'], false); return
       case 'accessibility': oneOf(item.field, ['label', 'role', 'roleDescription'], false); return
-      case 'connector': oneOf(item.field, ['color', 'width', 'opacity', 'mixBlendMode', 'pathLength', 'lineCap', 'lineJoin', 'miterLimit', 'lineStyle', 'relationshipKind', 'direction'], false); return
+      case 'connector': oneOf(item.field, ['color', 'width', 'opacity', 'mixBlendMode', 'pathLength', 'lineCap', 'lineJoin', 'miterLimit', 'lineStyle', 'relationshipKind', 'direction', 'hasMarkerStart', 'hasMarkerEnd', 'markerStartShape', 'markerEndShape'], false); return
       case 'channel': oneOf(item.field, SEMANTIC_CHANNEL_NAMES, false); return
       case 'document': oneOf(item.field, ['text', 'domId'], false); return
       default: throw new TypeError('Unsupported SVG projection source')
@@ -699,7 +712,7 @@ export function validateSvgEmissionRecipe(recipe: SvgEmissionRecipe): void {
   }
   const visit = (value: unknown, depth: number): void => {
     if (depth > 64) throw new RangeError('SVG recipe exceeds depth budget')
-    const item = object(value, ['kind', 'piece', 'attributes', 'tailAttributes', 'close', 'pieces', 'prefix', 'leadingWhitespace', 'layout', 'baselineShift', 'dy', 'spans', 'content', 'whitespace', 'positionFormat', 'width', 'height', 'colors', 'transparent', 'font', 'hasMonoFont', 'widthAttribute', 'heightAttribute', 'extraStyle', 'children', 'join', 'resources', 'indent', 'emptyLine', 'element', 'text', 'domId', 'css'])
+    const item = object(value, ['kind', 'piece', 'attributes', 'tailAttributes', 'close', 'pieces', 'prefix', 'leadingWhitespace', 'layout', 'baselineShift', 'dy', 'spans', 'content', 'whitespace', 'positionFormat', 'background', 'width', 'height', 'colors', 'transparent', 'font', 'hasMonoFont', 'widthAttribute', 'heightAttribute', 'extraStyle', 'children', 'join', 'resources', 'indent', 'emptyLine', 'element', 'text', 'domId', 'css'])
     if (seen.has(item)) return
     seen.add(item)
     switch (item.kind) {
@@ -720,7 +733,17 @@ export function validateSvgEmissionRecipe(recipe: SvgEmissionRecipe): void {
         if (item.prefix !== undefined) for (const value of array(item.prefix)) documentText(value)
         return
       case 'text':
-        object(item, ['kind', 'attributes', 'tailAttributes', 'layout', 'baselineShift', 'dy', 'spans', 'content', 'whitespace', 'positionFormat']); attributes(item.attributes)
+        object(item, ['kind', 'attributes', 'tailAttributes', 'layout', 'baselineShift', 'dy', 'spans', 'content', 'whitespace', 'positionFormat', 'background']); attributes(item.attributes)
+        if (item.background !== undefined) {
+          const background = object(item.background, ['padding', 'rx', 'ry', 'paint', 'attributes'])
+          for (const field of ['padding', 'rx', 'ry']) if (typeof background[field] !== 'number' || !Number.isFinite(background[field]) || (background[field] as number) < 0) throw new TypeError('SVG text background dimensions must be finite and non-negative')
+          const paint = object(background.paint, ['fill', 'stroke', 'strokeWidth'])
+          for (const field of ['fill', 'stroke', 'strokeWidth']) if (typeof paint[field] !== 'string') throw new TypeError('SVG text background requires typed paint')
+          requireSafeCssPaint(paint.fill as string, 'text background fill')
+          requireSafeCssPaint(paint.stroke as string, 'text background stroke')
+          if (background.attributes !== undefined) attributes(background.attributes)
+          if (item.layout !== 'multiline') throw new TypeError('SVG text background requires a retained multiline block')
+        }
         if (item.tailAttributes !== undefined) attributes(item.tailAttributes)
         if (item.spans !== undefined) for (const value of array(item.spans)) {
           const span = object(value, ['start', 'end', 'attributes'])

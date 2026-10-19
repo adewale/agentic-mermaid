@@ -12,7 +12,8 @@ export function firstEmission(recipe: SvgEmissionRecipe): SvgEmissionRecipe {
 export function emissionAttribute(recipe: SvgEmissionRecipe, name: string, node: SceneNode): string | undefined {
   const first = firstEmission(recipe)
   if (!('attributes' in first)) return undefined
-  const attribute = first.attributes?.find(attribute => attribute.name === name)
+  const attributes = first.kind === 'text' && first.background && (name === 'class' || name.startsWith('data-')) ? first.background.attributes : first.attributes
+  const attribute = attributes?.find(attribute => attribute.name === name)
   const value = attribute && svgEmissionValue(node, attribute.value)
   return value === undefined ? undefined : String(value)
 }
@@ -69,6 +70,11 @@ export function decorateEmission(recipe: SvgEmissionRecipe, node: SceneNode, con
       if (!child) return first
       const decorated = decorate(child)
       return decorated === child ? first : { ...first, children: [decorated, ...first.children.slice(1)] }
+    }
+    if (first.kind === 'text' && first.background) {
+      const carrier: SvgEmissionRecipe = { kind: 'primitive', attributes: first.background.attributes ?? [] }
+      const decorated = decorate(carrier)
+      return decorated === carrier ? first : { ...first, background: { ...first.background, attributes: (decorated as Extract<SvgEmissionRecipe, { kind: 'primitive' }>).attributes } }
     }
     if (first.kind !== 'primitive' && first.kind !== 'text' && first.kind !== 'group') return first
     const attributes = [...first.attributes]
