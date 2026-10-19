@@ -389,6 +389,8 @@ export interface ClassStatementNode {
   value: ClassSyntaxValue
   /** A readable compact extension that Mermaid requires a newline for. */
   followsNamespaceCloseOnSameLine?: true
+  /** The same after a class body's closing brace. */
+  followsClassCloseOnSameLine?: true
   /** A semicolon used as syntax rather than protected quoted data. */
   compactSemicolon?: true
   children?: ClassStatementNode[]
@@ -563,8 +565,11 @@ function splitClassBlockStatement(text: string, inNamespace: boolean): string[] 
     const rest = text.slice(open + 1)
     const close = rest.indexOf('}')
     const after = close < 0 ? '' : rest.slice(close)
-    // After the class's `}` Mermaid reads only braces closing namespaces.
-    if (/^[\s}]*$/.test(after)) return [head, ...splitBlockLineMembers(close < 0 ? rest : rest.slice(0, close)), ...after.match(/\}/g) ?? []]
+    // After the class's `}` Mermaid reads only braces closing namespaces;
+    // ours also reads a statement there, and verify reports it.
+    const braces = /^[\s}]*/.exec(after)![0]
+    const statement = after.slice(braces.length).trim()
+    return [head, ...splitBlockLineMembers(close < 0 ? rest : rest.slice(0, close)), ...braces.match(/\}/g) ?? [], ...(statement ? [statement] : [])]
   }
   if (!inNamespace) return null
   let end = text.length
@@ -620,6 +625,8 @@ export function readClassStatements(lines: readonly string[], authoredLines?: re
     const pending = fragments.reverse()
     const whole = pending.length === 1
     let split = false
+    // What a `}` closed earlier on this line, if anything.
+    let closedOnLine: 'class' | 'namespace' | undefined
     const putBack = (fragment: (typeof pending)[number], parts: string[]): void => {
       for (let index = parts.length - 1; index >= 0; index--) pending.push({ ...fragment, text: parts[index]!, authored: undefined })
       split = true
@@ -651,7 +658,9 @@ export function readClassStatements(lines: readonly string[], authoredLines?: re
       }
       const node: ClassStatementNode = { raw: whole && !split ? raw : source, text, source: span, value }
       if (parserObservationActive('class')) observeParserStatement('class', value.kind, text, { line: span.line, column: span.column, offset: span.start, endOffset: span.end, unit: 'normalized' })
-      if (fragment.followsNamespaceCloseOnSameLine) node.followsNamespaceCloseOnSameLine = true
+      if (fragment.followsNamespaceCloseOnSameLine || (closedOnLine === 'namespace' && value.kind !== 'trivia' && value.kind !== 'close')) node.followsNamespaceCloseOnSameLine = true
+      else if (closedOnLine === 'class' && value.kind !== 'trivia' && value.kind !== 'close') node.followsClassCloseOnSameLine = true
+      if (value.kind === 'close' && owner) closedOnLine = inClass ? 'class' : 'namespace'
       if (fragment.compactSemicolon) node.compactSemicolon = true
       if (value.kind === 'close') {
         if (owner) { owner.closing = node

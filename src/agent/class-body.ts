@@ -678,6 +678,10 @@ export function classUnsupportedSyntaxWarnings(canonicalSource: string): LayoutW
         code: 'UNSUPPORTED_SYNTAX', syntax: 'class_statement_after_namespace_close', line: header + 1 + node.source.line,
         message: 'A Class statement after a namespace closing brace on the same line is read as a separate statement. Pinned Mermaid rejects this, even with a semicolon; put the statement on a new line.',
       })
+      else if (node.followsClassCloseOnSameLine) warnings.push({
+        code: 'UNSUPPORTED_SYNTAX', syntax: 'class_statement_after_class_close', line: header + 1 + node.source.line,
+        message: 'A Class statement after a class body\'s closing brace on the same line is read as a separate statement. Pinned Mermaid rejects this; put the statement on a new line.',
+      })
       if (node.compactSemicolon && !semicolonLines.has(node.source.line)) {
         semicolonLines.add(node.source.line)
         warnings.push({

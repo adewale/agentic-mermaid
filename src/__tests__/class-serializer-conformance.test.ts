@@ -421,6 +421,30 @@ class Other
     }
   })
 
+  // Pinned Mermaid reads only braces after a block's `}` on its line.
+  test.each([
+    ['class A {\n+x } class Free', undefined, 'class_statement_after_class_close', 3],
+    ['class A {+x} class Free', undefined, 'class_statement_after_class_close', 2],
+    ['class A {\n+x\n} class Free', undefined, 'class_statement_after_class_close', 4],
+    ['namespace Outer {\nclass A\n} class Free', 'Outer', 'class_statement_after_namespace_close', 4],
+  ] as const)('a statement after a closing brace on its line is read and diagnosed: %j', async (body, namespace, syntax, line) => {
+    const source = `classDiagram\n${body}`
+    const diagram = classDiagram(source)
+    const expected = [{ id: 'A', namespace }, { id: 'Free', namespace: undefined }]
+    expect(diagram.body.classes.map(node => ({ id: node.id, namespace: node.namespace }))).toEqual(expected)
+    expect(renderMermaidSVG(source)).toMatch(/<text\b[^>]*>Free<\/text>/)
+    expect(verifyMermaid(source).warnings.filter(warning => warning.code === 'UNSUPPORTED_SYNTAX')).toEqual([expect.objectContaining({ syntax, line })])
+    const serialized = serializeMermaid(diagram)
+    expect(verifyMermaid(serialized).warnings.filter(warning => warning.code === 'UNSUPPORTED_SYNTAX')).toEqual([])
+    const upstream = startUpstreamMermaid()
+    try {
+      expect(await upstream.accepts(source)).toBe(false)
+      expect(await upstream.accepts(serialized)).toBe(true)
+    } finally {
+      await upstream.close()
+    }
+  })
+
   test.each([' class Free', 'class Free', '; class Free', ';class Free', '\nclass Free'])('a statement after a compact namespace retains meaning and diagnoses nonportable separation: %j', async suffix => {
     const source = `classDiagram\nnamespace Outer { class First }${suffix}`
     const diagram = classDiagram(source)
