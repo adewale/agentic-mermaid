@@ -92,6 +92,48 @@ export function lowerGraphScene(
 ): SceneDoc {
   const { positioned: graph, colors, resolved } = ctx
   const options = resolved.renderOptions
+  const { opening, font, transparent, style, markerResources } = graphSceneShell(ctx)
+  const parts = opening
+
+  // 1. Subgraph backgrounds (group rectangles with header bands)
+  for (const group of graph.groups) {
+    parts.push(renderGroup(group, font, style))
+  }
+
+  // 2. Edges (polylines — rendered behind nodes)
+  const edgeOccurrence = new Map<string, number>()
+  const edgeSceneIds = new Map<PositionedEdge, string>()
+  for (const edge of graph.edges) {
+    if (edge.points.length < 2) continue
+    const pairKey = `${edge.source}->${edge.target}`
+    const k = edgeOccurrence.get(pairKey) ?? 0
+    edgeOccurrence.set(pairKey, k + 1)
+    const sceneId = `edge:${pairKey}#${k}`
+    edgeSceneIds.set(edge, sceneId)
+    parts.push(renderGraphEdgeFields(edge, graphEdgeFields(edge, style, sceneId, markerResources)))
+  }
+
+  // 3. Edge labels (positioned at midpoint of edge)
+  for (const edge of graph.edges) {
+    const connectorSceneId = edgeSceneIds.get(edge)
+    if (edge.label && connectorSceneId) parts.push(renderEdgeLabel(edge, font, style, connectorLabelSceneId(connectorSceneId)))
+  }
+
+  // 4. Nodes (shape + label wrapped in <g class="node">)
+  for (const node of graph.nodes) {
+    parts.push(renderNode(node, font, style, colors, options.security !== 'strict'))
+  }
+
+  // 5. State-diagram notes (placed by the layout pass on their declared side)
+  for (const note of graph.notes ?? []) parts.push(renderGraphSceneNote(note, font, style))
+  parts.push(marks.documentClose())
+  return { family: 'flowchart', width: graph.width, height: graph.height, colors, transparent, parts }
+}
+
+/** Common document furniture, independent of a family's surfaces and labels. */
+export function graphSceneShell(ctx: RenderContext<PositionedGraph>) {
+  const { positioned: graph, colors, resolved } = ctx
+  const options = resolved.renderOptions
   const font = colors.font ?? 'Inter'
   const transparent = options.transparent ?? false
   const parts: SceneNode[] = []
@@ -134,45 +176,7 @@ export function lowerGraphScene(
   // 0. The diagram's frontmatter title, in the band layout reserved above.
   if (graph.title) parts.push(diagramTitleMark(graph.title, style))
 
-  // 1. Subgraph backgrounds (group rectangles with header bands)
-  for (const group of graph.groups) {
-    parts.push(renderGroup(group, font, style))
-  }
-
-  // 2. Edges (polylines — rendered behind nodes)
-  // Each edge is a <polyline> with semantic data-* attributes
-  const edgeOccurrence = new Map<string, number>()
-  const edgeSceneIds = new Map<PositionedEdge, string>()
-  for (const edge of graph.edges) {
-    if (edge.points.length < 2) continue
-    const pairKey = `${edge.source}->${edge.target}`
-    const k = edgeOccurrence.get(pairKey) ?? 0
-    edgeOccurrence.set(pairKey, k + 1)
-    const sceneId = `edge:${pairKey}#${k}`
-    edgeSceneIds.set(edge, sceneId)
-    parts.push(renderEdge(edge, style, sceneId, markerResources))
-  }
-
-  // 3. Edge labels (positioned at midpoint of edge)
-  // Each label is wrapped in <g class="edge-label">
-  for (const edge of graph.edges) {
-    const connectorSceneId = edgeSceneIds.get(edge)
-    if (edge.label && connectorSceneId) parts.push(renderEdgeLabel(edge, font, style, connectorLabelSceneId(connectorSceneId)))
-  }
-
-  // 4. Nodes (shape + label wrapped in <g class="node">)
-  for (const node of graph.nodes) {
-    parts.push(renderNode(node, font, style, colors, options.security !== 'strict'))
-  }
-
-  // 5. State-diagram notes (placed by the layout pass on their declared side)
-  for (const note of graph.notes ?? []) {
-    parts.push(renderStateNote(note, font, style))
-  }
-
-  parts.push(marks.documentClose())
-
-  return { family: 'flowchart', width: graph.width, height: graph.height, colors, transparent, parts }
+  return { opening: parts, font, transparent, style, markerResources }
 }
 
 // ============================================================================
@@ -320,7 +324,7 @@ function regionSeparators(group: PositionedGroup, headerHeight: number): RegionS
 // on the declared side of its state by placeStateNotes.
 // ============================================================================
 
-function renderStateNote(note: PositionedStateNote, font: string, style: ResolvedRenderStyle): SceneNode {
+export function renderGraphSceneNote(note: PositionedStateNote, font: string, style: ResolvedRenderStyle): SceneNode {
   void font
   const { x, y, width: w, height: h } = note
   const rawFill = style.groupHeaderFillColor ?? 'var(--_group-hdr)'
@@ -368,12 +372,13 @@ function renderStateNote(note: PositionedStateNote, font: string, style: Resolve
 // Edge rendering
 // ============================================================================
 
-function renderEdge(
+/** Common routed semantics before a family constructs its final connector. */
+export function graphEdgeFields(
   edge: PositionedEdge,
   style: ResolvedRenderStyle,
   sceneId: string,
   markerResources: readonly MarkerDescriptor[],
-): SceneNode {
+): marks.ConnectorFields {
   const lineStyle = edge.style === 'dotted' ? 'dotted'
     : edge.style === 'thick' ? 'thick'
     : edge.style === 'invisible' ? 'invisible'
@@ -412,14 +417,14 @@ function renderEdge(
   } as const
   // Invisible links (~~~) shape the layout but draw no stroke or markers.
   if (edge.style === 'invisible') {
-    return marks.connector({
+    return {
       id: sceneId,
       role: 'edge',
       geometry: { kind: 'polyline', points: edge.points },
       lineStyle: 'invisible',
       paint: {},
       ...connectorSemantics,
-    }, EMPTY_EMISSION)
+    }
   }
 
   const pathProjection = graphEdgePathProjection(edge, style)
@@ -447,6 +452,30 @@ function renderEdge(
     if (!startMarker) throw new Error(`Missing marker resource "${prefix}-start${suffix}"`)
   }
 
+  const paint = {
+    stroke: markerColor ?? 'var(--_line)',
+    strokeWidth: edge.inlineStyle?.['stroke-width'] ?? String(baseStrokeWidth),
+    ...(effectiveDashArray ? { strokeDasharray: effectiveDashArray } : {}),
+  }
+  if (style.edgeBendRadius > 0 || edge.curve) {
+    if (!pathProjection) throw new Error(`Missing path projection for flowchart edge "${sceneId}"`)
+    return {
+      id: sceneId, role: 'edge', geometry: pathProjection.geometry, lineStyle, paint,
+      markers: { ...(startMarker ? { start: startMarker } : {}), mid: [], ...(endMarker ? { end: endMarker } : {}) },
+      ...connectorSemantics, route: { ...connectorSemantics.route, contours: pathProjection.contours },
+    }
+  }
+  return {
+    id: sceneId, role: 'edge', geometry: { kind: 'polyline', points: edge.points }, lineStyle, paint,
+    markers: { ...(startMarker ? { start: startMarker } : {}), mid: [], ...(endMarker ? { end: endMarker } : {}) },
+    ...connectorSemantics,
+  }
+}
+
+/** Generic graph lexical presentation; C4 supplies its own final recipe. */
+export function renderGraphEdgeFields(edge: PositionedEdge, fields: marks.ConnectorFields): SceneNode {
+  if (fields.lineStyle === 'invisible') return marks.connector(fields, EMPTY_EMISSION)
+  const startMarker = fields.markers?.start, endMarker = fields.markers?.end
   // Semantic data attributes for edge identification and inspection:
   // - class="edge": CSS targeting and type identification
   // - data-id: authored v11.6 edge ID (`e1@-->`) when present — the stable
@@ -456,7 +485,7 @@ function renderEdge(
   // - data-arrow-start/end: arrow presence flags
   // - data-label: edge label if present (for quick lookup without traversing DOM)
   const attributes: SvgAttribute[] = [
-    { name: 'class', value: v.meta(['edge', ...authoredClassNames].join(' ')) },
+    { name: 'class', value: v.meta(['edge', ...(fields.identity?.classNames ?? [])].join(' ')) },
     ...(edge.id ? [{ name: 'data-id' as const, value: v.identity('id') }] : []),
     { name: 'data-from', value: v.identity('from') }, { name: 'data-to', value: v.identity('to') },
     { name: 'data-style', value: v.connector('lineStyle') },
@@ -466,7 +495,7 @@ function renderEdge(
     ...(edge.label ? [{ name: 'data-label' as const, value: { source: 'connectorLabel' as const, index: 0 }, display: true }] : []),
     ...(edge.curve ? [{ name: 'data-curve' as const, value: v.meta(edge.curve) }] : []),
     ...(edge.animate ? [{ name: 'data-animate' as const, value: v.meta(true) }, { name: 'data-animation' as const, value: v.meta(edge.animation ?? 'slow') }] : []),
-    { name: pathProjection ? 'd' : 'points', value: v.geometry(pathProjection ? 'd' : 'points') },
+    { name: fields.geometry.kind === 'path' ? 'd' : 'points', value: v.geometry(fields.geometry.kind === 'path' ? 'd' : 'points') },
     ...PAINT_ATTRIBUTES, { name: 'stroke-dasharray', value: v.paint('strokeDasharray') },
     ...(endMarker ? [{ name: 'marker-end' as const, value: { source: 'marker' as const, position: 'end' as const } }] : []),
     ...(startMarker ? [{ name: 'marker-start' as const, value: { source: 'marker' as const, position: 'start' as const } }] : []),
@@ -476,7 +505,7 @@ function renderEdge(
   // Identity (data-id from an authored v11.6 edge ID, data-from/data-to) comes
   // from the connector's typed identity.
   const markAttributes: MarkAttributes = {
-    className: ['edge', ...authoredClassNames].join(' '),
+    className: ['edge', ...(fields.identity?.classNames ?? [])].join(' '),
     data: {
       style: edge.style,
       'arrow-start': String(edge.hasArrowStart),
@@ -489,37 +518,7 @@ function renderEdge(
     },
   }
 
-  const paint = {
-    stroke: markerColor ?? 'var(--_line)',
-    strokeWidth: edge.inlineStyle?.['stroke-width'] ?? String(baseStrokeWidth),
-    ...(effectiveDashArray ? { strokeDasharray: effectiveDashArray } : {}),
-  }
-
-  if (style.edgeBendRadius > 0 || edge.curve) {
-    if (!pathProjection) throw new Error(`Missing path projection for flowchart edge "${sceneId}"`)
-    return marks.connector({
-      id: sceneId,
-      role: 'edge',
-      geometry: pathProjection.geometry,
-      lineStyle,
-      paint,
-      markers: { ...(startMarker ? { start: startMarker } : {}), mid: [], ...(endMarker ? { end: endMarker } : {}) },
-      ...connectorSemantics,
-      route: { ...connectorSemantics.route, contours: pathProjection.contours },
-      attributes: markAttributes,
-    }, { kind: 'primitive', attributes })
-  }
-
-  return marks.connector({
-    id: sceneId,
-    role: 'edge',
-    geometry: { kind: 'polyline', points: edge.points },
-    lineStyle,
-    paint,
-    markers: { ...(startMarker ? { start: startMarker } : {}), mid: [], ...(endMarker ? { end: endMarker } : {}) },
-    ...connectorSemantics,
-    attributes: markAttributes,
-  }, { kind: 'primitive', attributes })
+  return marks.connector({ ...fields, attributes: markAttributes }, { kind: 'primitive', attributes })
 }
 
 function connectorLabelSceneId(connectorSceneId: string): string {

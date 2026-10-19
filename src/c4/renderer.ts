@@ -4,7 +4,7 @@ import type { PositionedC4Diagram } from './layout.ts'
 import type { C4Boundary, C4Element } from './types.ts'
 import type { MarkAttributes, SceneDoc, SceneNode, MarkPaint } from '../scene/ir.ts';
 import * as marks from '../scene/marks.ts'
-import { lowerGraphScene } from '../renderer.ts'
+import { graphSceneShell, graphEdgeFields, renderGraphEdgeFields, renderGraphSceneNote } from '../renderer.ts'
 import { c4Appearance, effectiveC4Shape } from './config.ts'
 import { resolveRenderStyle } from '../styles.ts'
 import { toneOnFill, resolveInlineNodeTextColor } from '../color-resolver.ts'
@@ -53,7 +53,10 @@ const LEGEND_EMISSION = snapshotSvgEmissionRecipe({ kind: 'group', attributes: [
  * native routed connectors, marker resources, edge labels and title chrome. */
 export function lowerC4Scene(ctx: RenderContext<PositionedC4Diagram>): SceneDoc {
   const positioned = ctx.positioned, { body, config, identities } = positioned
-  const base = lowerGraphScene(ctx), style = resolveRenderStyle(ctx.resolved.renderOptions, undefined, ctx.resolved.styleFace)
+  const shell = graphSceneShell(ctx)
+  const notes: SceneNode[] = []
+  for (const note of positioned.notes ?? []) notes.push(renderGraphSceneNote(note, shell.font, shell.style))
+  const style = resolveRenderStyle(ctx.resolved.renderOptions, undefined, ctx.resolved.styleFace)
   const link = (value: string | undefined): SvgAttribute[] => value && ctx.resolved.renderOptions.security !== 'strict' && isSafeActionHref(value) ? [
     { name: 'data-href', value: v.meta(value), before: '  ' }, { name: 'role', value: v.meta('link') }, { name: 'tabindex', value: v.meta(0) },
   ] : []
@@ -113,21 +116,24 @@ export function lowerC4Scene(ctx: RenderContext<PositionedC4Diagram>): SceneDoc 
     for (const child of group.children) add(frame(child))
     return marks.group({ id: id(item.id, 'frame'), role: 'group', emission: { kind: 'group', attributes: [{ name: 'class', value: v.meta('cluster c4-boundary') }, ...metadata(item)] }, children, channels: { category: item.kind } })
   }
-  // Preserve the common root/resources/title/routes, replacing generic graph
-  // surfaces with C4-owned typed primitives and explicit semantic metadata.
-  const genericNodeIds = new Set(positioned.nodes.map(node => `node:${node.id}`)), genericGroupIds = new Set(positioned.groups.map(group => `group:${group.id}`))
+  // Construct only C4 surfaces and labels. Route semantics and resources share
+  // the graph projection, with one final connector normalization per route.
   const relationshipById = new Map(body.relationships.map(item => [item.id, item]))
-  const parts = base.parts.filter(part => !genericNodeIds.has(part.id) && !genericGroupIds.has(part.id) && part.role !== 'edge-label').map(part => {
-    if (part.kind !== 'connector') return part
-    const item = relationshipById.get(part.identity?.id ?? '')
-    if (!item) return part
-    const stroke = item.style.lineStyle === 'dotted' ? { ...part.stroke, dash: { array: '1 3' } } : part.stroke
+  const routes: SceneNode[] = [], edgeOccurrence = new Map<string, number>()
+  for (const edge of positioned.edges) {
+    if (edge.points.length < 2) continue
+    const pairKey = `${edge.source}->${edge.target}`, occurrence = edgeOccurrence.get(pairKey) ?? 0
+    edgeOccurrence.set(pairKey, occurrence + 1)
+    const common = graphEdgeFields(edge, shell.style, `edge:${pairKey}#${occurrence}`, shell.markerResources)
+    const item = relationshipById.get(common.identity?.id ?? '')
+    if (!item) { routes.push(renderGraphEdgeFields(edge, common)); continue }
+    const stroke = item.style.lineStyle === 'dotted' ? { ...common.stroke, dash: { array: '1 3' } } : common.stroke
     const href = ctx.resolved.renderOptions.security === 'strict' ? undefined : item.effectiveLink ?? item.link
-    const { markers } = part, label = part.labels[0]
+    const markers = common.markers ?? { mid: [] }, label = common.labels?.[0]
     const attributes: MarkAttributes = {
       className: 'edge',
       data: {
-        style: part.lineStyle, 'arrow-start': String(!!markers.start), 'arrow-end': String(!!markers.end),
+        style: common.lineStyle, 'arrow-start': String(!!markers.start), 'arrow-end': String(!!markers.end),
         ...(markers.start ? { 'marker-start': markers.start.shape } : {}),
         ...(markers.end ? { 'marker-end': markers.end.shape } : {}),
         ...(label ? { label: sanitizeDisplayLines(label.text) } : {}),
@@ -138,25 +144,35 @@ export function lowerC4Scene(ctx: RenderContext<PositionedC4Diagram>): SceneDoc 
       },
       ...(href && isSafeActionHref(href) ? { tabIndex: 0 as const } : {}),
     }
-    const fields: marks.ConnectorFields = { id: id(item.id, 'relationship'), role: 'edge', identity: part.identity, geometry: part.route.geometry, paint: { stroke: stroke.color, strokeWidth: String(stroke.width) }, lineStyle: part.lineStyle, endpoints: part.endpoints, relationship: { ...part.relationship, kind: `c4-${item.macro}` }, route: part.route, stroke, markers: part.markers, hit: part.hit, labels: part.labels.map(label => ({ ...label, visual: { kind: 'companion', markId: id(item.id, 'label-text') }, ...(item.style.textColor ? { paint: { ...label.paint, fill: item.style.textColor } } : {}) })), channels: { category: 'relationship', ...(item.tags.length ? { status: item.tags.join(',') } : {}) }, attributes }
-    const geometryAttributes = GEOMETRY_FIELDS[part.route.geometry.kind].map(name => ({ name, value: v.geometry(name) }))
+    const fields: marks.ConnectorFields = { ...common, id: id(item.id, 'relationship'), relationship: { ...common.relationship, kind: `c4-${item.macro}` }, stroke, labels: (common.labels ?? []).map(label => ({ ...label, visual: { kind: 'companion', markId: id(item.id, 'label-text') }, ...(item.style.textColor ? { paint: { ...label.paint, fill: item.style.textColor } } : {}) })), channels: { category: 'relationship', ...(item.tags.length ? { status: item.tags.join(',') } : {}) }, attributes }
+    const geometryAttributes = GEOMETRY_FIELDS[common.geometry.kind].map(name => ({ name, value: v.geometry(name) }))
     const blend: SvgValue = { source: 'style', declarations: [{ property: 'mix-blend-mode', value: v.connector('mixBlendMode') }] }
-    return marks.connector(fields, { kind: 'primitive', attributes: [
+    routes.push(marks.connector(fields, { kind: 'primitive', attributes: [
       { name: 'class', value: v.meta('edge') }, { name: 'data-style', value: v.connector('lineStyle') },
       { name: 'data-arrow-start', value: v.connector('hasMarkerStart') }, { name: 'data-arrow-end', value: v.connector('hasMarkerEnd') },
-      ...(part.markers.start ? [{ name: 'data-marker-start' as const, value: v.connector('markerStartShape') }] : []),
-      ...(part.markers.end ? [{ name: 'data-marker-end' as const, value: v.connector('markerEndShape') }] : []),
-      ...(part.labels[0] ? [{ name: 'data-label' as const, value: { source: 'connectorLabel' as const, index: 0 }, display: true }] : []),
+      ...(common.markers?.start ? [{ name: 'data-marker-start' as const, value: v.connector('markerStartShape') }] : []),
+      ...(common.markers?.end ? [{ name: 'data-marker-end' as const, value: v.connector('markerEndShape') }] : []),
+      ...(common.labels?.[0] ? [{ name: 'data-label' as const, value: { source: 'connectorLabel' as const, index: 0 }, display: true }] : []),
       { name: 'data-c4-macro', value: v.meta(item.macro) }, { name: 'data-authored-from', value: v.meta(item.from) }, { name: 'data-authored-to', value: v.meta(item.to) },
       { name: 'data-order', value: v.meta(item.order) }, ...(item.index === undefined ? [] : [{ name: 'data-index' as const, value: v.meta(item.index) }]),
       ...(item.tags.length ? [{ name: 'data-tags' as const, value: v.meta(JSON.stringify(item.tags)) }] : []),
       ...(href && isSafeActionHref(href) ? [{ name: 'data-href' as const, value: v.meta(href) }, { name: 'tabindex' as const, value: v.meta(0) }] : []),
       ...geometryAttributes, ...PAINT_ATTRIBUTES, { name: 'pathLength', value: v.connector('pathLength') },
-      ...(stroke.mixBlendMode ? [{ name: 'style' as const, value: blend }] : []),
-    ] })
-  })
-  const firstRoute = parts.findIndex(part => part.kind === 'connector')
-  parts.splice(firstRoute < 0 ? Math.max(0, parts.length - 1) : firstRoute, 0, ...positioned.groups.map(frame))
+      ...(stroke?.mixBlendMode ? [{ name: 'style' as const, value: blend }] : []),
+    ] }))
+  }
+  // Generated C4 identities are allocated to routes before frames, while the
+  // frames paint first. Without routes, existing notes precede the frames.
+  const frames = positioned.groups.map(frame), parts = shell.opening
+  if (routes.length) {
+    for (const mark of frames) parts.push(mark)
+    for (const mark of routes) parts.push(mark)
+    for (const mark of notes) parts.push(mark)
+  } else {
+    for (const mark of notes) parts.push(mark)
+    for (const mark of frames) parts.push(mark)
+  }
+  parts.push(marks.documentClose())
   const labels = positioned.edges.flatMap(edge => {
     if (!edge.label || !edge.labelBlock || !edge.labelPosition) return []
     const item = relationshipById.get(edge.id!)!, block = edge.labelBlock, { x, y } = edge.labelPosition, color = item.style.textColor ?? item.style.fontColor ?? style.edgeTextColor ?? 'var(--_text-sec)'
@@ -208,5 +224,5 @@ export function lowerC4Scene(ctx: RenderContext<PositionedC4Diagram>): SceneDoc 
     }
     parts.splice(parts.length - 1, 0, marks.group({ id: id('legend', 'container'), role: 'legend', emission: LEGEND_EMISSION, children }))
   }
-  return { ...base, family: 'c4', parts }
+  return { family: 'c4', width: positioned.width, height: positioned.height, colors: ctx.colors, transparent: shell.transparent, parts }
 }
