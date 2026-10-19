@@ -25,7 +25,7 @@ export const MAX_RADAR_AXES = 256
 
 const HEADER_RE = /^radar-beta(?:[\t ]*:)?(?=$|\s)/i
 const TITLE_RE = /^title(?:[\t ]+(.*))?$/i
-const AXIS_RE = /^axis\s+(.+)$/i
+const AXIS_RE = /^axis\s+([\s\S]+)$/i
 const CURVE_RE = /^curve\s+([\s\S]+)$/i
 const OPTION_RE = /^(showLegend|ticks|max|min|graticule)\b(.*)$/i
 const NUMBER_RE = /^(?:0|[1-9]\d*|\d+\.\d+|0\.\d+)$/

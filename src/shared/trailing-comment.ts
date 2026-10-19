@@ -37,3 +37,94 @@ export function stripTrailingComment(line: string): string {
   const start = trailingCommentStart(line)
   return start < 0 ? line : line.slice(0, start).trimEnd()
 }
+
+// The same families' lexers read a quoted string to its closing quote across
+// line breaks. Which quotes may do so is each family's grammar; where a string
+// opens is the rule above.
+
+export interface QuotedTextRule {
+  /** The quotes whose strings run across line breaks (default `"`). A line
+   * that ends inside another quote's string ends its statement. */
+  spanning?: string
+  /** Whether a backslash escapes the next character in a string (default true). */
+  escapes?: boolean
+  /** The character a quote must follow to open a string (default: one where
+   * a token can start, as above). The start of a line counts as a line break. */
+  opensAfter?: RegExp
+  /** A statement that runs to the end of its line whatever it holds, such as a title. */
+  wholeLine?: (line: string) => boolean
+}
+
+type Quote = '"' | "'" | null
+
+/** The string `line` leaves open when it starts inside `quote`'s string. */
+function openQuoteAtEnd(line: string, quote: Quote, escapes: boolean, opensAfter: RegExp): Quote {
+  for (let index = 0; index < line.length; index++) {
+    const char = line[index]!
+    if (quote) {
+      if (char === '\\' && escapes) index++
+      else if (char === quote) quote = null
+    } else if (char === '%' && line[index + 1] === '%') {
+      break
+    } else if ((char === '"' || char === "'") && opensAfter.test(index === 0 ? '\n' : line[index - 1]!)) {
+      quote = char
+    }
+  }
+  return quote
+}
+
+/**
+ * For each line, the last line of the statement that starts there: the line
+ * that closes a string the statement leaves open, or the line itself when it
+ * leaves none open or nothing closes it. Each line is read once per spanning
+ * quote, from the end, so the search stays linear however many strings never
+ * close.
+ */
+export function quotedTextEnds(lines: readonly string[], rule: QuotedTextRule = {}): number[] {
+  const spanning = [...(rule.spanning ?? '"')] as Array<'"' | "'">
+  const escapes = rule.escapes ?? true
+  const opensAfter = rule.opensAfter ?? TOKEN_START
+  const ends = new Array<number>(lines.length)
+  // closes.get(quote): where a string of that quote, open at the start of the
+  // next line, closes (-1: never).
+  let closes = new Map(spanning.map(quote => [quote, -1]))
+  for (let index = lines.length - 1; index >= 0; index--) {
+    const line = lines[index]!
+    const open = rule.wholeLine?.(line.trim()) ? null : openQuoteAtEnd(line, null, escapes, opensAfter)
+    const end = open ? closes.get(open) ?? -1 : -1
+    ends[index] = end < 0 ? index : end
+    closes = new Map(spanning.map(quote => {
+      const still = openQuoteAtEnd(line, quote, escapes, opensAfter)
+      return [quote, still && closes.has(still) ? closes.get(still)! : index]
+    }))
+  }
+  return ends
+}
+
+/** The statement on `lines[start..end]`: the line break kept, not the indentation. */
+export function statementText(lines: readonly string[], start: number, end: number): string {
+  if (end === start) return lines[start]!
+  return [lines[start]!.trimEnd(), ...lines.slice(start + 1, end + 1).map(line => line.trim())].join('\n')
+}
+
+/**
+ * `lines` with each statement that `ends` carries onto later lines joined into
+ * its first line, and the lines it took left empty, so an index is still a
+ * line number.
+ */
+export function joinStatementLines(lines: readonly string[], ends: readonly number[]): string[] {
+  const joined = [...lines]
+  for (let index = 0; index < lines.length; index++) {
+    const end = ends[index]!
+    if (end === index) continue
+    joined[index] = statementText(lines, index, end)
+    joined.fill('', index + 1, end + 1)
+    index = end
+  }
+  return joined
+}
+
+/** `lines` with each statement whose quoted text runs onto later lines joined (joinStatementLines). */
+export function joinQuotedTextLines(lines: readonly string[], rule: QuotedTextRule = {}): string[] {
+  return joinStatementLines(lines, quotedTextEnds(lines, rule))
+}

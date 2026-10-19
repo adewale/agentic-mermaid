@@ -1,7 +1,8 @@
 import type { PieChart, PieEntry } from './types.ts'
 import { scanAccessibilityDirectives } from '../shared/accessibility-directives.ts'
 import { syntaxError } from '../shared/syntax-error.ts'
-import { stripTrailingComment } from '../shared/trailing-comment.ts'
+import { joinQuotedTextLines, stripTrailingComment } from '../shared/trailing-comment.ts'
+import { PIE_QUOTED_TEXT } from './source-title.ts'
 import { mermaidEntityPrepass, TERMINAL_CONTROL_RE, toEntityMarkers } from '../shared/mermaid-entities.ts'
 import { projectEntityMarkers, type EntityRefusal } from '../shared/mermaid-entity-display.ts'
 import { parserObservationActive, observeParserStatement, observeParserMutation } from '../shared/parser-observation.ts'
@@ -40,8 +41,9 @@ const XML_DISALLOWED_CONTROL_RE = /[\u0000-\u0008\u000b\u000c\u000e-\u001f]/
  *   - an unquoted label
  */
 export function parsePieChart(lines: string[]): PieChart {
-  // Mermaid's Pie grammar ends every statement at a `%%` comment.
-  lines = scanAccessibilityDirectives(lines).familyLines.map(stripTrailingComment)
+  // Mermaid's Pie grammar ends every statement at a `%%` comment, outside a
+  // label that runs onto later lines.
+  lines = joinQuotedTextLines(scanAccessibilityDirectives(lines).familyLines, PIE_QUOTED_TEXT).map(stripTrailingComment)
   if (lines.length === 0) {
     throw new Error('Pie chart is empty')
   }
@@ -107,7 +109,8 @@ export function parsePieChart(lines: string[]): PieChart {
     if (entryMatch) {
       if (parserObservationActive('pie')) observeParserStatement('pie', 'entry', line, { line: i + 1, unit: 'normalized' })
       const sourceLabel = decodeEscapes(entryMatch[1]!)
-      if (/[\u0000-\u001f]/.test(sourceLabel)) {
+      // A line break the label runs across is source text a typed label keeps.
+      if (/[\u0000-\u001f]/.test(decodeEscapes(entryMatch[1]!.replace(/\n/g, '')))) {
         hasEscapedControlLabels = true
         if (parserObservationActive('pie')) observeParserMutation('pie', 'setHasEscapedControlLabels', true, { line: i + 1, unit: 'normalized' })
       }

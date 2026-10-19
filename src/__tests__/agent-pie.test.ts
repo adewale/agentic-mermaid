@@ -74,6 +74,16 @@ describe('pie structured parse', () => {
     expect(serializeMermaid(d2)).toBe(out)
   })
 
+  // Pie shows `<br/>` as text, so the writer keeps the line break inside the
+  // quotes, where Mermaid reads it too.
+  test('a label authored across lines stays typed and is written across lines', () => {
+    const d = pie('pie\n  "multi\n    label" : 1\n  "b" : 2')
+    expect(d.body.slices.map(slice => slice.label)).toEqual(['multi\nlabel', 'b'])
+    const out = serializeMermaid(d)
+    expect(out).toContain('  "multi\nlabel" : 1\n')
+    expect(pie(out).body).toEqual(d.body)
+  })
+
   test('serializes Pie-authored br tags as literal one-line text', () => {
     const d = pie('pie\n  title Road<br/>map\n  "A<br/>B" : 1')
     expect(d.body.title).toBe('Road<br/>map')

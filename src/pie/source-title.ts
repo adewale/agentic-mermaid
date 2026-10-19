@@ -1,4 +1,9 @@
 import { decodeXML } from 'entities'
+import type { QuotedTextRule } from '../shared/trailing-comment.ts'
+
+/** A "…" label runs to its closing quote across line breaks, which it keeps;
+ * a title runs to the end of its line. */
+export const PIE_QUOTED_TEXT: QuotedTextRule = { wholeLine: line => /^(?:pie(?:\s+showData)?\s+)?title(?:\s|$)/i.test(line) }
 
 /** Split the authored Pie title suffix from the directive grammar, even when
  * XML references spell whitespace or letters in the directive prefix. The

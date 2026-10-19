@@ -39,7 +39,8 @@ export interface PieChart {
   entries: PieEntry[]
   /** Source repeated a label; Mermaid renders only its first occurrence. */
   hasDuplicateSourceLabels?: true
-  /** Decoded source label contains an escaped control that typed emission cannot preserve. */
+  /** Decoded source label contains a control, other than a line break it runs
+   * across, that typed emission cannot preserve. */
   hasEscapedControlLabels?: true
 }
 

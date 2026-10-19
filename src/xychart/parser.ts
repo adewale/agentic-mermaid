@@ -14,7 +14,7 @@ import type {
 } from './types.ts'
 import { scanAccessibilityDirectives } from '../shared/accessibility-directives.ts'
 import { splitCssColorList } from '../shared/css-color.ts'
-import { stripTrailingComment } from '../shared/trailing-comment.ts'
+import { quotedTextEnds, statementText, stripTrailingComment } from '../shared/trailing-comment.ts'
 import { parserObservationActive, observeParserStatement, observeParserMutation } from '../shared/parser-observation.ts'
 
 // ============================================================================
@@ -621,6 +621,7 @@ function getString(root: MermaidFrontmatterMap, path: readonly string[]): string
 function expandXYChartStatements(lines: string[], strict: boolean): string[] {
   const statements: string[] = []
   let inAccDescrBlock = false
+  const ends = quotedTextEnds(lines)
 
   for (let lineIndex = 0; lineIndex < lines.length; lineIndex++) {
     let line = lines[lineIndex]!.trim()
@@ -639,9 +640,9 @@ function expandXYChartStatements(lines: string[], strict: boolean): string[] {
     if (!accessibility) {
       // A double-quoted string runs to its closing quote across line breaks,
       // which it keeps.
-      const end = quotedTextEndLine(lines, lineIndex)
+      const end = ends[lineIndex]!
       if (end > lineIndex) {
-        line = lines.slice(lineIndex, end + 1).map(part => part.trim()).join('\n')
+        line = statementText(lines, lineIndex, end).trim()
         lineIndex = end
       }
     }
@@ -654,34 +655,6 @@ function expandXYChartStatements(lines: string[], strict: boolean): string[] {
   }
 
   return statements
-}
-
-// A quote opens a string only where a token can start, as for comments.
-const QUOTE_START = /[\s[({,:=]/
-
-/**
- * The last line of the text starting on `lines[start]` while each line ends
- * inside a double-quoted string that a later line closes; `start` when that
- * line leaves none open or nothing closes it.
- */
-function quotedTextEndLine(lines: readonly string[], start: number): number {
-  let quote: '"' | "'" | null = null
-  for (let lineIndex = start; lineIndex < lines.length; lineIndex++) {
-    const line = lines[lineIndex]!.trim()
-    for (let index = 0; index < line.length; index++) {
-      const char = line[index]!
-      if (quote) {
-        if (char === '\\') index++
-        else if (char === quote) quote = null
-      } else if (char === '%' && line[index + 1] === '%') {
-        break
-      } else if ((char === '"' || char === "'") && (index === 0 || QUOTE_START.test(line[index - 1]!))) {
-        quote = char
-      }
-    }
-    if (quote !== '"') return lineIndex
-  }
-  return start
 }
 
 // Mermaid's lexer reads these as keywords wherever they occur outside a

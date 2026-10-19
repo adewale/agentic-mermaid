@@ -26,8 +26,8 @@ import { GitGraphDuplicateCommitError } from '../gitgraph/parser.ts'
 import { type JourneyParseIssue, walkJourneyLines } from '../journey/parse-core.ts'
 import { splitPointClassSuffix } from '../quadrant/point-style.ts'
 import { parseDirectionStatement } from '../shared/direction-statement.ts'
-import { splitAuthoredPieTitleLine } from '../pie/source-title.ts'
-import { stripTrailingComment } from '../shared/trailing-comment.ts'
+import { PIE_QUOTED_TEXT, splitAuthoredPieTitleLine } from '../pie/source-title.ts'
+import { joinQuotedTextLines, stripTrailingComment } from '../shared/trailing-comment.ts'
 import { isTimelineCommentLine, parseTimelineHeader } from '../timeline/parse-core.ts'
 import { mutateArchitecture, parseArchitectureBody, renderArchitecture, verifyArchitecture, verifyOpaqueArchitectureIcons } from './architecture-body.ts'
 import { readArchitectureStatements } from '../architecture/parser.ts'
@@ -380,7 +380,7 @@ function locatedSourceLines(lines: readonly string[]): LocatedSourceLine[] {
 }
 
 function pieSliceSourceLocations(lines: readonly string[]): Array<{ label: string; location: { line: number; col: number } }> {
-  return lines.flatMap((line, lineIndex) => {
+  return joinQuotedTextLines(lines, PIE_QUOTED_TEXT).flatMap((line, lineIndex) => {
     const match = line.match(/^\s*"((?:[^"\\]|\\.)*)"\s*:/)
     if (match?.[1] === undefined || match.index === undefined) return []
     const quote = line.indexOf('"', match.index)

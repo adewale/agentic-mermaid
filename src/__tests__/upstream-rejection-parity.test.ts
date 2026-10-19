@@ -76,6 +76,7 @@ const ARCHITECTURE_READ_GENEROUSLY: ReadonlyArray<GenerousRow> = [
   ['a space in an icon name', 'architecture-beta\n  service api(my server)[API]', 'data-icon="my server"', 'architecture_icon', 2],
   ['an id ending in a dash', 'architecture-beta\n  service api-(server)[API]', 'API', 'architecture_id', 2],
   ['an id starting with a dash', 'architecture-beta\n  junction -hub', '-hub', 'architecture_id', 2],
+  ['an id ending in a dash before a title across lines', 'architecture-beta\n  service api-(server)["Public\n  API"]', 'Public', 'architecture_id', 2],
 ]
 
 // [family, construct, source]
@@ -105,6 +106,13 @@ const ACCEPTED: ReadonlyArray<readonly [BuiltinFamilyId, string, string]> = [
   ['architecture', 'a non-ASCII letter in an unquoted title', 'architecture-beta\n  service db(database)[Café]'],
   ['architecture', 'a dash in an unquoted edge title', 'architecture-beta\n  service a(server)[A]\n  service b(server)[B]\n  a:R -[fan-out]-> L:b'],
   ['architecture', 'text after a quoted title', 'architecture-beta\n  service api(server)["Public" API]'],
+  // A quoted string runs to its closing quote across line breaks.
+  ['pie', 'a label across lines', 'pie\n  "multi\n  label" : 1\n  "b" : 2'],
+  ['quadrant', 'quoted text across lines', 'quadrantChart\n  x-axis "Low\n  reach" --> High\n  quadrant-1 "Expand\n  now"\n  "Point\n  A": [0.3, 0.6]'],
+  ['quadrant', 'a point across lines', 'quadrantChart\n  A: [0.3,\n  0.6]'],
+  ['gitgraph', 'quoted text across lines', 'gitGraph\n  commit id: "a\n  b" msg: "multi\n  line" tag: "v1\n  rc"\n  commit "bare\n  msg"\n  branch dev\n  commit\n  checkout main\n  merge dev tag: "x\n  y"'],
+  ['architecture', 'quoted titles across lines', 'architecture-beta\n  group g(cloud)["G\n  H"]\n  service a(server)["line1\n  line2"] in g\n  service b(server)[\'sq\n  line\'] in g\n  a:R -["multi\n  line"]- L:b'],
+  ['radar', 'a quoted axis label across lines', 'radar-beta\n  axis a["A\n  long"], b, c\n  curve x{1, 2, 3}'],
 ]
 
 describe('read generously what pinned Mermaid rejects, and warn', () => {
@@ -126,7 +134,7 @@ describe('accept what pinned Mermaid accepts', () => {
   test.each(ACCEPTED)('%s: %s is accepted, as Mermaid accepts it', async (family, _construct, source) => {
     expect({ mermaid: (await upstream.parse(source)).ok, ...ours(source) })
       .toEqual({ mermaid: true, typed: family, error: undefined })
-    if (family === 'architecture') expect(verifyMermaid(source).warnings.filter(warning => warning.code === 'UNSUPPORTED_SYNTAX')).toEqual([])
+    if (family === 'architecture' || family === 'quadrant') expect(verifyMermaid(source).warnings.filter(warning => warning.code === 'UNSUPPORTED_SYNTAX')).toEqual([])
   })
 
   // The typed serializer must write what Mermaid reads: text that is only

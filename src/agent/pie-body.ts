@@ -50,9 +50,10 @@ function isPositiveFinite(n: unknown): n is number {
 
 // ---- Parser -----------------------------------------------------------------
 
-/** Re-encode a label for emission inside `"..."`. */
+/** Re-encode a label for emission inside `"..."`. Pie shows `<br/>` as
+ * text, so a line break stays one: the string runs across it. */
 function encodeLabel(label: string): string {
-  return encodeMultilineText(label).replace(/\\/g, '\\\\').replace(/"/g, '\\"')
+  return label.replace(/\\/g, '\\\\').replace(/"/g, '\\"')
 }
 
 /** Mermaid represents semantic line breaks inside one statement as `<br/>`. */
@@ -79,8 +80,9 @@ export function parsePieBody(lines: string[], header: { showData: boolean; title
     // canonical serialization would silently erase it. Preserve the source
     // as opaque until Pie has an occurrence-aware mutation model.
     if (parsed.hasDuplicateSourceLabels || new Set(parsed.entries.map(entry => entry.label)).size !== parsed.entries.length) return null
-    // A canonical typed label would rewrite an escaped control character (or
-    // put it across physical source lines). Keep those sources lossless.
+    // A canonical typed label would rewrite an escaped control character
+    // (`\n` as a line break). Keep those sources lossless; a label authored
+    // across lines is written across lines again.
     if (parsed.hasEscapedControlLabels) return null
     // Typed mutation keeps the existing positive-value floor even though the
     // rendering grammar also admits zero-width slices.

@@ -4,7 +4,7 @@ import type {
   GitGraphDirection, GitGraphStatement,
 } from './types.ts'
 import { scanAccessibilityDirectives } from '../shared/accessibility-directives.ts'
-import { stripTrailingComment } from '../shared/trailing-comment.ts'
+import { joinQuotedTextLines, stripTrailingComment } from '../shared/trailing-comment.ts'
 
 export class GitGraphParseError extends Error {
   constructor(message: string, readonly line?: number) { super(message); this.name = 'GitGraphParseError' }
@@ -22,8 +22,9 @@ export function parseGitGraph(source: string, options: GitGraphParseOptions = {}
   if (scanned.unclosedIndex !== undefined) {
     throw new GitGraphParseError('Unclosed accDescr block', scanned.unclosedIndex + 1)
   }
-  // Mermaid's GitGraph grammar ends every statement at a `%%` comment.
-  const lines = scanned.familyLines.map(stripTrailingComment)
+  // Mermaid's GitGraph grammar ends every statement at a `%%` comment, and
+  // reads a "…" string to its closing quote across line breaks, which it keeps.
+  const lines = joinQuotedTextLines(scanned.familyLines, { wholeLine: line => /^title(?:\s|$)/i.test(line) }).map(stripTrailingComment)
   const headerIndex = lines.findIndex(line => /^\s*gitgraph\b/i.test(line))
   if (headerIndex < 0) throw new GitGraphParseError('gitGraph source must start with a gitGraph header')
   const header = lines[headerIndex]!.trim().match(/^gitGraph(?:\s+(LR|TB|BT))?\s*:?[ \t]*$/i)
@@ -78,7 +79,7 @@ export function parseGitGraph(source: string, options: GitGraphParseOptions = {}
   for (let index = headerIndex + 1; index < lines.length; index++) {
     const text = lines[index]!.trim()
     if (!text || text.startsWith('%%')) continue
-    const commitLine = text.match(/^commit(?:\s+(.*))?$/i)
+    const commitLine = text.match(/^commit(?:\s+(.*))?$/is)
     if (commitLine) {
       if (parserObservationActive('gitgraph')) observeParserStatement('gitgraph', 'commit', text, { line: index + 1, unit: 'normalized' })
       const payload = commitLine[1] ?? ''
@@ -122,7 +123,7 @@ export function parseGitGraph(source: string, options: GitGraphParseOptions = {}
       if (parserObservationActive('gitgraph')) observeParserMutation('gitgraph', 'appendStatement', statements.at(-1), { line: index + 1, unit: 'normalized' })
       continue
     }
-    const mergeLine = text.match(/^merge\s+("(?:\\.|[^"])+"|\S+)(?:\s+(.*))?$/i)
+    const mergeLine = text.match(/^merge\s+("(?:\\.|[^"])+"|\S+)(?:\s+(.*))?$/is)
     if (mergeLine) {
       if (parserObservationActive('gitgraph')) observeParserStatement('gitgraph', 'merge', text, { line: index + 1, unit: 'normalized' })
       const other = unquote(mergeLine[1]!)
@@ -143,7 +144,7 @@ export function parseGitGraph(source: string, options: GitGraphParseOptions = {}
       if (parserObservationActive('gitgraph')) observeParserMutation('gitgraph', 'appendStatement', statements.at(-1), { line: index + 1, unit: 'normalized' })
       continue
     }
-    const cherryLine = text.match(/^cherry-pick\s+(.+)$/i)
+    const cherryLine = text.match(/^cherry-pick\s+(.+)$/is)
     if (cherryLine) {
       if (parserObservationActive('gitgraph')) observeParserStatement('gitgraph', 'cherry-pick', text, { line: index + 1, unit: 'normalized' })
       const attrs = parseAttrs(cherryLine[1]!, index + 1, ['id', 'tag', 'parent'])

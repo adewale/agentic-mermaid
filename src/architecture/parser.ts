@@ -4,7 +4,7 @@ import type { MermaidGraph, MermaidSubgraph, Direction } from '../types.ts'
 import { normalizeBrTags } from '../multiline-utils.ts'
 import { syntaxError } from '../shared/syntax-error.ts'
 import { parseAccessibilityDirective, type ParsedAccessibilityDirective } from '../shared/accessibility-directives.ts'
-import { stripTrailingComment } from '../shared/trailing-comment.ts'
+import { quotedTextEnds, statementText, stripTrailingComment } from '../shared/trailing-comment.ts'
 import { ALIGN_DIRECTIVE_RE, parseAlignDirective } from './align.ts'
 import { ARCHITECTURE_GROUP_ICON_TITLE_OFFSET } from './config.ts'
 import type { ArchitectureAlignment } from './align.ts'
@@ -39,13 +39,23 @@ const IDENT = '[\\w-]+'
 const ICON = '\\(([^)]+)\\)'
 const LABEL = '\\[(.+)\\]'
 
-export const GROUP_RE = new RegExp(`^group\\s+(${IDENT})(?:${ICON})?(?:${LABEL})?(?:\\s+in\\s+(${IDENT}))?\\s*$`)
-export const SERVICE_RE = new RegExp(`^service\\s+(${IDENT})(?:${ICON})?(?:${LABEL})?(?:\\s+in\\s+(${IDENT}))?\\s*$`)
+export const GROUP_RE = new RegExp(`^group\\s+(${IDENT})(?:${ICON})?(?:${LABEL})?(?:\\s+in\\s+(${IDENT}))?\\s*$`, 's')
+export const SERVICE_RE = new RegExp(`^service\\s+(${IDENT})(?:${ICON})?(?:${LABEL})?(?:\\s+in\\s+(${IDENT}))?\\s*$`, 's')
 export const JUNCTION_RE = new RegExp(`^junction\\s+(${IDENT})(?:\\s+in\\s+(${IDENT}))?\\s*$`)
 export const SOURCE_RE = new RegExp(`^(${IDENT})(\\{group\\})?:(L|R|T|B)$`)
 export const TARGET_RE = new RegExp(`^(L|R|T|B):(${IDENT})(\\{group\\})?$`)
-export const LABELED_ARROW_RE = /^(<)?-\[(.*)\]-(>)?$/
-const EDGE_RE = /^(\S+)\s+(.+)\s+(\S+)$/
+export const LABELED_ARROW_RE = /^(<)?-\[(.*)\]-(>)?$/s
+const EDGE_RE = /^(\S+)\s+(.+)\s+(\S+)$/s
+
+// A [title] that is one "…" or '…' string runs to its closing quote across
+// line breaks, which it keeps. A quote elsewhere in a title is text, and a
+// title statement runs to the end of its line.
+const QUOTED_TEXT = { spanning: `"'`, opensAfter: /\[/, wholeLine: (line: string) => /^title\s/i.test(line) }
+
+/** For each line, the last line of the statement that starts there. */
+export function architectureStatementEnds(lines: readonly string[]): number[] {
+  return quotedTextEnds(lines, QUOTED_TEXT)
+}
 
 // Mermaid's architecture lexer terminals. An id is word characters with
 // dashes only inside (ID); an icon is word characters, `-` and `:`
@@ -155,10 +165,11 @@ export type ArchitectureSourceStatement = ArchitectureSyntax & {
 /** Lossless syntax, before renderer or agent projection and identity checks. */
 export function readArchitectureStatements(lines: readonly string[]): ArchitectureSourceStatement[] {
   const out: ArchitectureSourceStatement[] = []
+  const ends = architectureStatementEnds(lines)
   for (let index = 0; index < lines.length; index++) {
     const start = index
     const rawLine = lines[index]!
-    const append = (syntax: ArchitectureSyntax, raw = [rawLine]): void => {
+    const append = (syntax: ArchitectureSyntax, raw = lines.slice(start, index + 1)): void => {
       out.push({ ...syntax, raw, startLine: start + 1, endLine: index + 1 })
     }
     const rawText = rawLine.trim()
@@ -185,7 +196,8 @@ export function readArchitectureStatements(lines: readonly string[]): Architectu
       }
       continue
     }
-    const line = stripTrailingComment(rawText)
+    index = ends[index]!
+    const line = stripTrailingComment(statementText(lines, start, index).trim())
     try {
       const title = line.match(/^title\s+(.+)$/i)
       const group = line.match(GROUP_RE)

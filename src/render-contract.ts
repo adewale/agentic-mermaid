@@ -9,7 +9,8 @@
 
 import type { ConfigDiagnostic, RenderOptions, ResolvedFamilyRenderContext } from './types.ts'
 import { decodeXML } from 'entities'
-import { splitAuthoredPieTitleLine } from './pie/source-title.ts'
+import { PIE_QUOTED_TEXT, splitAuthoredPieTitleLine } from './pie/source-title.ts'
+import { joinQuotedTextLines } from './shared/trailing-comment.ts'
 import type { ArchitectureVisualConfig } from './architecture/config.ts'
 import type { DiagramColors } from './theme.ts'
 import type { NormalizedMermaidSource } from './mermaid-source.ts'
@@ -1237,7 +1238,7 @@ function capturedRequestFamily(
 /** Decode Pie grammar while keeping exact authored quoted keys and titles. */
 function pieLinesWithAuthoredText(authored: NormalizedMermaidSource): string[] {
   const quotedLabel = /^\s*"(?:[^"\\]|\\.)*"/
-  const hybrid = authored.familyLines.map((line, index) => {
+  const hybrid = joinQuotedTextLines(authored.familyLines, PIE_QUOTED_TEXT).map((line, index) => {
     // Pie titles are display text, not grammar separators. Keep their entity
     // spelling for the family-owned projection just as with quoted labels.
     const title = splitAuthoredPieTitleLine(line, index === 0 ? 'header' : 'body')

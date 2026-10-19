@@ -214,6 +214,27 @@ describe('GitGraph grammar and identity', () => {
     expect(svg).toContain('class="git-commit type-cherry_pick"')
   })
 
+  test('a quoted string runs to its closing quote across lines, keeping the break, not the indentation', () => {
+    const diagram = parseGitGraph(`gitGraph
+  commit id: "a
+    b" msg: "50 %% off
+    now" tag: "v1
+    rc"
+  commit "bare
+    msg"
+  branch dev
+  commit
+  checkout main
+  merge dev tag: "x
+    y"`)
+    expect(diagram.commits.map(({ id, message, tags }) => ({ id, message, tags }))).toEqual([
+      { id: 'a\nb', message: '50 %% off\nnow', tags: ['v1\nrc'] },
+      { id: 'c1', message: 'bare\nmsg', tags: [] },
+      { id: 'c2', message: undefined, tags: [] },
+      { id: 'c3', message: 'merged branch dev into main', tags: ['x\ny'] },
+    ])
+  })
+
   test('rejects cherry-picking a commit already reachable through inherited branch history', () => {
     expect(() => parseGitGraph(`gitGraph
   commit id:"M"

@@ -412,6 +412,7 @@ accDescr: {
 
     for (const [source, key, expected] of [
       ['pie\n "pie": 1', 'pie:slice#0', 'pie'],
+      ['pie\n "multi\n label": 1\n "b": 2', 'pie:slice#1', 'b'],
       ['quadrantChart\n quadrant: [0.2,0.3]', 'quadrant:point#0', 'quadrant'],
       ['radar-beta\n axis a["Same"], b["Same"]\n curve c{1,2}', 'radar:axis#0', 'a'],
       ['radar-beta\n axis a["Same"], b["Same"]\n curve c{1,2}', 'radar:curve#0', 'c'],
