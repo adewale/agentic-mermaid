@@ -22,6 +22,9 @@ This changelog tracks user-facing changes for **Agentic Mermaid**, a fork of `lu
 
 ### Fixed
 
+- C4 relationships between facing cards of different heights run straight.
+  Ports spaced evenly along each face sat a few pixels apart, which drew a
+  small dogleg on each such relationship.
 - Drawings that disagreed with their certified paint now draw it: a Pie
   slice's role or semantic-slot border and its highlight emphasis, which
   stylesheet rules overrode; abstract, static and non-ASCII Class members,
