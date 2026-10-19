@@ -154,8 +154,12 @@ export function lowerClassScene(
   }
 
   // 2. Class boxes
+  // Equal lexical member profiles can serve different text/positions/IDs.
+  // Share only immutable presentation data within this one lowering; retain
+  // at most128 keys and never cache a rendered mark or request across calls.
+  const memberEmissions = new Map<string, SvgTextEmission>()
   for (const cls of diagram.classes) {
-    parts.push(renderClassBox(cls, style, options.security !== 'strict', colors))
+    parts.push(renderClassBox(cls, style, options.security !== 'strict', colors, memberEmissions))
   }
 
   // 2b. Endpoint markers must sit above class surfaces. SVG paints a marker
@@ -299,7 +303,7 @@ PATH_EMISSION),
  * Render a class box with 3 compartments: header, attributes, methods.
  * Wrapped in <g class="class-node"> with semantic data attributes.
  */
-function renderClassBox(cls: PositionedClassNode, style: ResolvedRenderStyle, includeInteraction: boolean, colors: DiagramColors): SceneNode {
+function renderClassBox(cls: PositionedClassNode, style: ResolvedRenderStyle, includeInteraction: boolean, colors: DiagramColors, memberEmissions: Map<string, SvgTextEmission>): SceneNode {
   const { x, y, width, height, headerHeight, attrHeight } = cls
   const children: Array<{ node: SceneNode; indent: number }> = []
 
@@ -410,7 +414,7 @@ PATH_EMISSION),
   for (let i = 0; i < cls.attributes.length; i++) {
     const member = cls.attributes[i]!
     const memberY = attrTop + 4 + i * memberRowH + memberRowH / 2
-    children.push({ indent: 2, node: renderMember(member, x + style.nodePaddingX, memberY, style, `member:${cls.id}:${member.name}`, ink, cls.attributeBlocks?.[i]) })
+    children.push({ indent: 2, node: renderMember(member, x + style.nodePaddingX, memberY, style, `member:${cls.id}:${member.name}`, ink, memberEmissions, cls.attributeBlocks?.[i]) })
   }
 
   // Divider line between attributes and methods
@@ -421,7 +425,7 @@ PATH_EMISSION),
   for (let i = 0; i < cls.methods.length; i++) {
     const member = cls.methods[i]!
     const memberY = methodTop + 4 + i * memberRowH + memberRowH / 2
-    children.push({ indent: 2, node: renderMember(member, x + style.nodePaddingX, memberY, style, `member:${cls.id}:${member.name}`, ink, cls.methodBlocks?.[i]) })
+    children.push({ indent: 2, node: renderMember(member, x + style.nodePaddingX, memberY, style, `member:${cls.id}:${member.name}`, ink, memberEmissions, cls.methodBlocks?.[i]) })
   }
 
   return marks.group({
@@ -453,11 +457,11 @@ DIVIDER_EMISSION)
  *   - colon separator → textFaint (decoration)
  *   - type annotation → textMuted
  */
-function renderMember(member: ClassMember, x: number, y: number, style: ResolvedRenderStyle, sceneId: string, ink: (tone: string) => string, prepared?: PixelTextBlock): SceneNode {
+function renderMember(member: ClassMember, x: number, y: number, style: ResolvedRenderStyle, sceneId: string, ink: (tone: string) => string, memberEmissions: Map<string, SvgTextEmission>, prepared?: PixelTextBlock): SceneNode {
   const block = prepared ?? classMemberBlock(member)
   const plain = memberToString(member)
   const textInk = ink(style.nodeTextColor ?? 'var(--_text-sec)')
-  const emission = MEMBER_EMISSIONS[Number(!!member.isAbstract) | (Number(!!member.isStatic) << 1)]!
+  const profile = Number(!!member.isAbstract) | (Number(!!member.isStatic) << 1)
   const spans: NonNullable<SvgTextEmission['spans']>[number][] = []
   let offset = 0
   const span = (length: number, fill: string) => {
@@ -473,8 +477,14 @@ function renderMember(member: ClassMember, x: number, y: number, style: Resolved
     span(decodeClassText(displayName).length, textInk)
     if (member.type) { span(2, ink('var(--_text-faint)')); span(decodeClassText(member.type).length, ink('var(--_text-muted)')) }
   }
+  const key = JSON.stringify([profile, spans])
+  let emission = memberEmissions.get(key)
+  if (!emission) {
+    emission = snapshotSvgEmissionRecipe({ ...MEMBER_EMISSIONS[profile]!, spans }) as SvgTextEmission
+    if (memberEmissions.size < 128) memberEmissions.set(key, emission)
+  }
   return marks.text({ id: sceneId, role: 'member', text: plain, block, x, y, fontSize: CLS_FONT.memberSize,
-    anchor: 'start', paint: { fill: textInk } }, { ...emission, spans })
+    anchor: 'start', paint: { fill: textInk } }, emission)
 }
 
 function renderClassNote(note: PositionedClassNote, style: ResolvedRenderStyle, index: number): SceneNode {
