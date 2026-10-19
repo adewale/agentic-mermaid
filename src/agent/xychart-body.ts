@@ -20,7 +20,8 @@
 // null. Quoted text and quote-aware semicolon-separated statements are part of
 // the shared renderer grammar and therefore remain structured.
 // Universal accTitle/accDescr directives are removed and preserved by the
-// source envelope before this family grammar runs.
+// source envelope before this family grammar runs; one written after a
+// statement on its line is read by this grammar and adopted by the envelope.
 // Other unmodeled syntax falls back to a lossless opaque body. Mutations retain
 // a deliberately narrower bare-text input contract, but already-authored
 // quoted values are parsed and serialized by the shared lossless authority.
@@ -35,6 +36,7 @@ import { ok, err } from './types.ts'
 import { indexedIdAllocator, labelOverflowCollector, setOptionalField } from './body-utils.ts'
 import { appendAccessibilityLines } from './accessibility-envelope.ts'
 import { parseXYChart, renderXYChartText } from '../xychart/parser.ts'
+import { normalizeMermaidSource } from '../mermaid-source.ts'
 import { barBaselineValue } from '../xychart/axis-utils.ts'
 
 // ---- Number format ----------------------------------------------------------
@@ -337,6 +339,35 @@ export function mutateXyChart(body: XyChartBody, op: XyChartMutationOp): Result<
 }
 
 // ---- Verifier (FamilyDescriptor.verify hook) --------------------------------
+
+/** The accessibility directives this family read after a statement on their
+ * line (`read`) whose value differs from one the source envelope read on a
+ * line of its own (`held`). Mermaid keeps whichever is written last. */
+export function xychartAccessibilityConflicts(
+  read: { title?: string; descr?: string },
+  held: { title?: string; descr?: string },
+): Array<'accTitle' | 'accDescr'> {
+  const conflicts: Array<'accTitle' | 'accDescr'> = []
+  if (read.title !== undefined && held.title !== undefined && read.title !== held.title) conflicts.push('accTitle')
+  if (read.descr !== undefined && held.descr !== undefined && read.descr !== held.descr) conflicts.push('accDescr')
+  return conflicts
+}
+
+/** XYChart source ours reads otherwise than Mermaid, each named once: an
+ * accessibility directive after a statement on its line beside another
+ * value for it on a line of its own (the parse hook keeps that source). */
+export function xychartUnsupportedSyntaxWarnings(canonicalSource: string): LayoutWarning[] {
+  if (!/acc(?:Title|Descr)/i.test(canonicalSource)) return []
+  const source = normalizeMermaidSource(canonicalSource)
+  if (source.accessibility.title === undefined && source.accessibility.descr === undefined) return []
+  let read: ReturnType<typeof parseXYChart>['accessibility']
+  try { read = parseXYChart(source.familyLines).accessibility } catch { return [] }
+  return xychartAccessibilityConflicts({ title: read?.title, descr: read?.description }, source.accessibility).map(directive => ({
+    code: 'UNSUPPORTED_SYNTAX',
+    syntax: 'xychart_accessibility_order',
+    message: `XY chart has an ${directive} after a statement on its line and another on a line of its own. Mermaid keeps the one written last; this reader cannot tell which that is, so the source is kept as written and the one on its own line is drawn. Keep one ${directive}, on a line of its own.`,
+  }))
+}
 
 export function verifyXyChart(body: XyChartBody, opts: VerifyOptions): LayoutWarning[] {
   const warnings: LayoutWarning[] = []

@@ -139,11 +139,25 @@ describe('xychart structured-or-opaque fallback', () => {
     expect(xychart(serializeMermaid(d)).body).toEqual(d.body)
   })
 
-  test('header-line semicolons use the shared grammar and remain structured', () => {
-    const d = xychart('xychart-beta horizontal; accTitle: Accessible; bar [1, 2]')
-    expect(d.body.horizontal).toBe(true)
-    expect(d.body.accessibilityTitle).toBe('Accessible')
-    expect(d.body.series[0]?.values).toEqual([1, 2])
+  test('an accessibility directive after another statement on its line stays structured and joins the envelope', () => {
+    const cases: Array<[string, object, object]> = [
+      ['xychart-beta horizontal; accTitle: Accessible; bar [1, 2]', { horizontal: true, accessibilityTitle: 'Accessible', series: [{ values: [1, 2] }] }, { title: 'Accessible' }],
+      ['xychart-beta\n  bar [1, 2] accTitle: hi bar [2, 1]', { accessibilityTitle: 'hi bar [2, 1]', series: [{ values: [1, 2] }] }, { title: 'hi bar [2, 1]' }],
+      ['xychart-beta\n  accTitle: T\n  bar [1] accDescr { x } bar [2]', { accessibilityTitle: 'T', accessibilityDescription: 'x', series: [{ values: [1] }, { values: [2] }] }, { title: 'T', descr: 'x' }],
+    ]
+    for (const [source, body, accessibility] of cases) {
+      const d = xychart(source)
+      expect(d.body, source).toMatchObject(body)
+      expect(d.meta.accessibility, source).toEqual(accessibility)
+      expect(xychart(serializeMermaid(d)).body).toEqual(d.body)
+    }
+    // Beside another value on a line of its own, Mermaid keeps the one written
+    // last, which neither reader can order: the source is kept, and said so.
+    const source = 'xychart-beta\n  accTitle: first\n  bar [1] accTitle: second\n'
+    const parsed = parseMermaid(source)
+    expect(parsed.ok && parsed.value.body.kind).toBe('opaque')
+    if (parsed.ok) expect(serializeMermaid(parsed.value)).toBe(source)
+    expect(verifyMermaid(source).warnings).toContainEqual(expect.objectContaining({ code: 'UNSUPPORTED_SYNTAX', syntax: 'xychart_accessibility_order' }))
   })
 
   test('repeated axis directives preserve independently authored components in either order', () => {

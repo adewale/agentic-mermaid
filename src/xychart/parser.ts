@@ -14,6 +14,8 @@ import type {
 } from './types.ts'
 import { scanAccessibilityDirectives } from '../shared/accessibility-directives.ts'
 import { splitCssColorList } from '../shared/css-color.ts'
+import { encodeMermaidEntities } from '../shared/mermaid-entities.ts'
+import { decodeMermaidEntities } from '../shared/mermaid-entity-display.ts'
 import { quotedTextEnds, statementText, stripTrailingComment } from '../shared/trailing-comment.ts'
 import { parserObservationActive, observeParserStatement, observeParserMutation } from '../shared/parser-observation.ts'
 
@@ -277,46 +279,61 @@ function applyAxisDirective(axis: XYAxis, rawValue: string, axisName: 'x' | 'y',
     return true
   }
 
-  const rangeOnly = value.match(RANGE_REGEX)
-  if (rangeOnly) {
-    axis.range = { min: parseFloat(rangeOnly[1]!), max: parseFloat(rangeOnly[2]!) }
+  const parsed = readAxisTitleRange(value)
+  if (!parsed) return false
+  if (parsed.title !== undefined) {
+    axis.title = parsed.title
+    if (parserObservationActive('xychart')) observeParserMutation('xychart', 'setAxisTitle', { axis: axisName, title: axis.title }, { line: statementLine, unit: 'normalized' })
+  }
+  if (parsed.range) {
+    axis.range = parsed.range
     if (parserObservationActive('xychart')) observeParserMutation('xychart', 'setAxisRange', { axis: axisName, range: axis.range }, { line: statementLine, unit: 'normalized' })
     axis.rangeAuthored = true
     if (parserObservationActive('xychart')) observeParserMutation('xychart', 'setAxisRangeAuthored', { axis: axisName, authored: true }, { line: statementLine, unit: 'normalized' })
     delete axis.categories
     if (parserObservationActive('xychart')) observeParserMutation('xychart', 'deleteAxisCategories', axisName, { line: statementLine, unit: 'normalized' })
-    axis.authored = true
-    if (parserObservationActive('xychart')) observeParserMutation('xychart', 'setAxisAuthored', { axis: axisName, authored: true }, { line: statementLine, unit: 'normalized' })
-    return true
   }
-
-  const titledRange = parseLeadingTextToken(value)
-  if (titledRange) {
-    const rangeMatch = titledRange.rest.match(RANGE_REGEX)
-    if (rangeMatch) {
-      axis.title = titledRange.value
-      if (parserObservationActive('xychart')) observeParserMutation('xychart', 'setAxisTitle', { axis: axisName, title: axis.title }, { line: statementLine, unit: 'normalized' })
-      axis.range = { min: parseFloat(rangeMatch[1]!), max: parseFloat(rangeMatch[2]!) }
-      if (parserObservationActive('xychart')) observeParserMutation('xychart', 'setAxisRange', { axis: axisName, range: axis.range }, { line: statementLine, unit: 'normalized' })
-      axis.rangeAuthored = true
-      if (parserObservationActive('xychart')) observeParserMutation('xychart', 'setAxisRangeAuthored', { axis: axisName, authored: true }, { line: statementLine, unit: 'normalized' })
-      delete axis.categories
-      if (parserObservationActive('xychart')) observeParserMutation('xychart', 'deleteAxisCategories', axisName, { line: statementLine, unit: 'normalized' })
-      axis.authored = true
-      if (parserObservationActive('xychart')) observeParserMutation('xychart', 'setAxisAuthored', { axis: axisName, authored: true }, { line: statementLine, unit: 'normalized' })
-      return true
-    }
-
-    if (titledRange.rest.length === 0) {
-      axis.title = titledRange.value
-      if (parserObservationActive('xychart')) observeParserMutation('xychart', 'setAxisTitle', { axis: axisName, title: axis.title }, { line: statementLine, unit: 'normalized' })
-      axis.authored = true
-      if (parserObservationActive('xychart')) observeParserMutation('xychart', 'setAxisAuthored', { axis: axisName, authored: true }, { line: statementLine, unit: 'normalized' })
-      return true
-    }
-  }
-  return false
+  axis.authored = true
+  if (parserObservationActive('xychart')) observeParserMutation('xychart', 'setAxisAuthored', { axis: axisName, authored: true }, { line: statementLine, unit: 'normalized' })
+  return true
 }
+
+/**
+ * An axis's range, its title, or a title and then a range. The title is one
+ * quoted string or unquoted text, which may be several words (Mermaid runs
+ * those together: `Monthly totals` reads as `Monthlytotals` there). Words
+ * holding a double quote, a bracket or `-->` are not a title.
+ */
+function readAxisTitleRange(value: string): { title?: string; range?: { min: number; max: number }; words: boolean } | null {
+  const range = (match: RegExpMatchArray) => ({ min: parseFloat(match[1]!), max: parseFloat(match[2]!) })
+  const rangeOnly = value.match(RANGE_REGEX)
+  if (rangeOnly) return { range: range(rangeOnly), words: false }
+  const leading = parseLeadingTextToken(value)
+  if (!leading) return null
+  const rangeMatch = leading.rest.match(RANGE_REGEX)
+  if (rangeMatch) return { title: leading.value, range: range(rangeMatch), words: false }
+  if (leading.rest.length === 0) return { title: leading.value, words: false }
+  if (/^["']/.test(value)) return null
+  // Several words, perhaps followed by `min --> max`.
+  let words = value
+  let wordsRange: { min: number; max: number } | undefined
+  const arrow = value.lastIndexOf('-->')
+  if (arrow >= 0) {
+    const before = value.slice(0, arrow).trimEnd()
+    let start = before.length
+    while (start > 0 && !/\s/.test(before[start - 1]!)) start--
+    const tail = `${before.slice(start)} --> ${value.slice(arrow + 3).trim()}`.match(RANGE_REGEX)
+    if (!tail) return null
+    words = before.slice(0, start).trim()
+    wordsRange = range(tail)
+  }
+  return /^[^"[\]]+$/.test(words) && !words.includes('-->') ? { title: words, ...(wordsRange ? { range: wordsRange } : {}), words: true } : null
+}
+
+// Mermaid reads entity codes before its grammar, so a string written
+// `"#quot;"` shows `"`. Its strings have no escapes; ours also read `\"` and
+// `\\`, and the writer below spells `"` and `\` as entity codes instead.
+const ENTITY_REFUSAL = { subject: 'XYChart text entity', example: 'title "Say #quot;hi#quot;"' }
 
 function parseLeadingTextToken(text: string): { value: string; rest: string } | undefined {
   const trimmed = text.trim()
@@ -326,7 +343,7 @@ function parseLeadingTextToken(text: string): { value: string; rest: string } | 
     const quoted = readQuotedText(trimmed)
     if (!quoted) return undefined
     return {
-      value: quoted.value,
+      value: decodeMermaidEntities(quoted.value, ENTITY_REFUSAL),
       rest: trimmed.slice(quoted.endIndex + 1).trim(),
     }
   }
@@ -463,9 +480,12 @@ function readQuotedText(text: string): { value: string; endIndex: number } | nul
   return null
 }
 
-/** Serialize text through the same lexical contract consumed above. */
+/** Serialize text through the same lexical contract consumed above. Quoted,
+ * `"` and `\` are entity codes, which Mermaid and this reader both read as
+ * the character; a backslash escape is ours alone. */
 export function renderXYChartText(value: string, mode: 'free' | 'token' | 'list' | 'quoted'): string {
-  if (mode === 'quoted') return `"${value.replace(/(["\\])/g, '\\$1')}"`
+  const quoted = `"${encodeMermaidEntities(value, '"\\')}"`
+  if (mode === 'quoted') return quoted
   // Mermaid discards whitespace between bare tokens and reserves chart
   // keywords. Quoting preserves labels rather than merely accepting them in
   // our more generous reader (e.g. "Revenue (USD)" and the category "bar").
@@ -473,7 +493,7 @@ export function renderXYChartText(value: string, mode: 'free' | 'token' | 'list'
     // Axis-title mode tokenizes digits as range numbers, unlike category text.
     && (mode !== 'token' || !/\d/.test(value))
     && !/^(?:title|bar|line|xychart|horizontal|vertical|accTitle|accDescr)$/i.test(value)
-  return bare && value.length > 0 ? value : `"${value.replace(/(["\\])/g, '\\$1')}"`
+  return bare && value.length > 0 ? value : quoted
 }
 
 function pushValue(values: string[], rawValue: string): void {
@@ -658,9 +678,9 @@ function expandXYChartStatements(lines: string[], strict: boolean): string[] {
 }
 
 // Mermaid's lexer reads these as keywords wherever they occur outside a
-// string, so statements may share a line without `;`. Its accessibility value
-// runs to the end of the line; those directives belong to the source envelope,
-// so they only end the search here.
+// string, so statements may share a line without `;`. An accessibility
+// directive runs to the end of its line in Mermaid (here, as before, to a `;`),
+// so it ends the search; the source envelope reads one that starts a line.
 const STATEMENT_KEYWORD = /(?:title|[xy]-axis|bar|line)(?!\w)|acc(?:Title\s*:|Descr\s*[:{])/iy
 
 /**
@@ -689,8 +709,9 @@ function pushKeywordStatements(statements: string[], text: string, offsets: read
 }
 
 /**
- * How text reads as one statement, without recording it: `title` or `text`
- * when it is only unquoted title or axis-title words, `data` for any other
+ * How text reads as one statement, without recording it: `title` when it is
+ * only unquoted title words, or axis-title words where a keyword may be text,
+ * `text` when it is one unquoted axis-title word, `data` for any other
  * statement, and undefined when it is no complete statement.
  */
 function statementShape(text: string): 'title' | 'text' | 'data' | undefined {
@@ -704,10 +725,8 @@ function statementShape(text: string): 'title' | 'text' | 'data' | undefined {
   if (/^title$/i.test(directive[1]!)) return parseDirectiveText(value) === null ? undefined : quoted ? 'data' : 'title'
   const list = /^x/i.test(directive[1]!) ? splitTrailingBracketList(value) : null
   if (list) return list.prefix && parseDirectiveText(list.prefix) === null ? undefined : 'data'
-  if (RANGE_REGEX.test(value)) return 'data'
-  const titled = parseLeadingTextToken(value)
-  if (titled?.rest === '') return quoted ? 'data' : 'text'
-  return titled && RANGE_REGEX.test(titled.rest) ? 'data' : undefined
+  const axis = readAxisTitleRange(value)
+  return !axis ? undefined : axis.range || quoted ? 'data' : axis.words ? 'title' : 'text'
 }
 
 function splitSemicolonStatements(text: string, strict: boolean): string[] {
@@ -768,8 +787,17 @@ function splitSemicolonStatements(text: string, strict: boolean): string[] {
     if (collecting && bracketDepth === 0 && braceDepth === 0 && /[abltxy]/i.test(char) && !/\w/.test(text[i - 1] ?? ' ')) {
       STATEMENT_KEYWORD.lastIndex = i
       const keyword = STATEMENT_KEYWORD.exec(text)
-      if (keyword && /^acc/i.test(keyword[0])) collecting = false
-      else if (keyword && started) keywords.push(current.length)
+      if (keyword && /^acc/i.test(keyword[0])) {
+        // The directive starts here when the text before it is a statement.
+        const before: string[] = []
+        pushKeywordStatements(before, current, keywords)
+        if (before.length > 0 && statementShape(before[before.length - 1]!) !== undefined) {
+          statements.push(...before)
+          current = ''
+          keywords = []
+        }
+        collecting = false
+      } else if (keyword && started) keywords.push(current.length)
     }
     if (!started && !/\s/.test(char)) started = true
 

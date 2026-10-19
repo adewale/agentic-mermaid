@@ -52,7 +52,7 @@ import { mutateState, parseStateBody, renderState, verifyState, verifyOpaqueStat
 import { mutateTimeline, parseTimelineBody, renderTimeline } from './timeline-body.ts'
 import type { AnyMutationOp, ClassBody, DiagramBody, DiagramKind, ErBody, FamilyParsedBody, GanttBody, LayoutWarning, MutationError, PieBody, QuadrantBody, RadarBody, Result, SankeyBody, SourceMap, XyChartBody } from './types.ts'
 import { err, ok } from './types.ts'
-import { mutateXyChart, parseXyChartBody, renderXyChart, verifyXyChart } from './xychart-body.ts'
+import { mutateXyChart, parseXyChartBody, renderXyChart, verifyXyChart, xychartAccessibilityConflicts } from './xychart-body.ts'
 
 // Build the structured-or-opaque hook set shared by every structured family
 // that is not flowchart/state. `headerOk` gates structured parsing: families
@@ -952,9 +952,21 @@ const XYCHART_AGENT_HOOKS = {
   // Pass the complete family source to the shared XY grammar. Header spelling,
   // orientation, and same-line semicolon statements therefore have one parser
   // authority instead of a second regex in the agent projection.
-  parse: ({ lines, opaqueSource }) => {
+  parse: ({ lines, opaqueSource, meta }) => {
     const body = parseXyChartBody(lines)
-    return ok(body ?? { kind: 'opaque', family: 'xychart', source: opaqueSource })
+    if (!body) return ok({ kind: 'opaque', family: 'xychart', source: opaqueSource })
+    // The family reads an accessibility directive written after a statement
+    // on its line, which the envelope (directives that start a line) misses:
+    // the envelope adopts it. When the envelope holds another value, Mermaid
+    // keeps whichever is written last, which neither reader can tell, so the
+    // source is kept (verify reports xychart_accessibility_order).
+    const { accessibilityTitle: title, accessibilityDescription: descr } = body
+    const held = meta.accessibility
+    if (xychartAccessibilityConflicts({ title, descr }, held).length > 0) return ok({ kind: 'opaque', family: 'xychart', source: opaqueSource })
+    if ((title !== undefined && held.title === undefined) || (descr !== undefined && held.descr === undefined)) {
+      meta.accessibility = { ...held, ...(title !== undefined ? { title } : {}), ...(descr !== undefined ? { descr } : {}) }
+    }
+    return ok(body)
   },
   serialize: body => {
     if (body.kind !== 'xychart') throw new Error(`xychart serializer received body kind ${body.kind}`)

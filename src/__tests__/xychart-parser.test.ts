@@ -53,11 +53,21 @@ describe('parseXYChart – syntax', () => {
       ['title "T" bar [1, 2, 3]', { title: 'T', series: [bar([1, 2, 3])] }],
       ['title My Chart bar [1, 2]', { title: 'My Chart', series: [bar([1, 2])] }],
       ['y-axis "Y" 0 --> 10 bar [1, 2, 3]', { yAxis: { title: 'Y', range: { min: 0, max: 10 } }, series: [bar([1, 2, 3])] }],
+      // An unquoted axis title keeps its words, alone, before a range or before
+      // another statement (Mermaid runs them together: "Monthlytotals").
+      ['x-axis Monthly totals bar [1, 2]', { xAxis: { title: 'Monthly totals' }, series: [bar([1, 2])] }],
+      ['x-axis Monthly totals', { xAxis: { title: 'Monthly totals' } }],
+      ['y-axis Revenue in USD 0 --> 10 line [1]', { yAxis: { title: 'Revenue in USD', range: { min: 0, max: 10 } }, series: [line([1])] }],
+      // An accessibility directive starts at its keyword and runs to the end
+      // of the line (an accDescr block, to its brace).
+      ['x-axis [a, b]\nbar [1, 2] accTitle: hi bar [2, 1]', { xAxis: { categories: ['a', 'b'] }, series: [bar([1, 2])], accessibility: { title: 'hi bar [2, 1]' } }],
+      ['bar [1] accDescr { x } bar [2]', { series: [bar([1]), bar([2])], accessibility: { description: 'x' } }],
       // A keyword stays text inside quotes, in a series label before its
       // data, and between words of an unquoted title.
       ['bar "bar [9] line" [1]', { series: [bar([1], 'bar [9] line')] }],
       ['bar Product line A [1, 2, 3]', { series: [bar([1, 2, 3], 'Product line A')] }],
       ['title The title of the x-axis vs line\nbar [1]', { title: 'The title of the x-axis vs line', series: [bar([1])] }],
+      ['x-axis Sales by line item [a, b]', { xAxis: { title: 'Sales by line item', categories: ['a', 'b'] } }],
       // Quoted text keeps its line break, even before a line that starts with a keyword.
       ['title "multi\nline"\nbar [1, 2]', { title: 'multi\nline', series: [bar([1, 2])] }],
       ['x-axis "t\nx" [a, b]', { xAxis: { title: 't\nx', categories: ['a', 'b'] } }],
