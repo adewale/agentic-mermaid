@@ -232,12 +232,20 @@ describe('flowchart parser conformance safety floor (issue #36)', () => {
     // Upstream folds `\nx-->` into one link and loses x; ours keeps the node.
     ['A --> B\n  x--> C', ['A:rectangle:A', 'B:rectangle:B', 'x:rectangle:x', 'C:rectangle:C', 'A-solid->B', 'x-solid->C']],
     // Upstream's `end` token takes the whitespace after it.
-    ['subgraph S\n    A\n  end B', ['A:rectangle:A', 'B:rectangle:B', 'S{A}']],
+    ['subgraph S\n    A\n  end B', ['A:rectangle:A', 'B:rectangle:B', 'S:S{A}']],
+    // Its link token takes the whitespace after it, so a pipe label may follow
+    // a space, or start the next line.
+    ['A --> |yes| B', ['A:rectangle:A', 'B:rectangle:B', 'A-solid->B:yes']],
+    ['A ==> |"y e"| B', ['A:rectangle:A', 'B:rectangle:B', 'A-thick->B:y e']],
+    ['A -->\n  |yes| B', ['A:rectangle:A', 'B:rectangle:B', 'A-solid->B:yes']],
+    // A subgraph's `id[…]` title is a label, which runs on across lines.
+    ['subgraph S[a\n    b]\n    A\n  end', ['A:rectangle:A', 'S:a\nb{A}']],
+    ['subgraph S["a\n    b"]\n    A\n  end', ['A:rectangle:A', 'S:a\nb{A}']],
   ])('%j is read alike by the renderer, the typed body, its output and verify', (body, expected) => {
     const readingOf = (graph: ReturnType<typeof parseGraph>) => [
       ...[...graph.nodes.values()].map(node => `${node.id}:${node.shape}:${node.label}`),
       ...graph.edges.map(edge => `${edge.source}-${edge.style}->${edge.target}${edge.label ? `:${edge.label}` : ''}`),
-      ...graph.subgraphs.map(group => `${group.id}{${group.nodeIds.join(' ')}}`),
+      ...graph.subgraphs.map(group => `${group.id}:${group.label}{${group.nodeIds.join(' ')}}`),
     ]
     const source = `flowchart TD\n  ${body}`
     expect(readingOf(parseGraph(source))).toEqual(expected)
@@ -247,6 +255,12 @@ describe('flowchart parser conformance safety floor (issue #36)', () => {
     const verify = verifyMermaid(source)
     expect(verify.ok).toBe(true)
     expect(verify.warnings.filter(warning => warning.code === 'UNSUPPORTED_SYNTAX')).toEqual([])
+  })
+
+  test('an unclosed subgraph title does not take in the statements after it', () => {
+    const graph = parseGraph('flowchart TD\n  subgraph S[a\n    A --> B\n  end')
+    expect(graph.edges.map(edge => `${edge.source}->${edge.target}`)).toEqual(['A->B'])
+    expect(graph.subgraphs.map(group => group.nodeIds)).toEqual([['A', 'B']])
   })
 
   test('root direction directives override the graph without becoming phantom nodes', () => {

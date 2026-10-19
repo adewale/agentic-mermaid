@@ -1101,14 +1101,17 @@ function parseEdgeLine(
     if (arrowMatch) {
       const arrowOp = arrowMatch.op
       let consumed = arrowMatch.end
-      const labelSuffix = remaining.slice(consumed)
+      // Upstream's link token takes the whitespace after it, so a pipe label
+      // may follow a space (`A --> |yes| B`).
+      const gap = /^\s*/.exec(remaining.slice(consumed))![0].length
+      const labelSuffix = remaining.slice(consumed + gap)
       if (labelSuffix.startsWith('|')) {
         const pipeLabel = consumePipeLabel(labelSuffix)
         if (!pipeLabel) return { ok: false, remaining: labelSuffix, reason: 'expected edge target' }
         const parsedLabel = parseFlowchartLabel(pipeLabel.rawLabel.trim())
         edgeLabel = parsedLabel.text || undefined
         labelContent = parsedLabel.labelContent
-        consumed += pipeLabel.consumed
+        consumed += gap + pipeLabel.consumed
       }
       if (parserObservationActive('flowchart')) observeParserToken('flowchart', 'link', remaining.slice(0, consumed))
       remaining = remaining.slice(consumed).trim()

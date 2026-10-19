@@ -387,6 +387,20 @@ export function coalesceFlowchartLines(lines: readonly string[]): Array<{ text: 
   let scanned = ''
   let scan = scanFlowchart(scanned)
   let keyword = false
+  // Of the keyword statements, upstream lexes a subgraph's `id[…]` or `"…"`
+  // title as a label, which runs on across lines. Ours carries it on only to
+  // a line that closes it, so an unclosed title cannot swallow the diagram.
+  let subgraph = false
+  let closers: { ']': number[]; '"': number[] } | undefined
+  const closedFrom = (index: number, closer: ']' | '"'): boolean => {
+    if (!closers) {
+      closers = { ']': new Array(lines.length + 1).fill(lines.length), '"': new Array(lines.length + 1).fill(lines.length) }
+      for (let at = lines.length - 1; at >= 0; at--) {
+        for (const char of [']', '"'] as const) closers[char][at] = lines[at]!.includes(char) ? at : closers[char][at + 1]!
+      }
+    }
+    return closers[closer][index]! < lines.length
+  }
   for (let index = 0; index < lines.length; index++) {
     const raw = lines[index]!
     const trimmed = raw.trim()
@@ -395,7 +409,11 @@ export function coalesceFlowchartLines(lines: readonly string[]): Array<{ text: 
     // `|"a⏎b"|`), and rejects a line with one opened mid-label. Such a line,
     // as a decoded `&quot;` leaves (`["" x"]`), ends where it ends.
     const midLabelString = scan.regions.some(region => region.kind === 'string' && region.parent >= 0 && region.start !== scan.regions[region.parent]!.contentStart)
-    const inRegion = group !== undefined && open.length > 0 && !midLabelString && (open[0] === 'metadata' || open.includes('markdown') || !keyword)
+    const titleOpen = subgraph ? scan.regions.filter(region => !region.closed) : []
+    const subgraphTitle = titleOpen.length > 0
+      && titleOpen.every(region => /^(?:\[|")$/.test(scanned.slice(region.start, region.contentStart)))
+      && closedFrom(index, titleOpen.at(-1)!.kind === 'string' ? '"' : ']')
+    const inRegion = group !== undefined && open.length > 0 && !midLabelString && (open[0] === 'metadata' || open.includes('markdown') || !keyword || subgraphTitle)
     if (!inRegion && (!trimmed || trimmed.startsWith('%%'))) {
       out.push({ text: raw, line: index })
       continue
@@ -426,7 +444,10 @@ export function coalesceFlowchartLines(lines: readonly string[]): Array<{ text: 
       group!.text += `${joint}${joint === '\n' ? raw : trimmed}`
     }
     const last = flowchartStatementSpans(text, lineScan).at(-1)
-    if (joint === undefined || (last && last.start > 0)) keyword = last !== undefined && KEYWORD_STATEMENT_RE.test(last.text)
+    if (joint === undefined || (last && last.start > 0)) {
+      keyword = last !== undefined && KEYWORD_STATEMENT_RE.test(last.text)
+      subgraph = last !== undefined && /^subgraph\s/.test(last.text)
+    }
     scanned = text
     scan = lineScan
   }
