@@ -442,6 +442,10 @@ accDescr: {
       ['radar-beta\n axis a["Same"], b["Same"]\n curve c{1,2}', 'radar:axis#0', 'a'],
       ['radar-beta\n axis a["Same"], b["Same"]\n curve c{1,2}', 'radar:curve#0', 'c'],
       ['gantt\n dateFormat YYYY-MM-DD\n section S\n Same :a, 2024-01-01, 1d', 'gantt:task:a', 'Same'],
+      // A text-arrow label ends at the link that closes it, a dotted one
+      // without its leading `-` too, and a solid one holds a `.-` as text.
+      ['flowchart LR\n  A -. x .- y .-> B', 'edge#0:A->y', 'x'],
+      ['flowchart LR\n  A -- a.-b --> B', 'edge#0:A->B', 'a.-b'],
     ] as const) {
       const item = parseMermaid(source)
       expect(item.ok).toBe(true)

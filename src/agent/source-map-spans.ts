@@ -423,7 +423,12 @@ function labelEnd(line: string, start: number, key: string, analysis: AuthoredLi
     if (closing >= 0 && closing <= lineEnd) return closing
   }
   if (/^edge#\d+:/i.test(key)) {
-    const closer = line.slice(start, lineEnd).search(/-{2,}[>ox]|-{3,}|\.+->|-\.+-|={2,}>|={3,}/)
+    // A text-arrow label ends where the flowchart lexer closes it; else at
+    // the first link that could close one (a dotted one may leave out its
+    // leading `-`: `-. x .- y`).
+    const label = analysis.textArrowLabelRanges.find(range => range.start === start)
+    if (label) return label.end
+    const closer = line.slice(start, lineEnd).search(/-{2,}[>ox]|-{3,}|-?\.+-[>ox]?|={2,}[>ox]|={3,}/)
     if (closer >= 0) return line.slice(0, start + closer).trimEnd().length
   }
   const closer = enclosingCloser(analysis.enclosingDelimiters, segmentStart, start, lineEnd)
