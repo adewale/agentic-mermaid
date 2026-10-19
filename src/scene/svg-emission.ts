@@ -73,7 +73,7 @@ export interface SvgAttribute {
   readonly display?: boolean
   readonly escape?: SvgAttributeEscape
   /** Attribute separators are whitespace only; never markup. */
-  readonly before?: ' ' | '\n' | '\n  '
+  readonly before?: ' ' | '  ' | '\n' | '\n  '
 }
 
 export interface SvgPiecePresentation {
@@ -342,7 +342,7 @@ export function writeSvgAttributes(node: SceneNode, attributes: readonly SvgAttr
     let text = String(value)
     if (attribute.display) text = sanitizeDisplayLines(text)
     const before = attribute.before ?? ' '
-    if (before !== ' ' && before !== '\n' && before !== '\n  ') throw new TypeError('Unsupported SVG attribute whitespace')
+    if (before !== ' ' && before !== '  ' && before !== '\n' && before !== '\n  ') throw new TypeError('Unsupported SVG attribute whitespace')
     writer.write(before)
     writer.write(`${attribute.name}="`)
     writer.attributeValue(text, attribute.escape)
@@ -694,7 +694,7 @@ export function validateSvgEmissionRecipe(recipe: SvgEmissionRecipe): void {
       if (attribute.format === 'percent1' && attribute.name !== 'data-percent') throw new TypeError('Percent formatting is limited to percentage metadata')
       oneOf(attribute.omit, ['undefined', 'zero', 'false', 'empty'])
       oneOf(attribute.escape, ['attribute', 'xml', 'safe'])
-      oneOf(attribute.before, [' ', '\n', '\n  '])
+      oneOf(attribute.before, [' ', '  ', '\n', '\n  '])
       optionalBoolean(attribute.display)
       if (attribute.fallback !== undefined && typeof attribute.fallback !== 'string' && typeof attribute.fallback !== 'number') throw new TypeError('SVG attribute defaults must be strings or numbers')
       optionalNumber(typeof attribute.fallback === 'number' ? attribute.fallback : undefined)
