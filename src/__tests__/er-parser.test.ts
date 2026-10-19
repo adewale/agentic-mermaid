@@ -171,6 +171,9 @@ describe('parseErDiagram – statements sharing or spanning lines', () => {
     ['A["x"] B:::c C', ['A[x] {}', 'B:::c {}', 'C {}']],
     ['A B ||--o{ C : x', ['A {}', 'B {}', 'C {}', 'B->C x']],
     ['A B { int x } C', ['A {}', 'B {int x}', 'C {}']],
+    // A quoted relationship label ends at its closing quote; declarations follow.
+    ['A ||--o{ B : "x" y', ['A {}', 'B {}', 'y {}', 'A->B x']],
+    ['C A ||--o{ B : "x"y z { int id }', ['C {}', 'A {}', 'B {}', 'y {}', 'z {int id}', 'A->B x']],
   ])('%j is read alike by the renderer, the typed body and its output', (body, expected) => {
     const source = `erDiagram\n  ${body}`
     expect(readingOf(parse(source))).toEqual(expected)

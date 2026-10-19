@@ -418,6 +418,8 @@ function readErOuterStatements(text: string, inGroup: boolean, report?: ErQuoted
     // The block's attributes start after the `{` readErStatement matched.
     end: syntax.kind === 'block-open' ? at + ER_BLOCK_OPEN_RE.exec(text.slice(at))![0].length : text.length,
   })
+  const relation = readErRelationBeforeRun(text, inGroup, report)
+  if (relation) return relation
   const whole = readErStatement(text, inGroup, report)
   if (whole) return [ending(whole, 0)]
   // Quoted text is reported only once the whole run reads.
@@ -431,6 +433,12 @@ function readErOuterStatements(text: string, inGroup: boolean, report?: ErQuoted
     if (ER_LINK_TOKEN_RE.test(rest)) return unread
     if (at > 0) {
       const attempt: Array<[string, string]> = []
+      const relation = readErRelationBeforeRun(rest, inGroup, (what, portable) => attempt.push([what, portable]))
+      if (relation) {
+        run.push(...relation.map(statement => ({ ...statement, start: statement.start + at, end: statement.end + at })))
+        heard.push(...attempt)
+        break
+      }
       const next = readErStatement(rest, inGroup, (what, portable) => attempt.push([what, portable]))
       if (next) {
         run.push(ending(next, at))
@@ -448,6 +456,38 @@ function readErOuterStatements(text: string, inGroup: boolean, report?: ErQuoted
   }
   if (report) for (const [what, portable] of heard) report(what, portable)
   return run
+}
+
+// A relationship whose label is a quoted string, up to its closing quote.
+const ER_QUOTED_LABEL_RELATION_RE = /^(?:[^":]|"[^"]*")*?:\s*"[^"]*"/
+
+/**
+ * A relationship whose quoted label is followed by more text on its line:
+ * Mermaid's label ends at its closing quote, and the names after it are the
+ * declarations that follow (`A ||--o{ B : "x" y` declares y), as in a run of
+ * declarations. Null where that does not read the whole line.
+ */
+function readErRelationBeforeRun(text: string, inGroup: boolean, report?: ErQuotedTextReport): Array<{ syntax: ErStatementLine; start: number; end: number }> | null {
+  const labelEnd = ER_QUOTED_LABEL_RELATION_RE.exec(text)?.[0].length ?? -1
+  if (labelEnd < 0 || !text.slice(labelEnd).trim()) return null
+  const heard: Array<[string, string]> = []
+  const hear = (what: string, portable: string): void => { heard.push([what, portable]) }
+  let relation: ReturnType<typeof readErStatement>
+  let rest: ReturnType<typeof readErOuterStatements>
+  const after = text.length - text.slice(labelEnd).trimStart().length
+  try {
+    relation = readErStatement(text.slice(0, labelEnd), inGroup, hear)
+    if (relation?.kind !== 'relation') return null
+    rest = readErOuterStatements(text.slice(after), inGroup, hear)
+  } catch {
+    return null
+  }
+  if (rest.some(statement => statement.syntax.kind === 'unknown')) return null
+  if (report) for (const [what, portable] of heard) report(what, portable)
+  return [
+    { syntax: relation, start: 0, end: labelEnd },
+    ...rest.map(statement => ({ ...statement, syntax: statement.syntax as ErStatementLine, start: statement.start + after, end: statement.end + after })),
+  ]
 }
 
 export interface ErSourceStatement {
@@ -915,7 +955,7 @@ function erLabelUnread(written: string): boolean {
   if (text.startsWith('"') || /direction\s+(?:TB|BT|LR|RL)/i.test(text)) return false
   const word = /^(?:\P{ASCII}|[\w*.-])*/u.exec(text)![0]
   const rest = text.slice(word.length)
-  return word === '' || /^\d/.test(word) || isErKeywordName(text) || /^[^\s"]/.test(rest) || /^"[^"]*$/.test(rest)
+  return word === '' || /^\d/.test(word) || isErKeywordName(text) || /^[^\s"]/.test(rest) || (rest.match(/"/g)?.length ?? 0) % 2 === 1
 }
 
 /** Shared relationship grammar. Alias text may contain spaces; entity styling
