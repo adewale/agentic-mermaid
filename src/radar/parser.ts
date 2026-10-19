@@ -6,7 +6,7 @@ import {
   requireClosedAccessibility,
   scanAccessibilityDirectives,
 } from '../shared/accessibility-directives.ts'
-import { joinQuotedTextLines, stripTrailingComment, type QuotedTextRule } from '../shared/trailing-comment.ts'
+import { joinQuotedTextLines, quotedTextEnds, stripTrailingComment, type QuotedTextRule } from '../shared/trailing-comment.ts'
 import { parserObservationActive, observeParserStatement, observeParserMutation } from '../shared/parser-observation.ts'
 
 // ============================================================================
@@ -37,6 +37,11 @@ const KEYED_ENTRY_RE = new RegExp(String.raw`^(${ID_TOKEN})(?:\s*:\s*|\s+)(.+)$`
 /** A "…" or '…' label runs to its closing quote across line breaks; a title
  * or accessibility directive runs to the end of its line. */
 const RADAR_QUOTED_TEXT: QuotedTextRule = { spanning: `"'`, wholeLine: line => /^(?:title|accTitle|accDescr)(?=[\s:{]|$)/i.test(line) }
+
+/** For each line, the last line of the statement that starts there. */
+export function radarStatementEnds(lines: readonly string[]): number[] {
+  return quotedTextEnds(lines, RADAR_QUOTED_TEXT)
+}
 
 export interface RadarParseOptions {
   /** YAML frontmatter title. An in-body `title` statement wins when present. */

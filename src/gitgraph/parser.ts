@@ -4,7 +4,7 @@ import type {
   GitGraphDirection, GitGraphStatement,
 } from './types.ts'
 import { scanAccessibilityDirectives } from '../shared/accessibility-directives.ts'
-import { joinQuotedTextLines, stripTrailingComment } from '../shared/trailing-comment.ts'
+import { joinQuotedTextLines, quotedTextEnds, stripTrailingComment, type QuotedTextRule } from '../shared/trailing-comment.ts'
 
 export class GitGraphParseError extends Error {
   constructor(message: string, readonly line?: number) { super(message); this.name = 'GitGraphParseError' }
@@ -17,14 +17,23 @@ export class GitGraphDuplicateCommitError extends GitGraphParseError {
 
 export interface GitGraphParseOptions { mainBranchName?: string; mainBranchOrder?: number; title?: string }
 
+// Mermaid's GitGraph grammar reads a "…" string to its closing quote across
+// line breaks, which it keeps; a title runs to the end of its line.
+const QUOTED_TEXT: QuotedTextRule = { wholeLine: line => /^title(?:\s|$)/i.test(line) }
+
+/** For each line, the last line of the statement that starts there. */
+export function gitGraphStatementEnds(lines: readonly string[]): number[] {
+  return quotedTextEnds(lines, QUOTED_TEXT)
+}
+
 export function parseGitGraph(source: string, options: GitGraphParseOptions = {}): GitGraphDiagram {
-  const scanned = scanAccessibilityDirectives(source.replace(/^\uFEFF/, '').split(/\r?\n/))
+  const sourceLines = source.replace(/^\uFEFF/, '').split(/\r?\n/)
+  const scanned = scanAccessibilityDirectives(sourceLines, gitGraphStatementEnds(sourceLines))
   if (scanned.unclosedIndex !== undefined) {
     throw new GitGraphParseError('Unclosed accDescr block', scanned.unclosedIndex + 1)
   }
-  // Mermaid's GitGraph grammar ends every statement at a `%%` comment, and
-  // reads a "…" string to its closing quote across line breaks, which it keeps.
-  const lines = joinQuotedTextLines(scanned.familyLines, { wholeLine: line => /^title(?:\s|$)/i.test(line) }).map(stripTrailingComment)
+  // Mermaid's GitGraph grammar ends every statement at a `%%` comment.
+  const lines = joinQuotedTextLines(scanned.familyLines, QUOTED_TEXT).map(stripTrailingComment)
   const headerIndex = lines.findIndex(line => /^\s*gitgraph\b/i.test(line))
   if (headerIndex < 0) throw new GitGraphParseError('gitGraph source must start with a gitGraph header')
   const header = lines[headerIndex]!.trim().match(/^gitGraph(?:\s+(LR|TB|BT))?\s*:?[ \t]*$/i)

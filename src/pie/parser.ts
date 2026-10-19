@@ -1,7 +1,7 @@
 import type { PieChart, PieEntry } from './types.ts'
 import { scanAccessibilityDirectives } from '../shared/accessibility-directives.ts'
 import { syntaxError } from '../shared/syntax-error.ts'
-import { joinQuotedTextLines, stripTrailingComment } from '../shared/trailing-comment.ts'
+import { joinQuotedTextLines, quotedTextEnds, stripTrailingComment } from '../shared/trailing-comment.ts'
 import { PIE_QUOTED_TEXT } from './source-title.ts'
 import { mermaidEntityPrepass, TERMINAL_CONTROL_RE, toEntityMarkers } from '../shared/mermaid-entities.ts'
 import { projectEntityMarkers, type EntityRefusal } from '../shared/mermaid-entity-display.ts'
@@ -30,6 +30,11 @@ const NUMBER_RE = /^\+?(?:\d+(?:\.\d+)?|\.\d+)$/
 /** These decoded characters cannot be represented in XML/Scene text or IDs. */
 const XML_DISALLOWED_CONTROL_RE = /[\u0000-\u0008\u000b\u000c\u000e-\u001f]/
 
+/** For each line, the last line of the statement that starts there. */
+export function pieStatementEnds(lines: readonly string[]): number[] {
+  return quotedTextEnds(lines, PIE_QUOTED_TEXT)
+}
+
 /**
  * Parse a Mermaid pie chart from preprocessed lines (trimmed, comment-stripped).
  * The first line is expected to be the `pie [showData]` header.
@@ -43,7 +48,7 @@ const XML_DISALLOWED_CONTROL_RE = /[\u0000-\u0008\u000b\u000c\u000e-\u001f]/
 export function parsePieChart(lines: string[]): PieChart {
   // Mermaid's Pie grammar ends every statement at a `%%` comment, outside a
   // label that runs onto later lines.
-  lines = joinQuotedTextLines(scanAccessibilityDirectives(lines).familyLines, PIE_QUOTED_TEXT).map(stripTrailingComment)
+  lines = joinQuotedTextLines(scanAccessibilityDirectives(lines, pieStatementEnds(lines)).familyLines, PIE_QUOTED_TEXT).map(stripTrailingComment)
   if (lines.length === 0) {
     throw new Error('Pie chart is empty')
   }

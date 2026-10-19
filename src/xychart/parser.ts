@@ -685,12 +685,17 @@ export function xychartTextRejections(lines: readonly string[]): Array<{ index: 
   return rejections
 }
 
+/** For each line, the last line of the statement that starts there. Mermaid's
+ * xychart strings have no escapes: `"C:\"` closes at its second quote. */
+export function xychartStatementEnds(lines: readonly string[]): number[] {
+  return quotedTextEnds(lines, { escapes: false })
+}
+
 /** Each statement on `lines`, with the index of the line it starts on pushed to `starts`. */
 function expandXYChartStatements(lines: string[], strict: boolean, starts?: number[]): string[] {
   const statements: string[] = []
   let inAccDescrBlock = false
-  // Mermaid's xychart strings have no escapes: `"C:\"` closes at its second quote.
-  const ends = quotedTextEnds(lines, { escapes: false })
+  const ends = xychartStatementEnds(lines)
 
   for (let lineIndex = 0; lineIndex < lines.length; lineIndex++) {
     const start = lineIndex

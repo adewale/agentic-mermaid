@@ -88,6 +88,14 @@ export function detectInstalledFamilyDescriptorFromFirstLine(
       : descriptor.detect(line)) ?? null
 }
 
+/** For each of `lines`, the last line of the statement that starts there, by
+ * the rule of the installed family `firstLine` names (statementEnds), when
+ * the lines hold an accessibility directive a statement's text could hide. */
+export function installedFamilyStatementEnds(firstLine: string, lines: readonly string[]): readonly number[] | undefined {
+  if (!lines.some(line => /acc(?:Title|Descr)/i.test(line))) return undefined
+  return detectInstalledFamilyDescriptorFromFirstLine(firstLine, 'loose')?.statementEnds?.(lines)
+}
+
 export function detectInstalledFamilyFromFirstLine(
   firstLine: string,
   mode: 'strict' | 'loose' = 'strict',

@@ -28,7 +28,7 @@ import type {
 } from './types.ts'
 import { ok, err } from './types.ts'
 import { labelOverflowCollector, setOptionalField } from './body-utils.ts'
-import { MAX_RADAR_TICKS, parseRadarChart } from '../radar/parser.ts'
+import { MAX_RADAR_TICKS, parseRadarChart, radarStatementEnds } from '../radar/parser.ts'
 import { resolveRadarScale } from '../radar/scale.ts'
 import { normalizeBrTags } from '../multiline-utils.ts'
 
@@ -47,7 +47,11 @@ function formatNumber(n: number): string { return String(n) }
  * that cannot uphold stable identity plus axis↔value coupling stay opaque.
  */
 export function parseRadarBody(lines: string[]): RadarBody | null {
-  if (lines.some(raw => /^\s*acc(?:Title|Descr)\b/i.test(raw))) return null
+  // A line inside a quoted label is text, whatever it holds.
+  const ends = radarStatementEnds(lines)
+  for (let index = 0; index < lines.length; index = ends[index]! + 1) {
+    if (/^\s*acc(?:Title|Descr)\b/i.test(lines[index]!)) return null
+  }
   const sourceLines = lines.some(raw => HEADER_RE.test(raw.trim())) ? lines : ['radar-beta', ...lines]
   try {
     const chart = parseRadarChart(sourceLines)

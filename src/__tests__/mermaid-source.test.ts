@@ -109,6 +109,28 @@ describe('normalizeMermaidSource', () => {
     expect(normalized.familyLines).toEqual(['flowchart TD', 'A --> B'])
   })
 
+  // A family string that runs across lines is the family's text, even where a
+  // line inside it reads like a directive; Mermaid's lexers read it so.
+  it.each([
+    ['pie\n  "a\naccTitle: b" : 1\n  "c" : 2', 'a\naccTitle: b'],
+    ['xychart-beta\n  title "a\naccTitle: b"\n  bar [1, 2]', 'a\naccTitle: b'],
+    ['gitGraph\n  commit id: "a\naccDescr { b"', 'a\naccDescr { b'],
+    ['quadrantChart\n  x-axis "a\naccTitle: b" --> High\n  p: [0.5, 0.5]', 'a\naccTitle: b'],
+    ['architecture-beta\n  service a(server)["x\naccDescr {\ny }"]', 'x\naccDescr {\ny }'],
+    ['radar-beta\n  axis a["x\naccTitle: y"], b\n  curve c{1, 2}', 'x\naccTitle: y'],
+  ])('%j keeps a directive-shaped line inside its quoted text', (statements, text) => {
+    // The comment after the string is still the envelope's, on its line.
+    const source = `${statements}\n  %% note`
+    expect(normalizeMermaidSource(source).accessibility).toEqual({})
+    const parsed = parseRegisteredMermaid(source)
+    if (!parsed.ok) throw new Error(JSON.stringify(parsed.error))
+    expect(parsed.value.body.kind).not.toBe('opaque')
+    expect(JSON.stringify(parsed.value.body)).toContain(JSON.stringify(text))
+    expect(parsed.value.meta.accessibility).toEqual({})
+    expect(parsed.value.meta.comments).toEqual([{ text: 'note', line: source.split('\n').length }])
+    expect(parsed.value.source.spans?.preserved?.accessibilityDirectives).toBeUndefined()
+  })
+
   // Mermaid reads a statement written on these families' header lines.
   it.each([
     ['sequenceDiagram A->>B: hi', 'sequenceDiagram\nA->>B: hi'],

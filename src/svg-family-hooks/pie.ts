@@ -4,7 +4,7 @@ import { withFrontmatterTitle } from '../mermaid-source.ts'
 import { layoutResult, positionedView, scene, type BrowserSvgFamilyHooks } from '../browser-lazy/family.ts'
 import { resolvePieVisualConfig } from '../pie/config.ts'
 import { layoutPieChart } from '../pie/layout.ts'
-import { parsePieChart } from '../pie/parser.ts'
+import { parsePieChart, pieStatementEnds } from '../pie/parser.ts'
 import { pieFamilyLines } from '../pie/source-title.ts'
 import { lowerPieScene } from '../pie/renderer.ts'
 
@@ -12,6 +12,7 @@ import { lowerPieScene } from '../pie/renderer.ts'
  * (src/render-family-hooks.ts) and the lazy browser chunk. */
 export const PIE_SVG_HOOKS = {
   configDiagnostics: diagnosePieConfig,
+  statementEnds: pieStatementEnds,
   normalizeRequest: ctx => ({
     familyConfig: { visual: resolvePieVisualConfig(ctx.source.frontmatter) },
   }),

@@ -125,7 +125,7 @@ export function quadrantTextRejections(line: string): string[] {
  * hears the unquoted text Mermaid's lexer rejects (quadrantText).
  */
 export function parseQuadrantChart(lines: string[], report?: QuadrantTextReport): QuadrantChart {
-  const scanned = scanAccessibilityDirectives(lines)
+  const scanned = scanAccessibilityDirectives(lines, quadrantStatementEnds(lines))
   requireClosedAccessibility(scanned)
   lines = joinStatementLines(scanned.familyLines, quadrantStatementEnds(scanned.familyLines))
   if (lines.length === 0) {

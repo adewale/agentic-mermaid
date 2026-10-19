@@ -11,7 +11,7 @@
 
 import { scanStateComments } from './state/comment.ts'
 import YAML from 'yaml'
-import { detectInstalledFamilyFromFirstLine } from './agent/family-router.ts'
+import { detectInstalledFamilyFromFirstLine, installedFamilyStatementEnds } from './agent/family-router.ts'
 import type { FamilyId } from './agent/types.ts'
 import {
   assertJsonConfigAdmission,
@@ -21,6 +21,7 @@ import {
 import {
   parseAccessibilityDirective,
   scanAccessibilityDirectives,
+  statementEndAt,
   type MermaidAccessibility,
 } from './shared/accessibility-directives.ts'
 import { splitSequenceStatementLines } from './sequence/statements.ts'
@@ -531,7 +532,11 @@ export function normalizeMermaidSource(
   const accessibilityLines = sequence && /;\s*acc(?:Title|Descr)\b/i.test(processed.body)
     ? splitSequenceStatementLines(physicalLines)
     : physicalLines
-  const accessibilityScan = scanAccessibilityDirectives(accessibilityLines)
+  // A line inside a statement's quoted text is the family's, whatever it holds.
+  const accessibilityScan = scanAccessibilityDirectives(
+    accessibilityLines,
+    installedFamilyStatementEnds(processed.lines[0] ?? '', accessibilityLines),
+  )
   const envelope = sourceEnvelopeMetadata(text, accessibilityScan.accessibility)
   const familyBody = accessibilityScan.familyLines.join('\n')
   const state = /^stateDiagram(?:-v2)?(?=$|[\s;%])/i.test(processed.lines[0] ?? '')
@@ -605,14 +610,17 @@ function sourceEnvelopeMetadata(text: string, accessibility: MermaidSourceAccess
       .find(statement => statement.trimStart().startsWith('%%'))
     if (comment) comments.push({ text: comment.trimStart().slice(2).trim(), line: physicalLine })
   }
+  const statementEnds = installedFamilyStatementEnds(firstStatement, lines)
+  let statementEnd = -1
   for (let index = 0; index < lines.length; index++) {
-    const accessibility = parseAccessibilityDirective(lines, index)
+    const accessibility = index > statementEnd ? parseAccessibilityDirective(lines, index) : null
     if (accessibility === undefined) break
     if (accessibility !== null) {
       if (accessibility.suffixLine) recordPackedSequenceComment(accessibility.suffixLine, accessibility.endIndex + 1)
       index = accessibility.endIndex
       continue
     }
+    if (index > statementEnd) statementEnd = statementEndAt(statementEnds, index, lines.length)
     const line = lines[index]!
     const stateLine = stateLines?.[index]
     if (stateLine) {
