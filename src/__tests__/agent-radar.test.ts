@@ -1,5 +1,6 @@
 import { describe, expect, test } from 'bun:test'
 import fc from 'fast-check'
+import { fcParameters } from './helpers/fc-parameters.ts'
 import { parseRegisteredMermaid as parseMermaid, serializeMermaid, verifyMermaid, mutate, mutateChecked, asRadar, createMermaid, buildMermaid, synthesizeFromGraph } from '../agent/index.ts'
 import { parseRadarChart } from '../radar/parser.ts'
 import { normalizeMermaidSource } from '../mermaid-source.ts'
@@ -245,7 +246,7 @@ describe('radar agent surface', () => {
         expect({ axes: secondBody.axes, curves: secondBody.curves }).toEqual(expected)
         expect(serializeMermaid(reparsed)).toBe(s1)
       },
-    ), { numRuns: 60 })
+    ), fcParameters({ numRuns: 60 }))
   })
 })
 

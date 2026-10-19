@@ -1,6 +1,7 @@
 import { describe, expect, test } from 'bun:test'
 import { spawnSync } from 'node:child_process'
 import fc from 'fast-check'
+import { fcParameters } from './helpers/fc-parameters.ts'
 import { layoutCertificateProof } from '../agent/certificates.ts'
 import type { FamilyDescriptor, FamilyLayoutResult } from '../agent/families.ts'
 import { getFamily, replaceFamilyForTest } from '../agent/families.ts'
@@ -209,7 +210,7 @@ describe('property: FamilyDescriptor render waist', () => {
           expect(renderSvg()).toBe(svg)
         })
       }),
-      { numRuns: RUNS },
+      fcParameters({ numRuns: RUNS }),
     )
   })
 
@@ -347,7 +348,7 @@ describe('property: FamilyDescriptor render waist', () => {
         expect(second).toBe(first)
         expect(after).toBe(before)
       }),
-      { numRuns: RUNS },
+      fcParameters({ numRuns: RUNS }),
     )
   })
 
@@ -446,7 +447,7 @@ describe('property: color-resolution waist', () => {
         expect(colors.line).toBe(line)
         expect(colors.font).toBe('TestFont')
       }),
-      { numRuns: RUNS },
+      fcParameters({ numRuns: RUNS }),
     )
   })
 
@@ -472,7 +473,7 @@ describe('property: color-resolution waist', () => {
         expect(colors.line).toBe(defaultLink)
         expect(colors.surface).toBe(primaryColor)
       }),
-      { numRuns: RUNS },
+      fcParameters({ numRuns: RUNS }),
     )
   })
 
@@ -492,7 +493,7 @@ describe('property: color-resolution waist', () => {
         expect(colors.bg).toBe(bg ?? DEFAULTS.bg)
         expect(colors.fg).toBe(fg ?? DEFAULTS.fg)
       }),
-      { numRuns: RUNS },
+      fcParameters({ numRuns: RUNS }),
     )
   })
 })
@@ -575,7 +576,7 @@ describe('property: layout certificate proof waist', () => {
       fc.property(fc.oneof(flowchartCert, familyEdgeCert), cert => {
         expect(layoutCertificateProof(cert)).toBe('edge-route')
       }),
-      { numRuns: RUNS },
+      fcParameters({ numRuns: RUNS }),
     )
   })
 
@@ -584,7 +585,7 @@ describe('property: layout certificate proof waist', () => {
       fc.property(regionCert, cert => {
         expect(layoutCertificateProof(cert)).toBe('region-containment')
       }),
-      { numRuns: RUNS },
+      fcParameters({ numRuns: RUNS }),
     )
   })
 })
@@ -616,7 +617,7 @@ describe('property: source-context layout hooks preserve structured-body layout 
         expect(layout.bounds.w).toBeGreaterThan(0)
         expect(layout.bounds.h).toBeGreaterThan(0)
       }),
-      { numRuns: RUNS },
+      fcParameters({ numRuns: RUNS }),
     )
   })
 })

@@ -9,6 +9,7 @@
 
 import { describe, test, expect } from 'bun:test'
 import fc from 'fast-check'
+import { fcParameters } from './helpers/fc-parameters.ts'
 import { renderMermaidSVG, verifyNoExternalRefs } from '../index.ts'
 import { parseGanttModel, applyGanttFrontmatterConfig } from '../gantt/parser.ts'
 import { resolveGanttSchedule } from '../gantt/schedule.ts'
@@ -232,7 +233,7 @@ describe('gantt dependency routing — layout invariants', () => {
     fc.assert(fc.property(arb, src => {
       const { layout } = layoutOf(src)
       assertConnectorInvariants(layout)
-    }), { numRuns: 50 })
+    }), fcParameters({ numRuns: 50 }))
   })
 })
 

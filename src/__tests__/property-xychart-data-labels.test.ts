@@ -5,6 +5,7 @@
 // chart labels every bar.
 import { describe, expect, it } from 'bun:test'
 import fc from 'fast-check'
+import { fcParameters } from './helpers/fc-parameters.ts'
 
 import { knownStyles, renderMermaidSVG } from '../index.ts'
 import { wcagContrastRatio } from '../shared/color-math.ts'
@@ -82,7 +83,7 @@ describe('xychart bar value labels', () => {
           expect({ style: name, label: label.text, fill: label.fill, ratio: ratio >= 4.5 }).toEqual({ style: name, label: label.text, fill: label.fill, ratio: true })
         }
       }),
-      { numRuns: 200 },
+      fcParameters({ numRuns: 200 }),
     )
   })
 
@@ -104,7 +105,7 @@ describe('xychart bar value labels', () => {
           if (index !== shrink && labelled(before).has(String(value))) expect(kept.has(String(value))).toBe(true)
         })
       }),
-      { numRuns: 100 },
+      fcParameters({ numRuns: 100 }),
     )
   })
 
@@ -127,7 +128,7 @@ describe('xychart bar value labels', () => {
         const parsed = parse(renderMermaidSVG(sourceFor({ horizontal, outside, series: [values], range })))
         expect(parsed.labels.map(label => label.text).sort()).toEqual(values.map(String).sort())
       }),
-      { numRuns: 100 },
+      fcParameters({ numRuns: 100 }),
     )
   })
 })

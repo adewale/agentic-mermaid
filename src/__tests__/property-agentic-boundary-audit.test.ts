@@ -1,5 +1,6 @@
 import { describe, expect, test } from 'bun:test'
 import fc from 'fast-check'
+import { fcParameters } from './helpers/fc-parameters.ts'
 
 import { applyOps, buildChecked } from '../agent/apply.ts'
 import { negotiateCapabilities } from '../capability-negotiation.ts'
@@ -27,7 +28,7 @@ describe('remaining public agentic boundary fuzz', () => {
       if (!Array.isArray(value)) {
         expect(result).toMatchObject({ ok: false, error: { code: 'INVALID_OP', opIndex: -1 } })
       }
-    }), { numRuns: RUNS })
+    }), fcParameters({ numRuns: RUNS }))
   })
 
   test('declarative apply is total at the root input boundary', () => {
@@ -38,7 +39,7 @@ describe('remaining public agentic boundary fuzz', () => {
       if (!value || typeof value !== 'object' || Array.isArray(value)) {
         expect(result).toMatchObject({ ok: false, family: null, error: { code: 'INVALID_OP' } })
       }
-    }), { numRuns: RUNS })
+    }), fcParameters({ numRuns: RUNS }))
   })
 
   test('capability negotiation is deterministic and never leaks null dereferences', () => {
@@ -47,7 +48,7 @@ describe('remaining public agentic boundary fuzz', () => {
       const second = outcome(() => negotiateCapabilities(offers as never, requirements as never))
       expect(first).toBe(second)
       expect(first).not.toMatch(/null is not an object|Cannot read propert/)
-    }), { numRuns: RUNS })
+    }), fcParameters({ numRuns: RUNS }))
   })
 
   // Total: every input yields a value or the resolver's own diagnosis. The
@@ -67,6 +68,6 @@ describe('remaining public agentic boundary fuzz', () => {
         expect(outcome(run)).toBe(first)
         expect(first).not.toMatch(/(?:null|undefined) is not an object|Cannot read propert|is not a function|is not iterable/)
       }
-    }), { numRuns: RUNS })
+    }), fcParameters({ numRuns: RUNS }))
   })
 })

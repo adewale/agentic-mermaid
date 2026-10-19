@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'bun:test'
 import fc from 'fast-check'
+import { fcParameters } from './helpers/fc-parameters.ts'
 import { buildRoutePortHints, layoutGraphSync } from '../layout-engine.ts'
 import { parseMermaid } from '../parser.ts'
 import { applyRouteContracts, auditRouteContracts, classifyRoutes, diamondFacetPorts, directLaneBlockers, findLabelSlot, findRouteHitches, shapePorts, simplifyPolyline, separateEdgeLabelPills } from '../route-contracts.ts'
@@ -346,7 +347,7 @@ describe('simplifyPolyline', () => {
         // idempotent: a second pass changes nothing
         return JSON.stringify(simplifyPolyline(out)) === JSON.stringify(out)
       }),
-      { numRuns: 500 },
+      fcParameters({ numRuns: 500 }),
     )
   })
 })
@@ -1933,7 +1934,7 @@ describe('route contracts — properties', () => {
         }
         return findRouteHitches(positioned, graph).length === 0
       }),
-      { numRuns: 60, seed: ROUTE_CONTRACT_SEED },
+      fcParameters({ numRuns: 60, seed: ROUTE_CONTRACT_SEED }),
     )
   })
 
@@ -1958,7 +1959,7 @@ describe('route contracts — properties', () => {
         }
         return true
       }),
-      { numRuns: 60, seed: ROUTE_CONTRACT_SEED },
+      fcParameters({ numRuns: 60, seed: ROUTE_CONTRACT_SEED }),
     )
   })
 
@@ -1969,7 +1970,7 @@ describe('route contracts — properties', () => {
         const b = JSON.stringify(layoutGraphSync(parseMermaid(source)).edges.map(e => [e.points, e.routeCertificate]))
         return a === b
       }),
-      { numRuns: 30, seed: ROUTE_CONTRACT_SEED },
+      fcParameters({ numRuns: 30, seed: ROUTE_CONTRACT_SEED }),
     )
   })
 })

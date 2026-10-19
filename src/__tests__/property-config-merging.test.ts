@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'bun:test'
 import fc from 'fast-check'
+import { fcParameters } from './helpers/fc-parameters.ts'
 
 import {
   mergeFrontmatterMaps,
@@ -139,7 +140,7 @@ describe('property-based config merging', () => {
           expect(valuesEqual(merged[key], a[key])).toBe(true)
         }
       }),
-      { numRuns: NUM_RUNS },
+      fcParameters({ numRuns: NUM_RUNS }),
     )
   })
 
@@ -149,7 +150,7 @@ describe('property-based config merging', () => {
         const merged = mergeFrontmatterMaps(a, a)
         expect(mapsEqual(merged, a)).toBe(true)
       }),
-      { numRuns: NUM_RUNS },
+      fcParameters({ numRuns: NUM_RUNS }),
     )
   })
 
@@ -160,7 +161,7 @@ describe('property-based config merging', () => {
         const rightAssoc = mergeFrontmatterMaps(a, mergeFrontmatterMaps(b, c))
         expect(mapsEqual(leftAssoc, rightAssoc)).toBe(true)
       }),
-      { numRuns: NUM_RUNS },
+      fcParameters({ numRuns: NUM_RUNS }),
     )
   })
 
@@ -174,7 +175,7 @@ describe('property-based config merging', () => {
           expect(valuesEqual(merged[key], value)).toBe(true)
         }
       }),
-      { numRuns: NUM_RUNS },
+      fcParameters({ numRuns: NUM_RUNS }),
     )
   })
 
@@ -190,7 +191,7 @@ describe('property-based config merging', () => {
           expect(valuesEqual(merged[key], value)).toBe(true)
         }
       }),
-      { numRuns: NUM_RUNS },
+      fcParameters({ numRuns: NUM_RUNS }),
     )
   })
 
@@ -221,7 +222,7 @@ describe('property-based config merging', () => {
           }
         }
       }),
-      { numRuns: NUM_RUNS },
+      fcParameters({ numRuns: NUM_RUNS }),
     )
   })
 
@@ -237,7 +238,7 @@ describe('property-based config merging', () => {
           }
         }
       }),
-      { numRuns: NUM_RUNS },
+      fcParameters({ numRuns: NUM_RUNS }),
     )
   })
 
@@ -253,7 +254,7 @@ describe('property-based config merging', () => {
           }
         }
       }),
-      { numRuns: NUM_RUNS },
+      fcParameters({ numRuns: NUM_RUNS }),
     )
   })
 
@@ -281,7 +282,7 @@ describe('property-based config merging', () => {
         // The init directive should win
         expect(result.frontmatter[key]).toBe(initValue)
       }),
-      { numRuns: NUM_RUNS },
+      fcParameters({ numRuns: NUM_RUNS }),
     )
   })
 
@@ -304,7 +305,7 @@ describe('property-based config merging', () => {
         const tv = getFrontmatterMap(result.frontmatter, ['themeVariables'])
         expect(tv).toEqual(expect.objectContaining({ primaryColor: initColor }))
       }),
-      { numRuns: NUM_RUNS },
+      fcParameters({ numRuns: NUM_RUNS }),
     )
   })
 
@@ -343,7 +344,7 @@ describe('property-based config merging', () => {
         // Body lines must be identical between first and second call
         expect(second.lines).toEqual(first.lines)
       }),
-      { numRuns: NUM_RUNS },
+      fcParameters({ numRuns: NUM_RUNS }),
     )
   })
 
@@ -361,7 +362,7 @@ describe('property-based config merging', () => {
           expect(second.text).toBe(first.text)
         },
       ),
-      { numRuns: NUM_RUNS },
+      fcParameters({ numRuns: NUM_RUNS }),
     )
   })
 
@@ -371,7 +372,7 @@ describe('property-based config merging', () => {
         const merged = mergeFrontmatterMaps({}, map)
         expect(mapsEqual(merged, map)).toBe(true)
       }),
-      { numRuns: NUM_RUNS },
+      fcParameters({ numRuns: NUM_RUNS }),
     )
   })
 
@@ -397,7 +398,7 @@ describe('property-based config merging', () => {
           }
         }
       }),
-      { numRuns: NUM_RUNS },
+      fcParameters({ numRuns: NUM_RUNS }),
     )
   })
 
@@ -419,7 +420,7 @@ describe('property-based config merging', () => {
           }
         },
       ),
-      { numRuns: NUM_RUNS },
+      fcParameters({ numRuns: NUM_RUNS }),
     )
   })
 
@@ -441,7 +442,7 @@ describe('property-based config merging', () => {
         }
         expect(allLeavesAreFiniteScalars(merged)).toBe(true)
       }),
-      { numRuns: NUM_RUNS },
+      fcParameters({ numRuns: NUM_RUNS }),
     )
   })
 
@@ -470,7 +471,7 @@ describe('property-based config merging', () => {
           }
         },
       ),
-      { numRuns: NUM_RUNS },
+      fcParameters({ numRuns: NUM_RUNS }),
     )
   })
 
@@ -500,7 +501,7 @@ describe('property-based config merging', () => {
         expect(result.lines.length).toBeGreaterThan(0)
         expect(allLeavesAreFiniteScalars(result.frontmatter)).toBe(true)
       }),
-      { numRuns: NUM_RUNS },
+      fcParameters({ numRuns: NUM_RUNS }),
     )
   })
 })

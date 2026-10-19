@@ -20,6 +20,7 @@
 
 import { describe, expect, it } from 'bun:test'
 import fc from 'fast-check'
+import { fcParameters } from './helpers/fc-parameters.ts'
 import { BUILTIN_FAMILY_METADATA } from '../agent/families.ts'
 import { renderMermaidPNG } from '../agent/png.ts'
 import { renderMermaidASCII } from '../ascii/index.ts'
@@ -323,7 +324,7 @@ describe('characterisation · families · universal invariants', () => {
         fc.property(arb, src => {
           assertTotalDeterministicNoDiagonals(src)
         }),
-        { numRuns: RUNS },
+        fcParameters({ numRuns: RUNS }),
       )
     })
   }
@@ -335,7 +336,7 @@ describe('characterisation · families · universal invariants', () => {
           const out = renderMermaidASCII(src, U)
           expect(new Set(out.split('\n').map(l => l.length)).size).toBe(1)
         }),
-        { numRuns: RUNS },
+        fcParameters({ numRuns: RUNS }),
       )
     })
   }

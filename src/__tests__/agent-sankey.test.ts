@@ -1,10 +1,73 @@
 import { describe, expect, test } from 'bun:test'
+import fc from 'fast-check'
+import { fcParameters } from './helpers/fc-parameters.ts'
+import { decodeXML } from 'entities'
 import type { SankeyBody, SankeyMutationOp, SankeyValidDiagram } from '../agent/index.ts'
 import { asSankey, buildMermaid, createMermaid, mutate, parseRegisteredMermaid as parseMermaid, renderMermaidSVG, serializeMermaid, verifyMermaid } from '../agent/index.ts'
 import type { SankeyRuntimeConfig } from '../index.ts'
 import { SDK_DECLARATION } from '../mcp/sdk-decl.ts'
 
 const BASIC = 'sankey-beta\n  Coal,Electricity,127.93\n  Gas,Electricity,80\n  Electricity,Homes,120'
+
+// Quoting is independent of the production serializer. Distinct prefixes
+// construct acyclic inputs without filtering punctuation or Unicode.
+const csv = (text: string): string => `"${text.replaceAll('"', '""')}"`
+const csvTextArb = fc.oneof(
+  fc.string({ unit: 'grapheme', maxLength: 32 }),
+  fc.array(fc.constantFrom(',', '"', ' ', ';', '#', '&', '<b>literal</b>', '東京', '👩‍💻', 'é'), { maxLength: 12 }).map(parts => parts.join('')),
+)
+
+describe('sankey generated CSV and mutation contracts', () => {
+  test('quoted labels and parallel row values survive parse and canonical serialization', () => {
+    fc.assert(fc.property(csvTextArb, csvTextArb, fc.double({ min: 0, noNaN: true, noDefaultInfinity: true }), (a, b, value) => {
+      const sourceLabel = `left ${a}`.trim()
+      const targetLabel = `right ${b}`.trim()
+      const expected = [
+        { source: sourceLabel, target: targetLabel, value },
+        { source: sourceLabel, target: targetLabel, value: 2 },
+      ]
+      const source = `sankey-beta\n${csv(`  ${sourceLabel}  `)},${csv(`  ${targetLabel}  `)},${value}\n${csv(sourceLabel)},${csv(targetLabel)},2`
+      const parsed = sankey(source)
+      expect(parsed.body.links).toEqual(expected)
+      const canonical = serializeMermaid(parsed)
+      expect(sankey(canonical).body.links).toEqual(expected)
+      expect(serializeMermaid(sankey(canonical))).toBe(canonical)
+    }), fcParameters({ numRuns: 1000 }))
+  })
+
+  test('malformed numeric rows stay lossless and are rejected by rendering', () => {
+    const invalidValue = fc.oneof(
+      fc.integer({ min: -2147483648, max: -1 }).map(String),
+      fc.constantFrom('NaN', 'Infinity', '-Infinity', '1junk', '', '1e999'),
+    )
+    fc.assert(fc.property(csvTextArb, invalidValue, (label, value) => {
+      const source = `sankey-beta\n${csv(`left ${label}`)},right,${value}`
+      const parsed = parseMermaid(source)
+      expect(parsed.ok).toBe(true)
+      if (!parsed.ok) throw new Error(JSON.stringify(parsed.error))
+      expect(parsed.value.body.kind).toBe('opaque')
+      expect(serializeMermaid(parsed.value)).toBe(`${source}\n`)
+      expect(() => renderMermaidSVG(parsed.value)).toThrow(/invalid value/)
+    }), fcParameters({ numRuns: 1000 }))
+  })
+
+  test('rendering an edited parsed diagram paints the new identity without changing its input', () => {
+    fc.assert(fc.property(csvTextArb, suffix => {
+      const oldLabel = `old-label ${suffix}`.trim()
+      const newLabel = `new-label ${suffix}`.trim()
+      const original = sankey(`sankey-beta\n${csv(oldLabel)},sink,1`)
+      const edited = mutate(original, { kind: 'rename_node', from: oldLabel, to: newLabel })
+      expect(edited.ok).toBe(true)
+      if (!edited.ok) throw new Error(JSON.stringify(edited.error))
+      expect(edited.value.body.links).toEqual([{ source: newLabel, target: 'sink', value: 1 }])
+      expect(original.body.links).toEqual([{ source: oldLabel, target: 'sink', value: 1 }])
+      const painted = [...renderMermaidSVG(edited.value).matchAll(/<text\b[^>]*>([\s\S]*?)<\/text>/g)]
+        .map(match => decodeXML(match[1]!.replace(/<[^>]+>/g, ''))).join('\n')
+      expect(painted).toContain('new-label')
+      expect(painted).not.toContain('old-label')
+    }), fcParameters({ numRuns: 100 }))
+  })
+})
 
 function sankey(src: string): SankeyValidDiagram {
   const p = parseMermaid(src)

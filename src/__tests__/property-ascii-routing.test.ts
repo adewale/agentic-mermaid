@@ -1,6 +1,7 @@
 import { OccupancyMap } from '../ascii/occupancy.ts'
 import { describe, expect, it } from 'bun:test'
 import fc from 'fast-check'
+import { fcParameters } from './helpers/fc-parameters.ts'
 
 import { renderMermaidASCII } from '../ascii/index.ts'
 import { convertToAsciiGraph } from '../ascii/converter.ts'
@@ -181,7 +182,7 @@ describe('property-based ASCII pathfinding', () => {
           expect(isOrthogonalStep(path!, index)).toBe(true)
         }
       }),
-      { numRuns: PROPERTY_RUNS },
+      fcParameters({ numRuns: PROPERTY_RUNS }),
     )
   })
 
@@ -235,7 +236,7 @@ describe('property-based ASCII pathfinding', () => {
           expect(point.y).toBeLessThanOrEqual(bound.y)
         }
       }),
-      { numRuns: PROPERTY_RUNS },
+      fcParameters({ numRuns: PROPERTY_RUNS }),
     )
   })
 
@@ -274,7 +275,7 @@ describe('property-based ASCII pathfinding', () => {
           expect(grid.has(gridKey(point))).toBe(false)
         }
       }),
-      { numRuns: PROPERTY_RUNS },
+      fcParameters({ numRuns: PROPERTY_RUNS }),
     )
   })
 
@@ -313,7 +314,7 @@ describe('property-based ASCII pathfinding', () => {
         expect(mergePath(merged)).toEqual(merged)
         expect(merged.length <= path.length).toBe(true)
       }),
-      { numRuns: PROPERTY_RUNS },
+      fcParameters({ numRuns: PROPERTY_RUNS }),
     )
   })
 })
@@ -411,7 +412,7 @@ describe('property-based ASCII routing helpers', () => {
           + Math.floor(Math.abs(edge.labelLine[0]!.x - edge.labelLine[1]!.x) / 2)
         expect((graph.columnWidth.get(middleX) ?? 0) >= label.length + 2).toBe(true)
       }),
-      { numRuns: PROPERTY_RUNS },
+      fcParameters({ numRuns: PROPERTY_RUNS }),
     )
   })
 
@@ -465,7 +466,7 @@ describe('property-based ASCII routing helpers', () => {
           expect(node.styleClass.styles.fill).toBe(assignedClass === 'hot' ? '#f00' : '#00f')
         }
       }),
-      { numRuns: PROPERTY_RUNS },
+      fcParameters({ numRuns: PROPERTY_RUNS }),
     )
   })
 })
@@ -478,7 +479,7 @@ describe('property-based renderMermaidASCII', () => {
   CUSTOMER ||--o{ ORDER : ${label}`, { colorMode: 'none', useAscii })
         expect(ascii).toContain(label)
       }),
-      { numRuns: PROPERTY_RUNS },
+      fcParameters({ numRuns: PROPERTY_RUNS }),
     )
   })
 
@@ -521,7 +522,7 @@ describe('property-based renderMermaidASCII', () => {
         const ascii = renderMermaidASCII(source, { colorMode: 'none', useAscii: false })
         assertNoDiagonals(ascii)
       }),
-      { numRuns: 30 },
+      fcParameters({ numRuns: 30 }),
     )
   })
 })

@@ -5,6 +5,7 @@
 // no generated-input coverage. Seed is pinned globally (fc-seed.preload.ts).
 import { describe, expect, it } from 'bun:test'
 import fc from 'fast-check'
+import { fcParameters } from './helpers/fc-parameters.ts'
 
 import { parseArgs, runBatchLine, renderMarkdownBlocks, FLAG_SPECS } from '../cli/index.ts'
 
@@ -54,7 +55,7 @@ describe('cli-surface fuzz: parseArgs', () => {
           expect(typeof v === 'string' || v === true).toBe(true)
         }
       }),
-      { numRuns: NUM_RUNS },
+      fcParameters({ numRuns: NUM_RUNS }),
     )
   })
 
@@ -73,7 +74,7 @@ describe('cli-surface fuzz: parseArgs', () => {
           expect(parsed.flags[flag]).toBe(value)
         },
       ),
-      { numRuns: NUM_RUNS },
+      fcParameters({ numRuns: NUM_RUNS }),
     )
   })
 })
@@ -116,7 +117,7 @@ describe('cli-surface fuzz: runBatchLine', () => {
           expect(out.error?.code).not.toBe('INTERNAL')
         }
       }),
-      { numRuns: NUM_RUNS },
+      fcParameters({ numRuns: NUM_RUNS }),
     )
   })
 
@@ -209,7 +210,7 @@ describe('cli-surface fuzz: renderMarkdownBlocks', () => {
           expect(typeof b.ok).toBe('boolean')
         }
       }),
-      { numRuns: NUM_RUNS },
+      fcParameters({ numRuns: NUM_RUNS }),
     )
   })
 
@@ -224,7 +225,7 @@ describe('cli-surface fuzz: renderMarkdownBlocks', () => {
         const blocks = renderMarkdownBlocks(md, format)
         expect({ md, tags: blocks.map(b => typeof b.ok) }).toEqual({ md, tags: ['boolean'] })
       }),
-      { numRuns: NUM_RUNS },
+      fcParameters({ numRuns: NUM_RUNS }),
     )
   })
 })

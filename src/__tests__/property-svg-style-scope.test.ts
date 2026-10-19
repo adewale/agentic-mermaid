@@ -11,6 +11,7 @@
 // svg-style-isolation-browser.test.ts.
 import { describe, expect, it } from 'bun:test'
 import fc from 'fast-check'
+import { fcParameters } from './helpers/fc-parameters.ts'
 import { Resvg } from '@resvg/resvg-js'
 import { join } from 'node:path'
 
@@ -96,7 +97,7 @@ describe('style scoping rewrites selectors and nothing else', () => {
         const expected = `\n  ${rules.map(rule => renderRule(rule, true)).join('\n  ')}\n`
         expect(scopeCss(css, SCOPE)).toBe(expected)
       }),
-      { numRuns: 300 },
+      fcParameters({ numRuns: 300 }),
     )
   })
 })
@@ -159,7 +160,7 @@ describe('every render scopes its styles to its own root', () => {
         }
         expect(renderCase(input)).toBe(svg)
       }),
-      { numRuns: 60 },
+      fcParameters({ numRuns: 60 }),
     )
   })
 
@@ -173,7 +174,7 @@ describe('every render scopes its styles to its own root', () => {
         if (unscoped(a, scopeA) === unscoped(b, scopeB)) expect(scopeA).toBe(scopeB)
         else expect(scopeA).not.toBe(scopeB)
       }),
-      { numRuns: 40 },
+      fcParameters({ numRuns: 40 }),
     )
   })
 
@@ -212,7 +213,7 @@ describe('scoping preserves raster output', () => {
         const plain = unscoped(svg, svgStyleScope(svg)!)
         expect(Buffer.from(pixels(svg)).equals(Buffer.from(pixels(plain)))).toBe(true)
       }),
-      { numRuns: 24 },
+      fcParameters({ numRuns: 24 }),
     )
   })
 })

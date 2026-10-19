@@ -1,4 +1,5 @@
 import fc from 'fast-check'
+import { fcParameters } from './helpers/fc-parameters.ts'
 import { applyTextTransform } from '../styles.ts'
 import { beforeAll, describe, expect, it } from 'bun:test'
 import { concatDisplayText, prepareDisplayText, preparedDisplayTextValue, replaceDisplayTextTokens, resolveLabelContent, writeDisplayText } from '../shared/display-text.ts'
@@ -190,7 +191,7 @@ describe('prepared display text', () => {
         }).join('')
         expect(reconstructed).toBe(expected)
       },
-    ), { numRuns: 40 })
+    ), fcParameters({ numRuns: 40 }))
   })
 
   it('reports unsatisfiable width or height instead of silently claiming a fit', () => {

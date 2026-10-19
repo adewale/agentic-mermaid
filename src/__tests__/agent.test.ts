@@ -3,6 +3,7 @@
 
 import { describe, expect, test } from 'bun:test'
 import fc from 'fast-check'
+import { fcParameters } from './helpers/fc-parameters.ts'
 import { mutate } from '../agent/mutate.ts'
 import { parseRegisteredMermaid as parseMermaid } from '../agent/parse.ts'
 import { serializeMermaid, synthesizeFromGraph } from '../agent/serialize.ts'
@@ -173,7 +174,7 @@ describe('BUILD-18 segment-preserving sequence — fast-check properties', () =>
         // Idempotent: re-parse → same serialize.
         expect(serializeMermaid(parse(out))).toBe(serializeMermaid(d))
       }),
-      { numRuns: 200 },
+      fcParameters({ numRuns: 200 }),
     )
   })
 
@@ -207,7 +208,7 @@ describe('BUILD-18 segment-preserving sequence — fast-check properties', () =>
         const expected = nonBlank(['sequenceDiagram', ...segs.filter(x => x !== removed).map(x => x.text)].join('\n'))
         expect(nonBlank(serializeMermaid(r.value))).toEqual(expected)
       }),
-      { numRuns: 200 },
+      fcParameters({ numRuns: 200 }),
     )
   })
 
@@ -236,7 +237,7 @@ describe('BUILD-18 segment-preserving sequence — fast-check properties', () =>
         // Round-trip stable.
         expect(serializeMermaid(parse(out))).toBe(serializeMermaid(d))
       }),
-      { numRuns: 300 },
+      fcParameters({ numRuns: 300 }),
     )
   })
 })
@@ -642,7 +643,7 @@ describe('round-trip stability', () => {
           }), commands)
         },
       ),
-      { numRuns: 100 },
+      fcParameters({ numRuns: 100 }),
     )
   })
 })

@@ -7,6 +7,7 @@
 // (fc-seed.preload.ts); AM_FC_SEED=random hunts fresh counterexamples.
 import { describe, expect, it } from 'bun:test'
 import fc from 'fast-check'
+import { fcParameters } from './helpers/fc-parameters.ts'
 
 import { synthesizeFromGraph, serializeMermaid, parseRegisteredMermaid as parseMermaid, createMermaid } from '../agent/index.ts'
 import { BUILTIN_FAMILY_METADATA } from '../agent/families.ts'
@@ -64,13 +65,13 @@ describe('synthesize fuzz: synthesizeFromGraph is total and deterministic', () =
         expect(r.error.length).toBeGreaterThan(0)
         expect(typeof r.error[0]!.message).toBe('string')
       }
-    }), { numRuns: NUM_RUNS })
+    }), fcParameters({ numRuns: NUM_RUNS }))
   })
 
   it('is deterministic for identical input', () => {
     fc.assert(fc.property(payloadArb, payload => {
       expect(JSON.stringify(synthesizeFromGraph(payload as never))).toBe(JSON.stringify(synthesizeFromGraph(payload as never)))
-    }), { numRuns: NUM_RUNS })
+    }), fcParameters({ numRuns: NUM_RUNS }))
   })
 })
 

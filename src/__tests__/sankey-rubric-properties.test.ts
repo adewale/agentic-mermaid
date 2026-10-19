@@ -9,6 +9,7 @@
 
 import { describe, expect, test } from 'bun:test'
 import fc from 'fast-check'
+import { fcParameters } from './helpers/fc-parameters.ts'
 // Enter through the agent barrel first: sankey/config.ts participates in the
 // family-config-diagnostics module cycle and TDZ-throws as a direct entry.
 import '../agent/index.ts'
@@ -52,7 +53,7 @@ describe('sankey layout invariants hold on arbitrary inputs', () => {
         const result = assessSankeyLayout(layout(source, visual))
         expect(result.violations).toEqual([])
       }),
-      { numRuns: 60 },
+      fcParameters({ numRuns: 60 }),
     )
   })
 
@@ -64,7 +65,7 @@ describe('sankey layout invariants hold on arbitrary inputs', () => {
         expect(second.metrics).toEqual(first.metrics)
         expect(JSON.stringify(layout(source, visual))).toBe(JSON.stringify(layout(source, visual)))
       }),
-      { numRuns: 30 },
+      fcParameters({ numRuns: 30 }),
     )
   })
 })

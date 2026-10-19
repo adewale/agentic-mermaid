@@ -15,6 +15,7 @@
 
 import { describe, expect, it } from 'bun:test'
 import fc from 'fast-check'
+import { fcParameters } from './helpers/fc-parameters.ts'
 import { parseRegisteredMermaid as parseMermaid, layoutMermaid, renderMermaidSVG, renderMermaidASCII } from '../agent/index.ts'
 import { auditRenderedRoutes } from '../agent/rendered-route-audit.ts'
 
@@ -63,7 +64,7 @@ describe('unicode / XML-significant label fuzz (escaping + measurement axis)', (
       fc.property(labelArb, labelArb, labelArb, labelArb, (a, b, c, e) => {
         assertSound(`flowchart TD\n  A["${esc(a)}"] -->|${esc(e)}| B["${esc(b)}"]\n  B --> C["${esc(c)}"]`)
       }),
-      { numRuns: 100, seed: SEED },
+      fcParameters({ numRuns: 100, seed: SEED }),
     )
   }, 30000)
 })

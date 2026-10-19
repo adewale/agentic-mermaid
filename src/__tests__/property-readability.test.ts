@@ -16,6 +16,7 @@
 
 import { describe, test, expect } from 'bun:test'
 import fc from 'fast-check'
+import { fcParameters } from './helpers/fc-parameters.ts'
 import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { parseRegisteredMermaid as parseMermaid, layoutMermaid, verifyMermaid } from '../agent/index.ts'
@@ -128,7 +129,7 @@ describe('node-link and edge-label readability ratchet (corpus + fuzzed families
     for (const ent of corpus) tally(`corpus/${ent.family}/${ent.index}`, ent.source)
 
     for (const fam of Object.values(METAMORPHIC_FAMILIES)) {
-      const measured = fc.sample(srcArb(fam), { numRuns: 40, seed: SEED })
+      const measured = fc.sample(srcArb(fam), fcParameters({ numRuns: 40, seed: SEED }))
         .filter((src, i) => tally(`fuzz/${fam.family}/${i}`, src)).length
       expect(measured, `${fam.family}: skipped layouts cannot prove readable labels`).toBeGreaterThan(0)
     }

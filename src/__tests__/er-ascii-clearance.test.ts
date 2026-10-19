@@ -1,5 +1,6 @@
 import { describe, expect, test } from 'bun:test'
 import fc from 'fast-check'
+import { fcParameters } from './helpers/fc-parameters.ts'
 import { renderMermaidASCII } from '../ascii/index.ts'
 
 interface BoxRect { left: number; top: number; right: number; bottom: number }
@@ -61,6 +62,6 @@ describe('ER terminal relationship clearance (B05/ER5)', () => {
           expectPristineEntityBox(output, `E${index}`, index === 1 ? middleAttribute : `field_${index}`)
         }
       },
-    ), { numRuns: 30 })
+    ), fcParameters({ numRuns: 30 }))
   })
 })

@@ -9,6 +9,7 @@
 
 import { describe, expect, test } from 'bun:test'
 import fc from 'fast-check'
+import { fcParameters } from './helpers/fc-parameters.ts'
 import { asEr, parseRegisteredMermaid } from '../agent/index.ts'
 import { parseErDiagram } from '../er/parser.ts'
 import { normalizeMermaidSource } from '../mermaid-source.ts'
@@ -139,7 +140,7 @@ describe('property: both ER parsers place entities by the first subgraph to clos
       const { source, expected } = compile(program)
       if (source.includes('subgraph')) withSubgraphs++
       expect({ source, ...placements(source) }).toEqual({ source, renderer: expected, typed: expected })
-    }), { numRuns: 300 })
+    }), fcParameters({ numRuns: 300 }))
     expect(withSubgraphs).toBeGreaterThan(0)
   })
 })

@@ -13,6 +13,7 @@
 //     points drawn past the plot.
 import { describe, expect, it } from 'bun:test'
 import fc from 'fast-check'
+import { fcParameters } from './helpers/fc-parameters.ts'
 
 import { verifyMermaid } from '../agent/index.ts'
 import type { LayoutWarning } from '../agent/types.ts'
@@ -70,7 +71,7 @@ describe('xychart verify lints match the rendered chart', () => {
         const drawn = new Set(drawnTexts(renderMermaidSVG(source), 'xychart-x-label'))
         expect(hidden(source, 'x-axis')).toEqual(categories.filter(category => !drawn.has(category)))
       }),
-      { numRuns: 120 },
+      fcParameters({ numRuns: 120 }),
     )
   })
 
@@ -102,7 +103,7 @@ describe('xychart verify lints match the rendered chart', () => {
         const expected = values.flatMap((value, index) => drawn.has(String(value)) ? [] : [`c${index} = ${value}`])
         expect(hidden(source, 'data-labels')).toEqual(expected)
       }),
-      { numRuns: 120 },
+      fcParameters({ numRuns: 120 }),
     )
   })
 
@@ -125,7 +126,7 @@ describe('xychart verify lints match the rendered chart', () => {
         const nearestToZero = Math.min(Math.max(min, max), Math.max(Math.min(min, max), 0))
         expect(warnings.map(warning => warning.baseline)).toEqual(kinds.includes('bar') && excludesZero ? [nearestToZero] : [])
       }),
-      { numRuns: 200 },
+      fcParameters({ numRuns: 200 }),
     )
   })
 
@@ -168,7 +169,7 @@ describe('xychart verify lints match the rendered chart', () => {
         })
         expect(reported).toEqual(expected)
       }),
-      { numRuns: 200 },
+      fcParameters({ numRuns: 200 }),
     )
   })
 })

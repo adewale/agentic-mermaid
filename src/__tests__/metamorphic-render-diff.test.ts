@@ -6,6 +6,7 @@
 
 import { describe, test, expect } from 'bun:test'
 import fc from 'fast-check'
+import { fcParameters } from './helpers/fc-parameters.ts'
 import { geometrySignature, geometryEquivalent } from '../../eval/metamorphic/render-diff.ts'
 import { reduceSource } from '../../eval/shared/ddmin.ts'
 import { METAMORPHIC_FAMILIES } from './helpers/metamorphic-families.ts'
@@ -41,7 +42,7 @@ describe('GraphicsFuzz render-diff: relabeling preserves geometry', () => {
           })
           throw new Error(`relabel changed geometry for ${family} k=${k}; minimal repro:\n${minimal}`)
         }),
-        { numRuns: 40 },
+        fcParameters({ numRuns: 40 }),
       )
     })
   }

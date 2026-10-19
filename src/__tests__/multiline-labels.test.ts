@@ -10,6 +10,7 @@
  */
 import { describe, it, expect } from 'bun:test'
 import fc from 'fast-check'
+import { fcParameters } from './helpers/fc-parameters.ts'
 import { parseMermaid } from '../parser.ts'
 import { parseSequenceDiagram } from '../sequence/parser.ts'
 import { parseClassDiagram } from '../class/parser.ts'
@@ -865,7 +866,7 @@ describe('measureMultilineText – properties over random labels', () => {
         if (Math.abs(m.width - widest) > 1e-6) return false
         return Number.isFinite(m.width) && Number.isFinite(m.height) && m.width >= 0 && m.height >= 0
       }),
-      { numRuns: 400 },
+      fcParameters({ numRuns: 400 }),
     )
   })
 
@@ -877,7 +878,7 @@ describe('measureMultilineText – properties over random labels', () => {
         if (Math.abs(after.height - before.height - fontSize * LINE_HEIGHT_RATIO) > 1e-6) return false
         return after.width >= before.width - 1e-6
       }),
-      { numRuns: 400 },
+      fcParameters({ numRuns: 400 }),
     )
   })
 })

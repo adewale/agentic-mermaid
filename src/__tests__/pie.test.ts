@@ -11,6 +11,7 @@
 
 import { describe, it, expect } from 'bun:test'
 import fc from 'fast-check'
+import { fcParameters } from './helpers/fc-parameters.ts'
 import { parsePieChart } from '../pie/parser.ts'
 import { layoutPieChart, slicePath } from '../pie/layout.ts'
 import { renderMermaidSVG, renderMermaidASCII } from '../index.ts'
@@ -229,7 +230,7 @@ describe('pie property tests', () => {
         const legend = [...svg.matchAll(/class="pie-legend-text"[^>]*>([^<]*) \([\d.]+%\)<\/text>/g)].map(m => m[1])
         expect(legend.sort()).toEqual(unique.map(([label]) => label).sort())
       }),
-      { numRuns: 60 },
+      fcParameters({ numRuns: 60 }),
     )
   })
 
@@ -245,7 +246,7 @@ describe('pie property tests', () => {
         if (!agent.ok) throw new Error(`agent parse failed: ${JSON.stringify(agent.error)}`)
         expect(parsePieChart(toMermaidLines(serializeMermaid(agent.value))).entries).toEqual(generated)
       }),
-      { numRuns: 60 },
+      fcParameters({ numRuns: 60 }),
     )
   })
 })

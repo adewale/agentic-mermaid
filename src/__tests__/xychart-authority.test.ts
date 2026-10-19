@@ -1,5 +1,6 @@
 import { describe, expect, test } from 'bun:test'
 import fc from 'fast-check'
+import { fcParameters } from './helpers/fc-parameters.ts'
 import mermaid from 'mermaid'
 import { parseRegisteredMermaid } from '../agent/parse.ts'
 import { serializeMermaid } from '../agent/serialize.ts'
@@ -117,6 +118,6 @@ describe('XYChart shared grammar authority', () => {
     fc.assert(fc.property(text, value => {
       const escaped = value.replace(/(["\\])/g, '\\$1')
       expectClosed(`xychart-beta\n  title "${escaped}"\n  bar "${escaped}" [1 "${escaped}"]`)
-    }), { numRuns: 100 })
+    }), fcParameters({ numRuns: 100 }))
   })
 })

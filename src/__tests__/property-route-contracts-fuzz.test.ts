@@ -24,6 +24,7 @@
 
 import { describe, expect, it } from 'bun:test'
 import fc from 'fast-check'
+import { fcParameters } from './helpers/fc-parameters.ts'
 import { layoutGraphSync } from '../layout-engine.ts'
 import { parseMermaid } from '../parser.ts'
 import { auditRouteContracts } from '../route-contracts.ts'
@@ -106,7 +107,7 @@ describe('route-contract structural fuzz (strong oracle on generated structure)'
           throw new Error(`route-contract violations on:\n${src}\n→ ${JSON.stringify(findings)}`)
         }
       }),
-      { numRuns: 400, seed: 0x9e3779b9 },
+      fcParameters({ numRuns: 400, seed: 0x9e3779b9 }),
     )
   }, 30000)
 })

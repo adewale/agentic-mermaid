@@ -5,6 +5,7 @@
 // range for a bar chart contains zero, and both projections agree on sign.
 import { describe, expect, it } from 'bun:test'
 import fc from 'fast-check'
+import { fcParameters } from './helpers/fc-parameters.ts'
 
 import { renderMermaidSVG } from '../index.ts'
 import { renderMermaidASCIIWithMeta } from '../ascii/meta.ts'
@@ -104,7 +105,7 @@ describe('xychart bars encode value as length from a shared baseline', () => {
           expect(Math.abs(lengths[index]! - pixelsPerUnit * distances[index]!)).toBeLessThan(EPSILON)
         })
       }),
-      { numRuns: PROPERTY_RUNS },
+      fcParameters({ numRuns: PROPERTY_RUNS }),
     )
   })
 
@@ -115,7 +116,7 @@ describe('xychart bars encode value as length from a shared baseline', () => {
         expect(Math.min(range.min, range.max)).toBeLessThanOrEqual(0)
         expect(Math.max(range.min, range.max)).toBeGreaterThanOrEqual(0)
       }),
-      { numRuns: PROPERTY_RUNS },
+      fcParameters({ numRuns: PROPERTY_RUNS }),
     )
   })
 
@@ -159,7 +160,7 @@ describe('xychart bars encode value as length from a shared baseline', () => {
           }
         })
       }),
-      { numRuns: PROPERTY_RUNS, examples: [[[20, 20]], [[-20, -20]], [[20, -20]]] },
+      fcParameters({ numRuns: PROPERTY_RUNS, examples: [[[20, 20]], [[-20, -20]], [[20, -20]]] }),
     )
   })
 })

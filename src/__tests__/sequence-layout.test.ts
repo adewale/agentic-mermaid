@@ -7,6 +7,7 @@
  */
 import { describe, it, expect } from 'bun:test'
 import fc from 'fast-check'
+import { fcParameters } from './helpers/fc-parameters.ts'
 import { parseSequenceDiagram } from '../sequence/parser.ts'
 import { layoutSequenceDiagram } from '../sequence/layout.ts'
 import type { PositionedSequenceDiagram } from '../sequence/types.ts'
@@ -186,7 +187,7 @@ describe('sequence layout – spacing properties (over random sequences)', () =>
           expect(previous.bounds.y + previous.bounds.height).toBeLessThanOrEqual(current.bounds.y)
         }
       }),
-      { numRuns: 400 },
+      fcParameters({ numRuns: 400 }),
     )
   })
 
@@ -210,7 +211,7 @@ describe('sequence layout – spacing properties (over random sequences)', () =>
           expect(previous.bounds.y + previous.bounds.height).toBeLessThanOrEqual(current.bounds.y + 1e-6)
         }
       }),
-      { numRuns: 400 },
+      fcParameters({ numRuns: 400 }),
     )
   })
 })
@@ -896,7 +897,7 @@ describe('sequence layout – activation/note/block properties', () => {
           }
         },
       ),
-      { numRuns: 60 },
+      fcParameters({ numRuns: 60 }),
     )
   })
 })

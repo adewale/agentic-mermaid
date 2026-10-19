@@ -7,6 +7,7 @@
 // pinned globally (fc-seed.preload.ts).
 import { describe, expect, test } from 'bun:test'
 import fc from 'fast-check'
+import { fcParameters } from './helpers/fc-parameters.ts'
 import { join } from 'node:path'
 
 const REPO = join(import.meta.dir, '..', '..')
@@ -65,7 +66,7 @@ describe('MCP stdio server liveness', () => {
       }),
       // The #298 race, first: a render dispatched right after execute's vm call.
       // A hung case costs a full session timeout, so stop at the first failure.
-      { numRuns: RUNS, examples: [[[EXECUTE, RENDER_LARGE]]], endOnFailure: true },
+      fcParameters({ numRuns: RUNS, examples: [[[EXECUTE, RENDER_LARGE]]], endOnFailure: true }),
     )
   }, (RUNS + 1) * SESSION_TIMEOUT_MS)
 })

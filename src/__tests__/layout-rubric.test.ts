@@ -11,6 +11,7 @@
 
 import { describe, expect, it } from 'bun:test'
 import fc from 'fast-check'
+import { fcParameters } from './helpers/fc-parameters.ts'
 import { layoutGraphSync } from '../layout-engine.ts'
 import { parseMermaid } from '../parser.ts'
 import { assessLayout, countParallelRouteOverlaps, hardViolations, onShapeOutline } from '../layout-rubric.ts'
@@ -308,7 +309,7 @@ describe('property: ports and outlines (mathematical oracles over random diagram
         }
         return true
       }),
-      { numRuns: 120, seed: PROPERTY_SEED },
+      fcParameters({ numRuns: 120, seed: PROPERTY_SEED }),
     )
   })
 
@@ -323,12 +324,15 @@ describe('property: ports and outlines (mathematical oracles over random diagram
         const positioned = layoutGraphSync(graph)
         expect({ source, hard: hardViolations(assessLayout(graph, positioned)) }).toEqual({ source, hard: [] })
       }),
-      { numRuns: 120, seed: PROPERTY_SEED },
+      fcParameters({ numRuns: 120, seed: PROPERTY_SEED }),
     )
   })
 
   // The three ratchets below measure one deterministic sample of the same
-  // generator the other oracles use; lay it out once and share it.
+  // generator the other oracles use; lay it out once and share it. Its budgets
+  // count findings on this exact corpus, not on arbitrary new samples, so
+  // finder controls must not change its seed or cardinality. The universal
+  // hard-metric properties above do honor finder controls.
   let ratchetSample: ReturnType<typeof layoutGraphSync>['edges'][] | undefined
   const ratchetEdges = () => (ratchetSample ??= fc.sample(randomFlowchart, { numRuns: 300, seed: 4242 })
     .map(source => layoutGraphSync(parseMermaid(source)).edges))

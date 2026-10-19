@@ -6,6 +6,7 @@
 
 import { describe, test, expect } from 'bun:test'
 import fc from 'fast-check'
+import { fcParameters } from './helpers/fc-parameters.ts'
 import { renderMermaidPNG, type PngRasterWarning, type PngLegibilityWarning } from '../agent/png.ts'
 import { renderMermaidSVG } from '../index.ts'
 import { buildPngLegibilityWarnings } from '../shared/png-legibility-warnings.ts'
@@ -98,7 +99,7 @@ describe('BELOW_READABLE_SIZE raster legibility warning', () => {
       const warnings = buildPngLegibilityWarnings(svg, policy, raster)
       const predicted = (raster.height / bounds.height) * 11 < PNG_DEFAULT_MIN_LABEL_PX
       expect(warnings.length).toBe(predicted ? 1 : 0)
-    }), { numRuns: 250 })
+    }), fcParameters({ numRuns: 250 }))
   })
 
   test('uses the final rounded raster height at the width-fit warning boundary', () => {

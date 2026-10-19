@@ -330,7 +330,15 @@ mutating process-global configuration).
 - Reproduce a specific roll: `AM_FC_SEED=<int> bun test <file>`.
 - Finder mode (deliberate randomness): `AM_FC_SEED=random bun run test`.
 - A suite that needs its own regression seed passes it to `fc.assert`
-  options; process-global configuration belongs to the preload alone.
+  options through `fcParameters(...)` from `src/__tests__/helpers/fc-parameters.ts`;
+  process-global configuration belongs to the preload alone. The helper keeps
+  local pins in ordinary gates, lets explicit `AM_FC_SEED` replay/finder controls
+  override them, and applies `AM_FC_NUM_RUNS` as a minimum without lowering a
+  stronger local case count. Use it for explicit `fc.assert`/`fc.check` options
+  and exploratory `fc.sample` calls. No-options runners inherit the preload
+  directly. A calibrated fixed-corpus ratchet must retain its exact seed and
+  cardinality: its finding budget is not a universal property. The hard-metric
+  properties beside the layout-rubric ratchets remain eligible for finders.
 
 Pinning is for *holding* known ground; randomness is for *finding* new
 counterexamples ("an invariant enforced by a random property is a lottery,
@@ -339,8 +347,8 @@ finder lanes: the scheduled `nightly-finder.yml` workflow, the deep-fuzz scripts
 under `eval/`, or deliberate `AM_FC_SEED=random` sweeps.
 
 The nightly finder rolls fresh seeds across every fast-check file with
-`AM_FC_NUM_RUNS=300` (raises the default run count; a per-assert `numRuns`
-still wins). It never blocks a pull request. A failure files or comments on one
+`AM_FC_NUM_RUNS=300` (at least 300 cases, including locally pinned properties).
+It never blocks a pull request. A failure files or comments on one
 issue carrying the seed, path, and counterexample
 (`scripts/ci/nightly-finder-report.ts`). Fix a real counterexample and keep it
 forever as a fast-check `examples` entry on the property: seeds and paths do not
@@ -354,6 +362,34 @@ Before the pin was frozen, every unpinned suite was
 swept across 48/24/12 seeds (scaled by runtime; 1,368 suite-runs total) with
 zero failures — the pin does not freeze a known-bad ticket, and the sweep is
 repeatable from the same knob.
+
+### Applying Hegel guidance with fast-check
+
+Keep fast-check; use the upstream [Hegel skill](https://github.com/hegeldev/hegel-skill/tree/main/skills/hegel)
+and [review checklist](https://github.com/hegeldev/hegel-skill/blob/main/skills/hegel-review/SKILL.md)
+to improve properties, not to require a library migration. Derive expectations
+from public contracts or an independent model, and check exact values as well
+as validity. Cover valid inputs and near-valid rejection separately; preserve
+the source when an agent parser deliberately falls back to opaque.
+
+`fc.string()` defaults to printable ASCII. Choose `unit: 'grapheme'` for
+printable Unicode, `unit: 'binary'` for Unicode scalars including controls, or
+an explicit UTF-16 code-unit arbitrary for helpers accepting arbitrary JS
+strings. Keep hostile tokens alongside broad generators. Construct valid
+grammar contexts instead of filtering out failures; an explicit `examples`
+entry bypasses the generator, including its maps and filters.
+
+For cheap string/parser properties, run thousands of cases. Bound expensive
+render materialization deliberately, vary relevant configuration, and add a
+separate scale probe without a machine-specific timing threshold. Independent
+XML parsing proves well-formedness; finding `<svg` and `</svg>` does not.
+Use `fc.assert(fc.property(...))` for per-input invariants so failures shrink;
+reserve `fc.sample` for aggregate/distribution measurements.
+
+When applying the skill, have a separate reviewer derive missing properties
+from implementation and contracts without seeing the tests. Record every
+observed failure as either a reduced product finding or a corrected test
+mistake. Do not silently trim a generator or relax an assertion after it fails.
 
 ## 5. Pseudo-oracles — do selected seeded faults make the suite fail?
 

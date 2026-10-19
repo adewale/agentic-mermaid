@@ -1,5 +1,6 @@
 import { describe, expect, test } from 'bun:test'
 import fc from 'fast-check'
+import { fcParameters } from './helpers/fc-parameters.ts'
 
 import { verifyMermaid } from '../agent/index.ts'
 import { renderMermaidASCII, renderMermaidSVG } from '../index.ts'
@@ -43,7 +44,7 @@ describe('XY Chart authored color admission (#303)', () => {
         expectRefusal(source({ plotColorPalette: `${value}, #00ff00` }), 'plotColorPalette[0]', value)
         expectRefusal(source({ plotColorPalette: ['#00ff00', value] }), 'plotColorPalette[1]', value)
       }
-    }), { numRuns: 5 })
+    }), fcParameters({ numRuns: 5 }))
   })
 
   test('a non-string palette entry cannot disappear during normalization', () => {

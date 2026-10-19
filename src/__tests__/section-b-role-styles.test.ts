@@ -1,5 +1,6 @@
 import { describe, expect, test } from 'bun:test'
 import fc from 'fast-check'
+import { fcParameters } from './helpers/fc-parameters.ts'
 import {
   getStyle,
   knownStyleDescriptors,
@@ -146,7 +147,7 @@ describe('Section B public semantic role Styles', () => {
         expect(resolveStyleStack([a, a])).toEqual(resolveStyleStack(a))
         expect(empty?.roles).toBeUndefined()
       },
-    ), { numRuns: 50 })
+    ), fcParameters({ numRuns: 50 }))
   })
 
   // "A Look's exported record is equivalent to selecting it by name" is decided

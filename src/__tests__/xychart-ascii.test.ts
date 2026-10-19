@@ -7,6 +7,7 @@
  */
 import { describe, it, expect } from 'bun:test'
 import fc from 'fast-check'
+import { fcParameters } from './helpers/fc-parameters.ts'
 import { AsciiWidthError, renderMermaidASCII } from '../ascii/index.ts'
 import { visualWidth } from '../ascii/width.ts'
 import { renderMermaidSVG } from '../index.ts'
@@ -478,6 +479,6 @@ describe('xychart ASCII – series colors', () => {
     fc.assert(fc.property(hex, hex, (accent, bg) => {
       const html = renderMermaidASCII(ONE_SERIES, { colorMode: 'html', theme: { bg, fg: '#27272a', accent } })
       expect(barColors(html)).toEqual([categoricalPalette(1, { accent, bg })[0]!.toLowerCase()])
-    }), { numRuns: 60 })
+    }), fcParameters({ numRuns: 60 }))
   })
 })

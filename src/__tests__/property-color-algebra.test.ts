@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'bun:test'
 import fc from 'fast-check'
+import { fcParameters } from './helpers/fc-parameters.ts'
 
 import { renderMermaidSVG } from '../index.ts'
 import {
@@ -75,7 +76,7 @@ describe('diagramColorsToAsciiTheme returns complete theme', () => {
         // fg should match input fg
         expect(theme.fg).toBe(colors.fg)
       }),
-      { numRuns: NUM_RUNS },
+      fcParameters({ numRuns: NUM_RUNS }),
     )
   })
 })
@@ -98,7 +99,7 @@ describe('getSeriesColor returns valid hex', () => {
           expect(color).toMatch(hexPattern)
         },
       ),
-      { numRuns: NUM_RUNS },
+      fcParameters({ numRuns: NUM_RUNS }),
     )
   })
 })
@@ -150,7 +151,7 @@ describe('resolveArchitectureVisualConfig produces finite metrics', () => {
           expect(value).toBeLessThanOrEqual(1000)
         }
       }),
-      { numRuns: NUM_RUNS },
+      fcParameters({ numRuns: NUM_RUNS }),
     )
   })
 })
@@ -177,7 +178,7 @@ describe('svgOpenTag produces valid opening tag', () => {
         // Must not be self-closing (no />)
         expect(tag.endsWith('/>')).toBe(false)
       }),
-      { numRuns: NUM_RUNS },
+      fcParameters({ numRuns: NUM_RUNS }),
     )
   })
 })
@@ -206,7 +207,7 @@ describe('buildStyleBlock contains all derived vars', () => {
         expect(style).toContain('<style>')
         expect(style).toContain('</style>')
       }),
-      { numRuns: NUM_RUNS },
+      fcParameters({ numRuns: NUM_RUNS }),
     )
   })
 })
@@ -225,7 +226,7 @@ describe('buildShadowDefs conditional behavior', () => {
         expect(buildShadowDefs(noShadow)).toBe('')
         expect(buildShadowDefs(undefinedShadow)).toBe('')
       }),
-      { numRuns: NUM_RUNS },
+      fcParameters({ numRuns: NUM_RUNS }),
     )
   })
 
@@ -237,7 +238,7 @@ describe('buildShadowDefs conditional behavior', () => {
 
         expect(result).toContain('<filter')
       }),
-      { numRuns: NUM_RUNS },
+      fcParameters({ numRuns: NUM_RUNS }),
     )
   })
 })

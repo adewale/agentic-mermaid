@@ -8,6 +8,7 @@
 // chart-honesty contract does. Seed is pinned globally (fc-seed.preload.ts).
 import { beforeAll, describe, expect, test } from 'bun:test'
 import fc from 'fast-check'
+import { fcParameters } from './helpers/fc-parameters.ts'
 import { BUILTIN_FAMILY_METADATA } from '../agent/families.ts'
 import { renderMermaidSVG } from '../index.ts'
 import { honestyCorpus } from './helpers/chart-honesty.ts'
@@ -42,7 +43,7 @@ describe('text on a custom node surface', () => {
           const colors = { ...page, surface }
           expect(illegibleText(sample.source, colors), `${sample.name} on ${JSON.stringify(colors)}`).toEqual([])
         }),
-        { numRuns: 8 },
+        fcParameters({ numRuns: 8 }),
       )
     }, 120_000)
   }

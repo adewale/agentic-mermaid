@@ -1,5 +1,6 @@
 import { describe, expect, test } from 'bun:test'
 import fc from 'fast-check'
+import { fcParameters } from './helpers/fc-parameters.ts'
 import {
   BRAND_CONSTRAINT_DESCRIPTORS,
   renderMermaidSVG,
@@ -92,7 +93,7 @@ describe('Section B semantic policy', () => {
       expect(once).toEqual(resolveStyleStack([resolveStyleStack(a)!, b]))
       expect(once?.semanticSlots?.selected?.fillColor).toBe(`#${hex}`)
       expect(once?.bindings).toEqual([BINDING])
-    }), { numRuns: 40 })
+    }), fcParameters({ numRuns: 40 }))
   })
 
   test('ordered category binding resolves beneath exact role defaults', () => {
