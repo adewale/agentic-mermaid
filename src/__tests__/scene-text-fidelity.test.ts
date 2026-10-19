@@ -1,12 +1,11 @@
 // ============================================================================
-// Scene-IR text geometry fidelity (plan §Quadrant item 3).
+// Scene-IR text marks and the writer that draws them.
 //
-// The fidelity oracle (src/scene/fidelity.ts) used to check only a text
-// mark's content and fontSize — it was blind to x/y/anchor, so a lowering
-// could claim one label position while the crisp SVG drew another (quadrant
-// point labels did exactly that: semantic always said "right of the point,
-// anchor start" while the drawn label used the collision-aware slot). The
-// oracle now checks text x, y, and text-anchor, generically for every family.
+// A text mark's position, anchor, typography and content are typed fields the
+// writer draws, so a lowering cannot claim one label position while the SVG
+// shows another (quadrant point labels once did exactly that). The fidelity
+// oracle (src/scene/fidelity.ts) re-reads the written SVG independently; these
+// tests run it over real lowerings and over the writer's harder text cases.
 // ============================================================================
 
 import { describe, it, expect } from 'bun:test'
@@ -19,74 +18,33 @@ import { toMermaidLines } from '../mermaid-source.ts'
 import type { SceneDoc } from '../scene/ir.ts'
 import { sceneNodeSerialization } from '../scene/serialization.ts'
 import { pixelTextLine, preparePixelText } from '../shared/prepared-text.ts'
-import { renderMultilineText } from '../multiline-utils.ts'
 
-function textMark(semantic: { x: number; y: number; anchor: 'start' | 'middle' | 'end' }, crisp: string) {
-  return marks.text(
-    { id: 't', role: 'label', text: 'Hi', fontSize: 12, paint: {}, ...semantic },
-    crisp,
-  )
+function textMark(semantic: { x: number; y: number; anchor: 'start' | 'middle' | 'end' }) {
+  return marks.text({ id: 't', role: 'label', text: 'Hi', fontSize: 12, paint: {}, ...semantic })
 }
 
-describe('fidelity oracle checks text x/y/anchor', () => {
-  it.each([
-    ['extra positioned line', 'A B', '<tspan x="10" dy="0">A</tspan><tspan x="10" dy="200">B</tspan>'],
-    ['wrong second baseline', 'A\nB', '<tspan x="10" dy="0">A</tspan><tspan x="10" dy="200">B</tspan>'],
-    ['shifted line x', 'A\nB', '<tspan x="10" dy="0">A</tspan><tspan x="300" dy="15.6">B</tspan>'],
-    ['changed line anchor', 'A\nB', '<tspan x="10" dy="0">A</tspan><tspan x="10" dy="15.6" text-anchor="end">B</tspan>'],
-    ['shifted shaping fragment', 'A B', '<tspan x="10" dy="200" data-text-fragment="true">A B</tspan>'],
-    ['fragment outside line', 'A B', '<tspan x="300" data-text-fragment="true">A B</tspan>'],
-    ['fragment length outside line', 'A B', '<tspan x="10" data-text-fragment="true" textLength="300">A B</tspan>'],
-    ['collapsed fitted line', 'A B', '<tspan x="10" dy="0" textLength="0" lengthAdjust="spacingAndGlyphs">A B</tspan>'],
-    ['nearly collapsed fitted line', 'A B', '<tspan x="10" dy="0" textLength="0.0001" lengthAdjust="spacingAndGlyphs">A B</tspan>'],
-    ['unbounded fragment fitting', 'A B', '<tspan x="10" data-text-fragment="true" textLength="10" lengthAdjust="spacing">A B</tspan>'],
-    ['changed fragment tracking', 'A B', '<tspan x="10" data-text-fragment="true" letter-spacing="200">A B</tspan>'],
-    ['changed fragment weight', 'A B', '<tspan x="10" data-text-fragment="true" font-weight="900">A B</tspan>'],
-    ['unmeasured italic span', 'A B', '<tspan x="10" dy="4.2" font-style="italic">A B</tspan>'],
-    ['shifted style span', 'A B', '<tspan dx="200">A B</tspan>'],
-    ['transformed style span', 'A B', '<tspan transform="translate(200 0)">A B</tspan>'],
-    ['oversized style span', 'A B', '<tspan font-size="200">A B</tspan>'],
-    ['unmeasured word spacing', 'A B', '<tspan x="10" dy="4.2" word-spacing="200">A B</tspan>'],
-    ['vertical writing mode', 'A B', '<tspan x="10" dy="4.2" writing-mode="vertical-rl">A B</tspan>'],
-    ['changed text orientation', 'A B', '<tspan x="10" dy="4.2" text-orientation="upright">A B</tspan>'],
-  ])('rejects retained text with %s', (_name, source, contents) => {
-    const block = preparePixelText(source, { fontSize: 12, fontWeight: 400 })
-    const mark = marks.text({ id: 'line', role: 'label', text: source, block, x: 10, y: 20, fontSize: 12, anchor: 'start', paint: {} }, `<text x="10" y="20" font-size="12">${contents}</text>`)
-    const problems: string[] = []
-    nodeProblems(mark, 'p', problems)
-    expect(problems.join('\n')).toContain('.placement:')
-  })
-
-  it('accepts retained native line wrappers, RTL shaping, tracking and projected Gantt lines', () => {
-    for (const [source, letterSpacing] of [['A B\nC D', 0], ['אב ג\nש ד', 0], ['界 é\n👩‍💻', 0], ['AB CD\nEF GH', -2], ['A B', 2], ['<i>Italic</i> <b>bold</b>', 0]] as const) {
+describe('text marks', () => {
+  it('writes retained native line wrappers, RTL shaping, tracking, projected Gantt lines and painted runs faithfully', () => {
+    for (const [source, letterSpacing] of [['A B\nC D', 0], ['אב ג\nש ד', 0], ['界 é\n👩‍💻', 0], ['AB CD\nEF GH', -2], ['A B', 2], ['<i>Italic</i> <b>bold</b>', 0]] as const) {
       const block = preparePixelText(source, { fontSize: 12, fontWeight: 400, letterSpacing })
       for (const retained of [block, pixelTextLine(block, block.lines.length - 1)!]) {
-        const mark = marks.text({ id: 'line', role: 'label', text: retained.text, block: retained, x: 10, y: 20, fontSize: 12, anchor: 'middle', paint: {} }, renderMultilineText(retained, 10, 20, 12, 'font-size="12" text-anchor="middle"'))
+        const mark = marks.text({ id: 'line', role: 'label', text: retained.text, block: retained, x: 10, y: 20, fontSize: 12, anchor: 'middle', paint: {} })
         const problems: string[] = []
         nodeProblems(mark, 'p', problems)
         expect({ source, letterSpacing, problems }).toEqual({ source, letterSpacing, problems: [] })
       }
     }
     const block = preparePixelText('+ field: String', { display: 'literal', fontSize: 12, fontWeight: 400 })
-    const mark = marks.text({ id: 'member', role: 'member', text: block.text, block, x: 10, y: 20, fontSize: 12, anchor: 'start', paint: {} }, '<text x="10" y="20" font-size="12" dy="4.2"><tspan fill="#777">+ </tspan><tspan fill="#111">field</tspan><tspan fill="#777">: String</tspan></text>')
+    const mark = marks.text({
+      id: 'member', role: 'member', text: block.text, block, x: 10, y: 20, fontSize: 12, anchor: 'start', paint: {},
+      spans: [{ text: '+ ', fill: '#777' }, { text: 'field', fill: '#111' }, { text: ': String', fill: '#777' }],
+    })
     const problems: string[] = []
     nodeProblems(mark, 'p', problems)
     expect(problems).toEqual([])
   })
 
-  it.each(['collapsed positions', 'squashed widths'])('rejects tracked text with %s even inside its retained line band', change => {
-    const block = preparePixelText('ABCD', { fontSize: 12, fontWeight: 400, letterSpacing: 3 })
-    const original = renderMultilineText(block, 50, 20, 12, 'text-anchor="start" font-size="12" letter-spacing="3"')
-    const svg = change === 'collapsed positions'
-      ? original.replace(/<tspan x="[^"]+"/g, '<tspan x="50"')
-      : original.replace(/textLength="[^"]+"/g, 'textLength="0.1"')
-    const mark = marks.text({ id: 'tracked', role: 'label', text: block.text, block, x: 50, y: 20, fontSize: 12, anchor: 'start', paint: {} }, svg)
-    const problems: string[] = []
-    nodeProblems(mark, 'tracked', problems)
-    expect(problems.join('\n')).toContain('retained ordered allocation')
-  })
-
-  it('retains the family prepared block, source spans and font inputs without changing SVG', () => {
+  it('retains the family prepared block, source spans and font inputs', () => {
     const block = preparePixelText('Straße <b>release</b> notes', {
       display: 'formatted', transform: 'uppercase', fontSize: 14, fontWeight: 600,
       letterSpacing: 0.3, maxWidth: 100, fontFamily: 'Inter',
@@ -94,7 +52,7 @@ describe('fidelity oracle checks text x/y/anchor', () => {
     const mark = marks.text({
       id: 'caption', role: 'label', text: block.text, block,
       x: 10, y: 20, fontSize: 14, anchor: 'start', paint: {},
-    }, '<text x="10" y="20" font-size="14">STRASSE release notes</text>')
+    })
     expect(mark.block).toBe(block)
     expect(mark.measurement).toBe('prepared')
     expect(mark.block!.prepared.source).toBe('Straße <b>release</b> notes')
@@ -102,11 +60,14 @@ describe('fidelity oracle checks text x/y/anchor', () => {
     expect(mark.block!.lineBlocks.flatMap(line => line.runs).some(run => run.bold)).toBe(true)
     expect(mark.block!.fontFamily).toBe('Inter')
     expect(mark.block!.breaks.length).toBeGreaterThan(0)
-    expect(sceneNodeSerialization(mark)).toBe('<text x="10" y="20" font-size="14">STRASSE release notes</text>')
+    // The measured face and transformed text are what the writer draws.
+    const svg = sceneNodeSerialization(mark)
+    expect(svg).toContain('font-family="Inter"')
+    expect(svg.replace(/<[^>]+>/g, '').replace(/\s+/g, '')).toContain('STRASSERELEASENOTES')
   })
 
   it('marks fallback preparation explicitly instead of claiming retained family measurement', () => {
-    const mark = textMark({ x: 10, y: 20, anchor: 'start' }, '<text x="10" y="20" font-size="12">Hi</text>')
+    const mark = textMark({ x: 10, y: 20, anchor: 'start' })
     expect(mark.measurement).toBe('fallback')
     expect(mark.prepared).toBeUndefined()
     expect(mark.block?.prepared.source).toBe('Hi')
@@ -114,7 +75,7 @@ describe('fidelity oracle checks text x/y/anchor', () => {
   })
 
   it('inherits semantic group ownership without mutating reusable children or changing serialization', () => {
-    const child = textMark({ x: 10, y: 20, anchor: 'start' }, '<text x="10" y="20" font-size="12">Hi</text>')
+    const child = textMark({ x: 10, y: 20, anchor: 'start' })
     const inner = marks.group({ id: 'local-inner', role: 'node', open: '<g data-id="authored-inner">', close: '</g>', children: [{ node: child, indent: 2 }] })
     const outer = marks.group({ id: 'outer', role: 'group', open: '<g>', close: '</g>', children: [{ node: inner, indent: 2 }] })
     const sibling = marks.group({ id: 'sibling', role: 'node', open: '<g>', close: '</g>', children: [{ node: child, indent: 2 }] })
@@ -129,145 +90,34 @@ describe('fidelity oracle checks text x/y/anchor', () => {
     const child = marks.text({
       id: 'caption', role: 'label', owner: { id: 'edge-1', role: 'edge' },
       text: 'Hi', x: 10, y: 20, fontSize: 12, anchor: 'start', paint: {},
-    }, '<text x="10" y="20" font-size="12">Hi</text>')
+    })
     const wrapper = marks.group({ id: 'wrapper', role: 'group', open: '<g>', close: '</g>', children: [{ node: child, indent: 2 }] })
     expect(wrapper.children[0]!.node.owner).toEqual({ id: 'edge-1', role: 'edge' })
   })
 
-  it('keeps typed public text identity separate from its bounded mark ID and authoritative over crisp attributes', () => {
+  it('keeps typed public text identity separate from its bounded mark ID', () => {
     const mark = marks.text({
       id: 'local-caption', role: 'title', identity: { id: 'title#2' },
       text: 'Caption', x: 10, y: 20, fontSize: 12, anchor: 'start', paint: {},
-    }, '<text x="10" y="20" font-size="12" data-id="title" data-role="label">Caption</text>')
+    })
     expect(mark.id).toBe('local-caption')
     expect(mark.identity).toEqual({ id: 'title#2', role: 'title' })
     expect(sceneNodeSerialization(mark)).toContain('data-id="title#2" data-role="title"')
-    const problems: string[] = []
-    nodeProblems(mark, 'p', problems)
-    expect(problems).toEqual([])
   })
 
-  it('flags a crisp x that disagrees with the semantic x', () => {
-    const problems: string[] = []
-    nodeProblems(textMark({ x: 10, y: 20, anchor: 'start' },
-      '<text x="99" y="20" text-anchor="start" font-size="12">Hi</text>'), 'p', problems)
-    expect(problems.join('\n')).toContain('x')
-    expect(problems.length).toBeGreaterThan(0)
-  })
-
-  it('flags a crisp text-anchor that disagrees with the semantic anchor', () => {
-    const problems: string[] = []
-    nodeProblems(textMark({ x: 10, y: 20, anchor: 'start' },
-      '<text x="10" y="20" text-anchor="end" font-size="12">Hi</text>'), 'p', problems)
-    expect(problems.join('\n')).toContain('anchor')
-  })
-
-  it('flags a crisp y that disagrees with the semantic y', () => {
-    const problems: string[] = []
-    nodeProblems(textMark({ x: 10, y: 20, anchor: 'start' },
-      '<text x="10" y="220" text-anchor="start" font-size="12">Hi</text>'), 'p', problems)
-    expect(problems.join('\n')).toContain('y')
-  })
-
-  it('accepts a faithful mark (including dy baseline shifts and missing anchor = start)', () => {
-    const problems: string[] = []
-    nodeProblems(textMark({ x: 10, y: 20, anchor: 'start' },
-      '<text x="10" y="20" font-size="12" dy="4.2">Hi</text>'), 'p', problems)
-    expect(problems).toEqual([])
-  })
-
-  it('treats generic angle brackets as semantic text, not removable markup', () => {
-    const make = (crisp: string) => marks.text(
-      { id: 'generic', role: 'member', text: 'List<List<int>> data', x: 10, y: 20, fontSize: 12, anchor: 'start', paint: {} },
-      crisp,
-    )
-    const faithful: string[] = []
-    nodeProblems(make('<text x="10" y="20" font-size="12">List&lt;List&lt;int&gt;&gt; data</text>'), 'p', faithful)
-    expect(faithful).toEqual([])
-
-    const missing: string[] = []
-    nodeProblems(make('<text x="10" y="20" font-size="12">List data</text>'), 'p', missing)
-    expect(missing.join('\n')).toContain('not found in crisp')
-  })
-
-  it('normalizes authored break tags before checking the first visible word', () => {
-    const make = (crispText: string) => marks.text(
-      { id: 'note', role: 'label', text: 'Line1<br/>Line2', x: 10, y: 20, fontSize: 12, anchor: 'start', paint: {} },
-      `<text x="10" y="20" font-size="12">${crispText}</text>`,
-    )
-    const faithful: string[] = []
-    nodeProblems(make('Line1&lt;br/&gt;Line2'), 'p', faithful)
-    expect(faithful).toEqual([])
-
-    const missingFirstWord: string[] = []
-    nodeProblems(make('Line2'), 'p', missingFirstWord)
-    expect(missingFirstWord.join('\n')).toContain('not found in crisp')
-  })
-
-  it('checks complete literal class member text, including tag-named and trailing generic parameters', () => {
-    for (const [semantic, crispText] of [
-      ['List<b> data', 'List data'],
-      ['Map<i> values', 'Map values'],
-      ['+id: List<int>', '+id: List'],
-    ] as const) {
+  it('draws authored angle brackets as text, never as markup', () => {
+    const drawn = (text: string, display?: 'literal') => {
+      const mark = marks.text({ id: 'm', role: 'member', text, ...(display ? { display } : {}), x: 10, y: 20, fontSize: 12, anchor: 'start', paint: {} })
       const problems: string[] = []
-      nodeProblems(marks.text(
-        { id: 'generic', role: 'member', text: semantic, x: 10, y: 20, fontSize: 12, anchor: 'start', paint: {} },
-        `<text x="10" y="20" font-size="12">${crispText}</text>`,
-      ), 'p', problems)
-      expect(problems.join('\n')).toContain('not found in crisp')
+      nodeProblems(mark, 'p', problems)
+      expect({ text, problems }).toEqual({ text, problems: [] })
+      return sceneNodeSerialization(mark)
     }
-  })
-
-  it('keeps entity-produced Pie title tags literal without hiding missing text', () => {
-    const make = (crispText: string) => marks.text(
-      { id: 'title', role: 'title', text: 'A<script>B', x: 10, y: 20, fontSize: 12, anchor: 'middle', paint: {} },
-      `<text x="10" y="20" text-anchor="middle" font-size="12" class="pie-title">${crispText}</text>`,
-    )
-    const faithful: string[] = []
-    nodeProblems(make('A&lt;script&gt;B'), 'p', faithful)
-    expect(faithful).toEqual([])
-    const missing: string[] = []
-    nodeProblems(make('A&lt;script&gt;'), 'p', missing)
-    expect(missing.join('\n')).toContain('not found in crisp')
-  })
-
-  it('compares complete escaped Timeline literals without mistaking them for markup', () => {
-    const make = (semantic: string, crispText: string) => marks.text(
-      { id: 'event', role: 'label', text: semantic, display: 'literal', x: 10, y: 20, fontSize: 12, anchor: 'start', paint: {} },
-      `<text x="10" y="20" font-size="12" class="timeline-event-text">${crispText}</text>`,
-    )
-    const faithful: string[] = []
-    nodeProblems(make('A<BR>B', 'A&lt;BR&gt;B'), 'p', faithful)
-    nodeProblems(make('A<b>B', 'A&lt;b&gt;B'), 'p', faithful)
-    expect(faithful).toEqual([])
-    const multiline: string[] = []
-    nodeProblems(make('A\nB', '<tspan x="10" dy="0">A</tspan><tspan x="10" dy="12">B</tspan>'), 'p', multiline)
-    expect(multiline).toEqual([])
-    for (const [semantic, crisp] of [
-      ['A<BR>B', 'A&lt;BR&gt;'],
-      ['A<BR>**B**', 'A&lt;BR&gt;B'],
-      ['A<BR>B', 'A&lt;BR&gt;B<script/>'],
-      ['A&lt;script&gt;B', 'A&amp;lt;script&amp;gt;B<script/>'],
-      ['A&lt;script&gt;B', 'A&amp;lt;script&amp;gt;B<tspan font-weight="bold"></tspan><script/>'],
-      ['A&lt;script&gt;B', 'A&amp;lt;script&amp;gt;B<tspan font-weight="bold"></tspan>'],
-      ['A**B**', 'AB'],
-      ['A<b>B', 'A<tspan font-weight="bold">B</tspan>'],
-      ['AB', 'A<tspan onclick="alert(1)"></tspan>B'],
-      ['AB', 'A<tspan style="filter:url(javascript:alert(1))"></tspan>B'],
-      ['AB', 'A</text><text x="10">B'],
-      ['A\nB', '<tspan x="10" dy="0">A</tspan><tspan x="10" dy="12" onclick="alert(1)">B</tspan>'],
-    ] as const) {
-      const problems: string[] = []
-      nodeProblems(make(semantic, crisp), 'p', problems)
-      expect(problems.join('\n')).toMatch(/literal text|unexpected markup|unexpected styled/)
-    }
-    const rootHandler: string[] = []
-    nodeProblems(marks.text(
-      { id: 'event', role: 'label', text: 'AB', x: 10, y: 20, fontSize: 12, anchor: 'start', paint: {} },
-      '<text x="10" y="20" font-size="12" class="timeline-event-text" onclick="alert(1)">AB</text>',
-    ), 'p', rootHandler)
-    expect(rootHandler.join('\n')).toContain('unexpected markup')
+    expect(drawn('List<List<int>> data')).toContain('List&lt;List&lt;int&gt;&gt; data')
+    expect(drawn('A<script>B')).not.toContain('<script')
+    const literal = drawn('A<BR>B', 'literal')
+    expect(literal).toContain('A&lt;BR&gt;B')
+    expect(literal).not.toContain('<tspan')
   })
 })
 

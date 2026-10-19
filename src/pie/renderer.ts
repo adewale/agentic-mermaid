@@ -3,7 +3,7 @@ import type { RenderContext } from '../types.ts'
 import type { DiagramColors } from '../theme.ts'
 import { svgOpenTag, buildStyleBlock, buildShadowDefs, resolvedColorValue } from '../theme.ts'
 import { isHexColor, legibleInk, mixHex } from '../shared/color-math.ts'
-import { renderMultilineText, escapeXml } from '../multiline-utils.ts'
+import { escapeXml } from '../multiline-utils.ts'
 import {
   formatPieValue,
   formatPiePercent,
@@ -141,8 +141,8 @@ export function lowerPieScene(
           stroke: outerStrokeColor(visual, style),
           strokeWidth: String(outerWidth),
         },
+        attributes: { className: 'pie-outer-circle' },
       },
-      `<circle class="pie-outer-circle" cx="${chart.cx}" cy="${chart.cy}" r="${r}" fill="none" />`,
     ))
   }
 
@@ -179,17 +179,13 @@ export function lowerPieScene(
     const dimmed = anyHighlighted && !highlighted
     const sliceClass = `pie-slice${highlighted ? ' highlighted' : ''}` +
       `${hoverHighlight ? ' highlighted-on-hover' : ''}${dimmed ? ' pie-dim' : ''}`
-    // Opacity (paint metadata; the rendered value comes from the CSS rules):
-    // dimmed slices fade to a fraction of the base, others keep the base.
+    // Dimmed slices fade to a fraction of the base opacity, others keep the
+    // base; hover emphasis stays a stylesheet rule over these attributes.
     const sliceOpacity = highlighted
       ? 1
       : dimmed
         ? rnd((visual.opacity ?? 1) * PIE.dimOpacity)
         : visual.opacity
-    const hasInlineRoleStroke = sliceRole !== undefined && (
-      sliceRole.strokeColor !== undefined || sliceRole.borderColor !== undefined
-      || sliceRole.lineWidth !== undefined || cue !== 'none'
-    )
     const sliceId = occurrenceId('slice', slice.label)
     sliceIds[index] = sliceId
     parts.push(marks.shape(
@@ -197,8 +193,8 @@ export function lowerPieScene(
         id: sliceId,
         role: 'pie-slice',
         geometry: { kind: 'path', d: slice.path },
-        // Semantic paint mirrors the CSS result so styled backends preserve
-        // static emphasis instead of redrawing the base border and opacity.
+        // Static emphasis is drawn from the paint, so styled backends preserve
+        // it instead of redrawing the base border and opacity.
         paint: {
           fill,
           stroke: highlighted ? 'var(--fg)' : sliceStroke,
@@ -207,10 +203,17 @@ export function lowerPieScene(
           ...(sliceOpacity !== undefined ? { opacity: String(sliceOpacity) } : {}),
         },
         channels: { ...channels, ...(highlighted ? { emphasis: true } : {}) },
+        attributes: {
+          className: sliceClass,
+          data: {
+            label: slice.label,
+            value: String(slice.value),
+            percent: pct,
+            ...(cue !== 'none' ? { 'brand-cue': cue } : {}),
+            ...(highlighted ? { highlighted: 'true' } : {}),
+          },
+        },
       },
-      `<path class="${sliceClass}" d="${slice.path}" fill="${escapeXml(fill)}" ` +
-        `${hasInlineRoleStroke ? `stroke="${escapeXml(highlighted ? 'var(--fg)' : sliceStroke)}" stroke-width="${highlighted ? emphasisStrokeWidth : cueStrokeWidth}"${cueDash ? ` stroke-dasharray="${cueDash}"` : ''} ` : ''}` +
-        `data-label="${escapeXml(slice.label)}" data-value="${slice.value}" data-percent="${pct}"${cue !== 'none' ? ` data-brand-cue="${cue}"` : ''}${highlighted ? ' data-highlighted="true"' : ''} />`,
     ))
   }
 
@@ -236,22 +239,17 @@ export function lowerPieScene(
         x: label.x,
         y: label.y,
         fontSize: label.fontSize,
+        fontWeight: PIE_SLICE_LABEL_FONT_WEIGHT,
         block: label.block,
         anchor: 'middle',
+        dominantBaseline: 'middle',
         // Percentage labels are data, not decoration. A dimmed wedge is
         // composited toward the page, so use foreground ink by default rather
         // than the contrast color chosen for its original opaque fill.
         paint: { fill },
         channels: { category: slice.label, value: slice.fraction },
+        attributes: { className: 'pie-slice-label' },
       },
-      renderMultilineText(
-        label.block ?? label.text,
-        label.x,
-        label.y,
-        label.fontSize,
-        `class="pie-slice-label" text-anchor="middle" dominant-baseline="middle" ` +
-          `font-size="${label.fontSize}" font-weight="${PIE_SLICE_LABEL_FONT_WEIGHT}" fill="${escapeXml(fill)}"`,
-      ),
     ))
   }
 
@@ -267,7 +265,6 @@ export function lowerPieScene(
         id: occurrenceId('legend', item.label),
         role: 'legend',
         geometry: { kind: 'rect', x: item.x, y: item.y, width: item.swatchSize, height: item.swatchSize, rx: 2, ry: 2 },
-        // Stroke comes from the .pie-legend-swatch rule; opacity from .pie-dim.
         paint: {
           fill,
           stroke: style.nodeBorderColor ?? 'var(--_node-stroke)',
@@ -275,8 +272,8 @@ export function lowerPieScene(
           ...(legDimmed ? { opacity: String(PIE.dimOpacity) } : {}),
         },
         channels: { category: item.label, value: item.fraction },
+        attributes: { className: `pie-legend-swatch${legDimmed ? ' pie-dim' : ''}` },
       },
-      `<rect class="pie-legend-swatch${legDimmed ? ' pie-dim' : ''}" x="${item.x}" y="${item.y}" width="${item.swatchSize}" height="${item.swatchSize}" rx="2" ry="2" fill="${escapeXml(fill)}" />`,
     ))
     // Display lines are composed (and measured) by the layout; multiline
     // labels carry the value/percent suffix on their last line.
@@ -289,24 +286,20 @@ export function lowerPieScene(
         x: item.textX,
         y: item.textY,
         fontSize: visual.legendTextSize ?? style.nodeLabelFontSize,
+        fontWeight: legWeight,
+        letterSpacing: style.nodeLetterSpacing,
         block: item.block,
+        ...(item.literalText === true ? { display: 'literal' as const } : {}),
         anchor: 'start',
+        dominantBaseline: 'middle',
         // Legend text is meaningful chart data and stays full-opacity; the
         // selected row is reinforced by weight, and non-selected swatches dim.
         paint: {
           fill: visual.legendTextColor ?? style.nodeTextColor ?? 'var(--_text)',
         },
         channels: { category: item.label, value: item.fraction },
+        attributes: { className: 'pie-legend-text', ...literalTextData(item.literalText === true, text) },
       },
-      renderMultilineText(
-        item.block ?? text,
-        item.textX,
-        item.textY,
-        visual.legendTextSize ?? style.nodeLabelFontSize,
-        `class="pie-legend-text" text-anchor="start" dominant-baseline="middle" font-size="${visual.legendTextSize ?? style.nodeLabelFontSize}" font-weight="${legWeight}"${letterAttr(style.nodeLetterSpacing)}${item.literalText === true && needsLiteralFontMetrics(text) ? ' data-literal-text="true"' : ''}`,
-        0.35,
-        item.literalText === true,
-      ),
     ))
   }
 
@@ -321,20 +314,15 @@ export function lowerPieScene(
         x: chart.title.x,
         y: chart.title.y,
         fontSize: visual.titleTextSize ?? style.groupHeaderFontSize,
+        fontWeight: style.groupHeaderFontWeight,
+        letterSpacing: style.groupLetterSpacing,
         block: chart.title.block,
+        ...(chart.title.literalText === true ? { display: 'literal' as const } : {}),
         anchor: 'middle',
-        // Fill comes from the .pie-title rule in pieStyles().
+        dominantBaseline: 'middle',
         paint: { fill: visual.titleTextColor ?? style.groupTextColor ?? style.nodeTextColor ?? 'var(--_text)' },
+        attributes: { className: 'pie-title', ...literalTextData(chart.title.literalText === true, title) },
       },
-      renderMultilineText(
-        chart.title.block ?? title,
-        chart.title.x,
-        chart.title.y,
-        visual.titleTextSize ?? style.groupHeaderFontSize,
-        `class="pie-title" text-anchor="middle" dominant-baseline="middle" font-size="${visual.titleTextSize ?? style.groupHeaderFontSize}" font-weight="${style.groupHeaderFontWeight}"${letterAttr(style.groupLetterSpacing)}${chart.title.literalText === true && needsLiteralFontMetrics(title) ? ' data-literal-text="true"' : ''}`,
-        0.35,
-        chart.title.literalText === true,
-      ),
     ))
   }
 
@@ -345,9 +333,6 @@ export function lowerPieScene(
   if (interactive || hoverHighlight) {
     for (const [index, slice] of chart.slices.entries()) {
       const tipText = `${(slice.displayLabel ?? slice.label).replace(/\n/g, ' ')}: ${formatPieValue(slice.value)} (${formatPiePercent(slice.fraction)})`
-      const hoverTargetAttrs = hoverHighlight
-        ? ` class="pie-slice-hover-target" stroke="transparent" stroke-width="${hoverEmphasisStrokeWidth}"`
-        : ''
       const id = occurrenceId('tooltip:slice', slice.label)
       const owner = { id: sliceIds[index]!, role: 'pie-slice' as const }
       parts.push(marks.group({ id, role: 'chrome', owner,
@@ -356,7 +341,8 @@ export function lowerPieScene(
             ...(hoverHighlight ? { visibility: 'conditional' as const, conditionalPaint: { fill: 'transparent', stroke: 'var(--fg)', strokeWidth: String(hoverEmphasisStrokeWidth) } } : {}),
             geometry: { kind: 'path', d: slice.path },
             paint: { fill: 'transparent', ...(hoverHighlight ? { stroke: 'transparent', strokeWidth: String(hoverEmphasisStrokeWidth) } : {}) },
-          }, `<path d="${slice.path}" fill="transparent"${hoverTargetAttrs}/>` ) },
+            ...(hoverHighlight ? { attributes: { className: 'pie-slice-hover-target' } } : {}),
+          }) },
           ...(interactive ? [
             { indent: 0, node: marks.documentContent({ id: `${id}:title`, role: 'chrome', nonPaint: 'interaction-metadata' }, `<title>${escapeXml(tipText)}</title>`) },
             { indent: 0, node: tooltipArtwork('pie', slice.tooltip, `${id}:body`, owner) },
@@ -391,31 +377,20 @@ function pieStyles(
   interactive: boolean,
   sliceRole?: Readonly<import('../scene/style-spec.ts').RoleStyleSpec>,
 ): string {
-  const sliceStroke = visual.strokeColor ?? sliceRole?.strokeColor ?? sliceRole?.borderColor ?? style.nodeBorderColor ?? 'var(--bg)'
   const sliceStrokeWidth = visual.strokeWidth ?? sliceRole?.lineWidth ?? style.nodeLineWidth
-  const sliceOpacity = visual.opacity !== undefined ? ` opacity: ${visual.opacity};` : ''
   // Option D: emphasise the highlighted slice with a heavier foreground border
-  // (a shape/weight cue, so it reads even without colour) and fade the rest via
-  // `.pie-dim`. No `transform` — the wedge geometry is left exact, which fixes
-  // the old scale()-about-fill-box displacement and keeps arc length/area true.
+  // (a shape/weight cue, so it reads even without colour) and fade the rest
+  // (each mark's own opacity). No `transform` — the wedge geometry is left
+  // exact, which fixes the old scale()-about-fill-box displacement and keeps
+  // arc length/area true. Static paint is written on each mark; only the
+  // hover emphasis and tooltips remain stylesheet rules.
   const emphasisStrokeWidth = pieEmphasisStrokeWidth(sliceStrokeWidth)
-  const dimSliceOpacity = rnd((visual.opacity ?? 1) * PIE.dimOpacity)
-  const outerRule = visual.outerStrokeWidth !== undefined || visual.outerStrokeColor !== undefined
-    ? `\n  .pie-outer-circle { stroke: ${outerStrokeColor(visual, style)}; stroke-width: ${visual.outerStrokeWidth ?? 2}; }`
-    : ''
   const tipRules = interactive ? tooltipCss('pie', ['pie-slice-group']) : ''
   const interactiveHoverSelector = visual.highlightSlice === 'hover'
     ? ',\n  .pie-slice-group:hover > .pie-slice-hover-target'
     : ''
   return `<style>
-  .pie-slice { stroke: ${sliceStroke}; stroke-width: ${sliceStrokeWidth};${sliceOpacity} }
-  .pie-slice.highlighted { stroke: var(--fg); stroke-width: ${emphasisStrokeWidth}; opacity: 1; }
-  .pie-slice.highlighted-on-hover:hover${interactiveHoverSelector} { stroke: var(--fg); stroke-width: ${emphasisStrokeWidth}; opacity: 1; }${outerRule}
-  .pie-legend-swatch { stroke: ${style.nodeBorderColor ?? 'var(--_node-stroke)'}; stroke-width: ${style.nodeBorderColor ? Math.max(1, style.nodeLineWidth) : 1}; }
-  .pie-legend-text { fill: ${visual.legendTextColor ?? style.nodeTextColor ?? 'var(--_text)'}; }
-  .pie-title { fill: ${visual.titleTextColor ?? style.groupTextColor ?? style.nodeTextColor ?? 'var(--_text)'}; }
-  .pie-slice.pie-dim { opacity: ${dimSliceOpacity}; }
-  .pie-legend-swatch.pie-dim { opacity: ${PIE.dimOpacity}; }${tipRules}
+  .pie-slice.highlighted-on-hover:hover${interactiveHoverSelector} { stroke: var(--fg); stroke-width: ${emphasisStrokeWidth}; opacity: 1; }${tipRules}
 </style>`
 }
 
@@ -423,8 +398,10 @@ function pieEmphasisStrokeWidth(sliceStrokeWidth: number): number {
   return Math.max(sliceStrokeWidth + 1, 2.5)
 }
 
-function letterAttr(value: number): string {
-  return value !== 0 ? ` letter-spacing="${value}"` : ''
+/** Marks a literal Pie label whose characters the deterministic SVG font
+ *  pass must not re-interpret as formatting. */
+function literalTextData(literal: boolean, text: string): { data?: Record<string, string> } {
+  return literal && needsLiteralFontMetrics(text) ? { data: { 'literal-text': 'true' } } : {}
 }
 
 /** Round to the crisp 2-decimal grid. */

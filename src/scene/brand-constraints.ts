@@ -281,7 +281,7 @@ function monoRoleConstraint(
     if (node.role !== constraint.role) return
     const values = node.kind === 'connector'
       ? [node.stroke.color]
-      : 'paint' in node
+      : node.kind === 'shape' || node.kind === 'text'
         ? [node.paint.fill, node.paint.stroke]
         : []
     for (const value of values) {

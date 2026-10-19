@@ -228,7 +228,7 @@ describe('canonical terminal field applicability', () => {
         paint: { fill: '#111' }, fontSize: 10, textAnchor: 'middle', visual: { kind: 'inline' },
       }],
       transform: { kind: 'rotate', angle: 90, cx: 0, cy: 0 },
-    }, '<path d="M 0 0 L 5 0 L 10 0 M 20 0 L 25 0 L 30 0" fill="none" stroke="#123456" stroke-width="3" stroke-opacity="0.5" stroke-dasharray="7 3" stroke-dashoffset="2" stroke-linecap="square" stroke-linejoin="miter" stroke-miterlimit="8" pathLength="40" paint-order="stroke fill" vector-effect="non-scaling-stroke" marker-start="url(#terminal-witness-marker)" marker-mid="url(#terminal-witness-marker)" marker-end="url(#terminal-witness-marker)" />')
+    })
     const request = resolveRenderRequest(SOURCE, {}, 'ascii')
     const receipt = projectTerminalStyle(request, 'none', {}, {
       family: 'test', width: 40, height: 40, colors: { bg: '#fff', fg: '#111' }, transparent: true, parts: [connector],

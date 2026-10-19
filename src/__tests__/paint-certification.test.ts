@@ -19,9 +19,9 @@ import type { PositionedErDiagram } from '../er/types.ts'
 const scene = (parts: SceneNode[]): SceneDoc => ({ family: 'flowchart', width: 100, height: 80, transparent: false, colors: { bg: '#fff', fg: '#111' }, parts })
 const label = () => {
   const block = preparePixelText('Read', { fontSize: 12, fontWeight: 400 })
-  return marks.text({ id: 'text', role: 'label', text: 'Read', block, x: 20, y: 30, fontSize: 12, anchor: 'start', paint: { fill: '#111' } }, '<text x="20" y="30" font-size="12">Read</text>')
+  return marks.text({ id: 'text', role: 'label', text: 'Read', block, x: 20, y: 30, fontSize: 12, anchor: 'start', paint: { fill: '#111' } })
 }
-const surface = (fill = '#fff') => marks.shape({ id: 'cover', role: 'node', geometry: { kind: 'rect', x: 10, y: 10, width: 80, height: 60 }, paint: { fill } }, `<rect x="10" y="10" width="80" height="60" fill="${fill}"/>`)
+const surface = (fill = '#fff') => marks.shape({ id: 'cover', role: 'node', geometry: { kind: 'rect', x: 10, y: 10, width: 80, height: 60 }, paint: { fill } })
 
 test('final paint order catches fully hidden text, including artwork with the same owner', () => {
   const text = label(), cover = surface()
@@ -35,7 +35,7 @@ test('final paint order catches fully hidden text, including artwork with the sa
 })
 
 test('path envelopes and affine empty corners never masquerade as solid occluders', () => {
-  const path = marks.shape({ id: 'triangle', role: 'node', geometry: { kind: 'path', d: 'M10 10 L90 10 L90 70 Z' }, paint: { fill: '#fff' } }, '<path d="M10 10 L90 10 L90 70 Z" fill="#fff"/>')
+  const path = marks.shape({ id: 'triangle', role: 'node', geometry: { kind: 'path', d: 'M10 10 L90 10 L90 70 Z' }, paint: { fill: '#fff' } })
   expect(certifyScenePaint(scene([label(), path])).issues.some(issue => issue.code === 'TEXT_OCCLUDED')).toBe(false)
   expect(certifyScenePaint(scene([label(), path])).status).toBe('unverified')
 })
@@ -44,14 +44,14 @@ test('endpoint symbols use final owned repaint order rather than marker counts',
   const marker = { id: 'arrow', shape: 'arrow' as const, bounds: { x0: -1, y0: -1, x1: 1, y1: 1 }, units: 'userSpaceOnUse' as const }
   const fields = { id: 'relationship', role: 'edge' as const, lineStyle: 'solid' as const, geometry: { kind: 'line' as const, x1: 20, y1: 30, x2: 30, y2: 30 }, paint: { stroke: '#111', strokeWidth: '1' }, endpoints: { from: 'outside', to: 'cover' }, markers: { end: marker } }
   const svg = '<line x1="20" y1="30" x2="30" y2="30" stroke="#111" stroke-width="1" marker-end="url(#arrow)"/>'
-  const edge = marks.connector(fields, svg)
+  const edge = marks.connector(fields)
   const hidden = certifyScenePaint(scene([edge, surface()]))
   expect(hidden.issues).toContainEqual(expect.objectContaining({ code: 'MARKER_OCCLUDED', id: 'relationship', by: 'cover' }))
-  const repaint = marks.connector({ ...fields, id: 'marker-artwork', role: 'chrome', owner: { id: 'relationship', role: 'edge' } }, svg)
+  const repaint = marks.connector({ ...fields, id: 'marker-artwork', role: 'chrome', owner: { id: 'relationship', role: 'edge' } })
   const visible = certifyScenePaint(scene([edge, surface(), repaint]))
   expect(visible.status).toBe('passed')
   expect(visible.checks.markers).toBe(1)
-  const path = marks.shape({ id: 'path-cover', role: 'node', owner: { id: 'cover', role: 'node' }, geometry: { kind: 'path', d: 'M10 10 L90 10 L90 70 L10 70 Z' }, paint: { fill: '#fff' } }, '<path d="M10 10 L90 10 L90 70 L10 70 Z" fill="#fff"/>')
+  const path = marks.shape({ id: 'path-cover', role: 'node', owner: { id: 'cover', role: 'node' }, geometry: { kind: 'path', d: 'M10 10 L90 10 L90 70 L10 70 Z' }, paint: { fill: '#fff' } })
   const unknown = certifyScenePaint(scene([edge, path]))
   expect(unknown.status).toBe('unverified')
   expect(unknown.issues).toContainEqual(expect.objectContaining({ code: 'POTENTIAL_OCCLUSION', id: 'relationship', by: 'path-cover' }))
@@ -60,7 +60,7 @@ test('endpoint symbols use final owned repaint order rather than marker counts',
 })
 
 test('one viewport repair contains negative coordinates, stroke and endpoint artwork without moving identities', () => {
-  const edge = marks.connector({ id: 'authored->edge', role: 'edge', lineStyle: 'solid', geometry: { kind: 'line', x1: -10, y1: 20, x2: 110, y2: 20 }, paint: { stroke: '#111', strokeWidth: '4' }, endpoints: { from: 'authored', to: 'edge' }, markers: { end: { id: 'arrow', shape: 'arrow', bounds: { x0: -5, y0: -5, x1: 5, y1: 5 }, units: 'userSpaceOnUse' } } }, '<line x1="-10" y1="20" x2="110" y2="20" stroke="#111" stroke-width="4" marker-end="url(#arrow)"/>')
+  const edge = marks.connector({ id: 'authored->edge', role: 'edge', lineStyle: 'solid', geometry: { kind: 'line', x1: -10, y1: 20, x2: 110, y2: 20 }, paint: { stroke: '#111', strokeWidth: '4' }, endpoints: { from: 'authored', to: 'edge' }, markers: { end: { id: 'arrow', shape: 'arrow', bounds: { x0: -5, y0: -5, x1: 5, y1: 5 }, units: 'userSpaceOnUse' } } })
   const proof = certifyScenePaint(scene([edge]))
   expect(proof.status).toBe('passed')
   expect(proof.attempts).toBe(2)
@@ -131,7 +131,7 @@ test('the production render boundary rejects newly occluded text and verify repo
   const restore = replaceFamilyForTest('flowchart', { ...family, lowerScene(context) {
     lowerings++
     const original = family.lowerScene!(context)
-    const cover = marks.shape({ id: 'late-cover', role: 'chrome', geometry: { kind: 'rect', x: 0, y: 0, width: original.width, height: original.height }, paint: { fill: '#fff' } }, `<rect x="0" y="0" width="${original.width}" height="${original.height}" fill="#fff"/>`)
+    const cover = marks.shape({ id: 'late-cover', role: 'chrome', geometry: { kind: 'rect', x: 0, y: 0, width: original.width, height: original.height }, paint: { fill: '#fff' } })
     return { ...original, parts: [...original.parts.slice(0, -1), cover, original.parts.at(-1)!] }
   } })
   try {
@@ -146,7 +146,7 @@ test('the production render boundary rejects newly occluded text and verify repo
 
 test('inline connector text participates in actual final paint order and prepared-text coverage', () => {
   const block = preparePixelText('Read', { fontSize: 12, fontWeight: 400 })
-  const edge = marks.connector({ id: 'relationship', role: 'edge', lineStyle: 'solid', geometry: { kind: 'line', x1: 5, y1: 5, x2: 95, y2: 5 }, paint: { stroke: '#111' }, labels: [{ id: 'inline-label', text: 'Read', block, anchor: { x: 20, y: 30 }, paint: { fill: '#111' }, fontSize: 12, fontWeight: 400, textAnchor: 'start', visual: { kind: 'inline' } }] }, '<line x1="5" y1="5" x2="95" y2="5" stroke="#111"/>')
+  const edge = marks.connector({ id: 'relationship', role: 'edge', lineStyle: 'solid', geometry: { kind: 'line', x1: 5, y1: 5, x2: 95, y2: 5 }, paint: { stroke: '#111' }, labels: [{ id: 'inline-label', text: 'Read', block, anchor: { x: 20, y: 30 }, paint: { fill: '#111' }, fontSize: 12, fontWeight: 400, textAnchor: 'start', visual: { kind: 'inline' } }] })
   const hidden = certifyScenePaint(scene([edge, surface()]))
   expect(hidden.status).toBe('failed')
   expect(hidden.coverage.preparedText).toBe(1)
@@ -167,15 +167,15 @@ test.each(['transparent', 'rgba(0,0,0,0)', '#00000000'])('invisible %s native ou
 })
 
 test('repaired non-scaling strokes remain explicitly outside final containment proof', () => {
-  const shape = marks.shape({ id: 'border', role: 'node', geometry: { kind: 'rect', x: 0, y: 0, width: 100, height: 80 }, paint: { stroke: '#000', strokeWidth: '10', vectorEffect: 'non-scaling-stroke' } }, '<rect x="0" y="0" width="100" height="80" stroke="#000" stroke-width="10" vector-effect="non-scaling-stroke"/>')
+  const shape = marks.shape({ id: 'border', role: 'node', geometry: { kind: 'rect', x: 0, y: 0, width: 100, height: 80 }, paint: { stroke: '#000', strokeWidth: '10', vectorEffect: 'non-scaling-stroke' } })
   expect(certifyScenePaint(scene([shape]))).toMatchObject({ status: 'unverified', repairs: ['expand-viewport'], issues: [expect.objectContaining({ code: 'OUTPUT_SCOPE' })] })
 })
 
 test('a differently scaled marker carrier cannot erase earlier occluded artwork', () => {
   const marker = { id: 'arrow', shape: 'arrow' as const, bounds: { x0: -1, y0: -1, x1: 1, y1: 1 } }
   const fields = { id: 'relationship', role: 'edge' as const, lineStyle: 'solid' as const, geometry: { kind: 'line' as const, x1: 20, y1: 30, x2: 30, y2: 30 }, paint: { stroke: '#111', strokeWidth: '10' }, markers: { end: marker } }
-  const edge = marks.connector(fields, '<line x1="20" y1="30" x2="30" y2="30" stroke="#111" stroke-width="10" marker-end="url(#arrow)"/>')
-  const repaint = marks.connector({ ...fields, id: 'small-carrier', role: 'chrome', owner: { id: 'relationship', role: 'edge' }, paint: { stroke: '#111', strokeWidth: '1' } }, '<line x1="20" y1="30" x2="30" y2="30" stroke="#111" stroke-width="1" marker-end="url(#arrow)"/>')
+  const edge = marks.connector(fields)
+  const repaint = marks.connector({ ...fields, id: 'small-carrier', role: 'chrome', owner: { id: 'relationship', role: 'edge' }, paint: { stroke: '#111', strokeWidth: '1' } })
   const proof = certifyScenePaint(scene([edge, surface(), repaint]))
   expect(proof.status).toBe('failed')
   expect(proof.checks.markers).toBe(2)
@@ -186,10 +186,10 @@ test('separated leaves cannot evade the final occlusion traversal budget', () =>
   const parts: SceneNode[] = [], count = 2048
   for (let i = 0; i < count; i++) {
     const y = Math.floor(i / 8) % 2 === 0 ? 100 : -100
-    parts.push(marks.shape({ id: `surface:${i}`, role: 'node', geometry: { kind: 'rect', x: 0, y, width: 1000, height: 10 }, paint: { fill: '#fff' } }, `<rect x="0" y="${y}" width="1000" height="10" fill="#fff"/>`))
+    parts.push(marks.shape({ id: `surface:${i}`, role: 'node', geometry: { kind: 'rect', x: 0, y, width: 1000, height: 10 }, paint: { fill: '#fff' } }))
   }
   const block = preparePixelText('X', { fontSize: 12, fontWeight: 400 })
-  for (let i = 0; i < count; i++) parts.push(marks.text({ id: `text:${i}`, role: 'label', text: 'X', block, x: 500, y: 0, fontSize: 12, anchor: 'start', paint: { fill: '#111' } }, '<text x="500" y="0" font-size="12">X</text>'))
+  for (let i = 0; i < count; i++) parts.push(marks.text({ id: `text:${i}`, role: 'label', text: 'X', block, x: 500, y: 0, fontSize: 12, anchor: 'start', paint: { fill: '#111' } }))
   const proof = certifyScenePaint({ ...scene(parts), width: 1000, height: 200 })
   expect(proof.status).toBe('unverified')
   expect(proof.checks.occlusionPairs).toBe(0)
@@ -200,8 +200,8 @@ test('separated leaves cannot evade the final occlusion traversal budget', () =>
 
 test('self-crossing filled polygons cannot prove that an overlapped marker is visible', () => {
   const points = [0, 2, 4, 1, 3].map(i => ({ x: 50 + 45 * Math.cos(-Math.PI / 2 + 2 * Math.PI * i / 5), y: 50 + 45 * Math.sin(-Math.PI / 2 + 2 * Math.PI * i / 5) }))
-  const edge = marks.connector({ id: 'edge', role: 'edge', lineStyle: 'solid', geometry: { kind: 'line', x1: 40, y1: 15, x2: 50, y2: 15 }, paint: { stroke: '#111' }, markers: { end: { id: 'arrow', shape: 'arrow', bounds: { x0: -1, y0: -1, x1: 1, y1: 1 }, units: 'userSpaceOnUse' } } }, '<line x1="40" y1="15" x2="50" y2="15" stroke="#111" marker-end="url(#arrow)"/>')
-  const cover = marks.shape({ id: 'star', role: 'node', geometry: { kind: 'polygon', points }, paint: { fill: '#fff' } }, `<polygon points="${points.map(p => `${p.x},${p.y}`).join(' ')}" fill="#fff"/>`)
+  const edge = marks.connector({ id: 'edge', role: 'edge', lineStyle: 'solid', geometry: { kind: 'line', x1: 40, y1: 15, x2: 50, y2: 15 }, paint: { stroke: '#111' }, markers: { end: { id: 'arrow', shape: 'arrow', bounds: { x0: -1, y0: -1, x1: 1, y1: 1 }, units: 'userSpaceOnUse' } } })
+  const cover = marks.shape({ id: 'star', role: 'node', geometry: { kind: 'polygon', points }, paint: { fill: '#fff' } })
   const proof = certifyScenePaint(scene([edge, cover]))
   expect(proof.status).toBe('unverified')
   expect(proof.issues).toContainEqual(expect.objectContaining({ code: 'POTENTIAL_OCCLUSION', by: 'star' }))
@@ -209,15 +209,15 @@ test('self-crossing filled polygons cannot prove that an overlapped marker is vi
 
 
 test.each(['non-scaling-stroke', 'rgba(0,0,0,0)', '#00000000'] as const)('%s outlines cannot hide a marker inside their endpoint body', mode => {
-  const edge = marks.connector({ id: 'edge', role: 'edge', lineStyle: 'solid', geometry: { kind: 'line', x1: 10, y1: 50, x2: 40, y2: 50 }, paint: { stroke: '#111' }, endpoints: { from: 'outside', to: 'node' }, markers: { end: { id: 'arrow', shape: 'arrow', bounds: { x0: -1, y0: -1, x1: 1, y1: 1 }, units: 'userSpaceOnUse' } } }, '<line x1="10" y1="50" x2="40" y2="50" stroke="#111" marker-end="url(#arrow)"/>')
-  const cover = marks.shape({ id: 'node', role: 'node', geometry: { kind: 'rect', x: 2, y: 2, width: 6, height: 6 }, paint: { fill: '#fff', stroke: mode === 'non-scaling-stroke' ? '#111' : mode, strokeWidth: '10', ...(mode === 'non-scaling-stroke' ? { vectorEffect: mode } : {}) }, transform: { kind: 'matrix', a: 10, b: 0, c: 0, d: 10, e: 0, f: 0 } }, '<rect x="2" y="2" width="6" height="6" fill="#fff" stroke="#111" stroke-width="10" vector-effect="non-scaling-stroke" transform="matrix(10 0 0 10 0 0)"/>')
+  const edge = marks.connector({ id: 'edge', role: 'edge', lineStyle: 'solid', geometry: { kind: 'line', x1: 10, y1: 50, x2: 40, y2: 50 }, paint: { stroke: '#111' }, endpoints: { from: 'outside', to: 'node' }, markers: { end: { id: 'arrow', shape: 'arrow', bounds: { x0: -1, y0: -1, x1: 1, y1: 1 }, units: 'userSpaceOnUse' } } })
+  const cover = marks.shape({ id: 'node', role: 'node', geometry: { kind: 'rect', x: 2, y: 2, width: 6, height: 6 }, paint: { fill: '#fff', stroke: mode === 'non-scaling-stroke' ? '#111' : mode, strokeWidth: '10', ...(mode === 'non-scaling-stroke' ? { vectorEffect: mode } : {}) }, transform: { kind: 'matrix', a: 10, b: 0, c: 0, d: 10, e: 0, f: 0 } })
   expect(certifyScenePaint({ ...scene([edge, cover]), height: 100 })).toMatchObject({ status: 'failed', issues: [expect.objectContaining({ code: 'MARKER_OCCLUDED', by: 'node' })] })
 })
 
 
 test('omitted marker orientation follows the emitted auto tangent', () => {
   const marker = { id: 'arrow', shape: 'arrow' as const, units: 'userSpaceOnUse' as const, ref: { x: 8, y: 2.5 }, geometry: { kind: 'polygon' as const, points: [{ x: 0, y: 0 }, { x: 8, y: 2.5 }, { x: 0, y: 5 }] }, paint: { fill: '#111' } }
-  const edge = marks.connector({ id: 'edge', role: 'edge', lineStyle: 'solid', geometry: { kind: 'line', x1: 10, y1: 10, x2: 10, y2: 50 }, paint: { stroke: '#111' }, markers: { end: marker } }, '<line x1="10" y1="10" x2="10" y2="50" stroke="#111" marker-end="url(#arrow)"/>')
+  const edge = marks.connector({ id: 'edge', role: 'edge', lineStyle: 'solid', geometry: { kind: 'line', x1: 10, y1: 10, x2: 10, y2: 50 }, paint: { stroke: '#111' }, markers: { end: marker } })
   const hull = connectorMarkerPaintRegions(edge)[0]!.hull!
   expect(hull[0]!.x).toBeCloseTo(12.5)
   expect(hull[0]!.y).toBeCloseTo(42)
@@ -316,17 +316,17 @@ test('final Architecture certification preserves authored sides and rejects a la
 
 test('shaft checking distinguishes proved straight crossings, uncertain curves and clear routed detours', () => {
   const fields = { id: 'route', role: 'edge' as const, lineStyle: 'solid' as const, paint: { stroke: '#111', strokeWidth: '1' }, endpoints: { from: 'A', to: 'B' } }
-  const straight = marks.connector({ ...fields, geometry: { kind: 'line', x1: 5, y1: 30, x2: 95, y2: 30 } }, '<line x1="5" y1="30" x2="95" y2="30" stroke="#111" stroke-width="1"/>')
+  const straight = marks.connector({ ...fields, geometry: { kind: 'line', x1: 5, y1: 30, x2: 95, y2: 30 } })
   expect(certifyScenePaint(scene([straight, surface()])).issues).toContainEqual(expect.objectContaining({ code: 'CONNECTOR_CARD_CROSSING', id: 'route', by: 'cover' }))
-  const path = marks.connector({ ...fields, geometry: { kind: 'path', d: 'M5 30 H95', points: [{ x: 5, y: 30 }, { x: 95, y: 30 }] } }, '<path d="M5 30 H95" stroke="#111" stroke-width="1"/>')
+  const path = marks.connector({ ...fields, geometry: { kind: 'path', d: 'M5 30 H95', points: [{ x: 5, y: 30 }, { x: 95, y: 30 }] } })
   expect(certifyScenePaint(scene([path, surface()])).issues).toContainEqual(expect.objectContaining({ code: 'CONNECTOR_CARD_CROSSING', id: 'route', by: 'cover' }))
-  const curved = marks.connector({ ...fields, geometry: { kind: 'path', d: 'M5 5 C5 75 95 75 95 5', points: [{ x: 5, y: 5 }, { x: 50, y: 57.5 }, { x: 95, y: 5 }] } }, '<path d="M5 5 C5 75 95 75 95 5" stroke="#111" stroke-width="1"/>')
+  const curved = marks.connector({ ...fields, geometry: { kind: 'path', d: 'M5 5 C5 75 95 75 95 5', points: [{ x: 5, y: 5 }, { x: 50, y: 57.5 }, { x: 95, y: 5 }] } })
   expect(certifyScenePaint(scene([curved, surface()]))).toMatchObject({ status: 'unverified', issues: [expect.objectContaining({ code: 'POTENTIAL_OCCLUSION', id: 'route' })] })
-  const detour = marks.connector({ ...fields, geometry: { kind: 'polyline', points: [{ x: 5, y: 5 }, { x: 95, y: 5 }, { x: 95, y: 75 }] } }, '<polyline points="5,5 95,5 95,75" stroke="#111" stroke-width="1"/>')
+  const detour = marks.connector({ ...fields, geometry: { kind: 'polyline', points: [{ x: 5, y: 5 }, { x: 95, y: 5 }, { x: 95, y: 75 }] } })
   expect(certifyScenePaint(scene([detour, surface()])).status).toBe('passed')
   expect(certifyScenePaint(scene([straight, surface('rgba(255,255,255,0.5)')])).status).toBe('passed')
   expect(certifyScenePaint(scene([straight, surface()]), undefined, { outputSupported: false }).status).toBe('unverified')
-  const unknown = marks.connector({ ...fields, endpoints: undefined, geometry: { kind: 'line', x1: 5, y1: 30, x2: 95, y2: 30 } }, '<line x1="5" y1="30" x2="95" y2="30" stroke="#111"/>')
+  const unknown = marks.connector({ ...fields, endpoints: undefined, geometry: { kind: 'line', x1: 5, y1: 30, x2: 95, y2: 30 } })
   expect(certifyScenePaint(scene([unknown, surface()])).status).toBe('unverified')
 })
 
@@ -344,24 +344,24 @@ test('the native Architecture BUG-37 route cannot receive a passed public certif
 
 test.each(['dashed', 'zero-width', 'transparent', 'zero-opacity'] as const)('%s shaft paint never proves hidden ink from an unpainted crossing', mode => {
   const paint = { stroke: mode === 'transparent' ? 'rgba(0,0,0,0)' : '#111', strokeWidth: mode === 'zero-width' ? '0' : '1', ...(mode === 'zero-opacity' ? { opacity: '0' } : {}), ...(mode === 'dashed' ? { strokeDasharray: '1 100' } : {}) }
-  const edge = marks.connector({ id: 'route', role: 'edge', lineStyle: 'solid', geometry: { kind: 'line', x1: 5, y1: 30, x2: 95, y2: 30 }, paint, endpoints: { from: 'A', to: 'B' } }, '<line x1="5" y1="30" x2="95" y2="30"/>')
+  const edge = marks.connector({ id: 'route', role: 'edge', lineStyle: 'solid', geometry: { kind: 'line', x1: 5, y1: 30, x2: 95, y2: 30 }, paint, endpoints: { from: 'A', to: 'B' } })
   const proof = certifyScenePaint(scene([edge, surface()]))
   expect(proof.status).toBe(mode === 'dashed' ? 'unverified' : 'passed')
   expect(proof.issues.some(issue => issue.code === 'CONNECTOR_CARD_CROSSING')).toBe(false)
 })
 
 test('shaft checks use composed final transforms and preserve only incident card exemptions', () => {
-  const edge = marks.connector({ id: 'route', role: 'edge', owner: { id: 'route', role: 'edge' }, lineStyle: 'solid', geometry: { kind: 'line', x1: 5, y1: 30, x2: 95, y2: 30 }, paint: { stroke: '#111' }, endpoints: { from: 'A', to: 'B' } }, '<line x1="5" y1="30" x2="95" y2="30" stroke="#111"/>')
-  const card = marks.shape({ id: 'unrelated', role: 'node', owner: { id: 'C', role: 'node' }, geometry: { kind: 'rect', x: 10, y: 10, width: 80, height: 60 }, paint: { fill: '#fff' } }, '<rect x="10" y="10" width="80" height="60" fill="#fff"/>')
+  const edge = marks.connector({ id: 'route', role: 'edge', owner: { id: 'route', role: 'edge' }, lineStyle: 'solid', geometry: { kind: 'line', x1: 5, y1: 30, x2: 95, y2: 30 }, paint: { stroke: '#111' }, endpoints: { from: 'A', to: 'B' } })
+  const card = marks.shape({ id: 'unrelated', role: 'node', owner: { id: 'C', role: 'node' }, geometry: { kind: 'rect', x: 10, y: 10, width: 80, height: 60 }, paint: { fill: '#fff' } })
   const group = marks.group({ id: 'translated', role: 'chrome', transform: { kind: 'matrix', a: 2, b: 0, c: 0, d: 3, e: 100, f: 50 }, open: '<g transform="matrix(2 0 0 3 100 50)">', close: '</g>', children: [{ node: edge, indent: 0 }, { node: card, indent: 0 }] })
   expect(certifyScenePaint({ ...scene([group]), width: 400, height: 400 }).issues).toContainEqual(expect.objectContaining({ code: 'CONNECTOR_CARD_CROSSING', id: 'route', by: 'unrelated' }))
-  const ownCard = marks.shape({ ...card, owner: { id: 'B', role: 'node' } }, '<rect x="10" y="10" width="80" height="60" fill="#fff"/>')
+  const ownCard = marks.shape({ ...card, owner: { id: 'B', role: 'node' } })
   expect(certifyScenePaint(scene([edge, ownCard])).status).toBe('passed')
 })
 
 test('typed shaft parsing shares the finite final-check work budget', () => {
   const d = `M5 5${' L95 5 L5 5'.repeat(35_000)}`
-  const edge = marks.connector({ id: 'long-route', role: 'edge', lineStyle: 'solid', geometry: { kind: 'path', d, points: [{ x: 5, y: 5 }, { x: 95, y: 5 }, { x: 5, y: 5 }] }, paint: { stroke: '#111' }, endpoints: { from: 'A', to: 'B' } }, `<path d="${d}" stroke="#111"/>`)
+  const edge = marks.connector({ id: 'long-route', role: 'edge', lineStyle: 'solid', geometry: { kind: 'path', d, points: [{ x: 5, y: 5 }, { x: 95, y: 5 }, { x: 5, y: 5 }] }, paint: { stroke: '#111' }, endpoints: { from: 'A', to: 'B' } })
   const proof = certifyScenePaint(scene([edge, surface()]))
   expect(proof.status).toBe('unverified')
   expect(proof.checks.operations).toBeLessThanOrEqual(proof.checks.maxOperations)
@@ -371,8 +371,8 @@ test('typed shaft parsing shares the finite final-check work budget', () => {
 test('drawing or repainting a semantic shaft above an unrelated card does not excuse the crossing', () => {
   const fields = { id: 'route', role: 'edge' as const, lineStyle: 'solid' as const, geometry: { kind: 'line' as const, x1: 5, y1: 30, x2: 95, y2: 30 }, paint: { stroke: '#111' }, endpoints: { from: 'A', to: 'B' } }
   const svg = '<line x1="5" y1="30" x2="95" y2="30" stroke="#111"/>'
-  const edge = marks.connector(fields, svg)
-  const repaint = marks.connector({ ...fields, id: 'repaint', role: 'chrome', owner: { id: 'route', role: 'edge' } }, svg)
+  const edge = marks.connector(fields)
+  const repaint = marks.connector({ ...fields, id: 'repaint', role: 'chrome', owner: { id: 'route', role: 'edge' } })
   for (const parts of [[surface(), edge], [edge, surface(), repaint]]) {
     const proof = certifyScenePaint(scene(parts))
     expect(proof.status).toBe('failed')
@@ -381,8 +381,8 @@ test('drawing or repainting a semantic shaft above an unrelated card does not ex
 })
 
 test('downscaled non-scaling shafts retain their world-unit collision envelope', () => {
-  const edge = marks.connector({ id: 'scaled', role: 'edge', geometry: { kind: 'line', x1: 100, y1: 100, x2: 900, y2: 100 }, lineStyle: 'solid', paint: { stroke: '#f00', strokeWidth: '10', vectorEffect: 'non-scaling-stroke' }, transform: { kind: 'matrix', a: 0.1, b: 0, c: 0, d: 0.1, e: 0, f: 0 }, endpoints: { from: 'A', to: 'B' } }, '<line x1="100" y1="100" x2="900" y2="100" stroke="#f00" stroke-width="10" vector-effect="non-scaling-stroke" transform="matrix(.1 0 0 .1 0 0)"/>')
-  const card = marks.shape({ id: 'C', role: 'node', geometry: { kind: 'rect', x: 30, y: 12, width: 40, height: 30 }, paint: { fill: '#fff' } }, '<rect x="30" y="12" width="40" height="30" fill="#fff"/>')
+  const edge = marks.connector({ id: 'scaled', role: 'edge', geometry: { kind: 'line', x1: 100, y1: 100, x2: 900, y2: 100 }, lineStyle: 'solid', paint: { stroke: '#f00', strokeWidth: '10', vectorEffect: 'non-scaling-stroke' }, transform: { kind: 'matrix', a: 0.1, b: 0, c: 0, d: 0.1, e: 0, f: 0 }, endpoints: { from: 'A', to: 'B' } })
+  const card = marks.shape({ id: 'C', role: 'node', geometry: { kind: 'rect', x: 30, y: 12, width: 40, height: 30 }, paint: { fill: '#fff' } })
   const proof = certifyScenePaint(scene([edge, card]))
   expect(proof.status).toBe('unverified')
   expect(proof.issues).toContainEqual(expect.objectContaining({ code: 'POTENTIAL_OCCLUSION', id: 'scaled', by: 'C' }))
@@ -392,9 +392,9 @@ test('downscaled non-scaling shafts retain their world-unit collision envelope',
 test.each(['miter', 'square'] as const)('%s shaft ink outside its centerline remains an uncertain card intersection', mode => {
   const points = mode === 'miter' ? [{ x: 20, y: 80 }, { x: 50, y: 50 }, { x: 35, y: 85 }] : [{ x: 30, y: 30 }, { x: 50, y: 50 }]
   const geometry = mode === 'miter' ? { kind: 'polyline' as const, points } : { kind: 'line' as const, x1: 30, y1: 30, x2: 50, y2: 50 }
-  const edge = marks.connector({ id: 'join-or-cap', role: 'edge', geometry, lineStyle: 'solid', paint: { stroke: '#f00', strokeWidth: '10', strokeLinejoin: 'miter', strokeMiterlimit: '10', ...(mode === 'square' ? { strokeLinecap: 'square' } : {}) }, endpoints: { from: 'A', to: 'B' } }, mode === 'miter' ? '<polyline points="20,80 50,50 35,85" stroke="#f00" stroke-width="10" stroke-linejoin="miter" stroke-miterlimit="10"/>' : '<line x1="30" y1="30" x2="50" y2="50" stroke="#f00" stroke-width="10" stroke-linecap="square"/>')
+  const edge = marks.connector({ id: 'join-or-cap', role: 'edge', geometry, lineStyle: 'solid', paint: { stroke: '#f00', strokeWidth: '10', strokeLinejoin: 'miter', strokeMiterlimit: '10', ...(mode === 'square' ? { strokeLinecap: 'square' } : {}) }, endpoints: { from: 'A', to: 'B' } })
   const cardGeometry = mode === 'miter' ? { kind: 'rect' as const, x: 60, y: 26, width: 10, height: 10 } : { kind: 'rect' as const, x: 55.5, y: 48, width: 1, height: 4 }
-  const card = marks.shape({ id: 'C', role: 'node', geometry: cardGeometry, paint: { fill: '#fff' } }, `<rect x="${cardGeometry.x}" y="${cardGeometry.y}" width="${cardGeometry.width}" height="${cardGeometry.height}" fill="#fff"/>`)
+  const card = marks.shape({ id: 'C', role: 'node', geometry: cardGeometry, paint: { fill: '#fff' } })
   const proof = certifyScenePaint({ ...scene([edge, card]), height: 100 })
   expect(proof.status).toBe('unverified')
   expect(proof.issues).toContainEqual(expect.objectContaining({ code: 'POTENTIAL_OCCLUSION', id: 'join-or-cap', by: 'C' }))
@@ -403,8 +403,8 @@ test.each(['miter', 'square'] as const)('%s shaft ink outside its centerline rem
 
 test('authored edge and card names do not share an ownership exemption across roles', () => {
   expect(() => renderMermaidSVGWithReceipt('flowchart LR\nA C@--> B\nC[Unrelated]', { layoutSafety: 'strict' })).not.toThrow()
-  const edge = marks.connector({ id: 'edge:C', identity: { id: 'C' }, role: 'edge', geometry: { kind: 'line', x1: 10, y1: 30, x2: 90, y2: 30 }, lineStyle: 'solid', paint: { stroke: '#111' }, endpoints: { from: 'A', to: 'B' } }, '<line x1="10" y1="30" x2="90" y2="30" stroke="#111"/>')
-  const card = marks.shape({ id: 'node:C', identity: { id: 'C' }, role: 'node', geometry: { kind: 'rect', x: 30, y: 10, width: 40, height: 60 }, paint: { fill: '#fff' } }, '<rect x="30" y="10" width="40" height="60" fill="#fff"/>')
+  const edge = marks.connector({ id: 'edge:C', identity: { id: 'C' }, role: 'edge', geometry: { kind: 'line', x1: 10, y1: 30, x2: 90, y2: 30 }, lineStyle: 'solid', paint: { stroke: '#111' }, endpoints: { from: 'A', to: 'B' } })
+  const card = marks.shape({ id: 'node:C', identity: { id: 'C' }, role: 'node', geometry: { kind: 'rect', x: 30, y: 10, width: 40, height: 60 }, paint: { fill: '#fff' } })
   expect(certifyScenePaint(scene([edge, card]))).toMatchObject({ status: 'failed', issues: [expect.objectContaining({ code: 'CONNECTOR_CARD_CROSSING', id: 'edge:C', by: 'node:C' })] })
 })
 
@@ -426,15 +426,15 @@ test('native Class note attachments identify their actual class and note subject
 })
 
 test('typed group endpoints do not exempt a same-named entity; ambiguous legacy endpoints remain unverified', () => {
-  const card = marks.shape({ id: 'entity:q', role: 'entity', owner: { id: 'q', role: 'entity' }, geometry: { kind: 'rect', x: 30, y: 10, width: 40, height: 60 }, paint: { fill: '#fff' } }, '<rect x="30" y="10" width="40" height="60" fill="#fff"/>')
-  const frame = marks.shape({ id: 'group:q', role: 'group', owner: { id: 'q', role: 'group' }, geometry: { kind: 'rect', x: 5, y: 5, width: 90, height: 70 }, paint: { fill: 'none', stroke: '#111' } }, '<rect x="5" y="5" width="90" height="70" fill="none" stroke="#111"/>')
+  const card = marks.shape({ id: 'entity:q', role: 'entity', owner: { id: 'q', role: 'entity' }, geometry: { kind: 'rect', x: 30, y: 10, width: 40, height: 60 }, paint: { fill: '#fff' } })
+  const frame = marks.shape({ id: 'group:q', role: 'group', owner: { id: 'q', role: 'group' }, geometry: { kind: 'rect', x: 5, y: 5, width: 90, height: 70 }, paint: { fill: 'none', stroke: '#111' } })
   const fields = { id: 'relation', role: 'relationship' as const, geometry: { kind: 'line' as const, x1: 10, y1: 30, x2: 90, y2: 30 }, lineStyle: 'solid' as const, paint: { stroke: '#111' } }
   const svg = '<line x1="10" y1="30" x2="90" y2="30" stroke="#111"/>'
-  const typed = marks.connector({ ...fields, endpoints: { from: 'p', to: 'q', end: { owner: { id: 'q', role: 'group' } } } }, svg)
+  const typed = marks.connector({ ...fields, endpoints: { from: 'p', to: 'q', end: { owner: { id: 'q', role: 'group' } } } })
   expect(certifyScenePaint(scene([frame, typed, card]))).toMatchObject({ status: 'failed', issues: [expect.objectContaining({ code: 'CONNECTOR_CARD_CROSSING', by: 'entity:q' })] })
-  const legacy = marks.connector({ ...fields, endpoints: { from: 'p', to: 'q' } }, svg)
+  const legacy = marks.connector({ ...fields, endpoints: { from: 'p', to: 'q' } })
   expect(certifyScenePaint(scene([frame, legacy, card]))).toMatchObject({ status: 'unverified', issues: [expect.objectContaining({ code: 'POTENTIAL_OCCLUSION', by: 'entity:q' })] })
-  const attached = marks.connector({ ...fields, endpoints: { from: 'p', to: 'q', end: { owner: { id: 'q', role: 'entity' } } } }, svg)
+  const attached = marks.connector({ ...fields, endpoints: { from: 'p', to: 'q', end: { owner: { id: 'q', role: 'entity' } } } })
   expect(certifyScenePaint(scene([frame, attached, card])).status).toBe('passed')
 })
 

@@ -2,7 +2,9 @@ import type { GroupMark, MarkPaint, SceneOwner, SceneTransform, SemanticChannels
 import { group, shape } from './marks.ts'
 import { semanticChildId } from './identity.ts'
 
-/** Lower bounded, source-owned icon paths without recovering geometry from SVG. */
+/** Lower bounded, source-owned icon paths without recovering geometry from SVG.
+ * Each path carries the paint; the group's open tag carries hooks and the
+ * transform only. */
 export function pathArtwork(fields: {
   id: string
   paths: readonly string[]
@@ -13,9 +15,7 @@ export function pathArtwork(fields: {
   channels?: SemanticChannels
   join?: string
   indent?: number
-  serializePath?: (path: string) => string
 }): GroupMark {
-  const serialize = fields.serializePath ?? (path => `<path d="${path}"/>`)
   return group({
     id: fields.id, role: 'icon', open: fields.open, close: '</g>',
     ...(fields.transform ? { transform: fields.transform } : {}),
@@ -27,7 +27,7 @@ export function pathArtwork(fields: {
       node: shape({ id: semanticChildId(fields.id, 'path', index), role: 'icon',
         geometry: { kind: 'path', d: path }, paint: fields.paint,
         ...(fields.owner ? { owner: fields.owner } : {}),
-      }, serialize(path)),
+      }),
     })),
   })
 }

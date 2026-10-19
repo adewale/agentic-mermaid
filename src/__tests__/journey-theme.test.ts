@@ -10,8 +10,10 @@ import { getStyle } from '../scene/style-registry.ts'
 const paletteColors = (name: string): BuiltinPaletteDefinition['colors'] =>
   (BUILTIN_PALETTE_DEFINITIONS as readonly BuiltinPaletteDefinition[]).find(p => p.inputName === name)!.colors
 
-/** The declarations of one class rule in the rendered stylesheet. */
-const ruleOf = (svg: string, cls: string) => svg.match(new RegExp(`\\.${cls} \\{ ([^}]*) \\}`))?.[1] ?? ''
+/** A paint attribute of the first element drawn with a class token. */
+const drawnPaint = (svg: string, cls: string, property: string) =>
+  svg.match(new RegExp(`<[a-z]+\\b[^>]*\\bclass="(?:[^"]*\\s)?${cls}(?:\\s[^"]*)?"[^>]*>`))?.[0]
+    .match(new RegExp(`\\s${property}="([^"]*)"`))?.[1]
 
 const source = `journey
   title My working day
@@ -54,16 +56,16 @@ journey
     Open app: 5: Primary Actor
     Enter one time password: 3: Secondary Actor`)
 
-    expect(svg).toContain('.journey-actor-0 { fill: #123456; }')
-    expect(svg).toContain('.journey-actor-1 { fill: #abcdef; }')
-    expect(svg).toContain('.journey-section-0 { fill: #331122;')
-    expect(svg).toContain('.journey-section-label-0 { fill: #fedcba; }')
+    expect(drawnPaint(svg, 'journey-actor-0', 'fill')).toBe('#123456')
+    expect(drawnPaint(svg, 'journey-actor-1', 'fill')).toBe('#abcdef')
+    expect(drawnPaint(svg, 'journey-section-0', 'fill')).toBe('#331122')
+    expect(drawnPaint(svg, 'journey-section-label-0', 'fill')).toBe('#fedcba')
     expect(svg).toContain('.journey-task-text {')
     expect(svg).toContain('font-family: Courier New;')
     expect(svg).toContain('font-size="19"')
     expect(svg).toContain('font-size="22"')
     expect(svg).toContain('font-family="Georgia"')
-    expect(svg).toContain('fill: #0f172a;')
+    expect(drawnPaint(svg, 'journey-title', 'fill')).toBe('#0f172a')
     expect(svg).not.toContain('NaN')
   })
 
@@ -74,18 +76,16 @@ journey
   section Login
     Open app: 5: Primary Actor`, { style: 'status-dashboard' })
 
-    expect(svg).toContain('.journey-actor-0 { fill: #123456; }')
-    expect(svg).toContain('.journey-section-0 { fill: #331122;')
-    expect(svg).toContain('.journey-section-label-0 { fill: #fedcba; }')
-    expect(svg).toContain('.journey-title { fill: #0f172a; }')
-    expect(svg).not.toContain('.journey-section-0 { fill: #102033;')
-    expect(svg).not.toContain('.journey-section-label-0 { fill: #e6f4ff; }')
+    expect(drawnPaint(svg, 'journey-actor-0', 'fill')).toBe('#123456')
+    expect(drawnPaint(svg, 'journey-section-0', 'fill')).toBe('#331122')
+    expect(drawnPaint(svg, 'journey-section-label-0', 'fill')).toBe('#fedcba')
+    expect(drawnPaint(svg, 'journey-title', 'fill')).toBe('#0f172a')
   })
 
   it('uses Agentic palette/style colors for Journey-specific channels', () => {
     const svg = renderMermaidSVG(source, { style: 'look:tufte' })
     const { bg, fg, accent } = getStyle('look:tufte')!.colors!
-    const color = (cls: string, property: string) => ruleOf(svg, cls).match(new RegExp(`(?:^|; )${property}: (#[0-9A-Fa-f]+)`))?.[1]
+    const color = (cls: string, property: string) => drawnPaint(svg, cls, property)
 
     expect(svg).toContain(`--accent:${accent}`)
     // The journey-only channels follow the style's palette, not fixed defaults.

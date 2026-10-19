@@ -1,5 +1,4 @@
 import { prepareDisplayText, resolveLabelContent } from '../shared/display-text.ts'
-import type { PixelTextBlock } from '../shared/prepared-text.ts'
 import { erHeaderBlock, erRelationshipBlock, erAttributeBlocks, erGroupBlock, erEmptyAttributeBlock } from './layout.ts'
 import type { PositionedErDiagram, PositionedErEntity, PositionedErRelationship, PositionedErGroup, ErAttribute, Cardinality } from './types.ts'
 import type { RenderContext, Point } from '../types.ts'
@@ -9,9 +8,10 @@ import { FONT_SIZES, FONT_WEIGHTS, STROKE_WIDTHS, resolveRenderStyle, diagramTit
 import type { RenderStyleDefaults, ResolvedRenderStyle } from '../styles.ts'
 import { ER_STYLE_DEFAULTS, erCommentColumnWidth, erCommentText } from './layout.ts'
 import { buildAccessibilityAttrs } from '../shared/svg-a11y.ts'
-import { breakLineTags, renderMultilineText, escapeAttr, escapeDisplayAttr, escapeXml as escapeXmlUtil } from '../multiline-utils.ts'
+import { breakLineTags, escapeAttr, escapeDisplayAttr, escapeXml as escapeXmlUtil } from '../multiline-utils.ts'
+import { sanitizeDisplayLines } from '../shared/text-controls.ts'
 import { topRoundedRectPath } from '../svg-paths.ts'
-import type { Geometry, SceneDoc, SceneNode, SceneOwner } from '../scene/ir.ts'
+import type { Geometry, MarkAttributes, MarkPaint, SceneDoc, SceneNode, SceneOwner } from '../scene/ir.ts'
 import { hashId } from '../scene/seed.ts'
 import * as marks from '../scene/marks.ts'
 import { DefaultBackend } from '../scene/backend.ts'
@@ -35,22 +35,17 @@ import { resolveRoleStyle, type InternalStyleFace } from '../scene/style-registr
 // ============================================================================
 
 
-/** Font sizes specific to ER diagrams */
+/** Font sizes specific to ER diagrams (weights belong to the prepared
+ * attribute blocks). */
 const ER_FONT = {
   attrSize: 11,
-  attrWeight: 400,
   keySize: 9,
-  keyWeight: 600,
 } as const
 
-/** A shape emission: semantic geometry plus default-backend serialization. */
+/** One piece of a compound glyph: its geometry and its own paint. */
 interface ShapePiece {
   geometry: Geometry
-  crisp: string
-}
-
-function renderLiteralBlock(block: PixelTextBlock, x: number, y: number, attrs: string): string {
-  return renderMultilineText(block, x, y, block.fontSize, attrs)
+  paint: MarkPaint
 }
 
 /**
@@ -171,9 +166,9 @@ function renderErGroup(group: PositionedErGroup, style: ResolvedRenderStyle): Sc
     id: `er-group:${group.id}`, role: 'group',
     open: `<g class="er-subgraph" data-id="${escapeAttr(group.id)}" data-label="${escapeDisplayAttr(group.label)}"${group.parentId ? ` data-parent-id="${escapeAttr(group.parentId)}"` : ''}>`,
     close: '</g>', children: [
-      { node: marks.shape({ id: `er-group:${group.id}:box`, role: 'group', geometry: { kind: 'rect', x: group.x, y: group.y, width: group.width, height: group.height, rx: 6, ry: 6 }, paint: { fill, stroke, strokeWidth: '1.5' } }, `<rect x="${group.x}" y="${group.y}" width="${group.width}" height="${group.height}" rx="6" fill="${escapeAttr(fill)}" stroke="${escapeAttr(stroke)}" stroke-width="1.5" />`), indent: 2 },
-      { node: marks.shape({ id: `er-group:${group.id}:header`, role: 'group-header', geometry: { kind: 'rect', x: group.x, y: group.y, width: group.width, height: group.headerHeight, rx: 6, ry: 6 }, paint: { fill: headerFill, stroke: 'none' } }, `<rect x="${group.x}" y="${group.y}" width="${group.width}" height="${group.headerHeight}" rx="6" fill="${escapeAttr(headerFill)}" />`), indent: 2 },
-      { node: marks.text({ id: `er-group:${group.id}:label`, role: 'label', text: block.text, block, x: group.x + 10, y: group.y + group.headerHeight / 2, fontSize: block.fontSize, anchor: 'start', paint: { fill: text } }, renderMultilineText(block, group.x + 10, group.y + group.headerHeight / 2, block.fontSize, `text-anchor="start" font-size="${block.fontSize}" font-weight="${block.fontWeight}" letter-spacing="${block.letterSpacing}" fill="${escapeAttr(text)}"`)), indent: 2 },
+      { node: marks.shape({ id: `er-group:${group.id}:box`, role: 'group', geometry: { kind: 'rect', x: group.x, y: group.y, width: group.width, height: group.height, rx: 6, ry: 6 }, paint: { fill, stroke, strokeWidth: '1.5' } }), indent: 2 },
+      { node: marks.shape({ id: `er-group:${group.id}:header`, role: 'group-header', geometry: { kind: 'rect', x: group.x, y: group.y, width: group.width, height: group.headerHeight, rx: 6, ry: 6 }, paint: { fill: headerFill, stroke: 'none' } }), indent: 2 },
+      { node: marks.text({ id: `er-group:${group.id}:label`, role: 'label', text: block.text, block, x: group.x + 10, y: group.y + group.headerHeight / 2, fontSize: block.fontSize, anchor: 'start', paint: { fill: text } }), indent: 2 },
     ],
   })
 }
@@ -214,9 +209,7 @@ function renderEntityBox(entity: PositionedErEntity, style: ResolvedRenderStyle,
       role: 'entity',
       geometry: { kind: 'rect', x, y, width, height, rx: style.cornerRadius ?? 0, ry: style.cornerRadius ?? 0 },
       paint: { fill: rectFill, stroke: rectStroke, strokeWidth: String(rectStrokeWidth) },
-    },
-      `<rect x="${x}" y="${y}" width="${width}" height="${height}" ` +
-      `rx="${style.cornerRadius ?? 0}" ry="${style.cornerRadius ?? 0}" fill="${escapeAttr(rectFill)}" stroke="${escapeAttr(rectStroke)}" stroke-width="${rectStrokeWidth}" />`),
+    }),
   })
 
   // Header background
@@ -229,9 +222,7 @@ function renderEntityBox(entity: PositionedErEntity, style: ResolvedRenderStyle,
       role: 'group-header',
       geometry: { kind: 'path', d: headerPath },
       paint: { fill: headerFill, stroke: rectStroke, strokeWidth: String(rectStrokeWidth) },
-    },
-      `<path d="${headerPath}" ` +
-      `fill="${escapeAttr(headerFill)}" stroke="${escapeAttr(rectStroke)}" stroke-width="${rectStrokeWidth}" />`),
+    }),
   })
 
   // Entity name (supports multi-line via <br> tags)
@@ -249,13 +240,7 @@ function renderEntityBox(entity: PositionedErEntity, style: ResolvedRenderStyle,
       fontSize: style.nodeLabelFontSize,
       anchor: 'middle',
       paint: { fill: nameColor },
-    }, renderMultilineText(
-      labelBlock,
-      x + width / 2,
-      y + headerHeight / 2,
-      style.nodeLabelFontSize,
-      `text-anchor="middle" font-size="${style.nodeLabelFontSize}" font-weight="${style.nodeLabelFontWeight}"${letterAttr(style.nodeLetterSpacing)} fill="${escapeAttr(nameColor)}"`
-    )),
+    }),
   })
 
   // Divider
@@ -268,9 +253,7 @@ function renderEntityBox(entity: PositionedErEntity, style: ResolvedRenderStyle,
       role: 'chrome',
       geometry: { kind: 'line', x1: x, y1: attrTop, x2: x + width, y2: attrTop },
       paint: { stroke: rectStroke, strokeWidth: String(dividerWidth) },
-    },
-      `<line x1="${x}" y1="${attrTop}" x2="${x + width}" y2="${attrTop}" ` +
-      `stroke="${escapeAttr(rectStroke)}" stroke-width="${dividerWidth}" />`),
+    }),
   })
 
   // Attribute rows
@@ -299,9 +282,7 @@ function renderEntityBox(entity: PositionedErEntity, style: ResolvedRenderStyle,
         fontSize: ER_FONT.attrSize,
         anchor: 'middle',
         paint: { fill: emptyColor },
-      },
-        renderMultilineText(block, x + width / 2, attrTop + rowHeight / 2, ER_FONT.attrSize,
-          `text-anchor="middle" font-size="${ER_FONT.attrSize}" fill="${escapeAttr(emptyColor)}"`)),
+      }),
     })
   }
 
@@ -355,9 +336,7 @@ function renderAttribute(
       role: 'chrome',
       geometry: { kind: 'rect', x: badgeX, y: y - 7, width: keyWidth, height: 14, rx: 2, ry: 2 },
       paint: { fill: 'var(--_key-badge)' },
-    },
-      `<rect x="${badgeX}" y="${y - 7}" width="${keyWidth}" height="14" rx="2" ry="2" ` +
-      `fill="var(--_key-badge)" />`))
+    }))
     rowNodes.push(marks.text({
       id: `${attrId}:key-text`,
       role: 'attribute',
@@ -367,8 +346,7 @@ function renderAttribute(
       fontSize: ER_FONT.keySize,
       anchor: 'middle',
       paint: { fill: keyTextColor },
-    },
-      renderLiteralBlock(blocks.keys, badgeX + keyWidth / 2, y, `text-anchor="middle" font-size="${ER_FONT.keySize}" font-weight="${ER_FONT.keyWeight}" fill="${escapeAttr(keyTextColor)}"`)))
+    }))
   }
 
   // Type (left-aligned after keys, monospace with syntax highlighting)
@@ -382,8 +360,8 @@ function renderAttribute(
     fontSize: ER_FONT.attrSize,
     anchor: 'start',
     paint: { fill: attrTypeColor },
-  },
-    renderLiteralBlock(blocks.type, typeX, y, `class="mono" font-size="${ER_FONT.attrSize}" font-weight="${ER_FONT.attrWeight}" fill="${escapeAttr(attrTypeColor)}"`)))
+    attributes: { className: 'mono' },
+  }))
 
   // Name (right-aligned, monospace with syntax highlighting), left of the
   // entity's comment column when any attribute carries a comment.
@@ -398,8 +376,8 @@ function renderAttribute(
     fontSize: ER_FONT.attrSize,
     anchor: 'end',
     paint: { fill: attrTextColor },
-  },
-    renderLiteralBlock(blocks.name, nameX, y, `class="mono" text-anchor="end" font-size="${ER_FONT.attrSize}" font-weight="${ER_FONT.attrWeight}" fill="${escapeAttr(attrTextColor)}"`)))
+    attributes: { className: 'mono' },
+  }))
 
   // Comment (right-aligned in its column, as Mermaid draws it after the name)
   if (attr.comment) {
@@ -413,8 +391,7 @@ function renderAttribute(
       fontSize: ER_FONT.attrSize,
       anchor: 'end',
       paint: { fill: attrTypeColor },
-    },
-      renderLiteralBlock(blocks.comment!, rightEdge, y, `text-anchor="end" font-size="${ER_FONT.attrSize}" fill="${escapeAttr(attrTypeColor)}"`)))
+    }))
   }
 
   // Wrap in a group if there's a comment (for tooltip support)
@@ -459,7 +436,8 @@ function renderRelationshipLine(
     labels: rel.label ? [{ text: rel.label, textContent: { value: rel.label, prepared: prepareDisplayText(resolveLabelContent(rel.label, rel.labelContent)) } }] : [],
   } as const
 
-  // Degenerate relationships draw nothing (empty crisp keeps the part slot).
+  // Degenerate relationships draw nothing (an invisible connector writes '',
+  // keeping the part slot).
   if (rel.points.length < 2) {
     return marks.connector({
       id: sceneId,
@@ -469,22 +447,20 @@ function renderRelationshipLine(
       paint: {},
       channels,
       ...connectorSemantics,
-    }, '')
+    })
   }
 
-  const pathData = rel.points.map(p => `${p.x},${p.y}`).join(' ')
-  const dashArray = !rel.identifying ? ' stroke-dasharray="6 4"' : ''
-
-  // Semantic data attributes for relationship inspection
-  const labelAttr = rel.label ? ` data-label="${escapeDisplayAttr(rel.label)}"` : ''
-  const dataAttrs = [
-    'class="er-relationship"',
-    `data-from="${escapeAttr(rel.entity1)}"`,
-    `data-to="${escapeAttr(rel.entity2)}"`,
-    `data-cardinality1="${rel.cardinality1}"`,
-    `data-cardinality2="${rel.cardinality2}"`,
-    `data-identifying="${rel.identifying}"`,
-  ]
+  // Inspection hooks for the relationship; identity (data-from/data-to)
+  // comes from the connector's typed endpoints.
+  const attributes: MarkAttributes = {
+    className: 'er-relationship',
+    data: {
+      cardinality1: rel.cardinality1,
+      cardinality2: rel.cardinality2,
+      identifying: String(rel.identifying),
+      ...(rel.label ? { label: sanitizeDisplayLines(rel.label) } : {}),
+    },
+  }
 
   const strokeColor = roleStyle?.strokeColor ?? style.edgeStrokeColor ?? 'var(--_line)'
   const lineWidth = roleStyle?.lineWidth ?? style.lineWidth
@@ -508,9 +484,8 @@ function renderRelationshipLine(
       channels,
       ...connectorSemantics,
       route: { ...connectorSemantics.route, contours: projection.contours },
-    },
-      `<path ${dataAttrs.join(' ')}${labelAttr} d="${projection.geometry.d}" fill="none" stroke="${escapeAttr(strokeColor)}" ` +
-      `stroke-width="${lineWidth}"${dashArray} />`)
+      attributes,
+    })
   }
 
   return marks.connector({
@@ -521,9 +496,8 @@ function renderRelationshipLine(
     paint,
     channels,
     ...connectorSemantics,
-  },
-    `<polyline ${dataAttrs.join(' ')}${labelAttr} points="${pathData}" fill="none" stroke="${escapeAttr(strokeColor)}" ` +
-    `stroke-width="${lineWidth}"${dashArray} />`)
+    attributes,
+  })
 }
 
 /**
@@ -674,8 +648,6 @@ function renderRelationshipLabel(
   const channels = { category: rel.identifying ? 'identifying' : 'non-identifying' }
   const roleStyle = resolveRoleStyle(styleFace, 'relationship', channels, { includeFallback: false })
   const fontSize = roleStyle?.fontSize ?? style.edgeLabelFontSize
-  const fontWeight = roleStyle?.fontWeight ?? style.edgeLabelFontWeight
-  const letterSpacing = roleStyle?.letterSpacing ?? style.edgeLetterSpacing
   const mid = at ?? midpoint(rel.points)
   const metrics = rel.labelBlock ?? erRelationshipBlock(rel, style, styleFace)
   const displayLabel = metrics.text
@@ -690,9 +662,7 @@ function renderRelationshipLabel(
     geometry: { kind: 'rect', x: mid.x - bgW / 2, y: mid.y - bgH / 2, width: bgW, height: bgH, rx: 2, ry: 2 },
     paint: { fill: 'var(--bg)', stroke: 'var(--_inner-stroke)', strokeWidth: '0.5' },
     channels,
-  },
-    `<rect x="${mid.x - bgW / 2}" y="${mid.y - bgH / 2}" width="${bgW}" height="${bgH}" rx="2" ry="2" ` +
-    `fill="var(--bg)" stroke="var(--_inner-stroke)" stroke-width="0.5" />`)
+  })
 
   const labelColor = roleStyle?.textColor ?? style.edgeTextColor ?? 'var(--_text-muted)'
   const label = marks.text({
@@ -705,8 +675,7 @@ function renderRelationshipLabel(
     anchor: 'middle',
     paint: { fill: labelColor },
     channels,
-  }, renderMultilineText(metrics, mid.x, mid.y, fontSize,
-    `text-anchor="middle" font-size="${fontSize}" font-weight="${fontWeight}"${letterAttr(letterSpacing)} fill="${escapeAttr(labelColor)}"`))
+  })
 
   return [pill, label]
 }
@@ -723,13 +692,14 @@ function renderRelationshipLabel(
  */
 function renderCardinality(rel: PositionedErRelationship, style: ResolvedRenderStyle, sceneId: string): SceneNode[] {
   if (rel.points.length < 2) {
-    // Old renderer pushed '' for degenerate relationships — keep the empty slot.
+    // Old renderer pushed '' for degenerate relationships — keep the empty
+    // slot (a compound shape with no children writes '').
     return [marks.shape({
       id: sceneId,
       role: 'cardinality',
       geometry: { kind: 'compound', children: [] },
       paint: {},
-    }, '')]
+    })]
   }
 
   // Entity1 side (first point, direction toward second point)
@@ -746,7 +716,9 @@ function renderCardinality(rel: PositionedErRelationship, style: ResolvedRenderS
   ]
 }
 
-/** Build the shape mark for one crow's foot glyph from its pieces. */
+/** Build the shape mark for one crow's foot glyph from its pieces. The glyph
+ * is stroked; a zero-minimum circle also fills with the page background, so
+ * then each piece carries its own paint. */
 function crowsFootMark(
   point: { x: number; y: number },
   toward: { x: number; y: number },
@@ -754,32 +726,33 @@ function crowsFootMark(
   style: ResolvedRenderStyle,
   sceneId: string,
 ): SceneNode {
-  const pieces = renderCrowsFoot(point, toward, cardinality, style)
+  const paint: MarkPaint = {
+    stroke: style.edgeStrokeColor ?? 'var(--_line)',
+    strokeWidth: String(style.lineWidth + 0.25),
+  }
+  const pieces = renderCrowsFoot(point, toward, cardinality, paint)
   return marks.shape({
     id: sceneId,
     role: 'cardinality',
     geometry: { kind: 'compound', children: pieces.map(p => p.geometry) },
-    paint: {
-      stroke: style.edgeStrokeColor ?? 'var(--_line)',
-      strokeWidth: String(style.lineWidth + 0.25),
-    },
+    paint,
+    ...(pieces.some(p => p.paint !== paint) ? { childPaints: pieces.map(p => p.paint) } : {}),
     channels: { category: cardinality },
-  }, pieces.map(p => p.crisp).join('\n'))
+  })
 }
 
 /**
  * Render a crow's foot marker at a given endpoint.
- * `point` is the endpoint, `toward` gives the direction the line comes from.
+ * `point` is the endpoint, `toward` gives the direction the line comes from;
+ * `stroke` paints the glyph's lines.
  */
 function renderCrowsFoot(
   point: { x: number; y: number },
   toward: { x: number; y: number },
   cardinality: Cardinality,
-  style: ResolvedRenderStyle,
+  stroke: MarkPaint,
 ): ShapePiece[] {
   const pieces: ShapePiece[] = []
-  const sw = style.lineWidth + 0.25
-  const stroke = escapeAttr(style.edgeStrokeColor ?? 'var(--_line)')
 
   // Calculate direction from toward → point (unit vector)
   const dx = point.x - toward.x
@@ -816,13 +789,7 @@ function renderCrowsFoot(
     const y1 = cy + py * halfW
     const x2 = cx - px * halfW
     const y2 = cy - py * halfW
-    pieces.push({
-      geometry: { kind: 'line', x1, y1, x2, y2 },
-      crisp:
-        `<line x1="${x1}" y1="${y1}" ` +
-        `x2="${x2}" y2="${y2}" ` +
-        `stroke="${stroke}" stroke-width="${sw}" />`,
-    })
+    pieces.push({ geometry: { kind: 'line', x1, y1, x2, y2 }, paint: stroke })
   }
 
   if (cardinality === 'one') {
@@ -848,28 +815,19 @@ function renderCrowsFoot(
     pieces.push({
       // Top fan line
       geometry: { kind: 'line', x1: topX1, y1: topY1, x2: backX, y2: backY },
-      crisp:
-        `<line x1="${topX1}" y1="${topY1}" ` +
-        `x2="${backX}" y2="${backY}" ` +
-        `stroke="${stroke}" stroke-width="${sw}" />`,
+      paint: stroke,
     })
     pieces.push({
       // Center line
       geometry: { kind: 'line', x1: cfTipX, y1: cfTipY, x2: backX, y2: backY },
-      crisp:
-        `<line x1="${cfTipX}" y1="${cfTipY}" ` +
-        `x2="${backX}" y2="${backY}" ` +
-        `stroke="${stroke}" stroke-width="${sw}" />`,
+      paint: stroke,
     })
     const botX1 = cfTipX - px * fanW
     const botY1 = cfTipY - py * fanW
     pieces.push({
       // Bottom fan line
       geometry: { kind: 'line', x1: botX1, y1: botY1, x2: backX, y2: backY },
-      crisp:
-        `<line x1="${botX1}" y1="${botY1}" ` +
-        `x2="${backX}" y2="${backY}" ` +
-        `stroke="${stroke}" stroke-width="${sw}" />`,
+      paint: stroke,
     })
     // One-or-more: the "one" tick behind the foot (where zero-many's circle
     // sits), so `}|` and `}o` stay distinguishable at a glance.
@@ -885,9 +843,7 @@ function renderCrowsFoot(
     const circleY = point.y - uy * circleOffset
     pieces.push({
       geometry: { kind: 'circle', cx: circleX, cy: circleY, r: 4 },
-      crisp:
-        `<circle cx="${circleX}" cy="${circleY}" r="4" ` +
-        `fill="var(--bg)" stroke="${stroke}" stroke-width="${sw}" />`,
+      paint: { fill: 'var(--bg)', ...stroke },
     })
   }
 
@@ -935,10 +891,6 @@ function midpoint(points: Array<{ x: number; y: number }>): { x: number; y: numb
 // ============================================================================
 // Utilities
 // ============================================================================
-
-function letterAttr(value: number): string {
-  return value !== 0 ? ` letter-spacing="${value}"` : ''
-}
 
 // Use shared escapeXml from multiline-utils
 const escapeXml = escapeXmlUtil

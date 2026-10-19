@@ -74,7 +74,9 @@ export type Geometry =
  *  arbitrary/external fetching paints remain forbidden. */
 export interface MarkPaint {
   fill?: string
+  fillOpacity?: string
   stroke?: string
+  strokeOpacity?: string
   strokeWidth?: string
   strokeDasharray?: string
   strokeDashoffset?: string
@@ -98,6 +100,25 @@ export interface SceneOwner {
   role: SceneRole
 }
 
+/** Inert attributes a family adds to a mark's SVG element: CSS hook classes
+ *  and `data-*` inspection metadata. The SVG writer emits them beside the
+ *  attributes it derives from the typed fields; none of them can change what
+ *  the mark draws, so they are outside paint certification. */
+export interface MarkAttributes {
+  /** Space-separated CSS class tokens (`[A-Za-z0-9_-]`). */
+  className?: string
+  /** Emitted as `data-<key>`, in insertion order. Identity, relationship and
+   *  marker keys belong to typed fields instead. */
+  data?: Readonly<Record<string, string>>
+  /** Emitted as `aria-hidden="true"` on artwork with no accessible meaning. */
+  ariaHidden?: true
+  /** Emitted as `tabindex="0"` on a mark that carries a followable link. */
+  tabIndex?: 0
+  /** Emitted as `aria-label` when the drawn text abbreviates or wraps the
+   *  authored name. Relation marks take theirs from typed accessibility. */
+  ariaLabel?: string
+}
+
 export interface SceneNodeBase {
   /** Stable identifier for seeding and cross-references. Derived from source
    *  semantics (node id, edge endpoints, slice label...), never list position
@@ -115,12 +136,17 @@ export interface SceneNodeBase {
   channels?: SemanticChannels
   /** Semantic geometry transform applied by every backend. */
   transform?: SceneTransform
+  /** Inert SVG hooks; see MarkAttributes. */
+  attributes?: MarkAttributes
 }
 
 export interface ShapeMark extends SceneNodeBase {
   kind: 'shape'
   geometry: Geometry
   paint: MarkPaint
+  /** Paint of each child of compound geometry, in order, when the pieces of
+   *  one outline differ (a cylinder's body and caps). Defaults to `paint`. */
+  childPaints?: readonly MarkPaint[]
   /** Alternate ink admitted for a declared interactive state. */
   conditionalPaint?: MarkPaint
   /** Internal fill-only piece of an outlined surface. Sketch fill policies still
@@ -409,6 +435,14 @@ export interface TextMark extends SceneNodeBase {
   /** Occupied band and placement offset retained for existing consumers. */
   textLayout?: { width: number; height: number; lineHeight: number; offsetY: number }
   anchor: 'start' | 'middle' | 'end'
+  /** First baseline below `y`, in ems; the writer emits it as `dy`. */
+  baselineShift?: number
+  dominantBaseline?: 'middle' | 'central' | 'hanging'
+  fontStyle?: 'italic'
+  textDecoration?: 'underline' | 'line-through' | 'underline line-through'
+  /** One-line text drawn as differently painted runs (syntax highlighting).
+   *  Their concatenation is the displayed line. */
+  spans?: readonly { text: string; fill: string }[]
   paint: MarkPaint
   /** Ink the family chose for this text on the page, when `paint.fill` was
    *  instead chosen against the data mark the text sits on (a value label
@@ -424,6 +458,10 @@ export interface TextMark extends SceneNodeBase {
  *  (classes, data-* attributes, ARIA). */
 export interface GroupMark extends SceneNodeBase {
   kind: 'group'
+  /** Paint the wrapper cascades to its children: its opacity composites the
+   *  whole group, its fill applies to children that set none. The open tag
+   *  carries it; nothing else in `open` may paint. */
+  paint?: Pick<MarkPaint, 'opacity' | 'fill'>
   open: string
   close: string
   children: Array<{ node: SceneNode; indent: number }>

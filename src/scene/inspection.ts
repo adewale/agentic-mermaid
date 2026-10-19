@@ -1,5 +1,5 @@
 import { tryParseCssColor } from '../shared/color-math.ts'
-import type { MarkPaint, SceneDoc, SceneNode, SceneOwner, SceneRole, SceneTransform } from './ir.ts'
+import type { MarkPaint, SceneDoc, SceneNode, SceneOwner, SceneRole, SceneTransform, ShapeMark } from './ir.ts'
 import { connectorInlineLabelVisualBounds, nodePaintBounds, transformedBounds } from './bounds.ts'
 import { composeMatrices, IDENTITY_MATRIX, transformMatrix, type AffineMatrix } from './transforms.ts'
 import { sceneNodeSerialization } from './serialization.ts'
@@ -17,6 +17,8 @@ export interface ScenePaintPrimitive {
   readonly bounds?: AxisAlignedBox
   readonly reason?: string
   readonly visibility?: 'conditional'
+  /** Opacity the enclosing groups composite this primitive with, when below 1. */
+  readonly groupOpacity?: number
   readonly text?: {
     readonly source: string
     readonly displayed: string
@@ -58,14 +60,21 @@ function textPaints(text: string, paint: MarkPaint): boolean {
   return /\S/u.test(text) && Number(paint.opacity ?? 1) !== 0 && (!absentPaint(paint.fill) || paint.stroke !== undefined && !absentPaint(paint.stroke) && Number.parseFloat(paint.strokeWidth ?? '1') !== 0)
 }
 
+/** The paint a shape's surface shows: a compound shape with per-piece paints
+ * fills wherever any piece fills, so the first filled piece stands for it. */
+export function shapeSurfacePaint(node: ShapeMark): MarkPaint {
+  return node.childPaints?.find(paint => !absentPaint(paint.fill) && Number(paint.opacity ?? 1) !== 0) ?? node.paint
+}
+
 function nonPainting(node: SceneNode): boolean {
   if (node.kind === 'document') return node.element !== 'content' || node.nonPaint !== undefined || sceneNodeSerialization(node).trim() === ''
   if (node.kind === 'text') return !textPaints(node.block ? node.block.lineBlocks.map(line => line.runs.map(run => run.text).join('')).join('\n') : node.text, node.paint)
   if (node.kind === 'connector') return node.lineStyle === 'invisible'
   if (node.kind === 'shape') {
     if (node.conditionalPaint) return false
-    if (node.paint.opacity !== undefined && Number(node.paint.opacity) === 0) return true
-    return absentPaint(node.paint.fill) && (node.paint.stroke === undefined || absentPaint(node.paint.stroke))
+    return [node.paint, ...node.childPaints ?? []].every(paint =>
+      (paint.opacity !== undefined && Number(paint.opacity) === 0)
+      || absentPaint(paint.fill) && (paint.stroke === undefined || absentPaint(paint.stroke)))
   }
   return false
 }
@@ -77,16 +86,16 @@ function nonPainting(node: SceneNode): boolean {
 export function inspectScenePrimitives(scene: SceneDoc): ScenePaintInspection {
   const primitives: ScenePaintPrimitive[] = []
   const coverage = { measured: 0, unmeasured: 0, nonPainting: 0, preparedText: 0, fallbackText: 0 }
-  const walk = (nodes: readonly SceneNode[], prefix: string, parent: AffineMatrix, ancestors: readonly SceneOwner[], conditional = false): void => {
+  const walk = (nodes: readonly SceneNode[], prefix: string, parent: AffineMatrix, ancestors: readonly SceneOwner[], conditional = false, groupOpacity = 1): void => {
     nodes.forEach((node, index) => {
       const key = `${prefix}.${index}`
       const owner = node.owner ?? (ancestors.at(-1) || node.identity || { id: node.id, role: node.role })
       if (node.kind === 'group') {
         const own = node.identity ?? { id: node.id, role: node.role }
-        walk(node.children.map(child => child.node), key, composeMatrices(parent, transformMatrix(node.transform)), [...ancestors, own], conditional || node.visibility === 'conditional')
+        walk(node.children.map(child => child.node), key, composeMatrices(parent, transformMatrix(node.transform)), [...ancestors, own], conditional || node.visibility === 'conditional', groupOpacity * Number(node.paint?.opacity ?? 1))
         return
       }
-      const hidden = nonPainting(node)
+      const hidden = groupOpacity === 0 || nonPainting(node)
       const [a, b, c, d, e, f] = parent
       const parentTransform: SceneTransform = { kind: 'matrix', a, b, c, d, e, f }
       const bounds = hidden ? undefined : nodePaintBounds(node, parentTransform)
@@ -98,6 +107,7 @@ export function inspectScenePrimitives(scene: SceneDoc): ScenePaintInspection {
         ancestors: Object.freeze(ancestors.map(value => Object.freeze({ ...value }))),
         order: primitives.length, coverage: status,
         ...(conditional || node.visibility === 'conditional' ? { visibility: 'conditional' as const } : {}),
+        ...(groupOpacity < 1 ? { groupOpacity } : {}),
         ...(measured ? { bounds: Object.freeze(bounds!) } : {}),
         ...(!hidden && !measured ? { reason: node.kind === 'document' ? 'opaque-visible-content' : 'missing-paint-geometry' } : {}),
         ...(node.kind === 'text' ? { text: Object.freeze({ source: node.block?.prepared.source ?? node.text, displayed: node.block ? node.block.lineBlocks.map(line => line.runs.map(run => run.text).join('')).join('\n') : node.text, measurement: node.measurement ?? 'unavailable', ...(node.block?.fontFamily ? { fontFamily: node.block.fontFamily } : {}) }) } : {}),

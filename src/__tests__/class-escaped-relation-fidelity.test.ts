@@ -270,7 +270,7 @@ describe('Class escaped relationship IDs', () => {
     const svg = renderMermaidSVG('classDiagram\n`class A` --> B')
     const relations = svg.match(/<(?:path|polyline) class="class-relationship"[^>]*>/g) ?? []
     expect(relations).toHaveLength(1)
-    expect(relations[0]).toContain('data-from="class A" data-to="B" data-type="association"')
+    for (const attribute of ['data-from="class A"', 'data-to="B"', 'data-type="association"']) expect(relations[0]).toContain(attribute)
     expect(relations[0]).toContain('marker-end="url(#cls-arrow)"')
   })
 })

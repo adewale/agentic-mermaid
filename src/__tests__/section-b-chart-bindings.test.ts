@@ -23,8 +23,8 @@ function radarGeometry(svg: string): string[] {
 }
 
 function barGeometry(svg: string): string[] {
-  return [...svg.matchAll(/<rect x="([^"]+)" y="([^"]+)" width="([^"]+)" height="([^"]+)" class="xychart-bar/g)]
-    .map(match => match.slice(1).join(','))
+  return [...svg.matchAll(/<rect\b[^>]*\sclass="xychart-bar[^>]*>/g)]
+    .map(([tag]) => ['x', 'y', 'width', 'height'].map(name => tag.match(new RegExp(`\\s${name}="([^"]+)"`))?.[1]).join(','))
 }
 
 describe('Section B chart semantic bindings', () => {
@@ -35,9 +35,10 @@ describe('Section B chart semantic bindings', () => {
     const xyBranded = renderMermaidSVG(XY, { style: STYLE as any })
 
     expect(radarGeometry(radarBranded)).toEqual(radarGeometry(radarBaseline))
+    expect(barGeometry(xyBaseline).length).toBeGreaterThan(0)
     expect(barGeometry(xyBranded)).toEqual(barGeometry(xyBaseline))
     expect(radarBranded).toMatch(/class="radar-area"[^>]*fill="#ff00ff"[^>]*stroke="#007700"/)
-    expect(xyBranded).toMatch(/class="xychart-bar[^>]*style="[^"]*fill:#ff00ff[^"]*stroke:#007700[^"]*stroke-width:6/)
+    expect(xyBranded).toMatch(/class="xychart-bar[^>]* fill="#ff00ff" stroke="#007700" stroke-width="6"/)
   })
 
   test('Radar category cues remain perceptible in no-color terminal output', () => {
@@ -80,7 +81,8 @@ pie
     expect(radarSvg).toMatch(/class="radar-area"[^>]*fill="#123456"/)
     expect(radarSvg).not.toMatch(/class="radar-area"[^>]*fill="#ff00ff"/)
     expect(xySvg).toContain('--xychart-color-0: #654321;')
-    expect(xySvg).not.toMatch(/class="xychart-bar[^>]*style="[^"]*fill:#ff00ff/)
+    expect(xySvg).toMatch(/class="xychart-bar[^>]* fill="#654321"/)
+    expect(xySvg).not.toMatch(/class="xychart-bar[^>]* fill="#ff00ff"/)
     expect(pieSvg).toMatch(/class="pie-slice"[^>]*fill="#2468ac"/)
     expect(pieSvg).not.toMatch(/class="pie-slice"[^>]*fill="#ff00ff"/)
   })

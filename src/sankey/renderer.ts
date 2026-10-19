@@ -1,4 +1,3 @@
-import { escapeAttr, escapeDisplayAttr, escapeXml, renderMultilineText } from '../multiline-utils.ts'
 import { pieSliceColors } from '../pie/palette.ts'
 import { DefaultBackend } from '../scene/backend.ts'
 import { serializeLinearGradientResources } from '../scene/gradient-resources.ts'
@@ -7,6 +6,7 @@ import * as marks from '../scene/marks.ts'
 import { resolveRoleStyle } from '../scene/style-registry.ts'
 import { ensureCompositedBgContrast } from '../shared/categorical-palette.ts'
 import { relativeLuminance } from '../shared/color-math.ts'
+import { sanitizeDisplayLines } from '../shared/text-controls.ts'
 import { resolveRenderStyle } from '../styles.ts'
 import { buildShadowDefs, buildStyleBlock, svgOpenTag } from '../theme.ts'
 import type { RenderContext } from '../types.ts'
@@ -155,26 +155,24 @@ export function lowerSankeyScene(ctx: RenderContext<PositionedSankeyChart>): Sce
       gradientByLink.get(link.sceneId),
     )
     parts.push(
-      marks.connector(
-        {
-          id: link.sceneId,
-          role: 'edge',
-          geometry: { kind: 'path', d: link.path, points: link.points },
-          lineStyle: 'solid',
-          paint: {
-            fill: 'none',
-            stroke,
-            strokeWidth,
-            opacity: String(SANKEY_LINK_OPACITY),
-          },
-          stroke: { mixBlendMode: linkBlendMode, encodesValue: true },
-          identity: { id: link.id, from: link.source, to: link.target },
-          endpoints: { from: link.sourceId, to: link.targetId },
-          relationship: { kind: 'flow', direction: 'forward' },
-          channels: { category: link.source, value: link.value },
+      marks.connector({
+        id: link.sceneId,
+        role: 'edge',
+        geometry: { kind: 'path', d: link.path, points: link.points },
+        lineStyle: 'solid',
+        paint: {
+          fill: 'none',
+          stroke,
+          strokeWidth,
+          opacity: String(SANKEY_LINK_OPACITY),
         },
-        `<path class="sankey-link" d="${link.path}" fill="none" ` + `stroke="${escapeAttr(stroke)}" stroke-width="${strokeWidth}" ` + `opacity="${SANKEY_LINK_OPACITY}" style="mix-blend-mode:${linkBlendMode}" data-source="${escapeAttr(link.source)}" ` + `data-target="${escapeAttr(link.target)}" data-value="${link.value}" />`,
-      ),
+        stroke: { mixBlendMode: linkBlendMode, encodesValue: true },
+        identity: { id: link.id, from: link.source, to: link.target },
+        endpoints: { from: link.sourceId, to: link.targetId },
+        relationship: { kind: 'flow', direction: 'forward' },
+        channels: { category: link.source, value: link.value },
+        attributes: { className: 'sankey-link', data: { source: link.source, target: link.target, value: String(link.value) } },
+      }),
     )
   }
 
@@ -183,31 +181,25 @@ export function lowerSankeyScene(ctx: RenderContext<PositionedSankeyChart>): Sce
     const nodePaint = nodeColor.get(node.label)!
     const fill = nodePaint.color
     parts.push(
-      marks.shape(
-        {
-          id: node.id,
-          role: 'bar',
-          identity: { id: node.label },
-          geometry: {
-            kind: 'rect',
-            x: node.x0,
-            y: node.y0,
-            width: round2(node.x1 - node.x0),
-            height: round2(node.y1 - node.y0),
-          },
-          paint: {
-            fill,
-            stroke: nodePaint.stroke,
-            strokeWidth: String(nodePaint.strokeWidth),
-          },
-          channels: { category: node.label, value: node.value },
+      marks.shape({
+        id: node.id,
+        role: 'bar',
+        identity: { id: node.label },
+        geometry: {
+          kind: 'rect',
+          x: node.x0,
+          y: node.y0,
+          width: round2(node.x1 - node.x0),
+          height: round2(node.y1 - node.y0),
         },
-        `<rect class="sankey-node" x="${node.x0}" y="${node.y0}" ` +
-          `width="${round2(node.x1 - node.x0)}" height="${round2(node.y1 - node.y0)}" ` +
-          `fill="${escapeAttr(fill)}" stroke="${escapeAttr(nodePaint.stroke)}" ` +
-          `stroke-width="${nodePaint.strokeWidth}" ` +
-          `data-label="${escapeDisplayAttr(node.label)}" data-value="${node.value}" data-layer="${node.layer}" />`,
-      ),
+        paint: {
+          fill,
+          stroke: nodePaint.stroke,
+          strokeWidth: String(nodePaint.strokeWidth),
+        },
+        channels: { category: node.label, value: node.value },
+        attributes: { className: 'sankey-node', data: { label: sanitizeDisplayLines(node.label), value: String(node.value), layer: String(node.layer) } },
+      }),
     )
   }
 
@@ -216,30 +208,30 @@ export function lowerSankeyScene(ctx: RenderContext<PositionedSankeyChart>): Sce
   // page-colored halo that knocks the ribbon out behind its glyphs; Mermaid
   // draws legacy labels without one. `labelStyle` only chooses placement.
   const labelFill = style.nodeTextColor ?? 'var(--_text)'
-  const haloAttrs = ` stroke="var(--bg)" stroke-width="${SANKEY_LABEL_HALO_WIDTH}" paint-order="stroke fill"`
   for (const node of chart.nodes) {
     const text = node.labelLines.join('\n')
     parts.push(
-      marks.text(
-        {
-          id: `${node.id}:label`,
-          role: 'label',
-          text,
-          x: node.labelX,
-          y: node.labelY,
-          fontSize: style.nodeLabelFontSize,
-          block: node.labelBlock,
-          anchor: node.labelAnchor,
-          paint: {
-            fill: labelFill,
-            stroke: 'var(--bg)',
-            strokeWidth: String(SANKEY_LABEL_HALO_WIDTH),
-            paintOrder: 'stroke fill',
-          },
-          channels: { category: node.label, value: node.value },
+      marks.text({
+        id: `${node.id}:label`,
+        role: 'label',
+        text,
+        x: node.labelX,
+        y: node.labelY,
+        fontSize: style.nodeLabelFontSize,
+        fontWeight: style.nodeLabelFontWeight,
+        letterSpacing: style.nodeLetterSpacing,
+        block: node.labelBlock,
+        anchor: node.labelAnchor,
+        dominantBaseline: 'middle',
+        paint: {
+          fill: labelFill,
+          stroke: 'var(--bg)',
+          strokeWidth: String(SANKEY_LABEL_HALO_WIDTH),
+          paintOrder: 'stroke fill',
         },
-        renderMultilineText(node.labelBlock ?? text, node.labelX, node.labelY, style.nodeLabelFontSize, `class="sankey-node-label" text-anchor="${node.labelAnchor}" dominant-baseline="middle" ` + `font-size="${style.nodeLabelFontSize}" font-weight="${style.nodeLabelFontWeight}"${style.nodeLetterSpacing ? ` letter-spacing="${style.nodeLetterSpacing}"` : ''} ` + `fill="${escapeAttr(labelFill)}"${haloAttrs}`),
-      ),
+        channels: { category: node.label, value: node.value },
+        attributes: { className: 'sankey-node-label' },
+      }),
     )
   }
 
@@ -247,27 +239,22 @@ export function lowerSankeyScene(ctx: RenderContext<PositionedSankeyChart>): Sce
   if (chart.title) {
     const title = chart.title.text
     parts.push(
-      marks.text(
-        {
-          id: 'title',
-          identity: { id: chart.title.id },
-          role: 'title',
-          text: title,
-          x: chart.title.x,
-          y: chart.title.y,
-          fontSize: style.groupHeaderFontSize,
-          block: chart.title.block,
-          anchor: 'middle',
-          paint: { fill: style.groupTextColor ?? style.nodeTextColor ?? 'var(--_text)' },
-        },
-        renderMultilineText(
-          chart.title.block ?? title,
-          chart.title.x,
-          chart.title.y,
-          style.groupHeaderFontSize,
-          `class="sankey-title" text-anchor="middle" dominant-baseline="middle" ` + `font-size="${style.groupHeaderFontSize}" font-weight="${style.groupHeaderFontWeight}"${style.groupLetterSpacing ? ` letter-spacing="${style.groupLetterSpacing}"` : ''} ` + `fill="${escapeAttr(style.groupTextColor ?? style.nodeTextColor ?? 'var(--_text)')}"`,
-        ),
-      ),
+      marks.text({
+        id: 'title',
+        identity: { id: chart.title.id },
+        role: 'title',
+        text: title,
+        x: chart.title.x,
+        y: chart.title.y,
+        fontSize: style.groupHeaderFontSize,
+        fontWeight: style.groupHeaderFontWeight,
+        letterSpacing: style.groupLetterSpacing,
+        block: chart.title.block,
+        anchor: 'middle',
+        dominantBaseline: 'middle',
+        paint: { fill: style.groupTextColor ?? style.nodeTextColor ?? 'var(--_text)' },
+        attributes: { className: 'sankey-title' },
+      }),
     )
   }
 

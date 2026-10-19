@@ -130,8 +130,8 @@ describe('custom style cookbook docs', () => {
     ]))
     const { bindings: _bindings, semanticSlots: _semanticSlots, ...unboundVercel } = vercel.style
     const unboundVercelSvg = renderMermaidSVG(vercel.source, { style: unboundVercel, security: 'strict' })
-    expect(unboundVercelSvg).toMatch(/class="xychart-line[^"]*"[^>]*style="[^"]*stroke:#565656/)
-    expect(vercel.svg).toMatch(/class="xychart-line[^"]*"[^>]*style="[^"]*stroke:#0070f3/)
+    expect(unboundVercelSvg).toMatch(/class="xychart-line[^"]*"[^>]* stroke="#565656"/)
+    expect(vercel.svg).toMatch(/class="xychart-line[^"]*"[^>]* stroke="#0070f3"/)
 
     const cloudflare = render('cloudflare-workers-inspired-prototype')
     expect(cloudflare.style.bindings).toEqual(expect.arrayContaining([

@@ -102,9 +102,10 @@ describe('gantt excluded-day shading — layout bands', () => {
 describe('gantt excluded-day shading — SVG', () => {
   test('shaded bands render by default (upstream parity), behind every bar', () => {
     const svg = renderMermaidSVG(WEEKENDS)
-    const bands = [...svg.matchAll(/<rect class="gantt-excluded-band"/g)]
+    const bands = [...svg.matchAll(/<rect class="gantt-excluded-band"[^>]*>/g)].map(([band]) => band)
     expect(bands.length).toBeGreaterThan(0)
-    expect(svg).toContain('.gantt-excluded-band {')
+    // A quiet tint: every band is filled at one tenth opacity.
+    for (const band of bands) expect(band).toMatch(/ fill="[^"]+" opacity="0\.1"/)
     // (3) z-order: the LAST band precedes the FIRST bar in paint order.
     const lastBand = svg.lastIndexOf('<rect class="gantt-excluded-band"')
     const firstBar = svg.indexOf('<rect class="gantt-bar')

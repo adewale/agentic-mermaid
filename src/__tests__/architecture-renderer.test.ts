@@ -151,7 +151,7 @@ describe('renderArchitectureSvg', () => {
     expect(svg).toContain('id="architecture-arrow-end"')
     expect(svg).toContain('class="architecture-service"')
     expect(svg).toContain('class="architecture-edge"')
-    expect(svg).toContain('stroke: var(--arch-edge-stroke, var(--_line));')
+    expect(svg).toMatch(/<polyline class="architecture-edge"[^>]* stroke="var\(--arch-edge-stroke, var\(--_line\)\)"/)
     expect(svg).toContain('fill="var(--arch-edge-stroke, var(--_arrow))"')
   })
 

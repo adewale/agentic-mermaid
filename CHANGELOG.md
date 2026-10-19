@@ -22,6 +22,14 @@ This changelog tracks user-facing changes for **Agentic Mermaid**, a fork of `lu
 
 ### Fixed
 
+- Drawings that disagreed with their certified paint now draw it: a Pie
+  slice's role or semantic-slot border and its highlight emphasis, which
+  stylesheet rules overrode; abstract, static and non-ASCII Class members,
+  which painted in SVG's default black instead of the member ink; a Journey
+  title's letter spacing and an `em`/`ex` `titleFontSize`. Sketch styles now
+  draw Radar areas with the translucent fill and opaque outline the default
+  style draws, XYChart series lines with round caps and joins, and a done
+  Gantt bar's border.
 - Context codecs preserve entity-derived tags, emphasis and backslash-n as
   literal text beside authored formatting in Flowchart, ER, Sequence and Class.
   Parsed aliases and labels retain their meaning through edits and reload;
@@ -243,6 +251,16 @@ This changelog tracks user-facing changes for **Agentic Mermaid**, a fork of `lu
   website, and full and lazy browser bundles.
 
 ### Changed
+- Every built-in family's shapes, text and connectors are now written by one
+  SVG writer from the typed fields paint certification reads, so a render's
+  certificate describes the drawing it ships. Families no longer attach their
+  own SVG strings, and family stylesheets no longer paint marks (paint is
+  written on each element; hover and tooltip rules remain). SVG bytes change:
+  attribute order, inline paint and omitted SVG defaults. Default-style
+  rasters of the 562-input corpus are unchanged apart from Sankey link
+  opacity (at most 3/255 per channel) and the anti-aliasing of the Sequence
+  actor link-menu glyph. `verify` no longer compares each mark with its SVG,
+  which the writer makes hold by construction.
 - `verify` no longer blames the diagram for a defect in Agentic Mermaid. A
   render-path failure raised by one of the engine's own consistency checks or
   by a runtime error such as a `TypeError` is the new Tier 1 error

@@ -29,13 +29,13 @@ import type { RenderOptions } from '../types.ts'
 // those would let a dropped key shrink this suite instead of failing it.
 
 const FLOW = 'flowchart TD\n  A --> B'
-const PIE = 'pie\n  "A" : 3\n  "B" : 2'
+const PIE = 'pie title Pets\n  "A" : 3\n  "B" : 2'
 const GITGRAPH = 'gitGraph\n  commit id:"A" type:HIGHLIGHT'
 const TIMELINE = 'timeline\n  2020 : Start\n  2021 : End'
-const JOURNEY = 'journey\n  section S\n  Task: 3: Me'
+const JOURNEY = 'journey\n  title T\n  section S\n  Task: 3: Me'
 const RADAR = 'radar-beta\n  title Skills\n  axis a, b, c\n  curve x{1,2,3}\n  max 5'
 const ARCHITECTURE = 'architecture-beta\n  group app(cloud)[App]\n  service api(server)[API] in app'
-const XYCHART = 'xychart\n  title Sales\n  x-axis [A, B]\n  y-axis 0 --> 2\n  bar [1, 2]'
+const XYCHART = 'xychart\n  title Sales\n  x-axis Region [A, B]\n  y-axis Units 0 --> 2\n  bar [1, 2]'
 
 const INVALID: readonly unknown[] = [
   'notacolor', '#12345', 'rgb(x)', 'hsl(120 50% 50% / .5 / junk)', 'url(#a)',
@@ -119,11 +119,11 @@ const FAMILIES: readonly FamilyAdmission[] = [
     admitsNone: theme(...indexed('pie', 1, 12), 'pieStrokeColor', 'pieOuterStrokeColor'),
     sinks: {
       'themeVariables.pie1': 'fill="',
-      'themeVariables.pieStrokeColor': '.pie-slice { stroke: ',
-      'themeVariables.pieOuterStrokeColor': '.pie-outer-circle { stroke: ',
+      'themeVariables.pieStrokeColor': 'stroke="',
+      'themeVariables.pieOuterStrokeColor': 'stroke="',
       'themeVariables.pieSectionTextColor': 'fill="',
-      'themeVariables.pieTitleTextColor': '.pie-title { fill: ',
-      'themeVariables.pieLegendTextColor': '.pie-legend-text { fill: ',
+      'themeVariables.pieTitleTextColor': 'fill="',
+      'themeVariables.pieLegendTextColor': 'fill="',
     },
     probes: [['themeVariables.pie1', 'notacolor']],
   },
@@ -170,9 +170,9 @@ const FAMILIES: readonly FamilyAdmission[] = [
     admitsNone: ['journey.actorColours[0]'],
     // Section ink may be replaced by Journey's contrast guard, so it has no sink.
     sinks: {
-      'journey.actorColours[0]': '.journey-actor-0 { fill: ',
-      'journey.sectionFills[0]': '.journey-section-0 { fill: ',
-      'journey.titleColor': '.journey-title { fill: ',
+      'journey.actorColours[0]': 'fill="',
+      'journey.sectionFills[0]': 'fill="',
+      'journey.titleColor': 'fill="',
     },
     probes: [['journey.titleColor', 'notacolor']],
   },
@@ -184,10 +184,10 @@ const FAMILIES: readonly FamilyAdmission[] = [
     refusesNone: theme('titleColor', ...indexed('cScale', 0, 12), 'radar.axisColor'),
     admitsNone: theme('radar.graticuleColor'),
     sinks: {
-      'themeVariables.titleColor': '.radar-title { fill: ',
+      'themeVariables.titleColor': 'fill="',
       'themeVariables.cScale0': 'fill="',
-      'themeVariables.radar.axisColor': '.radar-axis-line { stroke: ',
-      'themeVariables.radar.graticuleColor': '.radar-ring { stroke: ',
+      'themeVariables.radar.axisColor': 'stroke="',
+      'themeVariables.radar.graticuleColor': 'stroke="',
     },
     probes: [['themeVariables.radar.axisColor', 'url(#unsafe)']],
   },
@@ -215,15 +215,15 @@ const FAMILIES: readonly FamilyAdmission[] = [
     // This chart has no legend, so legendTextColor has no sink.
     sinks: {
       'themeVariables.xyChart.backgroundColor': '--bg:',
-      'themeVariables.xyChart.titleColor': '.xychart-title { fill: ',
-      'themeVariables.xyChart.xAxisLabelColor': '.xychart-x-label { fill: ',
-      'themeVariables.xyChart.xAxisTickColor': '.xychart-x-tick { stroke: ',
-      'themeVariables.xyChart.xAxisLineColor': '.xychart-x-axis-line { stroke: ',
-      'themeVariables.xyChart.xAxisTitleColor': '.xychart-x-axis-title { fill: ',
-      'themeVariables.xyChart.yAxisLabelColor': '.xychart-y-label { fill: ',
-      'themeVariables.xyChart.yAxisTickColor': '.xychart-y-tick { stroke: ',
-      'themeVariables.xyChart.yAxisLineColor': '.xychart-y-axis-line { stroke: ',
-      'themeVariables.xyChart.yAxisTitleColor': '.xychart-y-axis-title { fill: ',
+      'themeVariables.xyChart.titleColor': 'fill="',
+      'themeVariables.xyChart.xAxisLabelColor': 'fill="',
+      'themeVariables.xyChart.xAxisTickColor': 'stroke="',
+      'themeVariables.xyChart.xAxisLineColor': 'stroke="',
+      'themeVariables.xyChart.xAxisTitleColor': 'fill="',
+      'themeVariables.xyChart.yAxisLabelColor': 'fill="',
+      'themeVariables.xyChart.yAxisTickColor': 'stroke="',
+      'themeVariables.xyChart.yAxisLineColor': 'stroke="',
+      'themeVariables.xyChart.yAxisTitleColor': 'fill="',
       'themeVariables.xyChart.plotColorPalette[0]': '--xychart-color-0: ',
     },
     probes: [['themeVariables.xyChart.titleColor', 'notacolor'], ['themeVariables.xyChart.plotColorPalette[0]', 'notacolor']],

@@ -146,16 +146,23 @@ export function parseSvg(svg: string): Rendered {
     if (lo[0]! < hi[0]! && lo[1]! < hi[1]!) nodes.push({ id: id!, shape: shape as NodeShape, x: lo[0]!, y: lo[1]!, w: hi[0]! - lo[0]!, h: hi[1]! - lo[1]! })
   }
   const edges: REdge[] = []
-  const polyRe = /<polyline class="edge"[^>]*?data-from="([^"]*)"[^>]*?data-to="([^"]*)"[^>]*?points="([^"]+)"/g
-  while ((m = polyRe.exec(svg))) {
-    const pts = m[3]!.trim().split(/\s+/).map(p => { const [x, y] = p.split(',').map(Number); return { x: x!, y: y! } })
-    edges.push({ from: m[1]!, to: m[2]!, pts })
-  }
-  // path-form edges (bendRadius>0): take M/L corner points (arcs approximated by endpoints)
-  const pathRe = /<path class="edge"[^>]*?data-from="([^"]*)"[^>]*?data-to="([^"]*)"[^>]*?d="([^"]+)"/g
-  while ((m = pathRe.exec(svg))) {
-    const coords = [...m[3]!.matchAll(/[ML]\s*([\d.-]+)[ ,]([\d.-]+)/g)].map(c => ({ x: num(c[1]), y: num(c[2]) }))
-    if (coords.length >= 2) edges.push({ from: m[1]!, to: m[2]!, pts: coords })
+  // Edge carriers: read attributes by name, since their order is the
+  // writer's, not a contract.
+  for (const tag of svg.matchAll(/<(polyline|path)\b([^>]*)>/g)) {
+    const attrs = new Map([...tag[2]!.matchAll(/([A-Za-z_:][-A-Za-z0-9_:.]*)="([^"]*)"/g)].map(a => [a[1]!, a[2]!]))
+    if (!(attrs.get('class') ?? '').split(/\s+/).includes('edge')) continue
+    const from = attrs.get('data-from'), to = attrs.get('data-to')
+    if (from === undefined || to === undefined) continue
+    if (tag[1] === 'polyline') {
+      const points = attrs.get('points')
+      if (!points) continue
+      const pts = points.trim().split(/\s+/).map(p => { const [x, y] = p.split(',').map(Number); return { x: x!, y: y! } })
+      edges.push({ from, to, pts })
+    } else {
+      // path-form edges (bendRadius>0): take M/L corner points (arcs approximated by endpoints)
+      const coords = [...(attrs.get('d') ?? '').matchAll(/[ML]\s*([\d.-]+)[ ,]([\d.-]+)/g)].map(c => ({ x: num(c[1]), y: num(c[2]) }))
+      if (coords.length >= 2) edges.push({ from, to, pts: coords })
+    }
   }
   return { nodes, edges }
 }

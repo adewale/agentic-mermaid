@@ -27,7 +27,7 @@ describe('deterministic offline Architecture Iconify registry (B11/A5)', () => {
     expect(svg).toContain('data-icon="mdi:api"')
     expect(svg).toContain('data-icon-source="@iconify-json/mdi@1.2.3"')
     expect(svg).toContain('data-icon-license="Apache-2.0"')
-    expect(svg).toMatch(/<path class="architecture-icon-glyph" d="[^"]+" transform="translate\([^<]+" \/>/)
+    expect(svg).toMatch(/<path class="architecture-icon-glyph" d="[^"<]+" fill="[^"<]+" transform="matrix\([^"<]+\)" \/>/)
     expect(svg).not.toContain('<script')
     expect(renderMermaidSVG(sourceFor('mdi:api'))).toBe(svg)
   })

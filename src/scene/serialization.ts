@@ -1,12 +1,17 @@
 import type { SceneNode } from './ir.ts'
 import { compareCodePointStrings } from '../shared/deterministic-order.ts'
+import { writeConnectorSvg, writeShapeSvg, writeTextSvg } from './svg-writer.ts'
 
 // SVG serialization is backend-private state, not part of the public Scene IR.
-// Construction-time markup is normalized before admission: callers cannot use
-// attribute order, quote style, or tag spacing as a second byte-level Scene
-// authority, and the default backend no longer replays historical emitter
-// bytes. The semantic Scene fields remain the public contract.
+// Shape, text and connector marks are written from their typed fields when
+// first serialized (svg-writer.ts); a group is its opening tag, its children
+// and its closing tag. Only document marks (the shell, definitions,
+// stylesheets, titles, opaque family content) carry construction-time markup,
+// normalized before admission: callers cannot use attribute order, quote
+// style, or tag spacing as a second byte-level Scene authority.
 const SERIALIZED_SCENE_NODES = new WeakMap<object, string>()
+/** Writer output for frozen (admitted) marks, which cannot change after. */
+const WRITTEN_SCENE_NODES = new WeakMap<object, string>()
 
 interface SerializedAttribute {
   readonly name: string
@@ -100,15 +105,43 @@ export function canonicalizeSceneNodeSerialization(svg: string): string {
   return output
 }
 
+/** Attach a document mark's markup. Every other mark's SVG is written from
+ * its fields, so what paint certification reads is what the output shows. */
 export function attachSceneNodeSerialization<T extends SceneNode>(node: T, svg: string): T {
+  if (node.kind !== 'document') throw new TypeError(`Scene ${node.kind} "${node.id}" is written from its fields, not stored markup`)
   SERIALIZED_SCENE_NODES.set(node, canonicalizeSceneNodeSerialization(svg))
   return node
 }
 
 export function sceneNodeSerialization(node: SceneNode): string {
-  const svg = SERIALIZED_SCENE_NODES.get(node)
-  if (svg === undefined) throw new TypeError(`Scene node "${node.id}" has no admitted SVG serialization`)
+  const stored = SERIALIZED_SCENE_NODES.get(node)
+  if (stored !== undefined) return stored
+  const written = WRITTEN_SCENE_NODES.get(node)
+  if (written !== undefined) return written
+  const svg = writeSceneNode(node)
+  if (Object.isFrozen(node)) WRITTEN_SCENE_NODES.set(node, svg)
   return svg
+}
+
+function writeSceneNode(node: SceneNode): string {
+  switch (node.kind) {
+    case 'shape': return writeShapeSvg(node)
+    case 'text': return writeTextSvg(node)
+    case 'connector': return writeConnectorSvg(node)
+    case 'group': return [
+      node.open,
+      ...node.children.map(child => indentLines(sceneNodeSerialization(child.node), child.indent)),
+      node.close,
+    ].join(node.join)
+    case 'document': throw new TypeError(`Scene node "${node.id}" has no admitted SVG serialization`)
+  }
+}
+
+/** Indent every line of a serialized chunk by `n` spaces. */
+export function indentLines(s: string, n: number): string {
+  if (n <= 0 || s === '') return s
+  const pad = ' '.repeat(n)
+  return pad + s.replace(/\n/g, `\n${pad}`)
 }
 
 export function transferSceneNodeSerialization(source: object, target: object): void {

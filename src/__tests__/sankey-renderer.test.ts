@@ -91,10 +91,12 @@ describe('sankey SVG renderer · config wiring', () => {
 
   test('linkColor: source paints ribbons with the source node color', () => {
     const svg = renderMermaidSVG(configured('    linkColor: source'))
-    const nodeFill = Object.fromEntries([...svg.matchAll(/<rect class="sankey-node" [^>]*fill="(#[0-9a-fA-F]{6})"[^>]*data-label="([^"]+)"/g)].map(m => [m[2], m[1]]))
-    const ribbons = [...svg.matchAll(/<path class="sankey-link" [^>]*stroke="(#[0-9a-fA-F]{6})"[^>]*data-source="([^"]+)" data-target="([^"]+)"/g)]
-      .map(m => ({ link: `${m[2]}->${m[3]}`, stroke: m[1] }))
+    const attribute = (tag: string, name: string) => tag.match(new RegExp(`\\s${name}="([^"]*)"`))?.[1]
+    const nodeFill = Object.fromEntries((svg.match(/<rect class="sankey-node"[^>]*>/g) ?? []).map(tag => [attribute(tag, 'data-label'), attribute(tag, 'fill')]))
+    const ribbons = (svg.match(/<path class="sankey-link"[^>]*>/g) ?? [])
+      .map(tag => ({ link: `${attribute(tag, 'data-source')}->${attribute(tag, 'data-target')}`, stroke: attribute(tag, 'stroke') }))
     expect(ribbons.map(r => r.link)).toEqual(['Coal->Electricity', 'Gas->Electricity', 'Electricity->Homes', 'Electricity->Industry'])
+    expect(ribbons.every(r => /^#[0-9a-fA-F]{6}$/.test(r.stroke ?? ''))).toBe(true)
     expect(ribbons).toEqual(ribbons.map(r => ({ link: r.link, stroke: nodeFill[r.link.split('->')[0]!] })))
     // The sources carry distinct colors, so one shared stroke could not pass.
     expect(new Set(ribbons.map(r => r.stroke)).size).toBe(3)
@@ -119,7 +121,7 @@ describe('sankey SVG renderer · config wiring', () => {
     const svg = renderMermaidSVG(BASIC)
     const gradients = new Map([...svg.matchAll(/<linearGradient id="([^"]+)" gradientUnits="userSpaceOnUse" x1="([^"]+)" y1="([^"]+)" x2="([^"]+)" y2="([^"]+)">/g)]
       .map(m => [m[1]!, [m[2], m[3], m[4], m[5]].map(Number)]))
-    const ribbons = [...svg.matchAll(/<path class="sankey-link" d="M (\S+) (\S+) C [^"]*, (\S+) (\S+)" [^>]*stroke="url\(#([^)]+)\)"/g)]
+    const ribbons = [...svg.matchAll(/<path class="sankey-link" [^>]*\sd="M (\S+) (\S+) C [^"]*, (\S+) (\S+)" [^>]*stroke="url\(#([^)]+)\)"/g)]
     expect(ribbons).toHaveLength(4)
     for (const [, sx, sy, tx, ty, id] of ribbons) {
       expect(gradients.get(id!)).toEqual([sx, sy, tx, ty].map(Number))
@@ -153,7 +155,7 @@ describe('sankey SVG renderer · config wiring', () => {
 
   test('nodeColors overrides win over the derived palette', () => {
     const svg = renderMermaidSVG(configured('    nodeColors:\n      Coal: "#4e79a7"'))
-    expect(svg).toMatch(/fill="#4e79a7"[^/]*data-label="Coal"/)
+    expect(svg).toMatch(/<rect class="sankey-node" [^>]*data-label="Coal"[^>]* fill="#4e79a7"/)
   })
 
   // Labels sit on the ribbons, so both label styles halo them in the page

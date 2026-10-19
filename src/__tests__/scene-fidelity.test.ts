@@ -17,7 +17,8 @@ import { inspectScenePrimitives } from '../scene/inspection.ts'
 import { SECTION_B_FAMILY_CENSUS_FIXTURES } from '../scene/section-b-census-fixtures.ts'
 import { sceneFidelityProblems } from '../scene/fidelity.ts'
 import { DefaultBackend } from '../scene/backend.ts'
-import type { SceneDoc } from '../scene/ir.ts'
+import type { SceneDoc, SceneNode } from '../scene/ir.ts'
+import { sceneNodeSerialization } from '../scene/serialization.ts'
 import { collectSamples } from '../../eval/layout-compare/run.ts'
 import { resolveRenderRequest, resolvedRenderExecutionPlanOf } from '../render-contract.ts'
 import { positionResolvedFamily } from '../positioning.ts'
@@ -152,6 +153,40 @@ describe('scene fidelity', () => {
     if (problems.length > 0) {
       throw new Error(`scene fidelity violations (${problems.length}):\n` + problems.slice(0, 40).join('\n'))
     }
+  })
+
+  test('no family stylesheet restyles what a typed mark draws', () => {
+    // The writer emits a mark's paint and typography as presentation
+    // attributes, which any stylesheet rule overrides; certification reads the
+    // typed fields. So no rule may set them on a class a typed mark carries.
+    // Interactive-state rules (`:hover`) and conditional artwork are excluded.
+    const drawn = /^(?:fill|fill-opacity|stroke|stroke-[a-z]+|opacity|paint-order|font-size|font-weight|font-style|letter-spacing|text-anchor|text-decoration|dominant-baseline|transform|display|visibility)$/
+    const problems: string[] = []
+    for (const scene of scenes) {
+      const css = scene.doc.parts.filter(part => part.kind === 'document')
+        .flatMap(part => sceneNodeSerialization(part).match(/<style>[\s\S]*?<\/style>/g) ?? []).join('\n')
+      const rules = [...css.replace(/@media[^{]*\{(?:[^{}]*\{[^{}]*\})*[^{}]*\}/g, '').matchAll(/([^{}]+)\{([^{}]*)\}/g)].flatMap(([, selectors, body]) => {
+        const properties = body!.split(';').map(declaration => declaration.split(':')[0]!.trim()).filter(property => drawn.test(property))
+        return properties.length === 0 ? [] : selectors!.split(',').map(selector => selector.trim()).filter(selector => selector && !selector.includes(':')).map(selector => {
+          const compound = selector.split(/[\s>+~]+/).filter(Boolean).at(-1)!
+          return { selector, properties, element: /^[a-z]+/.exec(compound)?.[0], classes: [...compound.matchAll(/\.([\w-]+)/g)].map(match => match[1]!) }
+        })
+      })
+      const visit = (node: SceneNode, conditional: boolean): void => {
+        if (node.kind === 'group') { for (const child of node.children) visit(child.node, conditional || node.visibility === 'conditional'); return }
+        if (node.kind === 'document' || conditional || node.visibility === 'conditional') return
+        const classes = new Set(node.attributes?.className?.split(' ') ?? [])
+        const element = node.kind === 'text' ? 'text' : undefined
+        for (const rule of rules) {
+          const matches = rule.classes.length > 0
+            ? rule.classes.every(name => classes.has(name)) && (!rule.element || rule.element === element)
+            : rule.element !== undefined && rule.element === element
+          if (matches) problems.push(`${scene.id}: "${rule.selector}" sets ${rule.properties.join(', ')} on ${node.kind} ${node.id}`)
+        }
+      }
+      for (const part of scene.doc.parts) visit(part, false)
+    }
+    expect(problems.slice(0, 40)).toEqual([])
   })
 
   test('all final artwork is measured or explicitly non-painting across the corpus', () => {

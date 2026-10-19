@@ -1,12 +1,13 @@
 import { decodeXML } from 'entities'
 // ============================================================================
 // Scene fidelity checker — asserts a mark's semantic fields agree with its
-// crisp serialization, so styled backends can trust the geometry they redraw.
+// written serialization, so styled backends can trust the geometry they redraw.
 //
-// Independent oracle used by Scene admission and the cross-family corpus: it
-// parses the crisp strings we ourselves emit — a stable, owned format — and
-// returns human-readable problems instead of throwing, so one run reports
-// every divergence in a lowering.
+// The writer (svg-writer.ts) draws every shape, text and connector from its
+// fields, so no render path runs this check. It is the tests' independent
+// oracle for the writer over the cross-family corpus: it parses the SVG we
+// ourselves emit — a stable, owned format — and returns human-readable problems
+// instead of throwing, so one run reports every divergence in a lowering.
 // ============================================================================
 
 import type { Geometry, SceneDoc, SceneNode, TextMark } from './ir.ts'
@@ -129,7 +130,7 @@ function unescapeXml(s: string): string {
 function timelineLiteralText(serialized: string): string | undefined {
   const outer = /^<text\b([^<>]*)>([\s\S]*)<\/text>$/.exec(serialized)
   if (!outer) return undefined
-  const attributes = /^(?:\s+(?:x|y|class|text-anchor|font-size|font-weight|font-style|text-decoration|data-literal-text|font-family|letter-spacing|dy|data-id|data-role|aria-label|role|textLength|lengthAdjust|data-font-metrics|data-prepared-text|data-text-fragment|xml:space)="[^"<>]*")*\s*$/
+  const attributes = /^(?:\s+(?:x|y|class|text-anchor|dominant-baseline|font-size|font-weight|font-style|text-decoration|font-family|letter-spacing|dy|fill|fill-opacity|stroke|stroke-opacity|stroke-width|stroke-linejoin|paint-order|opacity|data-[a-z-]+|aria-label|aria-hidden|role|textLength|lengthAdjust|xml:space)="[^"<>]*")*\s*$/
   if (!attributes.test(outer[1]!)) return undefined
   let result = ''
   let cursor = 0

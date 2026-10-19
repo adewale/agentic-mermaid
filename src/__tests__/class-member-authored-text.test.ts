@@ -73,6 +73,18 @@ test('authored member display keeps UML modifiers and SVG escaping', () => {
   expect(svg).not.toContain('<script>')
 })
 
+test('every member is painted in the member ink, including lines drawn without highlight runs', () => {
+  // Abstract members (italic runs), non-ASCII members (native shaping) and
+  // static members (underlined) are not split into highlight runs; their text
+  // element's own fill paints them, else SVG's default black would.
+  const svg = renderMermaidSVG('classDiagram\n  class A {\n    +draw()*\n    +String näme\n    +total()$ int\n    +int plain\n  }\n')
+  const fills = [...svg.matchAll(/<text\b[^>]*\bdata-role="member"[^>]*>/g)].map(match => match[0].match(/\sfill="([^"]*)"/)?.[1])
+  expect(fills).toHaveLength(4)
+  expect(fills[0]).toBeDefined()
+  expect(fills[0]).not.toMatch(/^(?:#000(?:000)?|black)$/i)
+  expect(new Set(fills).size).toBe(1)
+})
+
 test('Class member entities expand after visibility, methods, modifiers and generics are parsed', async () => {
   const members = ['+#9829;', '#35;literal', '#protected', '+call#40;#41;', '+call(#lt;b#gt;) #quot;type#quot;', '+Map~str,int~ #126;literal#126;', '+#42;literal#42;', '+#lt;b#gt;tag#lt;/b#gt;']
   const source = `classDiagram\nclass A {\n${members.join('\n')}\n}`

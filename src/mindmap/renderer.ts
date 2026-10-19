@@ -2,8 +2,7 @@ import type { RenderContext } from '../types.ts'
 import { resolveRenderStyle, diagramTitleMark } from '../styles.ts'
 import type { PositionedMindmapDiagram, PositionedMindmapNode } from './types.ts'
 import { MINDMAP_BANG_INNER_RADIUS_RATIO } from './geometry.ts'
-import type { SceneDoc, SceneNode } from '../scene/ir.ts'
-import { serializeGeometryShape, type SerializableShapeGeometry } from '../scene/svg-serialize.ts'
+import type { Geometry, SceneDoc, SceneNode } from '../scene/ir.ts'
 import * as marks from '../scene/marks.ts'
 import { pathArtwork } from '../scene/artwork.ts'
 import { iconFallbackToken } from '../shared/icon-fallback.ts'
@@ -12,7 +11,7 @@ import { svgOpenTag, buildStyleBlock, buildShadowDefs, resolveColors } from '../
 import { ensureContrast, isHexColor, mixHex } from '../shared/color-math.ts'
 import { buildAccessibilityAttrs } from '../shared/svg-a11y.ts'
 import { semanticChildId, semanticRelationId } from '../scene/identity.ts'
-import { escapeAttr, escapeDisplayAttr, escapeXml, renderMultilineText } from '../multiline-utils.ts'
+import { escapeAttr, escapeDisplayAttr } from '../multiline-utils.ts'
 import { resolveMindmapIcon } from './icons.ts'
 import { categoricalPalette } from '../shared/categorical-palette.ts'
 import { projectConnectorPath } from '../scene/connector-geometry.ts'
@@ -90,7 +89,8 @@ export function lowerMindmapScene(ctx: RenderContext<PositionedMindmapDiagram>):
       },
       stroke: { lineCap: 'round' },
       channels: { importance: 1, category: String(branchByNode.get(edge.to) ?? 0) },
-    }, `<path class="mindmap-edge" data-from="${escapeAttr(edge.from)}" data-to="${escapeAttr(edge.to)}" data-branch-index="${branchByNode.get(edge.to) ?? 0}" d="${edge.d}" fill="none" stroke="${escapeAttr(stroke)}" stroke-width="2.5" stroke-linecap="round" />`))
+      attributes: { className: 'mindmap-edge', data: { 'branch-index': String(branchByNode.get(edge.to) ?? 0) } },
+    }))
   }
   for (const node of diagram.nodes) parts.push(renderNode(node, colors, branchByNode.get(node.id), branchPaint(node.id)))
   parts.push(marks.documentClose())
@@ -115,9 +115,8 @@ function renderNode(
     ? concretePalette ? ensureContrast(colors.bg, rootFill, 4.5, colors.fg) : 'var(--bg)'
     : concretePalette ? ensureContrast(colors.fg, branchFill, 4.5) : 'var(--_text)'
   const shape = nodeGeometry(node)
-  const shapeSvg = serializeGeometryShape(shape, { fill, stroke, strokeWidth: '1.5' })
   const children: Array<{ node: SceneNode; indent: number }> = [
-    { node: marks.shape({ id: semanticChildId(node.id, 'shape'), role: 'chrome', geometry: shape, paint: { fill, stroke, strokeWidth: '1.5' } }, shapeSvg), indent: 2 },
+    { node: marks.shape({ id: semanticChildId(node.id, 'shape'), role: 'chrome', geometry: shape, paint: { fill, stroke, strokeWidth: '1.5' } }), indent: 2 },
   ]
   if (node.icon) {
     const glyph = resolveMindmapIcon(node.icon)
@@ -128,18 +127,18 @@ function renderNode(
       const scale = size / 24
       children.push({ node: pathArtwork({ id: semanticChildId(node.id, 'icon'), paths: glyph.paths,
         owner: { id: node.id, role: 'node' },
-        open: `<g class="mindmap-icon-glyph" data-icon="${escapeAttr(node.icon)}" data-icon-source="${escapeAttr(glyph.source)}" transform="translate(${round(x)} ${round(y)}) scale(${round(scale)})" fill="${textColor}" stroke="${textColor}" stroke-width="0.8">`,
+        open: `<g class="mindmap-icon-glyph" data-icon="${escapeAttr(node.icon)}" data-icon-source="${escapeAttr(glyph.source)}" transform="translate(${round(x)} ${round(y)}) scale(${round(scale)})">`,
         transform: { kind: 'matrix', a: round(scale), b: 0, c: 0, d: round(scale), e: round(x), f: round(y) },
         paint: { fill: textColor, stroke: textColor, strokeWidth: '0.8' },
-        serializePath: path => `<path d="${path}" />`,
       }), indent: 2 })
     } else {
       const token = iconFallbackToken(node.icon)
       children.push({ node: marks.text({
         id: semanticChildId(node.id, 'icon'), role: 'icon', owner: { id: node.id, role: 'node' }, text: token,
-        block: node.iconFallbackBlock, x: node.x + node.width / 2,
-        y: node.y + 12, fontSize: 9, anchor: 'middle', paint: { fill: textColor },
-      }, `<text class="mindmap-icon-fallback" data-icon="${escapeAttr(node.icon)}" x="${round(node.x + node.width / 2)}" y="${round(node.y + 12)}" text-anchor="middle" font-size="9" fill="${textColor}">${escapeXml(token)}</text>`), indent: 2 })
+        block: node.iconFallbackBlock, x: round(node.x + node.width / 2),
+        y: round(node.y + 12), fontSize: 9, anchor: 'middle', paint: { fill: textColor }, baselineShift: 0,
+        attributes: { className: 'mindmap-icon-fallback', data: { icon: node.icon } },
+      }), indent: 2 })
     }
   }
   const labelY = node.y + node.height / 2 + (node.icon ? 5 : 0)
@@ -148,10 +147,9 @@ function renderNode(
   const letterSpacing = node.labelBlock?.letterSpacing ?? 0
   children.push({ node: marks.text({
     id: semanticChildId(node.id, 'label'), role: 'label', text: node.label, block: node.labelBlock,
-    x: node.x + node.width / 2, y: labelY, fontSize,
+    x: node.x + node.width / 2, y: labelY, fontSize, fontWeight, letterSpacing,
     anchor: 'middle', paint: { fill: textColor },
-  }, renderMultilineText(node.labelBlock ?? node.label, node.x + node.width / 2, labelY, fontSize,
-    `text-anchor="middle" font-size="${fontSize}" font-weight="${fontWeight}" letter-spacing="${letterSpacing}" fill="${textColor}"`)), indent: 2 })
+  }), indent: 2 })
   const customClasses = node.className ? ` ${escapeAttr(node.className)}` : ''
   return marks.group({
     id: node.id,
@@ -162,7 +160,7 @@ function renderNode(
   })
 }
 
-function nodeGeometry(node: PositionedMindmapNode): SerializableShapeGeometry {
+function nodeGeometry(node: PositionedMindmapNode): Geometry {
   const { x, y, width, height } = node
   const point = (pointX: number, pointY: number) => ({ x: round(pointX), y: round(pointY) })
   if (node.shape === 'circle') return { kind: 'circle', cx: round(x + width / 2), cy: round(y + height / 2), r: round(Math.min(width, height) / 2) }
