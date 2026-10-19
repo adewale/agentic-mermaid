@@ -667,6 +667,23 @@ describe('directLaneBlockers (unit)', () => {
   const ctx = (over: Partial<{ nodes: unknown[]; edges: unknown[] }> = {}) =>
     ({ nodes: [], edges: [], axis, style, ...over }) as Parameters<typeof directLaneBlockers>[4]
 
+  it('reports every distinct blocker in discovery order for certificate evidence', () => {
+    const labeled = { ...probe, label: 'this label cannot fit on the short lane' }
+    const other = edge('P', 'Q', [{ x: 20, y: 50 }, { x: 80, y: 50 }], {
+      label: 'No', labelPosition: { x: 50, y: 50 },
+    })
+    expect(directLaneBlockers(labeled, 50, 0, 100, ctx({
+      nodes: [node('X', 20, 40, 20, 20), node('Y', 60, 40, 20, 20)],
+      edges: [other, { ...other }],
+    }))).toEqual([
+      { kind: 'node', id: 'X' },
+      { kind: 'node', id: 'Y' },
+      { kind: 'label', id: 'P->Q' },
+      { kind: 'channel', id: 'P->Q' },
+      { kind: 'label', id: 'A->B' },
+    ])
+  })
+
   it('a node straddling the lane blocks; the same node beyond the 4px clearance does not', () => {
     const blockedBy = (ny: number) =>
       directLaneBlockers(probe, 50, 0, 100, ctx({ nodes: [node('X', 40, ny, 20, 20)] }))
