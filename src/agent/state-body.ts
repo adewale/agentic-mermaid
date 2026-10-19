@@ -1235,7 +1235,7 @@ function renameInTransitions(body: StateBody, from: string, to: string): void {
  * with nothing between them. Mermaid reads those apart too, but `A B` is
  * usually meant as one name with a space (mermaid#2973). A composite never
  * closed is reported where it opens: Mermaid and ours both reject it. */
-export function stateUnsupportedSyntaxWarnings(canonicalSource: string): LayoutWarning[] {
+export function stateUnsupportedSyntaxWarnings(canonicalSource: string, authoredLine?: (canonicalLine: number) => string | undefined): LayoutWarning[] {
   const lines = canonicalSource.split(/\r?\n/)
   const header = lines.findIndex(line => /^stateDiagram(?:-v2)?(?=$|[\s;%])/i.test(line.trim()))
   if (header < 0) return []
@@ -1284,8 +1284,14 @@ export function stateUnsupportedSyntaxWarnings(canonicalSource: string): LayoutW
       message: 'This composite state is never closed by `}`, so where it ends cannot be told and the diagram is not drawn; pinned Mermaid rejects it too. Add a `}` where the composite ends.',
     })),
   ]
-  // The line a statement's text ends on, with any `}` the scan cuts off it.
-  const lastLine = (line: number): string => body[statementEndAt(statementEnds, line, body.length)] ?? ''
+  // The line a statement's text ends on, with any `}` the scan cuts off it:
+  // as authored where verify has the source, since canonical lines end trimmed.
+  const lastLine = (line: number): string => {
+    const end = statementEndAt(statementEnds, line, body.length)
+    const canonical = body[end] ?? ''
+    const authored = authoredLine?.(header + end + 2)
+    return authored?.trim() === canonical.trim() ? authored : canonical
+  }
   warnings.push(...stateReadOtherwiseWarnings(scan.statements, header, lastLine))
   return warnings.sort((left, right) => left.line - right.line)
 }
@@ -1310,9 +1316,9 @@ function stateReadOtherwiseWarnings(statements: readonly StateStatement[], heade
   // Mermaid's State lexer reads entity codes first, then ends a description
   // or transition label (DESCR, `":"(?:[^:\n;]|":"[^:\n;])+`) at a `;`, at
   // `::` and before a colon its line ends with. Ours reads the text to the
-  // line's end, as both read the text after `state "…" as X`. The canonical
-  // lines read here end trimmed, so a colon only blanks follow, which
-  // Mermaid reads as text, is reported too.
+  // line's end, as both read the text after `state "…" as X`. Verify given
+  // only a parsed diagram reads its canonical lines, which end trimmed: there
+  // a colon only blanks follow, which Mermaid reads as text, is reported too.
   const cutText = (statement: StateStatement, value: string): void => {
     const text = lexedStateText(value)
     if (!/;|::/.test(text) && !(text.endsWith(':') && lastLine(statement.line).endsWith(':'))) return

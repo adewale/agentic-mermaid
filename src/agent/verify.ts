@@ -160,7 +160,7 @@ export function verifyMermaid(input: ParsedDiagram | string, opts: VerifyOptions
     return finalize([positioned.failure(error)], emptyRenderedLayout(parsed.value.kind), opts, false)
   }
   try {
-    const structured = verifyStructure(parsed.value, opts, positioned)
+    const structured = verifyStructure(parsed.value, opts, positioned, typeof input === 'string' ? input : undefined)
     return withRenderParity(withBrandConstraints(structured, opts, positioned), opts, positioned)
   } catch (error) {
     if (!(error instanceof PaintLayoutCertificationError || error instanceof FamilyLayoutError || error instanceof RenderOptionColorError || error instanceof ThemeVariableColorError)) throw error
@@ -370,8 +370,9 @@ function journeySemicolonExtensionWarnings(d: ValidDiagram): LayoutWarning[] {
 
 /** Source this repo reads generously where pinned Mermaid rejects it: each
  * family's rule reports UNSUPPORTED_SYNTAX on canonical lines, and verify
- * names the authored line, as journeySemicolonExtensionWarnings does. */
-const UPSTREAM_REJECTED_SYNTAX: Partial<Record<ValidDiagram['kind'], (canonicalSource: string) => LayoutWarning[]>> = {
+ * names the authored line, as journeySemicolonExtensionWarnings does. Given
+ * the authored source, a rule may read a canonical line as authored. */
+const UPSTREAM_REJECTED_SYNTAX: Partial<Record<ValidDiagram['kind'], (canonicalSource: string, authoredLine?: (canonicalLine: number) => string | undefined) => LayoutWarning[]>> = {
   architecture: architectureUnsupportedSyntaxWarnings,
   class: classUnsupportedSyntaxWarnings,
   er: erUnsupportedSyntaxWarnings,
@@ -385,10 +386,12 @@ const UPSTREAM_REJECTED_SYNTAX: Partial<Record<ValidDiagram['kind'], (canonicalS
   xychart: xychartUnsupportedSyntaxWarnings,
 }
 
-function upstreamRejectedSyntaxWarnings(d: ValidDiagram): LayoutWarning[] {
+function upstreamRejectedSyntaxWarnings(d: ValidDiagram, authored?: string): LayoutWarning[] {
   const rule = UPSTREAM_REJECTED_SYNTAX[d.kind]
   if (!rule) return []
-  return rule(d.canonicalSource).map(warning => warning.code === 'UNSUPPORTED_SYNTAX' && warning.line !== undefined
+  const lines = authored?.split(/\r?\n/)
+  const authoredLine = lines && ((line: number) => lines[authoredLineForCanonical(d.source, line) - 1])
+  return rule(d.canonicalSource, authoredLine).map(warning => warning.code === 'UNSUPPORTED_SYNTAX' && warning.line !== undefined
     ? { ...warning, line: authoredLineForCanonical(d.source, warning.line) }
     : warning)
 }
@@ -536,7 +539,7 @@ export function configWarningsForMermaid(source: string): LayoutWarning[] {
   return parsed.ok ? configWarningsForDiagram(parsed.value) : []
 }
 
-function verifyStructure(parsed: ParsedDiagram, opts: VerifyOptions, positioned: VerificationArtifact): VerifyResult {
+function verifyStructure(parsed: ParsedDiagram, opts: VerifyOptions, positioned: VerificationArtifact, authored?: string): VerifyResult {
   const cap = opts.labelCharCap ?? DEFAULT_LABEL_CHAR_CAP
 
   // FamilyDescriptor verify dispatcher pass: every registered family's `verify`
@@ -555,7 +558,7 @@ function verifyStructure(parsed: ParsedDiagram, opts: VerifyOptions, positioned:
 
   const d = parsed as ValidDiagram
   const familySourceWarnings = d.kind === 'flowchart' ? dedupedConcat(flowchartUnsupportedSyntaxWarnings(d.canonicalSource), flowchartShapeSubstitutionWarnings(d)) : d.kind === 'quadrant' ? quadrantInertStyleWarnings(d) : d.kind === 'journey' ? journeySemicolonExtensionWarnings(d) : []
-  const sourceWarnings = dedupedConcat(familySourceWarnings, upstreamRejectedSyntaxWarnings(d))
+  const sourceWarnings = dedupedConcat(familySourceWarnings, upstreamRejectedSyntaxWarnings(d, authored))
   const faithfulnessWarnings = roundtripFaithfulnessWarnings(d)
   const bareHeader = hasOnlyHeader(d)
   let pluginWarnings = dedupedConcat(dedupedConcat(dedupedConcat(dedupedConcat(dedupedConcat(metaWarnings, dispatchedWarnings), sourceWarnings), faithfulnessWarnings), configWarnings), bareHeader ? [{ code: 'EMPTY_DIAGRAM' }] : [])

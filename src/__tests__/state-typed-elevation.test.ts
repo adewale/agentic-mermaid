@@ -446,11 +446,13 @@ stateDiagram-v2
       .toEqual([...labels, 'say "hi"; ok', 'a;'])
     expect(sources.map(unsupportedSyntax)).toEqual(sources.map(() => ['state_text_cut@2']))
     expect(written.map(unsupportedSyntax)).toEqual(written.map(() => []))
-    // Mermaid reads these whole: a colon text follows, an entity code, the
-    // text after `state "…" as`, and a block note.
-    const whole = ['A : a:b', 'A --> B : a #59; b', 'state "x" as A : a; b', 'note right of A\n    a; b :: c:\n  end note']
+    // Mermaid reads these whole: a colon text or blank space follows, an
+    // entity code, the text after `state "…" as`, and a block note.
+    const whole = ['A : a:b', 'A --> B : ends: ', 'A --> B : a #59; b', 'state "x" as A : a; b', 'note right of A\n    a; b :: c:\n  end note']
       .map(body => `stateDiagram-v2\n  ${body}`)
     expect(whole.map(unsupportedSyntax)).toEqual(whole.map(() => []))
+    // Verify reads the authored line, whose blanks the canonical one drops.
+    expect(unsupportedSyntax('---\ntitle: t\n---\nstateDiagram-v2\n  A --> B : ends: \n  B --> C : ends:')).toEqual(['state_text_cut@6'])
     const upstream = startUpstreamMermaid()
     try {
       const read = await upstream.projectAll(written, mermaid => {
@@ -459,7 +461,7 @@ stateDiagram-v2
       })
       expect(read.map(text => projectEntityMarkers(text))).toEqual([...labels, 'say "hi"; ok', 'a;'])
       expect(await upstream.projectAll(whole, mermaid => mermaid.db.rootDoc.flatMap((item: any) => item.description ? [item.description] : item.note ? [item.note.text] : [])))
-        .toEqual([['a:b'], ['a ﬂ°°59¶ß b'], [['x', ' a; b']], ['a; b :: c:']])
+        .toEqual([['a:b'], ['ends:'], ['a ﬂ°°59¶ß b'], [['x', ' a; b']], ['a; b :: c:']])
     } finally { upstream.close() }
   })
 
