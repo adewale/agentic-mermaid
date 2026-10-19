@@ -470,6 +470,10 @@ export const SVG_EMISSION_METADATA_LIMITS: SvgEmissionMetadataLimits = Object.fr
 
 const RECIPE_COUNTS = new WeakMap<object, SvgEmissionMetadataCounts>()
 const CANONICAL_RECIPES = new WeakSet<object>()
+// Exact descriptor-copied, deeply frozen nodes. A frozen caller object or a
+// Proxy of an owned node cannot enter this table. Reuse avoids copying; every
+// enclosing capture still walks and charges the unique graph at its new depth.
+const OWNED_METADATA_NODES = new WeakSet<object>()
 
 /** Descriptor-copy before validation: getters/iterators never run, cycles are
  * rejected, aliases remain aliases, and freezing never touches caller data.
@@ -485,6 +489,7 @@ export function snapshotSvgEmissionRecipe(recipe: SvgEmissionRecipe, limits: Svg
   const counts = { objects: 0, properties: 0, arrayEntries: 0, textBytes: 0, propertyKeyBytes: 0 }
   const snapshots = new WeakMap<object, object>()
   const active = new WeakSet<object>()
+  const captured: object[] = []
   const text = (value: string, key = false): void => {
     const field = key ? 'propertyKeyBytes' : 'textBytes'
     const maximum = key ? limits.maxPropertyKeyBytes : limits.maxTextBytes
@@ -507,11 +512,14 @@ export function snapshotSvgEmissionRecipe(recipe: SvgEmissionRecipe, limits: Svg
     if (prior) return prior
     if (++counts.objects > limits.maxObjects) throw new RangeError('SVG emission metadata exceeds object budget')
     const array = Array.isArray(value)
-    const prototype = Object.getPrototypeOf(value)
-    if (prototype !== (array ? Array.prototype : Object.prototype) && !(prototype === null && !array)) throw new TypeError('SVG emission metadata must use plain objects and arrays')
+    const owned = OWNED_METADATA_NODES.has(value)
+    if (!owned) {
+      const prototype = Object.getPrototypeOf(value)
+      if (prototype !== (array ? Array.prototype : Object.prototype) && !(prototype === null && !array)) throw new TypeError('SVG emission metadata must use plain objects and arrays')
+    }
     const keys = Reflect.ownKeys(value)
     if (keys.length > limits.maxProperties - counts.properties + (array ? 1 : 0)) throw new RangeError('SVG emission metadata exceeds property budget')
-    const result: Record<string, unknown> | unknown[] = array ? [] : {}
+    const result = owned ? value : array ? [] : {}
     let arrayLength = 0
     if (array) {
       const length = Reflect.getOwnPropertyDescriptor(value, 'length')
@@ -526,17 +534,21 @@ export function snapshotSvgEmissionRecipe(recipe: SvgEmissionRecipe, limits: Svg
     for (const key of keys) {
       if (array && key === 'length') continue
       if (typeof key !== 'string' || array && (!/^(?:0|[1-9]\d*)$/.test(key) || Number(key) >= arrayLength)) throw new TypeError('SVG emission metadata must not contain symbol or custom array keys')
-      const descriptor = Reflect.getOwnPropertyDescriptor(value, key)
-      if (!descriptor || !('value' in descriptor) || !descriptor.enumerable) throw new TypeError('SVG emission metadata requires enumerable data properties')
+      const descriptor = owned ? undefined : Reflect.getOwnPropertyDescriptor(value, key)
+      if (!owned && (!descriptor || !('value' in descriptor) || !descriptor.enumerable)) throw new TypeError('SVG emission metadata requires enumerable data properties')
       if (++counts.properties > limits.maxProperties) throw new RangeError('SVG emission metadata exceeds property budget')
       text(key, true)
-      Object.defineProperty(result, key, { value: visit(descriptor.value, depth + 1), enumerable: true, writable: true, configurable: true })
+      const child = visit(owned ? (value as Record<string, unknown>)[key] : descriptor!.value, depth + 1)
+      if (!owned) Object.defineProperty(result, key, { value: child, enumerable: true, writable: true, configurable: true })
     }
     active.delete(value)
+    if (owned) return result
+    captured.push(result)
     return Object.freeze(result)
   }
   const snapshot = visit(recipe, 0) as SvgEmissionRecipe
   validateSvgEmissionRecipe(snapshot)
+  for (const node of captured) OWNED_METADATA_NODES.add(node)
   RECIPE_COUNTS.set(snapshot, Object.freeze(counts))
   if (limits === SVG_EMISSION_METADATA_LIMITS) CANONICAL_RECIPES.add(snapshot)
   return snapshot
