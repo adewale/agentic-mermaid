@@ -11,9 +11,12 @@ structured-or-opaque contract.
 Supported today:
 
 - bare and aliased entity declarations (`CUSTOMER["Customer Account"]`) and
-  entities with attribute blocks (`type name PK|FK|UK "comment"`), including
-  blocks whose braces share a line with their attributes
-  (`ORDER { int id PK date placed }`), as Mermaid's block lexer allows
+  entities with attribute blocks (`type name PK|FK|UK "comment"`). As in
+  Mermaid's lexer, a line break is one more separator between statements and
+  plain space inside a block: braces may share a line with attributes
+  (`ORDER { int id PK date placed }`), an attribute's parts may run across
+  lines, declarations may share a line (`A B`), and a generic type may hold
+  spaces (`Map~string, int~`)
 - relationships with the full Mermaid cardinality token set
   (`|| |o o| }o o{ }| |{`), identifying (`--`) and non-identifying (`..`)
   lines, and labels

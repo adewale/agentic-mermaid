@@ -136,30 +136,44 @@ describe('parseErDiagram – entity definitions', () => {
   })
 })
 
-// Mermaid's attribute block skips newlines (the `block` lexer state in
-// erDiagram.jison), so `{`, attributes and `}` may share a line, and a
-// statement may follow `}`. Each attribute reads as `type name keys "comment"`.
-describe('parseErDiagram – attribute blocks sharing a line with their braces', () => {
-  const attributesOf = (diagram: ErDiagram) => Object.fromEntries(diagram.entities.map(entity => [entity.id,
-    entity.attributes.map(a => [a.type, a.name, ...a.keys, ...(a.comment !== undefined ? [`"${a.comment}"`] : [])].join(' '))]))
+// Mermaid's ER lexer treats a line break as one more separator between
+// statements, and as plain space inside an attribute block (erDiagram.jison),
+// so braces, attributes and declarations may share a line, and an attribute
+// may run across lines. Each entity reads as `id[alias]:::class {attributes}`
+// and each attribute as `type name keys "comment"`.
+describe('parseErDiagram – statements sharing or spanning lines', () => {
+  const readingOf = (diagram: ErDiagram) => [
+    ...diagram.entities.map(entity => `${entity.id}${entity.label !== entity.id ? `[${entity.label}]` : ''}${entity.className ? `:::${entity.className}` : ''} {${
+      entity.attributes.map(a => [a.type, a.name, ...a.keys, ...(a.comment !== undefined ? [`"${a.comment}"`] : [])].join(' ')).join('; ')}}`),
+    ...diagram.relationships.map(relation => `${relation.entity1}->${relation.entity2} ${relation.label}`),
+  ]
 
   it.each([
-    ['CUSTOMER ||--o{ ORDER : places\nZ { string id }', { CUSTOMER: [], ORDER: [], Z: ['string id'] }],
-    ['Z { }', { Z: [] }],
-    ['Z { string id PK "comment" }', { Z: ['string id PK "comment"'] }],
-    ['Z { string id int age }', { Z: ['string id', 'int age'] }],
-    ['Z{string id PK, FK "a } b" int age UK}', { Z: ['string id PK FK "a } b"', 'int age UK'] }],
-    ['Z { string id\n  int age\n}', { Z: ['string id', 'int age'] }],
-    ['Z {\n  string id\n  int age }', { Z: ['string id', 'int age'] }],
+    ['CUSTOMER ||--o{ ORDER : places\nZ { string id }', ['CUSTOMER {}', 'ORDER {}', 'Z {string id}', 'CUSTOMER->ORDER places']],
+    ['Z { }', ['Z {}']],
+    ['Z { string id PK "comment" }', ['Z {string id PK "comment"}']],
+    ['Z { string id int age }', ['Z {string id; int age}']],
+    ['Z{string id PK, FK "a } b" int age UK}', ['Z {string id PK FK "a } b"; int age UK}']],
+    ['Z { string id\n  int age\n}', ['Z {string id; int age}']],
+    ['Z {\n  string id\n  int age }', ['Z {string id; int age}']],
     // Mermaid reads one type from the first `~` to the last on the line.
-    ['Z["Zed"]:::hot { List~int~ ids List~string~ tags } Y', { Z: ['List~int~ ids', 'List~string~ tags'], Y: [] }],
+    ['Z["Zed"]:::hot { List~int~ ids List~string~ tags } Y', ['Z[Zed]:::hot {List~int~ ids; List~string~ tags}', 'Y {}']],
+    // An attribute's name, keys and comment may each start a new line.
+    ['Z { string\n  id }', ['Z {string id}']],
+    ['Z {\n  string id\n  PK "c"\n  int\n  age\n}', ['Z {string id PK "c"; int age}']],
+    // A generic type may hold spaces and nest.
+    ['Z {\n  Map~string, int~ counts\n  Map~string, List~int~~ m PK\n}', ['Z {Map~string, int~ counts; Map~string, List~int~~ m PK}']],
+    // Declarations follow one another without a line break.
+    ['A["x"] B:::c C', ['A[x] {}', 'B:::c {}', 'C {}']],
+    ['A B ||--o{ C : x', ['A {}', 'B {}', 'C {}', 'B->C x']],
+    ['A B { int x } C', ['A {}', 'B {int x}', 'C {}']],
   ])('%j is read alike by the renderer, the typed body and its output', (body, expected) => {
     const source = `erDiagram\n  ${body}`
-    expect(attributesOf(parse(source))).toEqual(expected)
+    expect(readingOf(parse(source))).toEqual(expected)
     const parsed = parseRegisteredMermaid(source)
     const typed = parsed.ok ? asEr(parsed.value) : null
     expect(typed).not.toBeNull()
-    expect(attributesOf(parse(serializeMermaid(typed!)))).toEqual(expected)
+    expect(readingOf(parse(serializeMermaid(typed!)))).toEqual(expected)
   })
 })
 
