@@ -468,6 +468,8 @@ interface Prepared {
   python?: string
   warnings: string[]
   identity?: { kind: 'tarball'; requested: string; sha256: string; integrity: string }
+  installedLocks?: string[]
+  dependencyLocks?: Array<{ source: string; path: string; sha256: string }>
   error?: string
 }
 interface ProcessRecord {
@@ -512,7 +514,7 @@ function packageEntry(root: string, subpath: string): string {
   return join(root, target)
 }
 
-function installNpm(name: string, version: string): { root: string; integrity?: string; engines?: string } {
+function installNpm(name: string, version: string): { root: string; integrity?: string; engines?: string; installedLocks: string[] } {
   const prefix = join(CACHE, `${name}@${version}`)
   const root = join(prefix, 'node_modules', name)
   const installed = () => {
@@ -530,7 +532,7 @@ function installNpm(name: string, version: string): { root: string; integrity?: 
   }
   const lock = JSON.parse(readFileSync(join(prefix, 'node_modules/.package-lock.json'), 'utf8')) as { packages: Record<string, { integrity?: string }> }
   const engines = (JSON.parse(readFileSync(join(root, 'package.json'), 'utf8')) as { engines?: { node?: string } }).engines?.node
-  return { root, integrity: lock.packages[`node_modules/${name}`]?.integrity, engines }
+  return { root, integrity: lock.packages[`node_modules/${name}`]?.integrity, engines, installedLocks: [join(prefix, 'package-lock.json'), join(prefix, 'node_modules/.package-lock.json')].filter(existsSync) }
 }
 
 function installPypi(name: string, version: string): { python: string; pythonVersion: string } {
@@ -577,10 +579,10 @@ function prepare(peer: Peer, nodeVersion: string): Prepared {
       const { python, pythonVersion } = installPypi(name, version)
       return { peer, label: `${label}, Python ${pythonVersion}`, version, python, warnings }
     }
-    const { root, integrity, engines } = installNpm(name, version)
+    const { root, integrity, engines, installedLocks } = installNpm(name, version)
     const floor = engines?.match(/^>=\s*(\d+)/)?.[1]
     if (floor && Number(nodeVersion.replace(/^v/, '').split('.')[0]) < Number(floor)) warnings.push(`${peer.id}: ${name}@${version} declares engines.node ${engines}; workers run Node ${nodeVersion}`)
-    return { peer, label, root, version, warnings, ...(integrity ? { integrity } : {}) }
+    return { peer, label, root, version, warnings, installedLocks, ...(integrity ? { integrity } : {}) }
   } catch (error) {
     return { peer, label, version, warnings, error: firstLine(error) }
   }
@@ -602,7 +604,7 @@ function preparePackedCandidate(tarball: string, expectedSha: string, parent: st
   const lock = JSON.parse(readFileSync(join(prefix, 'package-lock.json'), 'utf8')) as { packages: Record<string, { integrity?: string }> }
   if (pkg.name !== 'agentic-mermaid' || lock.packages['node_modules/agentic-mermaid']?.integrity !== integrity) throw new Error('Installed candidate package identity differs from the verified tarball')
   return { peer: PEERS[0]!, root, version: pkg.version, warnings: [], label: `agentic-mermaid ${pkg.version} packed SHA-256 ${sha256}`,
-    identity: { kind: 'tarball', requested: resolve(tarball), sha256, integrity } }
+    identity: { kind: 'tarball', requested: resolve(tarball), sha256, integrity }, installedLocks: [join(prefix, 'package-lock.json'), join(prefix, 'node_modules/.package-lock.json')].filter(existsSync) }
 }
 
 interface WorkerRun {
@@ -798,7 +800,17 @@ async function main(): Promise<void> {
   const scratch = mkdtempSync(join(tmpdir(), 'agentic-mermaid-peers-'))
   const startLoad = loadavg()
   try {
-    const prepared = peers.map(peer => peer.id === 'agentic' && args.has('candidate-tarball') ? preparePackedCandidate(args.get('candidate-tarball')!, args.get('candidate-sha256')!, scratch) : prepare(peer, nodeVersion))
+    const prepared = peers.map(peer => {
+      const entry = peer.id === 'agentic' && args.has('candidate-tarball') ? preparePackedCandidate(args.get('candidate-tarball')!, args.get('candidate-sha256')!, scratch) : prepare(peer, nodeVersion)
+      entry.dependencyLocks = entry.installedLocks?.map((source, index) => {
+        const bytes = readFileSync(source), path = `${rawSamples}.${entry.peer.id}.${index}.package-lock.json`
+        writeFileSync(path, bytes, { flag: 'wx' })
+        return { source: source.endsWith('.package-lock.json') ? 'node_modules/.package-lock.json' : 'package-lock.json', path, sha256: createHash('sha256').update(bytes).digest('hex') }
+      })
+      delete entry.installedLocks
+      if (entry.dependencyLocks) appendFileSync(rawSamples, `${JSON.stringify({ peer: peer.id, dependencyLocks: entry.dependencyLocks })}\n`)
+      return entry
+    })
     const warnings = prepared.flatMap(entry => entry.warnings)
     for (const warning of warnings) console.error(`warning: ${warning}`)
     for (const entry of prepared.filter(entry => entry.error)) console.error(`${entry.peer.id}: ${entry.error}`)
@@ -850,6 +862,7 @@ async function main(): Promise<void> {
     out.push('- Reproduce:', '', '```sh', command.join(' '), '```')
     out.push(`- Policy: ELK cache ${elkCache}; built-in Scene assertions off; APL environment ${JSON.stringify(policy.aplEnvironment)}`)
     out.push(`- Pins: ${prepared.map(entry => `${entry.peer.id} = ${entry.label}`).join('; ')}`)
+    for (const entry of prepared) for (const lock of entry.dependencyLocks ?? []) out.push(`- ${entry.peer.id} ${lock.source}: ${lock.path} (SHA-256 ${lock.sha256})`)
     out.push(
       `- Method: ${rounds} round(s), one fresh process per peer and output, order alternating; per workload one first render, then ≥${timing.warmCalls} warm calls and ≥${timing.warmupMs} ms, ≤${timing.samples} samples of ≥${timing.minSampleMs} ms (at least ${MIN_SAMPLES}), capped near ${timing.maxCaseMs} ms; every complete output checked outside timing for labels and parseable SVG, captured in batches of at most 64 returns (about 1 MiB at the first output size), with output stores and per-batch clocks included; medians across rounds, ± is the median MAD/median.`,
     )
@@ -934,7 +947,7 @@ async function main(): Promise<void> {
         ...metadata, status: 'completed', finishedAt: new Date().toISOString(),
         environment: { node: nodeVersion, bun: process.versions.bun, platform: process.platform, arch: process.arch, osRelease: release(), cpu: cpus()[0]?.model, logicalCpus: cpus().length, totalMemBytes: totalmem(), loadAverageStart: startLoad, loadAverageEnd: loadavg() },
         config: { rounds, timing, minSamples: MIN_SAMPLES, workloads, peers: jobs.map(job => ({ peer: job.prepared.peer.id, output: job.output })) },
-        pins: prepared.map(entry => ({ peer: entry.peer.id, source: entry.peer.source, label: entry.label, ...(entry.integrity ? { integrity: entry.integrity } : {}), ...(entry.identity ? { identity: entry.identity } : {}), ...(entry.error ? { error: entry.error } : {}), svg: entry.peer.svg?.api, terminal: entry.peer.terminal?.api })),
+        pins: prepared.map(entry => ({ peer: entry.peer.id, source: entry.peer.source, label: entry.label, ...(entry.integrity ? { integrity: entry.integrity } : {}), ...(entry.identity ? { identity: entry.identity } : {}), ...(entry.dependencyLocks ? { dependencyLocks: entry.dependencyLocks } : {}), ...(entry.error ? { error: entry.error } : {}), svg: entry.peer.svg?.api, terminal: entry.peer.terminal?.api })),
         coverage,
         expectedLabels: EXPECTED_LABELS,
         warnings,

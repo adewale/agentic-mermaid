@@ -2,7 +2,7 @@
 // use --candidate-tarball: the measured bytes are the bytes queued for npm.
 // Reports are generated evidence, never committed baselines.
 import { spawnSync } from 'node:child_process'
-import { createHash } from 'node:crypto'
+import { createHash, randomUUID } from 'node:crypto'
 import { appendFileSync, existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { cpus, release, tmpdir } from 'node:os'
 import { join, resolve } from 'node:path'
@@ -26,6 +26,7 @@ interface Identity {
   requested: string
   sha256?: string
   integrity?: string
+  dependencyLock?: { path: string; sha256: string }
 }
 interface Engine {
   label: string
@@ -411,7 +412,11 @@ function main() {
     const lock = JSON.parse(readFileSync(join(dir, 'package-lock.json'), 'utf8')) as { packages: Record<string, { integrity?: string }> }
     const integrity = lock.packages['node_modules/agentic-mermaid']?.integrity
     if (identity.integrity && identity.integrity !== integrity) throw new Error(`${label}: installed package integrity differs from the locked identity`)
-    return packageAt(join(dir, 'node_modules', 'agentic-mermaid'), label, { ...identity, integrity })
+    const bytes = readFileSync(join(dir, 'package-lock.json')), path = join(out, `${label}-${randomUUID()}.package-lock.json`)
+    writeFileSync(path, bytes, { flag: 'wx' })
+    const dependencyLock = { path, sha256: createHash('sha256').update(bytes).digest('hex') }
+    appendFileSync(join(out, 'samples.jsonl'), `${JSON.stringify({ engine: label, dependencyLock })}\n`)
+    return packageAt(join(dir, 'node_modules', 'agentic-mermaid'), label, { ...identity, integrity, dependencyLock })
   }
   try {
     const engines: Engine[] = []
