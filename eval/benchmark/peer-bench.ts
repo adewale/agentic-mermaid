@@ -7,7 +7,10 @@
 //   bun run eval/benchmark/peer-bench.ts --agentic-npm 0.4.1 # add the published package
 //
 // Options: --peers a,b, --workloads a,b, --rounds N (3), --json PATH,
-// --markdown PATH, --quick (fewer, shorter samples), --agentic-npm VERSION.
+// --markdown PATH, --quick (fewer, shorter samples), --agentic-npm VERSION,
+// --elk-cache on|off (off), --candidate-tarball PATH --candidate-sha256 DIGEST.
+// Durable reports default to bench-report/peer-report.{json,md}; adjacent JSONL
+// files retain raw worker receipts even if the orchestrator is interrupted.
 //
 // Advisory only: it replaces the dated hand-run tables in docs/comparison.md
 // with a re-runnable command and is never part of tests or CI. `agentic` is the
@@ -32,12 +35,14 @@
 // ratios are peer ÷ agentic per round, then the median. A shared or loaded
 // machine inflates absolute numbers, so compare peers within one run.
 
+import { createHash, randomUUID } from 'node:crypto'
 import { execFileSync, spawn, spawnSync } from 'node:child_process'
 import { appendFileSync, existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, statSync, writeFileSync } from 'node:fs'
 import { cpus, loadavg, release, tmpdir, totalmem } from 'node:os'
-import { join, relative } from 'node:path'
+import { dirname, join, relative, resolve } from 'node:path'
 import { fileURLToPath, pathToFileURL } from 'node:url'
 import { decodeXML } from 'entities'
+import { createRequire } from 'node:module'
 import type { MICRO_WORKLOADS } from './micro-bench-cases.ts'
 import { allocationProbe, median } from './bench-stats.ts'
 import { missingSvgLabels } from './release-bench-fidelity.ts'
@@ -247,18 +252,62 @@ async function measure(render: Render, output: Output, workload: WorkerJob['work
   const firstMs = performance.now() - firstStart
   if (typeof first !== 'string' || (output === 'svg' ? !/^\s*(?:<\?xml[^>]*\?>\s*)?<svg\b/.test(first) : !first.trim())) return { workload: id, status: 'error', detail: `returned no ${output === 'svg' ? 'SVG string' : 'text'}`, firstMs }
   const outputBytes = Buffer.byteLength(first, 'utf8')
-  const missing = missingLabels(output, first, workload.expected)
-  if (missing.length) return { workload: id, status: 'lost-labels', missing: missing.length, detail: missing.slice(0, 3).join(', '), firstMs, outputBytes }
-
-  // Async peers are awaited per call; sync peers are timed in a plain loop
-  // whose clock stops before this function's own promise settles.
-  let sink: unknown = first
-  const timed = async (calls: number): Promise<number> => {
+  type Failure = Pick<WorkloadResult, 'status' | 'detail' | 'missing'>
+  // Workers run from the repository root. Resolve the native parser there so
+  // the standalone worker bundle does not embed native assets.
+  const Resvg = output === 'svg' ? (createRequire(join(process.cwd(), 'package.json'))('@resvg/resvg-js') as typeof import('@resvg/resvg-js')).Resvg : undefined
+  const validated = new Set<string>()
+  let validatedUnits = 0
+  const inspect = (value: unknown): Failure | undefined => {
+    if (typeof value !== 'string' || (output === 'svg' ? !/^\s*(?:<\?xml[^>]*\?>\s*)?<svg\b/.test(value) : !value.trim())) return { status: 'error', detail: `returned no ${output === 'svg' ? 'SVG string' : 'text'}` }
+    if (validated.has(value)) return undefined
+    const missing = missingLabels(output, value, workload.expected)
+    if (missing.length) return { status: 'lost-labels', missing: missing.length, detail: missing.slice(0, 3).join(', ') }
+    if (output === 'svg') {
+      try { new Resvg!(value, { font: { loadSystemFonts: false } }) }
+      catch (error) { return { status: 'error', detail: `invalid SVG: ${firstLine(error)}` } }
+    }
+    // Avoid repeated parsing of identical complete strings without retaining
+    // unbounded randomized peer output. Every return value is still inspected.
+    if (validatedUnits + value.length <= 1024 * 1024) {
+      validated.add(value)
+      validatedUnits += value.length
+    }
+    return undefined
+  }
+  const firstFailure = inspect(first)
+  if (firstFailure) return { workload: id, ...firstFailure, firstMs, outputBytes }
+  let failure: Failure | undefined
+  const inspectBatch = (outputs: unknown[]) => {
+    for (const value of outputs) {
+      failure = inspect(value)
+      if (failure) throw new Error(failure.detail)
+    }
+    ;(globalThis as { __peerBenchSink?: unknown }).__peerBenchSink = outputs.at(-1)
+  }
+  // Capture every complete output; validation is after the clock stops. Array
+  // allocation is outside timing, while storing each returned value is timed.
+  const invoke = async (outputs: unknown[]): Promise<number> => {
     const start = performance.now()
-    if (isAsync) for (let i = 0; i < calls; i++) sink = await render(workload.source)
-    else for (let i = 0; i < calls; i++) sink = render(workload.source)
+    if (isAsync) for (let i = 0; i < outputs.length; i++) outputs[i] = await render(workload.source)
+    else for (let i = 0; i < outputs.length; i++) outputs[i] = render(workload.source)
     return performance.now() - start
   }
+  // Keep at most 64 returns (about 1 MiB at the first output's size) alive
+  // per batch, and at most 1M code units in the validation reuse set. Clocks
+  // and output stores are part of each batch's measured work; inspection is not.
+  const batchCalls = Math.max(1, Math.min(64, Math.floor(1024 * 1024 / Math.max(1, outputBytes))))
+  const timed = async (calls: number, allocating = false) => {
+    const outputs = new Array<unknown>(Math.min(calls, batchCalls))
+    let total = 0
+    for (let done = 0; done < calls; done += outputs.length) {
+      outputs.length = Math.min(batchCalls, calls - done)
+      total += allocating ? await allocation!(() => invoke(outputs)) : await invoke(outputs)
+      inspectBatch(outputs)
+    }
+    return total
+  }
+
   try {
     const caseStart = performance.now()
     let warmCalls = 0
@@ -277,12 +326,11 @@ async function measure(render: Render, output: Output, workload: WorkerJob['work
       samplesMs.push((await timed(iterations)) / iterations)
       if (samplesMs.length >= MIN_SAMPLES && performance.now() - caseStart > timing.maxCaseMs) break
     }
-    const allocBytesPerCall = allocation ? (await allocation(() => timed(iterations))) / iterations : undefined
-    ;(globalThis as { __peerBenchSink?: unknown }).__peerBenchSink = sink
+    const allocBytesPerCall = allocation ? (await timed(iterations, true)) / iterations : undefined
     const medianMs = median(samplesMs)
     return { workload: id, status: 'ok', firstMs, outputBytes, warmCalls, iterations, samplesMs, medianMs, madMs: median(samplesMs.map(value => Math.abs(value - medianMs))), ...(allocBytesPerCall === undefined ? {} : { allocBytesPerCall }) }
   } catch (error) {
-    return { workload: id, status: 'error', detail: `after the first render: ${firstLine(error)}`, firstMs, outputBytes }
+    return { workload: id, ...(failure ?? { status: 'error' as const, detail: `after the first render: ${firstLine(error)}` }), firstMs, outputBytes }
   }
 }
 
@@ -355,28 +403,50 @@ for workload in job['workloads']:
     if missing:
         emit({'type': 'result', 'workload': wid, 'status': 'lost-labels', 'missing': len(missing), 'detail': ', '.join(missing[:3]), 'firstMs': first_ms, 'outputBytes': output_bytes})
         continue
-    case_start = now()
-    warm_calls, warm_ms = 0, 0.0
-    while warm_calls < timing['warmCalls'] or warm_ms < timing['warmupMs']:
-        start = now()
-        render(source)
-        warm_ms += elapsed(start)
-        warm_calls += 1
-        if warm_ms >= timing['maxCaseMs'] / 4:
-            break
-    per_call = warm_ms / warm_calls
-    iterations = max(1, math.ceil(timing['minSampleMs'] / max(per_call, 1e-6)))
-    affordable = int((timing['maxCaseMs'] - elapsed(case_start)) // max(per_call * iterations, 1e-6))
-    samples = []
-    for _ in range(max(${MIN_SAMPLES}, min(timing['samples'], affordable))):
-        start = now()
-        for _ in range(iterations):
-            render(source)
-        samples.append(elapsed(start) / iterations)
-        if len(samples) >= ${MIN_SAMPLES} and elapsed(case_start) > timing['maxCaseMs']:
-            break
-    mid = statistics.median(samples)
-    emit({'type': 'result', 'workload': wid, 'status': 'ok', 'firstMs': first_ms, 'outputBytes': output_bytes, 'warmCalls': warm_calls, 'iterations': iterations, 'samplesMs': samples, 'medianMs': mid, 'madMs': statistics.median([abs(value - mid) for value in samples])})
+    checked = {first} if len(first) <= 1024 * 1024 else set()
+    checked_units = len(first) if checked else 0
+    batch_calls = max(1, min(64, 1024 * 1024 // max(1, output_bytes)))
+    def timed(calls):
+        global checked_units
+        total = 0
+        for done in range(0, calls, batch_calls):
+            values = [None] * min(batch_calls, calls - done)
+            start = now()
+            for i in range(len(values)):
+                values[i] = render(workload['source'])
+            total += elapsed(start)
+            for value in values:
+                if not isinstance(value, str) or not value.strip():
+                    raise ValueError('returned no text after the first render')
+                if value not in checked:
+                    text = re.sub(r'\x1b\[[0-9;]*m', '', value)
+                    missing = [label for label in workload['expected'] if not re.search(r'(?<!\w)' + re.escape(label) + r'(?!\w)', text)]
+                    if missing:
+                        raise ValueError('lost labels after the first render: ' + ', '.join(missing[:3]))
+                    if checked_units + len(value) <= 1024 * 1024:
+                        checked.add(value)
+                        checked_units += len(value)
+        return total
+    try:
+        case_start = now()
+        warm_calls, warm_ms = 0, 0.0
+        while warm_calls < timing['warmCalls'] or warm_ms < timing['warmupMs']:
+            warm_ms += timed(1)
+            warm_calls += 1
+            if warm_ms >= timing['maxCaseMs'] / 4:
+                break
+        per_call = warm_ms / warm_calls
+        iterations = max(1, math.ceil(timing['minSampleMs'] / max(per_call, 1e-6)))
+        affordable = int((timing['maxCaseMs'] - elapsed(case_start)) // max(per_call * iterations, 1e-6))
+        samples = []
+        for _ in range(max(${MIN_SAMPLES}, min(timing['samples'], affordable))):
+            samples.append(timed(iterations) / iterations)
+            if len(samples) >= ${MIN_SAMPLES} and elapsed(case_start) > timing['maxCaseMs']:
+                break
+        mid = statistics.median(samples)
+        emit({'type': 'result', 'workload': wid, 'status': 'ok', 'firstMs': first_ms, 'outputBytes': output_bytes, 'warmCalls': warm_calls, 'iterations': iterations, 'samplesMs': samples, 'medianMs': mid, 'madMs': statistics.median([abs(value - mid) for value in samples])})
+    except Exception as error:
+        emit({'type': 'result', 'workload': wid, 'status': 'error', 'detail': first_line(error), 'firstMs': first_ms, 'outputBytes': output_bytes})
 end = {'type': 'end'}
 try:
     end['rssBytes'] = int(open('/proc/self/statm').read().split()[1]) * os.sysconf('SC_PAGE_SIZE')
@@ -397,6 +467,7 @@ interface Prepared {
   integrity?: string
   python?: string
   warnings: string[]
+  identity?: { kind: 'tarball'; requested: string; sha256: string; integrity: string }
   error?: string
 }
 interface ProcessRecord {
@@ -415,7 +486,7 @@ const UNSUPPORTED = /Invalid mermaid header|No diagram type detected|UnknownDiag
 
 function parseArgs(argv: readonly string[]): Map<string, string> {
   const flags = new Set(['quick', 'child'])
-  const valued = new Set(['peers', 'workloads', 'rounds', 'json', 'markdown', 'agentic-npm', 'job', 'out'])
+  const valued = new Set(['peers', 'workloads', 'rounds', 'json', 'markdown', 'agentic-npm', 'job', 'out', 'candidate-tarball', 'candidate-sha256', 'elk-cache'])
   const options = new Map<string, string>()
   for (let i = 0; i < argv.length; i++) {
     const key = argv[i]!.replace(/^--/, '')
@@ -423,6 +494,9 @@ function parseArgs(argv: readonly string[]): Map<string, string> {
     else if (valued.has(key) && argv[i + 1] !== undefined) options.set(key, argv[++i]!)
     else throw new Error(`Unknown or incomplete option ${argv[i]}`)
   }
+  if (options.has('elk-cache') && !['on', 'off'].includes(options.get('elk-cache')!)) throw new Error('--elk-cache must be on or off')
+  if (options.has('candidate-tarball') !== options.has('candidate-sha256')) throw new Error('Provide both --candidate-tarball and --candidate-sha256')
+  if (options.has('candidate-sha256') && !/^[a-f0-9]{64}$/.test(options.get('candidate-sha256')!)) throw new Error('--candidate-sha256 must be a lowercase SHA-256 digest')
   return options
 }
 
@@ -512,6 +586,25 @@ function prepare(peer: Peer, nodeVersion: string): Prepared {
   }
 }
 
+function preparePackedCandidate(tarball: string, expectedSha: string, parent: string): Prepared {
+  const bytes = readFileSync(resolve(tarball))
+  const sha256 = createHash('sha256').update(bytes).digest('hex')
+  if (sha256 !== expectedSha) throw new Error('Candidate tarball SHA-256 does not match the verified publication artifact')
+  const integrity = `sha512-${createHash('sha512').update(bytes).digest('base64')}`
+  const prefix = join(parent, 'candidate')
+  mkdirSync(prefix)
+  const staged = join(prefix, 'package.tgz')
+  writeFileSync(staged, bytes)
+  const installed = spawnSync('npm', ['install', '--prefix', prefix, '--ignore-scripts', '--no-audit', '--no-fund', staged], { encoding: 'utf8', timeout: 300_000 })
+  if (installed.status !== 0) throw new Error(`Candidate package installation failed: ${installed.stderr || installed.error?.message}`)
+  const root = join(prefix, 'node_modules', 'agentic-mermaid')
+  const pkg = JSON.parse(readFileSync(join(root, 'package.json'), 'utf8')) as { name: string; version: string }
+  const lock = JSON.parse(readFileSync(join(prefix, 'package-lock.json'), 'utf8')) as { packages: Record<string, { integrity?: string }> }
+  if (pkg.name !== 'agentic-mermaid' || lock.packages['node_modules/agentic-mermaid']?.integrity !== integrity) throw new Error('Installed candidate package identity differs from the verified tarball')
+  return { peer: PEERS[0]!, root, version: pkg.version, warnings: [], label: `agentic-mermaid ${pkg.version} packed SHA-256 ${sha256}`,
+    identity: { kind: 'tarball', requested: resolve(tarball), sha256, integrity } }
+}
+
 interface WorkerRun {
   lines: WorkerLine[]
   exit?: string
@@ -521,12 +614,12 @@ interface WorkerRun {
 
 /** Runs one worker, killing it if a workload (or the import) makes no
  * progress within its limit, so one hung render cannot stall the run. */
-function spawnWorker(command: readonly string[], outPath: string, limits: { importMs: number; workloadMs: number }): Promise<WorkerRun> {
-  writeFileSync(outPath, '')
+function spawnWorker(command: readonly string[], outPath: string, limits: { importMs: number; workloadMs: number }, elkCache: 'on' | 'off'): Promise<WorkerRun> {
+  writeFileSync(outPath, '', { flag: 'wx' })
   const started = performance.now()
   return new Promise(done => {
-    // Time ELK rather than a cached result, and renders as users get them.
-    const child = spawn(command[0]!, command.slice(1), { cwd: ROOT, stdio: ['ignore', 'ignore', 'pipe'], env: { ...process.env, AGENTIC_MERMAID_ELK_CACHE: '0', AGENTIC_MERMAID_SCENE_ASSERTIONS: '0' } })
+    // Default to timing ELK; cache-on measures repeated rendering as a host sees it.
+    const child = spawn(command[0]!, command.slice(1), { cwd: ROOT, stdio: ['ignore', 'ignore', 'pipe'], env: { ...process.env, AGENTIC_MERMAID_ELK_CACHE: elkCache === 'on' ? '1' : '0', AGENTIC_MERMAID_SCENE_ASSERTIONS: '0' } })
     let stderr = ''
     child.stderr!.on('data', (chunk: Buffer) => {
       stderr = (stderr + chunk.toString()).slice(-4000)
@@ -560,7 +653,7 @@ function spawnWorker(command: readonly string[], outPath: string, limits: { impo
   })
 }
 
-async function runProcess(prepared: Prepared, output: Output, workloads: readonly WorkloadId[], round: number, context: { scratch: string; bundle: string; timing: Timing; sources: Record<WorkloadId, string> }): Promise<ProcessRecord> {
+async function runProcess(prepared: Prepared, output: Output, workloads: readonly WorkloadId[], round: number, context: { scratch: string; bundle: string; timing: Timing; sources: Record<WorkloadId, string>; elkCache: 'on' | 'off'; rawSamples: string }): Promise<ProcessRecord> {
   const { peer } = prepared
   const record: ProcessRecord = { peer: peer.id, output, round, wallMs: 0, restarts: 0, results: [] }
   const adapter = peer[output]!
@@ -575,8 +668,10 @@ async function runProcess(prepared: Prepared, output: Output, workloads: readonl
     const base = join(context.scratch, `${peer.id}-${output}-r${round}-a${attempt}`)
     const job: WorkerJob = { peer: peer.id, output, entry, timing: context.timing, workloads: remaining.map(id => ({ id, source: context.sources[id], expected: EXPECTED_LABELS[id] })) }
     writeFileSync(`${base}.job.json`, JSON.stringify(job))
-    const command = peer.runtime === 'python' ? [prepared.python!, '-I', '-c', PYTHON_WORKER, `${base}.job.json`, `${base}.out.jsonl`] : ['node', context.bundle, '--child', '--job', `${base}.job.json`, '--out', `${base}.out.jsonl`]
-    const run = await spawnWorker(command, `${base}.out.jsonl`, limits)
+    const receipts = `${context.rawSamples}.${peer.id}-${output}-r${round}-a${attempt}.jsonl`
+    const command = peer.runtime === 'python' ? [prepared.python!, '-I', '-c', PYTHON_WORKER, `${base}.job.json`, receipts] : ['node', context.bundle, '--child', '--job', `${base}.job.json`, '--out', receipts]
+    const run = await spawnWorker(command, receipts, limits, context.elkCache)
+    for (const line of run.lines) appendFileSync(context.rawSamples, `${JSON.stringify({ peer: peer.id, output, round, attempt, ...line })}\n`)
     record.wallMs += run.wallMs
     const imported = run.lines.find(line => line.type === 'import')
     if (attempt === 0 && imported?.type === 'import') Object.assign(record, { importMs: imported.importMs, setupMs: imported.setupMs })
@@ -666,6 +761,7 @@ async function main(): Promise<void> {
   const { MICRO_WORKLOADS: sources } = (await import(pathToFileURL(join(ROOT, 'eval/benchmark/micro-bench-cases.ts')).href)) as typeof import('./micro-bench-cases.ts')
   const rounds = Number(args.get('rounds') ?? 3)
   if (!Number.isSafeInteger(rounds) || rounds < 1) throw new Error('--rounds must be a positive integer')
+  const elkCache = (args.get('elk-cache') ?? 'off') as 'on' | 'off'
   const timing = args.has('quick') ? QUICK_TIMING : TIMING
   const npmVersion = args.get('agentic-npm')
   if (npmVersion !== undefined && !/^\d+\.\d+\.\d+(?:-[\w.-]+)?$/.test(npmVersion)) throw new Error('--agentic-npm takes an exact version such as 0.4.1')
@@ -686,17 +782,29 @@ async function main(): Promise<void> {
   for (const id of selected) if (!(id in EXPECTED_LABELS)) throw new Error(`Unknown workload ${id}; choose from ${Object.keys(EXPECTED_LABELS).join(', ')}`)
   const workloads = { svg: WORKLOADS.svg.filter(id => selected.includes(id)), terminal: WORKLOADS.terminal.filter(id => selected.includes(id)) }
 
+  if (args.has('candidate-tarball') && !peers.some(peer => peer.id === 'agentic')) throw new Error('--candidate-tarball requires the agentic peer')
+  const jsonPath = resolve(args.get('json') ?? join(ROOT, 'bench-report', 'peer-report.json'))
+  const markdownPath = resolve(args.get('markdown') ?? join(ROOT, 'bench-report', 'peer-report.md'))
+  const runId = randomUUID()
+  const rawSamples = `${jsonPath}.${runId}.samples.jsonl`
+  for (const path of [jsonPath, markdownPath, rawSamples]) mkdirSync(dirname(path), { recursive: true })
   const nodeVersion = execFileSync('node', ['--version'], { encoding: 'utf8' }).trim()
-  const prepared = peers.map(peer => prepare(peer, nodeVersion))
-  const warnings = prepared.flatMap(entry => entry.warnings)
-  for (const warning of warnings) console.error(`warning: ${warning}`)
-  for (const entry of prepared.filter(entry => entry.error)) console.error(`${entry.peer.id}: ${entry.error}`)
-  const jobs = prepared.flatMap(entry => (['svg', 'terminal'] as const).filter(output => entry.peer[output] && workloads[output].length).map(output => ({ prepared: entry, output })))
-
+  const createdAt = new Date().toISOString()
+  const policy = { elkCache, sceneAssertions: 'off', aplEnvironment: Object.fromEntries(Object.entries(process.env).filter(([key]) => key.startsWith('APL_'))) }
+  const metadata = { schemaVersion: 1, advisory: true, runId, createdAt, policy, rawSamples, workerReceipts: `${rawSamples}.*.jsonl`, config: { rounds, timing, minSamples: MIN_SAMPLES, workloads, peers: peers.map(peer => peer.id) } }
+  writeFileSync(jsonPath, `${JSON.stringify({ ...metadata, status: 'incomplete' }, null, 2)}\n`)
+  writeFileSync(markdownPath, '# Peer benchmark: incomplete (advisory)\n')
+  writeFileSync(rawSamples, `${JSON.stringify({ ...metadata, status: 'started' })}\n`)
   const scratch = mkdtempSync(join(tmpdir(), 'agentic-mermaid-peers-'))
   const startLoad = loadavg()
-  const createdAt = new Date().toISOString()
   try {
+    const prepared = peers.map(peer => peer.id === 'agentic' && args.has('candidate-tarball') ? preparePackedCandidate(args.get('candidate-tarball')!, args.get('candidate-sha256')!, scratch) : prepare(peer, nodeVersion))
+    const warnings = prepared.flatMap(entry => entry.warnings)
+    for (const warning of warnings) console.error(`warning: ${warning}`)
+    for (const entry of prepared.filter(entry => entry.error)) console.error(`${entry.peer.id}: ${entry.error}`)
+    appendFileSync(rawSamples, `${JSON.stringify({ pins: prepared.map(({ root, python, ...entry }) => entry) })}\n`)
+    const jobs = prepared.flatMap(entry => (['svg', 'terminal'] as const).filter(output => entry.peer[output] && workloads[output].length).map(output => ({ prepared: entry, output })))
+    if (!jobs.length) throw new Error('No selected peer/output/workload combinations')
     // The worker is this file bundled for Node, so it never depends on
     // Node's TypeScript support; peers are imported from their cache paths.
     const bundle = join(scratch, 'peer-bench.node.mjs')
@@ -706,7 +814,9 @@ async function main(): Promise<void> {
     for (let round = 0; round < rounds; round++) {
       for (const { prepared: entry, output } of round % 2 === 0 ? jobs : [...jobs].reverse()) {
         console.error(`round ${round + 1}/${rounds}: ${entry.peer.id} ${output} (${workloads[output].length} workloads)`)
-        processes.push(await runProcess(entry, output, workloads[output], round, { scratch, bundle, timing, sources }))
+        const observation = await runProcess(entry, output, workloads[output], round, { scratch, bundle, timing, sources, elkCache, rawSamples })
+        processes.push(observation)
+        appendFileSync(rawSamples, `${JSON.stringify({ type: 'process', ...observation })}\n`)
       }
     }
 
@@ -723,18 +833,30 @@ async function main(): Promise<void> {
     const terminalPeers = jobs.filter(job => job.output === 'terminal').map(job => job.prepared.peer.id)
     const comparators = svgPeers.filter(id => id !== 'agentic')
 
+    const coverage = jobs.map(({ prepared: entry, output }) => {
+      const statuses = workloads[output].map(id => {
+        const result = cell(entry.peer.id, output, id)
+        return result?.rounds === rounds ? result.status : undefined
+      })
+      return { peer: entry.peer.id, output, population: statuses.length, ok: statuses.filter(status => status === 'ok').length, unsupported: statuses.filter(status => status === 'unsupported').length, lostLabels: statuses.filter(status => status === 'lost-labels').length, errors: statuses.filter(status => status === 'error').length, missing: statuses.filter(status => status === undefined).length }
+    })
     const out: string[] = []
     out.push('# Peer benchmark (advisory)', '')
     out.push(`- Date: ${createdAt}`)
     out.push(`- Machine: ${cpus()[0]?.model ?? 'unknown CPU'}, ${cpus().length} logical CPUs, ${(totalmem() / 1024 ** 3).toFixed(0)} GiB, ${process.platform} ${process.arch} ${release()}; load average ${startLoad.map(value => value.toFixed(2)).join(' ')} at start, ${loadavg()[0]!.toFixed(2)} at end`)
     out.push(`- Runtimes: Node ${nodeVersion} (workers), Bun ${process.versions.bun ?? 'n/a'} (orchestrator)`)
+    const quote = (value: string) => `'${value.replaceAll("'", "'\\''")}'`
+    const command = ['bun run bench:peers', '--peers', quote(peers.map(peer => peer.id).join(',')), '--workloads', quote(selected.join(',')), '--rounds', String(rounds), '--elk-cache', elkCache, ...(args.has('quick') ? ['--quick'] : []), ...(npmVersion ? ['--agentic-npm', quote(npmVersion)] : []), ...(args.has('candidate-tarball') ? ['--candidate-tarball', quote(resolve(args.get('candidate-tarball')!)), '--candidate-sha256', args.get('candidate-sha256')!] : [])]
+    out.push('- Reproduce:', '', '```sh', command.join(' '), '```')
+    out.push(`- Policy: ELK cache ${elkCache}; built-in Scene assertions off; APL environment ${JSON.stringify(policy.aplEnvironment)}`)
     out.push(`- Pins: ${prepared.map(entry => `${entry.peer.id} = ${entry.label}`).join('; ')}`)
     out.push(
-      `- Method: ${rounds} round(s), one fresh process per peer and output, order alternating; per workload one first render and a label check, then ≥${timing.warmCalls} warm calls and ≥${timing.warmupMs} ms, ≤${timing.samples} samples of ≥${timing.minSampleMs} ms (at least ${MIN_SAMPLES}), capped near ${timing.maxCaseMs} ms; medians across rounds, ± is the median MAD/median.`,
+      `- Method: ${rounds} round(s), one fresh process per peer and output, order alternating; per workload one first render, then ≥${timing.warmCalls} warm calls and ≥${timing.warmupMs} ms, ≤${timing.samples} samples of ≥${timing.minSampleMs} ms (at least ${MIN_SAMPLES}), capped near ${timing.maxCaseMs} ms; every complete output checked outside timing for labels and parseable SVG, captured in batches of at most 64 returns (about 1 MiB at the first output size), with output stores and per-batch clocks included; medians across rounds, ± is the median MAD/median.`,
     )
     out.push(`- Not covered: ${NOT_COVERED.join('; ')}`)
     for (const warning of warnings) out.push(`- Warning: ${warning}`)
     for (const entry of prepared.filter(entry => entry.error)) out.push(`- Unavailable: ${entry.peer.id}: ${entry.error}`)
+    out.push('', '## Coverage across all rounds', '', markdownTable(['peer', 'output', 'population', 'successful', 'unsupported', 'lost labels', 'errors', 'missing'], coverage.map(row => [row.peer, row.output, ...[row.population, row.ok, row.unsupported, row.lostLabels, row.errors, row.missing].map(String)]), 2))
     out.push('', '## Adapters', '')
     out.push(
       markdownTable(
@@ -774,7 +896,7 @@ async function main(): Promise<void> {
         ),
       )
     }
-    out.push('', '## Cold start, median across rounds', '', 'Import includes one-time setup (Merman engine creation); first render is the first call in a fresh process; RSS is resident memory after the last workload.', '')
+    out.push('', '## Cold start, median across rounds', '', 'Import includes one-time setup (Merman engine creation); first render is the first call in a fresh process; RSS is resident memory after the last workload, including the harness SVG parser; allocation excludes validation and capture-array allocation.', '')
     const coldRows = jobs.map(({ prepared: entry, output }) => {
       const records = processes.filter(record => record.peer === entry.peer.id && record.output === output)
       const pick = (values: Array<number | undefined>) => {
@@ -803,25 +925,31 @@ async function main(): Promise<void> {
     }
     const markdown = `${out.join('\n')}\n`
     console.log(markdown)
-    if (args.has('markdown')) writeFileSync(args.get('markdown')!, markdown)
-    if (args.has('json')) {
+    writeFileSync(markdownPath, markdown)
+    appendFileSync(rawSamples, `${JSON.stringify({ status: 'completed', coverage })}\n`)
+    {
       const summary: Record<Output, Record<string, Record<string, unknown>>> = { svg: {}, terminal: {} }
       for (const { prepared: entry, output } of jobs) summary[output][entry.peer.id] = Object.fromEntries(workloads[output].map(id => [id, { ...cell(entry.peer.id, output, id), ...(output === 'svg' && entry.peer.id !== 'agentic' ? { ratioToAgentic: ratio(entry.peer.id, id) } : {}) }]))
       const report = {
-        schemaVersion: 1,
-        advisory: true,
-        createdAt,
+        ...metadata, status: 'completed', finishedAt: new Date().toISOString(),
         environment: { node: nodeVersion, bun: process.versions.bun, platform: process.platform, arch: process.arch, osRelease: release(), cpu: cpus()[0]?.model, logicalCpus: cpus().length, totalMemBytes: totalmem(), loadAverageStart: startLoad, loadAverageEnd: loadavg() },
         config: { rounds, timing, minSamples: MIN_SAMPLES, workloads, peers: jobs.map(job => ({ peer: job.prepared.peer.id, output: job.output })) },
-        pins: prepared.map(entry => ({ peer: entry.peer.id, source: entry.peer.source, label: entry.label, ...(entry.integrity ? { integrity: entry.integrity } : {}), ...(entry.error ? { error: entry.error } : {}), svg: entry.peer.svg?.api, terminal: entry.peer.terminal?.api })),
+        pins: prepared.map(entry => ({ peer: entry.peer.id, source: entry.peer.source, label: entry.label, ...(entry.integrity ? { integrity: entry.integrity } : {}), ...(entry.identity ? { identity: entry.identity } : {}), ...(entry.error ? { error: entry.error } : {}), svg: entry.peer.svg?.api, terminal: entry.peer.terminal?.api })),
+        coverage,
         expectedLabels: EXPECTED_LABELS,
         warnings,
         notCovered: NOT_COVERED,
         processes,
         summary,
       }
-      writeFileSync(args.get('json')!, `${JSON.stringify(report, null, 2)}\n`)
+      writeFileSync(jsonPath, `${JSON.stringify(report, null, 2)}\n`)
     }
+  } catch (error) {
+    const reason = firstLine(error)
+    appendFileSync(rawSamples, `${JSON.stringify({ status: 'failed', error: reason })}\n`)
+    writeFileSync(jsonPath, `${JSON.stringify({ ...metadata, status: 'failed', error: reason }, null, 2)}\n`)
+    writeFileSync(markdownPath, `# Peer benchmark: incomplete (advisory)\n\n${reason}\n`)
+    throw error
   } finally {
     rmSync(scratch, { recursive: true, force: true })
   }

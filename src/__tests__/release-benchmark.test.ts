@@ -2,7 +2,7 @@
 // observations. No clocks, npm registry or browser launch in these tests.
 import { describe, expect, test } from 'bun:test'
 import { spawnSync } from 'node:child_process'
-import { chmodSync, readFileSync, writeFileSync } from 'node:fs'
+import { chmodSync, existsSync, readFileSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { report, type EngineRun, type Group, type Input } from '../../eval/benchmark/release-bench.ts'
 import { browserScorecard, type BrowserSample } from '../../eval/benchmark/release-browser-bench.ts'
@@ -140,4 +140,81 @@ test('baseline resolution survives a changed latest tag across CLI retries', () 
   writeFileSync(registry, JSON.stringify({ version: '0.4.2', 'dist.integrity': 'sha512-ZWZnaA==' }))
   expect(invoke().status).toBe(0)
   expect(JSON.parse(readFileSync(lock, 'utf8'))).toEqual({ requested: 'latest', version: '0.4.1', integrity })
+})
+
+test('browser comparisons require one observation for every input in every paired round', () => {
+  const rows: BrowserSample[] = [
+    { engine: 'candidate', round: 1, id: 'a', ok: true, ms: 2 },
+    { engine: 'candidate', round: 2, id: 'a', ok: true, ms: 99 },
+    { engine: 'candidate', round: 3, id: 'a', ok: true, ms: 300 },
+    { engine: 'pele', round: 1, id: 'a', ok: true, ms: 1 },
+    { engine: 'pele', round: 2, id: 'a', ok: true, ms: 100 },
+    { engine: 'pele', round: 3, id: 'a', ok: true, ms: 101 },
+  ]
+  const score = (samples: BrowserSample[], population = 1) => browserScorecard(samples, ['candidate', 'pele'], 3, population)
+  expect(score(rows).engines.every(engine => engine.complete)).toBe(true)
+  expect(score(rows).matched[0]!.medianRatio).toBe(2)
+  // Preserve the success count while replacing round two by a second round
+  // one; counting receipts used to accept this incomplete population.
+  const duplicated = rows.map((row, i) => i === 1 ? { ...rows[0]! } : row)
+  for (const incomplete of [duplicated, rows.filter((_, i) => i !== 1), [...rows, { ...rows[0]! }]]) {
+    const result = score(incomplete)
+    expect(result.engines[0]!.complete).toBe(false)
+    expect(result.matched[0]!.inputIds).toEqual([])
+    expect(result.matched[0]!.medianRatio).toBeUndefined()
+  }
+  // A complete surviving input cannot stand in for an entirely missing one.
+  expect(score(rows, 2).matched[0]!.medianRatio).toBeUndefined()
+  const missingComparator = score(rows.filter((_, i) => i !== 4))
+  expect(missingComparator.engines[1]!.complete).toBe(false)
+  expect(missingComparator.matched[0]!.medianRatio).toBeUndefined()
+})
+
+test.each([
+  ['stable complete output', 0, '<svg xmlns="http://www.w3.org/2000/svg" width="100" height="50"><text>Keep</text></svg>', 'ok'],
+  ['empty output after the first call', 2, '', 'error'],
+  ['missing text during a measured sample', 3, '<svg xmlns="http://www.w3.org/2000/svg" width="100" height="50"><text>Other</text></svg>', 'lost-labels'],
+  ['malformed SVG carrying the expected text', 1, '<svg><text>Keep</text>', 'error'],
+] as const)('peer worker validates %s outside timing', (_name, changeAt, replacement, status) => {
+  const dir = temp.dir(), entry = join(dir, 'renderer.mjs'), job = join(dir, 'job.json'), out = join(dir, 'samples.jsonl')
+  writeFileSync(entry, `let calls = 0; export function renderMermaidSVG() { return ++calls >= ${changeAt || 'Infinity'} ? ${JSON.stringify(replacement)} : '<svg xmlns="http://www.w3.org/2000/svg" width="100" height="50"><text>Keep</text></svg>' }`)
+  writeFileSync(job, JSON.stringify({ peer: 'agentic', output: 'svg', entry,
+    timing: { warmCalls: 1, warmupMs: 0, samples: 3, minSampleMs: 0, maxCaseMs: 100 },
+    workloads: [{ id: 'owned-text', source: 'fixture', expected: ['Keep'] }],
+  }))
+  writeFileSync(out, '')
+  const child = spawnSync('node', [join(import.meta.dir, '../../eval/benchmark/peer-bench.ts'), '--child', '--job', job, '--out', out], {
+    cwd: join(import.meta.dir, '../..'), encoding: 'utf8', timeout: 10000,
+  })
+  expect({ status: child.status, stderr: child.stderr }).toEqual({ status: 0, stderr: '' })
+  const observations = readFileSync(out, 'utf8').trim().split('\n').map(line => JSON.parse(line))
+  const result = observations.find(row => row.type === 'result')
+  expect(result.status).toBe(status)
+  if (status === 'ok') expect(result.samplesMs).toHaveLength(3)
+  else expect(result.medianMs).toBeUndefined()
+})
+
+test('peer artifact mismatch fails before installation and retains explicit incomplete evidence', () => {
+  const dir = temp.dir(), tarball = join(dir, 'candidate.tgz'), reportPath = join(dir, 'report.json')
+  writeFileSync(tarball, 'different bytes')
+  const bin = temp.dir(), npm = join(bin, 'npm'), installed = join(dir, 'npm-called')
+  writeFileSync(npm, '#!/bin/sh\n: > "$INSTALL_RECEIPT"\nexit 99\n')
+  chmodSync(npm, 0o755)
+  const invoke = () => spawnSync(process.execPath, [join(import.meta.dir, '../../eval/benchmark/peer-bench.ts'),
+    '--peers', 'agentic', '--workloads', 'flow5', '--candidate-tarball', tarball,
+    '--candidate-sha256', '0'.repeat(64), '--elk-cache', 'on', '--json', reportPath, '--markdown', join(dir, 'report.md'),
+  ], { cwd: join(import.meta.dir, '../..'), encoding: 'utf8', timeout: 10000, env: { ...process.env, PATH: `${bin}:${process.env.PATH}`, INSTALL_RECEIPT: installed, APL_NO_CENTER: '1' } })
+  expect(invoke().status).not.toBe(0)
+  expect(existsSync(installed)).toBe(false)
+  const report = JSON.parse(readFileSync(reportPath, 'utf8'))
+  expect(report.status).toBe('failed')
+  expect(report.error).toContain('Candidate tarball SHA-256')
+  expect(report.policy).toMatchObject({ elkCache: 'on', sceneAssertions: 'off', aplEnvironment: { APL_NO_CENTER: '1' } })
+  const originalRaw = readFileSync(report.rawSamples, 'utf8')
+  const receipts = originalRaw.trim().split('\n').map(line => JSON.parse(line))
+  expect(receipts[0].status).toBe('started')
+  expect(receipts.at(-1)).toMatchObject({ status: 'failed', error: report.error })
+  expect(invoke().status).not.toBe(0)
+  expect(JSON.parse(readFileSync(reportPath, 'utf8')).rawSamples).not.toBe(report.rawSamples)
+  expect(readFileSync(report.rawSamples, 'utf8')).toBe(originalRaw)
 })
