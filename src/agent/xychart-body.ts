@@ -35,7 +35,7 @@ import type {
 import { ok, err } from './types.ts'
 import { indexedIdAllocator, labelOverflowCollector, setOptionalField } from './body-utils.ts'
 import { appendAccessibilityLines } from './accessibility-envelope.ts'
-import { parseXYChart, renderXYChartText } from '../xychart/parser.ts'
+import { parseXYChart, renderXYChartText, xychartTextRejections } from '../xychart/parser.ts'
 import { normalizeMermaidSource } from '../mermaid-source.ts'
 import { barBaselineValue } from '../xychart/axis-utils.ts'
 
@@ -355,8 +355,25 @@ export function xychartAccessibilityConflicts(
 
 /** XYChart source ours reads otherwise than Mermaid, each named once: an
  * accessibility directive after a statement on its line beside another
- * value for it on a line of its own (the parse hook keeps that source). */
+ * value for it on a line of its own (the parse hook keeps that source), and,
+ * on its canonical line, an unquoted axis title Mermaid's lexer rejects. */
 export function xychartUnsupportedSyntaxWarnings(canonicalSource: string): LayoutWarning[] {
+  return [...accessibilityOrderWarnings(canonicalSource), ...unquotedAxisTitleWarnings(canonicalSource)]
+}
+
+function unquotedAxisTitleWarnings(canonicalSource: string): LayoutWarning[] {
+  const lines = canonicalSource.split(/\r?\n/)
+  const header = lines.findIndex(line => /^xychart(?:-beta)?(?:[\s;]|$)/i.test(line.trim()))
+  if (header < 0) return []
+  return xychartTextRejections(lines.slice(header)).map(({ index, what }) => ({
+    code: 'UNSUPPORTED_SYNTAX',
+    syntax: 'xychart_unquoted_axis_title',
+    line: header + index + 1,
+    message: `${what}, and is read as written. Pinned Mermaid rejects this; put the whole title in double quotes.`,
+  }))
+}
+
+function accessibilityOrderWarnings(canonicalSource: string): LayoutWarning[] {
   if (!/acc(?:Title|Descr)/i.test(canonicalSource)) return []
   const source = normalizeMermaidSource(canonicalSource)
   if (source.accessibility.title === undefined && source.accessibility.descr === undefined) return []

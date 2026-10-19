@@ -12,7 +12,7 @@ import type {
   XYChartSeries,
   XYChartTheme,
 } from './types.ts'
-import { scanAccessibilityDirectives } from '../shared/accessibility-directives.ts'
+import { parseAccessibilityDirective, scanAccessibilityDirectives } from '../shared/accessibility-directives.ts'
 import { splitCssColorList } from '../shared/css-color.ts'
 import { encodeMermaidEntities } from '../shared/mermaid-entities.ts'
 import { decodeMermaidEntities } from '../shared/mermaid-entity-display.ts'
@@ -253,7 +253,22 @@ function parseNumericArray(str: string): number[] {
 const NUMBER_PATTERN = String.raw`[+-]?(?:\d+(?:\.\d+)?|\.\d+)`
 const RANGE_REGEX = new RegExp(`^(${NUMBER_PATTERN})\\s*-->\\s*(${NUMBER_PATTERN})$`)
 
-function applyAxisDirective(axis: XYAxis, rawValue: string, axisName: 'x' | 'y', statementLine: number): boolean {
+/** Where Mermaid's xychart lexer rejects unquoted text: what it rejects. */
+type XYChartTextReport = (what: string) => void
+
+// Mermaid's xychart lexer reads an unquoted axis title only from ASCII
+// letters, whitespace and &+=*.#_- (and runs the words together); a digit
+// there starts a range number. Any other character is a lexical or parse
+// error upstream. Ours reads the title as written; verify reports it, and the
+// serializer writes it quoted, as Mermaid reads it.
+const NOT_AXIS_TEXT_RE = /[^A-Za-z&+=*.#_\s-]/
+
+function reportAxisTitle(title: string, axisName: 'x' | 'y', report: XYChartTextReport | undefined): void {
+  const error = NOT_AXIS_TEXT_RE.exec(title)?.[0]
+  if (error !== undefined) report?.(`XY chart ${axisName}-axis title ${JSON.stringify(title)} has ${JSON.stringify(error)} outside a quoted string`)
+}
+
+function applyAxisDirective(axis: XYAxis, rawValue: string, axisName: 'x' | 'y', statementLine: number, report?: XYChartTextReport): boolean {
   const value = rawValue.trim()
   if (value.length === 0) return false
 
@@ -265,6 +280,7 @@ function applyAxisDirective(axis: XYAxis, rawValue: string, axisName: 'x' | 'y',
     const categories = splitCommaList(categoriesMatch.contents)
     if (categories.length === 0) return false
     if (title !== undefined) {
+      if (!/^["']/.test(prefix)) reportAxisTitle(title, axisName, report)
       axis.title = title
       if (parserObservationActive('xychart')) observeParserMutation('xychart', 'setAxisTitle', { axis: axisName, title }, { line: statementLine, unit: 'normalized' })
     }
@@ -282,6 +298,7 @@ function applyAxisDirective(axis: XYAxis, rawValue: string, axisName: 'x' | 'y',
   const parsed = readAxisTitleRange(value)
   if (!parsed) return false
   if (parsed.title !== undefined) {
+    if (!/^["']/.test(value)) reportAxisTitle(parsed.title, axisName, report)
     axis.title = parsed.title
     if (parserObservationActive('xychart')) observeParserMutation('xychart', 'setAxisTitle', { axis: axisName, title: axis.title }, { line: statementLine, unit: 'normalized' })
   }
@@ -638,19 +655,52 @@ function getString(root: MermaidFrontmatterMap, path: readonly string[]): string
   return typeof value === 'string' && value.trim().length > 0 ? value.trim() : undefined
 }
 
-function expandXYChartStatements(lines: string[], strict: boolean): string[] {
+/**
+ * What Mermaid's xychart lexer rejects in the unquoted text of a chart's
+ * statements, read by the parser's own statement grammar, with the index in
+ * `lines` (header first) of the line each statement starts on.
+ */
+export function xychartTextRejections(lines: readonly string[]): Array<{ index: number; what: string }> {
+  const rejections: Array<{ index: number; what: string }> = []
+  const read = (statement: string, index: number): void => {
+    const axis = statement.match(/^([xy])-axis\s+([\s\S]+)$/i)
+    if (!axis) return
+    const axisName = axis[1]!.toLowerCase() as 'x' | 'y'
+    applyAxisDirective({}, axis[2]!, axisName, index + 1, what => rejections.push({ index, what }))
+  }
+  const starts: number[] = []
+  const statements = expandXYChartStatements([...lines], false, starts)
+  for (let at = 1; at < statements.length; at++) {
+    const directive = parseAccessibilityDirective(statements, at)
+    if (directive === undefined) break
+    if (directive === null) {
+      read(statements[at]!, starts[at]!)
+      continue
+    }
+    at = directive.endIndex
+    if (directive.suffixLine) {
+      for (const statement of expandXYChartStatements([directive.suffixLine], false)) read(statement, starts[at]!)
+    }
+  }
+  return rejections
+}
+
+/** Each statement on `lines`, with the index of the line it starts on pushed to `starts`. */
+function expandXYChartStatements(lines: string[], strict: boolean, starts?: number[]): string[] {
   const statements: string[] = []
   let inAccDescrBlock = false
   // Mermaid's xychart strings have no escapes: `"C:\"` closes at its second quote.
   const ends = quotedTextEnds(lines, { escapes: false })
 
   for (let lineIndex = 0; lineIndex < lines.length; lineIndex++) {
+    const start = lineIndex
     let line = lines[lineIndex]!.trim()
     if (!line) continue
     if (line.startsWith('%%')) continue
 
     if (inAccDescrBlock) {
       statements.push(line)
+      starts?.push(start)
       if (line.includes('}')) inAccDescrBlock = false
       continue
     }
@@ -670,6 +720,7 @@ function expandXYChartStatements(lines: string[], strict: boolean): string[] {
     const parts = splitSemicolonStatements(accessibility ? line : stripTrailingComment(line), strict)
     for (const part of parts) {
       statements.push(part)
+      starts?.push(start)
       const block = part.match(/^accDescr\s*:?\s*\{(.*)$/i)
       if (block && !block[1]!.includes('}')) inAccDescrBlock = true
     }

@@ -68,6 +68,15 @@ const QUADRANT_READ_GENEROUSLY: ReadonlyArray<GenerousRow> = [
   ['a string after unquoted text', 'quadrantChart\n  title Growth\n  quadrant-1 Grow "fast"', 'Grow', 'quadrant_unquoted_text', 3],
 ]
 
+// An unquoted XYChart axis title takes ASCII letters, whitespace and
+// &+=*.#_- in Mermaid's lexer; a digit there starts a range number.
+const XYCHART_READ_GENEROUSLY: ReadonlyArray<GenerousRow> = [
+  ['parentheses in an unquoted axis title before a range', 'xychart-beta\n  x-axis [a, b]\n  y-axis Revenue (USD) 0 --> 100\n  bar [10, 20]', 'Revenue (USD)', 'xychart_unquoted_axis_title', 3],
+  ['a percent sign in an unquoted axis title', 'xychart-beta\n  y-axis Share in % 0 --> 100\n  bar [10, 20]', 'Share in %', 'xychart_unquoted_axis_title', 2],
+  ['a comma in an unquoted axis title', 'xychart-beta\n  x-axis cat, dog\n  bar [10, 20]', 'cat, dog', 'xychart_unquoted_axis_title', 2],
+  ['a digit in an unquoted axis title before categories', 'xychart-beta\n  x-axis Q1 [a, b] bar [10, 20]', 'Q1', 'xychart_unquoted_axis_title', 2],
+]
+
 // Mermaid's architecture lexer terminals: an (icon) is word characters, -
 // and :, an id has dashes only inside. Unquoted titles now accept punctuation.
 const ARCHITECTURE_READ_GENEROUSLY: ReadonlyArray<GenerousRow> = [
@@ -106,6 +115,8 @@ const ACCEPTED: ReadonlyArray<readonly [BuiltinFamilyId, string, string]> = [
   ['architecture', 'a non-ASCII letter in an unquoted title', 'architecture-beta\n  service db(database)[Café]'],
   ['architecture', 'a dash in an unquoted edge title', 'architecture-beta\n  service a(server)[A]\n  service b(server)[B]\n  a:R -[fan-out]-> L:b'],
   ['architecture', 'text after a quoted title', 'architecture-beta\n  service api(server)["Public" API]'],
+  ['xychart', 'unquoted punctuation the lexer reads as axis text', 'xychart-beta\n  x-axis R&D + Sales = *.#_- [a, b]\n  y-axis Monthly totals 0 --> 100\n  bar [10, 20]'],
+  ['xychart', 'punctuation and digits in quoted axis titles', 'xychart-beta\n  x-axis "Q1 (est), 50%" [a, b]\n  y-axis "Revenue (USD)" 0 --> 100\n  bar [10, 20]'],
   // A quoted string runs to its closing quote across line breaks.
   ['pie', 'a label across lines', 'pie\n  "multi\n  label" : 1\n  "b" : 2'],
   ['quadrant', 'quoted text across lines', 'quadrantChart\n  x-axis "Low\n  reach" --> High\n  quadrant-1 "Expand\n  now"\n  "Point\n  A": [0.3, 0.6]'],
@@ -128,13 +139,18 @@ describe('read generously what pinned Mermaid rejects, and warn', () => {
     expect((await upstream.parse(source)).ok).toBe(false)
     expect(readGenerously(source, text)).toEqual({ typed: 'architecture', draws: true, reported: expect.arrayContaining([`${syntax}@${line}`]) })
   })
+
+  test.each(XYCHART_READ_GENEROUSLY)('xychart: %s is read, drawn and reported', async (_construct, source, text, syntax, line) => {
+    expect((await upstream.parse(source)).ok).toBe(false)
+    expect(readGenerously(source, text)).toEqual({ typed: 'xychart', draws: true, reported: [`${syntax}@${line}`] })
+  })
 })
 
 describe('accept what pinned Mermaid accepts', () => {
   test.each(ACCEPTED)('%s: %s is accepted, as Mermaid accepts it', async (family, _construct, source) => {
     expect({ mermaid: (await upstream.parse(source)).ok, ...ours(source) })
       .toEqual({ mermaid: true, typed: family, error: undefined })
-    if (family === 'architecture' || family === 'quadrant') expect(verifyMermaid(source).warnings.filter(warning => warning.code === 'UNSUPPORTED_SYNTAX')).toEqual([])
+    if (family === 'architecture' || family === 'quadrant' || family === 'xychart') expect(verifyMermaid(source).warnings.filter(warning => warning.code === 'UNSUPPORTED_SYNTAX')).toEqual([])
   })
 
   // The typed serializer must write what Mermaid reads: text that is only
