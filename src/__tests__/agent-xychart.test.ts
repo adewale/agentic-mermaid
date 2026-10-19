@@ -7,6 +7,7 @@
 
 import { describe, test, expect } from 'bun:test'
 import fc from 'fast-check'
+import { decodeXML } from 'entities'
 import { fcParameters } from './helpers/fc-parameters.ts'
 import { parseRegisteredMermaid as parseMermaid } from '../agent/parse.ts'
 import { serializeMermaid } from '../agent/serialize.ts'
@@ -149,9 +150,11 @@ describe('xychart structured-or-opaque fallback', () => {
       ['xychart-beta\n  bar [1, 2] accTitle: hi bar [2, 1]', { accessibilityTitle: 'hi bar [2, 1]', series: [{ values: [1, 2] }] }, { title: 'hi bar [2, 1]' }],
       ['xychart-beta\n  accTitle: T\n  bar [1] accDescr { x } bar [2]', { accessibilityTitle: 'T', accessibilityDescription: 'x', series: [{ values: [1] }, { values: [2] }] }, { title: 'T', descr: 'x' }],
       ['xychart-beta\n  bar [1, 2] accTitle: Quarterly revenue\n  accDescr: Two bars\n  line [3, 4]', { accessibilityTitle: 'Quarterly revenue', accessibilityDescription: 'Two bars', series: [{ values: [1, 2] }, { values: [3, 4] }] }, { title: 'Quarterly revenue', descr: 'Two bars' }],
-      // `%%` in the value is text.
+      // `%%` in the value is text, and a `"` in it opens no string.
       ['xychart-beta\n  bar [1, 2] accTitle: a %% b', { accessibilityTitle: 'a %% b', series: [{ values: [1, 2] }] }, { title: 'a %% b' }],
       ['xychart-beta\n  bar [1, 2] accDescr: a %% b\n  line [3, 4]', { accessibilityDescription: 'a %% b', series: [{ values: [1, 2] }, { values: [3, 4] }] }, { descr: 'a %% b' }],
+      ['xychart-beta\n  bar [1, 2] accTitle: a "b\n  line "s" [3, 4]', { accessibilityTitle: 'a "b', series: [{ values: [1, 2] }, { name: 's', values: [3, 4] }] }, { title: 'a "b' }],
+      ['xychart-beta\n  bar [1, 2] accDescr: a "b %% c\n  line "s" [3, 4]', { accessibilityDescription: 'a "b %% c', series: [{ values: [1, 2] }, { name: 's', values: [3, 4] }] }, { descr: 'a "b %% c' }],
     ]
     for (const [source, body, accessibility] of cases) {
       const d = xychart(source)
@@ -161,8 +164,8 @@ describe('xychart structured-or-opaque fallback', () => {
       expect(xychart(serializeMermaid(d)).body).toEqual(d.body)
       // The drawing names the chart as the body does, each directive wherever it stands.
       const svg = renderMermaidSVG(source)
-      expect(svg.match(/<title\b[^>]*>([^<]*)<\/title>/)?.[1], source).toBe(accessibility.title)
-      expect(svg.match(/<desc\b[^>]*>([^<]*)<\/desc>/)?.[1], source).toBe(accessibility.descr)
+      expect(decodeXML(svg.match(/<title\b[^>]*>([^<]*)<\/title>/)?.[1] ?? '') || undefined, source).toBe(accessibility.title)
+      expect(decodeXML(svg.match(/<desc\b[^>]*>([^<]*)<\/desc>/)?.[1] ?? '') || undefined, source).toBe(accessibility.descr)
     }
     // Beside another value on a line of its own, Mermaid keeps the one written
     // last, which neither reader can order: the source is kept, and said so.

@@ -53,18 +53,23 @@ export interface QuotedTextRule {
   opensAfter?: RegExp
   /** A statement that runs to the end of its line whatever it holds, such as a title. */
   wholeLine?: (line: string) => boolean
+  /** A sticky pattern for a keyword that, outside a string, takes the rest of
+   * its line as text wherever it stands, such as XYChart's `accTitle:`. */
+  restOfLine?: RegExp
 }
 
 type Quote = '"' | "'" | null
 
 /** The string `line` leaves open when it starts inside `quote`'s string. */
-function openQuoteAtEnd(line: string, quote: Quote, escapes: boolean, opensAfter: RegExp): Quote {
+function openQuoteAtEnd(line: string, quote: Quote, escapes: boolean, opensAfter: RegExp, restOfLine?: RegExp): Quote {
   for (let index = 0; index < line.length; index++) {
     const char = line[index]!
     if (quote) {
       if (char === '\\' && escapes) index++
       else if (char === quote) quote = null
     } else if (char === '%' && line[index + 1] === '%') {
+      break
+    } else if (restOfLine && (restOfLine.lastIndex = index, restOfLine.test(line))) {
       break
     } else if ((char === '"' || char === "'") && opensAfter.test(index === 0 ? '\n' : line[index - 1]!)) {
       quote = char
@@ -90,11 +95,11 @@ export function quotedTextEnds(lines: readonly string[], rule: QuotedTextRule = 
   let closes = new Map(spanning.map(quote => [quote, -1]))
   for (let index = lines.length - 1; index >= 0; index--) {
     const line = lines[index]!
-    const open = rule.wholeLine?.(line.trim()) ? null : openQuoteAtEnd(line, null, escapes, opensAfter)
+    const open = rule.wholeLine?.(line.trim()) ? null : openQuoteAtEnd(line, null, escapes, opensAfter, rule.restOfLine)
     const end = open ? closes.get(open) ?? -1 : -1
     ends[index] = end < 0 ? index : end
     closes = new Map(spanning.map(quote => {
-      const still = openQuoteAtEnd(line, quote, escapes, opensAfter)
+      const still = openQuoteAtEnd(line, quote, escapes, opensAfter, rule.restOfLine)
       return [quote, still && closes.has(still) ? closes.get(still)! : index]
     }))
   }

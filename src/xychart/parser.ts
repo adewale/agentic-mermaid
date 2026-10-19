@@ -686,9 +686,11 @@ export function xychartTextRejections(lines: readonly string[]): Array<{ index: 
 }
 
 /** For each line, the last line of the statement that starts there. Mermaid's
- * xychart strings have no escapes: `"C:\"` closes at its second quote. */
+ * xychart strings have no escapes: `"C:\"` closes at its second quote. An
+ * `accTitle:` or `accDescr:` value is the rest of its line wherever it starts,
+ * so a quote in it opens no string. */
 export function xychartStatementEnds(lines: readonly string[]): number[] {
-  return quotedTextEnds(lines, { escapes: false })
+  return quotedTextEnds(lines, { escapes: false, restOfLine: /(?<!\w)acc(?:Title|Descr)\s*:/iy })
 }
 
 /** Each statement on `lines`, with the index of the line it starts on pushed to `starts`. */
