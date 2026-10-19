@@ -327,6 +327,16 @@ export function svgEmissionValue(node: SceneNode, value: SvgValue, recipe?: SvgP
   }
 }
 
+/** One lexical value policy for emitted attributes and typed style adapters.
+ * XML escaping belongs to SvgWriter; absence is distinct from an empty value. */
+export function resolveSvgAttributeValue(node: SceneNode, attribute: SvgAttribute, recipe?: SvgPrimitiveEmission): string | undefined {
+  let value = svgEmissionValue(node, attribute.value, recipe, attribute.format) ?? attribute.fallback
+  if (value === undefined || attribute.omit === 'zero' && (value === 0 || value === '0') || attribute.omit === 'false' && value === false || attribute.omit === 'empty' && value === '') return undefined
+  if (typeof value === 'number') value = numberString(value, attribute.format)
+  const text = String(value)
+  return attribute.display ? sanitizeDisplayLines(text) : text
+}
+
 export function writeSvgAttributes(node: SceneNode, attributes: readonly SvgAttribute[], writer: SvgWriter, recipe?: SvgPrimitiveEmission): void {
   if (attributes.length > 256) throw new RangeError('SVG elements may declare at most 256 attributes')
   for (const attribute of attributes) {
@@ -336,11 +346,8 @@ export function writeSvgAttributes(node: SceneNode, attributes: readonly SvgAttr
       if (attribute.value.field !== attribute.name) throw new TypeError(`SVG ${attribute.name} must project its matching semantic field`)
       if (attribute.value.source === 'geometry' && recipe && attribute.value.piece !== undefined && attribute.value.piece !== (recipe.piece ?? 0)) throw new TypeError('SVG primitive coordinates must project their own geometry piece')
     }
-    let value = svgEmissionValue(node, attribute.value, recipe, attribute.format) ?? attribute.fallback
-    if (value === undefined || attribute.omit === 'zero' && (value === 0 || value === '0') || attribute.omit === 'false' && value === false || attribute.omit === 'empty' && value === '') continue
-    if (typeof value === 'number') value = numberString(value, attribute.format)
-    let text = String(value)
-    if (attribute.display) text = sanitizeDisplayLines(text)
+    const text = resolveSvgAttributeValue(node, attribute, recipe)
+    if (text === undefined) continue
     const before = attribute.before ?? ' '
     if (before !== ' ' && before !== '  ' && before !== '\n' && before !== '\n  ') throw new TypeError('Unsupported SVG attribute whitespace')
     writer.write(before)
