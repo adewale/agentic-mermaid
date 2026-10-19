@@ -52,6 +52,8 @@ describe('flowchart SourceMap', () => {
     ['erDiagram\n  A { int id PK string name } B', 'labels', 'er:A:attr#1', { line: 2, col: 15 }, 'string name'],
     ['erDiagram\n  A {\n  int\n  id\n  }', 'labels', 'er:A:attr#0', { line: 3, col: 1 }, 'int\n  id'],
     ['erDiagram\n  A ||--o{ B : r %% c', 'edges', 'rel#0:A->B', { line: 2, col: 1 }, 'A ||--o{ B : r'],
+    ['erDiagram\n  A ||--o{ B : r %% c', 'labels', 'rel#0:A->B', { line: 2, col: 14 }, 'r'],
+    ['erDiagram\n  A ||--o{ B : "r s" %% c', 'labels', 'rel#0:A->B', { line: 2, col: 15 }, 'r s'],
   ] as const)('maps %j %s %s across lines', (source, kind, key, location, text) => {
     const parsed = parseMermaid(source)
     if (!parsed.ok) throw new Error(JSON.stringify(parsed.error))

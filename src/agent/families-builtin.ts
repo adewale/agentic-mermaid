@@ -580,7 +580,11 @@ function buildErSourceMap(body: DiagramBody, canonicalSource: string): SourceMap
     if (r.label) {
       const colon = source.line.indexOf(':', Math.max(source.start, operatorStart))
       const labelCol = colon >= 0 ? source.line.indexOf(r.label, colon + 1) : -1
-      if (labelCol >= 0) map.labels.set(key, loc(source.lineIndex + 1, labelCol + 1))
+      if (labelCol >= 0) {
+        // The label is that text, without a quote or comment after it.
+        map.labels.set(key, loc(source.lineIndex + 1, labelCol + 1))
+        ends.labels.set(key, loc(source.lineIndex + 1, labelCol + r.label.length + 1))
+      }
     }
   })
   recordSourceMapEnds(map, ends)
