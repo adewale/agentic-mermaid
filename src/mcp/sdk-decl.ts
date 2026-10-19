@@ -422,7 +422,7 @@ interface FlowchartGraph {
 
 interface StateNode { id: string; label?: string; declaredBare?: true; stereotype?: 'fork' | 'join' | 'choice' | 'history' | 'deep-history'; states?: StateNode[]; transitions?: StateTransition[]; regions?: StateRegion[]; className?: string; style?: Record<string, string>; direction?: 'TD' | 'TB' | 'LR' | 'BT' | 'RL' }
 interface StateRegion { states: StateNode[]; transitions: StateTransition[]; direction?: 'TD' | 'TB' | 'LR' | 'BT' | 'RL' }
-interface StateTransition { from: string; to: string; label?: string; style?: Record<string, string> }   // from/to may be '[*]' or a history ref ('[H]', 'X[H*]')
+interface StateTransition { from: string; to: string; fromClass?: string; toClass?: string; label?: string; style?: Record<string, string> }   // from/to may be '[*]' or a history ref ('[H]', 'X[H*]'); fromClass/toClass class such an endpoint ('[*]:::c --> A')
 interface StateNote { target: string; side: 'left' | 'right'; text: string }
 interface StateBody { kind: 'state'; states: StateNode[]; transitions: StateTransition[]; notes?: StateNote[]; direction?: 'TD' | 'TB' | 'LR' | 'BT' | 'RL'; classDefs?: Record<string, Record<string, string>>; defaultTransitionStyle?: Record<string, string> }
 

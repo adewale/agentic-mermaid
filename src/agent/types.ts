@@ -650,6 +650,12 @@ export interface StateTransition {
   from: string
   /** Target state id, '[*]' for an end pseudostate, or a history reference. */
   to: string
+  /** classDef name on a `[*]` or history `from` (`[*]:::hot --> A`). Such an
+   *  endpoint is not a StateNode and Mermaid has no `class` statement for it,
+   *  so its class stays on the transition. */
+  fromClass?: string
+  /** classDef name on a `[*]` or history `to` (`A --> [*]:::hot`). */
+  toClass?: string
   label?: string
   /** Inline edge paint represented canonically as a linkStyle directive. */
   style?: Record<string, string>

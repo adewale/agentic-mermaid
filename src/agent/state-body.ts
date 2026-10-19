@@ -313,13 +313,24 @@ export function parseStateBody(lines: string[]): StateBody | null {
       const { from, to } = tr
       const label = tr.label ? normalizeBrTags(tr.label) : undefined
       if (!isEndpointId(from) || !isEndpointId(to)) return null
-      if (tr.fromClass) classAssignments.push({ id: from, className: tr.fromClass, scope })
-      if (tr.toClass) classAssignments.push({ id: to, className: tr.toClass, scope })
+      // A `[*]` or history endpoint is no state, so its class stays on the
+      // transition: `[*]:::c --> A` is its only Mermaid spelling. Mermaid's
+      // name after `:::` ends at a hyphen, so a hyphenated class there has
+      // no spelling, and the body stays opaque.
+      const contextual = (id: string): boolean => id === PSEUDO || isHistoryEndpoint(id)
+      if ((contextual(from) && tr.fromClass?.includes('-')) || (contextual(to) && tr.toClass?.includes('-'))) return null
+      if (tr.fromClass && !contextual(from)) classAssignments.push({ id: from, className: tr.fromClass, scope })
+      if (tr.toClass && !contextual(to)) classAssignments.push({ id: to, className: tr.toClass, scope })
       // Only materialize simple-state nodes for non-pseudo, non-history,
       // non-composite ids (pseudostates are contextual endpoint strings).
-      if (from !== PSEUDO && !isHistoryEndpoint(from) && !compositeIds.has(from)) ensureState(scope, from)
-      if (to !== PSEUDO && !isHistoryEndpoint(to) && !compositeIds.has(to)) ensureState(scope, to)
-      const transition: StateTransition = { from, to, ...(label !== undefined ? { label } : {}) }
+      if (!contextual(from) && !compositeIds.has(from)) ensureState(scope, from)
+      if (!contextual(to) && !compositeIds.has(to)) ensureState(scope, to)
+      const transition: StateTransition = {
+        from, to,
+        ...(tr.fromClass && contextual(from) ? { fromClass: tr.fromClass } : {}),
+        ...(tr.toClass && contextual(to) ? { toClass: tr.toClass } : {}),
+        ...(label !== undefined ? { label } : {}),
+      }
       scope.transitions.push(transition)
       transitionOrder.push(transition)
       continue
@@ -460,7 +471,8 @@ function renderScope(states: StateNode[], transitions: StateTransition[], direct
     // `state` followed by whitespace enters Mermaid's declaration lexer.
     const separator = /^state$/i.test(t.to) ? ':' : ' :'
     const label = t.label !== undefined ? `${separator} ${serializeStateLabel(t.label)}` : ''
-    out.push(`${indent}${t.from} --> ${t.to}${label}`)
+    const endpoint = (id: string, className: string | undefined): string => className === undefined ? id : `${id}:::${className}`
+    out.push(`${indent}${endpoint(t.from, t.fromClass)} --> ${endpoint(t.to, t.toClass)}${label}`)
   }
 }
 

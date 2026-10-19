@@ -147,6 +147,9 @@ unchanged over the rebuilt geometry (`self-loop-arcs.test.ts` pins both).
 - typed class definitions, per-state class/inline paint, default and indexed
   transition paint
 - history endpoints preserved verbatim on `StateTransition.from/to`
+- a class on a `[*]` or history endpoint (`[*]:::c --> A`) on
+  `StateTransition.fromClass/toClass`: the endpoint is no state, and that
+  inline form is its only Mermaid spelling (`class [*] c` is rejected)
 
 Serialization: definitions before transitions (definition-before-use), notes
 last; single-line note form when the text has no `\n`, block form otherwise.

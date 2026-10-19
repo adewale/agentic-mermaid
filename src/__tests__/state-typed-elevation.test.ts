@@ -467,6 +467,8 @@ describe('State statements across and within lines', () => {
     ['A --> B; B --> C', ['A:rounded:A', 'B:rounded:B', 'C:rounded:C', 'A->B', 'B->C'], ['state_semicolon_separator@2']],
     ['state X {A}', ['A:rounded:A', 'X:X{A}'], ['state_brace_after_name@2']],
     ['state X { A --> B}', ['A:rounded:A', 'B:rounded:B', 'A->B', 'X:X{A B}'], ['state_brace_after_name@2']],
+    ['[*]:::hot --> A', ['_start:state-start:', 'A:rounded:A', '_start->A', '_start:::hot'], []],
+    ['state X {\nA --> [*]:::hot : done\n}', ['A:rounded:A', '_end:state-end:', 'A->_end:done', 'X:X{A _end}', '_end:::hot'], []],
     ['note right of A line1\nline2\nend note', ['A:rounded:A', 'note right of A:line1\nline2'], []],
     ['state "multi\nline" as X\nX --> Y', ['X:rounded:multi\nline', 'Y:rounded:Y', 'X->Y'], []],
   ] as const)('%j is read alike by the renderer, the typed body, its output and verify', async (body, expected, warnings) => {
