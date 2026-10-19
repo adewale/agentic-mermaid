@@ -2,10 +2,9 @@ import { prepareDisplayText, resolveLabelContent } from './shared/display-text.t
 import { graphTextBlock } from './graph-text.ts'
 import type { PositionedGraph, PositionedNode, PositionedEdge, PositionedGroup, PositionedStateNote, Point, RenderContext, RenderOptions } from './types.ts'
 import type { DiagramColors } from './theme.ts'
-import { svgOpenTag, buildStyleBlock, buildShadowDefs } from './theme.ts'
 import { STROKE_WIDTHS, FLOWCHART_DOTTED_DASH, resolveRenderStyle, diagramTitleMark } from './styles.ts'
 import type { ResolvedRenderStyle } from './styles.ts'
-import { renderMultilineText, renderMultilineTextWithBackground, escapeAttr, escapeDisplayAttr, escapeXml } from './multiline-utils.ts'
+import { snapshotSvgEmissionRecipe, svgValue as v, type SvgAttribute, type SvgGeometryField, type SvgGroupEmission, type SvgPrimitiveEmission } from './scene/svg-emission.ts'
 import { topRoundedRectPath } from './svg-paths.ts'
 import { resolveInlineNodeTextColor, toneOnFill } from './color-resolver.ts'
 import type { ConnectorLabelDescriptor, MarkerDescriptor, SceneDoc, SceneNode, SemanticChannels } from './scene/ir.ts'
@@ -15,10 +14,34 @@ import { iconFallbackToken } from './shared/icon-fallback.ts'
 import { DefaultBackend } from './scene/backend.ts'
 import type { ResolvedStateVisualConfig } from './state/config.ts'
 import { resolveMindmapIcon } from './mindmap/icons.ts'
-import { serializeMarkerResources } from './scene/marker-resources.ts'
 import { flowchartMarkerResources, markerIdPrefix, markerSuffix, graphEdgePathProjection } from './graph-connectors.ts'
 import { scanSvgStartTags, transformSvgAttributes, transformSvgCssValues } from './svg-structure.ts'
 import { paintsNodeFill, shapeOutline } from './shape-outline.ts'
+
+const PAINT_ATTRIBUTES: readonly SvgAttribute[] = [
+  { name: 'fill', value: v.paint('fill') }, { name: 'stroke', value: v.paint('stroke') }, { name: 'stroke-width', value: v.paint('strokeWidth') },
+]
+function primitive(fields: readonly SvgGeometryField[], before: readonly SvgAttribute[] = [], after: readonly SvgAttribute[] = PAINT_ATTRIBUTES, close: ' />' | '/>' = ' />') {
+  return snapshotSvgEmissionRecipe({ kind: 'primitive', close, attributes: [
+    ...before, ...fields.map(name => ({ name, value: v.geometry(name) })), ...after,
+  ] })
+}
+const RECT_EMISSION = primitive(['x', 'y', 'width', 'height', 'rx', 'ry'])
+const HEADER_EMISSION = primitive(['d'])
+const SEPARATOR_EMISSION = primitive(['x1', 'y1', 'x2', 'y2'], [{ name: 'class', value: v.meta('region-separator') }], [
+  ...PAINT_ATTRIBUTES.slice(1), { name: 'stroke-dasharray', value: v.paint('strokeDasharray') },
+])
+const HALO_EMISSION = primitive(['x', 'y', 'width', 'height', 'rx', 'ry'], [{ name: 'class', value: v.meta('edge-label-halo') }], PAINT_ATTRIBUTES.slice(0, 2))
+const LABEL_ATTRIBUTES: readonly SvgAttribute[] = [
+  { name: 'text-anchor', value: v.text('anchor') }, { name: 'font-size', value: v.text('fontSize') },
+  { name: 'font-weight', value: v.text('fontWeight') }, { name: 'letter-spacing', value: v.text('letterSpacing'), omit: 'zero' },
+  { name: 'fill', value: v.paint('fill') },
+]
+const LABEL_EMISSION = snapshotSvgEmissionRecipe({ kind: 'text', layout: 'multiline', attributes: LABEL_ATTRIBUTES })
+const EMPTY_EMISSION = snapshotSvgEmissionRecipe({ kind: 'sequence', children: [], join: '' })
+const IMAGE_FRAME_EMISSION = primitive(['x', 'y', 'width', 'height', 'rx'], [], [], '/>')
+const IMAGE_SUN_EMISSION = primitive(['cx', 'cy', 'r'], [], [], '/>')
+const IMAGE_PATH_EMISSION = primitive(['d'], [], [], '/>') as SvgPrimitiveEmission
 
 // ============================================================================
 // SVG renderer — converts a PositionedGraph into an SVG string.
@@ -84,13 +107,10 @@ export function lowerGraphScene(
       font,
       hasMonoFont: false,
     },
-    svgOpenTag(graph.width, graph.height, colors, transparent) + '\n' +
-    buildStyleBlock(font, false, colors.shadow, colors.embedFontImport),
+    { kind: 'prelude', width: graph.width, height: graph.height, colors, transparent, font, hasMonoFont: false,
+      children: [{ kind: 'sharedStyle' }],
+    },
   ))
-  const defsParts: string[] = []
-  defsParts.push('<defs>')
-  const shadowDefs = buildShadowDefs(colors)
-  if (shadowDefs) defsParts.push(shadowDefs)
   // Per-color arrow markers for edges with custom stroke via linkStyle
   const customStrokeColors = new Set<string>()
   const fixedMarkerColors = new Set<string | undefined>()
@@ -104,9 +124,9 @@ export function lowerGraphScene(
     if (edge.startMarker === 'cross' || edge.endMarker === 'cross') needsCross = true
   }
   const markerResources = flowchartMarkerResources(customStrokeColors, fixedMarkerColors, needsCircle, needsCross)
-  defsParts.splice(1, 0, serializeMarkerResources(markerResources))
-  defsParts.push('</defs>')
-  parts.push(marks.definitions({ id: 'defs', markerResources }, defsParts.join('\n')))
+  parts.push(marks.definitions({ id: 'defs', markerResources }, {
+    kind: 'resources', resources: ['markers', ...(colors.shadow ? [{ kind: 'shadow' as const, colors }] : [])],
+  }))
 
   // 0. The diagram's frontmatter title, in the band layout reserved above.
   if (graph.title) parts.push(diagramTitleMark(graph.title, style))
@@ -164,8 +184,10 @@ function renderGroup(group: PositionedGroup, font: string, style: ResolvedRender
     return marks.group({
       id: `group:${group.id}`,
       role: 'group',
-      open: `<g class="concurrency-region" data-id="${escapeAttr(group.id)}"${parentId ? ` data-parent-id="${escapeAttr(parentId)}"` : ''}>`,
-      close: '</g>',
+      emission: { kind: 'group', attributes: [
+        { name: 'class', value: v.meta('concurrency-region') }, { name: 'data-id', value: v.meta(group.id) },
+        ...(parentId ? [{ name: 'data-parent-id' as const, value: v.meta(parentId) }] : []),
+      ] },
       children: group.children.map(child => ({ indent: 0, node: renderGroup(child, font, style, group.id) })),
     })
   }
@@ -177,8 +199,11 @@ function renderGroup(group: PositionedGroup, font: string, style: ResolvedRender
   // Opening <g> with semantic attributes for subgraph identification
   // data-id: original Mermaid subgraph ID
   // data-label: display label (may differ from ID)
-  const open =
-    `<g class="subgraph" data-id="${escapeAttr(group.id)}" data-region="subgraph" data-label="${escapeDisplayAttr(group.label)}"${parentId ? ` data-parent-id="${escapeAttr(parentId)}"` : ''}>`
+  const emission: SvgGroupEmission = { kind: 'group', attributes: [
+    { name: 'class', value: v.meta('subgraph') }, { name: 'data-id', value: v.meta(group.id) },
+    { name: 'data-region', value: v.meta('subgraph') }, { name: 'data-label', value: v.meta(group.label), display: true },
+    ...(parentId ? [{ name: 'data-parent-id' as const, value: v.meta(parentId) }] : []),
+  ] }
 
   // Outer rectangle
   const rectFill = style.groupFillColor ?? 'var(--_group-fill)'
@@ -190,9 +215,7 @@ function renderGroup(group: PositionedGroup, font: string, style: ResolvedRender
       role: 'group',
       geometry: { kind: 'rect', x: group.x, y: group.y, width: group.width, height: group.height, rx: style.groupCornerRadius, ry: style.groupCornerRadius },
       paint: { fill: rectFill, stroke: rectStroke, strokeWidth: String(style.groupLineWidth) },
-    },
-      `<rect x="${group.x}" y="${group.y}" width="${group.width}" height="${group.height}" ` +
-      `rx="${style.groupCornerRadius}" ry="${style.groupCornerRadius}" fill="${escapeAttr(rectFill)}" stroke="${escapeAttr(rectStroke)}" stroke-width="${style.groupLineWidth}" />`),
+    }, RECT_EMISSION),
   })
 
   // Header band
@@ -205,9 +228,7 @@ function renderGroup(group: PositionedGroup, font: string, style: ResolvedRender
       role: 'group-header',
       geometry: { kind: 'path', d: headerPath },
       paint: { fill: headerFill, stroke: rectStroke, strokeWidth: String(style.groupLineWidth) },
-    },
-      `<path d="${headerPath}" ` +
-      `fill="${escapeAttr(headerFill)}" stroke="${escapeAttr(rectStroke)}" stroke-width="${style.groupLineWidth}" />`),
+    }, HEADER_EMISSION),
   })
 
   // Header label (supports multi-line via <br> tags)
@@ -221,16 +242,14 @@ function renderGroup(group: PositionedGroup, font: string, style: ResolvedRender
       text: headerText, block: headerBlock,
       x: group.x + style.groupLabelPaddingX,
       y: group.y + headerHeight / 2,
-      fontSize: style.groupHeaderFontSize,
+      fontSize: style.groupHeaderFontSize, fontWeight: style.groupHeaderFontWeight, letterSpacing: style.groupLetterSpacing,
       anchor: 'start',
       paint: { fill: headerTextColor },
-    }, renderMultilineText(
-      headerBlock,
-      group.x + style.groupLabelPaddingX,
-      group.y + headerHeight / 2,
-      style.groupHeaderFontSize,
-      `font-size="${style.groupHeaderFontSize}" font-weight="${style.groupHeaderFontWeight}"${style.groupFont ? ` font-family="${escapeAttr(style.groupFont)}"` : ''}${style.groupLetterSpacing !== 0 ? ` letter-spacing="${style.groupLetterSpacing}"` : ''} fill="${escapeAttr(headerTextColor)}"`
-    )),
+    }, { kind: 'text', layout: 'multiline', attributes: [
+      { name: 'font-size', value: v.text('fontSize') }, { name: 'font-weight', value: v.text('fontWeight') },
+      ...(style.groupFont ? [{ name: 'font-family' as const, value: v.meta(style.groupFont) }] : []),
+      { name: 'letter-spacing', value: v.text('letterSpacing'), omit: 'zero' }, { name: 'fill', value: v.paint('fill') },
+    ] }),
   })
 
   // Dashed separators between concurrency regions (`--`): one line in each
@@ -243,9 +262,7 @@ function renderGroup(group: PositionedGroup, font: string, style: ResolvedRender
         role: 'group',
         geometry: { kind: 'line', x1: sep.x1, y1: sep.y1, x2: sep.x2, y2: sep.y2 },
         paint: { stroke: rectStroke, strokeWidth: String(style.groupLineWidth), strokeDasharray: '6 4' },
-      },
-        `<line class="region-separator" x1="${sep.x1}" y1="${sep.y1}" x2="${sep.x2}" y2="${sep.y2}" ` +
-        `stroke="${escapeAttr(rectStroke)}" stroke-width="${style.groupLineWidth}" stroke-dasharray="6 4" />`),
+      }, SEPARATOR_EMISSION),
     })
   }
 
@@ -257,8 +274,7 @@ function renderGroup(group: PositionedGroup, font: string, style: ResolvedRender
   return marks.group({
     id: `group:${group.id}`,
     role: 'group',
-    open,
-    close: '</g>',
+    emission,
     children,
   })
 }
@@ -310,8 +326,10 @@ function renderStateNote(note: PositionedStateNote, font: string, style: Resolve
   return marks.group({
     id: sceneId,
     role: 'note',
-    open: `<g class="state-note" data-id="${escapeAttr(note.id)}" data-target="${escapeAttr(note.target)}" data-side="${note.side}">`,
-    close: '</g>',
+    emission: { kind: 'group', attributes: [
+      { name: 'class', value: v.meta('state-note') }, { name: 'data-id', value: v.meta(note.id) },
+      { name: 'data-target', value: v.meta(note.target) }, { name: 'data-side', value: v.meta(note.side) },
+    ] },
     children: [
       {
         indent: 2,
@@ -320,9 +338,7 @@ function renderStateNote(note: PositionedStateNote, font: string, style: Resolve
           role: 'note',
           geometry: { kind: 'rect', x, y, width: w, height: h, rx: 4, ry: 4 },
           paint: { fill: rawFill, stroke: rawStroke, strokeWidth: String(STROKE_WIDTHS.innerBox) },
-        },
-          `<rect x="${x}" y="${y}" width="${w}" height="${h}" rx="4" ry="4" ` +
-          `fill="${escapeAttr(rawFill)}" stroke="${escapeAttr(rawStroke)}" stroke-width="${STROKE_WIDTHS.innerBox}" />`),
+        }, RECT_EMISSION),
       },
       {
         indent: 2,
@@ -332,11 +348,10 @@ function renderStateNote(note: PositionedStateNote, font: string, style: Resolve
           text: displayText, block: textBlock,
           x: x + w / 2,
           y: y + h / 2,
-          fontSize: style.edgeLabelFontSize,
+          fontSize: style.edgeLabelFontSize, fontWeight: style.edgeLabelFontWeight, letterSpacing: style.edgeLetterSpacing,
           anchor: 'middle',
           paint: { fill: rawTextColor },
-        }, renderMultilineText(textBlock, x + w / 2, y + h / 2, style.edgeLabelFontSize,
-          `text-anchor="middle" font-size="${style.edgeLabelFontSize}" font-weight="${style.edgeLabelFontWeight}"${style.edgeLetterSpacing !== 0 ? ` letter-spacing="${style.edgeLetterSpacing}"` : ''} fill="${escapeAttr(rawTextColor)}"`)),
+        }, LABEL_EMISSION),
       },
     ],
   })
@@ -397,40 +412,33 @@ function renderEdge(
       lineStyle: 'invisible',
       paint: {},
       ...connectorSemantics,
-    }, '')
+    }, EMPTY_EMISSION)
   }
 
   const pathProjection = graphEdgePathProjection(edge, style)
-  const pathData = pathProjection?.geometry.d ?? pointsToPolylinePath(edge.points)
   // Section A output is static and active SVG is rejected in every security
   // mode. Preserve authored animation intent as typed metadata plus a stable
   // dashed projection; a future motion layer can consume the same metadata.
   const effectiveDashArray = edge.style === 'dotted'
     ? `${FLOWCHART_DOTTED_DASH.dash} ${FLOWCHART_DOTTED_DASH.gap}`
     : edge.animate ? '8 4' : undefined
-  const dashArray = effectiveDashArray ? ` stroke-dasharray="${effectiveDashArray}"` : ''
   const baseStrokeWidth = edge.style === 'thick' ? style.lineWidth * 2 : style.lineWidth
   const markerColor = edge.inlineStyle?.stroke ?? style.edgeStrokeColor
-  const strokeColor = escapeAttr(markerColor ?? 'var(--_line)')
-  const strokeWidth = escapeAttr(edge.inlineStyle?.['stroke-width'] ?? String(baseStrokeWidth))
 
   // Build marker attributes based on arrow direction flags
   // Use color-specific markers when edge has a custom stroke from linkStyle
   const suffix = `${markerColor ? `-${markerSuffix(markerColor)}` : ''}${edge.inlineStyle?.['stroke-width'] ? '-fixed' : ''}`
-  let markers = ''
   let endMarker: MarkerDescriptor | undefined
   let startMarker: MarkerDescriptor | undefined
   if (edge.hasArrowEnd) {
     const prefix = markerIdPrefix(edge.endMarker ?? 'arrow')
     endMarker = markerResources.find(marker => marker.id === `${prefix}${suffix}`)
     if (!endMarker) throw new Error(`Missing marker resource "${prefix}${suffix}"`)
-    markers += ` marker-end="url(#${prefix}${suffix})"`
   }
   if (edge.hasArrowStart) {
     const prefix = markerIdPrefix(edge.startMarker ?? 'arrow')
     startMarker = markerResources.find(marker => marker.id === `${prefix}-start${suffix}`)
     if (!startMarker) throw new Error(`Missing marker resource "${prefix}-start${suffix}"`)
-    markers += ` marker-start="url(#${prefix}-start${suffix})"`
   }
 
   // Semantic data attributes for edge identification and inspection:
@@ -441,20 +449,22 @@ function renderEdge(
   // - data-style: edge style (solid, dotted, thick)
   // - data-arrow-start/end: arrow presence flags
   // - data-label: edge label if present (for quick lookup without traversing DOM)
-  const dataAttrs = [
-    `class="${['edge', ...authoredClassNames].join(' ')}"`,
-    ...(edge.id ? [`data-id="${escapeAttr(edge.id)}"`] : []),
-    `data-from="${escapeAttr(edge.source)}"`,
-    `data-to="${escapeAttr(edge.target)}"`,
-    `data-style="${edge.style}"`,
-    `data-arrow-start="${edge.hasArrowStart}"`,
-    `data-arrow-end="${edge.hasArrowEnd}"`,
+  const attributes: SvgAttribute[] = [
+    { name: 'class', value: v.meta(['edge', ...authoredClassNames].join(' ')) },
+    ...(edge.id ? [{ name: 'data-id' as const, value: v.identity('id') }] : []),
+    { name: 'data-from', value: v.identity('from') }, { name: 'data-to', value: v.identity('to') },
+    { name: 'data-style', value: v.connector('lineStyle') },
+    { name: 'data-arrow-start', value: v.connector('hasMarkerStart') }, { name: 'data-arrow-end', value: v.connector('hasMarkerEnd') },
+    ...(edge.hasArrowStart ? [{ name: 'data-marker-start' as const, value: v.connector('markerStartShape') }] : []),
+    ...(edge.hasArrowEnd ? [{ name: 'data-marker-end' as const, value: v.connector('markerEndShape') }] : []),
+    ...(edge.label ? [{ name: 'data-label' as const, value: { source: 'connectorLabel' as const, index: 0 }, display: true }] : []),
+    ...(edge.curve ? [{ name: 'data-curve' as const, value: v.meta(edge.curve) }] : []),
+    ...(edge.animate ? [{ name: 'data-animate' as const, value: v.meta(true) }, { name: 'data-animation' as const, value: v.meta(edge.animation ?? 'slow') }] : []),
+    { name: pathProjection ? 'd' : 'points', value: v.geometry(pathProjection ? 'd' : 'points') },
+    ...PAINT_ATTRIBUTES, { name: 'stroke-dasharray', value: v.paint('strokeDasharray') },
+    ...(endMarker ? [{ name: 'marker-end' as const, value: { source: 'marker' as const, position: 'end' as const } }] : []),
+    ...(startMarker ? [{ name: 'marker-start' as const, value: { source: 'marker' as const, position: 'start' as const } }] : []),
   ]
-  if (edge.hasArrowStart) dataAttrs.push(`data-marker-start="${edge.startMarker ?? 'arrow'}"`)
-  if (edge.hasArrowEnd) dataAttrs.push(`data-marker-end="${edge.endMarker ?? 'arrow'}"`)
-  if (edge.label) dataAttrs.push(`data-label="${escapeDisplayAttr(edge.label)}"`)
-  if (edge.curve) dataAttrs.push(`data-curve="${escapeAttr(edge.curve)}"`)
-  if (edge.animate) dataAttrs.push(`data-animate="true"`, `data-animation="${edge.animation ?? 'slow'}"`)
 
   const paint = {
     stroke: markerColor ?? 'var(--_line)',
@@ -473,9 +483,7 @@ function renderEdge(
       markers: { ...(startMarker ? { start: startMarker } : {}), mid: [], ...(endMarker ? { end: endMarker } : {}) },
       ...connectorSemantics,
       route: { ...connectorSemantics.route, contours: pathProjection.contours },
-    },
-      `<path ${dataAttrs.join(' ')} d="${pathData}" fill="none" stroke="${strokeColor}" ` +
-      `stroke-width="${strokeWidth}"${dashArray}${markers} />`)
+    }, { kind: 'primitive', attributes })
   }
 
   return marks.connector({
@@ -486,20 +494,13 @@ function renderEdge(
     paint,
     markers: { ...(startMarker ? { start: startMarker } : {}), mid: [], ...(endMarker ? { end: endMarker } : {}) },
     ...connectorSemantics,
-  },
-    `<polyline ${dataAttrs.join(' ')} points="${pathData}" fill="none" stroke="${strokeColor}" ` +
-    `stroke-width="${strokeWidth}"${dashArray}${markers} />`)
+  }, { kind: 'primitive', attributes })
 }
 
 function connectorLabelSceneId(connectorSceneId: string): string {
   return connectorSceneId.startsWith('edge:')
     ? `edge-label:${connectorSceneId.slice('edge:'.length)}`
     : `${connectorSceneId}:label`
-}
-
-/** Convert points to SVG polyline points attribute: "x1,y1 x2,y2 ..." */
-function pointsToPolylinePath(points: Point[]): string {
-  return points.map(p => `${p.x},${p.y}`).join(' ')
 }
 
 /**
@@ -598,8 +599,7 @@ function renderEdgeLabel(edge: PositionedEdge, font: string, style: ResolvedRend
     role: 'chrome',
     geometry: { kind: 'rect', x: haloX, y: haloY, width: haloWidth, height: haloHeight, rx: 4, ry: 4 },
     paint: { fill: 'var(--bg)', stroke: 'none' },
-  }, `<rect class="edge-label-halo" x="${haloX}" y="${haloY}" ` +
-    `width="${haloWidth}" height="${haloHeight}" rx="4" ry="4" fill="var(--bg)" stroke="none" />`)
+  }, HALO_EMISSION)
 
   // Wrap in <g class="edge-label"> with reference to the edge it belongs to
   const labelTextColor = style.edgeTextColor ?? 'var(--_text-sec)'
@@ -609,29 +609,21 @@ function renderEdgeLabel(edge: PositionedEdge, font: string, style: ResolvedRend
     text: label, block,
     x: mid.x,
     y: mid.y,
-    fontSize: style.edgeLabelFontSize,
+    fontSize: style.edgeLabelFontSize, fontWeight: style.edgeLabelFontWeight, letterSpacing: style.edgeLetterSpacing,
     anchor: 'middle',
     paint: { fill: labelTextColor },
-  }, renderMultilineTextWithBackground(
-    block,
-    mid.x,
-    mid.y,
-    metrics.width,
-    metrics.height,
-    style.edgeLabelFontSize,
-    padding,
-    // Use --_text-sec for better contrast (was --_text-muted)
-    `text-anchor="middle" font-size="${style.edgeLabelFontSize}" font-weight="${style.edgeLabelFontWeight}"${style.edgeLetterSpacing !== 0 ? ` letter-spacing="${style.edgeLetterSpacing}"` : ''} fill="${escapeAttr(labelTextColor)}"`,
-    // Increased stroke width from 0.5 to 1 for better label separation from edges
-    `rx="2" ry="2" fill="var(--bg)" stroke="var(--_inner-stroke)" stroke-width="1"`
-  ))
+  }, { kind: 'text', layout: 'multiline', attributes: LABEL_ATTRIBUTES,
+    background: { padding, rx: 2, ry: 2, paint: { fill: 'var(--bg)', stroke: 'var(--_inner-stroke)', strokeWidth: '1' } },
+  })
 
   // Semantic wrapper: links label to its edge via data-from/data-to
   return marks.group({
     id: sceneId,
     role: 'edge-label',
-    open: `<g class="edge-label" data-from="${escapeAttr(edge.source)}" data-to="${escapeAttr(edge.target)}" data-label="${escapeDisplayAttr(edge.label!)}">`,
-    close: '</g>',
+    emission: { kind: 'group', attributes: [
+      { name: 'class', value: v.meta('edge-label') }, { name: 'data-from', value: v.meta(edge.source) },
+      { name: 'data-to', value: v.meta(edge.target) }, { name: 'data-label', value: v.meta(edge.label!), display: true },
+    ] },
     children: [
       { indent: 2, node: halo },
       { indent: 2, node: content },
@@ -711,20 +703,22 @@ function renderNode(node: PositionedNode, font: string, style: ResolvedRenderSty
   // data-semantic-shape names the Mermaid v11 `@{ shape }` id when the drawn
   // geometry is a mapping of it, so agents can explain the semantic shape
   // even when the geometry is approximate (repo #44).
-  const semanticShape = node.semanticShape ? ` data-semantic-shape="${escapeAttr(node.semanticShape)}"` : ''
-  const interaction = includeInteraction && node.href ? ` data-href="${escapeAttr(node.href)}" role="link" tabindex="0"` : ''
+
   return marks.group({
     id: `node:${node.id}`,
     role: 'node',
-    open: `<g class="${classAttr}" data-id="${escapeAttr(node.id)}" data-label="${escapeDisplayAttr(node.label)}" data-shape="${node.shape}"${semanticShape}${interaction}>`,
-    close: '</g>',
+    emission: { kind: 'group', attributes: [
+      { name: 'class', value: v.meta(classAttr) }, { name: 'data-id', value: v.meta(node.id) },
+      { name: 'data-label', value: v.meta(node.label), display: true }, { name: 'data-shape', value: v.meta(node.shape) },
+      ...(node.semanticShape ? [{ name: 'data-semantic-shape' as const, value: v.meta(node.semanticShape) }] : []),
+      ...(includeInteraction && node.href ? [{ name: 'data-href' as const, value: v.meta(node.href) }, { name: 'role' as const, value: v.meta('link') }, { name: 'tabindex' as const, value: v.meta(0) }] : []),
+    ] },
     children,
     channels,
   })
 }
 
 function renderFlowchartMedia(node: PositionedNode, ink: string): SceneNode | null {
-  const color = escapeAttr(ink)
   const size = Math.min(28, node.height * 0.4)
   const cx = node.x + node.width / 2
   const y = node.y + 6
@@ -734,7 +728,11 @@ function renderFlowchartMedia(node: PositionedNode, ink: string): SceneNode | nu
       const scale = size / 24
       return pathArtwork({ id: `node:${node.id}:icon`, paths: glyph.paths,
         owner: { id: node.id, role: 'node' },
-        open: `<g class="flowchart-icon" data-icon="${escapeAttr(node.icon)}" transform="translate(${cx - size / 2} ${y}) scale(${scale})" fill="${color}" stroke="${color}" stroke-width="0.8">`,
+        emission: { kind: 'group', attributes: [
+          { name: 'class', value: v.meta('flowchart-icon') }, { name: 'data-icon', value: v.meta(node.icon) },
+          { name: 'transform', value: { source: 'transform', form: 'translate-scale-space' } },
+          { name: 'fill', value: v.meta(ink) }, { name: 'stroke', value: v.meta(ink) }, { name: 'stroke-width', value: v.meta('0.8') },
+        ] },
         transform: { kind: 'matrix', a: scale, b: 0, c: 0, d: scale, e: cx - size / 2, f: y },
         paint: { fill: ink, stroke: ink, strokeWidth: '0.8' },
       })
@@ -742,7 +740,11 @@ function renderFlowchartMedia(node: PositionedNode, ink: string): SceneNode | nu
     const token = iconFallbackToken(node.icon)
     return marks.text({ id: `node:${node.id}:icon`, role: 'icon', owner: { id: node.id, role: 'node' }, text: token,
       block: node.iconFallbackBlock,
-      x: cx, y: y + size / 2, fontSize: 10, anchor: 'middle', paint: { fill: ink } }, `<text class="flowchart-icon-fallback" data-icon="${escapeAttr(node.icon)}" x="${cx}" y="${y + size / 2}" text-anchor="middle" font-size="10" fill="${color}">${escapeXml(token)}</text>`)
+      x: cx, y: y + size / 2, fontSize: 10, anchor: 'middle', paint: { fill: ink } }, { kind: 'text', layout: 'direct', attributes: [
+        { name: 'class', value: v.meta('flowchart-icon-fallback') }, { name: 'data-icon', value: v.meta(node.icon) },
+        { name: 'x', value: v.text('x') }, { name: 'y', value: v.text('y') },
+        { name: 'text-anchor', value: v.text('anchor') }, { name: 'font-size', value: v.text('fontSize') }, { name: 'fill', value: v.paint('fill') },
+      ] })
   }
   if (node.image) {
     const left = cx - size / 2
@@ -750,11 +752,14 @@ function renderFlowchartMedia(node: PositionedNode, ink: string): SceneNode | nu
     const paint = { fill: 'none', stroke: ink, strokeWidth: '1.2' }
     const owner = { id: node.id, role: 'node' as const }
     return marks.group({ id: `node:${node.id}:image`, role: 'icon', owner,
-      open: `<g class="flowchart-image-placeholder" data-image-src="${escapeAttr(node.image)}" fill="none" stroke="${color}" stroke-width="1.2">`, close: '</g>', join: '',
+      emission: { kind: 'group', attributes: [
+        { name: 'class', value: v.meta('flowchart-image-placeholder') }, { name: 'data-image-src', value: v.meta(node.image) },
+        { name: 'fill', value: v.meta('none') }, { name: 'stroke', value: v.meta(ink) }, { name: 'stroke-width', value: v.meta('1.2') },
+      ] }, join: '',
       children: [
-        { indent: 0, node: marks.shape({ id: `node:${node.id}:image:frame`, role: 'icon', owner, geometry: { kind: 'rect', x: left, y, width: size, height: size * 0.72, rx: 2 }, paint }, `<rect x="${left}" y="${y}" width="${size}" height="${size * 0.72}" rx="2"/>`) },
-        { indent: 0, node: marks.shape({ id: `node:${node.id}:image:sun`, role: 'icon', owner, geometry: { kind: 'circle', cx: left + size * 0.72, cy: y + size * 0.2, r: size * 0.08 }, paint }, `<circle cx="${left + size * 0.72}" cy="${y + size * 0.2}" r="${size * 0.08}"/>`) },
-        { indent: 0, node: marks.shape({ id: `node:${node.id}:image:landscape`, role: 'icon', owner, geometry: { kind: 'path', d }, paint }, `<path d="${d}"/>`) },
+        { indent: 0, node: marks.shape({ id: `node:${node.id}:image:frame`, role: 'icon', owner, geometry: { kind: 'rect', x: left, y, width: size, height: size * 0.72, rx: 2 }, paint }, IMAGE_FRAME_EMISSION) },
+        { indent: 0, node: marks.shape({ id: `node:${node.id}:image:sun`, role: 'icon', owner, geometry: { kind: 'circle', cx: left + size * 0.72, cy: y + size * 0.2, r: size * 0.08 }, paint }, IMAGE_SUN_EMISSION) },
+        { indent: 0, node: marks.shape({ id: `node:${node.id}:image:landscape`, role: 'icon', owner, geometry: { kind: 'path', d }, paint }, IMAGE_PATH_EMISSION) },
       ],
     })
   }
@@ -811,7 +816,6 @@ function renderNodeLabel(node: PositionedNode, font: string, style: ResolvedRend
   const cx = node.x + node.width / 2
   const cy = node.y + node.height / 2
 
-  const textColor = escapeAttr(rawTextColor)
   const block = node.labelBlock ?? graphTextBlock(resolveLabelContent(node.label, node.labelContent), style, 'node')
   const label = block.text
 
@@ -821,16 +825,10 @@ function renderNodeLabel(node: PositionedNode, font: string, style: ResolvedRend
     text: label, block,
     x: cx,
     y: cy,
-    fontSize: style.nodeLabelFontSize,
+    fontSize: style.nodeLabelFontSize, fontWeight: style.nodeLabelFontWeight, letterSpacing: style.nodeLetterSpacing,
     anchor: 'middle',
     paint: { fill: rawTextColor },
-  }, renderMultilineText(
-    block,
-    cx,
-    cy,
-    style.nodeLabelFontSize,
-    `text-anchor="middle" font-size="${style.nodeLabelFontSize}" font-weight="${style.nodeLabelFontWeight}"${style.nodeLetterSpacing !== 0 ? ` letter-spacing="${style.nodeLetterSpacing}"` : ''} fill="${textColor}"`
-  ))
+  }, LABEL_EMISSION)
 }
 
 // ============================================================================
