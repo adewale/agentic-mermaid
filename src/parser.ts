@@ -56,10 +56,16 @@ export function parseMermaid(text: string): MermaidGraph {
   // the generic whole-line comment filter. A `//` line is dropped only
   // outside a string, which reads it as text, as the typed body does.
   const state = /^stateDiagram(?:-v2)?(?=$|[\s;%])/i.test(firstStatement)
+  const statements = state ? [] : coalesceStatementLines(rawLines)
   const lines = expandInlineHeaderStatements(state
     ? scanStateComments(rawLines).filter((line, index, scanned) => line.noteBody
       || (line.text.length > 0 && (!line.text.startsWith('//') || scanned[index - 1]?.openQuote === true))).map(line => line.text)
-    : coalesceStatementLines(rawLines).map(line => line.trim()).filter(line => line.length > 0 && !line.startsWith('%%')))
+    : statements.map(statement => statement.text))
+  // The statements a header line holds (`flowchart TD; A`) start the lines.
+  const headerStatements = lines.length - statements.length
+  const breaks = headerStatements > 0
+    ? [...Array<undefined>(headerStatements + 1), ...statements.slice(1).map(statement => statement.breaks)]
+    : statements.map(statement => statement.breaks)
 
   if (lines.length === 0) {
     throw new Error('Empty mermaid diagram')
@@ -76,7 +82,7 @@ export function parseMermaid(text: string): MermaidGraph {
   if (familyId === 'state') {
     return parseStateDiagram(lines)
   }
-  if (familyId === 'flowchart') return parseFlowchart(lines)
+  if (familyId === 'flowchart') return parseFlowchart(lines, breaks)
 
   if (detection.kind === 'unknown') throw new Error(`Unknown Mermaid diagram header: ${header}`)
   const detectedFamilyId = detection.kind === 'registered' ? detection.familyId : detection.match.family.id
@@ -112,8 +118,14 @@ export function splitInlineHeaderStatements(line: string): { header: string; sta
  * pipeline's canonical line-break token — so the single-line shape grammars
  * keep matching and the label normalizer restores '\n'.
  */
-function coalesceStatementLines(lines: string[]): string[] {
-  return coalesceFlowchartLines(lines).map(group => group.text)
+function coalesceStatementLines(lines: string[]): Array<{ text: string; breaks?: number[] }> {
+  return coalesceFlowchartLines(lines).flatMap(group => {
+    const text = group.text.trim()
+    if (!text || text.startsWith('%%')) return []
+    // Where each later line joined on, in the trimmed text.
+    const lead = group.text.length - group.text.trimStart().length
+    return [{ text, ...(group.joined ? { breaks: group.joined.map(piece => piece.at - lead) } : {}) }]
+  })
 }
 
 function parseFlowchartSubgraphDeclaration(rest: string): Pick<MermaidSubgraph, 'id' | 'label' | 'labelContent'> & { generated: boolean; identity: string } {
@@ -241,7 +253,7 @@ function assertGraphNodeInsertion(graph: MermaidGraph): void {
   assertDiagramWorkLimit('nodes', graph.nodes.size + (graphContainerCounts.get(graph) ?? 0) + 1)
 }
 
-function parseFlowchart(lines: string[]): MermaidGraph {
+function parseFlowchart(lines: string[], breaks: ReadonlyArray<readonly number[] | undefined> = []): MermaidGraph {
   const headerMatch = lines[0]!.match(/^(?:(?:graph|swimlane)\s+(TD|TB|LR|BT|RL|[<>^v])|flowchart(?:\s+(TD|TB|LR|BT|RL|[<>^v]))?)\s*$/i)
   if (!headerMatch) {
     throw new Error(`Invalid mermaid header: "${lines[0]}". Expected "graph TD", "flowchart LR", "stateDiagram-v2", etc.`)
@@ -268,7 +280,8 @@ function parseFlowchart(lines: string[]): MermaidGraph {
   const subgraphStack: MermaidSubgraph[] = []
   const subgraphsById = new Map<string, MermaidSubgraph>()
   const placedSubgraphs = new Set<string>()
-  const declarations = collectFlowchartSubgraphDeclarations(lines.slice(1))
+  const declarations = collectFlowchartSubgraphDeclarations(lines.slice(1), breaks.slice(1))
+  let nextDeclaration = 0
   const declaredSubgraphIds = new Set([...declarations.values()].map(group => group.id))
   // Upstream's membership rule: the first subgraph to close keeps a node.
   const membership = createSubgraphMembership()
@@ -393,8 +406,7 @@ function parseFlowchart(lines: string[]): MermaidGraph {
       // --- subgraph start: `subgraph Label` or `subgraph id [Label]` ---
       const subgraphMatch = line.match(/^subgraph\s+(.+)$/)
       if (subgraphMatch) {
-        const rest = subgraphMatch[1]!.trim()
-        const { id, label, labelContent } = declarations.get(rest)!
+        const { id, label, labelContent } = declarations[nextDeclaration++]!
         const sg: MermaidSubgraph = { id, label, ...(labelContent ? { labelContent } : {}), nodeIds: [], children: [] }
         if (!subgraphsById.has(id)) {
           assertDiagramWorkLimit('nodes', graph.nodes.size + subgraphsById.size + 1)
@@ -485,19 +497,26 @@ function invalidFlowchartStatement(line: string, parsed: Extract<EdgeLineParseRe
   return new Error(`${where}: could not fully consume ${parsed.reason}; remaining input: "${parsed.remaining}"`)
 }
 
-/** Allocate derived names after reserving authored identities, including names
- * declared later in the source. Repeated logical groups reuse one allocation. */
-function collectFlowchartSubgraphDeclarations(lines: string[]): Map<string, ReturnType<typeof parseFlowchartSubgraphDeclaration>> {
-  const declarations = new Map<string, ReturnType<typeof parseFlowchartSubgraphDeclaration>>()
+/** Each `subgraph` statement's declaration, in source order. Derived names are
+ * allocated after reserving authored identities, including names declared
+ * later in the source. A title with no whitespace is its group's identity, so
+ * its repeats reuse one allocation, as upstream reads such a title as the id.
+ * One holding whitespace, or a line break (`breaks`: for each line, the
+ * offsets where a line joined on, coalesceFlowchartLines), names no group:
+ * each such block is a group of its own, as upstream's `subGraphN`. */
+function collectFlowchartSubgraphDeclarations(lines: string[], breaks: ReadonlyArray<readonly number[] | undefined> = []): Array<ReturnType<typeof parseFlowchartSubgraphDeclaration>> {
+  const declarations: Array<ReturnType<typeof parseFlowchartSubgraphDeclaration>> = []
+  const distinct = new Set<ReturnType<typeof parseFlowchartSubgraphDeclaration>>()
   const reserved = new Set<string>()
-  for (const raw of lines) {
-    for (const line of splitFlowchartStatements(raw)) {
+  for (const [lineIndex, raw] of lines.entries()) {
+    for (const { text: line, start } of flowchartStatementSpans(raw)) {
       const match = line.match(/^subgraph\s+(.+)$/)
       if (match) {
         const rest = match[1]!.trim()
         const declaration = parseFlowchartSubgraphDeclaration(rest)
-        declarations.set(rest, declaration)
+        declarations.push(declaration)
         if (!declaration.generated) reserved.add(declaration.id)
+        else if (/\s/.test(declaration.identity) || breaks[lineIndex]?.some(at => at > start && at < start + line.length)) distinct.add(declaration)
       } else {
         // Reserving every node id the line could hold also covers
         // declarations inside compound chains and metadata without executing
@@ -513,14 +532,14 @@ function collectFlowchartSubgraphDeclarations(lines: string[]): Map<string, Retu
     }
   }
   const allocated = new Map<string, string>()
-  for (const declaration of declarations.values()) {
+  for (const declaration of declarations) {
     if (!declaration.generated) continue
-    const prior = allocated.get(declaration.identity)
+    const prior = distinct.has(declaration) ? undefined : allocated.get(declaration.identity)
     if (prior) { declaration.id = prior; continue }
     const base = declaration.id
     let id = base
     for (let suffix = 2; reserved.has(id); suffix++) id = `${base}_${suffix}`
-    allocated.set(declaration.identity, id)
+    if (!distinct.has(declaration)) allocated.set(declaration.identity, id)
     reserved.add(id)
     declaration.id = id
   }

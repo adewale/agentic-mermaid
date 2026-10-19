@@ -80,16 +80,30 @@ describe('flowchart parser conformance safety floor (issue #36)', () => {
     }
   })
 
+  // A title holding whitespace or a line break names no group: upstream draws
+  // each such block as its own `subGraphN`, as it does a title spelled apart.
   test.each([
     ['A<br>B', 'A\\nB', 'A\nB'],
     ['A--B', 'A#45;#45;B', 'A--B'],
-  ])('distinct anonymous spellings retain separate groups with the same visible title: %s / %s', (first, second, label) => {
+    ['A B', 'A B', 'A B'],
+    ['A\nB', 'A\nB', 'A\nB'],
+    ['A\nB', 'A<br>B', 'A\nB'],
+  ])('anonymous titles retain separate groups with the same visible title: %j / %j', (first, second, label) => {
     const source = `flowchart TD\nsubgraph "${first}"\nX\nend\nsubgraph "${second}"\nY\nend`
     for (const text of [source, serializeMermaid(parseAgent(source))]) {
       const graph = parseGraph(text)
       expect(graph.subgraphs.map(group => [group.label, group.nodeIds])).toEqual([[label, ['X']], [label, ['Y']]])
       expect(new Set(graph.subgraphs.map(group => group.id)).size).toBe(2)
       expect(renderMermaidSVG(text).match(/class="subgraph"/g)).toHaveLength(2)
+    }
+  })
+
+  // A title with no whitespace is the group's id upstream, so its repeats are
+  // one group, whether ours derives the id (`A<br>B`) or reads it (`AB`).
+  test.each(['A<br>B', 'AB'])('an anonymous title %j repeated is one group', title => {
+    const source = `flowchart TD\nsubgraph "${title}"\nX\nend\nsubgraph "${title}"\nY\nend`
+    for (const text of [source, serializeMermaid(parseAgent(source))]) {
+      expect(parseGraph(text).subgraphs.map(group => group.nodeIds)).toEqual([['X', 'Y']])
     }
   })
 
