@@ -343,20 +343,20 @@ export function mutateXyChart(body: XyChartBody, op: XyChartMutationOp): Result<
 /** XYChart source ours reads otherwise than Mermaid, each named once: an
  * accessibility directive after a statement on its line beside another
  * value for it on a line of its own (the parse hook keeps that source), and,
- * on its canonical line, an unquoted axis title Mermaid's lexer rejects. */
+ * on its canonical line, unquoted text Mermaid's lexer rejects or ends early. */
 export function xychartUnsupportedSyntaxWarnings(canonicalSource: string): LayoutWarning[] {
-  return [...accessibilityOrderWarnings(canonicalSource), ...unquotedAxisTitleWarnings(canonicalSource)]
+  return [...accessibilityOrderWarnings(canonicalSource), ...unquotedTextWarnings(canonicalSource)]
 }
 
-function unquotedAxisTitleWarnings(canonicalSource: string): LayoutWarning[] {
+function unquotedTextWarnings(canonicalSource: string): LayoutWarning[] {
   const lines = canonicalSource.split(/\r?\n/)
   const header = lines.findIndex(line => /^xychart(?:-beta)?(?:[\s;]|$)/i.test(line.trim()))
   if (header < 0) return []
-  return xychartTextRejections(lines.slice(header)).map(({ index, what }) => ({
+  return xychartTextRejections(lines.slice(header)).map(({ index, syntax, what }) => ({
     code: 'UNSUPPORTED_SYNTAX',
-    syntax: 'xychart_unquoted_axis_title',
+    syntax,
     line: header + index + 1,
-    message: `${what}, and is read as written. Pinned Mermaid rejects this; put the whole title in double quotes.`,
+    message: `${what}. Ours reads it as written; put the whole text in double quotes.`,
   }))
 }
 

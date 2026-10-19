@@ -68,13 +68,27 @@ const QUADRANT_READ_GENEROUSLY: ReadonlyArray<GenerousRow> = [
   ['a string after unquoted text', 'quadrantChart\n  title Growth\n  quadrant-1 Grow "fast"', 'Grow', 'quadrant_unquoted_text', 3],
 ]
 
-// An unquoted XYChart axis title takes ASCII letters, whitespace and
-// &+=*.#_- in Mermaid's lexer; a digit there starts a range number.
+// Unquoted XYChart text (a title, an axis title, a series label or a
+// category) takes ASCII letters, digits, whitespace and &+=*.#_- in Mermaid's
+// lexer; in an axis title a digit starts a range number. A keyword where a
+// word can start ends the text. A single quote opens no string there.
 const XYCHART_READ_GENEROUSLY: ReadonlyArray<GenerousRow> = [
   ['parentheses in an unquoted axis title before a range', 'xychart-beta\n  x-axis [a, b]\n  y-axis Revenue (USD) 0 --> 100\n  bar [10, 20]', 'Revenue (USD)', 'xychart_unquoted_axis_title', 3],
   ['a percent sign in an unquoted axis title', 'xychart-beta\n  y-axis Share in % 0 --> 100\n  bar [10, 20]', 'Share in %', 'xychart_unquoted_axis_title', 2],
   ['a comma in an unquoted axis title', 'xychart-beta\n  x-axis cat, dog\n  bar [10, 20]', 'cat, dog', 'xychart_unquoted_axis_title', 2],
   ['a digit in an unquoted axis title before categories', 'xychart-beta\n  x-axis Q1 [a, b] bar [10, 20]', 'Q1', 'xychart_unquoted_axis_title', 2],
+  ['a keyword in an unquoted axis title', 'xychart-beta\n  x-axis Sales by line item [a, b]\n  bar [10, 20]', 'Sales by line item', 'xychart_unquoted_axis_title', 2],
+  ['an orientation in an unquoted axis title', 'xychart-beta\n  y-axis Revenue horizontal 0 --> 100\n  bar [10, 20]', 'Revenue horizontal', 'xychart_unquoted_axis_title', 2],
+  ['a single-quoted axis title', "xychart-beta\n  x-axis 'Rev' [a, b]\n  bar [10, 20]", 'Rev', 'xychart_unquoted_axis_title', 2],
+  ['parentheses in an unquoted chart title', 'xychart-beta\n  title Sales (2024)\n  bar [10, 20]', 'Sales (2024)', 'xychart_unquoted_text', 2],
+  ['a comma in an unquoted chart title', 'xychart-beta\n  title Sales, by region\n  bar [10, 20]', 'Sales, by region', 'xychart_unquoted_text', 2],
+  ['an orientation in an unquoted chart title', 'xychart-beta\n  title My vertical chart\n  bar [10, 20]', 'My vertical chart', 'xychart_unquoted_text', 2],
+  ['a keyword in an unquoted series label', 'xychart-beta\n  bar Product line A [10, 20]', '<svg', 'xychart_unquoted_text', 2],
+  ['a keyword after an underscore in a series label', 'xychart-beta\n  bar total_line [10, 20]', '<svg', 'xychart_unquoted_text', 2],
+  ['a slash in an unquoted series label', 'xychart-beta\n  line Trend/avg [10, 20]', '<svg', 'xychart_unquoted_text', 2],
+  ['parentheses in an unquoted category', 'xychart-beta\n  x-axis [Q1 (a), b]\n  bar [10, 20]', 'Q1 (a)', 'xychart_unquoted_text', 2],
+  ['a non-ASCII letter in an unquoted category', 'xychart-beta\n  x-axis [café, b]\n  bar [10, 20]', 'café', 'xychart_unquoted_text', 2],
+  ['an orientation in an unquoted category', 'xychart-beta\n  x-axis [a vertical, b]\n  bar [10, 20]', 'a vertical', 'xychart_unquoted_text', 2],
 ]
 
 // Mermaid's architecture lexer terminals: an (icon) is word characters, -
@@ -139,6 +153,8 @@ const ACCEPTED: ReadonlyArray<readonly [BuiltinFamilyId, string, string]> = [
   ['architecture', 'text after a quoted title', 'architecture-beta\n  service api(server)["Public" API]'],
   ['xychart', 'unquoted punctuation the lexer reads as axis text', 'xychart-beta\n  x-axis R&D + Sales = *.#_- [a, b]\n  y-axis Monthly totals 0 --> 100\n  bar [10, 20]'],
   ['xychart', 'punctuation and digits in quoted axis titles', 'xychart-beta\n  x-axis "Q1 (est), 50%" [a, b]\n  y-axis "Revenue (USD)" 0 --> 100\n  bar [10, 20]'],
+  ['xychart', 'digits, and keywords inside longer words, unquoted', 'xychart-beta\n  title 2024 bars and lines\n  x-axis [1 a, titles, b]\n  bar baseline [10, 20, 30]'],
+  ['xychart', 'punctuation in a quoted title, category and series label', 'xychart-beta\n  title "Sales (2024), by region"\n  x-axis ["Q1 (a)", "café"]\n  bar "Product line A" [10, 20]'],
   // A quoted string runs to its closing quote across line breaks.
   ['pie', 'a label across lines', 'pie\n  "multi\n  label" : 1\n  "b" : 2'],
   ['quadrant', 'quoted text across lines', 'quadrantChart\n  x-axis "Low\n  reach" --> High\n  quadrant-1 "Expand\n  now"\n  "Point\n  A": [0.3, 0.6]'],
@@ -168,6 +184,14 @@ describe('read generously what pinned Mermaid rejects, and warn', () => {
   test.each(XYCHART_READ_GENEROUSLY)('xychart: %s is read, drawn and reported', async (_construct, source, text, syntax, line) => {
     expect((await upstream.parse(source)).ok).toBe(false)
     expect(readGenerously(source, text)).toEqual({ typed: 'xychart', draws: true, reported: [`${syntax}@${line}`] })
+  })
+
+  // Mermaid accepts this but reads the second `title` as another title
+  // statement, so it draws "of the chart". Ours keeps the whole title, and says so.
+  test('xychart: a keyword Mermaid reads as another statement inside an unquoted title is reported', async () => {
+    const source = 'xychart-beta\n  title The title of the chart\n  bar [10, 20]'
+    expect((await upstream.parse(source)).ok).toBe(true)
+    expect(readGenerously(source, 'The title of the chart')).toEqual({ typed: 'xychart', draws: true, reported: ['xychart_unquoted_text@2'] })
   })
 
   test.each(MINDMAP_READ_GENEROUSLY)('mindmap: %s is read, drawn and reported', async (_construct, source, text, syntax, line) => {
