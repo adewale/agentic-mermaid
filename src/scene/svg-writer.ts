@@ -7,6 +7,12 @@ export interface SvgWriterOptions {
 
 export type SvgAttributeEscape = 'attribute' | 'xml' | 'safe'
 
+/** A typed distinction lets the graphical owner retain its existing public
+ * limit diagnostic without mistaking a smaller node limit for the final cap. */
+export class SvgByteLimitError extends RangeError {
+  constructor(readonly maxBytes: number) { super(`SVG serialization exceeds ${maxBytes} bytes`) }
+}
+
 interface WriterState {
   readonly maxBytes: number
   readonly mode: 'string' | 'chunks' | 'count'
@@ -58,7 +64,7 @@ export class SvgWriter {
       else if (code <= 0x7ff) bytes += 2
       else bytes += 3
       high = code >= 0xd800 && code <= 0xdbff
-      if (bytes > state.maxBytes) throw new RangeError(`SVG serialization exceeds ${state.maxBytes} bytes`)
+      if (bytes > state.maxBytes) throw new SvgByteLimitError(state.maxBytes)
     }
     // A node scope checks its unindented bytes before the outer sink receives
     // anything. The destination can itself be an indented/group scope view.

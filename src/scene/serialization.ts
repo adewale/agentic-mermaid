@@ -75,10 +75,32 @@ export function sceneNodeSerializationBytes(node: SceneNode, maxBytes: number): 
   return measureSvgEmission(node, recipe, emissionContext, maxBytes)
 }
 
-export function writeSceneNode(node: SceneNode, writer: SvgWriter): void {
+export function writeSceneNode(node: SceneNode, writer: SvgWriter, context: SvgEmissionContext = emissionContext): void {
   const recipe = TYPED_SCENE_EMISSIONS.get(node)
   if (!recipe) throw new TypeError(`Scene node "${node.id}" has no typed SVG emission`)
-  writeSvgEmission(node, recipe, writer, emissionContext)
+  writeSvgEmission(node, recipe, writer, context)
+}
+
+/** Observe the actual closed emission path. Only multiline prepared text is
+ * already fitted; direct/fallback text still requires the compatibility pass.
+ * Connector-owned inline labels use retained prepared blocks too. */
+export function sceneDocumentEmission(writer: SvgWriter): {
+  writeNode(node: SceneNode, destination?: SvgWriter): void
+  readonly textAlreadyFitted: boolean
+} {
+  let textAlreadyFitted = true
+  const context: SvgEmissionContext = {
+    ...emissionContext,
+    writeText(node, recipe, destination) {
+      if (node.measurement !== 'prepared' || recipe.layout !== 'multiline') textAlreadyFitted = false
+      writeSceneText(node, recipe, destination)
+    },
+    writeChild(node, destination) { writeSceneNode(node, destination, context) },
+  }
+  return {
+    writeNode(node, destination = writer) { writeSceneNode(node, destination, context) },
+    get textAlreadyFitted() { return textAlreadyFitted },
+  }
 }
 
 interface SerializedAttribute {

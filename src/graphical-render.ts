@@ -37,6 +37,8 @@ import type { SceneDoc } from './scene/ir.ts'
 import { withTextMeasurementExecution } from './text-measurement-profile.ts'
 import { withSvgInspectionCache } from './svg-inspection-cache.ts'
 import { measureRenderStage } from './render-stages.ts'
+import { isBuiltinDefaultBackend, renderDefaultScene } from './scene/backend.ts'
+import { SCENE_VALIDATION_LIMITS } from './scene/scene-validation.ts'
 
 export interface ResolvedGraphicalExecution {
   readonly svg: string
@@ -150,15 +152,23 @@ function renderPositionedWithTextMeasurement(
   const family = executionPlan.family
   const context = renderContextForPositionedFamily(request, layout)
   let rawSvg: string
+  let textAlreadyFitted = false
   let layoutCertification: PaintLayoutCertification | undefined
   if (executionPlan.mode === 'scene') {
     const scene = measureRenderStage('scene', () => lowerPositionedFamilyScene(request, layout))
     layoutCertification = measureRenderStage('paint-certification', () => positionedPaintCertification(request, layout))
     if ((effectiveOptions.layoutSafety === 'strict' && layoutCertification.status !== 'passed') || (layoutCertification.status === 'failed' && executionPlan.backend?.inputName === 'default')) throw new PaintLayoutCertificationError(layoutCertification)
-    rawSvg = measureRenderStage('backend', () => executionPlan.backend!.backend.render(scene, {
+    const backend = executionPlan.backend!.backend
+    const backendContext = {
       seed: effectiveOptions.seed ?? 0,
       ...(request.appearance.styled ? { style: request.appearance.style } : {}),
-    }))
+    }
+    rawSvg = measureRenderStage('backend', () => {
+      if (!isBuiltinDefaultBackend(backend)) return backend.render(scene, backendContext)
+      const emitted = renderDefaultScene(scene, backendContext, SCENE_VALIDATION_LIMITS.maxFinalSvgBytes)
+      textAlreadyFitted = emitted.textAlreadyFitted
+      return emitted.svg
+    })
   } else {
     if (effectiveOptions.layoutSafety === 'strict') throw new Error('Strict layout safety requires native Scene evidence')
     rawSvg = measureRenderStage('backend', () => family.renderSvg!(context))
@@ -168,7 +178,7 @@ function renderPositionedWithTextMeasurement(
   let svg = inlineResolvedColors(rawSvg, context.colors)
   if (layoutCertification?.repairs.length && executionPlan.backend?.inputName === 'default') svg = expandSvgViewport(svg, layoutCertification.viewport)
   assertFinalSvgByteBudget(svg, 'color-resolved SVG output')
-  svg = fitUncalibratedSvgText(svg, request.appearance.font)
+  if (!textAlreadyFitted) svg = fitUncalibratedSvgText(svg, request.appearance.font)
   assertFinalSvgByteBudget(svg, 'font-geometry-fitted SVG output')
   const idPrefix = effectiveOptions.idPrefix ?? ''
   if (idPrefix) {

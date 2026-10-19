@@ -130,8 +130,12 @@ export function assertFinalSvgByteBudget(value: unknown, stage = 'final SVG'): a
   // short is within the budget without counting.
   if (value.length * 3 <= MAX_FINAL_SVG_BYTES) return
   if (!inspectSvgOnce('final-svg-budget', value, () => boundedUtf8ByteLength(value, MAX_FINAL_SVG_BYTES) <= MAX_FINAL_SVG_BYTES)) {
-    throw new RangeError(`${stage} exceeds the ${MAX_FINAL_SVG_BYTES}-byte final SVG limit`)
+    throw finalSvgByteLimitError(stage)
   }
+}
+
+export function finalSvgByteLimitError(stage: string): RangeError {
+  return new RangeError(`${stage} exceeds the ${MAX_FINAL_SVG_BYTES}-byte final SVG limit`)
 }
 
 function record(value: unknown): value is Record<string, unknown> {
