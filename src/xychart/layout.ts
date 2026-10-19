@@ -123,8 +123,10 @@ export function layoutXYChart(
     if (axis.title) {
       const block = axis.title.block = measure.block('axisTitle', axis.title.text, axis.config.titleFontSize)
       // Lines are centered on the anchor, so authored line breaks move it into
-      // the room the axis reserved for them, away from the canvas edge.
-      const shift = (block.lines.length - 1) * block.lineHeight / 2
+      // the room the axis reserved for them, away from the canvas edge. So does
+      // a line box taller than the nominal one (accents, stacked marks,
+      // joining scripts), which the axis reserved too.
+      const shift = (block.lines.length - 1) * block.lineHeight / 2 + (block.lineHeight - axis.config.titleFontSize * LINE_HEIGHT_RATIO) / 2
       if (axis.title.rotate) axis.title.x += shift
       else axis.title.y += chart.horizontal ? shift : -shift
     }

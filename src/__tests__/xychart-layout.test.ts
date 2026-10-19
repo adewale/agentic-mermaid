@@ -133,17 +133,22 @@ describe('xychart layout – axis placement', () => {
     expect(chart.yAxis.ticks[0]!.textAnchor).toBe('middle')
   })
 
-  it('stacks an axis title\'s authored lines between its tick labels and the canvas edge', () => {
+  // Accents, stacked marks and joining scripts get a line box taller than the
+  // nominal one; a title placed by its font size alone left the canvas.
+  it.each([
+    ['one\ntwo\nthree', 'Users\nper day'],
+    ['Umsätze', 'عربي'],
+    ['x\ný', 'ệ̃'],
+  ])('stacks an axis title\'s line boxes between its tick labels and the canvas edge (%j, %j)', (xTitle, yTitle) => {
     for (const header of ['xychart', 'xychart horizontal']) {
       const chart = layout(`${header}
-        x-axis "one\ntwo\nthree" [Jan, Feb]
-        y-axis "Users\nper day" 0 --> 100
+        x-axis "${xTitle}" [Jan, Feb]
+        y-axis "${yTitle}" 0 --> 100
         bar [10, 20]`)
       for (const axis of [chart.xAxis, chart.yAxis]) {
         const title = axis.title!
         const half = title.block!.height / 2
         const ticks = axis.ticks.filter(tick => tick.label)
-        expect(title.block!.lines.length, header).toBeGreaterThan(1)
         if (title.rotate) {
           expect(title.x - half).toBeGreaterThanOrEqual(0)
           expect(title.x + half).toBeLessThanOrEqual(Math.min(...ticks.map(tick => tick.labelX - tick.block!.width)))
