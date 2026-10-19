@@ -9,7 +9,7 @@ import type { PositionedGraph, PositionedEdge, PositionedStateNote, Point, Rende
 import { STROKE_WIDTHS, FLOWCHART_DOTTED_DASH, resolveRenderStyle, diagramTitleMark } from './styles.ts'
 import type { ResolvedRenderStyle } from './styles.ts'
 import type { ResolvedStateVisualConfig } from './state/config.ts'
-import { snapshotSvgEmissionRecipe, svgValue as v, type SvgAttribute, type SvgGeometryField } from './scene/svg-emission.ts'
+import { snapshotSvgEmissionRecipe, svgValue as v, type SvgAttribute, type SvgGeometryField, type SvgPrimitiveEmission } from './scene/svg-emission.ts'
 import type { ConnectorLabelDescriptor, MarkAttributes, MarkerDescriptor, SceneNode } from './scene/ir.ts'
 import * as marks from './scene/marks.ts'
 import { flowchartMarkerResources, markerIdPrefix, markerSuffix, graphEdgePathProjection } from './graph-connectors.ts'
@@ -230,6 +230,16 @@ export function graphEdgeFields(
 
 /** Generic graph lexical presentation; C4 supplies its own final recipe. */
 export function renderGraphEdgeFields(edge: PositionedEdge, fields: marks.ConnectorFields): SceneNode {
+  return emitGraphEdgeFields(edge, fields)
+}
+
+/** One lowering owns at most32 immutable common-presentation programs. */
+export function createGraphEdgeEmitter(): typeof renderGraphEdgeFields {
+  const programs = new Map<number, SvgPrimitiveEmission>()
+  return (edge, fields) => emitGraphEdgeFields(edge, fields, programs)
+}
+
+function emitGraphEdgeFields(edge: PositionedEdge, fields: marks.ConnectorFields, programs?: Map<number, SvgPrimitiveEmission>): SceneNode {
   if (fields.lineStyle === 'invisible') return marks.connector(fields, EMPTY_EMISSION)
   const startMarker = fields.markers?.start, endMarker = fields.markers?.end
   // Semantic data attributes for edge identification and inspection:
@@ -240,22 +250,35 @@ export function renderGraphEdgeFields(edge: PositionedEdge, fields: marks.Connec
   // - data-style: edge style (solid, dotted, thick)
   // - data-arrow-start/end: arrow presence flags
   // - data-label: edge label if present (for quick lookup without traversing DOM)
-  const attributes: SvgAttribute[] = [
-    { name: 'class', value: v.meta(['edge', ...(fields.identity?.classNames ?? [])].join(' ')) },
-    ...(edge.id ? [{ name: 'data-id' as const, value: v.identity('id') }] : []),
-    { name: 'data-from', value: v.identity('from') }, { name: 'data-to', value: v.identity('to') },
-    { name: 'data-style', value: v.connector('lineStyle') },
-    { name: 'data-arrow-start', value: v.connector('hasMarkerStart') }, { name: 'data-arrow-end', value: v.connector('hasMarkerEnd') },
-    ...(edge.hasArrowStart ? [{ name: 'data-marker-start' as const, value: v.connector('markerStartShape') }] : []),
-    ...(edge.hasArrowEnd ? [{ name: 'data-marker-end' as const, value: v.connector('markerEndShape') }] : []),
-    ...(edge.label ? [{ name: 'data-label' as const, value: { source: 'connectorLabel' as const, index: 0 }, display: true }] : []),
-    ...(edge.curve ? [{ name: 'data-curve' as const, value: v.meta(edge.curve) }] : []),
-    ...(edge.animate ? [{ name: 'data-animate' as const, value: v.meta(true) }, { name: 'data-animation' as const, value: v.meta(edge.animation ?? 'slow') }] : []),
-    { name: fields.geometry.kind === 'path' ? 'd' : 'points', value: v.geometry(fields.geometry.kind === 'path' ? 'd' : 'points') },
-    ...PAINT_ATTRIBUTES, { name: 'stroke-dasharray', value: v.paint('strokeDasharray') },
-    ...(endMarker ? [{ name: 'marker-end' as const, value: { source: 'marker' as const, position: 'end' as const } }] : []),
-    ...(startMarker ? [{ name: 'marker-start' as const, value: { source: 'marker' as const, position: 'start' as const } }] : []),
-  ]
+  // Values remain per-connector projections. The key covers every lexical
+  // choice in this common presentation; uncommon authored options are uncached.
+  const profile = programs && (fields.identity?.classNames?.length ?? 0) === 0
+    && edge.curve === undefined && (edge.animate === undefined || edge.animate === false)
+    ? (fields.geometry.kind === 'path' ? 1 : 0) | (edge.id ? 2 : 0) | (edge.label ? 4 : 0)
+      | (startMarker ? 8 : 0) | (endMarker ? 16 : 0)
+    : undefined
+  const cached = profile === undefined ? undefined : programs!.get(profile)
+  let emission = cached
+  if (!emission) {
+    const attributes: SvgAttribute[] = [
+      { name: 'class', value: v.meta(['edge', ...(fields.identity?.classNames ?? [])].join(' ')) },
+      ...(edge.id ? [{ name: 'data-id' as const, value: v.identity('id') }] : []),
+      { name: 'data-from', value: v.identity('from') }, { name: 'data-to', value: v.identity('to') },
+      { name: 'data-style', value: v.connector('lineStyle') },
+      { name: 'data-arrow-start', value: v.connector('hasMarkerStart') }, { name: 'data-arrow-end', value: v.connector('hasMarkerEnd') },
+      ...(edge.hasArrowStart ? [{ name: 'data-marker-start' as const, value: v.connector('markerStartShape') }] : []),
+      ...(edge.hasArrowEnd ? [{ name: 'data-marker-end' as const, value: v.connector('markerEndShape') }] : []),
+      ...(edge.label ? [{ name: 'data-label' as const, value: { source: 'connectorLabel' as const, index: 0 }, display: true }] : []),
+      ...(edge.curve ? [{ name: 'data-curve' as const, value: v.meta(edge.curve) }] : []),
+      ...(edge.animate ? [{ name: 'data-animate' as const, value: v.meta(true) }, { name: 'data-animation' as const, value: v.meta(edge.animation ?? 'slow') }] : []),
+      { name: fields.geometry.kind === 'path' ? 'd' : 'points', value: v.geometry(fields.geometry.kind === 'path' ? 'd' : 'points') },
+      ...PAINT_ATTRIBUTES, { name: 'stroke-dasharray', value: v.paint('strokeDasharray') },
+      ...(endMarker ? [{ name: 'marker-end' as const, value: { source: 'marker' as const, position: 'end' as const } }] : []),
+      ...(startMarker ? [{ name: 'marker-start' as const, value: { source: 'marker' as const, position: 'start' as const } }] : []),
+    ]
+    const draft: SvgPrimitiveEmission = { kind: 'primitive', attributes }
+    emission = profile === undefined ? draft : snapshotSvgEmissionRecipe(draft) as SvgPrimitiveEmission
+  }
   // Inspection hooks: the authored classes, and data-* attributes for the
   // edge style, arrow presence and markers, the label, curve and animation.
   // Identity (data-id from an authored v11.6 edge ID, data-from/data-to) comes
@@ -274,7 +297,10 @@ export function renderGraphEdgeFields(edge: PositionedEdge, fields: marks.Connec
     },
   }
 
-  return marks.connector({ ...fields, attributes: markAttributes }, { kind: 'primitive', attributes })
+  const connector = marks.connector({ ...fields, attributes: markAttributes }, emission)
+  // Failed normalization never populates the request-local table.
+  if (profile !== undefined && !cached) programs!.set(profile, emission)
+  return connector
 }
 
 

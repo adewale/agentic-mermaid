@@ -14,7 +14,7 @@ import { iconFallbackToken } from './shared/icon-fallback.ts'
 import { DefaultBackend } from './scene/backend.ts'
 import { resolveMindmapIcon } from './mindmap/icons.ts'
 import {
-  graphSceneShell, graphEdgeFields, renderGraphEdgeFields, renderGraphSceneNote,
+  graphSceneShell, graphEdgeFields, createGraphEdgeEmitter, renderGraphSceneNote,
   connectorLabelSceneId, edgeMidpoint, primitive,
   PAINT_ATTRIBUTES, RECT_EMISSION, LABEL_ATTRIBUTES, LABEL_EMISSION,
 } from './graph-scene-shared.ts'
@@ -106,6 +106,7 @@ export function lowerGraphScene(
   // 2. Edges (polylines — rendered behind nodes)
   const edgeOccurrence = new Map<string, number>()
   const edgeSceneIds = new Map<PositionedEdge, string>()
+  const emitEdge = createGraphEdgeEmitter()
   for (const edge of graph.edges) {
     if (edge.points.length < 2) continue
     const pairKey = `${edge.source}->${edge.target}`
@@ -113,7 +114,7 @@ export function lowerGraphScene(
     edgeOccurrence.set(pairKey, k + 1)
     const sceneId = `edge:${pairKey}#${k}`
     edgeSceneIds.set(edge, sceneId)
-    parts.push(renderGraphEdgeFields(edge, graphEdgeFields(edge, style, sceneId, markerResources)))
+    parts.push(emitEdge(edge, graphEdgeFields(edge, style, sceneId, markerResources)))
   }
 
   // 3. Edge labels (positioned at midpoint of edge)
