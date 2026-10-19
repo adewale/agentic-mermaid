@@ -494,6 +494,8 @@ describe('State statements across and within lines', () => {
     ['[*]:::hot --> A', ['_start:state-start:', 'A:rounded:A', '_start->A', '_start:::hot'], []],
     ['state X {\nA --> [*]:::hot : done\n}', ['A:rounded:A', '_end:state-end:', 'A->_end:done', 'X:X{A _end}', '_end:::hot'], []],
     ['note right of A line1\nline2\nend note', ['A:rounded:A', 'note right of A:line1\nline2'], []],
+    // A block note opened after another statement keeps its lines whole.
+    ['A note right of B\nsome text\nend note', ['A:rounded:A', 'B:rounded:B', 'note right of B:some text'], ['state_statements_share_line@2']],
     ['state "multi\nline" as X\nX --> Y', ['X:rounded:multi\nline', 'Y:rounded:Y', 'X->Y'], []],
     // A `//` line inside the string is text, not a comment.
     ['state "first\n// second\nthird" as X\nX --> Y', ['X:rounded:first\n// second\nthird', 'Y:rounded:Y', 'X->Y'], []],

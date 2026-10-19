@@ -511,9 +511,17 @@ export function readStateStatements(lines: readonly StateSourceLine[]): StateSta
     }
     if (matchAt(STATEMENT_KEYWORD_AT, text, column) !== null) {
       // A keyword statement runs to the end of its line.
-      emit(text.slice(column), line, false)
+      const keyword = text.slice(column)
+      emit(keyword, line, false)
       row++
       column = 0
+      // A block note opened after another statement on its line, which the
+      // comment scan sees only at a line's start: its text runs to its
+      // `end note`, line by line, as Mermaid's NOTE_TEXT reads it.
+      if (STATE_NOTE_OPEN_RE.test(keyword) && logical[row]?.noteBody === false) {
+        const end = logical.findIndex((entry, index) => index >= row && STATE_NOTE_END_RE.test(entry.text))
+        for (; end > 0 && row < end; row++) statements.push({ text: logical[row]!.text, line: logical[row]!.line, noteBody: true })
+      }
       continue
     }
     const startRow = row
