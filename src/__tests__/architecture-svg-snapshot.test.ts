@@ -24,8 +24,31 @@ function expectAuthoredMeaning(source: string, svg: string, expected: {
     .toEqual(byId(expected.groups.map(group => ({ ...group, members: [...group.members].sort() }))))
   expect(layout.edges.map(({ from, to, label }) => ({ from, to, label: label?.text })))
     .toEqual(expected.edges.map(({ from, to, label }) => ({ from, to, label })))
-  const drawnEdges = scanSvgStartTags(svg).map(tag => Object.fromEntries(tag.attributes.map(attribute => [attribute.name, decodeXML(attribute.value)])))
-    .filter(attrs => attrs['data-role'] === 'edge')
+  const tags = scanSvgStartTags(svg).map(tag => ({ ...tag, attrs: Object.fromEntries(tag.attributes.map(attribute => [attribute.name, decodeXML(attribute.value)])) }))
+  const subjectIds = [...expected.nodes, ...expected.groups].map(subject => subject.id)
+  const subjects = tags.filter(tag => tag.name === 'g' && subjectIds.includes(tag.attrs['data-id']!))
+  expect(subjects.map(subject => subject.attrs['data-id']).sort()).toEqual([...subjectIds].sort())
+  for (const [index, subject] of subjects.entries()) {
+    const id = subject.attrs['data-id']!
+    const node = layout.nodes.find(candidate => candidate.id === id)
+    const box = node ?? layout.groups.find(candidate => candidate.id === id)!
+    const end = subjects[index + 1]?.start ?? svg.length
+    const frames = tags.filter(tag => tag.start > subject.start && tag.start < end
+      && tag.attrs['data-role'] === subject.attrs['data-role']
+      && (tag.name === 'rect' || tag.name === 'circle'))
+    expect(frames.length, `${id} draws its frame`).toBeGreaterThan(0)
+    for (const frame of frames) {
+      // Bind emitted frames to the same coordinate system as the connector
+      // attachments. A separately correct layout cannot bless a moved SVG card.
+      const fields = frame.name === 'circle'
+        ? { cx: box.x + box.w / 2, cy: box.y + box.h / 2 }
+        : { x: box.x, y: box.y, width: box.w, height: box.h }
+      for (const [field, value] of Object.entries(fields)) {
+        expect(Math.abs(Number(frame.attrs[field]) - value), `${id}.${field}`).toBeLessThanOrEqual(1)
+      }
+    }
+  }
+  const drawnEdges = tags.filter(tag => tag.attrs['data-role'] === 'edge').map(tag => tag.attrs)
   expect(drawnEdges.map(attrs => ({ from: attrs['data-from'], to: attrs['data-to'], label: attrs['data-label'], fromSide: attrs['data-from-side'], toSide: attrs['data-to-side'] })))
     .toEqual(expected.edges.map(({ from, to, label, fromSide, toSide }) => ({ from, to, label, fromSide, toSide })))
   const actualPixels = renderSvgPixels(svg).pixels
