@@ -4,10 +4,11 @@
 //   bun run bench:micro --filter '^scene:'       # cases whose id matches
 //   bun run bench:micro --runtime node           # bundle, then time under Node/V8
 //   bun run bench:micro --baseline main          # compare with another git revision
+//   bun run bench:micro --aa                     # fresh children, one identical worker
 //   bun run bench:micro --list
 //
 // Options: --samples N (12), --min-sample-ms N (25), --max-case-ms N (8000),
-// --warmup-ms N (250), --rounds N (1, or 3 with --baseline), --json PATH,
+// --warmup-ms N (250), --rounds N (1, or 3 with --baseline/--aa), --json PATH,
 // --fail-above RATIO, --elk-cache off|on (off).
 //
 // Each round runs every selected case in one fresh child process per side;
@@ -17,7 +18,8 @@
 // production source. Cases missing at the baseline are reported, not fatal.
 // A stage case that records the input an earlier stage of its own revision
 // built for it reports "inputs differ" instead of a ratio when the two sides'
-// inputs differ.
+// inputs differ. --aa instead prepares the candidate once and reuses its exact
+// root/revision/runner for both labels; it cannot be combined with --baseline.
 // Under Node, allocation per call is estimated from GC boundaries (as in the
 // release benchmark). Shared or loaded machines inflate absolute numbers: an
 // A/A run of identical source on a shared 4-vCPU sandbox spread 0.82–1.11×
@@ -68,7 +70,7 @@ interface Side {
 const SCRIPT_PATH = 'eval/benchmark/micro-bench.ts'
 
 function parseArgs(argv: readonly string[]): Map<string, string> {
-  const flags = new Set(['list', 'child'])
+  const flags = new Set(['list', 'child', 'aa'])
   const valued = new Set(['filter', 'samples', 'min-sample-ms', 'max-case-ms', 'warmup-ms', 'runtime', 'baseline', 'rounds', 'json', 'fail-above', 'out', 'elk-cache'])
   const options = new Map<string, string>()
   for (let i = 0; i < argv.length; i++) {
@@ -248,6 +250,7 @@ function formatBytes(bytes: number | undefined): string {
 
 async function main(): Promise<void> {
   const args = parseArgs(process.argv.slice(2))
+  if (args.has('aa') && args.has('baseline')) throw new Error('--aa and --baseline are mutually exclusive')
   const options: Options = {
     ...(args.has('filter') ? { filter: new RegExp(args.get('filter')!) } : {}),
     samples: positive(args, 'samples', 12),
@@ -266,7 +269,10 @@ async function main(): Promise<void> {
   const baselineRef = args.get('baseline')
   const elkCache = args.get('elk-cache') ?? 'off'
   if (elkCache !== 'off' && elkCache !== 'on') throw new Error('--elk-cache must be off or on')
-  const rounds = positive(args, 'rounds', baselineRef ? 3 : 1)
+  const identicalWorkerAA = args.has('aa')
+  const comparison = identicalWorkerAA || !!baselineRef
+  const comparisonMode = identicalWorkerAA ? 'identical-worker-aa' : baselineRef ? 'revision' : 'single'
+  const rounds = positive(args, 'rounds', comparison ? 3 : 1)
   const passthrough = ['filter', 'samples', 'min-sample-ms', 'max-case-ms', 'warmup-ms'].flatMap(key => (args.has(key) ? [`--${key}`, args.get(key)!] : []))
   const scratch = mkdtempSync(join(tmpdir(), 'agentic-mermaid-micro-'))
   mkdirSync(join(ROOT, 'node_modules/.cache'), { recursive: true })
@@ -281,8 +287,13 @@ async function main(): Promise<void> {
     process.exit(130)
   })
   try {
-    const sides: Side[] = [{ ...prepareSide('candidate', ROOT, workingRevision(), runtime, candidateBundleDir), elkCache }]
-    if (baselineRef) {
+    const candidate: Side = { ...prepareSide('candidate', ROOT, workingRevision(), runtime, candidateBundleDir), elkCache }
+    const sides: Side[] = [candidate]
+    if (identicalWorkerAA) {
+      // Reuse the same prepared artifact and module root, not a second bundle
+      // of equal source. runSide still starts a fresh child for each label.
+      sides.push({ ...candidate, label: 'baseline' })
+    } else if (baselineRef) {
       const baseline = extractRevisionTree(baselineRef, scratch, 'baseline', 'eval/benchmark/micro-bench-cases.ts')
       sides.push({ ...prepareSide('baseline', baseline.root, baseline.revision, runtime, candidateBundleDir), elkCache })
     }
@@ -335,7 +346,7 @@ async function main(): Promise<void> {
       return { id, candidate, baseline, inputsDiffer, ratio }
     })
 
-    const header = ['case', 'candidate', '±', ...(baselineRef ? ['baseline', 'ratio'] : []), ...(runtime === 'node' ? ['alloc/call'] : [])]
+    const header = ['case', 'candidate', '±', ...(comparison ? ['baseline', 'ratio'] : []), ...(runtime === 'node' ? ['alloc/call'] : [])]
     const table = summary.map(row => {
       const c = row.candidate && 'medianMs' in row.candidate ? row.candidate : undefined
       const b = row.baseline && 'medianMs' in row.baseline ? row.baseline : undefined
@@ -344,7 +355,7 @@ async function main(): Promise<void> {
         row.id,
         failed ?? formatMs(c?.medianMs),
         c ? `${(100 * c.noise).toFixed(0)}%` : '',
-        ...(baselineRef ? [b ? formatMs(b.medianMs) : row.baseline && 'error' in row.baseline ? 'unavailable' : '—', row.inputsDiffer ? 'inputs differ' : row.ratio === undefined ? '' : `${row.ratio.toFixed(2)}×`] : []),
+        ...(comparison ? [b ? formatMs(b.medianMs) : row.baseline && 'error' in row.baseline ? 'unavailable' : '—', row.inputsDiffer ? 'inputs differ' : row.ratio === undefined ? '' : `${row.ratio.toFixed(2)}×`] : []),
         ...(runtime === 'node' ? [formatBytes(c?.allocBytesPerCall)] : []),
       ]
     })
@@ -357,8 +368,13 @@ async function main(): Promise<void> {
         schemaVersion: 1,
         createdAt: new Date().toISOString(),
         runtime,
+        comparisonMode,
+        harness: { root: ROOT, revision: workingRevision(), script: SCRIPT_PATH },
         environment: { runtimeVersion: runtime === 'node' ? execFileSync('node', ['--version'], { encoding: 'utf8' }).trim() : `bun ${process.versions.bun}`, platform: process.platform, arch: process.arch, osRelease: release(), cpu: cpus()[0]?.model, logicalCpus: cpus().length },
-        sides: sides.map(side => ({ label: side.label, revision: side.revision })),
+        sides: sides.map(side => ({ label: side.label, revision: side.revision,
+          runnerProvenance: { workingDirectory: side.root, argv: side.runner,
+            reusesCandidate: identicalWorkerAA && side.label === 'baseline' },
+        })),
         config: { ...options, filter: options.filter?.source, rounds, elkCache, flags: { AGENTIC_MERMAID_ELK_CACHE: elkCache === 'off' ? '0' : '1', AGENTIC_MERMAID_SCENE_ASSERTIONS: '0', ...Object.fromEntries(Object.entries(process.env).filter(([key]) => key.startsWith('APL_'))) } },
         rawRounds: perRound.map((round, index) => ({ round: index + 1, ...Object.fromEntries(Object.entries(round).map(([side, cases]) => [side, Object.fromEntries(cases)])) })),
         results: summary,
