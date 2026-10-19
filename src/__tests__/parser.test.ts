@@ -665,6 +665,14 @@ describe('parseMermaid – subgraphs', () => {
     expect(g.subgraphs[0]!.label).toBe('My Group')
   })
 
+  // A title that runs across lines joins them with `<br>`; neither that nor
+  // an authored tag is id text.
+  it.each(['"a<br>b"', '"a\nb"', '"a<br/>b"'])('slugifies the title %j with its line break as `_`', title => {
+    const g = parseMermaid(`graph TD\n  subgraph ${title}\n    A\n  end`)
+    expect(g.subgraphs[0]!.id).toBe('a_b')
+    expect(g.subgraphs[0]!.label).toBe('a\nb')
+  })
+
   it('parses nested subgraphs', () => {
     const g = parseMermaid(`graph TD
       subgraph Outer

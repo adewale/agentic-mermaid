@@ -135,8 +135,10 @@ function parseFlowchartSubgraphDeclaration(rest: string): Pick<MermaidSubgraph, 
   const identity = rest.replace(/^"([\s\S]*)"$/, '$1').trim()
   // Mermaid identifiers are Unicode-aware everywhere else in this parser.
   // Preserve non-Latin letters/numbers when deriving the implicit container id
-  // instead of silently collapsing a CJK title to an empty string.
-  const id = rest.replace(/\s+/g, '_').replace(/[^\p{L}\p{N}_-]/gu, '').replace(/-{2,}/g, '_')
+  // instead of silently collapsing a CJK title to an empty string. A markup
+  // tag separates words like a space: a line break the title runs across is
+  // `<br>` here (coalesceFlowchartLines), and `a<br>b` is `a_b`, not `abrb`.
+  const id = identity.replace(/<\/?[a-z][^<>]*>/gi, ' ').trim().replace(/\s+/g, '_').replace(/[^\p{L}\p{N}_-]/gu, '').replace(/-{2,}/g, '_')
   const generated = id !== identity || !isMermaidIdentifier(identity) || flowchartIdLength(identity, identity.length) !== identity.length
   return { id: id || 'group', label: parsed.text, ...(parsed.labelContent ? { labelContent: parsed.labelContent } : {}), generated, identity }
 }
