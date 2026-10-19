@@ -135,7 +135,7 @@ export function pageRectFor(doc: SceneDoc, ctx: StyleBackendContext): string {
 
 /** Same admitted backend projection used by the public adapter. The witness
  * comes from the actual writer, never from a Scene field or a caller option. */
-export function renderDefaultScene(doc: SceneDoc, ctx: StyleBackendContext, maxBytes = Number.MAX_SAFE_INTEGER): { svg: string; textAlreadyFitted: boolean } {
+function emitDefaultScene(doc: SceneDoc, ctx: StyleBackendContext, maxBytes = Number.MAX_SAFE_INTEGER): { svg: string; textAlreadyFitted: boolean } {
   const admitted = admitBackendSceneDocument(doc)
   const pageRect = pageRectFor(admitted, ctx)
   if (admitted.parts[0] && sceneNodeEmission(admitted.parts[0])?.kind === 'prelude') {
@@ -163,7 +163,14 @@ export function renderDefaultScene(doc: SceneDoc, ctx: StyleBackendContext, maxB
     .join('\n'), textAlreadyFitted: false }
 }
 
-const renderDefault = (doc: SceneDoc, ctx: StyleBackendContext): string => renderDefaultScene(doc, ctx).svg
+const renderDefault = (doc: SceneDoc, ctx: StyleBackendContext): string => emitDefaultScene(doc, ctx).svg
+const OWNED_DEFAULT_RENDERERS = new WeakSet<StyleBackend['render']>([renderDefault])
+let proveDefaultConformance: (() => void) | undefined
+
+export function renderDefaultScene(doc: SceneDoc, ctx: StyleBackendContext, maxBytes = Number.MAX_SAFE_INTEGER): { svg: string; textAlreadyFitted: boolean } {
+  proveDefaultConformance?.()
+  return emitDefaultScene(doc, ctx, maxBytes)
+}
 
 export const DefaultBackend: StyleBackend = {
   id: 'default',
@@ -174,7 +181,7 @@ export const DefaultBackend: StyleBackend = {
 
 /** Method identity matters too: the exported backend object is mutable. */
 export function isBuiltinDefaultBackend(backend: StyleBackend): boolean {
-  return backend === DefaultBackend && backend.render === renderDefault
+  return backend === DefaultBackend && OWNED_DEFAULT_RENDERERS.has(backend.render)
 }
 
 const CORE_BACKEND_VERSION = '1.0.0'
@@ -254,6 +261,10 @@ function refuseUntilConforming(backend: StyleBackend, inputName: string, conform
   methods.render = (doc, ctx) => {
     prove()
     return render.call(backend, doc, ctx)
+  }
+  if (backend === DefaultBackend && OWNED_DEFAULT_RENDERERS.has(render)) {
+    OWNED_DEFAULT_RENDERERS.add(methods.render)
+    proveDefaultConformance = prove
   }
   return backend
 }
