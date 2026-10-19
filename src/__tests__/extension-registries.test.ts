@@ -1092,3 +1092,53 @@ describe('backend registration and host policy', () => {
     expect(stale).toEqual([])
   })
 })
+
+describe('built-in backend conformance', () => {
+  test('refuses a non-conforming built-in at its first render instead of at registration', () => {
+    // A fresh process: a built-in cannot be unregistered, and a failing one
+    // left in this process would break every later test of the built-in set.
+    const probe = spawnSync(process.execPath, ['--eval', `
+      const { DefaultBackend, knownBackendDescriptors, registerBackend, registerBuiltInBackend } = await import('./src/scene/backend.ts')
+      const builtIn = (inputName, render) => ({
+        ...DefaultBackend,
+        id: inputName,
+        capabilities: DefaultBackend.capabilities.map(claim => ({ ...claim, target: 'backend:' + inputName })),
+        render,
+      })
+      const attempt = call => { try { call(); return 'returned' } catch (error) { return error.message } }
+      let calls = 0
+      const inputName = 'test-nondeterministic-built-in'
+      const id = 'backend:' + inputName
+      const backend = builtIn(inputName, (doc, context) => DefaultBackend.render(doc, context).replace('<svg ', '<svg data-conformance-call="' + ++calls + '" '))
+      registerBuiltInBackend(backend)
+      const callsAtRegistration = calls
+      const first = attempt(() => backend.render(undefined, { seed: 0 }))
+      const callsAfterFirst = calls
+      const second = attempt(() => backend.render(undefined, { seed: 0 }))
+      const passed = knownBackendDescriptors().find(entry => entry.identity.id === id)?.conformance.passed
+      // A first drawNode proves conformance just as a first render does.
+      let drawCalls = 0
+      const drawer = builtIn('test-nondeterministic-drawer', (doc, context) => DefaultBackend.render(doc, context).replace('<svg ', '<svg data-conformance-call="' + ++drawCalls + '" '))
+      registerBuiltInBackend(drawer)
+      const firstDraw = attempt(() => drawer.drawNode(undefined, undefined))
+      // The lazy run holds the registry closed, as a registration's run does.
+      let mutation
+      const mutator = builtIn('test-mutating-built-in', (doc, context) => {
+        mutation ??= attempt(() => registerBackend(undefined, undefined))
+        return DefaultBackend.render(doc, context)
+      })
+      registerBuiltInBackend(mutator)
+      attempt(() => mutator.render(undefined, { seed: 0 }))
+      console.log(JSON.stringify({ callsAtRegistration, first, second, reran: calls !== callsAfterFirst, passed, firstDraw, mutation }))
+    `], { cwd: join(import.meta.dir, '..', '..'), encoding: 'utf8' })
+    expect({ status: probe.status, stderr: probe.stderr }).toEqual({ status: 0, stderr: '' })
+    const observed = JSON.parse(probe.stdout) as { callsAtRegistration: number; first: string; second: string; reran: boolean; passed: boolean; firstDraw: string; mutation: string }
+    expect(observed.callsAtRegistration).toBe(0)
+    expect(observed.first).toMatch(/^Built-in backend "test-nondeterministic-built-in" failed SVG conformance:.*document-determinism/)
+    expect(observed.second).toMatch(/failed SVG conformance/)
+    expect(observed.reran).toBe(false)
+    expect(observed.passed).toBe(false)
+    expect(observed.firstDraw).toMatch(/^Built-in backend "test-nondeterministic-drawer" failed SVG conformance:/)
+    expect(observed.mutation).toMatch(/mutation is forbidden while candidate "backend:test-mutating-built-in"/)
+  })
+})
