@@ -326,9 +326,9 @@ function walkFirstPartyData(value: unknown, limits: ExternalDataSnapshotLimits, 
       }
       for (const key of keys) {
         if (!exact) {
-          if (key.length * 3 > limits.maxPropertyKeyBytes && boundedUtf8ByteLength(key, limits.maxPropertyKeyBytes) > limits.maxPropertyKeyBytes) {
-            throw new Error(`External Scene ${path()} contains a property key longer than ${limits.maxPropertyKeyBytes} bytes`)
-          }
+          // Which limit an over-long key trips depends on the exact aggregate,
+          // so the exact pass reports it.
+          if (key.length * 3 > limits.maxPropertyKeyBytes && boundedUtf8ByteLength(key, limits.maxPropertyKeyBytes) > limits.maxPropertyKeyBytes) throw RECOUNT_EXACTLY
           propertyKeyBytes += key.length * 3
           if (propertyKeyBytes > limits.maxAggregatePropertyKeyBytes) throw RECOUNT_EXACTLY
           continue
