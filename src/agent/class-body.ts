@@ -47,6 +47,12 @@ import { classTextLabel, decodeClassText, memberToString, writeClassText } from 
 
 // ---- Parser ---------------------------------------------------------------
 
+/** `record[key] = value` as an own key: a class may be named `__proto__`,
+ *  which an assignment would take as the record's prototype. */
+function setOwn<T>(record: Record<string, T>, key: string, value: T): void {
+  Object.defineProperty(record, key, { value, enumerable: true, writable: true, configurable: true })
+}
+
 function projectClassRelation(shared: NonNullable<ReturnType<typeof parseClassRelationship>>): ClassRelation & { fromGeneric?: string; toGeneric?: string } {
   return {
     from: shared.from, to: shared.to, kind: shared.type as ClassRelationKind,
@@ -177,7 +183,7 @@ export function parseClassBody(lines: string[]): ClassBody | null {
         }
         case 'classDef':
           body.classDefs ??= {}
-          for (const name of value.names) body.classDefs[name] = { ...value.props }
+          for (const name of value.names) setOwn(body.classDefs, name, { ...value.props })
           break
         case 'assignment': case 'style':
           for (const reference of value.references) {
@@ -542,7 +548,7 @@ export function mutateClass(body: ClassBody, op: ClassMutationOp): Result<ClassB
             : 'classDef style must contain at least one property:value pair',
       })
       if (!b.classDefs) b.classDefs = {}
-      b.classDefs[op.name] = style.value
+      setOwn(b.classDefs, op.name, style.value)
       return ok(b)
     }
     case 'set_css_class': {
