@@ -40,6 +40,10 @@ describe('verify — unclosed flowchart delimiters are reported, not silent', ()
       .warnings.find(x => x.code === 'UNSUPPORTED_SYNTAX' && (x as { syntax: string }).syntax === 'flowchart_unclosed_bracket')
     expect(w).toBeDefined()
     expect((w as { line?: number }).line).toBe(3)
+    // A statement after an accDescr block's `}` is linted on that line.
+    const suffix = verifyMermaid('flowchart TD\n  accDescr {\n    a\n  } C[Broken --> D')
+      .warnings.find(x => x.code === 'UNSUPPORTED_SYNTAX' && (x as { syntax: string }).syntax === 'flowchart_unclosed_bracket')
+    expect((suffix as { line?: number } | undefined)?.line).toBe(4)
   })
 
   test('well-formed statements stay clean', () => {
@@ -50,6 +54,7 @@ describe('verify — unclosed flowchart delimiters are reported, not silent', ()
     expect(syntaxes('flowchart TD\n  A["says [hi]"] --> B')).toEqual([])     // brackets inside quotes
     expect(syntaxes('flowchart TD\n  A["(a\\"] --> B')).toEqual([])          // `\` is literal; the `"` closes
     expect(syntaxes('flowchart TD\n  subgraph Photos (2024\n    A --> B\n  end')).toEqual([]) // free-text subgraph label
+    expect(syntaxes('flowchart TD\n  accDescr {\n    a "b\n  }\n  A --> B')).toEqual([])  // accessibility text, not a statement
   })
 })
 

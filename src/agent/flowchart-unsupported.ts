@@ -3,6 +3,7 @@ import { normalizeV11Shape } from '../flowchart-shapes.ts'
 import { parseMermaid, splitFlowchartStatements, splitInlineHeaderStatements } from '../parser.ts'
 import { coalesceFlowchartLines, matchTextArrow, scanFlowchart } from '../flowchart-lexer.ts'
 import { metadataText, readMetadataBlock } from '../shared/metadata-yaml.ts'
+import { parseAccessibilityDirective } from '../shared/accessibility-directives.ts'
 
 type MetadataEntries = ReadonlyMap<string, unknown>
 
@@ -298,7 +299,14 @@ export function flowchartStatements(source: string): FlowchartStatement[] {
   // the UNSUPPORTED_SYNTAX warning the single-line form gets, or reports a
   // delimiter or link the next line closes. The header line joins in too: a
   // statement after `;` on it (`flowchart TD;A["x`) may run on.
-  for (const { text: raw, line } of coalesceFlowchartLines(source.split(/\r?\n/))) {
+  // An accTitle/accDescr directive is no flowchart statement; one written
+  // after a block's `}` on its line is.
+  for (const { text: raw, line, directive, joined } of coalesceFlowchartLines(source.split(/\r?\n/))) {
+    if (directive) {
+      const suffix = parseAccessibilityDirective(raw.split('\n'), 0)?.suffixLine ?? ''
+      for (const text of splitFlowchartStatements(suffix)) statements.push({ text, line: (joined?.at(-1)?.line ?? line) + 1 })
+      continue
+    }
     const texts = line === 0 ? splitInlineHeaderStatements(raw.trim())?.statements ?? [] : splitFlowchartStatements(raw)
     for (const text of texts) {
       const trimmed = text.trim()

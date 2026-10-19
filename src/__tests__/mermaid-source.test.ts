@@ -124,6 +124,8 @@ describe('normalizeMermaidSource', () => {
     ['stateDiagram-v2\n  state "x\naccTitle: y" as A\n  A --> B', 'x\naccTitle: y'],
     // A block note's text runs to its `end note` line.
     ['stateDiagram-v2\n  note left of A\n    accDescr {\n    y }\n  end note', 'accDescr {\ny }'],
+    ['flowchart TD\n  A["x\naccTitle: y"] --> B', 'x\naccTitle: y'],
+    ['flowchart TD\n  A -- x\naccDescr {\ny } --> B', 'x\naccDescr {\ny }'],
   ])('%j keeps a directive-shaped line inside its quoted text', (statements, text) => {
     // The comment after the string is still the envelope's, on its line.
     const source = `${statements}\n  %% note`
@@ -131,10 +133,22 @@ describe('normalizeMermaidSource', () => {
     const parsed = parseRegisteredMermaid(source)
     if (!parsed.ok) throw new Error(JSON.stringify(parsed.error))
     expect(parsed.value.body.kind).not.toBe('opaque')
-    expect(JSON.stringify(parsed.value.body)).toContain(JSON.stringify(text))
+    // A flowchart body keeps its nodes in a Map.
+    expect(JSON.stringify(parsed.value.body, (_, value) => value instanceof Map ? [...value.values()] : value)).toContain(JSON.stringify(text))
     expect(parsed.value.meta.accessibility).toEqual({})
     expect(parsed.value.meta.comments).toEqual([{ text: 'note', line: source.split('\n').length }])
     expect(parsed.value.source.spans?.preserved?.accessibilityDirectives).toBeUndefined()
+  })
+
+  // Mermaid's flowchart lexer reads `accDescr {` to its `}`: a quote in the
+  // description opens no string, so the statements after it start where
+  // they stand.
+  it('reads a flowchart string after an accDescr block that holds a quote', () => {
+    const source = 'flowchart TD\n  accDescr {\n  a "b\n  }\n  A["x\naccTitle: y"]'
+    expect(normalizeMermaidSource(source).accessibility).toEqual({ descr: 'a "b' })
+    const parsed = parseRegisteredMermaid(source)
+    if (!parsed.ok) throw new Error(JSON.stringify(parsed.error))
+    expect(parsed.value.body.kind === 'flowchart' && parsed.value.body.graph.nodes.get('A')?.label).toBe('x\naccTitle: y')
   })
 
   // Mermaid reads a statement written on these families' header lines.

@@ -31,6 +31,7 @@
  *   - A `;` at statement level ends a statement.
  */
 
+import { parseAccessibilityDirective } from './shared/accessibility-directives.ts'
 import { scanMetadataBlock } from './shared/metadata-block-scan.ts'
 
 export interface FlowchartTextRange { start: number; end: number }
@@ -414,6 +415,9 @@ export interface FlowchartLineGroup {
   /** Each later line joined on: where its text begins in `text`, its index,
    * and the column it begins at in that line. */
   joined?: Array<{ at: number; line: number; col: number }>
+  /** An accTitle/accDescr directive, which source normalization reads: no
+   * flowchart statement. */
+  directive?: true
 }
 
 /** The 0-based line and column a group's `offset` came from. An offset in
@@ -456,6 +460,11 @@ const KEYWORD_STATEMENT_RE = /^(?:(?:end|subgraph|classDef|class|style|linkStyle
  * bracket or a link is text, so only a markdown string or a metadata block
  * continues one. `line` is the 0-based index of each group's first line.
  *
+ * Upstream's lexer reads `accTitle:` to the end of its line and `accDescr {`
+ * to its `}`, whatever they hold. A line that begins a statement with one of
+ * the directives source normalization reads (shared/accessibility-directives.ts)
+ * is a group of its own, `\n`-joined across a block, that nothing continues.
+ *
  * Upstream reads a string in shape text only where the text begins
  * (`A["a⏎b"]`) and rejects one opened later. Here such a `"` is text, as the
  * parser's shape patterns read it on one line (`A[x " y]`), so a `&quot;` the
@@ -493,6 +502,17 @@ export function coalesceFlowchartLines(lines: readonly string[]): FlowchartLineG
     }
     return closes[index] === 1
   }
+  // The last line of the accessibility directive starting at `index`. Once
+  // one `accDescr {` is unclosed, no later line holds a `}`: a later opener
+  // is not scanned to the end again.
+  let unclosedDescription = false
+  const directiveEnd = (index: number): number | undefined => {
+    const line = lines[index]!
+    if (!/^\s*acc(?:Title|Descr)/i.test(line) || (unclosedDescription && /^\s*accDescr\s*:?\s*\{[^}]*$/i.test(line))) return undefined
+    const directive = parseAccessibilityDirective(lines, index)
+    if (directive === undefined) unclosedDescription = true
+    return directive?.endIndex
+  }
   for (let index = 0; index < lines.length; index++) {
     const raw = lines[index]!
     const trimmed = raw.trim()
@@ -510,6 +530,21 @@ export function coalesceFlowchartLines(lines: readonly string[]): FlowchartLineG
       && !(open[0] === 'edge-text' && textArrowStrays(`${continuationPrefix(scanned, scan).prefix}${trimmed}`))
     if (!inRegion && (!trimmed || trimmed.startsWith('%%'))) {
       out.push({ text: raw, line: index })
+      continue
+    }
+    const directive = inRegion ? undefined : directiveEnd(index)
+    if (directive !== undefined) {
+      group = { text: raw, line: index, directive: true }
+      out.push(group)
+      for (let at = index + 1; at <= directive; at++) {
+        ;(group.joined ??= []).push({ at: group.text.length + 1, line: at, col: 0 })
+        group.text += `\n${lines[at]!}`
+      }
+      index = directive
+      scanned = ''
+      scan = scanLine(scanned)
+      keyword = true
+      title = undefined
       continue
     }
     let text = trimmed
@@ -549,6 +584,27 @@ export function coalesceFlowchartLines(lines: readonly string[]): FlowchartLineG
     scan = lineScan
   }
   return out
+}
+
+/**
+ * For each of `lines`, the last line of the statement that starts there, as
+ * the parser joins them (coalesceFlowchartLines). The parser reads the lines
+ * trimmed, without blank and `%%` lines, so this does too; such a line between
+ * a statement's first and last line is inside it.
+ */
+export function flowchartStatementEnds(lines: readonly string[]): number[] {
+  const ends = lines.map((_, index) => index)
+  const read: number[] = []
+  const texts: string[] = []
+  lines.forEach((line, index) => {
+    const text = line.trim()
+    if (text && !text.startsWith('%%')) { read.push(index); texts.push(text) }
+  })
+  for (const group of coalesceFlowchartLines(texts)) {
+    const last = group.joined?.at(-1)?.line
+    if (last !== undefined) ends[read[group.line]!] = read[last]!
+  }
+  return ends
 }
 
 /** An open subgraph title: `id[…`, `"…` where the title begins, or `id["…`. */
