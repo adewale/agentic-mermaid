@@ -16,6 +16,7 @@ import { asXyChart } from '../agent/types.ts'
 import type { XyChartValidDiagram, XyChartMutationOp } from '../agent/types.ts'
 import { applyXYChartFrontmatterConfig, parseXYChart } from '../xychart/parser.ts'
 import { normalizeMermaidSource } from '../mermaid-source.ts'
+import { renderMermaidSVG } from '../index.ts'
 
 const SRC = `xychart-beta
   title Sales Report
@@ -140,16 +141,21 @@ describe('xychart structured-or-opaque fallback', () => {
   })
 
   test('an accessibility directive after another statement on its line stays structured and joins the envelope', () => {
-    const cases: Array<[string, object, object]> = [
+    const cases: Array<[string, object, { title?: string; descr?: string }]> = [
       ['xychart-beta horizontal; accTitle: Accessible; bar [1, 2]', { horizontal: true, accessibilityTitle: 'Accessible', series: [{ values: [1, 2] }] }, { title: 'Accessible' }],
       ['xychart-beta\n  bar [1, 2] accTitle: hi bar [2, 1]', { accessibilityTitle: 'hi bar [2, 1]', series: [{ values: [1, 2] }] }, { title: 'hi bar [2, 1]' }],
       ['xychart-beta\n  accTitle: T\n  bar [1] accDescr { x } bar [2]', { accessibilityTitle: 'T', accessibilityDescription: 'x', series: [{ values: [1] }, { values: [2] }] }, { title: 'T', descr: 'x' }],
+      ['xychart-beta\n  bar [1, 2] accTitle: Quarterly revenue\n  accDescr: Two bars\n  line [3, 4]', { accessibilityTitle: 'Quarterly revenue', accessibilityDescription: 'Two bars', series: [{ values: [1, 2] }, { values: [3, 4] }] }, { title: 'Quarterly revenue', descr: 'Two bars' }],
     ]
     for (const [source, body, accessibility] of cases) {
       const d = xychart(source)
       expect(d.body, source).toMatchObject(body)
       expect(d.meta.accessibility, source).toEqual(accessibility)
       expect(xychart(serializeMermaid(d)).body).toEqual(d.body)
+      // The drawing names the chart as the body does, each directive wherever it stands.
+      const svg = renderMermaidSVG(source)
+      expect(svg.match(/<title\b[^>]*>([^<]*)<\/title>/)?.[1], source).toBe(accessibility.title)
+      expect(svg.match(/<desc\b[^>]*>([^<]*)<\/desc>/)?.[1], source).toBe(accessibility.descr)
     }
     // Beside another value on a line of its own, Mermaid keeps the one written
     // last, which neither reader can order: the source is kept, and said so.

@@ -155,8 +155,9 @@ export function withAccessibilityFields<T extends object>(
 }
 
 /** Project the normalized universal envelope onto the object shape used by
- * XYChart and Quadrant renderer models. */
-export function withAccessibilityObject<T extends object>(
+ * XYChart and Quadrant renderer models, field by field: a field the envelope
+ * lacks keeps the model's own value (XYChart reads one written mid-line). */
+export function withAccessibilityObject<T extends AccessibilityObjectProjection>(
   value: T,
   accessibility: MermaidAccessibility,
 ): T & AccessibilityObjectProjection {
@@ -166,6 +167,7 @@ export function withAccessibilityObject<T extends object>(
   return {
     ...value,
     accessibility: {
+      ...value.accessibility,
       ...(accessibility.title !== undefined ? { title: accessibility.title } : {}),
       ...(accessibility.descr !== undefined ? { description: accessibility.descr } : {}),
     },
