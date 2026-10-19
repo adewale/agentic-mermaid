@@ -28,6 +28,7 @@ export type SvgValue =
   | { readonly source: 'channel'; readonly field: SemanticChannelName }
   | { readonly source: 'transform' }
   | { readonly source: 'marker'; readonly position: 'start' | 'mid' | 'end' }
+  | { readonly source: 'connectorLabel'; readonly index: number }
   | { readonly source: 'document'; readonly field: 'text' | 'domId' }
   | { readonly source: 'style'; readonly declarations: readonly { readonly property: SvgCssProperty; readonly value: SvgValue }[] }
   /** Only extra family metadata or presentation values absent from Scene IR.
@@ -246,6 +247,7 @@ export function svgEmissionValue(node: SceneNode, value: SvgValue, recipe?: SvgP
       const marker = value.position === 'mid' ? node.markers.mid[0] : node.markers[value.position]
       return marker ? `url(#${marker.id})` : undefined
     }
+    case 'connectorLabel': return node.kind === 'connector' ? node.labels[value.index]?.text : undefined
     case 'document': return node.kind === 'document' ? node[value.field] : undefined
     case 'style': return value.declarations.flatMap(declaration => {
       const value = svgEmissionValue(node, declaration.value, recipe)
@@ -533,8 +535,9 @@ export function validateSvgEmissionRecipe(recipe: SvgEmissionRecipe): void {
     oneOf(item.kind, ['shadow'], false); optionalBoolean(item.wrap); colors(item.colors)
   }
   const projection = (value: unknown): void => {
-    const item = object(value, ['source', 'field', 'piece', 'value', 'declarations', 'position'])
+    const item = object(value, ['source', 'field', 'piece', 'value', 'declarations', 'position', 'index'])
     const source = item.source
+    if (source === 'connectorLabel') { object(value, ['source', 'index']); index(item.index); if (item.index === undefined) throw new TypeError('Connector label projection requires an index'); return }
     if (source === 'marker') { object(value, ['source', 'position']); oneOf(item.position, ['start', 'mid', 'end'], false); return }
     if (source === 'style') {
       object(value, ['source', 'declarations'])

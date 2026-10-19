@@ -9,7 +9,7 @@ import { prepareDisplayText, type DisplayTextInput, type PreparedDisplayText } f
 // resolution, and the shared diagram-title band.
 // ============================================================================
 
-import { escapeAttr, renderMultilineText } from './multiline-utils.ts'
+import { svgValue as v, type SvgAttribute } from './scene/svg-emission.ts'
 import type { TextMark } from './scene/ir.ts'
 import * as marks from './scene/marks.ts'
 import { measureMonospaceTextWidth, measureMultilineText, measureTextWidth } from './text-metrics'
@@ -364,16 +364,17 @@ export function positionDiagramTitle(band: DiagramTitleBand, width: number, top:
 
 export function diagramTitleMark(title: PositionedDiagramTitle, style: ResolvedRenderStyle): TextMark {
   const fill = style.groupTextColor ?? 'var(--_text)'
-  const font = style.groupFont ? ` font-family="${escapeAttr(style.groupFont)}"` : ''
-  const spacing = style.groupLetterSpacing !== 0 ? ` letter-spacing="${style.groupLetterSpacing}"` : ''
+  const attributes: SvgAttribute[] = [
+    { name: 'class', value: v.meta('diagram-title') }, { name: 'text-anchor', value: v.text('anchor') },
+    { name: 'font-size', value: v.text('fontSize') }, { name: 'font-weight', value: v.text('fontWeight') },
+    ...(style.groupFont ? [{ name: 'font-family' as const, value: v.meta(style.groupFont) }] : []),
+    ...(style.groupLetterSpacing !== 0 ? [{ name: 'letter-spacing' as const, value: v.text('letterSpacing') }] : []),
+    { name: 'fill', value: v.paint('fill') },
+  ]
   return marks.text(
-    { id: 'diagram-title', role: 'title', text: title.text, block: title.block, x: title.x, y: title.y, fontSize: DIAGRAM_TITLE_FONT_SIZE, anchor: 'middle', paint: { fill } },
-    renderMultilineText(
-      title.block ?? title.text,
-      title.x,
-      title.y,
-      DIAGRAM_TITLE_FONT_SIZE,
-      `class="diagram-title" text-anchor="middle" font-size="${DIAGRAM_TITLE_FONT_SIZE}" font-weight="${DIAGRAM_TITLE_FONT_WEIGHT}"${font}${spacing} fill="${escapeAttr(fill)}"`,
-    ),
+    { id: 'diagram-title', role: 'title', text: title.text, block: title.block, x: title.x, y: title.y,
+      fontSize: DIAGRAM_TITLE_FONT_SIZE, fontWeight: title.block?.fontWeight ?? DIAGRAM_TITLE_FONT_WEIGHT,
+      letterSpacing: title.block?.letterSpacing ?? style.groupLetterSpacing, anchor: 'middle', paint: { fill } },
+    { kind: 'text', layout: 'multiline', attributes },
   )
 }
