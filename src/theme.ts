@@ -203,14 +203,18 @@ export function fromShikiTheme(theme: ShikiThemeLike): DiagramColors {
  * The shadow uses a fixed dark color at very low opacity so it works
  * on any light background. Dark themes should use a lighter base.
  */
-export function buildShadowDefs(colors: DiagramColors): string {
-  if (!colors.shadow) return ''
-
+export function shadowDefinitionPaint(colors: DiagramColors): { floodColor: string; floodOpacity: string } | undefined {
+  if (!colors.shadow) return undefined
   // Detect dark theme by checking if bg luminance is low.
   // Use a lighter shadow base for dark backgrounds so it's visible.
   const isDark = isColorDark(colors.bg)
-  const floodColor = isDark ? '#ffffff' : '#000000'
-  const floodOpacity = isDark ? '0.12' : '0.08'
+  return { floodColor: isDark ? '#ffffff' : '#000000', floodOpacity: isDark ? '0.12' : '0.08' }
+}
+
+export function buildShadowDefs(colors: DiagramColors): string {
+  const shadow = shadowDefinitionPaint(colors)
+  if (!shadow) return ''
+  const { floodColor, floodOpacity } = shadow
 
   return (
     `  <filter id="bm-shadow" x="-12%" y="-10%" width="128%" height="136%">` +
@@ -301,7 +305,7 @@ function inlineFontVarInCss(svg: string): string {
   }
 }
 
-export function buildStyleBlock(font: string, hasMonoFont: boolean, shadow?: boolean, embedFontImport: boolean = false): string {
+export function buildStyleText(font: string, hasMonoFont: boolean, shadow?: boolean, embedFontImport: boolean = false): string {
   font = requireSafeCssFontFamily(font)
   // Font imports are opt-in. The family import is additionally suppressed for
   // var() references and multi-family
@@ -357,13 +361,16 @@ export function buildStyleBlock(font: string, hasMonoFont: boolean, shadow?: boo
     : [fontFamilyDecl]
 
   return [
-    '<style>',
     ...styleHead,
     ...(hasMonoFont ? [`  .mono { font-family: 'JetBrains Mono', 'SF Mono', 'Fira Code', ui-monospace, monospace; }`] : []),
     `  svg {${derivedVars}`,
     `  }${shadowRules}`,
-    '</style>',
   ].join('\n')
+}
+
+/** Compatibility string projection; typed Scene emission owns the element. */
+export function buildStyleBlock(font: string, hasMonoFont: boolean, shadow?: boolean, embedFontImport: boolean = false): string {
+  return `<style>\n${buildStyleText(font, hasMonoFont, shadow, embedFontImport)}\n</style>`
 }
 
 /**

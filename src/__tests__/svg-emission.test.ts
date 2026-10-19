@@ -154,7 +154,7 @@ describe('private typed SVG recipes', () => {
     ] }
     const retained = admitSceneDocument(scene, 'internal', false)
     expect(retained).toBe(scene)
-    expect(() => admitSceneDocument(retained, 'internal', true)).toThrow(/SCENE_FIDELITY/)
+    expect(() => admitSceneDocument(retained, 'internal', true)).toThrow(/semantic 1 != crisp undefined/)
   })
 
   test('external snapshot never invokes derived group views on mutable source fields', () => {

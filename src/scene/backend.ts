@@ -8,6 +8,7 @@
 // from the admitted Scene serialization; they never dispatch on diagram family.
 // ============================================================================
 
+import { SvgWriter } from './svg-writer.ts'
 import type { SceneDoc, SceneNode } from './ir.ts'
 import { indentLines } from './marks.ts'
 import type { StyleSpec } from './style-registry.ts'
@@ -20,7 +21,7 @@ import {
 } from './capabilities.ts'
 import type { PrimitiveCapabilityClaim } from './capabilities.ts'
 import { admitBackendSceneDocument } from './external-data-snapshot.ts'
-import { sceneNodeSerialization } from './serialization.ts'
+import { sceneNodeSerialization, sceneNodeEmission, writeSceneNode } from './serialization.ts'
 import {
   canonicalExtensionId,
   createExtensionIdentity,
@@ -140,6 +141,19 @@ export const DefaultBackend: StyleBackend = {
   render(doc: SceneDoc, ctx: StyleBackendContext): string {
     const admitted = admitBackendSceneDocument(doc)
     const pageRect = pageRectFor(admitted, ctx)
+    if (admitted.parts[0] && sceneNodeEmission(admitted.parts[0])?.kind === 'prelude') {
+      // A private typed prelude owns this whole document. Missing typed child
+      // metadata is an error; no built-in mark falls back to retained markup.
+      // Direct backend callers retain their historical aggregate policy; the
+      // graphical boundary applies its separate final-output cap.
+      const writer = new SvgWriter({ maxBytes: Number.MAX_SAFE_INTEGER })
+      for (const [index, part] of admitted.parts.entries()) {
+        if (index) writer.write('\n')
+        writeSceneNode(part, writer.scoped(5_000_000))
+        if (index === 0 && pageRect) writer.write(`\n${pageRect}`)
+      }
+      return writer.finish()
+    }
     if (!pageRect) return admitted.parts.map(sceneNodeSerialization).join('\n')
     return admitted.parts
       .map((part, i) => (i === 0 ? `${sceneNodeSerialization(part)}\n${pageRect}` : sceneNodeSerialization(part)))

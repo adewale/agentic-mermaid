@@ -37,6 +37,7 @@ export class SvgWriter {
   write(value: string): void {
     if (typeof value !== 'string') throw new TypeError('SVG output chunks must be strings')
     if (this.parent) {
+      if (value === '') return
       if (this.lineStart) { this.parent.write(this.indentation); this.lineStart = false }
       let start = 0
       for (;;) {

@@ -3,6 +3,7 @@
  * value can enter this vocabulary. Public Scene contracts stay in ir.ts. */
 import type { DiagramColors } from '../theme.ts'
 import type { Geometry, MarkPaint, SceneNode, SemanticChannelName, TextMark, DocumentMark } from './ir.ts'
+import { SEMANTIC_CHANNEL_NAMES } from './ir.ts'
 import type { SvgSemanticIdentity } from './identity.ts'
 import { serializeTransform } from './transforms.ts'
 import { sanitizeDisplayLines } from '../shared/text-controls.ts'
@@ -25,7 +26,9 @@ export type SvgValue =
   | { readonly source: 'connector'; readonly field: SvgConnectorField }
   | { readonly source: 'channel'; readonly field: SemanticChannelName }
   | { readonly source: 'transform' }
+  | { readonly source: 'marker'; readonly position: 'start' | 'mid' | 'end' }
   | { readonly source: 'document'; readonly field: 'text' | 'domId' }
+  | { readonly source: 'style'; readonly declarations: readonly { readonly property: 'mix-blend-mode'; readonly value: SvgValue }[] }
   /** Only extra family metadata or presentation values absent from Scene IR.
    * Semantic attributes must use the corresponding projection source. */
   | { readonly source: 'metadata'; readonly value: string | number | boolean }
@@ -85,6 +88,8 @@ export interface SvgGroupEmission {
 export interface SvgTextEmission {
   readonly kind: 'text'
   readonly attributes: readonly SvgAttribute[]
+  /** Identity/accessibility added after generated text-layout attributes. */
+  readonly tailAttributes?: readonly SvgAttribute[]
   readonly layout: 'multiline' | 'direct'
   readonly baselineShift?: number
   readonly dy?: string | number
@@ -133,6 +138,7 @@ export interface SvgResourcesEmission {
 export type SvgEmissionRecipe = SvgPrimitiveEmission | SvgGroupEmission | SvgTextEmission | SvgDocumentTextEmission
   | SvgPreludeEmission | SvgResourcesEmission | SvgStylesheetEmission
   | { readonly kind: 'close' }
+  | { readonly kind: 'connectorLabels' }
   | { readonly kind: 'sequence'; readonly children: readonly SvgEmissionRecipe[]; readonly join?: '' | '\n' }
 
 /** Short constructors keep family recipes readable without accepting paths or
@@ -157,6 +163,7 @@ export interface SvgEmissionContext {
   readonly writeText?: (node: TextMark, recipe: SvgTextEmission, writer: SvgWriter) => void
   readonly writePrelude?: (node: DocumentMark, recipe: SvgPreludeEmission, writer: SvgWriter) => void
   readonly writeShadow?: (recipe: SvgShadowEmission, writer: SvgWriter) => void
+  readonly writeConnectorLabels?: (node: SceneNode, writer: SvgWriter) => void
 }
 
 const GEOMETRY_NAMES = new Set<string>(['x', 'y', 'width', 'height', 'rx', 'ry', 'cx', 'cy', 'r', 'x1', 'y1', 'x2', 'y2', 'd', 'points'])
@@ -230,7 +237,13 @@ export function svgEmissionValue(node: SceneNode, value: SvgValue, recipe?: SvgP
     case 'accessibility': return node.accessibility?.[value.field]
     case 'channel': return node.channels?.[value.field]
     case 'transform': return node.transform ? serializeTransform(node.transform) : undefined
+    case 'marker': {
+      if (node.kind !== 'connector') return undefined
+      const marker = value.position === 'mid' ? node.markers.mid[0] : node.markers[value.position]
+      return marker ? `url(#${marker.id})` : undefined
+    }
     case 'document': return node.kind === 'document' ? node[value.field] : undefined
+    case 'style': return value.declarations.map(declaration => `${declaration.property}:${svgEmissionValue(node, declaration.value, recipe) ?? ''}`).join(';')
     case 'metadata':
       if (typeof value.value !== 'string' && typeof value.value !== 'number' && typeof value.value !== 'boolean') throw new TypeError('SVG metadata must be scalar data')
       return value.value
@@ -312,7 +325,6 @@ export function writeSvgEmission(node: SceneNode, recipe: SvgEmissionRecipe, wri
       for (const child of node.children) {
         writer.write(node.join)
         const childWriter = writer.indented(child.indent)
-        childWriter.write('')
         context.writeChild(child.node, childWriter)
       }
       writer.write(node.join)
@@ -350,6 +362,9 @@ export function writeSvgEmission(node: SceneNode, recipe: SvgEmissionRecipe, wri
       // its existing admission policy; final output security still runs last.
       writer.write('<style>'); writer.write(recipe.css); writer.write('</style>'); return
     case 'close': writer.write('</svg>'); return
+    case 'connectorLabels':
+      if (node.kind !== 'connector' || !context.writeConnectorLabels) throw new TypeError('Connector labels require their shared typed writer')
+      context.writeConnectorLabels(node, writer); return
     case 'sequence':
       for (let index = 0; index < recipe.children.length; index++) {
         if (index) writer.write(separator(recipe.join))
@@ -445,7 +460,7 @@ export function snapshotSvgEmissionRecipe(recipe: SvgEmissionRecipe, limits: Svg
     let arrayLength = 0
     if (array) {
       const length = Reflect.getOwnPropertyDescriptor(value, 'length')
-      if (!length || !('value' in length) || !Number.isSafeInteger(length.value) || length.value < 0) throw new TypeError('Invalid SVG metadata array length')
+      if (!length || !('value' in length) || typeof length.value !== 'number' || !Number.isSafeInteger(length.value) || length.value < 0) throw new TypeError('Invalid SVG metadata array length')
       if (length.value > limits.maxArrayEntries - counts.arrayEntries) throw new RangeError('SVG emission metadata exceeds array budget')
       counts.arrayEntries += length.value
       arrayLength = length.value
@@ -509,8 +524,22 @@ export function validateSvgEmissionRecipe(recipe: SvgEmissionRecipe): void {
     oneOf(item.kind, ['shadow'], false); optionalBoolean(item.wrap); colors(item.colors)
   }
   const projection = (value: unknown): void => {
-    const item = object(value, ['source', 'field', 'piece', 'value'])
+    const item = object(value, ['source', 'field', 'piece', 'value', 'declarations', 'position'])
     const source = item.source
+    if (source === 'marker') { object(value, ['source', 'position']); oneOf(item.position, ['start', 'mid', 'end'], false); return }
+    if (source === 'style') {
+      object(value, ['source', 'declarations'])
+      const declarations = array(item.declarations)
+      if (declarations.length > 16) throw new RangeError('SVG style projection exceeds declaration budget')
+      for (const declaration of declarations) {
+        const item = object(declaration, ['property', 'value'])
+        oneOf(item.property, ['mix-blend-mode'], false)
+        const projected = object(item.value, ['source', 'field'])
+        if (projected.source !== 'connector' || projected.field !== 'mixBlendMode') throw new TypeError('Blend style must project typed connector blend mode')
+        projection(item.value)
+      }
+      return
+    }
     if (source === 'metadata') {
       object(value, ['source', 'value'])
       if (!['string', 'number', 'boolean'].includes(typeof item.value)) throw new TypeError('SVG metadata values must be scalars')
@@ -527,7 +556,7 @@ export function validateSvgEmissionRecipe(recipe: SvgEmissionRecipe): void {
       case 'identity': oneOf(item.field, ['id', 'role', 'from', 'to', 'classNames'], false); return
       case 'accessibility': oneOf(item.field, ['label', 'role', 'roleDescription'], false); return
       case 'connector': oneOf(item.field, ['color', 'width', 'opacity', 'mixBlendMode', 'pathLength', 'lineCap', 'lineJoin', 'miterLimit', 'lineStyle', 'relationshipKind', 'direction'], false); return
-      case 'channel': oneOf(item.field, ['importance', 'value', 'category', 'status', 'progress', 'route', 'emphasis'], false); return
+      case 'channel': oneOf(item.field, SEMANTIC_CHANNEL_NAMES, false); return
       case 'document': oneOf(item.field, ['text', 'domId'], false); return
       default: throw new TypeError('Unsupported SVG projection source')
     }
@@ -559,7 +588,7 @@ export function validateSvgEmissionRecipe(recipe: SvgEmissionRecipe): void {
   }
   const visit = (value: unknown, depth: number): void => {
     if (depth > 64) throw new RangeError('SVG recipe exceeds depth budget')
-    const item = object(value, ['kind', 'piece', 'attributes', 'close', 'pieces', 'prefix', 'layout', 'baselineShift', 'dy', 'width', 'height', 'colors', 'transparent', 'font', 'hasMonoFont', 'widthAttribute', 'heightAttribute', 'extraStyle', 'children', 'join', 'resources', 'indent', 'element', 'text', 'domId', 'css'])
+    const item = object(value, ['kind', 'piece', 'attributes', 'tailAttributes', 'close', 'pieces', 'prefix', 'layout', 'baselineShift', 'dy', 'width', 'height', 'colors', 'transparent', 'font', 'hasMonoFont', 'widthAttribute', 'heightAttribute', 'extraStyle', 'children', 'join', 'resources', 'indent', 'element', 'text', 'domId', 'css'])
     if (seen.has(item)) return
     seen.add(item)
     switch (item.kind) {
@@ -579,7 +608,8 @@ export function validateSvgEmissionRecipe(recipe: SvgEmissionRecipe): void {
         if (item.prefix !== undefined) for (const value of array(item.prefix)) documentText(value)
         return
       case 'text':
-        object(item, ['kind', 'attributes', 'layout', 'baselineShift', 'dy']); attributes(item.attributes)
+        object(item, ['kind', 'attributes', 'tailAttributes', 'layout', 'baselineShift', 'dy']); attributes(item.attributes)
+        if (item.tailAttributes !== undefined) attributes(item.tailAttributes)
         oneOf(item.layout, ['multiline', 'direct'], false); optionalNumber(item.baselineShift)
         if (item.dy !== undefined && typeof item.dy !== 'string' && typeof item.dy !== 'number') throw new TypeError('SVG text dy must be text or a number')
         optionalNumber(typeof item.dy === 'number' ? item.dy : undefined)
@@ -608,6 +638,7 @@ export function validateSvgEmissionRecipe(recipe: SvgEmissionRecipe): void {
       case 'documentText': documentText(item); return
       case 'stylesheet': stylesheet(item); return
       case 'close': object(item, ['kind']); return
+      case 'connectorLabels': object(item, ['kind']); return
       case 'sequence':
         object(item, ['kind', 'children', 'join']); oneOf(item.join, ['', '\n'])
         for (const value of array(item.children)) visit(value, depth + 1)

@@ -1,5 +1,13 @@
-import type { SceneNode } from './ir.ts'
+import type { GroupMark, SceneNode } from './ir.ts'
 import { compareCodePointStrings } from '../shared/deterministic-order.ts'
+import {
+  serializeSvgEmission, snapshotSvgEmissionRecipe, writeSvgEmission, writeSvgGroupOpen,
+  measureSvgEmission,
+  type SvgEmissionRecipe, type SvgEmissionContext, type SvgGroupEmission,
+} from './svg-emission.ts'
+import { SvgWriter } from './svg-writer.ts'
+import { writeSceneText, writeConnectorLabels } from './svg-text-emission.ts'
+import { writeScenePrelude, writeSceneShadow } from './svg-document-emission.ts'
 
 // SVG serialization is backend-private state, not part of the public Scene IR.
 // Construction-time markup is normalized before admission: callers cannot use
@@ -7,6 +15,71 @@ import { compareCodePointStrings } from '../shared/deterministic-order.ts'
 // authority, and the default backend no longer replays historical emitter
 // bytes. The semantic Scene fields remain the public contract.
 const SERIALIZED_SCENE_NODES = new WeakMap<object, string>()
+const TYPED_SCENE_EMISSIONS = new WeakMap<object, SvgEmissionRecipe>()
+const GROUP_VIEWS = new WeakMap<object, { open: () => string; close: () => string }>()
+
+const emissionContext: SvgEmissionContext = {
+  writeText: writeSceneText,
+  writeConnectorLabels,
+  writePrelude: writeScenePrelude,
+  writeShadow: writeSceneShadow,
+  writeChild: writeSceneNode,
+}
+
+/** Private, copied and bounded emission data. No caller flag or family name
+ * can manufacture membership in this ownership table. */
+export function attachSceneNodeEmission<T extends SceneNode>(node: T, recipe: SvgEmissionRecipe): T {
+  TYPED_SCENE_EMISSIONS.set(node, snapshotSvgEmissionRecipe(recipe))
+  return node
+}
+
+export function sceneNodeEmission(node: object): SvgEmissionRecipe | undefined {
+  return TYPED_SCENE_EMISSIONS.get(node)
+}
+
+/** The compatibility strings are derived views, never retained SVG authority.
+ * External admission recognizes only these exact privately registered views. */
+export function attachGroupEmissionViews(node: GroupMark, recipe: SvgGroupEmission): GroupMark {
+  const open = (): string => {
+    const writer = new SvgWriter()
+    writeSvgGroupOpen(node, recipe, writer)
+    return writer.finish()
+  }
+  const close = (): string => '</g>'
+  GROUP_VIEWS.set(node, { open, close })
+  Object.defineProperties(node, {
+    open: { enumerable: true, configurable: true, get: open },
+    close: { enumerable: true, configurable: true, get: close },
+  })
+  return node
+}
+
+export function ownedSceneEmissionView(source: object, key: PropertyKey, descriptor?: PropertyDescriptor): string | undefined {
+  const views = GROUP_VIEWS.get(source)
+  if (!views || (key !== 'open' && key !== 'close')) return undefined
+  const expected = views[key]
+  if (descriptor?.get !== expected || descriptor.set !== undefined || !descriptor.enumerable) return undefined
+  return expected()
+}
+
+export function hasOwnedSceneEmissionView(source: object, key: string): boolean {
+  const views = GROUP_VIEWS.get(source)
+  if (!views || key !== 'open' && key !== 'close') return false
+  const descriptor = Object.getOwnPropertyDescriptor(source, key)
+  return descriptor?.get === views[key] && descriptor.set === undefined && descriptor.enumerable === true
+}
+
+export function sceneNodeSerializationBytes(node: SceneNode, maxBytes: number): number {
+  const recipe = TYPED_SCENE_EMISSIONS.get(node)
+  if (!recipe) throw new TypeError('Expected typed SVG emission')
+  return measureSvgEmission(node, recipe, emissionContext, maxBytes)
+}
+
+export function writeSceneNode(node: SceneNode, writer: SvgWriter): void {
+  const recipe = TYPED_SCENE_EMISSIONS.get(node)
+  if (!recipe) throw new TypeError(`Scene node "${node.id}" has no typed SVG emission`)
+  writeSvgEmission(node, recipe, writer, emissionContext)
+}
 
 interface SerializedAttribute {
   readonly name: string
@@ -106,16 +179,20 @@ export function attachSceneNodeSerialization<T extends SceneNode>(node: T, svg: 
 }
 
 export function sceneNodeSerialization(node: SceneNode): string {
+  const recipe = TYPED_SCENE_EMISSIONS.get(node)
+  if (recipe) return serializeSvgEmission(node, recipe, emissionContext)
   const svg = SERIALIZED_SCENE_NODES.get(node)
   if (svg === undefined) throw new TypeError(`Scene node "${node.id}" has no admitted SVG serialization`)
   return svg
 }
 
 export function transferSceneNodeSerialization(source: object, target: object): void {
+  const recipe = TYPED_SCENE_EMISSIONS.get(source)
+  if (recipe) TYPED_SCENE_EMISSIONS.set(target, recipe)
   const svg = SERIALIZED_SCENE_NODES.get(source)
   if (svg !== undefined) SERIALIZED_SCENE_NODES.set(target, svg)
 }
 
 export function hasSceneNodeSerialization(value: object): boolean {
-  return SERIALIZED_SCENE_NODES.has(value)
+  return TYPED_SCENE_EMISSIONS.has(value) || SERIALIZED_SCENE_NODES.has(value)
 }

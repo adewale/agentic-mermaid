@@ -21,9 +21,10 @@ import type { DiagramColors } from '../theme.ts'
 import type { SvgSemanticIdentity } from './identity.ts'
 import { ensureSvgIdentity, semanticIdentityForSvg } from './identity.ts'
 import { ensureSvgAccessibility, relationAccessibility, relationAccessibilityForSvg } from './accessibility.ts'
-import { displayText, escapeAttr, escapeXml, renderMultilineText } from '../multiline-utils.ts'
+import { displayText, escapeAttr, renderMultilineText } from '../multiline-utils.ts'
 import { resolveLabelContent } from '../shared/display-text.ts'
 import type { LabelDisplay } from '../multiline-utils.ts'
+import { LINE_HEIGHT_RATIO } from '../text-metrics.ts'
 import { preparePixelText, type PixelTextBlock } from '../shared/prepared-text.ts'
 import {
   connectorContourSemantics,
@@ -40,9 +41,13 @@ import { hasMarkerCss } from '../output-security.ts'
 import { serializeTransform } from './transforms.ts'
 import {
   attachSceneNodeSerialization,
+  attachSceneNodeEmission, attachGroupEmissionViews, transferSceneNodeSerialization,
   canonicalizeSceneNodeSerialization,
   sceneNodeSerialization,
 } from './serialization.ts'
+
+import { snapshotSvgEmissionRecipe, type SvgEmissionRecipe, type SvgGroupEmission } from './svg-emission.ts'
+import { decorateEmission, emissionAttribute, emissionIdentity, firstEmission } from './svg-mark-emission.ts'
 
 export function shape(fields: {
   id: string
@@ -57,14 +62,15 @@ export function shape(fields: {
   surfaceFragment?: boolean
   channels?: SemanticChannels
   transform?: SceneTransform
-}, crisp: string): ShapeMark {
+}, crisp: string | SvgEmissionRecipe): ShapeMark {
+  if (typeof crisp !== 'string') crisp = snapshotSvgEmissionRecipe(crisp)
   const identity: SvgSemanticIdentity = fields.identity
     ? { ...fields.identity, role: fields.role }
-    : semanticIdentityForSvg(crisp, fields)
+    : typeof crisp === 'string' ? semanticIdentityForSvg(crisp, fields) : emissionIdentity(crisp, fields)
   const accessibility = fields.identity
     ? relationAccessibility(identity)
-    : relationAccessibilityForSvg(crisp, identity)
-  const decorated = ensureSvgAccessibility(ensureSvgIdentity(crisp, identity), accessibility)
+    : typeof crisp === 'string' ? relationAccessibilityForSvg(crisp, identity) : relationAccessibility(identity, emissionAttribute(crisp, 'data-label', { kind: 'shape', ...fields, identity }))
+  const decorated = typeof crisp === 'string' ? ensureSvgAccessibility(ensureSvgIdentity(crisp, identity), accessibility) : undefined
   const result: ShapeMark = {
     kind: 'shape',
     id: fields.id,
@@ -80,7 +86,7 @@ export function shape(fields: {
     ...(fields.channels ? { channels: fields.channels } : {}),
     ...(fields.transform ? { transform: fields.transform } : {}),
   }
-  return attachSceneNodeSerialization(result, decorated)
+  return typeof crisp === 'string' ? attachSceneNodeSerialization(result, decorated!) : attachSceneNodeEmission(result, decorateEmission(crisp, result))
 }
 
 export interface ConnectorFields {
@@ -284,7 +290,8 @@ function connectorInlineLabelSvg(
   return renderMultilineText(block, label.anchor.x, label.anchor.y - Math.max(0, label.clearance ?? 0), block.fontSize, attrs.join(' '), 0)
 }
 
-export function connector(fields: ConnectorFields, crisp: string): ConnectorMark {
+export function connector(fields: ConnectorFields, crisp: string | SvgEmissionRecipe): ConnectorMark {
+  if (typeof crisp !== 'string') crisp = snapshotSvgEmissionRecipe(crisp)
   assertKnownConnectorFields(fields, CONNECTOR_FIELDS, 'connector')
   if (fields.markers !== undefined) assertKnownConnectorFields(fields.markers, CONNECTOR_MARKER_FIELDS, 'marker')
   if (fields.geometry.kind !== 'path' && fields.route?.closed === true) {
@@ -379,18 +386,21 @@ export function connector(fields: ConnectorFields, crisp: string): ConnectorMark
     ? connectorInlineLabelText(firstLabel).lineBlocks.map(line => line.runs.map(run => run.text).join('')).join('\n')
     : firstLabel ? displayText(resolveLabelContent(firstLabel.text, firstLabel.textContent), firstLabel.display ?? 'literal') : undefined
   const accessibility = relationAccessibility(identity, accessibleLabel)
-  const projectedMarkers = projectConnectorMarkerReferences(fields.id, crisp, {
-    ...(markerStart ? { start: markerStart.id } : {}),
-    ...(midMarkerId ? { mid: midMarkerId } : {}),
-    ...(markerEnd ? { end: markerEnd.id } : {}),
-  })
-  const projectedRelationship = ensureConnectorRelationshipProjection(projectedMarkers, relationship)
-  const projectedCrisp = ensureConnectorTransformProjection(projectedRelationship, fields.transform)
-  let decorated = ensureSvgAccessibility(ensureSvgIdentity(projectedCrisp, identity), accessibility)
-  const inlineLabels = labels
-    .map((label, index) => connectorInlineLabelSvg(fields.id, label, index, fields.transform))
-    .filter((label): label is string => label !== undefined)
-  if (inlineLabels.length > 0) decorated = [decorated, ...inlineLabels].join('\n')
+  let decorated: string | undefined
+  if (typeof crisp === 'string') {
+    const projectedMarkers = projectConnectorMarkerReferences(fields.id, crisp, {
+      ...(markerStart ? { start: markerStart.id } : {}),
+      ...(midMarkerId ? { mid: midMarkerId } : {}),
+      ...(markerEnd ? { end: markerEnd.id } : {}),
+    })
+    const projectedRelationship = ensureConnectorRelationshipProjection(projectedMarkers, relationship)
+    const projectedCrisp = ensureConnectorTransformProjection(projectedRelationship, fields.transform)
+    decorated = ensureSvgAccessibility(ensureSvgIdentity(projectedCrisp, identity), accessibility)
+    const inlineLabels = labels
+      .map((label, index) => connectorInlineLabelSvg(fields.id, label, index, fields.transform))
+      .filter((label): label is string => label !== undefined)
+    if (inlineLabels.length > 0) decorated = [decorated, ...inlineLabels].join('\n')
+  }
 
   const width = fields.stroke?.width ?? fields.paint.strokeWidth ?? '1'
   const dash = fields.stroke?.dash
@@ -538,7 +548,13 @@ export function connector(fields: ConnectorFields, crisp: string): ConnectorMark
     ...(fields.channels ? { channels: fields.channels } : {}),
     ...(fields.transform ? { transform: fields.transform } : {}),
   }
-  return attachSceneNodeSerialization(result, decorated)
+  if (typeof crisp === 'string') return attachSceneNodeSerialization(result, decorated!)
+  const carrier = decorateEmission(crisp, result, true)
+  for (const [index, label] of labels.entries()) {
+    if (label.visual?.kind === 'inline' && (!label.anchor || !label.paint || label.fontSize === undefined || label.textAnchor === undefined)) throw new TypeError(`Connector "${fields.id}" inline label ${index + 1} requires anchor, paint, fontSize, and textAnchor`)
+  }
+  return attachSceneNodeEmission(result, labels.some(label => label.visual?.kind === 'inline')
+    ? { kind: 'sequence', children: [carrier, { kind: 'connectorLabels' }], join: '' } : carrier)
 }
 
 export function text(fields: {
@@ -561,12 +577,40 @@ export function text(fields: {
   pageFill?: string
   channels?: SemanticChannels
   transform?: SceneTransform
-}, crisp: string): TextMark {
+}, crisp: string | SvgEmissionRecipe): TextMark {
+  if (typeof crisp !== 'string') crisp = snapshotSvgEmissionRecipe(crisp)
   const { block, ...semantic } = fields
   if (block) {
     for (const field of ['fontSize', 'fontWeight', 'letterSpacing'] as const) {
       if (fields[field] !== undefined && fields[field] !== block[field]) throw new TypeError(`Text "${fields.id}" ${field} differs from its retained prepared block`)
     }
+  }
+  if (typeof crisp !== 'string') {
+    const first = firstEmission(crisp)
+    if (first.kind !== 'text') throw new TypeError('Text mark requires a typed text emission')
+    const temporary = { kind: 'text', ...fields } as TextMark
+    const weight = fields.fontWeight ?? block?.fontWeight ?? Number(emissionAttribute(crisp, 'font-weight', temporary) ?? 400)
+    const spacing = fields.letterSpacing ?? block?.letterSpacing ?? Number(emissionAttribute(crisp, 'letter-spacing', temporary) ?? 0)
+    const display = fields.display ?? block?.prepared.display ?? (emissionAttribute(crisp, 'data-literal-text', temporary) === 'true' ? 'literal' : 'formatted')
+    const measured = block ?? preparePixelText(fields.text, { display, fontSize: fields.fontSize, fontWeight: weight, letterSpacing: spacing })
+    const dy = first.dy ?? emissionAttribute(crisp, 'dy', temporary) ?? '0'
+    const displacement = typeof dy === 'number' ? dy : Number.parseFloat(dy) * (dy.endsWith('em') ? fields.fontSize : 1)
+    let renderedDy = displacement
+    if (first.layout === 'multiline') {
+      const count = (block?.lines ?? fields.text.split('\n')).length
+      const lineHeight = block?.lineHeight ?? fields.fontSize * LINE_HEIGHT_RATIO
+      const firstDy = (count === 1 ? 0 : -((count - 1) / 2) * lineHeight) + fields.fontSize * (first.baselineShift ?? 0.35)
+      const native = block && /[^\x20-\x7e]/u.test(block.lineBlocks.map(line => line.runs.map(run => run.text).join('')).join(''))
+      renderedDy = native ? (fields.y + firstDy) - fields.y : firstDy
+    }
+    const offsetY = renderedDy + (measured.lines.length - 1) * measured.lineHeight / 2 - fields.fontSize * 0.35
+    const identity = fields.identity ? { ...fields.identity, role: fields.role } : emissionIdentity(crisp, fields)
+    const accessibility = relationAccessibility(identity, emissionAttribute(crisp, 'data-label', temporary))
+    const result: TextMark = { kind: 'text', ...semantic, identity, accessibility, block: measured,
+      measurement: block ? 'prepared' : 'fallback', ...(block ? { prepared: true, preparedLines: block.lineBlocks.map(line => line.runs) } : {}),
+      fontWeight: weight, letterSpacing: spacing, display,
+      textLayout: { width: measured.width, height: measured.height, lineHeight: measured.lineHeight, offsetY } }
+    return attachSceneNodeEmission(result, decorateEmission(crisp, result))
   }
   const open = crisp.match(/<text\b[^>]*>/)?.[0] ?? ''
   const weight = fields.fontWeight ?? block?.fontWeight ?? Number(open.match(/\bfont-weight="(\d+)"/)?.[1] ?? 400)
@@ -579,7 +623,7 @@ export function text(fields: {
   const offsetY = dy + (measured.lines.length - 1) * measured.lineHeight / 2 - fields.fontSize * 0.35
   const identity: SvgSemanticIdentity = fields.identity
     ? { ...fields.identity, role: fields.role }
-    : semanticIdentityForSvg(crisp, fields)
+    : typeof crisp === 'string' ? semanticIdentityForSvg(crisp, fields) : emissionIdentity(crisp, fields)
   const accessibility = fields.identity
     ? relationAccessibility(identity)
     : relationAccessibilityForSvg(crisp, identity)
@@ -592,8 +636,9 @@ export function documentContent(fields: {
   role: SceneRole
   nonPaint?: DocumentMark['nonPaint']
   channels?: SemanticChannels
-}, svg: string): DocumentMark {
-  return attachSceneNodeSerialization({ kind: 'document', element: 'content', ...fields }, svg)
+}, svg: string | SvgEmissionRecipe): DocumentMark {
+  const node: DocumentMark = { kind: 'document', element: 'content', ...fields }
+  return typeof svg === 'string' ? attachSceneNodeSerialization(node, svg) : attachSceneNodeEmission(node, svg)
 }
 
 export function documentText(fields: {
@@ -603,11 +648,7 @@ export function documentText(fields: {
   domId?: string
 }): DocumentMark {
   const tag = fields.element === 'title' ? 'title' : 'desc'
-  const idAttr = fields.domId ? ` id="${escapeAttr(fields.domId)}"` : ''
-  return attachSceneNodeSerialization(
-    { kind: 'document', role: 'chrome', ...fields },
-    `<${tag}${idAttr}>${escapeXml(fields.text)}</${tag}>`,
-  )
+  return attachSceneNodeEmission({ kind: 'document', role: 'chrome', ...fields }, { kind: 'documentText', element: tag })
 }
 
 export function definitions(
@@ -616,13 +657,14 @@ export function definitions(
     markerResources?: readonly MarkerDescriptor[]
     gradientResources?: readonly LinearGradientDescriptor[]
   },
-  crisp: string,
+  crisp: string | SvgEmissionRecipe,
 ): DocumentMark {
-  return attachSceneNodeSerialization({ kind: 'document', role: 'defs', element: 'definitions', ...fields }, crisp)
+  const node: DocumentMark = { kind: 'document', role: 'defs', element: 'definitions', ...fields }
+  return typeof crisp === 'string' ? attachSceneNodeSerialization(node, crisp) : attachSceneNodeEmission(node, crisp)
 }
 
 export function documentClose(): DocumentMark {
-  return attachSceneNodeSerialization({ kind: 'document', id: 'svg-close', role: 'chrome', element: 'close' }, '</svg>')
+  return attachSceneNodeEmission({ kind: 'document', id: 'svg-close', role: 'chrome', element: 'close' }, { kind: 'close' })
 }
 
 /** Indent every line of a serialized chunk by `n` spaces — the same transform
@@ -639,12 +681,31 @@ export function group(fields: {
   owner?: SceneOwner
   visibility?: 'conditional'
   transform?: SceneTransform
-  open: string
-  close: string
+  open?: string
+  close?: string
+  emission?: SvgGroupEmission
   children: Array<{ node: SceneNode; indent: number }>
   join?: string
   channels?: SemanticChannels
 }): GroupMark {
+  if (fields.emission) {
+    const recipe = snapshotSvgEmissionRecipe(fields.emission) as SvgGroupEmission
+    const identity = emissionIdentity(recipe, fields)
+    const owner = fields.owner ?? { id: identity.id, role: identity.role }
+    const children = fields.children.map(child => {
+      if (child.node.owner || child.node.kind === 'document' || child.node.kind === 'group') return child
+      const node = { ...child.node, owner }
+      transferSceneNodeSerialization(child.node, node)
+      return { ...child, node }
+    })
+    const node: GroupMark = { kind: 'group', id: fields.id, role: fields.role, open: '', close: '',
+      children, join: fields.join ?? '\n', identity, owner,
+      ...(fields.channels ? { channels: fields.channels } : {}),
+      ...(fields.visibility ? { visibility: fields.visibility } : {}), ...(fields.transform ? { transform: fields.transform } : {}) }
+    const decorated = decorateEmission(recipe, node) as SvgGroupEmission
+    return attachGroupEmissionViews(attachSceneNodeEmission(node, decorated), decorated)
+  }
+  if (typeof fields.open !== 'string' || typeof fields.close !== 'string') throw new TypeError('Group requires open/close strings or typed emission')
   const join = fields.join ?? '\n'
   const identity = semanticIdentityForSvg(fields.open, fields)
   const owner = fields.owner ?? { id: identity.id, role: identity.role }
@@ -690,11 +751,12 @@ export function documentOpen(fields: {
   font: string
   hasMonoFont: boolean
   extraCss?: string
-}, svg: string): DocumentMark {
-  return attachSceneNodeSerialization({
+}, svg: string | SvgEmissionRecipe): DocumentMark {
+  const node: DocumentMark = {
     kind: 'document',
     element: 'open',
     id: fields.id,
     role: 'prelude',
-  }, svg)
+  }
+  return typeof svg === 'string' ? attachSceneNodeSerialization(node, svg) : attachSceneNodeEmission(node, svg)
 }

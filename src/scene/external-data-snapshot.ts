@@ -8,11 +8,12 @@
  */
 
 import { transferRetainedPixelText } from '../shared/prepared-text.ts'
-import type { SceneDoc } from './ir.ts'
+import type { SceneDoc, GroupMark } from './ir.ts'
 import { SCENE_VALIDATION_LIMITS, assertAdmissibleSceneDoc, sceneValidationMode } from './scene-validation.ts'
 import { sceneAssertionsEnabled } from './assertions.ts'
+import { svgEmissionMetadataCounts, type SvgGroupEmission } from './svg-emission.ts'
 import { boundedUtf8ByteLength } from '../shared/utf8.ts'
-import { transferSceneNodeSerialization } from './serialization.ts'
+import { transferSceneNodeSerialization, sceneNodeEmission, attachGroupEmissionViews, hasOwnedSceneEmissionView } from './serialization.ts'
 
 export interface ExternalDataSnapshotLimits {
   readonly maxObjects: number
@@ -58,6 +59,18 @@ export const EXTERNAL_SCENE_DOCUMENT_SNAPSHOT_LIMITS: ExternalDataSnapshotLimits
     + SCENE_VALIDATION_LIMITS.maxFinalSvgBytes,
 })
 
+/** Hidden immutable recipes participate in the same graph limits as enumerable
+ * Scene data. Shared templates are charged once, just as shared frozen data. */
+function privateMetadataAccounting() {
+  const seen = new WeakSet<object>()
+  return (candidate: object) => {
+    const recipe = sceneNodeEmission(candidate)
+    if (!recipe || seen.has(recipe)) return undefined
+    seen.add(recipe)
+    return svgEmissionMetadataCounts(recipe)
+  }
+}
+
 /**
  * Materialize a JSON-like external data graph exclusively from own enumerable
  * data descriptors. Arrays are read by index rather than through a caller
@@ -76,6 +89,7 @@ export function snapshotBoundedExternalData(
   let arrayEntries = 0
   let properties = 0
   let propertyKeyBytes = 0
+  const metadata = privateMetadataAccounting()
 
   const visit = (candidate: unknown, depth: number, path: string): unknown => {
     if (typeof candidate === 'string') {
@@ -95,6 +109,16 @@ export function snapshotBoundedExternalData(
     }
     if (depth > limits.maxDepth) {
       throw new Error('External Scene input object graph is too deeply nested')
+    }
+    const hidden = metadata(candidate)
+    if (hidden) {
+      objects += hidden.objects; textBytes += hidden.textBytes
+      arrayEntries += hidden.arrayEntries; properties += hidden.properties
+      propertyKeyBytes += hidden.propertyKeyBytes
+      if (textBytes > limits.maxTextBytes || arrayEntries > limits.maxAggregateArrayEntries
+        || properties > limits.maxAggregateProperties || propertyKeyBytes > limits.maxAggregatePropertyKeyBytes) {
+        throw new Error('Private SVG emission metadata exceeds the aggregate Scene data limits')
+      }
     }
     if (++objects > limits.maxObjects) {
       throw new Error('External Scene input object graph is too large')
@@ -190,15 +214,20 @@ export function snapshotBoundedExternalData(
       for (const key of keys) {
         if (typeof key !== 'string') throw new TypeError(`External Scene ${path} must not contain symbol keys`)
         const descriptor = Reflect.getOwnPropertyDescriptor(candidate, key)
-        if (!descriptor || !('value' in descriptor) || !descriptor.enumerable) {
+        const ownedView = hasOwnedSceneEmissionView(candidate, key)
+        if (!descriptor || (!('value' in descriptor) && !ownedView) || !descriptor.enumerable) {
           throw new TypeError(`External Scene ${path}.${key} must be an enumerable data property`)
         }
         Object.defineProperty(snapshot, key, {
-          value: visit(descriptor.value, depth + 1, `${path}.${key}`),
+          value: ownedView ? '' : visit(descriptor.value, depth + 1, `${path}.${key}`),
           enumerable: true,
-          configurable: false,
+          configurable: ownedView,
           writable: false,
         })
+      }
+      const recipe = sceneNodeEmission(snapshot)
+      if (recipe?.kind === 'group' && hasOwnedSceneEmissionView(candidate, 'open') && hasOwnedSceneEmissionView(candidate, 'close')) {
+        attachGroupEmissionViews(snapshot as unknown as GroupMark, recipe as SvgGroupEmission)
       }
       transferRetainedPixelText(candidate, snapshot)
       return Object.freeze(snapshot)
@@ -240,6 +269,7 @@ export function freezeBoundedFirstPartyData(
   let arrayEntries = 0
   let properties = 0
   let propertyKeyBytes = 0
+  const metadata = privateMetadataAccounting()
 
   // Only diagnostics need a full path. Keep raw ancestor segments while
   // descending objects; ordinary scalar values create no path strings.
@@ -268,6 +298,16 @@ export function freezeBoundedFirstPartyData(
     }
     if (depth > limits.maxDepth) {
       throw new Error('External Scene input object graph is too deeply nested')
+    }
+    const hidden = metadata(candidate)
+    if (hidden) {
+      objects += hidden.objects; textBytes += hidden.textBytes
+      arrayEntries += hidden.arrayEntries; properties += hidden.properties
+      propertyKeyBytes += hidden.propertyKeyBytes
+      if (textBytes > limits.maxTextBytes || arrayEntries > limits.maxAggregateArrayEntries
+        || properties > limits.maxAggregateProperties || propertyKeyBytes > limits.maxAggregatePropertyKeyBytes) {
+        throw new Error('Private SVG emission metadata exceeds the aggregate Scene data limits')
+      }
     }
     if (++objects > limits.maxObjects) {
       throw new Error('External Scene input object graph is too large')
@@ -319,7 +359,7 @@ export function freezeBoundedFirstPartyData(
           propertyKeyBytes += bytes
         }
         const record = candidate as Record<string, unknown>
-        for (const key of keys) visit(record[key], depth + 1, key)
+        for (const key of keys) if (!hasOwnedSceneEmissionView(candidate, key)) visit(record[key], depth + 1, key)
       }
       Object.freeze(candidate)
       frozen.add(candidate)
@@ -342,11 +382,11 @@ export function freezeBoundedFirstPartyData(
  * re-proves nothing. Only this module records documents, so a caller cannot
  * forge membership.
  */
-const ADMITTED_SCENES = new WeakMap<object, 'internal' | 'external'>()
+const ADMITTED_SCENES = new WeakMap<object, { mode: 'internal' | 'external'; crossChecks: boolean }>()
 
 /** Record a document this module froze that passed `mode` admission. */
-export function recordAdmittedScene(scene: SceneDoc, mode: 'internal' | 'external'): void {
-  ADMITTED_SCENES.set(scene, mode)
+export function recordAdmittedScene(scene: SceneDoc, mode: 'internal' | 'external', crossChecks = true): void {
+  ADMITTED_SCENES.set(scene, { mode, crossChecks: crossChecks || mode === 'external' })
 }
 
 /** The sole public-backend Scene admission waist. Direct backend consumers
@@ -362,7 +402,13 @@ export function admitBackendSceneDocument(value: unknown): SceneDoc {
 export function admitSceneDocument(value: unknown, mode?: 'internal' | 'external', crossChecks = sceneAssertionsEnabled()): SceneDoc {
   // Look up before reading any property: a caller Proxy sees no trap here.
   const prior = typeof value === 'object' && value !== null ? ADMITTED_SCENES.get(value) : undefined
-  if (prior !== undefined && prior === (mode ?? sceneValidationMode(value))) return value as SceneDoc
+  if (prior !== undefined && prior.mode === (mode ?? sceneValidationMode(value))) {
+    if (crossChecks && !prior.crossChecks) {
+      assertAdmissibleSceneDoc(value, prior.mode, true)
+      recordAdmittedScene(value as SceneDoc, prior.mode, true)
+    }
+    return value as SceneDoc
+  }
   // Only built-in family admission names 'internal': its document is our own
   // lowering output, frozen in place. An inferred mode copies through the
   // full descriptor path. The test-only replaceFamilyForTest installs lowering
@@ -372,6 +418,6 @@ export function admitSceneDocument(value: unknown, mode?: 'internal' | 'external
     ? freezeBoundedFirstPartyData(value, EXTERNAL_SCENE_DOCUMENT_SNAPSHOT_LIMITS, 'scene')
     : snapshotBoundedExternalData(value, EXTERNAL_SCENE_DOCUMENT_SNAPSHOT_LIMITS, 'scene')
   assertAdmissibleSceneDoc(admitted, mode, mode !== 'internal' || crossChecks)
-  recordAdmittedScene(admitted as SceneDoc, mode ?? sceneValidationMode(admitted))
+  recordAdmittedScene(admitted as SceneDoc, mode ?? sceneValidationMode(admitted), mode !== 'internal' || crossChecks)
   return admitted as SceneDoc
 }

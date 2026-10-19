@@ -40,7 +40,7 @@ import { assertRenderableLinearGradient, LINEAR_GRADIENT_LIMITS, serializeLinear
 import { BUILTIN_SCENE_ROLE_TRAITS, sceneRoleTraits } from './roles.ts'
 import { boundedUtf8ByteLength } from '../shared/utf8.ts'
 import { inspectSvgOnce } from '../svg-inspection-cache.ts'
-import { canonicalizeSceneNodeSerialization, sceneNodeSerialization } from './serialization.ts'
+import { canonicalizeSceneNodeSerialization, sceneNodeSerialization, sceneNodeEmission, sceneNodeSerializationBytes } from './serialization.ts'
 
 export const SCENE_VALIDATION_VERSION = 2 as const
 export const SCENE_VALIDATION_LIMITS = Object.freeze({
@@ -721,8 +721,12 @@ function validateNode(value: unknown, path: string, state: ValidationState, dept
   validateChannels(value.channels, `${path}.channels`, state.diagnostics)
   let serialized: string | undefined
   try {
-    serialized = sceneNodeSerialization(value as unknown as SceneNode)
-    if (boundedUtf8ByteLength(serialized, MAX_SERIALIZATION_BYTES_PER_NODE) > MAX_SERIALIZATION_BYTES_PER_NODE) {
+    const node = value as unknown as SceneNode
+    const typed = sceneNodeEmission(node)
+    if (typed && !state.external && !state.crossChecks && value.nonPaint === undefined) {
+      sceneNodeSerializationBytes(node, MAX_SERIALIZATION_BYTES_PER_NODE)
+    } else serialized = sceneNodeSerialization(node)
+    if (serialized !== undefined && boundedUtf8ByteLength(serialized, MAX_SERIALIZATION_BYTES_PER_NODE) > MAX_SERIALIZATION_BYTES_PER_NODE) {
       add(state.diagnostics, 'SCENE_DOCUMENT', path, 'has an oversized SVG serialization')
     }
   } catch (error) {
