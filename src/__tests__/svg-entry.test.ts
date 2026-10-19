@@ -34,6 +34,36 @@ describe('focused SVG entry', () => {
     }
   })
 
+  test('deferred receipts retain admitted evidence when optional prototype fields change after rendering', () => {
+    const source = 'sequenceDiagram\n  Alice->>Bob: request'
+    const expected = focused(source).receipt
+    const artifact = focused(source)
+    const injected = {
+      resolutionDiagnostics: [{ code: 'INJECTED_AFTER_RENDER' }],
+      textMeasurement: { identity: { id: 'injected-after-render', version: '9.9.9' } },
+    }
+    const descriptors = Object.getOwnPropertyDescriptors(Object.prototype)
+    let reads = 0
+    let actual: typeof expected | undefined
+    try {
+      for (const [key, value] of Object.entries(injected)) {
+        Object.defineProperty(Object.prototype, key, {
+          configurable: true,
+          get() { reads++; return value },
+        })
+      }
+      actual = artifact.receipt
+    } finally {
+      for (const key of Object.keys(injected)) {
+        if (Object.hasOwn(descriptors, key)) Object.defineProperty(Object.prototype, key, descriptors[key]!)
+        else Reflect.deleteProperty(Object.prototype, key)
+      }
+    }
+    expect(reads).toBe(0)
+    expect(actual).toEqual(expected)
+    expect(artifact.receipt).toBe(actual)
+  })
+
   test('preserves complete-library SVG and receipts for every native family', () => {
     for (const id of knownBuiltinFamilies()) {
       const source = getFamily(id)!.example

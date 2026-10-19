@@ -257,13 +257,14 @@ function executeInspectedGraphicalRequest(
   emitResolvedConfigDiagnostics(request)
   const securityDiagnostics: OutputSecurityDiagnostic[] = []
   const rendered = renderResolvedMermaidSVG(request, securityDiagnostics)
+  const layoutCertification = Object.hasOwn(rendered, 'layoutCertification') ? rendered.layoutCertification : undefined
   return lazyGraphicalArtifact(rendered.svg, () => {
     const outputDigest = renderedSvgDigest(rendered.svg)
     return Object.freeze({
       ...receiptOf(request, securityDiagnostics),
       graphicalProjectionDigest: outputDigest,
       executionDecision: rendered.executionDecision,
-      ...(rendered.layoutCertification ? { layoutCertification: Object.freeze({ ...rendered.layoutCertification, outputDigest }) } : {}),
+      ...(layoutCertification ? { layoutCertification: Object.freeze({ ...layoutCertification, outputDigest }) } : {}),
     })
   })
 }

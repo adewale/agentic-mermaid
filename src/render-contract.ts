@@ -1147,7 +1147,7 @@ function receiptDiagnostics(
 ): readonly RenderArtifactDiagnostic[] {
   const seen = new Set<string>()
   return Object.freeze([
-    ...(request.resolutionDiagnostics ?? []),
+    ...(Object.hasOwn(request, 'resolutionDiagnostics') ? request.resolutionDiagnostics! : []),
     ...diagnostics,
   ].flatMap(diagnostic => {
     const key = canonicalJson(diagnostic)
@@ -1163,6 +1163,11 @@ export function receiptOf(
 ): RenderRequestReceipt {
   const executionPlan = EXECUTION_PLAN_BY_REQUEST.get(request)
   const executionDecision = executionPlan?.executionDecision
+  // Frozen records still inherit optional fields. Evidence consumed later
+  // must only read fields captured by request admission, never a late getter.
+  const textMeasurement = executionPlan && Object.hasOwn(executionPlan, 'textMeasurement')
+    ? executionPlan.textMeasurement
+    : undefined
   return Object.freeze({
     version: request.version,
     output: request.output,
@@ -1172,7 +1177,7 @@ export function receiptOf(
     capabilityDecision: request.capabilityDecision,
     diagnostics: receiptDiagnostics(request, diagnostics),
     ...(executionDecision ? { executionDecision } : {}),
-    ...(executionPlan?.textMeasurement ? { textMeasurement: executionPlan.textMeasurement.identity } : {}),
+    ...(textMeasurement ? { textMeasurement: textMeasurement.identity } : {}),
   })
 }
 
