@@ -238,6 +238,7 @@ const STATEMENT_KEYWORD_AT = /(?:classDef|class|cssClass|style|linkStyle|directi
 const STATE_KEYWORD_AT = /state[ \t]+/y
 const STATE_ID_AT = /[\w\p{L}-]+/uy
 const STATE_AS_AT = /[ \t]+as[ \t]+/y
+const STATE_AS_WORD_AT = /[ \t]+as(?=[ \t]|$)/y
 const STEREOTYPE_AT = /[ \t]*<<[^>\n]*>>/y
 const OPEN_BRACE_AT = /[ \t]*\{/y
 const SEPARATOR_AT = /-{2,}(?=[ \t;}]|$)/y
@@ -276,8 +277,8 @@ export function readStateStatements(lines: readonly StateSourceLine[]): StateSta
   const noteBraceAfter = (text: string, index: number, line: number): void => {
     if (text[index] === '}') braceNameLines.add(line)
   }
-  // The renderer drops `//` lines before it reads (parseMermaid), so they
-  // come after no row here either.
+  // The renderer drops `//` lines outside strings before it reads
+  // (parseMermaid), so they come after no row here either.
   let lastRow = logical.length - 1
   while (lastRow > 0 && !logical[lastRow]!.noteBody && logical[lastRow]!.text.startsWith('//')) lastRow--
   /** Where the text after a colon ends: the end of its line, as Mermaid
@@ -369,17 +370,26 @@ export function readStateStatements(lines: readonly StateSourceLine[]): StateSta
     const id = matchAt(STATE_ID_AT, text, at)
     if (id === null) return null
     at += id.length
+    // Mermaid's `as` follows only a quoted label: it rejects `state X as Y`.
+    if (!label && matchAt(STATE_AS_WORD_AT, text, at) !== null) return null
     const stereotype = matchAt(STEREOTYPE_AT, text, at)
     if (stereotype !== null) at += stereotype.length
     const brace = matchAt(OPEN_BRACE_AT, text, at)
     let opens = brace !== null
+    const next = skipBlank(text, at)
     if (brace !== null) at += brace.length
     else if (at < text.length && !' \t;}'.includes(text[at]!)) return null
-    else if (stereotype === null && skipBlank(text, at) === text.length && statementRowAfter(row) && logical[row + 1]!.text.startsWith('{')) {
+    else if (stereotype === null && next === text.length && statementRowAfter(row) && logical[row + 1]!.text.startsWith('{')) {
       // `state X` with its `{` on the next line, as Mermaid's STATE lexer reads it.
       row++
       at = 1
       opens = true
+    } else if (label && stereotype === null && next < text.length) {
+      // Mermaid's name after `as` runs to a `{` or the line's end, so another
+      // statement cannot follow it: `state "L" as X Y` names one state `X Y`,
+      // which ours cannot hold. Its `}` is read into the name too.
+      if (text[next] !== ';' && text[next] !== '}') return null
+      if (text[next] === '}' && depth > 0) braceNameLines.add(logical[row]!.line)
     }
     column = at
     return { text: `state ${label}${id}${stereotype === null ? '' : ` ${stereotype.trim()}`}${opens ? ' {' : ''}`, opens }

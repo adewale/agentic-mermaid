@@ -53,10 +53,12 @@ export function parseMermaid(text: string): MermaidGraph {
   const rawLines = text.split('\n')
   const firstStatement = rawLines.find(line => line.trim().length > 0 && !line.trim().startsWith('%%'))?.trim() ?? ''
   // State note text must not pass through Flowchart's string coalescers or
-  // the generic whole-line comment filter.
+  // the generic whole-line comment filter. A `//` line is dropped only
+  // outside a string, which reads it as text, as the typed body does.
   const state = /^stateDiagram(?:-v2)?(?=$|[\s;%])/i.test(firstStatement)
   const lines = expandInlineHeaderStatements(state
-    ? scanStateComments(rawLines).filter(line => line.noteBody || (line.text.length > 0 && !line.text.startsWith('//'))).map(line => line.text)
+    ? scanStateComments(rawLines).filter((line, index, scanned) => line.noteBody
+      || (line.text.length > 0 && (!line.text.startsWith('//') || scanned[index - 1]?.openQuote === true))).map(line => line.text)
     : coalesceStatementLines(rawLines).map(line => line.trim()).filter(line => line.length > 0 && !line.startsWith('%%')))
 
   if (lines.length === 0) {
@@ -843,6 +845,15 @@ function parseStateDiagram(lines: string[]): MermaidGraph {
       continue
     }
 
+    // Mermaid reads the rest of the line after `as` as one name, so
+    // `state "L" as X Y` names a state `X Y` that no transition can name.
+    const alias = /^state\s+"[^"]*"\s+as\s+/.exec(line)
+    const aliasName = alias ? line.slice(alias[0].length).replace(/\{$/, '').trimEnd() : ''
+    if (/\s/.test(aliasName)) throw syntaxError({
+      what: `Unsupported state syntax: "${line}"`,
+      expectedForm: `one word after \`as\`; pinned Mermaid reads "${aliasName}" as one name, which no transition can refer to`,
+      example: 'state "Long name" as LongName',
+    })
     throw syntaxError({
       what: `Unsupported state syntax: "${line}"`,
       expectedForm: 'a state declaration, transition, composite, note, direction, or paint directive',

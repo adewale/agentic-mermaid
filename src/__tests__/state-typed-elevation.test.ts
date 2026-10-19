@@ -171,13 +171,22 @@ describe('typed State residual elevation (B07)', () => {
     expect(renderMermaidSVG(serialized)).toContain('second')
   })
 
-  test.each(['bogus -->', 'state A <<unknown>>', 'direction diagonal'])('rejects unknown State content instead of drawing a partial diagram: %s', statement => {
+  test.each([
+    ['bogus -->', ''],
+    ['state A <<unknown>>', ''],
+    ['direction diagonal', ''],
+    // Mermaid reads the rest of the line after `as` as one name, which ours
+    // cannot hold, and rejects `as` after an unquoted name.
+    ['state "Long name" as X Y', ' — expected one word after `as`; pinned Mermaid reads "X Y" as one name'],
+    ['state X as Y', ''],
+    ['state X as', ''],
+  ])('rejects unknown State content instead of drawing a partial diagram: %s', (statement, guidance) => {
     const source = `stateDiagram-v2\nA --> B\n${statement}`
     const parsed = parseMermaid(source)
     if (!parsed.ok) throw new Error(JSON.stringify(parsed.error))
     expect(parsed.value.body.kind).toBe('opaque')
     expect(serializeMermaid(parsed.value).trimEnd()).toBe(source)
-    expect(() => renderMermaidSVG(source)).toThrow(`Unsupported state syntax: "${statement}"`)
+    expect(() => renderMermaidSVG(source)).toThrow(`Unsupported state syntax: "${statement}"${guidance}`)
     const verified = verifyMermaid(source)
     expect(verified.ok).toBe(false)
     expect(verified.warnings).toContainEqual(expect.objectContaining({
@@ -475,6 +484,10 @@ describe('State statements across and within lines', () => {
     ['state X {\nA --> [*]:::hot : done\n}', ['A:rounded:A', '_end:state-end:', 'A->_end:done', 'X:X{A _end}', '_end:::hot'], []],
     ['note right of A line1\nline2\nend note', ['A:rounded:A', 'note right of A:line1\nline2'], []],
     ['state "multi\nline" as X\nX --> Y', ['X:rounded:multi\nline', 'Y:rounded:Y', 'X->Y'], []],
+    // A `//` line inside the string is text, not a comment.
+    ['state "first\n// second\nthird" as X\nX --> Y', ['X:rounded:first\n// second\nthird', 'Y:rounded:Y', 'X->Y'], []],
+    // Mermaid reads the rest of the line after `as` into the name, `}` too.
+    ['state X {\nstate "x" as A }', ['A:rounded:x', 'X:X{A}'], ['state_brace_after_name@3']],
   ] as const)('%j is read alike by the renderer, the typed body, its output and verify', async (body, expected, warnings) => {
     const source = `stateDiagram-v2\n${body}`
     expect(readingOf(parseRenderGraph(source))).toEqual([...expected].sort())
