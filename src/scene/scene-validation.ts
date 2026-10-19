@@ -891,6 +891,21 @@ function validateNode(value: unknown, path: string, state: ValidationState, dept
         }
         if (value.element === 'definitions') {
           try {
+            const typed = sceneNodeEmission(value)
+            if (serialized === undefined && typed) {
+              // Ordinary typed admission checks the closed projection itself.
+              // These are the same common resource serializers used below;
+              // no family can supply alternate resource markup or references.
+              const expected = [
+                ...(Array.isArray(value.markerResources) && value.markerResources.length > 0 ? ['markers'] : []),
+                ...(value.gradientResources.length > 0 ? ['gradients'] : []),
+              ]
+              if (typed.kind !== 'resources' || typed.layout === 'inline' || (typed.indent ?? 2) !== 2
+                || (typed.join ?? '\n') !== '\n' || typed.resources.length !== expected.length
+                || typed.resources.some((resource, index) => resource !== expected[index])) {
+                add(state.diagnostics, 'SCENE_FIDELITY', path, 'definitions must be generated from typed resources')
+              }
+            } else {
             const resources = [
               ...(Array.isArray(value.markerResources) && value.markerResources.length > 0
                 ? [serializeMarkerResources(value.markerResources as MarkerDescriptor[])]
@@ -901,6 +916,7 @@ function validateNode(value: unknown, path: string, state: ValidationState, dept
             ].join('\n')
             const expected = canonicalizeSceneNodeSerialization(`<defs>\n${resources}\n</defs>`)
             if (serialized !== expected) add(state.diagnostics, 'SCENE_FIDELITY', path, 'definitions must be generated from typed resources')
+            }
           } catch {
             // Resource-specific diagnostics above are more precise.
           }
