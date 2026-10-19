@@ -9,6 +9,7 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { pathToFileURL } from 'node:url'
 import { verifyMermaid } from '../agent/verify.ts'
+import { clearElkLayoutCache } from '../elk-instance.ts'
 import { compareCodePointStrings } from '../shared/deterministic-order.ts'
 
 function findNodeBinary(): string | null {
@@ -75,12 +76,14 @@ function expectRelativeAxisOrder(before: Map<string, { x: number; y: number }>, 
 // behind (memo or cache pollution). Byte-level cross-process and cross-runtime
 // determinism is gated below and by layout-equivalence.test.ts, so one size per
 // direction and density is enough here; the full 120-case grid added nothing.
+// Each call clears the ELK result cache, so both calls run ELK.
 describe('determinism grid (in-process, repeat call)', () => {
   const n = NODE_COUNTS[NODE_COUNTS.length - 1]!
   for (const dir of DIRECTIONS) for (const density of DENSITY) {
     test(`${dir} ${n} ${density}`, () => {
       const src = makeDiagram(dir, n, density)
-      expect(JSON.stringify(verifyMermaid(src).layout)).toEqual(JSON.stringify(verifyMermaid(src).layout))
+      const layout = () => { clearElkLayoutCache(); return JSON.stringify(verifyMermaid(src).layout) }
+      expect(layout()).toEqual(layout())
     })
   }
 })

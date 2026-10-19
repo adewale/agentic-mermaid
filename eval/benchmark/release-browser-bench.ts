@@ -113,6 +113,8 @@ async function lazyPayload(page: Page, engine: Engine, origin: string) {
 
 async function renderPass(page: Page, engine: Engine, origin: string, inputs: Array<{ id: string; source: string }>, round: number): Promise<BrowserSample[]> {
   await page.goto(`${origin}/blank`)
+  // Repeated renders of one input must time ELK, not a cached result.
+  await page.evaluate(() => { (globalThis as Record<string, unknown>).AGENTIC_MERMAID_ELK_CACHE = '0' })
   await page.addScriptTag({ url: `${origin}/${engine.label}/${engine.bundle}` })
   return page.evaluate(async ({ engine, inputs, round }) => {
     type Api = { render(source: string, id?: string): { svg: string } | Promise<{ svg: string }>; renderMermaidSVG(source: string): string; initialize(options: { startOnLoad: boolean }): void }

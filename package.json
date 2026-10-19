@@ -44,6 +44,12 @@
   },
   "unpkg": "./dist/browser.global.js",
   "jsdelivr": "./dist/browser.global.js",
+  "imports": {
+    "#elk-constructor": {
+      "node": "./dist/elk-constructor.node.js",
+      "default": "./dist/elk-constructor.js"
+    }
+  },
   "bin": {
     "am": "dist/am.js",
     "agentic-mermaid": "dist/am.js",

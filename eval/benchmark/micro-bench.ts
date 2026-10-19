@@ -166,7 +166,8 @@ function prepareSide(label: Side['label'], root: string, revision: string, runti
 function runSide(side: Side, passthrough: string[], scratch: string, round: number): Map<string, CaseResult> {
   const out = join(scratch, `${side.label}-${round}.json`)
   const [command, ...args] = side.runner
-  const result = spawnSync(command!, [...args, '--child', '--out', out, ...passthrough], { cwd: side.root, stdio: ['ignore', 'inherit', 'inherit'] })
+  // Time ELK rather than a cached result, and renders as users get them.
+  const result = spawnSync(command!, [...args, '--child', '--out', out, ...passthrough], { cwd: side.root, stdio: ['ignore', 'inherit', 'inherit'], env: { ...process.env, AGENTIC_MERMAID_ELK_CACHE: '0', AGENTIC_MERMAID_SCENE_ASSERTIONS: '0' } })
   if (result.status !== 0) throw new Error(`${side.label} round ${round + 1} exited with ${result.status ?? result.signal}`)
   return new Map((JSON.parse(readFileSync(out, 'utf8')) as CaseResult[]).map(entry => [entry.id, entry]))
 }

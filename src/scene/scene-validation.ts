@@ -126,6 +126,9 @@ type MutableDiagnostic = SceneValidationDiagnostic
  * neither extension output nor namespace/accessibility expansion can bypass it. */
 export function assertFinalSvgByteBudget(value: unknown, stage = 'final SVG'): asserts value is string {
   if (typeof value !== 'string') throw new TypeError(`${stage} must be a string`)
+  // A UTF-16 code unit encodes to at most three UTF-8 bytes, so a string this
+  // short is within the budget without counting.
+  if (value.length * 3 <= MAX_FINAL_SVG_BYTES) return
   if (!inspectSvgOnce('final-svg-budget', value, () => boundedUtf8ByteLength(value, MAX_FINAL_SVG_BYTES) <= MAX_FINAL_SVG_BYTES)) {
     throw new RangeError(`${stage} exceeds the ${MAX_FINAL_SVG_BYTES}-byte final SVG limit`)
   }
@@ -641,6 +644,8 @@ interface ValidationState {
   readonly endpointReferences: Array<{ id: string; path: string }>
   readonly companionLabelReferences: Array<{ id: string; path: string }>
   readonly budget: ValidationBudget
+  /** Re-derive and compare what internal lowering derived (see assertions.ts). */
+  readonly crossChecks: boolean
   nodeCount: number
 }
 
@@ -1155,7 +1160,7 @@ function validateNode(value: unknown, path: string, state: ValidationState, dept
   // External documents are compared with a freshly rebuilt canonical node in
   // validateCanonicalExternalScene. Internal lowerings need the same invariant
   // here because they intentionally bypass the external builder.
-  if (!state.external) validateConnectorProjectionConsistency(value, path, state)
+  if (!state.external && state.crossChecks) validateConnectorProjectionConsistency(value, path, state)
 }
 
 function structurallyEqual(left: unknown, right: unknown): boolean {
@@ -1383,6 +1388,21 @@ export function sceneValidationMode(value: unknown, options: SceneValidationOpti
 
 /** Validate an unknown value against the current Scene behavioral contract. */
 export function validateSceneDoc(value: unknown, options: SceneValidationOptions = {}): SceneValidationResult {
+  return validateScene(value, options, true)
+}
+
+/**
+ * Admission of a Scene one of our own families just lowered. Internal Scenes
+ * skip the cross-checks between facts our lowering derives twice unless scene
+ * assertions are on; every other rule, and every rule for external Scenes,
+ * always applies.
+ */
+export function assertAdmissibleSceneDoc(value: unknown, mode: 'internal' | 'external' | undefined, crossChecks: boolean): asserts value is SceneDoc {
+  const result = validateScene(value, { mode }, crossChecks || sceneValidationMode(value, { mode }) === 'external')
+  if (!result.valid) throw new SceneValidationError(result.diagnostics)
+}
+
+function validateScene(value: unknown, options: SceneValidationOptions, crossChecks: boolean): SceneValidationResult {
   const diagnostics: MutableDiagnostic[] = []
   if (!record(value)) {
     return Object.freeze({
@@ -1443,6 +1463,7 @@ export function validateSceneDoc(value: unknown, options: SceneValidationOptions
         pointsExceeded: false,
         pointCollections: new WeakSet(),
       },
+      crossChecks,
       nodeCount: 0,
     }
     if (value.parts.length > MAX_SCENE_NODES) add(diagnostics, 'SCENE_BOUNDS', 'scene.parts', 'contains too many top-level Scene nodes')
@@ -1577,7 +1598,11 @@ export function validateSceneDoc(value: unknown, options: SceneValidationOptions
     if (diagnostics.length === 0 && external) {
       validateCanonicalExternalScene(value as unknown as SceneDoc, diagnostics)
     }
-    if (diagnostics.length === 0) {
+    // Fidelity compares each mark's fields with its serialization. The
+    // security check inspects those serializations; for an internal Scene the
+    // final output-security gate already inspects the document a render
+    // actually emits, so these run with the cross-checks.
+    if (diagnostics.length === 0 && crossChecks) {
       const scene = value as unknown as SceneDoc
       try {
         for (const problem of sceneFidelityProblems(scene)) add(diagnostics, 'SCENE_FIDELITY', 'scene', problem)

@@ -2,6 +2,7 @@
 // Layout includes parse/projection/certification; ELK is a nested subset.
 import { writeFileSync } from 'node:fs'
 import { renderMermaidSVGWithReceipt } from '../../src/index.ts'
+import { clearElkLayoutCache } from '../../src/elk-instance.ts'
 import { withRenderStageObserver, type RenderStageSample } from '../../src/render-stages.ts'
 import { officialCorpusInventory } from '../shared/official-fences.ts'
 
@@ -13,6 +14,8 @@ for (const input of inputs) { try { renderMermaidSVGWithReceipt(input.source) } 
 for (let round = 1; round <= rounds; round++) {
   for (const input of inputs) {
     const stages: RenderStageSample[] = []
+    // The corpus repeats sources; time ELK rather than a cached result.
+    clearElkLayoutCache()
     const start = performance.now()
     let error: string | undefined
     try { withRenderStageObserver(sample => stages.push(sample), () => renderMermaidSVGWithReceipt(input.source)) }

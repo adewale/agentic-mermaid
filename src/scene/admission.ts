@@ -6,6 +6,7 @@ import type { SceneDoc, SceneNode, SemanticChannelName } from './ir.ts'
 import {
   admitSceneDocument,
 } from './external-data-snapshot.ts'
+import { sceneAssertionsEnabled } from './assertions.ts'
 import {
   SceneValidationError,
   type SceneValidationDiagnostic,
@@ -24,9 +25,9 @@ function visit(nodes: readonly SceneNode[], callback: (node: SceneNode, path: st
  * descriptor's complete role x primitive ledger. Every family returns the
  * bounded immutable snapshot that every backend must serialize.
  */
-export function admitFamilyScene(descriptor: FamilyDescriptor, value: unknown): SceneDoc {
+export function admitFamilyScene(descriptor: FamilyDescriptor, value: unknown, crossChecks = sceneAssertionsEnabled()): SceneDoc {
   const external = descriptor.id.startsWith('family:')
-  const scene = admitSceneDocument(value, external ? 'external' : 'internal')
+  const scene = admitSceneDocument(value, external ? 'external' : 'internal', crossChecks)
   const diagnostics: SceneValidationDiagnostic[] = []
 
   if (external && scene.family !== descriptor.id) {
