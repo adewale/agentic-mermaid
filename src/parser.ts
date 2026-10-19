@@ -26,7 +26,7 @@ import type { Direction, EdgeMarker, EdgeStyle, MermaidEdge, MermaidGraph, Merma
 export { parseStyleProps } from './shared/style-props.ts'
 import { detectCompatibilityGraphFamilyFromFirstLine } from './agent/family-router.ts'
 import { classifyMermaidFamilyFromFirstLine } from './family-detection.ts'
-import { coalesceFlowchartLines, flowchartRegionAt, flowchartStatementSpans, matchFlowchartLink, matchTextArrow } from './flowchart-lexer.ts'
+import { coalesceFlowchartLines, findTextArrow, flowchartRegionAt, flowchartStatementSpans, matchFlowchartLink, matchTextArrow } from './flowchart-lexer.ts'
 import { consumeClassShorthandPrefix,
   consumeMermaidIdentifier,
   isMermaidIdentifier, MERMAID_IDENTIFIER_SOURCE, parseClassShorthandStatement } from './shared/mermaid-identifiers.ts'
@@ -411,6 +411,15 @@ function parseFlowchart(lines: string[]): MermaidGraph {
 function invalidFlowchartStatement(line: string, parsed: Extract<EdgeLineParseResult, { ok: false }>): Error {
   const where = `Invalid flowchart statement "${line}"`
   if (/^<?(?:-{2,}|-\.+|={2,})/.test(parsed.remaining)) {
+    const found = findTextArrow(parsed.remaining, 0)
+    if (found && 'stray' in found) {
+      const stray = parsed.remaining.slice(found.stray, found.stray + 2)
+      return syntaxError({
+        what: `${where}: the link label in "${parsed.remaining}" holds a \`${stray}\` before the link that closes it, which upstream's lexer rejects`,
+        expectedForm: `a label without \`${stray}\`, or a quoted one`,
+        example: `A -- "x ${stray} y" --> B`,
+      })
+    }
     return syntaxError({
       what: `${where}: "${parsed.remaining}" opens a link label that no link closes (\`--\` and \`-.\` always open a link, so a node id cannot hold them)`,
       expectedForm: 'a label closed by a link of the same stroke, or an id without `--`',

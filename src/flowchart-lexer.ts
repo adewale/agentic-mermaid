@@ -21,7 +21,10 @@
  *     (`;`, brackets and `|` inside it are text). Where no link of its stroke
  *     follows, ours also closes it with a link of another stroke
  *     (`A -- b ==> B`), which upstream rejects; verify reports that. One that
- *     no link closes runs to the end of the text.
+ *     no link closes runs to the end of the text. A `--` (`==`) inside a
+ *     solid (thick) label that does not close it is no token upstream: such
+ *     a label does not close, and what follows its opener is lexed as
+ *     written.
  *   - At statement level, `@{` opens a metadata block, which
  *     shared/metadata-block-scan.ts delimits. A quoted label masks it. Ours
  *     also reads `@ {`, which upstream rejects; verify reports that.
@@ -92,6 +95,16 @@ const TEXT_ARROW_CLOSE_RE = Object.fromEntries(Object.entries(TEXT_ARROW_CLOSER_
 const TEXT_ARROW_CLOSE_AFTER_SPACE_RE = Object.fromEntries(Object.entries(TEXT_ARROW_CLOSER_SOURCE)
   .map(([stroke, source]) => [stroke, new RegExp(`\\s*(?:${source})`, 'y')])) as Record<TextArrowCloser, RegExp>
 
+/** What upstream's edge text cannot hold, per stroke: its link character
+ * doubled, unless that begins the link that closes it (`flow.jison` lexes the
+ * second `--` of `-- x -- y -->` as no token). In a dotted label, `.-` always
+ * begins a link. */
+const TEXT_ARROW_STRAY_RE: Readonly<Record<TextArrowStroke, RegExp | undefined>> = {
+  solid: /--/y,
+  thick: /==/y,
+  dotted: undefined,
+}
+
 function textArrowStroke(openOp: string): TextArrowStroke {
   return openOp.includes('.') ? 'dotted' : openOp.startsWith('=') ? 'thick' : 'solid'
 }
@@ -139,20 +152,42 @@ function wholeQuotedLabel(text: string, from: number, stroke: TextArrowCloser): 
  * The text-arrow link at `at` (`-- label -->`, `-. label .->`,
  * `== label ==>`, compact or spaced): the first link of the opener's stroke
  * after a non-empty label closes it, or where there is none, the first link of
- * any stroke (`mixed`). Null when `at` does not open one.
+ * any stroke (`mixed`). Null when `at` does not open one, or when nothing
+ * closes it (findTextArrow tells these apart).
  */
 export function matchTextArrow(text: string, at: number): TextArrowMatch | null {
-  const opener = stickyMatch(TEXT_ARROW_OPEN_RE, text, at)
-  if (!opener) return null
-  return closeTextArrow(text, at, opener, textArrowStroke(opener[2]!)) ?? closeTextArrow(text, at, opener, 'mixed')
+  const found = findTextArrow(text, at)
+  return found && 'end' in found ? found : null
 }
 
-function closeTextArrow(text: string, at: number, opener: RegExpExecArray, stroke: TextArrowCloser): TextArrowMatch | null {
+/**
+ * matchTextArrow's link, or where upstream's lexer rejects the label before
+ * any link closes it, the offset of the doubled link character it cannot hold
+ * (TEXT_ARROW_STRAY_RE): `--` in `A -- x -- y --> B`, `A -- x;A-- y --> B` or
+ * a label run on across lines into `A-- y`. Such a label does not close.
+ */
+export function findTextArrow(text: string, at: number): TextArrowMatch | { readonly stray: number } | null {
+  const opener = stickyMatch(TEXT_ARROW_OPEN_RE, text, at)
+  if (!opener) return null
+  const own = closeTextArrow(text, at, opener, textArrowStroke(opener[2]!))
+  return own && 'end' in own ? own : closeTextArrow(text, at, opener, 'mixed')
+}
+
+function textArrowStrays(text: string): boolean {
+  const found = findTextArrow(text, 0)
+  return found !== null && 'stray' in found
+}
+
+function closeTextArrow(text: string, at: number, opener: RegExpExecArray, stroke: TextArrowCloser): TextArrowMatch | { stray: number } | null {
   const labelFrom = at + opener[0].length
   const quote = wholeQuotedLabel(text, labelFrom, stroke)
+  const stray = TEXT_ARROW_STRAY_RE[textArrowStroke(opener[2]!)]
   for (let index = quote ? quote.close + 1 : labelFrom; index < text.length; index++) {
     const closer = stickyMatch(TEXT_ARROW_CLOSE_RE[stroke], text, index)
-    if (!closer) continue
+    if (!closer) {
+      if (stray && stickyMatch(stray, text, index)) return { stray: index }
+      continue
+    }
     const raw = text.slice(labelFrom, index)
     const trimmed = raw.trim()
     if (trimmed.length === 0) continue
@@ -312,7 +347,8 @@ function lex(text: string, from: number, single: boolean, labelStrings: boolean)
         continue
       }
       const opener = stickyMatch(TEXT_ARROW_OPEN_RE, text, index)
-      const arrow = opener ? matchTextArrow(text, index) : null
+      const found = opener ? findTextArrow(text, index) : null
+      const arrow = found && 'end' in found ? found : null
       if (arrow) {
         const regionIndex = regions.length
         regions.push({ kind: 'edge-text', start: index, end: arrow.end, contentStart: arrow.labelStart, contentEnd: arrow.labelEnd, closed: true, parent: -1 })
@@ -331,6 +367,12 @@ function lex(text: string, from: number, single: boolean, labelStrings: boolean)
       if (opener) {
         links.push({ start: index, end: index + opener[0].length })
         topLevel.fill(true, index, index + opener[0].length)
+        // A label upstream rejects (findTextArrow) neither closes nor runs on
+        // to the next line: what follows its opener is lexed as written.
+        if (found) {
+          index += opener[0].length - 1
+          continue
+        }
         open('edge-text', index, index + opener[0].length)
         break
       }
@@ -462,6 +504,10 @@ export function coalesceFlowchartLines(lines: readonly string[]): FlowchartLineG
     const subgraphTitle = title !== undefined && titleClosesFrom(index, title)
     const inRegion = group !== undefined && open.length > 0 && open.length <= MAX_CONTINUED_REGIONS && !midLabelString
       && (open[0] === 'metadata' || open.includes('markdown') || !keyword || subgraphTitle)
+      // Upstream's lexer rejects a text-arrow label that takes in a `--`
+      // (`==`) that does not close it (findTextArrow): a line that would put
+      // one in is no part of the label.
+      && !(open[0] === 'edge-text' && textArrowStrays(`${continuationPrefix(scanned, scan).prefix}${trimmed}`))
     if (!inRegion && (!trimmed || trimmed.startsWith('%%'))) {
       out.push({ text: raw, line: index })
       continue

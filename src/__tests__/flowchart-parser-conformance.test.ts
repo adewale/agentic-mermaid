@@ -208,6 +208,12 @@ describe('flowchart parser conformance safety floor (issue #36)', () => {
       'subgraph X\n  B -->\n  end',
       // A string opened after other title text is not the title's, as upstream.
       'subgraph X "title\n  more"\n  C\n  end',
+      // Upstream's edge text holds no `--` (`==`) but the link that closes
+      // it, on one line, past a `;` or across lines.
+      'A -- x -- y --> B',
+      'A == x == y ==> B',
+      'A -- x;A-- y --> B',
+      'A -- x\n  A-- y --> B',
     ]) {
       const source = `flowchart TD\n  A --> B\n  ${statement}`
       expect(() => parseGraph(source), statement).toThrow(/fully consume|invalid flowchart statement/i)
@@ -282,6 +288,13 @@ describe('flowchart parser conformance safety floor (issue #36)', () => {
     const graph = parseGraph(`flowchart TD\n  ${body}`)
     expect(graph.edges.map(edge => `${edge.source}->${edge.target}`)).toEqual(edges)
     expect(graph.subgraphs.map(group => group.nodeIds)).toEqual(members)
+  })
+
+  // A label that a `--` would break is not run on: the statement ends where
+  // its line does.
+  test('a text-arrow label runs on to no line that puts a `--` into it', () => {
+    expect(coalesceFlowchartLines(['A -- x', '  A-- y --> B', 'C -- z', '  D --> E']).map(group => group.text))
+      .toEqual(['A -- x', '  A-- y --> B', 'C -- z<br>D --> E'])
   })
 
   // Upstream nests no shape text, so a line left deeper ends where it ends;

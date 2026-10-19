@@ -821,10 +821,15 @@ describe('parseMermaid – edge cases', () => {
     expect(ids[1]).toBe('A')
   })
 
-  it('names the construct when rejecting an id holding `--`', () => {
+  it.each([
     // Upstream rejects it too (property-upstream-flowchart.test.ts). Whether
     // `A--a` is an id or a link label is unclear, so ours rejects it.
-    expect(() => parseMermaid('graph TD\n  A--a --> A--a')).toThrow(/"--a" opens a link label that no link closes/)
+    ['an id holding `--`', 'graph TD\n  A--a --> A--a', /"--a" opens a link label that no link closes/],
+    // Upstream's edge text holds no `--` but the link that closes it, and its
+    // lexer rejects one there.
+    ['a link label holding `--`', 'graph TD\n  A -- x -- y --> B', /link label in "-- x -- y --> B" holds a `--` before the link that closes it/],
+  ])('names the construct when rejecting %s', (_construct, source, message) => {
+    expect(() => parseMermaid(source)).toThrow(message)
   })
 
   // Mermaid rejects each of these, but what it means is clear, so ours reads
