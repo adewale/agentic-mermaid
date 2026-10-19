@@ -76,6 +76,14 @@ const FLOWCHART_LINK_BODY = String.raw`~{3,}|[xo]-?\.+-[xo]|-?\.+-[>xo]?|[xo]={2
 export const FLOWCHART_LINK_RE = new RegExp(`(<)?(${FLOWCHART_LINK_BODY})`, 'y')
 /** The link grammar as a pattern without groups, to build other expressions on. */
 export const FLOWCHART_LINK_SOURCE = `<?(?:${FLOWCHART_LINK_BODY})`
+/**
+ * An edge id before its `@` (upstream's LINK_ID `[^\s"]+@`), as a pattern:
+ * a run of anything but whitespace and `"`. Ours leaves out the characters
+ * that open or close a region here (`[](){}|<>`), `;`, which ends a
+ * statement, and `@`, which upstream reads out of the id (`e1@x@` is
+ * `e1x@` there), and an id that begins with a link or a text-arrow opener.
+ */
+export const FLOWCHART_EDGE_ID_SOURCE = String.raw`(?!${FLOWCHART_LINK_SOURCE}|-{2,}|-\.|={2,})[^\s"@[\](){}|<>;]+`
 /** A text-arrow label's opening link, with its start marker (`<`, or `x` or
  * `o` in upstream's `x-- a --x`). */
 const TEXT_ARROW_OPEN_RE = /([<xo])?(-{2,}|-\.+|={2,})/y

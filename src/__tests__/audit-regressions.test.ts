@@ -86,6 +86,7 @@ describe('reported contract regressions', () => {
       ['flowchart TD\n  Server[Server]\n  Client .-> Sevrer', 'flowchart_implicit_endpoint'],
       ['flowchart TD\n  Server[Server]\n  Client -.-x Sevrer', 'flowchart_implicit_endpoint'],
       ['flowchart TD\n  A e1@.-> B\n  e1@{ label: "calls" }', 'flowchart_edge_metadata'],
+      ['flowchart TD\n  A e.1@--> B\n  e.1@{ label: "calls" }', 'flowchart_edge_metadata'],
       ['flowchart TD\n  Server[Server]\n  Client[Client] --> Sevrer', 'flowchart_implicit_endpoint'],
       ['flowchart TD\n  Server\n  Client --> Sevrer', 'flowchart_implicit_endpoint'],
       ['flowchart TD\n  Server@{ shape: rect, label: "Server" }\n  Client --> Sevrer', 'flowchart_implicit_endpoint'],

@@ -1,7 +1,7 @@
 import type { LayoutWarning } from './types.ts'
 import { normalizeV11Shape } from '../flowchart-shapes.ts'
 import { parseMermaid, splitFlowchartStatements, splitInlineHeaderStatements } from '../parser.ts'
-import { coalesceFlowchartLines, FLOWCHART_LINK_SOURCE, matchTextArrow, scanFlowchart } from '../flowchart-lexer.ts'
+import { coalesceFlowchartLines, FLOWCHART_EDGE_ID_SOURCE, FLOWCHART_LINK_SOURCE, flowchartNodeIdLength, matchTextArrow, scanFlowchart } from '../flowchart-lexer.ts'
 import { metadataText, readMetadataBlock } from '../shared/metadata-yaml.ts'
 import { parseAccessibilityDirective } from '../shared/accessibility-directives.ts'
 
@@ -338,7 +338,7 @@ function isUnsupportedFlowchartInteraction(statement: string): boolean {
 
 function declaredEdgeIds(statements: FlowchartStatement[]): Set<string> {
   const ids = new Set<string>()
-  const pattern = new RegExp(String.raw`(?:^|\s)([A-Za-z_][\w-]*)@(?:${FLOWCHART_LINK_SOURCE}|--)`, 'g')
+  const pattern = new RegExp(String.raw`(?:^|\s)(${FLOWCHART_EDGE_ID_SOURCE})@\s*(?:${FLOWCHART_LINK_SOURCE}|--)`, 'gu')
   for (const { text } of statements) {
     let match: RegExpExecArray | null
     while ((match = pattern.exec(text)) !== null) ids.add(match[1]!)
@@ -348,12 +348,14 @@ function declaredEdgeIds(statements: FlowchartStatement[]): Set<string> {
 
 function isUnsupportedEdgeMetadataStatement(statement: string, edgeIds: Set<string>): boolean {
   const trimmed = statement.trim()
-  const head = trimmed.match(/^([\w-]+)\s*@\s*\{/)
-  if (!head) return false
-  const block = readMetadataBlock(trimmed, head[0].length - 1, 'flowchart')
+  // The id before `@{` is a node id (flowchartNodeIdLength), as the parser reads it.
+  const idLength = flowchartNodeIdLength(trimmed)
+  const open = idLength > 0 ? /^\s*@\s*\{/.exec(trimmed.slice(idLength)) : null
+  if (!open) return false
+  const block = readMetadataBlock(trimmed, idLength + open[0].length - 1, 'flowchart')
   if (!block.ok || trimmed.slice(block.end + 1).trim() !== '') return false
   const { entries } = block
-  if (edgeIds.has(head[1]!)) return [...entries.keys()].some(key => key !== 'animate' && key !== 'animation' && key !== 'curve')
+  if (edgeIds.has(trimmed.slice(0, idLength))) return [...entries.keys()].some(key => key !== 'animate' && key !== 'animation' && key !== 'curve')
   if (isNodeMetadata(entries)) return false
   return [...entries.keys()].some(key => key !== 'animate' && key !== 'animation' && key !== 'curve')
 }

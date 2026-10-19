@@ -27,7 +27,7 @@ import type { Direction, EdgeMarker, EdgeStyle, MermaidEdge, MermaidGraph, Merma
 export { parseStyleProps } from './shared/style-props.ts'
 import { detectCompatibilityGraphFamilyFromFirstLine } from './agent/family-router.ts'
 import { classifyMermaidFamilyFromFirstLine } from './family-detection.ts'
-import { coalesceFlowchartLines, continuesNodeId, findTextArrow, FLOWCHART_LINK_SOURCE, flowchartNodeIdLength, flowchartRegionAt, flowchartStatementSpans, matchFlowchartLink, matchTextArrow } from './flowchart-lexer.ts'
+import { coalesceFlowchartLines, continuesNodeId, findTextArrow, FLOWCHART_EDGE_ID_SOURCE, FLOWCHART_LINK_SOURCE, flowchartNodeIdLength, flowchartRegionAt, flowchartStatementSpans, matchFlowchartLink, matchTextArrow } from './flowchart-lexer.ts'
 import { consumeClassShorthandPrefix,
   isMermaidIdentifier, MERMAID_IDENTIFIER_SOURCE, parseClassShorthandStatement } from './shared/mermaid-identifiers.ts'
 import { metadataText, readMetadataBlock } from './shared/metadata-yaml.ts'
@@ -243,11 +243,13 @@ function applyFlowchartEdgeMetadata(graph: MermaidGraph, { id, entries }: Metada
  * reads `id @{…}` and `id@ {…}` (METADATA_OPEN_SOURCE). */
 function edgeMetadataStatement(graph: MermaidGraph, line: string): MetadataStatement | null {
   const statement = line.trim()
-  const head = statement.match(new RegExp(`^([\\w-]+)${METADATA_OPEN_SOURCE}`))
-  if (!head) return null
-  const { end, entries } = readFlowchartMetadata(statement, head[0].length - 1)
+  // Upstream reads the id before `@{` as a node id (`e.1@{…}`).
+  const idLength = flowchartNodeIdLength(statement)
+  const open = idLength > 0 ? statement.slice(idLength).match(new RegExp(`^${METADATA_OPEN_SOURCE}`)) : null
+  if (!open) return null
+  const { end, entries } = readFlowchartMetadata(statement, idLength + open[0].length - 1)
   if (statement.slice(end + 1).trim() !== '') return null
-  const id = head[1]!
+  const id = statement.slice(0, idLength)
   // As upstream's `addVertex`: the block addresses an edge declared so far
   // with that id; otherwise it declares (or refines) a node.
   return graph.edges.some(edge => edge.id === id) ? { id, entries } : null
@@ -1184,7 +1186,7 @@ function consumeBareNodeId(text: string): { id: string; length: number } | null 
   return length > 0 ? { id: text.slice(0, length), length } : null
 }
 
-const EDGE_ID_PREFIX_REGEX = new RegExp(String.raw`^([\w-]+)@\s*(?=${FLOWCHART_LINK_SOURCE}|(?:-{2,}|-\.+|={2,})\s+)`)
+const EDGE_ID_PREFIX_REGEX = new RegExp(String.raw`^(${FLOWCHART_EDGE_ID_SOURCE})@\s*(?=${FLOWCHART_LINK_SOURCE}|(?:-{2,}|-\.+|={2,})\s+)`, 'u')
 
 function consumeClassShorthand(text: string): { className: string; length: number } | null {
   const parsed = consumeClassShorthandPrefix(text)
