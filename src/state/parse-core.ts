@@ -207,6 +207,9 @@ export interface StateStatement {
   noteBody?: boolean
   /** A `state … {` that opens a composite. */
   opens?: boolean
+  /** Read from the rest of a `state "…" as id` line, which Mermaid reads
+   *  as the name to the line's end. */
+  afterAlias?: boolean
 }
 
 export interface StateStatementScan {
@@ -581,7 +584,7 @@ export function readStateStatements(lines: readonly StateSourceLine[]): StateSta
         depth++
       }
       // `state "L" as X : text` is read as `state "L" as X` and `X : text`.
-      if (read.also !== undefined) statements.push({ text: read.also, line })
+      if (read.also !== undefined) statements.push({ text: read.also, line, ...(declaration !== null ? { afterAlias: true } : {}) })
       if (row !== startRow) mark = { statements: statements.length, depth, column }
       continue
     }

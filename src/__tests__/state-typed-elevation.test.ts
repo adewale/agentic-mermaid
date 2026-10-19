@@ -426,25 +426,36 @@ stateDiagram-v2
     } finally { upstream.close() }
   })
 
-  test('writes a `;` or a colon run in a description or label so Mermaid reads the whole text', async () => {
+  test('writes a `;` or a colon run in a description or label so Mermaid reads the whole text, and reports it in source', async () => {
     // Mermaid's description token ends at `;`, at `::` and at a final `:`.
     const labels = ['a; b', 'a::b', 'ends:', 'x # y; z', 'classDef x:y; z']
     const sources = [
       ...['a; b', 'a::b', 'ends:', 'x #35; y; z', 'classDef x:y; z'].map(text => `stateDiagram-v2\n  A --> B : ${text}`),
       'stateDiagram-v2\n  A : say "hi"; ok',
+      'stateDiagram-v2\n  A:::hot : a;',
     ]
     const written = sources.map(source => serializeMermaid(state(source)))
     expect(sources.map(source => { const body = state(source).body; return body.transitions[0]?.label ?? body.states[0]?.label }))
-      .toEqual([...labels, 'say "hi"; ok'])
+      .toEqual([...labels, 'say "hi"; ok', 'a;'])
     expect(written.map(source => { const body = state(source).body; return body.transitions[0]?.label ?? body.states[0]?.label }))
-      .toEqual([...labels, 'say "hi"; ok'])
+      .toEqual([...labels, 'say "hi"; ok', 'a;'])
+    const unsupported = (source: string): string[] => verifyMermaid(source).warnings.flatMap(warning => warning.code === 'UNSUPPORTED_SYNTAX' ? [`${warning.syntax}@${warning.line}`] : [])
+    expect(sources.map(unsupported)).toEqual(sources.map(() => ['state_text_cut@2']))
+    expect(written.map(unsupported)).toEqual(written.map(() => []))
+    // Mermaid reads these whole: a colon text follows, an entity code, the
+    // text after `state "…" as`, and a block note.
+    const whole = ['A : a:b', 'A --> B : a #59; b', 'state "x" as A : a; b', 'note right of A\n    a; b :: c:\n  end note']
+      .map(body => `stateDiagram-v2\n  ${body}`)
+    expect(whole.map(unsupported)).toEqual(whole.map(() => []))
     const upstream = startUpstreamMermaid()
     try {
       const read = await upstream.projectAll(written, mermaid => {
         const data = mermaid.db.getData()
         return data.edges[0]?.label ?? data.nodes.find((node: { id: string }) => node.id === 'A').label
       })
-      expect(read.map(text => projectEntityMarkers(text))).toEqual([...labels, 'say "hi"; ok'])
+      expect(read.map(text => projectEntityMarkers(text))).toEqual([...labels, 'say "hi"; ok', 'a;'])
+      expect(await upstream.projectAll(whole, mermaid => mermaid.db.rootDoc.flatMap((item: any) => item.description ? [item.description] : item.note ? [item.note.text] : [])))
+        .toEqual([['a:b'], ['a ﬂ°°59¶ß b'], [['x', ' a; b']], ['a; b :: c:']])
     } finally { upstream.close() }
   })
 
