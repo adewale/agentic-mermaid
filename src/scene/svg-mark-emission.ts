@@ -71,6 +71,10 @@ export function decorateEmission(recipe: SvgEmissionRecipe, node: SceneNode, con
     const set = (name: SvgAttribute['name'], value: SvgAttribute['value'], replace: boolean): void => {
       const index = attributes.findIndex(attribute => attribute.name === name)
       if (index >= 0) { if (replace) attributes[index] = { ...attributes[index]!, value }; return }
+      if (tail !== attributes) {
+        const index = tail.findIndex(attribute => attribute.name === name)
+        if (index >= 0) { if (replace) tail[index] = { ...tail[index]!, value }; return }
+      }
       tail.push({ name, value })
     }
     if (connector) {

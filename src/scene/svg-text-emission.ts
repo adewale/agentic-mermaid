@@ -63,6 +63,14 @@ function writePreparedLine(block: PixelTextBlock, index: number, x: number, anch
  * It never recovers text, typography or placement from historical SVG. */
 export function writeSceneText(node: TextMark, recipe: SvgTextEmission, writer: SvgWriter): void {
   const block = node.measurement === 'prepared' ? node.block : undefined
+  if (recipe.spans) {
+    let end = 0
+    for (const span of recipe.spans) {
+      if (span.start !== end || span.end > node.text.length) throw new TypeError('SVG text spans must cover semantic text exactly')
+      end = span.end
+    }
+    if (end !== node.text.length) throw new TypeError('SVG text spans must cover semantic text exactly')
+  }
   const tail = (): void => { if (recipe.tailAttributes) writeSvgAttributes(node, recipe.tailAttributes, writer) }
   if (recipe.layout === 'direct') {
     writer.write('<text')
@@ -94,7 +102,14 @@ export function writeSceneText(node: TextMark, recipe: SvgTextEmission, writer: 
     }
   }
   const line = (index: number, baseline?: number): void => {
-    if (block) writePreparedLine(block, index, node.x, node.anchor, writer, baseline)
+    const plain = block?.lineBlocks[index]
+    if (recipe.spans && block?.lines.length === 1 && !fragmented && !plain?.fragments && plain?.runs.every(run => !run.bold && !run.italic && !run.underline && !run.strikethrough)) {
+      for (const span of recipe.spans) {
+        writer.write('<tspan')
+        writeSvgAttributes(node, span.attributes, writer)
+        writer.write('>'); writer.text(node.text.slice(span.start, span.end)); writer.write('</tspan>')
+      }
+    } else if (block) writePreparedLine(block, index, node.x, node.anchor, writer, baseline)
     else writeRuns(prepared.lineBlocks[index]!.runs, 400, writer)
   }
   const shift = node.fontSize * (recipe.baselineShift ?? 0.35)

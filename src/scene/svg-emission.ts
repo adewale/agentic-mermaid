@@ -14,8 +14,9 @@ import { SvgWriter, type SvgWriterOptions, type SvgAttributeEscape } from './svg
 
 export type SvgNumberFormat = 'exact' | 'round2' | 'round3'
 export type SvgGeometryField = 'x' | 'y' | 'width' | 'height' | 'rx' | 'ry' | 'cx' | 'cy' | 'r' | 'x1' | 'y1' | 'x2' | 'y2' | 'd' | 'points'
-export type SvgTextField = 'text' | 'x' | 'y' | 'fontSize' | 'fontWeight' | 'letterSpacing' | 'anchor'
+export type SvgTextField = 'text' | 'source' | 'x' | 'y' | 'fontSize' | 'fontWeight' | 'letterSpacing' | 'anchor'
 export type SvgConnectorField = 'color' | 'width' | 'opacity' | 'mixBlendMode' | 'pathLength' | 'lineCap' | 'lineJoin' | 'miterLimit' | 'lineStyle' | 'relationshipKind' | 'direction'
+export type SvgCssProperty = 'mix-blend-mode' | 'fill' | 'stroke' | 'stroke-width' | 'stroke-dasharray' | 'opacity'
 
 export type SvgValue =
   | { readonly source: 'geometry'; readonly field: SvgGeometryField; readonly piece?: number }
@@ -28,7 +29,7 @@ export type SvgValue =
   | { readonly source: 'transform' }
   | { readonly source: 'marker'; readonly position: 'start' | 'mid' | 'end' }
   | { readonly source: 'document'; readonly field: 'text' | 'domId' }
-  | { readonly source: 'style'; readonly declarations: readonly { readonly property: 'mix-blend-mode'; readonly value: SvgValue }[] }
+  | { readonly source: 'style'; readonly declarations: readonly { readonly property: SvgCssProperty; readonly value: SvgValue }[] }
   /** Only extra family metadata or presentation values absent from Scene IR.
    * Semantic attributes must use the corresponding projection source. */
   | { readonly source: 'metadata'; readonly value: string | number | boolean }
@@ -93,6 +94,9 @@ export interface SvgTextEmission {
   readonly layout: 'multiline' | 'direct'
   readonly baselineShift?: number
   readonly dy?: string | number
+  /** Literal syntax highlighting slices refer to the semantic text, never a
+   * second text/markup authority. Prepared shaping keeps priority. */
+  readonly spans?: readonly { readonly start: number; readonly end: number; readonly attributes: readonly SvgAttribute[] }[]
 }
 
 export interface SvgStylesheetEmission {
@@ -229,7 +233,7 @@ export function svgEmissionValue(node: SceneNode, value: SvgValue, recipe?: SvgP
       }
       return undefined
     }
-    case 'text': return node.kind === 'text' ? node[value.field] : undefined
+    case 'text': return node.kind === 'text' ? value.field === 'source' ? node.block?.prepared.source ?? node.text : node[value.field] : undefined
     case 'identity': {
       const result = node.identity?.[value.field]
       return Array.isArray(result) ? result.join(' ') : result as string | undefined
@@ -243,7 +247,10 @@ export function svgEmissionValue(node: SceneNode, value: SvgValue, recipe?: SvgP
       return marker ? `url(#${marker.id})` : undefined
     }
     case 'document': return node.kind === 'document' ? node[value.field] : undefined
-    case 'style': return value.declarations.map(declaration => `${declaration.property}:${svgEmissionValue(node, declaration.value, recipe) ?? ''}`).join(';')
+    case 'style': return value.declarations.flatMap(declaration => {
+      const value = svgEmissionValue(node, declaration.value, recipe)
+      return value === undefined ? [] : [`${declaration.property}:${value}`]
+    }).join(';')
     case 'metadata':
       if (typeof value.value !== 'string' && typeof value.value !== 'number' && typeof value.value !== 'boolean') throw new TypeError('SVG metadata must be scalar data')
       return value.value
@@ -415,6 +422,7 @@ export const SVG_EMISSION_METADATA_LIMITS: SvgEmissionMetadataLimits = Object.fr
 })
 
 const RECIPE_COUNTS = new WeakMap<object, SvgEmissionMetadataCounts>()
+const CANONICAL_RECIPES = new WeakSet<object>()
 
 /** Descriptor-copy before validation: getters/iterators never run, cycles are
  * rejected, aliases remain aliases, and freezing never touches caller data.
@@ -423,7 +431,7 @@ const RECIPE_COUNTS = new WeakMap<object, SvgEmissionMetadataCounts>()
 export function snapshotSvgEmissionRecipe(recipe: SvgEmissionRecipe, limits: SvgEmissionMetadataLimits = SVG_EMISSION_METADATA_LIMITS): SvgEmissionRecipe {
   // Family-wide constant recipes can be snapshotted once and safely reused.
   // Never cache a caller-owned mutable input or assume a shallow freeze is deep.
-  if (limits === SVG_EMISSION_METADATA_LIMITS && recipe && RECIPE_COUNTS.has(recipe)) return recipe
+  if (limits === SVG_EMISSION_METADATA_LIMITS && recipe && CANONICAL_RECIPES.has(recipe)) return recipe
   for (const key of ['maxDepth', 'maxObjects', 'maxProperties', 'maxArrayEntries', 'maxTextBytes', 'maxPropertyKeyBytes'] as const) {
     if (!Number.isSafeInteger(limits[key]) || limits[key] < 0) throw new TypeError('SVG metadata limits must be non-negative safe integers')
   }
@@ -483,6 +491,7 @@ export function snapshotSvgEmissionRecipe(recipe: SvgEmissionRecipe, limits: Svg
   const snapshot = visit(recipe, 0) as SvgEmissionRecipe
   validateSvgEmissionRecipe(snapshot)
   RECIPE_COUNTS.set(snapshot, Object.freeze(counts))
+  if (limits === SVG_EMISSION_METADATA_LIMITS) CANONICAL_RECIPES.add(snapshot)
   return snapshot
 }
 
@@ -533,9 +542,11 @@ export function validateSvgEmissionRecipe(recipe: SvgEmissionRecipe): void {
       if (declarations.length > 16) throw new RangeError('SVG style projection exceeds declaration budget')
       for (const declaration of declarations) {
         const item = object(declaration, ['property', 'value'])
-        oneOf(item.property, ['mix-blend-mode'], false)
+        const properties = { 'mix-blend-mode': ['connector', 'mixBlendMode'], fill: ['paint', 'fill'], stroke: ['paint', 'stroke'], 'stroke-width': ['paint', 'strokeWidth'], 'stroke-dasharray': ['paint', 'strokeDasharray'], opacity: ['paint', 'opacity'] } as const
+        oneOf(item.property, Object.keys(properties), false)
         const projected = object(item.value, ['source', 'field'])
-        if (projected.source !== 'connector' || projected.field !== 'mixBlendMode') throw new TypeError('Blend style must project typed connector blend mode')
+        const expected = properties[item.property as keyof typeof properties]
+        if (projected.source !== expected[0] || projected.field !== expected[1]) throw new TypeError('SVG style must project its matching semantic field')
         projection(item.value)
       }
       return
@@ -552,7 +563,7 @@ export function validateSvgEmissionRecipe(recipe: SvgEmissionRecipe): void {
     switch (source) {
       case 'geometry': if (!GEOMETRY_NAMES.has(item.field as string)) throw new TypeError('Unknown SVG geometry projection'); return
       case 'paint': if (!PAINT_FIELDS.has(item.field as string)) throw new TypeError('Unknown SVG paint projection'); return
-      case 'text': oneOf(item.field, ['text', 'x', 'y', 'fontSize', 'fontWeight', 'letterSpacing', 'anchor'], false); return
+      case 'text': oneOf(item.field, ['text', 'source', 'x', 'y', 'fontSize', 'fontWeight', 'letterSpacing', 'anchor'], false); return
       case 'identity': oneOf(item.field, ['id', 'role', 'from', 'to', 'classNames'], false); return
       case 'accessibility': oneOf(item.field, ['label', 'role', 'roleDescription'], false); return
       case 'connector': oneOf(item.field, ['color', 'width', 'opacity', 'mixBlendMode', 'pathLength', 'lineCap', 'lineJoin', 'miterLimit', 'lineStyle', 'relationshipKind', 'direction'], false); return
@@ -585,10 +596,11 @@ export function validateSvgEmissionRecipe(recipe: SvgEmissionRecipe): void {
   const stylesheet = (value: unknown): void => {
     const item = object(value, ['kind', 'css'])
     if (item.kind !== 'stylesheet' || typeof item.css !== 'string') throw new TypeError('SVG stylesheets require CSS text')
+    if (item.css.includes('<')) throw new TypeError('SVG stylesheet text must not contain XML markup delimiters')
   }
   const visit = (value: unknown, depth: number): void => {
     if (depth > 64) throw new RangeError('SVG recipe exceeds depth budget')
-    const item = object(value, ['kind', 'piece', 'attributes', 'tailAttributes', 'close', 'pieces', 'prefix', 'layout', 'baselineShift', 'dy', 'width', 'height', 'colors', 'transparent', 'font', 'hasMonoFont', 'widthAttribute', 'heightAttribute', 'extraStyle', 'children', 'join', 'resources', 'indent', 'element', 'text', 'domId', 'css'])
+    const item = object(value, ['kind', 'piece', 'attributes', 'tailAttributes', 'close', 'pieces', 'prefix', 'layout', 'baselineShift', 'dy', 'spans', 'width', 'height', 'colors', 'transparent', 'font', 'hasMonoFont', 'widthAttribute', 'heightAttribute', 'extraStyle', 'children', 'join', 'resources', 'indent', 'element', 'text', 'domId', 'css'])
     if (seen.has(item)) return
     seen.add(item)
     switch (item.kind) {
@@ -608,8 +620,14 @@ export function validateSvgEmissionRecipe(recipe: SvgEmissionRecipe): void {
         if (item.prefix !== undefined) for (const value of array(item.prefix)) documentText(value)
         return
       case 'text':
-        object(item, ['kind', 'attributes', 'tailAttributes', 'layout', 'baselineShift', 'dy']); attributes(item.attributes)
+        object(item, ['kind', 'attributes', 'tailAttributes', 'layout', 'baselineShift', 'dy', 'spans']); attributes(item.attributes)
         if (item.tailAttributes !== undefined) attributes(item.tailAttributes)
+        if (item.spans !== undefined) for (const value of array(item.spans)) {
+          const span = object(value, ['start', 'end', 'attributes'])
+          index(span.start); index(span.end)
+          if (typeof span.start !== 'number' || typeof span.end !== 'number' || span.end < span.start) throw new TypeError('SVG text spans require ordered semantic-text indices')
+          attributes(span.attributes)
+        }
         oneOf(item.layout, ['multiline', 'direct'], false); optionalNumber(item.baselineShift)
         if (item.dy !== undefined && typeof item.dy !== 'string' && typeof item.dy !== 'number') throw new TypeError('SVG text dy must be text or a number')
         optionalNumber(typeof item.dy === 'number' ? item.dy : undefined)
@@ -647,4 +665,20 @@ export function validateSvgEmissionRecipe(recipe: SvgEmissionRecipe): void {
     }
   }
   visit(recipe, 0)
+  // Aliases are legal data, but a tiny repeated sequence DAG must not expand
+  // into unbounded work even when every leaf emits zero bytes. Memoize the
+  // expansion count so admission itself remains linear in the captured data.
+  const steps = new WeakMap<object, number>()
+  const count = (item: SvgEmissionRecipe): number => {
+    const prior = steps.get(item)
+    if (prior !== undefined) return prior
+    let result = 1
+    if (item.kind === 'sequence') for (const child of item.children) {
+      result += count(child)
+      if (result > SVG_EMISSION_METADATA_LIMITS.maxObjects) throw new RangeError('SVG recipe exceeds expanded emission budget')
+    }
+    steps.set(item, result)
+    return result
+  }
+  count(recipe)
 }
