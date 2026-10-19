@@ -1,5 +1,6 @@
 // Diagnostic phase costs complement packed end-to-end release measurements.
-// Layout includes parse/projection/certification; ELK is a nested subset.
+// Times are inclusive: layout contains ELK, and Scene contains lowering and
+// admission. Depth/parent metadata preserve actual nesting; do not sum them.
 import { writeFileSync } from 'node:fs'
 import { renderMermaidSVGWithReceipt } from '../../src/index.ts'
 import { clearElkLayoutCache } from '../../src/elk-instance.ts'
@@ -23,11 +24,18 @@ for (let round = 1; round <= rounds; round++) {
     samples.push({ id: input.id, round, ok: error === undefined, totalMs: performance.now() - start, stages, ...(error ? { error } : {}) })
   }
 }
-const output = { diagnostic: true, runtime: process.versions, rounds, layoutIncludesElk: true, samples }
+const configuration = {
+  elkCache: process.env.AGENTIC_MERMAID_ELK_CACHE ?? '(default)',
+  sceneAssertions: process.env.AGENTIC_MERMAID_SCENE_ASSERTIONS ?? '(default)',
+  nodeOptions: process.env.NODE_OPTIONS ?? null,
+  bunOptions: process.env.BUN_OPTIONS ?? null,
+  flags: Object.fromEntries(Object.entries(process.env).filter(([key]) => key.startsWith('APL_') || key.startsWith('AM_FC_'))),
+}
+const output = { diagnostic: true, runtime: process.versions, rounds, configuration, timings: 'inclusive; depth and parent record nested work', samples }
 if (process.argv[3]) writeFileSync(process.argv[3], `${JSON.stringify(output)}\n`)
 const totals: Record<string, number> = {}
 for (const sample of samples.filter(sample => sample.ok)) {
   totals.total = (totals.total ?? 0) + sample.totalMs
   for (const { stage, ms } of sample.stages) totals[stage] = (totals[stage] ?? 0) + ms
 }
-console.log(JSON.stringify({ successfulCalls: samples.filter(sample => sample.ok).length, totalsMs: totals, layoutIncludesElk: true }, null, 2))
+console.log(JSON.stringify({ successfulCalls: samples.filter(sample => sample.ok).length, totalsMs: totals, configuration, timings: output.timings }, null, 2))

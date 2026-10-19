@@ -56,8 +56,14 @@ export interface GraphicalSvgArtifact {
  * its own byte budget; request-data snapshot limits do not constrain artifacts.
  * Primitive strings cannot change between admission and hashing. */
 export function renderedSvgDigest(value: unknown): string {
-  assertFinalSvgByteBudget(value, 'graphical projection digest input')
-  return canonicalTextDigest(JSON.stringify(value))
+  return measureRenderStage('receipt-digest', () => {
+    assertFinalSvgByteBudget(value, 'graphical projection digest input')
+    return canonicalTextDigest(JSON.stringify(value))
+  })
+}
+
+function assertGraphicalSvgByteBudget(value: unknown, stage: string): asserts value is string {
+  measureRenderStage('svg-budget', () => assertFinalSvgByteBudget(value, stage))
 }
 
 function renderContextForPositionedFamily(
@@ -173,33 +179,36 @@ function renderPositionedWithTextMeasurement(
     if (effectiveOptions.layoutSafety === 'strict') throw new Error('Strict layout safety requires native Scene evidence')
     rawSvg = measureRenderStage('backend', () => family.renderSvg!(context))
   }
-  assertFinalSvgByteBudget(rawSvg, 'backend/family SVG output')
+  assertGraphicalSvgByteBudget(rawSvg, 'backend/family SVG output')
 
-  let svg = inlineResolvedColors(rawSvg, context.colors)
-  if (layoutCertification?.repairs.length && executionPlan.backend?.inputName === 'default') svg = expandSvgViewport(svg, layoutCertification.viewport)
-  assertFinalSvgByteBudget(svg, 'color-resolved SVG output')
-  if (!textAlreadyFitted) svg = fitUncalibratedSvgText(svg, request.appearance.font)
-  assertFinalSvgByteBudget(svg, 'font-geometry-fitted SVG output')
+  let svg = measureRenderStage('svg-colors', () => inlineResolvedColors(rawSvg, context.colors))
+  if (layoutCertification?.repairs.length && executionPlan.backend?.inputName === 'default') {
+    const viewport = layoutCertification.viewport
+    svg = measureRenderStage('svg-viewport', () => expandSvgViewport(svg, viewport))
+  }
+  assertGraphicalSvgByteBudget(svg, 'color-resolved SVG output')
+  if (!textAlreadyFitted) svg = measureRenderStage('svg-fonts', () => fitUncalibratedSvgText(svg, request.appearance.font))
+  assertGraphicalSvgByteBudget(svg, 'font-geometry-fitted SVG output')
   const idPrefix = effectiveOptions.idPrefix ?? ''
   if (idPrefix) {
-    svg = namespaceSvgIds(svg, idPrefix)
-    assertFinalSvgByteBudget(svg, 'namespaced SVG output')
+    svg = measureRenderStage('svg-namespace', () => namespaceSvgIds(svg, idPrefix))
+    assertGraphicalSvgByteBudget(svg, 'namespaced SVG output')
   }
   const accessibility = request.source.accessibility
   const fallbackName = family.id === 'c4' ? 'C4 architecture diagram' : undefined
   if ((layout.injectAccessibility ?? true) && (accessibility.title || accessibility.descr || fallbackName)) {
-    svg = injectAccessibility(svg, accessibility, idPrefix, fallbackName)
-    assertFinalSvgByteBudget(svg, 'accessibility-projected SVG output')
+    svg = measureRenderStage('svg-accessibility', () => injectAccessibility(svg, accessibility, idPrefix, fallbackName))
+    assertGraphicalSvgByteBudget(svg, 'accessibility-projected SVG output')
   }
-  svg = scopeSvgStyles(svg)
-  assertFinalSvgByteBudget(svg, 'style-scoped SVG output')
+  svg = measureRenderStage('svg-style-scope', () => scopeSvgStyles(svg))
+  assertGraphicalSvgByteBudget(svg, 'style-scoped SVG output')
   // Every byte-changing projection must run before the final output-security
   // gate. In particular, compaction must never be able to join an inert split
   // attribute (for example `on\n load`) into executable active content after
   // validation.
   if (effectiveOptions.compact) {
-    svg = compactSvg(svg)
-    assertFinalSvgByteBudget(svg, 'compacted SVG output')
+    svg = measureRenderStage('svg-compact', () => compactSvg(svg))
+    assertGraphicalSvgByteBudget(svg, 'compacted SVG output')
   }
   // Raster outputs are offline artifacts in every caller mode. This is an
   // output-only projection: the shared request receipt retains authored
@@ -209,7 +218,7 @@ function renderPositionedWithTextMeasurement(
   const secured = measureRenderStage('svg-security', () => applyOutputSecurityPolicy(svg, outputSecurity))
   securityDiagnostics.push(...secured.diagnostics)
   svg = secured.svg
-  assertFinalSvgByteBudget(svg, 'final SVG output')
+  assertGraphicalSvgByteBudget(svg, 'final SVG output')
   return Object.freeze({
     svg,
     executionDecision: executionPlan.executionDecision,
@@ -262,7 +271,7 @@ function executeInspectedGraphicalRequest(
   emitResolvedConfigDiagnostics(request)
   const securityDiagnostics: OutputSecurityDiagnostic[] = []
   const rendered = renderResolvedMermaidSVG(request, securityDiagnostics)
-  const receipt = receiptOf(request, securityDiagnostics)
+  const receipt = measureRenderStage('receipt-data', () => receiptOf(request, securityDiagnostics))
   const outputDigest = renderedSvgDigest(rendered.svg)
   return Object.freeze({
     svg: rendered.svg,

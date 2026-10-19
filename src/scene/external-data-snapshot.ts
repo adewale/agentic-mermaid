@@ -14,6 +14,7 @@ import { sceneAssertionsEnabled } from './assertions.ts'
 import { svgEmissionMetadataCounts, type SvgGroupEmission } from './svg-emission.ts'
 import { boundedUtf8ByteLength } from '../shared/utf8.ts'
 import { transferSceneNodeSerialization, sceneNodeEmission, attachGroupEmissionViews, hasOwnedSceneEmissionView } from './serialization.ts'
+import { measureRenderStage } from '../render-stages.ts'
 
 export interface ExternalDataSnapshotLimits {
   readonly maxObjects: number
@@ -404,7 +405,7 @@ export function admitSceneDocument(value: unknown, mode?: 'internal' | 'external
   const prior = typeof value === 'object' && value !== null ? ADMITTED_SCENES.get(value) : undefined
   if (prior !== undefined && prior.mode === (mode ?? sceneValidationMode(value))) {
     if (crossChecks && !prior.crossChecks) {
-      assertAdmissibleSceneDoc(value, prior.mode, true)
+      measureRenderStage('scene-validation', () => assertAdmissibleSceneDoc(value, prior.mode, true))
       recordAdmittedScene(value as SceneDoc, prior.mode, true)
     }
     return value as SceneDoc
@@ -414,10 +415,10 @@ export function admitSceneDocument(value: unknown, mode?: 'internal' | 'external
   // full descriptor path. The test-only replaceFamilyForTest installs lowering
   // under a built-in id, so a test of hostile Scenes must register a `family:`
   // extension instead.
-  const admitted = mode === 'internal'
+  const admitted = measureRenderStage('scene-capture', () => mode === 'internal'
     ? freezeBoundedFirstPartyData(value, EXTERNAL_SCENE_DOCUMENT_SNAPSHOT_LIMITS, 'scene')
-    : snapshotBoundedExternalData(value, EXTERNAL_SCENE_DOCUMENT_SNAPSHOT_LIMITS, 'scene')
-  assertAdmissibleSceneDoc(admitted, mode, mode !== 'internal' || crossChecks)
+    : snapshotBoundedExternalData(value, EXTERNAL_SCENE_DOCUMENT_SNAPSHOT_LIMITS, 'scene'))
+  measureRenderStage('scene-validation', () => assertAdmissibleSceneDoc(admitted, mode, mode !== 'internal' || crossChecks))
   recordAdmittedScene(admitted as SceneDoc, mode ?? sceneValidationMode(admitted), mode !== 'internal' || crossChecks)
   return admitted as SceneDoc
 }
