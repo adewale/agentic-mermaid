@@ -480,6 +480,11 @@ describe('State statements across and within lines', () => {
     ['state X {\nA --> B : go }', ['A:rounded:A', 'B:rounded:B', 'A->B:go', 'X:X{A B}'], ['state_brace_after_description@3']],
     ['state X {\nstate Y {\nA : desc {x} }}', ['A:rounded:desc {x}', 'X:X{}', 'X/Y:Y{A}'], ['state_brace_after_description@4']],
     ['state X {\nA : desc }\n}', ['A:rounded:desc }', 'X:X{A}'], []],
+    // A `}` with no composite open is dropped; Mermaid reads a state `}`,
+    // or `A}` where it follows a name.
+    ['A\n}', ['A:rounded:A'], ['state_brace_unopened@3']],
+    ['state X {\nA\n}\n} B', ['A:rounded:A', 'B:rounded:B', 'X:X{A}'], ['state_brace_unopened@5']],
+    ['A --> B}', ['A:rounded:A', 'B:rounded:B', 'A->B'], ['state_brace_after_name@2']],
     ['[*]:::hot --> A', ['_start:state-start:', 'A:rounded:A', '_start->A', '_start:::hot'], []],
     ['state X {\nA --> [*]:::hot : done\n}', ['A:rounded:A', '_end:state-end:', 'A->_end:done', 'X:X{A _end}', '_end:::hot'], []],
     ['note right of A line1\nline2\nend note', ['A:rounded:A', 'note right of A:line1\nline2'], []],

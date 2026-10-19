@@ -272,7 +272,9 @@ export function parseStateBody(lines: string[]): StateBody | null {
 
     // --- composite close ---
     if (line === '}') {
-      if (stack.length <= 1) return null // unbalanced
+      // A `}` with no composite open closes nothing: dropped, as the
+      // renderer drops it (verify reports it, state_brace_unopened).
+      if (stack.length <= 1) continue
       const child = stack.pop()!
       const top = pending.pop()!
       if (top.regions) {
@@ -1193,6 +1195,10 @@ export function stateUnsupportedSyntaxWarnings(canonicalSource: string): LayoutW
     ...scan.braceNameLines.map(index => ({
       code: 'UNSUPPORTED_SYNTAX' as const, syntax: 'state_brace_after_name', line: header + index + 2,
       message: 'A `}` right after a state name, or after the name in `state "…" as A`, is read as closing its composite, and is dropped where no composite is open. Pinned Mermaid reads the `}` into the name (`A}`; after `as`, the rest of the line): inside a composite it then rejects the unclosed composite, and at the top level it draws a state named `A}`. Put the `}` on a line of its own.',
+    })),
+    ...scan.unopenedBraceLines.map(index => ({
+      code: 'UNSUPPORTED_SYNTAX' as const, syntax: 'state_brace_unopened', line: header + index + 2,
+      message: 'A `}` with no composite open closes nothing, and is dropped. Pinned Mermaid reads it as a state named `}`. Remove it, or open the composite it was meant to close with `state X {`.',
     })),
     ...scan.braceTextLines.map(index => ({
       code: 'UNSUPPORTED_SYNTAX' as const, syntax: 'state_brace_after_description', line: header + index + 2,

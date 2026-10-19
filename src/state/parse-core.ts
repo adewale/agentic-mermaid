@@ -224,6 +224,8 @@ export interface StateStatementScan {
   juxtaposedLines: number[]
   /** Input lines where `}` closes a composite right after a name. */
   braceNameLines: number[]
+  /** Input lines where a `}` (not after a name) closes no composite. */
+  unopenedBraceLines: number[]
   /** Input lines where a `}` ending the source's last description or
    *  transition label closes a composite nothing else closes. */
   braceTextLines: number[]
@@ -298,11 +300,17 @@ export function readStateStatements(lines: readonly StateSourceLine[]): StateSta
   const semicolonLines = new Set<number>()
   const juxtaposedLines = new Set<number>()
   const braceNameLines = new Set<number>()
+  const unopenedBraceLines = new Set<number>()
   const braceTextLines = new Set<number>()
   const aliasSuffixLines = new Set<number>()
-  // Mermaid's name token takes a `}` right after it.
-  const noteBraceAfter = (text: string, index: number, line: number): void => {
-    if (text[index] === '}') braceNameLines.add(line)
+  // Mermaid's name token takes a `}` right after it. Such a brace is
+  // reported as that (braceNameLines), not as one opening nothing; its row
+  // and column are kept for the brace's own reading.
+  const nameBraces = new Set<string>()
+  const noteBraceAfter = (at: number, index: number): void => {
+    if (logical[at]!.text[index] !== '}') return
+    braceNameLines.add(logical[at]!.line)
+    nameBraces.add(`${at}:${index}`)
   }
   // The renderer drops `//` lines outside strings before it reads
   // (parseMermaid), so they come after no row here either.
@@ -354,7 +362,7 @@ export function readStateStatements(lines: readonly StateSourceLine[]): StateSta
     const first = logical[row]!.text
     const left = matchAt(STATEMENT_ENDPOINT_AT, first, column)
     if (left === null || !endsName(first, column + left.length)) return null
-    noteBraceAfter(first, column + left.length, logical[row]!.line)
+    noteBraceAfter(row, column + left.length)
     const cursor = { row, column: column + left.length }
     let statement = left
     const arrow = { ...cursor }
@@ -365,7 +373,7 @@ export function readStateStatements(lines: readonly StateSourceLine[]): StateSta
       const text = logical[arrow.row]!.text
       const right = matchAt(STATEMENT_ENDPOINT_AT, text, arrow.column)
       if (right === null || !endsName(text, arrow.column + right.length)) return null
-      noteBraceAfter(text, arrow.column + right.length, logical[arrow.row]!.line)
+      noteBraceAfter(arrow.row, arrow.column + right.length)
       statement += ` --> ${right}`
       cursor.row = arrow.row
       cursor.column = arrow.column + right.length
@@ -396,7 +404,7 @@ export function readStateStatements(lines: readonly StateSourceLine[]): StateSta
     if (shorthand !== null) {
       const next = skipBlank(text, colon + shorthand.length)
       if (next < text.length && text[next] !== ';' && text[next] !== '}') return null
-      if (text[next] === '}' && depth > 0) braceNameLines.add(line)
+      noteBraceAfter(row, next)
       aliasSuffixLines.add(line)
       column = colon + shorthand.length
       return { text: declaration, opens: false, also: `${id}${shorthand}` }
@@ -445,7 +453,7 @@ export function readStateStatements(lines: readonly StateSourceLine[]): StateSta
       // statement cannot follow it: `state "L" as X Y` names one state `X Y`,
       // which ours cannot hold. Its `}` is read into the name too.
       if (text[next] !== ';' && text[next] !== '}') return null
-      if (text[next] === '}' && depth > 0) braceNameLines.add(logical[row]!.line)
+      noteBraceAfter(row, next)
     }
     column = at
     return { text: `state ${label}${id}${stereotype === null ? '' : ` ${stereotype.trim()}`}${opens ? ' {' : ''}`, opens }
@@ -487,6 +495,7 @@ export function readStateStatements(lines: readonly StateSourceLine[]): StateSta
       continue
     }
     if (character === '}') {
+      if (depth === 0 && !nameBraces.has(`${row}:${column}`)) unopenedBraceLines.add(line)
       statements.push({ text: '}', line })
       depth = Math.max(0, depth - 1)
       column++
@@ -529,6 +538,7 @@ export function readStateStatements(lines: readonly StateSourceLine[]): StateSta
     juxtaposedLines.delete(line)
     semicolonLines.delete(line)
     braceNameLines.delete(line)
+    unopenedBraceLines.delete(line)
     braceTextLines.delete(line)
     aliasSuffixLines.delete(line)
     statements.push({ text: text.slice(mark.column).trim(), line })
@@ -542,6 +552,6 @@ export function readStateStatements(lines: readonly StateSourceLine[]): StateSta
   }
   return {
     statements, semicolonLines: [...semicolonLines], juxtaposedLines: [...juxtaposedLines],
-    braceNameLines: [...braceNameLines], braceTextLines: [...braceTextLines], aliasSuffixLines: [...aliasSuffixLines], unclosedLines: open,
+    braceNameLines: [...braceNameLines], unopenedBraceLines: [...unopenedBraceLines], braceTextLines: [...braceTextLines], aliasSuffixLines: [...aliasSuffixLines], unclosedLines: open,
   }
 }
