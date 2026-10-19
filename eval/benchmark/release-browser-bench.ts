@@ -1,7 +1,7 @@
 // Advisory competitiveness scorecard. All renderers consume the same complete
 // upstream inventory in one Chromium tab. Candidate JS comes from the verified
 // publication tarball, never a separately rebuilt source bundle.
-import { spawnSync } from 'node:child_process'
+import { execFileSync, spawnSync } from 'node:child_process'
 import { createHash } from 'node:crypto'
 import { appendFileSync, existsSync, mkdtempSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { createServer } from 'node:http'
@@ -263,7 +263,7 @@ async function main() {
       }
     }
     const summary = browserScorecard(samples, engines.map(engine => engine.label), rounds, inputs.length)
-    const report = { status: 'completed', advisory: true, startedAt, finishedAt: new Date().toISOString(), sourceRevision: process.env.GITHUB_SHA, browser: browser.version(), node: process.versions.node,
+    const report = { status: 'completed', advisory: true, startedAt, finishedAt: new Date().toISOString(), sourceRevision: process.env.GITHUB_SHA, browser: browser.version(), node: execFileSync('node', ['--version'], { encoding: 'utf8' }).trim(), bun: process.versions.bun,
       environment: { os: release(), arch: process.arch, cpu: cpus()[0]?.model, logicalCpus: cpus().length,
         cpuQuota: existsSync('/sys/fs/cgroup/cpu.max') ? readFileSync('/sys/fs/cgroup/cpu.max', 'utf8').trim() : undefined,
         memoryLimit: existsSync('/sys/fs/cgroup/memory.max') ? readFileSync('/sys/fs/cgroup/memory.max', 'utf8').trim() : undefined },
