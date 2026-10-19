@@ -501,7 +501,11 @@ export function renderFlowchart(graph: MermaidGraph, headerKind: 'flowchart' | '
   for (const [id, node] of graph.nodes) {
     if (declaredInline.has(id) || membersDeclared.has(id)) continue
     const orphan = graph.edges.every(e => e.source !== id && e.target !== id)
-    if (orphan || needsExplicitDeclaration(node)) lines.push('  ' + `${node.id}${renderShape(node)}`)
+    // An orphan labelled by an id that holds a `"` is written bare: in shape
+    // text the `"` would be `#quot;`, which upstream keeps in its raw label.
+    // No keyword holds a `"`, so the bare id is a node statement.
+    if (orphan && !needsExplicitDeclaration(node) && node.id.includes('"')) lines.push(`  ${node.id}`)
+    else if (orphan || needsExplicitDeclaration(node)) lines.push('  ' + `${node.id}${renderShape(node)}`)
   }
 
   for (const [name, props] of graph.classDefs) lines.push(`  classDef ${name} ${styleProps(props)}`)

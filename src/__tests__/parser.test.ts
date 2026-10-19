@@ -182,6 +182,14 @@ describe('parseMermaid – node shapes (original)', () => {
     expect(written.classAssignments.has(ids.at(-1)!)).toBe(true)
   })
 
+  // In shape text a `"` is written `#quot;`, which upstream keeps in its raw
+  // label: an orphan labelled by an id that holds one is written bare.
+  it.each(['C`"', 'A"B'])('writes the orphan %s as its bare id', id => {
+    const parsed = parseRegisteredMermaid(`flowchart LR\n  ${id}`)
+    if (!parsed.ok) throw new Error(JSON.stringify(parsed.error))
+    expect(serializeMermaid(parsed.value)).toBe(`flowchart LR\n  ${id}\n`)
+  })
+
   it('first definition wins for shape and label', () => {
     const g = parseMermaid('graph TD\n  A[Start] --> B\n  A --> B')
     expect(g.nodes.get('A')!.shape).toBe('rectangle')
