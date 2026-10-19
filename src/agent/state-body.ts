@@ -1187,7 +1187,7 @@ export function stateUnsupportedSyntaxWarnings(canonicalSource: string): LayoutW
     })),
     ...scan.braceNameLines.map(index => ({
       code: 'UNSUPPORTED_SYNTAX' as const, syntax: 'state_brace_after_name', line: header + index + 2,
-      message: 'A `}` right after a state name, or after the name in `state "…" as A`, is read as closing its composite. Pinned Mermaid reads the `}` into the name (`A}`; after `as`, the rest of the line) and then rejects the unclosed composite. Put the `}` on a line of its own.',
+      message: 'A `}` right after a state name, or after the name in `state "…" as A`, is read as closing its composite, and is dropped where no composite is open. Pinned Mermaid reads the `}` into the name (`A}`; after `as`, the rest of the line): inside a composite it then rejects the unclosed composite, and at the top level it draws a state named `A}`. Put the `}` on a line of its own.',
     })),
     ...scan.braceTextLines.map(index => ({
       code: 'UNSUPPORTED_SYNTAX' as const, syntax: 'state_brace_after_description', line: header + index + 2,
