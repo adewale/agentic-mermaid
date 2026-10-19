@@ -1,6 +1,7 @@
 import { formatPercent1 } from '../shared/percent-format.ts'
 import { isSafeInlinePaintValue } from '../shared/inline-paint-value.ts'
 import type { SvgTextWhitespaceEdit } from './svg-text-whitespace.ts'
+import { requireSafeCssPaint } from '../shared/css-color.ts'
 /** Private SVG projection recipes. Recipes describe lexical presentation,
  * never a second copy of mark geometry, text, or paint. No markup or executable
  * value can enter this vocabulary. Public Scene contracts stay in ir.ts. */
@@ -571,6 +572,8 @@ export function validateSvgEmissionRecipe(recipe: SvgEmissionRecipe): void {
         const value = color as SvgValue
         if (value?.source !== 'metadata' && value?.source !== 'paint') throw new TypeError('SVG color mix requires non-recursive typed paints')
         if (value.source === 'metadata' && typeof value.value !== 'string') throw new TypeError('SVG color mix requires CSS text')
+        if (value.source === 'metadata') requireSafeCssPaint(value.value as string, 'SVG color-mix operand')
+        else if (value.field !== 'fill' && value.field !== 'stroke') throw new TypeError('SVG color mix requires a color paint field')
         projection(color)
       }
       return
@@ -592,6 +595,7 @@ export function validateSvgEmissionRecipe(recipe: SvgEmissionRecipe): void {
           const value = item.value as SvgValue
           if (item.shadowed !== undefined || value?.source !== 'metadata' && value?.source !== 'colorMix') throw new TypeError('Scoped palette properties require typed palette paints')
           if (value.source === 'metadata' && typeof value.value !== 'string') throw new TypeError('Scoped palette paints require CSS text')
+          if (value.source === 'metadata') requireSafeCssPaint(value.value as string, 'SVG scoped palette paint')
           projection(value)
           continue
         }
