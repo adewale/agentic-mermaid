@@ -1,13 +1,39 @@
-import { describe, expect, test } from 'bun:test'
+import { describe, expect, spyOn, test } from 'bun:test'
 import { knownBuiltinFamilies, getFamily } from '../agent/families.ts'
-import { renderMermaidSVGWithReceipt as complete } from '../index.ts'
+import { renderMermaidSVG, renderMermaidSVGWithReceipt as complete } from '../index.ts'
 import { renderMermaidSVGWithReceipt as focused } from '../svg.ts'
 import { withRenderStageObserver, type RenderStageSample } from '../render-stages.ts'
 import { convertToElkFormat, layoutGraphSync } from '../layout-engine.ts'
 import { elkLayoutSync } from '../elk-instance.ts'
 import { parseMermaid } from '../parser.ts'
+import { canonicalTextDigest } from '../render-contract.ts'
 
 describe('focused SVG entry', () => {
+  test('plain SVG does not hash unused output evidence, and consumed receipts hash it once', () => {
+    const source = 'sequenceDiagram\n  Alice->>Bob: request'
+    // Complete first-use backend conformance before observing this request.
+    renderMermaidSVG(source)
+    const stringify = JSON.stringify
+    const serializedSvg: string[] = []
+    const observed = spyOn(JSON, 'stringify').mockImplementation(((value: unknown, ...args: unknown[]) => {
+      if (typeof value === 'string' && value.startsWith('<svg')) serializedSvg.push(value)
+      return Reflect.apply(stringify, JSON, [value, ...args])
+    }) as typeof JSON.stringify)
+    try {
+      const plain = renderMermaidSVG(source)
+      const artifact = complete(source)
+      expect(artifact.svg).toBe(plain)
+      expect(serializedSvg).toEqual([])
+      const receipt = artifact.receipt
+      expect(receipt.graphicalProjectionDigest).toBe(canonicalTextDigest(stringify(plain)))
+      expect(serializedSvg).toEqual([plain])
+      expect(artifact.receipt).toBe(receipt)
+      expect(serializedSvg).toEqual([plain])
+    } finally {
+      observed.mockRestore()
+    }
+  })
+
   test('preserves complete-library SVG and receipts for every native family', () => {
     for (const id of knownBuiltinFamilies()) {
       const source = getFamily(id)!.example
