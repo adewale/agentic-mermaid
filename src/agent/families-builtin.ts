@@ -309,10 +309,6 @@ function emptySourceMap(): SourceMap {
 function loc(line: number, col: number): { line: number; col: number } {
   return { line, col: Math.max(1, col) }
 }
-function firstIndex(line: string, text: string): number {
-  const i = line.indexOf(text)
-  return i >= 0 ? i + 1 : 1
-}
 
 function nextOccurrence(counts: Map<string, number>, key: string): number {
   const occurrence = counts.get(key) ?? 0
@@ -677,7 +673,7 @@ function buildGanttSourceMap(body: DiagramBody, canonicalSource: string): Source
         const end = statement.meta.end.kind === 'until' ? `until ${statement.meta.end.refs.join(' ')}` : statement.meta.end.raw
         if (end !== task.end) continue
         if (seen++ !== wanted) continue
-        const location = loc(statement.startLine, firstIndex(statement.raw[0]!, task.label))
+        const location = loc(statement.startLine, statement.valueColumn!)
         map.nodes.set(stableId, location)
         map.labels.set(`gantt:task:${stableId}`, location)
         break

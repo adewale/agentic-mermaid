@@ -186,16 +186,22 @@ describe('gantt structured parse', () => {
 
   // Mermaid ends a task's data, and a date or format value, at `;` and reads
   // what follows into the next task's label; ours reads the next statement,
-  // reports the `;`, and writes each statement on its own line.
+  // reports the `;`, and writes each statement on its own line. Each task's
+  // spans cover its own statement and label.
   test.each([
-    ['Task :a1, 2024-01-01, 3d; Task2 :a2, after a1, 2d', ['Task', 'Task2'], undefined],
-    ['Task :a1, 2024-01-01, 3d;', ['Task'], undefined],
-    ['dateFormat YYYY-MM-DD; title T\n  Task :a1, 2024-01-01, 3d', ['Task'], 'T'],
-  ])('%j reads each `;`-separated statement and reports the `;`', async (body, labels, title) => {
+    ['Task :a1, 2024-01-01, 3d; Task2 :a2, after a1, 2d', ['Task', 'Task2'], ['Task :a1, 2024-01-01, 3d', 'Task2 :a2, after a1, 2d'], undefined],
+    ['Task :a1, 2024-01-01, 3d;', ['Task'], ['Task :a1, 2024-01-01, 3d'], undefined],
+    ['dateFormat YYYY-MM-DD; title T\n  Task :a1, 2024-01-01, 3d', ['Task'], ['Task :a1, 2024-01-01, 3d'], 'T'],
+    ['dateFormat YYYY-MM-DD; Task :a1, 2024-01-01, 3d', ['Task'], ['Task :a1, 2024-01-01, 3d'], undefined],
+  ])('%j reads each `;`-separated statement and reports the `;`', async (body, labels, statements, title) => {
     const source = `gantt\n  dateFormat YYYY-MM-DD\n  ${body}\n`
     const d = gantt(source)
     expect(parseGanttModel(normalizeMermaidSource(source).lines).tasks.map(task => task.label)).toEqual(labels)
-    expect(d.body.sections.flatMap(section => section.tasks.map(task => task.label))).toEqual(labels)
+    const tasks = d.body.sections.flatMap(section => section.tasks)
+    expect(tasks.map(task => task.label)).toEqual(labels)
+    const text = (span: { start: { offset: number }; end: { offset: number } } | undefined) => span && source.slice(span.start.offset, span.end.offset)
+    expect(tasks.map(task => text(d.source.spans?.labels.get(`gantt:task:${task.taskId}`)))).toEqual(labels)
+    expect(tasks.map(task => text(d.source.spans?.nodes.get(task.taskId!)))).toEqual(statements)
     expect(d.body.title).toBe(title)
     expect(verifyMermaid(d).warnings.filter(w => w.code === 'UNSUPPORTED_SYNTAX').map(w => (w as { syntax: string }).syntax)).toEqual(['gantt_semicolon_separator'])
     const out = serializeMermaid(d)

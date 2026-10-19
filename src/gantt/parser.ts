@@ -160,6 +160,8 @@ export type GanttSourceStatement = GanttSyntax & {
   raw: string[]
   startLine: number
   endLine: number
+  /** 1-based column on the start line of a title's or section's value, or a
+   * task's label, also when a `;` or an accDescr block comes before it. */
   valueColumn?: number
   /** Follows a `;` that ended the statement before it on its line. */
   afterSemicolon?: true
@@ -176,7 +178,7 @@ export function readGanttStatements(lines: readonly string[]): GanttSourceStatem
     const append = (syntax: GanttSyntax, raw = lines.slice(start, index + 1)): void => {
       const valueColumn = syntax.kind === 'section' || syntax.kind === 'title'
         ? rawLine.indexOf(syntax.value, rawLine.search(/\S/) + syntax.kind.length) + 1
-        : undefined
+        : syntax.kind === 'task' ? rawLine.search(/\S/) + 1 : undefined
       statements.push({ ...syntax, raw, startLine: start + 1, endLine: index + 1, valueColumn })
     }
     if (!line || line.startsWith('%%')) {
