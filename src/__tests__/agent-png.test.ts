@@ -1,7 +1,8 @@
 // Loop 8 P: PNG export — basic validity tests.
 
 import { describe, test, expect } from 'bun:test'
-import { renderMermaidPNG } from '../agent/png.ts'
+import { createMermaidPNGRenderer, renderMermaidPNG } from '../agent/png.ts'
+import { DefaultBackend, registerBackend } from '../scene/backend.ts'
 import { decodePng } from './helpers/png-pixels.ts'
 import { colorPixelBoxInRaster, redPixel } from './helpers/raster.ts'
 
@@ -18,6 +19,38 @@ function readPngDimensions(png: Uint8Array): { width: number; height: number } {
 }
 
 describe('renderMermaidPNG', () => {
+  test('checks font-projected raster input before native PNG rendering', () => {
+    const id = 'backend:test/native-png-font-joining'
+    const triggerSeed = 991_339
+    const unregister = registerBackend({
+      ...DefaultBackend,
+      id,
+      capabilities: DefaultBackend.capabilities.map(claim => ({ ...claim, target: id })),
+      render(document, context) {
+        const svg = DefaultBackend.render(document, context)
+        return context.seed === triggerSeed
+          ? svg.replace('</svg>', '<style>.probe{font-family:var(--font, java)script:alert(1)}</style></svg>')
+          : svg
+      },
+    }, {
+      compatibility: { core: '^0.4.0', scene: '^2.0.0' },
+      provenance: { owner: 'native-png-contract-test', source: 'test' },
+    })
+    try {
+      const renderer = createMermaidPNGRenderer({ backendPolicy: { selectBackend: () => id } })
+      expect(checkMagic(renderer.renderMermaidPNG('flowchart LR\n A --> B', {
+        style: 'hand-drawn', scale: 0.1, onWarning: () => {},
+      }))).toBe(true)
+      for (const security of ['default', 'strict'] as const) {
+        expect(() => renderer.renderMermaidPNG('flowchart LR\n A --> B', {
+          style: 'hand-drawn', seed: triggerSeed, security, scale: 0.1, onWarning: () => {},
+        })).toThrow('OutputSecurityPolicy rejected active content')
+      }
+    } finally {
+      unregister()
+    }
+  })
+
   test('Class and Sequence source markers occupy the node-facing side of the shaft, not the node interior', () => {
     for (const [source, left, top, bottom] of [
       ['classDiagram\ndirection LR\nA *-- B', 160, 55, 74],

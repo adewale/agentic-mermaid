@@ -34,11 +34,10 @@ import {
   assertHostedPngRasterBudget,
   omitPngOutputOptions,
   PNG_WASM_RUNTIME,
-  prepareSvgForPngRasterization,
   projectPortablePngOutputOptions,
   type PortablePngOutputOptions,
 } from '../../src/png-contract.ts'
-import { renderPortablePngGraphicalProjection } from '../../src/png-graphical.ts'
+import { finalizePngRasterSvg, renderPortablePngGraphicalProjection } from '../../src/png-graphical.ts'
 import { hostedFontResource } from '../../src/font-manifest.ts'
 import { verifyResourceBytes } from '../../src/resource-manifest.ts'
 
@@ -75,7 +74,7 @@ export async function renderMermaidPNGWasm(source: string, opts: RenderOptions &
   const graphical = renderPortablePngGraphicalProjection(source, renderOptions, outputOptions)
   assertHostedPngRasterBudget(graphical.rasterDimensions)
   const outputPolicy = graphical.outputPolicy
-  const svg = prepareSvgForPngRasterization(
+  const svg = finalizePngRasterSvg(
     prepareResvgMarkerOrientation(inlineFontVarForRaster(graphical.svg)),
     graphical.rasterDimensions,
   )
