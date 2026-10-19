@@ -124,11 +124,13 @@ function clonePie(b: PieBody): PieBody {
   }
 }
 
+/** A title runs to the end of its line; a slice label's quotes may hold a
+ * line break, which the writer keeps inside them. */
 function validLabel(value: unknown, field: string): Result<string, MutationError> {
   if (typeof value !== 'string') return err({ code: 'INVALID_OP', message: `Pie ${field} must be a string` })
   const trimmed = value.trim()
-  if (!trimmed || trimmed.includes('\n')) {
-    return err({ code: 'INVALID_OP', message: `Pie ${field} must be non-empty single-line text` })
+  if (!trimmed || (field === 'title' && trimmed.includes('\n'))) {
+    return err({ code: 'INVALID_OP', message: `Pie ${field} must be non-empty${field === 'title' ? ' single-line' : ''} text` })
   }
   return ok(trimmed)
 }
