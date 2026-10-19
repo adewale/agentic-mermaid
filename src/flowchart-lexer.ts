@@ -391,7 +391,11 @@ export function coalesceFlowchartLines(lines: readonly string[]): Array<{ text: 
     const raw = lines[index]!
     const trimmed = raw.trim()
     const open = scan.openAtEnd
-    const inRegion = group !== undefined && open.length > 0 && (open[0] === 'metadata' || open.includes('markdown') || !keyword)
+    // Upstream reads a string only where it opens its label (`["a⏎b"]`,
+    // `|"a⏎b"|`), and rejects a line with one opened mid-label. Such a line,
+    // as a decoded `&quot;` leaves (`["" x"]`), ends where it ends.
+    const midLabelString = scan.regions.some(region => region.kind === 'string' && region.parent >= 0 && region.start !== scan.regions[region.parent]!.contentStart)
+    const inRegion = group !== undefined && open.length > 0 && !midLabelString && (open[0] === 'metadata' || open.includes('markdown') || !keyword)
     if (!inRegion && (!trimmed || trimmed.startsWith('%%'))) {
       out.push({ text: raw, line: index })
       continue
