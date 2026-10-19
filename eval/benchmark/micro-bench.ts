@@ -15,8 +15,9 @@
 // extracted with `git archive` into a temporary directory, timed with the
 // current cases and the current node_modules, so the comparison isolates
 // production source. Cases missing at the baseline are reported, not fatal.
-// A stage case times input built by an earlier stage of its own revision; when
-// the two sides' inputs differ it reports "inputs differ" instead of a ratio.
+// A stage case that records the input an earlier stage of its own revision
+// built for it reports "inputs differ" instead of a ratio when the two sides'
+// inputs differ.
 // Under Node, allocation per call is estimated from GC boundaries (as in the
 // release benchmark). Shared or loaded machines inflate absolute numbers: an
 // A/A run of identical source on a shared 4-vCPU sandbox spread 0.82–1.11×
@@ -206,6 +207,15 @@ async function main(): Promise<void> {
   const scratch = mkdtempSync(join(tmpdir(), 'agentic-mermaid-micro-'))
   mkdirSync(join(ROOT, 'node_modules/.cache'), { recursive: true })
   const candidateBundleDir = mkdtempSync(join(ROOT, 'node_modules/.cache/agentic-mermaid-micro-'))
+  const cleanUp = () => {
+    rmSync(scratch, { recursive: true, force: true })
+    rmSync(candidateBundleDir, { recursive: true, force: true })
+  }
+  // An interrupt skips `finally`.
+  process.once('SIGINT', () => {
+    cleanUp()
+    process.exit(130)
+  })
   try {
     const sides = [prepareSide('candidate', ROOT, workingRevision(), runtime, candidateBundleDir)]
     if (baselineRef) {
@@ -296,9 +306,10 @@ async function main(): Promise<void> {
       console.error(`\n${failures.length} case(s) failed${threshold === undefined ? '' : ` or exceeded ${threshold}× baseline`}: ${failures.map(row => row.id).join(', ')}`)
       process.exitCode = 1
     }
+    const uncompared = threshold === undefined ? [] : summary.filter(row => row.inputsDiffer)
+    if (uncompared.length) console.error(`\nNot compared with --fail-above (inputs differ): ${uncompared.map(row => row.id).join(', ')}`)
   } finally {
-    rmSync(scratch, { recursive: true, force: true })
-    rmSync(candidateBundleDir, { recursive: true, force: true })
+    cleanUp()
   }
 }
 

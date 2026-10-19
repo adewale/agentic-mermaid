@@ -141,7 +141,8 @@ else
     die "$REFERENCE is not empty and is not an npm prefix; move it or set MERMAID_REFERENCE_DIR"
   fi
   if [ -f "$REFERENCE/package.json" ]; then
-    foreign=$(foreign_dependencies "$REFERENCE/package.json")
+    foreign=$(foreign_dependencies "$REFERENCE/package.json" 2>/dev/null) \
+      || die "$REFERENCE/package.json is not readable JSON; move it or set MERMAID_REFERENCE_DIR"
     [ -z "$foreign" ] || die "$REFERENCE is another npm project (it declares $foreign); move it or set MERMAID_REFERENCE_DIR"
   fi
   mkdir -p "$REFERENCE"

@@ -21,8 +21,8 @@
 
 import { spawn } from 'node:child_process'
 import { createHash } from 'node:crypto'
-import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
-import { tmpdir } from 'node:os'
+import { mkdirSync, mkdtempSync, readFileSync, renameSync, rmSync, writeFileSync } from 'node:fs'
+import { availableParallelism, tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { MICRO_WORKLOADS } from './micro-bench-cases.ts'
 import { releaseBenchCases } from './release-bench-cases.ts'
@@ -147,6 +147,15 @@ async function digestSide(root: string, inputs: Input[], modes: Mode[], jobs: nu
   return digests
 }
 
+/** A missing or unreadable cache means rerender. */
+function readCache(file: string): { modes: Mode[]; inputs: Input[]; digests: Digests } | undefined {
+  try {
+    return JSON.parse(readFileSync(file, 'utf8')) as { modes: Mode[]; inputs: Input[]; digests: Digests }
+  } catch {
+    return undefined
+  }
+}
+
 function positiveInteger(name: string, value: string | undefined, fallback: number, minimum = 1): number {
   if (value === undefined) return fallback
   const parsed = Number(value)
@@ -175,26 +184,30 @@ function firstDifference(before: string, after: string): string {
 async function main(): Promise<void> {
   const args = parseArgs(process.argv.slice(2))
   if (args.has('child')) return runChild(args)
-  const modes = (args.get('modes')?.split(',') ?? [...MODES]) as Mode[]
+  const modes = [...new Set(args.get('modes')?.split(',') ?? MODES)] as Mode[]
   const unknown = modes.filter(mode => !MODES.includes(mode))
   if (unknown.length) throw new Error(`Unknown mode(s): ${unknown.join(', ')}; known: ${MODES.join(', ')}`)
-  const jobs = positiveInteger('jobs', args.get('jobs'), 3)
   const show = positiveInteger('show', args.get('show'), 5, 0)
   const inputs = await loadInputs()
+  // More children than CPUs or inputs only adds contention and memory.
+  const jobs = Math.min(positiveInteger('jobs', args.get('jobs'), 3), availableParallelism(), inputs.length)
   const scratch = mkdtempSync(join(tmpdir(), 'agentic-mermaid-identity-'))
   try {
     const baseline = extractRevisionTree(args.get('baseline') ?? 'origin/main', scratch, 'baseline')
     const cacheFile = join(CACHE_DIR, `${baseline.revision}.json`)
-    const cached = existsSync(cacheFile) ? (JSON.parse(readFileSync(cacheFile, 'utf8')) as { modes: Mode[]; inputs: Input[]; digests: Digests }) : undefined
+    const cached = args.has('reuse-baseline') ? readCache(cacheFile) : undefined
     let before: Digests
-    if (args.has('reuse-baseline') && cached && JSON.stringify(cached.modes) === JSON.stringify(modes) && JSON.stringify(cached.inputs) === JSON.stringify(inputs)) {
+    if (cached && JSON.stringify(cached.modes) === JSON.stringify(modes) && JSON.stringify(cached.inputs) === JSON.stringify(inputs)) {
       console.error(`baseline ${shortRevision(baseline.revision)}: cached digests`)
       before = cached.digests
     } else {
       console.error(`baseline ${shortRevision(baseline.revision)}: rendering ${inputs.length} inputs × ${modes.length} modes`)
       before = await digestSide(baseline.root, inputs, modes, jobs, scratch, 'baseline')
       mkdirSync(CACHE_DIR, { recursive: true })
-      writeFileSync(cacheFile, JSON.stringify({ modes, inputs, digests: before }))
+      // Written whole, then renamed, so an interrupted run cannot leave a truncated cache.
+      const partial = `${cacheFile}.${process.pid}.tmp`
+      writeFileSync(partial, JSON.stringify({ modes, inputs, digests: before }))
+      renameSync(partial, cacheFile)
     }
     const candidateRevision = workingRevision()
     console.error(`candidate ${shortRevision(candidateRevision)}: rendering ${inputs.length} inputs × ${modes.length} modes`)

@@ -208,6 +208,8 @@ const textOf = (markup: string) =>
     .replace(/\s+/g, ' ')
     .trim()
 
+// Colour codes are removed first, or the `m` ending one would join the next label.
+const ANSI_SGR = new RegExp(`${String.fromCharCode(27)}\\[[0-9;]*m`, 'g')
 /** A whole terminal token: `Node 1` must not be found inside `Node 12`. */
 const terminalLabel = (label: string) => new RegExp(`(?<![\\p{L}\\p{N}_])${label.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}(?![\\p{L}\\p{N}_])`, 'u')
 
@@ -215,7 +217,10 @@ const terminalLabel = (label: string) => new RegExp(`(?<![\\p{L}\\p{N}_])${label
  * benchmark checks them), each <tspan>, and each foreignObject's text and text
  * runs (Merman's HTML labels). Terminal output is checked token by token. */
 function missingLabels(output: Output, rendered: string, expected: readonly string[]): string[] {
-  if (output === 'terminal') return expected.filter(label => !terminalLabel(label).test(rendered))
+  if (output === 'terminal') {
+    const text = rendered.replace(ANSI_SGR, '')
+    return expected.filter(label => !terminalLabel(label).test(text))
+  }
   const missing = missingSvgLabels(rendered, expected)
   if (!missing.length) return missing
   const seen = new Set<string>()
@@ -345,7 +350,8 @@ for workload in job['workloads']:
         emit({'type': 'result', 'workload': wid, 'status': 'error', 'detail': 'returned no text', 'firstMs': first_ms})
         continue
     output_bytes = len(first.encode('utf-8'))
-    missing = [label for label in workload['expected'] if not re.search(r'(?<!\w)' + re.escape(label) + r'(?!\w)', first)]
+    text = re.sub(r'\x1b\[[0-9;]*m', '', first)
+    missing = [label for label in workload['expected'] if not re.search(r'(?<!\w)' + re.escape(label) + r'(?!\w)', text)]
     if missing:
         emit({'type': 'result', 'workload': wid, 'status': 'lost-labels', 'missing': len(missing), 'detail': ', '.join(missing[:3]), 'firstMs': first_ms, 'outputBytes': output_bytes})
         continue
@@ -466,7 +472,7 @@ function installPypi(name: string, version: string): { python: string; pythonVer
       if (venv.status !== 0) throw new Error(`python3 -m venv failed: ${(venv.stderr || venv.error?.message || '').trim().split('\n').at(-1)}`)
     }
     // Wheels only: no source build runs package code at install time.
-    const pip = run(python, ['-I', '-m', 'pip', 'install', '--isolated', '--no-deps', '--disable-pip-version-check', '--no-input', '--only-binary=:all:', `${name}==${version}`])
+    const pip = run(python, ['-I', '-m', 'pip', 'install', '--no-deps', '--disable-pip-version-check', '--no-input', '--only-binary=:all:', `${name}==${version}`])
     if (pip.status !== 0 || installed() !== version) throw new Error(`pip install ${name}==${version} failed: ${(pip.stderr || '').trim().split('\n').at(-1)}`)
   }
   return { python, pythonVersion: run(python, ['-I', '-c', 'import sys; print(sys.version.split()[0])']).stdout.trim() }
