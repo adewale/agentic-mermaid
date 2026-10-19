@@ -244,7 +244,7 @@ const STATE_KEYWORD_AT = /state[ \t]+/iy
 const STATE_ID_AT = /[\w\p{L}-]+/uy
 const STATE_AS_AT = /[ \t]+as[ \t]+/iy
 const STATE_AS_WORD_AT = /[ \t]+as(?=[ \t]|$)/iy
-const STEREOTYPE_AT = /[ \t]*<<[^>\n]*>>/y
+const STEREOTYPE_AT = /[ \t]*(?:<<[^>\n]*>>|\[\[(fork|join|choice)\]\])/iy
 const OPEN_BRACE_AT = /[ \t]*\{/y
 const CLASS_SHORTHAND_AT = /:::[ \t]*([\w-]+)/y
 const SEPARATOR_AT = /-{2,}(?=[ \t;}]|$)/y
@@ -466,8 +466,11 @@ export function readStateStatements(lines: readonly StateSourceLine[]): StateSta
     // Mermaid's `as` follows only a quoted label: it rejects `state X as Y`.
     if (!label && matchAt(STATE_AS_WORD_AT, text, at) !== null) return null
     if (label && text[skipBlank(text, at)] === ':') return readAliasSuffix(text, label, id, at)
-    const stereotype = matchAt(STEREOTYPE_AT, text, at)
-    if (stereotype !== null) at += stereotype.length
+    // Mermaid also spells a fork, join or choice `[[fork]]`, read as `<<fork>>`.
+    STEREOTYPE_AT.lastIndex = at
+    const marker = STEREOTYPE_AT.exec(text)
+    if (marker !== null) at += marker[0].length
+    const stereotype = marker === null ? null : marker[1] !== undefined ? `<<${marker[1]}>>` : marker[0]
     const brace = matchAt(OPEN_BRACE_AT, text, at)
     let opens = brace !== null
     const next = skipBlank(text, at)

@@ -599,6 +599,8 @@ describe('State statements across and within lines', () => {
     // before `note`, and a name otherwise.
     ['STATE X {\nA\n}', ['A:rounded:A', 'X:X{A}'], []],
     ['State "Long" AS L\nState F <<FORK>>\nL --> F', ['L:rounded:Long', 'F:state-fork:', 'L->F'], []],
+    // Mermaid also spells a fork, join or choice `[[fork]]`.
+    ['state f [[fork]]\nstate j [[JOIN]]\nstate c [[choice]]\nA --> f\nf --> c\nc --> j', ['A:rounded:A', 'f:state-fork:', 'j:state-join:', 'c:state-choice:', 'A->f', 'f->c', 'c->j'], []],
     ['ClassDef hot fill:#f00\nA --> B\nCLASS A hot\nNote Right Of B : hi\nNOTE LEFT OF A\ntext\nEND NOTE', ['A:rounded:A', 'B:rounded:B', 'A->B', 'A:::hot', 'note right of B:hi', 'note left of A:text'], []],
     ['end A', ['A:rounded:A', 'end:rounded:end'], ['state_statements_share_line@2']],
     ['State "multi\nline" as X', ['X:rounded:multi\nline'], []],
