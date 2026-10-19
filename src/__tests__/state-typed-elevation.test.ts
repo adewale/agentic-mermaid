@@ -488,6 +488,8 @@ describe('State statements across and within lines', () => {
     ['state "first\n// second\nthird" as X\nX --> Y', ['X:rounded:first\n// second\nthird', 'Y:rounded:Y', 'X->Y'], []],
     // Mermaid reads the rest of the line after `as` into the name, `}` too.
     ['state X {\nstate "x" as A }', ['A:rounded:x', 'X:X{A}'], ['state_brace_after_name@3']],
+    // A line inside the string is its text, never an accTitle.
+    ['state X {\nstate "x\naccTitle: y" as A }', ['A:rounded:x\naccTitle: y', 'X:X{A}'], ['state_brace_after_name@3']],
   ] as const)('%j is read alike by the renderer, the typed body, its output and verify', async (body, expected, warnings) => {
     const source = `stateDiagram-v2\n${body}`
     expect(readingOf(parseRenderGraph(source))).toEqual([...expected].sort())

@@ -121,6 +121,9 @@ describe('normalizeMermaidSource', () => {
     // Class keeps a label's line break as <br>.
     ['classDiagram\n  class A["x\naccTitle: y"]', 'x<br>accTitle: y'],
     ['mindmap\n  root["x\naccTitle: y"]', 'x\naccTitle: y'],
+    ['stateDiagram-v2\n  state "x\naccTitle: y" as A\n  A --> B', 'x\naccTitle: y'],
+    // A block note's text runs to its `end note` line.
+    ['stateDiagram-v2\n  note left of A\n    accDescr {\n    y }\n  end note', 'accDescr {\ny }'],
   ])('%j keeps a directive-shaped line inside its quoted text', (statements, text) => {
     // The comment after the string is still the envelope's, on its line.
     const source = `${statements}\n  %% note`

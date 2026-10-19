@@ -16,7 +16,7 @@
 // ============================================================================
 
 import { normalizeBrTags } from '../multiline-utils.ts'
-import { STATE_NOTE_OPEN_RE, STATE_NOTE_OPEN_TEXT_RE, STATE_NOTE_END_RE, type StateSourceLine } from './comment.ts'
+import { STATE_NOTE_OPEN_RE, STATE_NOTE_OPEN_TEXT_RE, STATE_NOTE_END_RE, scanStateComments, type StateSourceLine } from './comment.ts'
 
 export type StateNoteSide = 'left' | 'right'
 
@@ -258,14 +258,36 @@ function endsName(text: string, index: number): boolean {
   return index >= text.length || ' \t;}:'.includes(text[index]!) || text.startsWith('-->', index)
 }
 
+/** The last of the lines a string left open at `start` joins: up to its
+ *  closing quote. */
+function quotedRunEnd(lines: readonly StateSourceLine[], start: number): number {
+  let end = start
+  while (lines[end]!.openQuote && end + 1 < lines.length) end++
+  return end
+}
+
+/** For each source line, the last line of the statement that starts there:
+ *  Mermaid's State lexer reads a quoted name or note text to its closing
+ *  quote, and block-note text to its `end note`, across line breaks. Source
+ *  normalization reads no line inside one as an accTitle/accDescr. */
+export function stateStatementEnds(source: readonly string[]): number[] {
+  const lines = scanStateComments(source)
+  return lines.map((line, index) => {
+    if (!line.noteOpen) return quotedRunEnd(lines, index)
+    let end = index
+    while (end + 1 < lines.length && lines[end + 1]!.noteBody) end++
+    // The note's text ends at its `end note` line, which closes the body.
+    return Math.min(end + 1, lines.length - 1)
+  })
+}
+
 export function readStateStatements(lines: readonly StateSourceLine[]): StateStatementScan {
   // A string left open joins the lines up to its closing quote.
   const logical: Array<{ text: string; line: number; noteBody: boolean; noteOpen: boolean }> = []
   for (let index = 0; index < lines.length; index++) {
     const start = index
-    const parts = [lines[index]!.text]
-    while (lines[index]!.openQuote && index + 1 < lines.length) parts.push(lines[++index]!.text)
-    const text = parts.join('\n')
+    index = quotedRunEnd(lines, start)
+    const text = lines.slice(start, index + 1).map(line => line.text).join('\n')
     if (text || lines[start]!.noteBody) logical.push({ text, line: start, noteBody: lines[start]!.noteBody, noteOpen: lines[start]!.noteOpen })
   }
   const statements: StateStatement[] = []

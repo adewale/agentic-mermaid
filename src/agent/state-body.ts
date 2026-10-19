@@ -51,10 +51,10 @@ import type {
 import { ok, err } from './types.ts'
 import { labelOverflowCollector } from './body-utils.ts'
 import { normalizeBrTags } from '../multiline-utils.ts'
-import { parseAccessibilityDirective, scanAccessibilityDirectives } from '../shared/accessibility-directives.ts'
+import { parseAccessibilityDirective, scanAccessibilityDirectives, statementEndAt } from '../shared/accessibility-directives.ts'
 import {
   matchNoteLine, matchNoteOpen, isNoteEnd, matchStereotypeDecl,
-  matchTransitionLine, readStateStatements, isConcurrencySeparator, isHistoryEndpoint, matchHistoryEndpoint,
+  matchTransitionLine, readStateStatements, stateStatementEnds, isConcurrencySeparator, isHistoryEndpoint, matchHistoryEndpoint,
   isStateNodeId, matchStateDeclarationLine, matchStateLayoutDirective, stereotypeMarker, stripStateComment, matchStateClassAssignment, stateNoteText,
   STATE_DIRECTION_RE, STATE_ALIAS_RE, STATE_COMPOSITE_OPEN_RE, STATE_DESCRIPTION_RE,
   STATE_CLASS_DEF_RE, STATE_STYLE_RE, STATE_LINK_STYLE_RE,
@@ -1167,10 +1167,15 @@ export function stateUnsupportedSyntaxWarnings(canonicalSource: string): LayoutW
   const header = lines.findIndex(line => /^stateDiagram(?:-v2)?(?=$|[\s;%])/i.test(line.trim()))
   if (header < 0) return []
   const body = lines.slice(header + 1)
+  // A line inside a statement's quoted or note text is the State reader's.
+  const statementEnds = stateStatementEnds(body)
   for (let index = 0; index < body.length; index++) {
     const directive = parseAccessibilityDirective(body, index)
     if (directive === undefined) break
-    if (directive === null) continue
+    if (directive === null) {
+      index = statementEndAt(statementEnds, index, body.length)
+      continue
+    }
     for (let at = index; at <= directive.endIndex; at++) body[at] = ''
     if (directive.suffixLine) body[directive.endIndex] = directive.suffixLine
     index = directive.endIndex
@@ -1204,7 +1209,8 @@ export function stateUnsupportedSyntaxWarnings(canonicalSource: string): LayoutW
 export function verifyOpaqueState(source: string): LayoutWarning[] {
   const directives = new Set<string>()
   let inNote = false
-  for (const raw of scanAccessibilityDirectives(source.split(/\r?\n/)).familyLines) {
+  const lines = source.split(/\r?\n/)
+  for (const raw of scanAccessibilityDirectives(lines, stateStatementEnds(lines)).familyLines) {
     const line = stripStateComment(raw)
     if (inNote) {
       if (isNoteEnd(line)) inNote = false
