@@ -99,7 +99,10 @@ export function splitHeaderStatement(body: string): string {
   const at = lines.findIndex(line => line.trim() !== '' && !line.trim().startsWith('%%'))
   const header = at < 0 ? null : HEADER_WITH_STATEMENT_RE.exec(lines[at]!)
   const statement = header ? lines[at]!.slice(header[0].length) : ''
-  if (!header || !/^[^\S\r\n]+(?!%%)\S/.test(statement)) return body
+  // State also moves a statement after `;`, which pinned Mermaid rejects; the
+  // State reader keeps the `;` as a separator and verify reports it.
+  const stateSemicolon = header !== null && /^\s*stateDiagram/i.test(header[0]) && /^[^\S\r\n]*;/.test(statement)
+  if (!header || !(stateSemicolon || /^[^\S\r\n]+(?!%%)\S/.test(statement))) return body
   lines.splice(at, 1, header[0], statement.trim())
   return lines.join('\n')
 }

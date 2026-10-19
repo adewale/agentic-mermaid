@@ -12,10 +12,11 @@
 //   state X <<history|H|deephistory|H*>> — history declaration (PR #5700 forms)
 //   from --> to where either endpoint is [H] / [H*] / Base[H] / Base[H*]
 //   --                                   — concurrency region separator
+// and the statements on the lines (readStateStatements, at the end).
 // ============================================================================
 
 import { normalizeBrTags } from '../multiline-utils.ts'
-import { STATE_NOTE_OPEN_RE, STATE_NOTE_END_RE } from './comment.ts'
+import { STATE_NOTE_OPEN_RE, STATE_NOTE_OPEN_TEXT_RE, STATE_NOTE_END_RE, type StateSourceLine } from './comment.ts'
 
 export type StateNoteSide = 'left' | 'right'
 
@@ -144,7 +145,7 @@ export function historyLabel(deep: boolean): 'H' | 'H*' {
  *  transition. */
 const TRANSITION_ENDPOINT = String.raw`\[\*\]|[\w\p{L}-]+\[H\*?\]|\[H\*?\]|[\w\p{L}-]+`
 const TRANSITION_RE = new RegExp(
-  `^(${TRANSITION_ENDPOINT})(?::::([\\w-]+))?\\s*-->\\s*(${TRANSITION_ENDPOINT})(?::::([\\w-]+))?(?:\\s+([\\w\\p{L}-]+(?:\\s+[\\w\\p{L}-]+)*))?(?:\\s*:\\s*(.+))?$`,
+  `^(${TRANSITION_ENDPOINT})(?::::([\\w-]+))?\\s*-->\\s*(${TRANSITION_ENDPOINT})(?::::([\\w-]+))?(?:\\s*:\\s*(.+))?$`,
   'u',
 )
 
@@ -154,23 +155,17 @@ export interface StateTransitionMatch {
   fromClass?: string
   toClass?: string
   label?: string
-  /** Independent state declarations consumed after the transition. */
-  followingStates?: string[]
 }
 
 export function matchTransitionLine(line: string): StateTransitionMatch | null {
   const m = line.match(TRANSITION_RE)
   if (!m) return null
-  // A trailing description after another state belongs to that declaration,
-  // not to this transition; never misattribute it as the connector label.
-  if (m[5] && m[6]) return null
-  const rawLabel = m[6]?.trim()
+  const rawLabel = m[5]?.trim()
   return {
     from: m[1]!,
     ...(m[2] ? { fromClass: m[2] } : {}),
     to: m[3]!,
     ...(m[4] ? { toClass: m[4] } : {}),
-    ...(m[5] ? { followingStates: m[5].trim().split(/\s+/) } : {}),
     ...(rawLabel ? { label: rawLabel } : {}),
   }
 }
@@ -193,3 +188,234 @@ export const STATE_DESCRIPTION_RE = /^([\w\p{L}-]+)\s*:\s*(.+)$/u
 export const STATE_CLASS_DEF_RE = /^classDef\s+([\w,-]+)\s+(.+)$/
 export const STATE_STYLE_RE = /^style\s+([\w\p{L},-]+)\s+(.+)$/u
 export const STATE_LINK_STYLE_RE = /^linkStyle\s+(default|[\d,\s]+)\s+(.+)$/
+
+// ---- Statements -------------------------------------------------------------
+//
+// Mermaid's State lexer does not read one statement per line: statements may
+// share a line with nothing between them (`A B`, `A --> B C --> D`), braces
+// are tokens (`state X { A }`, `} B`), a `state` declaration may take its `{`
+// from the next line, inside a composite a line break is only whitespace
+// (`A\n--> B`), and quoted names and block-note text run across lines.
+// readStateStatements cuts the comment-scanned lines into the one-statement
+// texts both parsers match. Ours also ends a statement at `;` (mermaid#5410),
+// which pinned Mermaid reads into a state name. Text after a description
+// colon and a keyword statement (`classDef`, `note`, `direction`, …) run to
+// the end of their line, and a line ours cannot read to its end stays whole,
+// as before.
+
+export interface StateStatement {
+  text: string
+  /** Index of the input line the statement starts on. */
+  line: number
+  /** A block note's body line, read verbatim. */
+  noteBody?: boolean
+}
+
+export interface StateStatementScan {
+  statements: StateStatement[]
+  /** Input lines where `;` separates statements. */
+  semicolonLines: number[]
+  /** Input lines where a statement follows another with nothing between. */
+  juxtaposedLines: number[]
+}
+
+// A name starts with a letter or digit; a hyphen continues it unless it
+// starts an arrow (`A-->B`).
+const STATEMENT_ENDPOINT_AT = /(?:\[\*\]|\[H\*?\]|[\w\p{L}](?:[\w\p{L}]|-(?!->))*(?:\[H\*?\])?)(?::::(?:\w|-(?!->))+)?/uy
+const STATEMENT_KEYWORD_AT = /(?:classDef|class|cssClass|style|linkStyle|direction|scale|hide|note|end|click)(?=[ \t]|$)/y
+const STATE_KEYWORD_AT = /state[ \t]+/y
+const STATE_ID_AT = /[\w\p{L}-]+/uy
+const STATE_AS_AT = /[ \t]+as[ \t]+/y
+const STEREOTYPE_AT = /[ \t]*<<[^>\n]*>>/y
+const OPEN_BRACE_AT = /[ \t]*\{/y
+const SEPARATOR_AT = /-{2,}(?=[ \t;}]|$)/y
+
+function matchAt(pattern: RegExp, text: string, index: number): string | null {
+  pattern.lastIndex = index
+  return pattern.exec(text)?.[0] ?? null
+}
+
+function skipBlank(text: string, index: number): number {
+  while (text[index] === ' ' || text[index] === '\t') index++
+  return index
+}
+
+/** A name ends at a blank, `;`, `}`, a description colon or an arrow. */
+function endsName(text: string, index: number): boolean {
+  return index >= text.length || ' \t;}:'.includes(text[index]!) || text.startsWith('-->', index)
+}
+
+export function readStateStatements(lines: readonly StateSourceLine[]): StateStatementScan {
+  // A string left open joins the lines up to its closing quote.
+  const logical: Array<{ text: string; line: number; noteBody: boolean; noteOpen: boolean }> = []
+  for (let index = 0; index < lines.length; index++) {
+    const start = index
+    const parts = [lines[index]!.text]
+    while (lines[index]!.openQuote && index + 1 < lines.length) parts.push(lines[++index]!.text)
+    const text = parts.join('\n')
+    if (text || lines[start]!.noteBody) logical.push({ text, line: start, noteBody: lines[start]!.noteBody, noteOpen: lines[start]!.noteOpen })
+  }
+  const statements: StateStatement[] = []
+  const semicolonLines = new Set<number>()
+  const juxtaposedLines = new Set<number>()
+  let depth = 0
+  let row = 0
+  let column = 0
+  let delimited = true
+  const emit = (text: string, line: number, delimitsNext: boolean): void => {
+    if (!delimited) juxtaposedLines.add(line)
+    statements.push({ text, line })
+    delimited = delimitsNext
+  }
+  const statementRowAfter = (index: number): boolean => {
+    const next = logical[index + 1]
+    return next !== undefined && !next.noteBody && !next.noteOpen
+  }
+  // Inside a composite a line break is whitespace (Mermaid's struct state).
+  const skipSpace = (cursor: { row: number; column: number }): void => {
+    for (;;) {
+      const text = logical[cursor.row]!.text
+      cursor.column = skipBlank(text, cursor.column)
+      if (cursor.column < text.length || depth === 0 || !statementRowAfter(cursor.row)) return
+      cursor.row++
+      cursor.column = 0
+    }
+  }
+  /** `A` or `A --> B`, either with a description; null leaves the cursor. */
+  const readIdStatement = (): string | null => {
+    const first = logical[row]!.text
+    const left = matchAt(STATEMENT_ENDPOINT_AT, first, column)
+    if (left === null || !endsName(first, column + left.length)) return null
+    const cursor = { row, column: column + left.length }
+    let statement = left
+    const arrow = { ...cursor }
+    skipSpace(arrow)
+    if (logical[arrow.row]!.text.startsWith('-->', arrow.column)) {
+      arrow.column += 3
+      skipSpace(arrow)
+      const text = logical[arrow.row]!.text
+      const right = matchAt(STATEMENT_ENDPOINT_AT, text, arrow.column)
+      if (right === null || !endsName(text, arrow.column + right.length)) return null
+      statement += ` --> ${right}`
+      cursor.row = arrow.row
+      cursor.column = arrow.column + right.length
+    }
+    const text = logical[cursor.row]!.text
+    const colon = skipBlank(text, cursor.column)
+    if (text[colon] === ':') {
+      statement += ` ${text.slice(colon)}`
+      cursor.column = text.length
+    }
+    row = cursor.row
+    column = cursor.column
+    return statement
+  }
+  /** `state ["label" as] id [<<stereotype>>] [{]`; null leaves the cursor. */
+  const readStateDeclaration = (from: number): { text: string; opens: boolean } | null => {
+    const text = logical[row]!.text
+    let at = from
+    let label = ''
+    if (text[at] === '"') {
+      const close = text.indexOf('"', at + 1)
+      const as = close < 0 ? null : matchAt(STATE_AS_AT, text, close + 1)
+      if (as === null) return null
+      label = `${text.slice(at, close + 1)} as `
+      at = close + 1 + as.length
+    }
+    const id = matchAt(STATE_ID_AT, text, at)
+    if (id === null) return null
+    at += id.length
+    const stereotype = matchAt(STEREOTYPE_AT, text, at)
+    if (stereotype !== null) at += stereotype.length
+    const brace = matchAt(OPEN_BRACE_AT, text, at)
+    let opens = brace !== null
+    if (brace !== null) at += brace.length
+    else if (at < text.length && !' \t;}'.includes(text[at]!)) return null
+    else if (stereotype === null && skipBlank(text, at) === text.length && statementRowAfter(row) && logical[row + 1]!.text.startsWith('{')) {
+      // `state X` with its `{` on the next line, as Mermaid's STATE lexer reads it.
+      row++
+      at = 1
+      opens = true
+    }
+    column = at
+    return { text: `state ${label}${id}${stereotype === null ? '' : ` ${stereotype.trim()}`}${opens ? ' {' : ''}`, opens }
+  }
+
+  // Where the statements read from the current row begin, so a row ours
+  // cannot read to its end is kept whole, as authored.
+  let mark = { statements: 0, depth: 0, column: 0 }
+  while (row < logical.length) {
+    const entry = logical[row]!
+    if (column === 0) {
+      delimited = true
+      mark = { statements: statements.length, depth, column: 0 }
+      if (entry.noteBody) {
+        statements.push({ text: entry.text, line: entry.line, noteBody: true })
+        row++
+        continue
+      }
+      const opener = entry.noteOpen ? entry.text.match(STATE_NOTE_OPEN_TEXT_RE) : null
+      if (opener) {
+        statements.push({ text: `note ${opener[1]} of ${opener[2]}`, line: entry.line }, { text: opener[3]!, line: entry.line, noteBody: true })
+        row++
+        continue
+      }
+    }
+    const text = entry.text
+    column = skipBlank(text, column)
+    if (column >= text.length) {
+      row++
+      column = 0
+      continue
+    }
+    const line = entry.line
+    const character = text[column]!
+    if (character === ';') {
+      semicolonLines.add(line)
+      column++
+      delimited = true
+      continue
+    }
+    if (character === '}') {
+      statements.push({ text: '}', line })
+      depth = Math.max(0, depth - 1)
+      column++
+      delimited = true
+      continue
+    }
+    const separator = depth > 0 ? matchAt(SEPARATOR_AT, text, column) : null
+    if (separator !== null) {
+      statements.push({ text: separator, line })
+      column += separator.length
+      delimited = true
+      continue
+    }
+    if (matchAt(STATEMENT_KEYWORD_AT, text, column) !== null) {
+      // A keyword statement runs to the end of its line.
+      emit(text.slice(column), line, false)
+      row++
+      column = 0
+      continue
+    }
+    const startRow = row
+    const keyword = matchAt(STATE_KEYWORD_AT, text, column)
+    const declaration = keyword === null ? null : readStateDeclaration(column + keyword.length)
+    const statement = declaration?.text ?? (keyword === null ? readIdStatement() : null)
+    if (statement !== null) {
+      emit(statement, line, declaration?.opens ?? false)
+      if (declaration?.opens) depth++
+      if (row !== startRow) mark = { statements: statements.length, depth, column }
+      continue
+    }
+    // Ours cannot read the rest of the row: keep it whole, so the parsers
+    // report it as written rather than accept a fragment of it.
+    statements.length = mark.statements
+    depth = mark.depth
+    juxtaposedLines.delete(line)
+    semicolonLines.delete(line)
+    statements.push({ text: text.slice(mark.column).trim(), line })
+    row++
+    column = 0
+  }
+  return { statements, semicolonLines: [...semicolonLines], juxtaposedLines: [...juxtaposedLines] }
+}

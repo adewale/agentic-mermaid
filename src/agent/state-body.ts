@@ -28,8 +28,8 @@
 // on transitions (verifyState announces them via the Tier-3 `state_history`
 // lint; the renderer draws the (H)/(H*) circle).
 //
-// Structured-or-opaque: any non-blank, non-comment line that is NOT one of the
-// modeled forms returns null so the caller falls back to a lossless opaque
+// Structured-or-opaque: any statement (readStateStatements) that is NOT one of
+// the modeled forms returns null so the caller falls back to a lossless opaque
 // body. Deliberately UNMODELED: concurrency separators `--` (regions render
 // via the legacy parser, but a structured region model is deferred — repo
 // #118 does not list it), `classDef`/`class`/`:::` styling, bare `stateId`
@@ -51,10 +51,10 @@ import type {
 import { ok, err } from './types.ts'
 import { labelOverflowCollector } from './body-utils.ts'
 import { normalizeBrTags } from '../multiline-utils.ts'
-import { scanAccessibilityDirectives } from '../shared/accessibility-directives.ts'
+import { parseAccessibilityDirective, scanAccessibilityDirectives } from '../shared/accessibility-directives.ts'
 import {
   matchNoteLine, matchNoteOpen, isNoteEnd, matchStereotypeDecl,
-  matchTransitionLine, isConcurrencySeparator, isHistoryEndpoint, matchHistoryEndpoint,
+  matchTransitionLine, readStateStatements, isConcurrencySeparator, isHistoryEndpoint, matchHistoryEndpoint,
   isStateNodeId, matchStateDeclarationLine, matchStateLayoutDirective, stereotypeMarker, stripStateComment, matchStateClassAssignment, stateNoteText,
   STATE_DIRECTION_RE, STATE_ALIAS_RE, STATE_COMPOSITE_OPEN_RE, STATE_DESCRIPTION_RE,
   STATE_CLASS_DEF_RE, STATE_STYLE_RE, STATE_LINK_STYLE_RE,
@@ -101,22 +101,22 @@ function ensureState(scope: ParseScope, id: string): StateNode {
 
 /**
  * Parse state body lines (header excluded). Returns a structured body only if
- * EVERY non-blank, non-comment line is a modeled directive (transition /
+ * EVERY statement on them is a modeled directive (transition /
  * description / alias / composite / direction). Otherwise returns null
  * (opaque fallback). A header-only body is the empty typed diagram, as it is
  * in Mermaid; verify reports it as EMPTY_DIAGRAM.
  */
 export function parseStateBody(lines: string[]): StateBody | null {
-  const sourceLines = scanStateComments(lines)
+  const { statements } = readStateStatements(scanStateComments(lines))
   const root = newScope()
   const stack: ParseScope[] = [root]
   // Discover composite declarations before materializing transition endpoints.
   // Mermaid state IDs are global even when the declaration is nested, so a
   // forward reference must never create a competing simple placeholder.
   const compositeIds = new Set<string>()
-  for (const line of sourceLines) {
-    if (line.noteBody) continue
-    const match = line.text.match(STATE_COMPOSITE_OPEN_RE)
+  for (const statement of statements) {
+    if (statement.noteBody) continue
+    const match = statement.text.match(STATE_COMPOSITE_OPEN_RE)
     if (!match) continue
     const id = match[2]!
     if (compositeIds.has(id)) return null
@@ -143,8 +143,8 @@ export function parseStateBody(lines: string[]): StateBody | null {
     if (!compositeIds.has(target)) ensureState(scope, target)
   }
 
-  for (const sourceLine of sourceLines) {
-    const line = sourceLine.text
+  for (const statement of statements) {
+    const line = statement.text
 
     const scope = stack[stack.length - 1]!
 
@@ -322,7 +322,6 @@ export function parseStateBody(lines: string[]): StateBody | null {
       const transition: StateTransition = { from, to, ...(label !== undefined ? { label } : {}) }
       scope.transitions.push(transition)
       transitionOrder.push(transition)
-      for (const id of tr.followingStates ?? []) ensureState(scope, id).declaredBare = true
       continue
     }
 
@@ -1144,6 +1143,38 @@ function renameInTransitions(body: StateBody, from: string, to: string): void {
 // via the graph projection. This hook adds the body-level structural checks:
 // EMPTY_DIAGRAM, EDGE_MISANCHORED (transition endpoint references a missing
 // state), and LABEL_OVERFLOW.
+
+/** State source ours reads where pinned Mermaid reads it otherwise, each on
+ * its canonical line: a `;` between statements, which Mermaid reads into a
+ * state name (or rejects after the header), and statements sharing a line
+ * with nothing between them. Mermaid reads those apart too, but `A B` is
+ * usually meant as one name with a space (mermaid#2973). */
+export function stateUnsupportedSyntaxWarnings(canonicalSource: string): LayoutWarning[] {
+  const lines = canonicalSource.split(/\r?\n/)
+  const header = lines.findIndex(line => /^stateDiagram(?:-v2)?(?=$|[\s;%])/i.test(line.trim()))
+  if (header < 0) return []
+  const body = lines.slice(header + 1)
+  for (let index = 0; index < body.length; index++) {
+    const directive = parseAccessibilityDirective(body, index)
+    if (directive === undefined) break
+    if (directive === null) continue
+    for (let at = index; at <= directive.endIndex; at++) body[at] = ''
+    if (directive.suffixLine) body[directive.endIndex] = directive.suffixLine
+    index = directive.endIndex
+  }
+  const scan = readStateStatements(scanStateComments(body))
+  const warnings: Array<LayoutWarning & { line: number }> = [
+    ...scan.semicolonLines.map(index => ({
+      code: 'UNSUPPORTED_SYNTAX' as const, syntax: 'state_semicolon_separator', line: header + index + 2,
+      message: 'A `;` between State statements is read as a separator. Pinned Mermaid does not separate State statements with `;`: it reads the `;` into a state name, or rejects it after the header. Put each statement on its own line.',
+    })),
+    ...scan.juxtaposedLines.map(index => ({
+      code: 'UNSUPPORTED_SYNTAX' as const, syntax: 'state_statements_share_line', line: header + index + 2,
+      message: 'State statements sharing a line with nothing between them are read as separate statements, as Mermaid reads them: `A B` declares the states A and B. For one state whose name has a space, write `state "A B" as AB`; otherwise put each statement on its own line.',
+    })),
+  ]
+  return warnings.sort((left, right) => left.line - right.line)
+}
 
 export function verifyOpaqueState(source: string): LayoutWarning[] {
   const directives = new Set<string>()

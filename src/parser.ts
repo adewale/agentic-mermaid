@@ -14,7 +14,7 @@ import {
   matchHistoryEndpoint,
   matchNoteLine, matchNoteOpen,
   matchStateClassAssignment, matchStateDeclarationLine, matchStateLayoutDirective,
-  matchStereotypeDecl, matchTransitionLine,
+  matchStereotypeDecl, matchTransitionLine, readStateStatements,
   STATE_ALIAS_RE,
   STATE_CLASS_DEF_RE, STATE_COMPOSITE_OPEN_RE, STATE_DESCRIPTION_RE,
   STATE_DIRECTION_RE,
@@ -92,7 +92,9 @@ function expandInlineHeaderStatements(lines: string[]): string[] {
   if (!header) return lines
   const rest = lines[0]!.slice(header[0].length).trim()
   if (!rest.startsWith(';')) return lines
-  return [header[0], ...splitFlowchartStatements(rest), ...lines.slice(1)]
+  // The State reader splits its own statements (readStateStatements).
+  const statements = /^stateDiagram/i.test(header[0]) ? [rest] : splitFlowchartStatements(rest)
+  return [header[0], ...statements, ...lines.slice(1)]
 }
 
 /**
@@ -564,9 +566,10 @@ function parseStateDiagram(lines: string[]): MermaidGraph {
     return raw
   }
 
-  for (let i = 1; i < lines.length; i++) {
-    const line = lines[i]!
-    if (parserObservationActive('state')) observeParserStatement('state', openNote ? 'note-body' : 'statement', line, { line: i + 1, unit: 'normalized' })
+  for (const statement of readStateStatements(scanStateComments(lines.slice(1))).statements) {
+    const line = statement.text
+    const source = { line: statement.line + 2, unit: 'normalized' } as const
+    if (parserObservationActive('state')) observeParserStatement('state', openNote ? 'note-body' : 'statement', line, source)
 
     // --- open block note: collect body lines verbatim until `end note` ---
     if (openNote) {
@@ -802,8 +805,7 @@ function parseStateDiagram(lines: string[]): MermaidGraph {
         hasArrowStart: false,
         hasArrowEnd: true,
       })
-      if (parserObservationActive('state')) observeParserMutation('state', 'add-edge', graph.edges.at(-1), { line: i + 1, unit: 'normalized' })
-      for (const id of transition.followingStates ?? []) registerStateNode(graph, compositeStack, { id, label: id, shape: 'rounded' })
+      if (parserObservationActive('state')) observeParserMutation('state', 'add-edge', graph.edges.at(-1), source)
       continue
     }
 

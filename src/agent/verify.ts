@@ -44,7 +44,7 @@ import { quadrantUnsupportedSyntaxWarnings } from './quadrant-body.ts'
 import { sequenceMessages, sequenceUnsupportedSyntaxWarnings } from './sequence-body.ts'
 import { authoredLineForCanonical } from './source-map-spans.ts'
 import { serializeMermaid } from './serialize.ts'
-import { stateBodyToGraph } from './state-body.ts'
+import { stateBodyToGraph, stateUnsupportedSyntaxWarnings } from './state-body.ts'
 import { countStructuralElements, faithfulnessWarning } from './structural-count.ts'
 import { logToolInvocation } from './trace-log.ts'
 import type { ExtensionValidDiagram, LayoutWarning, ParsedDiagram, RenderedLayout, SequenceBody, ValidDiagram, VerifyOptions, VerifyResult, WarningCode } from './types.ts'
@@ -332,6 +332,7 @@ const UPSTREAM_REJECTED_SYNTAX: Partial<Record<ValidDiagram['kind'], (canonicalS
   gantt: ganttUnsupportedSyntaxWarnings,
   quadrant: quadrantUnsupportedSyntaxWarnings,
   sequence: sequenceUnsupportedSyntaxWarnings,
+  state: stateUnsupportedSyntaxWarnings,
 }
 
 function upstreamRejectedSyntaxWarnings(d: ValidDiagram): LayoutWarning[] {

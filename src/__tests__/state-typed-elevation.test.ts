@@ -1,4 +1,4 @@
-import { describe, expect, test } from 'bun:test'
+import { afterAll, describe, expect, test } from 'bun:test'
 import { parseRegisteredMermaid as parseMermaid } from '../agent/parse.ts'
 import { serializeMermaid } from '../agent/serialize.ts'
 import { mutate } from '../agent/mutate.ts'
@@ -117,7 +117,7 @@ describe('typed State residual elevation (B07)', () => {
     expect(verifyMermaid(source).ok).toBe(true)
     const commentedDelimiter = 'stateDiagram-v2\n// A["` @{\nA --> B'
     expect(parseRenderGraph(commentedDelimiter).edges.map(edge => [edge.source, edge.target])).toEqual([['A', 'B']])
-    expect(() => renderMermaidSVG(`${commentedDelimiter}\nbogus statement`)).toThrow('Unsupported state syntax: "bogus statement"')
+    expect(() => renderMermaidSVG(`${commentedDelimiter}\nbogus -->`)).toThrow('Unsupported state syntax: "bogus -->"')
   })
 
   test.each(['scale 350 width', 'hide empty description'])('preserves and warns about an unapplied State layout directive: %s', async directive => {
@@ -171,7 +171,7 @@ describe('typed State residual elevation (B07)', () => {
     expect(renderMermaidSVG(serialized)).toContain('second')
   })
 
-  test.each(['bogus statement', 'state A <<unknown>>', 'direction diagonal'])('rejects unknown State content instead of drawing a partial diagram: %s', statement => {
+  test.each(['bogus -->', 'state A <<unknown>>', 'direction diagonal'])('rejects unknown State content instead of drawing a partial diagram: %s', statement => {
     const source = `stateDiagram-v2\nA --> B\n${statement}`
     const parsed = parseMermaid(source)
     if (!parsed.ok) throw new Error(JSON.stringify(parsed.error))
@@ -425,5 +425,66 @@ stateDiagram-v2
     const graph = parseRenderGraph(serializeMermaid(diagram))
     expect(graph.subgraphs[0]?.id).toBe('in-flight')
     expect(graph.subgraphs[0]?.nodeIds.sort()).toEqual(['active-work', 'waiting-room'])
+  })
+})
+
+// Mermaid's State lexer (stateDiagram.jison) does not read one statement per
+// line: braces are tokens, statements share a line with nothing between them,
+// a composite's line breaks are whitespace, a `state` declaration's `{` may
+// start the next line, and quoted names and block-note text run across lines.
+describe('State statements across and within lines', () => {
+  const upstream = startUpstreamMermaid()
+  afterAll(() => upstream.close())
+  const readingOf = (graph: ReturnType<typeof parseRenderGraph>): string[] => {
+    // Declaration order is not meaning: the writer puts definitions first.
+    const groups = (list: typeof graph.subgraphs, path: string): string[] => list.flatMap(group => [
+      `${path}${group.id}:${group.label}{${[...group.nodeIds].sort().join(' ')}}`,
+      ...groups(group.children, `${path}${group.id}/`),
+    ])
+    return [
+      ...[...graph.nodes.values()].map(node => `${node.id}:${node.shape}:${node.label}`),
+      ...graph.edges.map(edge => `${edge.source}->${edge.target}${edge.label ? `:${edge.label}` : ''}`),
+      ...groups(graph.subgraphs, ''),
+      ...[...graph.classAssignments].map(([id, name]) => `${id}:::${name}`),
+      ...(graph.stateNotes ?? []).map(note => `note ${note.side} of ${note.target}:${note.text}`),
+    ].sort()
+  }
+  test.each([
+    ['state X { A --> B }', ['A:rounded:A', 'B:rounded:B', 'A->B', 'X:X{A B}'], []],
+    ['state X {\nA --> B }', ['A:rounded:A', 'B:rounded:B', 'A->B', 'X:X{A B}'], []],
+    ['state "Long" as X { A }', ['A:rounded:A', 'X:Long{A}'], []],
+    ['state X {\nstate Y {\nA\n}}', ['A:rounded:A', 'X:X{}', 'X/Y:Y{A}'], []],
+    ['state X\n{\nA\n} B', ['A:rounded:A', 'B:rounded:B', 'X:X{A}'], []],
+    ['state X {\nA\n--> B\n}', ['A:rounded:A', 'B:rounded:B', 'A->B', 'X:X{A B}'], []],
+    ['state X {\nA -->\nB : go\n}', ['A:rounded:A', 'B:rounded:B', 'A->B:go', 'X:X{A B}'], []],
+    ['state X { A -- B }', ['A:rounded:A', 'B:rounded:B', 'X:X{}', 'X/X__r1:{A}', 'X/X__r2:{B}'], []],
+    ['state X {\nA --> B\n--\nC }', ['A:rounded:A', 'B:rounded:B', 'C:rounded:C', 'A->B', 'X:X{}', 'X/X__r1:{A B}', 'X/X__r2:{C}'], []],
+    ['A B', ['A:rounded:A', 'B:rounded:B'], ['state_statements_share_line@2']],
+    ['A --> B C --> D', ['A:rounded:A', 'B:rounded:B', 'C:rounded:C', 'D:rounded:D', 'A->B', 'C->D'], ['state_statements_share_line@2']],
+    ['[*] --> A A --> [*]', ['_start:state-start:', 'A:rounded:A', '_end:state-end:', '_start->A', 'A->_end'], ['state_statements_share_line@2']],
+    ['A:::hot B', ['A:rounded:A', 'B:rounded:B', 'A:::hot'], ['state_statements_share_line@2']],
+    ['state X {\nA B\n}', ['A:rounded:A', 'B:rounded:B', 'X:X{A B}'], ['state_statements_share_line@3']],
+    ['A --> B; B --> C', ['A:rounded:A', 'B:rounded:B', 'C:rounded:C', 'A->B', 'B->C'], ['state_semicolon_separator@2']],
+    ['note right of A line1\nline2\nend note', ['A:rounded:A', 'note right of A:line1\nline2'], []],
+    ['state "multi\nline" as X\nX --> Y', ['X:rounded:multi\nline', 'Y:rounded:Y', 'X->Y'], []],
+  ] as const)('%j is read alike by the renderer, the typed body, its output and verify', async (body, expected, warnings) => {
+    const source = `stateDiagram-v2\n${body}`
+    expect(readingOf(parseRenderGraph(source))).toEqual([...expected].sort())
+    const written = serializeMermaid(state(source))
+    expect(readingOf(parseRenderGraph(written))).toEqual([...expected].sort())
+    expect(await upstream.accepts(written), written).toBe(true)
+    const verified = verifyMermaid(source)
+    expect(verified.ok).toBe(true)
+    expect(verified.warnings.flatMap(warning => warning.code === 'UNSUPPORTED_SYNTAX' ? [`${warning.syntax}@${warning.line}`] : [])).toEqual([...warnings])
+  })
+
+  test('a statement after `;` on the header line is read, and reported because Mermaid rejects it', async () => {
+    const source = 'stateDiagram-v2;A-->B'
+    expect(await upstream.accepts(source)).toBe(false)
+    expect(readingOf(parseRenderGraph(source))).toEqual(['A->B', 'A:rounded:A', 'B:rounded:B'])
+    const written = serializeMermaid(state(source))
+    expect(readingOf(parseRenderGraph(written))).toEqual(['A->B', 'A:rounded:A', 'B:rounded:B'])
+    expect(await upstream.accepts(written), written).toBe(true)
+    expect(verifyMermaid(source).warnings).toContainEqual(expect.objectContaining({ code: 'UNSUPPORTED_SYNTAX', syntax: 'state_semicolon_separator' }))
   })
 })
