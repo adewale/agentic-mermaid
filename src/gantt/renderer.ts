@@ -252,8 +252,8 @@ export function lowerGanttScene(
   const depMarkerId = `${ganttNamespace(layout)}-dep-arrow`
   const depMarkerCritId = `${depMarkerId}-crit`
   const dependencyMarkers: readonly MarkerDescriptor[] = [
-    dependencyArrowMarker(depMarkerId, palette.edgeStroke, DEP_ARROW_OPACITY.plain),
-    ...(overlay.criticalArrows ? [dependencyArrowMarker(depMarkerCritId, palette.criticalStroke, DEP_ARROW_OPACITY.critical)] : []),
+    dependencyArrowMarker(depMarkerId, palette.edgeStroke),
+    ...(overlay.criticalArrows ? [dependencyArrowMarker(depMarkerCritId, palette.criticalStroke)] : []),
   ]
   if (overlay.dependencyArrows) {
     parts.push(marks.definitions(
@@ -480,8 +480,8 @@ export function lowerGanttScene(
   // interior (the routing invariant lives in layout.ts, not here). The
   // connector is deliberately quieter than the bars (the journey curve's
   // restraint); critical-path emphasis is the stronger stroke, never a
-  // hard-coded red. The line's stroke and its arrowhead carry the same
-  // opacity (DEP_ARROW_OPACITY).
+  // hard-coded red. Each arrow's group fades its line and arrowhead together
+  // (DEP_ARROW_OPACITY), so the line does not show through its own head.
   if (overlay.dependencyArrows) {
     const barByTask = new Map(layout.bars.map(b => [b.taskIndex, b]))
     const depOccurrence = new Map<string, number>()
@@ -496,20 +496,26 @@ export function lowerGanttScene(
       const markerId = critical ? depMarkerCritId : depMarkerId
       const points = dep.points.map(p => ({ x: r(p.x), y: r(p.y) }))
       const d = points.map((p, i) => `${i === 0 ? 'M' : 'L'} ${p.x} ${p.y}`).join(' ')
-      parts.push(marks.connector({
-        id: k === 0 ? `dep:${key}` : `dep:${key}#${k}`,
+      const id = k === 0 ? `dep:${key}` : `dep:${key}#${k}`
+      const arrow = marks.connector({
+        id,
         role: 'edge',
         geometry: { kind: 'path', d, points },
         lineStyle: 'solid',
         paint: critical
-          ? { stroke: palette.criticalStroke, strokeWidth: String(Math.max(1.8, style.lineWidth * 1.5)), opacity: DEP_ARROW_OPACITY.critical }
-          : { stroke: palette.edgeStroke, strokeWidth: String(Math.max(1.2, style.lineWidth)), opacity: DEP_ARROW_OPACITY.plain },
+          ? { stroke: palette.criticalStroke, strokeWidth: String(Math.max(1.8, style.lineWidth * 1.5)) }
+          : { stroke: palette.edgeStroke, strokeWidth: String(Math.max(1.2, style.lineWidth)) },
         markers: { mid: [], end: dependencyMarkers.find(marker => marker.id === markerId) },
         endpoints: { from: fromKey, to: toKey },
         relationship: { kind: dep.kind, direction: 'forward' },
         route: { ownership: 'layout' },
         channels: critical ? { status: 'crit', emphasis: true } : undefined,
         attributes: { className: cls },
+      })
+      parts.push(marks.group({
+        id: `${id}:fade`, role: 'chrome', open: '<g>', close: '</g>',
+        paint: { opacity: critical ? DEP_ARROW_OPACITY.critical : DEP_ARROW_OPACITY.plain },
+        children: [{ node: arrow, indent: 0 }],
       }))
     }
   }
@@ -580,10 +586,10 @@ function ganttNamespace(layout: GanttLayoutResult): string {
   )}`
 }
 
-function dependencyArrowMarker(id: string, color: string, opacity: string): MarkerDescriptor {
+function dependencyArrowMarker(id: string, color: string): MarkerDescriptor {
   return {
     id, shape: 'arrow', size: { width: 8, height: 7 }, ref: { x: 8, y: 3.5 }, orient: 'auto',
-    geometry: { kind: 'path', d: 'M0,0 L8,3.5 L0,7 Z' }, paint: { fill: color, opacity },
+    geometry: { kind: 'path', d: 'M0,0 L8,3.5 L0,7 Z' }, paint: { fill: color },
   }
 }
 

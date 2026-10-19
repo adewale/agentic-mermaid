@@ -264,6 +264,14 @@ describe('gantt dependency overlay — SVG render option', () => {
     expect(svg).toContain('data-from="prep" data-to="freeze"')
     // Rendering is deterministic.
     expect(renderMermaidSVG(DEPS, { gantt: { dependencyArrows: true } })).toBe(svg)
+    // Each arrow fades as one layer, so the line never shows through its own
+    // arrowhead: the opacity is on a wrapping group, not on line and head apart.
+    for (const [, open, carrier] of svg.matchAll(/(<g\b[^>]*>)\s*(<path class="gantt-dep-arrow[^>]*>)/g)) {
+      expect(open).toContain(' opacity="0.6"')
+      expect(carrier).not.toContain('opacity=')
+    }
+    expect(svg.match(/<g\b[^>]*>\s*<path class="gantt-dep-arrow/g)).toHaveLength(4)
+    expect(svg).not.toMatch(/<marker[^>]*dep-arrow[^>]*>[^<]*<path[^>]*opacity=/)
   })
 
   test('critical-path emphasis matches analyze()\'s criticalPathTaskIds exactly', () => {

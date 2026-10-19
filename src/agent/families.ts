@@ -671,7 +671,7 @@ const BUILTIN_FAMILY_DESCRIPTOR_SEEDS = [
     semanticChannels: ['status', 'progress', 'emphasis', 'category'],
     detect: (line: string) => /^gantt\s*$/.test(line),
     detectLoose: (line: string) => /^gantt(?:\s|$)/.test(line),
-    sceneRoles: [nativeSceneRole('prelude', 'document'), nativeSceneRole('defs', 'document', 'marker'), nativeSceneRole('chrome', 'document'), nativeSceneRole('section', 'text', 'shape'), nativeSceneRole('grid', 'shape'), nativeSceneRole('axis', 'text'), nativeSceneRole('label', 'text'), nativeSceneRole('task', 'shape'), nativeSceneRole('milestone', 'shape'), nativeSceneRole('edge', 'connector'), nativeSceneRole('marker-line', 'shape'), nativeSceneRole('title', 'text')],
+    sceneRoles: [nativeSceneRole('prelude', 'document'), nativeSceneRole('defs', 'document', 'marker'), nativeSceneRole('chrome', 'document', 'container'), nativeSceneRole('section', 'text', 'shape'), nativeSceneRole('grid', 'shape'), nativeSceneRole('axis', 'text'), nativeSceneRole('label', 'text'), nativeSceneRole('task', 'shape'), nativeSceneRole('milestone', 'shape'), nativeSceneRole('edge', 'connector'), nativeSceneRole('marker-line', 'shape'), nativeSceneRole('title', 'text')],
     example: 'gantt\n  title Plan\n  dateFormat YYYY-MM-DD\n  section Build\n  Implement :a1, 2026-01-05, 5d\n  Review :after a1, 2d',
     editorExample: `gantt
   title Release train
