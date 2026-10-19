@@ -890,8 +890,9 @@ export interface ParsedErRelationshipSyntax {
   identifying: boolean
   /** The label as written, quotes removed (src/er/text.ts reads it). */
   label: string
-  /** Set when the label is several unquoted words: Mermaid's label is one
-   * token, so it reads the first word as the label and the rest as entities. */
+  /** Set when the label is several unquoted words, or a word and a quoted
+   * name (`x"y"`): Mermaid's label is one token, so it reads the first word as
+   * the label and the rest as entities. */
   unquotedWords?: true
   /** Set when Mermaid reads no label here (erLabelUnread): there is none, or
    * its lexer reads other tokens in the label's place. */
@@ -903,7 +904,8 @@ export interface ParsedErRelationshipSyntax {
  * label is required, on the relationship's line, and is a quoted string or a
  * word its lexer reads as text: one that a keyword, a cardinality, a link, a
  * number or punctuation does not claim first (`end`, `one`, `1`, `#x`), and
- * that punctuation, which starts no statement, does not follow (`h[s`). A line
+ * that punctuation, which starts no statement, does not follow (`h[s`), nor a
+ * quote that nothing on the line closes (`x"`). A line
  * holding a direction is read as a direction instead (er_direction_line), and
  * a word or a quoted name after the label as more statements (er_label_words).
  * Mermaid encodes an entity code (`#quot;`) as non-ASCII text before lexing.
@@ -912,7 +914,8 @@ function erLabelUnread(written: string): boolean {
   const text = written.replace(/#\w+;/g, '§')
   if (text.startsWith('"') || /direction\s+(?:TB|BT|LR|RL)/i.test(text)) return false
   const word = /^(?:\P{ASCII}|[\w*.-])*/u.exec(text)![0]
-  return word === '' || /^\d/.test(word) || isErKeywordName(text) || /^[^\s"]/.test(text.slice(word.length))
+  const rest = text.slice(word.length)
+  return word === '' || /^\d/.test(word) || isErKeywordName(text) || /^[^\s"]/.test(rest) || /^"[^"]*$/.test(rest)
 }
 
 /** Shared relationship grammar. Alias text may contain spaces; entity styling
@@ -936,7 +939,7 @@ export function parseErRelationshipSyntax(line: string, report?: ErQuotedTextRep
     identifying: operator === '--' || operator === 'to',
     label: readErRelationLabel(match[9] ?? '', report),
     ...(erLabelUnread(match[9]?.trim() ?? '') ? { unreadLabel: true as const }
-      : /^[^"\s]\S*\s+\S/.test(match[9]?.trim() ?? '') ? { unquotedWords: true as const } : {}),
+      : /^[^"\s][^\s"]*(?:\s+\S|")/.test(match[9]?.trim() ?? '') ? { unquotedWords: true as const } : {}),
   }
 }
 

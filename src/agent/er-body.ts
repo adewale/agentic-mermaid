@@ -95,11 +95,11 @@ export function erUnsupportedSyntaxWarnings(canonicalSource: string): LayoutWarn
       if (syntax.kind === 'relation' && syntax.relation.unreadLabel) {
         const { label } = syntax.relation
         if (label === '') warn(header + entry.line + 1, 'er_relation_label', 'A relationship with no label is read without one', 'write its label after a `:` on the relationship\'s line (`: ""` for none)')
-        else warn(header + entry.line + 1, 'er_relation_label', `ER relation label ${label} is read as written, where Mermaid's lexer reads a keyword, a cardinality, a number or punctuation in it`, `quote it (: "${label}")`)
+        else warn(header + entry.line + 1, 'er_relation_label', `ER relation label ${label} is read as written, where Mermaid's lexer reads a keyword, a cardinality, a number or punctuation in it`, `quote it (: "${label.replace(/"/g, '#quot;')}")`)
       }
       if (syntax.kind === 'relation' && syntax.relation.unquotedWords) warnings.push({
         code: 'UNSUPPORTED_SYNTAX', syntax: 'er_label_words', line: header + entry.line + 2,
-        message: 'A relationship label of several unquoted words is read whole. Pinned Mermaid reads only its first word as the label and declares the others as entities; quote the label',
+        message: 'A relationship label of several unquoted words, or of a word and a quoted name, is read whole. Pinned Mermaid reads only its first word as the label and declares the others as entities; quote the label',
       })
       // Mermaid's `.*direction\s+LR` rule makes a line holding a direction a
       // direction statement, whatever else it holds, from where the line is

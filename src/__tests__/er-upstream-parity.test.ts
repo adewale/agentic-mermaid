@@ -148,6 +148,9 @@ const ER_READ_GENEROUSLY: ReadonlyArray<readonly [string, 'er' | 'opaque', strin
   ['erDiagram\n  A { int id "c" PK }', 'er', '>c<', 'er_attribute_form', 2],
   ['erDiagram\n  A\n  end', 'er', '>end<', 'er_keyword_name', 3],
   ['erDiagram\n  A ||--o{ B : places order', 'er', '>places order<', 'er_label_words', 2],
+  // Mermaid reads the label `x` and declares an entity `y`.
+  ['erDiagram\n  A ||--o{ B : x"y"', 'er', '>x&quot;y&quot;<', 'er_label_words', 2],
+  ['erDiagram\n  A ||--o{ B : x"', 'er', '>x&quot;<', 'er_relation_label', 2],
   // A relationship's label is required on its line, and Mermaid's lexer
   // reads a keyword, a cardinality or a number there before a label.
   ['erDiagram\n  A ||--o{ B :\n  C D', 'er', '>D<', 'er_relation_label', 2],
