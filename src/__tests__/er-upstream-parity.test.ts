@@ -168,10 +168,13 @@ describe('ER comments against pinned Mermaid', () => {
     'erDiagram\n  direction TB %% a direction reads to the end of its line\n  A',
   ])('%j reads as Mermaid reads it', expectParity)
 
-  test('a typed attribute cannot carry a trailing comment Mermaid would reject', () => {
+  // A typed attribute is written on a block line of its own, so it cannot
+  // carry a trailing comment Mermaid would reject, or a `}`, which would end
+  // the block when the line is read back.
+  test.each(['int x %% c', 'int x}'])('a typed attribute cannot carry %j', text => {
     const parsed = parseRegisteredMermaid('erDiagram\n  A')
     if (!parsed.ok) throw new Error('fixture rejected')
-    const result = mutate(parsed.value, { kind: 'add_attribute', entity: 'A', text: 'int x %% c' })
+    const result = mutate(parsed.value, { kind: 'add_attribute', entity: 'A', text })
     expect(result.ok ? 'accepted' : result.error.code).toBe('INVALID_OP')
   })
 })

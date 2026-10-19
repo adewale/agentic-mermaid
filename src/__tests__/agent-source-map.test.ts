@@ -112,6 +112,15 @@ describe('flowchart SourceMap', () => {
     expect(er.value.source.labels.get('rel#0:CUSTOMER->ORDER:leftCardinality')).toEqual({ line: 5, col: 10 })
     expect(er.value.source.labels.get('rel#0:CUSTOMER->ORDER:rightCardinality')).toEqual({ line: 5, col: 14 })
 
+    // Statements sharing a line with an attribute block are located on it.
+    const inlineEr = parseMermaid('erDiagram\n  CUSTOMER { string email PK int age } CUSTOMER ||--o{ ORDER : places\n')
+    expect(inlineEr.ok).toBe(true)
+    if (!inlineEr.ok) return
+    expect(inlineEr.value.source.labels.get('er:CUSTOMER:attr#0')).toEqual({ line: 2, col: 12 })
+    expect(inlineEr.value.source.labels.get('er:CUSTOMER:attr#1')).toEqual({ line: 2, col: 28 })
+    expect(inlineEr.value.source.labels.get('rel#0:CUSTOMER->ORDER:leftCardinality')).toEqual({ line: 2, col: 47 })
+    expect(inlineEr.value.source.labels.get('rel#0:CUSTOMER->ORDER:rightCardinality')).toEqual({ line: 2, col: 51 })
+
     const chart = parseMermaid(`xychart-beta
   x-axis [Jan, Feb]
   bar Sales [3, 7]

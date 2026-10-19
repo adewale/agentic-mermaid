@@ -6,7 +6,9 @@
  */
 import { describe, it, expect } from 'bun:test'
 import { parseErDiagram } from '../er/parser.ts'
+import type { ErDiagram } from '../er/types.ts'
 import { renderMermaidSVG } from '../index.ts'
+import { asEr, parseRegisteredMermaid, serializeMermaid } from '../agent/index.ts'
 
 /** Helper to parse — preprocesses text the same way index.ts does */
 function parse(text: string) {
@@ -131,6 +133,33 @@ describe('parseErDiagram – entity definitions', () => {
     expect(d.entities).toHaveLength(2)
     expect(d.entities.find(e => e.id === 'CUSTOMER')).toBeDefined()
     expect(d.entities.find(e => e.id === 'ORDER')).toBeDefined()
+  })
+})
+
+// Mermaid's attribute block skips newlines (the `block` lexer state in
+// erDiagram.jison), so `{`, attributes and `}` may share a line, and a
+// statement may follow `}`. Each attribute reads as `type name keys "comment"`.
+describe('parseErDiagram – attribute blocks sharing a line with their braces', () => {
+  const attributesOf = (diagram: ErDiagram) => Object.fromEntries(diagram.entities.map(entity => [entity.id,
+    entity.attributes.map(a => [a.type, a.name, ...a.keys, ...(a.comment !== undefined ? [`"${a.comment}"`] : [])].join(' '))]))
+
+  it.each([
+    ['CUSTOMER ||--o{ ORDER : places\nZ { string id }', { CUSTOMER: [], ORDER: [], Z: ['string id'] }],
+    ['Z { }', { Z: [] }],
+    ['Z { string id PK "comment" }', { Z: ['string id PK "comment"'] }],
+    ['Z { string id int age }', { Z: ['string id', 'int age'] }],
+    ['Z{string id PK, FK "a } b" int age UK}', { Z: ['string id PK FK "a } b"', 'int age UK'] }],
+    ['Z { string id\n  int age\n}', { Z: ['string id', 'int age'] }],
+    ['Z {\n  string id\n  int age }', { Z: ['string id', 'int age'] }],
+    // Mermaid reads one type from the first `~` to the last on the line.
+    ['Z["Zed"]:::hot { List~int~ ids List~string~ tags } Y', { Z: ['List~int~ ids', 'List~string~ tags'], Y: [] }],
+  ])('%j is read alike by the renderer, the typed body and its output', (body, expected) => {
+    const source = `erDiagram\n  ${body}`
+    expect(attributesOf(parse(source))).toEqual(expected)
+    const parsed = parseRegisteredMermaid(source)
+    const typed = parsed.ok ? asEr(parsed.value) : null
+    expect(typed).not.toBeNull()
+    expect(attributesOf(parse(serializeMermaid(typed!)))).toEqual(expected)
   })
 })
 

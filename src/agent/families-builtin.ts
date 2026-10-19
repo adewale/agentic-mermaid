@@ -512,9 +512,10 @@ function buildErSourceMap(body: DiagramBody, canonicalSource: string): SourceMap
   const headerAt = lines.findIndex(line => /^erDiagram\s*$/i.test(line.trim()))
   const tree = readErStatements(lines.slice(headerAt + 1))
   for (const entry of tree.statements) {
+    // A statement may share its line (`Z { string id }`): locate it there.
     const source: LocatedSourceLine = {
-      line: entry.raw, trimmed: entry.raw.trim(), lineIndex: headerAt + entry.line + 1,
-      start: entry.raw.length - entry.raw.trimStart().length,
+      line: lines[headerAt + entry.line + 1]!, trimmed: entry.raw.trim(), lineIndex: headerAt + entry.line + 1,
+      start: entry.column + entry.raw.length - entry.raw.trimStart().length,
     }
     const syntax = entry.syntax
     if (syntax.kind === 'attribute') {

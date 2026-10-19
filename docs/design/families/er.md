@@ -11,7 +11,9 @@ structured-or-opaque contract.
 Supported today:
 
 - bare and aliased entity declarations (`CUSTOMER["Customer Account"]`) and
-  entities with attribute blocks (`type name PK|FK|UK "comment"`)
+  entities with attribute blocks (`type name PK|FK|UK "comment"`), including
+  blocks whose braces share a line with their attributes
+  (`ORDER { int id PK date placed }`), as Mermaid's block lexer allows
 - relationships with the full Mermaid cardinality token set
   (`|| |o o| }o o{ }| |{`), identifying (`--`) and non-identifying (`..`)
   lines, and labels

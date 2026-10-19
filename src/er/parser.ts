@@ -122,6 +122,10 @@ export function recordErClassNames(byEntity: Map<string, string[]>, id: string, 
 //     int age
 //     string email UK "user email"
 //   }
+//   ORDER { int id PK date placed }
+//
+// Mermaid's attribute block skips newlines, so `{`, attributes and `}` may
+// share a line, and a statement may follow `}` (readErLine).
 //
 // Cardinality notation (same token set both sides, matching Mermaid's lexer):
 //   ||  exactly one
@@ -178,16 +182,15 @@ export type ErStatementLine =
   | { kind: 'entity'; reference: ParsedErEntityReference }
 
 /**
- * Read one body line outside an attribute block, without its trailing `%%`
- * comment: the statement it is, or null when it is none. Throws a syntax
- * error for one ours cannot read. `end` closes a subgraph only while one is
- * open; otherwise it names an entity. `report` hears quoted text Mermaid
- * rejects (src/er/text.ts).
+ * Read one statement outside an attribute block, given without its trailing
+ * `%%` comment (readErLine strips it once per line): the statement it is, or
+ * null when it is none. Throws a syntax error for one ours cannot read. `end`
+ * closes a subgraph only while one is open; otherwise it names an entity.
+ * `report` hears quoted text Mermaid rejects (src/er/text.ts).
  */
-export function readErStatement(source: string, inGroup: boolean, report?: ErQuotedTextReport): ErStatementLine | null {
-  const direction = readErDirection(source)
+export function readErStatement(line: string, inGroup: boolean, report?: ErQuotedTextReport): ErStatementLine | null {
+  const direction = parseDirectionStatement(line)
   if (direction) return { kind: 'direction', direction }
-  const line = stripTrailingComment(source)
 
   // --- ER subgraphs: identity, nesting and scoped direction. ---
   const groupHeader = parseErGroupHeader(line, report)
@@ -210,23 +213,133 @@ export function readErStatement(source: string, inGroup: boolean, report?: ErQuo
     return { kind: 'style', ids, props: parseStyleProps(inlineStyle[2]!) }
   }
 
-  // --- Entity block start: `ENTITY_NAME {` ---
+  // --- Relationship: `ENTITY1 cardinality1--cardinality2 ENTITY2 : label` ---
+  // Before a block start, so `A {o--|| B` keeps its cardinality error.
+  const relation = parseErRelationshipSyntax(line, report)
+  if (relation) return { kind: 'relation', relation }
+
+  // --- Entity block start: `ENTITY_NAME {`, perhaps with its attributes ---
   const block = line.match(ER_BLOCK_OPEN_RE)
   const blockReference = block ? parseErEntityReference(block[1]!, report) : null
   if (blockReference) return { kind: 'block-open', reference: blockReference }
-
-  // --- Relationship: `ENTITY1 cardinality1--cardinality2 ENTITY2 : label` ---
-  const relation = parseErRelationshipSyntax(line, report)
-  if (relation) return { kind: 'relation', relation }
 
   // A bare or aliased declaration, as the typed serializer writes one.
   const reference = parseErEntityReference(line, report)
   return reference ? { kind: 'entity', reference } : null
 }
 
-const ER_BLOCK_OPEN_RE = new RegExp(`^(${ER_ENTITY_REFERENCE_SOURCE})\\s*\\{$`)
+const ER_BLOCK_OPEN_RE = new RegExp(`^(${ER_ENTITY_REFERENCE_SOURCE})\\s*\\{`)
+
+/** Offset of the `}` that ends an attribute block in `text`, or -1: the
+ * first one outside a quoted comment. */
+function erBlockEndAt(text: string): number {
+  let quoted = false
+  for (let index = 0; index < text.length; index++) {
+    if (text[index] === '"') quoted = !quoted
+    else if (text[index] === '}' && !quoted) return index
+  }
+  return -1
+}
+
+// Mermaid's block lexer tokens: a quoted comment, a run without quotes, or a
+// stray quote.
+const ER_ATTRIBUTE_TOKEN_RE = /"[^"]*"|[^\s"]+|"/g
+// Mermaid's attribute word (ATTRIBUTE_WORD in erDiagram.jison), or a generic
+// type (`List~int~`). Its lexer reads `PK`, `FK` and `UK` as keys first.
+const ER_ATTRIBUTE_WORD_RE = /^(?:[*A-Za-z_\u00C0-\uFFFF][\w\-[\]().,\u00C0-\uFFFF*]*|\S*~\S*~\S*)$/
+const isErAttributeWord = (token: string | undefined): boolean =>
+  token !== undefined && ER_ATTRIBUTE_WORD_RE.test(token) && !/^(?:PK|FK|UK)\b/i.test(token)
+
+/**
+ * The attributes in one run of block text, each with its place in `run`: the
+ * whole run when it is one attribute, as a line of its own always was; else
+ * Mermaid's split of it into a type and a name, each followed by its keys and
+ * one quoted comment (`string id PK "c" int age`). Null when part of it is no
+ * attribute Mermaid would read.
+ */
+function readErAttributes(run: string): Array<{ start: number; end: number; attribute: ErAttribute }> | null {
+  const whole = parseErAttribute(run)
+  if (whole) return [{ start: 0, end: run.length, attribute: whole }]
+  const tokens = [...run.matchAll(ER_ATTRIBUTE_TOKEN_RE)]
+  // A word with an odd number of `~` opens a generic type that runs on past a
+  // space (`Map~string, int~`), so where one attribute ends is unclear.
+  if (tokens.some(([token]) => !token.startsWith('"') && (token.match(/~/g)?.length ?? 0) % 2 === 1)) return null
+  const attributes: Array<{ start: number; end: number; attribute: ErAttribute }> = []
+  for (let at = 0; at < tokens.length;) {
+    // A type may end in Mermaid's optional-type `?`; a name may not.
+    if (!isErAttributeWord(tokens[at]![0].replace(/\?$/, '')) || !isErAttributeWord(tokens[at + 1]?.[0])) return null
+    let next = at + 2
+    let commented = false
+    for (; next < tokens.length; next++) {
+      const token = tokens[next]![0]
+      if (/^".*"$/.test(token)) {
+        if (commented) break
+        commented = true
+      } else if (!token.split(',').every(part => !part || /^(?:PK|FK|UK)$/i.test(part))) break
+    }
+    const last = tokens[next - 1]!
+    const start = tokens[at]!.index
+    const end = last.index + last[0].length
+    const attribute = parseErAttribute(run.slice(start, end))
+    if (!attribute) return null
+    attributes.push({ start, end, attribute })
+    at = next
+  }
+  return attributes
+}
+
+/**
+ * The statements one body line holds, each with where its text starts and
+ * ends. Mermaid's attribute block skips newlines, so `{`, attributes and `}`
+ * may share a line, and once `}` closes the block the line goes on with a
+ * statement of its own (`Z { string id } Y`).
+ */
+function readErLine(raw: string, inBlock: boolean, inGroup: boolean, report?: ErQuotedTextReport): Array<{ syntax: ErSourceStatement['syntax']; start: number; end: number }> {
+  const text = raw.trim()
+  const stop = raw.length - raw.trimStart().length + stripTrailingComment(text).length
+  const skipSpace = (from: number): number => {
+    while (from < stop && /\s/.test(raw[from]!)) from++
+    return from
+  }
+  const items: Array<{ syntax: ErSourceStatement['syntax']; start: number; end: number }> = []
+  for (let at = skipSpace(0); at < stop;) {
+    if (inBlock) {
+      const close = erBlockEndAt(raw.slice(at, stop))
+      const runEnd = close < 0 ? stop : at + close
+      const run = raw.slice(at, runEnd).trimEnd()
+      if (run) {
+        const attributes = readErAttributes(run)
+        if (attributes) {
+          for (const { start, end, attribute } of attributes) {
+            items.push({ syntax: { kind: 'attribute', attribute, text: run.slice(start, end) }, start: at + start, end: at + end })
+          }
+        } else items.push({ syntax: { kind: 'unknown' }, start: at, end: at + run.length })
+      }
+      if (close < 0) break
+      items.push({ syntax: { kind: 'block-close' }, start: runEnd, end: runEnd + 1 })
+      inBlock = false
+      at = skipSpace(runEnd + 1)
+    } else {
+      const statement = raw.slice(at, stop)
+      const syntax = readErStatement(statement, inGroup, report) ?? { kind: 'unknown' as const }
+      if (syntax.kind !== 'block-open') {
+        items.push({ syntax, start: at, end: stop })
+        break
+      }
+      // The block's attributes start after the `{` readErStatement matched.
+      const end = at + ER_BLOCK_OPEN_RE.exec(statement)![0].length
+      items.push({ syntax, start: at, end })
+      inBlock = true
+      at = skipSpace(end)
+    }
+  }
+  return items
+}
 
 export interface ErSourceStatement {
+  /** The statement's part of its line, `column` to `endColumn`. The
+   * statements on one line partition it: each runs from where the one before
+   * it ended, and the last to the line's end. */
   raw: string
   /** Zero-based line in the supplied grammar view. */
   line: number
@@ -250,62 +363,58 @@ export function readErStatements(lines: readonly string[], report?: (what: strin
   for (let line = 0; line < lines.length; line++) {
     const raw = lines[line]!
     const text = raw.trim()
-    const context = { raw, line, column: 0, endColumn: raw.length, ...(fold.innermost !== undefined ? { groupId: fold.innermost } : {}), ...(entityId !== undefined ? { entityId } : {}) }
     if (!text || text.startsWith('%%')) {
+      const context = { raw, line, column: 0, endColumn: raw.length, ...(fold.innermost !== undefined ? { groupId: fold.innermost } : {}), ...(entityId !== undefined ? { entityId } : {}) }
       statements.push({ ...context, syntax: { kind: text ? 'comment' : 'blank' } })
       if (parserObservationActive('er')) observeParserStatement('er', text ? 'comment' : 'blank', raw, { line: line + 2, unit: 'normalized' })
       continue
     }
-    if (entityId !== undefined) {
-      const attributeText = stripTrailingComment(text)
-      if (attributeText === '}') {
-        statements.push({ ...context, syntax: { kind: 'block-close' } })
-        if (parserObservationActive('er')) observeParserStatement('er', 'block-close', raw, { line: line + 2, unit: 'normalized' })
-        entityId = undefined
-      } else {
-        const attribute = parseErAttribute(attributeText)
-        statements.push({ ...context, syntax: attribute ? { kind: 'attribute', attribute, text: attributeText } : { kind: 'unknown' } })
-        if (parserObservationActive('er')) observeParserStatement('er', attribute ? 'attribute' : 'unknown', raw, { line: line + 2, unit: 'normalized' })
+    const items = readErLine(raw, entityId !== undefined, fold.innermost !== undefined,
+      report ? (what, portable) => report(what, portable, line) : undefined)
+    let column = 0
+    for (const [index, { syntax, end: itemEnd }] of items.entries()) {
+      const endColumn = index === items.length - 1 ? raw.length : itemEnd
+      const context = { line, column, endColumn, ...(fold.innermost !== undefined ? { groupId: fold.innermost } : {}), ...(entityId !== undefined ? { entityId } : {}) }
+      const entry: ErSourceStatement = { raw: raw.slice(column, endColumn), ...context, syntax }
+      column = endColumn
+      statements.push(entry)
+      if (parserObservationActive('er')) observeParserStatement('er', syntax.kind, entry.raw, { line: line + 2, unit: 'normalized' })
+      switch (syntax.kind) {
+        case 'group-open':
+          fold.open(syntax.id)
+          if (parserObservationActive('er')) observeParserMutation('er', 'openGroup', { id: syntax.id, enclosingGroupId: context.groupId }, { line: line + 2, unit: 'normalized' })
+          break
+        case 'end':
+          fold.close()
+          if (parserObservationActive('er')) observeParserMutation('er', 'closeGroup', { id: context.groupId, enclosingGroupId: fold.innermost }, { line: line + 2, unit: 'normalized' })
+          break
+        case 'block-open':
+          entityId = syntax.reference.id
+          fold.declare(entityId, syntax.reference.alias)
+          if (parserObservationActive('er')) observeParserMutation('er', 'declareEntity', { ...syntax.reference, groupId: context.groupId }, { line: line + 2, unit: 'normalized' })
+          break
+        case 'block-close':
+          entityId = undefined
+          break
+        case 'entity':
+          fold.declare(syntax.reference.id, syntax.reference.alias)
+          if (parserObservationActive('er')) observeParserMutation('er', 'declareEntity', { ...syntax.reference, groupId: context.groupId }, { line: line + 2, unit: 'normalized' })
+          break
+        case 'relation':
+          entry.relationEntityIds = [syntax.relation.entity1, syntax.relation.entity2]
+            .filter(end => {
+              const isEntity = fold.relationEnd(end.id, end.alias)
+              if (parserObservationActive('er')) observeParserMutation('er', 'nameRelationshipEndpoint', { ...end, isEntity, groupId: context.groupId }, { line: line + 2, unit: 'normalized' })
+              return isEntity
+            }).map(end => end.id)
+          break
+        case 'style':
+          for (const id of syntax.ids) {
+            fold.style(id)
+            if (parserObservationActive('er')) observeParserMutation('er', 'ensureStyledEntity', { id }, { line: line + 2, unit: 'normalized' })
+          }
+          break
       }
-      continue
-    }
-    const syntax = readErStatement(text, fold.innermost !== undefined,
-      report ? (what, portable) => report(what, portable, line) : undefined) ?? { kind: 'unknown' as const }
-    const entry: ErSourceStatement = { ...context, syntax }
-    statements.push(entry)
-    if (parserObservationActive('er')) observeParserStatement('er', syntax.kind, raw, { line: line + 2, unit: 'normalized' })
-    switch (syntax.kind) {
-      case 'group-open':
-        fold.open(syntax.id)
-        if (parserObservationActive('er')) observeParserMutation('er', 'openGroup', { id: syntax.id, enclosingGroupId: context.groupId }, { line: line + 2, unit: 'normalized' })
-        break
-      case 'end':
-        fold.close()
-        if (parserObservationActive('er')) observeParserMutation('er', 'closeGroup', { id: context.groupId, enclosingGroupId: fold.innermost }, { line: line + 2, unit: 'normalized' })
-        break
-      case 'block-open':
-        entityId = syntax.reference.id
-        fold.declare(entityId, syntax.reference.alias)
-        if (parserObservationActive('er')) observeParserMutation('er', 'declareEntity', { ...syntax.reference, groupId: context.groupId }, { line: line + 2, unit: 'normalized' })
-        break
-      case 'entity':
-        fold.declare(syntax.reference.id, syntax.reference.alias)
-        if (parserObservationActive('er')) observeParserMutation('er', 'declareEntity', { ...syntax.reference, groupId: context.groupId }, { line: line + 2, unit: 'normalized' })
-        break
-      case 'relation':
-        entry.relationEntityIds = [syntax.relation.entity1, syntax.relation.entity2]
-          .filter(end => {
-            const isEntity = fold.relationEnd(end.id, end.alias)
-            if (parserObservationActive('er')) observeParserMutation('er', 'nameRelationshipEndpoint', { ...end, isEntity, groupId: context.groupId }, { line: line + 2, unit: 'normalized' })
-            return isEntity
-          }).map(end => end.id)
-        break
-      case 'style':
-        for (const id of syntax.ids) {
-          fold.style(id)
-          if (parserObservationActive('er')) observeParserMutation('er', 'ensureStyledEntity', { id }, { line: line + 2, unit: 'normalized' })
-        }
-        break
     }
   }
   if (entityId !== undefined) throw new Error(`ER_UNCLOSED_ENTITY: entity '${entityId}' needs a closing }`)
@@ -460,11 +569,12 @@ function ensureEntity(entityMap: Map<string, ErEntity>, id: string): ErEntity {
 }
 
 /** Parse an attribute line inside an entity block, without its trailing
- * `%%` comment (hasErTrailingComment); one that still has one is none. */
+ * `%%` comment (hasErTrailingComment); one that still has one is none. A `}`
+ * outside the comment would end the block, so no attribute holds one. */
 export function parseErAttribute(line: string): ErAttribute | null {
   // Format: type name [PK|FK|UK [...]] ["comment"]
   const match = line.match(/^(\S+)\s+(\S+)(?:\s+(.+))?$/)
-  if (!match || trailingCommentStart(line) >= 0) return null
+  if (!match || trailingCommentStart(line) >= 0 || erBlockEndAt(line) >= 0) return null
 
   const type = match[1]!
   const name = match[2]!
