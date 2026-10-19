@@ -135,7 +135,8 @@ function measure(out: string, engines: Engine[], groups: Group[], rounds: number
       const result = join(out, 'result.json')
       rmSync(result, { force: true })
       writeFileSync(job, JSON.stringify({ entry: run.entry, mode, inputs: group.inputs, reps }))
-      const child = spawnSync('node', [...(mode === 'memory' ? ['--expose-gc'] : []), '--no-warnings', WORKER, job, result], { stdio: 'inherit', timeout: budgetMs, killSignal: 'SIGKILL' })
+      // Time ELK rather than a cached result, and renders as users get them.
+      const child = spawnSync('node', [...(mode === 'memory' ? ['--expose-gc'] : []), '--no-warnings', WORKER, job, result], { stdio: 'inherit', timeout: budgetMs, killSignal: 'SIGKILL', env: { ...process.env, AGENTIC_MERMAID_ELK_CACHE: '0', AGENTIC_MERMAID_SCENE_ASSERTIONS: '0' } })
       if (child.status === 0) {
         const value = JSON.parse(readFileSync(result, 'utf8')) as TimeResult | MemoryResult
         const evidence =

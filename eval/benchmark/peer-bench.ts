@@ -525,7 +525,8 @@ function spawnWorker(command: readonly string[], outPath: string, limits: { impo
   writeFileSync(outPath, '')
   const started = performance.now()
   return new Promise(done => {
-    const child = spawn(command[0]!, command.slice(1), { cwd: ROOT, stdio: ['ignore', 'ignore', 'pipe'] })
+    // Time ELK rather than a cached result, and renders as users get them.
+    const child = spawn(command[0]!, command.slice(1), { cwd: ROOT, stdio: ['ignore', 'ignore', 'pipe'], env: { ...process.env, AGENTIC_MERMAID_ELK_CACHE: '0', AGENTIC_MERMAID_SCENE_ASSERTIONS: '0' } })
     let stderr = ''
     child.stderr!.on('data', (chunk: Buffer) => {
       stderr = (stderr + chunk.toString()).slice(-4000)
