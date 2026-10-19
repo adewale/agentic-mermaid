@@ -839,7 +839,7 @@ function parseStateDiagram(lines: string[]): MermaidGraph {
         labeledStateIds.add(id)
       }
       const pieces = labeledStateIds.has(id) ? labelPieces.get(id) : undefined
-      const sg: MermaidSubgraph = { id, label: id, nodeIds: [], children: [] }
+      const sg: MermaidSubgraph = { id, label: id, nodeIds: [], children: [], stateComposite: true }
       if (pieces !== undefined) Object.assign(sg, stateLabel(sg, pieces))
       const label = sg.label
       assertDiagramWorkLimit('nodes', graph.nodes.size - Number(graph.nodes.has(id)) + ++stateGroupCount)

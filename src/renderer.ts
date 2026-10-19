@@ -180,19 +180,22 @@ function renderGroup(group: PositionedGroup, font: string, style: ResolvedRender
   const open =
     `<g class="subgraph" data-id="${escapeAttr(group.id)}" data-region="subgraph" data-label="${escapeDisplayAttr(group.label)}"${parentId ? ` data-parent-id="${escapeAttr(parentId)}"` : ''}>`
 
-  // Outer rectangle
-  const rectFill = style.groupFillColor ?? 'var(--_group-fill)'
-  const rectStroke = style.groupBorderColor ?? 'var(--_node-stroke)'
+  // Outer rectangle. A State composite's class paint fills its body and
+  // outlines it, as Mermaid's classDef rules paint the cluster's body rect.
+  const paint = group.inlineStyle
+  const rectFill = paint?.fill ?? style.groupFillColor ?? 'var(--_group-fill)'
+  const rectStroke = paint?.stroke ?? style.groupBorderColor ?? 'var(--_node-stroke)'
+  const rectStrokeWidth = paint?.['stroke-width'] ?? String(style.groupLineWidth)
   children.push({
     indent: 2,
     node: marks.shape({
       id: `group-rect:${group.id}`,
       role: 'group',
       geometry: { kind: 'rect', x: group.x, y: group.y, width: group.width, height: group.height, rx: style.groupCornerRadius, ry: style.groupCornerRadius },
-      paint: { fill: rectFill, stroke: rectStroke, strokeWidth: String(style.groupLineWidth) },
+      paint: { fill: rectFill, stroke: rectStroke, strokeWidth: rectStrokeWidth },
     },
       `<rect x="${group.x}" y="${group.y}" width="${group.width}" height="${group.height}" ` +
-      `rx="${style.groupCornerRadius}" ry="${style.groupCornerRadius}" fill="${escapeAttr(rectFill)}" stroke="${escapeAttr(rectStroke)}" stroke-width="${style.groupLineWidth}" />`),
+      `rx="${style.groupCornerRadius}" ry="${style.groupCornerRadius}" fill="${escapeAttr(rectFill)}" stroke="${escapeAttr(rectStroke)}" stroke-width="${escapeAttr(rectStrokeWidth)}" />`),
   })
 
   // Header band
@@ -204,15 +207,15 @@ function renderGroup(group: PositionedGroup, font: string, style: ResolvedRender
       id: `group-header:${group.id}`,
       role: 'group-header',
       geometry: { kind: 'path', d: headerPath },
-      paint: { fill: headerFill, stroke: rectStroke, strokeWidth: String(style.groupLineWidth) },
+      paint: { fill: headerFill, stroke: rectStroke, strokeWidth: rectStrokeWidth },
     },
       `<path d="${headerPath}" ` +
-      `fill="${escapeAttr(headerFill)}" stroke="${escapeAttr(rectStroke)}" stroke-width="${style.groupLineWidth}" />`),
+      `fill="${escapeAttr(headerFill)}" stroke="${escapeAttr(rectStroke)}" stroke-width="${escapeAttr(rectStrokeWidth)}" />`),
   })
 
   // Header label (supports multi-line via <br> tags)
   const headerText = headerBlock.text
-  const headerTextColor = style.groupTextColor ?? 'var(--_text-sec)'
+  const headerTextColor = paint?.color ?? style.groupTextColor ?? 'var(--_text-sec)'
   children.push({
     indent: 2,
     node: marks.text({

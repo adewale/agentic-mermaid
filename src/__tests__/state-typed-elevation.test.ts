@@ -448,6 +448,22 @@ stateDiagram-v2
     } finally { upstream.close() }
   })
 
+  test('a composite draws its classes\' classDef paint on its body, as Mermaid does, and not its style', async () => {
+    const source = 'stateDiagram-v2\n  classDef hot fill:#ff0000,stroke:#0000ff,color:#00ff00\n  state X {\n    A\n  }\n  class X hot\n  state Y {\n    B\n  }\n  style Y fill:#ff00ff'
+    const svg = renderMermaidSVG(source)
+    const group = (id: string) => svg.match(new RegExp(`<g class="subgraph" data-id="${id}"[\\s\\S]*?</g>`))?.[0] ?? ''
+    expect(group('X')).toMatch(/<rect [^>]*fill="#ff0000" stroke="#0000ff"[^>]*data-id="group-rect:X"/)
+    expect(group('X')).toMatch(/<text [^>]*fill="#00ff00"[^>]*>X</)
+    expect(group('Y')).not.toContain('#ff00ff')
+    // Mermaid gives the cluster the class, whose CSS rules paint its body;
+    // its rounded composite shape draws no `style` paint.
+    const upstream = startUpstreamMermaid()
+    try {
+      const clusters = await upstream.project(source, mermaid => mermaid.db.getData().nodes.filter((node: { isGroup: boolean }) => node.isGroup).map((node: { id: string; cssClasses: string; shape: string }) => [node.id, node.cssClasses.trim().split(/\s+/)[0], node.shape]))
+      expect(clusters).toEqual({ ok: true, value: [['X', 'hot', 'roundedWithTitle'], ['Y', 'statediagram-state', 'roundedWithTitle']] })
+    } finally { upstream.close() }
+  })
+
   test('a class named like an Object.prototype key is an ordinary class', () => {
     const parsed = state('stateDiagram-v2\n  classDef __proto__ fill:#ff0000\n  A:::__proto__')
     const defined = apply(state('stateDiagram-v2\n  A:::__proto__'), { kind: 'define_class', name: '__proto__', style: 'fill:#0000ff' })
