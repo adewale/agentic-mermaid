@@ -62,24 +62,12 @@ export const EXTERNAL_SCENE_DOCUMENT_SNAPSHOT_LIMITS: ExternalDataSnapshotLimits
  * data descriptors. Arrays are read by index rather than through a caller
  * iterator. The returned graph is recursively frozen before validation or
  * compilation can observe it.
- *
- * `firstParty` is for documents a built-in family just lowered: plain object
- * and array literals from our own code, with no caller Proxy, accessor or
- * iterator to defend against. Their own enumerable keys are read directly
- * instead of through property descriptors, which made admission several times
- * slower than the copy itself. Every limit, prototype, cycle and sparse-array
- * check, the null-prototype frozen copy and the side-table transfers are
- * unchanged. Shapes only a lowering bug could produce are no longer
- * diagnosed here: symbol and non-enumerable keys and extra array properties
- * are skipped, and accessors are read. Validation still runs on the copy.
  */
 export function snapshotBoundedExternalData(
   value: unknown,
   limits: ExternalDataSnapshotLimits,
   rootPath = 'input',
-  options: { readonly firstParty?: boolean } = {},
 ): unknown {
-  const firstParty = options.firstParty === true
   const active = new WeakSet<object>()
   const snapshots = new WeakMap<object, unknown>()
   let objects = 0
@@ -118,25 +106,6 @@ export function snapshotBoundedExternalData(
       if (Array.isArray(candidate)) {
         if (Object.getPrototypeOf(candidate) !== Array.prototype) {
           throw new TypeError(`External Scene ${path} must be a plain array`)
-        }
-        if (firstParty) {
-          const length = candidate.length
-          if (length > limits.maxArrayEntries) {
-            throw new Error(`External Scene ${path} contains too many entries`)
-          }
-          arrayEntries += length
-          if (arrayEntries > limits.maxAggregateArrayEntries) {
-            throw new Error(`External Scene input exceeds the aggregate ${limits.maxAggregateArrayEntries}-array-entry limit`)
-          }
-          const snapshot = new Array<unknown>(length)
-          snapshots.set(candidate, snapshot)
-          transferSceneNodeSerialization(candidate, snapshot)
-          for (let index = 0; index < length; index++) {
-            // A hole would otherwise read through Array.prototype.
-            if (!Object.hasOwn(candidate, index)) throw new TypeError(`External Scene ${path} must not be sparse`)
-            snapshot[index] = visit(candidate[index], depth + 1, `${path}[${index}]`)
-          }
-          return Object.freeze(snapshot)
         }
         const lengthDescriptor = Reflect.getOwnPropertyDescriptor(candidate, 'length')
         if (!lengthDescriptor || !('value' in lengthDescriptor)
@@ -191,7 +160,7 @@ export function snapshotBoundedExternalData(
       if (prototype !== Object.prototype && prototype !== null) {
         throw new TypeError(`External Scene ${path} must be a plain object`)
       }
-      const keys = firstParty ? Object.keys(candidate) : Reflect.ownKeys(candidate)
+      const keys = Reflect.ownKeys(candidate)
       if (keys.length > limits.maxPropertiesPerObject) {
         throw new Error(`External Scene ${path} contains too many properties`)
       }
@@ -217,12 +186,6 @@ export function snapshotBoundedExternalData(
       const snapshot = Object.create(null) as Record<string, unknown>
       snapshots.set(candidate, snapshot)
       transferSceneNodeSerialization(candidate, snapshot)
-      if (firstParty) {
-        const record = candidate as Record<string, unknown>
-        for (const key of keys as string[]) snapshot[key] = visit(record[key], depth + 1, `${path}.${key}`)
-        transferRetainedPixelText(candidate, snapshot)
-        return Object.freeze(snapshot)
-      }
       for (const key of keys) {
         if (typeof key !== 'string') throw new TypeError(`External Scene ${path} must not contain symbol keys`)
         const descriptor = Reflect.getOwnPropertyDescriptor(candidate, key)
@@ -247,14 +210,129 @@ export function snapshotBoundedExternalData(
 }
 
 /**
- * Snapshots that passed admission, with the rule set they passed. A snapshot is
- * recursively frozen own data, so its validation result cannot change: passing
- * the same snapshot through another admission gate re-proves nothing. Only this
- * module's snapshots can be recorded, so a caller cannot forge membership.
+ * Freeze a document a built-in family just lowered, in place. It is plain
+ * object and array literals from our own code, with no caller Proxy, accessor
+ * or iterator to defend against, so it is not copied: the walk applies the
+ * same limits and the prototype, cycle and sparse-array checks as
+ * `snapshotBoundedExternalData`, counting a shared object at every reference
+ * as that copy does, then freezes each object where it stands. Shapes only a
+ * lowering bug could produce are not diagnosed here: symbol and non-enumerable
+ * keys and extra array properties are skipped, and accessors are read.
+ * Validation still runs on the result. Everything the document references is
+ * frozen with it, including first-party objects a lowering shares, such as a
+ * layout's edge points and label positions or a family's module-level marker
+ * table; nothing mutates those after lowering. A lowering must therefore never
+ * hand admission an object anything else still mutates. Caller input never
+ * reaches it: render options arrive as frozen copies, and typed diagrams are
+ * re-serialized before they render. A document that fails admission may be
+ * left partly frozen.
+ */
+export function freezeBoundedFirstPartyData(
+  value: unknown,
+  limits: ExternalDataSnapshotLimits,
+  rootPath = 'input',
+): unknown {
+  const active = new WeakSet<object>()
+  const frozen = new WeakSet<object>()
+  let objects = 0
+  let textBytes = 0
+  let arrayEntries = 0
+  let properties = 0
+  let propertyKeyBytes = 0
+
+  const visit = (candidate: unknown, depth: number, path: string): void => {
+    if (typeof candidate === 'string') {
+      const remaining = Math.max(0, limits.maxTextBytes - textBytes)
+      const bytes = boundedUtf8ByteLength(candidate, remaining)
+      if (bytes > remaining) {
+        throw new Error(`External Scene text values exceed the aggregate ${limits.maxTextBytes}-byte limit`)
+      }
+      textBytes += bytes
+      return
+    }
+    if (candidate === null || typeof candidate !== 'object') {
+      if (typeof candidate === 'function' || typeof candidate === 'symbol' || typeof candidate === 'bigint') {
+        throw new TypeError(`External Scene ${path} must be declarative data`)
+      }
+      return
+    }
+    if (depth > limits.maxDepth) {
+      throw new Error('External Scene input object graph is too deeply nested')
+    }
+    if (++objects > limits.maxObjects) {
+      throw new Error('External Scene input object graph is too large')
+    }
+    if (active.has(candidate)) throw new Error('External Scene input must be acyclic')
+    if (frozen.has(candidate)) return
+    active.add(candidate)
+    try {
+      if (Array.isArray(candidate)) {
+        if (Object.getPrototypeOf(candidate) !== Array.prototype) {
+          throw new TypeError(`External Scene ${path} must be a plain array`)
+        }
+        const length = candidate.length
+        if (length > limits.maxArrayEntries) {
+          throw new Error(`External Scene ${path} contains too many entries`)
+        }
+        arrayEntries += length
+        if (arrayEntries > limits.maxAggregateArrayEntries) {
+          throw new Error(`External Scene input exceeds the aggregate ${limits.maxAggregateArrayEntries}-array-entry limit`)
+        }
+        for (let index = 0; index < length; index++) {
+          // A hole would otherwise read through Array.prototype.
+          if (!Object.hasOwn(candidate, index)) throw new TypeError(`External Scene ${path} must not be sparse`)
+          visit(candidate[index], depth + 1, `${path}[${index}]`)
+        }
+      } else {
+        const prototype = Object.getPrototypeOf(candidate)
+        if (prototype !== Object.prototype && prototype !== null) {
+          throw new TypeError(`External Scene ${path} must be a plain object`)
+        }
+        const keys = Object.keys(candidate)
+        if (keys.length > limits.maxPropertiesPerObject) {
+          throw new Error(`External Scene ${path} contains too many properties`)
+        }
+        properties += keys.length
+        if (properties > limits.maxAggregateProperties) {
+          throw new Error(`External Scene input exceeds the aggregate ${limits.maxAggregateProperties}-property limit`)
+        }
+        for (const key of keys) {
+          const remaining = Math.max(0, limits.maxAggregatePropertyKeyBytes - propertyKeyBytes)
+          const bytes = boundedUtf8ByteLength(key, Math.min(limits.maxPropertyKeyBytes, remaining))
+          if (bytes > limits.maxPropertyKeyBytes) {
+            throw new Error(`External Scene ${path} contains a property key longer than ${limits.maxPropertyKeyBytes} bytes`)
+          }
+          if (bytes > remaining) {
+            throw new Error(`External Scene property keys exceed the aggregate ${limits.maxAggregatePropertyKeyBytes}-byte limit`)
+          }
+          propertyKeyBytes += bytes
+        }
+        const record = candidate as Record<string, unknown>
+        for (const key of keys) visit(record[key], depth + 1, `${path}.${key}`)
+      }
+      Object.freeze(candidate)
+      frozen.add(candidate)
+    } finally {
+      active.delete(candidate)
+    }
+  }
+
+  visit(value, 0, rootPath)
+  return value
+}
+
+/**
+ * Documents that passed admission, with the rule set they passed: copies from
+ * `snapshotBoundedExternalData`, and built-in lowerings frozen in place by
+ * `freezeBoundedFirstPartyData`. Either is recursively frozen own data (built-in
+ * lowerings emit data properties only), so its validation result cannot
+ * change: passing it through another admission gate
+ * re-proves nothing. Only this module records documents, so a caller cannot
+ * forge membership.
  */
 const ADMITTED_SCENES = new WeakMap<object, 'internal' | 'external'>()
 
-/** Record a snapshot from `snapshotBoundedExternalData` that passed `mode` admission. */
+/** Record a document this module froze that passed `mode` admission. */
 export function recordAdmittedScene(scene: SceneDoc, mode: 'internal' | 'external'): void {
   ADMITTED_SCENES.set(scene, mode)
 }
@@ -274,15 +352,13 @@ export function admitSceneDocument(value: unknown, mode?: 'internal' | 'external
   const prior = typeof value === 'object' && value !== null ? ADMITTED_SCENES.get(value) : undefined
   if (prior !== undefined && prior === (mode ?? sceneValidationMode(value))) return value as SceneDoc
   // Only built-in family admission names 'internal': its document is our own
-  // lowering output. An inferred mode keeps the full descriptor path. The
-  // test-only replaceFamilyForTest installs lowering under a built-in id, so
-  // a test of hostile Scenes must register a `family:` extension instead.
-  const admitted = snapshotBoundedExternalData(
-    value,
-    EXTERNAL_SCENE_DOCUMENT_SNAPSHOT_LIMITS,
-    'scene',
-    { firstParty: mode === 'internal' },
-  )
+  // lowering output, frozen in place. An inferred mode copies through the
+  // full descriptor path. The test-only replaceFamilyForTest installs lowering
+  // under a built-in id, so a test of hostile Scenes must register a `family:`
+  // extension instead.
+  const admitted = mode === 'internal'
+    ? freezeBoundedFirstPartyData(value, EXTERNAL_SCENE_DOCUMENT_SNAPSHOT_LIMITS, 'scene')
+    : snapshotBoundedExternalData(value, EXTERNAL_SCENE_DOCUMENT_SNAPSHOT_LIMITS, 'scene')
   assertValidSceneDoc(admitted, { mode })
   recordAdmittedScene(admitted as SceneDoc, mode ?? sceneValidationMode(admitted))
   return admitted as SceneDoc

@@ -183,17 +183,6 @@ function sceneCases(workload: Workload): MicroCase[] {
       },
     },
     {
-      id: `scene:admission-snapshot-${workload}`,
-      description: `snapshotBoundedExternalData as built-in admission calls it (first-party path), ${workload}`,
-      async setup() {
-        const { scene } = await staged(workload)
-        const { snapshotBoundedExternalData, EXTERNAL_SCENE_DOCUMENT_SNAPSHOT_LIMITS } = await src.snapshot()
-        // Revisions without a first-party path ignore the fourth argument and
-        // time the only path their admission had.
-        return { call: () => snapshotBoundedExternalData(scene, EXTERNAL_SCENE_DOCUMENT_SNAPSHOT_LIMITS, 'scene', { firstParty: true }), input: inputText(scene) }
-      },
-    },
-    {
       id: `scene:validate-${workload}`,
       description: `assertValidSceneDoc (internal mode) on a lowered Scene, ${workload}`,
       async setup() {

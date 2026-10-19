@@ -119,8 +119,8 @@ describe('scene fidelity', () => {
     expect(admitFamilyScene(family, admitted)).toBe(admitted)
     expect(admitBackendSceneDocument(admitted)).toBe(admitted)
     expect(() => admitFamilyScene({ ...family, semanticRoles: [] }, admitted)).toThrow(/undeclared role/)
-    // A built-in's document takes the first-party copy, which still refuses a
-    // hole rather than reading it through Array.prototype.
+    // A built-in's document is frozen in place, which still refuses a hole
+    // rather than reading it through Array.prototype.
     const holed = [...builtIn.doc.parts]
     holed.length += 1
     expect(() => admitFamilyScene(family, { ...builtIn.doc, parts: holed })).toThrow(/scene\.parts must not be sparse/)
