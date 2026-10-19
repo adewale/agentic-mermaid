@@ -164,4 +164,18 @@ describe('private typed SVG recipes', () => {
     expect(() => snapshotBoundedExternalData(group, EXTERNAL_SCENE_DOCUMENT_SNAPSHOT_LIMITS)).toThrow(/enumerable data property/)
     expect(reads).toBe(0)
   })
+
+  test('ordinary admission rejects definitions that omit their declared gradient ink', () => {
+    const colors = { bg: '#ffffff', fg: '#111111' }
+    const scene: SceneDoc = { family: 'flowchart', width: 20, height: 20, colors, transparent: false, parts: [
+      marks.documentOpen({ id: 'prelude', width: 20, height: 20, colors, transparent: false, font: 'Inter', hasMonoFont: false }, {
+        kind: 'prelude', width: 20, height: 20, colors, transparent: false, font: 'Inter', hasMonoFont: false, children: [],
+      }),
+      marks.definitions({ id: 'gradient', gradientResources: [{ id: 'g', units: 'userSpaceOnUse', x1: 0, y1: 0, x2: 10, y2: 10,
+        stops: [{ offset: 0, color: '#000000' }, { offset: 1, color: '#ffffff' }],
+      }] }, { kind: 'resources', resources: [] }),
+      marks.documentClose(),
+    ] }
+    expect(() => admitSceneDocument(scene, 'internal', false)).toThrow(/definitions must be generated from typed resources/)
+  })
 })
