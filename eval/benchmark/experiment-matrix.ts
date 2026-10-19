@@ -29,9 +29,10 @@ else throw Error('--phase must be singles or ablation, or supply --configs')
 const ids = new Set<string>()
 for (const config of configs) {
   if (!/^[a-z0-9_-]+$/.test(config.id) || ids.has(config.id) || config.features.some(f => !PERFORMANCE_EXPERIMENTS.includes(f)) || new Set(config.features).size !== config.features.length) throw Error(`Invalid config ${config.id}`)
+  if (config.id === 'baseline' && config.features.length !== 0) throw Error('The reserved baseline must have no experimental flags')
   ids.add(config.id)
 }
-if (!configs.some(c => c.features.length === 0)) configs.unshift({ id: 'baseline', features: [] })
+if (!configs.some(c => c.id === 'baseline')) configs.unshift({ id: 'baseline', features: [] })
 mkdirSync(out, { recursive: true })
 const buildDir = join(ROOT, 'node_modules/.cache/flagged-performance')
 mkdirSync(buildDir, { recursive: true })
@@ -62,7 +63,7 @@ for (let round = 1; round <= rounds; round++) for (const config of round % 2 ? c
   runs.push({ config: config.id, round, ...JSON.parse(readFileSync(path, 'utf8')) })
   writeFileSync(join(out, 'progress.json'), JSON.stringify({ revision: builtRevision, baselineRevision, runtime, cache, rounds, samples, configs, runs }, null, 2))
 }
-const baseline = configs.find(c => c.features.length === 0)!.id
+const baseline = 'baseline'
 const baselineRuns = runs.filter(r => r.config === baseline && !r.failed)
 const summaries = configs.map(config => {
   const selected = runs.filter(r => r.config === config.id)
