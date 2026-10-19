@@ -2,7 +2,9 @@
 export class WeightedLru<K, V> {
   private entries = new Map<K, { value: V; weight: number }>()
   private weight = 0
-  constructor(private readonly maxEntries: number, private readonly maxWeight: number) {}
+  private readonly maxEntries: number
+  private readonly maxWeight: number
+  constructor(maxEntries: number, maxWeight: number) { this.maxEntries = maxEntries; this.maxWeight = maxWeight }
   get(key: K): V | undefined {
     const found = this.entries.get(key)
     if (!found) return undefined

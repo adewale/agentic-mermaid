@@ -8,7 +8,8 @@ class DraftMap<K, V> {
   private deleted = new Set<K>()
   private reinserted = new Set<K>()
   private count: number
-  constructor(private readonly parent: Map<K, V>) { this.count = parent.size }
+  private readonly parent: Map<K, V>
+  constructor(parent: Map<K, V>) { this.parent = parent; this.count = parent.size }
   get size(): number { return this.count }
   has(key: K): boolean { return this.changes.has(key) || !this.deleted.has(key) && this.parent.has(key) }
   get(key: K): V | undefined { return this.changes.has(key) ? this.changes.get(key) : this.deleted.has(key) ? undefined : this.parent.get(key) }

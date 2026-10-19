@@ -44,7 +44,9 @@ export class IncrementalGraphOrder {
   private readonly visited: Uint32Array
   private generation = 0
 
-  constructor(private readonly ids: readonly string[]) {
+  private readonly ids: readonly string[]
+  constructor(ids: readonly string[]) {
+    this.ids = ids
     this.ordinal = new Map(ids.map((id, index) => [id, index]))
     this.outgoing = ids.map(() => new Set<number>())
     this.indegree = new Int32Array(ids.length)

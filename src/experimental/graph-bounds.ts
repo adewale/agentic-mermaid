@@ -11,7 +11,9 @@ export class StaticBoundsIndex<T> {
   private readonly right: Int32Array
   private readonly item: Int32Array
   private readonly root: number
-  constructor(private readonly entries: readonly IndexedBounds<T>[]) {
+  private readonly entries: readonly IndexedBounds<T>[]
+  constructor(entries: readonly IndexedBounds<T>[]) {
+    this.entries = entries
     const size = Math.max(1, 2 * entries.length - 1)
     this.boxes = new Float64Array(size * 4)
     this.left = new Int32Array(size).fill(-1)
