@@ -56,7 +56,7 @@ import type { LabelContent } from '../shared/display-text.ts'
 import { parseAccessibilityDirective, scanAccessibilityDirectives, statementEndAt } from '../shared/accessibility-directives.ts'
 import {
   matchNoteLine, matchNoteOpen, isNoteEnd, matchStereotypeDecl,
-  matchTransitionLine, readStateStatements, stateStatementEnds, isConcurrencySeparator, isHistoryEndpoint, matchHistoryEndpoint,
+  matchTransitionLine, readStateStatements, stateStatementEnds, isConcurrencySeparator, type StateStatement, isHistoryEndpoint, matchHistoryEndpoint,
   isStateNodeId, matchStateDeclarationLine, matchStateLayoutDirective, stereotypeMarker, stripStateComment, matchStateClassAssignment,
   STATE_DIRECTION_RE, STATE_ALIAS_RE, STATE_COMPOSITE_OPEN_RE, STATE_DESCRIPTION_RE,
   STATE_CLASS_DEF_RE, STATE_STYLE_RE, STATE_LINK_STYLE_RE,
@@ -1284,7 +1284,67 @@ export function stateUnsupportedSyntaxWarnings(canonicalSource: string): LayoutW
       message: 'This composite state is never closed by `}`, so where it ends cannot be told and the diagram is not drawn; pinned Mermaid rejects it too. Add a `}` where the composite ends.',
     })),
   ]
+  warnings.push(...stateReadOtherwiseWarnings(scan.statements, header))
   return warnings.sort((left, right) => left.line - right.line)
+}
+
+/** Statements ours reads that pinned Mermaid reads otherwise, by statement:
+ *  `cssClass` and `linkStyle`, which its State grammar lacks; a transition
+ *  naming a state it cannot name there; and a composite given more than
+ *  one label or description, which it rejects. Each at its authored line. */
+function stateReadOtherwiseWarnings(statements: readonly StateStatement[], header: number): Array<LayoutWarning & { line: number }> {
+  const warnings: Array<LayoutWarning & { line: number }> = []
+  const warn = (statement: StateStatement, syntax: string, message: string): void => {
+    warnings.push({ code: 'UNSUPPORTED_SYNTAX', syntax, line: header + statement.line + 2, message })
+  }
+  const composites = new Set(statements.flatMap(statement => {
+    const open = statement.noteBody ? null : statement.text.match(STATE_COMPOSITE_OPEN_RE)
+    return open ? [open[2]!] : []
+  }))
+  const compositeLabels = new Map<string, number>()
+  const labelComposite = (statement: StateStatement, id: string): void => {
+    if (!composites.has(id)) return
+    const count = (compositeLabels.get(id) ?? 0) + 1
+    compositeLabels.set(id, count)
+    if (count === 2) {
+      warn(statement, 'state_composite_description', `Composite state '${id}' has more than one label or description, which are read as the lines of its label. Pinned Mermaid rejects a composite with more than one (\`Group nodes can only have label\`). Give it one \`state "…" as ${id}\` label.`)
+    }
+  }
+  for (const statement of statements) {
+    if (statement.noteBody) continue
+    const text = statement.text
+    const keyword = /^(cssClass|linkStyle)\s/.exec(text)?.[1]
+    if (keyword === 'cssClass') {
+      warn(statement, 'state_css_class', '`cssClass` is read as `class`, and written so. Pinned Mermaid\'s State grammar has no `cssClass`: it reads the words of the line as states. Write `class A name`.')
+      continue
+    }
+    if (keyword === 'linkStyle') {
+      warn(statement, 'state_link_style', '`linkStyle` paints transitions here, and the writer writes transition paint so. Pinned Mermaid\'s State grammar has no `linkStyle`: it reads the words of the line as states, or rejects them, and draws no transition paint.')
+      continue
+    }
+    const transition = matchTransitionLine(text)
+    if (transition) {
+      for (const endpoint of new Set([transition.from, transition.to])) {
+        if (endpoint === PSEUDO || isHistoryEndpoint(endpoint) || hasBareSpelling(endpoint)) continue
+        warn(statement, 'state_endpoint_name', `The transition names '${endpoint}', which pinned Mermaid cannot read as a state there: a name holds no hyphen, and \`note\`, \`class\`, \`classDef\`, \`style\`, \`default\`, \`click\`, \`href\`, \`scale\` and \`stateDiagram\` start statements of their own, as \`state\` starts a declaration it drops. Mermaid rejects or drops the transition, here and in the output. Rename the state to keep it portable.`)
+      }
+      continue
+    }
+    const open = text.match(STATE_COMPOSITE_OPEN_RE)
+    if (open) {
+      if (open[1] !== undefined) labelComposite(statement, open[2]!)
+      continue
+    }
+    const alias = text.match(STATE_ALIAS_RE)
+    if (alias) {
+      labelComposite(statement, alias[2]!)
+      continue
+    }
+    if (parseClassShorthandStatement(text)) continue
+    const description = text.match(STATE_DESCRIPTION_RE)
+    if (description) labelComposite(statement, description[1]!)
+  }
+  return warnings
 }
 
 export function verifyOpaqueState(source: string): LayoutWarning[] {

@@ -582,6 +582,11 @@ describe('State statements across and within lines', () => {
     ['state X {\nX\nA\n}', ['A:rounded:A', 'X:X{A}'], []],
     ['state X {\n[*] --> Y\nstate Y {\nB\n}\n}', ['_start:state-start:', 'B:rounded:B', '_start->Y', 'X:X{_start}', 'X/Y:Y{B}'], []],
     ['state P {\nstate X {\nA\n}\n}\nstate "L" as X', ['A:rounded:A', 'P:P{}', 'P/X:L{A}'], []],
+    // Read generously where Mermaid reads otherwise, and reported: its State
+    // grammar has no `cssClass` or `linkStyle`, and it rejects a composite
+    // with a label and a description.
+    ['A --> B\ncssClass A hot\nlinkStyle 0 stroke:#f00', ['A:rounded:A', 'B:rounded:B', 'A->B', 'A:::hot'], ['state_css_class@3', 'state_link_style@4']],
+    ['state "L" as X {\nA\n}\nX : desc', ['A:rounded:A', 'X:L\ndesc{A}'], ['state_composite_description@5']],
     // A `}` with no composite open is dropped; Mermaid reads a state `}`,
     // or `A}` where it follows a name.
     ['A\n}', ['A:rounded:A'], ['state_brace_unopened@3']],
@@ -649,6 +654,15 @@ describe('State statements across and within lines', () => {
     const verified = verifyMermaid(source)
     expect(verified.ok).toBe(false)
     expect(verified.warnings.map(warning => warning.code === 'UNSUPPORTED_SYNTAX' ? `${warning.syntax}@${warning.line}` : warning.code)).toEqual(['state_composite_unclosed@2', 'RENDER_FAILED'])
+  })
+
+  test('a transition naming a state Mermaid cannot name there is read, and reported', async () => {
+    const source = 'stateDiagram-v2\nA --> in-flight\nnote --> A\nA --> B'
+    expect(readingOf(parseRenderGraph(source))).toEqual(['A:rounded:A', 'B:rounded:B', 'in-flight:rounded:in-flight', 'note:rounded:note', 'A->in-flight', 'note->A', 'A->B'].sort())
+    expect(state(source).body.transitions).toHaveLength(3)
+    expect(await upstream.accepts(source)).toBe(false)
+    expect(verifyMermaid(source).warnings.flatMap(warning => warning.code === 'UNSUPPORTED_SYNTAX' ? [`${warning.syntax}@${warning.line}`] : []))
+      .toEqual(['state_endpoint_name@2', 'state_endpoint_name@3'])
   })
 
   test('a direction is read in any case, as Mermaid reads it', () => {
