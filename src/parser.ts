@@ -29,7 +29,7 @@ import { detectCompatibilityGraphFamilyFromFirstLine } from './agent/family-rout
 import { classifyMermaidFamilyFromFirstLine } from './family-detection.ts'
 import { coalesceFlowchartLines, commaInNodeId, continuesNodeId, findTextArrow, FLOWCHART_EDGE_ID_SOURCE, FLOWCHART_LINK_SOURCE, flowchartNodeIdLength, flowchartRegionAt, flowchartStatementSpans, matchFlowchartLink, matchTextArrow } from './flowchart-lexer.ts'
 import { consumeClassShorthandPrefix,
-  isMermaidIdentifier, MERMAID_IDENTIFIER_SOURCE, parseClassShorthandStatement } from './shared/mermaid-identifiers.ts'
+  MERMAID_IDENTIFIER_SOURCE, parseClassShorthandStatement } from './shared/mermaid-identifiers.ts'
 import { metadataText, readMetadataBlock } from './shared/metadata-yaml.ts'
 import { syntaxError } from './shared/syntax-error.ts'
 
