@@ -16,8 +16,9 @@ import { serializeTransform } from './transforms.ts'
 // element is kept as an invisible carrier (stroke-opacity="0"), preserving
 // markers, class/data-* attributes, and hit geometry under the sketch.
 //
-// Shape paint truth still comes from the mark's owned-format element attributes
-// with semantic MarkPaint as the fallback for class-painted marks. Connector
+// Typed shape paint comes from the same bounded projection recipes as crisp
+// emission, with semantic MarkPaint as the fallback for class-painted marks.
+// Legacy external shapes retain their checked owned-format element adapter. Connector
 // paint/stroke/route truth is wholly typed: styled backends never inspect a
 // connector's backend-private serialization. A shape child with
 // stroke="none" — or an author-suppressed stroke-width of 0 — never grows a
@@ -37,7 +38,9 @@ import { ensureSvgIdentity } from './identity.ts'
 import { sceneRoleTraits } from './roles.ts'
 import { graphicalBackendCapabilityClaims } from './capabilities.ts'
 import { admitBackendSceneDocument } from './external-data-snapshot.ts'
-import { sceneNodeSerialization } from './serialization.ts'
+import { sceneNodeEmission, sceneNodeSerialization } from './serialization.ts'
+import { resolveSvgAttributeValue, serializeSvgEmission, SVG_EMISSION_METADATA_LIMITS, type SvgEmissionRecipe, type SvgPrimitiveEmission } from './svg-emission.ts'
+import { SvgWriter } from './svg-writer.ts'
 import { escapeAttr } from '../multiline-utils.ts'
 import { contrastRatio, WCAG_AA_LARGE_TEXT_CONTRAST, WCAG_AA_TEXT_CONTRAST } from '../shared/color-math.ts'
 import { resolvedColorValue, type DiagramColors } from '../theme.ts'
@@ -293,7 +296,92 @@ function transformedStyledGeometry(svg: string, transform: SceneTransform | unde
   return `<g transform="${serializeTransform(transform)}">${svg}</g>`
 }
 
+/** Typed shapes admit only primitive leaves, in their semantic geometry order.
+ * The independent admission walk already bounds recipes; repeat the small
+ * traversal bound here because drawNode can also be called directly. */
+function typedShapePieces(node: ShapeMark, recipe: SvgEmissionRecipe): SvgPrimitiveEmission[] {
+  const pieces: SvgPrimitiveEmission[] = []
+  const geoms = node.geometry.kind === 'compound' ? node.geometry.children : [node.geometry]
+  let visits = 0
+  const visit = (part: SvgEmissionRecipe, depth: number): void => {
+    if (depth > SVG_EMISSION_METADATA_LIMITS.maxDepth || ++visits > SVG_EMISSION_METADATA_LIMITS.maxObjects) throw new RangeError('Styled SVG shape exceeds typed emission work budget')
+    if (part.kind === 'sequence') {
+      for (const child of part.children) visit(child, depth + 1)
+      return
+    }
+    if (part.kind !== 'primitive') throw new TypeError('Styled typed shape requires primitive SVG emissions')
+    const index = pieces.length
+    if (!geoms[index] || geoms[index]!.kind === 'compound' || (part.piece ?? 0) !== index) throw new TypeError('Styled typed shape emissions must match semantic geometry pieces in order')
+    pieces.push(part)
+  }
+  visit(recipe, 0)
+  if (pieces.length !== geoms.length) throw new TypeError('Styled typed shape requires one emission per semantic geometry piece')
+  return pieces
+}
+
+/** Preserve the legacy scanner's lexical attribute value without reading XML.
+ * Formatting, omissions and fallbacks remain the common emitter's authority;
+ * uncommon escaped paints use its writer rather than another escape policy. */
+function typedShapePaintAttribute(node: ShapeMark, recipe: SvgPrimitiveEmission, name: 'fill' | 'stroke' | 'stroke-width' | 'stroke-dasharray'): string | undefined {
+  let result: string | undefined
+  for (const attribute of recipe.attributes) {
+    if (attribute.name !== name) continue
+    const value = resolveSvgAttributeValue(node, attribute, recipe)
+    if (value === undefined) continue
+    if (/[&<>"'\t\n\r]/.test(value)) {
+      const writer = new SvgWriter()
+      writer.attributeValue(value, attribute.escape)
+      result = writer.finish()
+    } else result = value
+  }
+  return result
+}
+
+function sketchTypedShape(node: ShapeMark, walk: Walk, recipe: SvgEmissionRecipe): string {
+  const p = walk.p
+  const pieces = typedShapePieces(node, recipe)
+  const geoms = node.geometry.kind === 'compound' ? node.geometry.children : [node.geometry]
+  const out: string[] = []
+  for (let i = 0; i < pieces.length; i++) {
+    const piece = pieces[i]!
+    const geom = geoms[i]!
+    const stroke = attrOrPaint(typedShapePaintAttribute(node, piece, 'stroke'), node.paint.stroke)
+    const fill = attrOrPaint(typedShapePaintAttribute(node, piece, 'fill'), node.paint.fill)
+    const seed = nodeSeed(walk.ctx.seed, node.id, `outline:${i}`) || 1
+    const widthRatio = strokeWidthRatio(attrOrPaint(typedShapePaintAttribute(node, piece, 'stroke-width'), node.paint.strokeWidth))
+    const dash = attrOrPaint(typedShapePaintAttribute(node, piece, 'stroke-dasharray'), node.paint.strokeDasharray)
+    const hasStroke = stroke !== undefined && stroke !== 'none' && widthRatio > 0
+    const hasFill = fill !== undefined && fill !== 'none'
+    const wantFill = hasFill && p.fill !== 'none' ? fill : undefined
+    if (!hasStroke) {
+      if (node.surfaceFragment && hasFill && p.fill === 'none' && isBoxFill(fill!)) continue
+      if (wantFill) {
+        const sketchedFill = sketchGeometryVia(walk, geom, seed, 'none', 0, wantFill, dash, undefined, node.paint.opacity)
+        if (sketchedFill) {
+          out.push(transformedStyledGeometry(sketchedFill, node.transform))
+          continue
+        }
+      }
+      out.push(serializeSvgEmission(node, piece))
+      continue
+    }
+    const width = Math.max(0.6, Math.min(p.strokeWidth * widthRatio, p.strokeWidth * 4))
+    const sketched = sketchGeometryVia(walk, geom, seed, stroke!, width, wantFill, dash, undefined, node.paint.opacity)
+    if (!sketched) { out.push(serializeSvgEmission(node, piece)); continue }
+    if (hasFill && p.fill === 'none' && !isBoxFill(fill!)) {
+      out.push(suppressStroke(serializeSvgEmission(node, piece), geom.kind))
+    }
+    out.push(transformedStyledGeometry(sketched, node.transform))
+  }
+  const serialized = out.filter(Boolean).join('\n')
+  return node.identity && !/\sdata-id=/.test(serialized)
+    ? ensureSvgIdentity(serialized, node.identity)
+    : serialized
+}
+
 function sketchShape(node: ShapeMark, walk: Walk): string {
+  const recipe = sceneNodeEmission(node)
+  if (recipe) return sketchTypedShape(node, walk, recipe)
   const p = walk.p
   const sourceSvg = sceneNodeSerialization(node)
   const els = topLevelElements(sourceSvg)
