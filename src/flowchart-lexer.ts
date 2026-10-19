@@ -72,7 +72,10 @@ export interface FlowchartScan {
  * dotted one may leave out its leading `-` (`A .-> B`). Any stroke may end
  * in a cross or a circle (`-.-x`, `==o`), and start with one where it ends
  * in one (`o-.-o`, `x==o`). */
-export const FLOWCHART_LINK_RE = /(<)?(~{3,}|[xo]-?\.+-[xo]|-?\.+-[>xo]?|[xo]={2,}[xo]|={2,}[>xo]|={3,}|o-{2,}o|o-{2,}x|x-{2,}o|x-{2,}x|-{2,}[ox]|-{2,}>|-{3,})/y
+const FLOWCHART_LINK_BODY = String.raw`~{3,}|[xo]-?\.+-[xo]|-?\.+-[>xo]?|[xo]={2,}[xo]|={2,}[>xo]|={3,}|o-{2,}o|o-{2,}x|x-{2,}o|x-{2,}x|-{2,}[ox]|-{2,}>|-{3,}`
+export const FLOWCHART_LINK_RE = new RegExp(`(<)?(${FLOWCHART_LINK_BODY})`, 'y')
+/** The link grammar as a pattern without groups, to build other expressions on. */
+export const FLOWCHART_LINK_SOURCE = `<?(?:${FLOWCHART_LINK_BODY})`
 /** A text-arrow label's opening link, with its start marker (`<`, or `x` or
  * `o` in upstream's `x-- a --x`). */
 const TEXT_ARROW_OPEN_RE = /([<xo])?(-{2,}|-\.+|={2,})/y

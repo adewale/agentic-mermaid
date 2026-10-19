@@ -22,7 +22,7 @@ import { unknownOpMessage } from './mutation-ops.ts'
 import { normalizeV11Shape } from '../flowchart-shapes.ts'
 import {
   coalesceFlowchartLines,
-  FLOWCHART_LINK_RE,
+  FLOWCHART_LINK_SOURCE,
   type FlowchartLineGroup,
   type FlowchartRegion,
   type FlowchartScan,
@@ -321,7 +321,7 @@ function candidateNodeTokens(line: string, trie: NodeIdTrie): Array<{ id: string
   return candidates
 }
 
-const COMPACT_EDGE_OPERATOR_AT_RE = new RegExp(FLOWCHART_LINK_RE.source, 'y')
+const COMPACT_EDGE_OPERATOR_AT_RE = new RegExp(FLOWCHART_LINK_SOURCE, 'y')
 
 function matchLengthAt(expression: RegExp, line: string, index: number): number {
   expression.lastIndex = index

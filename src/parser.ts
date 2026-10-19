@@ -27,7 +27,7 @@ import type { Direction, EdgeMarker, EdgeStyle, MermaidEdge, MermaidGraph, Merma
 export { parseStyleProps } from './shared/style-props.ts'
 import { detectCompatibilityGraphFamilyFromFirstLine } from './agent/family-router.ts'
 import { classifyMermaidFamilyFromFirstLine } from './family-detection.ts'
-import { coalesceFlowchartLines, continuesNodeId, findTextArrow, FLOWCHART_LINK_RE, flowchartNodeIdLength, flowchartRegionAt, flowchartStatementSpans, matchFlowchartLink, matchTextArrow } from './flowchart-lexer.ts'
+import { coalesceFlowchartLines, continuesNodeId, findTextArrow, FLOWCHART_LINK_SOURCE, flowchartNodeIdLength, flowchartRegionAt, flowchartStatementSpans, matchFlowchartLink, matchTextArrow } from './flowchart-lexer.ts'
 import { consumeClassShorthandPrefix,
   isMermaidIdentifier, MERMAID_IDENTIFIER_SOURCE, parseClassShorthandStatement } from './shared/mermaid-identifiers.ts'
 import { metadataText, readMetadataBlock } from './shared/metadata-yaml.ts'
@@ -1173,7 +1173,7 @@ function consumeBareNodeId(text: string): { id: string; length: number } | null 
   return length > 0 ? { id: text.slice(0, length), length } : null
 }
 
-const EDGE_ID_PREFIX_REGEX = new RegExp(String.raw`^([\w-]+)@\s*(?=${FLOWCHART_LINK_RE.source}|(?:-{2,}|-\.+|={2,})\s+)`)
+const EDGE_ID_PREFIX_REGEX = new RegExp(String.raw`^([\w-]+)@\s*(?=${FLOWCHART_LINK_SOURCE}|(?:-{2,}|-\.+|={2,})\s+)`)
 
 function consumeClassShorthand(text: string): { className: string; length: number } | null {
   const parsed = consumeClassShorthandPrefix(text)

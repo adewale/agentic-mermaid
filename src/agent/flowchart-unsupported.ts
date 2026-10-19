@@ -1,7 +1,7 @@
 import type { LayoutWarning } from './types.ts'
 import { normalizeV11Shape } from '../flowchart-shapes.ts'
 import { parseMermaid, splitFlowchartStatements, splitInlineHeaderStatements } from '../parser.ts'
-import { coalesceFlowchartLines, matchTextArrow, scanFlowchart } from '../flowchart-lexer.ts'
+import { coalesceFlowchartLines, FLOWCHART_LINK_SOURCE, matchTextArrow, scanFlowchart } from '../flowchart-lexer.ts'
 import { metadataText, readMetadataBlock } from '../shared/metadata-yaml.ts'
 import { parseAccessibilityDirective } from '../shared/accessibility-directives.ts'
 
@@ -262,6 +262,11 @@ function hasUnmodeledNodeMetadata(statement: string): boolean {
 // carry no node/edge content that an unclosed delimiter could swallow.
 const FLOWCHART_KEYWORD_STATEMENT = /^(?:subgraph\s|end$|direction\s|classDef\s|class\s|style\s|linkStyle\s|click\s|href\s)/i
 
+/** A statement that ends in a link (with an optional pipe label) after a
+ * node: the link has no target. A `.` right after id characters is the id's
+ * (`B.-` is a node), so a link the node runs straight into begins otherwise. */
+const DANGLING_LINK_RE = new RegExp(String.raw`[\p{L}\p{N}_\])}](?:\s+|(?!\.))${FLOWCHART_LINK_SOURCE}(?:\s*\|[^|]*\|)?\s*$`, 'u')
+
 /**
  * Detect node/edge statements with an unclosed bracket, quote, or |label|
  * delimiter. The legacy parser recovers by regex-matching whatever prefix it
@@ -277,7 +282,7 @@ function malformedFlowchartStatement(statement: string): { syntax: string; messa
   const scan = scanFlowchart(statement)
   if (scan.regions.some(region => region.kind === 'metadata' || region.kind === 'markdown')) return null
 
-  if (/[A-Za-z0-9_\]\)\}]\s*(?:-->|---|-\.->|==>|~~~|--o|--x)(?:\s*\|[^|]*\|)?\s*$/.test(statement)) {
+  if (DANGLING_LINK_RE.test(statement)) {
     return { syntax: 'flowchart_dangling_edge', message: 'Dangling edge operator has no target, so Mermaid rejects the diagram. Add the endpoint or remove the operator.' }
   }
 
@@ -333,7 +338,7 @@ function isUnsupportedFlowchartInteraction(statement: string): boolean {
 
 function declaredEdgeIds(statements: FlowchartStatement[]): Set<string> {
   const ids = new Set<string>()
-  const pattern = /(?:^|\s)([A-Za-z_][\w-]*)@(?:-->|---|-\.->|==>|~~~|--o|--x|--)/g
+  const pattern = new RegExp(String.raw`(?:^|\s)([A-Za-z_][\w-]*)@(?:${FLOWCHART_LINK_SOURCE}|--)`, 'g')
   for (const { text } of statements) {
     let match: RegExpExecArray | null
     while ((match = pattern.exec(text)) !== null) ids.add(match[1]!)
@@ -370,7 +375,7 @@ function explicitlyDeclaredNodeIds(statements: FlowchartStatement[]): Set<string
 }
 
 function hasLikelyTypoEndpoint(statement: string, explicitNodeIds: Set<string>): boolean {
-  const arrow = String.raw`(?:-->|---|-\.->|==>|~~~|--o|--x)`
+  const arrow = `(?:${FLOWCHART_LINK_SOURCE})`
   const endpoint = String.raw`([A-Za-z_][\w-]*)(\s*(?:\[[^\]]*\]|\([^)]*\)|\{[^}]*\}))?`
   const match = statement.match(new RegExp(`^\\s*${endpoint}\\s*${arrow}\\s*${endpoint}\\s*$`))
   if (!match) return false
