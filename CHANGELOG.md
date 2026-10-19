@@ -36,7 +36,10 @@ This changelog tracks user-facing changes for **Agentic Mermaid**, a fork of `lu
   title's letter spacing and an `em`/`ex` `titleFontSize`. Sketch styles now
   draw Radar areas with the translucent fill and opaque outline the default
   style draws, XYChart series lines with round caps and joins, and a done
-  Gantt bar's border.
+  Gantt bar's border. Under a sketch look stacked with a dark palette
+  (for example `watercolor` with `dusk`), Architecture labels, Journey task
+  text and Timeline event text take the sketch's legible ink instead of a
+  family stylesheet's dark ink.
 - Context codecs preserve entity-derived tags, emphasis and backslash-n as
   literal text beside authored formatting in Flowchart, ER, Sequence and Class.
   Parsed aliases and labels retain their meaning through edits and reload;
