@@ -4,7 +4,7 @@ import { MICRO_WORKLOADS } from './micro-bench-cases.ts'
 import { releaseBenchCases } from './release-bench-cases.ts'
 import { missingSvgLabels, renderAgentEdit, agentEditCase } from './release-bench-fidelity.ts'
 import { allocationProbe, median } from './bench-stats.ts'
-interface Job { out: string; samples: number; warmup: number; broad: boolean; allocation: boolean; png: boolean }
+interface Job { out: string; samples: number; warmup: number; warmupMs?: number; broad: boolean; allocation: boolean; png: boolean }
 const job = JSON.parse(readFileSync(process.argv[2]!, 'utf8')) as Job
 const started = performance.now()
 const api = await import('../../src/index.ts')
@@ -45,7 +45,8 @@ for (const input of cases) {
     // the memory checkpoint or mistake two missing PNG witnesses for equality.
     const witness = createHash('sha256').update(first).digest('hex')
     first = undefined
-    for (let i = 0; i < job.warmup; i++) consume(await render())
+    const warmStart = performance.now()
+    for (let i = 0; i < job.warmup || performance.now() - warmStart < (job.warmupMs ?? 0); i++) consume(await render())
     const samplesMs = []
     for (let i = 0; i < job.samples; i++) { t = performance.now(); consume(await render()); samplesMs.push(performance.now() - t) }
     let allocationBytes: number | undefined
@@ -56,4 +57,4 @@ for (const input of cases) {
 }
 collect()
 writeFileSync(job.out, JSON.stringify({ runtime: process.versions, features: process.env.AGENTIC_MERMAID_EXPERIMENTS ?? '', elkCache: process.env.AGENTIC_MERMAID_ELK_CACHE,
-  importMs, loadedMemory, finalMemory: process.memoryUsage(), maxRssKiB: process.resourceUsage().maxRSS, rows }, null, 2))
+  importMs, loadedMemory, finalMemory: process.memoryUsage(), cpuUsage: process.cpuUsage(), maxRssKiB: process.resourceUsage().maxRSS, rows }, null, 2))

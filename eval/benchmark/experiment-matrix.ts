@@ -7,7 +7,7 @@ import { PERFORMANCE_EXPERIMENTS, type PerformanceExperiment } from '../../src/e
 import { ROOT, workingRevision, extractRevisionTree } from './revision-tree.ts'
 import { median } from './bench-stats.ts'
 const options = new Map<string, string>()
-const allowed = new Set(['out', 'rounds', 'samples', 'runtime', 'phase', 'configs', 'broad', 'allocation', 'png', 'cache', 'baseline-ref', 'paired'])
+const allowed = new Set(['out', 'rounds', 'samples', 'runtime', 'phase', 'configs', 'broad', 'allocation', 'png', 'cache', 'baseline-ref', 'paired', 'warmup', 'warmup-ms'])
 for (let i = 2; i < process.argv.length; i += 2) {
   const flag = process.argv[i]!, value = process.argv[i + 1], key = flag.slice(2)
   if (!flag.startsWith('--') || !allowed.has(key) || !value || value.startsWith('--') || options.has(key)) throw Error(`Invalid matrix option ${flag}`)
@@ -15,6 +15,8 @@ for (let i = 2; i < process.argv.length; i += 2) {
 }
 const integer = (key: string, fallback: number) => { const n = Number(options.get(key) ?? fallback); if (!Number.isSafeInteger(n) || n < 1) throw Error(`Invalid ${key}`); return n }
 const out = resolve(options.get('out') ?? 'bench-report/experiments'), rounds = integer('rounds', 3), samples = integer('samples', 3)
+const warmup = integer('warmup', 1), warmupMs = Number(options.get('warmup-ms') ?? 0)
+if (!Number.isSafeInteger(warmupMs) || warmupMs < 0) throw Error('Invalid warmup-ms')
 const runtime = options.get('runtime') ?? 'node'
 if (runtime !== 'node' && runtime !== 'bun') throw Error('--runtime must be node or bun')
 const cache = options.get('cache') ?? 'off'
@@ -92,7 +94,7 @@ function runWorker(config: Config, round: number, context: {
   console.log(`${runtime} ${phase} ${round}/${rounds}: ${key}${role === 'reference' ? ' reference' : ''} (${config.source})`)
   const path = join(out, outputFile), job = join(out, 'job.json')
   rmSync(path, { force: true })
-  writeFileSync(job, JSON.stringify({ out: path, samples, warmup: 1, broad: options.get('broad') === '1', allocation: options.get('allocation') === '1', png: options.get('png') === '1' }))
+  writeFileSync(job, JSON.stringify({ out: path, samples, warmup, warmupMs, broad: options.get('broad') === '1', allocation: options.get('allocation') === '1', png: options.get('png') === '1' }))
   const workerBundle = config.source === 'baseline' ? baselineBundle ?? bundle : bundle
   const started = performance.now()
   const child = spawnSync(runtime === 'bun' ? process.execPath : 'node', ['--expose-gc', workerBundle, job], {
@@ -113,7 +115,7 @@ function runWorker(config: Config, round: number, context: {
     processExit: { status: child.status, signal: child.signal } }
   writeFileSync(path, JSON.stringify(evidence, null, 2))
   runs.push(evidence)
-  writeFileSync(join(out, 'progress.json'), JSON.stringify({ revision: builtRevision, baselineRevision, runtime, cache, paired, rounds, samples, configs, runs }, null, 2))
+  writeFileSync(join(out, 'progress.json'), JSON.stringify({ revision: builtRevision, baselineRevision, runtime, cache, paired, rounds, samples, warmup, warmupMs, configs, runs }, null, 2))
 }
 for (let round = 1; round <= rounds; round++) for (const config of round % 2 ? configs : [...configs].reverse()) {
   if (!paired || config.id === 'baseline') {
@@ -165,6 +167,6 @@ const summaries = configs.map(config => {
     retainedHeapBytes: complete && selected.every(r => r.finalMemory) ? median(selected.map(r => r.finalMemory!.heapUsed)) : undefined,
     referenceRetainedHeapBytes: complete && references.every(r => r.finalMemory) ? median(references.map(r => r.finalMemory!.heapUsed)) : undefined }
 })
-writeFileSync(join(out, 'summary.json'), JSON.stringify({ diagnostic: true, revision: builtRevision, baselineRevision, runtime, cache, paired, rounds, samples, configs, summaries,
-  method: `Fresh sequential processes, reversed config order alternate rounds; ${paired ? 'each non-baseline configuration has an adjacent fresh reference, with reference/candidate order reversed on alternate rounds' : 'one reference per round shared by configurations'}; one warm call and independent samples/case. Complete output byte consumption is timed. Ratios resolve each configuration's recorded comparison reference in the same round. Baseline-source empty-flag configurations permit fresh-process A/A controls. SVG equality is diagnostic: indexed-layout deliberately changes eligible geometry. All failures retained and incomplete aggregates withheld. RSS/GC checkpoints are not exact per-render peak/native allocation. Screening is not an exhaustive global-optimum proof.` }, null, 2))
+writeFileSync(join(out, 'summary.json'), JSON.stringify({ diagnostic: true, revision: builtRevision, baselineRevision, runtime, cache, paired, rounds, samples, warmup, warmupMs, configs, summaries,
+  method: `Fresh sequential processes, reversed config order alternate rounds; ${paired ? 'each non-baseline configuration has an adjacent fresh reference, with reference/candidate order reversed on alternate rounds' : 'one reference per round shared by configurations'}; at least ${warmup} warm calls and ${warmupMs}ms warm-up per case, followed by independent samples. Complete output byte consumption is timed. Ratios resolve each configuration's recorded comparison reference in the same round. Baseline-source empty-flag configurations permit fresh-process A/A controls. SVG equality is diagnostic: indexed-layout deliberately changes eligible geometry. All failures retained and incomplete aggregates withheld. RSS/GC checkpoints are not exact per-render peak/native allocation. Screening is not an exhaustive global-optimum proof.` }, null, 2))
 console.log(summaries.map(s => ({ id: s.id, complete: s.complete, svgRatio: s.svgRatio, allRatio: s.allRatio, retainedHeapBytes: s.retainedHeapBytes, maxRssKiB: s.maxRssKiB })))
