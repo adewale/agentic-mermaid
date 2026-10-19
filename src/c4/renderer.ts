@@ -4,7 +4,7 @@ import type { PositionedC4Diagram } from './layout.ts'
 import type { C4Boundary, C4Element } from './types.ts'
 import type { MarkAttributes, SceneDoc, SceneNode, MarkPaint } from '../scene/ir.ts';
 import * as marks from '../scene/marks.ts'
-import { graphSceneShell, graphEdgeFields, renderGraphEdgeFields, renderGraphSceneNote } from '../renderer.ts'
+import { graphSceneShell, graphEdgeFields, renderGraphEdgeFields, renderGraphSceneNote } from '../graph-scene-shared.ts'
 import { c4Appearance, effectiveC4Shape } from './config.ts'
 import { resolveRenderStyle } from '../styles.ts'
 import { toneOnFill, resolveInlineNodeTextColor } from '../color-resolver.ts'
