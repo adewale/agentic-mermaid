@@ -44,6 +44,12 @@
   },
   "unpkg": "./dist/browser.global.js",
   "jsdelivr": "./dist/browser.global.js",
+  "imports": {
+    "#elk-constructor": {
+      "node": "./dist/elk-constructor.node.js",
+      "default": "./dist/elk-constructor.js"
+    }
+  },
   "bin": {
     "am": "dist/am.js",
     "agentic-mermaid": "dist/am.js",
@@ -135,7 +141,9 @@
     "test:browser": "bun run e2e/run-browser-contracts.ts",
     "editor": "bun run scripts/site/editor.ts",
     "dev": "bun run website:dev",
-    "bench": "bun run eval/benchmark/sample-bench.ts",
+    "bench": "bun run eval/benchmark/suite.ts",
+    "bench:samples": "bun run eval/benchmark/sample-bench.ts",
+    "bench:dave": "bun run eval/benchmark/dave-bench.ts",
     "bench:micro": "bun run eval/benchmark/micro-bench.ts",
     "bench:peers": "bun run eval/benchmark/peer-bench.ts",
     "bench:release": "bun run eval/benchmark/release-bench.ts",

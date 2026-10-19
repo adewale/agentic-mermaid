@@ -3,6 +3,7 @@ import { BUILTIN_FAMILY_METADATA } from '../agent/families.ts'
 import * as agentApi from '../agent/index.ts'
 import { layoutMermaid, parseRegisteredMermaid as parseMermaid, renderMermaidASCII, renderMermaidSVG, serializeMermaid, verifyMermaid } from '../agent/index.ts'
 import { MUTATION_OPS_BY_FAMILY } from '../cli/index.ts'
+import { clearElkLayoutCache } from '../elk-instance.ts'
 import { FAMILY_COUNT_FIXTURES } from './helpers/family-count-fixtures.ts'
 
 describe('diagram-family citizenship (issue #41)', () => {
@@ -44,7 +45,9 @@ describe('diagram-family citizenship (issue #41)', () => {
       expect({ family: fx.family, svg: svg.includes('<svg') && svg.length > 100 }).toEqual({ family: fx.family, svg: true })
       // asciiUnicodeRender: emits non-empty text.
       expect({ family: fx.family, ascii: renderMermaidASCII(fx.source).trim().length > 0 }).toEqual({ family: fx.family, ascii: true })
-      // determinism: identical SVG across repeated renders.
+      // determinism: identical SVG across repeated renders, each laid out
+      // afresh rather than from a cached ELK result.
+      clearElkLayoutCache()
       expect({ family: fx.family, deterministic: renderMermaidSVG(fx.source) === svg }).toEqual({ family: fx.family, deterministic: true })
       // stableRegions: layout exposes node regions inside the canvas, and the
       // region metadata is identical across repeated layouts.
@@ -56,6 +59,7 @@ describe('diagram-family citizenship (issue #41)', () => {
       const outside = nodeRegions.filter(({ bounds: b }) =>
         !canvas || b.x < canvas.x || b.y < canvas.y || b.x + b.w > canvas.x + canvas.w || b.y + b.h > canvas.y + canvas.h)
       expect({ family: fx.family, outside: outside.map(region => region.id) }).toEqual({ family: fx.family, outside: [] })
+      clearElkLayoutCache()
       expect({ family: fx.family, stableRegions: JSON.stringify(layoutMermaid(parsed.value, { regions: true }).regions) === JSON.stringify(regions) })
         .toEqual({ family: fx.family, stableRegions: true })
     }

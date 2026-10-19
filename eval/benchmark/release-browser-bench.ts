@@ -11,6 +11,7 @@ import { gzipSync } from 'node:zlib'
 import { chromium, type Page } from 'playwright'
 import { officialCorpusInventory } from '../shared/official-fences.ts'
 import type { BaselineLock } from './release-baseline.ts'
+import { workingRevision } from './revision-tree.ts'
 
 interface Engine {
   label: string
@@ -111,10 +112,12 @@ async function lazyPayload(page: Page, engine: Engine, origin: string) {
   }
 }
 
-async function renderPass(page: Page, engine: Engine, origin: string, inputs: Array<{ id: string; source: string }>, round: number): Promise<BrowserSample[]> {
+export async function renderPass(page: Page, engine: Engine, origin: string, inputs: Array<{ id: string; source: string }>, round: number, warmupCount: number): Promise<BrowserSample[]> {
   await page.goto(`${origin}/blank`)
+  // Repeated renders of one input must time ELK, not a cached result.
+  await page.evaluate(() => { (globalThis as Record<string, unknown>).AGENTIC_MERMAID_ELK_CACHE = '0' })
   await page.addScriptTag({ url: `${origin}/${engine.label}/${engine.bundle}` })
-  return page.evaluate(async ({ engine, inputs, round }) => {
+  return page.evaluate(async ({ engine, inputs, round, warmupCount }) => {
     type Api = { render(source: string, id?: string): { svg: string } | Promise<{ svg: string }>; renderMermaidSVG(source: string): string; initialize(options: { startOnLoad: boolean }): void }
     const api = (globalThis as unknown as Record<string, Api>)[engine.global]!
     if (engine.kind === 'mermaid') api.initialize({ startOnLoad: false })
@@ -132,18 +135,18 @@ async function renderPass(page: Page, engine: Engine, origin: string, inputs: Ar
       for (const div of document.querySelectorAll('body > div')) div.remove()
       return { ms, ok: !error, ...(error ? { error } : {}) }
     }
-    // Warm all selected syntax before measuring; identical input order and
-    // attempts, including unsupported families, for every engine and round.
-    for (let i = 0; i < inputs.length; i++) await render(inputs[i]!.source, `warm${round}x${i}`)
+    // The Dave-style comparison uses 30 warm-ups; we choose an identical
+    // prefix including unsupported families. Publication defaults to all.
+    for (let i = 0; i < Math.min(warmupCount, inputs.length); i++) await render(inputs[i]!.source, `warm${round}x${i}`)
     const rows = []
     for (let i = 0; i < inputs.length; i++) rows.push({ engine: engine.label, round, id: inputs[i]!.id, ...await render(inputs[i]!.source, `render${round}x${i}`) })
     return rows
-  }, { engine: { label: engine.label, global: engine.global, kind: engine.kind }, inputs, round })
+  }, { engine: { label: engine.label, global: engine.global, kind: engine.kind }, inputs, round, warmupCount })
 }
 
 async function main() {
   const options = new Map<string, string>()
-  const allowed = new Set(['candidate-tarball', 'candidate-sha256', 'baseline-lock', 'baseline-tarball', 'baseline-sha256', 'out', 'rounds', 'case', 'executable'])
+  const allowed = new Set(['candidate-tarball', 'candidate-sha256', 'baseline-lock', 'baseline-tarball', 'baseline-sha256', 'out', 'rounds', 'case', 'executable', 'warmup'])
   for (let i = 2; i < process.argv.length; i += 2) {
     const flag = process.argv[i]!.replace(/^--/, ''), value = process.argv[i + 1]
     if (!allowed.has(flag) || !value || value.startsWith('--') || options.has(flag)) throw new Error(`Invalid option ${process.argv[i]}`)
@@ -172,6 +175,9 @@ async function main() {
     const selected = options.get('case')?.split(',')
     if (selected?.some(id => !inventory.occurrences.some(input => input.id === id))) throw new Error('--case must name an occurrence ID in corpus.json')
     const inputs = selected ? inventory.occurrences.filter(input => selected.includes(input.id)) : inventory.occurrences
+    const warmup = options.get('warmup')
+    const warmupCount = warmup === undefined || warmup === 'all' ? inputs.length : Number(warmup)
+    if (!Number.isSafeInteger(warmupCount) || warmupCount < 0) throw new Error('--warmup must be all or a nonnegative integer')
     // Exact competitor versions are intentionally advisory, independently
     // installed and pinned; they are not new library/runtime dependencies.
     const candidate = install(resolve(tarball), 'agentic-mermaid', 'candidate', temporary, `sha512-${createHash('sha512').update(bytes).digest('base64')}`)
@@ -237,17 +243,17 @@ async function main() {
       const order = round % 2 ? engines : [...engines].reverse()
       for (const engine of order) {
         console.log(`browser round ${round}/${rounds}: ${engine.label} ${engine.version} (${inputs.length} inputs)`)
-        const rows = await renderPass(page, engine, origin, inputs, round)
+        const rows = await renderPass(page, engine, origin, inputs, round, warmupCount)
         samples.push(...rows)
         for (const row of rows) appendFileSync(join(out, 'browser-samples.jsonl'), `${JSON.stringify(row)}\n`)
       }
     }
     const summary = browserScorecard(samples, engines.map(engine => engine.label), rounds, inputs.length)
-    const report = { status: 'completed', advisory: true, startedAt, finishedAt: new Date().toISOString(), sourceRevision: process.env.GITHUB_SHA, browser: browser.version(), node: process.versions.node,
+    const report = { status: 'completed', advisory: true, startedAt, finishedAt: new Date().toISOString(), sourceRevision: process.env.GITHUB_SHA ?? workingRevision(), browser: browser.version(), node: process.versions.node,
       environment: { os: release(), arch: process.arch, cpu: cpus()[0]?.model, logicalCpus: cpus().length,
         cpuQuota: existsSync('/sys/fs/cgroup/cpu.max') ? readFileSync('/sys/fs/cgroup/cpu.max', 'utf8').trim() : undefined,
         memoryLimit: existsSync('/sys/fs/cgroup/memory.max') ? readFileSync('/sys/fs/cgroup/memory.max', 'utf8').trim() : undefined },
-      policy: { rounds, warmup: 'one complete selected-corpus pass before each engine/round', ordering: 'reverse engine order on alternate rounds; one tab, fresh document per engine pass', viewport: { width: 1440, height: 1000 }, remoteAssets: 'blocked; image/asset errors are environment outcomes, not syntax failures', timing: 'public render call through SVG return; excludes inspection/cleanup/paint', compression: 'gzip level 9 of each shipped/fetched JS file', fullInventory: inventory.occurrenceCount, measured: inputs.length },
+      policy: { rounds, warmup: `${Math.min(warmupCount, inputs.length)} selected-corpus attempts before each engine/round`, warmupRequested: warmup ?? 'all', elkCache: 'disabled before library load; duplicate inputs still measure layout', ordering: 'reverse engine order on alternate rounds; one tab, fresh document per engine pass', viewport: { width: 1440, height: 1000 }, remoteAssets: 'blocked; image/asset errors are environment outcomes, not syntax failures', timing: 'public render call through SVG return; excludes inspection/cleanup/paint', compression: 'gzip level 9 of each shipped/fetched JS file', fullInventory: inventory.occurrenceCount, measured: inputs.length },
       payload, ...summary }
     // Keep artifact identity separate from per-engine acceptance summaries.
     const identities = engines.map(({ root, ...engine }) => engine)

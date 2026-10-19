@@ -202,9 +202,12 @@ function memoizedVerificationArtifact(d: ParsedDiagram, opts: VerifyOptions): Ve
       // Resolve the graphical plan up front, then project its exact positioned
       // result for geometric verification. The renderability gate consumes
       // this same request + result and therefore cannot parse or lay out again.
+      // Verify is where a built-in lowering bug should surface, so every Scene
+      // lowered for this artifact is cross-checked.
       artifact = positionFamilyArtifact(d, {
         renderOptions: opts.renderOptions,
         output: 'svg',
+        assertScenes: true,
       })
       return artifact
     } catch (error) {

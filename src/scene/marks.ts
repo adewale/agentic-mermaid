@@ -345,10 +345,18 @@ export function connector(fields: ConnectorFields, crisp: string): ConnectorMark
       throw new TypeError(`Connector "${fields.id}" endpoints.${position}.point disagrees with typed route geometry`)
     }
   }
+  // Copy the caller's endpoint owner and point, as the terminal projection
+  // does: admission freezes a built-in Scene in place, and must not freeze an
+  // object its caller still holds.
+  const ownEndpoint = (endpoint: ConnectorEndpointAnchor | undefined) => endpoint && {
+    ...endpoint,
+    ...(endpoint.owner ? { owner: { ...endpoint.owner } } : {}),
+    ...(endpoint.point ? { point: { ...endpoint.point } } : {}),
+  }
   const endpoints: ConnectorEndpoints = {
     ...(fields.endpoints ?? {}),
-    start: { ...geometryEndpoints.start, ...fields.endpoints?.start },
-    end: { ...geometryEndpoints.end, ...fields.endpoints?.end },
+    start: { ...geometryEndpoints.start, ...ownEndpoint(fields.endpoints?.start) },
+    end: { ...geometryEndpoints.end, ...ownEndpoint(fields.endpoints?.end) },
   }
   const relationship: ConnectorRelationship = {
     kind: fields.relationship?.kind ?? fields.role,
