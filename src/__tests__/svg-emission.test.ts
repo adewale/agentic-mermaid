@@ -118,6 +118,10 @@ describe('private typed SVG recipes', () => {
     const mark = rectangle()
     mark.transform = { kind: 'matrix', a: 0.5, b: 0, c: 0, d: 0.5, e: 12.25, f: -3 }
     expect(serializeSvgEmission(mark, recipe)).toBe('<rect transform="translate(12.25,-3) scale(0.5)" />')
+    const spaced = snapshotSvgEmissionRecipe({ kind: 'primitive', attributes: [
+      { name: 'transform', value: { source: 'transform', form: 'translate-scale-space' } },
+    ] })
+    expect(serializeSvgEmission(mark, spaced)).toBe('<rect transform="translate(12.25 -3) scale(0.5)" />')
     for (const transform of [
       { kind: 'matrix', a: 0.5, b: 1, c: 0, d: 0.5, e: 12.25, f: -3 },
       { kind: 'matrix', a: 0.5, b: 0, c: 1, d: 0.5, e: 12.25, f: -3 },

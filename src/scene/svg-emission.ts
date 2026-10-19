@@ -39,7 +39,7 @@ export type SvgValue =
   | { readonly source: 'accessibility'; readonly field: 'label' | 'role' | 'roleDescription' }
   | { readonly source: 'connector'; readonly field: SvgConnectorField }
   | { readonly source: 'channel'; readonly field: SemanticChannelName }
-  | { readonly source: 'transform'; readonly separator?: 'space' | 'comma'; readonly form?: 'translate-scale' }
+  | { readonly source: 'transform'; readonly separator?: 'space' | 'comma'; readonly form?: 'translate-scale' | 'translate-scale-space' }
   | { readonly source: 'marker'; readonly position: 'start' | 'mid' | 'end' }
   | { readonly source: 'connectorLabel'; readonly index: number }
   | { readonly source: 'colorMix'; readonly primary: SvgValue; readonly secondary: SvgValue; readonly amount: number }
@@ -99,6 +99,7 @@ export interface SvgGroupEmission {
   readonly kind: 'group'
   readonly attributes: readonly SvgAttribute[]
   readonly prefix?: readonly SvgDocumentTextEmission[]
+  readonly leadingWhitespace?: '  '
 }
 
 export interface SvgTextEmission {
@@ -123,7 +124,7 @@ export interface SvgStylesheetEmission {
   readonly css: string
 }
 
-export interface SvgSharedStyleEmission { readonly kind: 'sharedStyle' }
+export interface SvgSharedStyleEmission { readonly kind: 'sharedStyle'; readonly shadow?: false }
 export interface SvgShadowEmission {
   readonly kind: 'shadow'
   readonly wrap?: boolean
@@ -268,9 +269,9 @@ export function svgEmissionValue(node: SceneNode, value: SvgValue, recipe?: SvgP
     case 'transform': {
       const transform = node.transform
       if (!transform) return undefined
-      if (value.form === 'translate-scale') {
+      if (value.form === 'translate-scale' || value.form === 'translate-scale-space') {
         if (transform.kind !== 'matrix' || transform.b !== 0 || transform.c !== 0 || transform.a !== transform.d) throw new TypeError('SVG translate-scale requires a uniform unrotated matrix')
-        return `translate(${transform.e},${transform.f}) scale(${transform.a})`
+        return `translate(${transform.e}${value.form === 'translate-scale' ? ',' : ' '}${transform.f}) scale(${transform.a})`
       }
       return serializeTransform(transform, value.separator)
     }
@@ -352,6 +353,7 @@ function separator(value: '' | '\n' | undefined, defaultValue: '' | '\n' = '\n')
 }
 
 export function writeSvgGroupOpen(node: SceneNode, recipe: SvgGroupEmission, writer: SvgWriter): void {
+  if (recipe.leadingWhitespace) writer.write(recipe.leadingWhitespace)
   writer.write('<g')
   writeSvgAttributes(node, recipe.attributes, writer)
   writer.write('>')
@@ -638,7 +640,7 @@ export function validateSvgEmissionRecipe(recipe: SvgEmissionRecipe): void {
     if (source === 'transform') {
       object(value, ['source', 'separator', 'form'])
       oneOf(item.separator, ['space', 'comma'])
-      oneOf(item.form, ['translate-scale'])
+      oneOf(item.form, ['translate-scale', 'translate-scale-space'])
       if (item.form !== undefined && item.separator !== undefined) throw new TypeError('SVG translate-scale has fixed lexical separators')
       return
     }
@@ -685,7 +687,7 @@ export function validateSvgEmissionRecipe(recipe: SvgEmissionRecipe): void {
   }
   const visit = (value: unknown, depth: number): void => {
     if (depth > 64) throw new RangeError('SVG recipe exceeds depth budget')
-    const item = object(value, ['kind', 'piece', 'attributes', 'tailAttributes', 'close', 'pieces', 'prefix', 'layout', 'baselineShift', 'dy', 'spans', 'content', 'whitespace', 'positionFormat', 'width', 'height', 'colors', 'transparent', 'font', 'hasMonoFont', 'widthAttribute', 'heightAttribute', 'extraStyle', 'children', 'join', 'resources', 'indent', 'emptyLine', 'element', 'text', 'domId', 'css'])
+    const item = object(value, ['kind', 'piece', 'attributes', 'tailAttributes', 'close', 'pieces', 'prefix', 'leadingWhitespace', 'layout', 'baselineShift', 'dy', 'spans', 'content', 'whitespace', 'positionFormat', 'width', 'height', 'colors', 'transparent', 'font', 'hasMonoFont', 'widthAttribute', 'heightAttribute', 'extraStyle', 'children', 'join', 'resources', 'indent', 'emptyLine', 'element', 'text', 'domId', 'css'])
     if (seen.has(item)) return
     seen.add(item)
     switch (item.kind) {
@@ -701,7 +703,8 @@ export function validateSvgEmissionRecipe(recipe: SvgEmissionRecipe): void {
         }
         return
       case 'group':
-        object(item, ['kind', 'attributes', 'prefix']); attributes(item.attributes)
+        object(item, ['kind', 'attributes', 'prefix', 'leadingWhitespace']); attributes(item.attributes)
+        oneOf(item.leadingWhitespace, ['  '])
         if (item.prefix !== undefined) for (const value of array(item.prefix)) documentText(value)
         return
       case 'text':
@@ -735,8 +738,8 @@ export function validateSvgEmissionRecipe(recipe: SvgEmissionRecipe): void {
         if (item.attributes !== undefined) attributes(item.attributes)
         oneOf(item.join, ['', '\n'])
         for (const value of array(item.children)) {
-          const child = object(value, ['kind', 'colors', 'wrap', 'element', 'text', 'domId', 'css'])
-          if (child.kind === 'sharedStyle') object(child, ['kind'])
+          const child = object(value, ['kind', 'colors', 'wrap', 'element', 'text', 'domId', 'css', 'shadow'])
+          if (child.kind === 'sharedStyle') { object(child, ['kind', 'shadow']); oneOf(child.shadow, [false]) }
           else if (child.kind === 'shadow') shadow(child)
           else if (child.kind === 'documentText') documentText(child)
           else if (child.kind === 'stylesheet') stylesheet(child)

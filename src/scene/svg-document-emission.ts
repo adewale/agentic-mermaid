@@ -43,7 +43,7 @@ export function writeScenePrelude(node: DocumentMark, recipe: SvgPreludeEmission
     switch (child.kind) {
       case 'sharedStyle':
         writer.write('<style>\n')
-        writer.write(buildStyleText(recipe.font, recipe.hasMonoFont, colors.shadow, colors.embedFontImport))
+        writer.write(buildStyleText(recipe.font, recipe.hasMonoFont, child.shadow === false ? false : colors.shadow, colors.embedFontImport))
         writer.write('\n</style>')
         break
       case 'shadow': writeSceneShadow(child, writer); break
