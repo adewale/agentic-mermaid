@@ -497,8 +497,9 @@ table here, which would drift. In broad strokes:
   advisory, never a gate), `bun run bench:peers` (the built package against
   the pinned browserless and terminal peers in `eval/fork-graph/`, with label
   checks before timing), `bun run check:output-identity --baseline <ref>`
-  (byte identity of 835 corpus inputs across SVG backends, SVG post-passes,
-  ASCII, Unicode and verify, for refactors that must not change output), the real LLM-as-judge run, and the production freshness check
+  (byte identity of the distinct corpus inputs across SVG backends, SVG
+  post-passes, ASCII, Unicode and verify, for refactors that must not change
+  output), the real LLM-as-judge run, and the production freshness check
   (`scripts/ci/production-freshness.ts`, in `docs/contributing/releasing.md`).
   That check compares the build agentic-mermaid.dev serves with the `main`
   commit it is given (the tip of `main`, in the documented command) and fails

@@ -6,14 +6,18 @@
 //   bun run eval/benchmark/output-identity.ts                   # vs origin/main
 //   bun run eval/benchmark/output-identity.ts --baseline <ref> --jobs 3 --show 5
 //
-// Modes cover each Scene backend and every whole-document SVG pass: default
-// SVG; the rough (`excalidraw`), hybrid (`watercolor`) and palette
-// (`tokyo-night`) styles; `idPrefix` + `compact`; live CSS-variable colors;
-// ASCII; Unicode; and `verifyMermaid` results. A thrown error is an output
+// Inputs are deduplicated by source; most docs-corpus entries repeat an
+// official example. Modes cover each Scene backend and every whole-document
+// SVG pass: default SVG; the rough (`excalidraw`), hybrid (`watercolor`) and
+// palette (`tokyo-night`) styles; `idPrefix` + `compact`; live CSS-variable
+// colors; an uncalibrated host font with `security: 'strict'` (text fitting
+// and the strict policy); ASCII; Unicode; and `verifyMermaid` results. A thrown error is an output
 // too, so failing inputs must fail identically. Only SHA-256 digests of
 // outputs are kept; `--show N` re-renders the first N differences on both
-// sides and prints where they diverge. Baseline digests are cached per
-// revision under node_modules/.cache/ and reused while inputs and modes match.
+// sides and prints where they diverge. Each run records the baseline digests
+// under node_modules/.cache/; `--reuse-baseline` reuses them for the same
+// revision, inputs and modes. Reuse is opt-in because the baseline renders
+// with the current harness and node_modules: after either changes, rerender.
 
 import { spawn } from 'node:child_process'
 import { createHash } from 'node:crypto'
@@ -22,9 +26,9 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { MICRO_WORKLOADS } from './micro-bench-cases.ts'
 import { releaseBenchCases } from './release-bench-cases.ts'
-import { extractRevisionTree, ROOT, workingRevision } from './revision-tree.ts'
+import { extractRevisionTree, ROOT, shortRevision, workingRevision } from './revision-tree.ts'
 
-const MODES = ['svg', 'svg:excalidraw', 'svg:watercolor', 'svg:tokyo-night', 'svg:prefixed-compact', 'svg:live-vars', 'ascii', 'unicode', 'verify'] as const
+const MODES = ['svg', 'svg:excalidraw', 'svg:watercolor', 'svg:tokyo-night', 'svg:prefixed-compact', 'svg:live-vars', 'svg:host-font-strict', 'ascii', 'unicode', 'verify'] as const
 type Mode = (typeof MODES)[number]
 type Input = readonly [id: string, source: string]
 type Digests = Record<string, string>
@@ -33,7 +37,7 @@ const SCRIPT_PATH = 'eval/benchmark/output-identity.ts'
 const CACHE_DIR = join(ROOT, 'node_modules/.cache/agentic-mermaid-identity')
 
 function parseArgs(argv: readonly string[]): Map<string, string> {
-  const flags = new Set(['child'])
+  const flags = new Set(['child', 'reuse-baseline'])
   const valued = new Set(['baseline', 'jobs', 'modes', 'show', 'inputs', 'out', 'emit', 'keys'])
   const options = new Map<string, string>()
   for (let i = 0; i < argv.length; i++) {
@@ -48,12 +52,15 @@ function parseArgs(argv: readonly string[]): Map<string, string> {
 async function loadInputs(): Promise<Input[]> {
   const { extractOfficialCorpus } = await import('../shared/official-fences.ts')
   const docs = JSON.parse(readFileSync(join(ROOT, 'eval/mermaid-docs-corpus/corpus.json'), 'utf8')) as Array<{ source: string }>
-  return [
+  const all: Input[] = [
     ...extractOfficialCorpus().map(fence => [fence.id, fence.source] as const),
     ...docs.map((entry, index) => [`docs-corpus#${index}`, entry.source] as const),
     ...releaseBenchCases().map(input => [`release:${input.id}`, input.source] as const),
     ...Object.entries(MICRO_WORKLOADS).map(([id, source]) => [`micro:${id}`, source] as const),
   ]
+  const distinct = new Map<string, Input>()
+  for (const input of all) if (!distinct.has(input[1])) distinct.set(input[1], input)
+  return [...distinct.values()]
 }
 
 const key = (id: string, mode: Mode) => `${id} | ${mode}`
@@ -72,8 +79,10 @@ async function renderers(): Promise<Record<Mode, (source: string) => string>> {
     'svg:tokyo-night': svg({ style: 'tokyo-night' }),
     'svg:prefixed-compact': svg({ idPrefix: 'am-', compact: true }),
     'svg:live-vars': svg({ bg: 'var(--bg)', fg: 'var(--fg)', transparent: true }),
-    ascii: source => lib.renderMermaidASCII(source, { useAscii: true }),
-    unicode: source => lib.renderMermaidASCII(source),
+    'svg:host-font-strict': svg({ font: 'Georgia, serif', security: 'strict' }),
+    // An explicit colorMode, so the terminal running the check cannot change the bytes.
+    ascii: source => lib.renderMermaidASCII(source, { useAscii: true, colorMode: 'none' }),
+    unicode: source => lib.renderMermaidASCII(source, { colorMode: 'none' }),
     verify: source => JSON.stringify(agent.verifyMermaid(source)),
   }
 }
@@ -99,7 +108,8 @@ async function runChild(args: Map<string, string>): Promise<void> {
       if (wanted && !wanted.has(k)) continue
       const text = output(render[mode], source)
       if (wanted) emitted[k] = text
-      else digests[k] = createHash('sha256').update(text).digest('hex')
+      // UTF-16 code units: a UTF-8 encoding would map distinct lone surrogates to U+FFFD.
+      else digests[k] = createHash('sha256').update(Buffer.from(text, 'utf16le')).digest('hex')
     }
   }
   writeFileSync(args.get('out')!, JSON.stringify(wanted ? emitted : digests))
@@ -129,7 +139,19 @@ async function digestSide(root: string, inputs: Input[], modes: Mode[], jobs: nu
       return JSON.parse(readFileSync(out, 'utf8')) as Digests
     }),
   )
-  return Object.assign({}, ...results)
+  const digests: Digests = Object.assign({}, ...results)
+  const missing = inputs.flatMap(([id]) => modes.map(mode => key(id, mode))).filter(k => !(k in digests))
+  if (missing.length || Object.keys(digests).length !== inputs.length * modes.length) {
+    throw new Error(`${label} produced ${Object.keys(digests).length} of ${inputs.length * modes.length} digests; missing e.g. ${missing.slice(0, 3).join(', ')}`)
+  }
+  return digests
+}
+
+function positiveInteger(name: string, value: string | undefined, fallback: number, minimum = 1): number {
+  if (value === undefined) return fallback
+  const parsed = Number(value)
+  if (!Number.isInteger(parsed) || parsed < minimum) throw new Error(`--${name} must be an integer ≥ ${minimum}, got ${value}`)
+  return parsed
 }
 
 async function emitOutputs(root: string, inputs: Input[], modes: Mode[], keys: string[], scratch: string, label: string): Promise<Record<string, string>> {
@@ -156,8 +178,8 @@ async function main(): Promise<void> {
   const modes = (args.get('modes')?.split(',') ?? [...MODES]) as Mode[]
   const unknown = modes.filter(mode => !MODES.includes(mode))
   if (unknown.length) throw new Error(`Unknown mode(s): ${unknown.join(', ')}; known: ${MODES.join(', ')}`)
-  const jobs = Math.max(1, Number(args.get('jobs') ?? 3))
-  const show = Number(args.get('show') ?? 5)
+  const jobs = positiveInteger('jobs', args.get('jobs'), 3)
+  const show = positiveInteger('show', args.get('show'), 5, 0)
   const inputs = await loadInputs()
   const scratch = mkdtempSync(join(tmpdir(), 'agentic-mermaid-identity-'))
   try {
@@ -165,22 +187,23 @@ async function main(): Promise<void> {
     const cacheFile = join(CACHE_DIR, `${baseline.revision}.json`)
     const cached = existsSync(cacheFile) ? (JSON.parse(readFileSync(cacheFile, 'utf8')) as { modes: Mode[]; inputs: Input[]; digests: Digests }) : undefined
     let before: Digests
-    if (cached && JSON.stringify(cached.modes) === JSON.stringify(modes) && JSON.stringify(cached.inputs) === JSON.stringify(inputs)) {
-      console.error(`baseline ${baseline.revision.slice(0, 12)}: cached digests`)
+    if (args.has('reuse-baseline') && cached && JSON.stringify(cached.modes) === JSON.stringify(modes) && JSON.stringify(cached.inputs) === JSON.stringify(inputs)) {
+      console.error(`baseline ${shortRevision(baseline.revision)}: cached digests`)
       before = cached.digests
     } else {
-      console.error(`baseline ${baseline.revision.slice(0, 12)}: rendering ${inputs.length} inputs × ${modes.length} modes`)
+      console.error(`baseline ${shortRevision(baseline.revision)}: rendering ${inputs.length} inputs × ${modes.length} modes`)
       before = await digestSide(baseline.root, inputs, modes, jobs, scratch, 'baseline')
       mkdirSync(CACHE_DIR, { recursive: true })
       writeFileSync(cacheFile, JSON.stringify({ modes, inputs, digests: before }))
     }
     const candidateRevision = workingRevision()
-    console.error(`candidate ${candidateRevision.slice(0, 12)}: rendering ${inputs.length} inputs × ${modes.length} modes`)
+    console.error(`candidate ${shortRevision(candidateRevision)}: rendering ${inputs.length} inputs × ${modes.length} modes`)
     const after = await digestSide(ROOT, inputs, modes, jobs, scratch, 'candidate')
 
-    const differing = Object.keys(before).filter(k => before[k] !== after[k])
+    const keys = [...new Set([...Object.keys(before), ...Object.keys(after)])]
+    const differing = keys.filter(k => before[k] !== after[k])
     const perMode = new Map(modes.map(mode => [mode, differing.filter(k => k.endsWith(` | ${mode}`)).length]))
-    console.log(`\n${Object.keys(before).length} outputs (${inputs.length} inputs × ${modes.length} modes), baseline ${baseline.revision.slice(0, 12)} vs candidate ${candidateRevision.slice(0, 12)}`)
+    console.log(`\n${keys.length} outputs (${inputs.length} inputs × ${modes.length} modes), baseline ${shortRevision(baseline.revision)} vs candidate ${shortRevision(candidateRevision)}`)
     console.log(modes.map(mode => `${mode}: ${perMode.get(mode) ? `${perMode.get(mode)} differ` : 'identical'}`).join('\n'))
     if (differing.length && show > 0) {
       const sample = differing.slice(0, show)

@@ -8,11 +8,19 @@
 
 import { flowchartMesh, flowchartTree, releaseBenchCases } from './release-bench-cases.ts'
 
+/** A stage case's timed call and the input an earlier stage of the same
+ * revision built for it. A revision comparison withholds the ratio when the
+ * two sides were handed different inputs. */
+export interface StagedCall {
+  readonly call: () => unknown
+  readonly input: string
+}
+
 export interface MicroCase {
   id: string
   description: string
   /** Prepare inputs outside timing and return the timed call. */
-  setup(): Promise<() => unknown>
+  setup(): Promise<(() => unknown) | StagedCall>
   /** Optional sanity check on one result, so a fast failure is never timed. */
   check?(result: unknown): boolean
 }
@@ -39,6 +47,8 @@ type Workload = keyof typeof MICRO_WORKLOADS
 
 const ASCII_LABEL = 'Authenticate the incoming user request'
 const MIXED_LABEL = '東京 → 👩‍💻 café naïve Ελληνικά 한국어 👍🏽'
+/** Plain-data text of a stage input, comparable across revisions. */
+const inputText = (value: unknown) => JSON.stringify(value, (_key, item) => (item instanceof Map || item instanceof Set ? [...item] : item))
 const isSvg = (value: unknown) => typeof value === 'string' && value.startsWith('<svg')
 const nonEmptyString = (value: unknown) => typeof value === 'string' && value.length > 0
 
@@ -106,13 +116,14 @@ function asciiCase(workload: Workload): MicroCase {
     description: `Public renderMermaidASCII, warm, ${workload}`,
     async setup() {
       const { renderMermaidASCII } = await src.index()
-      return () => renderMermaidASCII(MICRO_WORKLOADS[workload])
+      // Explicit, so a TTY on the child's stdout cannot switch on ANSI colour.
+      return () => renderMermaidASCII(MICRO_WORKLOADS[workload], { colorMode: 'none' })
     },
     check: nonEmptyString,
   }
 }
 
-function parseCase(workload: Workload): MicroCase {
+function parseCase(workload: Workload, kind: string): MicroCase {
   return {
     id: `parse:registered-${workload}`,
     description: `parseRegisteredMermaid (typed agent body), ${workload}`,
@@ -120,7 +131,11 @@ function parseCase(workload: Workload): MicroCase {
       const { parseRegisteredMermaid } = await src.agent()
       return () => parseRegisteredMermaid(MICRO_WORKLOADS[workload])
     },
-    check: result => (result as { ok?: boolean }).ok === true,
+    // A degraded parse (opaque or preserved body) also returns ok, much faster.
+    check: result => {
+      const parsed = result as { ok?: boolean; value?: { body?: { kind?: string } } }
+      return parsed.ok === true && parsed.value?.body?.kind === kind
+    },
   }
 }
 
@@ -146,7 +161,7 @@ function sceneCases(workload: Workload): MicroCase[] {
         const { lowerPositionedFamilyScene } = await src.graphical()
         // Lowering is retained per layout object; a fresh wrapper around the
         // same positioned geometry measures the work instead of a cache hit.
-        return () => lowerPositionedFamilyScene(request, { ...layout })
+        return { call: () => lowerPositionedFamilyScene(request, { ...layout }), input: inputText(layout.positioned) }
       },
     },
     {
@@ -155,7 +170,7 @@ function sceneCases(workload: Workload): MicroCase[] {
       async setup() {
         const { scene, layout } = await staged(workload)
         const [{ certifyScenePaint }, { retainedFamilyProjection }] = await Promise.all([src.paintCertification(), src.positioning()])
-        return () => certifyScenePaint(scene, retainedFamilyProjection(layout), { outputSupported: true })
+        return { call: () => certifyScenePaint(scene, retainedFamilyProjection(layout), { outputSupported: true }), input: inputText(scene) }
       },
     },
     {
@@ -164,7 +179,7 @@ function sceneCases(workload: Workload): MicroCase[] {
       async setup() {
         const { scene } = await staged(workload)
         const { snapshotBoundedExternalData, EXTERNAL_SCENE_DOCUMENT_SNAPSHOT_LIMITS } = await src.snapshot()
-        return () => snapshotBoundedExternalData(scene, EXTERNAL_SCENE_DOCUMENT_SNAPSHOT_LIMITS, 'scene')
+        return { call: () => snapshotBoundedExternalData(scene, EXTERNAL_SCENE_DOCUMENT_SNAPSHOT_LIMITS, 'scene'), input: inputText(scene) }
       },
     },
     {
@@ -173,7 +188,7 @@ function sceneCases(workload: Workload): MicroCase[] {
       async setup() {
         const { scene } = await staged(workload)
         const { assertValidSceneDoc } = await src.validation()
-        return () => assertValidSceneDoc(scene, { mode: 'internal' })
+        return { call: () => assertValidSceneDoc(scene, { mode: 'internal' }), input: inputText(scene) }
       },
     },
     {
@@ -181,7 +196,7 @@ function sceneCases(workload: Workload): MicroCase[] {
       description: `Default backend render: joins node SVG serialized during lowering (cheap by design), ${workload}`,
       async setup() {
         const { scene, backend } = await staged(workload)
-        return () => backend.render(scene, { seed: 0 })
+        return { call: () => backend.render(scene, { seed: 0 }), input: inputText(scene) }
       },
       check: isSvg,
     },
@@ -189,35 +204,37 @@ function sceneCases(workload: Workload): MicroCase[] {
 }
 
 function svgPassCases(workload: Workload): MicroCase[] {
-  const pass = (name: string, description: string, make: (input: Awaited<ReturnType<typeof staged>>) => Promise<() => unknown>): MicroCase => ({
+  type Stage = Awaited<ReturnType<typeof staged>>
+  const pass = (name: string, description: string, svg: 'rawSvg' | 'finalSvg', make: (stage: Stage) => Promise<() => unknown>): MicroCase => ({
     id: `svg:${name}-${workload}`,
     description: `${description}, ${workload}`,
     async setup() {
-      return make(await staged(workload))
+      const stage = await staged(workload)
+      return { call: await make(stage), input: stage[svg] }
     },
   })
   return [
-    pass('inline-colors', 'inlineResolvedColors over backend SVG', async ({ rawSvg, request }) => {
+    pass('inline-colors', 'inlineResolvedColors over backend SVG', 'rawSvg', async ({ rawSvg, request }) => {
       const { inlineResolvedColors } = await src.theme()
       return () => inlineResolvedColors(rawSvg, request.appearance.colors)
     }),
-    pass('fit-text', 'fitUncalibratedSvgText over backend SVG', async ({ rawSvg, request }) => {
+    pass('fit-text', 'fitUncalibratedSvgText over backend SVG', 'rawSvg', async ({ rawSvg, request }) => {
       const { fitUncalibratedSvgText } = await src.fontGeometry()
       return () => fitUncalibratedSvgText(rawSvg, request.appearance.font)
     }),
-    pass('scope-styles', 'scopeSvgStyles over backend SVG', async ({ rawSvg }) => {
+    pass('scope-styles', 'scopeSvgStyles over backend SVG', 'rawSvg', async ({ rawSvg }) => {
       const { scopeSvgStyles } = await src.styleScope()
       return () => scopeSvgStyles(rawSvg)
     }),
-    pass('security', 'applyOutputSecurityPolicy (default) over final SVG', async ({ finalSvg }) => {
+    pass('security', 'applyOutputSecurityPolicy (default) over final SVG', 'finalSvg', async ({ finalSvg }) => {
       const { applyOutputSecurityPolicy } = await src.security()
       return () => applyOutputSecurityPolicy(finalSvg, 'default')
     }),
-    pass('scan-tags', 'scanSvgStartTags over final SVG', async ({ finalSvg }) => {
+    pass('scan-tags', 'scanSvgStartTags over final SVG', 'finalSvg', async ({ finalSvg }) => {
       const { scanSvgStartTags } = await src.structure()
       return () => scanSvgStartTags(finalSvg)
     }),
-    pass('byte-budget', 'assertFinalSvgByteBudget (run once per post-pass) over final SVG', async ({ finalSvg }) => {
+    pass('byte-budget', 'assertFinalSvgByteBudget (run once per post-pass) over final SVG', 'finalSvg', async ({ finalSvg }) => {
       const { assertFinalSvgByteBudget } = await src.validation()
       return () => assertFinalSvgByteBudget(finalSvg)
     }),
@@ -266,9 +283,9 @@ export function microCases(): readonly MicroCase[] {
         return () => parseMermaid(MICRO_WORKLOADS.tree50)
       },
     },
-    parseCase('tree50'),
-    parseCase('seq20'),
-    parseCase('class80'),
+    parseCase('tree50', 'flowchart'),
+    parseCase('seq20', 'sequence'),
+    parseCase('class80', 'class'),
     {
       id: 'request:resolve-flow5',
       description: 'resolveRenderRequest: source, option admission, appearance and digests, flow5',
@@ -285,7 +302,7 @@ export function microCases(): readonly MicroCase[] {
         async setup() {
           const graph = await flowchartGraph(workload)
           const [{ convertToElkFormat }, { elkLayoutSync }] = await Promise.all([src.layoutEngine(), src.elk()])
-          return () => elkLayoutSync(convertToElkFormat(graph))
+          return { call: () => elkLayoutSync(convertToElkFormat(graph)), input: inputText(convertToElkFormat(graph)) }
         },
       }),
     ),
@@ -296,7 +313,7 @@ export function microCases(): readonly MicroCase[] {
         async setup() {
           const graph = await flowchartGraph(workload)
           const { layoutGraphSync } = await src.layoutEngine()
-          return () => layoutGraphSync(graph)
+          return { call: () => layoutGraphSync(graph), input: inputText(graph) }
         },
       }),
     ),
@@ -307,7 +324,7 @@ export function microCases(): readonly MicroCase[] {
         const graph = await flowchartGraph('mesh50')
         const [{ layoutGraphSync }, { assessLayout }] = await Promise.all([src.layoutEngine(), src.rubric()])
         const positioned = layoutGraphSync(graph)
-        return () => assessLayout(graph, positioned)
+        return { call: () => assessLayout(graph, positioned), input: inputText(positioned) }
       },
     },
     {
@@ -317,7 +334,7 @@ export function microCases(): readonly MicroCase[] {
         const graph = await flowchartGraph('mesh50')
         const [{ layoutGraphSync }, { auditRouteContracts }] = await Promise.all([src.layoutEngine(), src.routes()])
         const positioned = layoutGraphSync(graph)
-        return () => auditRouteContracts(positioned, graph)
+        return { call: () => auditRouteContracts(positioned, graph), input: inputText(positioned) }
       },
     },
     positionCase('seq20'),
@@ -337,7 +354,7 @@ export function microCases(): readonly MicroCase[] {
         const { parseRegisteredMermaid, verifyMermaid } = await src.agent()
         const parsed = parseRegisteredMermaid(MICRO_WORKLOADS.tree50)
         if (!parsed.ok) throw new Error('tree50 did not parse')
-        return () => verifyMermaid(parsed.value)
+        return { call: () => verifyMermaid(parsed.value), input: inputText(parsed.value) }
       },
     },
     {
@@ -347,7 +364,7 @@ export function microCases(): readonly MicroCase[] {
         const { parseRegisteredMermaid, serializeMermaid } = await src.agent()
         const parsed = parseRegisteredMermaid(MICRO_WORKLOADS.class80)
         if (!parsed.ok) throw new Error('class80 did not parse')
-        return () => serializeMermaid(parsed.value)
+        return { call: () => serializeMermaid(parsed.value), input: inputText(parsed.value) }
       },
       check: nonEmptyString,
     },

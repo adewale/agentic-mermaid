@@ -92,8 +92,7 @@
           "publishedFromDefaultBranch": true
         }
       ],
-      "roles": ["observed"],
-      "wiredInto": ["eval/benchmark/peer-bench.ts"]
+      "roles": ["peer"]
     },
     {
       "id": "ramtinJ95/pi-mermaid-tui",
@@ -198,7 +197,6 @@
         }
       ],
       "roles": ["self"],
-      "wiredInto": ["eval/benchmark/peer-bench.ts"],
       "inForkSnapshot": true
     },
     {
@@ -263,8 +261,7 @@
       "license": "MIT",
       "runtime": "Go",
       "outputs": ["ascii-unicode"],
-      "roles": ["observed"],
-      "citedIn": ["docs/project/prepared-text-geometry-plan.md"]
+      "roles": ["observed"]
     },
     {
       "id": "catdevman/mermaid-ascii",
@@ -296,7 +293,6 @@
       "runtime": "Go",
       "outputs": ["ascii-unicode"],
       "roles": ["observed"],
-      "citedIn": ["docs/design/families/gantt.md"],
       "notes": "Sub-fork: pgavlin head is an ancestor of this head; go.mod keeps module github.com/pgavlin/mermaid-ascii."
     },
     {
@@ -339,8 +335,6 @@
         }
       ],
       "roles": ["peer", "terminal-peer"],
-      "wiredInto": ["eval/benchmark/peer-bench.ts"],
-      "citedIn": ["docs/comparison.md", "docs/design/families/c4.md"],
       "notes": "README: \"A maintained fork of beautiful-mermaid\". Also publishes @zombie-mermaid/{core,mermaid-parser,svg-renderer,ascii-renderer,mcp}. Main moved past the 631b1b4c pin in docs/comparison.md."
     },
     {
@@ -447,7 +441,6 @@
       "runtime": "TypeScript",
       "outputs": ["svg", "ascii-unicode"],
       "roles": ["observed"],
-      "citedIn": ["docs/design/families/c4.md"],
       "notes": "Default branch equals upstream main; the C4 work cited at 5f17f630 is on another branch (not fetched)."
     },
     {
@@ -720,8 +713,6 @@
       "runtime": "Go",
       "outputs": ["ascii-unicode"],
       "roles": ["terminal-peer"],
-      "wiredInto": ["eval/mermaid-gantt-bench/cases.json"],
-      "citedIn": ["docs/comparison.md", "docs/design/families/c4.md", "docs/design/families/gantt.md"],
       "notes": "README: 22 diagram types. No release tags."
     },
     {
@@ -996,7 +987,6 @@
       "runtime": "Rust",
       "outputs": ["svg", "png"],
       "roles": ["peer"],
-      "citedIn": ["docs/comparison.md"],
       "notes": "Crate and CLI \"mmdr\"; no npm package of its own (npm \"mmdr\" is an unrelated 2024 package). See the binding nodes."
     },
     {
@@ -1035,7 +1025,6 @@
       "runtime": "Go",
       "outputs": ["ascii-unicode"],
       "roles": ["ancestor", "terminal-peer"],
-      "citedIn": ["docs/comparison.md"],
       "notes": "docs/comparison.md records 1.4.0; latest tag is newer. Ancestor of the Beautiful/Agentic ASCII engine by port."
     },
     {
@@ -1166,8 +1155,6 @@
       "outputs": ["ascii-unicode"],
       "packages": [{ "registry": "pypi", "name": "termaid", "version": "0.9.1", "license": "MIT" }],
       "roles": ["terminal-peer"],
-      "wiredInto": ["eval/benchmark/peer-bench.ts"],
-      "citedIn": ["eval/benchmark/RESULTS.md"],
       "notes": "eval/benchmark/RESULTS.md measured it without recording a version."
     },
     {
@@ -1230,8 +1217,7 @@
       "release": { "tag": "v0.1.6", "commit": "40e5923cfca654503212612fd0f1af8a8720dfbe" },
       "runtime": "Rust",
       "outputs": ["ascii-unicode"],
-      "roles": ["terminal-peer"],
-      "citedIn": ["docs/comparison.md", "docs/design/families/c4.md"]
+      "roles": ["terminal-peer"]
     },
     {
       "id": "kitlangton/merman",
@@ -1313,8 +1299,6 @@
         { "registry": "pypi", "name": "merman", "version": "0.9.1", "license": "MIT OR Apache-2.0" }
       ],
       "roles": ["peer", "terminal-peer"],
-      "wiredInto": ["eval/benchmark/peer-bench.ts"],
-      "citedIn": ["docs/comparison.md", "docs/design/families/c4.md"],
       "notes": "docs/comparison.md records 0.9.0; 0.9.1 was published from branch release/0.9.1 on the check date. Cargo.toml at main head still says 0.9.0."
     },
     {
@@ -1339,8 +1323,6 @@
         }
       ],
       "roles": ["ancestor", "peer"],
-      "wiredInto": ["eval/benchmark/peer-bench.ts", "package.json devDependencies", "src/__tests__/upstream-export-migration.test.ts"],
-      "citedIn": ["docs/comparison.md", "docs/fork-differences.md"],
       "notes": "SVG renderer is its own; ASCII engine is a port of AlexanderGrooff/mermaid-ascii (see edges)."
     },
     {
@@ -1355,8 +1337,7 @@
       "release": { "tag": "v0.4.3", "commit": "34c47a93cd792f24e06b49b5196a1c876240f03a" },
       "runtime": "Rust",
       "outputs": ["ascii-unicode"],
-      "roles": ["terminal-peer"],
-      "citedIn": ["docs/comparison.md", "docs/design/families/c4.md"]
+      "roles": ["terminal-peer"]
     },
     {
       "id": "neongreen/mermaid-ast",
@@ -1380,9 +1361,7 @@
           "publishedFromDefaultBranch": true
         }
       ],
-      "roles": ["parser-peer"],
-      "wiredInto": ["package.json devDependencies", "eval/differential/mermaid-ast-oracle.ts", "src/__tests__/differential-mermaid-ast.test.ts", "src/__tests__/gantt-parser.test.ts", "src/__tests__/mermaid-conformance.test.ts"],
-      "citedIn": ["docs/design/families/gantt.md"]
+      "roles": ["parser-peer"]
     },
     {
       "id": "obsidianmd/pele",
@@ -1406,8 +1385,6 @@
         }
       ],
       "roles": ["peer"],
-      "wiredInto": ["eval/benchmark/peer-bench.ts", "eval/benchmark/release-browser-bench.ts", "eval/mermaid-modern-compat/run.ts"],
-      "citedIn": ["docs/comparison.md", "docs/design/families/c4.md"],
       "notes": "Main moved past the 458322a5 pin in docs/comparison.md. Targets Mermaid 12.1.0 syntax (README.md:5, :87) and vendors Mermaid's parser specs and grammar files (README.md:113) beside its own parser, layout and renderer. Packages that only wrap it (comark-pele, streamdown-pele and others) are excluded."
     },
     {
@@ -1570,8 +1547,6 @@
       "runtime": "TypeScript engine + Lua (Neovim)",
       "outputs": ["ascii-unicode"],
       "roles": ["observed"],
-      "wiredInto": ["eval/mermaid-gantt-bench/cases.json"],
-      "citedIn": ["docs/design/families/gantt.md"],
       "notes": "razor-ai/ascii-mermaid resolves to the same head (same repository)."
     },
     {
@@ -1677,8 +1652,6 @@
         }
       ],
       "roles": ["language-reference"],
-      "wiredInto": ["package.json devDependencies", "eval/benchmark/release-browser-bench.ts", "src/__tests__/helpers/upstream-mermaid.ts", "docs/project/upstream-mermaid-policy.json"],
-      "citedIn": ["docs/comparison.md"],
       "notes": "knsv/mermaid resolves to the same head (legacy name). Default branch is develop; 12.2.0 provenance names master."
     }
   ],

@@ -15,6 +15,8 @@
 // extracted with `git archive` into a temporary directory, timed with the
 // current cases and the current node_modules, so the comparison isolates
 // production source. Cases missing at the baseline are reported, not fatal.
+// A stage case times input built by an earlier stage of its own revision; when
+// the two sides' inputs differ it reports "inputs differ" instead of a ratio.
 // Under Node, allocation per call is estimated from GC boundaries (as in the
 // release benchmark). Shared or loaded machines inflate absolute numbers: an
 // A/A run of identical source on a shared 4-vCPU sandbox spread 0.82–1.11×
@@ -27,7 +29,7 @@ import { cpus, release, tmpdir } from 'node:os'
 import { dirname, join } from 'node:path'
 import { allocationProbe, median } from './bench-stats.ts'
 import { type MicroCase, microCases } from './micro-bench-cases.ts'
-import { extractRevisionTree, ROOT, workingRevision } from './revision-tree.ts'
+import { extractRevisionTree, ROOT, shortRevision, workingRevision } from './revision-tree.ts'
 
 interface Options {
   filter?: RegExp
@@ -44,6 +46,8 @@ interface CaseResult {
   samplesMs?: number[]
   medianMs?: number
   madMs?: number
+  /** A stage case's input, compared across sides before a ratio is shown. */
+  input?: string
   allocBytesPerCall?: number
 }
 
@@ -80,7 +84,8 @@ function positive(options: Map<string, string>, key: string, fallback: number): 
 // ---------------------------------------------------------------------------
 
 async function measure(entry: MicroCase, options: Options, allocation: Awaited<ReturnType<typeof allocationProbe>>): Promise<CaseResult> {
-  const call = await entry.setup()
+  const prepared = await entry.setup()
+  const call = typeof prepared === 'function' ? prepared : prepared.call
   const first = call()
   if (entry.check && !entry.check(first)) throw new Error('sanity check failed on the first result')
   let sink: unknown = first
@@ -93,7 +98,7 @@ async function measure(entry: MicroCase, options: Options, allocation: Awaited<R
   const perCall = (performance.now() - warmStart) / warmCalls
   const iterations = Math.max(1, Math.ceil(options.minSampleMs / Math.max(perCall, 1e-6)))
   const affordable = Math.floor(options.maxCaseMs / Math.max(perCall * iterations, 1e-6))
-  const sampleCount = Math.max(5, Math.min(options.samples, affordable))
+  const sampleCount = Math.max(Math.min(3, options.samples), Math.min(options.samples, affordable))
   const samplesMs: number[] = []
   for (let sample = 0; sample < sampleCount; sample++) {
     const start = performance.now()
@@ -107,7 +112,15 @@ async function measure(entry: MicroCase, options: Options, allocation: Awaited<R
     : undefined
   ;(globalThis as { __microBenchSink?: unknown }).__microBenchSink = sink
   const medianMs = median(samplesMs)
-  return { id: entry.id, iterations, samplesMs, medianMs, madMs: median(samplesMs.map(value => Math.abs(value - medianMs))), ...(allocBytesPerCall === undefined ? {} : { allocBytesPerCall }) }
+  return {
+    id: entry.id,
+    iterations,
+    samplesMs,
+    medianMs,
+    madMs: median(samplesMs.map(value => Math.abs(value - medianMs))),
+    ...(allocBytesPerCall === undefined ? {} : { allocBytesPerCall }),
+    ...(typeof prepared === 'function' ? {} : { input: prepared.input }),
+  }
 }
 
 async function runChild(options: Options, out: string): Promise<void> {
@@ -139,13 +152,12 @@ function bundleForNode(root: string, outfile: string): string {
 }
 
 // Node resolves the bundle's external packages from its own location, so each
-// bundle lives beside a node_modules: the repository's cache for the
-// candidate, the extracted tree (with its node_modules link) for a baseline.
-const CANDIDATE_NODE_BUNDLE = join(ROOT, 'node_modules/.cache/agentic-mermaid-micro/candidate.mjs')
-
-function prepareSide(label: Side['label'], root: string, revision: string, runtime: string): Side {
+// bundle lives beside a node_modules: a per-run directory in the repository's
+// cache for the candidate, the extracted tree (with its node_modules link) for
+// a baseline.
+function prepareSide(label: Side['label'], root: string, revision: string, runtime: string, candidateBundleDir: string): Side {
   const script = join(root, SCRIPT_PATH)
-  const bundle = label === 'candidate' ? CANDIDATE_NODE_BUNDLE : join(root, 'micro-bench.node.mjs')
+  const bundle = label === 'candidate' ? join(candidateBundleDir, 'candidate.mjs') : join(root, 'micro-bench.node.mjs')
   const runner = runtime === 'node' ? ['node', bundleForNode(root, bundle)] : ['bun', script]
   return { label, root, revision, runner }
 }
@@ -192,18 +204,20 @@ async function main(): Promise<void> {
   const rounds = positive(args, 'rounds', baselineRef ? 3 : 1)
   const passthrough = ['filter', 'samples', 'min-sample-ms', 'max-case-ms', 'warmup-ms'].flatMap(key => (args.has(key) ? [`--${key}`, args.get(key)!] : []))
   const scratch = mkdtempSync(join(tmpdir(), 'agentic-mermaid-micro-'))
+  mkdirSync(join(ROOT, 'node_modules/.cache'), { recursive: true })
+  const candidateBundleDir = mkdtempSync(join(ROOT, 'node_modules/.cache/agentic-mermaid-micro-'))
   try {
-    const sides = [prepareSide('candidate', ROOT, workingRevision(), runtime)]
+    const sides = [prepareSide('candidate', ROOT, workingRevision(), runtime, candidateBundleDir)]
     if (baselineRef) {
       const baseline = extractRevisionTree(baselineRef, scratch, 'baseline', 'eval/benchmark/micro-bench-cases.ts')
-      sides.push(prepareSide('baseline', baseline.root, baseline.revision, runtime))
+      sides.push(prepareSide('baseline', baseline.root, baseline.revision, runtime, candidateBundleDir))
     }
     const perRound: Array<Record<string, Map<string, CaseResult>>> = []
     for (let round = 0; round < rounds; round++) {
       const order = round % 2 === 0 ? sides : [...sides].reverse()
       const results: Record<string, Map<string, CaseResult>> = {}
       for (const side of order) {
-        console.error(`round ${round + 1}/${rounds}: ${side.label} (${side.revision.slice(0, 12)})`)
+        console.error(`round ${round + 1}/${rounds}: ${side.label} (${shortRevision(side.revision)})`)
         results[side.label] = runSide(side, passthrough, scratch, round)
       }
       perRound.push(results)
@@ -236,7 +250,15 @@ async function main(): Promise<void> {
           return after !== undefined && before !== undefined && before > 0 ? after / before : undefined
         })
         .filter((value): value is number => value !== undefined)
-      return { id, candidate, baseline, ...(ratios.length ? { ratio: median(ratios) } : {}) }
+      // A stage fed by an earlier stage of its own revision is compared only
+      // when both sides were handed the same input.
+      const inputsDiffer = perRound.some(round => {
+        const after = round.candidate?.get(id)?.input
+        const before = round.baseline?.get(id)?.input
+        return after !== undefined && before !== undefined && after !== before
+      })
+      const ratio = inputsDiffer || !ratios.length ? undefined : median(ratios)
+      return { id, candidate, baseline, inputsDiffer, ratio }
     })
 
     const header = ['case', 'candidate', '±', ...(baselineRef ? ['baseline', 'ratio'] : []), ...(runtime === 'node' ? ['alloc/call'] : [])]
@@ -248,7 +270,7 @@ async function main(): Promise<void> {
         row.id,
         failed ?? formatMs(c?.medianMs),
         c ? `${(100 * c.noise).toFixed(0)}%` : '',
-        ...(baselineRef ? [b ? formatMs(b.medianMs) : row.baseline && 'error' in row.baseline ? 'unavailable' : '—', row.ratio === undefined ? '' : `${row.ratio.toFixed(2)}×`] : []),
+        ...(baselineRef ? [b ? formatMs(b.medianMs) : row.baseline && 'error' in row.baseline ? 'unavailable' : '—', row.inputsDiffer ? 'inputs differ' : row.ratio === undefined ? '' : `${row.ratio.toFixed(2)}×`] : []),
         ...(runtime === 'node' ? [formatBytes(c?.allocBytesPerCall)] : []),
       ]
     })
@@ -276,7 +298,7 @@ async function main(): Promise<void> {
     }
   } finally {
     rmSync(scratch, { recursive: true, force: true })
-    rmSync(CANDIDATE_NODE_BUNDLE, { force: true })
+    rmSync(candidateBundleDir, { recursive: true, force: true })
   }
 }
 

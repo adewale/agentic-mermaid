@@ -18,6 +18,7 @@ The projects that keep 0.5 honest: browserless renderers to compare on speed and
 | `lukilabs/beautiful-mermaid` | independent | beautiful-mermaid@1.1.3 | svg, ascii-unicode | ancestor, peer |
 | `adewale/agentic-mermaid` | fork | agentic-mermaid@0.4.1 | svg, png, ascii-unicode | self |
 | `1jehuang/mermaid-rs-renderer` | independent | tag v0.3.1 | svg, png | peer |
+| `akashacms/mermaid-wasm-renderer` | binding | mermaid-wasm-renderer@0.3.1 | svg | peer (how `bench:peers` runs mermaid-rs) |
 | `Latias94/merman` | independent | @mermanjs/node@0.9.1 | svg, png, jpeg, pdf, ascii-unicode | peer, terminal-peer |
 | `dfadler/zombie-mermaid` | fork | zombie-mermaid@5.7.1 | svg, ascii-unicode | peer, terminal-peer |
 | `obsidianmd/pele` | independent | pele@1.6.0 | svg | peer |
@@ -29,11 +30,11 @@ The projects that keep 0.5 honest: browserless renderers to compare on speed and
 | `neongreen/mermaid-ast` | independent | mermaid-ast@0.8.2 | ast | parser-peer |
 | `probelabs/maid` | independent | @probelabs/maid@0.0.29 | diagnostics | parser-peer |
 
-`bun run bench:peers` (`eval/benchmark/peer-bench.ts`) times the SVG and terminal peers above that run in Node or Python against the built package. `wiredInto` names the repo paths that already install, import or vendor a node, for example Pele and Mermaid in `eval/benchmark/release-browser-bench.ts` and the `beautiful-mermaid`, `mermaid` and `mermaid-ast` devDependencies. `citedIn` names the docs that discuss it.
+`bun run bench:peers` (`eval/benchmark/peer-bench.ts`) times the SVG and terminal peers above that run in Node or Python against the built package. To find where this repository uses or cites a node, search for its repository or package name.
 
 ## Re-checking
 
-`bun run eval/fork-graph/check.ts` re-resolves every node's branch head with anonymous `git ls-remote` and every package's latest version from the npm registry or PyPI. It prints drift and exits 1 when anything moved. It uses the network and moving targets, so it is not part of any test or CI job. To re-derive a lineage edge by hand (commits only, no file contents):
+`bun run eval/fork-graph/check.ts` re-resolves every node's branch head with anonymous `git ls-remote` and every package's latest version from the npm registry or PyPI. It prints drift and exits 1 when anything moved; the `adewale/agentic-mermaid` node drifts on every merge to `main`. It uses the network and moving targets, so it is not part of any test or CI job. To re-derive a lineage edge by hand (commits only, no file contents):
 
 ```bash
 git clone -q --bare --filter=tree:0 --single-branch https://github.com/lukilabs/beautiful-mermaid bm.git

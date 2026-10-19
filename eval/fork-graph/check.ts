@@ -27,6 +27,8 @@ interface Population {
 
 const population = JSON.parse(readFileSync(join(import.meta.dir, 'population.json'), 'utf8')) as Population
 
+const GITHUB_REPO = /^https:\/\/github\.com\/[\w.-]+\/[\w.-]+$/
+
 async function branchHead(repo: string, branch: string): Promise<string | undefined> {
   const child = Bun.spawn(['git', 'ls-remote', repo, `refs/heads/${branch}`], { stdout: 'pipe', stderr: 'ignore', env: { ...process.env, GIT_TERMINAL_PROMPT: '0' } })
   const out = await new Response(child.stdout).text()
@@ -44,7 +46,9 @@ async function latestVersion(pkg: Pkg): Promise<string | undefined> {
 
 async function checkNode(node: GraphNode): Promise<string[]> {
   const drift: string[] = []
-  if (node.repo && node.branch && node.head) {
+  // Only plain GitHub HTTPS URLs reach git, so a crafted entry cannot pass an option.
+  if (node.repo && !GITHUB_REPO.test(node.repo)) drift.push(`${node.id}: repo ${node.repo} is not a https://github.com/<owner>/<repo> URL`)
+  else if (node.repo && node.branch && node.head) {
     const head = await branchHead(node.repo, node.branch)
     if (!head) drift.push(`${node.id}: ${node.branch} unreachable`)
     else if (head !== node.head) drift.push(`${node.id}: ${node.branch} ${node.head.slice(0, 12)} -> ${head.slice(0, 12)}`)

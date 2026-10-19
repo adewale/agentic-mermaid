@@ -15,6 +15,9 @@ export function git(args: string[], cwd = ROOT): string {
   return execFileSync('git', args, { cwd, encoding: 'utf8' }).trim()
 }
 
+/** A revision for display: 12 hex digits, keeping any `+dirty-src` marker. */
+export const shortRevision = (revision: string) => revision.replace(/^([0-9a-f]{12})[0-9a-f]+/, '$1')
+
 /** The checked-out revision, marked when `src/` has uncommitted changes. */
 export function workingRevision(): string {
   const dirty = git(['status', '--porcelain', '--', 'src']).length > 0
@@ -22,7 +25,8 @@ export function workingRevision(): string {
 }
 
 /**
- * Extract `ref` into `<scratch>/<label>`. A bundler resolves every import() at
+ * Extract `ref` into `<scratch>/<label>`. The tools then run that revision's
+ * code, so pass only refs you trust. A bundler resolves every import() at
  * build time, so each `../../src/...` module that `stubImportsOf` names but
  * the revision lacks becomes a stub that throws when imported; only the
  * callers that use it fail.

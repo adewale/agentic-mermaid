@@ -9,8 +9,11 @@
 #
 # Re-running is cheap: a clean checkout already at the pin and an install whose
 # versions already match are left alone. An existing checkout is moved to the
-# pin in place, never deleted, and a destination that is not ours is refused.
+# pin in place, never deleted, and a destination that is not ours (another
+# checkout, or an npm project declaring other packages) is refused.
 set -euo pipefail
+# A caller's CDPATH could otherwise redirect the `cd` that locates the repo.
+unset CDPATH
 
 ROOT=$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)
 PARENT=$(cd "$ROOT/.." && pwd)
@@ -114,8 +117,21 @@ installed_versions() {
   ' "$REFERENCE"
 }
 
+# An npm prefix is ours only if it declares nothing but the reference packages.
+foreign_dependencies() {
+  node -e '
+    const { readFileSync } = require("node:fs")
+    const manifest = JSON.parse(readFileSync(process.argv[1], "utf8"))
+    const ours = new Set(["mermaid", "@mermaid-js/parser", "jsdom"])
+    const declared = ["dependencies", "devDependencies", "optionalDependencies", "peerDependencies"]
+      .flatMap(field => Object.keys(manifest[field] ?? {}))
+    process.stdout.write(declared.filter(name => !ours.has(name)).join(" "))
+  ' "$1"
+}
+
 expected="$VERSION $PARSER_VERSION $JSDOM_VERSION"
-if [ "$(installed_versions)" = "$expected" ]; then
+# `npm ls --all` also catches a tree an interrupted install left incomplete.
+if [ "$(installed_versions)" = "$expected" ] && npm ls --prefix "$REFERENCE" --all >/dev/null 2>&1; then
   echo "Mermaid reference already installed"
 else
   if [ -e "$REFERENCE" ] && ! [ -d "$REFERENCE" ]; then
@@ -124,8 +140,12 @@ else
   if nonempty_dir "$REFERENCE" && ! [ -f "$REFERENCE/package.json" ]; then
     die "$REFERENCE is not empty and is not an npm prefix; move it or set MERMAID_REFERENCE_DIR"
   fi
+  if [ -f "$REFERENCE/package.json" ]; then
+    foreign=$(foreign_dependencies "$REFERENCE/package.json")
+    [ -z "$foreign" ] || die "$REFERENCE is another npm project (it declares $foreign); move it or set MERMAID_REFERENCE_DIR"
+  fi
   mkdir -p "$REFERENCE"
-  npm install --prefix "$REFERENCE" --save-exact --no-audit --no-fund \
+  npm install --prefix "$REFERENCE" --save-exact --no-audit --no-fund --ignore-scripts \
     "mermaid@$VERSION" "@mermaid-js/parser@$PARSER_VERSION" "jsdom@$JSDOM_VERSION"
   actual=$(installed_versions)
   [ "$actual" = "$expected" ] || die "$REFERENCE resolves mermaid/parser/jsdom '${actual:-none}', expected '$expected'"

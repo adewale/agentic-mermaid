@@ -70,9 +70,9 @@ C4 proposals below supply behavioral examples with their own ancestry.
 
 ### Fresh performance observations
 
-`bun run bench:peers` re-measures these peers at the pins recorded in
-[`eval/fork-graph/population.json`](../eval/fork-graph/population.json); run it
-rather than citing the dated figures below, which keep their original
+`bun run bench:peers` re-measures these peers at pinned versions checked
+against [`eval/fork-graph/population.json`](../eval/fork-graph/population.json);
+run it rather than citing the dated figures below, which keep their original
 environment and versions.
 
 Measured 18 October on shared Linux x86_64 (AMD EPYC 9V74, 5 vCPU),
