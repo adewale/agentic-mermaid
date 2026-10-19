@@ -137,7 +137,9 @@ describe('custom style cookbook docs', () => {
     expect(cloudflare.style.bindings).toEqual(expect.arrayContaining([
       expect.objectContaining({ channel: 'category', value: 'Runtime', role: 'task' }),
     ]))
-    expect(cloudflare.svg).toMatch(/<rect[^>]*data-task="run"[^>]*fill:#ff4801[^>]*data-brand-cue="pattern"/)
+    const runBar = cloudflare.svg.match(/<rect[^>]*data-task="run"[^>]*>/)?.[0] ?? ''
+    expect(runBar).toContain(' fill="#ff4801"')
+    expect(runBar).toContain(' data-brand-cue="pattern"')
     expect(renderMermaidASCII(cloudflare.source, {
       style: cloudflare.style,
       colorMode: 'none',
