@@ -363,6 +363,20 @@ stateDiagram-v2
     expect(graph.linkStyles.get(0)?.stroke).toBe('#654321')
   })
 
+  test('a state Mermaid cannot read alone is written so that Mermaid draws it', async () => {
+    // A hyphen ends a Mermaid name, a keyword before a line break starts its
+    // statement, and `state X` declares nothing upstream.
+    let diagram = state('stateDiagram-v2\n  state in-flight\n  state note\n  state State\n  hide\n  A')
+    diagram = apply(diagram, { kind: 'add_state', id: 'classDef' })
+    const serialized = serializeMermaid(diagram)
+    expect(state(serialized).body).toEqual(diagram.body)
+    const upstream = startUpstreamMermaid()
+    try {
+      const drawn = await upstream.project(serialized, mermaid => mermaid.db.getData().nodes.map((node: { id: string }) => node.id).sort())
+      expect(drawn).toEqual({ ok: true, value: ['A', 'State', 'classDef', 'hide', 'in-flight', 'note'] })
+    } finally { upstream.close() }
+  })
+
   test('a class named like an Object.prototype key is an ordinary class', () => {
     const parsed = state('stateDiagram-v2\n  classDef __proto__ fill:#ff0000\n  A:::__proto__')
     const defined = apply(state('stateDiagram-v2\n  A:::__proto__'), { kind: 'define_class', name: '__proto__', style: 'fill:#0000ff' })

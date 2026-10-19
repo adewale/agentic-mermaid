@@ -427,6 +427,19 @@ export function parseStateBody(lines: string[]): StateBody | null {
     }
   }
 
+  // `state "X" as X` is how the writer declares a state with no bare
+  // spelling; it reads back as that bare declaration.
+  const unlabelBare = (states: StateNode[]): void => {
+    for (const state of states) {
+      if (state.regions) for (const region of state.regions) unlabelBare(region.states)
+      else if (state.states) unlabelBare(state.states)
+      else if (state.stereotype === undefined && state.label === state.id && !hasBareSpelling(state.id)) {
+        delete state.label
+        state.declaredBare = true
+      }
+    }
+  }
+  unlabelBare(root.states)
   canonicalizeStateOrder(root.states)
   const body: StateBody = {
     kind: 'state',
@@ -441,6 +454,15 @@ export function parseStateBody(lines: string[]): StateBody | null {
 }
 
 // ---- Serializer -------------------------------------------------------------
+
+/** Whether Mermaid reads `id` alone as a state. It reads no hyphen in a name,
+ *  and takes a keyword (`note`, `class`, …, in any case) before the line
+ *  break as its statement; `state X`, the other spelling, declares nothing
+ *  upstream. Such a state is written `state "X" as X`, which Mermaid draws,
+ *  and read back as the bare declaration (parseStateBody). */
+function hasBareSpelling(id: string): boolean {
+  return !/-|^(?:state|note|scale|default|classDef|class|style|click|href|stateDiagram)$/i.test(id)
+}
 
 function serializeStateLabel(label: string): string {
   return label.replace(/\r\n?|\n/g, '<br/>')
@@ -478,10 +500,7 @@ function renderScope(states: StateNode[], transitions: StateTransition[], direct
         ? `${indent}state "${serializeStateLabel(s.label)}" as ${s.id}`
         : `${indent}${s.id}: ${serializeStateLabel(s.label)}`)
     } else if (s.declaredBare) {
-      // A bare hyphen/keyword is a lexer operator/directive in Mermaid. The
-      // explicit declaration keeps its authored identity in the state context.
-      const explicit = /-|^(?:state|note|scale|default|classDef|class|style|click|href|stateDiagram|hide)$/i.test(s.id)
-      out.push(`${indent}${explicit ? 'state ' : ''}${s.id}`)
+      out.push(`${indent}${hasBareSpelling(s.id) ? s.id : `state "${s.id}" as ${s.id}`}`)
     }
     // Implicit transition endpoints need no standalone declaration.
   }
