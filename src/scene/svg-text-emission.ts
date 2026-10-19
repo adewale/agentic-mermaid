@@ -85,7 +85,7 @@ export function writeSceneText(node: TextMark, recipe: SvgTextEmission, writer: 
   const lines = block?.lines ?? node.text.split('\n')
   const prepared = node.block!
   const visible = prepared.lineBlocks.map(line => line.runs.map(run => run.text).join('')).join('\n')
-  const native = !!block && /[^\x20-\x7e]/u.test(visible)
+  const native = !!block && block.lineBlocks.some(line => line.runs.some(run => /[^\x20-\x7e]/u.test(run.text)))
   const fragmented = !!block && (block.letterSpacing !== 0 || native)
   const has = (name: string) => recipe.attributes.some(attribute => attribute.name === name)
   writer.write('<text')
