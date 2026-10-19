@@ -37,6 +37,8 @@ export function parseMindmap(source: string): MindmapDiagram {
   const ids = new Set<string>()
   let root: MindmapNode | undefined
   let lastNode: MindmapNode | undefined
+  let joined: string | undefined
+  let lineStarts: number[] | undefined
   const accessibilityTitle = scanned.accessibility.title !== undefined
     ? normalizeBrTags(scanned.accessibility.title)
     : undefined
@@ -58,6 +60,20 @@ export function parseMindmap(source: string): MindmapDiagram {
       }
       if (!closed) throw new MindmapParseError('Unclosed mindmap Markdown String', index + 1)
       raw = parts.join('\n')
+    }
+    // A shape's description runs on across line breaks to its closing
+    // delimiter, as in Mermaid's NODE lexer state. Keep each break, not the
+    // indentation after it.
+    if (scanNodeFrame(raw.trimStart()) === 'open') {
+      joined ??= rawLines.join('\n')
+      lineStarts ??= rawLines.reduce<number[]>((starts, line, at) => (starts.push(at === 0 ? 0 : starts[at - 1]! + rawLines[at - 1]!.length + 1), starts), [])
+      const start = lineStarts[index]! + raw.length - raw.trimStart().length
+      const frame = scanNodeFrame(joined.slice(start))
+      if (frame && frame !== 'open') {
+        const end = index + joined.slice(start, start + frame.end).split('\n').length - 1
+        raw = [rawLines[index]!.trimEnd(), ...rawLines.slice(index + 1, end + 1).map(line => line.trim())].join('\n')
+        index = end
+      }
     }
     raw = stripInlineComment(raw)
     const trimmed = raw.trim()
@@ -114,11 +130,17 @@ export function parseMindmap(source: string): MindmapDiagram {
 
 interface NodeFrame { id: string; label: string; shape: MindmapShape; end: number }
 
+function readNodeFrame(source: string): NodeFrame | null {
+  const frame = scanNodeFrame(source)
+  return frame === 'open' ? null : frame
+}
+
 /** Read the first shape boundary in the same states as Mindmap's lexer:
  * nested opening brackets are ordinary label text, closing tokens end it,
  * and a quote at the beginning of the description protects delimiters.
+ * `open` when the source ends before the shape closes.
  */
-function readNodeFrame(source: string): NodeFrame | null {
+function scanNodeFrame(source: string): NodeFrame | 'open' | null {
   const opening = source.match(/^([^()[{}]*?)(\(\(|\{\{|\[|\)\)|\)|\()/)
   if (!opening) return null
   const opener = opening[2]!
@@ -126,7 +148,7 @@ function readNodeFrame(source: string): NodeFrame | null {
   let end = begin
   if (source.startsWith('"`', begin)) {
     const closing = source.indexOf('`"', begin + 2)
-    if (closing < 0) return null
+    if (closing < 0) return 'open'
     end = closing + 2
   } else if (source[begin] === '"') {
     end = begin + 1
@@ -134,12 +156,13 @@ function readNodeFrame(source: string): NodeFrame | null {
       if (source[end] === '\\') { end += 2; continue }
       if (source[end++] === '"') break
     }
-    if (source[end - 1] !== '"') return null
+    if (source[end - 1] !== '"' || end === begin + 1) return 'open'
   } else {
     while (end < source.length && !/[)\](}]/.test(source[end]!)) end++
   }
   const label = source.slice(begin, end)
   while (/\s/.test(source[end] ?? '') && end < source.length) end++
+  if (end === source.length) return 'open'
   const closer = ['))', '}}', '((', '(-', '-)', ')', ']', '('].find(token => source.startsWith(token, end))
   if (!closer) return null
   const shape: MindmapShape = opener === '[' ? 'rect' : opener === '{{' ? 'hexagon'

@@ -24,7 +24,7 @@ Unicode works too: 🤓\`"]
       id3[Rgular labels still works]`
 
 describe('Mindmap grammar, round-trip, and branch geometry', () => {
-  test('anonymous delimiter identities, shaped comments and cloud closing tokens retain their meaning', async () => {
+  test('anonymous delimiter identities, shaped comments, cloud closing tokens and shape text spanning lines retain their meaning', async () => {
     const upstream = startUpstreamMermaid()
     try {
       for (const [source, expected] of [
@@ -34,6 +34,10 @@ describe('Mindmap grammar, round-trip, and branch geometry', () => {
         ['mindmap\n  (Keep %% literal)', { id: 'Keep %% literal', label: 'Keep %% literal', shape: 'rounded' }],
         ['mindmap\n  node[Keep %% literal] %% trailing comment', { id: 'node', label: 'Keep %% literal', shape: 'rect' }],
         ['mindmap\n  id)I am ["quoted(', { id: 'id', label: 'I am ["quoted', shape: 'cloud' }],
+        ['mindmap\n  root((line1\n  line2))', { id: 'root', label: 'line1\nline2', shape: 'circle' }],
+        ['mindmap\n  root["quoted\n    text"]\n    B', { id: 'root', label: 'quoted\ntext', shape: 'rect', children: [{ id: 'B' }] }],
+        ['mindmap\n  root(text\n    more) %% c\n    B', { id: 'root', label: 'text\nmore', shape: 'rounded', children: [{ id: 'B' }] }],
+        ['mindmap\n  r))bang\ntext((', { id: 'r', label: 'bang\ntext', shape: 'bang' }],
       ] as const) {
         expect(await upstream.accepts(source)).toBe(true)
         const parsed = parseMindmap(source)
