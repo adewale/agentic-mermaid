@@ -163,6 +163,10 @@ describe('parseErDiagram – statements sharing or spanning lines', () => {
     ['Z {\n  string id\n  PK "c"\n  int\n  age\n}', ['Z {string id PK "c"; int age}']],
     // A generic type may hold spaces and nest.
     ['Z {\n  Map~string, int~ counts\n  Map~string, List~int~~ m PK\n}', ['Z {Map~string, int~ counts; Map~string, List~int~~ m PK}']],
+    // A comment runs on to its closing quote, past a `}`; a blank line inside it is dropped.
+    ['Z {\n  int id "line1\n  line2"\n}', ['Z {int id "line1\nline2"}']],
+    ['Z { int id PK "a }\n  b" } Y', ['Z {int id PK "a }\nb"}', 'Y {}']],
+    ['Z {\n  int id "x\n\n  y"\n  string name\n}', ['Z {int id "x\ny"; string name}']],
     // Declarations follow one another without a line break.
     ['A["x"] B:::c C', ['A[x] {}', 'B:::c {}', 'C {}']],
     ['A B ||--o{ C : x', ['A {}', 'B {}', 'C {}', 'B->C x']],

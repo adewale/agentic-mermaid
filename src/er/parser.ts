@@ -276,6 +276,8 @@ interface ErBlockToken {
   line: number
   start: number
   end: number
+  /** The line it ends on, for a comment that runs across lines. */
+  endLine?: number
 }
 
 // A `~` before a name character opens a generic type's argument
@@ -397,7 +399,7 @@ function erAttributeText(lines: readonly string[], { tokens }: ErOpenAttribute):
   return tokens.map((token, index) => {
     const before = tokens[index - 1]
     if (!before) return token.text
-    return (before.line === token.line ? lines[token.line]!.slice(before.end, token.start) : ' ') + token.text
+    return ((before.endLine ?? before.line) === token.line ? lines[token.line]!.slice(before.end, token.start) : ' ') + token.text
   }).join('')
 }
 
@@ -487,11 +489,15 @@ interface ErFoundStatement {
  * line Mermaid's attribute grammar cannot read is read on its own as one
  * generous attribute (readGenerousErAttribute), or else is unknown.
  */
-function findErStatements(lines: readonly string[], report?: (what: string, portable: string, line: number) => void): ErFoundStatement[] {
+function findErStatements(lines: readonly string[], report?: (what: string, portable: string, line: number) => void, continued?: Map<number, number>): ErFoundStatement[] {
   const found: ErFoundStatement[] = []
   let groupDepth = 0
-  // The open attribute block, and the attribute it is reading.
-  let block: { open?: ErOpenAttribute } | undefined
+  // The open attribute block, the attribute it is reading, and a comment a
+  // quote left open at a line's end: where it starts, and its lines so far.
+  let block: { open?: ErOpenAttribute; comment?: { line: number; start: number; parts: string[] } } | undefined
+  // Mermaid's COMMENT token, `"[^"]*"`, runs on to the next quote; a quote
+  // no later line closes is read on its own line, as before.
+  const lastQuoteLine = lines.findLastIndex(line => line.includes('"'))
   const settle = (attribute: ErOpenAttribute): void => {
     const first = attribute.tokens[0]!
     const last = attribute.tokens.at(-1)!
@@ -500,32 +506,54 @@ function findErStatements(lines: readonly string[], report?: (what: string, port
         kind: 'attribute', attribute: erAttributeOf(attribute), text: erAttributeText(lines, attribute),
         ...(erKeysCommaParted(attribute) ? {} : { generous: true as const }),
       },
-      line: first.line, start: first.start, endLine: last.line, end: last.end,
+      line: first.line, start: first.start, endLine: last.endLine ?? last.line, end: last.end,
     })
   }
   for (let line = 0; line < lines.length; line++) {
     const raw = lines[line]!
     const text = raw.trim()
-    if (!text || text.startsWith('%%')) {
+    // The comment left open closes at this line's first quote. A blank line
+    // inside it is dropped, as in other text, and a `%%` line too, as
+    // Mermaid removes one before lexing.
+    const pending: ErBlockToken[] = []
+    let from = 0
+    const comment = block?.comment
+    if (comment && text && !text.startsWith('%%')) {
+      const close = raw.indexOf('"')
+      comment.parts.push((close < 0 ? raw : raw.slice(0, close)).trim())
+      continued?.set(line, close < 0 ? raw.length : close + 1)
+      if (close < 0) continue
+      pending.push({ kind: 'comment', text: `"${comment.parts.join('\n')}"`, line: comment.line, start: comment.start, endLine: line, end: close + 1 })
+      block!.comment = undefined
+      from = close + 1
+    } else if (!text || text.startsWith('%%')) {
       found.push({ syntax: { kind: text ? 'comment' : 'blank' }, line, start: 0, endLine: line, end: raw.length })
       continue
     }
-    const stop = raw.length - raw.trimStart().length + stripTrailingComment(text).length
+    const rest = raw.slice(from)
+    const stop = from + rest.length - rest.trimStart().length + stripTrailingComment(rest.trim()).length
     const skipSpace = (from: number): number => {
       while (from < stop && /\s/.test(raw[from]!)) from++
       return from
     }
-    for (let at = skipSpace(0); at < stop;) {
+    for (let at = skipSpace(from); at < stop || pending.length > 0;) {
       if (block) {
         const close = erBlockEndAt(raw.slice(at, stop))
         const runEnd = close < 0 ? stop : at + close
-        const read = readErAttributeTokens(block.open, lexErBlockText(raw, line, at, runEnd))
+        let tokens = [...pending.splice(0), ...lexErBlockText(raw, line, at, runEnd)]
+        const stray = line < lastQuoteLine ? tokens.findIndex(token => token.kind === 'stray') : -1
+        if (stray >= 0) {
+          block.comment = { line, start: tokens[stray]!.start, parts: [raw.slice(tokens[stray]!.start + 1, stop).trimEnd()] }
+          tokens = tokens.slice(0, stray)
+        }
+        const read = readErAttributeTokens(block.open, tokens)
         if (read) {
           for (const attribute of read.done) settle(attribute)
           block.open = read.open
         } else {
           if (block.open) settle(block.open)
           block.open = undefined
+          block.comment = undefined
           const run = raw.slice(at, runEnd).trimEnd()
           const attribute = readGenerousErAttribute(run)
           found.push({ syntax: attribute ? { kind: 'attribute', attribute, text: run, generous: true } : { kind: 'unknown' }, line, start: at, endLine: line, end: at + run.length })
@@ -555,8 +583,15 @@ function findErStatements(lines: readonly string[], report?: (what: string, port
 
 /** The lossless ER grammar view. Scope and creation are decided here, before
  * either consumer projects statements into its own model. */
-export function readErStatements(lines: readonly string[], report?: (what: string, portable: string, line: number) => void): { statements: ErSourceStatement[]; placement: ErPlacement } {
-  const found = findErStatements(lines, report)
+export function readErStatements(lines: readonly string[], report?: (what: string, portable: string, line: number) => void): {
+  statements: ErSourceStatement[]
+  placement: ErPlacement
+  /** Each line a comment opened on an earlier line runs onto, and the column
+   * its text ends at there: after its closing quote, or the line's end. */
+  continuedComments: ReadonlyMap<number, number>
+} {
+  const continuedComments = new Map<number, number>()
+  const found = findErStatements(lines, report, continuedComments)
   // Partition each line among the statements on it (ErSourceStatement.raw).
   const followed: boolean[] = []
   const startLines = new Set<number>()
@@ -619,7 +654,7 @@ export function readErStatements(lines: readonly string[], report?: (what: strin
   if (entityId !== undefined) throw new Error(`ER_UNCLOSED_ENTITY: entity '${entityId}' needs a closing }`)
   const placement = fold.finish()
   if (parserObservationActive('er')) observeParserMutation('er', 'resolvePlacement', placement)
-  return { statements, placement }
+  return { statements, placement, continuedComments }
 }
 
 /**

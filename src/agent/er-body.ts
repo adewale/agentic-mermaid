@@ -52,6 +52,7 @@ export function erUnsupportedSyntaxWarnings(canonicalSource: string): LayoutWarn
     warnings.push({ code: 'UNSUPPORTED_SYNTAX', syntax, line: index + 1, message: `${what}. Pinned Mermaid rejects this; ${portable}.` })
   }
   const grammar = lines.slice(header + 1)
+  const statementLines: number[] = []
   for (let index = header + 1; index < lines.length; index++) {
     const directive = parseAccessibilityDirective(lines, index)
     if (directive === undefined) break
@@ -61,12 +62,23 @@ export function erUnsupportedSyntaxWarnings(canonicalSource: string): LayoutWarn
       index = directive.endIndex
       continue
     }
+    statementLines.push(index)
+  }
+  const quotedText: Array<[index: number, what: string, portable: string]> = []
+  let source: ReturnType<typeof readErStatements> | undefined
+  try {
+    source = readErStatements(grammar, (what, portable, index) => quotedText.push([index, what, portable]))
+  } catch {
+    // A statement ours cannot read fails the render; verify reports that.
+  }
+  for (const index of statementLines) {
     const line = lines[index]!.trim()
     if (!line || line.startsWith('%%')) continue
-    if (hasErTrailingComment(line)) warn(index, 'er_trailing_comment', 'A trailing %% comment after an ER statement is read as a comment', 'put the comment on a line of its own')
+    // Text a comment left open on an earlier line holds is no statement.
+    if (hasErTrailingComment(lines[index]!.slice(source?.continuedComments.get(index - header - 1) ?? 0))) warn(index, 'er_trailing_comment', 'A trailing %% comment after an ER statement is read as a comment', 'put the comment on a line of its own')
   }
-  try {
-    const source = readErStatements(grammar, (what, portable, index) => warn(header + index + 1, 'er_quoted_text', what, portable))
+  for (const [index, what, portable] of quotedText) warn(header + index + 1, 'er_quoted_text', what, portable)
+  if (source) {
     const directionLines = new Set<number>()
     for (const entry of source.statements) {
       const { syntax } = entry
@@ -96,8 +108,6 @@ export function erUnsupportedSyntaxWarnings(canonicalSource: string): LayoutWarn
         })
       }
     }
-  } catch {
-    // A statement ours cannot read fails the render; verify reports that.
   }
   return warnings
 }

@@ -143,6 +143,7 @@ const ER_READ_GENEROUSLY: ReadonlyArray<readonly [string, 'er' | 'opaque', strin
   ['erDiagram\n  A %% c', 'er', '>A<', 'er_trailing_comment', 2],
   ['erDiagram\n  A {\n    int x %% c\n  }', 'er', '>x<', 'er_trailing_comment', 3],
   ['erDiagram\n  A\n  style A fill:#f00 %% c', 'er', 'fill="#f00"', 'er_trailing_comment', 3],
+  ['erDiagram\n  A {\n    int x "a\n    b" %% c\n  }', 'er', '>x<', 'er_trailing_comment', 4],
   ['erDiagram\n  A {\n    int id PK FK\n  }', 'er', '>id<', 'er_attribute_form', 3],
   ['erDiagram\n  A { int id "c" PK }', 'er', '>c<', 'er_attribute_form', 2],
   ['erDiagram\n  A\n  end', 'er', '>end<', 'er_keyword_name', 3],
@@ -164,9 +165,12 @@ describe('ER source Mermaid rejects, read generously', () => {
     if (syntax === 'er_trailing_comment') expect(warnings).toContainEqual(expect.objectContaining({ code: 'COMMENT_DROPPED', count: 1, lines: [line] }))
   })
 
-  // Mermaid lexes that line's text inside the block, where `.*direction` does not apply.
-  test('a direction in an attribute comment is not a direction line', async () => {
-    const source = 'erDiagram\n  A {\n  int x "direction TB" } B'
+  // Mermaid lexes an attribute comment inside the block, where `.*direction`
+  // does not apply, and a `%%` inside it, on any of its lines, is text.
+  test.each([
+    'erDiagram\n  A {\n  int x "direction TB" } B',
+    'erDiagram\n  A {\n  int x "a\n  b %% c"\n  }',
+  ])('%j has nothing to report', async source => {
     await expectParity(source)
     expect(verifyMermaid(source).warnings.filter(warning => warning.code === 'UNSUPPORTED_SYNTAX')).toEqual([])
   })
@@ -219,11 +223,14 @@ describe('typed ER text is written as Mermaid reads it', () => {
 
 describe('typed ER attributes are written as Mermaid reads them', () => {
   // Keys parted by spaces or after the comment, which Mermaid rejects, are
-  // written as its comma-parted key list before the comment.
+  // written as its comma-parted key list before the comment. A comment that
+  // runs across lines is written across them.
   test.each<[string, unknown[]]>([
     ['A {\n    int id PK FK\n  }', ['int', 'id', ['PK', 'FK'], '']],
     ['A { int id "c" PK }', ['int', 'id', ['PK'], 'c']],
     ['A {\n    int id pk fk "c"\n  }', ['int', 'id', ['PK', 'FK'], 'c']],
+    ['A {\n    int id "line1\n    line2"\n  }', ['int', 'id', [], 'line1\nline2']],
+    ['A { int id PK "a }\n    b" } B', ['int', 'id', ['PK'], 'a }\nb']],
   ])('%j', async (body, expected) => {
     const parsed = parseRegisteredMermaid(`erDiagram\n  ${body}`)
     if (!parsed.ok) throw new Error('fixture rejected')
