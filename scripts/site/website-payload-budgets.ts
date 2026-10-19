@@ -30,11 +30,11 @@ export const WEBSITE_PAYLOAD_BUDGETS: WebsitePayloadBudgets = Object.freeze({
   }),
   examples: Object.freeze({
     maxRequests: 6,
-    // The new C4 example contributes build-time SVG/HTML, not an eager runtime.
-    maxRawBytes: 425_000,
-    // Prepared C4 text and the inherited root font rule measure 72,654 B gzip / 57,538 B Brotli.
-    maxGzipBytes: 73_000,
-    maxBrotliBytes: 57_600,
+    // The six new stable-family examples add build-time SVG/HTML. The 23-family
+    // gallery measures 481,905 raw / 80,386 gzip / 63,351 Brotli, with 5% headroom.
+    maxRawBytes: 507_000,
+    maxGzipBytes: 84_500,
+    maxBrotliBytes: 66_600,
     required: Object.freeze([
       '^/examples/$',
       '^/styles\\.css$',
@@ -47,7 +47,7 @@ export const WEBSITE_PAYLOAD_BUDGETS: WebsitePayloadBudgets = Object.freeze({
     ]),
   }),
   demo: Object.freeze({
-    maxRequests: 31,
+    maxRequests: 36,
     // Optional sketch code stays out of the default Timeline delivery graph.
     // Measured: 766,462 raw / 292,528 gzip / 265,232 Brotli.
     maxRawBytes: 780_000,

@@ -115,14 +115,20 @@ cohort.
 
 ## Browser and discovery cost
 
-The 23-entry lazy build factors more shared modules: established family graphs
-gain seven or eight requests and about 2.5–2.8 KB gzip in the measured local
-build. Their existing raw/gzip/Brotli ceilings remain unchanged; request-count
-budgets account for the new shared chunk graph. The five new non-ELK families
-exclude ELK, while Requirement joins the existing single shared ELK chunk.
-Measure again with `bun run check:browser-lazy`; this observation does not
-promise unchanged network latency. CLI discovery includes the six real schemas
-and stays bounded below 96 KiB. MCP keeps family schemas in progressive
+The verified 23-entry lazy build adds seven or eight requests and 2,148–2,481
+gzip bytes (0.31–1.35%) to established family graphs. Initial load is 5,170 gzip
+bytes. New graph gzip totals are Packet 181,048, Kanban 183,640, Requirement
+632,491, Treemap 187,268, Ishikawa 181,111 and Block 229,975 bytes; each includes
+shared dependencies that browsers reuse. The five new non-ELK families exclude
+ELK, while Requirement joins the existing single shared ELK chunk. All renderers
+load lazily. Measure again with `bun run check:browser-lazy`; request counts
+also affect network latency.
+
+The six build-time gallery examples bring the examples payload to 481,905 raw,
+80,386 gzip and 63,351 Brotli bytes. Its explicit ceilings include 5% headroom
+for this deliberate expansion. The demo loads 36 requests and stays within its
+existing byte budgets. CLI discovery includes the six real schemas and stays
+bounded below 96 KiB. MCP keeps family schemas in progressive
 `describe_sdk` discovery and retains its existing 15 KB execute-description
 budget through lossless declaration whitespace compaction.
 
