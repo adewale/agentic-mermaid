@@ -377,7 +377,10 @@ type ClassSyntaxValue =
   | { kind: 'direction'; direction: NonNullable<ReturnType<typeof parseDirectionStatement>> }
   | { kind: 'title'; text: string }
   | { kind: 'classDef'; names: string[]; props: Record<string, string> }
-  | { kind: 'assignment'; references: ClassReference[]; name: string }
+  /** A style class assigned to classes: `cssClass "A,B" c`, which Mermaid
+   * applies only to classes that exist, or a form Mermaid reads otherwise
+   * (`class A c`, unquoted `cssClass A c`, `A:::c` on its own). */
+  | { kind: 'assignment'; references: ClassReference[]; name: string; form: 'cssClass' | 'cssClassUnquoted' | 'class' | 'shorthand' }
   | { kind: 'style'; references: ClassReference[]; props: Record<string, string> }
   | { kind: 'unknown'; reason: string }
   | { kind: 'source-only'; reason: string }
@@ -447,10 +450,17 @@ function classifyClassStatement(text: string, authored: string | undefined): Cla
     const props = parseStyleProps(classDef[2]!)
     if (Object.keys(props).length > 0) return { kind: 'classDef', names: classDef[1]!.split(',').filter(Boolean), props }
   }
-  const assignment = text.match(/^(?:class|cssClass)\s+(.+?)\s+([\w-]+)$/)
+  const assignment = text.match(/^(class|cssClass)\s+(.+?)\s+([\w-]+)$/)
   if (assignment && !text.includes('{') && !text.includes('[') && !text.includes(' as ')) {
-    const refs = references(assignment[1]!)
-    if (refs) return { kind: 'assignment', references: refs, name: assignment[2]! }
+    // Mermaid's cssClass names classes by their ids as written, `my class`
+    // too, parted by commas.
+    const quoted = assignment[1] === 'cssClass' && /^"[^"]*"$/.test(assignment[2]!)
+    const refs = quoted
+      ? assignment[2]!.slice(1, -1).split(',').map(value => parseClassReference(value.trim()) ?? (value.trim() ? { id: value.trim() } : null))
+      : references(assignment[2]!)
+    if (refs?.every((ref): ref is ClassReference => ref !== null)) {
+      return { kind: 'assignment', references: refs, name: assignment[3]!, form: assignment[1] === 'class' ? 'class' : quoted ? 'cssClass' : 'cssClassUnquoted' }
+    }
   }
   const style = text.match(/^style\s+(.+?)\s+(.+)$/)
   if (style) {
@@ -469,7 +479,7 @@ function classifyClassStatement(text: string, authored: string | undefined): Cla
   const shorthand = text.match(/^(.+?):::([\w-]+)$/)
   if (shorthand) {
     const reference = parseClassReference(shorthand[1]!)
-    if (reference) return { kind: 'assignment', references: [reference], name: shorthand[2]! }
+    if (reference) return { kind: 'assignment', references: [reference], name: shorthand[2]!, form: 'shorthand' }
   }
   const member = text.match(/^(\S+?)\s*:\s*(.+)$/)
   if (member) {
@@ -897,6 +907,8 @@ export function parseClassDiagram(lines: string[], authoredLines?: string[]): Cl
   const classMap = new Map<string, ClassNode>()
   const namespaces = new Map<string, ClassNamespace>()
   const claimed = new Set<string>()
+  // cssClass statements naming a class not declared yet: applied once it is.
+  const laterCssClasses: Array<{ id: string; name: string }> = []
   const claim = (id: string, path: string): void => {
     if (path && !claimed.has(id)) { namespaces.get(path)!.classIds.push(id)
       claimed.add(id)
@@ -1024,6 +1036,14 @@ export function parseClassDiagram(lines: string[], authoredLines?: string[]): Cl
           break
         case 'assignment': case 'style':
           for (const reference of value.references) {
+            // A cssClass styles a class declared elsewhere, before or after
+            // it, and declares none.
+            if (value.kind === 'assignment' && value.form.startsWith('cssClass')) {
+              const existing = classMap.get(reference.id)
+              if (existing) existing.className = value.name
+              else laterCssClasses.push({ id: reference.id, name: value.name })
+              continue
+            }
             const cls = ensureClass(classMap, reference.id, reference.generic)
             if (value.kind === 'assignment') cls.className = value.name
             else cls.inlineStyle = { ...cls.inlineStyle, ...value.props }
@@ -1036,6 +1056,10 @@ export function parseClassDiagram(lines: string[], authoredLines?: string[]): Cl
     }
   }
   visit(tree.statements)
+  for (const { id, name } of laterCssClasses) {
+    const cls = classMap.get(id)
+    if (cls && cls.className === undefined) cls.className = name
+  }
   diagram.classes = [...classMap.values()]
   assertClassDiagramWork(diagram)
   return diagram

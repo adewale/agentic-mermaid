@@ -683,3 +683,31 @@ class Other
     expect(facts.some(f => f.includes('Triangle') && f.includes('Shapes'))).toBe(true)
   })
 })
+
+// Mermaid's cssClass names classes by their ids as written and styles only
+// classes declared before it, and Mermaid reads `class A c` as one class `Ac`.
+// Ours keeps the style class each form means, declares no class for a
+// cssClass, warns where Mermaid reads the source otherwise, and writes
+// `cssClass "A" c`, which Mermaid reads as written.
+test.each<[string, Array<[string, string | null]>, string[]]>([
+  ['class `my class`\ncssClass "my class" hot', [['my class', 'hot']], []],
+  ['class A\ncssClass "B" hot', [['A', null]], []],
+  ['cssClass "A" hot\nclass A', [['A', 'hot']], ['class_css_class_before_class']],
+  ['class A\nclass A hot', [['A', 'hot']], ['class_style_assignment']],
+  ['class A\ncssClass A hot', [['A', 'hot']], ['class_style_assignment']],
+])('the style class of %j', async (body, expected, syntax) => {
+  const source = `classDiagram\n${body}\nclassDef hot fill:#f00`
+  expect(renderParse(source).classes.map(({ id, className }) => [id, className ?? null])).toEqual(expected)
+  const diagram = classDiagram(source)
+  expect(diagram.body.classes.map(({ id, className }) => [id, className ?? null])).toEqual(expected)
+  expect(verifyMermaid(source).warnings.flatMap(warning => warning.code === 'UNSUPPORTED_SYNTAX' ? [warning.syntax] : [])).toEqual(syntax)
+  const written = serializeMermaid(diagram)
+  const upstream = startUpstreamMermaid()
+  try {
+    const classes = await upstream.project(written, mermaid => [...(mermaid.db as unknown as { getClasses(): Map<string, { id: string; cssClasses: string }> }).getClasses().values()]
+      .map(({ id, cssClasses }) => [id, cssClasses.split(' ').find(name => name && name !== 'default') ?? null]))
+    expect({ written, classes }).toEqual({ written, classes: { ok: true, value: expected } })
+  } finally {
+    await upstream.close()
+  }
+})

@@ -75,6 +75,7 @@ export function parseClassBody(lines: string[]): ClassBody | null {
   if (tree.diagnostics.length > 0) return null
   const body: ClassBody = { kind: 'class', classes: [], relations: [], notes: [] }
   const classMap = new Map<string, ClassNode>()
+  const laterCssClasses: Array<{ id: string; name: string }> = []
   const upsert = (id: string, label?: string, generic?: string): ClassNode => {
     let cls = classMap.get(id)
     if (!cls) {
@@ -180,6 +181,14 @@ export function parseClassBody(lines: string[]): ClassBody | null {
           break
         case 'assignment': case 'style':
           for (const reference of value.references) {
+            // A cssClass styles a class declared elsewhere, before or after
+            // it, and declares none (src/class/parser.ts).
+            if (value.kind === 'assignment' && value.form.startsWith('cssClass')) {
+              const existing = classMap.get(reference.id)
+              if (existing) existing.className = value.name
+              else laterCssClasses.push({ id: reference.id, name: value.name })
+              continue
+            }
             const cls = upsert(reference.id, undefined, reference.generic)
             if (value.kind === 'assignment') cls.className = value.name
             else cls.style = { ...cls.style, ...value.props }
@@ -191,6 +200,10 @@ export function parseClassBody(lines: string[]): ClassBody | null {
     return true
   }
   if (!visit(tree.statements)) return null
+  for (const { id, name } of laterCssClasses) {
+    const cls = classMap.get(id)
+    if (cls && cls.className === undefined) cls.className = name
+  }
   if (namespaces.length > 0) body.namespaces = namespaces
   // Mermaid cannot write empty namespace blocks. Preserve directly authored
   // ones verbatim instead of promising a portable structured edit.
@@ -389,7 +402,13 @@ export function renderClass(body: ClassBody): string {
   }
   for (const [name, style] of Object.entries(body.classDefs ?? {})) lines.push(`  classDef ${name} ${serializeStyleProps(style)}`)
   for (const c of body.classes) {
-    if (c.className) lines.push(`  class ${quoteDirectiveTarget(c.id)} ${c.className}`)
+    // Mermaid reads `class A c` as a class named `Ac`; its cssClass names
+    // the class by its id as written.
+    if (c.className) {
+      for (const name of c.className.split(/\s+/).filter(Boolean)) {
+        lines.push(/[",]/.test(c.id) ? `  class ${quoteIfNeeded(c.id)}:::${name}` : `  cssClass "${c.id}" ${name}`)
+      }
+    }
     if (c.style) lines.push(`  style ${quoteDirectiveTarget(c.id)} ${serializeStyleProps(c.style)}`)
     if (c.href) {
       lines.push(`  click ${quoteIfNeeded(c.id)} href "${c.href.replace(/&/g, '&amp;').replace(/\\/g, '\\\\').replace(/"/g, '\\"')}"${c.tooltip !== undefined ? ` "${c.tooltip.replace(/&/g, '&amp;').replace(/"/g, '&quot;')}"` : ''}`)
@@ -666,7 +685,23 @@ export function classUnsupportedSyntaxWarnings(canonicalSource: string): LayoutW
       message: `${what}. Pinned Mermaid rejects this; put the comment on a line of its own.`,
     })
   }
+  // The classes a statement declares as Mermaid reads it, which a cssClass
+  // can style only after them.
+  const declares = (value: ClassStatementNode['value']): string[] =>
+    value.kind === 'class' ? [value.declaration.id]
+      : value.kind === 'annotation' ? [value.annotation.id]
+        : value.kind === 'member' && value.reference ? [value.reference.id]
+          : value.kind === 'relationship' ? [value.relationship.from, value.relationship.to] : []
+  const declaredAnywhere = new Set<string>()
+  const collect = (nodes: readonly ClassStatementNode[]): void => {
+    for (const node of nodes) {
+      for (const id of declares(node.value)) declaredAnywhere.add(id)
+      collect(node.children ?? [])
+    }
+  }
   const extensionWarnings = (nodes: ClassStatementNode[]): void => {
+    collect(nodes)
+    const declaredSoFar = new Set<string>()
     const pending = [...nodes].reverse()
     const semicolonLines = new Set<number>()
     while (pending.length) {
@@ -695,6 +730,19 @@ export function classUnsupportedSyntaxWarnings(canonicalSource: string): LayoutW
         : value.kind === 'class' && value.declaration.annotation !== undefined && value.declaration.className !== undefined) warnings.push({
         code: 'UNSUPPORTED_SYNTAX', syntax: 'class_style_before_annotation', line: header + 1 + node.source.line,
         message: 'A :::style class before an inline <<annotation>> is read as the class\'s style class. Pinned Mermaid rejects this; put the annotation inside the class body or on a line of its own.',
+      })
+      for (const id of declares(value)) declaredSoFar.add(id)
+      if (value.kind === 'assignment' && value.form === 'cssClass' && value.references.some(ref => declaredAnywhere.has(ref.id) && !declaredSoFar.has(ref.id))) warnings.push({
+        code: 'UNSUPPORTED_SYNTAX', syntax: 'class_css_class_before_class', line: header + 1 + node.source.line,
+        message: 'A cssClass before the class it names is applied to that class. Pinned Mermaid applies a cssClass only to classes declared before it, and draws this one unstyled; put the cssClass after the class.',
+      })
+      if (value.kind === 'assignment' && value.form !== 'cssClass') warnings.push({
+        code: 'UNSUPPORTED_SYNTAX', syntax: 'class_style_assignment', line: header + 1 + node.source.line,
+        message: value.form === 'class'
+          ? `\`class A c\` is read as style class c on A. Pinned Mermaid reads it as one class named \`Ac\`; write \`cssClass "A" c\` or \`class A:::c\`.`
+          : value.form === 'shorthand'
+            ? 'A `:::style` class on a line of its own is read as the class\'s style class. Pinned Mermaid rejects it; write `cssClass "A" c` or `class A:::c`.'
+            : 'A cssClass whose class list is not quoted is read as written. Pinned Mermaid rejects it; quote the list: `cssClass "A,B" c`.',
       })
       if (node.value.kind === 'note' && node.value.escapedQuotes) warnings.push({
         code: 'UNSUPPORTED_SYNTAX', syntax: 'class_escaped_note_quotes', line: header + 1 + node.source.line,
