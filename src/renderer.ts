@@ -4,7 +4,7 @@ import type { PositionedGraph, PositionedNode, PositionedEdge, PositionedGroup, 
 import type { DiagramColors } from './theme.ts'
 import { STROKE_WIDTHS } from './styles.ts'
 import type { ResolvedRenderStyle } from './styles.ts'
-import { svgValue as v, type SvgGroupEmission, type SvgPrimitiveEmission } from './scene/svg-emission.ts'
+import { snapshotSvgEmissionRecipe, svgValue as v, type SvgAttribute, type SvgGroupEmission, type SvgPrimitiveEmission } from './scene/svg-emission.ts'
 import { topRoundedRectPath } from './svg-paths.ts'
 import { resolveInlineNodeTextColor, toneOnFill } from './color-resolver.ts'
 import type { SceneDoc, SceneNode, SemanticChannels } from './scene/ir.ts'
@@ -30,6 +30,21 @@ const SEPARATOR_EMISSION = primitive(['x1', 'y1', 'x2', 'y2'], [{ name: 'class',
   ...PAINT_ATTRIBUTES.slice(1), { name: 'stroke-dasharray', value: v.paint('strokeDasharray') },
 ])
 const HALO_EMISSION = primitive(['x', 'y', 'width', 'height', 'rx', 'ry'], [{ name: 'class', value: v.meta('edge-label-halo') }], PAINT_ATTRIBUTES.slice(0, 2))
+const NODE_GROUP_ATTRIBUTES: readonly SvgAttribute[] = [
+  { name: 'class', value: v.identity('classNames') }, { name: 'data-id', value: v.identity('id') },
+  { name: 'data-label', value: { source: 'groupMetadata', field: 'label' }, display: true },
+  { name: 'data-shape', value: { source: 'groupMetadata', field: 'shape' } },
+  { name: 'data-semantic-shape', value: { source: 'groupMetadata', field: 'semanticShape' } },
+]
+const NODE_GROUP_EMISSIONS = Object.freeze([false, true].map(link => snapshotSvgEmissionRecipe({
+  kind: 'group', attributes: [
+    ...NODE_GROUP_ATTRIBUTES,
+    ...(link ? [
+      { name: 'data-href' as const, value: { source: 'groupMetadata' as const, field: 'href' as const } },
+      { name: 'role' as const, value: v.meta('link') }, { name: 'tabindex' as const, value: v.meta(0) },
+    ] : []),
+  ],
+}) as SvgGroupEmission))
 const IMAGE_FRAME_EMISSION = primitive(['x', 'y', 'width', 'height', 'rx'], [], [], '/>')
 const IMAGE_SUN_EMISSION = primitive(['cx', 'cy', 'r'], [], [], '/>')
 const IMAGE_PATH_EMISSION = primitive(['d'], [], [], '/>') as SvgPrimitiveEmission
@@ -354,7 +369,6 @@ function renderNode(node: PositionedNode, font: string, style: ResolvedRenderSty
   const userClasses = (node.classNames ?? [])
     .map(c => c.replace(/[^A-Za-z0-9_-]/g, ''))
     .filter(Boolean)
-  const classAttr = ['node', ...userClasses].join(' ')
   const channels: SemanticChannels | undefined =
     node.shape === 'state-start' ? { status: 'start' } :
     node.shape === 'state-end' ? { status: 'end' } :
@@ -373,12 +387,12 @@ function renderNode(node: PositionedNode, font: string, style: ResolvedRenderSty
   return marks.group({
     id: `node:${node.id}`,
     role: 'node',
-    emission: { kind: 'group', attributes: [
-      { name: 'class', value: v.meta(classAttr) }, { name: 'data-id', value: v.meta(node.id) },
-      { name: 'data-label', value: v.meta(node.label), display: true }, { name: 'data-shape', value: v.meta(node.shape) },
-      ...(node.semanticShape ? [{ name: 'data-semantic-shape' as const, value: v.meta(node.semanticShape) }] : []),
-      ...(includeInteraction && node.href ? [{ name: 'data-href' as const, value: v.meta(node.href) }, { name: 'role' as const, value: v.meta('link') }, { name: 'tabindex' as const, value: v.meta(0) }] : []),
-    ] },
+    identity: { id: node.id, classNames: ['node', ...userClasses] },
+    emission: NODE_GROUP_EMISSIONS[includeInteraction && node.href ? 1 : 0]!,
+    emissionMetadata: { label: node.label, shape: node.shape,
+      ...(node.semanticShape ? { semanticShape: node.semanticShape } : {}),
+      ...(includeInteraction && node.href ? { href: node.href } : {}),
+    },
     children,
     channels,
   })

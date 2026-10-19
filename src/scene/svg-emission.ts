@@ -45,6 +45,7 @@ export type SvgValue =
   | { readonly source: 'connectorLabel'; readonly index: number }
   | { readonly source: 'colorMix'; readonly primary: SvgValue; readonly secondary: SvgValue; readonly amount: number }
   | { readonly source: 'document'; readonly field: 'text' | 'domId' }
+  | { readonly source: 'groupMetadata'; readonly field: keyof SvgGroupMetadata }
   | { readonly source: 'style'; readonly declarations: readonly SvgCssDeclaration[] }
   /** Only extra family metadata or presentation values absent from Scene IR.
    * Semantic attributes must use the corresponding projection source. */
@@ -101,6 +102,14 @@ export interface SvgGroupEmission {
   readonly attributes: readonly SvgAttribute[]
   readonly prefix?: readonly SvgDocumentTextEmission[]
   readonly leadingWhitespace?: '  '
+}
+
+/** Additional node-wrapper facts absent from public GroupMark semantics. */
+export interface SvgGroupMetadata {
+  readonly label: string
+  readonly shape: string
+  readonly semanticShape?: string
+  readonly href?: string
 }
 
 export interface SvgTextEmission {
@@ -293,6 +302,13 @@ export function svgEmissionValue(node: SceneNode, value: SvgValue, recipe?: SvgP
     case 'connectorLabel': return node.kind === 'connector' ? node.labels[value.index]?.text : undefined
     case 'colorMix': return `color-mix(in srgb, ${svgEmissionValue(node, value.primary, recipe)} ${value.amount}%, ${svgEmissionValue(node, value.secondary, recipe)})`
     case 'document': return node.kind === 'document' ? node[value.field] : undefined
+    case 'groupMetadata': {
+      if (node.kind !== 'group') throw new TypeError('SVG group metadata requires a group mark')
+      const metadata = GROUP_METADATA.get(node)
+      if (!metadata) throw new TypeError('SVG group metadata has not been captured')
+      if (!GROUP_METADATA_FIELDS.includes(value.field)) throw new TypeError('Unknown SVG group metadata field')
+      return metadata[value.field]
+    }
     case 'style': {
       let result = ''
       let finalValues: Map<SvgCssProperty, string | number | boolean | undefined> | undefined
@@ -488,6 +504,67 @@ export const SVG_EMISSION_METADATA_LIMITS: SvgEmissionMetadataLimits = Object.fr
   maxDepth: 64, maxObjects: 400_000, maxProperties: 1_600_000,
   maxArrayEntries: 1_600_000, maxTextBytes: 5_000_000, maxPropertyKeyBytes: 5_000_000,
 })
+
+const GROUP_METADATA_FIELDS: readonly (keyof SvgGroupMetadata)[] = ['label', 'shape', 'semanticShape', 'href']
+const GROUP_METADATA = new WeakMap<object, SvgGroupMetadata>()
+const GROUP_METADATA_COUNTS = new WeakMap<object, SvgEmissionMetadataCounts>()
+const CANONICAL_GROUP_METADATA = new WeakSet<object>()
+
+/** This closed scalar record has no object descendants or aliases. Copy own
+ * descriptors before retaining it; caller freezing and Proxy identity confer
+ * no ownership. Custom limits always recount, including privately owned data. */
+export function snapshotSvgGroupMetadata(input: SvgGroupMetadata, limits = SVG_EMISSION_METADATA_LIMITS): SvgGroupMetadata {
+  if (limits === SVG_EMISSION_METADATA_LIMITS && input && CANONICAL_GROUP_METADATA.has(input)) return input
+  for (const key of ['maxDepth', 'maxObjects', 'maxProperties', 'maxArrayEntries', 'maxTextBytes', 'maxPropertyKeyBytes'] as const) {
+    if (!Number.isSafeInteger(limits[key]) || limits[key] < 0) throw new TypeError('SVG metadata limits must be non-negative safe integers')
+  }
+  if (!input || typeof input !== 'object' || Array.isArray(input)) throw new TypeError('SVG group metadata requires a plain object')
+  if (limits.maxObjects < 1) throw new RangeError('SVG emission metadata exceeds object budget')
+  const prototype = Object.getPrototypeOf(input)
+  if (prototype !== Object.prototype && prototype !== null) throw new TypeError('SVG group metadata requires a plain object')
+  const keys = Reflect.ownKeys(input)
+  if (keys.length > limits.maxProperties) throw new RangeError('SVG emission metadata exceeds property budget')
+  const result: Record<string, string | undefined> = {}
+  const counts = { objects: 1, properties: keys.length, arrayEntries: 0, textBytes: 0, propertyKeyBytes: 0 }
+  for (const key of keys) {
+    if (typeof key !== 'string' || !GROUP_METADATA_FIELDS.includes(key as keyof SvgGroupMetadata)) throw new TypeError('Unknown SVG group metadata field')
+    const descriptor = Object.getOwnPropertyDescriptor(input, key)
+    if (!descriptor || !('value' in descriptor) || !descriptor.enumerable) throw new TypeError('SVG group metadata requires enumerable data properties')
+    const keyBytes = boundedUtf8ByteLength(key, limits.maxPropertyKeyBytes - counts.propertyKeyBytes)
+    counts.propertyKeyBytes += keyBytes
+    if (counts.propertyKeyBytes > limits.maxPropertyKeyBytes) throw new RangeError('SVG emission metadata exceeds propertyKeyBytes budget')
+    if (limits.maxDepth < 1) throw new RangeError('SVG emission metadata exceeds depth budget')
+    const value: unknown = descriptor.value
+    if (typeof value !== 'string' && !(value === undefined && (key === 'semanticShape' || key === 'href'))) throw new TypeError('SVG group metadata values must be strings')
+    if (typeof value === 'string') {
+      counts.textBytes += boundedUtf8ByteLength(value, limits.maxTextBytes - counts.textBytes)
+      if (counts.textBytes > limits.maxTextBytes) throw new RangeError('SVG emission metadata exceeds textBytes budget')
+    }
+    Object.defineProperty(result, key, { value, enumerable: true })
+  }
+  if (!Object.hasOwn(result, 'label') || !Object.hasOwn(result, 'shape')) throw new TypeError('SVG group metadata requires label and shape')
+  const captured = Object.freeze(result) as unknown as SvgGroupMetadata
+  GROUP_METADATA_COUNTS.set(captured, Object.freeze(counts))
+  if (limits === SVG_EMISSION_METADATA_LIMITS) CANONICAL_GROUP_METADATA.add(captured)
+  return captured
+}
+
+export function attachSvgGroupMetadata(node: object, metadata: SvgGroupMetadata): void {
+  GROUP_METADATA.set(node, snapshotSvgGroupMetadata(metadata))
+}
+
+export function svgGroupMetadata(node: object): SvgGroupMetadata | undefined { return GROUP_METADATA.get(node) }
+
+export function svgGroupMetadataCounts(metadata: SvgGroupMetadata): SvgEmissionMetadataCounts {
+  const counts = GROUP_METADATA_COUNTS.get(metadata)
+  if (!counts) throw new TypeError('SVG group metadata must be captured before accounting')
+  return counts
+}
+
+export function transferSvgGroupMetadata(source: object, target: object): void {
+  const metadata = GROUP_METADATA.get(source)
+  if (metadata) GROUP_METADATA.set(target, metadata)
+}
 
 const RECIPE_COUNTS = new WeakMap<object, SvgEmissionMetadataCounts>()
 const CANONICAL_RECIPES = new WeakSet<object>()
@@ -688,6 +765,7 @@ export function validateSvgEmissionRecipe(recipe: SvgEmissionRecipe): void {
       case 'connector': oneOf(item.field, ['color', 'width', 'opacity', 'mixBlendMode', 'pathLength', 'lineCap', 'lineJoin', 'miterLimit', 'lineStyle', 'relationshipKind', 'direction', 'hasMarkerStart', 'hasMarkerEnd', 'markerStartShape', 'markerEndShape'], false); return
       case 'channel': oneOf(item.field, SEMANTIC_CHANNEL_NAMES, false); return
       case 'document': oneOf(item.field, ['text', 'domId'], false); return
+      case 'groupMetadata': oneOf(item.field, GROUP_METADATA_FIELDS, false); return
       default: throw new TypeError('Unsupported SVG projection source')
     }
   }
@@ -698,6 +776,11 @@ export function validateSvgEmissionRecipe(recipe: SvgEmissionRecipe): void {
       const attribute = object(entry, ['name', 'value', 'format', 'omit', 'fallback', 'display', 'escape', 'before'])
       if (typeof attribute.name !== 'string' || !ATTRIBUTE_NAMES.has(attribute.name) && !/^data-[a-zA-Z0-9_.:-]+$/.test(attribute.name)) throw new TypeError('Unsupported SVG attribute name')
       projection(attribute.value)
+      const value = attribute.value as SvgValue
+      if (value.source === 'groupMetadata') {
+        const names = { label: 'data-label', shape: 'data-shape', semanticShape: 'data-semantic-shape', href: 'data-href' } as const
+        if (attribute.name !== names[value.field]) throw new TypeError('SVG group metadata must project its matching data attribute')
+      }
       oneOf(attribute.format, ['exact', 'round2', 'round3', 'percent1'])
       if (attribute.format === 'percent1' && attribute.name !== 'data-percent') throw new TypeError('Percent formatting is limited to percentage metadata')
       oneOf(attribute.omit, ['undefined', 'zero', 'false', 'empty'])

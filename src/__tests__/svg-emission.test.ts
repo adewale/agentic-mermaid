@@ -1,5 +1,5 @@
 import { describe, expect, test } from 'bun:test'
-import { buildExternalScene, DefaultBackend, EXTERNAL_SCENE_API_VERSION } from '../index.ts'
+import { buildExternalScene, DefaultBackend, EXTERNAL_SCENE_API_VERSION, renderMermaidSVG } from '../index.ts'
 import { svgTextWhitespace, writeSvgTextWhitespace } from '../scene/svg-text-whitespace.ts'
 import type { DocumentMark, SceneDoc, ShapeMark } from '../scene/ir.ts'
 import * as marks from '../scene/marks.ts'
@@ -7,14 +7,16 @@ import { admitSceneDocument, freezeBoundedFirstPartyData, snapshotBoundedExterna
 import {
   measureSvgEmission, serializeSvgEmission, snapshotSvgEmissionRecipe,
   SVG_EMISSION_METADATA_LIMITS, svgEmissionMetadataCounts, svgValue as v,
+  snapshotSvgGroupMetadata, attachSvgGroupMetadata, svgGroupMetadataCounts,
   type SvgEmissionRecipe,
 } from '../scene/svg-emission.ts'
 import { SvgWriter } from '../scene/svg-writer.ts'
-import { sceneDocumentEmission } from '../scene/serialization.ts'
+import { sceneDocumentEmission, attachSceneNodeEmission, sceneNodeEmission } from '../scene/serialization.ts'
 import { renderDefaultScene } from '../scene/backend.ts'
 import { SceneValidationError } from '../scene/scene-validation.ts'
 import { preparePixelText } from '../shared/prepared-text.ts'
 import { createTextMeasurementExecution, withTextMeasurementExecution } from '../text-measurement-profile.ts'
+import { lowerGraphScene } from '../renderer.ts'
 
 describe('bounded SVG writer', () => {
   test.each(['string', 'chunks', 'count'] as const)('counts joined UTF-8 across arbitrary chunk boundaries in %s mode', mode => {
@@ -114,6 +116,158 @@ describe('private typed SVG recipes', () => {
     expect(Object.isFrozen(snapshot.attributes[0])).toBe(true)
     expect(serializeSvgEmission(rectangle(), snapshot)).toBe('<rect data-label="&lt;script&gt;" data-alt="&lt;script&gt;" />')
     expect(svgEmissionMetadataCounts(snapshot).objects).toBeGreaterThan(0)
+  })
+
+  test('shared group programs project isolated semantic identities and copied scalar metadata', () => {
+    const program = snapshotSvgEmissionRecipe({ kind: 'group', attributes: [
+      { name: 'class', value: v.identity('classNames') }, { name: 'data-id', value: v.identity('id') },
+      { name: 'data-label', value: { source: 'groupMetadata', field: 'label' }, display: true },
+      { name: 'data-shape', value: { source: 'groupMetadata', field: 'shape' } },
+      { name: 'data-semantic-shape', value: { source: 'groupMetadata', field: 'semanticShape' } },
+      { name: 'data-href', value: { source: 'groupMetadata', field: 'href' } },
+    ] })
+    if (program.kind !== 'group') throw new Error('Expected group program')
+    const classes = ['node', 'hot']
+    const metadata = { label: 'Alpha & <B>', shape: 'rectangle' }
+    let reads = 0
+    const proxy = new Proxy(metadata, { get() { reads++; throw new Error('caller read') } })
+    const identity = new Proxy({ id: 'A&B', classNames: classes }, { get() { reads++; throw new Error('caller identity read') } })
+    const first = marks.group({ id: 'first', role: 'node', identity,
+      emission: program, emissionMetadata: proxy, children: [] })
+    const second = marks.group({ id: 'second', role: 'node', identity: { id: '界', classNames: ['node', 'cold'] },
+      emission: program, emissionMetadata: { label: 'Beta', shape: 'diamond', semanticShape: 'decision', href: '/safe' }, children: [] })
+    metadata.label = 'changed'; classes.push('leaked')
+    const safe = buildExternalScene({
+      version: EXTERNAL_SCENE_API_VERSION, family: 'family:test/owned-group', width: 20, height: 20,
+      colors: { bg: '#fff', fg: '#111' }, metadata: { title: 'Groups' },
+      parts: [{ kind: 'container', id: 'placeholder', role: 'group', children: [] }],
+    })
+    const external = { ...safe, parts: safe.parts.flatMap<SceneDoc['parts'][number]>(part => part.kind === 'group' ? [first, second] : [part]) }
+    // Built-in wrapper metadata is not a public external-container extension.
+    expect(() => DefaultBackend.render(external, { seed: 0 })).toThrow('external containers must use the canonical generated wrapper')
+    const shell = lowerGraphScene({ positioned: { width: 20, height: 20, nodes: [], edges: [], groups: [] },
+      colors: { bg: '#fff', fg: '#111' }, resolved: { renderOptions: {} } })
+    const source = { ...shell, parts: [...shell.parts.slice(0, -1), first, second, shell.parts.at(-1)!] }
+    const output = DefaultBackend.render(source, { seed: 0 })
+    expect(output).toContain('<g class="node hot" data-id="A&amp;B" data-label="Alpha &amp; &lt;B&gt;" data-shape="rectangle" data-role="node">')
+    expect(output).toContain('<g class="node cold" data-id="界" data-label="Beta" data-shape="diamond" data-semantic-shape="decision" data-href="/safe" data-role="node">')
+    expect(reads).toBe(0)
+    expect(Object.isFrozen(metadata)).toBe(false)
+    expect(Object.isFrozen(classes)).toBe(false)
+    expect(Object.isFrozen(source.parts)).toBe(false)
+    const copied = snapshotBoundedExternalData(first, EXTERNAL_SCENE_DOCUMENT_SNAPSHOT_LIMITS) as typeof first
+    expect(copied.open).toBe('<g class="node hot" data-id="A&amp;B" data-label="Alpha &amp; &lt;B&gt;" data-shape="rectangle" data-role="node">')
+    expect(copied.close).toBe('</g>')
+    const capturedProgram = sceneNodeEmission(copied)
+    if (!capturedProgram) throw new Error('Missing captured group program')
+    attachSceneNodeEmission(copied, capturedProgram)
+    expect(DefaultBackend.drawNode(copied, { seed: 0 })).toBe('<g class="node hot" data-id="A&amp;B" data-label="Alpha &amp; &lt;B&gt;" data-shape="rectangle" data-role="node">\n</g>')
+    Object.defineProperty(first, 'open', { enumerable: true, get() { reads++; throw new Error('poisoned source view') } })
+    expect(copied.open).toContain('data-label="Alpha &amp; &lt;B&gt;"')
+    expect(reads).toBe(0)
+  })
+
+  test('node wrapper programs preserve heterogeneous public Flow metadata and strict interactions', () => {
+    const source = 'flowchart LR\nA["Alpha"]:::hot --> B{"界"}\nclick A href "https://example.test/path"'
+    const svg = renderMermaidSVG(source)
+    expect(svg).toContain('<g class="node hot" data-id="A" data-label="Alpha" data-shape="rectangle" data-href="https://example.test/path" role="link" tabindex="0" data-role="node">')
+    expect(svg).toContain('<g class="node" data-id="B" data-label="界" data-shape="diamond" data-role="node">')
+    const strict = renderMermaidSVG(source, { security: 'strict' })
+    expect(strict).toContain('<g class="node hot" data-id="A" data-label="Alpha" data-shape="rectangle" data-role="node">')
+    expect(strict).not.toContain('data-href=')
+  })
+
+  test('closed group scalar metadata rejects accessors and mismatched projection sites', () => {
+    let reads = 0
+    const accessor = Object.defineProperty({ shape: 'rectangle' }, 'label', { enumerable: true, get() { reads++; return 'caller' } })
+    expect(() => snapshotSvgGroupMetadata(accessor as { label: string; shape: string })).toThrow('enumerable data properties')
+    expect(reads).toBe(0)
+    expect(Object.isFrozen(accessor)).toBe(false)
+    expect(() => snapshotSvgGroupMetadata({ label: 'A', shape: 'rectangle', markup: '<g>' } as { label: string; shape: string })).toThrow('Unknown SVG group metadata field')
+    expect(() => snapshotSvgEmissionRecipe({ kind: 'group', attributes: [
+      { name: 'fill', value: { source: 'groupMetadata', field: 'label' } },
+    ] })).toThrow('matching data attribute')
+  })
+
+  test('closed group scalar capture counts literal UTF-8 data and respects custom limits on reuse', () => {
+    const metadata = snapshotSvgGroupMetadata({ label: '界', shape: 'r' })
+    expect(svgGroupMetadataCounts(metadata)).toEqual({ objects: 1, properties: 2, arrayEntries: 0, textBytes: 4, propertyKeyBytes: 10 })
+    for (const override of [{ maxObjects: 0 }, { maxProperties: 1 }, { maxTextBytes: 3 }, { maxPropertyKeyBytes: 9 }, { maxDepth: 0 }]) {
+      expect(() => snapshotSvgGroupMetadata(metadata, { ...SVG_EMISSION_METADATA_LIMITS, ...override })).toThrow(/budget/)
+    }
+    expect(() => snapshotSvgGroupMetadata(metadata, { ...SVG_EMISSION_METADATA_LIMITS, maxObjects: 1, maxProperties: 2,
+      maxArrayEntries: 0, maxTextBytes: 4, maxPropertyKeyBytes: 10, maxDepth: 1 })).not.toThrow()
+    const large = snapshotSvgGroupMetadata({ label: 'x'.repeat(5_000_001), shape: 'r' }, { ...SVG_EMISSION_METADATA_LIMITS, maxTextBytes: 6_000_000 })
+    expect(() => snapshotSvgGroupMetadata(large)).toThrow('textBytes budget')
+  })
+
+  test('group identity bounds class copying before enumeration and retains the literal boundary', () => {
+    const group = (identity: { id: string; classNames?: readonly string[] }) => marks.group({
+      id: 'identity', role: 'node', identity, children: [], emission: { kind: 'group', attributes: [
+        { name: 'class', value: v.identity('classNames') }, { name: 'data-id', value: v.identity('id') },
+      ] },
+    })
+    let enumerations = 0
+    let elementDescriptors = 0
+    const oversized = new Proxy(new Array<string>(100_001), {
+      ownKeys() { enumerations++; throw new Error('oversized enumeration') },
+      getOwnPropertyDescriptor(target, key) {
+        if (key !== 'length') elementDescriptors++
+        return Reflect.getOwnPropertyDescriptor(target, key)
+      },
+    })
+    expect(() => group({ id: 'oversized', classNames: oversized })).toThrow('too many classes')
+    expect(enumerations).toBe(0)
+    expect(elementDescriptors).toBe(0)
+    const classes = Array.from({ length: 100_000 }, () => 'x')
+    const captured = group({ id: 'edge', classNames: classes })
+    classes[99_999] = 'changed'
+    expect(captured.identity?.classNames).toHaveLength(100_000)
+    expect(captured.identity?.classNames?.at(-1)).toBe('x')
+    expect(captured.open.startsWith('<g class="x x ')).toBe(true)
+    expect(captured.open.endsWith(' x" data-id="edge" data-role="node">')).toBe(true)
+    const hiddenKey = new Proxy(['x'], { ownKeys() { return ['length', 'other'] } })
+    expect(() => group({ id: 'hidden-key', classNames: hiddenKey })).toThrow('dense data')
+  })
+
+  test('group identity rejects excess descriptors and charges UTF-8 across scalar fields', () => {
+    const group = (identity: { id: string; from?: string }) => marks.group({
+      id: 'identity', role: 'node', identity, children: [], emission: { kind: 'group', attributes: [] },
+    })
+    let descriptors = 0
+    const oversized = new Proxy({ id: 'A', from: 'B', to: 'C', classNames: [], extra: 'unknown' }, {
+      getOwnPropertyDescriptor(target, key) { descriptors++; return Reflect.getOwnPropertyDescriptor(target, key) },
+    })
+    expect(() => group(oversized)).toThrow('too many properties')
+    expect(descriptors).toBe(0)
+    let reads = 0
+    const accessor = Object.defineProperty({}, 'id', { enumerable: true, get() { reads++; return 'A' } })
+    expect(() => group(accessor as { id: string })).toThrow('enumerable data properties')
+    expect(reads).toBe(0)
+    expect(() => group(new Proxy({ id: 'hidden' }, { ownKeys() { return [] } }))).toThrow('requires an id')
+    //1,666,666 three-byte characters plus two ASCII bytes exactly meets5M.
+    const text = '界'.repeat(1_666_666) + 'aa'
+    expect(group({ id: text }).identity?.id).toBe(text)
+    expect(() => group({ id: text, from: 'x' })).toThrow('UTF-8 text budget')
+  })
+
+  test.each([
+    ['external snapshot', snapshotBoundedExternalData], ['first-party freeze', freezeBoundedFirstPartyData],
+  ] as const)('%s accounts for shared hidden group scalars, aggregate UTF-8 and enclosing depth', (_name, admit) => {
+    // Minimal carrier objects isolate this generic data boundary's accounting
+    // from independent Scene validity. Actual admitted groups are tested above.
+    const metadata = snapshotSvgGroupMetadata({ label: '界', shape: 'r' })
+    const carrier = (value = metadata) => { const node = {}; attachSvgGroupMetadata(node, value); return node }
+    const limits = { ...EXTERNAL_SCENE_DOCUMENT_SNAPSHOT_LIMITS, maxObjects: 4, maxTextBytes: 4,
+      maxAggregateProperties: 2, maxAggregatePropertyKeyBytes: 10, maxAggregateArrayEntries: 2, maxDepth: 2 }
+    // One root array, two carriers, one aliased scalar record. The only text
+    // is the three-byte CJK label plus one ASCII shape; keys have ten bytes.
+    expect(() => admit([carrier(), carrier()], limits)).not.toThrow()
+    for (const override of [{ maxObjects: 3 }, { maxTextBytes: 3 }, { maxAggregateProperties: 1 }, { maxAggregatePropertyKeyBytes: 9 }]) {
+      expect(() => admit([carrier(), carrier()], { ...limits, ...override })).toThrow()
+    }
+    expect(() => admit([carrier(), carrier(snapshotSvgGroupMetadata({ label: '界', shape: 'r' }))], limits)).toThrow(/Private SVG emission metadata/)
+    expect(() => admit([carrier(), { nested: carrier() }], { ...EXTERNAL_SCENE_DOCUMENT_SNAPSHOT_LIMITS, maxDepth: 2 })).toThrow('too deeply nested')
   })
 
   test('projects the historical translate-scale spelling only from an equivalent typed matrix', () => {

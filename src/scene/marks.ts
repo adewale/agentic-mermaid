@@ -102,7 +102,8 @@ function typedIdentity(fields: { id: string; role: SceneRole; identity?: Omit<Sv
   return { id: fields.id, role: fields.role, ...(classNames ? { classNames } : {}) }
 }
 
-import { projectSvgCoordinate, snapshotSvgEmissionRecipe, type SvgEmissionRecipe, type SvgGroupEmission } from './svg-emission.ts'
+import { attachSvgGroupMetadata, snapshotSvgGroupMetadata, projectSvgCoordinate, snapshotSvgEmissionRecipe, SVG_EMISSION_METADATA_LIMITS, type SvgEmissionRecipe, type SvgGroupEmission, type SvgGroupMetadata } from './svg-emission.ts'
+import { boundedUtf8ByteLength } from '../shared/utf8.ts'
 import { decorateEmission, emissionAttribute, emissionIdentity, firstEmission } from './svg-mark-emission.ts'
 
 export function shape(fields: {
@@ -860,6 +861,68 @@ export function documentClose(): DocumentMark {
 
 export { indentLines } from './serialization.ts'
 
+/** The optional typed identity is copied without retaining caller arrays or
+ * reading accessors. Other group paths keep their existing identity source. */
+// Match the enclosing Scene's existing per-array ceiling without importing
+// the admission/validation modules back into their mark-construction owner.
+const MAX_GROUP_IDENTITY_CLASSES = 100_000
+
+function copyGroupIdentity(input: Omit<SvgSemanticIdentity, 'role'>, role: SceneRole): SvgSemanticIdentity {
+  if (!input || typeof input !== 'object' || Array.isArray(input)) throw new TypeError('Group identity must be plain data')
+  const prototype = Object.getPrototypeOf(input)
+  if (prototype !== Object.prototype && prototype !== null) throw new TypeError('Group identity must be plain data')
+  const result: SvgSemanticIdentity = { id: '', role }
+  let sawId = false
+  let textBytes = 0
+  const consumeText = (value: string): void => {
+    const remaining = SVG_EMISSION_METADATA_LIMITS.maxTextBytes - textBytes
+    const bytes = boundedUtf8ByteLength(value, remaining)
+    if (bytes > remaining) throw new RangeError('Group identity exceeds the UTF-8 text budget')
+    textBytes += bytes
+  }
+  const keys = Reflect.ownKeys(input)
+  if (keys.length > 4) throw new RangeError('Group identity contains too many properties')
+  // The closed keys are ASCII and at most10 bytes; arbitrary names never
+  // reach descriptor reads or retained copied properties.
+  for (const key of keys) {
+    if (typeof key !== 'string' || !['id', 'from', 'to', 'classNames'].includes(key)) throw new TypeError('Unknown group identity field')
+    const descriptor = Object.getOwnPropertyDescriptor(input, key)
+    if (!descriptor || !('value' in descriptor) || !descriptor.enumerable) throw new TypeError('Group identity requires enumerable data properties')
+    const value: unknown = descriptor.value
+    if (value === undefined && key !== 'id') continue
+    if (key !== 'classNames') {
+      if (typeof value !== 'string') throw new TypeError('Group identity fields must be strings')
+      consumeText(value)
+      result[key as 'id' | 'from' | 'to'] = value
+      if (key === 'id') sawId = true
+      continue
+    }
+    if (!Array.isArray(value) || Object.getPrototypeOf(value) !== Array.prototype) throw new TypeError('Group identity classes must be a plain array')
+    const length = Object.getOwnPropertyDescriptor(value, 'length')
+    if (!length || !('value' in length) || !Number.isSafeInteger(length.value) || length.value < 0) throw new TypeError('Group identity classes must have a bounded length')
+    // Preflight before ownKeys and per-element descriptors, as external Scene
+    // snapshot admission does. A sparse huge array needs no enumeration.
+    if (length.value > MAX_GROUP_IDENTITY_CLASSES) throw new RangeError('Group identity contains too many classes')
+    const classKeys = Reflect.ownKeys(value)
+    if (classKeys.length !== length.value + 1 || !classKeys.includes('length')) throw new TypeError('Group identity classes must be dense data')
+    const maxIndexLength = String(Math.max(0, length.value - 1)).length
+    for (const key of classKeys) {
+      if (key === 'length') continue
+      if (typeof key !== 'string' || key.length > maxIndexLength || !/^(?:0|[1-9]\d*)$/.test(key) || Number(key) >= length.value) throw new TypeError('Group identity classes must be dense data')
+    }
+    const classes: string[] = []
+    for (let index = 0; index < length.value; index++) {
+      const item = Object.getOwnPropertyDescriptor(value, String(index))
+      if (!item || !('value' in item) || !item.enumerable || typeof item.value !== 'string') throw new TypeError('Group identity classes must contain strings')
+      consumeText(item.value)
+      classes.push(item.value)
+    }
+    result.classNames = classes
+  }
+  if (!sawId) throw new TypeError('Group identity requires an id')
+  return result
+}
+
 export function group(fields: {
   id: string
   role: SceneRole
@@ -869,6 +932,8 @@ export function group(fields: {
   open?: string
   close?: string
   emission?: SvgGroupEmission
+  identity?: Omit<SvgSemanticIdentity, 'role'>
+  emissionMetadata?: SvgGroupMetadata
   children: Array<{ node: SceneNode; indent: number }>
   join?: string
   channels?: SemanticChannels
@@ -876,7 +941,11 @@ export function group(fields: {
 }): GroupMark {
   if (fields.emission) {
     const recipe = snapshotSvgEmissionRecipe(fields.emission) as SvgGroupEmission
-    const identity = emissionIdentity(recipe, fields)
+    const metadataDescriptor = Object.getOwnPropertyDescriptor(fields, 'emissionMetadata')
+    const identityDescriptor = Object.getOwnPropertyDescriptor(fields, 'identity')
+    if (metadataDescriptor && !('value' in metadataDescriptor) || identityDescriptor && !('value' in identityDescriptor)) throw new TypeError('Typed group inputs require data properties')
+    const metadata = metadataDescriptor?.value === undefined ? undefined : snapshotSvgGroupMetadata(metadataDescriptor!.value)
+    const identity = identityDescriptor?.value === undefined ? emissionIdentity(recipe, fields) : copyGroupIdentity(identityDescriptor!.value, fields.role)
     const owner = fields.owner ?? { id: identity.id, role: identity.role }
     const children = fields.children.map(child => {
       if (child.node.owner || child.node.kind === 'document' || child.node.kind === 'group') return child
@@ -897,9 +966,11 @@ export function group(fields: {
       children, join: fields.join ?? '\n', identity, owner,
       ...(fields.channels ? { channels: fields.channels } : {}),
       ...(fields.visibility ? { visibility: fields.visibility } : {}), ...(fields.transform ? { transform: fields.transform } : {}) }
+    if (metadata) attachSvgGroupMetadata(node, metadata)
     const decorated = decorateEmission(recipe, node) as SvgGroupEmission
     return attachGroupEmissionViews(attachSceneNodeEmission(node, decorated), decorated)
   }
+  if (Object.hasOwn(fields, 'identity') || Object.hasOwn(fields, 'emissionMetadata')) throw new TypeError('Group identity and emission metadata require a typed program')
   if (typeof fields.open !== 'string' || typeof fields.close !== 'string') throw new TypeError('Group requires open/close strings or typed emission')
   assertInertGroupOpen(fields.id, fields.open, fields.transform)
   const join = fields.join ?? '\n'

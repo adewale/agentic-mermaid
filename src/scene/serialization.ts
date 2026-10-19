@@ -3,6 +3,7 @@ import { compareCodePointStrings } from '../shared/deterministic-order.ts'
 import {
   serializeSvgEmission, snapshotSvgEmissionRecipe, writeSvgEmission, writeSvgGroupOpen,
   measureSvgEmission,
+  transferSvgGroupMetadata,
   type SvgEmissionRecipe, type SvgEmissionContext, type SvgGroupEmission,
 } from './svg-emission.ts'
 import { writeConnectorSvg, writeShapeSvg, writeTextSvg, SvgWriter } from './svg-writer.ts'
@@ -239,6 +240,7 @@ export function sceneNodeSerialization(node: SceneNode): string {
 
 export function transferSceneNodeSerialization(source: object, target: object): void {
   if (WRITABLE_SCENE_NODES.has(source)) WRITABLE_SCENE_NODES.add(target)
+  transferSvgGroupMetadata(source, target)
   const recipe = TYPED_SCENE_EMISSIONS.get(source)
   if (recipe) TYPED_SCENE_EMISSIONS.set(target, recipe)
   const svg = SERIALIZED_SCENE_NODES.get(source)

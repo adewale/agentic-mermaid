@@ -11,7 +11,7 @@ import { transferRetainedPixelText } from '../shared/prepared-text.ts'
 import type { SceneDoc, GroupMark } from './ir.ts'
 import { SCENE_VALIDATION_LIMITS, assertAdmissibleSceneDoc, sceneValidationMode } from './scene-validation.ts'
 import { sceneAssertionsEnabled } from './assertions.ts'
-import { svgEmissionMetadataCounts, type SvgGroupEmission } from './svg-emission.ts'
+import { svgEmissionMetadataCounts, svgGroupMetadata, svgGroupMetadataCounts, type SvgEmissionMetadataCounts, type SvgGroupEmission } from './svg-emission.ts'
 import { boundedUtf8ByteLength } from '../shared/utf8.ts'
 import { transferSceneNodeSerialization, sceneNodeEmission, attachGroupEmissionViews, hasOwnedSceneEmissionView } from './serialization.ts'
 import { measureRenderStage } from '../render-stages.ts'
@@ -64,13 +64,27 @@ export const EXTERNAL_SCENE_DOCUMENT_SNAPSHOT_LIMITS: ExternalDataSnapshotLimits
 
 /** Hidden immutable recipes participate in the same graph limits as enumerable
  * Scene data. Shared templates are charged once, just as shared frozen data. */
-function privateMetadataAccounting() {
+function privateMetadataAccounting(limits: ExternalDataSnapshotLimits) {
   const seen = new WeakSet<object>()
-  return (candidate: object) => {
+  return (candidate: object, depth: number, consume: (counts: SvgEmissionMetadataCounts) => void): void => {
     const recipe = sceneNodeEmission(candidate)
-    if (!recipe || seen.has(recipe)) return undefined
-    seen.add(recipe)
-    return svgEmissionMetadataCounts(recipe)
+    if (recipe && !seen.has(recipe)) {
+      seen.add(recipe)
+      consume(svgEmissionMetadataCounts(recipe))
+    }
+    const metadata = svgGroupMetadata(candidate)
+    if (!metadata) return
+    // The only hidden descendant is this scalar record. Check its actual
+    // enclosing object depth even when another alias was already charged.
+    if (depth + 1 > limits.maxDepth) throw new Error('External Scene input object graph is too deeply nested')
+    if (seen.has(metadata)) return
+    seen.add(metadata)
+    const counts = svgGroupMetadataCounts(metadata)
+    if (counts.properties > limits.maxPropertiesPerObject) throw new Error('Private SVG group metadata contains too many properties')
+    if (limits.maxPropertyKeyBytes < 13) for (const key of Object.keys(metadata)) {
+      if (key.length > limits.maxPropertyKeyBytes) throw new Error('Private SVG group metadata contains an oversized property key')
+    }
+    consume(counts)
   }
 }
 
@@ -92,7 +106,16 @@ export function snapshotBoundedExternalData(
   let arrayEntries = 0
   let properties = 0
   let propertyKeyBytes = 0
-  const metadata = privateMetadataAccounting()
+  const metadata = privateMetadataAccounting(limits)
+  const consumeMetadata = (hidden: SvgEmissionMetadataCounts): void => {
+    objects += hidden.objects; textBytes += hidden.textBytes
+    arrayEntries += hidden.arrayEntries; properties += hidden.properties
+    propertyKeyBytes += hidden.propertyKeyBytes
+    if (textBytes > limits.maxTextBytes || arrayEntries > limits.maxAggregateArrayEntries
+      || properties > limits.maxAggregateProperties || propertyKeyBytes > limits.maxAggregatePropertyKeyBytes) {
+      throw new Error('Private SVG emission metadata exceeds the aggregate Scene data limits')
+    }
+  }
 
   const visit = (candidate: unknown, depth: number, path: string): unknown => {
     if (typeof candidate === 'string') {
@@ -113,16 +136,7 @@ export function snapshotBoundedExternalData(
     if (depth > limits.maxDepth) {
       throw new Error('External Scene input object graph is too deeply nested')
     }
-    const hidden = metadata(candidate)
-    if (hidden) {
-      objects += hidden.objects; textBytes += hidden.textBytes
-      arrayEntries += hidden.arrayEntries; properties += hidden.properties
-      propertyKeyBytes += hidden.propertyKeyBytes
-      if (textBytes > limits.maxTextBytes || arrayEntries > limits.maxAggregateArrayEntries
-        || properties > limits.maxAggregateProperties || propertyKeyBytes > limits.maxAggregatePropertyKeyBytes) {
-        throw new Error('Private SVG emission metadata exceeds the aggregate Scene data limits')
-      }
-    }
+    metadata(candidate, depth, consumeMetadata)
     if (++objects > limits.maxObjects) {
       throw new Error('External Scene input object graph is too large')
     }
@@ -302,7 +316,17 @@ function walkFirstPartyData(value: unknown, limits: ExternalDataSnapshotLimits, 
   let arrayEntries = 0
   let properties = 0
   let propertyKeyBytes = 0
-  const metadata = privateMetadataAccounting()
+  const metadata = privateMetadataAccounting(limits)
+  const consumeMetadata = (hidden: SvgEmissionMetadataCounts): void => {
+    objects += hidden.objects; textBytes += hidden.textBytes
+    arrayEntries += hidden.arrayEntries; properties += hidden.properties
+    propertyKeyBytes += hidden.propertyKeyBytes
+    if (textBytes > limits.maxTextBytes || arrayEntries > limits.maxAggregateArrayEntries
+      || properties > limits.maxAggregateProperties || propertyKeyBytes > limits.maxAggregatePropertyKeyBytes) {
+      if (!exact) throw RECOUNT_EXACTLY
+      throw new Error('Private SVG emission metadata exceeds the aggregate Scene data limits')
+    }
+  }
   let reservedProjection = false
   const reservations: Array<{
     node: object
@@ -487,19 +511,7 @@ function walkFirstPartyData(value: unknown, limits: ExternalDataSnapshotLimits, 
     if (depth > limits.maxDepth) {
       throw new Error('External Scene input object graph is too deeply nested')
     }
-    const hidden = metadata(candidate)
-    if (hidden) {
-      objects += hidden.objects; textBytes += hidden.textBytes
-      arrayEntries += hidden.arrayEntries; properties += hidden.properties
-      propertyKeyBytes += hidden.propertyKeyBytes
-      if (textBytes > limits.maxTextBytes || arrayEntries > limits.maxAggregateArrayEntries
-        || properties > limits.maxAggregateProperties || propertyKeyBytes > limits.maxAggregatePropertyKeyBytes) {
-        // Earlier text/projection charges may still be upper bounds. Replay
-        // in canonical order before reporting a private-metadata refusal.
-        if (!exact) throw RECOUNT_EXACTLY
-        throw new Error('Private SVG emission metadata exceeds the aggregate Scene data limits')
-      }
-    }
+    metadata(candidate, depth, consumeMetadata)
     if (objects + 1 > limits.maxObjects) {
       if (!exact && reservedProjection) makeRoom(1)
       else throw new Error('External Scene input object graph is too large')
