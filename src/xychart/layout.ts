@@ -250,8 +250,12 @@ function layoutVertical(chart: XYChart, config: ResolvedXYChartConfig, measure: 
     height: plotHeight,
   }
 
+  // A bar is a band around its point. On a numeric x-axis Mermaid insets the
+  // axis by half a band at each end when the chart has bars, so the end bars
+  // stay on the plot; lines on the same axis share the inset.
+  const xInset = chart.xAxis.range && chart.series.some(series => series.type === 'bar') ? plotArea.width / Math.max(1, dataCount) / 2 : 0
   const xScaleValue = chart.xAxis.range
-    ? (value: number) => plotArea.x + ((value - chart.xAxis.range!.min) / (chart.xAxis.range!.max - chart.xAxis.range!.min || 1)) * plotArea.width
+    ? (value: number) => plotArea.x + xInset + ((value - chart.xAxis.range!.min) / (chart.xAxis.range!.max - chart.xAxis.range!.min || 1)) * (plotArea.width - 2 * xInset)
     : undefined
   const xPoint = (index: number) => xScaleValue ? xScaleValue(dataXValues[index]!) : plotArea.x + (index + 0.5) * (plotArea.width / dataCount)
   const xPointSpacing = xScaleValue
