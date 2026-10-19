@@ -179,7 +179,8 @@ export const DefaultBackend: StyleBackend = {
   render: renderDefault,
 }
 
-/** Method identity matters too: the exported backend object is mutable. */
+/** Only the built-in method and its privately enrolled conformance wrapper
+ * qualify; a host backend with the same descriptor fields does not. */
 export function isBuiltinDefaultBackend(backend: StyleBackend): boolean {
   return backend === DefaultBackend && OWNED_DEFAULT_RENDERERS.has(backend.render)
 }
