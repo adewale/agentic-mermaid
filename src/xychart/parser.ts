@@ -688,9 +688,10 @@ export function xychartTextRejections(lines: readonly string[]): Array<{ index: 
 /** For each line, the last line of the statement that starts there. Mermaid's
  * xychart strings have no escapes: `"C:\"` closes at its second quote. An
  * `accTitle:` or `accDescr:` value is the rest of its line wherever it starts,
- * so a quote in it opens no string. */
+ * and an `accDescr {` block runs to its `}`, so a quote in either opens no
+ * string. */
 export function xychartStatementEnds(lines: readonly string[]): number[] {
-  return quotedTextEnds(lines, { escapes: false, restOfLine: /(?<!\w)acc(?:Title|Descr)\s*:/iy })
+  return quotedTextEnds(lines, { escapes: false, restOfLine: /(?<!\w)acc(?:Title|Descr)\s*:/iy, block: ACCESSIBILITY_BLOCK })
 }
 
 /** Each statement on `lines`, with the index of the line it starts on pushed to `starts`. */
@@ -738,9 +739,10 @@ function expandXYChartStatements(lines: string[], strict: boolean, starts?: numb
 
 /** The statements on `line` before a trailing `%%` comment. An `accTitle:` or
  * `accDescr:` after another statement takes the rest of the line, a `%%`
- * included, as in Mermaid's lexer. */
+ * included, and an `accDescr {` block the text to its `}`, as in Mermaid's
+ * lexer. */
 function splitStatementsBeforeComment(line: string, strict: boolean): string[] {
-  const comment = trailingCommentStart(line)
+  const comment = trailingCommentStart(line, ACCESSIBILITY_BLOCK)
   if (comment < 0) return splitSemicolonStatements(line, strict)
   const before = line.slice(0, comment).trimEnd()
   const parts = splitSemicolonStatements(before, strict)
@@ -750,6 +752,7 @@ function splitStatementsBeforeComment(line: string, strict: boolean): string[] {
 }
 
 const INLINE_ACCESSIBILITY = /^acc(?:Title|Descr)\s*:/i
+const ACCESSIBILITY_BLOCK = /(?<!\w)accDescr\s*\{/iy
 
 // Mermaid's lexer reads these as keywords wherever they occur outside a
 // string, so statements may share a line without `;`. An accessibility
@@ -874,6 +877,15 @@ function splitSemicolonStatements(text: string, strict: boolean): string[] {
           if (!keyword[0].endsWith('{')) {
             statements.push(text.slice(i).trim())
             return statements
+          }
+          // A block's text runs to its `}`, a quote in it included.
+          const close = text.indexOf('}', i + keyword[0].length)
+          if (close >= 0) {
+            current += text.slice(i, close + 1)
+            i = close
+            started = true
+            collecting = false
+            continue
           }
         }
         collecting = false

@@ -62,6 +62,10 @@ describe('parseXYChart – syntax', () => {
       // of the line (an accDescr block, to its brace).
       ['x-axis [a, b]\nbar [1, 2] accTitle: hi bar [2, 1]', { xAxis: { categories: ['a', 'b'] }, series: [bar([1, 2])], accessibility: { title: 'hi bar [2, 1]' } }],
       ['bar [1] accDescr { x } bar [2]', { series: [bar([1]), bar([2])], accessibility: { description: 'x' } }],
+      // In the block a quote or `%%` is text, to a brace on a later line too.
+      ['bar [1] accDescr { a "b\nc }\naccTitle: T\nline "s" [2]', { series: [bar([1]), line([2], 's')], accessibility: { title: 'T', description: 'a "b\nc' } }],
+      ['bar [1] accDescr { a %% b\nc }\nline [2]', { series: [bar([1]), line([2])], accessibility: { description: 'a %% b\nc' } }],
+      ['bar [1] accDescr { a %% b } line [2] %% c\nline [3]', { series: [bar([1]), line([2]), line([3])], accessibility: { description: 'a %% b' } }],
       // A keyword stays text inside quotes, in a series label before its
       // data, and between words of an unquoted title.
       ['bar "bar [9] line" [1]', { series: [bar([1], 'bar [9] line')] }],

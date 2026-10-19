@@ -12,9 +12,10 @@ const TOKEN_START = /[\s[({,:=]/
 
 /**
  * Offset of the `%%` that starts a trailing comment on one statement line, or
- * -1. A `%%` inside a "…" or '…' string (backslash escapes) is text.
+ * -1. A `%%` inside a "…" or '…' string (backslash escapes) is text, as is one
+ * in a block that the sticky `block` pattern opens, to its `}`.
  */
-export function trailingCommentStart(line: string): number {
+export function trailingCommentStart(line: string, block?: RegExp): number {
   let quote: '"' | "'" | null = null
   for (let index = 0; index < line.length - 1; index++) {
     const char = line[index]!
@@ -28,6 +29,11 @@ export function trailingCommentStart(line: string): number {
       continue
     }
     if (char === '%' && line[index + 1] === '%') return index
+    if (block && (block.lastIndex = index, block.test(line))) {
+      const close = line.indexOf('}', block.lastIndex)
+      if (close < 0) return -1
+      index = close
+    }
   }
   return -1
 }
@@ -56,21 +62,31 @@ export interface QuotedTextRule {
   /** A sticky pattern for a keyword that, outside a string, takes the rest of
    * its line as text wherever it stands, such as XYChart's `accTitle:`. */
   restOfLine?: RegExp
+  /** A sticky pattern for a keyword that, outside a string, opens a block
+   * running to the next `}` across line breaks whatever it holds, such as
+   * XYChart's `accDescr {`. */
+  block?: RegExp
 }
 
-type Quote = '"' | "'" | null
+/** An open string's quote, or `{` for an open block. */
+type Quote = '"' | "'" | '{' | null
 
-/** The string `line` leaves open when it starts inside `quote`'s string. */
-function openQuoteAtEnd(line: string, quote: Quote, escapes: boolean, opensAfter: RegExp, restOfLine?: RegExp): Quote {
+/** The string or block `line` leaves open when it starts inside `quote`'s. */
+function openQuoteAtEnd(line: string, quote: Quote, escapes: boolean, opensAfter: RegExp, restOfLine?: RegExp, block?: RegExp): Quote {
   for (let index = 0; index < line.length; index++) {
     const char = line[index]!
-    if (quote) {
+    if (quote === '{') {
+      if (char === '}') quote = null
+    } else if (quote) {
       if (char === '\\' && escapes) index++
       else if (char === quote) quote = null
     } else if (char === '%' && line[index + 1] === '%') {
       break
     } else if (restOfLine && (restOfLine.lastIndex = index, restOfLine.test(line))) {
       break
+    } else if (block && (block.lastIndex = index, block.test(line))) {
+      quote = '{'
+      index = block.lastIndex - 1
     } else if ((char === '"' || char === "'") && opensAfter.test(index === 0 ? '\n' : line[index - 1]!)) {
       quote = char
     }
@@ -86,7 +102,7 @@ function openQuoteAtEnd(line: string, quote: Quote, escapes: boolean, opensAfter
  * close.
  */
 export function quotedTextEnds(lines: readonly string[], rule: QuotedTextRule = {}): number[] {
-  const spanning = [...(rule.spanning ?? '"')] as Array<'"' | "'">
+  const spanning = [...(rule.spanning ?? '"'), ...(rule.block ? '{' : '')] as Array<'"' | "'" | '{'>
   const escapes = rule.escapes ?? true
   const opensAfter = rule.opensAfter ?? TOKEN_START
   const ends = new Array<number>(lines.length)
@@ -95,11 +111,11 @@ export function quotedTextEnds(lines: readonly string[], rule: QuotedTextRule = 
   let closes = new Map(spanning.map(quote => [quote, -1]))
   for (let index = lines.length - 1; index >= 0; index--) {
     const line = lines[index]!
-    const open = rule.wholeLine?.(line.trim()) ? null : openQuoteAtEnd(line, null, escapes, opensAfter, rule.restOfLine)
+    const open = rule.wholeLine?.(line.trim()) ? null : openQuoteAtEnd(line, null, escapes, opensAfter, rule.restOfLine, rule.block)
     const end = open ? closes.get(open) ?? -1 : -1
     ends[index] = end < 0 ? index : end
     closes = new Map(spanning.map(quote => {
-      const still = openQuoteAtEnd(line, quote, escapes, opensAfter, rule.restOfLine)
+      const still = openQuoteAtEnd(line, quote, escapes, opensAfter, rule.restOfLine, rule.block)
       return [quote, still && closes.has(still) ? closes.get(still)! : index]
     }))
   }
