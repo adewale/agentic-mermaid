@@ -531,10 +531,30 @@ function parseStateDiagram(lines: string[]): MermaidGraph {
   // pushed as synthetic child subgraphs flagged concurrencyRegion, so member
   // tracking lands in the active region automatically.
   const compositeStack: MermaidSubgraph[] = []
-  // Track all composite state IDs to avoid creating duplicate nodes
-  const compositeStateIds = new Set<string>()
+  const statements = readStateStatements(scanStateComments(lines.slice(1))).statements
+  // State ids are global: a composite's id names the composite wherever it
+  // is mentioned, before or after its block, never a second, simple state
+  // (as in the typed body, parseStateBody).
+  const compositeStateIds = new Set(statements.flatMap(statement => {
+    const open = statement.noteBody ? null : statement.text.match(STATE_COMPOSITE_OPEN_RE)
+    return open ? [open[2]!] : []
+  }))
+  const composites = new Map<string, MermaidSubgraph>()
+  // A label written for a composite before its block opens.
+  const compositeLabels = new Map<string, string>()
   let stateGroupCount = 0
   const labeledStateIds = new Set<string>()
+  /** Label a composite as `X : text` (`stack`: under an earlier label) or
+   *  `state "L" as X` (only while it has none) labels a simple state. */
+  const labelComposite = (id: string, label: string, stack: boolean): void => {
+    if (labeledStateIds.has(id) && !stack) return
+    const group = composites.get(id)
+    const previous = labeledStateIds.has(id) ? (group?.label ?? compositeLabels.get(id)) : undefined
+    const next = previous === undefined ? label : `${previous}\n${label}`
+    if (group) group.label = next
+    else compositeLabels.set(id, next)
+    labeledStateIds.add(id)
+  }
   // Counter for unique [*] pseudostate IDs
   let startCount = 0
   let endCount = 0
@@ -583,7 +603,7 @@ function parseStateDiagram(lines: string[]): MermaidGraph {
     return raw
   }
 
-  for (const statement of readStateStatements(scanStateComments(lines.slice(1))).statements) {
+  for (const statement of statements) {
     const line = statement.text
     const source = { line: statement.line + 2, unit: 'normalized' } as const
     if (parserObservationActive('state')) observeParserStatement('state', openNote ? 'note-body' : 'statement', line, source)
@@ -645,7 +665,7 @@ function parseStateDiagram(lines: string[]): MermaidGraph {
     const stateClassAssignment = matchStateClassAssignment(line)
     if (stateClassAssignment) {
       for (const id of stateClassAssignment.ids) {
-        ensureStateNode(graph, compositeStack, id)
+        if (!compositeStateIds.has(id)) ensureStateNode(graph, compositeStack, id)
         graph.classAssignments.set(id, stateClassAssignment.className)
         if (parserObservationActive('state')) observeParserMutation('state', 'assign-class', { id, name: stateClassAssignment.className })
       }
@@ -656,7 +676,7 @@ function parseStateDiagram(lines: string[]): MermaidGraph {
       const ids = stateInlineStyle[1]!.split(',').map(id => id.trim()).filter(Boolean)
       const props = parseStyleProps(stateInlineStyle[2]!)
       for (const id of ids) {
-        ensureStateNode(graph, compositeStack, id)
+        if (!compositeStateIds.has(id)) ensureStateNode(graph, compositeStack, id)
         graph.nodeStyles.set(id, { ...graph.nodeStyles.get(id), ...props })
         if (parserObservationActive('state')) observeParserMutation('state', 'set-node-style', { id, props: graph.nodeStyles.get(id) })
       }
@@ -748,18 +768,17 @@ function parseStateDiagram(lines: string[]): MermaidGraph {
     const compositeMatch = line.match(STATE_COMPOSITE_OPEN_RE)
     if (compositeMatch) {
       const id = compositeMatch[2]!
+      if (compositeMatch[1] !== undefined) labeledStateIds.add(id)
       const label = compositeMatch[1] !== undefined
         ? normalizeBrTags(compositeMatch[1])
-        : (graph.nodes.get(id)?.label ?? id)
+        : (compositeLabels.get(id) ?? id)
       const sg: MermaidSubgraph = { id, label, nodeIds: [], children: [] }
       assertDiagramWorkLimit('nodes', graph.nodes.size - Number(graph.nodes.has(id)) + ++stateGroupCount)
       graphContainerCounts.set(graph, stateGroupCount)
       assertDiagramWorkLimit('nesting', compositeStack.length + 1)
       compositeStack.push(sg)
-      // Track this ID to avoid creating a duplicate node for the composite state
-      compositeStateIds.add(id)
-      // Remove any existing node that was created when parsing transitions before
-      // this composite state definition (e.g., "A --> Processing" before "state Processing {")
+      composites.set(id, sg)
+      // A pseudostate declared with this id is the composite now.
       graph.nodes.delete(id)
       if (parserObservationActive('state')) observeParserMutation('state', 'open-group', { id, label, parent: compositeStack.at(-2)?.id })
       continue
@@ -788,6 +807,10 @@ function parseStateDiagram(lines: string[]): MermaidGraph {
     if (stateAliasMatch) {
       const label = normalizeBrTags(stateAliasMatch[1]!)
       const id = stateAliasMatch[2]!
+      if (compositeStateIds.has(id)) {
+        labelComposite(id, label, false)
+        continue
+      }
       const existing = graph.nodes.get(id)
       if (existing?.shape === 'rounded' && !labeledStateIds.has(id)) {
         graph.nodes.set(id, { ...existing, label })
@@ -831,7 +854,7 @@ function parseStateDiagram(lines: string[]): MermaidGraph {
     // never leak into a visible `::highlight` label.
     const stateClass = parseClassShorthandStatement(line)
     if (stateClass) {
-      ensureStateNode(graph, compositeStack, stateClass.id)
+      if (!compositeStateIds.has(stateClass.id)) ensureStateNode(graph, compositeStack, stateClass.id)
       graph.classAssignments.set(stateClass.id, stateClass.className)
       if (parserObservationActive('state')) observeParserMutation('state', 'assign-class', { id: stateClass.id, name: stateClass.className })
       continue
@@ -842,6 +865,10 @@ function parseStateDiagram(lines: string[]): MermaidGraph {
     if (stateDescMatch) {
       const id = stateDescMatch[1]!
       const label = normalizeBrTags(stateDescMatch[2]!.trim())
+      if (compositeStateIds.has(id)) {
+        labelComposite(id, label, true)
+        continue
+      }
       // A description also describes a state a transition already created
       // (Mermaid adds it either way): it replaces the id-only label, and a
       // second description stacks under the first rather than being dropped.
@@ -856,7 +883,7 @@ function parseStateDiagram(lines: string[]): MermaidGraph {
     }
     const declaredId = matchStateDeclarationLine(line)
     if (declaredId !== null) {
-      registerStateNode(graph, compositeStack, { id: declaredId, label: declaredId, shape: 'rounded' })
+      if (!compositeStateIds.has(declaredId)) registerStateNode(graph, compositeStack, { id: declaredId, label: declaredId, shape: 'rounded' })
       continue
     }
 

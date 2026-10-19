@@ -123,6 +123,10 @@ export function parseStateBody(lines: string[]): StateBody | null {
     compositeIds.add(id)
   }
   const pendingCompositeLabels = new Map<string, string>()
+  // The composites opened so far. Ids are global, so a later mention in any
+  // scope names the composite; one before its block waits in
+  // pendingCompositeLabels.
+  const composites = new Map<string, StateNode>()
   // Pending composites awaiting their `}` — parent scope + the node to attach.
   const pending: Array<{ parent: ParseScope; node: StateNode; regions?: ParseScope[] }> = []
   // Paint directives can target forward declarations, so apply them after the
@@ -265,6 +269,7 @@ export function parseStateBody(lines: string[]): StateBody | null {
         scope.states.push(node)
       }
       scope.byId.set(id, node)
+      composites.set(id, node)
       pending.push({ parent: scope, node })
       stack.push(child)
       continue
@@ -299,7 +304,10 @@ export function parseStateBody(lines: string[]): StateBody | null {
     if (alias) {
       const id = alias[2]!
       const label = normalizeBrTags(alias[1]!)
-      if (compositeIds.has(id) && !scope.byId.has(id)) {
+      const composite = composites.get(id)
+      if (composite) {
+        if (composite.label === undefined) composite.label = label
+      } else if (compositeIds.has(id)) {
         if (!pendingCompositeLabels.has(id)) pendingCompositeLabels.set(id, label)
       } else {
         const node = ensureState(scope, id)
@@ -350,11 +358,11 @@ export function parseStateBody(lines: string[]): StateBody | null {
     if (desc) {
       const id = desc[1]!
       const label = normalizeBrTags(desc[2]!.trim())
-      if (compositeIds.has(id) && !scope.byId.has(id)) {
+      if (compositeIds.has(id) && !composites.has(id)) {
         const previous = pendingCompositeLabels.get(id)
         pendingCompositeLabels.set(id, previous === undefined ? label : `${previous}\n${label}`)
       } else {
-        const node = ensureState(scope, id)
+        const node = composites.get(id) ?? ensureState(scope, id)
         node.label = node.label === undefined ? label : `${node.label}\n${label}`
       }
       continue
@@ -363,6 +371,8 @@ export function parseStateBody(lines: string[]): StateBody | null {
     // --- standalone state declaration ---
     const declaredId = matchStateDeclarationLine(line)
     if (declaredId !== null) {
+      // A composite's id names the composite, which a mention adds nothing to.
+      if (compositeIds.has(declaredId)) continue
       const node = ensureState(scope, declaredId)
       node.declaredBare = true
       continue

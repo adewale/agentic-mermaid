@@ -480,6 +480,12 @@ describe('State statements across and within lines', () => {
     ['state X {\nA --> B : go }', ['A:rounded:A', 'B:rounded:B', 'A->B:go', 'X:X{A B}'], ['state_brace_after_description@3']],
     ['state X {\nstate Y {\nA : desc {x} }}', ['A:rounded:desc {x}', 'X:X{}', 'X/Y:Y{A}'], ['state_brace_after_description@4']],
     ['state X {\nA : desc }\n}', ['A:rounded:desc }', 'X:X{A}'], []],
+    // State ids are global: a mention of a composite's id, before or after
+    // its block or inside it, names the composite and adds no simple state.
+    ['state X {\nA\n}\nX : desc\nX:::hot', ['A:rounded:A', 'X:desc{A}', 'X:::hot'], []],
+    ['state X {\nX\nA\n}', ['A:rounded:A', 'X:X{A}'], []],
+    ['state X {\n[*] --> Y\nstate Y {\nB\n}\n}', ['_start:state-start:', 'B:rounded:B', '_start->Y', 'X:X{_start}', 'X/Y:Y{B}'], []],
+    ['state P {\nstate X {\nA\n}\n}\nstate "L" as X', ['A:rounded:A', 'P:P{}', 'P/X:L{A}'], []],
     // A `}` with no composite open is dropped; Mermaid reads a state `}`,
     // or `A}` where it follows a name.
     ['A\n}', ['A:rounded:A'], ['state_brace_unopened@3']],
