@@ -189,9 +189,9 @@ describe('characterisation · Tier A · universal invariants', () => {
   })
 
   // P2 (determinism) is observed on output: ascii-determinism.test.ts
-  // re-renders the docs corpus and the tie-break fixtures. A reordered (but
-  // still deterministic) tie-break is P2-invisible;
-  // ascii-pathfinder-determinism pins the FIFO route exactly.
+  // re-renders the docs corpus and the tie-break fixtures. The pathfinder unit
+  // tests allow any repeatable shortest route; reviewed ASCII goldens notice
+  // changes to its rendered appearance.
 
   // P3. Orthogonality. No diagonal connector glyphs: every edge is Manhattan
   // (90° bends only). This is the defining invariant of the A* router. Kills

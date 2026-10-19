@@ -116,158 +116,53 @@ describe('sequence layout – standalone activation events', () => {
 })
 
 describe('sequence layout – block spacing', () => {
-  it('messages outside blocks are spaced at the base row height', () => {
+  it.each([
+    ['loop', 'loop Retry\n B->>A: Reply', []],
+    ['alt', 'alt Success\n B->>A: Reply', []],
+    ['opt', 'opt Cached\n B->>A: Reply', []],
+    ['critical', 'critical Transaction\n B->>A: Reply', []],
+    ['alt', 'alt Success\n B->>A: Reply\nelse Failure\n B->>A: Alternate', ['Failure']],
+    ['alt', 'alt Success\n B->>A: Reply\nelse Failure\n B->>A: Alternate\nelse Locked\n B->>A: Locked out', ['Failure', 'Locked']],
+    ['par', 'par User\n B->>A: Reply\nand Orders\n B->>A: Alternate', ['Orders']],
+  ] as const)('%s reserves header and divider clearance: %s', (type, body, dividers) => {
     const result = layout(`sequenceDiagram
       A->>B: First
-      B->>A: Second
-      A->>B: Third`)
-
-    // Three messages with no blocks — uniform spacing
-    expect(result.messages).toHaveLength(3)
-    const gap1 = result.messages[1]!.y - result.messages[0]!.y
-    const gap2 = result.messages[2]!.y - result.messages[1]!.y
-    // Both gaps should be identical (base messageRowHeight, 40px)
-    expect(gap1).toBe(gap2)
-    expect(gap1).toBe(40) // SEQ.messageRowHeight
-  })
-
-  it('first message in a loop block gets extra header space', () => {
-    const result = layout(`sequenceDiagram
-      A->>B: Before loop
-      loop Every 5s
-        A->>B: Inside loop
-      end`)
-
-    expect(result.messages).toHaveLength(2)
-    const gap = result.messages[1]!.y - result.messages[0]!.y
-    // Should be baseRowHeight + blockHeaderExtra = 40 + 28 = 68
-    expect(gap).toBe(40 + 28)
-  })
-
-  it('first message in an alt block gets extra header space', () => {
-    const result = layout(`sequenceDiagram
-      A->>B: Login
-      alt Success
-        B->>A: 200
-      end`)
-
-    expect(result.messages).toHaveLength(2)
-    const gap = result.messages[1]!.y - result.messages[0]!.y
-    expect(gap).toBe(40 + 28)
-  })
-
-  it('messages after else dividers get extra divider space', () => {
-    const result = layout(`sequenceDiagram
-      A->>B: Login
-      alt Valid
-        B->>A: 200 OK
-      else Invalid
-        B->>A: 401
-      end`)
-
-    expect(result.messages).toHaveLength(3)
-    // msg[0] → msg[1]: base + blockHeaderExtra (first message in alt block)
-    const gap01 = result.messages[1]!.y - result.messages[0]!.y
-    expect(gap01).toBe(40 + 28)
-
-    // msg[1] → msg[2]: base + dividerExtra (message after "else Invalid")
-    const gap12 = result.messages[2]!.y - result.messages[1]!.y
-    expect(gap12).toBe(40 + 24)
-  })
-
-  it('multiple else dividers each get extra space', () => {
-    const result = layout(`sequenceDiagram
-      C->>S: Login
-      alt Valid credentials
-        S-->>C: 200 OK
-      else Invalid
-        S-->>C: 401 Unauthorized
-      else Account locked
-        S-->>C: 403 Forbidden
-      end`)
-
-    expect(result.messages).toHaveLength(4)
-
-    // msg[0] → msg[1]: base + blockHeaderExtra
-    const gap01 = result.messages[1]!.y - result.messages[0]!.y
-    expect(gap01).toBe(40 + 28)
-
-    // msg[1] → msg[2]: base + dividerExtra (else Invalid)
-    const gap12 = result.messages[2]!.y - result.messages[1]!.y
-    expect(gap12).toBe(40 + 24)
-
-    // msg[2] → msg[3]: base + dividerExtra (else Account locked)
-    const gap23 = result.messages[3]!.y - result.messages[2]!.y
-    expect(gap23).toBe(40 + 24)
-  })
-
-  it('par block with and dividers gets correct spacing', () => {
-    // Messages: Validate (idx 0), Get user (idx 1), Get orders (idx 2)
-    // Block: startIndex=1, dividers=[{index:2}]
-    const result = layout(`sequenceDiagram
-      G->>A: Validate
-      par Fetch user
-        G->>U: Get user
-      and Fetch orders
-        G->>O: Get orders
-      end`)
-
-    expect(result.messages).toHaveLength(3)
-
-    // msg[0] → msg[1]: base + blockHeaderExtra (first in par block)
-    const gap01 = result.messages[1]!.y - result.messages[0]!.y
-    expect(gap01).toBe(40 + 28)
-
-    // msg[1] → msg[2]: base + dividerExtra (and Fetch orders)
-    const gap12 = result.messages[2]!.y - result.messages[1]!.y
-    expect(gap12).toBe(40 + 24)
-  })
-
-  it('opt block header gets extra space', () => {
-    const result = layout(`sequenceDiagram
-      A->>B: Request
-      opt Cache available
-        B-->>A: Cached response
-      end`)
-
-    expect(result.messages).toHaveLength(2)
-    const gap = result.messages[1]!.y - result.messages[0]!.y
-    expect(gap).toBe(40 + 28)
-  })
-
-  it('critical block header gets extra space', () => {
-    const result = layout(`sequenceDiagram
-      A->>DB: BEGIN
-      critical Transaction
-        A->>DB: UPDATE
-      end`)
-
-    expect(result.messages).toHaveLength(2)
-    const gap = result.messages[1]!.y - result.messages[0]!.y
-    expect(gap).toBe(40 + 28)
-  })
-
-  it('messages after a block return to normal spacing', () => {
-    const result = layout(`sequenceDiagram
       A->>B: Before
-      loop Retry
-        A->>B: Attempt
+      ${body}
       end
       A->>B: After`)
-
-    expect(result.messages).toHaveLength(3)
-    // msg[1] → msg[2]: no block boundary, just base row height
-    const gap12 = result.messages[2]!.y - result.messages[1]!.y
-    expect(gap12).toBe(40)
+    const expectedLabels = ['First', 'Before', 'Reply', ...(dividers.length > 0 ? ['Alternate'] : []), ...(dividers.length > 1 ? ['Locked out'] : []), 'After']
+    expect(result.messages.map(message => message.label)).toEqual(expectedLabels)
+    expect(result.blocks).toHaveLength(1)
+    const block = result.blocks[0]!
+    expect(block.type).toBe(type)
+    expect(block.header).toBeDefined()
+    const ordinaryGap = result.messages[1]!.y - result.messages[0]!.y
+    expect(ordinaryGap).toBeGreaterThan(0)
+    expect(result.messages[2]!.y - result.messages[1]!.y).toBeGreaterThan(ordinaryGap)
+    const header = block.header!.label.bounds
+    expect(header.y + header.height).toBeLessThanOrEqual(result.messages[2]!.bounds.y)
+    expect(block.dividers.map(divider => divider.label)).toEqual([...dividers])
+    for (const [index, divider] of block.dividers.entries()) {
+      expect(divider.labelPosition).toBeDefined()
+      const label = divider.labelPosition!.bounds
+      const previous = result.messages[index + 2]!, next = result.messages[index + 3]!
+      expect(previous.bounds.y + previous.bounds.height).toBeLessThanOrEqual(label.y)
+      // A divider label may sit beside the next message label; require real
+      // two-dimensional clearance as well as room above its arrow shaft.
+      expect(overlaps(label, next.labelPosition.bounds)).toBe(false)
+      expect(label.y + label.height).toBeLessThan(next.y)
+      expect(next.y - previous.y).toBeGreaterThan(ordinaryGap)
+    }
+    const after = result.messages.at(-1)!, lastInside = result.messages.at(-2)!
+    expect(after.y - lastInside.y).toBeCloseTo(ordinaryGap, 6)
   })
 })
 
 describe('sequence layout – spacing properties (over random sequences)', () => {
   const ACTORS = ['A', 'B', 'C', 'D'] as const
 
-  // Generalizes "messages outside blocks are spaced at the base row height":
-  // for ANY block-free sequence, every consecutive message gap is exactly 40.
-  it('block-free sequences space every message at exactly the base row height', () => {
+  it('block-free sequences use uniform positive spacing without overlapping painted content', () => {
     const arb = fc.record({
       actorCount: fc.integer({ min: 2, max: 4 }),
       msgs: fc.array(fc.record({ f: fc.nat(3), t: fc.nat(3), dash: fc.boolean() }), { minLength: 2, maxLength: 8 }),
@@ -277,24 +172,26 @@ describe('sequence layout – spacing properties (over random sequences)', () =>
         const actors = ACTORS.slice(0, actorCount)
         const lines = ['sequenceDiagram', ...actors.map(a => `  participant ${a}`)]
         for (const m of msgs) {
-          const from = actors[m.f % actorCount]!, to = actors[m.t % actorCount]!
-          if (from === to) continue
+          const fromIndex = m.f % actorCount
+          const from = actors[fromIndex]!, to = actors[(fromIndex + 1 + m.t % (actorCount - 1)) % actorCount]!
           lines.push(`  ${from}${m.dash ? '-->>' : '->>'}${to}: x`)
         }
         const result = layout(lines.join('\n'))
+        expect(result.messages).toHaveLength(msgs.length)
+        const gap = result.messages[1]!.y - result.messages[0]!.y
+        expect(gap).toBeGreaterThan(0)
         for (let i = 1; i < result.messages.length; i++) {
-          if (result.messages[i]!.y - result.messages[i - 1]!.y !== 40) return false
+          const previous = result.messages[i - 1]!, current = result.messages[i]!
+          expect(current.y - previous.y).toBeCloseTo(gap, 6)
+          expect(previous.bounds.y + previous.bounds.height).toBeLessThanOrEqual(current.bounds.y)
         }
-        return true
       }),
       { numRuns: 400 },
     )
   })
 
-  // Robustness over the richer generator (blocks, dividers, notes, self-calls):
-  // message rows stay finite and strictly ordered, never spaced tighter than the
-  // base row height — blocks/dividers/notes only ever ADD space.
-  it('messages stay finite and ordered with gaps never below the base height', () => {
+  // Richer combinations must preserve ordering and complete painted clearance.
+  it('messages stay finite, ordered and clear of neighboring messages', () => {
     const arb = fc.record({
       actorCount: fc.integer({ min: 2, max: 4 }),
       messageCount: fc.integer({ min: 1, max: 6 }),
@@ -305,13 +202,13 @@ describe('sequence layout – spacing properties (over random sequences)', () =>
     fc.assert(
       fc.property(arb, input => {
         const result = layout(generatedSequenceSource(input))
-        for (const m of result.messages) if (!Number.isFinite(m.y)) return false
+        expect(result.messages).toHaveLength(input.messageCount + 2)
+        for (const message of result.messages) expect(Number.isFinite(message.y)).toBe(true)
         for (let i = 1; i < result.messages.length; i++) {
-          // 1e-6 tolerance: gaps accumulate through block/divider offsets, so a
-          // genuine 40 can land at 39.9999… in floating point.
-          if (!(result.messages[i]!.y - result.messages[i - 1]!.y >= 40 - 1e-6)) return false
+          const previous = result.messages[i - 1]!, current = result.messages[i]!
+          expect(current.y).toBeGreaterThan(previous.y)
+          expect(previous.bounds.y + previous.bounds.height).toBeLessThanOrEqual(current.bounds.y + 1e-6)
         }
-        return true
       }),
       { numRuns: 400 },
     )
@@ -328,9 +225,10 @@ describe('sequence layout – block positioning', () => {
 
     const block = result.blocks[0]!
     const firstMsg = result.messages[1]! // msg at index 1 is startIndex
-    // Block top should be above message Y by blockPadTop (40px)
-    expect(block.y).toBeLessThan(firstMsg.y)
-    expect(firstMsg.y - block.y).toBe(40) // SEQ.blockPadTop
+    expect(block.y).toBeLessThan(firstMsg.bounds.y)
+    expect(block.header).toBeDefined()
+    const header = block.header!.label.bounds
+    expect(header.y + header.height).toBeLessThanOrEqual(firstMsg.bounds.y)
   })
 
   it('divider Y is between the messages it separates', () => {
@@ -414,7 +312,6 @@ describe('sequence layout – diagram dimensions', () => {
 
     // The block version should be taller due to header extra space
     expect(withBlock.height).toBeGreaterThan(plain.height)
-    expect(withBlock.height - plain.height).toBe(28) // blockHeaderExtra
   })
 
   it('diagram with multiple dividers is taller than one with none', () => {
@@ -434,8 +331,7 @@ describe('sequence layout – diagram dimensions', () => {
         B->>A: M4
       end`)
 
-    // blockHeaderExtra (28) + 2 × dividerExtra (24 each) = 76 extra
-    expect(withDividers.height - noDividers.height).toBe(28 + 24 + 24)
+    expect(withDividers.height).toBeGreaterThan(noDividers.height)
   })
 })
 

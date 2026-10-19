@@ -605,6 +605,23 @@ steps with stub tools), `src/__tests__/theme-color-admission.test.ts`
 `src/__tests__/property-validator-surface-fuzz.test.ts` (the non-vacuity
 counter).
 
+Architecture requirements are deliberate exceptions to implementation freedom,
+not evidence of output correctness. Keep them small and explicit:
+`render-pipeline-architecture.test.ts` requires built-ins to share Scene lowering
+so styles, security and certification use the same integration boundary. Public
+dispatch behavior is checked separately in `render-family-hooks.test.ts`.
+Layout pass tests exercise production enforcement and resulting geometry; a
+particular pass name or decomposition is not a rendering contract.
+
+Call counts need an observable reason. Retain them for work admission (for
+example, refusing oversized input before ELK or text measurement), deferred
+optional graphical work, and the single positioned-artifact extension protocol.
+Do not require an internal serializer or evidence enumerator to run exactly once
+when the output, ownership and certificate are the actual contract. Default
+pathfinder tie order and sequence spacing constants are likewise implementation
+choices; test repeatability, valid routes and painted clearance, and use reviewed
+goldens for intentional appearance baselines.
+
 ## Why the suite is shaped this way
 
 - **Cheap-and-deterministic gates per PR; expensive-and-noisy gates

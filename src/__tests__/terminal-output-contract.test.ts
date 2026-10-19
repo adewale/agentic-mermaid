@@ -1,4 +1,4 @@
-import { describe, expect, spyOn, test } from 'bun:test'
+import { describe, expect, test } from 'bun:test'
 import { renderMermaidASCIIWithReceipt } from '../ascii/index.ts'
 import {
   resolveTerminalOutputPolicy,
@@ -345,14 +345,17 @@ describe('canonical terminal output policy', () => {
     } finally { restore() }
   })
 
-  test('native titles and width policy are applied before the single encoding pass', () => {
-    const serialize = spyOn(TerminalDocument.prototype, 'serialize')
-    try {
-      const rendered = renderMermaidASCIIWithReceipt(`---\ntitle: Heading\n---\n${SOURCE}`, { colorMode: 'html', targetWidth: 80 })
-      expect(rendered.text).toContain('Heading')
-      expect(serialize).toHaveBeenCalledTimes(1)
-      expect(terminalDocumentOf(rendered)?.regions().find(region => region.id === 'title')).toBeDefined()
-    } finally { serialize.mockRestore() }
+  test('native HTML output retains its title, labels and ownership under a width policy', () => {
+    const targetWidth = 20
+    const rendered = renderMermaidASCIIWithReceipt(`---\ntitle: Heading\n---\n${SOURCE}`, { colorMode: 'html', targetWidth })
+    const text = withoutTerminalColor(rendered.text)
+    expect(text).toContain('Heading')
+    expect(text).toContain('Start')
+    expect(text).toContain('Finish')
+    expect(Math.max(...text.split('\n').map(line => line.length))).toBeLessThanOrEqual(targetWidth)
+    const regions = terminalDocumentOf(rendered)!.regions()
+    expect(regions.find(region => region.id === 'title')).toBeDefined()
+    expect(regions.filter(region => region.kind === 'node').map(region => region.id)).toEqual(['A', 'B'])
   })
 
   test('native text avoids optional graphical work and full receipts memoize its evidence', () => {

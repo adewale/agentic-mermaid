@@ -1,5 +1,5 @@
 import '../index.ts'
-import { describe, expect, spyOn, test } from 'bun:test'
+import { describe, expect, test } from 'bun:test'
 import { BUILTIN_FAMILY_METADATA } from '../agent/families.ts'
 import { renderMermaidASCIIWithReceipt } from '../ascii/index.ts'
 import { certifyTerminalLayout, TERMINAL_CERTIFICATION_LIMITS } from '../ascii/terminal-certification.ts'
@@ -83,18 +83,12 @@ describe('final terminal cell certification', () => {
     }
   })
 
-  test.each(['none', 'ansi16', 'html'] as const)('binds the actual %s output and defers certification until receipt access', colorMode => {
-    const evidence = spyOn(TerminalDocument.prototype, 'layoutEvidence')
-    try {
-      const result = renderMermaidASCIIWithReceipt('flowchart LR\n A["界 & <b>wide</b>"] --> B[Done]', { colorMode })
-      expect(result.text).toContain('界')
-      expect(evidence).not.toHaveBeenCalled()
-      const certificate = result.receipt.layoutCertification
-      expect(certificate).toMatchObject({ version: 1, scope: 'terminal-cells', unit: 'cell', status: 'passed', outputDigest: renderContractDigest(result.text), budget: { exhausted: false } })
-      expect(evidence).toHaveBeenCalledTimes(1)
-      expect(result.receipt.layoutCertification).toBe(certificate)
-      expect(evidence).toHaveBeenCalledTimes(1)
-    } finally { evidence.mockRestore() }
+  test.each(['none', 'ansi16', 'html'] as const)('binds stable certification to the actual %s output', colorMode => {
+    const result = renderMermaidASCIIWithReceipt('flowchart LR\n A["界 & <b>wide</b>"] --> B[Done]', { colorMode })
+    expect(result.text).toContain('界')
+    const certificate = result.receipt.layoutCertification
+    expect(certificate).toMatchObject({ version: 1, scope: 'terminal-cells', unit: 'cell', status: 'passed', outputDigest: renderContractDigest(result.text), budget: { exhausted: false } })
+    expect(result.receipt.layoutCertification).toEqual(certificate)
   })
 
   test('retains every measured occurrence through grouped composition and readable reflection', () => {

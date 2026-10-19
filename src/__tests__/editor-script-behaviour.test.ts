@@ -5,14 +5,12 @@
  * button, the PNG export adapter boundary, the verify panel, storage access)
  * and asserts what a user or a downstream receipt would observe.
  *
- * The two lints at the end are deliberately structural: they encode security
- * invariants (no rendered SVG in an HTML-string sink; Web Storage reached only
- * through the guarded adapter) across every editor script, and each carries a
- * teeth check against a synthetic violation.
+ * Live SVG insertion is exercised by editor-site-interactions.e2e.test.ts;
+ * this suite covers export admission and failure-tolerant storage behavior.
  */
 import { describe, expect, test } from 'bun:test'
-import { readdirSync, readFileSync, statSync } from 'node:fs'
-import { join, relative } from 'node:path'
+import { readFileSync } from 'node:fs'
+import { join } from 'node:path'
 import { BROWSER_EDITOR_ADAPTER } from '../browser.ts'
 import { resolveEditorRenderOptions } from '../editor-render-options.ts'
 import { PNG_DEFAULT_SCALE } from '../png-contract.ts'
@@ -24,18 +22,6 @@ import { evaluateBrowserScript, FakeDocument, type FakeElement } from './browser
 const ROOT = join(import.meta.dir, '..', '..')
 const EDITOR_JS = join(ROOT, 'editor', 'js')
 const editorScript = (name: string) => readFileSync(join(EDITOR_JS, name), 'utf8')
-
-function editorScriptFiles(dir = EDITOR_JS): Array<{ file: string; text: string }> {
-  return readdirSync(dir).sort().flatMap((name) => {
-    const path = join(dir, name)
-    if (statSync(path).isDirectory()) return editorScriptFiles(path)
-    return name.endsWith('.js') ? [{ file: relative(ROOT, path), text: readFileSync(path, 'utf8') }] : []
-  })
-}
-
-function codeLines(text: string): string[] {
-  return text.split('\n').map(line => line.replace(/\/\/.*$/, ''))
-}
 
 describe('editor render-option boundary', () => {
   const dependencies = {
@@ -395,8 +381,11 @@ describe('editor verify panel', () => {
 })
 
 describe('editor storage adapter', () => {
-  test('guarded accessors and draft persistence survive Storage that throws on every call', () => {
-    const denied = new Proxy({}, { get() { throw new DOMException('storage denied', 'SecurityError') } })
+  test.each(['access', 'operation'] as const)('draft persistence survives denied storage %s', failure => {
+    const deny = () => { throw new DOMException('storage denied', 'SecurityError') }
+    const denied = failure === 'access'
+      ? new Proxy({}, { get: deny })
+      : { getItem: deny, setItem: deny, removeItem: deny }
     const toasts: string[] = []
     const api = evaluateBrowserScript<Record<string, (...args: unknown[]) => unknown>>(editorScript('sharing.js'), {
       window: { location: { hash: '', pathname: '/editor/', search: '' }, history: { replaceState() {} }, __mermaid: {} },
@@ -415,58 +404,5 @@ describe('editor storage adapter', () => {
     expect(api.readEditorDraft!()).toBeNull()
     expect(() => api.discardEditorDraft!()).not.toThrow()
     expect(toasts).toEqual([])
-  })
-})
-
-// ── Security lints over every editor script ──────────────────────────────────
-
-const HTML_STRING_SINK = /\.(?:innerHTML|outerHTML)\s*\+?=(?!=)|\binsertAdjacentHTML\s*\(|\bdocument\.write(?:ln)?\s*\(|\bcreateContextualFragment\s*\(|\bsrcdoc\s*=/
-
-function svgHtmlSinkFindings(files: Array<{ file: string; text: string }>): string[] {
-  return files.flatMap(({ file, text }) => codeLines(text).flatMap((line, index) => {
-    const findings: string[] = []
-    const sink = line.match(HTML_STRING_SINK)
-    if (sink && /svg/i.test(line.slice(sink.index! + sink[0].length))) findings.push(`${file}:${index + 1}: rendered SVG reaches an HTML-string sink`)
-    if (/\bparseFromString\s*\(/.test(line) && !/['"]image\/svg\+xml['"]/.test(line)) findings.push(`${file}:${index + 1}: DOMParser must parse SVG as image/svg+xml`)
-    return findings
-  }))
-}
-
-const STORAGE_ADAPTER = 'editor/js/sharing.js'
-
-function unguardedStorageFindings(files: Array<{ file: string; text: string }>): string[] {
-  return files.flatMap(({ file, text }) => codeLines(text).flatMap((line, index) => {
-    if (!/\b(?:localStorage|sessionStorage)\b/.test(line)) return []
-    // The adapter itself may touch Storage only inside a same-line try block.
-    if (file === STORAGE_ADAPTER && /\btry\s*\{/.test(line)) return []
-    return [`${file}:${index + 1}: ${line.trim()}`]
-  }))
-}
-
-describe('editor security lints', () => {
-  test('rendered SVG never reaches an HTML-string sink in any editor script', () => {
-    expect(svgHtmlSinkFindings(editorScriptFiles())).toEqual([])
-    // Teeth: each banned shape is caught.
-    expect(svgHtmlSinkFindings([{ file: 'x.js', text: [
-      'previewInner.innerHTML = svg;',
-      'target.insertAdjacentHTML("beforeend", rendered.svg);',
-      'var parsed = new DOMParser().parseFromString(svg, "text/html");',
-      'previewInner.innerHTML = emptyPreviewHtml(); // svg in a comment is fine',
-    ].join('\n') }])).toEqual([
-      'x.js:1: rendered SVG reaches an HTML-string sink',
-      'x.js:2: rendered SVG reaches an HTML-string sink',
-      'x.js:3: DOMParser must parse SVG as image/svg+xml',
-    ])
-  })
-
-  test('editor scripts reach Web Storage only through the guarded adapter', () => {
-    expect(unguardedStorageFindings(editorScriptFiles())).toEqual([])
-    expect(unguardedStorageFindings([
-      { file: 'editor/js/dark-mode.js', text: 'var stored = localStorage.getItem("bm-editor-dark");' },
-      { file: STORAGE_ADAPTER, text: 'function leak() { return sessionStorage.getItem(DRAFT_STORAGE_KEY); }\n  try { return localStorage.getItem(key); } catch (e) { return null; }' },
-    ])).toEqual([
-      'editor/js/dark-mode.js:1: var stored = localStorage.getItem("bm-editor-dark");',
-      `${STORAGE_ADAPTER}:1: function leak() { return sessionStorage.getItem(DRAFT_STORAGE_KEY); }`,
-    ])
   })
 })

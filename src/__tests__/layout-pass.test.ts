@@ -1,10 +1,10 @@
 // Tests for the LayoutPass abstraction (docs/design/system/layout-pass-pipeline.md):
-// the manifest's structural invariants + production runPipeline enforcement.
+// production runPipeline enforcement and the geometry its passes produce.
 import { describe, expect, test } from 'bun:test'
 import { complicatedFixtures, simpleFixtures } from '../../eval/visual-rubric/fixtures.ts'
 import type { LayoutPass, PassContextBase } from '../layout/pass.ts'
 import * as passContract from '../layout/pass.ts'
-const { assertTopologicalOrder, LayoutMetricBudgetError, LayoutPassContractError, runPipeline } = passContract
+const { LayoutMetricBudgetError, LayoutPassContractError, runPipeline } = passContract
 import { LAYOUT_PIPELINE, layoutGraphSync } from '../layout-engine.ts'
 import { parseMermaid } from '../parser.ts'
 import * as rubric from '../layout-rubric.ts'
@@ -16,60 +16,6 @@ import { applySymmetricParallelEdgeLanes } from '../layout/passes/index.ts'
 import { graphEdgeTextBlock } from '../graph-text.ts'
 import { createTextMeasurementExecution, withTextMeasurementExecution } from '../text-measurement-profile.ts'
 import type { PositionedEdge, PositionedGraph, PositionedNode } from '../types.ts'
-
-describe('LAYOUT_PIPELINE manifest', () => {
-  test('array order is a valid topological order of `after`', () => {
-    expect(() => assertTopologicalOrder(LAYOUT_PIPELINE)).not.toThrow()
-  })
-
-  test('pass ids are unique', () => {
-    const ids = LAYOUT_PIPELINE.map(p => p.id)
-    expect(new Set(ids).size).toBe(ids.length)
-  })
-
-  test('every `after` references an earlier pass', () => {
-    const seen = new Set<string>()
-    for (const p of LAYOUT_PIPELINE) {
-      for (const dep of p.after) expect(seen.has(dep)).toBe(true)
-      seen.add(p.id)
-    }
-  })
-
-  test('exactly one pass freezes node geometry, and it is applyRouteContracts', () => {
-    expect(LAYOUT_PIPELINE.filter(p => p.freezesNodes).map(p => p.id)).toEqual(['applyRouteContracts'])
-  })
-
-  test('only translate/edge passes run after the freeze (§3.2)', () => {
-    const i = LAYOUT_PIPELINE.findIndex(p => p.freezesNodes)
-    for (const p of LAYOUT_PIPELINE.slice(i + 1)) {
-      expect(p.mutates.every(m => m === 'translate' || m === 'edges')).toBe(true)
-    }
-  })
-
-  test('final route-contract closure runs after late label repair and before translation', () => {
-    const ids = LAYOUT_PIPELINE.map(pass => pass.id)
-    expect(ids.indexOf('separateEdgeLabelPills')).toBeLessThan(ids.indexOf('closeRouteContracts'))
-    expect(ids.indexOf('closeRouteContracts')).toBeLessThan(ids.indexOf('translateGeometryToNonNegativeOrigin'))
-  })
-
-  test('the three symmetric passes are mutually unordered (spec §8 R1: order is empirically free)', () => {
-    const trio = ['applySymmetricFanoutEmissions', 'applySymmetricParallelEdgeLanes', 'applyParallelDuplicateLanes']
-    for (const id of trio) {
-      const p = LAYOUT_PIPELINE.find(x => x.id === id)
-      expect(p).toBeDefined()
-      expect(p!.after.some(dep => trio.includes(dep))).toBe(false)
-    }
-  })
-
-  test('mayChangeMetrics budgets are well-formed (improve-only | {worsenBy>0})', () => {
-    for (const p of LAYOUT_PIPELINE) {
-      for (const budget of Object.values(p.mayChangeMetrics ?? {})) {
-        const ok = budget === 'improve-only' || (typeof budget === 'object' && typeof budget.worsenBy === 'number' && budget.worsenBy > 0)
-        expect(ok).toBe(true)
-      }
-    }
-  })
-})
 
 describe('declared pass budgets on actual native geometry', () => {
   test.each([
