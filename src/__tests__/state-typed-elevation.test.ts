@@ -691,6 +691,21 @@ describe('State statements across and within lines', () => {
       .toEqual(['state_endpoint_name@2', 'state_endpoint_name@3'])
   })
 
+  test('a note on a state Mermaid cannot name as a note target is read, and reported', async () => {
+    const unsupported = (source: string): string[] => verifyMermaid(source).warnings.flatMap(warning => warning.code === 'UNSUPPORTED_SYNTAX' ? [`${warning.syntax}@${warning.line}`] : [])
+    // A keyword names a note's state there; a hyphen does not.
+    const oneLine = 'stateDiagram-v2\nnote right of in-flight : x\nnote left of note : y'
+    expect(readingOf(parseRenderGraph(oneLine))).toEqual(['in-flight:rounded:in-flight', 'note:rounded:note', 'note right of in-flight:x', 'note left of note:y'].sort())
+    expect(await upstream.accepts(oneLine)).toBe(false)
+    expect(unsupported(oneLine)).toEqual(['state_note_target@2'])
+    // Mermaid's note target ends at the hyphen, and the rest is note text.
+    const block = 'stateDiagram-v2\nA --> B\nnote left of in-flight\ntext\nend note'
+    expect(state(block).body.notes).toEqual([{ target: 'in-flight', side: 'left', text: 'text' }])
+    expect(await upstream.project(block, mermaid => mermaid.db.rootDoc.flatMap((item: any) => item.note ? [[item.id, item.note.text]] : [])))
+      .toEqual({ ok: true, value: [['in', '-flight\ntext']] })
+    expect(unsupported(block)).toEqual(['state_note_target@3'])
+  })
+
   test('a direction is read in any case, as Mermaid reads it', () => {
     const source = 'stateDiagram-v2\nDIRECTION lr\nstate X {\nDirection BT\nA\n}'
     const body = state(source).body

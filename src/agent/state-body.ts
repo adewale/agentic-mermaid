@@ -1290,7 +1290,7 @@ export function stateUnsupportedSyntaxWarnings(canonicalSource: string): LayoutW
 
 /** Statements ours reads that pinned Mermaid reads otherwise, by statement:
  *  `cssClass` and `linkStyle`, which its State grammar lacks; a transition
- *  naming a state it cannot name there; and a composite given more than
+ *  or note naming a state it cannot name there; and a composite given more than
  *  one label or description, which it rejects. Each at its authored line. */
 function stateReadOtherwiseWarnings(statements: readonly StateStatement[], header: number): Array<LayoutWarning & { line: number }> {
   const warnings: Array<LayoutWarning & { line: number }> = []
@@ -1320,6 +1320,13 @@ function stateReadOtherwiseWarnings(statements: readonly StateStatement[], heade
     }
     if (keyword === 'linkStyle') {
       warn(statement, 'state_link_style', '`linkStyle` paints transitions here, and the writer writes transition paint so. Pinned Mermaid\'s State grammar has no `linkStyle`: it reads the words of the line as states, or rejects them, and draws no transition paint.')
+      continue
+    }
+    const note = matchNoteLine(text) ?? matchNoteOpen(text)
+    if (note) {
+      if (note.target.includes('-')) {
+        warn(statement, 'state_note_target', `The note is on '${note.target}', which pinned Mermaid cannot read as a note's state: there a state name ends at a hyphen. Mermaid rejects a note whose text follows a colon, and puts a block note on the state named before the hyphen, reading the rest as note text, here and in the output. Rename the state to keep it portable.`)
+      }
       continue
     }
     const transition = matchTransitionLine(text)
