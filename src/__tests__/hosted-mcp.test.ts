@@ -17,6 +17,9 @@ import { renderMermaidASCII, verifyNoExternalRefs } from '../index.ts'
 import { MAX_HOSTED_PNG_BYTES, PNG_WASM_RUNTIME } from '../png-contract.ts'
 
 const FLOW = 'flowchart TD\n  A[Start] --> B{OK?}\n  B -->|yes| C[Done]'
+// The published view URI and the MCP Apps MIME type are public contracts.
+const VIEW_URI = 'ui://agentic-mermaid/preview'
+const MCP_APP_MIME = 'text/html;profile=mcp-app'
 const TEST_PNG_RECEIPT = { version: 2, output: 'png', sharedRequestDigest: 'test-shared', requestDigest: 'test-request', appearanceDigest: 'test-appearance', capabilityDecision: { version: 1, accepted: true, resolutions: [] } } as const
 
 function makeContext(overrides: Partial<HostedMcpContext> = {}): HostedMcpContext & { executeCalls: Array<{ code: string; timeoutMs: number }>; pngCalls: Array<{ source: string; scale?: number; background?: string; security?: 'default' | 'strict'; embedFontImport?: boolean }> } {
@@ -85,19 +88,22 @@ describe('hosted MCP handshake', () => {
     expect(result.serverInfo).toEqual({ name: 'agentic-mermaid-hosted', version: pkg.version })
     expect(result.instructions).toContain('stateless')
     expect(result.instructions).toContain('render_svg')
-    expect(result.capabilities).toEqual({ tools: {} })
+    expect(result.capabilities).toEqual({
+      tools: {},
+      resources: { subscribe: false, listChanged: false },
+    })
   })
 
   test('the hosted identity is distinct from the local stdio server', () => {
     // Registries and clients cache tool lists by server identity; the hosted
-    // surface (9 tools) must never shadow the local server's (4 tools).
+    // surface (10 tools) must never shadow the local server's (4 tools).
     expect(HOSTED_MCP_SERVER_NAME).not.toBe(MCP_SERVER_NAME)
   })
 
   test('tools/list exposes exactly the hosted tool surface', async () => {
     const res = await handleHostedRequest(rpc('tools/list'), makeContext())
     const names = (res?.result as any).tools.map((t: { name: string }) => t.name)
-    expect(names).toEqual(['execute', 'describe_sdk', 'render_svg', 'render_ascii', 'render_png', 'verify', 'describe', 'mutate', 'build'])
+    expect(names).toEqual(['execute', 'describe_sdk', 'render_svg', 'render_ascii', 'render_png', 'verify', 'describe', 'mutate', 'build', 'preview'])
     expect((res?.result as any).tools).toBe(HOSTED_TOOLS)
     const execute = (res?.result as any).tools.find((tool: { name: string }) => tool.name === 'execute')
     for (const signature of ['renderMermaidSVGWithReceipt(', 'renderMermaidASCIIWithReceipt(', 'layoutMermaidWithReceipt(']) {
@@ -113,7 +119,7 @@ describe('hosted MCP handshake', () => {
       }))
     }
     expect((res?.result as any).tools.find((tool: any) => tool.name === 'execute').annotations.idempotentHint).toBe(false)
-    for (const name of ['describe_sdk', 'render_svg', 'render_ascii', 'render_png', 'verify', 'describe', 'mutate', 'build']) {
+    for (const name of ['describe_sdk', 'render_svg', 'render_ascii', 'render_png', 'verify', 'describe', 'mutate', 'build', 'preview']) {
       expect((res?.result as any).tools.find((tool: any) => tool.name === name).annotations.idempotentHint).toBe(true)
     }
   })
@@ -127,10 +133,73 @@ describe('hosted MCP handshake', () => {
   })
 
   test('unknown methods and unknown tools are JSON-RPC errors', async () => {
-    const method = await handleHostedRequest(rpc('resources/read'), makeContext())
+    const method = await handleHostedRequest(rpc('resources/subscribe'), makeContext())
     expect(method?.error?.code).toBe(-32601)
     const tool = await handleHostedRequest(call('render_gif', { source: FLOW }), makeContext())
     expect(tool?.error?.code).toBe(-32602)
+  })
+
+  test('resources/list publishes the MCP Apps view and no templates', async () => {
+    const resources = await handleHostedRequest(rpc('resources/list'), makeContext())
+    expect((resources?.result as any).resources).toEqual([expect.objectContaining({ uri: VIEW_URI, mimeType: MCP_APP_MIME })])
+    // The spec places _meta.ui on the read contents item, never on the listing.
+    expect((resources?.result as any).resources[0]._meta).toBeUndefined()
+    const templates = await handleHostedRequest(rpc('resources/templates/list'), makeContext())
+    expect((templates?.result as any).resourceTemplates).toEqual([])
+  })
+
+  test('resources/read serves the view with a CSP that grants no origin; other URIs are invalid params', async () => {
+    const read = await handleHostedRequest(rpc('resources/read', { uri: VIEW_URI }), makeContext())
+    expect((read?.result as any).contents).toEqual([{
+      uri: VIEW_URI,
+      mimeType: MCP_APP_MIME,
+      text: expect.stringMatching(/^<!doctype html>/),
+      _meta: {
+        ui: {
+          csp: { connectDomains: [], resourceDomains: [], frameDomains: [], baseUriDomains: [] },
+          prefersBorder: true,
+        },
+      },
+    }])
+    const missing = await handleHostedRequest(rpc('resources/read', { uri: 'ui://agentic-mermaid/nope' }), makeContext())
+    expect(missing?.error?.code).toBe(-32602)
+    expect(missing?.error?.data).toEqual({ uri: 'ui://agentic-mermaid/nope' })
+    const badParams = await handleHostedRequest(rpc('resources/read', {}), makeContext())
+    expect(badParams?.error?.code).toBe(-32602)
+  })
+
+  test('every UI-linked tool points at a listed view', async () => {
+    const preview = HOSTED_TOOLS.find(tool => tool.name === 'preview')!
+    expect(preview._meta).toEqual({ ui: { resourceUri: VIEW_URI } })
+    const listed = ((await handleHostedRequest(rpc('resources/list'), makeContext()))?.result as any).resources
+      .map((resource: { uri: string }) => resource.uri)
+    for (const tool of HOSTED_TOOLS) {
+      const uri = tool._meta?.ui?.resourceUri
+      if (uri !== undefined) expect({ tool: tool.name, listed: listed.includes(uri) }).toEqual({ tool: tool.name, listed: true })
+    }
+  })
+
+  test('preview gives the model the verify facts and only the view the strict SVG', async () => {
+    const res = await handleHostedRequest(call('preview', { source: FLOW }), makeContext())
+    const result = res?.result as { content: Array<{ text: string }>; structuredContent: Record<string, any>; isError: boolean }
+    const forModel = JSON.parse(result.content[0]!.text)
+    expect(Object.keys(forModel).sort()).toEqual(['family', 'ok', 'summary', 'warnings'])
+    expect(forModel).toMatchObject({ ok: true, family: 'flowchart', summary: expect.stringContaining('flowchart') })
+    expect(result.isError).toBe(false)
+    // The view gets the same facts plus the SVG, which MCP Apps hosts keep out
+    // of model context.
+    const { svg, ...facts } = result.structuredContent
+    expect(facts).toEqual(forModel)
+    expect(svg.startsWith('<svg')).toBe(true)
+    expect(verifyNoExternalRefs(svg).ok).toBe(true)
+  })
+
+  test('preview reports parse failures with the family example hint', async () => {
+    const payload = payloadOf(await handleHostedRequest(call('preview', { source: 'flowchart TD\n  A -->' }), makeContext()))
+    expect(payload.ok).toBe(false)
+    expect(payload.errors).toEqual([expect.objectContaining({ code: 'PARSE_FAILED' })])
+    expect(payload.svg).toBeUndefined()
+    expect(payload.family).toBe('flowchart')
   })
 
   test('notifications return null; ping pongs', async () => {

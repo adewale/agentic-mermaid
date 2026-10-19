@@ -244,6 +244,7 @@ MCP channel:
 - Local MCP: use the `render_png` helper for base64 PNG bytes when the host needs a raster artifact.
 - Local HTTP/SSE mode: use `render_png` with `output: "file"` or `output: "url"` when the host wants a managed artifact instead of inline base64.
 - Hosted MCP: call `describe_sdk` for one family's compact op signatures or exact field schema, then use direct `render_svg`, `render_ascii`, `render_png`, `verify`, and `describe` for one-shot work; `render_ascii` accepts `targetWidth` as a hard display-cell bound and returns `ASCII_TARGET_WIDTH_IMPOSSIBLE` details when it cannot fit. Use declarative `mutate`/`build` for straightforward op-list edits; reserve hosted `execute` for logic those tools do not express.
+- Hosted MCP: call `preview` when a person should see the result. You get the verify verdict, summary and warnings; hosts that support MCP Apps show the rendered diagram in a read-only view, and its SVG stays out of your context (call `render_svg` when you need the SVG).
 - Use local library/CLI/MCP for sensitive diagrams, offline work, larger inputs, or local file/URL PNG artifacts.
 
 ## Recipe: MCP Code Mode

@@ -233,7 +233,7 @@ describe('agent-readiness standards syntax', () => {
       name: 'agentic-mermaid-hosted',
       kind: 'product',
       transport: 'streamable-http',
-      capabilities: { tools: true, resources: false },
+      capabilities: { tools: true, resources: true },
     }))
     expectAbsoluteHttps(card.url)
     expectAbsoluteHttps(card.serverUrl)
