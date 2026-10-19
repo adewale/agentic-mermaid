@@ -92,7 +92,6 @@ describe('XY Chart authored color admission (#303)', () => {
   test('an explicit render background shadows xyChart.backgroundColor', () => {
     const shadowedBackground = source({ backgroundColor: 'notacolor' })
     expect(() => renderMermaidSVG(shadowedBackground, { bg: '#ffffff' })).not.toThrow()
-    expect(verifyMermaid(shadowedBackground, { renderOptions: { bg: '#ffffff' } }).warnings)
-      .not.toContainEqual(expect.objectContaining({ code: 'RENDER_FAILED' }))
+    expect(verifyMermaid(shadowedBackground, { renderOptions: { bg: '#ffffff' } }).warnings.filter(w => w.code === 'RENDER_FAILED' || w.code === 'INTERNAL_ERROR')).toEqual([])
   })
 })

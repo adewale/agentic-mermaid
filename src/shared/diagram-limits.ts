@@ -17,8 +17,12 @@ export class DiagramWorkLimitError extends RangeError {
   readonly resource: DiagramWorkResource
   readonly requested: number
 
-  constructor(resource: DiagramWorkResource, requested: number) {
-    const work = resource === 'sourceCharacters' ? `authored plus normalized source of ${requested} characters` : `expanded graph ${resource} ${requested}`
+  /** `withConfiguration`: the source fits alone, but not with the parsed
+   * configuration the receipt digests beside it. */
+  constructor(resource: DiagramWorkResource, requested: number, withConfiguration = false) {
+    const work = resource === 'sourceCharacters'
+      ? `authored plus normalized source of ${requested} characters${withConfiguration ? ', with its configuration,' : ''}`
+      : `expanded graph ${resource} ${requested}`
     super(`DIAGRAM_WORK_LIMIT: ${work} exceeds the host limit of ${DIAGRAM_WORK_LIMITS[resource]}; split the diagram${resource === 'sourceCharacters' ? '' : ` or reduce its ${resource}`}`)
     this.name = 'DiagramWorkLimitError'
     this.resource = resource

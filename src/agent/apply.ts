@@ -22,7 +22,7 @@ import { createMermaid, type CreateMermaidOptions } from './create.ts'
 import { mutateChecked } from './mutate.ts'
 import { renderFailureWarning, verifyMermaid } from './verify.ts'
 import { hasOpSchema, type OpFamily, type OpValidationError } from './op-schema.ts'
-import type { MutableValidDiagram, VerifyResult, DiagramKind, MutationError, Result } from './types.ts'
+import type { MutableValidDiagram, VerifyResult, DiagramKind, LayoutWarning, MutationError, Result } from './types.ts'
 import { getFamily } from './families.ts'
 import { renderMermaidSVG } from '../index.ts'
 import type { ParsedDiagram } from './types.ts'
@@ -218,16 +218,17 @@ export function applyOps(input: ApplyOpsInput): OpEnvelope {
  * be published when emptiness is its only blocking diagnostic and its emitted
  * source actually renders. Empty scaffolds below a grammar floor still fail.
  * An edit is not blamed for an engine defect it did not introduce: when every
- * blocking finding is INTERNAL_ERROR and the pre-edit diagram (`before`)
- * already had one, the edit is accepted and its verification keeps reporting
- * the defect. */
+ * blocking finding is an INTERNAL_ERROR the pre-edit diagram (`before`)
+ * already had, with the same reason and the same ordinary-render outcome, the
+ * edit is accepted and its verification keeps reporting the defect. */
 export function verifyMutationResult(diagram: ParsedDiagram, before?: ParsedDiagram): { accepted: boolean; verification: VerifyResult } {
   const verification = verifyMermaid(diagram)
   if (verification.ok) return { accepted: true, verification }
   const blocking = verification.warnings.filter(warning => WARNING_SEVERITY[warning.code] === 'error')
-  if (before && blocking.every(warning => warning.code === 'INTERNAL_ERROR')
-    && verifyMermaid(before).warnings.some(warning => warning.code === 'INTERNAL_ERROR')) {
-    return { accepted: true, verification }
+  if (before && blocking.length > 0 && blocking.every(warning => warning.code === 'INTERNAL_ERROR')) {
+    const defect = (warning: LayoutWarning) => warning.code === 'INTERNAL_ERROR' ? `${warning.defaultRender}\u0000${warning.reason}` : undefined
+    const prior = new Set(verifyMermaid(before).warnings.map(defect).filter(key => key !== undefined))
+    if (blocking.every(warning => prior.has(defect(warning)!))) return { accepted: true, verification }
   }
   if (diagram.body.kind === 'opaque' || diagram.body.kind === 'preserved' || diagram.body.kind === 'extension'
     || !getFamily(diagram.kind)?.mutate

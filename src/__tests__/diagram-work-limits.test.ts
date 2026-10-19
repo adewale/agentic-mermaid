@@ -1,3 +1,4 @@
+import { normalizeMermaidSource } from '../mermaid-source.ts'
 import { describe, expect, spyOn, test } from 'bun:test'
 import type { ElkNode } from 'elkjs'
 import { parseMermaid } from '../parser.ts'
@@ -73,6 +74,12 @@ describe('graph work admission', () => {
     const source = `%% ${'x'.repeat(DIAGRAM_WORK_LIMITS.sourceCharacters)}\nflowchart LR\n  A --> B`
     expect(() => renderMermaidSVG(source)).toThrow(DiagramWorkLimitError)
     expect(() => renderMermaidSVG(source)).toThrow(/DIAGRAM_WORK_LIMIT: authored plus normalized source/)
+    // It also digests the parsed configuration, so a source that fits the
+    // character check alone can still exceed it: the same work limit.
+    const configured = `---\ntitle: T\nconfig:\n  themeVariables:\n    primaryColor: "#ffffff"\n---\nflowchart LR\n  A["${'y'.repeat(998_000)}"] --> B`
+    expect(configured.length + normalizeMermaidSource(configured).text.length).toBeLessThanOrEqual(DIAGRAM_WORK_LIMITS.sourceCharacters)
+    expect(() => renderMermaidSVG(configured)).toThrow(DiagramWorkLimitError)
+    expect(() => renderMermaidSVG(configured)).toThrow(/, with its configuration, exceeds/)
   })
 
   test('programmatic graphs are bounded before graph conversion', () => {

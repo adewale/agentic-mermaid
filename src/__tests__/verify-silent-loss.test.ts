@@ -101,6 +101,12 @@ describe('render-parity gate (RENDER_FAILED)', () => {
       { source: '%%{init: {"themeVariables": {"primaryColor": "notacolor"}}}%%\nflowchart LR\n  A --> B', origin: 'config' },
       { source: 'flowchart LR\n  A --> B', renderOptions: { bg: 'url(https://example.test/x)' }, origin: 'config' },
       { source: 'flowchart LR\n  A --> B', renderOptions: { style: 'no-such-style' }, origin: 'config' },
+      // Authored values that reach Scene admission's range and identity checks,
+      // or the family normalizer's option checks, are still the author's.
+      { source: 'flowchart LR\n  A --> B\n  style A stroke-width:-5px', origin: 'source' },
+      { source: 'flowchart LR\n  A --> B\n  linkStyle 0 stroke-width:1e9px', origin: 'source' },
+      { source: 'stateDiagram-v2\n  state A {\n    state A {\n      x --> y\n    }\n  }', origin: 'source' },
+      { source: '---\nconfig:\n  themeVariables:\n    fontFamily: "Inter, sans-serif;"\n---\nsequenceDiagram\n  A->>B: hi', origin: 'config' },
     ] as const
     for (const { source, origin, ...opts } of cases) {
       const r = verifyMermaid(source, opts)

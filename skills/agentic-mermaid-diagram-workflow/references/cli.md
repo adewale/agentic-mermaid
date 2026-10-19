@@ -28,7 +28,9 @@ am <cmd> --help               per-command help
 family roster reported by `am capabilities --json`; opaque fallback bodies
 return a structured `UNSUPPORTED_FAMILY` error. `am mutate` verifies before emitting source; verify
 failure exits 3 and omits `source`. A verify whose errors are all `INTERNAL_ERROR`
-(an Agentic Mermaid defect, not the diagram) exits 4 instead; report it with the source. Use direct Mermaid source authoring plus
+(an Agentic Mermaid defect, not the diagram) exits 4 instead; report it with the source.
+An edit is still emitted when its only errors are `INTERNAL_ERROR` defects the input
+already had (same reason and `defaultRender`). Use direct Mermaid source authoring plus
 `am verify`/`am render` for brand-new diagrams; reserve `am mutate` for
 existing structured diagrams. `am parse | am serialize` round-trips through JSON.
 

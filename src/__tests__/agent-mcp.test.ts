@@ -869,12 +869,14 @@ describe('CLI — sad paths via runCli', () => {
   })
 
   // A flowchart layout that raises a TypeError for any diagram naming a
-  // `Defect` node: an engine fault, which no diagram or edit should be blamed for.
+  // `Defect` node (or a different one for an `Other` node): an engine fault,
+  // which no diagram or edit should be blamed for.
   const withLayoutDefect = (run: () => void): void => {
     const flowchart = getFamily('flowchart')!
     const restore = replaceFamilyForTest('flowchart', {
       ...flowchart,
       layout: context => {
+        if (context.source.text.includes('Other')) throw new TypeError('another layout defect')
         if (context.source.text.includes('Defect')) throw new TypeError('layout defect')
         return flowchart.layout!(context)
       },
@@ -919,6 +921,9 @@ describe('CLI — sad paths via runCli', () => {
       expect(applyOps({ source: 'flowchart LR\n  A --> B', ops: [addDefect] })).toMatchObject({ ok: false, error: { code: 'VERIFY_FAILED', details: expect.arrayContaining([layoutDefect]) } })
       const rejected = capture(() => runCli(['mutate', tmpFile('defect-after.mmd', 'flowchart LR\n  A --> B'), '--op', JSON.stringify(addDefect)]))
       expect(rejected.code).toBe(4)
+      // A pre-existing defect does not excuse a different one the edit adds.
+      const addOther = { kind: 'add_node', id: 'Other', label: 'Other' }
+      expect(applyOps({ source: before, ops: [addOther] })).toMatchObject({ ok: false, error: { code: 'VERIFY_FAILED' } })
     })
   })
 

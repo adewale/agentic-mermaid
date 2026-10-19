@@ -275,11 +275,14 @@ This changelog tracks user-facing changes for **Agentic Mermaid**, a fork of `lu
   produces output (`succeeds-unchecked`, unchecked) or throws (`fails`).
   `RENDER_FAILED` now covers faults in the source or its configuration only,
   and its new `origin` field says which. `am verify`, `am mutate` and
-  `am describe` exit 4 when every error is `INTERNAL_ERROR`; a typed edit to a
-  diagram that already had the defect is accepted; `am capabilities --json`
-  lists each code's possible `origins`. Invalid render options and Style
-  inputs, and sources too long for the request receipt, are now typed
-  refusals rather than plain runtime errors.
+  `am describe` exit 4 when every error is `INTERNAL_ERROR`; a typed edit is
+  accepted when its only errors are the same `INTERNAL_ERROR` defects the
+  diagram already had; `am capabilities --json` lists each code's possible
+  `origins`. Authored values that reach the Scene's range, extent and
+  identity checks (a negative stroke width, an oversized canvas, a reused id)
+  stay `RENDER_FAILED`. Invalid render options, Style inputs and theme fonts,
+  and sources too long for the request receipt (with their configuration),
+  are now typed refusals rather than plain runtime errors.
 - The npm package no longer ships `docs/mutation-testing.md`; mutation testing
   and its CI jobs are gone. The repository no longer commits generated reports,
   receipts, upstream-corpus hashes or eval evidence, and `CLAUDE.md` records

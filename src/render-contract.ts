@@ -58,7 +58,7 @@ import { RENDER_OUTPUTS, type RenderOutput } from './render-outputs.ts'
 import { PNG_OUTPUT_POLICY_VERSION, TERMINAL_OUTPUT_POLICY_VERSION } from './output-policy-versions.ts'
 import { explicitFamilyConfigDiagnostics } from './shared/family-config-diagnostics.ts'
 import { deepFreeze, isPlainRecord } from './shared/plain-data.ts'
-import { assertDiagramWorkLimit } from './shared/diagram-limits.ts'
+import { assertDiagramWorkLimit, DiagramWorkLimitError } from './shared/diagram-limits.ts'
 import {
   createTextMeasurementExecution,
   type TextMeasurementExecution,
@@ -1272,7 +1272,9 @@ function assertFamilyGeometryOptions(
   }
   const problems = validateSerializableRenderOptions(serializableOptionCandidate(after))
   if (problems.length > 0) {
-    throw new TypeError(`Family "${family.id}" returned invalid normalized RenderOptions: ${problems.join('; ')}`)
+    // A built-in normalizer passes the author's config through; its values are
+    // what fail here (an unsafe theme font, an out-of-range size).
+    throw new RenderConfigError(`Family "${family.id}" returned invalid normalized RenderOptions: ${problems.join('; ')}`)
   }
   const beforeSerializable = serializableOptions(before)
   const afterSerializable = serializableOptions(after)
@@ -1297,12 +1299,13 @@ function normalizedFamilyColors(
     const candidate = value[field]
     if (candidate === undefined) continue
     const safe = safeCssPaint(candidate)
-    if (safe === undefined) throw new TypeError(`Family "${family.id}" returned an unsafe ${field} paint`)
+    // The value is the author's theme or config, passed through by the family.
+    if (safe === undefined) throw new RenderConfigError(`Family "${family.id}" returned an unsafe ${field} paint`)
     out[field] = safe
   }
   if (value.font !== undefined) {
     const font = safeCssFontFamily(value.font)
-    if (font === undefined) throw new TypeError(`Family "${family.id}" returned an unsafe font family`)
+    if (font === undefined) throw new RenderConfigError(`Family "${family.id}" returned an unsafe font family`)
     if (font !== base.font) {
       throw new TypeError(`Family "${family.id}" request normalizer may not rewrite appearance field "font"`)
     }
@@ -1484,6 +1487,19 @@ function canonicalJson(value: unknown): string {
 }
 
 /** Stable, browser-safe FNV-1a-64 receipt (not a security primitive). */
+/** A request receipt that overflows the digest budget is a source too large
+ * for this host, even when the source alone fit the sourceCharacters check. */
+function requestReceiptDigest(receipt: unknown, source: { readonly originalText: string; readonly text: string }): string {
+  try {
+    return renderContractDigest(receipt)
+  } catch (error) {
+    if (error instanceof TypeError && /aggregate limit/.test(error.message)) {
+      throw new DiagramWorkLimitError('sourceCharacters', source.originalText.length + source.text.length, true)
+    }
+    throw error
+  }
+}
+
 export function renderContractDigest(value: unknown): string {
   // Public digest callers may supply accessor-backed values. Materialize that
   // graph once under the request-data bounds, then validate and canonicalize
@@ -2079,7 +2095,7 @@ export function resolveRenderRequestForExecution(
     ...(executionPlan.textMeasurement ? { textMeasurement: executionPlan.textMeasurement.identity } : {}),
     capabilities: sharedCapabilityDecision,
   }
-  const sharedRequestDigest = renderContractDigest(sharedRequestReceipt)
+  const sharedRequestDigest = requestReceiptDigest(sharedRequestReceipt, source)
   const requestReceipt = {
     ...sharedRequestReceipt,
     output,
@@ -2097,7 +2113,7 @@ export function resolveRenderRequestForExecution(
     explicitOptionFields,
     ...(resolutionDiagnostics.length === 0 ? {} : { resolutionDiagnostics }),
     sharedRequestDigest,
-    requestDigest: renderContractDigest(requestReceipt),
+    requestDigest: requestReceiptDigest(requestReceipt, source),
   })
   EXECUTION_PLAN_BY_REQUEST.set(request, executionPlan)
   return request

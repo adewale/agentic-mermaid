@@ -137,7 +137,7 @@ export function verifyMermaid(input: ParsedDiagram | string, opts: VerifyOptions
     const { diagnostic } = parsed.value.body
     return finalize([{ code: 'RENDER_FAILED', reason: `${diagnostic.code}: ${diagnostic.message}`, origin: 'source' }], emptyRenderedLayout(parsed.value.kind), opts, false)
   }
-  const positioned = memoizedVerificationArtifact(parsed.value, opts)
+  const positioned = memoizedVerificationArtifact(parsed.value, opts, typeof input === 'string' ? input : undefined)
   // Flowchart's canonical body omits the authored config envelope, so the
   // positioned render-parity artifact alone cannot detect bad theme colors.
   // Check the same merged source/options config before all verification tiers.
@@ -180,14 +180,15 @@ export function renderFailureWarning(error: unknown, defaultRender: () => Defaul
 
 /**
  * Whether an ordinary render of the request verify checks still produces
- * output: the same source and render options, without the Scene cross-checks
- * verify marks its own requests for. The caller's diagnostic callback is left
- * out; it already observes verify's own request.
+ * output: the caller's own source (or the parsed diagram they passed) and
+ * render options, without the Scene cross-checks verify marks its own
+ * requests for. The caller's diagnostic callback is left out; it already
+ * observes verify's own request.
  */
-function ordinaryRenderOutcome(d: ParsedDiagram, opts: VerifyOptions): DefaultRender {
+function ordinaryRenderOutcome(d: ParsedDiagram, opts: VerifyOptions, authored?: string): DefaultRender {
   try {
     const { onConfigDiagnostic: _observer, ...renderOptions } = opts.renderOptions ?? {}
-    const input = prepareRenderInput(d)
+    const input = prepareRenderInput(authored ?? d)
     executeGraphicalRequest(input.source, renderOptions, 'svg', undefined, { expectedFamilyId: input.expectedFamilyId })
     return 'succeeds-unchecked'
   } catch {
@@ -224,12 +225,12 @@ function withBrandConstraints(result: VerifyResult, opts: VerifyOptions, positio
 
 /** One lazy artifact per verify call; failures are memoized as well as values,
  * and so is the ordinary render an engine failure is checked against. */
-function memoizedVerificationArtifact(d: ParsedDiagram, opts: VerifyOptions): VerificationArtifact {
+function memoizedVerificationArtifact(d: ParsedDiagram, opts: VerifyOptions, authored?: string): VerificationArtifact {
   let attempted = false
   let artifact: ProjectedFamilyArtifact | null = null
   let failure: unknown
   let defaultRender: DefaultRender | undefined
-  const failureWarning = (error: unknown, prefix?: string) => renderFailureWarning(error, () => defaultRender ??= ordinaryRenderOutcome(d, opts), prefix)
+  const failureWarning = (error: unknown, prefix?: string) => renderFailureWarning(error, () => defaultRender ??= ordinaryRenderOutcome(d, opts, authored), prefix)
   return Object.assign(() => {
     if (attempted) {
       if (failure !== undefined) throw failure

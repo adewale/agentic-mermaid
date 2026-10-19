@@ -142,7 +142,7 @@ describe('quadrant authored paint admission (#303)', () => {
       const source = `quadrantChart\n  A: [0.5, 0.5] color: ${value}, stroke-color: ${value}`
       expect(() => renderMermaidSVG(source), value).not.toThrow()
       expect(() => renderMermaidASCII(source), value).not.toThrow()
-      expect(verifyMermaid(source).warnings).not.toContainEqual(expect.objectContaining({ code: 'RENDER_FAILED' }))
+      expect(verifyMermaid(source).warnings.filter(w => w.code === 'RENDER_FAILED' || w.code === 'INTERNAL_ERROR')).toEqual([])
     }
   })
 

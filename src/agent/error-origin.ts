@@ -14,6 +14,10 @@
 // Author input that could reach one of those runtime classes throws a typed
 // error instead (work limits, JSON/config admission, RenderConfigError), and
 // a subclass of a runtime class is never itself read as a runtime defect.
+// Scene admission also checks ranges, extents and identities that authored
+// values reach (a negative stroke width, a canvas past its cap, a duplicate
+// id), so a Scene validation failure is the engine's only when every
+// diagnostic compares facts the engine derived itself.
 // ============================================================================
 
 import { C4RouteWorkLimitError } from '../c4/routing.ts'
@@ -42,10 +46,10 @@ import type { WarningOrigin } from './types.ts'
 type ErrorClass = abstract new (...args: never[]) => Error
 
 const ORIGINS: ReadonlyArray<readonly [ErrorClass, WarningOrigin]> = [
-  // Our own consistency checks and contracts.
-  [SceneValidationError, 'engine'],
+  // Our own consistency checks and contracts. Scene validation and layout
+  // certification failures are decided by their diagnostics in
+  // renderErrorOrigin, below.
   [LayoutPassContractError, 'engine'],
-  [LayoutCertificationError, 'engine'],
   [ErRouteGeometryError, 'engine'],
   [FamilyConformanceError, 'engine'],
   [HtmlEntityTableNotLoadedError, 'engine'],
@@ -76,6 +80,10 @@ const ORIGINS: ReadonlyArray<readonly [ErrorClass, WarningOrigin]> = [
 
 const RUNTIME_DEFECTS: readonly ErrorClass[] = [TypeError, RangeError, ReferenceError]
 
+/** Scene diagnostics no authored value can produce: a lowering's derived
+ * facts disagreeing, or a family emitting a role or channel it never declared. */
+const ENGINE_SCENE_DIAGNOSTICS: ReadonlySet<string> = new Set(['SCENE_FIDELITY', 'SCENE_PRIMITIVE_CLAIM', 'SCENE_CHANNEL_CLAIM'])
+
 /** Who can fix the render-path failure `error`: the source, its configuration, or the engine. */
 export function renderErrorOrigin(error: unknown): WarningOrigin {
   const seen = new Set<Error>()
@@ -84,6 +92,14 @@ export function renderErrorOrigin(error: unknown): WarningOrigin {
   while (link instanceof Error && !seen.has(link)) {
     const current = link
     seen.add(current)
+    // Every attempt failing on a duplicate identity means the author reused
+    // an id; any other certification failure is the layout engine's.
+    if (current instanceof LayoutCertificationError) {
+      return current.attempts.length > 0 && current.attempts.every(attempt => attempt.violations.some(violation => violation.endsWith(': duplicate identity'))) ? 'source' : 'engine'
+    }
+    if (current instanceof SceneValidationError) {
+      return current.diagnostics.length > 0 && current.diagnostics.every(item => ENGINE_SCENE_DIAGNOSTICS.has(item.code)) ? 'engine' : 'source'
+    }
     const typed = ORIGINS.find(([type]) => current instanceof type)
     if (typed) return typed[1]
     innermost = current

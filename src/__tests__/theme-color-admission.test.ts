@@ -341,7 +341,7 @@ describe.each([...FAMILIES])('theme color admission (#303): $family', row => {
   test('every paint admits each drawable CSS paint, and verify agrees', () => {
     const everyPaint = (value: string): string => init(row.body, ...row.paints.map((path): Entry => [path, value]))
     for (const value of VALID) expect(() => renderMermaidSVG(everyPaint(value)), value).not.toThrow()
-    expect(verifyMermaid(everyPaint(SINK)).warnings).not.toContainEqual(expect.objectContaining({ code: 'RENDER_FAILED' }))
+    expect(verifyMermaid(everyPaint(SINK)).warnings.filter(w => w.code === 'RENDER_FAILED' || w.code === 'INTERNAL_ERROR')).toEqual([])
   })
 
   test.each(Object.entries(row.sinks))('%s keeps an admitted var() paint at its SVG sink', (path, sink) => {
@@ -435,8 +435,7 @@ describe('theme color admission (#303): Architecture derived paint', () => {
     ] as const) {
       const source = initVars(ARCHITECTURE, { [key]: 'none' })
       expect(renderMermaidSVG(source, colors), key).toContain('<svg')
-      expect(verifyMermaid(source, { renderOptions: colors }).warnings, key)
-        .not.toContainEqual(expect.objectContaining({ code: 'RENDER_FAILED' }))
+      expect(verifyMermaid(source, { renderOptions: colors }).warnings.filter(w => w.code === 'RENDER_FAILED' || w.code === 'INTERNAL_ERROR'), key).toEqual([])
     }
   })
 
