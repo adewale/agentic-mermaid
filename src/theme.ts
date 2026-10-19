@@ -385,7 +385,8 @@ export function svgOpenTag(
     attrs?: Record<string, string | undefined>
   },
 ): string {
-  if (colors.font !== undefined) requireSafeCssFontFamily(colors.font)
+  // The safe spelling is single-quoted, so it cannot close the style attribute.
+  const font = colors.font === undefined ? undefined : requireSafeCssFontFamily(colors.font)
   for (const field of ['bg', 'fg', 'line', 'accent', 'muted', 'surface', 'border'] as const) {
     const value = colors[field]
     if (value !== undefined) requireSafeCssPaint(value, field)
@@ -401,7 +402,7 @@ export function svgOpenTag(
     colors.muted   ? `--muted:${colors.muted}` : '',
     colors.surface ? `--surface:${colors.surface}` : '',
     colors.border  ? `--border:${colors.border}` : '',
-    colors.font    ? `--font:${colors.font}` : '',
+    font           ? `--font:${font}` : '',
   ].filter(Boolean).join(';')
 
   const bgStyle = transparent ? '' : ';background:var(--bg)'

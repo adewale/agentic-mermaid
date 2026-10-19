@@ -22,6 +22,14 @@ This changelog tracks user-facing changes for **Agentic Mermaid**, a fork of `lu
 
 ### Fixed
 
+- Font families may be double-quoted, as Mermaid's own default
+  `"trebuchet ms", verdana, arial, sans-serif` is: the font option,
+  `fontFamily` config, theme variables, Journey font config, style-role fonts
+  and Architecture group fonts accept them. A font written into a style
+  attribute or stylesheet is written single-quoted; a `font-family`
+  attribute escapes the quotes. A quote that does not close, a name holding
+  the other quote character, and whitespace other than space and tab stay
+  refused.
 - Journey `taskFontFamily` and `titleFontFamily` config values are written
   into CSS only when they are safe font-family lists; an unsafe value (one
   that closes the rule or fetches with `url()`) is ignored with an
