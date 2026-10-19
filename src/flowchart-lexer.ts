@@ -136,8 +136,10 @@ const NODE_STRING_CHAR_RE = /[\p{L}\p{N}_!"#$%&'*+.`?\\/]/u
 /**
  * The length of the node id at `at`, as upstream's lexer reads one: a run of
  * node-string characters, and `:`, which its id grammar also takes in, where
- *   - `"` and `&` belong to the id only after its first character (where an
- *     id would begin, they open a string or join a `&` list);
+ *   - `"` belongs to the id only after its first character (where an id
+ *     would begin, it opens a string);
+ *   - `&` begins an id only before another id character (`&a`); otherwise
+ *     it joins a `&` list;
  *   - `:` belongs to it unless `:::`, a class, begins there;
  *   - `-` belongs to it unless `-` or `.` follows (a link begins), so `A--x`
  *     and `A-.->` end the id before it, `A.-B` is one id, and so is the
@@ -156,7 +158,7 @@ export function flowchartNodeIdLength(text: string, at = 0): number {
       if (next === '-' || next === '.') break
       continue
     }
-    if (end === at && (char === '"' || char === '&' || char === ':')) break
+    if (end === at && (char === '"' || (char === '&' && !NODE_STRING_CHAR_RE.test(text[end + 1] ?? ' ')))) break
     if (char === ':') {
       if (text.startsWith(':::', end)) break
       continue

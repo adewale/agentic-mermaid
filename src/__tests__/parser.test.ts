@@ -154,9 +154,10 @@ describe('parseMermaid – node shapes (original)', () => {
   })
 
   // Upstream's node string (flow.jison NODE_STRING) holds `!"#$%&'*+.`?\/`,
-  // and its id grammar `:`, besides letters, digits, `_` and `-`; a `"`, `&`
-  // or `:` only after an id's first character. An `x` or `o` right after id
-  // characters is the id's, not a link's marker.
+  // and its id grammar `:`, besides letters, digits, `_` and `-`; a `"` only
+  // after an id's first character, and a first `&` only before another id
+  // character (`& ` joins a list). An `x` or `o` right after id characters is
+  // the id's, not a link's marker.
   it.each([
     ['A.B --> C', ['A.B', 'C']],
     ['A.-B', ['A.-B']],
@@ -165,6 +166,7 @@ describe('parseMermaid – node shapes (original)', () => {
     ["A!B & A#B & A$B & A%B & A'B & A*B --> A+B & A?B & A\\B & A/B", ["A!B", 'A#B', 'A$B', 'A%B', "A'B", 'A*B', 'A+B', 'A?B', 'A\\B', 'A/B']],
     ['A&B --> C & D', ['A&B', 'C', 'D']],
     ['A:B:::c --> C', ['A:B', 'C']],
+    [':a --> &b & C & &&', [':a', '&b', 'C', '&&']],
     ['.A --> B. --> 1.5', ['.A', 'B.', '1.5']],
     ['é.b[label] --> c', ['é.b', 'c']],
     ['Xo--xY', ['Xo', 'Y']],
