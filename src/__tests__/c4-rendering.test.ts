@@ -161,7 +161,7 @@ UpdateRelStyle(client,db,$lineColor="blue",$textColor="navy")
 SHOW_LEGEND()`
     const svg = renderMermaidSVG(source), text = renderMermaidASCII(source, { colorMode: 'none' })
     expect(svg).toContain('data-href="https://example.com/current" role="link" tabindex="0"')
-    expect(svg).toContain('data-href="https://example.com/relation" tabindex="0"')
+    expect(svg).toMatch(/<polyline class="edge"[^>]* data-href="https:\/\/example\.com\/relation" tabindex="0"[^>]* data-role="edge"/)
     expect(svg).toContain('fill="navy"')
     expect(svg).toContain('stroke="blue"')
     for (const phrase of ['Critical service', 'PostgreSQL', '[tags: critical]', 'First', 'Second']) { expect(svg).toContain(phrase); expect(text).toContain(phrase) }

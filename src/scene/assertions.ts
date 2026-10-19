@@ -1,15 +1,16 @@
-// Our own Scene lowering derives some facts twice: a connector's terminal
-// projection from its semantics, and every mark's SVG serialization from its
-// fields. Re-deriving and comparing them on every render cost about a fifth of
-// a render, and only a lowering bug can make them disagree, so these
-// cross-checks run where such bugs are caught or where a caller asked for the
-// strongest evidence: in the unit tests (their preload sets
-// AGENTIC_MERMAID_SCENE_ASSERTIONS=1), for the requests verify lowers, for
-// `layoutSafety: 'strict'`, for the connector Scene ASCII draws from, and on
-// request with that variable. Scenes from `family:` extensions are always
-// checked in full, and the final output-security gate always inspects the
-// bytes a render emits. Marks live on the request rather than in a scope, so
-// a verify cut short (a sandbox timeout skips `finally`) cannot leave them on.
+// Our own Scene lowering derives some facts twice, such as a connector's
+// terminal projection from its semantics (mark SVG is not among them: the
+// writer draws it from the fields). Re-deriving and comparing them on every
+// render costs a measurable share of a render, and only a lowering bug can
+// make them disagree, so these cross-checks run where such bugs are caught or
+// where a caller asked for the strongest evidence: in the unit tests (their
+// preload sets AGENTIC_MERMAID_SCENE_ASSERTIONS=1), for the requests verify
+// lowers, for `layoutSafety: 'strict'`, for the connector Scene ASCII draws
+// from, and on request with that variable. Scenes from `family:` extensions
+// are always checked in full, and the final output-security gate always
+// inspects the bytes a render emits. Marks live on the request rather than in
+// a scope, so a verify cut short (a sandbox timeout skips `finally`) cannot
+// leave them on.
 
 import type { ResolvedRenderRequest } from '../render-contract.ts'
 

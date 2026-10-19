@@ -27,7 +27,10 @@ am <cmd> --help               per-command help
 `am verify` always emits JSON. `am mutate` dispatches across the live mutable
 family roster reported by `am capabilities --json`; opaque fallback bodies
 return a structured `UNSUPPORTED_FAMILY` error. `am mutate` verifies before emitting source; verify
-failure exits 3 and omits `source`. Use direct Mermaid source authoring plus
+failure exits 3 and omits `source`. A verify whose errors are all `INTERNAL_ERROR`
+(an Agentic Mermaid defect, not the diagram) exits 4 instead; report it with the source.
+An edit is still emitted when its only errors are `INTERNAL_ERROR` defects the input
+already had (same reason and `defaultRender`). Use direct Mermaid source authoring plus
 `am verify`/`am render` for brand-new diagrams; reserve `am mutate` for
 existing structured diagrams. `am parse | am serialize` round-trips through JSON.
 
@@ -42,7 +45,7 @@ am mutate flow.mmd --op '{"kind":"rename_node","from":"X","to":"Y"}'
 am mutate seq.mmd --op '{"kind":"add_message","from":"A","to":"B","text":"Hi"}'
 ```
 
-Exit codes: 0 ok, 2 arg/parse/mutation error, 3 verify failed, 4 internal.
+Exit codes: 0 ok, 2 arg/parse/mutation error, 3 verify failed, 4 internal (including a verify whose errors are all `INTERNAL_ERROR`).
 
 PNG emits `BELOW_READABLE_SIZE` when the smallest measurable configured text
 lands below `--min-label-px` after final raster sizing. The provisional default

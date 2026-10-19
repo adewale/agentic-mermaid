@@ -44,7 +44,8 @@ describe('canonical shape outline authority', () => {
       ...GEOMETRIC_SHAPES.map(shape => node(shape)),
     ]
     for (const positioned of nodes) {
-      const painted = shapeOutline(positioned, { ...PAINT, fill }).crisp.includes(`fill="${fill}"`)
+      const outline = shapeOutline(positioned, { ...PAINT, fill })
+      const painted = [outline.paint, ...outline.childPaints ?? []].some(paint => paint.fill === fill)
       expect(paintsNodeFill(positioned), positioned.semanticShape ?? positioned.shape).toBe(painted)
     }
   })

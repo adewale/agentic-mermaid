@@ -58,6 +58,7 @@ import { RENDER_OUTPUTS, type RenderOutput } from './render-outputs.ts'
 import { PNG_OUTPUT_POLICY_VERSION, TERMINAL_OUTPUT_POLICY_VERSION } from './output-policy-versions.ts'
 import { explicitFamilyConfigDiagnostics } from './shared/family-config-diagnostics.ts'
 import { deepFreeze, isPlainRecord } from './shared/plain-data.ts'
+import { assertDiagramWorkLimit, DiagramWorkLimitError } from './shared/diagram-limits.ts'
 import {
   createTextMeasurementExecution,
   type TextMeasurementExecution,
@@ -1077,6 +1078,17 @@ export class RenderCapabilityError extends Error {
   }
 }
 
+/** Configuration the request waist refuses: invalid RenderOptions, or Mermaid
+ * config the selected security mode or layout safety forbids. It stays a
+ * TypeError, as these refusals always were, but is typed so verify attributes
+ * it to configuration rather than to an engine defect. */
+export class RenderConfigError extends TypeError {
+  constructor(message: string) {
+    super(message)
+    this.name = 'RenderConfigError'
+  }
+}
+
 const EXECUTION_PLAN_BY_REQUEST = new WeakMap<ResolvedRenderRequest, InternalRenderExecutionPlan>()
 
 /** Internal consumer seam for layout/render adapters. Not re-exported by a
@@ -1260,7 +1272,9 @@ function assertFamilyGeometryOptions(
   }
   const problems = validateSerializableRenderOptions(serializableOptionCandidate(after))
   if (problems.length > 0) {
-    throw new TypeError(`Family "${family.id}" returned invalid normalized RenderOptions: ${problems.join('; ')}`)
+    // A built-in normalizer passes the author's config through; its values are
+    // what fail here (an unsafe theme font, an out-of-range size).
+    throw new RenderConfigError(`Family "${family.id}" returned invalid normalized RenderOptions: ${problems.join('; ')}`)
   }
   const beforeSerializable = serializableOptions(before)
   const afterSerializable = serializableOptions(after)
@@ -1285,12 +1299,13 @@ function normalizedFamilyColors(
     const candidate = value[field]
     if (candidate === undefined) continue
     const safe = safeCssPaint(candidate)
-    if (safe === undefined) throw new TypeError(`Family "${family.id}" returned an unsafe ${field} paint`)
+    // The value is the author's theme or config, passed through by the family.
+    if (safe === undefined) throw new RenderConfigError(`Family "${family.id}" returned an unsafe ${field} paint`)
     out[field] = safe
   }
   if (value.font !== undefined) {
     const font = safeCssFontFamily(value.font)
-    if (font === undefined) throw new TypeError(`Family "${family.id}" returned an unsafe font family`)
+    if (font === undefined) throw new RenderConfigError(`Family "${family.id}" returned an unsafe font family`)
     if (font !== base.font) {
       throw new TypeError(`Family "${family.id}" request normalizer may not rewrite appearance field "font"`)
     }
@@ -1472,6 +1487,19 @@ function canonicalJson(value: unknown): string {
 }
 
 /** Stable, browser-safe FNV-1a-64 receipt (not a security primitive). */
+/** A request receipt that overflows the digest budget is a source too large
+ * for this host, even when the source alone fit the sourceCharacters check. */
+function requestReceiptDigest(receipt: unknown, source: { readonly originalText: string; readonly text: string }): string {
+  try {
+    return renderContractDigest(receipt)
+  } catch (error) {
+    if (error instanceof TypeError && /aggregate limit/.test(error.message)) {
+      throw new DiagramWorkLimitError('sourceCharacters', source.originalText.length + source.text.length, true)
+    }
+    throw error
+  }
+}
+
 export function renderContractDigest(value: unknown): string {
   // Public digest callers may supply accessor-backed values. Materialize that
   // graph once under the request-data bounds, then validate and canonicalize
@@ -1566,7 +1594,7 @@ export function captureRenderOptions(options: RenderOptions): Readonly<RenderOpt
   const admitted = admitRenderOptionsInput(options)
   const capturedStyle = immutableSnapshot(resolveStyleStackWithFace(admitted.serializable.style))
   const problems = validateSerializableRenderOptions(admitted.serializable)
-  if (problems.length) throw new TypeError(`Invalid RenderOptions: ${problems.join('; ')}`)
+  if (problems.length) throw new RenderConfigError(`Invalid RenderOptions: ${problems.join('; ')}`)
   const references = namedStyleReferences(admitted.serializable.style)
   const captured = Object.freeze({ ...admitted.serializable, ...(admitted.onConfigDiagnostic ? { onConfigDiagnostic: admitted.onConfigDiagnostic } : {}) })
   CAPTURED_OPTIONS.set(captured, Object.freeze({ ...admitted, capturedStyle }))
@@ -1585,7 +1613,7 @@ export function capturedRenderBackend(options: RenderOptions): string {
  * recursively snapshotted, validated, normalized, and receipted. */
 function admitRenderOptionsInput(untrusted: RenderOptions): AdmittedRenderOptions {
   if ((typeof untrusted !== 'object' && typeof untrusted !== 'function') || untrusted === null) {
-    throw new TypeError('Invalid RenderOptions: render options must be an object')
+    throw new RenderConfigError('Invalid RenderOptions: render options must be an object')
   }
   const prior = CAPTURED_OPTIONS.get(untrusted)
   if (prior) return prior
@@ -1599,7 +1627,7 @@ function admitRenderOptionsInput(untrusted: RenderOptions): AdmittedRenderOption
     }
   }
   if (onConfigDiagnostic !== undefined && typeof onConfigDiagnostic !== 'function') {
-    throw new TypeError('Invalid RenderOptions: onConfigDiagnostic must be a function')
+    throw new RenderConfigError('Invalid RenderOptions: onConfigDiagnostic must be a function')
   }
   if (serializableEntries.length === 0 && onConfigDiagnostic === undefined) return EMPTY_ADMITTED_OPTIONS
   const candidate = Object.fromEntries(serializableEntries)
@@ -1609,7 +1637,7 @@ function admitRenderOptionsInput(untrusted: RenderOptions): AdmittedRenderOption
   } catch (error) {
     const message = (error instanceof Error ? error.message : String(error))
       .replace('data exceeds maximum depth', 'render option tree exceeds maximum nesting depth')
-    throw new TypeError(`Invalid RenderOptions: ${message}`)
+    throw new RenderConfigError(`Invalid RenderOptions: ${message}`)
   }
   return Object.freeze({
     serializable,
@@ -1967,7 +1995,7 @@ export function resolveRenderRequestForExecution(
   // established StyleInput error boundary is preserved for bounded values.
   const admissionProblems = renderOptionsAdmissionMessages(serializableOptionsCandidate)
   if (admissionProblems.length > 0) {
-    throw new TypeError(`Invalid RenderOptions: ${admissionProblems.join('; ')}`)
+    throw new RenderConfigError(`Invalid RenderOptions: ${admissionProblems.join('; ')}`)
   }
   // Keep StyleInput's established public error boundary. The shared options
   // schema still validates the field below (and every host surface uses that
@@ -1980,7 +2008,7 @@ export function resolveRenderRequestForExecution(
   const face = immutableSnapshot(resolvedStyle.face)
   const optionProblems = admitted.capturedStyle ? [] : validateSerializableRenderOptions(serializableOptionsCandidate)
   if (optionProblems.length > 0) {
-    throw new TypeError(`Invalid RenderOptions: ${optionProblems.join('; ')}`)
+    throw new RenderConfigError(`Invalid RenderOptions: ${optionProblems.join('; ')}`)
   }
 
   // Markdown/HTML parsers commonly hand renderers entity-encoded Mermaid.
@@ -2007,8 +2035,12 @@ export function resolveRenderRequestForExecution(
   if (resolutionOptions.expectedFamilyId !== undefined && family.id !== resolutionOptions.expectedFamilyId) {
     throw new ParsedDiagramFamilyMismatchError(resolutionOptions.expectedFamilyId, family.id)
   }
+  // The receipt below digests both copies of the source under one data budget.
+  // Name a source too long for it as the work limit it is, before the digest
+  // would refuse it as malformed request data.
+  assertDiagramWorkLimit('sourceCharacters', source.originalText.length + source.text.length)
   const themeCssProblem = validateRawThemeCss(source.config.themeCSS, admittedOptions.security ?? 'default')
-  if (themeCssProblem) throw new TypeError(themeCssProblem)
+  if (themeCssProblem) throw new RenderConfigError(themeCssProblem)
   if (family.id !== 'architecture') checkThemeVariableColors(source.config.themeVariables, family.id, admittedOptions)
   checkFamilyConfigColors(source.frontmatter, family.id)
   const explicitOptionFields = Object.freeze(SHARED_RENDER_OPTION_FIELDS.filter(field => admittedOptions[field] !== undefined))
@@ -2063,7 +2095,7 @@ export function resolveRenderRequestForExecution(
     ...(executionPlan.textMeasurement ? { textMeasurement: executionPlan.textMeasurement.identity } : {}),
     capabilities: sharedCapabilityDecision,
   }
-  const sharedRequestDigest = renderContractDigest(sharedRequestReceipt)
+  const sharedRequestDigest = requestReceiptDigest(sharedRequestReceipt, source)
   const requestReceipt = {
     ...sharedRequestReceipt,
     output,
@@ -2081,7 +2113,7 @@ export function resolveRenderRequestForExecution(
     explicitOptionFields,
     ...(resolutionDiagnostics.length === 0 ? {} : { resolutionDiagnostics }),
     sharedRequestDigest,
-    requestDigest: renderContractDigest(requestReceipt),
+    requestDigest: requestReceiptDigest(requestReceipt, source),
   })
   EXECUTION_PLAN_BY_REQUEST.set(request, executionPlan)
   return request

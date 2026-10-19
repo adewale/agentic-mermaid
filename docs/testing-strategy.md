@@ -71,7 +71,7 @@ whether it gates per-PR, and what it does *not* prove.
 ## 1. Specified oracles — structural correctness
 
 **Tier-1 `verify`** is the non-negotiable structural gate: none of
-<!-- BEGIN GENERATED: warning-codes:structural -->`EMPTY_DIAGRAM`, `EDGE_MISANCHORED`, `OFF_CANVAS`, `GROUP_BREACH`, `UNKNOWN_SHAPE`, `LABEL_OVERFLOW`, `UNRESOLVABLE_SCHEDULE`, `RENDER_FAILED`<!-- END GENERATED: warning-codes:structural --> fires. It is reliable and universal across
+<!-- BEGIN GENERATED: warning-codes:structural -->`EMPTY_DIAGRAM`, `EDGE_MISANCHORED`, `OFF_CANVAS`, `GROUP_BREACH`, `UNKNOWN_SHAPE`, `LABEL_OVERFLOW`, `UNRESOLVABLE_SCHEDULE`, `RENDER_FAILED`, `INTERNAL_ERROR`<!-- END GENERATED: warning-codes:structural --> fires. It is reliable and universal across
 families. Geometric and lint findings use their canonical severity: most are
 advisory, while measured `CONTENT_OCCLUDED` and an explicit error policy fail verification.
 

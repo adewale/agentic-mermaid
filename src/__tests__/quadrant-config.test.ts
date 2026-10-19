@@ -98,8 +98,10 @@ describe('quadrant point/label/text config keys are wired', () => {
 
   it('border stroke widths are wired (internal divider + external border)', () => {
     const svg = renderMermaidSVG(withConfig('quadrantInternalBorderStrokeWidth: 4\nquadrantExternalBorderStrokeWidth: 7'))
-    expect(svg).toMatch(/\.quadrant-divider \{[^}]*stroke-width: 4/)
-    expect(svg).toMatch(/\.quadrant-border \{[^}]*stroke-width: 7/)
+    const dividers = svg.match(/<line class="quadrant-divider"[^>]*>/g) ?? []
+    expect(dividers).toHaveLength(2)
+    for (const divider of dividers) expect(divider).toContain(' stroke-width="4" ')
+    expect(svg).toMatch(/<rect class="quadrant-border"[^>]* stroke-width="7" /)
   })
 
   it('useMaxWidth: true renders a responsive root; absent keeps fixed sizing', () => {

@@ -5,12 +5,12 @@ import { svgOpenTag, buildStyleBlock, buildShadowDefs } from '../theme.ts'
 import { toneOnFill } from '../color-resolver.ts'
 import { TIMELINE_STYLE_DEFAULTS } from './layout.ts'
 import { buildAccessibilityAttrs } from '../shared/svg-a11y.ts'
-import { escapeAttr, escapeDisplayAttr, renderMultilineText, escapeXml } from '../multiline-utils.ts'
+import { escapeAttr, escapeDisplayAttr, escapeXml } from '../multiline-utils.ts'
 import { STROKE_WIDTHS, resolveRenderStyle } from '../styles.ts'
 import type { RenderStyleDefaults, ResolvedRenderStyle } from '../styles.ts'
 import type { MermaidThemeVariables, TimelineRuntimeConfig } from '../mermaid-source.ts'
 import { topRoundedRectPath } from '../svg-paths.ts'
-import type { SceneDoc, SceneNode } from '../scene/ir.ts'
+import type { MarkAttributes, SceneDoc, SceneNode } from '../scene/ir.ts'
 import { hashId } from '../scene/seed.ts'
 import * as marks from '../scene/marks.ts'
 import { DefaultBackend } from '../scene/backend.ts'
@@ -94,19 +94,17 @@ export function lowerTimelineScene(
   const descId = `${uid}-desc`
   const rootAttrs = buildAccessibilityAttrs(accessibleTitle, accessibleDescription, titleId, descId)
 
-  // SVG root with CSS variables + shared style block (+ optional shadow defs)
-  // + timeline CSS — the exact chunks the string renderer pushed, joined '\n'.
-  // The shadow <defs> sit between the two style blocks (matching the historical
-  // push order); they are re-derivable from prelude.colors, so styled backends
-  // lose nothing by their living inside the prelude crisp.
-  const extraCss = timelineStyles(style, eventText)
+  // SVG root with CSS variables + shared style block (+ optional shadow defs).
+  // The shadow <defs> are re-derivable from prelude.colors, so styled backends
+  // lose nothing by their living inside the prelude crisp. Every timeline mark
+  // is written with its own paint and typography, so there is no family
+  // stylesheet.
   const preludeSegments = [
     svgOpenTag(diagram.width, diagram.height, colors, transparent, rootAttrs),
     buildStyleBlock(font, false, colors.shadow, colors.embedFontImport),
   ]
   const shadowDefs = buildShadowDefs(colors)
   if (shadowDefs) preludeSegments.push(`<defs>${shadowDefs}</defs>`)
-  preludeSegments.push(extraCss)
   parts.push(marks.documentOpen(
     {
       id: 'prelude',
@@ -116,7 +114,6 @@ export function lowerTimelineScene(
       transparent,
       font,
       hasMonoFont: false,
-      extraCss,
     },
     preludeSegments.join('\n'),
   ))
@@ -144,15 +141,13 @@ export function lowerTimelineScene(
 
   // The rail segment is horizontal in LR (y1 === y2) and vertical in TD
   // (x1 === x2) — the crisp emits the positioned endpoints either way.
-  parts.push(marks.shape(
-    {
-      id: 'rail',
-      role: 'rail',
-      geometry: { kind: 'line', x1: diagram.rail.x1, y1: diagram.rail.y1, x2: diagram.rail.x2, y2: diagram.rail.y2 },
-      paint: paints.rail,
-    },
-    `<line class="timeline-rail" x1="${diagram.rail.x1}" y1="${diagram.rail.y1}" x2="${diagram.rail.x2}" y2="${diagram.rail.y2}" />`,
-  ))
+  parts.push(marks.shape({
+    id: 'rail',
+    role: 'rail',
+    geometry: { kind: 'line', x1: diagram.rail.x1, y1: diagram.rail.y1, x2: diagram.rail.x2, y2: diagram.rail.y2 },
+    paint: paints.rail,
+    attributes: { className: 'timeline-rail' },
+  }))
 
   let periodFamilyIndex = 0
   for (let sectionIndex = 0; sectionIndex < diagram.sections.length; sectionIndex++) {
@@ -165,28 +160,20 @@ export function lowerTimelineScene(
   }
 
   if (diagram.title) {
-    parts.push(marks.text(
-      {
-        id: 'title',
-        role: 'title',
-        text: diagram.title.text,
-        block: diagram.title.block,
-        x: diagram.title.x,
-        y: diagram.title.y,
-        fontSize: TL.titleFontSize,
-        anchor: 'middle',
-        paint: paints.title,
-      },
-      renderMultilineText(
-        diagram.title.block ?? diagram.title.text,
-        diagram.title.x,
-        diagram.title.y,
-        TL.titleFontSize,
-        `class="timeline-title" text-anchor="middle" font-size="${TL.titleFontSize}" font-weight="${TL.titleFontWeight}" data-literal-text="true"`,
-        0.35,
-        true,
-      ),
-    ))
+    parts.push(marks.text({
+      id: 'title',
+      role: 'title',
+      text: diagram.title.text,
+      block: diagram.title.block,
+      x: diagram.title.x,
+      y: diagram.title.y,
+      fontSize: TL.titleFontSize,
+      fontWeight: TL.titleFontWeight,
+      display: 'literal',
+      anchor: 'middle',
+      paint: paints.title,
+      attributes: literalTextHooks('timeline-title'),
+    }))
   }
 
   parts.push(marks.documentClose())
@@ -206,13 +193,12 @@ function eventTextFill(style: ResolvedRenderStyle, colors: DiagramColors, family
   return inked === 'var(--_text)' ? themed : inked
 }
 
-/** Resolved per-role paints — mirrors the class rules in timelineStyles(), so
- *  styled backends see the same colors the crisp CSS classes resolve to.
- *  Keep in sync with timelineStyles(). */
+/** Resolved per-role paints, written on each mark. The per-family palette
+ *  reaches them through the --tl-* custom properties its group sets. */
 function timelinePaints(style: ResolvedRenderStyle, eventText: string) {
   return {
     title: { fill: style.groupTextColor ?? style.nodeTextColor ?? 'var(--_text)' },
-    rail: { stroke: style.edgeStrokeColor ?? 'var(--_line)', strokeWidth: String(style.lineWidth) },
+    rail: { stroke: style.edgeStrokeColor ?? 'var(--_line)', strokeWidth: String(style.lineWidth), strokeLinecap: 'round' as const },
     sectionBg: {
       fill: style.groupFillColor ?? 'var(--tl-section-bg, color-mix(in srgb, var(--_node-fill) 88%, var(--bg)))',
       stroke: style.groupBorderColor ?? 'var(--tl-line, var(--_node-stroke))',
@@ -252,21 +238,9 @@ function timelinePaints(style: ResolvedRenderStyle, eventText: string) {
 
 type TimelinePaints = ReturnType<typeof timelinePaints>
 
-function timelineStyles(style: ResolvedRenderStyle, eventText: string): string {
-  return `<style>
-  .timeline-title { fill: ${style.groupTextColor ?? style.nodeTextColor ?? 'var(--_text)'}; }
-  .timeline-rail { stroke: ${style.edgeStrokeColor ?? 'var(--_line)'}; stroke-width: ${style.lineWidth}; stroke-linecap: round; }
-  .timeline-section-bg { fill: ${style.groupFillColor ?? 'var(--tl-section-bg, color-mix(in srgb, var(--_node-fill) 88%, var(--bg)))'}; stroke: ${style.groupBorderColor ?? 'var(--tl-line, var(--_node-stroke))'}; stroke-width: ${style.groupLineWidth}; }
-  .timeline-section-band { fill: ${style.groupHeaderFillColor ?? 'var(--tl-section-band, color-mix(in srgb, var(--_arrow) 8%, var(--bg)))'}; stroke: ${style.groupBorderColor ?? 'var(--tl-line, var(--_node-stroke))'}; stroke-width: ${style.groupLineWidth}; }
-  .timeline-section-label { fill: ${style.groupTextColor ?? 'var(--tl-label, var(--_text-sec))'}; }
-  .timeline-stem { stroke: ${style.edgeStrokeColor ?? 'var(--tl-line, color-mix(in srgb, var(--_arrow) 32%, var(--_line)))'}; stroke-width: ${Math.max(1, style.lineWidth * 0.75)}; stroke-dasharray: 3 4; }
-  .timeline-marker-ring { fill: var(--bg); stroke: ${style.edgeStrokeColor ?? 'var(--tl-line, var(--_arrow))'}; stroke-width: 1.5; }
-  .timeline-marker-core { fill: ${style.edgeStrokeColor ?? 'var(--tl-accent, var(--_arrow))'}; }
-  .timeline-period-pill { fill: ${style.nodeFillColor ?? 'var(--tl-pill-fill, color-mix(in srgb, var(--_arrow) 7%, var(--bg)))'}; stroke: ${style.nodeBorderColor ?? 'var(--tl-pill-stroke, color-mix(in srgb, var(--_arrow) 20%, var(--bg)))'}; stroke-width: ${style.nodeLineWidth}; }
-  .timeline-period-text { fill: ${style.nodeTextColor ?? 'var(--tl-label, var(--_text))'}; }
-  .timeline-event-card { fill: ${style.nodeFillColor ?? 'var(--tl-event-fill, var(--_node-fill))'}; stroke: ${style.nodeBorderColor ?? 'var(--tl-line, var(--_node-stroke))'}; stroke-width: ${style.nodeLineWidth}; }
-  .timeline-event-text { fill: ${eventText}; }
-</style>`
+/** Timeline labels are literal; the hook keeps that visible on the element. */
+function literalTextHooks(className: string): MarkAttributes {
+  return { className, data: { 'literal-text': 'true' } }
 }
 
 function lowerSectionFrame(
@@ -283,56 +257,46 @@ function lowerSectionFrame(
 
   children.push({
     indent: 2,
-    node: marks.shape(
-      {
-        id: `section-bg:${sectionName}`,
-        role: 'section',
-        geometry: { kind: 'rect', x: section.x, y: section.y, width: section.width, height: section.height, rx: style.groupCornerRadius, ry: style.groupCornerRadius },
-        paint: paints.sectionBg,
-      },
-      `<rect class="timeline-section-bg" x="${section.x}" y="${section.y}" width="${section.width}" height="${section.height}" rx="${style.groupCornerRadius}" ry="${style.groupCornerRadius}" />`,
-    ),
+    node: marks.shape({
+      id: `section-bg:${sectionName}`,
+      role: 'section',
+      geometry: { kind: 'rect', x: section.x, y: section.y, width: section.width, height: section.height, rx: style.groupCornerRadius, ry: style.groupCornerRadius },
+      paint: paints.sectionBg,
+      attributes: { className: 'timeline-section-bg' },
+    }),
   })
 
   if (section.headerHeight > 0) {
     const bandPath = topRoundedRectPath(section.x, section.y, section.width, section.headerHeight, style.groupCornerRadius)
     children.push({
       indent: 2,
-      node: marks.shape(
-        {
-          id: `section-band:${sectionName}`,
-          role: 'group-header',
-          geometry: { kind: 'path', d: bandPath },
-          paint: paints.sectionBand,
-        },
-        `<path class="timeline-section-band" d="${bandPath}" />`,
-      ),
+      node: marks.shape({
+        id: `section-band:${sectionName}`,
+        role: 'group-header',
+        geometry: { kind: 'path', d: bandPath },
+        paint: paints.sectionBand,
+        attributes: { className: 'timeline-section-band' },
+      }),
     })
     if (section.label) {
       children.push({
         indent: 2,
-        node: marks.text(
-          {
-            id: `section-label:${sectionName}`,
-            role: 'group-header',
-            text: section.label,
-        block: section.block,
-            x: section.x + style.groupLabelPaddingX,
-            y: section.y + section.headerHeight / 2,
-            fontSize: style.groupHeaderFontSize,
-            anchor: 'start',
-            paint: paints.sectionLabel,
-          },
-          renderMultilineText(
-            section.block ?? section.label,
-            section.x + style.groupLabelPaddingX,
-            section.y + section.headerHeight / 2,
-            style.groupHeaderFontSize,
-            `class="timeline-section-label" text-anchor="start" font-size="${style.groupHeaderFontSize}" font-weight="${style.groupHeaderFontWeight}" data-literal-text="true"${style.groupFont ? ` font-family="${escapeAttr(style.groupFont)}"` : ''}${letterAttr(style.groupLetterSpacing)}`,
-            0.35,
-            true,
-          ),
-        ),
+        // The group font family is written from the prepared block.
+        node: marks.text({
+          id: `section-label:${sectionName}`,
+          role: 'group-header',
+          text: section.label,
+          block: section.block,
+          x: section.x + style.groupLabelPaddingX,
+          y: section.y + section.headerHeight / 2,
+          fontSize: style.groupHeaderFontSize,
+          fontWeight: style.groupHeaderFontWeight,
+          letterSpacing: style.groupLetterSpacing,
+          display: 'literal',
+          anchor: 'start',
+          paint: paints.sectionLabel,
+          attributes: literalTextHooks('timeline-section-label'),
+        }),
       })
     }
   }
@@ -364,76 +328,61 @@ function lowerPeriod(
 
   children.push({
     indent: 2,
-    node: marks.shape(
-      {
-        id: `period-stem:${period.id}`,
-        role: 'period',
-        geometry: { kind: 'line', x1: period.stem.x1, y1: period.stem.y1, x2: period.stem.x2, y2: period.stem.y2 },
-        paint: paints.stem,
-      },
-      `<line class="timeline-stem" x1="${period.stem.x1}" y1="${period.stem.y1}" x2="${period.stem.x2}" y2="${period.stem.y2}" />`,
-    ),
+    node: marks.shape({
+      id: `period-stem:${period.id}`,
+      role: 'period',
+      geometry: { kind: 'line', x1: period.stem.x1, y1: period.stem.y1, x2: period.stem.x2, y2: period.stem.y2 },
+      paint: paints.stem,
+      attributes: { className: 'timeline-stem' },
+    }),
   })
   children.push({
     indent: 2,
-    node: marks.shape(
-      {
-        id: `period-pill:${period.id}`,
-        role: 'period',
-        geometry: { kind: 'rect', x: period.pillX, y: period.pillY, width: period.pillWidth, height: period.pillHeight, rx: style.cornerRadius ?? 0, ry: style.cornerRadius ?? 0 },
-        paint: paints.pill,
-      },
-      `<rect class="timeline-period-pill" x="${period.pillX}" y="${period.pillY}" width="${period.pillWidth}" height="${period.pillHeight}" rx="${style.cornerRadius ?? 0}" ry="${style.cornerRadius ?? 0}" />`,
-    ),
+    node: marks.shape({
+      id: `period-pill:${period.id}`,
+      role: 'period',
+      geometry: { kind: 'rect', x: period.pillX, y: period.pillY, width: period.pillWidth, height: period.pillHeight, rx: style.cornerRadius ?? 0, ry: style.cornerRadius ?? 0 },
+      paint: paints.pill,
+      attributes: { className: 'timeline-period-pill' },
+    }),
   })
   children.push({
     indent: 2,
-    node: marks.text(
-      {
-        id: `period-label:${period.id}`,
-        role: 'label',
-        text: period.label,
-        block: period.block,
-        x: period.centerX,
-        y: period.pillY + period.pillHeight / 2,
-        fontSize: style.edgeLabelFontSize,
-        anchor: 'middle',
-        paint: paints.periodText,
-      },
-      renderMultilineText(
-        period.block ?? period.label,
-        period.centerX,
-        period.pillY + period.pillHeight / 2,
-        style.edgeLabelFontSize,
-        `class="timeline-period-text" text-anchor="middle" font-size="${style.edgeLabelFontSize}" font-weight="${style.edgeLabelFontWeight}" data-literal-text="true"${letterAttr(style.edgeLetterSpacing)}`,
-        0.35,
-        true,
-      ),
-    ),
+    node: marks.text({
+      id: `period-label:${period.id}`,
+      role: 'label',
+      text: period.label,
+      block: period.block,
+      x: period.centerX,
+      y: period.pillY + period.pillHeight / 2,
+      fontSize: style.edgeLabelFontSize,
+      fontWeight: style.edgeLabelFontWeight,
+      letterSpacing: style.edgeLetterSpacing,
+      display: 'literal',
+      anchor: 'middle',
+      paint: paints.periodText,
+      attributes: literalTextHooks('timeline-period-text'),
+    }),
   })
   children.push({
     indent: 2,
-    node: marks.shape(
-      {
-        id: `period-marker-ring:${period.id}`,
-        role: 'period',
-        geometry: { kind: 'circle', cx: period.markerX, cy: period.markerY, r: TL.markerOuterRadius },
-        paint: paints.markerRing,
-      },
-      `<circle class="timeline-marker-ring" cx="${period.markerX}" cy="${period.markerY}" r="${TL.markerOuterRadius}" />`,
-    ),
+    node: marks.shape({
+      id: `period-marker-ring:${period.id}`,
+      role: 'period',
+      geometry: { kind: 'circle', cx: period.markerX, cy: period.markerY, r: TL.markerOuterRadius },
+      paint: paints.markerRing,
+      attributes: { className: 'timeline-marker-ring' },
+    }),
   })
   children.push({
     indent: 2,
-    node: marks.shape(
-      {
-        id: `period-marker-core:${period.id}`,
-        role: 'period',
-        geometry: { kind: 'circle', cx: period.markerX, cy: period.markerY, r: TL.markerInnerRadius },
-        paint: paints.markerCore,
-      },
-      `<circle class="timeline-marker-core" cx="${period.markerX}" cy="${period.markerY}" r="${TL.markerInnerRadius}" />`,
-    ),
+    node: marks.shape({
+      id: `period-marker-core:${period.id}`,
+      role: 'period',
+      geometry: { kind: 'circle', cx: period.markerX, cy: period.markerY, r: TL.markerInnerRadius },
+      paint: paints.markerCore,
+      attributes: { className: 'timeline-marker-core' },
+    }),
   })
 
   // Event cards are nested inside the period <g> without extra indentation
@@ -466,38 +415,29 @@ function lowerEvent(
   const familyAttr = ` data-family="${familyIndex % familyPalettes.length}"`
   const idBase = `event:${event.id}`
 
-  const card = marks.shape(
-    {
-      id: idBase,
-      role: 'event',
-      geometry: { kind: 'rect', x: event.x, y: event.y, width: event.width, height: event.height, rx: style.cornerRadius ?? 0, ry: style.cornerRadius ?? 0 },
-      paint: paints.eventCard,
-    },
-    `<rect class="timeline-event-card" x="${event.x}" y="${event.y}" width="${event.width}" height="${event.height}" rx="${style.cornerRadius ?? 0}" ry="${style.cornerRadius ?? 0}" />`,
-  )
+  const card = marks.shape({
+    id: idBase,
+    role: 'event',
+    geometry: { kind: 'rect', x: event.x, y: event.y, width: event.width, height: event.height, rx: style.cornerRadius ?? 0, ry: style.cornerRadius ?? 0 },
+    paint: paints.eventCard,
+    attributes: { className: 'timeline-event-card' },
+  })
 
-  const label = marks.text(
-    {
-      id: `${idBase}:label`,
-      role: 'label',
-      text: event.text,
-        block: event.block,
-      x: event.labelX ?? event.x + style.nodePaddingX,
-      y: event.y + event.height / 2,
-      fontSize: style.nodeLabelFontSize,
-      anchor: 'start',
-      paint: paints.eventText,
-    },
-    renderMultilineText(
-      event.block ?? event.text,
-      event.labelX ?? event.x + style.nodePaddingX,
-      event.y + event.height / 2,
-      style.nodeLabelFontSize,
-      `class="timeline-event-text" text-anchor="start" font-size="${style.nodeLabelFontSize}" font-weight="${style.nodeLabelFontWeight}" data-literal-text="true"${letterAttr(style.nodeLetterSpacing)}`,
-      0.35,
-      true,
-    ),
-  )
+  const label = marks.text({
+    id: `${idBase}:label`,
+    role: 'label',
+    text: event.text,
+    block: event.block,
+    x: event.labelX ?? event.x + style.nodePaddingX,
+    y: event.y + event.height / 2,
+    fontSize: style.nodeLabelFontSize,
+    fontWeight: style.nodeLabelFontWeight,
+    letterSpacing: style.nodeLetterSpacing,
+    display: 'literal',
+    anchor: 'start',
+    paint: paints.eventText,
+    attributes: literalTextHooks('timeline-event-text'),
+  })
 
   return marks.group({
     id: `${idBase}:group`,
@@ -509,10 +449,6 @@ function lowerEvent(
       { indent: 2, node: label },
     ],
   })
-}
-
-function letterAttr(value: number): string {
-  return value !== 0 ? ` letter-spacing="${value}"` : ''
 }
 
 function renderFamilyAttr(familyIndex: number, familyPalettes: readonly TimelineFamilyPalette[]): string {

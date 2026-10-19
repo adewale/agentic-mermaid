@@ -20,6 +20,7 @@ import {
   resolveRenderRequestForExecution,
   resolvedFamilyRenderContextOf,
   resolvedRenderExecutionPlanOf,
+  RenderConfigError,
   type RenderExecutionDecision,
   type RenderExecutionResolutionOptions,
   type RenderRequestReceipt,
@@ -160,7 +161,7 @@ function renderPositionedWithTextMeasurement(
       ...(request.appearance.styled ? { style: request.appearance.style } : {}),
     }))
   } else {
-    if (effectiveOptions.layoutSafety === 'strict') throw new Error('Strict layout safety requires native Scene evidence')
+    if (effectiveOptions.layoutSafety === 'strict') throw new RenderConfigError('Strict layout safety requires native Scene evidence')
     rawSvg = measureRenderStage('backend', () => family.renderSvg!(context))
   }
   assertFinalSvgByteBudget(rawSvg, 'backend/family SVG output')

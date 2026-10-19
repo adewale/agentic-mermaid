@@ -1,12 +1,13 @@
 import { decodeXML } from 'entities'
 // ============================================================================
 // Scene fidelity checker — asserts a mark's semantic fields agree with its
-// crisp serialization, so styled backends can trust the geometry they redraw.
+// written serialization, so styled backends can trust the geometry they redraw.
 //
-// Independent oracle used by Scene admission and the cross-family corpus: it
-// parses the crisp strings we ourselves emit — a stable, owned format — and
-// returns human-readable problems instead of throwing, so one run reports
-// every divergence in a lowering.
+// The writer (svg-writer.ts) draws every shape, text and connector from its
+// fields, so no render path runs this check. It is the tests' independent
+// oracle for the writer over the cross-family corpus: it parses the SVG we
+// ourselves emit — a stable, owned format — and returns human-readable problems
+// instead of throwing, so one run reports every divergence in a lowering.
 // ============================================================================
 
 import type { Geometry, SceneDoc, SceneNode, TextMark } from './ir.ts'
@@ -129,7 +130,7 @@ function unescapeXml(s: string): string {
 function timelineLiteralText(serialized: string): string | undefined {
   const outer = /^<text\b([^<>]*)>([\s\S]*)<\/text>$/.exec(serialized)
   if (!outer) return undefined
-  const attributes = /^(?:\s+(?:x|y|class|text-anchor|font-size|font-weight|font-style|text-decoration|data-literal-text|font-family|letter-spacing|dy|data-id|data-role|aria-label|role|textLength|lengthAdjust|data-font-metrics|data-prepared-text|data-text-fragment|xml:space)="[^"<>]*")*\s*$/
+  const attributes = /^(?:\s+(?:x|y|class|text-anchor|dominant-baseline|font-size|font-weight|font-style|text-decoration|font-family|letter-spacing|dy|fill|fill-opacity|stroke|stroke-opacity|stroke-width|stroke-linejoin|paint-order|opacity|data-[a-z-]+|aria-label|aria-hidden|role|textLength|lengthAdjust|xml:space)="[^"<>]*")*\s*$/
   if (!attributes.test(outer[1]!)) return undefined
   let result = ''
   let cursor = 0
@@ -193,7 +194,13 @@ function preparedTextPlacementProblems(node: TextMark, serialized: string, path:
     return match ? Number(match[1]) * (match[2] === 'em' ? block.fontSize : 1) : Number.NaN
   }
   const expected = block.lineBlocks.map(line => line.runs.map(run => run.text).join(''))
-  const firstBaseline = node.y + (node.textLayout?.offsetY ?? 0) - (expected.length - 1) * block.lineHeight / 2 + block.fontSize * 0.35
+  // textLayout.offsetY places the first line's centre; the written position is
+  // its alphabetic baseline, or its centre or top under a middle, central or
+  // hanging dominant baseline.
+  const firstLineCentre = node.dominantBaseline === 'hanging' ? block.lineHeight / 2
+    : node.dominantBaseline === 'middle' || node.dominantBaseline === 'central' ? 0
+      : -block.fontSize * 0.35
+  const firstBaseline = node.y + (node.textLayout?.offsetY ?? 0) - (expected.length - 1) * block.lineHeight / 2 - firstLineCentre
   const baseline = (line: number) => firstBaseline + line * block.lineHeight
   type Frame = { tag: string; line: number; fragment: boolean; text: string; x?: number; width?: number; anchor?: string; weight: number; italic: boolean }
   const stack: Frame[] = []

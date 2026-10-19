@@ -1440,8 +1440,11 @@ export function toFinite(n: number): Finite {
 
 export type WarningSeverity = 'error' | 'warning'
 export type WarningTier = 'structural' | 'geometric' | 'lint'
+/** Who can fix a finding: the authored diagram source, its configuration
+ * (Mermaid config, theme, render options), or Agentic Mermaid itself. */
+export type WarningOrigin = 'source' | 'config' | 'engine'
 
-export type Tier1WarningCode = 'EMPTY_DIAGRAM' | 'EDGE_MISANCHORED' | 'OFF_CANVAS' | 'GROUP_BREACH' | 'UNKNOWN_SHAPE' | 'LABEL_OVERFLOW' | 'UNRESOLVABLE_SCHEDULE' | 'RENDER_FAILED'
+export type Tier1WarningCode = 'EMPTY_DIAGRAM' | 'EDGE_MISANCHORED' | 'OFF_CANVAS' | 'GROUP_BREACH' | 'UNKNOWN_SHAPE' | 'LABEL_OVERFLOW' | 'UNRESOLVABLE_SCHEDULE' | 'RENDER_FAILED' | 'INTERNAL_ERROR'
 export type Tier2WarningCode = 'NODE_OVERLAP' | 'CONTENT_OCCLUDED' | 'LAYOUT_LIMIT_EXCEEDED' | 'ROUTE_SELF_CROSS' | 'ROUTE_HITCH' | 'ROUTE_UNEXPLAINED_BEND' | 'ROUTE_LABEL_ON_SHARED_TRUNK' | 'ROUTE_SELF_LOOP_OCCUPANCY' | 'ROUTE_CONTAINER_MISANCHOR' | 'ROUTE_SHAPE_MISANCHOR' | 'ROUTE_STALE_AFTER_NODE_MOVE'
 /**
  * Tier 3 (advisory lint). Family-specific quality hints for common agent
@@ -1472,9 +1475,18 @@ export type LayoutWarning =
    * "verify ok but render throws" seam-closing to every family: found live
    * when onboarding agents followed verify-before-commit and still shipped
    * unrenderable quadrant/architecture diagrams. `reason` carries the
-   * renderer's error message.
+   * renderer's error message; `origin` says whether the source or its
+   * configuration caused it (an engine defect is INTERNAL_ERROR instead).
    */
-  | { code: 'RENDER_FAILED'; reason: string }
+  | { code: 'RENDER_FAILED'; reason: string; origin: Exclude<WarningOrigin, 'engine'> }
+  /**
+   * Agentic Mermaid hit an internal defect while drawing this source; the
+   * source did not cause it. `defaultRender` records whether an ordinary
+   * render of the same request still produces output (`succeeds-unchecked`:
+   * only verify's extra consistency checks failed, so the layout evidence
+   * cannot be trusted) or throws (`fails`).
+   */
+  | { code: 'INTERNAL_ERROR'; reason: string; defaultRender: 'fails' | 'succeeds-unchecked' }
   | { code: 'NODE_OVERLAP'; a: NodeId; b: NodeId; areaPx: number }
   /** Final measured paint hides authored text or an interaction marker. */
   | { code: 'CONTENT_OCCLUDED'; target: string; feature: 'label' | 'marker'; line?: number; message: string }
@@ -1559,6 +1571,7 @@ export const WARNING_SEVERITY: Record<WarningCode, WarningSeverity> = {
   EMPTY_DIAGRAM: 'error',
   UNRESOLVABLE_SCHEDULE: 'error',
   RENDER_FAILED: 'error',
+  INTERNAL_ERROR: 'error',
   [BRAND_CONSTRAINT_WARNING_POLICY.error.code]: BRAND_CONSTRAINT_WARNING_POLICY.error.severity,
   EDGE_MISANCHORED: 'error',
   OFF_CANVAS: 'error',
@@ -1595,6 +1608,7 @@ export const WARNING_TIER: Record<WarningCode, WarningTier> = {
   EMPTY_DIAGRAM: 'structural',
   UNRESOLVABLE_SCHEDULE: 'structural',
   RENDER_FAILED: 'structural',
+  INTERNAL_ERROR: 'structural',
   [BRAND_CONSTRAINT_WARNING_POLICY.error.code]: BRAND_CONSTRAINT_WARNING_POLICY.error.tier,
   EDGE_MISANCHORED: 'structural',
   OFF_CANVAS: 'structural',

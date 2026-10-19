@@ -5,7 +5,7 @@ import { inlineResolvedColors } from '../theme.ts'
 import { escapeAttr } from '../multiline-utils.ts'
 import { tryParseCssColor } from '../shared/color-math.ts'
 import { decodedSvgAttributeValue, scanSvgStartTags } from '../svg-structure.ts'
-import { inspectScenePrimitives, scenePrimitiveSource, scenePrimitiveMatrix, type ScenePaintPrimitive } from './inspection.ts'
+import { inspectScenePrimitives, scenePrimitiveSource, scenePrimitiveMatrix, shapeSurfacePaint, type ScenePaintPrimitive } from './inspection.ts'
 import type { ConnectorMark, Geometry, SceneDoc, SceneOwner, ScenePoint, SceneTransform } from './ir.ts'
 import { composeMatrices, inverseMatrix, transformMatrix, transformPoint } from './transforms.ts'
 
@@ -21,7 +21,11 @@ export interface PaintLayoutCertification {
   readonly unit: 'px'
   readonly scope: 'native-scene'
   readonly status: 'passed' | 'failed' | 'unverified'
-  /** The graphical receipt's digest binds this proof to the secured SVG bytes. */
+  /** Digest of the final secured SVG this proof was issued with. Its shape,
+   * text and connector elements are written from the fields the proof reads;
+   * the document passes after the backend resolve colour variables, fit
+   * uncalibrated host fonts, namespace ids and scope styles, and the security
+   * policy may remove content it does not admit. */
   readonly outputDigest?: string
   readonly viewport: PaintViewport
   readonly attempts: 1 | 2
@@ -81,11 +85,14 @@ function solidInteriors(scene: SceneDoc, primitives: readonly ScenePaintPrimitiv
   return primitives.flatMap(primitive => {
     const node = scenePrimitiveSource(primitive)
     if (!node || node.kind !== 'shape' || node.geometry.kind === 'line' || primitive.visibility === 'conditional' || primitive.coverage !== 'measured') return []
-    if (Number(node.paint.opacity ?? 1) === 0 || node.paint.fill === 'none' || node.paint.fill === 'transparent') return []
-    const knownFill = node.paint.fill ? tryParseCssColor(node.paint.fill) : null
-    if (knownFill && knownFill[3] < 1) return []
+    const paint = shapeSurfacePaint(node)
+    // A translucent wrapper lets what lies beneath show through, as a translucent fill does.
+    if (primitive.groupOpacity !== undefined) return []
+    if (Number(paint.opacity ?? 1) === 0 || paint.fill === 'none' || paint.fill === 'transparent') return []
+    const knownFill = paint.fill ? tryParseCssColor(paint.fill) : null
+    if (knownFill && knownFill[3] < 1 || Number(paint.fillOpacity ?? 1) < 1) return []
     const candidate = { primitive, bounds: primitive.bounds!, borderWidth: outlines.get(outlineKey(primitive, node.geometry)) }
-    if (Number(node.paint.opacity ?? 1) !== 1 || !node.paint.fill || !opaque(node.paint.fill) || node.geometry.kind !== 'rect') return [candidate]
+    if (Number(paint.opacity ?? 1) !== 1 || !paint.fill || !opaque(paint.fill) || node.geometry.kind !== 'rect') return [candidate]
     const m = scenePrimitiveMatrix(primitive)!
     // A rotated/sheared AABB is not a solid rectangle. Keep it out of this
     // exact test instead of interpreting empty corners as painted pixels.

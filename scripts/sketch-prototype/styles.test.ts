@@ -181,14 +181,12 @@ test('freehand marker carrier no longer uses a 0.1px stroke (audit C2)', () => {
   expect(styled).not.toContain('stroke-width="0.1"')
 })
 
-// PR-60 review P2: xychart bars are emitted as class-only <rect>s (no
-// fill/stroke ATTRIBUTES — their paint lives in the family CSS block), so the
-// prototype's attribute-driven passes deliberately leave them crisp instead
-// of guessing at CSS-resolved paint (the Phase 0 no-synthesized-outline
-// contract). This test pins that scoping decision explicitly; the SceneGraph
-// production path carries their semantic paint on the marks, and re-rendering
-// them tonally is SPEC §11 phase-5 work.
-test('class-painted xychart bars pass through unstyled (documented scoping)', () => {
+// PR-60 review P2: xychart bars are fill-only <rect>s (their paint is written
+// on each bar: a fill and stroke="none"), so the prototype's attribute-driven
+// passes deliberately leave them crisp instead of synthesizing an outline (the
+// Phase 0 no-synthesized-outline contract). This test pins that scoping
+// decision explicitly; re-rendering them tonally is SPEC §11 phase-5 work.
+test('fill-only xychart bars pass through unstyled (documented scoping)', () => {
   const handDrawn = STYLES.find(s => s.name === 'hand-drawn')!
   const raw = renderMermaidSVG(
     'xychart-beta\n  x-axis [a, b, c]\n  y-axis "v" 0 --> 10\n  bar [3, 7, 9]',
@@ -196,10 +194,10 @@ test('class-painted xychart bars pass through unstyled (documented scoping)', ()
   )
   const bars = raw.match(/<rect[^>]*class="xychart-bar[^"]*"[^>]*>/g) ?? []
   expect(bars.length).toBeGreaterThan(0)
-  // Bars carry no paint attributes in the crisp output…
+  // Bars are fill-only in the crisp output…
   for (const bar of bars) {
-    expect(bar).not.toContain('stroke=')
-    expect(bar).not.toContain('fill=')
+    expect(bar).toContain(' stroke="none"')
+    expect(bar).toMatch(/ fill="#[0-9a-f]{6}"/)
   }
   // …so the restyler must pass them through byte-identically: no deletion,
   // no repaint, no synthesized outline.

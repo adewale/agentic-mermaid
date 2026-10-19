@@ -243,10 +243,19 @@ function snapshotDeclarativeStyleValue(value: unknown): unknown {
   return snapshot(value, 0)
 }
 
+/** A Style input the caller supplied that names no registered style or is
+ * not a valid spec. Typed so verify attributes it to configuration. */
+export class StyleSpecError extends Error {
+  constructor(message: string) {
+    super(message)
+    this.name = 'StyleSpecError'
+  }
+}
+
 function validatedStyleSpecSnapshot(spec: StyleSpec): StyleSpec {
   const snapshot = snapshotDeclarativeStyleValue(spec) as StyleSpec
   const problems = validateStyleSpec(snapshot)
-  if (problems.length) throw new Error(`Invalid style spec: ${problems.join('; ')}`)
+  if (problems.length) throw new StyleSpecError(`Invalid style spec: ${problems.join('; ')}`)
   return snapshot
 }
 
@@ -500,7 +509,7 @@ function resolveInternalStyleStack(input: StyleInput | StyleInput[] | undefined)
       const resolved = canonicalStyleId(entry)
       if (resolved === 'look:crisp') continue
       const named = resolved ? STYLE_REGISTRY.get(resolved)?.value : undefined
-      if (!named) throw new Error(`Unknown style "${entry}". Known styles: ${knownStyles().join(', ')}`)
+      if (!named) throw new StyleSpecError(`Unknown style "${entry}". Known styles: ${knownStyles().join(', ')}`)
       specs.push(named)
     } else {
       specs.push(validatedStyleSpecSnapshot(entry))
@@ -607,12 +616,12 @@ export function resolveRoleStyle(
 function assertRealizedStyleSpec(spec: InternalStyleSpec): void {
   for (const [index, binding] of (spec.bindings ?? []).entries()) {
     const slot = spec.semanticSlots?.[binding.slot]
-    if (!slot) throw new Error(`Invalid style spec: binding ${index + 1} references missing semantic slot "${binding.slot}"`)
+    if (!slot) throw new StyleSpecError(`Invalid style spec: binding ${index + 1} references missing semantic slot "${binding.slot}"`)
     const applicable: ReadonlySet<string> = binding.role === undefined
       ? new Set(BINDABLE_ROLE_STYLE_PROPERTIES)
       : new Set(SCENE_ROLE_DESCRIPTORS.find(candidate => candidate.role === binding.role)!.style.applicableProperties)
     if (!Object.keys(slot).some(property => applicable.has(property))) {
-      throw new Error(binding.role === undefined
+      throw new StyleSpecError(binding.role === undefined
         ? `Invalid style spec: semantic slot "${binding.slot}" has no field applicable to any executable category-binding role`
         : `Invalid style spec: semantic slot "${binding.slot}" has no field applicable to role "${binding.role}"`)
     }
@@ -620,15 +629,15 @@ function assertRealizedStyleSpec(spec: InternalStyleSpec): void {
   const hachureFields = ['hachureAngle', 'hachureGap', 'fillWeight'] as const
   const inactiveHachure = hachureFields.filter(field => spec[field] !== undefined && spec.fill !== 'hachure')
   if (inactiveHachure.length > 0) {
-    throw new Error(`Invalid style spec: ${inactiveHachure.map(field => `"${field}"`).join(', ')} require fill "hachure" in the final Style stack`)
+    throw new StyleSpecError(`Invalid style spec: ${inactiveHachure.map(field => `"${field}"`).join(', ')} require fill "hachure" in the final Style stack`)
   }
   const washFields = ['washOpacity', 'washEdge'] as const
   const inactiveWash = washFields.filter(field => spec[field] !== undefined && spec.fill !== 'wash')
   if (inactiveWash.length > 0) {
-    throw new Error(`Invalid style spec: ${inactiveWash.map(field => `"${field}"`).join(', ')} require fill "wash" in the final Style stack`)
+    throw new StyleSpecError(`Invalid style spec: ${inactiveWash.map(field => `"${field}"`).join(', ')} require fill "wash" in the final Style stack`)
   }
   if (spec.fill !== undefined && inferBackend(spec) === 'default') {
-    throw new Error('Invalid style spec: "fill" has no crisp/default backend projection; combine it with stroke "jittered"/"freehand" or another rough/hybrid backend field')
+    throw new StyleSpecError('Invalid style spec: "fill" has no crisp/default backend projection; combine it with stroke "jittered"/"freehand" or another rough/hybrid backend field')
   }
 }
 

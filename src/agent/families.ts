@@ -235,6 +235,21 @@ export interface FamilyConformanceReport {
   readonly capabilities: readonly FamilyCapabilityConformanceResult[]
 }
 
+/** Thrown by registerFamily when a native claim has no witness. Declared beside
+ * its report, so verify's error classification need not load registration. */
+export class FamilyConformanceError extends Error {
+  readonly report: FamilyConformanceReport
+
+  constructor(report: FamilyConformanceReport) {
+    const failures = report.capabilities
+      .filter(result => result.status === 'failed')
+      .map(result => `${result.capability}: ${result.diagnostic}`)
+    super(`Family "${report.familyId}" failed executable registration conformance: ${failures.join('; ')}`)
+    this.name = 'FamilyConformanceError'
+    this.report = report
+  }
+}
+
 export type FamilyScenePrimitiveApplicability = 'applicable' | 'not-applicable'
 
 /** One complete family-role/Scene-primitive contract cell. */
@@ -656,7 +671,7 @@ const BUILTIN_FAMILY_DESCRIPTOR_SEEDS = [
     semanticChannels: ['status', 'progress', 'emphasis', 'category'],
     detect: (line: string) => /^gantt\s*$/.test(line),
     detectLoose: (line: string) => /^gantt(?:\s|$)/.test(line),
-    sceneRoles: [nativeSceneRole('prelude', 'document'), nativeSceneRole('defs', 'document', 'marker'), nativeSceneRole('chrome', 'document'), nativeSceneRole('section', 'text', 'shape'), nativeSceneRole('grid', 'shape'), nativeSceneRole('axis', 'text'), nativeSceneRole('label', 'text'), nativeSceneRole('task', 'shape'), nativeSceneRole('milestone', 'shape'), nativeSceneRole('edge', 'connector'), nativeSceneRole('marker-line', 'shape'), nativeSceneRole('title', 'text')],
+    sceneRoles: [nativeSceneRole('prelude', 'document'), nativeSceneRole('defs', 'document', 'marker'), nativeSceneRole('chrome', 'document', 'container'), nativeSceneRole('section', 'text', 'shape'), nativeSceneRole('grid', 'shape'), nativeSceneRole('axis', 'text'), nativeSceneRole('label', 'text'), nativeSceneRole('task', 'shape'), nativeSceneRole('milestone', 'shape'), nativeSceneRole('edge', 'connector'), nativeSceneRole('marker-line', 'shape'), nativeSceneRole('title', 'text')],
     example: 'gantt\n  title Plan\n  dateFormat YYYY-MM-DD\n  section Build\n  Implement :a1, 2026-01-05, 5d\n  Review :after a1, 2d',
     editorExample: `gantt
   title Release train

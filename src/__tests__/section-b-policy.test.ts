@@ -120,7 +120,7 @@ describe('Section B semantic policy', () => {
     expect(branded).toContain('data-label="Beta"')
     expect(branded).toContain('fill="#ff00ff"')
     expect(branded.match(/data-highlighted="true"/g)).toHaveLength(1)
-    expect(branded).toContain('.pie-slice.highlighted { stroke: #27272A;')
+    expect(branded).toMatch(/<path class="pie-slice highlighted"[^>]* stroke="#27272A" /)
   })
 
   test('Pie binding projects a non-color cue to SVG and no-color terminal output', () => {

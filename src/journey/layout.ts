@@ -1,3 +1,4 @@
+import { safeCssFontFamily } from '../shared/css-font.ts'
 import { preparePixelText, type PixelTextBlock } from '../shared/prepared-text.ts'
 import type {
   JourneyDiagram,
@@ -120,9 +121,10 @@ function resolveJourneyRequestAppearanceRaw(options: RenderOptions): JourneyRequ
     taskMinHeight: positiveConfigNumber(config?.height, JY.taskMinHeight),
     titleFontSize,
     titleFontSizeCss: String(config?.titleFontSize ?? titleFontSize),
-    titleFontFamily: nonEmptyConfigString(config?.titleFontFamily),
+    titleFontFamily: safeCssFontFamily(config?.titleFontFamily),
     titleColor: nonEmptyConfigString(config?.titleColor),
-    taskFontFamily: nonEmptyConfigString(config?.taskFontFamily),
+    // Both reach CSS; an unsafe family is ignored, and config diagnostics warn.
+    taskFontFamily: safeCssFontFamily(config?.taskFontFamily),
     actorColours: config?.actorColours ?? [],
     sectionFills: config?.sectionFills ?? [],
     sectionColours: config?.sectionColours ?? [],

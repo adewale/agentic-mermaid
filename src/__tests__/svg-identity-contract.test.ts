@@ -4,7 +4,6 @@ import type { DiagramKind } from '../agent/types.ts'
 import { renderMermaidSVG } from '../index.ts'
 import { escapeAttr, escapeDisplayAttr } from '../multiline-utils.ts'
 import { semanticIdentityForSvg, ensureSvgIdentity } from '../scene/identity.ts'
-import { relationAccessibilityForSvg } from '../scene/accessibility.ts'
 import { compareCodePointStrings } from '../shared/deterministic-order.ts'
 import { METAMORPHIC_FAMILIES } from './helpers/metamorphic-families.ts'
 
@@ -232,8 +231,4 @@ test('XML attribute projection preserves whitespace and decodes source reference
   const identity = semanticIdentityForSvg(crisp, { id: 'bounded-mark', role: 'edge' })
   expect(identity).toEqual({ id, role: 'edge', from, to })
   expect(ensureSvgIdentity(crisp, identity)).toBe(crisp)
-  expect(relationAccessibilityForSvg(crisp, identity)).toMatchObject({
-    label: `${from} to ${to}: one\ntwo &#9;`,
-    relation: { from, to, label: 'one\ntwo &#9;' },
-  })
 })

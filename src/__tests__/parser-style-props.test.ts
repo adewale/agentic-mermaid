@@ -76,6 +76,6 @@ describe('an authored paint the renderer cannot draw', () => {
   test('verify reports that message alone', () => {
     const verified = verifyMermaid('flowchart TD\n  A --> B\n  style A fill:#12345')
     expect(verified.ok).toBe(false)
-    expect(verified.warnings).toEqual([{ code: 'RENDER_FAILED', reason: expect.stringContaining('style A: fill "#12345" is not a CSS color — expected') }])
+    expect(verified.warnings).toEqual([{ code: 'RENDER_FAILED', reason: expect.stringContaining('style A: fill "#12345" is not a CSS color — expected'), origin: 'source' }])
   })
 })

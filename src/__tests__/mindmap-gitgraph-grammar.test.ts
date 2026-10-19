@@ -268,8 +268,8 @@ gitGraph
   commit id:"a"
   commit id:"b->c"`
     const svg = renderMermaidSVG(source, { embedFontImport: false })
-    const relations = [...svg.matchAll(/<polyline\b[^>]*data-from="([^"]+)"[^>]*data-to="([^"]+)"[^>]*data-id="([^"]+)"[^>]*data-role="edge"/g)]
-      .map(match => ({ from: match[1], to: match[2], id: match[3] }))
+    const relations = [...svg.matchAll(/<polyline\b[^>]*data-id="([^"]+)"[^>]*data-role="edge"[^>]*data-from="([^"]+)"[^>]*data-to="([^"]+)"/g)]
+      .map(match => ({ id: match[1], from: match[2], to: match[3] }))
     expect(relations).toHaveLength(4)
     expect(new Set(relations.map(relation => relation.id)).size).toBe(relations.length)
     expect(relations).toContainEqual(expect.objectContaining({ from: 'a-&gt;b', to: 'c' }))

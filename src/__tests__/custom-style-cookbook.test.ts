@@ -130,14 +130,16 @@ describe('custom style cookbook docs', () => {
     ]))
     const { bindings: _bindings, semanticSlots: _semanticSlots, ...unboundVercel } = vercel.style
     const unboundVercelSvg = renderMermaidSVG(vercel.source, { style: unboundVercel, security: 'strict' })
-    expect(unboundVercelSvg).toMatch(/class="xychart-line[^"]*"[^>]*style="[^"]*stroke:#565656/)
-    expect(vercel.svg).toMatch(/class="xychart-line[^"]*"[^>]*style="[^"]*stroke:#0070f3/)
+    expect(unboundVercelSvg).toMatch(/class="xychart-line[^"]*"[^>]* stroke="#565656"/)
+    expect(vercel.svg).toMatch(/class="xychart-line[^"]*"[^>]* stroke="#0070f3"/)
 
     const cloudflare = render('cloudflare-workers-inspired-prototype')
     expect(cloudflare.style.bindings).toEqual(expect.arrayContaining([
       expect.objectContaining({ channel: 'category', value: 'Runtime', role: 'task' }),
     ]))
-    expect(cloudflare.svg).toMatch(/<rect[^>]*data-task="run"[^>]*fill:#ff4801[^>]*data-brand-cue="pattern"/)
+    const runBar = cloudflare.svg.match(/<rect[^>]*data-task="run"[^>]*>/)?.[0] ?? ''
+    expect(runBar).toContain(' fill="#ff4801"')
+    expect(runBar).toContain(' data-brand-cue="pattern"')
     expect(renderMermaidASCII(cloudflare.source, {
       style: cloudflare.style,
       colorMode: 'none',

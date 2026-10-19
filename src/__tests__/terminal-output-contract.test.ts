@@ -168,7 +168,7 @@ describe('terminal text security boundary', () => {
     const mark = connector({
       id: 'inline', role: 'edge', geometry: { kind: 'line', x1: 0, y1: 30, x2: 100, y2: 30 },
       lineStyle: 'solid', paint: { stroke: '#111' }, labels: [{ text: source, textContent: { value: source, prepared, authored: source }, block, anchor: { x: 50, y: 15 }, paint: { fill: '#111' }, fontSize: 12, textAnchor: 'middle', visual: { kind: 'inline' } }],
-    }, '<line x1="0" y1="30" x2="100" y2="30"/>')
+    })
     const before = JSON.stringify(mark)
     const terminal = projectTerminalStyle(resolveRenderRequest(SOURCE, {}, 'ascii'), 'none', {}, {
       family: 'test', width: 100, height: 50, colors: { bg: '#fff', fg: '#111' }, transparent: true, parts: [mark],

@@ -77,10 +77,10 @@ describe('linkStyle – SVG integration', () => {
     const svg = renderMermaidSVG(
       'graph TD\n  A --> B\n  B --> C\n  linkStyle default stroke:#888\n  linkStyle 0 stroke:#ff0000'
     )
-    const strokes = Object.fromEntries(
-      [...svg.matchAll(/<polyline class="edge" data-from="(\w+)" data-to="(\w+)"[^>]* stroke="([^"]+)"/g)]
-        .map(([, from, to, stroke]) => [`${from}->${to}`, stroke]),
-    )
+    const strokes = Object.fromEntries([...svg.matchAll(/<polyline class="edge"[^>]*>/g)].map(([tag]) => {
+      const attribute = (name: string) => new RegExp(` ${name}="([^"]+)"`).exec(tag)?.[1]
+      return [`${attribute('data-from')}->${attribute('data-to')}`, attribute('stroke')]
+    }))
     expect(strokes).toEqual({ 'A->B': '#ff0000', 'B->C': '#888' })
   })
 

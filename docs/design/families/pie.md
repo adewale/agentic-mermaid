@@ -32,7 +32,7 @@ on-slice labels: #1027).
 | `pie.legendPosition` | `top\|bottom\|left\|right\|center`, default `right` | same enum/default as upstream; geometry is ours (see divergences) |
 | `pie.highlightSlice` | slice label, or reserved `hover` | static target gets non-geometric emphasis; `hover` enables hover-only emphasis without matching a literal label |
 | `pie1`..`pie12` | slice fills | honored in **source order**, cycling past 12; unset indices fall back to the derived palette |
-| `pieStrokeColor`, `pieStrokeWidth` | slice border | `.pie-slice` rule; accepts numbers or upstream-style `"2px"` strings |
+| `pieStrokeColor`, `pieStrokeWidth` | slice border | written on each slice; accepts numbers or upstream-style `"2px"` strings |
 | `pieOuterStrokeWidth`, `pieOuterStrokeColor` | outer circle | drawn at `radius + width/2` (upstream geometry) — only when configured |
 | `pieOpacity` | slice fill opacity | applied only when explicitly set |
 | `pieSectionTextSize`, `pieSectionTextColor` | on-slice labels | size feeds the layout's fit/collision measurement too |

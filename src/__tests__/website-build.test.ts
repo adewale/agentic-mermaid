@@ -139,12 +139,12 @@ function sourcePeerLabels(category: string, source: string) {
 
 function renderedPeerMapping(category: string, article: string): Array<[string, string]> {
   if (category === 'Pie') {
-    return matches(article, /<path class="pie-slice"[^>]*fill="(#[0-9a-f]{6})"[^>]*data-label="([^"]+)"/gi)
-      .map(match => [match[2]!, match[1]!.toLowerCase()])
+    return matches(article, /<path class="pie-slice"[^>]*\sdata-label="([^"]+)"[^>]*\sfill="(#[0-9a-f]{6})"/gi)
+      .map(match => [match[1]!, match[2]!.toLowerCase()])
   }
   if (category === 'Radar') {
-    return matches(article, /<path class="radar-area"[^>]*fill="(#[0-9a-f]{6})"[^>]*data-curve="([^"]+)"/gi)
-      .map(match => [match[2]!, match[1]!.toLowerCase()])
+    return matches(article, /<path class="radar-area"[^>]*\sdata-curve="([^"]+)"[^>]*\sfill="(#[0-9a-f]{6})"/gi)
+      .map(match => [match[1]!, match[2]!.toLowerCase()])
   }
   if (category === 'XY Chart') {
     const colors = new Map(matches(article, /--xychart-color-(\d+):\s*(#[0-9a-f]{6})/gi)
@@ -156,15 +156,13 @@ function renderedPeerMapping(category: string, article: string): Array<[string, 
     return labels.map((label, index) => [label, colors.get(colorIndexes[index]!)!])
   }
   if (category === 'Journey') {
-    const colors = new Map(matches(article, /\.journey-actor-(\d+)\s*\{\s*fill:\s*(#[0-9a-f]{6});\s*\}/gi)
-      .map(match => [Number(match[1]), match[2]!.toLowerCase()] as const))
     const legend = article.match(/<g class="journey-actor-legend">([\s\S]*?)<\/g>/)?.[1] ?? ''
-    return matches(legend, /<circle class="journey-actor-dot journey-actor-(\d+)" data-actor="([^"]+)"/g)
-      .map(match => [match[2]!, colors.get(Number(match[1]))!])
+    return matches(legend, /<circle class="journey-actor-dot journey-actor-\d+" data-actor="([^"]+)"[^>]*\sfill="(#[0-9a-f]{6})"/gi)
+      .map(match => [match[1]!, match[2]!.toLowerCase()])
   }
   if (category === 'Mindmap') {
-    return matches(article, /<path class="mindmap-edge" data-from="root" data-to="([^"]+)"[^>]*stroke="(#[0-9a-f]{6})"/gi)
-      .map(match => [match[1]!, match[2]!.toLowerCase()])
+    return matches(article, /<path class="mindmap-edge"[^>]*stroke="(#[0-9a-f]{6})"[^>]*data-from="root" data-to="([^"]+)"/gi)
+      .map(match => [match[2]!, match[1]!.toLowerCase()])
   }
   if (category === 'GitGraph') {
     return matches(article, /<line class="git-branch-line" data-branch="([^"]+)"[^>]*stroke="(#[0-9a-f]{6})"/gi)

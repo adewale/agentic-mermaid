@@ -5,7 +5,7 @@
 // `prop:value` declarations (e.g. `stroke-width:5px,stroke:#0f0,opacity:0.5`)
 // that upstream applies verbatim to the today line. Here the payload is
 // parsed with the shared parseStyleProps the flowchart parser uses (one style grammar,
-// two consumers) and filtered twice before it can land in a style="" attr:
+// two consumers) and filtered twice before it can land in the line's paint:
 //
 //   1. property whitelist — only line-paint properties are wired
 //      (GANTT_TODAY_MARKER_STYLE_PROPS); anything else is REPORTED, not
@@ -24,7 +24,7 @@ import { parseStyleProps } from '../shared/style-props.ts'
 export const GANTT_TODAY_MARKER_STYLE_PROPS = ['stroke', 'stroke-width', 'opacity', 'stroke-dasharray'] as const
 
 // Same character policy as quadrant point styles (src/quadrant/point-style.ts
-// COLOR_RE): the value lands inside style="" — allow hex/named colors,
+// COLOR_RE): the value lands in a paint attribute — allow hex/named colors,
 // numbers with units, rgb()/hsl() functional forms; forbid quotes, `;`,
 // `<`, `>`, `:` (kills url(data:…) and attribute breakouts).
 const SAFE_VALUE_RE = /^[#\w][\w#(),.%\s/-]*$/
@@ -50,9 +50,4 @@ export function parseTodayMarkerStyle(payload: string): GanttTodayMarkerStyle {
     applied.push([prop, value])
   }
   return { applied, ignored }
-}
-
-/** The exact `style` attribute value for the today line ('' = no attribute). */
-export function todayMarkerStyleAttr(style: GanttTodayMarkerStyle): string {
-  return style.applied.map(([prop, value]) => `${prop}:${value}`).join(';')
 }

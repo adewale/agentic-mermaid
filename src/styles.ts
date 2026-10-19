@@ -9,7 +9,6 @@ import { prepareDisplayText, type DisplayTextInput, type PreparedDisplayText } f
 // resolution, and the shared diagram-title band.
 // ============================================================================
 
-import { escapeAttr, renderMultilineText } from './multiline-utils.ts'
 import type { TextMark } from './scene/ir.ts'
 import * as marks from './scene/marks.ts'
 import { measureMonospaceTextWidth, measureMultilineText, measureTextWidth } from './text-metrics'
@@ -364,16 +363,9 @@ export function positionDiagramTitle(band: DiagramTitleBand, width: number, top:
 
 export function diagramTitleMark(title: PositionedDiagramTitle, style: ResolvedRenderStyle): TextMark {
   const fill = style.groupTextColor ?? 'var(--_text)'
-  const font = style.groupFont ? ` font-family="${escapeAttr(style.groupFont)}"` : ''
-  const spacing = style.groupLetterSpacing !== 0 ? ` letter-spacing="${style.groupLetterSpacing}"` : ''
-  return marks.text(
-    { id: 'diagram-title', role: 'title', text: title.text, block: title.block, x: title.x, y: title.y, fontSize: DIAGRAM_TITLE_FONT_SIZE, anchor: 'middle', paint: { fill } },
-    renderMultilineText(
-      title.block ?? title.text,
-      title.x,
-      title.y,
-      DIAGRAM_TITLE_FONT_SIZE,
-      `class="diagram-title" text-anchor="middle" font-size="${DIAGRAM_TITLE_FONT_SIZE}" font-weight="${DIAGRAM_TITLE_FONT_WEIGHT}"${font}${spacing} fill="${escapeAttr(fill)}"`,
-    ),
-  )
+  return marks.text({
+    id: 'diagram-title', role: 'title', text: title.text, block: title.block, x: title.x, y: title.y,
+    fontSize: DIAGRAM_TITLE_FONT_SIZE, fontWeight: DIAGRAM_TITLE_FONT_WEIGHT, letterSpacing: style.groupLetterSpacing,
+    anchor: 'middle', paint: { fill }, attributes: { className: 'diagram-title' },
+  })
 }
