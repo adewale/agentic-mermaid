@@ -1,0 +1,9 @@
+stateDiagram-v2
+  [*] --> Review
+  state Review {
+    Draft --> Submitted
+  }
+  state Review {
+    Submitted --> Approved
+  }
+  Review --> [*]
