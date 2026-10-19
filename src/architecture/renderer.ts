@@ -8,11 +8,10 @@ import type {
 import type { ArchitectureVisualConfig } from './config.ts'
 import { ARCHITECTURE_GROUP_ICON_TITLE_OFFSET, DEFAULT_ARCHITECTURE_VISUAL } from './config.ts'
 import { ARCHITECTURE_TITLE_FONT_SIZE, ARCHITECTURE_TITLE_FONT_WEIGHT, edgeMidpoint } from './layout.ts'
-import type { Point, RenderContext } from '../types.ts'
-import { svgOpenTag, buildStyleBlock, resolvedColorValue, type DiagramColors } from '../theme.ts'
+import type { RenderContext } from '../types.ts'
+import { resolvedColorValue, type DiagramColors } from '../theme.ts'
 import { toneOnFill } from '../color-resolver.ts'
 import { mixHex } from '../shared/color-math.ts'
-import { escapeAttr, escapeDisplayAttr, renderMultilineText, renderMultilineTextWithBackground, escapeXml } from '../multiline-utils.ts'
 import { preparePixelText, type PixelTextBlock } from '../shared/prepared-text.ts'
 import { fallbackIconGlyph, normalizeIconName } from './icon-layout.ts'
 import { topRoundedRectPath } from '../svg-paths.ts'
@@ -22,16 +21,63 @@ import { hashId } from '../scene/seed.ts'
 import * as marks from '../scene/marks.ts'
 import { DefaultBackend } from '../scene/backend.ts'
 import { resolveArchitectureIcon } from './icons.ts'
-import { serializeMarkerResources, tipAnchoredArrow } from '../scene/marker-resources.ts'
+import { tipAnchoredArrow } from '../scene/marker-resources.ts'
+import { snapshotSvgEmissionRecipe, svgValue as v, type SvgAttribute, type SvgEmissionRecipe, type SvgGeometryField, type SvgPrimitiveEmission } from '../scene/svg-emission.ts'
 import { projectRoundedConnectorPath } from '../scene/connector-geometry.ts'
 
 // ============================================================================
 // Architecture renderer — lowers a PositionedArchitectureDiagram to the
 // SceneGraph IR (SPEC §3.1) and serializes it via the DefaultBackend.
 //
-// Mark constructors attach private default-backend serialization while the
+// Mark constructors attach bounded typed presentation recipes while the
 // Scene document remains the semantic authority.
 // ============================================================================
+
+function primitive(className: string, geometry: readonly SvgGeometryField[]): SvgPrimitiveEmission {
+  return snapshotSvgEmissionRecipe({ kind: 'primitive', attributes: [
+    { name: 'class', value: v.meta(className) }, ...geometry.map(name => ({ name, value: v.geometry(name) })),
+  ] }) as SvgPrimitiveEmission
+}
+const ROUND_RECT_FIELDS = ['x', 'y', 'width', 'height', 'rx', 'ry'] as const
+const CIRCLE_FIELDS = ['cx', 'cy', 'r'] as const
+const GROUP_FRAME_EMISSION = primitive('architecture-group-frame', ROUND_RECT_FIELDS)
+const GROUP_BAND_EMISSION = primitive('architecture-group-band', ['d'])
+const GROUP_OUTLINE_EMISSION = primitive('architecture-group-outline', ROUND_RECT_FIELDS)
+const SERVICE_CARD_EMISSION = primitive('architecture-service-card', ROUND_RECT_FIELDS)
+const SERVICE_OUTLINE_EMISSION = primitive('architecture-service-outline', ROUND_RECT_FIELDS)
+const JUNCTION_RING_EMISSION = primitive('architecture-junction-ring', CIRCLE_FIELDS)
+const JUNCTION_CORE_EMISSION = primitive('architecture-junction-core', CIRCLE_FIELDS)
+const MARKER_EMISSION = snapshotSvgEmissionRecipe({ kind: 'resources', resources: ['markers'] })
+const EDGE_LABEL_BG_EMISSION = snapshotSvgEmissionRecipe({ kind: 'primitive', attributes: [
+  ...(['x', 'y', 'width', 'height'] as const).map(name => ({ name, value: v.geometry(name) })),
+  { name: 'class', value: v.meta('architecture-edge-label-bg') }, { name: 'rx', value: v.geometry('rx') }, { name: 'ry', value: v.geometry('ry') },
+] })
+function textAttributes(className: string, fill = false): SvgAttribute[] {
+  return [
+    { name: 'class', value: v.meta(className) }, { name: 'text-anchor', value: v.text('anchor') },
+    { name: 'font-size', value: v.text('fontSize') }, { name: 'font-weight', value: v.text('fontWeight') },
+    ...(fill ? [{ name: 'fill' as const, value: v.paint('fill') }] : []),
+  ]
+}
+const TITLE_EMISSION = snapshotSvgEmissionRecipe({ kind: 'text', layout: 'multiline', attributes: textAttributes('architecture-title', true) })
+const SERVICE_TEXT_EMISSION = snapshotSvgEmissionRecipe({ kind: 'text', layout: 'multiline', attributes: [
+  ...textAttributes('architecture-service-label'), { name: 'letter-spacing', value: v.text('letterSpacing'), omit: 'zero' },
+] })
+const EDGE_TEXT_EMISSION = snapshotSvgEmissionRecipe({ kind: 'text', layout: 'multiline', attributes: [
+  ...textAttributes('architecture-edge-label-text'), { name: 'letter-spacing', value: v.text('letterSpacing'), omit: 'zero' },
+] })
+const ICON_EMISSIONS = {
+  path: primitive('architecture-icon-mark', ['d']), circle: primitive('architecture-icon-mark', CIRCLE_FIELDS),
+  ellipse: primitive('architecture-icon-mark', ['cx', 'cy', 'rx', 'ry']), rect: primitive('architecture-icon-mark', ROUND_RECT_FIELDS),
+}
+const ICON_GLYPH_EMISSION = snapshotSvgEmissionRecipe({ kind: 'primitive', attributes: [
+  { name: 'class', value: v.meta('architecture-icon-glyph') }, { name: 'd', value: v.geometry('d') },
+  { name: 'transform', value: { source: 'transform', form: 'translate-scale-space' } },
+] }) as SvgPrimitiveEmission
+const FALLBACK_EMISSION = snapshotSvgEmissionRecipe({ kind: 'text', layout: 'multiline', attributes: [
+  { name: 'class', value: v.meta('architecture-icon-glyph architecture-icon-fallback') }, { name: 'data-fallback', value: v.meta(true) },
+  { name: 'text-anchor', value: v.text('anchor') }, { name: 'font-size', value: v.text('fontSize') }, { name: 'font-weight', value: v.text('fontWeight') },
+] })
 
 /**
  * Render a positioned architecture diagram as SVG.
@@ -88,30 +134,19 @@ export function lowerArchitectureScene(
   // Document shell: SVG open tag, accessibility elements, shared style block,
   // and architecture CSS in canonical order.
   const archCss = architectureStyles(visual, labels)
-  const preludeParts: string[] = []
-  preludeParts.push(svgOpenTag(diagram.width, diagram.height, colors, transparent, {
-    style: archVars,
-    attrs: a11yAttrs,
-  }))
-  if (hasTitle) preludeParts.push(`<title id="${titleId}">${escapeXml(accessibleTitle!)}</title>`)
-  if (hasDesc) preludeParts.push(`<desc id="${descId}">${escapeXml(diagram.accessibilityDescription!)}</desc>`)
-  preludeParts.push(buildStyleBlock(font, false, undefined, colors.embedFontImport))
-  preludeParts.push(archCss)
   parts.push(marks.documentOpen({
-    id: 'prelude',
-    width: diagram.width,
-    height: diagram.height,
-    colors,
-    transparent,
-    font,
-    hasMonoFont: false,
-    extraCss: archCss,
-  }, preludeParts.join('\n')))
+    id: 'prelude', width: diagram.width, height: diagram.height, colors, transparent, font, hasMonoFont: false, extraCss: archCss,
+  }, { kind: 'prelude', width: diagram.width, height: diagram.height, colors, transparent, font, hasMonoFont: false,
+    extraStyle: archVars,
+    attributes: Object.entries(a11yAttrs).filter((entry): entry is [string, string] => entry[1] !== undefined).map(([name, value]) => ({ name: name as SvgAttribute['name'], value: v.meta(value) })),
+    children: [
+      ...(hasTitle ? [{ kind: 'documentText' as const, element: 'title' as const, domId: titleId, text: accessibleTitle! }] : []),
+      ...(hasDesc ? [{ kind: 'documentText' as const, element: 'desc' as const, domId: descId, text: diagram.accessibilityDescription! }] : []),
+      { kind: 'sharedStyle', shadow: false }, { kind: 'stylesheet', css: archCss },
+    ],
+  }))
 
-  parts.push(marks.definitions(
-    { id: 'defs', markerResources: ARCHITECTURE_MARKERS },
-    ['<defs>', serializeMarkerResources(ARCHITECTURE_MARKERS), '</defs>'].join('\n'),
-  ))
+  parts.push(marks.definitions({ id: 'defs', markerResources: ARCHITECTURE_MARKERS }, MARKER_EMISSION))
 
   if (diagram.title) {
     parts.push(marks.text({
@@ -120,17 +155,11 @@ export function lowerArchitectureScene(
       text: diagram.title.text,
       x: diagram.title.x,
       y: diagram.title.y,
-      fontSize: ARCHITECTURE_TITLE_FONT_SIZE,
+      fontSize: ARCHITECTURE_TITLE_FONT_SIZE, fontWeight: ARCHITECTURE_TITLE_FONT_WEIGHT,
       block: diagram.title.block,
       anchor: 'middle',
       paint: { fill: 'var(--arch-service-label, var(--_text))' },
-    }, renderMultilineText(
-      diagram.title.block ?? diagram.title.text,
-      diagram.title.x,
-      diagram.title.y,
-      ARCHITECTURE_TITLE_FONT_SIZE,
-      `class="architecture-title" text-anchor="middle" font-size="${ARCHITECTURE_TITLE_FONT_SIZE}" font-weight="${ARCHITECTURE_TITLE_FONT_WEIGHT}" fill="var(--arch-service-label, var(--_text))"`,
-    )))
+    }, TITLE_EMISSION))
   }
 
   for (const group of diagram.groups) {
@@ -192,7 +221,7 @@ function labelPaints(visual: ArchitectureVisualConfig, colors: DiagramColors): A
 }
 
 function architectureStyles(visual: ArchitectureVisualConfig, labels: ArchitectureLabelPaints): string {
-  return `<style>
+  return `
   .architecture-group-frame { fill: var(--arch-group-fill, color-mix(in srgb, var(--_node-fill) 82%, var(--bg))); stroke: none; }
   .architecture-group-band { fill: var(--arch-group-band, color-mix(in srgb, var(--arch-edge-stroke, var(--_arrow)) 5%, var(--arch-group-fill, var(--bg)))); stroke: none; }
   .architecture-group-outline { fill: none; stroke: var(--arch-group-stroke, var(--_node-stroke)); stroke-width: ${visual.groupLineWidth}; }
@@ -207,13 +236,15 @@ function architectureStyles(visual: ArchitectureVisualConfig, labels: Architectu
   .architecture-junction-core { fill: color-mix(in srgb, var(--arch-edge-stroke, var(--_arrow)) 24%, var(--bg)); stroke: var(--arch-edge-stroke, var(--_arrow)); stroke-width: 0.75; }
   .architecture-icon-mark { fill: none; stroke: var(--arch-edge-stroke, var(--_arrow)); stroke-width: 1.25; stroke-linecap: round; stroke-linejoin: round; }
   .architecture-icon-glyph { fill: var(--arch-edge-stroke, var(--_arrow)); }
-</style>`
+`
 }
 
 function lowerGroup(group: PositionedArchitectureGroup, visual: ArchitectureVisualConfig, labels: ArchitectureLabelPaints): SceneNode {
   const children: Array<{ node: SceneNode; indent: number }> = []
-  const open =
-    `<g class="architecture-group" data-id="${escapeAttr(group.id)}" data-label="${escapeDisplayAttr(group.label)}">`
+  const emission = { kind: 'group' as const, attributes: [
+    { name: 'class' as const, value: v.meta('architecture-group') }, { name: 'data-id' as const, value: v.meta(group.id) },
+    { name: 'data-label' as const, value: v.meta(group.label), display: true },
+  ] }
 
   children.push({
     indent: 2,
@@ -223,7 +254,7 @@ function lowerGroup(group: PositionedArchitectureGroup, visual: ArchitectureVisu
       geometry: { kind: 'rect', x: group.x, y: group.y, width: group.width, height: group.height, rx: visual.groupCornerRadius, ry: visual.groupCornerRadius },
       paint: { fill: 'var(--arch-group-fill, color-mix(in srgb, var(--_node-fill) 82%, var(--bg)))', stroke: 'none' },
     },
-      `<rect class="architecture-group-frame" x="${group.x}" y="${group.y}" width="${group.width}" height="${group.height}" rx="${visual.groupCornerRadius}" ry="${visual.groupCornerRadius}" />`),
+      GROUP_FRAME_EMISSION),
   })
 
   const bandPath = topRoundedRectPath(group.x, group.y, group.width, group.headerHeight ?? visual.groupHeaderHeight, visual.groupCornerRadius)
@@ -235,7 +266,7 @@ function lowerGroup(group: PositionedArchitectureGroup, visual: ArchitectureVisu
       geometry: { kind: 'path', d: bandPath },
       paint: { fill: 'var(--arch-group-band, color-mix(in srgb, var(--arch-edge-stroke, var(--_arrow)) 5%, var(--arch-group-fill, var(--bg))))', stroke: 'none' },
     },
-      `<path class="architecture-group-band" d="${bandPath}" />`),
+      GROUP_BAND_EMISSION),
   })
 
   children.push({
@@ -246,7 +277,7 @@ function lowerGroup(group: PositionedArchitectureGroup, visual: ArchitectureVisu
       geometry: { kind: 'rect', x: group.x, y: group.y, width: group.width, height: group.height, rx: visual.groupCornerRadius, ry: visual.groupCornerRadius },
       paint: { fill: 'none', stroke: 'var(--arch-group-stroke, var(--_node-stroke))', strokeWidth: String(visual.groupLineWidth) },
     },
-      `<rect class="architecture-group-outline" x="${group.x}" y="${group.y}" width="${group.width}" height="${group.height}" rx="${visual.groupCornerRadius}" ry="${visual.groupCornerRadius}" />`),
+      GROUP_OUTLINE_EMISSION),
   })
 
   if (group.icon) {
@@ -272,17 +303,14 @@ function lowerGroup(group: PositionedArchitectureGroup, visual: ArchitectureVisu
       text: labelText,
       x: labelX,
       y: labelY,
-      fontSize: visual.groupFontSize,
+      fontSize: visual.groupFontSize, fontWeight: visual.groupFontWeight, letterSpacing: visual.groupLetterSpacing,
       block,
       anchor: 'start',
       paint: { fill: labels.group },
-    }, renderMultilineText(
-      block,
-      labelX,
-      labelY,
-      visual.groupFontSize,
-      `class="architecture-group-label" text-anchor="start" font-size="${visual.groupFontSize}" font-weight="${visual.groupFontWeight}"${visual.groupFont ? ` font-family="${escapeAttr(visual.groupFont)}"` : ''}${letterAttr(visual.groupLetterSpacing)}`,
-    )),
+    }, { kind: 'text', layout: 'multiline', attributes: [
+      ...textAttributes('architecture-group-label'), ...(visual.groupFont ? [{ name: 'font-family' as const, value: v.meta(visual.groupFont) }] : []),
+      { name: 'letter-spacing', value: v.text('letterSpacing'), omit: 'zero' },
+    ] }),
   })
 
   for (const child of group.children) {
@@ -292,8 +320,7 @@ function lowerGroup(group: PositionedArchitectureGroup, visual: ArchitectureVisu
   return marks.group({
     id: `group:${group.id}`,
     role: 'group',
-    open,
-    close: '</g>',
+    emission,
     children,
   })
 }
@@ -307,8 +334,10 @@ function lowerService(service: PositionedArchitectureService, visual: Architectu
     ? iconX + visual.serviceIconSize + Math.max(10, visual.servicePaddingX * 0.7)
     : service.x + visual.servicePaddingX)
 
-  const open =
-    `<g class="architecture-service" data-id="${escapeAttr(service.id)}" data-label="${escapeDisplayAttr(service.label)}">`
+  const emission = { kind: 'group' as const, attributes: [
+    { name: 'class' as const, value: v.meta('architecture-service') }, { name: 'data-id' as const, value: v.meta(service.id) },
+    { name: 'data-label' as const, value: v.meta(service.label), display: true },
+  ] }
 
   children.push({
     indent: 2,
@@ -318,7 +347,7 @@ function lowerService(service: PositionedArchitectureService, visual: Architectu
       geometry: { kind: 'rect', x: service.x, y: service.y, width: service.width, height: service.height, rx: visual.serviceCornerRadius, ry: visual.serviceCornerRadius },
       paint: { fill: 'var(--arch-service-fill, color-mix(in srgb, var(--_node-fill) 92%, var(--bg)))', stroke: 'none' },
     },
-      `<rect class="architecture-service-card" x="${service.x}" y="${service.y}" width="${service.width}" height="${service.height}" rx="${visual.serviceCornerRadius}" ry="${visual.serviceCornerRadius}" />`),
+      SERVICE_CARD_EMISSION),
   })
 
   children.push({
@@ -329,7 +358,7 @@ function lowerService(service: PositionedArchitectureService, visual: Architectu
       geometry: { kind: 'rect', x: service.x, y: service.y, width: service.width, height: service.height, rx: visual.serviceCornerRadius, ry: visual.serviceCornerRadius },
       paint: { fill: 'none', stroke: 'var(--arch-service-stroke, var(--_node-stroke))', strokeWidth: String(visual.serviceLineWidth) },
     },
-      `<rect class="architecture-service-outline" x="${service.x}" y="${service.y}" width="${service.width}" height="${service.height}" rx="${visual.serviceCornerRadius}" ry="${visual.serviceCornerRadius}" />`),
+      SERVICE_OUTLINE_EMISSION),
   })
 
   if (service.icon) {
@@ -351,24 +380,17 @@ function lowerService(service: PositionedArchitectureService, visual: Architectu
       text: labelText,
       x: labelX,
       y: labelY,
-      fontSize: visual.serviceFontSize,
+      fontSize: visual.serviceFontSize, fontWeight: visual.serviceFontWeight, letterSpacing: visual.serviceLetterSpacing,
       block,
       anchor: 'start',
       paint: { fill: labels.service },
-    }, renderMultilineText(
-      block,
-      labelX,
-      labelY,
-      visual.serviceFontSize,
-      `class="architecture-service-label" text-anchor="start" font-size="${visual.serviceFontSize}" font-weight="${visual.serviceFontWeight}"${letterAttr(visual.serviceLetterSpacing)}`,
-    )),
+    }, SERVICE_TEXT_EMISSION),
   })
 
   return marks.group({
     id: `service:${service.id}`,
     role: 'service',
-    open,
-    close: '</g>',
+    emission,
     children,
   })
 }
@@ -382,18 +404,17 @@ function lowerJunction(junction: PositionedArchitectureJunction, visual: Archite
     role: 'junction',
     geometry: { kind: 'circle', cx, cy, r: visual.junctionOuterRadius },
     paint: { fill: 'var(--bg)', stroke: 'var(--arch-edge-stroke, var(--_arrow))', strokeWidth: '1.25' },
-  }, `<circle class="architecture-junction-ring" cx="${cx}" cy="${cy}" r="${visual.junctionOuterRadius}" />`)
+  }, JUNCTION_RING_EMISSION)
   const core = marks.shape({
     id: `junction-core:${junction.id}`,
     role: 'junction',
     geometry: { kind: 'circle', cx, cy, r: visual.junctionInnerRadius },
     paint: { fill: 'color-mix(in srgb, var(--arch-edge-stroke, var(--_arrow)) 24%, var(--bg))', stroke: 'var(--arch-edge-stroke, var(--_arrow))', strokeWidth: '0.75' },
-  }, `<circle class="architecture-junction-core" cx="${cx}" cy="${cy}" r="${visual.junctionInnerRadius}" />`)
+  }, JUNCTION_CORE_EMISSION)
   return marks.group({
     id: `junction:${junction.id}`,
     role: 'junction',
-    open: `<g class="architecture-junction" data-id="${escapeAttr(junction.id)}">`,
-    close: '</g>',
+    emission: { kind: 'group', attributes: [{ name: 'class', value: v.meta('architecture-junction') }, { name: 'data-id', value: v.meta(junction.id) }] },
     children: [
       { indent: 2, node: ring },
       { indent: 2, node: core },
@@ -402,29 +423,15 @@ function lowerJunction(junction: PositionedArchitectureJunction, visual: Archite
 }
 
 function lowerEdge(edge: PositionedArchitectureEdge, visual: ArchitectureVisualConfig, sceneId: string): SceneNode {
-  const points = edge.points.map((point) => `${point.x},${point.y}`).join(' ')
-  let markers = ''
-  let startMarker: MarkerDescriptor | undefined
-  let endMarker: MarkerDescriptor | undefined
-  if (edge.hasArrowStart) {
-    startMarker = ARCHITECTURE_MARKERS[1]
-    markers += ' marker-start="url(#architecture-arrow-start)"'
-  }
-  if (edge.hasArrowEnd) {
-    endMarker = ARCHITECTURE_MARKERS[0]
-    markers += ' marker-end="url(#architecture-arrow-end)"'
-  }
-
-  const attrs = [
-    'class="architecture-edge"',
-    `data-from="${escapeAttr(edge.source.id)}"`,
-    `data-to="${escapeAttr(edge.target.id)}"`,
-    `data-from-side="${edge.source.side}"`,
-    `data-to-side="${edge.target.side}"`,
-    `data-from-boundary="${edge.source.boundary}"`,
-    `data-to-boundary="${edge.target.boundary}"`,
+  const startMarker = edge.hasArrowStart ? ARCHITECTURE_MARKERS[1] : undefined
+  const endMarker = edge.hasArrowEnd ? ARCHITECTURE_MARKERS[0] : undefined
+  const attributes: SvgAttribute[] = [
+    { name: 'class', value: v.meta('architecture-edge') }, { name: 'data-from', value: v.identity('from') }, { name: 'data-to', value: v.identity('to') },
+    { name: 'data-from-side', value: v.meta(edge.source.side) }, { name: 'data-to-side', value: v.meta(edge.target.side) },
+    { name: 'data-from-boundary', value: v.meta(edge.source.boundary) }, { name: 'data-to-boundary', value: v.meta(edge.target.boundary) },
+    ...(edge.label ? [{ name: 'data-label' as const, value: { source: 'connectorLabel' as const, index: 0 }, display: true }] : []),
   ]
-  if (edge.label) attrs.push(`data-label="${escapeDisplayAttr(edge.label)}"`)
+  const emission = (field: 'd' | 'points'): SvgEmissionRecipe => ({ kind: 'primitive', attributes: [...attributes, { name: field, value: v.geometry(field) }] })
 
   const paint = { stroke: 'var(--arch-edge-stroke, var(--_line))', strokeWidth: String(visual.edgeLineWidth) }
   const connectorSemantics = {
@@ -452,7 +459,7 @@ function lowerEdge(edge: PositionedArchitectureEdge, visual: ArchitectureVisualC
       markers: { ...(startMarker ? { start: startMarker } : {}), mid: [], ...(endMarker ? { end: endMarker } : {}) },
       ...connectorSemantics,
       route: { ...connectorSemantics.route, contours: projection.contours },
-    }, `<path ${attrs.join(' ')} d="${projection.geometry.d}"${markers} />`)
+    }, emission('d'))
   }
   return marks.connector({
     id: sceneId,
@@ -462,7 +469,7 @@ function lowerEdge(edge: PositionedArchitectureEdge, visual: ArchitectureVisualC
     paint,
     markers: { ...(startMarker ? { start: startMarker } : {}), mid: [], ...(endMarker ? { end: endMarker } : {}) },
     ...connectorSemantics,
-  }, `<polyline ${attrs.join(' ')} points="${points}"${markers} />`)
+  }, emission('points'))
 }
 
 function lowerEdgeLabel(edge: PositionedArchitectureEdge, visual: ArchitectureVisualConfig, sceneId: string): SceneNode[] {
@@ -471,24 +478,6 @@ function lowerEdgeLabel(edge: PositionedArchitectureEdge, visual: ArchitectureVi
   const mid = edge.labelPosition ?? edgeMidpoint(edge.points)
   const metrics = block
   const padding = 7
-
-  const crisp = renderMultilineTextWithBackground(
-    block,
-    mid.x,
-    mid.y,
-    metrics.width,
-    metrics.height,
-    visual.edgeFontSize,
-    padding,
-    `class="architecture-edge-label-text" text-anchor="middle" font-size="${visual.edgeFontSize}" font-weight="${visual.edgeFontWeight}"${letterAttr(visual.edgeLetterSpacing)}`,
-    `class="architecture-edge-label-bg" rx="0" ry="0"`,
-  )
-  // renderMultilineTextWithBackground emits "<rect bg>\n<text>" — split at the
-  // single '\n' so the background and text become distinct semantic marks with
-  // their exact crisp bytes.
-  const split = crisp.indexOf('\n')
-  const bgCrisp = crisp.slice(0, split)
-  const textCrisp = crisp.slice(split + 1)
 
   const bgWidth = metrics.width + padding * 2
   const bgHeight = metrics.height + padding * 2
@@ -502,18 +491,18 @@ function lowerEdgeLabel(edge: PositionedArchitectureEdge, visual: ArchitectureVi
         stroke: 'color-mix(in srgb, var(--arch-edge-stroke, var(--_line)) 18%, var(--bg))',
         strokeWidth: '0.75',
       },
-    }, bgCrisp),
+    }, EDGE_LABEL_BG_EMISSION),
     marks.text({
       id: sceneId,
       role: 'label',
       text: label,
       x: mid.x,
       y: mid.y,
-      fontSize: visual.edgeFontSize,
+      fontSize: visual.edgeFontSize, fontWeight: visual.edgeFontWeight, letterSpacing: visual.edgeLetterSpacing,
       block,
       anchor: 'middle',
       paint: { fill: 'var(--arch-edge-label, var(--_text-muted))' },
-    }, textCrisp),
+    }, EDGE_TEXT_EMISSION),
   ]
 }
 
@@ -522,24 +511,21 @@ function renderIcon(x: number, y: number, size: number, icon: string, compact: b
   const native = !rawName.includes(':') && !rawName.includes('/')
     && ['cloud', 'database', 'disk', 'internet', 'server'].includes(rawName)
   const resolved = native ? null : resolveArchitectureIcon(icon)
-  const metadata = resolved
-    ? ` data-icon-source="${resolved.source}" data-icon-license="${resolved.license}"`
-    : ''
   const ink = 'var(--arch-edge-stroke, var(--_arrow))'
   const stroke: MarkPaint = { fill: 'none', stroke: ink, strokeWidth: '1.25', strokeLinecap: 'round', strokeLinejoin: 'round' }
   const children: SceneNode[] = []
-  const add = (geometry: Geometry, svg: string, paint = stroke, transform?: SceneTransform): void => {
+  const add = (geometry: Geometry, emission: SvgPrimitiveEmission, paint = stroke, transform?: SceneTransform): void => {
     children.push(marks.shape({ id: semanticChildId(id, 'part', children.length), role: 'icon', owner, geometry, paint,
       ...(transform ? { transform } : {}),
-    }, svg))
+    }, emission))
   }
-  const path = (d: string): void => add({ kind: 'path', d }, `<path class="architecture-icon-mark" d="${d}" />`)
-  const circle = (cx: number, cy: number, r: number): void => add({ kind: 'circle', cx, cy, r }, `<circle class="architecture-icon-mark" cx="${cx}" cy="${cy}" r="${r}" />`)
-  const ellipse = (cx: number, cy: number, rx: number, ry: number): void => add({ kind: 'ellipse', cx, cy, rx, ry }, `<ellipse class="architecture-icon-mark" cx="${cx}" cy="${cy}" rx="${rx}" ry="${ry}" />`)
+  const path = (d: string): void => add({ kind: 'path', d }, ICON_EMISSIONS.path)
+  const circle = (cx: number, cy: number, r: number): void => add({ kind: 'circle', cx, cy, r }, ICON_EMISSIONS.circle)
+  const ellipse = (cx: number, cy: number, rx: number, ry: number): void => add({ kind: 'ellipse', cx, cy, rx, ry }, ICON_EMISSIONS.ellipse)
   const name = normalizeIconName(icon), cx = x + size / 2, cy = y + size / 2, s = compact ? size * 0.92 : size
   if (resolved) {
     const inset = (size - s) / 2, scale = s / 24
-    add({ kind: 'path', d: resolved.path }, `<path class="architecture-icon-glyph" d="${resolved.path}" transform="translate(${x + inset} ${y + inset}) scale(${scale})" />`,
+    add({ kind: 'path', d: resolved.path }, ICON_GLYPH_EMISSION,
       { fill: ink }, { kind: 'matrix', a: scale, b: 0, c: 0, d: scale, e: x + inset, f: y + inset })
   } else switch (name) {
     case 'cloud':
@@ -567,7 +553,7 @@ function renderIcon(x: number, y: number, size: number, icon: string, compact: b
       path(`M ${cx + s * 0.14} ${cy - s * 0.22} Q ${cx} ${cy} ${cx + s * 0.14} ${cy + s * 0.22}`)
       break
     case 'server':
-      add({ kind: 'rect', x: cx - s * 0.22, y: cy - s * 0.24, width: s * 0.44, height: s * 0.48, rx: 0, ry: 0 }, `<rect class="architecture-icon-mark" x="${cx - s * 0.22}" y="${cy - s * 0.24}" width="${s * 0.44}" height="${s * 0.48}" rx="0" ry="0" />`)
+      add({ kind: 'rect', x: cx - s * 0.22, y: cy - s * 0.24, width: s * 0.44, height: s * 0.48, rx: 0, ry: 0 }, ICON_EMISSIONS.rect)
       path(`M ${cx - s * 0.16} ${cy - s * 0.08} H ${cx + s * 0.16}`)
       path(`M ${cx - s * 0.16} ${cy + s * 0.06} H ${cx + s * 0.16}`)
       break
@@ -576,12 +562,14 @@ function renderIcon(x: number, y: number, size: number, icon: string, compact: b
       const block = fallbackBlock
       children.push(marks.text({ id: semanticChildId(id, 'fallback'), role: 'icon', owner, text: glyph, block,
         x: cx, y: cy, fontSize, fontWeight: 700, anchor: 'middle', paint: { fill: ink },
-      }, renderMultilineText(block ?? glyph, cx, cy, fontSize,
-        `class="architecture-icon-glyph architecture-icon-fallback" data-fallback="true" text-anchor="middle" font-size="${fontSize}" font-weight="700"`)))
+      }, FALLBACK_EMISSION))
     }
   }
   return marks.group({ id, role: 'icon', owner,
-    open: `  <g class="architecture-icon" data-icon="${escapeAttr(icon)}"${metadata}>`, close: '</g>',
+    emission: { kind: 'group', leadingWhitespace: '  ', attributes: [
+      { name: 'class', value: v.meta('architecture-icon') }, { name: 'data-icon', value: v.meta(icon) },
+      ...(resolved ? [{ name: 'data-icon-source' as const, value: v.meta(resolved.source) }, { name: 'data-icon-license' as const, value: v.meta(resolved.license) }] : []),
+    ] },
     children: children.map((node, index) => ({ node, indent: index === 0 ? 2 : 0 })),
   })
 }
@@ -597,7 +585,3 @@ const ARCHITECTURE_MARKERS: readonly MarkerDescriptor[] = [
   tipAnchoredArrow('architecture-arrow-end', { width: 8, height: 5 }, 'end', ARCHITECTURE_MARKER_PAINT),
   tipAnchoredArrow('architecture-arrow-start', { width: 8, height: 5 }, 'start', ARCHITECTURE_MARKER_PAINT),
 ]
-
-function letterAttr(value: number): string {
-  return value !== 0 ? ` letter-spacing="${value}"` : ''
-}
