@@ -116,3 +116,11 @@ describe('render-parity gate (RENDER_FAILED)', () => {
     }
   })
 })
+
+describe('verify — flowchart lints read only flowchart source', () => {
+  test.each(['gitGraph\n  commit\n  bogus ["x', 'mindmap\n  root((unclosed'])('%j fails to parse without flowchart lints', source => {
+    const result = verifyMermaid(source)
+    expect(result.ok).toBe(false)
+    expect(result.warnings.filter(w => w.code === 'UNSUPPORTED_SYNTAX' && (w as { syntax: string }).syntax.startsWith('flowchart_'))).toEqual([])
+  })
+})

@@ -33,6 +33,7 @@ import { classUnsupportedSyntaxWarnings } from './class-body.ts'
 import { ganttUnsupportedSyntaxWarnings } from './gantt-body.ts'
 import { erUnsupportedSyntaxWarnings } from './er-body.ts'
 import { builtinFamilyMetadata, extractLabelsGeneric, getFamily } from './families.ts'
+import { detectsFlowchartFamily } from './family-router.ts'
 import { FamilyLayoutError, ganttGeometryWarnings, ganttScheduleWarning, layoutGeometryWarnings, type ProjectedFamilyArtifact, positionFamilyArtifact } from './family-layouts.ts'
 import { flowchartUnsupportedSyntaxWarnings, flowchartUpstreamRejectedSyntaxWarnings } from './flowchart-unsupported.ts'
 import { labelOverflowWarning } from './label-metrics.ts'
@@ -128,7 +129,8 @@ export function verifyMermaid(input: ParsedDiagram | string, opts: VerifyOptions
     // still valuable (and were historically part of verify's contract).
     // Report them alongside the hard failure instead of making malformed
     // delimiters and dangling edges disappear merely because admission failed.
-    const sourceWarnings = typeof input === 'string' ? flowchartUnsupportedSyntaxWarnings(input) : []
+    // These are flowchart lints: another family's text is not read by them.
+    const sourceWarnings = typeof input === 'string' && detectsFlowchartFamily(normalizeMermaidSource(input).firstLine) ? flowchartUnsupportedSyntaxWarnings(input) : []
     return finalize([{ code: 'EMPTY_DIAGRAM' }, ...sourceWarnings], emptyRenderedLayout('flowchart'), opts)
   }
   if (parsed.value.body.kind === 'preserved') {
