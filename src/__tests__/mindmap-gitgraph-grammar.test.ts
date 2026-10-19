@@ -30,6 +30,7 @@ describe('Mindmap grammar, round-trip, and branch geometry', () => {
       for (const [source, expected] of [
         ['mindmap\n  (r[oot)', { id: 'r[oot', label: 'r[oot', shape: 'rounded' }],
         ['mindmap\n  (r{{oot)', { id: 'r{{oot', label: 'r{{oot', shape: 'rounded' }],
+        ['mindmap\n  a]b[x]', { id: 'a]b', label: 'x', shape: 'rect' }],
         ['mindmap\n  (Cloud))', { id: 'Cloud', label: 'Cloud', shape: 'cloud' }],
         ['mindmap\n  (Keep %% literal)', { id: 'Keep %% literal', label: 'Keep %% literal', shape: 'rounded' }],
         ['mindmap\n  node[Keep %% literal] %% trailing comment', { id: 'node', label: 'Keep %% literal', shape: 'rect' }],
@@ -119,6 +120,12 @@ describe('Mindmap grammar, round-trip, and branch geometry', () => {
       'accTitle:', 'accDescr:', 'id[unterminated', 'id [unterminated', 'id(unclosed', 'id (unclosed',
       // A quoted description's shape closes on its quote's line, as upstream.
       'id["quoted"\n    ]',
+      // A node id or a default node's text holds no `(`, `[`, `)`, `{`, `}`
+      // or line break, as Mermaid's NODE_ID token.
+      'layout s}}es}}election', 'a{b', 'a)b',
+      'This String containing []is a comment root((the root))',
+      // A shape whose text runs on closes at `theId(`, leaving `child1)`.
+      'ld)\n      root\n  Argument mapping    theId(child1)',
     ]
     for (const line of malformed) {
       expect(() => parseMindmap(`mindmap\n  Root\n    ${line}`), line).toThrow(MindmapParseError)

@@ -168,6 +168,8 @@ describe('normalizeMermaidSource', () => {
     'erDiagram&#32;A ||--o{ B : r',
     'pie&#32;"a": 1',
     'mindmap  root\n  a',
+    'mindmap layout s}}es}}election',
+    'mindmap  This String containing []is a comment root((the root))',
   ])('%j is no typed diagram', source => {
     const parsed = parseRegisteredMermaid(source)
     expect(parsed.ok && !['opaque', 'preserved'].includes(parsed.value.body.kind) ? parsed.value.body.kind : 'untyped').toBe('untyped')

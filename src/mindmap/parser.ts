@@ -105,7 +105,7 @@ export function parseMindmap(source: string): MindmapDiagram {
 
     const parsed = parseNode(trimmed)
     if (parserObservationActive('mindmap')) observeParserStatement('mindmap', parsed ? 'node' : 'invalid', trimmed, { line: startLine, unit: 'normalized' })
-    if (!parsed || (parsed.shape === 'default' && looksLikeMalformedShape(trimmed))) {
+    if (!parsed) {
       throw new MindmapParseError(`Invalid mindmap node syntax on line ${index + 1}: ${trimmed}`, index + 1)
     }
     if (ids.has(parsed.id)) throw new MindmapDuplicateIdError(parsed.id, index + 1)
@@ -211,9 +211,16 @@ function indentation(line: string): number {
   return width
 }
 
+/** Mermaid's NODE_ID token is `[^\(\[\n\)\{\}]+`, so a node's explicit id, or
+ * a default node's whole text, holds no `(`, `[`, `)`, `{`, `}` or line break
+ * (a `]` is text). Text that does is not one node. An anonymous shape's id,
+ * which comes from its description, is not bound by this. */
+const NODE_ID_TEXT = /^[^([\r\n){}]*$/
+
 function parseNode(source: string): ParsedNode | null {
   const frame = readNodeFrame(source)
   if (frame && !source.slice(frame.end).trim()) {
+    if (!NODE_ID_TEXT.test(frame.id)) return null
     const cleaned = cleanLabel(frame.label)
     const id = frame.id || plainLabel(cleaned.label)
     return id && cleaned.label ? { id, label: cleaned.label, shape: frame.shape, ...(cleaned.markdown ? { markdown: true } : {}) } : null
@@ -232,9 +239,10 @@ function parseNode(source: string): ParsedNode | null {
     const cleaned = cleanLabel(match[2]!)
     const explicit = match[1]!.trim()
     const id = explicit || plainLabel(cleaned.label)
-    if (!id || !cleaned.label) return null
+    if (!id || !cleaned.label || !NODE_ID_TEXT.test(explicit)) return null
     return { id, label: cleaned.label, shape, ...(cleaned.markdown ? { markdown: true } : {}) }
   }
+  if (!NODE_ID_TEXT.test(source)) return null
   const cleaned = cleanLabel(source)
   const id = plainLabel(cleaned.label)
   return id ? { id, label: cleaned.label, shape: 'default', ...(cleaned.markdown ? { markdown: true } : {}) } : null
@@ -265,10 +273,6 @@ function inlineTagsToMarkdown(value: string): string {
 
 function plainLabel(value: string): string {
   return value.replace(/<\/?(?:b|i)>/gi, '').trim()
-}
-
-function looksLikeMalformedShape(value: string): boolean {
-  return /^[^\s[\](){}]+\s*(?:\[|\(\(?|\{\{|\)\))/.test(value)
 }
 
 export function serializeMindmap(diagram: MindmapDiagram): string {
