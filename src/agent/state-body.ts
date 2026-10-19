@@ -1297,10 +1297,11 @@ function lexedStateText(text: string): string {
 }
 
 /** Statements ours reads that pinned Mermaid reads otherwise, by statement:
- *  `cssClass` and `linkStyle`, which its State grammar lacks; a transition
- *  or note naming a state it cannot name there; a description, transition
- *  label or one-line note it ends early; and a composite given more than one label or
- *  description, which it rejects. Each at its authored line. */
+ *  `cssClass` and `linkStyle`, which its State grammar lacks; a transition,
+ *  note or description naming a state it cannot name there; a description,
+ *  transition label or one-line note it ends early; and a composite given
+ *  more than one label or description, which it rejects. Each at its
+ *  authored line. */
 function stateReadOtherwiseWarnings(statements: readonly StateStatement[], header: number, lastLine: (line: number) => string): Array<LayoutWarning & { line: number }> {
   const warnings: Array<LayoutWarning & { line: number }> = []
   const warn = (statement: StateStatement, syntax: string, message: string): void => {
@@ -1377,8 +1378,14 @@ function stateReadOtherwiseWarnings(statements: readonly StateStatement[], heade
     if (parseClassShorthandStatement(text)) continue
     const description = text.match(STATE_DESCRIPTION_RE)
     if (description) {
-      labelComposite(statement, description[1]!)
-      if (!statement.afterAlias) cutText(statement, description[2]!)
+      const id = description[1]!
+      labelComposite(statement, id)
+      // Mermaid reads the name after `state "…" as` to the line's end.
+      if (statement.afterAlias) continue
+      if (!hasBareSpelling(id)) {
+        warn(statement, 'state_description_name', `The description names '${id}', which pinned Mermaid cannot read as a state there: a name holds no hyphen, and \`note\`, \`class\`, \`classDef\`, \`style\`, \`default\`, \`click\`, \`href\`, \`scale\` and \`stateDiagram\` start statements of their own, as \`state\` starts a declaration it drops. Mermaid rejects or drops the description. The writer writes it as \`state "…" as ${id}\`, which Mermaid reads.`)
+      }
+      cutText(statement, description[2]!)
     }
   }
   return warnings
