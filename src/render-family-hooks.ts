@@ -31,6 +31,7 @@ import { resolveGitGraphPositionConfig } from './gitgraph/position.ts'
 import { parseMindmap } from './mindmap/parser.ts'
 import { parseMermaid } from './parser.ts'
 import { resolvePieVisualConfig } from './pie/config.ts'
+import { pieFamilyLines } from './pie/source-title.ts'
 import { resolveSankeyVisualConfig } from './sankey/config.ts'
 import { resolveSequenceConfig } from './sequence/config.ts'
 import { withAccessibilityFields } from './shared/accessibility-directives.ts'
@@ -156,7 +157,7 @@ const XYCHART_RENDER_HOOKS = {
 
 const PIE_RENDER_HOOKS = {
   ...PIE_SVG_HOOKS,
-  renderAscii: nativeTerminalRenderer(ctx => renderPieTerminal(ctx.source.authoredPieFamilyLines ?? ctx.source.familyLines, ctx.config, ctx.colorMode, ctx.theme, {}, ctx.options.targetWidth, (ctx.familyConfig as { visual?: ReturnType<typeof resolvePieVisualConfig> } | undefined)?.visual, ctx.styleFace)),
+  renderAscii: nativeTerminalRenderer(ctx => renderPieTerminal(pieFamilyLines(ctx.source), ctx.config, ctx.colorMode, ctx.theme, {}, ctx.options.targetWidth, (ctx.familyConfig as { visual?: ReturnType<typeof resolvePieVisualConfig> } | undefined)?.visual, ctx.styleFace)),
 } satisfies BuiltinRenderHooks
 
 const QUADRANT_RENDER_HOOKS = {

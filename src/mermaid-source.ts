@@ -447,8 +447,6 @@ export interface NormalizedMermaidSource {
   familyText: string
   /** Family grammar view with universal accessibility directives removed. */
   familyLines: string[]
-  /** Pie-only grammar view with authored quoted labels/titles and decoded syntax. */
-  authoredPieFamilyLines?: string[]
   firstLine: string
   config: MermaidRuntimeConfig
   frontmatter: MermaidFrontmatterMap

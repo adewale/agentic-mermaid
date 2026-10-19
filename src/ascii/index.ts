@@ -55,6 +55,7 @@ import {
 } from '../terminal-security.ts'
 import { AsciiWidthError } from './width-error.ts'
 import { parsePieChart } from '../pie/parser.ts'
+import { pieFamilyLines } from '../pie/source-title.ts'
 import { safePieTerminalText } from './pie.ts'
 import { retainTerminalDocument, TerminalDocument } from './terminal-document.ts'
 import { certifyTerminalLayout } from './terminal-certification.ts'
@@ -225,7 +226,7 @@ export function executeTerminalRender(
   // characters created by Pie's grammar. Reflect the family-owned terminal
   // projection in the shared receipt and public diagnostics as well.
   const pieControlsReplaced = family.id === 'pie' && (() => {
-    const chart = parsePieChart(normalizedSource.authoredPieFamilyLines ?? normalizedSource.familyLines)
+    const chart = parsePieChart(pieFamilyLines(normalizedSource))
     const visibleTitle = chart.displayTitle ?? chart.title
     return (visibleTitle !== undefined && safePieTerminalText(visibleTitle) !== visibleTitle)
       || chart.entries.some(entry => {
