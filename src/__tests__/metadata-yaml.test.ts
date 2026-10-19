@@ -229,7 +229,14 @@ describe('scanMetadataBlock delimits a block by the family\'s upstream lexer', (
 
   test('a multi-line flowchart block is joined with its line breaks and indentation', () => {
     expect(coalesceFlowchartLines(['A@{', '  shape: rect', '  label: "x"', '}', 'A --> B']))
-      .toEqual([{ text: 'A@{\n  shape: rect\n  label: "x"\n}', line: 0 }, { text: 'A --> B', line: 4 }])
+      .toEqual([
+        {
+          text: 'A@{\n  shape: rect\n  label: "x"\n}',
+          line: 0,
+          joined: [{ at: 4, line: 1, col: 0 }, { at: 18, line: 2, col: 0 }, { at: 31, line: 3, col: 0 }],
+        },
+        { text: 'A --> B', line: 4 },
+      ])
   })
 })
 

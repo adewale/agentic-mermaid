@@ -1,4 +1,4 @@
-import { type FlowchartScan, type FlowchartTextRange, flowchartTextArrowLabelRanges, scanFlowchart } from '../flowchart-lexer.ts'
+import { coalesceFlowchartLines, type FlowchartScan, type FlowchartTextRange, flowchartTextArrowLabelRanges, scanFlowchart } from '../flowchart-lexer.ts'
 import type { PreservedSourceSpans, SourceLocation, SourceMap, SourceMapSpans, SourceSpan, SourceSpanPoint } from './types.ts'
 import { splitHeaderStatement } from '../mermaid-source-wrapper.ts'
 
@@ -307,12 +307,34 @@ function statementBounds(index: StatementBoundsIndex, at: number): readonly [num
   return index.segments[low]?.bounds ?? index.fallback
 }
 
-function statementSpan(lineStarts: readonly number[], authoredLine: PhysicalLine | undefined, canonicalLine: PhysicalLine | undefined, location: SourceLocation, analysis: AuthoredLineAnalysis | undefined): SourceSpan | undefined {
-  if (!authoredLine || !canonicalLine || !analysis) return undefined
-  const relative = Math.max(0, location.col - 1 - indentationWidth(canonicalLine.text))
-  const authoredAt = Math.min(authoredLine.text.length, indentationWidth(authoredLine.text) + relative)
-  const [startInLine, endInLine] = statementBounds(analysis.statementBounds, authoredAt)
-  return span(lineStarts, authoredLine.start + startInLine, authoredLine.start + endInLine)
+/** A canonical location in the authored text: the line (or the lines of a
+ * statement read across lines) it lies in, and its offset there. */
+interface AuthoredPosition {
+  readonly line: PhysicalLine
+  readonly at: number
+}
+
+function statementSpan(lineStarts: readonly number[], position: AuthoredPosition | undefined, analysis: AuthoredLineAnalysis | undefined): SourceSpan | undefined {
+  if (!position || !analysis) return undefined
+  const [startInLine, endInLine] = statementBounds(analysis.statementBounds, position.at)
+  return span(lineStarts, position.line.start + startInLine, position.line.start + endInLine)
+}
+
+/** For each canonical line of a flowchart statement the parser reads across
+ * lines (coalesceFlowchartLines), the authored text from the statement's
+ * first line to its last. */
+function flowchartStatementLines(canonicalLines: readonly PhysicalLine[], lines: ReadonlyMap<number, PhysicalLine>, authoredSource: string): Map<number, PhysicalLine> {
+  const result = new Map<number, PhysicalLine>()
+  for (const group of coalesceFlowchartLines(canonicalLines.map(line => line.text))) {
+    if (!group.joined) continue
+    const first = lines.get(group.line + 1)
+    const last = group.joined.findLast(joined => lines.has(joined.line + 1))
+    const final = last && lines.get(last.line + 1)
+    if (!first || !final || final.start < first.start) continue
+    const statement = { text: authoredSource.slice(first.start, final.start + final.text.length), start: first.start }
+    for (const line of [group.line, ...group.joined.map(joined => joined.line)]) result.set(line + 1, statement)
+  }
+  return result
 }
 
 function firstIndexAfter(line: string, start: number, candidates: readonly string[]): number {
@@ -402,23 +424,17 @@ function labelEnd(line: string, start: number, key: string, analysis: AuthoredLi
   return Math.max(start, Math.min(lineEnd, line.slice(0, end).trimEnd().length))
 }
 
-function labelSpan(lineStarts: readonly number[], lines: Map<number, PhysicalLine>, canonicalLines: readonly PhysicalLine[], location: SourceLocation, key: string, analysis: AuthoredLineAnalysis | undefined): SourceSpan | undefined {
-  const authoredLine = lines.get(location.line)
-  const canonicalLine = canonicalLines[location.line - 1]
-  if (!authoredLine || !canonicalLine || !analysis) return undefined
-  const canonicalIndent = indentationWidth(canonicalLine.text)
-  const authoredIndent = indentationWidth(authoredLine.text)
-  const relativeStart = Math.max(0, location.col - 1 - canonicalIndent)
-  const startInLine = Math.min(authoredLine.text.length, authoredIndent + relativeStart)
-  const endInLine = labelEnd(authoredLine.text, startInLine, key, analysis)
-  return span(lineStarts, authoredLine.start + startInLine, authoredLine.start + endInLine)
+function labelSpan(lineStarts: readonly number[], position: AuthoredPosition | undefined, key: string, analysis: AuthoredLineAnalysis | undefined): SourceSpan | undefined {
+  if (!position || !analysis) return undefined
+  const endInLine = labelEnd(position.line.text, position.at, key, analysis)
+  return span(lineStarts, position.line.start + position.at, position.line.start + endInLine)
 }
 
-function mapStatementSpans(locations: Map<string, SourceLocation>, lineStarts: readonly number[], lines: Map<number, PhysicalLine>, canonicalLines: readonly PhysicalLine[], analysisFor: (line: PhysicalLine) => AuthoredLineAnalysis): Map<string, SourceSpan> {
+function mapStatementSpans(locations: Map<string, SourceLocation>, lineStarts: readonly number[], positionOf: (location: SourceLocation) => AuthoredPosition | undefined, analysisFor: (line: PhysicalLine) => AuthoredLineAnalysis): Map<string, SourceSpan> {
   const result = new Map<string, SourceSpan>()
   for (const [key, location] of locations) {
-    const authoredLine = lines.get(location.line)
-    const located = statementSpan(lineStarts, authoredLine, canonicalLines[location.line - 1], location, authoredLine ? analysisFor(authoredLine) : undefined)
+    const position = positionOf(location)
+    const located = statementSpan(lineStarts, position, position ? analysisFor(position.line) : undefined)
     if (located) result.set(key, located)
   }
   return result
@@ -435,9 +451,20 @@ export function attachSourceMapSpans(
   const lineStarts = sourceLineStarts(authoredSource)
   const lines = authoredLineMap(canonicalSource, authoredSource, preserved)
   const canonicalLines = physicalLines(canonicalSource)
-  const lineAnalysisCache = new Map<number, AuthoredLineAnalysis>()
+  // A flowchart statement read across lines is analysed across them.
+  const statementLines = grammar === 'flowchart' ? flowchartStatementLines(canonicalLines, lines, authoredSource) : new Map<number, PhysicalLine>()
+  const positionOf = (location: SourceLocation): AuthoredPosition | undefined => {
+    const authoredLine = lines.get(location.line)
+    const canonicalLine = canonicalLines[location.line - 1]
+    if (!authoredLine || !canonicalLine) return undefined
+    const relative = Math.max(0, location.col - 1 - indentationWidth(canonicalLine.text))
+    const at = Math.min(authoredLine.text.length, indentationWidth(authoredLine.text) + relative)
+    const statement = statementLines.get(location.line)
+    return statement ? { line: statement, at: authoredLine.start - statement.start + at } : { line: authoredLine, at }
+  }
+  const lineAnalysisCache = new Map<PhysicalLine, AuthoredLineAnalysis>()
   const analysisFor = (line: PhysicalLine): AuthoredLineAnalysis => {
-    const cached = lineAnalysisCache.get(line.start)
+    const cached = lineAnalysisCache.get(line)
     if (cached) return cached
     const flowchart = grammar === 'flowchart' ? scanFlowchart(line.text) : undefined
     const textArrowLabelRanges = flowchartTextArrowLabelRanges(line.text, flowchart)
@@ -455,20 +482,20 @@ export function attachSourceMapSpans(
           enclosingDelimiters: indexEnclosingDelimiters(line.text, quoted!),
           quoteEnd: (start, limit) => genericQuoteEnd(line.text, start, limit),
         }
-    lineAnalysisCache.set(line.start, analysis)
+    lineAnalysisCache.set(line, analysis)
     return analysis
   }
   const labels = new Map<string, SourceSpan>()
   for (const [key, location] of sourceMap.labels) {
-    const authoredLine = lines.get(location.line)
-    const located = labelSpan(lineStarts, lines, canonicalLines, location, key, authoredLine ? analysisFor(authoredLine) : undefined)
+    const position = positionOf(location)
+    const located = labelSpan(lineStarts, position, key, position ? analysisFor(position.line) : undefined)
     if (located) labels.set(key, located)
   }
   const spans: SourceMapSpans = {
     preserved,
-    nodes: mapStatementSpans(sourceMap.nodes, lineStarts, lines, canonicalLines, analysisFor),
-    edges: mapStatementSpans(sourceMap.edges, lineStarts, lines, canonicalLines, analysisFor),
-    groups: mapStatementSpans(sourceMap.groups, lineStarts, lines, canonicalLines, analysisFor),
+    nodes: mapStatementSpans(sourceMap.nodes, lineStarts, positionOf, analysisFor),
+    edges: mapStatementSpans(sourceMap.edges, lineStarts, positionOf, analysisFor),
+    groups: mapStatementSpans(sourceMap.groups, lineStarts, positionOf, analysisFor),
     labels,
   }
   sourceMap.spans = spans

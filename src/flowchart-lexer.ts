@@ -363,6 +363,32 @@ export function flowchartStatementSpans(text: string, scan: FlowchartScan = scan
   return out
 }
 
+/** Physical lines read as one statement group. */
+export interface FlowchartLineGroup {
+  text: string
+  /** The 0-based index of the group's first line, which `text` begins with
+   * whole. */
+  line: number
+  /** Each later line joined on: where its text begins in `text`, its index,
+   * and the column it begins at in that line. */
+  joined?: Array<{ at: number; line: number; col: number }>
+}
+
+/** The 0-based line and column a group's `offset` came from. An offset in
+ * the text joining two lines (`<br>`) is placed after the first. */
+export function flowchartGroupPosition(group: FlowchartLineGroup, offset: number): { line: number; col: number } {
+  const joined = group.joined ?? []
+  let low = 0
+  let high = joined.length
+  while (low < high) {
+    const middle = low + Math.floor((high - low) / 2)
+    if (joined[middle]!.at <= offset) low = middle + 1
+    else high = middle
+  }
+  const piece = low === 0 ? { at: 0, line: group.line, col: 0 } : joined[low - 1]!
+  return { line: piece.line, col: piece.col + offset - piece.at }
+}
+
 /** Upstream nests no shape text, so the most regions a line it reads leaves
  * open is a triple delimiter (`(((`), a markdown string and a string in it.
  * A line left deeper ends where it ends, which keeps the openers carried on
@@ -393,10 +419,10 @@ const KEYWORD_STATEMENT_RE = /^(?:(?:end|subgraph|classDef|class|style|linkStyle
  * parser's shape patterns read it on one line (`A[x " y]`), so a `&quot;` the
  * render path decodes joins lines as the authored entity does.
  */
-export function coalesceFlowchartLines(lines: readonly string[]): Array<{ text: string; line: number }> {
-  const out: Array<{ text: string; line: number }> = []
+export function coalesceFlowchartLines(lines: readonly string[]): FlowchartLineGroup[] {
+  const out: FlowchartLineGroup[] = []
   const scanLine = (text: string): FlowchartScan => lex(text, 0, false, true)
-  let group: { text: string; line: number } | undefined
+  let group: FlowchartLineGroup | undefined
   // The last line of `group` as lexed (behind the openers that put the lexer
   // in the state it began in), and whether its last statement is a keyword
   // statement.
@@ -463,7 +489,10 @@ export function coalesceFlowchartLines(lines: readonly string[]): Array<{ text: 
       group = { text: raw, line: index }
       out.push(group)
     } else {
-      group!.text += `${joint}${joint === '\n' ? raw : trimmed}`
+      const piece = joint === '\n' ? raw : trimmed
+      const col = joint === '\n' ? 0 : raw.length - raw.trimStart().length
+      ;(group!.joined ??= []).push({ at: group!.text.length + joint.length, line: index, col })
+      group!.text += `${joint}${piece}`
     }
     const last = flowchartStatementSpans(text, lineScan).at(-1)
     if (joint === undefined || (last && last.start > 0)) {

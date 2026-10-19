@@ -36,6 +36,22 @@ describe('flowchart SourceMap', () => {
     expect(parsed.value.source.edges.get('edge#1:B->A')).toEqual({ line: 7, col: 1 })
   })
 
+  // The parser reads a label, string or link across lines: each location is
+  // on the line its text came from, and a span runs to the statement's end.
+  test.each([
+    ['flowchart TD\nA["see\nC here"]\nB --> C', 'nodes', 'C', { line: 4, col: 7 }, 'B --> C'],
+    ['flowchart TD\nA["see\nC here"]\nB --> C', 'labels', 'node:A', { line: 2, col: 4 }, 'see\nC here'],
+    ['flowchart TD\nA -->\nB', 'edges', 'edge#0:A->B', { line: 2, col: 1 }, 'A -->\nB'],
+    ['flowchart TD\nA["a\nB"] --> B\nB --> C', 'nodes', 'B', { line: 3, col: 9 }, 'A["a\nB"] --> B'],
+    ['flowchart TD\nA["a\nB"] --> B\nB --> C', 'edges', 'edge#0:A->B', { line: 2, col: 1 }, 'A["a\nB"] --> B'],
+    ['flowchart TD\n  A -- some\n    text --> B', 'labels', 'edge#0:A->B', { line: 2, col: 6 }, 'some\n    text'],
+  ] as const)('maps %j %s %s across lines', (source, kind, key, location, text) => {
+    const parsed = parseMermaid(source)
+    if (!parsed.ok) throw new Error(JSON.stringify(parsed.error))
+    expect(parsed.value.source[kind].get(key)).toEqual(location)
+    expect(textAt(source, parsed.value.source.spans![kind].get(key))).toBe(text)
+  })
+
   test('BUG-26: spans read `\'` as text and `\\` as no escape, as the parser does', () => {
     // An apostrophe opens no string, so it cannot hide the `;` that ends its
     // statement; a `\` before a closing `"` escapes nothing.

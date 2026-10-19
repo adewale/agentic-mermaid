@@ -21,8 +21,11 @@ import { parseMutableStyleProps, unsafeStylePaintError } from '../shared/style-p
 import { unknownOpMessage } from './mutation-ops.ts'
 import { normalizeV11Shape } from '../flowchart-shapes.ts'
 import {
+  coalesceFlowchartLines,
+  type FlowchartLineGroup,
   type FlowchartRegion,
   type FlowchartScan,
+  flowchartGroupPosition,
   flowchartStatementSpans,
   flowchartTextArrowLabelRanges,
   scanFlowchart,
@@ -32,7 +35,7 @@ import type { LabelContent } from '../shared/display-text.ts'
 import { quoteMetadataString } from '../shared/metadata-yaml.ts'
 import type { MermaidGraph, MermaidNode, MermaidEdge, MermaidSubgraph, NodeShape, Direction } from '../types.ts'
 import type {
-  DiagramBody, FlowchartMutationOp, MutationError, ParseError, Result, SourceMap,
+  DiagramBody, FlowchartMutationOp, MutationError, ParseError, Result, SourceLocation, SourceMap,
 } from './types.ts'
 import { ok, err } from './types.ts'
 import { graphClassNames } from '../shared/graph-classes.ts'
@@ -41,8 +44,10 @@ export type FlowchartBody = Extract<DiagramBody, { kind: 'flowchart' }>
 
 interface SourceStatementSegment {
   readonly text: string
+  /** Where the statement begins in its group's text. */
   readonly start: number
-  readonly line: number
+  /** The lines the parser reads as one (coalesceFlowchartLines). */
+  readonly group: FlowchartLineGroup
   /** The statement as flowchart-lexer.ts reads it. */
   readonly scan: FlowchartScan
   /** The outermost region opening at each offset. */
@@ -72,8 +77,10 @@ export function parseFlowchartBody(canonicalSource: string): Result<FlowchartBod
 export function buildFlowchartSourceMap(body: FlowchartBody, canonicalSource: string): SourceMap {
   const map: SourceMap = { nodes: new Map(), edges: new Map(), groups: new Map(), labels: new Map() }
   const lines = canonicalSource.split(/\r?\n/)
-  const sourceSegments: SourceStatementSegment[] = lines.flatMap((line, lineIndex) =>
-    flowchartStatementSpans(line).map(segment => {
+  // Statements as the parser reads them: a label, string or link may run on
+  // across lines. Each location is placed on the line its text came from.
+  const sourceSegments: SourceStatementSegment[] = coalesceFlowchartLines(lines).flatMap(group =>
+    flowchartStatementSpans(group.text).map(segment => {
       const scan = scanFlowchart(segment.text)
       const regionsByStart = new Map<number, FlowchartRegion>()
       for (const region of scan.regions) if (!regionsByStart.has(region.start)) regionsByStart.set(region.start, region)
@@ -82,7 +89,7 @@ export function buildFlowchartSourceMap(body: FlowchartBody, canonicalSource: st
       const operatorRanges = compactOperatorRanges(segment.text, topLevel)
       return {
         ...segment,
-        line: lineIndex + 1,
+        group,
         scan,
         regionsByStart,
         pipeLabels: scan.regions.filter(region => region.kind === 'pipe' && region.closed && region.parent === -1),
@@ -111,10 +118,10 @@ export function buildFlowchartSourceMap(body: FlowchartBody, canonicalSource: st
         nodeSegments.set(id, occurrences)
       }
       if (map.nodes.has(id)) continue
-      map.nodes.set(id, { line: segment.line, col: segment.start + column + 1 })
+      map.nodes.set(id, sourceLocation(segment, column))
       const node = body.graph.nodes.get(id)
       const labelCol = node ? nodeLabelColumn(segment, node.label, column + id.length) : -1
-      if (labelCol >= 0) map.labels.set(`node:${id}`, { line: segment.line, col: segment.start + labelCol + 1 })
+      if (labelCol >= 0) map.labels.set(`node:${id}`, sourceLocation(segment, labelCol))
     }
   }
 
@@ -158,11 +165,11 @@ export function buildFlowchartSourceMap(body: FlowchartBody, canonicalSource: st
     const match = matches[Math.min(occurrence, Math.max(0, matches.length - 1))]
     if (match) {
       const { segment, sourceCol: relativeCol, labelCol } = match
-      const loc = { line: segment.line, col: segment.start + relativeCol + 1 }
+      const loc = sourceLocation(segment, relativeCol)
       map.edges.set(indexedKey, loc)
       if (!map.edges.has(pairKey)) map.edges.set(pairKey, loc)
       if (edge.label && labelCol >= 0) {
-        map.labels.set(indexedKey, { line: segment.line, col: segment.start + labelCol + 1 })
+        map.labels.set(indexedKey, sourceLocation(segment, labelCol))
       }
     }
   })
@@ -171,6 +178,12 @@ export function buildFlowchartSourceMap(body: FlowchartBody, canonicalSource: st
 }
 
 interface TextRange { start: number; end: number }
+
+/** The 1-based line and column of a statement's `column`. */
+function sourceLocation(segment: SourceStatementSegment, column: number): SourceLocation {
+  const position = flowchartGroupPosition(segment.group, segment.start + column)
+  return { line: position.line + 1, col: position.col + 1 }
+}
 
 /** The pipe labels (`-->|label|`) of a statement that lie between `from` and
  * `to`, as the lexer delimits them (sorted by opening pipe). */
