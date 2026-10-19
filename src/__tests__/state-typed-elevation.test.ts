@@ -465,6 +465,21 @@ stateDiagram-v2
     } finally { upstream.close() }
   })
 
+  test('a `;` Mermaid\'s entity prepass drops from text is read as text, and reported', async () => {
+    // Before it reads entity codes, Mermaid drops the `;` ending a line's
+    // `style…:…#…;` run, then its `classDef…:…#…;` run, in that case only.
+    const dropped = ['A : style:#f00; x', 'A --> B : style:#f00 x; y', 'A : classDef x:#fff; y', 'state "style:#f00; x" as A', 'note right of A\n    style:#f00; x\n  end note']
+      .map(body => `stateDiagram-v2\n  ${body}`)
+    expect(dropped.map(unsupportedSyntax)).toEqual([...Array(4).fill(['state_text_prepass@2']), ['state_text_prepass@3']])
+    const kept = ['A : style: #f00; x', 'A : Style:#f00; x', 'A --> B\n  style A fill:#f00;'].map(body => `stateDiagram-v2\n  ${body}`)
+    expect(kept.map(unsupportedSyntax)).toEqual(kept.map(() => []))
+    const upstream = startUpstreamMermaid()
+    try {
+      expect(await upstream.projectAll(dropped, mermaid => mermaid.db.rootDoc.flatMap((item: any) => item.description ? [item.description] : item.note ? [item.note.text] : [])))
+        .toEqual([['style:#f00 x'], ['style:#f00 x y'], ['classDef x:#fff y'], ['style:#f00 x'], ['style:#f00 x']])
+    } finally { upstream.close() }
+  })
+
   test('a composite draws its classes\' classDef paint on its body, as Mermaid does, and not its style', async () => {
     const source = 'stateDiagram-v2\n  classDef hot fill:#ff0000,stroke:#0000ff,color:#00ff00\n  state X {\n    A\n  }\n  class X hot\n  state Y {\n    B\n  }\n  style Y fill:#ff00ff'
     const svg = renderMermaidSVG(source)
