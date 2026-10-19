@@ -38,6 +38,7 @@ describe('Mindmap grammar, round-trip, and branch geometry', () => {
         ['mindmap\n  root["quoted\n    text"]\n    B', { id: 'root', label: 'quoted\ntext', shape: 'rect', children: [{ id: 'B' }] }],
         ['mindmap\n  root(text\n    more) %% c\n    B', { id: 'root', label: 'text\nmore', shape: 'rounded', children: [{ id: 'B' }] }],
         ['mindmap\n  r))bang\ntext((', { id: 'r', label: 'bang\ntext', shape: 'bang' }],
+        ['mindmap\n  root(text\n    %% a comment\n    more)', { id: 'root', label: 'text\nmore', shape: 'rounded' }],
       ] as const) {
         expect(await upstream.accepts(source)).toBe(true)
         const parsed = parseMindmap(source)
@@ -116,6 +117,8 @@ describe('Mindmap grammar, round-trip, and branch geometry', () => {
     const malformed = [
       '::icon (foo)', '::icon', ':::', ':::   ',
       'accTitle:', 'accDescr:', 'id[unterminated', 'id [unterminated', 'id(unclosed', 'id (unclosed',
+      // A quoted description's shape closes on its quote's line, as upstream.
+      'id["quoted"\n    ]',
     ]
     for (const line of malformed) {
       expect(() => parseMindmap(`mindmap\n  Root\n    ${line}`), line).toThrow(MindmapParseError)

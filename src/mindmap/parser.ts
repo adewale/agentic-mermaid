@@ -63,15 +63,16 @@ export function parseMindmap(source: string): MindmapDiagram {
     }
     // A shape's description runs on across line breaks to its closing
     // delimiter, as in Mermaid's NODE lexer state. Keep each break, not the
-    // indentation after it.
+    // indentation after it; a `%%` line in it is a comment, as upstream.
     if (scanNodeFrame(raw.trimStart()) === 'open') {
-      joined ??= rawLines.join('\n')
-      lineStarts ??= rawLines.reduce<number[]>((starts, line, at) => (starts.push(at === 0 ? 0 : starts[at - 1]! + rawLines[at - 1]!.length + 1), starts), [])
+      const comment = (line: string): boolean => /^\s*%%/.test(line)
+      joined ??= rawLines.map(line => comment(line) ? '' : line).join('\n')
+      lineStarts ??= rawLines.reduce<number[]>((starts, line, at) => (starts.push(at === 0 ? 0 : starts[at - 1]! + (comment(rawLines[at - 1]!) ? 0 : rawLines[at - 1]!.length) + 1), starts), [])
       const start = lineStarts[index]! + raw.length - raw.trimStart().length
       const frame = scanNodeFrame(joined.slice(start))
       if (frame && frame !== 'open') {
         const end = index + joined.slice(start, start + frame.end).split('\n').length - 1
-        raw = [rawLines[index]!.trimEnd(), ...rawLines.slice(index + 1, end + 1).map(line => line.trim())].join('\n')
+        raw = [rawLines[index]!.trimEnd(), ...rawLines.slice(index + 1, end + 1).filter(line => !comment(line)).map(line => line.trim())].join('\n')
         index = end
       }
     }
@@ -161,8 +162,10 @@ function scanNodeFrame(source: string): NodeFrame | 'open' | null {
     while (end < source.length && !/[)\](}]/.test(source[end]!)) end++
   }
   const label = source.slice(begin, end)
-  while (/\s/.test(source[end] ?? '') && end < source.length) end++
-  if (end === source.length) return 'open'
+  // A quoted description's shape closes on its closing quote's line.
+  const quoted = source[begin] === '"'
+  while (end < source.length && (quoted ? /[ \t]/ : /\s/).test(source[end]!)) end++
+  if (end === source.length) return quoted ? null : 'open'
   const closer = ['))', '}}', '((', '(-', '-)', ')', ']', '('].find(token => source.startsWith(token, end))
   if (!closer) return null
   const shape: MindmapShape = opener === '[' ? 'rect' : opener === '{{' ? 'hexagon'
