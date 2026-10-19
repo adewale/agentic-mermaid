@@ -26,6 +26,7 @@ import { renderMermaidPNG } from '../agent/png.ts'
 import { renderMermaidASCII } from '../ascii/index.ts'
 import { hasDiagonalLines } from '../ascii/validate.ts'
 import { renderMermaidSVG } from '../index.ts'
+import { clearElkLayoutCache } from '../elk-instance.ts'
 
 const RUNS = 60
 const U = { colorMode: 'none', useAscii: false } as const
@@ -297,7 +298,10 @@ describe('characterisation · families · universal invariants', () => {
 
   it('all registered families are byte-stable across repeated renders', () => {
     for (const { source } of RENDERER_CASES) {
+      // Lay out afresh each time: a cached ELK result would compare with itself.
+      clearElkLayoutCache()
       const first = renderCase(source)
+      clearElkLayoutCache()
       const second = renderAll(source)
       expect(second.unicode).toBe(first.unicode)
       expect(second.ascii).toBe(first.ascii)

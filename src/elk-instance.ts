@@ -88,11 +88,66 @@ function ensureElk(): void {
  *     replacing rawWorker.onmessage with a direct interceptor
  */
 export function elkLayoutSync(graph: ElkNode): ElkNode {
-  return measureRenderStage('elk', () => layoutElkGraph(graph))
+  return measureRenderStage('elk', () => cachedElkLayout(graph))
+}
+
+// ELK lays out identical input graphs identically, so a repeated render,
+// verify or edit-loop step need not run it again. The key is the whole input
+// graph, options included; undefined and non-finite values are spelled out
+// because JSON would merge them with absent fields and null. Results are
+// stored and returned as copies, since ELK returns its mutated input and
+// callers adjust the geometry they receive. Least recently used results are
+// evicted past either bound; a result takes about 2-7 bytes per key code
+// unit, so the cache holds at most roughly 4-9 MiB. AGENTIC_MERMAID_ELK_CACHE=0
+// in the environment, or as a global where there is no `process`, turns the
+// cache off, which the benchmarks do so that repeated renders time ELK itself.
+const host = globalThis as { process?: { env?: Record<string, string | undefined> }; AGENTIC_MERMAID_ELK_CACHE?: unknown }
+const ELK_CACHE_ENABLED = (host.process?.env?.AGENTIC_MERMAID_ELK_CACHE ?? host.AGENTIC_MERMAID_ELK_CACHE) !== '0'
+const ELK_CACHE_MAX_ENTRIES = 64
+const ELK_CACHE_MAX_KEY_UNITS = 1024 * 1024
+const elkResults = new Map<string, ElkNode>()
+let elkResultKeyUnits = 0
+
+function cachedElkLayout(graph: ElkNode): ElkNode {
+  assertLayoutGraphWork(graph)
+  if (!ELK_CACHE_ENABLED) return layoutElkGraph(graph)
+  const key = elkGraphKey(graph)
+  const cached = elkResults.get(key)
+  if (cached) {
+    elkResults.delete(key)
+    elkResults.set(key, cached)
+    return structuredClone(cached)
+  }
+  const result = layoutElkGraph(graph)
+  if (key.length <= ELK_CACHE_MAX_KEY_UNITS) {
+    elkResults.set(key, structuredClone(result))
+    elkResultKeyUnits += key.length
+    for (const oldest of elkResults.keys()) {
+      if (elkResults.size <= ELK_CACHE_MAX_ENTRIES && elkResultKeyUnits <= ELK_CACHE_MAX_KEY_UNITS) break
+      elkResults.delete(oldest)
+      elkResultKeyUnits -= oldest.length
+    }
+  }
+  return result
+}
+
+function elkGraphKey(graph: ElkNode): string {
+  return JSON.stringify(graph, (_key, value: unknown) => {
+    if (value === undefined) return '\u0000undefined'
+    if (typeof value === 'number' && !Number.isFinite(value)) return `\u0000${value}`
+    // Keep a real string from spelling one of the markers above.
+    if (typeof value === 'string' && value.startsWith('\u0000')) return `\u0000${value}`
+    return value
+  })
+}
+
+/** Forget cached ELK results, so a test or diagnostic can time or compare a cold layout. */
+export function clearElkLayoutCache(): void {
+  elkResults.clear()
+  elkResultKeyUnits = 0
 }
 
 function layoutElkGraph(graph: ElkNode): ElkNode {
-  assertLayoutGraphWork(graph)
   ensureElk()
 
   let result: ElkNode | undefined
