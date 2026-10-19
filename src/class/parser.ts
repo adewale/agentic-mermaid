@@ -427,12 +427,16 @@ function classifyClassStatement(text: string, authored: string | undefined): Cla
   }
   // Validate note delimiters against authored bytes, then decode content.
   // Entity quotes are text, not fresh syntax introduced by render normalization.
-  const note = classStatement((authored ?? text).trim()).match(/^note(?:\s+for\s+(\S+))?\s+"((?:\\.|[^"\\])*)"\s*$/i)
+  // Mermaid's string has no escapes (`"C:\"` is the text `C:\`); ours reads
+  // `\"` as a quote only where Mermaid's reading leaves the line unread.
+  const noteSource = classStatement((authored ?? text).trim())
+  const plainNote = noteSource.match(/^note(?:\s+for\s+(\S+))?\s+"([^"]*)"\s*$/i)
+  const note = plainNote ?? noteSource.match(/^note(?:\s+for\s+(\S+))?\s+"((?:\\.|[^"\\])*)"\s*$/i)
   if (note) {
     const reference = note[1] ? parseClassReference(decodeXML(note[1])) : undefined
     if (!note[1] || reference) return {
-      kind: 'note', text: decodeXML(note[2]!.replace(/\\(["\\])/g, '$1')),
-      ...(reference ? { reference } : {}), ...(note[2]!.includes('\\"') ? { escapedQuotes: true } : {}),
+      kind: 'note', text: decodeXML(plainNote ? note[2]! : note[2]!.replace(/\\(["\\])/g, '$1')),
+      ...(reference ? { reference } : {}), ...(!plainNote ? { escapedQuotes: true } : {}),
     }
   }
   const title = text.match(/^title\s+(.+)$/i)

@@ -88,6 +88,8 @@ describe('parseClassDiagram – class definitions', () => {
     // Mermaid's class string has no escapes: a backslash before the closing
     // quote is text, and the string ends on its line.
     { body: 'class A["C:\\"]\nB --> C\nclass D["x"]', native: { classes: [{ id: 'A', label: 'C:\\' }, { id: 'B' }, { id: 'C' }, { id: 'D', label: 'x' }], relationships: [{ from: 'B', to: 'C' }] }, typed: { classes: [{ id: 'A', label: 'C:\\' }, { id: 'B' }, { id: 'C' }, { id: 'D', label: 'x' }], relations: [{ from: 'B', to: 'C' }] }, written: 'class A["C:\\"]' },
+    { body: 'note for A "C:\\"\nclass B', native: { notes: [{ for: 'A', text: 'C:\\' }], classes: [{ id: 'A' }, { id: 'B' }] }, typed: { notes: [{ for: 'A', text: 'C:\\' }] }, written: 'note for A "C:&#92;"' },
+    { body: 'note "a\\\\b"', native: { notes: [{ text: 'a\\\\b' }] }, typed: { notes: [{ text: 'a\\\\b' }] }, written: 'note "a&#92;&#92;b"' },
     { body: 'A "0..*\\" --> B\nB "1" --> C', native: { relationships: [{ from: 'A', fromCardinality: '0..*\\' }, { from: 'B', fromCardinality: '1' }] }, typed: { relations: [{ from: 'A', fromCardinality: '0..*\\' }, { from: 'B', fromCardinality: '1' }] }, written: 'A "0..*\\" --> B' },
     { body: 'note for A "l1\nl2"', native: { notes: [{ for: 'A', text: 'l1\nl2' }] }, typed: { notes: [{ for: 'A', text: 'l1<br>l2' }] }, written: 'note for A "l1<br>l2"' },
     { body: 'note "a\nb"', native: { notes: [{ text: 'a\nb' }] }, typed: { notes: [{ text: 'a<br>b' }] }, written: 'note "a<br>b"' },
