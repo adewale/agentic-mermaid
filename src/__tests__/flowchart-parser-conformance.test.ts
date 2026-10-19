@@ -218,6 +218,8 @@ describe('flowchart parser conformance safety floor (issue #36)', () => {
     ['A[l1\n  l2] --> B', ['A:rectangle:l1\nl2', 'B:rectangle:B', 'A-solid->B']],
     ['A(r\n  t)', ['A:rounded:r\nt']],
     ['A{d\n  m}', ['A:diamond:d\nm']],
+    // The render path decodes `&quot;` to a `"` in the middle of the text.
+    ['A[x &quot;\n  y] --> B', ['A:rectangle:x &quot;\ny', 'B:rectangle:B', 'A-solid->B']],
     ['A -->|some\n  text| B', ['A:rectangle:A', 'B:rectangle:B', 'A-solid->B:some\ntext']],
     ['A -- some\n  text --> B', ['A:rectangle:A', 'B:rectangle:B', 'A-solid->B:some\ntext']],
     // Upstream trims a label, so a break at either end of it is not text.

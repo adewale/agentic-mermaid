@@ -217,17 +217,19 @@ interface MutableRegion {
 /** Lex one flowchart line (or one statement, or lines a multi-line block
  * joined with `\n`). Linear in the text's length. */
 export function scanFlowchart(text: string): FlowchartScan {
-  return lex(text, 0, false)
+  return lex(text, 0, false, false)
 }
 
 /** The region that opens at `at` (a `"`, `|`, `[`, `(`, `{` or `>`), lexed
  * only as far as it extends; undefined when nothing opens there. */
 export function flowchartRegionAt(text: string, at: number): FlowchartRegion | undefined {
-  const region = lex(text, at, true).regions[0]
+  const region = lex(text, at, true, false).regions[0]
   return region?.start === at ? region : undefined
 }
 
-function lex(text: string, from: number, single: boolean): FlowchartScan {
+/** `labelStrings`: a `"` in shape text opens a string only where the text
+ * begins; elsewhere it is text, as the parser's shape patterns read it. */
+function lex(text: string, from: number, single: boolean, labelStrings: boolean): FlowchartScan {
   const regions: MutableRegion[] = []
   // A single region needs no statement-level map, and must not pay for one.
   const topLevel = single ? [] : Array<boolean>(text.length).fill(false)
@@ -261,7 +263,7 @@ function lex(text: string, from: number, single: boolean): FlowchartScan {
       else if (char === '"') open('string', index, index + 1)
       continue
     }
-    if (char === '"') {
+    if (char === '"' && !(labelStrings && inner?.kind === 'shape' && index !== inner.contentStart)) {
       if (text[index + 1] === '`') { open('markdown', index, index + 2); index++ }
       else open('string', index, index + 1)
       continue
@@ -377,15 +379,21 @@ const KEYWORD_STATEMENT_RE = /^(?:subgraph|classDef|class|style|linkStyle|click|
  * blank and comment lines. In a keyword statement (`subgraph`, `style`, …) a
  * bracket or a link is text, so only a markdown string or a metadata block
  * continues one. `line` is the 0-based index of each group's first line.
+ *
+ * Upstream reads a string in shape text only where the text begins
+ * (`A["a⏎b"]`) and rejects one opened later. Here such a `"` is text, as the
+ * parser's shape patterns read it on one line (`A[x " y]`), so a `&quot;` the
+ * render path decodes joins lines as the authored entity does.
  */
 export function coalesceFlowchartLines(lines: readonly string[]): Array<{ text: string; line: number }> {
   const out: Array<{ text: string; line: number }> = []
+  const scanLine = (text: string): FlowchartScan => lex(text, 0, false, true)
   let group: { text: string; line: number } | undefined
   // The last line of `group` as lexed (behind the openers that put the lexer
   // in the state it began in), and whether its last statement is a keyword
   // statement.
   let scanned = ''
-  let scan = scanFlowchart(scanned)
+  let scan = scanLine(scanned)
   let keyword = false
   // Of the keyword statements, upstream lexes a subgraph's `id[…]` or `"…"`
   // title as a label, which runs on across lines. Ours carries it on only to
@@ -406,8 +414,8 @@ export function coalesceFlowchartLines(lines: readonly string[]): Array<{ text: 
     const trimmed = raw.trim()
     const open = scan.openAtEnd
     // Upstream reads a string only where it opens its label (`["a⏎b"]`,
-    // `|"a⏎b"|`), and rejects a line with one opened mid-label. Such a line,
-    // as a decoded `&quot;` leaves (`["" x"]`), ends where it ends.
+    // `|"a⏎b"|`), and rejects a line with one opened mid-label. Such a line
+    // (a string in a markdown string) ends where it ends.
     const midLabelString = scan.regions.some(region => region.kind === 'string' && region.parent >= 0 && region.start !== scan.regions[region.parent]!.contentStart)
     const titleOpen = subgraph ? scan.regions.filter(region => !region.closed) : []
     const subgraphTitle = titleOpen.length > 0
@@ -423,17 +431,17 @@ export function coalesceFlowchartLines(lines: readonly string[]): Array<{ text: 
     let lineScan: FlowchartScan
     if (inRegion && open[0] === 'metadata') {
       text = `${scanned}\n${raw}`
-      lineScan = scanFlowchart(text)
+      lineScan = scanLine(text)
       joint = '\n'
     } else if (inRegion) {
       const continued = continuationPrefix(scanned, scan)
       text = `${continued.prefix}${trimmed}`
-      lineScan = scanFlowchart(text)
+      lineScan = scanLine(text)
       const inner = lineScan.regions[open.length - 1]!
       const blankEnd = inner.closed && text.slice(continued.prefix.length, inner.contentEnd).trim() === ''
       joint = continued.blank || blankEnd ? ' ' : '<br>'
     } else {
-      lineScan = scanFlowchart(text)
+      lineScan = scanLine(text)
       const endsWithLink = open.length === 0 && scan.links.at(-1)?.end === scanned.trimEnd().length
       if (group && !keyword && (endsWithLink || lineScan.links[0]?.start === 0)) joint = ' '
     }
