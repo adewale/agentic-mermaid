@@ -89,7 +89,7 @@ export function stableFamilyFacts(body: StableBody): string[] {
       break
     case 'block':
       facts.push(`columns root ${body.root.columns ?? -1}`)
-      for (const { node, parentId } of blockEntries(body)) facts.push(`block ${text(node.id)} parent ${text(parentId ?? null)} type ${node.type ?? 'square'} span ${node.widthInColumns ?? 1} columns ${node.columns ?? -1} label ${text(node.label ?? '')}${node.directions ? ` directions ${text(node.directions)}` : ''}`)
+      for (const { node, parentId } of blockEntries(body)) facts.push(`block ${text(node.id)} parent ${text(parentId ?? null)} type ${node.type === 'na' ? 'square' : node.type ?? 'square'} span ${node.widthInColumns ?? 1} columns ${node.columns ?? -1} label ${text(node.label ?? '')}${node.directions ? ` directions ${text(node.directions)}` : ''}`)
       body.edges.forEach((edge, index) => facts.push(`edge#${index} ${text(edge.start)} -> ${text(edge.end)} label ${text(edge.label ?? '')} markers ${edge.arrowTypeStart ?? 'none'} ${edge.arrowTypeEnd ?? 'none'}`))
       break
     case 'treemap':

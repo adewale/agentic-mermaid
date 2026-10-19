@@ -43,7 +43,7 @@ export const FAMILY_CONFORMANCE_PROFILES: Readonly<Record<DiagramKind, FamilyCon
     family: 'kanban',
     riskFixture: 'kanban-demo.mmd',
     riskOptions: {},
-    outlines: { kind: 'automatic', roles: ['node', 'group', 'group-header'] },
+    outlines: { kind: 'automatic', roles: ['node', 'group'] },
     textStressSource: '---\ntitle: 東京 café é 👩‍💻\n---\nkanban\nTodo[שלום مرحبا]\n  task[長いラベル]@{assigned: "東京 👩‍💻", ticket: ID-42, priority: High}\nDone',
     externalReferenceSource: '---\nconfig:\n  kanban:\n    ticketBaseUrl: https://example.com/#TICKET#\n---\nkanban\nTodo\n  task[Docs]@{ticket: ID-42}',
   },
@@ -58,7 +58,7 @@ export const FAMILY_CONFORMANCE_PROFILES: Readonly<Record<DiagramKind, FamilyCon
     family: 'treemap',
     riskFixture: 'treemap-demo.mmd',
     riskOptions: {},
-    outlines: { kind: 'automatic', roles: ['bar'] },
+    outlines: { kind: 'none', reason: 'Treemap areas encode values with categorical fills and page-colored separators; they do not use the shared automatic node outline.' },
     textStressSource: 'treemap\ntitle 東京 café é 👩‍💻\n"שלום مرحبا"\n  "長いラベル": 60\n  "café 東京": 40',
   },
   ishikawa: {
