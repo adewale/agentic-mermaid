@@ -154,6 +154,8 @@ export interface SvgResourcesEmission {
   readonly indent?: number
   readonly join?: '' | '\n'
   readonly layout?: 'inline' | 'block'
+  /** Empty historical defs built by joining opening/closing elements once. */
+  readonly emptyLine?: 'single'
 }
 
 export type SvgEmissionRecipe = SvgPrimitiveEmission | SvgGroupEmission | SvgTextEmission | SvgDocumentTextEmission
@@ -390,7 +392,7 @@ export function writeSvgEmission(node: SceneNode, recipe: SvgEmissionRecipe, wri
           context.writeShadow(resource, writer)
         } else throw new TypeError('Unsupported SVG resource projection')
       }
-      writer.write(recipe.layout === 'inline' ? '</defs>' : '\n</defs>')
+      writer.write(recipe.layout === 'inline' ? '</defs>' : recipe.emptyLine === 'single' && !recipe.resources.length ? '</defs>' : '\n</defs>')
       return
     }
     case 'documentText': writeDocumentText(node, recipe, writer); return
@@ -664,7 +666,7 @@ export function validateSvgEmissionRecipe(recipe: SvgEmissionRecipe): void {
   }
   const visit = (value: unknown, depth: number): void => {
     if (depth > 64) throw new RangeError('SVG recipe exceeds depth budget')
-    const item = object(value, ['kind', 'piece', 'attributes', 'tailAttributes', 'close', 'pieces', 'prefix', 'layout', 'baselineShift', 'dy', 'spans', 'content', 'whitespace', 'width', 'height', 'colors', 'transparent', 'font', 'hasMonoFont', 'widthAttribute', 'heightAttribute', 'extraStyle', 'children', 'join', 'resources', 'indent', 'element', 'text', 'domId', 'css'])
+    const item = object(value, ['kind', 'piece', 'attributes', 'tailAttributes', 'close', 'pieces', 'prefix', 'layout', 'baselineShift', 'dy', 'spans', 'content', 'whitespace', 'width', 'height', 'colors', 'transparent', 'font', 'hasMonoFont', 'widthAttribute', 'heightAttribute', 'extraStyle', 'children', 'join', 'resources', 'indent', 'emptyLine', 'element', 'text', 'domId', 'css'])
     if (seen.has(item)) return
     seen.add(item)
     switch (item.kind) {
@@ -721,7 +723,8 @@ export function validateSvgEmissionRecipe(recipe: SvgEmissionRecipe): void {
         }
         return
       case 'resources':
-        object(item, ['kind', 'resources', 'indent', 'join', 'layout']); index(item.indent)
+        object(item, ['kind', 'resources', 'indent', 'join', 'layout', 'emptyLine']); index(item.indent)
+        oneOf(item.emptyLine, ['single'])
         oneOf(item.join, ['', '\n']); oneOf(item.layout, ['inline', 'block'])
         for (const value of array(item.resources)) if (value !== 'markers' && value !== 'gradients') shadow(value)
         return

@@ -900,7 +900,7 @@ function validateNode(value: unknown, path: string, state: ValidationState, dept
                 ...(Array.isArray(value.markerResources) && value.markerResources.length > 0 ? ['markers'] : []),
                 ...(value.gradientResources.length > 0 ? ['gradients'] : []),
               ]
-              if (typed.kind !== 'resources' || typed.layout === 'inline' || (typed.indent ?? 2) !== 2
+              if (typed.kind !== 'resources' || typed.layout === 'inline' || (!expected.length && typed.emptyLine === 'single') || (typed.indent ?? 2) !== 2
                 || (typed.join ?? '\n') !== '\n' || typed.resources.length !== expected.length
                 || typed.resources.some((resource, index) => resource !== expected[index])) {
                 add(state.diagnostics, 'SCENE_FIDELITY', path, 'definitions must be generated from typed resources')
