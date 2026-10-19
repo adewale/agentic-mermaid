@@ -23,7 +23,7 @@ import { resolveRenderRequest, resolvedRenderExecutionPlanOf } from '../render-c
 import { positionResolvedFamily } from '../positioning.ts'
 import { BUILTIN_RENDER_HOOKS } from '../render-family-hooks.ts'
 import { getFamily, knownBuiltinFamilies } from '../agent/families.ts'
-import { admitBackendSceneDocument } from '../scene/external-data-snapshot.ts'
+import { admitBackendSceneDocument, EXTERNAL_SCENE_DOCUMENT_SNAPSHOT_LIMITS, freezeBoundedFirstPartyData } from '../scene/external-data-snapshot.ts'
 import { admitFamilyScene } from '../scene/admission.ts'
 import { buildExternalScene, EXTERNAL_SCENE_API_VERSION } from '../scene/external-scene.ts'
 
@@ -259,5 +259,29 @@ describe('built-in Scene cross-checks', () => {
     const on = probe(true)
     expect(on.render).toMatch(projectionMismatch)
     expect(on.verify.join('\n')).toMatch(projectionMismatch)
+  })
+})
+
+describe('built-in Scene admission walk', () => {
+  // Small limits stand in for the multi-megabyte production ones. The walk
+  // charges three bytes per UTF-16 unit first and recounts exactly only when
+  // that bound passes a limit, so the exact limit must still decide.
+  const limits = { ...EXTERNAL_SCENE_DOCUMENT_SNAPSHOT_LIMITS, maxTextBytes: 30, maxPropertyKeyBytes: 6, maxAggregatePropertyKeyBytes: 12 }
+  test.each([
+    ['ASCII text under the byte limit but over the three-byte bound', { a: 'x'.repeat(14), b: 'y'.repeat(16) }, undefined],
+    ['ASCII text one byte over', { a: 'x'.repeat(15), b: 'y'.repeat(16) }, 'text values exceed the aggregate 30-byte limit'],
+    ['three-byte characters over', { a: '€'.repeat(11) }, 'text values exceed the aggregate 30-byte limit'],
+    ['keys under the aggregate limit but over the bound', { abcdef: 1, ghijkl: 2 }, undefined],
+    ['keys over the aggregate limit', { abcdef: 1, ghijkl: 2, m: 3 }, 'property keys exceed the aggregate 12-byte limit'],
+    ['a key over the per-key limit', { abcdefg: 1 }, 'property key longer than 6 bytes'],
+    ['a sparse array, named by its path', { parts: [{ points: [0, , 2] }] }, 'External Scene scene.parts[0].points must not be sparse'],
+  ] as const)('%s', (_name, document, error) => {
+    const value = structuredClone(document)
+    const admit = () => freezeBoundedFirstPartyData(value, limits, 'scene')
+    if (error) expect(admit).toThrow(error)
+    else {
+      expect(admit()).toBe(value)
+      expect(Object.isFrozen(value)).toBe(true)
+    }
   })
 })

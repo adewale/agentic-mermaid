@@ -233,16 +233,42 @@ export function freezeBoundedFirstPartyData(
   limits: ExternalDataSnapshotLimits,
   rootPath = 'input',
 ): unknown {
+  try {
+    walkFirstPartyData(value, limits, rootPath, false)
+  } catch (error) {
+    if (error !== RECOUNT_EXACTLY) throw error
+    walkFirstPartyData(value, limits, rootPath, true)
+  }
+  return value
+}
+
+/** Thrown when an upper bound on UTF-8 bytes might exceed a limit, so the
+ * walk restarts and counts exactly. */
+const RECOUNT_EXACTLY = Symbol('recount exactly')
+
+/** One walk of `freezeBoundedFirstPartyData`. A UTF-16 code unit encodes to at
+ * most three UTF-8 bytes, so the first walk charges strings and keys three
+ * bytes per unit instead of counting them; only a document whose bound could
+ * pass a limit is walked again with exact counts. The path an error names is
+ * kept as a stack of keys and only joined when the walk throws. */
+function walkFirstPartyData(value: unknown, limits: ExternalDataSnapshotLimits, rootPath: string, exact: boolean): void {
   const active = new WeakSet<object>()
   const frozen = new WeakSet<object>()
+  const keyPath: Array<string | number> = []
+  const path = (): string => keyPath.reduce<string>((prefix, key) => typeof key === 'number' ? `${prefix}[${key}]` : `${prefix}.${key}`, rootPath)
   let objects = 0
   let textBytes = 0
   let arrayEntries = 0
   let properties = 0
   let propertyKeyBytes = 0
 
-  const visit = (candidate: unknown, depth: number, path: string): void => {
+  const visit = (candidate: unknown, depth: number): void => {
     if (typeof candidate === 'string') {
+      if (!exact) {
+        textBytes += candidate.length * 3
+        if (textBytes > limits.maxTextBytes) throw RECOUNT_EXACTLY
+        return
+      }
       const remaining = Math.max(0, limits.maxTextBytes - textBytes)
       const bytes = boundedUtf8ByteLength(candidate, remaining)
       if (bytes > remaining) {
@@ -253,7 +279,7 @@ export function freezeBoundedFirstPartyData(
     }
     if (candidate === null || typeof candidate !== 'object') {
       if (typeof candidate === 'function' || typeof candidate === 'symbol' || typeof candidate === 'bigint') {
-        throw new TypeError(`External Scene ${path} must be declarative data`)
+        throw new TypeError(`External Scene ${path()} must be declarative data`)
       }
       return
     }
@@ -266,60 +292,70 @@ export function freezeBoundedFirstPartyData(
     if (active.has(candidate)) throw new Error('External Scene input must be acyclic')
     if (frozen.has(candidate)) return
     active.add(candidate)
-    try {
-      if (Array.isArray(candidate)) {
-        if (Object.getPrototypeOf(candidate) !== Array.prototype) {
-          throw new TypeError(`External Scene ${path} must be a plain array`)
-        }
-        const length = candidate.length
-        if (length > limits.maxArrayEntries) {
-          throw new Error(`External Scene ${path} contains too many entries`)
-        }
-        arrayEntries += length
-        if (arrayEntries > limits.maxAggregateArrayEntries) {
-          throw new Error(`External Scene input exceeds the aggregate ${limits.maxAggregateArrayEntries}-array-entry limit`)
-        }
-        for (let index = 0; index < length; index++) {
-          // A hole would otherwise read through Array.prototype.
-          if (!Object.hasOwn(candidate, index)) throw new TypeError(`External Scene ${path} must not be sparse`)
-          visit(candidate[index], depth + 1, `${path}[${index}]`)
-        }
-      } else {
-        const prototype = Object.getPrototypeOf(candidate)
-        if (prototype !== Object.prototype && prototype !== null) {
-          throw new TypeError(`External Scene ${path} must be a plain object`)
-        }
-        const keys = Object.keys(candidate)
-        if (keys.length > limits.maxPropertiesPerObject) {
-          throw new Error(`External Scene ${path} contains too many properties`)
-        }
-        properties += keys.length
-        if (properties > limits.maxAggregateProperties) {
-          throw new Error(`External Scene input exceeds the aggregate ${limits.maxAggregateProperties}-property limit`)
-        }
-        for (const key of keys) {
-          const remaining = Math.max(0, limits.maxAggregatePropertyKeyBytes - propertyKeyBytes)
-          const bytes = boundedUtf8ByteLength(key, Math.min(limits.maxPropertyKeyBytes, remaining))
-          if (bytes > limits.maxPropertyKeyBytes) {
-            throw new Error(`External Scene ${path} contains a property key longer than ${limits.maxPropertyKeyBytes} bytes`)
-          }
-          if (bytes > remaining) {
-            throw new Error(`External Scene property keys exceed the aggregate ${limits.maxAggregatePropertyKeyBytes}-byte limit`)
-          }
-          propertyKeyBytes += bytes
-        }
-        const record = candidate as Record<string, unknown>
-        for (const key of keys) visit(record[key], depth + 1, `${path}.${key}`)
+    if (Array.isArray(candidate)) {
+      if (Object.getPrototypeOf(candidate) !== Array.prototype) {
+        throw new TypeError(`External Scene ${path()} must be a plain array`)
       }
-      Object.freeze(candidate)
-      frozen.add(candidate)
-    } finally {
-      active.delete(candidate)
+      const length = candidate.length
+      if (length > limits.maxArrayEntries) {
+        throw new Error(`External Scene ${path()} contains too many entries`)
+      }
+      arrayEntries += length
+      if (arrayEntries > limits.maxAggregateArrayEntries) {
+        throw new Error(`External Scene input exceeds the aggregate ${limits.maxAggregateArrayEntries}-array-entry limit`)
+      }
+      for (let index = 0; index < length; index++) {
+        // A hole would otherwise read through Array.prototype.
+        if (!Object.hasOwn(candidate, index)) throw new TypeError(`External Scene ${path()} must not be sparse`)
+        keyPath.push(index)
+        visit(candidate[index], depth + 1)
+        keyPath.pop()
+      }
+    } else {
+      const prototype = Object.getPrototypeOf(candidate)
+      if (prototype !== Object.prototype && prototype !== null) {
+        throw new TypeError(`External Scene ${path()} must be a plain object`)
+      }
+      const keys = Object.keys(candidate)
+      if (keys.length > limits.maxPropertiesPerObject) {
+        throw new Error(`External Scene ${path()} contains too many properties`)
+      }
+      properties += keys.length
+      if (properties > limits.maxAggregateProperties) {
+        throw new Error(`External Scene input exceeds the aggregate ${limits.maxAggregateProperties}-property limit`)
+      }
+      for (const key of keys) {
+        if (!exact) {
+          if (key.length * 3 > limits.maxPropertyKeyBytes && boundedUtf8ByteLength(key, limits.maxPropertyKeyBytes) > limits.maxPropertyKeyBytes) {
+            throw new Error(`External Scene ${path()} contains a property key longer than ${limits.maxPropertyKeyBytes} bytes`)
+          }
+          propertyKeyBytes += key.length * 3
+          if (propertyKeyBytes > limits.maxAggregatePropertyKeyBytes) throw RECOUNT_EXACTLY
+          continue
+        }
+        const remaining = Math.max(0, limits.maxAggregatePropertyKeyBytes - propertyKeyBytes)
+        const bytes = boundedUtf8ByteLength(key, Math.min(limits.maxPropertyKeyBytes, remaining))
+        if (bytes > limits.maxPropertyKeyBytes) {
+          throw new Error(`External Scene ${path()} contains a property key longer than ${limits.maxPropertyKeyBytes} bytes`)
+        }
+        if (bytes > remaining) {
+          throw new Error(`External Scene property keys exceed the aggregate ${limits.maxAggregatePropertyKeyBytes}-byte limit`)
+        }
+        propertyKeyBytes += bytes
+      }
+      const record = candidate as Record<string, unknown>
+      for (const key of keys) {
+        keyPath.push(key)
+        visit(record[key], depth + 1)
+        keyPath.pop()
+      }
     }
+    Object.freeze(candidate)
+    frozen.add(candidate)
+    active.delete(candidate)
   }
 
-  visit(value, 0, rootPath)
-  return value
+  visit(value, 0)
 }
 
 /**
