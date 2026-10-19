@@ -264,6 +264,10 @@ function parseFlowchart(lines: string[]): MermaidGraph {
   const declaredSubgraphIds = new Set([...declarations.values()].map(group => group.id))
   // Upstream's membership rule: the first subgraph to close keeps a node.
   const membership = createSubgraphMembership()
+  // The subgraph ids each open subgraph lists on their own, and, in the order
+  // the listers close, those lists.
+  const listedSubgraphs = new Map<MermaidSubgraph, string[]>()
+  const listings: Array<{ lister: string; ids: string[] }> = []
 
   for (let i = 1; i < lines.length; i++) {
     for (const line of splitFlowchartStatements(lines[i]!)) {
@@ -380,6 +384,8 @@ function parseFlowchart(lines: string[]): MermaidGraph {
           // sees the same members, first title and unique group identity.
           const canonical = subgraphsById.get(completed.id)!
           const members = membership.close(completed.id, completed.nodeIds)
+          const listed = listedSubgraphs.get(completed)
+          if (listed) listings.push({ lister: completed.id, ids: listed })
           canonical.nodeIds = [...new Set([...canonical.nodeIds, ...members])]
           for (const child of completed.children) if (child !== canonical && !canonical.children.some(existing => existing.id === child.id)) canonical.children.push(child)
           canonical.direction ??= completed.direction
@@ -400,10 +406,45 @@ function parseFlowchart(lines: string[]): MermaidGraph {
       // --- Edge/node definitions ---
       const parsed = parseEdgeLine(line, graph, subgraphStack, declaredSubgraphIds)
       if (!parsed.ok) throw invalidFlowchartStatement(line, parsed)
+      const current = subgraphStack.at(-1)
+      if (current && parsed.listed) {
+        // A statement of ids alone lists them in the subgraph: a node no
+        // subgraph has listed yet joins it, and a subgraph is nested there
+        // (listSubgraphs). A link endpoint claims only a node it creates.
+        for (const id of parsed.listed) {
+          if (declaredSubgraphIds.has(id)) {
+            const listed = listedSubgraphs.get(current) ?? []
+            if (!listed.includes(id)) listedSubgraphs.set(current, [...listed, id])
+          } else if (membership.ownerOf(id) === undefined && !subgraphStack.some(open => open.nodeIds.includes(id))) {
+            trackInSubgraph(subgraphStack, id)
+          }
+        }
+      }
     }
   }
 
+  listSubgraphs(graph, listings.map(({ lister, ids }) => ({ lister: subgraphsById.get(lister)!, ids: ids.map(id => subgraphsById.get(id)) })))
   return graph
+}
+
+/**
+ * Nest each subgraph a subgraph's body lists on its own (`subgraph A` /
+ * `B` / `end`, upstream's nested subgraphs) in the first lister to close,
+ * when it is top-level. One declared inside another stays there, and none is
+ * nested inside itself or its own descendant.
+ */
+function listSubgraphs(graph: MermaidGraph, listings: ReadonlyArray<{ lister: MermaidSubgraph; ids: ReadonlyArray<MermaidSubgraph | undefined> }>): void {
+  const contains = (outer: MermaidSubgraph, inner: MermaidSubgraph): boolean =>
+    outer === inner || outer.children.some(child => contains(child, inner))
+  for (const { lister, ids } of listings) {
+    for (const child of ids) {
+      const at = child ? graph.subgraphs.indexOf(child) : -1
+      if (at < 0 || contains(child!, lister)) continue
+      graph.subgraphs.splice(at, 1)
+      lister.children.push(child!)
+      if (parserObservationActive('flowchart')) observeParserMutation('flowchart', 'attach-group', { id: child!.id, parent: lister.id })
+    }
+  }
 }
 
 /** The error for a statement the edge grammar could not consume, naming the
@@ -1116,7 +1157,11 @@ function consumeClassShorthand(text: string): { className: string; length: numbe
  * Handles chaining: A --> B --> C produces edges A→B and B→C.
  * Handles parallel links: A & B --> C & D produces 4 edges.
  */
-type EdgeLineParseResult = { readonly ok: true }
+type EdgeLineParseResult = {
+  readonly ok: true
+  /** A statement of nodes alone (`A`, `A & B:::c`, `A[x]`), no link: their ids. */
+  readonly listed?: readonly string[]
+}
   | { readonly ok: false; readonly remaining: string; readonly reason: 'expected node' | 'expected edge operator' | 'expected edge target' }
 
 function parseEdgeLine(
@@ -1139,6 +1184,7 @@ function parseEdgeLine(
   }
 
   remaining = firstGroup.remaining.trim()
+  if (remaining.length === 0) return { ok: true, listed: firstGroup.ids }
   let prevGroupIds = firstGroup.ids
 
   // Parse arrow + node-group pairs until the line is exhausted.
@@ -1451,8 +1497,9 @@ function consumeNode(
 
   // Bare node reference — only register if node doesn't exist yet.
   // If it already exists, do NOT track it in the current subgraph: a bare
-  // reference never claims a node (first-defined-wins, docs/fork-differences.md).
-  // Among the subgraphs that do list a node, the first to close keeps it.
+  // reference never claims a node (first-defined-wins, docs/fork-differences.md),
+  // unless its statement lists it alone (parseFlowchart). Among the subgraphs
+  // that do list a node, the first to close keeps it.
   if (id === null) {
     const bare = consumeBareNodeId(text)
     if (bare) {

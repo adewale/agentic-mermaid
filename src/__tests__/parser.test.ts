@@ -15,7 +15,7 @@ import { fcParameters } from './helpers/fc-parameters.ts'
 import { spawnSync } from 'node:child_process'
 import { join } from 'node:path'
 import { parseMermaid } from '../parser.ts'
-import { parseRegisteredMermaid, renderMermaidSVG, verifyMermaid } from '../agent/index.ts'
+import { parseRegisteredMermaid, renderMermaidSVG, serializeMermaid, verifyMermaid } from '../agent/index.ts'
 
 // ============================================================================
 // Graph header parsing
@@ -696,8 +696,49 @@ describe('parseMermaid – subgraphs', () => {
       end`)
     const a = g.subgraphs.find(s => s.id === 'A')
     expect(g.nodes.has('B')).toBe(false)
-    expect(a?.nodeIds).toEqual(['b'])
+    // `a` stands alone in A and no subgraph listed it before. The link to B
+    // does not nest B in A, as upstream's does.
+    expect(a?.nodeIds).toEqual(['b', 'a'])
+    expect(g.subgraphs.map(s => s.id)).toEqual(['B', 'A'])
     expect(g.edges).toContainEqual(expect.objectContaining({ source: 'b', target: 'B' }))
+  })
+
+  // Upstream's subgraph.spec.js "should handle nested subgraphs 2": ids alone
+  // in a body list their nodes and subgraphs there, and the writer keeps it.
+  it('lists the nodes and subgraphs a body names alone, even when known', () => {
+    const source = `flowchart TB
+    b-->B
+    a-->c
+    subgraph B
+      c
+    end
+    subgraph A
+        a
+        b
+        B
+    end`
+    const tree = (subgraphs: ReturnType<typeof parseMermaid>['subgraphs']): unknown[] =>
+      subgraphs.map(s => ({ id: s.id, nodeIds: s.nodeIds, children: tree(s.children) }))
+    const expected = [{ id: 'A', nodeIds: ['a', 'b'], children: [{ id: 'B', nodeIds: ['c'], children: [] }] }]
+    expect(tree(parseMermaid(source).subgraphs)).toEqual(expected)
+    const parsed = parseRegisteredMermaid(source)
+    if (!parsed.ok) throw new Error(JSON.stringify(parsed.error))
+    expect(tree(parseMermaid(serializeMermaid(parsed.value)).subgraphs)).toEqual(expected)
+  })
+
+  it('nests a listed subgraph once, in the first lister to close, never in itself', () => {
+    const tree = (source: string): unknown[] => {
+      const walk = (subgraphs: ReturnType<typeof parseMermaid>['subgraphs']): unknown[] =>
+        subgraphs.map(s => [s.id, ...walk(s.children)])
+      return walk(parseMermaid(source).subgraphs)
+    }
+    // Listed before it is declared, as upstream nests it.
+    expect(tree('flowchart TB\n  subgraph A\n    B\n  end\n  subgraph B\n    c\n  end')).toEqual([['A', ['B']]])
+    // Two listers: the first to close keeps it.
+    expect(tree('flowchart TB\n  subgraph X\n    x\n  end\n  subgraph P\n    X\n  end\n  subgraph Q\n    X\n  end'))
+      .toEqual([['P', ['X']], ['Q']])
+    // Each lists the other: upstream makes each the other's parent; ours nests once.
+    expect(tree('flowchart TB\n  subgraph A\n    B\n  end\n  subgraph B\n    A\n  end')).toEqual([['A', ['B']]])
   })
 
   it('does NOT track nodes in subgraphs where they are merely referenced (regression)', () => {
