@@ -10,6 +10,9 @@ import {
   type SvgEmissionRecipe,
 } from '../scene/svg-emission.ts'
 import { SvgWriter } from '../scene/svg-writer.ts'
+import { sceneDocumentEmission } from '../scene/serialization.ts'
+import { preparePixelText } from '../shared/prepared-text.ts'
+import { createTextMeasurementExecution, withTextMeasurementExecution } from '../text-measurement-profile.ts'
 
 describe('bounded SVG writer', () => {
   test.each(['string', 'chunks', 'count'] as const)('counts joined UTF-8 across arbitrary chunk boundaries in %s mode', mode => {
@@ -343,6 +346,37 @@ describe('private typed SVG recipes', () => {
       marks.documentClose(),
     ] }
     expect(() => admitSceneDocument(scene, 'internal', false)).toThrow(/definitions must be generated from typed resources/)
+  })
+})
+
+describe('actual typed text emission witness', () => {
+  const fitted = '<text x="1" y="2" font-size="20" data-prepared-text="true" dy="7" textLength="42" lengthAdjust="spacingAndGlyphs" data-font-metrics="deterministic-fit">Alpha</text>'
+  test.each([
+    { layout: 'multiline' as const, retained: true, forged: false, alreadyFitted: true, xml: fitted },
+    { layout: 'direct' as const, retained: true, forged: false, alreadyFitted: false, xml: '<text font-size="20">Alpha</text>' },
+    { layout: 'multiline' as const, retained: false, forged: false, alreadyFitted: false, xml: '<text x="1" y="2" font-size="20" dy="7">Alpha</text>' },
+    { layout: 'direct' as const, retained: true, forged: true, alreadyFitted: false, xml: '<text font-size="20" data-prepared-text="true">Alpha</text>' },
+    { layout: 'multiline' as const, retained: false, forged: true, alreadyFitted: false, xml: '<text x="1" y="2" font-size="20" data-prepared-text="true" dy="7">Alpha</text>' },
+  ])('nested $layout retained=$retained forged=$forged observes actual emission', ({ layout, retained, forged, alreadyFitted, xml }) => {
+    const execution = createTextMeasurementExecution({ id: 'test:emission-witness', version: '1.0.0', measure: () => 42 }, 'Inter')
+    const root = withTextMeasurementExecution(execution, () => {
+      const block = preparePixelText('Alpha', { display: 'literal', fontSize: 20, fontWeight: 400 })
+      const prepared = marks.text({ id: 'prepared', role: 'label', text: 'Alpha', block, x: 1, y: 2, fontSize: 20, anchor: 'start', paint: {} }, {
+        kind: 'text', layout: 'multiline', attributes: [{ name: 'font-size', value: v.text('fontSize') }],
+      })
+      const candidate = marks.text({ id: 'candidate', role: 'label', text: 'Alpha', ...(retained ? { block } : {}), x: 1, y: 2, fontSize: 20, anchor: 'start', paint: {} }, {
+        kind: 'text', layout, attributes: [
+          { name: 'font-size', value: v.text('fontSize') }, ...(forged ? [{ name: 'data-prepared-text' as const, value: v.meta('true') }] : []),
+        ],
+      })
+      const inner = marks.group({ id: 'inner', role: 'chrome', emission: { kind: 'group', attributes: [] }, join: '', children: [{ node: prepared, indent: 0 }, { node: candidate, indent: 0 }] })
+      return marks.group({ id: 'outer', role: 'chrome', emission: { kind: 'group', attributes: [] }, join: '', children: [{ node: inner, indent: 0 }] })
+    })
+    const writer = new SvgWriter()
+    const emission = sceneDocumentEmission(writer)
+    emission.writeNode(root)
+    expect(writer.finish()).toBe(`<g><g>${fitted}${xml}</g></g>`)
+    expect(emission.textAlreadyFitted).toBe(alreadyFitted)
   })
 })
 
