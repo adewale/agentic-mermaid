@@ -22,6 +22,10 @@ This changelog tracks user-facing changes for **Agentic Mermaid**, a fork of `lu
 
 ### Fixed
 
+- Journey `taskFontFamily` and `titleFontFamily` config values are written
+  into CSS only when they are safe font-family lists; an unsafe value (one
+  that closes the rule or fetches with `url()`) is ignored with an
+  `INEFFECTIVE_CONFIG` warning instead of restyling the whole diagram.
 - C4 relationships between facing cards of different heights run straight.
   Ports spaced evenly along each face sat a few pixels apart, which drew a
   small dogleg on each such relationship.

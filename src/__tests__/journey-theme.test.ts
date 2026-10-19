@@ -3,6 +3,7 @@
  */
 import { describe, it, expect } from 'bun:test'
 import { renderMermaidSVG } from '../index.ts'
+import { verifyMermaid } from '../agent/index.ts'
 import { BUILTIN_PALETTE_DEFINITIONS, type BuiltinPaletteDefinition } from '../palette-catalog.ts'
 import { getStyle } from '../scene/style-registry.ts'
 
@@ -67,6 +68,22 @@ journey
     expect(svg).toContain('font-family="Georgia"')
     expect(drawnPaint(svg, 'journey-title', 'fill')).toBe('#0f172a')
     expect(svg).not.toContain('NaN')
+  })
+
+  it.each([
+    ['taskFontFamily', 'x; } text { fill: red }'],
+    ['taskFontFamily', 'url(https://example.com/font.woff)'],
+    ['titleFontFamily', 'Georgia; } * { fill: red'],
+  ])('ignores an unsafe %s and warns instead of writing it into CSS', (key, value) => {
+    const source = `%%{init: {"journey": {"${key}": ${JSON.stringify(value)}}}}%%
+journey
+  title Configured Journey
+  section Login
+    Open app: 5: Primary Actor`
+    const svg = renderMermaidSVG(source)
+    expect(svg).not.toContain('fill: red')
+    expect(svg).not.toContain('url(https://example.com')
+    expect(verifyMermaid(source).warnings).toContainEqual(expect.objectContaining({ code: 'INEFFECTIVE_CONFIG', message: expect.stringContaining(`journey.${key} must be`) }))
   })
 
   it('lets explicit Mermaid journey config override named style colors', () => {
