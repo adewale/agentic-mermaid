@@ -166,6 +166,15 @@ export function flowchartNodeIdLength(text: string, at = 0): number {
   return end - at
 }
 
+/** Whether the `,` at `at` comes right after node id characters, where
+ * upstream's id grammar takes it into the id (`A,B` is one node there).
+ * Ours reads no `,` in a node id, since `style` and `class` read it as a
+ * list separator. */
+export function commaInNodeId(text: string, at: number): boolean {
+  const before = text[at - 1]
+  return text[at] === ',' && before !== undefined && (before === '-' || before === ':' || NODE_STRING_CHAR_RE.test(before))
+}
+
 /** Whether the `.` or `"` at `at` continues the node id before it, as
  * upstream's node string takes it in (`A.-B` and `` C`" `` are one id there,
  * `A .-> B` a link). Such a `.` begins no link, and such a `"` no string. */

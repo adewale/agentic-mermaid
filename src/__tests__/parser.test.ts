@@ -943,6 +943,9 @@ describe('parseMermaid – edge cases', () => {
     // Upstream's edge text holds no `--` but the link that closes it, and its
     // lexer rejects one there.
     ['a link label holding `--`', 'graph TD\n  A -- x -- y --> B', /link label in "-- x -- y --> B" holds a `--` before the link that closes it/],
+    // Upstream's id grammar takes a `,` into the id (`A,B` is one node);
+    // ours reads none, since `style` and `class` read it as a separator.
+    ['an id holding `,`', 'graph TD\n  A --> B,C', /upstream reads the "," before "C" as part of one node id/],
   ])('names the construct when rejecting %s', (_construct, source, message) => {
     expect(() => parseMermaid(source)).toThrow(message)
   })
