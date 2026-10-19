@@ -3,21 +3,43 @@ import { resolveRenderStyle, diagramTitleMark } from '../styles.ts'
 import type { PositionedMindmapDiagram, PositionedMindmapNode } from './types.ts'
 import { MINDMAP_BANG_INNER_RADIUS_RATIO } from './geometry.ts'
 import type { SceneDoc, SceneNode } from '../scene/ir.ts'
-import { serializeGeometryShape, type SerializableShapeGeometry } from '../scene/svg-serialize.ts'
+import type { SerializableShapeGeometry } from '../scene/svg-serialize.ts'
 import * as marks from '../scene/marks.ts'
 import { pathArtwork } from '../scene/artwork.ts'
 import { iconFallbackToken } from '../shared/icon-fallback.ts'
 import { DefaultBackend } from '../scene/backend.ts'
-import { svgOpenTag, buildStyleBlock, buildShadowDefs, resolveColors } from '../theme.ts'
+import { resolveColors } from '../theme.ts'
 import { ensureContrast, isHexColor, mixHex } from '../shared/color-math.ts'
 import { buildAccessibilityAttrs } from '../shared/svg-a11y.ts'
 import { semanticChildId, semanticRelationId } from '../scene/identity.ts'
-import { escapeAttr, escapeDisplayAttr, escapeXml, renderMultilineText } from '../multiline-utils.ts'
+import { snapshotSvgEmissionRecipe, svgValue as v, type SvgAttribute, type SvgGeometryField, type SvgGroupEmission, type SvgPrimitiveEmission } from '../scene/svg-emission.ts'
 import { resolveMindmapIcon } from './icons.ts'
 import { categoricalPalette } from '../shared/categorical-palette.ts'
 import { projectConnectorPath } from '../scene/connector-geometry.ts'
 
 const FONT_SIZE = 13
+
+function shapeEmission(fields: readonly SvgGeometryField[]) {
+  return snapshotSvgEmissionRecipe({ kind: 'primitive', attributes: [
+    ...fields.map(name => ({ name, value: v.geometry(name), format: 'round3' as const })),
+    { name: 'fill', value: v.paint('fill') }, { name: 'stroke', value: v.paint('stroke') }, { name: 'stroke-width', value: v.paint('strokeWidth') },
+  ] })
+}
+const SHAPE_EMISSIONS = {
+  circle: shapeEmission(['cx', 'cy', 'r']), ellipse: shapeEmission(['cx', 'cy', 'rx', 'ry']),
+  polygon: shapeEmission(['points']), rect: shapeEmission(['x', 'y', 'width', 'height', 'rx', 'ry']),
+}
+const EDGE_EMISSION = snapshotSvgEmissionRecipe({ kind: 'primitive', attributes: [
+  { name: 'class', value: v.meta('mindmap-edge') }, { name: 'data-from', value: v.identity('from') }, { name: 'data-to', value: v.identity('to') },
+  { name: 'data-branch-index', value: v.channel('category') }, { name: 'd', value: v.geometry('d') },
+  { name: 'fill', value: v.paint('fill') }, { name: 'stroke', value: v.paint('stroke') }, { name: 'stroke-width', value: v.paint('strokeWidth') },
+  { name: 'stroke-linecap', value: v.connector('lineCap') },
+] })
+const ICON_PATH_EMISSION = snapshotSvgEmissionRecipe({ kind: 'primitive', attributes: [{ name: 'd', value: v.geometry('d') }] }) as SvgPrimitiveEmission
+const LABEL_EMISSION = snapshotSvgEmissionRecipe({ kind: 'text', layout: 'multiline', attributes: [
+  { name: 'text-anchor', value: v.text('anchor') }, { name: 'font-size', value: v.text('fontSize') },
+  { name: 'font-weight', value: v.text('fontWeight') }, { name: 'letter-spacing', value: v.text('letterSpacing') }, { name: 'fill', value: v.paint('fill') },
+] })
 
 export function renderMindmapSvg(ctx: RenderContext<PositionedMindmapDiagram>): string {
   return DefaultBackend.render(lowerMindmapScene(ctx), { seed: 0 })
@@ -37,12 +59,6 @@ export function lowerMindmapScene(ctx: RenderContext<PositionedMindmapDiagram>):
     descId,
     'mindmap',
   )
-  const head = [
-    svgOpenTag(diagram.width, diagram.height, colors, transparent, { attrs }),
-    buildStyleBlock(font, false, colors.shadow, colors.embedFontImport),
-  ]
-  const shadow = buildShadowDefs(colors)
-  if (shadow) head.push(`<defs>${shadow}</defs>`)
   const branchByNode = mindmapBranchIndices(diagram)
   const branchCount = new Set(branchByNode.values()).size
   const accent = isHexColor(colors.accent ?? '') ? colors.accent! : '#3b82f6'
@@ -60,7 +76,10 @@ export function lowerMindmapScene(ctx: RenderContext<PositionedMindmapDiagram>):
   const parts: SceneNode[] = [marks.documentOpen({
     id: 'prelude', width: diagram.width, height: diagram.height, colors,
     transparent, font, hasMonoFont: false,
-  }, head.join('\n'))]
+  }, { kind: 'prelude', width: diagram.width, height: diagram.height, colors, transparent, font, hasMonoFont: false,
+    attributes: Object.entries(attrs).filter((entry): entry is [string, string] => entry[1] !== undefined).map(([name, value]) => ({ name: name as SvgAttribute['name'], value: v.meta(value) })),
+    children: [{ kind: 'sharedStyle' }, ...(colors.shadow ? [{ kind: 'shadow' as const, colors, wrap: true }] : [])],
+  })]
   const title = diagram.accessibilityTitle ?? diagram.nodes[0]?.label
   if (title) parts.push(marks.documentText({ id: 'acc-title', element: 'title', domId: titleId, text: title }))
   if (diagram.accessibilityDescription) parts.push(marks.documentText({ id: 'acc-desc', element: 'description', domId: descId, text: diagram.accessibilityDescription }))
@@ -90,7 +109,7 @@ export function lowerMindmapScene(ctx: RenderContext<PositionedMindmapDiagram>):
       },
       stroke: { lineCap: 'round' },
       channels: { importance: 1, category: String(branchByNode.get(edge.to) ?? 0) },
-    }, `<path class="mindmap-edge" data-from="${escapeAttr(edge.from)}" data-to="${escapeAttr(edge.to)}" data-branch-index="${branchByNode.get(edge.to) ?? 0}" d="${edge.d}" fill="none" stroke="${escapeAttr(stroke)}" stroke-width="2.5" stroke-linecap="round" />`))
+    }, EDGE_EMISSION))
   }
   for (const node of diagram.nodes) parts.push(renderNode(node, colors, branchByNode.get(node.id), branchPaint(node.id)))
   parts.push(marks.documentClose())
@@ -115,9 +134,8 @@ function renderNode(
     ? concretePalette ? ensureContrast(colors.bg, rootFill, 4.5, colors.fg) : 'var(--bg)'
     : concretePalette ? ensureContrast(colors.fg, branchFill, 4.5) : 'var(--_text)'
   const shape = nodeGeometry(node)
-  const shapeSvg = serializeGeometryShape(shape, { fill, stroke, strokeWidth: '1.5' })
   const children: Array<{ node: SceneNode; indent: number }> = [
-    { node: marks.shape({ id: semanticChildId(node.id, 'shape'), role: 'chrome', geometry: shape, paint: { fill, stroke, strokeWidth: '1.5' } }, shapeSvg), indent: 2 },
+    { node: marks.shape({ id: semanticChildId(node.id, 'shape'), role: 'chrome', geometry: shape, paint: { fill, stroke, strokeWidth: '1.5' } }, SHAPE_EMISSIONS[shape.kind as keyof typeof SHAPE_EMISSIONS]), indent: 2 },
   ]
   if (node.icon) {
     const glyph = resolveMindmapIcon(node.icon)
@@ -128,10 +146,14 @@ function renderNode(
       const scale = size / 24
       children.push({ node: pathArtwork({ id: semanticChildId(node.id, 'icon'), paths: glyph.paths,
         owner: { id: node.id, role: 'node' },
-        open: `<g class="mindmap-icon-glyph" data-icon="${escapeAttr(node.icon)}" data-icon-source="${escapeAttr(glyph.source)}" transform="translate(${round(x)} ${round(y)}) scale(${round(scale)})" fill="${textColor}" stroke="${textColor}" stroke-width="0.8">`,
+        emission: { kind: 'group', attributes: [
+          { name: 'class', value: v.meta('mindmap-icon-glyph') }, { name: 'data-icon', value: v.meta(node.icon) }, { name: 'data-icon-source', value: v.meta(glyph.source) },
+          { name: 'transform', value: { source: 'transform', form: 'translate-scale-space' } },
+          { name: 'fill', value: v.meta(textColor) }, { name: 'stroke', value: v.meta(textColor) }, { name: 'stroke-width', value: v.meta('0.8') },
+        ] } as SvgGroupEmission,
+        pathEmission: ICON_PATH_EMISSION,
         transform: { kind: 'matrix', a: round(scale), b: 0, c: 0, d: round(scale), e: round(x), f: round(y) },
         paint: { fill: textColor, stroke: textColor, strokeWidth: '0.8' },
-        serializePath: path => `<path d="${path}" />`,
       }), indent: 2 })
     } else {
       const token = iconFallbackToken(node.icon)
@@ -139,7 +161,11 @@ function renderNode(
         id: semanticChildId(node.id, 'icon'), role: 'icon', owner: { id: node.id, role: 'node' }, text: token,
         block: node.iconFallbackBlock, x: node.x + node.width / 2,
         y: node.y + 12, fontSize: 9, anchor: 'middle', paint: { fill: textColor },
-      }, `<text class="mindmap-icon-fallback" data-icon="${escapeAttr(node.icon)}" x="${round(node.x + node.width / 2)}" y="${round(node.y + 12)}" text-anchor="middle" font-size="9" fill="${textColor}">${escapeXml(token)}</text>`), indent: 2 })
+      }, { kind: 'text', layout: 'direct', attributes: [
+        { name: 'class', value: v.meta('mindmap-icon-fallback') }, { name: 'data-icon', value: v.meta(node.icon) },
+        { name: 'x', value: v.text('x'), format: 'round3' }, { name: 'y', value: v.text('y'), format: 'round3' },
+        { name: 'text-anchor', value: v.text('anchor') }, { name: 'font-size', value: v.text('fontSize') }, { name: 'fill', value: v.paint('fill') },
+      ] }), indent: 2 })
     }
   }
   const labelY = node.y + node.height / 2 + (node.icon ? 5 : 0)
@@ -148,17 +174,19 @@ function renderNode(
   const letterSpacing = node.labelBlock?.letterSpacing ?? 0
   children.push({ node: marks.text({
     id: semanticChildId(node.id, 'label'), role: 'label', text: node.label, block: node.labelBlock,
-    x: node.x + node.width / 2, y: labelY, fontSize,
+    x: node.x + node.width / 2, y: labelY, fontSize, fontWeight, letterSpacing,
     anchor: 'middle', paint: { fill: textColor },
-  }, renderMultilineText(node.labelBlock ?? node.label, node.x + node.width / 2, labelY, fontSize,
-    `text-anchor="middle" font-size="${fontSize}" font-weight="${fontWeight}" letter-spacing="${letterSpacing}" fill="${textColor}"`)), indent: 2 })
-  const customClasses = node.className ? ` ${escapeAttr(node.className)}` : ''
+  }, LABEL_EMISSION), indent: 2 })
   return marks.group({
     id: node.id,
     role: 'node',
     channels: { importance: Math.max(1, 5 - node.depth), ...(branchIndex === undefined ? {} : { category: String(branchIndex) }) },
-    open: `<g class="mindmap-node depth-${node.depth}${customClasses}" data-id="${escapeAttr(node.id)}" data-label="${escapeDisplayAttr(node.label)}"${branchIndex === undefined ? '' : ` data-branch-index="${branchIndex}"`}${node.parentId ? ` data-parent-id="${escapeAttr(node.parentId)}"` : ''}>`,
-    close: '</g>', children,
+    emission: { kind: 'group', attributes: [
+      { name: 'class', value: v.meta(`mindmap-node depth-${node.depth}${node.className ? ` ${node.className}` : ''}`) },
+      { name: 'data-id', value: v.identity('id') }, { name: 'data-label', value: v.meta(node.label), display: true },
+      ...(branchIndex === undefined ? [] : [{ name: 'data-branch-index' as const, value: v.channel('category') }]),
+      ...(node.parentId ? [{ name: 'data-parent-id' as const, value: v.meta(node.parentId) }] : []),
+    ] }, children,
   })
 }
 
