@@ -363,6 +363,12 @@ export function flowchartStatementSpans(text: string, scan: FlowchartScan = scan
   return out
 }
 
+/** Upstream nests no shape text, so the most regions a line it reads leaves
+ * open is a triple delimiter (`(((`), a markdown string and a string in it.
+ * A line left deeper ends where it ends, which keeps the openers carried on
+ * to each next line (continuationPrefix) few. */
+const MAX_CONTINUED_REGIONS = 5
+
 /** A statement whose text no link or label continues onto another line, and
  * which a link on the line before does not take in (upstream lexes `end`,
  * `subgraph`, … there as keywords, not as a node). */
@@ -428,7 +434,8 @@ export function coalesceFlowchartLines(lines: readonly string[]): Array<{ text: 
     // (a string in a markdown string) ends where it ends.
     const midLabelString = scan.regions.some(region => region.kind === 'string' && region.parent >= 0 && region.start !== scan.regions[region.parent]!.contentStart)
     const subgraphTitle = title !== undefined && titleClosesFrom(index, title)
-    const inRegion = group !== undefined && open.length > 0 && !midLabelString && (open[0] === 'metadata' || open.includes('markdown') || !keyword || subgraphTitle)
+    const inRegion = group !== undefined && open.length > 0 && open.length <= MAX_CONTINUED_REGIONS && !midLabelString
+      && (open[0] === 'metadata' || open.includes('markdown') || !keyword || subgraphTitle)
     if (!inRegion && (!trimmed || trimmed.startsWith('%%'))) {
       out.push({ text: raw, line: index })
       continue
@@ -503,8 +510,15 @@ function continuationPrefix(text: string, scan: FlowchartScan): { prefix: string
   const inner = open.at(-1)!
   const first = text.slice(inner.contentStart).trimStart()[0]
   const standIn = first === undefined ? '' : inner.kind === 'pipe' || inner.kind === 'edge-text' ? `${first} ` : '_ '
-  return { prefix: `${open.map(region => text.slice(region.start, region.contentStart)).join('')} ${standIn}`, blank: first === undefined }
+  // A text-arrow label's closer depends only on its stroke: a long opener
+  // (`-.......`) is not carried on to each line.
+  const opener = (region: FlowchartRegion): string => region.kind === 'edge-text'
+    ? TEXT_ARROW_OPENER[textArrowStroke(text.slice(region.start, region.contentStart).replace(/^</, ''))]
+    : text.slice(region.start, region.contentStart)
+  return { prefix: `${open.map(opener).join('')} ${standIn}`, blank: first === undefined }
 }
+
+const TEXT_ARROW_OPENER: Readonly<Record<TextArrowStroke, string>> = { solid: '--', thick: '==', dotted: '-.' }
 
 /** The trimmed text-arrow labels of a line. */
 export function flowchartTextArrowLabelRanges(text: string, scan: FlowchartScan = scanFlowchart(text)): FlowchartTextRange[] {

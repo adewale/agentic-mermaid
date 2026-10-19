@@ -1,11 +1,13 @@
 import { describe, expect, test } from 'bun:test'
 
 import { parseMermaid as parseGraph } from '../parser.ts'
+import { coalesceFlowchartLines } from '../flowchart-lexer.ts'
 import { parseRegisteredMermaid as parseMermaid, serializeMermaid, verifyMermaid } from '../agent/index.ts'
 import { renderMermaidSVG } from '../index.ts'
 import { applyOps } from '../agent/core.ts'
 import { renderMermaidASCIIWithMeta } from '../ascii/meta.ts'
 import { startUpstreamMermaid } from './helpers/upstream-mermaid.ts'
+import { expectNearLinearGrowth } from './helpers/complexity.ts'
 
 function nodeIds(source: string): string[] {
   return [...parseGraph(source).nodes.keys()]
@@ -273,6 +275,19 @@ describe('flowchart parser conformance safety floor (issue #36)', () => {
     const graph = parseGraph(`flowchart TD\n  ${body}`)
     expect(graph.edges.map(edge => `${edge.source}->${edge.target}`)).toEqual(edges)
     expect(graph.subgraphs.map(group => group.nodeIds)).toEqual(members)
+  })
+
+  // Upstream nests no shape text, so a line left deeper ends where it ends;
+  // a text-arrow label carries its stroke, not its opener, onto each line.
+  test('lines that leave text open are joined in linear time', () => {
+    expect(() => parseGraph(`flowchart TD\n${'A[x\n'.repeat(12)}`)).toThrow()
+    expectNearLinearGrowth('nested shape text', size => {
+      coalesceFlowchartLines(Array.from({ length: size }, () => 'A[x'))
+    }, 8_000)
+    expectNearLinearGrowth('a long text-arrow opener', size => {
+      const lines = [`A -${'.'.repeat(size)} x`, ...Array.from({ length: size }, () => 'y'), 'z .-> B']
+      expect(coalesceFlowchartLines(lines)).toHaveLength(1)
+    }, 32_000)
   })
 
   test('root direction directives override the graph without becoming phantom nodes', () => {
