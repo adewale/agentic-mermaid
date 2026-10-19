@@ -555,11 +555,22 @@ export function readStateStatements(lines: readonly StateSourceLine[]): StateSta
       continue
     }
     const startRow = row
+    const startColumn = column
     const keyword = matchAt(STATE_KEYWORD_AT, text, column)
-    const declaration = keyword === null ? null : readStateDeclaration(column + keyword.length)
-    // A `State` spelled otherwise than `state` that starts no declaration
-    // is a name, as ours read it before reading the keyword in every case.
-    const read = declaration ?? (keyword === null || !keyword.startsWith('state') ? readIdStatement() : null)
+    let declaration = keyword === null ? null : readStateDeclaration(column + keyword.length)
+    // A `State` spelled otherwise than `state` that starts no declaration, or
+    // one a transition or description follows (`State X --> Y`), is a name,
+    // as ours read it before reading the keyword in every case.
+    const named = keyword !== null && !keyword.startsWith('state')
+    if (named && declaration !== null && !declaration.opens) {
+      const next = skipBlank(logical[row]!.text, column)
+      if (logical[row]!.text.startsWith('-->', next) || logical[row]!.text[next] === ':') {
+        row = startRow
+        column = startColumn
+        declaration = null
+      }
+    }
+    const read = declaration ?? (keyword === null || named ? readIdStatement() : null)
     if (read !== null) {
       emit(read.text, line, declaration?.opens ?? false)
       if (declaration?.opens) {

@@ -579,6 +579,8 @@ describe('State statements across and within lines', () => {
     ['ClassDef hot fill:#f00\nA --> B\nCLASS A hot\nNote Right Of B : hi\nNOTE LEFT OF A\ntext\nEND NOTE', ['A:rounded:A', 'B:rounded:B', 'A->B', 'A:::hot', 'note right of B:hi', 'note left of A:text'], []],
     ['end A', ['A:rounded:A', 'end:rounded:end'], ['state_statements_share_line@2']],
     ['State "multi\nline" as X', ['X:rounded:multi\nline'], []],
+    // `State` before a transition or description is a name, as before.
+    ['Small State 2ate1 --> B : go', ['Small:rounded:Small', 'State:rounded:State', '2ate1:rounded:2ate1', 'B:rounded:B', '2ate1->B:go'], ['state_statements_share_line@2']],
     // A block note opened after another statement keeps its lines whole.
     ['A note right of B\nsome text\nend note', ['A:rounded:A', 'B:rounded:B', 'note right of B:some text'], ['state_statements_share_line@2']],
     ['state "multi\nline" as X\nX --> Y', ['X:rounded:multi\nline', 'Y:rounded:Y', 'X->Y'], []],
