@@ -16,13 +16,16 @@ code/tests, not dated inventories.
 | [Brand/family design record](brand-primitives-plan.md) | Design rationale and completed rollout; current architecture lives in the [system hub](../design/system/README.md). Old report/receipt tables are not current gates. |
 | [Divergences](divergences.md) | Deliberate product boundaries, not feature requests. |
 | [Lessons learned](lessons-learned.md) | Engineering lessons, not mandatory restoration of historical machinery. |
-| [0.5 performance investigation](0.5-performance-investigation.md) | Dated profile of where time, bytes and memory go, as input for the 0.5 refactor; delete once consumed. |
+| [Benchmark evidence](../../eval/benchmark/RESULTS.md) | Current measurement methods, bounded findings, peer gaps and reproduction; raw reports remain review artifacts. |
 
 ## Completed and superseded work
 
 The [archive](archive/) retains dated evidence without claiming it describes
 today's build, protocol, CI or deployment. In particular:
 
+- The consumed [0.5 investigation](https://github.com/adewale/agentic-mermaid/blob/30f0af5d63e460c8bd3de88358414f2c7857a2c6/docs/project/0.5-performance-investigation.md)
+  retains its original measurements and hypotheses in immutable history. Useful
+  findings and remaining opportunities are consolidated in the benchmark evidence.
 - The [test-portfolio migration](archive/complexity-aware-test-portfolio-plan.md)
   is complete; TEST-3 retains only the unperformed observational follow-up.
 - The [stateless MCP migration](archive/stateless-mcp-migration-plan.md)

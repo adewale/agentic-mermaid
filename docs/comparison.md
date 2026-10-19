@@ -12,15 +12,15 @@ were exercised separately. The fetched documentation at <https://pele.run/api>
 describes that API; fetching documentation does not establish deployment bytes.
 
 At this initial comparison snapshot, Pele targeted Mermaid **12.1.0** and
-Agentic's writing contract was **11.16.1**. The rebased candidate below updates
-Agentic's pin to **12.2.0** without relabeling these historical measurements.
+Agentic's writing contract was **11.16.1**. The subsequent rebase updated
+Agentic's pin to **12.2.0** without relabeling this historical snapshot.
 Pele's source/package registry rendered 33 family examples; Agentic's
 source registered 17 native families including C4. Those are breadth
 observations, not construct-fidelity scores. Agentic npm and the live
 capabilities endpoint still report **0.4.1** at this check: native C4 in this
 branch is not available merely by installing that release.
 
-| Dimension | Pele 1.6.0 / inspected source | Agentic current source |
+| Dimension | Pele 1.6.0 / inspected source | Agentic at the initial snapshot |
 | --- | --- | --- |
 | Primary workflow | Render SVG; browser `mount`, refresh, zoom and error display | Parse, edit, verify, serialize and render through library, CLI and MCP |
 | Syntax breadth | All 33 registered families, targeting Mermaid 12.1.0 | 17 native families; unsupported source preservation has an explicit disposition |
@@ -68,121 +68,23 @@ and test lineage. They do not establish Pele as a Beautiful/Agentic fork.
 Agentic and Zombie do descend from Beautiful; the related terminal projects and
 C4 proposals below supply behavioral examples with their own ancestry.
 
-### Fresh performance observations
+### Performance evidence
 
-`bun run bench:peers` re-measures these peers at pinned versions checked
-against [`eval/fork-graph/population.json`](../eval/fork-graph/population.json);
-run it rather than citing the dated figures below, which keep their original
-environment and versions.
+Current methods, fixed source/package identities, scoped findings and remaining
+measurement gaps live in [benchmark evidence](https://github.com/adewale/agentic-mermaid/blob/main/eval/benchmark/RESULTS.md).
+The 18 October Node/browser/startup/payload tables and bounded C4 A/B runs are
+[immutable historical observations](https://github.com/adewale/agentic-mermaid/blob/30f0af5d63e460c8bd3de88358414f2c7857a2c6/docs/comparison.md#fresh-performance-observations),
+not measurements of the frozen 0.5 candidate. Their exact versions, environments
+and exclusions remain there instead of becoming competing current scorecards.
 
-Measured 18 October on shared Linux x86_64 (AMD EPYC 9V74, 5 vCPU),
-Node 24.19.0, with sequential public API calls. Comparators were Beautiful npm
-1.1.3 (`65f4e0ab8c289e9691a9e5bc4f9eac7108cf449b`), Zombie npm 5.7.1
-(`3e688e4e5e00ec9f92444af4757e0ec7c449e84b`), and Pele npm 1.6.0.
-Zombie current source `3610098ca328947cd252ebc6ee36934850cacbb1` was
-spot-checked separately; its source-bundle timings are not package startup data.
-Agentic is this PR's 0.4.2 source build, not the published 0.4.1 package. The
-principal matrix precedes the final configuration/metadata refinements. The
-isolated three-case comparison below binds production commit
-`6895af7c2aac29e9c7b1f6db1173e1b95f364be7`; subsequent commit
-`315f8619961181545b9ce48cfd7e60e36debbfb1` changes only a test and payload budget.
-
-The six matched inputs contain 5 nodes/6 edges, 50- and 100-node ternary trees,
-a seeded 50-node/69-edge mesh with 20 labels, a 20-message sequence, and a
-3-element/2-interaction C4. Tree/mesh generators follow
-[Pele's existing benchmark](https://github.com/obsidianmd/pele/blob/458322a5b8abb1ae57ddf127c32017ab9fb14a92/scripts/bench.mjs),
-with explicit labels for coverage checks. Five warmups precede 15–120 timed
-calls (400ms target, minimum 15); each consumes UTF-8 bytes and SHA-256 of the
-returned output. Receipt paths and Pele's object result serialize the entire
-returned object. Successful timings retain all expected labels; this does not
-establish arbitrary topology or aesthetic quality.
-
-| Warm Node median, milliseconds | Agentic SVG text | Agentic complete SVG receipt | Beautiful SVG | Zombie SVG | Pele complete result |
-| --- | ---: | ---: | ---: | ---: | ---: |
-| Five-node flow | 18.31 | 18.95 | 5.14 | 3.90 | 0.30 |
-| Tree, 50 nodes | 78.48 | 86.30 | 21.09 | 19.19 | 0.74 |
-| Mesh, 50 nodes | 1044.46 | 817.38 | 42.12 | 37.08 | 1.78 |
-| Sequence, 20 messages | 24.53 | 20.73 | 0.09 | 0.25 | 0.15 |
-| Simple C4 | 12.46 | 9.85 | Unsupported | 0.19 | 0.08 |
-| Tree, 100 nodes | 196.42 | 184.76 | 64.73 | 58.80 | 1.55 |
-
-Each column runs in its own process/JIT/GC state. The text/receipt differences
-do not imply that consuming extra data makes execution faster; SVG text already
-constructs its receipt. Agentic remains substantially slower on these samples.
-Its additional contracts explain some cost, while profiling identifies material
-avoidable work. Richer semantics do not excuse the measured speed gap.
-
-The shared Scene-admission and SVG-postpass changes were isolated in a paired
-A/B using identical source/dependencies and build mode: 20 warmups, seven
-alternating rounds of 20 calls. Complete SVG and receipt bytes matched. Median
-time fell 18.833→14.958ms for the five-node flow, 33.992→22.347ms for the
-sequence and 13.790→10.390ms for C4 (20.6%, 34.3%, 24.7%). The CDATA overlap
-guard preserves the prior behavior for nested lexical ranges; common disjoint
-outputs retain byte parity. The final paired run includes that guard and
-complete output/receipt parity. The before build replaces only the three
-performance files with their `4239b17554a78658ef46483617870ac9c7fe152a`
-versions; C4 configuration, accessibility and other production code are held
-constant. These are three bounded improvements, not a
-cross-product speed claim. Complete terminal receipts changed only by
-noise-sized variation; no terminal speedup is claimed from these changes.
-
-| Warm terminal median, milliseconds | Agentic text | Agentic complete receipt | Beautiful text | Zombie text |
-| --- | ---: | ---: | ---: | ---: |
-| Five-node flow | 4.30 | 24.17 | 0.51 | 0.85 |
-| Tree, 50 nodes | 42.25 | 131.80 | 151.78 | 12.41 |
-| Mesh, 50 nodes | 53.57 | 844.76 | Excluded: 12 labels absent | 28.55 |
-| Sequence, 20 messages | 4.01 | 25.55 | 0.12 | 0.31 |
-| Simple C4 | 4.31 | 11.03 | Unsupported | 0.26 |
-| Tree, 100 nodes | 167.08 | 359.20 | 739.88 | 44.06 |
-
-Pele and Mermaid have no native terminal API. Beautiful's mesh output loses
-expected labels, so it is excluded from successful timings. Agentic terminal
-receipts deliberately consume additional pixel/connector evidence; comparing a
-text-only result with a fully consumed receipt hides substantial work.
-
-Five fresh Node processes per engine, alternating order with warm filesystem
-caches, measured spawn through successful five-node SVG output and exit:
-Agentic 525ms, Beautiful 242ms, Zombie 262ms, Pele 73ms. Main-entry import alone
-was 282/72/35/25ms respectively. Median peak process RSS was
-109.2/77.8/76.3/36.7 MiB; this includes the runtime and layout dependencies,
-and is not a retained-memory or leak measurement.
-
-In the same Chromium 154 browser, five-node public SVG calls took medians of
-20.0ms for Agentic lazy, 0.4ms for Pele lazy and 32.7ms for Mermaid 11.16.1.
-This consumes output bytes, not painting/rasterization. Mermaid's C4 median was
-5.5ms. Browser and Node rows must not be combined into one ratio.
-
-Actual browser JS requests, gzip level 9 per fetched file:
-
-| Lazy entry | Initial requests / bytes | Cumulative first-flow requests / bytes |
-| --- | ---: | ---: |
-| Agentic | 4 / 4,483 | 28 / 679,769 |
-| Pele | 5 / 14,803 | 16 / 54,020 |
-| Mermaid | 17 / 170,567 | 27 / 223,952 |
-
-Agentic's small loader does not make its usable flow renderer smaller. These
-JS-only transfer estimates exclude fonts/HTML/maps and do not measure network
-latency. Browser distributions for Beautiful/Zombie were not invented for this
-table. Historical benchmark tables elsewhere retain their original environments,
-versions and populations.
-
-The final CI website capture at `d6f00407007eb67876af22d70113ee3035cb9bce`
-also measured the empty editor: two requests, 3,590,858 raw / 1,089,260 gzip /
-859,297 Brotli bytes. This is the existing synchronous all-family editor
-adapter, including native graphical/terminal receipts and verification, rather
-than the lazy library entry above. C4's additional native code is an intentional
-cost; a browser-first async editor would need a separate loading contract. The
-examples route grew to 418,997 raw bytes because its new C4 card contains
-build-time HTML/SVG; it does not load a C4 runtime. Tight route ceilings were
-reviewed against these measurements, while request/admission rules remain.
-
-The next performance priority is to profile dense routing separately while
-retaining connectivity, obstacle clearance, labels and certification. Narrow
-Node startup entries and smaller usable browser closures are separate work.
-Reuse validated immutable evidence and structural passes; do not remove security
-or receipt work merely to improve a text-only benchmark.
-
-The three-project comparison below retains its original dated evidence.
+Agentic still has substantial warm-render, startup and usable-browser-payload
+gaps against the faster peers. Additional editing, verification and trust
+contracts explain different work; they do not excuse avoidable cost or prove
+competitive speed. Pele has no native terminal API. Beautiful 1.1.3 rejects C4,
+and its tested terminal mesh loses expected labels: neither is a successful
+fast render. Returned SVG text and parseable labels do not prove arbitrary
+connectivity, visual quality or semantic fidelity. Browser return latency is
+separate from paint, real-network transfer and PNG throughput.
 
 Use this page to decide which of the three projects fits your task. The
 table maps the three primary projects; the related Zombie/C4 comparison below
@@ -289,7 +191,7 @@ verification. Neither retained strings nor path counts prove readability.
 The candidate adds opt-in measured C4 width reflow, compact pixel/cell spacing,
 optional automatic type legends, palette/style-consistent legend marks and
 editor boundary navigation. Full source and canonical graphical exports retain
-all context and explicit indices. Existing performance tables above remain
+all context and explicit indices. The linked performance records remain
 historical; they must not be relabeled with this newer candidate.
 
 Peer pins refreshed in this pass include Zombie main
@@ -311,160 +213,13 @@ rusty-mermaid, Sebastian0.8.0 and mermaid-rs-renderer0.3.1. Their recognition,
 visible relationships, indices, terminal output and editing must be assessed
 separately. No universal Agentic rendering or performance superiority follows.
 
-The following `cb799434` performance and payload observations predate the
-Mermaid 12.2.0 rebase and remain historical evidence.
-
-The final three-file performance A/B binds production
-`cb7994341c309e4da1ebb54fa5045548bacc63b4`, Node 24.19.0 and Bun 1.4.2,
-on the same AMD EPYC 9V74 five-vCPU host. Identical committed C4 source,
-dependencies and Node-target ESM build differ only in render-contract.ts,
-svg-structure.ts and output-security.ts. Forty warmups precede 120 samples
-per implementation/path in six alternating-order batches. JSON serialization
-and UTF-8 byte consumption include complete receipts.
-
-| Small C4 public path | Node median before→after, ms | Bun median before→after, ms |
-| --- | ---: | ---: |
-| SVG text | 12.054→9.365 | 14.974→13.083 |
-| SVG plus complete receipt | 10.922→8.513 | 13.249→12.065 |
-| Terminal text | 4.376→3.661 | 8.326→7.408 |
-| Terminal plus complete receipt | 11.131→9.493 | 16.594→15.479 |
-
-All four outputs/receipts match exactly in both runtime pairs. The broader
-parity check matches 42 fully consumed artifacts, nine terminal metadata
-artifacts and 1,088 security cases. Node medians improve 14.7–22.3%; Bun
-improves 6.7–12.6%. Bun terminal p95s slightly worsen, so this is no tail-latency
-guarantee. The one three-node/two-interaction input establishes neither dense
-layout speed nor startup, memory, download or competitor performance.
-
-Fresh browser requests after the follow-up measure the all-family editor at
-3,603,397 raw / 1,093,679 gzip / 862,600 Brotli bytes. Examples measure 419,327
-raw / 72,546 gzip / 57,465 Brotli bytes. The examples gzip ceiling increases
-72,500→72,600 for its prepared C4 legend/swatch content; other absolute caps,
-request/resource restrictions and the separate PR growth gate remain intact.
-
-### Rebased candidate, 18 October 2026 at 09:11 UTC
-
-These measurements precede the merge of performance PR #412 and remain
-historical. The incremental comparison against that newer main follows below.
-
-The performance comparison was repeated at
-`56e463243e2361b2eb742c256a38eb8c8f9f54fe`, rebased onto main
-`5442a3cce1e847953e2e5fcbc79a01662f96ecb7`. Both sides use that committed
-source, the same frozen dependencies (including Mermaid **12.2.0**, source pin
-`1fb7869866dd619168d840291c9c54b4f129758b`, and `yaml` **2.9.0**), and
-the same Node-target ESM build. Only `render-contract.ts`, `svg-structure.ts`
-and `output-security.ts` revert to their pre-optimization versions from
-`6724062c5da0e13401ab63744b3e7c11efc2684f` in the before build. This isolates
-the three bounded optimizations; it does not measure the dependency upgrade.
-
-The same three-node/two-interaction C4 input ran on Node **24.19.0** and Bun
-**1.4.2**, on the AMD EPYC 9V74 five-vCPU host during a coordinated quiet
-window. Each implementation/path received 40 warmups and 120 samples in six
-alternating-order batches. Timed receipt paths include full JSON serialization;
-every returned string is consumed as UTF-8 bytes.
-
-| Small C4 public path | Node median before→after, ms | Node p95 before→after, ms | Bun median before→after, ms | Bun p95 before→after, ms |
-| --- | ---: | ---: | ---: | ---: |
-| SVG text | 11.150→8.690 | 14.771→11.780 | 15.713→12.489 | 22.654→16.433 |
-| SVG plus complete receipt | 10.497→8.290 | 12.822→11.457 | 12.566→11.145 | 16.267→14.416 |
-| Terminal text | 4.194→3.630 | 6.829→6.233 | 7.315→6.396 | 17.752→10.847 |
-| Terminal plus complete receipt | 10.212→9.107 | 13.978→12.688 | 15.286→14.396 | 20.379→19.354 |
-
-All four outputs/receipts match exactly within both runtime pairs. The repeated
-broader check matches 42 full output/receipt artifacts (772,864 bytes), nine
-terminal metadata artifacts and 1,088 security cases. Within each path's A/B,
-Node median reductions range from 10.8–22.1% and Bun reductions from 5.8–20.5%.
-All sampled p95s improve in this run; the earlier Bun p95 regressions remain
-reported above. These bounded warm measurements
-establish no general tail-latency, dense-layout, startup, memory, download or
-competitor performance claim. Earlier tables retain their original provenance.
-
-The changed YAML semantics also pass the existing 63-test contract/security
-selection with 3,276 assertions, including the installed Mermaid 12.2.0 oracle.
-Additional public C4 probes preserve plain `1_0`, `0b1_0` and `1e999` titles
-through SVG, terminal output and serialization. Invalid explicit numeric tags
-are rejected. Invalid numeric configuration strings use default geometry and
-produce `INEFFECTIVE_CONFIG` through `verifyMermaid`; that source warning is
-not included in the SVG receipt. Callers requiring source diagnostics must
-consume verification as well as rendering. The rebase introduces no observed
-failure in these checks; it is not a new full-browser or all-family audit.
-
-### Incremental XML fast paths after PR #412, 18 October 2026 at 09:22–09:23 UTC
-
-Candidate `1465fafb77d540af2d884fc2d4afec9b646984ca` is rebased onto
-`26a481284b80371ccd0d7d104cd5ab20006d3cac`. Main now supplies the Scene
-snapshot reuse, SVG assembly, schema cache, route-label cache and text-metric
-optimizations. Those implementations are identical in both sides of this new
-A/B. The before build replaces only `svg-structure.ts` and
-`output-security.ts` with that main commit's versions. The remaining branch
-changes replace per-character XML name regexes with equivalent code-unit
-checks and skip entity decoding for values containing no ampersand.
-
-The method remains the same small C4 input, Node **24.19.0**, Bun **1.4.2**,
-Node-target ESM builds, Mermaid **12.2.0**, `yaml` **2.9.0**, and AMD EPYC 9V74
-five-vCPU host. A coordinated quiet window contains 40 warmups and 120 samples
-per side/path in six alternating-order batches. Complete receipts are JSON
-serialized within timed work, and every returned string is consumed as UTF-8
-bytes. This compares the remaining two-file change against current main's
-implementation with C4 and all other candidate source held constant.
-
-| Small C4 public path | Node median before→after, ms | Node p95 before→after, ms | Bun median before→after, ms | Bun p95 before→after, ms |
-| --- | ---: | ---: | ---: | ---: |
-| SVG text | 10.554→8.965 | 13.345→10.878 | 13.381→13.237 | 19.768→19.161 |
-| SVG plus complete receipt | 10.279→8.093 | 13.454→10.381 | 13.775→12.811 | 20.983→16.844 |
-| Terminal text | 3.577→3.622 | 6.412→6.588 | 6.631→6.899 | 11.001→10.434 |
-| Terminal plus complete receipt | 9.590→8.987 | 13.217→13.089 | 15.325→15.087 | 21.288→21.047 |
-
-Within-path median reductions are 15.1%/21.3% for Node SVG text/receipt and
-1.1%/7.0% for Bun SVG text/receipt. Terminal-receipt medians fall 6.3% on Node
-and 1.6% on Bun. Plain terminal medians instead increase 1.3% and 4.0%, and
-Node terminal p95 also increases. No plain-terminal speedup is claimed.
-The roughly 1–2% changes are sensitive to timing noise. Plain terminal output
-uses safe-paint admission; complete terminal receipts additionally materialize
-pixel Scene evidence, so their timings describe different executed work.
-This single bounded run establishes no general tail-latency or cross-runtime,
-cross-path, dense-layout, startup, memory, download or competitor advantage.
-
-All timed output/receipt bytes match within each runtime pair. The repeated
-parity checks also match 42 complete output/receipt artifacts (772,864 bytes),
-nine terminal metadata artifacts and 1,088 XML/security cases. Updated Scene
-fidelity, schema, security and post-pass tests pass: 53 tests and 2,137
-assertions. Four additional public Scene admission tests pass 27 assertions
-covering proxy snapshots, late-swapping data and inherited properties.
-The adapted mode test confirms that family admission under internal rules
-cannot satisfy the backend's inferred external rules; family role declarations
-remain checked. No production admission changes were added by this rebase.
-
-The combined C4/shared closure measures XyChart at 189,685 gzip bytes,
-185 above its former ceiling. Its gzip cap changes 189,500→189,700; request,
-raw and Brotli ceilings remain unchanged. The inspected graph still excludes
-ELK from XyChart and all 12 non-ELK families, and initial lazy gzip remains
-4,460 bytes. This records a measured integration cost, not a download saving.
-
-### Current binding after the Class rebase, 18 October 2026 at 09:46 UTC
-
-Candidate `8cad259fdcb8e0117531bf1d33585d9c79ae89f2` rebases onto
-`b1a613a47ee50d99f59dbf24bdf499f5a68ae2df`. The earlier `1465fafb`
-measurements remain historical. The same two-file A/B, dependencies, fixture,
-runtimes, warmup/sample counts and quiet-window method were repeated. The
-before versions come from this newer main and are byte-identical to the prior
-main's two files; all Scene/schema/route/text optimizations remain identical
-between sides. The Class changes do not change these performance helpers.
-
-| Small C4 public path | Node median before→after, ms | Node p95 before→after, ms | Bun median before→after, ms | Bun p95 before→after, ms |
-| --- | ---: | ---: | ---: | ---: |
-| SVG text | 10.965→9.593 | 14.537→12.572 | 13.582→12.787 | 20.060→16.763 |
-| SVG plus complete receipt | 10.647→8.790 | 14.741→11.248 | 12.678→12.008 | 17.317→16.257 |
-| Terminal text | 4.033→4.053 | 7.192→7.464 | 7.517→6.975 | 11.409→10.973 |
-| Terminal plus complete receipt | 11.742→10.555 | 16.465→16.224 | 16.612→16.091 | 23.880→21.885 |
-
-Node plain-terminal median and p95 regress; Bun plain-terminal median improves
-in this run after regressing in the preceding run. No consistent plain-terminal
-speedup is established. All timed artifacts match exactly, as do the repeated
-42 output/receipt, nine metadata and 1,088 security cases. The same 57 focused
-admission/schema/security/post-pass tests pass 2,164 assertions. These results
-rebind the bounded C4 comparison and its existing limits; they add no Class,
-browser, startup or general performance claim.
+The successive C4 performance/payload measurements, including the rebases,
+remain in the [18 October record](https://github.com/adewale/agentic-mermaid/blob/30f0af5d63e460c8bd3de88358414f2c7857a2c6/docs/comparison.md#c4-follow-up-18-october-2026).
+They establish bounded warm-path observations, not current package startup,
+whole-product or competitor claims. Source diagnostics still require
+`verifyMermaid`: a successful render/receipt alone does not expose every
+`INEFFECTIVE_CONFIG` warning. The [C4 design](./design/families/c4.md) owns the
+current native feature and readability limits.
 
 ## Zombie Mermaid and C4 bloodlines
 
