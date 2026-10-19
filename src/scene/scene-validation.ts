@@ -126,6 +126,9 @@ type MutableDiagnostic = SceneValidationDiagnostic
  * neither extension output nor namespace/accessibility expansion can bypass it. */
 export function assertFinalSvgByteBudget(value: unknown, stage = 'final SVG'): asserts value is string {
   if (typeof value !== 'string') throw new TypeError(`${stage} must be a string`)
+  // A UTF-16 code unit encodes to at most three UTF-8 bytes, so a string this
+  // short is within the budget without counting.
+  if (value.length * 3 <= MAX_FINAL_SVG_BYTES) return
   if (!inspectSvgOnce('final-svg-budget', value, () => boundedUtf8ByteLength(value, MAX_FINAL_SVG_BYTES) <= MAX_FINAL_SVG_BYTES)) {
     throw new RangeError(`${stage} exceeds the ${MAX_FINAL_SVG_BYTES}-byte final SVG limit`)
   }
