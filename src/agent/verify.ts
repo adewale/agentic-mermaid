@@ -47,6 +47,7 @@ import { authoredLineForCanonical } from './source-map-spans.ts'
 import { serializeMermaid } from './serialize.ts'
 import { stateBodyToGraph, stateUnsupportedSyntaxWarnings } from './state-body.ts'
 import { xychartUnsupportedSyntaxWarnings } from './xychart-body.ts'
+import { radarUnsupportedSyntaxWarnings } from './radar-body.ts'
 import { countStructuralElements, faithfulnessWarning } from './structural-count.ts'
 import { logToolInvocation } from './trace-log.ts'
 import type { ExtensionValidDiagram, LayoutWarning, ParsedDiagram, RenderedLayout, SequenceBody, ValidDiagram, VerifyOptions, VerifyResult, WarningCode } from './types.ts'
@@ -338,6 +339,7 @@ const UPSTREAM_REJECTED_SYNTAX: Partial<Record<ValidDiagram['kind'], (canonicalS
   gantt: ganttUnsupportedSyntaxWarnings,
   mindmap: mindmapUnsupportedSyntaxWarnings,
   quadrant: quadrantUnsupportedSyntaxWarnings,
+  radar: radarUnsupportedSyntaxWarnings,
   sequence: sequenceUnsupportedSyntaxWarnings,
   state: stateUnsupportedSyntaxWarnings,
   xychart: xychartUnsupportedSyntaxWarnings,

@@ -337,10 +337,19 @@ export function parseRadarChart(lines: string[], options: RadarParseOptions = {}
     // A block reads its lines as the envelope does.
     const accessibilityDirective = parseAccessibilityDirective(line.split('\n'), 0)
     if (accessibilityDirective === undefined) throw new Error('Radar accDescr block is missing a closing "}"')
+    // Mermaid keeps whichever value is written last. The envelope has taken
+    // the directives on lines of their own out of order, so one of those
+    // wins, as in XYChart (verify reports radar_accessibility_order).
     if (accessibilityDirective !== null) {
-      if (accessibilityDirective.title) accessibility.title = normalizeBrTags(statementAccessibility.title = accessibilityDirective.value)
-      else accessibility.description = normalizeBrTags(statementAccessibility.descr = accessibilityDirective.value)
-      if (parserObservationActive('radar')) observeParserMutation('radar', accessibilityDirective.title ? 'setAccessibilityTitle' : 'setAccessibilityDescription', accessibilityDirective.title ? accessibility.title : accessibility.description)
+      const value = normalizeBrTags(accessibilityDirective.value)
+      if (accessibilityDirective.title) {
+        statementAccessibility.title = accessibilityDirective.value
+        if (scanned.accessibility.title === undefined) accessibility.title = value
+      } else {
+        statementAccessibility.descr = accessibilityDirective.value
+        if (scanned.accessibility.descr === undefined) accessibility.description = value
+      }
+      if (parserObservationActive('radar')) observeParserMutation('radar', accessibilityDirective.title ? 'setAccessibilityTitle' : 'setAccessibilityDescription', value)
       continue
     }
     if ((match = line.match(TITLE_RE))) {

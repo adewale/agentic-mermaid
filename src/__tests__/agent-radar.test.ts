@@ -105,12 +105,15 @@ describe('radar agent surface', () => {
       expect(named(renderMermaidSVG(output)), source).toEqual(named(renderMermaidSVG(source)))
     }
     // Beside another value on a line of its own, Mermaid keeps the one written
-    // last, which the envelope cannot order: the source is kept, and said so.
-    const source = 'radar-beta\n  axis a, b accTitle: x\n  accTitle: y\n  curve c{1, 2}\n'
-    const parsed = parseMermaid(source)
-    expect(parsed.ok && parsed.value.body.kind).toBe('opaque')
-    if (parsed.ok) expect(serializeMermaid(parsed.value)).toBe(source)
-    expect(verifyMermaid(source).warnings).toContainEqual(expect.objectContaining({ code: 'UNSUPPORTED_SYNTAX', syntax: 'radar_opaque' }))
+    // last, which the envelope cannot order: the source is kept, the one on
+    // its own line is drawn whichever comes first, as in XYChart, and said so.
+    for (const source of ['radar-beta\n  axis a, b accTitle: x\n  accTitle: y\n  curve c{1, 2}\n', 'radar-beta\n  accTitle: y\n  axis a, b accTitle: x\n  curve c{1, 2}\n']) {
+      const parsed = parseMermaid(source)
+      expect(parsed.ok && parsed.value.body.kind).toBe('opaque')
+      if (parsed.ok) expect(serializeMermaid(parsed.value)).toBe(source)
+      expect(named(renderMermaidSVG(source))[0], source).toBe('y')
+      expect(verifyMermaid(source).warnings.filter(w => w.code === 'UNSUPPORTED_SYNTAX').map(w => w.syntax), source).toEqual(['radar_accessibility_order'])
+    }
   })
 
   test('model-gap guard: mismatched or duplicate identities cannot enter the typed radar body', () => {

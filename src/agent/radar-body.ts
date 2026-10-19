@@ -32,6 +32,8 @@ import { labelOverflowCollector, setOptionalField } from './body-utils.ts'
 import { MAX_RADAR_TICKS, parseRadarChart, radarStatementEnds } from '../radar/parser.ts'
 import { resolveRadarScale } from '../radar/scale.ts'
 import { normalizeBrTags } from '../multiline-utils.ts'
+import { normalizeMermaidSource } from '../mermaid-source.ts'
+import { statementAccessibilityConflicts } from './accessibility-envelope.ts'
 
 // ---- Shared lexical shapes --------------------------------------------------
 
@@ -365,6 +367,22 @@ function reorder(len: number, from: unknown, to: unknown, what: string): Result<
 }
 
 // ---- Verifier (FamilyPlugin.verify hook) ------------------------------------
+
+/** Radar source ours reads otherwise than Mermaid: an accessibility
+ * directive after a statement on its line beside another value for it on a
+ * line of its own (the parse hook keeps that source). */
+export function radarUnsupportedSyntaxWarnings(canonicalSource: string): LayoutWarning[] {
+  if (!/acc(?:Title|Descr)/i.test(canonicalSource)) return []
+  const source = normalizeMermaidSource(canonicalSource)
+  if (source.accessibility.title === undefined && source.accessibility.descr === undefined) return []
+  let read: Accessibility | undefined
+  try { read = parseRadarChart(source.familyLines).statementAccessibility } catch { return [] }
+  return statementAccessibilityConflicts(read ?? {}, source.accessibility).map(directive => ({
+    code: 'UNSUPPORTED_SYNTAX',
+    syntax: 'radar_accessibility_order',
+    message: `Radar chart has an ${directive} after a statement on its line and another on a line of its own. Mermaid keeps the one written last; this reader cannot tell which that is, so the source is kept as written and the one on its own line is drawn. Keep one ${directive}, on a line of its own.`,
+  }))
+}
 
 export function verifyRadar(body: RadarBody, opts: VerifyOptions): LayoutWarning[] {
   const warnings: LayoutWarning[] = []
