@@ -1494,12 +1494,19 @@ export function renderContractDigest(value: unknown): string {
 /** Internal hash primitive for already-admitted canonical JSON text.
  * Public callers still enter through renderContractDigest's data admission. */
 export function canonicalTextDigest(text: string): string {
-  let hash = 0xcbf29ce484222325n
+  // The 64-bit hash as two 32-bit halves; BigInt arithmetic per code unit made
+  // hashing each rendered SVG cost more than some of its passes. The prime is
+  // 2^40 + 0x1b3, so a multiply is each half times 0x1b3, plus the low half
+  // shifted 40 bits and the carry out of the low product into the high half.
+  let high = 0xcbf29ce4 | 0
+  let low = 0x84222325 | 0
   for (let i = 0; i < text.length; i++) {
-    hash ^= BigInt(text.charCodeAt(i))
-    hash = BigInt.asUintN(64, hash * 0x100000001b3n)
+    const xored = low ^ text.charCodeAt(i)
+    const carry = ((xored >>> 16) * 0x1b3 + (((xored & 0xffff) * 0x1b3) >>> 16)) >>> 16
+    low = Math.imul(xored, 0x1b3)
+    high = (Math.imul(high, 0x1b3) + carry + (xored << 8)) | 0
   }
-  return `fnv1a64:${hash.toString(16).padStart(16, '0')}`
+  return `fnv1a64:${(high >>> 0).toString(16).padStart(8, '0')}${(low >>> 0).toString(16).padStart(8, '0')}`
 }
 
 /**
