@@ -465,6 +465,8 @@ describe('State statements across and within lines', () => {
     ['A:::hot B', ['A:rounded:A', 'B:rounded:B', 'A:::hot'], ['state_statements_share_line@2']],
     ['state X {\nA B\n}', ['A:rounded:A', 'B:rounded:B', 'X:X{A B}'], ['state_statements_share_line@3']],
     ['A --> B; B --> C', ['A:rounded:A', 'B:rounded:B', 'C:rounded:C', 'A->B', 'B->C'], ['state_semicolon_separator@2']],
+    ['state X {A}', ['A:rounded:A', 'X:X{A}'], ['state_brace_after_name@2']],
+    ['state X { A --> B}', ['A:rounded:A', 'B:rounded:B', 'A->B', 'X:X{A B}'], ['state_brace_after_name@2']],
     ['note right of A line1\nline2\nend note', ['A:rounded:A', 'note right of A:line1\nline2'], []],
     ['state "multi\nline" as X\nX --> Y', ['X:rounded:multi\nline', 'Y:rounded:Y', 'X->Y'], []],
   ] as const)('%j is read alike by the renderer, the typed body, its output and verify', async (body, expected, warnings) => {
@@ -485,6 +487,6 @@ describe('State statements across and within lines', () => {
     const written = serializeMermaid(state(source))
     expect(readingOf(parseRenderGraph(written))).toEqual(['A->B', 'A:rounded:A', 'B:rounded:B'])
     expect(await upstream.accepts(written), written).toBe(true)
-    expect(verifyMermaid(source).warnings).toContainEqual(expect.objectContaining({ code: 'UNSUPPORTED_SYNTAX', syntax: 'state_semicolon_separator' }))
+    expect(verifyMermaid(source).warnings).toContainEqual(expect.objectContaining({ code: 'UNSUPPORTED_SYNTAX', syntax: 'state_semicolon_separator', line: 1 }))
   })
 })

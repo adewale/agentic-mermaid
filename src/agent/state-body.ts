@@ -1172,6 +1172,10 @@ export function stateUnsupportedSyntaxWarnings(canonicalSource: string): LayoutW
       code: 'UNSUPPORTED_SYNTAX' as const, syntax: 'state_statements_share_line', line: header + index + 2,
       message: 'State statements sharing a line with nothing between them are read as separate statements, as Mermaid reads them: `A B` declares the states A and B. For one state whose name has a space, write `state "A B" as AB`; otherwise put each statement on its own line.',
     })),
+    ...scan.braceNameLines.map(index => ({
+      code: 'UNSUPPORTED_SYNTAX' as const, syntax: 'state_brace_after_name', line: header + index + 2,
+      message: 'A `}` right after a state name is read as closing its composite. Pinned Mermaid reads the `}` into the name (`A}`) and then rejects the unclosed composite. Put a space or a line break before `}`.',
+    })),
   ]
   return warnings.sort((left, right) => left.line - right.line)
 }

@@ -217,6 +217,8 @@ export interface StateStatementScan {
   semicolonLines: number[]
   /** Input lines where a statement follows another with nothing between. */
   juxtaposedLines: number[]
+  /** Input lines where `}` closes a composite right after a name. */
+  braceNameLines: number[]
 }
 
 // A name starts with a letter or digit; a hyphen continues it unless it
@@ -258,6 +260,11 @@ export function readStateStatements(lines: readonly StateSourceLine[]): StateSta
   const statements: StateStatement[] = []
   const semicolonLines = new Set<number>()
   const juxtaposedLines = new Set<number>()
+  const braceNameLines = new Set<number>()
+  // Mermaid's name token takes a `}` right after it.
+  const noteBraceAfter = (text: string, index: number, line: number): void => {
+    if (text[index] === '}') braceNameLines.add(line)
+  }
   let depth = 0
   let row = 0
   let column = 0
@@ -286,6 +293,7 @@ export function readStateStatements(lines: readonly StateSourceLine[]): StateSta
     const first = logical[row]!.text
     const left = matchAt(STATEMENT_ENDPOINT_AT, first, column)
     if (left === null || !endsName(first, column + left.length)) return null
+    noteBraceAfter(first, column + left.length, logical[row]!.line)
     const cursor = { row, column: column + left.length }
     let statement = left
     const arrow = { ...cursor }
@@ -296,6 +304,7 @@ export function readStateStatements(lines: readonly StateSourceLine[]): StateSta
       const text = logical[arrow.row]!.text
       const right = matchAt(STATEMENT_ENDPOINT_AT, text, arrow.column)
       if (right === null || !endsName(text, arrow.column + right.length)) return null
+      noteBraceAfter(text, arrow.column + right.length, logical[arrow.row]!.line)
       statement += ` --> ${right}`
       cursor.row = arrow.row
       cursor.column = arrow.column + right.length
@@ -413,9 +422,10 @@ export function readStateStatements(lines: readonly StateSourceLine[]): StateSta
     depth = mark.depth
     juxtaposedLines.delete(line)
     semicolonLines.delete(line)
+    braceNameLines.delete(line)
     statements.push({ text: text.slice(mark.column).trim(), line })
     row++
     column = 0
   }
-  return { statements, semicolonLines: [...semicolonLines], juxtaposedLines: [...juxtaposedLines] }
+  return { statements, semicolonLines: [...semicolonLines], juxtaposedLines: [...juxtaposedLines], braceNameLines: [...braceNameLines] }
 }
