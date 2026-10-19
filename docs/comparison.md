@@ -70,6 +70,11 @@ C4 proposals below supply behavioral examples with their own ancestry.
 
 ### Fresh performance observations
 
+`bun run bench:peers` re-measures these peers at pinned versions checked
+against [`eval/fork-graph/population.json`](../eval/fork-graph/population.json);
+run it rather than citing the dated figures below, which keep their original
+environment and versions.
+
 Measured 18 October on shared Linux x86_64 (AMD EPYC 9V74, 5 vCPU),
 Node 24.19.0, with sequential public API calls. Comparators were Beautiful npm
 1.1.3 (`65f4e0ab8c289e9691a9e5bc4f9eac7108cf449b`), Zombie npm 5.7.1

@@ -155,13 +155,11 @@ unchanged; `AM_MODERN_GATE_REPORT` selects a different report destination. This
 lets the same assertions demonstrate a regression against old code and pass
 after a fix, without blessing expectations from current output.
 
-Install reference dependencies outside this repository and check out the same exact Mermaid version:
+Install the pinned Mermaid source and an independent reference outside this
+repository (idempotent; CI runs the same script):
 
 ```sh
-git clone https://github.com/mermaid-js/mermaid ../mermaid
-git -C ../mermaid checkout mermaid@12.2.0
-mkdir -p ../mermaid-reference
-npm install --prefix ../mermaid-reference --save-exact mermaid@12.2.0 @mermaid-js/parser@2.0.1 jsdom@26.1.0
+bun run reference:mermaid   # ../mermaid at the policy pin, ../mermaid-reference
 bun run eval/mermaid-modern-compat/run.ts \
   --mermaid-dir ../mermaid \
   --reference-dir ../mermaid-reference \

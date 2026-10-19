@@ -162,9 +162,10 @@ retained obligations; there is no published candidate report to serve as a gate.
 The strongest defense against our own blind spots is testing against
 sources we did not write:
 
-- **Modern semantic gate** (`bun run test:mermaid-modern`) — selected assertions
-  from the current Mermaid policy pin, with the exact source commit and independently
-  installed parser admitted before execution. Repeated subgraph declarations
+- **Modern semantic gate** (`bun run test:mermaid-modern`, after
+  `bun run reference:mermaid` installs the pinned source and reference locally)
+  — selected assertions from the current Mermaid policy pin, with the exact
+  source commit and independently installed parser admitted before execution. Repeated subgraph declarations
   must retain both member identities and the first title in public IR, typed
   editing, positioned layout and SVG. Repeated class assignments must survive
   typed rename and serialization in author order. Two official XYChart
@@ -490,8 +491,15 @@ table here, which would drift. In broad strokes:
   complete occurrence corpus, with shared-success ratios and complete/lazy JS
   payloads. **Does not prove:** PNG performance, arbitrary semantic/visual fidelity,
   or real-network/paint latency; absolute timings vary by machine.
-- **Manual / periodic:** `layout-compare` before/after, the benchmark vs competitors, the real
-  LLM-as-judge run, and the production freshness check
+- **Manual / periodic:** `layout-compare` before/after, the benchmark vs competitors,
+  `bun run bench:micro` (per-stage hotspot timings, allocation per call under
+  `--runtime node`, and `--baseline <ref>` for interleaved revision ratios;
+  advisory, never a gate), `bun run bench:peers` (the built package against
+  the pinned browserless and terminal peers in `eval/fork-graph/`, with label
+  checks before timing), `bun run check:output-identity --baseline <ref>`
+  (byte identity of the distinct corpus inputs across SVG backends, SVG
+  post-passes, ASCII, Unicode and verify, for refactors that must not change
+  output), the real LLM-as-judge run, and the production freshness check
   (`scripts/ci/production-freshness.ts`, in `docs/contributing/releasing.md`).
   That check compares the build agentic-mermaid.dev serves with the `main`
   commit it is given (the tip of `main`, in the documented command) and fails
