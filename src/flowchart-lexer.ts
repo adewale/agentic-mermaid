@@ -69,9 +69,13 @@ export interface FlowchartScan {
 }
 
 /** A link operator (Mermaid's LINK token), with an optional leading `<`. A
- * dotted one may leave out its leading `-` (`A .-> B`). */
-export const FLOWCHART_LINK_RE = /(<)?(~{3,}|-?\.+->|-?\.+-|={2,}>|={3,}|o-{2,}o|o-{2,}x|x-{2,}o|x-{2,}x|-{2,}[ox]|-{2,}>|-{3,})/y
-const TEXT_ARROW_OPEN_RE = /(<)?(-{2,}|-\.+|={2,})/y
+ * dotted one may leave out its leading `-` (`A .-> B`). Any stroke may end
+ * in a cross or a circle (`-.-x`, `==o`), and start with one where it ends
+ * in one (`o-.-o`, `x==o`). */
+export const FLOWCHART_LINK_RE = /(<)?(~{3,}|[xo]-?\.+-[xo]|-?\.+-[>xo]?|[xo]={2,}[xo]|={2,}[>xo]|={3,}|o-{2,}o|o-{2,}x|x-{2,}o|x-{2,}x|-{2,}[ox]|-{2,}>|-{3,})/y
+/** A text-arrow label's opening link, with its start marker (`<`, or `x` or
+ * `o` in upstream's `x-- a --x`). */
+const TEXT_ARROW_OPEN_RE = /([<xo])?(-{2,}|-\.+|={2,})/y
 
 /** A text-arrow label's stroke, which decides the link that can close it;
  * `mixed` is ours alone: a link of any stroke. */
@@ -80,13 +84,11 @@ type TextArrowCloser = TextArrowStroke | 'mixed'
 
 /** The link that closes a text-arrow label, per stroke, as upstream's edge
  * text states close (`flow.jison`): `--` by `--+[-xo>]`, `==` by
- * `==+[=xo>]`, `-.` by `-?\.+-[xo>]?`. The circle and cross ends of a thick or
- * dotted link are left out: the link grammar (FLOWCHART_LINK_RE) has no
- * spelling for them, so an edge they drew could not be written back. */
+ * `==+[=xo>]`, `-.` by `-?\.+-[xo>]?`. */
 const STROKE_CLOSER_SOURCE: Readonly<Record<TextArrowStroke, string>> = {
   solid: '-{2,}[-ox>]',
-  thick: '={2,}[=>]',
-  dotted: '-?\\.+->?',
+  thick: '={2,}[=>xo]',
+  dotted: '-?\\.+-[>xo]?',
 }
 const TEXT_ARROW_CLOSER_SOURCE: Readonly<Record<TextArrowCloser, string>> = {
   ...STROKE_CLOSER_SOURCE,
@@ -166,6 +168,8 @@ export function matchFlowchartLink(text: string, at: number): { hasArrowStart: b
 
 export interface TextArrowMatch {
   readonly hasArrowStart: boolean
+  /** The opener's start marker: `<`, or upstream's `x` or `o`. */
+  readonly startMark?: '<' | 'x' | 'o'
   readonly openOp: string
   readonly closeOp: string
   /** The trimmed label. */
@@ -238,6 +242,7 @@ function closeTextArrow(text: string, at: number, opener: RegExpExecArray, strok
     const labelStart = labelFrom + raw.length - raw.trimStart().length
     return {
       hasArrowStart: Boolean(opener[1]),
+      ...(opener[1] ? { startMark: opener[1] as '<' | 'x' | 'o' } : {}),
       openOp: opener[2]!,
       closeOp: closer[1]!,
       labelStart,

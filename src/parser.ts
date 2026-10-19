@@ -27,7 +27,7 @@ import type { Direction, EdgeMarker, EdgeStyle, MermaidEdge, MermaidGraph, Merma
 export { parseStyleProps } from './shared/style-props.ts'
 import { detectCompatibilityGraphFamilyFromFirstLine } from './agent/family-router.ts'
 import { classifyMermaidFamilyFromFirstLine } from './family-detection.ts'
-import { coalesceFlowchartLines, continuesNodeId, findTextArrow, flowchartNodeIdLength, flowchartRegionAt, flowchartStatementSpans, matchFlowchartLink, matchTextArrow } from './flowchart-lexer.ts'
+import { coalesceFlowchartLines, continuesNodeId, findTextArrow, FLOWCHART_LINK_RE, flowchartNodeIdLength, flowchartRegionAt, flowchartStatementSpans, matchFlowchartLink, matchTextArrow } from './flowchart-lexer.ts'
 import { consumeClassShorthandPrefix,
   isMermaidIdentifier, MERMAID_IDENTIFIER_SOURCE, parseClassShorthandStatement } from './shared/mermaid-identifiers.ts'
 import { metadataText, readMetadataBlock } from './shared/metadata-yaml.ts'
@@ -1091,7 +1091,7 @@ function consumePipeLabel(text: string): { rawLabel: string; consumed: number } 
 }
 
 interface ConsumedTextArrow {
-  hasArrowStart: boolean
+  startMarker: EdgeMarker | undefined
   openOp: string
   rawLabel: string
   closeOp: string
@@ -1100,12 +1100,15 @@ interface ConsumedTextArrow {
 
 /** `-- label -->`, `-. label .->`, and `== label ==>` (flowchart-lexer.ts
  * `matchTextArrow`): closer-shaped text inside a wholly quoted label is paint,
- * not syntax. */
+ * not syntax. An `x` or `o` opener (`x-- a --x`) is upstream's start marker
+ * only before a closer with the same end, and its link is invalid otherwise. */
 function consumeTextArrow(text: string): ConsumedTextArrow | null {
   const arrow = matchTextArrow(text, 0)
   if (!arrow) return null
+  const startMarker = arrow.startMark === 'x' ? 'cross' : arrow.startMark === 'o' ? 'circle' : arrow.startMark ? 'arrow' : undefined
+  if ((arrow.startMark === 'x' || arrow.startMark === 'o') && startMarker !== endMarkerForOp(arrow.closeOp)) return null
   return {
-    hasArrowStart: arrow.hasArrowStart,
+    startMarker,
     openOp: arrow.openOp,
     rawLabel: text.slice(arrow.labelStart, arrow.labelEnd),
     closeOp: arrow.closeOp,
@@ -1151,7 +1154,7 @@ function consumeBareNodeId(text: string): { id: string; length: number } | null 
   return length > 0 ? { id: text.slice(0, length), length } : null
 }
 
-const EDGE_ID_PREFIX_REGEX = /^([\w-]+)@\s*(?=(?:<)?(?:~{3,}|-?\.+->|-?\.+-|={2,}>|={3,}|o-{2,}[ox]|x-{2,}[ox]|-{2,}[ox]|-{2,}>|-{3,}|(?:-{2,}|-\.+|={2,})\s+))/
+const EDGE_ID_PREFIX_REGEX = new RegExp(String.raw`^([\w-]+)@\s*(?=${FLOWCHART_LINK_RE.source}|(?:-{2,}|-\.+|={2,})\s+)`)
 
 function consumeClassShorthand(text: string): { className: string; length: number } | null {
   const parsed = consumeClassShorthandPrefix(text)
@@ -1246,7 +1249,6 @@ function parseEdgeLine(
       // Fallback: text-embedded label syntax (-- Yes -->, -. Maybe .->, == Sure ==>)
       const textArrow = consumeTextArrow(remaining)
       if (!textArrow) return { ok: false, remaining, reason: 'expected edge operator' }
-      hasArrowStart = textArrow.hasArrowStart
       const parsedLabel = parseFlowchartLabel(textArrow.rawLabel)
       edgeLabel = parsedLabel.text || undefined
       labelContent = parsedLabel.labelContent
@@ -1254,7 +1256,8 @@ function parseEdgeLine(
       remaining = remaining.slice(textArrow.consumed).trim()
       style = textArrowStyleFromOps(textArrow.openOp, textArrow.closeOp)
       length = textArrowLengthFromOps(textArrow.openOp, textArrow.closeOp)
-      startMarker = hasArrowStart ? 'arrow' : undefined
+      startMarker = textArrow.startMarker
+      hasArrowStart = startMarker !== undefined
       endMarker = endMarkerForOp(textArrow.closeOp)
       hasArrowEnd = endMarker !== undefined
     }
@@ -1620,7 +1623,7 @@ function arrowLengthFromOp(op: string): number | undefined {
     extra = (op.match(/\./g)?.length ?? 1) - 1 // -.-> / -.- base = 1 dot
   } else if (op.includes('=')) {
     const eq = op.match(/=/g)?.length ?? 2
-    extra = op.endsWith('>') ? eq - 2 : eq - 3 // ==> base 2, === base 3
+    extra = /[>ox]$/.test(op) ? eq - 2 : eq - 3 // ==> and ==x base 2, === base 3
   } else {
     const dashes = op.match(/-/g)?.length ?? 2
     const terminated = /[>ox]$/.test(op) || /^[ox]/.test(op)
@@ -1652,10 +1655,10 @@ function textArrowLengthFromOps(openOp: string, closeOp: string): number | undef
     extraClose = Math.max(0, count(closeOp, '.') - 1)
   } else if (style === 'thick') {
     extraOpen = Math.max(0, count(openOp, '=') - 2)
-    extraClose = Math.max(0, count(closeOp, '=') - (closeOp.endsWith('>') ? 2 : 3))
+    extraClose = Math.max(0, count(closeOp, '=') - (/[>ox]$/.test(closeOp) ? 2 : 3))
   } else {
     extraOpen = Math.max(0, count(openOp, '-') - 2)
-    extraClose = Math.max(0, count(closeOp, '-') - (closeOp.endsWith('>') ? 2 : 3))
+    extraClose = Math.max(0, count(closeOp, '-') - (/[>ox]$/.test(closeOp) ? 2 : 3))
   }
   const extra = Math.max(extraOpen, extraClose)
   return extra > 0 ? extra + 1 : undefined
