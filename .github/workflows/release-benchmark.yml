@@ -269,6 +269,12 @@ jobs:
             '{status:"prepared",fixedBaselineSha:$source,candidateSourceSha:$candidate,baselineTarballSha256:$sha256,baselineIntegrity:$integrity,timingScope:"this job only",baselineTarballRetained:false}' > fixed-evidence/identity.json
           printf 'FIXED_BASELINE_PACKAGE=%s\n' "$fixed_prefix/node_modules/agentic-mermaid" >> "$GITHUB_ENV"
 
+      - name: Measure exact-baseline A/A on the complete release population
+        id: fixed_aa
+        if: ${{ !cancelled() && steps.fixed_baseline.outcome == 'success' }}
+        timeout-minutes: 21
+        run: bun run bench:release --baseline "$FIXED_BASELINE_PACKAGE" --candidate "$FIXED_BASELINE_PACKAGE" --rounds 5 --reps 3 --budget-ms 1200000 --elk-cache off --out fixed-evidence/aa
+
       - name: Compare the fixed baseline and candidate with ELK cache off
         id: fixed_off
         if: ${{ !cancelled() && steps.fixed_baseline.outcome == 'success' }}
@@ -281,25 +287,19 @@ jobs:
         timeout-minutes: 21
         run: bun run bench:release --baseline "$FIXED_BASELINE_PACKAGE" --candidate-tarball release-artifact/package.tgz --candidate-sha256 "$CANDIDATE_SHA256" --rounds 5 --reps 3 --budget-ms 1200000 --elk-cache on --out fixed-evidence/cache-on
 
-      - name: Measure exact-baseline A/A on the complete release population
-        id: fixed_aa
-        if: ${{ !cancelled() && steps.fixed_baseline.outcome == 'success' }}
-        timeout-minutes: 21
-        run: bun run bench:release --baseline "$FIXED_BASELINE_PACKAGE" --candidate "$FIXED_BASELINE_PACKAGE" --rounds 3 --reps 3 --budget-ms 1200000 --elk-cache off --out fixed-evidence/aa
-
       - name: Compare the packed candidate with pinned peers and ELK cache off
         id: peers_off
         if: ${{ !cancelled() && steps.fixed_baseline.outcome == 'success' }}
         continue-on-error: true
         timeout-minutes: 6
-        run: timeout --kill-after=15s 5m bun run bench:peers --peers agentic,beautiful,pele --candidate-tarball release-artifact/package.tgz --candidate-sha256 "$CANDIDATE_SHA256" --rounds 5 --elk-cache off --json fixed-evidence/peers-off.json --markdown fixed-evidence/peers-off.md
+        run: timeout --kill-after=15s 5m bun run bench:peers --peers agentic,beautiful,zombie,pele --candidate-tarball release-artifact/package.tgz --candidate-sha256 "$CANDIDATE_SHA256" --rounds 5 --elk-cache off --json fixed-evidence/peers-off.json --markdown fixed-evidence/peers-off.md
 
       - name: Compare the packed candidate with pinned peers and ELK cache on
         id: peers_on
         if: ${{ !cancelled() && steps.fixed_baseline.outcome == 'success' }}
         continue-on-error: true
         timeout-minutes: 6
-        run: timeout --kill-after=15s 5m bun run bench:peers --peers agentic,beautiful,pele --candidate-tarball release-artifact/package.tgz --candidate-sha256 "$CANDIDATE_SHA256" --rounds 5 --elk-cache on --json fixed-evidence/peers-on.json --markdown fixed-evidence/peers-on.md
+        run: timeout --kill-after=15s 5m bun run bench:peers --peers agentic,beautiful,zombie,pele --candidate-tarball release-artifact/package.tgz --candidate-sha256 "$CANDIDATE_SHA256" --rounds 5 --elk-cache on --json fixed-evidence/peers-on.json --markdown fixed-evidence/peers-on.md
 
       - name: Retain sequential CPU profiles of the exact installed packages
         id: fixed_profiles
