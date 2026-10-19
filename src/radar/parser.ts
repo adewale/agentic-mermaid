@@ -328,16 +328,18 @@ export function parseRadarChart(lines: string[], options: RadarParseOptions = {}
   let ticks = 5
   let graticule: 'circle' | 'polygon' = 'circle'
   let showLegend = true
+  const statementAccessibility: NonNullable<RadarChart['statementAccessibility']> = {}
 
   for (let i = 0; i < statements.length; i++) {
     const line = statements[i]!
     let match: RegExpMatchArray | null
 
-    const accessibilityDirective = parseAccessibilityDirective([line], 0)
+    // A block reads its lines as the envelope does.
+    const accessibilityDirective = parseAccessibilityDirective(line.split('\n'), 0)
     if (accessibilityDirective === undefined) throw new Error('Radar accDescr block is missing a closing "}"')
     if (accessibilityDirective !== null) {
-      if (accessibilityDirective.title) accessibility.title = normalizeBrTags(accessibilityDirective.value)
-      else accessibility.description = normalizeBrTags(accessibilityDirective.value)
+      if (accessibilityDirective.title) accessibility.title = normalizeBrTags(statementAccessibility.title = accessibilityDirective.value)
+      else accessibility.description = normalizeBrTags(statementAccessibility.descr = accessibilityDirective.value)
       if (parserObservationActive('radar')) observeParserMutation('radar', accessibilityDirective.title ? 'setAccessibilityTitle' : 'setAccessibilityDescription', accessibilityDirective.title ? accessibility.title : accessibility.description)
       continue
     }
@@ -413,6 +415,7 @@ export function parseRadarChart(lines: string[], options: RadarParseOptions = {}
   return {
     title,
     ...(accessibility.title || accessibility.description ? { accessibility } : {}),
+    ...(Object.keys(statementAccessibility).length > 0 ? { statementAccessibility } : {}),
     axes,
     curves,
     min,

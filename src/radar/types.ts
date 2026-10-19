@@ -51,6 +51,9 @@ export interface RadarChart {
   title?: string
   /** Mermaid-universal accessibility metadata. */
   accessibility?: { title?: string; description?: string }
+  /** The accessibility directives written after another statement on their
+   * line, as authored. The source envelope reads only those starting a line. */
+  statementAccessibility?: { title?: string; descr?: string }
   /** Axes (spokes) in declaration order. */
   axes: RadarAxis[]
   /** Curves (series) in declaration order. */

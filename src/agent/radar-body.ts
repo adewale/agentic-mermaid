@@ -14,8 +14,9 @@
 // add/remove/reorder-axis re-shape every curve's value vector and the mutator
 // keeps `curve.values.length === axes.length` by construction.
 //
-// Structured-or-opaque: accTitle/accDescr and any unmodeled/malformed line
-// returns null so the caller falls back to a lossless opaque body. The
+// Structured-or-opaque: any unmodeled/malformed line returns null so the
+// caller falls back to a lossless opaque body. Accessibility rides the
+// universal envelope. The
 // serializer emits a canonical form the legacy parser re-parses identically
 // (differential-tested). Empty (no axes) → opaque, so the loud "no axes" render
 // error still surfaces.
@@ -23,7 +24,7 @@
 
 import { unknownOpMessage } from './mutation-ops.ts'
 import type {
-  RadarBody, RadarMutationOp,
+  Accessibility, RadarBody, RadarMutationOp,
   MutationError, Result, LayoutWarning, VerifyOptions,
 } from './types.ts'
 import { ok, err } from './types.ts'
@@ -43,10 +44,11 @@ function formatNumber(n: number): string { return String(n) }
 
 /**
  * Construct the typed body only after the renderer parser has fully recognized
- * the source. Accessibility remains source-preserved/opaque, and model states
- * that cannot uphold stable identity plus axis↔value coupling stay opaque.
+ * the source. Model states that cannot uphold stable identity plus axis↔value
+ * coupling stay opaque. `accessibility` is what the grammar read after a
+ * statement on its line, as authored, for the source envelope.
  */
-export function parseRadarBody(lines: string[]): RadarBody | null {
+export function parseRadarBody(lines: string[]): { body: RadarBody; accessibility: Accessibility } | null {
   // A line inside a quoted label is text, whatever it holds.
   const ends = radarStatementEnds(lines)
   for (let index = 0; index < lines.length; index = ends[index]! + 1) {
@@ -66,7 +68,7 @@ export function parseRadarBody(lines: string[]): RadarBody | null {
       graticule: chart.graticule,
       showLegend: chart.showLegend,
     }
-    return radarBodyProblem(body, true) === null ? body : null
+    return radarBodyProblem(body, true) === null ? { body, accessibility: chart.statementAccessibility ?? {} } : null
   } catch {
     return null
   }

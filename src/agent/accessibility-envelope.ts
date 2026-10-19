@@ -35,6 +35,20 @@ export function ensureAccessibilityLines(source: string, accessibility: Accessib
   return lines.join('\n') + (trailingNewline ? '\n' : '')
 }
 
+/** Hand the envelope (directives that start a line) the accessibility a
+ * family read after a statement on its line. When the envelope holds another
+ * value for that directive, Mermaid keeps whichever is written last, which
+ * neither reader can tell: false, and the caller keeps the source. */
+export function adoptStatementAccessibility(meta: { accessibility: Accessibility }, read: Accessibility): boolean {
+  const held = meta.accessibility
+  if ((read.title !== undefined && held.title !== undefined && read.title !== held.title)
+    || (read.descr !== undefined && held.descr !== undefined && read.descr !== held.descr)) return false
+  if ((read.title !== undefined && held.title === undefined) || (read.descr !== undefined && held.descr === undefined)) {
+    meta.accessibility = { ...held, ...(read.title !== undefined ? { title: read.title } : {}), ...(read.descr !== undefined ? { descr: read.descr } : {}) }
+  }
+  return true
+}
+
 /** Accessibility-capable structured bodies mirror the universal envelope so
  * typed mutation APIs can edit it. Undefined means the body has no such
  * fields and the metadata envelope remains the sole authority. */

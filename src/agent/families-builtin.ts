@@ -53,7 +53,8 @@ import { mutateTimeline, parseTimelineBody, renderTimeline } from './timeline-bo
 import type { AnyMutationOp, ClassBody, DiagramBody, DiagramKind, ErBody, FamilyParsedBody, GanttBody, LayoutWarning, MutationError, PieBody, QuadrantBody, RadarBody, Result, SankeyBody, SourceLocation, SourceMap, XyChartBody } from './types.ts'
 import { recordSourceMapEnds } from './source-map-spans.ts'
 import { err, ok } from './types.ts'
-import { mutateXyChart, parseXyChartBody, renderXyChart, verifyXyChart, xychartAccessibilityConflicts } from './xychart-body.ts'
+import { mutateXyChart, parseXyChartBody, renderXyChart, verifyXyChart } from './xychart-body.ts'
+import { adoptStatementAccessibility } from './accessibility-envelope.ts'
 
 // Build the structured-or-opaque hook set shared by every structured family
 // that is not flowchart/state. `headerOk` gates structured parsing: families
@@ -979,12 +980,7 @@ const XYCHART_AGENT_HOOKS = {
     // the envelope adopts it. When the envelope holds another value, Mermaid
     // keeps whichever is written last, which neither reader can tell, so the
     // source is kept (verify reports xychart_accessibility_order).
-    const { accessibilityTitle: title, accessibilityDescription: descr } = body
-    const held = meta.accessibility
-    if (xychartAccessibilityConflicts({ title, descr }, held).length > 0) return ok({ kind: 'opaque', family: 'xychart', source: opaqueSource })
-    if ((title !== undefined && held.title === undefined) || (descr !== undefined && held.descr === undefined)) {
-      meta.accessibility = { ...held, ...(title !== undefined ? { title } : {}), ...(descr !== undefined ? { descr } : {}) }
-    }
+    if (!adoptStatementAccessibility(meta, { title: body.accessibilityTitle, descr: body.accessibilityDescription })) return ok({ kind: 'opaque', family: 'xychart', source: opaqueSource })
     return ok(body)
   },
   serialize: body => {
@@ -1354,12 +1350,21 @@ const RADAR_AGENT_HOOKS = {
   // body; opaque fallbacks keep the universal label-extraction path.
   verify: (body, opts) => (body.kind === 'radar' ? verifyRadar(body, opts) : []),
   buildSourceMap: buildChartSourceMap,
-  ...structuredFamilyHooks('radar', {
-    headerOk: h => /^radar-beta\s*:?\s*$/i.test(stripTrailingComment(h)),
-    parseBody: parseRadarBody,
-    serialize: renderRadar,
-    mutate: mutateRadar,
-  }),
+  // The grammar reads an accessibility directive after a statement on its
+  // line, which the envelope adopts, as for XYChart.
+  parse: ({ lines, opaqueSource, meta }) => {
+    const parsed = /^radar-beta\s*:?\s*$/i.test(stripTrailingComment(lines[0]?.trim() ?? '')) ? parseRadarBody(lines.slice(1)) : null
+    if (!parsed || !adoptStatementAccessibility(meta, parsed.accessibility)) return ok({ kind: 'opaque', family: 'radar', source: opaqueSource })
+    return ok(parsed.body)
+  },
+  serialize: body => {
+    if (body.kind !== 'radar') throw new Error(`radar serializer received body kind ${body.kind}`)
+    return renderRadar(body)
+  },
+  mutate: (body, op) => {
+    if (body.kind !== 'radar') return err<MutationError>({ code: 'INVALID_OP', message: `radar mutator received body kind ${body.kind}` })
+    return mutateRadar(body, op as never)
+  },
 } satisfies FamilyOperations
 
 // ---- Sankey ----------------------------------------------------------------
