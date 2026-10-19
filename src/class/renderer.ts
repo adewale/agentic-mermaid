@@ -63,6 +63,19 @@ const RELATION_TEXT_EMISSION = snapshotSvgEmissionRecipe({ kind: 'text', layout:
   attr('stroke', v.paint('stroke')), attr('stroke-width', v.paint('strokeWidth')), attr('stroke-linejoin', v.paint('strokeLinejoin')),
   attr('paint-order', v.paint('paintOrder')),
 ] })
+const NAME_TEXT_EMISSION = snapshotSvgEmissionRecipe({ kind: 'text', layout: 'multiline', attributes: [
+  attr('text-anchor', v.text('anchor')), attr('font-size', v.text('fontSize')), attr('font-weight', v.text('fontWeight')),
+  { ...attr('letter-spacing', v.text('letterSpacing')), omit: 'zero' }, attr('fill', v.paint('fill')),
+] })
+const ANNOTATION_TEXT_EMISSION = snapshotSvgEmissionRecipe({ kind: 'text', layout: 'multiline', attributes: [
+  attr('text-anchor', v.text('anchor')), attr('font-size', v.text('fontSize')), attr('font-weight', v.text('fontWeight')),
+  attr('font-style', v.meta('italic')), attr('fill', v.paint('fill')),
+] })
+const MEMBER_EMISSIONS = Array.from({ length: 4 }, (_, mask) => snapshotSvgEmissionRecipe({ kind: 'text', layout: 'multiline', attributes: [
+  attr('class', v.meta('mono')), attr('font-size', v.text('fontSize')), attr('font-weight', v.text('fontWeight')),
+  ...(mask & 1 ? [attr('font-style', v.meta('italic'))] : []),
+  ...(mask & 2 ? [attr('text-decoration', v.meta('underline'))] : []),
+], tailAttributes: [attr('data-id', v.identity('id')), attr('data-role', v.identity('role'))] }) as SvgTextEmission)
 
 /**
  * Render a positioned class diagram as an SVG string.
@@ -365,8 +378,7 @@ PATH_EMISSION),
         anchor: 'middle',
         paint: { fill: annotColor },
       },
-        { kind: 'text', layout: 'multiline', attributes: [attr('text-anchor', v.text('anchor')), attr('font-size', v.text('fontSize')),
-          attr('font-weight', v.text('fontWeight')), attr('font-style', v.meta('italic')), attr('fill', v.paint('fill'))] }),
+        ANNOTATION_TEXT_EMISSION),
     })
     nameY = y + headerHeight / 2 + 6
   }
@@ -386,8 +398,7 @@ PATH_EMISSION),
       fontSize: style.nodeLabelFontSize,
       anchor: 'middle',
       paint: { fill: nameColor },
-    }, { kind: 'text', layout: 'multiline', attributes: [attr('text-anchor', v.text('anchor')), attr('font-size', v.text('fontSize')),
-      attr('font-weight', v.text('fontWeight')), { ...attr('letter-spacing', v.text('letterSpacing')), omit: 'zero' }, attr('fill', v.paint('fill'))] }),
+    }, NAME_TEXT_EMISSION),
   })
 
   // Divider line between header and attributes
@@ -446,9 +457,7 @@ function renderMember(member: ClassMember, x: number, y: number, style: Resolved
   const block = prepared ?? classMemberBlock(member)
   const plain = memberToString(member)
   const textInk = ink(style.nodeTextColor ?? 'var(--_text-sec)')
-  const attributes = [attr('class', v.meta('mono')), attr('font-size', v.text('fontSize')), attr('font-weight', v.text('fontWeight')),
-    ...(member.isAbstract ? [attr('font-style', v.meta('italic'))] : []),
-    ...(member.isStatic ? [attr('text-decoration', v.meta('underline'))] : [])]
+  const emission = MEMBER_EMISSIONS[Number(!!member.isAbstract) | (Number(!!member.isStatic) << 1)]!
   const spans: NonNullable<SvgTextEmission['spans']>[number][] = []
   let offset = 0
   const span = (length: number, fill: string) => {
@@ -465,7 +474,7 @@ function renderMember(member: ClassMember, x: number, y: number, style: Resolved
     if (member.type) { span(2, ink('var(--_text-faint)')); span(decodeClassText(member.type).length, ink('var(--_text-muted)')) }
   }
   return marks.text({ id: sceneId, role: 'member', text: plain, block, x, y, fontSize: CLS_FONT.memberSize,
-    anchor: 'start', paint: { fill: textInk } }, { kind: 'text', layout: 'multiline', attributes, spans })
+    anchor: 'start', paint: { fill: textInk } }, { ...emission, spans })
 }
 
 function renderClassNote(note: PositionedClassNote, style: ResolvedRenderStyle, index: number): SceneNode {
