@@ -64,18 +64,31 @@ export function decorateEmission(recipe: SvgEmissionRecipe, node: SceneNode, con
     check(recipe)
   }
   const decorate = (first: SvgEmissionRecipe): SvgEmissionRecipe => {
-    if (first.kind === 'sequence') return { ...first, children: first.children.map((child, index) => index ? child : decorate(child)) }
+    if (first.kind === 'sequence') {
+      const child = first.children[0]
+      if (!child) return first
+      const decorated = decorate(child)
+      return decorated === child ? first : { ...first, children: [decorated, ...first.children.slice(1)] }
+    }
     if (first.kind !== 'primitive' && first.kind !== 'text' && first.kind !== 'group') return first
     const attributes = [...first.attributes]
     const tail: SvgAttribute[] = first.kind === 'text' ? [...first.tailAttributes ?? []] : attributes
+    let changed = false
+    const replaceAt = (list: SvgAttribute[], index: number, value: SvgAttribute['value']): void => {
+      const current = list[index]!
+      if (current.value.source === 'identity' && value.source === 'identity' && current.value.field === value.field) return
+      list[index] = { ...current, value }
+      changed = true
+    }
     const set = (name: SvgAttribute['name'], value: SvgAttribute['value'], replace: boolean): void => {
       const index = attributes.findIndex(attribute => attribute.name === name)
-      if (index >= 0) { if (replace) attributes[index] = { ...attributes[index]!, value }; return }
+      if (index >= 0) { if (replace) replaceAt(attributes, index, value); return }
       if (tail !== attributes) {
         const index = tail.findIndex(attribute => attribute.name === name)
-        if (index >= 0) { if (replace) tail[index] = { ...tail[index]!, value }; return }
+        if (index >= 0) { if (replace) replaceAt(tail, index, value); return }
       }
       tail.push({ name, value })
+      changed = true
     }
     if (connector) {
       for (const position of ['start', 'mid', 'end'] as const) {
@@ -98,8 +111,10 @@ export function decorateEmission(recipe: SvgEmissionRecipe, node: SceneNode, con
       set('aria-roledescription', v.accessibility('roleDescription'), false)
       set('aria-label', v.accessibility('label'), false)
     }
+    const normalizeClose = first.kind === 'primitive' && first.close === '/>' && (hasDomSvgIdentityRole(node.role) || node.accessibility)
+    if (!changed && !normalizeClose) return first
     return first.kind === 'text' ? { ...first, attributes, tailAttributes: tail }
-      : first.kind === 'primitive' && first.close === '/>' && (hasDomSvgIdentityRole(node.role) || node.accessibility)
+      : normalizeClose
         ? { ...first, attributes, close: ' />' } : { ...first, attributes }
   }
   const decorated = snapshotSvgEmissionRecipe(decorate(recipe))
