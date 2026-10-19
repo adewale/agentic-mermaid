@@ -527,6 +527,25 @@ table here, which would drift. In broad strokes:
   complete occurrence corpus, with shared-success ratios and complete/lazy JS
   payloads. **Does not prove:** PNG performance, arbitrary semantic/visual fidelity,
   or real-network/paint latency; absolute timings vary by machine.
+- **Normal local benchmarks:** `bun run bench` runs the website SVG/terminal
+  samples and then [Dave Kiss's syntax-doc browser comparison](https://x.com/davekiss/status/2111513199119941999).
+  `bun run bench:samples` keeps the former samples-only command;
+  `bun run bench:dave` runs just the full browser comparison (three rounds,
+  the same first 30 warm-up attempts, all 1,095 pinned fence occurrences
+  including duplicates and unsupported families). It builds and packs the
+  checkout, then reuses the publication scorecard against pinned Pele 1.6.0
+  and Mermaid 12.2.0. Chromium and initial npm access are required;
+  `--executable /path/to/chromium`, `--out DIR`, `--rounds N` and
+  `--case occurrence-id,...` are forwarded to the browser runner. A case
+  filter is a partial diagnostic, not a full-corpus result. Results go to
+  gitignored `bench-report/dave/`; competitor ratios remain advisory.
+  The release browser scorecard was already part of publication CI and
+  retains its full-corpus warm-up by default; `--warmup 30` selects Dave's
+  warm-up policy. Both disable AM's ELK result cache before loading the
+  library, so duplicate sources measure layout rather than memo lookup.
+  Timing is source through SVG return, not visual/semantic fidelity or
+  paint. The post does not specify its warm-up selection; choosing the
+  first 30 is an explicit adaptation. Generated reports are not committed.
 - **Manual / periodic:** `layout-compare` before/after, the benchmark vs competitors,
   `bun run bench:micro` (per-stage hotspot timings, allocation per call under
   `--runtime node`, and `--baseline <ref>` for interleaved revision ratios;

@@ -5,7 +5,8 @@ import { spawnSync } from 'node:child_process'
 import { chmodSync, readFileSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { report, type EngineRun, type Group, type Input } from '../../eval/benchmark/release-bench.ts'
-import { browserScorecard, type BrowserSample } from '../../eval/benchmark/release-browser-bench.ts'
+import { browserScorecard, renderPass, type BrowserSample } from '../../eval/benchmark/release-browser-bench.ts'
+import type { Page } from 'playwright'
 import { missingSvgLabels, renderAgentEdit, agentEditCase } from '../../eval/benchmark/release-bench-fidelity.ts'
 import * as api from '../agent/index.ts'
 import { useTempDirs } from './helpers/temp-dir.ts'
@@ -119,6 +120,36 @@ test('browser rejection changes coverage but never improves the shared-success s
   expect(result.engines[0]!.failures[0]!.category).toBe('unsupported')
   expect(result.matched[0]!.inputIds).toEqual(['a'])
   expect(result.matched[0]!.medianRatio).toBe(10)
+})
+
+test('browser pass warms only the requested prefix and still attempts every measured input', async () => {
+  const calls: string[] = []
+  const inputs = Array.from({ length: 35 }, (_, i) => ({ id: `case${i}`, source: `source${i}` }))
+  const host = globalThis as unknown as Record<string, unknown>
+  const priorDocument = host.document, priorApi = host.benchmarkApi, priorCache = host.AGENTIC_MERMAID_ELK_CACHE
+  host.document = { querySelectorAll: () => [] }
+  host.benchmarkApi = { renderMermaidSVG(source: string) {
+    calls.push(source)
+    if (source === 'source32') throw new Error('unsupported')
+    return '<svg/>'
+  } }
+  const page = {
+    goto: async () => {}, addScriptTag: async () => {},
+    evaluate: async (fn: (arg: unknown) => unknown, arg: unknown) => fn(arg),
+  } as unknown as Page
+  try {
+    const rows = await renderPass(page, { label: 'candidate', name: 'agentic-mermaid', version: 'test', root: '/unused',
+      kind: 'agentic', bundle: 'test.js', global: 'benchmarkApi', identity: { integrity: 'test' } }, 'http://localhost', inputs, 1, 30)
+    expect(calls).toEqual([...inputs.slice(0, 30), ...inputs].map(input => input.source))
+    expect(rows.map(row => row.id)).toEqual(inputs.map(input => input.id))
+    expect(rows[32]?.ok).toBe(false)
+    expect(rows.filter(row => row.ok)).toHaveLength(34)
+  } finally {
+    for (const [key, value] of [['document', priorDocument], ['benchmarkApi', priorApi], ['AGENTIC_MERMAID_ELK_CACHE', priorCache]] as const) {
+      if (value === undefined) delete host[key]
+      else host[key] = value
+    }
+  }
 })
 
 test('agent workload completes a verified edit and renders the original and added labels', () => {
