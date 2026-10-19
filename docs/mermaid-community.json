@@ -2,6 +2,20 @@
   "schemaVersion": 1,
   "checkedAt": "2026-10-18",
   "method": {
+    "supplementalSources": [
+      {
+        "checkedAt": "2026-10-19",
+        "project": "orestesgaolin/mermaid",
+        "sources": [
+          "https://roszkowski.dev/mermaid/",
+          "https://github.com/orestesgaolin/mermaid/blob/3e92b91bcbad0b883ce6a4c8826015b5fa1c10f7/README.md",
+          "https://github.com/orestesgaolin/mermaid/blob/3e92b91bcbad0b883ce6a4c8826015b5fa1c10f7/LICENSE",
+          "https://pub.dev/api/packages/mermaid_core",
+          "https://pub.dev/api/packages/mermaid_flutter"
+        ],
+        "notes": "Added from the requested community demo after the original 2026-10-18 snapshot. GitHub supplied the default-branch head; pub.dev supplied published versions. Existing entries retain their original observation date. The Dart project was not installed or benchmarked, and its git root and package-commit ancestry were not checked."
+      }
+    ],
     "seeds": [
       "every project named in docs/comparison.md",
       "every fork in eval/mindmap-gitgraph-content-corpus/fork-snapshot.json (July 2026 star-ranked top 10 of mermaid-js/mermaid, lukilabs/beautiful-mermaid, AlexanderGrooff/mermaid-ascii)",
@@ -71,6 +85,40 @@
     "outputs": "svg, png, jpeg, pdf, ascii-unicode (includes ANSI-coloured text), ast, diagnostics, mermaid-text, react-flow."
   },
   "nodes": [
+    {
+      "id": "orestesgaolin/mermaid",
+      "relation": "port",
+      "repo": "https://github.com/orestesgaolin/mermaid",
+      "homepage": "https://roszkowski.dev/mermaid/",
+      "checkedAt": "2026-10-19",
+      "branch": "main",
+      "head": "3e92b91bcbad0b883ce6a4c8826015b5fa1c10f7",
+      "lastCommit": "2026-10-19T08:26:47Z",
+      "license": "MIT",
+      "runtime": "Dart >=3.12; Flutter >=3.35 for native widgets and PNG export",
+      "outputs": [
+        "svg",
+        "png"
+      ],
+      "packages": [
+        {
+          "registry": "pub.dev",
+          "name": "mermaid_core",
+          "version": "0.3.0",
+          "license": "MIT"
+        },
+        {
+          "registry": "pub.dev",
+          "name": "mermaid_flutter",
+          "version": "0.3.0",
+          "license": "MIT"
+        }
+      ],
+      "roles": [
+        "peer"
+      ],
+      "notes": "Dart port of Mermaid with its own parser, layout and SVG renderer; mermaid_flutter paints the render scene natively without JavaScript or a WebView. The comparison demo is https://roszkowski.dev/mermaid/. The CLI's PNG export requires an external rasterizer; native PNG export requires a Flutter runner. Published versions were verified through pub.dev on 2026-10-19; the repository manifests are already at 0.3.1. Port classification follows the project's explicit description and LICENSE derivation notice; shared-root lineage and published-package commit ancestry were not checked."
+    },
     {
       "id": "akashacms/mermaid-wasm-renderer",
       "relation": "binding",
@@ -1656,6 +1704,12 @@
     }
   ],
   "edges": [
+    {
+      "from": "orestesgaolin/mermaid",
+      "to": "mermaid-js/mermaid",
+      "relation": "port",
+      "evidence": "https://roszkowski.dev/mermaid/ describes a pure-Dart port of mermaid.js; README.md and LICENSE at 3e92b91bcbad0b883ce6a4c8826015b5fa1c10f7 document its Dart implementation and code derived from mermaid.js."
+    },
     {
       "from": "akashacms/mermaid-wasm-renderer",
       "to": "1jehuang/mermaid-rs-renderer",
