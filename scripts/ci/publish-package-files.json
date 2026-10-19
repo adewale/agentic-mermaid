@@ -40,6 +40,8 @@
     "dist/chunk-[hash].js",
     "dist/chunk-[hash].js",
     "dist/chunk-[hash].js",
+    "dist/elk-constructor.js",
+    "dist/elk-constructor.node.js",
     "dist/families-[hash].d.ts",
     "dist/index-[hash].d.ts",
     "dist/index.d.ts",

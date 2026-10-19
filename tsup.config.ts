@@ -1,3 +1,4 @@
+import { copyFileSync } from 'node:fs'
 import { defineConfig } from 'tsup'
 
 export default defineConfig({
@@ -10,6 +11,8 @@ export default defineConfig({
     // Node-runnable bins for npm consumers (shebang preserved from source).
     am: 'src/cli/am-bin.ts',
     'agentic-mermaid-mcp': 'src/mcp/mcp-bin.ts',
+    // The default target of package.json `#elk-constructor`; see the plugin below.
+    'elk-constructor': 'src/elk-constructor.ts',
   },
   format: ['esm'],
   // Type declarations only for importable library entries, not CLI bins.
@@ -26,4 +29,16 @@ export default defineConfig({
   // development inputs, not runtime dependencies of the published artifact.
   noExternal: ['roughjs', 'perfect-freehand'],
   external: ['@resvg/resvg-js', 'elkjs', 'entities', 'node:vm', 'node:fs', 'node:path', 'node:url', 'node:http', 'node:crypto', 'node:os'],
+  // Leave the ELK constructor to the consumer's resolver: under the `node`
+  // condition Node and Bun load elkjs on first use, while browser and workerd
+  // bundlers of these entries still bundle it. The Node twin is copied as is,
+  // because bundling would hide its literal require from a consumer's bundler.
+  onSuccess: async () => copyFileSync('src/elk-constructor.node.js', 'dist/elk-constructor.node.js'),
+  esbuildPlugins: [{
+    name: 'conditional-elk-constructor',
+    setup(build) {
+      build.onResolve({ filter: /\/elk-constructor\.ts$/ }, args =>
+        args.kind === 'entry-point' ? undefined : { path: '#elk-constructor', external: true })
+    },
+  }],
 })

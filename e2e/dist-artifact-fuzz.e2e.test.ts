@@ -168,7 +168,44 @@ describe('dist artifact differential fuzz (built bundle, plain Node)', () => {
     })
     expect({ status: bundled.status, stderr: bundled.stderr }).toEqual({ status: 0, stderr: '' })
     expect(existsSync(outfile)).toBe(true)
-  }, BUILD_TIMEOUT_MS)
+    // A browser bundler resolves `#elk-constructor` to the bundled ELK, so an
+    // ELK family lays out synchronously with no Node module loader.
+    const rendered = spawnSync('bun', ['--eval', `const { renderMermaidSVG } = await import(${JSON.stringify(outfile)}); console.log(renderMermaidSVG('flowchart TD\\n  A --> B').startsWith('<svg'))`], { cwd: work, encoding: 'utf8', timeout: RUN_TIMEOUT_MS })
+    expect({ status: rendered.status, stdout: rendered.stdout.trim(), stderr: rendered.stderr }).toEqual({ status: 0, stdout: 'true', stderr: '' })
+  }, BUILD_TIMEOUT_MS + RUN_TIMEOUT_MS)
+
+  test('Node loads elkjs only when a family first lays out with it', () => {
+    expect(haveDist).toBe(true)
+    const probe = `
+      import { createRequire } from 'node:module'
+      const require = createRequire(import.meta.url)
+      const loaded = () => Object.keys(require.cache).some(path => path.includes('/elkjs/'))
+      const { renderMermaidSVG } = await import(${JSON.stringify(DIST_CORE)})
+      const states = [loaded()]
+      renderMermaidSVG('sequenceDiagram\\n  A->>B: hi')
+      states.push(loaded())
+      renderMermaidSVG('flowchart TD\\n  A --> B')
+      states.push(loaded())
+      console.log(JSON.stringify(states))`
+    const run = spawnSync(NODE, ['--input-type=module', '--eval', probe], { cwd: REPO, encoding: 'utf8', timeout: RUN_TIMEOUT_MS })
+    expect({ status: run.status, stderr: run.stderr }).toEqual({ status: 0, stderr: '' })
+    // After import, after a sequence diagram, after a flowchart.
+    expect(JSON.parse(run.stdout)).toEqual([false, false, true])
+  }, RUN_TIMEOUT_MS)
+
+  test('a Node bundle of the agent entry carries ELK and needs no node_modules', () => {
+    expect(haveDist).toBe(true)
+    const work = mkdtempSync(join(tmpdir(), 'am-agent-core-node-bundle-'))
+    const entry = join(work, 'entry.mjs')
+    writeFileSync(entry, `import { renderMermaidSVG } from ${JSON.stringify(DIST_CORE)}\nconsole.log(renderMermaidSVG('flowchart TD\\n  A --> B').startsWith('<svg'))\n`)
+    for (const format of ['esm', 'cjs'] as const) {
+      const outfile = join(work, `bundle.${format === 'esm' ? 'mjs' : 'cjs'}`)
+      const bundled = spawnSync('bun', ['build', entry, '--target=node', `--format=${format}`, '--outfile', outfile], { cwd: work, encoding: 'utf8', timeout: BUILD_TIMEOUT_MS })
+      expect({ format, status: bundled.status, stderr: bundled.stderr }).toEqual({ format, status: 0, stderr: '' })
+      const rendered = spawnSync(NODE, [outfile], { cwd: work, encoding: 'utf8', timeout: RUN_TIMEOUT_MS })
+      expect({ format, status: rendered.status, stdout: rendered.stdout.trim(), stderr: rendered.stderr }).toEqual({ format, status: 0, stdout: 'true', stderr: '' })
+    }
+  }, BUILD_TIMEOUT_MS + RUN_TIMEOUT_MS)
 
   test('dist-under-Node matches src-under-Bun: crash parity (all families) + byte-equality (flowcharts)', () => {
     expect(haveDist).toBe(true)

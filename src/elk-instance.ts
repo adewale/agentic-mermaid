@@ -2,7 +2,8 @@
  * Shared ELK instance singleton.
  *
  * Uses elk.bundled.js (pure synchronous JS, ~1.6 MB) for all environments.
- * The singleton is created lazily on first use and cached forever.
+ * The singleton is created lazily on first use and cached forever; the
+ * published Node entries also load elkjs itself then (see elk-constructor.ts).
  *
  * ELK's FakeWorker wraps both postMessage and onmessage in setTimeout(0),
  * making the normal API fully async. To bypass this:
@@ -16,8 +17,7 @@
 import type { ElkNode } from 'elkjs'
 import { assertLayoutGraphWork } from './shared/diagram-limits.ts'
 import { measureRenderStage } from './render-stages.ts'
-// @ts-ignore — static import of bundled ELK
-import ELKBundled from 'elkjs/lib/elk.bundled.js'
+import { elkConstructor } from './elk-constructor.ts'
 
 interface RawFakeWorker {
   postMessage(msg: unknown): void
@@ -40,6 +40,8 @@ let rawWorker: RawFakeWorker | null = null
  */
 function ensureElk(): void {
   if (elk) return
+  // Load elkjs before the patches below, as a static import would have.
+  const ELKBundled = elkConstructor()
 
   // Capture setTimeout(0) callbacks queued during ELK construction
   const pending: (() => void)[] = []
