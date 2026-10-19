@@ -1,4 +1,5 @@
 import { readFileSync, writeFileSync } from 'node:fs'
+import { createHash } from 'node:crypto'
 import { MICRO_WORKLOADS } from './micro-bench-cases.ts'
 import { releaseBenchCases } from './release-bench-cases.ts'
 import { missingSvgLabels, renderAgentEdit, agentEditCase } from './release-bench-fidelity.ts'
@@ -31,21 +32,25 @@ for (const input of cases) {
   }
   const consume = (value: string | Uint8Array): number => typeof value === 'string' ? Buffer.byteLength(value) : value.byteLength
   try {
-    let t = performance.now(); const first = await render(); const bytes = consume(first); const firstMs = performance.now() - t
+    let t = performance.now(); let first: string | Uint8Array | undefined = await render(); const bytes = consume(first); const firstMs = performance.now() - t
     if (!bytes) throw Error('Empty output')
     if (input.output === 'svg' || input.output === 'agent') {
       if (typeof first !== 'string' || !first.includes('<svg')) throw Error('No SVG')
       const missing = missingSvgLabels(first as string, input.labels); if (missing.length) throw Error(`Lost labels: ${missing.join(',')}`)
     }
+    // Fingerprint complete output outside timing; don't retain every output in
+    // the memory checkpoint or mistake two missing PNG witnesses for equality.
+    const witness = createHash('sha256').update(first).digest('hex')
+    first = undefined
     for (let i = 0; i < job.warmup; i++) consume(await render())
     const samplesMs = []
     for (let i = 0; i < job.samples; i++) { t = performance.now(); consume(await render()); samplesMs.push(performance.now() - t) }
     let allocationBytes: number | undefined
     if (allocate) allocationBytes = await allocate(async () => { consume(await render()) })
     collect(); const memory = process.memoryUsage()
-    rows.push({ id: input.id, output: input.output, ok: true, firstMs, samplesMs, medianMs: median(samplesMs), bytes, allocationBytes, memory,
-      ...(typeof first === 'string' ? { witness: first } : { pngSignature: [...first.slice(0, 8)] }) })
+    rows.push({ id: input.id, output: input.output, ok: true, firstMs, samplesMs, medianMs: median(samplesMs), bytes, allocationBytes, memory, witness })
   } catch (error) { rows.push({ id: input.id, output: input.output, ok: false, error: String(error) }) }
 }
+collect()
 writeFileSync(job.out, JSON.stringify({ runtime: process.versions, features: process.env.AGENTIC_MERMAID_EXPERIMENTS ?? '', elkCache: process.env.AGENTIC_MERMAID_ELK_CACHE,
   importMs, loadedMemory, finalMemory: process.memoryUsage(), maxRssKiB: process.resourceUsage().maxRSS, rows }, null, 2))

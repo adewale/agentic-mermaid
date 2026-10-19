@@ -78,9 +78,10 @@ const summaries = configs.map(config => {
       allocationBytes: rows.every(r => r?.allocationBytes !== undefined) ? median(rows.map(r => r.allocationBytes)) : undefined, errors: rows.filter(r => !r?.ok).map(r => r?.error ?? 'missing') }
   })
   const eligible = matched.filter(row => row.complete)
+  const complete = baselineRuns.length === rounds && selected.filter(r => !r.failed).length === rounds && cases.length > 0 && eligible.length === cases.length
   const geomean = (rows: typeof eligible) => rows.length ? Math.exp(rows.reduce((n, r) => n + Math.log(r.medianRatio!), 0) / rows.length) : undefined
-  return { ...config, completedRounds: selected.filter(r => !r.failed).length, complete: eligible.length === cases.length, matched,
-    svgRatio: geomean(eligible.filter(r => r.output === 'svg')), allRatio: geomean(eligible),
+  return { ...config, completedRounds: selected.filter(r => !r.failed).length, complete, matched, eligibleCases: eligible.length, totalCases: cases.length,
+    svgRatio: complete ? geomean(eligible.filter(r => r.output === 'svg')) : undefined, allRatio: complete ? geomean(eligible) : undefined,
     maxRssKiB: selected.every(r => !r.failed) ? median(selected.map(r => r.maxRssKiB)) : undefined,
     retainedHeapBytes: selected.every(r => !r.failed) ? median(selected.map(r => r.finalMemory.heapUsed)) : undefined }
 })
