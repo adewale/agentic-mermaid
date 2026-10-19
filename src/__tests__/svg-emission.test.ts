@@ -1,5 +1,7 @@
 import { describe, expect, test } from 'bun:test'
-import type { ShapeMark } from '../scene/ir.ts'
+import type { SceneDoc, ShapeMark } from '../scene/ir.ts'
+import * as marks from '../scene/marks.ts'
+import { admitSceneDocument, snapshotBoundedExternalData, EXTERNAL_SCENE_DOCUMENT_SNAPSHOT_LIMITS } from '../scene/external-data-snapshot.ts'
 import {
   measureSvgEmission, serializeSvgEmission, snapshotSvgEmissionRecipe,
   SVG_EMISSION_METADATA_LIMITS, svgEmissionMetadataCounts, svgValue as v,
@@ -53,6 +55,17 @@ describe('bounded SVG writer', () => {
     expect(writer.bytes).toBe(5)
     expect(() => writer.write('x')).toThrow(/exceeds/)
     expect(() => writer.finish()).toThrow(/no retained output/)
+  })
+
+  test('empty chunks do not create indentation for empty children', () => {
+    const writer = new SvgWriter()
+    const child = writer.indented(2)
+    child.write('')
+    expect(writer.finish()).toBe('')
+    child.write('A\n')
+    child.write('')
+    child.write('B')
+    expect(writer.finish()).toBe('  A\n  B')
   })
 })
 
@@ -123,5 +136,32 @@ describe('private typed SVG recipes', () => {
       const recipe = snapshotSvgEmissionRecipe({ kind: 'primitive', attributes: [{ name: 'x', value }] })
       expect(() => serializeSvgEmission(rectangle(), recipe)).toThrow(/typed geometry|matching semantic field/)
     }
+  })
+
+  test('a retained ordinary Scene still receives explicitly requested fidelity checks', () => {
+    const colors = { bg: '#ffffff', fg: '#111111' }
+    const scene: SceneDoc = { family: 'flowchart', width: 20, height: 20, colors, transparent: false, parts: [
+      marks.documentOpen({ id: 'prelude', width: 20, height: 20, colors, transparent: false, font: 'Inter', hasMonoFont: false }, {
+        kind: 'prelude', width: 20, height: 20, colors, transparent: false, font: 'Inter', hasMonoFont: false, children: [],
+      }),
+      // A plausible lowering omission: the semantic box exists, but its ink
+      // lacks coordinates/dimensions. Ordinary structural admission accepts
+      // the data; a later requested cross-check must find the missing box.
+      marks.shape({ id: 'box', role: 'node', geometry: { kind: 'rect', x: 1, y: 2, width: 3, height: 4 }, paint: {} }, {
+        kind: 'primitive', attributes: [],
+      }),
+      marks.documentClose(),
+    ] }
+    const retained = admitSceneDocument(scene, 'internal', false)
+    expect(retained).toBe(scene)
+    expect(() => admitSceneDocument(retained, 'internal', true)).toThrow(/SCENE_FIDELITY/)
+  })
+
+  test('external snapshot never invokes derived group views on mutable source fields', () => {
+    const group = marks.group({ id: 'group', role: 'group', emission: { kind: 'group', attributes: [] }, children: [] })
+    let reads = 0
+    Object.defineProperty(group, 'identity', { enumerable: true, get() { reads++; return { id: 'hostile', role: 'group' } } })
+    expect(() => snapshotBoundedExternalData(group, EXTERNAL_SCENE_DOCUMENT_SNAPSHOT_LIMITS)).toThrow(/enumerable data property/)
+    expect(reads).toBe(0)
   })
 })
