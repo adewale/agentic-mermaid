@@ -75,6 +75,9 @@ describe('parseClassDiagram – class definitions', () => {
     // Text that cannot hold a line break stays on its line.
     ['backtick name spanning lines', 'class `A\nB`', 'Unrecognized class statement'],
     ['link tooltip spanning lines', 'class A\nclick A href "https://example.com" "first\nsecond"', 'Unrecognized class link statement'],
+    // A member runs to a brace: Mermaid rejects a `{` inside a class block.
+    ['open brace among the members on a block\'s line', 'namespace N {\nclass A {   lass B{\nint x\n}\n}', 'Unrecognized class statement "class A {   lass B{"'],
+    ['open brace before the block closes on its line', 'class A { +x{ }', 'Unrecognized class statement "class A { +x{ }"'],
   ])('refuses a partial drawing for %s', (_name, source, reason) => {
     expect(() => parse(`classDiagram\n${source}`)).toThrow(reason)
   })

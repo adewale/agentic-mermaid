@@ -554,7 +554,9 @@ function splitBlockLineMembers(text: string): string[] {
 /** Mermaid's lexer ends a statement at a brace, not only at a line break: a
  * class block's `{`, members and `}` may share its line (`class A {+x}`), and
  * a statement's `}` may close the namespace around it (`class B }`). The
- * statements such a line holds, to read one by one, or null. */
+ * statements such a line holds, to read one by one, or null. A member runs
+ * to a brace, and a `{` in the block is a parse error in Mermaid
+ * (`class A { lass B{`), so such a line stays unrecognized. */
 function splitClassBlockStatement(text: string, inNamespace: boolean): string[] | null {
   const open = /^class\s/.test(text) ? classBodyOpenAt(text) : -1
   const head = text.slice(0, open + 1)
@@ -562,6 +564,7 @@ function splitClassBlockStatement(text: string, inNamespace: boolean): string[] 
   if (declared?.kind === 'class' && declared.declaration.opensBody) {
     const rest = text.slice(open + 1)
     const close = rest.indexOf('}')
+    if (rest.slice(0, close < 0 ? undefined : close).includes('{')) return null
     const after = close < 0 ? '' : rest.slice(close)
     // After the class's `}` Mermaid reads only braces closing namespaces;
     // ours also reads a statement there, and verify reports it.
