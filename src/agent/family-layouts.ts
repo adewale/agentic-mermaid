@@ -1,4 +1,5 @@
 import { positionedPaintCertification } from '../scene/positioned.ts'
+import { assertScenesOf } from '../scene/assertions.ts'
 import { PaintLayoutCertificationError, retainRenderedPaintCertification } from '../scene/paint-certification.ts'
 // ============================================================================
 // Canonical positioned-artifact → RenderedLayout projections.
@@ -82,6 +83,8 @@ export interface PositionFamilyArtifactOptions extends FamilyPositionedProjectio
   renderOptions?: RenderOptions
   /** Internal adapter selection; public layout remains the default. */
   output?: Extract<RenderOutput, 'layout' | 'svg'>
+  /** Cross-check every built-in Scene lowered for this artifact, as verify does. */
+  assertScenes?: boolean
 }
 
 /** A descriptor layout/projection failure with enough context for public
@@ -200,6 +203,7 @@ export function positionFamilyArtifact(d: ParsedDiagram, options: PositionFamily
   const projectSource = (text: string): ProjectedFamilyArtifact => {
     const output = options.output ?? 'layout'
     const request = resolveRenderRequest(text, options.renderOptions ?? {}, output, output === 'layout' ? projectionOptions : undefined)
+    if (options.assertScenes) assertScenesOf(request)
     return positionResolvedFamilyArtifact(d, request, projectionOptions)!
   }
 

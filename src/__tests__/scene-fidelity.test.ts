@@ -10,6 +10,8 @@
 // unfaithful mark, not just the first.
 
 import { describe, test, expect } from 'bun:test'
+import { spawnSync } from 'node:child_process'
+import { join } from 'node:path'
 import type { RenderOptions } from '../types.ts'
 import { inspectScenePrimitives } from '../scene/inspection.ts'
 import { SECTION_B_FAMILY_CENSUS_FIXTURES } from '../scene/section-b-census-fixtures.ts'
@@ -210,5 +212,52 @@ describe('scene fidelity', () => {
       expect(first, `${scene.id} (${scene.family})`).toContain('<svg')
       expect(first, `${scene.id} (${scene.family})`).not.toMatch(/NaN|undefined/)
     }
+  })
+})
+
+describe('built-in Scene cross-checks', () => {
+  test('render skips them unless scene assertions are on; verify, strict renders and ASCII always run them', () => {
+    // A lowering that stores a connector projection disagreeing with the one
+    // derived from its own semantics. Fresh processes control the variable the
+    // test preload sets.
+    const probe = (assertions: boolean) => {
+      const env = { ...process.env }
+      if (assertions) env.AGENTIC_MERMAID_SCENE_ASSERTIONS = '1'
+      else delete env.AGENTIC_MERMAID_SCENE_ASSERTIONS
+      const result = spawnSync(process.execPath, ['--eval', `
+        const { getFamily, replaceFamilyForTest } = await import('./src/agent/families.ts')
+        const { renderMermaidSVG, renderMermaidASCIIWithReceipt } = await import('./src/index.ts')
+        const { verifyMermaid } = await import('./src/agent/verify.ts')
+        const descriptor = getFamily('flowchart')
+        const lowerScene = descriptor.lowerScene
+        const connectors = node => node.kind === 'connector' ? [node] : node.kind === 'group' ? node.children.flatMap(child => connectors(child.node)) : []
+        replaceFamilyForTest('flowchart', { ...descriptor, lowerScene(context) {
+          const scene = lowerScene(context)
+          const connector = scene.parts.flatMap(connectors)[0]
+          connector.terminalProjection = { ...connector.terminalProjection, relationship: 'not-derived' }
+          return scene
+        } })
+        const source = 'flowchart LR\\n  A --> B'
+        const attempt = run => { try { run(); return 'rendered' } catch (error) { return error.message } }
+        const render = attempt(() => renderMermaidSVG(source))
+        const strict = attempt(() => renderMermaidSVG(source, { layoutSafety: 'strict' }))
+        const verify = verifyMermaid(source).warnings.filter(warning => warning.code === 'RENDER_FAILED').map(warning => warning.reason)
+        const ascii = renderMermaidASCIIWithReceipt(source).terminalStyle.diagnostics.map(diagnostic => diagnostic.code)
+        console.log(JSON.stringify({ render, strict, verify, ascii }))
+      `], { cwd: join(import.meta.dir, '..', '..'), env, encoding: 'utf8' })
+      expect({ status: result.status, stderr: result.stderr }).toEqual({ status: 0, stderr: '' })
+      return JSON.parse(result.stdout) as { render: string; strict: string; verify: string[]; ascii: string[] }
+    }
+    const projectionMismatch = /terminalProjection: must equal the canonical projection derived from connector semantics/
+    const off = probe(false)
+    expect(off.render).toBe('rendered')
+    // Strict layout safety, verify and the ASCII connector projection, which
+    // all rely on the derived facts, still cross-check them.
+    expect(off.strict).toMatch(projectionMismatch)
+    expect(off.verify.join('\n')).toMatch(projectionMismatch)
+    expect(off.ascii).toContain('TERMINAL_CONNECTOR_PROJECTION_UNAVAILABLE')
+    const on = probe(true)
+    expect(on.render).toMatch(projectionMismatch)
+    expect(on.verify.join('\n')).toMatch(projectionMismatch)
   })
 })

@@ -246,11 +246,13 @@ export function executeTerminalRender(
     if (family.lowerScene && family.layout) {
       try {
         const layout = positionResolvedFamily(diagramType, request, normalizedSource)
+        // ASCII draws from the connectors' terminal projections, so their
+        // derivation is always cross-checked here.
         connectorScene = admitFamilyScene(family, family.lowerScene({
           positioned: layout.positioned,
           colors: connectorSceneColors(request.appearance.colors),
           resolved: familyContext,
-        }))
+        }), true)
       } catch {
         // Optional pixel evidence must not become a native layout dependency.
         failed = true

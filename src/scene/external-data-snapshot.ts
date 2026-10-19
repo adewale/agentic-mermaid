@@ -9,7 +9,8 @@
 
 import { transferRetainedPixelText } from '../shared/prepared-text.ts'
 import type { SceneDoc } from './ir.ts'
-import { SCENE_VALIDATION_LIMITS, assertValidSceneDoc, sceneValidationMode } from './scene-validation.ts'
+import { SCENE_VALIDATION_LIMITS, assertAdmissibleSceneDoc, sceneValidationMode } from './scene-validation.ts'
+import { sceneAssertionsEnabled } from './assertions.ts'
 import { boundedUtf8ByteLength } from '../shared/utf8.ts'
 import { transferSceneNodeSerialization } from './serialization.ts'
 
@@ -347,7 +348,7 @@ export function admitBackendSceneDocument(value: unknown): SceneDoc {
 
 /** Family admission chooses its rule set explicitly; backend admission infers
  * it from the captured snapshot. Both reuse only our admitted immutable data. */
-export function admitSceneDocument(value: unknown, mode?: 'internal' | 'external'): SceneDoc {
+export function admitSceneDocument(value: unknown, mode?: 'internal' | 'external', crossChecks = sceneAssertionsEnabled()): SceneDoc {
   // Look up before reading any property: a caller Proxy sees no trap here.
   const prior = typeof value === 'object' && value !== null ? ADMITTED_SCENES.get(value) : undefined
   if (prior !== undefined && prior === (mode ?? sceneValidationMode(value))) return value as SceneDoc
@@ -359,7 +360,7 @@ export function admitSceneDocument(value: unknown, mode?: 'internal' | 'external
   const admitted = mode === 'internal'
     ? freezeBoundedFirstPartyData(value, EXTERNAL_SCENE_DOCUMENT_SNAPSHOT_LIMITS, 'scene')
     : snapshotBoundedExternalData(value, EXTERNAL_SCENE_DOCUMENT_SNAPSHOT_LIMITS, 'scene')
-  assertValidSceneDoc(admitted, { mode })
+  assertAdmissibleSceneDoc(admitted, mode, mode !== 'internal' || crossChecks)
   recordAdmittedScene(admitted as SceneDoc, mode ?? sceneValidationMode(admitted))
   return admitted as SceneDoc
 }

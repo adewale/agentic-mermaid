@@ -15,6 +15,11 @@
 // and replay runs. See helpers/fc-parameters.ts.
 import fc from 'fast-check'
 
+// Built-in Scene cross-checks (src/scene/assertions.ts) run in every unit
+// test, and in the processes those tests spawn, so a lowering bug fails here
+// rather than only in verify. It must be set before src/ is imported.
+process.env.AGENTIC_MERMAID_SCENE_ASSERTIONS = '1'
+
 export const DEFAULT_FC_SEED = 20260702
 
 const raw = process.env.AM_FC_SEED
