@@ -237,8 +237,9 @@ export interface StateStatementScan {
 }
 
 // A name starts with a letter or digit; a hyphen continues it unless it
-// starts an arrow (`A-->B`).
-const STATEMENT_ENDPOINT_AT = /(?:\[\*\]|\[H\*?\]|[\w\p{L}](?:[\w\p{L}]|-(?!->))*(?:\[H\*?\])?)(?::::(?:\w|-(?!->))+)?/uy
+// starts an arrow (`A-->B`), as in a class name after `:::`.
+const STATEMENT_ENDPOINT_AT = /\[\*\]|\[H\*?\]|[\w\p{L}](?:[\w\p{L}]|-(?!->))*(?:\[H\*?\])?/uy
+const ENDPOINT_CLASS_AT = /(?:\w|-(?!->))+/y
 const STATEMENT_KEYWORD_AT = /(?:classDef|class|cssClass|style|linkStyle|direction|scale|hide|note|end|click)(?=[ \t]|$)/y
 const STATE_KEYWORD_AT = /state[ \t]+/y
 const STATE_ID_AT = /[\w\p{L}-]+/uy
@@ -246,7 +247,7 @@ const STATE_AS_AT = /[ \t]+as[ \t]+/y
 const STATE_AS_WORD_AT = /[ \t]+as(?=[ \t]|$)/y
 const STEREOTYPE_AT = /[ \t]*<<[^>\n]*>>/y
 const OPEN_BRACE_AT = /[ \t]*\{/y
-const CLASS_SHORTHAND_AT = /:::[\w-]+/y
+const CLASS_SHORTHAND_AT = /:::[ \t]*([\w-]+)/y
 const SEPARATOR_AT = /-{2,}(?=[ \t;}]|$)/y
 
 function matchAt(pattern: RegExp, text: string, index: number): string | null {
@@ -357,38 +358,67 @@ export function readStateStatements(lines: readonly StateSourceLine[]): StateSta
       cursor.column = 0
     }
   }
+  /** An endpoint at the cursor: a name, `[*]` or a history reference, with
+   *  an optional `:::class`. Mermaid's lexer skips the blanks around `:::`
+   *  (inside a composite, line breaks too), so `A ::: c` is `A:::c`, as it is
+   *  written here. Advances the cursor past it; null leaves the cursor. */
+  const readEndpoint = (cursor: { row: number; column: number }): string | null => {
+    const name = matchAt(STATEMENT_ENDPOINT_AT, logical[cursor.row]!.text, cursor.column)
+    if (name === null) return null
+    let endpoint = name
+    const end = { row: cursor.row, column: cursor.column + name.length }
+    const shorthand = { ...end }
+    skipSpace(shorthand)
+    if (logical[shorthand.row]!.text.startsWith(':::', shorthand.column)) {
+      shorthand.column += 3
+      skipSpace(shorthand)
+      const className = matchAt(ENDPOINT_CLASS_AT, logical[shorthand.row]!.text, shorthand.column)
+      if (className === null) return null
+      endpoint += `:::${className}`
+      end.row = shorthand.row
+      end.column = shorthand.column + className.length
+    }
+    if (!endsName(logical[end.row]!.text, end.column)) return null
+    noteBraceAfter(end.row, end.column)
+    cursor.row = end.row
+    cursor.column = end.column
+    return endpoint
+  }
   /** `A` or `A --> B`, either with a description; null leaves the cursor. */
-  const readIdStatement = (): string | null => {
-    const first = logical[row]!.text
-    const left = matchAt(STATEMENT_ENDPOINT_AT, first, column)
-    if (left === null || !endsName(first, column + left.length)) return null
-    noteBraceAfter(row, column + left.length)
-    const cursor = { row, column: column + left.length }
+  const readIdStatement = (): { text: string; also?: string } | null => {
+    const cursor = { row, column }
+    const left = readEndpoint(cursor)
+    if (left === null) return null
     let statement = left
     const arrow = { ...cursor }
     skipSpace(arrow)
-    if (logical[arrow.row]!.text.startsWith('-->', arrow.column)) {
+    const transition = logical[arrow.row]!.text.startsWith('-->', arrow.column)
+    if (transition) {
       arrow.column += 3
       skipSpace(arrow)
-      const text = logical[arrow.row]!.text
-      const right = matchAt(STATEMENT_ENDPOINT_AT, text, arrow.column)
-      if (right === null || !endsName(text, arrow.column + right.length)) return null
-      noteBraceAfter(arrow.row, arrow.column + right.length)
+      const right = readEndpoint(arrow)
+      if (right === null) return null
       statement += ` --> ${right}`
       cursor.row = arrow.row
-      cursor.column = arrow.column + right.length
+      cursor.column = arrow.column
     }
     const text = logical[cursor.row]!.text
     const colon = skipBlank(text, cursor.column)
+    let also: string | undefined
     if (text[colon] === ':') {
       const end = textEnd(text, colon, cursor.row)
       if (end < text.length) braceTextLines.add(logical[cursor.row]!.line)
-      statement += ` ${text.slice(colon, end).trimEnd()}`
+      const description = text.slice(colon, end).trimEnd()
+      // `A:::c : text` is A's class and its description, read as the two
+      // statements `A:::c` and `A : text`.
+      const shorthand = transition ? -1 : left.indexOf(':::')
+      if (shorthand < 0) statement += ` ${description}`
+      else also = `${left.slice(0, shorthand)} ${description}`
       cursor.column = end
     }
     row = cursor.row
     column = cursor.column
-    return statement
+    return { text: statement, ...(also !== undefined ? { also } : {}) }
   }
   /** `: text` or `:::c` after `state "label" as id`. Mermaid's name after
    *  `as` runs to a `{` or the line's end, and it splits that name at `:`
@@ -400,14 +430,15 @@ export function readStateStatements(lines: readonly StateSourceLine[]): StateSta
     const line = logical[row]!.line
     const declaration = `state ${label}${id}`
     const colon = skipBlank(text, at)
-    const shorthand = matchAt(CLASS_SHORTHAND_AT, text, colon)
+    CLASS_SHORTHAND_AT.lastIndex = colon
+    const shorthand = CLASS_SHORTHAND_AT.exec(text)
     if (shorthand !== null) {
-      const next = skipBlank(text, colon + shorthand.length)
+      const next = skipBlank(text, colon + shorthand[0].length)
       if (next < text.length && text[next] !== ';' && text[next] !== '}') return null
       noteBraceAfter(row, next)
       aliasSuffixLines.add(line)
-      column = colon + shorthand.length
-      return { text: declaration, opens: false, also: `${id}${shorthand}` }
+      column = colon + shorthand[0].length
+      return { text: declaration, opens: false, also: `${id}:::${shorthand[1]}` }
     }
     // A `{` makes Mermaid read a composite named `id : text`.
     if (text.startsWith(':::', colon) || text.includes('{', colon)) return null
@@ -527,15 +558,15 @@ export function readStateStatements(lines: readonly StateSourceLine[]): StateSta
     const startRow = row
     const keyword = matchAt(STATE_KEYWORD_AT, text, column)
     const declaration = keyword === null ? null : readStateDeclaration(column + keyword.length)
-    const statement = declaration?.text ?? (keyword === null ? readIdStatement() : null)
-    if (statement !== null) {
-      emit(statement, line, declaration?.opens ?? false)
+    const read = declaration ?? (keyword === null ? readIdStatement() : null)
+    if (read !== null) {
+      emit(read.text, line, declaration?.opens ?? false)
       if (declaration?.opens) {
         statements.at(-1)!.opens = true
         depth++
       }
       // `state "L" as X : text` is read as `state "L" as X` and `X : text`.
-      if (declaration?.also !== undefined) statements.push({ text: declaration.also, line })
+      if (read.also !== undefined) statements.push({ text: read.also, line })
       if (row !== startRow) mark = { statements: statements.length, depth, column }
       continue
     }

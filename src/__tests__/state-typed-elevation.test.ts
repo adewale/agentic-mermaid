@@ -503,6 +503,11 @@ describe('State statements across and within lines', () => {
     ['state X {\nA\n}\n} B', ['A:rounded:A', 'B:rounded:B', 'X:X{A}'], ['state_brace_unopened@5']],
     ['A --> B}', ['A:rounded:A', 'B:rounded:B', 'A->B'], ['state_brace_after_name@2']],
     ['[*]:::hot --> A', ['_start:state-start:', 'A:rounded:A', '_start->A', '_start:::hot'], []],
+    // Mermaid's lexer skips blanks around `:::` (and a line break inside a
+    // composite), and `A:::c : text` is A's class and description.
+    ['A :::hot --> B ::: cold : go', ['A:rounded:A', 'B:rounded:B', 'A->B:go', 'A:::hot', 'B:::cold'], []],
+    ['A :::hot : desc', ['A:rounded:desc', 'A:::hot'], []],
+    ['state X {\nA\n:::hot --> B\n}', ['A:rounded:A', 'B:rounded:B', 'A->B', 'X:X{A B}', 'A:::hot'], []],
     ['state X {\nA --> [*]:::hot : done\n}', ['A:rounded:A', '_end:state-end:', 'A->_end:done', 'X:X{A _end}', '_end:::hot'], []],
     ['note right of A line1\nline2\nend note', ['A:rounded:A', 'note right of A:line1\nline2'], []],
     // A block note opened after another statement keeps its lines whole.
@@ -517,6 +522,7 @@ describe('State statements across and within lines', () => {
     // class after `:::` and text after a second colon, which ours keeps.
     ['state "x" as A : desc\nA --> B', ['A:rounded:x\ndesc', 'B:rounded:B', 'A->B'], []],
     ['state "x" as A:::hot', ['A:rounded:x', 'A:::hot'], ['state_alias_suffix@2']],
+    ['state "x" as A ::: hot', ['A:rounded:x', 'A:::hot'], ['state_alias_suffix@2']],
     ['state "x" as A : d1 : d2', ['A:rounded:x\nd1 : d2'], ['state_alias_suffix@2']],
     ['state X {\nstate "x" as A : desc }', ['A:rounded:x\ndesc', 'X:X{A}'], ['state_brace_after_description@3']],
     // A line inside the string is its text, never an accTitle.
