@@ -39,6 +39,41 @@ describe('parseXYChart – syntax', () => {
     expect(chart.series[0]!.data).toEqual([10, 20])
   })
 
+  it('reads statements that share a line as Mermaid does, and quoted text across lines', () => {
+    const bar = (data: number[], label?: string) => ({ type: 'bar', label, data })
+    const line = (data: number[], label?: string) => ({ type: 'line', label, data })
+    const cases: Array<[string, object]> = [
+      ['bar [1, 2, 3] line [3, 2, 1]', { series: [bar([1, 2, 3]), line([3, 2, 1])] }],
+      ['line [1, 2, 3] bar [3, 2, 1]', { series: [line([1, 2, 3]), bar([3, 2, 1])] }],
+      ['bar [1, 2, 3] bar [3, 2, 1]', { series: [bar([1, 2, 3]), bar([3, 2, 1])] }],
+      ['bar [1]line [2]', { series: [bar([1]), line([2])] }],
+      ['bar "Sales" [1, 2, 3] line "Trend" [3, 2, 1]', { series: [bar([1, 2, 3], 'Sales'), line([3, 2, 1], 'Trend')] }],
+      ['x-axis [a, b, c] bar [1, 2, 3]', { xAxis: { categories: ['a', 'b', 'c'] }, series: [bar([1, 2, 3])] }],
+      ['x-axis Months bar [1, 2, 3]', { xAxis: { title: 'Months' }, series: [bar([1, 2, 3])] }],
+      ['title "T" bar [1, 2, 3]', { title: 'T', series: [bar([1, 2, 3])] }],
+      ['title My Chart bar [1, 2]', { title: 'My Chart', series: [bar([1, 2])] }],
+      ['y-axis "Y" 0 --> 10 bar [1, 2, 3]', { yAxis: { title: 'Y', range: { min: 0, max: 10 } }, series: [bar([1, 2, 3])] }],
+      // A keyword stays text inside quotes, in a series label before its
+      // data, and between words of an unquoted title.
+      ['bar "bar [9] line" [1]', { series: [bar([1], 'bar [9] line')] }],
+      ['bar Product line A [1, 2, 3]', { series: [bar([1, 2, 3], 'Product line A')] }],
+      ['title The title of the x-axis vs line\nbar [1]', { title: 'The title of the x-axis vs line', series: [bar([1])] }],
+      // Quoted text keeps its line break, even before a line that starts with a keyword.
+      ['title "multi\nline"\nbar [1, 2]', { title: 'multi\nline', series: [bar([1, 2])] }],
+      ['x-axis "t\nx" [a, b]', { xAxis: { title: 't\nx', categories: ['a', 'b'] } }],
+      ['x-axis ["a\nb", c]', { xAxis: { categories: ['a\nb', 'c'] } }],
+      ['bar "Sa\nles" [1 "a\nb"]', { series: [{ type: 'bar', label: 'Sa\nles', data: [1], pointLabels: ['a\nb'] }] }],
+    ]
+    for (const [body, expected] of cases) {
+      for (const strict of [false, true]) {
+        const chart = parseXYChart(preprocessMermaidSource(`xychart-beta\n${body}`).lines, { strict })
+        expect(chart, `${body} (strict: ${strict})`).toMatchObject(expected)
+      }
+    }
+    // A data list cannot span lines.
+    expect(() => parse('xychart-beta\nbar [1, 2,\n3]')).toThrow()
+  })
+
   it('treats axis titles, ranges, and categories as independent component updates', () => {
     const after = parse(`xychart-beta
       x-axis [Jan, Feb]

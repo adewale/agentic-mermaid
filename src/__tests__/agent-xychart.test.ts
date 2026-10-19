@@ -130,6 +130,15 @@ describe('xychart structured-or-opaque fallback', () => {
     expect(d.body.series[0]?.values).toEqual([1, 2])
   })
 
+  test('statements sharing a line and quoted text across lines stay structured through the writer', () => {
+    const d = xychart('xychart-beta\n  title "multi\nline" bar "Sales" [1, 2] line [2, 1]')
+    expect(d.body).toMatchObject({
+      title: 'multi\nline',
+      series: [{ kind: 'bar', name: 'Sales', values: [1, 2] }, { kind: 'line', values: [2, 1] }],
+    })
+    expect(xychart(serializeMermaid(d)).body).toEqual(d.body)
+  })
+
   test('header-line semicolons use the shared grammar and remain structured', () => {
     const d = xychart('xychart-beta horizontal; accTitle: Accessible; bar [1, 2]')
     expect(d.body.horizontal).toBe(true)

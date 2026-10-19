@@ -133,6 +133,31 @@ describe('xychart layout – axis placement', () => {
     expect(chart.yAxis.ticks[0]!.textAnchor).toBe('middle')
   })
 
+  it('stacks an axis title\'s authored lines between its tick labels and the canvas edge', () => {
+    for (const header of ['xychart', 'xychart horizontal']) {
+      const chart = layout(`${header}
+        x-axis "one\ntwo\nthree" [Jan, Feb]
+        y-axis "Users\nper day" 0 --> 100
+        bar [10, 20]`)
+      for (const axis of [chart.xAxis, chart.yAxis]) {
+        const title = axis.title!
+        const half = title.block!.height / 2
+        const ticks = axis.ticks.filter(tick => tick.label)
+        expect(title.block!.lines.length, header).toBeGreaterThan(1)
+        if (title.rotate) {
+          expect(title.x - half).toBeGreaterThanOrEqual(0)
+          expect(title.x + half).toBeLessThanOrEqual(Math.min(...ticks.map(tick => tick.labelX - tick.block!.width)))
+        } else if (title.y > chart.plotArea.y) {
+          expect(title.y + half).toBeLessThanOrEqual(chart.height)
+          expect(title.y - half).toBeGreaterThanOrEqual(Math.max(...ticks.map(tick => tick.labelY + tick.block!.height / 2)))
+        } else {
+          expect(title.y - half).toBeGreaterThanOrEqual(0)
+          expect(title.y + half).toBeLessThanOrEqual(Math.min(...ticks.map(tick => tick.labelY - tick.block!.height / 2)))
+        }
+      }
+    }
+  })
+
   it('propagates axis visibility config into the positioned chart', () => {
     const chart = layout(`---
 config:
