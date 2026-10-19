@@ -629,7 +629,9 @@ export interface StateNode {
   transitions?: StateTransition[]
   /** Parallel regions split by `--`; mutually exclusive with states/transitions. */
   regions?: StateRegion[]
-  /** Assigned classDef name (`A:::hot` / `class A hot`). */
+  /** Assigned classDef names (`A:::hot` / `class A hot`), space-separated in
+   *  assignment order: a state takes every class assigned to it, as in
+   *  Mermaid. `set_state_class` replaces them with one class. */
   className?: string
   /** Inline state paint (`style A fill:#...`). */
   style?: Record<string, string>

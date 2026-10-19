@@ -716,7 +716,7 @@ function parseStateDiagram(lines: string[]): MermaidGraph {
     if (stateClassAssignment) {
       for (const id of stateClassAssignment.ids) {
         if (!compositeStateIds.has(id)) ensureStateNode(graph, compositeStack, id)
-        graph.classAssignments.set(id, stateClassAssignment.className)
+        appendGraphClass(graph.classAssignments, id, stateClassAssignment.className)
         if (parserObservationActive('state')) observeParserMutation('state', 'assign-class', { id, name: stateClassAssignment.className })
       }
       continue
@@ -877,11 +877,11 @@ function parseStateDiagram(lines: string[]): MermaidGraph {
       const sourceId = resolveEndpoint(transition.from, 'source')
       const targetId = resolveEndpoint(transition.to, 'target')
       if (transition.fromClass) {
-        graph.classAssignments.set(sourceId, transition.fromClass)
+        appendGraphClass(graph.classAssignments, sourceId, transition.fromClass)
       if (parserObservationActive('state')) observeParserMutation('state', 'assign-class', { id: sourceId, name: transition.fromClass })
       }
       if (transition.toClass) {
-        graph.classAssignments.set(targetId, transition.toClass)
+        appendGraphClass(graph.classAssignments, targetId, transition.toClass)
         if (parserObservationActive('state')) observeParserMutation('state', 'assign-class', { id: targetId, name: transition.toClass })
       }
       const edgeLabel = transition.label ? normalizeBrTags(transition.label) : undefined
@@ -905,7 +905,7 @@ function parseStateDiagram(lines: string[]): MermaidGraph {
     const stateClass = parseClassShorthandStatement(line)
     if (stateClass) {
       if (!compositeStateIds.has(stateClass.id)) ensureStateNode(graph, compositeStack, stateClass.id)
-      graph.classAssignments.set(stateClass.id, stateClass.className)
+      appendGraphClass(graph.classAssignments, stateClass.id, stateClass.className)
       if (parserObservationActive('state')) observeParserMutation('state', 'assign-class', { id: stateClass.id, name: stateClass.className })
       continue
     }

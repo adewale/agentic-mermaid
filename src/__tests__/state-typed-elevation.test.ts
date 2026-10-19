@@ -377,6 +377,22 @@ stateDiagram-v2
     } finally { upstream.close() }
   })
 
+  test('a state keeps every class assigned to it, in order, as Mermaid does', async () => {
+    const source = 'stateDiagram-v2\n  A:::a --> B\n  A:::b --> C\n  class A c'
+    const diagram = state(source)
+    expect(diagram.body.states.find(node => node.id === 'A')?.className).toBe('a b c')
+    expect(parseRenderGraph(source).classAssignments.get('A')).toBe('a b c')
+    const serialized = serializeMermaid(diagram)
+    expect(state(serialized).body).toEqual(diagram.body)
+    const upstream = startUpstreamMermaid()
+    try {
+      const classes = (mermaid: { db: any }) => mermaid.db.getData().nodes.find((node: { id: string }) => node.id === 'A').cssClasses
+      expect(await upstream.projectAll([source, serialized], classes)).toEqual(['a b c statediagram-state', 'a b c statediagram-state'])
+    } finally { upstream.close() }
+    // Setting a state's class replaces them all.
+    expect(apply(diagram, { kind: 'set_state_class', id: 'A', className: 'd' }).body.states.find(node => node.id === 'A')?.className).toBe('d')
+  })
+
   test('a class named like an Object.prototype key is an ordinary class', () => {
     const parsed = state('stateDiagram-v2\n  classDef __proto__ fill:#ff0000\n  A:::__proto__')
     const defined = apply(state('stateDiagram-v2\n  A:::__proto__'), { kind: 'define_class', name: '__proto__', style: 'fill:#0000ff' })

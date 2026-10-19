@@ -60,6 +60,7 @@ import {
   STATE_CLASS_DEF_RE, STATE_STYLE_RE, STATE_LINK_STYLE_RE,
 } from '../state/parse-core.ts'
 import { parseClassShorthandStatement } from '../shared/mermaid-identifiers.ts'
+import { graphClassNames } from '../shared/graph-classes.ts'
 
 /** `record[key] = value` as an own key: a class may be named `__proto__`,
  *  which an assignment would take as the record's prototype. */
@@ -413,7 +414,11 @@ export function parseStateBody(lines: string[]): StateBody | null {
     stateById.set(id, state)
     return state
   }
-  for (const { id, className, scope } of classAssignments) styledState(scope, id).className = className
+  // A state takes every class assigned to it, in order, as in Mermaid.
+  for (const { id, className, scope } of classAssignments) {
+    const state = styledState(scope, id)
+    state.className = state.className === undefined ? className : `${state.className} ${className}`
+  }
   for (const { id, props, scope } of inlineStyles) {
     const state = styledState(scope, id)
     state.style = { ...state.style, ...props }
@@ -542,7 +547,7 @@ export function renderState(body: StateBody): string {
   }
   collect(body.states, body.transitions)
   for (const state of styledStates) {
-    if (state.className) out.push(`  class ${state.id} ${state.className}`)
+    for (const className of graphClassNames(state.className)) out.push(`  class ${state.id} ${className}`)
     if (state.style) out.push(`  style ${state.id} ${styleText(state.style)}`)
   }
   if (body.defaultTransitionStyle) out.push(`  linkStyle default ${styleText(body.defaultTransitionStyle)}`)
