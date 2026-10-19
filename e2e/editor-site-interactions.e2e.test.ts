@@ -224,7 +224,7 @@ describe('editor and site interactions in a real browser', () => {
     await page.close()
   }, 60_000)
 
-  test.each(['access', 'operation'] as const)('the editor boots, edits and switches color mode when storage %s is denied', async failure => {
+  test.each(['access', 'operation'] as const)('the editor boots, edits and changes preferences when storage %s is denied', async failure => {
     const page = await browser.newPage({ viewport: { width: 1280, height: 900 } })
     const errors: string[] = []
     page.on('pageerror', error => errors.push(error.message))
@@ -248,6 +248,15 @@ describe('editor and site interactions in a real browser', () => {
     const previousLabel = await toggle.getAttribute('aria-label')
     await toggle.click()
     expect(await toggle.getAttribute('aria-label')).not.toBe(previousLabel)
+    for (const [kind, value] of [['theme', 'paper'], ['theme', ''], ['style', 'hand-drawn'], ['style', 'crisp']] as const) {
+      await page.evaluate(() => { document.getElementById('status-text')!.textContent = 'awaiting-test-render' })
+      await page.locator(`#${kind}-dropdown-btn`).click()
+      const choice = page.locator(`.theme-dropdown-item[data-${kind}="${value}"]`)
+      await choice.click()
+      expect(await choice.getAttribute('aria-selected'), `${kind}/${value || 'default'}`).toBe('true')
+      await waitForVerifiedRender(page)
+      expect(await page.locator('#preview-inner svg').textContent()).toContain('Edited')
+    }
     expect(errors).toEqual([])
     await page.close()
   }, 60_000)

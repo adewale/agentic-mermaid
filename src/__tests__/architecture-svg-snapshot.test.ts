@@ -1,10 +1,13 @@
 import { beforeAll, describe, expect, it } from 'bun:test'
 import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
+import { decodeXML } from 'entities'
 import { renderMermaidSVG } from '../index.ts'
 import { layoutMermaidWithReceipt } from '../agent/index.ts'
 import { normalizeSvg } from './helpers/svg-normalize.ts'
-import { measureRenderedText, renderedTextReady } from './helpers/rendered-text.ts'
+import { measureRenderedText, renderedTextReady, requiredContrast } from './helpers/rendered-text.ts'
+import { scanSvgStartTags } from '../svg-structure.ts'
+import { renderSvgPixels } from './helpers/raster.ts'
 
 const snapshotDir = join(import.meta.dir, 'testdata', 'svg')
 beforeAll(renderedTextReady)
@@ -12,7 +15,7 @@ beforeAll(renderedTextReady)
 function expectAuthoredMeaning(source: string, svg: string, expected: {
   nodes: Array<{ id: string; label?: string }>
   groups: Array<{ id: string; label: string; members: string[] }>
-  edges: Array<{ from: string; to: string; label?: string }>
+  edges: Array<{ from: string; to: string; label?: string; fromSide: 'L' | 'R' | 'T' | 'B'; toSide: 'L' | 'R' | 'T' | 'B' }>
 }): void {
   const layout = layoutMermaidWithReceipt(source).layout
   const byId = <T extends { id: string }>(items: T[]) => items.sort((a, b) => a.id.localeCompare(b.id))
@@ -21,6 +24,38 @@ function expectAuthoredMeaning(source: string, svg: string, expected: {
     .toEqual(byId(expected.groups.map(group => ({ ...group, members: [...group.members].sort() }))))
   expect(layout.edges.map(({ from, to, label }) => ({ from, to, label: label?.text })))
     .toEqual(expected.edges.map(({ from, to, label }) => ({ from, to, label })))
+  const drawnEdges = scanSvgStartTags(svg).map(tag => Object.fromEntries(tag.attributes.map(attribute => [attribute.name, decodeXML(attribute.value)])))
+    .filter(attrs => attrs['data-role'] === 'edge')
+  expect(drawnEdges.map(attrs => ({ from: attrs['data-from'], to: attrs['data-to'], label: attrs['data-label'], fromSide: attrs['data-from-side'], toSide: attrs['data-to-side'] })))
+    .toEqual(expected.edges.map(({ from, to, label, fromSide, toSide }) => ({ from, to, label, fromSide, toSide })))
+  const actualPixels = renderSvgPixels(svg).pixels
+  for (const edge of drawnEdges) {
+    // These crisp golden scenes emit polylines. Check attachment, not any
+    // particular interior route or number of bends.
+    expect(edge.points).toBeDefined()
+    const coordinates = edge.points!.trim().split(/[\s,]+/).map(Number)
+    expect(coordinates.length).toBeGreaterThanOrEqual(4)
+    expect(coordinates.length % 2).toBe(0)
+    expect(coordinates.every(Number.isFinite)).toBe(true)
+    for (const [id, side, x, y] of [
+      [edge['data-from'], edge['data-from-side'], coordinates[0]!, coordinates[1]!],
+      [edge['data-to'], edge['data-to-side'], coordinates.at(-2)!, coordinates.at(-1)!],
+    ] as const) {
+      const node = layout.nodes.find(candidate => candidate.id === id)
+      expect(node, `drawn endpoint ${id}`).toBeDefined()
+      expect(x).toBeGreaterThanOrEqual(node!.x - 1)
+      expect(x).toBeLessThanOrEqual(node!.x + node!.w + 1)
+      expect(y).toBeGreaterThanOrEqual(node!.y - 1)
+      expect(y).toBeLessThanOrEqual(node!.y + node!.h + 1)
+      if (side === 'L' || side === 'R') expect(Math.abs(x - (node!.x + (side === 'R' ? node!.w : 0)))).toBeLessThanOrEqual(1)
+      else expect(Math.abs(y - (node!.y + (side === 'B' ? node!.h : 0)))).toBeLessThanOrEqual(1)
+    }
+    // Hiding this emitted connector must change the original image. Unlike
+    // recoloring a synthetic mask, this cannot create ink for an invisible edge.
+    const hidden = svg.replace('</svg>', `<style>[data-role="edge"][data-from="${edge['data-from']}"][data-to="${edge['data-to']}"] { opacity: 0 !important; }</style></svg>`)
+    const hiddenPixels = renderSvgPixels(hidden).pixels
+    expect(actualPixels.some((value, index) => value !== hiddenPixels[index]), `${edge['data-from']} to ${edge['data-to']} paints ink`).toBe(true)
+  }
   for (const group of layout.groups) for (const member of group.members) {
     const node = layout.nodes.find(candidate => candidate.id === member)
     expect(node, `${group.id} retains ${member}`).toBeDefined()
@@ -37,6 +72,10 @@ function expectAuthoredMeaning(source: string, svg: string, expected: {
   for (const text of texts) {
     expect(text.pixels, text.content).toBeGreaterThan(0)
     expect(text.offCanvasPixels, text.content).toBe(0)
+    // Synthetic glyph occupancy alone also counts opacity=0 text. Contrast
+    // is measured against the original image and therefore requires visible ink.
+    expect(text.contrast, text.content).toBeDefined()
+    expect(text.contrast!, text.content).toBeGreaterThanOrEqual(requiredContrast(text))
   }
 }
 
@@ -60,7 +99,7 @@ describe('renderMermaidSVG – architecture snapshots', () => {
     expectAuthoredMeaning(source, actual, {
       nodes: [{ id: 'api', label: 'Public API' }, { id: 'bus' }, { id: 'db', label: 'Primary DB' }],
       groups: [{ id: 'edge', label: 'Edge', members: [] }, { id: 'app', label: 'Application', members: ['api', 'bus'] }],
-      edges: [{ from: 'api', to: 'db' }, { from: 'api', to: 'bus', label: 'async fan-out' }],
+      edges: [{ from: 'api', to: 'db', fromSide: 'R', toSide: 'L' }, { from: 'api', to: 'bus', label: 'async fan-out', fromSide: 'B', toSide: 'T' }],
     })
 
     const expected = readFileSync(join(snapshotDir, 'architecture-representative.svg'), 'utf-8')
@@ -102,7 +141,7 @@ config:
     expectAuthoredMeaning(source, actual, {
       nodes: [{ id: 'api', label: 'API & <Gateway>' }, { id: 'db', label: 'Primary DB' }],
       groups: [{ id: 'edge', label: 'Edge\nLayer', members: ['api'] }],
-      edges: [{ from: 'api', to: 'db', label: 'reads <records>' }],
+      edges: [{ from: 'api', to: 'db', label: 'reads <records>', fromSide: 'R', toSide: 'L' }],
     })
 
     const expected = readFileSync(join(snapshotDir, 'architecture-themed-config.svg'), 'utf-8')

@@ -615,7 +615,8 @@ particular pass name or decomposition is not a rendering contract.
 
 Call counts need an observable reason. Retain them for work admission (for
 example, refusing oversized input before ELK or text measurement), deferred
-optional graphical work, and the single positioned-artifact extension protocol.
+optional graphical work, lazy terminal certification, and the single
+positioned-artifact extension protocol.
 Do not require an internal serializer or evidence enumerator to run exactly once
 when the output, ownership and certificate are the actual contract. Default
 pathfinder tie order and sequence spacing constants are likewise implementation
