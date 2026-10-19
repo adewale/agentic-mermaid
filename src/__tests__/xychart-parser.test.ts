@@ -129,11 +129,10 @@ describe('parseXYChart – syntax', () => {
   })
 
   it('keeps accessibility directives in semicolon-separated statements', () => {
+    // An inline directive's value runs to the end of its line, `;` included.
     const inline = parse('xychart; accTitle: Revenue chart; accDescr: Quarterly sales; bar [10, 20]')
-    expect(inline.accessibility).toEqual({
-      title: 'Revenue chart',
-      description: 'Quarterly sales',
-    })
+    expect(inline.accessibility).toEqual({ title: 'Revenue chart; accDescr: Quarterly sales; bar [10, 20]' })
+    expect(inline.series).toEqual([])
 
     const block = parse(`xychart; accDescr { First; still description
       } ; bar [10, 20]`)

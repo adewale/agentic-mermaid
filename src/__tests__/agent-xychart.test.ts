@@ -142,7 +142,10 @@ describe('xychart structured-or-opaque fallback', () => {
 
   test('an accessibility directive after another statement on its line stays structured and joins the envelope', () => {
     const cases: Array<[string, object, { title?: string; descr?: string }]> = [
-      ['xychart-beta horizontal; accTitle: Accessible; bar [1, 2]', { horizontal: true, accessibilityTitle: 'Accessible', series: [{ values: [1, 2] }] }, { title: 'Accessible' }],
+      // An inline directive's value runs to the end of its line, `;` included.
+      ['xychart-beta horizontal; accTitle: Accessible; bar [1, 2]', { horizontal: true, accessibilityTitle: 'Accessible; bar [1, 2]', series: [] }, { title: 'Accessible; bar [1, 2]' }],
+      ['xychart-beta\n  bar [1, 2] accTitle: a; line [3, 4]', { accessibilityTitle: 'a; line [3, 4]', series: [{ values: [1, 2] }] }, { title: 'a; line [3, 4]' }],
+      ['xychart-beta\n  bar [1, 2] accDescr: a; line [3, 4]', { accessibilityDescription: 'a; line [3, 4]', series: [{ values: [1, 2] }] }, { descr: 'a; line [3, 4]' }],
       ['xychart-beta\n  bar [1, 2] accTitle: hi bar [2, 1]', { accessibilityTitle: 'hi bar [2, 1]', series: [{ values: [1, 2] }] }, { title: 'hi bar [2, 1]' }],
       ['xychart-beta\n  accTitle: T\n  bar [1] accDescr { x } bar [2]', { accessibilityTitle: 'T', accessibilityDescription: 'x', series: [{ values: [1] }, { values: [2] }] }, { title: 'T', descr: 'x' }],
       ['xychart-beta\n  bar [1, 2] accTitle: Quarterly revenue\n  accDescr: Two bars\n  line [3, 4]', { accessibilityTitle: 'Quarterly revenue', accessibilityDescription: 'Two bars', series: [{ values: [1, 2] }, { values: [3, 4] }] }, { title: 'Quarterly revenue', descr: 'Two bars' }],

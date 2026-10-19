@@ -731,8 +731,9 @@ function expandXYChartStatements(lines: string[], strict: boolean, starts?: numb
 
 // Mermaid's lexer reads these as keywords wherever they occur outside a
 // string, so statements may share a line without `;`. An accessibility
-// directive runs to the end of its line in Mermaid (here, as before, to a `;`),
-// so it ends the search; the source envelope reads one that starts a line.
+// directive ends the search: `accTitle:` and `accDescr:` run to the end of
+// the line, `;` included, and an `accDescr {` block to its `}`. The source
+// envelope reads one that starts a line.
 const STATEMENT_KEYWORD = /(?:title|[xy]-axis|bar|line)(?!\w)|acc(?:Title\s*:|Descr\s*[:{])/iy
 
 /**
@@ -840,13 +841,18 @@ function splitSemicolonStatements(text: string, strict: boolean): string[] {
       STATEMENT_KEYWORD.lastIndex = i
       const keyword = STATEMENT_KEYWORD.exec(text)
       if (keyword && /^acc/i.test(keyword[0])) {
-        // The directive starts here when the text before it is a statement.
+        // The directive starts here when the text before it is a statement
+        // or there is none.
         const before: string[] = []
         pushKeywordStatements(before, current, keywords)
-        if (before.length > 0 && statementShape(before[before.length - 1]!) !== undefined) {
+        if (before.length === 0 || statementShape(before[before.length - 1]!) !== undefined) {
           statements.push(...before)
           current = ''
           keywords = []
+          if (!keyword[0].endsWith('{')) {
+            statements.push(text.slice(i).trim())
+            return statements
+          }
         }
         collecting = false
       } else if (keyword && started) keywords.push(current.length)
