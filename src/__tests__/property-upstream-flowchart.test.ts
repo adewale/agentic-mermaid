@@ -529,10 +529,13 @@ describe('flowchart grammar differential against pinned upstream Mermaid', () =>
   })
 
   test('a text-arrow label closes with any link of its stroke, as upstream\'s edge-text states close', async () => {
-    await agreesWithUpstream('flowchart TB\n  A-.b-.->B\n  B -. c .- C\n  E -- f --o F\n  F -. g ..-> G\n  G == h ===> H', {
+    // A dotted link may leave out its leading `-`, so one may follow a label
+    // that `.-` closes.
+    await agreesWithUpstream('flowchart TB\n  A-.b-.->B\n  B -. c .- C\n  E -- f --o F\n  F -. g ..-> G\n  G == h ===> H\n  H -. i .- I .-> J', {
       edges: [
         'A B dotted arrow_point : b', 'B C dotted arrow_open : c', 'E F normal arrow_circle : f',
         'F G dotted arrow_point : g', 'G H thick arrow_point : h',
+        'H I dotted arrow_open : i', 'I J dotted arrow_point : ',
       ],
     })
   })

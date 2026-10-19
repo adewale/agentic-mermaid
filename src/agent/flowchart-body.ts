@@ -320,7 +320,7 @@ function candidateNodeTokens(line: string, trie: NodeIdTrie): Array<{ id: string
   return candidates
 }
 
-const COMPACT_EDGE_OPERATOR_SOURCE = '(?:(?:<)?(?:~{3,}|-{2,}>|-{3,}|-{2,}[ox]|-\\.+->?|\\.+->|={2,}>|={3,})|[ox]-{2,}[ox])'
+const COMPACT_EDGE_OPERATOR_SOURCE = '(?:(?:<)?(?:~{3,}|-{2,}>|-{3,}|-{2,}[ox]|-?\\.+->?|={2,}>|={3,})|[ox]-{2,}[ox])'
 const COMPACT_EDGE_OPERATOR_AT_RE = new RegExp(COMPACT_EDGE_OPERATOR_SOURCE, 'y')
 
 function matchLengthAt(expression: RegExp, line: string, index: number): number {

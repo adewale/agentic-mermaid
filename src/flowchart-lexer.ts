@@ -68,8 +68,9 @@ export interface FlowchartScan {
   readonly openAtEnd: readonly FlowchartRegionKind[]
 }
 
-/** A link operator (Mermaid's LINK token), with an optional leading `<`. */
-export const FLOWCHART_LINK_RE = /(<)?(~{3,}|-\.+->|-\.+-|={2,}>|={3,}|o-{2,}o|o-{2,}x|x-{2,}o|x-{2,}x|-{2,}[ox]|-{2,}>|-{3,})/y
+/** A link operator (Mermaid's LINK token), with an optional leading `<`. A
+ * dotted one may leave out its leading `-` (`A .-> B`). */
+export const FLOWCHART_LINK_RE = /(<)?(~{3,}|-?\.+->|-?\.+-|={2,}>|={3,}|o-{2,}o|o-{2,}x|x-{2,}o|x-{2,}x|-{2,}[ox]|-{2,}>|-{3,})/y
 const TEXT_ARROW_OPEN_RE = /(<)?(-{2,}|-\.+|={2,})/y
 
 /** A text-arrow label's stroke, which decides the link that can close it;
@@ -113,6 +114,13 @@ function textArrowStroke(openOp: string): TextArrowStroke {
 function stickyMatch(expression: RegExp, text: string, at: number): RegExpExecArray | null {
   expression.lastIndex = at
   return expression.exec(text)
+}
+
+/** Whether the `.` at `at` continues the node id before it, as upstream's
+ * node string takes it in (`A.-B` is one id there, `A .-> B` a link). Such
+ * a `.` begins no link. */
+export function dotContinuesId(text: string, at: number): boolean {
+  return text[at] === '.' && at > 0 && /[\p{L}\p{N}_]/u.test(text[at - 1]!)
 }
 
 /** The link operator at `at`, or null. */
@@ -339,7 +347,7 @@ function lex(text: string, from: number, single: boolean, labelStrings: boolean)
       continue
     }
     if (SHAPE_OPENERS.has(char)) { open('shape', index, index + 1); continue }
-    if (char === '-' || char === '=' || char === '<' || char === '~') {
+    if (char === '-' || char === '=' || char === '<' || char === '~' || (char === '.' && !dotContinuesId(text, index))) {
       const link = matchFlowchartLink(text, index)
       if (link) {
         links.push({ start: index, end: link.end })

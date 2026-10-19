@@ -60,6 +60,10 @@ describe('variable-length links preserve style and direction', () => {
     ['A -..-> B', 'dotted', true],
     ['A -...-> B', 'dotted', true],
     ['A -.- B', 'dotted', false],
+    // Upstream's dotted link may leave out its leading `-`.
+    ['A .-> B', 'dotted', true],
+    ['A ..-> B', 'dotted', true],
+    ['A .- B', 'dotted', false],
     ['A ==> B', 'thick', true],
     ['A ====> B', 'thick', true],
     ['A === B', 'thick', false],
@@ -74,6 +78,12 @@ describe('variable-length links preserve style and direction', () => {
     expect(e[0]!.hasArrowEnd).toBe(arrow)
     expect(e[0]!.source).toBe('A')
     expect(e[0]!.target).toBe('B')
+  })
+
+  // Upstream's node string runs on through a `.` right after an id: `A.-B`
+  // is one node `A.-B` there, which ours cannot hold, so it is no edge here.
+  it.each(['A.-B', 'A.->B', 'A:::c.-> B'])('%s does not read as a dotted link', statement => {
+    expect(() => parseMermaid(`flowchart LR\n  ${statement}`)).toThrow()
   })
 })
 
