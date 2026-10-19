@@ -3,7 +3,8 @@ import type {
 } from './types.ts'
 import { err, ok } from './types.ts'
 import type { MindmapNode, MindmapShape } from '../mindmap/types.ts'
-import { mindmapNestedShapeLines, parseMindmap, serializeMindmap } from '../mindmap/parser.ts'
+import { mindmapNestedShapeLines, mindmapStatementEnds, parseMindmap, serializeMindmap } from '../mindmap/parser.ts'
+import { parseAccessibilityDirective } from '../shared/accessibility-directives.ts'
 import { labelOverflowCollector, setOptionalField } from './body-utils.ts'
 import { unknownOpMessage } from './mutation-ops.ts'
 
@@ -222,15 +223,36 @@ export function mutateMindmap(body: MindmapBody, op: MindmapMutationOp): Result<
   }
 }
 
-/** Mindmap source ours reads where pinned Mermaid rejects it, each on its
- * canonical line: shape text holding its own delimiters in pairs. */
+/** Mindmap source ours reads where pinned Mermaid reads it otherwise, each
+ * on its canonical line: shape text holding its own delimiters in pairs, and
+ * an accessibility directive, which Mermaid's mindmap grammar does not have. */
 export function mindmapUnsupportedSyntaxWarnings(canonicalSource: string): LayoutWarning[] {
-  return mindmapNestedShapeLines(canonicalSource).map(line => ({
+  const warnings: Array<LayoutWarning & { line: number }> = mindmapNestedShapeLines(canonicalSource).map(line => ({
     code: 'UNSUPPORTED_SYNTAX',
     syntax: 'mindmap_nested_shape_delimiters',
     line,
     message: 'Shape text holding delimiters of its own in pairs, as `root((a (b) c))`, is read whole. Pinned Mermaid ends the shape at the first closing delimiter and rejects the rest; put the whole text in double quotes.',
   }))
+  const lines = canonicalSource.split(/\r?\n/)
+  const header = lines.findIndex(line => /^\s*mindmap\s*$/i.test(line))
+  // A line inside a shape's text is no directive (mindmapStatementEnds).
+  const ends = mindmapStatementEnds(lines)
+  for (let index = header + 1; header >= 0 && index < lines.length;) {
+    const directive = parseAccessibilityDirective(lines, index)
+    if (directive === undefined) break
+    if (directive === null) {
+      index = ends[index]! + 1
+      continue
+    }
+    warnings.push({
+      code: 'UNSUPPORTED_SYNTAX',
+      syntax: 'mindmap_accessibility',
+      line: index + 1,
+      message: 'An accTitle or accDescr is read as the mindmap\'s accessible title or description, and written before its root. Pinned Mermaid\'s mindmap has no accessibility statements: it reads the line as a node, or rejects it as a second root. Mermaid has no spelling that keeps it.',
+    })
+    index = directive.endIndex + 1
+  }
+  return warnings.sort((left, right) => left.line - right.line)
 }
 
 export function verifyMindmap(body: MindmapBody, opts: VerifyOptions): LayoutWarning[] {

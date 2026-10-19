@@ -99,6 +99,9 @@ const MINDMAP_READ_GENEROUSLY: ReadonlyArray<GenerousRow> = [
   // as one token that its grammar accepts there only before a line break.
   ['a blank line after the header', 'mindmap\n  \n    root[The r\r\noot]\n    :::m-4 p-8', 'oot', 'mindmap_space_after_header', 1],
   ['whitespace ending the header line', '%% lead\nmindmap \n  root', 'root', 'mindmap_space_after_header', 2],
+  // Mermaid's mindmap has no accessibility statements: before the root, the line is a second root.
+  ['an accTitle before the root', 'mindmap\n  accTitle: Ideas\n  root', 'root', 'mindmap_accessibility', 2],
+  ['an accDescr block before the root', 'mindmap\n  accDescr {\n    About\n  }\n  root', 'root', 'mindmap_accessibility', 2],
 ]
 
 // [family, construct, source]
