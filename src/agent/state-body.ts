@@ -61,6 +61,12 @@ import {
 } from '../state/parse-core.ts'
 import { parseClassShorthandStatement } from '../shared/mermaid-identifiers.ts'
 
+/** `record[key] = value` as an own key: a class may be named `__proto__`,
+ *  which an assignment would take as the record's prototype. */
+function setOwn<T>(record: Record<string, T>, key: string, value: T): void {
+  Object.defineProperty(record, key, { value, enumerable: true, writable: true, configurable: true })
+}
+
 // ---- Identifiers ------------------------------------------------------------
 //
 // The reserved pseudostate endpoint. Mirrors mermaid's `[*]`.
@@ -182,7 +188,7 @@ export function parseStateBody(lines: string[]): StateBody | null {
     if (classDef) {
       const props = parseStyleProps(classDef[2]!)
       if (Object.keys(props).length === 0) return null
-      for (const name of classDef[1]!.split(',').map(value => value.trim()).filter(Boolean)) classDefs[name] = { ...props }
+      for (const name of classDef[1]!.split(',').map(value => value.trim()).filter(Boolean)) setOwn(classDefs, name, { ...props })
       continue
     }
     const classLine = matchStateClassAssignment(line)
@@ -921,7 +927,7 @@ export function mutateState(body: StateBody, op: StateMutationOp): Result<StateB
       const style = parseStateStyle(op.style, 'State class style')
       if (!style.ok) return style
       if (!next.classDefs) next.classDefs = {}
-      next.classDefs[op.name] = style.value
+      setOwn(next.classDefs, op.name, style.value)
       break
     }
     case 'set_state_class': {
