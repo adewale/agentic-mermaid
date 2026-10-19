@@ -29,9 +29,11 @@ import type {
 } from './types.ts'
 import { GanttError } from './types.ts'
 import { GANTT_DURATION_RE } from './parser.ts'
+import { performanceExperimentEnabled } from '../experimental-performance.ts'
 
 export const DAY_MS = 86_400_000
 const MAX_CALENDAR_STEPS = 10_000
+const weeklyExcludedDays = new WeakMap<(dayStartMs: EpochMs) => boolean, number>()
 
 // ---- Pure date arithmetic ---------------------------------------------------
 
@@ -212,7 +214,7 @@ export function buildExclusionPredicate(calendar: GanttCalendar): (dayStartMs: E
   const ex = resolveCalendarDays(calendar.excludes, calendar)
   const inc = resolveCalendarDays(calendar.includes, calendar)
   const weekendDays: number[] = calendar.weekendStart === 'friday' ? [5, 6] : [6, 0]
-  return (dayStartMs: EpochMs): boolean => {
+  const isExcluded = (dayStartMs: EpochMs): boolean => {
     const day = epochDay(dayStartMs)
     const dow = dayOfWeek(dayStartMs)
     const included = inc.days.has(day) || inc.weekdays.has(dow) || (inc.weekends && weekendDays.includes(dow))
@@ -222,6 +224,15 @@ export function buildExclusionPredicate(calendar: GanttCalendar): (dayStartMs: E
     if (ex.weekends && weekendDays.includes(dow)) return true
     return false
   }
+  // Explicit dates break weekly periodicity, even when they are outside this
+  // task's interval. Derive the pattern from the resolved predicate so weekday
+  // includes and the Friday weekend policy retain their normal precedence.
+  if (performanceExperimentEnabled('gantt-intervals') && ex.days.size === 0 && inc.days.size === 0) {
+    let excluded = 0
+    for (let day = 0; day < 7; day++) if (isExcluded(day * DAY_MS)) excluded++
+    weeklyExcludedDays.set(isExcluded, excluded)
+  }
+  return isExcluded
 }
 
 /**
@@ -247,7 +258,27 @@ function extendOverExcludedDays(
   let renderEnd = end
   let invalid = false
   let steps = 0
+  const excludedPerWeek = performanceExperimentEnabled('gantt-intervals') ? weeklyExcludedDays.get(isExcluded) : undefined
   while (cursor <= result) {
+    if (excludedPerWeek !== undefined && excludedPerWeek < 7) {
+      const remaining = Math.floor((result - cursor) / DAY_MS) + 1
+      const weeks = Math.floor((remaining - 7) / (7 - excludedPerWeek))
+      if (weeks > 0) {
+        const skipped = weeks * 7
+        if (skipped > MAX_CALENDAR_STEPS - steps) {
+          throw new GanttError('GANTT_SCHEDULE_OVERFLOW', `Calendar exclusion walk exceeded ${MAX_CALENDAR_STEPS} days (is every day excluded?)`, line)
+        }
+        // Each complete week advances seven cursor days and adds one day per
+        // exclusion to the result. Charge every skipped iteration to the same
+        // safety budget, and retain a full tail week to recover renderEnd's
+        // preceding-working-day semantics with the original exact walk.
+        cursor += skipped * DAY_MS
+        result += weeks * excludedPerWeek * DAY_MS
+        steps += skipped
+        invalid = isExcluded(cursor - DAY_MS)
+        continue
+      }
+    }
     if (++steps > MAX_CALENDAR_STEPS) {
       throw new GanttError('GANTT_SCHEDULE_OVERFLOW', `Calendar exclusion walk exceeded ${MAX_CALENDAR_STEPS} days (is every day excluded?)`, line)
     }

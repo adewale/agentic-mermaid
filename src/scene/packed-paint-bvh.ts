@@ -14,7 +14,8 @@ export class PackedPaintBvh<T extends { bounds: AxisAlignedBox; primitive: { ord
   private readonly root: number
 
   constructor(private readonly items: readonly T[]) {
-    const capacity = Math.max(1, 2 * items.length)
+    const nodeCount = (n: number): number => n <= 8 ? 1 : 1 + nodeCount(n >>> 1) + nodeCount(n - (n >>> 1))
+    const capacity = nodeCount(items.length)
     this.bounds = new Float64Array(capacity * 4)
     this.left = new Int32Array(capacity).fill(-1)
     this.right = new Int32Array(capacity).fill(-1)
