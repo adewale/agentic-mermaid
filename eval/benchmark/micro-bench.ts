@@ -50,6 +50,11 @@ interface CaseResult {
   /** A stage case's input, compared across sides before a ratio is shown. */
   input?: string
   allocBytesPerCall?: number
+  /** Optional all-return output/receipt evidence, outside measurement. */
+  evidence?: unknown
+  captureBatchSize?: number
+  warmCalls?: number
+  warmupMs?: number
 }
 
 interface Side {
@@ -87,8 +92,62 @@ function positive(options: Map<string, string>, key: string, fallback: number): 
 async function measure(entry: MicroCase, options: Options, allocation: Awaited<ReturnType<typeof allocationProbe>>): Promise<CaseResult> {
   const prepared = await entry.setup()
   const call = typeof prepared === 'function' ? prepared : prepared.call
+  if (typeof prepared !== 'function') prepared.beforeCall?.()
   const first = call()
   if (entry.check && !entry.check(first)) throw new Error('sanity check failed on the first result')
+  if (typeof prepared !== 'function' && prepared.consume) {
+    const consume = prepared.consume
+    consume(first)
+    let sink: unknown = first
+    const batchSize = prepared.captureBatchSize ?? 1
+    // Only opted-in cases capture every return. The array is bounded by 64
+    // slots/about 1Mi code units at the reference artifact size, outside clocks.
+    if (!Number.isSafeInteger(batchSize) || batchSize < 1 || batchSize > 64) throw new Error('invalid output capture batch size')
+    if (prepared.beforeCall && batchSize !== 1) throw new Error('per-call preparation needs single-return capture')
+    const timed = async (calls: number, allocating = false): Promise<number> => {
+      let total = 0
+      for (let done = 0; done < calls; done += batchSize) {
+        const outputs = new Array<unknown>(Math.min(batchSize, calls - done))
+        prepared.beforeCall?.()
+        const invoke = () => { for (let index = 0; index < outputs.length; index++) outputs[index] = call() }
+        if (allocating) total += await allocation!(invoke)
+        else {
+          const start = performance.now()
+          invoke()
+          total += performance.now() - start
+        }
+        // Validation, serialization and array allocation never enter the clock
+        // or GCProfiler callback. Stores and per-batch clocks are added work.
+        for (const output of outputs) consume(output)
+        sink = outputs.at(-1)
+      }
+      return total
+    }
+    let warmCalls = 0, warmMs = 0
+    while (warmCalls < 3 || warmMs < options.warmupMs) {
+      warmMs += await timed(1)
+      warmCalls++
+    }
+    const perCall = warmMs / warmCalls
+    const iterations = Math.max(1, Math.ceil(options.minSampleMs / Math.max(perCall, 1e-6)))
+    const affordable = Math.floor(options.maxCaseMs / Math.max(perCall * iterations, 1e-6))
+    const sampleCount = Math.max(Math.min(3, options.samples), Math.min(options.samples, affordable))
+    const samplesMs: number[] = []
+    for (let sample = 0; sample < sampleCount; sample++) samplesMs.push(await timed(iterations) / iterations)
+    const allocBytesPerCall = allocation ? await timed(iterations, true) / iterations : undefined
+    ;(globalThis as { __microBenchSink?: unknown }).__microBenchSink = sink
+    const medianMs = median(samplesMs)
+    return {
+      id: entry.id, iterations, samplesMs, medianMs,
+      madMs: median(samplesMs.map(value => Math.abs(value - medianMs))),
+      ...(allocBytesPerCall === undefined ? {} : { allocBytesPerCall }),
+      input: prepared.input,
+      evidence: prepared.evidence,
+      captureBatchSize: batchSize,
+      warmCalls,
+      warmupMs: warmMs,
+    }
+  }
   let sink: unknown = first
   const warmStart = performance.now()
   let warmCalls = 0
