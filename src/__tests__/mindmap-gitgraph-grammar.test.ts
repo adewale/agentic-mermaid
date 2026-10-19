@@ -40,6 +40,8 @@ describe('Mindmap grammar, round-trip, and branch geometry', () => {
         ['mindmap\n  root(text\n    more) %% c\n    B', { id: 'root', label: 'text\nmore', shape: 'rounded', children: [{ id: 'B' }] }],
         ['mindmap\n  r))bang\ntext((', { id: 'r', label: 'bang\ntext', shape: 'bang' }],
         ['mindmap\n  root(text\n    %% a comment\n    more)', { id: 'root', label: 'text\nmore', shape: 'rounded' }],
+        // The word `mindmap` is the keyword only on its own: here it is text.
+        ['mindmap\n  mindmapper\n    [mindmap child]', { id: 'mindmapper', children: [{ id: 'mindmap child', label: 'mindmap child', shape: 'rect' }] }],
       ] as const) {
         expect(await upstream.accepts(source)).toBe(true)
         const parsed = parseMindmap(source)
@@ -123,6 +125,8 @@ describe('Mindmap grammar, round-trip, and branch geometry', () => {
       // A node id or a default node's text holds no `(`, `[`, `)`, `{`, `}`
       // or line break, as Mermaid's NODE_ID token.
       'layout s}}es}}election', 'a{b', 'a)b',
+      // Nor does it start with the word `mindmap`, which Mermaid lexes as the keyword.
+      'mindmap child', 'Mindmap(x)',
       'This String containing []is a comment root((the root))',
       // A shape whose text runs on closes at `theId(`, leaving `child1)`.
       'ld)\n      root\n  Argument mapping    theId(child1)',

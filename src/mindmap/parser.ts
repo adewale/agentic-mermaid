@@ -259,9 +259,11 @@ function indentation(line: string): number {
 
 /** Mermaid's NODE_ID token is `[^\(\[\n\)\{\}]+`, so a node's explicit id, or
  * a default node's whole text, holds no `(`, `[`, `)`, `{`, `}` or line break
- * (a `]` is text). Text that does is not one node. An anonymous shape's id,
- * which comes from its description, is not bound by this. */
-const NODE_ID_TEXT = /^[^([\r\n){}]*$/
+ * (a `]` is text), and does not start with the word `mindmap`, which its
+ * lexer takes first as the header keyword (`mindmapper` is a name). Text that
+ * does is not one node. An anonymous shape's id, which comes from its
+ * description, is not bound by this. */
+const NODE_ID_TEXT = /^(?!mindmap\b)[^([\r\n){}]*$/i
 
 function parseNode(source: string): ParsedNode | null {
   return readNode(source)?.node ?? null
@@ -370,8 +372,9 @@ export function serializeMindmap(diagram: MindmapDiagram): string {
     // Keep nested delimiters as text rather than ending the node early.
     if (node.shape !== 'default' && !label.startsWith('"`') && /[()\]}]/.test(label)) label = `"${label}"`
     // Anonymous shapes derive their logical ID from the description. An ID
-    // containing delimiters or line breaks cannot be a nodeWithId prefix.
-    const id = node.id === plainLabel(node.label) && /[()[\]{}\r\n]/.test(node.id) ? '' : node.id
+    // Mermaid's NODE_ID cannot hold (delimiters, line breaks, the leading word
+    // `mindmap`) cannot be a nodeWithId prefix.
+    const id = node.id === plainLabel(node.label) && (/[()[\]{}\r\n]/.test(node.id) || !NODE_ID_TEXT.test(node.id)) ? '' : node.id
     const text = node.shape === 'default' ? label
       : node.shape === 'rect' ? `${id}[${label}]`
       : node.shape === 'rounded' ? `${id}(${label})`
