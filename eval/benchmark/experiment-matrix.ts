@@ -7,7 +7,7 @@ import { PERFORMANCE_EXPERIMENTS, type PerformanceExperiment } from '../../src/e
 import { ROOT, workingRevision, extractRevisionTree } from './revision-tree.ts'
 import { median } from './bench-stats.ts'
 const options = new Map<string, string>()
-const allowed = new Set(['out', 'rounds', 'samples', 'runtime', 'phase', 'configs', 'broad', 'allocation', 'png', 'cache', 'baseline-ref', 'paired', 'warmup', 'warmup-ms'])
+const allowed = new Set(['out', 'rounds', 'samples', 'runtime', 'phase', 'configs', 'broad', 'allocation', 'png', 'cache', 'baseline-ref', 'paired', 'warmup', 'warmup-ms', 'gc'])
 for (let i = 2; i < process.argv.length; i += 2) {
   const flag = process.argv[i]!, value = process.argv[i + 1], key = flag.slice(2)
   if (!flag.startsWith('--') || !allowed.has(key) || !value || value.startsWith('--') || options.has(key)) throw Error(`Invalid matrix option ${flag}`)
@@ -17,6 +17,12 @@ const integer = (key: string, fallback: number) => { const n = Number(options.ge
 const out = resolve(options.get('out') ?? 'bench-report/experiments'), rounds = integer('rounds', 3), samples = integer('samples', 3)
 const warmup = integer('warmup', 1), warmupMs = Number(options.get('warmup-ms') ?? 0)
 if (!Number.isSafeInteger(warmupMs) || warmupMs < 0) throw Error('Invalid warmup-ms')
+const requestedGc = options.get('gc') ?? 'checkpoint'
+if (requestedGc !== 'natural' && requestedGc !== 'checkpoint') throw Error('--gc must be natural or checkpoint')
+const gcMode: 'natural' | 'checkpoint' = requestedGc
+const memoryCheckpoint = gcMode === 'natural' ? 'uncollected' : 'forced'
+const allocation = options.get('allocation') === '1'
+if (gcMode === 'natural' && allocation) throw Error('--gc natural cannot use --allocation 1; measure allocation in a separate checkpoint run')
 const runtime = options.get('runtime') ?? 'node'
 if (runtime !== 'node' && runtime !== 'bun') throw Error('--runtime must be node or bun')
 const cache = options.get('cache') ?? 'off'
@@ -70,6 +76,7 @@ interface Reference { runId: string; outputFile: string; source: 'baseline'; sou
 interface Run {
   runId: string; config: string; round: number; role: 'measurement' | 'reference'; source: Config['source']; sourceRevision: string
   outputFile: string; sequence: number; pairedFor?: string; pairId?: string; pairOrder?: string; comparisonReference?: Reference
+  gcMode: 'natural' | 'checkpoint'; memoryCheckpoint: 'uncollected' | 'forced'
   rows?: WorkerRow[]; maxRssKiB?: number; finalMemory?: { heapUsed: number }; failed?: string
 }
 const runs: Run[] = []
@@ -89,15 +96,15 @@ function runWorker(config: Config, round: number, context: {
   const metadata: Run = {
     runId: `${runtime}:${round}:${key}:${role}`, config: config.id, round, role,
     source: config.source, sourceRevision: config.source === 'baseline' ? referenceRevision : builtRevision,
-    outputFile, sequence: runs.length + 1, ...context,
+    outputFile, sequence: runs.length + 1, gcMode, memoryCheckpoint, ...context,
   }
   console.log(`${runtime} ${phase} ${round}/${rounds}: ${key}${role === 'reference' ? ' reference' : ''} (${config.source})`)
   const path = join(out, outputFile), job = join(out, 'job.json')
   rmSync(path, { force: true })
-  writeFileSync(job, JSON.stringify({ out: path, samples, warmup, warmupMs, broad: options.get('broad') === '1', allocation: options.get('allocation') === '1', png: options.get('png') === '1' }))
+  writeFileSync(job, JSON.stringify({ out: path, samples, warmup, warmupMs, gcMode, broad: options.get('broad') === '1', allocation, png: options.get('png') === '1' }))
   const workerBundle = config.source === 'baseline' ? baselineBundle ?? bundle : bundle
   const started = performance.now()
-  const child = spawnSync(runtime === 'bun' ? process.execPath : 'node', ['--expose-gc', workerBundle, job], {
+  const child = spawnSync(runtime === 'bun' ? process.execPath : 'node', [...(gcMode === 'checkpoint' ? ['--expose-gc'] : []), workerBundle, job], {
     cwd: ROOT, stdio: ['ignore', 'ignore', 'pipe'], encoding: 'utf8', timeout: 180_000,
     env: { ...process.env, AGENTIC_MERMAID_EXPERIMENTS: config.features.join(','), AGENTIC_MERMAID_ELK_CACHE: cache === 'on' ? '1' : '0', AGENTIC_MERMAID_SCENE_ASSERTIONS: '0' },
   })
@@ -115,7 +122,7 @@ function runWorker(config: Config, round: number, context: {
     processExit: { status: child.status, signal: child.signal } }
   writeFileSync(path, JSON.stringify(evidence, null, 2))
   runs.push(evidence)
-  writeFileSync(join(out, 'progress.json'), JSON.stringify({ revision: builtRevision, baselineRevision, runtime, cache, paired, rounds, samples, warmup, warmupMs, configs, runs }, null, 2))
+  writeFileSync(join(out, 'progress.json'), JSON.stringify({ revision: builtRevision, baselineRevision, runtime, cache, paired, gcMode, memoryCheckpoint, rounds, samples, warmup, warmupMs, configs, runs }, null, 2))
 }
 for (let round = 1; round <= rounds; round++) for (const config of round % 2 ? configs : [...configs].reverse()) {
   if (!paired || config.id === 'baseline') {
@@ -159,14 +166,17 @@ const summaries = configs.map(config => {
   const complete = selected.length === rounds && comparisons.every(pair => pair.measured && !pair.measured.failed && pair.reference && !pair.reference.failed)
     && cases.length > 0 && eligible.length === cases.length
   const geomean = (rows: typeof eligible) => rows.length ? Math.exp(rows.reduce((n, r) => n + Math.log(r.medianRatio!), 0) / rows.length) : undefined
-  return { ...config, completedRounds: selected.filter(r => !r.failed).length, complete, matched, eligibleCases: eligible.length, totalCases: cases.length,
+  return { ...config, gcMode, memoryCheckpoint, completedRounds: selected.filter(r => !r.failed).length, complete, matched, eligibleCases: eligible.length, totalCases: cases.length,
     comparisonReferences: comparisons.map(pair => ({ round: pair.round, candidateRunId: pair.measured?.runId, referenceRunId: pair.reference?.runId })),
     svgRatio: complete ? geomean(eligible.filter(r => r.output === 'svg')) : undefined, allRatio: complete ? geomean(eligible) : undefined,
     maxRssKiB: complete && selected.every(r => r.maxRssKiB !== undefined) ? median(selected.map(r => r.maxRssKiB!)) : undefined,
     referenceMaxRssKiB: complete && references.every(r => r.maxRssKiB !== undefined) ? median(references.map(r => r.maxRssKiB!)) : undefined,
-    retainedHeapBytes: complete && selected.every(r => r.finalMemory) ? median(selected.map(r => r.finalMemory!.heapUsed)) : undefined,
-    referenceRetainedHeapBytes: complete && references.every(r => r.finalMemory) ? median(references.map(r => r.finalMemory!.heapUsed)) : undefined }
+    ...(gcMode === 'checkpoint' ? {
+      retainedHeapBytes: complete && selected.every(r => r.finalMemory) ? median(selected.map(r => r.finalMemory!.heapUsed)) : undefined,
+      referenceRetainedHeapBytes: complete && references.every(r => r.finalMemory) ? median(references.map(r => r.finalMemory!.heapUsed)) : undefined,
+    } : {}) }
 })
-writeFileSync(join(out, 'summary.json'), JSON.stringify({ diagnostic: true, revision: builtRevision, baselineRevision, runtime, cache, paired, rounds, samples, warmup, warmupMs, configs, summaries,
-  method: `Fresh sequential processes, reversed config order alternate rounds; ${paired ? 'each non-baseline configuration has an adjacent fresh reference, with reference/candidate order reversed on alternate rounds' : 'one reference per round shared by configurations'}; at least ${warmup} warm calls and ${warmupMs}ms warm-up per case, followed by independent samples. Complete output byte consumption is timed. Ratios resolve each configuration's recorded comparison reference in the same round. Baseline-source empty-flag configurations permit fresh-process A/A controls. SVG equality is diagnostic: indexed-layout deliberately changes eligible geometry. All failures retained and incomplete aggregates withheld. RSS/GC checkpoints are not exact per-render peak/native allocation. Screening is not an exhaustive global-optimum proof.` }, null, 2))
-console.log(summaries.map(s => ({ id: s.id, complete: s.complete, svgRatio: s.svgRatio, allRatio: s.allRatio, retainedHeapBytes: s.retainedHeapBytes, maxRssKiB: s.maxRssKiB })))
+writeFileSync(join(out, 'summary.json'), JSON.stringify({ diagnostic: true, revision: builtRevision, baselineRevision, runtime, cache, paired, gcMode, memoryCheckpoint, rounds, samples, warmup, warmupMs, configs, summaries,
+  method: `Fresh sequential processes, reversed config order alternate rounds; ${paired ? 'each non-baseline configuration has an adjacent fresh reference, with reference/candidate order reversed on alternate rounds' : 'one reference per round shared by configurations'}; at least ${warmup} warm calls and ${warmupMs}ms warm-up per case, followed by sequential within-process samples. Complete output byte consumption is timed. Ratios resolve each configuration's recorded comparison reference in the same round. Baseline-source empty-flag configurations permit fresh-process A/A controls. SVG equality is diagnostic: indexed-layout deliberately changes eligible geometry. All failures retained and incomplete aggregates withheld. GC mode ${gcMode}: ${gcMode === 'natural' ? 'no forced collection or allocation probes; raw heap checkpoints are uncollected and retained-heap summaries are omitted' : 'forced GC checkpoints; optional V8 allocation probes'}. RSS is the whole-worker maximum, not per-render peak/native allocation. Screening is not an exhaustive global-optimum proof.` }, null, 2))
+console.log(summaries.map(s => ({ id: s.id, complete: s.complete, gcMode, memoryCheckpoint, svgRatio: s.svgRatio, allRatio: s.allRatio,
+  ...(gcMode === 'checkpoint' ? { retainedHeapBytes: s.retainedHeapBytes } : {}), maxRssKiB: s.maxRssKiB })))

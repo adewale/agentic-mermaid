@@ -57,6 +57,15 @@ control; other configurations use current source by default.
 reuse. Cold scores therefore cannot be improved by silently serving a previous
 positioned result.
 
+For timing confirmation, use `--gc natural --warmup 5 --warmup-ms 1000
+--samples 12` on both sides. Natural mode runs no forced collection or
+allocation probes and labels raw heap checkpoints uncollected; it omits
+retained-heap summaries. Run `--gc checkpoint --allocation 1` separately for
+settled heap and V8 allocation diagnostics. RSS always covers the whole worker.
+Samples within a process are correlated; three process rounds describe
+repeatability, not a 95% confidence interval. Baseline A/A calibration informs
+interpretation of each case and aggregate; do not divide scores by its ratio.
+
 The screen is one input to the decision. Confirm finalists with `bench:micro`,
 `bench:peers`, `bench:release`, `bench:samples`, the full 1,095-occurrence Dave
 corpus and packed-artifact delivery measurements. The micro suite includes

@@ -4,13 +4,21 @@ import { MICRO_WORKLOADS } from './micro-bench-cases.ts'
 import { releaseBenchCases } from './release-bench-cases.ts'
 import { missingSvgLabels, renderAgentEdit, agentEditCase } from './release-bench-fidelity.ts'
 import { allocationProbe, median } from './bench-stats.ts'
-interface Job { out: string; samples: number; warmup: number; warmupMs?: number; broad: boolean; allocation: boolean; png: boolean }
+interface Job { out: string; samples: number; warmup: number; warmupMs?: number; gcMode?: 'natural' | 'checkpoint'; broad: boolean; allocation: boolean; png: boolean }
 const job = JSON.parse(readFileSync(process.argv[2]!, 'utf8')) as Job
+const gcMode = job.gcMode ?? 'checkpoint'
+if (gcMode !== 'natural' && gcMode !== 'checkpoint') throw Error('Invalid gcMode')
+if (gcMode === 'natural' && job.allocation) throw Error('Natural GC timing cannot use allocation probes')
+const canCollect = Boolean(process.versions.bun) || typeof (globalThis as { gc?: () => void }).gc === 'function'
+const memoryCheckpoint = gcMode === 'checkpoint' && canCollect ? 'forced' : 'uncollected'
 const started = performance.now()
 const api = await import('../../src/index.ts')
 const agent = await import('../../src/agent/index.ts')
 const importMs = performance.now() - started
-const collect = () => { if (process.versions.bun) Bun.gc(true); else (globalThis as { gc?: () => void }).gc?.() }
+const collect = () => {
+  if (gcMode === 'natural') return
+  if (process.versions.bun) Bun.gc(true); else (globalThis as { gc?: () => void }).gc?.()
+}
 collect(); const loadedMemory = process.memoryUsage()
 const allocate = job.allocation ? await allocationProbe() : undefined
 interface Case { id: string; output: 'svg' | 'terminal' | 'agent' | 'receipt' | 'png'; source: string; labels?: readonly string[]; options?: Parameters<typeof api.renderMermaidSVG>[1] }
@@ -52,9 +60,9 @@ for (const input of cases) {
     let allocationBytes: number | undefined
     if (allocate) allocationBytes = await allocate(async () => { consume(await render()) })
     collect(); const memory = process.memoryUsage()
-    rows.push({ id: input.id, output: input.output, ok: true, firstMs, samplesMs, medianMs: median(samplesMs), bytes, allocationBytes, memory, witness })
+    rows.push({ id: input.id, output: input.output, ok: true, firstMs, samplesMs, medianMs: median(samplesMs), bytes, allocationBytes, memoryCheckpoint, memory, witness })
   } catch (error) { rows.push({ id: input.id, output: input.output, ok: false, error: String(error) }) }
 }
 collect()
 writeFileSync(job.out, JSON.stringify({ runtime: process.versions, features: process.env.AGENTIC_MERMAID_EXPERIMENTS ?? '', elkCache: process.env.AGENTIC_MERMAID_ELK_CACHE,
-  importMs, loadedMemory, finalMemory: process.memoryUsage(), cpuUsage: process.cpuUsage(), maxRssKiB: process.resourceUsage().maxRSS, rows }, null, 2))
+  gcMode, memoryCheckpoint, importMs, loadedMemory, finalMemory: process.memoryUsage(), cpuUsage: process.cpuUsage(), maxRssKiB: process.resourceUsage().maxRSS, rows }, null, 2))
