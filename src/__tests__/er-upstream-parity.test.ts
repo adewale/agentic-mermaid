@@ -148,6 +148,12 @@ const ER_READ_GENEROUSLY: ReadonlyArray<readonly [string, 'er' | 'opaque', strin
   ['erDiagram\n  A { int id "c" PK }', 'er', '>c<', 'er_attribute_form', 2],
   ['erDiagram\n  A\n  end', 'er', '>end<', 'er_keyword_name', 3],
   ['erDiagram\n  A ||--o{ B : places order', 'er', '>places order<', 'er_label_words', 2],
+  // A relationship's label is required on its line, and Mermaid's lexer
+  // reads a keyword, a cardinality or a number there before a label.
+  ['erDiagram\n  A ||--o{ B :\n  C D', 'er', '>D<', 'er_relation_label', 2],
+  ['erDiagram\n  "relates to" A ||--o{ 1 :end\n  places', 'er', '>end<', 'er_relation_label', 2],
+  ['erDiagram\n  A ||--o{ B : 1', 'er', '>1<', 'er_relation_label', 2],
+  ['erDiagram\n  A ||--o{ B : x,y', 'er', '>x,y<', 'er_relation_label', 2],
   ['erDiagram\n  A ||--o{ B : direction LR', 'er', '>direction LR<', 'er_direction_line', 2],
 ]
 
@@ -167,9 +173,13 @@ describe('ER source Mermaid rejects, read generously', () => {
 
   // Mermaid lexes an attribute comment inside the block, where `.*direction`
   // does not apply, and a `%%` inside it, on any of its lines, is text.
+  // A label word that only starts like a keyword is a label, and Mermaid
+  // reads an entity code in it as text.
   test.each([
     'erDiagram\n  A {\n  int x "direction TB" } B',
     'erDiagram\n  A {\n  int x "a\n  b %% c"\n  }',
+    'erDiagram\n  A ||--o{ B : oneself',
+    'erDiagram\n  A ||--o{ B : #35;x',
   ])('%j has nothing to report', async source => {
     await expectParity(source)
     expect(verifyMermaid(source).warnings.filter(warning => warning.code === 'UNSUPPORTED_SYNTAX')).toEqual([])
