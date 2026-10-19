@@ -3,18 +3,17 @@ import { boxColorToHex } from './colors.ts'
 import { contrastTextColor, toneOnFill } from '../color-resolver.ts'
 import { compositeCssColor, legibleInk, toHex, tryParseCssColor, wcagContrastRatio } from '../shared/color-math.ts'
 import type { RenderContext } from '../types.ts'
-import { svgOpenTag, buildStyleBlock, buildShadowDefs, resolvedColorValue, type DiagramColors } from '../theme.ts'
-import { FONT_SIZES, FONT_WEIGHTS, STROKE_WIDTHS, ARROW_HEAD, TEXT_BASELINE_SHIFT, applyTextTransform, resolveRenderStyle, diagramTitleMark } from '../styles.ts'
-import type { RenderStyleDefaults, ResolvedRenderStyle } from '../styles.ts'
+import { resolvedColorValue, type DiagramColors } from '../theme.ts'
+import { STROKE_WIDTHS, ARROW_HEAD, applyTextTransform, resolveRenderStyle, diagramTitleMark } from '../styles.ts'
+import type { ResolvedRenderStyle } from '../styles.ts'
 import { SEQUENCE_STYLE_DEFAULTS } from './layout.ts'
 import { buildAccessibilityAttrs } from '../shared/svg-a11y.ts'
-import { renderMultilineText, escapeAttr, escapeDisplayAttr, escapeXml as escapeXmlUtil } from '../multiline-utils.ts'
 import type { Geometry, MarkerDescriptor, SceneDoc, SceneNode } from '../scene/ir.ts'
 import { pathArtwork } from '../scene/artwork.ts'
 import { hashId } from '../scene/seed.ts'
 import * as marks from '../scene/marks.ts'
 import { DefaultBackend } from '../scene/backend.ts'
-import { serializeMarkerResources } from '../scene/marker-resources.ts'
+import { snapshotSvgEmissionRecipe, svgValue as v, type SvgAttribute, type SvgGroupEmission, type SvgPrimitiveEmission, type SvgEmissionRecipe, type SvgGeometryField } from '../scene/svg-emission.ts'
 import { resolveRoleStyle, type InternalStyleFace } from '../scene/style-registry.ts'
 import { messageLabelOcclusion, type VisibleSpan } from './label-occlusion.ts'
 import { semanticChildId } from '../scene/identity.ts'
@@ -39,6 +38,62 @@ import { semanticChildId } from '../scene/identity.ts'
 //   5. Notes (then destroy crosses)
 //   6. Actor boxes (at top)
 // ============================================================================
+
+function primitive(geometry: readonly SvgGeometryField[], attributes: readonly SvgAttribute[] = [], close: ' />' | '/>' = ' />'): SvgEmissionRecipe {
+  return snapshotSvgEmissionRecipe({ kind: 'primitive', close, attributes: [
+    ...geometry.map(name => ({ name, value: v.geometry(name) })), ...attributes,
+  ] })
+}
+const LINE_FIELDS = ['x1', 'y1', 'x2', 'y2'] as const
+const RECT_FIELDS = ['x', 'y', 'width', 'height'] as const
+const ROUND_RECT_FIELDS = [...RECT_FIELDS, 'rx', 'ry'] as const
+const CIRCLE_FIELDS = ['cx', 'cy', 'r'] as const
+const PAINT_ATTRIBUTES: readonly SvgAttribute[] = [
+  { name: 'fill', value: v.paint('fill') }, { name: 'stroke', value: v.paint('stroke') }, { name: 'stroke-width', value: v.paint('strokeWidth') },
+]
+const RECT_EMISSION = primitive(ROUND_RECT_FIELDS, PAINT_ATTRIBUTES)
+const TAB_EMISSION = primitive(RECT_FIELDS, PAINT_ATTRIBUTES)
+const PATH_FILL_EMISSION = primitive(['d'], PAINT_ATTRIBUTES.slice(0, 2))
+const PATH_PAINT_EMISSION = primitive(['d'], PAINT_ATTRIBUTES)
+const DASHED_EMISSION = primitive(LINE_FIELDS, [
+  ...PAINT_ATTRIBUTES.slice(1), { name: 'stroke-dasharray', value: v.paint('strokeDasharray') },
+  { name: 'stroke-dashoffset', value: v.paint('strokeDashoffset') },
+])
+const MESSAGE_EMISSIONS = [false, true].map(self => primitive(self ? ['points'] : LINE_FIELDS, [
+  ...(self ? [PAINT_ATTRIBUTES[0]!] : []), ...PAINT_ATTRIBUTES.slice(1),
+  { name: 'stroke-dasharray', value: v.paint('strokeDasharray') },
+]))
+const GLYPH_EMISSIONS = {
+  path: primitive(['d'], [], '/>'), circle: primitive(CIRCLE_FIELDS, [], '/>'),
+  line: primitive(LINE_FIELDS, [], '/>'), rect: primitive([...RECT_FIELDS, 'rx'], [], '/>'),
+  ellipse: primitive(['cx', 'cy', 'rx', 'ry'], [], '/>'),
+}
+const ICON_PATH_EMISSION = primitive(['d'], PAINT_ATTRIBUTES) as SvgPrimitiveEmission
+const ICON_GROUP_EMISSION = snapshotSvgEmissionRecipe({ kind: 'group', attributes: [{ name: 'transform', value: { source: 'transform', form: 'translate-scale' } }] }) as SvgGroupEmission
+const CENTRAL_EMISSIONS = ['start', 'end'].map(side => snapshotSvgEmissionRecipe({ kind: 'primitive', attributes: [
+  { name: 'class', value: v.meta('sequence-central-connection') }, { name: 'data-side', value: v.meta(side) },
+  ...CIRCLE_FIELDS.map(name => ({ name, value: v.geometry(name) })), ...PAINT_ATTRIBUTES,
+] }))
+const TEXT_ATTRIBUTES: readonly SvgAttribute[] = [
+  { name: 'font-size', value: v.text('fontSize') }, { name: 'text-anchor', value: v.text('anchor') },
+  { name: 'font-weight', value: v.text('fontWeight') }, { name: 'letter-spacing', value: v.text('letterSpacing'), omit: 'zero' },
+  { name: 'fill', value: v.paint('fill') },
+]
+const HALO_ATTRIBUTES: readonly SvgAttribute[] = [
+  { name: 'stroke', value: v.paint('stroke') }, { name: 'stroke-width', value: v.paint('strokeWidth') },
+  { name: 'stroke-linejoin', value: v.paint('strokeLinejoin') }, { name: 'paint-order', value: v.paint('paintOrder') },
+]
+const TEXT_EMISSION = snapshotSvgEmissionRecipe({ kind: 'text', layout: 'multiline', attributes: [...TEXT_ATTRIBUTES, ...HALO_ATTRIBUTES] })
+const MENU_EMISSION = snapshotSvgEmissionRecipe({ kind: 'text', layout: 'direct', attributes: [
+  { name: 'class', value: v.meta('sequence-actor-menu') }, { name: 'x', value: v.text('x') }, { name: 'y', value: v.text('y') },
+  { name: 'text-anchor', value: v.text('anchor') }, { name: 'font-size', value: v.text('fontSize') }, { name: 'fill', value: v.paint('fill') },
+] })
+const DIVIDER_LABEL_GROUP_EMISSION = snapshotSvgEmissionRecipe({ kind: 'group', attributes: [
+  { name: 'class', value: v.meta('sequence-block-divider-labels') }, { name: 'pointer-events', value: v.meta('none') },
+] }) as SvgGroupEmission
+const HEADER_GROUP_EMISSION = snapshotSvgEmissionRecipe({ kind: 'group', attributes: [
+  { name: 'class', value: v.meta('sequence-block-header-overlay') }, { name: 'pointer-events', value: v.meta('none') }, { name: 'aria-hidden', value: v.meta(true) },
+] }) as SvgGroupEmission
 
 /**
  * Render a positioned sequence diagram as an SVG string.
@@ -80,27 +135,24 @@ export function lowerSequenceScene(
       font,
       hasMonoFont: false,
     },
-    svgOpenTag(diagram.width, diagram.height, colors, transparent, rootAttrs) + '\n' +
-    buildStyleBlock(font, false, colors.shadow, colors.embedFontImport),
+    { kind: 'prelude', width: diagram.width, height: diagram.height, colors, transparent, font, hasMonoFont: false,
+      attributes: Object.entries(rootAttrs).map(([name, value]) => ({ name: name as SvgAttribute['name'], value: v.meta(value) })),
+      children: [{ kind: 'sharedStyle' }],
+    },
   ))
-  const defsParts: string[] = []
-  defsParts.push('<defs>')
-
-  // Arrow marker definitions
+  // Preserve the marker list, then optional shadow, in its original order.
   const markerResources = sequenceMarkerResources(style)
-  defsParts.push(serializeMarkerResources(markerResources))
-  const shadowDefs = buildShadowDefs(colors)
-  if (shadowDefs) defsParts.push(shadowDefs)
-  defsParts.push('</defs>')
-  parts.push(marks.definitions({ id: 'defs', markerResources }, defsParts.join('\n')))
+  parts.push(marks.definitions({ id: 'defs', markerResources }, {
+    kind: 'resources', resources: ['markers', ...(colors.shadow ? [{ kind: 'shadow' as const, colors }] : [])],
+  }))
 
   if (diagram.accessibilityTitle) {
     parts.push(marks.documentContent({ id: 'a11y-title', role: 'chrome', nonPaint: 'accessibility' },
-      `<title id="${titleId}">${escapeXml(diagram.accessibilityTitle)}</title>`))
+      { kind: 'documentText', element: 'title', domId: titleId, text: diagram.accessibilityTitle }))
   }
   if (diagram.accessibilityDescription) {
     parts.push(marks.documentContent({ id: 'a11y-desc', role: 'chrome', nonPaint: 'accessibility' },
-      `<desc id="${descId}">${escapeXml(diagram.accessibilityDescription)}</desc>`))
+      { kind: 'documentText', element: 'desc', domId: descId, text: diagram.accessibilityDescription }))
   }
 
   // Completed nested blocks arrive inner-first; with a rect among them, paint
@@ -230,11 +282,6 @@ interface SurfaceText { ink: string; halo?: string }
 /** The box a label's glyphs cover, centered on (x, y). */
 interface TextArea { x: number; y: number; width: number; height: number }
 type SurfaceInk = (area: TextArea, ink: string) => SurfaceText
-
-/** Attributes for a SurfaceText halo, or nothing when the text needs none. */
-function haloAttrs(paint: SurfaceText): string {
-  return paint.halo ? ` stroke="${escapeAttr(paint.halo)}" stroke-width="3" stroke-linejoin="round" paint-order="stroke"` : ''
-}
 
 function haloPaint(paint: SurfaceText): { stroke?: string; strokeWidth?: string; strokeLinejoin?: 'round'; paintOrder?: string } {
   return paint.halo ? { stroke: paint.halo, strokeWidth: '3', strokeLinejoin: 'round', paintOrder: 'stroke' } : {}
@@ -366,19 +413,18 @@ function renderActor(
   const boxTextColor = roleStyle?.textColor ?? style.nodeTextColor ?? toneOnFill('var(--_text)', rawFillColor, colors)
 
   // Semantic wrapper with actor metadata
-  const menu = includeInteraction && actor.links
-    ? ` data-links="${escapeAttr(JSON.stringify(actor.links))}" role="link" tabindex="0"`
-    : ''
-  const open =
-    `<g class="actor" data-id="${escapeAttr(id)}" data-label="${escapeDisplayAttr(label)}" data-type="${type}"${menu}>`
+  const emission = { kind: 'group' as const, attributes: [
+    { name: 'class' as const, value: v.meta('actor') }, { name: 'data-id' as const, value: v.meta(id) },
+    { name: 'data-label' as const, value: v.meta(label), display: true }, { name: 'data-type' as const, value: v.meta(type) },
+    ...(includeInteraction && actor.links ? [
+      { name: 'data-links' as const, value: v.meta(JSON.stringify(actor.links)) },
+      { name: 'role' as const, value: v.meta('link') }, { name: 'tabindex' as const, value: v.meta(0) },
+    ] : []),
+  ] }
 
   const { text: displayLabel, x: labelX, y: labelY, bounds: labelBounds } = actor.labelPosition
-  const labelAttrs =
-    `font-size="${fontSize}" text-anchor="middle" font-weight="${fontWeight}"${letterAttr(letterSpacing)} fill="${escapeAttr(boxTextColor)}"`
-  // Icon participants label below the glyph, on whatever the column shows.
+  // Icon labels sit below their glyph on the resolved column surface.
   const below = inkAt(areaFromBounds(labelBounds), rawTextColor)
-  const belowAttrs =
-    `font-size="${fontSize}" text-anchor="middle" font-weight="${fontWeight}"${letterAttr(letterSpacing)} fill="${escapeAttr(below.ink)}"${haloAttrs(below)}`
 
   if (type === 'actor') {
     // Circle-person icon: outer circle + head circle + shoulders arc.
@@ -389,12 +435,11 @@ function renderActor(
     const tx = x - 12 * s            // center icon horizontally on actor.x
     const ty = y + (height - 24 * s) / 2  // center icon vertically in actor box
     const sw = lineWidth / s  // compensate for scale transform
-    const iconStroke = escapeAttr(roleStyle?.borderColor ?? style.edgeStrokeColor ?? 'var(--_line)')
 
     children.push({
       indent: 2,
       node: pathArtwork({ id: `actor:${id}:icon`, owner: { id, role: 'actor' }, channels: { category: id },
-        open: `<g transform="translate(${tx},${ty}) scale(${s})">`,
+        emission: ICON_GROUP_EMISSION,
         transform: { kind: 'matrix', a: s, b: 0, c: 0, d: s, e: tx, f: ty },
         paint: { fill: 'none', stroke: roleStyle?.borderColor ?? style.edgeStrokeColor ?? 'var(--_line)', strokeWidth: String(sw) },
         join: '\n', indent: 2,
@@ -403,7 +448,7 @@ function renderActor(
           'M15 10C15 11.6569 13.6569 13 12 13C10.3431 13 9 11.6569 9 10C9 8.34315 10.3431 7 12 7C13.6569 7 15 8.34315 15 10Z',
           'M5.62842 18.3563C7.08963 17.0398 9.39997 16 12 16C14.6 16 16.9104 17.0398 18.3716 18.3563',
         ],
-        serializePath: path => `<path d="${path}" fill="none" stroke="${iconStroke}" stroke-width="${sw}" />`,
+        pathEmission: ICON_PATH_EMISSION,
       }),
     })
     // Label below the icon (supports multi-line)
@@ -416,15 +461,13 @@ function renderActor(
         block: actor.labelPosition.block,
         x: labelX,
         y: labelY,
-        fontSize,
+        fontSize, fontWeight, letterSpacing,
         anchor: 'middle',
         paint: { fill: below.ink, ...haloPaint(below) },
         channels: { category: id },
-      }, renderMultilineText(actor.labelPosition.block ?? displayLabel, labelX, labelY, fontSize, belowAttrs)),
+      }, TEXT_EMISSION),
     })
   } else if (type !== 'participant') {
-    const rawStroke = escapeAttr(roleStyle?.borderColor ?? style.edgeStrokeColor ?? 'var(--_line)')
-    const rawFill = escapeAttr(rawFillColor)
     const left = x - width / 2
     const top = y + 2
     const w = width
@@ -432,17 +475,18 @@ function renderActor(
     const glyphs: SceneNode[] = []
     const owner = { id, role: 'actor' as const }
     const paint = { fill: rawFillColor, stroke: roleStyle?.borderColor ?? style.edgeStrokeColor ?? 'var(--_line)', strokeWidth: String(lineWidth) }
-    const add = (geometry: Geometry, svg: string): void => {
-      glyphs.push(marks.shape({ id: semanticChildId(`actor:${id}:icon`, 'part', glyphs.length), role: 'icon', owner, geometry, paint }, svg))
+    const add = (geometry: Geometry): void => {
+      const emission = GLYPH_EMISSIONS[geometry.kind as keyof typeof GLYPH_EMISSIONS]
+      glyphs.push(marks.shape({ id: semanticChildId(`actor:${id}:icon`, 'part', glyphs.length), role: 'icon', owner, geometry, paint }, emission))
     }
-    const path = (d: string): void => add({ kind: 'path', d }, `<path d="${d}"/>`)
-    const circle = (cx: number, cy: number, r: number): void => add({ kind: 'circle', cx, cy, r }, `<circle cx="${cx}" cy="${cy}" r="${r}"/>`)
-    const line = (x1: number, y1: number, x2: number, y2: number): void => add({ kind: 'line', x1, y1, x2, y2 }, `<line x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}"/>`)
-    const rect = (x: number, y: number, width: number, height: number, rx?: number): void => add({ kind: 'rect', x, y, width, height, ...(rx === undefined ? {} : { rx }) }, `<rect x="${x}" y="${y}" width="${width}" height="${height}"${rx === undefined ? '' : ` rx="${rx}"`}/>`)
+    const path = (d: string): void => add({ kind: 'path', d })
+    const circle = (cx: number, cy: number, r: number): void => add({ kind: 'circle', cx, cy, r })
+    const line = (x1: number, y1: number, x2: number, y2: number): void => add({ kind: 'line', x1, y1, x2, y2 })
+    const rect = (x: number, y: number, width: number, height: number, rx?: number): void => add({ kind: 'rect', x, y, width, height, ...(rx === undefined ? {} : { rx }) })
     if (type === 'database') {
-      add({ kind: 'ellipse', cx: x, cy: top + 5, rx: w / 2, ry: 5 }, `<ellipse cx="${x}" cy="${top + 5}" rx="${w / 2}" ry="5"/>`)
+      add({ kind: 'ellipse', cx: x, cy: top + 5, rx: w / 2, ry: 5 })
       path(`M${left} ${top + 5}V${top + h - 5}A${w / 2} 5 0 0 0 ${left + w} ${top + h - 5}V${top + 5}`)
-      add({ kind: 'ellipse', cx: x, cy: top + h - 5, rx: w / 2, ry: 5 }, `<ellipse cx="${x}" cy="${top + h - 5}" rx="${w / 2}" ry="5"/>`)
+      add({ kind: 'ellipse', cx: x, cy: top + h - 5, rx: w / 2, ry: 5 })
     } else if (type === 'collections') {
       rect(left + 6, top, w - 6, h - 6)
       rect(left, top + 6, w - 6, h - 6)
@@ -460,13 +504,15 @@ function renderActor(
       path(`M${x - 4} ${top + 4}L${x + 4} ${top}L${x + 2} ${top + 8}`)
     } else circle(x, top + h / 2, Math.min(w, h) / 2 - 3)
     children.push({ indent: 2, node: marks.group({ id: `actor:${id}:icon`, role: 'icon', owner, channels: { category: id },
-      open: `<g class="sequence-actor-glyph sequence-actor-${type}" fill="${rawFill}" stroke="${rawStroke}" stroke-width="${lineWidth}">`,
-      close: '</g>', join: '', children: glyphs.map(node => ({ node, indent: 0 })),
+      emission: { kind: 'group', attributes: [
+        { name: 'class', value: v.meta(`sequence-actor-glyph sequence-actor-${type}`) },
+        { name: 'fill', value: v.meta(rawFillColor) }, { name: 'stroke', value: v.meta(paint.stroke) }, { name: 'stroke-width', value: v.meta(lineWidth) },
+      ] }, join: '', children: glyphs.map(node => ({ node, indent: 0 })),
     }) })
     children.push({ indent: 2, node: marks.text({
       id: `actor:${id}:label`, role: 'label', text: displayLabel, block: actor.labelPosition.block, x: labelX, y: labelY,
-      fontSize, anchor: 'middle', paint: { fill: below.ink, ...haloPaint(below) }, channels: { category: id },
-    }, renderMultilineText(actor.labelPosition.block ?? displayLabel, labelX, labelY, fontSize, belowAttrs)) })
+      fontSize, fontWeight, letterSpacing, anchor: 'middle', paint: { fill: below.ink, ...haloPaint(below) }, channels: { category: id },
+    }, TEXT_EMISSION) })
   } else {
     // Participant: rectangle box with label (supports multi-line)
     const boxX = x - width / 2
@@ -482,8 +528,7 @@ function renderActor(
         paint: { fill: rawFill, stroke: rawStroke, strokeWidth: String(lineWidth) },
         channels: { category: id },
       },
-        `<rect x="${boxX}" y="${y}" width="${width}" height="${height}" rx="${radius}" ry="${radius}" ` +
-        `fill="${escapeAttr(rawFill)}" stroke="${escapeAttr(rawStroke)}" stroke-width="${lineWidth}" />`),
+        RECT_EMISSION),
     })
     children.push({
       indent: 2,
@@ -494,11 +539,11 @@ function renderActor(
         block: actor.labelPosition.block,
         x: labelX,
         y: labelY,
-        fontSize,
+        fontSize, fontWeight, letterSpacing,
         anchor: 'middle',
         paint: { fill: boxTextColor },
         channels: { category: id },
-      }, renderMultilineText(actor.labelPosition.block ?? displayLabel, labelX, labelY, fontSize, labelAttrs)),
+      }, TEXT_EMISSION),
     })
   }
 
@@ -506,13 +551,12 @@ function renderActor(
   if (actor.links) children.push({ indent: 2, node: marks.text({
     id: `actor:${id}:menu`, role: 'icon', text: '⋯', block: actor.menuBlock, x: x + width / 2 - 7, y: y + 10,
     fontSize: 10, anchor: 'middle', paint: { fill: menuColor }, channels: { category: id },
-  }, `<text class="sequence-actor-menu" x="${x + width / 2 - 7}" y="${y + 10}" text-anchor="middle" font-size="10" fill="${escapeAttr(menuColor)}">⋯</text>`) })
+  }, MENU_EMISSION) })
 
   return marks.group({
     id: `actor:${id}`,
     role: 'actor',
-    open,
-    close: '</g>',
+    emission,
     children,
     channels: { category: id },
   })
@@ -529,7 +573,7 @@ function renderLifeline(lifeline: Lifeline, style: ResolvedRenderStyle, spans: V
   if (spans.length !== 1 || spans[0]!.top !== lifeline.topY || spans[0]!.bottom !== lifeline.bottomY) {
     return marks.group({
       id: owner, role: 'lifeline',
-      open: `<g class="lifeline" data-actor="${escapeAttr(lifeline.actorId)}">`, close: '</g>',
+      emission: { kind: 'group', attributes: [{ name: 'class', value: v.meta('lifeline') }, { name: 'data-actor', value: v.meta(lifeline.actorId) }] },
       children: spans.map(span => {
         // A new contour restarts its dash pattern; carry the original phase
         // through the gap rather than accumulating a timing shift below it.
@@ -539,8 +583,7 @@ function renderLifeline(lifeline: Lifeline, style: ResolvedRenderStyle, spans: V
           geometry: { kind: 'line', x1: lifeline.x, y1: span.top, x2: lifeline.x, y2: span.bottom },
           lineStyle: 'dashed',
           paint: { stroke: rawStroke, strokeWidth: String(strokeWidth), strokeDasharray: '6 4', strokeDashoffset: String(offset) },
-        }, `<line x1="${lifeline.x}" y1="${span.top}" x2="${lifeline.x}" y2="${span.bottom}" ` +
-          `stroke="${escapeAttr(rawStroke)}" stroke-width="${strokeWidth}" stroke-dasharray="6 4" stroke-dashoffset="${offset}" />`) }
+        }, DASHED_EMISSION) }
       }),
     })
   }
@@ -551,9 +594,11 @@ function renderLifeline(lifeline: Lifeline, style: ResolvedRenderStyle, spans: V
     lineStyle: 'dashed',
     paint: { stroke: rawStroke, strokeWidth: String(strokeWidth), strokeDasharray: '6 4' },
   },
-    `<line class="lifeline" data-actor="${escapeAttr(lifeline.actorId)}" ` +
-    `x1="${lifeline.x}" y1="${lifeline.topY}" x2="${lifeline.x}" y2="${lifeline.bottomY}" ` +
-    `stroke="${escapeAttr(rawStroke)}" stroke-width="${strokeWidth}" stroke-dasharray="6 4" />`)
+    { kind: 'primitive', attributes: [
+      { name: 'class', value: v.meta('lifeline') }, { name: 'data-actor', value: v.meta(lifeline.actorId) },
+      ...LINE_FIELDS.map(name => ({ name, value: v.geometry(name) })), ...PAINT_ATTRIBUTES.slice(1),
+      { name: 'stroke-dasharray', value: v.paint('strokeDasharray') },
+    ] })
 }
 
 /**
@@ -589,16 +634,16 @@ function renderActivation(activation: Activation, style: ResolvedRenderStyle, sc
       children.push({ indent: 2, node: marks.shape({
         id: semanticChildId(sceneId, 'fill'), role: 'activation', surfaceFragment: true,
         geometry: { kind: 'path', d: fillPath }, paint: { fill: rawFill, stroke: 'none' },
-      }, `<path d="${fillPath}" fill="${escapeAttr(rawFill)}" stroke="none" />`) })
+      }, PATH_FILL_EMISSION) })
       children.push({ indent: 2, node: marks.shape({
         id: semanticChildId(sceneId, 'border'), role: 'activation',
         geometry: { kind: 'path', d: borderPath },
         paint: { fill: 'none', stroke: rawStroke, strokeWidth: String(STROKE_WIDTHS.innerBox) },
-      }, `<path d="${borderPath}" fill="none" stroke="${escapeAttr(rawStroke)}" stroke-width="${STROKE_WIDTHS.innerBox}" />`) })
+      }, PATH_PAINT_EMISSION) })
     }
     return marks.group({
       id: sceneId, role: 'activation',
-      open: `<g class="activation" data-actor="${escapeAttr(activation.actorId)}">`, close: '</g>', children,
+      emission: { kind: 'group', attributes: [{ name: 'class', value: v.meta('activation') }, { name: 'data-actor', value: v.meta(activation.actorId) }] }, children,
     })
   }
   return marks.shape({
@@ -607,9 +652,10 @@ function renderActivation(activation: Activation, style: ResolvedRenderStyle, sc
     geometry: { kind: 'rect', x: activation.x, y: activation.topY, width: activation.width, height: activation.bottomY - activation.topY },
     paint: { fill: rawFill, stroke: rawStroke, strokeWidth: String(STROKE_WIDTHS.innerBox) },
   },
-    `<rect class="activation" data-actor="${escapeAttr(activation.actorId)}" ` +
-    `x="${activation.x}" y="${activation.topY}" width="${activation.width}" height="${activation.bottomY - activation.topY}" ` +
-    `fill="${escapeAttr(rawFill)}" stroke="${escapeAttr(rawStroke)}" stroke-width="${STROKE_WIDTHS.innerBox}" />`)
+    { kind: 'primitive', attributes: [
+      { name: 'class', value: v.meta('activation') }, { name: 'data-actor', value: v.meta(activation.actorId) },
+      ...RECT_FIELDS.map(name => ({ name, value: v.geometry(name) })), ...PAINT_ATTRIBUTES,
+    ] })
 }
 
 /**
@@ -619,10 +665,8 @@ function renderActivation(activation: Activation, style: ResolvedRenderStyle, sc
  */
 function renderMessage(msg: PositionedMessage, style: ResolvedRenderStyle, sceneId: string, inkAt: SurfaceInk): SceneNode {
   const children: Array<{ node: SceneNode; indent: number }> = []
-  const dashArray = msg.lineStyle === 'dashed' ? ' stroke-dasharray="6 4"' : ''
   const startMarker = sequenceMarkerFor(style, msg.startHead)
   const endMarker = sequenceMarkerFor(style, msg.endHead)
-  const markerAttrs = `${startMarker ? ` marker-start="url(#${startMarker.id})"` : ''}${endMarker ? ` marker-end="url(#${endMarker.id})"` : ''}`
   const rawStroke = style.edgeStrokeColor ?? 'var(--_line)'
   const rawTextColor = style.edgeTextColor ?? 'var(--_text-muted)'
   const { text: displayLabel, x: labelX, y: labelY, bounds: labelBounds } = msg.labelPosition
@@ -644,13 +688,16 @@ function renderMessage(msg: PositionedMessage, style: ResolvedRenderStyle, scene
   } as const
 
   // Semantic wrapper with message metadata
-  const open =
-    `<g class="message" data-label="${escapeDisplayAttr(msg.label)}" data-line-style="${msg.lineStyle}" ` +
-    `data-start-head="${msg.startHead}" data-end-head="${msg.endHead}" data-central-start="${msg.centralStart}" data-central-end="${msg.centralEnd}" data-self="${msg.isSelf}">`
+  const emission = { kind: 'group' as const, attributes: [
+    { name: 'class' as const, value: v.meta('message') }, { name: 'data-label' as const, value: v.meta(msg.label), display: true },
+    { name: 'data-line-style' as const, value: v.meta(msg.lineStyle) },
+    { name: 'data-start-head' as const, value: v.meta(msg.startHead) }, { name: 'data-end-head' as const, value: v.meta(msg.endHead) },
+    { name: 'data-central-start' as const, value: v.meta(msg.centralStart) }, { name: 'data-central-end' as const, value: v.meta(msg.centralEnd) },
+    { name: 'data-self' as const, value: v.meta(msg.isSelf) },
+  ] }
 
   if (msg.isSelf) {
     // Self-message: curved loop going right and back
-    const pointsAttr = msg.points.map(p => `${p.x},${p.y}`).join(' ')
     children.push({
       indent: 2,
       node: marks.connector({
@@ -665,8 +712,7 @@ function renderMessage(msg: PositionedMessage, style: ResolvedRenderStyle, scene
         markers: { ...(startMarker ? { start: startMarker } : {}), mid: [], ...(endMarker ? { end: endMarker } : {}) },
         ...connectorSemantics,
       },
-        `<polyline points="${pointsAttr}" ` +
-        `fill="none" stroke="${escapeAttr(rawStroke)}" stroke-width="${style.lineWidth}"${dashArray}${markerAttrs} />`),
+        MESSAGE_EMISSIONS[1]!),
     })
     // Label to the right of the loop (supports multi-line)
     const loopPaint = inkAt(areaFromBounds(labelBounds), rawTextColor)
@@ -679,11 +725,10 @@ function renderMessage(msg: PositionedMessage, style: ResolvedRenderStyle, scene
         block: msg.labelPosition.block,
         x: labelX,
         y: labelY,
-        fontSize: style.edgeLabelFontSize,
+        fontSize: style.edgeLabelFontSize, fontWeight: style.edgeLabelFontWeight, letterSpacing: style.edgeLetterSpacing,
         anchor: 'start',
         paint: { fill: loopPaint.ink, ...haloPaint(loopPaint) },
-      }, renderMultilineText(msg.labelPosition.block ?? displayLabel, labelX, labelY, style.edgeLabelFontSize,
-        `font-size="${style.edgeLabelFontSize}" text-anchor="start" font-weight="${style.edgeLabelFontWeight}"${letterAttr(style.edgeLetterSpacing)} fill="${escapeAttr(loopPaint.ink)}"${haloAttrs(loopPaint)}`)),
+      }, TEXT_EMISSION),
     })
   } else {
     // Normal message: horizontal arrow
@@ -700,8 +745,7 @@ function renderMessage(msg: PositionedMessage, style: ResolvedRenderStyle, scene
         markers: { ...(startMarker ? { start: startMarker } : {}), mid: [], ...(endMarker ? { end: endMarker } : {}) },
         ...connectorSemantics,
       },
-        `<line x1="${p0.x}" y1="${p0.y}" x2="${p1.x}" y2="${p1.y}" ` +
-        `stroke="${escapeAttr(rawStroke)}" stroke-width="${style.lineWidth}"${dashArray}${markerAttrs} />`),
+        MESSAGE_EMISSIONS[0]!),
     })
     // Label above the arrow, centered (supports multi-line)
     const labelPaint = inkAt(areaFromBounds(labelBounds), rawTextColor)
@@ -714,28 +758,26 @@ function renderMessage(msg: PositionedMessage, style: ResolvedRenderStyle, scene
         block: msg.labelPosition.block,
         x: labelX,
         y: labelY,
-        fontSize: style.edgeLabelFontSize,
+        fontSize: style.edgeLabelFontSize, fontWeight: style.edgeLabelFontWeight, letterSpacing: style.edgeLetterSpacing,
         anchor: 'middle',
         paint: { fill: labelPaint.ink, ...haloPaint(labelPaint) },
-      }, renderMultilineText(msg.labelPosition.block ?? displayLabel, labelX, labelY, style.edgeLabelFontSize,
-        `font-size="${style.edgeLabelFontSize}" text-anchor="middle" font-weight="${style.edgeLabelFontWeight}"${letterAttr(style.edgeLetterSpacing)} fill="${escapeAttr(labelPaint.ink)}"${haloAttrs(labelPaint)}`)),
+      }, TEXT_EMISSION),
     })
   }
 
   if (msg.centralStart) children.push({ indent: 2, node: marks.shape({
     id: `${sceneId}:central-start`, role: 'chrome', geometry: { kind: 'circle', cx: msg.x1, cy: msg.y, r: 4 },
     paint: { fill: 'var(--bg)', stroke: rawStroke, strokeWidth: '1.5' },
-  }, `<circle class="sequence-central-connection" data-side="start" cx="${msg.x1}" cy="${msg.y}" r="4" fill="var(--bg)" stroke="${escapeAttr(rawStroke)}" stroke-width="1.5" />`) })
+  }, CENTRAL_EMISSIONS[0]!) })
   if (msg.centralEnd) children.push({ indent: 2, node: marks.shape({
     id: `${sceneId}:central-end`, role: 'chrome', geometry: { kind: 'circle', cx: msg.x2, cy: msg.y, r: 4 },
     paint: { fill: 'var(--bg)', stroke: rawStroke, strokeWidth: '1.5' },
-  }, `<circle class="sequence-central-connection" data-side="end" cx="${msg.x2}" cy="${msg.y}" r="4" fill="var(--bg)" stroke="${escapeAttr(rawStroke)}" stroke-width="1.5" />`) })
+  }, CENTRAL_EMISSIONS[1]!) })
 
   return marks.group({
     id: sceneId,
     role: 'message',
-    open,
-    close: '</g>',
+    emission,
     children,
   })
 }
@@ -756,12 +798,13 @@ function renderBlock(block: PositionedBlock, style: ResolvedRenderStyle, sceneId
   const children: Array<{ node: SceneNode; indent: number }> = []
 
   // Semantic wrapper with block metadata
-  const labelAttr = block.label ? ` data-label="${escapeDisplayAttr(block.label)}"` : ''
-  const open = part === 'dividers'
-    ? `<g class="sequence-block-divider-overlay" data-owner="${escapeAttr(sceneId)}">`
-    : part === 'frame'
-      ? `<g class="sequence-block-frame-overlay" data-owner="${escapeAttr(sceneId)}">`
-      : `<g class="block" data-type="${escapeAttr(block.type)}"${labelAttr}>`
+  const emission = { kind: 'group' as const, attributes: part === 'dividers' || part === 'frame' ? [
+    { name: 'class' as const, value: v.meta(part === 'dividers' ? 'sequence-block-divider-overlay' : 'sequence-block-frame-overlay') },
+    { name: 'data-owner' as const, value: v.meta(sceneId) },
+  ] : [
+    { name: 'class' as const, value: v.meta('block') }, { name: 'data-type' as const, value: v.meta(block.type) },
+    ...(block.label ? [{ name: 'data-label' as const, value: v.meta(block.label), display: true }] : []),
+  ] }
 
   // Outer rectangle
   const rawFill = blockBackground(block, style) ?? 'none'
@@ -776,8 +819,7 @@ function renderBlock(block: PositionedBlock, style: ResolvedRenderStyle, sceneId
       geometry: { kind: 'rect', x: block.x, y: block.y, width: block.width, height: block.height, rx: style.groupCornerRadius, ry: style.groupCornerRadius },
       paint: { fill, stroke, strokeWidth: String(style.groupLineWidth) },
     },
-      `<rect x="${block.x}" y="${block.y}" width="${block.width}" height="${block.height}" ` +
-      `rx="${style.groupCornerRadius}" ry="${style.groupCornerRadius}" fill="${escapeAttr(fill)}" stroke="${escapeAttr(stroke)}" stroke-width="${style.groupLineWidth}" />`),
+      RECT_EMISSION),
   })
 
   // Divider lines (for alt/else, par/and); their labels are drawn later, above
@@ -797,16 +839,14 @@ function renderBlock(block: PositionedBlock, style: ResolvedRenderStyle, sceneId
         lineStyle: 'dashed',
         paint: { stroke: rawDividerStroke, strokeWidth: String(dividerStrokeWidth), strokeDasharray: '6 4' },
       },
-        `<line x1="${block.x}" y1="${divider.y}" x2="${block.x + block.width}" y2="${divider.y}" ` +
-        `stroke="${escapeAttr(rawDividerStroke)}" stroke-width="${dividerStrokeWidth}" stroke-dasharray="6 4" />`),
+        DASHED_EMISSION),
     })
   }
 
   return marks.group({
     id: part === 'dividers' ? `${sceneId}:divider-overlay` : part === 'frame' ? `${sceneId}:frame-overlay` : sceneId,
     role: 'block',
-    open,
-    close: '</g>',
+    emission,
     children,
   })
 }
@@ -833,18 +873,16 @@ function renderBlockDividerLabels(block: PositionedBlock, style: ResolvedRenderS
         block: divider.labelPosition.block,
         x: labelX,
         y: labelY,
-        fontSize: style.edgeLabelFontSize,
+        fontSize: style.edgeLabelFontSize, fontWeight: style.edgeLabelFontWeight, letterSpacing: style.edgeLetterSpacing,
         anchor: 'start',
         paint: { fill: labelPaint.ink, ...haloPaint(labelPaint) },
-      }, renderMultilineText(divider.labelPosition.block ?? label, labelX, labelY, style.edgeLabelFontSize,
-        `font-size="${style.edgeLabelFontSize}" text-anchor="start" font-weight="${style.edgeLabelFontWeight}"${letterAttr(style.edgeLetterSpacing)} fill="${escapeAttr(labelPaint.ink)}"${haloAttrs(labelPaint)}`)),
+      }, TEXT_EMISSION),
     })
   })
   return marks.group({
     id: `${sceneId}:divider-labels`,
     role: 'block',
-    open: `<g class="sequence-block-divider-labels" pointer-events="none">`,
-    close: '</g>',
+    emission: DIVIDER_LABEL_GROUP_EMISSION,
     children,
   })
 }
@@ -858,8 +896,7 @@ function renderBlockHeader(header: PositionedBlockHeader, style: ResolvedRenderS
   return marks.group({
     id: `${sceneId}:header-overlay`,
     role: 'block',
-    open: `<g class="sequence-block-header-overlay" pointer-events="none" aria-hidden="true">`,
-    close: '</g>',
+    emission: HEADER_GROUP_EMISSION,
     children: [
       {
         indent: 0,
@@ -868,7 +905,7 @@ function renderBlockHeader(header: PositionedBlockHeader, style: ResolvedRenderS
           role: 'block',
           geometry: { kind: 'rect', x: tabX, y: tabY, width: tabWidth, height: tabHeight },
           paint: { fill, stroke, strokeWidth: String(style.groupLineWidth) },
-        }, `<rect x="${tabX}" y="${tabY}" width="${tabWidth}" height="${tabHeight}" fill="${escapeAttr(fill)}" stroke="${escapeAttr(stroke)}" stroke-width="${style.groupLineWidth}" />`),
+        }, TAB_EMISSION),
       },
       {
         indent: 0,
@@ -879,16 +916,14 @@ function renderBlockHeader(header: PositionedBlockHeader, style: ResolvedRenderS
           block: label.block,
           x: labelX,
           y: labelY,
-          fontSize: style.groupHeaderFontSize,
+          fontSize: style.groupHeaderFontSize, fontWeight: style.groupHeaderFontWeight, letterSpacing: style.groupLetterSpacing,
           anchor: 'start',
           paint: { fill: text },
-        }, renderMultilineText(
-          label.block ?? labelText,
-          labelX,
-          labelY,
-          style.groupHeaderFontSize,
-          `font-size="${style.groupHeaderFontSize}" font-weight="${style.groupHeaderFontWeight}"${style.groupFont ? ` font-family="${escapeAttr(style.groupFont)}"` : ''}${letterAttr(style.groupLetterSpacing)} fill="${escapeAttr(text)}"`,
-        )),
+        }, { kind: 'text', layout: 'multiline', attributes: [
+          { name: 'font-size', value: v.text('fontSize') }, { name: 'font-weight', value: v.text('fontWeight') },
+          ...(style.groupFont ? [{ name: 'font-family' as const, value: v.meta(style.groupFont) }] : []),
+          { name: 'letter-spacing', value: v.text('letterSpacing'), omit: 'zero' }, { name: 'fill', value: v.paint('fill') },
+        ] }),
       },
     ],
   })
@@ -907,8 +942,9 @@ function renderBlockHeader(header: PositionedBlockHeader, style: ResolvedRenderS
  */
 function renderBoxGroup(box: PositionedBoxGroup, style: ResolvedRenderStyle, sceneId: string): SceneNode {
   const children: Array<{ node: SceneNode; indent: number }> = []
-  const labelAttr = box.label ? ` data-label="${escapeDisplayAttr(box.label)}"` : ''
-  const open = `<g class="box"${labelAttr}>`
+  const emission = { kind: 'group' as const, attributes: [
+    { name: 'class' as const, value: v.meta('box') }, ...(box.label ? [{ name: 'data-label' as const, value: v.meta(box.label), display: true }] : []),
+  ] }
 
   const explicit = box.color?.toLowerCase() === 'transparent' ? 'none' : box.color
   const fill = explicit ?? 'color-mix(in srgb, var(--fg) 5%, var(--bg))'
@@ -920,8 +956,7 @@ function renderBoxGroup(box: PositionedBoxGroup, style: ResolvedRenderStyle, sce
       geometry: { kind: 'rect', x: box.x, y: box.y, width: box.width, height: box.height, rx: style.groupCornerRadius, ry: style.groupCornerRadius },
       paint: { fill, stroke: 'none' },
     },
-      `<rect x="${box.x}" y="${box.y}" width="${box.width}" height="${box.height}" ` +
-      `rx="${style.groupCornerRadius}" ry="${style.groupCornerRadius}" fill="${escapeAttr(fill)}" stroke="none" />`),
+      primitive(ROUND_RECT_FIELDS, PAINT_ATTRIBUTES.slice(0, 2))),
   })
 
   if (box.label) {
@@ -938,19 +973,19 @@ function renderBoxGroup(box: PositionedBoxGroup, style: ResolvedRenderStyle, sce
         block: box.block,
         x: titleX,
         y: titleY,
-        fontSize: style.groupHeaderFontSize,
+        fontSize: style.groupHeaderFontSize, fontWeight: style.groupHeaderFontWeight, letterSpacing: style.groupLetterSpacing,
         anchor: 'middle',
         paint: { fill: ink },
-      }, renderMultilineText(box.block ?? displayLabel, titleX, titleY, style.groupHeaderFontSize,
-        `font-size="${style.groupHeaderFontSize}" text-anchor="middle" font-weight="${style.groupHeaderFontWeight}"${style.groupFont ? ` font-family="${escapeAttr(style.groupFont)}"` : ''}${letterAttr(style.groupLetterSpacing)} fill="${escapeAttr(ink)}"`)),
+      }, { kind: 'text', layout: 'multiline', attributes: [
+        ...TEXT_ATTRIBUTES.slice(0, 3), ...(style.groupFont ? [{ name: 'font-family' as const, value: v.meta(style.groupFont) }] : []), ...TEXT_ATTRIBUTES.slice(3),
+      ] }),
     })
   }
 
   return marks.group({
     id: sceneId,
     role: 'group',
-    open,
-    close: '</g>',
+    emission,
     children,
   })
 }
@@ -986,8 +1021,10 @@ function renderDestroyCross(cross: LifelineCross, style: ResolvedRenderStyle): S
     paint: { stroke, strokeWidth: String(strokeWidth) },
     channels: { category: cross.actorId },
   },
-    `<path class="destroy-cross" data-actor="${escapeAttr(cross.actorId)}" d="${d}" ` +
-    `fill="none" stroke="${escapeAttr(stroke)}" stroke-width="${strokeWidth}" />`)
+    { kind: 'primitive', attributes: [
+      { name: 'class', value: v.meta('destroy-cross') }, { name: 'data-actor', value: v.channel('category') },
+      { name: 'd', value: v.geometry('d') }, { name: 'fill', value: v.paint('fill'), fallback: 'none' }, ...PAINT_ATTRIBUTES.slice(1),
+    ] })
 }
 
 /**
@@ -996,11 +1033,6 @@ function renderDestroyCross(cross: LifelineCross, style: ResolvedRenderStyle): S
  */
 function renderNote(note: PositionedNote, style: ResolvedRenderStyle, colors: DiagramColors, sceneId: string): SceneNode {
   const { x, y, width: w, height: h } = note
-
-  const actorsAttr = note.actors && note.actors.length > 0
-    ? ` data-actors="${note.actors.map(escapeAttr).join(',')}"`
-    : ''
-  const positionAttr = note.position ? ` data-position="${escapeAttr(note.position)}"` : ''
 
   const rawFill = style.nodeFillColor ?? 'var(--bg)'
   const rawStroke = style.nodeBorderColor ?? 'var(--_node-stroke)'
@@ -1011,8 +1043,11 @@ function renderNote(note: PositionedNote, style: ResolvedRenderStyle, colors: Di
   return marks.group({
     id: sceneId,
     role: 'note',
-    open: `<g class="note"${positionAttr}${actorsAttr}>`,
-    close: '</g>',
+    emission: { kind: 'group', attributes: [
+      { name: 'class', value: v.meta('note') },
+      ...(note.position ? [{ name: 'data-position' as const, value: v.meta(note.position) }] : []),
+      ...(note.actors?.length ? [{ name: 'data-actors' as const, value: v.meta(note.actors.join(',')) }] : []),
+    ] },
     children: [
       {
         indent: 2,
@@ -1022,8 +1057,7 @@ function renderNote(note: PositionedNote, style: ResolvedRenderStyle, colors: Di
           geometry: { kind: 'rect', x, y, width: w, height: h, rx: radius, ry: radius },
           paint: { fill: rawFill, stroke: rawStroke, strokeWidth: String(STROKE_WIDTHS.innerBox) },
         },
-          `<rect x="${x}" y="${y}" width="${w}" height="${h}" rx="${radius}" ry="${radius}" ` +
-          `fill="${escapeAttr(rawFill)}" stroke="${escapeAttr(rawStroke)}" stroke-width="${STROKE_WIDTHS.innerBox}" />`),
+          RECT_EMISSION),
       },
       {
         indent: 2,
@@ -1034,27 +1068,11 @@ function renderNote(note: PositionedNote, style: ResolvedRenderStyle, colors: Di
           block: note.block,
           x: x + w / 2,
           y: y + h / 2,
-          fontSize: style.nodeLabelFontSize,
+          fontSize: style.nodeLabelFontSize, fontWeight: style.nodeLabelFontWeight, letterSpacing: style.nodeLetterSpacing,
           anchor: 'middle',
           paint: { fill: rawTextColor },
-        }, renderMultilineText(note.block ?? displayText, x + w / 2, y + h / 2, style.nodeLabelFontSize,
-          `font-size="${style.nodeLabelFontSize}" text-anchor="middle" font-weight="${style.nodeLabelFontWeight}"${letterAttr(style.nodeLetterSpacing)} fill="${escapeAttr(rawTextColor)}"`)),
+        }, TEXT_EMISSION),
       },
     ],
   })
 }
-
-// ============================================================================
-// Utilities
-// ============================================================================
-
-function letterAttr(value: number): string {
-  return value !== 0 ? ` letter-spacing="${value}"` : ''
-}
-
-// Use shared escapeXml from multiline-utils
-const escapeXml = escapeXmlUtil
-
-/**
- * Escape a string for use as an XML/HTML attribute value.
- */
