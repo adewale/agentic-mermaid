@@ -131,8 +131,10 @@ const NODE_STRING_CHAR_RE = /[\p{L}\p{N}_!"#$%&'*+.`?\\/]/u
  *   - `"` and `&` belong to the id only after its first character (where an
  *     id would begin, they open a string or join a `&` list);
  *   - `:` belongs to it unless `:::`, a class, begins there;
- *   - `-` belongs to it unless `-`, `.` or `>` follows, so `A--x`, `A-.->`
- *     and `A->` end the id before it, and `A.-B` is one id.
+ *   - `-` belongs to it unless `-` or `.` follows (a link begins), so `A--x`
+ *     and `A-.->` end the id before it, `A.-B` is one id, and so is the
+ *     `odd-` of `odd->x]` (upstream's node string ends before `->`, and its
+ *     id grammar takes the `-` in before the `>` that opens shape text).
  * An `x` or `o` in the run is a letter: `Go--xH` is `Go --x H`. Upstream's
  * `,` is left out, which `style` and `class` here read as a list separator,
  * and `=`, which upstream's lexer rejects in an id.
@@ -143,7 +145,7 @@ export function flowchartNodeIdLength(text: string, at = 0): number {
     const char = text[end]!
     if (char === '-') {
       const next = text[end + 1]
-      if (next === '-' || next === '.' || next === '>') break
+      if (next === '-' || next === '.') break
       continue
     }
     if (end === at && (char === '"' || char === '&' || char === ':')) break

@@ -168,6 +168,9 @@ describe('parseMermaid – node shapes (original)', () => {
     ['.A --> B. --> 1.5', ['.A', 'B.', '1.5']],
     ['é.b[label] --> c', ['é.b', 'c']],
     ['Xo--xY', ['Xo', 'Y']],
+    // Upstream's node string ends before `->`, but its id grammar takes the
+    // `-` in before the `>` that opens shape text.
+    ['A-->odd->Text] --> B-', ['A', 'odd-', 'B-']],
   ])('reads %j with the node ids upstream reads, and writes them back', (statement, ids) => {
     const source = `flowchart LR\n  ${statement}\n  style ${ids[0]} fill:#f00\n  class ${ids.at(-1)} c`
     expect([...parseMermaid(source).nodes.keys()]).toEqual(ids)
