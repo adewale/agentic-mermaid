@@ -13,10 +13,13 @@ const importMs = performance.now() - started
 const collect = () => { if (process.versions.bun) Bun.gc(true); else (globalThis as { gc?: () => void }).gc?.() }
 collect(); const loadedMemory = process.memoryUsage()
 const allocate = job.allocation ? await allocationProbe() : undefined
-interface Case { id: string; output: 'svg' | 'terminal' | 'agent' | 'receipt' | 'png'; source: string; labels?: readonly string[] }
+interface Case { id: string; output: 'svg' | 'terminal' | 'agent' | 'receipt' | 'png'; source: string; labels?: readonly string[]; options?: Parameters<typeof api.renderMermaidSVG>[1] }
 const cases: Case[] = Object.entries(MICRO_WORKLOADS).map(([id, source]) => ({ id, source, output: 'svg' }))
 const extras = releaseBenchCases().filter(c => job.broad ? !['flowchart', 'sequence', 'class', 'er', 'state', 'c4'].includes(c.family) : c.family === 'gantt' || c.family === 'sankey')
 cases.push(...extras.map(c => ({ id: c.id, source: c.source, labels: c.expectedSvgLabels, output: 'svg' as const })))
+if (job.broad) cases.push({ id: 'gantt:weekly-dependency-routing', output: 'svg', options: { gantt: { dependencyArrows: true } },
+  source: ['gantt', 'dateFormat YYYY-MM-DD', 'excludes weekends', ...Array.from({ length: 80 }, (_, i) =>
+    `Task ${i} :t${i}, ${i === 0 ? '2020-01-01' : `after t${Math.floor((i - 1) / 3)}`}, ${200 + i % 7}d`)].join('\n') })
 for (const id of ['flow5', 'tree50', 'mesh50', 'seq20'] as const) cases.push({ id: `terminal:${id}`, source: MICRO_WORKLOADS[id], output: 'terminal' })
 cases.push({ id: 'agent:edit-loop', source: agentEditCase.source, labels: agentEditCase.expectedSvgLabels, output: 'agent' },
   { id: 'receipt:flow5', source: MICRO_WORKLOADS.flow5, output: 'receipt' })
@@ -28,7 +31,7 @@ for (const input of cases) {
     if (input.output === 'agent') return renderAgentEdit(agent, input.source)
     if (input.output === 'receipt') return JSON.stringify(api.renderMermaidSVGWithReceipt(input.source))
     if (input.output === 'png') return agent.renderMermaidPNG(input.source)
-    return api.renderMermaidSVG(input.source)
+    return api.renderMermaidSVG(input.source, input.options)
   }
   const consume = (value: string | Uint8Array): number => typeof value === 'string' ? Buffer.byteLength(value) : value.byteLength
   try {

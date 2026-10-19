@@ -2,10 +2,12 @@
 // observations. No clocks, npm registry or browser launch in these tests.
 import { describe, expect, test } from 'bun:test'
 import { spawnSync } from 'node:child_process'
+import { createHash } from 'node:crypto'
 import { chmodSync, readFileSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { report, type EngineRun, type Group, type Input } from '../../eval/benchmark/release-bench.ts'
-import { browserScorecard, renderPass, type BrowserSample } from '../../eval/benchmark/release-browser-bench.ts'
+import { browserDiagnosticsOptions, browserScorecard, renderPass, type BrowserSample } from '../../eval/benchmark/release-browser-bench.ts'
+import { browserMemoryDiagnostics, sharedMemoryInputs } from '../../eval/benchmark/browser-memory.ts'
 import type { Page } from 'playwright'
 import { missingSvgLabels, renderAgentEdit, agentEditCase } from '../../eval/benchmark/release-bench-fidelity.ts'
 import * as api from '../agent/index.ts'
@@ -151,6 +153,65 @@ test('browser pass warms only the requested prefix and still attempts every meas
       else host[key] = value
     }
   }
+})
+
+test('optional Dart comparator validates complete byte identity and memory arguments before any installation', () => {
+  const dir = temp.dir(), bundle = join(dir, 'dart.js'), bytes = Buffer.from('globalThis.mermaidDartRender = () => "<svg/>"')
+  writeFileSync(bundle, bytes)
+  const sha = createHash('sha256').update(bytes).digest('hex')
+  const options = new Map([['dart-bundle', bundle], ['dart-sha256', sha], ['dart-revision', 'mermaid-v0.3.1@f53b343b'], ['memory-passes', '1']])
+  const result = browserDiagnosticsOptions(options)
+  expect(result.memoryPasses).toBe(1)
+  expect(result.dart?.bytes).toEqual(bytes)
+  expect(result.dart?.revision).toBe('mermaid-v0.3.1@f53b343b')
+  expect(browserDiagnosticsOptions(new Map())).toEqual({ memoryPasses: 0 })
+  for (const passes of ['-1', '1.2', 'NaN', 'Infinity', '', ' ', '0x1', '1e2']) expect(() => browserDiagnosticsOptions(new Map([['memory-passes', passes]]))).toThrow('nonnegative integer')
+  expect(() => browserDiagnosticsOptions(new Map([['dart-bundle', bundle]]))).toThrow('together')
+  expect(() => browserDiagnosticsOptions(new Map([...options, ['dart-sha256', '0'.repeat(64)]]))).toThrow('SHA-256 mismatch')
+  expect(() => browserDiagnosticsOptions(new Map([...options, ['dart-revision', 'revision\nwrong']]))).toThrow('printable revision')
+})
+
+test('Dart browser comparator calls its function export and preserves renderer failures', async () => {
+  const host = globalThis as unknown as Record<string, unknown>
+  const priorDocument = host.document, priorDart = host.mermaidDartRender, priorCache = host.AGENTIC_MERMAID_ELK_CACHE, priorFeatures = host.AGENTIC_MERMAID_EXPERIMENTS
+  const calls: string[] = []
+  host.document = { querySelectorAll: () => [] }
+  host.mermaidDartRender = (source: string) => { calls.push(source); if (source === 'unsupported') throw new Error('Dart unsupported'); return '<svg/>' }
+  const page = { goto: async () => {}, addScriptTag: async () => {}, evaluate: async (fn: (arg: unknown) => unknown, arg: unknown) => fn(arg) } as unknown as Page
+  try {
+    const rows = await renderPass(page, { label: 'dart', name: 'mermaid-dart', version: 'test', root: '/unused', kind: 'dart', bundle: 'dart.js', global: 'mermaidDartRender', identity: { integrity: 'test' } }, 'http://localhost', [{ id: 'ok', source: 'supported' }, { id: 'bad', source: 'unsupported' }], 1, 0)
+    expect(calls).toEqual(['supported', 'unsupported'])
+    expect(rows[0]?.ok).toBe(true)
+    expect(rows[1]?.ok).toBe(false)
+    expect(rows[1]?.error).toContain('Dart unsupported')
+  } finally {
+    for (const [key, value] of [['document', priorDocument], ['mermaidDartRender', priorDart], ['AGENTIC_MERMAID_ELK_CACHE', priorCache], ['AGENTIC_MERMAID_EXPERIMENTS', priorFeatures]] as const) {
+      if (value === undefined) delete host[key]
+      else host[key] = value
+    }
+  }
+})
+
+test('browser memory population pairs all rounds and engines before deduplicating sources', () => {
+  const inputs = [{ id: 'a', source: 'same source' }, { id: 'alias', source: 'same source' }, { id: 'failed', source: 'bad' }, { id: 'missing', source: 'missing round' }, { id: 'extra', source: 'distinct source' }]
+  const samples: BrowserSample[] = []
+  for (const engine of ['candidate', 'dart']) for (const round of [1, 2]) for (const input of inputs) {
+    if (engine === 'candidate' && round === 2 && input.id === 'missing') continue
+    samples.push({ engine, round, id: input.id, ms: 1, ok: !(engine === 'dart' && round === 2 && input.id === 'failed') })
+  }
+  // A duplicated successful row cannot replace a missing round.
+  samples.push({ engine: 'candidate', round: 1, id: 'missing', ms: 1, ok: true })
+  expect(sharedMemoryInputs(inputs, samples, ['candidate', 'dart'], 2)).toEqual([
+    { id: 'a', source: 'same source', occurrenceIds: ['a', 'alias'] },
+    { id: 'extra', source: 'distinct source', occurrenceIds: ['extra'] },
+  ])
+})
+
+test('an empty common browser memory population is explicitly incomplete without launching a browser', async () => {
+  const result = await browserMemoryDiagnostics({ engines: [], origin: 'http://unused.invalid', inputs: [], rounds: 3, passes: 1, out: '/unused', executablePath: '/unused/chromium' })
+  expect(result.status).toBe('incomplete')
+  expect(result.error).toContain('No distinct source succeeded')
+  expect(result.runs).toEqual([])
 })
 
 test('agent workload completes a verified edit and renders the original and added labels', () => {

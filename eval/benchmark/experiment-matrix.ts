@@ -1,13 +1,13 @@
 // Fresh-process, sequential feature screening. Finalists still need the full
 // canonical release/browser/peer/micro suites; this is not their replacement.
 import { spawnSync } from 'node:child_process'
-import { mkdirSync, mkdtempSync, readFileSync, writeFileSync } from 'node:fs'
+import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { join, resolve } from 'node:path'
 import { PERFORMANCE_EXPERIMENTS, type PerformanceExperiment } from '../../src/experimental-performance.ts'
 import { ROOT, workingRevision, extractRevisionTree } from './revision-tree.ts'
 import { median } from './bench-stats.ts'
 const options = new Map<string, string>()
-const allowed = new Set(['out', 'rounds', 'samples', 'runtime', 'phase', 'configs', 'broad', 'allocation', 'png', 'cache', 'baseline-ref'])
+const allowed = new Set(['out', 'rounds', 'samples', 'runtime', 'phase', 'configs', 'broad', 'allocation', 'png', 'cache', 'baseline-ref', 'paired'])
 for (let i = 2; i < process.argv.length; i += 2) {
   const flag = process.argv[i]!, value = process.argv[i + 1], key = flag.slice(2)
   if (!flag.startsWith('--') || !allowed.has(key) || !value || value.startsWith('--') || options.has(key)) throw Error(`Invalid matrix option ${flag}`)
@@ -19,20 +19,33 @@ const runtime = options.get('runtime') ?? 'node'
 if (runtime !== 'node' && runtime !== 'bun') throw Error('--runtime must be node or bun')
 const cache = options.get('cache') ?? 'off'
 if (cache !== 'on' && cache !== 'off') throw Error('--cache must be on or off')
+const pairedOption = options.get('paired') ?? '0'
+if (pairedOption !== '0' && pairedOption !== '1') throw Error('--paired must be 0 or 1')
+const paired = pairedOption === '1'
 const phase = options.get('phase') ?? 'singles'
-let configs: Array<{ id: string; features: PerformanceExperiment[] }>
-if (options.has('configs')) configs = JSON.parse(readFileSync(resolve(options.get('configs')!), 'utf8'))
-else if (phase === 'singles') configs = [{ id: 'baseline', features: [] }, ...PERFORMANCE_EXPERIMENTS.map(name => ({ id: name, features: [name] }))]
-else if (phase === 'ablation') configs = [{ id: 'baseline', features: [] }, { id: 'all', features: [...PERFORMANCE_EXPERIMENTS] },
+interface Config { id: string; features: PerformanceExperiment[]; source: 'baseline' | 'candidate' }
+let requestedConfigs: unknown
+if (options.has('configs')) requestedConfigs = JSON.parse(readFileSync(resolve(options.get('configs')!), 'utf8'))
+else if (phase === 'singles') requestedConfigs = [{ id: 'baseline', features: [] }, ...PERFORMANCE_EXPERIMENTS.map(name => ({ id: name, features: [name] }))]
+else if (phase === 'ablation') requestedConfigs = [{ id: 'baseline', features: [] }, { id: 'all', features: [...PERFORMANCE_EXPERIMENTS] },
   ...PERFORMANCE_EXPERIMENTS.map(name => ({ id: `without-${name}`, features: PERFORMANCE_EXPERIMENTS.filter(f => f !== name) }))]
 else throw Error('--phase must be singles or ablation, or supply --configs')
+if (!Array.isArray(requestedConfigs)) throw Error('Configurations must be an array')
 const ids = new Set<string>()
-for (const config of configs) {
-  if (!/^[a-z0-9_-]+$/.test(config.id) || ids.has(config.id) || config.features.some(f => !PERFORMANCE_EXPERIMENTS.includes(f)) || new Set(config.features).size !== config.features.length) throw Error(`Invalid config ${config.id}`)
-  if (config.id === 'baseline' && config.features.length !== 0) throw Error('The reserved baseline must have no experimental flags')
+const configs: Config[] = requestedConfigs.map(value => {
+  if (!value || typeof value !== 'object') throw Error('Invalid configuration')
+  const config = value as { id?: unknown; features?: unknown; source?: unknown }
+  if (typeof config.id !== 'string' || !/^[a-z0-9_-]+$/.test(config.id) || ids.has(config.id)
+    || !Array.isArray(config.features) || config.features.some(f => !PERFORMANCE_EXPERIMENTS.includes(f))
+    || new Set(config.features).size !== config.features.length) throw Error(`Invalid config ${String(config.id)}`)
+  const source = config.source ?? (config.id === 'baseline' ? 'baseline' : 'candidate')
+  if (source !== 'baseline' && source !== 'candidate') throw Error(`Invalid source for config ${config.id}`)
+  if (config.id === 'baseline' && source !== 'baseline') throw Error('The reserved baseline must use baseline source')
+  if (source === 'baseline' && config.features.length !== 0) throw Error('Baseline source configurations must have no experimental flags')
   ids.add(config.id)
-}
-if (!configs.some(c => c.id === 'baseline')) configs.unshift({ id: 'baseline', features: [] })
+  return { id: config.id, features: config.features as PerformanceExperiment[], source }
+})
+if (!configs.some(c => c.id === 'baseline')) configs.unshift({ id: 'baseline', features: [], source: 'baseline' })
 mkdirSync(out, { recursive: true })
 const buildDir = join(ROOT, 'node_modules/.cache/flagged-performance')
 mkdirSync(buildDir, { recursive: true })
@@ -50,41 +63,108 @@ if (options.has('baseline-ref')) {
     ...dependencies.flatMap(name => ['--external', name]), '--outfile', baselineBundle], { cwd: ROOT, stdio: 'inherit' })
   if (compiled.status !== 0) throw Error('Baseline worker build failed')
 }
-const runs: any[] = []
-for (let round = 1; round <= rounds; round++) for (const config of round % 2 ? configs : [...configs].reverse()) {
-  console.log(`${runtime} ${phase} ${round}/${rounds}: ${config.id}`)
-  const path = join(out, `${runtime}-${config.id}-${round}.json`), job = join(out, 'job.json')
+interface WorkerRow { id: string; output?: string; ok: boolean; medianMs?: number; witness?: string; allocationBytes?: number; error?: string }
+interface Reference { runId: string; outputFile: string; source: 'baseline'; sourceRevision: string }
+interface Run {
+  runId: string; config: string; round: number; role: 'measurement' | 'reference'; source: Config['source']; sourceRevision: string
+  outputFile: string; sequence: number; pairedFor?: string; pairId?: string; pairOrder?: string; comparisonReference?: Reference
+  rows?: WorkerRow[]; maxRssKiB?: number; finalMemory?: { heapUsed: number }; failed?: string
+}
+const runs: Run[] = []
+const baselineConfig = configs.find(config => config.id === 'baseline')!
+const referenceRevision = baselineRevision ?? builtRevision
+const describeReference = (config: Config, round: number): Reference => ({
+  runId: `${runtime}:${round}:${config.id}:${paired && config.id !== 'baseline' ? 'reference' : 'measurement'}`,
+  outputFile: `${runtime}-${config.id}-${round}${paired && config.id !== 'baseline' ? '-reference' : ''}.json`,
+  source: 'baseline', sourceRevision: referenceRevision,
+})
+function runWorker(config: Config, round: number, context: {
+  pairedFor?: string; pairId?: string; pairOrder?: string; comparisonReference?: Reference
+} = {}): void {
+  const role = context.pairedFor ? 'reference' : 'measurement'
+  const key = context.pairedFor ?? config.id
+  const outputFile = `${runtime}-${key}-${round}${role === 'reference' ? '-reference' : ''}.json`
+  const metadata: Run = {
+    runId: `${runtime}:${round}:${key}:${role}`, config: config.id, round, role,
+    source: config.source, sourceRevision: config.source === 'baseline' ? referenceRevision : builtRevision,
+    outputFile, sequence: runs.length + 1, ...context,
+  }
+  console.log(`${runtime} ${phase} ${round}/${rounds}: ${key}${role === 'reference' ? ' reference' : ''} (${config.source})`)
+  const path = join(out, outputFile), job = join(out, 'job.json')
+  rmSync(path, { force: true })
   writeFileSync(job, JSON.stringify({ out: path, samples, warmup: 1, broad: options.get('broad') === '1', allocation: options.get('allocation') === '1', png: options.get('png') === '1' }))
-  const child = spawnSync(runtime === 'bun' ? process.execPath : 'node', ['--expose-gc', config.id === 'baseline' && baselineBundle ? baselineBundle : bundle, job], {
+  const workerBundle = config.source === 'baseline' ? baselineBundle ?? bundle : bundle
+  const started = performance.now()
+  const child = spawnSync(runtime === 'bun' ? process.execPath : 'node', ['--expose-gc', workerBundle, job], {
     cwd: ROOT, stdio: ['ignore', 'ignore', 'pipe'], encoding: 'utf8', timeout: 180_000,
     env: { ...process.env, AGENTIC_MERMAID_EXPERIMENTS: config.features.join(','), AGENTIC_MERMAID_ELK_CACHE: cache === 'on' ? '1' : '0', AGENTIC_MERMAID_SCENE_ASSERTIONS: '0' },
   })
-  if (child.status !== 0) { runs.push({ config: config.id, round, failed: child.error?.message ?? child.stderr ?? child.signal }); continue }
-  runs.push({ config: config.id, round, ...JSON.parse(readFileSync(path, 'utf8')) })
-  writeFileSync(join(out, 'progress.json'), JSON.stringify({ revision: builtRevision, baselineRevision, runtime, cache, rounds, samples, configs, runs }, null, 2))
+  let result: Run
+  if (child.status !== 0) {
+    result = { ...metadata, failed: child.error?.message || child.stderr || `exited with ${child.status ?? child.signal ?? 'unknown status'}` }
+  } else {
+    try {
+      const value = JSON.parse(readFileSync(path, 'utf8'))
+      if (!value || !Array.isArray(value.rows)) throw Error('Worker result has no case rows')
+      result = { ...value, ...metadata }
+    } catch (error) { result = { ...metadata, failed: `Invalid worker result: ${String(error)}` } }
+  }
+  const evidence = { ...result, workerBundle, processWallMs: performance.now() - started,
+    processExit: { status: child.status, signal: child.signal } }
+  writeFileSync(path, JSON.stringify(evidence, null, 2))
+  runs.push(evidence)
+  writeFileSync(join(out, 'progress.json'), JSON.stringify({ revision: builtRevision, baselineRevision, runtime, cache, paired, rounds, samples, configs, runs }, null, 2))
 }
-const baseline = 'baseline'
-const baselineRuns = runs.filter(r => r.config === baseline && !r.failed)
+for (let round = 1; round <= rounds; round++) for (const config of round % 2 ? configs : [...configs].reverse()) {
+  if (!paired || config.id === 'baseline') {
+    runWorker(config, round, config.id === 'baseline' ? {} : { comparisonReference: describeReference(baselineConfig, round) })
+    continue
+  }
+  const pairId = `${runtime}:${round}:${config.id}`
+  const pairOrder = round % 2 ? 'reference-candidate' : 'candidate-reference'
+  const reference = () => runWorker(baselineConfig, round, { pairedFor: config.id, pairId, pairOrder })
+  const candidate = () => runWorker(config, round, { pairId, pairOrder, comparisonReference: describeReference(config, round) })
+  if (round % 2) { reference(); candidate() } else { candidate(); reference() }
+}
 const summaries = configs.map(config => {
-  const selected = runs.filter(r => r.config === config.id)
-  const cases = [...new Set(baselineRuns.flatMap(r => r.rows.map((row: any) => row.id)))] as string[]
+  const selected = runs.filter(r => r.role === 'measurement' && r.config === config.id)
+  const comparisons = Array.from({ length: rounds }, (_, index) => {
+    const measured = selected.find(run => run.round === index + 1)
+    const referenceId = measured?.comparisonReference?.runId ?? describeReference(baselineConfig, index + 1).runId
+    return { round: index + 1, measured, reference: runs.find(run => run.runId === referenceId) }
+  })
+  const references = comparisons.flatMap(pair => pair.reference ? [pair.reference] : [])
+  const cases = [...new Set(comparisons.flatMap(pair => [...(pair.reference?.rows ?? []), ...(pair.measured?.rows ?? [])].map(row => row.id)))]
   const matched = cases.map(id => {
-    const rows = selected.filter(r => !r.failed).map(r => r.rows.find((row: any) => row.id === id))
-    const base = baselineRuns.map(r => r.rows.find((row: any) => row.id === id))
-    const complete = rows.length === rounds && base.length === rounds && rows.every(r => r?.ok) && base.every(r => r?.ok)
-    const ratios = complete ? selected.map(r => r.rows.find((row: any) => row.id === id).medianMs / baselineRuns.find(b => b.round === r.round).rows.find((row: any) => row.id === id).medianMs) : []
-    const identical = complete && rows.every((r, i) => r.witness === base[i].witness)
-    return { id, output: rows[0]?.output ?? base[0]?.output, complete, identical, medianMs: complete ? median(rows.map(r => r.medianMs)) : undefined, medianRatio: ratios.length ? median(ratios) : undefined,
-      allocationBytes: rows.every(r => r?.allocationBytes !== undefined) ? median(rows.map(r => r.allocationBytes)) : undefined, errors: rows.filter(r => !r?.ok).map(r => r?.error ?? 'missing') }
+    const pairedRows = comparisons.map(pair => ({ round: pair.round,
+      measured: pair.measured?.failed ? undefined : pair.measured?.rows?.find(row => row.id === id),
+      reference: pair.reference?.failed ? undefined : pair.reference?.rows?.find(row => row.id === id) }))
+    const valid = (row: WorkerRow | undefined) => row?.ok && Number.isFinite(row.medianMs) && row.medianMs! > 0
+    const complete = pairedRows.every(pair => valid(pair.measured) && valid(pair.reference))
+    const ratios = complete ? pairedRows.map(pair => pair.measured!.medianMs! / pair.reference!.medianMs!) : []
+    const identical = complete && pairedRows.every(pair => typeof pair.measured!.witness === 'string' && pair.measured!.witness === pair.reference!.witness)
+    return { id, output: pairedRows[0]?.measured?.output ?? pairedRows[0]?.reference?.output, complete, identical,
+      medianMs: complete ? median(pairedRows.map(pair => pair.measured!.medianMs!)) : undefined,
+      referenceMedianMs: complete ? median(pairedRows.map(pair => pair.reference!.medianMs!)) : undefined,
+      medianRatio: ratios.length ? median(ratios) : undefined, ratios,
+      allocationBytes: pairedRows.every(pair => pair.measured?.allocationBytes !== undefined) ? median(pairedRows.map(pair => pair.measured!.allocationBytes!)) : undefined,
+      errors: pairedRows.flatMap(pair => [
+        ...(!pair.measured?.ok ? [`round ${pair.round} candidate: ${pair.measured?.error ?? 'missing or failed process'}`] : []),
+        ...(!pair.reference?.ok ? [`round ${pair.round} reference: ${pair.reference?.error ?? 'missing or failed process'}`] : []),
+      ]) }
   })
   const eligible = matched.filter(row => row.complete)
-  const complete = baselineRuns.length === rounds && selected.filter(r => !r.failed).length === rounds && cases.length > 0 && eligible.length === cases.length
+  const complete = selected.length === rounds && comparisons.every(pair => pair.measured && !pair.measured.failed && pair.reference && !pair.reference.failed)
+    && cases.length > 0 && eligible.length === cases.length
   const geomean = (rows: typeof eligible) => rows.length ? Math.exp(rows.reduce((n, r) => n + Math.log(r.medianRatio!), 0) / rows.length) : undefined
   return { ...config, completedRounds: selected.filter(r => !r.failed).length, complete, matched, eligibleCases: eligible.length, totalCases: cases.length,
+    comparisonReferences: comparisons.map(pair => ({ round: pair.round, candidateRunId: pair.measured?.runId, referenceRunId: pair.reference?.runId })),
     svgRatio: complete ? geomean(eligible.filter(r => r.output === 'svg')) : undefined, allRatio: complete ? geomean(eligible) : undefined,
-    maxRssKiB: selected.every(r => !r.failed) ? median(selected.map(r => r.maxRssKiB)) : undefined,
-    retainedHeapBytes: selected.every(r => !r.failed) ? median(selected.map(r => r.finalMemory.heapUsed)) : undefined }
+    maxRssKiB: complete && selected.every(r => r.maxRssKiB !== undefined) ? median(selected.map(r => r.maxRssKiB!)) : undefined,
+    referenceMaxRssKiB: complete && references.every(r => r.maxRssKiB !== undefined) ? median(references.map(r => r.maxRssKiB!)) : undefined,
+    retainedHeapBytes: complete && selected.every(r => r.finalMemory) ? median(selected.map(r => r.finalMemory!.heapUsed)) : undefined,
+    referenceRetainedHeapBytes: complete && references.every(r => r.finalMemory) ? median(references.map(r => r.finalMemory!.heapUsed)) : undefined }
 })
-writeFileSync(join(out, 'summary.json'), JSON.stringify({ diagnostic: true, revision: builtRevision, baselineRevision, runtime, cache, rounds, samples, configs, summaries,
-  method: 'Fresh sequential processes, reversed config order alternate rounds; one warm call and independent samples/case. Complete output byte consumption is timed. Ratios are candidate/baseline paired by round. SVG equality is diagnostic: indexed-layout deliberately changes eligible geometry. All failures retained. RSS/GC checkpoints are not exact per-render peak/native allocation. Screening is not an exhaustive global-optimum proof.' }, null, 2))
+writeFileSync(join(out, 'summary.json'), JSON.stringify({ diagnostic: true, revision: builtRevision, baselineRevision, runtime, cache, paired, rounds, samples, configs, summaries,
+  method: `Fresh sequential processes, reversed config order alternate rounds; ${paired ? 'each non-baseline configuration has an adjacent fresh reference, with reference/candidate order reversed on alternate rounds' : 'one reference per round shared by configurations'}; one warm call and independent samples/case. Complete output byte consumption is timed. Ratios resolve each configuration's recorded comparison reference in the same round. Baseline-source empty-flag configurations permit fresh-process A/A controls. SVG equality is diagnostic: indexed-layout deliberately changes eligible geometry. All failures retained and incomplete aggregates withheld. RSS/GC checkpoints are not exact per-render peak/native allocation. Screening is not an exhaustive global-optimum proof.` }, null, 2))
 console.log(summaries.map(s => ({ id: s.id, complete: s.complete, svgRatio: s.svgRatio, allRatio: s.allRatio, retainedHeapBytes: s.retainedHeapBytes, maxRssKiB: s.maxRssKiB })))
