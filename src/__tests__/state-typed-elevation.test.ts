@@ -464,6 +464,16 @@ stateDiagram-v2
     } finally { upstream.close() }
   })
 
+  test('a quoted description with an entity code keeps its spelling under a label', () => {
+    // Reading drops the quotes around a description; the label is written
+    // in `state "…" as A`, with its codes as they were written.
+    const diagram = state('stateDiagram-v2\n  state "x" as A\n  A : "y #35;"')
+    expect(diagram.body.states[0]?.label).toBe('x\ny #')
+    const serialized = serializeMermaid(diagram)
+    expect(serialized).toContain('state "x<br/>y #35;" as A')
+    expect(state(serialized).body).toEqual(diagram.body)
+  })
+
   test('a class named like an Object.prototype key is an ordinary class', () => {
     const parsed = state('stateDiagram-v2\n  classDef __proto__ fill:#ff0000\n  A:::__proto__')
     const defined = apply(state('stateDiagram-v2\n  A:::__proto__'), { kind: 'define_class', name: '__proto__', style: 'fill:#0000ff' })

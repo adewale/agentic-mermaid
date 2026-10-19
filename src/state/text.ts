@@ -33,10 +33,12 @@ export function readStateText(authored: string): { text: string; content?: Label
 
 /** A state's label as written, one piece per line (a `state "…" as` name and
  *  the descriptions under it), read as readStateText reads text. The text as
- *  written spells its line breaks `<br/>`, as the writer does, so the label
- *  reads back the same from either. */
+ *  written spells its line breaks `<br/>` and drops the quotes around a
+ *  piece, which reading drops too, as the writer writes the label in
+ *  `state "…" as X`, so the label reads back the same from either. */
 export function readStateLabel(pieces: readonly string[]): { text: string; content?: LabelContent } {
-  return read(pieces.map(piece => normalizeBrTags(piece)).join('\n'), pieces.join('\n').replace(/\r\n?|\n/g, '<br/>'))
+  const unquoted = pieces.map(piece => piece.startsWith('"') && piece.endsWith('"') ? piece.slice(1, -1) : piece)
+  return read(pieces.map(piece => normalizeBrTags(piece)).join('\n'), unquoted.join('\n').replace(/\r\n?|\n/g, '<br/>'))
 }
 
 function read(normalized: string, authored: string): { text: string; content?: LabelContent } {
@@ -54,10 +56,7 @@ function read(normalized: string, authored: string): { text: string; content?: L
  */
 export function writeStateText(text: string, content?: LabelContent, reserved = ''): string {
   const authored = content?.value === text ? content.authored : undefined
-  // A quoted label's `"` is read as quoting, which `#quot;` would not be.
-  if (authored !== undefined && !(reserved.includes('"') && authored.includes('"'))) {
-    return encodeMermaidAuthoredEntities(authored, reserved)
-  }
+  if (authored !== undefined) return encodeMermaidAuthoredEntities(authored, reserved)
   return encodeMermaidEntities(text, reserved).replace(/\\(?=n)/g, '#92;')
 }
 
