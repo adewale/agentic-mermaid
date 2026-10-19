@@ -296,7 +296,8 @@ async function main(): Promise<void> {
         runtime,
         environment: { runtimeVersion: runtime === 'node' ? execFileSync('node', ['--version'], { encoding: 'utf8' }).trim() : `bun ${process.versions.bun}`, platform: process.platform, arch: process.arch, osRelease: release(), cpu: cpus()[0]?.model, logicalCpus: cpus().length },
         sides: sides.map(side => ({ label: side.label, revision: side.revision })),
-        config: { ...options, filter: options.filter?.source, rounds },
+        config: { ...options, filter: options.filter?.source, rounds, flags: { AGENTIC_MERMAID_ELK_CACHE: '0', AGENTIC_MERMAID_SCENE_ASSERTIONS: '0', ...Object.fromEntries(Object.entries(process.env).filter(([key]) => key.startsWith('APL_'))) } },
+        rawRounds: perRound.map((round, index) => ({ round: index + 1, ...Object.fromEntries(Object.entries(round).map(([side, cases]) => [side, Object.fromEntries(cases)])) })),
         results: summary,
       }
       writeFileSync(args.get('json')!, `${JSON.stringify(report, null, 2)}\n`)
