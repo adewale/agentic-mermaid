@@ -71,7 +71,7 @@ export function scanStateComments(lines: readonly string[]): StateSourceLine[] {
     } else if (!continued && (STATE_NOTE_OPEN_RE.test(text) || (endNoteAfter[index]! && STATE_NOTE_OPEN_TEXT_RE.test(text)))) {
       inNote = noteOpen = true
     }
-    quoted = !inNote && scan.quoted && quoteAfter[index]! && (continued || /^(?:state|note)\s/.test(text))
+    quoted = !inNote && scan.quoted && quoteAfter[index]! && (continued || /^(?:state|note)\s/i.test(text))
     return { text, commentIndex: noteBody ? -1 : scan.comment, noteBody, noteOpen, openQuote: quoted }
   })
 }

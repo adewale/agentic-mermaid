@@ -43,7 +43,7 @@ export interface StateStereotypeMatch {
 }
 
 const NOTE_LINE_RE = /^note\s+(left|right)\s+of\s+([\w\p{L}-]+)\s*:\s*(.+)$/iu
-const STEREOTYPE_RE = /^state\s+(?:"([^"]+)"\s+as\s+)?([\w\p{L}-]+)\s*<<\s*(fork|join|choice|history|deephistory|H\*|H)\s*>>$/u
+const STEREOTYPE_RE = /^state\s+(?:"([^"]+)"\s+as\s+)?([\w\p{L}-]+)\s*<<\s*(fork|join|choice|history|deephistory|H\*|H)\s*>>$/iu
 const SEPARATOR_RE = /^-{2,}$/
 /** History transition endpoints: bare `[H]`/`[H*]` or suffixed `Base[H]`/`Base[H*]`. */
 const HISTORY_ENDPOINT_RE = /^([\w\p{L}-]*)\[(H\*?)\]$/u
@@ -72,7 +72,7 @@ export { stripStateComment } from './comment.ts'
 
 /** `class Moving, Crash movement` (or `cssClass`) allows spaces around commas. */
 export function matchStateClassAssignment(line: string): { ids: string[]; className: string } | null {
-  const match = line.match(/^(?:class|cssClass)\s+(.+?)\s+([\w-]+)$/u)
+  const match = line.match(/^(?:class|cssClass)\s+(.+?)\s+([\w-]+)$/iu)
   if (!match) return null
   const ids = match[1]!.split(',').map(id => id.trim())
   if (ids.some(id => !isStateNodeId(id))) return null
@@ -109,10 +109,10 @@ export function isNoteEnd(line: string): boolean {
 export function matchStereotypeDecl(line: string): StateStereotypeMatch | null {
   const m = line.match(STEREOTYPE_RE)
   if (!m) return null
-  const raw = m[3]!
+  const raw = m[3]!.toLowerCase()
   const stereotype: StateStereotype =
-    raw === 'H' || raw === 'history' ? 'history'
-    : raw === 'H*' || raw === 'deephistory' ? 'deep-history'
+    raw === 'h' || raw === 'history' ? 'history'
+    : raw === 'h*' || raw === 'deephistory' ? 'deep-history'
     : (raw as StateStereotype)
   return { id: m[2]!, stereotype, ...(m[1] !== undefined ? { label: m[1] } : {}) }
 }
@@ -185,8 +185,8 @@ export const STATE_DIRECTION_RE = /^direction\s+(TD|TB|LR|BT|RL)\s*$/i
 export const STATE_ALIAS_RE = /^state\s+"([^"]+)"\s+as\s+([\w\p{L}-]+)\s*$/u
 export const STATE_COMPOSITE_OPEN_RE = /^state\s+(?:"([^"]+)"\s+as\s+)?([\w\p{L}-]+)\s*\{$/u
 export const STATE_DESCRIPTION_RE = /^([\w\p{L}-]+)\s*:\s*(.+)$/u
-export const STATE_CLASS_DEF_RE = /^classDef\s+([\w,-]+)\s+(.+)$/
-export const STATE_STYLE_RE = /^style\s+([\w\p{L},-]+)\s+(.+)$/u
+export const STATE_CLASS_DEF_RE = /^classDef\s+([\w,-]+)\s+(.+)$/i
+export const STATE_STYLE_RE = /^style\s+([\w\p{L},-]+)\s+(.+)$/iu
 export const STATE_LINK_STYLE_RE = /^linkStyle\s+(default|[\d,\s]+)\s+(.+)$/
 
 // ---- Statements -------------------------------------------------------------
@@ -240,11 +240,17 @@ export interface StateStatementScan {
 // starts an arrow (`A-->B`), as in a class name after `:::`.
 const STATEMENT_ENDPOINT_AT = /\[\*\]|\[H\*?\]|[\w\p{L}](?:[\w\p{L}]|-(?!->))*(?:\[H\*?\])?/uy
 const ENDPOINT_CLASS_AT = /(?:\w|-(?!->))+/y
-const STATEMENT_KEYWORD_AT = /(?:classDef|class|cssClass|style|linkStyle|direction|scale|hide|note|end|click)(?=[ \t]|$)/y
-const STATE_KEYWORD_AT = /state[ \t]+/y
+// Mermaid's State lexer is case-insensitive, so its keywords are read in any
+// case. `end` and `hide` are keywords only in `end note` and `hide empty
+// description`, and names otherwise, as upstream; `direction` with any word
+// after it stays a statement, which ours rejects unless it names a
+// direction. `cssClass` and `linkStyle` are ours.
+const STATEMENT_KEYWORD_AT = /(?:(?:classDef|class|style|note|scale|click|direction)(?=[ \t]|$)|end(?=[ \t]+note(?:[ \t]|$))|hide(?=[ \t]+empty[ \t]+description(?:[ \t]|$)))/iy
+const OWN_KEYWORD_AT = /(?:cssClass|linkStyle)(?=[ \t]|$)/y
+const STATE_KEYWORD_AT = /state[ \t]+/iy
 const STATE_ID_AT = /[\w\p{L}-]+/uy
-const STATE_AS_AT = /[ \t]+as[ \t]+/y
-const STATE_AS_WORD_AT = /[ \t]+as(?=[ \t]|$)/y
+const STATE_AS_AT = /[ \t]+as[ \t]+/iy
+const STATE_AS_WORD_AT = /[ \t]+as(?=[ \t]|$)/iy
 const STEREOTYPE_AT = /[ \t]*<<[^>\n]*>>/y
 const OPEN_BRACE_AT = /[ \t]*\{/y
 const CLASS_SHORTHAND_AT = /:::[ \t]*([\w-]+)/y
@@ -540,7 +546,7 @@ export function readStateStatements(lines: readonly StateSourceLine[]): StateSta
       delimited = true
       continue
     }
-    if (matchAt(STATEMENT_KEYWORD_AT, text, column) !== null) {
+    if (matchAt(STATEMENT_KEYWORD_AT, text, column) !== null || matchAt(OWN_KEYWORD_AT, text, column) !== null) {
       // A keyword statement runs to the end of its line.
       const keyword = text.slice(column)
       emit(keyword, line, false)
@@ -558,7 +564,9 @@ export function readStateStatements(lines: readonly StateSourceLine[]): StateSta
     const startRow = row
     const keyword = matchAt(STATE_KEYWORD_AT, text, column)
     const declaration = keyword === null ? null : readStateDeclaration(column + keyword.length)
-    const read = declaration ?? (keyword === null ? readIdStatement() : null)
+    // A `State` spelled otherwise than `state` that starts no declaration
+    // is a name, as ours read it before reading the keyword in every case.
+    const read = declaration ?? (keyword === null || !keyword.startsWith('state') ? readIdStatement() : null)
     if (read !== null) {
       emit(read.text, line, declaration?.opens ?? false)
       if (declaration?.opens) {

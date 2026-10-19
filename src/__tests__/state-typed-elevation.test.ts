@@ -510,6 +510,13 @@ describe('State statements across and within lines', () => {
     ['state X {\nA\n:::hot --> B\n}', ['A:rounded:A', 'B:rounded:B', 'A->B', 'X:X{A B}', 'A:::hot'], []],
     ['state X {\nA --> [*]:::hot : done\n}', ['A:rounded:A', '_end:state-end:', 'A->_end:done', 'X:X{A _end}', '_end:::hot'], []],
     ['note right of A line1\nline2\nend note', ['A:rounded:A', 'note right of A:line1\nline2'], []],
+    // Mermaid's State lexer reads its keywords in any case; `end` is one only
+    // before `note`, and a name otherwise.
+    ['STATE X {\nA\n}', ['A:rounded:A', 'X:X{A}'], []],
+    ['State "Long" AS L\nState F <<FORK>>\nL --> F', ['L:rounded:Long', 'F:state-fork:', 'L->F'], []],
+    ['ClassDef hot fill:#f00\nA --> B\nCLASS A hot\nNote Right Of B : hi\nNOTE LEFT OF A\ntext\nEND NOTE', ['A:rounded:A', 'B:rounded:B', 'A->B', 'A:::hot', 'note right of B:hi', 'note left of A:text'], []],
+    ['end A', ['A:rounded:A', 'end:rounded:end'], ['state_statements_share_line@2']],
+    ['State "multi\nline" as X', ['X:rounded:multi\nline'], []],
     // A block note opened after another statement keeps its lines whole.
     ['A note right of B\nsome text\nend note', ['A:rounded:A', 'B:rounded:B', 'note right of B:some text'], ['state_statements_share_line@2']],
     ['state "multi\nline" as X\nX --> Y', ['X:rounded:multi\nline', 'Y:rounded:Y', 'X->Y'], []],
@@ -553,6 +560,15 @@ describe('State statements across and within lines', () => {
     const verified = verifyMermaid(source)
     expect(verified.ok).toBe(false)
     expect(verified.warnings.map(warning => warning.code === 'UNSUPPORTED_SYNTAX' ? `${warning.syntax}@${warning.line}` : warning.code)).toEqual(['state_composite_unclosed@2', 'RENDER_FAILED'])
+  })
+
+  test('a direction is read in any case, as Mermaid reads it', () => {
+    const source = 'stateDiagram-v2\nDIRECTION lr\nstate X {\nDirection BT\nA\n}'
+    const body = state(source).body
+    expect([body.direction, body.states[0]?.direction]).toEqual(['LR', 'BT'])
+    const graph = parseRenderGraph(source)
+    expect([graph.direction, graph.subgraphs[0]?.direction]).toEqual(['LR', 'BT'])
+    expect(state(serializeMermaid(state(source))).body).toEqual(body)
   })
 
   test('a statement after `;` on the header line is read, and reported because Mermaid rejects it', async () => {
