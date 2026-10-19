@@ -457,9 +457,11 @@ describe('installed tarball — mcp bin', () => {
       expect('result' in resp !== 'error' in resp).toBe(true) // exactly one
       if (resp.error) { expect(typeof resp.error.code).toBe('number'); expect(typeof resp.error.message).toBe('string') }
     }
-    // Every id-bearing request got exactly one matching response.
-    const byId = new Map(responses.filter(r => typeof r.id === 'number').map(r => [r.id as number, r]))
-    const missing = reqs.filter(rq => rq.expectResponse && !byId.has(rq.id as number)).map(rq => rq.id)
-    expect(missing).toEqual([])
+    // Compare the multiset before any indexing can hide duplicate responses.
+    // The two malformed input lines must still yield null-id parse errors.
+    const expectedIds = [...reqs.filter(rq => rq.expectResponse).map(rq => rq.id), null, null]
+    expect(responses.map(response => response.id).sort()).toEqual(expectedIds.sort())
+    expect(responses.filter(response => response.id === null).map(response => response.error?.code))
+      .toEqual([-32700, -32700])
   }, RUN_TIMEOUT_MS)
 })
