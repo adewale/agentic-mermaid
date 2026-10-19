@@ -265,6 +265,13 @@ describe('flowchart parser conformance safety floor (issue #36)', () => {
     expect(verify.warnings.filter(warning => warning.code === 'UNSUPPORTED_SYNTAX')).toEqual([])
   })
 
+  // A statement after `;` on the header line runs on as on a line of its own.
+  test.each(['A["x\n  y"]', 'A -->|x\n  y| B'])('%j after the header reads and verifies as on its own line', body => {
+    const source = `flowchart TD;${body}`
+    expect(parseAgent(source).body).toEqual(parseAgent(`flowchart TD\n  ${body}`).body)
+    expect(verifyMermaid(source).warnings.filter(warning => warning.code === 'UNSUPPORTED_SYNTAX')).toEqual([])
+  })
+
   // A later node's `]` or `"` does not close the title either.
   test.each([
     ['subgraph S[a\n    A --> B\n  end', ['A->B'], [['A', 'B']]],

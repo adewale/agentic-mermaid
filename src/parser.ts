@@ -88,15 +88,21 @@ export function parseMermaid(text: string): MermaidGraph {
 }
 
 function expandInlineHeaderStatements(lines: string[]): string[] {
-  if (lines.length === 0 || !lines[0]!.includes(';')) return lines
+  const split = lines.length > 0 ? splitInlineHeaderStatements(lines[0]!) : undefined
+  return split ? [split.header, ...split.statements, ...lines.slice(1)] : lines
+}
+
+/** A trimmed header line with statements after `;` (`flowchart TD; A`):
+ * the header, and the statements after it; undefined for a bare header. */
+export function splitInlineHeaderStatements(line: string): { header: string; statements: string[] } | undefined {
+  if (!line.includes(';')) return undefined
   // The header's direction (`graph >`) is not a statement: split after it.
-  const header = lines[0]!.match(/^(?:(?:graph|flowchart|swimlane)(?:[ \t]+(?:TD|TB|LR|BT|RL|[<>^v])(?![\w-]))?|stateDiagram(?:-v2)?)(?=$|[\s;])/i)
-  if (!header) return lines
-  const rest = lines[0]!.slice(header[0].length).trim()
-  if (!rest.startsWith(';')) return lines
+  const header = line.match(/^(?:(?:graph|flowchart|swimlane)(?:[ \t]+(?:TD|TB|LR|BT|RL|[<>^v])(?![\w-]))?|stateDiagram(?:-v2)?)(?=$|[\s;])/i)
+  if (!header) return undefined
+  const rest = line.slice(header[0].length).trim()
+  if (!rest.startsWith(';')) return undefined
   // The State reader splits its own statements (readStateStatements).
-  const statements = /^stateDiagram/i.test(header[0]) ? [rest] : splitFlowchartStatements(rest)
-  return [header[0], ...statements, ...lines.slice(1)]
+  return { header: header[0], statements: /^stateDiagram/i.test(header[0]) ? [rest] : splitFlowchartStatements(rest) }
 }
 
 /**

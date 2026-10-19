@@ -1,6 +1,6 @@
 import type { LayoutWarning } from './types.ts'
 import { normalizeV11Shape } from '../flowchart-shapes.ts'
-import { parseMermaid, splitFlowchartStatements } from '../parser.ts'
+import { parseMermaid, splitFlowchartStatements, splitInlineHeaderStatements } from '../parser.ts'
 import { coalesceFlowchartLines, matchTextArrow, scanFlowchart } from '../flowchart-lexer.ts'
 import { metadataText, readMetadataBlock } from '../shared/metadata-yaml.ts'
 
@@ -289,12 +289,14 @@ export function flowchartStatements(source: string): FlowchartStatement[] {
   // at the opening line, exactly as the parser does, so the lints see the same
   // unit the parser tokenizes — otherwise the multiline form silently misses
   // the UNSUPPORTED_SYNTAX warning the single-line form gets, or reports a
-  // delimiter or link the next line closes.
-  for (const { text: raw, line } of coalesceFlowchartLines(source.split(/\r?\n/).slice(1))) {
-    for (const text of splitFlowchartStatements(raw)) {
+  // delimiter or link the next line closes. The header line joins in too: a
+  // statement after `;` on it (`flowchart TD;A["x`) may run on.
+  for (const { text: raw, line } of coalesceFlowchartLines(source.split(/\r?\n/))) {
+    const texts = line === 0 ? splitInlineHeaderStatements(raw.trim())?.statements ?? [] : splitFlowchartStatements(raw)
+    for (const text of texts) {
       const trimmed = text.trim()
       if (!trimmed || trimmed.startsWith('%%')) continue
-      statements.push({ text: trimmed, line: line + 2 })
+      statements.push({ text: trimmed, line: line + 1 })
     }
   }
   return statements
