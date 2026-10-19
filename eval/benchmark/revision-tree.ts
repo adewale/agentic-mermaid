@@ -1,8 +1,8 @@
 // A runnable copy of another revision's production source, for tools that
 // compare two revisions with the current harness (`micro-bench.ts`,
-// `output-identity.ts`). Only `src/` and `tsconfig.json` come from the
-// revision; the current `eval/benchmark/` and node_modules are reused, so a
-// comparison isolates production source.
+// `output-identity.ts`). Production source, tsconfig and optional bundled fonts
+// come from the revision; the current `eval/benchmark/` and node_modules are
+// reused, so a comparison isolates production source and verified resources.
 
 import { execFileSync, spawnSync } from 'node:child_process'
 import { cpSync, existsSync, mkdirSync, readFileSync, symlinkSync, writeFileSync } from 'node:fs'
@@ -35,7 +35,8 @@ export function extractRevisionTree(ref: string, scratch: string, label: string,
   const revision = git(['rev-parse', '--verify', `${ref}^{commit}`])
   const root = join(scratch, label)
   mkdirSync(root, { recursive: true })
-  const archive = spawnSync('git', ['archive', '--format=tar', revision, 'src', 'tsconfig.json'], { cwd: ROOT, maxBuffer: 512 * 1024 * 1024 })
+  const fonts = git(['ls-tree', '-d', '--name-only', revision, 'assets/fonts']) === 'assets/fonts' ? ['assets/fonts'] : []
+  const archive = spawnSync('git', ['archive', '--format=tar', revision, 'src', 'tsconfig.json', ...fonts], { cwd: ROOT, maxBuffer: 512 * 1024 * 1024 })
   if (archive.status !== 0) throw new Error(`git archive ${revision} failed`)
   const untar = spawnSync('tar', ['-x', '-C', root], { input: archive.stdout })
   if (untar.status !== 0) throw new Error('tar extraction failed')

@@ -1,7 +1,7 @@
 // Hotspot micro-benchmark cases for `eval/benchmark/micro-bench.ts`.
 //
-// Each case times one stage or hotspot that profiling of the warm SVG/ASCII
-// pipeline identified (see the case descriptions). Setup runs outside the
+// Each case times a public render, stage or hotspot in the warm SVG/PNG/ASCII
+// pipeline (see the case descriptions). Setup runs outside the
 // timed call. Every module is imported inside `setup`, never statically, so a
 // case whose internal entry point does not exist at a baseline revision is
 // reported as unavailable instead of preventing every other case from running.
@@ -50,6 +50,7 @@ const MIXED_LABEL = '東京 → 👩‍💻 café naïve Ελληνικά 한국
 /** Plain-data text of a stage input, comparable across revisions. */
 const inputText = (value: unknown) => JSON.stringify(value, (_key, item) => (item instanceof Map || item instanceof Set ? [...item] : item))
 const isSvg = (value: unknown) => typeof value === 'string' && value.startsWith('<svg')
+const isPng = (value: unknown) => value instanceof Uint8Array && [0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a].every((byte, index) => value[index] === byte)
 const nonEmptyString = (value: unknown) => typeof value === 'string' && value.length > 0
 
 const src = {
@@ -344,6 +345,28 @@ export function microCases(): readonly MicroCase[] {
     ...sceneCases('class80'),
     ...svgPassCases('class80'),
     ...(Object.keys(MICRO_WORKLOADS) as Workload[]).map(renderCase),
+    ...(['hand-drawn', 'watercolor'] as const).map((style): MicroCase => ({
+      id: `render:svg-flow5-${style}`,
+      description: `Public renderMermaidSVG, warm, flow5, ${style}, seed 7, strict security`,
+      async setup() {
+        const { renderMermaidSVG } = await src.index()
+        const options = { style, seed: 7, security: 'strict' as const }
+        return () => renderMermaidSVG(MICRO_WORKLOADS.flow5, options)
+      },
+      check: isSvg,
+    })),
+    // Source-runtime API cost, including rasterization. V8 allocation estimates
+    // omit resvg's native raster heap; packed PNG parity has a separate keeper.
+    ...(['flow5', 'seq20'] as const).map((workload): MicroCase => ({
+      id: `render:png-${workload}`,
+      description: `Public renderMermaidPNG, warm, ${workload}, scale 1, seed 7, strict security`,
+      async setup() {
+        const { renderMermaidPNG } = await src.agent()
+        const options = { scale: 1, seed: 7, security: 'strict' as const }
+        return () => renderMermaidPNG(MICRO_WORKLOADS[workload], options)
+      },
+      check: isPng,
+    })),
     asciiCase('flow5'),
     asciiCase('mesh50'),
     asciiCase('seq20'),
