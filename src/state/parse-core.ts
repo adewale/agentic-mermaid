@@ -16,6 +16,7 @@
 // ============================================================================
 
 import { STATE_NOTE_OPEN_RE, STATE_NOTE_OPEN_TEXT_RE, STATE_NOTE_END_RE, scanStateComments, type StateSourceLine } from './comment.ts'
+import { mermaidEntityPrepass } from '../shared/mermaid-entities.ts'
 
 export type StateNoteSide = 'left' | 'right'
 
@@ -80,9 +81,10 @@ export function matchStateClassAssignment(line: string): { ids: string[]; classN
 
 /** Pinned Mermaid's entity prepass (encodeEntities) first drops the `;`
  *  ending a line's `style…:…#…;` run, then its `classDef…:…#…;` run, in
- *  that case only. */
+ *  that case only. Its greedy regexes backtrack catastrophically, so this
+ *  reads them with the shared linear equivalent. */
 export function prepassedStateText(text: string): string {
-  return text.replace(/style.*:\S*#.*;/g, run => run.slice(0, -1)).replace(/classDef.*:\S*#.*;/g, run => run.slice(0, -1))
+  return mermaidEntityPrepass(text)
 }
 
 /** State text as pinned Mermaid's lexer meets it: after its prepass, it

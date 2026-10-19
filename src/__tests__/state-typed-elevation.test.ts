@@ -9,6 +9,7 @@ import { renderMermaidSVG, renderMermaidASCII } from '../index.ts'
 import { describeMermaidFacts } from '../agent/facts.ts'
 import { startUpstreamMermaid, type UpstreamDiagram } from './helpers/upstream-mermaid.ts'
 import { projectEntityMarkers } from '../shared/mermaid-entity-display.ts'
+import { expectNearLinearGrowth } from './helpers/complexity.ts'
 
 function state(source: string): StateValidDiagram {
   const parsed = parseMermaid(source)
@@ -491,6 +492,15 @@ stateDiagram-v2
         .toEqual([['style:#f00 x'], ['style:#f00 x y'], ['classDef x:#fff y'], ['style:#f00 x'], ['style:#f00 x']])
       expect((await upstream.projectAll(written, texts)).map(read => read.map(text => projectEntityMarkers(text)))).toEqual(read)
     } finally { upstream.close() }
+  })
+
+  test('the prepass check reads a long `style` run in linear time', () => {
+    // Mermaid's own prepass regex backtracks catastrophically on a run of
+    // `:#` that no `;` ends; verify reads that text and must not stall on it.
+    expectNearLinearGrowth('State text holding a long style run', size => {
+      const warnings = verifyMermaid(`stateDiagram-v2\n  A : style${':#'.repeat(size)}`).warnings
+      expect(warnings.filter(warning => warning.code === 'UNSUPPORTED_SYNTAX')).toEqual([])
+    }, 4000)
   })
 
   test('a composite draws its classes\' classDef paint on its body, as Mermaid does, and not its style', async () => {
