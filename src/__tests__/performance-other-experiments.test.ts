@@ -2,6 +2,7 @@ import { expect, test } from 'bun:test'
 import { performanceExperimentEnabled, withPerformanceExperiments } from '../experimental-performance.ts'
 import { OpenIntervalUnion } from '../experimental/interval-union.ts'
 import { AdaptiveTerminalRow } from '../experimental/terminal-row.ts'
+import { cachedPositioned, retainPositioned } from '../experimental/position-cache.ts'
 import { prepareDisplayText } from '../shared/display-text.ts'
 import { preparePixelText } from '../shared/prepared-text.ts'
 import { createTextMeasurementExecution, withTextMeasurementExecution } from '../text-measurement-profile.ts'
@@ -18,6 +19,18 @@ test('performance scope restores nested flags after exceptions', () => {
     expect(() => withPerformanceExperiments(['text-spans'], () => { expect(performanceExperimentEnabled('text-spans')).toBe(true); throw Error('probe') })).toThrow('probe')
     expect(performanceExperimentEnabled('text-spans')).toBe(false)
   })
+})
+
+test('positioned reuse shares one bounded residency budget across isolated family identities', () => {
+  const families = [{}, {}, {}]
+  const value = { positioned: { width: 1, height: 1, payload: 'x'.repeat(1536 * 1024) } }
+  retainPositioned(families[0]!, 'same-key', value)
+  expect(cachedPositioned(families[1]!, 'same-key')).toBeUndefined()
+  retainPositioned(families[1]!, 'same-key', value)
+  retainPositioned(families[2]!, 'same-key', value)
+  expect(cachedPositioned(families[0]!, 'same-key')).toBeUndefined()
+  expect(cachedPositioned(families[1]!, 'same-key')).toEqual(value)
+  expect(cachedPositioned(families[2]!, 'same-key')).toEqual(value)
 })
 
 test('open interval index preserves endpoints, gaps and overlapping unions', () => {

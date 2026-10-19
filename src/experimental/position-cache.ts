@@ -1,7 +1,14 @@
 import type { FamilyLayoutResult } from '../agent/families.ts'
 import { transferRetainedPixelText } from '../shared/prepared-text.ts'
 import { WeightedLru } from './weighted-lru.ts'
-const results = new WeakMap<object, WeightedLru<string, FamilyLayoutResult>>()
+const familyIds = new WeakMap<object, number>()
+let nextFamilyId = 0
+const results = new WeightedLru<string, FamilyLayoutResult>(128, 16 * 1024 * 1024)
+function isolatedKey(family: object, key: string): string {
+  let id = familyIds.get(family)
+  if (id === undefined) { id = nextFamilyId++; familyIds.set(family, id) }
+  return `${id}:${key}`
+}
 /** Copies remain private until provenance needed by prepared text is restored. */
 function clonePositioned<T>(source: T): T {
   const copy = structuredClone(source)
@@ -19,13 +26,11 @@ function clonePositioned<T>(source: T): T {
   return copy
 }
 export function cachedPositioned(family: object, key: string): FamilyLayoutResult | undefined {
-  const value = results.get(family)?.get(key)
+  const value = results.get(isolatedKey(family, key))
   return value ? clonePositioned(value) : undefined
 }
 export function retainPositioned(family: object, key: string, value: FamilyLayoutResult): void {
-  let cache = results.get(family)
-  if (!cache) { cache = new WeightedLru(32, 16 * 1024 * 1024); results.set(family, cache) }
   // Conservative weighted estimate; the cache never retains caller objects.
   const weight = key.length * 2 + JSON.stringify(value).length * 4 + 1024
-  if (weight <= 16 * 1024 * 1024) cache.set(key, clonePositioned(value), weight)
+  if (weight <= 16 * 1024 * 1024) results.set(isolatedKey(family, key), clonePositioned(value), weight)
 }
