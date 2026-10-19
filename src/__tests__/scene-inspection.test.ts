@@ -61,6 +61,28 @@ test('transparent hit targets paint nothing, and singular composed transforms su
 })
 
 
+test('text bounds follow the dominant baseline the writer draws', () => {
+  const block = preparePixelText('Label', { fontSize: 16, fontWeight: 400 })
+  const at = (dominantBaseline?: 'middle' | 'hanging') => nodePaintBounds(marks.text({
+    id: 't', role: 'label', text: 'Label', block, x: 10, y: 100, fontSize: 16, anchor: 'start', paint: { fill: '#111' }, baselineShift: 0,
+    ...(dominantBaseline ? { dominantBaseline } : {}),
+  }))!
+  expect(at('hanging').y0).toBeCloseTo(100)
+  const middle = at('middle')
+  expect((middle.y0 + middle.y1) / 2).toBeCloseTo(100)
+  const alphabetic = at()
+  expect((alphabetic.y0 + alphabetic.y1) / 2).toBeCloseTo(100 - 16 * 0.35)
+})
+
+test('a compound shape is bounded by its widest piece stroke', () => {
+  const node = marks.shape({
+    id: 'glyph', role: 'node', paint: { stroke: '#000', strokeWidth: '1' },
+    geometry: { kind: 'compound', children: [{ kind: 'rect', x: 10, y: 10, width: 10, height: 10 }, { kind: 'circle', cx: 15, cy: 15, r: 2 }] },
+    childPaints: [{ stroke: '#000', strokeWidth: '20' }, { fill: '#000' }],
+  })
+  expect(nodePaintBounds(node)!.x0).toBeLessThanOrEqual(0)
+})
+
 test('overflowing current and conditional strokes remain unmeasured', () => {
   const polygon = marks.shape({ id: 'overflow', role: 'node', geometry: { kind: 'polygon', points: [{ x: 0, y: 0 }, { x: 10, y: 0 }, { x: 10, y: 10 }] }, paint: { stroke: '#000', strokeWidth: '1e308', strokeLinejoin: 'miter', strokeMiterlimit: '4' } })
   const conditional = marks.shape({ id: 'alternate', role: 'chrome', visibility: 'conditional', transform: { kind: 'matrix', a: 10, b: 0, c: 0, d: 10, e: 0, f: 0 }, geometry: { kind: 'rect', x: 0, y: 0, width: 10, height: 10 }, paint: { fill: 'transparent' }, conditionalPaint: { stroke: '#000', strokeWidth: '1e308' } })

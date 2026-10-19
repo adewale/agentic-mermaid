@@ -160,7 +160,7 @@ describe('scene fidelity', () => {
     // attributes, which any stylesheet rule overrides; certification reads the
     // typed fields. So no rule may set them on a class a typed mark carries.
     // Interactive-state rules (`:hover`) and conditional artwork are excluded.
-    const drawn = /^(?:fill|fill-opacity|stroke|stroke-[a-z]+|opacity|paint-order|font-size|font-weight|font-style|letter-spacing|text-anchor|text-decoration|dominant-baseline|transform|display|visibility)$/
+    const drawn = /^(?:fill|fill-opacity|stroke|stroke-[a-z]+|opacity|color|paint-order|marker(?:-start|-mid|-end)?|font-size|font-weight|font-style|letter-spacing|text-anchor|text-decoration|dominant-baseline|transform|display|visibility)$/
     const problems: string[] = []
     for (const scene of scenes) {
       const css = scene.doc.parts.filter(part => part.kind === 'document')
@@ -176,11 +176,14 @@ describe('scene fidelity', () => {
         if (node.kind === 'group') { for (const child of node.children) visit(child.node, conditional || node.visibility === 'conditional'); return }
         if (node.kind === 'document' || conditional || node.visibility === 'conditional') return
         const classes = new Set(node.attributes?.className?.split(' ') ?? [])
-        const element = node.kind === 'text' ? 'text' : undefined
+        // The elements the writer emits for this mark.
+        const elements = new Set(node.kind === 'text' ? ['text', 'tspan']
+          : node.kind === 'connector' ? [node.route.geometry.kind, 'text']
+            : node.geometry.kind === 'compound' ? node.geometry.children.map(child => child.kind) : [node.geometry.kind])
         for (const rule of rules) {
           const matches = rule.classes.length > 0
-            ? rule.classes.every(name => classes.has(name)) && (!rule.element || rule.element === element)
-            : rule.element !== undefined && rule.element === element
+            ? rule.classes.every(name => classes.has(name)) && (!rule.element || elements.has(rule.element))
+            : rule.element !== undefined && elements.has(rule.element)
           if (matches) problems.push(`${scene.id}: "${rule.selector}" sets ${rule.properties.join(', ')} on ${node.kind} ${node.id}`)
         }
       }

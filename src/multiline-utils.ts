@@ -82,7 +82,7 @@ const ATTRIBUTE_SPECIAL = /[&<>"'\t\n\r]/
  */
 export function escapeXml(text: string): string {
   // Most values hold none of these; skip the five passes when nothing changes.
-  if (!XML_SPECIAL.test(text)) return text
+  if (typeof text === 'string' && !XML_SPECIAL.test(text)) return text
   return text
     .replace(/&/g, '&amp;')
     .replace(/</g, '&lt;')
@@ -97,7 +97,7 @@ export function escapeXml(text: string): string {
  * and CR; element text retains its separate display interpretation.
  */
 export function escapeAttr(text: string): string {
-  if (!ATTRIBUTE_SPECIAL.test(text)) return text
+  if (typeof text === 'string' && !ATTRIBUTE_SPECIAL.test(text)) return text
   return escapeXml(text).replace(/[\t\n\r]/g, character => character === '\t' ? '&#9;' : character === '\n' ? '&#10;' : '&#13;')
 }
 

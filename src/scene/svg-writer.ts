@@ -17,8 +17,12 @@ import { escapeAttr, escapeXml, renderMultilineText } from '../multiline-utils.t
 // A number's decimal form needs no escaping.
 const attribute = (name: string, value: string | number): string => `${name}="${typeof value === 'number' ? value : escapeAttr(value)}"`
 
-/** `data-*` keys the writer derives from typed fields. */
-export const WRITER_OWNED_DATA_KEYS: ReadonlySet<string> = new Set(['id', 'role', 'from', 'to', 'relationship', 'direction'])
+/** `data-*` keys the writer derives from typed fields, or that the shared
+ * text writer emits itself. */
+export const WRITER_OWNED_DATA_KEYS: ReadonlySet<string> = new Set([
+  'id', 'role', 'from', 'to', 'relationship', 'direction',
+  'prepared-text', 'font-metrics', 'text-fragment', 'connector-label-for',
+])
 export const MARK_CLASS_TOKENS = /^[A-Za-z0-9_-]+(?: [A-Za-z0-9_-]+)*$/
 export const MARK_DATA_KEY = /^[a-z][a-z0-9-]*$/
 
@@ -58,7 +62,7 @@ function identityAttributes(identity: SvgSemanticIdentity | undefined, accessibi
     if (identity.to !== undefined) out.push(attribute('data-to', identity.to))
   }
   if (accessibility) {
-    out.push(`role="${accessibility.role}"`, `aria-roledescription="${accessibility.roleDescription}"`, attribute('aria-label', accessibility.label))
+    out.push(attribute('role', accessibility.role), attribute('aria-roledescription', accessibility.roleDescription), attribute('aria-label', accessibility.label))
   }
   return out
 }
@@ -169,10 +173,12 @@ function connectorInlineLabelSvg(node: ConnectorMark, label: ConnectorLabelDescr
   return renderMultilineText(block, label.anchor.x, label.anchor.y - Math.max(0, label.clearance ?? 0), block.fontSize, attrs.join(' '), 0)
 }
 
-/** A connector is one marker carrier element plus any labels it owns. SVG
- * defaults (butt caps, miter joins, limit 4) are left implicit. */
+/** A connector is one marker carrier element plus any labels it owns; an
+ * invisible connector draws its labels without the carrier. SVG defaults
+ * (butt caps, miter joins, limit 4) are left implicit. */
 export function writeConnectorSvg(node: ConnectorMark): string {
-  if (node.lineStyle === 'invisible') return ''
+  const labels = node.labels.flatMap((label, index) => connectorInlineLabelSvg(node, label, index) ?? [])
+  if (node.lineStyle === 'invisible') return labels.join('\n')
   const { tag, attrs } = geometryAttributes(node.route.geometry)
   const { stroke, markers } = node
   const dash = stroke.dash
@@ -202,6 +208,5 @@ export function writeConnectorSvg(node: ConnectorMark): string {
     attribute('data-direction', node.relationship.direction),
     ...identityAttributes(node.identity, node.accessibility),
   ])
-  const labels = node.labels.flatMap((label, index) => connectorInlineLabelSvg(node, label, index) ?? [])
   return [carrier, ...labels].join('\n')
 }

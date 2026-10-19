@@ -38,6 +38,7 @@ import { deriveConnectorTerminalProjection } from './connector-terminal.ts'
 import { decodedSvgAttributeValue, scanSvgStartTags } from '../svg-structure.ts'
 import { parseSvgTransform, transformMatrix } from './transforms.ts'
 import {
+  admitWritableSceneNode,
   attachSceneNodeSerialization,
   canonicalizeSceneNodeSerialization,
   hasSceneNodeSerialization,
@@ -74,7 +75,10 @@ const CUSTOM_PROPERTIES = /^\s*(?:--[A-Za-z0-9_-]+\s*:[^;]*(?:;\s*|$))*$/
 function assertInertGroupOpen(id: string, open: string, transform: SceneTransform | undefined): void {
   const tag = GROUP_OPEN.test(open) ? scanSvgStartTags(open)[0] : undefined
   if (!tag || tag.name !== 'g') throw new TypeError(`Group "${id}" open must be one <g> tag with an optional <title>`)
+  const names = new Set<string>()
   for (const attribute of tag.attributes) {
+    if (names.has(attribute.name)) throw new TypeError(`Group "${id}" open has a duplicate "${attribute.name}"`)
+    names.add(attribute.name)
     if (!GROUP_HOOK.test(attribute.name)) throw new TypeError(`Group "${id}" open sets "${attribute.name}"; paint and geometry belong to typed marks`)
     if (attribute.name === 'style' && !CUSTOM_PROPERTIES.test(decodedSvgAttributeValue(tag, 'style') ?? '')) {
       throw new TypeError(`Group "${id}" open style may only set custom properties; paint belongs to typed marks`)
@@ -120,7 +124,7 @@ export function shape(fields: {
   const identity = typedIdentity(fields)
   const accessibility = relationAccessibility(identity, fields.attributes?.data?.label)
   if (accessibility && fields.attributes?.ariaLabel !== undefined) throw new TypeError(`Shape "${fields.id}" takes its aria-label from typed relation accessibility`)
-  return {
+  return admitWritableSceneNode({
     kind: 'shape',
     id: fields.id,
     role: fields.role,
@@ -136,7 +140,7 @@ export function shape(fields: {
     ...(fields.channels ? { channels: fields.channels } : {}),
     ...(fields.transform ? { transform: fields.transform } : {}),
     ...(fields.attributes ? { attributes: fields.attributes } : {}),
-  }
+  })
 }
 
 export interface ConnectorFields {
@@ -484,7 +488,7 @@ export function connector(fields: ConnectorFields): ConnectorMark {
     ...(fields.transform ? { transform: fields.transform } : {}),
     ...(fields.attributes ? { attributes: fields.attributes } : {}),
   }
-  return result
+  return admitWritableSceneNode(result)
 }
 
 export function text(fields: {
@@ -530,21 +534,26 @@ export function text(fields: {
   }
   // The writer's first baseline: shift ems below y, less half the extra
   // lines, as renderMultilineText places it. Unprepared text keeps that
-  // writer's nominal line height.
+  // writer's nominal line height. An alphabetic line is centred 0.35em above
+  // that baseline; a middle or central baseline is the line's centre, and a
+  // hanging baseline its top.
   const shift = fields.baselineShift ?? 0.35
   const lines = measured.lines.length
   const writtenLineHeight = block ? block.lineHeight : fields.fontSize * LINE_HEIGHT_RATIO
   const firstDy = (lines === 1 ? 0 : -((lines - 1) / 2) * writtenLineHeight) + fields.fontSize * shift
-  const offsetY = firstDy + (lines - 1) * measured.lineHeight / 2 - fields.fontSize * 0.35
+  const firstLineCentre = fields.dominantBaseline === 'hanging' ? measured.lineHeight / 2
+    : fields.dominantBaseline === 'middle' || fields.dominantBaseline === 'central' ? 0
+      : -fields.fontSize * 0.35
+  const offsetY = firstDy + (lines - 1) * measured.lineHeight / 2 + firstLineCentre
   const identity = typedIdentity(fields)
   const accessibility = relationAccessibility(identity, fields.attributes?.data?.label)
   if (accessibility && fields.attributes?.ariaLabel !== undefined) throw new TypeError(`Text "${fields.id}" takes its aria-label from typed relation accessibility`)
-  return {
+  return admitWritableSceneNode({
     kind: 'text', ...semantic, identity, accessibility, block: measured, measurement: block ? 'prepared' : 'fallback',
     ...(block ? { prepared: true, preparedLines: block.lineBlocks.map(line => line.runs) } : {}),
     fontWeight: weight, letterSpacing: spacing, display,
     textLayout: { width: measured.width, height: measured.height, lineHeight: measured.lineHeight, offsetY },
-  }
+  })
 }
 
 export function documentContent(fields: {
@@ -622,7 +631,7 @@ export function group(fields: {
   // relation beside the connector authority. The writer serializes a group
   // from its open tag, children and close tag.
   const open = canonicalizeSceneNodeSerialization(ensureSvgIdentity(painted, identity))
-  return {
+  return admitWritableSceneNode({
     kind: 'group',
     id: fields.id,
     role: fields.role,
@@ -636,7 +645,7 @@ export function group(fields: {
     ...(fields.visibility ? { visibility: fields.visibility } : {}),
     ...(fields.transform ? { transform: fields.transform } : {}),
     ...(fields.paint ? { paint: fields.paint } : {}),
-  }
+  })
 }
 
 export function documentOpen(fields: {

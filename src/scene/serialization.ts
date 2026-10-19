@@ -10,7 +10,11 @@ import { writeConnectorSvg, writeShapeSvg, writeTextSvg } from './svg-writer.ts'
 // normalized before admission: callers cannot use attribute order, quote
 // style, or tag spacing as a second byte-level Scene authority.
 const SERIALIZED_SCENE_NODES = new WeakMap<object, string>()
-/** Writer output for frozen (admitted) marks, which cannot change after. */
+/** Marks the mark constructors built, and admitted copies of them: the only
+ * shape, text, connector and group nodes the writer draws. A plain object
+ * shaped like a mark has no serialization, as it had none before the writer. */
+const WRITABLE_SCENE_NODES = new WeakSet<object>()
+/** Writer output for frozen (admitted) leaf marks, which cannot change after. */
 const WRITTEN_SCENE_NODES = new WeakMap<object, string>()
 
 interface SerializedAttribute {
@@ -113,13 +117,22 @@ export function attachSceneNodeSerialization<T extends SceneNode>(node: T, svg: 
   return node
 }
 
+/** Record that a mark constructor built `node`, so the writer may draw it. */
+export function admitWritableSceneNode<T extends SceneNode>(node: T): T {
+  WRITABLE_SCENE_NODES.add(node)
+  return node
+}
+
 export function sceneNodeSerialization(node: SceneNode): string {
   const stored = SERIALIZED_SCENE_NODES.get(node)
   if (stored !== undefined) return stored
+  if (!WRITABLE_SCENE_NODES.has(node)) throw new TypeError(`Scene node "${node.id}" has no admitted SVG serialization`)
   const written = WRITTEN_SCENE_NODES.get(node)
   if (written !== undefined) return written
   const svg = writeSceneNode(node)
-  if (Object.isFrozen(node)) WRITTEN_SCENE_NODES.set(node, svg)
+  // A group is written from its children each time: its children array is
+  // not part of what freezing it protects.
+  if (node.kind !== 'group' && Object.isFrozen(node)) WRITTEN_SCENE_NODES.set(node, svg)
   return svg
 }
 
@@ -147,8 +160,9 @@ export function indentLines(s: string, n: number): string {
 export function transferSceneNodeSerialization(source: object, target: object): void {
   const svg = SERIALIZED_SCENE_NODES.get(source)
   if (svg !== undefined) SERIALIZED_SCENE_NODES.set(target, svg)
+  if (WRITABLE_SCENE_NODES.has(source)) WRITABLE_SCENE_NODES.add(target)
 }
 
 export function hasSceneNodeSerialization(value: object): boolean {
-  return SERIALIZED_SCENE_NODES.has(value)
+  return SERIALIZED_SCENE_NODES.has(value) || WRITABLE_SCENE_NODES.has(value)
 }

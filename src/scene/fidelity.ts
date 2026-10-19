@@ -194,7 +194,13 @@ function preparedTextPlacementProblems(node: TextMark, serialized: string, path:
     return match ? Number(match[1]) * (match[2] === 'em' ? block.fontSize : 1) : Number.NaN
   }
   const expected = block.lineBlocks.map(line => line.runs.map(run => run.text).join(''))
-  const firstBaseline = node.y + (node.textLayout?.offsetY ?? 0) - (expected.length - 1) * block.lineHeight / 2 + block.fontSize * 0.35
+  // textLayout.offsetY places the first line's centre; the written position is
+  // its alphabetic baseline, or its centre or top under a middle, central or
+  // hanging dominant baseline.
+  const firstLineCentre = node.dominantBaseline === 'hanging' ? block.lineHeight / 2
+    : node.dominantBaseline === 'middle' || node.dominantBaseline === 'central' ? 0
+      : -block.fontSize * 0.35
+  const firstBaseline = node.y + (node.textLayout?.offsetY ?? 0) - (expected.length - 1) * block.lineHeight / 2 - firstLineCentre
   const baseline = (line: number) => firstBaseline + line * block.lineHeight
   type Frame = { tag: string; line: number; fragment: boolean; text: string; x?: number; width?: number; anchor?: string; weight: number; italic: boolean }
   const stack: Frame[] = []

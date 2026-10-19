@@ -12,6 +12,7 @@ import { renderMultilineText } from '../multiline-utils.ts'
 import { nodeWorldBounds } from '../scene/bounds.ts'
 import * as marks from '../scene/marks.ts'
 import { nodeProblems } from '../scene/fidelity.ts'
+import { transferSceneNodeSerialization } from '../scene/serialization.ts'
 import { buildExternalScene } from '../scene/external-scene.ts'
 import { validateSceneDoc } from '../scene/scene-validation.ts'
 import { measureRenderedText, renderedTextReady } from './helpers/rendered-text.ts'
@@ -325,7 +326,10 @@ describe('prepared text at the graphical boundary', () => {
       ['textLayout', { ...text.textLayout, width: 0 }],
       ['textLayout', { ...text.textLayout, offsetY: 10 }],
     ] as const) {
+      // A forged copy keeps the original's writer admission, so rejection
+      // tests the field, not a missing serialization.
       const forgedText = { ...text, [field]: value }
+      transferSceneNodeSerialization(text, forgedText)
       const result = validateSceneDoc({ ...valid, parts: valid.parts.map(node => node === text ? forgedText : node) }, { mode: 'external' })
       expect(result.valid).toBe(false)
       expect(result.diagnostics).toContainEqual(expect.objectContaining({ code: field === 'owner' ? 'SCENE_REFERENCE' : 'SCENE_FIDELITY', path: expect.stringMatching(new RegExp(`\\.${field}$`)) }))

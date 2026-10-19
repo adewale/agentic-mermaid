@@ -41,6 +41,7 @@ describe('typed Scene SVG writer', () => {
   test.each([
     [{ data: { id: 'forged' } }, /data-id belongs to its typed fields/],
     [{ data: { relationship: 'x' } }, /data-relationship belongs to its typed fields/],
+    [{ data: { 'prepared-text': 'true' } }, /data-prepared-text belongs to its typed fields/],
     [{ data: { 'on load': 'x' } }, /invalid data attribute key/],
     [{ className: 'a"b' }, /class must be space-separated CSS tokens/],
     [{ style: 'fill:red' }, /unknown attribute hook "style"/],
@@ -80,6 +81,23 @@ describe('typed Scene SVG writer', () => {
     const svg = sceneNodeSerialization(linked)
     expect(svg).toStartWith('<polyline class="edge" data-href="https://example.com" tabindex="0" points="0,0 5,5" fill="none" stroke="blue" stroke-width="1" stroke-dasharray="4 2" stroke-linejoin="round" pointer-events="none"')
     expect(sceneNodeSerialization(marks.connector({ id: 'e3', role: 'edge', geometry: { kind: 'line', x1: 0, y1: 0, x2: 1, y2: 1 }, lineStyle: 'invisible', paint: {} }))).toBe('')
+    // An invisible connector still draws the labels it owns.
+    const labelled = sceneNodeSerialization(marks.connector({
+      id: 'e4', role: 'edge', geometry: { kind: 'line', x1: 0, y1: 0, x2: 40, y2: 0 }, lineStyle: 'invisible', paint: {},
+      labels: [{ id: 'e4-label', text: 'Kept', anchor: { x: 20, y: 10 }, paint: { fill: '#111' }, fontSize: 12, fontWeight: 400, textAnchor: 'middle', visual: { kind: 'inline' } }],
+    }))
+    expect(labelled).toStartWith('<text ')
+    expect(labelled).toContain('data-id="e4-label"')
+    expect(labelled.replace(/<[^>]+>/g, '')).toBe('Kept')
+  })
+
+  test('writes only marks the constructors built', () => {
+    // A plain object shaped like a group has no serialization, so its open
+    // tag and indent are never written, however large.
+    const forged = { kind: 'group', id: 'g', role: 'group', open: '<g onload="x()">', close: '</g><text>extra</text>', join: '\n', children: [{ node: { kind: 'shape', id: 's', role: 'node', geometry: { kind: 'rect', x: 0, y: 0, width: 1, height: 1 }, paint: {} }, indent: 4e8 }] }
+    expect(() => sceneNodeSerialization(forged as never)).toThrow(/no admitted SVG serialization/)
+    const built = marks.shape({ id: 's', role: 'node', geometry: { kind: 'rect', x: 0, y: 0, width: 1, height: 1 }, paint: {} })
+    expect(() => sceneNodeSerialization({ ...built } as never)).toThrow(/no admitted SVG serialization/)
   })
 
   test.each([
@@ -88,6 +106,8 @@ describe('typed Scene SVG writer', () => {
     ['<g transform="translate(2 3)">', undefined, /disagrees with its typed transform/],
     ['<g>', { kind: 'matrix', a: 1, b: 0, c: 0, d: 1, e: 2, f: 3 }, /disagrees with its typed transform/],
     ['<g><rect /></g>', undefined, /one <g> tag/],
+    ['<g transform="translate(2 3)" transform="scale(9)">', { kind: 'matrix', a: 1, b: 0, c: 0, d: 1, e: 2, f: 3 }, /duplicate "transform"/],
+    ['<g style="--a: 1" style="fill:red">', undefined, /duplicate "style"/],
   ] as const)('refuses a group open tag that paints or moves its children: %s', (open, transform, error) => {
     expect(() => marks.group({ id: 'g', role: 'group', open, close: '</g>', children: [], ...(transform ? { transform } : {}) })).toThrow(error)
   })
