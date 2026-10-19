@@ -71,8 +71,8 @@ describe('adversarial algorithm experiment contracts', () => {
   })
 
   test('packed occlusion preserves failure details and exhausted proof budgets under hostile overlap', () => {
-    const text = (index: number): SceneNode => marks.text({ id: `text-${index}`, role: 'label', text: 'Retained label', block: preparePixelText('Retained label', { fontSize: 12, fontWeight: 400 }), x: 20, y: 30, fontSize: 12, anchor: 'start', paint: { fill: '#111' } }, '<text x="20" y="30">Retained label</text>')
-    const surfaces = Array.from({ length: 1300 }, (_, index) => marks.shape({ id: `surface-${index}`, role: 'node', geometry: { kind: 'rect', x: 0, y: 0, width: 200, height: 100 }, paint: { fill: '#fff' } }, '<rect width="200" height="100" fill="#fff"/>'))
+    const text = (index: number): SceneNode => marks.text({ id: `text-${index}`, role: 'label', text: 'Retained label', block: preparePixelText('Retained label', { fontSize: 12, fontWeight: 400 }), x: 20, y: 30, fontSize: 12, anchor: 'start', paint: { fill: '#111' } })
+    const surfaces = Array.from({ length: 1300 }, (_, index) => marks.shape({ id: `surface-${index}`, role: 'node', geometry: { kind: 'rect', x: 0, y: 0, width: 200, height: 100 }, paint: { fill: '#fff' } }))
     const document: SceneDoc = { family: 'flowchart', width: 200, height: 100, transparent: false, colors: { bg: '#fff', fg: '#111' }, parts: [...surfaces, ...Array.from({ length: 100 }, (_, index) => text(index))] }
     const expected = withPerformanceExperiments([], () => certifyScenePaint(document))
     expect(expected.issues.some(issue => issue.code === 'CHECK_BUDGET')).toBe(true)

@@ -8,6 +8,7 @@ import { applyRouteContracts, classifyRoutes, closeRouteContracts, directLaneBlo
 import { onShapeOutline } from '../layout-rubric.ts'
 import { resolveRenderStyle } from '../styles.ts'
 import type { Direction, PositionedEdge, PositionedGraph, PositionedNode } from '../types.ts'
+import { renderMermaidSVGWithReceipt } from '../index.ts'
 
 const flags = withPerformanceExperiments
 
@@ -146,4 +147,22 @@ describe('certified indexed forest layout', () => {
     const baseline = flags([], () => layoutGraphSync(graph))
     expect(flags(['indexed-layout'], () => layoutGraphSync(graph))).toEqual(baseline)
   })
+})
+
+test('positioned caching preserves C4 artifacts with private identity callbacks', () => {
+  const prior = process.env.AGENTIC_MERMAID_ELK_CACHE
+  const source = 'C4Deployment\ntitle Runtime\nNode(parent,"Production","Linux") {\nContainer(api,"API","Go")\n}\nPerson(user,"User")\nRel(user,api,"Calls","HTTPS")'
+  try {
+    process.env.AGENTIC_MERMAID_ELK_CACHE = '1'
+    const baseline = flags([], () => renderMermaidSVGWithReceipt(source))
+    expect(baseline.receipt.layoutCertification?.status).toBe('passed')
+    for (let request = 0; request < 2; request++) {
+      const actual = flags(['position-cache'], () => renderMermaidSVGWithReceipt(source))
+      expect(actual.svg).toBe(baseline.svg)
+      expect(actual.receipt.layoutCertification).toEqual(baseline.receipt.layoutCertification)
+    }
+  } finally {
+    if (prior === undefined) delete process.env.AGENTIC_MERMAID_ELK_CACHE
+    else process.env.AGENTIC_MERMAID_ELK_CACHE = prior
+  }
 })

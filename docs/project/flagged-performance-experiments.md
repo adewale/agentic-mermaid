@@ -19,11 +19,11 @@ documents to compare configurations.
 | Flag | Implemented mechanism | Where it can help | Limits and costs |
 |---|---|---|---|
 | `graph-index` | Pass-owned node/adjacency maps and a packed bounding-volume broad phase | Flowchart, state and architecture routing and final proofs | Mutable geometry uses live data; exact predicates and author order remain authoritative. Small inputs can pay construction overhead. |
-| `scene-arena` | Path-stack admission, bounded key interning, interned inspection ancestry and retained inspection for internal immutable Scenes | Native SVG families | This prototype does **not** replace the public Scene with a contiguous geometry arena. External snapshots keep their admission boundary. |
+| `scene-arena` | Bounded exact-recount key interning, interned inspection ancestry and retained inspection for internal immutable Scenes | Native SVG families | This prototype does **not** replace the public Scene with a contiguous geometry arena. Main already supplies the path-stack admission walk; external snapshots keep their admission boundary. |
 | `svg-passes` | Retained lexical tokens across structure-preserving rewrites and one-pass disjoint style replacement | SVG post-processing | Quote/markup changes force a fresh scan. Final-byte security checks still run. |
 | `text-spans` | Bounded immutable prepared-text caches and typed source/advance lanes for plain ASCII wrapping | Native pixel text | Custom measurement bypasses caches; styled, tracked, monospace and irregular source clusters keep exact general wrapping. Cache residency consumes memory. |
 | `indexed-layout` | Linear variable-size ordered forest layout with depth bands and subtree spans | Flat rectangular flowchart forests | Groups, labels on edges, cycles, fan-in, nonrectangles and long-rank edges fall back to ELK. Final route/geometry certification still runs. Geometry can differ. |
-| `position-cache` | Private positioned-artifact snapshots, fresh copies on reuse and final projection certification | Exact repeated native requests except Gantt | One global 16 MiB estimated-weight / 128-entry budget, isolated descriptor identities. Key includes source, complete appearance/options, relevant environment and other flags. Custom measurement bypasses it. `AGENTIC_MERMAID_ELK_CACHE=0` disables it. This prototype does not reuse across different paint themes. |
+| `position-cache` | Private positioned-artifact snapshots, fresh copies on reuse and final projection certification | Exact repeated native requests except Gantt | One global 16 MiB estimated-weight / 128-entry budget, isolated descriptor identities. Key includes source, complete appearance/options, relevant environment and other flags. Custom measurement and artifacts that cannot be privately cloned (including C4 identity callbacks) bypass it. `AGENTIC_MERMAID_ELK_CACHE=0` disables it. This prototype does not reuse across different paint themes. |
 | `paint-bvh` | Typed-array BVH, bounded quickselect, exact node allocation and eight-item leaves | Native SVG paint proof | Retains median/tie traversal and proof-budget behavior. Small scenes may not repay construction. |
 | `incremental-order` | Insertion-only DAG ranks with bounded-interval searches and a stable minimum-heap Kahn order | Graph constraint construction | Backward insertions still rewrite the retained order. Reverse-authored sparse chains can be quadratic; this is not a worst-case optimal dynamic ordering algorithm. |
 | `terminal-tiles` | Dense 32-cell row tiles with sparse Map fallback and insertion-order history | Terminal output | Wide grapheme ownership stays exact. This prototype does not replace owner records with numeric IDs. Tiles and history add overhead on some sparse workloads. |
@@ -104,3 +104,10 @@ tradeoffs. Singles and leave-one-out ablations are not an exhaustive search of
 all 4,096 subsets. Keep acceptance, geometry/label fidelity, cold throughput,
 repeated-request latency, allocation, retained heap, RSS and download bytes as
 separate quantities. Rejections do not count as fast successful rendering.
+
+The branch was rebased onto `3187824137a049e326745e9a2d964bb793fb27b2`
+after the typed SVG writer landed. Measurements from the earlier production
+base are diagnostic only. Rebase review also exposed two correctness gaps:
+C4 identity callbacks require positioned-cache bypass, and inline connector
+labels must inherit enclosing group opacity in both inspection paths. Both
+have behavioral red-to-green regressions.

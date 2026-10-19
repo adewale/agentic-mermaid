@@ -32,5 +32,13 @@ export function cachedPositioned(family: object, key: string): FamilyLayoutResul
 export function retainPositioned(family: object, key: string, value: FamilyLayoutResult): void {
   // Conservative weighted estimate; the cache never retains caller objects.
   const weight = key.length * 2 + JSON.stringify(value).length * 4 + 1024
-  if (weight <= 16 * 1024 * 1024) results.set(isolatedKey(family, key), clonePositioned(value), weight)
+  if (weight > 16 * 1024 * 1024) return
+  let copy: FamilyLayoutResult
+  try { copy = clonePositioned(value) } catch (error) {
+    // C4 identity planners carry callbacks. Keep the complete authoritative
+    // artifact uncached when a private snapshot cannot preserve its evidence.
+    if (error instanceof Error && error.name === 'DataCloneError') return
+    throw error
+  }
+  results.set(isolatedKey(family, key), copy, weight)
 }
