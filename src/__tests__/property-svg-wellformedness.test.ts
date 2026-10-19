@@ -5,6 +5,7 @@
 // `undefined` checks are the same leak guards property-all-families-fuzz runs
 // with plain labels; this file's job is escaping.
 import { beforeAll, describe, expect, it } from 'bun:test'
+import { strict as assert } from 'node:assert'
 import fc from 'fast-check'
 import { fcParameters } from './helpers/fc-parameters.ts'
 
@@ -68,7 +69,7 @@ beforeAll(svgXmlReady)
 
 describe('SVG is well-formed XML for labels full of XML metacharacters', () => {
   it.each(BUILTIN_FAMILY_METADATA.map(({ id }) => [id] as const))('%s', family => {
-    fc.assert(
+    const result = fc.check(
       fc.property(labelArb, optionsArb, (label, options) => {
         const [header, ...body] = FAMILY_SOURCES[family](label).split('\n')
         const source = [header, `accTitle: ${label}`, `accDescr: ${label}`, ...body].join('\n')
@@ -76,9 +77,13 @@ describe('SVG is well-formed XML for labels full of XML metacharacters', () => {
       }),
       fcParameters({
         numRuns: PROPERTY_RUNS,
+        includeErrorInReport: true,
         examples: [['label <br/>', { compact: false, transparent: false, style: 'hand-drawn', seed: 0, embedFontImport: false }]],
       }),
     )
+    // Keep fast-check's shrunk replay details while exposing an assertion to
+    // Bun's JUnit report, which the base-branch red-green gate requires.
+    assert.equal(result.failed, false, fc.defaultReportMessage(result))
   })
 
   it('refuses entities that would introduce terminal controls or non-XML scalars', () => {
