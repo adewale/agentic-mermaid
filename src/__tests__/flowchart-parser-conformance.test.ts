@@ -202,6 +202,8 @@ describe('flowchart parser conformance safety floor (issue #36)', () => {
       'A --> B &',
       'A &\n  B --> C',
       'A --> B & \n  C',
+      // A link at a line's end does not take in a keyword: `end` is no node.
+      'subgraph X\n  B -->\n  end',
       // A string opened after other title text is not the title's, as upstream.
       'subgraph X "title\n  more"\n  C\n  end',
     ]) {

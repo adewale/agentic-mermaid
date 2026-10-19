@@ -363,8 +363,10 @@ export function flowchartStatementSpans(text: string, scan: FlowchartScan = scan
   return out
 }
 
-/** A statement whose text no link or label continues onto another line. */
-const KEYWORD_STATEMENT_RE = /^(?:subgraph|classDef|class|style|linkStyle|click|href|accTitle|accDescr)(?![\w-])/
+/** A statement whose text no link or label continues onto another line, and
+ * which a link on the line before does not take in (upstream lexes `end`,
+ * `subgraph`, … there as keywords, not as a node). */
+const KEYWORD_STATEMENT_RE = /^(?:(?:end|subgraph|classDef|class|style|linkStyle|click|href|accTitle|accDescr)(?![\w-])|direction\s)/
 
 /**
  * Join physical lines into the statements upstream's lexer reads, for which
@@ -448,7 +450,7 @@ export function coalesceFlowchartLines(lines: readonly string[]): Array<{ text: 
     } else {
       lineScan = scanLine(text)
       const endsWithLink = open.length === 0 && scan.links.at(-1)?.end === scanned.trimEnd().length
-      if (group && !keyword && (endsWithLink || lineScan.links[0]?.start === 0)) joint = ' '
+      if (group && !keyword && ((endsWithLink && !KEYWORD_STATEMENT_RE.test(trimmed)) || lineScan.links[0]?.start === 0)) joint = ' '
     }
     if (joint === undefined) {
       group = { text: raw, line: index }
