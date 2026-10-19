@@ -1,5 +1,6 @@
 import { describe, expect, test } from 'bun:test'
 import { buildExternalScene, DefaultBackend, EXTERNAL_SCENE_API_VERSION } from '../index.ts'
+import { svgTextWhitespace, writeSvgTextWhitespace } from '../scene/svg-text-whitespace.ts'
 import type { DocumentMark, SceneDoc, ShapeMark } from '../scene/ir.ts'
 import * as marks from '../scene/marks.ts'
 import { admitSceneDocument, freezeBoundedFirstPartyData, snapshotBoundedExternalData, EXTERNAL_SCENE_DOCUMENT_SNAPSHOT_LIMITS } from '../scene/external-data-snapshot.ts'
@@ -252,5 +253,39 @@ describe('private typed SVG recipes', () => {
       marks.documentClose(),
     ] }
     expect(() => admitSceneDocument(scene, 'internal', false)).toThrow(/definitions must be generated from typed resources/)
+  })
+})
+
+describe('typed literal text whitespace', () => {
+  test.each([
+    { original: 'A B', source: 'A B', edits: undefined, xml: 'A B' },
+    { original: 'A  B', source: 'A B', edits: [{ offset: 1, length: 1 as const, value: '  ' }], xml: 'A  B' },
+    { original: '\u00a0A\r\nB\ufeff', source: 'A B', edits: [{ offset: 0, length: 0 as const, value: '\u00a0' }, { offset: 1, length: 1 as const, value: '\r\n' }, { offset: 3, length: 0 as const, value: '\ufeff' }], xml: '\u00a0A\r\nB\ufeff' },
+    { original: '👩‍💻\t B', source: '👩‍💻 B', edits: [{ offset: 5, length: 1 as const, value: '\t ' }], xml: '👩‍💻\t B' },
+    { original: '<x>  &', source: '<x> &', edits: [{ offset: 3, length: 1 as const, value: '  ' }], xml: '&lt;x&gt;  &amp;' },
+    { original: ' \u00a0\t', source: '', edits: [{ offset: 0, length: 0 as const, value: ' \u00a0\t' }], xml: ' \u00a0\t' },
+    { original: '', source: '', edits: undefined, xml: '' },
+  ])('retains original whitespace without a second visible-text authority: $original', ({ original, source, edits, xml }) => {
+    expect(svgTextWhitespace(original, source)).toEqual(edits)
+    const writer = new SvgWriter()
+    writeSvgTextWhitespace(source, edits ?? [], writer)
+    expect(writer.finish()).toBe(xml)
+  })
+
+  test('rejects a changed visible source and edits that replace or insert visible content', () => {
+    expect(() => svgTextWhitespace('A B', 'A C')).toThrow('normalized semantic text')
+    for (const edits of [
+      [{ offset: 1, length: 1 as const, value: 'X' }],
+      [{ offset: 0, length: 1 as const, value: ' ' }],
+      [{ offset: 1, length: 0 as const, value: ' ' }],
+      [{ offset: 0, length: 0 as const, value: '<' }],
+      [{ offset: 1, length: 1 as const, value: '\u00a0' }],
+      [{ offset: 3, length: 0 as const, value: ' ' }, { offset: 1, length: 1 as const, value: '  ' }],
+      [{ offset: 1, length: 1 as const, value: '  ' }, { offset: 1, length: 1 as const, value: '\t' }],
+    ]) {
+      const writer = new SvgWriter()
+      expect(() => writeSvgTextWhitespace('A B', edits, writer)).toThrow()
+      expect(writer.finish()).toBe('')
+    }
   })
 })
