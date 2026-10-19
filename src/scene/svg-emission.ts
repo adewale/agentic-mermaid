@@ -1,3 +1,6 @@
+import { formatPercent1 } from '../shared/percent-format.ts'
+import { isSafeInlinePaintValue } from '../shared/inline-paint-value.ts'
+import type { SvgTextWhitespaceEdit } from './svg-text-whitespace.ts'
 /** Private SVG projection recipes. Recipes describe lexical presentation,
  * never a second copy of mark geometry, text, or paint. No markup or executable
  * value can enter this vocabulary. Public Scene contracts stay in ir.ts. */
@@ -12,11 +15,20 @@ import { serializeLinearGradientResources } from './gradient-resources.ts'
 import { serializeMarkerResources } from './marker-resources.ts'
 import { SvgWriter, type SvgWriterOptions, type SvgAttributeEscape } from './svg-writer.ts'
 
-export type SvgNumberFormat = 'exact' | 'round2' | 'round3'
+export type SvgNumberFormat = 'exact' | 'round2' | 'round3' | 'percent1'
 export type SvgGeometryField = 'x' | 'y' | 'width' | 'height' | 'rx' | 'ry' | 'cx' | 'cy' | 'r' | 'x1' | 'y1' | 'x2' | 'y2' | 'd' | 'points'
 export type SvgTextField = 'text' | 'source' | 'x' | 'y' | 'fontSize' | 'fontWeight' | 'letterSpacing' | 'anchor'
 export type SvgConnectorField = 'color' | 'width' | 'opacity' | 'mixBlendMode' | 'pathLength' | 'lineCap' | 'lineJoin' | 'miterLimit' | 'lineStyle' | 'relationshipKind' | 'direction'
 export type SvgCssProperty = 'mix-blend-mode' | 'fill' | 'stroke' | 'stroke-width' | 'stroke-dasharray' | 'opacity'
+  | '--tl-accent' | '--tl-fill' | '--tl-label' | '--tl-line' | '--tl-section-bg' | '--tl-section-band'
+  | '--tl-pill-fill' | '--tl-pill-stroke' | '--tl-event-fill'
+
+export interface SvgCssDeclaration {
+  readonly property: SvgCssProperty
+  readonly value: SvgValue
+  /** Preserved authored declaration overridden by a later typed paint value. */
+  readonly shadowed?: true
+}
 
 export type SvgValue =
   | { readonly source: 'geometry'; readonly field: SvgGeometryField; readonly piece?: number }
@@ -29,8 +41,9 @@ export type SvgValue =
   | { readonly source: 'transform' }
   | { readonly source: 'marker'; readonly position: 'start' | 'mid' | 'end' }
   | { readonly source: 'connectorLabel'; readonly index: number }
+  | { readonly source: 'colorMix'; readonly primary: SvgValue; readonly secondary: SvgValue; readonly amount: number }
   | { readonly source: 'document'; readonly field: 'text' | 'domId' }
-  | { readonly source: 'style'; readonly declarations: readonly { readonly property: SvgCssProperty; readonly value: SvgValue }[] }
+  | { readonly source: 'style'; readonly declarations: readonly SvgCssDeclaration[] }
   /** Only extra family metadata or presentation values absent from Scene IR.
    * Semantic attributes must use the corresponding projection source. */
   | { readonly source: 'metadata'; readonly value: string | number | boolean }
@@ -98,6 +111,8 @@ export interface SvgTextEmission {
   /** Literal syntax highlighting slices refer to the semantic text, never a
    * second text/markup authority. Prepared shaping keeps priority. */
   readonly spans?: readonly { readonly start: number; readonly end: number; readonly attributes: readonly SvgAttribute[] }[]
+  readonly content?: 'text' | 'source'
+  readonly whitespace?: readonly SvgTextWhitespaceEdit[]
 }
 
 export interface SvgStylesheetEmission {
@@ -197,6 +212,7 @@ function geometryOf(node: SceneNode, piece?: number): Exclude<Geometry, { kind: 
 
 function numberString(value: number, format: SvgNumberFormat | undefined): string {
   if (!Number.isFinite(value)) throw new TypeError('SVG numbers must be finite')
+  if (format === 'percent1') return formatPercent1(value)
   if (format !== undefined && format !== 'exact' && format !== 'round2' && format !== 'round3') throw new TypeError('Unsupported SVG number format')
   const scale = format === 'round2' ? 100 : format === 'round3' ? 1000 : undefined
   return String(scale === undefined ? value : Math.round(value * scale) / scale)
@@ -248,11 +264,22 @@ export function svgEmissionValue(node: SceneNode, value: SvgValue, recipe?: SvgP
       return marker ? `url(#${marker.id})` : undefined
     }
     case 'connectorLabel': return node.kind === 'connector' ? node.labels[value.index]?.text : undefined
+    case 'colorMix': return `color-mix(in srgb, ${svgEmissionValue(node, value.primary, recipe)} ${value.amount}%, ${svgEmissionValue(node, value.secondary, recipe)})`
     case 'document': return node.kind === 'document' ? node[value.field] : undefined
-    case 'style': return value.declarations.flatMap(declaration => {
-      const value = svgEmissionValue(node, declaration.value, recipe)
-      return value === undefined ? [] : [`${declaration.property}:${value}`]
-    }).join(';')
+    case 'style': {
+      let result = ''
+      let finalValues: Map<SvgCssProperty, string | number | boolean | undefined> | undefined
+      if (value.declarations.some(declaration => declaration.shadowed)) {
+        finalValues = new Map()
+        for (const declaration of value.declarations) if (!declaration.shadowed) finalValues.set(declaration.property, svgEmissionValue(node, declaration.value, recipe))
+      }
+      for (const declaration of value.declarations) {
+        if (declaration.shadowed && finalValues?.get(declaration.property) === undefined) throw new TypeError('Shadowed paint requires a defined final semantic value')
+        const projected = svgEmissionValue(node, declaration.value, recipe)
+        if (projected !== undefined) result += `${result ? ';' : ''}${declaration.property}:${projected}`
+      }
+      return result
+    }
     case 'metadata':
       if (typeof value.value !== 'string' && typeof value.value !== 'number' && typeof value.value !== 'boolean') throw new TypeError('SVG metadata must be scalar data')
       return value.value
@@ -535,18 +562,47 @@ export function validateSvgEmissionRecipe(recipe: SvgEmissionRecipe): void {
     oneOf(item.kind, ['shadow'], false); optionalBoolean(item.wrap); colors(item.colors)
   }
   const projection = (value: unknown): void => {
-    const item = object(value, ['source', 'field', 'piece', 'value', 'declarations', 'position', 'index'])
+    const item = object(value, ['source', 'field', 'piece', 'value', 'declarations', 'position', 'index', 'primary', 'secondary', 'amount'])
     const source = item.source
+    if (source === 'colorMix') {
+      object(value, ['source', 'primary', 'secondary', 'amount'])
+      if (typeof item.amount !== 'number' || !Number.isFinite(item.amount) || item.amount < 0 || item.amount > 100) throw new TypeError('SVG color mix requires a bounded percentage')
+      for (const color of [item.primary, item.secondary]) {
+        const value = color as SvgValue
+        if (value?.source !== 'metadata' && value?.source !== 'paint') throw new TypeError('SVG color mix requires non-recursive typed paints')
+        if (value.source === 'metadata' && typeof value.value !== 'string') throw new TypeError('SVG color mix requires CSS text')
+        projection(color)
+      }
+      return
+    }
     if (source === 'connectorLabel') { object(value, ['source', 'index']); index(item.index); if (item.index === undefined) throw new TypeError('Connector label projection requires an index'); return }
     if (source === 'marker') { object(value, ['source', 'position']); oneOf(item.position, ['start', 'mid', 'end'], false); return }
     if (source === 'style') {
       object(value, ['source', 'declarations'])
       const declarations = array(item.declarations)
-      if (declarations.length > 16) throw new RangeError('SVG style projection exceeds declaration budget')
-      for (const declaration of declarations) {
-        const item = object(declaration, ['property', 'value'])
+      const canonicalPositions = new Map<unknown, number>()
+      for (let position = 0; position < declarations.length; position++) {
+        const entry = object(declarations[position], ['property', 'value', 'shadowed'])
+        if (entry.shadowed === undefined) canonicalPositions.set(entry.property, position)
+      }
+      for (const [position, declaration] of declarations.entries()) {
+        const item = object(declaration, ['property', 'value', 'shadowed'])
         const properties = { 'mix-blend-mode': ['connector', 'mixBlendMode'], fill: ['paint', 'fill'], stroke: ['paint', 'stroke'], 'stroke-width': ['paint', 'strokeWidth'], 'stroke-dasharray': ['paint', 'strokeDasharray'], opacity: ['paint', 'opacity'] } as const
+        if (['--tl-accent', '--tl-fill', '--tl-label', '--tl-line', '--tl-section-bg', '--tl-section-band', '--tl-pill-fill', '--tl-pill-stroke', '--tl-event-fill'].includes(String(item.property))) {
+          const value = item.value as SvgValue
+          if (item.shadowed !== undefined || value?.source !== 'metadata' && value?.source !== 'colorMix') throw new TypeError('Scoped palette properties require typed palette paints')
+          if (value.source === 'metadata' && typeof value.value !== 'string') throw new TypeError('Scoped palette paints require CSS text')
+          projection(value)
+          continue
+        }
         oneOf(item.property, Object.keys(properties), false)
+        if (item.shadowed !== undefined) {
+          if (item.shadowed !== true || !['stroke', 'stroke-width', 'stroke-dasharray', 'opacity'].includes(String(item.property))) throw new TypeError('Only overridden line-paint declarations may retain lexical values')
+          const projected = object(item.value, ['source', 'value'])
+          if (projected.source !== 'metadata' || typeof projected.value !== 'string' || !isSafeInlinePaintValue(projected.value)) throw new TypeError('Shadowed paint requires a safe lexical value')
+          if ((canonicalPositions.get(item.property) ?? -1) <= position) throw new TypeError('Shadowed paint requires a later semantic declaration')
+          continue
+        }
         const projected = object(item.value, ['source', 'field'])
         const expected = properties[item.property as keyof typeof properties]
         if (projected.source !== expected[0] || projected.field !== expected[1]) throw new TypeError('SVG style must project its matching semantic field')
@@ -582,7 +638,8 @@ export function validateSvgEmissionRecipe(recipe: SvgEmissionRecipe): void {
       const attribute = object(entry, ['name', 'value', 'format', 'omit', 'fallback', 'display', 'escape', 'before'])
       if (typeof attribute.name !== 'string' || !ATTRIBUTE_NAMES.has(attribute.name) && !/^data-[a-zA-Z0-9_.:-]+$/.test(attribute.name)) throw new TypeError('Unsupported SVG attribute name')
       projection(attribute.value)
-      oneOf(attribute.format, ['exact', 'round2', 'round3'])
+      oneOf(attribute.format, ['exact', 'round2', 'round3', 'percent1'])
+      if (attribute.format === 'percent1' && attribute.name !== 'data-percent') throw new TypeError('Percent formatting is limited to percentage metadata')
       oneOf(attribute.omit, ['undefined', 'zero', 'false', 'empty'])
       oneOf(attribute.escape, ['attribute', 'xml', 'safe'])
       oneOf(attribute.before, [' ', '\n', '\n  '])
@@ -603,7 +660,7 @@ export function validateSvgEmissionRecipe(recipe: SvgEmissionRecipe): void {
   }
   const visit = (value: unknown, depth: number): void => {
     if (depth > 64) throw new RangeError('SVG recipe exceeds depth budget')
-    const item = object(value, ['kind', 'piece', 'attributes', 'tailAttributes', 'close', 'pieces', 'prefix', 'layout', 'baselineShift', 'dy', 'spans', 'width', 'height', 'colors', 'transparent', 'font', 'hasMonoFont', 'widthAttribute', 'heightAttribute', 'extraStyle', 'children', 'join', 'resources', 'indent', 'element', 'text', 'domId', 'css'])
+    const item = object(value, ['kind', 'piece', 'attributes', 'tailAttributes', 'close', 'pieces', 'prefix', 'layout', 'baselineShift', 'dy', 'spans', 'content', 'whitespace', 'width', 'height', 'colors', 'transparent', 'font', 'hasMonoFont', 'widthAttribute', 'heightAttribute', 'extraStyle', 'children', 'join', 'resources', 'indent', 'element', 'text', 'domId', 'css'])
     if (seen.has(item)) return
     seen.add(item)
     switch (item.kind) {
@@ -623,7 +680,7 @@ export function validateSvgEmissionRecipe(recipe: SvgEmissionRecipe): void {
         if (item.prefix !== undefined) for (const value of array(item.prefix)) documentText(value)
         return
       case 'text':
-        object(item, ['kind', 'attributes', 'tailAttributes', 'layout', 'baselineShift', 'dy', 'spans']); attributes(item.attributes)
+        object(item, ['kind', 'attributes', 'tailAttributes', 'layout', 'baselineShift', 'dy', 'spans', 'content', 'whitespace']); attributes(item.attributes)
         if (item.tailAttributes !== undefined) attributes(item.tailAttributes)
         if (item.spans !== undefined) for (const value of array(item.spans)) {
           const span = object(value, ['start', 'end', 'attributes'])
@@ -632,6 +689,14 @@ export function validateSvgEmissionRecipe(recipe: SvgEmissionRecipe): void {
           attributes(span.attributes)
         }
         oneOf(item.layout, ['multiline', 'direct'], false); optionalNumber(item.baselineShift)
+        oneOf(item.content, ['text', 'source'])
+        if (item.spans !== undefined && item.layout !== 'multiline') throw new TypeError('Syntax spans require multiline text emission')
+        if ((item.whitespace !== undefined || item.content === 'source') && item.layout !== 'direct') throw new TypeError('Source whitespace requires direct literal text emission')
+        if (item.whitespace !== undefined) for (const value of array(item.whitespace)) {
+          const edit = object(value, ['offset', 'length', 'value'])
+          index(edit.offset); oneOf(edit.length, [0, 1], false)
+          if (edit.offset === undefined || typeof edit.value !== 'string' || !edit.value.length || edit.value.trim() !== '') throw new TypeError('SVG lexical edits must contain only bounded whitespace')
+        }
         if (item.dy !== undefined && typeof item.dy !== 'string' && typeof item.dy !== 'number') throw new TypeError('SVG text dy must be text or a number')
         optionalNumber(typeof item.dy === 'number' ? item.dy : undefined)
         return

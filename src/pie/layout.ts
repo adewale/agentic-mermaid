@@ -1,3 +1,4 @@
+import { formatPercent1 } from '../shared/percent-format.ts'
 import { layoutTooltip } from '../shared/tooltip-layout.ts'
 import type {
   PieChart,
@@ -97,9 +98,7 @@ export function formatPieValue(value: number): string {
  * display as "(0.0%)" (the pie-15 probe defect).
  */
 export function formatPiePercent(fraction: number): string {
-  if (!(fraction > 0)) return '0.0%'
-  const pct = Math.max(0.1, Math.round(fraction * 1000) / 10)
-  return `${pct.toFixed(1)}%`
+  return formatPercent1(fraction)
 }
 
 /**

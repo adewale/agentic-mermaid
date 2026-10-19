@@ -6,6 +6,7 @@ import { LINE_HEIGHT_RATIO } from '../text-metrics.ts'
 import type { TextMark } from './ir.ts'
 import { writeSvgAttributes, type SvgTextEmission } from './svg-emission.ts'
 import type { SvgWriter } from './svg-writer.ts'
+import { writeSvgTextWhitespace } from './svg-text-whitespace.ts'
 
 function writeRunAttributes(run: DisplayRun, weight: number, writer: SvgWriter): void {
   if (run.bold) writer.attribute('font-weight', weight > 700 ? String(weight) : 'bold')
@@ -73,12 +74,15 @@ export function writeSceneText(node: TextMark, recipe: SvgTextEmission, writer: 
   }
   const tail = (): void => { if (recipe.tailAttributes) writeSvgAttributes(node, recipe.tailAttributes, writer) }
   if (recipe.layout === 'direct') {
+    if (recipe.content === 'source' && (!block || block.prepared.display !== 'literal')) throw new TypeError('Direct source text requires a retained literal preparation')
+    const content = recipe.content === 'source' ? block!.prepared.source : node.text
     writer.write('<text')
     writeSvgAttributes(node, recipe.attributes, writer)
     if (recipe.dy !== undefined) writer.attribute('dy', String(recipe.dy))
     tail()
     writer.write('>')
-    writer.text(node.text)
+    if (recipe.whitespace) writeSvgTextWhitespace(content, recipe.whitespace, writer)
+    else writer.text(content)
     writer.write('</text>')
     return
   }
