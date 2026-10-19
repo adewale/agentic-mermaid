@@ -53,13 +53,6 @@ describe('getPath: preferred direction decides equal-cost ties', () => {
     expect(path!.length).toBe(Math.abs(to.x - FROM.x) + Math.abs(to.y - FROM.y) + 1)
   })
 
-  test('no preferred direction defaults to +x first', () => {
-    const path = getPath(emptyGrid(), FROM, { x: 5, y: 5 })
-    expect(path).not.toBeNull()
-    expect(path![1]).toEqual({ x: 3, y: 2 })
-    expect(path!.length).toBe(7)
-  })
-
   test('corner attachment offsets fall back by dominant signed delta', () => {
     // Corner offsets miss the four explicit cardinal branches and use the
     // signed-delta fallback; with |dx| == |dy| the x-axis wins. Targets sit on

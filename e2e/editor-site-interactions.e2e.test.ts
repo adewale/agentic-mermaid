@@ -224,6 +224,43 @@ describe('editor and site interactions in a real browser', () => {
     await page.close()
   }, 60_000)
 
+  test.each(['access', 'operation'] as const)('the editor boots, edits and changes preferences when storage %s is denied', async failure => {
+    const page = await browser.newPage({ viewport: { width: 1280, height: 900 } })
+    const errors: string[] = []
+    page.on('pageerror', error => errors.push(error.message))
+    await page.addInitScript(mode => {
+      const deny = () => { throw new DOMException('storage denied', 'SecurityError') }
+      if (mode === 'access') {
+        for (const name of ['localStorage', 'sessionStorage']) Object.defineProperty(window, name, { configurable: true, get: deny })
+      } else {
+        for (const name of ['getItem', 'setItem', 'removeItem'] as const) Storage.prototype[name] = deny
+      }
+    }, failure)
+    await page.goto(`${base}/editor/?example=flowchart-basic`, { waitUntil: 'networkidle' })
+    await waitForVerifiedRender(page)
+    await page.evaluate(() => { document.getElementById('status-text')!.textContent = 'awaiting-test-render' })
+    await page.locator('#code-editor').fill('flowchart TD\n  Edited --> Safely')
+    await waitForVerifiedRender(page)
+    const labels = await page.locator('#preview-inner svg').textContent()
+    expect(labels).toContain('Edited')
+    expect(labels).toContain('Safely')
+    const toggle = page.locator('#dark-light-btn')
+    const previousLabel = await toggle.getAttribute('aria-label')
+    await toggle.click()
+    expect(await toggle.getAttribute('aria-label')).not.toBe(previousLabel)
+    for (const [kind, value] of [['theme', 'paper'], ['theme', ''], ['style', 'hand-drawn'], ['style', 'crisp']] as const) {
+      await page.evaluate(() => { document.getElementById('status-text')!.textContent = 'awaiting-test-render' })
+      await page.locator(`#${kind}-dropdown-btn`).click()
+      const choice = page.locator(`.theme-dropdown-item[data-${kind}="${value}"]`)
+      await choice.click()
+      expect(await choice.getAttribute('aria-selected'), `${kind}/${value || 'default'}`).toBe('true')
+      await waitForVerifiedRender(page)
+      expect(await page.locator('#preview-inner svg').textContent()).toContain('Edited')
+    }
+    expect(errors).toEqual([])
+    await page.close()
+  }, 60_000)
+
   test('the preview accepts exactly one verified SVG document from the renderer', async () => {
     const page = await browser.newPage({ viewport: { width: 1280, height: 900 } })
     await page.addInitScript(() => { (window as any).__smuggledRan = 0 })
@@ -235,6 +272,9 @@ describe('editor and site interactions in a real browser', () => {
         }
         if (source.indexOf('Handler') >= 0) {
           return Object.assign({}, artifact, { svg: artifact.svg.replace('<svg ', '<svg onmouseover="window.__smuggledRan = 1" ') });
+        }
+        if (source.indexOf('ActiveScript') >= 0) {
+          return Object.assign({}, artifact, { svg: artifact.svg.replace('</svg>', '<script>window.__smuggledRan = 1</script></svg>') });
         }
         return artifact;
       };
@@ -266,6 +306,10 @@ describe('editor and site interactions in a real browser', () => {
     expect(handler).toMatchObject({ status: 'Error', smuggled: false, handlers: 0 })
     expect(handler.childTags).not.toContain('svg')
     expect(handler.error).toContain('Unsafe SVG output blocked: inline-event-handler')
+    const script = await render('flowchart TD\n  ActiveScript --> Rejected')
+    expect(script).toMatchObject({ status: 'Error', smuggled: false, handlers: 0 })
+    expect(script.childTags).not.toContain('svg')
+    expect(script.error).toContain('Unsafe SVG output blocked:')
     expect(await page.evaluate(() => (window as any).__smuggledRan)).toBe(0)
     await page.close()
   }, 60_000)
