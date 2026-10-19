@@ -66,14 +66,21 @@ export function flowchartUnsupportedSyntaxWarnings(source: string): LayoutWarnin
 /** Flowchart source ours reads where pinned Mermaid rejects it, each on its
  * canonical line: a `@{…}` block with a space before `@` or inside `@{`, a
  * text-arrow label that a link of another stroke closes, a `linkStyle`
- * index past the links defined above it, and quoted text whose boundaries
+ * index past the links defined above it, an `end` with no subgraph open
+ * (alone or before a statement: `end B`), and quoted text whose boundaries
  * pinned Mermaid's HTML-like preprocessor rewrites. */
 export function flowchartUpstreamRejectedSyntaxWarnings(source: string): LayoutWarning[] {
   const statements = flowchartStatements(source)
   const warnings: LayoutWarning[] = []
   const rewritten = preprocessorQuoteRewriteWarning(source)
   if (rewritten) warnings.push(rewritten)
+  let openSubgraphs = 0
   for (const { text, line } of statements) {
+    if (/^subgraph(?![\w-])/.test(text)) openSubgraphs++
+    else if (text === 'end' && openSubgraphs > 0) openSubgraphs--
+    else if (text === 'end') {
+      warnings.push({ code: 'UNSUPPORTED_SYNTAX', line, syntax: 'flowchart_stray_end', message: 'An `end` with no subgraph open closes nothing and is ignored. Pinned Mermaid rejects this; remove it.' })
+    }
     for (const region of scanFlowchart(text).regions) {
       if (region.kind === 'metadata' && (text.slice(region.start, region.contentStart) !== '@{' || /\s/.test(text[region.start - 1] ?? ''))) {
         warnings.push({ code: 'UNSUPPORTED_SYNTAX', line, syntax: 'flowchart_metadata_spacing', message: 'A @{…} metadata block with a space before "@" or inside "@{" is read as its node\'s metadata. Pinned Mermaid rejects this; write id@{ … } with no space.' })

@@ -829,8 +829,8 @@ describe('parseMermaid – edge cases', () => {
 
   // Mermaid rejects each of these, but what it means is clear, so ours reads
   // it, draws it, and verify reports it: a linkStyle index past the links
-  // above it, a text-arrow label closed by a link of another stroke, and a
-  // space before or inside `@{`.
+  // above it, a text-arrow label closed by a link of another stroke, a
+  // space before or inside `@{`, and an `end` with no subgraph open.
   // [construct, source, text the render draws, syntax verify reports, its line]
   const FLOWCHART_READ_GENEROUSLY: ReadonlyArray<readonly [string, string, string, string, number]> = [
     ['a linkStyle index that names no link', 'flowchart TD\n  A --> B\n  linkStyle 99 stroke:#ff0000', '>B<', 'flowchart_link_style_index', 3],
@@ -841,6 +841,8 @@ describe('parseMermaid – edge cases', () => {
     ['a space inside @{', 'flowchart LR\n  A@ {label: "Start"}', '>Start<', 'flowchart_metadata_spacing', 2],
     ['a space before @{', 'flowchart LR\n  A @{label: "Start"} --> B', '>Start<', 'flowchart_metadata_spacing', 2],
     ['a space between a shape and @{', 'flowchart LR\n  A[a] @{ label: b }', '>b<', 'flowchart_metadata_spacing', 2],
+    ['an end with no subgraph open', 'flowchart LR\n  subgraph S\n    A\n  end\n  end', '>A<', 'flowchart_stray_end', 5],
+    ['a statement after an end with no subgraph open', 'flowchart LR\n  end B --> C', '>C<', 'flowchart_stray_end', 2],
   ]
 
   it.each(FLOWCHART_READ_GENEROUSLY)('%s is read, drawn and reported', (_construct, source, drawn, syntax, line) => {
