@@ -741,7 +741,17 @@ export function validateSvgEmissionRecipe(recipe: SvgEmissionRecipe): void {
           for (const field of ['fill', 'stroke', 'strokeWidth']) if (typeof paint[field] !== 'string') throw new TypeError('SVG text background requires typed paint')
           requireSafeCssPaint(paint.fill as string, 'text background fill')
           requireSafeCssPaint(paint.stroke as string, 'text background stroke')
-          if (background.attributes !== undefined) attributes(background.attributes)
+          if (background.attributes !== undefined) {
+            attributes(background.attributes)
+            const fields: Record<string, readonly [string, string]> = {
+              'data-id': ['identity', 'id'], 'data-role': ['identity', 'role'], 'data-from': ['identity', 'from'], 'data-to': ['identity', 'to'],
+              role: ['accessibility', 'role'], 'aria-label': ['accessibility', 'label'], 'aria-roledescription': ['accessibility', 'roleDescription'],
+            }
+            for (const attribute of background.attributes as readonly SvgAttribute[]) {
+              const field = fields[attribute.name]
+              if (!field || attribute.value.source !== field[0] || !('field' in attribute.value) || attribute.value.field !== field[1]) throw new TypeError('SVG text background attributes must project semantic identity or accessibility')
+            }
+          }
           if (item.layout !== 'multiline') throw new TypeError('SVG text background requires a retained multiline block')
         }
         if (item.tailAttributes !== undefined) attributes(item.tailAttributes)

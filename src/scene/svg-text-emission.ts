@@ -77,8 +77,10 @@ export function writeSceneText(node: TextMark, recipe: SvgTextEmission, writer: 
     const background = recipe.background
     const width = node.block.width + background.padding * 2
     const height = node.block.height + background.padding * 2
+    const x = node.x - width / 2, y = node.y - height / 2
+    if (![x, y, width, height].every(Number.isFinite)) throw new TypeError('SVG text background geometry must be finite')
     writer.write('<rect')
-    writer.attribute('x', String(node.x - width / 2)); writer.attribute('y', String(node.y - height / 2))
+    writer.attribute('x', String(x)); writer.attribute('y', String(y))
     writer.attribute('width', String(width)); writer.attribute('height', String(height))
     writer.attribute('rx', String(background.rx)); writer.attribute('ry', String(background.ry))
     writer.attribute('fill', background.paint.fill); writer.attribute('stroke', background.paint.stroke)
