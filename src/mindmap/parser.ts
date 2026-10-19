@@ -25,7 +25,7 @@ export function parseMindmap(source: string): MindmapDiagram {
   // node labels have their own lexer state, where %% remains literal text.
   const accessibilityLines = sourceLines.map(line =>
     parseAccessibilityDirective([line], 0)?.form === 'inline' ? stripInlineComment(line, false) : line)
-  const scanned = scanAccessibilityDirectives(accessibilityLines)
+  const scanned = scanAccessibilityDirectives(accessibilityLines, mindmapStatementEnds(accessibilityLines))
   if (scanned.unclosedIndex !== undefined) {
     throw new MindmapParseError('Unclosed accDescr block', scanned.unclosedIndex + 1)
   }
@@ -98,6 +98,19 @@ export function parseMindmap(source: string): MindmapDiagram {
   }
   if (!root) throw new MindmapParseError('Mindmap requires exactly one root node')
   return { root, ...(accessibilityTitle ? { accessibilityTitle } : {}), ...(accessibilityDescription ? { accessibilityDescription } : {}) }
+}
+
+/** For each line, the last line of the statement that starts there: a
+ * shape's description or a Markdown String runs on to its closing delimiter
+ * (FamilyOperations.statementEnds). */
+export function mindmapStatementEnds(lines: readonly string[]): number[] {
+  const ends = lines.map((_, index) => index)
+  try {
+    for (const { start, end } of mindmapStatements(lines, 0)) ends[start] = end
+  } catch {
+    // An unclosed Markdown String: the parser reports it; no line is hidden.
+  }
+  return ends
 }
 
 /** The statements from line `from` on, each with its inline comment removed,

@@ -120,6 +120,7 @@ describe('normalizeMermaidSource', () => {
     ['radar-beta\n  axis a["x\naccTitle: y"], b\n  curve c{1, 2}', 'x\naccTitle: y'],
     // Class keeps a label's line break as <br>.
     ['classDiagram\n  class A["x\naccTitle: y"]', 'x<br>accTitle: y'],
+    ['mindmap\n  root["x\naccTitle: y"]', 'x\naccTitle: y'],
   ])('%j keeps a directive-shaped line inside its quoted text', (statements, text) => {
     // The comment after the string is still the envelope's, on its line.
     const source = `${statements}\n  %% note`
