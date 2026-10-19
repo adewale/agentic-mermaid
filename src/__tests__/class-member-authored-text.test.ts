@@ -73,6 +73,65 @@ test('authored member display keeps UML modifiers and SVG escaping', () => {
   expect(svg).not.toContain('<script>')
 })
 
+test('equal member presentation profiles keep each class label, color and UML modifier', () => {
+  const input = `classDiagram
+class A {
++int count
++int score$
++int total*
++int extended
+}
+class B {
++int first
++int other$
++int third*
+}
+class C {
++int ninth
++int sixth$
++int tenth*
+}
+style A color:#112233
+style B color:#445566
+style C color:#112233`
+  const members = (svg: string) => [...svg.matchAll(/<text\b([^>]*)>([\s\S]*?)<\/text>/g)]
+    .filter(match => match[1]!.includes('data-role="member"'))
+    .map(match => ({
+      id: match[1]!.match(/\bdata-id="([^"]+)"/)?.[1],
+      text: match[2]!.replace(/<[^>]+>/g, ''),
+      fills: [...match[2]!.matchAll(/\bfill="([^"]+)"/g)].map(fill => fill[1]),
+      italic: match[1]!.includes('font-style="italic"'),
+      underline: match[1]!.includes('text-decoration="underline"'),
+      position: [match[1]!.match(/\bx="([^"]+)"/)?.[1], match[1]!.match(/\by="([^"]+)"/)?.[1]].join(','),
+    }))
+  const expected = [
+    ['member:A:count', '+int count', '#112233', false, false],
+    ['member:A:score', '+int score', '#112233', false, true],
+    ['member:A:total', '+int total', '#112233', true, false],
+    ['member:A:extended', '+int extended', '#112233', false, false],
+    ['member:B:first', '+int first', '#445566', false, false],
+    ['member:B:other', '+int other', '#445566', false, true],
+    ['member:B:third', '+int third', '#445566', true, false],
+    ['member:C:ninth', '+int ninth', '#112233', false, false],
+    ['member:C:sixth', '+int sixth', '#112233', false, true],
+    ['member:C:tenth', '+int tenth', '#112233', true, false],
+  ] as const
+  const rows = members(renderMermaidSVG(input))
+  expect(rows).toHaveLength(10)
+  expect(new Set(rows.map(row => row.position)).size).toBe(10)
+  for (const [id, text, color, italic, underline] of expected) {
+    const row = rows.find(candidate => candidate.id === id)
+    expect(row, id).toMatchObject({ text, italic, underline })
+    // Abstract preparation supplies its own italic runs. Ordinary/static
+    // members expose two syntax spans, each retaining the owning class ink.
+    if (!italic) expect(row!.fills, id).toEqual([color, color])
+  }
+  const next = members(renderMermaidSVG(input.replace('+int count', '+int fresh').replace('style A color:#112233', 'style A color:#556677')))
+  expect(next.find(row => row.id === 'member:A:fresh')).toMatchObject({ text: '+int fresh', fills: ['#556677', '#556677'], italic: false, underline: false })
+  expect(next.find(row => row.id === 'member:B:first')).toMatchObject({ text: '+int first', fills: ['#445566', '#445566'] })
+  expect(next.some(row => row.id === 'member:A:count')).toBe(false)
+})
+
 test('Class member entities expand after visibility, methods, modifiers and generics are parsed', async () => {
   const members = ['+#9829;', '#35;literal', '#protected', '+call#40;#41;', '+call(#lt;b#gt;) #quot;type#quot;', '+Map~str,int~ #126;literal#126;', '+#42;literal#42;', '+#lt;b#gt;tag#lt;/b#gt;']
   const source = `classDiagram\nclass A {\n${members.join('\n')}\n}`
