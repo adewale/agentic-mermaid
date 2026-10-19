@@ -202,6 +202,8 @@ describe('flowchart parser conformance safety floor (issue #36)', () => {
       'A --> B &',
       'A &\n  B --> C',
       'A --> B & \n  C',
+      // A string opened after other title text is not the title's, as upstream.
+      'subgraph X "title\n  more"\n  C\n  end',
     ]) {
       const source = `flowchart TD\n  A --> B\n  ${statement}`
       expect(() => parseGraph(source), statement).toThrow(/fully consume|invalid flowchart statement/i)
@@ -259,10 +261,16 @@ describe('flowchart parser conformance safety floor (issue #36)', () => {
     expect(verify.warnings.filter(warning => warning.code === 'UNSUPPORTED_SYNTAX')).toEqual([])
   })
 
-  test('an unclosed subgraph title does not take in the statements after it', () => {
-    const graph = parseGraph('flowchart TD\n  subgraph S[a\n    A --> B\n  end')
-    expect(graph.edges.map(edge => `${edge.source}->${edge.target}`)).toEqual(['A->B'])
-    expect(graph.subgraphs.map(group => group.nodeIds)).toEqual([['A', 'B']])
+  // A later node's `]` or `"` does not close the title either.
+  test.each([
+    ['subgraph S[a\n    A --> B\n  end', ['A->B'], [['A', 'B']]],
+    ['subgraph S[Stage one\n    a1 --> a2\n  end\n  subgraph T[Two]\n    b1\n  end', ['a1->a2'], [['a1', 'a2'], ['b1']]],
+    ['subgraph one[Stage one\n    a1[Start] --> a2[Middle]\n  end\n  a2 --> b1[Finish]', ['a1->a2', 'a2->b1'], [['a1', 'a2']]],
+    ['subgraph "Stage one\n    A --> B["x"]\n  end\n  C --> A', ['A->B', 'C->A'], [['A', 'B']]],
+  ])('an unclosed subgraph title does not take in the statements after it: %j', (body, edges, members) => {
+    const graph = parseGraph(`flowchart TD\n  ${body}`)
+    expect(graph.edges.map(edge => `${edge.source}->${edge.target}`)).toEqual(edges)
+    expect(graph.subgraphs.map(group => group.nodeIds)).toEqual(members)
   })
 
   test('root direction directives override the graph without becoming phantom nodes', () => {

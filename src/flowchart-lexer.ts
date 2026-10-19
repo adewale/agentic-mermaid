@@ -396,18 +396,26 @@ export function coalesceFlowchartLines(lines: readonly string[]): Array<{ text: 
   let scan = scanLine(scanned)
   let keyword = false
   // Of the keyword statements, upstream lexes a subgraph's `id[…]` or `"…"`
-  // title as a label, which runs on across lines. Ours carries it on only to
-  // a line that closes it, so an unclosed title cannot swallow the diagram.
-  let subgraph = false
-  let closers: { ']': number[]; '"': number[] } | undefined
-  const closedFrom = (index: number, closer: ']' | '"'): boolean => {
-    if (!closers) {
-      closers = { ']': new Array(lines.length + 1).fill(lines.length), '"': new Array(lines.length + 1).fill(lines.length) }
+  // title as a label, which runs on across lines to its closer. Ours carries
+  // it on only when the first later line to hold one of its delimiters closes
+  // it there, with nothing after but a `;`: an unclosed title cannot take in
+  // the statements after it, nor close on a node's `]`.
+  let title: SubgraphTitle | undefined
+  const titleCloses = new Map<SubgraphTitle, Uint8Array>()
+  const titleClosesFrom = (index: number, kind: SubgraphTitle): boolean => {
+    let closes = titleCloses.get(kind)
+    if (!closes) {
+      // Once per kind, from the last line back.
+      const { delimiter, closer, after } = SUBGRAPH_TITLE_RULES[kind]
+      closes = new Uint8Array(lines.length + 1)
       for (let at = lines.length - 1; at >= 0; at--) {
-        for (const char of [']', '"'] as const) closers[char][at] = lines[at]!.includes(char) ? at : closers[char][at + 1]!
+        const line = lines[at]!
+        const found = line.search(delimiter)
+        closes[at] = found < 0 ? closes[at + 1]! : Number(line[found] === closer && after.test(line.slice(found + 1)))
       }
+      titleCloses.set(kind, closes)
     }
-    return closers[closer][index]! < lines.length
+    return closes[index] === 1
   }
   for (let index = 0; index < lines.length; index++) {
     const raw = lines[index]!
@@ -417,10 +425,7 @@ export function coalesceFlowchartLines(lines: readonly string[]): Array<{ text: 
     // `|"a⏎b"|`), and rejects a line with one opened mid-label. Such a line
     // (a string in a markdown string) ends where it ends.
     const midLabelString = scan.regions.some(region => region.kind === 'string' && region.parent >= 0 && region.start !== scan.regions[region.parent]!.contentStart)
-    const titleOpen = subgraph ? scan.regions.filter(region => !region.closed) : []
-    const subgraphTitle = titleOpen.length > 0
-      && titleOpen.every(region => /^(?:\[|")$/.test(scanned.slice(region.start, region.contentStart)))
-      && closedFrom(index, titleOpen.at(-1)!.kind === 'string' ? '"' : ']')
+    const subgraphTitle = title !== undefined && titleClosesFrom(index, title)
     const inRegion = group !== undefined && open.length > 0 && !midLabelString && (open[0] === 'metadata' || open.includes('markdown') || !keyword || subgraphTitle)
     if (!inRegion && (!trimmed || trimmed.startsWith('%%'))) {
       out.push({ text: raw, line: index })
@@ -454,12 +459,37 @@ export function coalesceFlowchartLines(lines: readonly string[]): Array<{ text: 
     const last = flowchartStatementSpans(text, lineScan).at(-1)
     if (joint === undefined || (last && last.start > 0)) {
       keyword = last !== undefined && KEYWORD_STATEMENT_RE.test(last.text)
-      subgraph = last !== undefined && /^subgraph\s/.test(last.text)
+      title = last !== undefined && /^subgraph\s/.test(last.text) ? subgraphTitleAt(text, lineScan, last) : undefined
     }
     scanned = text
     scan = lineScan
   }
   return out
+}
+
+/** An open subgraph title: `id[…`, `"…` where the title begins, or `id["…`. */
+type SubgraphTitle = 'bracket' | 'string' | 'bracketString'
+
+/** Per title, the characters that end its text on a later line (a `"` is
+ * text in shape text there), the one of them that closes it, and what may
+ * follow the closer on its line. */
+const SUBGRAPH_TITLE_RULES: Readonly<Record<SubgraphTitle, { delimiter: RegExp; closer: string; after: RegExp }>> = {
+  bracket: { delimiter: /[[\](){}]/, closer: ']', after: /^\s*(?:;|$)/ },
+  string: { delimiter: /"/, closer: '"', after: /^\s*(?:;|$)/ },
+  bracketString: { delimiter: /"/, closer: '"', after: /^\s*\]\s*(?:;|$)/ },
+}
+
+/** The title a `subgraph` statement leaves open at the end of `text`, where
+ * upstream reads one: a string only where the title begins, not after other
+ * title text (`subgraph X "a`), which upstream rejects. */
+function subgraphTitleAt(text: string, scan: FlowchartScan, statement: { text: string; start: number }): SubgraphTitle | undefined {
+  const open = scan.regions.filter(region => !region.closed)
+  const [outer, inner] = open
+  const titleStart = statement.start + /^subgraph\s+/.exec(statement.text)![0].length
+  if (open.length === 1 && outer!.kind === 'string' && outer!.start === titleStart) return 'string'
+  if (outer?.kind !== 'shape' || text[outer.start] !== '[' || /[[\]"]/.test(text.slice(titleStart, outer.start))) return undefined
+  if (open.length === 1) return 'bracket'
+  return open.length === 2 && inner!.kind === 'string' && inner!.start === outer.contentStart ? 'bracketString' : undefined
 }
 
 /** Text that leaves the lexer in the state `scan` ends in: the openers of the
