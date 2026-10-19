@@ -578,7 +578,7 @@ export function validateSvgEmissionRecipe(recipe: SvgEmissionRecipe): void {
     oneOf(item.kind, ['shadow'], false); optionalBoolean(item.wrap); colors(item.colors)
   }
   const projection = (value: unknown): void => {
-    const item = object(value, ['source', 'field', 'piece', 'value', 'declarations', 'position', 'index', 'primary', 'secondary', 'amount', 'separator'])
+    const item = object(value, ['source', 'field', 'piece', 'value', 'declarations', 'position', 'index', 'primary', 'secondary', 'amount', 'separator', 'form'])
     const source = item.source
     if (source === 'colorMix') {
       object(value, ['source', 'primary', 'secondary', 'amount'])
