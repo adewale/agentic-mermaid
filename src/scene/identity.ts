@@ -71,7 +71,8 @@ export function hasDomSvgIdentityRole(role: SceneRole): boolean {
 
 /**
  * Attach the all-family X4 identity attributes to the first source-semantic
- * SVG element in a crisp mark. Existing family-authored values win. Layout
+ * SVG element of markup (a group's open tag, a rough sketch's first element);
+ * the typed identity overwrites any value already there. Layout
  * furniture (grids, axes, halos, labels) keeps typed Scene identity but does
  * not bloat the DOM contract.
  */

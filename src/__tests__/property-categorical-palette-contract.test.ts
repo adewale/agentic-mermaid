@@ -9,9 +9,9 @@ import fc from 'fast-check'
 import { fcParameters } from './helpers/fc-parameters.ts'
 
 import { BUILTIN_PALETTE_DEFINITIONS } from '../palette-catalog.ts'
-import { renderMermaidSVG } from '../index.ts'
+import { renderMermaidSVG, resolveStyleStack } from '../index.ts'
 import { categoricalPalette } from '../shared/categorical-palette.ts'
-import { wcagContrastRatio } from '../shared/color-math.ts'
+import { tryParseCssColor, wcagContrastRatio } from '../shared/color-math.ts'
 import { apcaContrast, minPairwiseDeltaEOK } from '../shared/perceptual-color.ts'
 import { getSeriesColor } from '../xychart/colors.ts'
 
@@ -33,6 +33,24 @@ describe('peer-category palette contract', () => {
       }),
       fcParameters({ numRuns: 400 }),
     )
+  })
+
+  const labelInkCases = [
+    ...(['accessible-high-contrast', 'status-dashboard', 'publication-figure'] as const).map(name => {
+      const colors = resolveStyleStack(name)!.colors!
+      return [name, { accent: colors.accent, bg: colors.bg!, labelInk: colors.fg! }] as const
+    }),
+    ...(['#ffffff', '#000000'] as const).flatMap(bg => (['#000000', '#ffffff'] as const).map(labelInk => [`${labelInk} ink on ${bg}`, { accent: '#1d4ed8', bg, labelInk }] as const)),
+  ]
+  it.each(labelInkCases.flatMap(([name, inputs]) => [2, 3, 6, 12, 24].map(count => [name, count, inputs] as const)))('jointly preserves opaque label-constrained color contrast, page visibility and peer distinction: %s / %i peers', (_name, count, inputs) => {
+    const colors = categoricalPalette(count, inputs)
+    expect(colors).toHaveLength(count)
+    expect(minPairwiseDeltaEOK(colors)!).toBeGreaterThanOrEqual(MIN_DELTA_E)
+    for (const color of colors) {
+      expect(tryParseCssColor(color)?.[3]).toBe(1)
+      expect(wcagContrastRatio(inputs.labelInk, color)!).toBeGreaterThanOrEqual(4.5)
+      expect(visible(color, inputs.bg)).toBe(true)
+    }
   })
 
   it('keeps the legacy ladder byte-for-byte wherever it already meets the contract', () => {

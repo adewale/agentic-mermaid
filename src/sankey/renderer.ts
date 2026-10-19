@@ -6,6 +6,7 @@ import { snapshotSvgEmissionRecipe, svgValue as v, type SvgAttribute, type SvgEm
 import { resolveRoleStyle } from '../scene/style-registry.ts'
 import { ensureCompositedBgContrast } from '../shared/categorical-palette.ts'
 import { relativeLuminance } from '../shared/color-math.ts'
+import { sanitizeDisplayLines } from '../shared/text-controls.ts'
 import { resolveRenderStyle } from '../styles.ts'
 import type { RenderContext } from '../types.ts'
 import type { SankeyVisualConfig } from './config.ts'
@@ -196,24 +197,24 @@ export function lowerSankeyScene(ctx: RenderContext<PositionedSankeyChart>): Sce
       gradientByLink.get(link.sceneId),
     )
     parts.push(
-      marks.connector(
-        {
-          id: link.sceneId,
-          role: 'edge',
-          geometry: { kind: 'path', d: link.path, points: link.points },
-          lineStyle: 'solid',
-          paint: {
-            fill: 'none',
-            stroke,
-            strokeWidth,
-            opacity: String(SANKEY_LINK_OPACITY),
-          },
-          stroke: { mixBlendMode: linkBlendMode, encodesValue: true },
-          identity: { id: link.id, from: link.source, to: link.target },
-          endpoints: { from: link.sourceId, to: link.targetId },
-          relationship: { kind: 'flow', direction: 'forward' },
-          channels: { category: link.source, value: link.value },
+      marks.connector({
+        id: link.sceneId,
+        role: 'edge',
+        geometry: { kind: 'path', d: link.path, points: link.points },
+        lineStyle: 'solid',
+        paint: {
+          fill: 'none',
+          stroke,
+          strokeWidth,
+          opacity: String(SANKEY_LINK_OPACITY),
         },
+        stroke: { mixBlendMode: linkBlendMode, encodesValue: true },
+        identity: { id: link.id, from: link.source, to: link.target },
+        endpoints: { from: link.sourceId, to: link.targetId },
+        relationship: { kind: 'flow', direction: 'forward' },
+        channels: { category: link.source, value: link.value },
+        attributes: { className: 'sankey-link', data: { source: link.source, target: link.target, value: String(link.value) } },
+      },
         LINK_EMISSION,
       ),
     )
@@ -230,25 +231,21 @@ export function lowerSankeyScene(ctx: RenderContext<PositionedSankeyChart>): Sce
       nodeEmissions.set(node.layer, emission)
     }
     parts.push(
-      marks.shape(
-        {
-          id: node.id,
-          role: 'bar',
-          identity: { id: node.label },
-          geometry: {
-            kind: 'rect',
-            x: node.x0,
-            y: node.y0,
-            width: round2(node.x1 - node.x0),
-            height: round2(node.y1 - node.y0),
-          },
-          paint: {
-            fill,
-            stroke: nodePaint.stroke,
-            strokeWidth: String(nodePaint.strokeWidth),
-          },
-          channels: { category: node.label, value: node.value },
+      marks.shape({
+        id: node.id,
+        role: 'bar',
+        identity: { id: node.label },
+        geometry: {
+          kind: 'rect',
+          x: node.x0,
+          y: node.y0,
+          width: round2(node.x1 - node.x0),
+          height: round2(node.y1 - node.y0),
         },
+        paint: { fill, stroke: nodePaint.stroke, strokeWidth: String(nodePaint.strokeWidth) },
+        channels: { category: node.label, value: node.value },
+        attributes: { className: 'sankey-node', data: { label: sanitizeDisplayLines(node.label), value: String(node.value), layer: String(node.layer) } },
+      },
         emission,
       ),
     )
@@ -274,6 +271,7 @@ export function lowerSankeyScene(ctx: RenderContext<PositionedSankeyChart>): Sce
           letterSpacing: style.nodeLetterSpacing,
           block: node.labelBlock,
           anchor: node.labelAnchor,
+          dominantBaseline: 'middle',
           paint: {
             fill: labelFill,
             stroke: 'var(--bg)',
@@ -281,6 +279,7 @@ export function lowerSankeyScene(ctx: RenderContext<PositionedSankeyChart>): Sce
             paintOrder: 'stroke fill',
           },
           channels: { category: node.label, value: node.value },
+          attributes: { className: 'sankey-node-label' },
         },
         LABEL_EMISSION,
       ),
@@ -304,7 +303,9 @@ export function lowerSankeyScene(ctx: RenderContext<PositionedSankeyChart>): Sce
           letterSpacing: style.groupLetterSpacing,
           block: chart.title.block,
           anchor: 'middle',
+          dominantBaseline: 'middle',
           paint: { fill: style.groupTextColor ?? style.nodeTextColor ?? 'var(--_text)' },
+          attributes: { className: 'sankey-title' },
         },
         TITLE_EMISSION,
       ),

@@ -1,12 +1,13 @@
-import { assertClassDiagramWork } from '../shared/diagram-limits.ts'
 import { decodeXML } from 'entities'
 import { normalizeBrTags } from '../multiline-utils.ts'
 import { isSafeActionHref } from '../output-security.ts'
 import { parseAccessibilityDirective, requireClosedAccessibility, scanAccessibilityDirectives } from '../shared/accessibility-directives.ts'
+import { assertClassDiagramWork } from '../shared/diagram-limits.ts'
 import { parseDirectionStatement } from '../shared/direction-statement.ts'
 import { observeParserMutation, observeParserStatement, parserObservationActive } from '../shared/parser-observation.ts'
 import { parseStyleProps } from '../shared/style-props.ts'
 import { syntaxError } from '../shared/syntax-error.ts'
+import { classInterfaceSide, createClassInterfaceAllocator } from './interface-occurrences.ts'
 import { classTextLabel, decodeClassText } from './text.ts'
 import type { ClassDiagram, ClassMember, ClassNamespace, ClassNode, ClassRelationship, RelationshipType } from './types.ts'
 
@@ -61,8 +62,10 @@ function scanInlineNamespaceStatement(line: string): ClassStatementFragment[] {
   for (let index = 0; index < tail.length; index++) {
     const character = tail[index]!
     if (quote) {
-      if (character === '\\' && quote === '"') { index++
-        continue }
+      if (character === '\\' && quote === '"') {
+        index++
+        continue
+      }
       if (character === quote) quote = undefined
     } else if (character === '"' || character === '`' || character === '~') quote = character
     else if (character === '{') braces++
@@ -87,17 +90,21 @@ function scanInlineNamespaceStatement(line: string): ClassStatementFragment[] {
 /** Split entity-created physical lines while retaining every other authored
  * entity for Class quote-boundary validation. */
 export function splitAuthoredClassLine(line: string): string[] {
-  return line.replace(/&(?:#(?:[xX][0-9a-fA-F]+|[0-9]+)|[A-Za-z][A-Za-z0-9]+);/g, token => {
-    const decoded = decodeXML(token)
-    return /[\r\n]/.test(decoded) ? decoded : token
-  }).split(/\r\n|\r|\n/)
+  return line
+    .replace(/&(?:#(?:[xX][0-9a-fA-F]+|[0-9]+)|[A-Za-z][A-Za-z0-9]+);/g, token => {
+      const decoded = decodeXML(token)
+      return /[\r\n]/.test(decoded) ? decoded : token
+    })
+    .split(/\r\n|\r|\n/)
 }
 
 /** Match decoded Class statements to authored bytes one statement at a time.
  * Entity-created comments/directives and compact namespace expansions must
  * never shift quote provenance for an unrelated later link. */
 function authoredClassStatements(lines: string[]): Array<string | undefined> {
-  const authored = lines.flatMap(splitAuthoredClassLine).map(line => line.trim())
+  const authored = lines
+    .flatMap(splitAuthoredClassLine)
+    .map(line => line.trim())
     .filter(line => {
       const semantic = decodeXML(line).trim()
       return semantic.length > 0 && !semantic.startsWith('%%')
@@ -107,8 +114,7 @@ function authoredClassStatements(lines: string[]): Array<string | undefined> {
   const add = (raw: string | undefined, decoded: string): void => {
     const decodedParts = expandInlineNamespaceStatement(decoded)
     const rawParts = raw === undefined ? [] : expandInlineNamespaceStatement(raw)
-    if (rawParts.length === decodedParts.length
-      && rawParts.every((part, index) => decodeXML(part) === decodedParts[index])) {
+    if (rawParts.length === decodedParts.length && rawParts.every((part, index) => decodeXML(part) === decodedParts[index])) {
       statements.push(...rawParts)
     } else {
       statements.push(...decodedParts.map(() => undefined))
@@ -135,8 +141,7 @@ function authoredClassStatements(lines: string[]): Array<string | undefined> {
         }
       }
       const candidate = braceEnd < 0 ? undefined : rawClosing.slice(braceEnd).trim()
-      add(candidate !== undefined && decodeXML(candidate).trim() === directive.suffixLine.trim()
-        ? candidate : undefined, directive.suffixLine.trim())
+      add(candidate !== undefined && decodeXML(candidate).trim() === directive.suffixLine.trim() ? candidate : undefined, directive.suffixLine.trim())
     }
     index = directive.endIndex
   }
@@ -153,6 +158,8 @@ export interface ParsedClassDeclaration {
   label?: string
   generic?: string
   className?: string
+  /** `class A <<interface>> {`: an inline annotation before the body. */
+  annotation?: string
   opensBody: boolean
 }
 
@@ -201,6 +208,10 @@ export interface ParsedClassAnnotationStatement {
   label?: string
   annotation: string
   placement: 'inline' | 'separate' | 'body-inline'
+  /** `class A:::c <<interface>>`: the declaration's style class. */
+  className?: string
+  /** The statement goes on to open the class's member block. */
+  opensBody?: true
 }
 
 /** A class ID, generic, or quoted label may itself contain `<<...>>`.
@@ -213,22 +224,38 @@ function findClassAnnotationStart(text: string): number {
   let bracketDepth = 0
   for (let i = 0; i < text.length - 1; i++) {
     const char = text[i]!
-    if (inBacktick) { if (char === '`') inBacktick = false
-      continue }
-    if (inQuote) { if (char === '"') inQuote = false
-      continue }
-    if (inGeneric) { if (char === '~') inGeneric = false
-      continue }
-    if (char === '`') { inBacktick = true
-      continue }
-    if (char === '"') { inQuote = true
-      continue }
-    if (char === '~' && bracketDepth === 0) { inGeneric = true
-      continue }
-    if (char === '[') { bracketDepth++
-      continue }
-    if (char === ']') { bracketDepth = Math.max(0, bracketDepth - 1)
-      continue }
+    if (inBacktick) {
+      if (char === '`') inBacktick = false
+      continue
+    }
+    if (inQuote) {
+      if (char === '"') inQuote = false
+      continue
+    }
+    if (inGeneric) {
+      if (char === '~') inGeneric = false
+      continue
+    }
+    if (char === '`') {
+      inBacktick = true
+      continue
+    }
+    if (char === '"') {
+      inQuote = true
+      continue
+    }
+    if (char === '~' && bracketDepth === 0) {
+      inGeneric = true
+      continue
+    }
+    if (char === '[') {
+      bracketDepth++
+      continue
+    }
+    if (char === ']') {
+      bracketDepth = Math.max(0, bracketDepth - 1)
+      continue
+    }
     if (bracketDepth === 0 && char === '<' && text[i + 1] === '<') return i
   }
   return -1
@@ -258,10 +285,12 @@ export function parseClassAnnotationStatement(line: string): ParsedClassAnnotati
     declarationText = declarationText.slice(0, -1).trim()
     annotationText = annotationText.slice(0, -1).trim()
   }
+  // The class body may follow an inline annotation (Mermaid 11.14): `{`
+  // opens it, `{}` leaves it empty.
+  const block = bodyInline ? undefined : annotationText.match(/\{\s*\}?$/)?.[0]
+  if (block) annotationText = annotationText.slice(0, -block.length).trim()
   const declaration = parseClassDeclaration(`class ${declarationText}`)
-  const annotation = bodyInline
-    ? parseClassBodyAnnotationToken(annotationText)
-    : parseClassAnnotationToken(annotationText)
+  const annotation = bodyInline ? parseClassBodyAnnotationToken(annotationText) : parseClassAnnotationToken(annotationText)
   return declaration && !declaration.opensBody && annotation !== null
     ? {
         id: declaration.id,
@@ -269,6 +298,8 @@ export function parseClassAnnotationStatement(line: string): ParsedClassAnnotati
         ...(declaration.label !== undefined ? { label: declaration.label } : {}),
         annotation,
         placement: bodyInline ? 'body-inline' : 'inline',
+        ...(declaration.className !== undefined ? { className: declaration.className } : {}),
+        ...(block === '{' ? { opensBody: true as const } : {}),
       }
     : null
 }
@@ -365,7 +396,10 @@ type ClassSyntaxValue =
   | { kind: 'direction'; direction: NonNullable<ReturnType<typeof parseDirectionStatement>> }
   | { kind: 'title'; text: string }
   | { kind: 'classDef'; names: string[]; props: Record<string, string> }
-  | { kind: 'assignment'; references: ClassReference[]; name: string }
+  /** A style class assigned to classes: `cssClass "A,B" c`, which Mermaid
+   * applies only to classes that exist, or a form Mermaid reads otherwise
+   * (`class A c`, unquoted `cssClass A c`, `A:::c` on its own). */
+  | { kind: 'assignment'; references: ClassReference[]; name: string; form: 'cssClass' | 'cssClassUnquoted' | 'class' | 'shorthand' }
   | { kind: 'style'; references: ClassReference[]; props: Record<string, string> }
   | { kind: 'unknown'; reason: string }
   | { kind: 'source-only'; reason: string }
@@ -380,6 +414,8 @@ export interface ClassStatementNode {
   value: ClassSyntaxValue
   /** A readable compact extension that Mermaid requires a newline for. */
   followsNamespaceCloseOnSameLine?: true
+  /** The same after a class body's closing brace. */
+  followsClassCloseOnSameLine?: true
   /** A semicolon used as syntax rather than protected quoted data. */
   compactSemicolon?: true
   children?: ClassStatementNode[]
@@ -403,20 +439,25 @@ function classifyClassStatement(text: string, authored: string | undefined): Cla
   if (interaction) return { kind: 'interaction', interaction }
   // These actions have an established inert sidecar surface. They remain
   // opaque to editing, but rendering their target is safe and intentional.
-  if (/^callback\s+(?:`[^`]+`|[\w$]+)(?:~[^~]+~)?\s+"[^"\r\n]+"(?:\s+"[^"\r\n]*")?\s*$/i.test(text)
-    || /^click\s+(?:`[^`]+`|[\w$]+)(?:~[^~]+~)?\s+call\s+.+$/i.test(text)
-    || /^(?:click|link)\s+(?:`[^`]+`|[\w$]+)(?:~[^~]+~)?\s+(?:href\s+)?"(?!(?:https?:\/\/|mailto:))[^"\r\n]*"(?:\s+"[^"\r\n]*")?\s*$/i.test(text)) {
+  if (/^callback\s+(?:`[^`]+`|[\w$]+)(?:~[^~]+~)?\s+"[^"\r\n]+"(?:\s+"[^"\r\n]*")?\s*$/i.test(text) || /^click\s+(?:`[^`]+`|[\w$]+)(?:~[^~]+~)?\s+call\s+.+$/i.test(text) || /^(?:click|link)\s+(?:`[^`]+`|[\w$]+)(?:~[^~]+~)?\s+(?:href\s+)?"(?!(?:https?:\/\/|mailto:))[^"\r\n]*"(?:\s+"[^"\r\n]*")?\s*$/i.test(text)) {
     return { kind: 'source-only', reason: 'Class callback or unsafe/relative link is retained as inert source-only action metadata' }
   }
   // Validate note delimiters against authored bytes, then decode content.
   // Entity quotes are text, not fresh syntax introduced by render normalization.
-  const note = classStatement((authored ?? text).trim()).match(/^note(?:\s+for\s+(\S+))?\s+"((?:\\.|[^"\\])*)"\s*$/i)
+  // Mermaid's string has no escapes (`"C:\"` is the text `C:\`); ours reads
+  // `\"` as a quote only where Mermaid's reading leaves the line unread.
+  const noteSource = classStatement((authored ?? text).trim())
+  const plainNote = noteSource.match(/^note(?:\s+for\s+(\S+))?\s+"([^"]*)"\s*$/i)
+  const note = plainNote ?? noteSource.match(/^note(?:\s+for\s+(\S+))?\s+"((?:\\.|[^"\\])*)"\s*$/i)
   if (note) {
     const reference = note[1] ? parseClassReference(decodeXML(note[1])) : undefined
-    if (!note[1] || reference) return {
-      kind: 'note', text: decodeXML(note[2]!.replace(/\\(["\\])/g, '$1')),
-      ...(reference ? { reference } : {}), ...(note[2]!.includes('\\"') ? { escapedQuotes: true } : {}),
-    }
+    if (!note[1] || reference)
+      return {
+        kind: 'note',
+        text: decodeXML(plainNote ? note[2]! : note[2]!.replace(/\\(["\\])/g, '$1')),
+        ...(reference ? { reference } : {}),
+        ...(!plainNote ? { escapedQuotes: true } : {}),
+      }
   }
   const title = text.match(/^title\s+(.+)$/i)
   if (title) return { kind: 'title', text: title[1]!.trim() }
@@ -425,7 +466,10 @@ function classifyClassStatement(text: string, authored: string | undefined): Cla
   const namespace = parseNamespaceHeader(text)
   if (namespace) return { kind: 'namespace', ...namespace }
   const references = (raw: string): ClassReference[] | null => {
-    const refs = raw.replace(/^"|"$/g, '').split(',').map(value => parseClassReference(value.trim()))
+    const refs = raw
+      .replace(/^"|"$/g, '')
+      .split(',')
+      .map(value => parseClassReference(value.trim()))
     return refs.every((ref): ref is ClassReference => ref !== null) ? refs : null
   }
   const classDef = text.match(/^classDef\s+([\w,-]+)\s+(.+)$/)
@@ -433,10 +477,20 @@ function classifyClassStatement(text: string, authored: string | undefined): Cla
     const props = parseStyleProps(classDef[2]!)
     if (Object.keys(props).length > 0) return { kind: 'classDef', names: classDef[1]!.split(',').filter(Boolean), props }
   }
-  const assignment = text.match(/^(?:class|cssClass)\s+(.+?)\s+([\w-]+)$/)
+  const assignment = text.match(/^(class|cssClass)\s+(.+?)\s+([\w-]+)$/)
   if (assignment && !text.includes('{') && !text.includes('[') && !text.includes(' as ')) {
-    const refs = references(assignment[1]!)
-    if (refs) return { kind: 'assignment', references: refs, name: assignment[2]! }
+    // Mermaid's cssClass names classes by their ids as written, `my class`
+    // too, parted by commas.
+    const quoted = assignment[1] === 'cssClass' && /^"[^"]*"$/.test(assignment[2]!)
+    const refs = quoted
+      ? assignment[2]!
+          .slice(1, -1)
+          .split(',')
+          .map(value => parseClassReference(value.trim()) ?? (value.trim() ? { id: value.trim() } : null))
+      : references(assignment[2]!)
+    if (refs?.every((ref): ref is ClassReference => ref !== null)) {
+      return { kind: 'assignment', references: refs, name: assignment[3]!, form: assignment[1] === 'class' ? 'class' : quoted ? 'cssClass' : 'cssClassUnquoted' }
+    }
   }
   const style = text.match(/^style\s+(.+?)\s+(.+)$/)
   if (style) {
@@ -445,13 +499,17 @@ function classifyClassStatement(text: string, authored: string | undefined): Cla
     if (refs && Object.keys(props).length > 0) return { kind: 'style', references: refs, props }
   }
   const annotation = parseClassAnnotationStatement(text)
+  if (annotation?.opensBody) {
+    const { id, generic, label, className } = annotation
+    return { kind: 'class', declaration: { id, generic, label, ...(className !== undefined ? { className } : {}), annotation: annotation.annotation, opensBody: true } }
+  }
   if (annotation) return { kind: 'annotation', annotation }
   const declaration = parseClassDeclaration(text)
   if (declaration) return { kind: 'class', declaration }
   const shorthand = text.match(/^(.+?):::([\w-]+)$/)
   if (shorthand) {
     const reference = parseClassReference(shorthand[1]!)
-    if (reference) return { kind: 'assignment', references: [reference], name: shorthand[2]! }
+    if (reference) return { kind: 'assignment', references: [reference], name: shorthand[2]!, form: 'shorthand' }
   }
   const member = text.match(/^(\S+?)\s*:\s*(.+)$/)
   if (member) {
@@ -460,30 +518,204 @@ function classifyClassStatement(text: string, authored: string | undefined): Cla
   }
   const relationship = parseClassRelationship(text)
   if (relationship) return { kind: 'relationship', relationship }
-  const form = text.includes('<<') || text.includes('>>') ? 'annotation'
-    : isBareClassRelationshipCandidate(text) || isMarkedClassRelationshipCandidate(text) || isEscapedMarkedClassRelationshipCandidate(text) ? 'relationship'
-    : /^(?:click|link)\b/i.test(text) ? 'link' : ''
+  const form = text.includes('<<') || text.includes('>>') ? 'annotation' : isBareClassRelationshipCandidate(text) || isMarkedClassRelationshipCandidate(text) || isEscapedMarkedClassRelationshipCandidate(text) ? 'relationship' : /^(?:click|link)\b/i.test(text) ? 'link' : ''
   return { kind: 'unknown', reason: `Unrecognized class${form ? ` ${form}` : ''} statement "${text}"` }
+}
+
+// What comes before a string that holds label text: a note's text, a class's
+// or namespace's ["label"]. A relationship's cardinality is any string before
+// its `: label` in a statement no keyword starts.
+const CLASS_LABEL_STRING_PREFIX_RE = /^(?:note(?:\s+for\s+(?:`[^`]*`|\S+))?\s+|(?:class|namespace)\s[^"]*\[\s*)$/i
+const CLASS_STRING_KEYWORD_RE = /^(?:class|namespace|note|click|link|callback|cssClass|style|classDef|title|direction)\b|^<</i
+
+/** Whether `text` ends inside a quoted note, label or cardinality, whose
+ * string Mermaid reads on across the line break. Mermaid's string has no
+ * escapes: `"C:\"` closes at its second quote. Ours reads `\"` in a note as a
+ * quote, so text runs on only where the string is open in both readings. */
+function continuesClassText(text: string): boolean {
+  return [false, true].every(escapes => {
+    let quote: string | undefined
+    let open = -1
+    for (let index = 0; index < text.length; index++) {
+      const character = text[index]!
+      if (quote) {
+        if (escapes && character === '\\' && quote === '"') index++
+        else if (character === quote) quote = undefined
+      } else if (character === '"' || character === '`') {
+        quote = character
+        open = index
+      }
+    }
+    if (quote !== '"') return false
+    const before = text.slice(0, open)
+    return CLASS_LABEL_STRING_PREFIX_RE.test(before) || (!CLASS_STRING_KEYWORD_RE.test(text) && !before.includes(':'))
+  })
+}
+
+/** Where a class declaration's member block opens: its first `{` outside a
+ * quoted label, a backtick name or a ~generic~. */
+function classBodyOpenAt(text: string): number {
+  let quote: string | undefined
+  for (let index = 0; index < text.length; index++) {
+    const character = text[index]!
+    if (quote) {
+      if (character === quote) quote = undefined
+    } else if (character === '"' || character === '`' || character === '~') quote = character
+    else if (character === '{') return index
+  }
+  return -1
+}
+
+/** The members on the line that opens a class block, split at `;`. Mermaid
+ * reads `{+x; +y()}` as one method named `x; +y`; ours reads the two members
+ * the author wrote (docs/project/divergences.md). A `;` in a parameter list or
+ * ending an entity code (`#59;`, `&amp;`) is text. */
+function splitBlockLineMembers(text: string): string[] {
+  const members: string[] = []
+  let start = 0
+  let parens = 0
+  for (let index = 0; index < text.length; index++) {
+    const character = text[index]!
+    if (character === '(') parens++
+    else if (character === ')') parens = Math.max(0, parens - 1)
+    else if (character === ';' && parens === 0) {
+      let word = index
+      while (word > start && /\w/.test(text[word - 1]!)) word--
+      if (word < index && (text[word - 1] === '#' || text[word - 1] === '&')) continue
+      members.push(text.slice(start, index))
+      start = index + 1
+    }
+  }
+  members.push(text.slice(start))
+  return members.map(member => member.trim()).filter(Boolean)
+}
+
+/** Mermaid's lexer ends a statement at a brace, not only at a line break: a
+ * class block's `{`, members and `}` may share its line (`class A {+x}`), and
+ * a statement's `}` may close the namespace around it (`class B }`). The
+ * statements such a line holds, to read one by one, or null. A member runs
+ * to a brace, and a `{` in the block is a parse error in Mermaid
+ * (`class A { lass B{`), so such a line stays unrecognized. */
+function splitClassBlockStatement(text: string, inNamespace: boolean): string[] | null {
+  const open = /^class\s/.test(text) ? classBodyOpenAt(text) : -1
+  const head = text.slice(0, open + 1)
+  const declared = open < 0 ? undefined : classifyClassStatement(head, undefined)
+  if (declared?.kind === 'class' && declared.declaration.opensBody) {
+    const rest = text.slice(open + 1)
+    const close = rest.indexOf('}')
+    if (rest.slice(0, close < 0 ? undefined : close).includes('{')) return null
+    const after = close < 0 ? '' : rest.slice(close)
+    // After the class's `}` Mermaid reads only braces closing namespaces;
+    // ours also reads a statement there, and verify reports it.
+    const braces = /^[\s}]*/.exec(after)![0]
+    const statement = after.slice(braces.length).trim()
+    return [head, ...splitBlockLineMembers(close < 0 ? rest : rest.slice(0, close)), ...(braces.match(/\}/g) ?? []), ...(statement ? [statement] : [])]
+  }
+  if (!inNamespace) return null
+  let end = text.length
+  while (end > 0 && /[\s}]/.test(text[end - 1]!)) end--
+  const statement = text.slice(0, end)
+  return end < text.length && statement && classifyClassStatement(statement, undefined).kind !== 'unknown' ? [statement, ...text.slice(end).match(/\}/g)!] : null
 }
 
 /** Single owner of namespace and class-body boundaries, classification and
  * malformed/unknown disposition. Retain unknown nodes for lossless callers;
  * renderers must refuse diagnostics instead of drawing a partial diagram. */
-export function readClassStatements(lines: readonly string[], authoredLines?: readonly (string | undefined)[]): ClassStatementTree {
+/**
+ * For each line, the last line of the statement that starts there: a quoted
+ * note, label or cardinality runs on to its closing quote, as the statement
+ * reader joins it (FamilyOperations.statementEnds).
+ */
+export function classStatementEnds(lines: readonly string[]): number[] {
+  const ends = lines.map((_, index) => index)
+  let tree: ClassStatementTree
+  try {
+    tree = readClassStatements(lines)
+  } catch {
+    return ends
+  }
+  const starts: number[] = []
+  let offset = 0
+  for (const line of lines) {
+    starts.push(offset)
+    offset += line.length + 1
+  }
+  const visit = (nodes: readonly ClassStatementNode[]): void => {
+    for (const node of nodes) {
+      const first = node.source.line - 1
+      let last = first
+      while (last + 1 < lines.length && starts[last + 1]! <= node.source.end) last++
+      if (last > ends[first]!) ends[first] = last
+      visit(node.children ?? [])
+    }
+  }
+  visit(tree.statements)
+  return ends
+}
+
+/** Whole physical rows owned by style declarations, excluding class members
+ * and compact rows that also carry a body boundary or another statement. */
+export function classStyleStatementLines(lines: readonly string[]): ReadonlySet<number> {
+  const result = new Set<number>()
+  const pending = [...readClassStatements(lines, undefined, false).statements]
+  while (pending.length > 0) {
+    const node = pending.pop()!
+    if ((node.value.kind === 'style' || node.value.kind === 'classDef')
+      && node.raw.trim() === lines[node.source.line - 1]?.trim()) result.add(node.source.line)
+    for (const child of node.children ?? []) pending.push(child)
+  }
+  return result
+}
+
+export function readClassStatements(lines: readonly string[], authoredLines?: readonly (string | undefined)[], observe = true): ClassStatementTree {
   const tree: ClassStatementTree = { source: lines.join('\n'), statements: [], diagnostics: [] }
   const stack: ClassStatementNode[] = []
   let offset = 0
-  lines.forEach((raw, lineIndex) => {
+  for (let lineIndex = 0; lineIndex < lines.length; lineIndex++) {
+    let raw = lines[lineIndex]!
     const span = { line: lineIndex + 1, column: 1, start: offset, end: offset + raw.length }
     offset += raw.length + 1
     const authored = authoredLines ? authoredLines[lineIndex] : raw
     const scanned = scanInlineNamespaceStatement(raw.trim())
     const authoredParts = authored === undefined ? [] : expandInlineNamespaceStatement(authored.trim())
-    const fragments = scanned.map((fragment, index) => ({ ...fragment,
-      authored: authoredParts.length === scanned.length ? authoredParts[index] : undefined,
-    }))
-    for (let partIndex = 0; partIndex < fragments.length; partIndex++) {
-      const fragment = fragments[partIndex]!
+    let fragments: Array<ClassStatementFragment & { authored?: string }> = scanned.map((fragment, index) => ({ ...fragment, authored: authoredParts.length === scanned.length ? authoredParts[index] : undefined }))
+    // Mermaid's string runs on across line breaks. Where it holds a note, a
+    // cardinality or a label, read the lines it spans as one statement with
+    // `<br>`, the label line break, for each break, as flowchart does for
+    // markdown strings. A link, a tooltip or a backtick name stays on its line.
+    const last = fragments.at(-1)!
+    let end = lineIndex
+    let statement = last.text
+    // At most a relationship's two cardinalities; each scan reads on only to
+    // the next line holding a quote, which closes Mermaid's string, so the
+    // reader stays linear.
+    for (let strings = 0; strings < 2 && stack.at(-1)?.value.kind !== 'class' && continuesClassText(statement); strings++) {
+      let closing = end + 1
+      while (closing < lines.length && !lines[closing]!.includes('"')) closing++
+      if (closing === lines.length) break
+      statement = [statement, ...lines.slice(end + 1, closing + 1).map(line => line.trim())].join('<br>')
+      end = closing
+    }
+    if (end > lineIndex) {
+      for (const line of lines.slice(lineIndex + 1, end + 1)) offset += line.length + 1
+      span.end = offset - 1
+      lineIndex = end
+      raw = statement
+      fragments = [...fragments.slice(0, -1), ...scanInlineNamespaceStatement(statement).map(fragment => ({ ...last, ...fragment, authored: undefined }))]
+    }
+    // Fragments still to read, the next one last, so a statement read apart
+    // puts its parts back in its place in time linear in the line.
+    const pending = fragments.reverse()
+    const whole = pending.length === 1
+    let split = false
+    // What a `}` closed earlier on this line, if anything.
+    let closedOnLine: 'class' | 'namespace' | undefined
+    const putBack = (fragment: (typeof pending)[number], parts: string[]): void => {
+      for (let index = parts.length - 1; index >= 0; index--) pending.push({ ...fragment, text: parts[index]!, authored: undefined })
+      split = true
+    }
+    while (pending.length > 0) {
+      const fragment = pending.pop()!
       const source = fragment.text
       const owner = stack[stack.length - 1]
       const inClass = owner?.value.kind === 'class'
@@ -492,9 +724,7 @@ export function readClassStatements(lines: readonly string[], authoredLines?: re
       // literal braces. Consume each boundary before classifying its suffix.
       const close = inClass ? source.indexOf('}') : source.startsWith('}') ? 0 : -1
       if (close >= 0 && source !== '}' && !source.startsWith('%%')) {
-        const parts = [source.slice(0, close).trim(), '}', source.slice(close + 1).trim()].filter(Boolean)
-        fragments.splice(partIndex, 1, ...parts.map(text => ({ ...fragment, text, authored: undefined })))
-        partIndex--
+        putBack(fragment, [source.slice(0, close).trim(), '}', source.slice(close + 1).trim()].filter(Boolean))
         continue
       }
       const text = inClass && !source.startsWith('}') ? source : classStatement(source)
@@ -504,14 +734,22 @@ export function readClassStatements(lines: readonly string[], authoredLines?: re
         const annotation = parseClassBodyAnnotationToken(text)
         value = annotation === null ? { kind: 'member', text } : { kind: 'body-annotation', text: annotation }
       } else value = classifyClassStatement(text, fragment.authored)
-      const node: ClassStatementNode = { raw: fragments.length === 1 ? raw : source, text, source: span, value }
-      if (parserObservationActive('class')) observeParserStatement('class', value.kind, text, { line: span.line, column: span.column, offset: span.start, endOffset: span.end, unit: 'normalized' })
-      if (fragment.followsNamespaceCloseOnSameLine) node.followsNamespaceCloseOnSameLine = true
+      const parts = value.kind === 'unknown' ? splitClassBlockStatement(text, owner?.value.kind === 'namespace') : null
+      if (parts) {
+        putBack(fragment, parts)
+        continue
+      }
+      const node: ClassStatementNode = { raw: whole && !split ? raw : source, text, source: span, value }
+      if (observe && parserObservationActive('class')) observeParserStatement('class', value.kind, text, { line: span.line, column: span.column, offset: span.start, endOffset: span.end, unit: 'normalized' })
+      if (fragment.followsNamespaceCloseOnSameLine || (closedOnLine === 'namespace' && value.kind !== 'trivia' && value.kind !== 'close')) node.followsNamespaceCloseOnSameLine = true
+      else if (closedOnLine === 'class' && value.kind !== 'trivia' && value.kind !== 'close') node.followsClassCloseOnSameLine = true
+      if (value.kind === 'close' && owner) closedOnLine = inClass ? 'class' : 'namespace'
       if (fragment.compactSemicolon) node.compactSemicolon = true
       if (value.kind === 'close') {
-        if (owner) { owner.closing = node
-          stack.pop() }
-        else {
+        if (owner) {
+          owner.closing = node
+          stack.pop()
+        } else {
           tree.statements.push(node)
           tree.diagnostics.push({ reason: 'Unexpected closing brace in class diagram', source: span })
         }
@@ -525,10 +763,12 @@ export function readClassStatements(lines: readonly string[], authoredLines?: re
         stack.push(node)
       }
     }
-  })
-  for (const owner of stack) tree.diagnostics.push({
-    reason: `Unclosed ${owner.value.kind === 'namespace' ? 'namespace' : 'class'} block`, source: owner.source,
-  })
+  }
+  for (const owner of stack)
+    tree.diagnostics.push({
+      reason: `Unclosed ${owner.value.kind === 'namespace' ? 'namespace' : 'class'} block`,
+      source: owner.source,
+    })
   return tree
 }
 
@@ -631,9 +871,7 @@ export function parseClassInteraction(line: string): { id: string; generic?: str
   } else if (tail && !startsClassComment(tail)) return null
   const ref = parseClassReference(link[1]!)
   const href = (link[2] ?? link[3] ?? '').replace(/\\(["\\])/g, '$1')
-  return ref && /^(?:https?:|mailto:)/i.test(href) && isSafeActionHref(href) && !/[\u0000-\u0020\u007f-\u009f]/.test(href) && (tooltip === undefined || !/[\u0000-\u001f\u007f-\u009f]/.test(tooltip))
-    ? { id: ref.id, ...(ref.generic ? { generic: ref.generic } : {}), href, ...(tooltip ? { tooltip } : {}) }
-    : null
+  return ref && /^(?:https?:|mailto:)/i.test(href) && isSafeActionHref(href) && !/[\u0000-\u0020\u007f-\u009f]/.test(href) && (tooltip === undefined || !/[\u0000-\u001f\u007f-\u009f]/.test(tooltip)) ? { id: ref.id, ...(ref.generic ? { generic: ref.generic } : {}), href, ...(tooltip ? { tooltip } : {}) } : null
 }
 
 /** Decode authored syntax once while shielding entity-encoded quotes from the
@@ -660,8 +898,7 @@ export function parseClassInteractionWithAuthored(authoredLine: string): ReturnT
     if (parsed.href.includes(quoteMarker)) return null
     const href = parsed.href
     const tooltip = parsed.tooltip?.replaceAll(quoteMarker, '"')
-    if (!isSafeActionHref(href) || /[\u0000-\u0020\u007f-\u009f]/.test(href)
-      || (tooltip !== undefined && /[\u0000-\u001f\u007f-\u009f]/.test(tooltip))) return null
+    if (!isSafeActionHref(href) || /[\u0000-\u0020\u007f-\u009f]/.test(href) || (tooltip !== undefined && /[\u0000-\u001f\u007f-\u009f]/.test(tooltip))) return null
     return { ...parsed, href, ...(tooltip !== undefined ? { tooltip } : {}) }
   }
   const direct = parseProtected(protectedLine)
@@ -715,7 +952,7 @@ export function parseAuthoredClassInteraction(line: string): ReturnType<typeof p
  * Expects the first line to be "classDiagram".
  */
 export function parseClassDiagram(lines: string[], authoredLines?: string[]): ClassDiagram {
-  const accessibility = scanAccessibilityDirectives(lines)
+  const accessibility = scanAccessibilityDirectives(lines, classStatementEnds(lines))
   requireClosedAccessibility(accessibility)
   const familyLines = accessibility.familyLines
   const authoredExpanded = authoredLines ? authoredClassStatements(authoredLines) : undefined
@@ -732,19 +969,26 @@ export function parseClassDiagram(lines: string[], authoredLines?: string[]): Cl
     })
   }
   const diagram: ClassDiagram = {
-    classes: [], classDefs: new Map(), relationships: [], notes: [], namespaces: [],
-    ...(accessibility.accessibility.title !== undefined
-      ? { accessibilityTitle: normalizeBrTags(accessibility.accessibility.title) } : {}),
-    ...(accessibility.accessibility.descr !== undefined
-      ? { accessibilityDescription: normalizeBrTags(accessibility.accessibility.descr) } : {}),
+    classes: [],
+    classDefs: new Map(),
+    relationships: [],
+    notes: [],
+    namespaces: [],
+    ...(accessibility.accessibility.title !== undefined ? { accessibilityTitle: normalizeBrTags(accessibility.accessibility.title) } : {}),
+    ...(accessibility.accessibility.descr !== undefined ? { accessibilityDescription: normalizeBrTags(accessibility.accessibility.descr) } : {}),
   }
   const classMap = new Map<string, ClassNode>()
+  const allocateInterface = createClassInterfaceAllocator(tree.statements)
   const namespaces = new Map<string, ClassNamespace>()
   const claimed = new Set<string>()
+  // cssClass statements naming a class not declared yet: applied once it is.
+  const laterCssClasses: Array<{ id: string; name: string }> = []
   const claim = (id: string, path: string): void => {
-    if (path && !claimed.has(id)) { namespaces.get(path)!.classIds.push(id)
+    if (path && !claimed.has(id)) {
+      namespaces.get(path)!.classIds.push(id)
       claimed.add(id)
-      if (parserObservationActive('class')) observeParserMutation('class', 'claim-member', { id, parent: path }) }
+      if (parserObservationActive('class')) observeParserMutation('class', 'claim-member', { id, parent: path })
+    }
   }
   const openNamespace = (path: string, segments: string[], label?: string): string => {
     let children = path ? namespaces.get(path)!.children : diagram.namespaces
@@ -785,21 +1029,35 @@ export function parseClassDiagram(lines: string[], authoredLines?: string[]): Cl
     const frames = [{ nodes, path, owner, index: 0 }]
     while (frames.length) {
       const frame = frames.at(-1)!
-      if (frame.index === frame.nodes.length) { frames.pop()
-        continue }
+      if (frame.index === frame.nodes.length) {
+        frames.pop()
+        continue
+      }
       const node = frame.nodes[frame.index++]!
       const { path, owner } = frame
       const value = node.value
       switch (value.kind) {
-        case 'header': case 'trivia': case 'close': case 'source-only': break
-        case 'namespace': frames.push({ nodes: node.children!, path: openNamespace(path, value.path, value.label), owner: undefined, index: 0 })
+        case 'header':
+        case 'trivia':
+        case 'close':
+        case 'source-only':
+          break
+        case 'namespace':
+          frames.push({ nodes: node.children!, path: openNamespace(path, value.path, value.label), owner: undefined, index: 0 })
           break
         case 'class': {
           const declaration = value.declaration
           const cls = ensureClass(classMap, declaration.id, declaration.generic)
-          if (declaration.label !== undefined) { delete cls.labelContent; Object.assign(cls, classTextLabel(declaration.label)) }
+          if (declaration.label !== undefined) {
+            delete cls.labelContent
+            Object.assign(cls, classTextLabel(declaration.label))
+          }
           if (declaration.className !== undefined) cls.className = declaration.className
           if (parserObservationActive('class')) observeParserMutation('class', 'declare-class', cls, { line: node.source.line, unit: 'normalized' })
+          if (declaration.annotation !== undefined) {
+            applyClassAnnotation(cls, declaration.annotation)
+            if (parserObservationActive('class')) observeParserMutation('class', 'set-annotation', { id: cls.id, annotation: cls.annotation })
+          }
           claim(cls.id, path)
           if (node.children) frames.push({ nodes: node.children, path, owner: cls, index: 0 })
           break
@@ -809,18 +1067,21 @@ export function parseClassDiagram(lines: string[], authoredLines?: string[]): Cl
           addMember(cls, value.text)
           break
         }
-        case 'body-annotation': applyClassAnnotation(owner!, value.text)
+        case 'body-annotation':
+          applyClassAnnotation(owner!, value.text)
           if (parserObservationActive('class')) observeParserMutation('class', 'set-annotation', { id: owner!.id, annotation: owner!.annotation })
           break
         case 'annotation': {
           const annotation = value.annotation
           if (annotation.placement === 'separate' && !classMap.has(annotation.id)) {
-            throw syntaxError({ what: `Annotation targets undeclared class "${annotation.id}"`,
-              expectedForm: 'declare the class before a separate annotation',
-              example: `class ${annotation.id}\n<<${annotation.annotation}>> ${annotation.id}` })
+            throw syntaxError({ what: `Annotation targets undeclared class "${annotation.id}"`, expectedForm: 'declare the class before a separate annotation', example: `class ${annotation.id}\n<<${annotation.annotation}>> ${annotation.id}` })
           }
           const cls = ensureClass(classMap, annotation.id, annotation.generic)
-          if (annotation.label !== undefined) { delete cls.labelContent; Object.assign(cls, classTextLabel(annotation.label)) }
+          if (annotation.label !== undefined) {
+            delete cls.labelContent
+            Object.assign(cls, classTextLabel(annotation.label))
+          }
+          if (annotation.className !== undefined) cls.className = annotation.className
           applyClassAnnotation(cls, annotation.annotation)
           if (parserObservationActive('class')) observeParserMutation('class', 'set-annotation', { id: cls.id, annotation: cls.annotation, label: cls.label })
           claim(cls.id, path)
@@ -842,27 +1103,52 @@ export function parseClassDiagram(lines: string[], authoredLines?: string[]): Cl
           }
           if (parserObservationActive('class')) observeParserMutation('class', 'add-note', diagram.notes.at(-1))
           break
-        case 'title': diagram.title = value.text
+        case 'title':
+          diagram.title = value.text
           if (parserObservationActive('class')) observeParserMutation('class', 'set-title', diagram.title)
           break
-        case 'direction': diagram.direction = value.direction
+        case 'direction':
+          diagram.direction = value.direction
           if (parserObservationActive('class')) observeParserMutation('class', 'set-direction', diagram.direction)
           break
         case 'relationship': {
           const { fromGeneric, toGeneric, ...relationship } = value.relationship
-          ensureClass(classMap, relationship.from, fromGeneric)
-          ensureClass(classMap, relationship.to, toGeneric)
+          const side = classInterfaceSide(relationship)
+          if (side) {
+            const generic = side === 'from' ? fromGeneric : toGeneric
+            const label = relationship[side] + (generic ? `~${generic}~` : '')
+            const id = allocateInterface()
+            const opposite = side === 'from' ? 'to' : 'from'
+            ensureClass(classMap, relationship[opposite], opposite === 'from' ? fromGeneric : toGeneric)
+            const occurrence: ClassNode = { id, label, ...(generic ? { generic } : {}), isInterface: true, attributes: [], methods: [] }
+            classMap.set(id, occurrence)
+            if (parserObservationActive('class')) observeParserMutation('class', 'add-class', occurrence)
+            relationship[side] = id
+          } else {
+            ensureClass(classMap, relationship.from, fromGeneric)
+            ensureClass(classMap, relationship.to, toGeneric)
+          }
           diagram.relationships.push(relationship)
           if (parserObservationActive('class')) observeParserMutation('class', 'add-relationship', relationship, { line: node.source.line, unit: 'normalized' })
           break
         }
-        case 'classDef': for (const name of value.names) {
+        case 'classDef':
+          for (const name of value.names) {
             diagram.classDefs.set(name, { ...value.props })
             if (parserObservationActive('class')) observeParserMutation('class', 'define-class', { name, props: value.props })
           }
           break
-        case 'assignment': case 'style':
+        case 'assignment':
+        case 'style':
           for (const reference of value.references) {
+            // A cssClass styles a class declared elsewhere, before or after
+            // it, and declares none.
+            if (value.kind === 'assignment' && value.form.startsWith('cssClass')) {
+              const existing = classMap.get(reference.id)
+              if (existing) existing.className = value.name
+              else laterCssClasses.push({ id: reference.id, name: value.name })
+              continue
+            }
             const cls = ensureClass(classMap, reference.id, reference.generic)
             if (value.kind === 'assignment') cls.className = value.name
             else cls.inlineStyle = { ...cls.inlineStyle, ...value.props }
@@ -870,12 +1156,17 @@ export function parseClassDiagram(lines: string[], authoredLines?: string[]): Cl
             claim(cls.id, path)
           }
           break
-        case 'unknown': break // diagnostics above refuse partial rendering
+        case 'unknown':
+          break // diagnostics above refuse partial rendering
       }
     }
   }
   visit(tree.statements)
-  diagram.classes = [...classMap.values()]
+  for (const { id, name } of laterCssClasses) {
+    const cls = classMap.get(id)
+    if (cls && cls.className === undefined) cls.className = name
+  }
+  diagram.classes = [...classMap.values()].filter(node => !node.isInterface).concat([...classMap.values()].filter(node => node.isInterface))
   assertClassDiagramWork(diagram)
   return diagram
 }
@@ -983,10 +1274,7 @@ function parseMarkedClassRelationship(line: string): (ClassRelationship & { from
   if (fromToken === 'o' && /[\w$]/.test(before[before.length - 2] ?? '')) fromToken = undefined
   if (toToken === 'o' && /[\w$]/.test(after[1] ?? '')) toToken = undefined
   if (!fromToken && !toToken) return null
-  const endpoints = parseClassRelationEndpoints(
-    before.slice(0, before.length - (fromToken?.length ?? 0)),
-    after.slice(toToken?.length ?? 0),
-  )
+  const endpoints = parseClassRelationEndpoints(before.slice(0, before.length - (fromToken?.length ?? 0)), after.slice(toToken?.length ?? 0))
   if (!endpoints) return null
   const dashed = line[operator] === '.'
   const fromType = fromToken ? endpointRelationshipType(fromToken, dashed) : undefined
@@ -995,7 +1283,9 @@ function parseMarkedClassRelationship(line: string): (ClassRelationship & { from
   const markerAt = fromType && toType ? 'both' : fromType ? 'from' : 'to'
   const inferredDashed = [fromType, toType].some(kind => kind === 'dependency' || kind === 'realization')
   return {
-    ...endpoints, type, markerAt,
+    ...endpoints,
+    type,
+    markerAt,
     ...(markerAt === 'both' ? { fromType, toType } : {}),
     ...(dashed && !inferredDashed ? { lineStyle: 'dashed' as const } : {}),
   }
@@ -1014,8 +1304,7 @@ function classRelationText(label?: string, fromCardinality?: string, toCardinali
 
 /** Endpoints, generics, cardinalities and labels share one bounded scanner for
  * one-ended and mixed relationships, including escaped IDs with spaces. */
-function parseClassRelationEndpoints(leftSource: string, rightSource: string):
-  (Omit<ClassRelationship, 'type' | 'markerAt'> & { fromGeneric?: string; toGeneric?: string }) | null {
+function parseClassRelationEndpoints(leftSource: string, rightSource: string): (Omit<ClassRelationship, 'type' | 'markerAt'> & { fromGeneric?: string; toGeneric?: string }) | null {
   let left = leftSource.trim()
   let right = rightSource.trim()
   let fromCardinality: string | undefined
@@ -1032,18 +1321,30 @@ function parseClassRelationEndpoints(leftSource: string, rightSource: string):
   let inGeneric = false
   for (let i = 0; i < right.length; i++) {
     const char = right[i]!
-    if (inBacktick) { if (char === '`') inBacktick = false
-      continue }
-    if (inQuote) { if (char === '"') inQuote = false
-      continue }
-    if (inGeneric) { if (char === '~') inGeneric = false
-      continue }
-    if (char === '`') { inBacktick = true
-      continue }
-    if (char === '"') { inQuote = true
-      continue }
-    if (char === '~') { inGeneric = true
-      continue }
+    if (inBacktick) {
+      if (char === '`') inBacktick = false
+      continue
+    }
+    if (inQuote) {
+      if (char === '"') inQuote = false
+      continue
+    }
+    if (inGeneric) {
+      if (char === '~') inGeneric = false
+      continue
+    }
+    if (char === '`') {
+      inBacktick = true
+      continue
+    }
+    if (char === '"') {
+      inQuote = true
+      continue
+    }
+    if (char === '~') {
+      inGeneric = true
+      continue
+    }
     if (char === ':') {
       const rawLabel = right.slice(i + 1).trim()
       if (!rawLabel || /[:;]/.test(rawLabel.replace(/(?<!&)#\w+;/g, ''))) return null
@@ -1063,7 +1364,8 @@ function parseClassRelationEndpoints(leftSource: string, rightSource: string):
   const toRef = parseClassReference(right)
   if (!fromRef || !toRef || !supportedRelationEndpoint(fromRef.id, left) || !supportedRelationEndpoint(toRef.id, right)) return null
   return {
-    from: fromRef.id, to: toRef.id,
+    from: fromRef.id,
+    to: toRef.id,
     ...classRelationText(label, fromCardinality, toCardinality),
     ...(fromRef.generic ? { fromGeneric: fromRef.generic } : {}),
     ...(toRef.generic ? { toGeneric: toRef.generic } : {}),
@@ -1098,18 +1400,30 @@ function parseMarkerlessClassRelationship(line: string): (ClassRelationship & { 
   let label: string | undefined
   for (let i = 0; i < right.length; i++) {
     const char = right[i]!
-    if (inBacktick) { if (char === '`') inBacktick = false
-      continue }
-    if (inQuote) { if (char === '"') inQuote = false
-      continue }
-    if (inGeneric) { if (char === '~') inGeneric = false
-      continue }
-    if (char === '`') { inBacktick = true
-      continue }
-    if (char === '"') { inQuote = true
-      continue }
-    if (char === '~') { inGeneric = true
-      continue }
+    if (inBacktick) {
+      if (char === '`') inBacktick = false
+      continue
+    }
+    if (inQuote) {
+      if (char === '"') inQuote = false
+      continue
+    }
+    if (inGeneric) {
+      if (char === '~') inGeneric = false
+      continue
+    }
+    if (char === '`') {
+      inBacktick = true
+      continue
+    }
+    if (char === '"') {
+      inQuote = true
+      continue
+    }
+    if (char === '~') {
+      inGeneric = true
+      continue
+    }
     if (char === ':') {
       const rawLabel = right.slice(i + 1).trim()
       // Mermaid requires non-empty Class label text and rejects a second
@@ -1142,17 +1456,14 @@ function parseMarkerlessClassRelationship(line: string): (ClassRelationship & { 
   }
 }
 
-const BARE_RELATION_RESERVED_IDS = new Set([
-  'o', 'class', 'note', 'namespace', 'click', 'link', 'style', 'classDef', 'cssClass'])
+const BARE_RELATION_RESERVED_IDS = new Set(['o', 'class', 'note', 'namespace', 'click', 'link', 'style', 'classDef', 'cssClass'])
 const BARE_RELATION_ESCAPED_RESERVED_IDS = new Set(['note', 'click', 'link', 'cssClass'])
 
 /** Mermaid's relationship endpoint lexer reserves keywords/`o` and rejects
  * unescaped dollar signs. Escaped IDs containing `~` denote a generic base
  * identity upstream, which this relationship model cannot yet preserve. */
 export function supportedRelationEndpoint(id: string, raw: string): boolean {
-  return raw.startsWith('`')
-    ? !BARE_RELATION_ESCAPED_RESERVED_IDS.has(id) && !id.includes('~')
-    : !id.includes('$') && !BARE_RELATION_RESERVED_IDS.has(id)
+  return raw.startsWith('`') ? !BARE_RELATION_ESCAPED_RESERVED_IDS.has(id) && !id.includes('~') : !id.includes('$') && !BARE_RELATION_RESERVED_IDS.has(id)
 }
 
 function findMarkerlessRelationshipOperator(line: string): number {
@@ -1161,18 +1472,30 @@ function findMarkerlessRelationshipOperator(line: string): number {
   let inGeneric = false
   for (let i = 0; i < line.length - 1; i++) {
     const char = line[i]!
-    if (inBacktick) { if (char === '`') inBacktick = false
-      continue }
-    if (inQuote) { if (char === '"') inQuote = false
-      continue }
-    if (inGeneric) { if (char === '~') inGeneric = false
-      continue }
-    if (char === '`') { inBacktick = true
-      continue }
-    if (char === '"') { inQuote = true
-      continue }
-    if (char === '~') { inGeneric = true
-      continue }
+    if (inBacktick) {
+      if (char === '`') inBacktick = false
+      continue
+    }
+    if (inQuote) {
+      if (char === '"') inQuote = false
+      continue
+    }
+    if (inGeneric) {
+      if (char === '~') inGeneric = false
+      continue
+    }
+    if (char === '`') {
+      inBacktick = true
+      continue
+    }
+    if (char === '"') {
+      inQuote = true
+      continue
+    }
+    if (char === '~') {
+      inGeneric = true
+      continue
+    }
     if ((char === '-' || char === '.') && line[i + 1] === char) return i
   }
   return -1
@@ -1186,11 +1509,8 @@ function isMarkedRelationshipOperator(line: string, operator: number): boolean {
   if (line[operator] === '.') {
     return /(?:<\||<)$/.test(before) || /^(?:>|\|>)/.test(after)
   }
-  const spacedPrefixO = before.endsWith('o')
-    && /\s/.test(before[before.length - 2] ?? '')
-    && before.slice(0, -2).trim().length > 0
-  return /(?:<\||<|\*|\(\))$/.test(before) || spacedPrefixO
-    || /^(?:>|\|>|\*|o\s+(?![:%])\S|\(\))/.test(after)
+  const spacedPrefixO = before.endsWith('o') && /\s/.test(before[before.length - 2] ?? '') && before.slice(0, -2).trim().length > 0
+  return /(?:<\||<|\*|\(\))$/.test(before) || spacedPrefixO || /^(?:>|\|>|\*|o\s+(?![:%])\S|\(\))/.test(after)
 }
 
 /** Only the shared parser may accept bare links. A failed bare-link parse must
@@ -1216,9 +1536,7 @@ export function isEscapedMarkedClassRelationshipCandidate(line: string): boolean
   const afterOperator = line.slice(operator + 2)
   // The bare-link discriminator predates two-ended dashed diamond/circle
   // markers. Such escaped links must not fall through to a solid two-way edge.
-  const dashedTwoEnded = line[operator] === '.'
-    && /(?:\*|o)$/.test(before)
-    && /^(?:\*|o|>|\|>|<)/.test(afterOperator)
+  const dashedTwoEnded = line[operator] === '.' && /(?:\*|o)$/.test(before) && /^(?:\*|o|>|\|>|<)/.test(afterOperator)
   if (!isMarkedRelationshipOperator(line, operator) && !dashedTwoEnded) return false
   if (line.slice(0, operator).trimStart().startsWith('`')) return true
   let after = line.slice(operator + 2).trimStart()
@@ -1230,7 +1548,7 @@ export function isEscapedMarkedClassRelationshipCandidate(line: string): boolean
 /** Marker meaning and shaft style are independent for diamonds and circles. */
 function endpointRelationshipType(token: string, dashed: boolean): RelationshipType {
   if (token === '()') return 'lollipop'
-  if (token === '*' ) return 'composition'
+  if (token === '*') return 'composition'
   if (token === 'o') return 'aggregation'
   if (token.includes('|')) return dashed ? 'realization' : 'inheritance'
   return dashed ? 'dependency' : 'association'
@@ -1238,6 +1556,5 @@ function endpointRelationshipType(token: string, dashed: boolean): RelationshipT
 
 /** Resolve old programmatic defaults while honoring an explicitly authored shaft. */
 export function classRelationshipLineStyle(relation: Pick<ClassRelationship, 'type' | 'fromType' | 'toType' | 'lineStyle'>): 'solid' | 'dashed' {
-  return relation.lineStyle ?? ([relation.type, relation.fromType, relation.toType]
-    .some(kind => kind === 'dependency' || kind === 'realization' || kind === 'link-dashed') ? 'dashed' : 'solid')
+  return relation.lineStyle ?? ([relation.type, relation.fromType, relation.toType].some(kind => kind === 'dependency' || kind === 'realization' || kind === 'link-dashed') ? 'dashed' : 'solid')
 }

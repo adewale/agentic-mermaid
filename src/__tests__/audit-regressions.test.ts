@@ -80,6 +80,14 @@ describe('reported contract regressions', () => {
     const cases = [
       ['flowchart TD\n  A[Start]\n  A -->', 'flowchart_dangling_edge'],
       ['flowchart TD\n  A[Start] -->|go|', 'flowchart_dangling_edge'],
+      // Dotted links without their leading `-`, and cross or circle ends.
+      ['flowchart TD\n  A[Start]\n  A .->', 'flowchart_dangling_edge'],
+      ['flowchart TD\n  A[Start] ==x|go|', 'flowchart_dangling_edge'],
+      ['flowchart TD\n  Server[Server]\n  Client .-> Sevrer', 'flowchart_implicit_endpoint'],
+      ['flowchart TD\n  Server[Server]\n  Client -.-x Sevrer', 'flowchart_implicit_endpoint'],
+      ['flowchart TD\n  A e1@.-> B\n  e1@{ label: "calls" }', 'flowchart_edge_metadata'],
+      ['flowchart TD\n  A e.1@--> B\n  e.1@{ label: "calls" }', 'flowchart_edge_metadata'],
+      ['flowchart TD\n  A,B --> C', 'flowchart_comma_id'],
       ['flowchart TD\n  Server[Server]\n  Client[Client] --> Sevrer', 'flowchart_implicit_endpoint'],
       ['flowchart TD\n  Server\n  Client --> Sevrer', 'flowchart_implicit_endpoint'],
       ['flowchart TD\n  Server@{ shape: rect, label: "Server" }\n  Client --> Sevrer', 'flowchart_implicit_endpoint'],
@@ -95,6 +103,11 @@ describe('reported contract regressions', () => {
     }
     expect(verifyMermaid('flowchart LR\n  Customer[Customer]\n  Custome[Custome]\n  A[Start] --> Custome').warnings)
       .not.toContainEqual(expect.objectContaining({ syntax: 'flowchart_implicit_endpoint' }))
+    // A chain of dotted and marker-ended links, and an id holding `.-`, are
+    // complete statements.
+    expect(verifyMermaid('flowchart LR\n  A .-> B .- C\n  C -. x .- D .-> E ==x F\n  F -.-x G\n  G o==o H .-o I\n  B.-').warnings).toEqual([])
+    // A `,` in a label, an edge id or a `class` list is no comma id.
+    expect(verifyMermaid('flowchart LR\n  A["a,b"] -->|c,d| B\n  B e,1@--> C\n  class A,B c').warnings).toEqual([])
     const metadata = parseMermaid('flowchart LR\n  A e1@--> B\n  e1@{ label: "calls" }')
     expect(metadata.ok).toBe(true)
     if (metadata.ok) {

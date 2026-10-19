@@ -11,12 +11,12 @@
  * frontmatter at any horizontal indentation. Block scalar marker lines remain
  * content until the scalar dedents; all captured whitespace stays intact. */
 export function matchMermaidFrontmatter(text: string): { source: string; yaml: string } | undefined {
-  const start = /^(?:[^\S\r\n]*\r?\n)*[^\S\r\n]*---[^\S\r\n]*\r?\n/.exec(text)?.[0].length
+  const start = /^(?:[^\S\r\n]*(?:\r\n?|\n))*[^\S\r\n]*---[^\S\r\n]*(?:\r\n?|\n)/.exec(text)?.[0].length
   if (!start) return undefined
   // Physical indentation is nonnegative; -1 means no block scalar is open.
   let blockIndent = -1
   let quote = ''
-  const lines = /([^\S\r\n]*)([^\r\n]*)(?:\r?\n|$)/g
+  const lines = /([^\S\r\n]*)([^\r\n]*)(?:\r\n?|\n|$)/g
   lines.lastIndex = start
   for (let line = lines.exec(text); line?.[0]; line = lines.exec(text)) {
     const indent = line[1]!.length
@@ -77,15 +77,49 @@ export const INIT_DIRECTIVE_REGEX = /^[^\S\r\n]*%%\{\s*init(?:ialize)?\s*:\s*([\
 
 export function toMermaidLines(text: string): string[] {
   return text
-    .split(/\r?\n/)
+    .split(/\r\n?|\n/)
     .map(line => line.trim())
     .filter(line => line && !line.startsWith('%%'))
+}
+
+// The header, with the options its grammar keeps on that line, of each family
+// whose Mermaid grammar also reads a statement there (`gantt dateFormat …`,
+// `pie "a": 1`, `gitGraph LR: commit`). Flowchart, class, sankey and C4 need a
+// line break after the header (flowchart also takes `;`).
+// Gantt and timeline move only a keyword statement or one with a `:` (a task,
+// a `period : event`): a bare word (`gantt LR`, `timeline TB`) is more likely a
+// mistyped option, which stays a diagnosed header suffix, than the task or
+// period Mermaid reads it as.
+const HEADER_WITH_STATEMENT_RE = /^[^\S\r\n]*(?:sequenceDiagram|stateDiagram(?:-v2)?|mindmap|architecture(?:-beta)?|gitGraph(?:[^\S\r\n]+(?:LR|TB|BT))?(?:[^\S\r\n]*:)?|gantt(?=[^\S\r\n]+(?:(?:dateFormat|inclusiveEndDates|topAxis|axisFormat|tickInterval|includes|excludes|todayMarker|weekday|weekend|title|accTitle|accDescr|section|click)\b|[^\r\n]*:))|journey|quadrantChart|timeline(?:[^\S\r\n]+(?:LR|TD))?(?=[^\S\r\n]+(?:(?:title|section|accTitle|accDescr)\b|[^\r\n]*:))|pie(?:[^\S\r\n]+showData)?|xychart(?:-beta)?(?:[^\S\r\n]+(?:horizontal|vertical))?|radar-beta(?:[^\S\r\n]*:)?|erDiagram)/i
+
+/** Move a statement written on the header line onto a line of its own, as
+ * Mermaid reads it, so every family reader sees the header alone. */
+export function splitHeaderStatement(body: string): string {
+  const lines = body.split(/\r\n?|\n/)
+  const at = lines.findIndex(line => line.trim() !== '' && !line.trim().startsWith('%%'))
+  const header = at < 0 ? null : HEADER_WITH_STATEMENT_RE.exec(lines[at]!)
+  const statement = header ? lines[at]!.slice(header[0].length) : ''
+  if (!header || !statement.trim()) return body
+  // Mermaid rejects these, so they stay on the header line, unread, as
+  // before: a direction on an ER or State header line (its `.*direction`
+  // rule takes the whole line) and a gitGraph direction without its `:`.
+  if (/^\s*(?:erDiagram|stateDiagram)/i.test(header[0]) && /direction\s+(?:TB|BT|LR|RL)/i.test(statement)) return body
+  if (/^\s*gitGraph\s+(?:LR|TB|BT)$/i.test(header[0])) return body
+  // State also moves a statement after `;`, which pinned Mermaid rejects; the
+  // State reader keeps the `;` as a separator and verify reports it. After a
+  // header's `:` no space is needed (`gitGraph:commit`).
+  const stateSemicolon = /^\s*stateDiagram/i.test(header[0]) && /^[^\S\r\n]*;/.test(statement)
+  const separated = header[0].endsWith(':') ? /^[^\S\r\n]*(?!%%)\S/ : /^[^\S\r\n]+(?!%%)\S/
+  if (!stateSemicolon && !separated.test(statement)) return body
+  // A Mindmap root keeps its leading whitespace, which is its level.
+  lines.splice(at, 1, header[0], /^\s*mindmap/i.test(header[0]) ? statement.trimEnd() : statement.trim())
+  return lines.join('\n')
 }
 
 /** The first family line, lowercased: the line `normalizeMermaidSource`
  * reports as `firstLine`, found without parsing frontmatter or directives. */
 export function mermaidFirstLine(text: string): string {
-  return toMermaidLines(
+  return toMermaidLines(splitHeaderStatement(
     text.slice(matchMermaidFrontmatter(text)?.source.length ?? 0).replace(INIT_DIRECTIVE_REGEX, ''),
-  )[0]?.toLowerCase() ?? ''
+  ))[0]?.toLowerCase() ?? ''
 }

@@ -10,8 +10,7 @@ import type {
 } from './types.ts'
 import { toFinite } from './types.ts'
 import type { PixelTextBlock } from '../shared/prepared-text.ts'
-
-function f(n: number): Finite { return toFinite(Math.round(n)) }
+import { calculatePathMidpoint } from '../layout/geometry.ts'
 
 export function retainedLabelBounds(block: PixelTextBlock | undefined, x: number, y: number, anchor: 'start' | 'middle' | 'end' = 'middle'): RenderedLabelBounds | undefined {
   if (!block) return undefined
@@ -27,17 +26,23 @@ export function retainedLabelGeometry(block: PixelTextBlock | undefined, x: numb
 }
 
 function node(n: PositionedNode): RenderedLayoutNode {
-  return { id: n.id, x: f(n.x), y: f(n.y), w: f(n.width), h: f(n.height), shape: n.shape, label: n.label,
+  // Nodes, routes, and retained text share positioned precision so public and
+  // internal quality predicates use the same physical evidence.
+  return { id: n.id, x: toFinite(n.x), y: toFinite(n.y), w: toFinite(n.width), h: toFinite(n.height), shape: n.shape, label: n.label,
     ...retainedLabelGeometry(n.labelBlock, n.x + n.width / 2, n.y + n.height / 2, n) }
 }
 
 function edge(e: PositionedEdge, debug: boolean): RenderedLayoutEdge {
+  const labelPosition = e.label ? e.labelPosition ?? calculatePathMidpoint(e.points) : undefined
   return {
     id: `${e.source}->${e.target}`,
     from: e.source, to: e.target,
-    path: e.points.map(p => [f(p.x), f(p.y)] as [Finite, Finite]),
-    label: e.label && e.labelPosition
-      ? { x: f(e.labelPosition.x), y: f(e.labelPosition.y), text: e.label, bounds: retainedLabelBounds(e.labelBlock, e.labelPosition.x, e.labelPosition.y) }
+    // Crossing quality uses physical tolerances; rounding can turn a proper
+    // near-endpoint crossing into endpoint contact in the public projection.
+    path: e.points.map(p => [toFinite(p.x), toFinite(p.y)] as [Finite, Finite]),
+    ...(e.style === 'invisible' ? { visibility: 'hidden' as const } : {}),
+    label: e.label && labelPosition
+      ? { x: toFinite(labelPosition.x), y: toFinite(labelPosition.y), text: e.label, bounds: retainedLabelBounds(e.labelBlock, labelPosition.x, labelPosition.y) }
       : undefined,
     ...(debug && e.routeCertificate ? { route: e.routeCertificate } : {}),
   }
@@ -55,7 +60,9 @@ export function positionedToRenderedLayout(p: PositionedGraph, kind: FamilyId, o
   }
 }
 
-/** Pure family-neutral view used by descriptor `projectPositioned` hooks. */
+/** Pure family-neutral view used by descriptor `projectPositioned` hooks.
+ * All geometry retains finite subpixel coordinates;
+ * consumers should round only for display, after measuring quality. */
 export function positionedGraphToRenderedView(
   p: PositionedGraph,
   opts: { debug?: boolean } = {},
@@ -65,7 +72,7 @@ export function positionedGraphToRenderedView(
     nodes: p.nodes.map(node),
     edges: p.edges.map(e => edge(e, opts.debug === true)),
     groups: renderedGroups(p.groups, p.nodes),
-    bounds: { w: f(p.width), h: f(p.height) },
+    bounds: { w: toFinite(p.width), h: toFinite(p.height) },
   }
 }
 
@@ -80,7 +87,7 @@ function renderedGroups(groups: PositionedGroup[], nodes: PositionedNode[]): Ren
       .map(n => n.id)
     out.push({
       id: g.id,
-      x: f(g.x), y: f(g.y), w: f(g.width), h: f(g.height),
+      x: toFinite(g.x), y: toFinite(g.y), w: toFinite(g.width), h: toFinite(g.height),
       members, label: g.label,
       ...(parentId ? { parentId } : {}),
     })
@@ -91,5 +98,5 @@ function renderedGroups(groups: PositionedGroup[], nodes: PositionedNode[]): Ren
 }
 
 export function emptyRenderedLayout(kind: FamilyId): RenderedLayout {
-  return { version: 1, kind, nodes: [], edges: [], groups: [], bounds: { w: f(0), h: f(0) } }
+  return { version: 1, kind, nodes: [], edges: [], groups: [], bounds: { w: toFinite(0), h: toFinite(0) } }
 }

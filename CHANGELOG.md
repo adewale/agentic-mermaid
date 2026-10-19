@@ -33,6 +33,72 @@ This changelog tracks user-facing changes for **Agentic Mermaid**, a fork of `lu
 
 ### Fixed
 
+- `verify` on a source string checks the request `render` makes from that
+  string, including its `%%{init}%%` and frontmatter config. It used to check
+  a canonical copy that drops that config, so it measured a different layout
+  (for example ignoring `flowchart.rankSpacing`) and passed sources `render`
+  refuses: raw `themeCSS`, an unsafe `themeVariables.fontFamily`, or spacing
+  so large the canvas exceeds its cap. These are now `RENDER_FAILED`.
+- Refused config no longer makes `parseMermaid` and `verify` throw: config
+  the admission refuses (a reserved key such as `__proto__`, nesting or size
+  past its bounds) is a new `CONFIG_REJECTED` parse error, which `verify`
+  reports as `RENDER_FAILED` with origin `config`. `verify` reports any
+  non-empty source that fails to parse (a syntax error, frontmatter that is
+  not valid YAML, a diagram over a work limit) as `RENDER_FAILED` with the
+  parser's message, not `EMPTY_DIAGRAM`, and suppressing that finding no
+  longer makes such a source verify `ok`. A work limit only the render path
+  enforces (state nesting) no longer escapes `verify` as an exception.
+- A parsed diagram drawn from its canonical body (Flowchart, Timeline, Class,
+  ER, Journey, Architecture, any source-preserved body, and extension families
+  that render canonically) renders, lays out and verifies under its authored
+  config wrapper (frontmatter title and config, `%%{init}%%` directives), as
+  its source and its serialized output do (an edited diagram already did).
+  `renderMermaidSVG(parsed)`, `layoutMermaid(parsed)` and
+  `verifyMermaid(parsed)` used to drop that wrapper for a freshly parsed
+  diagram, losing the title, theme and spacing the saved source would draw.
+  `renderMermaidWithActions` takes its target regions from that layout, so
+  under a frontmatter title they sat a title band above the targets the
+  output draws, for a source string too; they now cover them.
+- A state diagram that reopens a composite state (a second `state A { … }`
+  block, one-line or not) draws one state A holding both blocks' states, as
+  Mermaid does. Each block used to add its own container with the same id,
+  which the layout engine could not resolve, so the render failed. A stays
+  where its first block is, a block reopening a `--`-split composite
+  continues its last region, and the first block's `direction` holds. A
+  later block's label labels A, joined with any other label or description
+  as one composite's are (`state_composite_description` where Mermaid
+  rejects them). The readings that differ from Mermaid's are recorded in
+  `docs/project/divergences.md`.
+- Font families may be double-quoted, as Mermaid's own default
+  `"trebuchet ms", verdana, arial, sans-serif` is: the font option,
+  `fontFamily` config, theme variables, Journey font config, style-role fonts
+  and Architecture group fonts accept them. A font written into a style
+  attribute or stylesheet is written single-quoted; a `font-family`
+  attribute escapes the quotes. A quote that does not close, a name holding
+  the other quote character, and whitespace other than space and tab stay
+  refused.
+- Paint inspection applies enclosing group opacity to inline connector labels,
+  including hidden labels, consistently with the SVG writer.
+
+- Journey `taskFontFamily` and `titleFontFamily` config values are written
+  into CSS only when they are safe font-family lists; an unsafe value (one
+  that closes the rule or fetches with `url()`) is ignored with an
+  `INEFFECTIVE_CONFIG` warning instead of restyling the whole diagram.
+- C4 relationships between facing cards of different heights run straight.
+  Ports spaced evenly along each face sat a few pixels apart, which drew a
+  small dogleg on each such relationship.
+- Drawings that disagreed with their certified paint now draw it: a Pie
+  slice's role or semantic-slot border and its highlight emphasis, which
+  stylesheet rules overrode; abstract, static and non-ASCII Class members,
+  which painted in SVG's default black instead of the member ink; a Journey
+  `titleFontSize` in `em`/`ex`, which drew squashed. (A Journey title's letter
+  spacing is now on its `<text>` too, but its per-glyph spans already drew it.)
+  Sketch styles now draw Radar areas with the translucent fill and opaque
+  outline the default style draws, XYChart series lines with round caps and
+  joins, and a done Gantt bar's border. Under a sketch look stacked with a dark palette
+  (for example `watercolor` with `dusk`), Architecture labels, Journey task
+  text and Timeline event text take the sketch's legible ink instead of a
+  family stylesheet's dark ink.
 - Context codecs preserve entity-derived tags, emphasis and backslash-n as
   literal text beside authored formatting in Flowchart, ER, Sequence and Class.
   Parsed aliases and labels retain their meaning through edits and reload;
@@ -240,6 +306,10 @@ This changelog tracks user-facing changes for **Agentic Mermaid**, a fork of `lu
   loading, cancellation, and visible error handling.
 
 ### Added
+
+- Prepared-text reuse, certified forest layout and bounded positioned-result
+  reuse are enabled by default, with startup opt-outs. Their limits and selection are
+  documented in `docs/project/flagged-performance-experiments.md`.
 - Added a `BELOW_READABLE_SIZE` raster-legibility warning: when `fitTo` or an
   explicit `scale` rasterizes the smallest configured text below the new
   portable `minLabelPx` floor (provisional product default 9px; `0` disables;
@@ -254,6 +324,31 @@ This changelog tracks user-facing changes for **Agentic Mermaid**, a fork of `lu
   website, and full and lazy browser bundles.
 
 ### Changed
+- Every built-in family's shapes, text and connectors are now written by one
+  SVG writer from the typed fields paint certification reads, so a render's
+  certificate describes the drawing it ships. Families no longer attach their
+  own SVG strings, and family stylesheets no longer paint marks (paint is
+  written on each element; hover and tooltip rules remain). SVG bytes change:
+  attribute order, inline paint and omitted SVG defaults. Default-style
+  rasters of the 562-input corpus are unchanged apart from Sankey link
+  opacity (at most 3/255 per channel) and the anti-aliasing of the Sequence
+  actor link-menu glyph. `verify` no longer compares each mark with its SVG,
+  which the writer makes hold by construction.
+- `verify` no longer blames the diagram for a defect in Agentic Mermaid. A
+  render-path failure raised by one of the engine's own consistency checks or
+  by a runtime error such as a `TypeError` is the new Tier 1 error
+  `INTERNAL_ERROR`; its `defaultRender` says whether an ordinary render still
+  produces output (`succeeds-unchecked`, unchecked) or throws (`fails`).
+  `RENDER_FAILED` now covers faults in the source or its configuration only,
+  and its new `origin` field says which. `am verify`, `am mutate` and
+  `am describe` exit 4 when every error is `INTERNAL_ERROR`; a typed edit is
+  accepted when its only errors are the same `INTERNAL_ERROR` defects the
+  diagram already had; `am capabilities --json` lists each code's possible
+  `origins`. Authored values that reach the Scene's range, extent and
+  identity checks (a negative stroke width, an oversized canvas, a reused id)
+  stay `RENDER_FAILED`. Invalid render options, Style inputs and theme fonts,
+  and sources too long for the request receipt (with their configuration),
+  are now typed refusals rather than plain runtime errors.
 - The npm package no longer ships `docs/mutation-testing.md`; mutation testing
   and its CI jobs are gone. The repository no longer commits generated reports,
   receipts, upstream-corpus hashes or eval evidence, and `CLAUDE.md` records

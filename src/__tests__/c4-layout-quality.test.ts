@@ -173,6 +173,22 @@ describe('C4 measured pixel layout quality', () => {
     }
   })
 
+  test('relationships between facing cards of different heights run straight instead of stepping a few pixels', () => {
+    // A container and a shorter database face each other; their evenly spaced
+    // ports sit about 3px apart, which drew as a dogleg on each relationship.
+    const svg = renderMermaidSVG(`C4Container
+  title Orders
+  Container(api, "Orders API", "TypeScript", "Accepts orders and serves order status to every client")
+  ContainerDb(db, "Store", "Postgres")
+  Rel(api, db, "Reads")
+  Rel(api, db, "Writes")`)
+    const routes = painted(svg).routes
+    expect(routes).toHaveLength(2)
+    for (const route of routes) {
+      expect({ id: route.id, levels: new Set(route.points.map(([, y]) => y)).size }).toEqual({ id: route.id, levels: 1 })
+    }
+  })
+
   test('scaled SVG arrowheads, including their painted stroke, remain inside the final viewport', () => {
     for (const source of ['C4Context\nSystem(a,"A")\nRel(a,a,"Self")', PARALLEL]) for (const lineWidth of [12, 8]) {
       const svg = renderMermaidSVG(source, { style: { roles: { edge: { lineWidth } } } })

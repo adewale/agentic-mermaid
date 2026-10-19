@@ -1,0 +1,10 @@
+[
+  {
+    "reason": "upstream-internal-split-bit-count",
+    "upstream": "packages/mermaid/src/diagrams/packet/parser.ts:getNextFittingBlock",
+    "cases": ["packet-spec-7", "packet-spec-8"],
+    "behavior": "Upstream records bits=end-start for split portions, although bit intervals are inclusive. Our authored model retains full fields; positioned slotWidth and conservation tests use end-start+1.",
+    "portableAssertions": "Original inputs, every split boundary and every label are unchanged and tested. The redundant erroneous upstream-internal bits property is not a public model field.",
+    "executableEvidence": "src/__tests__/packet-family.test.ts:Packet conserves every authored bit across independently generated row cuts"
+  }
+]

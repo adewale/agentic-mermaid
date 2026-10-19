@@ -2,9 +2,9 @@
   "schemaVersion": 1,
   "status": "approved",
   "artifact": "src/__tests__/testdata/section-b-brand-evidence.png",
-  "artifactSha256": "147a364dca5e02da89bd6b01c438c2ed3d21949f1051bd0a45d95e299a195cbb",
-  "reviewedAt": "2026-10-18",
-  "reviewer": "Independent Codex AI audit agent, final paint certification refresh",
-  "scope": "Production candidate 366eae2a5e75703a05a83c0d91d40b7e34ffb915. Compared with the previously approved artifact 3aee18640b52271ee8a0f0f15a817f8abe3c4ad32c7692185ba45cb9624354c1, the 1560×9464 sheet changes 76,480 pixels in eight of its 68 family-by-variant cells: Journey Sentinel/Technical/Operations, XY all four treatments, and Flowchart Operations. The other 60 cells and all headings are pixel-identical. The independent AI agent inspected all eight changed before/after pairs at native 520×380 and verified the final regenerated crops match those reviewed bytes. Journey retains task, actor and score labels plus the full rail arrow; XY retains title, axis labels, ticks, categories and authored relative bar heights; Flowchart retains both branch labels, routes and complete arrowheads. This is agent review, not human approval, deployed-site parity or arbitrary input/font coverage.",
-  "audit": "eval/section-b-brand-evidence/production-comparison.md"
+  "artifactSha256": "bb9067a6dcb0ba78b5fc8d8de22a68696f823a110f5ef7500384e9dedc14faf4",
+  "reviewedAt": "2026-10-20",
+  "reviewer": "Codex agent, stable-family performance and contract follow-up review",
+  "scope": "92 family-by-variant cells: inspected all 24 Packet, Kanban, Requirement, Treemap, Ishikawa and Block cells at native 520x380 size in four 1560x1140 crop sheets. Twenty-one new-family cells changed; all 68 established-family cells and three Block holdout cells are pixel-identical. Reviewed role typography, padding, corners, compartment and area preservation, marker direction, complete labels and automatic contrast across sentinel, editorial, technical and dark operations variants. This is agent review, not human approval, deployed-site parity or arbitrary input/font coverage.",
+  "audit": "eval/section-b-brand-evidence/stable-families-review.md"
 }

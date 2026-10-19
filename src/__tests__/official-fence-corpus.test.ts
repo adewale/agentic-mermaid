@@ -7,17 +7,10 @@
 // deviation and a fixed one ("unexpected pass") both fail with the fence ids.
 
 import { describe, expect, test } from 'bun:test'
-import {
-  isBuiltinFamilyId,
-  MermaidFamilyDetectionError,
-  parseRegisteredMermaid,
-  renderMermaidSVG,
-  serializeMermaid,
-  verifyMermaid,
-} from '../agent/index.ts'
+import { extractOfficialCorpus, type OfficialFence } from '../../eval/shared/official-fences.ts'
+import { isBuiltinFamilyId, MermaidFamilyDetectionError, parseRegisteredMermaid, renderMermaidSVG, serializeMermaid, verifyMermaid } from '../agent/index.ts'
 import { countStructuralElements, countsEqual } from '../agent/structural-count.ts'
 import { compareCodePointStrings } from '../shared/deterministic-order.ts'
-import { extractOfficialCorpus, type OfficialFence } from '../../eval/shared/official-fences.ts'
 
 /** Outcomes that deviate from the default rule, named per observation. */
 const REGISTERED_DEVIATIONS = [
@@ -57,10 +50,8 @@ flowchart:official-syntax/flowchart.md#102 [ Opaque Unsupported ] # markdown str
 flowchart:official-syntax/flowchart.md#103 [ Opaque Unsupported ] # click callbacks/hrefs are preserved but never executable
 flowchart:official-syntax/flowchart.md#104 [ Opaque Unsupported ] # click hrefs with link targets are preserved but never executable
 # Gantt
-gantt:official-syntax/gantt.md#6 [ VerifyError RenderError ] # settings-only snippet has no tasks: diagnosed EMPTY_DIAGRAM where Mermaid draws an empty chart
+gantt:official-syntax/gantt.md#6 [ VerifyError ] # settings-only snippet renders an explicit empty state and remains diagnosed EMPTY_DIAGRAM
 gantt:official-syntax/gantt.md#10 [ Unsupported VerifyError RenderError ] # inline task comments are diagnosed and canonicalized onto their own line; the undocumented workaround tag still becomes an invalid date
-# GitGraph
-gitgraph:official-syntax/gitgraph.md#14 [ Opaque Unsupported VerifyError RenderError ] # duplicate commit id "Boston" is rejected by design (receipt gitgraph.official.main-branch-duplicate-id-diagnosed)
 # Sequence: structured bodies with source-preserved opaque segments.
 sequence:official-syntax/sequenceDiagram.md#1 [ Unsupported ] # new order example contains source-preserved activate/deactivate and Note controls
 sequence:official-syntax/sequenceDiagram.md#2 [ Unsupported ] # configured order example contains source-preserved activate/deactivate and Note controls
@@ -107,8 +98,7 @@ function deviationsOf(fence: OfficialFence): Deviation[] {
   const deviations = new Set<Deviation>()
   if (!isBuiltinFamilyId(fence.family)) {
     const body = diagram.body
-    if (body.kind !== 'preserved' || body.diagnostic.code !== 'UNSUPPORTED_FAMILY'
-      || body.preservation.upstreamFamilyId !== fence.family) deviations.add('Undiagnosed')
+    if (body.kind !== 'preserved' || body.diagnostic.code !== 'UNSUPPORTED_FAMILY' || body.preservation.upstreamFamilyId !== fence.family) deviations.add('Undiagnosed')
     try {
       renderMermaidSVG(fence.source)
       deviations.add('RenderLeak')
@@ -132,8 +122,7 @@ function deviationsOf(fence: OfficialFence): Deviation[] {
   const reparsed = parseRegisteredMermaid(serializeMermaid(diagram))
   const before = countStructuralElements(diagram)
   const after = reparsed.ok ? countStructuralElements(reparsed.value) : null
-  if (!reparsed.ok || reparsed.value.kind !== diagram.kind
-    || (before === null ? after !== null : after === null || !countsEqual(before, after))) deviations.add('CountDrift')
+  if (!reparsed.ok || reparsed.value.kind !== diagram.kind || (before === null ? after !== null : after === null || !countsEqual(before, after))) deviations.add('CountDrift')
   return [...deviations].sort()
 }
 

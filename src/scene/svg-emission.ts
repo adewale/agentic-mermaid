@@ -201,7 +201,7 @@ export interface SvgEmissionContext {
 }
 
 const GEOMETRY_NAMES = new Set<string>(['x', 'y', 'width', 'height', 'rx', 'ry', 'cx', 'cy', 'r', 'x1', 'y1', 'x2', 'y2', 'd', 'points'])
-const PAINT_FIELDS = new Set<string>(['fill', 'stroke', 'strokeWidth', 'strokeDasharray', 'strokeDashoffset', 'strokeLinecap', 'strokeLinejoin', 'strokeMiterlimit', 'vectorEffect', 'paintOrder', 'opacity'])
+const PAINT_FIELDS = new Set<string>(['fill', 'fillOpacity', 'stroke', 'strokeOpacity', 'strokeWidth', 'strokeDasharray', 'strokeDashoffset', 'strokeLinecap', 'strokeLinejoin', 'strokeMiterlimit', 'vectorEffect', 'paintOrder', 'opacity'])
 const ATTRIBUTE_NAMES = new Set<string>([
   ...GEOMETRY_NAMES, 'class', 'id', 'role', 'tabindex', 'transform',
   'fill', 'fill-opacity', 'stroke', 'stroke-width', 'stroke-opacity', 'stroke-dasharray', 'stroke-dashoffset', 'stroke-linecap', 'stroke-linejoin', 'stroke-miterlimit',
@@ -250,7 +250,8 @@ export function svgEmissionValue(node: SceneNode, value: SvgValue, recipe?: SvgP
     case 'paint': {
       if (!PAINT_FIELDS.has(value.field)) throw new TypeError(`Unsupported SVG paint field ${value.field}`)
       const paint = node.kind === 'shape' || node.kind === 'text' ? node.paint : undefined
-      const override = recipe?.pieces?.[value.piece ?? recipe.piece ?? 0]?.paint
+      const piece = value.piece ?? recipe?.piece
+      const override = (node.kind === 'shape' && piece !== undefined ? node.childPaints?.[piece] : undefined) ?? recipe?.pieces?.[piece ?? 0]?.paint
       const direct = override?.[value.field] ?? paint?.[value.field]
       if (direct !== undefined || node.kind !== 'connector') return direct
       switch (value.field) {

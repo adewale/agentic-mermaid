@@ -1,13 +1,15 @@
-import { describe, expect, test } from 'bun:test'
+import { afterAll, describe, expect, test } from 'bun:test'
+import { describeMermaidFacts } from '../agent/facts.ts'
+import { mutate } from '../agent/mutate.ts'
 import { parseRegisteredMermaid as parseMermaid } from '../agent/parse.ts'
 import { serializeMermaid } from '../agent/serialize.ts'
-import { mutate } from '../agent/mutate.ts'
 import { asState, type StateMutationOp, type StateValidDiagram } from '../agent/types.ts'
-import { parseMermaid as parseRenderGraph } from '../parser.ts'
 import { verifyMermaid } from '../agent/verify.ts'
-import { renderMermaidSVG, renderMermaidASCII } from '../index.ts'
-import { describeMermaidFacts } from '../agent/facts.ts'
-import { startUpstreamMermaid } from './helpers/upstream-mermaid.ts'
+import { renderMermaidASCII, renderMermaidSVG } from '../index.ts'
+import { parseMermaid as parseRenderGraph } from '../parser.ts'
+import { projectEntityMarkers } from '../shared/mermaid-entity-display.ts'
+import { expectNearLinearGrowth } from './helpers/complexity.ts'
+import { startUpstreamMermaid, type UpstreamDiagram } from './helpers/upstream-mermaid.ts'
 
 function state(source: string): StateValidDiagram {
   const parsed = parseMermaid(source)
@@ -15,6 +17,11 @@ function state(source: string): StateValidDiagram {
   const narrowed = asState(parsed.value)
   if (!narrowed) throw new Error(`expected structured State body, got ${parsed.value.body.kind}`)
   return narrowed
+}
+
+/** Verify's UNSUPPORTED_SYNTAX findings on `source`, as `syntax@line`. */
+function unsupportedSyntax(source: string): string[] {
+  return verifyMermaid(source).warnings.flatMap(warning => (warning.code === 'UNSUPPORTED_SYNTAX' ? [`${warning.syntax}@${warning.line}`] : []))
 }
 
 function apply(diagram: StateValidDiagram, op: StateMutationOp): StateValidDiagram {
@@ -43,7 +50,9 @@ describe('typed State residual elevation (B07)', () => {
         expect(await upstream.accepts(serialized), serialized).toBe(true)
         expect(diagram.body.states.find(node => node.id === id)?.label).toBe(label)
         expect(state(serialized).body).toEqual(diagram.body)
-        expect(parseRenderGraph(serialized).nodes.get(id)?.label).toBe(label ?? id)
+        const graph = parseRenderGraph(serialized)
+        if (/^(?:style|class) /.test(body)) expect(graph.nodes.has(id)).toBe(false)
+        else expect(graph.nodes.get(id)?.label).toBe(label ?? id)
       }
       for (const text of ['fill:white    a note with punctuation', 'this sentence: keeps its colon']) {
         const source = `stateDiagram-v2\nState1\nnote right of State1\n${text}\nend note\nState1 --> State2`
@@ -55,7 +64,53 @@ describe('typed State residual elevation (B07)', () => {
         expect(state(serialized).body.notes).toEqual(diagram.body.notes)
         expect(parseRenderGraph(serialized).stateNotes?.[0]?.text).toBe(text)
       }
-    } finally { upstream.close() }
+    } finally {
+      upstream.close()
+    }
+  })
+
+  test('paint assignments preserve undeclared targets without inventing states, and resolve later declarations', async () => {
+    const source = `stateDiagram-v2
+  classDef hot fill:#ff0000
+  class Missing hot
+  style Missing stroke:#00ff00
+  class end hot
+  class Future hot
+  Future --> Ready
+`
+    const diagram = state(source)
+    expect(diagram.body.states.map(node => node.id).sort()).toEqual(['Future', 'Ready'])
+    expect(diagram.body.states.find(node => node.id === 'Future')?.className).toBe('hot')
+    const canonical = serializeMermaid(diagram)
+    expect(canonical).toContain('class Missing hot')
+    expect(canonical).toContain('class end hot')
+    expect(canonical).toContain('style Missing stroke:#00ff00')
+    expect(state(canonical).body).toEqual(diagram.body)
+    const upstream = startUpstreamMermaid()
+    try {
+      const originals = await upstream.projectAll([source, canonical], d =>
+        d.db
+          .getData()
+          .nodes.map((node: any) => ({ id: node.id, classes: node.cssClasses }))
+          .sort((a: any, b: any) => a.id.localeCompare(b.id)),
+      )
+      expect(originals[0]).toEqual(originals[1])
+      expect(originals[0]?.map((node: { id: string }) => node.id)).toEqual(['Future', 'Ready'])
+    } finally {
+      upstream.close()
+    }
+    for (const input of [source, canonical]) {
+      const graph = parseRenderGraph(input)
+      expect([...graph.nodes.keys()].sort()).toEqual(['Future', 'Ready'])
+      expect(graph.classAssignments.get('Missing')).toBe('hot')
+      expect(graph.nodeStyles.get('Missing')).toEqual({ stroke: '#00ff00' })
+      expect(renderMermaidSVG(input)).not.toContain('data-id="Missing"')
+      expect(renderMermaidASCII(input)).not.toContain('Missing')
+    }
+    const added = apply(diagram, { kind: 'add_state', id: 'Missing' })
+    expect(added.body.states.find(node => node.id === 'Missing')).toMatchObject({ className: 'hot', style: { stroke: '#00ff00' } })
+    expect(state(serializeMermaid(added)).body).toEqual(added.body)
+    expect(diagram.body.states.some(node => node.id === 'Missing')).toBe(false)
   })
 
   test('a classed transition followed by a standalone state preserves both statements', async () => {
@@ -69,7 +124,9 @@ describe('typed State residual elevation (B07)', () => {
     try {
       expect(await upstream.accepts(source)).toBe(true)
       expect(await upstream.accepts(serialized)).toBe(true)
-    } finally { upstream.close() }
+    } finally {
+      upstream.close()
+    }
     for (const text of [source, serialized]) {
       const graph = parseRenderGraph(text)
       expect(graph.edges.map(edge => [edge.source, edge.target, edge.label])).toEqual([['Moving', 'Crash', undefined]])
@@ -117,7 +174,7 @@ describe('typed State residual elevation (B07)', () => {
     expect(verifyMermaid(source).ok).toBe(true)
     const commentedDelimiter = 'stateDiagram-v2\n// A["` @{\nA --> B'
     expect(parseRenderGraph(commentedDelimiter).edges.map(edge => [edge.source, edge.target])).toEqual([['A', 'B']])
-    expect(() => renderMermaidSVG(`${commentedDelimiter}\nbogus statement`)).toThrow('Unsupported state syntax: "bogus statement"')
+    expect(() => renderMermaidSVG(`${commentedDelimiter}\nbogus -->`)).toThrow('Unsupported state syntax: "bogus -->"')
   })
 
   test.each(['scale 350 width', 'hide empty description'])('preserves and warns about an unapplied State layout directive: %s', async directive => {
@@ -136,9 +193,13 @@ describe('typed State residual elevation (B07)', () => {
     expect(renderMermaidSVG(source)).toContain('>A</text>')
     const verified = verifyMermaid(source)
     expect(verified.ok).toBe(true)
-    expect(verified.warnings).toContainEqual(expect.objectContaining({
-      code: 'UNSUPPORTED_SYNTAX', syntax: 'state_layout_directive', message: expect.stringContaining(directive),
-    }))
+    expect(verified.warnings).toContainEqual(
+      expect.objectContaining({
+        code: 'UNSUPPORTED_SYNTAX',
+        syntax: 'state_layout_directive',
+        message: expect.stringContaining(directive),
+      }),
+    )
     expect(verified.warnings.some(warning => warning.code === 'RENDER_FAILED')).toBe(false)
   })
 
@@ -158,10 +219,7 @@ describe('typed State residual elevation (B07)', () => {
     }
   })
 
-  test.each([
-    'state "First<br/>second" as A\nA --> B',
-    'A --> B : First<br/>second',
-  ])('writes normalized label breaks without introducing unknown body lines: %s', body => {
+  test.each(['state "First<br/>second" as A\nA --> B', 'A --> B : First<br/>second'])('writes normalized label breaks without introducing unknown body lines: %s', body => {
     const source = `stateDiagram-v2\n${body}`
     const diagram = state(source)
     const serialized = serializeMermaid(diagram)
@@ -171,18 +229,30 @@ describe('typed State residual elevation (B07)', () => {
     expect(renderMermaidSVG(serialized)).toContain('second')
   })
 
-  test.each(['bogus statement', 'state A <<unknown>>', 'direction diagonal'])('rejects unknown State content instead of drawing a partial diagram: %s', statement => {
+  test.each([
+    ['bogus -->', ''],
+    ['state A <<unknown>>', ''],
+    ['direction diagonal', ''],
+    // Mermaid reads the rest of the line after `as` as one name, which ours
+    // cannot hold, and rejects `as` after an unquoted name.
+    ['state "Long name" as X Y', ' — expected one word after `as`; pinned Mermaid reads "X Y" as one name'],
+    ['state X as Y', ''],
+    ['state X as', ''],
+  ])('rejects unknown State content instead of drawing a partial diagram: %s', (statement, guidance) => {
     const source = `stateDiagram-v2\nA --> B\n${statement}`
     const parsed = parseMermaid(source)
     if (!parsed.ok) throw new Error(JSON.stringify(parsed.error))
     expect(parsed.value.body.kind).toBe('opaque')
     expect(serializeMermaid(parsed.value).trimEnd()).toBe(source)
-    expect(() => renderMermaidSVG(source)).toThrow(`Unsupported state syntax: "${statement}"`)
+    expect(() => renderMermaidSVG(source)).toThrow(`Unsupported state syntax: "${statement}"${guidance}`)
     const verified = verifyMermaid(source)
     expect(verified.ok).toBe(false)
-    expect(verified.warnings).toContainEqual(expect.objectContaining({
-      code: 'RENDER_FAILED', reason: expect.stringContaining(statement),
-    }))
+    expect(verified.warnings).toContainEqual(
+      expect.objectContaining({
+        code: 'RENDER_FAILED',
+        reason: expect.stringContaining(statement),
+      }),
+    )
   })
 
   test('literal percent pairs survive State labels, notes, edits and source-loss receipts', async () => {
@@ -198,17 +268,17 @@ B --> C %% real comment`
     expect(diagram.body.transitions[0]?.label).toBe('100%% transition')
     expect(diagram.body.notes?.[0]?.text).toBe('100%% inline')
     expect(diagram.meta.comments).toEqual([{ text: 'real comment', line: 6 }])
-    expect(verifyMermaid(diagram).warnings.filter(warning => warning.code === 'COMMENT_DROPPED')).toEqual([
-      { code: 'COMMENT_DROPPED', count: 1, lines: [6] },
-    ])
+    expect(verifyMermaid(diagram).warnings.filter(warning => warning.code === 'COMMENT_DROPPED')).toEqual([{ code: 'COMMENT_DROPPED', count: 1, lines: [6] }])
     const edited = apply(diagram, { kind: 'add_state', id: 'Added' })
     const written = serializeMermaid(edited)
     expect(describeMermaidFacts(state(written))).toEqual(describeMermaidFacts(edited))
     const upstream = startUpstreamMermaid()
     try {
-      const labels = await upstream.project(written, diagram => diagram.db.rootDoc.flatMap((item: any) => item.description ? [item.description] : item.note ? [item.note.text] : []))
+      const labels = await upstream.project(written, diagram => diagram.db.rootDoc.flatMap((item: any) => (item.description ? [item.description] : item.note ? [item.note.text] : [])))
       expect(labels).toEqual({ ok: true, value: ['100%% alias', '100%% description', '100%% transition', '100%% inline'] })
-    } finally { upstream.close() }
+    } finally {
+      upstream.close()
+    }
     for (const input of [source, written]) {
       const graph = parseRenderGraph(input)
       expect(graph.nodes.get('A')?.label).toBe('100%% alias')
@@ -238,9 +308,7 @@ end note %% end comment`
     expect(diagram.body.states.map(node => node.id)).toEqual(['A', 'B'])
     expect(parseRenderGraph(source.slice(source.indexOf('stateDiagram'))).stateNotes?.[0]?.text).toBe(expected)
     expect(diagram.meta.comments).toEqual([{ text: 'end comment', line: 11 }])
-    expect(verifyMermaid(diagram).warnings.filter(warning => warning.code === 'COMMENT_DROPPED')).toEqual([
-      { code: 'COMMENT_DROPPED', count: 1, lines: [11] },
-    ])
+    expect(verifyMermaid(diagram).warnings.filter(warning => warning.code === 'COMMENT_DROPPED')).toEqual([{ code: 'COMMENT_DROPPED', count: 1, lines: [11] }])
     const edited = apply(diagram, { kind: 'add_state', id: 'Added' })
     const written = serializeMermaid(edited)
     expect(state(written).body.notes).toEqual(edited.body.notes)
@@ -248,7 +316,11 @@ end note %% end comment`
     expect(renderMermaidSVG(written)).toContain('%% literal note line')
     expect(renderMermaidASCII(written)).toContain('%% literal note line')
     const upstream = startUpstreamMermaid()
-    try { expect(await upstream.accepts(written)).toBe(true) } finally { upstream.close() }
+    try {
+      expect(await upstream.accepts(written)).toBe(true)
+    } finally {
+      upstream.close()
+    }
   })
 
   test('trailing Mermaid comments preserve transition topology in both parsers', () => {
@@ -256,25 +328,33 @@ end note %% end comment`
       A --> B %% legal trailing comment
       B --> C`
     const diagram = state(source)
-    expect(diagram.body.transitions).toEqual([{ from: 'A', to: 'B' }, { from: 'B', to: 'C' }])
+    expect(diagram.body.transitions).toEqual([
+      { from: 'A', to: 'B' },
+      { from: 'B', to: 'C' },
+    ])
     const graph = parseRenderGraph(source)
-    expect(graph.edges.map(edge => [edge.source, edge.target])).toEqual([['A', 'B'], ['B', 'C']])
+    expect(graph.edges.map(edge => [edge.source, edge.target])).toEqual([
+      ['A', 'B'],
+      ['B', 'C'],
+    ])
     expect(state(serializeMermaid(diagram)).body.transitions).toEqual(diagram.body.transitions)
     expect(verifyMermaid(diagram).warnings).toContainEqual({ code: 'COMMENT_DROPPED', count: 1, lines: [2] })
   })
 
   test('State header comments and comment-only delimiters never create or erase transitions', () => {
-    for (const source of [
-      'stateDiagram-v2 %% heading; Bogus --> Edge\nA --> B',
-      'stateDiagram-v2\nA --> B %% ; Bogus --> Edge\nB --> C',
-      'stateDiagram-v2\nA --> B %% `\nB --> C',
-      'stateDiagram-v2\nA --> B %% @{\nB --> C',
-    ]) {
-      const expected = source.includes('heading') ? [['A', 'B']] : [['A', 'B'], ['B', 'C']]
+    for (const source of ['stateDiagram-v2 %% heading; Bogus --> Edge\nA --> B', 'stateDiagram-v2\nA --> B %% ; Bogus --> Edge\nB --> C', 'stateDiagram-v2\nA --> B %% `\nB --> C', 'stateDiagram-v2\nA --> B %% @{\nB --> C']) {
+      const expected = source.includes('heading')
+        ? [['A', 'B']]
+        : [
+            ['A', 'B'],
+            ['B', 'C'],
+          ]
       expect(state(source).body.transitions.map(transition => [transition.from, transition.to])).toEqual(expected)
       expect(parseRenderGraph(source).edges.map(edge => [edge.source, edge.target])).toEqual(expected)
       expect(verifyMermaid(state(source)).warnings).toContainEqual({
-        code: 'COMMENT_DROPPED', count: 1, lines: [source.includes('heading') ? 1 : 2],
+        code: 'COMMENT_DROPPED',
+        count: 1,
+        lines: [source.includes('heading') ? 1 : 2],
       })
     }
   })
@@ -354,6 +434,211 @@ stateDiagram-v2
     expect(graph.linkStyles.get(0)?.stroke).toBe('#654321')
   })
 
+  test('a state Mermaid cannot read alone is written so that Mermaid draws it', async () => {
+    // A hyphen ends a Mermaid name, a keyword before a line break starts its
+    // statement, and `state X` declares nothing upstream.
+    let diagram = state('stateDiagram-v2\n  state in-flight\n  state note\n  state State\n  hide\n  A')
+    diagram = apply(diagram, { kind: 'add_state', id: 'classDef' })
+    const serialized = serializeMermaid(diagram)
+    expect(state(serialized).body).toEqual(diagram.body)
+    const upstream = startUpstreamMermaid()
+    try {
+      const drawn = await upstream.project(serialized, mermaid =>
+        mermaid.db
+          .getData()
+          .nodes.map((node: { id: string }) => node.id)
+          .sort(),
+      )
+      expect(drawn).toEqual({ ok: true, value: ['A', 'State', 'classDef', 'hide', 'in-flight', 'note'] })
+    } finally {
+      upstream.close()
+    }
+  })
+
+  test('a state keeps every class assigned to it, in order, as Mermaid does', async () => {
+    const source = 'stateDiagram-v2\n  A:::a --> B\n  A:::b --> C\n  class A c'
+    const diagram = state(source)
+    expect(diagram.body.states.find(node => node.id === 'A')?.className).toBe('a b c')
+    expect(parseRenderGraph(source).classAssignments.get('A')).toBe('a b c')
+    const serialized = serializeMermaid(diagram)
+    expect(state(serialized).body).toEqual(diagram.body)
+    const upstream = startUpstreamMermaid()
+    try {
+      const classes = (mermaid: { db: any }) => mermaid.db.getData().nodes.find((node: { id: string }) => node.id === 'A').cssClasses
+      expect(await upstream.projectAll([source, serialized], classes)).toEqual(['a b c statediagram-state', 'a b c statediagram-state'])
+    } finally {
+      upstream.close()
+    }
+    // Setting a state's class replaces them all.
+    expect(apply(diagram, { kind: 'set_state_class', id: 'A', className: 'd' }).body.states.find(node => node.id === 'A')?.className).toBe('d')
+  })
+
+  test('reads Mermaid entity codes in State text, and writes them back as Mermaid reads them', async () => {
+    const source = 'stateDiagram-v2\n  state "I #9829; states" as A\n  A : x #lt;b#gt;y#lt;/b#gt;\n  A --> B : t #35;1\n  note right of B : n #quot;q#quot;'
+    const diagram = state(source)
+    expect(diagram.body.states.find(node => node.id === 'A')?.label).toBe('I ♥ states\nx <b>y</b>')
+    expect(diagram.body.transitions[0]?.label).toBe('t #1')
+    expect(diagram.body.notes?.[0]?.text).toBe('n "q"')
+    const graph = parseRenderGraph(source)
+    expect([graph.nodes.get('A')?.label, graph.edges[0]?.label, graph.stateNotes?.[0]?.text]).toEqual(['I ♥ states\nx <b>y</b>', 't #1', 'n "q"'])
+    // An entity-produced tag is text, not formatting.
+    expect(renderMermaidSVG(source)).toContain('x &lt;b&gt;y&lt;/b&gt;')
+    const serialized = serializeMermaid(diagram)
+    expect(state(serialized).body).toEqual(diagram.body)
+    // Text an edit gives is literal: its `#` is written so it stays one.
+    const edited = apply(diagram, { kind: 'set_state_label', id: 'B', label: 'C#35; sharp' })
+    expect(state(serializeMermaid(edited)).body.states.find(node => node.id === 'B')?.label).toBe('C#35; sharp')
+    const upstream = startUpstreamMermaid()
+    try {
+      // A label and the descriptions under it, which ours writes as one label.
+      const text = (mermaid: { db: any }) => {
+        const data = mermaid.db.getData()
+        return [...data.nodes.map((node: { id: string; label: string; description?: string[] }) => [node.id, [node.label, ...(node.description ?? [])].join('<br/>')]), ...data.edges.map((edge: { label: unknown }) => edge.label)]
+      }
+      const [original, written, writtenEdit] = await upstream.projectAll([source, serialized, serializeMermaid(edited)], text)
+      expect(written).toEqual(original)
+      expect(writtenEdit).toContainEqual(['B', 'Cﬂ°°35¶ß35; sharp'])
+      // A `"` in the label of a state written `state "…" as X` is `#quot;`.
+      const quoted = state('stateDiagram-v2\n  default : x"y')
+      expect(quoted.body.states[0]?.label).toBe('x"y')
+      expect(await upstream.projectAll([serializeMermaid(quoted)], text)).toEqual([[['default', 'xﬂ°quot¶ßy']]])
+    } finally {
+      upstream.close()
+    }
+  })
+
+  test('writes a `;` or a colon run in a description or label so Mermaid reads the whole text, and reports it in source', async () => {
+    // Mermaid's description token ends at `;`, at `::` and at a final `:`.
+    const labels = ['a; b', 'a::b', 'ends:', 'x # y; z', 'classDef x:y; z']
+    const sources = [...['a; b', 'a::b', 'ends:', 'x #35; y; z', 'classDef x:y; z'].map(text => `stateDiagram-v2\n  A --> B : ${text}`), 'stateDiagram-v2\n  A : say "hi"; ok', 'stateDiagram-v2\n  A:::hot : a;']
+    const written = sources.map(source => serializeMermaid(state(source)))
+    expect(
+      sources.map(source => {
+        const body = state(source).body
+        return body.transitions[0]?.label ?? body.states[0]?.label
+      }),
+    ).toEqual([...labels, 'say "hi"; ok', 'a;'])
+    expect(
+      written.map(source => {
+        const body = state(source).body
+        return body.transitions[0]?.label ?? body.states[0]?.label
+      }),
+    ).toEqual([...labels, 'say "hi"; ok', 'a;'])
+    expect(sources.map(unsupportedSyntax)).toEqual(sources.map(() => ['state_text_cut@2']))
+    expect(written.map(unsupportedSyntax)).toEqual(written.map(() => []))
+    // Mermaid reads these whole: a colon text or blank space follows, an
+    // entity code, the text after `state "…" as`, and a block note.
+    const whole = ['A : a:b', 'A --> B : ends: ', 'A --> B : a #59; b', 'state "x" as A : a; b', 'note right of A\n    a; b :: c:\n  end note'].map(body => `stateDiagram-v2\n  ${body}`)
+    expect(whole.map(unsupportedSyntax)).toEqual(whole.map(() => []))
+    // Verify reads the authored line, whose blanks the canonical one drops.
+    expect(unsupportedSyntax('---\ntitle: t\n---\nstateDiagram-v2\n  A --> B : ends: \n  B --> C : ends:')).toEqual(['state_text_cut@6'])
+    const upstream = startUpstreamMermaid()
+    try {
+      const read = await upstream.projectAll(written, mermaid => {
+        const data = mermaid.db.getData()
+        return data.edges[0]?.label ?? data.nodes.find((node: { id: string }) => node.id === 'A').label
+      })
+      expect(read.map(text => projectEntityMarkers(text))).toEqual([...labels, 'say "hi"; ok', 'a;'])
+      expect(await upstream.projectAll(whole, mermaid => mermaid.db.rootDoc.flatMap((item: any) => (item.description ? [item.description] : item.note ? [item.note.text] : [])))).toEqual([['a:b'], ['ends:'], ['a ﬂ°°59¶ß b'], [['x', ' a; b']], ['a; b :: c:']])
+    } finally {
+      upstream.close()
+    }
+  })
+
+  test("a `;` Mermaid's entity prepass drops from text is read as text, reported, and written so Mermaid keeps it", async () => {
+    // Before it reads entity codes, Mermaid drops the `;` ending a line's
+    // `style…:…#…;` run, then its `classDef…:…#…;` run, in that case only.
+    const dropped = ['A : style:#f00; x', 'A --> B : style:#f00 x; y', 'A : classDef x:#fff; y', 'state "style:#f00; x" as A', 'note right of A\n    style:#f00; x\n  end note'].map(body => `stateDiagram-v2\n  ${body}`)
+    expect(dropped.map(unsupportedSyntax)).toEqual([...Array(4).fill(['mermaid_cleanup@2']), ['mermaid_cleanup@3']])
+    const kept = ['A : style: #f00; x', 'A : Style:#f00; x', 'A --> B\n  style A fill:#f00;'].map(body => `stateDiagram-v2\n  ${body}`)
+    expect(kept.map(unsupportedSyntax)).toEqual(kept.map(() => []))
+    // Ours reads the `;`, and an entity code it ends; the writer spells the
+    // text's colons `#58;` there, so the prepass leaves the line whole.
+    const ours = (source: string): string[] => {
+      const graph = parseRenderGraph(source)
+      return [...graph.edges.map(edge => edge.label ?? ''), ...[...graph.nodes.values()].flatMap(node => (node.label !== node.id ? [node.label] : [])), ...(graph.stateNotes ?? []).map(note => note.text)]
+    }
+    const read = [['style:&f00; x'], ['style:#f00 x; y'], ['classDef x:&fff; y'], ['style:&f00; x'], ['style:&f00; x']]
+    expect(dropped.map(ours)).toEqual(read)
+    const written = dropped.map(source => serializeMermaid(state(source)))
+    expect(written.map(ours)).toEqual(read)
+    expect(written.map(unsupportedSyntax)).toEqual(written.map(() => []))
+    const texts = (mermaid: UpstreamDiagram): string[] => mermaid.db.rootDoc.flatMap((item: any) => (item.description ? [item.description] : item.note ? [item.note.text] : []))
+    const upstream = startUpstreamMermaid()
+    try {
+      expect(await upstream.projectAll(dropped, texts)).toEqual([['style:#f00 x'], ['style:#f00 x y'], ['classDef x:#fff y'], ['style:#f00 x'], ['style:#f00 x']])
+      expect((await upstream.projectAll(written, texts)).map(read => read.map(text => projectEntityMarkers(text)))).toEqual(read)
+    } finally {
+      upstream.close()
+    }
+  })
+
+  test('the prepass check reads a long `style` run in linear time', () => {
+    // Mermaid's own prepass regex backtracks catastrophically on a run of
+    // `:#` that no `;` ends; verify reads that text and must not stall on it.
+    expectNearLinearGrowth(
+      'State text holding a long style run',
+      size => {
+        const warnings = verifyMermaid(`stateDiagram-v2\n  A : style${':#'.repeat(size)}`).warnings
+        expect(warnings.filter(warning => warning.code === 'UNSUPPORTED_SYNTAX')).toEqual([])
+      },
+      4000,
+    )
+  })
+
+  test("a composite draws its classes' classDef paint on its body, as Mermaid does, and not its style", async () => {
+    const source = 'stateDiagram-v2\n  classDef hot fill:#ff0000,stroke:#0000ff,color:#00ff00\n  state X {\n    A\n  }\n  class X hot\n  state Y {\n    B\n  }\n  style Y fill:#ff00ff'
+    const svg = renderMermaidSVG(source)
+    const group = (id: string) => svg.match(new RegExp(`<g class="subgraph" data-id="${id}"[\\s\\S]*?</g>`))?.[0] ?? ''
+    expect(group('X')).toMatch(/<rect [^>]*fill="#ff0000" stroke="#0000ff"[^>]*data-id="group-rect:X"/)
+    expect(group('X')).toMatch(/<text [^>]*fill="#00ff00"[^>]*>X</)
+    expect(group('Y')).not.toContain('#ff00ff')
+    // Mermaid gives the cluster the class, whose CSS rules paint its body;
+    // its rounded composite shape draws no `style` paint.
+    const upstream = startUpstreamMermaid()
+    try {
+      const clusters = await upstream.project(source, mermaid =>
+        mermaid.db
+          .getData()
+          .nodes.filter((node: { isGroup: boolean }) => node.isGroup)
+          .map((node: { id: string; cssClasses: string; shape: string }) => [node.id, node.cssClasses.trim().split(/\s+/)[0], node.shape]),
+      )
+      expect(clusters).toEqual({
+        ok: true,
+        value: [
+          ['X', 'hot', 'roundedWithTitle'],
+          ['Y', 'statediagram-state', 'roundedWithTitle'],
+        ],
+      })
+    } finally {
+      upstream.close()
+    }
+  })
+
+  test('a quoted description with an entity code keeps its spelling under a label', () => {
+    // Reading drops the quotes around a description; the label is written
+    // in `state "…" as A`, with its codes as they were written.
+    const diagram = state('stateDiagram-v2\n  state "x" as A\n  A : "y #35;"')
+    expect(diagram.body.states[0]?.label).toBe('x\ny #')
+    const serialized = serializeMermaid(diagram)
+    expect(serialized).toContain('state "x<br/>y #35;" as A')
+    expect(state(serialized).body).toEqual(diagram.body)
+  })
+
+  test('a class named like an Object.prototype key is an ordinary class', () => {
+    const parsed = state('stateDiagram-v2\n  classDef __proto__ fill:#ff0000\n  A:::__proto__')
+    const defined = apply(state('stateDiagram-v2\n  A:::__proto__'), { kind: 'define_class', name: '__proto__', style: 'fill:#0000ff' })
+    for (const [diagram, fill] of [
+      [parsed, '#ff0000'],
+      [defined, '#0000ff'],
+    ] as const) {
+      expect(Object.entries(diagram.body.classDefs ?? {})).toEqual([['__proto__', { fill }]])
+      const graph = parseRenderGraph(serializeMermaid(diagram))
+      expect(graph.classDefs.get('__proto__')?.fill).toBe(fill)
+      expect(graph.classAssignments.get('A')).toBe('__proto__')
+    }
+  })
+
   test('paint mutations reject statement-injecting line breaks', () => {
     const diagram = state('stateDiagram-v2\n  A --> B')
     const operations: StateMutationOp[] = [
@@ -380,10 +665,17 @@ stateDiagram-v2
       const diagram = state(`stateDiagram-v2
   state C {
     ${directive}
+    A --> B
   }`)
       const composite = diagram.body.states.find(item => item.id === 'C')!
-      expect(composite.states?.map(item => item.id), name).toEqual(['A'])
-      expect(diagram.body.states.some(item => item.id === 'A'), name).toBe(false)
+      expect(
+        composite.states?.map(item => item.id),
+        name,
+      ).toEqual(['A', 'B'])
+      expect(
+        diagram.body.states.some(item => item.id === 'A'),
+        name,
+      ).toBe(false)
       expect(composite.states?.[0]?.className, name).toBe(className)
       expect(composite.states?.[0]?.style?.fill, name).toBe(fill)
       const serialized = serializeMermaid(diagram)
@@ -395,8 +687,10 @@ stateDiagram-v2
     const regions = state(`stateDiagram-v2
   state C {
     class Left hot
+    Left
     --
     style Right fill:#00ff00
+    Right
   }`)
     const composite = regions.body.states.find(item => item.id === 'C')!
     expect(composite.regions?.[0]?.states).toContainEqual(expect.objectContaining({ id: 'Left', className: 'hot' }))
@@ -425,5 +719,195 @@ stateDiagram-v2
     const graph = parseRenderGraph(serializeMermaid(diagram))
     expect(graph.subgraphs[0]?.id).toBe('in-flight')
     expect(graph.subgraphs[0]?.nodeIds.sort()).toEqual(['active-work', 'waiting-room'])
+  })
+})
+
+// Mermaid's State lexer (stateDiagram.jison) does not read one statement per
+// line: braces are tokens, statements share a line with nothing between them,
+// a composite's line breaks are whitespace, a `state` declaration's `{` may
+// start the next line, and quoted names and block-note text run across lines.
+describe('State statements across and within lines', () => {
+  const upstream = startUpstreamMermaid()
+  afterAll(() => upstream.close())
+  const readingOf = (graph: ReturnType<typeof parseRenderGraph>): string[] => {
+    // Declaration order is not meaning: the writer puts definitions first.
+    const groups = (list: typeof graph.subgraphs, path: string): string[] => list.flatMap(group => [`${path}${group.id}:${group.label}{${[...group.nodeIds].sort().join(' ')}}`, ...groups(group.children, `${path}${group.id}/`)])
+    return [
+      ...[...graph.nodes.values()].map(node => `${node.id}:${node.shape}:${node.label}`),
+      ...graph.edges.map(edge => `${edge.source}->${edge.target}${edge.label ? `:${edge.label}` : ''}`),
+      ...groups(graph.subgraphs, ''),
+      ...[...graph.classAssignments].map(([id, name]) => `${id}:::${name}`),
+      ...(graph.stateNotes ?? []).map(note => `note ${note.side} of ${note.target}:${note.text}`),
+    ].sort()
+  }
+  test.each([
+    ['state X { A --> B }', ['A:rounded:A', 'B:rounded:B', 'A->B', 'X:X{A B}'], []],
+    ['state X {\nA --> B }', ['A:rounded:A', 'B:rounded:B', 'A->B', 'X:X{A B}'], []],
+    ['state "Long" as X { A }', ['A:rounded:A', 'X:Long{A}'], []],
+    ['state X {\nstate Y {\nA\n}}', ['A:rounded:A', 'X:X{}', 'X/Y:Y{A}'], []],
+    ['state X\n{\nA\n} B', ['A:rounded:A', 'B:rounded:B', 'X:X{A}'], []],
+    ['state X {\nA\n--> B\n}', ['A:rounded:A', 'B:rounded:B', 'A->B', 'X:X{A B}'], []],
+    ['state X {\nA -->\nB : go\n}', ['A:rounded:A', 'B:rounded:B', 'A->B:go', 'X:X{A B}'], []],
+    ['state X { A -- B }', ['A:rounded:A', 'B:rounded:B', 'X:X{}', 'X/X__r1:{A}', 'X/X__r2:{B}'], []],
+    ['state X {\nA --> B\n--\nC }', ['A:rounded:A', 'B:rounded:B', 'C:rounded:C', 'A->B', 'X:X{}', 'X/X__r1:{A B}', 'X/X__r2:{C}'], []],
+    ['A B', ['A:rounded:A', 'B:rounded:B'], ['state_statements_share_line@2']],
+    ['A --> B C --> D', ['A:rounded:A', 'B:rounded:B', 'C:rounded:C', 'D:rounded:D', 'A->B', 'C->D'], ['state_statements_share_line@2']],
+    ['[*] --> A A --> [*]', ['_start:state-start:', 'A:rounded:A', '_end:state-end:', '_start->A', 'A->_end'], ['state_statements_share_line@2']],
+    ['A:::hot B', ['A:rounded:A', 'B:rounded:B', 'A:::hot'], ['state_statements_share_line@2']],
+    ['state X {\nA B\n}', ['A:rounded:A', 'B:rounded:B', 'X:X{A B}'], ['state_statements_share_line@3']],
+    ['A --> B; B --> C', ['A:rounded:A', 'B:rounded:B', 'C:rounded:C', 'A->B', 'B->C'], ['state_semicolon_separator@2']],
+    ['state X {A}', ['A:rounded:A', 'X:X{A}'], ['state_brace_after_name@2']],
+    ['state X { A --> B}', ['A:rounded:A', 'B:rounded:B', 'A->B', 'X:X{A B}'], ['state_brace_after_name@2']],
+    ['state X { A : desc }', ['A:rounded:desc', 'X:X{A}'], ['state_brace_after_description@2']],
+    ['state X {\nA --> B : go }', ['A:rounded:A', 'B:rounded:B', 'A->B:go', 'X:X{A B}'], ['state_brace_after_description@3']],
+    ['state X {\nstate Y {\nA : desc {x} }}', ['A:rounded:desc {x}', 'X:X{}', 'X/Y:Y{A}'], ['state_brace_after_description@4']],
+    ['state X {\nA : desc }\n}', ['A:rounded:desc }', 'X:X{A}'], []],
+    // Mermaid ends the text at the `;`, and its `}` then closes X.
+    ['state X {\nA : a; }', ['A:rounded:a;', 'X:X{A}'], ['state_text_cut@3']],
+    // State ids are global: a mention of a composite's id, before or after
+    // its block or inside it, names the composite and adds no simple state.
+    ['state X {\nA\n}\nX : desc\nX:::hot', ['A:rounded:A', 'X:desc{A}', 'X:::hot'], []],
+    ['state X {\nX\nA\n}', ['A:rounded:A', 'X:X{A}'], []],
+    ['state X {\n[*] --> Y\nstate Y {\nB\n}\n}', ['_start:state-start:', 'B:rounded:B', '_start->Y', 'X:X{_start}', 'X/Y:Y{B}'], []],
+    ['state P {\nstate X {\nA\n}\n}\nstate "L" as X', ['A:rounded:A', 'P:P{}', 'P/X:L{A}'], []],
+    // Read generously where Mermaid reads otherwise, and reported: its State
+    // grammar has no `cssClass` or `linkStyle`, and it rejects a composite
+    // with a label and a description.
+    ['A --> B\ncssClass A hot\nlinkStyle 0 stroke:#f00', ['A:rounded:A', 'B:rounded:B', 'A->B', 'A:::hot'], ['state_css_class@3', 'state_link_style@4']],
+    ['state "L" as X {\nA\n}\nX : desc', ['A:rounded:A', 'X:L\ndesc{A}'], ['state_composite_description@5']],
+    // A `}` with no composite open is dropped; Mermaid reads a state `}`,
+    // or `A}` where it follows a name.
+    ['A\n}', ['A:rounded:A'], ['state_brace_unopened@3']],
+    ['state X {\nA\n}\n} B', ['A:rounded:A', 'B:rounded:B', 'X:X{A}'], ['state_brace_unopened@5']],
+    ['A --> B}', ['A:rounded:A', 'B:rounded:B', 'A->B'], ['state_brace_after_name@2']],
+    ['[*]:::hot --> A', ['_start:state-start:', 'A:rounded:A', '_start->A', '_start:::hot'], []],
+    // Mermaid's lexer skips blanks around `:::` (and a line break inside a
+    // composite), and `A:::c : text` is A's class and description.
+    ['A :::hot --> B ::: cold : go', ['A:rounded:A', 'B:rounded:B', 'A->B:go', 'A:::hot', 'B:::cold'], []],
+    ['A :::hot : desc', ['A:rounded:desc', 'A:::hot'], []],
+    ['state X {\nA\n:::hot --> B\n}', ['A:rounded:A', 'B:rounded:B', 'A->B', 'X:X{A B}', 'A:::hot'], []],
+    ['state X {\nA --> [*]:::hot : done\n}', ['A:rounded:A', '_end:state-end:', 'A->_end:done', 'X:X{A _end}', '_end:::hot'], []],
+    ['note right of A line1\nline2\nend note', ['A:rounded:A', 'note right of A:line1\nline2'], []],
+    // Mermaid's State lexer reads its keywords in any case; `end` is one only
+    // before `note`, and a name otherwise.
+    ['STATE X {\nA\n}', ['A:rounded:A', 'X:X{A}'], []],
+    ['State "Long" AS L\nState F <<FORK>>\nL --> F', ['L:rounded:Long', 'F:state-fork:', 'L->F'], []],
+    // Mermaid also spells a fork, join or choice `[[fork]]`.
+    ['state f [[fork]]\nstate j [[JOIN]]\nstate c [[choice]]\nA --> f\nf --> c\nc --> j', ['A:rounded:A', 'f:state-fork:', 'j:state-join:', 'c:state-choice:', 'A->f', 'f->c', 'c->j'], []],
+    ['ClassDef hot fill:#f00\nA --> B\nCLASS A hot\nNote Right Of B : hi\nNOTE LEFT OF A\ntext\nEND NOTE', ['A:rounded:A', 'B:rounded:B', 'A->B', 'A:::hot', 'note right of B:hi', 'note left of A:text'], []],
+    ['end A', ['A:rounded:A', 'end:rounded:end'], ['state_statements_share_line@2']],
+    ['State "multi\nline" as X', ['X:rounded:multi\nline'], []],
+    // `State` before a transition or description is a name, as before.
+    ['Small State 2ate1 --> B : go', ['Small:rounded:Small', 'State:rounded:State', '2ate1:rounded:2ate1', 'B:rounded:B', '2ate1->B:go'], ['state_statements_share_line@2']],
+    // A block note opened after another statement keeps its lines whole.
+    ['A note right of B\nsome text\nend note', ['A:rounded:A', 'B:rounded:B', 'note right of B:some text'], ['state_statements_share_line@2']],
+    ['state "multi\nline" as X\nX --> Y', ['X:rounded:multi\nline', 'Y:rounded:Y', 'X->Y'], []],
+    // A `//` line inside the string is text, not a comment.
+    ['state "first\n// second\nthird" as X\nX --> Y', ['X:rounded:first\n// second\nthird', 'Y:rounded:Y', 'X->Y'], []],
+    // Mermaid reads the rest of the line after `as` into the name, `}` too.
+    ['state X {\nstate "x" as A }', ['A:rounded:x', 'X:X{A}'], ['state_brace_after_name@3']],
+    // Mermaid splits the name after `as` at `:`: the text describes A, as
+    // `A : desc` would (a description adds a line to the label). It drops a
+    // class after `:::` and text after a second colon, which ours keeps.
+    ['state "x" as A : desc\nA --> B', ['A:rounded:x\ndesc', 'B:rounded:B', 'A->B'], []],
+    ['state "x" as A:::hot', ['A:rounded:x', 'A:::hot'], ['state_alias_suffix@2']],
+    ['state "x" as A ::: hot', ['A:rounded:x', 'A:::hot'], ['state_alias_suffix@2']],
+    ['state "x" as A : d1 : d2', ['A:rounded:x\nd1 : d2'], ['state_alias_suffix@2']],
+    ['state X {\nstate "x" as A : desc }', ['A:rounded:x\ndesc', 'X:X{A}'], ['state_brace_after_description@3']],
+    // A line inside the string is its text, never an accTitle.
+    ['state X {\nstate "x\naccTitle: y" as A }', ['A:rounded:x\naccTitle: y', 'X:X{A}'], ['state_brace_after_name@3']],
+  ] as const)('%j is read alike by the renderer, the typed body, its output and verify', async (body, expected, warnings) => {
+    const source = `stateDiagram-v2\n${body}`
+    expect(readingOf(parseRenderGraph(source))).toEqual([...expected].sort())
+    const written = serializeMermaid(state(source))
+    expect(readingOf(parseRenderGraph(written))).toEqual([...expected].sort())
+    expect(await upstream.accepts(written), written).toBe(true)
+    const verified = verifyMermaid(source)
+    expect(verified.ok).toBe(true)
+    expect(verified.warnings.flatMap(warning => (warning.code === 'UNSUPPORTED_SYNTAX' ? [`${warning.syntax}@${warning.line}`] : []))).toEqual([...warnings])
+  })
+
+  // Where a composite that nothing closes was meant to end cannot be told, so
+  // no surface may draw its members without it.
+  test.each(['state X {\nA', 'state X {\nA : uses {x}', 'state X {\nstate Y {\nA\n}'])('%j never closes X, so every surface rejects it, as Mermaid does', async body => {
+    const source = `stateDiagram-v2\n${body}`
+    expect(await upstream.accepts(source)).toBe(false)
+    expect(() => parseRenderGraph(source)).toThrow('Composite state "X" is never closed')
+    const parsed = parseMermaid(source)
+    expect(parsed.ok && parsed.value.body.kind).toBe('opaque')
+    const verified = verifyMermaid(source)
+    expect(verified.ok).toBe(false)
+    expect(verified.warnings.map(warning => (warning.code === 'UNSUPPORTED_SYNTAX' ? `${warning.syntax}@${warning.line}` : warning.code))).toEqual(['state_composite_unclosed@2', 'RENDER_FAILED'])
+  })
+
+  test('a transition naming a state Mermaid cannot name there is read, and reported', async () => {
+    const source = 'stateDiagram-v2\nA --> in-flight\nnote --> A\nA --> B'
+    expect(readingOf(parseRenderGraph(source))).toEqual(['A:rounded:A', 'B:rounded:B', 'in-flight:rounded:in-flight', 'note:rounded:note', 'A->in-flight', 'note->A', 'A->B'].sort())
+    expect(state(source).body.transitions).toHaveLength(3)
+    expect(await upstream.accepts(source)).toBe(false)
+    expect(verifyMermaid(source).warnings.flatMap(warning => (warning.code === 'UNSUPPORTED_SYNTAX' ? [`${warning.syntax}@${warning.line}`] : []))).toEqual(['state_endpoint_name@2', 'state_endpoint_name@3'])
+  })
+
+  test('a description naming a state Mermaid cannot name there is read, and reported', async () => {
+    // Mermaid rejects the first three, and drops `State : x` as it drops a
+    // bare `state X`; it reads `direction` as a name, and the name after
+    // `state "…" as` to the line's end.
+    const sources = ['in-flight : x', 'note : x', 'class : x', 'State : x', 'direction : x', 'state "x" as in-flight : y'].map(body => `stateDiagram-v2\n${body}`)
+    expect(sources.map(source => readingOf(parseRenderGraph(source)))).toEqual([['in-flight:rounded:x'], ['note:rounded:x'], ['class:rounded:x'], ['State:rounded:x'], ['direction:rounded:x'], ['in-flight:rounded:x\ny']])
+    expect(sources.map(unsupportedSyntax)).toEqual([['state_description_name@2'], ['state_description_name@2'], ['state_description_name@2'], ['state_description_name@2'], [], []])
+    const drawn = (mermaid: UpstreamDiagram): string[] => mermaid.db.getData().nodes.map((node: { id: string }) => node.id)
+    expect((await upstream.projectEach(sources, drawn)).map(read => (read.ok ? read.value : 'rejected'))).toEqual(['rejected', 'rejected', 'rejected', [], ['direction'], ['in-flight']])
+    // The writer names each state after `state "…" as`, which Mermaid reads.
+    const written = sources.map(source => serializeMermaid(state(source)))
+    expect(written.map(unsupportedSyntax)).toEqual(written.map(() => []))
+    expect(await upstream.projectAll(written, drawn)).toEqual([['in-flight'], ['note'], ['class'], ['State'], ['direction'], ['in-flight']])
+  })
+
+  test('a note on a state Mermaid cannot name as a note target is read, and reported', async () => {
+    // A keyword names a note's state there; a hyphen does not.
+    const oneLine = 'stateDiagram-v2\nnote right of in-flight : x\nnote left of note : y'
+    expect(readingOf(parseRenderGraph(oneLine))).toEqual(['in-flight:rounded:in-flight', 'note:rounded:note', 'note right of in-flight:x', 'note left of note:y'].sort())
+    expect(await upstream.accepts(oneLine)).toBe(false)
+    expect(unsupportedSyntax(oneLine)).toEqual(['state_note_target@2'])
+    // Mermaid's note target ends at the hyphen, and the rest is note text.
+    const block = 'stateDiagram-v2\nA --> B\nnote left of in-flight\ntext\nend note'
+    expect(state(block).body.notes).toEqual([{ target: 'in-flight', side: 'left', text: 'text' }])
+    expect(await upstream.project(block, mermaid => mermaid.db.rootDoc.flatMap((item: any) => (item.note ? [[item.id, item.note.text]] : [])))).toEqual({ ok: true, value: [['in', '-flight\ntext']] })
+    expect(unsupportedSyntax(block)).toEqual(['state_note_target@3'])
+  })
+
+  test('a one-line note whose text holds a colon or `;` is read whole, and reported', async () => {
+    // Mermaid ends a one-line note's text at a colon or `;`, after reading
+    // entity codes: it rejects the colon, and reads on from the `;`.
+    const sources = ['a; b', 'see http://x', 'a #59; b #58; c', ': x'].map(text => `stateDiagram-v2\nA --> B\nnote right of A : ${text}`)
+    expect(sources.map(source => parseRenderGraph(source).stateNotes?.[0]?.text)).toEqual(['a; b', 'see http://x', 'a ; b : c', ': x'])
+    expect(sources.map(unsupportedSyntax)).toEqual([['state_note_text_cut@3'], ['state_note_text_cut@3'], [], ['state_note_text_cut@3']])
+    const notes = (mermaid: UpstreamDiagram): string[] => mermaid.db.rootDoc.flatMap((item: any) => (item.note ? [item.note.text] : []))
+    expect((await upstream.projectEach(sources, notes)).map(read => (read.ok ? read.value.map(text => projectEntityMarkers(text)) : 'rejected'))).toEqual([['a'], 'rejected', ['a ; b : c'], 'rejected'])
+    // The writer writes a block note, which Mermaid reads whole: a colon
+    // starting it as `#58;`, or Mermaid would read a one-line note there.
+    const written = sources.map(source => serializeMermaid(state(source)))
+    expect(written.map(source => parseRenderGraph(source).stateNotes?.[0]?.text)).toEqual(['a; b', 'see http://x', 'a ; b : c', ': x'])
+    expect(written.map(unsupportedSyntax)).toEqual(written.map(() => []))
+    expect((await upstream.projectAll(written, notes)).map(texts => texts.map(text => projectEntityMarkers(text)))).toEqual([['a; b'], ['see http://x'], ['a ; b : c'], [': x']])
+  })
+
+  test('a direction is read in any case, as Mermaid reads it', () => {
+    const source = 'stateDiagram-v2\nDIRECTION lr\nstate X {\nDirection BT\nA\n}'
+    const body = state(source).body
+    expect([body.direction, body.states[0]?.direction]).toEqual(['LR', 'BT'])
+    const graph = parseRenderGraph(source)
+    expect([graph.direction, graph.subgraphs[0]?.direction]).toEqual(['LR', 'BT'])
+    expect(state(serializeMermaid(state(source))).body).toEqual(body)
+  })
+
+  test('a statement after `;` on the header line is read, and reported because Mermaid rejects it', async () => {
+    const source = 'stateDiagram-v2;A-->B'
+    expect(await upstream.accepts(source)).toBe(false)
+    expect(readingOf(parseRenderGraph(source))).toEqual(['A->B', 'A:rounded:A', 'B:rounded:B'])
+    const written = serializeMermaid(state(source))
+    expect(readingOf(parseRenderGraph(written))).toEqual(['A->B', 'A:rounded:A', 'B:rounded:B'])
+    expect(await upstream.accepts(written), written).toBe(true)
+    expect(verifyMermaid(source).warnings).toContainEqual(expect.objectContaining({ code: 'UNSUPPORTED_SYNTAX', syntax: 'state_semicolon_separator', line: 1 }))
   })
 })

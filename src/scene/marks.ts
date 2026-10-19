@@ -1,25 +1,26 @@
 import { sanitizeDisplayLines } from '../shared/text-controls.ts'
+import { hasMarkerCss } from '../output-security.ts'
 // ============================================================================
 // Mark constructors — the only way family lowerings build scene nodes.
 //
-// Each constructor takes semantic fields plus its backend-private SVG
-// serialization. group() builds serialization from open/close/children so
-// styled backends can re-compose restyled children.
-//
-// scene-fidelity.test.ts closes the loop: it parses every serialized element and
-// asserts the semantic fields agree, so a lowering cannot lie about geometry.
+// Shape, text and connector marks are semantic fields only: the backend's
+// writer (svg-writer.ts) draws each one from those fields, so what paint
+// certification reads is what the SVG shows. Groups keep an inert open tag
+// (hooks and their typed transform) and compose their children; document
+// marks carry opaque SVG the fields cannot describe (preludes, definitions,
+// family document content).
 // ============================================================================
 
 import type {
   ConnectorContourSemantics, ConnectorDash, ConnectorEndpointAnchor, ConnectorEndpoints, ConnectorGeometry,
   ConnectorHitGeometry, ConnectorLabelDescriptor, ConnectorMark, ConnectorRelationship,
   ConnectorRoute, ConnectorStroke, ConnectorTerminalProjection, DocumentMark, GroupMark,
-  Geometry, LinearGradientDescriptor, MarkPaint, MarkerDescriptor,
+  Geometry, LinearGradientDescriptor, MarkAttributes, MarkPaint, MarkerDescriptor,
   SceneNode, SceneOwner, SceneRole, SceneTransform, SemanticChannels, ShapeMark, TextMark,
 } from './ir.ts'
 import type { DiagramColors } from '../theme.ts'
 import type { SvgSemanticIdentity } from './identity.ts'
-import { ensureSvgIdentity, semanticIdentityForSvg } from './identity.ts'
+import { ensureSvgIdentity, semanticChildId, semanticIdentityForSvg } from './identity.ts'
 import { ensureSvgAccessibility, relationAccessibility, relationAccessibilityForSvg } from './accessibility.ts'
 import { displayText, escapeAttr, renderMultilineText } from '../multiline-utils.ts'
 import { resolveLabelContent } from '../shared/display-text.ts'
@@ -35,16 +36,71 @@ import {
   sameConnectorPoint,
 } from './connector-geometry.ts'
 import { connectorInlineLabelText } from './bounds.ts'
-import { deriveConnectorTerminalProjection } from './connector-terminal.ts'
+import { setConnectorTerminalProjection, copyDeferredTerminalProjection, deferredTerminalProjectionInput } from './deferred-terminal-projection.ts'
 import { decodedSvgAttributeValue, scanSvgStartTags } from '../svg-structure.ts'
-import { hasMarkerCss } from '../output-security.ts'
-import { serializeTransform } from './transforms.ts'
+import { parseSvgTransform, serializeTransform, transformMatrix } from './transforms.ts'
 import {
+  admitWritableSceneNode,
   attachSceneNodeSerialization,
   attachSceneNodeEmission, attachGroupEmissionViews, transferSceneNodeSerialization,
   canonicalizeSceneNodeSerialization,
-  sceneNodeSerialization,
+  hasSceneNodeSerialization,
 } from './serialization.ts'
+import { MARK_CLASS_TOKENS, MARK_DATA_KEY, WRITER_OWNED_DATA_KEYS } from './svg-writer.ts'
+
+/** Hooks are inert by construction: class tokens and data-* values only, with
+ * the keys the writer derives from typed fields reserved. */
+function assertMarkAttributes(id: string, attributes: MarkAttributes | undefined): void {
+  if (!attributes) return
+  for (const key of Object.keys(attributes)) {
+    if (key !== 'className' && key !== 'data' && key !== 'ariaHidden' && key !== 'tabIndex' && key !== 'ariaLabel') throw new TypeError(`Mark "${id}" has unknown attribute hook "${key}"`)
+  }
+  if (attributes.className !== undefined && !MARK_CLASS_TOKENS.test(attributes.className)) throw new TypeError(`Mark "${id}" class must be space-separated CSS tokens`)
+  for (const [key, value] of Object.entries(attributes.data ?? {})) {
+    if (!MARK_DATA_KEY.test(key)) throw new TypeError(`Mark "${id}" has an invalid data attribute key "${key}"`)
+    if (WRITER_OWNED_DATA_KEYS.has(key)) throw new TypeError(`Mark "${id}" data-${key} belongs to its typed fields`)
+    if (typeof value !== 'string') throw new TypeError(`Mark "${id}" data-${key} must be a string`)
+  }
+  if (attributes.ariaHidden !== undefined && attributes.ariaHidden !== true) throw new TypeError(`Mark "${id}" ariaHidden must be true when present`)
+  if (attributes.tabIndex !== undefined && attributes.tabIndex !== 0) throw new TypeError(`Mark "${id}" tabIndex must be 0 when present`)
+  if (attributes.ariaLabel !== undefined && typeof attributes.ariaLabel !== 'string') throw new TypeError(`Mark "${id}" ariaLabel must be a string`)
+}
+
+const GROUP_HOOK = /^(?:class|data-[a-z][a-z0-9-]*|role|aria-[a-z]+|tabindex|pointer-events|transform|style)$/
+const GROUP_OPEN = /^\s*<g\b[^>]*>(?:<title>[^<]*<\/title>)?$/
+/** Custom properties only: values a family scopes to the group for its marks' var() paints. */
+const CUSTOM_PROPERTIES = /^\s*(?:--[A-Za-z0-9_-]+\s*:[^;]*(?:;\s*|$))*$/
+
+/** A group's open tag carries hooks, and the transform its typed field
+ * declares; paint belongs to the marks inside it, which the writer paints. */
+function assertInertGroupOpen(id: string, open: string, transform: SceneTransform | undefined): void {
+  const tag = GROUP_OPEN.test(open) ? scanSvgStartTags(open)[0] : undefined
+  if (!tag || tag.name !== 'g') throw new TypeError(`Group "${id}" open must be one <g> tag with an optional <title>`)
+  const names = new Set<string>()
+  for (const attribute of tag.attributes) {
+    if (names.has(attribute.name)) throw new TypeError(`Group "${id}" open has a duplicate "${attribute.name}"`)
+    names.add(attribute.name)
+    if (!GROUP_HOOK.test(attribute.name)) throw new TypeError(`Group "${id}" open sets "${attribute.name}"; paint and geometry belong to typed marks`)
+    if (attribute.name === 'style' && !CUSTOM_PROPERTIES.test(decodedSvgAttributeValue(tag, 'style') ?? '')) {
+      throw new TypeError(`Group "${id}" open style may only set custom properties; paint belongs to typed marks`)
+    }
+  }
+  const written = decodedSvgAttributeValue(tag, 'transform')
+  const matrix = written === undefined ? undefined : parseSvgTransform(written)
+  const typed = transform ? transformMatrix(transform) : undefined
+  if (written !== undefined && !matrix) throw new TypeError(`Group "${id}" open has an unsupported transform`)
+  if (!!matrix !== !!typed || matrix && typed && matrix.some((value, index) => Math.abs(value - typed[index]!) > 1e-9 * Math.max(1, Math.abs(value)))) {
+    throw new TypeError(`Group "${id}" open transform disagrees with its typed transform`)
+  }
+}
+
+/** Typed identity: the explicit public identity, or the mark id with its
+ * class tokens, which is what the writer emits as data-id and class. */
+function typedIdentity(fields: { id: string; role: SceneRole; identity?: Omit<SvgSemanticIdentity, 'role'> | false; attributes?: MarkAttributes }): SvgSemanticIdentity {
+  if (fields.identity) return { ...fields.identity, role: fields.role }
+  const classNames = fields.attributes?.className?.split(' ')
+  return { id: fields.id, role: fields.role, ...(classNames ? { classNames } : {}) }
+}
 
 import { projectSvgCoordinate, snapshotSvgEmissionRecipe, type SvgEmissionRecipe, type SvgGroupEmission } from './svg-emission.ts'
 import { decorateEmission, emissionAttribute, emissionIdentity, firstEmission } from './svg-mark-emission.ts'
@@ -52,8 +108,9 @@ import { decorateEmission, emissionAttribute, emissionIdentity, firstEmission } 
 export function shape(fields: {
   id: string
   role: SceneRole
-  /** Optional public DOM identity when the bounded Scene key is internal. */
-  identity?: Omit<SvgSemanticIdentity, 'role'>
+  /** False only for artwork owned by an enclosing semantic group; the group
+   * retains the public identity while this shape retains its paint role. */
+  identity?: Omit<SvgSemanticIdentity, 'role'> | false
   owner?: SceneOwner
   visibility?: 'conditional'
   geometry: Geometry
@@ -62,7 +119,10 @@ export function shape(fields: {
   surfaceFragment?: boolean
   channels?: SemanticChannels
   transform?: SceneTransform
-}, crisp: string | SvgEmissionRecipe): ShapeMark {
+  attributes?: MarkAttributes
+  childPaints?: readonly MarkPaint[]
+}, crisp?: string | SvgEmissionRecipe): ShapeMark {
+  if (crisp === undefined) return nativeShape(fields)
   if (typeof crisp !== 'string') crisp = snapshotSvgEmissionRecipe(crisp)
   const identity: SvgSemanticIdentity = fields.identity
     ? { ...fields.identity, role: fields.role }
@@ -75,12 +135,14 @@ export function shape(fields: {
     kind: 'shape',
     id: fields.id,
     role: fields.role,
-    identity,
+    ...(identity ? { identity } : {}),
     ...(fields.owner ? { owner: fields.owner } : {}),
     ...(fields.visibility ? { visibility: fields.visibility } : {}),
     ...(accessibility ? { accessibility } : {}),
     geometry: fields.geometry,
     paint: fields.paint,
+    ...(fields.childPaints ? { childPaints: fields.childPaints } : {}),
+    ...(fields.attributes ? { attributes: fields.attributes } : {}),
     ...(fields.conditionalPaint ? { conditionalPaint: fields.conditionalPaint } : {}),
     ...(fields.surfaceFragment !== undefined ? { surfaceFragment: fields.surfaceFragment } : {}),
     ...(fields.channels ? { channels: fields.channels } : {}),
@@ -89,13 +151,57 @@ export function shape(fields: {
   return typeof crisp === 'string' ? attachSceneNodeSerialization(result, decorated!) : attachSceneNodeEmission(result, decorateEmission(crisp, result))
 }
 
+function nativeShape(fields: {
+  id: string
+  role: SceneRole
+  /** False only for artwork owned by an enclosing semantic group; the group
+   * retains the public identity while this shape retains its paint role. */
+  identity?: Omit<SvgSemanticIdentity, 'role'> | false
+  owner?: SceneOwner
+  visibility?: 'conditional'
+  geometry: Geometry
+  paint: MarkPaint
+  conditionalPaint?: MarkPaint
+  surfaceFragment?: boolean
+  channels?: SemanticChannels
+  transform?: SceneTransform
+  attributes?: MarkAttributes
+  childPaints?: readonly MarkPaint[]
+}): ShapeMark {
+  assertMarkAttributes(fields.id, fields.attributes)
+  if (fields.childPaints && (fields.geometry.kind !== 'compound' || fields.childPaints.length !== fields.geometry.children.length)) {
+    throw new TypeError(`Shape "${fields.id}" child paints must match its compound geometry`)
+  }
+  if (fields.identity === false && fields.owner?.role !== fields.role) throw new TypeError(`Shape "${fields.id}" without DOM identity requires an explicit owner with the same role`)
+  const identity = fields.identity === false ? undefined : typedIdentity(fields)
+  const accessibility = identity ? relationAccessibility(identity, fields.attributes?.data?.label) : undefined
+  if (accessibility && fields.attributes?.ariaLabel !== undefined) throw new TypeError(`Shape "${fields.id}" takes its aria-label from typed relation accessibility`)
+  return admitWritableSceneNode({
+    kind: 'shape',
+    id: fields.id,
+    role: fields.role,
+    ...(identity ? { identity } : {}),
+    ...(fields.owner ? { owner: fields.owner } : {}),
+    ...(fields.visibility ? { visibility: fields.visibility } : {}),
+    ...(accessibility ? { accessibility } : {}),
+    geometry: fields.geometry,
+    paint: fields.paint,
+    ...(fields.childPaints ? { childPaints: fields.childPaints } : {}),
+    ...(fields.conditionalPaint ? { conditionalPaint: fields.conditionalPaint } : {}),
+    ...(fields.surfaceFragment !== undefined ? { surfaceFragment: fields.surfaceFragment } : {}),
+    ...(fields.channels ? { channels: fields.channels } : {}),
+    ...(fields.transform ? { transform: fields.transform } : {}),
+    ...(fields.attributes ? { attributes: fields.attributes } : {}),
+  })
+}
+
 export interface ConnectorFields {
   id: string
   role: SceneRole
   geometry: ConnectorGeometry
   lineStyle: ConnectorMark['lineStyle']
   paint: MarkPaint
-  /** Typed identity is authoritative; connector() never inspects crisp SVG. */
+  /** Public DOM identity when it differs from the Scene key. */
   identity?: Omit<SvgSemanticIdentity, 'role'>
   owner?: SceneOwner
   visibility?: 'conditional'
@@ -113,13 +219,14 @@ export interface ConnectorFields {
   terminalProjection?: Partial<Pick<ConnectorTerminalProjection, 'diagnostics'>>
   channels?: SemanticChannels
   transform?: SceneTransform
+  attributes?: MarkAttributes
 }
 
 // Runtime admission is closed too: TypeScript permits extra spread properties.
 const CONNECTOR_FIELDS: Record<keyof ConnectorFields, true> = {
   id: true, role: true, geometry: true, lineStyle: true, paint: true,
   identity: true, owner: true, visibility: true, endpoints: true, relationship: true, route: true, stroke: true,
-  markers: true, labels: true, hit: true, terminalProjection: true, channels: true, transform: true,
+  markers: true, labels: true, hit: true, terminalProjection: true, channels: true, transform: true, attributes: true,
 }
 const CONNECTOR_MARKER_FIELDS: Record<keyof NonNullable<ConnectorFields['markers']>, true> = { start: true, mid: true, end: true }
 
@@ -290,8 +397,8 @@ function connectorInlineLabelSvg(
   return renderMultilineText(block, label.anchor.x, label.anchor.y - Math.max(0, label.clearance ?? 0), block.fontSize, attrs.join(' '), 0)
 }
 
-export function connector(fields: ConnectorFields, crisp: string | SvgEmissionRecipe): ConnectorMark {
-  if (typeof crisp !== 'string') crisp = snapshotSvgEmissionRecipe(crisp)
+export function connector(fields: ConnectorFields, crisp?: string | SvgEmissionRecipe): ConnectorMark {
+  if (crisp !== undefined && typeof crisp !== 'string') crisp = snapshotSvgEmissionRecipe(crisp)
   assertKnownConnectorFields(fields, CONNECTOR_FIELDS, 'connector')
   if (fields.markers !== undefined) assertKnownConnectorFields(fields.markers, CONNECTOR_MARKER_FIELDS, 'marker')
   if (fields.geometry.kind !== 'path' && fields.route?.closed === true) {
@@ -402,6 +509,13 @@ export function connector(fields: ConnectorFields, crisp: string | SvgEmissionRe
     if (inlineLabels.length > 0) decorated = [decorated, ...inlineLabels].join('\n')
   }
 
+  if (crisp === undefined) for (const [index, label] of labels.entries()) {
+    if (label.visual?.kind === 'inline' && (!label.anchor || !label.paint || label.fontSize === undefined || label.textAnchor === undefined)) {
+      throw new TypeError(`Connector "${fields.id}" inline label ${index + 1} requires anchor, paint, fontSize, and textAnchor`)
+    }
+  }
+  assertMarkAttributes(fields.id, fields.attributes)
+  if (accessibility && fields.attributes?.ariaLabel !== undefined) throw new TypeError(`Connector "${fields.id}" takes its aria-label from typed relation accessibility`)
   const width = fields.stroke?.width ?? fields.paint.strokeWidth ?? '1'
   const dash = fields.stroke?.dash
     ?? (fields.paint.strokeDasharray ? {
@@ -514,7 +628,7 @@ export function connector(fields: ConnectorFields, crisp: string | SvgEmissionRe
     strokeWidth: fields.hit?.strokeWidth ?? Math.max(6, numericStrokeWidth(width)),
     pointerEvents: fields.hit?.pointerEvents ?? (fields.lineStyle === 'invisible' ? 'none' : 'stroke'),
   }
-  const terminalProjection = deriveConnectorTerminalProjection({
+  const terminalInput = {
     geometry: fields.geometry,
     lineStyle: fields.lineStyle,
     endpoints,
@@ -526,7 +640,7 @@ export function connector(fields: ConnectorFields, crisp: string | SvgEmissionRe
     hit,
     ...(fields.transform ? { transform: fields.transform } : {}),
     additionalDiagnostics: fields.terminalProjection?.diagnostics,
-  })
+  }
 
   const result: ConnectorMark = {
     kind: 'connector',
@@ -540,14 +654,17 @@ export function connector(fields: ConnectorFields, crisp: string | SvgEmissionRe
     markers: { ...(markerStart ? { start: markerStart } : {}), mid: midMarkers, ...(markerEnd ? { end: markerEnd } : {}) },
     labels,
     hit,
-    terminalProjection,
+    terminalProjection: undefined as unknown as ConnectorTerminalProjection,
     identity,
     ...(fields.owner ? { owner: fields.owner } : {}),
     ...(fields.visibility ? { visibility: fields.visibility } : {}),
     ...(accessibility ? { accessibility } : {}),
     ...(fields.channels ? { channels: fields.channels } : {}),
     ...(fields.transform ? { transform: fields.transform } : {}),
+    ...(fields.attributes ? { attributes: fields.attributes } : {}),
   }
+  setConnectorTerminalProjection(result, terminalInput)
+  if (crisp === undefined) return admitWritableSceneNode(result)
   if (typeof crisp === 'string') return attachSceneNodeSerialization(result, decorated!)
   const carrier = decorateEmission(crisp, result, true)
   for (const [index, label] of labels.entries()) {
@@ -577,7 +694,14 @@ export function text(fields: {
   pageFill?: string
   channels?: SemanticChannels
   transform?: SceneTransform
-}, crisp: string | SvgEmissionRecipe): TextMark {
+  attributes?: MarkAttributes
+  baselineShift?: number
+  dominantBaseline?: TextMark['dominantBaseline']
+  fontStyle?: TextMark['fontStyle']
+  textDecoration?: TextMark['textDecoration']
+  spans?: TextMark['spans']
+}, crisp?: string | SvgEmissionRecipe): TextMark {
+  if (crisp === undefined) return nativeText(fields)
   if (typeof crisp !== 'string') crisp = snapshotSvgEmissionRecipe(crisp)
   const { block, ...semantic } = fields
   if (block) {
@@ -603,7 +727,9 @@ export function text(fields: {
       const native = block && /[^\x20-\x7e]/u.test(block.lineBlocks.map(line => line.runs.map(run => run.text).join('')).join(''))
       renderedDy = native ? (projectSvgCoordinate(fields.y, first.positionFormat) + firstDy) - fields.y : firstDy
     }
-    const offsetY = renderedDy + (measured.lines.length - 1) * measured.lineHeight / 2 - fields.fontSize * 0.35
+    const firstLineCentre = fields.dominantBaseline === 'hanging' ? measured.lineHeight / 2
+      : fields.dominantBaseline === 'middle' || fields.dominantBaseline === 'central' ? 0 : -fields.fontSize * 0.35
+    const offsetY = renderedDy + (measured.lines.length - 1) * measured.lineHeight / 2 + firstLineCentre
     const identity = fields.identity ? { ...fields.identity, role: fields.role } : emissionIdentity(crisp, fields)
     const accessibility = relationAccessibility(identity, emissionAttribute(crisp, 'data-label', temporary))
     const result: TextMark = { kind: 'text', ...semantic, identity, accessibility, block: measured,
@@ -629,6 +755,71 @@ export function text(fields: {
     : relationAccessibilityForSvg(crisp, identity)
   const decorated = ensureSvgAccessibility(ensureSvgIdentity(crisp, identity), accessibility)
   return attachSceneNodeSerialization({ kind: 'text', ...semantic, identity, accessibility, block: measured, measurement: block ? 'prepared' : 'fallback', ...(block ? { prepared: true, preparedLines: block.lineBlocks.map(line => line.runs) } : {}), fontWeight: weight, letterSpacing: spacing, display, textLayout: { width: measured.width, height: measured.height, lineHeight: measured.lineHeight, offsetY } }, decorated)
+}
+
+function nativeText(fields: {
+  id: string
+  role: SceneRole
+  /** Optional public DOM identity when the bounded Scene key is internal. */
+  identity?: Omit<SvgSemanticIdentity, 'role'>
+  owner?: SceneOwner
+  visibility?: 'conditional'
+  text: string
+  x: number
+  y: number
+  fontSize: number
+  fontWeight?: number
+  letterSpacing?: number
+  display?: LabelDisplay
+  block?: PixelTextBlock
+  anchor: TextMark['anchor']
+  paint: MarkPaint
+  pageFill?: string
+  channels?: SemanticChannels
+  transform?: SceneTransform
+  attributes?: MarkAttributes
+  baselineShift?: number
+  dominantBaseline?: TextMark['dominantBaseline']
+  fontStyle?: TextMark['fontStyle']
+  textDecoration?: TextMark['textDecoration']
+  spans?: TextMark['spans']
+}): TextMark {
+  const { block, ...semantic } = fields
+  if (block) {
+    for (const field of ['fontSize', 'fontWeight', 'letterSpacing'] as const) {
+      if (fields[field] !== undefined && fields[field] !== block[field]) throw new TypeError(`Text "${fields.id}" ${field} differs from its retained prepared block`)
+    }
+  }
+  assertMarkAttributes(fields.id, fields.attributes)
+  const weight = fields.fontWeight ?? block?.fontWeight ?? 400
+  const spacing = fields.letterSpacing ?? block?.letterSpacing ?? 0
+  const display = fields.display ?? block?.prepared.display ?? 'formatted'
+  const measured = block ?? preparePixelText(fields.text, { display, fontSize: fields.fontSize, fontWeight: weight, letterSpacing: spacing })
+  if (fields.spans && (measured.lines.length !== 1 || fields.spans.map(span => span.text).join('') !== measured.text)) {
+    throw new TypeError(`Text "${fields.id}" spans must spell its one displayed line`)
+  }
+  // The writer's first baseline: shift ems below y, less half the extra
+  // lines, as renderMultilineText places it. Unprepared text keeps that
+  // writer's nominal line height. An alphabetic line is centred 0.35em above
+  // that baseline; a middle or central baseline is the line's centre, and a
+  // hanging baseline its top.
+  const shift = fields.baselineShift ?? 0.35
+  const lines = measured.lines.length
+  const writtenLineHeight = block ? block.lineHeight : fields.fontSize * LINE_HEIGHT_RATIO
+  const firstDy = (lines === 1 ? 0 : -((lines - 1) / 2) * writtenLineHeight) + fields.fontSize * shift
+  const firstLineCentre = fields.dominantBaseline === 'hanging' ? measured.lineHeight / 2
+    : fields.dominantBaseline === 'middle' || fields.dominantBaseline === 'central' ? 0
+      : -fields.fontSize * 0.35
+  const offsetY = firstDy + (lines - 1) * measured.lineHeight / 2 + firstLineCentre
+  const identity = typedIdentity(fields)
+  const accessibility = relationAccessibility(identity, fields.attributes?.data?.label)
+  if (accessibility && fields.attributes?.ariaLabel !== undefined) throw new TypeError(`Text "${fields.id}" takes its aria-label from typed relation accessibility`)
+  return admitWritableSceneNode({
+    kind: 'text', ...semantic, identity, accessibility, block: measured, measurement: block ? 'prepared' : 'fallback',
+    ...(block ? { prepared: true, preparedLines: block.lineBlocks.map(line => line.runs) } : {}),
+    fontWeight: weight, letterSpacing: spacing, display,
+    textLayout: { width: measured.width, height: measured.height, lineHeight: measured.lineHeight, offsetY },
+  })
 }
 
 export function documentContent(fields: {
@@ -667,13 +858,7 @@ export function documentClose(): DocumentMark {
   return attachSceneNodeEmission({ kind: 'document', id: 'svg-close', role: 'chrome', element: 'close' }, { kind: 'close' })
 }
 
-/** Indent every line of a serialized chunk by `n` spaces — the same transform
- *  the string renderers applied via `'  ' + s.replace(/\n/g, '\n  ')`. */
-export function indentLines(s: string, n: number): string {
-  if (n <= 0 || s === '') return s
-  const pad = ' '.repeat(n)
-  return pad + s.replace(/\n/g, `\n${pad}`)
-}
+export { indentLines } from './serialization.ts'
 
 export function group(fields: {
   id: string
@@ -687,6 +872,7 @@ export function group(fields: {
   children: Array<{ node: SceneNode; indent: number }>
   join?: string
   channels?: SemanticChannels
+  paint?: GroupMark['paint']
 }): GroupMark {
   if (fields.emission) {
     const recipe = snapshotSvgEmissionRecipe(fields.emission) as SvgGroupEmission
@@ -694,8 +880,17 @@ export function group(fields: {
     const owner = fields.owner ?? { id: identity.id, role: identity.role }
     const children = fields.children.map(child => {
       if (child.node.owner || child.node.kind === 'document' || child.node.kind === 'group') return child
-      const node = { ...child.node, owner }
-      transferSceneNodeSerialization(child.node, node)
+      let node: SceneNode
+      if (deferredTerminalProjectionInput(child.node)) {
+        // A spread would materialize the terminal-only payload. Preserve the
+        // enumerable property's position and install a getter for this copy.
+        const copied: Record<string, unknown> = {}
+        for (const key of Object.keys(child.node)) copied[key] = key === 'terminalProjection' ? undefined : (child.node as unknown as Record<string, unknown>)[key]
+        copied.owner = owner
+        node = copied as unknown as ConnectorMark
+        copyDeferredTerminalProjection(child.node, node)
+      } else node = { ...child.node, owner }
+      if (hasSceneNodeSerialization(child.node)) transferSceneNodeSerialization(child.node, node)
       return { ...child, node }
     })
     const node: GroupMark = { kind: 'group', id: fields.id, role: fields.role, open: '', close: '',
@@ -706,27 +901,38 @@ export function group(fields: {
     return attachGroupEmissionViews(attachSceneNodeEmission(node, decorated), decorated)
   }
   if (typeof fields.open !== 'string' || typeof fields.close !== 'string') throw new TypeError('Group requires open/close strings or typed emission')
+  assertInertGroupOpen(fields.id, fields.open, fields.transform)
   const join = fields.join ?? '\n'
   const identity = semanticIdentityForSvg(fields.open, fields)
+  const cascade = fields.paint && [
+    ...(fields.paint.opacity !== undefined ? [`opacity="${escapeAttr(fields.paint.opacity)}"`] : []),
+    ...(fields.paint.fill !== undefined ? [`fill="${escapeAttr(fields.paint.fill)}"`] : []),
+  ].join(' ')
+  const painted = cascade ? fields.open.replace(/^<g\b/, `<g ${cascade}`) : fields.open
   const owner = fields.owner ?? { id: identity.id, role: identity.role }
   // A mark can participate in more than one document. Ownership belongs to
   // this composition, so never mutate a caller's reusable child in place.
-  const children = fields.children.map(child => ({
-    ...child,
-    node: child.node.owner || child.node.kind === 'document' || child.node.kind === 'group'
-      ? child.node
-      : attachSceneNodeSerialization({ ...child.node, owner }, sceneNodeSerialization(child.node)),
-  }))
+  const children = fields.children.map(child => {
+    if (child.node.owner || child.node.kind === 'document' || child.node.kind === 'group') return child
+    let node: SceneNode
+    if (deferredTerminalProjectionInput(child.node)) {
+      // A spread would materialize the terminal-only payload. Preserve the
+      // enumerable property's position and install a getter for this copy.
+      const copied: Record<string, unknown> = {}
+      for (const key of Object.keys(child.node)) copied[key] = key === 'terminalProjection' ? undefined : (child.node as unknown as Record<string, unknown>)[key]
+      copied.owner = owner
+      node = copied as unknown as ConnectorMark
+      copyDeferredTerminalProjection(child.node, node)
+    } else node = { ...child.node, owner }
+    if (hasSceneNodeSerialization(child.node)) transferSceneNodeSerialization(child.node, node)
+    return { ...child, node }
+  })
   // Relation accessibility belongs to the typed ConnectorMark. Composite
   // wrappers may carry grouping metadata, but must not create a second ARIA
-  // relation beside the connector authority.
-  const open = canonicalizeSceneNodeSerialization(ensureSvgIdentity(fields.open, identity))
-  const segments: string[] = [open]
-  for (const child of children) {
-    segments.push(indentLines(sceneNodeSerialization(child.node), child.indent))
-  }
-  segments.push(fields.close)
-  return attachSceneNodeSerialization({
+  // relation beside the connector authority. The writer serializes a group
+  // from its open tag, children and close tag.
+  const open = canonicalizeSceneNodeSerialization(ensureSvgIdentity(painted, identity))
+  return admitWritableSceneNode({
     kind: 'group',
     id: fields.id,
     role: fields.role,
@@ -739,7 +945,8 @@ export function group(fields: {
     owner,
     ...(fields.visibility ? { visibility: fields.visibility } : {}),
     ...(fields.transform ? { transform: fields.transform } : {}),
-  }, segments.join(join))
+    ...(fields.paint ? { paint: fields.paint } : {}),
+  })
 }
 
 export function documentOpen(fields: {
@@ -759,4 +966,34 @@ export function documentOpen(fields: {
     role: 'prelude',
   }
   return typeof svg === 'string' ? attachSceneNodeSerialization(node, svg) : attachSceneNodeEmission(node, svg)
+}
+
+/** Lower bounded, source-owned icon paths without recovering geometry from SVG.
+ * Each path carries the paint; the group's open tag carries hooks and the
+ * transform only. */
+export function pathArtwork(fields: {
+  id: string
+  paths: readonly string[]
+  open: string
+  paint: MarkPaint
+  transform?: SceneTransform
+  owner?: SceneOwner
+  channels?: SemanticChannels
+  join?: string
+  indent?: number
+}): GroupMark {
+  return group({
+    id: fields.id, role: 'icon', open: fields.open, close: '</g>',
+    ...(fields.transform ? { transform: fields.transform } : {}),
+    ...(fields.owner ? { owner: fields.owner } : {}),
+    ...(fields.channels ? { channels: fields.channels } : {}),
+    join: fields.join ?? '',
+    children: fields.paths.map((path, index) => ({
+      indent: fields.indent ?? 0,
+      node: shape({ id: semanticChildId(fields.id, 'path', index), role: 'icon',
+        geometry: { kind: 'path', d: path }, paint: fields.paint,
+        ...(fields.owner ? { owner: fields.owner } : {}),
+      }),
+    })),
+  })
 }

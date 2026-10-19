@@ -17,6 +17,8 @@ export type ShapeRoutingBoundary =
 
 export interface RenderedShapeOutline {
   geometry: Geometry
+  paint: MarkPaint
+  childPaints?: MarkPaint[]
   readonly emission: SvgEmissionRecipe
   /** Compatibility view for internal outline consumers, never retained. */
   readonly crisp: string
@@ -98,7 +100,14 @@ const STATE_END_EMISSION = snapshotSvgEmissionRecipe({ kind: 'sequence', join: '
 /** Routing asks only for geometry. Serialization is a shared-emitter view, so
  * producing a routing profile never constructs or retains SVG. */
 function outline(geometry: Geometry, paint: MarkPaint, routing: ShapeRoutingBoundary, emission: SvgEmissionRecipe): RenderedShapeOutline {
-  return { geometry, routing, emission,
+  const surface = { ...paint }
+  let childPaints: MarkPaint[] | undefined
+  if (emission === OPEN_PATH_EMISSION) surface.fill = 'none'
+  if (emission === TEXT_EMISSION) { surface.fill = 'none'; surface.stroke = 'none' }
+  if (emission === SUBROUTINE_EMISSION) childPaints = [surface, { stroke: paint.stroke, strokeWidth: paint.strokeWidth }, { stroke: paint.stroke, strokeWidth: paint.strokeWidth }]
+  if (emission === CYLINDER_EMISSION) childPaints = [{ fill: paint.fill, stroke: 'none' }, { stroke: paint.stroke, strokeWidth: paint.strokeWidth }, { stroke: paint.stroke, strokeWidth: paint.strokeWidth }, surface, surface]
+  if (emission === STATE_END_EMISSION) childPaints = [{ fill: 'none', stroke: 'var(--_text)', strokeWidth: String(STROKE_WIDTHS.innerBox * 2) }, { fill: 'var(--_text)', stroke: 'none' }]
+  return { geometry, paint: surface, ...(childPaints ? { childPaints } : {}), routing, emission,
     get crisp() { return serializeSvgEmission({ kind: 'shape', id: 'outline', role: 'node', geometry, paint }, emission) },
   }
 }
@@ -120,7 +129,7 @@ const path = (
 
 /**
  * The single renderer/routing authority for flowchart and state node shapes.
- * Every output couples its Scene geometry, default SVG projection, and route
+ * Every output couples its Scene geometry, the paint of each piece, and route
  * boundary so a new shape cannot silently update only one consumer.
  */
 export function shapeOutline(

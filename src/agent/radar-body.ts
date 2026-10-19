@@ -14,8 +14,9 @@
 // add/remove/reorder-axis re-shape every curve's value vector and the mutator
 // keeps `curve.values.length === axes.length` by construction.
 //
-// Structured-or-opaque: accTitle/accDescr and any unmodeled/malformed line
-// returns null so the caller falls back to a lossless opaque body. The
+// Structured-or-opaque: any unmodeled/malformed line returns null so the
+// caller falls back to a lossless opaque body. Accessibility rides the
+// universal envelope. The
 // serializer emits a canonical form the legacy parser re-parses identically
 // (differential-tested). Empty (no axes) → opaque, so the loud "no axes" render
 // error still surfaces.
@@ -23,14 +24,16 @@
 
 import { unknownOpMessage } from './mutation-ops.ts'
 import type {
-  RadarBody, RadarMutationOp,
+  Accessibility, RadarBody, RadarMutationOp,
   MutationError, Result, LayoutWarning, VerifyOptions,
 } from './types.ts'
 import { ok, err } from './types.ts'
 import { labelOverflowCollector, setOptionalField } from './body-utils.ts'
-import { MAX_RADAR_TICKS, parseRadarChart } from '../radar/parser.ts'
+import { MAX_RADAR_TICKS, parseRadarChart, radarStatementEnds } from '../radar/parser.ts'
 import { resolveRadarScale } from '../radar/scale.ts'
 import { normalizeBrTags } from '../multiline-utils.ts'
+import { normalizeMermaidSource } from '../mermaid-source.ts'
+import { statementAccessibilityConflicts } from './accessibility-envelope.ts'
 
 // ---- Shared lexical shapes --------------------------------------------------
 
@@ -43,11 +46,16 @@ function formatNumber(n: number): string { return String(n) }
 
 /**
  * Construct the typed body only after the renderer parser has fully recognized
- * the source. Accessibility remains source-preserved/opaque, and model states
- * that cannot uphold stable identity plus axis↔value coupling stay opaque.
+ * the source. Model states that cannot uphold stable identity plus axis↔value
+ * coupling stay opaque. `accessibility` is what the grammar read after a
+ * statement on its line, as authored, for the source envelope.
  */
-export function parseRadarBody(lines: string[]): RadarBody | null {
-  if (lines.some(raw => /^\s*acc(?:Title|Descr)\b/i.test(raw))) return null
+export function parseRadarBody(lines: string[]): { body: RadarBody; accessibility: Accessibility } | null {
+  // A line inside a quoted label is text, whatever it holds.
+  const ends = radarStatementEnds(lines)
+  for (let index = 0; index < lines.length; index = ends[index]! + 1) {
+    if (/^\s*acc(?:Title|Descr)\b/i.test(lines[index]!)) return null
+  }
   const sourceLines = lines.some(raw => HEADER_RE.test(raw.trim())) ? lines : ['radar-beta', ...lines]
   try {
     const chart = parseRadarChart(sourceLines)
@@ -62,7 +70,7 @@ export function parseRadarBody(lines: string[]): RadarBody | null {
       graticule: chart.graticule,
       showLegend: chart.showLegend,
     }
-    return radarBodyProblem(body, true) === null ? body : null
+    return radarBodyProblem(body, true) === null ? { body, accessibility: chart.statementAccessibility ?? {} } : null
   } catch {
     return null
   }
@@ -359,6 +367,22 @@ function reorder(len: number, from: unknown, to: unknown, what: string): Result<
 }
 
 // ---- Verifier (FamilyPlugin.verify hook) ------------------------------------
+
+/** Radar source ours reads otherwise than Mermaid: an accessibility
+ * directive after a statement on its line beside another value for it on a
+ * line of its own (the parse hook keeps that source). */
+export function radarUnsupportedSyntaxWarnings(canonicalSource: string): LayoutWarning[] {
+  if (!/acc(?:Title|Descr)/i.test(canonicalSource)) return []
+  const source = normalizeMermaidSource(canonicalSource)
+  if (source.accessibility.title === undefined && source.accessibility.descr === undefined) return []
+  let read: Accessibility | undefined
+  try { read = parseRadarChart(source.familyLines).statementAccessibility } catch { return [] }
+  return statementAccessibilityConflicts(read ?? {}, source.accessibility).map(directive => ({
+    code: 'UNSUPPORTED_SYNTAX',
+    syntax: 'radar_accessibility_order',
+    message: `Radar chart has an ${directive} after a statement on its line and another on a line of its own. Mermaid keeps the one written last; this reader cannot tell which that is, so the source is kept as written and the one on its own line is drawn. Keep one ${directive}, on a line of its own.`,
+  }))
+}
 
 export function verifyRadar(body: RadarBody, opts: VerifyOptions): LayoutWarning[] {
   const warnings: LayoutWarning[] = []

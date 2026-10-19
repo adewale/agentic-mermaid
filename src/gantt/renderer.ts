@@ -1,5 +1,7 @@
-import { pixelTextLine, preparePixelText, type PixelTextBlock } from '../shared/prepared-text.ts'
 import { HAS_FORMAT_TAGS } from '../shared/inline-format.ts'
+import type { MarkAttributes } from '../scene/ir.ts';
+import { type PixelTextBlock, pixelTextLine, preparePixelText } from '../shared/prepared-text.ts'
+
 // ============================================================================
 // Gantt SVG renderer (docs/design/families/gantt.md §4).
 //
@@ -40,12 +42,21 @@ import { snapshotSvgEmissionRecipe, svgValue as v, type SvgAttribute, type SvgCs
 import { resolveRoleStyle } from '../scene/style-registry.ts'
 import type { RoleStyleSpec } from '../scene/style-spec.ts'
 
+
+
+
+
+
+
+
 const GS = {
   barRadius: 3,
 } as const
 
-/** Resolved paint tokens shared by the CSS block and the scene-mark paints,
- *  so styled backends see exactly the colors the crisp classes apply. */
+/** Dependency arrow opacity, shared by each line and its arrowhead. */
+const DEP_ARROW_OPACITY = { plain: '0.6', critical: '0.95' } as const
+
+/** Resolved paint tokens for the scene-mark paints, which the writer draws. */
 interface GanttPalette {
   groupFill: string
   groupOpacity: string
@@ -84,77 +95,11 @@ function ganttPalette(style: ResolvedRenderStyle): GanttPalette {
 }
 
 /** Opt-in overlay flags (RenderOptions.gantt), pre-gated on the layout
- *  actually having something to draw so the CSS never carries dead rules. */
+ *  actually having something to draw. */
 interface GanttOverlayFlags {
   dependencyArrows: boolean
   criticalBars: boolean
   criticalArrows: boolean
-}
-
-const OVERLAY_OFF: GanttOverlayFlags = { dependencyArrows: false, criticalBars: false, criticalArrows: false }
-
-/** Content-conditional rules (not option-gated): emitted only when the layout
- *  actually draws the mark, so charts without it stay byte-identical. */
-interface GanttConditionalCss {
-  excludedBands: boolean
-  milestoneDone: boolean
-  milestoneActive: boolean
-}
-
-const CONDITIONAL_OFF: GanttConditionalCss = { excludedBands: false, milestoneDone: false, milestoneActive: false }
-
-function ganttStyles(
-  style: ResolvedRenderStyle,
-  overlay: GanttOverlayFlags = OVERLAY_OFF,
-  conditional: GanttConditionalCss = CONDITIONAL_OFF,
-): string {
-  const p = ganttPalette(style)
-
-  // Overlay/conditional rules append after the base rules (equal specificity —
-  // later wins) and only when their option/content draws something, so the
-  // default CSS block stays byte-identical otherwise. The connector is
-  // deliberately quieter than the bars (the journey curve's restraint);
-  // critical-path emphasis is the stronger stroke, never a hard-coded red
-  // (Google-Charts lesson from the research doc: opt-in and theme-aware).
-  const extra: string[] = []
-  if (conditional.excludedBands) {
-    // Excluded-day shading (item 2, default-on upstream parity): a quiet tint
-    // slightly stronger than the section band so weekends read as "off" days.
-    extra.push(`  .gantt-excluded-band { fill: ${p.excludedFill}; opacity: 0.1; }`)
-  }
-  if (conditional.milestoneDone) {
-    extra.push(`  .gantt-milestone-done { fill: ${p.doneFill}; opacity: ${style.nodeFillColor ? '0.72' : '0.55'}; }`)
-  }
-  if (conditional.milestoneActive) {
-    extra.push(`  .gantt-milestone-active { fill: ${p.nodeFill}; stroke: ${p.nodeBorder}; stroke-width: ${Math.max(1.5, style.nodeLineWidth)}; opacity: 1; }`)
-  }
-  if (overlay.dependencyArrows) {
-    extra.push(`  .gantt-dep-arrow { fill: none; stroke: ${p.edgeStroke}; stroke-width: ${Math.max(1.2, style.lineWidth)}; opacity: 0.6; }`)
-  }
-  if (overlay.criticalArrows) {
-    extra.push(`  .gantt-dep-arrow-crit { stroke: ${p.criticalStroke}; stroke-width: ${Math.max(1.8, style.lineWidth * 1.5)}; opacity: 0.95; }`)
-  }
-  if (overlay.criticalBars) {
-    extra.push(`  .gantt-bar-critical-path { stroke: ${p.criticalStroke}; stroke-width: ${Math.max(2, style.nodeLineWidth * 1.5)}; }`)
-  }
-  const overlayCss = extra.length > 0 ? `${extra.join('\n')}\n` : ''
-
-  return `
-  .gantt-section-band { fill: ${p.groupFill}; opacity: ${p.groupOpacity}; }
-  .gantt-grid-line { stroke: ${p.edgeStroke}; stroke-width: ${style.lineWidth}; opacity: ${style.edgeStrokeColor ? '0.6' : '0.45'}; }
-  .gantt-bar { fill: ${p.nodeFill}; stroke: ${style.nodeBorderColor ? p.nodeBorder : 'none'};${style.nodeBorderColor ? ` stroke-width: ${style.nodeLineWidth};` : ''} opacity: 0.92; }
-  .gantt-bar-active { fill: ${p.nodeFill}; stroke: ${p.nodeBorder}; stroke-width: ${Math.max(1.5, style.nodeLineWidth)}; opacity: 1; }
-  .gantt-bar-done { fill: ${p.doneFill}; opacity: ${style.nodeFillColor ? '0.72' : '0.55'}; }
-  .gantt-bar-crit { fill: ${p.criticalFill}; stroke: ${p.criticalStroke}; stroke-width: ${Math.max(1.5, style.nodeLineWidth)}; opacity: 0.95; }
-  .gantt-milestone { fill: ${p.nodeFill}; stroke: ${p.nodeBorder}; stroke-width: ${Math.max(1, style.nodeLineWidth)}; }
-  .gantt-milestone-crit { fill: ${p.criticalFill}; stroke: ${p.criticalStroke}; stroke-width: ${Math.max(1.5, style.nodeLineWidth)}; }
-  .gantt-vert-marker { stroke: ${p.edgeStroke}; stroke-width: ${Math.max(2, style.lineWidth)}; stroke-dasharray: 6 3; }
-  .gantt-today-marker { stroke: ${style.edgeStrokeColor ?? 'var(--accent, var(--fg))'}; stroke-width: ${Math.max(2, style.lineWidth)}; stroke-dasharray: 4 3; }
-  .gantt-title { fill: ${p.titleFill}; }
-  .gantt-section-label { fill: ${p.groupText}; }
-  .gantt-task-label { fill: ${p.taskText}; }
-  .gantt-axis-label { fill: ${p.axisText}; }
-${overlayCss}`
 }
 
 function statusClass(tags: readonly string[]): string {
@@ -172,26 +117,25 @@ function statusChannel(tags: readonly string[]): 'done' | 'active' | 'crit' | un
   return undefined
 }
 
-/** Bar paint per status — mirrors the .gantt-bar* CSS rules exactly. */
+/** Bar paint per status. A done bar keeps the plain bar's border. */
 function barPaint(status: 'done' | 'active' | 'crit' | undefined, p: GanttPalette, style: ResolvedRenderStyle): MarkPaint {
+  const border: MarkPaint = {
+    stroke: style.nodeBorderColor ? p.nodeBorder : 'none',
+    ...(style.nodeBorderColor ? { strokeWidth: String(style.nodeLineWidth) } : {}),
+  }
   switch (status) {
     case 'crit':
       return { fill: p.criticalFill, stroke: p.criticalStroke, strokeWidth: String(Math.max(1.5, style.nodeLineWidth)), opacity: '0.95' }
     case 'active':
       return { fill: p.nodeFill, stroke: p.nodeBorder, strokeWidth: String(Math.max(1.5, style.nodeLineWidth)), opacity: '1' }
     case 'done':
-      return { fill: p.doneFill, opacity: style.nodeFillColor ? '0.72' : '0.55' }
+      return { fill: p.doneFill, ...border, opacity: style.nodeFillColor ? '0.72' : '0.55' }
     default:
-      return {
-        fill: p.nodeFill,
-        stroke: style.nodeBorderColor ? p.nodeBorder : 'none',
-        ...(style.nodeBorderColor ? { strokeWidth: String(style.nodeLineWidth) } : {}),
-        opacity: '0.92',
-      }
+      return { fill: p.nodeFill, ...border, opacity: '0.92' }
   }
 }
 
-type GanttTextClass = 'gantt-axis-label' | 'gantt-section-label' | 'gantt-task-label' | 'gantt-title'
+type GanttTextClass = 'gantt-axis-label' | 'gantt-section-label' | 'gantt-task-label' | 'gantt-title' | 'gantt-empty-state'
 
 function textAttributes(className: GanttTextClass, direct: boolean, literal = false): SvgAttribute[] {
   return [
@@ -199,20 +143,27 @@ function textAttributes(className: GanttTextClass, direct: boolean, literal = fa
     ...(direct ? [{ name: 'x' as const, value: v.text('x') }, { name: 'y' as const, value: v.text('y') }] : []),
     { name: 'text-anchor', value: v.text('anchor') },
     ...(direct ? [{ name: 'dominant-baseline' as const, value: v.meta('middle') }] : []),
-    { name: 'font-size', value: v.text('fontSize') }, { name: 'font-weight', value: v.text('fontWeight') },
+    { name: 'font-size', value: v.text('fontSize') }, { name: 'font-weight', value: v.text('fontWeight') }, { name: 'fill', value: v.paint('fill') },
     { name: 'letter-spacing', value: v.text('letterSpacing'), omit: 'zero' },
     ...(literal ? [{ name: 'data-literal-text' as const, value: v.meta(true) }] : []),
   ]
 }
 
-const TEXT_EMISSIONS = new Map((['gantt-axis-label', 'gantt-section-label', 'gantt-task-label', 'gantt-title'] as const).map(className => [className, {
+const TEXT_EMISSIONS = new Map((['gantt-axis-label', 'gantt-section-label', 'gantt-task-label', 'gantt-title', 'gantt-empty-state'] as const).map(className => [className, {
   prepared: snapshotSvgEmissionRecipe({ kind: 'text', layout: 'multiline', attributes: textAttributes(className, false) }),
   direct: [false, true].map(literal => snapshotSvgEmissionRecipe({ kind: 'text', layout: 'direct', attributes: textAttributes(className, true, literal) })),
 }]))
 
+const PAINT_ATTRIBUTES: readonly SvgAttribute[] = [
+  { name: 'fill', value: v.paint('fill') }, { name: 'stroke', value: v.paint('stroke') }, { name: 'stroke-width', value: v.paint('strokeWidth') },
+  { name: 'stroke-dasharray', value: v.paint('strokeDasharray') }, { name: 'stroke-linecap', value: v.paint('strokeLinecap') },
+  { name: 'stroke-linejoin', value: v.paint('strokeLinejoin') }, { name: 'opacity', value: v.paint('opacity') },
+  { name: 'fill-opacity', value: v.paint('fillOpacity') }, { name: 'stroke-opacity', value: v.paint('strokeOpacity') },
+]
 function primitive(className: string, geometry: readonly SvgGeometryField[], extra: readonly SvgAttribute[] = []): SvgEmissionRecipe {
   return snapshotSvgEmissionRecipe({ kind: 'primitive', attributes: [
     { name: 'class', value: v.meta(className) }, ...geometry.map(name => ({ name, value: v.geometry(name) })), ...extra,
+    ...PAINT_ATTRIBUTES.filter(attribute => !extra.some(other => other.name === attribute.name)),
   ] })
 }
 
@@ -258,20 +209,18 @@ function textMark(
     anchor,
     paint: { fill },
     channels,
+    attributes: { className: cls },
+    ...(block ? {} : { baselineShift: 0, dominantBaseline: 'middle' as const }),
   }, block ? TEXT_EMISSIONS.get(cls)!.prepared : TEXT_EMISSIONS.get(cls)!.direct[HAS_FORMAT_TAGS.test(content) ? 1 : 0]!)
 }
 
 function rolePaint(style: Readonly<RoleStyleSpec> | undefined): MarkPaint {
   if (!style) return {}
-  const width = style.lineWidth === undefined
-    ? undefined
-    : style.cue === 'outline' ? style.lineWidth + 1
-    : style.cue === 'double-line' ? style.lineWidth + 2
-    : style.lineWidth
+  const width = style.lineWidth === undefined ? undefined : style.cue === 'outline' ? style.lineWidth + 1 : style.cue === 'double-line' ? style.lineWidth + 2 : style.lineWidth
   const dash = style.cue === 'pattern' ? '3 2' : style.cue === 'double-line' ? '8 2 2 2' : undefined
   return {
     ...(style.fillColor !== undefined ? { fill: style.fillColor } : {}),
-    ...(style.strokeColor ?? style.borderColor ? { stroke: style.strokeColor ?? style.borderColor } : {}),
+    ...((style.strokeColor ?? style.borderColor) ? { stroke: style.strokeColor ?? style.borderColor } : {}),
     ...(width !== undefined ? { strokeWidth: String(width) } : {}),
     ...(dash !== undefined ? { strokeDasharray: dash } : {}),
   }
@@ -293,6 +242,7 @@ function taskEmission(className: string, milestone: boolean, task: string, style
     { name: 'class', value: v.meta(className) },
     ...(milestone ? ['d'] as const : [...RECT_FIELDS, 'rx', 'ry'] as const).map(name => ({ name, value: v.geometry(name) })),
     { name: 'data-task', value: v.meta(task), escape: 'xml' },
+    ...PAINT_ATTRIBUTES,
     ...inlineRolePaint(style),
     ...(style?.cue && style.cue !== 'none' ? [{ name: 'data-brand-cue' as const, value: v.meta(style.cue) }] : []),
     ...(href ? [{ name: 'data-href' as const, value: v.meta(href), escape: 'xml' as const }] : []),
@@ -303,20 +253,14 @@ const TODAY_STYLE_FIELDS: Record<string, keyof MarkPaint> = {
   stroke: 'stroke', 'stroke-width': 'strokeWidth', opacity: 'opacity', 'stroke-dasharray': 'strokeDasharray',
 }
 
-function r(n: number): number { return Math.round(n * 100) / 100 }
-
-export function renderGanttSvg(
-  ctx: RenderContext<GanttLayoutResult>,
-): string {
+export function renderGanttSvg(ctx: RenderContext<GanttLayoutResult>): string {
   return DefaultBackend.render(lowerGanttScene(ctx), { seed: 0 })
 }
 
 /**
  * Lower a gantt layout to the SceneGraph IR in canonical mark order.
  */
-export function lowerGanttScene(
-  ctx: RenderContext<GanttLayoutResult>,
-): SceneDoc {
+export function lowerGanttScene(ctx: RenderContext<GanttLayoutResult>): SceneDoc {
   const { positioned: layout, colors, resolved } = ctx
   const options = resolved.renderOptions
   const font = colors.font ?? 'Inter'
@@ -331,21 +275,11 @@ export function lowerGanttScene(
   const overlay: GanttOverlayFlags = {
     dependencyArrows: ganttOptions.dependencyArrows === true && layout.dependencies.length > 0,
     criticalBars: ganttOptions.criticalPath === true && layout.criticalTaskIndexes.length > 0,
-    criticalArrows: ganttOptions.dependencyArrows === true && ganttOptions.criticalPath === true
-      && layout.dependencies.some(d => d.critical),
+    criticalArrows: ganttOptions.dependencyArrows === true && ganttOptions.criticalPath === true && layout.dependencies.some(d => d.critical),
   }
   const criticalPathSet = new Set(overlay.criticalBars ? layout.criticalTaskIndexes : [])
 
-  // Content-conditional CSS: excluded-day bands and status-milestone rules
-  // exist only when the chart draws them (byte-inert otherwise).
-  const conditional: GanttConditionalCss = {
-    excludedBands: layout.excludedBands.length > 0,
-    milestoneDone: layout.bars.some(b => b.milestoneX !== undefined && statusChannel(b.tags) === 'done'),
-    milestoneActive: layout.bars.some(b => b.milestoneX !== undefined && statusChannel(b.tags) === 'active'),
-  }
-
-  // SVG root with CSS variables + shared style block + gantt CSS.
-  const extraCss = ganttStyles(style, overlay, conditional)
+  // Paint and typography are carried by each typed mark.
   parts.push(marks.documentOpen(
     {
       id: 'prelude',
@@ -355,10 +289,9 @@ export function lowerGanttScene(
       transparent,
       font,
       hasMonoFont: false,
-      extraCss,
     },
     { kind: 'prelude', width: layout.width, height: layout.height, colors, transparent, font, hasMonoFont: false,
-      children: [{ kind: 'sharedStyle' }, { kind: 'stylesheet', css: extraCss }],
+      children: [{ kind: 'sharedStyle' }],
     },
   ))
 
@@ -370,10 +303,7 @@ export function lowerGanttScene(
   // pattern) so two different gantt SVGs inlined into one page cannot collide.
   const depMarkerId = `${ganttNamespace(layout)}-dep-arrow`
   const depMarkerCritId = `${depMarkerId}-crit`
-  const dependencyMarkers: readonly MarkerDescriptor[] = [
-    dependencyArrowMarker(depMarkerId, palette.edgeStroke),
-    ...(overlay.criticalArrows ? [dependencyArrowMarker(depMarkerCritId, palette.criticalStroke)] : []),
-  ]
+  const dependencyMarkers: readonly MarkerDescriptor[] = [dependencyArrowMarker(depMarkerId, palette.edgeStroke), ...(overlay.criticalArrows ? [dependencyArrowMarker(depMarkerCritId, palette.criticalStroke)] : [])]
   if (overlay.dependencyArrows) {
     parts.push(marks.definitions(
       { id: 'defs', markerResources: dependencyMarkers },
@@ -397,13 +327,16 @@ export function lowerGanttScene(
         geometry: { kind: 'rect', x: r(plot.x), y: r(s.y), width: r(plot.w), height: r(s.h) },
         paint: { fill: palette.groupFill, opacity: palette.groupOpacity },
         channels: s.label !== undefined ? { category: s.label } : undefined,
+
+        attributes: { className: 'gantt-section-band' },
       }, SECTION_EMISSION))
     }
   })
 
   // Excluded-day shading bands (role: grid) — default-on upstream parity,
   // drawn AFTER the section tint and BEFORE grid lines and bars, so bands sit
-  // behind every bar by paint order (the z-order invariant gate).
+  // behind every bar by paint order (the z-order invariant gate). A quiet
+  // tint slightly stronger than the section band, so weekends read as "off".
   const excludedPaint: MarkPaint = { fill: palette.excludedFill, opacity: '0.1' }
   for (const band of layout.excludedBands) {
     parts.push(marks.shape({
@@ -411,6 +344,8 @@ export function lowerGanttScene(
       role: 'grid',
       geometry: { kind: 'rect', x: r(band.x), y: r(plot.y), width: r(band.w), height: r(plot.h) },
       paint: excludedPaint,
+
+      attributes: { className: 'gantt-excluded-band' },
     }, EXCLUDED_EMISSION))
   }
 
@@ -426,6 +361,8 @@ export function lowerGanttScene(
       role: 'grid',
       geometry: { kind: 'line', x1: r(tick.x), y1: r(plot.y), x2: r(tick.x), y2: r(plotBottom) },
       paint: gridPaint,
+
+      attributes: { className: 'gantt-grid-line' },
     }, GRID_EMISSION))
   }
 
@@ -454,7 +391,9 @@ export function lowerGanttScene(
       const lines = s.labelBlock?.lines ?? s.labelLines ?? [applyTextTransform(s.label, style.groupTextTransform)]
       lines.forEach((line, li) => {
         const id = li === 0 ? `section-label:${s.label}#${k}` : `section-label:${s.label}#${k}/${li}`
-        parts.push(textMark(id, 'section', 8, s.y + layout.barHeight / 2 + 4 + li * (s.labelBlock?.lineHeight ?? sectionLineHeight), line, 'gantt-section-label', style.groupHeaderFontSize, style.groupHeaderFontWeight, palette.groupText, 'start', style.groupLetterSpacing, { category: s.label }, pixelTextLine(s.labelBlock, li)))
+        parts.push(
+          textMark(id, 'section', 8, s.y + layout.barHeight / 2 + 4 + li * (s.labelBlock?.lineHeight ?? sectionLineHeight), line, 'gantt-section-label', style.groupHeaderFontSize, style.groupHeaderFontWeight, palette.groupText, 'start', style.groupLetterSpacing, { category: s.label }, pixelTextLine(s.labelBlock, li)),
+        )
       })
     }
   }
@@ -476,7 +415,23 @@ export function lowerGanttScene(
       const baseId = taskLabelId(bar.id ?? bar.label)
       lines.forEach((line, li) => {
         const id = li === 0 ? baseId : `${baseId}/${li}`
-        parts.push(textMark(id, 'label', bar.labelPosition?.x ?? 16, (bar.labelPosition?.y ?? bar.y + bar.h / 2) + li * (bar.labelBlock?.lineHeight ?? taskLineHeight), line, 'gantt-task-label', style.nodeLabelFontSize, style.nodeLabelFontWeight, palette.taskText, 'start', style.nodeLetterSpacing, undefined, pixelTextLine(bar.labelBlock, li)))
+        parts.push(
+          textMark(
+            id,
+            'label',
+            bar.labelPosition?.x ?? 16,
+            (bar.labelPosition?.y ?? bar.y + bar.h / 2) + li * (bar.labelBlock?.lineHeight ?? taskLineHeight),
+            line,
+            'gantt-task-label',
+            style.nodeLabelFontSize,
+            style.nodeLabelFontWeight,
+            palette.taskText,
+            'start',
+            style.nodeLetterSpacing,
+            undefined,
+            pixelTextLine(bar.labelBlock, li),
+          ),
+        )
       })
     }
   } else {
@@ -530,9 +485,7 @@ export function lowerGanttScene(
     // Critical-path emphasis (opt-in): the analysis-backed stronger stroke.
     const onCriticalPath = criticalPathSet.has(bar.taskIndex)
     const criticalPathCls = onCriticalPath ? ' gantt-bar-critical-path' : ''
-    const criticalPathPaint: Partial<MarkPaint> = onCriticalPath
-      ? { stroke: palette.criticalStroke, strokeWidth: String(Math.max(2, style.nodeLineWidth * 1.5)) }
-      : {}
+    const criticalPathPaint: Partial<MarkPaint> = onCriticalPath ? { stroke: palette.criticalStroke, strokeWidth: String(Math.max(2, style.nodeLineWidth * 1.5)) } : {}
     if (bar.milestoneX !== undefined) {
       const cx = bar.milestoneX
       const cy = bar.y + bar.h / 2
@@ -540,7 +493,7 @@ export function lowerGanttScene(
       // Status classes mirror the bar convention (item 6): done/active/crit
       // milestones differentiate exactly like done/active/crit bars do.
       const status = statusChannel(bar.tags)
-      const cls = ('gantt-milestone' + (status !== undefined ? ` gantt-milestone-${status}` : '')) + criticalPathCls
+      const cls = 'gantt-milestone' + (status !== undefined ? ` gantt-milestone-${status}` : '') + criticalPathCls
       const d = `M ${r(cx)} ${r(cy - radius)} L ${r(cx + radius)} ${r(cy)} L ${r(cx)} ${r(cy + radius)} L ${r(cx - radius)} ${r(cy)} Z`
       const statusPaint: MarkPaint =
         status === 'crit'
@@ -566,6 +519,7 @@ export function lowerGanttScene(
         geometry: { kind: 'path', d },
         paint: milestonePaint,
         channels,
+        attributes: taskHooks(cls, bar.id ?? bar.label, semanticStyle, safeHref),
       }, taskEmission(cls, true, bar.id ?? bar.label, semanticStyle, safeHref)))
       continue
     }
@@ -586,6 +540,7 @@ export function lowerGanttScene(
       geometry: { kind: 'rect', x: r(bar.x), y: r(bar.y), width: r(Math.max(2, bar.w)), height: r(bar.h), rx: GS.barRadius, ry: GS.barRadius },
       paint: taskPaint,
       channels,
+      attributes: taskHooks(`${statusClass(bar.tags)}${criticalPathCls}`, bar.id ?? bar.label, semanticStyle, safeHref),
     },
       taskEmission(`${statusClass(bar.tags)}${criticalPathCls}`, false, bar.id ?? bar.label, semanticStyle, safeHref),
     ))
@@ -593,7 +548,11 @@ export function lowerGanttScene(
 
   // Dependency connectors (opt-in): quiet elbow arrows from predecessor end to
   // successor start, drawn over the bars they anchor to but crossing no bar's
-  // interior (the routing invariant lives in layout.ts, not here).
+  // interior (the routing invariant lives in layout.ts, not here). The
+  // connector is deliberately quieter than the bars (the journey curve's
+  // restraint); critical-path emphasis is the stronger stroke, never a
+  // hard-coded red. Each arrow's group fades its line and arrowhead together
+  // (DEP_ARROW_OPACITY), so the line does not show through its own head.
   if (overlay.dependencyArrows) {
     const barByTask = new Map(layout.bars.map(b => [b.taskIndex, b]))
     const depOccurrence = new Map<string, number>()
@@ -604,23 +563,26 @@ export function lowerGanttScene(
       const k = depOccurrence.get(key) ?? 0
       depOccurrence.set(key, k + 1)
       const critical = overlay.criticalArrows && dep.critical
+      const cls = critical ? 'gantt-dep-arrow gantt-dep-arrow-crit' : 'gantt-dep-arrow'
       const markerId = critical ? depMarkerCritId : depMarkerId
       const points = dep.points.map(p => ({ x: r(p.x), y: r(p.y) }))
       const d = points.map((p, i) => `${i === 0 ? 'M' : 'L'} ${p.x} ${p.y}`).join(' ')
-      parts.push(marks.connector({
-        id: k === 0 ? `dep:${key}` : `dep:${key}#${k}`,
+      const id = k === 0 ? `dep:${key}` : `dep:${key}#${k}`
+      const arrow = marks.connector({
+        id,
         role: 'edge',
         geometry: { kind: 'path', d, points },
         lineStyle: 'solid',
-        paint: critical
-          ? { stroke: palette.criticalStroke, strokeWidth: String(Math.max(1.8, style.lineWidth * 1.5)), opacity: '0.95' }
-          : { stroke: palette.edgeStroke, strokeWidth: String(Math.max(1.2, style.lineWidth)), opacity: '0.6' },
+        paint: critical ? { stroke: palette.criticalStroke, strokeWidth: String(Math.max(1.8, style.lineWidth * 1.5)) } : { stroke: palette.edgeStroke, strokeWidth: String(Math.max(1.2, style.lineWidth)) },
         markers: { mid: [], end: dependencyMarkers.find(marker => marker.id === markerId) },
         endpoints: { from: fromKey, to: toKey },
         relationship: { kind: dep.kind, direction: 'forward' },
         route: { ownership: 'layout' },
         channels: critical ? { status: 'crit', emphasis: true } : undefined,
-      }, DEPENDENCY_EMISSIONS[critical ? 1 : 0]!))
+
+        attributes: { className: cls },
+      }, DEPENDENCY_EMISSIONS[critical ? 1 : 0]!)
+      parts.push(marks.group({ id: `${id}:fade`, role: 'chrome', open: '<g>', close: '</g>', paint: { opacity: critical ? DEP_ARROW_OPACITY.critical : DEP_ARROW_OPACITY.plain }, children: [{ node: arrow, indent: 0 }] }))
     }
   }
 
@@ -639,18 +601,17 @@ export function lowerGanttScene(
       role: 'marker-line',
       geometry: { kind: 'line', x1: r(v.x), y1: r(plot.y), x2: r(v.x), y2: r(plotBottom) },
       paint: vertPaint,
+
+      attributes: { className: 'gantt-vert-marker' },
     }, VERT_EMISSION))
     const label = v.labelBlock?.text ?? applyTextTransform(v.label, style.edgeTextTransform)
-    const vertOffset = layout.topAxis
-      ? Math.max(24, axisOffset + style.edgeLabelFontSize * 1.25)
-      : (axisOffset === 10 && style.edgeLabelFontSize === 11 ? 8 : axisOffset)
+    const vertOffset = layout.topAxis ? Math.max(24, axisOffset + style.edgeLabelFontSize * 1.25) : axisOffset === 10 && style.edgeLabelFontSize === 11 ? 8 : axisOffset
     parts.push(textMark(`vert-label:${v.label}#${k}`, 'axis', v.x, plot.y - vertOffset, label, 'gantt-axis-label', style.edgeLabelFontSize, Math.max(style.edgeLabelFontWeight, 600), palette.axisText, 'middle', style.edgeLetterSpacing, undefined, v.labelBlock))
   }
 
   // Today marker — only with a supplied clock. The todayMarker directive's
-  // sanitized style payload (item 3) rides as an inline style attribute
-  // (overriding the class rule) and mirrors into the scene paint so styled
-  // backends honor it too. No payload uses the canonical marker styling.
+  // sanitized style payload (item 3) overrides the canonical marker paint,
+  // property by property. No payload uses the canonical marker styling.
   if (layout.todayX !== undefined) {
     const todayStyle = layout.todayMarkerStyle !== undefined ? parseTodayMarkerStyle(layout.todayMarkerStyle) : undefined
     const overrides: Record<string, string> = Object.fromEntries(todayStyle?.applied ?? [])
@@ -668,6 +629,8 @@ export function lowerGanttScene(
         strokeDasharray: overrides['stroke-dasharray'] ?? '4 3',
         ...(overrides['opacity'] !== undefined ? { opacity: overrides['opacity'] } : {}),
       },
+
+      attributes: { className: 'gantt-today-marker' },
     }, { kind: 'primitive', attributes: [
       { name: 'class', value: v.meta('gantt-today-marker') },
       ...(todayStyle?.applied.length ? [{ name: 'style' as const, value: { source: 'style' as const, declarations: todayStyle.applied.map(([property, value], index) => ({
@@ -685,6 +648,11 @@ export function lowerGanttScene(
     parts.push(textMark('title', 'title', layout.width / 2, y, title, 'gantt-title', ganttTitleFontSize(style), ganttTitleFontWeight(style), palette.titleFill, 'middle', style.groupLetterSpacing, undefined, layout.titleBlock))
   }
 
+  if (layout.emptyLabel) {
+    const block = layout.emptyLabel
+    parts.push(textMark('empty-state', 'label', plot.x + plot.w / 2, plot.y + plot.h / 2, block.text, 'gantt-empty-state', block.fontSize, block.fontWeight, palette.axisText, 'middle', block.letterSpacing, undefined, block))
+  }
+
   parts.push(marks.documentClose())
 
   return { family: 'gantt', width: layout.width, height: layout.height, colors, transparent, parts }
@@ -693,23 +661,41 @@ export function lowerGanttScene(
 /** Content-hashed def-id namespace (the journey pattern, X5 id hygiene):
  *  derived from semantic layout content, never from render order or RNG. */
 function ganttNamespace(layout: GanttLayoutResult): string {
-  return `gantt-${hashId(
-    layout.width,
-    layout.height,
-    ...layout.bars.map(b => `${b.taskIndex}:${b.id ?? b.label}`),
-    ...layout.dependencies.map(d => `${d.fromTaskIndex}>${d.toTaskIndex}:${d.kind}`),
-  )}`
+  return `gantt-${hashId(layout.width, layout.height, ...layout.bars.map(b => `${b.taskIndex}:${b.id ?? b.label}`), ...layout.dependencies.map(d => `${d.fromTaskIndex}>${d.toTaskIndex}:${d.kind}`))}`
 }
 
 function dependencyArrowMarker(id: string, color: string): MarkerDescriptor {
   return {
-    id, shape: 'arrow', size: { width: 8, height: 7 }, ref: { x: 8, y: 3.5 }, orient: 'auto',
-    geometry: { kind: 'path', d: 'M0,0 L8,3.5 L0,7 Z' }, paint: { fill: color },
+    id,
+    shape: 'arrow',
+    size: { width: 8, height: 7 },
+    ref: { x: 8, y: 3.5 },
+    orient: 'auto',
+    geometry: { kind: 'path', d: 'M0,0 L8,3.5 L0,7 Z' },
+    paint: { fill: color },
   }
 }
 
 /** Stable task key for connector data attributes: the Mermaid task id when
  *  present (dependencies always reference ids), else the label. */
 function depTaskKey(bar: { id?: string; label: string } | undefined): string {
-  return bar === undefined ? '' : bar.id ?? bar.label
+  return bar === undefined ? '' : (bar.id ?? bar.label)
+}
+
+function r(n: number): number {
+  return Math.round(n * 100) / 100
+}
+
+function taskHooks(className: string, task: string, style: Readonly<RoleStyleSpec> | undefined, href: string | undefined): MarkAttributes {
+  return {
+    className,
+    data: {
+      task,
+      ...(style?.cue && style.cue !== 'none' ? { 'brand-cue': style.cue } : {}),
+      // Static output exposes sanitized inert metadata for downstream
+      // consumers; it must not claim keyboard-link semantics without an
+      // executable anchor.
+      ...(href ? { href } : {}),
+    },
+  }
 }

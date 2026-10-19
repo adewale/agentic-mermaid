@@ -1,6 +1,6 @@
 # Mermaid fork graph
 
-The projects that keep 0.5 honest: browserless renderers to compare on speed and payload, terminal renderers to compare on output, and parsers to compare on meaning. [`population.json`](./population.json) records who they are, how they relate (fork, port, binding, or independent reimplementation that may vendor Mermaid's grammar and specs, as Pele does), and what each had published on 18 October 2026. Most of the 80 nodes are `observed` (in the graph, with no comparison value); the table below lists the rest.
+The projects that keep 0.5 honest: browserless renderers to compare on speed and payload, terminal renderers to compare on output, and parsers to compare on meaning. [`population.json`](./population.json) records who they are, how they relate (fork, port, binding, or independent reimplementation that may vendor Mermaid's grammar and specs, as Pele does), and what each had published on 18 October 2026. Sketch was added on 19 October at the exact merged revision of [tuios PR #919](https://github.com/Gaurav-Gosain/tuios/pull/919). Most nodes are `observed` (in the graph, with no comparison value); the table below lists the rest.
 
 ## How the population was chosen
 
@@ -22,6 +22,7 @@ The projects that keep 0.5 honest: browserless renderers to compare on speed and
 | `Latias94/merman` | independent | @mermanjs/node@0.9.1 | svg, png, jpeg, pdf, ascii-unicode | peer, terminal-peer |
 | `dfadler/zombie-mermaid` | fork | zombie-mermaid@5.7.1 | svg, ascii-unicode | peer, terminal-peer |
 | `obsidianmd/pele` | independent | pele@1.6.0 | svg | peer |
+| `Gaurav-Gosain/tuios` (sketch) | port of Pele | PR #919, `880e652ee56b` (no module release checked) | svg, png, ascii-unicode | peer, terminal-peer |
 | `Mootikins/figurehead-rs` | independent | tag v0.4.3 | ascii-unicode | terminal-peer |
 | `fasouto/termaid` | independent | pypi:termaid@0.9.1 | ascii-unicode | terminal-peer |
 | `kingsword09/mermansi` | independent | tag v0.1.6 | ascii-unicode | terminal-peer |
@@ -30,7 +31,9 @@ The projects that keep 0.5 honest: browserless renderers to compare on speed and
 | `neongreen/mermaid-ast` | independent | mermaid-ast@0.8.2 | ast | parser-peer |
 | `probelabs/maid` | independent | @probelabs/maid@0.0.29 | diagnostics | parser-peer |
 
-`bun run bench:peers` (`eval/benchmark/peer-bench.ts`) times the SVG and terminal peers above that run in Node or Python against the built package. To find where this repository uses or cites a node, search for its repository or package name.
+`bun run bench:peers` (`eval/benchmark/peer-bench.ts`) times the SVG and terminal peers above that run in Node, Python or Go against the built package. Sketch needs Go >=1.25 on PATH; the harness fetches the pinned git revision and builds `sketch-worker.go` in its cache. Warm timing stays inside Go, includes parsing, and excludes process startup and IPC. Terminal calls have no column limit or ANSI color. Static binary initialization has no dynamic import measurement; Go allocations are not reported as V8 allocations. PNG is not timed by this harness.
+
+Run the complete calibrated matrix with `bun run bench:peers --json bench-report/peers.json --markdown bench-report/peers.md` (create the output directory first). `--corpus` instead runs every official documentation fence occurrence, including unsupported families, with one warmup and three single-call samples per successful input, in three alternating rounds by default. Corpus success checks for output, with no expected-label assertions; calibrated workloads retain their explicit label checks. Neither policy establishes semantic or visual fidelity. Browser-only measurements remain in `bun run bench` / `bench:release:browser`, which cannot execute the native Sketch library. To find where this repository uses or cites a node, search for its repository or package name.
 
 ## Re-checking
 
@@ -52,5 +55,5 @@ curl -s https://registry.npmjs.org/-/npm/v1/attestations/pele@1.6.0             
 - Star counts were not refreshed: the GitHub API was not used. July ranks stay in `fork-snapshot.json`; this file does not replace it.
 - The archived flag and GitHub's fork-of metadata were not observable. Lineage here is commit evidence only, so a repo copied without fork history counts as `independent` unless it says otherwise.
 - crates.io and the Go proxy were not queried. Rust and Go versions are git tags; Mermaider 0.15.1, Sebastian 0.8.0 and the C4 `rusty-mermaid` cited in `docs/comparison.md` remain unresolved.
-- Outputs and runtimes are as each README states them. Nothing was installed or executed, and roles say what is worth comparing, not who wins.
+- Outputs and runtimes in the original survey are as each README states them; nothing was installed or executed for that survey. `bench:peers` separately executes pinned adapters and produces its own dated reports. Roles say what is worth comparing, not who wins.
 - This is a dated observation. Rerun `check.ts` before citing a head or version.

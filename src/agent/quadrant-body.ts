@@ -42,7 +42,8 @@ import { ok, err } from './types.ts'
 import { labelOverflowCollector, setOptionalField } from './body-utils.ts'
 import { appendAccessibilityLines } from './accessibility-envelope.ts'
 import { renderPointStyleEntries } from '../quadrant/point-style.ts'
-import { parseQuadrantChart, quadrantTextRejections, quadrantTextSource, quadrantTextWritable } from '../quadrant/parser.ts'
+import { parseQuadrantChart, quadrantStatementEnds, quadrantTextRejections, quadrantTextSource, quadrantTextWritable } from '../quadrant/parser.ts'
+import { statementText } from '../shared/trailing-comment.ts'
 import { parseAccessibilityDirective } from '../shared/accessibility-directives.ts'
 
 // ---- Number format ----------------------------------------------------------
@@ -95,9 +96,10 @@ function encodeMultilineText(text: string): string {
   return text.replace(/\r?\n/g, '<br/>')
 }
 
-/** Label, axis or quadrant text, quoted where Mermaid reads it only quoted. */
+/** Label, axis or quadrant text, quoted where Mermaid reads it only quoted.
+ * A "…" string runs across a line break, so the break is written as one. */
 function renderText(text: string): string {
-  const source = quadrantTextSource(encodeMultilineText(text))
+  const source = quadrantTextSource(text)
   // These lexer keywords outrank ordinary text even inside an axis or point
   // label. Quoting punctuation alone would turn "x-axis-1" into syntax.
   return !source.startsWith('"') && (source !== source.trim() || /(?:^|[^A-Za-z])(?:x-axis|y-axis|quadrant-[1-4]|quadrantChart|classDef|accTitle|accDescr|title)/i.test(source))
@@ -322,6 +324,7 @@ export function quadrantUnsupportedSyntaxWarnings(canonicalSource: string): Layo
   const header = lines.findIndex(line => /^quadrant(?:Chart)?\b/i.test(line.trim()))
   if (header < 0) return []
   const warnings: LayoutWarning[] = []
+  const ends = quadrantStatementEnds(lines)
   for (let index = header + 1; index < lines.length; index++) {
     const directive = parseAccessibilityDirective(lines, index)
     if (directive === undefined) break
@@ -329,7 +332,7 @@ export function quadrantUnsupportedSyntaxWarnings(canonicalSource: string): Layo
       index = directive.endIndex
       continue
     }
-    for (const what of quadrantTextRejections(lines[index]!.trim())) {
+    for (const what of quadrantTextRejections(statementText(lines, index, ends[index]!).trim())) {
       warnings.push({
         code: 'UNSUPPORTED_SYNTAX',
         syntax: 'quadrant_unquoted_text',
@@ -337,6 +340,7 @@ export function quadrantUnsupportedSyntaxWarnings(canonicalSource: string): Layo
         message: `${what}, and is read as written. Pinned Mermaid rejects this; put the whole text in double quotes.`,
       })
     }
+    index = ends[index]!
   }
   return warnings
 }

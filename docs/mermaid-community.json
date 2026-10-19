@@ -4,6 +4,28 @@
   "method": {
     "supplementalSources": [
       {
+        "checkedAt": "2026-10-20",
+        "project": "Dicklesworthstone/frankenmermaid",
+        "sources": [
+          "https://frankenmermaid.com/",
+          "https://github.com/Dicklesworthstone/frankenmermaid/tree/29536a1308acd1bae4da8b72b4cebffb39709ae0",
+          "https://github.com/Dicklesworthstone/frankenmermaid/blob/29536a1308acd1bae4da8b72b4cebffb39709ae0/LICENSE",
+          "https://github.com/Dicklesworthstone/frankenmermaid/tree/29536a1308acd1bae4da8b72b4cebffb39709ae0/pkg"
+        ],
+        "notes": "Requested addition. Verified git root, main head, distribution version and asset SHA-256 hashes. npm package lookup returned 404; deployed assets differ from the pinned repository distribution. Benchmarks use the latter consistently in Node and Chromium. Existing nodes retain their dated observations."
+      },
+      {
+        "checkedAt": "2026-10-20",
+        "project": "wevm/ondine",
+        "sources": [
+          "https://ondine.sh/",
+          "https://github.com/wevm/ondine/tree/439fc64aefdb06e3451fac6c44266e5965ea7265",
+          "https://registry.npmjs.org/ondine/0.0.1",
+          "https://registry.npmjs.org/-/npm/v1/attestations/ondine@0.0.1"
+        ],
+        "notes": "Added on request; published compiler is pinned in peer and browser benchmarks. Existing entries retain their original observation dates. Source HEAD, license, npm provenance, separate root and package ancestry were checked. Source comments establish a Rust port of Pele."
+      },
+      {
         "checkedAt": "2026-10-19",
         "project": "orestesgaolin/mermaid",
         "sources": [
@@ -85,6 +107,85 @@
     "outputs": "svg, png, jpeg, pdf, ascii-unicode (includes ANSI-coloured text), ast, diagnostics, mermaid-text, react-flow."
   },
   "nodes": [
+    {
+      "id": "Dicklesworthstone/frankenmermaid",
+      "relation": "independent",
+      "repo": "https://github.com/Dicklesworthstone/frankenmermaid",
+      "homepage": "https://frankenmermaid.com/",
+      "checkedAt": "2026-10-20",
+      "branch": "main",
+      "head": "29536a1308acd1bae4da8b72b4cebffb39709ae0",
+      "lastCommit": "2026-10-19T21:51:40-04:00",
+      "rootCommits": [
+        "a4877939105eb405add227d48e0f5f5d054fcfec"
+      ],
+      "license": "MIT License (with OpenAI/Anthropic Rider)",
+      "runtime": "Rust 2024; distributed WASM in Node and browser; native CLI",
+      "outputs": [
+        "svg",
+        "ascii-unicode",
+        "ast",
+        "diagnostics",
+        "mermaid-text"
+      ],
+      "roles": [
+        "peer",
+        "terminal-peer",
+        "parser-peer"
+      ],
+      "distribution": {
+        "kind": "github-directory",
+        "path": "pkg/",
+        "name": "@frankenmermaid/core",
+        "version": "0.4.0",
+        "revision": "29536a1308acd1bae4da8b72b4cebffb39709ae0",
+        "lastUpdatedCommit": "f85cf30d16918b5819f27e5eb1f962b324390c13",
+        "wasmSha256": "c2ba665b60abdd57d9c357fc6e28891b4bed7b62bcfc75d714fb059c87af3ea1"
+      },
+      "notes": "Separate git root; README describes a ground-up implementation. Checked-in pkg/ 0.4.0 distribution is pinned and individually hash-verified for Node/browser benchmarks. The advertised @frankenmermaid/core npm name returns 404. Distributed WASM predates current Rust source changes and differs from live-site JS/WASM bytes; no build-from-current-source or deployment parity is claimed. Public WASM exposes SVG, Canvas2D, parse/diagnostics, source-lens edits and deck manifests; native terminal rendering has no exported WASM terminal function. License includes the named restrictive rider and is not recorded as plain MIT. Published native v0.4.0 CLI was benchmarked separately, including startup; its release predates the measured WASM. Parser recovery returned SVG for the full browser inventory, with warnings/partial detections recorded separately from acceptance.",
+      "nativeRelease": {
+        "tag": "v0.4.0",
+        "commit": "d5ade10ac414a8c9eb07bd42b3df6a62c6474f6f",
+        "publishedAt": "2026-10-08T15:52:13Z",
+        "url": "https://github.com/Dicklesworthstone/frankenmermaid/releases/tag/v0.4.0",
+        "measuredArchive": "frankenmermaid-darwin-arm64.tar.xz",
+        "archiveSha256": "0fadb3939fcbe1760ba7278ef03ef96251127b88181a3f2abf2af704b0311909"
+      }
+    },
+    {
+      "id": "wevm/ondine",
+      "relation": "port",
+      "repo": "https://github.com/wevm/ondine",
+      "homepage": "https://ondine.sh/",
+      "checkedAt": "2026-10-20",
+      "branch": "main",
+      "head": "439fc64aefdb06e3451fac6c44266e5965ea7265",
+      "lastCommit": "2026-10-20T13:31:21+11:00",
+      "license": "MIT",
+      "runtime": "Rust -> WASM (Node, browser, edge); build-time Vite/remark compiler",
+      "outputs": [
+        "svg",
+        "ascii-unicode"
+      ],
+      "packages": [
+        {
+          "registry": "npm",
+          "name": "ondine",
+          "version": "0.0.1",
+          "license": "MIT",
+          "provenanceCommit": "f662aa795b91bf2dfc7162f48035be3884201193",
+          "publishedFromDefaultBranch": true
+        }
+      ],
+      "roles": [
+        "peer"
+      ],
+      "notes": "Rust port of Pele: source comments explicitly attribute the flowchart, sequence, class, layered/compound layout and SVG builder implementations. Separate git root from Pele. Targets Mermaid 12.1.0 syntax. Node uses a speed-optimized all-types WASM module; browsers can load size-optimized per-family or all-types WASM. The mount-only runtime inserts precompiled SVG and is not a renderer. Image Worker also serves PNG via rasterization. Published 0.0.1 is pinned for benchmarks; source manifest is already 0.0.2. npm provenance commit was verified as an ancestor of the inspected main. Inspected 0.0.2 source adds CLI --ascii by projecting compiled SVG to cells; this unpublished terminal surface was not benchmarked.",
+      "parent": "obsidianmd/pele",
+      "rootCommits": [
+        "d6b8e4a44e512272f925e3b370ff28439f266fd0"
+      ]
+    },
     {
       "id": "orestesgaolin/mermaid",
       "relation": "port",
@@ -1704,6 +1805,12 @@
     }
   ],
   "edges": [
+    {
+      "from": "wevm/ondine",
+      "to": "obsidianmd/pele",
+      "relation": "port",
+      "evidence": "At published provenance f662aa795b91bf2dfc7162f48035be3884201193: crates/compiler/src/layout/layered.rs:1, layout/compound.rs:2, diagrams/flowchart.rs:1, diagrams/sequence.rs:2 and svg/builder.rs:1 explicitly say Port of Pele. Ondine root d6b8e4a44e512272f925e3b370ff28439f266fd0 differs from Pele root 77647fe50695cf92f06ca3d1f8ecfe81cc0ff6c3."
+    },
     {
       "from": "orestesgaolin/mermaid",
       "to": "mermaid-js/mermaid",

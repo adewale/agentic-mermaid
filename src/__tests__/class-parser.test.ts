@@ -6,7 +6,7 @@
  */
 import { describe, it, expect } from 'bun:test'
 import { parseClassDiagram } from '../class/parser.ts'
-import { asClass, mutate, parseRegisteredMermaid, renderMermaidSVG, serializeMermaid } from '../agent/index.ts'
+import { asClass, mutate, parseRegisteredMermaid, renderMermaidSVG, serializeMermaid, verifyMermaid } from '../agent/index.ts'
 import { expectNearLinearGrowth } from './helpers/complexity.ts'
 
 /** Helper to parse — preprocesses text the same way index.ts does */
@@ -72,8 +72,44 @@ describe('parseClassDiagram – class definitions', () => {
     ['unterminated namespace', 'namespace Domain {\nclass A', 'Unclosed namespace block'],
     ['extra close', 'class A\n}', 'Unexpected closing brace'],
     ['partially invalid class assignment', 'class A\nclass A,bad-id hot', 'Unrecognized class statement'],
+    // Text that cannot hold a line break stays on its line.
+    ['backtick name spanning lines', 'class `A\nB`', 'Unrecognized class statement'],
+    ['link tooltip spanning lines', 'class A\nclick A href "https://example.com" "first\nsecond"', 'Unrecognized class link statement'],
+    // A member runs to a brace: Mermaid rejects a `{` inside a class block.
+    ['open brace among the members on a block\'s line', 'namespace N {\nclass A {   lass B{\nint x\n}\n}', 'Unrecognized class statement "class A {   lass B{"'],
+    ['open brace before the block closes on its line', 'class A { +x{ }', 'Unrecognized class statement "class A { +x{ }"'],
   ])('refuses a partial drawing for %s', (_name, source, reason) => {
     expect(() => parse(`classDiagram\n${source}`)).toThrow(reason)
+  })
+
+  // Mermaid's string runs on across line breaks to its next quote. Ours reads
+  // the break as the label line break `<br>` wherever the text can hold one.
+  it.each([
+    // Mermaid's class string has no escapes: a backslash before the closing
+    // quote is text, and the string ends on its line.
+    { body: 'class A["C:\\"]\nB --> C\nclass D["x"]', native: { classes: [{ id: 'A', label: 'C:\\' }, { id: 'B' }, { id: 'C' }, { id: 'D', label: 'x' }], relationships: [{ from: 'B', to: 'C' }] }, typed: { classes: [{ id: 'A', label: 'C:\\' }, { id: 'B' }, { id: 'C' }, { id: 'D', label: 'x' }], relations: [{ from: 'B', to: 'C' }] }, written: 'class A["C:\\"]' },
+    { body: 'note for A "C:\\"\nclass B', native: { notes: [{ for: 'A', text: 'C:\\' }], classes: [{ id: 'A' }, { id: 'B' }] }, typed: { notes: [{ for: 'A', text: 'C:\\' }] }, written: 'note for A "C:&#92;"' },
+    { body: 'note "a\\\\b"', native: { notes: [{ text: 'a\\\\b' }] }, typed: { notes: [{ text: 'a\\\\b' }] }, written: 'note "a&#92;&#92;b"' },
+    { body: 'A "0..*\\" --> B\nB "1" --> C', native: { relationships: [{ from: 'A', fromCardinality: '0..*\\' }, { from: 'B', fromCardinality: '1' }] }, typed: { relations: [{ from: 'A', fromCardinality: '0..*\\' }, { from: 'B', fromCardinality: '1' }] }, written: 'A "0..*\\" --> B' },
+    { body: 'note for A "l1\nl2"', native: { notes: [{ for: 'A', text: 'l1\nl2' }] }, typed: { notes: [{ for: 'A', text: 'l1<br>l2' }] }, written: 'note for A "l1<br>l2"' },
+    { body: 'note "a\nb"', native: { notes: [{ text: 'a\nb' }] }, typed: { notes: [{ text: 'a<br>b' }] }, written: 'note "a<br>b"' },
+    { body: 'A "many\nitems" --> B', native: { relationships: [{ fromCardinality: 'many\nitems' }] }, typed: { relations: [{ fromCardinality: 'many\nitems' }] }, written: 'A "many<br/>items" --> B' },
+    { body: 'A "x\ny" --> "one\nor\nmore" B : r', native: { relationships: [{ fromCardinality: 'x\ny', toCardinality: 'one\nor\nmore', label: 'r' }] }, typed: { relations: [{ fromCardinality: 'x\ny', toCardinality: 'one\nor\nmore', label: 'r' }] }, written: 'A "x<br/>y" --> "one<br/>or<br/>more" B : r' },
+    { body: 'class A["l1\nl2"] {\n+x\n}', native: { classes: [{ id: 'A', label: 'l1\nl2' }] }, typed: { classes: [{ id: 'A', label: 'l1<br>l2', members: ['+x'] }] }, written: 'class A["l1<br>l2"] {' },
+    { body: 'namespace N["l1\nl2"] {\nclass A\nnote "a\nb" }', native: { namespaces: [{ name: 'N', label: 'l1\nl2', classIds: ['A'] }], notes: [{ text: 'a\nb' }] }, typed: { namespaces: [{ name: 'N', label: 'l1<br>l2' }], notes: [{ text: 'a<br>b' }] }, written: 'namespace N["l1<br>l2"] {' },
+  ])('reads quoted text, on one line or across lines, to the quote that closes it: $body', ({ body, native, typed, written }) => {
+    const source = `classDiagram\n${body}`
+    expect(parse(source)).toMatchObject(native)
+    const parsed = parseRegisteredMermaid(source)
+    if (!parsed.ok) throw new Error(JSON.stringify(parsed.error))
+    const diagram = asClass(parsed.value)
+    expect(diagram?.body).toMatchObject(typed)
+    expect(verifyMermaid(parsed.value).warnings.filter(warning => warning.code === 'UNSUPPORTED_SYNTAX')).toEqual([])
+    const serialized = serializeMermaid(parsed.value)
+    expect(serialized).toContain(written)
+    const reloaded = parseRegisteredMermaid(serialized)
+    if (!reloaded.ok) throw new Error(JSON.stringify(reloaded.error))
+    expect(asClass(reloaded.value)?.body).toEqual(diagram!.body)
   })
 
   it('nested members keep literal percent pairs, source ownership, and meaning after an edit', () => {

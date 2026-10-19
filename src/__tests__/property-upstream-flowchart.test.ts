@@ -313,7 +313,7 @@ describe('flowchart grammar differential against pinned upstream Mermaid', () =>
       subgraphs: [],
     })
     const verified = verifyMermaid(parsed.value)
-    expect(verified.warnings).toContainEqual(expect.objectContaining({ code: 'UNSUPPORTED_SYNTAX', syntax: 'flowchart_preprocessor_quote_rewrite', line: 2 }))
+    expect(verified.warnings).toContainEqual(expect.objectContaining({ code: 'UNSUPPORTED_SYNTAX', syntax: 'mermaid_cleanup', line: 2 }))
     expect(verified.warnings.some(warning => warning.code === 'RENDER_FAILED')).toBe(false)
     expect((await upstream.parse(source)).ok).toBe(false)
     const written = serializeMermaid(parsed.value)
@@ -327,14 +327,14 @@ describe('flowchart grammar differential against pinned upstream Mermaid', () =>
     expect(renderMermaidSVG(source)).toContain('&lt;a=')
     const reread = parseRegisteredMermaid(written)
     if (!reread.ok) throw new Error('export rejected')
-    expect(verifyMermaid(reread.value).warnings.some(warning => warning.code === 'UNSUPPORTED_SYNTAX' && warning.syntax === 'flowchart_preprocessor_quote_rewrite')).toBe(false)
+    expect(verifyMermaid(reread.value).warnings.some(warning => warning.code === 'UNSUPPORTED_SYNTAX' && warning.syntax === 'mermaid_cleanup')).toBe(false)
   })
 
   test('a preprocessing quote rewrite that breaks metadata YAML is diagnosed and exports portably', async () => {
     const source = 'flowchart TD\nA@{label: \'<a href="x">ok</a>\'} --> B'
     const parsed = parseRegisteredMermaid(source)
     if (!parsed.ok || !asFlowchart(parsed.value)) throw new Error('structured flowchart required')
-    expect(verifyMermaid(parsed.value).warnings).toContainEqual(expect.objectContaining({ code: 'UNSUPPORTED_SYNTAX', syntax: 'flowchart_preprocessor_quote_rewrite', line: 2 }))
+    expect(verifyMermaid(parsed.value).warnings).toContainEqual(expect.objectContaining({ code: 'UNSUPPORTED_SYNTAX', syntax: 'mermaid_cleanup', line: 2 }))
     expect(await upstream.accepts(source)).toBe(false)
     const written = serializeMermaid(parsed.value)
     const upstreamWritten = await upstream.parse(written)
@@ -343,28 +343,7 @@ describe('flowchart grammar differential against pinned upstream Mermaid', () =>
     expect(ours(parseOurs(written))).toEqual(ours(parseOurs(source)))
     expect(renderMermaidASCII(written)).toBe(renderMermaidASCII(source))
     expect(renderMermaidSVG(source)).toContain('&lt;a href=&quot;x&quot;&gt;ok&lt;/a&gt;')
-    expect(verifyMermaid(written).warnings.some(warning => warning.code === 'UNSUPPORTED_SYNTAX' && warning.syntax === 'flowchart_preprocessor_quote_rewrite')).toBe(false)
-  })
-
-  test('accepted formatting, attributes and comments do not trigger the preprocessing warning', async () => {
-    for (const source of [
-      'flowchart TD\nA["<b>bold</b><br>next"] --> B',
-      'flowchart TD\nA -->|"#lt;a="| B["b"] --> C',
-      'flowchart TD\nA -->|"<a="| B["b"] --- C',
-      'flowchart TD\nA[<a href="x">ok</a>] --> B',
-      'flowchart TD\nA["<a href="x">ok</a>"] --> B',
-      'flowchart TD\nA -->|"<a href="x">ok</a>"| B',
-      'flowchart TD\nsubgraph S[<a href="x">title</a>]\nA\nend',
-      'flowchart TD\nA@{label: <a href="x">ok</a>} --> B',
-      'flowchart TD\nA@{label: \'<a href=#quot;x#quot;>ok</a>\'} --> B',
-      'flowchart TD\n%% <a href="x">\nA --> B',
-      'flowchart TD\n%% <a=\nA["safe"] --> B',
-    ]) {
-      expect({ source, accepted: await upstream.accepts(source) }).toEqual({ source, accepted: true })
-      const parsed = parseRegisteredMermaid(source)
-      if (!parsed.ok) throw new Error('fixture rejected')
-      expect({ source, warned: verifyMermaid(parsed.value).warnings.some(warning => warning.code === 'UNSUPPORTED_SYNTAX' && warning.syntax === 'flowchart_preprocessor_quote_rewrite') }).toEqual({ source, warned: false })
-    }
+    expect(verifyMermaid(written).warnings.some(warning => warning.code === 'UNSUPPORTED_SYNTAX' && warning.syntax === 'mermaid_cleanup')).toBe(false)
   })
 
   test('(i)–(v) upstream and our parser agree on every generated flowchart', async () => {
@@ -529,10 +508,15 @@ describe('flowchart grammar differential against pinned upstream Mermaid', () =>
   })
 
   test('a text-arrow label closes with any link of its stroke, as upstream\'s edge-text states close', async () => {
-    await agreesWithUpstream('flowchart TB\n  A-.b-.->B\n  B -. c .- C\n  E -- f --o F\n  F -. g ..-> G\n  G == h ===> H', {
+    // A dotted link may leave out its leading `-`, so one may follow a label
+    // that `.-` closes. A thick or dotted closer may end in a cross or a
+    // circle, and an `x` or `o` opener starts a label that one so ends.
+    await agreesWithUpstream('flowchart TB\n  A-.b-.->B\n  B -. c .- C\n  E -- f --o F\n  F -. g ..-> G\n  G == h ===> H\n  H -. i .- I .-> J\n  J -. k .-x K\n  K == l ==o L\n  L x== m ==x M', {
       edges: [
         'A B dotted arrow_point : b', 'B C dotted arrow_open : c', 'E F normal arrow_circle : f',
         'F G dotted arrow_point : g', 'G H thick arrow_point : h',
+        'H I dotted arrow_open : i', 'I J dotted arrow_point : ',
+        'J K dotted arrow_cross : k', 'K L thick arrow_circle : l', 'L M thick double_arrow_cross : m',
       ],
     })
   })

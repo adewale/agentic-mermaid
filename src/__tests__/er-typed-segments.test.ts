@@ -23,7 +23,7 @@ function apply(diagram: ErValidDiagram, op: ErMutationOp): ErValidDiagram {
 
 describe('typed ER styling and ordered opaque segments (B09)', () => {
   test('preserves outer comments and unknown source around a neighboring entity edit', () => {
-    const preserved = '  future A keep-this'
+    const preserved = '  future A -> keep-this'
     let diagram = er(`erDiagram\n  A\n  %% Keep this authored note\n${preserved}\n  B`)
     diagram = apply(diagram, { kind: 'add_attribute', entity: 'B', text: 'int id PK' })
     const serialized = serializeMermaid(diagram)
@@ -39,6 +39,7 @@ describe('typed ER styling and ordered opaque segments (B09)', () => {
   test.each([
     ['an unclosed attribute block', 'erDiagram\nA {\n  int id PK', 'ER_UNCLOSED_ENTITY'],
     ['an unknown attribute qualifier', 'erDiagram\nA {\n  int id FUTURE\n}', 'ER_UNSUPPORTED_STATEMENT'],
+    ['punctuation where an attribute name belongs', 'erDiagram\nA {\n  TEAM : "parent"\n}', 'ER_UNSUPPORTED_STATEMENT'],
     ['a partly invalid style target list', 'erDiagram\nA\nstyle A,? fill:red', 'Invalid ER style assignment'],
     ['an unmodeled parent cardinality', 'erDiagram\nPROJECT u--o{ TEAM_MEMBER : "parent"', 'ER_UNSUPPORTED_STATEMENT'],
   ])('rejects %s rather than silently discarding authored syntax', (_name, source, error) => {

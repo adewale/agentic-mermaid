@@ -1,13 +1,14 @@
 import { prepareDisplayText, resolveLabelContent } from './shared/display-text.ts'
 import { graphTextBlock } from './graph-text.ts'
-import type { PositionedGraph, PositionedNode, PositionedEdge, PositionedGroup, PositionedStateNote, Point, RenderContext, RenderOptions } from './types.ts'
+import type { PositionedGraph, PositionedNode, PositionedEdge, PositionedGroup, PositionedStateNote, RenderContext, RenderOptions } from './types.ts'
 import type { DiagramColors } from './theme.ts'
 import { STROKE_WIDTHS, FLOWCHART_DOTTED_DASH, resolveRenderStyle, diagramTitleMark } from './styles.ts'
 import type { ResolvedRenderStyle } from './styles.ts'
 import { snapshotSvgEmissionRecipe, svgValue as v, type SvgAttribute, type SvgGeometryField, type SvgGroupEmission, type SvgPrimitiveEmission } from './scene/svg-emission.ts'
 import { topRoundedRectPath } from './svg-paths.ts'
 import { resolveInlineNodeTextColor, toneOnFill } from './color-resolver.ts'
-import type { ConnectorLabelDescriptor, MarkerDescriptor, SceneDoc, SceneNode, SemanticChannels } from './scene/ir.ts'
+import type { ConnectorLabelDescriptor, MarkAttributes, MarkerDescriptor, SceneDoc, SceneNode, SemanticChannels } from './scene/ir.ts'
+import { sanitizeDisplayLines } from './shared/text-controls.ts'
 import * as marks from './scene/marks.ts'
 import { pathArtwork } from './scene/artwork.ts'
 import { iconFallbackToken } from './shared/icon-fallback.ts'
@@ -17,6 +18,8 @@ import { resolveMindmapIcon } from './mindmap/icons.ts'
 import { flowchartMarkerResources, markerIdPrefix, markerSuffix, graphEdgePathProjection } from './graph-connectors.ts'
 export { compactSvg, namespaceSvgIds } from './svg-postprocess.ts'
 import { paintsNodeFill, shapeOutline } from './shape-outline.ts'
+import { LABEL_PILL_PADDING } from './shared/edge-label-geometry.ts'
+import { calculatePathMidpoint } from './layout/geometry.ts'
 
 const PAINT_ATTRIBUTES: readonly SvgAttribute[] = [
   { name: 'fill', value: v.paint('fill') }, { name: 'stroke', value: v.paint('stroke') }, { name: 'stroke-width', value: v.paint('strokeWidth') },
@@ -205,16 +208,19 @@ function renderGroup(group: PositionedGroup, font: string, style: ResolvedRender
     ...(parentId ? [{ name: 'data-parent-id' as const, value: v.meta(parentId) }] : []),
   ] }
 
-  // Outer rectangle
-  const rectFill = style.groupFillColor ?? 'var(--_group-fill)'
-  const rectStroke = style.groupBorderColor ?? 'var(--_node-stroke)'
+  // Outer rectangle. A State composite's class paint fills its body and
+  // outlines it, as Mermaid's classDef rules paint the cluster's body rect.
+  const paint = group.inlineStyle
+  const rectFill = paint?.fill ?? style.groupFillColor ?? 'var(--_group-fill)'
+  const rectStroke = paint?.stroke ?? style.groupBorderColor ?? 'var(--_node-stroke)'
+  const rectStrokeWidth = paint?.['stroke-width'] ?? String(style.groupLineWidth)
   children.push({
     indent: 2,
     node: marks.shape({
       id: `group-rect:${group.id}`,
       role: 'group',
       geometry: { kind: 'rect', x: group.x, y: group.y, width: group.width, height: group.height, rx: style.groupCornerRadius, ry: style.groupCornerRadius },
-      paint: { fill: rectFill, stroke: rectStroke, strokeWidth: String(style.groupLineWidth) },
+      paint: { fill: rectFill, stroke: rectStroke, strokeWidth: rectStrokeWidth },
     }, RECT_EMISSION),
   })
 
@@ -227,13 +233,13 @@ function renderGroup(group: PositionedGroup, font: string, style: ResolvedRender
       id: `group-header:${group.id}`,
       role: 'group-header',
       geometry: { kind: 'path', d: headerPath },
-      paint: { fill: headerFill, stroke: rectStroke, strokeWidth: String(style.groupLineWidth) },
+      paint: { fill: headerFill, stroke: rectStroke, strokeWidth: rectStrokeWidth },
     }, HEADER_EMISSION),
   })
 
   // Header label (supports multi-line via <br> tags)
   const headerText = headerBlock.text
-  const headerTextColor = style.groupTextColor ?? 'var(--_text-sec)'
+  const headerTextColor = paint?.color ?? style.groupTextColor ?? 'var(--_text-sec)'
   children.push({
     indent: 2,
     node: marks.text({
@@ -262,6 +268,7 @@ function renderGroup(group: PositionedGroup, font: string, style: ResolvedRender
         role: 'group',
         geometry: { kind: 'line', x1: sep.x1, y1: sep.y1, x2: sep.x2, y2: sep.y2 },
         paint: { stroke: rectStroke, strokeWidth: String(style.groupLineWidth), strokeDasharray: '6 4' },
+        attributes: { className: 'region-separator' },
       }, SEPARATOR_EMISSION),
     })
   }
@@ -372,7 +379,7 @@ function renderEdge(
     : edge.style === 'invisible' ? 'invisible'
     : 'solid'
   const labelSceneId = connectorLabelSceneId(sceneId)
-  const labelAnchor = edge.labelPosition ?? edgeMidpoint(edge.points)
+  const labelAnchor = edge.labelPosition ?? calculatePathMidpoint(edge.points)
   const labelTextColor = style.edgeTextColor ?? 'var(--_text-sec)'
   const labels: readonly ConnectorLabelDescriptor[] = edge.label ? [{
     id: `${sceneId}:label`,
@@ -425,8 +432,7 @@ function renderEdge(
   const baseStrokeWidth = edge.style === 'thick' ? style.lineWidth * 2 : style.lineWidth
   const markerColor = edge.inlineStyle?.stroke ?? style.edgeStrokeColor
 
-  // Build marker attributes based on arrow direction flags
-  // Use color-specific markers when edge has a custom stroke from linkStyle
+  // Color-specific markers when the edge has a custom stroke from linkStyle
   const suffix = `${markerColor ? `-${markerSuffix(markerColor)}` : ''}${edge.inlineStyle?.['stroke-width'] ? '-fixed' : ''}`
   let endMarker: MarkerDescriptor | undefined
   let startMarker: MarkerDescriptor | undefined
@@ -465,6 +471,23 @@ function renderEdge(
     ...(endMarker ? [{ name: 'marker-end' as const, value: { source: 'marker' as const, position: 'end' as const } }] : []),
     ...(startMarker ? [{ name: 'marker-start' as const, value: { source: 'marker' as const, position: 'start' as const } }] : []),
   ]
+  // Inspection hooks: the authored classes, and data-* attributes for the
+  // edge style, arrow presence and markers, the label, curve and animation.
+  // Identity (data-id from an authored v11.6 edge ID, data-from/data-to) comes
+  // from the connector's typed identity.
+  const markAttributes: MarkAttributes = {
+    className: ['edge', ...authoredClassNames].join(' '),
+    data: {
+      style: edge.style,
+      'arrow-start': String(edge.hasArrowStart),
+      'arrow-end': String(edge.hasArrowEnd),
+      ...(edge.hasArrowStart ? { 'marker-start': edge.startMarker ?? 'arrow' } : {}),
+      ...(edge.hasArrowEnd ? { 'marker-end': edge.endMarker ?? 'arrow' } : {}),
+      ...(edge.label ? { label: sanitizeDisplayLines(edge.label) } : {}),
+      ...(edge.curve ? { curve: edge.curve } : {}),
+      ...(edge.animate ? { animate: 'true', animation: edge.animation ?? 'slow' } : {}),
+    },
+  }
 
   const paint = {
     stroke: markerColor ?? 'var(--_line)',
@@ -483,6 +506,7 @@ function renderEdge(
       markers: { ...(startMarker ? { start: startMarker } : {}), mid: [], ...(endMarker ? { end: endMarker } : {}) },
       ...connectorSemantics,
       route: { ...connectorSemantics.route, contours: pathProjection.contours },
+      attributes: markAttributes,
     }, { kind: 'primitive', attributes })
   }
 
@@ -494,6 +518,7 @@ function renderEdge(
     paint,
     markers: { ...(startMarker ? { start: startMarker } : {}), mid: [], ...(endMarker ? { end: endMarker } : {}) },
     ...connectorSemantics,
+    attributes: markAttributes,
   }, { kind: 'primitive', attributes })
 }
 
@@ -506,10 +531,10 @@ function connectorLabelSceneId(connectorSceneId: string): string {
 function renderEdgeLabel(edge: PositionedEdge, font: string, style: ResolvedRenderStyle, sceneId: string): SceneNode {
   // Use layout-computed label position when available (layout-aware, avoids collisions).
   // Fall back to geometric midpoint of the edge polyline.
-  const mid = edge.labelPosition ?? edgeMidpoint(edge.points)
+  const mid = edge.labelPosition ?? calculatePathMidpoint(edge.points)
   const block = edge.labelBlock ?? graphTextBlock(resolveLabelContent(edge.label!, edge.labelContent), style, 'edge')
   const label = block.text
-  const padding = 8
+  const padding = LABEL_PILL_PADDING
   const strokeWidth = edge.style === 'thick' ? style.lineWidth * 2 : style.lineWidth
   const haloPadding = padding + Math.max(4, strokeWidth * 2)
 
@@ -524,9 +549,19 @@ function renderEdgeLabel(edge: PositionedEdge, font: string, style: ResolvedRend
     role: 'chrome',
     geometry: { kind: 'rect', x: haloX, y: haloY, width: haloWidth, height: haloHeight, rx: 4, ry: 4 },
     paint: { fill: 'var(--bg)', stroke: 'none' },
+    attributes: { className: 'edge-label-halo' },
   }, HALO_EMISSION)
 
   // Wrap in <g class="edge-label"> with reference to the edge it belongs to
+  // The label's pill: the text's own band plus padding.
+  const pillWidth = metrics.width + padding * 2
+  const pillHeight = metrics.height + padding * 2
+  const pill = marks.shape({
+    id: `${sceneId}:pill`,
+    role: 'chrome',
+    geometry: { kind: 'rect', x: mid.x - pillWidth / 2, y: mid.y - pillHeight / 2, width: pillWidth, height: pillHeight, rx: 2, ry: 2 },
+    paint: { fill: 'var(--bg)', stroke: 'var(--_inner-stroke)', strokeWidth: '1' },
+  }, RECT_EMISSION)
   const labelTextColor = style.edgeTextColor ?? 'var(--_text-sec)'
   const content = marks.text({
     id: `${sceneId}:text`,
@@ -538,7 +573,6 @@ function renderEdgeLabel(edge: PositionedEdge, font: string, style: ResolvedRend
     anchor: 'middle',
     paint: { fill: labelTextColor },
   }, { kind: 'text', layout: 'multiline', attributes: LABEL_ATTRIBUTES,
-    background: { padding, rx: 2, ry: 2, paint: { fill: 'var(--bg)', stroke: 'var(--_inner-stroke)', strokeWidth: '1' } },
   })
 
   // Semantic wrapper: links label to its edge via data-from/data-to
@@ -551,41 +585,10 @@ function renderEdgeLabel(edge: PositionedEdge, font: string, style: ResolvedRend
     ] },
     children: [
       { indent: 2, node: halo },
+      { indent: 2, node: pill },
       { indent: 2, node: content },
     ],
   })
-}
-
-/** Get the midpoint of a polyline (by walking segments) */
-function edgeMidpoint(points: Point[]): Point {
-  if (points.length === 0) return { x: 0, y: 0 }
-  if (points.length === 1) return points[0]!
-
-  // Calculate total length
-  let totalLength = 0
-  for (let i = 1; i < points.length; i++) {
-    totalLength += dist(points[i - 1]!, points[i]!)
-  }
-
-  // Walk to the halfway point
-  let remaining = totalLength / 2
-  for (let i = 1; i < points.length; i++) {
-    const segLen = dist(points[i - 1]!, points[i]!)
-    if (remaining <= segLen) {
-      const t = remaining / segLen
-      return {
-        x: points[i - 1]!.x + t * (points[i]!.x - points[i - 1]!.x),
-        y: points[i - 1]!.y + t * (points[i]!.y - points[i - 1]!.y),
-      }
-    }
-    remaining -= segLen
-  }
-
-  return points[points.length - 1]!
-}
-
-function dist(a: Point, b: Point): number {
-  return Math.sqrt((b.x - a.x) ** 2 + (b.y - a.y) ** 2)
 }
 
 // ============================================================================
@@ -697,22 +700,17 @@ function renderNodeShape(node: PositionedNode, style: ResolvedRenderStyle): Scen
   // Resolve fill and stroke — inline styles (from mermaid `style` directives)
   // override the CSS variable defaults. When no inline style is present, the
   // CSS variable handles theming automatically via color-mix() derivation.
-  const rawFill = inlineStyle?.fill ?? style.nodeFillColor ?? 'var(--_node-fill)'
-  const rawStroke = inlineStyle?.stroke ?? style.nodeBorderColor ?? 'var(--_node-stroke)'
-  const rawSw = inlineStyle?.['stroke-width'] ?? String(style.nodeLineWidth)
-  const piece = shapeOutline(node, { fill: rawFill, stroke: rawStroke, strokeWidth: rawSw }, style.cornerRadius)
-
-  const paint = shape === 'state-start' || shape === 'state-fork' || shape === 'state-join'
-    ? { fill: 'var(--_text)', stroke: 'none' }
-    : shape === 'state-end'
-      ? { fill: 'var(--_text)', stroke: 'var(--_text)' }
-      : { fill: rawFill, stroke: rawStroke, strokeWidth: rawSw }
+  const fill = inlineStyle?.fill ?? style.nodeFillColor ?? 'var(--_node-fill)'
+  const stroke = inlineStyle?.stroke ?? style.nodeBorderColor ?? 'var(--_node-stroke)'
+  const strokeWidth = inlineStyle?.['stroke-width'] ?? String(style.nodeLineWidth)
+  const piece = shapeOutline(node, { fill, stroke, strokeWidth }, style.cornerRadius)
 
   return marks.shape({
     id: `node-shape:${node.id}`,
     role: 'node',
     geometry: piece.geometry,
-    paint,
+    paint: piece.paint,
+    ...(piece.childPaints ? { childPaints: piece.childPaints } : {}),
   }, piece.emission)
 }
 

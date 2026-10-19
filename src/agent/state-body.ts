@@ -28,8 +28,8 @@
 // on transitions (verifyState announces them via the Tier-3 `state_history`
 // lint; the renderer draws the (H)/(H*) circle).
 //
-// Structured-or-opaque: any non-blank, non-comment line that is NOT one of the
-// modeled forms returns null so the caller falls back to a lossless opaque
+// Structured-or-opaque: any statement (readStateStatements) that is NOT one of
+// the modeled forms returns null so the caller falls back to a lossless opaque
 // body. Deliberately UNMODELED: concurrency separators `--` (regions render
 // via the legacy parser, but a structured region model is deferred — repo
 // #118 does not list it), `classDef`/`class`/`:::` styling, bare `stateId`
@@ -51,15 +51,24 @@ import type {
 import { ok, err } from './types.ts'
 import { labelOverflowCollector } from './body-utils.ts'
 import { normalizeBrTags } from '../multiline-utils.ts'
-import { scanAccessibilityDirectives } from '../shared/accessibility-directives.ts'
+import { keepStateTextFromPrepass, readStateLabel, readStateText, writeStateDescription, writeStateText } from '../state/text.ts'
+import type { LabelContent } from '../shared/display-text.ts'
+import { parseAccessibilityDirective, scanAccessibilityDirectives, statementEndAt } from '../shared/accessibility-directives.ts'
 import {
   matchNoteLine, matchNoteOpen, isNoteEnd, matchStereotypeDecl,
-  matchTransitionLine, isConcurrencySeparator, isHistoryEndpoint, matchHistoryEndpoint,
-  isStateNodeId, matchStateDeclarationLine, matchStateLayoutDirective, stereotypeMarker, stripStateComment, matchStateClassAssignment, stateNoteText,
+  matchTransitionLine, readStateStatements, stateStatementEnds, lexedStateText, isConcurrencySeparator, type StateStatement, isHistoryEndpoint, matchHistoryEndpoint,
+  isStateNodeId, matchStateDeclarationLine, matchStateLayoutDirective, stereotypeMarker, stripStateComment, matchStateClassAssignment,
   STATE_DIRECTION_RE, STATE_ALIAS_RE, STATE_COMPOSITE_OPEN_RE, STATE_DESCRIPTION_RE,
   STATE_CLASS_DEF_RE, STATE_STYLE_RE, STATE_LINK_STYLE_RE,
 } from '../state/parse-core.ts'
 import { parseClassShorthandStatement } from '../shared/mermaid-identifiers.ts'
+import { graphClassNames } from '../shared/graph-classes.ts'
+
+/** `record[key] = value` as an own key: a class may be named `__proto__`,
+ *  which an assignment would take as the record's prototype. */
+function setOwn<T>(record: Record<string, T>, key: string, value: T): void {
+  Object.defineProperty(record, key, { value, enumerable: true, writable: true, configurable: true })
+}
 
 // ---- Identifiers ------------------------------------------------------------
 //
@@ -101,28 +110,32 @@ function ensureState(scope: ParseScope, id: string): StateNode {
 
 /**
  * Parse state body lines (header excluded). Returns a structured body only if
- * EVERY non-blank, non-comment line is a modeled directive (transition /
+ * EVERY statement on them is a modeled directive (transition /
  * description / alias / composite / direction). Otherwise returns null
  * (opaque fallback). A header-only body is the empty typed diagram, as it is
  * in Mermaid; verify reports it as EMPTY_DIAGRAM.
  */
 export function parseStateBody(lines: string[]): StateBody | null {
-  const sourceLines = scanStateComments(lines)
+  const { statements } = readStateStatements(scanStateComments(lines))
   const root = newScope()
   const stack: ParseScope[] = [root]
   // Discover composite declarations before materializing transition endpoints.
   // Mermaid state IDs are global even when the declaration is nested, so a
   // forward reference must never create a competing simple placeholder.
   const compositeIds = new Set<string>()
-  for (const line of sourceLines) {
-    if (line.noteBody) continue
-    const match = line.text.match(STATE_COMPOSITE_OPEN_RE)
+  for (const statement of statements) {
+    if (statement.noteBody) continue
+    const match = statement.text.match(STATE_COMPOSITE_OPEN_RE)
     if (!match) continue
     const id = match[2]!
     if (compositeIds.has(id)) return null
     compositeIds.add(id)
   }
-  const pendingCompositeLabels = new Map<string, string>()
+  const pendingCompositeLabels = new Map<string, readonly string[]>()
+  // The composites opened so far. Ids are global, so a later mention in any
+  // scope names the composite; one before its block waits in
+  // pendingCompositeLabels.
+  const composites = new Map<string, StateNode>()
   // Pending composites awaiting their `}` — parent scope + the node to attach.
   const pending: Array<{ parent: ParseScope; node: StateNode; regions?: ParseScope[] }> = []
   // Paint directives can target forward declarations, so apply them after the
@@ -137,21 +150,32 @@ export function parseStateBody(lines: string[]): StateBody | null {
   // Open block note (`note left of X` … `end note`), collecting body lines.
   let openNote: { target: string; side: 'left' | 'right'; lines: string[] } | null = null
 
-  const pushNote = (scope: ParseScope, target: string, side: 'left' | 'right', text: string): void => {
-    notes.push({ target, side, text })
+  // Each state's label as written, one piece per line (a label and the
+  // descriptions under it), read through the State text codec.
+  const labelPieces = new Map<StateNode, readonly string[]>()
+  const labelState = (node: StateNode, pieces: readonly string[]): void => {
+    labelPieces.set(node, pieces)
+    const { text, content } = readStateLabel(pieces)
+    node.label = text
+    if (content) node.labelContent = content
+    else delete node.labelContent
+  }
+  const pushNote = (scope: ParseScope, target: string, side: 'left' | 'right', authored: string): void => {
+    const { text, content } = readStateText(authored)
+    notes.push({ target, side, text, ...(content ? { textContent: content } : {}) })
     // A note on an undeclared state declares it (mirrors the render parser).
     if (!compositeIds.has(target)) ensureState(scope, target)
   }
 
-  for (const sourceLine of sourceLines) {
-    const line = sourceLine.text
+  for (const statement of statements) {
+    const line = statement.text
 
     const scope = stack[stack.length - 1]!
 
     // --- open block note: collect body lines until `end note` ---
     if (openNote) {
       if (isNoteEnd(line)) {
-        pushNote(scope, openNote.target, openNote.side, stateNoteText(openNote.lines))
+        pushNote(scope, openNote.target, openNote.side, openNote.lines.join('\n'))
         openNote = null
       } else {
         openNote.lines.push(line)
@@ -164,7 +188,7 @@ export function parseStateBody(lines: string[]): StateBody | null {
     // --- notes (before the ::: gate: note TEXT may legally contain :::) ---
     const noteLine = matchNoteLine(line)
     if (noteLine) {
-      pushNote(scope, noteLine.target, noteLine.side, stateNoteText([noteLine.text]))
+      pushNote(scope, noteLine.target, noteLine.side, noteLine.text)
       continue
     }
     const noteOpen = matchNoteOpen(line)
@@ -178,7 +202,7 @@ export function parseStateBody(lines: string[]): StateBody | null {
     if (classDef) {
       const props = parseStyleProps(classDef[2]!)
       if (Object.keys(props).length === 0) return null
-      for (const name of classDef[1]!.split(',').map(value => value.trim()).filter(Boolean)) classDefs[name] = { ...props }
+      for (const name of classDef[1]!.split(',').map(value => value.trim()).filter(Boolean)) setOwn(classDefs, name, { ...props })
       continue
     }
     const classLine = matchStateClassAssignment(line)
@@ -241,7 +265,7 @@ export function parseStateBody(lines: string[]): StateBody | null {
       if (!isCompositeId(stereo.id) || (compositeIds.has(stereo.id) && !scope.byId.has(stereo.id))) return null
       const node = ensureState(scope, stereo.id)
       node.stereotype = stereo.stereotype
-      if (stereo.label !== undefined && node.label === undefined) node.label = normalizeBrTags(stereo.label)
+      if (stereo.label !== undefined && node.label === undefined) labelState(node, [stereo.label])
       continue
     }
 
@@ -250,11 +274,10 @@ export function parseStateBody(lines: string[]): StateBody | null {
     if (open) {
       const id = open[2]!
       if (!isCompositeId(id)) return null
-      const label = open[1] !== undefined
-        ? normalizeBrTags(open[1]!)
-        : pendingCompositeLabels.get(id)
+      const pieces = open[1] !== undefined ? [open[1]] : pendingCompositeLabels.get(id)
       const child = newScope()
-      const node: StateNode = { id, ...(label !== undefined ? { label } : {}), states: child.states, transitions: child.transitions }
+      const node: StateNode = { id, states: child.states, transitions: child.transitions }
+      if (pieces !== undefined) labelState(node, pieces)
       // Reuse any existing node slot (a prior transition may have referenced it),
       // but the legacy parser deletes the simple node and makes it a composite.
       const prior = scope.byId.get(id)
@@ -265,6 +288,7 @@ export function parseStateBody(lines: string[]): StateBody | null {
         scope.states.push(node)
       }
       scope.byId.set(id, node)
+      composites.set(id, node)
       pending.push({ parent: scope, node })
       stack.push(child)
       continue
@@ -272,7 +296,9 @@ export function parseStateBody(lines: string[]): StateBody | null {
 
     // --- composite close ---
     if (line === '}') {
-      if (stack.length <= 1) return null // unbalanced
+      // A `}` with no composite open closes nothing: dropped, as the
+      // renderer drops it (verify reports it, state_brace_unopened).
+      if (stack.length <= 1) continue
       const child = stack.pop()!
       const top = pending.pop()!
       if (top.regions) {
@@ -296,13 +322,16 @@ export function parseStateBody(lines: string[]): StateBody | null {
     const alias = line.match(STATE_ALIAS_RE)
     if (alias) {
       const id = alias[2]!
-      const label = normalizeBrTags(alias[1]!)
-      if (compositeIds.has(id) && !scope.byId.has(id)) {
-        if (!pendingCompositeLabels.has(id)) pendingCompositeLabels.set(id, label)
+      const pieces = [alias[1]!]
+      const composite = composites.get(id)
+      if (composite) {
+        if (composite.label === undefined) labelState(composite, pieces)
+      } else if (compositeIds.has(id)) {
+        if (!pendingCompositeLabels.has(id)) pendingCompositeLabels.set(id, pieces)
       } else {
         const node = ensureState(scope, id)
         // Definition-before-use: only set if not already labeled.
-        if (node.label === undefined) node.label = label
+        if (node.label === undefined) labelState(node, pieces)
       }
       continue
     }
@@ -311,24 +340,35 @@ export function parseStateBody(lines: string[]): StateBody | null {
     const tr = matchTransitionLine(line)
     if (tr) {
       const { from, to } = tr
-      const label = tr.label ? normalizeBrTags(tr.label) : undefined
+      const label = tr.label ? readStateText(tr.label) : undefined
       if (!isEndpointId(from) || !isEndpointId(to)) return null
-      if (tr.fromClass) classAssignments.push({ id: from, className: tr.fromClass, scope })
-      if (tr.toClass) classAssignments.push({ id: to, className: tr.toClass, scope })
+      // A `[*]` or history endpoint is no state, so its class stays on the
+      // transition: `[*]:::c --> A` is its only Mermaid spelling. Mermaid's
+      // name after `:::` ends at a hyphen, so a hyphenated class there has
+      // no spelling, and the body stays opaque.
+      const contextual = (id: string): boolean => id === PSEUDO || isHistoryEndpoint(id)
+      if ((contextual(from) && tr.fromClass?.includes('-')) || (contextual(to) && tr.toClass?.includes('-'))) return null
+      if (tr.fromClass && !contextual(from)) classAssignments.push({ id: from, className: tr.fromClass, scope })
+      if (tr.toClass && !contextual(to)) classAssignments.push({ id: to, className: tr.toClass, scope })
       // Only materialize simple-state nodes for non-pseudo, non-history,
       // non-composite ids (pseudostates are contextual endpoint strings).
-      if (from !== PSEUDO && !isHistoryEndpoint(from) && !compositeIds.has(from)) ensureState(scope, from)
-      if (to !== PSEUDO && !isHistoryEndpoint(to) && !compositeIds.has(to)) ensureState(scope, to)
-      const transition: StateTransition = { from, to, ...(label !== undefined ? { label } : {}) }
+      if (!contextual(from) && !compositeIds.has(from)) ensureState(scope, from)
+      if (!contextual(to) && !compositeIds.has(to)) ensureState(scope, to)
+      const transition: StateTransition = {
+        from, to,
+        ...(tr.fromClass && contextual(from) ? { fromClass: tr.fromClass } : {}),
+        ...(tr.toClass && contextual(to) ? { toClass: tr.toClass } : {}),
+        ...(label !== undefined ? { label: label.text, ...(label.content ? { labelContent: label.content } : {}) } : {}),
+      }
       scope.transitions.push(transition)
       transitionOrder.push(transition)
-      for (const id of tr.followingStates ?? []) ensureState(scope, id).declaredBare = true
       continue
     }
 
     // --- standalone class shorthand: `A:::hot` ---
     const shorthand = parseClassShorthandStatement(line)
     if (shorthand) {
+      if (!compositeIds.has(shorthand.id)) ensureState(scope, shorthand.id).declaredBare = true
       classAssignments.push({ id: shorthand.id, className: shorthand.className, scope })
       continue
     }
@@ -337,13 +377,13 @@ export function parseStateBody(lines: string[]): StateBody | null {
     const desc = line.match(STATE_DESCRIPTION_RE)
     if (desc) {
       const id = desc[1]!
-      const label = normalizeBrTags(desc[2]!.trim())
-      if (compositeIds.has(id) && !scope.byId.has(id)) {
-        const previous = pendingCompositeLabels.get(id)
-        pendingCompositeLabels.set(id, previous === undefined ? label : `${previous}\n${label}`)
+      const piece = desc[2]!.trim()
+      if (compositeIds.has(id) && !composites.has(id)) {
+        pendingCompositeLabels.set(id, [...(pendingCompositeLabels.get(id) ?? []), piece])
       } else {
-        const node = ensureState(scope, id)
-        node.label = node.label === undefined ? label : `${node.label}\n${label}`
+        // A description adds a line under any label the state has.
+        const node = composites.get(id) ?? ensureState(scope, id)
+        labelState(node, [...(labelPieces.get(node) ?? []), piece])
       }
       continue
     }
@@ -351,6 +391,8 @@ export function parseStateBody(lines: string[]): StateBody | null {
     // --- standalone state declaration ---
     const declaredId = matchStateDeclarationLine(line)
     if (declaredId !== null) {
+      // A composite's id names the composite, which a mention adds nothing to.
+      if (compositeIds.has(declaredId)) continue
       const node = ensureState(scope, declaredId)
       node.declaredBare = true
       continue
@@ -377,17 +419,18 @@ export function parseStateBody(lines: string[]): StateBody | null {
     }
   }
   indexStates(root.states)
-  const styledState = (scope: ParseScope, id: string): StateNode => {
-    const existing = stateById.get(id)
-    if (existing) return existing
-    const state = ensureState(scope, id)
-    state.declaredBare = true
-    stateById.set(id, state)
-    return state
+  const unresolvedClasses: NonNullable<StateBody['unresolvedClasses']> = []
+  const unresolvedStyles: NonNullable<StateBody['unresolvedStyles']> = []
+  // A state takes every class assigned to it, in order, as in Mermaid.
+  // Missing targets remain paint intent, never fabricated declarations.
+  for (const { id, className } of classAssignments) {
+    const state = stateById.get(id)
+    if (!state) { unresolvedClasses.push({ id, className }); continue }
+    state.className = state.className === undefined ? className : `${state.className} ${className}`
   }
-  for (const { id, className, scope } of classAssignments) styledState(scope, id).className = className
-  for (const { id, props, scope } of inlineStyles) {
-    const state = styledState(scope, id)
+  for (const { id, props } of inlineStyles) {
+    const state = stateById.get(id)
+    if (!state) { unresolvedStyles.push({ id, style: { ...props } }); continue }
     state.style = { ...state.style, ...props }
   }
   let defaultTransitionStyle: Record<string, string> | undefined
@@ -399,6 +442,20 @@ export function parseStateBody(lines: string[]): StateBody | null {
     }
   }
 
+  // `state "X" as X` is how the writer declares a state with no bare
+  // spelling; it reads back as that bare declaration.
+  const unlabelBare = (states: StateNode[]): void => {
+    for (const state of states) {
+      if (state.regions) for (const region of state.regions) unlabelBare(region.states)
+      else if (state.states) unlabelBare(state.states)
+      else if (state.stereotype === undefined && state.label === state.id && !hasBareSpelling(state.id)) {
+        delete state.label
+        delete state.labelContent
+        state.declaredBare = true
+      }
+    }
+  }
+  unlabelBare(root.states)
   canonicalizeStateOrder(root.states)
   const body: StateBody = {
     kind: 'state',
@@ -408,14 +465,39 @@ export function parseStateBody(lines: string[]): StateBody | null {
     ...(root.direction !== undefined ? { direction: root.direction } : {}),
     ...(Object.keys(classDefs).length > 0 ? { classDefs } : {}),
     ...(defaultTransitionStyle ? { defaultTransitionStyle } : {}),
+    ...(unresolvedClasses.length > 0 ? { unresolvedClasses } : {}),
+    ...(unresolvedStyles.length > 0 ? { unresolvedStyles } : {}),
   }
   return body
 }
 
 // ---- Serializer -------------------------------------------------------------
 
-function serializeStateLabel(label: string): string {
-  return label.replace(/\r\n?|\n/g, '<br/>')
+/** Whether Mermaid reads `id` alone as a state. It reads no hyphen in a name,
+ *  and takes a keyword (`note`, `class`, …, in any case) before the line
+ *  break as its statement; `state X`, the other spelling, declares nothing
+ *  upstream. Such a state is written `state "X" as X`, which Mermaid draws,
+ *  and read back as the bare declaration (parseStateBody). */
+function hasBareSpelling(id: string): boolean {
+  return !/-|^(?:state|note|scale|default|classDef|class|style|click|href|stateDiagram)$/i.test(id)
+}
+
+/** Whether a label is written as `X: label` beside the declaration, as one
+ *  holding a `"` is where `X` reads alone; elsewhere the quoted label spells
+ *  its `"` as `#quot;`. */
+function describedApart(s: StateNode): boolean {
+  return (s.label?.includes('"') ?? false) && hasBareSpelling(s.id)
+}
+
+/** `line` and the description or transition label after it. */
+function describe(line: string, label: string, content?: LabelContent): string {
+  return line + writeStateDescription(label, content, line)
+}
+
+/** A label as written in source, in `state "…" as X`: its line breaks as
+ *  `<br/>`, kept from the prepass (nothing before it on its line holds a colon). */
+function serializeStateLabel(label: string, content?: LabelContent, reserved = ''): string {
+  return keepStateTextFromPrepass(writeStateText(label, content, reserved).replace(/\r\n?|\n/g, '<br/>'))
 }
 
 function renderScope(states: StateNode[], transitions: StateTransition[], direction: StateNode['direction'] | undefined, indent: string, out: string[]): void {
@@ -424,9 +506,9 @@ function renderScope(states: StateNode[], transitions: StateTransition[], direct
   for (const s of states) {
     if (s.states !== undefined || s.transitions !== undefined || s.regions !== undefined) {
       // Composite block (ordinary or `--`-partitioned concurrency regions).
-      const separateDescription = s.label?.includes('"') ?? false
-      if (separateDescription) out.push(`${indent}${s.id}: ${serializeStateLabel(s.label!)}`)
-      const header = s.label !== undefined && !separateDescription ? `state "${serializeStateLabel(s.label)}" as ${s.id} {` : `state ${s.id} {`
+      const separateDescription = describedApart(s)
+      if (separateDescription) out.push(describe(`${indent}${s.id}: `, s.label!, s.labelContent))
+      const header = s.label !== undefined && !separateDescription ? `state "${serializeStateLabel(s.label, s.labelContent, '"')}" as ${s.id} {` : `state ${s.id} {`
       out.push(`${indent}${header}`)
       if (s.regions) {
         if (s.direction !== undefined) out.push(`${indent}  direction ${s.direction}`)
@@ -441,27 +523,25 @@ function renderScope(states: StateNode[], transitions: StateTransition[], direct
     } else if (s.stereotype !== undefined) {
       // Pseudostate declaration (fork/join/choice/history) — canonical marker
       // spelling; `<<H>>`/`<<H*>>` shorthands normalize on parse.
-      const separateDescription = s.label?.includes('"') ?? false
-      const alias = s.label !== undefined && !separateDescription ? `"${serializeStateLabel(s.label)}" as ` : ''
+      const separateDescription = describedApart(s)
+      const alias = s.label !== undefined && !separateDescription ? `"${serializeStateLabel(s.label, s.labelContent, '"')}" as ` : ''
       out.push(`${indent}state ${alias}${s.id} ${stereotypeMarker(s.stereotype)}`)
-      if (separateDescription) out.push(`${indent}${s.id}: ${serializeStateLabel(s.label!)}`)
+      if (separateDescription) out.push(describe(`${indent}${s.id}: `, s.label!, s.labelContent))
     } else if (s.label !== undefined) {
-      out.push(isCompositeId(s.id) && !s.label.includes('"')
-        ? `${indent}state "${serializeStateLabel(s.label)}" as ${s.id}`
-        : `${indent}${s.id}: ${serializeStateLabel(s.label)}`)
+      out.push(isCompositeId(s.id) && !describedApart(s)
+        ? `${indent}state "${serializeStateLabel(s.label, s.labelContent, '"')}" as ${s.id}`
+        : describe(`${indent}${s.id}: `, s.label, s.labelContent))
     } else if (s.declaredBare) {
-      // A bare hyphen/keyword is a lexer operator/directive in Mermaid. The
-      // explicit declaration keeps its authored identity in the state context.
-      const explicit = /-|^(?:state|note|scale|default|classDef|class|style|click|href|stateDiagram|hide)$/i.test(s.id)
-      out.push(`${indent}${explicit ? 'state ' : ''}${s.id}`)
+      out.push(`${indent}${hasBareSpelling(s.id) ? s.id : `state "${s.id}" as ${s.id}`}`)
     }
     // Implicit transition endpoints need no standalone declaration.
   }
   for (const t of transitions) {
     // `state` followed by whitespace enters Mermaid's declaration lexer.
     const separator = /^state$/i.test(t.to) ? ':' : ' :'
-    const label = t.label !== undefined ? `${separator} ${serializeStateLabel(t.label)}` : ''
-    out.push(`${indent}${t.from} --> ${t.to}${label}`)
+    const endpoint = (id: string, className: string | undefined): string => className === undefined ? id : `${id}:::${className}`
+    const arrow = `${indent}${endpoint(t.from, t.fromClass)} --> ${endpoint(t.to, t.toClass)}`
+    out.push(t.label !== undefined ? describe(`${arrow}${separator} `, t.label, t.labelContent) : arrow)
   }
 }
 
@@ -472,12 +552,15 @@ export function renderState(body: StateBody): string {
   // so punctuation-bearing or multiline text uses `note … end note`. Note text is canonical by construction
   // (validNoteText): trimmed lines, no blank lines, no `end note` line.
   for (const n of body.notes ?? []) {
+    const text = writeStateText(n.text, n.textContent)
     if (/[\n:;]/.test(n.text)) {
       out.push(`  note ${n.side} of ${n.target}`)
-      for (const line of n.text.split('\n')) out.push(`    ${line}`)
+      // Mermaid reads a block whose text starts with a colon as a one-line
+      // note, and then rejects its `end note`; `#58;` reads as the colon.
+      for (const line of text.replace(/^:/, '#58;').split('\n')) out.push(`    ${keepStateTextFromPrepass(line)}`)
       out.push('  end note')
     } else {
-      out.push(`  note ${n.side} of ${n.target} : ${n.text}`)
+      out.push(`  note ${n.side} of ${n.target} : ${text}`)
     }
   }
   const styleText = (style: Record<string, string>): string => Object.entries(style).map(([key, value]) => `${key}:${value}`).join(',')
@@ -494,9 +577,11 @@ export function renderState(body: StateBody): string {
   }
   collect(body.states, body.transitions)
   for (const state of styledStates) {
-    if (state.className) out.push(`  class ${state.id} ${state.className}`)
+    for (const className of graphClassNames(state.className)) out.push(`  class ${state.id} ${className}`)
     if (state.style) out.push(`  style ${state.id} ${styleText(state.style)}`)
   }
+  for (const { id, className } of body.unresolvedClasses ?? []) out.push(`  class ${id} ${className}`)
+  for (const { id, style } of body.unresolvedStyles ?? []) out.push(`  style ${id} ${styleText(style)}`)
   if (body.defaultTransitionStyle) out.push(`  linkStyle default ${styleText(body.defaultTransitionStyle)}`)
   transitions.forEach((transition, index) => {
     if (transition.style) out.push(`  linkStyle ${index} ${styleText(transition.style)}`)
@@ -528,6 +613,7 @@ function cloneState(s: StateNode): StateNode {
   return {
     id: s.id,
     ...(s.label !== undefined ? { label: s.label } : {}),
+    ...(s.labelContent !== undefined ? { labelContent: s.labelContent } : {}),
     ...(s.declaredBare ? { declaredBare: true as const } : {}),
     ...(s.stereotype !== undefined ? { stereotype: s.stereotype } : {}),
     ...(s.className !== undefined ? { className: s.className } : {}),
@@ -552,6 +638,8 @@ function cloneStateBody(b: StateBody): StateBody {
     ...(b.direction !== undefined ? { direction: b.direction } : {}),
     ...(b.classDefs !== undefined ? { classDefs: Object.fromEntries(Object.entries(b.classDefs).map(([name, style]) => [name, { ...style }])) } : {}),
     ...(b.defaultTransitionStyle !== undefined ? { defaultTransitionStyle: { ...b.defaultTransitionStyle } } : {}),
+    ...(b.unresolvedClasses ? { unresolvedClasses: b.unresolvedClasses.map(item => ({ ...item })) } : {}),
+    ...(b.unresolvedStyles ? { unresolvedStyles: b.unresolvedStyles.map(item => ({ ...item, style: { ...item.style } })) } : {}),
   }
 }
 
@@ -738,6 +826,7 @@ export function mutateState(body: StateBody, op: StateMutationOp): Result<StateB
     case 'set_state_label': {
       const loc = locate(next, op.id)
       if (!loc) return err({ code: 'STATE_NOT_FOUND', message: `State '${op.id}' not found` })
+      delete loc.node.labelContent
       if (op.label === null) { delete loc.node.label; loc.node.declaredBare = true; break }
       const l = validLabel(op.label, 'label')
       if (!l.ok) return l
@@ -794,6 +883,7 @@ export function mutateState(body: StateBody, op: StateMutationOp): Result<StateB
       if (op.index !== undefined) t = list[op.index]
       else if (op.from !== undefined && op.to !== undefined) t = list.find(tr => tr.from === op.from && tr.to === op.to)
       if (!t) return err({ code: 'TRANSITION_NOT_FOUND', message: 'transition not found (need a valid index or from/to pair)' })
+      delete t.labelContent
       if (op.label === null) { delete t.label; break }
       const l = validLabel(op.label, 'transition label')
       if (!l.ok) return l
@@ -889,6 +979,7 @@ export function mutateState(body: StateBody, op: StateMutationOp): Result<StateB
       const text = validNoteText(op.text)
       if (!text.ok) return text
       notes[op.index]!.text = text.value
+      delete notes[op.index]!.textContent
       break
     }
     case 'define_class': {
@@ -898,7 +989,7 @@ export function mutateState(body: StateBody, op: StateMutationOp): Result<StateB
       const style = parseStateStyle(op.style, 'State class style')
       if (!style.ok) return style
       if (!next.classDefs) next.classDefs = {}
-      next.classDefs[op.name] = style.value
+      setOwn(next.classDefs, op.name, style.value)
       break
     }
     case 'set_state_class': {
@@ -985,6 +1076,26 @@ export function mutateState(body: StateBody, op: StateMutationOp): Result<StateB
     }
   }
 
+  // A successful edit can declare a formerly missing paint target. Consume
+  // that intent in the same typed body the serializer will subsequently read.
+  if (next.unresolvedClasses) {
+    next.unresolvedClasses = next.unresolvedClasses.filter(item => {
+      const target = locate(next, item.id)?.node
+      if (!target) return true
+      target.className = target.className === undefined ? item.className : `${target.className} ${item.className}`
+      return false
+    })
+    if (next.unresolvedClasses.length === 0) delete next.unresolvedClasses
+  }
+  if (next.unresolvedStyles) {
+    next.unresolvedStyles = next.unresolvedStyles.filter(item => {
+      const target = locate(next, item.id)?.node
+      if (!target) return true
+      target.style = { ...target.style, ...item.style }
+      return false
+    })
+    if (next.unresolvedStyles.length === 0) delete next.unresolvedStyles
+  }
   preserveOrphanedImplicitStates(next)
   canonicalizeStateOrder(next.states)
   return ok(next)
@@ -1145,10 +1256,173 @@ function renameInTransitions(body: StateBody, from: string, to: string): void {
 // EMPTY_DIAGRAM, EDGE_MISANCHORED (transition endpoint references a missing
 // state), and LABEL_OVERFLOW.
 
+/** State source ours reads where pinned Mermaid reads it otherwise, each on
+ * its canonical line: a `;` between statements, which Mermaid reads into a
+ * state name (or rejects after the header), and statements sharing a line
+ * with nothing between them. Mermaid reads those apart too, but `A B` is
+ * usually meant as one name with a space (mermaid#2973). A composite never
+ * closed is reported where it opens: Mermaid and ours both reject it. */
+export function stateUnsupportedSyntaxWarnings(canonicalSource: string, authoredLine?: (canonicalLine: number) => string | undefined): LayoutWarning[] {
+  const lines = canonicalSource.split(/\r?\n/)
+  const header = lines.findIndex(line => /^stateDiagram(?:-v2)?(?=$|[\s;%])/i.test(line.trim()))
+  if (header < 0) return []
+  const body = lines.slice(header + 1)
+  // A line inside a statement's quoted or note text is the State reader's.
+  const statementEnds = stateStatementEnds(body)
+  for (let index = 0; index < body.length; index++) {
+    const directive = parseAccessibilityDirective(body, index)
+    if (directive === undefined) break
+    if (directive === null) {
+      index = statementEndAt(statementEnds, index, body.length)
+      continue
+    }
+    for (let at = index; at <= directive.endIndex; at++) body[at] = ''
+    if (directive.suffixLine) body[directive.endIndex] = directive.suffixLine
+    index = directive.endIndex
+  }
+  const scan = readStateStatements(scanStateComments(body))
+  const warnings: Array<LayoutWarning & { line: number }> = [
+    ...scan.semicolonLines.map(index => ({
+      code: 'UNSUPPORTED_SYNTAX' as const, syntax: 'state_semicolon_separator', line: header + index + 2,
+      message: 'A `;` between State statements is read as a separator. Pinned Mermaid does not separate State statements with `;`: it reads the `;` into a state name, or rejects it after the header. Put each statement on its own line.',
+    })),
+    ...scan.juxtaposedLines.map(index => ({
+      code: 'UNSUPPORTED_SYNTAX' as const, syntax: 'state_statements_share_line', line: header + index + 2,
+      message: 'State statements sharing a line with nothing between them are read as separate statements, as Mermaid reads them: `A B` declares the states A and B. For one state whose name has a space, write `state "A B" as AB`; otherwise put each statement on its own line.',
+    })),
+    ...scan.braceNameLines.map(index => ({
+      code: 'UNSUPPORTED_SYNTAX' as const, syntax: 'state_brace_after_name', line: header + index + 2,
+      message: 'A `}` right after a state name, or after the name in `state "…" as A`, is read as closing its composite, and is dropped where no composite is open. Pinned Mermaid reads the `}` into the name (`A}`; after `as`, the rest of the line): inside a composite it then rejects the unclosed composite, and at the top level it draws a state named `A}`. Put the `}` on a line of its own.',
+    })),
+    ...scan.unopenedBraceLines.map(index => ({
+      code: 'UNSUPPORTED_SYNTAX' as const, syntax: 'state_brace_unopened', line: header + index + 2,
+      message: 'A `}` with no composite open closes nothing, and is dropped. Pinned Mermaid reads it as a state named `}`. Remove it, or open the composite it was meant to close with `state X {`.',
+    })),
+    ...scan.braceTextLines.map(index => ({
+      code: 'UNSUPPORTED_SYNTAX' as const, syntax: 'state_brace_after_description', line: header + index + 2,
+      message: 'A `}` ending the last description or transition label is read as closing its composite, which nothing else closes. Pinned Mermaid reads the `}` into the text and then rejects the unclosed composite. Put the `}` on a line of its own.',
+    })),
+    ...scan.aliasSuffixLines.map(index => ({
+      code: 'UNSUPPORTED_SYNTAX' as const, syntax: 'state_alias_suffix', line: header + index + 2,
+      message: 'After `state "…" as A`, `:::c` is read as the class of A and `: text` as its description, as each reads on a line of its own. Pinned Mermaid splits the rest of the line at every `:` and keeps only the text before a second colon as the description: it drops the class after `:::` (drawing an empty description instead) and the text after a colon inside the description. Write `class A c` or `A : text` on a line of its own.',
+    })),
+    ...scan.unclosedLines.map(index => ({
+      code: 'UNSUPPORTED_SYNTAX' as const, syntax: 'state_composite_unclosed', line: header + index + 2,
+      message: 'This composite state is never closed by `}`, so where it ends cannot be told and the diagram is not drawn; pinned Mermaid rejects it too. Add a `}` where the composite ends.',
+    })),
+  ]
+  // The line a statement's text ends on, with any `}` the scan cuts off it:
+  // as authored where verify has the source, since canonical lines end trimmed.
+  const lastLine = (line: number): string => {
+    const end = statementEndAt(statementEnds, line, body.length)
+    const canonical = body[end] ?? ''
+    const authored = authoredLine?.(header + end + 2)
+    return authored?.trim() === canonical.trim() ? authored : canonical
+  }
+  warnings.push(...stateReadOtherwiseWarnings(scan.statements, header, lastLine))
+  return warnings.sort((left, right) => left.line - right.line)
+}
+
+/** Statements ours reads that pinned Mermaid reads otherwise, by statement:
+ *  `cssClass` and `linkStyle`, which its State grammar lacks; a transition,
+ *  note or description naming a state it cannot name there; a description,
+ *  transition label or one-line note it ends early; text whose `;` its
+ *  entity prepass drops; and a composite given more than one label or
+ *  description, which it rejects. Each at its authored line. */
+function stateReadOtherwiseWarnings(statements: readonly StateStatement[], header: number, lastLine: (line: number) => string): Array<LayoutWarning & { line: number }> {
+  const warnings: Array<LayoutWarning & { line: number }> = []
+  const warn = (statement: StateStatement, syntax: string, message: string): void => {
+    warnings.push({ code: 'UNSUPPORTED_SYNTAX', syntax, line: header + statement.line + 2, message })
+  }
+  // Mermaid's State lexer reads entity codes first, then ends a description
+  // or transition label (DESCR, `":"(?:[^:\n;]|":"[^:\n;])+`) at a `;`, at
+  // `::` and before a colon its line ends with. Ours reads the text to the
+  // line's end, as both read the text after `state "…" as X`. Verify given
+  // only a parsed diagram reads its canonical lines, which end trimmed: there
+  // a colon only blanks follow, which Mermaid reads as text, is reported too.
+  const cutText = (statement: StateStatement, value: string): void => {
+    const text = lexedStateText(value)
+    if (!/;|::/.test(text) && !(text.endsWith(':') && lastLine(statement.line).endsWith(':'))) return
+    warn(statement, 'state_text_cut', 'A `;`, a `::` or a colon ending the line in a description or transition label is read as part of the text. Pinned Mermaid ends the text there: it reads the rest of the line from a `;` as further statements, the `;` starting a state name, and rejects a `::` or a colon ending the line. The writer writes them as `#59;` and `#58;`, which Mermaid reads as the text.')
+  }
+  const composites = new Set(statements.flatMap(statement => {
+    const open = statement.noteBody ? null : statement.text.match(STATE_COMPOSITE_OPEN_RE)
+    return open ? [open[2]!] : []
+  }))
+  const compositeLabels = new Map<string, number>()
+  const labelComposite = (statement: StateStatement, id: string): void => {
+    if (!composites.has(id)) return
+    const count = (compositeLabels.get(id) ?? 0) + 1
+    compositeLabels.set(id, count)
+    if (count === 2) {
+      warn(statement, 'state_composite_description', `Composite state '${id}' has more than one label or description, which are read as the lines of its label. Pinned Mermaid rejects a composite with more than one (\`Group nodes can only have label\`). Give it one \`state "…" as ${id}\` label.`)
+    }
+  }
+  for (const statement of statements) {
+    const text = statement.text
+    if (statement.noteBody) continue
+    const keyword = /^(cssClass|linkStyle)\s/.exec(text)?.[1]
+    if (keyword === 'cssClass') {
+      warn(statement, 'state_css_class', '`cssClass` is read as `class`, and written so. Pinned Mermaid\'s State grammar has no `cssClass`: it reads the words of the line as states. Write `class A name`.')
+      continue
+    }
+    if (keyword === 'linkStyle') {
+      warn(statement, 'state_link_style', '`linkStyle` paints transitions here, and the writer writes transition paint so. Pinned Mermaid\'s State grammar has no `linkStyle`: it reads the words of the line as states, or rejects them, and draws no transition paint.')
+      continue
+    }
+    const noteLine = matchNoteLine(text)
+    const note = noteLine ?? matchNoteOpen(text)
+    if (note) {
+      if (note.target.includes('-')) {
+        warn(statement, 'state_note_target', `The note is on '${note.target}', which pinned Mermaid cannot read as a note's state: there a state name ends at a hyphen. Mermaid rejects a note whose text follows a colon, and puts a block note on the state named before the hyphen, reading the rest as note text, here and in the output. Rename the state to keep it portable.`)
+      }
+      // Mermaid's one-line note text (NOTE_TEXT, `":"[^:\n;]+`) ends at
+      // any colon or `;`.
+      if (noteLine && /[:;]/.test(lexedStateText(noteLine.text))) {
+        warn(statement, 'state_note_text_cut', 'A colon or `;` in a one-line note\'s text is read as part of the text. Pinned Mermaid ends a one-line note\'s text at either: it rejects a colon there, and reads the rest of the line from a `;` as further statements. The writer writes the note as a block note.')
+      }
+      continue
+    }
+    const transition = matchTransitionLine(text)
+    if (transition) {
+      for (const endpoint of new Set([transition.from, transition.to])) {
+        if (endpoint === PSEUDO || isHistoryEndpoint(endpoint) || hasBareSpelling(endpoint)) continue
+        warn(statement, 'state_endpoint_name', `The transition names '${endpoint}', which pinned Mermaid cannot read as a state there: a name holds no hyphen, and \`note\`, \`class\`, \`classDef\`, \`style\`, \`default\`, \`click\`, \`href\`, \`scale\` and \`stateDiagram\` start statements of their own, as \`state\` starts a declaration it drops. Mermaid rejects or drops the transition, here and in the output. Rename the state to keep it portable.`)
+      }
+      if (transition.label !== undefined) cutText(statement, transition.label)
+      continue
+    }
+    const open = text.match(STATE_COMPOSITE_OPEN_RE)
+    if (open) {
+      if (open[1] !== undefined) labelComposite(statement, open[2]!)
+      continue
+    }
+    const alias = text.match(STATE_ALIAS_RE)
+    if (alias) {
+      labelComposite(statement, alias[2]!)
+      continue
+    }
+    if (parseClassShorthandStatement(text)) continue
+    const description = text.match(STATE_DESCRIPTION_RE)
+    if (description) {
+      const id = description[1]!
+      labelComposite(statement, id)
+      // Mermaid reads the name after `state "…" as` to the line's end.
+      if (statement.afterAlias) continue
+      if (!hasBareSpelling(id)) {
+        warn(statement, 'state_description_name', `The description names '${id}', which pinned Mermaid cannot read as a state there: a name holds no hyphen, and \`note\`, \`class\`, \`classDef\`, \`style\`, \`default\`, \`click\`, \`href\`, \`scale\` and \`stateDiagram\` start statements of their own, as \`state\` starts a declaration it drops. Mermaid rejects or drops the description. The writer writes it as \`state "…" as ${id}\`, which Mermaid reads.`)
+      }
+      cutText(statement, description[2]!)
+    }
+  }
+  return warnings
+}
+
 export function verifyOpaqueState(source: string): LayoutWarning[] {
   const directives = new Set<string>()
   let inNote = false
-  for (const raw of scanAccessibilityDirectives(source.split(/\r?\n/)).familyLines) {
+  const lines = source.split(/\r?\n/)
+  for (const raw of scanAccessibilityDirectives(lines, stateStatementEnds(lines)).familyLines) {
     const line = stripStateComment(raw)
     if (inNote) {
       if (isNoteEnd(line)) inNote = false

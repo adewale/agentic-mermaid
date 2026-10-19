@@ -52,8 +52,15 @@ export const MICRO_WORKLOADS = {
   class80: release('class:80-classes'),
   er40: release('er:40-entities'),
   state80: release('state:80-states'),
+  packet240: release('packet:240-fields'),
+  kanban240: release('kanban:12-columns-240-cards'),
+  requirement100: release('requirement:100-requirements-99-relations'),
+  treemap260: release('treemap:20-groups-240-leaves'),
+  ishikawa133: release('ishikawa:12-categories-120-causes'),
+  block120: release('block:120-grid-blocks'),
 } as const
 type Workload = keyof typeof MICRO_WORKLOADS
+const STABLE_WORKLOADS = { packet240: 'packet', kanban240: 'kanban', requirement100: 'requirement', treemap260: 'treemap', ishikawa133: 'ishikawa', block120: 'block' } as const
 
 const ASCII_LABEL = 'Authenticate the incoming user request'
 const MIXED_LABEL = '東京 → 👩‍💻 café naïve Ελληνικά 한국어 👍🏽'
@@ -63,10 +70,19 @@ const isSvg = (value: unknown) => typeof value === 'string' && value.startsWith(
 const isPng = (value: unknown) => value instanceof Uint8Array && [0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a].every((byte, index) => value[index] === byte)
 const nonEmptyString = (value: unknown) => typeof value === 'string' && value.length > 0
 
+// Same authored bytes at every revision: cleanup is measured through existing
+// source, typed-parse and render-request boundaries, including their callers.
+const ENTITY_FLOW50 = ['flowchart TD', ...Array.from({ length: 50 }, (_, i) =>
+  `  N${i}["Item ${i} #amp; #35; #quot; #lt;literal#gt;"]${i ? ` --> N${i - 1}` : ''}`)].join('\n')
+const WRAPPED_ENTITY_FLOW50 = `\uFEFF---\r\ntitle: Cleanup benchmark\r\n---\r\n%%{init: {"theme":"default"}}%%\r\n%% authored comment\r\n${ENTITY_FLOW50.replace(/\n/g, '\r\n')}\r\n`
+const ENTITY_SEQUENCE20 = ['sequenceDiagram', ...Array.from({ length: 20 }, (_, i) =>
+  `  P${i % 5}->>P${(i + 1) % 5}: message ${i} #amp; #35; #quot; #lt;literal#gt;`)].join('\n')
+
 const src = {
   index: () => import('../../src/index.ts'),
   agent: () => import('../../src/agent/index.ts'),
   parser: () => import('../../src/parser.ts'),
+  source: () => import('../../src/mermaid-source.ts'),
   layoutEngine: () => import('../../src/layout-engine.ts'),
   elk: () => import('../../src/elk-instance.ts'),
   rubric: () => import('../../src/layout-rubric.ts'),
@@ -83,6 +99,9 @@ const src = {
   theme: () => import('../../src/theme.ts'),
   graphemes: () => import('../../src/shared/graphemes.ts'),
   displayText: () => import('../../src/shared/display-text.ts'),
+  preparedText: () => import('../../src/shared/prepared-text.ts'),
+  ganttParser: () => import('../../src/gantt/parser.ts'),
+  ganttSchedule: () => import('../../src/gantt/schedule.ts'),
   textMetrics: () => import('../../src/text-metrics.ts'),
   conformance: () => import('../../src/scene/backend-conformance.ts'),
   paintCertification: () => import('../../src/scene/paint-certification.ts'),
@@ -102,6 +121,12 @@ const receiptLabels = (workload: Workload): readonly string[] => {
     case 'class80': return range('C', 80)
     case 'er40': return range('E', 40)
     case 'state80': return range('S', 81)
+    case 'packet240': return ['Protocol fields', ...range('Field ', 240)]
+    case 'kanban240': return Array.from({ length: 12 }, (_, column) => [`Stage ${column}`, ...Array.from({ length: 20 }, (_, row) => `Task ${column}.${row}`)]).flat()
+    case 'requirement100': return range('Requirement ', 100)
+    case 'treemap260': return ['Product allocation', ...Array.from({ length: 20 }, (_, group) => [`Group ${group}`, ...Array.from({ length: 12 }, (_, leaf) => `Investment ${group}.${leaf}`)]).flat()]
+    case 'ishikawa133': return ['Delayed delivery', ...Array.from({ length: 12 }, (_, category) => [`Category ${category}`, ...Array.from({ length: 10 }, (_, cause) => `Cause ${category}.${cause}`)]).flat()]
+    case 'block120': return range('Component ', 120)
   }
 }
 
@@ -189,6 +214,42 @@ function receiptCase(workload: Workload, postLayout: boolean): MicroCase {
   }
 }
 
+function cleanupCases(): MicroCase[] {
+  return [
+    ...([['plain-flow5', MICRO_WORKLOADS.flow5], ['wrapped-entities-flow50', WRAPPED_ENTITY_FLOW50]] as const).map(([name, source]): MicroCase => ({
+      id: `cleanup:normalize-${name}`,
+      description: `normalizeMermaidSource on ${name}, exact authored source`,
+      async setup() {
+        const { normalizeMermaidSource } = await src.source()
+        return () => normalizeMermaidSource(source)
+      },
+      check: value => (value as { firstLine?: string }).firstLine === 'flowchart td',
+    })),
+    ...([['entities-flow50', ENTITY_FLOW50, 'flowchart'], ['entities-seq20', ENTITY_SEQUENCE20, 'sequence']] as const).map(([name, source, kind]): MicroCase => ({
+      id: `cleanup:registered-${name}`,
+      description: `parseRegisteredMermaid on ${name}, exact authored source`,
+      async setup() {
+        const { parseRegisteredMermaid } = await src.agent()
+        return () => parseRegisteredMermaid(source)
+      },
+      check: value => {
+        const parsed = value as { ok?: boolean; value?: { body?: { kind?: string } } }
+        return parsed.ok === true && parsed.value?.body?.kind === kind
+      },
+    })),
+    {
+      id: 'cleanup:resolve-wrapped-entities-flow50',
+      description: 'resolveRenderRequest on wrapped-entities-flow50, exact authored source',
+      async setup() {
+        await src.index()
+        const { resolveRenderRequest } = await src.contract()
+        return () => resolveRenderRequest(WRAPPED_ENTITY_FLOW50, {}, 'svg')
+      },
+      check: value => value !== undefined && value !== null,
+    },
+  ]
+}
+
 /** The staged SVG pipeline, run once outside timing: request → positioned
  * layout → admitted Scene → backend SVG → public final SVG. */
 async function staged(workload: Workload) {
@@ -215,7 +276,7 @@ function renderCase(workload: Workload): MicroCase {
     description: `Public renderMermaidSVG, warm, ${workload}`,
     async setup() {
       const { renderMermaidSVG } = await src.index()
-      return () => renderMermaidSVG(MICRO_WORKLOADS[workload])
+      return { call: () => renderMermaidSVG(MICRO_WORKLOADS[workload]), input: MICRO_WORKLOADS[workload] }
     },
     check: isSvg,
   }
@@ -228,9 +289,35 @@ function asciiCase(workload: Workload): MicroCase {
     async setup() {
       const { renderMermaidASCII } = await src.index()
       // Explicit, so a TTY on the child's stdout cannot switch on ANSI colour.
-      return () => renderMermaidASCII(MICRO_WORKLOADS[workload], { colorMode: 'none' })
+      return { call: () => renderMermaidASCII(MICRO_WORKLOADS[workload], { colorMode: 'none' }), input: MICRO_WORKLOADS[workload] }
     },
     check: nonEmptyString,
+  }
+}
+
+/** Include final string consumption and receipt hashing in the timed call.
+ * These supplement text-only calls so lazy materialization is never mistaken
+ * for a reduction in the cost of a fully consumed artifact. */
+function consumedCase(workload: Workload, output: 'svg' | 'ascii'): MicroCase {
+  return {
+    id: `render:${output}-consumed-${workload}`,
+    description: `Public ${output}, receipt serialized and output UTF-8 encoded, ${workload}`,
+    async setup() {
+      const api = await src.index()
+      const encode = new TextEncoder()
+      return {
+        call: () => {
+          const result = output === 'svg' ? api.renderMermaidSVGWithReceipt(MICRO_WORKLOADS[workload]) : api.renderMermaidASCIIWithReceipt(MICRO_WORKLOADS[workload], { colorMode: 'none' })
+          const text = 'svg' in result ? result.svg : result.text
+          return { bytes: encode.encode(text), receipt: JSON.stringify(result.receipt) }
+        },
+        input: MICRO_WORKLOADS[workload],
+      }
+    },
+    check: result => {
+      const value = result as { bytes?: Uint8Array; receipt?: string }
+      return (value.bytes?.length ?? 0) > 0 && (value.receipt?.includes('requestDigest') ?? false)
+    },
   }
 }
 
@@ -240,7 +327,7 @@ function parseCase(workload: Workload, kind: string): MicroCase {
     description: `parseRegisteredMermaid (typed agent body), ${workload}`,
     async setup() {
       const { parseRegisteredMermaid } = await src.agent()
-      return () => parseRegisteredMermaid(MICRO_WORKLOADS[workload])
+      return { call: () => parseRegisteredMermaid(MICRO_WORKLOADS[workload]), input: MICRO_WORKLOADS[workload] }
     },
     // A degraded parse (opaque or preserved body) also returns ok, much faster.
     check: result => {
@@ -257,7 +344,18 @@ function positionCase(workload: Workload): MicroCase {
     async setup() {
       const { request, plan } = await staged(workload)
       const { positionResolvedFamily } = await src.positioning()
-      return () => positionResolvedFamily(plan.family.id, request)
+      return { call: () => positionResolvedFamily(plan.family.id, request), input: inputText(request) }
+    },
+  }
+}
+
+function projectionCase(workload: Workload): MicroCase {
+  return {
+    id: `layout:project-${workload}`,
+    description: `Family positioned projection on retained geometry, ${workload}`,
+    async setup() {
+      const { plan, layout } = await staged(workload)
+      return { call: () => plan.family.projectPositioned!({ positioned: layout.positioned, options: {} }), input: inputText(layout.positioned) }
     },
   }
 }
@@ -304,7 +402,7 @@ function sceneCases(workload: Workload): MicroCase[] {
     },
     {
       id: `scene:backend-render-${workload}`,
-      description: `Default backend render: joins node SVG serialized during lowering (cheap by design), ${workload}`,
+      description: `Default backend render: serializes admitted typed Scene marks, ${workload}`,
       async setup() {
         const { scene, backend } = await staged(workload)
         return { call: () => backend.render(scene, { seed: 0 }), input: inputText(scene) }
@@ -354,6 +452,7 @@ function svgPassCases(workload: Workload): MicroCase[] {
 
 export function microCases(): readonly MicroCase[] {
   return [
+    ...cleanupCases(),
     {
       id: 'text:graphemes-ascii',
       description: 'graphemes() on a 38-character ASCII label (printable-ASCII fast path)',
@@ -386,6 +485,17 @@ export function microCases(): readonly MicroCase[] {
         return () => measureTextWidth(ASCII_LABEL, 16, 500)
       },
     },
+    ...[false, true].map(churn => ({
+      id: `text:wrap-ascii-${churn ? 'churn' : 'repeat'}`,
+      description: `Prepared pixel wrapping with ${churn ? '1024 rotating keys, beyond cache capacity' : 'one repeated key'}`,
+      async setup() {
+        const { preparePixelText } = await src.preparedText()
+        let counter = 0
+        const label = 'Authenticate the incoming user request and preserve all source spans. '.repeat(20)
+        return () => preparePixelText(`${String(churn ? counter++ % 1024 : 0).padStart(4, '0')} ${label}`, { fontSize: 16, fontWeight: 500, maxWidth: 240 })
+      },
+      check: (result: unknown) => (result as { lines?: string[] }).lines!.length > 10,
+    })),
     {
       id: 'parse:flowchart-graph-tree50',
       description: 'parseMermaid → MermaidGraph (render-side parser), tree50',
@@ -397,6 +507,29 @@ export function microCases(): readonly MicroCase[] {
     parseCase('tree50', 'flowchart'),
     parseCase('seq20', 'sequence'),
     parseCase('class80', 'class'),
+    ...[128, 1024].flatMap(count => [false, true].map(reverse => ({
+      id: `layout:model-order-${reverse ? 'reverse' : 'forward'}-${count}`,
+      description: `Convert a ${count}-node sparse chain with ${reverse ? 'reverse-authored' : 'forward'} constraints, without ELK`,
+      async setup() {
+        const [{ parseMermaid }, { convertToElkFormat }] = await Promise.all([src.parser(), src.layoutEngine()])
+        const ids = Array.from({ length: count }, (_, i) => `n${i}`)
+        const edges = Array.from({ length: count - 1 }, (_, i) => reverse ? `n${count - 1 - i} --> n${count - 2 - i}` : `n${i} --> n${i + 1}`)
+        const graph = parseMermaid(['flowchart TD', ...ids, ...edges].join('\n'))
+        return () => convertToElkFormat(graph)
+      },
+      check: (result: unknown) => (result as { children?: unknown[] }).children?.length === count,
+    }))),
+    {
+      id: 'gantt:calendar-weekends-long',
+      description: 'Resolve 100 independent 5000-working-day tasks with weekend exclusions and the unchanged walk budget',
+      async setup() {
+        const [{ parseGanttModel }, { resolveGanttSchedule }] = await Promise.all([src.ganttParser(), src.ganttSchedule()])
+        const source = ['gantt', 'dateFormat YYYY-MM-DD', 'excludes weekends', ...Array.from({ length: 100 }, (_, i) => `Task ${i} :t${i}, 2010-01-01, 5000d`)].join('\n')
+        const model = parseGanttModel(source.split('\n'))
+        return { call: () => resolveGanttSchedule(model), input: inputText(model) }
+      },
+      check: (result: unknown) => (result as { tasks?: unknown[] }).tasks?.length === 100,
+    },
     {
       id: 'request:resolve-flow5',
       description: 'resolveRenderRequest: source, option admission, appearance and digests, flow5',
@@ -451,6 +584,7 @@ export function microCases(): readonly MicroCase[] {
     positionCase('seq20'),
     positionCase('class80'),
     positionCase('er40'),
+    ...Object.entries(STABLE_WORKLOADS).flatMap(([workload, kind]) => [parseCase(workload as Workload, kind), positionCase(workload as Workload), projectionCase(workload as Workload), ...sceneCases(workload as Workload), asciiCase(workload as Workload), consumedCase(workload as Workload, 'ascii')]),
     ...sceneCases('seq20'),
     ...sceneCases('class80'),
     ...svgPassCases('class80'),
@@ -478,9 +612,15 @@ export function microCases(): readonly MicroCase[] {
       },
       check: isPng,
     })),
+    ...(Object.keys(MICRO_WORKLOADS) as Workload[]).map(workload => consumedCase(workload, 'svg')),
     asciiCase('flow5'),
     asciiCase('mesh50'),
     asciiCase('seq20'),
+    asciiCase('class80'),
+    asciiCase('er40'),
+    asciiCase('state80'),
+    consumedCase('seq20', 'ascii'),
+    consumedCase('class80', 'ascii'),
     {
       id: 'agent:verify-tree50',
       description: 'verifyMermaid on a parsed tree50',

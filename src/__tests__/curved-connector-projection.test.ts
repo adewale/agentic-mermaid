@@ -156,7 +156,7 @@ describe('curved connector lowering projections', () => {
       lineStyle: 'solid',
       paint: { fill: 'none', stroke: '#111827', strokeWidth: '2' },
       route: { contours: projection.contours },
-    }, `<path d="${d}" fill="none" stroke="#111827" stroke-width="2" />`)
+    })
     const outsideChord = cubicPoint({ start, control1, control2, end }, 0.2)
     const bounds = nodeWorldBounds(connector)
 

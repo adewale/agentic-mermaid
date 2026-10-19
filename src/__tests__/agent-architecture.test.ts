@@ -77,6 +77,14 @@ describe('architecture structured parse', () => {
     })
   })
 
+  test('a quoted title across lines keeps its line break through the writer', () => {
+    const d = architecture('architecture-beta\n  group g(cloud)["G\n    H"]\n  service a(server)[\'line1\n    line2\'] in g\n  service b(server)[B] in g\n  a:R -["multi\n    line"]- L:b')
+    expect(d.body.groups.map(g => g.label)).toEqual(['G\nH'])
+    expect(d.body.services.map(s => s.label)).toEqual(['line1\nline2', 'B'])
+    expect(d.body.edges.map(e => e.label)).toEqual(['multi\nline'])
+    expect(architecture(serializeMermaid(d)).body).toEqual(d.body)
+  })
+
   test('junctions and nested groups parse structurally', () => {
     const d = architecture('architecture-beta\n  group outer(cloud)[Outer]\n  group inner(server)[Inner] in outer\n  junction q in inner\n  service api(server)[API] in inner\n  api:R --> L:q')
     expect(d.body.groups.map(g => g.parentId)).toEqual([undefined, 'outer'])

@@ -1,5 +1,5 @@
 import type { FamilyDescriptor } from './agent/families.ts'
-import { detectInstalledFamilyDescriptorFromFirstLine } from './agent/family-router.ts'
+import { detectInstalledFamilyDescriptorFromFirstLine, installedFamilyStatementEnds } from './agent/family-router.ts'
 import type {
   FamilyId,
   PreservedDiagramBody,
@@ -13,8 +13,8 @@ import {
   UPSTREAM_MERMAID_FAMILY_INDEX,
   type UpstreamHeaderMatch,
 } from './upstream-family-index.ts'
-import { matchMermaidFrontmatter } from './mermaid-source-wrapper.ts'
-import { parseAccessibilityDirective } from './shared/accessibility-directives.ts'
+import { matchMermaidFrontmatter, splitHeaderStatement } from './mermaid-source-wrapper.ts'
+import { parseAccessibilityDirective, statementEndAt } from './shared/accessibility-directives.ts'
 
 export type MermaidFamilyClassification =
   | { kind: 'registered'; familyId: FamilyId }
@@ -53,7 +53,10 @@ export interface FamilyDetectionDiagnostic {
 function sourceLineStarts(source: string): readonly number[] {
   const starts = [0]
   for (let index = 0; index < source.length; index++) {
-    if (source.charCodeAt(index) === 10) starts.push(index + 1)
+    if (source.charCodeAt(index) === 13) {
+      if (source.charCodeAt(index + 1) === 10) index++
+      starts.push(index + 1)
+    } else if (source.charCodeAt(index) === 10) starts.push(index + 1)
   }
   return starts
 }
@@ -94,22 +97,25 @@ function accessibilityDirectiveSpans(
   source: string,
   bodyStart: number,
   lineStarts = sourceLineStarts(source),
+  header = source.slice(bodyStart).trimStart().split(/\r\n?|\n/, 1)[0]!,
 ): readonly SourceSpan[] {
-  const physicalLines = source.slice(bodyStart).split('\n')
-  const lines = physicalLines.map(line => line.endsWith('\r') ? line.slice(0, -1) : line)
-  const offsets: number[] = []
-  let offset = bodyStart
-  for (const line of physicalLines) {
-    offsets.push(offset)
-    offset += line.length + 1
-  }
+  const physical = [...source.slice(bodyStart).matchAll(/[^\r\n]*(?:\r\n?|\n|$)/g)]
+  const physicalLines = physical.map(match => match[0])
+  const lines = physicalLines.map(line => line.replace(/[\r\n]+$/, ''))
+  const offsets = physical.map(match => bodyStart + match.index)
   const spans: SourceSpan[] = []
+  // A line inside a statement's quoted text is the family's, as in source
+  // normalization.
+  const statementEnds = installedFamilyStatementEnds(header, lines)
   for (let index = 0; index < lines.length; index++) {
     const directive = parseAccessibilityDirective(lines, index)
     // An unclosed block consumes the remainder of the source. Continuing
     // would rescan that suffix for every later opener (quadratic work).
     if (directive === undefined) break
-    if (directive === null) continue
+    if (directive === null) {
+      index = statementEndAt(statementEnds, index, lines.length)
+      continue
+    }
     const start = offsets[index]!
     let end: number
     if (directive.form === 'block') {
@@ -117,7 +123,7 @@ function accessibilityDirectiveSpans(
       // visible to source maps, exactly as it does to source normalization.
       end = offsets[directive.endIndex]! + lines[directive.endIndex]!.indexOf('}') + 1
     } else {
-      end = start + physicalLines[index]!.length + (index < lines.length - 1 ? 1 : 0)
+      end = start + physicalLines[index]!.length
     }
     spans.push(sourceSpan(lineStarts, start, end))
     index = directive.endIndex
@@ -128,6 +134,7 @@ function accessibilityDirectiveSpans(
 function universalDirectiveSpans(
   source: string,
   bodyStart: number,
+  header: string,
   lineStarts = sourceLineStarts(source),
 ): Pick<
   PreservedSourceSpans,
@@ -141,11 +148,11 @@ function universalDirectiveSpans(
     // admitted directives so meta.initDirectives and preserved spans cannot
     // disagree for an in-body directive.
     source.slice(frontmatterEnd),
-    /^[ \t]*%%\{\s*(?:init|initialize)\s*:[\s\S]*?\}\s*%%[ \t]*(?:\r?\n|$)/gmi,
+    /^[ \t]*%%\{\s*(?:init|initialize)\s*:[\s\S]*?\}\s*%%[ \t]*(?:\r\n?|\n|$)/gmi,
     frontmatterEnd,
     lineStarts,
   )
-  const accessibilityDirectives = accessibilityDirectiveSpans(source, bodyStart, lineStarts)
+  const accessibilityDirectives = accessibilityDirectiveSpans(source, bodyStart, lineStarts, header)
   return {
     ...(frontmatter
       ? { frontmatter: sourceSpan(lineStarts, 0, frontmatterEnd) }
@@ -183,27 +190,33 @@ export function sourcePreservationSpans(
   const searchStart = Math.max(0, Math.min(source.length, familyLineBoundary))
   let lineStart = searchStart
   while (lineStart <= source.length) {
-    const newline = source.indexOf('\n', lineStart)
+    const lineBreak = /\r\n?|\n/g
+    lineBreak.lastIndex = lineStart
+    const ending = lineBreak.exec(source)
+    const newline = ending?.index ?? -1
     const lineEnd = newline < 0 ? source.length : newline
     const raw = source.slice(lineStart, lineEnd).replace(/\r$/, '')
     // String trimming already treats U+FEFF as whitespace. Locate the header
     // in the untouched line instead of adding a second BOM offset.
     const trimmed = raw.trim()
-    if (trimmed === header || (trimmed.startsWith(header) && /^\s*;/.test(trimmed.slice(header.length)))) {
+    // A statement may follow the header on its line, after `;` or, where the
+    // family's grammar reads one there, a space; it belongs to the body.
+    const suffix = trimmed.startsWith(header) ? trimmed.slice(header.length) : ''
+    const semicolon = /^\s*;/.test(suffix)
+    if (trimmed === header || semicolon || (/^\s/.test(suffix) && splitHeaderStatement(trimmed) !== trimmed)) {
       const relativeStart = raw.indexOf(header)
       headerStart = lineStart + relativeStart
       headerEnd = headerStart + header.length
       if (trimmed === header) {
-        payloadStart = newline < 0 ? source.length : newline + 1
+        payloadStart = ending ? ending.index + ending[0].length : source.length
       } else {
-        const semicolon = raw.indexOf(';', relativeStart + header.length)
-        payloadStart = semicolon + 1
+        payloadStart = semicolon ? source.indexOf(';', headerEnd) + 1 : headerEnd
         while (payloadStart < lineEnd && /[ \t]/.test(source[payloadStart]!)) payloadStart++
       }
       break
     }
     if (newline < 0) break
-    lineStart = newline + 1
+    lineStart = ending!.index + ending![0].length
   }
   if (headerStart < 0) {
     const fallback = source.indexOf(header, searchStart)
@@ -217,7 +230,7 @@ export function sourcePreservationSpans(
   return Object.freeze({
     source: sourceSpan(lineStarts, 0, source.length),
     ...(lineStart > 0 ? { wrapper: sourceSpan(lineStarts, 0, lineStart) } : {}),
-    ...universalDirectiveSpans(source, payloadStart, lineStarts),
+    ...universalDirectiveSpans(source, payloadStart, header, lineStarts),
     header: sourceSpan(lineStarts, headerStart, headerEnd),
     body: sourceSpan(lineStarts, payloadStart, source.length),
   })

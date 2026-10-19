@@ -1,7 +1,7 @@
 import { diagnoseMindmapConfig } from '../mindmap/config-diagnostics.ts'
 import { projectMindmapPositioned } from '../positioned-views/mindmap.ts'
 import { layoutResult, positionedView, scene, type BrowserSvgFamilyHooks } from '../browser-lazy/family.ts'
-import { parseMindmap } from '../mindmap/parser.ts'
+import { mindmapStatementEnds, parseMindmap } from '../mindmap/parser.ts'
 import { positionMindmap, resolveMindmapPositionConfig } from '../mindmap/position.ts'
 import { lowerMindmapScene } from '../mindmap/renderer.ts'
 import { withAccessibilityFields } from '../shared/accessibility-directives.ts'
@@ -12,6 +12,7 @@ import { resolveRenderStyle } from '../styles.ts'
  * (src/render-family-hooks.ts) and the lazy browser chunk. */
 export const MINDMAP_SVG_HOOKS = {
   configDiagnostics: diagnoseMindmapConfig,
+  statementEnds: mindmapStatementEnds,
   normalizeRequest: ctx => ({
     familyConfig: {
       position: resolveMindmapPositionConfig(ctx.source.config.mindmap, ctx.source.config.layout),

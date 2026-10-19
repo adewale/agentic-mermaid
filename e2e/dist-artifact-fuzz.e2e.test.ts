@@ -186,11 +186,13 @@ describe('dist artifact differential fuzz (built bundle, plain Node)', () => {
       states.push(loaded())
       renderMermaidSVG('flowchart TD\\n  A --> B')
       states.push(loaded())
+      renderMermaidSVG('flowchart TD\\n  A -->|needs ELK| B')
+      states.push(loaded())
       console.log(JSON.stringify(states))`
     const run = spawnSync(NODE, ['--input-type=module', '--eval', probe], { cwd: REPO, encoding: 'utf8', timeout: RUN_TIMEOUT_MS })
     expect({ status: run.status, stderr: run.stderr }).toEqual({ status: 0, stderr: '' })
-    // After import, after a sequence diagram, after a flowchart.
-    expect(JSON.parse(run.stdout)).toEqual([false, false, true])
+    // Import, sequence, certified forest, then an ineligible labelled edge.
+    expect(JSON.parse(run.stdout)).toEqual([false, false, false, true])
   }, RUN_TIMEOUT_MS)
 
   test('a Node bundle of the agent entry carries ELK and needs no node_modules', () => {

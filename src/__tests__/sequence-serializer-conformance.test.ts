@@ -50,13 +50,13 @@ describe('sequence serializer → renderer-parser conformance (new constructs)',
     'sequenceDiagram A->>B: first',
     'sequenceDiagram participant A as Alice\nA->>B: first',
     'sequenceDiagram A->>B: first; B-->>A: second',
-  ])('inline header content survives opaque parse and serialization: %s', source => {
+  ])('inline header content reads as on its own line, through typed parse and serialization: %s', source => {
     const parsed = parseMermaid(source)
     expect(parsed.ok).toBe(true)
     if (!parsed.ok) throw new Error(JSON.stringify(parsed.error))
-    expect(parsed.value.body.kind).toBe('opaque')
+    expect(parsed.value.body.kind).toBe('sequence')
     const serialized = serializeMermaid(parsed.value)
-    expect(serialized.trim()).toBe(source)
+    expect(renderParse(serialized)).toEqual(renderParse(source.replace(/^sequenceDiagram /, 'sequenceDiagram\n')))
     const reloaded = parseMermaid(serialized)
     expect(reloaded.ok).toBe(true)
     if (!reloaded.ok) throw new Error(JSON.stringify(reloaded.error))

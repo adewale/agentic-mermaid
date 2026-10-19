@@ -1,5 +1,5 @@
 // Shared geometry kernel for the layout pipeline
-// (docs/design/system/layout-pass-pipeline.md §4 step 2 / OQ-D1).
+// (docs/design/system/route-contracts.md §8).
 //
 // Leaf module: depends only on core types, so the relocated post-ELK passes in
 // ./passes/* can import these helpers WITHOUT importing layout-engine.ts — which
@@ -15,6 +15,39 @@ export const DEFAULTS = {
   mergeEdges: true,
   thoroughness: 3,
 } as const
+
+/** Directed topology for one pass or metric evaluation. Reuse the adjacency
+ * and bounded traversal storage across peer queries; geometry never enters it. */
+export function graphReachability(edges: readonly { source: string; target: string }[]): (from: string, to: string) => boolean {
+  const indices = new Map<string, number>()
+  const outgoing: number[][] = []
+  const index = (id: string): number => {
+    let value = indices.get(id)
+    if (value === undefined) { value = outgoing.length; indices.set(id, value); outgoing.push([]) }
+    return value
+  }
+  for (const edge of edges) outgoing[index(edge.source)]!.push(index(edge.target))
+  const visited = new Uint32Array(outgoing.length)
+  const stack: number[] = []
+  let generation = 0
+  return (from, to) => {
+    if (from === to) return true
+    const start = indices.get(from), target = indices.get(to)
+    if (start === undefined || target === undefined) return false
+    if (++generation === 0xffffffff) { visited.fill(0); generation = 1 }
+    stack.length = 0
+    stack.push(start)
+    visited[start] = generation
+    while (stack.length) {
+      const next = outgoing[stack.pop()!]!
+      for (const id of next) {
+        if (id === target) return true
+        if (visited[id] !== generation) { visited[id] = generation; stack.push(id) }
+      }
+    }
+    return false
+  }
+}
 
 export function flattenGroupBounds(groups: PositionedGroup[]): Array<{ x: number; y: number; right: number; bottom: number }> {
   const bounds: Array<{ x: number; y: number; right: number; bottom: number }> = []
@@ -169,7 +202,6 @@ type LayoutDebugEnv = {
   // matches the other APL_NO_* pass switches. See the layout-engine
   // label-injection sites and centerPeerBarycenters.
   APL_NO_CORANK_FANIN?: string
-  APL_CHECK_LAYOUT_PASSES?: string
 }
 
 export function layoutEnvFlag(name: keyof LayoutDebugEnv): boolean {

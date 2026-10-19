@@ -17,6 +17,8 @@ code/tests, not dated inventories.
 | [Divergences](divergences.md) | Deliberate product boundaries, not feature requests. |
 | [Lessons learned](lessons-learned.md) | Engineering lessons, not mandatory restoration of historical machinery. |
 | [Benchmark evidence](../../eval/benchmark/RESULTS.md) | Current measurement methods, bounded findings, peer gaps and reproduction; raw reports remain review artifacts. |
+| [Conditional forest layout](conditional-forest-layout.md) | Opt-in forest eligibility, fallback boundary and reproducible qualification commands. |
+| [Staged replacement of ELK](layered-layout-proposal.md) | Proposed measured-graph adapter, Pele evaluation, staged scope and acceptance boundary for replacing ELK. |
 
 ## Completed and superseded work
 

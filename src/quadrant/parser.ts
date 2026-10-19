@@ -3,7 +3,7 @@ import { normalizeBrTags } from '../multiline-utils.ts'
 import { syntaxError } from '../shared/syntax-error.ts'
 import { parsePointStyleEntries, parseClassDefTail, splitPointClassSuffix } from './point-style.ts'
 import { requireClosedAccessibility, scanAccessibilityDirectives } from '../shared/accessibility-directives.ts'
-import { stripTrailingComment } from '../shared/trailing-comment.ts'
+import { joinStatementLines, quotedTextEnds, statementText, stripTrailingComment } from '../shared/trailing-comment.ts'
 import { parserObservationActive, observeParserStatement, observeParserMutation } from '../shared/parser-observation.ts'
 
 // ============================================================================
@@ -34,12 +34,34 @@ import { parserObservationActive, observeParserStatement, observeParserMutation 
 // ============================================================================
 
 const TITLE_RE = /^title\s+(.+)$/i
-const AXIS_RE = /^([xy])-axis\s+(.+)$/i
-const QUADRANT_RE = /^quadrant-([1-4])\s+(.+)$/i
+const AXIS_RE = /^([xy])-axis\s+(.+)$/is
+const QUADRANT_RE = /^quadrant-([1-4])\s+(.+)$/is
 // A point line: `Label[:::class]: [x, y] [style metadata]`. The label is
 // everything before the LAST colon that precedes a bracketed coordinate pair.
-const POINT_RE = /^(.+?)\s*:\s*\[\s*([^,\]]+)\s*,\s*([^,\]]+)\s*\]\s*(.*)$/
+const POINT_RE = /^(.+?)\s*:\s*\[\s*([^,\]]+)\s*,\s*([^,\]]+)\s*\]\s*(.*)$/s
 const CLASSDEF_RE = /^classDef\s+(.+)$/i
+
+// Mermaid's quadrant lexer reads a "…" string (no escapes) to its closing
+// quote, and a point's `[x, y]`, across line breaks. A title runs to the end
+// of its line.
+const POINT_CONTENT_RE = /^[\d.,+\s-]*$/
+const POINT_CLOSE_RE = /^[\d.,+\s-]*\]/
+
+/** For each line, the last line of the statement that starts there. */
+export function quadrantStatementEnds(lines: readonly string[]): number[] {
+  const ends = quotedTextEnds(lines, { escapes: false, wholeLine: line => TITLE_RE.test(line) })
+  for (let index = 0; index < lines.length; index = ends[index]! + 1) {
+    const end = ends[index]!
+    const text = stripTrailingComment(statementText(lines, index, end).trim()).replace(/"[^"]*"/g, '""')
+    const open = text.lastIndexOf('[')
+    if (TITLE_RE.test(text) || open < 0 || text.includes(']', open) || !text.slice(0, open).trimEnd().endsWith(':')) continue
+    // Only coordinates come before the `]`, so each line is read once.
+    let close = end + 1
+    while (close < lines.length && POINT_CONTENT_RE.test(lines[close]!)) close++
+    if (close < lines.length && POINT_CLOSE_RE.test(lines[close]!.trim())) ends[index] = close
+  }
+  return ends
+}
 
 // Mermaid's quadrant lexer reads unquoted text only from letters, digits,
 // non-ASCII characters, whitespace and !#$%&'*+,-./;=?\_` (`;` ends the
@@ -50,7 +72,7 @@ const CLASSDEF_RE = /^classDef\s+(.+)$/i
 // reads such text as written (`x-axis Low < High`); verify reports it, and the
 // serializer writes it quoted, as Mermaid reads it.
 const QUADRANT_STRING_RE = /^"[^"]*"/
-const NOT_QUADRANT_TEXT_RE = /[<>()[\]{}|@^~:"\x00-\x08\x0e-\x1f\x7f]/
+const NOT_QUADRANT_TEXT_RE = /[<>()[\]{}|@^~:"\n\r\x00-\x08\x0e-\x1f\x7f]/
 
 /** The first character that keeps `text` from being quadrant text Mermaid reads, if any. */
 function quadrantTextError(text: string): string | undefined {
@@ -103,9 +125,9 @@ export function quadrantTextRejections(line: string): string[] {
  * hears the unquoted text Mermaid's lexer rejects (quadrantText).
  */
 export function parseQuadrantChart(lines: string[], report?: QuadrantTextReport): QuadrantChart {
-  const scanned = scanAccessibilityDirectives(lines)
+  const scanned = scanAccessibilityDirectives(lines, quadrantStatementEnds(lines))
   requireClosedAccessibility(scanned)
-  lines = scanned.familyLines
+  lines = joinStatementLines(scanned.familyLines, quadrantStatementEnds(scanned.familyLines))
   if (lines.length === 0) {
     throw new Error('Quadrant chart is empty')
   }

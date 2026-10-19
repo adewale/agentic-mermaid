@@ -4,7 +4,7 @@ import { fcParameters } from './helpers/fc-parameters.ts'
 import { buildRoutePortHints, layoutGraphSync } from '../layout-engine.ts'
 import { parseMermaid } from '../parser.ts'
 import { applyRouteContracts, auditRouteContracts, classifyRoutes, diamondFacetPorts, directLaneBlockers, findLabelSlot, findRouteHitches, shapePorts, simplifyPolyline, separateEdgeLabelPills } from '../route-contracts.ts'
-import { onShapeOutline } from '../layout-rubric.ts'
+import { countEdgeCrossings, onShapeOutline } from '../layout-rubric.ts'
 import { measureMultilineText } from '../text-metrics.ts'
 import { layoutMermaid, parseRegisteredMermaid as agentParse, verifyMermaid } from '../agent/index.ts'
 import type { AnyPort, Point, PositionedEdge, PositionedGraph, PositionedGroup, PositionedNode } from '../types.ts'
@@ -14,6 +14,24 @@ import { renderMermaidSVG } from '../index.ts'
 import { labelRect } from '../route-contracts.ts'
 import { resolveRenderStyle } from '../styles.ts'
 import { graphEdgeMarkerPaintRegions } from '../graph-connectors.ts'
+
+describe('route proposal crossing consistency', () => {
+  it.each([false, true])('does not add a crossing when the other route is subdivided=%s', subdivided => {
+    const node = (id: string, x: number, y: number, width: number, height: number): PositionedNode =>
+      ({ id, label: id, shape: 'rectangle', x, y, width, height })
+    const nodes = [node('A', 0, 0, 20, 100), node('B', 200, 0, 20, 100), node('C', 140, 10, 20, 20), node('D', 140, 70, 20, 20)]
+    const edge = (source: string, target: string, points: Point[], edgeIndex: number): PositionedEdge =>
+      ({ source, target, points, edgeIndex, style: 'solid', hasArrowStart: false, hasArrowEnd: true })
+    const edges = [
+      edge('A', 'B', [{ x: 20, y: 10 }, { x: 100, y: 10 }, { x: 100, y: 90 }, { x: 200, y: 90 }], 0),
+      edge('C', 'D', [{ x: 150, y: 30 }, ...(subdivided ? [{ x: 150, y: 50 }] : []), { x: 150, y: 70 }], 1),
+    ]
+    expect(countEdgeCrossings(edges)).toBe(0)
+    applyRouteContracts({ nodes, edges, groups: [] }, parseMermaid('flowchart LR\nA-->B\nC-->D'), new Set(), resolveRenderStyle())
+    expect(countEdgeCrossings(edges)).toBe(0)
+    expect(edges.map(e => [e.source, e.target])).toEqual([['A', 'B'], ['C', 'D']])
+  })
+})
 
 describe('colliding duplicate labels', () => {
   it.each([4, 5, 13, 29])('keeps both authored labels visible when neither can clear alone: case %s', index => {

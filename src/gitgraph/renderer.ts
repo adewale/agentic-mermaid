@@ -1,8 +1,9 @@
+import type { Geometry } from '../scene/ir.ts';
 import { gitGraphText, gitTagOffset, gitCommitLabelY } from './layout.ts'
 import type { RenderContext } from '../types.ts'
 import type { PositionedGitGraphCommit, PositionedGitGraphDiagram } from './types.ts'
 import type { SceneDoc, SceneNode } from '../scene/ir.ts'
-import type { SerializableShapeGeometry } from '../scene/svg-serialize.ts'
+
 import * as marks from '../scene/marks.ts'
 import { DefaultBackend } from '../scene/backend.ts'
 import { snapshotSvgEmissionRecipe, svgValue as v, type SvgAttribute, type SvgGeometryField, type SvgGroupEmission } from '../scene/svg-emission.ts'
@@ -12,8 +13,15 @@ import { semanticChildId, semanticNamespacedId, semanticRelationId } from '../sc
 import { safeCssPaint } from '../shared/css-color.ts'
 import { categoricalPalette } from '../shared/categorical-palette.ts'
 import { ensureContrast, isHexColor, mixHex } from '../shared/color-math.ts'
+
+
+
+
+
+import { GITGRAPH_COMMIT_LABEL_PADDING_X } from './layout.ts';
 import { resolveGitGraphCommitLabelFontSize } from './position.ts'
-import { GITGRAPH_COMMIT_LABEL_PADDING_X } from './layout.ts'
+
+import { gitGraphCommitLabel } from './types.ts'
 
 const PAINT_ATTRIBUTES: readonly SvgAttribute[] = [
   { name: 'fill', value: v.paint('fill') }, { name: 'stroke', value: v.paint('stroke') }, { name: 'stroke-width', value: v.paint('strokeWidth') },
@@ -58,7 +66,7 @@ export type GitGraphThemeProjection = Record<string, string | number>
 
 /** Sanitize the GitGraph-specific theme subset once at request resolution. */
 export function resolveGitGraphThemeProjection(raw: unknown): GitGraphThemeProjection {
-  const vars = raw && typeof raw === 'object' && !Array.isArray(raw) ? raw as Record<string, unknown> : {}
+  const vars = raw && typeof raw === 'object' && !Array.isArray(raw) ? (raw as Record<string, unknown>) : {}
   const projected: GitGraphThemeProjection = {
     commitLabelFontSize: resolveGitGraphCommitLabelFontSize(vars),
   }
@@ -97,10 +105,16 @@ export function lowerGitGraphScene(ctx: RenderContext<PositionedGitGraphDiagram>
   })]
   parts.push(marks.documentText({ id: 'acc-title', element: 'title', domId: titleId, text: diagram.accessibilityTitle ?? 'Git graph' }))
   if (diagram.accessibilityDescription) parts.push(marks.documentText({ id: 'acc-desc', element: 'description', domId: descId, text: diagram.accessibilityDescription }))
-  if (diagram.title) parts.push(marks.text({
-    id: 'gitgraph-visible-title', role: 'title', text: diagram.titleBlock?.text ?? diagram.title, block: diagram.titleBlock,
-    x: diagram.width / 2, y: 8 + (diagram.titleBlock?.fontSize ?? 16) * 0.65 + ((diagram.titleBlock?.height ?? 0) - (diagram.titleBlock?.lineHeight ?? 0)) / 2, fontSize: diagram.titleBlock?.fontSize ?? 16, fontWeight: diagram.titleBlock?.fontWeight ?? 600, letterSpacing: diagram.titleBlock?.letterSpacing ?? 0, anchor: 'middle', paint: { fill: 'var(--_text)' },
-  }, TITLE_EMISSION))
+  if (diagram.title) {
+    const block = diagram.titleBlock ?? gitGraphText(diagram.title, 16, 600)
+    parts.push(marks.text({
+    id: 'gitgraph-visible-title', role: 'title', text: block.text, block,
+    x: diagram.width / 2, y: 8 + (diagram.titleBlock?.fontSize ?? 16) * 0.65 + ((diagram.titleBlock?.height ?? 0) - (diagram.titleBlock?.lineHeight ?? 0)) / 2, fontSize: block.fontSize, fontWeight: block.fontWeight, letterSpacing: block.letterSpacing, anchor: 'middle', paint: { fill: 'var(--_text)' },
+
+      identity: { id: 'gitgraph-title', classNames: ['gitgraph-title'] },
+      attributes: { className: 'gitgraph-title' },
+    }, TITLE_EMISSION))
+  }
 
   if (diagram.showBranches) {
     for (const branch of diagram.branches) {
@@ -120,17 +134,23 @@ export function lowerGitGraphScene(ctx: RenderContext<PositionedGitGraphDiagram>
             id: semanticChildId(branchId, 'label-bg'), role: 'chrome',
             geometry: { kind: 'rect', x: labelBackgroundX, y: labelY - block.fontSize - 1 - extraHeight / 2, width: labelWidth, height: block.fontSize + 6 + extraHeight, rx: 4, ry: 4 },
             paint: { fill: branchPaint.labelBackground, stroke: branchPaint.line, strokeWidth: '1' },
+
+            attributes: { className: 'git-branch-label-background' },
           }, BACKGROUND_EMISSIONS.branch), indent: 2 },
           { node: marks.shape({
             id: semanticChildId(branchId, 'line'), role: 'rail',
             geometry: { kind: 'line', x1: branch.x1, y1: branch.y1, x2: branch.x2, y2: branch.y2 },
             paint: { stroke: branchPaint.line, strokeWidth: '3', opacity: '0.86' },
             channels: { category: branch.name },
+
+            attributes: { className: 'git-branch-line', data: { branch: branch.name } },
           }, BRANCH_LINE_EMISSION), indent: 2 },
           { node: marks.text({
             id: semanticChildId(branchId, 'label'), role: 'label', text: block.text, block,
             x: labelX, y: labelY - block.fontSize * 0.35, fontSize: block.fontSize, fontWeight: block.fontWeight, letterSpacing: block.letterSpacing, anchor: diagram.direction === 'LR' ? 'end' : 'middle',
             paint: { fill: branchPaint.label }, channels: { category: branch.name },
+
+            attributes: { className: 'git-branch-label', data: { branch: branch.name } },
           }, BRANCH_LABEL_EMISSION), indent: 2 },
         ],
       }))
@@ -150,6 +170,8 @@ export function lowerGitGraphScene(ctx: RenderContext<PositionedGitGraphDiagram>
       relationship: { kind: edge.kind, direction: 'forward' },
       route: { ownership: 'layout' },
       channels: { category: edge.kind },
+
+      attributes: { className: `git-edge git-edge-${edge.kind}` },
     }, { kind: 'primitive', attributes: [
       { name: 'class', value: v.meta(`git-edge git-edge-${edge.kind}`) }, { name: 'data-from', value: v.identity('from') }, { name: 'data-to', value: v.identity('to') },
       { name: 'points', value: v.geometry('points'), format: 'round3' }, ...PAINT_ATTRIBUTES, { name: 'stroke-dasharray', value: v.paint('strokeDasharray') },
@@ -176,7 +198,7 @@ function renderCommit(commit: PositionedGitGraphCommit, diagram: PositionedGitGr
     for (const sign of [-1, 1]) children.push({ node: marks.shape({ id: semanticChildId(commit.id, 'cross', sign), role: 'chrome', geometry: { kind: 'line', x1: commit.x - 6, y1: commit.y + sign * 6, x2: commit.x + 6, y2: commit.y - sign * 6 }, paint: { stroke: 'var(--_arrow)', strokeWidth: '2' } }, CROSS_EMISSION), indent: 2 })
   }
   if (diagram.showCommitLabel) {
-    const block = commit.labelBlock ?? gitGraphText(commit.message || commit.id, paints.commitLabelFontSize, 500)
+    const block = commit.labelBlock ?? gitGraphText(gitGraphCommitLabel(commit), paints.commitLabelFontSize, 500)
     const label = block.text
     const extraHeight = block.height - block.lineHeight
     const labelX = diagram.direction === 'LR' ? commit.x : commit.x + 14
@@ -188,9 +210,11 @@ function renderCommit(commit: PositionedGitGraphCommit, diagram: PositionedGitGr
     if (paints.commitLabelBackground) {
       const width = r(Math.max(18, block.width + GITGRAPH_COMMIT_LABEL_PADDING_X * 2))
       const backgroundX = r(anchor === 'middle' ? labelX - width / 2 : labelX - GITGRAPH_COMMIT_LABEL_PADDING_X)
-      children.push({ node: marks.shape({ id: semanticChildId(commit.id, 'label-bg'), role: 'chrome', geometry: { kind: 'rect', x: backgroundX, y: labelY - block.fontSize - extraHeight / 2, width, height: block.fontSize + 6 + extraHeight, rx: 3, ry: 3 }, paint: { fill: paints.commitLabelBackground, stroke: branchPaint.line, strokeWidth: '0.75' }, transform: rotation }, BACKGROUND_EMISSIONS.commit), indent: 2 })
+      children.push({ node: marks.shape({ id: semanticChildId(commit.id, 'label-bg'), role: 'chrome', geometry: { kind: 'rect', x: backgroundX, y: labelY - block.fontSize - extraHeight / 2, width, height: block.fontSize + 6 + extraHeight, rx: 3, ry: 3 }, paint: { fill: paints.commitLabelBackground, fillOpacity: '0.94', stroke: branchPaint.line, strokeWidth: '0.75' }, transform: rotation, attributes: { className: 'git-commit-label-background' } }, BACKGROUND_EMISSIONS.commit), indent: 2 })
     }
-    children.push({ node: marks.text({ id: semanticChildId(commit.id, 'label'), role: 'label', text: label, block, x: labelX, y: labelY - block.fontSize * 0.35, fontSize: block.fontSize, fontWeight: block.fontWeight, letterSpacing: block.letterSpacing, anchor, paint: { fill: paints.commitLabelColor }, transform: rotation }, COMMIT_LABEL_EMISSION), indent: 2 })
+    children.push({ node: marks.text({ id: semanticChildId(commit.id, 'label'), role: 'label', text: label, block, x: labelX, y: labelY - block.fontSize * 0.35, fontSize: block.fontSize, fontWeight: block.fontWeight, letterSpacing: block.letterSpacing, anchor, paint: { fill: paints.commitLabelColor }, transform: rotation ,
+      attributes: { className: 'git-commit-label' },
+    }, COMMIT_LABEL_EMISSION), indent: 2 })
   }
   const tagBlocks = commit.tagBlocks ?? commit.tags.map(tag => gitGraphText(tag, 10, 600))
   commit.tags.forEach((tag, index) => {
@@ -203,8 +227,12 @@ function renderCommit(commit: PositionedGitGraphCommit, diagram: PositionedGitGr
       id: semanticChildId(commit.id, 'tag-bg', index), role: 'chrome',
       geometry: { kind: 'rect', x: x - 4, y: y - block.fontSize - 1 - extraHeight / 2, width, height: block.fontSize + 5 + extraHeight, rx: 4, ry: 4 },
       paint: { fill: branchPaint.labelBackground, stroke: branchPaint.line, strokeWidth: '0.75' },
+
+      attributes: { className: 'git-tag-background' },
     }, BACKGROUND_EMISSIONS.tag), indent: 2 })
-    children.push({ node: marks.text({ id: semanticChildId(commit.id, 'tag', index), role: 'label', text: block.text, block, x, y: y - block.fontSize * 0.35, fontSize: block.fontSize, fontWeight: block.fontWeight, letterSpacing: block.letterSpacing, anchor: 'start', paint: { fill: branchPaint.label } }, TAG_EMISSION), indent: 2 })
+    children.push({ node: marks.text({ id: semanticChildId(commit.id, 'tag', index), role: 'label', text: block.text, block, x, y: y - block.fontSize * 0.35, fontSize: block.fontSize, fontWeight: block.fontWeight, letterSpacing: block.letterSpacing, anchor: 'start', paint: { fill: branchPaint.label } ,
+      attributes: { className: 'git-tag' },
+    }, TAG_EMISSION), indent: 2 })
   })
   return marks.group({
     id: commit.id, role: 'node', channels: { status: visualType.toLowerCase(), category: commit.branch },
@@ -216,17 +244,31 @@ function renderCommit(commit: PositionedGitGraphCommit, diagram: PositionedGitGr
   })
 }
 
-function commitGeometry(commit: PositionedGitGraphCommit): SerializableShapeGeometry {
+function commitGeometry(commit: PositionedGitGraphCommit): Geometry {
   const type = commit.customType ?? commit.type
-  // Scene geometry and the crisp SVG serializer must describe the same points.
-  // Layout can produce binary float tails (for example 248.04000000000002)
-  // that SVG rounds to three decimals; normalize at the shared shape boundary.
+  // Layout can produce binary float tails (for example 248.04000000000002);
+  // the drawn geometry is rounded to three decimals.
   if (type === 'HIGHLIGHT') return { kind: 'rect', x: r(commit.x - 9), y: r(commit.y - 9), width: 18, height: 18, rx: 2, ry: 2 }
-  if (type === 'CHERRY_PICK') return { kind: 'polygon', points: [{ x: r(commit.x), y: r(commit.y - 10) }, { x: r(commit.x + 10), y: r(commit.y) }, { x: r(commit.x), y: r(commit.y + 10) }, { x: r(commit.x - 10), y: r(commit.y) }] }
+  if (type === 'CHERRY_PICK')
+    return {
+      kind: 'polygon',
+      points: [
+        { x: r(commit.x), y: r(commit.y - 10) },
+        { x: r(commit.x + 10), y: r(commit.y) },
+        { x: r(commit.x), y: r(commit.y + 10) },
+        { x: r(commit.x - 10), y: r(commit.y) },
+      ],
+    }
   return { kind: 'circle', cx: r(commit.x), cy: r(commit.y), r: type === 'MERGE' ? 10 : 8 }
 }
 
-interface GitGraphBranchPaint { line: string; label: string; highlight: string; normalFill: string; labelBackground: string }
+interface GitGraphBranchPaint {
+  line: string
+  label: string
+  highlight: string
+  normalFill: string
+  labelBackground: string
+}
 interface GitGraphPaints {
   branches: Map<string, GitGraphBranchPaint>
   commitLabelColor: string
@@ -235,7 +277,7 @@ interface GitGraphPaints {
 }
 
 function gitGraphPaints(diagram: PositionedGitGraphDiagram, raw: unknown, colors: DiagramColors): GitGraphPaints {
-  const vars = raw && typeof raw === 'object' && !Array.isArray(raw) ? raw as Record<string, unknown> : {}
+  const vars = raw && typeof raw === 'object' && !Array.isArray(raw) ? (raw as Record<string, unknown>) : {}
   const rawAccent = typeof colors.accent === 'string' ? colors.accent : '#3b82f6'
   const rawBg = typeof colors.bg === 'string' ? colors.bg : '#ffffff'
   const accent = /^#[0-9a-f]{6}$/i.test(rawAccent) ? rawAccent : '#3b82f6'
@@ -243,10 +285,7 @@ function gitGraphPaints(diagram: PositionedGitGraphDiagram, raw: unknown, colors
   // GitGraph's <=6 path historically used strict six-digit fallbacks. Above
   // the compatibility boundary, pass through supported CSS spellings so the
   // shared waist can normalize and repair them against the actual background.
-  const derivedPalette = categoricalPalette(
-    diagram.branches.length,
-    diagram.branches.length <= 6 ? { accent, bg } : { accent: rawAccent, bg: rawBg },
-  )
+  const derivedPalette = categoricalPalette(diagram.branches.length, diagram.branches.length <= 6 ? { accent, bg } : { accent: rawAccent, bg: rawBg })
   const branches = new Map<string, GitGraphBranchPaint>()
   diagram.branches.forEach((branch, index) => {
     const paletteIndex = index % 8
@@ -267,4 +306,6 @@ function gitGraphPaints(diagram: PositionedGitGraphDiagram, raw: unknown, colors
   }
 }
 
-function r(value: number): number { return Math.round(value * 1000) / 1000 }
+function r(value: number): number {
+  return Math.round(value * 1000) / 1000
+}

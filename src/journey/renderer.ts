@@ -68,9 +68,6 @@ interface JourneyPaints {
   nodeStroke: string
   /** Task text, inked against the task box fill it sits on. */
   taskText: string
-  groupFill: string
-  groupStroke: string
-  groupText: string
   titleColor: string
   sectionFills: string[]
   sectionBands: string[]
@@ -82,9 +79,16 @@ interface JourneyPaints {
   scoreFaceInk: string
 }
 
+const PAINT_ATTRIBUTES: readonly SvgAttribute[] = [
+  { name: 'fill', value: v.paint('fill') }, { name: 'stroke', value: v.paint('stroke') }, { name: 'stroke-width', value: v.paint('strokeWidth') },
+  { name: 'stroke-dasharray', value: v.paint('strokeDasharray') }, { name: 'stroke-linecap', value: v.paint('strokeLinecap') },
+  { name: 'stroke-linejoin', value: v.paint('strokeLinejoin') }, { name: 'opacity', value: v.paint('opacity') },
+  { name: 'fill-opacity', value: v.paint('fillOpacity') }, { name: 'stroke-opacity', value: v.paint('strokeOpacity') },
+]
 function primitive(className: string, geometry: readonly SvgGeometryField[], extra: readonly SvgAttribute[] = []): SvgEmissionRecipe {
   return snapshotSvgEmissionRecipe({ kind: 'primitive', attributes: [
     { name: 'class', value: v.meta(className) }, ...geometry.map(name => ({ name, value: v.geometry(name) })), ...extra,
+    ...PAINT_ATTRIBUTES.filter(attribute => !extra.some(other => other.name === attribute.name)),
   ] })
 }
 const RECT_FIELDS = ['x', 'y', 'width', 'height', 'rx', 'ry'] as const
@@ -106,7 +110,7 @@ const LEGEND_GROUP_EMISSION = snapshotSvgEmissionRecipe({ kind: 'group', attribu
 function textAttributes(className: string): SvgAttribute[] {
   return [
     { name: 'class', value: v.meta(className) }, { name: 'text-anchor', value: v.text('anchor') },
-    { name: 'font-size', value: v.text('fontSize') }, { name: 'font-weight', value: v.text('fontWeight') },
+    { name: 'font-size', value: v.text('fontSize') }, { name: 'font-weight', value: v.text('fontWeight') }, { name: 'fill', value: v.paint('fill') },
     { name: 'letter-spacing', value: v.text('letterSpacing'), omit: 'zero' },
   ]
 }
@@ -154,7 +158,7 @@ export function lowerJourneyScene(
     ? diagram.sections.flatMap(section => section.tasks.map(task => task.marker))
     : []
   const drawCurve = curveMarkers.length >= 2
-  const journeyCss = journeyStyles(style, visual, paints, drawCurve)
+  const journeyCss = journeyStyles(visual)
 
   parts.push(marks.documentOpen(
     {
@@ -165,7 +169,7 @@ export function lowerJourneyScene(
       transparent,
       font,
       hasMonoFont: false,
-      extraCss: journeyCss,
+      ...(journeyCss ? { extraCss: journeyCss } : {}),
     },
     { kind: 'prelude', width: diagram.width, height: diagram.height, colors, transparent, font, hasMonoFont: false,
       ...(appearance.useMaxWidth ? { widthAttribute: '100%', heightAttribute: '100%', extraStyle: `max-width:${diagram.width}px` } : {}),
@@ -186,7 +190,7 @@ export function lowerJourneyScene(
   parts.push(marks.definitions({ id: 'defs', markerResources: [arrowMarker] }, {
     kind: 'resources', resources: [...(colors.shadow ? [{ kind: 'shadow' as const, colors }] : []), 'markers'],
   }))
-  parts.push(marks.documentContent({ id: 'journey-style', role: 'chrome', nonPaint: 'stylesheet' }, { kind: 'stylesheet', css: journeyCss }))
+  if (journeyCss) parts.push(marks.documentContent({ id: 'journey-style', role: 'chrome', nonPaint: 'stylesheet' }, { kind: 'stylesheet', css: journeyCss }))
 
   parts.push(renderScoreGuide(diagram.scoreGuide, style, arrowMarker))
 
@@ -228,10 +232,12 @@ export function lowerJourneyScene(
         fontSize: visual.titleFontSize, fontWeight: JY.titleFontWeight, letterSpacing: style.groupLetterSpacing,
         anchor: 'middle',
         paint: { fill: paints.titleColor },
+
+        attributes: { className: 'journey-title' },
       },
       { kind: 'text', layout: 'multiline', attributes: [
         { name: 'class', value: v.meta('journey-title') }, { name: 'text-anchor', value: v.text('anchor') },
-        { name: 'font-size', value: v.meta(visual.titleFontSizeCss) }, { name: 'font-weight', value: v.text('fontWeight') },
+        { name: 'fill', value: v.paint('fill') }, { name: 'font-size', value: v.meta(visual.titleFontSizeCss) }, { name: 'font-weight', value: v.text('fontWeight') },
         ...(visual.titleFontFamily ? [{ name: 'font-family' as const, value: v.meta(visual.titleFontFamily) }] : []),
       ] },
     ))
@@ -280,35 +286,8 @@ function journeyArrowMarker(id: string, color: string): MarkerDescriptor {
   }
 }
 
-function journeyStyles(style: ResolvedRenderStyle, visual: JourneyVisualConfig, paints: JourneyPaints, drawCurve: boolean): string {
-  const sectionPalette = sectionPaletteCss(paints)
-  const sectionBandPalette = sectionBandPaletteCss(paints)
-  const sectionLabelPalette = sectionLabelPaletteCss(paints)
-  const actorPalette = actorPaletteCss(paints)
-
-  return `
-  .journey-title { fill: ${paints.titleColor}; }
-  .journey-section-bg { fill: ${paints.groupFill}; stroke: ${paints.groupStroke}; stroke-width: ${style.groupLineWidth}; }
-${sectionPalette}
-  .journey-section-label-band { fill: ${paints.sectionBands[0]}; stroke: none; }
-${sectionBandPalette}
-  .journey-section-label { fill: ${paints.sectionTextColors[0] ?? 'var(--_text)'}; }
-${sectionLabelPalette}
-  .journey-task-box { fill: ${paints.nodeFill}; stroke: ${paints.nodeStroke}; stroke-width: ${style.nodeLineWidth}; }
-  .journey-task-text { fill: ${paints.taskText};${visual.taskFontFamily ? ` font-family: ${visual.taskFontFamily};` : ''} }
-  .journey-track { stroke: color-mix(in srgb, ${paints.nodeStroke} 78%, var(--bg)); stroke-width: ${style.lineWidth}; stroke-dasharray: 4 7; }${drawCurve ? `
-  .journey-curve { fill: none; stroke: color-mix(in srgb, ${paints.arrow} 55%, var(--bg)); stroke-width: ${Math.max(2, style.lineWidth * 2)}; stroke-linecap: round; }` : ''}
-  .journey-guide { stroke: color-mix(in srgb, ${paints.nodeStroke} 62%, var(--bg)); stroke-width: 1; }
-  .journey-score-label { fill: ${style.edgeTextColor ?? 'var(--_text-sec)'}; }
-  .journey-baseline { stroke: ${paints.arrow}; stroke-width: ${Math.max(2, style.lineWidth * 2)}; }
-  .journey-score-face { fill: ${paints.scoreFaceFill}; stroke: ${paints.scoreFaceStroke}; stroke-width: 1.2; }
-  .journey-face-eye { fill: ${paints.scoreFaceInk}; }
-  .journey-face-mouth { fill: none; stroke: ${paints.scoreFaceInk}; stroke-width: 1.6; stroke-linecap: round; }
-  .journey-actor-legend-title { fill: ${paints.groupText}; }
-  .journey-actor-legend-text { fill: ${paints.groupText}; }
-  .journey-actor-dot { stroke: var(--bg); stroke-width: 1; }
-${actorPalette}
-`
+function journeyStyles(visual: JourneyVisualConfig): string {
+  return visual.taskFontFamily ? `\n  .journey-task-text { font-family: ${visual.taskFontFamily}; }\n` : ''
 }
 
 function renderExperienceCurve(
@@ -318,18 +297,20 @@ function renderExperienceCurve(
 ): SceneNode {
   const points = markers.map(marker => ({ x: marker.cx, y: marker.cy }))
   const projection = smoothCurveProjection(points)
-  return marks.connector(
-    {
-      id: 'experience-curve',
-      role: 'series',
-      geometry: projection.geometry,
-      lineStyle: 'solid',
-      paint: {
-        stroke: `color-mix(in srgb, ${paints.arrow} 55%, var(--bg))`,
-        strokeWidth: String(Math.max(2, style.lineWidth * 2)),
-      },
-      route: { ownership: 'family', contours: projection.contours },
+  return marks.connector({
+    id: 'experience-curve',
+    role: 'series',
+    geometry: projection.geometry,
+    lineStyle: 'solid',
+    paint: {
+      stroke: `color-mix(in srgb, ${paints.arrow} 55%, var(--bg))`,
+      strokeWidth: String(Math.max(2, style.lineWidth * 2)),
+      strokeLinecap: 'round',
     },
+
+    route: { ownership: 'family', contours: projection.contours },
+    attributes: { className: 'journey-curve' },
+  },
     CURVE_EMISSION,
   )
 }
@@ -358,19 +339,20 @@ function renderScoreGuide(guide: PositionedJourneyScoreGuide, style: ResolvedRen
   for (const tick of guide.ticks) {
     children.push({
       indent: 2,
-      node: marks.connector(
-        {
-          id: `score-guide:${tick.score}`,
-          role: 'grid',
-          geometry: { kind: 'line', x1: tick.x1, y1: tick.y, x2: tick.x2, y2: tick.y },
-          lineStyle: 'solid',
-          paint: {
-            stroke: `color-mix(in srgb, ${style.nodeBorderColor ?? 'var(--_node-stroke)'} 62%, var(--bg))`,
-            strokeWidth: '1',
-          },
-          channels: { value: tick.score / JOURNEY_MAX_SCORE },
+      node: marks.connector({
+        id: `score-guide:${tick.score}`,
+        role: 'grid',
+        geometry: { kind: 'line', x1: tick.x1, y1: tick.y, x2: tick.x2, y2: tick.y },
+        lineStyle: 'solid',
+        paint: {
+          stroke: `color-mix(in srgb, ${style.nodeBorderColor ?? 'var(--_node-stroke)'} 62%, var(--bg))`,
+          strokeWidth: '1',
         },
-        GUIDE_EMISSION,
+
+        channels: { value: tick.score / JOURNEY_MAX_SCORE },
+        attributes: { className: 'journey-guide' },
+      },
+    GUIDE_EMISSION,
       ),
     })
 
@@ -388,6 +370,8 @@ function renderScoreGuide(guide: PositionedJourneyScoreGuide, style: ResolvedRen
           anchor: 'end',
           paint: { fill: style.edgeTextColor ?? 'var(--_text-sec)' },
           channels: { value: tick.score / JOURNEY_MAX_SCORE },
+
+          attributes: { className: 'journey-score-label' },
         },
         SCORE_TEXT_EMISSION,
       ),
@@ -397,19 +381,20 @@ function renderScoreGuide(guide: PositionedJourneyScoreGuide, style: ResolvedRen
   const baseline = guide.baseline
   children.push({
     indent: 2,
-    node: marks.connector(
-      {
-        id: 'journey-baseline',
-        role: 'rail',
-        geometry: { kind: 'line', x1: baseline.x1, y1: baseline.y1, x2: baseline.x2, y2: baseline.y2 },
-        lineStyle: 'solid',
-        paint: {
-          stroke: style.edgeStrokeColor ?? 'var(--_arrow)',
-          strokeWidth: String(Math.max(2, style.lineWidth * 2)),
-        },
-        markers: { mid: [], end: arrowMarker },
+    node: marks.connector({
+      id: 'journey-baseline',
+      role: 'rail',
+      geometry: { kind: 'line', x1: baseline.x1, y1: baseline.y1, x2: baseline.x2, y2: baseline.y2 },
+      lineStyle: 'solid',
+      paint: {
+        stroke: style.edgeStrokeColor ?? 'var(--_arrow)',
+        strokeWidth: String(Math.max(2, style.lineWidth * 2)),
       },
-      BASELINE_EMISSION,
+
+      markers: { mid: [], end: arrowMarker },
+      attributes: { className: 'journey-baseline' },
+    },
+    BASELINE_EMISSION,
     ),
   })
 
@@ -440,6 +425,8 @@ function renderActorLegend(actors: PositionedJourneyActor[], style: ResolvedRend
           fontSize: style.groupHeaderFontSize, fontWeight: style.groupHeaderFontWeight, letterSpacing: style.groupLetterSpacing,
           anchor: 'start',
           paint: { fill: style.groupTextColor ?? 'var(--_text-sec)' },
+
+          attributes: { className: 'journey-actor-legend-title' },
         },
         LEGEND_TITLE_EMISSION,
       ),
@@ -456,10 +443,12 @@ function renderActorLegend(actors: PositionedJourneyActor[], style: ResolvedRend
           geometry: { kind: 'circle', cx: actor.x, cy: actor.y, r: JY.legendDotRadius },
           paint: { fill: actorFill(actor.colorIndex, paints), stroke: 'var(--bg)', strokeWidth: '1' },
           channels: { category: actor.label },
+
+          attributes: { className: `journey-actor-dot ${actorClass(actor.colorIndex, paints)}`, data: { actor: actor.label } },
         },
         { kind: 'primitive', attributes: [
           { name: 'class', value: v.meta(`journey-actor-dot ${actorClass(actor.colorIndex, paints)}`) },
-          { name: 'data-actor', value: v.channel('category') }, ...CIRCLE_FIELDS.map(name => ({ name, value: v.geometry(name) })),
+          { name: 'data-actor', value: v.channel('category') }, ...CIRCLE_FIELDS.map(name => ({ name, value: v.geometry(name) })), ...PAINT_ATTRIBUTES,
         ] },
       ),
     })
@@ -478,6 +467,8 @@ function renderActorLegend(actors: PositionedJourneyActor[], style: ResolvedRend
           anchor: 'start',
           paint: { fill: style.groupTextColor ?? 'var(--_text-sec)' },
           channels: { category: actor.label },
+
+          attributes: { className: 'journey-actor-legend-text' },
         },
         LEGEND_TEXT_EMISSION,
       ),
@@ -505,17 +496,18 @@ function renderSectionFrame(
 
   children.push({
     indent: 2,
-    node: marks.shape(
-      {
-        id: `section-bg:${section.id}`,
-        role: 'section',
-        geometry: { kind: 'rect', x: section.x, y: section.y, width: section.width, height: section.height, rx: style.groupCornerRadius, ry: style.groupCornerRadius },
-        paint: {
-          fill: sectionFill(sectionIndex, paints),
-          stroke: sectionStroke(sectionIndex, paints),
-          strokeWidth: String(style.groupLineWidth),
-        },
+    node: marks.shape({
+      id: `section-bg:${section.id}`,
+      role: 'section',
+      geometry: { kind: 'rect', x: section.x, y: section.y, width: section.width, height: section.height, rx: style.groupCornerRadius, ry: style.groupCornerRadius },
+      paint: {
+        fill: sectionFill(sectionIndex, paints),
+        stroke: sectionStroke(sectionIndex, paints),
+        strokeWidth: String(style.groupLineWidth),
       },
+
+      attributes: { className: `journey-section-bg journey-section-${sectionIndex % paints.sectionFills.length}` },
+    },
       primitive(`journey-section-bg journey-section-${sectionIndex % paints.sectionFills.length}`, RECT_FIELDS),
     ),
   })
@@ -526,8 +518,8 @@ function renderSectionFrame(
     const labelText = section.block?.text ?? applyTextTransform(section.label, semanticStyle?.textTransform ?? style.groupTextTransform)
     const labelFontSize = semanticStyle?.fontSize ?? style.groupHeaderFontSize
     const labelFontWeight = semanticStyle?.fontWeight ?? style.groupHeaderFontWeight
-    const labelFontFamily = semanticStyle?.fontFamily ?? style.groupFont
     const labelLetterSpacing = semanticStyle?.letterSpacing ?? style.groupLetterSpacing
+    const labelFontFamily = semanticStyle?.fontFamily ?? style.groupFont
     const labelColor = authoredSectionPaint ? sectionTextColor(sectionIndex, paints) : semanticStyle?.textColor ?? sectionTextColor(sectionIndex, paints)
     children.push({
       indent: 2,
@@ -546,6 +538,8 @@ function renderSectionFrame(
           fontSize: labelFontSize, fontWeight: labelFontWeight, letterSpacing: labelLetterSpacing,
           anchor: 'middle',
           paint: { fill: labelColor },
+
+          attributes: { className: `journey-section-label journey-section-label-${sectionIndex % paints.sectionTextColors.length}` },
         },
         { kind: 'text', layout: 'multiline', attributes: [
           ...textAttributes(`journey-section-label journey-section-label-${sectionIndex % paints.sectionTextColors.length}`).filter(attribute => attribute.name !== 'letter-spacing'),
@@ -597,22 +591,26 @@ function renderSectionLabelBand(
   const bandWidth = Math.max(0, section.width - bandInset * 2)
   const radius = Math.min(style.groupCornerRadius, bandHeight / 2)
 
-  return marks.shape(
-    {
-      id: `section-band:${section.id}`,
-      role: 'group-header',
-      geometry: { kind: 'rect', x: bandX, y: bandY, width: bandWidth, height: bandHeight, rx: radius, ry: radius },
-      paint: {
-        fill,
-        stroke,
-        ...(strokeWidth !== undefined ? { strokeWidth: String(strokeWidth) } : {}),
-        ...(strokeDasharray ? { strokeDasharray } : {}),
-      },
-      channels,
+  return marks.shape({
+    id: `section-band:${section.id}`,
+    role: 'group-header',
+    geometry: { kind: 'rect', x: bandX, y: bandY, width: bandWidth, height: bandHeight, rx: radius, ry: radius },
+    paint: {
+      fill,
+      stroke,
+      ...(strokeWidth !== undefined ? { strokeWidth: String(strokeWidth) } : {}),
+      ...(strokeDasharray ? { strokeDasharray } : {}),
     },
+
+    channels,
+    attributes: {
+      className: `journey-section-label-band journey-section-band-${sectionIndex % paints.sectionBands.length}`,
+      ...(cueValue !== 'none' ? { data: { 'brand-cue': cueValue } } : {}),
+    },
+  },
     { kind: 'primitive', attributes: [
       { name: 'class', value: v.meta(`journey-section-label-band journey-section-band-${sectionIndex % paints.sectionBands.length}`) },
-      ...RECT_FIELDS.map(name => ({ name, value: v.geometry(name) })),
+      ...RECT_FIELDS.map(name => ({ name, value: v.geometry(name) })), ...PAINT_ATTRIBUTES,
       ...(inline ? [{ name: 'style' as const, value: { source: 'style' as const, declarations: [
         { property: 'fill' as const, value: v.paint('fill') },
         ...(stroke !== 'none' ? [{ property: 'stroke' as const, value: v.paint('stroke') }] : []),
@@ -654,36 +652,38 @@ function renderTask(task: PositionedJourneyTask, sectionLabel: string | undefine
 }
 
 function renderTrack(track: PositionedJourneyTrack, task: PositionedJourneyTask, style: ResolvedRenderStyle, paints: JourneyPaints): SceneNode {
-  return marks.connector(
-    {
-      id: `track:${task.id}`,
-      role: 'marker-line',
-      geometry: { kind: 'line', x1: track.x, y1: track.y1, x2: track.x, y2: track.y2 },
-      lineStyle: 'dashed',
-      paint: {
-        stroke: `color-mix(in srgb, ${paints.nodeStroke} 78%, var(--bg))`,
-        strokeWidth: String(style.lineWidth),
-        strokeDasharray: '4 7',
-      },
-      channels: { value: task.score / JOURNEY_MAX_SCORE },
+  return marks.connector({
+    id: `track:${task.id}`,
+    role: 'marker-line',
+    geometry: { kind: 'line', x1: track.x, y1: track.y1, x2: track.x, y2: track.y2 },
+    lineStyle: 'dashed',
+    paint: {
+      stroke: `color-mix(in srgb, ${paints.nodeStroke} 78%, var(--bg))`,
+      strokeWidth: String(style.lineWidth),
+      strokeDasharray: '4 7',
     },
+
+    channels: { value: task.score / JOURNEY_MAX_SCORE },
+    attributes: { className: 'journey-track' },
+  },
     TRACK_EMISSION,
   )
 }
 
 function renderTaskBox(task: PositionedJourneyTask, style: ResolvedRenderStyle, paints: JourneyPaints, channels: SemanticChannels): SceneNode {
-  return marks.shape(
-    {
-      id: `task-box:${task.id}`,
-      role: 'task',
-      geometry: { kind: 'rect', x: task.x, y: task.y, width: task.width, height: task.height, rx: style.cornerRadius ?? 0, ry: style.cornerRadius ?? 0 },
-      paint: {
-        fill: paints.nodeFill,
-        stroke: paints.nodeStroke,
-        strokeWidth: String(style.nodeLineWidth),
-      },
-      channels,
+  return marks.shape({
+    id: `task-box:${task.id}`,
+    role: 'task',
+    geometry: { kind: 'rect', x: task.x, y: task.y, width: task.width, height: task.height, rx: style.cornerRadius ?? 0, ry: style.cornerRadius ?? 0 },
+    paint: {
+      fill: paints.nodeFill,
+      stroke: paints.nodeStroke,
+      strokeWidth: String(style.nodeLineWidth),
     },
+
+    channels,
+    attributes: { className: 'journey-task-box' },
+  },
     TASK_EMISSION,
   )
 }
@@ -701,6 +701,8 @@ function renderTaskLabel(task: PositionedJourneyTask, style: ResolvedRenderStyle
       anchor: 'middle',
       paint: { fill: paints.taskText },
       channels,
+
+      attributes: { className: 'journey-task-text' },
     },
     TASK_TEXT_EMISSION,
   )
@@ -714,10 +716,12 @@ function renderActorDot(dot: PositionedJourneyActorDot, taskId: string, paints: 
       geometry: { kind: 'circle', cx: dot.x, cy: dot.y, r: dot.r },
       paint: { fill: actorFill(dot.colorIndex, paints), stroke: 'var(--bg)', strokeWidth: '1' },
       channels: { category: dot.label },
+
+      attributes: { className: `journey-actor-dot ${actorClass(dot.colorIndex, paints)}`, data: { actor: dot.label } },
     },
     { kind: 'primitive', attributes: [
       { name: 'class', value: v.meta(`journey-actor-dot ${actorClass(dot.colorIndex, paints)}`) },
-      { name: 'data-actor', value: v.channel('category') }, ...CIRCLE_FIELDS.map(name => ({ name, value: v.geometry(name) })),
+      { name: 'data-actor', value: v.channel('category') }, ...CIRCLE_FIELDS.map(name => ({ name, value: v.geometry(name) })), ...PAINT_ATTRIBUTES,
     ] },
   )
 }
@@ -744,6 +748,8 @@ function renderScoreMarker(marker: PositionedJourneyScoreMarker, taskId: string,
             geometry: { kind: 'circle', cx: marker.cx, cy: marker.cy, r: marker.r },
             paint: { fill: paints.scoreFaceFill, stroke: paints.scoreFaceStroke, strokeWidth: '1.2' },
             channels,
+
+            attributes: { className: 'journey-score-face' },
           },
           FACE_EMISSION,
         ),
@@ -757,6 +763,8 @@ function renderScoreMarker(marker: PositionedJourneyScoreMarker, taskId: string,
             geometry: { kind: 'circle', cx: leftEyeX, cy: eyeY, r: 2 },
             paint: { fill: paints.scoreFaceInk },
             channels,
+
+            attributes: { className: 'journey-face-eye' },
           },
           EYE_EMISSION,
         ),
@@ -770,6 +778,8 @@ function renderScoreMarker(marker: PositionedJourneyScoreMarker, taskId: string,
             geometry: { kind: 'circle', cx: rightEyeX, cy: eyeY, r: 2 },
             paint: { fill: paints.scoreFaceInk },
             channels,
+
+            attributes: { className: 'journey-face-eye' },
           },
           EYE_EMISSION,
         ),
@@ -781,8 +791,10 @@ function renderScoreMarker(marker: PositionedJourneyScoreMarker, taskId: string,
             id: `score-mouth:${taskId}`,
             role: 'score',
             geometry: { kind: 'path', d: mouth },
-            paint: { fill: 'none', stroke: paints.scoreFaceInk, strokeWidth: '1.6' },
+            paint: { fill: 'none', stroke: paints.scoreFaceInk, strokeWidth: '1.6' ,strokeLinecap: 'round',},
             channels,
+
+            attributes: { className: 'journey-face-mouth' },
           },
           MOUTH_EMISSION,
         ),
@@ -819,9 +831,6 @@ function journeyPaints(
   const arrow = style.edgeStrokeColor ?? 'var(--_arrow)'
   const nodeFill = style.nodeFillColor ?? 'var(--_node-fill)'
   const nodeStroke = style.nodeBorderColor ?? 'var(--_node-stroke)'
-  const groupFill = style.groupFillColor ?? `color-mix(in srgb, ${arrow} 8%, var(--bg))`
-  const groupStroke = style.groupBorderColor ?? 'var(--_node-stroke)'
-  const groupText = style.groupTextColor ?? 'var(--_text-sec)'
   const sectionBases = paletteBases(arrow, colors, style, counts.sectionCount)
   const configuredSectionCount = Math.max(
     visual.sectionFills.length,
@@ -875,9 +884,6 @@ function journeyPaints(
     // A custom surface can put the task box far from the page the theme tones
     // are repaired against.
     taskText: style.nodeTextColor ?? toneOnFill('var(--_text)', nodeFill, colors),
-    groupFill,
-    groupStroke,
-    groupText,
     titleColor: visual.titleColor ?? style.groupTextColor ?? style.nodeTextColor ?? 'var(--_text)',
     sectionFills,
     sectionBands,
@@ -1030,22 +1036,4 @@ function sectionStroke(index: number, paints: JourneyPaints): string {
 
 function sectionTextColor(index: number, paints: JourneyPaints): string {
   return paints.sectionTextColors[index % paints.sectionTextColors.length]!
-}
-
-function sectionPaletteCss(paints: JourneyPaints): string {
-  return paints.sectionFills.map((f, index) =>
-    `  .journey-section-${index} { fill: ${f}; stroke: ${paints.sectionStrokes[index]!}; }`,
-  ).join('\n')
-}
-
-function sectionBandPaletteCss(paints: JourneyPaints): string {
-  return paints.sectionBands.map((f, index) => `  .journey-section-band-${index} { fill: ${f}; }`).join('\n')
-}
-
-function sectionLabelPaletteCss(paints: JourneyPaints): string {
-  return paints.sectionTextColors.map((fill, index) => `  .journey-section-label-${index} { fill: ${fill}; }`).join('\n')
-}
-
-function actorPaletteCss(paints: JourneyPaints): string {
-  return paints.actorColors.map((fill, index) => `  .journey-actor-${index} { fill: ${fill}; }`).join('\n')
 }

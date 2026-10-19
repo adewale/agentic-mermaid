@@ -36,6 +36,10 @@ import { resolveRenderStyle } from './styles.ts'
 import { clipEdgeToShape } from './shape-clipping.ts'
 import { pointOnRoutingBoundary, pointOnShapeSide, shapeCardinalPorts, shapeRoutingProfile } from './shape-outline.ts'
 import { renderedEndpointContact } from './rendered-endpoint-diagnostics.ts'
+import { countPolylineCrossings } from './shared/edge-crossings.ts'
+import { LABEL_PILL_PADDING, labelRect, pillRect } from './shared/edge-label-geometry.ts'
+
+export { labelRect } from './shared/edge-label-geometry.ts'
 
 type DraftRouteCertificate = Omit<RouteCertificate, 'invariant' | 'straightened'> & {
   invariant: RouteInvariant
@@ -49,8 +53,6 @@ const EPS = 0.01
 const CLEARANCE = 4
 /** Required free space around a label hosted on a straightened lane. */
 const LABEL_CLEARANCE = 8
-/** The renderer draws labels as pills with this padding around the measured text. */
-const LABEL_PILL_PADDING = 8
 
 /** Shapes whose forward-facing side is a straight axis-aligned segment.
  *  Fork/join bars are plain (rounded) rectangles geometrically, which is what
@@ -795,19 +797,6 @@ function edgeId(e: { source: string; target: string }): string {
   return `${e.source}->${e.target}`
 }
 
-/** The rendered pill rect for a label of this size centered at (cx, cy). */
-function pillRect(cx: number, cy: number, m: { width: number; height: number }): { x: number; y: number; w: number; h: number } {
-  const w = m.width + 2 * LABEL_PILL_PADDING
-  const h = m.height + 2 * LABEL_PILL_PADDING
-  return { x: cx - w / 2, y: cy - h / 2, w, h }
-}
-
-export function labelRect(e: PositionedEdge, style: LabelMetricsStyle): { x: number; y: number; w: number; h: number } | null {
-  if (!e.label || !e.labelPosition) return null
-  const m = e.labelBlock ?? graphEdgeTextBlock(resolveLabelContent(e.label, e.labelContent), style)
-  return pillRect(e.labelPosition.x, e.labelPosition.y, m)
-}
-
 /**
  * Prove a straight lane at cross-coordinate `c`, spanning [mainLo, mainHi] on
  * the flow axis, clear for `edge`. Returns the blockers ([] = proof succeeded).
@@ -820,33 +809,21 @@ export function directLaneBlockers(
   ctx: LaneContext,
   axis: Axis = ctx.axis,
 ): RouteBlocker[] {
+  return collectLaneBlockers(edge, c, mainLo, mainHi, ctx, axis, false)
+}
+
+/** Repair candidates only need an existence proof. Stop at the first blocker;
+ * certificate-producing callers still collect the complete ordered evidence. */
+function hasDirectLaneBlocker(
+  edge: PositionedEdge, c: number, mainLo: number, mainHi: number, ctx: LaneContext, axis: Axis,
+): boolean {
+  return collectLaneBlockers(edge, c, mainLo, mainHi, ctx, axis, true).length > 0
+}
+
+function collectLaneBlockers(
+  edge: PositionedEdge, c: number, mainLo: number, mainHi: number, ctx: LaneContext, axis: Axis, firstOnly: boolean,
+): RouteBlocker[] {
   const blockers: RouteBlocker[] = []
-  scanDirectLaneBlockers(edge, c, mainLo, mainHi, ctx, axis, blockers)
-  return dedupeBlockers(blockers)
-}
-
-function directLaneBlocked(
-  edge: PositionedEdge,
-  c: number,
-  mainLo: number,
-  mainHi: number,
-  ctx: LaneContext,
-  axis: Axis,
-): boolean {
-  return scanDirectLaneBlockers(edge, c, mainLo, mainHi, ctx, axis)
-}
-
-/** Collect complete certificate evidence, or stop at the first obstruction
- * when a candidate segment needs only a clearance decision. */
-function scanDirectLaneBlockers(
-  edge: PositionedEdge,
-  c: number,
-  mainLo: number,
-  mainHi: number,
-  ctx: LaneContext,
-  axis: Axis,
-  blockers?: RouteBlocker[],
-): boolean {
   const overlaps = (lo: number, hi: number, lo2: number, hi2: number) =>
     Math.min(hi, hi2) - Math.max(lo, lo2) > EPS
 
@@ -857,8 +834,8 @@ function scanDirectLaneBlockers(
     const nCrossLo = node[axis.cross] - CLEARANCE
     const nCrossHi = node[axis.cross] + (axis.cross === 'y' ? node.height : node.width) + CLEARANCE
     if (c > nCrossLo && c < nCrossHi && overlaps(mainLo, mainHi, nMainLo, nMainHi)) {
-      if (!blockers) return true
       blockers.push({ kind: 'node', id: node.id })
+      if (firstOnly) return blockers
     }
   }
 
@@ -873,8 +850,8 @@ function scanDirectLaneBlockers(
       const rCrossLo = (axis.cross === 'y' ? rect.y : rect.x) - CLEARANCE
       const rCrossHi = rCrossLo + (axis.cross === 'y' ? rect.h : rect.w) + 2 * CLEARANCE
       if (c > rCrossLo && c < rCrossHi && overlaps(mainLo, mainHi, rMainLo, rMainHi)) {
-        if (!blockers) return true
         blockers.push({ kind: 'label', id: edgeId(other) })
+        if (firstOnly) return blockers
       }
     }
     // Collinear overlap with another edge's flow-axis segment would merge the
@@ -893,8 +870,8 @@ function scanDirectLaneBlockers(
           Math.abs(a[axis.cross] - c) < EPS && i === other.points.length - 1) {
           continue
         }
-        if (!blockers) return true
         blockers.push({ kind: 'channel', id: edgeId(other) })
+        if (firstOnly) return blockers
         break
       }
     }
@@ -904,12 +881,11 @@ function scanDirectLaneBlockers(
     const m = (edge.labelBlock ?? graphEdgeTextBlock(resolveLabelContent(edge.label, edge.labelContent), ctx.style))
     const span = (axis.main === 'x' ? m.width : m.height) + 2 * LABEL_PILL_PADDING
     if (mainHi - mainLo < span + LABEL_CLEARANCE) {
-      if (!blockers) return true
       blockers.push({ kind: 'label', id: edgeId(edge) })
     }
   }
 
-  return blockers !== undefined && blockers.length > 0
+  return dedupeBlockers(blockers)
 }
 
 /**
@@ -981,25 +957,31 @@ export function findLabelSlot(
   return null
 }
 
-/** Strict-interior intersection of two segments (touching endpoints don't count). */
-function segmentsIntersect(a: Point, b: Point, c: Point, d: Point): boolean {
-  const det = (b.x - a.x) * (d.y - c.y) - (b.y - a.y) * (d.x - c.x)
-  if (Math.abs(det) < 1e-9) return false
-  const t = ((c.x - a.x) * (d.y - c.y) - (c.y - a.y) * (d.x - c.x)) / det
-  const u = ((c.x - a.x) * (b.y - a.y) - (c.y - a.y) * (b.x - a.x)) / det
-  return t > 0.001 && t < 0.999 && u > 0.001 && u < 0.999
-}
-
-/** Crossings between a candidate route and every other edge's segments. */
+/** Use the same visible proper crossings for proposals and final scoring. */
 function countRouteCrossings(points: Point[], edge: PositionedEdge, ctx: LaneContext): number {
+  if (edge.style === 'invisible') return 0
   let count = 0
   for (const other of ctx.edges) {
-    if (other === edge || (edge.edgeIndex !== undefined && other.edgeIndex === edge.edgeIndex)) continue
-    for (let i = 1; i < points.length; i++) {
+    if (other === edge || other.style === 'invisible' || (edge.edgeIndex !== undefined && other.edgeIndex === edge.edgeIndex)) continue
+    // Most route pairs cannot cross. Reject them without allocating/sorting
+    // the shared counter's segments; this is only a conservative broad phase.
+    let mayCross = false
+    for (let i = 1; i < points.length && !mayCross; i++) {
+      const a = points[i - 1]!, b = points[i]!
+      const minX = Math.min(a.x, b.x), maxX = Math.max(a.x, b.x)
+      const minY = Math.min(a.y, b.y), maxY = Math.max(a.y, b.y)
       for (let j = 1; j < other.points.length; j++) {
-        if (segmentsIntersect(points[i - 1]!, points[i]!, other.points[j - 1]!, other.points[j]!)) count++
+        const c = other.points[j - 1]!, d = other.points[j]!
+        if (maxX < Math.min(c.x, d.x) || minX > Math.max(c.x, d.x) ||
+          maxY < Math.min(c.y, d.y) || minY > Math.max(c.y, d.y)) continue
+        // Parallel axis-aligned segments cannot form a proper crossing.
+        if ((a.x === b.x && c.x === d.x) || (a.y === b.y && c.y === d.y)) continue
+        mayCross = true
+        break
       }
     }
+    if (!mayCross) continue
+    count += countPolylineCrossings([{ points }, { points: other.points }])
   }
   return count
 }
@@ -1573,6 +1555,10 @@ export function applyRouteContracts(
     // labelled reroute is always preferred over a grazing one. Deterministic:
     // it is the first such route in the fixed c2×c1×jog candidate order.
     let occlusionFallback: { route: Point[]; labelMid: Point } | null = null
+    // This search does not mutate the edge until a candidate wins. Reuse its
+    // label-free probe and lazily compute the unchanged route's crossing count.
+    const unlabeled: PositionedEdge = { ...edge, points: [], label: undefined }
+    let priorCrossings: number | undefined
 
     for (const c2 of c2s) {
       if (c2 < s2.lo - EPS || c2 > s2.hi + EPS) continue
@@ -1593,19 +1579,18 @@ export function applyRouteContracts(
           // hop are proved with a label-stripped probe so the own-label
           // capacity check applies exactly once, where the pill will live.
           const longFirst = Math.abs(jog - srcMain) >= Math.abs(tgtMain - jog)
-          const unlabeled: PositionedEdge = { ...edge, points: [], label: undefined }
-          if (directLaneBlocked(longFirst ? edge : unlabeled, c1, Math.min(srcMain, jog), Math.max(srcMain, jog), ctx, axis)) continue
+          if (hasDirectLaneBlocker(longFirst ? edge : unlabeled, c1, Math.min(srcMain, jog), Math.max(srcMain, jog), ctx, axis)) continue
           const hopAxis: Axis = axis.main === 'x'
             ? { main: 'y', cross: 'x', sign: c1 < c2 ? 1 : -1 }
             : { main: 'x', cross: 'y', sign: c1 < c2 ? 1 : -1 }
-          if (directLaneBlocked(unlabeled, jog, Math.min(c1, c2), Math.max(c1, c2), ctx, hopAxis)) continue
-          if (directLaneBlocked(longFirst ? unlabeled : edge, c2, Math.min(jog, tgtMain), Math.max(jog, tgtMain), ctx, axis)) continue
+          if (hasDirectLaneBlocker(unlabeled, jog, Math.min(c1, c2), Math.max(c1, c2), ctx, hopAxis)) continue
+          if (hasDirectLaneBlocker(longFirst ? unlabeled : edge, c2, Math.min(jog, tgtMain), Math.max(jog, tgtMain), ctx, axis)) continue
           const pt = (main: number, cross: number): Point =>
             axis.main === 'x' ? { x: main, y: cross } : { x: cross, y: main }
           const route = [pt(srcMain, c1), pt(jog, c1), pt(jog, c2), pt(tgtMain, c2)]
           const priorContacts = Number(Boolean(portAt(source, edge.points[0]!))) + Number(Boolean(portAt(target, edge.points.at(-1)!)))
           const nextContacts = Number(Boolean(portAt(source, route[0]!))) + Number(Boolean(portAt(target, route.at(-1)!)))
-          const priorCrossings = countRouteCrossings(edge.points, edge, ctx)
+          priorCrossings ??= countRouteCrossings(edge.points, edge, ctx)
           const nextCrossings = countRouteCrossings(route, edge, ctx)
           // Crossings may not increase — unless the current route passes
           // THROUGH a node (a hard defect, e.g. a later pass moved a node
@@ -1748,15 +1733,15 @@ export function applyRouteContracts(
     for (const escCross of escCandidates) {
       if (Math.abs(escCross - spCross) < CLEARANCE) continue // that is just the shadowed lane
       // A: short riser off the source flow port, in the pre-obstacle gap.
-      if (directLaneBlocked(unlabeled, spCross, Math.min(srcMain, gapMain), Math.max(srcMain, gapMain), ctx, axis)) continue
+      if (hasDirectLaneBlocker(unlabeled, spCross, Math.min(srcMain, gapMain), Math.max(srcMain, gapMain), ctx, axis)) continue
       // B: sidestep along the gap to the escape lane.
-      if (directLaneBlocked(unlabeled, gapMain, Math.min(spCross, escCross), Math.max(spCross, escCross), ctx, perpAxis(spCross, escCross))) continue
+      if (hasDirectLaneBlocker(unlabeled, gapMain, Math.min(spCross, escCross), Math.max(spCross, escCross), ctx, perpAxis(spCross, escCross))) continue
       // C: full riser along the escape lane, up to the hop.
-      if (directLaneBlocked(unlabeled, escCross, Math.min(gapMain, hopMain), Math.max(gapMain, hopMain), ctx, axis)) continue
+      if (hasDirectLaneBlocker(unlabeled, escCross, Math.min(gapMain, hopMain), Math.max(gapMain, hopMain), ctx, axis)) continue
       // D: hop across to the target's flow-port lane.
-      if (directLaneBlocked(unlabeled, hopMain, Math.min(escCross, tpCross), Math.max(escCross, tpCross), ctx, perpAxis(escCross, tpCross))) continue
+      if (hasDirectLaneBlocker(unlabeled, hopMain, Math.min(escCross, tpCross), Math.max(escCross, tpCross), ctx, perpAxis(escCross, tpCross))) continue
       // E: drop into the target flow port.
-      if (directLaneBlocked(unlabeled, tpCross, Math.min(hopMain, tgtMain), Math.max(hopMain, tgtMain), ctx, axis)) continue
+      if (hasDirectLaneBlocker(unlabeled, tpCross, Math.min(hopMain, tgtMain), Math.max(hopMain, tgtMain), ctx, axis)) continue
       const route = simplifyPolyline([
         pt(srcMain, spCross), pt(gapMain, spCross), pt(gapMain, escCross),
         pt(hopMain, escCross), pt(hopMain, tpCross), pt(tgtMain, tpCross),
@@ -1835,11 +1820,11 @@ export function applyRouteContracts(
     // The label rides the lane; the entry stub is proved label-stripped
     // (own-label capacity applies exactly once, where the pill lives).
     const unlabeled: PositionedEdge = { ...edge, points: [], label: undefined }
-    if (directLaneBlocked(edge, lane, Math.min(srcMain, portMain), Math.max(srcMain, portMain), ctx, axis)) return false
+    if (hasDirectLaneBlocker(edge, lane, Math.min(srcMain, portMain), Math.max(srcMain, portMain), ctx, axis)) return false
     const stubAxis: Axis = axis.main === 'x'
       ? { main: 'y', cross: 'x', sign: lane < entryCross ? 1 : -1 }
       : { main: 'x', cross: 'y', sign: lane < entryCross ? 1 : -1 }
-    if (directLaneBlocked(unlabeled, portMain, Math.min(lane, entryCross), Math.max(lane, entryCross), ctx, stubAxis)) return false
+    if (hasDirectLaneBlocker(unlabeled, portMain, Math.min(lane, entryCross), Math.max(lane, entryCross), ctx, stubAxis)) return false
     const pt = (main: number, cross: number): Point =>
       axis.main === 'x' ? { x: main, y: cross } : { x: cross, y: main }
     const route = [pt(srcMain, lane), pt(portMain, lane), pt(portMain, entryCross)]
@@ -1900,8 +1885,8 @@ export function applyRouteContracts(
       // The label rides the channel run, not the hop — strip it so the
       // own-label capacity check doesn't demand the pill fit on a short hop.
       const probe: PositionedEdge = { ...edge, points: [], label: undefined }
-      return !directLaneBlocked(probe, mainCoord,
-        Math.min(fromCross, extreme), Math.max(fromCross, extreme), ctx, hopAxis)
+      return directLaneBlockers(probe, mainCoord,
+        Math.min(fromCross, extreme), Math.max(fromCross, extreme), ctx, hopAxis).length === 0
     }
     const buildRoute = (mainCoord: number, fromCross: number, startOnBoundary: Point): Point[] => {
       const hopPoint: Point = graphAxis.main === 'x' ? { x: mainCoord, y: extreme } : { x: extreme, y: mainCoord }

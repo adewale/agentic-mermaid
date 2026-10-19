@@ -19,14 +19,41 @@ function sides(a: C4Box, b: C4Box): [Side, Side] {
   if (Math.abs(ac.x - bc.x) >= Math.abs(ac.y - bc.y)) return ac.x <= bc.x ? ['R', 'L'] : ['L', 'R']
   return ac.y <= bc.y ? ['B', 'T'] : ['T', 'B']
 }
-function port(box: C4Box, side: Side, index: number, count: number): Point {
-  const t = (index + 1) / (count + 1)
+/** The point a fraction `t` of the way along a face's usable span. */
+function portAt(box: C4Box, side: Side, t: number): Point {
   if (side === 'T' || side === 'B') {
     const curve = box.cylinder ? 8 * (1 - Math.sqrt(Math.max(0, 1 - (2 * t - 1) ** 2))) : 0
     return { x: box.x + box.width * t, y: box.y + (side === 'B' ? box.height - curve : curve) }
   }
   const header = box.container ? box.headerHeight ?? 0 : box.cylinder ? 8 : 0
   return { x: box.x + (side === 'R' ? box.width : 0), y: box.y + header + (box.height - header - (box.cylinder ? 8 : 0)) * t }
+}
+function port(box: C4Box, side: Side, index: number, count: number): Point {
+  return portAt(box, side, (index + 1) / (count + 1))
+}
+
+/** A step smaller than this between facing ports draws as a dogleg, not a
+ * deliberate offset. */
+const DOGLEG = 8
+const OPPOSITE: Record<Side, Side> = { T: 'B', R: 'L', B: 'T', L: 'R' }
+
+/** Evenly spaced ports on facing sides of different lengths sit a few pixels
+ * apart. Put the target port level with the source port instead, when that
+ * stays on the target face and clear of the face's other ports. */
+function facingPort(start: Point, startSide: Side, box: C4Box, side: Side, index: number, count: number): Point {
+  const end = port(box, side, index, count)
+  if (OPPOSITE[startSide] !== side) return end
+  const along = side === 'L' || side === 'R' ? 'y' : 'x'
+  const offset = start[along] - end[along]
+  if (offset === 0 || Math.abs(offset) >= DOGLEG) return end
+  const first = portAt(box, side, 0), last = portAt(box, side, 1)
+  const t = (start[along] - first[along]) / (last[along] - first[along])
+  if (!(t > 0 && t < 1)) return end
+  const level = portAt(box, side, t)
+  for (let other = 0; other < count; other++) {
+    if (other !== index && Math.abs(port(box, side, other, count)[along] - level[along]) < DOGLEG) return end
+  }
+  return level
 }
 
 export class C4RouteWorkLimitError extends RangeError {
@@ -94,8 +121,10 @@ export function routeC4Pixels(boxes: ReadonlyMap<string, C4Box>, positioned: { n
   for (const plan of plans) { const key = JSON.stringify([plan.source.id, plan.target.id].sort()); const members = pairs.get(key) ?? []; members.push(plan); pairs.set(key, members) }
   for (const [index, plan] of plans.entries()) {
     const { edge, source, target, startSide, endSide } = plan
-    const endpoint = (box: C4Box, side: Side) => { const key = `${box.id}\0${side}`, cursor = cursors.get(key) ?? 0; cursors.set(key, cursor + 1); return port(box, side, cursor, counts.get(key)!) }
-    const start = endpoint(source, startSide), end = endpoint(target, endSide)
+    const cursor = (box: C4Box, side: Side) => { const key = `${box.id}\0${side}`, index = cursors.get(key) ?? 0; cursors.set(key, index + 1); return { index, count: counts.get(key)! } }
+    const startPort = cursor(source, startSide), endPort = cursor(target, endSide)
+    const start = port(source, startSide, startPort.index, startPort.count)
+    const end = source.id === target.id ? port(target, endSide, endPort.index, endPort.count) : facingPort(start, startSide, target, endSide, endPort.index, endPort.count)
     const startSign = source.container && source.id !== target.id && contains(source, target) ? -1 : 1
     const endSign = target.container && source.id !== target.id && contains(target, source) ? -1 : 1
     const pair = pairs.get(JSON.stringify([source.id, target.id].sort()))!

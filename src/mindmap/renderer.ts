@@ -1,9 +1,10 @@
+import type { Geometry } from '../scene/ir.ts';
 import type { RenderContext } from '../types.ts'
 import { resolveRenderStyle, diagramTitleMark } from '../styles.ts'
 import type { PositionedMindmapDiagram, PositionedMindmapNode } from './types.ts'
 import { MINDMAP_BANG_INNER_RADIUS_RATIO } from './geometry.ts'
 import type { SceneDoc, SceneNode } from '../scene/ir.ts'
-import type { SerializableShapeGeometry } from '../scene/svg-serialize.ts'
+
 import * as marks from '../scene/marks.ts'
 import { pathArtwork } from '../scene/artwork.ts'
 import { iconFallbackToken } from '../shared/icon-fallback.ts'
@@ -109,6 +110,7 @@ export function lowerMindmapScene(ctx: RenderContext<PositionedMindmapDiagram>):
       },
       stroke: { lineCap: 'round' },
       channels: { importance: 1, category: String(branchByNode.get(edge.to) ?? 0) },
+      attributes: { className: 'mindmap-edge', data: { 'branch-index': String(branchByNode.get(edge.to) ?? 0) } },
     }, EDGE_EMISSION))
   }
   for (const node of diagram.nodes) parts.push(renderNode(node, colors, branchByNode.get(node.id), branchPaint(node.id)))
@@ -160,7 +162,8 @@ function renderNode(
       children.push({ node: marks.text({
         id: semanticChildId(node.id, 'icon'), role: 'icon', owner: { id: node.id, role: 'node' }, text: token,
         block: node.iconFallbackBlock, x: node.x + node.width / 2,
-        y: node.y + 12, fontSize: 9, anchor: 'middle', paint: { fill: textColor },
+        y: node.y + 12, fontSize: 9, anchor: 'middle', paint: { fill: textColor }, baselineShift: 0,
+        attributes: { className: 'mindmap-icon-fallback', data: { icon: node.icon } },
       }, { kind: 'text', layout: 'direct', attributes: [
         { name: 'class', value: v.meta('mindmap-icon-fallback') }, { name: 'data-icon', value: v.meta(node.icon) },
         { name: 'x', value: v.text('x'), format: 'round3' }, { name: 'y', value: v.text('y'), format: 'round3' },
@@ -190,7 +193,7 @@ function renderNode(
   })
 }
 
-function nodeGeometry(node: PositionedMindmapNode): SerializableShapeGeometry {
+function nodeGeometry(node: PositionedMindmapNode): Geometry {
   const { x, y, width, height } = node
   const point = (pointX: number, pointY: number) => ({ x: round(pointX), y: round(pointY) })
   if (node.shape === 'circle') return { kind: 'circle', cx: round(x + width / 2), cy: round(y + height / 2), r: round(Math.min(width, height) / 2) }

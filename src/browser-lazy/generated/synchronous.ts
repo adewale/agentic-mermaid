@@ -18,5 +18,11 @@ import family_gitgraph from '../families/gitgraph.ts'
 import family_radar from '../families/radar.ts'
 import family_sankey from '../families/sankey.ts'
 import family_c4 from '../families/c4.ts'
+import family_packet from '../families/packet.ts'
+import family_kanban from '../families/kanban.ts'
+import family_requirement from '../families/requirement.ts'
+import family_treemap from '../families/treemap.ts'
+import family_ishikawa from '../families/ishikawa.ts'
+import family_block from '../families/block.ts'
 
-for (const family of [family_flowchart, family_state, family_sequence, family_timeline, family_class, family_er, family_journey, family_architecture, family_xychart, family_pie, family_quadrant, family_gantt, family_mindmap, family_gitgraph, family_radar, family_sankey, family_c4]) installLoadedFamilyDescriptor(family)
+for (const family of [family_flowchart, family_state, family_sequence, family_timeline, family_class, family_er, family_journey, family_architecture, family_xychart, family_pie, family_quadrant, family_gantt, family_mindmap, family_gitgraph, family_radar, family_sankey, family_c4, family_packet, family_kanban, family_requirement, family_treemap, family_ishikawa, family_block]) installLoadedFamilyDescriptor(family)

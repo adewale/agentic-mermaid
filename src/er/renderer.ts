@@ -1,5 +1,6 @@
+import { sanitizeDisplayLines } from '../shared/text-controls.ts';
+import type { MarkAttributes, MarkPaint } from '../scene/ir.ts';
 import { prepareDisplayText, resolveLabelContent } from '../shared/display-text.ts'
-import type { PixelTextBlock } from '../shared/prepared-text.ts'
 import { erHeaderBlock, erRelationshipBlock, erAttributeBlocks, erGroupBlock, erEmptyAttributeBlock } from './layout.ts'
 import type { PositionedErDiagram, PositionedErEntity, PositionedErRelationship, PositionedErGroup, ErAttribute, Cardinality } from './types.ts'
 import type { RenderContext, Point } from '../types.ts'
@@ -36,12 +37,11 @@ import { resolveRoleStyle, type InternalStyleFace } from '../scene/style-registr
 // ============================================================================
 
 
-/** Font sizes specific to ER diagrams */
+/** Font sizes specific to ER diagrams (weights belong to the prepared
+ * attribute blocks). */
 const ER_FONT = {
   attrSize: 11,
-  attrWeight: 400,
   keySize: 9,
-  keyWeight: 600,
 } as const
 
 const svgAttr = (name: SvgAttribute['name'], value: SvgAttribute['value']): SvgAttribute => ({ name, value })
@@ -402,6 +402,8 @@ function renderAttribute(
     fontSize: ER_FONT.attrSize,
     anchor: 'start',
     paint: { fill: attrTypeColor },
+
+    attributes: { className: 'mono' },
   },
     TYPE_TEXT_EMISSION))
 
@@ -418,6 +420,8 @@ function renderAttribute(
     fontSize: ER_FONT.attrSize,
     anchor: 'end',
     paint: { fill: attrTextColor },
+
+    attributes: { className: 'mono' },
   },
     NAME_TEXT_EMISSION))
 
@@ -478,7 +482,8 @@ function renderRelationshipLine(
     labels: rel.label ? [{ text: rel.label, textContent: { value: rel.label, prepared: prepareDisplayText(resolveLabelContent(rel.label, rel.labelContent)) } }] : [],
   } as const
 
-  // Degenerate relationships draw nothing (empty crisp keeps the part slot).
+  // Degenerate relationships draw nothing (an invisible connector writes '',
+  // keeping the part slot).
   if (rel.points.length < 2) {
     return marks.connector({
       id: sceneId,
@@ -493,6 +498,15 @@ function renderRelationshipLine(
 
 
   // Semantic data attributes for relationship inspection
+  const attributes: MarkAttributes = {
+    className: 'er-relationship',
+    data: {
+      cardinality1: rel.cardinality1,
+      cardinality2: rel.cardinality2,
+      identifying: String(rel.identifying),
+      ...(rel.label ? { label: sanitizeDisplayLines(rel.label) } : {}),
+    },
+  }
   const dataAttrs: SvgAttribute[] = [svgAttr('class', v.meta('er-relationship')), svgAttr('data-from', v.identity('from')), svgAttr('data-to', v.identity('to')),
     svgAttr('data-cardinality1', v.meta(rel.cardinality1)), svgAttr('data-cardinality2', v.meta(rel.cardinality2)),
     svgAttr('data-identifying', v.meta(rel.identifying)), ...(rel.label ? [{ ...svgAttr('data-label', { source: 'connectorLabel', index: 0 }), display: true }] : []),
@@ -685,8 +699,6 @@ function renderRelationshipLabel(
   const channels = { category: rel.identifying ? 'identifying' : 'non-identifying' }
   const roleStyle = resolveRoleStyle(styleFace, 'relationship', channels, { includeFallback: false })
   const fontSize = roleStyle?.fontSize ?? style.edgeLabelFontSize
-  const fontWeight = roleStyle?.fontWeight ?? style.edgeLabelFontWeight
-  const letterSpacing = roleStyle?.letterSpacing ?? style.edgeLetterSpacing
   const mid = at ?? midpoint(rel.points)
   const metrics = rel.labelBlock ?? erRelationshipBlock(rel, style, styleFace)
   const displayLabel = metrics.text
@@ -701,8 +713,7 @@ function renderRelationshipLabel(
     geometry: { kind: 'rect', x: mid.x - bgW / 2, y: mid.y - bgH / 2, width: bgW, height: bgH, rx: 2, ry: 2 },
     paint: { fill: 'var(--bg)', stroke: 'var(--_inner-stroke)', strokeWidth: '0.5' },
     channels,
-  },
-RECT_EMISSION)
+  }, RECT_EMISSION)
 
   const labelColor = roleStyle?.textColor ?? style.edgeTextColor ?? 'var(--_text-muted)'
   const label = marks.text({
@@ -732,7 +743,8 @@ RECT_EMISSION)
  */
 function renderCardinality(rel: PositionedErRelationship, style: ResolvedRenderStyle, sceneId: string): SceneNode[] {
   if (rel.points.length < 2) {
-    // Old renderer pushed '' for degenerate relationships — keep the empty slot.
+    // Old renderer pushed '' for degenerate relationships — keep the empty
+    // slot (a compound shape with no children writes '').
     return [marks.shape({
       id: sceneId,
       role: 'cardinality',
@@ -755,7 +767,9 @@ function renderCardinality(rel: PositionedErRelationship, style: ResolvedRenderS
   ]
 }
 
-/** Build the shape mark for one crow's foot glyph from its pieces. */
+/** Build the shape mark for one crow's foot glyph from its pieces. The glyph
+ * is stroked; a zero-minimum circle also fills with the page background, so
+ * then each piece carries its own paint. */
 function crowsFootMark(
   point: { x: number; y: number },
   toward: { x: number; y: number },
@@ -763,29 +777,33 @@ function crowsFootMark(
   style: ResolvedRenderStyle,
   sceneId: string,
 ): SceneNode {
-  const pieces = renderCrowsFoot(point, toward, cardinality)
+  const paint: MarkPaint = {
+    stroke: style.edgeStrokeColor ?? 'var(--_line)',
+    strokeWidth: String(style.lineWidth + 0.25),
+  }
+  const pieces = renderCrowsFoot(point, toward, cardinality, paint)
   return marks.shape({
     id: sceneId,
     role: 'cardinality',
-    geometry: { kind: 'compound', children: pieces },
-    paint: {
-      stroke: style.edgeStrokeColor ?? 'var(--_line)',
-      strokeWidth: String(style.lineWidth + 0.25),
-    },
+    geometry: { kind: 'compound', children: pieces.map(p => p.geometry) },
+    paint,
+    ...(pieces.some(p => p.paint !== paint) ? { childPaints: pieces.map(p => p.paint) } : {}),
     channels: { category: cardinality },
   }, pieces.length ? CROWS_FOOT_EMISSIONS[cardinality] : EMPTY_EMISSION)
 }
 
 /**
  * Render a crow's foot marker at a given endpoint.
- * `point` is the endpoint, `toward` gives the direction the line comes from.
+ * `point` is the endpoint, `toward` gives the direction the line comes from;
+ * `stroke` paints the glyph's lines.
  */
 function renderCrowsFoot(
   point: { x: number; y: number },
   toward: { x: number; y: number },
   cardinality: Cardinality,
-): Geometry[] {
-  const pieces: Geometry[] = []
+  stroke: MarkPaint,
+): ShapePiece[] {
+  const pieces: ShapePiece[] = []
 
   // Calculate direction from toward → point (unit vector)
   const dx = point.x - toward.x
@@ -822,7 +840,7 @@ function renderCrowsFoot(
     const y1 = cy + py * halfW
     const x2 = cx - px * halfW
     const y2 = cy - py * halfW
-    pieces.push({ kind: 'line', x1, y1, x2, y2 })
+    pieces.push({ geometry: { kind: 'line', x1, y1, x2, y2 }, paint: stroke })
   }
 
   if (cardinality === 'one') {
@@ -845,11 +863,23 @@ function renderCrowsFoot(
     // Three lines from tip to back, fanning out
     const topX1 = cfTipX + px * fanW
     const topY1 = cfTipY + py * fanW
-    pieces.push({ kind: 'line', x1: topX1, y1: topY1, x2: backX, y2: backY })
-    pieces.push({ kind: 'line', x1: cfTipX, y1: cfTipY, x2: backX, y2: backY })
+    pieces.push({
+      // Top fan line
+      geometry: { kind: 'line', x1: topX1, y1: topY1, x2: backX, y2: backY },
+      paint: stroke,
+    })
+    pieces.push({
+      // Center line
+      geometry: { kind: 'line', x1: cfTipX, y1: cfTipY, x2: backX, y2: backY },
+      paint: stroke,
+    })
     const botX1 = cfTipX - px * fanW
     const botY1 = cfTipY - py * fanW
-    pieces.push({ kind: 'line', x1: botX1, y1: botY1, x2: backX, y2: backY })
+    pieces.push({
+      // Bottom fan line
+      geometry: { kind: 'line', x1: botX1, y1: botY1, x2: backX, y2: backY },
+      paint: stroke,
+    })
     // One-or-more: the "one" tick behind the foot (where zero-many's circle
     // sits), so `}|` and `}o` stay distinguishable at a glance.
     if (cardinality === 'many') {
@@ -862,7 +892,10 @@ function renderCrowsFoot(
     const circleOffset = hasCrowsFoot ? 20 : 12
     const circleX = point.x - ux * circleOffset
     const circleY = point.y - uy * circleOffset
-    pieces.push({ kind: 'circle', cx: circleX, cy: circleY, r: 4 })
+    pieces.push({
+      geometry: { kind: 'circle', cx: circleX, cy: circleY, r: 4 },
+      paint: { fill: 'var(--bg)', ...stroke },
+    })
   }
 
   return pieces
@@ -905,3 +938,5 @@ function midpoint(points: Array<{ x: number; y: number }>): { x: number; y: numb
 
   return points[points.length - 1]!
 }
+
+interface ShapePiece { geometry: Geometry; paint: MarkPaint }

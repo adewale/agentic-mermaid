@@ -24,6 +24,17 @@ repository-wide typechecking, and hero freshness (the
 list is `QUALITY_CHECKS` in `scripts/ci/quality-gates.ts`). The workflow calls
 this same entry point, so the local list and CI list cannot diverge.
 
+The E2E lanes build their own inputs and start alongside unit tests; only the
+final `CI complete` gate waits for every lane. Package manifest and export/type
+checks run after the Node 24 tarball consumer has built the package, rather
+than rebuilding all browser artifacts in a unit shard. Unit shards build only
+the Node bundle. Browser contracts run in two disjoint file shards, retaining
+one test process per file. Payload measurement has its own lane: each site
+build supplies the lazy bundle for comparison, so neither head nor base needs
+a second full package build. Generic PR render evidence is generated on demand
+with `scripts/pr-assets/meaning-preservation-evidence.ts BASE_SHA HEAD_SHA OUT_DIR`;
+automatic rendering of the same fixtures is no longer appended to every PR.
+
 Committed galleries and before/after sheets are dated review snapshots, not
 gates: regenerate one with its `gallery:*` command when the rendering is
 reviewed again. Where an evidence script carried a real assertion, the unit
@@ -71,7 +82,7 @@ whether it gates per-PR, and what it does *not* prove.
 ## 1. Specified oracles — structural correctness
 
 **Tier-1 `verify`** is the non-negotiable structural gate: none of
-<!-- BEGIN GENERATED: warning-codes:structural -->`EMPTY_DIAGRAM`, `EDGE_MISANCHORED`, `OFF_CANVAS`, `GROUP_BREACH`, `UNKNOWN_SHAPE`, `LABEL_OVERFLOW`, `UNRESOLVABLE_SCHEDULE`, `RENDER_FAILED`<!-- END GENERATED: warning-codes:structural --> fires. It is reliable and universal across
+<!-- BEGIN GENERATED: warning-codes:structural -->`EMPTY_DIAGRAM`, `EDGE_MISANCHORED`, `OFF_CANVAS`, `GROUP_BREACH`, `UNKNOWN_SHAPE`, `LABEL_OVERFLOW`, `UNRESOLVABLE_SCHEDULE`, `RENDER_FAILED`, `INTERNAL_ERROR`<!-- END GENERATED: warning-codes:structural --> fires. It is reliable and universal across
 families. Geometric and lint findings use their canonical severity: most are
 advisory, while measured `CONTENT_OCCLUDED` and an explicit error policy fail verification.
 
@@ -80,6 +91,17 @@ tests, the `agent-doc-sync` tests, and the behavioural
 diagram-family citizenship loop. For an agent-native product the docs, schemas, CLI
 help, and `llms.txt` *are* runtime surface (Loop 14), so they are tested
 like code, not treated as prose.
+
+Citizenship requires a small smoke input and a domain-rich scenario for every
+registered built-in family. Required witnesses in the existing closed
+`FAMILY_CONFORMANCE_PROFILES` record specify independent semantic expectations,
+visible labels and a meaningful typed edit. Those expectations must survive
+canonical export/reload and editing, alongside verification, graphical/terminal
+rendering, layout regions and uncached determinism. This closes the former gap
+where a minimal count fixture passed citizenship while richer inputs appeared
+only in the separate rendering portfolio. Source length and node counts do not
+establish representativeness; the interacting domain features do. See the
+[citizenship review contract](./contributing/diagram-family-citizenship.md#representative-examples-are-mandatory).
 
 **Runs:** every PR (`bun run test`, including the canonical 30-second per-test budget).
 **Does not prove:** that the diagram is *visually* good. `verify.ok` is
@@ -99,12 +121,12 @@ independent spec:
   `src/__tests__/testdata/` and why it changed, for reviewer judgment.
 
 **Runs:** ASCII/SVG goldens per PR. The browser/screenshot e2e suite also runs
-per PR — it is the five-lane `e2e` matrix in `ci.yml` (`needs: test`), including
+per PR — the `e2e` matrix in `ci.yml` runs alongside unit and quality checks, including
 an installed-tarball consumer run at the advertised Node 22 floor. Its
-browser lane installs Chromium and runs `browser.test.ts` (screenshot diff)
-plus the security contracts and the explicitly enabled theme/style/accessibility
-browser suites. The browser lane builds the gitignored `website/public` tree once
-before those contracts serve it (`browser.test.ts` builds only the separate root
+browser shards retain Chromium/Firefox/WebKit bundle checks, `browser.test.ts`
+(screenshot diff), security contracts, and the explicitly enabled
+theme/style/accessibility suites. The site-only shard needs Chromium. Each
+shard builds the gitignored `website/public` tree once before its contracts serve it (`browser.test.ts` builds only the separate root
 `editor.html`). Each browser contract file then runs in its own Bun process so its
 Chromium/server hooks cannot overlap and exhaust a constrained hosted runner. The
 package and CI both invoke `e2e/run-browser-contracts.ts`, whose canonical file
@@ -413,9 +435,11 @@ defence: write the test, watch it fail for the right reason, then fix.
   test-body assertions. Review their meaning: this gate is fault evidence, not
   a substitute for auditing whether each assertion exercises production behavior.
 
-**Why this matters:** line coverage is reported per-PR as one merged LCOV
-artifact assembled from the three unit shards, but it is a weak
-adequacy signal — coverage is not strongly correlated with fault detection
+**Why this matters:** line coverage is collected weekly and on manual dispatch
+by `coverage.yml`, as one merged LCOV artifact assembled from three unit shards.
+Locally, `bun run test:coverage` collects the same diagnostic. The required
+`bun run test` suite runs every assertion without coverage instrumentation.
+Coverage is a weak adequacy signal — coverage is not strongly correlated with fault detection
 once suite size is controlled (Inozemtseva & Holmes, ICSE 2014), whereas
 mutant detection *is* correlated with real-fault detection (Just et al.,
 FSE 2014). That supports focused mutation as one useful instrument, not mutation
@@ -532,12 +556,36 @@ table here, which would drift. In broad strokes:
   retain pinned peer results, dependency locks and CPU profiles. Missing required
   observations fail that evidence job after raw artifacts are retained. This
   additional scorecard does not replace the normal release baseline or budgets.
+- **Normal local benchmarks:** `bun run bench` runs the website SVG/terminal
+  samples and then [Dave Kiss's syntax-doc browser comparison](https://x.com/davekiss/status/2111513199119941999).
+  `bun run bench:samples` keeps the former samples-only command;
+  `bun run bench:dave` runs just the full browser comparison (three rounds,
+  the same first 30 warm-up attempts, all 1,095 pinned fence occurrences
+  including duplicates and unsupported families). It builds and packs the
+  checkout, then reuses the publication scorecard against pinned Pele 1.6.0
+  and Mermaid 12.2.0. Chromium and initial npm access are required;
+  `--executable /path/to/chromium`, `--out DIR`, `--rounds N` and
+  `--case occurrence-id,...` are forwarded to the browser runner. A case
+  filter is a partial diagnostic, not a full-corpus result. Results go to
+  gitignored `bench-report/dave/`; competitor ratios remain advisory.
+  The release browser scorecard was already part of publication CI and
+  retains its full-corpus warm-up by default; `--warmup 30` selects Dave's
+  warm-up policy. Both disable AM's ELK result cache before loading the
+  library, so duplicate sources measure layout rather than memo lookup.
+  Timing is source through SVG return, not visual/semantic fidelity or
+  paint. The post does not specify its warm-up selection; choosing the
+  first 30 is an explicit adaptation. Generated reports are not committed.
 - **Manual / periodic:** `layout-compare` before/after, the benchmark vs competitors,
   `bun run bench:micro` (per-stage hotspot timings, allocation per call under
   `--runtime node`, and `--baseline <ref>` for interleaved revision ratios;
   advisory, never a gate), `bun run bench:peers` (the built package against
-  the pinned browserless and terminal peers in `eval/fork-graph/`, checking every
-  returned output outside its timing/allocation interval), `bun run check:output-identity --baseline <ref>`
+  the pinned browserless and terminal peers in `eval/fork-graph/`, with output checks outside timing/allocation and label
+  checks before timing; includes the native Go Sketch worker, requiring Go >=1.25).
+  `bench:peers --corpus` attempts every official fence occurrence, including
+  unsupported families, with one warmup and three single-call samples per
+  successful input per round. This mode checks output presence rather than
+  labels or semantic/visual fidelity; the ordinary calibrated workloads keep
+  their label assertions. `bun run check:output-identity --baseline <ref>`
   (byte identity of the distinct corpus inputs across SVG backends, SVG
   post-passes, ASCII, Unicode and verify, for refactors that must not change
   output), the real LLM-as-judge run, and the production freshness check

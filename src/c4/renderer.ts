@@ -1,14 +1,15 @@
+import { sanitizeDisplayLines } from '../shared/text-controls.ts';
 import type { RenderContext, PositionedNode, PositionedGroup } from '../types.ts'
 import type { PositionedC4Diagram } from './layout.ts'
 import type { C4Boundary, C4Element } from './types.ts'
-import type { SceneDoc, SceneNode, MarkPaint } from '../scene/ir.ts'
+import type { MarkAttributes, SceneDoc, SceneNode, MarkPaint } from '../scene/ir.ts';
 import * as marks from '../scene/marks.ts'
 import { lowerGraphScene } from '../renderer.ts'
 import { c4Appearance, effectiveC4Shape } from './config.ts'
 import { resolveRenderStyle } from '../styles.ts'
 import { toneOnFill, resolveInlineNodeTextColor } from '../color-resolver.ts'
 import { isSafeActionHref } from '../output-security.ts'
-import { topRoundedRectPath } from '../svg-paths.ts'
+import { topRoundedRectPath } from '../scene/svg-writer.ts'
 import { resolveRoleStyle } from '../scene/style-registry.ts'
 import type { SerializableShapeGeometry } from '../scene/svg-serialize.ts'
 import { snapshotSvgEmissionRecipe, svgValue as v, type SvgAttribute, type SvgGeometryField, type SvgGroupEmission, type SvgValue } from '../scene/svg-emission.ts'
@@ -121,8 +122,23 @@ export function lowerC4Scene(ctx: RenderContext<PositionedC4Diagram>): SceneDoc 
     const item = relationshipById.get(part.identity?.id ?? '')
     if (!item) return part
     const stroke = item.style.lineStyle === 'dotted' ? { ...part.stroke, dash: { array: '1 3' } } : part.stroke
-    const fields: marks.ConnectorFields = { id: id(item.id, 'relationship'), role: 'edge', identity: part.identity, geometry: part.route.geometry, paint: { stroke: stroke.color, strokeWidth: String(stroke.width) }, lineStyle: part.lineStyle, endpoints: part.endpoints, relationship: { ...part.relationship, kind: `c4-${item.macro}` }, route: part.route, stroke, markers: part.markers, hit: part.hit, labels: part.labels.map(label => ({ ...label, visual: { kind: 'companion', markId: id(item.id, 'label-text') }, ...(item.style.textColor ? { paint: { ...label.paint, fill: item.style.textColor } } : {}) })), channels: { category: 'relationship', ...(item.tags.length ? { status: item.tags.join(',') } : {}) } }
     const href = ctx.resolved.renderOptions.security === 'strict' ? undefined : item.effectiveLink ?? item.link
+    const { markers } = part, label = part.labels[0]
+    const attributes: MarkAttributes = {
+      className: 'edge',
+      data: {
+        style: part.lineStyle, 'arrow-start': String(!!markers.start), 'arrow-end': String(!!markers.end),
+        ...(markers.start ? { 'marker-start': markers.start.shape } : {}),
+        ...(markers.end ? { 'marker-end': markers.end.shape } : {}),
+        ...(label ? { label: sanitizeDisplayLines(label.text) } : {}),
+        'c4-macro': item.macro, 'authored-from': item.from, 'authored-to': item.to, order: String(item.order),
+        ...(item.index !== undefined ? { index: item.index } : {}),
+        ...(item.tags.length ? { tags: JSON.stringify(item.tags) } : {}),
+        ...(href && isSafeActionHref(href) ? { href } : {}),
+      },
+      ...(href && isSafeActionHref(href) ? { tabIndex: 0 as const } : {}),
+    }
+    const fields: marks.ConnectorFields = { id: id(item.id, 'relationship'), role: 'edge', identity: part.identity, geometry: part.route.geometry, paint: { stroke: stroke.color, strokeWidth: String(stroke.width) }, lineStyle: part.lineStyle, endpoints: part.endpoints, relationship: { ...part.relationship, kind: `c4-${item.macro}` }, route: part.route, stroke, markers: part.markers, hit: part.hit, labels: part.labels.map(label => ({ ...label, visual: { kind: 'companion', markId: id(item.id, 'label-text') }, ...(item.style.textColor ? { paint: { ...label.paint, fill: item.style.textColor } } : {}) })), channels: { category: 'relationship', ...(item.tags.length ? { status: item.tags.join(',') } : {}) }, attributes }
     const geometryAttributes = GEOMETRY_FIELDS[part.route.geometry.kind].map(name => ({ name, value: v.geometry(name) }))
     const blend: SvgValue = { source: 'style', declarations: [{ property: 'mix-blend-mode', value: v.connector('mixBlendMode') }] }
     return marks.connector(fields, { kind: 'primitive', attributes: [

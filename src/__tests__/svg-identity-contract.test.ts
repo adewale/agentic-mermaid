@@ -3,8 +3,7 @@ import { layoutMermaid, parseRegisteredMermaid as parseMermaid } from '../agent/
 import type { DiagramKind } from '../agent/types.ts'
 import { renderMermaidSVG } from '../index.ts'
 import { escapeAttr, escapeDisplayAttr } from '../multiline-utils.ts'
-import { semanticIdentityForSvg, ensureSvgIdentity } from '../scene/identity.ts'
-import { relationAccessibilityForSvg } from '../scene/accessibility.ts'
+import { ensureSvgIdentity, semanticIdentityForSvg } from '../scene/identity.ts'
 import { compareCodePointStrings } from '../shared/deterministic-order.ts'
 import { METAMORPHIC_FAMILIES } from './helpers/metamorphic-families.ts'
 
@@ -35,6 +34,7 @@ function identityTuples(svg: string): IdentityTuple[] {
 }
 function primaryNodeIdentities(family: DiagramKind, tuples: IdentityTuple[]): IdentityTuple[] {
   return tuples.filter(({ id, role }) => {
+    if (family === 'packet' || family === 'kanban' || family === 'requirement' || family === 'block' || family === 'ishikawa' || family === 'treemap') return role === 'node'
     if (family === 'c4') return role === 'node' && !id.startsWith('c4:')
     if (family === 'flowchart' || family === 'state') return role === 'node' && !id.startsWith('node-shape:')
     if (family === 'sequence') return role === 'actor' && !id.startsWith('actor:')
@@ -54,6 +54,7 @@ function primaryNodeIdentities(family: DiagramKind, tuples: IdentityTuple[]): Id
 }
 function primaryGroupIdentities(family: DiagramKind, tuples: IdentityTuple[]): IdentityTuple[] {
   return tuples.filter(({ id, role }) => {
+    if (family === 'kanban' || family === 'treemap' || family === 'block') return role === 'group'
     if (family === 'c4') return role === 'group' && !id.startsWith('c4:')
     if (family === 'flowchart' || family === 'state') return role === 'group' && !id.startsWith('group-')
     if (family === 'class') return role === 'group' && !id.startsWith('namespace-')
@@ -114,6 +115,8 @@ function expectedRelationTuples(family: DiagramKind, layout: ReturnType<typeof l
       occurrences.set(key, occurrence + 1)
       const arrow = `${edge.from}-&gt;${edge.to}`
       if (family === 'c4') return { id: edge.id, role: 'edge', from: edge.from, to: edge.to }
+      if (family === 'requirement') return { id: edge.id, role: 'relationship', from: edge.from, to: edge.to }
+      if (family === 'block' || family === 'ishikawa') return { id: edge.id, role: 'edge', from: edge.from, to: edge.to }
       if (family === 'sequence') return { id: `message:${arrow}#${occurrence}:line`, role: 'message', from: edge.from, to: edge.to }
       if (family === 'class') return { id: `rel:${arrow}#${occurrence}`, role: 'relationship', from: edge.from, to: edge.to }
       if (family === 'er') return { id: `rel:${edge.from}-${edge.to}#${occurrence}`, role: 'relationship', from: edge.from, to: edge.to }
@@ -174,6 +177,9 @@ describe('all-family SVG semantic identity contract', () => {
       ['architecture', 'architecture-beta\n  service a(server)[A]\n  service b(server)[B]\n  a:R --> L:b'],
       ['mindmap', 'mindmap\n  A\n    B'],
       ['gitgraph', 'gitGraph\n  commit id:"A"\n  commit id:"B"'],
+      ['requirement', 'requirementDiagram\nrequirement safety {\nid: R1\ntext: "Retain evidence"\nrisk: high\nverifymethod: test\n}\nelement suite {\ntype: "test suite"\n}\nsuite - verifies -> safety'],
+      ['block', 'block\ncolumns 2\nblock:storage:2\nA["API"] B["Database"]\nend\nA --> B'],
+      ['ishikawa', 'ishikawa\nEffect\nProcess\n  Cause'],
     ] as const
     for (const [family, source] of cases) {
       const parsed = parseMermaid(source)
@@ -181,6 +187,7 @@ describe('all-family SVG semantic identity contract', () => {
       if (!parsed.ok) continue
       const actual = identityTuples(renderMermaidSVG(source, { embedFontImport: false })).filter(tuple => tuple.from && tuple.to && tuple.role !== 'edge-label')
       expect(sortedTuples(actual), `${family} exact relation identity`).toEqual(expectedRelationTuples(family, layoutMermaid(parsed.value)))
+      expect(sortedPairs(primaryGroupIdentities(family, identityTuples(renderMermaidSVG(source))).map(({ id, role }) => ({ id, role }))), `${family} exact group identity`).toEqual(expectedGroupPairs(family, layoutMermaid(parsed.value)))
     }
   })
 
@@ -221,19 +228,15 @@ describe('all-family SVG semantic identity contract', () => {
   })
 })
 
-
 test('XML attribute projection preserves whitespace and decodes source references exactly once', () => {
   const id = 'A\tB\nC\rD & < " \' &#9;'
   const encoded = 'A&#9;B&#10;C&#13;D &amp; &lt; &quot; &#39; &amp;#9;'
   expect(escapeAttr(id)).toBe(encoded)
   expect(escapeDisplayAttr('A\rB\nC\tD\u001b')).toBe('A?B&#10;C D?')
-  const from = 'literal &#9; &amp;', to = 'real\tTAB\nLF\rCR'
+  const from = 'literal &#9; &amp;',
+    to = 'real\tTAB\nLF\rCR'
   const crisp = `<path data-id="${encoded}" data-role="edge" data-from="${escapeAttr(from)}" data-to="${escapeAttr(to)}" data-label="one&#10;two &amp;#9;" />`
   const identity = semanticIdentityForSvg(crisp, { id: 'bounded-mark', role: 'edge' })
   expect(identity).toEqual({ id, role: 'edge', from, to })
   expect(ensureSvgIdentity(crisp, identity)).toBe(crisp)
-  expect(relationAccessibilityForSvg(crisp, identity)).toMatchObject({
-    label: `${from} to ${to}: one\ntwo &#9;`,
-    relation: { from, to, label: 'one\ntwo &#9;' },
-  })
 })

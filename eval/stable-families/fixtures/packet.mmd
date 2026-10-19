@@ -1,0 +1,22 @@
+---
+title: Telemetry transport frame
+config:
+  packet:
+    bitsPerRow: 32
+    bitWidth: 40
+    bitOrder: descending
+---
+packet
+0-3: "Version"
+4-6: "Flags"
+7: "K"
+8-15: "Header bytes"
+16-31: "Payload bytes"
++24: "Stream ID"
++24: "Sequence"
+80-95: "Ack window"
++8: "Codec"
++8: "Priority"
+112-127: "CRC"
++64: "Authentication tag"
++64: "Payload begins"

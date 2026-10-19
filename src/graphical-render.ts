@@ -20,6 +20,7 @@ import {
   resolveRenderRequestForExecution,
   resolvedFamilyRenderContextOf,
   resolvedRenderExecutionPlanOf,
+  RenderConfigError,
   type RenderExecutionDecision,
   type RenderExecutionResolutionOptions,
   type RenderRequestReceipt,
@@ -176,7 +177,7 @@ function renderPositionedWithTextMeasurement(
       return emitted.svg
     })
   } else {
-    if (effectiveOptions.layoutSafety === 'strict') throw new Error('Strict layout safety requires native Scene evidence')
+    if (effectiveOptions.layoutSafety === 'strict') throw new RenderConfigError('Strict layout safety requires native Scene evidence')
     rawSvg = measureRenderStage('backend', () => family.renderSvg!(context))
   }
   assertGraphicalSvgByteBudget(rawSvg, 'backend/family SVG output')
@@ -271,15 +272,31 @@ function executeInspectedGraphicalRequest(
   emitResolvedConfigDiagnostics(request)
   const securityDiagnostics: OutputSecurityDiagnostic[] = []
   const rendered = renderResolvedMermaidSVG(request, securityDiagnostics)
-  const receipt = measureRenderStage('receipt-data', () => receiptOf(request, securityDiagnostics))
-  const outputDigest = renderedSvgDigest(rendered.svg)
-  return Object.freeze({
-    svg: rendered.svg,
-    receipt: Object.freeze({
-      ...receipt,
+  const layoutCertification = Object.hasOwn(rendered, 'layoutCertification') ? rendered.layoutCertification : undefined
+  return lazyGraphicalArtifact(rendered.svg, () => {
+    const outputDigest = renderedSvgDigest(rendered.svg)
+    return Object.freeze({
+      ...measureRenderStage('receipt-data', () => receiptOf(request, securityDiagnostics)),
       graphicalProjectionDigest: outputDigest,
       executionDecision: rendered.executionDecision,
-      ...(rendered.layoutCertification ? { layoutCertification: Object.freeze({ ...rendered.layoutCertification, outputDigest }) } : {}),
-    }),
+      ...(layoutCertification ? { layoutCertification: Object.freeze({ ...layoutCertification, outputDigest }) } : {}),
+    })
+  })
+}
+
+/** Keep the getter in a separate closure so a consumed artifact releases the
+ * request, positioned evidence and diagnostics captured by its builder. */
+function lazyGraphicalArtifact(svg: string, build: () => RenderRequestReceipt): GraphicalSvgArtifact {
+  let pending: (() => RenderRequestReceipt) | undefined = build
+  let receipt: RenderRequestReceipt | undefined
+  return Object.freeze({
+    svg,
+    get receipt() {
+      if (receipt === undefined) {
+        receipt = pending!()
+        pending = undefined
+      }
+      return receipt
+    },
   })
 }

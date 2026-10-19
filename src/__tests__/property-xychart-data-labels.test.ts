@@ -35,17 +35,22 @@ function sourceFor(input: { horizontal: boolean; outside: boolean; series: numbe
 
 function parse(svg: string): { bars: Bar[]; labels: Label[]; background: string; seriesColors: Map<number, string> } {
   const seriesColors = new Map([...svg.matchAll(/--xychart-color-(\d+):\s*(#[0-9a-fA-F]{6})/g)].map(match => [Number(match[1]), match[2]!]))
-  const bars = [...svg.matchAll(/<rect x="([^"]+)" y="([^"]+)" width="([^"]+)" height="([^"]+)" class="xychart-bar xychart-color-(\d+)" data-value="([^"]+)"/g)]
-    .map(match => ({ x: Number(match[1]), y: Number(match[2]), width: Number(match[3]), height: Number(match[4]), colorIndex: Number(match[5]), value: Number(match[6]) }))
-  const labels = [...svg.matchAll(/<text\b([^>]*)class="xychart-data-label"[^>]*>([^<]*)<\/text>/g)].flatMap(match => {
+  const attribute = (tag: string, name: string): string | undefined => tag.match(new RegExp(`\\s${name}="([^"]*)"`))?.[1]
+  const bars = [...svg.matchAll(/<rect\b[^>]*\sclass="xychart-bar xychart-color-(\d+)"[^>]*>/g)].map(match => ({
+    x: Number(attribute(match[0], 'x')), y: Number(attribute(match[0], 'y')),
+    width: Number(attribute(match[0], 'width')), height: Number(attribute(match[0], 'height')),
+    colorIndex: Number(match[1]), value: Number(attribute(match[0], 'data-value')),
+  }))
+  const labels = [...svg.matchAll(/<text\b([^>]*\sclass="xychart-data-label"[^>]*)>([\s\S]*?)<\/text>/g)].flatMap(match => {
     const attributes = match[1]!
-    const x = attributes.match(/\sx="([^"]+)"/)?.[1]
-    const y = attributes.match(/\sy="([^"]+)"/)?.[1]
-    const fill = attributes.match(/\sfill="([^"]+)"/)?.[1]
+    const x = attribute(attributes, 'x')
+    const y = attribute(attributes, 'y')
+    const fill = attribute(attributes, 'fill')
     if (x === undefined || y === undefined || fill === undefined) return []
     // A halo is a stroke painted under the glyphs (paint-order="stroke").
-    const halo = /\spaint-order="stroke"/.test(attributes) ? attributes.match(/\sstroke="([^"]+)"/)?.[1] : undefined
-    return [{ x: Number(x), y: Number(y), fill, text: match[2]!, ...(halo ? { halo } : {}) }]
+    const halo = /\spaint-order="stroke"/.test(attributes) ? attribute(attributes, 'stroke') : undefined
+    // Tracked text is written as positioned fragments of the one label.
+    return [{ x: Number(x), y: Number(y), fill, text: match[2]!.replace(/<[^>]*>/g, ''), ...(halo ? { halo } : {}) }]
   })
   // Guard against a vacuous parse: every emitted label element must be read.
   expect(labels).toHaveLength((svg.match(/<text\b[^>]*class="xychart-data-label"/g) ?? []).length)

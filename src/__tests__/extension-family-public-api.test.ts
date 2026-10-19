@@ -101,33 +101,33 @@ describe('registered family public layout and verify APIs', () => {
     expect(() =>
       registerFamily({
         ...alias,
-        aliases: ['kanban'],
-        detect: line => line === 'upstreamaliasdiagram' || line === 'kanban',
+        aliases: ['zenuml'],
+        detect: line => line === 'upstreamaliasdiagram' || line === 'zenuml',
       }),
-    ).toThrow(/alias "kanban" is an upstream public header/)
+    ).toThrow(/alias "zenuml" is an upstream public header/)
 
     const hiddenStrict = extensionDescriptor('hidden-strict', 'hiddenStrictDiagram')
     const unregisterStrict = registerFamily({
       ...hiddenStrict,
-      detect: line => line === 'hiddenstrictdiagram' || line === 'kanban',
+      detect: line => line === 'hiddenstrictdiagram' || line === 'zenuml',
     })
-    expect(detectRegisteredFamilyFromFirstLine('kanban')).toBeNull()
+    expect(detectRegisteredFamilyFromFirstLine('zenuml')).toBeNull()
     unregisterStrict()
 
     const hiddenLoose = extensionDescriptor('hidden-loose', 'hiddenLooseDiagram')
     const unregisterLoose = registerFamily({
       ...hiddenLoose,
-      detectLoose: line => line === 'hiddenloosediagram' || line === 'requirementdiagram',
+      detectLoose: line => line === 'hiddenloosediagram' || line === 'eventmodeling',
     })
-    expect(detectRegisteredFamilyFromFirstLine('requirementDiagram', 'loose')).toBeNull()
+    expect(detectRegisteredFamilyFromFirstLine('eventmodeling', 'loose')).toBeNull()
     unregisterLoose()
 
-    const multiFamily = extensionDescriptor('multi-upstream', 'kanban')
+    const multiFamily = extensionDescriptor('multi-upstream', 'zenuml')
     expect(() =>
       registerFamily({
         ...multiFamily,
-        headers: ['kanban', 'requirementDiagram'],
-        detect: line => line === 'kanban' || line === 'requirementdiagram',
+        headers: ['zenuml', 'eventmodeling'],
+        detect: line => line === 'zenuml' || line === 'eventmodeling',
       }),
     ).toThrow(/cannot claim upstream headers from multiple Mermaid families/)
   })
@@ -220,16 +220,14 @@ describe('registered family public layout and verify APIs', () => {
     const base = extensionDescriptor('lossy-parse', 'lossyParseDiagram')
     const descriptor: FamilyDescriptor = {
       ...base,
-      capabilityEvidence: base.capabilityEvidence.map(claim =>
-        claim.capability === 'source-preservation' || claim.capability === 'parse'
-          ? { ...claim, state: 'native' }
-          : claim),
-      parse: () => ok({
-        kind: 'extension',
-        family: base.id as ExternalFamilyId,
-        source: 'descriptor-owned lossy value',
-        data: { parsed: true },
-      }),
+      capabilityEvidence: base.capabilityEvidence.map(claim => (claim.capability === 'source-preservation' || claim.capability === 'parse' ? { ...claim, state: 'native' } : claim)),
+      parse: () =>
+        ok({
+          kind: 'extension',
+          family: base.id as ExternalFamilyId,
+          source: 'descriptor-owned lossy value',
+          data: { parsed: true },
+        }),
     }
     const source = wrapper + body
     const unregister = registerFamily(descriptor)
@@ -252,16 +250,14 @@ describe('registered family public layout and verify APIs', () => {
     const base = extensionDescriptor('shared-post-wrapper-init', 'sharedPostWrapperInitDiagram')
     const descriptor: FamilyDescriptor = {
       ...base,
-      capabilityEvidence: base.capabilityEvidence.map(claim =>
-        claim.capability === 'source-preservation' || claim.capability === 'parse' || claim.capability === 'serialize'
-          ? { ...claim, state: 'native' }
-          : claim),
-      parse: context => ok({
-        kind: 'extension',
-        family: base.id as ExternalFamilyId,
-        source: context.opaqueSource,
-        data: { lines: [...context.lines] },
-      }),
+      capabilityEvidence: base.capabilityEvidence.map(claim => (claim.capability === 'source-preservation' || claim.capability === 'parse' || claim.capability === 'serialize' ? { ...claim, state: 'native' } : claim)),
+      parse: context =>
+        ok({
+          kind: 'extension',
+          family: base.id as ExternalFamilyId,
+          source: context.opaqueSource,
+          data: { lines: [...context.lines] },
+        }),
       serialize: body => `${(body.kind === 'extension' ? (body.data as { lines: string[] }).lines : []).join('\n')}\n`,
     }
     const unregister = registerFamily(descriptor)
@@ -289,17 +285,15 @@ describe('registered family public layout and verify APIs', () => {
     const base = extensionDescriptor('source-returning-init', 'sourceReturningInitDiagram')
     const descriptor: FamilyDescriptor = {
       ...base,
-      capabilityEvidence: base.capabilityEvidence.map(claim =>
-        claim.capability === 'source-preservation' || claim.capability === 'parse' || claim.capability === 'serialize'
-          ? { ...claim, state: 'native' }
-          : claim),
-      parse: context => ok({
-        kind: 'extension',
-        family: base.id as ExternalFamilyId,
-        source: context.opaqueSource,
-        data: { parsed: true },
-      }),
-      serialize: body => body.kind === 'extension' ? body.source : '',
+      capabilityEvidence: base.capabilityEvidence.map(claim => (claim.capability === 'source-preservation' || claim.capability === 'parse' || claim.capability === 'serialize' ? { ...claim, state: 'native' } : claim)),
+      parse: context =>
+        ok({
+          kind: 'extension',
+          family: base.id as ExternalFamilyId,
+          source: context.opaqueSource,
+          data: { parsed: true },
+        }),
+      serialize: body => (body.kind === 'extension' ? body.source : ''),
     }
     const unregister = registerFamily(descriptor)
     try {
@@ -324,7 +318,11 @@ describe('registered family public layout and verify APIs', () => {
     {
       name: 'reindents',
       source: 'normalizingInitDiagram\n  %%{init:{"theme":"dark"}}%%\n  payload',
-      serialize: (source: string) => source.split('\n').map(line => line.trim()).join('\n'),
+      serialize: (source: string) =>
+        source
+          .split('\n')
+          .map(line => line.trim())
+          .join('\n'),
     },
     {
       name: 'respaces the directive payload',
@@ -334,10 +332,7 @@ describe('registered family public layout and verify APIs', () => {
     {
       name: 'reorders top-level and nested config keys',
       source: 'normalizingInitDiagram\n  %%{init:{"theme":"dark","flowchart":{"htmlLabels":true,"curve":"basis"}}}%%\n  payload',
-      serialize: (source: string) => source.replace(
-        '{"theme":"dark","flowchart":{"htmlLabels":true,"curve":"basis"}}',
-        '{"flowchart":{"curve":"basis","htmlLabels":true},"theme":"dark"}',
-      ),
+      serialize: (source: string) => source.replace('{"theme":"dark","flowchart":{"htmlLabels":true,"curve":"basis"}}', '{"flowchart":{"curve":"basis","htmlLabels":true},"theme":"dark"}'),
     },
   ])('a source-preserving serializer that $name still owns its post-header init config', ({ serialize, source }) => {
     // Ownership is a question about the directive, not about its bytes. A
@@ -346,17 +341,15 @@ describe('registered family public layout and verify APIs', () => {
     const base = extensionDescriptor('normalizing-init', 'normalizingInitDiagram')
     const descriptor: FamilyDescriptor = {
       ...base,
-      capabilityEvidence: base.capabilityEvidence.map(claim =>
-        claim.capability === 'source-preservation' || claim.capability === 'parse' || claim.capability === 'serialize'
-          ? { ...claim, state: 'native' }
-          : claim),
-      parse: context => ok({
-        kind: 'extension',
-        family: base.id as ExternalFamilyId,
-        source: context.opaqueSource,
-        data: { parsed: true },
-      }),
-      serialize: body => body.kind === 'extension' ? serialize(body.source) : '',
+      capabilityEvidence: base.capabilityEvidence.map(claim => (claim.capability === 'source-preservation' || claim.capability === 'parse' || claim.capability === 'serialize' ? { ...claim, state: 'native' } : claim)),
+      parse: context =>
+        ok({
+          kind: 'extension',
+          family: base.id as ExternalFamilyId,
+          source: context.opaqueSource,
+          data: { parsed: true },
+        }),
+      serialize: body => (body.kind === 'extension' ? serialize(body.source) : ''),
     }
     const unregister = registerFamily(descriptor)
     try {
@@ -380,10 +373,7 @@ describe('registered family public layout and verify APIs', () => {
     let observed: { lines: readonly string[]; accessibility: unknown } | undefined
     const descriptor: FamilyDescriptor = {
       ...base,
-      capabilityEvidence: base.capabilityEvidence.map(claim =>
-        claim.capability === 'source-preservation' || claim.capability === 'parse' || claim.capability === 'serialize'
-          ? { ...claim, state: 'native' }
-          : claim),
+      capabilityEvidence: base.capabilityEvidence.map(claim => (claim.capability === 'source-preservation' || claim.capability === 'parse' || claim.capability === 'serialize' ? { ...claim, state: 'native' } : claim)),
       parse: context => {
         observed = { lines: [...context.lines], accessibility: context.meta.accessibility }
         return ok({
@@ -854,6 +844,50 @@ descriptorUpgradeDiagram
     expect(() => registerFamily(layoutFailure)).toThrow(/layout exploded/)
     expect(getFamily(verifyFailure.id)).toBeUndefined()
     expect(getFamily(layoutFailure.id)).toBeUndefined()
+  })
+
+  test('verify reports a registered hook defect as INTERNAL_ERROR with the ordinary render outcome', () => {
+    // Hooks that witness their example but raise a runtime error on other
+    // input: a defect in the family, not in the author's source.
+    const base = extensionDescriptor('runtime-defect', 'runtimeDefectDiagram')
+    const defective: FamilyDescriptor = {
+      ...base,
+      verify: body => {
+        if (body.kind === 'extension' && body.source.includes('verify-defect')) throw new TypeError('verify defect')
+        return []
+      },
+      layout: context => {
+        if (context.source.text.includes('layout-defect')) throw new TypeError('layout defect')
+        return { width: 120, height: 40, projectionDefect: context.source.text.includes('projection-defect') } as { width: number; height: number }
+      },
+      projectPositioned: context => {
+        if ((context.positioned as { projectionDefect?: boolean }).projectionDefect) throw new TypeError('projection defect')
+        return base.projectPositioned!(context)
+      },
+    }
+    const unregister = registerFamily(defective)
+    try {
+      for (const [payload, reason, defaultRender] of [
+        // Only verify runs the verify hook and projects the positioned view,
+        // so an ordinary render still draws what nothing has checked.
+        ['verify-defect', 'verify hook failed: verify defect', 'succeeds-unchecked'],
+        ['projection-defect', 'projectPositioned hook failed: projection defect', 'succeeds-unchecked'],
+        // Every render lays out.
+        ['layout-defect', 'layout hook failed: layout defect', 'fails'],
+      ] as const) {
+        const source = `runtimeDefectDiagram\n  ${payload}`
+        if (defaultRender === 'fails') expect(() => renderMermaidSVG(source), payload).toThrow()
+        else expect(renderMermaidSVG(source), payload).toContain('<svg')
+        const result = verifyMermaid(source)
+        expect(result.ok, payload).toBe(false)
+        expect(
+          result.warnings.filter(warning => warning.code === 'RENDER_FAILED' || warning.code === 'INTERNAL_ERROR'),
+          payload,
+        ).toEqual([{ code: 'INTERNAL_ERROR', reason: expect.stringContaining(reason), defaultRender }])
+      }
+    } finally {
+      unregister()
+    }
   })
 
   test('reports unavailable layout/verify capabilities and keeps extension mutation diagnosed', () => {

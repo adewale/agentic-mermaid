@@ -246,7 +246,7 @@ export function lowerSequenceScene(
     const pairKey = `${message.from}->${message.to}`
     const k = messageOccurrence.get(pairKey) ?? 0
     messageOccurrence.set(pairKey, k + 1)
-    parts.push(renderMessage(message, style, `message:${pairKey}#${k}`, inkAt))
+    parts.push(renderMessage(message, style, `message:${pairKey}#${k}`, inkAt, markerResources))
   }
 
   // 5. Notes
@@ -369,7 +369,7 @@ function sequenceMarkerResources(style: ResolvedRenderStyle): readonly MarkerDes
   ] satisfies readonly MarkerDescriptor[]
 }
 
-function sequenceMarkerFor(style: ResolvedRenderStyle, head: PositionedMessage['endHead']): MarkerDescriptor | undefined {
+function sequenceMarkerFor(markerResources: readonly MarkerDescriptor[], head: PositionedMessage['endHead']): MarkerDescriptor | undefined {
   if (head === 'none') return undefined
   const id = head === 'filled' ? 'seq-arrow'
     : head === 'cross' ? 'seq-arrow-cross'
@@ -378,7 +378,7 @@ function sequenceMarkerFor(style: ResolvedRenderStyle, head: PositionedMessage['
           : head === 'stick-top' ? 'seq-arrow-stick-top'
             : head === 'stick-bottom' ? 'seq-arrow-stick-bottom'
           : 'seq-arrow-open'
-  return sequenceMarkerResources(style).find(marker => marker.id === id)
+  return markerResources.find(marker => marker.id === id)
 }
 
 // ============================================================================
@@ -551,6 +551,9 @@ function renderActor(
   if (actor.links) children.push({ indent: 2, node: marks.text({
     id: `actor:${id}:menu`, role: 'icon', text: '⋯', block: actor.menuBlock, x: x + width / 2 - 7, y: y + 10,
     fontSize: 10, anchor: 'middle', paint: { fill: menuColor }, channels: { category: id },
+
+    baselineShift: 0,
+    attributes: { className: 'sequence-actor-menu' },
   }, MENU_EMISSION) })
 
   return marks.group({
@@ -593,6 +596,7 @@ function renderLifeline(lifeline: Lifeline, style: ResolvedRenderStyle, spans: V
     geometry: { kind: 'line', x1: lifeline.x, y1: lifeline.topY, x2: lifeline.x, y2: lifeline.bottomY },
     lineStyle: 'dashed',
     paint: { stroke: rawStroke, strokeWidth: String(strokeWidth), strokeDasharray: '6 4' },
+    attributes: { className: 'lifeline', data: { actor: lifeline.actorId } },
   },
     { kind: 'primitive', attributes: [
       { name: 'class', value: v.meta('lifeline') }, { name: 'data-actor', value: v.meta(lifeline.actorId) },
@@ -651,6 +655,7 @@ function renderActivation(activation: Activation, style: ResolvedRenderStyle, sc
     role: 'activation',
     geometry: { kind: 'rect', x: activation.x, y: activation.topY, width: activation.width, height: activation.bottomY - activation.topY },
     paint: { fill: rawFill, stroke: rawStroke, strokeWidth: String(STROKE_WIDTHS.innerBox) },
+    attributes: { className: 'activation', data: { actor: activation.actorId } },
   },
     { kind: 'primitive', attributes: [
       { name: 'class', value: v.meta('activation') }, { name: 'data-actor', value: v.meta(activation.actorId) },
@@ -663,10 +668,16 @@ function renderActivation(activation: Activation, style: ResolvedRenderStyle, sc
  * Wrapped in <g class="message"> with presentation metadata. The child
  * ConnectorMark is the sole authority for relation endpoints.
  */
-function renderMessage(msg: PositionedMessage, style: ResolvedRenderStyle, sceneId: string, inkAt: SurfaceInk): SceneNode {
+function renderMessage(
+  msg: PositionedMessage,
+  style: ResolvedRenderStyle,
+  sceneId: string,
+  inkAt: SurfaceInk,
+  markerResources: readonly MarkerDescriptor[],
+): SceneNode {
   const children: Array<{ node: SceneNode; indent: number }> = []
-  const startMarker = sequenceMarkerFor(style, msg.startHead)
-  const endMarker = sequenceMarkerFor(style, msg.endHead)
+  const startMarker = sequenceMarkerFor(markerResources, msg.startHead)
+  const endMarker = sequenceMarkerFor(markerResources, msg.endHead)
   const rawStroke = style.edgeStrokeColor ?? 'var(--_line)'
   const rawTextColor = style.edgeTextColor ?? 'var(--_text-muted)'
   const { text: displayLabel, x: labelX, y: labelY, bounds: labelBounds } = msg.labelPosition
@@ -768,10 +779,14 @@ function renderMessage(msg: PositionedMessage, style: ResolvedRenderStyle, scene
   if (msg.centralStart) children.push({ indent: 2, node: marks.shape({
     id: `${sceneId}:central-start`, role: 'chrome', geometry: { kind: 'circle', cx: msg.x1, cy: msg.y, r: 4 },
     paint: { fill: 'var(--bg)', stroke: rawStroke, strokeWidth: '1.5' },
+
+    attributes: { className: 'sequence-central-connection', data: { side: 'start' } },
   }, CENTRAL_EMISSIONS[0]!) })
   if (msg.centralEnd) children.push({ indent: 2, node: marks.shape({
     id: `${sceneId}:central-end`, role: 'chrome', geometry: { kind: 'circle', cx: msg.x2, cy: msg.y, r: 4 },
     paint: { fill: 'var(--bg)', stroke: rawStroke, strokeWidth: '1.5' },
+
+    attributes: { className: 'sequence-central-connection', data: { side: 'end' } },
   }, CENTRAL_EMISSIONS[1]!) })
 
   return marks.group({
@@ -1018,8 +1033,9 @@ function renderDestroyCross(cross: LifelineCross, style: ResolvedRenderStyle): S
     id: `destroy:${cross.actorId}`,
     role: 'icon',
     geometry: { kind: 'path', d },
-    paint: { stroke, strokeWidth: String(strokeWidth) },
+    paint: { fill: 'none', stroke, strokeWidth: String(strokeWidth) },
     channels: { category: cross.actorId },
+    attributes: { className: 'destroy-cross', data: { actor: cross.actorId } },
   },
     { kind: 'primitive', attributes: [
       { name: 'class', value: v.meta('destroy-cross') }, { name: 'data-actor', value: v.channel('category') },

@@ -1,3 +1,5 @@
+import { classInterfaceSide, createClassInterfaceAllocator } from '../class/interface-occurrences.ts'
+
 // ============================================================================
 // Class diagram structured body: parse, serialize, mutate, verify.
 //
@@ -29,27 +31,32 @@
 //   - styled / classDef
 // ============================================================================
 
-import { unknownOpMessage } from './mutation-ops.ts'
-import type {
-  ClassBody, ClassNode, ClassRelation, ClassRelationKind, ClassNote, ClassNamespaceDecl,
-  ClassMutationOp, MutationError, Result, LayoutWarning, VerifyOptions,
-} from './types.ts'
-import { ok, err } from './types.ts'
-import { labelOverflowCollector } from './body-utils.ts'
-import { prepareDisplayText, resolveLabelContent } from '../shared/display-text.ts'
-import { classCommentRejections, classDiagramHasStatement, parseClassBodyAnnotationToken, parseClassMember, parseClassRelationship, readClassStatements, supportedRelationEndpoint } from '../class/parser.ts'
-import type { ClassStatementNode } from '../class/parser.ts'
-import { parseMutableStyleProps, serializeStyleProps, unsafeStylePaintError } from '../shared/style-props.ts'
 import { decodeXML } from 'entities'
+import type { ClassStatementNode } from '../class/parser.ts'
+import { classCommentRejections, classDiagramHasStatement, parseClassBodyAnnotationToken, parseClassMember, parseClassRelationship, readClassStatements, supportedRelationEndpoint } from '../class/parser.ts'
+import { classTextLabel, decodeClassText, memberToString, writeClassText } from '../class/text.ts'
 import { toMermaidLines } from '../mermaid-source-wrapper.ts'
 import { parseAccessibilityDirective } from '../shared/accessibility-directives.ts'
-import { classTextLabel, decodeClassText, memberToString, writeClassText } from '../class/text.ts'
+import { prepareDisplayText, resolveLabelContent } from '../shared/display-text.ts'
+import { parseMutableStyleProps, serializeStyleProps, unsafeStylePaintError } from '../shared/style-props.ts'
+import { labelOverflowCollector } from './body-utils.ts'
+import { unknownOpMessage } from './mutation-ops.ts'
+import type { ClassBody, ClassMutationOp, ClassNamespaceDecl, ClassNode, ClassNote, ClassRelation, ClassRelationKind, LayoutWarning, MutationError, Result, VerifyOptions } from './types.ts'
+import { err, ok } from './types.ts'
 
 // ---- Parser ---------------------------------------------------------------
 
+/** `record[key] = value` as an own key: a class may be named `__proto__`,
+ *  which an assignment would take as the record's prototype. */
+function setOwn<T>(record: Record<string, T>, key: string, value: T): void {
+  Object.defineProperty(record, key, { value, enumerable: true, writable: true, configurable: true })
+}
+
 function projectClassRelation(shared: NonNullable<ReturnType<typeof parseClassRelationship>>): ClassRelation & { fromGeneric?: string; toGeneric?: string } {
   return {
-    from: shared.from, to: shared.to, kind: shared.type as ClassRelationKind,
+    from: shared.from,
+    to: shared.to,
+    kind: shared.type as ClassRelationKind,
     ...(shared.label ? { label: shared.label } : {}),
     ...(shared.labelContent ? { labelContent: shared.labelContent } : {}),
     ...(shared.fromCardinality ? { fromCardinality: shared.fromCardinality } : {}),
@@ -75,6 +82,8 @@ export function parseClassBody(lines: string[]): ClassBody | null {
   if (tree.diagnostics.length > 0) return null
   const body: ClassBody = { kind: 'class', classes: [], relations: [], notes: [] }
   const classMap = new Map<string, ClassNode>()
+  const allocateInterface = createClassInterfaceAllocator(tree.statements)
+  const laterCssClasses: Array<{ id: string; name: string }> = []
   const upsert = (id: string, label?: string, generic?: string): ClassNode => {
     let cls = classMap.get(id)
     if (!cls) {
@@ -82,7 +91,10 @@ export function parseClassBody(lines: string[]): ClassBody | null {
       classMap.set(id, cls)
       body.classes.push(cls)
     } else {
-      if (label !== undefined) { delete cls.labelContent; Object.assign(cls, classTextLabel(label, false)) }
+      if (label !== undefined) {
+        delete cls.labelContent
+        Object.assign(cls, classTextLabel(label, false))
+      }
       if (generic !== undefined && !cls.generic) cls.generic = generic
     }
     return cls
@@ -104,13 +116,22 @@ export function parseClassBody(lines: string[]): ClassBody | null {
     const frames = [{ nodes, path, owner, index: 0 }]
     while (frames.length) {
       const frame = frames.at(-1)!
-      if (frame.index === frame.nodes.length) { frames.pop(); continue }
+      if (frame.index === frame.nodes.length) {
+        frames.pop()
+        continue
+      }
       const node = frame.nodes[frame.index++]!
       const { path, owner } = frame
       const value = node.value
       switch (value.kind) {
-        case 'header': case 'trivia': case 'close': break
-        case 'direction': case 'unknown': case 'source-only': return false // no typed slot; whole-body opaque is lossless
+        case 'header':
+        case 'trivia':
+        case 'close':
+          break
+        case 'direction':
+        case 'unknown':
+        case 'source-only':
+          return false // no typed slot; whole-body opaque is lossless
         case 'namespace': {
           // The typed model uses dotted paths, so a literal dot inside one
           // quoted atom has no lossless typed representation.
@@ -120,7 +141,10 @@ export function parseClassBody(lines: string[]): ClassBody | null {
           if (!namespace) {
             namespace = { name: namespacePath, ...(value.label !== undefined ? classTextLabel(value.label, false) : {}) }
             namespaces.push(namespace)
-          } else if (value.label !== undefined) { delete namespace.labelContent; Object.assign(namespace, classTextLabel(value.label, false)) }
+          } else if (value.label !== undefined) {
+            delete namespace.labelContent
+            Object.assign(namespace, classTextLabel(value.label, false))
+          }
           frames.push({ nodes: node.children!, path: namespacePath, owner: undefined, index: 0 })
           break
         }
@@ -128,6 +152,7 @@ export function parseClassBody(lines: string[]): ClassBody | null {
           const declaration = value.declaration
           const cls = upsert(declaration.id, declaration.label, declaration.generic)
           if (declaration.className !== undefined) cls.className = declaration.className
+          if (declaration.annotation !== undefined && !addAnnotation(cls, declaration.annotation)) return false
           if (!claim(cls, path)) return false
           if (node.children) frames.push({ nodes: node.children, path, owner: cls, index: 0 })
           break
@@ -137,11 +162,14 @@ export function parseClassBody(lines: string[]): ClassBody | null {
           cls.members.push(value.text)
           break
         }
-        case 'body-annotation': if (!addAnnotation(owner!, value.text)) return false; break
+        case 'body-annotation':
+          if (!addAnnotation(owner!, value.text)) return false
+          break
         case 'annotation': {
           const annotation = value.annotation
           if (annotation.placement === 'separate' && !classMap.has(annotation.id)) return false
           const cls = upsert(annotation.id, annotation.label, annotation.generic)
+          if (annotation.className !== undefined) cls.className = annotation.className
           if (!addAnnotation(cls, annotation.annotation)) return false
           if (!claim(cls, path)) return false
           break
@@ -163,21 +191,45 @@ export function parseClassBody(lines: string[]): ClassBody | null {
             body.notes.push({ text, for: value.reference?.id, ...(textContent ? { textContent } : {}) })
           }
           break
-        case 'title': body.title = value.text; break
+        case 'title':
+          body.title = value.text
+          break
         case 'relationship': {
           const relation = projectClassRelation(value.relationship)
-          upsert(relation.from, undefined, relation.fromGeneric)
-          upsert(relation.to, undefined, relation.toGeneric)
+          const side = classInterfaceSide(value.relationship)
+          if (side) {
+            const generic = side === 'from' ? relation.fromGeneric : relation.toGeneric
+            const label = relation[side] + (generic ? `~${generic}~` : '')
+            const id = allocateInterface()
+            const opposite = side === 'from' ? 'to' : 'from'
+            upsert(relation[opposite], undefined, opposite === 'from' ? relation.fromGeneric : relation.toGeneric)
+            const occurrence: ClassNode = { id, label, ...(generic ? { generic } : {}), isInterface: true, members: [] }
+            classMap.set(id, occurrence)
+            body.classes.push(occurrence)
+            relation[side] = id
+          } else {
+            upsert(relation.from, undefined, relation.fromGeneric)
+            upsert(relation.to, undefined, relation.toGeneric)
+          }
           const { fromGeneric: _fromGeneric, toGeneric: _toGeneric, ...plain } = relation
           body.relations.push(plain)
           break
         }
         case 'classDef':
           body.classDefs ??= {}
-          for (const name of value.names) body.classDefs[name] = { ...value.props }
+          for (const name of value.names) setOwn(body.classDefs, name, { ...value.props })
           break
-        case 'assignment': case 'style':
+        case 'assignment':
+        case 'style':
           for (const reference of value.references) {
+            // A cssClass styles a class declared elsewhere, before or after
+            // it, and declares none (src/class/parser.ts).
+            if (value.kind === 'assignment' && value.form.startsWith('cssClass')) {
+              const existing = classMap.get(reference.id)
+              if (existing) existing.className = value.name
+              else laterCssClasses.push({ id: reference.id, name: value.name })
+              continue
+            }
             const cls = upsert(reference.id, undefined, reference.generic)
             if (value.kind === 'assignment') cls.className = value.name
             else cls.style = { ...cls.style, ...value.props }
@@ -189,10 +241,15 @@ export function parseClassBody(lines: string[]): ClassBody | null {
     return true
   }
   if (!visit(tree.statements)) return null
+  for (const { id, name } of laterCssClasses) {
+    const cls = classMap.get(id)
+    if (cls && cls.className === undefined) cls.className = name
+  }
   if (namespaces.length > 0) body.namespaces = namespaces
   // Mermaid cannot write empty namespace blocks. Preserve directly authored
   // ones verbatim instead of promising a portable structured edit.
   if (namespaces.some(namespace => !namespaceHasClasses(body, namespace.name))) return null
+  body.classes = body.classes.filter(node => !node.isInterface).concat(body.classes.filter(node => node.isInterface))
   return body
 }
 
@@ -205,10 +262,11 @@ function namespaceHasClasses(body: ClassBody, name: string): boolean {
 function pruneEmptyNamespaces(body: ClassBody): Result<ClassBody, MutationError> {
   const empty = (body.namespaces ?? []).filter(namespace => !namespaceHasClasses(body, namespace.name))
   const labeled = empty.find(namespace => namespace.label !== undefined)
-  if (labeled) return err({
-    code: 'INVALID_OP',
-    message: `Cannot empty labeled namespace "${labeled.name}" without losing its label; keep a class in the group or edit the source explicitly`,
-  })
+  if (labeled)
+    return err({
+      code: 'INVALID_OP',
+      message: `Cannot empty labeled namespace "${labeled.name}" without losing its label; keep a class in the group or edit the source explicitly`,
+    })
   if (body.namespaces) {
     body.namespaces = body.namespaces.filter(namespace => !empty.includes(namespace))
     if (body.namespaces.length === 0) delete body.namespaces
@@ -218,9 +276,15 @@ function pruneEmptyNamespaces(body: ClassBody): Result<ClassBody, MutationError>
 
 // ---- Serializer -----------------------------------------------------------
 
-const RELATION_SYNTAX: Record<ClassRelationKind, {
-  from: string; to: string; shaft: '--' | '..'; defaultMarkerAt: 'from' | 'to' | 'none'
-}> = {
+const RELATION_SYNTAX: Record<
+  ClassRelationKind,
+  {
+    from: string
+    to: string
+    shaft: '--' | '..'
+    defaultMarkerAt: 'from' | 'to' | 'none'
+  }
+> = {
   inheritance: { from: '<|', to: '|>', shaft: '--', defaultMarkerAt: 'from' },
   composition: { from: '*', to: '*', shaft: '--', defaultMarkerAt: 'from' },
   aggregation: { from: 'o', to: 'o', shaft: '--', defaultMarkerAt: 'from' },
@@ -234,7 +298,9 @@ const RELATION_SYNTAX: Record<ClassRelationKind, {
 
 /** The same endpoint ownership drives serialization and semantic read-back. */
 export function classRelationMarkers(relation: ClassRelation): {
-  at: NonNullable<ClassRelation['markerAt']>; from?: ClassRelationKind; to?: ClassRelationKind
+  at: NonNullable<ClassRelation['markerAt']>
+  from?: ClassRelationKind
+  to?: ClassRelationKind
 } {
   const at = relation.markerAt ?? RELATION_SYNTAX[relation.kind].defaultMarkerAt
   return {
@@ -249,8 +315,7 @@ export function classRelationLineStyle(relation: ClassRelation): 'solid' | 'dash
   const markers = classRelationMarkers(relation)
   const from = markers.from && RELATION_SYNTAX[markers.from]
   const to = markers.to && RELATION_SYNTAX[markers.to]
-  const dashed = from?.shaft === '..' || to?.shaft === '..'
-    || (!from && !to && RELATION_SYNTAX[relation.kind].shaft === '..')
+  const dashed = from?.shaft === '..' || to?.shaft === '..' || (!from && !to && RELATION_SYNTAX[relation.kind].shaft === '..')
   return dashed ? 'dashed' : 'solid'
 }
 
@@ -265,9 +330,7 @@ function quoteIfNeeded(id: string): string {
   if (/^[\w$]+$/.test(id) && supportedRelationEndpoint(id, id)) {
     const relation = `${id} -- __endpoint`
     const statements = readClassStatements([id, relation]).statements
-    if (parseAccessibilityDirective([relation], 0) === null
-      && statements[0]?.value.kind !== 'header'
-      && statements[1]?.value.kind === 'relationship') return id
+    if (parseAccessibilityDirective([relation], 0) === null && statements[0]?.value.kind !== 'header' && statements[1]?.value.kind === 'relationship') return id
   }
   return `\`${id}\``
 }
@@ -278,6 +341,7 @@ function quoteDirectiveTarget(id: string): string {
 
 /** Emit one class declaration (+ optional member block) at an indent depth. */
 function pushClassLines(lines: string[], c: ClassNode, indent: string, deferredMembers: string[]): void {
+  if (c.isInterface) return
   const head = `class ${quoteIfNeeded(c.id)}${c.generic ? `~${c.generic}~` : ''}${c.label ? `["${writeClassText(c.label, c.labelContent)}"]` : ''}`
   if (c.members.length === 0) {
     lines.push(`${indent}${head}`)
@@ -320,9 +384,7 @@ export function renderClass(body: ClassBody): string {
   const parentFirst: ClassNamespaceDecl[] = []
   for (const namespace of namespaces) {
     const wrapsDescendants = namespace.label !== undefined && !body.classes.some(node => node.namespace === namespace.name)
-    const descendant = wrapsDescendants
-      ? parentFirst.findIndex(candidate => candidate.name.startsWith(`${namespace.name}.`))
-      : -1
+    const descendant = wrapsDescendants ? parentFirst.findIndex(candidate => candidate.name.startsWith(`${namespace.name}.`)) : -1
     if (descendant < 0) parentFirst.push(namespace)
     else parentFirst.splice(descendant, 0, namespace)
   }
@@ -337,9 +399,7 @@ export function renderClass(body: ClassBody): string {
     const ns = frame.entries[frame.index++]!
     const members = body.classes.filter(c => c.namespace === ns.name)
     if (members.length === 0 && ns.label === undefined && registryPaths.some(path => path.startsWith(`${ns.name}.`))) continue
-    const descendants = members.length === 0 && ns.label !== undefined
-      ? frame.entries.filter(candidate => candidate.name.startsWith(`${ns.name}.`))
-      : []
+    const descendants = members.length === 0 && ns.label !== undefined ? frame.entries.filter(candidate => candidate.name.startsWith(`${ns.name}.`)) : []
     const relativePath = ns.name.slice(frame.prefix.length)
     const segments = relativePath.split('.')
     const levels = segments.every(segment => /^[\w$]+$/.test(segment)) ? 1 : segments.length
@@ -372,22 +432,36 @@ export function renderClass(body: ClassBody): string {
   // Notes can introduce a class on read. Emit them after declarations so a
   // reload cannot move their target ahead of the authored class identities.
   for (const n of body.notes) {
-    const text = n.textContent || /#\w+;/.test(n.text)
-      ? writeClassText(n.text, n.textContent, '"&\\')
-      : n.text.replace(/&/g, '&amp;').replace(/\\/g, '&#92;').replace(/"/g, '&quot;')
+    const text = n.textContent || /#\w+;/.test(n.text) ? writeClassText(n.text, n.textContent, '"&\\') : n.text.replace(/&/g, '&amp;').replace(/\\/g, '&#92;').replace(/"/g, '&quot;')
     if (n.for) lines.push(`  note for ${quoteIfNeeded(n.for)} "${text}"`)
     else lines.push(`  note "${text}"`)
   }
+  const classById = new Map(body.classes.map(node => [node.id, node]))
+  const endpoint = (id: string): string => {
+    const node = classById.get(id)
+    if (!node?.isInterface) return quoteIfNeeded(id)
+    const label = node.label ?? id,
+      suffix = node.generic ? `~${node.generic}~` : ''
+    return quoteIfNeeded(suffix && label.endsWith(suffix) ? label.slice(0, -suffix.length) : label) + suffix
+  }
   for (const r of body.relations) {
+    const from = endpoint(r.from),
+      to = endpoint(r.to)
     const arrow = arrowForRelation(r)
-    const left = r.fromCardinality ? `${quoteIfNeeded(r.from)} "${writeClassText(r.fromCardinality, r.fromCardinalityContent)}"` : quoteIfNeeded(r.from)
-    const right = r.toCardinality ? `"${writeClassText(r.toCardinality, r.toCardinalityContent)}" ${quoteIfNeeded(r.to)}` : quoteIfNeeded(r.to)
+    const left = r.fromCardinality ? `${from} "${writeClassText(r.fromCardinality, r.fromCardinalityContent)}"` : from
+    const right = r.toCardinality ? `"${writeClassText(r.toCardinality, r.toCardinalityContent)}" ${to}` : to
     const label = r.label ? ` : ${writeClassText(r.label, r.labelContent, ':;"')}` : ''
     lines.push(`  ${left} ${arrow} ${right}${label}`)
   }
   for (const [name, style] of Object.entries(body.classDefs ?? {})) lines.push(`  classDef ${name} ${serializeStyleProps(style)}`)
   for (const c of body.classes) {
-    if (c.className) lines.push(`  class ${quoteDirectiveTarget(c.id)} ${c.className}`)
+    // Mermaid reads `class A c` as a class named `Ac`; its cssClass names
+    // the class by its id as written.
+    if (c.className) {
+      for (const name of c.className.split(/\s+/).filter(Boolean)) {
+        lines.push(/[",]/.test(c.id) ? `  class ${quoteIfNeeded(c.id)}:::${name}` : `  cssClass "${c.id}" ${name}`)
+      }
+    }
     if (c.style) lines.push(`  style ${quoteDirectiveTarget(c.id)} ${serializeStyleProps(c.style)}`)
     if (c.href) {
       lines.push(`  click ${quoteIfNeeded(c.id)} href "${c.href.replace(/&/g, '&amp;').replace(/\\/g, '\\\\').replace(/"/g, '\\"')}"${c.tooltip !== undefined ? ` "${c.tooltip.replace(/&/g, '&amp;').replace(/"/g, '&quot;')}"` : ''}`)
@@ -403,7 +477,12 @@ function cloneClass(body: ClassBody): ClassBody {
     kind: 'class',
     title: body.title,
     classes: body.classes.map(c => ({
-      id: c.id, label: c.label, generic: c.generic, members: [...c.members], namespace: c.namespace,
+      id: c.id,
+      label: c.label,
+      generic: c.generic,
+      members: [...c.members],
+      namespace: c.namespace,
+      ...(c.isInterface ? { isInterface: true } : {}),
       ...(c.labelContent ? { labelContent: c.labelContent } : {}),
       ...(c.className ? { className: c.className } : {}),
       ...(c.style ? { style: { ...c.style } } : {}),
@@ -448,20 +527,20 @@ function validateClassMembers(members: readonly string[]): MutationError | undef
 
 function validateClassRelation(relation: ClassRelation): MutationError | undefined {
   const invalid: MutationError = { code: 'INVALID_OP', message: 'Class relation kind, marker endpoints and line style must describe the same Mermaid arrow' }
-  if (!Object.hasOwn(RELATION_SYNTAX, relation.kind)
-    || (relation.fromKind !== undefined && !Object.hasOwn(RELATION_SYNTAX, relation.fromKind))
-    || (relation.toKind !== undefined && !Object.hasOwn(RELATION_SYNTAX, relation.toKind))
-    || (relation.markerAt !== undefined && !['from', 'to', 'both', 'none'].includes(relation.markerAt))
-    || (relation.lineStyle !== undefined && relation.lineStyle !== 'solid' && relation.lineStyle !== 'dashed')) return invalid
+  if (
+    !Object.hasOwn(RELATION_SYNTAX, relation.kind) ||
+    (relation.fromKind !== undefined && !Object.hasOwn(RELATION_SYNTAX, relation.fromKind)) ||
+    (relation.toKind !== undefined && !Object.hasOwn(RELATION_SYNTAX, relation.toKind)) ||
+    (relation.markerAt !== undefined && !['from', 'to', 'both', 'none'].includes(relation.markerAt)) ||
+    (relation.lineStyle !== undefined && relation.lineStyle !== 'solid' && relation.lineStyle !== 'dashed')
+  )
+    return invalid
   const markers = classRelationMarkers(relation)
-  if ((relation.fromKind !== undefined && markers.from === undefined)
-    || (relation.toKind !== undefined && markers.to === undefined)) return invalid
+  if ((relation.fromKind !== undefined && markers.from === undefined) || (relation.toKind !== undefined && markers.to === undefined)) return invalid
   const reloaded = parseClassRelationSyntax(`A ${arrowForRelation(relation)} B`)
   if (!reloaded) return invalid
   const reloadedMarkers = classRelationMarkers(reloaded)
-  if (reloaded.kind !== relation.kind
-    || reloadedMarkers.at !== markers.at || reloadedMarkers.from !== markers.from || reloadedMarkers.to !== markers.to
-    || classRelationLineStyle(reloaded) !== classRelationLineStyle(relation)) return invalid
+  if (reloaded.kind !== relation.kind || reloadedMarkers.at !== markers.at || reloadedMarkers.from !== markers.from || reloadedMarkers.to !== markers.to || classRelationLineStyle(reloaded) !== classRelationLineStyle(relation)) return invalid
 }
 
 function declareNamespaceOn(b: ClassBody, path: string): void {
@@ -470,6 +549,23 @@ function declareNamespaceOn(b: ClassBody, path: string): void {
 }
 
 export function mutateClass(body: ClassBody, op: ClassMutationOp): Result<ClassBody, MutationError> {
+  const targetId = 'class' in op ? op.class : op.kind === 'rename_class' ? op.from : op.kind === 'add_note' ? op.for : undefined
+  if (targetId && body.classes.some(node => node.id === targetId && node.isInterface)) {
+    return err({ code: 'INVALID_OP', message: `A lollipop interface occurrence has no standalone class declaration; '${op.kind}' cannot add class-only metadata to '${targetId}'` })
+  }
+  const result = mutateClassBody(body, op)
+  if (!result.ok) return result
+  const next = result.value
+  if (op.kind === 'add_interface' || !body.classes.some(node => node.isInterface)) return result
+  const referenced = new Set(next.relations.flatMap(relation => [relation.from, relation.to]))
+  next.classes = next.classes.filter(node => !node.isInterface || referenced.has(node.id))
+  // Interface IDs are occurrence identities. Rebuild from the exact canonical
+  // relation order after removal/addition, retaining authored labels and boxes.
+  const canonical = parseClassBody(renderClass(next).trimEnd().split('\n').slice(1))
+  return canonical ? ok(canonical) : err({ code: 'INVALID_OP', message: 'Class edit could not retain its lollipop interface occurrences in Mermaid source' })
+}
+
+function mutateClassBody(body: ClassBody, op: ClassMutationOp): Result<ClassBody, MutationError> {
   const b = cloneClass(body)
   const findClass = (id: string) => b.classes.find(c => c.id === id)
 
@@ -512,16 +608,13 @@ export function mutateClass(body: ClassBody, op: ClassMutationOp): Result<ClassB
     case 'define_class': {
       if (typeof op.name !== 'string' || !/^[\w-]+$/.test(op.name)) return err({ code: 'INVALID_OP', message: 'classDef name must contain only letters, digits, underscore, or hyphen' })
       const style = parseMutableStyleProps(op.style)
-      if (!style.ok) return err({
-        code: 'INVALID_OP',
-        message: style.reason === 'MULTILINE'
-          ? 'classDef style must be a single-line CSS-like property list'
-          : style.reason === 'UNSAFE_PAINT'
-            ? unsafeStylePaintError(`define_class ${op.name}`, style.paint).message
-            : 'classDef style must contain at least one property:value pair',
-      })
+      if (!style.ok)
+        return err({
+          code: 'INVALID_OP',
+          message: style.reason === 'MULTILINE' ? 'classDef style must be a single-line CSS-like property list' : style.reason === 'UNSAFE_PAINT' ? unsafeStylePaintError(`define_class ${op.name}`, style.paint).message : 'classDef style must contain at least one property:value pair',
+        })
       if (!b.classDefs) b.classDefs = {}
-      b.classDefs[op.name] = style.value
+      setOwn(b.classDefs, op.name, style.value)
       return ok(b)
     }
     case 'set_css_class': {
@@ -540,14 +633,11 @@ export function mutateClass(body: ClassBody, op: ClassMutationOp): Result<ClassB
       if (op.style === null) delete c.style
       else {
         const style = parseMutableStyleProps(op.style)
-        if (!style.ok) return err({
-          code: 'INVALID_OP',
-          message: style.reason === 'MULTILINE'
-            ? 'Class style must be a single-line CSS-like property list'
-            : style.reason === 'UNSAFE_PAINT'
-              ? unsafeStylePaintError(`set_class_style ${op.class}`, style.paint).message
-              : 'Class style must contain at least one property:value pair',
-        })
+        if (!style.ok)
+          return err({
+            code: 'INVALID_OP',
+            message: style.reason === 'MULTILINE' ? 'Class style must be a single-line CSS-like property list' : style.reason === 'UNSAFE_PAINT' ? unsafeStylePaintError(`set_class_style ${op.class}`, style.paint).message : 'Class style must contain at least one property:value pair',
+          })
         c.style = style.value
       }
       return ok(b)
@@ -599,11 +689,38 @@ export function mutateClass(body: ClassBody, op: ClassMutationOp): Result<ClassB
       c.members.splice(op.index, 1)
       return ok(b)
     }
+    case 'add_interface': {
+      const target = findClass(op.class)
+      if (!target) return err({ code: 'CLASS_NOT_FOUND', message: `class ${op.class} not found` })
+      if (target.isInterface) return err({ code: 'INVALID_OP', message: 'add_interface needs an ordinary class, not another interface occurrence' })
+      if (typeof op.label !== 'string' || !op.label.trim() || /[\r\n`]/.test(op.label) || (op.side !== undefined && op.side !== 'from' && op.side !== 'to')) {
+        return err({ code: 'INVALID_OP', message: 'Interface label must be a non-empty portable single-line name without backticks; side must be from or to' })
+      }
+      if ((op.lineStyle !== undefined && op.lineStyle !== 'solid' && op.lineStyle !== 'dashed') || (op.relationLabel !== undefined && (typeof op.relationLabel !== 'string' || !op.relationLabel.trim() || /[\r\n]/.test(op.relationLabel)))) {
+        return err({ code: 'INVALID_OP', message: 'Interface relationLabel must be a non-empty single line; lineStyle must be solid or dashed' })
+      }
+      const side = op.side ?? 'to',
+        shaft = op.lineStyle === 'dashed' ? '..' : '--'
+      const endpoints = side === 'from' ? `${quoteIfNeeded(op.label)} ()${shaft} ${quoteIfNeeded(target.id)}` : `${quoteIfNeeded(target.id)} ${shaft}() ${quoteIfNeeded(op.label)}`
+      const statement = endpoints + (op.relationLabel !== undefined ? ` : ${writeClassText(op.relationLabel, undefined, ':;"')}` : '')
+      const syntax = parseClassRelationship(statement)
+      if (!syntax || syntax[side] !== op.label || (side === 'from' ? syntax.fromGeneric : syntax.toGeneric) || (op.relationLabel !== undefined && syntax.label !== op.relationLabel)) {
+        return err({ code: 'INVALID_OP', message: 'Interface label cannot be represented as an exact pinned Mermaid endpoint name' })
+      }
+      const parsed = parseClassBody((renderClass(b).trimEnd() + `\n  ${statement}`).split('\n').slice(1))
+      if (!parsed || parsed.classes.filter(node => node.isInterface).length !== b.classes.filter(node => node.isInterface).length + 1) {
+        return err({ code: 'INVALID_OP', message: 'add_interface could not retain the new interface occurrence in Mermaid source' })
+      }
+      return ok(parsed)
+    }
     case 'add_relation': {
       if (!findClass(op.from)) return err({ code: 'CLASS_NOT_FOUND', message: `class ${op.from} not found` })
       if (!findClass(op.to)) return err({ code: 'CLASS_NOT_FOUND', message: `class ${op.to} not found` })
       const relation: ClassRelation = {
-        from: op.from, to: op.to, kind: op.relKind, label: op.label,
+        from: op.from,
+        to: op.to,
+        kind: op.relKind,
+        label: op.label,
         ...(op.markerAt !== undefined ? { markerAt: op.markerAt } : {}),
         ...(op.fromKind !== undefined ? { fromKind: op.fromKind } : {}),
         ...(op.toKind !== undefined ? { toKind: op.toKind } : {}),
@@ -611,6 +728,10 @@ export function mutateClass(body: ClassBody, op: ClassMutationOp): Result<ClassB
       }
       const invalidRelation = validateClassRelation(relation)
       if (invalidRelation) return err(invalidRelation)
+      const markers = classRelationMarkers(relation)
+      if ((markers.at === 'from' && markers.from === 'lollipop') || (markers.at === 'to' && markers.to === 'lollipop') || findClass(op.from)?.isInterface || findClass(op.to)?.isInterface) {
+        return err({ code: 'INVALID_OP', message: 'A lone lollipop creates a distinct interface occurrence and cannot share an existing class endpoint; use add_interface with class, label and optional side' })
+      }
       b.relations.push(relation)
       return ok(b)
     }
@@ -664,30 +785,89 @@ export function classUnsupportedSyntaxWarnings(canonicalSource: string): LayoutW
       message: `${what}. Pinned Mermaid rejects this; put the comment on a line of its own.`,
     })
   }
+  // The classes a statement declares as Mermaid reads it, which a cssClass
+  // can style only after them.
+  const declares = (value: ClassStatementNode['value']): string[] =>
+    value.kind === 'class' ? [value.declaration.id] : value.kind === 'annotation' ? [value.annotation.id] : value.kind === 'member' && value.reference ? [value.reference.id] : value.kind === 'relationship' ? [value.relationship.from, value.relationship.to] : []
+  const declaredAnywhere = new Set<string>()
+  const collect = (nodes: readonly ClassStatementNode[]): void => {
+    for (const node of nodes) {
+      for (const id of declares(node.value)) declaredAnywhere.add(id)
+      collect(node.children ?? [])
+    }
+  }
   const extensionWarnings = (nodes: ClassStatementNode[]): void => {
+    collect(nodes)
+    const declaredSoFar = new Set<string>()
     const pending = [...nodes].reverse()
     const semicolonLines = new Set<number>()
     while (pending.length) {
       const node = pending.pop()!
-      if (node.followsNamespaceCloseOnSameLine && node.value.kind === 'trivia' && node.raw.startsWith('%%')) warnings.push({
-        code: 'UNSUPPORTED_SYNTAX', syntax: 'class_trailing_comment', line: header + 1 + node.source.line,
-        message: 'A %% comment after a namespace closing brace is read as a comment. Pinned Mermaid rejects this; put the comment on a line of its own.',
-      })
-      else if (node.followsNamespaceCloseOnSameLine && node.value.kind !== 'trivia' && node.value.kind !== 'close') warnings.push({
-        code: 'UNSUPPORTED_SYNTAX', syntax: 'class_statement_after_namespace_close', line: header + 1 + node.source.line,
-        message: 'A Class statement after a namespace closing brace on the same line is read as a separate statement. Pinned Mermaid rejects this, even with a semicolon; put the statement on a new line.',
-      })
+      if (node.followsNamespaceCloseOnSameLine && node.value.kind === 'trivia' && node.raw.startsWith('%%'))
+        warnings.push({
+          code: 'UNSUPPORTED_SYNTAX',
+          syntax: 'class_trailing_comment',
+          line: header + 1 + node.source.line,
+          message: 'A %% comment after a namespace closing brace is read as a comment. Pinned Mermaid rejects this; put the comment on a line of its own.',
+        })
+      else if (node.followsNamespaceCloseOnSameLine && node.value.kind !== 'trivia' && node.value.kind !== 'close')
+        warnings.push({
+          code: 'UNSUPPORTED_SYNTAX',
+          syntax: 'class_statement_after_namespace_close',
+          line: header + 1 + node.source.line,
+          message: 'A Class statement after a namespace closing brace on the same line is read as a separate statement. Pinned Mermaid rejects this, even with a semicolon; put the statement on a new line.',
+        })
+      else if (node.followsClassCloseOnSameLine)
+        warnings.push({
+          code: 'UNSUPPORTED_SYNTAX',
+          syntax: 'class_statement_after_class_close',
+          line: header + 1 + node.source.line,
+          message: "A Class statement after a class body's closing brace on the same line is read as a separate statement. Pinned Mermaid rejects this; put the statement on a new line.",
+        })
       if (node.compactSemicolon && !semicolonLines.has(node.source.line)) {
         semicolonLines.add(node.source.line)
         warnings.push({
-          code: 'UNSUPPORTED_SYNTAX', syntax: 'class_compact_semicolon_statement_extension', line: header + 1 + node.source.line,
+          code: 'UNSUPPORTED_SYNTAX',
+          syntax: 'class_compact_semicolon_statement_extension',
+          line: header + 1 + node.source.line,
           message: 'Semicolon-separated statements inside a compact Class namespace are read as separate statements. Pinned Mermaid rejects this source; put each statement on its own line.',
         })
       }
-      if (node.value.kind === 'note' && node.value.escapedQuotes) warnings.push({
-        code: 'UNSUPPORTED_SYNTAX', syntax: 'class_escaped_note_quotes', line: header + 1 + node.source.line,
-        message: 'Backslash-escaped quotes in Class notes are read as text. Pinned Mermaid rejects this; use &quot; inside the quoted note.',
-      })
+      const value = node.value
+      if (value.kind === 'annotation' ? value.annotation.placement === 'inline' && value.annotation.className !== undefined : value.kind === 'class' && value.declaration.annotation !== undefined && value.declaration.className !== undefined)
+        warnings.push({
+          code: 'UNSUPPORTED_SYNTAX',
+          syntax: 'class_style_before_annotation',
+          line: header + 1 + node.source.line,
+          message: "A :::style class before an inline <<annotation>> is read as the class's style class. Pinned Mermaid rejects this; put the annotation inside the class body or on a line of its own.",
+        })
+      for (const id of declares(value)) declaredSoFar.add(id)
+      if (value.kind === 'assignment' && value.form === 'cssClass' && value.references.some(ref => declaredAnywhere.has(ref.id) && !declaredSoFar.has(ref.id)))
+        warnings.push({
+          code: 'UNSUPPORTED_SYNTAX',
+          syntax: 'class_css_class_before_class',
+          line: header + 1 + node.source.line,
+          message: 'A cssClass before the class it names is applied to that class. Pinned Mermaid applies a cssClass only to classes declared before it, and draws this one unstyled; put the cssClass after the class.',
+        })
+      if (value.kind === 'assignment' && value.form !== 'cssClass')
+        warnings.push({
+          code: 'UNSUPPORTED_SYNTAX',
+          syntax: 'class_style_assignment',
+          line: header + 1 + node.source.line,
+          message:
+            value.form === 'class'
+              ? `\`class A c\` is read as style class c on A. Pinned Mermaid reads it as one class named \`Ac\`; write \`cssClass "A" c\` or \`class A:::c\`.`
+              : value.form === 'shorthand'
+                ? 'A `:::style` class on a line of its own is read as the class\'s style class. Pinned Mermaid rejects it; write `cssClass "A" c` or `class A:::c`.'
+                : 'A cssClass whose class list is not quoted is read as written. Pinned Mermaid rejects it; quote the list: `cssClass "A,B" c`.',
+        })
+      if (node.value.kind === 'note' && node.value.escapedQuotes)
+        warnings.push({
+          code: 'UNSUPPORTED_SYNTAX',
+          syntax: 'class_escaped_note_quotes',
+          line: header + 1 + node.source.line,
+          message: 'Backslash-escaped quotes in Class notes are read as text. Pinned Mermaid rejects this; use &quot; inside the quoted note.',
+        })
       if (node.children) for (let index = node.children.length - 1; index >= 0; index--) pending.push(node.children[index]!)
     }
   }
@@ -724,8 +904,10 @@ export function verifyClass(body: ClassBody, opts: VerifyOptions): LayoutWarning
     const r = body.relations[i]!
     if (!ids.has(r.from) || !ids.has(r.to)) {
       warnings.push({
-        code: 'EDGE_MISANCHORED', edge: `rel#${i}:${r.from}->${r.to}`,
-        from: ids.has(r.from) ? r.from : undefined, to: ids.has(r.to) ? r.to : undefined,
+        code: 'EDGE_MISANCHORED',
+        edge: `rel#${i}:${r.from}->${r.to}`,
+        from: ids.has(r.from) ? r.from : undefined,
+        to: ids.has(r.to) ? r.to : undefined,
       })
     }
     if (r.label) overflow(`rel#${i}`, resolveLabelContent(r.label, r.labelContent))

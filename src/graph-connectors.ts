@@ -141,6 +141,6 @@ export function graphEdgeMarkerPaintRegions(edge: PositionedEdge, style: { lineW
     geometry: projection?.geometry ?? { kind: 'polyline', points: edge.points },
     paint: { stroke: color ?? 'var(--_line)', strokeWidth: edge.inlineStyle?.['stroke-width'] ?? String((style.lineWidth ?? 1) * (edge.style === 'thick' ? 2 : 1)) },
     markers: { start, end }, ...(projection ? { route: { contours: projection.contours } } : {}),
-  }, '')
+  })
   return connectorMarkerPaintRegions(node)
 }

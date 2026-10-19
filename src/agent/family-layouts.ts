@@ -42,7 +42,7 @@ import { resolveGanttSchedule } from '../gantt/schedule.ts'
 import { normalizeMermaidSource } from '../mermaid-source.ts'
 import { positionResolvedFamily, retainedFamilyProjection } from '../positioning.ts'
 import type { RenderOutput, ResolvedRenderRequest } from '../render-contract.ts'
-import { resolvedRenderExecutionPlanOf, resolveRenderRequest } from '../render-contract.ts'
+import { RenderConfigError, resolvedRenderExecutionPlanOf, resolveRenderRequest } from '../render-contract.ts'
 import { withTextMeasurementExecution } from '../text-measurement-profile.ts'
 import type { PositionedDiagram, RenderOptions } from '../types.ts'
 import type { FamilyLayoutResult, FamilyPositionedProjectionOptions, FamilyPositionedView } from './families.ts'
@@ -88,7 +88,8 @@ export interface PositionFamilyArtifactOptions extends FamilyPositionedProjectio
 }
 
 /** A descriptor layout/projection failure with enough context for public
- * adapters to distinguish it from verification and parsing failures. */
+ * adapters to distinguish it from verification and parsing failures. The hook's
+ * own error stays its ES2022 `cause`, so verify can still tell whose it is. */
 export class FamilyLayoutError extends Error {
   readonly family: FamilyId
   readonly operation: 'layout' | 'projectPositioned'
@@ -110,7 +111,7 @@ export function positionResolvedFamilyArtifact(d: ParsedDiagram, request: Resolv
     throw new Error(`Resolved request planned family ${descriptor.id}, not ${d.kind}`)
   }
   if (!descriptor.layout || !descriptor.projectPositioned) return null
-  if (request.renderOptions.layoutSafety === 'strict' && (!descriptor.lowerScene || d.kind.startsWith('family:'))) throw new FamilyLayoutError(d.kind, 'projectPositioned', new Error('Strict layout safety requires native Scene evidence'))
+  if (request.renderOptions.layoutSafety === 'strict' && (!descriptor.lowerScene || d.kind.startsWith('family:'))) throw new FamilyLayoutError(d.kind, 'projectPositioned', new RenderConfigError('Strict layout safety requires native Scene evidence'))
   let result: ReturnType<typeof positionResolvedFamily>
   try {
     result = positionResolvedFamily(d.kind, request, request.source, options)
@@ -180,10 +181,10 @@ export function projectPositionedView(familyId: FamilyId, positioned: Positioned
 
 /**
  * Produce the one canonical positioned artifact used by every agent
- * projection. Most descriptors receive `canonicalSource`, preserving the
- * established RenderedLayout contract (including authored declaration order
- * and its historical wrapper/config policy) while removing the independent
- * family parsers and layouters that previously interpreted that source.
+ * projection. Most descriptors receive `canonicalSource` under the diagram's
+ * config wrapper, preserving authored declaration order and drawing what the
+ * saved source draws, while removing the independent family parsers and
+ * layouters that previously interpreted that source.
  * Families whose former adapter was body/config based use their canonical
  * serializer as the source-context bridge; the descriptor still owns all
  * parsing and positioning.

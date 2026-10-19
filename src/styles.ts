@@ -374,7 +374,7 @@ export function diagramTitleMark(title: PositionedDiagramTitle, style: ResolvedR
   return marks.text(
     { id: 'diagram-title', role: 'title', text: title.text, block: title.block, x: title.x, y: title.y,
       fontSize: DIAGRAM_TITLE_FONT_SIZE, fontWeight: title.block?.fontWeight ?? DIAGRAM_TITLE_FONT_WEIGHT,
-      letterSpacing: title.block?.letterSpacing ?? style.groupLetterSpacing, anchor: 'middle', paint: { fill } },
+      letterSpacing: title.block?.letterSpacing ?? style.groupLetterSpacing, anchor: 'middle', paint: { fill }, attributes: { className: 'diagram-title' } },
     { kind: 'text', layout: 'multiline', attributes },
   )
 }

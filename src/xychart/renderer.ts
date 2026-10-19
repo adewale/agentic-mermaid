@@ -41,9 +41,14 @@ const CHART_FONT = {
 const RECT_FIELDS = ['x', 'y', 'width', 'height'] as const
 const LINE_FIELDS = ['x1', 'y1', 'x2', 'y2'] as const
 const CIRCLE_FIELDS = ['cx', 'cy', 'r'] as const
+const PAINT_ATTRIBUTES: readonly SvgAttribute[] = [
+  { name: 'fill', value: v.paint('fill') }, { name: 'stroke', value: v.paint('stroke') }, { name: 'stroke-width', value: v.paint('strokeWidth') },
+  { name: 'stroke-linecap', value: v.paint('strokeLinecap') }, { name: 'stroke-linejoin', value: v.paint('strokeLinejoin') }, { name: 'opacity', value: v.paint('opacity') },
+]
 function primitive(geometry: readonly SvgGeometryField[], attributes: readonly SvgAttribute[]): SvgEmissionRecipe {
   return snapshotSvgEmissionRecipe({ kind: 'primitive', close: '/>', attributes: [
     ...geometry.map(name => ({ name, value: v.geometry(name) })), ...attributes,
+    ...PAINT_ATTRIBUTES.filter(attribute => !attributes.some(other => other.name === attribute.name)),
   ] })
 }
 const GRID_EMISSION = primitive(LINE_FIELDS, [{ name: 'class', value: v.meta('xychart-grid') }])
@@ -73,18 +78,18 @@ function fontAttributes(): SvgAttribute[] {
 }
 const AXIS_TITLE_EMISSIONS = ['x', 'y'].map(axis => snapshotSvgEmissionRecipe({ kind: 'text', layout: 'multiline', attributes: [
   { name: 'text-anchor', value: v.text('anchor') }, { name: 'transform', value: { source: 'transform', separator: 'comma' } },
-  ...fontAttributes(), { name: 'class', value: v.meta(`xychart-axis-title xychart-${axis}-axis-title`) },
+  ...fontAttributes(), { name: 'fill', value: v.paint('fill') }, { name: 'class', value: v.meta(`xychart-axis-title xychart-${axis}-axis-title`) },
 ] }))
 const TITLE_EMISSION = snapshotSvgEmissionRecipe({ kind: 'text', layout: 'multiline', attributes: [
-  { name: 'text-anchor', value: v.text('anchor') }, ...fontAttributes(), { name: 'class', value: v.meta('xychart-title') },
+  { name: 'text-anchor', value: v.text('anchor') }, ...fontAttributes(), { name: 'fill', value: v.paint('fill') }, { name: 'class', value: v.meta('xychart-title') },
 ] })
 const LEGEND_TEXT_EMISSION = snapshotSvgEmissionRecipe({ kind: 'text', layout: 'multiline', baselineShift: 0, attributes: [
   { name: 'text-anchor', value: v.text('anchor') }, { name: 'dominant-baseline', value: v.meta('middle') },
-  ...fontAttributes(), { name: 'class', value: v.meta('xychart-legend-label') },
+  ...fontAttributes(), { name: 'fill', value: v.paint('fill') }, { name: 'class', value: v.meta('xychart-legend-label') },
 ] })
 const AXIS_LABEL_EMISSIONS = ['x', 'y'].map(axis => [false, true].map(middle => snapshotSvgEmissionRecipe({ kind: 'text', layout: 'multiline', baselineShift: middle ? 0 : 0.35, attributes: [
   { name: 'text-anchor', value: v.text('anchor') }, ...(middle ? [{ name: 'dominant-baseline' as const, value: v.meta('middle') }] : []),
-  ...fontAttributes(), { name: 'class', value: v.meta(`xychart-label xychart-${axis}-label`) },
+  ...fontAttributes(), { name: 'fill', value: v.paint('fill') }, { name: 'class', value: v.meta(`xychart-label xychart-${axis}-label`) },
 ] })))
 
 function dataAttributes(value: number, label?: string): SvgAttribute[] {
@@ -119,7 +124,7 @@ export function lowerXYChartScene(
 
   const maxColorIdx = Math.max(0, ...chart.bars.map(bar => bar.colorIndex), ...chart.lines.map(line => line.colorIndex))
   const svgMeta = buildSvgMetadata(chart)
-  const chartStyle = chartStyles(chart, interactive, colors.accent, colors.bg, options, resolved.styleFace)
+  const chartStyle = chartStyles(chart, interactive, colors.accent, colors.bg)
   parts.push(marks.documentOpen(
     { id: 'prelude', width: chart.width, height: chart.height, colors, transparent, font, hasMonoFont: false, extraCss: chartStyle },
     { kind: 'prelude', width: chart.width, height: chart.height, colors, transparent, font, hasMonoFont: false,
@@ -146,6 +151,8 @@ export function lowerXYChartScene(
       role: 'grid',
       geometry: { kind: 'line', x1: rn(gridLine.x1), y1: rn(gridLine.y1), x2: rn(gridLine.x2), y2: rn(gridLine.y2) },
       paint: gridPaint,
+
+      attributes: { className: 'xychart-grid' },
     },
       GRID_EMISSION,
     ))
@@ -186,10 +193,15 @@ export function lowerXYChartScene(
       geometry: { kind: 'rect', x: rn(bar.x), y: rn(bar.y), width: rn(bar.width), height: rn(bar.height) },
       paint: {
         fill,
-        ...(stroke ? { stroke } : {}),
+        stroke: stroke ?? 'none',
         ...(strokeWidth !== undefined ? { strokeWidth: String(strokeWidth) } : {}),
       },
       channels,
+
+      attributes: {
+        className: `xychart-bar xychart-color-${bar.colorIndex}`,
+        data: { value: String(bar.value), ...(bar.label ? { label: bar.label } : {}) },
+      },
     },
       primitive(RECT_FIELDS, [{ name: 'class', value: v.meta(`xychart-bar xychart-color-${bar.colorIndex}`) }, ...inlineStyle, ...dataAttributes(bar.value, bar.label)]),
     ))
@@ -228,8 +240,10 @@ export function lowerXYChartScene(
       role: 'series',
       geometry: { kind: 'path', d, points: line.points },
       lineStyle: 'solid',
-      paint: { stroke, strokeWidth: String(strokeWidth) },
+      paint: { stroke, strokeWidth: String(strokeWidth), strokeLinecap: 'round', strokeLinejoin: 'round' },
       channels,
+
+      attributes: { className: `xychart-line xychart-color-${line.colorIndex}` },
     },
       primitive(['d'], [{ name: 'class', value: v.meta(`xychart-line xychart-color-${line.colorIndex}`) }, ...inlineStyle]),
     ))
@@ -249,14 +263,19 @@ export function lowerXYChartScene(
       parts.push(marks.shape({
         id: `point-label-dot:${line.seriesIndex}:${pointIndex}`, role: 'point',
         geometry: { kind: 'circle', cx: rn(point.x), cy: rn(point.y), r: CHART_FONT.dotRadius },
-        paint: { fill: `var(--xychart-color-${line.colorIndex})`, stroke: 'var(--bg)', strokeWidth: '1' },
+        paint: { fill: `var(--xychart-color-${line.colorIndex})`, stroke: 'var(--bg)', strokeWidth: '2' },
         channels: { category: `line-${line.seriesIndex}`, value: normalized(point.value) },
+
+        attributes: { className: `xychart-dot xychart-color-${line.colorIndex}`, data: { value: String(point.value) } },
       }, primitive(CIRCLE_FIELDS, [{ name: 'class', value: v.meta(`xychart-dot xychart-color-${line.colorIndex}`) }, ...dataAttributes(point.value)])))
       parts.push(marks.text({
         id: `point-label:${line.seriesIndex}:${pointIndex}`, role: 'label', text: point.textBlock?.text ?? point.textLabel, block: point.textBlock,
         x, y, fontSize: 12, fontWeight: style.nodeLabelFontWeight, letterSpacing: style.nodeLetterSpacing, display: 'literal', anchor,
         paint: { fill: `var(--xychart-color-${line.colorIndex})` },
         channels: { category: `line-${line.seriesIndex}`, value: normalized(point.value) },
+
+        baselineShift: at ? 0.35 : 0,
+        attributes: { className: `xychart-point-label xychart-color-${line.colorIndex}`, data: { 'label-position': position } },
       }, { kind: 'text', layout: 'multiline', positionFormat: 'round2', baselineShift: at ? 0.35 : 0, attributes: [
         { name: 'class', value: v.meta(`xychart-point-label xychart-color-${line.colorIndex}`) },
         { name: 'data-label-position', value: v.meta(position) }, { name: 'text-anchor', value: v.text('anchor') },
@@ -283,6 +302,7 @@ export function lowerXYChartScene(
             {
               node: marks.shape({ id: `hit:${pointId}`, role: 'chrome', owner: { id: pointId, role: 'point' },
                 geometry: { kind: 'circle', cx: rn(point.x), cy: rn(point.y), r: CHART_FONT.dotRadius * 3 }, paint: { fill: 'transparent' },
+                attributes: { className: 'xychart-hit' },
               },
                 CIRCLE_HIT_EMISSION),
               indent: 0,
@@ -294,6 +314,10 @@ export function lowerXYChartScene(
                 geometry: { kind: 'circle', cx: rn(point.x), cy: rn(point.y), r: CHART_FONT.dotRadius },
                 paint: { fill: `var(--xychart-color-${line.colorIndex})`, stroke: 'var(--bg)', strokeWidth: '2' },
                 channels: { category: `line-${line.seriesIndex}`, value: normalized(point.value) },
+                attributes: {
+                  className: `xychart-dot xychart-color-${line.colorIndex}`,
+                  data: { value: String(point.value), ...(point.label ? { label: point.label } : {}) },
+                },
               },
                 primitive(CIRCLE_FIELDS, [{ name: 'class', value: v.meta(`xychart-dot xychart-color-${line.colorIndex}`) }, ...dataAttributes(point.value, point.label)])),
               indent: 0,
@@ -336,11 +360,15 @@ export function lowerXYChartScene(
       y: label.y,
       fontSize: label.fontSize, fontWeight: style.nodeLabelFontWeight, letterSpacing: style.nodeLetterSpacing, display: 'literal',
       anchor: label.anchor,
+      ...(label.dominantBaseline ? { dominantBaseline: label.dominantBaseline } : {}),
+      baselineShift: 0,
       paint: { fill, stroke: halo, strokeWidth: String(DATA_LABEL_HALO_WIDTH), strokeLinejoin: 'round', paintOrder: 'stroke' },
       // Sketch looks halo text with the page color over hatched or washed
       // bars, so an ink chosen against the bar would sit on the page instead.
       ...(onBar ? { pageFill: chartColors.labelColor } : {}),
       channels: { category: `bar-${label.bar.seriesIndex}`, value: normalized(label.bar.value) },
+
+      attributes: { className: 'xychart-data-label', data: { 'literal-text': 'true' } },
     },
       { kind: 'text', layout: 'direct', attributes: [
         { name: 'x', value: v.text('x'), format: 'round2' }, { name: 'y', value: v.text('y'), format: 'round2' },
@@ -372,6 +400,8 @@ export function lowerXYChartScene(
       anchor: 'middle',
       paint: { fill: chartColors.xAxisTitleColor },
       transform: rotation,
+
+      attributes: { className: 'xychart-axis-title xychart-x-axis-title' },
     },
       AXIS_TITLE_EMISSIONS[0]!,
     ))
@@ -392,6 +422,8 @@ export function lowerXYChartScene(
       anchor: 'middle',
       paint: { fill: chartColors.yAxisTitleColor },
       transform: rotation,
+
+      attributes: { className: 'xychart-axis-title xychart-y-axis-title' },
     },
       AXIS_TITLE_EMISSIONS[1]!,
     ))
@@ -409,6 +441,8 @@ export function lowerXYChartScene(
       fontSize: chart.config.titleFontSize, fontWeight: style.groupHeaderFontWeight, letterSpacing: style.groupLetterSpacing, display: 'literal',
       anchor: 'middle',
       paint: { fill: chartColors.titleColor },
+
+      attributes: { className: 'xychart-title' },
     },
       TITLE_EMISSION,
     ))
@@ -429,6 +463,7 @@ export function lowerXYChartScene(
             geometry: { kind: 'rect', x: rn(item.x), y: rn(item.y), width: LEGEND_SWATCH_SIZE, height: LEGEND_SWATCH_SIZE, rx: 2, ry: 2 },
             paint: { fill: `var(--xychart-color-${item.colorIndex})` },
             channels: { category: `bar-${item.seriesIndex}` },
+            attributes: { className: 'xychart-legend-swatch' },
           },
             LEGEND_RECT_EMISSION),
           indent: 2,
@@ -441,8 +476,9 @@ export function lowerXYChartScene(
             id: `legend:swatch:${item.colorIndex}`,
             role: 'legend',
             geometry: { kind: 'line', x1: rn(item.x), y1: rn(cy), x2: rn(item.x + LEGEND_SWATCH_SIZE), y2: rn(cy) },
-            paint: { stroke: `var(--xychart-color-${item.colorIndex})`, strokeWidth: String(CHART_FONT.lineWidth) },
+            paint: { stroke: `var(--xychart-color-${item.colorIndex})`, strokeWidth: String(CHART_FONT.lineWidth), strokeLinecap: 'round' },
             channels: { category: `line-${item.seriesIndex}` },
+            attributes: { className: 'xychart-legend-swatch' },
           },
             LEGEND_LINE_EMISSION),
           indent: 2,
@@ -454,6 +490,7 @@ export function lowerXYChartScene(
             geometry: { kind: 'circle', cx: rn(item.x + LEGEND_SWATCH_SIZE / 2), cy: rn(cy), r: 2.5 },
             paint: { fill: `var(--xychart-color-${item.colorIndex})`, stroke: 'var(--bg)', strokeWidth: '1' },
             channels: { category: `line-${item.seriesIndex}` },
+            attributes: { className: 'xychart-legend-dot' },
           },
             LEGEND_DOT_EMISSION),
           indent: 2,
@@ -471,7 +508,10 @@ export function lowerXYChartScene(
           y: rn(cy),
           fontSize: chart.config.legendFontSize, fontWeight: style.nodeLabelFontWeight, letterSpacing: style.nodeLetterSpacing, display: 'literal',
           anchor: 'start',
+          dominantBaseline: 'middle',
+          baselineShift: 0,
           paint: { fill: chartColors.legendTextColor },
+          attributes: { className: 'xychart-legend-label' },
         },
           LEGEND_TEXT_EMISSION),
         indent: 2,
@@ -506,6 +546,8 @@ function lowerAxis(
       role: 'axis',
       geometry: { kind: 'line', x1: rn(axis.line.x1), y1: rn(axis.line.y1), x2: rn(axis.line.x2), y2: rn(axis.line.y2) },
       paint: { stroke: lineColor, strokeWidth: String(axis.config.axisLineWidth) },
+
+      attributes: { className: `xychart-axis-line xychart-${axisName}-axis-line` },
     },
       AXIS_EMISSIONS[axisName === 'x' ? 0 : 1]!.line,
     ))
@@ -518,6 +560,8 @@ function lowerAxis(
       role: 'axis',
       geometry: { kind: 'line', x1: rn(tick.x), y1: rn(tick.y), x2: rn(tick.tx), y2: rn(tick.ty) },
       paint: { stroke: tickColor, strokeWidth: String(axis.config.tickWidth) },
+
+      attributes: { className: `xychart-tick xychart-${axisName}-tick` },
     },
       AXIS_EMISSIONS[axisName === 'x' ? 0 : 1]!.tick,
     ))
@@ -534,6 +578,7 @@ function lowerAxisLabels(
 ): void {
   for (const tick of ticks) {
     const label = tick.block?.text ?? applyTextTransform(tick.label, style.edgeTextTransform)
+    const middle = tick.textAnchor === 'end'
     parts.push(marks.text({
       id: `axis:${axisName}:label:${tick.label}`,
       role: 'axis',
@@ -543,19 +588,21 @@ function lowerAxisLabels(
       y: tick.labelY,
       fontSize, fontWeight: style.nodeLabelFontWeight, letterSpacing: style.nodeLetterSpacing, display: 'literal',
       anchor: tick.textAnchor,
+      ...(middle ? { dominantBaseline: 'middle' as const, baselineShift: 0 } : {}),
       paint: { fill },
+
+      attributes: { className: `xychart-label xychart-${axisName}-label` },
     },
       AXIS_LABEL_EMISSIONS[axisName === 'x' ? 0 : 1]![tick.textAnchor === 'end' ? 1 : 0]!,
     ))
   }
 }
 
-/** Theme/renderStyle color cascade shared by the style block and mark paints. */
+/** Theme/renderStyle color cascade for the mark paints. */
 interface ResolvedChartColors {
   gridStroke: string
   titleColor: string
   labelColor: string
-  axisTitleColor: string
   xAxisLabelColor: string
   yAxisLabelColor: string
   xAxisTickColor: string
@@ -576,7 +623,6 @@ function resolveChartColors(
     gridStroke: renderStyle.edgeStrokeColor ?? 'color-mix(in srgb, var(--fg) 14%, transparent)',
     titleColor: themeOverrides.titleColor ?? renderStyle.groupTextColor ?? renderStyle.nodeTextColor ?? 'var(--_text)',
     labelColor: renderStyle.nodeTextColor ?? 'var(--_text)',
-    axisTitleColor: renderStyle.edgeTextColor ?? renderStyle.nodeTextColor ?? 'var(--_text)',
     xAxisLabelColor: themeOverrides.xAxisLabelColor ?? renderStyle.nodeTextColor ?? 'var(--_text)',
     yAxisLabelColor: themeOverrides.yAxisLabelColor ?? renderStyle.nodeTextColor ?? 'var(--_text)',
     xAxisTickColor: themeOverrides.xAxisTickColor ?? renderStyle.groupTextColor ?? 'var(--_text-sec)',
@@ -626,11 +672,7 @@ function chartStyles(
   interactive: boolean,
   themeAccent?: string,
   bgColor?: string,
-  options: RenderOptions = {},
-  styleFace?: Readonly<InternalStyleFace>,
 ): string {
-  const renderStyle = resolveRenderStyle(options, XY_STYLE_DEFAULTS, styleFace)
-  const cc = resolveChartColors(chart, renderStyle)
   const colorIndices = new Set<number>()
   for (const bar of chart.bars) colorIndices.add(bar.colorIndex)
   for (const line of chart.lines) colorIndices.add(line.colorIndex)
@@ -641,39 +683,13 @@ function chartStyles(
     colorVarDefs.push(`    --xychart-color-${index}: ${seriesPalette.css(index)};`)
   }
 
-  const seriesRules: string[] = []
-  for (const index of [...colorIndices].sort((a, b) => a - b)) {
-    const color = `var(--xychart-color-${index})`
-    seriesRules.push(`  .xychart-bar.xychart-color-${index} { fill: ${color}; }`)
-    seriesRules.push(`  path.xychart-color-${index}, line.xychart-color-${index} { stroke: ${color}; }`)
-    seriesRules.push(`  circle.xychart-color-${index} { fill: ${color}; }`)
-  }
-
   const tipRules = interactive ? tooltipCss('xychart', ['xychart-bar-group', 'xychart-dot-group']) : ''
 
   const colorVarsBlock = colorVarDefs.length > 0 ? `\n  svg {\n${colorVarDefs.join('\n')}\n  }` : ''
 
   const extraThemeCss = chart.theme.themeCss ? `\n${chart.theme.themeCss}\n` : ''
   return `
-  .xychart-grid { stroke: ${cc.gridStroke}; stroke-width: 1${renderStyle.edgeStrokeColor ? '; opacity: 0.25' : ''}; }
-  .xychart-axis-line { fill: none; }
-  .xychart-tick { fill: none; }
-  .xychart-x-axis-line { stroke: ${cc.xAxisLineColor}; }
-  .xychart-y-axis-line { stroke: ${cc.yAxisLineColor}; }
-  .xychart-x-tick { stroke: ${cc.xAxisTickColor}; }
-  .xychart-y-tick { stroke: ${cc.yAxisTickColor}; }
-  .xychart-bar { stroke: none; }
-  .xychart-line { fill: none; stroke-width: ${renderStyle.lineWidth}; stroke-linecap: round; stroke-linejoin: round; }
-  .xychart-dot { stroke: var(--bg); stroke-width: 2; }
-  .xychart-label { fill: ${cc.labelColor}; }
-  .xychart-x-label { fill: ${cc.xAxisLabelColor}; }
-  .xychart-y-label { fill: ${cc.yAxisLabelColor}; }
-  .xychart-axis-title { fill: ${cc.axisTitleColor}; }
-  .xychart-x-axis-title { fill: ${cc.xAxisTitleColor}; }
-  .xychart-y-axis-title { fill: ${cc.yAxisTitleColor}; }
-  .xychart-title { fill: ${cc.titleColor}; }
-  .xychart-data-label { pointer-events: none; }${chart.legend.length > 0 ? `\n  .xychart-legend-label { fill: ${cc.legendTextColor}; }` : ''}${colorVarsBlock}
-${seriesRules.join('\n')}${tipRules}${extraThemeCss}
+  .xychart-data-label { pointer-events: none; }${colorVarsBlock}${tipRules}${extraThemeCss}
 `
 }
 

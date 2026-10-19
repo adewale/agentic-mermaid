@@ -1,6 +1,6 @@
 import { decodeXML } from 'entities'
-import type { SvgSemanticIdentity } from './identity.ts'
 import { escapeAttr } from '../multiline-utils.ts'
+import type { SvgSemanticIdentity } from './identity.ts'
 import { sceneRoleTraits } from './roles.ts'
 
 export interface SvgRelationSemantics {
@@ -38,6 +38,7 @@ export function relationAccessibility(
   }
 }
 
+/** Checked legacy mark-construction adapter; built-in typed marks never parse SVG. */
 export function relationAccessibilityForSvg(
   svg: string,
   identity: SvgSemanticIdentity,

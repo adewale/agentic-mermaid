@@ -11,9 +11,10 @@ import { PaintLayoutCertificationError } from '../scene/paint-certification.ts'
 import { normalizeV11Shape } from '../flowchart-shapes.ts'
 import { applyGanttFrontmatterConfig, parseGanttModel } from '../gantt/parser.ts'
 import { GANTT_TODAY_MARKER_STYLE_PROPS, parseTodayMarkerStyle } from '../gantt/today-marker.ts'
-import { lowerPositionedFamilyScene, renderPositionedMermaidSVG } from '../graphical-render.ts'
+import { executeGraphicalRequest, lowerPositionedFamilyScene, renderPositionedMermaidSVG } from '../graphical-render.ts'
 import { normalizeMermaidSource, normalizeMermaidSourceWithOverrides } from '../mermaid-source.ts'
 import { resolveRenderRequest } from '../render-contract.ts'
+import { DiagramWorkLimitError } from '../shared/diagram-limits.ts'
 import { checkFamilyConfigColors, checkThemeVariableColors, RenderOptionColorError, ThemeVariableColorError } from '../theme-color-admission.ts'
 import { walkJourneyLines } from '../journey/parse-core.ts'
 import { auditRouteContracts, findRouteHitches } from '../route-contracts.ts'
@@ -27,26 +28,34 @@ import type { PositionedGraph } from '../types.ts'
 import { formatBarValue } from '../xychart/axis-utils.ts'
 import type { PositionedXYChart } from '../xychart/types.ts'
 import type { PositionedQuadrantChart } from '../quadrant/types.ts'
+import type { PositionedTreemap } from '../treemap/types.ts'
 import { ensureAccessibilityLines } from './accessibility-envelope.ts'
+import { renderErrorOrigin } from './error-origin.ts'
 import { architectureUnsupportedSyntaxWarnings } from './architecture-body.ts'
 import { classUnsupportedSyntaxWarnings } from './class-body.ts'
 import { ganttUnsupportedSyntaxWarnings } from './gantt-body.ts'
 import { erUnsupportedSyntaxWarnings } from './er-body.ts'
 import { builtinFamilyMetadata, extractLabelsGeneric, getFamily } from './families.ts'
+import { detectsFlowchartFamily } from './family-router.ts'
 import { FamilyLayoutError, ganttGeometryWarnings, ganttScheduleWarning, layoutGeometryWarnings, type ProjectedFamilyArtifact, positionFamilyArtifact } from './family-layouts.ts'
 import { flowchartUnsupportedSyntaxWarnings, flowchartUpstreamRejectedSyntaxWarnings } from './flowchart-unsupported.ts'
+import { mermaidCleanupWarnings } from './cleanup-warnings.ts'
 import { labelOverflowWarning } from './label-metrics.ts'
 import { resolveLabelContent } from '../shared/display-text.ts'
 import { emptyRenderedLayout } from './layout-to-rendered.ts'
+import { mindmapUnsupportedSyntaxWarnings } from './mindmap-body.ts'
 import { parseRegisteredMermaid } from './parse.ts'
+import { prepareRenderInput } from './render-input.ts'
 import { quadrantUnsupportedSyntaxWarnings } from './quadrant-body.ts'
 import { sequenceMessages, sequenceUnsupportedSyntaxWarnings } from './sequence-body.ts'
-import { authoredLineForCanonical } from './source-map-spans.ts'
+import { authoredLineForCanonical, sourceCleanup } from './source-map-spans.ts'
 import { serializeMermaid } from './serialize.ts'
-import { stateBodyToGraph } from './state-body.ts'
+import { stateBodyToGraph, stateUnsupportedSyntaxWarnings } from './state-body.ts'
+import { xychartUnsupportedSyntaxWarnings } from './xychart-body.ts'
+import { radarUnsupportedSyntaxWarnings } from './radar-body.ts'
 import { countStructuralElements, faithfulnessWarning } from './structural-count.ts'
 import { logToolInvocation } from './trace-log.ts'
-import type { ExtensionValidDiagram, LayoutWarning, ParsedDiagram, RenderedLayout, SequenceBody, ValidDiagram, VerifyOptions, VerifyResult, WarningCode } from './types.ts'
+import type { ExtensionValidDiagram, LayoutWarning, ParseError, ParsedDiagram, RenderedLayout, SequenceBody, ValidDiagram, VerifyOptions, VerifyResult, WarningCode } from './types.ts'
 import { DEFAULT_LABEL_CHAR_CAP, WARNING_SEVERITY } from './types.ts'
 import type { PositionedC4Diagram } from '../c4/layout.ts'
 
@@ -128,16 +137,24 @@ export function verifyMermaid(input: ParsedDiagram | string, opts: VerifyOptions
     // still valuable (and were historically part of verify's contract).
     // Report them alongside the hard failure instead of making malformed
     // delimiters and dangling edges disappear merely because admission failed.
-    const sourceWarnings = typeof input === 'string' ? flowchartUnsupportedSyntaxWarnings(input) : []
-    return finalize([{ code: 'EMPTY_DIAGRAM' }, ...sourceWarnings], emptyRenderedLayout('flowchart'), opts)
+    // These are flowchart lints: another family's text is not read by them,
+    // and a wrapper that does not normalize leaves no body to read.
+    // Suppressing the finding cannot make a source that does not parse verify.
+    const code = parsed.error[0]?.code
+    const flowchart = typeof input === 'string' && code !== 'INVALID_FRONTMATTER' && code !== 'CONFIG_REJECTED' && detectsFlowchartFamily(normalizeMermaidSource(input).firstLine)
+    const sourceWarnings = [
+      ...(flowchart ? flowchartUnsupportedSyntaxWarnings(input) : []),
+      ...(typeof input === 'string' && code !== 'INVALID_FRONTMATTER' && code !== 'CONFIG_REJECTED' ? mermaidCleanupWarnings(input) : []),
+    ]
+    return { ...finalize([parseFailureWarning(parsed.error), ...sourceWarnings], emptyRenderedLayout('flowchart'), opts), ok: false }
   }
   if (parsed.value.body.kind === 'preserved') {
     const { diagnostic } = parsed.value.body
-    return finalize([{ code: 'RENDER_FAILED', reason: `${diagnostic.code}: ${diagnostic.message}` }], emptyRenderedLayout(parsed.value.kind), opts, false)
+    return finalize([{ code: 'RENDER_FAILED', reason: `${diagnostic.code}: ${diagnostic.message}`, origin: 'source' }], emptyRenderedLayout(parsed.value.kind), opts, false)
   }
-  // Flowchart's canonical body omits the authored config envelope, so the
-  // positioned render-parity artifact alone cannot detect bad theme colors.
-  // Check the same merged source/options config before all verification tiers.
+  const positioned = memoizedVerificationArtifact(parsed.value, opts, typeof input === 'string' ? input : undefined)
+  // Check the merged source/options theme and family config colors before all
+  // verification tiers, so a refused color is the whole finding.
   try {
     const authored = typeof input === 'string' ? input : serializeMermaid(parsed.value)
     const source = normalizeMermaidSourceWithOverrides(authored, opts.renderOptions?.mermaidConfig ?? {})
@@ -148,21 +165,70 @@ export function verifyMermaid(input: ParsedDiagram | string, opts: VerifyOptions
     else checkThemeVariableColors(source.config.themeVariables, parsed.value.kind, opts.renderOptions)
     checkFamilyConfigColors(source.frontmatter, parsed.value.kind)
   } catch (error) {
-    const reason = error instanceof Error ? error.message : String(error)
-    return finalize([{ code: 'RENDER_FAILED', reason }], emptyRenderedLayout(parsed.value.kind), opts, false)
+    return finalize([positioned.failure(error)], emptyRenderedLayout(parsed.value.kind), opts, false)
   }
-  const positioned = memoizedVerificationArtifact(parsed.value, opts)
   try {
-    const structured = verifyStructure(parsed.value, opts, positioned)
+    const structured = verifyStructure(parsed.value, opts, positioned, typeof input === 'string' ? input : undefined)
     return withRenderParity(withBrandConstraints(structured, opts, positioned), opts, positioned)
   } catch (error) {
-    if (error instanceof PaintLayoutCertificationError) return { ...finalize([{ code: 'RENDER_FAILED', reason: error.message }], emptyRenderedLayout(parsed.value.kind), opts, false), layoutCertification: error.certification }
-    if (!(error instanceof FamilyLayoutError || error instanceof RenderOptionColorError || error instanceof ThemeVariableColorError)) throw error
-    return finalize([{ code: 'RENDER_FAILED', reason: error.message }], emptyRenderedLayout(parsed.value.kind), opts, false)
+    // Family layouts, color admission and a work limit only a render-path
+    // parser enforces (state nesting) are findings, not verify failures.
+    if (!(error instanceof PaintLayoutCertificationError || error instanceof FamilyLayoutError || error instanceof RenderOptionColorError || error instanceof ThemeVariableColorError || error instanceof DiagramWorkLimitError)) throw error
+    const certification = error instanceof PaintLayoutCertificationError ? { layoutCertification: error.certification } : {}
+    return { ...finalize([positioned.failure(error)], emptyRenderedLayout(parsed.value.kind), opts, false), ...certification }
   }
 }
 
-type VerificationArtifact = () => ProjectedFamilyArtifact | null
+type DefaultRender = Extract<LayoutWarning, { code: 'INTERNAL_ERROR' }>['defaultRender']
+
+/**
+ * The one mapping from a caught render-path failure to a verify finding. A
+ * fault in the source or its configuration is the author's to fix:
+ * RENDER_FAILED, with its origin. An engine defect is ours: INTERNAL_ERROR,
+ * whose `defaultRender` comes from `defaultRender()`, called only here, on
+ * the failure path.
+ */
+export function renderFailureWarning(error: unknown, defaultRender: () => DefaultRender, prefix = ''): LayoutWarning {
+  const reason = `${prefix}${error instanceof Error ? error.message : String(error)}`
+  const origin = renderErrorOrigin(error)
+  return origin === 'engine' ? { code: 'INTERNAL_ERROR', reason, defaultRender: defaultRender() } : { code: 'RENDER_FAILED', reason, origin }
+}
+
+/**
+ * Whether an ordinary render of the request verify checks still produces
+ * output: the caller's own source (or the parsed diagram they passed) and
+ * render options, without the Scene cross-checks verify marks its own
+ * requests for. The caller's diagnostic callback is left out; it already
+ * observes verify's own request.
+ */
+function ordinaryRenderOutcome(d: ParsedDiagram, opts: VerifyOptions, authored?: string): DefaultRender {
+  try {
+    const { onConfigDiagnostic: _observer, ...renderOptions } = opts.renderOptions ?? {}
+    const input = prepareRenderInput(authored ?? d)
+    executeGraphicalRequest(input.source, renderOptions, 'svg', undefined, { expectedFamilyId: input.expectedFamilyId })
+    return 'succeeds-unchecked'
+  } catch {
+    return 'fails'
+  }
+}
+
+/** The positioned artifact one verify call checks, and the finding for a
+ * failure on its render path. */
+type VerificationArtifact = (() => ProjectedFamilyArtifact | null) & {
+  failure(error: unknown, prefix?: string): LayoutWarning
+}
+
+/** A source that does not parse. Only an empty one is EMPTY_DIAGRAM; any other
+ * parse failure carries the parser's message, and is the source's unless its
+ * config was refused or a registered family broke its descriptor contract. */
+function parseFailureWarning(errors: readonly ParseError[]): LayoutWarning {
+  if (errors.every(error => error.code === 'EMPTY')) return { code: 'EMPTY_DIAGRAM' }
+  return {
+    code: 'RENDER_FAILED',
+    reason: errors.map(error => error.message).join('; '),
+    origin: errors.some(error => error.code === 'CONFIG_REJECTED' || error.code === 'FAMILY_DESCRIPTOR_CONTRACT') ? 'config' : 'source',
+  }
+}
 
 function withBrandConstraints(result: VerifyResult, opts: VerifyOptions, positioned: VerificationArtifact): VerifyResult {
   if (!result.ok) return result
@@ -185,12 +251,15 @@ function withBrandConstraints(result: VerifyResult, opts: VerifyOptions, positio
   }
 }
 
-/** One lazy artifact per verify call; failures are memoized as well as values. */
-function memoizedVerificationArtifact(d: ParsedDiagram, opts: VerifyOptions): VerificationArtifact {
+/** One lazy artifact per verify call; failures are memoized as well as values,
+ * and so is the ordinary render an engine failure is checked against. */
+function memoizedVerificationArtifact(d: ParsedDiagram, opts: VerifyOptions, authored?: string): VerificationArtifact {
   let attempted = false
   let artifact: ProjectedFamilyArtifact | null = null
   let failure: unknown
-  return () => {
+  let defaultRender: DefaultRender | undefined
+  const failureWarning = (error: unknown, prefix?: string) => renderFailureWarning(error, () => defaultRender ??= ordinaryRenderOutcome(d, opts, authored), prefix)
+  return Object.assign(() => {
     if (attempted) {
       if (failure !== undefined) throw failure
       return artifact
@@ -201,7 +270,10 @@ function memoizedVerificationArtifact(d: ParsedDiagram, opts: VerifyOptions): Ve
       // result for geometric verification. The renderability gate consumes
       // this same request + result and therefore cannot parse or lay out again.
       // Verify is where a built-in lowering bug should surface, so every Scene
-      // lowered for this artifact is cross-checked.
+      // lowered for this artifact is cross-checked. A source string and its
+      // parsed diagram position from one render source: the diagram's body
+      // under its config wrapper (init directives, frontmatter, themeCSS),
+      // which is also what every structural tier reads.
       artifact = positionFamilyArtifact(d, {
         renderOptions: opts.renderOptions,
         output: 'svg',
@@ -212,7 +284,7 @@ function memoizedVerificationArtifact(d: ParsedDiagram, opts: VerifyOptions): Ve
       failure = error
       throw error
     }
-  }
+  }, { failure: failureWarning })
 }
 
 /**
@@ -237,8 +309,7 @@ function withRenderParity(result: VerifyResult, opts: VerifyOptions, positioned:
     const rendered = renderPositionedMermaidSVG(artifact.request, artifact.layoutResult, [])
     return { ...result, ...(rendered.layoutCertification ? { layoutCertification: rendered.layoutCertification } : {}) }
   } catch (e) {
-    const reason = e instanceof Error ? e.message : String(e)
-    return { ...result, ok: false, ...(e instanceof PaintLayoutCertificationError ? { layoutCertification: e.certification } : {}), warnings: [...result.warnings, { code: 'RENDER_FAILED', reason }] }
+    return { ...result, ok: false, ...(e instanceof PaintLayoutCertificationError ? { layoutCertification: e.certification } : {}), warnings: [...result.warnings, positioned.failure(e)] }
   }
 }
 
@@ -312,35 +383,69 @@ function journeySemicolonExtensionWarnings(d: ValidDiagram): LayoutWarning[] {
   if (headerIndex < 0) return []
   const lineNumbers = new Set<number>()
   walkJourneyLines(lines, headerIndex + 1, {
-    statementDelimiter: lineIndex => { lineNumbers.add(lineIndex + 1) },
+    statementDelimiter: lineIndex => {
+      lineNumbers.add(lineIndex + 1)
+    },
   })
-  return [...lineNumbers].sort((a, b) => a - b).map(canonicalLine => ({
-    code: 'UNSUPPORTED_SYNTAX',
-    syntax: 'journey_semicolon_statement_extension',
-    line: authoredLineForCanonical(d.source, canonicalLine),
-    message: 'Semicolon-separated Journey statements are an Agentic Mermaid extension; pinned Mermaid rejects this source. Put each statement on its own line for upstream portability.',
-  }))
+  return [...lineNumbers]
+    .sort((a, b) => a - b)
+    .map(canonicalLine => ({
+      code: 'UNSUPPORTED_SYNTAX',
+      syntax: 'journey_semicolon_statement_extension',
+      line: authoredLineForCanonical(d.source, canonicalLine),
+      message: 'Semicolon-separated Journey statements are an Agentic Mermaid extension; pinned Mermaid rejects this source. Put each statement on its own line for upstream portability.',
+    }))
+}
+
+function treemapNumericExtensionWarnings(d: ValidDiagram): LayoutWarning[] {
+  if (d.body.kind !== 'treemap') return []
+  return d.canonicalSource.split(/\r?\n/).flatMap((line, index) =>
+    /["']\s*[:,]\s*[\d.,]*_/.test(line)
+      ? [
+          {
+            code: 'UNSUPPORTED_SYNTAX' as const,
+            syntax: 'treemap_numeric_separator',
+            line: authoredLineForCanonical(d.source, index + 1),
+            message: 'Underscores in Treemap quantities are read as digit separators; Mermaid 12.2.0 does not preserve that quantity. Canonical edits write the full numeric value without underscores.',
+          },
+        ]
+      : [],
+  )
 }
 
 /** Source this repo reads generously where pinned Mermaid rejects it: each
  * family's rule reports UNSUPPORTED_SYNTAX on canonical lines, and verify
- * names the authored line, as journeySemicolonExtensionWarnings does. */
-const UPSTREAM_REJECTED_SYNTAX: Partial<Record<ValidDiagram['kind'], (canonicalSource: string) => LayoutWarning[]>> = {
+ * names the authored line, as journeySemicolonExtensionWarnings does. Given
+ * the authored source, a rule may read a canonical line as authored. */
+const UPSTREAM_REJECTED_SYNTAX: Partial<Record<ValidDiagram['kind'], (canonicalSource: string, authoredLine?: (canonicalLine: number) => string | undefined) => LayoutWarning[]>> = {
   architecture: architectureUnsupportedSyntaxWarnings,
   class: classUnsupportedSyntaxWarnings,
   er: erUnsupportedSyntaxWarnings,
   flowchart: flowchartUpstreamRejectedSyntaxWarnings,
   gantt: ganttUnsupportedSyntaxWarnings,
+  mindmap: mindmapUnsupportedSyntaxWarnings,
   quadrant: quadrantUnsupportedSyntaxWarnings,
+  radar: radarUnsupportedSyntaxWarnings,
   sequence: sequenceUnsupportedSyntaxWarnings,
+  state: stateUnsupportedSyntaxWarnings,
+  xychart: xychartUnsupportedSyntaxWarnings,
 }
 
-function upstreamRejectedSyntaxWarnings(d: ValidDiagram): LayoutWarning[] {
+function upstreamRejectedSyntaxWarnings(d: ValidDiagram, authored?: string): LayoutWarning[] {
   const rule = UPSTREAM_REJECTED_SYNTAX[d.kind]
-  if (!rule) return []
-  return rule(d.canonicalSource).map(warning => warning.code === 'UNSUPPORTED_SYNTAX' && warning.line !== undefined
+  const lines = authored?.split(/\r\n?|\n/)
+  const authoredLine = lines && ((line: number) => lines[authoredLineForCanonical(d.source, line) - 1])
+  return (rule?.(d.canonicalSource, authoredLine) ?? []).map(warning => warning.code === 'UNSUPPORTED_SYNTAX' && warning.line !== undefined
     ? { ...warning, line: authoredLineForCanonical(d.source, warning.line) }
     : warning)
+}
+
+function cleanupWarningsForDiagram(d: ParsedDiagram, authored?: string): LayoutWarning[] {
+  const cleanup = sourceCleanup(d.source)
+  if (cleanup) return mermaidCleanupWarnings(cleanup)
+  if (authored !== undefined) return mermaidCleanupWarnings(authored)
+  return mermaidCleanupWarnings(d.canonicalSource).map(warning => warning.code === 'UNSUPPORTED_SYNTAX' && warning.line !== undefined
+    ? { ...warning, line: authoredLineForCanonical(d.source, warning.line) } : warning)
 }
 
 /** Preserve Mermaid-authored Radar paint exactly and diagnose measurable
@@ -386,15 +491,29 @@ function c4LayoutWarnings(positioned: VerificationArtifact): LayoutWarning[] {
       const statement = layout.body.statements.find(item => item.id === diagnostic.statementId)
       if (diagnostic.code === 'C4_LABEL_COLLISION' || diagnostic.code === 'C4_ARROW_OCCLUDED') {
         return {
-          code: 'CONTENT_OCCLUDED', target: statement?.entityId ?? 'C4 layout',
+          code: 'CONTENT_OCCLUDED',
+          target: statement?.entityId ?? 'C4 layout',
           feature: diagnostic.code === 'C4_ARROW_OCCLUDED' ? 'marker' : 'label',
-          line: statement?.span.line, message: `${diagnostic.code}: ${diagnostic.message}`,
+          line: statement?.span.line,
+          message: `${diagnostic.code}: ${diagnostic.message}`,
         }
       }
       if (diagnostic.code === 'C4_WIDTH_EXCEEDED') return { code: 'LAYOUT_LIMIT_EXCEEDED', constraint: 'c4.maxWidth', message: `${diagnostic.code}: ${diagnostic.message}` }
       return { code: 'UNSUPPORTED_SYNTAX', line: statement?.span.line, syntax: statement?.raw ?? 'C4 layout', message: `${diagnostic.code}: ${diagnostic.message}` }
     })
-  } catch { return [] } // The render-parity gate owns layout failures.
+  } catch {
+    return []
+  } // The render-parity gate owns layout failures.
+}
+
+function treemapHiddenLabelWarnings(positioned: VerificationArtifact): LayoutWarning[] {
+  try {
+    const chart = positioned()?.positioned as PositionedTreemap | undefined
+    if (!chart?.hiddenLabels.length) return []
+    return [{ code: 'LABELS_HIDDEN', target: 'data-labels', labels: chart.hiddenLabels, message: 'Treemap labels do not fit their value-proportional cells; enlarge the canvas or reduce the hierarchy.' }]
+  } catch {
+    return [] // The render-parity gate owns layout failures.
+  }
 }
 
 /** Chart text the XY layout left out because it did not fit (LABELS_HIDDEN).
@@ -417,14 +536,14 @@ function xychartHiddenLabelWarnings(positioned: VerificationArtifact): LayoutWar
     const legend = chart.hiddenLegendLabels ?? []
     if (legend.length > 0) {
       warnings.push({
-        code: 'LABELS_HIDDEN', target: 'legend', labels: legend,
+        code: 'LABELS_HIDDEN',
+        target: 'legend',
+        labels: legend,
         message: `XY chart does not draw ${legend.length} legend ${legend.length === 1 ? 'entry' : 'entries'} because the legend does not fit: ${legend.join(', ')}. Enlarge the chart, shorten the series names, or lower xyChart.plotReservedSpacePercent.`,
       })
     }
     if (categories.length > 0) {
-      const remedy = chart.horizontal
-        ? 'Shorten the category names, widen the chart, or lower xyChart.plotReservedSpacePercent.'
-        : 'Shorten the category names, or call set_orientation {horizontal: true} to list categories down the side.'
+      const remedy = chart.horizontal ? 'Shorten the category names, widen the chart, or lower xyChart.plotReservedSpacePercent.' : 'Shorten the category names, or call set_orientation {horizontal: true} to list categories down the side.'
       warnings.push({
         code: 'LABELS_HIDDEN',
         target: 'x-axis',
@@ -456,12 +575,14 @@ function quadrantHiddenLabelWarnings(positioned: VerificationArtifact): LayoutWa
     const chart = positioned()?.positioned as Partial<PositionedQuadrantChart> | undefined
     const labels = (chart?.points ?? []).filter(point => point.labelHidden).map(point => point.label)
     if (labels.length === 0) return []
-    return [{
-      code: 'LABELS_HIDDEN',
-      target: 'point-labels',
-      labels,
-      message: `Quadrant chart does not draw ${labels.length} point ${labels.length === 1 ? 'label' : 'labels'} because ${labels.length === 1 ? 'it collides' : 'they collide'} with labels placed first: ${labels.join(', ')}. Spread the points, shorten the names, or enlarge the chart.`,
-    }]
+    return [
+      {
+        code: 'LABELS_HIDDEN',
+        target: 'point-labels',
+        labels,
+        message: `Quadrant chart does not draw ${labels.length} point ${labels.length === 1 ? 'label' : 'labels'} because ${labels.length === 1 ? 'it collides' : 'they collide'} with labels placed first: ${labels.join(', ')}. Spread the points, shorten the names, or enlarge the chart.`,
+      },
+    ]
   } catch {
     // Layout failures have their own RENDER_FAILED path.
     return []
@@ -472,8 +593,7 @@ export function configWarningsForDiagram(d: ParsedDiagram): LayoutWarning[] {
   if (d.body.kind === 'preserved') return []
   if (d.body.kind === 'extension') {
     const family = getFamily(d.kind)
-    return family?.configDiagnostics ? familyConfigDiagnostics(d.kind,
-      [d.meta.frontmatter, ...d.meta.initDirectives.map(directive => directive.parsed)], family.config, family.configDiagnostics) : []
+    return family?.configDiagnostics ? familyConfigDiagnostics(d.kind, [d.meta.frontmatter, ...d.meta.initDirectives.map(directive => directive.parsed)], family.config, family.configDiagnostics) : []
   }
   const builtin = d as ValidDiagram
   const familySpecific = builtin.kind === 'gantt' ? ganttTodayMarkerWarnings(builtin) : []
@@ -486,7 +606,7 @@ export function configWarningsForMermaid(source: string): LayoutWarning[] {
   return parsed.ok ? configWarningsForDiagram(parsed.value) : []
 }
 
-function verifyStructure(parsed: ParsedDiagram, opts: VerifyOptions, positioned: VerificationArtifact): VerifyResult {
+function verifyStructure(parsed: ParsedDiagram, opts: VerifyOptions, positioned: VerificationArtifact, authored?: string): VerifyResult {
   const cap = opts.labelCharCap ?? DEFAULT_LABEL_CHAR_CAP
 
   // FamilyDescriptor verify dispatcher pass: every registered family's `verify`
@@ -496,16 +616,20 @@ function verifyStructure(parsed: ParsedDiagram, opts: VerifyOptions, positioned:
   // 2C comment policy: in-body comments that structured serialization drops
   // (recorded at parse time) surface here as the Tier 3 COMMENT_DROPPED lint,
   // so the loss is announced rather than silent.
-  const metaWarnings: LayoutWarning[] = parsed.meta.droppedComments?.length ? [{ code: 'COMMENT_DROPPED', count: parsed.meta.droppedComments.length, lines: parsed.meta.droppedComments.map(c => c.line) }] : []
-  const dispatchedWarnings = dispatchFamilyVerify(parsed, opts)
+  const metaWarnings: LayoutWarning[] = [
+    ...(parsed.meta.droppedComments?.length ? [{ code: 'COMMENT_DROPPED' as const, count: parsed.meta.droppedComments.length, lines: parsed.meta.droppedComments.map(c => c.line) }] : []),
+    ...cleanupWarningsForDiagram(parsed, authored),
+  ]
+  const dispatchedWarnings = dispatchFamilyVerify(parsed, opts, positioned)
   const configWarnings = configWarningsForDiagram(parsed)
   if (parsed.body.kind === 'extension') {
     return verifyExtension(parsed as ExtensionValidDiagram, cap, opts, dedupedConcat(dedupedConcat(metaWarnings, dispatchedWarnings), configWarnings), positioned)
   }
 
   const d = parsed as ValidDiagram
-  const familySourceWarnings = d.kind === 'flowchart' ? dedupedConcat(flowchartUnsupportedSyntaxWarnings(d.canonicalSource), flowchartShapeSubstitutionWarnings(d)) : d.kind === 'quadrant' ? quadrantInertStyleWarnings(d) : d.kind === 'journey' ? journeySemicolonExtensionWarnings(d) : []
-  const sourceWarnings = dedupedConcat(familySourceWarnings, upstreamRejectedSyntaxWarnings(d))
+  const familySourceWarnings =
+    d.kind === 'flowchart' ? dedupedConcat(flowchartUnsupportedSyntaxWarnings(d.canonicalSource), flowchartShapeSubstitutionWarnings(d)) : d.kind === 'quadrant' ? quadrantInertStyleWarnings(d) : d.kind === 'journey' ? journeySemicolonExtensionWarnings(d) : d.kind === 'treemap' ? treemapNumericExtensionWarnings(d) : []
+  const sourceWarnings = dedupedConcat(familySourceWarnings, upstreamRejectedSyntaxWarnings(d, authored))
   const faithfulnessWarnings = roundtripFaithfulnessWarnings(d)
   const bareHeader = hasOnlyHeader(d)
   let pluginWarnings = dedupedConcat(dedupedConcat(dedupedConcat(dedupedConcat(dedupedConcat(metaWarnings, dispatchedWarnings), sourceWarnings), faithfulnessWarnings), configWarnings), bareHeader ? [{ code: 'EMPTY_DIAGRAM' }] : [])
@@ -548,7 +672,26 @@ function verifyStructure(parsed: ParsedDiagram, opts: VerifyOptions, positioned:
     return finalize(dedupedConcat(pluginWarnings, geometric), layout, opts)
   }
 
-  if (d.body.kind === 'class' || d.body.kind === 'er' || d.body.kind === 'journey' || d.body.kind === 'architecture' || d.body.kind === 'xychart' || d.body.kind === 'pie' || d.body.kind === 'quadrant' || d.body.kind === 'mindmap' || d.body.kind === 'gitgraph' || d.body.kind === 'radar' || d.body.kind === 'sankey' || d.body.kind === 'c4') {
+  if (
+    d.body.kind === 'class' ||
+    d.body.kind === 'er' ||
+    d.body.kind === 'journey' ||
+    d.body.kind === 'architecture' ||
+    d.body.kind === 'xychart' ||
+    d.body.kind === 'pie' ||
+    d.body.kind === 'quadrant' ||
+    d.body.kind === 'mindmap' ||
+    d.body.kind === 'gitgraph' ||
+    d.body.kind === 'radar' ||
+    d.body.kind === 'sankey' ||
+    d.body.kind === 'c4' ||
+    d.body.kind === 'packet' ||
+    d.body.kind === 'kanban' ||
+    d.body.kind === 'requirement' ||
+    d.body.kind === 'block' ||
+    d.body.kind === 'treemap' ||
+    d.body.kind === 'ishikawa'
+  ) {
     // QUAL-1: verify.layout is now truthful — the real positioned layout from
     // the family adapters (was emptyRenderedLayout). #33 adds zero-noise
     // class/ER semantic geometry tripwires: relationship endpoints must sit on
@@ -566,11 +709,18 @@ function verifyStructure(parsed: ParsedDiagram, opts: VerifyOptions, positioned:
             // so a task laid outside its section band is a reportable breach.
             groupContainment: d.body.kind === 'xychart' || d.body.kind === 'quadrant' ? 'center' : d.body.kind === 'journey' || d.body.kind === 'c4',
           })
-    const appearanceWarnings = d.body.kind === 'radar'
-      ? radarAuthoredContrastWarnings(positioned)
-      : d.body.kind === 'xychart' ? xychartHiddenLabelWarnings(positioned)
-        : d.body.kind === 'quadrant' ? quadrantHiddenLabelWarnings(positioned)
-          : d.body.kind === 'c4' ? c4LayoutWarnings(positioned) : []
+    const appearanceWarnings =
+      d.body.kind === 'radar'
+        ? radarAuthoredContrastWarnings(positioned)
+        : d.body.kind === 'xychart'
+          ? xychartHiddenLabelWarnings(positioned)
+          : d.body.kind === 'quadrant'
+            ? quadrantHiddenLabelWarnings(positioned)
+            : d.body.kind === 'c4'
+              ? c4LayoutWarnings(positioned)
+              : d.body.kind === 'treemap'
+                ? treemapHiddenLabelWarnings(positioned)
+                : []
     return finalize(dedupedConcat(dedupedConcat(dedupedConcat(pluginWarnings, familyGeometry), layoutOutcome.warnings), appearanceWarnings), layout, opts)
   }
 
@@ -667,14 +817,14 @@ function familyLayoutForVerify(d: ParsedDiagram, positioned: VerificationArtifac
             {
               code: 'RENDER_FAILED',
               reason: `Mermaid family "${d.kind}" has no public layout projection registered`,
+              origin: 'config',
             },
           ],
         }
   } catch (error) {
-    const reason = error instanceof Error ? error.message : String(error)
     return {
       layout: emptyRenderedLayout(d.kind),
-      warnings: [{ code: 'RENDER_FAILED', reason }],
+      warnings: [positioned.failure(error)],
     }
   }
 }
@@ -690,8 +840,7 @@ function verifyGraph(graph: import('../types.ts').MermaidGraph, d: ValidDiagram,
   try {
     artifact = positionedArtifact()
   } catch (error) {
-    const reason = error instanceof Error ? error.message : String(error)
-    return { warnings: [{ code: 'RENDER_FAILED', reason }], layout: emptyRenderedLayout(d.kind) }
+    return { warnings: [positionedArtifact.failure(error)], layout: emptyRenderedLayout(d.kind) }
   }
   if (!artifact || !isPositionedGraph(artifact.positioned)) {
     return {
@@ -802,9 +951,9 @@ function dedupedConcat(a: LayoutWarning[], b: LayoutWarning[]): LayoutWarning[] 
  * Returns the warnings the descriptor produced. Registered extension families
  * without a hook, and hooks that throw, become explicit verification errors.
  */
-function dispatchFamilyVerify(d: ParsedDiagram, opts: VerifyOptions): LayoutWarning[] {
+function dispatchFamilyVerify(d: ParsedDiagram, opts: VerifyOptions, positioned: VerificationArtifact): LayoutWarning[] {
   const plugin = getFamily(d.kind)
-  if (!plugin?.verify) return d.body.kind === 'extension' ? [{ code: 'RENDER_FAILED', reason: `Mermaid family "${d.kind}" has no verify hook registered` }] : []
+  if (!plugin?.verify) return d.body.kind === 'extension' ? [{ code: 'RENDER_FAILED', reason: `Mermaid family "${d.kind}" has no verify hook registered`, origin: 'config' }] : []
   try {
     let body = d.body
     if (d.body.kind === 'extension') {
@@ -820,6 +969,7 @@ function dispatchFamilyVerify(d: ParsedDiagram, opts: VerifyOptions): LayoutWarn
             {
               code: 'RENDER_FAILED',
               reason: `Mermaid family "${d.kind}" could not reparse source under its current descriptor before verification`,
+              origin: 'source',
             },
           ]
         }
@@ -828,8 +978,7 @@ function dispatchFamilyVerify(d: ParsedDiagram, opts: VerifyOptions): LayoutWarn
     }
     return plugin.verify(body, opts)
   } catch (error) {
-    const reason = error instanceof Error ? error.message : String(error)
-    return [{ code: 'RENDER_FAILED', reason: `Mermaid family "${d.kind}" verify hook failed: ${reason}` }]
+    return [positioned.failure(error, `Mermaid family "${d.kind}" verify hook failed: `)]
   }
 }
 
@@ -851,7 +1000,7 @@ function warningKey(w: LayoutWarning): string {
   // node disambiguates per-node lints that share a syntax and carry no line
   // (flowchart_shape_substitution) so two substituted nodes both surface.
   if (w.code === 'UNSUPPORTED_SYNTAX') return `${w.code}:${w.syntax}:${w.line ?? ''}:${w.node ?? ''}`
-  if (w.code === 'RENDER_FAILED') return `${w.code}:${w.reason}`
+  if (w.code === 'RENDER_FAILED' || w.code === 'INTERNAL_ERROR') return `${w.code}:${w.reason}`
   if ('target' in w) return `${w.code}:${w.target}`
   if ('edge' in w) return `${w.code}:${w.edge}`
   if ('node' in w) return `${w.code}:${w.node}`
@@ -999,8 +1148,10 @@ function verifySequence(d: ValidDiagram & { body: SequenceBody }, cap: number, o
   // BUILD-18: opaque-block segments (Note/alt/loop/par/title lines) still get
   // universal LABEL_OVERFLOW via the family's label extractor, so the safety
   // check survives the move from whole-body-opaque to structured-with-segments.
-  const opaqueLines = body.statements.filter((s): s is Extract<typeof s, { kind: 'opaque-block' }> => s.kind === 'opaque-block')
-    .flatMap(s => s.lines).filter(line => !isSequenceCommentLine(line))
+  const opaqueLines = body.statements
+    .filter((s): s is Extract<typeof s, { kind: 'opaque-block' }> => s.kind === 'opaque-block')
+    .flatMap(s => s.lines)
+    .filter(line => !isSequenceCommentLine(line))
   if (opaqueLines.length > 0) {
     warnings.push({
       code: 'UNSUPPORTED_SYNTAX',
@@ -1051,12 +1202,13 @@ function finalize(warnings: LayoutWarning[], layout: RenderedLayout, opts: Verif
   // content-less diagrams keep the explicit, ok-flipping EMPTY_DIAGRAM their
   // verify paths already push. Callers whose empty layout means "unmodeled,
   // preserved" rather than "renders nothing" (opaque bodies) opt out via
-  // guardEmptyLayout=false. A RENDER_FAILED already says why the layout is
-  // empty; announcing unsupported syntax beside it would point at the wrong fix.
+  // guardEmptyLayout=false. A RENDER_FAILED or INTERNAL_ERROR already says why
+  // the layout is empty; announcing unsupported syntax beside it would point at
+  // the wrong fix.
   if (
     guardEmptyLayout &&
     !suppress.has('UNSUPPORTED_SYNTAX') &&
-    !kept.some(w => w.code === 'RENDER_FAILED') &&
+    !kept.some(w => w.code === 'RENDER_FAILED' || w.code === 'INTERNAL_ERROR') &&
     layout.nodes.length === 0 &&
     layout.edges.length === 0 &&
     layout.groups.length === 0 &&

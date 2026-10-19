@@ -1,7 +1,7 @@
 import type { Direction as DiagramDirection } from '../types.ts'
 import type { Direction, GridCoord } from './types.ts'
 import { Up, Down, Left, Right, gridKey } from './types.ts'
-import { getPath } from './pathfinder.ts'
+import { getClearAxisPath, getPath } from './pathfinder.ts'
 import { OccupancyMap } from './occupancy.ts'
 import { allocateFacePort, countFaceDemand, faceSize } from './terminal-geometry.ts'
 import { tryParseCssColor, toHex } from '../shared/color-math.ts'
@@ -194,13 +194,15 @@ export function allocateBoxRoutes(boxes: readonly TerminalBox[], relations: read
       return [0, 1, 2].every(step => !cardCells.has(`${point.x + d.x * step},${point.y + d.y * step}`))
     }
     const exitsClear = sourceExit.x >= 0 && sourceExit.y >= 0 && targetExit.x >= 0 && targetExit.y >= 0 && clearExit(source) && clearExit(target)
-    let middle = exitsClear ? getPath(occupied, sourceExit, targetExit, preferred[source.side]) : null
+    const path = () => getClearAxisPath(occupied, sourceExit, targetExit)
+      ?? getPath(occupied, sourceExit, targetExit, preferred[source.side])
+    let middle = exitsClear ? path() : null
     if (!middle) {
       const removedRoutes: string[] = []
       // Cross line ink only; endpoint markers and their approaches stay
       // protected even where an earlier route also owns those cells.
       for (const key of routeCells) if (occupied.has(key) && !cardCells.has(key) && !markerCells.has(key)) { occupied.delete(key); removedRoutes.push(key) }
-      middle = exitsClear ? getPath(occupied, sourceExit, targetExit, preferred[source.side]) : null
+      middle = exitsClear ? path() : null
       for (const key of removedRoutes) occupied.set(key, blocker)
     }
     for (const [key, previous] of removed) occupied.set(key, previous)

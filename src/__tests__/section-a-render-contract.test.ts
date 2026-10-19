@@ -16,6 +16,8 @@ import { applyOutputSecurityPolicy, verifyNoExternalRefs } from '../output-secur
 import {
   ALL_RENDER_FIELDS_ACCOUNTED_FOR,
   CLI_RENDER_FORMATS,
+  deferredRenderContractDigest,
+  renderContractDigest,
   RENDER_OUTPUT_DESCRIPTORS,
   RENDER_TRANSPORT_SURFACES,
   receiptOf,
@@ -44,6 +46,7 @@ const EXPECTED_BUILTIN_OPTION_APPLICABILITY = {
   interactive: ['xychart', 'pie', 'quadrant'],
   shadow: ['flowchart', 'state', 'sequence', 'timeline', 'class', 'er', 'journey', 'xychart', 'pie', 'quadrant', 'gantt', 'mindmap', 'gitgraph', 'sankey'],
   class: ['class'],
+  kanban: ['kanban'],
   architecture: ['architecture'],
   timeline: ['timeline'],
   journey: ['journey'],
@@ -60,6 +63,7 @@ const FAMILY_SCOPED_OPTION_VALUES = {
   interactive: true,
   shadow: true,
   class: { hierarchicalNamespaces: false },
+  kanban: { maxWidth: 600 },
   architecture: { visual: { groupCornerRadius: 12 } },
   timeline: { maxWidth: 300 },
   journey: { experienceCurve: false },
@@ -68,6 +72,21 @@ const FAMILY_SCOPED_OPTION_VALUES = {
 } as const satisfies Record<keyof typeof EXPECTED_BUILTIN_OPTION_APPLICABILITY, unknown>
 
 describe('Section A canonical render contracts', () => {
+  test('deferred evidence captures mutable accessors once and rejects invalid data immediately', () => {
+    const data = { label: 'captured' }
+    let reads = 0
+    const digest = deferredRenderContractDigest({ get data() { reads++; return data } })
+    expect(reads).toBe(1)
+    data.label = 'changed after admission'
+    expect(digest()).toBe(renderContractDigest({ data: { label: 'captured' } }))
+    expect(digest()).toBe(digest())
+    expect(reads).toBe(1)
+    const cycle: { next?: unknown } = {}
+    cycle.next = cycle
+    expect(() => deferredRenderContractDigest(cycle)).toThrow(TypeError)
+    expect(() => deferredRenderContractDigest({ value: Number.POSITIVE_INFINITY })).toThrow(TypeError)
+  })
+
   test('the manifest accounts for every RenderOptions field and generates the adapter schema', () => {
     expect(ALL_RENDER_FIELDS_ACCOUNTED_FOR).toBe(true)
     const schema = sharedRenderOptionsJsonSchema() as { additionalProperties: boolean; properties: Record<string, unknown> }
@@ -300,6 +319,7 @@ describe('Section A canonical render contracts', () => {
     expect(context).toEqual({
       renderOptions: request.renderOptions,
       styleFace: request.appearance.face,
+      paintBackendId: 'backend:default',
     })
     expect(Object.isFrozen(context)).toBe(true)
     expect(Object.getOwnPropertySymbols(request.renderOptions)).toEqual([])

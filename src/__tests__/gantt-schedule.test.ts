@@ -4,12 +4,9 @@
 // cycles named, missing first start, schedule overflow), explicit clock.
 // All instants are UTC epoch ms — assertions use Date.UTC, never wall clock.
 
-import { describe, test, expect } from 'bun:test'
+import { describe, expect, test } from 'bun:test'
 import { parseGanttModel } from '../gantt/parser.ts'
-import {
-  resolveGanttSchedule, parseGanttDate, addGanttDuration, formatGanttInstant,
-  buildExclusionPredicate, calendarFromModel, dayOfWeek, DAY_MS,
-} from '../gantt/schedule.ts'
+import { addGanttDuration, buildExclusionPredicate, calendarFromModel, DAY_MS, dayOfWeek, formatGanttInstant, parseGanttDate, resolveGanttSchedule } from '../gantt/schedule.ts'
 import { GanttError } from '../gantt/types.ts'
 import { normalizeMermaidSource } from '../mermaid-source.ts'
 
@@ -131,29 +128,26 @@ describe('resolver — calendar exclusions', () => {
   })
 
   test('weekend friday shifts which days count as the weekend', () => {
-    const cal = calendarFromModel(parseGanttModel(normalizeMermaidSource(
-      'gantt\n  excludes weekends\n  weekend friday\n  A :a, 2024-01-01, 1d').lines))
+    const cal = calendarFromModel(parseGanttModel(normalizeMermaidSource('gantt\n  excludes weekends\n  weekend friday\n  A :a, 2024-01-01, 1d').lines))
     const excluded = buildExclusionPredicate(cal)
-    expect(excluded(UTC(2024, 1, 5))).toBe(true)  // Friday
-    expect(excluded(UTC(2024, 1, 6))).toBe(true)  // Saturday
+    expect(excluded(UTC(2024, 1, 5))).toBe(true) // Friday
+    expect(excluded(UTC(2024, 1, 6))).toBe(true) // Saturday
     expect(excluded(UTC(2024, 1, 7))).toBe(false) // Sunday (not in friday-weekend)
   })
 
   test('explicit excluded dates and weekday names', () => {
-    const cal = calendarFromModel(parseGanttModel(normalizeMermaidSource(
-      'gantt\n  excludes 2024-01-15 friday\n  A :a, 2024-01-01, 1d').lines))
+    const cal = calendarFromModel(parseGanttModel(normalizeMermaidSource('gantt\n  excludes 2024-01-15 friday\n  A :a, 2024-01-01, 1d').lines))
     const excluded = buildExclusionPredicate(cal)
-    expect(excluded(UTC(2024, 1, 15))).toBe(true)  // explicit date (a Monday)
-    expect(excluded(UTC(2024, 1, 12))).toBe(true)  // a Friday
+    expect(excluded(UTC(2024, 1, 15))).toBe(true) // explicit date (a Monday)
+    expect(excluded(UTC(2024, 1, 12))).toBe(true) // a Friday
     expect(excluded(UTC(2024, 1, 16))).toBe(false)
   })
 
   test('includes override excludes for explicit dates', () => {
-    const cal = calendarFromModel(parseGanttModel(normalizeMermaidSource(
-      'gantt\n  excludes weekends\n  includes 2024-01-06\n  A :a, 2024-01-01, 1d').lines))
+    const cal = calendarFromModel(parseGanttModel(normalizeMermaidSource('gantt\n  excludes weekends\n  includes 2024-01-06\n  A :a, 2024-01-01, 1d').lines))
     const excluded = buildExclusionPredicate(cal)
     expect(excluded(UTC(2024, 1, 6))).toBe(false) // Saturday, but included
-    expect(excluded(UTC(2024, 1, 7))).toBe(true)  // Sunday still excluded
+    expect(excluded(UTC(2024, 1, 7))).toBe(true) // Sunday still excluded
   })
 
   test('everything-excluded durations fail with GANTT_SCHEDULE_OVERFLOW, not a hang', () => {
@@ -203,8 +197,12 @@ describe('resolver — structured errors', () => {
     expect(codeOf('gantt\n  A :a, 2024-01-01, 2024-88-88')).toBe('GANTT_BAD_DATE')
   })
 
-  test('empty gantt is an error', () => {
-    expect(codeOf('gantt\n  title Just a title')).toBe('GANTT_EMPTY')
+  test('empty gantt has no invented calendar extent or project analysis', () => {
+    const empty = scheduleOf('gantt\n  title Just a title')
+    expect(empty.tasks).toEqual([])
+    expect([empty.timeMin, empty.timeMax]).toEqual([0, 0])
+    expect(empty.analysis).toBeUndefined()
+    expect(empty.today).toBeUndefined()
   })
 })
 

@@ -1,18 +1,37 @@
 import { expect, test } from 'bun:test'
 import * as marks from '../scene/marks.ts'
 import { inspectScenePrimitives } from '../scene/inspection.ts'
-import { attachSceneNodeSerialization, sceneNodeSerialization } from '../scene/serialization.ts'
 import { nodePaintBounds } from '../scene/bounds.ts'
 import { sceneFidelityProblems } from '../scene/fidelity.ts'
 import { validateSceneDoc } from '../scene/scene-validation.ts'
 import { preparePixelText } from '../shared/prepared-text.ts'
 import type { SceneDoc, SceneNode } from '../scene/ir.ts'
+import { sceneDocument } from '../shared/scene-document.ts'
 
 const scene = (parts: SceneNode[]): SceneDoc => ({ family: 'flowchart', transparent: false, width: 200, height: 100, colors: { bg: '#fff', fg: '#111' }, parts })
 
+test('owned surface artwork suppresses only its enclosing semantic identity, never a primary or unrelated subject', () => {
+  const surface = () => marks.shape({ id: 'frame:A', role: 'node', identity: false, owner: { id: 'A', role: 'node' }, geometry: { kind: 'rect', x: 10, y: 10, width: 80, height: 40 }, paint: { fill: '#fff', stroke: '#111' } }),
+    wrap = (node: SceneNode, id = 'A', role: 'node' | 'group' = 'node') => marks.group({ id: `wrapper:${id}`, role, open: `<g data-id="${id}">`, close: '</g>', children: [{ node, indent: 2 }] }),
+    document = (parts: SceneNode[]) => sceneDocument('flowchart', { width: 200, height: 100 }, { bg: '#fff', fg: '#111', embedFontImport: false }, false, parts),
+    artwork = surface(),
+    valid = document([wrap(artwork)])
+  expect(artwork.identity).toBeUndefined()
+  expect(validateSceneDoc(valid, { mode: 'internal' }).diagnostics).toEqual([])
+  expect(sceneFidelityProblems(valid)).toEqual([])
+  expect(() => marks.shape({ id: 'orphan', role: 'node', identity: false, geometry: artwork.geometry, paint: artwork.paint })).toThrow(/owner/)
+  for (const invalid of [document([surface()]), document([wrap(surface(), 'B')]), document([wrap(surface(), 'A', 'group')]), document([wrap(marks.shape({ id: 'sibling', role: 'chrome', geometry: artwork.geometry, paint: {} })), wrap(surface(), 'B')])]) {
+    expect(validateSceneDoc(invalid, { mode: 'internal' }).diagnostics).toContainEqual(expect.objectContaining({ code: 'SCENE_FIDELITY', path: expect.stringContaining('.identity') }))
+    expect(sceneFidelityProblems(invalid)).toContainEqual(expect.stringContaining('missing typed identity'))
+  }
+  const primary = marks.shape({ id: 'primary', role: 'node', geometry: artwork.geometry, paint: artwork.paint })
+  delete primary.identity
+  expect(sceneFidelityProblems(scene([primary]))).toContainEqual(expect.stringContaining('missing typed identity'))
+})
+
 test('inspection preserves semantic subjects, paint order and exact layout text under affine artwork', () => {
   const block = preparePixelText('Hello', { fontSize: 12, fontWeight: 400 })
-  const label = marks.text({ id: 'label', role: 'label', text: 'Hello', block, x: 10, y: 20, fontSize: 12, anchor: 'start', paint: { fill: '#111' } }, '<text x="10" y="20" font-size="12">Hello</text>')
+  const label = marks.text({ id: 'label', role: 'label', text: 'Hello', block, x: 10, y: 20, fontSize: 12, anchor: 'start', paint: { fill: '#111' } })
   const group = marks.group({ id: 'authored:A', role: 'node', open: '<g transform="translate(50 10) scale(2)">', close: '</g>', transform: { kind: 'matrix', a: 2, b: 0, c: 0, d: 2, e: 50, f: 10 }, children: [{ node: label, indent: 0 }] })
   const inspection = inspectScenePrimitives(scene([group]))
   expect(inspection.coverage).toEqual({ measured: 1, unmeasured: 0, nonPainting: 0, preparedText: 1, fallbackText: 0 })
@@ -25,7 +44,7 @@ test('inspection preserves semantic subjects, paint order and exact layout text 
 })
 
 test('opaque content, fallback metrics and conditional states remain explicit evidence', () => {
-  const fallback = marks.text({ id: 'legacy', role: 'label', text: 'Legacy', x: 10, y: 20, fontSize: 12, anchor: 'start', paint: {} }, '<text x="10" y="20" font-size="12">Legacy</text>')
+  const fallback = marks.text({ id: 'legacy', role: 'label', text: 'Legacy', x: 10, y: 20, fontSize: 12, anchor: 'start', paint: {} })
   const tooltip = marks.group({ id: 'tooltip', role: 'chrome', visibility: 'conditional', open: '<g>', close: '</g>', children: [{ node: fallback, indent: 0 }] })
   const inspection = inspectScenePrimitives(scene([marks.documentContent({ id: 'unknown', role: 'chrome' }, '<path d="M0 0 L20 20"/>'), tooltip]))
   expect(inspection.primitives[0]).toMatchObject({ coverage: 'unmeasured', reason: 'opaque-visible-content' })
@@ -35,7 +54,7 @@ test('opaque content, fallback metrics and conditional states remain explicit ev
 })
 
 test('nested semantic groups retain their own subject and full ancestor chain', () => {
-  const shape = marks.shape({ id: 'body', role: 'node', geometry: { kind: 'rect', x: 10, y: 10, width: 20, height: 20 }, paint: { fill: '#111' } }, '<rect x="10" y="10" width="20" height="20" fill="#111"/>')
+  const shape = marks.shape({ id: 'body', role: 'node', geometry: { kind: 'rect', x: 10, y: 10, width: 20, height: 20 }, paint: { fill: '#111' } })
   const child = marks.group({ id: 'inner', role: 'node', open: '<g>', close: '</g>', children: [{ node: shape, indent: 0 }] })
   const parent = marks.group({ id: 'outer', role: 'group', open: '<g>', close: '</g>', children: [{ node: child, indent: 0 }] })
   const primitive = inspectScenePrimitives(scene([parent])).primitives[0]!
@@ -46,35 +65,47 @@ test('nested semantic groups retain their own subject and full ancestor chain', 
 test('admission rejects false non-painting and prepared-text claims', () => {
   const visible = marks.documentContent({ id: 'false-metadata', role: 'chrome', nonPaint: 'accessibility' }, '<rect x="0" y="0" width="10" height="10"/>')
   expect(validateSceneDoc(scene([visible]), { mode: 'internal' }).diagnostics.some(d => d.path.endsWith('.nonPaint'))).toBe(true)
-  const text = marks.text({ id: 'missing', role: 'label', text: 'Lost', x: 10, y: 20, fontSize: 12, anchor: 'start', paint: {} }, '<text x="10" y="20" font-size="12">Lost</text>')
-  const retained = <T extends SceneNode>(node: T): T => attachSceneNodeSerialization(node, sceneNodeSerialization(text))
-  const missing = validateSceneDoc(scene([retained({ ...text, measurement: 'prepared', block: undefined })]), { mode: 'internal' })
+  const text = marks.text({ id: 'missing', role: 'label', text: 'Lost', x: 10, y: 20, fontSize: 12, anchor: 'start', paint: {} })
+  const missing = validateSceneDoc(scene([{ ...text, measurement: 'prepared', block: undefined }]), { mode: 'internal' })
   expect(missing.diagnostics).toContainEqual(expect.objectContaining({ code: 'SCENE_DOCUMENT', path: 'scene.parts[0].block' }))
   const forged = preparePixelText('Forged', { fontSize: 12, fontWeight: 400 })
-  const falsePlan = retained({ ...text, measurement: 'prepared' as const, prepared: undefined, block: forged, textLayout: { ...text.textLayout!, width: forged.width, height: forged.height, lineHeight: forged.lineHeight } })
-  const invalid = validateSceneDoc(scene([falsePlan]), { mode: 'internal' })
-  expect(invalid.diagnostics).toContainEqual(expect.objectContaining({ code: 'SCENE_FIDELITY', message: expect.stringContaining('.block: retained prepared text differs from actual SVG') }))
-  const sourceOnly = retained({ ...text, block: { ...text.block!, prepared: { ...text.block!.prepared, source: 'Forged' } } })
+  const sourceOnly = { ...text, block: { ...text.block!, prepared: { ...text.block!.prepared, source: 'Forged' } } }
   expect(validateSceneDoc(scene([sourceOnly]), { mode: 'internal' }).diagnostics).toContainEqual(expect.objectContaining({ code: 'SCENE_FIDELITY', path: 'scene.parts[0].block' }))
 
-  expect(() => marks.text({ id: 'mismatch', role: 'label', text: 'Forged', block: forged, x: 10, y: 20, fontSize: 13, anchor: 'start', paint: {} }, '<text x="10" y="20" font-size="12">Forged</text>')).toThrow('retained prepared block')
+  expect(() => marks.text({ id: 'mismatch', role: 'label', text: 'Forged', block: forged, x: 10, y: 20, fontSize: 13, anchor: 'start', paint: {} })).toThrow('retained prepared block')
 })
 
 test('transparent hit targets paint nothing, and singular composed transforms supply no paint or hit evidence', () => {
-  const target = marks.shape({ id: 'hit', role: 'chrome', geometry: { kind: 'rect', x: 0, y: 0, width: 100, height: 80 }, paint: { fill: 'transparent' } }, '<rect x="0" y="0" width="100" height="80" fill="transparent"/>')
+  const target = marks.shape({ id: 'hit', role: 'chrome', geometry: { kind: 'rect', x: 0, y: 0, width: 100, height: 80 }, paint: { fill: 'transparent' } })
   expect(inspectScenePrimitives(scene([target])).primitives[0]?.coverage).toBe('non-painting')
 })
 
 
-test.each([['font-weight="900"', 'fontWeight'], ['letter-spacing="3"', 'letterSpacing']])('actual text typography %s must match retained metrics', (attribute, field) => {
-  const block = preparePixelText('Actual', { fontSize: 12, fontWeight: 400 })
-  const text = marks.text({ id: 'actual', role: 'label', text: 'Actual', block, x: 10, y: 20, fontSize: 12, anchor: 'start', paint: {} }, `<text x="10" y="20" font-size="12" ${attribute}>Actual</text>`)
-  expect(validateSceneDoc(scene([text]), { mode: 'internal' }).diagnostics).toContainEqual(expect.objectContaining({ code: 'SCENE_FIDELITY', message: expect.stringContaining(`.${field}: retained`) }))
+test('text bounds follow the dominant baseline the writer draws', () => {
+  const block = preparePixelText('Label', { fontSize: 16, fontWeight: 400 })
+  const at = (dominantBaseline?: 'middle' | 'hanging') => nodePaintBounds(marks.text({
+    id: 't', role: 'label', text: 'Label', block, x: 10, y: 100, fontSize: 16, anchor: 'start', paint: { fill: '#111' }, baselineShift: 0,
+    ...(dominantBaseline ? { dominantBaseline } : {}),
+  }))!
+  expect(at('hanging').y0).toBeCloseTo(100)
+  const middle = at('middle')
+  expect((middle.y0 + middle.y1) / 2).toBeCloseTo(100)
+  const alphabetic = at()
+  expect((alphabetic.y0 + alphabetic.y1) / 2).toBeCloseTo(100 - 16 * 0.35)
+})
+
+test('a compound shape is bounded by its widest piece stroke', () => {
+  const node = marks.shape({
+    id: 'glyph', role: 'node', paint: { stroke: '#000', strokeWidth: '1' },
+    geometry: { kind: 'compound', children: [{ kind: 'rect', x: 10, y: 10, width: 10, height: 10 }, { kind: 'circle', cx: 15, cy: 15, r: 2 }] },
+    childPaints: [{ stroke: '#000', strokeWidth: '20' }, { fill: '#000' }],
+  })
+  expect(nodePaintBounds(node)!.x0).toBeLessThanOrEqual(0)
 })
 
 test('overflowing current and conditional strokes remain unmeasured', () => {
-  const polygon = marks.shape({ id: 'overflow', role: 'node', geometry: { kind: 'polygon', points: [{ x: 0, y: 0 }, { x: 10, y: 0 }, { x: 10, y: 10 }] }, paint: { stroke: '#000', strokeWidth: '1e308', strokeLinejoin: 'miter', strokeMiterlimit: '4' } }, '<polygon points="0,0 10,0 10,10" stroke="#000" stroke-width="1e308" stroke-linejoin="miter" stroke-miterlimit="4"/>')
-  const conditional = marks.shape({ id: 'alternate', role: 'chrome', visibility: 'conditional', transform: { kind: 'matrix', a: 10, b: 0, c: 0, d: 10, e: 0, f: 0 }, geometry: { kind: 'rect', x: 0, y: 0, width: 10, height: 10 }, paint: { fill: 'transparent' }, conditionalPaint: { stroke: '#000', strokeWidth: '1e308' } }, '<rect x="0" y="0" width="10" height="10" fill="transparent" transform="matrix(10 0 0 10 0 0)"/>')
+  const polygon = marks.shape({ id: 'overflow', role: 'node', geometry: { kind: 'polygon', points: [{ x: 0, y: 0 }, { x: 10, y: 0 }, { x: 10, y: 10 }] }, paint: { stroke: '#000', strokeWidth: '1e308', strokeLinejoin: 'miter', strokeMiterlimit: '4' } })
+  const conditional = marks.shape({ id: 'alternate', role: 'chrome', visibility: 'conditional', transform: { kind: 'matrix', a: 10, b: 0, c: 0, d: 10, e: 0, f: 0 }, geometry: { kind: 'rect', x: 0, y: 0, width: 10, height: 10 }, paint: { fill: 'transparent' }, conditionalPaint: { stroke: '#000', strokeWidth: '1e308' } })
   for (const node of [polygon, conditional]) {
     expect(nodePaintBounds(node)).toBeUndefined()
     expect(inspectScenePrimitives(scene([node])).primitives[0]?.coverage).toBe('unmeasured')
@@ -84,7 +115,7 @@ test('overflowing current and conditional strokes remain unmeasured', () => {
 
 test('inline connector labels expose their actual retained text, owner, order and final bounds', () => {
   const block = preparePixelText('Read', { fontSize: 12, fontWeight: 400 })
-  const edge = marks.connector({ id: 'relationship', role: 'edge', lineStyle: 'solid', geometry: { kind: 'line', x1: 5, y1: 5, x2: 95, y2: 5 }, paint: { stroke: '#111' }, labels: [{ id: 'inline-label', text: 'Read', block, anchor: { x: 20, y: 30 }, paint: { fill: '#111' }, fontSize: 12, fontWeight: 400, textAnchor: 'start', visual: { kind: 'inline' } }] }, '<line x1="5" y1="5" x2="95" y2="5" stroke="#111"/>')
+  const edge = marks.connector({ id: 'relationship', role: 'edge', lineStyle: 'solid', geometry: { kind: 'line', x1: 5, y1: 5, x2: 95, y2: 5 }, paint: { stroke: '#111' }, labels: [{ id: 'inline-label', text: 'Read', block, anchor: { x: 20, y: 30 }, paint: { fill: '#111' }, fontSize: 12, fontWeight: 400, textAnchor: 'start', visual: { kind: 'inline' } }] })
   const primitive = inspectScenePrimitives(scene([edge])).primitives[1]!
   expect(primitive).toMatchObject({ id: 'inline-label', kind: 'text', owner: { id: 'relationship', role: 'edge' }, order: 1, coverage: 'measured', text: { source: 'Read', measurement: 'prepared' } })
   expect(primitive.bounds?.x0).toBe(20)
@@ -93,7 +124,7 @@ test('inline connector labels expose their actual retained text, owner, order an
 
 
 test.each(['transparent', 'rgba(0,0,0,0)', '#00000000'])('invisible %s strokes cannot enlarge visible paint', stroke => {
-  const node = marks.shape({ id: 'filled', role: 'node', geometry: { kind: 'rect', x: 0, y: 0, width: 10, height: 20 }, paint: { fill: '#fff', stroke, strokeWidth: '1000' } }, `<rect x="0" y="0" width="10" height="20" fill="#fff" stroke="${stroke}" stroke-width="1000"/>`)
+  const node = marks.shape({ id: 'filled', role: 'node', geometry: { kind: 'rect', x: 0, y: 0, width: 10, height: 20 }, paint: { fill: '#fff', stroke, strokeWidth: '1000' } })
   expect(nodePaintBounds(node)).toEqual({ x0: 0, y0: 0, x1: 10, y1: 20 })
 })
 
@@ -105,7 +136,7 @@ test.each([
   ['opacity-zero', 'solid', '#111', '0', 'non-painting'],
 ] as const)('inline %s text visibility is independent of its route', (_name, lineStyle, fill, opacity, coverage) => {
   const block = preparePixelText('Read', { fontSize: 12, fontWeight: 400 })
-  const edge = marks.connector({ id: 'relationship', role: 'edge', lineStyle, geometry: { kind: 'line', x1: 5, y1: 5, x2: 95, y2: 5 }, paint: { stroke: '#111' }, labels: [{ id: 'inline-label', text: 'Read', block, anchor: { x: 20, y: 30 }, paint: { fill, opacity }, fontSize: 12, fontWeight: 400, textAnchor: 'start', visual: { kind: 'inline' } }] }, lineStyle === 'invisible' ? '' : '<line x1="5" y1="5" x2="95" y2="5" stroke="#111"/>')
+  const edge = marks.connector({ id: 'relationship', role: 'edge', lineStyle, geometry: { kind: 'line', x1: 5, y1: 5, x2: 95, y2: 5 }, paint: { stroke: '#111' }, labels: [{ id: 'inline-label', text: 'Read', block, anchor: { x: 20, y: 30 }, paint: { fill, opacity }, fontSize: 12, fontWeight: 400, textAnchor: 'start', visual: { kind: 'inline' } }] })
   const inspection = inspectScenePrimitives(scene([edge]))
   expect(inspection.primitives[1]).toMatchObject({ id: 'inline-label', coverage })
   expect(inspection.coverage.preparedText).toBe(coverage === 'measured' ? 1 : 0)

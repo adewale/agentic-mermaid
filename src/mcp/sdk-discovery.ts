@@ -6,9 +6,7 @@ import { PURE_COMPUTE_ANNOTATIONS, type McpToolDefinition } from './tool-surface
 export const SDK_FAMILIES = BUILTIN_FAMILY_METADATA.map(family => family.id)
 const SDK_FAMILY_SET = new Set<string>(SDK_FAMILIES)
 const DIAGRAM_KIND = SDK_FAMILIES.map(family => `'${family}'`).join(' | ')
-const NARROWERS = BUILTIN_FAMILY_METADATA
-  .map(family => `  ${family.narrower}(diagram: ParsedDiagram): ValidDiagram | null`)
-  .join('\n')
+const NARROWERS = BUILTIN_FAMILY_METADATA.map(family => `${family.narrower}(d:ParsedDiagram):ValidDiagram|null`).join('\n')
 
 /**
  * The declaration sent with tools/list. Family IR and mutation unions stay out
@@ -19,7 +17,7 @@ export const SDK_CORE_DECLARATION = `type DiagramKind = ${DIAGRAM_KIND.replaceAl
 type MutationOp = { kind: string; [field: string]: unknown }
 type Result<T, E = { code: string; message: string }> = { ok: true; value: T } | { ok: false; error: E }
 interface SourceLocation { readonly line: number; readonly col: number }
-interface SourceMapSpans { readonly preserved: PreservedSourceSpans; readonly nodes: ReadonlyMap<string, SourceSpan>; readonly edges: ReadonlyMap<string, SourceSpan>; readonly groups: ReadonlyMap<string, SourceSpan>; readonly labels: ReadonlyMap<string, SourceSpan> }
+interface SourceMapSpans { readonly preserved: PreservedSourceSpans; readonly nodes: ReadonlyMap<string, SourceSpan>; readonly edges: ReadonlyMap<string, SourceSpan>; readonly groups: ReadonlyMap<string, SourceSpan>; readonly labels: ReadonlyMap<string, SourceSpan>; readonly metadata?: ReadonlyMap<string, ReadonlyMap<string, { readonly key: SourceSpan; readonly value: SourceSpan }>> }
 interface SourceMap { readonly nodes: ReadonlyMap<string, SourceLocation>; readonly edges: ReadonlyMap<string, SourceLocation>; readonly groups: ReadonlyMap<string, SourceLocation>; readonly labels: ReadonlyMap<string, SourceLocation>; readonly spans?: SourceMapSpans }
 interface ValidDiagram { readonly kind: DiagramKind; readonly source: SourceMap }
 type ExternalFamilyId = \`family:\${string}\`
@@ -122,7 +120,7 @@ ${NARROWERS}
   layoutMermaidWithReceipt(input: ParsedDiagram | string, opts?: LayoutRenderOptions): RenderedLayoutArtifact
   describeOps(family: DiagramKind): Record<string, { name: string; required: boolean; type: string; note?: string }[]>
   opSignatures(family: DiagramKind): string[]
-}`
+}`.replace(/^[ \t]+/gm, '')
 
 export type DescribeSdkDetail = 'signatures' | 'fields'
 

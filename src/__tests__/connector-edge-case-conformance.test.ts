@@ -28,7 +28,7 @@ function connector(
     lineStyle: 'solid',
     paint: { fill: 'none', stroke: '#243447', strokeWidth: '2' },
     ...fields,
-  }, crisp)
+  })
 }
 
 function draw(node: ReturnType<typeof connector>, backend: (typeof BACKENDS)[number]): string {

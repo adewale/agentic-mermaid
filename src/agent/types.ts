@@ -1,6 +1,22 @@
-import type { LabelContent } from '../shared/display-text.ts'
 import type { C4Body, C4MutationOp } from '../c4/types.ts'
+import type { LabelContent } from '../shared/display-text.ts'
+
 export type { C4Body, C4MutationOp } from '../c4/types.ts'
+
+import type { BlockBody, BlockMutationOp } from '../block/types.ts'
+import type { IshikawaBody, IshikawaMutationOp } from '../ishikawa/types.ts'
+import type { KanbanBody, KanbanMutationOp } from '../kanban/types.ts'
+import type { PacketBody, PacketMutationOp } from '../packet/types.ts'
+import type { RequirementBody, RequirementMutationOp } from '../requirement/types.ts'
+import type { TreemapBody, TreemapMutationOp } from '../treemap/types.ts'
+
+export type { BlockBody, BlockMutationOp } from '../block/types.ts'
+export type { IshikawaBody, IshikawaMutationOp } from '../ishikawa/types.ts'
+export type { KanbanBody, KanbanMutationOp } from '../kanban/types.ts'
+export type { PacketBody, PacketMutationOp } from '../packet/types.ts'
+export type { RequirementBody, RequirementMutationOp } from '../requirement/types.ts'
+export type { TreemapBody, TreemapMutationOp } from '../treemap/types.ts'
+
 // ============================================================================
 // Agentic Mermaid — IR and verb types (v4)
 //
@@ -29,7 +45,7 @@ export function err<E, T = never>(error: E): Result<T, E> {
 
 // ---- Families -------------------------------------------------------------
 
-export type DiagramKind = 'flowchart' | 'state' | 'sequence' | 'class' | 'er' | 'timeline' | 'journey' | 'xychart' | 'architecture' | 'pie' | 'quadrant' | 'gantt' | 'mindmap' | 'gitgraph' | 'radar' | 'sankey' | 'c4'
+export type DiagramKind = 'flowchart' | 'state' | 'sequence' | 'class' | 'er' | 'timeline' | 'journey' | 'xychart' | 'architecture' | 'pie' | 'quadrant' | 'gantt' | 'mindmap' | 'gitgraph' | 'radar' | 'sankey' | 'c4' | 'packet' | 'kanban' | 'requirement' | 'treemap' | 'ishikawa' | 'block'
 
 /** Runtime extensions are open but must pass the registry's namespace validator. */
 export type ExternalFamilyId = `family:${string}`
@@ -58,10 +74,45 @@ export type SequenceMessageStyle =
   | 'lost' // -x
   | 'lost-dashed' // --x
 
-export type SequenceMessageArrow = '<<->>' | '<<-->>' | '->>' | '-->>' | '->' | '-->' | '-x' | '--x' | '-)' | '--)'
-  | '-|\\' | '--|\\' | '-|/' | '--|/' | '-\\\\' | '--\\\\' | '-//' | '--//'
-  | '/|-' | '/|--' | '\\|-' | '\\|--' | '//-' | '//--' | '\\\\-' | '\\\\--'
-  | '-|' | '--|' | '-/' | '--/' | '-\\' | '--\\' | '|-' | '|--' | '/-' | '/--' | '\\-' | '\\--'
+export type SequenceMessageArrow =
+  | '<<->>'
+  | '<<-->>'
+  | '->>'
+  | '-->>'
+  | '->'
+  | '-->'
+  | '-x'
+  | '--x'
+  | '-)'
+  | '--)'
+  | '-|\\'
+  | '--|\\'
+  | '-|/'
+  | '--|/'
+  | '-\\\\'
+  | '--\\\\'
+  | '-//'
+  | '--//'
+  | '/|-'
+  | '/|--'
+  | '\\|-'
+  | '\\|--'
+  | '//-'
+  | '//--'
+  | '\\\\-'
+  | '\\\\--'
+  | '-|'
+  | '--|'
+  | '-/'
+  | '--/'
+  | '-\\'
+  | '--\\'
+  | '|-'
+  | '|--'
+  | '/-'
+  | '/--'
+  | '\\-'
+  | '\\--'
 
 export interface SequenceMessage {
   from: string
@@ -189,6 +240,8 @@ export type ClassRelationKind =
   | 'lollipop' // ()-- / --()
 
 export interface ClassNode {
+  /** A source lollipop occurrence, drawn as an interface endpoint rather than a class compartment. */
+  isInterface?: boolean
   /** Stable bare class identity (e.g., `Box` for authored `Box~T~`). */
   id: string
   /** Generic parameter text from Mermaid's `~...~` syntax. */
@@ -615,8 +668,11 @@ export interface GanttBody {
  */
 export interface StateNode {
   id: string
-  /** Optional display label (`state "Label" as id` / `id : Label`). */
+  /** Optional display label (`state "Label" as id` / `id : Label`), its
+   *  Mermaid entity codes (`#35;`) read. */
   label?: string
+  /** The label as written, while `label` still holds what it reads. */
+  labelContent?: LabelContent
   /** Authored/synthesized standalone declaration; implicit transition endpoints omit it. */
   declaredBare?: true
   /** Pseudostate stereotype (`state id <<fork|join|choice|history|…>>`) —
@@ -629,7 +685,9 @@ export interface StateNode {
   transitions?: StateTransition[]
   /** Parallel regions split by `--`; mutually exclusive with states/transitions. */
   regions?: StateRegion[]
-  /** Assigned classDef name (`A:::hot` / `class A hot`). */
+  /** Assigned classDef names (`A:::hot` / `class A hot`), space-separated in
+   *  assignment order: a state takes every class assigned to it, as in
+   *  Mermaid. `set_state_class` replaces them with one class. */
   className?: string
   /** Inline state paint (`style A fill:#...`). */
   style?: Record<string, string>
@@ -650,7 +708,15 @@ export interface StateTransition {
   from: string
   /** Target state id, '[*]' for an end pseudostate, or a history reference. */
   to: string
+  /** classDef name on a `[*]` or history `from` (`[*]:::hot --> A`). Such an
+   *  endpoint is not a StateNode and Mermaid has no `class` statement for it,
+   *  so its class stays on the transition. */
+  fromClass?: string
+  /** classDef name on a `[*]` or history `to` (`A --> [*]:::hot`). */
+  toClass?: string
   label?: string
+  /** The label as written, while `label` still holds what it reads. */
+  labelContent?: LabelContent
   /** Inline edge paint represented canonically as a linkStyle directive. */
   style?: Record<string, string>
 }
@@ -665,9 +731,15 @@ export interface StateNote {
   side: 'left' | 'right'
   /** Note text; multi-line text serializes as the block form (`end note`). */
   text: string
+  /** The text as written, while `text` still holds what it reads. */
+  textContent?: LabelContent
 }
 
 export interface StateBody {
+  /** Class assignments awaiting an actual state declaration; they never create a state. */
+  unresolvedClasses?: Array<{ id: string; className: string }>
+  /** Inline styles awaiting an actual state declaration. */
+  unresolvedStyles?: Array<{ id: string; style: Record<string, string> }>
   kind: 'state'
   states: StateNode[]
   transitions: StateTransition[]
@@ -756,6 +828,8 @@ export interface SourceMapSpans {
   groups: Map<string, SourceSpan>
   /** Exact authored sub-statement spans (labels, members, values, cardinalities). */
   labels: Map<string, SourceSpan>
+  /** Authored metadata key/value tokens, keyed by canonical item occurrence identity and property. */
+  metadata?: Map<string, Map<string, { key: SourceSpan; value: SourceSpan }>>
 }
 
 export interface SourceMap {
@@ -834,6 +908,12 @@ export type DiagramBody =
   | RadarBody
   | SankeyBody
   | C4Body
+  | PacketBody
+  | KanbanBody
+  | RequirementBody
+  | TreemapBody
+  | IshikawaBody
+  | BlockBody
   /**
    * Opaque body — the parser understood the family header but encountered
    * unmodeled syntax. `source` is the ORIGINAL body with indentation, blank
@@ -966,6 +1046,12 @@ export type GitGraphValidDiagram = ValidDiagram & { body: GitGraphBody }
 export type RadarValidDiagram = ValidDiagram & { body: RadarBody }
 export type SankeyValidDiagram = ValidDiagram & { body: SankeyBody }
 export type C4ValidDiagram = ValidDiagram & { body: C4Body }
+export type PacketValidDiagram = ValidDiagram & { body: PacketBody }
+export type KanbanValidDiagram = ValidDiagram & { body: KanbanBody }
+export type RequirementValidDiagram = ValidDiagram & { body: RequirementBody }
+export type TreemapValidDiagram = ValidDiagram & { body: TreemapBody }
+export type IshikawaValidDiagram = ValidDiagram & { body: IshikawaBody }
+export type BlockValidDiagram = ValidDiagram & { body: BlockBody }
 export type MutableValidDiagram =
   | FlowchartValidDiagram
   | StateValidDiagram
@@ -984,6 +1070,31 @@ export type MutableValidDiagram =
   | RadarValidDiagram
   | SankeyValidDiagram
   | C4ValidDiagram
+  | PacketValidDiagram
+  | KanbanValidDiagram
+  | RequirementValidDiagram
+  | TreemapValidDiagram
+  | IshikawaValidDiagram
+  | BlockValidDiagram
+
+export function asPacket(d: ParsedDiagram): PacketValidDiagram | null {
+  return d.body.kind === 'packet' ? (d as PacketValidDiagram) : null
+}
+export function asKanban(d: ParsedDiagram): KanbanValidDiagram | null {
+  return d.body.kind === 'kanban' ? (d as KanbanValidDiagram) : null
+}
+export function asRequirement(d: ParsedDiagram): RequirementValidDiagram | null {
+  return d.body.kind === 'requirement' ? (d as RequirementValidDiagram) : null
+}
+export function asTreemap(d: ParsedDiagram): TreemapValidDiagram | null {
+  return d.body.kind === 'treemap' ? (d as TreemapValidDiagram) : null
+}
+export function asIshikawa(d: ParsedDiagram): IshikawaValidDiagram | null {
+  return d.body.kind === 'ishikawa' ? (d as IshikawaValidDiagram) : null
+}
+export function asBlock(d: ParsedDiagram): BlockValidDiagram | null {
+  return d.body.kind === 'block' ? (d as BlockValidDiagram) : null
+}
 
 export function asFlowchart(d: ParsedDiagram): FlowchartValidDiagram | null {
   return d.body.kind === 'flowchart' ? (d as FlowchartValidDiagram) : null
@@ -1202,6 +1313,7 @@ export type ClassMutationOp =
   | { kind: 'set_class_generic'; class: string; generic: string | null }
   | { kind: 'add_member'; class: string; text: string }
   | { kind: 'remove_member'; class: string; index: number }
+  | { kind: 'add_interface'; class: string; label: string; side?: 'from' | 'to'; relationLabel?: string; lineStyle?: 'solid' | 'dashed' }
   | { kind: 'add_relation'; from: string; to: string; relKind: ClassRelationKind; label?: string; markerAt?: ClassRelation['markerAt']; fromKind?: ClassRelationKind; toKind?: ClassRelationKind; lineStyle?: ClassRelation['lineStyle'] }
   | { kind: 'remove_relation'; index: number }
   | { kind: 'add_note'; text: string; for?: string }
@@ -1425,6 +1537,12 @@ export type AnyMutationOp =
   | RadarMutationOp
   | SankeyMutationOp
   | C4MutationOp
+  | PacketMutationOp
+  | KanbanMutationOp
+  | RequirementMutationOp
+  | TreemapMutationOp
+  | IshikawaMutationOp
+  | BlockMutationOp
 
 // ---- Branded Finite -------------------------------------------------------
 
@@ -1440,14 +1558,30 @@ export function toFinite(n: number): Finite {
 
 export type WarningSeverity = 'error' | 'warning'
 export type WarningTier = 'structural' | 'geometric' | 'lint'
+/** Who can fix a finding: the authored diagram source, its configuration
+ * (Mermaid config, theme, render options), or Agentic Mermaid itself. */
+export type WarningOrigin = 'source' | 'config' | 'engine'
 
-export type Tier1WarningCode = 'EMPTY_DIAGRAM' | 'EDGE_MISANCHORED' | 'OFF_CANVAS' | 'GROUP_BREACH' | 'UNKNOWN_SHAPE' | 'LABEL_OVERFLOW' | 'UNRESOLVABLE_SCHEDULE' | 'RENDER_FAILED'
+export type Tier1WarningCode = 'EMPTY_DIAGRAM' | 'EDGE_MISANCHORED' | 'OFF_CANVAS' | 'GROUP_BREACH' | 'UNKNOWN_SHAPE' | 'LABEL_OVERFLOW' | 'UNRESOLVABLE_SCHEDULE' | 'RENDER_FAILED' | 'INTERNAL_ERROR'
 export type Tier2WarningCode = 'NODE_OVERLAP' | 'CONTENT_OCCLUDED' | 'LAYOUT_LIMIT_EXCEEDED' | 'ROUTE_SELF_CROSS' | 'ROUTE_HITCH' | 'ROUTE_UNEXPLAINED_BEND' | 'ROUTE_LABEL_ON_SHARED_TRUNK' | 'ROUTE_SELF_LOOP_OCCUPANCY' | 'ROUTE_CONTAINER_MISANCHOR' | 'ROUTE_SHAPE_MISANCHOR' | 'ROUTE_STALE_AFTER_NODE_MOVE'
 /**
  * Tier 3 (advisory lint). Family-specific quality hints for common agent
  * mistakes that still parse and render. Lint warnings never flip verify.ok.
  */
-export type Tier3WarningCode = 'DUPLICATE_EDGE' | 'UNREACHABLE_NODE' | 'DECISION_BRANCH_UNLABELED' | 'FLOW_IMBALANCE' | 'COMMENT_DROPPED' | 'UNSUPPORTED_SYNTAX' | 'CONTENT_DROPPED_ON_ROUNDTRIP' | 'INEFFECTIVE_CONFIG' | 'LOW_CONTRAST' | 'LABELS_HIDDEN' | 'BAR_RANGE_EXCLUDES_ZERO' | 'VALUES_OUTSIDE_RANGE' | typeof BRAND_CONSTRAINT_WARNING_POLICY.warn.code
+export type Tier3WarningCode =
+  | 'DUPLICATE_EDGE'
+  | 'UNREACHABLE_NODE'
+  | 'DECISION_BRANCH_UNLABELED'
+  | 'FLOW_IMBALANCE'
+  | 'COMMENT_DROPPED'
+  | 'UNSUPPORTED_SYNTAX'
+  | 'CONTENT_DROPPED_ON_ROUNDTRIP'
+  | 'INEFFECTIVE_CONFIG'
+  | 'LOW_CONTRAST'
+  | 'LABELS_HIDDEN'
+  | 'BAR_RANGE_EXCLUDES_ZERO'
+  | 'VALUES_OUTSIDE_RANGE'
+  | typeof BRAND_CONSTRAINT_WARNING_POLICY.warn.code
 export type WarningCode = Tier1WarningCode | Tier2WarningCode | Tier3WarningCode | BrandConstraintWarningCode
 
 export type LayoutWarning =
@@ -1472,9 +1606,18 @@ export type LayoutWarning =
    * "verify ok but render throws" seam-closing to every family: found live
    * when onboarding agents followed verify-before-commit and still shipped
    * unrenderable quadrant/architecture diagrams. `reason` carries the
-   * renderer's error message.
+   * renderer's error message; `origin` says whether the source or its
+   * configuration caused it (an engine defect is INTERNAL_ERROR instead).
    */
-  | { code: 'RENDER_FAILED'; reason: string }
+  | { code: 'RENDER_FAILED'; reason: string; origin: Exclude<WarningOrigin, 'engine'> }
+  /**
+   * Agentic Mermaid hit an internal defect while drawing this source; the
+   * source did not cause it. `defaultRender` records whether an ordinary
+   * render of the same request still produces output (`succeeds-unchecked`:
+   * only verify's extra consistency checks failed, so the layout evidence
+   * cannot be trusted) or throws (`fails`).
+   */
+  | { code: 'INTERNAL_ERROR'; reason: string; defaultRender: 'fails' | 'succeeds-unchecked' }
   | { code: 'NODE_OVERLAP'; a: NodeId; b: NodeId; areaPx: number }
   /** Final measured paint hides authored text or an interaction marker. */
   | { code: 'CONTENT_OCCLUDED'; target: string; feature: 'label' | 'marker'; line?: number; message: string }
@@ -1559,6 +1702,7 @@ export const WARNING_SEVERITY: Record<WarningCode, WarningSeverity> = {
   EMPTY_DIAGRAM: 'error',
   UNRESOLVABLE_SCHEDULE: 'error',
   RENDER_FAILED: 'error',
+  INTERNAL_ERROR: 'error',
   [BRAND_CONSTRAINT_WARNING_POLICY.error.code]: BRAND_CONSTRAINT_WARNING_POLICY.error.severity,
   EDGE_MISANCHORED: 'error',
   OFF_CANVAS: 'error',
@@ -1595,6 +1739,7 @@ export const WARNING_TIER: Record<WarningCode, WarningTier> = {
   EMPTY_DIAGRAM: 'structural',
   UNRESOLVABLE_SCHEDULE: 'structural',
   RENDER_FAILED: 'structural',
+  INTERNAL_ERROR: 'structural',
   [BRAND_CONSTRAINT_WARNING_POLICY.error.code]: BRAND_CONSTRAINT_WARNING_POLICY.error.tier,
   EDGE_MISANCHORED: 'structural',
   OFF_CANVAS: 'structural',
@@ -1657,7 +1802,12 @@ export interface RenderedRegion {
 }
 
 /** Retained bounds in the renderer's pixel coordinate system. */
-export interface RenderedLabelBounds { x: Finite; y: Finite; w: Finite; h: Finite }
+export interface RenderedLabelBounds {
+  x: Finite
+  y: Finite
+  w: Finite
+  h: Finite
+}
 
 /** Painted text independent of a semantic node, such as chart ticks or titles. */
 export interface RenderedLayoutLabel {
@@ -1695,6 +1845,8 @@ export interface RenderedLayoutEdge {
   from: NodeId
   to: NodeId
   path: [Finite, Finite][]
+  /** Hidden structural routes do not contribute visible crossing metrics. Omitted means visible. */
+  visibility?: 'visible' | 'hidden'
   label?: { x: Finite; y: Finite; text: string; bounds?: RenderedLabelBounds }
   /** Edge route certificate; present only under layoutMermaid(d, { debug: true }) for families with an edge certificate model. */
   route?: EdgeRouteCertificate
@@ -1778,7 +1930,13 @@ export interface ValidDiagramPayload {
     | GitGraphBody
     | RadarBody
     | SankeyBody
-  | C4Body
+    | C4Body
+    | PacketBody
+    | KanbanBody
+    | RequirementBody
+    | TreemapBody
+    | IshikawaBody
+    | BlockBody
     | ExtensionDiagramBody
     | { kind: 'opaque'; family: DiagramKind; source: string; diagnostic?: { code: 'GITGRAPH_DUPLICATE_COMMIT_ID'; id: string } }
 }

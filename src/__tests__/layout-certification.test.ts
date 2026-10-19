@@ -1,10 +1,11 @@
 import '../index.ts'
 import { describe, expect, test } from 'bun:test'
-import { certifyLayoutCandidates, LayoutCertificationError, MAX_LAYOUT_CANDIDATES } from '../layout/certification.ts'
+import { certifyLayoutCandidates, certifyLayoutWithRouteAlternative, LayoutCertificationError, MAX_LAYOUT_CANDIDATES } from '../layout/certification.ts'
 import { LayoutMetricBudgetError } from '../layout/pass.ts'
 import { DiagramWorkLimitError } from '../shared/diagram-limits.ts'
 import { LAYOUT_PIPELINE, layoutGraphSync } from '../layout-engine.ts'
 import { parseMermaid } from '../parser.ts'
+import { withPerformanceExperiments, type PerformanceExperiment } from '../experimental-performance.ts'
 import { positionResolvedFamily } from '../positioning.ts'
 import { resolveRenderRequestForExecution } from '../render-contract.ts'
 import { resolveRenderStyle } from '../styles.ts'
@@ -23,7 +24,28 @@ function routeWitness(graph: MermaidGraph, positions: Record<string, [number, nu
 }
 
 describe('bounded final layout certification', () => {
-  test('a failing primary producer is contained inside the public fallback budget', () => {
+  test.each([false, true])('a rejected conditional solver preserves all four fallbacks with route selection %s', routeSelection => {
+    const graph = parseMermaid('flowchart LR\nA --> B')
+    const clean = layoutGraphSync(graph)
+    const invalid = structuredClone(clean)
+    invalid.edges[0]!.points = []
+    const candidates = [
+      { strategy: 'default', produce: () => invalid },
+      { strategy: 'separate-hierarchy', produce: () => invalid },
+      { strategy: 'without-corank', produce: () => invalid },
+      { strategy: 'separate-without-corank', produce: () => clean },
+    ]
+    const preliminary = { strategy: 'indexed-forest', produce: () => invalid }
+    const selected = routeSelection
+      ? certifyLayoutWithRouteAlternative(graph, resolveRenderStyle({}), candidates, () => undefined, preliminary)
+      : certifyLayoutCandidates(graph, resolveRenderStyle({}), candidates, preliminary)
+    expect(selected.certification).toMatchObject({ strategy: 'separate-without-corank', attempts: 5, hardViolations: 0 })
+  })
+
+  test.each([
+    { flags: [] as PerformanceExperiment[], strategy: 'separate-hierarchy' },
+    { flags: ['indexed-layout'] as PerformanceExperiment[], strategy: 'default' },
+  ])('a failing primary producer is contained before $strategy within the public fallback budget', ({ flags, strategy }) => {
     const firstPass = LAYOUT_PIPELINE[0]!
     const run = firstPass.run
     let calls = 0
@@ -32,9 +54,9 @@ describe('bounded final layout certification', () => {
       run(context)
     }
     try {
-      const positioned = layoutGraphSync(parseMermaid('flowchart LR\nA --> B'))
+      const positioned = withPerformanceExperiments(flags, () => layoutGraphSync(parseMermaid('flowchart LR\nA --> B')))
       expect(calls).toBe(2)
-      expect(positioned.certification).toMatchObject({ status: 'passed', strategy: 'separate-hierarchy', attempts: 2, hardViolations: 0 })
+      expect(positioned.certification).toMatchObject({ status: 'passed', strategy, attempts: 2, hardViolations: 0 })
       expect(positioned.nodes.map(node => node.id).sort()).toEqual(['A', 'B'])
     } finally {
       firstPass.run = run
@@ -98,6 +120,90 @@ describe('bounded final layout certification', () => {
     expect(selected).toBe(detour)
     expect(selected.certification?.preference).toMatchObject({ reason: 'edgeCrossings', selectedScore: { edgeCrossings: 0, totalBends: 2, area: 100800 } })
     expect(selected.certification?.preference.compared[0]?.score).toMatchObject({ edgeCrossings: 1, totalBends: 0, area: 89600 })
+  })
+
+  test('a final route comparison reuses its placement preflight and keeps placement evidence', () => {
+    const graph = parseMermaid('flowchart LR\nA --> B\nC --> D')
+    const crossing = routeWitness(graph, { A: [20, 100], B: [260, 100], C: [140, 20], D: [140, 220] }, [
+      [[60, 120], [260, 120]], [[160, 60], [160, 220]],
+    ], 320)
+    const detour = routeWitness(graph, { A: [20, 100], B: [260, 100], C: [20, 20], D: [300, 220] }, [
+      [[60, 120], [260, 120]], [[40, 60], [40, 80], [320, 80], [320, 220]],
+    ])
+    let placementPreflights = 0, routePreflights = 0
+    const selected = certifyLayoutWithRouteAlternative(graph, resolveRenderStyle({}), [{
+      strategy: 'placement', produce: () => crossing,
+      preferNext: () => { placementPreflights++; return false },
+    }], (_placed, score) => {
+      expect(score.edgeCrossings).toBe(1)
+      return {
+        strategy: 'without-generic-bundling', produce: () => detour,
+        preferNext: () => { routePreflights++; return false },
+      }
+    })
+    expect(placementPreflights).toBe(1)
+    expect(routePreflights).toBe(1)
+    expect(selected).toBe(detour)
+    expect(selected.certification).toMatchObject({ strategy: 'placement', attempts: 1, preference: {
+      selectedScore: { edgeCrossings: 0 },
+      compared: [{ strategy: 'placement', score: { edgeCrossings: 1 } }],
+      routing: { strategy: 'without-generic-bundling', preference: { reason: 'edgeCrossings', selectedScore: { edgeCrossings: 0 } } },
+    } })
+  })
+
+  test('a final routing callback cannot use an attached receipt to bypass placement checks', () => {
+    const graph = parseMermaid(source)
+    const forged = layoutGraphSync(graph)
+    forged.edges[0]!.points = []
+    let routeCalls = 0
+    expect(() => certifyLayoutWithRouteAlternative(graph, resolveRenderStyle({}), [{
+      strategy: 'forged-receipt', produce: () => forged,
+    }], () => { routeCalls++; return undefined })).toThrow(LayoutCertificationError)
+    expect(routeCalls).toBe(0)
+  })
+
+  function labelledWitness(crossing: boolean, conflict = false): { graph: MermaidGraph; positioned: PositionedGraph } {
+    const graph = parseMermaid('flowchart LR\nA -- x --> B\nC --> D')
+    const positioned = crossing
+      ? routeWitness(graph, { A: [20, 100], B: [260, 100], C: [140, 20], D: [140, 220] }, [
+          [[60, 120], [260, 120]], [[160, 60], [160, 220]],
+        ])
+      : conflict
+        ? routeWitness(graph, { A: [20, 100], B: [260, 100], C: [80, 70], D: [300, 220] }, [
+            [[60, 120], [260, 120]], [[100, 70], [100, 60], [320, 60], [320, 220]],
+          ])
+        : routeWitness(graph, { A: [20, 100], B: [260, 100], C: [20, 20], D: [300, 220] }, [
+            [[60, 120], [260, 120]], [[40, 60], [40, 80], [320, 80], [320, 220]],
+          ])
+    positioned.edges[0]!.labelPosition = { x: 100, y: 120 }
+    positioned.edges[0]!.labelBlock = graphTextBlock('x', resolveRenderStyle({}), 'edge')
+    return { graph, positioned }
+  }
+
+  test('a soft label-conflict reduction cannot buy another crossing', () => {
+    const { graph, positioned: occluded } = labelledWitness(false, true)
+    const { positioned: clear } = labelledWitness(true)
+    const selected = certifyLayoutCandidates(graph, resolveRenderStyle({}), [
+      { strategy: 'occluded-without-crossings', produce: () => occluded },
+      { strategy: 'readable-with-crossing', produce: () => clear },
+    ])
+    expect(selected).toBe(occluded)
+    expect(selected.certification?.preference).toMatchObject({ reason: 'edgeCrossings', selectedScore: { edgeCrossings: 0 } })
+    expect(selected.certification!.preference.selectedScore.labelConflicts).toBeGreaterThan(0)
+    expect(selected.certification!.preference.compared[1]!.score).toMatchObject({ labelConflicts: 0, edgeCrossings: 1 })
+  })
+
+  test('zero crossings do not suppress a bounded label-conflict comparison', () => {
+    const { graph, positioned: occluded } = labelledWitness(false, true)
+    const { positioned: clear } = labelledWitness(false)
+    let produced = 0
+    const selected = certifyLayoutCandidates(graph, resolveRenderStyle({}), [
+      { strategy: 'occluded', produce: () => occluded },
+      { strategy: 'clear', produce: () => { produced++; return clear } },
+    ])
+    expect(produced).toBe(1)
+    expect(selected).toBe(clear)
+    expect(selected.certification?.preference).toMatchObject({ reason: 'labelConflicts', selectedScore: { labelConflicts: 0, edgeCrossings: 0 } })
   })
 
   test('continuity outranks canonical ports when crossings are equal', () => {
@@ -193,8 +299,10 @@ describe('bounded final layout certification', () => {
       expect(crossing.certification?.preference).toMatchObject({ reason: 'no-alternative', selectedScore: { edgeCrossings: 1 } })
       calls = 0
       const alreadySeparate = layoutGraphSync(parseMermaid('flowchart TB\nc1-->a2\nsubgraph one\ndirection TB\na1-->a2\nend\nsubgraph two\nb1-->b2\nend\nsubgraph three\nc1-->c2\nend\none --> two\nthree --> two\ntwo --> c2'))
-      expect(calls).toBe(1)
-      expect(alreadySeparate.certification?.preference).toMatchObject({ reason: 'no-alternative', selectedScore: { edgeCrossings: 1 } })
+      // A distinct route proposal may reuse the same placement even when no
+      // distinct hierarchy strategy is eligible.
+      expect(calls).toBe(2)
+      expect(alreadySeparate.certification?.preference.routing?.preference.compared).toHaveLength(2)
     } finally { firstPass.run = run }
   })
 
@@ -202,8 +310,13 @@ describe('bounded final layout certification', () => {
     const graph = parseMermaid('flowchart TB\nc1-->a2\nsubgraph one\na1-->a2\nend\nsubgraph two\nb1-->b2\nend\nsubgraph three\nc1-->c2\nend\none --> two\nthree --> two\ntwo --> c2')
     const positioned = layoutGraphSync(graph), preference = positioned.certification!.preference
     expect(positioned.certification).toMatchObject({ strategy: 'separate-hierarchy', attempts: 2 })
-    expect(preference).toMatchObject({ reason: 'totalBends', selectedScore: { edgeCrossings: 1, totalBends: 3 } })
+    expect(preference).toMatchObject({
+      reason: 'totalBends', selectedScore: { edgeCrossings: 0, totalBends: 4 },
+      routing: { strategy: 'without-generic-bundling', preference: { reason: 'edgeCrossings' } },
+    })
     expect(preference.compared[0]?.score).toMatchObject({ edgeCrossings: 1, totalBends: 4 })
+    expect(preference.compared[1]?.score).toMatchObject({ edgeCrossings: 1, totalBends: 3 })
+    expect(preference.selectedScore).toEqual(preference.routing!.preference.selectedScore)
     expect(preference.selectedScore.area).toBeGreaterThan(preference.compared[0]!.score.area)
   })
 

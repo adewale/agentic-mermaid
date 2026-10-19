@@ -3,19 +3,34 @@ import { getFamily, knownBuiltinFamilies } from '../agent/core.ts'
 import { parseClassDiagram } from '../class/parser.ts'
 import { renderMermaidSVG } from '../index.ts'
 import { parseMermaid } from '../parser.ts'
+import { withPerformanceExperiments } from '../experimental-performance.ts'
 import { parseSequenceDiagram } from '../sequence/parser.ts'
-import { type ParserObservation, withParserObservation } from '../shared/parser-observation.ts'
+import { observeParserMutation, type ParserObservation, withParserObservation } from '../shared/parser-observation.ts'
 
 describe('native parser observation', () => {
+  test('selective mutation observation avoids reading excluded payloads and restores the enclosing scope', () => {
+    const events: ParserObservation[] = []
+    const unused = { get children(): never { throw new Error('excluded payload was traversed') } }
+    withParserObservation('block', event => events.push(event), () => {
+      withParserObservation('block', event => events.push(event), () => {
+        observeParserMutation('block', 'upsert-block', unused)
+        observeParserMutation('block', 'generate-id', 'anonymous-1')
+      }, { mutations: ['generate-id'] })
+      observeParserMutation('block', 'upsert-block', { id: 'outer' })
+    })
+    expect(events.map(event => [event.kind, event.value])).toEqual([['generate-id', 'anonymous-1'], ['upsert-block', { id: 'outer' }]])
+  })
   for (const family of knownBuiltinFamilies()) {
     test(`${family}: public SVG is identical with actual native consumption/build observation`, () => {
       const source = getFamily(family)!.example
       const events: ParserObservation[] = []
-      const control = renderMermaidSVG(source)
+      // Observe actual parser work rather than an exact positioned-cache hit.
+      const render = () => withPerformanceExperiments(['text-spans', 'indexed-layout'], () => renderMermaidSVG(source))
+      const control = render()
       const observed = withParserObservation(
         family,
         event => events.push(event),
-        () => renderMermaidSVG(source),
+        render,
       )
       expect(observed).toBe(control)
       expect(events.some(event => event.unit === 'statement')).toBe(true)
@@ -62,6 +77,16 @@ describe('native parser observation', () => {
       ['node', 'B'],
       ['node', 'C'],
     ])
+  })
+
+  test('records a reopened State composite under the parent it was first declared in', () => {
+    const source = 'stateDiagram-v2\nstate P {\nstate A {\nx\n--\ny\n}\n}\nstate A {\nz\n}\nstate Q {\nstate P {\nw\n}\n}'
+    const events: ParserObservation[] = []
+    const observed = withParserObservation('state', event => events.push(event), () => parseMermaid(source))
+    expect(observed).toEqual(parseMermaid(source))
+    const groups = (kind: string) => events.filter(event => event.kind === kind).map(event => [(event.value as { id: string }).id, (event.value as { parent?: string }).parent])
+    expect(groups('open-group')).toEqual([['P', undefined], ['A', 'P'], ['A', 'P'], ['Q', undefined], ['P', undefined]])
+    expect(groups('close-group')).toEqual([['A', 'P'], ['P', undefined], ['A', 'P'], ['P', undefined], ['Q', undefined]])
   })
 
   test('records Sequence builder calls with both marker sides, labels and block parentage', () => {

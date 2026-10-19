@@ -1,11 +1,11 @@
-import type { GroupMark, SceneNode } from './ir.ts'
+import type { GroupMark, SceneDoc, SceneNode } from './ir.ts'
 import { compareCodePointStrings } from '../shared/deterministic-order.ts'
 import {
   serializeSvgEmission, snapshotSvgEmissionRecipe, writeSvgEmission, writeSvgGroupOpen,
   measureSvgEmission,
   type SvgEmissionRecipe, type SvgEmissionContext, type SvgGroupEmission,
 } from './svg-emission.ts'
-import { SvgWriter } from './svg-writer.ts'
+import { writeConnectorSvg, writeShapeSvg, writeTextSvg, SvgWriter } from './svg-writer.ts'
 import { writeSceneText, writeConnectorLabels } from './svg-text-emission.ts'
 import { writeScenePrelude, writeSceneShadow } from './svg-document-emission.ts'
 
@@ -16,6 +16,8 @@ import { writeScenePrelude, writeSceneShadow } from './svg-document-emission.ts'
 // bytes. The semantic Scene fields remain the public contract.
 const SERIALIZED_SCENE_NODES = new WeakMap<object, string>()
 const TYPED_SCENE_EMISSIONS = new WeakMap<object, SvgEmissionRecipe>()
+const WRITABLE_SCENE_NODES = new WeakSet<object>()
+const POSSIBLE_FITTED_TEXT = /<\s*text/i
 const GROUP_VIEWS = new WeakMap<object, { open: () => string; close: () => string }>()
 
 const emissionContext: SvgEmissionContext = {
@@ -71,14 +73,35 @@ export function hasOwnedSceneEmissionView(source: object, key: string): boolean 
 
 export function sceneNodeSerializationBytes(node: SceneNode, maxBytes: number): number {
   const recipe = TYPED_SCENE_EMISSIONS.get(node)
-  if (!recipe) throw new TypeError('Expected typed SVG emission')
-  return measureSvgEmission(node, recipe, emissionContext, maxBytes)
+  if (recipe) return measureSvgEmission(node, recipe, emissionContext, maxBytes)
+  const writer = new SvgWriter({ maxBytes, mode: 'count' })
+  writeSceneNode(node, writer)
+  return writer.bytes
 }
 
 export function writeSceneNode(node: SceneNode, writer: SvgWriter, context: SvgEmissionContext = emissionContext): void {
   const recipe = TYPED_SCENE_EMISSIONS.get(node)
-  if (!recipe) throw new TypeError(`Scene node "${node.id}" has no typed SVG emission`)
-  writeSvgEmission(node, recipe, writer, context)
+  if (recipe) { writeSvgEmission(node, recipe, writer, context); return }
+  const stored = SERIALIZED_SCENE_NODES.get(node)
+  if (stored !== undefined) { writer.write(stored); return }
+  if (!WRITABLE_SCENE_NODES.has(node)) throw new TypeError(`Scene node "${node.id}" has no admitted SVG serialization`)
+  switch (node.kind) {
+    case 'shape': writer.write(writeShapeSvg(node)); return
+    case 'text': writer.write(writeTextSvg(node)); return
+    case 'connector': writer.write(writeConnectorSvg(node)); return
+    case 'group':
+      writer.write(node.open)
+      for (const child of node.children) {
+        writer.write(node.join)
+        const destination = writer.indented(child.indent).scoped(5_000_000)
+        if (context.writeChild) context.writeChild(child.node, destination)
+        else writeSceneNode(child.node, destination, context)
+      }
+      writer.write(node.join)
+      writer.write(node.close)
+      return
+    case 'document': throw new TypeError(`Scene node "${node.id}" has no admitted SVG serialization`)
+  }
 }
 
 /** Observe the actual closed emission path. Only multiline prepared text is
@@ -95,10 +118,14 @@ export function sceneDocumentEmission(writer: SvgWriter): {
       if (node.measurement !== 'prepared' || recipe.layout !== 'multiline') textAlreadyFitted = false
       writeSceneText(node, recipe, destination)
     },
-    writeChild(node, destination) { writeSceneNode(node, destination, context) },
+    writeChild(node, destination) { writeNode(node, destination) },
+  }
+  const writeNode = (node: SceneNode, destination = writer): void => {
+    if (!sceneNodeEmission(node) && !nativePreparedText(node)) textAlreadyFitted = false
+    writeSceneNode(node, destination, context)
   }
   return {
-    writeNode(node, destination = writer) { writeSceneNode(node, destination, context) },
+    writeNode,
     get textAlreadyFitted() { return textAlreadyFitted },
   }
 }
@@ -204,11 +231,14 @@ export function sceneNodeSerialization(node: SceneNode): string {
   const recipe = TYPED_SCENE_EMISSIONS.get(node)
   if (recipe) return serializeSvgEmission(node, recipe, emissionContext)
   const svg = SERIALIZED_SCENE_NODES.get(node)
-  if (svg === undefined) throw new TypeError(`Scene node "${node.id}" has no admitted SVG serialization`)
-  return svg
+  if (svg !== undefined) return svg
+  const writer = new SvgWriter()
+  writeSceneNode(node, writer)
+  return writer.finish()
 }
 
 export function transferSceneNodeSerialization(source: object, target: object): void {
+  if (WRITABLE_SCENE_NODES.has(source)) WRITABLE_SCENE_NODES.add(target)
   const recipe = TYPED_SCENE_EMISSIONS.get(source)
   if (recipe) TYPED_SCENE_EMISSIONS.set(target, recipe)
   const svg = SERIALIZED_SCENE_NODES.get(source)
@@ -216,5 +246,38 @@ export function transferSceneNodeSerialization(source: object, target: object): 
 }
 
 export function hasSceneNodeSerialization(value: object): boolean {
-  return TYPED_SCENE_EMISSIONS.has(value) || SERIALIZED_SCENE_NODES.has(value)
+  return TYPED_SCENE_EMISSIONS.has(value) || SERIALIZED_SCENE_NODES.has(value) || WRITABLE_SCENE_NODES.has(value)
+}
+
+/** Controlled constructor provenance survives bounded admission copies. Native
+ * typed marks share the request-local sink; serialized leaf strings are never cached. */
+export function admitWritableSceneNode<T extends SceneNode>(node: T): T {
+  WRITABLE_SCENE_NODES.add(node)
+  return node
+}
+
+function nativePreparedText(node: SceneNode): boolean {
+  if (node.kind === 'document') {
+    const svg = SERIALIZED_SCENE_NODES.get(node)
+    return svg !== undefined && !POSSIBLE_FITTED_TEXT.test(svg)
+  }
+  if (!WRITABLE_SCENE_NODES.has(node)) return false
+  switch (node.kind) {
+    case 'text': return node.measurement === 'prepared' && node.block !== undefined
+    case 'shape': case 'connector': return true
+    case 'group': return !POSSIBLE_FITTED_TEXT.test(node.open) && !POSSIBLE_FITTED_TEXT.test(node.close)
+      && node.children.every(child => nativePreparedText(child.node))
+  }
+}
+
+/** Conservative proof for the native typed compatibility path. */
+export function sceneHasOnlyPreparedText(scene: SceneDoc): boolean {
+  return scene.parts.every(nativePreparedText)
+}
+
+/** Preserve the group adapter's exact historical whitespace. */
+export function indentLines(value: string, spaces: number): string {
+  if (spaces <= 0 || value === '') return value
+  const prefix = ' '.repeat(spaces)
+  return prefix + value.replace(/\n/g, `\n${prefix}`)
 }

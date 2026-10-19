@@ -6,6 +6,7 @@ import { parseRadarChart } from '../radar/parser.ts'
 import { normalizeMermaidSource } from '../mermaid-source.ts'
 import type { RadarBody, RadarMutationOp, RadarValidDiagram, SankeyValidDiagram } from '../agent/index.ts'
 import type { RadarRuntimeConfig } from '../index.ts'
+import { renderMermaidSVG } from '../index.ts'
 import { SDK_DECLARATION } from '../mcp/sdk-decl.ts'
 
 const BASIC = 'radar-beta\n  title Skills\n  axis speed["Speed"], power["Power"], range["Range"]\n  curve now["Current"]{4, 3, 5}\n  curve goal["Target"]{5, 5, 4}\n  max 5'
@@ -81,6 +82,38 @@ describe('radar agent surface', () => {
     expect(opaque.value.body.kind).toBe('opaque')
     expect(serializeMermaid(opaque.value).trimEnd()).toBe(malformed)
     expect(asRadar(opaque.value)).toBeNull()
+  })
+
+  test('an accessibility directive after a statement on its line joins the envelope, as authored', () => {
+    const cases: Array<[string, { title?: string; descr?: string }]> = [
+      ['radar-beta\n  axis a, b accTitle: x\n  curve c{1, 2}', { title: 'x' }],
+      ['radar-beta\n  axis a, b accDescr: x\n  curve c{1, 2}', { descr: 'x' }],
+      ['radar-beta\n  curve c{1, 2} accTitle: a<br>b\n  axis a, b', { title: 'a<br>b' }],
+      ['radar-beta\n  accTitle: x\n  axis a, b accTitle: x\n  curve c{1, 2}', { title: 'x' }],
+      ['radar-beta\n  axis a, b accDescr { x\n    y }\n  curve c{1, 2}', { descr: 'x\ny' }],
+    ]
+    const named = (svg: string) => [svg.match(/<title\b[^>]*>([^<]*)<\/title>/)?.[1], svg.match(/<desc\b[^>]*>([^<]*)<\/desc>/)?.[1]]
+    for (const [source, accessibility] of cases) {
+      const d = radar(source)
+      expect(d.meta.accessibility, source).toEqual(accessibility)
+      expect(d.body.axes.map(axis => axis.id), source).toEqual(['a', 'b'])
+      const output = serializeMermaid(d)
+      const reparsed = radar(output)
+      expect(reparsed.meta.accessibility, source).toEqual(accessibility)
+      expect(reparsed.body, source).toEqual(d.body)
+      // The output's drawing names the chart as the source's does.
+      expect(named(renderMermaidSVG(output)), source).toEqual(named(renderMermaidSVG(source)))
+    }
+    // Beside another value on a line of its own, Mermaid keeps the one written
+    // last, which the envelope cannot order: the source is kept, the one on
+    // its own line is drawn whichever comes first, as in XYChart, and said so.
+    for (const source of ['radar-beta\n  axis a, b accTitle: x\n  accTitle: y\n  curve c{1, 2}\n', 'radar-beta\n  accTitle: y\n  axis a, b accTitle: x\n  curve c{1, 2}\n']) {
+      const parsed = parseMermaid(source)
+      expect(parsed.ok && parsed.value.body.kind).toBe('opaque')
+      if (parsed.ok) expect(serializeMermaid(parsed.value)).toBe(source)
+      expect(named(renderMermaidSVG(source))[0], source).toBe('y')
+      expect(verifyMermaid(source).warnings.filter(w => w.code === 'UNSUPPORTED_SYNTAX').map(w => w.syntax), source).toEqual(['radar_accessibility_order'])
+    }
   })
 
   test('model-gap guard: mismatched or duplicate identities cannot enter the typed radar body', () => {

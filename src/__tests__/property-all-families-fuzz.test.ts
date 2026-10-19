@@ -19,7 +19,6 @@
 
 import { beforeAll, describe, expect, test } from 'bun:test'
 import fc from 'fast-check'
-import { fcParameters } from './helpers/fc-parameters.ts'
 import { BUILTIN_FAMILY_METADATA } from '../agent/families.ts'
 import { layoutFamilyToRendered } from '../agent/family-layouts.ts'
 import { describeMermaidFacts, layoutMermaid, parseRegisteredMermaid as parseMermaid, renderMermaidSVG, serializeMermaid } from '../agent/index.ts'
@@ -32,6 +31,7 @@ import { parseMermaid as parseRendererGraph } from '../parser.ts'
 import { auditRouteContracts } from '../route-contracts.ts'
 import { compareCodePointStrings } from '../shared/deterministic-order.ts'
 import type { MermaidGraph } from '../types.ts'
+import { fcParameters } from './helpers/fc-parameters.ts'
 import { METAMORPHIC_FAMILIES } from './helpers/metamorphic-families.ts'
 import { expectWellFormedXml, svgXmlReady } from './helpers/svg-xml.ts'
 
@@ -94,21 +94,89 @@ function structuredBodyInventory(d: ParsedDiagram): SemanticInventory {
     }
   }
   switch (body.kind) {
+    case 'packet':
+      return { nodes: sorted(body.fields.flatMap(field => Array.from({ length: Math.floor(field.end / 32) - Math.floor(field.start / 32) + 1 }, (_, index) => item(`${field.id}:row-${Math.floor(field.start / 32) + index}`, field.label)))), edges: [], groups: [] }
+    case 'kanban':
+      return {
+        nodes: sorted(body.columns.flatMap(column => column.tasks.map(task => item(task.id, task.label)))),
+        edges: [],
+        groups: sorted(
+          body.columns.map(column =>
+            group(
+              column.id,
+              column.label,
+              column.tasks.map(task => task.id),
+            ),
+          ),
+        ),
+      }
+    case 'requirement':
+      return { nodes: sorted([...body.requirements.map(node => item(node.name, `<<${node.type}>>\n${node.name}`)), ...body.elements.map(node => item(node.name, `<<Element>>\n${node.name}`))]), edges: sorted(body.relations.map(relation => edge(relation.src, relation.dst, `<<${relation.type}>>`))), groups: [] }
+    case 'treemap':
+      return {
+        nodes: sorted(body.nodes.filter(node => node.value !== undefined).map(node => item(node.id, node.label))),
+        edges: [],
+        groups: sorted(
+          body.nodes
+            .filter(node => node.value === undefined)
+            .map(node =>
+              group(
+                node.id,
+                node.label,
+                body.nodes.filter(child => child.parentId === node.id).map(child => child.id),
+              ),
+            ),
+        ),
+      }
+    case 'ishikawa':
+      return { nodes: sorted(body.nodes.map(node => item(node.id, node.label))), edges: sorted(body.nodes.filter(node => node.parentId).map(node => edge(node.id, node.parentId!))), groups: [] }
+    case 'block': {
+      const nodes: string[] = [],
+        groups: string[] = []
+      const visit = (parent: typeof body.root): void => {
+        for (const node of parent.children ?? []) {
+          if (node.type === 'composite') {
+            groups.push(
+              group(
+                node.id,
+                node.label,
+                (node.children ?? []).filter(child => child.type !== 'space').map(child => child.id),
+              ),
+            )
+            visit(node)
+          } else if (node.type !== 'space') nodes.push(item(node.id, node.label ?? node.id))
+        }
+      }
+      visit(body.root)
+      return { nodes: sorted(nodes), edges: sorted(body.edges.map(link => edge(link.start!, link.end!, link.label || undefined))), groups: sorted(groups) }
+    }
     case 'c4':
       return {
         nodes: sorted(body.elements.map(element => item(element.id, element.label))),
-        edges: sorted(body.relationships.map(relationship => {
-          const index = relationship.index ?? (body.variant === 'C4Dynamic' ? String(relationship.order) : undefined)
-          const label = [
-            `${index === undefined ? '' : `${index}: `}${relationship.label}`,
-            relationship.technology ? `[${relationship.technology}]` : undefined,
-            relationship.description,
-            relationship.tags.length ? `[tags: ${relationship.tags.join(', ')}]` : undefined,
-            relationship.sprite ? `[sprite: ${relationship.sprite}]` : undefined,
-          ].filter(value => value !== undefined && value !== '').join('\n')
-          return edge(relationship.source, relationship.target, label)
-        })),
-        groups: sorted(body.boundaries.map(boundary => group(boundary.id, boundary.label, body.elements.filter(element => element.parentId === boundary.id).map(element => element.id)))),
+        edges: sorted(
+          body.relationships.map(relationship => {
+            const index = relationship.index ?? (body.variant === 'C4Dynamic' ? String(relationship.order) : undefined)
+            const label = [
+              `${index === undefined ? '' : `${index}: `}${relationship.label}`,
+              relationship.technology ? `[${relationship.technology}]` : undefined,
+              relationship.description,
+              relationship.tags.length ? `[tags: ${relationship.tags.join(', ')}]` : undefined,
+              relationship.sprite ? `[sprite: ${relationship.sprite}]` : undefined,
+            ]
+              .filter(value => value !== undefined && value !== '')
+              .join('\n')
+            return edge(relationship.source, relationship.target, label)
+          }),
+        ),
+        groups: sorted(
+          body.boundaries.map(boundary =>
+            group(
+              boundary.id,
+              boundary.label,
+              body.elements.filter(element => element.parentId === boundary.id).map(element => element.id),
+            ),
+          ),
+        ),
       }
     case 'sequence':
       return {

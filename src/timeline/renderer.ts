@@ -4,11 +4,11 @@ import type { DiagramColors } from '../theme.ts'
 import { toneOnFill } from '../color-resolver.ts'
 import { TIMELINE_STYLE_DEFAULTS } from './layout.ts'
 import { buildAccessibilityAttrs } from '../shared/svg-a11y.ts'
-import { STROKE_WIDTHS, resolveRenderStyle } from '../styles.ts'
-import type { RenderStyleDefaults, ResolvedRenderStyle } from '../styles.ts'
+import { resolveRenderStyle } from '../styles.ts';
+import type { ResolvedRenderStyle } from '../styles.ts';
 import type { MermaidThemeVariables, TimelineRuntimeConfig } from '../mermaid-source.ts'
-import { topRoundedRectPath } from '../svg-paths.ts'
-import type { SceneDoc, SceneNode } from '../scene/ir.ts'
+import { topRoundedRectPath } from '../scene/svg-writer.ts'
+import type { MarkAttributes, SceneDoc, SceneNode } from '../scene/ir.ts'
 import { hashId } from '../scene/seed.ts'
 import * as marks from '../scene/marks.ts'
 import { DefaultBackend } from '../scene/backend.ts'
@@ -45,6 +45,7 @@ const TL = {
 function primitive(className: string, geometry: readonly SvgGeometryField[]): SvgEmissionRecipe {
   return snapshotSvgEmissionRecipe({ kind: 'primitive', attributes: [
     { name: 'class', value: v.meta(className) }, ...geometry.map(name => ({ name, value: v.geometry(name) })),
+    ...(['fill', 'stroke', 'strokeWidth', 'strokeDasharray', 'strokeLinecap', 'opacity'] as const).map(field => ({ name: ({ fill: 'fill', stroke: 'stroke', strokeWidth: 'stroke-width', strokeDasharray: 'stroke-dasharray', strokeLinecap: 'stroke-linecap', opacity: 'opacity' } as const)[field], value: v.paint(field) })),
   ] })
 }
 const LINE_FIELDS = ['x1', 'y1', 'x2', 'y2'] as const
@@ -62,7 +63,7 @@ function textAttributes(className: string): SvgAttribute[] {
   return [
     { name: 'class', value: v.meta(className) }, { name: 'text-anchor', value: v.text('anchor') },
     { name: 'font-size', value: v.text('fontSize') }, { name: 'font-weight', value: v.text('fontWeight') },
-    { name: 'data-literal-text', value: v.meta(true) },
+    { name: 'data-literal-text', value: v.meta(true) }, { name: 'fill', value: v.paint('fill') },
   ]
 }
 const TITLE_EMISSION = snapshotSvgEmissionRecipe({ kind: 'text', layout: 'multiline', attributes: textAttributes('timeline-title') })
@@ -124,17 +125,12 @@ export function lowerTimelineScene(
   const descId = `${uid}-desc`
   const rootAttrs = buildAccessibilityAttrs(accessibleTitle, accessibleDescription, titleId, descId)
 
-  // SVG root with CSS variables + shared style block (+ optional shadow defs)
-  // + timeline CSS — the exact chunks the string renderer pushed, joined '\n'.
-  // The shadow <defs> sit between the two style blocks (matching the historical
-  // push order); they are re-derivable from prelude.colors, so styled backends
-  // lose nothing by their living inside the prelude crisp.
-  const extraCss = timelineStyles(style, eventText)
+  // Each mark carries its resolved paint; only the shared document style remains.
   parts.push(marks.documentOpen(
-    { id: 'prelude', width: diagram.width, height: diagram.height, colors, transparent, font, hasMonoFont: false, extraCss },
+    { id: 'prelude', width: diagram.width, height: diagram.height, colors, transparent, font, hasMonoFont: false },
     { kind: 'prelude', width: diagram.width, height: diagram.height, colors, transparent, font, hasMonoFont: false,
       attributes: Object.entries(rootAttrs).map(([name, value]) => ({ name: name as SvgAttribute['name'], value: v.meta(value) })),
-      children: [{ kind: 'sharedStyle' }, ...(colors.shadow ? [{ kind: 'shadow' as const, colors, wrap: true }] : []), { kind: 'stylesheet', css: extraCss }],
+      children: [{ kind: 'sharedStyle' }, ...(colors.shadow ? [{ kind: 'shadow' as const, colors, wrap: true }] : [])],
     },
   ))
 
@@ -167,6 +163,7 @@ export function lowerTimelineScene(
       role: 'rail',
       geometry: { kind: 'line', x1: diagram.rail.x1, y1: diagram.rail.y1, x2: diagram.rail.x2, y2: diagram.rail.y2 },
       paint: paints.rail,
+        attributes: { className: 'timeline-rail' },
     },
     RAIL_EMISSION,
   ))
@@ -193,6 +190,7 @@ export function lowerTimelineScene(
         fontSize: TL.titleFontSize, fontWeight: TL.titleFontWeight, display: 'literal',
         anchor: 'middle',
         paint: paints.title,
+        attributes: literalTextHooks('timeline-title'),
       },
       TITLE_EMISSION,
     ))
@@ -215,13 +213,12 @@ function eventTextFill(style: ResolvedRenderStyle, colors: DiagramColors, family
   return inked === 'var(--_text)' ? themed : inked
 }
 
-/** Resolved per-role paints — mirrors the class rules in timelineStyles(), so
- *  styled backends see the same colors the crisp CSS classes resolve to.
- *  Keep in sync with timelineStyles(). */
+/** Resolved per-role paints, written on each mark. The per-family palette
+ *  reaches them through the --tl-* custom properties its group sets. */
 function timelinePaints(style: ResolvedRenderStyle, eventText: string) {
   return {
     title: { fill: style.groupTextColor ?? style.nodeTextColor ?? 'var(--_text)' },
-    rail: { stroke: style.edgeStrokeColor ?? 'var(--_line)', strokeWidth: String(style.lineWidth) },
+    rail: { stroke: style.edgeStrokeColor ?? 'var(--_line)', strokeWidth: String(style.lineWidth), strokeLinecap: 'round' as const },
     sectionBg: {
       fill: style.groupFillColor ?? 'var(--tl-section-bg, color-mix(in srgb, var(--_node-fill) 88%, var(--bg)))',
       stroke: style.groupBorderColor ?? 'var(--tl-line, var(--_node-stroke))',
@@ -261,21 +258,9 @@ function timelinePaints(style: ResolvedRenderStyle, eventText: string) {
 
 type TimelinePaints = ReturnType<typeof timelinePaints>
 
-function timelineStyles(style: ResolvedRenderStyle, eventText: string): string {
-  return `
-  .timeline-title { fill: ${style.groupTextColor ?? style.nodeTextColor ?? 'var(--_text)'}; }
-  .timeline-rail { stroke: ${style.edgeStrokeColor ?? 'var(--_line)'}; stroke-width: ${style.lineWidth}; stroke-linecap: round; }
-  .timeline-section-bg { fill: ${style.groupFillColor ?? 'var(--tl-section-bg, color-mix(in srgb, var(--_node-fill) 88%, var(--bg)))'}; stroke: ${style.groupBorderColor ?? 'var(--tl-line, var(--_node-stroke))'}; stroke-width: ${style.groupLineWidth}; }
-  .timeline-section-band { fill: ${style.groupHeaderFillColor ?? 'var(--tl-section-band, color-mix(in srgb, var(--_arrow) 8%, var(--bg)))'}; stroke: ${style.groupBorderColor ?? 'var(--tl-line, var(--_node-stroke))'}; stroke-width: ${style.groupLineWidth}; }
-  .timeline-section-label { fill: ${style.groupTextColor ?? 'var(--tl-label, var(--_text-sec))'}; }
-  .timeline-stem { stroke: ${style.edgeStrokeColor ?? 'var(--tl-line, color-mix(in srgb, var(--_arrow) 32%, var(--_line)))'}; stroke-width: ${Math.max(1, style.lineWidth * 0.75)}; stroke-dasharray: 3 4; }
-  .timeline-marker-ring { fill: var(--bg); stroke: ${style.edgeStrokeColor ?? 'var(--tl-line, var(--_arrow))'}; stroke-width: 1.5; }
-  .timeline-marker-core { fill: ${style.edgeStrokeColor ?? 'var(--tl-accent, var(--_arrow))'}; }
-  .timeline-period-pill { fill: ${style.nodeFillColor ?? 'var(--tl-pill-fill, color-mix(in srgb, var(--_arrow) 7%, var(--bg)))'}; stroke: ${style.nodeBorderColor ?? 'var(--tl-pill-stroke, color-mix(in srgb, var(--_arrow) 20%, var(--bg)))'}; stroke-width: ${style.nodeLineWidth}; }
-  .timeline-period-text { fill: ${style.nodeTextColor ?? 'var(--tl-label, var(--_text))'}; }
-  .timeline-event-card { fill: ${style.nodeFillColor ?? 'var(--tl-event-fill, var(--_node-fill))'}; stroke: ${style.nodeBorderColor ?? 'var(--tl-line, var(--_node-stroke))'}; stroke-width: ${style.nodeLineWidth}; }
-  .timeline-event-text { fill: ${eventText}; }
-`
+/** Timeline labels remain literal in deterministic SVG font processing. */
+function literalTextHooks(className: string): MarkAttributes {
+  return { className, data: { 'literal-text': 'true' } }
 }
 
 function lowerSectionFrame(
@@ -296,6 +281,7 @@ function lowerSectionFrame(
         role: 'section',
         geometry: { kind: 'rect', x: section.x, y: section.y, width: section.width, height: section.height, rx: style.groupCornerRadius, ry: style.groupCornerRadius },
         paint: paints.sectionBg,
+        attributes: { className: 'timeline-section-bg' },
       },
       SECTION_EMISSION,
     ),
@@ -311,6 +297,7 @@ function lowerSectionFrame(
           role: 'group-header',
           geometry: { kind: 'path', d: bandPath },
           paint: paints.sectionBand,
+        attributes: { className: 'timeline-section-band' },
         },
         BAND_EMISSION,
       ),
@@ -329,6 +316,7 @@ function lowerSectionFrame(
             fontSize: style.groupHeaderFontSize, fontWeight: style.groupHeaderFontWeight, letterSpacing: style.groupLetterSpacing, display: 'literal',
             anchor: 'start',
             paint: paints.sectionLabel,
+        attributes: literalTextHooks('timeline-section-label'),
           },
           { kind: 'text', layout: 'multiline', attributes: [
             ...textAttributes('timeline-section-label'),
@@ -374,6 +362,7 @@ function lowerPeriod(
         role: 'period',
         geometry: { kind: 'line', x1: period.stem.x1, y1: period.stem.y1, x2: period.stem.x2, y2: period.stem.y2 },
         paint: paints.stem,
+        attributes: { className: 'timeline-stem' },
       },
       STEM_EMISSION,
     ),
@@ -386,6 +375,7 @@ function lowerPeriod(
         role: 'period',
         geometry: { kind: 'rect', x: period.pillX, y: period.pillY, width: period.pillWidth, height: period.pillHeight, rx: style.cornerRadius ?? 0, ry: style.cornerRadius ?? 0 },
         paint: paints.pill,
+        attributes: { className: 'timeline-period-pill' },
       },
       PILL_EMISSION,
     ),
@@ -403,6 +393,7 @@ function lowerPeriod(
         fontSize: style.edgeLabelFontSize, fontWeight: style.edgeLabelFontWeight, letterSpacing: style.edgeLetterSpacing, display: 'literal',
         anchor: 'middle',
         paint: paints.periodText,
+        attributes: literalTextHooks('timeline-period-text'),
       },
       PERIOD_TEXT_EMISSION,
     ),
@@ -415,6 +406,7 @@ function lowerPeriod(
         role: 'period',
         geometry: { kind: 'circle', cx: period.markerX, cy: period.markerY, r: TL.markerOuterRadius },
         paint: paints.markerRing,
+        attributes: { className: 'timeline-marker-ring' },
       },
       RING_EMISSION,
     ),
@@ -427,6 +419,7 @@ function lowerPeriod(
         role: 'period',
         geometry: { kind: 'circle', cx: period.markerX, cy: period.markerY, r: TL.markerInnerRadius },
         paint: paints.markerCore,
+        attributes: { className: 'timeline-marker-core' },
       },
       CORE_EMISSION,
     ),
@@ -470,6 +463,7 @@ function lowerEvent(
       role: 'event',
       geometry: { kind: 'rect', x: event.x, y: event.y, width: event.width, height: event.height, rx: style.cornerRadius ?? 0, ry: style.cornerRadius ?? 0 },
       paint: paints.eventCard,
+        attributes: { className: 'timeline-event-card' },
     },
     EVENT_EMISSION,
   )
@@ -485,6 +479,7 @@ function lowerEvent(
       fontSize: style.nodeLabelFontSize, fontWeight: style.nodeLabelFontWeight, letterSpacing: style.nodeLetterSpacing, display: 'literal',
       anchor: 'start',
       paint: paints.eventText,
+        attributes: literalTextHooks('timeline-event-text'),
     },
     EVENT_TEXT_EMISSION,
   )

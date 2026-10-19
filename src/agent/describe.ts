@@ -1,3 +1,5 @@
+import { isStableFamilyBody, stableFamilyCount, stableFamilyTree } from './stable-family-adapters.ts'
+
 // ============================================================================
 // describeMermaid — natural-language summary of a diagram.
 //
@@ -10,15 +12,15 @@
 // only have a string.
 // ============================================================================
 
+import { effectiveC4Shape } from '../c4/config.ts'
+import { c4BoundaryText, c4ElementText, c4RelationshipText } from '../c4/projection.ts'
+import type { C4Boundary, C4Element, C4Relationship, C4Shape } from '../c4/types.ts'
 import { parseGanttModel } from '../gantt/parser.ts'
 import { formatGanttInstant, resolveGanttSchedule } from '../gantt/schedule.ts'
 import { toMermaidLines } from '../mermaid-source.ts'
 import { describeMermaidFacts } from './facts.ts'
 import { extractLabelsGeneric, getFamily } from './families.ts'
 import { parseRegisteredMermaid } from './parse.ts'
-import { c4ElementText, c4BoundaryText, c4RelationshipText } from '../c4/projection.ts'
-import { effectiveC4Shape } from '../c4/config.ts'
-import type { C4Element, C4Boundary, C4Relationship, C4Shape } from '../c4/types.ts'
 import { sequenceMessageContexts, sequenceMessages } from './sequence-body.ts'
 import type { ClassValidDiagram, ErValidDiagram, FamilyId, FlowchartValidDiagram, ParsedDiagram, SequenceValidDiagram, TimelineValidDiagram, ValidDiagram } from './types.ts'
 
@@ -41,8 +43,9 @@ export interface DescribeTree {
   nodes: Array<{
     id: string
     label: string
-    c4?: ({ category: 'element'; effectiveShape: C4Shape } & Pick<C4Element, 'kind' | 'external' | 'shape' | 'parentId'>)
-      | ({ category: 'boundary' } & Pick<C4Boundary, 'kind' | 'parentId'>)
+    parentId?: string
+    value?: number
+    c4?: ({ category: 'element'; effectiveShape: C4Shape } & Pick<C4Element, 'kind' | 'external' | 'shape' | 'parentId'>) | ({ category: 'boundary' } & Pick<C4Boundary, 'kind' | 'parentId'>)
   }>
   edges: Array<{
     from: string
@@ -103,6 +106,10 @@ export function describeMermaid(d: ParsedDiagram, opts: DescribeOptions = {}): s
     }
     const total = d.body.links.reduce((sum, link) => sum + link.value, 0)
     return `A sankey diagram flowing ${total} across ${d.body.links.length} link(s) between ${nodes.size} node(s).`
+  }
+  if (isStableFamilyBody(d.body)) {
+    const count = stableFamilyCount(d.body)
+    return `A ${d.kind} diagram with ${count.nodes} item(s), ${count.groups} group(s) and ${count.edges} relationship(s).`
   }
   if (d.body.kind === 'opaque') return describeOpaque(d.kind, d.body.source)
   if (d.body.kind === 'extension') return describeOpaque(d.kind, d.body.source)
@@ -221,7 +228,7 @@ export function describeMermaidTree(d: ParsedDiagram): DescribeTree {
     visit(d.body.root)
   } else if (d.body.kind === 'gitgraph') {
     for (const commit of d.body.commits) {
-      tree.nodes.push({ id: commit.id, label: commit.message || commit.id })
+      tree.nodes.push({ id: commit.id, label: commit.message || commit.sourceId || commit.id })
       commit.parents.forEach(parent => tree.edges.push({ from: parent, to: commit.id, label: commit.source === 'commit' ? undefined : commit.source }))
     }
   } else if (d.body.kind === 'radar') {
@@ -229,18 +236,24 @@ export function describeMermaidTree(d: ParsedDiagram): DescribeTree {
     d.body.axes.forEach((a, i) => tree.nodes.push({ id: `axis-${i}`, label: a.label }))
     d.body.curves.forEach((c, i) => tree.nodes.push({ id: `curve-${i}`, label: c.label }))
   } else if (d.body.kind === 'c4') {
-    for (const boundary of d.body.boundaries) tree.nodes.push({
-      id: boundary.id, label: c4BoundaryText(boundary),
-      c4: { category: 'boundary', kind: boundary.kind, ...(boundary.parentId === undefined ? {} : { parentId: boundary.parentId }) },
-    })
-    for (const element of d.body.elements) tree.nodes.push({
-      id: element.id, label: c4ElementText(element),
-      c4: { category: 'element', kind: element.kind, external: element.external, shape: element.shape, effectiveShape: effectiveC4Shape(element), ...(element.parentId === undefined ? {} : { parentId: element.parentId }) },
-    })
+    for (const boundary of d.body.boundaries)
+      tree.nodes.push({
+        id: boundary.id,
+        label: c4BoundaryText(boundary),
+        c4: { category: 'boundary', kind: boundary.kind, ...(boundary.parentId === undefined ? {} : { parentId: boundary.parentId }) },
+      })
+    for (const element of d.body.elements)
+      tree.nodes.push({
+        id: element.id,
+        label: c4ElementText(element),
+        c4: { category: 'element', kind: element.kind, external: element.external, shape: element.shape, effectiveShape: effectiveC4Shape(element), ...(element.parentId === undefined ? {} : { parentId: element.parentId }) },
+      })
     for (const relationship of d.body.relationships) {
       const { id, order, index, macro, direction, bidirectional, reversed } = relationship
       tree.edges.push({
-        from: relationship.source, to: relationship.target, label: c4RelationshipText(d.body, relationship),
+        from: relationship.source,
+        to: relationship.target,
+        label: c4RelationshipText(d.body, relationship),
         c4: { id, order, macro, bidirectional, reversed, authoredFrom: relationship.from, authoredTo: relationship.to, ...(index === undefined ? {} : { index }), ...(direction === undefined ? {} : { direction }) },
       })
     }
@@ -256,6 +269,10 @@ export function describeMermaidTree(d: ParsedDiagram): DescribeTree {
       }
       tree.edges.push({ from: link.source, to: link.target, label: String(link.value) })
     }
+  } else if (isStableFamilyBody(d.body)) {
+    const semantics = stableFamilyTree(d.body)
+    tree.nodes.push(...semantics.nodes)
+    tree.edges.push(...semantics.edges)
   } else if (d.body.kind === 'opaque') {
     const plugin = getFamily(d.kind)
     const labels = (plugin?.extractLabels ?? extractLabelsGeneric)(d.body.source)
@@ -275,7 +292,11 @@ export function describeMermaidTree(d: ParsedDiagram): DescribeTree {
   // Entry points (no incoming) and sinks (no outgoing) from the edge list.
   const incoming = new Set(tree.edges.map(e => e.to))
   const outgoing = new Set(tree.edges.map(e => e.from))
-  for (const edge of tree.edges) if (edge.c4?.bidirectional) { incoming.add(edge.from); outgoing.add(edge.to) }
+  for (const edge of tree.edges)
+    if (edge.c4?.bidirectional) {
+      incoming.add(edge.from)
+      outgoing.add(edge.to)
+    }
   for (const n of tree.nodes) {
     if (!incoming.has(n.id) && outgoing.has(n.id)) tree.entryPoints.push(n.id)
     if (!outgoing.has(n.id) && incoming.has(n.id)) tree.sinks.push(n.id)
@@ -464,12 +485,14 @@ function describeQuadrant(body: import('./types.ts').QuadrantBody): string {
 }
 
 function describeClass(d: ClassValidDiagram): string {
-  const classes = d.body.classes
+  const classes = d.body.classes.filter(node => !node.isInterface)
+  const interfaces = d.body.classes.filter(node => node.isInterface)
   const relations = d.body.relations
   const names = classes.map(c => (c.generic ? `${c.id}<${c.generic}>` : c.id))
   const relStr = relations.map(r => `${r.from} ${r.kind} ${r.to}`)
   let s = `A class diagram with ${classes.length} classes.`
   if (names.length > 0) s += ` Classes: ${names.join(', ')}.`
+  if (interfaces.length > 0) s += ` Interfaces: ${interfaces.map(node => node.label ?? node.id).join(', ')}.`
   // Namespace membership (repo #118): name each namespace with its members.
   const namespaces = d.body.namespaces ?? []
   if (namespaces.length > 0) {
@@ -506,8 +529,10 @@ function describeGantt(d: ValidDiagram & { body: import('./types.ts').GanttBody 
   // the fallback when the source needs context this body cannot see.
   try {
     const schedule = resolveGanttSchedule(parseGanttModel(toMermaidLines(d.canonicalSource)))
-    const fmt = schedule.dateOnly ? '%Y-%m-%d' : '%Y-%m-%d %H:%M'
-    s += ` Schedule: ${formatGanttInstant(schedule.timeMin, fmt)} to ${formatGanttInstant(schedule.timeMax, fmt)}.`
+    if (schedule.tasks.length > 0) {
+      const fmt = schedule.dateOnly ? '%Y-%m-%d' : '%Y-%m-%d %H:%M'
+      s += ` Schedule: ${formatGanttInstant(schedule.timeMin, fmt)} to ${formatGanttInstant(schedule.timeMax, fmt)}.`
+    } else s += ' No tasks scheduled.'
     if (schedule.analysis && schedule.analysis.criticalPathTaskIds.length > 0) {
       s += ` Critical path: ${schedule.analysis.criticalPathTaskIds.join(' -> ')}.`
     }

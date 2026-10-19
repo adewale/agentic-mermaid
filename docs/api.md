@@ -283,6 +283,7 @@ remain in their respective sections.
 | `interactive` | `boolean` | `false` | Enable hover tooltips for supported chart data points. | xychart, pie, quadrant | projected — terminal output is a static semantic projection |
 | `shadow` | `boolean` | `false` | Paint explicit drop shadows on node shapes. | flowchart, state, sequence, timeline, class, er, journey, xychart, pie, quadrant, gantt, mindmap, gitgraph, sankey | projected — elevation projects to borders and labels |
 | `class` | `{ hierarchicalNamespaces?: boolean }` | `hierarchicalNamespaces: true` | Class-diagram rendering controls. | class | not-applicable — this option configures graphical class layout |
+| `kanban` | `{ maxWidth?: number }` | `maxWidth`: unset | Opt-in Kanban column wrapping with readable column widths. | kanban | not-applicable — terminal layout uses its own targetWidth |
 | `architecture` | `{ visual?: ArchitectureVisualOverrides }` | built-in metrics | Sparse architecture renderer visual metric and paint overrides. | architecture | not-applicable — this option configures graphical architecture rendering |
 | `timeline` | `{ maxWidth?: number }` | `maxWidth`: unset | Timeline layout controls. | timeline | not-applicable — terminal output uses maxWidth or targetWidth |
 | `journey` | `{ experienceCurve?: boolean }` | `experienceCurve: true` | User-journey graphical controls. | journey | not-applicable — experience curves are graphical-only |
@@ -460,6 +461,21 @@ same output would accept its mistakes. Subset checks omit `exact: true` and
 must still require the marker/shaft facts whose preservation matters.
 
 ### Authoring Class endpoint markers and shafts
+
+Use `add_interface` to create a one-ended lollipop occurrence explicitly:
+
+```ts
+const op = {
+  kind: 'add_interface', class: 'Service', label: 'Protocol',
+  side: 'to', relationLabel: 'provides', lineStyle: 'solid',
+} as const
+```
+
+Each operation creates a separate interface occurrence. Its `label` names the
+interface; `relationLabel` names the connection. Ordinary classes with the same
+spelling remain distinct. `add_relation` rejects one-ended lollipops between
+ordinary class IDs and points callers to `add_interface`, since canonical
+Mermaid source would otherwise change endpoint identity.
 
 Class `add_relation` accepts optional `markerAt`, `fromKind`, `toKind` and
 `lineStyle` fields. Existing calls that omit them retain the relation kind's

@@ -1,26 +1,19 @@
 import { describe, expect, test } from 'bun:test'
 import fc from 'fast-check'
-import { fcParameters } from './helpers/fc-parameters.ts'
-import { startUpstreamMermaid } from './helpers/upstream-mermaid.ts'
 import { describeMermaidFacts } from '../agent/facts.ts'
-
-import {
-  GitGraphDuplicateCommitError, GitGraphParseError, MindmapDuplicateIdError,
-  parseGitGraph, parseMindmap, renderMermaidASCII, renderMermaidSVG,
-  serializeGitGraph, serializeMindmap, verifyNoExternalRefs,
-} from '../index.ts'
-import {
-  asGitGraph, asMindmap, layoutMermaid, mutate, parseRegisteredMermaid as parseMermaid, serializeMermaid, verifyMermaid,
-} from '../agent/index.ts'
+import { asGitGraph, asMindmap, layoutMermaid, mutate, parseRegisteredMermaid as parseMermaid, serializeMermaid, verifyMermaid } from '../agent/index.ts'
+import { visualWidth } from '../ascii/width.ts'
+import { assessRenderedLayout, familyHardViolations } from '../family-rubric.ts'
+import { layoutGitGraph } from '../gitgraph/layout.ts'
+import { GitGraphParseError, MindmapDuplicateIdError, parseGitGraph, parseMindmap, renderMermaidASCII, renderMermaidSVG, serializeGitGraph, serializeMindmap, verifyNoExternalRefs } from '../index.ts'
 import { layoutMindmap } from '../mindmap/layout.ts'
 import { lowerMindmapScene } from '../mindmap/renderer.ts'
-import { layoutGitGraph } from '../gitgraph/layout.ts'
-import { visualWidth } from '../ascii/width.ts'
-import { contrastRatio } from '../shared/color-math.ts'
-import { DEFAULTS } from '../theme.ts'
 import { BUILTIN_PALETTE_DEFINITIONS } from '../palette-catalog.ts'
 import { connectorUnitTangent } from '../scene/connector-geometry.ts'
-import { assessRenderedLayout, familyHardViolations } from '../family-rubric.ts'
+import { contrastRatio } from '../shared/color-math.ts'
+import { DEFAULTS } from '../theme.ts'
+import { fcParameters } from './helpers/fc-parameters.ts'
+import { startUpstreamMermaid } from './helpers/upstream-mermaid.ts'
 
 const MINDMAP = `mindmap
   accTitle: Product map
@@ -78,11 +71,12 @@ commit id: "9"`
   if (!parsed.ok) return
   const view = layoutMermaid(parsed.value)
   expect(familyHardViolations(assessRenderedLayout(view))).toEqual([])
-  for (const group of view.groups) for (const id of group.members) {
-    const node = view.nodes.find(node => node.id === id)!
-    expect(node.x + node.w).toBeLessThanOrEqual(group.x + group.w)
-    expect(node.y + node.h).toBeLessThanOrEqual(group.y + group.h)
-  }
+  for (const group of view.groups)
+    for (const id of group.members) {
+      const node = view.nodes.find(node => node.id === id)!
+      expect(node.x + node.w).toBeLessThanOrEqual(group.x + group.w)
+      expect(node.y + node.h).toBeLessThanOrEqual(group.y + group.h)
+    }
 })
 
 describe('Mindmap full-family citizenship', () => {
@@ -91,7 +85,8 @@ describe('Mindmap full-family citizenship', () => {
     expect(parsed.accessibilityTitle).toBe('Product map')
     expect(parsed.root.children.map(node => node.id)).toEqual(['Research', 'Delivery'])
     expect(parsed.root.children[0]!.children.map(node => [node.id, node.shape])).toEqual([
-      ['interviews', 'rect'], ['evidence', 'hexagon'],
+      ['interviews', 'rect'],
+      ['evidence', 'hexagon'],
     ])
     expect(parsed.root.children[0]!.children[0]!.className).toBe('research')
     expect(parsed.root.children[0]!.children[1]!.icon).toBe('mdi:lightbulb')
@@ -120,12 +115,13 @@ describe('Mindmap full-family citizenship', () => {
     const diagram = asMindmap(parsed.value)!
     expect(diagram.body.root.label).toBe('100%% ready')
     expect(diagram.body.root.children.map(node => [node.id, node.label])).toEqual([
-      ['a %% b', 'a %% b'], ['quoted', 'quoted%% label'], ['cloud', 'cloud%% label'], ['final', 'Final'],
+      ['a %% b', 'a %% b'],
+      ['quoted', 'quoted%% label'],
+      ['cloud', 'cloud%% label'],
+      ['final', 'Final'],
     ])
     expect(diagram.body.root.children[2]).toMatchObject({ icon: 'mdi:foo%%bar', className: 'hot%%class' })
-    expect(verifyMermaid(diagram).warnings.filter(warning => warning.code === 'COMMENT_DROPPED')).toEqual([
-      { code: 'COMMENT_DROPPED', count: 4, lines: [2, 5, 6, 8] },
-    ])
+    expect(verifyMermaid(diagram).warnings.filter(warning => warning.code === 'COMMENT_DROPPED')).toEqual([{ code: 'COMMENT_DROPPED', count: 4, lines: [2, 5, 6, 8] }])
     const changed = mutate(diagram, { kind: 'add_node', id: 'added', label: 'more%%text', shape: 'rect', parent: 'root' })
     if (!changed.ok) throw new Error(changed.error.message)
     const written = serializeMermaid(changed.value)
@@ -138,12 +134,22 @@ describe('Mindmap full-family citizenship', () => {
         const root = diagram.db.getMindmap()
         return { label: root.descr, children: root.children.map((node: any) => ({ id: node.nodeId, label: node.descr, ...(node.icon ? { icon: node.icon } : {}), ...(node.class ? { className: node.class } : {}) })) }
       })
-      expect(meaning).toEqual({ ok: true, value: { label: '100%% ready', children: [
-        { id: 'a %% b', label: 'a %% b' }, { id: 'quoted', label: 'quoted%% label' },
-        { id: 'cloud', label: 'cloud%% label', icon: 'mdi:foo%%bar', className: 'hot%%class' },
-        { id: 'final', label: 'Final' }, { id: 'added', label: 'more%%text' },
-      ] } })
-    } finally { upstream.close() }
+      expect(meaning).toEqual({
+        ok: true,
+        value: {
+          label: '100%% ready',
+          children: [
+            { id: 'a %% b', label: 'a %% b' },
+            { id: 'quoted', label: 'quoted%% label' },
+            { id: 'cloud', label: 'cloud%% label', icon: 'mdi:foo%%bar', className: 'hot%%class' },
+            { id: 'final', label: 'Final' },
+            { id: 'added', label: 'more%%text' },
+          ],
+        },
+      })
+    } finally {
+      upstream.close()
+    }
     for (const label of ['100%% ready', 'a %% b', 'quoted%% label', 'cloud%% label', 'more%%text']) {
       expect(renderMermaidSVG(written)).toContain(label)
       expect(renderMermaidASCII(written)).toContain(label)
@@ -156,8 +162,7 @@ describe('Mindmap full-family citizenship', () => {
 
   test('rejects empty icon decorations instead of dropping them on round-trip', () => {
     for (const decoration of ['::icon()', '::icon(   )']) {
-      expect(() => parseMindmap(`mindmap\n  Root\n    ${decoration}`), decoration)
-        .toThrow('Mindmap icon decoration must contain a non-empty value')
+      expect(() => parseMindmap(`mindmap\n  Root\n    ${decoration}`), decoration).toThrow('Mindmap icon decoration must contain a non-empty value')
     }
   })
 
@@ -185,8 +190,7 @@ describe('Mindmap full-family citizenship', () => {
     expect(connectors).toHaveLength(first.edges.length)
     first.edges.forEach((edge, index) => {
       const connector = connectors[index]!
-      expect({ index, kind: connector.kind, geometry: connector.kind === 'connector' ? connector.route.geometry.kind : null })
-        .toEqual({ index, kind: 'connector', geometry: 'path' })
+      expect({ index, kind: connector.kind, geometry: connector.kind === 'connector' ? connector.route.geometry.kind : null }).toEqual({ index, kind: 'connector', geometry: 'path' })
       if (connector.kind !== 'connector' || connector.route.geometry.kind !== 'path') return
       const [start, control1, control2, end] = edge.points
       expect(connector.route.geometry.points).not.toEqual(edge.points)
@@ -255,14 +259,17 @@ describe('Mindmap full-family citizenship', () => {
   })
 
   test('keeps deterministic tree invariants under generated sibling labels', () => {
-    fc.assert(fc.property(fc.uniqueArray(fc.stringMatching(/^[A-Za-z][A-Za-z0-9]{0,8}$/), { minLength: 1, maxLength: 8 }), labels => {
-      const source = ['mindmap', '  Root', ...labels.map(label => `    ${label}`)].join('\n')
-      const parsed = parseMindmap(source)
-      const layout = layoutMindmap(parsed)
-      expect(layout.nodes).toHaveLength(labels.length + 1)
-      expect(layout.edges).toHaveLength(labels.length)
-      expect(serializeMindmap(parseMindmap(serializeMindmap(parsed)))).toBe(serializeMindmap(parsed))
-    }), fcParameters({ numRuns: 30, seed: 1501 }))
+    fc.assert(
+      fc.property(fc.uniqueArray(fc.stringMatching(/^[A-Za-z][A-Za-z0-9]{0,8}$/), { minLength: 1, maxLength: 8 }), labels => {
+        const source = ['mindmap', '  Root', ...labels.map(label => `    ${label}`)].join('\n')
+        const parsed = parseMindmap(source)
+        const layout = layoutMindmap(parsed)
+        expect(layout.nodes).toHaveLength(labels.length + 1)
+        expect(layout.edges).toHaveLength(labels.length)
+        expect(serializeMindmap(parseMindmap(serializeMindmap(parsed)))).toBe(serializeMindmap(parsed))
+      }),
+      fcParameters({ numRuns: 30, seed: 1501 }),
+    )
   })
 })
 
@@ -286,8 +293,8 @@ describe('GitGraph full-family citizenship', () => {
     expect(parseGitGraph(serializeGitGraph(multilineA11y))).toEqual(multilineA11y)
   })
 
-  test('names duplicate identities and invalid replay state instead of overwriting history', () => {
-    expect(() => parseGitGraph('gitGraph\n  commit id:"same"\n  commit id:"same"')).toThrow(GitGraphDuplicateCommitError)
+  test('retains duplicate identities and diagnoses invalid replay instead of overwriting history', () => {
+    expect(parseGitGraph('gitGraph\n  commit id:"same"\n  commit id:"same"').commits.map(c => c.id)).toEqual(['same', 'same#1'])
     expect(() => parseGitGraph('gitGraph\n  checkout missing')).toThrow(GitGraphParseError)
     expect(() => parseGitGraph('gitGraph\n  branch one\n  branch one')).toThrow(GitGraphParseError)
   })
@@ -306,13 +313,14 @@ describe('GitGraph full-family citizenship', () => {
     if (!parsed.ok) return
     const rendered = layoutMermaid(parsed.value)
     const nodes = new Map(rendered.nodes.map(node => [node.id, node]))
-    for (const group of rendered.groups) for (const member of group.members) {
-      const node = nodes.get(member)!
-      expect(node.x, `${group.id} contains ${member} left`).toBeGreaterThanOrEqual(group.x)
-      expect(node.y, `${group.id} contains ${member} top`).toBeGreaterThanOrEqual(group.y)
-      expect(node.x + node.w, `${group.id} contains ${member} right`).toBeLessThanOrEqual(group.x + group.w)
-      expect(node.y + node.h, `${group.id} contains ${member} bottom`).toBeLessThanOrEqual(group.y + group.h)
-    }
+    for (const group of rendered.groups)
+      for (const member of group.members) {
+        const node = nodes.get(member)!
+        expect(node.x, `${group.id} contains ${member} left`).toBeGreaterThanOrEqual(group.x)
+        expect(node.y, `${group.id} contains ${member} top`).toBeGreaterThanOrEqual(group.y)
+        expect(node.x + node.w, `${group.id} contains ${member} right`).toBeLessThanOrEqual(group.x + group.w)
+        expect(node.y + node.h, `${group.id} contains ${member} bottom`).toBeLessThanOrEqual(group.y + group.h)
+      }
   })
 
   test('keeps implicit branch order monotone beyond nine branches', () => {
@@ -337,17 +345,23 @@ describe('GitGraph full-family citizenship', () => {
       const angle = Number(attr('transform')?.match(/rotate\(([-\d.]+)/)?.[1] ?? 0)
       const left = attr('text-anchor') === 'middle' ? -width! / 2 : 0
       // The glyph box: textLength wide, 1em above the baseline, 0.3em below it.
-      const radians = angle * Math.PI / 180
-      const corners = [[left, -size!], [left + width!, -size!], [left, 0.3 * size!], [left + width!, 0.3 * size!]].map(([dx, dy]) => ({
+      const radians = (angle * Math.PI) / 180
+      const corners = [
+        [left, -size!],
+        [left + width!, -size!],
+        [left, 0.3 * size!],
+        [left + width!, 0.3 * size!],
+      ].map(([dx, dy]) => ({
         x: x! + dx! * Math.cos(radians) - dy! * Math.sin(radians),
         y: y! + dx! * Math.sin(radians) + dy! * Math.cos(radians),
       }))
       const box = {
-        minX: Math.min(...corners.map(point => point.x)), minY: Math.min(...corners.map(point => point.y)),
-        maxX: Math.max(...corners.map(point => point.x)), maxY: Math.max(...corners.map(point => point.y)),
+        minX: Math.min(...corners.map(point => point.x)),
+        minY: Math.min(...corners.map(point => point.y)),
+        maxX: Math.max(...corners.map(point => point.x)),
+        maxY: Math.max(...corners.map(point => point.y)),
       }
-      expect({ direction, rotated: angle !== 0, inside: box.minX >= 0 && box.minY >= 0 && box.maxX <= canvasW! && box.maxY <= canvasH! })
-        .toEqual({ direction, rotated: direction === 'LR', inside: true })
+      expect({ direction, rotated: angle !== 0, inside: box.minX >= 0 && box.minY >= 0 && box.maxX <= canvasW! && box.maxY <= canvasH! }).toEqual({ direction, rotated: direction === 'LR', inside: true })
     }
   })
 
@@ -441,13 +455,16 @@ describe('GitGraph full-family citizenship', () => {
   })
 
   test('preserves deterministic commit and parent counts under generated linear histories', () => {
-    fc.assert(fc.property(fc.integer({ min: 1, max: 20 }), length => {
-      const source = ['gitGraph', ...Array.from({ length }, () => '  commit')].join('\n')
-      const first = parseGitGraph(source)
-      const second = parseGitGraph(source)
-      expect(second).toEqual(first)
-      expect(first.commits.map(commit => commit.id)).toEqual(Array.from({ length }, (_, index) => `c${index}`))
-      expect(first.commits.reduce((sum, commit) => sum + commit.parents.length, 0)).toBe(length - 1)
-    }), fcParameters({ numRuns: 30, seed: 1601 }))
+    fc.assert(
+      fc.property(fc.integer({ min: 1, max: 20 }), length => {
+        const source = ['gitGraph', ...Array.from({ length }, () => '  commit')].join('\n')
+        const first = parseGitGraph(source)
+        const second = parseGitGraph(source)
+        expect(second).toEqual(first)
+        expect(first.commits.map(commit => commit.id)).toEqual(Array.from({ length }, (_, index) => `c${index}`))
+        expect(first.commits.reduce((sum, commit) => sum + commit.parents.length, 0)).toBe(length - 1)
+      }),
+      fcParameters({ numRuns: 30, seed: 1601 }),
+    )
   })
 })

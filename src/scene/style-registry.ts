@@ -59,8 +59,8 @@ export type {
 import type {
   BrandConstraint, RoleStyleSpec, RoleStyles, SemanticBinding, SemanticSlots,
 } from './style-spec.ts'
-import type { SemanticChannels } from './ir.ts'
 import { SCENE_ROLE_DESCRIPTORS, type BuiltinSceneRole } from './roles.ts'
+export { resolveRoleStyle, type SemanticBindingContext } from './roles.ts'
 import { isPlainRecord } from '../shared/plain-data.ts'
 
 /** Private renderer defaults for built-in looks. This is intentionally not
@@ -243,10 +243,19 @@ function snapshotDeclarativeStyleValue(value: unknown): unknown {
   return snapshot(value, 0)
 }
 
+/** A Style input the caller supplied that names no registered style or is
+ * not a valid spec. Typed so verify attributes it to configuration. */
+export class StyleSpecError extends Error {
+  constructor(message: string) {
+    super(message)
+    this.name = 'StyleSpecError'
+  }
+}
+
 function validatedStyleSpecSnapshot(spec: StyleSpec): StyleSpec {
   const snapshot = snapshotDeclarativeStyleValue(spec) as StyleSpec
   const problems = validateStyleSpec(snapshot)
-  if (problems.length) throw new Error(`Invalid style spec: ${problems.join('; ')}`)
+  if (problems.length) throw new StyleSpecError(`Invalid style spec: ${problems.join('; ')}`)
   return snapshot
 }
 
@@ -453,12 +462,6 @@ export function inferBackend(spec: StyleSpec): 'default' | 'rough' | 'hybrid' {
   return 'default'
 }
 
-type InternalRoleStyleLookup = Partial<Record<BuiltinSceneRole, Readonly<RoleStyleSpec>>>
-
-function roleStyleLookup(roles: RoleStyles | undefined): InternalRoleStyleLookup | undefined {
-  return roles as InternalRoleStyleLookup | undefined
-}
-
 function mergeRoleStyles(left: RoleStyles | undefined, right: RoleStyles | undefined): RoleStyles | undefined {
   if (!left && !right) return undefined
   const merged: RoleStyles = { ...left }
@@ -500,7 +503,7 @@ function resolveInternalStyleStack(input: StyleInput | StyleInput[] | undefined)
       const resolved = canonicalStyleId(entry)
       if (resolved === 'look:crisp') continue
       const named = resolved ? STYLE_REGISTRY.get(resolved)?.value : undefined
-      if (!named) throw new Error(`Unknown style "${entry}". Known styles: ${knownStyles().join(', ')}`)
+      if (!named) throw new StyleSpecError(`Unknown style "${entry}". Known styles: ${knownStyles().join(', ')}`)
       specs.push(named)
     } else {
       specs.push(validatedStyleSpecSnapshot(entry))
@@ -565,41 +568,6 @@ function internalStyleFace(spec: InternalStyleSpec): InternalStyleFace | undefin
   }
 }
 
-export type SemanticBindingContext = Readonly<SemanticChannels>
-
-function bindingMatches(binding: SemanticBinding, context: SemanticBindingContext): boolean {
-  const candidate = context[binding.channel]
-  return Array.isArray(candidate) ? candidate.includes(binding.value) : String(candidate ?? '') === binding.value
-}
-
-/** Shared pre-serialization resolver. Exact role leaves and ordered semantic
- * slots refine the deterministic fallback; family-authored values are applied
- * afterwards by the lowering and therefore remain authoritative. */
-export function resolveRoleStyle(
-  face: Readonly<InternalStyleFace> | undefined,
-  role: BuiltinSceneRole,
-  context: SemanticBindingContext = {},
-  options: { readonly includeFallback?: boolean } = {},
-): Readonly<RoleStyleSpec> | undefined {
-  const descriptor = SCENE_ROLE_DESCRIPTORS.find(candidate => candidate.role === role)
-  const roles = roleStyleLookup(face?.roles)
-  const fallback = options.includeFallback === false
-    ? undefined
-    : descriptor ? roles?.[descriptor.style.fallbackRole] : undefined
-  const exact = roles?.[role]
-  let merged: RoleStyleSpec | undefined = fallback || exact ? { ...fallback, ...exact } : undefined
-  const applicable: ReadonlySet<string> = new Set(descriptor?.style.applicableProperties ?? [])
-  for (const binding of face?.bindings ?? []) {
-    if (binding.role !== undefined && binding.role !== role) continue
-    if (!bindingMatches(binding, context)) continue
-    const slot = face?.semanticSlots?.[binding.slot]
-    if (!slot) continue // final-stack admission makes this unreachable
-    const projected = Object.fromEntries(Object.entries(slot).filter(([property]) => applicable.has(property))) as RoleStyleSpec
-    merged = { ...merged, ...projected }
-  }
-  return merged ? Object.freeze(merged) : undefined
-}
-
 /** Validate dependencies only after composition: a fragment may deliberately
  * supply hachure/wash parameters before another fragment selects that fill.
  * The final stack, however, must not carry customization that merely changes
@@ -607,12 +575,12 @@ export function resolveRoleStyle(
 function assertRealizedStyleSpec(spec: InternalStyleSpec): void {
   for (const [index, binding] of (spec.bindings ?? []).entries()) {
     const slot = spec.semanticSlots?.[binding.slot]
-    if (!slot) throw new Error(`Invalid style spec: binding ${index + 1} references missing semantic slot "${binding.slot}"`)
+    if (!slot) throw new StyleSpecError(`Invalid style spec: binding ${index + 1} references missing semantic slot "${binding.slot}"`)
     const applicable: ReadonlySet<string> = binding.role === undefined
       ? new Set(BINDABLE_ROLE_STYLE_PROPERTIES)
       : new Set(SCENE_ROLE_DESCRIPTORS.find(candidate => candidate.role === binding.role)!.style.applicableProperties)
     if (!Object.keys(slot).some(property => applicable.has(property))) {
-      throw new Error(binding.role === undefined
+      throw new StyleSpecError(binding.role === undefined
         ? `Invalid style spec: semantic slot "${binding.slot}" has no field applicable to any executable category-binding role`
         : `Invalid style spec: semantic slot "${binding.slot}" has no field applicable to role "${binding.role}"`)
     }
@@ -620,15 +588,15 @@ function assertRealizedStyleSpec(spec: InternalStyleSpec): void {
   const hachureFields = ['hachureAngle', 'hachureGap', 'fillWeight'] as const
   const inactiveHachure = hachureFields.filter(field => spec[field] !== undefined && spec.fill !== 'hachure')
   if (inactiveHachure.length > 0) {
-    throw new Error(`Invalid style spec: ${inactiveHachure.map(field => `"${field}"`).join(', ')} require fill "hachure" in the final Style stack`)
+    throw new StyleSpecError(`Invalid style spec: ${inactiveHachure.map(field => `"${field}"`).join(', ')} require fill "hachure" in the final Style stack`)
   }
   const washFields = ['washOpacity', 'washEdge'] as const
   const inactiveWash = washFields.filter(field => spec[field] !== undefined && spec.fill !== 'wash')
   if (inactiveWash.length > 0) {
-    throw new Error(`Invalid style spec: ${inactiveWash.map(field => `"${field}"`).join(', ')} require fill "wash" in the final Style stack`)
+    throw new StyleSpecError(`Invalid style spec: ${inactiveWash.map(field => `"${field}"`).join(', ')} require fill "wash" in the final Style stack`)
   }
   if (spec.fill !== undefined && inferBackend(spec) === 'default') {
-    throw new Error('Invalid style spec: "fill" has no crisp/default backend projection; combine it with stroke "jittered"/"freehand" or another rough/hybrid backend field')
+    throw new StyleSpecError('Invalid style spec: "fill" has no crisp/default backend projection; combine it with stroke "jittered"/"freehand" or another rough/hybrid backend field')
   }
 }
 

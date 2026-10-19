@@ -139,12 +139,12 @@ function sourcePeerLabels(category: string, source: string) {
 
 function renderedPeerMapping(category: string, article: string): Array<[string, string]> {
   if (category === 'Pie') {
-    return matches(article, /<path class="pie-slice"[^>]*fill="(#[0-9a-f]{6})"[^>]*data-label="([^"]+)"/gi)
-      .map(match => [match[2]!, match[1]!.toLowerCase()])
+    return matches(article, /<path class="pie-slice"[^>]*\sdata-label="([^"]+)"[^>]*\sfill="(#[0-9a-f]{6})"/gi)
+      .map(match => [match[1]!, match[2]!.toLowerCase()])
   }
   if (category === 'Radar') {
-    return matches(article, /<path class="radar-area"[^>]*fill="(#[0-9a-f]{6})"[^>]*data-curve="([^"]+)"/gi)
-      .map(match => [match[2]!, match[1]!.toLowerCase()])
+    return matches(article, /<path class="radar-area"[^>]*\sdata-curve="([^"]+)"[^>]*\sfill="(#[0-9a-f]{6})"/gi)
+      .map(match => [match[1]!, match[2]!.toLowerCase()])
   }
   if (category === 'XY Chart') {
     const colors = new Map(matches(article, /--xychart-color-(\d+):\s*(#[0-9a-f]{6})/gi)
@@ -156,15 +156,13 @@ function renderedPeerMapping(category: string, article: string): Array<[string, 
     return labels.map((label, index) => [label, colors.get(colorIndexes[index]!)!])
   }
   if (category === 'Journey') {
-    const colors = new Map(matches(article, /\.journey-actor-(\d+)\s*\{\s*fill:\s*(#[0-9a-f]{6});\s*\}/gi)
-      .map(match => [Number(match[1]), match[2]!.toLowerCase()] as const))
     const legend = article.match(/<g class="journey-actor-legend">([\s\S]*?)<\/g>/)?.[1] ?? ''
-    return matches(legend, /<circle class="journey-actor-dot journey-actor-(\d+)" data-actor="([^"]+)"/g)
-      .map(match => [match[2]!, colors.get(Number(match[1]))!])
+    return matches(legend, /<circle class="journey-actor-dot journey-actor-\d+" data-actor="([^"]+)"[^>]*\sfill="(#[0-9a-f]{6})"/gi)
+      .map(match => [match[1]!, match[2]!.toLowerCase()])
   }
   if (category === 'Mindmap') {
-    return matches(article, /<path class="mindmap-edge" data-from="root" data-to="([^"]+)"[^>]*stroke="(#[0-9a-f]{6})"/gi)
-      .map(match => [match[1]!, match[2]!.toLowerCase()])
+    return matches(article, /<path class="mindmap-edge"[^>]*stroke="(#[0-9a-f]{6})"[^>]*data-from="root" data-to="([^"]+)"/gi)
+      .map(match => [match[2]!, match[1]!.toLowerCase()])
   }
   if (category === 'GitGraph') {
     return matches(article, /<line class="git-branch-line" data-branch="([^"]+)"[^>]*stroke="(#[0-9a-f]{6})"/gi)
@@ -1064,15 +1062,15 @@ describe('Workers Static Assets website contract', () => {
     expect(docs).toContain('class="doc"')
     expect(docs).toContain('Docs index')
     expect(editor).toContain('class="app-brand"')
-    expect(editor).toContain('--t-bg: #F8F4F0')
-    expect(editor).toContain('--control-bg: var(--surface)')
-    expect(editor).toContain('top: var(--examples-top, 60px)')
-    expect(editor).toContain('left: var(--examples-left, 16px)')
+    expect(editor).toMatch(/--t-bg:\s*#f8f4f0\b/i)
+    expect(editor).toMatch(/--control-bg:\s*var\(--surface\)/)
+    expect(editor).toMatch(/top:\s*var\(--examples-top,\s*60px\)/)
+    expect(editor).toMatch(/left:\s*var\(--examples-left,\s*16px\)/)
     expect(styles).toContain('surface primitives: panels share one shell')
     expect(styles).toContain(':where(.surface-panel, .quick-start, .agent-hero-primary, .copy-prompt-card')
     expect(styles).toContain(':where(.surface-panel-clip, .copy-prompt-card, .tabbed-card, .example-render, .comparison-panel)')
     expect(styles).toContain(':where(.media-frame, figure .plate, .gallery .plate)')
-    expect(editor).toContain(':where(.examples-sidebar, .config-panel, .shortcuts-dialog-panel')
+    expect(editor).toMatch(/:where\(\.examples-sidebar,\s*\.config-panel,\s*\.shortcuts-dialog-panel/)
     expect(editor).not.toContain('border: 1px solid var(--control-border);\n  border-radius: var(--radius-lg);\n  background: var(--popover-bg);\n  box-shadow: var(--shadow-popover);\n  opacity: 0;')
     expect(editor).not.toContain('overflow-y: auto;\n  background: var(--popover-bg);\n  border: 1px solid var(--control-border);')
     expect(editor).not.toContain('backdrop-filter: blur(10px);\n  border: 1px solid var(--control-border);')

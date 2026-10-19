@@ -1,4 +1,32 @@
 import { decodeXML } from 'entities'
+import { type NormalizedMermaidSource, normalizeMermaidSource } from '../mermaid-source.ts'
+import { joinQuotedTextLines, type QuotedTextRule } from '../shared/trailing-comment.ts'
+
+/** A "…" label runs to its closing quote across line breaks, which it keeps;
+ * a title runs to the end of its line. */
+export const PIE_QUOTED_TEXT: QuotedTextRule = { wholeLine: line => /^(?:pie(?:\s+showData)?\s+)?title(?:\s|$)/i.test(line) }
+
+/**
+ * Pie's grammar lines for a render request. The request decodes entities in
+ * the whole source, but Mermaid Pie keys sections by the label as authored,
+ * including entity spelling: decode grammar (header, separators, values) and
+ * put authored label and title text back before Pie's own display projection.
+ */
+export function pieFamilyLines(source: NormalizedMermaidSource): string[] {
+  if (!source.authoredFamilyLines) return source.familyLines
+  const quotedLabel = /^\s*"(?:[^"\\]|\\.)*"/
+  const hybrid = joinQuotedTextLines(source.authoredFamilyLines, PIE_QUOTED_TEXT).map((line, index) => {
+    // Pie titles are display text, not grammar separators. Keep their entity
+    // spelling for the family-owned projection just as with quoted labels.
+    const title = splitAuthoredPieTitleLine(line, index === 0 ? 'header' : 'body')
+    if (title) return title.decodedPrefix + title.authoredTitle
+    const label = quotedLabel.exec(line)?.[0]
+    return label === undefined ? decodeXML(line) : label + decodeXML(line.slice(label.length))
+  }).join('\n')
+  // Reapply normal comment/line normalization after decoding; an entity may
+  // itself spell a comment opener or a grammar newline outside a label.
+  return normalizeMermaidSource(hybrid).familyLines
+}
 
 /** Split the authored Pie title suffix from the directive grammar, even when
  * XML references spell whitespace or letters in the directive prefix. The

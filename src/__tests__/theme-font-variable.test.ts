@@ -131,6 +131,26 @@ describe('issue #18 — var() and font-stack font values', () => {
     expect(svg).not.toContain('family=var')
   })
 
+  it('quoted family names render single-quoted, so the root style attribute stays whole', () => {
+    // Mermaid's own default theme font is a double-quoted stack.
+    const cases: Array<[string, Parameters<typeof renderMermaidSVG>[1]]> = [
+      [SRC, { font: '"Open Sans", Arial' }],
+      ['%%{init: {"themeVariables": {"fontFamily": "\\"trebuchet ms\\", verdana, arial, sans-serif"}}}%%\n' + SRC, {}],
+      ['---\nconfig:\n  fontFamily: \'"Open Sans", Arial\'\n---\nclassDiagram\n  class A', {}],
+    ]
+    for (const [source, options] of cases) {
+      const svg = renderMermaidSVG(source, options)
+      const style = /^<svg [^>]*?style="([^"]*)"/.exec(svg)?.[1]
+      expect(style).toMatch(/--font:'(?:Open Sans|trebuchet ms)', /)
+      expect(svg).toMatch(/font-family: var\(--font, '(?:Open Sans|trebuchet ms)', [^)]*\), system-ui, sans-serif; \}/)
+    }
+    // Quotes that do not close or cannot be requoted, and whitespace XML or a
+    // quoted CSS name cannot carry, stay refused.
+    for (const font of ['"Open Sans, Arial', "Open Sans', Arial", `"O'Brien Sans", Arial`, `'a"b"c'`, "'Open\fSans', Arial", "'Open\nSans', Arial"]) {
+      expect(() => renderMermaidSVG(SRC, { font })).toThrow(/safe, non-fetching CSS font family/)
+    }
+  })
+
   it('plain names use the exact @import URL when explicitly enabled', () => {
     const svg = renderMermaidSVG(SRC, { font: 'IBM Plex Sans', embedFontImport: true })
     expect(svg).toContain("@import url('https://fonts.googleapis.com/css2?family=IBM%20Plex%20Sans:wght@400;500;600;700&amp;display=swap');")

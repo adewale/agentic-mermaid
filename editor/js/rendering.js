@@ -43,6 +43,7 @@ function invalidateRenderedArtifacts() {
   if (typeof lastRenderedSvgExportProjection !== "undefined") lastRenderedSvgExportProjection = null;
   if (typeof updateExportAvailability === "function") updateExportAvailability();
   if (typeof refreshC4Navigation === "function") refreshC4Navigation();
+  if (typeof refreshDiagramTools === "function") refreshDiagramTools();
 }
 
 function scheduleRender(delay) {
@@ -465,6 +466,7 @@ async function doRender(version) {
     resetVerifyPanel("Waiting for source");
     if (typeof updateExportAvailability === "function") updateExportAvailability();
     if (typeof refreshC4Navigation === "function") refreshC4Navigation();
+  if (typeof refreshDiagramTools === "function") refreshDiagramTools();
     return;
   }
 
@@ -513,6 +515,7 @@ async function doRender(version) {
     }
     if (typeof updateExportAvailability === "function") updateExportAvailability();
     if (typeof refreshC4Navigation === "function") refreshC4Navigation(true);
+    if (typeof refreshDiagramTools === "function") refreshDiagramTools();
     if (verification && verification.ok) updateHash();
   } catch (err) {
     if (!isCurrentRender(version, source)) return;
@@ -535,6 +538,7 @@ async function doRender(version) {
     setTextOutputs("Fix the render error to see Unicode output.", "Fix the render error to see ASCII output.");
     if (typeof updateExportAvailability === "function") updateExportAvailability();
     if (typeof refreshC4Navigation === "function") refreshC4Navigation();
+  if (typeof refreshDiagramTools === "function") refreshDiagramTools();
   } finally {
     if (version === renderRequestVersion) clearRenderSpinner();
   }

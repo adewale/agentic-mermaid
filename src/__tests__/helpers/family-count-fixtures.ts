@@ -17,6 +17,12 @@ export interface FamilyCountFixture {
 }
 
 export const FAMILY_COUNT_FIXTURES: FamilyCountFixture[] = [
+  { family: 'packet', source: 'packet\n+16: "Port"\n+48: "Payload"', count: { nodes: 2, edges: 0, groups: 0 } },
+  { family: 'kanban', source: 'kanban\nTodo\n  a[Build]\nDone\n  b[Research]\n  c[Plan]', count: { nodes: 3, edges: 0, groups: 2 } },
+  { family: 'requirement', source: 'requirementDiagram\nrequirement r {\nid: R1\ntext: Respond quickly\nrisk: high\nverifymethod: test\n}\nelement suite {\ntype: "test"\n}\nsuite - verifies -> r', count: { nodes: 2, edges: 1, groups: 0 } },
+  { family: 'treemap', source: 'treemap\n"Portfolio"\n  "Build": 60\n  "Learn": 40', count: { nodes: 2, edges: 0, groups: 1 } },
+  { family: 'ishikawa', source: 'ishikawa\n  Delay\n  Process\n    Manual checks\n  Tooling\n    Slow builds', count: { nodes: 5, edges: 4, groups: 0 } },
+  { family: 'block', source: 'block\ncolumns 2\nblock:domain:2\nA["API"] B["Store"]\nend\nA --> B', count: { nodes: 2, edges: 1, groups: 1 } },
   { family: 'flowchart', source: 'flowchart TD\n  A-->B\n  B-->C', count: { nodes: 3, edges: 2, groups: 0 } },
   { family: 'flowchart', source: 'flowchart TD\n  subgraph G\n    A-->B\n  end\n  B-->C', count: { nodes: 3, edges: 2, groups: 1 } },
   { family: 'flowchart', source: 'flowchart TD\n  subgraph Outer\n    subgraph Inner\n      A-->B\n    end\n    B-->C\n  end', count: { nodes: 3, edges: 2, groups: 2 } },

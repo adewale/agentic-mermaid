@@ -19,17 +19,13 @@ export type EpochMs = number
 
 export type GanttTaskTag = 'active' | 'done' | 'crit' | 'milestone' | 'vert'
 
-export type GanttWeekday =
-  | 'sunday' | 'monday' | 'tuesday' | 'wednesday' | 'thursday' | 'friday' | 'saturday'
+export type GanttWeekday = 'sunday' | 'monday' | 'tuesday' | 'wednesday' | 'thursday' | 'friday' | 'saturday'
 
 export type GanttWeekendStart = 'friday' | 'saturday'
 
 /** A calendar token from `excludes`/`includes`: a weekday name, the word
  *  `weekends`, or an explicit date in the diagram's dateFormat. */
-export type GanttCalendarToken =
-  | { kind: 'weekends' }
-  | { kind: 'weekday'; day: GanttWeekday }
-  | { kind: 'date'; raw: string }
+export type GanttCalendarToken = { kind: 'weekends' } | { kind: 'weekday'; day: GanttWeekday } | { kind: 'date'; raw: string }
 
 export interface GanttCalendar {
   dateFormat: string
@@ -47,14 +43,9 @@ export interface GanttClock {
   today?: string
 }
 
-export type GanttStartExpr =
-  | { kind: 'date'; raw: string }
-  | { kind: 'after'; refs: string[] }
+export type GanttStartExpr = { kind: 'date'; raw: string } | { kind: 'after'; refs: string[] }
 
-export type GanttEndExpr =
-  | { kind: 'date'; raw: string }
-  | { kind: 'duration'; raw: string }
-  | { kind: 'until'; refs: string[] }
+export type GanttEndExpr = { kind: 'date'; raw: string } | { kind: 'duration'; raw: string } | { kind: 'until'; refs: string[] }
 
 export interface GanttModelTask {
   /** Position in source order across all sections (0-based). */
@@ -85,8 +76,7 @@ export interface GanttClick {
   line: number
 }
 
-export type GanttTickUnit =
-  | 'millisecond' | 'second' | 'minute' | 'hour' | 'day' | 'week' | 'month'
+export type GanttTickUnit = 'millisecond' | 'second' | 'minute' | 'hour' | 'day' | 'week' | 'month'
 
 export interface GanttModel {
   title?: string
@@ -115,17 +105,7 @@ export interface GanttModel {
 
 // ---- Structured errors ------------------------------------------------------
 
-export type GanttErrorCode =
-  | 'GANTT_BAD_DIRECTIVE'
-  | 'GANTT_BAD_TASK'
-  | 'GANTT_BAD_DATE'
-  | 'GANTT_BAD_DURATION'
-  | 'GANTT_DUPLICATE_TASK_ID'
-  | 'GANTT_UNKNOWN_TASK_REF'
-  | 'GANTT_DEPENDENCY_CYCLE'
-  | 'GANTT_NO_START'
-  | 'GANTT_SCHEDULE_OVERFLOW'
-  | 'GANTT_EMPTY'
+export type GanttErrorCode = 'GANTT_BAD_DIRECTIVE' | 'GANTT_BAD_TASK' | 'GANTT_BAD_DATE' | 'GANTT_BAD_DURATION' | 'GANTT_DUPLICATE_TASK_ID' | 'GANTT_UNKNOWN_TASK_REF' | 'GANTT_DEPENDENCY_CYCLE' | 'GANTT_NO_START' | 'GANTT_SCHEDULE_OVERFLOW' | 'GANTT_EMPTY'
 
 /** Named, structured Gantt failure: every parse/schedule error carries a code
  *  and, where possible, the 1-based source line. */
@@ -293,6 +273,7 @@ export interface GanttDependencyLayout {
 }
 
 export interface GanttLayoutResult extends PositionedDiagram {
+  emptyLabel?: import('../shared/prepared-text.ts').PixelTextBlock
   title?: string
   titleBlock?: import('../shared/prepared-text.ts').PixelTextBlock
   titleY?: number

@@ -30,11 +30,11 @@ export const WEBSITE_PAYLOAD_BUDGETS: WebsitePayloadBudgets = Object.freeze({
   }),
   examples: Object.freeze({
     maxRequests: 6,
-    // The new C4 example contributes build-time SVG/HTML, not an eager runtime.
-    maxRawBytes: 425_000,
-    // Prepared C4 text and the inherited root font rule measure 72,654 B gzip / 57,538 B Brotli.
-    maxGzipBytes: 73_000,
-    maxBrotliBytes: 57_600,
+    // The six new stable-family examples add build-time SVG/HTML. The 23-family
+    // gallery measures 481,905 raw / 80,386 gzip / 63,351 Brotli, with 5% headroom.
+    maxRawBytes: 507_000,
+    maxGzipBytes: 84_500,
+    maxBrotliBytes: 66_600,
     required: Object.freeze([
       '^/examples/$',
       '^/styles\\.css$',
@@ -47,12 +47,14 @@ export const WEBSITE_PAYLOAD_BUDGETS: WebsitePayloadBudgets = Object.freeze({
     ]),
   }),
   demo: Object.freeze({
-    maxRequests: 31,
+    maxRequests: 36,
     // Optional sketch code stays out of the default Timeline delivery graph.
-    // Measured: 766,462 raw / 292,528 gzip / 265,232 Brotli.
-    maxRawBytes: 780_000,
-    maxGzipBytes: 300_000,
-    maxBrotliBytes: 272_000,
+    // Measured on macOS/Bun 1.4.2: 782,507 raw / 300,460 gzip / 273,934 Brotli.
+    maxRawBytes: 785_000,
+    maxGzipBytes: 302_000,
+    // Shared cleanup provenance adds about 2.5 KB gzip; the per-PR delta
+    // remains below 2%. Retain the same request graph and growth gate.
+    maxBrotliBytes: 276_000,
     required: Object.freeze([
       '^/demo/$',
       '^/demo/browser-lazy/index-[a-f0-9]{12}\\.js$',
@@ -68,10 +70,11 @@ export const WEBSITE_PAYLOAD_BUDGETS: WebsitePayloadBudgets = Object.freeze({
   'editor-empty': Object.freeze({
     maxRequests: 3,
     // App plus schema/bootstrap; engines and feature modules wait for work.
-    // Measured: 695,625 raw / 207,845 gzip / 178,555 Brotli.
-    maxRawBytes: 710_000,
-    maxGzipBytes: 215_000,
-    maxBrotliBytes: 185_000,
+    // Measured on macOS/Bun 1.4.2: 712,841 raw / 215,362 gzip / 185,090 Brotli.
+    // Shared source provenance adds about 7.7 KB raw / 2.8 KB gzip.
+    maxRawBytes: 715_000,
+    maxGzipBytes: 217_000,
+    maxBrotliBytes: 187_000,
     required: Object.freeze([
       '^/editor/$',
       '^/editor/editor-[a-f0-9]{12}\\.js$',

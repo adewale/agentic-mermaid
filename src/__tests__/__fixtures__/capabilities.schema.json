@@ -41,11 +41,17 @@
       "type": "array",
       "items": {
         "type": "object",
-        "required": ["code", "tier", "severity"],
+        "required": ["code", "tier", "severity", "origins"],
         "properties": {
           "code": { "type": "string" },
           "tier": { "type": "string", "enum": ["structural", "geometric", "lint"] },
-          "severity": { "type": "string", "enum": ["error", "warning"] }
+          "severity": { "type": "string", "enum": ["error", "warning"] },
+          "origins": {
+            "type": "array",
+            "description": "Who can cause the code: the authored source, its configuration, or the engine.",
+            "minItems": 1,
+            "items": { "type": "string", "enum": ["source", "config", "engine"] }
+          }
         }
       }
     },

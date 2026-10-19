@@ -17,6 +17,12 @@ const htmlDisplayWidth = (output: string): number =>
   )
 
 const LONG_FEASIBLE_SOURCE: Record<DiagramKind, string> = {
+  packet: '---\nconfig:\n  packet:\n    bitsPerRow: 8\n---\npacket\n+8: "A very descriptive packet field label with several words"',
+  kanban: 'kanban\nTodo\n  task[A very descriptive Kanban task label with several words]',
+  requirement: 'requirementDiagram\nrequirement r {\ntext: "A very descriptive requirement label with several words"\n}',
+  treemap: 'treemap\n"A very descriptive treemap label with several words": 10',
+  ishikawa: 'ishikawa\n  A very descriptive outcome label with several words\n  Process\n    Cause',
+  block: 'block\nA["A very descriptive block label with several words"]',
   c4: 'C4Context\n  System(api, "A very descriptive software system label with several words")',
   flowchart: 'flowchart TD\n  A["A very descriptive flowchart node label with several words"]',
   state: 'stateDiagram-v2\n  A\n  note right of A : A very descriptive state note with several words',

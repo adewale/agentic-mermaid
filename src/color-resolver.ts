@@ -100,6 +100,19 @@ export function resolveNodeInlineStyle(
 }
 
 /**
+ * Resolve the classDef paint of the classes assigned to `id`, without its
+ * `style` paint: what Mermaid draws on a State composite's body.
+ */
+export function resolveClassInlineStyle(id: string, graph: MermaidGraph): Record<string, string> | undefined {
+  let result: Record<string, string> | undefined
+  for (const className of graphClassNames(graph.classAssignments.get(id))) {
+    const classDef = checkedAuthoredStyle(graph.classDefs.get(className), `classDef ${className}`)
+    if (classDef) result = { ...result, ...classDef }
+  }
+  return result
+}
+
+/**
  * Resolve inline edge styles from an authored edge-ID class and linkStyle
  * directives. Link styles retain their existing default/index precedence.
  */
@@ -210,5 +223,23 @@ export function inkOnNodeFill(
   return tone => {
     const resolved = resolvedColorValue(tone, colors)
     return resolved ? legibleInk(resolved, fill) : contrastTextColor(fill) ?? tone
+  }
+}
+
+/** Reuse resolved ink within one lowering request. Theme resolution is costly;
+ * repeated categorical/card fills need not recompute it for every mark. The
+ * two policies remain distinct: authored fills adapt any resolvable ink,
+ * while ordinary fills adapt only the theme's own text tones. */
+export function createFillInkResolver(colors: DiagramColors): (tone: string, fill: string, authoredFill?: boolean) => string {
+  const themed = new Map<string, Map<string, string>>(), authored = new Map<string, Map<string, string>>()
+  return (tone, fill, authoredFill = false) => {
+    const cache = authoredFill ? authored : themed
+    let inks = cache.get(fill)
+    const retained = inks?.get(tone)
+    if (retained !== undefined) return retained
+    const ink = authoredFill ? inkOnNodeFill({ fill }, colors, fill)(tone) : toneOnFill(tone, fill, colors)
+    if (!inks) cache.set(fill, inks = new Map())
+    inks.set(tone, ink)
+    return ink
   }
 }

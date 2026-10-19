@@ -5,6 +5,7 @@ import { decodeMermaidEntities } from '../shared/mermaid-entity-display.ts'
 import { parseAccessibilityDirective } from '../shared/accessibility-directives.ts'
 import { breakLineTags } from '../multiline-utils.ts'
 import { decodeXML } from 'entities'
+import { mermaidLineEnd } from '../shared/mermaid-cleanup.ts'
 import { c4ShapeOverride } from './config.ts'
 import type {
   C4Argument, C4Body, C4Boundary, C4Diagnostic, C4Directive, C4Direction,
@@ -43,8 +44,11 @@ function statements(source: string): C4Statement[] {
     const raw = source.slice(offset, end)
     result.push({ id: `c4-statement-${result.length + 1}`, kind, raw, span: { start: offset, end, line, column } })
     if (parserObservationActive('c4')) observeParserToken('c4', `chunk:${kind}`, raw, { line, column, offset, endOffset: end, unit: 'physical' })
+    let previous = source[offset - 1]
     for (const character of raw) {
-      if (character === '\n') { line++; column = 1 } else column++
+      if (character === '\r' || character === '\n' && previous !== '\r') { line++; column = 1 }
+      else if (character !== '\n') column++
+      previous = character
     }
     offset = end
   }
@@ -56,12 +60,12 @@ function statements(source: string): C4Statement[] {
       emit(end, 'trivia'); continue
     }
     if (source.startsWith('%%', start)) {
-      const end = source.indexOf('\n', start)
+      const end = mermaidLineEnd(source, start)
       emit(end < 0 ? source.length : end, 'trivia'); continue
     }
     if (awaitingHeader) {
       awaitingHeader = false
-      const newline = source.indexOf('\n', start)
+      const newline = mermaidLineEnd(source, start)
       const lineEnd = newline < 0 ? source.length : newline
       let headerEnd = lineEnd
       for (let index = start; index < lineEnd; index++) {
@@ -105,7 +109,7 @@ function statements(source: string): C4Statement[] {
             if (ch === quote) quote = ''
           } else if (ch === '"' || ch === "'") quote = ch
           else if (ch === '%' && source[cursor + 1] === '%') {
-            const newline = source.indexOf('\n', cursor + 2)
+            const newline = mermaidLineEnd(source, cursor + 2)
             cursor = newline < 0 ? source.length : newline
           }
           else if (ch === '{') braces++
@@ -115,7 +119,7 @@ function statements(source: string): C4Statement[] {
       }
       emit(cursor); continue
     }
-    const end = source.indexOf('\n', start)
+    const end = mermaidLineEnd(source, start)
     if (/^accDescr[ \t]*:?[ \t]*\{/i.test(rest)) {
       const close = source.indexOf('}', start)
       if (close < 0) throw new Error(`C4: unclosed accessibility block at line ${line}`)
@@ -340,13 +344,26 @@ function readC4(input: string | readonly string[], admitWork: boolean): C4Body {
   const parents: string[] = []
   const ids = new Set<string>()
   let header = false
+  // Pinned Mermaid C4 needs a line break after each statement and after a
+  // boundary's `{`; only a closing `}` may share the line before it. Its
+  // comments take the line breaks after them, so one after a statement leaves
+  // that statement without one.
+  let sharesLine = false
+  let commented = false
   for (const statement of body.statements) {
     const text = statement.raw.trim()
     if (statement.kind === 'trivia') {
       observeC4Statement(statement, 'trivia')
-      if (!text.startsWith('%%') && text.includes(';')) diagnostic(body, statement.id, 'Semicolon statement separators are a reader extension; pinned Mermaid C4 requires line breaks')
+      if (!text.startsWith('%%') && text.includes(';')) {
+        diagnostic(body, statement.id, 'Semicolon statement separators are a reader extension; pinned Mermaid C4 requires line breaks')
+        sharesLine = commented = false
+      } else if (text.startsWith('%%')) commented ||= sharesLine
+      else if (/[\r\n]/.test(statement.raw) && !commented) sharesLine = false
       continue
     }
+    if (sharesLine && statement.kind !== 'boundary-close') diagnostic(body, statement.id, 'Statements sharing a line are a reader extension; pinned Mermaid C4 requires a line break after each statement and after `{`, and a comment after a statement takes its line break')
+    sharesLine = true
+    commented = false
     if (!header) {
       const headerText = decodeXML(text)
       const variant = C4_VARIANTS.find(candidate => candidate.toLowerCase() === headerText.toLowerCase())
@@ -369,7 +386,7 @@ function readC4(input: string | readonly string[], admitWork: boolean): C4Body {
       if (parserObservationActive('c4')) observeParserMutation('c4', 'set-title', body.title)
       statement.kind = 'title'; statement.signature = body.title; continue
     }
-    const accessibility = parseAccessibilityDirective(text.split('\n'), 0)
+    const accessibility = parseAccessibilityDirective(text.split(/\r\n?|\n/), 0)
     if (accessibility) {
       observeC4Statement(statement, 'accessibility')
       if (accessibility.title) body.accessibilityTitle = accessibility.value

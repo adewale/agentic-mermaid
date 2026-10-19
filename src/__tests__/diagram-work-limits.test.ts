@@ -1,3 +1,4 @@
+import { normalizeMermaidSource } from '../mermaid-source.ts'
 import { describe, expect, spyOn, test } from 'bun:test'
 import type { ElkNode } from 'elkjs'
 import { parseMermaid } from '../parser.ts'
@@ -8,12 +9,21 @@ import * as elkAdapter from '../elk-instance.ts'
 import * as terminalGrid from '../ascii/grid.ts'
 import * as terminalConverter from '../ascii/converter.ts'
 import * as preparedText from '../shared/prepared-text.ts'
-import { assertLayoutGraphWork, assertMermaidGraphWork } from '../shared/diagram-limits.ts'
+import * as cellText from '../ascii/prepared-text.ts'
+import { assertLayoutGraphWork, assertMermaidGraphWork, DIAGRAM_WORK_LIMITS, DiagramWorkLimitError } from '../shared/diagram-limits.ts'
 import { parseClassDiagram } from '../class/parser.ts'
 import { parseErDiagram } from '../er/parser.ts'
 import { layoutClassDiagram } from '../class/layout.ts'
 import { layoutErDiagram } from '../er/layout.ts'
 import { parseArchitectureDiagram, architectureToMermaidGraph } from '../architecture/parser.ts'
+import { parseBlockDiagram } from '../block/parser.ts'
+import { layoutBlockDiagram } from '../block/layout.ts'
+import { parseRequirementDiagram } from '../requirement/parser.ts'
+import { layoutRequirementDiagram } from '../requirement/layout.ts'
+import { parseTreemapDiagram } from '../treemap/parser.ts'
+import { layoutTreemapDiagram } from '../treemap/layout.ts'
+import { parseIshikawaDiagram } from '../ishikawa/parser.ts'
+import { layoutIshikawaDiagram } from '../ishikawa/layout.ts'
 
 function cartesian(sources: number, targets: number): string {
   const from = Array.from({ length: sources }, (_, i) => `a${i}`).join(' & ')
@@ -65,6 +75,20 @@ describe('graph work admission', () => {
       elk.mockRestore()
       grid.mockRestore()
     }
+  })
+
+  test('a source too long for the render request receipt is a work limit, not malformed request data', () => {
+    // The receipt digests the authored and the normalized source together, so
+    // a long leading comment alone can exceed its budget.
+    const source = `%% ${'x'.repeat(DIAGRAM_WORK_LIMITS.sourceCharacters)}\nflowchart LR\n  A --> B`
+    expect(() => renderMermaidSVG(source)).toThrow(DiagramWorkLimitError)
+    expect(() => renderMermaidSVG(source)).toThrow(/DIAGRAM_WORK_LIMIT: authored plus normalized source/)
+    // It also digests the parsed configuration, so a source that fits the
+    // character check alone can still exceed it: the same work limit.
+    const configured = `---\ntitle: T\nconfig:\n  themeVariables:\n    primaryColor: "#ffffff"\n---\nflowchart LR\n  A["${'y'.repeat(998_000)}"] --> B`
+    expect(configured.length + normalizeMermaidSource(configured).text.length).toBeLessThanOrEqual(DIAGRAM_WORK_LIMITS.sourceCharacters)
+    expect(() => renderMermaidSVG(configured)).toThrow(DiagramWorkLimitError)
+    expect(() => renderMermaidSVG(configured)).toThrow(/, with its configuration, exceeds/)
   })
 
   test('programmatic graphs are bounded before graph conversion', () => {
@@ -150,5 +174,47 @@ describe('graph work admission', () => {
       children: Array.from({ length: 5001 }, (_, i) => ({ id: `n${i}`, width: 20, height: 20 })),
     }
     expect(() => elkLayoutSync(graph)).toThrow(/DIAGRAM_WORK_LIMIT.*nodes/)
+  })
+
+  test('native families refuse expanded nodes, relations and nesting before SVG or terminal measurement', () => {
+    const cases = [
+      `packet\n${'+1: "x"\n'.repeat(5001)}`,
+      `packet\ntitle Guarded before measurement\n0-160000: "spanning"`,
+      `kanban\n  todo[Todo]\n${Array.from({ length: 5000 }, (_, i) => `    t${i}[Task]`).join('\n')}`,
+      `requirementDiagram\n${Array.from({ length: 5001 }, (_, i) => `requirement r${i} {\n}`).join('\n')}`,
+      `requirementDiagram\nrequirement A {\n}\n${'A - traces -> A\n'.repeat(5001)}`,
+      'block\nspace:5001',
+      `block\nA B\n${'A --> B\n'.repeat(5001)}`,
+      `block\n${'block\n'.repeat(65)}A\n${'end\n'.repeat(65)}`,
+      `treemap\n${'"Leaf": 1\n'.repeat(5001)}`,
+      `treemap\n${Array.from({ length: 65 }, (_, i) => `${' '.repeat(i)}"Group"`).join('\n')}`,
+      `ishikawa\nEffect\n${'Cause\n'.repeat(5000)}`,
+      `ishikawa\nEffect\n${Array.from({ length: 65 }, (_, i) => `${' '.repeat(i)}Cause`).join('\n')}`,
+    ]
+    const measurement = spyOn(preparedText, 'preparePixelText').mockImplementation(() => { throw new Error('measurement before admission') })
+    const terminalMeasurement = spyOn(cellText, 'prepareCellText').mockImplementation(() => { throw new Error('terminal measurement before admission') })
+    try {
+      for (const source of cases) for (const render of [renderMermaidSVG, renderMermaidASCII]) expect(() => render(source)).toThrow(/DIAGRAM_WORK_LIMIT/)
+      expect(measurement).not.toHaveBeenCalled()
+      expect(terminalMeasurement).not.toHaveBeenCalled()
+    } finally { measurement.mockRestore(); terminalMeasurement.mockRestore() }
+  })
+
+  test('native programmatic bodies are admitted before preparing text and count container depth without the leaf', () => {
+    const block = parseBlockDiagram('block\nA'), requirement = parseRequirementDiagram('requirementDiagram\nrequirement A {\n}'),
+      treemap = parseTreemapDiagram('treemap\n"A": 1'), ishikawa = parseIshikawaDiagram('ishikawa\nEffect')
+    block.root.children = Array.from({ length: 5001 }, (_, i) => ({ id: `b${i}`, type: 'square' }))
+    requirement.relations = Array.from({ length: 5001 }, (_, i) => ({ id: `r${i}`, src: 'A', dst: 'A', type: 'traces' }))
+    treemap.nodes = Array.from({ length: 5001 }, (_, i) => ({ id: `t${i}`, label: 'Leaf', value: 1 }))
+    ishikawa.nodes = Array.from({ length: 5001 }, (_, i) => ({ id: `i${i}`, label: 'Cause' }))
+    const measurement = spyOn(preparedText, 'preparePixelText').mockImplementation(() => { throw new Error('measurement before admission') })
+    try {
+      for (const layout of [() => layoutBlockDiagram(block), () => layoutRequirementDiagram(requirement), () => layoutTreemapDiagram(treemap), () => layoutIshikawaDiagram(ishikawa)]) expect(layout).toThrow(/DIAGRAM_WORK_LIMIT/)
+      expect(measurement).not.toHaveBeenCalled()
+    } finally { measurement.mockRestore() }
+    const nested = `block\n${'block\n'.repeat(64)}A\n${'end\n'.repeat(64)}`
+    expect(() => parseBlockDiagram(nested)).not.toThrow()
+    expect(parseTreemapDiagram(`treemap\n${Array.from({ length: 64 }, (_, i) => `${' '.repeat(i)}"Group"`).join('\n')}\n${' '.repeat(64)}"Leaf": 1`).nodes).toHaveLength(65)
+    expect(parseIshikawaDiagram(`ishikawa\nEffect\n${Array.from({ length: 64 }, (_, i) => `${' '.repeat(i)}Cause`).join('\n')}`).nodes).toHaveLength(65)
   })
 })

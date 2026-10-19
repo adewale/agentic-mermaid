@@ -68,6 +68,15 @@ const QUADRANT_READ_GENEROUSLY: ReadonlyArray<GenerousRow> = [
   ['a string after unquoted text', 'quadrantChart\n  title Growth\n  quadrant-1 Grow "fast"', 'Grow', 'quadrant_unquoted_text', 3],
 ]
 
+// An unquoted XYChart axis title takes ASCII letters, whitespace and
+// &+=*.#_- in Mermaid's lexer; a digit there starts a range number.
+const XYCHART_READ_GENEROUSLY: ReadonlyArray<GenerousRow> = [
+  ['parentheses in an unquoted axis title before a range', 'xychart-beta\n  x-axis [a, b]\n  y-axis Revenue (USD) 0 --> 100\n  bar [10, 20]', 'Revenue (USD)', 'xychart_unquoted_axis_title', 3],
+  ['a percent sign in an unquoted axis title', 'xychart-beta\n  y-axis Share in % 0 --> 100\n  bar [10, 20]', 'Share in %', 'xychart_unquoted_axis_title', 2],
+  ['a comma in an unquoted axis title', 'xychart-beta\n  x-axis cat, dog\n  bar [10, 20]', 'cat, dog', 'xychart_unquoted_axis_title', 2],
+  ['a digit in an unquoted axis title before categories', 'xychart-beta\n  x-axis Q1 [a, b] bar [10, 20]', 'Q1', 'xychart_unquoted_axis_title', 2],
+]
+
 // Mermaid's architecture lexer terminals: an (icon) is word characters, -
 // and :, an id has dashes only inside. Unquoted titles now accept punctuation.
 const ARCHITECTURE_READ_GENEROUSLY: ReadonlyArray<GenerousRow> = [
@@ -76,6 +85,29 @@ const ARCHITECTURE_READ_GENEROUSLY: ReadonlyArray<GenerousRow> = [
   ['a space in an icon name', 'architecture-beta\n  service api(my server)[API]', 'data-icon="my server"', 'architecture_icon', 2],
   ['an id ending in a dash', 'architecture-beta\n  service api-(server)[API]', 'API', 'architecture_id', 2],
   ['an id starting with a dash', 'architecture-beta\n  junction -hub', '-hub', 'architecture_id', 2],
+  ['an id ending in a dash before a title across lines', 'architecture-beta\n  service api-(server)["Public\n  API"]', 'Public', 'architecture_id', 2],
+]
+
+// Mermaid's mindmap lexer ends a shape at its first closing delimiter. Ours
+// reads delimiters paired inside the text up to the outermost pair's close.
+const MINDMAP_READ_GENEROUSLY: ReadonlyArray<GenerousRow> = [
+  ['parentheses paired inside circle text', 'mindmap\n  root((a (b) c))', 'a (b) c', 'mindmap_nested_shape_delimiters', 2],
+  ['parentheses inside an anonymous rect', 'mindmap\n  root\n    [text (x)]', 'text (x)', 'mindmap_nested_shape_delimiters', 3],
+  ['parentheses paired inside cloud text', 'mindmap\n  root\n    id)a (b) c(', 'a (b) c', 'mindmap_nested_shape_delimiters', 3],
+  ['brackets paired in text across lines', 'mindmap\n  root[a\n  [b] c]', '[b] c', 'mindmap_nested_shape_delimiters', 2],
+  // Mermaid's lexer reads the space after the header, with its line break,
+  // as one token that its grammar accepts there only before a line break.
+  ['a blank line after the header', 'mindmap\n  \n    root[The r\r\noot]\n    :::m-4 p-8', 'oot', 'mindmap_space_after_header', 1],
+  ['whitespace ending the header line', '%% lead\nmindmap \n  root', 'root', 'mindmap_space_after_header', 2],
+  // Mermaid's mindmap has no accessibility statements: before the root, the line is a second root.
+  ['an accTitle before the root', 'mindmap\n  accTitle: Ideas\n  root', 'root', 'mindmap_accessibility', 2],
+  ['an accDescr block before the root', 'mindmap\n  accDescr {\n    About\n  }\n  root', 'root', 'mindmap_accessibility', 2],
+]
+
+// A composite Mermaid's state DB refuses a second label for ("Group nodes can
+// only have label"); ours continues the one composite, its labels as lines.
+const STATE_READ_GENEROUSLY: ReadonlyArray<GenerousRow> = [
+  ['a composite labelled in two blocks', 'stateDiagram-v2\n  state "First" as A {\n    x\n  }\n  state "Second" as A {\n    y\n  }', 'Second', 'state_composite_description', 5],
 ]
 
 // [family, construct, source]
@@ -105,6 +137,18 @@ const ACCEPTED: ReadonlyArray<readonly [BuiltinFamilyId, string, string]> = [
   ['architecture', 'a non-ASCII letter in an unquoted title', 'architecture-beta\n  service db(database)[Café]'],
   ['architecture', 'a dash in an unquoted edge title', 'architecture-beta\n  service a(server)[A]\n  service b(server)[B]\n  a:R -[fan-out]-> L:b'],
   ['architecture', 'text after a quoted title', 'architecture-beta\n  service api(server)["Public" API]'],
+  ['xychart', 'unquoted punctuation the lexer reads as axis text', 'xychart-beta\n  x-axis R&D + Sales = *.#_- [a, b]\n  y-axis Monthly totals 0 --> 100\n  bar [10, 20]'],
+  ['xychart', 'punctuation and digits in quoted axis titles', 'xychart-beta\n  x-axis "Q1 (est), 50%" [a, b]\n  y-axis "Revenue (USD)" 0 --> 100\n  bar [10, 20]'],
+  // A quoted string runs to its closing quote across line breaks.
+  ['pie', 'a label across lines', 'pie\n  "multi\n  label" : 1\n  "b" : 2'],
+  ['quadrant', 'quoted text across lines', 'quadrantChart\n  x-axis "Low\n  reach" --> High\n  quadrant-1 "Expand\n  now"\n  "Point\n  A": [0.3, 0.6]'],
+  ['quadrant', 'a point across lines', 'quadrantChart\n  A: [0.3,\n  0.6]'],
+  ['gitgraph', 'quoted text across lines', 'gitGraph\n  commit id: "a\n  b" msg: "multi\n  line" tag: "v1\n  rc"\n  commit "bare\n  msg"\n  branch dev\n  commit\n  checkout main\n  merge dev tag: "x\n  y"'],
+  ['architecture', 'quoted titles across lines', 'architecture-beta\n  group g(cloud)["G\n  H"]\n  service a(server)["line1\n  line2"] in g\n  service b(server)[\'sq\n  line\'] in g\n  a:R -["multi\n  line"]- L:b'],
+  ['radar', 'a quoted axis label across lines', 'radar-beta\n  axis a["A\n  long"], b, c\n  curve x{1, 2, 3}'],
+  ['mindmap', 'delimiters Mermaid reads as shape text', 'mindmap\n  (a [b)\n    ["text (x)"]\n    c{{d [e}}'],
+  // Mermaid removes a `%%` line with the blank lines before it.
+  ['mindmap', 'a blank line before a comment after the header', 'mindmap\n\n%% c\n  root\n\n    a'],
 ]
 
 describe('read generously what pinned Mermaid rejects, and warn', () => {
@@ -120,13 +164,28 @@ describe('read generously what pinned Mermaid rejects, and warn', () => {
     expect((await upstream.parse(source)).ok).toBe(false)
     expect(readGenerously(source, text)).toEqual({ typed: 'architecture', draws: true, reported: expect.arrayContaining([`${syntax}@${line}`]) })
   })
+
+  test.each(XYCHART_READ_GENEROUSLY)('xychart: %s is read, drawn and reported', async (_construct, source, text, syntax, line) => {
+    expect((await upstream.parse(source)).ok).toBe(false)
+    expect(readGenerously(source, text)).toEqual({ typed: 'xychart', draws: true, reported: [`${syntax}@${line}`] })
+  })
+
+  test.each(MINDMAP_READ_GENEROUSLY)('mindmap: %s is read, drawn and reported', async (_construct, source, text, syntax, line) => {
+    expect((await upstream.parse(source)).ok).toBe(false)
+    expect(readGenerously(source, text)).toEqual({ typed: 'mindmap', draws: true, reported: [`${syntax}@${line}`] })
+  })
+
+  test.each(STATE_READ_GENEROUSLY)('state: %s is read, drawn and reported', async (_construct, source, text, syntax, line) => {
+    expect((await upstream.parse(source)).ok).toBe(false)
+    expect(readGenerously(source, text)).toEqual({ typed: 'opaque', draws: true, reported: expect.arrayContaining([`${syntax}@${line}`]) })
+  })
 })
 
 describe('accept what pinned Mermaid accepts', () => {
   test.each(ACCEPTED)('%s: %s is accepted, as Mermaid accepts it', async (family, _construct, source) => {
     expect({ mermaid: (await upstream.parse(source)).ok, ...ours(source) })
       .toEqual({ mermaid: true, typed: family, error: undefined })
-    if (family === 'architecture') expect(verifyMermaid(source).warnings.filter(warning => warning.code === 'UNSUPPORTED_SYNTAX')).toEqual([])
+    if (family === 'architecture' || family === 'quadrant' || family === 'xychart' || family === 'mindmap') expect(verifyMermaid(source).warnings.filter(warning => warning.code === 'UNSUPPORTED_SYNTAX')).toEqual([])
   })
 
   // The typed serializer must write what Mermaid reads: text that is only

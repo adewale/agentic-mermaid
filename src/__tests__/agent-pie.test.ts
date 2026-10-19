@@ -74,6 +74,29 @@ describe('pie structured parse', () => {
     expect(serializeMermaid(d2)).toBe(out)
   })
 
+  // Pie shows `<br/>` as text, so the writer keeps the line break inside the
+  // quotes, where Mermaid reads it too.
+  test('a label authored across lines stays typed and is written across lines', () => {
+    const d = pie('pie\n  "multi\n    label" : 1\n  "b" : 2')
+    expect(d.body.slices.map(slice => slice.label)).toEqual(['multi\nlabel', 'b'])
+    const out = serializeMermaid(d)
+    expect(out).toContain('  "multi\nlabel" : 1\n')
+    expect(pie(out).body).toEqual(d.body)
+  })
+
+  test('a label across lines is addressed by every slice op', () => {
+    const d = pie('pie\n  "multi\n    label" : 1\n  "b" : 2')
+    const labels = (op: Parameters<typeof mutate>[1]) => {
+      const r = mutate(d, op)
+      if (!r.ok) throw new Error(JSON.stringify(r.error))
+      return pie(serializeMermaid(r.value)).body.slices.map(slice => `${slice.label}=${slice.value}`)
+    }
+    expect(labels({ kind: 'set_slice_value', label: 'multi\nlabel', value: 5 })).toEqual(['multi\nlabel=5', 'b=2'])
+    expect(labels({ kind: 'rename_slice', from: 'multi\nlabel', to: 'new\nname' })).toEqual(['new\nname=1', 'b=2'])
+    expect(labels({ kind: 'remove_slice', label: 'multi\nlabel' })).toEqual(['b=2'])
+    expect(labels({ kind: 'add_slice', label: 'c\nd', value: 3 })).toEqual(['multi\nlabel=1', 'b=2', 'c\nd=3'])
+  })
+
   test('serializes Pie-authored br tags as literal one-line text', () => {
     const d = pie('pie\n  title Road<br/>map\n  "A<br/>B" : 1')
     expect(d.body.title).toBe('Road<br/>map')

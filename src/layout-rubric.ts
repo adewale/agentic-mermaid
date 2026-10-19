@@ -21,6 +21,9 @@ import { graphTextBlock } from './graph-text.ts'
 import { resolveRenderStyle } from './styles.ts'
 import type { ResolvedRenderStyle } from './styles.ts'
 import type { PassMetrics, RubricMetric } from './layout/pass.ts'
+import { measureLabelConflicts } from './layout/label-conflicts.ts'
+import { countPolylineCrossings } from './shared/edge-crossings.ts'
+import { graphReachability } from './layout/geometry.ts'
 
 /**
  * Evidence-based impact rank for a violation, mirroring the QualityBounds
@@ -83,6 +86,8 @@ export interface RubricMetrics {
   labelOffRoute: number
   /** HARD (0): edge segments through a non-incident node's interior. */
   edgeThroughNode: number
+  /** Padded label/label, label/node and label/visible-route conflict pairs. */
+  labelConflicts: number
   /** Purchase's strongest validated aesthetic — minimize. */
   edgeCrossings: number
   /** Purchase-validated — minimize. Excludes justified symmetric-convergence
@@ -250,24 +255,9 @@ function segmentsIntersect(a: Point, b: Point, c: Point, d: Point): boolean {
   return t > 0.001 && t < 0.999 && u > 0.001 && u < 0.999
 }
 
-/** Exact rubric predicate after an x/y bounding-box broad phase. Only passes
- * that declare a crossing budget request this potentially pairwise metric. */
+/** Shared visible-route predicate, also used by public quality measurement. */
 export function countEdgeCrossings(edges: readonly PositionedEdge[], involved?: ReadonlySet<number>): number {
-  const segments = edges.flatMap((edge, edgeIndex) => edge.points.slice(1).map((b, index) => {
-    const a = edge.points[index]!
-    return { a, b, edgeIndex, minX: Math.min(a.x, b.x), maxX: Math.max(a.x, b.x), minY: Math.min(a.y, b.y), maxY: Math.max(a.y, b.y) }
-  })).sort((a, b) => a.minX - b.minX || a.minY - b.minY || a.edgeIndex - b.edgeIndex)
-  let active: typeof segments = []
-  let crossings = 0
-  for (const segment of segments) {
-    active = active.filter(other => other.maxX >= segment.minX)
-    for (const other of active) {
-      if (other.edgeIndex === segment.edgeIndex || (involved && !involved.has(other.edgeIndex) && !involved.has(segment.edgeIndex)) || other.maxY < segment.minY || other.minY > segment.maxY) continue
-      if (segmentsIntersect(segment.a, segment.b, other.a, other.b)) crossings++
-    }
-    active.push(segment)
-  }
-  return crossings
+  return countPolylineCrossings(edges.map(edge => ({ points: edge.points, visible: edge.style !== 'invisible' })), involved)
 }
 
 /** Same-endpoint parallel routes sharing visible collinear ink cannot be
@@ -452,23 +442,6 @@ function nodeInsideGroups(node: PositionedNode, groups: PositionedGroup[]): bool
   return visit(groups)
 }
 
-function logicalGraphReaches(graph: MermaidGraph, from: string, to: string): boolean {
-  const outgoing = new Map<string, string[]>()
-  for (const edge of graph.edges) {
-    if (!outgoing.has(edge.source)) outgoing.set(edge.source, [])
-    outgoing.get(edge.source)!.push(edge.target)
-  }
-  const seen = new Set<string>()
-  const stack = [from]
-  while (stack.length > 0) {
-    const id = stack.pop()!
-    if (id === to) return true
-    if (seen.has(id)) continue
-    seen.add(id)
-    for (const next of outgoing.get(id) ?? []) stack.push(next)
-  }
-  return false
-}
 
 // The sym metric: largest cross-axis offset between a PORT_EXACT peer hub and
 // its peer barycenter — directly the fan-in/fan-out symmetry the centering
@@ -486,6 +459,7 @@ function logicalGraphReaches(graph: MermaidGraph, from: string, to: string): boo
 // (Still requires distinct, mutually-unreachable peers on one flow layer.)
 const SYM_PEER_LAYER_TOL = 28
 function peerBarycenterDelta(positioned: PositionedGraph, graph: MermaidGraph): number {
+  const reaches = graphReachability(graph.edges)
   const nodeMap = new Map(positioned.nodes.map(n => [n.id, n]))
   const bySource = new Map<string, PositionedNode[]>()
   const byTarget = new Map<string, PositionedNode[]>()
@@ -510,7 +484,7 @@ function peerBarycenterDelta(positioned: PositionedGraph, graph: MermaidGraph): 
     if (!peers.every(peer => peerShapeOk(peer) && !nodeInsideGroups(peer, positioned.groups))) return
     if (new Set(peers.map(peer => peer.id)).size !== peers.length) return
     for (let i = 0; i < peers.length; i++) for (let j = 0; j < peers.length; j++) {
-      if (i !== j && logicalGraphReaches(graph, peers[i]!.id, peers[j]!.id)) return
+      if (i !== j && reaches(peers[i]!.id, peers[j]!.id)) return
     }
     const barycenter = peers.reduce((sum, peer) => sum + nodeCrossCenter(peer, graph.direction), 0) / peers.length
     worst = Math.max(worst, Math.abs(nodeCrossCenter(hub, graph.direction) - barycenter))
@@ -556,7 +530,7 @@ function assessLayoutGeometry(graph: MermaidGraph, positioned: PositionedGraph, 
     // NOT touch unexplainedBends (which fires only on 'straight'-certified edges,
     // and a bundle edge is never 'straight') or hitches (HARD, unchanged).
     const justifiedConvergenceBend = e.routeCertificate?.invariant === 'bundle'
-    if (!justifiedConvergenceBend) {
+    if (e.style !== 'invisible' && !justifiedConvergenceBend) {
       totalBends += bends
       maxBends = Math.max(maxBends, bends)
     }
@@ -657,6 +631,7 @@ function assessLayoutGeometry(graph: MermaidGraph, positioned: PositionedGraph, 
       nodeOverlaps,
       labelOffRoute,
       edgeThroughNode,
+      labelConflicts: withSoftMetrics ? measureLabelConflicts(positioned, style).total : 0,
       edgeCrossings: crossings,
       totalBends,
       maxBendsPerEdge: maxBends,

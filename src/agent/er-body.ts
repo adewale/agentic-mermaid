@@ -24,7 +24,10 @@ import { ok, err } from './types.ts'
 import { labelOverflowCollector } from './body-utils.ts'
 import { prepareDisplayText, resolveLabelContent } from '../shared/display-text.ts'
 import {
+  erNameNeedsQuotes,
+  isErKeywordName,
   parseErAttribute,
+  portableErAttributeText,
   parseErEntityId,
   parseErEntityReference,
   recordErClassNames,
@@ -49,6 +52,7 @@ export function erUnsupportedSyntaxWarnings(canonicalSource: string): LayoutWarn
     warnings.push({ code: 'UNSUPPORTED_SYNTAX', syntax, line: index + 1, message: `${what}. Pinned Mermaid rejects this; ${portable}.` })
   }
   const grammar = lines.slice(header + 1)
+  const statementLines: number[] = []
   for (let index = header + 1; index < lines.length; index++) {
     const directive = parseAccessibilityDirective(lines, index)
     if (directive === undefined) break
@@ -58,18 +62,57 @@ export function erUnsupportedSyntaxWarnings(canonicalSource: string): LayoutWarn
       index = directive.endIndex
       continue
     }
-    const line = lines[index]!.trim()
-    if (!line || line.startsWith('%%')) continue
-    if (hasErTrailingComment(line)) warn(index, 'er_trailing_comment', 'A trailing %% comment after an ER statement is read as a comment', 'put the comment on a line of its own')
+    statementLines.push(index)
   }
+  const quotedText: Array<[index: number, what: string, portable: string]> = []
+  let source: ReturnType<typeof readErStatements> | undefined
   try {
-    const source = readErStatements(grammar, (what, portable, index) => warn(header + index + 1, 'er_quoted_text', what, portable))
-    for (const entry of source.statements) if (entry.syntax.kind === 'unknown') warnings.push({
-      code: 'UNSUPPORTED_SYNTAX', syntax: 'er_statement', line: header + entry.line + 2,
-      message: `ER statement is preserved in source but not drawn: ${entry.raw.trim()}`,
-    })
+    source = readErStatements(grammar, (what, portable, index) => quotedText.push([index, what, portable]))
   } catch {
     // A statement ours cannot read fails the render; verify reports that.
+  }
+  for (const index of statementLines) {
+    const line = lines[index]!.trim()
+    if (!line || line.startsWith('%%')) continue
+    // Text a comment left open on an earlier line holds is no statement.
+    if (hasErTrailingComment(lines[index]!.slice(source?.continuedComments.get(index - header - 1) ?? 0))) warn(index, 'er_trailing_comment', 'A trailing %% comment after an ER statement is read as a comment', 'put the comment on a line of its own')
+  }
+  for (const [index, what, portable] of quotedText) warn(header + index + 1, 'er_quoted_text', what, portable)
+  if (source) {
+    const directionLines = new Set<number>()
+    for (const entry of source.statements) {
+      const { syntax } = entry
+      if (syntax.kind === 'unknown') warnings.push({
+        code: 'UNSUPPORTED_SYNTAX', syntax: 'er_statement', line: header + entry.line + 2,
+        message: `ER statement is preserved in source but not drawn: ${entry.raw.trim()}`,
+      })
+      const references = syntax.kind === 'entity' || syntax.kind === 'block-open' ? [syntax.reference]
+        : syntax.kind === 'relation' ? [syntax.relation.entity1, syntax.relation.entity2] : []
+      for (const reference of references) {
+        if (!reference.quoted && isErKeywordName(reference.id)) warn(header + entry.line + 1, 'er_keyword_name', `ER name ${reference.id} is read as a name, where Mermaid reads a keyword`, `quote it ("${reference.id}")`)
+      }
+      if (syntax.kind === 'attribute' && syntax.generous) warn(header + entry.line + 1, 'er_attribute_form', 'An attribute with keys apart or after its comment is read as its type, name, keys and comment', 'write its keys comma-separated before the comment (`int id PK, FK "c"`)')
+      if (syntax.kind === 'relation' && syntax.relation.unreadLabel) {
+        const { label } = syntax.relation
+        if (label === '') warn(header + entry.line + 1, 'er_relation_label', 'A relationship with no label is read without one', 'write its label after a `:` on the relationship\'s line (`: ""` for none)')
+        else warn(header + entry.line + 1, 'er_relation_label', `ER relation label ${label} is read as written, where Mermaid's lexer reads a keyword, a cardinality, a number or punctuation in it`, `quote it (: "${label.replace(/"/g, '#quot;')}")`)
+      }
+      if (syntax.kind === 'relation' && syntax.relation.unquotedWords) warnings.push({
+        code: 'UNSUPPORTED_SYNTAX', syntax: 'er_label_words', line: header + entry.line + 2,
+        message: 'A relationship label of several unquoted words, or of a word and a quoted name, is read whole. Pinned Mermaid reads only its first word as the label and declares the others as entities; quote the label',
+      })
+      // Mermaid's `.*direction\s+LR` rule makes a line holding a direction a
+      // direction statement, whatever else it holds, from where the line is
+      // lexed outside a block.
+      if (syntax.kind !== 'direction' && entry.entityId === undefined && !['attribute', 'block-close', 'comment', 'blank'].includes(syntax.kind)
+        && /direction\s+(?:TB|BT|LR|RL)/i.test((grammar[entry.line] ?? '').slice(entry.column)) && !directionLines.has(entry.line)) {
+        directionLines.add(entry.line)
+        warnings.push({
+          code: 'UNSUPPORTED_SYNTAX', syntax: 'er_direction_line', line: header + entry.line + 2,
+          message: 'A line holding direction TB (BT, LR, RL) beside other text is read statement by statement. Pinned Mermaid reads the whole line as a direction and drops the rest; put the direction on a line of its own',
+        })
+      }
+    }
   }
   return warnings
 }
@@ -241,8 +284,11 @@ const RIGHT_GLYPH: Record<ErCardinality, string> = {
   'one-only': '||', 'zero-or-one': 'o|', 'zero-or-many': 'o{', 'one-or-many': '|{',
 }
 
+// Mermaid's style-state id token.
+const ER_STYLE_TEXT = /^(?:[^\x00-\x7F]|\w|-|\*)+$/
+
 function renderErEntityReference(entity: ErEntity): string {
-  const bare = parseErEntityId(entity.id) !== null
+  const bare = parseErEntityId(entity.id) !== null && !erNameNeedsQuotes(entity.id)
   // A quoted id is kept as written, and a quoted name cannot hold `"`, `%`
   // or `\`, so it needs no encoding.
   const renderedId = bare ? entity.id : `"${entity.id}"`
@@ -324,7 +370,7 @@ function writeEr(body: ErBody, prefix: readonly ErEntity[]): { source: string; o
     if (entity.attributes.length === 0) lines.push(`  ${reference}`)
     else {
       lines.push(`  ${reference} {`)
-      for (const attribute of entity.attributes) lines.push(`    ${attribute.text}`)
+      for (const attribute of entity.attributes) lines.push(`    ${portableErAttributeText(attribute.text)}`)
       lines.push('  }')
     }
   }
@@ -471,8 +517,13 @@ function writeEr(body: ErBody, prefix: readonly ErEntity[]): { source: string; o
   for (const [name, style] of Object.entries(body.classDefs ?? {})) lines.push(`  classDef ${name} ${serializeStyleProps(style)}`)
   for (const entity of body.entities) {
     const reference = renderErEntityReference({ ...entity, label: undefined })
-    const classLine = entity.className ? `  class ${reference} ${entity.className.trim().split(/[ \t]+/).join(',')}` : undefined
-    const styleLine = entity.style ? `  style ${reference} ${serializeStyleProps(entity.style)}` : undefined
+    const classes = entity.className?.trim().split(/[ \t]+/).join(',')
+    // A `style` line lexes its id as style text, so a keyword or a number is
+    // written bare there; a `class` line cannot name one at all, so its class
+    // goes on the entity itself (`"one":::foo`).
+    const classLine = classes === undefined ? undefined
+      : erNameNeedsQuotes(entity.id) ? `  ${reference}:::${classes}` : `  class ${reference} ${classes}`
+    const styleLine = entity.style ? `  style ${ER_STYLE_TEXT.test(entity.id) ? entity.id : reference} ${serializeStyleProps(entity.style)}` : undefined
     if (styleLine) fold.style(entity.id)
     // `class` applies only to an entity that exists, so it follows the `style`
     // line that creates one.

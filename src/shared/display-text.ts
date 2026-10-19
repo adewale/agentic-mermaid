@@ -1,3 +1,5 @@
+import { performanceExperimentEnabled } from '../experimental-performance.ts'
+import { WeightedLru } from '../experimental/weighted-lru.ts'
 import type { LabelDisplay } from '../multiline-utils.ts'
 import type { TextTransform } from '../types.ts'
 import { parseInlineFormatting, serializeStyledSegment, FORMAT_TAG_SOURCE, type StyledSegment } from './inline-format.ts'
@@ -18,6 +20,7 @@ export interface PreparedDisplayText {
   readonly lineStarts: readonly number[]
 }
 
+const displayPlans = new WeightedLru<string, PreparedDisplayText>(512, 4 * 1024 * 1024)
 const retainedPlans = new WeakSet<object>()
 function retainPlan(plan: PreparedDisplayText): PreparedDisplayText { retainedPlans.add(plan); return plan }
 
@@ -141,6 +144,8 @@ export function prepareDisplayText(source: DisplayTextInput, display: LabelDispl
     if (source.transform) throw new TypeError('A prepared display transform cannot be replaced without its original runs')
     return transformPreparedDisplayText(source, transform)
   }
+  const cacheKey = performanceExperimentEnabled('text-spans') && source.length <= 16384 ? JSON.stringify([source, display, transform]) : undefined
+  if (cacheKey !== undefined) { const cached = displayPlans.get(cacheKey); if (cached) return cached }
   let offset = 0
   const lineStarts: number[] = []
   const empty = Object.freeze([]) as readonly DisplayRun[]
@@ -174,7 +179,9 @@ export function prepareDisplayText(source: DisplayTextInput, display: LabelDispl
     return Object.freeze(runs)
   })
   const prepared = retainPlan(Object.freeze({ source, display, lines: Object.freeze(lines), lineStarts: Object.freeze(lineStarts) }))
-  return transform ? transformPreparedDisplayText(prepared, transform) : prepared
+  const result = transform ? transformPreparedDisplayText(prepared, transform) : prepared
+  if (cacheKey !== undefined) displayPlans.set(cacheKey, result, cacheKey.length * 2 + source.length * 96 + 256)
+  return result
 }
 
 function transformPreparedDisplayText(prepared: PreparedDisplayText, transform: TextTransform): PreparedDisplayText {

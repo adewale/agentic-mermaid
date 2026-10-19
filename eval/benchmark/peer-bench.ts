@@ -11,10 +11,13 @@
 // --elk-cache on|off (off), --candidate-tarball PATH --candidate-sha256 DIGEST.
 // Durable reports default to bench-report/peer-report.{json,md}; adjacent JSONL
 // files retain raw worker receipts even if the orchestrator is interrupted.
+// --corpus uses every official fence occurrence (including unsupported types),
+// with one warmup and three single-call samples instead of calibrated loops.
+// Corpus success is nonempty output, not a semantic/visual fidelity claim.
 //
 // Advisory only: it replaces the dated hand-run tables in docs/comparison.md
 // with a re-runnable command and is never part of tests or CI. `agentic` is the
-// local `dist/` (run `bun run build` first). Every other peer is installed at
+// local `dist/` (run `bun run build` first). Registry peers are installed at
 // the exact version pinned below into
 // node_modules/.cache/agentic-mermaid-peers/<name>@<version>/, with install
 // scripts disabled (termaid: wheel only, into a venv there). Peer code runs
@@ -22,9 +25,10 @@
 // peer's transitive npm dependencies resolve at install time (no lockfile).
 // Pins are checked against eval/fork-graph/population.json; a mismatch is a
 // printed warning.
+// Sketch is fetched at its exact git commit and compiled with Go >=1.25 on PATH.
 //
 // Each round runs one fresh worker process per peer and output (`node`, or the
-// venv's Python for termaid), alternating the order between rounds. A worker
+// venv's Python for termaid, or a native Go binary), alternating the order between rounds. A worker
 // imports the peer (import ms, including one-time engine setup), renders each
 // workload once (first-render ms) and checks its expected labels; only an
 // output that keeps them is warm-measured: warm calls, iterations calibrated to
@@ -48,7 +52,7 @@ import { allocationProbe, median } from './bench-stats.ts'
 import { missingSvgLabels } from './release-bench-fidelity.ts'
 import { git, ROOT } from './revision-tree.ts'
 
-type WorkloadId = keyof typeof MICRO_WORKLOADS
+type WorkloadId = string
 type Output = 'svg' | 'terminal'
 type Render = (source: string) => unknown
 // Peer modules are third-party and untyped here; each adapter names the call.
@@ -65,8 +69,8 @@ interface Adapter {
 
 interface Peer {
   id: string
-  source: { registry: 'local' } | { registry: 'npm' | 'pypi'; name: string; version: string }
-  runtime: 'node' | 'python'
+  source: { registry: 'local' } | { registry: 'npm' | 'pypi'; name: string; version: string } | { registry: 'git'; repo: string; commit: string; module: string }
+  runtime: 'node' | 'python' | 'go'
   svg?: Adapter
   terminal?: Adapter
   /** Not run unless named in --peers. */
@@ -115,6 +119,14 @@ const PEERS: readonly Peer[] = [
   },
   { id: 'pele', source: { registry: 'npm', name: 'pele', version: '1.6.0' }, runtime: 'node', svg: { subpath: '.', api: 'render(source).svg', make: m => source => m.render(source).svg }, note: 'returns { svg, ... }; only .svg is read' },
   {
+    id: 'sketch',
+    source: { registry: 'git', repo: 'https://github.com/Gaurav-Gosain/tuios', commit: '880e652ee56b1607cc454847a359703d7cdc88e6', module: 'sketch' },
+    runtime: 'go',
+    svg: { subpath: '.', api: 'sketch.Render(source, sketch.RenderOptions{}).Data' },
+    terminal: { subpath: '.', api: 'sketch.Parse + text.Draw(Cols: 0, Color: false) + strings.Join' },
+    note: 'PR #919; native in-process Go timing, static binary (no import), no V8 allocation estimate',
+  },
+  {
     id: 'merman',
     source: { registry: 'npm', name: '@mermanjs/node', version: '0.9.1' },
     runtime: 'node',
@@ -161,6 +173,14 @@ const EXPECTED_LABELS: Record<WorkloadId, readonly string[]> = {
   class80: range('C', 80),
   er40: range('E', 40),
   state80: range('S', 81),
+  packet240: range('Field ', 240),
+  kanban240: Array.from({ length: 12 }, (_, stage) => [`Stage ${stage}`, ...Array.from({ length: 20 }, (_, task) => `Task ${stage}.${task}`)]).flat(),
+  requirement100: range('Requirement ', 100),
+  // Leaf labels may be explicitly hidden in small quantitative cells; the
+  // release workload's section labels and title remain visible in SVG.
+  treemap260: ['Product allocation', ...range('Group ', 20)],
+  ishikawa133: ['Delayed delivery', ...Array.from({ length: 12 }, (_, category) => [`Category ${category}`, ...Array.from({ length: 10 }, (_, cause) => `Cause ${category}.${cause}`)]).flat()],
+  block120: range('Component ', 120),
 }
 const WORKLOADS: Record<Output, readonly WorkloadId[]> = {
   svg: ['flow5', 'tree50', 'mesh50', 'seq20', 'c4', 'class80', 'er40', 'state80'],
@@ -469,6 +489,7 @@ interface Prepared {
   version: string
   integrity?: string
   python?: string
+  binary?: string
   warnings: string[]
   identity?: { kind: 'tarball'; requested: string; sha256: string; integrity: string }
   installedLocks?: string[]
@@ -492,7 +513,7 @@ interface ProcessRecord {
 const UNSUPPORTED = /Invalid mermaid header|No diagram type detected|UnknownDiagramError|Unrecognized Mermaid header|(?:unsupported|inventory-only) in Agentic Mermaid|unsupported diagram|diagram type is not supported/i
 
 function parseArgs(argv: readonly string[]): Map<string, string> {
-  const flags = new Set(['quick', 'child'])
+  const flags = new Set(['quick', 'child', 'corpus'])
   const valued = new Set(['peers', 'workloads', 'rounds', 'json', 'markdown', 'agentic-npm', 'job', 'out', 'candidate-tarball', 'candidate-sha256', 'elk-cache'])
   const options = new Map<string, string>()
   for (let i = 0; i < argv.length; i++) {
@@ -507,7 +528,27 @@ function parseArgs(argv: readonly string[]): Map<string, string> {
   return options
 }
 
-const pin = (peer: Peer) => (peer.source.registry === 'local' ? 'local dist/' : `${peer.source.name}@${peer.source.version}${peer.source.registry === 'pypi' ? ' (PyPI)' : ''}`)
+const pin = (peer: Peer) => (peer.source.registry === 'local' ? 'local dist/' : peer.source.registry === 'git' ? `${peer.source.repo}/${peer.source.module}@${peer.source.commit}` : `${peer.source.name}@${peer.source.version}${peer.source.registry === 'pypi' ? ' (PyPI)' : ''}`)
+
+function installGo(source: Extract<Peer['source'], { registry: 'git' }>): { binary: string; goVersion: string } {
+  const prefix = join(CACHE, `sketch@${source.commit}`)
+  const checkout = join(prefix, 'repo')
+  mkdirSync(prefix, { recursive: true })
+  const run = (command: string, args: string[], cwd = prefix) => {
+    const child = spawnSync(command, args, { cwd, encoding: 'utf8', timeout: 300_000, env: { ...process.env, GOWORK: 'off' } })
+    if (child.status !== 0) throw new Error(`${command} ${args[0]} failed: ${(child.stderr || child.error?.message || child.stdout || '').trim().slice(-1000)}`)
+    return child.stdout.trim()
+  }
+  const goVersion = run('go', ['version'])
+  if (!existsSync(join(checkout, '.git'))) run('git', ['clone', '--no-checkout', '--filter=blob:none', source.repo, checkout])
+  run('git', ['fetch', '--depth', '1', 'origin', source.commit], checkout)
+  run('git', ['checkout', '--detach', source.commit], checkout)
+  if (run('git', ['rev-parse', 'HEAD'], checkout) !== source.commit) throw new Error('Sketch checkout differs from the requested commit')
+  writeFileSync(join(prefix, 'go.mod'), `module agentic-mermaid-peer\n\ngo 1.25.0\n\nrequire tuios.dev/sketch v0.0.0\nreplace tuios.dev/sketch => ${JSON.stringify(join(checkout, source.module))}\n`)
+  const binary = join(prefix, process.platform === 'win32' ? 'sketch-worker.exe' : 'sketch-worker')
+  run('go', ['build', '-mod=mod', '-trimpath', '-o', binary, join(ROOT, 'eval/benchmark/sketch-worker.go')])
+  return { binary, goVersion }
+}
 
 /** The ESM file Node would load for `subpath` under the import condition. */
 function packageEntry(root: string, subpath: string): string {
@@ -561,6 +602,11 @@ function installPypi(name: string, version: string): { python: string; pythonVer
 
 function populationWarnings(peer: Peer): string[] {
   if (peer.source.registry === 'local') return []
+  if (peer.source.registry === 'git') {
+    const source = peer.source
+    const population = JSON.parse(readFileSync(join(ROOT, 'eval/fork-graph/population.json'), 'utf8')) as { nodes: Array<{ repo?: string; head?: string; benchmarkCommit?: string }> }
+    return population.nodes.some(node => node.repo === source.repo && (node.benchmarkCommit ?? node.head) === source.commit) ? [] : [`${peer.id}: git pin is not recorded in population.json`]
+  }
   const { registry, name, version } = peer.source
   const population = JSON.parse(readFileSync(join(ROOT, 'eval/fork-graph/population.json'), 'utf8')) as { nodes: Array<{ id: string; packages?: Array<{ registry: string; name: string; version: string }> }> }
   const recorded = population.nodes.flatMap(node => (node.packages ?? []).filter(entry => entry.registry === registry && entry.name === name).map(entry => `${entry.version} (${node.id})`))
@@ -577,9 +623,14 @@ function prepare(peer: Peer, nodeVersion: string): Prepared {
     const built = statSync(join(ROOT, 'dist/index.js')).mtime.toISOString().slice(0, 16)
     return { peer, label: `agentic-mermaid ${version} local dist (HEAD ${git(['rev-parse', '--short=12', 'HEAD'])}${dirty ? ', src dirty' : ''}, built ${built}Z)`, root: ROOT, version, warnings }
   }
-  const { registry, name, version } = peer.source
   const label = pin(peer)
+  const version = peer.source.registry === 'git' ? peer.source.commit : peer.source.version
   try {
+    if (peer.source.registry === 'git') {
+      const { binary, goVersion } = installGo(peer.source)
+      return { peer, label: `${label}, ${goVersion}`, version, binary, warnings }
+    }
+    const { registry, name } = peer.source
     if (registry === 'pypi') {
       const { python, pythonVersion } = installPypi(name, version)
       return { peer, label: `${label}, Python ${pythonVersion}`, version, python, warnings }
@@ -660,7 +711,7 @@ function spawnWorker(command: readonly string[], outPath: string, limits: { impo
   })
 }
 
-async function runProcess(prepared: Prepared, output: Output, workloads: readonly WorkloadId[], round: number, context: { scratch: string; bundle: string; timing: Timing; sources: Record<WorkloadId, string>; elkCache: 'on' | 'off'; rawSamples: string }): Promise<ProcessRecord> {
+async function runProcess(prepared: Prepared, output: Output, workloads: readonly WorkloadId[], round: number, context: { scratch: string; bundle: string; timing: Timing; sources: Record<WorkloadId, string>; elkCache: 'on' | 'off'; rawSamples: string; expectedLabels: Record<string, readonly string[]> }): Promise<ProcessRecord> {
   const { peer } = prepared
   const record: ProcessRecord = { peer: peer.id, output, round, wallMs: 0, restarts: 0, results: [] }
   const adapter = peer[output]!
@@ -668,15 +719,15 @@ async function runProcess(prepared: Prepared, output: Output, workloads: readonl
     record.results = workloads.map(id => ({ workload: id, status: 'error', detail: prepared.error }))
     return record
   }
-  const entry = peer.runtime === 'python' ? adapter.subpath : packageEntry(prepared.root!, adapter.subpath)
+  const entry = peer.runtime !== 'node' ? adapter.subpath : packageEntry(prepared.root!, adapter.subpath)
   const limits = { importMs: 120_000, workloadMs: Math.max(60_000, 10 * context.timing.maxCaseMs) }
   let remaining = [...workloads]
   for (let attempt = 0; remaining.length; attempt++) {
     const base = join(context.scratch, `${peer.id}-${output}-r${round}-a${attempt}`)
-    const job: WorkerJob = { peer: peer.id, output, entry, timing: context.timing, workloads: remaining.map(id => ({ id, source: context.sources[id], expected: EXPECTED_LABELS[id] })) }
+    const job: WorkerJob = { peer: peer.id, output, entry, timing: context.timing, workloads: remaining.map(id => ({ id, source: context.sources[id]!, expected: context.expectedLabels[id]! })) }
     writeFileSync(`${base}.job.json`, JSON.stringify(job))
     const receipts = `${context.rawSamples}.${peer.id}-${output}-r${round}-a${attempt}.jsonl`
-    const command = peer.runtime === 'python' ? [prepared.python!, '-I', '-c', PYTHON_WORKER, `${base}.job.json`, receipts] : ['node', '--expose-gc', context.bundle, '--child', '--job', `${base}.job.json`, '--out', receipts]
+    const command = peer.runtime === 'go' ? [prepared.binary!, `${base}.job.json`, receipts] : peer.runtime === 'python' ? [prepared.python!, '-I', '-c', PYTHON_WORKER, `${base}.job.json`, receipts] : ['node', '--expose-gc', context.bundle, '--child', '--job', `${base}.job.json`, '--out', receipts]
     const run = await spawnWorker(command, receipts, limits, context.elkCache)
     for (const line of run.lines) appendFileSync(context.rawSamples, `${JSON.stringify({ peer: peer.id, output, round, attempt, ...line })}\n`)
     record.wallMs += run.wallMs
@@ -770,11 +821,16 @@ async function main(): Promise<void> {
   // A runtime path keeps the worker bundle from walking src/ through the
   // cases' lazy imports (and emitting its native assets); workers get sources
   // from the job file.
-  const { MICRO_WORKLOADS: sources } = (await import(pathToFileURL(join(ROOT, 'eval/benchmark/micro-bench-cases.ts')).href)) as typeof import('./micro-bench-cases.ts')
+  const { MICRO_WORKLOADS } = (await import(pathToFileURL(join(ROOT, 'eval/benchmark/micro-bench-cases.ts')).href)) as typeof import('./micro-bench-cases.ts')
+  const inventory = args.has('corpus') ? ((await import(pathToFileURL(join(ROOT, 'eval/shared/official-fences.ts')).href)).officialCorpusInventory() as ReturnType<typeof import('../shared/official-fences.ts').officialCorpusInventory>) : undefined
+  const sources: Record<string, string> = inventory ? Object.fromEntries(inventory.occurrences.map(input => [input.id, input.source])) : MICRO_WORKLOADS
+  const expectedLabels: Record<string, readonly string[]> = inventory ? Object.fromEntries(inventory.occurrences.map(input => [input.id, []])) : EXPECTED_LABELS
+  const available: Record<Output, readonly string[]> = inventory ? { svg: Object.keys(sources), terminal: Object.keys(sources) } : WORKLOADS
   const rounds = Number(args.get('rounds') ?? 3)
   if (!Number.isSafeInteger(rounds) || rounds < 1) throw new Error('--rounds must be a positive integer')
   const elkCache = (args.get('elk-cache') ?? 'off') as 'on' | 'off'
-  const timing = args.has('quick') ? QUICK_TIMING : TIMING
+  if (inventory && args.has('quick')) throw new Error('--corpus and --quick are separate sampling policies')
+  const timing: Timing = inventory ? { warmCalls: 1, warmupMs: 0, samples: 3, minSampleMs: 0, maxCaseMs: 5000 } : args.has('quick') ? QUICK_TIMING : TIMING
   const npmVersion = args.get('agentic-npm')
   if (npmVersion !== undefined && !/^\d+\.\d+\.\d+(?:-[\w.-]+)?$/.test(npmVersion)) throw new Error('--agentic-npm takes an exact version such as 0.4.1')
   const catalog = [PEERS[0]!, ...(npmVersion ? [{ ...PEERS[0]!, id: 'agentic-npm', source: { registry: 'npm', name: 'agentic-mermaid', version: npmVersion } } satisfies Peer] : []), ...PEERS.slice(1)]
@@ -790,9 +846,9 @@ async function main(): Promise<void> {
   const selected = (args
     .get('workloads')
     ?.split(',')
-    .map(id => id.trim()) ?? Object.keys(EXPECTED_LABELS)) as WorkloadId[]
-  for (const id of selected) if (!(id in EXPECTED_LABELS)) throw new Error(`Unknown workload ${id}; choose from ${Object.keys(EXPECTED_LABELS).join(', ')}`)
-  const workloads = { svg: WORKLOADS.svg.filter(id => selected.includes(id)), terminal: WORKLOADS.terminal.filter(id => selected.includes(id)) }
+    .map(id => id.trim()) ?? Object.keys(expectedLabels)) as WorkloadId[]
+  for (const id of selected) if (!(id in expectedLabels)) throw new Error(`Unknown workload ${id}; choose from ${Object.keys(expectedLabels).join(', ')}`)
+  const workloads = { svg: available.svg.filter(id => selected.includes(id)), terminal: available.terminal.filter(id => selected.includes(id)) }
 
   if (args.has('candidate-tarball') && !peers.some(peer => peer.id === 'agentic')) throw new Error('--candidate-tarball requires the agentic peer')
   const jsonPath = resolve(args.get('json') ?? join(ROOT, 'bench-report', 'peer-report.json'))
@@ -836,7 +892,7 @@ async function main(): Promise<void> {
     for (let round = 0; round < rounds; round++) {
       for (const { prepared: entry, output } of round % 2 === 0 ? jobs : [...jobs].reverse()) {
         console.error(`round ${round + 1}/${rounds}: ${entry.peer.id} ${output} (${workloads[output].length} workloads)`)
-        const observation = await runProcess(entry, output, workloads[output], round, { scratch, bundle, timing, sources, elkCache, rawSamples })
+        const observation = await runProcess(entry, output, workloads[output], round, { scratch, bundle, timing, sources, elkCache, rawSamples, expectedLabels })
         processes.push(observation)
         appendFileSync(rawSamples, `${JSON.stringify({ type: 'process', ...observation })}\n`)
       }
@@ -866,11 +922,15 @@ async function main(): Promise<void> {
     out.push('# Peer benchmark (advisory)', '')
     out.push(`- Date: ${createdAt}`)
     out.push(`- Machine: ${cpus()[0]?.model ?? 'unknown CPU'}, ${cpus().length} logical CPUs, ${(totalmem() / 1024 ** 3).toFixed(0)} GiB, ${process.platform} ${process.arch} ${release()}; load average ${startLoad.map(value => value.toFixed(2)).join(' ')} at start, ${loadavg()[0]!.toFixed(2)} at end`)
-    out.push(`- Runtimes: Node ${nodeVersion} (workers), Bun ${process.versions.bun ?? 'n/a'} (orchestrator)`)
+    out.push(`- Runtimes: Node ${nodeVersion} (Node workers), Bun ${process.versions.bun ?? 'n/a'} (orchestrator)`)
     const quote = (value: string) => `'${value.replaceAll("'", "'\\''")}'`
-    const command = ['bun run bench:peers', '--peers', quote(peers.map(peer => peer.id).join(',')), '--workloads', quote(selected.join(',')), '--rounds', String(rounds), '--elk-cache', elkCache, ...(args.has('quick') ? ['--quick'] : []), ...(npmVersion ? ['--agentic-npm', quote(npmVersion)] : []), ...(args.has('candidate-tarball') ? ['--candidate-tarball', quote(resolve(args.get('candidate-tarball')!)), '--candidate-sha256', args.get('candidate-sha256')!] : [])]
+    const command = ['bun run bench:peers', '--peers', quote(peers.map(peer => peer.id).join(',')), '--workloads', quote(selected.join(',')), '--rounds', String(rounds), '--elk-cache', elkCache, ...(args.has('quick') ? ['--quick'] : []), ...(inventory ? ['--corpus'] : []), ...(npmVersion ? ['--agentic-npm', quote(npmVersion)] : []), ...(args.has('candidate-tarball') ? ['--candidate-tarball', quote(resolve(args.get('candidate-tarball')!)), '--candidate-sha256', args.get('candidate-sha256')!] : [])]
     out.push('- Reproduce:', '', '```sh', command.join(' '), '```')
     out.push(`- Policy: ELK cache ${elkCache}; built-in Scene assertions off; Node --expose-gc and final untimed GC; APL environment ${JSON.stringify(policy.aplEnvironment)}`)
+    if (inventory)
+      out.push(
+        `- Corpus: ${inventory.occurrenceCount} official fence occurrences (${inventory.distinctCount} distinct sources); no label assertions. Success establishes output, not authored meaning or visual quality. Coverage retains unsupported/error cases. Three single-call samples after one warmup; this is not the calibrated synthetic timing policy.`,
+      )
     out.push(`- Pins: ${prepared.map(entry => `${entry.peer.id} = ${entry.label}`).join('; ')}`)
     for (const entry of prepared) for (const lock of entry.dependencyLocks ?? []) out.push(`- ${entry.peer.id} ${lock.source}: ${lock.path} (SHA-256 ${lock.sha256})`)
     out.push(
@@ -886,6 +946,17 @@ async function main(): Promise<void> {
         ['peer', 'output', 'timed call', 'note'],
         jobs.map(({ prepared: entry, output }) => [entry.peer.id, output, entry.peer[output]!.api, entry.peer.note ?? '']),
         4,
+      ),
+    )
+    out.push('', '## Coverage (successful in every round)', '')
+    out.push(
+      markdownTable(
+        ['peer', 'output', 'ok', 'lost labels', 'unsupported', 'error', 'total'],
+        jobs.map(({ prepared: entry, output }) => {
+          const cells = workloads[output].map(id => cell(entry.peer.id, output, id))
+          return [entry.peer.id, output, ...(['ok', 'lost-labels', 'unsupported', 'error'] as const).map(status => String(cells.filter(result => result?.status === status).length)), String(cells.length)]
+        }),
+        2,
       ),
     )
     if (svgPeers.length) {
@@ -905,7 +976,7 @@ async function main(): Promise<void> {
         })
         out.push(markdownTable(['workload', ...comparators], [...workloads.svg.map((id, row) => [id, ...ratios[row]!.map(value => (value === undefined ? '—' : `${value.toPrecision(3)}×`))]), ['geometric mean (n)', ...geomean]]))
       }
-      out.push('', '## SVG output size and V8 allocation per call', '', 'Allocation is a GC-boundary estimate of the JS heap; it does not see WASM linear memory (mermaid-rs) or native heap (merman).', '')
+      out.push('', '## SVG output size and V8 allocation per call', '', 'Allocation is a GC-boundary estimate of the JS heap; it does not see WASM linear memory (mermaid-rs) or native heap (merman), and is not measured for Go or Python.', '')
       out.push(
         markdownTable(
           ['workload', ...svgPeers],
@@ -931,7 +1002,7 @@ async function main(): Promise<void> {
       return [
         `${entry.peer.id}${restarts ? ` (${restarts} restart${restarts > 1 ? 's' : ''})` : ''}`,
         output,
-        formatMs(pick(records.map(record => (record.importMs === undefined ? undefined : record.importMs + (record.setupMs ?? 0))))),
+        entry.peer.runtime === 'go' ? 'static binary' : formatMs(pick(records.map(record => (record.importMs === undefined ? undefined : record.importMs + (record.setupMs ?? 0))))),
         first?.firstMs === undefined ? '—' : formatMs(first.firstMs),
         formatMiB(pick(records.map(record => record.rssBytes))),
         formatMiB(pick(records.map(record => record.peakRssBytes))),
@@ -961,7 +1032,8 @@ async function main(): Promise<void> {
         config: { rounds, timing, minSamples: MIN_SAMPLES, workloads, peers: jobs.map(job => ({ peer: job.prepared.peer.id, output: job.output })) },
         pins: prepared.map(entry => ({ peer: entry.peer.id, source: entry.peer.source, label: entry.label, ...(entry.integrity ? { integrity: entry.integrity } : {}), ...(entry.identity ? { identity: entry.identity } : {}), ...(entry.dependencyLocks ? { dependencyLocks: entry.dependencyLocks } : {}), ...(entry.error ? { error: entry.error } : {}), svg: entry.peer.svg?.api, terminal: entry.peer.terminal?.api })),
         coverage,
-        expectedLabels: EXPECTED_LABELS,
+        ...(inventory ? { corpus: inventory } : {}),
+        expectedLabels,
         warnings,
         notCovered: NOT_COVERED,
         processes,

@@ -8,12 +8,10 @@
 // ============================================================================
 
 import type { ConfigDiagnostic, RenderOptions, ResolvedFamilyRenderContext } from './types.ts'
-import { decodeXML } from 'entities'
-import { splitAuthoredPieTitleLine } from './pie/source-title.ts'
 import type { ArchitectureVisualConfig } from './architecture/config.ts'
 import type { DiagramColors } from './theme.ts'
 import type { NormalizedMermaidSource } from './mermaid-source.ts'
-import { normalizeMermaidSource, normalizeMermaidSourceWithOverrides } from './mermaid-source.ts'
+import { normalizeMermaidSourceWithOverrides } from './mermaid-source.ts'
 import { CHANNEL_THEME_KEYS, readThemeValue, resolveDiagramColors } from './color-resolver.ts'
 import { checkArchitectureRenderOptionColors, checkFamilyConfigColors, checkThemeVariableColors } from './theme-color-admission.ts'
 import {
@@ -58,6 +56,7 @@ import { RENDER_OUTPUTS, type RenderOutput } from './render-outputs.ts'
 import { PNG_OUTPUT_POLICY_VERSION, TERMINAL_OUTPUT_POLICY_VERSION } from './output-policy-versions.ts'
 import { explicitFamilyConfigDiagnostics } from './shared/family-config-diagnostics.ts'
 import { deepFreeze, isPlainRecord } from './shared/plain-data.ts'
+import { assertDiagramWorkLimit, DiagramWorkLimitError } from './shared/diagram-limits.ts'
 import {
   createTextMeasurementExecution,
   type TextMeasurementExecution,
@@ -512,6 +511,7 @@ export const SHARED_RENDER_OPTION_FIELD_DESCRIPTORS = deepFreeze({
   interactive: { typeScript: 'boolean', description: 'Enable hover tooltips for supported chart data points.', defaultLabel: '`false`', validationExpectation: 'be a boolean', schema: booleanSchema('Enable hover tooltips for supported chart data points.', false), terminal: 'projected', terminalNote: 'terminal output is a static semantic projection', applicableBuiltinFamilies: ['xychart', 'pie', 'quadrant'] },
   shadow: { typeScript: 'boolean', description: 'Paint explicit drop shadows on node shapes.', defaultLabel: '`false`', validationExpectation: 'be a boolean', schema: booleanSchema('Paint explicit drop shadows on node shapes.', false), terminal: 'projected', terminalNote: 'elevation projects to borders and labels', applicableBuiltinFamilies: SHADOW_OPTION_FAMILIES },
   class: { typeScript: '{ hierarchicalNamespaces?: boolean }', description: 'Class-diagram rendering controls.', defaultLabel: '`hierarchicalNamespaces: true`', validationExpectation: 'be a class options object', schema: closedObjectSchema({ hierarchicalNamespaces: booleanSchema('Nest namespace compounds.', true) }, 'Class-diagram rendering controls.'), terminal: 'not-applicable', terminalNote: 'this option configures graphical class layout', applicableBuiltinFamilies: ['class'] },
+  kanban: { typeScript: '{ maxWidth?: number }', description: 'Opt-in Kanban column wrapping with readable column widths.', defaultLabel: '`maxWidth`: unset', validationExpectation: 'be a kanban options object', schema: closedObjectSchema({ maxWidth: positiveNumberSchema('Best-effort width budget for wrapping whole Kanban columns into rows.') }, 'Kanban layout controls.'), terminal: 'not-applicable', terminalNote: 'terminal layout uses its own targetWidth', applicableBuiltinFamilies: ['kanban'] },
   architecture: { typeScript: '{ visual?: ArchitectureVisualOverrides }', description: 'Sparse architecture renderer visual metric and paint overrides.', defaultLabel: 'built-in metrics', validationExpectation: 'be an architecture options object', schema: closedObjectSchema({ visual: ARCHITECTURE_VISUAL_SCHEMA }, 'Architecture renderer visual metric and paint overrides.'), terminal: 'not-applicable', terminalNote: 'this option configures graphical architecture rendering', applicableBuiltinFamilies: ['architecture'] },
   timeline: { typeScript: '{ maxWidth?: number }', description: 'Timeline layout controls.', defaultLabel: '`maxWidth`: unset', validationExpectation: 'be a timeline options object', schema: closedObjectSchema({ maxWidth: positiveNumberSchema('Best-effort width budget for horizontal timelines.') }, 'Timeline layout controls.'), terminal: 'not-applicable', terminalNote: 'terminal output uses maxWidth or targetWidth', applicableBuiltinFamilies: ['timeline'] },
   journey: { typeScript: '{ experienceCurve?: boolean }', description: 'User-journey graphical controls.', defaultLabel: '`experienceCurve: true`', validationExpectation: 'be a journey options object', schema: closedObjectSchema({ experienceCurve: booleanSchema('Connect journey score markers with an experience curve.', true) }, 'User-journey graphical controls.'), terminal: 'not-applicable', terminalNote: 'experience curves are graphical-only', applicableBuiltinFamilies: ['journey'] },
@@ -1077,6 +1077,17 @@ export class RenderCapabilityError extends Error {
   }
 }
 
+/** Configuration the request waist refuses: invalid RenderOptions, or Mermaid
+ * config the selected security mode or layout safety forbids. It stays a
+ * TypeError, as these refusals always were, but is typed so verify attributes
+ * it to configuration rather than to an engine defect. */
+export class RenderConfigError extends TypeError {
+  constructor(message: string) {
+    super(message)
+    this.name = 'RenderConfigError'
+  }
+}
+
 const EXECUTION_PLAN_BY_REQUEST = new WeakMap<ResolvedRenderRequest, InternalRenderExecutionPlan>()
 
 /** Internal consumer seam for layout/render adapters. Not re-exported by a
@@ -1135,7 +1146,7 @@ function receiptDiagnostics(
 ): readonly RenderArtifactDiagnostic[] {
   const seen = new Set<string>()
   return Object.freeze([
-    ...(request.resolutionDiagnostics ?? []),
+    ...(Object.hasOwn(request, 'resolutionDiagnostics') ? request.resolutionDiagnostics! : []),
     ...diagnostics,
   ].flatMap(diagnostic => {
     const key = canonicalJson(diagnostic)
@@ -1151,6 +1162,11 @@ export function receiptOf(
 ): RenderRequestReceipt {
   const executionPlan = EXECUTION_PLAN_BY_REQUEST.get(request)
   const executionDecision = executionPlan?.executionDecision
+  // Frozen records still inherit optional fields. Evidence consumed later
+  // must only read fields captured by request admission, never a late getter.
+  const textMeasurement = executionPlan && Object.hasOwn(executionPlan, 'textMeasurement')
+    ? executionPlan.textMeasurement
+    : undefined
   return Object.freeze({
     version: request.version,
     output: request.output,
@@ -1160,7 +1176,7 @@ export function receiptOf(
     capabilityDecision: request.capabilityDecision,
     diagnostics: receiptDiagnostics(request, diagnostics),
     ...(executionDecision ? { executionDecision } : {}),
-    ...(executionPlan?.textMeasurement ? { textMeasurement: executionPlan.textMeasurement.identity } : {}),
+    ...(textMeasurement ? { textMeasurement: textMeasurement.identity } : {}),
   })
 }
 
@@ -1170,9 +1186,12 @@ export function resolvedFamilyRenderContextOf(
 ): ResolvedFamilyRenderContext {
   const prior = FAMILY_CONTEXT_BY_REQUEST.get(request)
   if (prior) return prior
+  const paintBackendId = EXECUTION_PLAN_BY_REQUEST.get(request)?.backend?.identity.id
+    ?? (request.output === 'layout' ? `backend:${request.appearance.inferredBackend}` : undefined)
   const context = Object.freeze({
     renderOptions: request.renderOptions,
     ...(request.appearance.face ? { styleFace: request.appearance.face } : {}),
+    ...(paintBackendId ? { paintBackendId } : {}),
     ...(request.familyConfig ? { familyConfig: request.familyConfig } : {}),
     ...(request.appearance.family ? { familyAppearance: request.appearance.family } : {}),
   })
@@ -1223,31 +1242,14 @@ function serializableOptionCandidate(options: RenderOptions): Record<string, unk
 
 function capturedRequestFamily(
   source: NormalizedMermaidSource,
-  authoredEnvelope: NormalizedMermaidSource = source,
 ): FamilyDescriptor {
   return requireRegisteredMermaidFamilyDescriptor(
     source.lines[0] ?? source.firstLine,
     source.originalText,
     'strict',
-    authoredEnvelope.wrapperSource?.length ?? 0,
-    authoredEnvelope.lines[0] ?? authoredEnvelope.firstLine,
+    source.authoredWrapperLength ?? source.wrapperSource?.length ?? 0,
+    source.authoredHeader ?? source.lines[0] ?? source.firstLine,
   )
-}
-
-/** Decode Pie grammar while keeping exact authored quoted keys and titles. */
-function pieLinesWithAuthoredText(authored: NormalizedMermaidSource): string[] {
-  const quotedLabel = /^\s*"(?:[^"\\]|\\.)*"/
-  const hybrid = authored.familyLines.map((line, index) => {
-    // Pie titles are display text, not grammar separators. Keep their entity
-    // spelling for the family-owned projection just as with quoted labels.
-    const title = splitAuthoredPieTitleLine(line, index === 0 ? 'header' : 'body')
-    if (title) return title.decodedPrefix + title.authoredTitle
-    const label = quotedLabel.exec(line)?.[0]
-    return label === undefined ? decodeXML(line) : label + decodeXML(line.slice(label.length))
-  }).join('\n')
-  // Reapply normal comment/line normalization after decoding; an entity may
-  // itself spell a comment opener or a grammar newline outside a label.
-  return normalizeMermaidSource(hybrid).familyLines
 }
 
 function assertFamilyGeometryOptions(
@@ -1260,7 +1262,9 @@ function assertFamilyGeometryOptions(
   }
   const problems = validateSerializableRenderOptions(serializableOptionCandidate(after))
   if (problems.length > 0) {
-    throw new TypeError(`Family "${family.id}" returned invalid normalized RenderOptions: ${problems.join('; ')}`)
+    // A built-in normalizer passes the author's config through; its values are
+    // what fail here (an unsafe theme font, an out-of-range size).
+    throw new RenderConfigError(`Family "${family.id}" returned invalid normalized RenderOptions: ${problems.join('; ')}`)
   }
   const beforeSerializable = serializableOptions(before)
   const afterSerializable = serializableOptions(after)
@@ -1285,12 +1289,13 @@ function normalizedFamilyColors(
     const candidate = value[field]
     if (candidate === undefined) continue
     const safe = safeCssPaint(candidate)
-    if (safe === undefined) throw new TypeError(`Family "${family.id}" returned an unsafe ${field} paint`)
+    // The value is the author's theme or config, passed through by the family.
+    if (safe === undefined) throw new RenderConfigError(`Family "${family.id}" returned an unsafe ${field} paint`)
     out[field] = safe
   }
   if (value.font !== undefined) {
     const font = safeCssFontFamily(value.font)
-    if (font === undefined) throw new TypeError(`Family "${family.id}" returned an unsafe font family`)
+    if (font === undefined) throw new RenderConfigError(`Family "${family.id}" returned an unsafe font family`)
     if (font !== base.font) {
       throw new TypeError(`Family "${family.id}" request normalizer may not rewrite appearance field "font"`)
     }
@@ -1472,7 +1477,41 @@ function canonicalJson(value: unknown): string {
 }
 
 /** Stable, browser-safe FNV-1a-64 receipt (not a security primitive). */
+/** A request receipt that overflows the digest budget is a source too large
+ * for this host, even when the source alone fit the sourceCharacters check. */
+function deferredRequestReceiptDigest(receipt: unknown, source: { readonly originalText: string; readonly text: string }): () => string {
+  try {
+    return deferredRenderContractDigest(receipt)
+  } catch (error) {
+    if (error instanceof TypeError && /aggregate limit/.test(error.message)) {
+      throw new DiagramWorkLimitError('sourceCharacters', source.originalText.length + source.text.length, true)
+    }
+    throw error
+  }
+}
+
 export function renderContractDigest(value: unknown): string {
+  return canonicalTextDigest(canonicalJson(admitRenderContractDigestInput(value)))
+}
+
+/** Capture and admit now, but serialize and hash only if evidence is consumed.
+ * The closure never reads caller-owned data or mutable registries. Releasing
+ * the captured graph after hashing also avoids retaining duplicate snapshots
+ * for a long-lived receipt consumer. Internal only: public digest calls remain
+ * eager, including all their admission errors. */
+export function deferredRenderContractDigest(value: unknown): () => string {
+  let snapshot: unknown = admitRenderContractDigestInput(value)
+  let digest: string | undefined
+  return () => {
+    if (digest === undefined) {
+      digest = canonicalTextDigest(canonicalJson(snapshot))
+      snapshot = undefined
+    }
+    return digest
+  }
+}
+
+function admitRenderContractDigestInput(value: unknown): unknown {
   // Public digest callers may supply accessor-backed values. Materialize that
   // graph once under the request-data bounds, then validate and canonicalize
   // only the immutable snapshot. Otherwise a getter can present valid data to
@@ -1488,7 +1527,7 @@ export function renderContractDigest(value: unknown): string {
   assertJsonConfigAdmission(snapshot, 'render contract digest input', {
     allowUndefinedObjectProperties: true,
   })
-  return canonicalTextDigest(canonicalJson(snapshot))
+  return snapshot
 }
 
 /** Internal hash primitive for already-admitted canonical JSON text.
@@ -1515,22 +1554,40 @@ export function canonicalTextDigest(text: string): string {
  */
 const IMMUTABLE_SNAPSHOTS = new WeakSet<object>()
 
-function immutableSnapshot<T>(value: T, path = '$', ancestors = new Set<object>()): T {
+function immutableSnapshot<T>(value: T, path = '$', ancestors = new Set<object>(), copies = new WeakMap<object, object>()): T {
   if (value === null || typeof value !== 'object') return value
   // Object.isFrozen is insufficient: an externally frozen object may retain
   // getters or mutable descendants. Reuse only snapshots created here.
   if (IMMUTABLE_SNAPSHOTS.has(value)) return value
   if (ancestors.has(value)) throw new TypeError(`render request contains a cycle at ${path}`)
+  const existing = copies.get(value)
+  if (existing) return existing as T
   const proto = Object.getPrototypeOf(value)
   if (!Array.isArray(value) && proto !== Object.prototype && proto !== null) {
     throw new TypeError(`render request contains a non-JSON object at ${path}`)
   }
   ancestors.add(value)
-  const clone: unknown = Array.isArray(value)
-    ? value.map((item, index) => immutableSnapshot(item, `${path}[${index}]`, ancestors))
-    : Object.fromEntries(Object.entries(value as Record<string, unknown>).map(([key, child]) =>
-        [key, immutableSnapshot(child, `${path}.${key}`, ancestors)]))
+  let clone: unknown
+  if (Array.isArray(value)) {
+    const length = value.length
+    const items: unknown[] = new Array(length)
+    for (let index = 0; index < length; index++) {
+      if (index in value) items[index] = immutableSnapshot(value[index], `${path}[${index}]`, ancestors, copies)
+    }
+    clone = items
+  } else {
+    const record: Record<string, unknown> = {}
+    // Capture entries before descending, retaining the existing accessor-read
+    // order without allocating a second array of key/value pairs per object.
+    for (const [key, child] of Object.entries(value as Record<string, unknown>)) {
+      const captured = immutableSnapshot(child, `${path}.${key}`, ancestors, copies)
+      if (key === '__proto__') Object.defineProperty(record, key, { value: captured, enumerable: true })
+      else record[key] = captured
+    }
+    clone = record
+  }
   ancestors.delete(value)
+  copies.set(value, clone as object)
   IMMUTABLE_SNAPSHOTS.add(clone as object)
   return Object.freeze(clone) as T
 }
@@ -1566,7 +1623,7 @@ export function captureRenderOptions(options: RenderOptions): Readonly<RenderOpt
   const admitted = admitRenderOptionsInput(options)
   const capturedStyle = immutableSnapshot(resolveStyleStackWithFace(admitted.serializable.style))
   const problems = validateSerializableRenderOptions(admitted.serializable)
-  if (problems.length) throw new TypeError(`Invalid RenderOptions: ${problems.join('; ')}`)
+  if (problems.length) throw new RenderConfigError(`Invalid RenderOptions: ${problems.join('; ')}`)
   const references = namedStyleReferences(admitted.serializable.style)
   const captured = Object.freeze({ ...admitted.serializable, ...(admitted.onConfigDiagnostic ? { onConfigDiagnostic: admitted.onConfigDiagnostic } : {}) })
   CAPTURED_OPTIONS.set(captured, Object.freeze({ ...admitted, capturedStyle }))
@@ -1585,7 +1642,7 @@ export function capturedRenderBackend(options: RenderOptions): string {
  * recursively snapshotted, validated, normalized, and receipted. */
 function admitRenderOptionsInput(untrusted: RenderOptions): AdmittedRenderOptions {
   if ((typeof untrusted !== 'object' && typeof untrusted !== 'function') || untrusted === null) {
-    throw new TypeError('Invalid RenderOptions: render options must be an object')
+    throw new RenderConfigError('Invalid RenderOptions: render options must be an object')
   }
   const prior = CAPTURED_OPTIONS.get(untrusted)
   if (prior) return prior
@@ -1599,7 +1656,7 @@ function admitRenderOptionsInput(untrusted: RenderOptions): AdmittedRenderOption
     }
   }
   if (onConfigDiagnostic !== undefined && typeof onConfigDiagnostic !== 'function') {
-    throw new TypeError('Invalid RenderOptions: onConfigDiagnostic must be a function')
+    throw new RenderConfigError('Invalid RenderOptions: onConfigDiagnostic must be a function')
   }
   if (serializableEntries.length === 0 && onConfigDiagnostic === undefined) return EMPTY_ADMITTED_OPTIONS
   const candidate = Object.fromEntries(serializableEntries)
@@ -1609,7 +1666,7 @@ function admitRenderOptionsInput(untrusted: RenderOptions): AdmittedRenderOption
   } catch (error) {
     const message = (error instanceof Error ? error.message : String(error))
       .replace('data exceeds maximum depth', 'render option tree exceeds maximum nesting depth')
-    throw new TypeError(`Invalid RenderOptions: ${message}`)
+    throw new RenderConfigError(`Invalid RenderOptions: ${message}`)
   }
   return Object.freeze({
     serializable,
@@ -1889,11 +1946,14 @@ export function resolveAppearance(input: ResolveAppearanceInput): ResolvedAppear
   const styled = style !== undefined && isStyledSpec(style)
   if (styled) effective = applyStyleDefaults(effective, style, source.config.themeVariables)
 
-  const font = options.font
+  const authoredFont = options.font
     ?? source.config.fontFamily
     ?? readThemeValue(source.config.themeVariables, 'fontFamily')
     ?? effective.font
     ?? 'Inter'
+  // Carry the safe spelling (double-quoted names requoted) into every sink; an
+  // unsafe value stays as authored for the option validator to name.
+  const font = safeCssFontFamily(authoredFont) ?? authoredFont
   // `style` is a public entry format (name, record, or stack), not family input.
   // Replace it with the already-resolved canonical record before any family
   // hook runs so a family can never branch on string-vs-record syntax. Keep the
@@ -1967,7 +2027,7 @@ export function resolveRenderRequestForExecution(
   // established StyleInput error boundary is preserved for bounded values.
   const admissionProblems = renderOptionsAdmissionMessages(serializableOptionsCandidate)
   if (admissionProblems.length > 0) {
-    throw new TypeError(`Invalid RenderOptions: ${admissionProblems.join('; ')}`)
+    throw new RenderConfigError(`Invalid RenderOptions: ${admissionProblems.join('; ')}`)
   }
   // Keep StyleInput's established public error boundary. The shared options
   // schema still validates the field below (and every host surface uses that
@@ -1980,35 +2040,32 @@ export function resolveRenderRequestForExecution(
   const face = immutableSnapshot(resolvedStyle.face)
   const optionProblems = admitted.capturedStyle ? [] : validateSerializableRenderOptions(serializableOptionsCandidate)
   if (optionProblems.length > 0) {
-    throw new TypeError(`Invalid RenderOptions: ${optionProblems.join('; ')}`)
+    throw new RenderConfigError(`Invalid RenderOptions: ${optionProblems.join('; ')}`)
   }
 
   // Markdown/HTML parsers commonly hand renderers entity-encoded Mermaid.
   // Decode at the shared request waist so SVG, PNG, layout and terminal
   // transports agree on semantic text; retain authored bytes separately.
-  const decodedText = decodeXML(text)
-  const normalizedSource = normalizeMermaidSourceWithOverrides(decodedText, admittedOptions.mermaidConfig ?? {})
-  const authoredEnvelope = decodedText === text ? normalizedSource : normalizeMermaidSource(text)
+  const normalizedSource = normalizeMermaidSourceWithOverrides(text, admittedOptions.mermaidConfig ?? {}, 'render')
   // Parsing consumes decoded semantic text, while provenance retains the
   // exact authored boundary bytes. Equivalent encodings may render alike but
   // must not collapse to the same request identity.
-  const detectedSource: NormalizedMermaidSource = Object.freeze({ ...normalizedSource, originalText: text })
+  const detectedSource: NormalizedMermaidSource = immutableSnapshot(normalizedSource)
   // Capture one immutable descriptor before any extension callback runs. The
   // same object owns normalization, capability negotiation, layout and
   // lowering for the lifetime of this request.
-  const family = resolutionOptions.familyDescriptor ?? capturedRequestFamily(detectedSource, authoredEnvelope)
-  // Mermaid Pie keys sections by the label as authored, including entity
-  // spelling. Decode grammar (header, separators, values) as before, but put
-  // authored label and title text back before Pie's own display projection.
-  const source: NormalizedMermaidSource = family.id === 'pie' && decodedText !== text
-    ? Object.freeze({ ...detectedSource,
-      authoredPieFamilyLines: Object.freeze(pieLinesWithAuthoredText(authoredEnvelope)) as unknown as string[] })
-    : detectedSource
+  const family = resolutionOptions.familyDescriptor ?? capturedRequestFamily(detectedSource)
+  // Pie keeps its authored label spelling in its own chunk (pieFamilyLines).
+  const source = detectedSource
   if (resolutionOptions.expectedFamilyId !== undefined && family.id !== resolutionOptions.expectedFamilyId) {
     throw new ParsedDiagramFamilyMismatchError(resolutionOptions.expectedFamilyId, family.id)
   }
+  // The receipt below digests both copies of the source under one data budget.
+  // Name a source too long for it as the work limit it is, before the digest
+  // would refuse it as malformed request data.
+  assertDiagramWorkLimit('sourceCharacters', source.originalText.length + source.text.length)
   const themeCssProblem = validateRawThemeCss(source.config.themeCSS, admittedOptions.security ?? 'default')
-  if (themeCssProblem) throw new TypeError(themeCssProblem)
+  if (themeCssProblem) throw new RenderConfigError(themeCssProblem)
   if (family.id !== 'architecture') checkThemeVariableColors(source.config.themeVariables, family.id, admittedOptions)
   checkFamilyConfigColors(source.frontmatter, family.id)
   const explicitOptionFields = Object.freeze(SHARED_RENDER_OPTION_FIELDS.filter(field => admittedOptions[field] !== undefined))
@@ -2063,13 +2120,14 @@ export function resolveRenderRequestForExecution(
     ...(executionPlan.textMeasurement ? { textMeasurement: executionPlan.textMeasurement.identity } : {}),
     capabilities: sharedCapabilityDecision,
   }
-  const sharedRequestDigest = renderContractDigest(sharedRequestReceipt)
+  const sharedRequestDigest = deferredRequestReceiptDigest(sharedRequestReceipt, source)
   const requestReceipt = {
     ...sharedRequestReceipt,
     output,
     outputOptions,
     capabilities: capabilityDecision,
   }
+  const requestDigest = deferredRequestReceiptDigest(requestReceipt, source)
   const request: ResolvedRenderRequest = Object.freeze({
     version: RENDER_CONTRACT_VERSION,
     output,
@@ -2080,8 +2138,8 @@ export function resolveRenderRequestForExecution(
     capabilityDecision,
     explicitOptionFields,
     ...(resolutionDiagnostics.length === 0 ? {} : { resolutionDiagnostics }),
-    sharedRequestDigest,
-    requestDigest: renderContractDigest(requestReceipt),
+    get sharedRequestDigest() { return sharedRequestDigest() },
+    get requestDigest() { return requestDigest() },
   })
   EXECUTION_PLAN_BY_REQUEST.set(request, executionPlan)
   return request

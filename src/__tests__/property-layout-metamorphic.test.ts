@@ -23,11 +23,11 @@
 
 import { describe, expect, test } from 'bun:test'
 import fc from 'fast-check'
-import { fcParameters } from './helpers/fc-parameters.ts'
 import { BUILTIN_FAMILY_METADATA } from '../agent/families.ts'
 import { layoutMermaid, measureQuality, parseRegisteredMermaid as parseMermaid, serializeMermaid, verifyMermaid } from '../agent/index.ts'
 import { countStructuralElements, type StructuralCount } from '../agent/structural-count.ts'
 import { assessRenderedLayout, familyHardViolations } from '../family-rubric.ts'
+import { fcParameters } from './helpers/fc-parameters.ts'
 import { METAMORPHIC_FAMILIES } from './helpers/metamorphic-families.ts'
 
 /** Parse + structural count, asserting the source is well-formed and structured. */
@@ -59,6 +59,12 @@ describe('metamorphic: relations across all renderable families', () => {
   // would pass silently. Regenerate by probing build(kRange[0], 'q0') if a
   // generator legitimately changes.
   const BASE_COUNTS: Record<string, { nodes: number; edges: number; groups: number }> = {
+    packet: { nodes: 1, edges: 0, groups: 0 },
+    kanban: { nodes: 1, edges: 0, groups: 1 },
+    requirement: { nodes: 2, edges: 1, groups: 0 },
+    treemap: { nodes: 2, edges: 0, groups: 1 },
+    ishikawa: { nodes: 3, edges: 2, groups: 0 },
+    block: { nodes: 2, edges: 1, groups: 0 },
     c4: { nodes: 2, edges: 1, groups: 1 }, // 2 declared containers in 1 boundary
     flowchart: { nodes: 2, edges: 1, groups: 0 },
     state: { nodes: 5, edges: 2, groups: 0 }, // chain + nested composite

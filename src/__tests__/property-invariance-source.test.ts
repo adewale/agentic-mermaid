@@ -81,15 +81,21 @@ const COMMENT_GRAMMAR_EXCLUSIONS: Array<{
     excludes: ({ at, line }) => at > 0 && line !== '' && line.trim() === '',
     reason: 'the sankey CSV grammar rejects a whitespace-only line (an empty line is fine)',
   },
+  {
+    family: 'treemap',
+    witness: 'treemap',
+    example: { at: 2, line: '   ' },
+    proof: 'upstream-rejects',
+    excludes: ({ at, line }) => at > 0 && line !== '' && line.trim() === '',
+    reason: 'Mermaid 12.2 Treemap rejects whitespace-only lines inside a hierarchy; truly empty lines are accepted',
+  },
 ]
 
 function excluded(family: DiagramKind, insertion: Insertion): boolean {
   return COMMENT_GRAMMAR_EXCLUSIONS.some(rule => (rule.family === 'all' || rule.family === family) && rule.excludes(insertion))
 }
 
-const commentTextArb = fc
-  .array(fc.constantFrom(...'abcXYZ019 :;-->|[](){}"#,.'.split('')), { minLength: 1, maxLength: 16 })
-  .map(chars => chars.join(''))
+const commentTextArb = fc.array(fc.constantFrom(...'abcXYZ019 :;-->|[](){}"#,.'.split('')), { minLength: 1, maxLength: 16 }).map(chars => chars.join(''))
 const indentArb = fc.constantFrom('', '  ', '    ', '\t', '      ')
 const insertedLineArb = fc.oneof(
   fc.tuple(indentArb, commentTextArb).map(([indent, text]) => `${indent}%%${text}`),
@@ -105,9 +111,7 @@ function insertLines(source: string, insertions: readonly Insertion[]): string {
 
 /** Insertions at any line boundary (before the header included), minus the grammar exclusions. */
 function insertionsArb(family: DiagramKind, lineCount: number): fc.Arbitrary<Insertion[]> {
-  return fc
-    .array(fc.record({ at: fc.nat({ max: lineCount }), line: insertedLineArb }), { minLength: 1, maxLength: 4 })
-    .filter(insertions => insertions.every(insertion => !excluded(family, insertion)))
+  return fc.array(fc.record({ at: fc.nat({ max: lineCount }), line: insertedLineArb }), { minLength: 1, maxLength: 4 }).filter(insertions => insertions.every(insertion => !excluded(family, insertion)))
 }
 
 describe('MR6 comment and blank-line insertion preserves the SVG drawing', () => {
@@ -155,9 +159,7 @@ describe('MR6 comment and blank-line insertion preserves the SVG drawing', () =>
         const source = fam.build(fam.kRange[1], 'q0')
         const mutated = insertLines(source, [rule.example])
         expect(excluded(rule.witness, rule.example)).toBe(true)
-        const stillTrue = rule.proof === 'upstream-rejects'
-          ? !(await upstream.parse(mutated)).ok
-          : renderMermaidSVG(mutated) !== renderMermaidSVG(source)
+        const stillTrue = rule.proof === 'upstream-rejects' ? !(await upstream.parse(mutated)).ok : renderMermaidSVG(mutated) !== renderMermaidSVG(source)
         if (!stillTrue) stale.push(`${rule.witness}: ${rule.reason}`)
       }
       expect(stale).toEqual([])
@@ -176,9 +178,7 @@ describe('MR7 flowchart: a chained edge equals its pairwise split', () => {
   test('A --> B --> C … says exactly what A --> B, B --> C … says', () => {
     fc.assert(
       fc.property(
-        fc.integer({ min: 2, max: 5 }).chain(edges =>
-          fc.tuple(tagArb, fc.array(edgeArb, { minLength: edges, maxLength: edges }), fc.array(shapeArb, { minLength: edges + 1, maxLength: edges + 1 })),
-        ),
+        fc.integer({ min: 2, max: 5 }).chain(edges => fc.tuple(tagArb, fc.array(edgeArb, { minLength: edges, maxLength: edges }), fc.array(shapeArb, { minLength: edges + 1, maxLength: edges + 1 }))),
         fc.constantFrom('TD', 'LR'),
         ([tag, edges, shapes], direction) => {
           const node = (i: number) => `${tag}${i}${shapes[i]}`

@@ -5,6 +5,7 @@
  * reference, and non-fetching checks before a backend can observe them.
  */
 
+import { sceneFidelityProblems } from './fidelity.ts'
 import { isRetainedPixelText } from '../shared/prepared-text.ts'
 import { scanSvgStartTags } from '../svg-structure.ts'
 import { applyOutputSecurityPolicy } from '../output-security.ts'
@@ -14,8 +15,8 @@ import { safeCssPaint } from '../shared/css-color.ts'
 import { safeCssFontFamily } from '../shared/css-font.ts'
 import { parseExtensionId } from '../shared/extension-identity.ts'
 import { nodeWorldBounds } from './bounds.ts'
+import { hasDomSvgIdentityRole } from './identity.ts'
 import { canonicalExternalNode } from './external-projection.ts'
-import { sceneFidelityProblems } from './fidelity.ts'
 import type {
   Geometry,
   ConnectorMark,
@@ -29,6 +30,7 @@ import type {
   SceneOwner,
 } from './ir.ts'
 import { deriveConnectorTerminalProjection } from './connector-terminal.ts'
+import { hasReservedDeferredTerminalProjection } from './deferred-terminal-projection.ts'
 import {
   connectorContourSemantics,
   connectorEndpointAnchors,
@@ -40,6 +42,7 @@ import { assertRenderableLinearGradient, LINEAR_GRADIENT_LIMITS, serializeLinear
 import { BUILTIN_SCENE_ROLE_TRAITS, sceneRoleTraits } from './roles.ts'
 import { boundedUtf8ByteLength } from '../shared/utf8.ts'
 import { inspectSvgOnce } from '../svg-inspection-cache.ts'
+import { MARK_CLASS_TOKENS, MARK_DATA_KEY, WRITER_OWNED_DATA_KEYS, SvgByteLimitError } from './svg-writer.ts'
 import { canonicalizeSceneNodeSerialization, sceneNodeSerialization, sceneNodeEmission, sceneNodeSerializationBytes } from './serialization.ts'
 
 export const SCENE_VALIDATION_VERSION = 2 as const
@@ -326,6 +329,8 @@ function validatePaint(
   numericCss(value.strokeDashoffset, `${path}.strokeDashoffset`, diagnostics, { length: true })
   numericCss(value.strokeMiterlimit, `${path}.strokeMiterlimit`, diagnostics, { nonNegative: true })
   numericCss(value.opacity, `${path}.opacity`, diagnostics, { unitInterval: true })
+  numericCss(value.fillOpacity, `${path}.fillOpacity`, diagnostics, { unitInterval: true })
+  numericCss(value.strokeOpacity, `${path}.strokeOpacity`, diagnostics, { unitInterval: true })
   if (value.strokeDasharray !== undefined && (typeof value.strokeDasharray !== 'string' || !SAFE_DASH.test(value.strokeDasharray.trim()))) {
     add(diagnostics, 'SCENE_PAINT', `${path}.strokeDasharray`, 'must be "none" or a finite numeric dash list')
   }
@@ -348,6 +353,31 @@ function validatePaint(
         && new Set(tokens).size === tokens.length
         && tokens.every(token => ['fill', 'stroke', 'markers'].includes(token)))
     if (!valid) add(diagnostics, 'SCENE_PAINT', `${path}.paintOrder`, 'must be normal or one to three unique fill, stroke, and markers keywords')
+  }
+}
+
+/** Writer hooks: class tokens and data-* strings, with writer-owned keys
+ * reserved (see svg-writer.ts). */
+function validateMarkAttributes(value: unknown, path: string, diagnostics: MutableDiagnostic[]): void {
+  if (!record(value)) {
+    add(diagnostics, 'SCENE_DOCUMENT', path, 'must be an attribute hook object')
+    return
+  }
+  rejectUnknownKeys(value, ['className', 'data', 'ariaHidden', 'tabIndex', 'ariaLabel'], path, diagnostics)
+  if (value.className !== undefined && (typeof value.className !== 'string' || !MARK_CLASS_TOKENS.test(value.className))) {
+    add(diagnostics, 'SCENE_DOCUMENT', `${path}.className`, 'must be space-separated CSS class tokens')
+  }
+  if (value.ariaHidden !== undefined && value.ariaHidden !== true) add(diagnostics, 'SCENE_DOCUMENT', `${path}.ariaHidden`, 'must be true when present')
+  if (value.tabIndex !== undefined && value.tabIndex !== 0) add(diagnostics, 'SCENE_DOCUMENT', `${path}.tabIndex`, 'must be 0 when present')
+  if (value.ariaLabel !== undefined) boundedString(value.ariaLabel, `${path}.ariaLabel`, diagnostics, { max: MAX_TEXT_LENGTH })
+  if (value.data === undefined) return
+  if (!record(value.data)) {
+    add(diagnostics, 'SCENE_DOCUMENT', `${path}.data`, 'must be a string record')
+    return
+  }
+  for (const [key, item] of Object.entries(value.data)) {
+    if (!MARK_DATA_KEY.test(key) || WRITER_OWNED_DATA_KEYS.has(key)) add(diagnostics, 'SCENE_DOCUMENT', `${path}.data.${key}`, 'must be a family data-* key the writer does not own')
+    boundedString(item, `${path}.data.${key}`, diagnostics, { empty: true, max: MAX_TEXT_LENGTH })
   }
 }
 
@@ -669,7 +699,7 @@ function validateRole(kind: string, value: unknown, path: string, state: Validat
   return true
 }
 
-function validateNode(value: unknown, path: string, state: ValidationState, depth: number): void {
+function validateNode(value: unknown, path: string, state: ValidationState, depth: number, enclosing?: SceneOwner): void {
   if (depth > MAX_SCENE_DEPTH) {
     add(state.diagnostics, 'SCENE_BOUNDS', path, `exceeds maximum nesting depth ${MAX_SCENE_DEPTH}`)
     return
@@ -694,7 +724,7 @@ function validateNode(value: unknown, path: string, state: ValidationState, dept
     const base = ['kind', 'id', 'role', 'identity', 'accessibility', 'channels', 'transform', 'owner']
     const fields: Record<string, readonly string[]> = {
       shape: [...base, 'geometry', 'paint'],
-      text: [...base, 'text', 'x', 'y', 'fontSize', 'anchor', 'paint', 'fontWeight', 'letterSpacing', 'display', 'textLayout', 'block', 'measurement', 'prepared'],
+      text: [...base, 'text', 'x', 'y', 'fontSize', 'anchor', 'baselineShift', 'paint', 'fontWeight', 'letterSpacing', 'display', 'textLayout', 'block', 'measurement', 'prepared'],
       group: [...base, 'open', 'close', 'children', 'join'],
       'document': [...base, 'element', 'text', 'domId', 'markerResources'],
       connector: [
@@ -734,7 +764,11 @@ function validateNode(value: unknown, path: string, state: ValidationState, dept
       add(state.diagnostics, 'SCENE_DOCUMENT', path, 'has an oversized SVG serialization')
     }
   } catch (error) {
-    add(state.diagnostics, 'SCENE_DOCUMENT', path, error instanceof Error ? error.message : String(error))
+    // Native marks previously reached the same cap after producing their string.
+    // Preserve that diagnostic when the shared writer now stops construction.
+    const oversizedNative = error instanceof SvgByteLimitError && error.maxBytes === MAX_SERIALIZATION_BYTES_PER_NODE
+      && !sceneNodeEmission(value)
+    add(state.diagnostics, 'SCENE_DOCUMENT', path, oversizedNative ? 'has an oversized SVG serialization' : error instanceof Error ? error.message : String(error))
   }
   if (state.external && serialized !== undefined) {
     consumeStringBudget(
@@ -766,8 +800,14 @@ function validateNode(value: unknown, path: string, state: ValidationState, dept
     }
   }
   if (value.visibility !== undefined && value.visibility !== 'conditional') add(state.diagnostics, 'SCENE_DOCUMENT', `${path}.visibility`, 'must be conditional')
+  if (value.attributes !== undefined) validateMarkAttributes(value.attributes, `${path}.attributes`, state.diagnostics)
 
   if (kind === 'shape') {
+    if (value.identity === undefined && typeof value.role === 'string' && hasDomSvgIdentityRole(value.role as SceneRole)) {
+      if (!enclosing || !record(value.owner) || value.role !== enclosing.role || value.owner.id !== enclosing.id || value.owner.role !== enclosing.role) {
+        add(state.diagnostics, 'SCENE_FIDELITY', `${path}.identity`, 'owned artwork without DOM identity must be inside its matching semantic group')
+      }
+    }
     if (value.surfaceFragment !== undefined && typeof value.surfaceFragment !== 'boolean') {
       add(state.diagnostics, 'SCENE_DOCUMENT', `${path}.surfaceFragment`, 'must be boolean')
     }
@@ -776,6 +816,11 @@ function validateNode(value: unknown, path: string, state: ValidationState, dept
       add(state.diagnostics, 'SCENE_BOUNDS', `${path}.geometry`, 'external shapes must use a directly bounded structured geometry')
     }
     validatePaint(value.paint, `${path}.paint`, state.diagnostics, state.external)
+    if (value.childPaints !== undefined) {
+      if (!Array.isArray(value.childPaints) || !record(value.geometry) || value.geometry.kind !== 'compound' || !Array.isArray(value.geometry.children) || value.childPaints.length !== value.geometry.children.length) {
+        add(state.diagnostics, 'SCENE_PAINT', `${path}.childPaints`, 'must give one paint per compound geometry child')
+      } else value.childPaints.forEach((paint, index) => validatePaint(paint, `${path}.childPaints[${index}]`, state.diagnostics, state.external))
+    }
     if (value.conditionalPaint !== undefined) {
       if (value.visibility !== 'conditional') add(state.diagnostics, 'SCENE_DOCUMENT', `${path}.conditionalPaint`, 'requires an explicit conditional state')
       validatePaint(value.conditionalPaint, `${path}.conditionalPaint`, state.diagnostics, state.external)
@@ -811,22 +856,41 @@ function validateNode(value: unknown, path: string, state: ValidationState, dept
       }
     }
     if (!['start', 'middle', 'end'].includes(String(value.anchor))) add(state.diagnostics, 'SCENE_DOCUMENT', `${path}.anchor`, 'must be start, middle, or end')
+    if (value.baselineShift !== undefined) finite(value.baselineShift, `${path}.baselineShift`, state.diagnostics)
+    if (value.dominantBaseline !== undefined && !['middle', 'central', 'hanging'].includes(String(value.dominantBaseline))) add(state.diagnostics, 'SCENE_DOCUMENT', `${path}.dominantBaseline`, 'must be middle, central, or hanging')
+    if (value.fontStyle !== undefined && value.fontStyle !== 'italic') add(state.diagnostics, 'SCENE_DOCUMENT', `${path}.fontStyle`, 'must be italic')
+    if (value.textDecoration !== undefined && !['underline', 'line-through', 'underline line-through'].includes(String(value.textDecoration))) add(state.diagnostics, 'SCENE_DOCUMENT', `${path}.textDecoration`, 'must be underline, line-through, or both')
+    if (value.spans !== undefined) {
+      if (!Array.isArray(value.spans) || value.spans.length === 0) add(state.diagnostics, 'SCENE_DOCUMENT', `${path}.spans`, 'must be a non-empty run list')
+      else value.spans.forEach((span, index) => {
+        if (!record(span)) { add(state.diagnostics, 'SCENE_DOCUMENT', `${path}.spans[${index}]`, 'must be a painted run'); return }
+        boundedString(span.text, `${path}.spans[${index}].text`, state.diagnostics, { empty: true, max: MAX_TEXT_LENGTH })
+        validatePaint({ fill: span.fill }, `${path}.spans[${index}]`, state.diagnostics, state.external)
+      })
+    }
     validatePaint(value.paint, `${path}.paint`, state.diagnostics, state.external)
     return
   }
   if (kind === 'group') {
+    if (value.paint !== undefined) {
+      validatePaint(value.paint, `${path}.paint`, state.diagnostics, state.external)
+      if (record(value.paint)) rejectUnknownKeys(value.paint, ['opacity', 'fill'], `${path}.paint`, state.diagnostics)
+    }
     if (!Array.isArray(value.children)) {
       add(state.diagnostics, 'SCENE_DOCUMENT', `${path}.children`, 'must be an array')
       return
     }
     if (value.children.length > MAX_SCENE_NODES) add(state.diagnostics, 'SCENE_BOUNDS', `${path}.children`, 'contains too many Scene nodes')
     const childCount = Math.min(value.children.length, Math.max(0, MAX_SCENE_NODES - state.nodeCount + 1))
+    const subject = typeof value.role === 'string' && hasDomSvgIdentityRole(value.role as SceneRole)
+      ? record(value.identity) && typeof value.identity.id === 'string' && value.identity.role === value.role ? { id: value.identity.id, role: value.role as SceneRole } : undefined
+      : enclosing
     for (let index = 0; index < childCount; index++) {
       const child = value.children[index]
       if (!record(child)) add(state.diagnostics, 'SCENE_DOCUMENT', `${path}.children[${index}]`, 'must wrap a Scene node')
       else {
         finite(child.indent, `${path}.children[${index}].indent`, state.diagnostics, { nonNegative: true })
-        validateNode(child.node, `${path}.children[${index}].node`, state, depth + 1)
+        validateNode(child.node, `${path}.children[${index}].node`, state, depth + 1, subject)
       }
     }
     if (state.external && (typeof value.open !== 'string' || !/^<g(?:\s|>)/.test(value.open) || value.close !== '</g>')) {
@@ -1142,6 +1206,11 @@ function validateNode(value: unknown, path: string, state: ValidationState, dept
       }
     }
   } else add(state.diagnostics, 'SCENE_MARKER', `${path}.markers`, 'must be a typed marker set')
+  // Only our assertions-off built-in lowering can carry this exact registered
+  // getter, and bounded immutable admission has already reserved its payload.
+  // All source connector fields above are still validated normally. External
+  // Scenes and explicit consistency checks always materialize and inspect it.
+  if (!state.external && !state.crossChecks && hasReservedDeferredTerminalProjection(value)) return
   if (record(value.terminalProjection)) {
     if (!['native', 'emulated', 'projected', 'lossy', 'unsupported'].includes(String(value.terminalProjection.realization))) {
       add(state.diagnostics, 'SCENE_DOCUMENT', `${path}.terminalProjection.realization`, 'has an unknown realization')
@@ -1622,10 +1691,8 @@ function validateScene(value: unknown, options: SceneValidationOptions, crossChe
     if (diagnostics.length === 0 && external) {
       validateCanonicalExternalScene(value as unknown as SceneDoc, diagnostics)
     }
-    // Fidelity compares each mark's fields with its serialization. The
-    // security check inspects those serializations; for an internal Scene the
-    // final output-security gate already inspects the document a render
-    // actually emits, so these run with the cross-checks.
+    // Explicit consistency checks also verify lexical profiles and compatibility
+    // adapters against their typed fields. Final output security remains separate.
     if (diagnostics.length === 0 && crossChecks) {
       const scene = value as unknown as SceneDoc
       try {

@@ -69,7 +69,7 @@ describe('authored style color admission (#303, source/typed slice)', () => {
   test('verify exposes the same reason, and PNG refuses before drawing a misleading node', () => {
     const source = SOURCES[0]!.make('notacolor')
     expect(verifyMermaid(source).warnings).toEqual([
-      { code: 'RENDER_FAILED', reason: expect.stringContaining('style A: fill "notacolor" is not a CSS color') },
+      { code: 'RENDER_FAILED', reason: expect.stringContaining('style A: fill "notacolor" is not a CSS color'), origin: 'source' },
     ])
     expect(() => renderMermaidPNG(source)).toThrow('style A: fill "notacolor" is not a CSS color')
     for (const colorMode of ['none', 'ansi16', 'ansi256', 'truecolor', 'html'] as const) {

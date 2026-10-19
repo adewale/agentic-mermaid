@@ -69,6 +69,20 @@ describe('pie parser — happy paths', () => {
       showData: false,
       entries: [['Some, Long: Label', 10]],
     },
+    {
+      name: 'a label runs to its closing quote across lines, keeping the break, not the indentation',
+      src: 'pie title T\n  "multi\n    label" : 1\n  "50 %% off\n    now" : 2',
+      title: 'T',
+      showData: false,
+      entries: [['multi\nlabel', 1], ['50 %% off\nnow', 2]],
+    },
+    {
+      name: 'a title runs to the end of its line, quote and all',
+      src: 'pie\n  title "Pets\n  "Dogs" : 3',
+      title: '"Pets',
+      showData: false,
+      entries: [['Dogs', 3]],
+    },
   ]
 
   for (const c of cases) {
@@ -97,6 +111,7 @@ describe('pie parser — sad paths error loudly', () => {
     { name: 'missing colon', src: 'pie\n  "A" 5', match: /Unrecognized pie chart line/i },
     { name: 'unquoted label', src: 'pie\n  A : 5', match: /Invalid pie entry/i },
     { name: 'wrong header', src: 'notpie\n  "A" : 5', match: /must start with "pie"/i },
+    { name: 'a label the next quote closes too early', src: 'pie\n  "A : 5\n  "B" : 1', match: /Invalid pie entry/i },
   ]
 
   for (const b of bad) {
