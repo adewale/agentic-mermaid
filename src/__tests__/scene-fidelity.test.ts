@@ -228,6 +228,10 @@ describe('built-in Scene cross-checks', () => {
         const { getFamily, replaceFamilyForTest } = await import('./src/agent/families.ts')
         const { renderMermaidSVG, renderMermaidASCIIWithReceipt } = await import('./src/index.ts')
         const { verifyMermaid } = await import('./src/agent/verify.ts')
+        const { resolveRenderRequest } = await import('./src/render-contract.ts')
+        const { positionResolvedFamily } = await import('./src/positioning.ts')
+        const { renderPositionedMermaidSVG } = await import('./src/graphical-render.ts')
+        const { assertScenesOf } = await import('./src/scene/assertions.ts')
         const descriptor = getFamily('flowchart')
         const lowerScene = descriptor.lowerScene
         const connectors = node => node.kind === 'connector' ? [node] : node.kind === 'group' ? node.children.flatMap(child => connectors(child.node)) : []
@@ -243,10 +247,15 @@ describe('built-in Scene cross-checks', () => {
         const strict = attempt(() => renderMermaidSVG(source, { layoutSafety: 'strict' }))
         const verify = verifyMermaid(source).warnings.filter(warning => warning.code === 'RENDER_FAILED').map(warning => warning.reason)
         const ascii = renderMermaidASCIIWithReceipt(source).terminalStyle.diagnostics.map(diagnostic => diagnostic.code)
-        console.log(JSON.stringify({ render, strict, verify, ascii }))
+        const request = resolveRenderRequest(source)
+        const positioned = positionResolvedFamily('flowchart', request)
+        const retainedBefore = attempt(() => renderPositionedMermaidSVG(request, positioned, []))
+        assertScenesOf(request)
+        const retainedAfter = attempt(() => renderPositionedMermaidSVG(request, positioned, []))
+        console.log(JSON.stringify({ render, strict, verify, ascii, retainedBefore, retainedAfter }))
       `], { cwd: join(import.meta.dir, '..', '..'), env, encoding: 'utf8' })
       expect({ status: result.status, stderr: result.stderr }).toEqual({ status: 0, stderr: '' })
-      return JSON.parse(result.stdout) as { render: string; strict: string; verify: string[]; ascii: string[] }
+      return JSON.parse(result.stdout) as { render: string; strict: string; verify: string[]; ascii: string[]; retainedBefore: string; retainedAfter: string }
     }
     const projectionMismatch = /terminalProjection: must equal the canonical projection derived from connector semantics/
     const off = probe(false)
@@ -256,8 +265,12 @@ describe('built-in Scene cross-checks', () => {
     expect(off.strict).toMatch(projectionMismatch)
     expect(off.verify.join('\n')).toMatch(projectionMismatch)
     expect(off.ascii).toContain('TERMINAL_CONNECTOR_PROJECTION_UNAVAILABLE')
+    expect(off.retainedBefore).toBe('rendered')
+    expect(off.retainedAfter).toMatch(projectionMismatch)
     const on = probe(true)
     expect(on.render).toMatch(projectionMismatch)
+    expect(on.retainedBefore).toMatch(projectionMismatch)
+    expect(on.retainedAfter).toMatch(projectionMismatch)
     expect(on.verify.join('\n')).toMatch(projectionMismatch)
   })
 })

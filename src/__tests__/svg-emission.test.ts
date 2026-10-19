@@ -1,7 +1,8 @@
 import { describe, expect, test } from 'bun:test'
-import type { SceneDoc, ShapeMark } from '../scene/ir.ts'
+import { buildExternalScene, DefaultBackend, EXTERNAL_SCENE_API_VERSION } from '../index.ts'
+import type { DocumentMark, SceneDoc, ShapeMark } from '../scene/ir.ts'
 import * as marks from '../scene/marks.ts'
-import { admitSceneDocument, snapshotBoundedExternalData, EXTERNAL_SCENE_DOCUMENT_SNAPSHOT_LIMITS } from '../scene/external-data-snapshot.ts'
+import { admitSceneDocument, freezeBoundedFirstPartyData, snapshotBoundedExternalData, EXTERNAL_SCENE_DOCUMENT_SNAPSHOT_LIMITS } from '../scene/external-data-snapshot.ts'
 import {
   measureSvgEmission, serializeSvgEmission, snapshotSvgEmissionRecipe,
   SVG_EMISSION_METADATA_LIMITS, svgEmissionMetadataCounts, svgValue as v,
@@ -131,6 +132,68 @@ describe('private typed SVG recipes', () => {
     })).toThrow(/object budget/)
   })
 
+  test('bounds expanded work even when a small shared recipe emits no bytes', () => {
+    const empty: SvgEmissionRecipe = { kind: 'sequence', children: [], join: '' }
+    const small: SvgEmissionRecipe = { kind: 'sequence', children: [empty, empty], join: '' }
+    expect(serializeSvgEmission(rectangle(), snapshotSvgEmissionRecipe(small))).toBe('')
+    let dag = empty
+    // Twenty binary levels are tiny retained data, but over a million visits.
+    // Reject at admission; never execute the expanded hostile recipe.
+    for (let level = 0; level < 20; level++) dag = { kind: 'sequence', children: [dag, dag], join: '' }
+    expect(() => snapshotSvgEmissionRecipe(dag)).toThrow('expanded emission budget')
+    expect(Object.isFrozen(empty)).toBe(false)
+  })
+
+  test('a custom-limit snapshot must still satisfy default limits when reused', () => {
+    let deep: SvgEmissionRecipe = { kind: 'sequence', children: [] }
+    for (let level = 0; level < 33; level++) deep = { kind: 'sequence', children: [deep] }
+    // Each level contains an object and an array: the explicit wider request
+    // can admit this small input, while ordinary admission must reject it.
+    const custom = snapshotSvgEmissionRecipe(deep, { ...SVG_EMISSION_METADATA_LIMITS, maxDepth: 128 })
+    expect(Object.isFrozen(custom)).toBe(true)
+    expect(Object.isFrozen(deep)).toBe(false)
+    expect(() => snapshotSvgEmissionRecipe(custom)).toThrow('depth budget')
+  })
+
+  test('private stylesheet data cannot terminate its XML text context', () => {
+    const document: DocumentMark = { kind: 'document', id: 'styles', role: 'chrome', element: 'content', nonPaint: 'stylesheet' }
+    const safe = snapshotSvgEmissionRecipe({ kind: 'stylesheet', css: '.label{fill:#123456}' })
+    expect(serializeSvgEmission(document, safe)).toBe('<style>.label{fill:#123456}</style>')
+    for (const css of ['</style><script/>', '.label::before{content:"<"}']) {
+      expect(() => snapshotSvgEmissionRecipe({ kind: 'stylesheet', css })).toThrow('XML markup delimiters')
+    }
+  })
+
+  test.each([
+    ['external snapshot', snapshotBoundedExternalData],
+    ['first-party freeze', freezeBoundedFirstPartyData],
+  ] as const)('%s charges hidden recipe text against the enclosing aggregate budget', (_name, admit) => {
+    const mark = (id: string) => marks.shape({ ...rectangle(), id }, {
+      kind: 'primitive', attributes: [{ name: 'data-note', value: v.meta('x'.repeat(80)) }],
+    })
+    const limits = { ...EXTERNAL_SCENE_DOCUMENT_SNAPSHOT_LIMITS, maxTextBytes: 220 }
+    expect(() => admit([mark('one')], limits)).not.toThrow()
+    // Both individual recipes are small; their combined private text exceeds
+    // the literal enclosing limit even though the public fields do not.
+    expect(() => admit([mark('one'), mark('two')], limits)).toThrow('Private SVG emission metadata exceeds the aggregate Scene data limits')
+  })
+
+  test.each([
+    ['objects', { maxObjects: 5 }],
+    ['properties', { maxAggregateProperties: 14 }],
+    ['array entries', { maxAggregateArrayEntries: 1 }],
+    ['property-key bytes', { maxAggregatePropertyKeyBytes: 60 }],
+  ] as const)('hidden recipe %s share the enclosing Scene budget', (_name, override) => {
+    const limits = { ...EXTERNAL_SCENE_DOCUMENT_SNAPSHOT_LIMITS, ...override }
+    for (const admit of [snapshotBoundedExternalData, freezeBoundedFirstPartyData]) {
+      // These literal budgets admit the semantic rectangle alone. Its private
+      // recipe contributes extra data even though no SVG has been materialized.
+      expect(() => admit([rectangle()], limits)).not.toThrow()
+      const typed = marks.shape(rectangle(), { kind: 'primitive', attributes: [{ name: 'data-note', value: v.meta('kept') }] })
+      expect(() => admit([typed], limits)).toThrow(/Private SVG emission metadata|object graph is too large/)
+    }
+  })
+
   test('geometry has no metadata literal or mismatched-field escape', () => {
     for (const value of [v.meta(900), v.geometry('width')]) {
       const recipe = snapshotSvgEmissionRecipe({ kind: 'primitive', attributes: [{ name: 'x', value }] })
@@ -157,12 +220,24 @@ describe('private typed SVG recipes', () => {
     expect(() => admitSceneDocument(retained, 'internal', true)).toThrow(/semantic 1 != crisp undefined/)
   })
 
-  test('external snapshot never invokes derived group views on mutable source fields', () => {
+  test('the exported backend snapshots typed external groups without freezing callers or executing source getters', () => {
+    const safe = buildExternalScene({
+      version: EXTERNAL_SCENE_API_VERSION, family: 'family:test/owned-group', width: 20, height: 20,
+      colors: { bg: '#fff', fg: '#111' }, metadata: { title: 'Owned group' },
+      parts: [{ kind: 'container', id: 'group', role: 'group', children: [] }],
+    })
     const group = marks.group({ id: 'group', role: 'group', emission: { kind: 'group', attributes: [] }, children: [] })
+    const source = { ...safe, parts: safe.parts.map(part => part.kind === 'group' ? group : part) }
+    const output = DefaultBackend.render(source, { seed: 0 })
+    expect(output).toContain('<g data-id="group" data-role="group">')
+    expect(Object.isFrozen(source)).toBe(false)
+    expect(Object.isFrozen(source.parts)).toBe(false)
+    expect(Object.isFrozen(group)).toBe(false)
     let reads = 0
     Object.defineProperty(group, 'identity', { enumerable: true, get() { reads++; return { id: 'hostile', role: 'group' } } })
-    expect(() => snapshotBoundedExternalData(group, EXTERNAL_SCENE_DOCUMENT_SNAPSHOT_LIMITS)).toThrow(/enumerable data property/)
+    expect(() => DefaultBackend.render(source, { seed: 0 })).toThrow(/enumerable data property/)
     expect(reads).toBe(0)
+    expect(Object.isFrozen(group)).toBe(false)
   })
 
   test('ordinary admission rejects definitions that omit their declared gradient ink', () => {
