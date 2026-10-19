@@ -149,11 +149,15 @@ describe('xychart structured-or-opaque fallback', () => {
       ['xychart-beta\n  bar [1, 2] accTitle: hi bar [2, 1]', { accessibilityTitle: 'hi bar [2, 1]', series: [{ values: [1, 2] }] }, { title: 'hi bar [2, 1]' }],
       ['xychart-beta\n  accTitle: T\n  bar [1] accDescr { x } bar [2]', { accessibilityTitle: 'T', accessibilityDescription: 'x', series: [{ values: [1] }, { values: [2] }] }, { title: 'T', descr: 'x' }],
       ['xychart-beta\n  bar [1, 2] accTitle: Quarterly revenue\n  accDescr: Two bars\n  line [3, 4]', { accessibilityTitle: 'Quarterly revenue', accessibilityDescription: 'Two bars', series: [{ values: [1, 2] }, { values: [3, 4] }] }, { title: 'Quarterly revenue', descr: 'Two bars' }],
+      // `%%` in the value is text.
+      ['xychart-beta\n  bar [1, 2] accTitle: a %% b', { accessibilityTitle: 'a %% b', series: [{ values: [1, 2] }] }, { title: 'a %% b' }],
+      ['xychart-beta\n  bar [1, 2] accDescr: a %% b\n  line [3, 4]', { accessibilityDescription: 'a %% b', series: [{ values: [1, 2] }, { values: [3, 4] }] }, { descr: 'a %% b' }],
     ]
     for (const [source, body, accessibility] of cases) {
       const d = xychart(source)
       expect(d.body, source).toMatchObject(body)
       expect(d.meta.accessibility, source).toEqual(accessibility)
+      expect(d.meta.droppedComments, source).toBeUndefined()
       expect(xychart(serializeMermaid(d)).body).toEqual(d.body)
       // The drawing names the chart as the body does, each directive wherever it stands.
       const svg = renderMermaidSVG(source)

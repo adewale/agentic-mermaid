@@ -16,7 +16,7 @@ import { parseAccessibilityDirective, scanAccessibilityDirectives } from '../sha
 import { splitCssColorList } from '../shared/css-color.ts'
 import { encodeMermaidEntities } from '../shared/mermaid-entities.ts'
 import { decodeMermaidEntities } from '../shared/mermaid-entity-display.ts'
-import { quotedTextEnds, statementText, stripTrailingComment } from '../shared/trailing-comment.ts'
+import { quotedTextEnds, statementText, trailingCommentStart } from '../shared/trailing-comment.ts'
 import { parserObservationActive, observeParserStatement, observeParserMutation } from '../shared/parser-observation.ts'
 
 // ============================================================================
@@ -722,7 +722,7 @@ function expandXYChartStatements(lines: string[], strict: boolean, starts?: numb
         lineIndex = end
       }
     }
-    const parts = splitSemicolonStatements(accessibility ? line : stripTrailingComment(line), strict)
+    const parts = accessibility ? splitSemicolonStatements(line, strict) : splitStatementsBeforeComment(line, strict)
     for (const part of parts) {
       statements.push(part)
       starts?.push(start)
@@ -733,6 +733,21 @@ function expandXYChartStatements(lines: string[], strict: boolean, starts?: numb
 
   return statements
 }
+
+/** The statements on `line` before a trailing `%%` comment. An `accTitle:` or
+ * `accDescr:` after another statement takes the rest of the line, a `%%`
+ * included, as in Mermaid's lexer. */
+function splitStatementsBeforeComment(line: string, strict: boolean): string[] {
+  const comment = trailingCommentStart(line)
+  if (comment < 0) return splitSemicolonStatements(line, strict)
+  const before = line.slice(0, comment).trimEnd()
+  const parts = splitSemicolonStatements(before, strict)
+  const last = parts.length - 1
+  if (last >= 0 && INLINE_ACCESSIBILITY.test(parts[last]!)) parts[last] = line.slice(before.length - parts[last]!.length).trim()
+  return parts
+}
+
+const INLINE_ACCESSIBILITY = /^acc(?:Title|Descr)\s*:/i
 
 // Mermaid's lexer reads these as keywords wherever they occur outside a
 // string, so statements may share a line without `;`. An accessibility
