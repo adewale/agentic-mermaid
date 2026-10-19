@@ -126,6 +126,9 @@ describe('Mindmap grammar, round-trip, and branch geometry', () => {
       'This String containing []is a comment root((the root))',
       // A shape whose text runs on closes at `theId(`, leaving `child1)`.
       'ld)\n      root\n  Argument mapping    theId(child1)',
+      // Shape text past its first close reads only with its delimiters paired
+      // and no quote.
+      'root[The root]ot]', 'a(x)(y)', 'root[a "b" (c)]',
     ]
     for (const line of malformed) {
       expect(() => parseMindmap(`mindmap\n  Root\n    ${line}`), line).toThrow(MindmapParseError)

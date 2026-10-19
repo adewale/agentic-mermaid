@@ -37,8 +37,6 @@ export function parseMindmap(source: string): MindmapDiagram {
   const ids = new Set<string>()
   let root: MindmapNode | undefined
   let lastNode: MindmapNode | undefined
-  let joined: string | undefined
-  let lineStarts: number[] | undefined
   const accessibilityTitle = scanned.accessibility.title !== undefined
     ? normalizeBrTags(scanned.accessibility.title)
     : undefined
@@ -48,35 +46,8 @@ export function parseMindmap(source: string): MindmapDiagram {
 
   if (parserObservationActive('mindmap')) observeParserMutation('mindmap', 'initialize', { accessibilityTitle, accessibilityDescription })
 
-  for (let index = headerIndex + 1; index < rawLines.length; index++) {
-    const startLine = index + 1
-    let raw = rawLines[index]!
-    if (raw.includes('["`') && !raw.includes('`"]')) {
-      const parts = [raw]
-      let closed = false
-      while (++index < rawLines.length) {
-        parts.push(rawLines[index]!)
-        if (rawLines[index]!.includes('`"]')) { closed = true; break }
-      }
-      if (!closed) throw new MindmapParseError('Unclosed mindmap Markdown String', index + 1)
-      raw = parts.join('\n')
-    }
-    // A shape's description runs on across line breaks to its closing
-    // delimiter, as in Mermaid's NODE lexer state. Keep each break, not the
-    // indentation after it; a `%%` line in it is a comment, as upstream.
-    if (scanNodeFrame(raw.trimStart()) === 'open') {
-      const comment = (line: string): boolean => /^\s*%%/.test(line)
-      joined ??= rawLines.map(line => comment(line) ? '' : line).join('\n')
-      lineStarts ??= rawLines.reduce<number[]>((starts, line, at) => (starts.push(at === 0 ? 0 : starts[at - 1]! + (comment(rawLines[at - 1]!) ? 0 : rawLines[at - 1]!.length) + 1), starts), [])
-      const start = lineStarts[index]! + raw.length - raw.trimStart().length
-      const frame = scanNodeFrame(joined.slice(start))
-      if (frame && frame !== 'open') {
-        const end = index + joined.slice(start, start + frame.end).split('\n').length - 1
-        raw = [rawLines[index]!.trimEnd(), ...rawLines.slice(index + 1, end + 1).filter(line => !comment(line)).map(line => line.trim())].join('\n')
-        index = end
-      }
-    }
-    raw = stripInlineComment(raw)
+  for (const { raw, start, end: index } of mindmapStatements(rawLines, headerIndex + 1)) {
+    const startLine = start + 1
     const trimmed = raw.trim()
     if (!trimmed || trimmed.startsWith('%%')) continue
     if (/^acc(?:Title|Descr)\b/i.test(trimmed)) {
@@ -127,6 +98,68 @@ export function parseMindmap(source: string): MindmapDiagram {
   }
   if (!root) throw new MindmapParseError('Mindmap requires exactly one root node')
   return { root, ...(accessibilityTitle ? { accessibilityTitle } : {}), ...(accessibilityDescription ? { accessibilityDescription } : {}) }
+}
+
+/** The statements from line `from` on, each with its inline comment removed,
+ * from line `start` to line `end`. A Markdown String, or a shape's
+ * description, runs on across line breaks to its closing delimiter, as in
+ * Mermaid's NODE lexer state.
+ */
+function* mindmapStatements(rawLines: readonly string[], from: number): Generator<{ raw: string; start: number; end: number }> {
+  let joined: string | undefined
+  let lineStarts: number[] | undefined
+  for (let index = from; index < rawLines.length; index++) {
+    const start = index
+    let raw = rawLines[index]!
+    if (raw.includes('["`') && !raw.includes('`"]')) {
+      const parts = [raw]
+      let closed = false
+      while (++index < rawLines.length) {
+        parts.push(rawLines[index]!)
+        if (rawLines[index]!.includes('`"]')) { closed = true; break }
+      }
+      if (!closed) throw new MindmapParseError('Unclosed mindmap Markdown String', index + 1)
+      raw = parts.join('\n')
+    }
+    // Keep each break in a shape's description, not the indentation after
+    // it; a `%%` line in it is a comment, as upstream.
+    if (scanNodeFrame(raw.trimStart()) === 'open') {
+      const comment = (line: string): boolean => /^\s*%%/.test(line)
+      joined ??= rawLines.map(line => comment(line) ? '' : line).join('\n')
+      lineStarts ??= rawLines.reduce<number[]>((starts, line, at) => (starts.push(at === 0 ? 0 : starts[at - 1]! + (comment(rawLines[at - 1]!) ? 0 : rawLines[at - 1]!.length) + 1), starts), [])
+      const begin = lineStarts[index]! + raw.length - raw.trimStart().length
+      const frame = scanNodeFrame(joined.slice(begin))
+      if (frame && frame !== 'open') {
+        const end = index + joined.slice(begin, begin + frame.end).split('\n').length - 1
+        raw = [rawLines[index]!.trimEnd(), ...rawLines.slice(index + 1, end + 1).filter(line => !comment(line)).map(line => line.trim())].join('\n')
+        index = end
+      }
+    }
+    yield { raw: stripInlineComment(raw), start, end: index }
+  }
+}
+
+/** The lines (1-based) of the nodes in `source` read from shape text that
+ * holds its own delimiters, which pinned Mermaid rejects (see readNode). */
+export function mindmapNestedShapeLines(source: string): number[] {
+  const lines = source.split(/\r?\n/)
+  const header = lines.findIndex(line => /^\s*mindmap\s*$/i.test(line))
+  if (header < 0) return []
+  // Accessibility directives are no nodes; blank them in place.
+  for (let index = header + 1; index < lines.length; index++) {
+    const directive = parseAccessibilityDirective(lines, index)
+    if (directive === undefined) break
+    if (directive === null) continue
+    lines.fill('', index, directive.endIndex + 1)
+    index = directive.endIndex
+  }
+  const nested: number[] = []
+  for (const { raw, start } of mindmapStatements(lines, header + 1)) {
+    const text = raw.trim()
+    if (!text || text.startsWith('%%') || /^::icon\b/i.test(text) || text.startsWith(':::')) continue
+    if (readNode(text)?.nested) nested.push(start + 1)
+  }
+  return nested
 }
 
 interface NodeFrame { id: string; label: string; shape: MindmapShape; end: number }
@@ -218,34 +251,62 @@ function indentation(line: string): number {
 const NODE_ID_TEXT = /^[^([\r\n){}]*$/
 
 function parseNode(source: string): ParsedNode | null {
+  return readNode(source)?.node ?? null
+}
+
+// A shape around the rest of a statement: the id before its opening
+// delimiter, and the text up to its last closing one.
+const ENCLOSING_SHAPES: ReadonlyArray<{ regex: RegExp; shape: MindmapShape }> = [
+  { regex: /^(.*?)\(\((.*)\)\)$/, shape: 'circle' },
+  { regex: /^(.*?)\{\{(.*)\}\}$/, shape: 'hexagon' },
+  { regex: /^(.*?)\[([\s\S]*)\]$/, shape: 'rect' },
+  { regex: /^(.*?)\)\)(.*)\(\($/, shape: 'bang' },
+  { regex: /^(.*?)\)(.*)\($/, shape: 'cloud' },
+  { regex: /^(.*?)\((.*)\)$/, shape: 'rounded' },
+]
+
+/** One node statement. `nested` marks shape text holding its own delimiters
+ * in pairs, as `root((a (b) c))` or `[f(x)]`: Mermaid ends the shape at its
+ * first closing delimiter and rejects the rest. The meaning is clear, so ours
+ * reads the text inside the outermost pair, verify reports it, and the writer
+ * quotes it. Unpaired delimiters, or a quote, leave no clear reading and are
+ * rejected, as upstream. */
+function readNode(source: string): { node: ParsedNode; nested?: true } | null {
   const frame = readNodeFrame(source)
   if (frame && !source.slice(frame.end).trim()) {
-    if (!NODE_ID_TEXT.test(frame.id)) return null
-    const cleaned = cleanLabel(frame.label)
-    const id = frame.id || plainLabel(cleaned.label)
-    return id && cleaned.label ? { id, label: cleaned.label, shape: frame.shape, ...(cleaned.markdown ? { markdown: true } : {}) } : null
+    const node = shapedNode(frame.id, frame.label, frame.shape)
+    return node && { node }
   }
-  const patterns: Array<{ regex: RegExp; shape: MindmapShape }> = [
-    { regex: /^(.*?)\(\((.*)\)\)$/, shape: 'circle' },
-    { regex: /^(.*?)\{\{(.*)\}\}$/, shape: 'hexagon' },
-    { regex: /^(.*?)\[([\s\S]*)\]$/, shape: 'rect' },
-    { regex: /^(.*?)\)\)(.*)\(\($/, shape: 'bang' },
-    { regex: /^(.*?)\)(.*)\($/, shape: 'cloud' },
-    { regex: /^(.*?)\((.*)\)$/, shape: 'rounded' },
-  ]
-  for (const { regex, shape } of patterns) {
+  for (const { regex, shape } of ENCLOSING_SHAPES) {
     const match = source.match(regex)
     if (!match) continue
-    const cleaned = cleanLabel(match[2]!)
-    const explicit = match[1]!.trim()
-    const id = explicit || plainLabel(cleaned.label)
-    if (!id || !cleaned.label || !NODE_ID_TEXT.test(explicit)) return null
-    return { id, label: cleaned.label, shape, ...(cleaned.markdown ? { markdown: true } : {}) }
+    const text = match[2]!
+    const node = !text.includes('"') && paired(text) ? shapedNode(match[1]!.trim(), text, shape) : null
+    return node && { node, nested: true }
   }
   if (!NODE_ID_TEXT.test(source)) return null
   const cleaned = cleanLabel(source)
   const id = plainLabel(cleaned.label)
-  return id ? { id, label: cleaned.label, shape: 'default', ...(cleaned.markdown ? { markdown: true } : {}) } : null
+  return id ? { node: { id, label: cleaned.label, shape: 'default', ...(cleaned.markdown ? { markdown: true } : {}) } } : null
+}
+
+function shapedNode(explicit: string, text: string, shape: MindmapShape): ParsedNode | null {
+  if (!NODE_ID_TEXT.test(explicit)) return null
+  const cleaned = cleanLabel(text)
+  const id = explicit || plainLabel(cleaned.label)
+  return id && cleaned.label ? { id, label: cleaned.label, shape, ...(cleaned.markdown ? { markdown: true } : {}) } : null
+}
+
+/** Whether each `(`, `[` and `{` in `text` closes in order, and nothing else
+ * closes. */
+function paired(text: string): boolean {
+  const closers: string[] = []
+  for (const char of text) {
+    const closer = char === '(' ? ')' : char === '[' ? ']' : char === '{' ? '}' : undefined
+    if (closer) closers.push(closer)
+    else if ((char === ')' || char === ']' || char === '}') && closers.pop() !== char) return false
+  }
+  return closers.length === 0
 }
 
 function cleanLabel(value: string): { label: string; markdown: boolean } {

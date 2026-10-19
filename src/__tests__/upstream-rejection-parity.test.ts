@@ -88,6 +88,15 @@ const ARCHITECTURE_READ_GENEROUSLY: ReadonlyArray<GenerousRow> = [
   ['an id ending in a dash before a title across lines', 'architecture-beta\n  service api-(server)["Public\n  API"]', 'Public', 'architecture_id', 2],
 ]
 
+// Mermaid's mindmap lexer ends a shape at its first closing delimiter. Ours
+// reads delimiters paired inside the text up to the outermost pair's close.
+const MINDMAP_READ_GENEROUSLY: ReadonlyArray<GenerousRow> = [
+  ['parentheses paired inside circle text', 'mindmap\n  root((a (b) c))', 'a (b) c', 'mindmap_nested_shape_delimiters', 2],
+  ['parentheses inside an anonymous rect', 'mindmap\n  root\n    [text (x)]', 'text (x)', 'mindmap_nested_shape_delimiters', 3],
+  ['parentheses paired inside cloud text', 'mindmap\n  root\n    id)a (b) c(', 'a (b) c', 'mindmap_nested_shape_delimiters', 3],
+  ['brackets paired in text across lines', 'mindmap\n  root[a\n  [b] c]', '[b] c', 'mindmap_nested_shape_delimiters', 2],
+]
+
 // [family, construct, source]
 const ACCEPTED: ReadonlyArray<readonly [BuiltinFamilyId, string, string]> = [
   ['class', 'one class after the header', 'classDiagram\n  class Animal'],
@@ -124,6 +133,7 @@ const ACCEPTED: ReadonlyArray<readonly [BuiltinFamilyId, string, string]> = [
   ['gitgraph', 'quoted text across lines', 'gitGraph\n  commit id: "a\n  b" msg: "multi\n  line" tag: "v1\n  rc"\n  commit "bare\n  msg"\n  branch dev\n  commit\n  checkout main\n  merge dev tag: "x\n  y"'],
   ['architecture', 'quoted titles across lines', 'architecture-beta\n  group g(cloud)["G\n  H"]\n  service a(server)["line1\n  line2"] in g\n  service b(server)[\'sq\n  line\'] in g\n  a:R -["multi\n  line"]- L:b'],
   ['radar', 'a quoted axis label across lines', 'radar-beta\n  axis a["A\n  long"], b, c\n  curve x{1, 2, 3}'],
+  ['mindmap', 'delimiters Mermaid reads as shape text', 'mindmap\n  (a [b)\n    ["text (x)"]\n    c{{d [e}}'],
 ]
 
 describe('read generously what pinned Mermaid rejects, and warn', () => {
@@ -144,13 +154,18 @@ describe('read generously what pinned Mermaid rejects, and warn', () => {
     expect((await upstream.parse(source)).ok).toBe(false)
     expect(readGenerously(source, text)).toEqual({ typed: 'xychart', draws: true, reported: [`${syntax}@${line}`] })
   })
+
+  test.each(MINDMAP_READ_GENEROUSLY)('mindmap: %s is read, drawn and reported', async (_construct, source, text, syntax, line) => {
+    expect((await upstream.parse(source)).ok).toBe(false)
+    expect(readGenerously(source, text)).toEqual({ typed: 'mindmap', draws: true, reported: [`${syntax}@${line}`] })
+  })
 })
 
 describe('accept what pinned Mermaid accepts', () => {
   test.each(ACCEPTED)('%s: %s is accepted, as Mermaid accepts it', async (family, _construct, source) => {
     expect({ mermaid: (await upstream.parse(source)).ok, ...ours(source) })
       .toEqual({ mermaid: true, typed: family, error: undefined })
-    if (family === 'architecture' || family === 'quadrant' || family === 'xychart') expect(verifyMermaid(source).warnings.filter(warning => warning.code === 'UNSUPPORTED_SYNTAX')).toEqual([])
+    if (family === 'architecture' || family === 'quadrant' || family === 'xychart' || family === 'mindmap') expect(verifyMermaid(source).warnings.filter(warning => warning.code === 'UNSUPPORTED_SYNTAX')).toEqual([])
   })
 
   // The typed serializer must write what Mermaid reads: text that is only

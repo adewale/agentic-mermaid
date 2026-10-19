@@ -3,7 +3,7 @@ import type {
 } from './types.ts'
 import { err, ok } from './types.ts'
 import type { MindmapNode, MindmapShape } from '../mindmap/types.ts'
-import { parseMindmap, serializeMindmap } from '../mindmap/parser.ts'
+import { mindmapNestedShapeLines, parseMindmap, serializeMindmap } from '../mindmap/parser.ts'
 import { labelOverflowCollector, setOptionalField } from './body-utils.ts'
 import { unknownOpMessage } from './mutation-ops.ts'
 
@@ -197,6 +197,17 @@ export function mutateMindmap(body: MindmapBody, op: MindmapMutationOp): Result<
     default:
       return err({ code: 'INVALID_OP', message: unknownOpMessage('mindmap', op) })
   }
+}
+
+/** Mindmap source ours reads where pinned Mermaid rejects it, each on its
+ * canonical line: shape text holding its own delimiters in pairs. */
+export function mindmapUnsupportedSyntaxWarnings(canonicalSource: string): LayoutWarning[] {
+  return mindmapNestedShapeLines(canonicalSource).map(line => ({
+    code: 'UNSUPPORTED_SYNTAX',
+    syntax: 'mindmap_nested_shape_delimiters',
+    line,
+    message: 'Shape text holding delimiters of its own in pairs, as `root((a (b) c))`, is read whole. Pinned Mermaid ends the shape at the first closing delimiter and rejects the rest; put the whole text in double quotes.',
+  }))
 }
 
 export function verifyMindmap(body: MindmapBody, opts: VerifyOptions): LayoutWarning[] {

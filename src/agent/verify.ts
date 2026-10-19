@@ -39,6 +39,7 @@ import { flowchartUnsupportedSyntaxWarnings, flowchartUpstreamRejectedSyntaxWarn
 import { labelOverflowWarning } from './label-metrics.ts'
 import { resolveLabelContent } from '../shared/display-text.ts'
 import { emptyRenderedLayout } from './layout-to-rendered.ts'
+import { mindmapUnsupportedSyntaxWarnings } from './mindmap-body.ts'
 import { parseRegisteredMermaid } from './parse.ts'
 import { quadrantUnsupportedSyntaxWarnings } from './quadrant-body.ts'
 import { sequenceMessages, sequenceUnsupportedSyntaxWarnings } from './sequence-body.ts'
@@ -334,6 +335,7 @@ const UPSTREAM_REJECTED_SYNTAX: Partial<Record<ValidDiagram['kind'], (canonicalS
   er: erUnsupportedSyntaxWarnings,
   flowchart: flowchartUpstreamRejectedSyntaxWarnings,
   gantt: ganttUnsupportedSyntaxWarnings,
+  mindmap: mindmapUnsupportedSyntaxWarnings,
   quadrant: quadrantUnsupportedSyntaxWarnings,
   sequence: sequenceUnsupportedSyntaxWarnings,
   state: stateUnsupportedSyntaxWarnings,
