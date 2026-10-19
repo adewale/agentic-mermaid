@@ -365,7 +365,7 @@ jobs:
               // workload outcomes. Only missing/crashed workers are incomplete.
               const required = report.checks?.filter(check => /\bmeasurements? completes?\b/.test(check.name)) ?? []
               const workersComplete = report.processes?.length > 0 && report.processes.length === report.config?.rounds * report.config?.peers?.length &&
-                report.processes.every(worker => Number.isFinite(worker.importMs) && Number.isFinite(worker.rssBytes) && worker.restarts === 0) &&
+                report.processes.every(worker => Number.isFinite(worker.importMs) && [worker.rssBytes, worker.peakRssBytes, worker.settledHeapBytes].every(bytes => Number.isFinite(bytes) && bytes >= 0) && worker.restarts === 0) &&
                 report.coverage?.every(row => row.missing === 0)
               const complete = report.status === 'completed' && (peer ? workersComplete : required.length >= 2 && required.every(check => check.ok === true))
               return [path, { status: report.status, ok: report.ok, complete }]

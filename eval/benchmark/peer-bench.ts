@@ -204,7 +204,7 @@ interface WorkerJob {
   timing: Timing
   workloads: Array<{ id: string; source: string; expected: readonly string[] }>
 }
-type WorkerLine = { type: 'import'; importMs: number; setupMs: number } | { type: 'fatal'; error: string } | { type: 'start'; workload: string } | ({ type: 'result' } & WorkloadResult) | { type: 'end'; rssBytes?: number }
+type WorkerLine = { type: 'import'; importMs: number; setupMs: number } | { type: 'fatal'; error: string } | { type: 'start'; workload: string } | ({ type: 'result' } & WorkloadResult) | { type: 'end'; rssBytes?: number; peakRssBytes?: number; settledHeapBytes?: number }
 
 const firstLine = (error: unknown) => (error instanceof Error ? `${error.name === 'Error' ? '' : `${error.name}: `}${error.message}` : String(error)).split('\n')[0]!.trim()
 const isThenable = (value: unknown): value is PromiseLike<unknown> => typeof (value as PromiseLike<unknown> | undefined)?.then === 'function'
@@ -357,7 +357,10 @@ async function runWorker(jobPath: string, outPath: string): Promise<void> {
     emit({ type: 'start', workload: workload.id })
     emit({ type: 'result', ...(await measure(render, job.output, workload, job.timing, allocation)) })
   }
-  emit({ type: 'end', rssBytes: process.memoryUsage().rss })
+  const rssBytes = process.memoryUsage().rss
+  if (!globalThis.gc) throw new Error('peer worker needs node --expose-gc')
+  globalThis.gc()
+  emit({ type: 'end', rssBytes, peakRssBytes: process.resourceUsage().maxRSS * 1024, settledHeapBytes: process.memoryUsage().heapUsed })
   // A peer engine (Merman's queue) may hold the event loop open.
   process.exit(0)
 }
@@ -479,6 +482,8 @@ interface ProcessRecord {
   importMs?: number
   setupMs?: number
   rssBytes?: number
+  peakRssBytes?: number
+  settledHeapBytes?: number
   wallMs: number
   restarts: number
   results: WorkloadResult[]
@@ -671,7 +676,7 @@ async function runProcess(prepared: Prepared, output: Output, workloads: readonl
     const job: WorkerJob = { peer: peer.id, output, entry, timing: context.timing, workloads: remaining.map(id => ({ id, source: context.sources[id], expected: EXPECTED_LABELS[id] })) }
     writeFileSync(`${base}.job.json`, JSON.stringify(job))
     const receipts = `${context.rawSamples}.${peer.id}-${output}-r${round}-a${attempt}.jsonl`
-    const command = peer.runtime === 'python' ? [prepared.python!, '-I', '-c', PYTHON_WORKER, `${base}.job.json`, receipts] : ['node', context.bundle, '--child', '--job', `${base}.job.json`, '--out', receipts]
+    const command = peer.runtime === 'python' ? [prepared.python!, '-I', '-c', PYTHON_WORKER, `${base}.job.json`, receipts] : ['node', '--expose-gc', context.bundle, '--child', '--job', `${base}.job.json`, '--out', receipts]
     const run = await spawnWorker(command, receipts, limits, context.elkCache)
     for (const line of run.lines) appendFileSync(context.rawSamples, `${JSON.stringify({ peer: peer.id, output, round, attempt, ...line })}\n`)
     record.wallMs += run.wallMs
@@ -682,7 +687,12 @@ async function runProcess(prepared: Prepared, output: Output, workloads: readonl
     const doneIds = new Set(finished.map(line => line.workload))
     const end = run.lines.find(line => line.type === 'end')
     if (end?.type === 'end') {
+      if (peer.runtime === 'node' && [end.rssBytes, end.peakRssBytes, end.settledHeapBytes].some(bytes => typeof bytes !== 'number' || !Number.isFinite(bytes) || bytes < 0)) {
+        throw new Error(`${peer.id}/${output}: incomplete absolute memory observations`)
+      }
       if (end.rssBytes !== undefined) record.rssBytes = end.rssBytes
+      if (end.peakRssBytes !== undefined) record.peakRssBytes = end.peakRssBytes
+      if (end.settledHeapBytes !== undefined) record.settledHeapBytes = end.settledHeapBytes
       break
     }
     const fatal = run.lines.find(line => line.type === 'fatal')
@@ -792,7 +802,7 @@ async function main(): Promise<void> {
   for (const path of [jsonPath, markdownPath, rawSamples]) mkdirSync(dirname(path), { recursive: true })
   const nodeVersion = execFileSync('node', ['--version'], { encoding: 'utf8' }).trim()
   const createdAt = new Date().toISOString()
-  const policy = { elkCache, sceneAssertions: 'off', aplEnvironment: Object.fromEntries(Object.entries(process.env).filter(([key]) => key.startsWith('APL_'))) }
+  const policy = { elkCache, sceneAssertions: 'off', nodeExposeGc: true, finalUntimedGc: true, aplEnvironment: Object.fromEntries(Object.entries(process.env).filter(([key]) => key.startsWith('APL_'))) }
   const metadata = { schemaVersion: 1, advisory: true, runId, createdAt, policy, rawSamples, workerReceipts: `${rawSamples}.*.jsonl`, config: { rounds, timing, minSamples: MIN_SAMPLES, workloads, peers: peers.map(peer => peer.id) } }
   writeFileSync(jsonPath, `${JSON.stringify({ ...metadata, status: 'incomplete' }, null, 2)}\n`)
   writeFileSync(markdownPath, '# Peer benchmark: incomplete (advisory)\n')
@@ -860,7 +870,7 @@ async function main(): Promise<void> {
     const quote = (value: string) => `'${value.replaceAll("'", "'\\''")}'`
     const command = ['bun run bench:peers', '--peers', quote(peers.map(peer => peer.id).join(',')), '--workloads', quote(selected.join(',')), '--rounds', String(rounds), '--elk-cache', elkCache, ...(args.has('quick') ? ['--quick'] : []), ...(npmVersion ? ['--agentic-npm', quote(npmVersion)] : []), ...(args.has('candidate-tarball') ? ['--candidate-tarball', quote(resolve(args.get('candidate-tarball')!)), '--candidate-sha256', args.get('candidate-sha256')!] : [])]
     out.push('- Reproduce:', '', '```sh', command.join(' '), '```')
-    out.push(`- Policy: ELK cache ${elkCache}; built-in Scene assertions off; APL environment ${JSON.stringify(policy.aplEnvironment)}`)
+    out.push(`- Policy: ELK cache ${elkCache}; built-in Scene assertions off; Node --expose-gc and final untimed GC; APL environment ${JSON.stringify(policy.aplEnvironment)}`)
     out.push(`- Pins: ${prepared.map(entry => `${entry.peer.id} = ${entry.label}`).join('; ')}`)
     for (const entry of prepared) for (const lock of entry.dependencyLocks ?? []) out.push(`- ${entry.peer.id} ${lock.source}: ${lock.path} (SHA-256 ${lock.sha256})`)
     out.push(
@@ -909,7 +919,7 @@ async function main(): Promise<void> {
         ),
       )
     }
-    out.push('', '## Cold start, median across rounds', '', 'Import includes one-time setup (Merman engine creation); first render is the first call in a fresh process; RSS is resident memory after the last workload, including the harness SVG parser; allocation excludes validation and capture-array allocation.', '')
+    out.push('', '## Cold start, median across rounds', '', 'Import includes one-time setup (Merman engine creation); first render is the first call in a fresh process; end RSS is resident memory after the last workload before the final untimed GC. Node peak RSS is the process high-water mark; settled heap is absolute used heap after that GC. All include harness/parser/sink state, not pure renderer retention; Python has no corresponding JS heap/peak receipt. Allocation excludes validation and capture-array allocation.', '')
     const coldRows = jobs.map(({ prepared: entry, output }) => {
       const records = processes.filter(record => record.peer === entry.peer.id && record.output === output)
       const pick = (values: Array<number | undefined>) => {
@@ -924,9 +934,11 @@ async function main(): Promise<void> {
         formatMs(pick(records.map(record => (record.importMs === undefined ? undefined : record.importMs + (record.setupMs ?? 0))))),
         first?.firstMs === undefined ? '—' : formatMs(first.firstMs),
         formatMiB(pick(records.map(record => record.rssBytes))),
+        formatMiB(pick(records.map(record => record.peakRssBytes))),
+        formatMiB(pick(records.map(record => record.settledHeapBytes))),
       ]
     })
-    out.push(markdownTable(['peer', 'output', 'import ms', 'first flow5 ms', 'RSS MiB'], coldRows, 2))
+    out.push(markdownTable(['peer', 'output', 'import ms', 'first flow5 ms', 'end RSS MiB', 'peak RSS MiB', 'settled heap MiB'], coldRows, 2))
     if (terminalPeers.length) {
       out.push('', '## Warm terminal (Unicode, no colour), median ms per call', '')
       out.push(

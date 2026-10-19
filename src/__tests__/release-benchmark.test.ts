@@ -21,7 +21,7 @@ function run(label: string, inputs: Input[]): EngineRun {
       ascii: { ok: true, bytes: 1, sha256: 'ascii' }, validSvg: true, deterministic: true,
       mediansMs: [1], samplesMs: [[1, 1, 1]], missingSvgLabels: [],
     }])),
-    memory: new Map([['corpus', { perInput: [], inputIds: inputs.map(input => input.id), passAllocatedBytes: 100, passPeakHeapBytes: 100, retainedGrowthBytes: 0, peakRssBytes: 100 }]]),
+    memory: new Map([['corpus', { perInput: [], inputIds: inputs.map(input => input.id), passAllocatedBytes: 100, passPeakHeapBytes: 100, settledHeapBytes: 100, retainedHeapBytes: 100, retainedGrowthBytes: 0, peakRssBytes: 100 }]]),
     failures: new Map(),
   }
 }
@@ -52,6 +52,26 @@ describe('release publication decisions', () => {
     const inputs = [input('flow')], before = run('baseline', inputs), after = run('candidate', inputs)
     before.memory.clear()
     expect(decision(inputs, before, after).ok).toBe(false)
+  })
+
+  test.each(['baseline', 'candidate'] as const)('missing absolute heap observations fail existing %s completeness checks', side => {
+    const inputs = [input('flow')],
+      before = run('baseline', inputs),
+      after = run('candidate', inputs)
+    const engine = side === 'baseline' ? before : after
+    const memory = engine.memory.get('corpus')!
+    for (const key of ['settledHeapBytes', 'retainedHeapBytes'] as const) {
+      const original = memory[key]
+      for (const invalid of [undefined, Number.NaN, Number.POSITIVE_INFINITY, Number.NEGATIVE_INFINITY, -1]) {
+        Object.assign(memory, { [key]: invalid })
+        const result = decision(inputs, before, after)
+        expect(result.ok).toBe(false)
+        expect(result.summary.checks.find(check => check.name === 'Required matched corpus memory measurements complete')?.ok).toBe(false)
+        expect(result.summary.checks.find(check => check.name === (side === 'baseline' ? 'Every required baseline measurement completes' : 'Every candidate measurement completes'))?.ok).toBe(false)
+      }
+      memory[key] = original
+    }
+    expect(decision(inputs, before, after).ok).toBe(true)
   })
 
   test('a newly enrolled workload must succeed even when both versions reject it', () => {
@@ -183,15 +203,32 @@ test.each([
     workloads: [{ id: 'owned-text', source: 'fixture', expected: ['Keep'] }],
   }))
   writeFileSync(out, '')
-  const child = spawnSync('node', [join(import.meta.dir, '../../eval/benchmark/peer-bench.ts'), '--child', '--job', job, '--out', out], {
+  const child = spawnSync('node', ['--expose-gc', join(import.meta.dir, '../../eval/benchmark/peer-bench.ts'), '--child', '--job', job, '--out', out], {
     cwd: join(import.meta.dir, '../..'), encoding: 'utf8', timeout: 10000,
   })
   expect({ status: child.status, stderr: child.stderr }).toEqual({ status: 0, stderr: '' })
   const observations = readFileSync(out, 'utf8').trim().split('\n').map(line => JSON.parse(line))
+  const end = observations.find(row => row.type === 'end')
+  for (const key of ['rssBytes', 'peakRssBytes', 'settledHeapBytes']) expect(end[key]).toBeGreaterThan(0)
   const result = observations.find(row => row.type === 'result')
   expect(result.status).toBe(status)
   if (status === 'ok') expect(result.samplesMs).toHaveLength(3)
   else expect(result.medianMs).toBeUndefined()
+})
+
+test('release memory worker retains absolute post-GC heap observations', () => {
+  const dir = temp.dir(),
+    entry = join(dir, 'renderer.mjs'),
+    job = join(dir, 'job.json'),
+    out = join(dir, 'memory.json')
+  writeFileSync(entry, 'export function renderMermaidSVG() { return "<svg/>" }')
+  writeFileSync(job, JSON.stringify({ entry, mode: 'memory', reps: 1, inputs: [input('fixture')] }))
+  const child = spawnSync('node', ['--expose-gc', join(import.meta.dir, '../../eval/benchmark/release-bench-worker.ts'), job, out], { encoding: 'utf8', timeout: 10000 })
+  expect({ status: child.status, stderr: child.stderr }).toEqual({ status: 0, stderr: '' })
+  const memory = JSON.parse(readFileSync(out, 'utf8'))
+  expect(memory.settledHeapBytes).toBeGreaterThan(0)
+  expect(memory.retainedHeapBytes).toBeGreaterThan(0)
+  expect(memory.retainedGrowthBytes).toBe(Math.max(0, memory.retainedHeapBytes - memory.settledHeapBytes))
 })
 
 test('peer artifact mismatch fails before installation and retains explicit incomplete evidence', () => {

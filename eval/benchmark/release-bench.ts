@@ -224,9 +224,15 @@ export function report(inputs: Input[], groups: Group[], runs: EngineRun[], roun
   const corpus = inputs.filter(input => input.kind === 'corpus')
   const scaling = inputs.filter(input => input.kind !== 'corpus')
   const checks: Check[] = []
+  const completeMemory = (value: MemoryResult | undefined) => value !== undefined && [value.settledHeapBytes, value.retainedHeapBytes].every(bytes => Number.isFinite(bytes) && bytes >= 0)
+  const incompleteMemory = (run: EngineRun) => [...run.memory].filter(([, value]) => !completeMemory(value)).map(([name]) => name)
   const addRatio = (name: string, value: number | undefined, limit: number) => checks.push({ name, ok: value === undefined ? null : value <= limit, detail: value === undefined ? 'not compared: no matched measurement' : times(value) })
   const incomplete = inputs.filter(input => candidate.results.get(input.id)?.mediansMs.length !== rounds)
-  checks.push({ name: 'Every candidate measurement completes', ok: candidate.failures.size === 0 && !incomplete.length, detail: [...candidate.failures].map(([group, reason]) => `${group}: ${reason}`).join('; ') || `${inputs.length - incomplete.length}/${inputs.length} inputs completed ${rounds} rounds` })
+  checks.push({
+    name: 'Every candidate measurement completes',
+    ok: candidate.failures.size === 0 && !incomplete.length && !incompleteMemory(candidate).length,
+    detail: [...candidate.failures].map(([group, reason]) => `${group}: ${reason}`).join('; ') || (incompleteMemory(candidate).length ? `incomplete absolute heap observations: ${incompleteMemory(candidate).join(', ')}` : `${inputs.length - incomplete.length}/${inputs.length} inputs completed ${rounds} rounds`),
+  })
   checks.push({ name: 'Cold SVG render succeeds', ok: candidate.firstRender?.ok === true, detail: candidate.firstRender?.error ?? (candidate.firstRender?.ok ? 'flowchart rendered' : 'not measured') })
   const unstable = [...candidate.results].filter(([, result]) => !result.deterministic).map(([id]) => id)
   checks.push({ name: 'Deterministic SVG and ASCII output', ok: candidate.coldDeterministic && !unstable.length, detail: unstable.join(', ') || (candidate.coldDeterministic ? 'all repeats and fresh processes agree' : 'cold renders differ between processes') })
@@ -238,7 +244,11 @@ export function report(inputs: Input[], groups: Group[], runs: EngineRun[], roun
   checks.push({ name: 'Every scaling and agent workflow succeeds', ok: !failedWorkloads.length, detail: failedWorkloads.map(input => input.id).join(', ') || `${scaling.length} workloads passed` })
   if (baseline) {
     const incompleteBaseline = inputs.filter(input => baseline.results.get(input.id)?.mediansMs.length !== rounds)
-    checks.push({ name: 'Every required baseline measurement completes', ok: baseline.failures.size === 0 && !incompleteBaseline.length, detail: [...baseline.failures].map(([group, reason]) => `${group}: ${reason}`).join('; ') || `${inputs.length - incompleteBaseline.length}/${inputs.length} inputs completed ${rounds} rounds` })
+    checks.push({
+      name: 'Every required baseline measurement completes',
+      ok: baseline.failures.size === 0 && !incompleteBaseline.length && !incompleteMemory(baseline).length,
+      detail: [...baseline.failures].map(([group, reason]) => `${group}: ${reason}`).join('; ') || (incompleteMemory(baseline).length ? `incomplete absolute heap observations: ${incompleteMemory(baseline).join(', ')}` : `${inputs.length - incompleteBaseline.length}/${inputs.length} inputs completed ${rounds} rounds`),
+    })
     checks.push({ name: 'Baseline has comparable successful SVG measurements', ok: shared(inputs).length > 0 && (!corpus.length || shared(corpus).length > 0), detail: `${shared(inputs).length}/${inputs.length} total; ${shared(corpus).length}/${corpus.length} corpus inputs compared` })
     for (const format of ['svg', 'ascii'] as const) {
       const lost = measured(inputs).filter(input => baseline.results.get(input.id)![format].ok && !candidate.results.get(input.id)![format].ok)
@@ -255,7 +265,8 @@ export function report(inputs: Input[], groups: Group[], runs: EngineRun[], roun
     checks.push({ name: `Each large case ≤ ${GATES.caseSlowdown}× baseline`, ok: comparable.length ? !slow.length : null, detail: `${comparable.length}/${scaling.length} compared${slow.length ? `; slow: ${slow.map(input => input.id).join(', ')}` : ''}` })
     const before = baseline.memory.get('corpus')
     const after = candidate.memory.get('corpus')
-    if (shared(corpus).length) checks.push({ name: 'Required matched corpus memory measurements complete', ok: !!before && !!after, detail: before && after ? `${before.inputIds.length} shared inputs` : 'incomplete: missing baseline or candidate memory observations' })
+    if (shared(corpus).length)
+      checks.push({ name: 'Required matched corpus memory measurements complete', ok: completeMemory(before) && completeMemory(after), detail: completeMemory(before) && completeMemory(after) ? `${before!.inputIds.length} shared inputs` : 'incomplete: missing baseline or candidate absolute heap observations' })
     addRatio(`Corpus allocation ≤ ${GATES.allocationGrowth}× baseline`, ratio(after?.passAllocatedBytes, before?.passAllocatedBytes), GATES.allocationGrowth)
     addRatio(`Corpus peak RSS ≤ ${GATES.rssGrowth}× baseline`, ratio(after?.peakRssBytes, before?.peakRssBytes), GATES.rssGrowth)
   }
@@ -337,7 +348,9 @@ export function report(inputs: Input[], groups: Group[], runs: EngineRun[], roun
     for (const [key, label] of [
       ['passAllocatedBytes', 'allocated / pass'],
       ['passPeakHeapBytes', 'peak heap during pass'],
-      ['retainedGrowthBytes', 'retained heap / pass'],
+      ['settledHeapBytes', 'settled heap before pass (post-GC)'],
+      ['retainedHeapBytes', 'retained heap after pass (post-GC)'],
+      ['retainedGrowthBytes', 'retained heap growth / pass'],
       ['peakRssBytes', 'whole worker peak RSS'],
     ] as const)
       metric(
@@ -347,7 +360,7 @@ export function report(inputs: Input[], groups: Group[], runs: EngineRun[], roun
   }
   md.push(
     '',
-    'Times aggregate each observed rep over the matched inputs, take its within-process median, and report the median across interleaved rounds. Ratios pair the same round before taking their median. All SVG/ASCII correctness passes precede warm timings. Cold measurements include import and first render separately, without process launch or a cold filesystem. Memory comparisons use separate fresh processes restricted to the matched inputs; an additional candidate corpus pass includes newly supported inputs for the absolute retained-heap gate. Allocation and peak heap are V8 estimates sampled at GC boundaries. Retained heap covers one settled pass. Whole-worker RSS includes import, warm-up and measurement. ASCII is checked for correctness, not timed. The agent workload measures parse, mutate, verify, serialize, re-parse, fact checks and SVG render together. Full samples, output fingerprints, package identities and machine metadata accompany this report.',
+    'Times aggregate each observed rep over the matched inputs, take its within-process median, and report the median across interleaved rounds. Ratios pair the same round before taking their median. All SVG/ASCII correctness passes precede warm timings. Cold measurements include import and first render separately, without process launch or a cold filesystem. Memory comparisons use separate fresh processes restricted to the matched inputs; an additional candidate corpus pass includes newly supported inputs for the absolute retained-heap gate. Allocation and peak heap are V8 estimates sampled at GC boundaries. Settled and retained heap are absolute used heap before and after one pass, each after GC; growth is their nonnegative difference. A single memory pair does not establish a retained-heap noise floor. Whole-worker RSS includes import, warm-up and measurement. ASCII is checked for correctness, not timed. The agent workload measures parse, mutate, verify, serialize, re-parse, fact checks and SVG render together. Full samples, output fingerprints, package identities and machine metadata accompany this report.',
   )
   return {
     ok,
