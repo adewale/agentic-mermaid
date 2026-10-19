@@ -9,6 +9,22 @@ interface PhysicalLine {
 
 const authoredLinesBySourceMap = new WeakMap<SourceMap, ReadonlyMap<number, number>>()
 
+/** Where statements end, for a family that knows: keyed like the location
+ * maps, in canonical coordinates, just after the last character. Such an
+ * entry's span runs from its location to its end, in place of the bounds
+ * read from its line. */
+export interface SourceMapEnds {
+  nodes?: Map<string, SourceLocation>
+  edges?: Map<string, SourceLocation>
+  labels?: Map<string, SourceLocation>
+}
+
+const sourceMapEnds = new WeakMap<SourceMap, SourceMapEnds>()
+
+export function recordSourceMapEnds(sourceMap: SourceMap, ends: SourceMapEnds): void {
+  sourceMapEnds.set(sourceMap, ends)
+}
+
 /** Internal provenance for diagnostics; keep the public SourceMap shape stable. */
 export function authoredLineForCanonical(sourceMap: SourceMap, canonicalLine: number): number {
   return authoredLinesBySourceMap.get(sourceMap)?.get(canonicalLine) ?? canonicalLine
@@ -491,12 +507,26 @@ export function attachSourceMapSpans(
     const located = labelSpan(lineStarts, position, key, position ? analysisFor(position.line) : undefined)
     if (located) labels.set(key, located)
   }
+  const ends = sourceMapEnds.get(sourceMap)
+  const offsetOf = (location: SourceLocation): number | undefined => {
+    const position = positionOf(location)
+    return position && position.line.start + position.at
+  }
+  const withEnds = (located: Map<string, SourceSpan>, locations: Map<string, SourceLocation>, endsOf: Map<string, SourceLocation> | undefined): Map<string, SourceSpan> => {
+    for (const [key, end] of endsOf ?? []) {
+      const location = locations.get(key)
+      const start = location && offsetOf(location)
+      const stop = offsetOf(end)
+      if (start !== undefined && stop !== undefined && stop >= start) located.set(key, span(lineStarts, start, stop))
+    }
+    return located
+  }
   const spans: SourceMapSpans = {
     preserved,
-    nodes: mapStatementSpans(sourceMap.nodes, lineStarts, positionOf, analysisFor),
-    edges: mapStatementSpans(sourceMap.edges, lineStarts, positionOf, analysisFor),
+    nodes: withEnds(mapStatementSpans(sourceMap.nodes, lineStarts, positionOf, analysisFor), sourceMap.nodes, ends?.nodes),
+    edges: withEnds(mapStatementSpans(sourceMap.edges, lineStarts, positionOf, analysisFor), sourceMap.edges, ends?.edges),
     groups: mapStatementSpans(sourceMap.groups, lineStarts, positionOf, analysisFor),
-    labels,
+    labels: withEnds(labels, sourceMap.labels, ends?.labels),
   }
   sourceMap.spans = spans
   authoredLinesBySourceMap.set(sourceMap, new Map([...lines].map(([canonicalLine, authoredLine]) => [

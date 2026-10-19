@@ -36,8 +36,9 @@ describe('flowchart SourceMap', () => {
     expect(parsed.value.source.edges.get('edge#1:B->A')).toEqual({ line: 7, col: 1 })
   })
 
-  // The parser reads a label, string or link across lines: each location is
-  // on the line its text came from, and a span runs to the statement's end.
+  // The parser reads a label, string or link across lines, and ER statements
+  // may share a line: each location is on the line its text came from, and a
+  // span covers its statement alone.
   test.each([
     ['flowchart TD\nA["see\nC here"]\nB --> C', 'nodes', 'C', { line: 4, col: 7 }, 'B --> C'],
     ['flowchart TD\nA["see\nC here"]\nB --> C', 'labels', 'node:A', { line: 2, col: 4 }, 'see\nC here'],
@@ -45,6 +46,12 @@ describe('flowchart SourceMap', () => {
     ['flowchart TD\nA["a\nB"] --> B\nB --> C', 'nodes', 'B', { line: 3, col: 9 }, 'A["a\nB"] --> B'],
     ['flowchart TD\nA["a\nB"] --> B\nB --> C', 'edges', 'edge#0:A->B', { line: 2, col: 1 }, 'A["a\nB"] --> B'],
     ['flowchart TD\n  A -- some\n    text --> B', 'labels', 'edge#0:A->B', { line: 2, col: 6 }, 'some\n    text'],
+    ['erDiagram\n  A { int id PK string name } B', 'nodes', 'A', { line: 2, col: 1 }, 'A {'],
+    ['erDiagram\n  A { int id PK string name } B', 'nodes', 'B', { line: 2, col: 29 }, 'B'],
+    ['erDiagram\n  A { int id PK string name } B', 'labels', 'er:A:attr#0', { line: 2, col: 5 }, 'int id PK'],
+    ['erDiagram\n  A { int id PK string name } B', 'labels', 'er:A:attr#1', { line: 2, col: 15 }, 'string name'],
+    ['erDiagram\n  A {\n  int\n  id\n  }', 'labels', 'er:A:attr#0', { line: 3, col: 1 }, 'int\n  id'],
+    ['erDiagram\n  A ||--o{ B : r %% c', 'edges', 'rel#0:A->B', { line: 2, col: 1 }, 'A ||--o{ B : r'],
   ] as const)('maps %j %s %s across lines', (source, kind, key, location, text) => {
     const parsed = parseMermaid(source)
     if (!parsed.ok) throw new Error(JSON.stringify(parsed.error))

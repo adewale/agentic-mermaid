@@ -21,7 +21,7 @@ import { parseC4Body, renderC4, mutateC4, lintC4, buildC4SourceMap } from './c4-
 
 import { decodeXML } from 'entities'
 import { readClassStatements, type ClassStatementNode } from '../class/parser.ts'
-import { readErStatements, type ParsedErRelationshipSyntax } from '../er/parser.ts'
+import { readErStatements, type ErSourceStatement, type ParsedErRelationshipSyntax } from '../er/parser.ts'
 import { GitGraphDuplicateCommitError } from '../gitgraph/parser.ts'
 import { type JourneyParseIssue, walkJourneyLines } from '../journey/parse-core.ts'
 import { splitPointClassSuffix } from '../quadrant/point-style.ts'
@@ -50,7 +50,8 @@ import { mutateSequence, parseSequenceBody, renderSequence } from './sequence-bo
 import { splitSequenceStatementLines } from '../sequence/statements.ts'
 import { mutateState, parseStateBody, renderState, verifyState, verifyOpaqueState } from './state-body.ts'
 import { mutateTimeline, parseTimelineBody, renderTimeline } from './timeline-body.ts'
-import type { AnyMutationOp, ClassBody, DiagramBody, DiagramKind, ErBody, FamilyParsedBody, GanttBody, LayoutWarning, MutationError, PieBody, QuadrantBody, RadarBody, Result, SankeyBody, SourceMap, XyChartBody } from './types.ts'
+import type { AnyMutationOp, ClassBody, DiagramBody, DiagramKind, ErBody, FamilyParsedBody, GanttBody, LayoutWarning, MutationError, PieBody, QuadrantBody, RadarBody, Result, SankeyBody, SourceLocation, SourceMap, XyChartBody } from './types.ts'
+import { recordSourceMapEnds } from './source-map-spans.ts'
 import { err, ok } from './types.ts'
 import { mutateXyChart, parseXyChartBody, renderXyChart, verifyXyChart, xychartAccessibilityConflicts } from './xychart-body.ts'
 
@@ -505,9 +506,19 @@ function buildErSourceMap(body: DiagramBody, canonicalSource: string): SourceMap
   const lines = canonicalSource.split(/\r?\n/)
   const nodeDeclarations = new Map<string, { line: number; col: number }>()
   const attributeSources = new Map<string, Array<{ line: number; col: number }>>()
-  const relationSources: Array<{ source: LocatedSourceLine; relation: ParsedErRelationshipSyntax }> = []
+  const relationSources: Array<{ source: LocatedSourceLine; relation: ParsedErRelationshipSyntax; end: SourceLocation }> = []
   const headerAt = lines.findIndex(line => /^erDiagram\s*$/i.test(line.trim()))
   const tree = readErStatements(lines.slice(headerAt + 1))
+  // Statements may share a line, and an attribute may run across lines, so
+  // each span ends where its statement does, before any space or comment.
+  const ends = { nodes: new Map<string, SourceLocation>(), edges: new Map<string, SourceLocation>(), labels: new Map<string, SourceLocation>() }
+  const endOf = (entry: ErSourceStatement): SourceLocation => {
+    const from = entry.endLine === entry.line ? entry.column : 0
+    const text = lines[headerAt + entry.endLine + 1]!.slice(from, entry.endColumn)
+    return loc(headerAt + entry.endLine + 2, from + stripTrailingComment(text).trimEnd().length + 1)
+  }
+  const attributeEnds = new Map<string, SourceLocation[]>()
+  const nodeEnds = new Map<string, SourceLocation>()
   for (const entry of tree.statements) {
     // A statement may share its line (`Z { string id }`): locate it there.
     const source: LocatedSourceLine = {
@@ -520,33 +531,44 @@ function buildErSourceMap(body: DiagramBody, canonicalSource: string): SourceMap
       const entries = attributeSources.get(key) ?? []
       entries.push(loc(source.lineIndex + 1, source.start + 1))
       attributeSources.set(key, entries)
+      attributeEnds.set(key, [...attributeEnds.get(key) ?? [], endOf(entry)])
     } else if (syntax.kind === 'relation') {
-      relationSources.push({ source, relation: syntax.relation })
+      relationSources.push({ source, relation: syntax.relation, end: endOf(entry) })
     } else if (syntax.kind === 'entity' || syntax.kind === 'block-open') {
       nodeDeclarations.set(syntax.reference.id, loc(source.lineIndex + 1, source.start + 1))
+      nodeEnds.set(syntax.reference.id, endOf(entry))
     }
   }
 
   for (const e of b.entities) {
     const declared = nodeDeclarations.get(e.id)
-    if (declared) map.nodes.set(e.id, declared)
+    if (declared) {
+      map.nodes.set(e.id, declared)
+      ends.nodes.set(e.id, nodeEnds.get(e.id)!)
+    }
     const attributeOccurrences = new Map<string, number>()
     e.attributes.forEach((attr, index) => {
       const occurrence = nextOccurrence(attributeOccurrences, attr.text)
       const found = attributeSources.get(`${e.id}\u0000${attr.text}`)?.[occurrence]
-      if (found) map.labels.set(`er:${e.id}:attr#${index}`, found)
+      if (!found) return
+      map.labels.set(`er:${e.id}:attr#${index}`, found)
+      ends.labels.set(`er:${e.id}:attr#${index}`, attributeEnds.get(`${e.id}\u0000${attr.text}`)![occurrence]!)
     })
   }
 
   b.relations.forEach((r, index) => {
     const locatedRelation = relationSources[index]
     if (!locatedRelation) return
-    const { source, relation } = locatedRelation
+    const { source, relation, end } = locatedRelation
     const key = `rel#${index}:${r.from}->${r.to}`
     const relationLocation = loc(source.lineIndex + 1, source.start + 1)
     map.edges.set(key, relationLocation)
-    if (!map.nodes.has(r.from)) map.nodes.set(r.from, relationLocation)
-    if (!map.nodes.has(r.to)) map.nodes.set(r.to, relationLocation)
+    ends.edges.set(key, end)
+    for (const id of [r.from, r.to]) {
+      if (map.nodes.has(id)) continue
+      map.nodes.set(id, relationLocation)
+      ends.nodes.set(id, end)
+    }
     const link = relation.identifying ? '--' : '..'
     const operator = `${relation.leftToken}${link}${relation.rightToken}`
     const operatorStart = source.line.indexOf(operator, source.start)
@@ -560,6 +582,7 @@ function buildErSourceMap(body: DiagramBody, canonicalSource: string): SourceMap
       if (labelCol >= 0) map.labels.set(key, loc(source.lineIndex + 1, labelCol + 1))
     }
   })
+  recordSourceMapEnds(map, ends)
   return map
 }
 
