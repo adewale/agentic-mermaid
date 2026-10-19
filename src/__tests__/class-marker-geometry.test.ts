@@ -5,6 +5,27 @@ import { renderMermaidSVG } from '../index.ts'
 import { renderMermaidASCIIWithReceipt } from '../ascii/index.ts'
 import { terminalDocumentOf, type TerminalMarker } from '../ascii/terminal-document.ts'
 import type { MarkerDescriptor } from '../scene/ir.ts'
+import { DefaultBackend, getFamily } from '../agent/core.ts'
+import type { PositionedClassDiagram, PositionedClassRelationship } from '../class/types.ts'
+
+function publicClassScene(relationships: PositionedClassRelationship[], edgeBendRadius = 0) {
+  const lower = getFamily('class')?.lowerScene
+  if (!lower) throw new Error('public Class family lowering is unavailable')
+  const positioned: PositionedClassDiagram = {
+    width: 600, height: 240, notes: [], namespaces: [], relationships,
+    classes: ['A', 'B'].map((id, index) => ({
+      id, label: id, attributes: [], methods: [], x: index ? 440 : 20, y: 60,
+      width: 140, height: 120, headerHeight: 40, attrHeight: 40, methodHeight: 40,
+    })),
+  }
+  return lower({ positioned, colors: { bg: '#ffffff', fg: '#111111' },
+    resolved: { renderOptions: {}, styleFace: { edge: { bendRadius: edgeBendRadius } } } })
+}
+
+function publicRelationship(): PositionedClassRelationship {
+  return { from: 'A', to: 'B', type: 'association', markerAt: 'none', lineStyle: 'solid',
+    label: '', fromCardinality: '界', toCardinality: '1', points: [{ x: 160, y: 120 }, { x: 440, y: 120 }] }
+}
 
 function markerResources(): readonly MarkerDescriptor[] {
   const scene = lowerClassScene({
@@ -38,7 +59,94 @@ function markerTag(svg: string, id: string): string {
   return tag
 }
 
+function lowerPositionedRelationships(relationships: PositionedClassRelationship[]) {
+  return lowerClassScene({
+    positioned: {
+      width: 600, height: 240, notes: [], namespaces: [], relationships,
+      classes: ['A', 'B'].map((id, index) => ({
+        id, label: id, attributes: [], methods: [], x: index ? 440 : 20, y: 60,
+        width: 140, height: 120, headerHeight: 40, attrHeight: 40, methodHeight: 40,
+      })),
+    },
+    colors: { bg: '#ffffff', fg: '#111111' },
+    resolved: { renderOptions: {} },
+  })
+}
+
 describe('class endpoint marker geometry (#178)', () => {
+  test('the public Class lowerer preserves authored metadata getter reads and current shaft values', () => {
+    const reads: string[] = []
+    const caller = publicRelationship()
+    const relationship = new Proxy(caller, { get(target, key, receiver) {
+      if (key === 'markerAt' || key === 'label' || key === 'fromCardinality' || key === 'toCardinality') reads.push(key)
+      return Reflect.get(target, key, receiver)
+    } })
+    const scene = publicClassScene([relationship])
+    const svg = DefaultBackend.render(scene, { seed: 0 })
+    const shafts = svg.match(/<polyline\b[^>]*class="class-relationship"[^>]*>/g) ?? []
+    expect(shafts).toHaveLength(1)
+    expect(shafts[0]).toContain('data-id="rel:A-&gt;B#0"')
+    expect(shafts[0]).toContain('data-marker-at="none" data-from-cardinality="界" data-to-cardinality="1"')
+    expect(shafts[0]).toContain('points="160,120 440,120"')
+    expect(shafts[0]).not.toContain('data-label=')
+    expect(shafts[0]).not.toContain('marker-start=')
+    expect(shafts[0]).not.toContain('marker-end=')
+    // These caller-visible reads come from the authored marker decisions,
+    // metadata condition/value expressions and later cardinality labels.
+    expect(reads.filter(key => key === 'markerAt')).toHaveLength(9)
+    expect(reads.filter(key => key === 'label')).toHaveLength(4)
+    expect(reads.filter(key => key === 'fromCardinality')).toHaveLength(6)
+    expect(reads.filter(key => key === 'toCardinality')).toHaveLength(5)
+    expect(Object.isFrozen(caller)).toBe(false)
+  })
+
+  test('the public Class lowerer distinguishes cardinality presence from its second getter value', () => {
+    const absent = { ...publicRelationship(), fromCardinality: undefined }
+    let reads = 0
+    const empty = { ...publicRelationship(), get fromCardinality() { return ++reads === 1 ? 'present' : reads === 2 ? '' : '0' } }
+    const svg = DefaultBackend.render(publicClassScene([absent, empty]), { seed: 0 })
+    const shafts = svg.match(/<polyline\b[^>]*class="class-relationship"[^>]*>/g) ?? []
+    expect(shafts).toHaveLength(2)
+    expect(shafts[0]).not.toContain('data-from-cardinality=')
+    expect(shafts[1]).toContain('data-id="rel:A-&gt;B#1"')
+    expect(shafts[1]).toContain('data-from-cardinality="" data-to-cardinality="1"')
+    const cardinal = svg.match(/<text\b[^>]*data-id="rel-card:A-&gt;B#1:from"[^>]*>([\s\S]*?)<\/text>/)?.[1]
+    expect(cardinal?.replace(/<[^>]*>/g, '')).toBe('0')
+    let invalidReads = 0
+    const missing = { ...publicRelationship(), get fromCardinality() { return ++invalidReads === 1 ? 'present' : undefined } }
+    expect(() => publicClassScene([absent, missing])).toThrow('SVG metadata values must be scalars')
+    expect(invalidReads).toBe(2)
+    const healthy = DefaultBackend.render(publicClassScene([publicRelationship()]), { seed: 0 })
+    expect(healthy).toContain('data-marker-at="none" data-from-cardinality="界" data-to-cardinality="1"')
+  })
+
+  test('the public Class lowerer reads metadata getters before rounded geometry but snapshots values afterwards', () => {
+    let geometryReads = 0
+    const points = () => [{ get x(): number { geometryReads++; throw new Error('authored rounded-geometry stop') }, y: 120 },
+      { x: 300, y: 120 }, { x: 440, y: 120 }]
+    let metadataReads = 0
+    const throwing = { ...publicRelationship(), points: points(), get fromCardinality() {
+      if (++metadataReads === 2) throw new Error('authored cardinality-read stop')
+      return 'present'
+    } }
+    expect(() => publicClassScene([throwing], 8)).toThrow('authored cardinality-read stop')
+    expect(metadataReads).toBe(2)
+    expect(geometryReads).toBe(0)
+    let nestedReads = 0
+    const accessor = Object.defineProperty({}, 'payload', { enumerable: true, get() { nestedReads++; return 'unsafe' } })
+    const cycle: { self?: unknown } = {}
+    cycle.self = cycle
+    let toJSONCalls = 0
+    for (const value of [accessor, cycle, { toJSON() { toJSONCalls++; return 'unsafe' } }]) {
+      geometryReads = 0
+      expect(() => publicClassScene([{ ...publicRelationship(), points: points(), fromCardinality: value as unknown as string }], 8))
+        .toThrow('authored rounded-geometry stop')
+      expect(geometryReads).toBe(1)
+    }
+    expect(nestedReads).toBe(0)
+    expect(toJSONCalls).toBe(0)
+  })
+
   test.each([
     { arrow: 'o..*', start: 'cls-aggregation', end: 'cls-composition', glyphs: ['◇', '◆'], dashed: true },
     { arrow: '*..o', start: 'cls-composition', end: 'cls-aggregation', glyphs: ['◆', '◇'], dashed: true },
@@ -87,6 +195,119 @@ describe('class endpoint marker geometry (#178)', () => {
         expect(/[┄┊]/.test(terminal.text)).toBe(dashed)
       }
     }
+  })
+
+  test('mixed relationships retain each marker, cardinality and label within one rendering', () => {
+    const svg = renderMermaidSVG(`classDiagram
+A "0" o..* "1" B : 界
+B "0" *..o "1" C : plain
+C "0" o..* "many" D : line<br/>break
+D "" o..* "0" E
+E -- F`)
+    const relations = svg.match(/<(?:polyline|path)\b[^>]*class="class-relationship"[^>]*>/g) ?? []
+    expect(relations).toHaveLength(5)
+    const cases = [
+      { from: 'A', to: 'B', start: 'cls-aggregation', end: 'cls-composition', fromCardinality: '0', toCardinality: '1', label: '界' },
+      { from: 'B', to: 'C', start: 'cls-composition', end: 'cls-aggregation', fromCardinality: '0', toCardinality: '1', label: 'plain' },
+      { from: 'C', to: 'D', start: 'cls-aggregation', end: 'cls-composition', fromCardinality: '0', toCardinality: 'many', label: 'line&#10;break' },
+      { from: 'D', to: 'E', start: 'cls-aggregation', end: 'cls-composition', fromCardinality: undefined, toCardinality: '0', label: undefined },
+      { from: 'E', to: 'F', start: undefined, end: undefined, fromCardinality: undefined, toCardinality: undefined, label: undefined },
+    ]
+    for (const [index, item] of cases.entries()) {
+      const relation = relations[index]!
+      expect(relation).toContain(`data-from="${item.from}" data-to="${item.to}"`)
+      expect(relation).toContain(`data-marker-at="${item.start ? 'both' : 'none'}"`)
+      expect(relation.includes('stroke-dasharray="6 4"')).toBe(index < 4)
+      for (const [name, value] of [
+        ['marker-start', item.start && `url(#${item.start})`], ['marker-end', item.end && `url(#${item.end})`],
+        ['data-from-cardinality', item.fromCardinality], ['data-to-cardinality', item.toCardinality], ['data-label', item.label],
+      ]) {
+        if (value === undefined) expect(relation).not.toContain(`${name}=`)
+        else expect(relation).toContain(`${name}="${value}"`)
+      }
+    }
+    const overlays = svg.match(/<(?:polyline|path)\b[^>]*class="class-marker-overlay"[^>]*>/g) ?? []
+    expect(overlays).toHaveLength(4)
+    expect(overlays[0]).toContain('marker-start="url(#cls-aggregation)" marker-end="url(#cls-composition)"')
+    expect(overlays[1]).toContain('marker-start="url(#cls-composition)" marker-end="url(#cls-aggregation)"')
+  })
+
+  test('positioned relationships retain authored profiles through misses, saturation and later repeats', () => {
+    const cardinal256 = '😀'.repeat(128)
+    const cardinal257 = cardinal256 + '界'
+    const relationship = (fromCardinality: string, label?: string): PositionedClassRelationship => ({
+      from: 'A', to: 'B', type: 'aggregation', fromType: 'aggregation', toType: 'composition',
+      markerAt: 'both', lineStyle: 'dashed', fromCardinality, toCardinality: '1', label,
+      points: [{ x: 160, y: 120 }, { x: 440, y: 120 }],
+    })
+    // More than128 distinct short cardinalities, plus an early hit and a late
+    // repeated miss. Long Unicode values retain their full authored spelling.
+    const profiles = Array.from({ length: 129 }, (_, index) => relationship(`count-${index + 1}`, `label-${index + 1}`))
+    const relationships = [
+      relationship(cardinal256, 'unicode-256'), relationship(cardinal257, 'unicode-257'),
+      relationship('count-0'), relationship('count-0'), relationship('count-0', 'early-repeat'), ...profiles,
+      relationship('count-129', 'late-miss-repeat'), relationship(cardinal257, 'long-repeat'),
+      { ...relationship(cardinal256, '界-late-hit'), type: 'composition' as const,
+        fromType: 'composition' as const, toType: 'aggregation' as const,
+        points: [{ x: 160, y: 130 }, { x: 440, y: 130 }] },
+      relationship('count-0'),
+    ]
+    const scene = lowerPositionedRelationships(relationships)
+    const svg = DefaultBackend.render(scene, { seed: 0 })
+    const shafts = svg.match(/<polyline\b[^>]*class="class-relationship"[^>]*>/g) ?? []
+    const overlays = svg.match(/<polyline\b[^>]*class="class-marker-overlay"[^>]*>/g) ?? []
+    const texts = svg.match(/<text\b[^>]*>[\s\S]*?<\/text>/g) ?? []
+    expect(shafts).toHaveLength(relationships.length)
+    expect(overlays).toHaveLength(relationships.length)
+    for (const [index, authored] of relationships.entries()) {
+      const swapped = authored.label === '界-late-hit'
+      const start = swapped ? 'cls-composition' : 'cls-aggregation'
+      const end = swapped ? 'cls-aggregation' : 'cls-composition'
+      const shaft = shafts[index]!
+      expect(shaft).toContain(`data-id="rel:A-&gt;B#${index}"`)
+      expect(shaft).toContain('data-from="A" data-to="B"')
+      expect(shaft).toContain(`data-type="${swapped ? 'composition' : 'aggregation'}"`)
+      expect(shaft).toContain(`data-from-cardinality="${authored.fromCardinality}" data-to-cardinality="1"`)
+      expect(shaft).toContain('data-marker-at="both"')
+      expect(shaft).toContain('stroke-dasharray="6 4"')
+      expect(shaft).toContain(swapped ? 'points="160,130 440,130"' : 'points="160,120 440,120"')
+      for (const tag of [shaft, overlays[index]!]) {
+        expect(tag).toContain(`marker-start="url(#${start})"`)
+        expect(tag).toContain(`marker-end="url(#${end})"`)
+      }
+      const label = scene.parts.find(part => part.id === `rel-label:A->B#${index}`)
+      if (authored.label === undefined) {
+        expect(shaft).not.toContain('data-label=')
+        expect(label).toBeUndefined()
+      } else {
+        expect(shaft).toContain(`data-label="${authored.label}"`)
+        expect(label).toMatchObject({ kind: 'text', text: authored.label })
+      }
+      const cardinal = texts.find(text => text.includes(`data-id="rel-card:A-&gt;B#${index}:from"`))
+      if (!cardinal) throw new Error(`missing drawn cardinality for relationship ${index}`)
+      expect(cardinal.replace(/<[^>]*>/g, '')).toBe(authored.fromCardinality!)
+    }
+  })
+
+  test('invalid cardinality data cannot execute toJSON or contaminate a later lowering', () => {
+    let toJSONCalls = 0
+    const invalid = { toJSON() { toJSONCalls++; return '0' } }
+    const ordinary: PositionedClassRelationship = {
+      from: 'A', to: 'B', type: 'aggregation', markerAt: 'both', toType: 'composition',
+      fromCardinality: '0', toCardinality: '1', label: 'ordinary',
+      points: [{ x: 160, y: 120 }, { x: 440, y: 120 }],
+    }
+    expect(() => DefaultBackend.render(lowerPositionedRelationships([
+      ordinary, { ...ordinary, fromCardinality: invalid as unknown as string },
+    ]), { seed: 0 })).toThrow('SVG emission metadata must be plain data')
+    expect(toJSONCalls).toBe(0)
+    expect(Object.isFrozen(invalid)).toBe(false)
+    const svg = DefaultBackend.render(lowerPositionedRelationships([ordinary]), { seed: 0 })
+    const shaft = svg.match(/<polyline\b[^>]*class="class-relationship"[^>]*>/)?.[0]
+    expect(shaft).toContain('data-id="rel:A-&gt;B#0"')
+    expect(shaft).toContain('data-from-cardinality="0" data-to-cardinality="1"')
+    expect(shaft).toContain('data-label="ordinary"')
+    expect(shaft).toContain('marker-start="url(#cls-aggregation)" marker-end="url(#cls-composition)"')
   })
 
   test('typed diamond and lollipop resources anchor their node-facing tip or tangent', () => {

@@ -155,11 +155,12 @@ export function lowerClassScene(ctx: RenderContext<PositionedClassDiagram>): Sce
 
   // 1. Relationship lines (rendered behind boxes)
   const relOccurrence = new Map<string, number>()
+  const relationshipEmissions = new Map<string, SvgEmissionRecipe>()
   for (const rel of diagram.relationships) {
     const pairKey = `${rel.from}->${rel.to}`
     const k = relOccurrence.get(pairKey) ?? 0
     relOccurrence.set(pairKey, k + 1)
-    parts.push(renderRelationship(rel, style, `rel:${pairKey}#${k}`, markerResources))
+    parts.push(renderRelationship(rel, style, `rel:${pairKey}#${k}`, markerResources, relationshipEmissions))
   }
 
   // 2. Class boxes
@@ -176,11 +177,12 @@ export function lowerClassScene(ctx: RenderContext<PositionedClassDiagram>): Sce
   // node fill erase the marker tip/base. Repaint only the marker attachment on
   // an invisible carrier; the semantic connector and its line remain behind.
   const overlayOccurrence = new Map<string, number>()
+  const overlayEmissions = new Map<string, SvgEmissionRecipe>()
   diagram.relationships.forEach((rel, index) => {
     const pairKey = `${rel.from}->${rel.to}`
     const occurrence = overlayOccurrence.get(pairKey) ?? 0
     overlayOccurrence.set(pairKey, occurrence + 1)
-    const overlay = renderRelationshipMarkerOverlay(rel, style, index, `rel:${pairKey}#${occurrence}`, markerResources)
+    const overlay = renderRelationshipMarkerOverlay(rel, style, index, `rel:${pairKey}#${occurrence}`, markerResources, overlayEmissions)
     if (overlay) parts.push(overlay)
   })
 
@@ -595,21 +597,12 @@ function classRelationshipEndpoints(rel: PositionedClassRelationship) {
  * Render a relationship line with appropriate markers and semantic attributes.
  * Includes data-* attributes for programmatic inspection.
  */
-function renderRelationship(
-  rel: PositionedClassRelationship,
-  style: ResolvedRenderStyle,
-  sceneId: string,
-  markerResources: readonly MarkerDescriptor[],
-): SceneNode {
-  const labels = rel.label
-    ? [
-        {
-          text: rel.label,
-          textContent: { value: rel.label, prepared: prepareDisplayText(resolveLabelContent(rel.label, rel.labelContent)) },
-          ...(rel.labelPosition ? { anchor: rel.labelPosition } : {}),
-        },
-      ]
-    : []
+function renderRelationship(rel: PositionedClassRelationship, style: ResolvedRenderStyle, sceneId: string, markerResources: readonly MarkerDescriptor[], emissions: Map<string, SvgEmissionRecipe>): SceneNode {
+  const labels = rel.label ? [{
+    text: rel.label,
+    textContent: { value: rel.label, prepared: prepareDisplayText(resolveLabelContent(rel.label, rel.labelContent)) },
+    ...(rel.labelPosition ? { anchor: rel.labelPosition } : {}),
+  }] : []
   if (rel.points.length < 2) {
     // Degenerate relationship — draws nothing (an invisible connector writes '').
     return marks.connector({
@@ -618,7 +611,8 @@ function renderRelationship(
       geometry: { kind: 'polyline', points: rel.points },
       lineStyle: 'invisible',
       paint: {},
-      endpoints: classRelationshipEndpoints(rel),
+      attributes,
+    endpoints: classRelationshipEndpoints(rel),
       relationship: { kind: rel.type },
       labels,
     }, EMPTY_EMISSION)
@@ -650,20 +644,42 @@ function renderRelationship(
       ...(rel.toCardinality ? { 'to-cardinality': rel.toCardinality } : {}),
     },
   }
-  const dataAttrs: SvgAttribute[] = [
-    attr('class', v.meta('class-relationship')), attr('data-from', v.identity('from')), attr('data-to', v.identity('to')),
-    attr('data-type', v.connector('relationshipKind')), attr('data-relation-type', v.connector('relationshipKind')),
-    attr('data-marker-at', v.meta(rel.markerAt)),
-    ...(rel.label ? [{ ...attr('data-label', { source: 'connectorLabel', index: 0 }), display: true }] : []),
-    ...(rel.fromCardinality ? [attr('data-from-cardinality', v.meta(rel.fromCardinality))] : []),
-    ...(rel.toCardinality ? [attr('data-to-cardinality', v.meta(rel.toCardinality))] : []),
-  ]
-  const emission = (field: 'd' | 'points'): SvgEmissionRecipe => ({ kind: 'primitive', attributes: [
-    ...dataAttrs, attr(field, v.geometry(field)), attr('fill', v.paint('fill')), attr('stroke', v.paint('stroke')),
-    attr('stroke-width', v.paint('strokeWidth')), ...(isDashed ? [attr('stroke-dasharray', v.paint('strokeDasharray'))] : []),
-    ...(startMarker ? [attr('marker-start', { source: 'marker', position: 'start' })] : []),
-    ...(endMarker ? [attr('marker-end', { source: 'marker', position: 'end' })] : []),
-  ] })
+  // Preserve the original caller-visible condition/value reads before paint
+  // and rounded geometry. Only descriptor capture remains at the constructor.
+  const markerAt = rel.markerAt
+  const hasLabel = !!rel.label
+  const hasFromCardinality = !!rel.fromCardinality
+  const fromCardinality = hasFromCardinality ? rel.fromCardinality : undefined
+  const hasToCardinality = !!rel.toCardinality
+  const toCardinality = hasToCardinality ? rel.toCardinality : undefined
+  const emission = (field: 'd' | 'points'): SvgEmissionRecipe => {
+    // Bound retained key text; larger or arbitrary runtime values still take
+    // the unchanged full capture path, without invoking a user toJSON.
+    const key = (markerAt === 'none' || markerAt === 'from' || markerAt === 'to' || markerAt === 'both')
+      && (fromCardinality === undefined || typeof fromCardinality === 'string' && fromCardinality.length <= 256)
+      && (toCardinality === undefined || typeof toCardinality === 'string' && toCardinality.length <= 256)
+      ? JSON.stringify([field, isDashed, !!startMarker, !!endMarker, markerAt, hasLabel,
+        hasFromCardinality, fromCardinality, hasToCardinality, toCardinality])
+      : undefined
+    const prior = key === undefined ? undefined : emissions.get(key)
+    if (prior) return prior
+    const dataAttrs: SvgAttribute[] = [
+      attr('class', v.meta('class-relationship')), attr('data-from', v.identity('from')), attr('data-to', v.identity('to')),
+      attr('data-type', v.connector('relationshipKind')), attr('data-relation-type', v.connector('relationshipKind')),
+      attr('data-marker-at', v.meta(markerAt)),
+      ...(hasLabel ? [{ ...attr('data-label', { source: 'connectorLabel', index: 0 }), display: true }] : []),
+      ...(hasFromCardinality ? [attr('data-from-cardinality', v.meta(fromCardinality!))] : []),
+      ...(hasToCardinality ? [attr('data-to-cardinality', v.meta(toCardinality!))] : []),
+    ]
+    const captured = snapshotSvgEmissionRecipe({ kind: 'primitive', attributes: [
+      ...dataAttrs, attr(field, v.geometry(field)), attr('fill', v.paint('fill')), attr('stroke', v.paint('stroke')),
+      attr('stroke-width', v.paint('strokeWidth')), ...(isDashed ? [attr('stroke-dasharray', v.paint('strokeDasharray'))] : []),
+      ...(startMarker ? [attr('marker-start', { source: 'marker', position: 'start' })] : []),
+      ...(endMarker ? [attr('marker-end', { source: 'marker', position: 'end' })] : []),
+    ] })
+    if (key !== undefined && emissions.size < 128) emissions.set(key, captured)
+    return captured
+  }
 
   const strokeColor = style.edgeStrokeColor ?? 'var(--_line)'
   const paint = {
@@ -718,7 +734,8 @@ function renderRelationshipMarkerOverlay(
   style: ResolvedRenderStyle,
   index: number,
   relationshipId: string,
-  markerResources: readonly MarkerDescriptor[],
+  resources: readonly MarkerDescriptor[],
+  emissions: Map<string, SvgEmissionRecipe>,
 ): SceneNode | null {
   if (rel.points.length < 2) return null
   const startType = rel.markerAt === 'from' || rel.markerAt === 'both' ? (rel.fromType ?? rel.type) : undefined
@@ -726,8 +743,8 @@ function renderRelationshipMarkerOverlay(
   const startId = startType ? getMarkerDefId(startType) : null
   const endId = endType ? getMarkerDefId(endType) : null
   if (!startId && !endId) return null
-  const markerStart = markerResources.find(marker => marker.id === startId)
-  const markerEnd = markerResources.find(marker => marker.id === endId)
+  const markerStart = resources.find(marker => marker.id === startId)
+  const markerEnd = resources.find(marker => marker.id === endId)
   const fields = {
     id: `marker-overlay:${index}`,
     role: 'chrome' as const,
@@ -741,13 +758,20 @@ function renderRelationshipMarkerOverlay(
     hit: { pointerEvents: 'none' as const },
     attributes: { className: 'class-marker-overlay', ariaHidden: true as const },
   }
-  const emission = (field: 'd' | 'points'): SvgEmissionRecipe => ({ kind: 'primitive', attributes: [
-    attr('class', v.meta('class-marker-overlay')), attr(field, v.geometry(field)), attr('fill', v.paint('fill')),
-    attr('stroke', v.paint('stroke')), attr('stroke-width', v.paint('strokeWidth')), attr('stroke-opacity', v.connector('opacity')),
-    ...(markerStart ? [attr('marker-start', { source: 'marker', position: 'start' })] : []),
-    ...(markerEnd ? [attr('marker-end', { source: 'marker', position: 'end' })] : []),
-    attr('pointer-events', v.meta('none')), attr('aria-hidden', v.meta('true')),
-  ] })
+  const emission = (field: 'd' | 'points'): SvgEmissionRecipe => {
+    const key = JSON.stringify([field, !!markerStart, !!markerEnd])
+    const prior = emissions.get(key)
+    if (prior) return prior
+    const captured = snapshotSvgEmissionRecipe({ kind: 'primitive', attributes: [
+      attr('class', v.meta('class-marker-overlay')), attr(field, v.geometry(field)), attr('fill', v.paint('fill')),
+      attr('stroke', v.paint('stroke')), attr('stroke-width', v.paint('strokeWidth')), attr('stroke-opacity', v.connector('opacity')),
+      ...(markerStart ? [attr('marker-start', { source: 'marker', position: 'start' })] : []),
+      ...(markerEnd ? [attr('marker-end', { source: 'marker', position: 'end' })] : []),
+      attr('pointer-events', v.meta('none')), attr('aria-hidden', v.meta('true')),
+    ] })
+    if (emissions.size < 16) emissions.set(key, captured)
+    return captured
+  }
   if (style.edgeBendRadius > 0 && rel.points.length > 2) {
     const projection = projectRoundedConnectorPath(rel.points, style.edgeBendRadius, {
       metric: 'manhattan',
