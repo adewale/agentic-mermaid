@@ -78,6 +78,12 @@ export function matchStateClassAssignment(line: string): { ids: string[]; classN
   return { ids, className: match[2]! }
 }
 
+/** State text as pinned Mermaid's lexer meets it: it reads an entity code
+ *  (`#59;`) before it, so the code's `;` ends no text. */
+export function lexedStateText(text: string): string {
+  return text.replace(/#\w+;/g, '#')
+}
+
 /** `note left|right of X : text` — single-line note. */
 export function matchNoteLine(line: string): StateNoteLineMatch | null {
   const m = line.match(NOTE_LINE_RE)
@@ -223,7 +229,8 @@ export interface StateStatementScan {
   /** Input lines where a `}` (not after a name) closes no composite. */
   unopenedBraceLines: number[]
   /** Input lines where a `}` ending the source's last description or
-   *  transition label closes a composite nothing else closes. */
+   *  transition label closes a composite nothing else closes, and Mermaid
+   *  reads it into the text. */
   braceTextLines: number[]
   /** Input lines where `state "…" as X` is followed by `:::c`, or by a
    *  description holding a colon, which Mermaid splits off and drops. */
@@ -409,7 +416,9 @@ export function readStateStatements(lines: readonly StateSourceLine[]): StateSta
     let also: string | undefined
     if (text[colon] === ':') {
       const end = textEnd(text, colon, cursor.row)
-      if (end < text.length) braceTextLines.add(logical[cursor.row]!.line)
+      // Mermaid reads the `}` into the text, unless a `;` or `::` ends the
+      // text before it (stateUnsupportedSyntaxWarnings reports those).
+      if (end < text.length && !/;|::/.test(lexedStateText(text.slice(colon + 1, end)))) braceTextLines.add(logical[cursor.row]!.line)
       const description = text.slice(colon, end).trimEnd()
       // `A:::c : text` is A's class and its description, read as the two
       // statements `A:::c` and `A : text`.

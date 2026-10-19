@@ -619,6 +619,8 @@ describe('State statements across and within lines', () => {
     ['state X {\nA --> B : go }', ['A:rounded:A', 'B:rounded:B', 'A->B:go', 'X:X{A B}'], ['state_brace_after_description@3']],
     ['state X {\nstate Y {\nA : desc {x} }}', ['A:rounded:desc {x}', 'X:X{}', 'X/Y:Y{A}'], ['state_brace_after_description@4']],
     ['state X {\nA : desc }\n}', ['A:rounded:desc }', 'X:X{A}'], []],
+    // Mermaid ends the text at the `;`, and its `}` then closes X.
+    ['state X {\nA : a; }', ['A:rounded:a;', 'X:X{A}'], ['state_text_cut@3']],
     // State ids are global: a mention of a composite's id, before or after
     // its block or inside it, names the composite and adds no simple state.
     ['state X {\nA\n}\nX : desc\nX:::hot', ['A:rounded:A', 'X:desc{A}', 'X:::hot'], []],

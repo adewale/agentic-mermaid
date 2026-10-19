@@ -56,7 +56,7 @@ import type { LabelContent } from '../shared/display-text.ts'
 import { parseAccessibilityDirective, scanAccessibilityDirectives, statementEndAt } from '../shared/accessibility-directives.ts'
 import {
   matchNoteLine, matchNoteOpen, isNoteEnd, matchStereotypeDecl,
-  matchTransitionLine, readStateStatements, stateStatementEnds, isConcurrencySeparator, type StateStatement, isHistoryEndpoint, matchHistoryEndpoint,
+  matchTransitionLine, readStateStatements, stateStatementEnds, lexedStateText, isConcurrencySeparator, type StateStatement, isHistoryEndpoint, matchHistoryEndpoint,
   isStateNodeId, matchStateDeclarationLine, matchStateLayoutDirective, stereotypeMarker, stripStateComment, matchStateClassAssignment,
   STATE_DIRECTION_RE, STATE_ALIAS_RE, STATE_COMPOSITE_OPEN_RE, STATE_DESCRIPTION_RE,
   STATE_CLASS_DEF_RE, STATE_STYLE_RE, STATE_LINK_STYLE_RE,
@@ -1294,12 +1294,6 @@ export function stateUnsupportedSyntaxWarnings(canonicalSource: string, authored
   }
   warnings.push(...stateReadOtherwiseWarnings(scan.statements, header, lastLine))
   return warnings.sort((left, right) => left.line - right.line)
-}
-
-/** State text as pinned Mermaid's lexer meets it: it reads an entity code
- *  (`#59;`) before it, so the code's `;` ends no text. */
-function lexedStateText(text: string): string {
-  return text.replace(/#\w+;/g, '#')
 }
 
 /** Statements ours reads that pinned Mermaid reads otherwise, by statement:
