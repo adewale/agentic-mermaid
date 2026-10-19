@@ -8,6 +8,8 @@ import { decodedSvgAttributeValue, scanSvgStartTags } from '../svg-structure.ts'
 import { inspectScenePrimitives, scenePrimitiveSource, scenePrimitiveMatrix, shapeSurfacePaint, type ScenePaintPrimitive } from './inspection.ts'
 import type { ConnectorMark, Geometry, SceneDoc, SceneOwner, ScenePoint, SceneTransform } from './ir.ts'
 import { composeMatrices, inverseMatrix, transformMatrix, transformPoint } from './transforms.ts'
+import { performanceExperimentEnabled } from '../experimental-performance.ts'
+import { PackedPaintBvh } from './packed-paint-bvh.ts'
 
 export interface PaintViewport { readonly x: number; readonly y: number; readonly width: number; readonly height: number }
 export interface PaintCertificationIssue {
@@ -209,12 +211,31 @@ export function certifyScenePaint(scene: SceneDoc, projection?: Pick<RenderedLay
     for (const node of projection.nodes) if (node.label?.trim() && node.labelVisibility !== 'hidden' && node.labelVisibility !== 'semantic') label(String(node.id), node.labelBounds, node.labelContainer)
     for (const value of projection.labels ?? []) if (value.text.trim() && value.visibility !== 'hidden' && value.visibility !== 'semantic') label(value.id, value.bounds, value.container)
   }
-  const surfaces = tree(solidInteriors(scene, inspection.primitives))
+  const candidates = solidInteriors(scene, inspection.primitives)
+  const packed = performanceExperimentEnabled('paint-bvh') ? new PackedPaintBvh(candidates) : undefined
+  const surfaces = packed ? undefined : tree(candidates)
   let pairs = 0, operations = 0, exhausted = false
   const work = (): boolean => {
     if (operations >= MAX_OCCLUSION_OPERATIONS) { exhausted = true; return false }
     operations++
     return true
+  }
+  const visitSurfaces = (bounds: AxisAlignedBox, visit: (surface: Surface) => void): void => {
+    if (exhausted) return
+    const leaf = (surface: Surface): boolean => {
+      if (++pairs > MAX_OCCLUSION_PAIRS) { exhausted = true; return false }
+      visit(surface)
+      return !exhausted
+    }
+    if (packed) { packed.visit(bounds, work, leaf); return }
+    const walk = (branch: Tree | undefined): void => {
+      if (exhausted || !work() || !branch || !overlaps(branch.bounds, bounds)) return
+      if (!branch.leaves) { walk(branch.left); walk(branch.right); return }
+      for (const surface of branch.leaves) {
+        if (!work() || !leaf(surface)) return
+      }
+    }
+    walk(surfaces)
   }
   const endpointRoles = new Map<string, Set<string>>()
   for (const primitive of inspection.primitives) {
@@ -239,18 +260,14 @@ export function certifyScenePaint(scene: SceneDoc, projection?: Pick<RenderedLay
     }
     return ambiguous ? 'ambiguous' : 'unrelated'
   }
-  const check = (branch: Tree | undefined, primitive: ScenePaintPrimitive): void => {
-    if (exhausted || !work() || !branch || !overlaps(branch.bounds, primitive.bounds!)) return
-    if (!branch.leaves) { check(branch.left, primitive); check(branch.right, primitive); return }
-    for (const surface of branch.leaves) {
-      if (!work()) return
-      if (++pairs > MAX_OCCLUSION_PAIRS) { exhausted = true; return }
-      if (surface.primitive.order <= primitive.order || !overlaps(surface.bounds, primitive.bounds!)) continue
+  const check = (primitive: ScenePaintPrimitive): void => {
+    visitSurfaces(primitive.bounds!, surface => {
+      if (surface.primitive.order <= primitive.order || !overlaps(surface.bounds, primitive.bounds!)) return
       if (surface.interior && contains(surface.interior, primitive.bounds!)) issue({ code: 'TEXT_OCCLUDED', id: primitive.id, by: surface.primitive.id, message: `Retained text is fully covered by later opaque artwork owned by ${surface.primitive.owner.id}` }, true)
       else issue({ code: 'POTENTIAL_OCCLUSION', id: primitive.id, by: surface.primitive.id, message: 'Later filled artwork overlaps the occupied text band; its exact ink intersection is unverified' })
-    }
+    })
   }
-  for (const primitive of inspection.primitives) if (primitive.kind === 'text' && primitive.coverage === 'measured' && primitive.visibility !== 'conditional') check(surfaces, primitive)
+  for (const primitive of inspection.primitives) if (primitive.kind === 'text' && primitive.coverage === 'measured' && primitive.visibility !== 'conditional') check(primitive)
   const strokeAlpha = new Map<string, number | undefined>()
   for (const primitive of inspection.primitives) {
     if (!work()) break
@@ -280,20 +297,13 @@ export function certifyScenePaint(scene: SceneDoc, projection?: Pick<RenderedLay
         ? expandSceneBounds(transformedBounds(part.bounds, transform)!, extent)
         : transformedBounds(expandSceneBounds(part.bounds, extent), transform)!
       const line = part.line?.map(point => transformPoint(point, matrix)) as [ScenePoint, ScenePoint] | undefined
-      const walk = (branch: Tree | undefined): void => {
-        if (exhausted || !work() || !branch || !overlaps(branch.bounds, bounds)) return
-        if (!branch.leaves) { walk(branch.left); walk(branch.right); return }
-        for (const surface of branch.leaves) {
-          if (!work()) return
-          if (++pairs > MAX_OCCLUSION_PAIRS) { exhausted = true; return }
-          if (!CARD_ROLES.has(surface.primitive.role) || surface.primitive.owner.id === primitive.owner.id && surface.primitive.owner.role === primitive.owner.role || !overlaps(surface.bounds, bounds)) continue
+      visitSurfaces(bounds, surface => {
+          if (!CARD_ROLES.has(surface.primitive.role) || surface.primitive.owner.id === primitive.owner.id && surface.primitive.owner.role === primitive.owner.role || !overlaps(surface.bounds, bounds)) return
           const relation = endpointRelation(node, surface.primitive.owner)
-          if (relation === 'attached') continue
+          if (relation === 'attached') return
           if (exactInk && relation === 'unrelated' && line && surface.interior && lineCrossesInterior(line, surface.interior)) issue({ code: 'CONNECTOR_CARD_CROSSING', id: primitive.id, by: surface.primitive.id, message: `Final connector shaft crosses opaque artwork owned by unrelated card ${surface.primitive.owner.id}` }, true)
           else issue({ code: 'POTENTIAL_OCCLUSION', id: primitive.id, by: surface.primitive.id, message: 'Final connector envelope intersects unrelated filled card artwork; actual route/card crossing is unverified' })
-        }
-      }
-      walk(surfaces)
+      })
       return !exhausted
     }
     const geometry = node.route.geometry
@@ -322,24 +332,20 @@ export function certifyScenePaint(scene: SceneDoc, projection?: Pick<RenderedLay
       lastMarkers.set(key, { primitive, bounds: marker.bounds, hull: marker.hull, padding: marker.padding })
     }
   }
-  const markerCheck = (branch: Tree | undefined, target: MarkerTarget): void => {
-    if (exhausted || !work() || !branch || !overlaps(branch.bounds, target.bounds)) return
-    if (!branch.leaves) { markerCheck(branch.left, target); markerCheck(branch.right, target); return }
-    for (const surface of branch.leaves) {
-      if (!work()) return
-      if (++pairs > MAX_OCCLUSION_PAIRS) { exhausted = true; return }
-      if (surface.primitive.order <= target.primitive.order || !overlaps(surface.bounds, target.bounds)) continue
+  const markerCheck = (target: MarkerTarget): void => {
+    visitSurfaces(target.bounds, surface => {
+      if (surface.primitive.order <= target.primitive.order || !overlaps(surface.bounds, target.bounds)) return
       if (surface.interior && contains(surface.interior, target.bounds)) {
         issue({ code: 'MARKER_OCCLUDED', id: target.primitive.id, by: surface.primitive.id, message: 'Endpoint marker is fully covered by later opaque artwork with no owned repaint' }, true)
-        continue
+        return
       }
       const connector = scenePrimitiveSource(target.primitive)
       const attached = connector?.kind === 'connector' && endpointRelation(connector, surface.primitive.owner) === 'attached'
-      if (outsideFilledBody(surface, target.bounds, attached, target.hull, target.padding, work)) continue
+      if (outsideFilledBody(surface, target.bounds, attached, target.hull, target.padding, work)) return
       issue({ code: 'POTENTIAL_OCCLUSION', id: target.primitive.id, by: surface.primitive.id, message: 'Later filled artwork overlaps an endpoint marker; its exact ink intersection is unverified' })
-    }
+    })
   }
-  for (const target of lastMarkers.values()) markerCheck(surfaces, target)
+  for (const target of lastMarkers.values()) markerCheck(target)
   if (exhausted) issue({ code: 'CHECK_BUDGET', message: `Occlusion checking reached its ${MAX_OCCLUSION_PAIRS}-pair or ${MAX_OCCLUSION_OPERATIONS}-operation limit` })
   // Mandatory final certification of the chosen viewport, including markers.
   for (const primitive of inspection.primitives) if (primitive.bounds && primitive.visibility !== 'conditional' && !contains(finalBounds, primitive.bounds)) issue({ code: 'UNMEASURED_PAINT', id: primitive.id, message: 'Final viewport does not contain retained paint' }, true)

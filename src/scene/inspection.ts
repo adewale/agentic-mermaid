@@ -4,6 +4,8 @@ import { connectorInlineLabelVisualBounds, nodePaintBounds, transformedBounds } 
 import { composeMatrices, IDENTITY_MATRIX, transformMatrix, type AffineMatrix } from './transforms.ts'
 import { sceneNodeSerialization } from './serialization.ts'
 import type { AxisAlignedBox } from '../shared/transformed-bounds.ts'
+import { performanceExperimentEnabled } from '../experimental-performance.ts'
+import { admittedSceneMode } from './external-data-snapshot.ts'
 
 export interface ScenePaintPrimitive {
   readonly key: string
@@ -43,6 +45,7 @@ export interface ScenePaintInspection {
 
 const sources = new WeakMap<ScenePaintPrimitive, SceneNode>()
 const worldMatrices = new WeakMap<ScenePaintPrimitive, AffineMatrix>()
+const retainedInspections = new WeakMap<SceneDoc, ScenePaintInspection>()
 export function scenePrimitiveMatrix(primitive: ScenePaintPrimitive): AffineMatrix | undefined { return worldMatrices.get(primitive) }
 
 export function scenePrimitiveSource(primitive: ScenePaintPrimitive): SceneNode | undefined {
@@ -84,6 +87,22 @@ function nonPainting(node: SceneNode): boolean {
  * Opaque content and missing geometry remain explicit missing evidence.
  */
 export function inspectScenePrimitives(scene: SceneDoc): ScenePaintInspection {
+  const compact = performanceExperimentEnabled('scene-arena')
+  const retain = compact && admittedSceneMode(scene) === 'internal'
+  if (retain) {
+    const prior = retainedInspections.get(scene)
+    if (prior) return prior
+  }
+  // A render-local owner arena shares immutable records and ancestor vectors.
+  // In a group containing P marks at depth D this avoids P*D owner copies.
+  const owners = compact ? new Map<string, Map<SceneRole, SceneOwner>>() : undefined
+  const internOwner = (owner: SceneOwner): SceneOwner => {
+    let roles = owners!.get(owner.id)
+    if (!roles) { roles = new Map(); owners!.set(owner.id, roles) }
+    let value = roles.get(owner.role)
+    if (!value) { value = Object.freeze({ id: owner.id, role: owner.role }); roles.set(owner.role, value) }
+    return value
+  }
   const primitives: ScenePaintPrimitive[] = []
   const coverage = { measured: 0, unmeasured: 0, nonPainting: 0, preparedText: 0, fallbackText: 0 }
   const walk = (nodes: readonly SceneNode[], prefix: string, parent: AffineMatrix, ancestors: readonly SceneOwner[], conditional = false, groupOpacity = 1): void => {
@@ -92,7 +111,8 @@ export function inspectScenePrimitives(scene: SceneDoc): ScenePaintInspection {
       const owner = node.owner ?? (ancestors.at(-1) || node.identity || { id: node.id, role: node.role })
       if (node.kind === 'group') {
         const own = node.identity ?? { id: node.id, role: node.role }
-        walk(node.children.map(child => child.node), key, composeMatrices(parent, transformMatrix(node.transform)), [...ancestors, own], conditional || node.visibility === 'conditional', groupOpacity * Number(node.paint?.opacity ?? 1))
+        const chain = compact ? Object.freeze([...ancestors, internOwner(own)]) : [...ancestors, own]
+        walk(node.children.map(child => child.node), key, composeMatrices(parent, transformMatrix(node.transform)), chain, conditional || node.visibility === 'conditional', groupOpacity * Number(node.paint?.opacity ?? 1))
         return
       }
       const hidden = groupOpacity === 0 || nonPainting(node)
@@ -103,8 +123,8 @@ export function inspectScenePrimitives(scene: SceneDoc): ScenePaintInspection {
       const status = hidden ? 'non-painting' : measured ? 'measured' : 'unmeasured'
       const primitive: ScenePaintPrimitive = Object.freeze({
         key, id: node.id, kind: node.kind, role: node.role,
-        owner: Object.freeze({ id: owner.id, role: owner.role }),
-        ancestors: Object.freeze(ancestors.map(value => Object.freeze({ ...value }))),
+        owner: compact ? internOwner(owner) : Object.freeze({ id: owner.id, role: owner.role }),
+        ancestors: compact ? ancestors : Object.freeze(ancestors.map(value => Object.freeze({ ...value }))),
         order: primitives.length, coverage: status,
         ...(conditional || node.visibility === 'conditional' ? { visibility: 'conditional' as const } : {}),
         ...(groupOpacity < 1 ? { groupOpacity } : {}),
@@ -113,7 +133,8 @@ export function inspectScenePrimitives(scene: SceneDoc): ScenePaintInspection {
         ...(node.kind === 'text' ? { text: Object.freeze({ source: node.block?.prepared.source ?? node.text, displayed: node.block ? node.block.lineBlocks.map(line => line.runs.map(run => run.text).join('')).join('\n') : node.text, measurement: node.measurement ?? 'unavailable', ...(node.block?.fontFamily ? { fontFamily: node.block.fontFamily } : {}) }) } : {}),
       })
       sources.set(primitive, node)
-      worldMatrices.set(primitive, composeMatrices(parent, transformMatrix(node.transform)))
+      const world = composeMatrices(parent, transformMatrix(node.transform))
+      worldMatrices.set(primitive, world)
       primitives.push(primitive)
       if (hidden) coverage.nonPainting++
       else if (measured) coverage.measured++
@@ -128,7 +149,7 @@ export function inspectScenePrimitives(scene: SceneDoc): ScenePaintInspection {
         const paint = { ...label.paint, ...(label.halo ? { stroke: label.halo.color ?? 'var(--bg)', strokeWidth: String(label.halo.width) } : {}) }
         const hidden = !textPaints(displayed, paint)
         const local = hidden ? undefined : connectorInlineLabelVisualBounds(label)
-        const [la, lb, lc, ld, le, lf] = composeMatrices(parent, transformMatrix(node.transform))
+        const [la, lb, lc, ld, le, lf] = compact ? world : composeMatrices(parent, transformMatrix(node.transform))
         const bounds = local && transformedBounds(local, { kind: 'matrix', a: la, b: lb, c: lc, d: ld, e: le, f: lf })
         const measured = !!bounds && finite(bounds)
         const inline: ScenePaintPrimitive = Object.freeze({
@@ -140,7 +161,7 @@ export function inspectScenePrimitives(scene: SceneDoc): ScenePaintInspection {
           text: Object.freeze({ source: label.block?.prepared.source ?? label.text, displayed, measurement: label.block ? 'prepared' : 'fallback' }),
         })
         sources.set(inline, node)
-        worldMatrices.set(inline, composeMatrices(parent, transformMatrix(node.transform)))
+        worldMatrices.set(inline, compact ? world : composeMatrices(parent, transformMatrix(node.transform)))
         primitives.push(inline)
         if (hidden) coverage.nonPainting++
         else {
@@ -152,6 +173,8 @@ export function inspectScenePrimitives(scene: SceneDoc): ScenePaintInspection {
       })
     })
   }
-  walk(scene.parts, 'scene', IDENTITY_MATRIX, [])
-  return Object.freeze({ version: 1, family: scene.family, bounds: Object.freeze({ width: scene.width, height: scene.height }), primitives: Object.freeze(primitives), coverage: Object.freeze(coverage) })
+  walk(scene.parts, 'scene', IDENTITY_MATRIX, compact ? Object.freeze([]) : [])
+  const inspection: ScenePaintInspection = Object.freeze({ version: 1, family: scene.family, bounds: Object.freeze({ width: scene.width, height: scene.height }), primitives: Object.freeze(primitives), coverage: Object.freeze(coverage) })
+  if (retain) retainedInspections.set(scene, inspection)
+  return inspection
 }

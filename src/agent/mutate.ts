@@ -1,3 +1,5 @@
+import { performanceExperimentEnabled } from '../experimental-performance.ts'
+import { withPersistentMutationDraft } from './performance-mutation.ts'
 import type { C4MutationOp, C4ValidDiagram } from './types.ts'
 // ============================================================================
 // mutate: typed structural edits. Overloaded by family.
@@ -75,7 +77,8 @@ function applyOneMutation(
   }
   const plugin = getFamily(d.kind)
   if (plugin?.mutate && plugin.serialize) {
-    const r = plugin.mutate(d.body, op)
+    const draft = d.kind === 'flowchart' && performanceExperimentEnabled('persistent-mutations')
+    const r = draft ? withPersistentMutationDraft(() => plugin.mutate!(d.body, op)) : plugin.mutate(d.body, op)
     if (!r.ok) return r
     // 1C wrapper policy: a mutated diagram keeps its leading wrapper
     // (frontmatter/directives/comments) byte-verbatim; only the body changes.
@@ -118,7 +121,7 @@ function applyOneMutation(
     }
     return ok({
       ...d,
-      body: r.value,
+      body: draft ? reparsed.value.body : r.value,
       meta: {
         ...reparsed.value.meta,
         // This receipt describes loss from the originally parsed artifact.

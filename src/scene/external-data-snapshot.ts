@@ -15,6 +15,7 @@ import { boundedUtf8ByteLength } from '../shared/utf8.ts'
 import { transferSceneNodeSerialization } from './serialization.ts'
 import { deferredTerminalProjectionInput, materializeOwnTerminalProjection, reserveDeferredTerminalProjection } from './deferred-terminal-projection.ts'
 import type { ConnectorTerminalProjectionInput } from './connector-terminal.ts'
+import { performanceExperimentEnabled } from '../experimental-performance.ts'
 
 export interface ExternalDataSnapshotLimits {
   readonly maxObjects: number
@@ -262,6 +263,7 @@ const RECOUNT_EXACTLY = Symbol('recount exactly')
  * pass a limit is walked again with exact counts. The path an error names is
  * kept as a stack of keys and only joined when the walk throws. */
 function walkFirstPartyData(value: unknown, limits: ExternalDataSnapshotLimits, rootPath: string, exact: boolean): void {
+  const keyWidths = exact && performanceExperimentEnabled('scene-arena') ? new Map<string, number>() : undefined
   const active = new WeakSet<object>()
   const frozen = new WeakSet<object>()
   const keyPath: Array<string | number> = []
@@ -468,7 +470,10 @@ function walkFirstPartyData(value: unknown, limits: ExternalDataSnapshotLimits, 
           continue
         }
         const remaining = Math.max(0, limits.maxAggregatePropertyKeyBytes - propertyKeyBytes)
-        const bytes = boundedUtf8ByteLength(key, Math.min(limits.maxPropertyKeyBytes, remaining))
+        const cached = keyWidths?.get(key)
+        const bound = Math.min(limits.maxPropertyKeyBytes, remaining)
+        const bytes = cached ?? boundedUtf8ByteLength(key, bound)
+        if (cached === undefined && bytes <= bound && keyWidths && keyWidths.size < 128) keyWidths.set(key, bytes)
         if (bytes > limits.maxPropertyKeyBytes) {
           throw new Error(`External Scene ${path()} contains a property key longer than ${limits.maxPropertyKeyBytes} bytes`)
         }
@@ -508,6 +513,11 @@ function walkFirstPartyData(value: unknown, limits: ExternalDataSnapshotLimits, 
  * forge membership.
  */
 const ADMITTED_SCENES = new WeakMap<object, 'internal' | 'external'>()
+
+/** Identity-only membership; a frozen caller object is not an admitted Scene. */
+export function admittedSceneMode(scene: SceneDoc): 'internal' | 'external' | undefined {
+  return ADMITTED_SCENES.get(scene)
+}
 
 /** Record a document this module froze that passed `mode` admission. */
 export function recordAdmittedScene(scene: SceneDoc, mode: 'internal' | 'external'): void {
