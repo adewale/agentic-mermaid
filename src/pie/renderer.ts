@@ -20,7 +20,7 @@ import type { SceneDoc, SceneNode } from '../scene/ir.ts'
 import * as marks from '../scene/marks.ts'
 import { DefaultBackend } from '../scene/backend.ts'
 import { resolveRoleStyle } from '../scene/style-registry.ts'
-import { snapshotSvgEmissionRecipe, svgValue as v, type SvgAttribute } from '../scene/svg-emission.ts'
+import { snapshotSvgEmissionRecipe, svgValue as v, type SvgAttribute, type SvgGroupEmission } from '../scene/svg-emission.ts'
 
 // ============================================================================
 // Pie chart SVG renderer
@@ -85,7 +85,7 @@ const TITLE_EMISSIONS = [false, true].map(literal => snapshotSvgEmissionRecipe({
   ...textAttributes('pie-title'), { name: 'letter-spacing', value: v.text('letterSpacing'), omit: 'zero' },
   ...(literal ? [{ name: 'data-literal-text' as const, value: v.meta(true) }] : []),
 ] }))
-const HOVER_GROUP_EMISSION = snapshotSvgEmissionRecipe({ kind: 'group', attributes: [{ name: 'class', value: v.meta('pie-slice-group') }] })
+const HOVER_GROUP_EMISSION = snapshotSvgEmissionRecipe({ kind: 'group', attributes: [{ name: 'class', value: v.meta('pie-slice-group') }] }) as SvgGroupEmission
 const HOVER_EMISSIONS = [false, true].map(highlight => snapshotSvgEmissionRecipe({ kind: 'primitive', close: '/>', attributes: [
   { name: 'd', value: v.geometry('d') }, { name: 'fill', value: v.paint('fill') },
   ...(highlight ? [

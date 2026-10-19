@@ -27,7 +27,7 @@ import type { InternalStyleFace } from '../scene/style-registry.ts'
 import { categoricalPalette } from '../shared/categorical-palette.ts'
 import { hexToHsl, hslToHex, isDarkBackground } from '../xychart/colors.ts'
 import { isHexColor, legibleInk, mixHex, tryParseCssColor, wcagCssContrastRatio } from '../shared/color-math.ts'
-import { snapshotSvgEmissionRecipe, svgValue as v, type SvgAttribute, type SvgEmissionRecipe, type SvgGeometryField } from '../scene/svg-emission.ts'
+import { snapshotSvgEmissionRecipe, svgValue as v, type SvgAttribute, type SvgGroupEmission, type SvgEmissionRecipe, type SvgGeometryField } from '../scene/svg-emission.ts'
 import {
   projectConnectorPath,
   type ConnectorPathProjection,
@@ -101,8 +101,8 @@ const MOUTH_EMISSION = primitive('journey-face-mouth', ['d'])
 const GUIDE_GROUP_EMISSION = snapshotSvgEmissionRecipe({ kind: 'group', attributes: [
   { name: 'class', value: v.meta('journey-score-guide') },
   { name: 'data-score-min', value: v.meta(1) }, { name: 'data-score-max', value: v.meta(5) },
-] })
-const LEGEND_GROUP_EMISSION = snapshotSvgEmissionRecipe({ kind: 'group', attributes: [{ name: 'class', value: v.meta('journey-actor-legend') }] })
+] }) as SvgGroupEmission
+const LEGEND_GROUP_EMISSION = snapshotSvgEmissionRecipe({ kind: 'group', attributes: [{ name: 'class', value: v.meta('journey-actor-legend') }] }) as SvgGroupEmission
 function textAttributes(className: string): SvgAttribute[] {
   return [
     { name: 'class', value: v.meta(className) }, { name: 'text-anchor', value: v.text('anchor') },

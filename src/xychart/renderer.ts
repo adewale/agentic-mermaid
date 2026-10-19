@@ -12,7 +12,7 @@ import * as marks from '../scene/marks.ts'
 import { DefaultBackend } from '../scene/backend.ts'
 import { tooltipArtwork, tooltipCss } from '../shared/svg-tooltip.ts'
 import { resolveRoleStyle, type InternalStyleFace } from '../scene/style-registry.ts'
-import { snapshotSvgEmissionRecipe, svgValue as v, type SvgAttribute, type SvgEmissionRecipe, type SvgGeometryField } from '../scene/svg-emission.ts'
+import { snapshotSvgEmissionRecipe, svgValue as v, type SvgAttribute, type SvgGroupEmission, type SvgEmissionRecipe, type SvgGeometryField } from '../scene/svg-emission.ts'
 
 // ============================================================================
 // XY Chart SVG renderer
@@ -58,9 +58,9 @@ const LEGEND_DOT_EMISSION = primitive(CIRCLE_FIELDS, [
   { name: 'class', value: v.meta('xychart-legend-dot') }, { name: 'fill', value: v.paint('fill') },
   { name: 'stroke', value: v.paint('stroke') }, { name: 'stroke-width', value: v.paint('strokeWidth') },
 ])
-const BAR_GROUP_EMISSION = snapshotSvgEmissionRecipe({ kind: 'group', attributes: [{ name: 'class', value: v.meta('xychart-bar-group') }] })
-const DOT_GROUP_EMISSION = snapshotSvgEmissionRecipe({ kind: 'group', attributes: [{ name: 'class', value: v.meta('xychart-dot-group') }] })
-const LEGEND_GROUP_EMISSION = snapshotSvgEmissionRecipe({ kind: 'group', attributes: [{ name: 'class', value: v.meta('xychart-legend') }] })
+const BAR_GROUP_EMISSION = snapshotSvgEmissionRecipe({ kind: 'group', attributes: [{ name: 'class', value: v.meta('xychart-bar-group') }] }) as SvgGroupEmission
+const DOT_GROUP_EMISSION = snapshotSvgEmissionRecipe({ kind: 'group', attributes: [{ name: 'class', value: v.meta('xychart-dot-group') }] }) as SvgGroupEmission
+const LEGEND_GROUP_EMISSION = snapshotSvgEmissionRecipe({ kind: 'group', attributes: [{ name: 'class', value: v.meta('xychart-legend') }] }) as SvgGroupEmission
 const AXIS_EMISSIONS = ['x', 'y'].map(axis => ({
   line: primitive(LINE_FIELDS, [{ name: 'class', value: v.meta(`xychart-axis-line xychart-${axis}-axis-line`) }, { name: 'stroke-width', value: v.paint('strokeWidth') }]),
   tick: primitive(LINE_FIELDS, [{ name: 'class', value: v.meta(`xychart-tick xychart-${axis}-tick`) }, { name: 'stroke-width', value: v.paint('strokeWidth') }]),

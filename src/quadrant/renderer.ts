@@ -9,7 +9,7 @@ import { DefaultBackend } from '../scene/backend.ts'
 import { tooltipArtwork, tooltipCss } from '../shared/svg-tooltip.ts'
 import { buildAccessibilityAttrs } from '../shared/svg-a11y.ts'
 import { hashId } from '../scene/seed.ts'
-import { snapshotSvgEmissionRecipe, svgValue as v, type SvgAttribute, type SvgEmissionRecipe, type SvgGeometryField } from '../scene/svg-emission.ts'
+import { snapshotSvgEmissionRecipe, svgValue as v, type SvgAttribute, type SvgGroupEmission, type SvgEmissionRecipe, type SvgGeometryField } from '../scene/svg-emission.ts'
 
 function primitive(className: string | undefined, geometry: readonly SvgGeometryField[], extra: readonly SvgAttribute[] = [], close: ' />' | '/>' = ' />'): SvgEmissionRecipe {
   return snapshotSvgEmissionRecipe({ kind: 'primitive', close, attributes: [
@@ -23,7 +23,7 @@ const DIVIDER_EMISSION = primitive('quadrant-divider', LINE_FIELDS)
 const BORDER_EMISSION = primitive('quadrant-border', RECT_FIELDS, [{ name: 'fill', value: v.paint('fill') }])
 const LEADER_EMISSION = primitive('quadrant-leader', LINE_FIELDS)
 const HIT_EMISSION = primitive(undefined, ['cx', 'cy', 'r'], [{ name: 'fill', value: v.paint('fill') }], '/>')
-const HOVER_EMISSION = snapshotSvgEmissionRecipe({ kind: 'group', attributes: [{ name: 'class', value: v.meta('quadrant-point-group') }] })
+const HOVER_EMISSION = snapshotSvgEmissionRecipe({ kind: 'group', attributes: [{ name: 'class', value: v.meta('quadrant-point-group') }] }) as SvgGroupEmission
 
 function textAttributes(className: string, baseline = true): SvgAttribute[] {
   return [
