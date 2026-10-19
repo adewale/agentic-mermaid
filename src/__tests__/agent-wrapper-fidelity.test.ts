@@ -19,7 +19,7 @@ import { describe, expect, test } from 'bun:test'
 import { spawnSync } from 'node:child_process'
 import { join } from 'node:path'
 import {
-  parseRegisteredMermaid as parseMermaid, serializeMermaid, verifyMermaid, mutate, asFlowchart,
+  parseRegisteredMermaid as parseMermaid, serializeMermaid, verifyMermaid, mutate, asFlowchart, renderMermaidSVG,
 } from '../agent/index.ts'
 
 const FM_NESTED = '---\nconfig:\n  layout: elk\n  look: handDrawn\n---\nflowchart TD\n  A --> B'
@@ -149,6 +149,39 @@ describe('wrapper fidelity (1C): verbatim round-trip by default', () => {
       expect(next.value.canonicalSource.slice(wrapperSpan.start.offset, wrapperSpan.end.offset))
         .toBe(next.value.meta.wrapperSource ?? '')
     }
+  })
+})
+
+describe('wrapper fidelity (1C): a parsed or edited diagram renders under its wrapper', () => {
+  test('a parsed diagram draws what its source draws, config wrapper included', () => {
+    for (const source of [
+      COMBO,
+      '%%{init: {"flowchart": {"rankSpacing": 300}}}%%\nflowchart LR\n  A --> B',
+      '---\nconfig:\n  theme: forest\n---\nclassDiagram\n  class A',
+      '%%{init: {"theme": "dark"}}%%\narchitecture-beta\n  service a(server)[A]',
+      'flowchart LR\n%%{init: {"theme": "dark"}}%%\n  A --> B',
+    ]) {
+      const p = parseMermaid(source)
+      if (!p.ok) throw new Error(`parse failed: ${source}`)
+      expect({ source, same: renderMermaidSVG(p.value) === renderMermaidSVG(source) }).toEqual({ source, same: true })
+    }
+  })
+
+  test('an edited diagram draws what its saved source draws', () => {
+    // A regression guard: an edited body already carries its wrapper, which
+    // the render source must not add twice.
+    const p = parseMermaid(COMBO)
+    if (!p.ok) throw new Error('parse failed')
+    const next = mutate(asFlowchart(p.value)!, { kind: 'add_node', id: 'C', label: 'Cache' })
+    if (!next.ok) throw new Error('mutation failed')
+    expect(renderMermaidSVG(next.value)).toBe(renderMermaidSVG(serializeMermaid(next.value)))
+  })
+
+  test('verify refuses a parsed diagram whose wrapper render refuses', () => {
+    const styled = parseMermaid('%%{init: {"themeCSS": ".node rect { fill: red }"}}%%\nflowchart LR\n  A --> B')
+    if (!styled.ok) throw new Error('parse failed')
+    expect(() => renderMermaidSVG(styled.value)).toThrow(/themeCSS/)
+    expect(verifyMermaid(styled.value).warnings.map(w => w.code)).toContain('RENDER_FAILED')
   })
 })
 

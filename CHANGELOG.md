@@ -22,6 +22,17 @@ This changelog tracks user-facing changes for **Agentic Mermaid**, a fork of `lu
 
 ### Fixed
 
+- A parsed diagram drawn from its canonical body (Flowchart, Timeline, Class,
+  ER, Journey, Architecture, any source-preserved body, and extension families
+  that render canonically) renders, lays out and verifies under its authored
+  config wrapper (frontmatter title and config, `%%{init}%%` directives), as
+  its source and its serialized output do (an edited diagram already did).
+  `renderMermaidSVG(parsed)`, `layoutMermaid(parsed)` and
+  `verifyMermaid(parsed)` used to drop that wrapper for a freshly parsed
+  diagram, losing the title, theme and spacing the saved source would draw.
+  `renderMermaidWithActions` takes its target regions from that layout, so
+  under a frontmatter title they sat a title band above the targets the
+  output draws, for a source string too; they now cover them.
 - Font families may be double-quoted, as Mermaid's own default
   `"trebuchet ms", verdana, arial, sans-serif` is: the font option,
   `fontFamily` config, theme variables, Journey font config, style-role fonts
