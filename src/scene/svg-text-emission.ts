@@ -4,7 +4,7 @@ import { HAS_FORMAT_TAGS } from '../shared/inline-format.ts'
 import type { PixelTextBlock } from '../shared/prepared-text.ts'
 import { LINE_HEIGHT_RATIO } from '../text-metrics.ts'
 import type { TextMark } from './ir.ts'
-import { writeSvgAttributes, type SvgTextEmission } from './svg-emission.ts'
+import { projectSvgCoordinate, writeSvgAttributes, type SvgTextEmission } from './svg-emission.ts'
 import type { SvgWriter } from './svg-writer.ts'
 import { writeSvgTextWhitespace } from './svg-text-whitespace.ts'
 
@@ -91,10 +91,12 @@ export function writeSceneText(node: TextMark, recipe: SvgTextEmission, writer: 
   const visible = prepared.lineBlocks.map(line => line.runs.map(run => run.text).join('')).join('\n')
   const native = !!block && block.lineBlocks.some(line => line.runs.some(run => /[^\x20-\x7e]/u.test(run.text)))
   const fragmented = !!block && (block.letterSpacing !== 0 || native)
+  const x = projectSvgCoordinate(node.x, recipe.positionFormat)
+  const y = projectSvgCoordinate(node.y, recipe.positionFormat)
   const has = (name: string) => recipe.attributes.some(attribute => attribute.name === name)
   writer.write('<text')
-  writer.attribute('x', String(node.x))
-  writer.attribute('y', String(node.y))
+  writer.attribute('x', String(x))
+  writer.attribute('y', String(y))
   writeSvgAttributes(node, recipe.attributes, writer)
   if (node.display === 'literal' && HAS_FORMAT_TAGS.test(node.text) && !has('data-literal-text')) writer.write(' data-literal-text="true"')
   if (/(?:^ | $| {2}|\t)/m.test(visible) && !has('xml:space')) writer.write(' xml:space="preserve"')
@@ -113,7 +115,7 @@ export function writeSceneText(node: TextMark, recipe: SvgTextEmission, writer: 
         writeSvgAttributes(node, span.attributes, writer)
         writer.write('>'); writer.text(node.text.slice(span.start, span.end)); writer.write('</tspan>')
       }
-    } else if (block) writePreparedLine(block, index, node.x, node.anchor, writer, baseline)
+    } else if (block) writePreparedLine(block, index, x, node.anchor, writer, baseline)
     else writeRuns(prepared.lineBlocks[index]!.runs, 400, writer)
   }
   const shift = node.fontSize * (recipe.baselineShift ?? 0.35)
@@ -121,7 +123,7 @@ export function writeSceneText(node: TextMark, recipe: SvgTextEmission, writer: 
     if (native) {
       tail()
       writer.write('>')
-      line(0, node.y + shift)
+      line(0, y + shift)
     } else {
       writer.attribute('dy', String(shift))
       advance(0)
@@ -136,8 +138,8 @@ export function writeSceneText(node: TextMark, recipe: SvgTextEmission, writer: 
     const first = -((lines.length - 1) / 2) * height + shift
     for (let index = 0; index < lines.length; index++) {
       writer.write('<tspan')
-      writer.attribute('x', String(node.x))
-      writer.attribute(native ? 'y' : 'dy', String(native ? node.y + first + index * height : index === 0 ? first : height))
+      writer.attribute('x', String(x))
+      writer.attribute(native ? 'y' : 'dy', String(native ? y + first + index * height : index === 0 ? first : height))
       advance(index)
       writer.write('>')
       line(index)

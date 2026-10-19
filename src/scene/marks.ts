@@ -46,7 +46,7 @@ import {
   sceneNodeSerialization,
 } from './serialization.ts'
 
-import { snapshotSvgEmissionRecipe, type SvgEmissionRecipe, type SvgGroupEmission } from './svg-emission.ts'
+import { projectSvgCoordinate, snapshotSvgEmissionRecipe, type SvgEmissionRecipe, type SvgGroupEmission } from './svg-emission.ts'
 import { decorateEmission, emissionAttribute, emissionIdentity, firstEmission } from './svg-mark-emission.ts'
 
 export function shape(fields: {
@@ -601,7 +601,7 @@ export function text(fields: {
       const lineHeight = block?.lineHeight ?? fields.fontSize * LINE_HEIGHT_RATIO
       const firstDy = (count === 1 ? 0 : -((count - 1) / 2) * lineHeight) + fields.fontSize * (first.baselineShift ?? 0.35)
       const native = block && /[^\x20-\x7e]/u.test(block.lineBlocks.map(line => line.runs.map(run => run.text).join('')).join(''))
-      renderedDy = native ? (fields.y + firstDy) - fields.y : firstDy
+      renderedDy = native ? (projectSvgCoordinate(fields.y, first.positionFormat) + firstDy) - fields.y : firstDy
     }
     const offsetY = renderedDy + (measured.lines.length - 1) * measured.lineHeight / 2 - fields.fontSize * 0.35
     const identity = fields.identity ? { ...fields.identity, role: fields.role } : emissionIdentity(crisp, fields)

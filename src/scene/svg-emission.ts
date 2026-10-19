@@ -39,7 +39,7 @@ export type SvgValue =
   | { readonly source: 'accessibility'; readonly field: 'label' | 'role' | 'roleDescription' }
   | { readonly source: 'connector'; readonly field: SvgConnectorField }
   | { readonly source: 'channel'; readonly field: SemanticChannelName }
-  | { readonly source: 'transform' }
+  | { readonly source: 'transform'; readonly separator?: 'space' | 'comma' }
   | { readonly source: 'marker'; readonly position: 'start' | 'mid' | 'end' }
   | { readonly source: 'connectorLabel'; readonly index: number }
   | { readonly source: 'colorMix'; readonly primary: SvgValue; readonly secondary: SvgValue; readonly amount: number }
@@ -114,6 +114,7 @@ export interface SvgTextEmission {
   readonly spans?: readonly { readonly start: number; readonly end: number; readonly attributes: readonly SvgAttribute[] }[]
   readonly content?: 'text' | 'source'
   readonly whitespace?: readonly SvgTextWhitespaceEdit[]
+  readonly positionFormat?: 'round2' | 'round3'
 }
 
 export interface SvgStylesheetEmission {
@@ -213,12 +214,16 @@ function geometryOf(node: SceneNode, piece?: number): Exclude<Geometry, { kind: 
   return selected
 }
 
+export function projectSvgCoordinate(value: number, format?: 'round2' | 'round3'): number {
+  const scale = format === 'round2' ? 100 : format === 'round3' ? 1000 : undefined
+  return scale === undefined ? value : Math.round(value * scale) / scale
+}
+
 function numberString(value: number, format: SvgNumberFormat | undefined): string {
   if (!Number.isFinite(value)) throw new TypeError('SVG numbers must be finite')
   if (format === 'percent1') return formatPercent1(value)
   if (format !== undefined && format !== 'exact' && format !== 'round2' && format !== 'round3') throw new TypeError('Unsupported SVG number format')
-  const scale = format === 'round2' ? 100 : format === 'round3' ? 1000 : undefined
-  return String(scale === undefined ? value : Math.round(value * scale) / scale)
+  return String(projectSvgCoordinate(value, format === 'exact' ? undefined : format))
 }
 
 /** Resolve only declared semantic fields; no caller-selected property paths. */
@@ -260,7 +265,7 @@ export function svgEmissionValue(node: SceneNode, value: SvgValue, recipe?: SvgP
     }
     case 'accessibility': return node.accessibility?.[value.field]
     case 'channel': return node.channels?.[value.field]
-    case 'transform': return node.transform ? serializeTransform(node.transform) : undefined
+    case 'transform': return node.transform ? serializeTransform(node.transform, value.separator) : undefined
     case 'marker': {
       if (node.kind !== 'connector') return undefined
       const marker = value.position === 'mid' ? node.markers.mid[0] : node.markers[value.position]
@@ -565,7 +570,7 @@ export function validateSvgEmissionRecipe(recipe: SvgEmissionRecipe): void {
     oneOf(item.kind, ['shadow'], false); optionalBoolean(item.wrap); colors(item.colors)
   }
   const projection = (value: unknown): void => {
-    const item = object(value, ['source', 'field', 'piece', 'value', 'declarations', 'position', 'index', 'primary', 'secondary', 'amount'])
+    const item = object(value, ['source', 'field', 'piece', 'value', 'declarations', 'position', 'index', 'primary', 'secondary', 'amount', 'separator'])
     const source = item.source
     if (source === 'colorMix') {
       object(value, ['source', 'primary', 'secondary', 'amount'])
@@ -622,7 +627,7 @@ export function validateSvgEmissionRecipe(recipe: SvgEmissionRecipe): void {
       optionalNumber(typeof item.value === 'number' ? item.value : undefined)
       return
     }
-    if (source === 'transform') { object(value, ['source']); return }
+    if (source === 'transform') { object(value, ['source', 'separator']); oneOf(item.separator, ['space', 'comma']); return }
     object(value, source === 'geometry' || source === 'paint' ? ['source', 'field', 'piece'] : ['source', 'field'])
     index(item.piece)
     switch (source) {
@@ -666,7 +671,7 @@ export function validateSvgEmissionRecipe(recipe: SvgEmissionRecipe): void {
   }
   const visit = (value: unknown, depth: number): void => {
     if (depth > 64) throw new RangeError('SVG recipe exceeds depth budget')
-    const item = object(value, ['kind', 'piece', 'attributes', 'tailAttributes', 'close', 'pieces', 'prefix', 'layout', 'baselineShift', 'dy', 'spans', 'content', 'whitespace', 'width', 'height', 'colors', 'transparent', 'font', 'hasMonoFont', 'widthAttribute', 'heightAttribute', 'extraStyle', 'children', 'join', 'resources', 'indent', 'emptyLine', 'element', 'text', 'domId', 'css'])
+    const item = object(value, ['kind', 'piece', 'attributes', 'tailAttributes', 'close', 'pieces', 'prefix', 'layout', 'baselineShift', 'dy', 'spans', 'content', 'whitespace', 'positionFormat', 'width', 'height', 'colors', 'transparent', 'font', 'hasMonoFont', 'widthAttribute', 'heightAttribute', 'extraStyle', 'children', 'join', 'resources', 'indent', 'emptyLine', 'element', 'text', 'domId', 'css'])
     if (seen.has(item)) return
     seen.add(item)
     switch (item.kind) {
@@ -686,7 +691,7 @@ export function validateSvgEmissionRecipe(recipe: SvgEmissionRecipe): void {
         if (item.prefix !== undefined) for (const value of array(item.prefix)) documentText(value)
         return
       case 'text':
-        object(item, ['kind', 'attributes', 'tailAttributes', 'layout', 'baselineShift', 'dy', 'spans', 'content', 'whitespace']); attributes(item.attributes)
+        object(item, ['kind', 'attributes', 'tailAttributes', 'layout', 'baselineShift', 'dy', 'spans', 'content', 'whitespace', 'positionFormat']); attributes(item.attributes)
         if (item.tailAttributes !== undefined) attributes(item.tailAttributes)
         if (item.spans !== undefined) for (const value of array(item.spans)) {
           const span = object(value, ['start', 'end', 'attributes'])
@@ -696,6 +701,8 @@ export function validateSvgEmissionRecipe(recipe: SvgEmissionRecipe): void {
         }
         oneOf(item.layout, ['multiline', 'direct'], false); optionalNumber(item.baselineShift)
         oneOf(item.content, ['text', 'source'])
+        oneOf(item.positionFormat, ['round2', 'round3'])
+        if (item.positionFormat !== undefined && item.layout !== 'multiline') throw new TypeError('Projected text coordinates require multiline emission')
         if (item.spans !== undefined && item.layout !== 'multiline') throw new TypeError('Syntax spans require multiline text emission')
         if ((item.whitespace !== undefined || item.content === 'source') && item.layout !== 'direct') throw new TypeError('Source whitespace requires direct literal text emission')
         if (item.whitespace !== undefined) for (const value of array(item.whitespace)) {
