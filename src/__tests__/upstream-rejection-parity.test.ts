@@ -310,6 +310,13 @@ const FLOWCHART_READ_GENEROUSLY: ReadonlyArray<GenerousRow> = [
   ['a style line\'s last `;` before a link', 'flowchart LR\n  style A color:#fff;A-->B', '>B<', 'flowchart_entity_semicolon', 2],
 ]
 
+// Flowchart labels whose text Mermaid reads otherwise than as written:
+// its text joins a leading string to the text after it (`"a" b` is `a b`).
+// [construct, source]
+const FLOWCHART_LABELS: ReadonlyArray<readonly [string, string]> = [
+  ['a string then text in shape, pipe, text-arrow and subgraph labels', 'flowchart LR\n  A["a" b] -->|"c" d| B -- "e" f --> C\n  subgraph S["g" h]\n    A\n  end\n  subgraph "i"j\n    B\n  end'],
+]
+
 // Flowchart source Mermaid accepts but reads otherwise than its author meant.
 // [construct, source, Mermaid's nodes, ours, text the render draws, syntax verify reports, its line]
 const FLOWCHART_READ_OTHERWISE: ReadonlyArray<readonly [string, string, readonly string[], readonly string[], string, string, number]> = [
@@ -390,7 +397,8 @@ const ACCEPTED: ReadonlyArray<readonly [BuiltinFamilyId, string, string]> = [
   // The render path decodes `&quot;` before it reads the lines, so the
   // label begins with a `"` that no later line closes.
   ['flowchart', 'labels beginning with an entity quote that run across lines', 'flowchart LR\n  A[&quot;x\n  y] --> B\n  subgraph S[&quot;t\n  u]\n    C\n  end'],
-  ['flowchart', '`;` after colors and entity codes Mermaid reads as we do','flowchart LR\n  A[#quot;x#quot;] --> B;C\n  style A fill:#f00;\n  classDef c fill:#f9f,stroke:#333;\n  style B fill:#fff ;style C fill:#000;'],
+  ...FLOWCHART_LABELS.map(([construct, source]) => ['flowchart', construct, source] as const),
+  ['flowchart', '`;` after colors and entity codes Mermaid reads as we do', 'flowchart LR\n  A[#quot;x#quot;] --> B;C\n  style A fill:#f00;\n  classDef c fill:#f9f,stroke:#333;\n  style B fill:#fff ;style C fill:#000;'],
   ['flowchart', 'subgraph titles of letters, digits and the punctuation Mermaid reads unquoted, and a quoted one',"flowchart LR\n  subgraph a.-b!#$%&'*+/:?^_`x\n    A\n  end\n  subgraph \"a(b)\"\n    B\n  end\n  subgraph 東京 Ελλάδα\n    C\n  end"],
   ['flowchart', 'delimiters inside quoted labels and trapezoid text, and parentheses in a text-arrow label','flowchart LR\n  A["a (b) c"] -->|"x [y]"| B[/a | b "c"/]\n  A -- a (b) --> C["a" ]\n  subgraph S["x (y)"]\n    C\n  end'],
 ]
@@ -527,6 +535,21 @@ describe('accessibility directives without their colon', () => {
 })
 
 describe('accept what pinned Mermaid accepts', () => {
+  test.each(FLOWCHART_LABELS)('flowchart: %s are read as Mermaid reads them', async (_construct, source) => {
+    const mermaid = await upstream.parse(source)
+    const read = mermaid.ok ? mermaid.flowchart : undefined
+    const graph = parseMermaid(source)
+    expect({
+      nodes: [...graph.nodes.values()].map(node => [node.id, node.label]),
+      edges: graph.edges.map(edge => edge.label ?? ''),
+      groups: graph.subgraphs.map(group => [group.id, group.label]),
+    }).toEqual({
+      nodes: read?.vertices.map(vertex => [vertex.id, vertex.text]) ?? [],
+      edges: read?.edges.map(edge => edge.text) ?? [],
+      groups: read?.subgraphs.map(group => [group.id, group.title]) ?? [],
+    })
+  })
+
   test.each(ACCEPTED)('%s: %s is accepted, as Mermaid accepts it', async (family, _construct, source) => {
     expect({ mermaid: (await upstream.parse(source)).ok, ...ours(source) })
       .toEqual({ mermaid: true, typed: family, error: undefined })

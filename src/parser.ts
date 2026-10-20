@@ -1,7 +1,7 @@
 import { scanStateComments } from './state/comment.ts'
 import { readStateLabel, readStateText } from './state/text.ts'
 import type { LabelContent } from './shared/display-text.ts'
-import { parseFlowchartLabel } from './flowchart-labels.ts'
+import { parseFlowchartLabel, unquoteFlowchartLabel } from './flowchart-labels.ts'
 import { normalizeV11Shape } from './flowchart-shapes.ts'
 import { normalizeBrTags } from './multiline-utils.ts'
 import { assertDiagramWorkLimit } from './shared/diagram-limits.ts'
@@ -153,7 +153,7 @@ function parseFlowchartSubgraphDeclaration(rest: string): Pick<MermaidSubgraph, 
   // Identity comes from the logical source spelling, before display decoding.
   // Two titles can paint identically without naming the same container. A
   // markdown string's identity is its text, as upstream's id is.
-  const unquoted = rest.replace(/^"([\s\S]*)"$/, '$1').trim()
+  const unquoted = unquoteFlowchartLabel(rest).trim()
   const identity = unquoted !== rest && /^`[\s\S]*`$/.test(unquoted) ? unquoted.slice(1, -1).trim() : unquoted
   // A title that is one node id (`a.b`, `**Two**`) is the subgraph's id, as
   // upstream reads it there, so a link to that id ends at the subgraph.
