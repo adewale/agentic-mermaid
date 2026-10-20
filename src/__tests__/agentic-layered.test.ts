@@ -183,6 +183,28 @@ describe('owned measured layered layout', () => {
     expect(countOpposingRouteOverlaps(routes)).toBe(0)
   })
 
+  test('owns shared routing only for complete, unlabelled fan nets', () => {
+    const input = measured({ shareCompleteFans: true, nodes: ['\0agentic-fan:0', 'b', 'c', 'd'].map(id => ({ id, width: 80, height: 40 })), edges: [
+      { source: 0, target: 2, minSpan: 1 }, { source: 0, target: 3, minSpan: 1 },
+      { source: 1, target: 2, minSpan: 1 }, { source: 1, target: 3, minSpan: 1 },
+    ] })
+    const original = structuredClone(input), shared = layoutAgenticGraph(input)
+    expect(shared.nodes).toHaveLength(4)
+    expect(shared.edges).toHaveLength(4)
+    expect(shared.sharedEdges).toEqual([0, 1, 2, 3])
+    expect(shared.edges[0]!.points[0]).toEqual(shared.edges[1]!.points[0])
+    expect(shared.edges[0]!.points[0]).not.toBe(shared.edges[1]!.points[0])
+    expect(input).toEqual(original)
+    for (const edges of [input.edges.slice(0, 3), [...input.edges, input.edges[0]!],
+      input.edges.map((edge, index) => index === 0 ? { ...edge, label: { width: 80, height: 20 } } : edge),
+      input.edges.map((edge, index) => index === 0 ? { ...edge, minSpan: 2 } : edge)]) {
+      const result = layoutAgenticGraph({ ...input, edges })
+      expect(result.nodes).toHaveLength(4)
+      expect(result.edges).toHaveLength(edges.length)
+      expect(result.sharedEdges).toBeUndefined()
+    }
+  })
+
   test('bounds local rank and dummy work before expanding a large minimum span', () => {
     expect(() => layoutAgenticGraph(measured({ edges: [{ source: 0, target: 1, minSpan: 1000000 }] })))
       .toThrow(GraphLayoutUnsupportedError)

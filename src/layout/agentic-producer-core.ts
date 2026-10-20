@@ -47,12 +47,19 @@ export function layoutNativeGraphCandidate(
       const block = edge.label ? graphTextBlock(resolveLabelContent(edge.label, edge.labelContent), style, 'edge') : undefined
       return { source, target, minSpan: edge.length ?? 1, ...(block ? { label: { width: block.width + 2 * LABEL_PILL_PADDING, height: block.height + 2 * LABEL_PILL_PADDING } } : {}) }
     })
-    return { nodes, groups, edges, direction: graph.direction, padding: opts.padding, nodeSpacing: opts.nodeSpacing, layerSpacing: opts.layerSpacing, edgeSpacing: Math.max(6, style.lineWidth + 4) }
+    const shareCompleteFans = !options.stateVisual && !groups.length && [...graph.nodes.values()].every(node => node.shape === 'rectangle' && !node.semanticShape)
+      && graph.edges.every((edge, index) => {
+        if (edge.label || edge.style !== 'solid' || edge.hasArrowStart || !edge.hasArrowEnd || (edge.endMarker && edge.endMarker !== 'arrow')) return false
+        const inline = resolveEdgeInlineStyle(index, graph)
+        return !inline || Object.keys(inline).length === 0
+      })
+    return { nodes, groups, edges, shareCompleteFans, direction: graph.direction, padding: opts.padding, nodeSpacing: opts.nodeSpacing, layerSpacing: opts.layerSpacing, edgeSpacing: Math.max(6, style.lineWidth + 4) }
   })
   const geometry = measureRenderStage('agentic', () => layoutAgenticGraph(measured))
   // Missing subjects or non-finite geometry are engine defects, not an
   // eligibility refusal that can be concealed by running another producer.
   if (geometry.nodes.length !== measured.nodes.length || (geometry.groups?.length ?? 0) !== measured.groups.length || geometry.edges.length !== graph.edges.length || containsNonFiniteNumber(geometry)
+    || geometry.sharedEdges?.some(index => !Number.isInteger(index) || index < 0 || index >= graph.edges.length)
     || geometry.edges.some((edge, index) => edge.points.length < 2 || (measured.edges[index]!.label && !edge.labelPosition))) {
     throw new TypeError('Agentic graph producer returned malformed geometry')
   }
@@ -78,7 +85,7 @@ export function layoutNativeGraphCandidate(
   })
   // Forest fans use shared trunks. Layered placement reserves private label
   // corridors; generic bundling can move foreign routes into those corridors.
-  const positioned = finishGraphGeometry({ width: geometry.width, height: geometry.height, nodes, edges, groups }, graph, geometry.topology === 'forest', opts.padding, style, options.stateVisual?.noteMargin ?? 18).positioned
+  const positioned = finishGraphGeometry({ width: geometry.width, height: geometry.height, nodes, edges, groups }, graph, geometry.topology === 'forest', opts.padding, style, options.stateVisual?.noteMargin ?? 18, undefined, geometry.sharedEdges).positioned
   if (containsNonFiniteNumber(positioned)) throw new TypeError('Agentic graph pipeline returned non-finite geometry')
   return positioned
 }
