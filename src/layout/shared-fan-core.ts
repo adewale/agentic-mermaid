@@ -7,10 +7,9 @@ export function layoutSharedFan(
   input: MeasuredGraph,
   incoming: readonly (readonly number[])[],
   outgoing: readonly (readonly number[])[],
-  ids: ReadonlySet<string>,
-  layout: (input: MeasuredGraph) => AgenticLayout,
+  unsupported: (reason: string) => never,
 ): AgenticLayout | undefined {
-  if (!input.shareCompleteFans || input.commonPorts?.length || input.edges.some(edge => edge.label || edge.minSpan !== 1)) return undefined
+  if (!input.shareCompleteFans || input.edges.some(edge => edge.label || edge.minSpan !== 1)) return undefined
   const sources: number[] = [], targets: number[] = []
   for (let index = 0; index < input.nodes.length; index++) {
     if (!incoming[index]!.length && outgoing[index]!.length) sources.push(index)
@@ -27,23 +26,44 @@ export function layoutSharedFan(
     if (pairs.has(key)) return undefined
     pairs.add(key)
   }
-  let suffix = 0, id = '\0agentic-fan:0'
-  while (ids.has(id)) id = `\0agentic-fan:${++suffix}`
-  const hub = input.nodes.length
-  const placed = layout({ ...input, shareCompleteFans: false, commonPorts: [hub], layerSpacing: input.layerSpacing / 2,
-    nodes: [...input.nodes, { id, width: 1, height: 1 }],
-    edges: [...sources.map(source => ({ source, target: hub, minSpan: 1 })), ...targets.map(target => ({ source: hub, target, minSpan: 1 }))],
-  })
+  const horizontal = input.direction === 'LR' || input.direction === 'RL'
+  const reverse = input.direction === 'BT' || input.direction === 'RL'
+  const crossSize = (id: number): number => horizontal ? input.nodes[id]!.height : input.nodes[id]!.width
+  const mainSize = (id: number): number => horizontal ? input.nodes[id]!.width : input.nodes[id]!.height
+  const span = (band: number[]): number => band.reduce((sum, id) => sum + crossSize(id), 0) + (band.length - 1) * input.nodeSpacing
+  const sourceSpan = span(sources), targetSpan = span(targets), crossExtent = Math.max(sourceSpan, targetSpan)
+  const sourceHeight = Math.max(...sources.map(mainSize)), targetHeight = Math.max(...targets.map(mainSize))
+  const gap = Math.max(input.layerSpacing, 2 * Math.max(12, input.edgeSpacing ?? 6) + (input.edgeSpacing ?? 6))
+  const mainExtent = sourceHeight + gap + targetHeight
+  if (!Number.isFinite(mainExtent + crossExtent + 2 * input.padding)) unsupported('agentic local coordinate-range limit')
+  const crosses = new Float64Array(input.nodes.length), starts = new Float64Array(input.nodes.length)
+  for (const [band, size, start, height] of [[sources, sourceSpan, 0, sourceHeight], [targets, targetSpan, sourceHeight + gap, targetHeight]] as const) {
+    let offset = (crossExtent - size) / 2
+    for (const id of band) {
+      crosses[id] = offset + crossSize(id) / 2
+      starts[id] = start + (height - mainSize(id)) / 2
+      offset += crossSize(id) + input.nodeSpacing
+    }
+  }
+  const project = (cross: number, main: number): Point => horizontal
+    ? { x: input.padding + (reverse ? mainExtent - main : main), y: input.padding + cross }
+    : { x: input.padding + cross, y: input.padding + (reverse ? mainExtent - main : main) }
+  const nodes = input.nodes.map((_, id) => project(crosses[id]! - crossSize(id) / 2, starts[id]! + (reverse ? mainSize(id) : 0)))
   const edges = input.edges.map(edge => {
     const points: Point[] = []
-    for (const point of [...placed.edges[sourceSlots.get(edge.source)!]!.points, ...placed.edges[sources.length + targetSlots.get(edge.target)!]!.points]) {
+    const junction = crossExtent / 2, join = sourceHeight + gap / 3, fork = sourceHeight + 2 * gap / 3
+    for (const [cross, main] of [[crosses[edge.source]!, starts[edge.source]! + mainSize(edge.source)],
+      [crosses[edge.source]!, join], [junction, join], [junction, fork], [crosses[edge.target]!, fork], [crosses[edge.target]!, starts[edge.target]!]]) {
+      const point = project(cross!, main!)
       const last = points.at(-1), previous = points.at(-2)
       if (last?.x === point.x && last.y === point.y) continue
       if (previous && last && ((previous.x === last.x && last.x === point.x && (last.y - previous.y) * (point.y - last.y) >= 0)
         || (previous.y === last.y && last.y === point.y && (last.x - previous.x) * (point.x - last.x) >= 0))) points.pop()
-      points.push({ ...point })
+      points.push(point)
     }
     return { points }
   })
-  return { ...placed, topology: 'layered', nodes: placed.nodes.slice(0, hub), edges, sharedEdges: input.edges.map((_, index) => index) }
+  return { topology: 'layered', width: 2 * input.padding + (horizontal ? mainExtent : crossExtent),
+    height: 2 * input.padding + (horizontal ? crossExtent : mainExtent), nodes, edges,
+    expandedVertices: nodes.length, sharedEdges: input.edges.map((_, index) => index) }
 }
