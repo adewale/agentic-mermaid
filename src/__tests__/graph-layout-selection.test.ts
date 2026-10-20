@@ -285,7 +285,7 @@ describe('checked graph layout selection', () => {
 
   test.each([
     ['class', 'classDiagram\n class A\n class B\n A --> B'],
-    ['er', 'erDiagram\n A ||--o{ B : owns'],
+    ['er', 'erDiagram\nsubgraph Zone\n A\nend'],
     ['architecture', 'architecture-beta\n service a(server)[A]\n service b(server)[B]\n a:R --> L:b'],
   ])('never silently uses ELK for a strict Agentic %s request', (_family, source) => {
     expect(() => renderMermaidSVGWithReceipt(source, AGENTIC)).toThrow(GraphLayoutUnsupportedError)
