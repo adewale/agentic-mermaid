@@ -307,7 +307,7 @@ increase total edge span. Small cyclic scopes may compare deterministic
 feedback orientations and reversed initial node/edge orders using actual
 visible polyline crossings, then bends and area, retaining the earlier candidate
 on exact ties. This search has shared per-request limits of 128
-optional layouts, eight million point-pair scoring units, and separate routing
+optional layouts (at most twelve per cyclic scope), eight million point-pair scoring units, and separate routing
 work; optional declines retain the best feasible candidate. It cannot consume
 the mandatory routing budget of later scopes. No ELK result participates in
 candidate selection, and zero-crossing primary layouts skip the search.
@@ -649,3 +649,14 @@ not yield a citable post; that does not establish that nobody posted about it.
   [Mermaid authored grid proposal](https://github.com/mermaid-js/mermaid/issues/8401)
   and [Mermaid Dart indexed layout](https://github.com/orestesgaolin/mermaid/tree/f53b343b8fa5c30859223d623acde2da2f175a00/packages/mermaid_core/lib/src/vendor/dagre/src)
   supply algorithm and failure-case references, not Agentic acceptance oracles.
+
+Mermaid community reports also constrain adapter work: [nested wide headers
+#7901](https://github.com/mermaid-js/mermaid/issues/7901) remains open as of
+2026-10-20; the comparison fixtures include an adapted nested-header example.
+[Adjacent Class cardinality labels #8335](https://github.com/mermaid-js/mermaid/issues/8335)
+was closed on 2026-09-28 and shows why endpoint labels must reserve space
+against neighboring routes, beyond the main relationship label.
+[Cycle-strategy delivery #8172](https://github.com/mermaid-js/mermaid/issues/8172)
+was closed on 2026-10-04: preserving checked configuration across frontmatter,
+source and browser entry points matters independently of solver quality. These
+are upstream integration reports, not proof of defects in our retained ELK path.
