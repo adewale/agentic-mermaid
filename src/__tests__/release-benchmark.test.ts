@@ -1,7 +1,6 @@
 // Exercise the publication decision and scorecard math with controlled worker
 // observations. No clocks, npm registry or browser launch in these tests.
 import { describe, expect, test } from 'bun:test'
-import { spawnSync } from 'node:child_process'
 import { chmodSync, readFileSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { report, type EngineRun, type Group, type Input } from '../../eval/benchmark/release-bench.ts'
@@ -161,15 +160,22 @@ test('agent workload completes a verified edit and renders the original and adde
   expect(() => renderAgentEdit(dropsEdits, agentEditCase.source)).toThrow('requested or preserved facts were lost')
 })
 
-test('baseline resolution survives a changed latest tag across CLI retries', () => {
+test('baseline resolution survives a changed latest tag across CLI retries', async () => {
   const dir = temp.dir(), lock = join(dir, 'baseline.json'), registry = join(dir, 'registry.json'), npm = join(dir, 'npm')
   writeFileSync(npm, '#!/bin/sh\ncat "$FAKE_REGISTRY"\n')
   chmodSync(npm, 0o755)
   const integrity = 'sha512-YWJjZA=='
   writeFileSync(registry, JSON.stringify({ version: '0.4.1', 'dist.integrity': integrity }))
-  const invoke = () => spawnSync(process.execPath, [join(import.meta.dir, '../../eval/benchmark/release-baseline.ts'), 'latest', lock], { encoding: 'utf8', env: { ...process.env, PATH: `${dir}:${process.env.PATH}`, FAKE_REGISTRY: registry } })
-  expect(invoke().status).toBe(0)
+  const invoke = async () => {
+    const proc = Bun.spawn([process.execPath, join(import.meta.dir, '../../eval/benchmark/release-baseline.ts'), 'latest', lock], {
+      env: { ...process.env, PATH: `${dir}:${process.env.PATH}`, FAKE_REGISTRY: registry },
+      stdout: 'ignore', stderr: 'pipe', timeout: 10_000, killSignal: 'SIGKILL',
+    })
+    const [status, stderr] = await Promise.all([proc.exited, new Response(proc.stderr).text()])
+    return { status, stderr }
+  }
+  expect(await invoke()).toEqual({ status: 0, stderr: '' })
   writeFileSync(registry, JSON.stringify({ version: '0.4.2', 'dist.integrity': 'sha512-ZWZnaA==' }))
-  expect(invoke().status).toBe(0)
+  expect(await invoke()).toEqual({ status: 0, stderr: '' })
   expect(JSON.parse(readFileSync(lock, 'utf8'))).toEqual({ requested: 'latest', version: '0.4.1', integrity })
 })
