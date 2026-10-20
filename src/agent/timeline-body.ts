@@ -103,7 +103,7 @@ export function parseTimelineBody(lines: string[], accessibility: Accessibility 
       if (!validTimelineText(label, { allowColon: true })) return null
       currentSection = { id: `section-${sIdx++}`, label, periods: [] }
       body.sections.push(currentSection)
-      currentPeriod = undefined
+      // A continuation after it still extends the latest period (native parser).
       continue
     }
 

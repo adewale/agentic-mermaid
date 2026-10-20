@@ -329,6 +329,7 @@ const ACCEPTED: ReadonlyArray<readonly [BuiltinFamilyId, string, string]> = [
   ['mindmap', 'a blank line before a comment after the header', 'mindmap\n\n%% c\n  root\n\n    a'],
   ['sankey', 'spaces around fields, a non-ASCII comment and a tab ending the source', 'sankey\n%% café\n  Grid , Homes , 1\nGrid,"Shops, offices",2\t'],
   ['timeline', '"timelines" starting a period, and "timeline" in a title and an event', 'timeline\n  title timeline view\n  timelines : timeline'],
+  ['timeline', 'a continuation after a section header', 'timeline\n  2001 : Alpha\n  section Later\n  : Beta\n  2002 : Gamma'],
   ['timeline', 'a section on its own line, and "section" starting period labels', 'timeline\n  section 2020s\n  2021 : Launch\n  section : Beta\n  sections X : Gamma'],
   ['sequence', 'nested activations each deactivated once', 'sequenceDiagram\n  Alice->>+Bob: Hi\n  Alice->>+Bob: Again\n  Bob-->>-Alice: Hello\n  Bob-->>-Alice: Bye'],
   ['sequence', 'dashes, slashes, parentheses and spaces around participant IDs', 'sequenceDiagram\n  A-B->>C/D: x\n  E(1)->>F: y\n  Alice ->> Bob: z'],
@@ -489,6 +490,20 @@ describe('accept what pinned Mermaid accepts', () => {
     const ours = parsed.ok && parsed.value.body.kind === 'c4' ? parsed.value.body.elements.map(element => [element.label, element.description ?? '']) : []
     expect({ mermaid, differs: JSON.stringify(ours) !== JSON.stringify([fields]), ...readGenerously(source, '<svg') })
       .toEqual({ mermaid: { ok: true, value: [fields] }, differs: true, typed: 'c4', draws: true, reported: ['c4_argument_reading@2'] })
+  })
+
+  test('timeline: a continuation after a section header adds to the period before it, as Mermaid does', async () => {
+    const source = 'timeline\n  2001 : Alpha\n  section Later\n  : Beta\n  2002 : Gamma'
+    const mermaid = await upstream.project(source, diagram => ({
+      sections: diagram.db.getSections(),
+      periods: diagram.db.getTasks().map((task: { section: string; task: string; events: string[] }) => [task.section, task.task.trim(), task.events]),
+    }))
+    const parsed = parseRegisteredMermaid(source)
+    const body = parsed.ok && parsed.value.body.kind === 'timeline' ? parsed.value.body : undefined
+    expect({ mermaid, ours: body && {
+      sections: body.sections.flatMap(section => section.label === undefined ? [] : [section.label]),
+      periods: body.sections.flatMap(section => section.periods.map(period => [section.label ?? '', period.label, period.events.map(event => event.text)])),
+    } }).toEqual({ mermaid: { ok: true, value: { sections: ['Later'], periods: [['', '2001', ['Alpha', 'Beta']], ['Later', '2002', ['Gamma']]] } }, ours: { sections: ['Later'], periods: [['', '2001', ['Alpha', 'Beta']], ['Later', '2002', ['Gamma']]] } })
   })
 
   test('timeline: events on a section line after a period are reported, as Mermaid adds them to that period', async () => {
