@@ -1502,13 +1502,18 @@ function parseEdgeLine(
 
     // Admit the expansion before allocating any of its edges.
     assertDiagramWorkLimit('edges', graph.edges.length + prevGroupIds.length * nextGroup.ids.length)
-    // Emit Cartesian product of edges: every source × every target
+    // Emit Cartesian product of edges: every source × every target. Its edge
+    // id names one edge, as upstream's: the first from the last source to
+    // the first target (`A & B e1@--> C & D` names B→C).
+    let pendingId = edgeId
     for (const sourceId of prevGroupIds) {
       for (const targetId of nextGroup.ids) {
+        const id = sourceId === prevGroupIds.at(-1) && targetId === nextGroup.ids[0] ? pendingId : undefined
+        if (id !== undefined) pendingId = undefined
         graph.edges.push({
           source: sourceId,
           target: targetId,
-          ...(edgeId !== undefined ? { id: edgeId } : {}),
+          ...(id !== undefined ? { id } : {}),
           label: edgeLabel,
           ...(labelContent ? { labelContent } : {}),
           style,

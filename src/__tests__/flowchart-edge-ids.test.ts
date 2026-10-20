@@ -86,6 +86,21 @@ describe('flowchart edge IDs — parse', () => {
     } finally { upstream.close() }
   })
 
+  it('names one edge of a `&` product, as Mermaid does: the first from the last source to the first target', async () => {
+    const sources = ['flowchart LR\n  A & B e1@--> C & D', 'flowchart LR\n  A e1@-- t --> B & C', 'flowchart LR\n  A & A e1@==> C']
+    const upstream = startUpstreamMermaid()
+    try {
+      const named = (diagram: { db: { getEdges(): Array<{ start: string; end: string; id: string; isUserDefinedId?: boolean }> } }) => diagram.db.getEdges().map(edge => [edge.start, edge.end, edge.isUserDefinedId ? edge.id : ''])
+      const mermaid = await upstream.projectAll(sources, named)
+      expect(mermaid).toEqual([
+        [['A', 'C', ''], ['A', 'D', ''], ['B', 'C', 'e1'], ['B', 'D', '']],
+        [['A', 'B', 'e1'], ['A', 'C', '']],
+        [['A', 'C', 'e1'], ['A', 'C', '']],
+      ])
+      expect(sources.map(source => parseGraph(source).edges.map(edge => [edge.source, edge.target, edge.id ?? '']))).toEqual(mermaid)
+    } finally { upstream.close() }
+  })
+
   it('edges without an authored ID carry none', () => {
     expect(parseGraph('flowchart LR\n  A --> B').edges[0]!.id).toBeUndefined()
   })
