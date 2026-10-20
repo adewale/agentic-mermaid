@@ -9,7 +9,11 @@ import {
   EXACT_ROLE_STYLE_CONTRACT,
   type ExactRoleStyleContract,
   type RoleStyleSpec,
+  type RoleStyles,
 } from './role-style-contract.ts'
+import type { SemanticChannels } from './ir.ts'
+import type { SemanticBinding } from './style-spec.ts'
+import type { InternalStyleFace } from './style-registry.ts'
 
 export type CoreSceneRole =
   | 'node' | 'edge' | 'edge-label' | 'group' | 'group-header' | 'label'
@@ -213,4 +217,45 @@ export function resolveSceneRoleTraits(role: SceneRole): ResolvedSceneRoleTraits
 
 export function sceneRoleTraits(role: SceneRole): SceneRoleTraits {
   return resolveSceneRoleTraits(role).traits
+}
+
+type InternalRoleStyleLookup = Partial<Record<BuiltinSceneRole, Readonly<RoleStyleSpec>>>
+
+function roleStyleLookup(roles: RoleStyles | undefined): InternalRoleStyleLookup | undefined {
+  return roles as InternalRoleStyleLookup | undefined
+}
+
+export type SemanticBindingContext = Readonly<SemanticChannels>
+
+function bindingMatches(binding: SemanticBinding, context: SemanticBindingContext): boolean {
+  const candidate = context[binding.channel]
+  return Array.isArray(candidate) ? candidate.includes(binding.value) : String(candidate ?? '') === binding.value
+}
+
+/** Shared pre-serialization resolver. Exact role leaves and ordered semantic
+ * slots refine the deterministic fallback; family-authored values are applied
+ * afterwards by the lowering and therefore remain authoritative. */
+export function resolveRoleStyle(
+  face: Readonly<InternalStyleFace> | undefined,
+  role: BuiltinSceneRole,
+  context: SemanticBindingContext = {},
+  options: { readonly includeFallback?: boolean } = {},
+): Readonly<RoleStyleSpec> | undefined {
+  const descriptor = SCENE_ROLE_DESCRIPTORS.find(candidate => candidate.role === role)
+  const roles = roleStyleLookup(face?.roles)
+  const fallback = options.includeFallback === false
+    ? undefined
+    : descriptor ? roles?.[descriptor.style.fallbackRole] : undefined
+  const exact = roles?.[role]
+  let merged: RoleStyleSpec | undefined = fallback || exact ? { ...fallback, ...exact } : undefined
+  const applicable: ReadonlySet<string> = new Set(descriptor?.style.applicableProperties ?? [])
+  for (const binding of face?.bindings ?? []) {
+    if (binding.role !== undefined && binding.role !== role) continue
+    if (!bindingMatches(binding, context)) continue
+    const slot = face?.semanticSlots?.[binding.slot]
+    if (!slot) continue // final-stack admission makes this unreachable
+    const projected = Object.fromEntries(Object.entries(slot).filter(([property]) => applicable.has(property))) as RoleStyleSpec
+    merged = { ...merged, ...projected }
+  }
+  return merged ? Object.freeze(merged) : undefined
 }

@@ -2,9 +2,9 @@
   "schemaVersion": 1,
   "status": "approved",
   "artifact": "src/__tests__/testdata/section-b-brand-evidence.png",
-  "artifactSha256": "130a1f28d004859aecb3dec977fad890f6767d1497f9b2cd992a58a3656dd806",
-  "reviewedAt": "2026-10-19",
-  "reviewer": "Codex agent, stable-family implementation review",
-  "scope": "92 family-by-variant cells: reviewed the 24 newly enrolled Packet, Kanban, Requirement, Treemap, Ishikawa and Block cells at native 520x380 size in four 1560x1140 crop sheets. The prior 68 diagram-body crops are pixel-identical after aligning the new variant bands; six existing captions have small raster differences from their changed absolute sheet positions. Inspected domain geometry, complete labels, marker direction, nested areas, typography and light/dark palette contrast. This is agent review, not human approval, deployed-site parity or arbitrary input/font coverage.",
+  "artifactSha256": "bb9067a6dcb0ba78b5fc8d8de22a68696f823a110f5ef7500384e9dedc14faf4",
+  "reviewedAt": "2026-10-20",
+  "reviewer": "Codex agent, stable-family performance and contract follow-up review",
+  "scope": "92 family-by-variant cells: inspected all 24 Packet, Kanban, Requirement, Treemap, Ishikawa and Block cells at native 520x380 size in four 1560x1140 crop sheets. Twenty-one new-family cells changed; all 68 established-family cells and three Block holdout cells are pixel-identical. Reviewed role typography, padding, corners, compartment and area preservation, marker direction, complete labels and automatic contrast across sentinel, editorial, technical and dark operations variants. This is agent review, not human approval, deployed-site parity or arbitrary input/font coverage.",
   "audit": "eval/section-b-brand-evidence/stable-families-review.md"
 }

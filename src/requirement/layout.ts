@@ -1,6 +1,7 @@
 import type { ElkExtendedEdge, ElkNode } from 'elkjs'
 import { elkLayoutSync } from '../elk-instance.ts'
-import { type InternalStyleFace, resolveRoleStyle } from '../scene/style-registry.ts'
+import { resolveRoleStyle } from '../scene/roles.ts'
+import type { InternalStyleFace } from '../scene/style-registry.ts'
 import { assertRequirementDiagramWork } from '../shared/diagram-limits.ts'
 import { preparePixelText } from '../shared/prepared-text.ts'
 import { checkedAuthoredStyle, parseStyleProps } from '../shared/style-props.ts'
