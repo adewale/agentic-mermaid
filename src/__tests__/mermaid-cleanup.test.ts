@@ -8,12 +8,11 @@ describe('shared Mermaid cleanup receipt', () => {
     const source = 'flowchart LR\n  A[Hello] --> B'
     const receipt = cleanupMermaidSource(source)
     expect(receipt.text).toBe(source)
-    expect(receipt.decodedText).toBe(source)
+    expect(receipt.payloadText).toBe(source)
     expect(receipt.upstreamText).toBe(source)
     expect(receipt.prepassedText).toBe(source)
     expect(receipt.changes).toEqual([])
     expect(receipt.mappings).toEqual([])
-    expect(receipt.decodedMappings).toBe(receipt.mappings)
     expect(originalMermaidRange(receipt, 15, 23)).toEqual({ start: 15, end: 23 })
     expect(Object.isFrozen(receipt)).toBe(true)
     expect(Object.isFrozen(receipt.changes)).toBe(true)
@@ -36,7 +35,7 @@ describe('shared Mermaid cleanup receipt', () => {
   test('entity-created CRLF is normalized once while retaining both source tokens', () => {
     for (const authored of ['&#13;\n', '&#13;&#10;', '\r&#10;']) {
       const receipt = cleanupMermaidSource(`A${authored}B`)
-      expect(receipt.decodedText).toBe('A\r\nB')
+      expect(receipt.payloadText).toBe('A\nB')
       expect(receipt.text).toBe('A\nB')
       expect(authoredMermaidSlice(receipt, 1, receipt.text.length - 1)).toBe(authored)
     }
@@ -60,22 +59,21 @@ describe('shared Mermaid cleanup receipt', () => {
     }
   })
 
-  test('the decoded view retains CSV payload identities and maps authored wrapper boundaries', () => {
+  test('the payload view retains CSV identities and maps authored wrapper boundaries', () => {
     const source = '---\r\ntitle: &amp;\r\n---\r\nsankey-beta\r\n"A\rB",C,1\n"A\nB",C,2'
     const receipt = cleanupMermaidSource(source)
-    expect(receipt.decodedText).toBe('---\r\ntitle: &\r\n---\r\nsankey-beta\r\n"A\rB",C,1\n"A\nB",C,2')
+    expect(receipt.payloadText).toBe('---\ntitle: &\n---\nsankey-beta\n"A\rB",C,1\n"A\nB",C,2')
     const originalBoundary = source.indexOf('sankey-beta')
-    const decodedBoundary = cleanedMermaidOffset(receipt, originalBoundary, 'start', 'decodedText')
-    expect(decodedBoundary).toBe(receipt.decodedText.indexOf('sankey-beta'))
-    expect(originalMermaidOffset(receipt, decodedBoundary, 'start', 'decodedText')).toBe(originalBoundary)
-    const payloadStart = receipt.decodedText.indexOf('"A\rB"')
-    expect(authoredMermaidSlice(receipt, payloadStart, payloadStart + 5, 'decodedText')).toBe('"A\rB"')
+    const payloadBoundary = cleanedMermaidOffset(receipt, originalBoundary, 'start', 'payloadText')
+    expect(payloadBoundary).toBe(receipt.payloadText.indexOf('sankey-beta'))
+    expect(originalMermaidOffset(receipt, payloadBoundary, 'start', 'payloadText')).toBe(originalBoundary)
+    const payloadStart = receipt.payloadText.indexOf('"A\rB"')
+    expect(authoredMermaidSlice(receipt, payloadStart, payloadStart + 5, 'payloadText')).toBe('"A\rB"')
     const insideReference = source.indexOf('&amp;') + 2
-    expect(cleanedMermaidOffset(receipt, insideReference, 'start', 'decodedText')).toBe(receipt.decodedText.indexOf('&'))
-    expect(cleanedMermaidOffset(receipt, insideReference, 'end', 'decodedText')).toBe(receipt.decodedText.indexOf('&') + 1)
+    expect(cleanedMermaidOffset(receipt, insideReference, 'start', 'payloadText')).toBe(receipt.payloadText.indexOf('&'))
+    expect(cleanedMermaidOffset(receipt, insideReference, 'end', 'payloadText')).toBe(receipt.payloadText.indexOf('&') + 1)
     const plainXml = cleanupMermaidSource('A[&lt; #quot; #59;]')
-    expect(plainXml.decodedText).toBe('A[< #quot; #59;]')
-    expect(plainXml.decodedMappings).toBe(plainXml.mappings)
+    expect(plainXml.payloadText).toBe('A[< #quot; #59;]')
   })
 
   test('upstream tag quote changes preserve exact interior label offsets', () => {
