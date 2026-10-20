@@ -797,8 +797,9 @@ describe('State statements across and within lines', () => {
     ['ClassDef hot fill:#f00\nA --> B\nCLASS A hot\nNote Right Of B : hi\nNOTE LEFT OF A\ntext\nEND NOTE', ['A:rounded:A', 'B:rounded:B', 'A->B', 'A:::hot', 'note right of B:hi', 'note left of A:text'], []],
     ['end A', ['A:rounded:A', 'end:rounded:end'], ['state_statements_share_line@2']],
     ['State "multi\nline" as X', ['X:rounded:multi\nline'], []],
-    // `State` before a transition or description is a name, as before.
-    ['Small State 2ate1 --> B : go', ['Small:rounded:Small', 'State:rounded:State', '2ate1:rounded:2ate1', 'B:rounded:B', '2ate1->B:go'], ['state_statements_share_line@2']],
+    // `State` before a transition or description is a name, as before;
+    // Mermaid reads it as starting a declaration of `2ate1`, which it drops.
+    ['Small State 2ate1 --> B : go', ['Small:rounded:Small', 'State:rounded:State', '2ate1:rounded:2ate1', 'B:rounded:B', '2ate1->B:go'], ['state_statements_share_line@2', 'state_declaration_name@2']],
     // A block note opened after another statement keeps its lines whole.
     ['A note right of B\nsome text\nend note', ['A:rounded:A', 'B:rounded:B', 'note right of B:some text'], ['state_statements_share_line@2']],
     ['state "multi\nline" as X\nX --> Y', ['X:rounded:multi\nline', 'Y:rounded:Y', 'X->Y'], []],
@@ -848,19 +849,23 @@ describe('State statements across and within lines', () => {
     expect(verifyMermaid(source).warnings.flatMap(warning => (warning.code === 'UNSUPPORTED_SYNTAX' ? [`${warning.syntax}@${warning.line}`] : []))).toEqual(['state_endpoint_name@2', 'state_endpoint_name@3'])
   })
 
-  test('a description naming a state Mermaid cannot name there is read, and reported', async () => {
+  test('a declaration or description naming a state Mermaid cannot name there is read, and reported', async () => {
     // Mermaid rejects the first three, and drops `State : x` as it drops a
     // bare `state X`; it reads `direction` as a name, and the name after
-    // `state "…" as` to the line's end.
-    const sources = ['in-flight : x', 'note : x', 'class : x', 'State : x', 'direction : x', 'state "x" as in-flight : y'].map(body => `stateDiagram-v2\n${body}`)
-    expect(sources.map(source => readingOf(parseRenderGraph(source)))).toEqual([['in-flight:rounded:x'], ['note:rounded:x'], ['class:rounded:x'], ['State:rounded:x'], ['direction:rounded:x'], ['in-flight:rounded:x\ny']])
-    expect(sources.map(unsupportedSyntax)).toEqual([['state_description_name@2'], ['state_description_name@2'], ['state_description_name@2'], ['state_description_name@2'], [], []])
+    // `state "…" as` to the line's end. A name alone declares a state: Mermaid
+    // rejects a hyphen or `default` there, and reads `state` as starting a
+    // declaration of the next line's name, which it drops.
+    const sources = ['in-flight : x', 'note : x', 'class : x', 'State : x', 'direction : x', 'state "x" as in-flight : y', 'A --> B\nin-flight', 'default', 'state\nA'].map(body => `stateDiagram-v2\n${body}`)
+    expect(sources.map(source => readingOf(parseRenderGraph(source))))
+      .toEqual([['in-flight:rounded:x'], ['note:rounded:x'], ['class:rounded:x'], ['State:rounded:x'], ['direction:rounded:x'], ['in-flight:rounded:x\ny'], ['A->B', 'A:rounded:A', 'B:rounded:B', 'in-flight:rounded:in-flight'], ['default:rounded:default'], ['A:rounded:A', 'state:rounded:state']])
+    expect(sources.map(unsupportedSyntax)).toEqual([['state_description_name@2'], ['state_description_name@2'], ['state_description_name@2'], ['state_description_name@2'], [], [], ['state_declaration_name@3'], ['state_declaration_name@2'], ['state_declaration_name@2']])
     const drawn = (mermaid: UpstreamDiagram): string[] => mermaid.db.getData().nodes.map((node: { id: string }) => node.id)
-    expect((await upstream.projectEach(sources, drawn)).map(read => (read.ok ? read.value : 'rejected'))).toEqual(['rejected', 'rejected', 'rejected', [], ['direction'], ['in-flight']])
+    expect((await upstream.projectEach(sources, drawn)).map(read => read.ok ? read.value : 'rejected'))
+      .toEqual(['rejected', 'rejected', 'rejected', [], ['direction'], ['in-flight'], 'rejected', 'rejected', []])
     // The writer names each state after `state "…" as`, which Mermaid reads.
     const written = sources.map(source => serializeMermaid(state(source)))
     expect(written.map(unsupportedSyntax)).toEqual(written.map(() => []))
-    expect(await upstream.projectAll(written, drawn)).toEqual([['in-flight'], ['note'], ['class'], ['State'], ['direction'], ['in-flight']])
+    expect(await upstream.projectAll(written, drawn)).toEqual([['in-flight'], ['note'], ['class'], ['State'], ['direction'], ['in-flight'], ['A', 'B', 'in-flight'], ['default'], ['state', 'A']])
   })
 
   test('a note on a state Mermaid cannot name as a note target is read, and reported', async () => {

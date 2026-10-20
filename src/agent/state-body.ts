@@ -1395,8 +1395,8 @@ export function stateUnsupportedSyntaxWarnings(canonicalSource: string, authored
 }
 
 /** Statements ours reads that pinned Mermaid reads otherwise, by statement:
- *  `cssClass` and `linkStyle`, which its State grammar lacks; a transition,
- *  note or description naming a state it cannot name there; a description,
+ *  `cssClass` and `linkStyle`, which its State grammar lacks; a declaration,
+ *  transition, note or description naming a state it cannot name there; a description,
  *  transition label or one-line note it ends early; text whose `;` its
  *  entity prepass drops; and a composite given more than one label or
  *  description, which it rejects. Each at its authored line. */
@@ -1471,6 +1471,13 @@ function stateReadOtherwiseWarnings(statements: readonly StateStatement[], heade
     const alias = text.match(STATE_ALIAS_RE)
     if (alias) {
       labelComposite(statement, alias[2]!)
+      continue
+    }
+    // A name alone declares the state, as `A` does.
+    if (isStateNodeId(text) && !isConcurrencySeparator(text)) {
+      if (!hasBareSpelling(text)) {
+        warn(statement, 'state_declaration_name', `The line declares '${text}', which pinned Mermaid cannot read as a state there: a name holds no hyphen, and \`default\`, \`href\` and \`stateDiagram\` start statements of their own, as \`state\` starts a declaration of the name after it, which Mermaid drops. Mermaid rejects the line, or reads it otherwise. The writer declares it as \`state "…" as ${text}\` (a composite as \`state ${text} {\`), which Mermaid reads.`)
+      }
       continue
     }
     if (parseClassShorthandStatement(text)) continue
