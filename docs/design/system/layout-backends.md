@@ -19,6 +19,57 @@ browser backend comparisons, cache-churn cohorts and the complete aesthetic
 preference vector. Unsupported or unavailable evidence must remain explicit;
 the initial implementation does not establish a performance or quality winner.
 
+## Qualification target
+
+The continuation target is quality parity with ELK and lower execution time,
+memory and browser transfer cost, while preserving explicit ELK support. This
+is a stronger target than the initial selection-and-measurement delivery:
+
+- Match authored content, connectivity, ports, label ownership, certification
+  and deterministic output. Compare final route crossings, label conflicts,
+  spacing, bends and area on the same inputs; pixel-identical geometry is not
+  required. A faster drawing with avoidable crossings does not qualify.
+- Keep the full comparison population: variable-size forests, labelled DAGs,
+  parallel/reciprocal edges, cycles, self-loops, disconnected components,
+  compound groups and cross-boundary edges, plus each existing ELK family's
+  specialized geometry. Declines and fallback remain visible. Native-only
+  performance claims cannot count fallback as a native completion.
+- Measure fully consumed public workflows with caches disabled and enabled,
+  edited inputs and memory churn. Require repeated improvements beyond the
+  paired ELK A/A variation, and preserve adverse runs rather than retrying
+  until a gate passes. Allocation, peak RSS and retained memory are distinct.
+- Measure the emitted browser request graph as well as compressed bytes.
+  Strict Agentic rendering must not fetch ELK; explicit ELK and fallback must
+  still work. A smaller solver source file or deferred initialization alone
+  does not establish smaller downloads. The all-in-one synchronous entry and
+  the asynchronous entry have different delivery constraints.
+- Rebase periodically and bind correctness, quality and cost evidence to the
+  final combined revision. Keep default ELK regression gates active throughout.
+
+Research and community inputs checked during the continuation:
+
+- [Mermaid's layout documentation](https://github.com/mermaid-js/mermaid/blob/develop/docs/config/layouts.md)
+  includes a tidy-tree backend and distinguishes the ELK-inclusive package
+  from its tiny build. This supports specialized placement and actual demand
+  loading; it is not an acceptance oracle for our geometry.
+- [Mermaid issue 6646](https://github.com/mermaid-js/mermaid/issues/6646)
+  explicitly identifies node-boundary intersection as necessary for tidy-tree
+  integration. Reuse our clipping and final certification instead of treating
+  center-to-center lines as finished routes.
+- [Brandes, Walter and Zink's coordinate-assignment erratum](https://arxiv.org/abs/2008.01252)
+  documents two flaws in the original Brandes–Köpf algorithm. A future compact
+  DAG placer must account for the corrections, not implement an uncorrected
+  recipe. The shared forest producer currently uses conservative subtree
+  intervals, not a claim to implement that algorithm.
+- [Pele's compound-ordering proposal](https://github.com/obsidianmd/pele/pull/4)
+  coordinates group order and border-port order from a flat ordering, and
+  compares completed routes. Its reported extra layout passes are a reminder
+  to measure the quality/cost tradeoff. It supplies failure cases and ideas,
+  not copied code or proof that this implementation matches ELK.
+- [Mermaid's bundle-size discussion](https://github.com/orgs/mermaid-js/discussions/4314)
+  illustrates the practical cost of carrying multiple engines. Keep ELK as an
+  on-demand alternative rather than charging every native render for it.
+
 ## Scope and existing foundations
 
 The integration baseline is main
