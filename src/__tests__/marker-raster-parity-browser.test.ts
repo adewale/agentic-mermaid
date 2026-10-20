@@ -34,7 +34,7 @@ describeBrowser('native PNG and browser marker contact', () => {
     for (const [from, to] of [['L', 'R'], ['R', 'L'], ['T', 'B'], ['B', 'T']]) {
       cases.push({ source: `architecture-beta\nservice a(server)[A]\nservice b(database)[B]\na:${from} <--> ${to}:b`, options: { architecture: { visual: { edgeStroke: '#ff0000' } } } })
     }
-    cases.push({ source: 'sequenceDiagram\nA<<->>B: filled\nB<<-->>A: reverse\nA<<->>A: self\nA<<-->B: open\nA-xB: cross\nA-|\\B: half top\nA-|/B: half bottom\nA\\|-B: start half top\nA/|-B: start half bottom\nA-\\\\B: stick top\nA-//B: stick bottom\nA\\\\-B: start stick top\nA//-B: start stick bottom' })
+    cases.push({ source: 'sequenceDiagram\nA<<->>B: filled\nB<<-->>A: reverse\nA<<->>A: self\nA-)B: open\nA-xB: cross\nA-|\\B: half top\nA-|/B: half bottom\nA\\|-B: start half top\nA/|-B: start half bottom\nA-\\\\B: stick top\nA-//B: stick bottom\nA\\\\-B: start stick top\nA//-B: start stick bottom' })
     cases.push({ source: 'journey\ntitle Work\nsection Today\nDone: 5: Me' })
     cases.push({ source: 'gantt\ndateFormat YYYY-MM-DD\nsection Work\nFirst :a, 2026-01-01, 1d\nNext :after a, 1d', options: { gantt: { dependencyArrows: true } } })
     const page = await browser.newPage()
