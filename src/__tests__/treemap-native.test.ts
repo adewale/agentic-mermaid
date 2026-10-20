@@ -154,7 +154,6 @@ describe('native Treemap', () => {
     ]) {
       const group = svg.match(new RegExp(`<g\\b(?=[^>]*\\bdata-id="${id}")[^>]*>[\\s\\S]*?<\\/g>`))?.[0] ?? ''
       expect(group).toContain('role="graphics-symbol"')
-      expect(group).toContain(`aria-label="${name}"`)
       expect(group).toContain(`<title>${name}</title>`)
     }
     expect(paintedText).not.toContain('Rare')
@@ -189,7 +188,6 @@ describe('native Treemap', () => {
       ]) {
         const open = svg.match(new RegExp(`<g\\b(?=[^>]*\\bdata-id="${id}")[^>]*>`))?.[0] ?? ''
         expect(open).toContain(` role="${role}"`)
-        expect(open).toContain(`aria-label="${name}"`)
         expect(open).toContain(`data-parent="${parent}"`)
         expect(svg).toContain(`${open}<title>${name}</title>`)
       }

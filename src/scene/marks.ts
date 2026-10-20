@@ -19,7 +19,7 @@ import type {
 } from './ir.ts'
 import type { DiagramColors } from '../theme.ts'
 import type { SvgSemanticIdentity } from './identity.ts'
-import { ensureSvgIdentity, semanticIdentityForSvg } from './identity.ts'
+import { ensureSvgIdentity, semanticChildId, semanticIdentityForSvg } from './identity.ts'
 import { relationAccessibility } from './accessibility.ts'
 import { displayText, escapeAttr, escapeXml } from '../multiline-utils.ts'
 import { resolveLabelContent } from '../shared/display-text.ts'
@@ -674,4 +674,34 @@ export function documentOpen(fields: {
     id: fields.id,
     role: 'prelude',
   }, svg)
+}
+
+/** Lower bounded, source-owned icon paths without recovering geometry from SVG.
+ * Each path carries the paint; the group's open tag carries hooks and the
+ * transform only. */
+export function pathArtwork(fields: {
+  id: string
+  paths: readonly string[]
+  open: string
+  paint: MarkPaint
+  transform?: SceneTransform
+  owner?: SceneOwner
+  channels?: SemanticChannels
+  join?: string
+  indent?: number
+}): GroupMark {
+  return group({
+    id: fields.id, role: 'icon', open: fields.open, close: '</g>',
+    ...(fields.transform ? { transform: fields.transform } : {}),
+    ...(fields.owner ? { owner: fields.owner } : {}),
+    ...(fields.channels ? { channels: fields.channels } : {}),
+    join: fields.join ?? '',
+    children: fields.paths.map((path, index) => ({
+      indent: fields.indent ?? 0,
+      node: shape({ id: semanticChildId(fields.id, 'path', index), role: 'icon',
+        geometry: { kind: 'path', d: path }, paint: fields.paint,
+        ...(fields.owner ? { owner: fields.owner } : {}),
+      }),
+    })),
+  })
 }

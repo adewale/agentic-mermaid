@@ -15,7 +15,23 @@ import { fcParameters } from './helpers/fc-parameters.ts'
 import { layoutGraphSync } from '../layout-engine.ts'
 import { parseMermaid } from '../parser.ts'
 import { assessLayout, countParallelRouteOverlaps, hardViolations, onShapeOutline } from '../layout-rubric.ts'
+import { graphReachability } from '../layout/geometry.ts'
 import { shapePorts, diamondFacetPorts } from '../route-contracts.ts'
+
+it('peer topology preserves direction and cycles across reused traversal storage', () => {
+  const reaches = graphReachability([
+    { source: 'A', target: 'B' }, { source: 'B', target: 'C' },
+    { source: 'B', target: 'C' }, { source: 'C', target: 'A' },
+    { source: 'D', target: 'E' },
+  ])
+  for (let repeat = 0; repeat < 3; repeat++) {
+    for (const [from, to, expected] of [
+      ['A', 'C', true], ['C', 'B', true], ['A', 'D', false],
+      ['D', 'E', true], ['E', 'D', false], ['E', 'A', false],
+      ['isolated', 'isolated', true], ['isolated', 'A', false],
+    ] as const) expect(reaches(from, to)).toBe(expected)
+  }
+})
 import { EDGE_FORMS, renderEdgeLine } from './helpers/edge-vocabulary.ts'
 import { complicatedFixtures, simpleFixtures } from '../../eval/visual-rubric/fixtures.ts'
 import { scoreFixture } from '../../eval/visual-rubric/run.ts'

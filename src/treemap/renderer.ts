@@ -20,6 +20,10 @@ export function lowerTreemapScene({ positioned: chart, colors, resolved }: Rende
   const total = chart.cells.filter(cell => !cell.node.parentId).reduce((sum, cell) => sum + cell.total, 0)
   if (chart.title) parts.push(diagramTitleMark(chart.title, style))
   for (const cell of chart.cells) {
+    if (cell.width <= 0 || cell.height <= 0) {
+      contents.set(cell.node.id, [])
+      continue
+    }
     const section = cell.node.value === undefined,
       channels = { value: total > 0 ? cell.total / total : 0, category: String(cell.category) },
       roleStyle = resolveRoleStyle(resolved.styleFace, 'bar', channels, { includeFallback: false })
@@ -84,6 +88,7 @@ export function lowerTreemapScene({ positioned: chart, colors, resolved }: Rende
     }
     // A label too small to paint still names its quantitative cell. Keep the
     // exact value independent of the author's cosmetic number formatting.
+    // The native SVG title supplies both the accessible name and tooltip.
     const section = cell.node.value === undefined,
       accessible = !cell.label ? escapeAttr(`${cell.node.label}: ${cell.total}`) : undefined
     groups.set(
@@ -91,7 +96,7 @@ export function lowerTreemapScene({ positioned: chart, colors, resolved }: Rende
       marks.group({
         id: cell.node.id,
         role: section ? 'group' : 'node',
-        open: `<g${cell.node.parentId ? ` data-parent="${escapeAttr(cell.node.parentId)}"` : ''}${accessible === undefined ? '' : ` role="${section ? 'group' : 'graphics-symbol'}" aria-roledescription="treemap ${section ? 'section' : 'cell'}" aria-label="${accessible}"`}>${accessible === undefined ? '' : `<title>${accessible}</title>`}`,
+        open: `<g${cell.node.parentId ? ` data-parent="${escapeAttr(cell.node.parentId)}"` : ''}${accessible === undefined ? '' : ` role="${section ? 'group' : 'graphics-symbol'}" aria-roledescription="treemap ${section ? 'section' : 'cell'}"`}>${accessible === undefined ? '' : `<title>${accessible}</title>`}`,
         close: '</g>',
         children: children.map(node => ({ node, indent: 2 })),
       }),

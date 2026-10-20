@@ -26,6 +26,7 @@ import type { LabelMetricsStyle } from '../../route-contracts.ts'
 import { resolveEdgeInlineStyle } from '../../color-resolver.ts'
 import {
   DEFAULTS,
+  graphReachability,
   calculatePathMidpoint,
   findSubgraph,
   flattenGroupBounds,
@@ -71,23 +72,6 @@ function sameFlowLayer(group: PositionedNode[], direction: Direction, tolerance 
   if (group.length < 2) return false
   const values = group.map(n => nodeMainStart(n, direction))
   return Math.max(...values) - Math.min(...values) <= tolerance
-}
-function logicalGraphReaches(graph: MermaidGraph, from: string, to: string): boolean {
-  const outgoing = new Map<string, string[]>()
-  for (const edge of graph.edges) {
-    if (!outgoing.has(edge.source)) outgoing.set(edge.source, [])
-    outgoing.get(edge.source)!.push(edge.target)
-  }
-  const seen = new Set<string>()
-  const stack = [from]
-  while (stack.length > 0) {
-    const id = stack.pop()!
-    if (id === to) return true
-    if (seen.has(id)) continue
-    seen.add(id)
-    for (const next of outgoing.get(id) ?? []) stack.push(next)
-  }
-  return false
 }
 function packFlowLayerCrossAxis(nodes: PositionedNode[], direction: Direction): void {
   const f = layoutFlow(direction)
@@ -162,6 +146,7 @@ function expandGroupsForMainShift(
   }
 }
 export function equalizePeerNodeDimensions(nodes: PositionedNode[], edges: PositionedEdge[], groups: PositionedGroup[], graph: MermaidGraph): void {
+  const reaches = graphReachability(graph.edges)
   const nodeMap = new Map(nodes.map(n => [n.id, n]))
   const incoming = new Map<string, PositionedEdge[]>()
   const outgoing = new Map<string, PositionedEdge[]>()
@@ -197,7 +182,7 @@ export function equalizePeerNodeDimensions(nodes: PositionedNode[], edges: Posit
     if (!sourceId || !targets.every(target => edges.every(e => e.target !== target.id || e.source === sourceId) && edges.every(e => e.source !== target.id))) continue
     let peer = true
     for (let i = 0; i < targets.length; i++) for (let j = 0; j < targets.length; j++) {
-      if (i !== j && logicalGraphReaches(graph, targets[i]!.id, targets[j]!.id)) peer = false
+      if (i !== j && reaches(targets[i]!.id, targets[j]!.id)) peer = false
     }
     if (peer) addGroup(targets)
   }
@@ -289,6 +274,7 @@ export function centerPeerBarycenters(
   graph: MermaidGraph,
   style: LabelMetricsStyle,
 ): void {
+  const reaches = graphReachability(graph.edges)
   const nodeMap = new Map(nodes.map(n => [n.id, n]))
   // Co-ranking a mixed-label fan-in pre-ELK is the default (see layout-engine
   // corankFanInBalancingLabels; disable with APL_NO_CORANK_FANIN). Once the
@@ -323,7 +309,7 @@ export function centerPeerBarycenters(
     if (!peers.every(node => peerShapeOk(node) && !nodeInsideGroups(node, groups))) return undefined
     if (!sameFlowLayer(peers, graph.direction, 28)) return undefined
     for (let i = 0; i < peers.length; i++) for (let j = 0; j < peers.length; j++) {
-      if (i !== j && logicalGraphReaches(graph, peers[i]!.id, peers[j]!.id)) return undefined
+      if (i !== j && reaches(peers[i]!.id, peers[j]!.id)) return undefined
     }
     return peers
   }
@@ -469,6 +455,7 @@ export function corankFanInSpokes(
   groups: PositionedGroup[],
   graph: MermaidGraph,
 ): Map<string, PositionedEdge[]> {
+  const reaches = graphReachability(graph.edges)
   const result = new Map<string, PositionedEdge[]>()
   if (layoutEnvFlag('APL_NO_CORANK_FANIN')) return result
   const nodeMap = new Map(nodes.map(n => [n.id, n]))
@@ -517,7 +504,7 @@ export function corankFanInSpokes(
     let peers = true
     for (let i = 0; i < sources.length && peers; i++)
       for (let j = 0; j < sources.length; j++)
-        if (i !== j && logicalGraphReaches(graph, sources[i]!.id, sources[j]!.id)) { peers = false; break }
+        if (i !== j && reaches(sources[i]!.id, sources[j]!.id)) { peers = false; break }
     if (!peers) continue
     result.set(hubId, group)
   }
@@ -631,6 +618,7 @@ export function alignForkRejoinPeerCenters(
   graph: MermaidGraph,
   style: LabelMetricsStyle,
 ): void {
+  const reaches = graphReachability(graph.edges)
   const nodeMap = new Map(nodes.map(n => [n.id, n]))
   const bySource = new Map<string, PositionedEdge[]>()
   for (const edge of edges) {
@@ -671,7 +659,7 @@ export function alignForkRejoinPeerCenters(
     if (!sameFlowLayer(targets, graph.direction, 28)) continue
     let peer = true
     for (let i = 0; i < targets.length; i++) for (let j = 0; j < targets.length; j++) {
-      if (i !== j && logicalGraphReaches(graph, targets[i]!.id, targets[j]!.id)) peer = false
+      if (i !== j && reaches(targets[i]!.id, targets[j]!.id)) peer = false
     }
     if (!peer) continue
 
@@ -1812,6 +1800,7 @@ export function applySymmetricFanoutEmissions(
   bundled: Set<PositionedEdge>,
   style: LabelMetricsStyle,
 ): void {
+  const reaches = graphReachability(graph.edges)
   const nodeMap = new Map(nodes.map(n => [n.id, n]))
   const bySource = new Map<string, PositionedEdge[]>()
   for (const edge of edges) {
@@ -1842,7 +1831,7 @@ export function applySymmetricFanoutEmissions(
     if (!targets.every(t => edges.every(e => e.source !== t.id && (e.target !== t.id || e.source === source.id)))) continue
     let peer = true
     for (let i = 0; i < targets.length; i++) for (let j = 0; j < targets.length; j++) {
-      if (i !== j && logicalGraphReaches(graph, targets[i]!.id, targets[j]!.id)) peer = false
+      if (i !== j && reaches(targets[i]!.id, targets[j]!.id)) peer = false
     }
     if (!peer) continue
 

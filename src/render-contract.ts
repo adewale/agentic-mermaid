@@ -1564,10 +1564,24 @@ function immutableSnapshot<T>(value: T, path = '$', ancestors = new Set<object>(
     throw new TypeError(`render request contains a non-JSON object at ${path}`)
   }
   ancestors.add(value)
-  const clone: unknown = Array.isArray(value)
-    ? value.map((item, index) => immutableSnapshot(item, `${path}[${index}]`, ancestors))
-    : Object.fromEntries(Object.entries(value as Record<string, unknown>).map(([key, child]) =>
-        [key, immutableSnapshot(child, `${path}.${key}`, ancestors)]))
+  let clone: unknown
+  if (Array.isArray(value)) {
+    const items: unknown[] = new Array(value.length)
+    for (let index = 0; index < value.length; index++) {
+      if (Object.hasOwn(value, index)) items[index] = immutableSnapshot(value[index], `${path}[${index}]`, ancestors)
+    }
+    clone = items
+  } else {
+    const record: Record<string, unknown> = {}
+    // Capture entries before descending, retaining the existing accessor-read
+    // order without allocating a second array of key/value pairs per object.
+    for (const [key, child] of Object.entries(value as Record<string, unknown>)) {
+      const captured = immutableSnapshot(child, `${path}.${key}`, ancestors)
+      if (key === '__proto__') Object.defineProperty(record, key, { value: captured, enumerable: true })
+      else record[key] = captured
+    }
+    clone = record
+  }
   ancestors.delete(value)
   IMMUTABLE_SNAPSHOTS.add(clone as object)
   return Object.freeze(clone) as T
