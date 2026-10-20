@@ -1,4 +1,4 @@
-// The LayoutPass abstraction — see docs/design/system/layout-pass-pipeline.md.
+// The LayoutPass abstraction — see docs/design/system/route-contracts.md §8.
 //
 // Generic over the concrete context so this module has NO dependency on the
 // layout engine (and therefore cannot create an import cycle). The concrete
@@ -75,8 +75,6 @@ export interface LayoutPass<C extends PassContextBase> {
 }
 
 export interface RunOptions<C extends PassContextBase> {
-  /** Compatibility audit option. Production contracts are always enforced. */
-  checkInvariants?: boolean
   /** Measure only requested declared budgets on actual before/after geometry. */
   measureMetrics?: (ctx: C, metrics: readonly RubricMetric[]) => PassMetrics
   /** Debug/CI only: called after each pass that actually ran (e.g. to measure the ratchet). */

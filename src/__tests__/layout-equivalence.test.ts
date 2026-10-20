@@ -24,7 +24,7 @@ import { existsSync, readFileSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { collectSamples } from '../../eval/layout-compare/run.ts'
 import { layoutMermaid, parseRegisteredMermaid as parseMermaid } from '../agent/index.ts'
-import type { RenderedLayout } from '../agent/types.ts'
+import { toFinite, type Finite, type RenderedLayout } from '../agent/types.ts'
 import { compareCodePointStrings } from '../shared/deterministic-order.ts'
 
 const BASELINE = join(import.meta.dir, 'testdata', 'layout-geometry-baseline.json')
@@ -58,16 +58,27 @@ function currentGeometry(): Map<string, Record_> {
  * routes, labels, identities, membership or canvas bounds in this gate. */
 function geometryOnly(record: Record_ | undefined): Record_ | null {
   if (!record?.ok) return record ?? null
+  // These graph projections now retain exact physical evidence for quality.
+  // Keep this gate's historical integer-pixel sentinel explicit here, while
+  // native families retain their existing precision (including fractional C4).
+  const graph = record.layout.kind === 'flowchart' || record.layout.kind === 'state'
+  const coordinate = (n: Finite): Finite => graph ? toFinite(Math.round(n)) : n
   return {
     ok: true,
     layout: {
       ...record.layout,
-      nodes: record.layout.nodes.map(({ labelBounds: _bounds, labelContainer: _container, labelVisibility: _visibility, dataPosition: _data, ...node }) => node),
+      nodes: record.layout.nodes.map(({ labelBounds: _bounds, labelContainer: _container, labelVisibility: _visibility, dataPosition: _data, ...node }) => ({
+        ...node, x: coordinate(node.x), y: coordinate(node.y), w: coordinate(node.w), h: coordinate(node.h),
+      })),
       edges: record.layout.edges.map(edge => {
-        if (!edge.label) return edge
-        const { bounds: _bounds, ...label } = edge.label
-        return { ...edge, label }
+        const { visibility: _visibility, ...route } = edge
+        const path = route.path.map(([x, y]) => [coordinate(x), coordinate(y)] as [Finite, Finite])
+        if (!route.label) return { ...route, path }
+        const { bounds: _bounds, ...label } = route.label
+        return { ...route, path, label: { ...label, x: coordinate(label.x), y: coordinate(label.y) } }
       }),
+      groups: record.layout.groups.map(group => ({ ...group, x: coordinate(group.x), y: coordinate(group.y), w: coordinate(group.w), h: coordinate(group.h) })),
+      bounds: { w: coordinate(record.layout.bounds.w), h: coordinate(record.layout.bounds.h) },
     },
   }
 }
@@ -89,6 +100,8 @@ function loadBaseline(): Record<string, Record_> {
 
 /** A short, actionable description of the FIRST divergence in a sample. */
 function describeDiff(id: string, base: Record_ | undefined, cur: Record_ | undefined): string {
+  base = geometryOnly(base) ?? undefined
+  cur = geometryOnly(cur) ?? undefined
   if (!base) return `${id}: NEW (absent from baseline)`
   if (!cur) return `${id}: REMOVED (dropped from corpus)`
   if (base.ok !== cur.ok) return `${id}: lays-out ${base.ok} → ${cur.ok}`
@@ -101,7 +114,7 @@ function describeDiff(id: string, base: Record_ | undefined, cur: Record_ | unde
   if (b.edges.length !== c.edges.length) return `${id}: edge count ${b.edges.length} → ${c.edges.length}`
   if (b.groups.length !== c.groups.length) return `${id}: group count ${b.groups.length} → ${c.groups.length}`
   for (let i = 0; i < c.nodes.length; i++) {
-    if (canon({ ok: true, layout: { ...b, nodes: [b.nodes[i]!] } }) !== canon({ ok: true, layout: { ...c, nodes: [c.nodes[i]!] } })) {
+    if (JSON.stringify(b.nodes[i]) !== JSON.stringify(c.nodes[i])) {
       const bn = b.nodes[i]!,
         cn = c.nodes[i]!
       return `${id}: node ${cn.id} {x:${bn.x},y:${bn.y},w:${bn.w},h:${bn.h}} → {x:${cn.x},y:${cn.y},w:${cn.w},h:${cn.h}}`

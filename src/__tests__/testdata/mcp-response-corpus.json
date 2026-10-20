@@ -1216,7 +1216,7 @@
       },
       "verify/flowchart": {
         "isError": false,
-        "text": "{\"ok\":true,\"family\":\"flowchart\",\"summary\":\"A 2-node flowchart with 1 edges. Nodes: Start, OK?. Edges: A -> B. Entry points: A. Sinks: B.\",\"warnings\":[],\"layout\":{\"bounds\":{\"w\":171,\"h\":256},\"nodes\":2,\"edges\":1}}"
+        "text": "{\"ok\":true,\"family\":\"flowchart\",\"summary\":\"A 2-node flowchart with 1 edges. Nodes: Start, OK?. Edges: A -> B. Entry points: A. Sinks: B.\",\"warnings\":[],\"layout\":{\"bounds\":{\"w\":171.144,\"h\":256.044},\"nodes\":2,\"edges\":1}}"
       },
       "mutate/add-class": {
         "isError": false,
