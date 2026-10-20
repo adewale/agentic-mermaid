@@ -81,6 +81,7 @@ jobs:
               ["cyclic-labelled-15", await Bun.file("eval/layout-compare/fixtures/cyclic-labelled-15.mmd").text()],
               ["cyclic-labelled-19", await Bun.file("eval/layout-compare/fixtures/cyclic-labelled-19.mmd").text()],
               ["cyclic-labelled-9", await Bun.file("eval/layout-compare/fixtures/cyclic-labelled-9.mmd").text()],
+              ["class-backends", await Bun.file("eval/layout-compare/fixtures/class-backends.mmd").text()],
               ["er-backends", await Bun.file("eval/layout-compare/fixtures/er-backends.mmd").text()],
               ["requirement-backends", await Bun.file("eval/layout-compare/fixtures/requirement-backends.mmd").text()],
               ["tree-300", flowchartTree(300)],
@@ -116,7 +117,7 @@ jobs:
             if ! GITHUB_SHA="$HEAD_SHA" bun run eval/benchmark/release-bench.ts \
               --candidate . --layout-modes elk,agentic --layout-cache "$cache" \
               --rounds 3 --reps 5 --budget-ms 480000 \
-              --case 'flowchart:official-syntax/flowchart.md#82,state:official-syntax/stateDiagram.md#16,requirement:official-syntax/requirementDiagram.md#4,flowchart:cyclic-labelled-11,flowchart:cyclic-labelled-10,flowchart:cyclic-labelled-15,flowchart:cyclic-labelled-19,flowchart:cyclic-labelled-9,requirement:cyclic-labelled-relations,requirement:100-requirements-99-relations,er:official-syntax/entityRelationshipDiagram.md#24,er:cyclic-labelled-entities,er:40-entities' \
+              --case 'flowchart:official-syntax/flowchart.md#82,state:official-syntax/stateDiagram.md#16,requirement:official-syntax/requirementDiagram.md#4,flowchart:cyclic-labelled-11,flowchart:cyclic-labelled-10,flowchart:cyclic-labelled-15,flowchart:cyclic-labelled-19,flowchart:cyclic-labelled-9,requirement:cyclic-labelled-relations,requirement:100-requirements-99-relations,er:official-syntax/entityRelationshipDiagram.md#24,er:cyclic-labelled-entities,er:40-entities,class:official-syntax/classDiagram.md#0,class:cyclic-labelled-members,class:80-classes' \
               --out "$LAYOUT_REVIEW/performance-$cache"; then
               failed=1
             fi
