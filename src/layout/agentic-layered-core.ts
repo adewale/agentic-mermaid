@@ -444,6 +444,21 @@ export function layoutLayeredGraph(
           return
         }
       }
+      // Keep distinct ports in neighbor order, but use an available reserved
+      // lane instead of adding a jog merely to reach a uniformly spaced port.
+      // Dense sides retain the existing proportional spread; loop pairs keep
+      // their separately proved attachment separation.
+      const margin = Math.min(8, width / 6), separation = 8
+      if (!pairs?.length && width - 2 * margin >= (peers.length - 1) * separation) {
+        const left = cross[nodeIndex]! - width / 2 + margin, right = cross[nodeIndex]! + width / 2 - margin
+        const positions = peers.map((edge, slot) => {
+          const chain = chains[edge]!, neighbor = source ? chain[1]! : chain[chain.length - 2]!
+          return Math.max(left + slot * separation, Math.min(right - (peers.length - 1 - slot) * separation, cross[neighbor]!))
+        })
+        for (let slot = 1; slot < positions.length; slot++) positions[slot] = Math.max(positions[slot]!, positions[slot - 1]! + separation)
+        peers.forEach((edge, slot) => { (source ? sourcePort : targetPort)[edge] = positions[slot]! })
+        return
+      }
       for (let index = 0; index < peers.length; index++) {
         const position = cross[nodeIndex]! - width / 2 + width * (index + 1) / (peers.length + 1)
         ;(source ? sourcePort : targetPort)[peers[index]!] = position
