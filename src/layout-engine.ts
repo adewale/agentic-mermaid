@@ -1944,11 +1944,11 @@ function layoutCandidate(
 }
 
 function agenticCandidate(graph: MermaidGraph, options: LayoutEngineOptions, style: ResolvedRenderStyle): PositionedGraph {
-  if (options.stateVisual || options.preserveSubgraphChildOrder) throw new GraphLayoutUnsupportedError('family-specific graph geometry')
-  if (graph.subgraphs.length || graph.stateNotes?.length) throw new GraphLayoutUnsupportedError('compound graphs or State annotations')
+  if (options.preserveSubgraphChildOrder) throw new GraphLayoutUnsupportedError('family-specific graph geometry')
+  if (graph.subgraphs.length) throw new GraphLayoutUnsupportedError('compound graphs')
   const opts = { ...DEFAULTS, ...options }
   const measured = measureRenderStage('graph-preparation', () => {
-    const nodes = [...graph.nodes].map(([id, node]) => ({ id, ...estimateNodeSize(id, resolveLabelContent(node.label, node.labelContent), node.shape, style, graph.direction, undefined, node.labelBlock) }))
+    const nodes = [...graph.nodes].map(([id, node]) => ({ id, ...estimateNodeSize(id, resolveLabelContent(node.label, node.labelContent), node.shape, style, graph.direction, options.stateVisual, node.labelBlock) }))
     const indices = new Map(nodes.map((node, index) => [node.id, index]))
     const edges = graph.edges.map(edge => {
       const source = indices.get(edge.source), target = indices.get(edge.target)
@@ -1976,7 +1976,7 @@ function agenticCandidate(graph: MermaidGraph, options: LayoutEngineOptions, sty
   }))
   // Forest fans use shared trunks. Layered placement reserves private label
   // corridors; generic bundling can move foreign routes into those corridors.
-  const positioned = finishGraphGeometry({ width: geometry.width, height: geometry.height, nodes, edges, groups: [] }, graph, geometry.topology === 'forest', opts.padding, style, 18).positioned
+  const positioned = finishGraphGeometry({ width: geometry.width, height: geometry.height, nodes, edges, groups: [] }, graph, geometry.topology === 'forest', opts.padding, style, options.stateVisual?.noteMargin ?? 18).positioned
   if (containsNonFiniteNumber(positioned)) throw new TypeError('Agentic graph pipeline returned non-finite geometry')
   return positioned
 }
@@ -1994,7 +1994,7 @@ function layoutUntitledGraph(graph: MermaidGraph, options: LayoutEngineOptions):
     try {
       // Produce outside the legacy certifier's exception-catching boundary:
       // unexpected solver/pass errors must remain engine failures.
-      const style = resolveRenderStyle(options, undefined, options.styleFace)
+      const style = resolveRenderStyle(options, options.stateVisual?.styleDefaults, options.styleFace)
       const candidate = agenticCandidate(graph, options, style)
       positioned = certifyOwnedLayoutCandidate(graph, style, { strategy: 'agentic-layered', produce: () => candidate })
       attempts.push({ backend: 'agentic', outcome: 'selected' })

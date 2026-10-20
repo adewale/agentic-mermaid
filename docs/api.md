@@ -84,11 +84,12 @@ const { svg, receipt } = renderMermaidSVGWithReceipt(source, {
 console.log(receipt.layoutDecisions)
 ```
 
-Agentic currently supports flat flowchart graphs, including directed cycles,
+Agentic currently supports flat Flowchart and State graphs, including directed cycles,
 measured shapes and edge labels, fan-in, parallel edges, disconnected components
-and long links.
+and long links. State pseudostates, configured fork/join dimensions and notes
+use the shared family sizing and projection rules.
 The shared geometry pipeline clips ports to each actual shape outline.
-Self-loops, groups and other graph families retain ELK
+Self-loops, groups, State composites and other graph families retain ELK
 support. Omitting fallback makes an unsupported Agentic request throw
 `GraphLayoutUnsupportedError`; requesting `fallback: 'elk'` records the actual
 selection in `layoutDecisions` and emits a fallback diagnostic. An ELK fallback
