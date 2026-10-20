@@ -878,47 +878,18 @@ describe('State statements across and within lines', () => {
     // bare `state X`; it reads `direction` as a name, and the name after
     // `state "…" as` to the line's end. A name alone declares a state: Mermaid
     // rejects a hyphen or `default` there, and reads `state` as starting a
-    // declaration of the next line's name, which it drops. Inside a
-    // composite it reads `default`, `scale` and `stateDiagram` as names.
-    const sources = ['in-flight : x', 'note : x', 'class : x', 'State : x', 'direction : x', 'state "x" as in-flight : y', 'A --> B\nin-flight', 'default', 'state\nA', 'state X {\ndefault : x\nstateDiagram\nscale --> href\n}'].map(body => `stateDiagram-v2\n${body}`)
+    // declaration of the next line's name, which it drops.
+    const sources = ['in-flight : x', 'note : x', 'class : x', 'State : x', 'direction : x', 'state "x" as in-flight : y', 'A --> B\nin-flight', 'default', 'state\nA'].map(body => `stateDiagram-v2\n${body}`)
     expect(sources.map(source => readingOf(parseRenderGraph(source))))
-      .toEqual([['in-flight:rounded:x'], ['note:rounded:x'], ['class:rounded:x'], ['State:rounded:x'], ['direction:rounded:x'], ['in-flight:rounded:x\ny'], ['A->B', 'A:rounded:A', 'B:rounded:B', 'in-flight:rounded:in-flight'], ['default:rounded:default'], ['A:rounded:A', 'state:rounded:state'], ['X:X{default href scale stateDiagram}', 'default:rounded:x', 'href:rounded:href', 'scale->href', 'scale:rounded:scale', 'stateDiagram:rounded:stateDiagram']])
-    expect(sources.map(unsupportedSyntax)).toEqual([['state_description_name@2'], ['state_description_name@2'], ['state_description_name@2'], ['state_description_name@2'], [], [], ['state_declaration_name@3'], ['state_declaration_name@2'], ['state_declaration_name@2'], []])
+      .toEqual([['in-flight:rounded:x'], ['note:rounded:x'], ['class:rounded:x'], ['State:rounded:x'], ['direction:rounded:x'], ['in-flight:rounded:x\ny'], ['A->B', 'A:rounded:A', 'B:rounded:B', 'in-flight:rounded:in-flight'], ['default:rounded:default'], ['A:rounded:A', 'state:rounded:state']])
+    expect(sources.map(unsupportedSyntax)).toEqual([['state_description_name@2'], ['state_description_name@2'], ['state_description_name@2'], ['state_description_name@2'], [], [], ['state_declaration_name@3'], ['state_declaration_name@2'], ['state_declaration_name@2']])
     const drawn = (mermaid: UpstreamDiagram): string[] => mermaid.db.getData().nodes.map((node: { id: string }) => node.id)
     expect((await upstream.projectEach(sources, drawn)).map(read => read.ok ? read.value : 'rejected'))
-      .toEqual(['rejected', 'rejected', 'rejected', [], ['direction'], ['in-flight'], 'rejected', 'rejected', [], ['X', 'default', 'stateDiagram', 'scale', 'href']])
+      .toEqual(['rejected', 'rejected', 'rejected', [], ['direction'], ['in-flight'], 'rejected', 'rejected', []])
     // The writer names each state after `state "…" as`, which Mermaid reads.
     const written = sources.map(source => serializeMermaid(state(source)))
     expect(written.map(unsupportedSyntax)).toEqual(written.map(() => []))
-    expect(await upstream.projectAll(written, drawn)).toEqual([['in-flight'], ['note'], ['class'], ['State'], ['direction'], ['in-flight'], ['A', 'B', 'in-flight'], ['default'], ['state', 'A'], ['X', 'default', 'stateDiagram', 'scale', 'href']])
-  })
-
-  test('a name before `:::` or a colon is read as Mermaid\'s lexer reads it there', async () => {
-    // Mermaid reads `state`, `note` and the like as keywords only before a
-    // blank; `default`, `href` and `click` wherever they stand at the top
-    // level; and no hyphen in a name. Its `A:::c` drops the class.
-    const rejected = ['in-flight:::hot', 'default:::hot', 'state X {\ndefault:::hot\nin-flight:::hot\n}'].map(body => `stateDiagram-v2\n${body}`)
-    expect(rejected.map(unsupportedSyntax)).toEqual([['state_declaration_name@2'], ['state_declaration_name@2'], ['state_declaration_name@4']])
-    expect(await Promise.all(rejected.map(source => upstream.accepts(source)))).toEqual([false, false, false])
-    // A comment right after the name ends it with no blank, too.
-    const accepted = ['state:::hot --> A', 'note:::hot', 'note: x', 'note%%', 'A --> class%%'].map(body => `stateDiagram-v2\n${body}`)
-    expect(accepted.map(unsupportedSyntax)).toEqual([[], [], [], [], []])
-    expect(await upstream.projectAll(accepted, mermaid => mermaid.db.getData().nodes.map((node: { id: string }) => node.id)))
-      .toEqual([['state', 'A'], ['note'], ['note'], ['note'], ['A', 'class']])
-    // `state` and a blank before `:::`: Mermaid reads a declaration it drops,
-    // ours the name `state`, as `X :::hot --> A` reads X, and reports it.
-    const dropped = 'stateDiagram-v2\nstate :::hot --> A'
-    expect(readingOf(parseRenderGraph(dropped))).toEqual(['A:rounded:A', 'state:rounded:state', 'state->A', 'state:::hot'].sort())
-    expect(state(dropped).body.transitions).toEqual([{ from: 'state', to: 'A' }])
-    expect(unsupportedSyntax(dropped)).toEqual(['state_endpoint_name@2'])
-    expect(await upstream.project(dropped, mermaid => mermaid.db.getData().nodes.map((node: { id: string }) => node.id))).toEqual({ ok: true, value: [] })
-    // Another keyword and a blank before `:::`: Mermaid rejects the line;
-    // ours reads the evident transition, and reports it.
-    const keywords = ['note :::hot --> A', 'class :::hot --> A', 'state X {\nnote :::hot --> A\n}'].map(body => `stateDiagram-v2\n${body}`)
-    expect(keywords.map(source => readingOf(parseRenderGraph(source)).filter(item => item.includes('->') || item.includes(':::'))))
-      .toEqual([['note->A', 'note:::hot'], ['class->A', 'class:::hot'], ['note->A', 'note:::hot']])
-    expect(keywords.map(unsupportedSyntax)).toEqual([['state_endpoint_name@2'], ['state_endpoint_name@2'], ['state_endpoint_name@3']])
-    expect(await Promise.all(keywords.map(source => upstream.accepts(source)))).toEqual([false, false, false])
+    expect(await upstream.projectAll(written, drawn)).toEqual([['in-flight'], ['note'], ['class'], ['State'], ['direction'], ['in-flight'], ['A', 'B', 'in-flight'], ['default'], ['state', 'A']])
   })
 
   test('a note position Mermaid reads only with one space is read, and reported', async () => {

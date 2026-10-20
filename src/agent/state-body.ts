@@ -482,16 +482,10 @@ function hasBareSpelling(id: string): boolean {
   return !/-|^(?:state|note|scale|default|classDef|class|style|click|href|stateDiagram)$/i.test(id)
 }
 
-/** Whether Mermaid reads `id` as a state where a statement names it. A
- *  name holds no hyphen. At the top level its lexer reads `default`, `href`
- *  and `click` as keywords wherever they stand; `state`, `note`, `class`,
- *  `classDef`, `style`, `scale` and `stateDiagram` only before a blank or a
- *  line break, so `state:::c` names a state. Inside a composite it takes only
- *  `note`, `class`, `classDef`, `style` and `state` as keywords, so
- *  `default`, `scale` or `stateDiagram` is a name there. */
-function namesStateAt(id: string, nested: boolean, blankAfter = true): boolean {
-  if (id.includes('-') || (!nested && /^(?:default|href|click)$/i.test(id))) return false
-  return !blankAfter || !(nested ? /^(?:state|note|classDef|class|style)$/i : /^(?:state|note|scale|classDef|class|style|stateDiagram)$/i).test(id)
+/** Whether `id` is a keyword Mermaid's lexer reads as one only before a blank
+ *  or a line break, so it names a state with no blank after it (`note-->`). */
+function namesStateGlued(id: string): boolean {
+  return /^(?:state|note|scale|classDef|class|style|stateDiagram)$/i.test(id)
 }
 
 /** Whether a label is written as `X: label` beside the declaration, as one
@@ -591,7 +585,7 @@ function renderScope(states: StateNode[], transitions: StateTransition[], direct
       // `state`, `note` and the like that a blank follows start a statement
       // of their own in Mermaid's lexer, so no blank follows them here:
       // `note--> A`, `A --> note: label`, or a comment, `A --> note%%`.
-      const keyword = (id: string, className: string | undefined): boolean => className === undefined && !namesStateAt(id, false) && namesStateAt(id, false, false)
+      const keyword = (id: string, className: string | undefined): boolean => className === undefined && namesStateGlued(id)
       const endpoint = (id: string, className: string | undefined): string => className === undefined ? id : `${id}:::${className}`
       const glued = keyword(t.to, t.toClass)
       const arrow = `${indent}${endpoint(t.from, t.fromClass)}${keyword(t.from, t.fromClass) ? '' : ' '}--> ${endpoint(t.to, t.toClass)}`
@@ -1483,13 +1477,8 @@ function stateReadOtherwiseWarnings(statements: readonly StateStatement[], heade
   }
   // After a block note's opener, until its first line of text.
   let noteTextAwaited = false
-  // How many composites the statement is inside.
-  let depth = 0
   for (const statement of statements) {
     const text = statement.text
-    if (!statement.noteBody && text === '}') depth = Math.max(0, depth - 1)
-    if (statement.opens) depth++
-    const nested = depth > (statement.opens ? 1 : 0)
     if (statement.noteBody) {
       // Mermaid's one-line note text, `\s*":"[^:\n;]+`, starts after any
       // blank lines and indentation after the note's state: a block note
@@ -1534,9 +1523,11 @@ function stateReadOtherwiseWarnings(statements: readonly StateStatement[], heade
     const transition = matchTransitionLine(text)
     if (transition) {
       for (const endpoint of new Set([transition.from, transition.to])) {
-        if (endpoint === PSEUDO || isHistoryEndpoint(endpoint) || namesStateAt(endpoint, nested, statement.nameBlanks?.[endpoint === transition.from ? 0 : 1])) continue
+        if (endpoint === PSEUDO || isHistoryEndpoint(endpoint) || hasBareSpelling(endpoint)) continue
         const line = endpoint === transition.from ? statement.line : statement.toLine
-        if (namesStateAt(endpoint, nested, false)) {
+        if (namesStateGlued(endpoint)) {
+          // With no blank after the name, as the writer writes it, Mermaid reads it.
+          if (statement.nameBlanks?.[endpoint === transition.from ? 0 : 1] === false) continue
           warn(statement, 'state_endpoint_name', `The transition names '${endpoint}', which pinned Mermaid cannot read as a state there: before a blank, \`note\`, \`class\`, \`classDef\`, \`style\`, \`scale\` and \`stateDiagram\` start statements of their own, as \`state\` starts a declaration it drops. Mermaid rejects or drops the transition. The writer writes no blank after the name (\`${endpoint}--> …\`, \`… --> ${endpoint}%%\`), which Mermaid reads.`, line)
         } else {
           warn(statement, 'state_endpoint_name', `The transition names '${endpoint}', which pinned Mermaid cannot read as a state there: a name holds no hyphen, and \`default\`, \`click\` and \`href\` start statements of their own. Mermaid rejects the transition, here and in the output. Rename the state to keep it portable.`, line)
@@ -1557,25 +1548,19 @@ function stateReadOtherwiseWarnings(statements: readonly StateStatement[], heade
     }
     // A name alone declares the state, as `A` does.
     if (isStateNodeId(text) && !isConcurrencySeparator(text)) {
-      if (!namesStateAt(text, nested, statement.nameBlanks?.[0])) {
+      if (!hasBareSpelling(text)) {
         warn(statement, 'state_declaration_name', `The line declares '${text}', which pinned Mermaid cannot read as a state there: a name holds no hyphen, and \`default\`, \`href\` and \`stateDiagram\` start statements of their own, as \`state\` starts a declaration of the name after it, which Mermaid drops. Mermaid rejects the line, or reads it otherwise. The writer declares it as \`state "…" as ${text}\` (a composite as \`state ${text} {\`), which Mermaid reads.`)
       }
       continue
     }
-    const shorthand = parseClassShorthandStatement(text)
-    if (shorthand) {
-      if (!namesStateAt(shorthand.id, nested, statement.nameBlanks?.[0])) {
-        warn(statement, 'state_declaration_name', `The line gives '${shorthand.id}' the class '${shorthand.className}', and declares it. Pinned Mermaid cannot read '${shorthand.id}' as a state there: a name holds no hyphen, and \`default\`, \`href\` and \`click\` start statements of their own, as \`state\`, \`note\`, \`class\`, \`classDef\`, \`style\`, \`scale\` and \`stateDiagram\` do before a blank. Mermaid rejects the line, or reads it otherwise. Rename the state to keep it portable.`)
-      }
-      continue
-    }
+    if (parseClassShorthandStatement(text)) continue
     const description = text.match(STATE_DESCRIPTION_RE)
     if (description) {
       const id = description[1]!
       labelComposite(statement, id)
       // Mermaid reads the name after `state "…" as` to the line's end.
       if (statement.afterAlias) continue
-      if (!namesStateAt(id, nested, statement.nameBlanks?.[0])) {
+      if (!hasBareSpelling(id)) {
         warn(statement, 'state_description_name', `The description names '${id}', which pinned Mermaid cannot read as a state there: a name holds no hyphen, and \`note\`, \`class\`, \`classDef\`, \`style\`, \`default\`, \`click\`, \`href\`, \`scale\` and \`stateDiagram\` start statements of their own, as \`state\` starts a declaration it drops. Mermaid rejects or drops the description. The writer writes it as \`state "…" as ${id}\`, which Mermaid reads.`)
       }
       cutText(statement, description[2]!)

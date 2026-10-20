@@ -223,9 +223,9 @@ export interface StateStatement {
   textSpan?: { start: StatePosition; end: StatePosition }
   /** The input line a transition's target starts on. */
   toLine?: number
-  /** For each state the statement names first (a transition's source and
-   *  target), whether a blank or a line break follows the name: Mermaid's
-   *  lexer reads a keyword such as `state` only before one. */
+  /** For a transition's source and target, whether a blank or a line break
+   *  follows the name: Mermaid's lexer reads a keyword such as `note` only
+   *  before one. */
   nameBlanks?: boolean[]
   /** A block note's body line, read verbatim. */
   noteBody?: boolean
@@ -461,7 +461,7 @@ export function readStateStatements(lines: readonly StateSourceLine[]): StateSta
     }
     const text = logical[cursor.row]!.text
     const colon = skipBlank(text, cursor.column)
-    const read: StatementRead = { text: statement, nameBlanks, ...(toLine !== undefined ? { toLine } : {}) }
+    const read: StatementRead = { text: statement, ...(toLine !== undefined ? { toLine, nameBlanks } : {}) }
     if (text[colon] === ':') {
       const end = textEnd(text, colon, cursor.row)
       // Mermaid reads the `}` into the text, unless a `;` or `::` ends the
@@ -609,13 +609,7 @@ export function readStateStatements(lines: readonly StateSourceLine[]): StateSta
       delimited = true
       continue
     }
-    const statementKeyword = matchAt(STATEMENT_KEYWORD_AT, text, column) ?? matchAt(OWN_KEYWORD_AT, text, column)
-    // A keyword that a `:` or an arrow follows (`note :::c --> A`,
-    // `note : x`) names a state, as `state` there does; so does one a
-    // comment ends with no blank (`note%%`).
-    const afterKeyword = statementKeyword === null ? '' : text.slice(column + statementKeyword.length)
-    const keywordNamed = statementKeyword !== null && (/^[ \t]*(?::|-->)/.test(afterKeyword) || (afterKeyword === '' && logical[row]!.commentGlued))
-    if (statementKeyword !== null && !keywordNamed) {
+    if (matchAt(STATEMENT_KEYWORD_AT, text, column) !== null || matchAt(OWN_KEYWORD_AT, text, column) !== null) {
       // A keyword statement runs to the end of its line.
       const keyword = text.slice(column)
       emit(keyword, line, false)
@@ -647,11 +641,7 @@ export function readStateStatements(lines: readonly StateSourceLine[]): StateSta
         declaration = null
       }
     }
-    // `state` that a `:::`, a description or a transition follows (`state :::c
-    // --> A`) declares nothing either, and is the name `state`, as `State`
-    // is; Mermaid reads a declaration there, which it drops.
-    const nameBefore = keyword !== null && declaration === null && /^(?::|-->)/.test(text.slice(column + keyword.length))
-    const read = declaration ?? (keyword === null || named || nameBefore ? readIdStatement() : null)
+    const read = declaration ?? (keyword === null || named ? readIdStatement() : null)
     if (read !== null) {
       emit(read.text, line, read.opens ?? false)
       const emitted = statements.at(-1)!
@@ -663,7 +653,7 @@ export function readStateStatements(lines: readonly StateSourceLine[]): StateSta
         depth++
       }
       // `state "L" as X : text` is read as `state "L" as X` and `X : text`.
-      if (read.also !== undefined) statements.push({ text: read.also, line, ...(read.alsoSpan ? { textSpan: read.alsoSpan } : {}), ...(read.nameBlanks ? { nameBlanks: read.nameBlanks } : {}), ...(declaration !== null ? { afterAlias: true } : {}) })
+      if (read.also !== undefined) statements.push({ text: read.also, line, ...(read.alsoSpan ? { textSpan: read.alsoSpan } : {}), ...(declaration !== null ? { afterAlias: true } : {}) })
       if (row !== startRow) mark = { statements: statements.length, depth, column }
       continue
     }
