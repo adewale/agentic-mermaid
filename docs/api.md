@@ -74,8 +74,9 @@ string.
 
 ### Graph layout selection
 
-ELK remains the default graph producer. Select it explicitly with
-`graphLayout: { backend: 'elk' }`, or opt into the owned producer:
+Omitting `graphLayout` retains the existing automatic policy, including the
+guarded forest optimization. Force ELK with `graphLayout: { backend: 'elk' }`,
+or opt into the owned producer:
 
 ```ts
 const { svg, receipt } = renderMermaidSVGWithReceipt(source, {

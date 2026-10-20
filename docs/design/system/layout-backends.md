@@ -1,9 +1,11 @@
 # Graph layout backends and comparative measurement
 
-Status: implementation contract with an initial opt-in DAG backend. ELK remains
-supported and is the default. The current Agentic domain is flat measured
-Flowchart graphs, including cycles; self-loops, compound groups and specialized
-family geometry still require ELK. Implementation scheduling remains in root TODO.md.
+Status: implementation and qualification contract for an opt-in owned backend.
+Native measured Flowchart/State placement includes cycles, loops and independent
+nested scopes. Cross-hierarchy leaf routes and specialized Class/ER/Architecture/
+Requirement geometry still require ELK. Quality and cost qualification remains
+in progress; admission is not proof of parity. Implementation scheduling remains
+in root TODO.md.
 
 This design adds an owned graph-layout backend alongside ELK, lets callers
 select either one, and measures both through the same Agentic Mermaid rendering
@@ -146,12 +148,19 @@ interface RenderOptions {
 
 | Request | Required behavior |
 |---|---|
-| graphLayout omitted | Preserve today's ELK path for participating graph families |
+| graphLayout omitted | Preserve the existing automatic policy, including the guarded forest optimization |
 | backend: 'elk' | Use the existing ELK strategy and downstream family pipeline |
 | backend: 'agentic', fallback omitted or 'none' | Use only Agentic; report unsupported inputs or exhausted feasible candidates explicitly |
 | backend: 'agentic', fallback: 'elk' | Try Agentic when eligible; permit one attributed transition to ELK for the cases defined below |
 | backend: 'elk', fallback: 'elk' | Reject redundant configuration during option validation |
 | Unknown backend, fallback or nested field | Reject during checked option admission |
+
+Main's selected performance paths now enable forest placement and positioned
+caching by default. An omitted selector can therefore avoid ELK on an eligible
+forest; a successful strict native render is not automatically a download win
+against that default. Compare explicit ELK with strict native when measuring
+solvers, and measure the default policy separately. Cache hits retain immutable
+producer decisions and replay per-request fallback diagnostics and roles.
 
 An empty graphLayout object is invalid. Normalize omitted fallback to 'none'.
 There is no automatic backend race, machine-dependent selector or default
@@ -546,8 +555,9 @@ protocol, not a later branch head.
 
 The initial delivery is complete when all of the following hold:
 
-- ELK remains available and the default for its current graph consumers. The
-  extraction preserves existing default ELK geometry and secured output.
+- Explicit ELK remains available for its current graph consumers. Omitting the
+  selector retains main's automatic policy, including the enabled guarded forest
+  optimization. No promotion of the new layered backend is implied.
 - Both explicit selections work through the canonical request and positioned
   artifact boundaries, with equivalent behavior across applicable public
   adapters. At least the declared forest domain completes through Agentic.
@@ -597,6 +607,21 @@ constraints need splitting. Its linked [orthogonal routing thesis](https://rtsys
 is a design reference; it is not evidence that our implementation already
 matches ELK. Public quality reports retain proper crossings, opposing shared
 spans and indistinguishable duplicate spans separately.
+
+[TALA became open source on September 7, 2026](https://d2lang.com/blog/tala-is-open-source/),
+under MPL-2.0. Its architecture separates independent candidate graphs, placement,
+routing, exact label geometry and completed-layout scoring. Its deterministic
+network-simplex ranker follows the [Gansner et al. ranking objective](https://graphviz.org/documentation/TSE93.pdf);
+its general orthogonal placement also explores multiple explicit seeds. The
+[implementation architecture](https://github.com/d2lang/d2/blob/master/d2layouts/d2talalayout/ARCHITECTURE.md)
+is a research reference, not imported code or evidence of Agentic parity.
+The release announcement explicitly notes weaker long-DAG results, nonlinear
+runtime scaling and possible large changes after an edit. General orthogonal
+placement and layered placement therefore need different quality and stability
+comparisons. Candidate scores must concern rendered routes and labels; fewer
+feedback arcs or rank inversions alone do not prove a better final drawing.
+No TALA code or dependency is introduced here. Public indexed X searches did
+not yield a citable post; that does not establish that nobody posted about it.
 
 ## Implementation references
 
