@@ -1,3 +1,4 @@
+import { compactMeasuredLoops } from './compact-measured-loops.ts'
 import type { Direction, Point } from '../types.ts'
 import { layoutSharedFan } from './shared-fan-core.ts'
 import { layoutCyclicGraph, type LayoutSearchWork } from './cycle-layout-search.ts'
@@ -74,7 +75,7 @@ export function layoutLayeredGraph(
   forestLayout: (input: MeasuredGraph) => AgenticLayout | undefined,
   unsupported: (reason: string) => never,
   routingWork: ChannelWork = { pairs: 1_000_000, arcs: 65536, swaps: 1_000_000 },
-  searchWork: LayoutSearchWork = { attempts: 128, scorePairs: 8_000_000, routing: { pairs: 500_000, arcs: 32768, swaps: 500_000 } },
+  searchWork: LayoutSearchWork = { attempts: 128, scorePairs: 8_000_000, loopPairs: 2_000_000, routing: { pairs: 500_000, arcs: 32768, swaps: 500_000 } },
 ): AgenticLayout {
   const { nodes, edges, padding, nodeSpacing, layerSpacing } = input
   if (nodes.length > MAX_NODES || edges.length > MAX_EDGES) unsupported('agentic local graph-size limit')
@@ -143,7 +144,7 @@ export function layoutLayeredGraph(
       expandedEdges.push({ source: edge.source, target, minSpan: edge.minSpan })
     }
     const placed = layoutLayeredGraph({ ...input, nodes: expandedNodes, edges: expandedEdges, loopPorts }, forestLayout, unsupported, routingWork, searchWork)
-    return { ...placed, topology: 'layered', nodes: placed.nodes.slice(0, nodes.length), edges: placed.edges.slice(0, edges.length).map((route, index) => {
+    const projected: AgenticLayout = { ...placed, topology: 'layered', nodes: placed.nodes.slice(0, nodes.length), edges: placed.edges.slice(0, edges.length).map((route, index) => {
       const back = returns[index]!
       if (back < 0) return route
       const returning = placed.edges[back]!.points
@@ -162,6 +163,7 @@ export function layoutLayeredGraph(
       }
       return { ...route, ...(labelPosition ? { labelPosition } : {}), points: route.points.concat([...returning].reverse()) }
     }) }
+    return compactMeasuredLoops(input, projected, searchWork)
   }
 
   const shared = layoutSharedFan(input, incoming, outgoing, unsupported)

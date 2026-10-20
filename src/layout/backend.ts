@@ -1,6 +1,6 @@
 import type { RenderOptions } from '../types.ts'
 
-export const AGENTIC_LAYERED_IMPLEMENTATION = 'agentic-layered@9'
+export const AGENTIC_LAYERED_IMPLEMENTATION = 'agentic-layered@10'
 
 /** A synchronous producer can suspend for a dependency in the async entry.
  * Loading is neither geometric infeasibility nor a solver failure. */

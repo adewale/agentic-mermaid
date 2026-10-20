@@ -733,3 +733,14 @@ dependency loading, unexpected defects and global work errors propagate.
 The adapter's tests cover all four directions, parallel relations, cycles,
 self-loops and foreign-label clearance. Broader cost and quality qualification
 still includes the remaining unsupported families in its denominator.
+
+Small native self-loops may replace their reserved private corridor with a
+three-segment turn. The proposal preserves distinct source attachments and
+outward terminal rays, clears measured nodes and foreign labels, and cannot add
+proper crossings, shared shafts or unowned contacts. A moved label needs a
+measured clear slot beside its loop, including clearance from foreign shafts.
+Bounds exclude discarded helper geometry and all translated points retain
+independent ownership. The optional refinement shares two million comparisons
+across scopes, examines at most 32 turn lanes per loop, and skips scopes above
+256 nodes, 128 edges or 2,048 route points. Exhaustion keeps feasible geometry
+without invoking fallback.
