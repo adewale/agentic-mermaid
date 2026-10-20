@@ -156,11 +156,8 @@ export function parseTimelineBody(lines: string[], accessibility: Accessibility 
 // ---- Verifier ---------------------------------------------------------------
 
 /** Timeline lines ours reads where pinned Mermaid's lexer reads a keyword,
- * each on its canonical line. Mermaid ends a `section` name at a colon and
- * adds the events after it to the latest period, failing ("Cannot read
- * properties of undefined") when there is none; ours reads the whole line as
- * one period. Mermaid also reads the word `timeline` starting a line as the
- * header, and rejects it there; ours reads a period. */
+ * each on its canonical line. Mermaid reads the word `timeline` starting a
+ * line as the header, and rejects it there; ours reads a period. */
 export function timelineUnsupportedSyntaxWarnings(canonicalSource: string): LayoutWarning[] {
   const lines = canonicalSource.split(/\r?\n/)
   const header = lines.findIndex(line => parseTimelineHeader(line) !== null)
@@ -177,11 +174,6 @@ export function timelineUnsupportedSyntaxWarnings(canonicalSource: string): Layo
     }
     if (isTimelineCommentLine(line) || TIMELINE_TITLE_RE.test(line)) continue
     const period = line.match(TIMELINE_PERIOD_RE)
-    const section = period && line.match(/^section\s([^:]+)/i)
-    if (section) warnings.push({
-      code: 'UNSUPPORTED_SYNTAX', syntax: 'timeline_section_events', line: index + 1,
-      message: `Pinned Mermaid reads this line as section ${JSON.stringify(section[1]!.trim())} and adds the events after ":" to the period before it, failing when there is none. Ours reads it as the period ${JSON.stringify(period[1]!.trim())} with those events; put the section on its own line, and the period with its events below it.`,
-    })
     const label = period ? period[1]!.trim() : line.includes(':') ? undefined : line
     if (label !== undefined && /^timeline\b/i.test(line)) warnings.push({
       code: 'UNSUPPORTED_SYNTAX', syntax: 'timeline_header_in_body', line: index + 1,

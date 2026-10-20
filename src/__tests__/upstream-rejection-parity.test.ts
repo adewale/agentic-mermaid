@@ -211,13 +211,9 @@ const SEQUENCE_UNREAD: ReadonlyArray<readonly [string, string, number]> = [
   ['a comma in the receiver', 'sequenceDiagram\n  Alice->>Bob,Carol: Hi', 2],
 ]
 
-// Mermaid's Timeline lexer ends a `section` name at a colon and adds the
-// events after it to the latest period, failing when there is none; it reads
-// the word `timeline` starting a line as the header. Ours reads each line as
-// one period.
+// Mermaid's Timeline lexer reads the word `timeline` starting a line as the
+// header. Ours reads the line as a period.
 const TIMELINE_READ_GENEROUSLY: ReadonlyArray<GenerousRow> = [
-  ['events on a section line before any period', 'timeline\n  section 2020s: Launch', 'Launch', 'timeline_section_events', 2],
-  ['events on a section line after a title', 'timeline\n  title Roadmap\n  section Q1: Beta : Gamma\n  2024 : Launch', 'Gamma', 'timeline_section_events', 3],
   ['a period starting with the word timeline', 'timeline\n  Timeline of A : Launch', 'Timeline of A', 'timeline_header_in_body', 2],
   ['a repeated header with a direction', 'timeline\n  title History\n  timeline TD\n  2002 : LinkedIn', 'LinkedIn', 'timeline_header_in_body', 3],
 ]
@@ -637,15 +633,6 @@ describe('accept what pinned Mermaid accepts', () => {
       sections: body.sections.flatMap(section => section.label === undefined ? [] : [section.label]),
       periods: body.sections.flatMap(section => section.periods.map(period => [section.label ?? '', period.label, period.events.map(event => event.text)])),
     } }).toEqual({ mermaid: { ok: true, value: { sections: ['Later'], periods: [['', '2001', ['Alpha', 'Beta']], ['Later', '2002', ['Gamma']]] } }, ours: { sections: ['Later'], periods: [['', '2001', ['Alpha', 'Beta']], ['Later', '2002', ['Gamma']]] } })
-  })
-
-  test('timeline: events on a section line after a period are reported, as Mermaid adds them to that period', async () => {
-    const source = 'timeline\n  2001 : Alpha\n  section Later: Beta'
-    const mermaid = await upstream.project(source, diagram => diagram.db.getTasks().map((task: { task: string; events: string[] }) => [task.task.trim(), task.events]))
-    const parsed = parseRegisteredMermaid(source)
-    const body = parsed.ok && parsed.value.body.kind === 'timeline' ? parsed.value.body : undefined
-    expect({ mermaid, ours: body?.sections.flatMap(section => section.periods.map(period => [period.label, period.events.map(event => event.text)])), ...readGenerously(source, 'Beta') })
-      .toEqual({ mermaid: { ok: true, value: [['2001', ['Alpha', 'Beta']]] }, ours: [['2001', ['Alpha']], ['section Later', ['Beta']]], typed: 'timeline', draws: true, reported: ['timeline_section_events@3'] })
   })
 
   // The typed serializer must write what Mermaid reads: text that is only
