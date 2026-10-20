@@ -1566,9 +1566,10 @@ function immutableSnapshot<T>(value: T, path = '$', ancestors = new Set<object>(
   ancestors.add(value)
   let clone: unknown
   if (Array.isArray(value)) {
-    const items: unknown[] = new Array(value.length)
-    for (let index = 0; index < value.length; index++) {
-      if (Object.hasOwn(value, index)) items[index] = immutableSnapshot(value[index], `${path}[${index}]`, ancestors)
+    const length = value.length
+    const items: unknown[] = new Array(length)
+    for (let index = 0; index < length; index++) {
+      if (index in value) items[index] = immutableSnapshot(value[index], `${path}[${index}]`, ancestors)
     }
     clone = items
   } else {
