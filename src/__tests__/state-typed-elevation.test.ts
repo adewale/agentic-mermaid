@@ -50,7 +50,9 @@ describe('typed State residual elevation (B07)', () => {
         expect(await upstream.accepts(serialized), serialized).toBe(true)
         expect(diagram.body.states.find(node => node.id === id)?.label).toBe(label)
         expect(state(serialized).body).toEqual(diagram.body)
-        expect(parseRenderGraph(serialized).nodes.get(id)?.label).toBe(label ?? id)
+        const graph = parseRenderGraph(serialized)
+        if (/^(?:style|class) /.test(body)) expect(graph.nodes.has(id)).toBe(false)
+        else expect(graph.nodes.get(id)?.label).toBe(label ?? id)
       }
       for (const text of ['fill:white    a note with punctuation', 'this sentence: keeps its colon']) {
         const source = `stateDiagram-v2\nState1\nnote right of State1\n${text}\nend note\nState1 --> State2`
@@ -63,6 +65,43 @@ describe('typed State residual elevation (B07)', () => {
         expect(parseRenderGraph(serialized).stateNotes?.[0]?.text).toBe(text)
       }
     } finally { upstream.close() }
+  })
+
+  test('paint assignments preserve undeclared targets without inventing states, and resolve later declarations', async () => {
+    const source = `stateDiagram-v2
+  classDef hot fill:#ff0000
+  class Missing hot
+  style Missing stroke:#00ff00
+  class end hot
+  class Future hot
+  Future --> Ready
+`
+    const diagram = state(source)
+    expect(diagram.body.states.map(node => node.id).sort()).toEqual(['Future', 'Ready'])
+    expect(diagram.body.states.find(node => node.id === 'Future')?.className).toBe('hot')
+    const canonical = serializeMermaid(diagram)
+    expect(canonical).toContain('class Missing hot')
+    expect(canonical).toContain('class end hot')
+    expect(canonical).toContain('style Missing stroke:#00ff00')
+    expect(state(canonical).body).toEqual(diagram.body)
+    const upstream = startUpstreamMermaid()
+    try {
+      const originals = await upstream.projectAll([source, canonical], d => d.db.getData().nodes.map((node: any) => ({ id: node.id, classes: node.cssClasses })).sort((a: any, b: any) => a.id.localeCompare(b.id)))
+      expect(originals[0]).toEqual(originals[1])
+      expect(originals[0]?.map(node => node.id)).toEqual(['Future', 'Ready'])
+    } finally { upstream.close() }
+    for (const input of [source, canonical]) {
+      const graph = parseRenderGraph(input)
+      expect([...graph.nodes.keys()].sort()).toEqual(['Future', 'Ready'])
+      expect(graph.classAssignments.get('Missing')).toBe('hot')
+      expect(graph.nodeStyles.get('Missing')).toEqual({ stroke: '#00ff00' })
+      expect(renderMermaidSVG(input)).not.toContain('data-id="Missing"')
+      expect(renderMermaidASCII(input)).not.toContain('Missing')
+    }
+    const added = apply(diagram, { kind: 'add_state', id: 'Missing' })
+    expect(added.body.states.find(node => node.id === 'Missing')).toMatchObject({ className: 'hot', style: { stroke: '#00ff00' } })
+    expect(state(serializeMermaid(added)).body).toEqual(added.body)
+    expect(diagram.body.states.some(node => node.id === 'Missing')).toBe(false)
   })
 
   test('a classed transition followed by a standalone state preserves both statements', async () => {
@@ -566,9 +605,10 @@ stateDiagram-v2
       const diagram = state(`stateDiagram-v2
   state C {
     ${directive}
+    A --> B
   }`)
       const composite = diagram.body.states.find(item => item.id === 'C')!
-      expect(composite.states?.map(item => item.id), name).toEqual(['A'])
+      expect(composite.states?.map(item => item.id), name).toEqual(['A', 'B'])
       expect(diagram.body.states.some(item => item.id === 'A'), name).toBe(false)
       expect(composite.states?.[0]?.className, name).toBe(className)
       expect(composite.states?.[0]?.style?.fill, name).toBe(fill)
@@ -581,8 +621,10 @@ stateDiagram-v2
     const regions = state(`stateDiagram-v2
   state C {
     class Left hot
+    Left
     --
     style Right fill:#00ff00
+    Right
   }`)
     const composite = regions.body.states.find(item => item.id === 'C')!
     expect(composite.regions?.[0]?.states).toContainEqual(expect.objectContaining({ id: 'Left', className: 'hot' }))

@@ -807,7 +807,12 @@
       "assertions": {
         "commits": 2,
         "currentBranch": "new",
-        "parentsByCommit": [[], [0]]
+        "parentsByCommit": [
+          [],
+          [
+            0
+          ]
+        ]
       }
     },
     {
@@ -823,7 +828,9 @@
       "assertions": {
         "commits": 1,
         "currentBranch": "main",
-        "messagesByCommit": ["a commit"]
+        "messagesByCommit": [
+          "a commit"
+        ]
       }
     },
     {
@@ -869,7 +876,11 @@
       "classification": "portable",
       "source": "gitGraph:\ncommit\nbranch b1\ncheckout b1\ncommit\ncommit\nbranch b2\n",
       "assertions": {
-        "orderedBranches": ["main", "b1", "b2"]
+        "orderedBranches": [
+          "main",
+          "b1",
+          "b2"
+        ]
       }
     },
     {
@@ -887,13 +898,17 @@
         "branches": 1,
         "direction": "LR",
         "currentBranch": "main",
-        "tagsByCommit": [[]],
+        "tagsByCommit": [
+          []
+        ],
         "typesByCommit": [
           {
             "type": "NORMAL"
           }
         ],
-        "messagesByCommit": [""],
+        "messagesByCommit": [
+          ""
+        ],
         "customIds": []
       }
     },
@@ -912,13 +927,17 @@
         "branches": 1,
         "direction": "LR",
         "currentBranch": "main",
-        "tagsByCommit": [[]],
+        "tagsByCommit": [
+          []
+        ],
         "typesByCommit": [
           {
             "type": "NORMAL"
           }
         ],
-        "messagesByCommit": [""],
+        "messagesByCommit": [
+          ""
+        ],
         "customIds": [
           {
             "index": 0,
@@ -942,13 +961,19 @@
         "branches": 1,
         "direction": "LR",
         "currentBranch": "main",
-        "tagsByCommit": [["test"]],
+        "tagsByCommit": [
+          [
+            "test"
+          ]
+        ],
         "typesByCommit": [
           {
             "type": "NORMAL"
           }
         ],
-        "messagesByCommit": [""],
+        "messagesByCommit": [
+          ""
+        ],
         "customIds": []
       }
     },
@@ -967,13 +992,17 @@
         "branches": 1,
         "direction": "LR",
         "currentBranch": "main",
-        "tagsByCommit": [[]],
+        "tagsByCommit": [
+          []
+        ],
         "typesByCommit": [
           {
             "type": "HIGHLIGHT"
           }
         ],
-        "messagesByCommit": [""],
+        "messagesByCommit": [
+          ""
+        ],
         "customIds": []
       }
     },
@@ -992,13 +1021,17 @@
         "branches": 1,
         "direction": "LR",
         "currentBranch": "main",
-        "tagsByCommit": [[]],
+        "tagsByCommit": [
+          []
+        ],
         "typesByCommit": [
           {
             "type": "REVERSE"
           }
         ],
-        "messagesByCommit": [""],
+        "messagesByCommit": [
+          ""
+        ],
         "customIds": []
       }
     },
@@ -1017,13 +1050,17 @@
         "branches": 1,
         "direction": "LR",
         "currentBranch": "main",
-        "tagsByCommit": [[]],
+        "tagsByCommit": [
+          []
+        ],
         "typesByCommit": [
           {
             "type": "NORMAL"
           }
         ],
-        "messagesByCommit": [""],
+        "messagesByCommit": [
+          ""
+        ],
         "customIds": []
       }
     },
@@ -1042,13 +1079,17 @@
         "branches": 1,
         "direction": "LR",
         "currentBranch": "main",
-        "tagsByCommit": [[]],
+        "tagsByCommit": [
+          []
+        ],
         "typesByCommit": [
           {
             "type": "NORMAL"
           }
         ],
-        "messagesByCommit": ["test commit"],
+        "messagesByCommit": [
+          "test commit"
+        ],
         "customIds": []
       }
     },
@@ -1067,13 +1108,17 @@
         "branches": 1,
         "direction": "LR",
         "currentBranch": "main",
-        "tagsByCommit": [[]],
+        "tagsByCommit": [
+          []
+        ],
         "typesByCommit": [
           {
             "type": "NORMAL"
           }
         ],
-        "messagesByCommit": ["test commit"],
+        "messagesByCommit": [
+          "test commit"
+        ],
         "customIds": []
       }
     },
@@ -1092,13 +1137,19 @@
         "branches": 1,
         "direction": "LR",
         "currentBranch": "main",
-        "tagsByCommit": [["test tag"]],
+        "tagsByCommit": [
+          [
+            "test tag"
+          ]
+        ],
         "typesByCommit": [
           {
             "type": "NORMAL"
           }
         ],
-        "messagesByCommit": [""],
+        "messagesByCommit": [
+          ""
+        ],
         "customIds": [
           {
             "index": 0,
@@ -1122,13 +1173,19 @@
         "branches": 1,
         "direction": "LR",
         "currentBranch": "main",
-        "tagsByCommit": [["test tag"]],
+        "tagsByCommit": [
+          [
+            "test tag"
+          ]
+        ],
         "typesByCommit": [
           {
             "type": "HIGHLIGHT"
           }
         ],
-        "messagesByCommit": [""],
+        "messagesByCommit": [
+          ""
+        ],
         "customIds": []
       }
     },
@@ -1147,13 +1204,19 @@
         "branches": 1,
         "direction": "LR",
         "currentBranch": "main",
-        "tagsByCommit": [["test tag"]],
+        "tagsByCommit": [
+          [
+            "test tag"
+          ]
+        ],
         "typesByCommit": [
           {
             "type": "HIGHLIGHT"
           }
         ],
-        "messagesByCommit": [""],
+        "messagesByCommit": [
+          ""
+        ],
         "customIds": []
       }
     },
@@ -1172,13 +1235,19 @@
         "branches": 1,
         "direction": "LR",
         "currentBranch": "main",
-        "tagsByCommit": [["test tag"]],
+        "tagsByCommit": [
+          [
+            "test tag"
+          ]
+        ],
         "typesByCommit": [
           {
             "type": "REVERSE"
           }
         ],
-        "messagesByCommit": [""],
+        "messagesByCommit": [
+          ""
+        ],
         "customIds": [
           {
             "index": 0,
@@ -1202,13 +1271,19 @@
         "branches": 1,
         "direction": "LR",
         "currentBranch": "main",
-        "tagsByCommit": [["test tag"]],
+        "tagsByCommit": [
+          [
+            "test tag"
+          ]
+        ],
         "typesByCommit": [
           {
             "type": "REVERSE"
           }
         ],
-        "messagesByCommit": ["test msg"],
+        "messagesByCommit": [
+          "test msg"
+        ],
         "customIds": [
           {
             "index": 0,
@@ -1232,13 +1307,19 @@
         "branches": 1,
         "direction": "LR",
         "currentBranch": "main",
-        "tagsByCommit": [["test tag"]],
+        "tagsByCommit": [
+          [
+            "test tag"
+          ]
+        ],
         "typesByCommit": [
           {
             "type": "REVERSE"
           }
         ],
-        "messagesByCommit": ["test msg"],
+        "messagesByCommit": [
+          "test msg"
+        ],
         "customIds": [
           {
             "index": 0,
@@ -1262,13 +1343,19 @@
         "branches": 1,
         "direction": "LR",
         "currentBranch": "main",
-        "tagsByCommit": [["test tag"]],
+        "tagsByCommit": [
+          [
+            "test tag"
+          ]
+        ],
         "typesByCommit": [
           {
             "type": "REVERSE"
           }
         ],
-        "messagesByCommit": ["test msg"],
+        "messagesByCommit": [
+          "test msg"
+        ],
         "customIds": [
           {
             "index": 0,
@@ -1292,13 +1379,19 @@
         "branches": 1,
         "direction": "LR",
         "currentBranch": "main",
-        "tagsByCommit": [["test tag"]],
+        "tagsByCommit": [
+          [
+            "test tag"
+          ]
+        ],
         "typesByCommit": [
           {
             "type": "REVERSE"
           }
         ],
-        "messagesByCommit": ["test msg"],
+        "messagesByCommit": [
+          "test msg"
+        ],
         "customIds": [
           {
             "index": 0,
@@ -1356,8 +1449,15 @@
         "branches": 2,
         "direction": "LR",
         "currentBranch": "main",
-        "branchesByCommit": ["main", "branch", "main"],
-        "orderedBranches": ["main", "branch"]
+        "branchesByCommit": [
+          "main",
+          "branch",
+          "main"
+        ],
+        "orderedBranches": [
+          "main",
+          "branch"
+        ]
       }
     },
     {
@@ -1442,7 +1542,12 @@
         "commits": 1,
         "branches": 4,
         "currentBranch": "test3",
-        "orderedBranches": ["main", "test3", "test2", "test1"]
+        "orderedBranches": [
+          "main",
+          "test3",
+          "test2",
+          "test1"
+        ]
       }
     },
     {
@@ -1459,7 +1564,12 @@
         "commits": 1,
         "branches": 4,
         "currentBranch": "test3",
-        "orderedBranches": ["main", "test2", "test3", "test1"]
+        "orderedBranches": [
+          "main",
+          "test2",
+          "test3",
+          "test1"
+        ]
       }
     },
     {
@@ -1477,8 +1587,16 @@
         "branches": 2,
         "direction": "LR",
         "currentBranch": "testBranch",
-        "parentsByCommit": [[], [0]],
-        "branchesByCommit": ["main", "testBranch"]
+        "parentsByCommit": [
+          [],
+          [
+            0
+          ]
+        ],
+        "branchesByCommit": [
+          "main",
+          "testBranch"
+        ]
       }
     },
     {
@@ -1496,10 +1614,30 @@
         "branches": 2,
         "direction": "LR",
         "currentBranch": "main",
-        "parentsByCommit": [[], [0], [1], [0, 2]],
-        "branchesByCommit": ["main", "testBranch", "testBranch", "main"],
+        "parentsByCommit": [
+          [],
+          [
+            0
+          ],
+          [
+            1
+          ],
+          [
+            0,
+            2
+          ]
+        ],
+        "branchesByCommit": [
+          "main",
+          "testBranch",
+          "testBranch",
+          "main"
+        ],
         "customIds": [],
-        "orderedBranches": ["main", "testBranch"]
+        "orderedBranches": [
+          "main",
+          "testBranch"
+        ]
       }
     },
     {
@@ -1534,8 +1672,16 @@
         "branches": 2,
         "direction": "LR",
         "currentBranch": "testBranch",
-        "parentsByCommit": [[], [0]],
-        "branchesByCommit": ["main", "testBranch"]
+        "parentsByCommit": [
+          [],
+          [
+            0
+          ]
+        ],
+        "branchesByCommit": [
+          "main",
+          "testBranch"
+        ]
       }
     },
     {
@@ -1553,10 +1699,30 @@
         "branches": 2,
         "direction": "LR",
         "currentBranch": "main",
-        "parentsByCommit": [[], [0], [1], [0, 2]],
-        "branchesByCommit": ["main", "testBranch", "testBranch", "main"],
+        "parentsByCommit": [
+          [],
+          [
+            0
+          ],
+          [
+            1
+          ],
+          [
+            0,
+            2
+          ]
+        ],
+        "branchesByCommit": [
+          "main",
+          "testBranch",
+          "testBranch",
+          "main"
+        ],
         "customIds": [],
-        "orderedBranches": ["main", "testBranch"]
+        "orderedBranches": [
+          "main",
+          "testBranch"
+        ]
       }
     },
     {
@@ -1574,11 +1740,33 @@
         "branches": 2,
         "direction": "LR",
         "currentBranch": "main",
-        "parentsByCommit": [[], [0], [0, 1]],
-        "branchesByCommit": ["main", "testBranch", "main"],
-        "tagsByCommit": [[], [], ["merge-tag"]],
+        "parentsByCommit": [
+          [],
+          [
+            0
+          ],
+          [
+            0,
+            1
+          ]
+        ],
+        "branchesByCommit": [
+          "main",
+          "testBranch",
+          "main"
+        ],
+        "tagsByCommit": [
+          [],
+          [],
+          [
+            "merge-tag"
+          ]
+        ],
         "customIds": [],
-        "orderedBranches": ["main", "testBranch"]
+        "orderedBranches": [
+          "main",
+          "testBranch"
+        ]
       }
     },
     {
@@ -1595,9 +1783,52 @@
         "commits": 7,
         "direction": "LR",
         "currentBranch": "main",
-        "parentsByCommit": [[], [0], [0, 1], [2], [2, 3], [4], [4, 5]],
-        "branchesByCommit": ["main", "testBranch", "main", "testBranch2", "main", "testBranch3", "main"],
-        "tagsByCommit": [[], [], ["merge-tag"], [], ["merge-tag2"], [], []],
+        "parentsByCommit": [
+          [],
+          [
+            0
+          ],
+          [
+            0,
+            1
+          ],
+          [
+            2
+          ],
+          [
+            2,
+            3
+          ],
+          [
+            4
+          ],
+          [
+            4,
+            5
+          ]
+        ],
+        "branchesByCommit": [
+          "main",
+          "testBranch",
+          "main",
+          "testBranch2",
+          "main",
+          "testBranch3",
+          "main"
+        ],
+        "tagsByCommit": [
+          [],
+          [],
+          [
+            "merge-tag"
+          ],
+          [],
+          [
+            "merge-tag2"
+          ],
+          [],
+          []
+        ],
         "typesByCommit": [
           {
             "type": "NORMAL"
@@ -1636,7 +1867,12 @@
             "id": "6-666"
           }
         ],
-        "orderedBranches": ["main", "testBranch", "testBranch2", "testBranch3"]
+        "orderedBranches": [
+          "main",
+          "testBranch",
+          "testBranch2",
+          "testBranch3"
+        ]
       }
     },
     {
@@ -1650,8 +1886,18 @@
       "classification": "portable",
       "source": "gitGraph\n        commit id: \"ZERO\"\n        branch develop\n        commit id:\"A\"\n        checkout main\n        cherry-pick id:\"A\"\n        ",
       "assertions": {
-        "branchesByCommit": ["main", "develop", "main"],
-        "tagsByCommit": [[], [], ["cherry-pick:A"]]
+        "branchesByCommit": [
+          "main",
+          "develop",
+          "main"
+        ],
+        "tagsByCommit": [
+          [],
+          [],
+          [
+            "cherry-pick:A"
+          ]
+        ]
       }
     },
     {
@@ -1665,8 +1911,18 @@
       "classification": "portable",
       "source": "gitGraph\n        commit id: \"ZERO\"\n        branch develop\n        commit id:\"A\"\n        checkout main\n        cherry-pick id:\"A\" tag:\"MyTag\"\n        ",
       "assertions": {
-        "branchesByCommit": ["main", "develop", "main"],
-        "tagsByCommit": [[], [], ["MyTag"]]
+        "branchesByCommit": [
+          "main",
+          "develop",
+          "main"
+        ],
+        "tagsByCommit": [
+          [],
+          [],
+          [
+            "MyTag"
+          ]
+        ]
       }
     },
     {
@@ -1680,8 +1936,18 @@
       "classification": "portable",
       "source": "gitGraph\n        commit id: \"ZERO\"\n        branch develop\n        commit id:\"A\"\n        checkout main\n        cherry-pick id:\"A\" tag:\"\"\n        ",
       "assertions": {
-        "branchesByCommit": ["main", "develop", "main"],
-        "tagsByCommit": [[], [], [""]]
+        "branchesByCommit": [
+          "main",
+          "develop",
+          "main"
+        ],
+        "tagsByCommit": [
+          [],
+          [],
+          [
+            ""
+          ]
+        ]
       }
     },
     {
@@ -1695,8 +1961,22 @@
       "classification": "portable",
       "source": "gitGraph\n        commit id: \"ZERO\"\n        branch feature\n        branch release\n        checkout feature\n        commit id: \"A\"\n        commit id: \"B\"\n        checkout main\n        merge feature id: \"M\"\n        checkout release\n        cherry-pick id: \"M\" parent:\"B\"\n        ",
       "assertions": {
-        "branchesByCommit": ["main", "feature", "feature", "main", "release"],
-        "tagsByCommit": [[], [], [], [], ["cherry-pick:M|parent:B"]]
+        "branchesByCommit": [
+          "main",
+          "feature",
+          "feature",
+          "main",
+          "release"
+        ],
+        "tagsByCommit": [
+          [],
+          [],
+          [],
+          [],
+          [
+            "cherry-pick:M|parent:B"
+          ]
+        ]
       }
     },
     {
@@ -1710,8 +1990,22 @@
       "classification": "portable",
       "source": "gitGraph\n        commit id: \"ZERO\"\n        branch feature\n        branch release\n        checkout feature\n        commit id: \"A\"\n        commit id: \"B\"\n        checkout main\n        merge feature id: \"M\"\n        checkout release\n        cherry-pick id: \"M\" parent:\"ZERO\" tag: \"v1.0\"\n        ",
       "assertions": {
-        "branchesByCommit": ["main", "feature", "feature", "main", "release"],
-        "tagsByCommit": [[], [], [], [], ["v1.0"]]
+        "branchesByCommit": [
+          "main",
+          "feature",
+          "feature",
+          "main",
+          "release"
+        ],
+        "tagsByCommit": [
+          [],
+          [],
+          [],
+          [],
+          [
+            "v1.0"
+          ]
+        ]
       }
     },
     {
@@ -1725,8 +2019,26 @@
       "classification": "portable",
       "source": "gitGraph\n        commit id: \"ZERO\"\n        branch feature\n        branch release\n        checkout feature\n        commit id: \"A\"\n        commit id: \"B\"\n        checkout main\n        merge feature id: \"M\"\n        checkout release\n        commit id: \"C\"\n        cherry-pick id: \"M\" tag: \"v2.1:ZERO\" parent:\"ZERO\"\n        commit id: \"D\"\n        ",
       "assertions": {
-        "branchesByCommit": ["main", "feature", "feature", "main", "release", "release", "release"],
-        "tagsByCommit": [[], [], [], [], [], ["v2.1:ZERO"], []]
+        "branchesByCommit": [
+          "main",
+          "feature",
+          "feature",
+          "main",
+          "release",
+          "release",
+          "release"
+        ],
+        "tagsByCommit": [
+          [],
+          [],
+          [],
+          [],
+          [],
+          [
+            "v2.1:ZERO"
+          ],
+          []
+        ]
       }
     },
     {
@@ -1945,7 +2257,10 @@
             "commits": 3,
             "branches": 2,
             "currentBranch": "main",
-            "orderedBranches": ["main", "__proto__"]
+            "orderedBranches": [
+              "main",
+              "__proto__"
+            ]
           }
         },
         {
@@ -1954,7 +2269,10 @@
             "commits": 3,
             "branches": 2,
             "currentBranch": "main",
-            "orderedBranches": ["main", "constructor"]
+            "orderedBranches": [
+              "main",
+              "constructor"
+            ]
           }
         }
       ]
