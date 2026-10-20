@@ -1,4 +1,4 @@
-import { minimumSpanRanks } from './minimum-span-ranks.ts'
+import { minimumSpanRanks, privateRankSpan } from './minimum-span-ranks.ts'
 import { compactMeasuredLoops } from './compact-measured-loops.ts'
 import type { Direction, Point } from '../types.ts'
 import { layoutSharedFan } from './shared-fan-core.ts'
@@ -28,6 +28,8 @@ export interface MeasuredGraph {
   shareCompleteFans?: boolean
   /** Private single-candidate refinement; authored arrow direction is restored. */
   authoredCycleOrder?: boolean
+  /** Optional compact candidate: only labelled links need an extra private rank. */
+  compactPrivateRanks?: boolean
 }
 
 export interface AgenticLayout {
@@ -174,8 +176,8 @@ export function layoutLayeredGraph(
   const forest = forestLayout(input)
   if (forest) return { ...forest, expandedVertices: nodes.length }
 
-  // Two private ranks per minimum span leave room for a measured edge label
-  // even on an edge between adjacent authored ranks.
+  // The default reserves two private ranks per span. The optional compact
+  // policy reserves the extra rank only for measured labels.
   const rank = new Uint32Array(nodes.length)
   const queue = nodes.flatMap((_, index) => indegree[index] === 0 ? [index] : [])
   let maxRank = 0
@@ -183,7 +185,7 @@ export function layoutLayeredGraph(
     const source = queue[cursor]!
     for (const edgeIndex of outgoing[source]!) {
       const edge = edges[edgeIndex]!
-      const next = rank[source]! + 2 * edge.minSpan
+      const next = rank[source]! + privateRankSpan(edge, input.compactPrivateRanks)
       if (next >= MAX_RANKS) unsupported('agentic local rank-expansion limit')
       rank[edge.target] = Math.max(rank[edge.target]!, next)
       maxRank = Math.max(maxRank, next)
@@ -205,8 +207,8 @@ export function layoutLayeredGraph(
       for (let cursor = 0; cursor < queue.length; cursor++) {
         const id = queue[reverse ? queue.length - 1 - cursor : cursor]!
         let lower = 0, upper = maxRank
-        for (const index of incoming[id]!) { const edge = edges[index]!; lower = Math.max(lower, rank[edge.source]! + 2 * edge.minSpan) }
-        for (const index of outgoing[id]!) { const edge = edges[index]!; upper = Math.min(upper, rank[edge.target]! - 2 * edge.minSpan) }
+        for (const index of incoming[id]!) { const edge = edges[index]!; lower = Math.max(lower, rank[edge.source]! + privateRankSpan(edge, input.compactPrivateRanks)) }
+        for (const index of outgoing[id]!) { const edge = edges[index]!; upper = Math.min(upper, rank[edge.target]! - privateRankSpan(edge, input.compactPrivateRanks)) }
         const next = outgoing[id]!.length && outgoing[id]!.length >= incoming[id]!.length ? upper : lower
         if (next !== rank[id]) { rank[id] = next; changed = true }
       }
