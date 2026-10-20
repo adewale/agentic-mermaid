@@ -170,10 +170,14 @@ describe('render-parity gate (RENDER_FAILED)', () => {
     for (const source of [
       '%%{init: {"flowchart": {"rankSpacing": 300}}}%%\nflowchart LR\n  A --> B',
       '---\nconfig:\n  class:\n    nodeSpacing: 200\n---\nclassDiagram\n  A <|-- B\n  A <|-- C',
+      // Axis and grid lines end on the canvas edge.
+      'xychart-beta\n  x-axis [a, b]\n  y-axis 0 --> 10\n  bar [1, 2]',
+      '---\ntitle: Chart\n---\nxychart-beta horizontal\n  x-axis [a, b]\n  y-axis 0 --> 10\n  bar [1, 2]',
+      '%%{init: {"xyChart": {"width": 400, "height": 300}}}%%\nxychart-beta\n  x-axis [a, b]\n  y-axis 0 --> 10\n  bar [1, 2]',
     ]) {
-      const [, , width, height] = /viewBox="([^"]+)"/.exec(renderMermaidSVG(source))![1]!.split(' ').map(Number)
+      const [x, y, width, height] = /viewBox="([^"]+)"/.exec(renderMermaidSVG(source))![1]!.split(' ').map(Number)
       const { bounds } = verifyMermaid(source).layout
-      expect({ source, w: Math.round(bounds.w), h: Math.round(bounds.h) }).toEqual({ source, w: Math.round(width!), h: Math.round(height!) })
+      expect({ source, x: 0, y: 0, w: Math.round(bounds.w), h: Math.round(bounds.h) }).toEqual({ source, x: x!, y: y!, w: Math.round(width!), h: Math.round(height!) })
     }
   })
 

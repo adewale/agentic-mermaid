@@ -94,6 +94,12 @@ This changelog tracks user-facing changes for **Agentic Mermaid**, a fork of `lu
   as one composite's are (`state_composite_description` where Mermaid
   rejects them). The readings that differ from Mermaid's are recorded in
   `docs/project/divergences.md`.
+- An XYChart's SVG draws the canvas that `layoutMermaid`, `verify` and
+  `renderMermaidWithActions` regions describe. Its axis and grid lines end on
+  the canvas edge, and the final paint check counted half a line width past
+  their butt-capped ends, so the SVG widened its `viewBox` beyond the layout's
+  bounds (700×500 became 701×500.71) and drew the whole chart slightly scaled
+  down inside the same width and height.
 - Font families may be double-quoted, as Mermaid's own default
   `"trebuchet ms", verdana, arial, sans-serif` is: the font option,
   `fontFamily` config, theme variables, Journey font config, style-role fonts

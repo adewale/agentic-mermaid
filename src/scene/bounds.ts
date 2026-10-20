@@ -433,6 +433,22 @@ function paintedBox(box: AxisAlignedBox, extent: number, nonScaling: boolean, tr
   return world ? expandSceneBounds(world, extent) : undefined
 }
 
+/** A butt-capped straight segment paints only its perpendicular half-width
+ * band, nothing past its endpoints, so an axis line that ends on the canvas
+ * edge stays on the canvas. Round and square caps, and a zero-length segment,
+ * keep the axis-free envelope. */
+function lineStrokeBox(line: Extract<Geometry, { kind: 'line' }>, extent: number, cap: MarkPaint['strokeLinecap']): AxisAlignedBox {
+  const box = geometryBounds(line)!
+  const length = Math.hypot(line.x2 - line.x1, line.y2 - line.y1)
+  if ((cap !== undefined && cap !== 'butt') || length === 0) return expandSceneBounds(box, extent)
+  const x = extent * Math.abs(line.y2 - line.y1) / length, y = extent * Math.abs(line.x2 - line.x1) / length
+  return { x0: box.x0 - x, y0: box.y0 - y, x1: box.x1 + x, y1: box.y1 + y }
+}
+
+function strokedBox(geometry: Geometry, box: AxisAlignedBox, extent: number, cap: MarkPaint['strokeLinecap'], nonScaling: boolean, transform?: SceneTransform): AxisAlignedBox | undefined {
+  return geometry.kind === 'line' && !nonScaling ? transformedBounds(lineStrokeBox(geometry, extent, cap), transform) : paintedBox(box, extent, nonScaling, transform)
+}
+
 /** A single symmetric cubic with horizontal endpoint tangents has no joins.
  * Its normal's horizontal component is bounded by the midpoint slope; butt
  * caps add no tangent extension. This keeps thick flow ribbons measurable
@@ -509,14 +525,14 @@ function paintBounds(node: SceneNode, parentTransform?: SceneTransform): AxisAli
     let base: AxisAlignedBox | undefined
     for (const paint of [node.paint, ...node.childPaints ?? []]) {
       const extent = paintedStrokeExtent(paint, open)
-      const box = extent === undefined ? undefined : paintedBox(local, extent, paint.vectorEffect === 'non-scaling-stroke', transform)
+      const box = extent === undefined ? undefined : strokedBox(node.geometry, local, extent, paint.strokeLinecap, paint.vectorEffect === 'non-scaling-stroke', transform)
       if (!box) return undefined
       base = base ? unionSceneBounds(base, box) : box
     }
     if (!node.conditionalPaint) return base
     const alternate = paintedStrokeExtent(node.conditionalPaint, ['polygon', 'polyline', 'path', 'compound'].includes(node.geometry.kind))
     if (!base || alternate === undefined) return undefined
-    const alternateBounds = paintedBox(local, alternate, node.conditionalPaint.vectorEffect === 'non-scaling-stroke', transform)
+    const alternateBounds = strokedBox(node.geometry, local, alternate, node.conditionalPaint.strokeLinecap, node.conditionalPaint.vectorEffect === 'non-scaling-stroke', transform)
     return alternateBounds ? unionSceneBounds(base, alternateBounds) : undefined
   } else if (node.kind === 'connector') {
     return connectorPaintBounds(node, transform)
