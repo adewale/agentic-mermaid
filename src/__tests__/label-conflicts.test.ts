@@ -63,6 +63,9 @@ describe('rendered edge label conflicts', () => {
     }
     expect(measureLabelConflicts(positioned, style, new Set([2]))).toEqual({ total: 1, labelLabel: 0, labelNode: 0, labelEdge: 1 })
     expect(measureLabelConflicts(positioned, style, new Set([0]))).toEqual({ total: 4, labelLabel: 1, labelNode: 1, labelEdge: 2 })
+    expect(measureLabelConflicts(positioned, style, new Set([1, 2]))).toEqual({ total: 2, labelLabel: 1, labelNode: 0, labelEdge: 1 })
+    expect(measureLabelConflicts(positioned, style, new Set([4]))).toEqual({ total: 2, labelLabel: 0, labelNode: 1, labelEdge: 1 })
+    expect(measureLabelConflicts(positioned, style, new Set())).toEqual({ total: 0, labelLabel: 0, labelNode: 0, labelEdge: 0 })
   })
 
   it('does not infer shared semantic label ownership from a bundle or matching text', () => {

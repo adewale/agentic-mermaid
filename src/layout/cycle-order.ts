@@ -1,5 +1,28 @@
 import type { MeasuredGraph } from './agentic-layered.ts'
 
+/** Reverse DFS finish order preserves authored traversal when feedback counts
+ * tie. Iterative traversal keeps deep state-machine chains off the JS stack. */
+export function depthFirstOrder(outgoing: readonly number[][], edges: MeasuredGraph['edges']): Int32Array {
+  const state = new Uint8Array(outgoing.length), cursor = new Uint32Array(outgoing.length)
+  const order = new Int32Array(outgoing.length), stack: number[] = []
+  let remaining = outgoing.length - 1
+  for (let root = 0; root < outgoing.length; root++) {
+    if (state[root]) continue
+    state[root] = 1; stack.push(root)
+    while (stack.length) {
+      const node = stack.at(-1)!
+      if (cursor[node]! < outgoing[node]!.length) {
+        const edge = edges[outgoing[node]![cursor[node]!]!]!
+        cursor[node] = cursor[node]! + 1
+        if (!state[edge.target]) { state[edge.target] = 1; stack.push(edge.target) }
+      } else {
+        stack.pop(); state[node] = 2; order[node] = remaining--
+      }
+    }
+  }
+  return order
+}
+
 /** Greedy feedback-arc ordering (Eades–Lin–Smyth): peel sinks/sources, then
  * remove a vertex of maximum outdegree minus indegree. Intrusive score buckets
  * bound both space and total degree updates by O(nodes + edges). Ties follow

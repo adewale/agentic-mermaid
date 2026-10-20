@@ -21,9 +21,13 @@
 import { readFileSync, readdirSync, writeFileSync, existsSync } from 'node:fs'
 import { join } from 'node:path'
 import { execSync } from 'node:child_process'
-import { parseRegisteredMermaid as parseMermaid, layoutMermaid, measureQuality, renderMermaidSVG, renderMermaidASCII } from '../../src/agent/index.ts'
+import { parseRegisteredMermaid as parseMermaid, layoutMermaidWithReceipt, measureQuality, renderMermaidSVGWithReceipt, renderMermaidASCII } from '../../src/agent/index.ts'
 import type { QualityMetrics } from '../../src/agent/index.ts'
+import type { RenderOptions } from '../../src/types.ts'
+import { validateSerializableRenderOptions, type RenderRequestReceipt } from '../../src/render-contract.ts'
 import { compareCodePointStrings } from '../../src/shared/deterministic-order.ts'
+import { namespaceSvgIds } from '../../src/renderer.ts'
+import { FamilyLayoutError } from '../../src/agent/family-layouts.ts'
 
 const ROOT = join(import.meta.dir, '..', '..')
 const CORPUS_PATH = join(ROOT, 'eval', 'mermaid-docs-corpus', 'corpus.json')
@@ -35,14 +39,19 @@ export interface SampleResult {
   source: string
   ok: boolean
   error?: string
+  errorCode?: string
   metrics?: QualityMetrics
   svg?: string
   ascii?: string
+  svgReceipt?: RenderRequestReceipt
+  layoutReceipt?: RenderRequestReceipt
 }
 
 export interface Snapshot {
   label: string
   rev: string
+  dirty?: boolean
+  renderOptions?: RenderOptions
   createdAt: string
   samples: SampleResult[]
 }
@@ -62,31 +71,42 @@ export function collectSamples(): SampleInput[] {
   return samples
 }
 
-export function snapshotSample(input: SampleInput, idPrefix: string): SampleResult {
+export function snapshotSample(input: SampleInput, idPrefix: string, options: RenderOptions = {}): SampleResult {
   try {
     const parsed = parseMermaid(input.source)
     if (!parsed.ok) {
       return { id: input.id, family: input.family, source: input.source, ok: false, error: `parse: ${JSON.stringify(parsed.error).slice(0, 200)}` }
     }
-    const metrics = measureQuality(layoutMermaid(parsed.value))
-    const svg = renderMermaidSVG(input.source, { idPrefix })
+    const layout = layoutMermaidWithReceipt(parsed.value, { ...options, debug: true })
+    const metrics = measureQuality(layout.layout)
+    const rendered = renderMermaidSVGWithReceipt(input.source, { ...options, idPrefix })
     let ascii: string | undefined
     try {
-      ascii = renderMermaidASCII(input.source)
+      ascii = renderMermaidASCII(input.source, options)
     } catch {
       ascii = undefined // some families render SVG-only; that is not a failure
     }
-    return { id: input.id, family: input.family, source: input.source, ok: true, metrics, svg, ascii }
+    return { id: input.id, family: input.family, source: input.source, ok: true, metrics, svg: rendered.svg, ascii,
+      svgReceipt: JSON.parse(JSON.stringify(rendered.receipt)), layoutReceipt: JSON.parse(JSON.stringify(layout.receipt)) }
   } catch (e) {
-    return { id: input.id, family: input.family, source: input.source, ok: false, error: String(e).slice(0, 300) }
+    const cause = e instanceof FamilyLayoutError ? e.cause : e
+    return { id: input.id, family: input.family, source: input.source, ok: false, error: String(e).slice(0, 300),
+      ...(cause && typeof cause === 'object' && 'code' in cause && typeof cause.code === 'string' ? { errorCode: cause.code } : {}) }
   }
 }
 
-export function buildSnapshot(label: string): Snapshot {
+export function buildSnapshot(label: string, options: { renderOptions?: RenderOptions; families?: readonly string[] } = {}): Snapshot {
   let rev = 'unknown'
-  try { rev = execSync('git rev-parse --short HEAD', { cwd: ROOT, encoding: 'utf8' }).trim() } catch { /* not a repo */ }
-  const samples = collectSamples().map((s, i) => snapshotSample(s, `lc${i}-`))
-  return { label, rev, createdAt: new Date().toISOString(), samples }
+  let dirty = true
+  try {
+    rev = execSync('git rev-parse HEAD', { cwd: ROOT, encoding: 'utf8' }).trim()
+    dirty = execSync('git status --porcelain', { cwd: ROOT, encoding: 'utf8' }).length > 0
+  } catch { /* not a repo */ }
+  const all = collectSamples()
+  if (options.families?.some(family => !all.some(sample => sample.family === family))) throw new RangeError('Unknown snapshot family')
+  const samples = all.filter(sample => !options.families || options.families.includes(sample.family))
+    .map((s, i) => snapshotSample(s, `lc${i}-`, options.renderOptions))
+  return { label, rev, dirty, ...(options.renderOptions ? { renderOptions: options.renderOptions } : {}), createdAt: new Date().toISOString(), samples }
 }
 
 // ---- Report ----------------------------------------------------------------
@@ -153,6 +173,11 @@ export function compareSample(before: SampleResult | undefined, after: SampleRes
     else regressed = true
   }
   track('edgeCrossings', mb.edgeCrossings, ma.edgeCrossings, false)
+  if (mb.labelConflicts && ma.labelConflicts) track('padded label conflicts', mb.labelConflicts.total, ma.labelConflicts.total, false)
+  if (mb.routeOverlaps && ma.routeOverlaps) {
+    track('opposing shared spans', mb.routeOverlaps.opposing, ma.routeOverlaps.opposing, false)
+    track('same-endpoint shared spans', mb.routeOverlaps.parallel, ma.routeOverlaps.parallel, false)
+  }
   track('labelLegibility', mb.labelLegibility, ma.labelLegibility, true, LEGIBILITY_EPS)
   if (mb.nodeCount !== ma.nodeCount) {
     if (transitionedToMeasured) { notes.push(`nodeCount: ${mb.nodeCount} → ${ma.nodeCount} ✓ (empty→measured)`); improved = true }
@@ -165,10 +190,12 @@ export function compareSample(before: SampleResult | undefined, after: SampleRes
 
   const svgChanged = before.svg !== after.svg
   const asciiChanged = before.ascii !== after.ascii
+  const backendChanged = JSON.stringify(before.svgReceipt?.layoutDecisions ?? []) !== JSON.stringify(after.svgReceipt?.layoutDecisions ?? [])
   if (svgChanged) notes.push('svg bytes changed')
   if (asciiChanged) notes.push('ascii bytes changed')
+  if (backendChanged) notes.push('backend execution changed')
 
-  const verdict: Verdict = regressed ? 'regression' : improved ? 'improvement' : (svgChanged || asciiChanged) ? 'changed' : 'unchanged'
+  const verdict: Verdict = regressed ? 'regression' : improved ? 'improvement' : (svgChanged || asciiChanged || backendChanged) ? 'changed' : 'unchanged'
   return { id, family, verdict, notes, before, after }
 }
 
@@ -220,23 +247,24 @@ export function buildReportHtml(before: Snapshot, after: Snapshot): string {
   for (const c of comparisons) counts.set(c.verdict, (counts.get(c.verdict) ?? 0) + 1)
 
   const esc = (s: string) => s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
-  const cell = (r: SampleResult | undefined) => {
+  const cell = (r: SampleResult | undefined, prefix: string) => {
     if (!r) return '<em>missing</em>'
     if (!r.ok) return `<pre class="err">${esc(r.error ?? 'error')}</pre>`
     const ascii = r.ascii ? `<details><summary>ASCII</summary><pre class="ascii">${esc(r.ascii)}</pre></details>` : ''
-    return `<div class="svgbox">${r.svg ?? ''}</div>${ascii}`
+    const evidence = { metrics: r.metrics, svgReceipt: r.svgReceipt, layoutReceipt: r.layoutReceipt }
+    return `<div class="svgbox">${namespaceSvgIds(r.svg ?? '', prefix)}</div>${ascii}<details><summary>Measured quality and backend receipts</summary><pre>${esc(JSON.stringify(evidence, null, 2))}</pre></details>`
   }
 
   const rows = comparisons
     .filter(c => c.verdict !== 'unchanged')
-    .map(c => `
+    .map((c, index) => `
 <section class="sample ${c.verdict}">
   <h3>${esc(c.id)} <span class="badge">${c.verdict}</span> <span class="family">${esc(c.family)}</span></h3>
   <p class="notes">${c.notes.map(esc).join(' · ') || 'no metric delta'}</p>
   <details><summary>source</summary><pre>${esc((c.after ?? c.before)!.source)}</pre></details>
   <div class="pair">
-    <div><h4>before (${esc(before.rev)})</h4>${cell(c.before)}</div>
-    <div><h4>after (${esc(after.rev)})</h4>${cell(c.after)}</div>
+    <div><h4>before (${esc(before.rev)})</h4>${cell(c.before, `lc-before-${index}-`)}</div>
+    <div><h4>after (${esc(after.rev)})</h4>${cell(c.after, `lc-after-${index}-`)}</div>
   </div>
 </section>`)
     .join('\n')
@@ -278,6 +306,8 @@ export function buildReportHtml(before: Snapshot, after: Snapshot): string {
 <h1>Layout comparison</h1>
 <p><strong>${esc(before.label)}</strong> (${esc(before.rev)}, ${esc(before.createdAt)}) →
    <strong>${esc(after.label)}</strong> (${esc(after.rev)}, ${esc(after.createdAt)})</p>
+<p>Before options: <code>${esc(JSON.stringify(before.renderOptions ?? {}))}</code>${before.dirty ? ' (working tree modified)' : ''};
+after options: <code>${esc(JSON.stringify(after.renderOptions ?? {}))}</code>${after.dirty ? ' (working tree modified)' : ''}.</p>
 <ul>${summary}</ul>
 <p><strong>Family-balanced adverse rate:</strong> ${(balanced.macroAdverseRate * 100).toFixed(1)}%
    (sample-weighted: ${(balanced.microAdverseRate * 100).toFixed(1)}%).</p>
@@ -285,8 +315,13 @@ export function buildReportHtml(before: Snapshot, after: Snapshot): string {
 <table><thead><tr><th>family</th><th>samples</th><th>status</th><th>regressions</th><th>improvements</th><th>changed</th><th>unchanged</th><th>adverse</th></tr></thead>
 <tbody>${familyRows}</tbody></table></details>
 <p>Unchanged samples are hidden. Verdicts: metric deltas use measureQuality
-(edge crossings, label legibility) plus node/edge-count faithfulness;
-"changed" means bytes differ with no metric movement.</p>
+(edge crossings, padded label conflicts and shared spans when available, label legibility) plus node/edge-count faithfulness;
+"changed" means bytes or backend decisions differ with no metric movement.</p>
+<p>Quality comes from a separate public-layout call, not the retained SVG artifact.
+Preview IDs are scoped per panel; original SVG bytes and digests remain in the JSON snapshots.
+Full measurements and actual backend choices are expandable for each rendered
+sample. Spacing, area, proportions and subjective appearance still need review;
+No timing is measured here; this report does not establish complete aesthetic parity or performance.</p>
 ${rows}
 </body></html>`
 }
@@ -303,7 +338,12 @@ if (import.meta.main) {
   if (cmd === 'snapshot') {
     const out = arg('--out')
     if (!out) { console.error('snapshot requires --out <file.json>'); process.exit(2) }
-    const snap = buildSnapshot(arg('--label') ?? out)
+    const backend = arg('--graph-layout'), fallback = arg('--graph-layout-fallback')
+    if (fallback && !backend) throw new RangeError('--graph-layout-fallback requires --graph-layout')
+    const renderOptions = backend ? { graphLayout: { backend, ...(fallback ? { fallback } : {}) } } as RenderOptions : undefined
+    const problems = renderOptions ? validateSerializableRenderOptions(renderOptions) : []
+    if (problems.length) throw new RangeError(JSON.stringify(problems))
+    const snap = buildSnapshot(arg('--label') ?? out, { renderOptions, families: arg('--families')?.split(',') })
     writeFileSync(out, JSON.stringify(snap))
     const failed = snap.samples.filter(s => !s.ok).length
     console.log(`wrote ${out}: ${snap.samples.length} samples (${failed} errored) at ${snap.rev}`)
@@ -320,7 +360,7 @@ if (import.meta.main) {
     console.log(`wrote ${out}: ${n('status-changed')} status-changed, ${n('regression')} regressions, ${n('improvement')} improvements, ${n('changed')} changed, ${n('unchanged')} unchanged`)
     if (n('status-changed') + n('regression') > 0) process.exit(1)
   } else {
-    console.error('usage: run.ts snapshot --out f.json [--label name] | report --before a.json --after b.json --out report.html')
+    console.error('usage: run.ts snapshot --out f.json [--label name] [--graph-layout elk|agentic] [--graph-layout-fallback none|elk] [--families flowchart,state] | report --before a.json --after b.json --out report.html')
     process.exit(2)
   }
 }

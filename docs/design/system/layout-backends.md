@@ -268,9 +268,26 @@ retain their separately measured corridors instead of generic trunk bundling.
 Flat State graphs share this producer while retaining their own style defaults,
 pseudostate dimensions and note margins. Notes are placed by the existing
 certified geometry pipeline, without treating them as authored graph nodes.
-Self-loops, constrained family ports, compound graphs and mixed directions need
-further expansion. Each expansion needs complete
-behavioral evidence before the capability predicate accepts those inputs.
+Self-loops reserve private turnaround boxes and separate attachment ports;
+only authored nodes and edges survive the expansion. Independent nested scopes
+are placed inside measured headers and padding, retaining local directions,
+frame endpoints, State composites and concurrency regions. Cross-hierarchy leaf
+routes still require boundary-port coordination and decline explicitly, as do
+empty frames and overlapping node/frame identities. Constrained family ports
+and the remaining graph-family adapters need further expansion. Admission of a
+feature is not a claim of quality or cost parity over every admitted graph.
+
+Inter-rank channels reserve physical tracks instead of hiding crossings in
+coincident shafts. A routing dependency graph orders intersecting runs; cyclic
+terminal conflicts receive visible doglegs. Stable barycenter sweeps retain the
+best inversion ordering, followed by bounded adjacent switches. These are
+established layered drawing techniques, not a claim of a new general layout
+algorithm. Native layered placement owns its dimensions, ports and label
+corridors; ELK-specific node movers and fan reconstruction must not invalidate
+those reservations. Shared outline clipping and final geometry/paint auditing
+still apply. Per-request limits bound expanded vertices, channel-pair checks,
+routing dependencies and optional crossing-reduction comparisons, including
+recursive scopes and loop expansion.
 Class/ER compartments, Architecture ports and State semantics remain adapter
 responsibilities even when they share a producer.
 
@@ -393,6 +410,25 @@ own behavioral evidence rather than being hidden in backend extraction.
 Review a fixed, stratified visual sample of both final outputs, including worst
 metric regressions and compound cases. SVG acceptance, label survival and
 passing certificates do not alone establish equal readability.
+
+The existing visual snapshot runner accepts the checked selector and retains
+both source-SVG and parsed-layout receipts. For example:
+
+```sh
+bun run eval/layout-compare/run.ts snapshot --graph-layout elk \
+  --families flowchart,state --label ELK --out bench-report/elk-visual.json
+bun run eval/layout-compare/run.ts snapshot --graph-layout agentic \
+  --families flowchart,state --label Agentic --out bench-report/agentic-visual.json
+bun run eval/layout-compare/run.ts report --before bench-report/elk-visual.json \
+  --after bench-report/agentic-visual.json --out bench-report/layout-review.html
+```
+
+The report retains declines, exposes actual fallback, expands full public
+quality measurements, and keeps backend changes visible even when SVG bytes
+agree. Preview IDs are scoped per panel; the original SVGs and receipts remain
+in the snapshots. Quality is measured in a separate layout call, and this
+review does not time rendering. Include shared opposing/parallel route ink
+alongside proper crossings: overlap cannot be counted as crossing reduction.
 
 ## Comparative measurement
 
@@ -552,6 +588,15 @@ regressions, and a predeclared meaningful public-workflow improvement repeated
 beyond observed A/A variation. Publish backend-specific comparisons alongside
 whole-product release gates. Changing the default does not remove explicit ELK
 selection or its regression coverage.
+
+The channel routing work also follows a long-established distinction between
+node ordering and segment ordering. [ELK's resolved fixed-port overlap report
+#318](https://github.com/eclipse-elk/elk/issues/318) documents why one orthogonal
+run per inter-layer channel can be insufficient, and why cyclic segment
+constraints need splitting. Its linked [orthogonal routing thesis](https://rtsys.informatik.uni-kiel.de/~biblio/downloads/theses/thw-bt.pdf)
+is a design reference; it is not evidence that our implementation already
+matches ELK. Public quality reports retain proper crossings, opposing shared
+spans and indistinguishable duplicate spans separately.
 
 ## Implementation references
 

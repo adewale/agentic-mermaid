@@ -395,6 +395,8 @@ export interface LaneContext {
   sideUse?: Map<string, number>
   /** Final closure proves label slots against rendered 8px halos. */
   finalLabelClearance?: boolean
+  /** A direct producer already reserved label bodies during placement. */
+  fixedLabels?: boolean
 }
 
 /** The side of a node that faces along `axis` — facing=1 for the side an

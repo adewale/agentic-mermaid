@@ -80,9 +80,23 @@ export function hasBundleRouteExemption(edge: PositionedEdge): boolean {
  * exactly this), so blocked edges are re-proved until nothing changes.
  * Attaches the certificate to the edge and returns all certificates.
  */
-export function applyRouteContracts(positioned: { nodes: PositionedNode[]; edges: PositionedEdge[]; groups: PositionedGroup[] }, graph: MermaidGraph, bundled: ReadonlySet<PositionedEdge>, style: LabelMetricsStyle): RouteCertificate[] {
+export function applyRouteContracts(
+  positioned: { nodes: PositionedNode[]; edges: PositionedEdge[]; groups: PositionedGroup[] },
+  graph: MermaidGraph,
+  bundled: ReadonlySet<PositionedEdge>,
+  style: LabelMetricsStyle,
+  options?: { preserveSelfLoops?: boolean; preserveLabels?: boolean },
+): RouteCertificate[] {
   const classes = classifyRoutes(graph)
-  const { axis, ctx } = buildRouteLaneContext(positioned, graph, style, classes, edge => bundled.has(edge) && hasConstructedBundleRoute(edge), false)
+  const { axis, ctx } = buildRouteLaneContext(
+    positioned,
+    graph,
+    style,
+    classes,
+    edge => bundled.has(edge) && hasConstructedBundleRoute(edge),
+    Boolean(options?.preserveLabels),
+  )
+  ctx.fixedLabels = Boolean(options?.preserveLabels)
   const nodeMap = new Map(positioned.nodes.map(n => [n.id, n]))
   const groupMap = flattenGroups(positioned.groups)
   const drafts: Array<{ edge: PositionedEdge; cert: DraftRouteCertificate }> = []
@@ -588,7 +602,24 @@ export function applyRouteContracts(positioned: { nodes: PositionedNode[]; edges
     if (bundled.has(edge) && hasConstructedBundleRoute(edge)) {
       cert.invariant = 'bundle'
     } else if (routeClass === 'self-loop') {
-      const side = repairSelfLoopArc(edge)
+      let retained: PortSide | undefined
+      if (options?.preserveSelfLoops) {
+        const node = nodeMap.get(edge.source)
+        const outwardSide = (a: Point, b: Point): PortSide | undefined => {
+          if (Math.abs(a.x - b.x) <= EPS && Math.abs(a.y - b.y) > EPS) return b.y > a.y ? 'S' : 'N'
+          if (Math.abs(a.y - b.y) <= EPS && Math.abs(a.x - b.x) > EPS) return b.x > a.x ? 'E' : 'W'
+          return undefined
+        }
+        const first = edge.points[0], last = edge.points.at(-1)
+        const next = first && edge.points.find(point => Math.hypot(point.x - first.x, point.y - first.y) > EPS)
+        const previous = last && [...edge.points].reverse().find(point => Math.hypot(point.x - last.x, point.y - last.y) > EPS)
+        retained = node && first && last && next && previous && Math.hypot(first.x - last.x, first.y - last.y) >= 8
+          && outwardSide(first, next) === outwardSide(last, previous) ? outwardSide(first, next) : undefined
+      }
+      // Native placement reserves the arc and its label before positioning.
+      // Retain that proposal; the same final occupancy/outline auditor still
+      // proves it, including distinct contacts and clearance from every loop.
+      const side = retained ?? repairSelfLoopArc(edge)
       if (side) {
         cert.invariant = 'self-loop'
         cert.loopSide = side

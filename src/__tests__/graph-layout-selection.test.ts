@@ -15,6 +15,7 @@ import { renderMermaidSVGWithReceipt, GraphLayoutUnsupportedError } from '../ind
 import { withRenderStageObserver } from '../render-stages.ts'
 import { resolveRenderRequest, validateSerializableRenderOptions } from '../render-contract.ts'
 import { captureCli } from './helpers/cli-capture.ts'
+import { flowchartMultigraph } from '../../eval/benchmark/release-bench-cases.ts'
 
 const SOURCE = 'flowchart TD\n A[Start] --> B[Finish]'
 const AGENTIC = { graphLayout: { backend: 'agentic' as const } }
@@ -83,16 +84,25 @@ describe('checked graph layout selection', () => {
     JSON.stringify(result.receipt)
   })
 
-  test('renders labelled reciprocal cycles without ELK and preserves graph certification', () => {
-    const source = 'flowchart LR\nA[Send] -->|request| B[Process]\nB -->|retry| A\nB --> C[Commit]\nC --> A'
+  test.each([
+    { name: 'labelled reciprocal cycles and loops', source: 'flowchart LR\nA[Send] -->|request| B[Process]\nB -->|retry| A\nB --> C[Commit]\nC --> A\nA -->|repeat| A\nA --> A\nC -->|wait| C', nodes: 3, edges: 7, labels: ['Send', 'Process', 'Commit', 'request', 'retry', 'repeat', 'wait'] },
+    { name: 'interacting loop and parallel corridors', source: flowchartMultigraph(24), nodes: 24, edges: 75, labels: ['Node 0', 'Node 23', 'transition 0', 'transition 68'] },
+  ])('renders $name without ELK and preserves graph certification', ({ source, nodes, edges, labels }) => {
     const stages: string[] = []
     const result = withRenderStageObserver(sample => stages.push(sample.stage), () => renderMermaidSVGWithReceipt(source, AGENTIC))
     expect(stages).not.toContain('elk')
     expect(result.receipt.layoutDecisions).toEqual([expect.objectContaining({ selected: 'agentic', attempts: [{ backend: 'agentic', outcome: 'selected' }] })])
-    expect(layoutGraphSync(parseFlowchart(source), AGENTIC).certification).toMatchObject({ status: 'passed', hardViolations: 0 })
-    for (const label of ['Send', 'Process', 'Commit', 'request', 'retry']) expect(result.svg).toContain(label)
+    for (const label of labels) expect(result.svg).toContain(label)
+    const native = measureQuality(layoutMermaidWithReceipt(source, { ...AGENTIC, debug: true }).layout)
+    const reference = measureQuality(layoutMermaidWithReceipt(source, { graphLayout: { backend: 'elk' }, debug: true }).layout)
+    expect(native.nodeCount).toBe(nodes)
+    expect(native.edgeCount).toBe(edges)
+    expect(native.edgeCrossings).toBeLessThanOrEqual(reference.edgeCrossings)
+    expect(native.labelConflicts?.total).toBe(0)
+    expect(native.routeOverlaps?.opposing).toBe(0)
+    expect(native.routeOverlaps?.parallel).toBeLessThanOrEqual(reference.routeOverlaps!.parallel)
     JSON.stringify(result.receipt)
-  })
+  }, 60000)
 
   test.each(['TD', 'LR', 'BT', 'RL'])('retains State pseudostates, configured bars and notes without ELK in %s', direction => {
     const source = `stateDiagram-v2\ndirection ${direction}\nstate F <<fork>>\nstate J <<join>>\nstate C <<choice>>\n[*] --> F\nF --> A\nF --> B\nA --> J\nB --> J\nJ --> C\nC --> A: retry\nC --> [*]: done\nnote right of A : keep this note`
@@ -134,8 +144,44 @@ describe('checked graph layout selection', () => {
     JSON.stringify(result.receipt)
   })
 
-  test('declines compounds explicitly and attributes a requested ELK fallback consistently across cache states', () => {
-    const compound = 'flowchart TD\nsubgraph G[Group]\n A --> B\nend'
+  test.each([
+    { name: 'nested frames and directions', source: 'flowchart LR\nsubgraph Outer[A wide outer title]\n direction TB\n subgraph Left[Stage One]\n  direction RL\n  A([Begin]) -->|within| B\n end\n subgraph Right[Stage Two]\n  direction BT\n  C --> D{Finish}\n end\n Left -->|handoff| Right\nend\nStart --> Outer --> Done', nodes: 6, groups: 3, edges: 5, frame: 'Outer' },
+    { name: 'State composites and notes', source: 'stateDiagram-v2\ndirection LR\nstate Composite {\n direction BT\n [*] --> A\n A --> [*]: finish\n note right of A : inner note\n}\n[*] --> Composite\nComposite --> Done\nDone --> [*]', nodes: 6, groups: 1, edges: 5, frame: 'Composite' },
+    { name: 'concurrent regions with reciprocal labels', source: 'stateDiagram-v2\n[*] --> Active\nstate Active {\n [*] --> NumLockOff\n NumLockOff --> NumLockOn : EvNumLockPressed\n NumLockOn --> NumLockOff : EvNumLockPressed\n note right of NumLockOff : inner note\n --\n [*] --> CapsLockOff\n CapsLockOff --> CapsLockOn : EvCapsLockPressed\n CapsLockOn --> CapsLockOff : EvCapsLockPressed\n --\n [*] --> ScrollLockOff\n ScrollLockOff --> ScrollLockOn : EvScrollLockPressed\n ScrollLockOn --> ScrollLockOff : EvScrollLockPressed\n}', nodes: 10, groups: 4, edges: 10, frame: 'Active' },
+  ])('retains $name natively without flattening frame endpoints', ({ source, nodes, groups, edges, frame: frameId }) => {
+    const stages: string[] = []
+    const svg = withRenderStageObserver(sample => stages.push(sample.stage), () => renderMermaidSVGWithReceipt(source, AGENTIC))
+    const result = layoutMermaidWithReceipt(source, { ...AGENTIC, debug: true })
+    expect(stages).not.toContain('elk')
+    expect(result.layout.nodes).toHaveLength(nodes)
+    expect(result.layout.groups).toHaveLength(groups)
+    expect(result.layout.edges).toHaveLength(edges)
+    const frame = result.layout.groups.find(group => group.id === frameId)!
+    const entering = result.layout.edges.find(edge => edge.to === frame.id)!
+    expect(entering.to).toBe(frame.id)
+    const [x, y] = entering.path.at(-1)!
+    expect(Math.min(Math.abs(x - frame.x), Math.abs(x - frame.x - frame.w), Math.abs(y - frame.y), Math.abs(y - frame.y - frame.h))).toBeLessThan(0.5)
+    expect(x).toBeGreaterThanOrEqual(frame.x - 0.5)
+    expect(x).toBeLessThanOrEqual(frame.x + frame.w + 0.5)
+    expect(y).toBeGreaterThanOrEqual(frame.y - 0.5)
+    expect(y).toBeLessThanOrEqual(frame.y + frame.h + 0.5)
+    if (groups === 3) {
+      expect(result.layout.groups.find(group => group.id === 'Left')).toMatchObject({ parentId: 'Outer', members: ['A', 'B'] })
+      expect(result.layout.groups.find(group => group.id === 'Right')).toMatchObject({ parentId: 'Outer', members: ['C', 'D'] })
+      expect(svg.svg).toContain('handoff')
+    } else expect(svg.svg).toContain('inner note')
+    const quality = measureQuality(result.layout)
+    expect(quality.edgeCrossings).toBe(0)
+    expect(quality.labelConflicts?.total).toBe(0)
+    expect(quality.routeOverlaps?.opposing).toBe(0)
+    expect(result.receipt.layoutDecisions).toEqual([expect.objectContaining({ selected: 'agentic' })])
+    expect(layoutGraphSync(parseFlowchart(source), AGENTIC).certification).toMatchObject({ status: 'passed', hardViolations: 0 })
+    JSON.stringify(svg.receipt)
+    JSON.stringify(result.receipt)
+  })
+
+  test('declines cross-hierarchy leaf routes and attributes a requested ELK fallback consistently across cache states', () => {
+    const compound = 'flowchart TD\nOutside --> A\nsubgraph G[Group]\n A --> B\nend'
     expect(() => renderMermaidSVGWithReceipt(compound, AGENTIC)).toThrow(GraphLayoutUnsupportedError)
     clearElkLayoutCache()
     const diagnostics: unknown[] = []
@@ -157,7 +203,6 @@ describe('checked graph layout selection', () => {
   })
 
   test.each([
-    ['State composite', 'stateDiagram-v2\n state Composite {\n A --> B\n }'],
     ['class', 'classDiagram\n class A\n class B\n A --> B'],
     ['er', 'erDiagram\n A ||--o{ B : owns'],
     ['architecture', 'architecture-beta\n service a(server)[A]\n service b(server)[B]\n a:R --> L:b'],

@@ -97,6 +97,16 @@ describe('quality metrics — deterministic', () => {
     expect(a).toEqual(b)
   })
 
+  test('reports shared parallel and opposing ink separately from proper crossings', () => {
+    const forward: RenderedLayout['edges'][number] = { id: 'ab', from: 'a', to: 'b', path: [[f(0), f(0)], [f(100), f(0)]] }
+    const reverse: RenderedLayout['edges'][number] = { id: 'cd', from: 'c', to: 'd', path: [[f(90), f(0)], [f(10), f(0)]] }
+    const layout: RenderedLayout = { version: 1, kind: 'flowchart', nodes: [], groups: [], edges: [forward, reverse], bounds: { w: f(200), h: f(100) } }
+    expect(measureQuality(layout)).toMatchObject({ edgeCrossings: 0, routeOverlaps: { parallel: 0, opposing: 1 } })
+    expect(measureQuality({ ...layout, edges: [forward, { ...forward, id: 'ab2' }] }).routeOverlaps).toEqual({ parallel: 1, opposing: 0 })
+    expect(measureQuality({ ...layout, edges: [forward, { ...reverse, visibility: 'hidden' }] }).routeOverlaps).toEqual({ parallel: 0, opposing: 0 })
+    expect(measureQuality({ ...layout, edges: [forward, { ...reverse, path: [[f(200), f(0)], [f(100), f(0)]] }] }).routeOverlaps).toEqual({ parallel: 0, opposing: 0 })
+  })
+
   test('crossings = 0 on a trivial linear graph', () => {
     const p = parseMermaid('flowchart LR\n  A --> B --> C')
     expect(p.ok).toBe(true)

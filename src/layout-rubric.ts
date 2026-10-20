@@ -269,15 +269,17 @@ export function countEdgeCrossings(edges: readonly PositionedEdge[], involved?: 
 
 /** Same-endpoint parallel routes sharing visible collinear ink cannot be
  * distinguished along that span. Endpoint distance alone does not prove this. */
-export function countParallelRouteOverlaps(edges: readonly PositionedEdge[], involved?: ReadonlySet<number>): number {
-  const pairs = new Map<string, Array<{ edge: PositionedEdge; index: number }>>()
+type InkEdge = Pick<PositionedEdge, 'source' | 'target' | 'style' | 'points'>
+
+export function countParallelRouteOverlaps(edges: readonly InkEdge[], involved?: ReadonlySet<number>): number {
+  const pairs = new Map<string, Array<{ edge: InkEdge; index: number }>>()
   edges.forEach((edge, index) => {
     if (edge.style === 'invisible' || edge.source === edge.target) return
     const key = JSON.stringify([edge.source, edge.target])
     const group = pairs.get(key) ?? []
     group.push({ edge, index }); pairs.set(key, group)
   })
-  const sharesSpan = (a: PositionedEdge, b: PositionedEdge): boolean => {
+  const sharesSpan = (a: InkEdge, b: InkEdge): boolean => {
     for (let i = 1; i < a.points.length; i++) for (let j = 1; j < b.points.length; j++) {
       const p = a.points[i - 1]!, q = a.points[i]!, r = b.points[j - 1]!, s = b.points[j]!
       if (Math.abs(p.x - q.x) <= 0.01 && Math.abs(r.x - s.x) <= 0.01 && Math.abs(p.x - r.x) <= 0.5 && Math.min(Math.max(p.y, q.y), Math.max(r.y, s.y)) - Math.max(Math.min(p.y, q.y), Math.min(r.y, s.y)) > 1) return true

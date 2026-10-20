@@ -171,6 +171,7 @@ export function satisfiesDiamondSpreadTargetPortConstraint(edge: PositionedEdge,
  * so it must not veto the primary's lane.
  */
 export function isMovableReciprocalLabel(edge: PositionedEdge, other: PositionedEdge, ctx: LaneContext): boolean {
+  if (ctx.fixedLabels) return false
   if (!ctx.classes || edge.edgeIndex === undefined || other.edgeIndex === undefined) return false
   return ctx.classes[edge.edgeIndex] === 'primary-forward' && ctx.classes[other.edgeIndex] === 'feedback' && other.source === edge.target && other.target === edge.source
 }
