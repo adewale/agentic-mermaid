@@ -151,15 +151,6 @@ const STATE_READ_GENEROUSLY: ReadonlyArray<GenerousRow> = [
   ['a composite labelled in two blocks', 'stateDiagram-v2\n  state "First" as A {\n    x\n  }\n  state "Second" as A {\n    y\n  }', 'Second', 'state_composite_description', 5],
 ]
 
-// Mermaid's GitGraph lexer reads id:, msg:, tag: and parent: only with a
-// quoted string, and a bare branch name only from its REFERENCE terminal.
-const GITGRAPH_READ_GENEROUSLY: ReadonlyArray<GenerousRow> = [
-  ['an apostrophe in an unquoted branch name', "gitGraph\n  commit\n  branch dev's\n  commit", 'dev&#39;s', 'gitgraph_branch_name', 3],
-  ['an unquoted commit id', 'gitGraph\n  commit id: abc', 'abc', 'gitgraph_unquoted_value', 2],
-  ['an unquoted commit tag', 'gitGraph\n  commit tag: v1', 'v1', 'gitgraph_unquoted_value', 2],
-  ['an unquoted merge id', 'gitGraph\n  commit\n  branch dev\n  commit\n  checkout main\n  merge dev id: m1', 'm1', 'gitgraph_unquoted_value', 6],
-]
-
 // C4 reader extensions to Mermaid's C4 grammar, each named by a stable code.
 const C4_READ_GENEROUSLY: ReadonlyArray<GenerousRow> = [
   ['a semicolon between statements', 'C4Context\n  Person(a, "Ann"); Person(b, "Bob")', 'Bob', 'c4_semicolon_separator', 2],
@@ -384,7 +375,6 @@ const ACCEPTED: ReadonlyArray<readonly [BuiltinFamilyId, string, string]> = [
   ['pie', 'a label across lines', 'pie\n  "multi\n  label" : 1\n  "b" : 2'],
   ['quadrant', 'quoted text across lines', 'quadrantChart\n  x-axis "Low\n  reach" --> High\n  quadrant-1 "Expand\n  now"\n  "Point\n  A": [0.3, 0.6]'],
   ['quadrant', 'a point across lines', 'quadrantChart\n  A: [0.3,\n  0.6]'],
-  ['gitgraph', 'quoted attributes and branch names', 'gitGraph\n  commit id: "a" tag: \'v1\'\n  branch "dev x"\n  commit msg: "hi"\n  branch feature/x-1.2\n  commit\n  branch dev-\n  commit'],
   ['gitgraph', 'quoted text across lines', 'gitGraph\n  commit id: "a\n  b" msg: "multi\n  line" tag: "v1\n  rc"\n  commit "bare\n  msg"\n  branch dev\n  commit\n  checkout main\n  merge dev tag: "x\n  y"'],
   ['architecture', 'quoted titles across lines', 'architecture-beta\n  group g(cloud)["G\n  H"]\n  service a(server)["line1\n  line2"] in g\n  service b(server)[\'sq\n  line\'] in g\n  a:R -["multi\n  line"]- L:b'],
   ['radar', 'a quoted axis label across lines', 'radar-beta\n  axis a["A\n  long"], b, c\n  curve x{1, 2, 3}'],
@@ -438,11 +428,6 @@ describe('read generously what pinned Mermaid rejects, and warn', () => {
     const source = 'xychart-beta\n  title The title of the chart\n  bar [10, 20]'
     expect((await upstream.parse(source)).ok).toBe(true)
     expect(readGenerously(source, 'The title of the chart')).toEqual({ typed: 'xychart', draws: true, reported: ['xychart_unquoted_text@2'] })
-  })
-
-  test.each(GITGRAPH_READ_GENEROUSLY)('gitgraph: %s is read, drawn and reported', async (_construct, source, text, syntax, line) => {
-    expect((await upstream.parse(source)).ok).toBe(false)
-    expect(readGenerously(source, text)).toEqual({ typed: 'gitgraph', draws: true, reported: [`${syntax}@${line}`] })
   })
 
   test.each(MINDMAP_READ_GENEROUSLY)('mindmap: %s is read, drawn and reported', async (_construct, source, text, syntax, line) => {

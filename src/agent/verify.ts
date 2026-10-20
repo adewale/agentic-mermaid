@@ -34,7 +34,6 @@ import { renderErrorOrigin } from './error-origin.ts'
 import { architectureUnsupportedSyntaxWarnings } from './architecture-body.ts'
 import { classUnsupportedSyntaxWarnings } from './class-body.ts'
 import { ganttUnsupportedSyntaxWarnings } from './gantt-body.ts'
-import { gitgraphUnsupportedSyntaxWarnings } from './gitgraph-body.ts'
 import { erUnsupportedSyntaxWarnings } from './er-body.ts'
 import { builtinFamilyMetadata, extractLabelsGeneric, getFamily } from './families.ts'
 import { detectsFlowchartFamily, installedFamilyStatementEnds } from './family-router.ts'
@@ -428,7 +427,6 @@ const UPSTREAM_REJECTED_SYNTAX: Partial<Record<ValidDiagram['kind'], (canonicalS
   er: erUnsupportedSyntaxWarnings,
   flowchart: flowchartUpstreamRejectedSyntaxWarnings,
   gantt: ganttUnsupportedSyntaxWarnings,
-  gitgraph: gitgraphUnsupportedSyntaxWarnings,
   mindmap: mindmapUnsupportedSyntaxWarnings,
   quadrant: quadrantUnsupportedSyntaxWarnings,
   radar: radarUnsupportedSyntaxWarnings,

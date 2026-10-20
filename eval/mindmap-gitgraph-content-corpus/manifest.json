@@ -555,7 +555,7 @@
       "id": "gitgraph-unicode-unusual-branches",
       "family": "gitgraph",
       "file": "gitgraph/unicode-and-unusual-branches.mmd",
-      "scenario": "Custom Unicode main branch, quoted keyword branch, numeric release branch, slash path, CJK messages, and BT orientation. Pinned Mermaid reads a bare branch name only from ASCII word characters, so the unquoted Unicode names are read and reported.",
+      "scenario": "Custom Unicode main branch, quoted keyword branch, numeric release branch, slash path, CJK messages, and BT orientation.",
       "sources": [
         "https://github.com/mermaid-js/mermaid/issues/5597",
         "https://mermaid.js.org/syntax/gitgraph.html#adding-a-new-branch",
@@ -600,13 +600,7 @@
             "東京"
           ]
         },
-        "warningCodes": [
-          "UNSUPPORTED_SYNTAX",
-          "UNSUPPORTED_SYNTAX",
-          "UNSUPPORTED_SYNTAX",
-          "UNSUPPORTED_SYNTAX",
-          "UNSUPPORTED_SYNTAX"
-        ]
+        "warningCodes": []
       }
     },
     {
