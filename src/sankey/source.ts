@@ -2,8 +2,9 @@ import { stripMermaidInitDirectives, type NormalizedMermaidSource } from '../mer
 import { parseAccessibilityDirective } from '../shared/accessibility-directives.ts'
 import { cleanedMermaidOffset, originalMermaidOffset } from '../shared/mermaid-cleanup.ts'
 
-/** CSV identities retain lone CR inside quoted fields. Structural CR and
- * CRLF are line endings; the parser rejoins quoted physical rows with LF.
+/** CSV identities retain lone CR inside quoted fields. Coalesce quoted
+ * records here, normalizing their CRLF to LF, so the physical-row parser
+ * cannot mistake a retained payload CR for another line terminator.
  * Read the shared XML-decoded view so transport decoding still happens once. */
 export function sankeyFamilyLines(source: NormalizedMermaidSource): string[] {
   const cleanup = source.cleanup
@@ -40,7 +41,7 @@ export function sankeyFamilyLines(source: NormalizedMermaidSource): string[] {
         else quoted = !quoted
       }
     }
-    if (endings[index] === '\r' && quoted) line += '\r'
+    if (quoted && endings[index] !== undefined) line += endings[index] === '\r' ? '\r' : '\n'
     else {
       lines.push(line)
       line = ''

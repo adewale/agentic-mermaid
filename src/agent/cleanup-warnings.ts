@@ -21,7 +21,8 @@ export function mermaidCleanupWarnings(input: string | MermaidCleanup): LayoutWa
       continuations = new Set<number>()
       const wrapperLines = source.slice(0, frontmatterEnd).match(/\r\n?|\n/g)?.length ?? 0
       const grammarLines = physicalLines.map((text, index) => index < wrapperLines ? '' : text)
-      const ends = detectInstalledFamilyDescriptorFromFirstLine(mermaidFirstLine(cleanup.lineText), 'loose')?.statementEnds?.(grammarLines)
+      // Route encoded headers as rendering does; scan authored rows for locations.
+      const ends = detectInstalledFamilyDescriptorFromFirstLine(mermaidFirstLine(cleanup.text), 'loose')?.statementEnds?.(grammarLines)
       for (let index = 0; index < grammarLines.length; index++) {
         const accessibility = parseAccessibilityDirective(grammarLines, index)
         const end = accessibility === undefined ? grammarLines.length - 1 : accessibility ? accessibility.endIndex : statementEndAt(ends, index, grammarLines.length)

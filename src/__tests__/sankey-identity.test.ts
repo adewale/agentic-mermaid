@@ -94,6 +94,32 @@ const cases: Array<{ name: string; source: string; links: ExpectedLink[]; title?
 ]
 
 describe('Sankey source identities correspond across graphical and terminal projections', () => {
+  test('a payload CR beside CRLF stays distinct in source and target identities', () => {
+    const source = 'sankey-beta\n"A""&amp;\r\r\nB","T&amp;amp;\r\r\nU",1\n"A""&amp;\r\nB","T&amp;amp;\r\nU",2\n"A""&amp;\r\r\r\nB","T&amp;amp;\r\r\r\nU",3'
+    const pairs = [
+      { from: 'A"&\r\nB', to: 'T&amp;\r\nU' },
+      { from: 'A"&\nB', to: 'T&amp;\nU' },
+      { from: 'A"&\r\r\nB', to: 'T&amp;\r\r\nU' },
+    ]
+    const parsed = parseRegisteredMermaid(source)
+    if (!parsed.ok) throw new Error('parse failed')
+    const layout = layoutMermaid(parsed.value)
+    expect(layout.edges.map(({ from, to }) => ({ from, to }))).toEqual(pairs)
+    expect(layout.nodes).toHaveLength(6)
+    const tags = scanSvgStartTags(renderMermaidSVG(source, { embedFontImport: false }))
+    expect(tags.filter(tag => decodedSvgAttributeValue(tag, 'data-role') === 'edge').map(tag => ({
+      from: decodedSvgAttributeValue(tag, 'data-from'),
+      to: decodedSvgAttributeValue(tag, 'data-to'),
+    }))).toEqual(pairs)
+    for (const input of [source, parsed.value]) {
+      const terminal = renderMermaidASCIIWithMeta(input, { colorMode: 'none' })
+      expect(terminal.warnings).not.toContainEqual(expect.objectContaining({ code: 'ASCII_RENDER_FAILED' }))
+      const edges = terminal.regions.filter(region => region.kind === 'edge')
+      expect(edges).toHaveLength(pairs.length)
+      for (const pair of pairs) expect(edges.map(({ from, to }) => ({ from, to }))).toContainEqual(pair)
+    }
+  })
+
   test('structural CR and encoded wrappers keep quoted CSV identities across projections', () => {
     const links = [
       { id: 'link:A"&\rB->&amp;', from: 'A"&\rB', to: '&amp;' },

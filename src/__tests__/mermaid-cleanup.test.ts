@@ -165,7 +165,9 @@ describe('cleanup at public source boundaries', () => {
       ['pie\ntitle <a href="x">text</a>\n"Slice" : 1', 2],
       ['stateDiagram-v2\nA : style:#f00; x', 2],
       ['stateDiagram-v2\nstate A\nnote right of A\nstyle A fill:#f00;\nend note', 4],
+      ['stateDiagram&#45;v2\nstate A\nnote right of A\nstyle A fill:#f00;\nend note', 4],
       ['flowchart TD\nA["hello\nstyle A fill:#f00;\nworld"]', 3],
+      ['flowchart&#32;TD\nA["hello\nstyle A fill:#f00;\nworld"]', 3],
       ['---\ntitle: Caption\n---\nsequenceDiagram\nA->>B: <a href="x">text</a>', 5],
     ] as const
     for (const [source, line] of cases) {
