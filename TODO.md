@@ -404,7 +404,7 @@ divergence, not another runtime defect.
 
 - [x] Retain explicit ELK, checked native selection, typed fallback and immutable execution receipts.
 - [x] Native Flowchart/State measured placement and independent nested scopes; flat Requirement, ER, Class and Architecture adapters.
-- [ ] Close generated crossing regressions and review bends/area with final label, port and route geometry.
+- [ ] Bind the zero-additional-crossing 160-case joint-chain prototype to the final bounded implementation, then check the predeclared 160–223 holdout; review bends/area and all unverified dimensions.
 - [ ] Support remaining compound/cross-boundary geometry without changing authored endpoints or required child order.
 - [ ] Complete specialized-family quality dimensions and preserve all declines in comparison populations.
 - [ ] Qualify fully consumed cold, cached, edited and cache-churn workflows with healthy A/A controls, memory and emitted browser transfer evidence.

@@ -80,7 +80,7 @@ export function layoutLayeredGraph(
   forestLayout: (input: MeasuredGraph) => AgenticLayout | undefined,
   unsupported: (reason: string) => never,
   routingWork: ChannelWork = { pairs: 1_000_000, arcs: 65536, swaps: 1_000_000 },
-  searchWork: LayoutSearchWork = { attempts: 128, scorePairs: 8_000_000, loopPairs: 2_000_000, rankPairs: 200_000, routing: { pairs: 500_000, arcs: 32768, swaps: 500_000 } },
+  searchWork: LayoutSearchWork = { attempts: 128, scorePairs: 8_000_000, loopPairs: 2_000_000, rankPairs: 200_000, blockPairs: 2_000_000, routing: { pairs: 500_000, arcs: 32768, swaps: 500_000 } },
 ): AgenticLayout {
   const { nodes, edges, padding, nodeSpacing, layerSpacing } = input
   if (nodes.length > MAX_NODES || edges.length > MAX_EDGES) unsupported('agentic local graph-size limit')
@@ -353,6 +353,39 @@ export function layoutLayeredGraph(
       }
     }
     if (!changed) break
+  }
+  // Move a long edge's private vertices together. Single-rank switches can
+  // stall when their temporary crossings conceal an improving joint move.
+  if (input.compactPrivateRanks && nodes.length <= 20 && edges.length <= 64 && vertices.length <= 256) {
+    let value = crossingScore(), trials = 128
+    const blocks = chains.map(chain => chain.slice(1, -1)).filter(block => block.length > 1).sort((a, b) => b.length - a.length)
+    for (const block of blocks) {
+      if (value === 0) break
+      const saved = new Map(block.map(id => [vertices[id]!.rank, [...bands[vertices[id]!.rank]!]]))
+      let best = value, bestOrders: Map<number, number[]> | undefined, exhausted = false
+      for (const fraction of [0, 1, .25, .5, .75]) {
+        // Each expanded arc has at most eight Fenwick steps per query/update.
+        const cost = bands.length + vertices.length + 16 * (vertices.length - nodes.length + edges.length)
+        if (trials-- <= 0 || (searchWork.blockPairs ?? 2_000_000) < cost) { exhausted = true; break }
+        searchWork.blockPairs = (searchWork.blockPairs ?? 2_000_000) - cost
+        for (const id of block) {
+          const rank = vertices[id]!.rank, band = [...saved.get(rank)!]
+          band.splice(band.indexOf(id), 1)
+          band.splice(Math.floor(band.length * fraction), 0, id)
+          bands[rank] = band
+        }
+        const score = crossingScore()
+        if (score < best) {
+          best = score
+          bestOrders = new Map([...saved].map(([rank]) => [rank, [...bands[rank]!]]))
+        }
+      }
+      // Restore a completed best order before leaving, including exhaustion
+      // halfway through a block's proposals. No partial proposal escapes.
+      for (const [rank, band] of bestOrders ?? saved) bands[rank] = band
+      value = best
+      if (exhausted) break
+    }
   }
   for (let index = 0; index < bands.length; index++) assignBand(index)
 

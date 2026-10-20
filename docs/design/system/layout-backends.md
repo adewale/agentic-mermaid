@@ -879,3 +879,47 @@ diagnostic renders all three eligible official/scaling cases, with passing
 paint proofs and no added proper crossings. An unshipped container-quotient
 experiment renders all seven but adds a crossing on official examples 0 and 5;
 it is not accepted as native compound support.
+
+
+The next native candidate refinement moves all private vertices of a long edge
+as a block across their consecutive ranks. A sequence of single-rank swaps can
+stall because an intermediate move adds crossings even though moving the whole
+chain reduces them. [Global k-Level Crossing Reduction (2011)](https://www.infosun.fim.uni-passau.de/~chris/down/GlobalCrossingReductionPP.pdf)
+and [OGDF's global-sifting modules](https://ogdf.github.io/doc/ogdf/group__gd-layered-crossmin.html)
+provide prior art. This engine uses a smaller owned heuristic, not an OGDF port:
+try five deterministic relative positions, keep only a strict reduction in the
+exact layered inversion count, and restore the best completed order before
+budget exhaustion. Measured labels move with their edge block. No authored
+node, edge, rank constraint or endpoint identity is replaced.
+
+Only the compact candidate uses this phase, with at most 20 nodes, 64 edges,
+256 expanded vertices and 128 proposals per acyclic placement. An independent
+two-million-unit score budget is shared across its cycle trials and scopes;
+charges include expanded-arc Fenwick queries/updates and rank slots. Exhaustion
+keeps feasible geometry without invoking ELK. The existing routing, rank and
+final-certification limits remain. To contain repeated layout cost, compact
+candidates above 16 measured nodes retain their primary and at most two optional
+cycle orders; smaller compact graphs retain the full bounded cycle search. The normal primary and
+its original authored-order alternative remain available in both cases.
+
+The initial joint-chain prototype renders 160/160 development cases, versus
+157/160 with ELK, without additional proper crossings or measured label/shared
+shaft conflicts on shared successes. It gives seed 96 eight crossings / 70 bends
+versus ELK eight / 79, and seed 131 one / 36 versus three / 58. Its unrestricted compact
+search backslides relative to the preceding native kernel on seeds 33, 115 and 125
+(16→18, 21→23 and 26→28 crossings), while still beating ELK there; it also has more
+raw bends in 73 / 157 pairs. Those observations remain visible rather than being
+called universal aesthetic parity. Final bounded implementation evidence and
+cost controls are required. The two difficult sources are now frozen fixtures,
+render-review images and benchmark workloads, retaining every earlier input.
+
+After this bounded implementation is committed, seeds 160–223 form the next
+64-case diagnostic holdout. Keep all 160 development cases and all failed or
+unverified outcomes. If the new cases inform another change, they become
+additional development data; they cannot remain an unseen qualification set.
+
+Mermaid 12.2's [layout-maker guide](https://mermaid.js.org/community/layout-makers-guide.html)
+also separates measured node geometry and edge polylines from shared shapes,
+markers, labels and painting. That supports the existing adapter boundary;
+it does not make family-specific cardinalities, ports or compound boundaries
+interchangeable with generic boxes.
