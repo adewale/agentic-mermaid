@@ -946,7 +946,24 @@ function countRouteCrossings(points: Point[], edge: PositionedEdge, ctx: LaneCon
   let count = 0
   for (const other of ctx.edges) {
     if (other === edge || other.style === 'invisible' || (edge.edgeIndex !== undefined && other.edgeIndex === edge.edgeIndex)) continue
-    // Pairwise proposals avoid sorting every unrelated segment in the graph.
+    // Most route pairs cannot cross. Reject them without allocating/sorting
+    // the shared counter's segments; this is only a conservative broad phase.
+    let mayCross = false
+    for (let i = 1; i < points.length && !mayCross; i++) {
+      const a = points[i - 1]!, b = points[i]!
+      const minX = Math.min(a.x, b.x), maxX = Math.max(a.x, b.x)
+      const minY = Math.min(a.y, b.y), maxY = Math.max(a.y, b.y)
+      for (let j = 1; j < other.points.length; j++) {
+        const c = other.points[j - 1]!, d = other.points[j]!
+        if (maxX < Math.min(c.x, d.x) || minX > Math.max(c.x, d.x) ||
+          maxY < Math.min(c.y, d.y) || minY > Math.max(c.y, d.y)) continue
+        // Parallel axis-aligned segments cannot form a proper crossing.
+        if ((a.x === b.x && c.x === d.x) || (a.y === b.y && c.y === d.y)) continue
+        mayCross = true
+        break
+      }
+    }
+    if (!mayCross) continue
     count += countPolylineCrossings([{ points }, { points: other.points }])
   }
   return count
