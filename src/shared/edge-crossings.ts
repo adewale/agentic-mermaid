@@ -21,32 +21,68 @@ interface Segment {
   maxY: number
 }
 
-function localRays(segment: Segment, point: CrossingPoint, routes: readonly CrossingPolyline[]): [CrossingPoint, CrossingPoint] | undefined {
-  const close = (p: CrossingPoint): boolean => Math.hypot(p.x - point.x, p.y - point.y) <= ENDPOINT_EPSILON
-  const vertex = close(segment.a) ? segment.pointIndex : close(segment.b) ? segment.pointIndex + 1 : -1
-  if (vertex < 0) return [segment.a, segment.b]
+interface CrossingLocation extends CrossingPoint { error: number }
+
+function locationTolerance(a: CrossingPoint, b: CrossingPoint): number {
+  return 8 * Number.EPSILON * Math.max(1, Math.abs(a.x), Math.abs(a.y), Math.abs(b.x), Math.abs(b.y))
+}
+
+function sameLocation(a: CrossingPoint, b: CrossingPoint, error = 0): boolean {
+  const tolerance = Math.max(error, locationTolerance(a, b))
+  return Math.abs(a.x - b.x) <= tolerance && Math.abs(a.y - b.y) <= tolerance
+}
+
+function pointOrder(a: CrossingPoint, b: CrossingPoint): number {
+  return a.x - b.x || a.y - b.y
+}
+
+function localRays(segment: Segment, point: CrossingLocation, routes: readonly CrossingPolyline[]): [CrossingPoint, CrossingPoint] | undefined {
   const points = routes[segment.edgeIndex]!.points
+  // The physical contact tolerance belongs to the whole route's endpoints.
+  // Applying it to internal bends changes topology when a segment is split.
+  const endpointContact = (p: CrossingPoint): boolean => Math.hypot(p.x - point.x, p.y - point.y) <= ENDPOINT_EPSILON + Math.max(point.error, locationTolerance(p, point))
+  if (endpointContact(points[0]!) || endpointContact(points[points.length - 1]!)) return undefined
+  const sameVertex = (p: CrossingPoint): boolean => sameLocation(p, point, point.error)
+  const vertex = sameVertex(segment.a) ? segment.pointIndex : sameVertex(segment.b) ? segment.pointIndex + 1 : -1
+  if (vertex < 0) return [segment.a, segment.b]
   let before = vertex - 1, after = vertex + 1
-  while (before >= 0 && close(points[before]!)) before--
-  while (after < points.length && close(points[after]!)) after++
+  while (before >= 0 && sameVertex(points[before]!)) before--
+  while (after < points.length && sameVertex(points[after]!)) after++
   // Contacts at a route's physical endpoints are not proper crossings.
   if (before < 0 || after >= points.length) return undefined
   return [points[before]!, points[after]!]
 }
 
-function crossingPoint(a: Segment, b: Segment, routes: readonly CrossingPolyline[]): CrossingPoint | undefined {
-  const ax = a.b.x - a.a.x, ay = a.b.y - a.a.y
-  const bx = b.b.x - b.a.x, by = b.b.y - b.a.y
+function crossingPoint(a: Segment, b: Segment, routes: readonly CrossingPolyline[]): CrossingLocation | undefined {
+  // The same geometry uses the same arithmetic under route reversal/order.
+  let p = a.a, q = a.b, r = b.a, s = b.b
+  if (pointOrder(p, q) > 0) [p, q] = [q, p]
+  if (pointOrder(r, s) > 0) [r, s] = [s, r]
+  if ((pointOrder(p, r) || pointOrder(q, s)) > 0) [p, q, r, s] = [r, s, p, q]
+  const ax = q.x - p.x, ay = q.y - p.y
+  const bx = s.x - r.x, by = s.y - r.y
   const positive = ax * by, negative = ay * bx
   const determinant = positive - negative
   // Bound cancellation relative to the actual terms: an absolute cutoff
   // would mistake tiny, perpendicular subdivision segments for parallel ink.
   if (Math.abs(determinant) <= Number.EPSILON * (Math.abs(positive) + Math.abs(negative))) return undefined
-  const dx = b.a.x - a.a.x, dy = b.a.y - a.a.y
-  const t = (dx * by - dy * bx) / determinant
-  const u = (dx * ay - dy * ax) / determinant
-  if (t < 0 || t > 1 || u < 0 || u > 1) return undefined
-  const point = { x: a.a.x + t * ax, y: a.a.y + t * ay }
+  const dx = r.x - p.x, dy = r.y - p.y
+  const tx = dx * by, ty = dy * bx, ux = dx * ay, uy = dy * ax
+  const t = (tx - ty) / determinant, u = (ux - uy) / determinant
+  const denominatorScale = Math.abs(positive) + Math.abs(negative)
+  // Cancellation can put an exact vertex just outside [0,1]. Snap only
+  // within a numerical error bound, never within the physical contact radius.
+  const parameterTolerance = (value: number, first: number, second: number): number =>
+    8 * Number.EPSILON * (1 + (Math.abs(first) + Math.abs(second) + Math.abs(value) * denominatorScale) / Math.abs(determinant))
+  const tTolerance = parameterTolerance(t, tx, ty), uTolerance = parameterTolerance(u, ux, uy)
+  if (t < -tTolerance || t > 1 + tTolerance || u < -uTolerance || u > 1 + uTolerance) return undefined
+  const tVertex = Math.abs(t) <= tTolerance ? p : Math.abs(t - 1) <= tTolerance ? q : undefined
+  const uVertex = Math.abs(u) <= uTolerance ? r : Math.abs(u - 1) <= uTolerance ? s : undefined
+  // Input endpoints can be much larger than the intersection coordinate.
+  // Retain the calculation's error scale rather than using only result ULPs.
+  const error = Math.max(locationTolerance(p, q), locationTolerance(r, s),
+    tTolerance * (Math.abs(ax) + Math.abs(ay)), uTolerance * (Math.abs(bx) + Math.abs(by)))
+  const point = { ...(tVertex ?? uVertex ?? { x: p.x + t * ax, y: p.y + t * ay }), error }
   const aRays = localRays(a, point, routes), bRays = localRays(b, point, routes)
   if (!aRays || !bRays) return undefined
   // Straight segment interiors always cross here. At an internal polyline
@@ -87,7 +123,7 @@ export function countPolylineCrossings(routes: readonly CrossingPolyline[], invo
   })
   segments.sort((a, b) => a.minX - b.minX || a.minY - b.minY || a.edgeIndex - b.edgeIndex || a.pointIndex - b.pointIndex)
   let active: Segment[] = []
-  const locations = new Map<string, CrossingPoint[]>()
+  const locations = new Map<string, CrossingLocation[]>()
   for (const segment of segments) {
     active = active.filter(other => other.maxX >= segment.minX)
     for (const other of active) {
@@ -96,20 +132,26 @@ export function countPolylineCrossings(routes: readonly CrossingPolyline[], invo
       if (!point) continue
       const key = `${Math.min(segment.edgeIndex, other.edgeIndex)}:${Math.max(segment.edgeIndex, other.edgeIndex)}`
       const previous = locations.get(key)
-      if (previous) previous.push(point)
+      // Subdivision and retracing can emit the same location many times.
+      // Remove exact duplicates before retaining the numerical dedup input.
+      if (previous) {
+        const duplicate = previous.find(p => p.x === point.x && p.y === point.y)
+        if (duplicate) duplicate.error = Math.max(duplicate.error, point.error)
+        else previous.push(point)
+      }
       else locations.set(key, [point])
     }
     active.push(segment)
   }
   let crossings = 0
   for (const points of locations.values()) {
-    // An epsilon neighbourhood is not transitive. Always choose representatives
-    // in coordinate order so route direction or subdivision cannot choose a
-    // middle location first and suppress both otherwise-distinct outer ones.
-    points.sort((a, b) => a.x - b.x || a.y - b.y)
-    const distinct: CrossingPoint[] = []
+    // Physical endpoint contact tolerance must not merge distinct incidences.
+    // Only numerically identical locations are duplicates; canonical order
+    // makes representative selection independent of route traversal.
+    points.sort(pointOrder)
+    const distinct: CrossingLocation[] = []
     for (const point of points) {
-      if (!distinct.some(previous => Math.hypot(previous.x - point.x, previous.y - point.y) <= ENDPOINT_EPSILON)) distinct.push(point)
+      if (!distinct.some(previous => sameLocation(previous, point, Math.max(previous.error, point.error)))) distinct.push(point)
     }
     crossings += distinct.length
   }

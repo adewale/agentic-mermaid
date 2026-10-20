@@ -104,9 +104,8 @@ describe('shared visible proper-crossing metric', () => {
 
   test('nearby crossing locations do not depend on route traversal or input order', () => {
     const horizontal = edge([[-10, 0], [10, 0]])
-    // The three crossings are at x=0, 0.006 and 0.012. The two outer
-    // locations exceed the physical tolerance and must not both disappear
-    // merely because the middle crossing was visited first.
+    // The crossings at x=0, 0.006 and 0.012 are three distinct locations.
+    // Physical endpoint contact tolerance must not merge nearby incidences.
     const points: Array<[number, number]> = [
       [-1, -1], [1, (1 - 0.006) / (1 + 0.006)], [-1, -1],
       [1, 1], [-1, -1], [1, (1 - 0.012) / (1 + 0.012)], [-1, -1],
@@ -121,7 +120,59 @@ describe('shared visible proper-crossing metric', () => {
         edge(reverseSecond ? [...polyline].reverse() : polyline, 'C', 'D'),
       ]
       if (reverseEdges) routes.reverse()
-      expect(crossingMeasurements(routes)).toEqual([2, 2])
+      expect(crossingMeasurements(routes)).toEqual([3, 3])
+    }
+  })
+
+  test('an interior crossing near a bend is not snapped to that bend', () => {
+    const diagonal = edge([[0, 3], [3, -3]])
+    for (const subdivide of [false, true]) for (const reversePoints of [false, true]) {
+      const points: Array<[number, number]> = [[-1, 1], [1, 1.002], ...(subdivide ? [[0.5, 2.001] as [number, number]] : []), [0, 3]]
+      const routes = [diagonal, edge(points, 'C', 'D')].map(route => ({
+        ...route, points: reversePoints ? [...route.points].reverse() : route.points,
+      }))
+      expect(crossingMeasurements(routes)).toEqual([1, 1])
+    }
+  })
+
+  test('intersection roundoff at an internal vertex preserves tangency versus crossing', () => {
+    // B's final segment lies on y=x+2. A approaches (0,2) from below;
+    // leaving below merely touches B, while leaving above crosses it.
+    const second = edge([[-3, 2], [-2, 0], [1, 3]], 'C', 'D')
+    for (const [endY, expected] of [[0, 0], [3, 1]] as const) {
+      const first = edge([[-1.98, 0], [0, 2], [-1, endY]])
+      for (const subdivide of [false, true]) for (const reverseEdges of [false, true]) for (const reversePoints of [false, true]) {
+        const routes = [first, second].map(route => ({
+          ...route,
+          points: route.points.flatMap((point, index) => {
+            const next = route.points[index + 1]
+            return subdivide && next ? [point, { x: (point.x + next.x) / 2, y: (point.y + next.y) / 2 }] : [point]
+          }),
+        })).map(route => ({ ...route, points: reversePoints ? route.points.reverse() : route.points }))
+        if (reverseEdges) routes.reverse()
+        expect(crossingMeasurements(routes)).toEqual([expected, expected])
+      }
+    }
+  })
+
+  test('retracing a long diagonal does not count its single crossing twice', () => {
+    // B retraces y=x. A crosses that line once, near (232222,232222).
+    // Rounding in million-unit segment arithmetic must not create a second
+    // location when two calculations land a few ULPs apart at that crossing.
+    const routes = [
+      edge([[-1990000, 3010000], [2010000, -1990000]]),
+      edge([[10000, 10000], [2010000, 2010000], [-1990000, -1990000]], 'C', 'D'),
+    ]
+    for (const subdivide of [false, true]) for (const reverseEdges of [false, true]) for (const reversePoints of [false, true]) {
+      const transformed = routes.map(route => ({
+        ...route,
+        points: route.points.flatMap((point, index) => {
+          const next = route.points[index + 1]
+          return subdivide && next ? [point, { x: (point.x + next.x) / 2, y: (point.y + next.y) / 2 }] : [point]
+        }),
+      })).map(route => ({ ...route, points: reversePoints ? route.points.reverse() : route.points }))
+      if (reverseEdges) transformed.reverse()
+      expect(crossingMeasurements(transformed)).toEqual([1, 1])
     }
   })
 
