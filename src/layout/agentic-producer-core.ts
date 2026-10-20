@@ -102,7 +102,7 @@ export function layoutNativeGraphCandidate(
   layoutAgenticGraph: (input: MeasuredGraph) => AgenticLayout, bindings: AgenticGraphBindings,
 ): PositionedGraph {
   const first = placeNativeGraphCandidate(graph, options, style, layoutAgenticGraph, bindings)
-  if (options.stateVisual || graph.subgraphs.length || graph.nodes.size > 20 || graph.edges.length > 64) return first
+  if (options.compareRoutePreferences === false || options.stateVisual || graph.subgraphs.length || graph.nodes.size > 20 || graph.edges.length > 64) return first
   return bindings.refineOwnedLayoutCandidate(graph, style, first,
     () => placeNativeGraphCandidate(graph, options, style, input => layoutAgenticGraph({ ...input, authoredCycleOrder: true }), bindings))
 }

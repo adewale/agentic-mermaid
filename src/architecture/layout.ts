@@ -4,7 +4,8 @@ import type { Point, RenderOptions } from '../types.ts'
 import { ARCHITECTURE_DEFAULT_LAYER_SPACING, ARCHITECTURE_DEFAULT_NODE_SPACING, DEFAULT_ARCHITECTURE_VISUAL, architectureLayoutMetrics } from './config.ts'
 import type { ArchitectureLayoutMetrics } from './config.ts'
 import { layoutGraphSync } from '../layout-engine.ts'
-import { emitGraphLayoutDecision, selectElkForGraphFamily, withGraphLayoutDecisionObserver } from '../layout/backend.ts'
+import { GraphLayoutUnsupportedError, withGraphLayoutDecisionObserver } from '../layout/backend.ts'
+import { runMeasuredGraphBackend } from '../layout/measured-backend.ts'
 import { architectureToMermaidGraph } from './parser.ts'
 import { preparePixelText } from '../shared/prepared-text.ts'
 import { compareCodePointStrings } from '../shared/deterministic-order.ts'
@@ -63,7 +64,6 @@ export function layoutArchitectureDiagram(
   metrics?: ArchitectureLayoutMetrics,
 ): PositionedArchitectureDiagram {
   assertArchitectureDiagramWork(diagram)
-  const layoutDecision = selectElkForGraphFamily(options, 'architecture')
   const typography = metrics ?? architectureLayoutMetrics(DEFAULT_ARCHITECTURE_VISUAL)
   const roleBlock = (source: string, role: 'service' | 'group' | 'edge') => preparePixelText(source, {
     display: 'formatted', transform: typography[`${role}TextTransform`], fontSize: typography[`${role}FontSize`],
@@ -91,8 +91,8 @@ export function layoutArchitectureDiagram(
   }
   graph.subgraphs.forEach(prepareGroup)
   graph.edges.forEach((edge, index) => { edge.label = edgeText[index]?.text })
-  const positioned = withGraphLayoutDecisionObserver(() => {}, () => layoutGraphSync(graph, {
-    ...(options.graphLayout ? { graphLayout: { backend: 'elk' as const } } : {}),
+  const place = (backend: 'elk' | 'agentic') => withGraphLayoutDecisionObserver(() => {}, () => layoutGraphSync(graph, {
+    ...(options.graphLayout ? { graphLayout: { backend } } : {}),
     // Keep placement clearance separate from the drawn surface. Larger rings
     // reserve their own footprint instead of borrowing State's fixed size.
     nodeSizes: new Map(diagram.junctions.map(junction => [junction.id, {
@@ -102,7 +102,7 @@ export function layoutArchitectureDiagram(
     padding: options.padding ?? 40,
     nodeSpacing: options.nodeSpacing ?? ARCHITECTURE_DEFAULT_NODE_SPACING,
     layerSpacing: options.layerSpacing ?? ARCHITECTURE_DEFAULT_LAYER_SPACING,
-    preserveSubgraphChildOrder: true,
+    preserveSubgraphChildOrder: backend === 'elk',
     // The graph's temporary routes do not describe the side-constrained paths
     // below. Their cosmetic score cannot rank Architecture's final artifact.
     compareRoutePreferences: false,
@@ -138,7 +138,10 @@ export function layoutArchitectureDiagram(
       },
     } : undefined,
   }))
-  if (options.graphLayout) emitGraphLayoutDecision(layoutDecision)
+  const positioned = runMeasuredGraphBackend(options, () => {
+    if (diagram.groups.length) throw new GraphLayoutUnsupportedError('Architecture compound child order and boundary placement')
+    return place('agentic')
+  }, () => place('elk'))
 
   const servicesById = new Map(diagram.services.map((service) => [service.id, service]))
   const groupsById = new Map(diagram.groups.map((group) => [group.id, group]))
