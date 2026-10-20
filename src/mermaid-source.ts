@@ -556,7 +556,8 @@ function normalizeSource(
     installedFamilyStatementEnds(processed.lines[0] ?? '', accessibilityLines),
   )
   const envelope = sourceEnvelopeMetadata(semanticText, accessibilityScan.accessibility)
-  if (view === 'authored' && semanticText !== text) {
+  const sharesAuthoredGrammar = semanticText === cleanup.lineText
+  if (sharesAuthoredGrammar && semanticText !== text) {
     if (envelope.wrapperSource !== undefined) {
       envelope.wrapperSource = text.slice(0, originalMermaidOffset(cleanup, envelope.wrapperSource.length, 'end', 'lineText'))
     }
@@ -573,7 +574,7 @@ function normalizeSource(
   const familyLines = state
     ? scanStateComments(accessibilityScan.familyLines).filter(line => line.noteBody || line.text.length > 0).map(line => line.text)
     : toMermaidLines(familyBody)
-  const authored = view !== 'render' || semanticText === text ? undefined : normalizeSource(text, baseConfig, 'authored', cleanup)
+  const authored = sharesAuthoredGrammar ? undefined : normalizeSource(text, baseConfig, 'authored', cleanup)
 
   return {
     originalText: text,
