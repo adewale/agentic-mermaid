@@ -163,7 +163,7 @@ jobs:
           mkdir -p "$EVIDENCE_DIR"
           for backend in elk agentic; do
             bun run eval/layout-compare/run.ts snapshot --graph-layout "$backend" \
-              --generated-start 0 --generated-count 224 --label "$backend" \
+              --generated-start 0 --generated-count 256 --label "$backend" \
               --out "$EVIDENCE_DIR/$backend.json"
           done
       - name: Compare final quality without declaring a performance winner

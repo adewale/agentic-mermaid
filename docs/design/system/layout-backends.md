@@ -1013,3 +1013,46 @@ This improves precision for very short warm samples without changing gates,
 normalizing by controls or deleting adverse observations. All previous failed
 controls and slower native results remain evidence for their exact protocols.
 This workflow repeats one deterministic edit; it is not a cache-churn cohort.
+
+
+The clean145809d6 checkpoint is fully built (Node declarations, IIFE, lazy
+browser declarations) and passes all required CI lanes. Its224-case exact-head
+advisory artifact has224 native /221 ELK renders and zero crossing regressions;
+three reference errors still make that advisory red. Clean six-family coverage
+is218/235 native, with17 explicit declines, versus235/235 ELK. All218 shared
+successes avoid additional proper crossings. The declared224–255 holdout renders
+32 native /31 ELK (one reference certification rejection), but seed228 adds
+crossings15 versus12. Both engines'31 shared paint results are unverified.
+Exploration has now used that failure, so all256 are development data and remain
+in the advisory population. No new unseen population is claimed yet.
+
+At that same checkpoint, the6-official/16-workload canary has healthy cache-off
+A/A (about0.98×) and native official time about0.59×, allocation0.81× and peak
+RSS0.79×. Normal A/A is unhealthy on Requirement cycles, cyclic19 and Architecture
+alignment; native about0.97× is unqualified, allocation1.00× and peakRSS0.79×.
+These numbers predate the reuse changes and the new25-repetition protocol.
+Immutable evidence: [CI](https://github.com/adewale/agentic-mermaid/actions/runs/39510580488),
+[generated inputs](https://github.com/adewale/agentic-mermaid/actions/runs/39510580488/artifacts/12305356994),
+[costs and render pairs](https://github.com/adewale/agentic-mermaid/actions/runs/39510580488/artifacts/12305683798).
+
+### Replaying the chosen native order
+
+Raw geometry reuse alone leaves repeated final-candidate cleanup/certification.
+For eligible flat small graphs, a second bounded cache retains only which
+strategy won: primary, authored order or compact private ranks. Its key includes
+the complete semantic graph (including Maps/Sets and style maps), resolved
+options/style, active performance flags andAPL environment controls. It is
+scoped to the actual pipeline bindings and limited to64 entries /1MiB of
+estimated residency, with a65,536-code-unit key ceiling. The cache shares the
+startup cache-off switch and is bypassed for trusted custom text-measurement
+profiles. It stores no geometry, text evidence, receipt or certificate.
+
+A hit rebuilds the selected current candidate and the caller still performs
+mandatory final correspondence/geometry certification; it never accepts a
+cached proof. The owner contract checks byte-identical SVG after a comment edit,
+unchanged decisions and paint proof, and a changed request digest. Node/edge
+style-map changes force fresh selection; trusted host metrics bypass replay.
+Bypassing order reuse makes that contract fail;8 cache/edit contracts /53
+assertions pass with it. Broader combined and rebased verification remains
+required. This reduces repeated search work without changing the cold policy,
+its quality limitations, or the known seed228 gap.
