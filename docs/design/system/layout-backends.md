@@ -296,7 +296,12 @@ coincident shafts. A routing dependency graph orders intersecting runs; cyclic
 terminal conflicts receive visible doglegs. Stable barycenter sweeps retain the
 best inversion ordering, followed by bounded adjacent switches. These are
 established layered drawing techniques, not a claim of a new general layout
-algorithm. Native layered placement owns its dimensions, ports and label
+algorithm. Four pairs of constrained median sweeps reduce adjacent-rank center span
+without changing band order or the requested spacing between real boxes.
+Private labels retain occupied widths and long channels compact within their
+remaining feasible intervals. This is median coordinate descent, not a claim
+of Brandes–Köpf or an optimal node-placement solution.
+Native layered placement owns its dimensions, ports and label
 corridors; ELK-specific node movers and fan reconstruction must not invalidate
 those reservations. Shared outline clipping and final geometry/paint auditing
 still apply. Per-request limits bound expanded vertices, channel-pair checks,
@@ -685,3 +690,9 @@ against neighboring routes, beyond the main relationship label.
 was closed on 2026-10-04: preserving checked configuration across frontmatter,
 source and browser entry points matters independently of solver quality. These
 are upstream integration reports, not proof of defects in our retained ELK path.
+
+Marker-driven label repair preserves the native producer's pre-proved foreign
+shaft clearance. Candidate slots check the same padded-rectangle interior
+predicate used by the label-conflict counter, including terminal ink and halos.
+The additional shaft checks have a shared one-million-segment work bound;
+exhaustion stops optional sliding. The retained ELK repair policy is unchanged.

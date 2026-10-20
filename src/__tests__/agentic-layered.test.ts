@@ -183,6 +183,20 @@ describe('owned measured layered layout', () => {
     expect(layoutAgenticGraph(input)).toEqual(placed)
   })
 
+  test.each(['TD', 'BT', 'LR', 'RL'] as const)('keeps a labelled branch beside an unrelated wide root in %s', direction => {
+    const horizontal = direction === 'LR' || direction === 'RL'
+    const input = measured({ direction, nodes: [80, 80, 80, 200].map((size, index) => ({ id: String(index),
+      width: horizontal ? 40 : size, height: horizontal ? size : 40 })), edges: [
+      { source: 0, target: 1, minSpan: 1, label: horizontal ? { width: 20, height: 160 } : { width: 160, height: 20 } },
+      { source: 1, target: 2, minSpan: 1 },
+    ] })
+    const original = structuredClone(input), placed = layoutAgenticGraph(input), axis = horizontal ? 'y' : 'x'
+    expect(placed.nodes[1]![axis]).toBeLessThan(placed.nodes[3]![axis])
+    expect(placed.nodes[1]![axis]).toBe(placed.nodes[2]![axis])
+    expect(countPolylineCrossings(placed.edges)).toBe(0)
+    expect(input).toEqual(original)
+  })
+
   test('keeps nearly coincident terminal columns out of parallel route ink', () => {
     const steps = [
       { sourceCross: 100.25, targetCross: 140, offset: 0, track: 0 },

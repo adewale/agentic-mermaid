@@ -14,6 +14,7 @@ import { renderMermaidSVG } from '../index.ts'
 import { labelRect } from '../route-contracts.ts'
 import { resolveRenderStyle } from '../styles.ts'
 import { graphEdgeMarkerPaintRegions } from '../graph-connectors.ts'
+import { measureLabelConflicts } from '../layout/label-conflicts.ts'
 
 describe('route proposal crossing consistency', () => {
   it.each([false, true])('does not add a crossing when the other route is subdivided=%s', subdivided => {
@@ -52,6 +53,30 @@ describe('colliding duplicate labels', () => {
 })
 
 describe('label candidate endpoint clearance', () => {
+  it('preserves clear foreign shafts while moving a label away from a terminal marker', () => {
+    const nodes: PositionedNode[] = [
+      { id: 'A', label: 'A', shape: 'rectangle', x: 0, y: 0, width: 80, height: 40 },
+      { id: 'C', label: 'C', shape: 'rectangle', x: 0, y: 200, width: 80, height: 40 },
+      { id: 'B', label: 'B', shape: 'rectangle', x: 180, y: 280, width: 80, height: 40 },
+    ]
+    const labeled: PositionedEdge = { source: 'A', target: 'C', style: 'solid', hasArrowStart: false, hasArrowEnd: true,
+      label: 'handoff', labelPosition: { x: 40, y: 181 }, points: [{ x: 40, y: 40 }, { x: 40, y: 200 }] }
+    const foreign: PositionedEdge = { source: 'A', target: 'B', style: 'solid', hasArrowStart: false, hasArrowEnd: true,
+      points: [{ x: 80, y: 20 }, { x: 220, y: 20 }, { x: 220, y: 120 }, { x: -40, y: 120 }, { x: -40, y: 240 }, { x: 220, y: 240 }, { x: 220, y: 280 }] }
+    const positioned = { nodes, groups: [], edges: [labeled, foreign] }, style = resolveRenderStyle()
+    const marker = graphEdgeMarkerPaintRegions(labeled, style)[0]!.bounds!
+    const coversMarker = (): boolean => {
+      const pill = labelRect(labeled, style)!
+      return pill.x - 4 < marker.x1 && pill.x + pill.w + 4 > marker.x0 && pill.y - 4 < marker.y1 && pill.y + pill.h + 4 > marker.y0
+    }
+    expect(coversMarker()).toBe(true)
+    expect(measureLabelConflicts(positioned, style).labelEdge).toBe(0)
+    separateEdgeLabelPills(positioned, parseMermaid('flowchart TD\nA -->|handoff| C\nA --> B'), style, { preserveRouteClearance: true })
+    expect(coversMarker()).toBe(false)
+    expect(measureLabelConflicts(positioned, style).total).toBe(0)
+    expect(labeled.labelPosition!.x).toBe(40)
+  })
+
   for (const marker of ['arrow', 'circle', 'cross'] as const) for (const endpoint of ['start', 'end'] as const) {
     it.each(['default', 'scaled', 'fixed'] as const)(`${marker} ${endpoint}: preserves neighboring marker ink with %s stroke units`, units => {
       const labeled: PositionedEdge[] = [100, 110].map((y, i) => ({
