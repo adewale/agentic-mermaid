@@ -8,6 +8,7 @@ import { STROKE_WIDTHS, ARROW_HEAD, applyTextTransform, resolveRenderStyle, diag
 import type { ResolvedRenderStyle } from '../styles.ts'
 import { SEQUENCE_STYLE_DEFAULTS } from './layout.ts'
 import { buildAccessibilityAttrs } from '../shared/svg-a11y.ts'
+import { sanitizeDisplayLines } from '../shared/text-controls.ts'
 import type { Geometry, MarkerDescriptor, SceneDoc, SceneNode } from '../scene/ir.ts'
 import { pathArtwork } from '../scene/artwork.ts'
 import { hashId } from '../scene/seed.ts'
@@ -701,11 +702,11 @@ function renderMessage(
 
   // Semantic wrapper with message metadata
   const emission = { kind: 'group' as const, attributes: [
-    { name: 'class' as const, value: v.meta('message') }, { name: 'data-label' as const, value: v.meta(msg.label), display: true },
-    { name: 'data-line-style' as const, value: v.meta(msg.lineStyle) },
-    { name: 'data-start-head' as const, value: v.meta(msg.startHead) }, { name: 'data-end-head' as const, value: v.meta(msg.endHead) },
-    { name: 'data-central-start' as const, value: v.meta(msg.centralStart) }, { name: 'data-central-end' as const, value: v.meta(msg.centralEnd) },
-    { name: 'data-self' as const, value: v.meta(msg.isSelf) },
+    { name: 'class' as const, value: v.meta('message') }, { name: 'data-label' as const, value: v.meta(sanitizeDisplayLines(msg.label)), display: false },
+    { name: 'data-line-style' as const, value: v.meta(`${msg.lineStyle}`) },
+    { name: 'data-start-head' as const, value: v.meta(`${msg.startHead}`) }, { name: 'data-end-head' as const, value: v.meta(`${msg.endHead}`) },
+    { name: 'data-central-start' as const, value: v.meta(`${msg.centralStart}`) }, { name: 'data-central-end' as const, value: v.meta(`${msg.centralEnd}`) },
+    { name: 'data-self' as const, value: v.meta(`${msg.isSelf}`) },
   ] }
 
   if (msg.isSelf) {
