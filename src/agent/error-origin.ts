@@ -27,6 +27,7 @@ import { MermaidFamilyDetectionError } from '../family-detection.ts'
 import { GanttError } from '../gantt/types.ts'
 import { GitGraphParseError } from '../gitgraph/parser.ts'
 import { LayoutCertificationError } from '../layout/certification-error.ts'
+import { GraphLayoutUnsupportedError } from '../layout/backend.ts'
 import { LayoutPassContractError } from '../layout/pass.ts'
 import { MindmapParseError } from '../mindmap/parser.ts'
 import { QuadrantStyleColorError } from '../quadrant/point-style.ts'
@@ -60,6 +61,7 @@ const ORIGINS: ReadonlyArray<readonly [ErrorClass, WarningOrigin]> = [
   [FamilyConfigColorError, 'config'],
   [JsonConfigAdmissionError, 'config'],
   [RenderConfigError, 'config'],
+  [GraphLayoutUnsupportedError, 'config'],
   [RenderCapabilityError, 'config'],
   [StyleSpecError, 'config'],
   // The authored diagram, including host work limits it can exceed and the

@@ -263,13 +263,15 @@ interface CertifiedSelection {
   attempts: number
 }
 
-function certifyCandidate(graph: MermaidGraph, style: ResolvedRenderStyle, candidate: LayoutCertificationCandidate): {
+function certifyCandidate(graph: MermaidGraph, style: ResolvedRenderStyle, candidate: LayoutCertificationCandidate, strictProducer = false): {
   certified?: CertifiedCandidate
   attempt: LayoutCertificationAttempt
 } {
   try {
     const positioned = candidate.produce()
-    const violations = [...correspondenceViolations(graph, positioned, style), ...positionedGeometryViolations(positioned, style)]
+    const correspondence = correspondenceViolations(graph, positioned, style)
+    if (strictProducer && correspondence.length) throw new TypeError(`Owned layout changed authored meaning: ${correspondence.join('; ')}`)
+    const violations = [...correspondence, ...positionedGeometryViolations(positioned, style)]
     const rubric = violations.length === 0 ? assessLayout(graph, positioned, style) : undefined
     if (rubric) violations.push(...hardViolations(rubric).map(violation => `${violation.metric}: ${violation.detail}`))
     const preferNext = violations.length === 0 && (candidate.preferNext?.(positioned) ?? false)
@@ -281,7 +283,7 @@ function certifyCandidate(graph: MermaidGraph, style: ResolvedRenderStyle, candi
     }
   } catch (error) {
     // A successful alternative cannot hide a broken pass or exceeded input work limit.
-    if (error instanceof LayoutPassContractError || error instanceof DiagramWorkLimitError || error instanceof DeferredDependencyError) throw error
+    if (strictProducer || error instanceof LayoutPassContractError || error instanceof DiagramWorkLimitError || error instanceof DeferredDependencyError) throw error
     return { attempt: { strategy: candidate.strategy, violations: [error instanceof Error ? error.message : String(error)] } }
   }
 }
@@ -352,6 +354,17 @@ function retainSelection(graph: MermaidGraph, selection: CertifiedSelection): Po
  * Stable candidate-order ties never initiate another expensive production. */
 export function certifyLayoutCandidates(graph: MermaidGraph, style: ResolvedRenderStyle, candidates: readonly LayoutCertificationCandidate[], preliminary?: LayoutCertificationCandidate): PositionedGraph {
   return retainSelection(graph, selectCertifiedCandidates(graph, style, candidates, preliminary))
+}
+
+/** Owned producers may decline geometry, but cannot disguise meaning changes
+ * or unexpected checker/producer exceptions as an ordinary fallback. */
+export function certifyOwnedLayoutCandidate(graph: MermaidGraph, style: ResolvedRenderStyle, candidate: LayoutCertificationCandidate): PositionedGraph {
+  const result = certifyCandidate(graph, style, candidate, true)
+  if (!result.certified) throw new LayoutCertificationError([result.attempt])
+  return retainSelection(graph, {
+    selected: result.certified, reason: 'first-certified', attempts: 1,
+    compared: [{ strategy: result.certified.strategy, score: result.certified.score }],
+  })
 }
 
 /** Select placement, then optionally certify one new route proposal. The baseline

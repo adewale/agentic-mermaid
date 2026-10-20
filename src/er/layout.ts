@@ -20,6 +20,7 @@ import type { RenderStyleDefaults, ResolvedRenderStyle } from '../styles.ts'
 import type { InternalStyleFace } from '../scene/style-registry.ts'
 import { elkLayoutSync } from '../elk-instance.ts'
 import { directionToElk } from '../layout/direction.ts'
+import { emitGraphLayoutDecision, selectElkForGraphFamily } from '../layout/backend.ts'
 import { checkedAuthoredStyle } from '../shared/style-props.ts'
 import { configSpacing } from '../shared/config-spacing.ts'
 import { erCommentText } from './text.ts'
@@ -728,6 +729,7 @@ export function layoutErDiagram(
   styleFace?: Readonly<InternalStyleFace>,
 ): PositionedErDiagram {
   assertErDiagramWork(diagram)
+  if (options.graphLayout) emitGraphLayoutDecision(selectElkForGraphFamily(options, 'er'))
   if (diagram.entities.length === 0) {
     if (diagram.groups.length > 0) return withErTitle(prepareErText(layoutErGroupsOnly(diagram, resolveRenderStyle(options, ER_STYLE_DEFAULTS, styleFace), styleFace), resolveRenderStyle(options, ER_STYLE_DEFAULTS, styleFace), styleFace), diagram.title, resolveRenderStyle(options, ER_STYLE_DEFAULTS, styleFace))
     return withErTitle({ width: 0, height: 0, accessibilityTitle: diagram.accessibilityTitle, accessibilityDescription: diagram.accessibilityDescription, entities: [], relationships: [], groups: [] }, diagram.title, resolveRenderStyle(options, ER_STYLE_DEFAULTS, styleFace))

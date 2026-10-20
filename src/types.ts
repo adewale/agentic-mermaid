@@ -185,6 +185,8 @@ export interface RenderContext<TPositioned extends PositionedDiagram = Positione
 }
 
 export interface PositionedGraph extends PositionedDiagram {
+  /** Deterministic evidence for the graph geometry producer. */
+  layoutDecision?: import('./layout/backend.ts').GraphLayoutDecision
   width: number
   height: number
   nodes: PositionedNode[]
@@ -501,9 +503,17 @@ export interface GraphLayoutHints {
   shortEdges?: readonly string[]
 }
 
+export interface GraphLayoutOptions {
+  backend: 'elk' | 'agentic'
+  /** Agentic may explicitly fall back to ELK; omitted means none. */
+  fallback?: 'none' | 'elk'
+}
+
 export interface RenderOptions {
   /** Explicit deterministic Flowchart/State placement preferences; included in render receipts. */
   layoutHints?: GraphLayoutHints
+  /** Graph geometry producer; omitted preserves the existing ELK pipeline. */
+  graphLayout?: GraphLayoutOptions
   /** Require complete native layout evidence, or report explicit limitations. */
   layoutSafety?: 'report' | 'strict'
   /** Background color → CSS variable --bg. Default: '#FFFFFF' */
