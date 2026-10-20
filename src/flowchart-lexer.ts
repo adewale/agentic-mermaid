@@ -141,6 +141,12 @@ function stickyMatch(expression: RegExp, text: string, at: number): RegExpExecAr
  * than `-`: a letter or digit of any script, `_`, or one of `!"#$%&'*+.`?\/`. */
 const NODE_STRING_CHAR_RE = /[\p{L}\p{N}_!"#$%&'*+.`?\\/]/u
 
+/** An HTML-escaped `&` (`&amp;`, `&#38;`, `&#x26;`). After a node, where
+ * upstream rejects it, ours reads it as the `&` that lists nodes
+ * (`A &amp; B`); glued to an id (`A&amp;B`) or where a node begins, it is
+ * id text, as upstream reads it. */
+export const FLOWCHART_ESCAPED_AMP_RE = /^&(?:amp|#38|#x26);/i
+
 /**
  * The length of the node id at `at`, as upstream's lexer reads one: a run of
  * node-string characters, and `:`, which its id grammar also takes in, where
@@ -422,6 +428,21 @@ function lex(text: string, from: number, single: boolean, labelStrings: boolean,
   const links: FlowchartTextRange[] = []
   // Open regions, innermost last (indices into `regions`).
   const stack: number[] = []
+  // Where the statement the current character is in begins.
+  let statementStart = from
+  // Whether the `;` at `at` ends an escaped `&` after a node: after a blank
+  // that follows a node's id or shape, or glued to its shape (`A[x]&amp;B`).
+  const endsEscapedListAmp = (at: number): boolean => {
+    const amp = text.lastIndexOf('&', at)
+    if (amp < statementStart || FLOWCHART_ESCAPED_AMP_RE.exec(text.slice(amp, at + 1))?.[0].length !== at + 1 - amp) return false
+    if (KEYWORD_STATEMENT_RE.test(text.slice(statementStart, amp).trimStart())) return false
+    const endsNodeShape = (end: number): boolean => regions.some(region => region.parent === -1 && region.end === end && (region.kind === 'shape' || region.kind === 'metadata'))
+    if (!/\s/.test(text[amp - 1] ?? '')) return endsNodeShape(amp)
+    let last = amp - 1
+    while (last >= statementStart && /\s/.test(text[last]!)) last--
+    if (last < statementStart) return false
+    return endsNodeShape(last + 1) || (topLevel[last] === true && links.at(-1)?.end !== last + 1 && /[\p{L}\p{N}_]/u.test(text[last]!))
+  }
 
   const open = (kind: FlowchartRegionKind, start: number, contentStart: number): void => {
     regions.push({ kind, start, end: text.length, contentStart, contentEnd: text.length, closed: false, parent: stack.at(-1) ?? -1 })
@@ -531,8 +552,12 @@ function lex(text: string, from: number, single: boolean, labelStrings: boolean,
     // A `>` that no link consumed opens asymmetric shape text (`A>x]`).
     if (char === '>') { open('shape', index, index + 1); continue }
     if (!single) topLevel[index] = true
-    // Upstream's edge id after a blank takes in a `;` (`A e;1@--> B`).
-    if (char === ';' && !inEdgeId(index)) separators.push(index)
+    // Upstream's edge id after a blank takes in a `;` (`A e;1@--> B`), and
+    // an escaped `&` after a node ends no statement.
+    if (char === ';' && !inEdgeId(index) && !endsEscapedListAmp(index)) {
+      separators.push(index)
+      statementStart = index + 1
+    }
   }
 
   return { regions, topLevel, separators, links, openAtEnd: stack.map(region => regions[region]!.kind) }

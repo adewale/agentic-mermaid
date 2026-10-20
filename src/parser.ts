@@ -27,7 +27,7 @@ import type { Direction, EdgeMarker, EdgeStyle, MermaidEdge, MermaidGraph, Merma
 export { parseStyleProps } from './shared/style-props.ts'
 import { detectCompatibilityGraphFamilyFromFirstLine } from './agent/family-router.ts'
 import { classifyMermaidFamilyFromFirstLine } from './family-detection.ts'
-import { coalesceFlowchartLines, commaInNodeId, continuesNodeId, findTextArrow, FLOWCHART_EDGE_ID_SOURCE, FLOWCHART_LINK_SOURCE, flowchartNodeIdLength, flowchartRegionAt, flowchartStatementSpans, labelReferencesAsEntityCodes, labelTextHoldsDelimiter, matchFlowchartLink, matchTextArrow, subgraphTitleUnreadable } from './flowchart-lexer.ts'
+import { coalesceFlowchartLines, commaInNodeId, continuesNodeId, findTextArrow, FLOWCHART_EDGE_ID_SOURCE, FLOWCHART_ESCAPED_AMP_RE, FLOWCHART_LINK_SOURCE, flowchartNodeIdLength, flowchartRegionAt, flowchartStatementSpans, labelReferencesAsEntityCodes, labelTextHoldsDelimiter, matchFlowchartLink, matchTextArrow, subgraphTitleUnreadable } from './flowchart-lexer.ts'
 import { consumeClassShorthandPrefix,
   MERMAID_IDENTIFIER_SOURCE, parseClassShorthandStatement } from './shared/mermaid-identifiers.ts'
 import { metadataText, readMetadataBlock } from './shared/metadata-yaml.ts'
@@ -537,7 +537,7 @@ function listSubgraphs(graph: MermaidGraph, listings: ReadonlyArray<{ lister: Me
 
 /** A spelling ours reads in a statement where pinned Mermaid's lexer reads
  * otherwise, which verify reports: a `&` list without a blank on each side
- * of the `&` (`A &B`), label text holding a character upstream's lexer reads
+ * of the `&` (`A &B`), or with an HTML-escaped `&` (`A &amp; B`), label text holding a character upstream's lexer reads
  * as a delimiter there (flowchart-lexer.ts labelTextHoldsDelimiter), and a
  * subgraph title it cannot read without quotes (subgraphTitleUnreadable), a
  * node whose text runs on without a blank to an `@`, which upstream reads as
@@ -545,7 +545,7 @@ function listSubgraphs(graph: MermaidGraph, listings: ReadonlyArray<{ lister: Me
  * (commaIdStop) or edge id (unreadableEdgeId) upstream reads there that ours
  * does not, or a link label whose markers make no link type there
  * (mismatchedLinkMarkers). */
-export type FlowchartStatementNote = 'amp-spacing' | 'label-delimiter' | 'subgraph-title' | 'node-edge-id' | 'comma-id' | 'edge-id' | 'link-markers'
+export type FlowchartStatementNote = 'amp-spacing' | 'escaped-amp' | 'label-delimiter' | 'subgraph-title' | 'node-edge-id' | 'comma-id' | 'edge-id' | 'link-markers'
 
 /** Statements the parser reads before its node and link grammar, other than
  * `subgraph`. */
@@ -1540,15 +1540,19 @@ function consumeNodeGroup(
   const ids = [first.id]
   let remaining = first.remaining
 
-  // Check for & separators. One that no node follows (upstream reads one on
-  // its line only) stays unconsumed, so the statement fails.
+  // Check for & separators, plain or HTML-escaped (`&amp;`), which the lexer
+  // leaves in the statement after a node. One that no node follows
+  // (upstream reads one on its line only) stays unconsumed, so the statement
+  // fails.
   while (remaining.trimStart().startsWith('&')) {
     if (parserObservationActive('flowchart')) observeParserToken('flowchart', 'parallel-separator', '&')
-    const after = remaining.trimStart().slice(1)
+    const escaped = FLOWCHART_ESCAPED_AMP_RE.exec(remaining.trimStart())?.[0]
+    const after = remaining.trimStart().slice(escaped?.length ?? 1)
     const next = consumeNode(after.trim(), graph, subgraphStack, declaredSubgraphIds, notes)
     if (!next) break
-    // Upstream lists nodes only with a blank on each side of `&`.
-    if (!/^\s/.test(remaining) || !/^\s/.test(after)) notes?.add('amp-spacing')
+    // Upstream lists nodes only with a plain `&`, and a blank on each side.
+    if (escaped) notes?.add('escaped-amp')
+    else if (!/^\s/.test(remaining) || !/^\s/.test(after)) notes?.add('amp-spacing')
     ids.push(next.id)
     remaining = next.remaining
   }

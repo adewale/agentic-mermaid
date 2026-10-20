@@ -286,6 +286,9 @@ const FLOWCHART_READ_GENEROUSLY: ReadonlyArray<GenerousRow> = [
   // Mermaid lists nodes only with a blank on each side of `&` (`&B` is an id).
   ['a `&` with no blank after it', 'flowchart LR\n  A &B --> C', '>B<', 'flowchart_amp_spacing', 2],
   ['a `&` with no blank before it, after a shape', 'flowchart LR\n  A --> C\n  A[x]& B', '>B<', 'flowchart_amp_spacing', 3],
+  // After a node, Mermaid reads `&` only unescaped.
+  ['an HTML-escaped `&` listing link sources', 'flowchart LR\n  A &amp; B --> C', 'data-id="edge:A-&gt;C#0"', 'flowchart_escaped_amp', 2],
+  ['escaped `&`s glued to a shape, and numeric ones, listing link targets', 'flowchart LR\n  A --> B[x]&amp;C &#38; D &#x26; E', 'data-id="edge:A-&gt;E#0"', 'flowchart_escaped_amp', 2],
   // Mermaid's text state ends unquoted label text at any of `[](){}|"`; its
   // trapezoid text at a bracket; its edge text at a `"`.
   ['parentheses in shape text', 'flowchart LR\n  A[a (b) c]', '>a (b) c<', 'flowchart_label_delimiter', 2],
@@ -321,12 +324,14 @@ const FLOWCHART_READ_GENEROUSLY: ReadonlyArray<GenerousRow> = [
 
 // Flowchart labels Mermaid's lexer reads otherwise than as written: its text
 // joins a leading string to the text after it (`"a" b` is `a b`), and after
-// a blank `x--` opens a link label even before an `@`; and a `;` ends a style
-// statement before text that names no style property.
+// a blank `x--` opens a link label even before an `@`; a `;` ends a style
+// statement before text that names no style property; and `&amp;` is id
+// text where it is glued to an id or a node begins.
 // [construct, source]
 const FLOWCHART_LABELS: ReadonlyArray<readonly [string, string]> = [
   ['marker link labels holding `@`', 'flowchart LR\n  A x--e1@--x B\n  B o--e2@--o C'],
   ['nodes after a `;` in style and classDef statements', 'flowchart LR\n  style A fill:red;a:b\n  classDef c fill:red; A:b'],
+  ['an escaped `&` glued to an id, or where a node begins', 'flowchart LR\n  A&amp;B --> C\n  D --> &amp; E'],
   ['a string then text in shape, pipe, text-arrow and subgraph labels', 'flowchart LR\n  A["a" b] -->|"c" d| B -- "e" f --> C\n  subgraph S["g" h]\n    A\n  end\n  subgraph "i"j\n    B\n  end'],
 ]
 
