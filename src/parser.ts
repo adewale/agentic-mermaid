@@ -27,7 +27,7 @@ import type { Direction, EdgeMarker, EdgeStyle, MermaidEdge, MermaidGraph, Merma
 export { parseStyleProps } from './shared/style-props.ts'
 import { detectCompatibilityGraphFamilyFromFirstLine } from './agent/family-router.ts'
 import { classifyMermaidFamilyFromFirstLine } from './family-detection.ts'
-import { coalesceFlowchartLines, commaInNodeId, continuesNodeId, findTextArrow, FLOWCHART_EDGE_ID_SOURCE, FLOWCHART_LINK_SOURCE, flowchartNodeIdLength, flowchartRegionAt, flowchartStatementSpans, matchFlowchartLink, matchTextArrow } from './flowchart-lexer.ts'
+import { coalesceFlowchartLines, commaInNodeId, continuesNodeId, findTextArrow, FLOWCHART_EDGE_ID_SOURCE, FLOWCHART_LINK_SOURCE, flowchartNodeIdLength, flowchartRegionAt, flowchartStatementSpans, labelTextHoldsDelimiter, matchFlowchartLink, matchTextArrow } from './flowchart-lexer.ts'
 import { consumeClassShorthandPrefix,
   MERMAID_IDENTIFIER_SOURCE, parseClassShorthandStatement } from './shared/mermaid-identifiers.ts'
 import { metadataText, readMetadataBlock } from './shared/metadata-yaml.ts'
@@ -128,17 +128,25 @@ function coalesceStatementLines(lines: string[]): Array<{ text: string; breaks?:
   })
 }
 
-function parseFlowchartSubgraphDeclaration(rest: string): Pick<MermaidSubgraph, 'id' | 'label' | 'labelContent'> & { generated: boolean; identity: string } {
+/** A subgraph title `id[title]`: the id and the title's text as authored. */
+function subgraphBracketTitle(rest: string): { id: string; title: string } | undefined {
   // Delimiter scanning is deliberately linear. A lazy `(.+?)` matcher followed
   // by a bracketed label backtracked quadratically over long unterminated runs
   // of `[` — an input shape that fits the hosted 64 KiB source limit.
   const labelStart = rest.indexOf('[')
-  if (labelStart > 0 && labelStart < rest.length - 1 && rest.endsWith(']')) {
-    const id = rest.slice(0, labelStart).trim()
+  return labelStart > 0 && labelStart < rest.length - 1 && rest.endsWith(']')
+    ? { id: rest.slice(0, labelStart).trim(), title: rest.slice(labelStart + 1, -1) }
+    : undefined
+}
+
+function parseFlowchartSubgraphDeclaration(rest: string): Pick<MermaidSubgraph, 'id' | 'label' | 'labelContent'> & { generated: boolean; identity: string } {
+  const titled = subgraphBracketTitle(rest)
+  if (titled) {
+    const { id } = titled
     if (!isFlowchartNodeId(id)) {
       throw new Error(`Invalid flowchart subgraph identifier ${JSON.stringify(id)}`)
     }
-    const parsed = parseFlowchartLabel(rest.slice(labelStart + 1, -1))
+    const parsed = parseFlowchartLabel(titled.title)
     return { id, label: parsed.text, ...(parsed.labelContent ? { labelContent: parsed.labelContent } : {}), generated: false, identity: id }
   }
   const parsed = parseFlowchartLabel(rest)
@@ -487,15 +495,27 @@ function listSubgraphs(graph: MermaidGraph, listings: ReadonlyArray<{ lister: Me
   }
 }
 
-/** A spelling ours reads in a node or link statement where pinned Mermaid's
- * lexer reads otherwise, which verify reports: a `&` list without a blank on
- * each side of the `&` (`A &B`). */
-export type FlowchartStatementNote = 'amp-spacing'
+/** A spelling ours reads in a statement where pinned Mermaid's lexer reads
+ * otherwise, which verify reports: a `&` list without a blank on each side
+ * of the `&` (`A &B`), and label text holding a character upstream's lexer
+ * reads as a delimiter there (flowchart-lexer.ts labelTextHoldsDelimiter). */
+export type FlowchartStatementNote = 'amp-spacing' | 'label-delimiter'
 
-/** The notes on one node or link statement (not a keyword statement), as
- * the parser reads it; none when ours rejects it. */
+/** Statements the parser reads before its node and link grammar, other than
+ * `subgraph`. */
+const NON_NODE_STATEMENT_RE = /^(?:end$|(?:direction|classDef|class|style|linkStyle|click|href)\s)/i
+
+/** The notes on one statement, as the parser reads it; none when ours
+ * rejects it. */
 export function flowchartStatementNotes(statement: string): ReadonlySet<FlowchartStatementNote> {
   const notes = new Set<FlowchartStatementNote>()
+  const subgraph = statement.match(/^subgraph\s+(.+)$/)
+  if (subgraph) {
+    const titled = subgraphBracketTitle(subgraph[1]!.trim())
+    if (titled && labelTextHoldsDelimiter(titled.title, 'text')) notes.add('label-delimiter')
+    return notes
+  }
+  if (NON_NODE_STATEMENT_RE.test(statement)) return notes
   const graph: MermaidGraph = { direction: 'TD', nodes: new Map(), edges: [], subgraphs: [], classDefs: new Map(), classAssignments: new Map(), nodeStyles: new Map(), linkStyles: new Map() }
   try {
     return parseEdgeLine(statement, graph, [], new Set(), notes).ok ? notes : new Set()
@@ -1237,6 +1257,9 @@ const NODE_PATTERNS: Array<{ regex: RegExp; shape: NodeShape }> = [
   { regex: flowchartNodeRegex(String.raw`\{(.+?)\}`), shape: 'diamond' },
 ]
 
+/** The shapes upstream lexes in its trapezoid text state. */
+const TRAPEZOID_SHAPES: ReadonlySet<NodeShape> = new Set(['trapezoid', 'trapezoid-alt', 'lean-r', 'lean-l'])
+
 /** The node id at the start of `text`, as upstream's lexer reads one
  * (flowchartNodeIdLength): `--` and `-.` always open a link, so
  * `A--a --> B` is A, a text-arrow label, B. */
@@ -1324,6 +1347,7 @@ function parseEdgeLine(
       if (labelSuffix.startsWith('|')) {
         const pipeLabel = consumePipeLabel(labelSuffix)
         if (!pipeLabel) return { ok: false, remaining: labelSuffix, reason: 'expected edge target' }
+        if (labelTextHoldsDelimiter(pipeLabel.rawLabel, 'text')) notes?.add('label-delimiter')
         const parsedLabel = parseFlowchartLabel(pipeLabel.rawLabel.trim())
         edgeLabel = parsedLabel.text || undefined
         labelContent = parsedLabel.labelContent
@@ -1341,6 +1365,7 @@ function parseEdgeLine(
       // Fallback: text-embedded label syntax (-- Yes -->, -. Maybe .->, == Sure ==>)
       const textArrow = consumeTextArrow(remaining)
       if (!textArrow) return { ok: false, remaining, reason: 'expected edge operator' }
+      if (labelTextHoldsDelimiter(textArrow.rawLabel, 'edge-text')) notes?.add('label-delimiter')
       const parsedLabel = parseFlowchartLabel(textArrow.rawLabel)
       edgeLabel = parsedLabel.text || undefined
       labelContent = parsedLabel.labelContent
@@ -1404,7 +1429,7 @@ function consumeNodeGroup(
   subgraphStack: MermaidSubgraph[],
   declaredSubgraphIds: Set<string>,
   notes?: Set<FlowchartStatementNote>): ConsumedNodeGroup | null {
-  const first = consumeNode(text, graph, subgraphStack, declaredSubgraphIds)
+  const first = consumeNode(text, graph, subgraphStack, declaredSubgraphIds, notes)
   if (!first) return null
 
   const ids = [first.id]
@@ -1415,7 +1440,7 @@ function consumeNodeGroup(
   while (remaining.trimStart().startsWith('&')) {
     if (parserObservationActive('flowchart')) observeParserToken('flowchart', 'parallel-separator', '&')
     const after = remaining.trimStart().slice(1)
-    const next = consumeNode(after.trim(), graph, subgraphStack, declaredSubgraphIds)
+    const next = consumeNode(after.trim(), graph, subgraphStack, declaredSubgraphIds, notes)
     if (!next) break
     // Upstream lists nodes only with a blank on each side of `&`.
     if (!/^\s/.test(remaining) || !/^\s/.test(after)) notes?.add('amp-spacing')
@@ -1561,7 +1586,8 @@ function consumeNode(
   text: string,
   graph: MermaidGraph,
   subgraphStack: MermaidSubgraph[],
-  declaredSubgraphIds: Set<string>): ConsumedNode | null {
+  declaredSubgraphIds: Set<string>,
+  notes?: Set<FlowchartStatementNote>): ConsumedNode | null {
   const metadataNode = consumeMetadataNode(text, graph, subgraphStack)
   if (metadataNode) {
     let remaining = metadataNode.remaining
@@ -1599,6 +1625,7 @@ function consumeNode(
     const match = shapeText.match(regex)
     if (match) {
       id = identifier!.id
+      if (labelTextHoldsDelimiter(match[1]!, TRAPEZOID_SHAPES.has(shape) ? 'trapezoid' : 'text')) notes?.add('label-delimiter')
       const { text: label, markdown, labelContent } = parseFlowchartLabel(match[1]!)
       defineNode(graph, subgraphStack, { id, label, shape, ...(markdown ? { markdownLabel: true as const } : {}), ...(labelContent ? { labelContent } : {}) })
       remaining = shapeText.slice(match[0].length)

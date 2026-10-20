@@ -168,6 +168,37 @@ export function flowchartNodeIdLength(text: string, at = 0): number {
   return end - at
 }
 
+/** What pinned Mermaid's lexer reads as a delimiter in unquoted label text,
+ * per context: its `text` state (shape text, a pipe label, a subgraph's
+ * bracket title) ends text at any of `[](){}|"`; its trapezoid text, whose
+ * runs take in `|` and a `"`, at a bracket; and its edge text (a text-arrow
+ * label), lexed a character at a time, at a `"`, which opens a string. */
+const LABEL_TEXT_DELIMITER_RE = {
+  text: /[[\](){}|"]/,
+  trapezoid: /[[\](){}]/,
+  'edge-text': /"/,
+} as const
+
+export type FlowchartLabelContext = keyof typeof LABEL_TEXT_DELIMITER_RE
+
+/**
+ * Whether label text, as authored between its delimiters, holds a character
+ * pinned Mermaid's lexer reads as a delimiter in that context, where upstream
+ * rejects the label. Upstream's label may begin with a quoted (or markdown)
+ * string, and then holds none of them; a string it leaves unclosed is
+ * reported as an unclosed quote instead.
+ */
+export function labelTextHoldsDelimiter(raw: string, context: FlowchartLabelContext): boolean {
+  let rest = raw
+  if (raw.startsWith('"')) {
+    const markdown = raw.startsWith('"`')
+    const close = markdown ? raw.indexOf('`"', 2) : raw.indexOf('"', 1)
+    if (close < 0) return false
+    rest = raw.slice(close + (markdown ? 2 : 1))
+  }
+  return LABEL_TEXT_DELIMITER_RE[context].test(rest)
+}
+
 /** Whether the `,` at `at` comes right after node id characters, where
  * upstream's id grammar takes it into the id (`A,B` is one node there).
  * Ours reads no `,` in a node id, since `style` and `class` read it as a
