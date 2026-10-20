@@ -36,8 +36,7 @@ import { classUnsupportedSyntaxWarnings } from './class-body.ts'
 import { ganttUnsupportedSyntaxWarnings } from './gantt-body.ts'
 import { erUnsupportedSyntaxWarnings } from './er-body.ts'
 import { builtinFamilyMetadata, extractLabelsGeneric, getFamily } from './families.ts'
-import { detectsFlowchartFamily, installedFamilyStatementEnds } from './family-router.ts'
-import { colonlessAccessibilityDirectives } from '../shared/accessibility-directives.ts'
+import { detectsFlowchartFamily } from './family-router.ts'
 import { FamilyLayoutError, ganttGeometryWarnings, ganttScheduleWarning, layoutGeometryWarnings, type ProjectedFamilyArtifact, positionFamilyArtifact } from './family-layouts.ts'
 import { flowchartUnsupportedSyntaxWarnings, flowchartUpstreamRejectedSyntaxWarnings } from './flowchart-unsupported.ts'
 import { mermaidCleanupWarnings } from './cleanup-warnings.ts'
@@ -437,24 +436,6 @@ const UPSTREAM_REJECTED_SYNTAX: Partial<Record<ValidDiagram['kind'], (canonicalS
   xychart: xychartUnsupportedSyntaxWarnings,
 }
 
-/** An accTitle or accDescr written without its colon (`accTitle Sales`):
- * ours reads it as the directive, while every pinned Mermaid grammar needs
- * the colon, and otherwise rejects the line, reads its words as diagram text
- * (State, ER, Timeline) or drops them (Class). */
-function colonlessAccessibilityWarnings(d: ValidDiagram): LayoutWarning[] {
-  if (!/acc(?:Title|Descr)/i.test(d.canonicalSource)) return []
-  const lines = d.canonicalSource.split(/\r?\n/)
-  return colonlessAccessibilityDirectives(lines, installedFamilyStatementEnds(lines[0] ?? '', lines)).map(({ index, title }) => {
-    const directive = title ? 'accTitle' : 'accDescr'
-    return {
-      code: 'UNSUPPORTED_SYNTAX',
-      syntax: 'accessibility_colon',
-      line: authoredLineForCanonical(d.source, index + 1),
-      message: `${directive} without a colon is read as the diagram's accessible ${title ? 'title' : 'description'}. Pinned Mermaid reads only "${directive}:" so; without the colon it rejects the line, reads its words as diagram text, or drops them. Write "${directive}: …".`,
-    }
-  })
-}
-
 function upstreamRejectedSyntaxWarnings(d: ValidDiagram, authored?: string): LayoutWarning[] {
   const rule = UPSTREAM_REJECTED_SYNTAX[d.kind]
   if (!rule) return []
@@ -661,7 +642,7 @@ function verifyStructure(parsed: ParsedDiagram, opts: VerifyOptions, positioned:
   const d = parsed as ValidDiagram
   const familySourceWarnings =
     d.kind === 'flowchart' ? dedupedConcat(atAuthoredLines(flowchartUnsupportedSyntaxWarnings(d.canonicalSource), line => authoredLineForCanonical(d.source, line)), flowchartShapeSubstitutionWarnings(d)) : d.kind === 'quadrant' ? quadrantInertStyleWarnings(d) : d.kind === 'journey' ? journeySemicolonExtensionWarnings(d) : d.kind === 'treemap' ? treemapNumericExtensionWarnings(d) : []
-  const sourceWarnings = dedupedConcat(dedupedConcat(familySourceWarnings, upstreamRejectedSyntaxWarnings(d, authored)), colonlessAccessibilityWarnings(d))
+  const sourceWarnings = dedupedConcat(familySourceWarnings, upstreamRejectedSyntaxWarnings(d, authored))
   const faithfulnessWarnings = roundtripFaithfulnessWarnings(d)
   const bareHeader = hasOnlyHeader(d)
   // The header starts the body, on the line after the authored wrapper.

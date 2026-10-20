@@ -17,8 +17,6 @@ export interface ParsedAccessibilityDirective {
   endIndex: number
   /** A family statement authored after the closing brace on the same line. */
   suffixLine?: string
-  /** An inline directive written without its colon (`accTitle Sales`). */
-  colonless?: true
 }
 
 export interface AccessibilityScan {
@@ -55,8 +53,7 @@ export function parseAccessibilityDirective(
     if (description.startsWith(':')) description = description.slice(1).trimStart()
     if (!description.startsWith('{')) {
       const value = description.trim()
-      const colonless = !line.slice(descriptionPrefix[0].length).trimStart().startsWith(':')
-      return value ? { title: false, form: 'inline', value, endIndex: startIndex, ...(colonless ? { colonless } : {}) } : null
+      return value ? { title: false, form: 'inline', value, endIndex: startIndex } : null
     }
     const parts: string[] = []
     for (let index = startIndex; index < lines.length; index++) {
@@ -82,7 +79,7 @@ export function parseAccessibilityDirective(
   }
 
   const title = line.match(ACC_TITLE_RE)
-  if (title) return { title: true, form: 'inline', value: title[1]!.trim(), endIndex: startIndex, ...(/^\s*accTitle\s*:/i.test(line) ? {} : { colonless: true as const }) }
+  if (title) return { title: true, form: 'inline', value: title[1]!.trim(), endIndex: startIndex }
   return null
 }
 
@@ -134,24 +131,6 @@ export function scanAccessibilityDirectives(lines: readonly string[], statementE
     familyOrigins,
     ...(unclosedIndex !== undefined ? { unclosedIndex } : {}),
   }
-}
-
-/** The directives on `lines` written without their colon (`accTitle Sales`),
- * with the index of their line. `statementEnds` is as for
- * scanAccessibilityDirectives: a line inside a statement is the family's. */
-export function colonlessAccessibilityDirectives(lines: readonly string[], statementEnds?: readonly number[]): Array<{ index: number; title: boolean }> {
-  const found: Array<{ index: number; title: boolean }> = []
-  for (let index = 0; index < lines.length; index++) {
-    const directive = parseAccessibilityDirective(lines, index)
-    if (directive === undefined) break
-    if (directive === null) {
-      index = statementEndAt(statementEnds, index, lines.length)
-      continue
-    }
-    if (directive.colonless) found.push({ index, title: directive.title })
-    index = directive.endIndex
-  }
-  return found
 }
 
 /** The last line of the statement starting at `index`: the line itself unless
