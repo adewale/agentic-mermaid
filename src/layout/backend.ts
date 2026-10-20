@@ -1,5 +1,7 @@
 import type { RenderOptions } from '../types.ts'
 
+export const AGENTIC_LAYERED_IMPLEMENTATION = 'agentic-layered@9'
+
 /** A synchronous producer can suspend for a dependency in the async entry.
  * Loading is neither geometric infeasibility nor a solver failure. */
 export class DeferredDependencyError extends Error {
