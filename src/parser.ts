@@ -641,15 +641,20 @@ function parseStateDiagram(lines: string[]): MermaidGraph {
     const group = composites.get(id)
     if (group) Object.assign(group, stateLabel(group, pieces))
   }
-  // Counter for unique [*] pseudostate IDs. A generated id skips any an
-  // author wrote, so a state named `_start` is never taken for a `[*]`.
-  let startCount = 0
-  let endCount = 0
-  const authoredPseudoIds = new Set(lines.join('\n').match(/(?<![\w-])_(?:start|end)\d*(?![\w-])/g) ?? [])
-  const pseudostateId = (base: '_start' | '_end', count: number): { id: string; count: number } => {
-    let next = count + 1
-    while (authoredPseudoIds.has(`${base}${next > 1 ? next : ''}`)) next++
-    return { id: `${base}${next > 1 ? next : ''}`, count: next }
+  // A [*] pseudostate is numbered within the composite it is written in
+  // (`_start`, `_start2` at the top level; `X_start`, … inside X), so its id
+  // never depends on where another scope's statements fall. A generated id
+  // skips any token an author wrote, so a state named `_start` is never taken
+  // for a `[*]`.
+  const authoredTokens = new Set(lines.join('\n').split(/-->|[\s;:,{}"]+/))
+  const pseudostateCounts = new Map<string, number>()
+  const pseudostateId = (kind: 'start' | 'end'): string => {
+    const enclosing = [...compositeStack].reverse().find(sg => !sg.concurrencyRegion)
+    const base = `${enclosing?.id ?? ''}_${kind}`
+    let next = (pseudostateCounts.get(base) ?? 0) + 1
+    while (authoredTokens.has(`${base}${next > 1 ? next : ''}`)) next++
+    pseudostateCounts.set(base, next)
+    return `${base}${next > 1 ? next : ''}`
   }
   // Per-composite region counter (for stable region ids `X__r1`, `X__r2`, …).
   const regionCounts = new Map<string, number>()
@@ -689,16 +694,9 @@ function parseStateDiagram(lines: string[]): MermaidGraph {
    *  states. Returns the graph node id to wire the edge to. */
   const resolveEndpoint = (raw: string, endpoint: 'source' | 'target'): string => {
     if (raw === '[*]') {
-      if (endpoint === 'source') {
-        const start = pseudostateId('_start', startCount)
-        startCount = start.count
-        registerStateNode(graph, compositeStack, { id: start.id, label: '', shape: 'state-start' })
-        return start.id
-      }
-      const end = pseudostateId('_end', endCount)
-      endCount = end.count
-      registerStateNode(graph, compositeStack, { id: end.id, label: '', shape: 'state-end' })
-      return end.id
+      const id = pseudostateId(endpoint === 'source' ? 'start' : 'end')
+      registerStateNode(graph, compositeStack, { id, label: '', shape: endpoint === 'source' ? 'state-start' : 'state-end' })
+      return id
     }
     const history = matchHistoryEndpoint(raw)
     if (history) {

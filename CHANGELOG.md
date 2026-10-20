@@ -46,6 +46,16 @@ This changelog tracks user-facing changes for **Agentic Mermaid**, a fork of `lu
   composite, which the layout refused as a duplicate (`INTERNAL_ERROR`). The
   first composite to mention a state owns it; Mermaid moves it into the last,
   a difference recorded in `docs/project/divergences.md`.
+- A parsed State diagram, and the source `serializeMermaid` writes for it,
+  lay out as its source does. The writer put every declared state and
+  composite block ahead of the transitions, so a state described or declared
+  after the transitions that introduce its siblings (including one a
+  `C:::hot` shorthand declares) moved in the layout, and `[*]` nodes were
+  renumbered. The writer now keeps each scope's states in the order the source
+  creates them, the typed body lists them in that order (it used to list
+  declared states first), and a `[*]` inside composite `X` is `X_start`,
+  `X_start2`, … (`X_end`, …), numbered within `X` rather than across the
+  diagram. Top-level ids stay `_start`, `_start2`, ….
 - A State diagram that names a state `_start` or `_end` (or `_start2`, …)
   keeps its `[*]` start and end nodes. The generated pseudostate took the
   author's id, so the start node vanished into the authored state and

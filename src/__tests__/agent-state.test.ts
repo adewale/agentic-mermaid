@@ -14,6 +14,7 @@ import fc from 'fast-check'
 import { fcParameters } from './helpers/fc-parameters.ts'
 import { parseRegisteredMermaid as parseMermaid } from '../agent/parse.ts'
 import { serializeMermaid } from '../agent/serialize.ts'
+import { layoutMermaidWithReceipt } from '../agent/core.ts'
 import { mutate } from '../agent/mutate.ts'
 import { graphGeometryWarnings, verifyMermaid } from '../agent/verify.ts'
 import { positionFamilyArtifact } from '../agent/family-layouts.ts'
@@ -151,6 +152,36 @@ describe('state round-trip identity', () => {
       expect(s1.startsWith('stateDiagram-v2')).toBe(true)
     })
   }
+
+  // Layout follows the order a scope creates its states in, so the writer
+  // keeps that order, and `[*]` ids are numbered per composite so a block
+  // written elsewhere cannot renumber them.
+  test.each([
+    ['[*] in composites between top-level transitions', '[*] --> First\nstate First {\n[*] --> second\nsecond --> [*]\n}\n[*] --> Named\nstate "Another" as Named {\n[*] --> inner\ninner --> [*]\n}'],
+    ['a description after the transition that creates the state', '[*] --> A\nA --> B\nA --> C\nC: described later'],
+    ['a bare declaration after transitions', 'A --> B\nC'],
+    ['a state a class shorthand declares after transitions', 'A --> B\nA --> D\nC:::hot\nclassDef hot fill:#f00'],
+    ['a composite block after its siblings', 'A --> B\nA --> C\nstate C {\nx --> y\n}'],
+    ['labels declared before use around one between', 'state "s" as S\nstate "x" as X\nstate "z" as Z\nS --> Z'],
+    ['a fork declared after use', 'A --> f\nstate f <<fork>>\nf --> B\nf --> C'],
+    ['[*] in concurrency regions', '[*] --> P\nstate P {\n[*] --> a\na --> [*]\n--\n[*] --> b\nb --> [*]\n}\nP --> [*]'],
+  ])('%s: the parsed and the written diagram lay out as the source does', (_name, body) => {
+    const source = `stateDiagram-v2\n${body}`
+    const geometry = (input: Parameters<typeof layoutMermaidWithReceipt>[0]) => {
+      const { layout } = layoutMermaidWithReceipt(input)
+      const box = (item: { id: string; x: number; y: number; w: number; h: number }) => `${item.id} ${item.x} ${item.y} ${item.w} ${item.h}`
+      return {
+        bounds: layout.bounds,
+        nodes: layout.nodes.map(box).sort(),
+        edges: layout.edges.map(edge => `${edge.id} ${edge.path.join(' ')}`).sort(),
+        groups: layout.groups.map(box).sort(),
+      }
+    }
+    const parsed = state(source)
+    const drawn = geometry(source)
+    expect(geometry(parsed)).toEqual(drawn)
+    expect(geometry(serializeMermaid(parsed))).toEqual(drawn)
+  })
 
   test('standalone alias with label equal to id stays renderable', () => {
     const d = state(`stateDiagram-v2
@@ -592,7 +623,7 @@ describe('state describe (prose + AX tree)', () => {
     const tree = describeMermaidTree(state())
     expect({ kind: tree.kind, nodes: tree.nodes, edges: tree.edges }).toEqual({
       kind: 'state',
-      nodes: [{ id: 'Active', label: 'In Progress' }, { id: 'Idle', label: 'Idle' }],
+      nodes: [{ id: 'Idle', label: 'Idle' }, { id: 'Active', label: 'In Progress' }],
       edges: [
         { from: '[*]', to: 'Idle' },
         { from: 'Idle', to: 'Active', label: 'start' },

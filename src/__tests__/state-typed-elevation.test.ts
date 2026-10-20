@@ -768,7 +768,7 @@ describe('State statements across and within lines', () => {
     // its block or inside it, names the composite and adds no simple state.
     ['state X {\nA\n}\nX : desc\nX:::hot', ['A:rounded:A', 'X:desc{A}', 'X:::hot'], []],
     ['state X {\nX\nA\n}', ['A:rounded:A', 'X:X{A}'], []],
-    ['state X {\n[*] --> Y\nstate Y {\nB\n}\n}', ['_start:state-start:', 'B:rounded:B', '_start->Y', 'X:X{_start}', 'X/Y:Y{B}'], []],
+    ['state X {\n[*] --> Y\nstate Y {\nB\n}\n}', ['X_start:state-start:', 'B:rounded:B', 'X_start->Y', 'X:X{X_start}', 'X/Y:Y{B}'], []],
     ['state P {\nstate X {\nA\n}\n}\nstate "L" as X', ['A:rounded:A', 'P:P{}', 'P/X:L{A}'], []],
     // Read generously where Mermaid reads otherwise, and reported: its State
     // grammar has no `cssClass` or `linkStyle`, and it rejects a composite
@@ -786,7 +786,7 @@ describe('State statements across and within lines', () => {
     ['A :::hot --> B ::: cold : go', ['A:rounded:A', 'B:rounded:B', 'A->B:go', 'A:::hot', 'B:::cold'], []],
     ['A :::hot : desc', ['A:rounded:desc', 'A:::hot'], []],
     ['state X {\nA\n:::hot --> B\n}', ['A:rounded:A', 'B:rounded:B', 'A->B', 'X:X{A B}', 'A:::hot'], []],
-    ['state X {\nA --> [*]:::hot : done\n}', ['A:rounded:A', '_end:state-end:', 'A->_end:done', 'X:X{A _end}', '_end:::hot'], []],
+    ['state X {\nA --> [*]:::hot : done\n}', ['A:rounded:A', 'X_end:state-end:', 'A->X_end:done', 'X:X{A X_end}', 'X_end:::hot'], []],
     ['note right of A line1\nline2\nend note', ['A:rounded:A', 'note right of A:line1\nline2'], []],
     // Mermaid's State lexer reads its keywords in any case; `end` is one only
     // before `note`, and a name otherwise.
