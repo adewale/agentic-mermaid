@@ -97,7 +97,7 @@ export function flowchartUpstreamRejectedSyntaxWarnings(source: string): LayoutW
       warnings.push({ code: 'UNSUPPORTED_SYNTAX', line, syntax: 'flowchart_subgraph_title', message: 'This subgraph title is read as its text. Without quotes, pinned Mermaid reads only letters, digits, blanks, the backtick and !#$%&\'*+-./:?\\^_ in a title, with no link, `:::` or `"` starting a word, and rejects this one; quote the title (subgraph "a (b)"), or give an id and a quoted bracket title (subgraph id["a (b)"]).' })
     }
     if (notes?.has('node-edge-id')) {
-      warnings.push({ code: 'UNSUPPORTED_SYNTAX', line, syntax: 'flowchart_node_edge_id', message: 'A node whose id and label run on without a blank to an `@` (A[a@b]) is read as the node and its label. Pinned Mermaid reads that run as an edge id (any run without blanks or `"` before `@`), and rejects the statement; quote the label (A["a@b"]), or put a blank after its opening bracket.' })
+      warnings.push({ code: 'UNSUPPORTED_SYNTAX', line, syntax: 'flowchart_node_edge_id', message: 'A node or subgraph whose id and label run on without a blank to an `@` (A[a@b]) is read as the id and its label. Pinned Mermaid reads that run as an edge id (any run without blanks or `"` before `@`), and rejects the statement; quote the label (A["a@b"]), or put a blank after its opening bracket.' })
     }
     if (notes?.has('label-delimiter')) {
       warnings.push({ code: 'UNSUPPORTED_SYNTAX', line, syntax: 'flowchart_label_delimiter', message: 'Label text holding `(`, `)`, `[`, `]`, `{`, `}`, `|`, or a `"` after the text begins, is read as written. Pinned Mermaid reads these as delimiters in unquoted text, and rejects this; put the whole label in double quotes (A["a (b) c"]), writing a `"` inside it as #quot;.' })

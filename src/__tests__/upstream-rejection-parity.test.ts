@@ -303,6 +303,7 @@ const FLOWCHART_READ_GENEROUSLY: ReadonlyArray<GenerousRow> = [
   // as an edge id.
   ['an `@` the node text runs on to', 'flowchart LR\n  A[a@b.com]', '>a@b.com<', 'flowchart_node_edge_id', 2],
   ['a link after an `@` in shape text', 'flowchart LR\n  A[x@--> B]', '>x@--&gt; B<', 'flowchart_node_edge_id', 2],
+  ['a subgraph id running on to an `@` in its title', 'flowchart LR\n  subgraph This is the id[Some1@ Title]\n    A\n  end', '>Some1@ Title<', 'flowchart_node_edge_id', 2],
   // Without quotes or brackets, Mermaid's subgraph title holds letters,
   // digits, blanks and !#$%&'*+-./:?\^_` alone, with no link or inner string.
   ['parentheses in a subgraph title', 'flowchart LR\n  subgraph a(b)\n    A\n  end', '>a(b)<', 'flowchart_subgraph_title', 2],

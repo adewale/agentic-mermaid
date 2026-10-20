@@ -560,6 +560,9 @@ export function flowchartStatementNotes(statement: string): ReadonlySet<Flowchar
     const title = subgraph[1]!.trim()
     const titled = subgraphBracketTitle(title)
     if (titled ? labelTextHoldsDelimiter(titled.title, 'text') : subgraphTitleUnreadable(title)) notes.add(titled ? 'label-delimiter' : 'subgraph-title')
+    // A run of the id part reaching an `@` (`S[a@b]`) is an edge id upstream.
+    const bracket = titled ? title.length - titled.title.length - 2 : -1
+    if ([...title.matchAll(/(?:^|\s)[^\s"]+@(?![{"])/g)].some(run => run.index < bracket)) notes.add('node-edge-id')
     return notes
   }
   if (NON_NODE_STATEMENT_RE.test(statement)) return notes
