@@ -408,4 +408,4 @@ divergence, not another runtime defect.
 - [ ] Support remaining compound/cross-boundary geometry without changing authored endpoints or required child order.
 - [ ] Complete specialized-family quality dimensions and preserve all declines in comparison populations.
 - [ ] Qualify fully consumed cold, cached, edited and cache-churn workflows with healthy A/A controls, memory and emitted browser transfer evidence.
-- [ ] Resolve or identify the intermittent parallel unit-shard teardown timeout; retain adverse runs and bind final validation to the rebased combined head.
+- [ ] Confirm the serial-isolation workaround across further combined CI heads; the first rebased run passes all required lanes, but the prior parallel-shard stall root cause remains unidentified. Retain adverse runs.
