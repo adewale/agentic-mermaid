@@ -61,6 +61,7 @@ describe('owned measured layered layout', () => {
         if (!measuredLabel) { expect(edge.labelPosition).toBeUndefined(); return [] }
         expect(edge.labelPosition).toBeDefined()
         return [{
+          edgeIndex: index,
           x: edge.labelPosition!.x - measuredLabel.width / 2,
           y: edge.labelPosition!.y - measuredLabel.height / 2,
           ...measuredLabel,
@@ -94,8 +95,16 @@ describe('owned measured layered layout', () => {
         }
         for (let segment = 1; segment < route.length; segment++) {
           const a = route[segment - 1]!, b = route[segment]!
-          for (const box of [...boxes, ...labelBoxes]) expect(crossesInterior(a, b, box)).toBe(false)
+          // The painted pill masks its own shaft. Every foreign route and
+          // every node must stay clear of its occupied label rectangle.
+          for (const box of [...boxes, ...labelBoxes.filter(label => label.edgeIndex !== index)]) expect(crossesInterior(a, b, box)).toBe(false)
         }
+        const label = output.edges[index]!.labelPosition
+        if (label) expect(route.some((point, index) => {
+          const previous = route[index - 1]
+          return previous && ((point.x === previous.x && label.x === point.x && label.y >= Math.min(point.y, previous.y) && label.y <= Math.max(point.y, previous.y))
+            || (point.y === previous.y && label.y === point.y && label.x >= Math.min(point.x, previous.x) && label.x <= Math.max(point.x, previous.x)))
+        })).toBe(true)
       }
       expect(output.edges[3]!.points).not.toEqual(output.edges[4]!.points)
     })

@@ -5,6 +5,8 @@ import { feedbackOrder } from './cycle-order.ts'
 
 export interface MeasuredGraph {
   nodes: readonly { id: string; width: number; height: number }[]
+  /** Label dimensions include the occupied painted body. Its own shaft is
+   * masked by that body; foreign routes must stay outside it. */
   edges: readonly { source: number; target: number; minSpan: number; label?: { width: number; height: number } }[]
   direction: Direction
   padding: number
@@ -26,7 +28,6 @@ interface Vertex {
   mainSize: number
   incoming: number[]
   outgoing: number[]
-  label: boolean
 }
 
 // These are local solver bounds, not a replacement for request admission.
@@ -125,7 +126,7 @@ export function layoutAgenticGraph(input: MeasuredGraph): AgenticLayout {
 
   const vertices: Vertex[] = nodes.map((node, index) => ({
     rank: rank[index]!, crossSize: horizontal ? node.height : node.width,
-    mainSize: horizontal ? node.width : node.height, incoming: [], outgoing: [], label: false,
+    mainSize: horizontal ? node.width : node.height, incoming: [], outgoing: [],
   }))
   const chains: number[][] = []
   const labelVertices: (number | undefined)[] = []
@@ -140,7 +141,7 @@ export function layoutAgenticGraph(input: MeasuredGraph): AgenticLayout {
         rank: currentRank,
         crossSize: label ? (horizontal ? edge.label!.height : edge.label!.width) + 2 * LABEL_GAP : 4,
         mainSize: label ? (horizontal ? edge.label!.width : edge.label!.height) : 0,
-        incoming: [], outgoing: [], label,
+        incoming: [], outgoing: [],
       })
       if (label) labelVertices[edgeIndex] = index
       chain.push(index)
@@ -210,8 +211,6 @@ export function layoutAgenticGraph(input: MeasuredGraph): AgenticLayout {
     const orientedMain = padding + (reverse ? mainExtent - mainValue : mainValue)
     return horizontal ? { x: orientedMain, y: padding + crossValue } : { x: padding + crossValue, y: orientedMain }
   }
-  const routeCross = (index: number): number => vertices[index]!.label
-    ? cross[index]! - vertices[index]!.crossSize / 2 + LABEL_GAP / 2 : cross[index]!
 
   // Distinct authored edges receive distinct ports, including duplicate edges.
   const sourcePort = new Float64Array(edges.length), targetPort = new Float64Array(edges.length)
@@ -222,7 +221,7 @@ export function layoutAgenticGraph(input: MeasuredGraph): AgenticLayout {
         const chainA = chains[a]!, chainB = chains[b]!
         const neighborA = source ? chainA[1]! : chainA[chainA.length - 2]!
         const neighborB = source ? chainB[1]! : chainB[chainB.length - 2]!
-        return routeCross(neighborA) - routeCross(neighborB) || a - b
+        return cross[neighborA]! - cross[neighborB]! || a - b
       })
       for (let index = 0; index < peers.length; index++) {
         const position = cross[nodeIndex]! - width / 2 + width * (index + 1) / (peers.length + 1)
@@ -247,8 +246,8 @@ export function layoutAgenticGraph(input: MeasuredGraph): AgenticLayout {
     }
     for (let index = 1; index < chain.length; index++) {
       const from = chain[index - 1]!, to = chain[index]!
-      const startCross = index === 1 ? sourcePort[edgeIndex]! : routeCross(from)
-      const endCross = index === chain.length - 1 ? targetPort[edgeIndex]! : routeCross(to)
+      const startCross = index === 1 ? sourcePort[edgeIndex]! : cross[from]!
+      const endCross = index === chain.length - 1 ? targetPort[edgeIndex]! : cross[to]!
       const startMain = main[from]! + vertices[from]!.mainSize / 2
       const endMain = main[to]! - vertices[to]!.mainSize / 2
       const gapMain = (main[from]! + bandHeights[vertices[from]!.rank]! / 2
@@ -259,7 +258,7 @@ export function layoutAgenticGraph(input: MeasuredGraph): AgenticLayout {
       append(endCross, endMain)
     }
     const labelIndex = labelVertices[edgeIndex]
-    const labelPosition = labelIndex === undefined ? undefined : point(cross[labelIndex]! + LABEL_GAP / 2, main[labelIndex]!)
+    const labelPosition = labelIndex === undefined ? undefined : point(cross[labelIndex]!, main[labelIndex]!)
     return { points, ...(labelPosition ? { labelPosition } : {}) }
   })
   return {
