@@ -84,6 +84,13 @@ const stableRepresentativeCues = {
 } as const
 const fixtures: Fixture[] = [
   {
+    id: 'performance-forest',
+    title: 'Selected forest layout preserves labels and connections',
+    source: 'flowchart TD\nRoot[Service entry] --> Cache[Cache]\nRoot --> Worker[Long-running worker]\nCache --> A[First result]\nCache --> B[Second result]\nWorker --> C[Stored output]\nWorker --> D[Final delivery]',
+    captureLayout: true,
+    cue: 'Compare all seven complete labels, six directed connections and authored sibling order under ordinary startup defaults. The selected forest and ELK can use different spacing. Layout sidecars and independent forest tests check final certification; this finite witness does not prove arbitrary graph readability or performance.',
+  },
+  {
     id: 'stable-class-interface-occurrences',
     title: 'Class lollipops retain independent interface occurrences',
     source: 'classDiagram\nnamespace Gateway {\nclass Client\nclass Server\nclass Port\n}\nClient --() Port : requests\nServer --() Port : serves\nClient --> Server : dispatches',
