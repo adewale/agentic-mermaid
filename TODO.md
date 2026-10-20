@@ -280,7 +280,9 @@ queues. Retired IDs are not reused.
   membership (flowchart); `* # \ < >`, `activate`, `box`, `properties` and
   `links` (sequence). Add ER, class and state DBs to the upstream worker, and
   compare what upstream displays (the Pie browser oracle's approach), not only
-  its DB.
+  its DB. Triage each finder report by real-world use before adding code (see
+  the likelihood paragraph in `docs/project/divergences.md`): most mutated
+  spellings occur in no real diagram.
 - [ ] **TEST-10 — Random-order, fresh-process finder lane** (`todo`). Two
   order-dependent failures (resvg initialization, the Bun `node:vm` timer)
   surfaced only by accident. Run the suite nightly in shuffled file order and

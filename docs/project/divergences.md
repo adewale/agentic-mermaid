@@ -177,6 +177,17 @@ when upstream discards it. Our drawing, styling and display policies are ours;
 they must agree across our own projections. Newly generated structured source
 must be accepted by the pinned grammar and retain the modeled meaning.
 
+A warning for a spelling Mermaid rejects or reads otherwise earns its code by
+being written. On 20 October 2026, PR #448 measured 106,252 unique real-world
+and LLM-written diagrams: Stack Overflow, Hugging Face model and dataset cards,
+WildChat and ShareGPT chats, and 14 public LLM datasets. Fixes whose construct
+none of them used and which cost about 25 production lines or a runtime pass
+were removed; their rows below say "0 of 106,252 real-world diagrams". Fixes
+that prevent a crash, lost content, a wrong drawing of used input, duplicate
+ids or writer output Mermaid cannot read stay whatever the count. A finder
+report is triaged the same way: count the construct in real use before adding
+code for it.
+
 The differences in #363 came from repeated context-sensitive lexing, separate
 renderer/editor parsers, source text being replaced with display text, and
 upstream lexer/sanitizer quirks being treated as requirements. One universal
