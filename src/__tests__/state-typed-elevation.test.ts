@@ -925,7 +925,7 @@ describe('State statements across and within lines', () => {
       ...['a; b', 'see http://x', 'a #59; b #58; c', ': x'].map(text => `stateDiagram-v2\nA --> B\nnote right of A : ${text}`),
       ...['  : x', '\n  : x', '  :: x\n  : y'].map(text => `stateDiagram-v2\nA --> B\nnote right of A\n${text}\nend note`),
     ]
-    const read = ['a; b', 'see http://x', 'a ; b : c', ': x', ': x', '\n: x', ':: x\n: y']
+    const read = ['a; b', 'see http://x', 'a ; b : c', ': x', ': x', ': x', ':: x\n: y']
     expect(sources.map(source => parseRenderGraph(source).stateNotes?.[0]?.text)).toEqual(read)
     expect(sources.map(unsupportedSyntax)).toEqual([['state_note_text_cut@3'], ['state_note_text_cut@3'], [], ['state_note_text_cut@3'], ['state_note_block_colon@4'], ['state_note_block_colon@5'], []])
     const notes = (mermaid: UpstreamDiagram): string[] => mermaid.db.rootDoc.flatMap((item: any) => item.note ? [item.note.text] : [])
@@ -937,6 +937,18 @@ describe('State statements across and within lines', () => {
     expect(written.map(source => parseRenderGraph(source).stateNotes?.[0]?.text)).toEqual(read)
     expect(written.map(unsupportedSyntax)).toEqual(written.map(() => []))
     expect((await upstream.projectAll(written, notes)).map(texts => texts.map(text => projectEntityMarkers(text)))).toEqual([['a; b'], ['see http://x'], ['a ; b : c'], [': x'], [': x'], [': x'], [':: x\n    : y']])
+  })
+
+  test('a block note\'s text is trimmed of the blank lines it starts and ends with, as Mermaid trims it', async () => {
+    const sources = ['note right of A\n\n  first\n\n  second\n\nend note', 'A --> B note left of B\n\n  only\n\nend note'].map(body => `stateDiagram-v2\n${body}`)
+    const read = ['first\n\nsecond', 'only']
+    expect(sources.map(source => parseRenderGraph(source).stateNotes?.[0]?.text)).toEqual(read)
+    expect(sources.map(source => state(source).body.notes?.[0]?.text)).toEqual(read)
+    const written = sources.map(source => serializeMermaid(state(source)))
+    expect(written.map(source => state(source).body.notes?.[0]?.text)).toEqual(read)
+    // Mermaid keeps the indentation of a later line, which ours drops.
+    const notes = (mermaid: UpstreamDiagram): string[] => mermaid.db.rootDoc.flatMap((item: any) => item.note ? [item.note.text.replace(/\n[ \t]+/g, '\n')] : [])
+    expect(await upstream.projectAll([...sources, ...written], notes)).toEqual([...read, ...read].map(text => [text]))
   })
 
   test('a direction is read in any case, as Mermaid reads it', () => {

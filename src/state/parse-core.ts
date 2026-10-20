@@ -669,13 +669,24 @@ export function readStateStatements(lines: readonly StateSourceLine[]): StateSta
     row++
     column = 0
   }
+  // Mermaid trims a block note's text: the blank lines it starts or ends
+  // with are not text, as the blank lines inside it are.
+  const kept = statements.filter((statement, index) => {
+    if (!statement.noteBody || statement.text) return true
+    const blankUpTo = (step: number): boolean => {
+      let at = index
+      while (statements[at]?.noteBody && !statements[at]!.text) at += step
+      return !statements[at]?.noteBody
+    }
+    return !blankUpTo(-1) && !blankUpTo(1)
+  })
   const open: number[] = []
-  for (const statement of statements) {
+  for (const statement of kept) {
     if (statement.opens) open.push(statement.line)
     else if (statement.text === '}' && !statement.noteBody) open.pop()
   }
   return {
-    statements, semicolonLines: [...semicolonLines], juxtaposedLines: [...juxtaposedLines],
+    statements: kept, semicolonLines: [...semicolonLines], juxtaposedLines: [...juxtaposedLines],
     braceNameLines: [...braceNameLines], unopenedBraceLines: [...unopenedBraceLines], braceTextLines: [...braceTextLines], aliasSuffixLines: [...aliasSuffixLines], unclosedLines: open,
   }
 }
