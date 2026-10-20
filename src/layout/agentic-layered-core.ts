@@ -1,6 +1,6 @@
 import type { Direction, Point } from '../types.ts'
 import { layoutSharedFan } from './shared-fan-core.ts'
-import { depthFirstOrder, feedbackOrder } from './cycle-order.ts'
+import { layoutCyclicGraph, type LayoutSearchWork } from './cycle-layout-search.ts'
 import { layoutCompoundGraph } from './agentic-compound-core.ts'
 import { assignChannelTracks, type ChannelStep, type ChannelWork } from './channel-tracks.ts'
 
@@ -14,7 +14,7 @@ export interface MeasuredGraph {
   /** Label dimensions include the occupied painted body. Its own shaft is
    * masked by that body; foreign routes must stay outside it. Loop expansion
    * reserves additional space beside the arc instead of masking its shaft. */
-  edges: readonly { source: number; target: number; minSpan: number; label?: { width: number; height: number } }[]
+  edges: readonly { source: number; target: number; minSpan: number; visible?: boolean; label?: { width: number; height: number } }[]
   direction: Direction
   padding: number
   nodeSpacing: number
@@ -22,8 +22,6 @@ export interface MeasuredGraph {
   edgeSpacing?: number
   /** Private source-port separation constraints introduced by loop expansion. */
   loopPorts?: readonly (readonly [number, number])[]
-  /** Private junctions have one shared port per flow face. */
-  commonPorts?: readonly number[]
   /** Adapter permits confluent routing only for compatible plain fans. */
   shareCompleteFans?: boolean
 }
@@ -76,6 +74,7 @@ export function layoutLayeredGraph(
   forestLayout: (input: MeasuredGraph) => AgenticLayout | undefined,
   unsupported: (reason: string) => never,
   routingWork: ChannelWork = { pairs: 1_000_000, arcs: 65536, swaps: 1_000_000 },
+  searchWork: LayoutSearchWork = { attempts: 128, scorePairs: 8_000_000, routing: { pairs: 500_000, arcs: 32768, swaps: 500_000 } },
 ): AgenticLayout {
   const { nodes, edges, padding, nodeSpacing, layerSpacing } = input
   if (nodes.length > MAX_NODES || edges.length > MAX_EDGES) unsupported('agentic local graph-size limit')
@@ -85,9 +84,8 @@ export function layoutLayeredGraph(
   if (input.edgeSpacing !== undefined && !finiteSize(input.edgeSpacing, true)) throw new TypeError('Measured edge spacing must be finite and positive')
   if (!['TD', 'TB', 'BT', 'LR', 'RL'].includes(input.direction)) throw new TypeError('Invalid measured graph direction')
   if (input.groups?.length) {
-    if (input.commonPorts?.length) throw new TypeError('Shared junction ports require a flat local scope')
     if (nodes.length + input.groups.length > MAX_NODES) unsupported('agentic local compound-size limit')
-    return layoutCompoundGraph(input, flat => layoutLayeredGraph(flat, forestLayout, unsupported, routingWork), unsupported, MAX_EXPANDED_VERTICES)
+    return layoutCompoundGraph(input, flat => layoutLayeredGraph(flat, forestLayout, unsupported, routingWork, searchWork), unsupported, MAX_EXPANDED_VERTICES)
   }
   const horizontal = input.direction === 'LR' || input.direction === 'RL'
   const reverse = input.direction === 'BT' || input.direction === 'RL'
@@ -97,12 +95,6 @@ export function layoutLayeredGraph(
     if (ids.has(node.id)) throw new TypeError('Measured graph node identities must be unique')
     ids.add(node.id)
     if (!finiteSize(node.width, true) || !finiteSize(node.height, true)) throw new TypeError('Measured node dimensions must be finite and positive')
-  }
-  const commonPorts = new Set<number>()
-  if ((input.commonPorts?.length ?? 0) > nodes.length) throw new TypeError('Invalid shared junction ports')
-  for (const index of input.commonPorts ?? []) {
-    if (!Number.isInteger(index) || index < 0 || index >= nodes.length || commonPorts.has(index)) throw new TypeError('Invalid shared junction port')
-    commonPorts.add(index)
   }
   const incoming: number[][] = nodes.map(() => [])
   const outgoing: number[][] = nodes.map(() => [])
@@ -119,7 +111,6 @@ export function layoutLayeredGraph(
       throw new TypeError('Measured edge label dimensions must be finite and nonnegative')
     }
     if (edge.source === edge.target) {
-      if (commonPorts.has(edge.source)) throw new TypeError('A loop requires distinct attachment ports')
       hasLoops = true; continue
     }
     outgoing[edge.source]!.push(index)
@@ -151,7 +142,7 @@ export function layoutLayeredGraph(
       loopPorts.push([index, expandedEdges.length])
       expandedEdges.push({ source: edge.source, target, minSpan: edge.minSpan })
     }
-    const placed = layoutLayeredGraph({ ...input, nodes: expandedNodes, edges: expandedEdges, loopPorts }, forestLayout, unsupported, routingWork)
+    const placed = layoutLayeredGraph({ ...input, nodes: expandedNodes, edges: expandedEdges, loopPorts }, forestLayout, unsupported, routingWork, searchWork)
     return { ...placed, topology: 'layered', nodes: placed.nodes.slice(0, nodes.length), edges: placed.edges.slice(0, edges.length).map((route, index) => {
       const back = returns[index]!
       if (back < 0) return route
@@ -173,10 +164,8 @@ export function layoutLayeredGraph(
     }) }
   }
 
-  if (nodes.length < MAX_NODES) {
-    const shared = layoutSharedFan(input, incoming, outgoing, ids, flat => layoutLayeredGraph(flat, forestLayout, unsupported, routingWork))
-    if (shared) return shared
-  }
+  const shared = layoutSharedFan(input, incoming, outgoing, unsupported)
+  if (shared) return shared
   const forest = forestLayout(input)
   if (forest) return { ...forest, expandedVertices: nodes.length }
 
@@ -198,18 +187,28 @@ export function layoutLayeredGraph(
     }
   }
   if (queue.length !== nodes.length) {
-    const greedy = feedbackOrder(incoming, outgoing, edges), model = depthFirstOrder(outgoing, edges)
-    let greedyCount = 0, modelCount = 0
-    for (const edge of edges) {
-      if (greedy[edge.source]! > greedy[edge.target]!) greedyCount++
-      if (model[edge.source]! > model[edge.target]!) modelCount++
-    }
-    const order = modelCount <= greedyCount ? model : greedy
-    const reversed = edges.map(edge => order[edge.source]! > order[edge.target]!)
-    const acyclic = edges.map((edge, index) => reversed[index] ? { ...edge, source: edge.target, target: edge.source } : edge)
-    const placed = layoutLayeredGraph({ ...input, edges: acyclic, shareCompleteFans: false }, forestLayout, unsupported, routingWork)
-    return { ...placed, edges: placed.edges.map((edge, index) => reversed[index] ? { ...edge, points: [...edge.points].reverse() } : edge) }
+    return layoutCyclicGraph(input, incoming, outgoing,
+      (flat, fail, work) => layoutLayeredGraph(flat, forestLayout, fail, work, searchWork),
+      unsupported, routingWork, searchWork)
   }
+  // Move a vertex to a feasible bound that cannot increase total edge span.
+  // Equal-degree moves favor the later bound; the fixed sweep limit keeps
+  // this compaction deterministic even when several equally short ranks exist.
+  for (let sweep = 0; sweep < 4; sweep++) {
+    let changed = false
+    for (const reverse of [true, false]) {
+      for (let cursor = 0; cursor < queue.length; cursor++) {
+        const id = queue[reverse ? queue.length - 1 - cursor : cursor]!
+        let lower = 0, upper = maxRank
+        for (const index of incoming[id]!) { const edge = edges[index]!; lower = Math.max(lower, rank[edge.source]! + 2 * edge.minSpan) }
+        for (const index of outgoing[id]!) { const edge = edges[index]!; upper = Math.min(upper, rank[edge.target]! - 2 * edge.minSpan) }
+        const next = outgoing[id]!.length && outgoing[id]!.length >= incoming[id]!.length ? upper : lower
+        if (next !== rank[id]) { rank[id] = next; changed = true }
+      }
+    }
+    if (!changed) break
+  }
+  maxRank = rank.reduce((maximum, value) => Math.max(maximum, value), 0)
   let expandedSize = nodes.length
   for (const edge of edges) {
     expandedSize += rank[edge.target]! - rank[edge.source]! - 1
@@ -389,10 +388,6 @@ export function layoutLayeredGraph(
   for (let nodeIndex = 0; nodeIndex < nodes.length; nodeIndex++) {
     const width = vertices[nodeIndex]!.crossSize
     const assignPorts = (indices: number[], source: boolean): void => {
-      if (commonPorts.has(nodeIndex)) {
-        for (const index of indices) (source ? sourcePort : targetPort)[index] = cross[nodeIndex]!
-        return
-      }
       const peers = [...indices].sort((a, b) => {
         const chainA = chains[a]!, chainB = chains[b]!
         const neighborA = source ? chainA[1]! : chainA[chainA.length - 2]!

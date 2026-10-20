@@ -45,7 +45,7 @@ export function layoutNativeGraphCandidate(
       const source = indices.get(edge.source), target = indices.get(edge.target)
       if (source === undefined || target === undefined) bindings.unsupported('unknown endpoint')
       const block = edge.label ? graphTextBlock(resolveLabelContent(edge.label, edge.labelContent), style, 'edge') : undefined
-      return { source, target, minSpan: edge.length ?? 1, ...(block ? { label: { width: block.width + 2 * LABEL_PILL_PADDING, height: block.height + 2 * LABEL_PILL_PADDING } } : {}) }
+      return { source, target, minSpan: edge.length ?? 1, ...(edge.style === 'invisible' ? { visible: false } : {}), ...(block ? { label: { width: block.width + 2 * LABEL_PILL_PADDING, height: block.height + 2 * LABEL_PILL_PADDING } } : {}) }
     })
     const shareCompleteFans = !options.stateVisual && !groups.length && [...graph.nodes.values()].every(node => node.shape === 'rectangle' && !node.semanticShape)
       && graph.edges.every((edge, index) => {
