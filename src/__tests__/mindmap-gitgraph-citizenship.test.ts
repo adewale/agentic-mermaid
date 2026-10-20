@@ -297,6 +297,44 @@ function publicGitGraphScene(commits: PositionedGitGraphCommit[]) {
 }
 
 describe('GitGraph full-family citizenship', () => {
+  test('authored array lookup changes cannot intercept a normal commit presentation', () => {
+    const original = Array.prototype.indexOf
+    let svg: string
+    try {
+      Array.prototype.indexOf = function (value: unknown, fromIndex?: number): number {
+        if (value === 'NORMAL') throw new Error('authored index lookup stop')
+        return Reflect.apply(original, this, [value, fromIndex])
+      }
+      svg = DefaultBackend.render(publicGitGraphScene([publicGitGraphCommit('ordinary', 0)]), { seed: 0 })
+    } finally {
+      Array.prototype.indexOf = original
+    }
+    expect(svg).toContain('<g class="git-commit type-normal" data-id="ordinary" data-branch="main" data-commit-type="NORMAL" data-role="node">')
+  })
+
+  test('single-commit requests preserve every semantic and visual type pairing and current identity', () => {
+    const presentations = [
+      ['NORMAL', 'git-commit type-normal'],
+      ['REVERSE', 'git-commit type-reverse'],
+      ['HIGHLIGHT', 'git-commit type-highlight'],
+      ['MERGE', 'git-commit type-merge'],
+      ['CHERRY_PICK', 'git-commit type-cherry_pick'],
+    ] as const
+    // Repeat in reverse order with new identities: independently authored type
+    // and class literals must remain current across separate one-commit requests.
+    for (const [round, order] of [presentations, [...presentations].reverse()].entries()) {
+      for (const [semantic] of order) for (const [visual, className] of order) {
+        const id = `request-${round}-${semantic}-${visual}`
+        // Deliberately exercise extension visuals beyond the parsed customType
+        // union at the actual public positioned-input boundary.
+        const commit = { ...publicGitGraphCommit(id, 0), type: semantic, customType: visual } as unknown as PositionedGitGraphCommit
+        const svg = DefaultBackend.render(publicGitGraphScene([commit]), { seed: 0 })
+        expect(svg).toContain(`<g class="${className}" data-id="${id}" data-branch="main" data-commit-type="${semantic}"${semantic === visual ? '' : ` data-visual-type="${visual}"`} data-role="node">`)
+        expect(Object.isFrozen(commit)).toBe(false)
+      }
+    }
+  })
+
   test('the public GitGraph lowerer preserves both commit type observations and visual attribute presence', () => {
     const reads: string[] = []
     let reverseReads = 0, normalReads = 0

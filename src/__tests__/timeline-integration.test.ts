@@ -6,6 +6,11 @@ import { renderMermaidSVG } from '../index.ts'
 import type { RenderOptions } from '../types.ts'
 import { measureTextWidth } from '../text-metrics.ts'
 import { parseRegisteredMermaid, asTimeline, serializeMermaid, verifyMermaid, renderMermaidASCII } from '../agent/index.ts'
+import { DefaultBackend, getFamily } from '../agent/core.ts'
+import type { PositionedTimelineDiagram } from '../timeline/types.ts'
+import type { TimelineFamilyPalette } from '../timeline/renderer.ts'
+import { sceneNodeEmission } from '../scene/serialization.ts'
+import { snapshotSvgEmissionRecipe, svgEmissionMetadataCounts, SVG_EMISSION_METADATA_LIMITS } from '../scene/svg-emission.ts'
 
 function render(text: string, options: RenderOptions = {}): string {
   return renderMermaidSVG(text, options)
@@ -274,5 +279,143 @@ describe('renderMermaidSVG – timeline diagrams', () => {
     expect(svg).toContain('<tspan')
     expect(svg).toContain('This is a deliberately long')
     expect(svg).toContain('match Mermaid timeline')
+  })
+})
+
+const PALETTE_A: TimelineFamilyPalette = { accent: '#112233', fill: '#445566', label: '#fefefe', line: '#778899' }
+const PALETTE_B: TimelineFamilyPalette = { accent: '#224466', fill: '#6688aa', label: '#eeeeee', line: '#99bbdd' }
+const STYLE_A = '--tl-accent:#112233;--tl-fill:#445566;--tl-label:#fefefe;--tl-line:#778899;--tl-section-bg:color-mix(in srgb, #445566 6%, var(--bg));--tl-section-band:color-mix(in srgb, #445566 12%, var(--bg));--tl-pill-fill:color-mix(in srgb, #445566 11%, var(--bg));--tl-pill-stroke:color-mix(in srgb, #445566 36%, #778899);--tl-event-fill:color-mix(in srgb, #445566 16%, var(--_node-fill))'
+
+function positionedPaletteTimeline(periodCount: number): PositionedTimelineDiagram {
+  return {
+    width: 80 * periodCount + 40, height: 200,
+    rail: { x1: 20, y1: 80, x2: 80 * periodCount + 20, y2: 80 },
+    sections: [{ id: 'S', x: 10, y: 10, width: 80 * periodCount + 20, height: 180, framed: false, headerHeight: 0,
+      periods: Array.from({ length: periodCount }, (_, index) => ({
+        id: `P${index}`, sectionId: 'S', label: `P${index}界`, centerX: 50 + 80 * index,
+        markerX: 50 + 80 * index, markerY: 80,
+        pillX: 20 + 80 * index, pillY: 20, pillWidth: 60, pillHeight: 30,
+        stem: { x1: 50 + 80 * index, y1: 50, x2: 50 + 80 * index, y2: 80 }, events: [],
+      })),
+    }],
+  }
+}
+
+function publicPaletteScene(palettes: readonly TimelineFamilyPalette[], positioned = positionedPaletteTimeline(3)) {
+  const lower = getFamily('timeline')?.lowerScene
+  if (!lower) throw new Error('public Timeline lowering unavailable')
+  return lower({ positioned, colors: { bg: '#ffffff', fg: '#111111' },
+    resolved: { renderOptions: {}, familyAppearance: { timelineConfig: {}, familyPalettes: palettes } } })
+}
+
+function periodTags(svg: string): string[] {
+  return svg.match(/<g class="timeline-period"[^>]*>/g) ?? []
+}
+
+describe('public Timeline palette projection and metadata bounds', () => {
+  it('keeps the original palette getter sequence on repeated families and current request output', () => {
+    const reads: string[] = []
+    const caller = { ...PALETTE_A }
+    const palette = new Proxy(caller, { get(target, key, receiver) {
+      reads.push(String(key)); return Reflect.get(target, key, receiver)
+    } })
+    const positioned = positionedPaletteTimeline(3)
+    const first = publicPaletteScene([palette], positioned)
+    expect(reads).toEqual(['label', ...Array.from({ length: 3 }, () => ['accent', 'fill', 'label', 'line']).flat()])
+    const svg = DefaultBackend.render(first, { seed: 0 })
+    const tags = periodTags(svg)
+    expect(tags).toHaveLength(3)
+    for (const [index, tag] of tags.entries()) {
+      expect(tag).toContain(`data-id="P${index}" data-label="P${index}界" data-family="0"`)
+      expect(tag).toContain(`style="${STYLE_A}"`)
+    }
+    expect(svg).toContain('<line class="timeline-stem" x1="50" y1="50" x2="50" y2="80"')
+    expect(Object.isFrozen(caller)).toBe(false)
+    expect(Object.isFrozen(positioned)).toBe(false)
+    caller.fill = PALETTE_B.fill
+    const changed = DefaultBackend.render(publicPaletteScene([palette], positioned), { seed: 0 })
+    expect(periodTags(changed)[0]).toContain('--tl-fill:#6688aa')
+    expect(periodTags(changed)[0]).toContain('--tl-pill-stroke:color-mix(in srgb, #6688aa 36%, #778899)')
+    expect(periodTags(svg)[0]).toContain('--tl-fill:#445566')
+  })
+
+  it.each(['accent', 'fill', 'label', 'line'] as const)('keeps current %s after a tuple change and an early repeat', field => {
+    let group = -1
+    const changed = { ...PALETTE_A, [field]: PALETTE_B[field] }
+    const values = [PALETTE_A, changed, PALETTE_A, PALETTE_A]
+    const palette = Object.defineProperties({}, Object.fromEntries((['accent', 'fill', 'label', 'line'] as const).map(key => [key, {
+      enumerable: true,
+      get() { if (key === 'accent') group++; return values[Math.max(0, group)]![key] },
+    }]))) as TimelineFamilyPalette
+    const tags = periodTags(DefaultBackend.render(publicPaletteScene([palette], positionedPaletteTimeline(4)), { seed: 0 }))
+    expect(tags).toHaveLength(4)
+    expect(tags[0]).toContain(`style="${STYLE_A}"`)
+    expect(tags[1]).toContain(`--tl-${field}:${PALETTE_B[field]}`)
+    expect(tags[2]).toContain(`style="${STYLE_A}"`)
+    expect(tags[3]).toContain(`style="${STYLE_A}"`)
+    if (field === 'fill') expect(tags[1]).toContain('--tl-section-bg:color-mix(in srgb, #6688aa 6%, var(--bg))')
+    if (field === 'line') expect(tags[1]).toContain('--tl-pill-stroke:color-mix(in srgb, #445566 36%, #99bbdd)')
+    expect(group).toBe(3)
+  })
+
+  it('preserves late getter failure before invalid palette validation and leaves failed requests isolated', () => {
+    const reads: string[] = []
+    const palette = Object.defineProperties({}, {
+      accent: { enumerable: true, get() { reads.push('accent'); return 42 } },
+      fill: { enumerable: true, get() { reads.push('fill'); return PALETTE_A.fill } },
+      label: { enumerable: true, get() { reads.push('label'); return PALETTE_A.label } },
+      line: { enumerable: true, get() { reads.push('line'); throw new Error('authored late Timeline line getter') } },
+    }) as TimelineFamilyPalette
+    expect(() => publicPaletteScene([palette], positionedPaletteTimeline(1))).toThrow('authored late Timeline line getter')
+    expect(reads).toEqual(['label', 'accent', 'fill', 'label', 'line'])
+    expect(Object.isFrozen(palette)).toBe(false)
+    const tags = periodTags(DefaultBackend.render(publicPaletteScene([PALETTE_A], positionedPaletteTimeline(1)), { seed: 0 }))
+    expect(tags[0]).toContain(`style="${STYLE_A}"`)
+  })
+
+  it('keeps nested public lowering from a palette getter isolated from its enclosing request', () => {
+    let nested = ''
+    const caller = { ...PALETTE_A }
+    const palette = Object.defineProperty(caller, 'line', { enumerable: true, configurable: true, get() {
+      if (!nested) nested = DefaultBackend.render(publicPaletteScene([PALETTE_B], positionedPaletteTimeline(1)), { seed: 0 })
+      return PALETTE_A.line
+    } })
+    const outer = DefaultBackend.render(publicPaletteScene([palette]), { seed: 0 })
+    expect(periodTags(nested)[0]).toContain('--tl-accent:#224466;--tl-fill:#6688aa;--tl-label:#eeeeee;--tl-line:#99bbdd')
+    expect(periodTags(outer)).toHaveLength(3)
+    for (const tag of periodTags(outer)) expect(tag).toContain(`style="${STYLE_A}"`)
+    expect(Object.isFrozen(caller)).toBe(false)
+  })
+
+  it('preserves finite family numbers, 129 mostly-miss palettes and later repeats', () => {
+    const palettes = Array.from({ length: 129 }, (_, index) => ({ ...PALETTE_A,
+      accent: index === 128 ? PALETTE_B.accent : PALETTE_A.accent }))
+    const tags = periodTags(DefaultBackend.render(publicPaletteScene(palettes, positionedPaletteTimeline(258)), { seed: 0 }))
+    expect(tags).toHaveLength(258)
+    for (let index = 0; index < 258; index++) {
+      const family = index % 129
+      expect(tags[index]).toContain(`data-id="P${index}" data-label="P${index}界" data-family="${family}"`)
+      expect(tags[index]).toContain(`--tl-accent:${family === 128 ? '#224466' : '#112233'}`)
+      expect(tags[index]).toContain('--tl-pill-stroke:color-mix(in srgb, #445566 36%, #778899)')
+    }
+  })
+
+  it('retains literal enclosing recipe counts and current-depth checks on repeated palette graphs', () => {
+    const scene = publicPaletteScene([PALETTE_A])
+    const groups = scene.parts.filter(part => part.kind === 'group' && part.role === 'period')
+    expect(groups).toHaveLength(3)
+    for (const group of groups) {
+      const recipe = sceneNodeEmission(group)
+      if (!recipe) throw new Error('expected captured public Timeline group program')
+      // Root + two lists + six attribute/value pairs + nine declarations +
+      // six distinct scalar palette nodes + five colorMix records =35 objects.
+      expect(svgEmissionMetadataCounts(recipe)).toMatchObject({ objects: 35, properties: 92, arrayEntries: 15 })
+      expect(() => snapshotSvgEmissionRecipe(recipe, { ...SVG_EMISSION_METADATA_LIMITS, maxObjects: 34 })).toThrow('object budget')
+      expect(() => snapshotSvgEmissionRecipe(recipe, { ...SVG_EMISSION_METADATA_LIMITS, maxObjects: 35 })).not.toThrow()
+      expect(() => snapshotSvgEmissionRecipe({ kind: 'sequence', children: [recipe] }, {
+        ...SVG_EMISSION_METADATA_LIMITS, maxObjects: 36,
+      })).toThrow('object budget')
+      expect(() => snapshotSvgEmissionRecipe(recipe, { ...SVG_EMISSION_METADATA_LIMITS, maxDepth: 7 })).toThrow('depth budget')
+    }
   })
 })
