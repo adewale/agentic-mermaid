@@ -27,7 +27,7 @@ import { existsSync, readdirSync, readFileSync, statSync } from 'node:fs'
 import { join } from 'node:path'
 import { chromium, firefox, webkit, type Browser, type Page } from 'playwright'
 import { BUILTIN_FAMILY_METADATA } from '../src/agent/families.ts'
-import { renderMermaidSVG, renderMermaidSVGWithReceipt } from '../src/index.ts'
+import { renderMermaidSVG, renderMermaidSVGWithReceipt, sharedRenderOptionsJsonSchema } from '../src/index.ts'
 import { serveWithAvailablePort } from './test-port.ts'
 
 const REPO = join(import.meta.dir, '..')
@@ -52,7 +52,7 @@ function newestBuildInputMtime(): number {
     }
   }
   visit(join(REPO, 'src'))
-  for (const file of ['package.json', 'tsup.config.ts', 'tsup.browser.config.ts', 'tsup.browser-lazy.config.ts']) visit(join(REPO, file))
+  for (const file of ['package.json', 'tsup.config.ts', 'tsup.browser.config.ts', 'tsup.browser-lazy.config.ts', 'scripts/build/runtime-render-contract.ts']) visit(join(REPO, file))
   return newest
 }
 
@@ -146,6 +146,11 @@ describe('browser bundle', () => {
       ])
       expect(new Set(actual.identities).size).toBe(actual.identities.length)
     }
+  })
+
+  test('preserves the complete public render-option schema in the IIFE', async () => {
+    const schema = await page.evaluate(name => (globalThis as Record<string, any>)[name].sharedRenderOptionsJsonSchema(), GLOBAL)
+    expect(schema).toEqual(sharedRenderOptionsJsonSchema())
   })
 
   for (const family of BUILTIN_FAMILY_METADATA) {
@@ -326,6 +331,40 @@ describe('async family-loaded browser renderer', () => {
     } finally {
       await page.close()
     }
+  }, BUILD_TIMEOUT_MS)
+
+  test('checked options retain source diagnostics in the lazy artifact', async () => {
+    const page = await browser.newPage()
+    const cases = [
+      { nodeSpacing: -1 },
+      { graphLayout: { backend: 'elk', fallback: 'elk' } },
+      { graphLayout: { backend: 'agentic', extra: true } },
+      { graphLayout: { backend: 'wrong' } },
+      { bg: 'url(https://example.invalid/image)' },
+      { architecture: { visual: { junctionInnerRadius: 10, junctionOuterRadius: 5 } } },
+    ]
+    try {
+      await page.goto(`${base}/blank.html`)
+      const authored = { style: { blurb: 'Authored runtime style metadata', colors: { accent: '#0055AA' } } }
+      const expected = renderMermaidSVGWithReceipt('flowchart TD\nA --> B', authored)
+      const rendered = await page.evaluate(async ({ entryUrl, options }) => {
+        const api = await import(entryUrl)
+        return api.renderMermaidSVGWithReceiptAsync('flowchart TD\nA --> B', options)
+      }, { entryUrl: `${base}/dist/browser-lazy/index.js`, options: authored })
+      expect(rendered).toEqual(JSON.parse(JSON.stringify(expected)))
+      for (const options of cases) {
+        let expected: string | undefined
+        try { renderMermaidSVG('flowchart TD\nA --> B', options as never) }
+        catch (error) { expected = String(error) }
+        expect(expected).toBeDefined()
+        const actual = await page.evaluate(async ({ entryUrl, options }) => {
+          const api = await import(entryUrl)
+          try { await api.renderMermaidSVGAsync('flowchart TD\nA --> B', options); return undefined }
+          catch (error) { return String(error) }
+        }, { entryUrl: `${base}/dist/browser-lazy/index.js`, options })
+        expect(actual).toBe(expected)
+      }
+    } finally { await page.close() }
   }, BUILD_TIMEOUT_MS)
 
   test('the emitted Pie family decodes full named references in a real browser', async () => {

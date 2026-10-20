@@ -1,4 +1,5 @@
 import { defineConfig } from 'tsup'
+import { runtimeRenderContractPlugin } from './scripts/build/runtime-render-contract.ts'
 import { createRequire } from 'node:module'
 import { resolve } from 'node:path'
 import { readFile } from 'node:fs/promises'
@@ -27,7 +28,7 @@ export default defineConfig({
   external: [],
   // ELK, YAML and the HTML5 entity table load only when a diagram needs them.
   // Build-only facade twins preserve the synchronous source/Node APIs.
-  esbuildPlugins: [{
+  esbuildPlugins: [runtimeRenderContractPlugin({ schemaDocumentation: false }), {
     name: 'lazy-browser-dependencies',
     setup(build) {
       // The lazy SVG API exposes rendering and receipts, not the Node option
