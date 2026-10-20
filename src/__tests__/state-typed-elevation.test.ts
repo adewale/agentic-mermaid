@@ -858,6 +858,21 @@ describe('State statements across and within lines', () => {
       .toEqual(['state_endpoint_name@2', 'state_endpoint_name@3', 'state_endpoint_name@7'])
   })
 
+  test('a transition naming `state`, `note` or the like is written with no blank after the name, which Mermaid reads', async () => {
+    // Mermaid drops `A --> state` and rejects the rest; it reads `note-->`,
+    // `--> state%%` and `--> class: x` as transitions.
+    const sources = ['A --> state', 'note --> A : go', 'A --> class : x\nstateDiagram --> scale', 'state X {\nA --> note\nstyle --> classDef\n}', 'A --> state:::hot']
+      .map(body => `stateDiagram-v2\n${body}`)
+    const expected = [['A->state'], ['note->A:go'], ['A->class:x', 'stateDiagram->scale'], ['A->note', 'style->classDef'], ['A->state']]
+    expect(sources.map(source => readingOf(parseRenderGraph(source)).filter(item => item.includes('->')))).toEqual(expected.map(edges => [...edges].sort()))
+    expect(sources.map(unsupportedSyntax)).toEqual([['state_endpoint_name@2'], ['state_endpoint_name@2'], ['state_endpoint_name@2', 'state_endpoint_name@3', 'state_endpoint_name@3'], ['state_endpoint_name@3', 'state_endpoint_name@4', 'state_endpoint_name@4'], []])
+    const written = sources.map(source => serializeMermaid(state(source)))
+    expect(written.map(unsupportedSyntax)).toEqual(written.map(() => []))
+    expect(written.map(source => state(source).body)).toEqual(sources.map(source => state(source).body))
+    expect(await upstream.projectAll(written, mermaid => mermaid.db.getData().edges.map((edge: { start: string; end: string; label: string }) => `${edge.start}->${edge.end}${edge.label ? `:${edge.label}` : ''}`)))
+      .toEqual(expected)
+  })
+
   test('a declaration or description naming a state Mermaid cannot name there is read, and reported', async () => {
     // Mermaid rejects the first three, and drops `State : x` as it drops a
     // bare `state X`; it reads `direction` as a name, and the name after
@@ -885,10 +900,11 @@ describe('State statements across and within lines', () => {
     const rejected = ['in-flight:::hot', 'default:::hot', 'state X {\ndefault:::hot\nin-flight:::hot\n}'].map(body => `stateDiagram-v2\n${body}`)
     expect(rejected.map(unsupportedSyntax)).toEqual([['state_declaration_name@2'], ['state_declaration_name@2'], ['state_declaration_name@4']])
     expect(await Promise.all(rejected.map(source => upstream.accepts(source)))).toEqual([false, false, false])
-    const accepted = ['state:::hot --> A', 'note:::hot', 'note: x'].map(body => `stateDiagram-v2\n${body}`)
-    expect(accepted.map(unsupportedSyntax)).toEqual([[], [], []])
+    // A comment right after the name ends it with no blank, too.
+    const accepted = ['state:::hot --> A', 'note:::hot', 'note: x', 'note%%', 'A --> class%%'].map(body => `stateDiagram-v2\n${body}`)
+    expect(accepted.map(unsupportedSyntax)).toEqual([[], [], [], [], []])
     expect(await upstream.projectAll(accepted, mermaid => mermaid.db.getData().nodes.map((node: { id: string }) => node.id)))
-      .toEqual([['state', 'A'], ['note'], ['note']])
+      .toEqual([['state', 'A'], ['note'], ['note'], ['note'], ['A', 'class']])
     // `state` and a blank before `:::`: Mermaid reads a declaration it drops,
     // ours the name `state`, as `X :::hot --> A` reads X, and reports it.
     const dropped = 'stateDiagram-v2\nstate :::hot --> A'

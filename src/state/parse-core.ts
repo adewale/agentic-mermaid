@@ -329,12 +329,12 @@ interface StatementRead {
 
 export function readStateStatements(lines: readonly StateSourceLine[]): StateStatementScan {
   // A string left open joins the lines up to its closing quote.
-  const logical: Array<{ text: string; line: number; noteBody: boolean; noteOpen: boolean }> = []
+  const logical: Array<{ text: string; line: number; noteBody: boolean; noteOpen: boolean; commentGlued: boolean }> = []
   for (let index = 0; index < lines.length; index++) {
     const start = index
     index = quotedRunEnd(lines, start)
     const text = lines.slice(start, index + 1).map(line => line.text).join('\n')
-    if (text || lines[start]!.noteBody) logical.push({ text, line: start, noteBody: lines[start]!.noteBody, noteOpen: lines[start]!.noteOpen })
+    if (text || lines[start]!.noteBody) logical.push({ text, line: start, noteBody: lines[start]!.noteBody, noteOpen: lines[start]!.noteOpen, commentGlued: lines[index]!.commentGlued })
   }
   /** The input line and column of a column in a row, which joins the
    *  lines a string runs across. */
@@ -418,7 +418,9 @@ export function readStateStatements(lines: readonly StateSourceLine[]): StateSta
     if (name === null) return null
     let endpoint = name
     const end = { row: cursor.row, column: cursor.column + name.length }
-    blanks.push(/^[ \t\n]|^$/.test(logical[cursor.row]!.text.slice(end.column, end.column + 1)))
+    // A comment glued to the name (`note%%`) ends it with no blank.
+    const after = logical[cursor.row]!.text.slice(end.column, end.column + 1)
+    blanks.push(/^[ \t\n]/.test(after) || (after === '' && !logical[cursor.row]!.commentGlued))
     const shorthand = { ...end }
     skipSpace(shorthand)
     if (logical[shorthand.row]!.text.startsWith(':::', shorthand.column)) {
@@ -609,8 +611,10 @@ export function readStateStatements(lines: readonly StateSourceLine[]): StateSta
     }
     const statementKeyword = matchAt(STATEMENT_KEYWORD_AT, text, column) ?? matchAt(OWN_KEYWORD_AT, text, column)
     // A keyword that a `:` or an arrow follows (`note :::c --> A`,
-    // `note : x`) names a state, as `state` there does.
-    const keywordNamed = statementKeyword !== null && /^[ \t]*(?::|-->)/.test(text.slice(column + statementKeyword.length))
+    // `note : x`) names a state, as `state` there does; so does one a
+    // comment ends with no blank (`note%%`).
+    const afterKeyword = statementKeyword === null ? '' : text.slice(column + statementKeyword.length)
+    const keywordNamed = statementKeyword !== null && (/^[ \t]*(?::|-->)/.test(afterKeyword) || (afterKeyword === '' && logical[row]!.commentGlued))
     if (statementKeyword !== null && !keywordNamed) {
       // A keyword statement runs to the end of its line.
       const keyword = text.slice(column)

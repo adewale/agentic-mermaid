@@ -588,11 +588,14 @@ function renderScope(states: StateNode[], transitions: StateTransition[], direct
   for (const step of scopeWriteOrder(states, transitions).steps) {
     if ('transition' in step) {
       const t = step.transition
-      // `state` followed by whitespace enters Mermaid's declaration lexer.
-      const separator = /^state$/i.test(t.to) ? ':' : ' :'
+      // `state`, `note` and the like that a blank follows start a statement
+      // of their own in Mermaid's lexer, so no blank follows them here:
+      // `note--> A`, `A --> note: label`, or a comment, `A --> note%%`.
+      const keyword = (id: string, className: string | undefined): boolean => className === undefined && !namesStateAt(id, false) && namesStateAt(id, false, false)
       const endpoint = (id: string, className: string | undefined): string => className === undefined ? id : `${id}:::${className}`
-      const arrow = `${indent}${endpoint(t.from, t.fromClass)} --> ${endpoint(t.to, t.toClass)}`
-      out.push(t.label !== undefined ? describe(`${arrow}${separator} `, t.label, t.labelContent) : arrow)
+      const glued = keyword(t.to, t.toClass)
+      const arrow = `${indent}${endpoint(t.from, t.fromClass)}${keyword(t.from, t.fromClass) ? '' : ' '}--> ${endpoint(t.to, t.toClass)}`
+      out.push(t.label !== undefined ? describe(`${arrow}${glued ? ':' : ' :'} `, t.label, t.labelContent) : glued ? `${arrow}%%` : arrow)
       continue
     }
     const s = step.state
@@ -1532,7 +1535,12 @@ function stateReadOtherwiseWarnings(statements: readonly StateStatement[], heade
     if (transition) {
       for (const endpoint of new Set([transition.from, transition.to])) {
         if (endpoint === PSEUDO || isHistoryEndpoint(endpoint) || namesStateAt(endpoint, nested, statement.nameBlanks?.[endpoint === transition.from ? 0 : 1])) continue
-        warn(statement, 'state_endpoint_name', `The transition names '${endpoint}', which pinned Mermaid cannot read as a state there: a name holds no hyphen, and \`note\`, \`class\`, \`classDef\`, \`style\`, \`default\`, \`click\`, \`href\`, \`scale\` and \`stateDiagram\` start statements of their own, as \`state\` starts a declaration it drops. Mermaid rejects or drops the transition, here and in the output. Rename the state to keep it portable.`, endpoint === transition.from ? statement.line : statement.toLine)
+        const line = endpoint === transition.from ? statement.line : statement.toLine
+        if (namesStateAt(endpoint, nested, false)) {
+          warn(statement, 'state_endpoint_name', `The transition names '${endpoint}', which pinned Mermaid cannot read as a state there: before a blank, \`note\`, \`class\`, \`classDef\`, \`style\`, \`scale\` and \`stateDiagram\` start statements of their own, as \`state\` starts a declaration it drops. Mermaid rejects or drops the transition. The writer writes no blank after the name (\`${endpoint}--> …\`, \`… --> ${endpoint}%%\`), which Mermaid reads.`, line)
+        } else {
+          warn(statement, 'state_endpoint_name', `The transition names '${endpoint}', which pinned Mermaid cannot read as a state there: a name holds no hyphen, and \`default\`, \`click\` and \`href\` start statements of their own. Mermaid rejects the transition, here and in the output. Rename the state to keep it portable.`, line)
+        }
       }
       if (transition.label !== undefined) cutText(statement, transition.label)
       continue
