@@ -268,14 +268,24 @@ export function parseRegisteredMermaid(source: string): Result<ParsedDiagram, Pa
   // structured-or-opaque for the narrow families, error semantics for
   // flowchart/state. Families without a hook stay source-level.
   if (plugin.parse) {
-    const parsed = plugin.parse({
+    const context = {
       source: normalized,
       lines: normalized.familyLines,
       envelopeLines: normalized.lines,
       opaqueSource,
       meta,
       canonicalSource,
-    })
+    }
+    let parsed: ReturnType<NonNullable<typeof plugin.parse>>
+    try {
+      parsed = plugin.parse(context)
+    } catch (error) {
+      // A registered family's hook throwing is a fault in its descriptor,
+      // reported as one; a built-in parser's throw stays ours to surface.
+      if (isBuiltinFamilyId(kind)) throw error
+      const reason = error instanceof Error ? error.message : String(error)
+      return err([{ code: 'FAMILY_DESCRIPTOR_CONTRACT', message: `Family "${kind}" parse hook threw: ${reason}`, line: 1 }])
+    }
     if (!parsed.ok) {
       errors.push(...parsed.error)
       return err(errors)

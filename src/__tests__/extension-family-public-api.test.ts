@@ -460,13 +460,14 @@ family payload
     }
   })
 
-  test('returns a descriptor-contract error for non-JSON parse data on non-example sources', () => {
+  test('returns a descriptor-contract error for a throwing parse hook or non-JSON parse data on non-example sources', () => {
     const base = extensionDescriptor('parse-data-admission', 'parseDataAdmissionDiagram')
     const descriptor: FamilyDescriptor = {
       ...base,
       capabilityEvidence: base.capabilityEvidence.map(claim => (claim.capability === 'source-preservation' || claim.capability === 'parse' ? { ...claim, state: 'native' } : claim)),
       parse: context => {
         let data: unknown = { safe: true }
+        if (context.opaqueSource.includes('throws')) throw new Error('hook exploded')
         if (context.opaqueSource.includes('cycle')) {
           const cyclic: { self?: unknown } = {}
           cyclic.self = cyclic
@@ -485,10 +486,12 @@ family payload
     const unregister = registerFamily(descriptor)
     try {
       for (const [payload, problem] of [
+        ['throws', /parse hook threw: hook exploded/],
         ['cycle', /acyclic/i],
         ['non-plain', /plain JSON object/i],
       ] as const) {
-        const parsed = parseRegisteredMermaid(`parseDataAdmissionDiagram\n  ${payload}`)
+        const source = `parseDataAdmissionDiagram\n  ${payload}`
+        const parsed = parseRegisteredMermaid(source)
         expect(parsed.ok).toBe(false)
         if (parsed.ok) continue
         expect(parsed.error).toContainEqual(
@@ -497,6 +500,8 @@ family payload
             message: expect.stringMatching(problem),
           }),
         )
+        // A descriptor fault is the extension's configuration, not the source.
+        expect(verifyMermaid(source).warnings).toEqual([expect.objectContaining({ code: 'RENDER_FAILED', origin: 'config', reason: expect.stringMatching(problem) })])
       }
     } finally {
       unregister()

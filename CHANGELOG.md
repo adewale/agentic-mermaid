@@ -37,6 +37,9 @@ This changelog tracks user-facing changes for **Agentic Mermaid**, a fork of `lu
   parser's message, not `EMPTY_DIAGRAM`, and suppressing that finding no
   longer makes such a source verify `ok`. A work limit only the render path
   enforces (state nesting) no longer escapes `verify` as an exception.
+- A registered family whose parse hook throws no longer makes `parseMermaid`
+  and `verify` throw: the throw is a `FAMILY_DESCRIPTOR_CONTRACT` parse error,
+  which `verify` reports as `RENDER_FAILED` with origin `config`.
 - A parsed diagram drawn from its canonical body (Flowchart, Timeline, Class,
   ER, Journey, Architecture, any source-preserved body, and extension families
   that render canonically) renders, lays out and verifies under its authored
