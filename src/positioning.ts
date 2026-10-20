@@ -46,7 +46,10 @@ export function positionResolvedFamily(familyId: FamilyId, request: ResolvedRend
   const environment = (globalThis as { process?: { env?: Record<string, string | undefined> }; AGENTIC_MERMAID_ELK_CACHE?: unknown }).process?.env
   const cacheEnabled = performanceExperimentEnabled('position-cache') && certifyFinal && familyId !== 'gantt' && !executionPlan.textMeasurement
     && (environment?.AGENTIC_MERMAID_ELK_CACHE ?? (globalThis as { AGENTIC_MERMAID_ELK_CACHE?: unknown }).AGENTIC_MERMAID_ELK_CACHE) !== '0'
-  const cacheKey = cacheEnabled ? JSON.stringify([source, request.renderOptions, request.appearance, request.familyConfig, projectionOptions,
+  // Admitted cleanup provenance is derived entirely from originalText. Keep
+  // every authoritative field; explicit source overrides retain the full key.
+  const cacheSource = cacheEnabled && source === request.source ? { ...source, cleanup: undefined } : source
+  const cacheKey = cacheEnabled ? JSON.stringify([cacheSource, request.renderOptions, request.appearance, request.familyConfig, projectionOptions,
     Object.entries(environment ?? {}).filter(([key]) => key.startsWith('APL_')).sort(), PERFORMANCE_EXPERIMENTS.map(performanceExperimentEnabled)]) : undefined
   const boundedKey = cacheKey !== undefined && cacheKey.length <= 65536 ? cacheKey : undefined
   return withTextMeasurementExecution(executionPlan.textMeasurement, () => {

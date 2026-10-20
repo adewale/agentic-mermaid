@@ -5,6 +5,12 @@ import { prepareDisplayText } from '../shared/display-text.ts'
 import { preparePixelText } from '../shared/prepared-text.ts'
 import { createTextMeasurementExecution, withTextMeasurementExecution } from '../text-measurement-profile.ts'
 import { renderMermaidSVG } from '../index.ts'
+import { parseRegisteredMermaid } from '../agent/index.ts'
+import { renderMermaidASCIIWithMeta } from '../ascii/meta.ts'
+import { decodedSvgAttributeValue, scanSvgStartTags } from '../svg-structure.ts'
+import { resolveRenderRequestForExecution } from '../render-contract.ts'
+import { positionResolvedFamily } from '../positioning.ts'
+import type { PositionedKanbanDiagram } from '../kanban/types.ts'
 import { withRenderStageObserver } from '../render-stages.ts'
 
 test('performance scope restores nested flags after exceptions', () => {
@@ -56,6 +62,67 @@ test('position cache reuses complete layout, respects cache opt-out and keeps pr
       process.env.AGENTIC_MERMAID_ELK_CACHE = '0'
       withRenderStageObserver(s => { if (s.stage === 'elk') elk.push(s.ms) }, () => renderMermaidSVG(input))
       expect(elk.length).toBeGreaterThan(0)
+    })
+  } finally { if (prior === undefined) delete process.env.AGENTIC_MERMAID_ELK_CACHE; else process.env.AGENTIC_MERMAID_ELK_CACHE = prior }
+})
+
+
+test('entity-heavy source remains eligible for positioned geometry reuse', () => {
+  const prior = process.env.AGENTIC_MERMAID_ELK_CACHE
+  process.env.AGENTIC_MERMAID_ELK_CACHE = '1'
+  try {
+    withPerformanceExperiments(['position-cache'], () => {
+      const source = 'flowchart LR\n' + Array.from({ length: 100 }, (_, index) => `ReceiptCache${index}["&amp; #quot; label ${index}"]`).join('\n')
+      const firstStages: string[] = [], secondStages: string[] = []
+      const first = withRenderStageObserver(stage => { firstStages.push(stage.stage) }, () => renderMermaidSVG(source))
+      const second = withRenderStageObserver(stage => { secondStages.push(stage.stage) }, () => renderMermaidSVG(source))
+      expect(firstStages).toContain('elk')
+      expect(secondStages).not.toContain('elk')
+      expect(second).toBe(first)
+    })
+  } finally { if (prior === undefined) delete process.env.AGENTIC_MERMAID_ELK_CACHE; else process.env.AGENTIC_MERMAID_ELK_CACHE = prior }
+})
+
+test('positioned reuse keeps distinct authored CR and entity identities and their source spans', () => {
+  const prior = process.env.AGENTIC_MERMAID_ELK_CACHE
+  process.env.AGENTIC_MERMAID_ELK_CACHE = '1'
+  try {
+    withPerformanceExperiments(['position-cache'], () => {
+      const cases = [
+        { payload: 'Cache&amp;\rX', id: 'Cache&\rX' },
+        { payload: 'Cache&#38;\nX', id: 'Cache&\nX' },
+      ]
+      for (const sample of [...cases, ...cases.slice().reverse()]) {
+        const source = `kanban\n["${sample.payload}"]`
+        for (let repeat = 0; repeat < 2; repeat++) {
+          const tags = scanSvgStartTags(renderMermaidSVG(source, { embedFontImport: false }))
+          expect(tags.filter(tag => decodedSvgAttributeValue(tag, 'data-id') !== undefined).map(tag => decodedSvgAttributeValue(tag, 'data-id'))).toEqual([sample.id])
+          expect(renderMermaidASCIIWithMeta(source, { colorMode: 'none' }).regions.filter(region => region.kind === 'band').map(region => region.id)).toEqual([sample.id])
+          const parsed = parseRegisteredMermaid(source)
+          if (!parsed.ok) throw Error(JSON.stringify(parsed.error))
+          if (parsed.value.body.kind !== 'kanban') throw Error('Expected native Kanban')
+          const span = parsed.value.source.spans?.labels.get(`group:${parsed.value.body.columns[0]!.id}`)
+          expect(span).toBeDefined()
+          expect(source.slice(span!.start.offset, span!.end.offset)).toBe(sample.payload)
+        }
+      }
+    })
+  } finally { if (prior === undefined) delete process.env.AGENTIC_MERMAID_ELK_CACHE; else process.env.AGENTIC_MERMAID_ELK_CACHE = prior }
+})
+
+
+test('explicit positioning source overrides retain their payload authority in cache keys', () => {
+  const prior = process.env.AGENTIC_MERMAID_ELK_CACHE
+  process.env.AGENTIC_MERMAID_ELK_CACHE = '1'
+  try {
+    withPerformanceExperiments(['position-cache'], () => {
+      const request = resolveRenderRequestForExecution('kanban\nOriginal', {}, 'svg')
+      const override = (payloadText: string) => ({ ...request.source, cleanup: { ...request.source.cleanup!, payloadText } })
+      const first = override('kanban\nFirstOverride'), second = override('kanban\nSecondOverride')
+      const ids = (source: typeof first) => (positionResolvedFamily('kanban', request, source).positioned as PositionedKanbanDiagram).columns.map(column => column.id)
+      expect(ids(first)).toEqual(['FirstOverride'])
+      expect(ids(second)).toEqual(['SecondOverride'])
+      expect(ids(first)).toEqual(['FirstOverride'])
     })
   } finally { if (prior === undefined) delete process.env.AGENTIC_MERMAID_ELK_CACHE; else process.env.AGENTIC_MERMAID_ELK_CACHE = prior }
 })
