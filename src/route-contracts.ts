@@ -782,7 +782,9 @@ function satisfiesDiamondSpreadTargetPortConstraint(
  * so it must not veto the primary's lane.
  */
 function isMovableReciprocalLabel(edge: PositionedEdge, other: PositionedEdge, ctx: LaneContext): boolean {
-  if (ctx.fixedLabels) return false
+  // Final closure and its auditor run after the last label repair. A reciprocal
+  // label cannot be treated as movable when no later pass can move it safely.
+  if (ctx.fixedLabels || ctx.finalLabelClearance) return false
   if (!ctx.classes || edge.edgeIndex === undefined || other.edgeIndex === undefined) return false
   return ctx.classes[edge.edgeIndex] === 'primary-forward' &&
     ctx.classes[other.edgeIndex] === 'feedback' &&
