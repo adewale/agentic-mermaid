@@ -1352,7 +1352,8 @@ export function stateUnsupportedSyntaxWarnings(canonicalSource: string, authored
     if (directive.suffixLine) body[directive.endIndex] = directive.suffixLine
     index = directive.endIndex
   }
-  const scan = readStateStatements(scanStateComments(body))
+  const scanned = scanStateComments(body)
+  const scan = readStateStatements(scanned)
   const warnings: Array<LayoutWarning & { line: number }> = [
     ...scan.semicolonLines.map(index => ({
       code: 'UNSUPPORTED_SYNTAX' as const, syntax: 'state_semicolon_separator', line: header + index + 2,
@@ -1390,7 +1391,17 @@ export function stateUnsupportedSyntaxWarnings(canonicalSource: string, authored
     const authored = authoredLine?.(header + index + 2)
     return authored?.trim() === canonical.trim() ? authored : canonical
   }
-  warnings.push(...stateReadOtherwiseWarnings(scan.statements, header, physicalLine))
+  // Where Mermaid's entity prepass drops a `;` from a body line, which it
+  // reads whole, wherever on it the `style…` or `classDef…` run starts: the
+  // `;`'s column in the line's scanned text, or -1. A comment's is not text.
+  const prepassDrop = (index: number): number => {
+    const raw = body[index] ?? ''
+    if (prepassedStateText(raw) === raw) return -1
+    const dropped = raw.lastIndexOf(';')
+    const comment = scanned[index]?.commentIndex ?? -1
+    return comment >= 0 && dropped >= comment ? -1 : dropped - (raw.length - raw.trimStart().length)
+  }
+  warnings.push(...stateReadOtherwiseWarnings(scan.statements, header, physicalLine, prepassDrop))
   return warnings.sort((left, right) => left.line - right.line)
 }
 
@@ -1400,7 +1411,7 @@ export function stateUnsupportedSyntaxWarnings(canonicalSource: string, authored
  *  transition label or one-line note it ends early; text whose `;` its
  *  entity prepass drops; and a composite given more than one label or
  *  description, which it rejects. Each at its authored line. */
-function stateReadOtherwiseWarnings(statements: readonly StateStatement[], header: number, physicalLine: (line: number) => string): Array<LayoutWarning & { line: number }> {
+function stateReadOtherwiseWarnings(statements: readonly StateStatement[], header: number, physicalLine: (line: number) => string, prepassDrop: (line: number) => number): Array<LayoutWarning & { line: number }> {
   const warnings: Array<LayoutWarning & { line: number }> = []
   // At the line holding the construct: inside a composite a statement may
   // run across lines (`A⏎--> B : text`).
@@ -1409,6 +1420,27 @@ function stateReadOtherwiseWarnings(statements: readonly StateStatement[], heade
   }
   // The line holding a statement's text, which runs to that line's end.
   const textLine = (statement: StateStatement): number => statement.textSpan?.start.line ?? statement.line
+  // The line where Mermaid's entity prepass drops a `;` from the statement's
+  // text: a block note's line, or one its text span covers. A statement read
+  // from a row ours keeps whole has no span; its own text is read so.
+  const prepassLine = (statement: StateStatement): number | undefined => {
+    if (statement.noteBody) return prepassDrop(statement.line) >= 0 ? statement.line : undefined
+    const span = statement.textSpan
+    if (!span) return prepassedStateText(statement.text) === statement.text ? undefined : statement.line
+    for (let line = span.start.line; line <= span.end.line; line++) {
+      const dropped = prepassDrop(line)
+      if (dropped >= (line === span.start.line ? span.start.column : 0) && (line < span.end.line || dropped < span.end.column)) return line
+    }
+    return undefined
+  }
+  // Text as Mermaid's lexer meets it: after the prepass, which drops the
+  // last `;` of its line, and with its entity codes read.
+  const lexedText = (statement: StateStatement, value: string): string => {
+    if (!statement.textSpan) return lexedStateText(value)
+    const semicolon = value.lastIndexOf(';')
+    const kept = semicolon >= 0 && prepassLine(statement) !== undefined ? value.slice(0, semicolon) + value.slice(semicolon + 1) : value
+    return kept.replace(/#\w+;/g, '#')
+  }
   // Mermaid's State lexer reads entity codes first, then ends a description
   // or transition label (DESCR, `":"(?:[^:\n;]|":"[^:\n;])+`) at a `;`, at
   // `::` and before a colon its line ends with. Ours reads the text to the
@@ -1416,7 +1448,7 @@ function stateReadOtherwiseWarnings(statements: readonly StateStatement[], heade
   // only a parsed diagram reads its canonical lines, which end trimmed: there
   // a colon only blanks follow, which Mermaid reads as text, is reported too.
   const cutText = (statement: StateStatement, value: string): void => {
-    const text = lexedStateText(value)
+    const text = lexedText(statement, value)
     const line = textLine(statement)
     if (!/;|::/.test(text) && !(text.endsWith(':') && physicalLine(line).endsWith(':'))) return
     warn(statement, 'state_text_cut', 'A `;`, a `::` or a colon ending the line in a description or transition label is read as part of the text. Pinned Mermaid ends the text there: it reads the rest of the line from a `;` as further statements, the `;` starting a state name, and rejects a `::` or a colon ending the line. The writer writes them as `#59;` and `#58;`, which Mermaid reads as the text.', line)
@@ -1469,7 +1501,7 @@ function stateReadOtherwiseWarnings(statements: readonly StateStatement[], heade
       }
       // Mermaid's one-line note text (NOTE_TEXT, `":"[^:\n;]+`) ends at
       // any colon or `;`.
-      if (noteLine && /[:;]/.test(lexedStateText(noteLine.text))) {
+      if (noteLine && /[:;]/.test(lexedText(statement, noteLine.text))) {
         warn(statement, 'state_note_text_cut', 'A colon or `;` in a one-line note\'s text is read as part of the text. Pinned Mermaid ends a one-line note\'s text at either: it rejects a colon there, and reads the rest of the line from a `;` as further statements. The writer writes the note as a block note.')
       }
       continue
