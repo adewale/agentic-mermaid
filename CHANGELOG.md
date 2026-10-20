@@ -111,6 +111,11 @@ This changelog tracks user-facing changes for **Agentic Mermaid**, a fork of `lu
   whole diagram scaled down inside the same width and height. A Sankey ribbon
   thicker than its bend, which folds past the node it meets, now widens the
   canvas to hold that ink.
+- A diagram whose ink touches the canvas edge only by floating-point noise
+  keeps its canvas. A Journey actor legend title whose top came out at
+  -3.6e-15 made the SVG floor its `viewBox` to `0 -1 409.43 373` against the
+  layout's 408×372; the final paint check now treats ink within 1e-6 of the
+  edge as on the canvas.
 - An XYChart line series clamps a value past the axis range to the plot edge,
   as a bar already does, and keeps its value (`verify` still reports
   `VALUES_OUTSIDE_RANGE`). The line used to run off the plot, and the SVG

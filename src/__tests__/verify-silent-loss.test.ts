@@ -188,6 +188,8 @@ describe('render-parity gate (RENDER_FAILED)', () => {
       // and tick at a linear axis end, values clamped past the range, and the
       // end grid lines and ticks where no labels or title stand between.
       'xychart-beta\n  x-axis 0 --> 100\n  line [0, 10]',
+      // A Journey legend title whose top is floating-point noise below zero.
+      'journey\n  Only task: 3: Me',
       'xychart-beta\n  x-axis [a, b, c]\n  y-axis 0 --> 10\n  line [20, -5, 10]',
       '%%{init: {"xyChart": {"showTitle": false, "yAxis": {"showLabel": false}}}}%%\nxychart-beta\n  x-axis [a, b]\n  line [3.5, 8]',
       '%%{init: {"xyChart": {"yAxis": {"showLabel": false}}}}%%\nxychart-beta horizontal\n  x-axis [a, b]\n  y-axis 0 --> 10\n  line [12, 4]',
