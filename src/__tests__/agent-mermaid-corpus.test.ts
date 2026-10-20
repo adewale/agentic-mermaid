@@ -3,19 +3,24 @@
 // stability rate. This is the cross-family analogue of the MermaidSeqBench
 // gate — but built from the source-of-truth project itself.
 
-import { describe, test, expect } from 'bun:test'
-import { readFileSync, existsSync } from 'node:fs'
+import { describe, expect, test } from 'bun:test'
+import { existsSync, readFileSync } from 'node:fs'
 import { join } from 'node:path'
-import { parseRegisteredMermaid as parseMermaid, serializeMermaid, verifyMermaid } from '../agent/index.ts'
 import { runParseVerifyRoundtrip } from '../../eval/shared/run-bench.ts'
 import { countStructuralElements } from '../../eval/shared/structural-count.ts'
+import { parseRegisteredMermaid as parseMermaid, serializeMermaid, verifyMermaid } from '../agent/index.ts'
 import { isDrop } from '../agent/structural-count.ts'
 
 const CORPUS_PATH = join(import.meta.dir, '..', '..', 'eval', 'mermaid-docs-corpus', 'corpus.json')
 const DIVERGENCES_PATH = join(import.meta.dir, '..', '..', 'eval', 'mermaid-docs-corpus', 'divergences.json')
 const PROVENANCE_PATH = join(import.meta.dir, '..', '..', 'eval', 'mermaid-docs-corpus', 'provenance.json')
 
-interface CorpusEntry { family: string; source: string; origin: string; index: number }
+interface CorpusEntry {
+  family: string
+  source: string
+  origin: string
+  index: number
+}
 interface CorpusDivergence {
   id: string
   family: string
@@ -60,9 +65,7 @@ describe('mermaid-js legacy docs corpus (271 examples, 12 families)', () => {
       scope: string
       companions: string[]
     }
-    const actualCounts = Object.fromEntries([...new Set(corpus.map(entry => entry.family))].sort().map(family => [
-      family, corpus.filter(entry => entry.family === family).length,
-    ]))
+    const actualCounts = Object.fromEntries([...new Set(corpus.map(entry => entry.family))].sort().map(family => [family, corpus.filter(entry => entry.family === family).length]))
     expect(provenance.upstream).toEqual({
       repository: 'https://github.com/mermaid-js/mermaid',
       revision: 'a2d9686451df7c4644a3eeca20535bbd4c5776b0',
@@ -86,29 +89,29 @@ describe('mermaid-js legacy docs corpus (271 examples, 12 families)', () => {
   // parse, verify, and round-trip at 100%. Floors stay at the observed green
   // baseline to catch regressions.
   const expected: Record<string, { minParse: number; minVerify: number; minRoundTrip: number }> = {
-    flowchart:    { minParse: 1.00, minVerify: 1.00, minRoundTrip: 1.00 },
-    state:        { minParse: 1.00, minVerify: 1.00, minRoundTrip: 1.00 },
-    sequence:     { minParse: 1.00, minVerify: 1.00, minRoundTrip: 1.00 },
-    class:        { minParse: 1.00, minVerify: 1.00, minRoundTrip: 1.00 },
-    er:           { minParse: 1.00, minVerify: 1.00, minRoundTrip: 1.00 },
-    timeline:     { minParse: 1.00, minVerify: 1.00, minRoundTrip: 1.00 },
-    journey:      { minParse: 1.00, minVerify: 1.00, minRoundTrip: 1.00 },
-    xychart:      { minParse: 1.00, minVerify: 1.00, minRoundTrip: 1.00 },
+    flowchart: { minParse: 1.0, minVerify: 1.0, minRoundTrip: 1.0 },
+    state: { minParse: 1.0, minVerify: 1.0, minRoundTrip: 1.0 },
+    sequence: { minParse: 1.0, minVerify: 1.0, minRoundTrip: 1.0 },
+    class: { minParse: 1.0, minVerify: 1.0, minRoundTrip: 1.0 },
+    er: { minParse: 1.0, minVerify: 1.0, minRoundTrip: 1.0 },
+    timeline: { minParse: 1.0, minVerify: 1.0, minRoundTrip: 1.0 },
+    journey: { minParse: 1.0, minVerify: 1.0, minRoundTrip: 1.0 },
+    xychart: { minParse: 1.0, minVerify: 1.0, minRoundTrip: 1.0 },
     // Align directives (upstream v11.16.0) parse, verify, round-trip, and now
     // constrain geometry; all official examples remain green.
-    architecture: { minParse: 1.00, minVerify: 1.00, minRoundTrip: 1.00 },
-    pie:          { minParse: 1.00, minVerify: 1.00, minRoundTrip: 1.00 },
-    quadrant:     { minParse: 1.00, minVerify: 1.00, minRoundTrip: 1.00 },
+    architecture: { minParse: 1.0, minVerify: 1.0, minRoundTrip: 1.0 },
+    pie: { minParse: 1.0, minVerify: 1.0, minRoundTrip: 1.0 },
+    quadrant: { minParse: 1.0, minVerify: 1.0, minRoundTrip: 1.0 },
     // Gantt entries were appended from syntax/gantt.md (11 unique examples,
     // deduped — the docs repeat each rendered example) alongside the upstream
     // test-suite bench in eval/mermaid-gantt-bench/. Verify floor 0.80 (9/11):
     // one docs entry is a directive-only fragment (no tasks → EMPTY_DIAGRAM,
-    // correct since rendering throws GANTT_EMPTY), and one ends a task with an
+    // rendered as an explicit empty template), and one ends a task with an
     // inline `%% not yet official` comment that even upstream only "renders"
     // via its wall-clock fallback (ledger entry e9 in the gantt bench) — ours
     // reports UNRESOLVABLE_SCHEDULE by name. Same honest-fragment class as the
     // state-family floor; round-trip stays lossless for both.
-    gantt:        { minParse: 1.00, minVerify: 0.80, minRoundTrip: 1.00 },
+    gantt: { minParse: 1.0, minVerify: 0.8, minRoundTrip: 1.0 },
   }
 
   // The ledger is closed: no docs-corpus example needs a divergence entry (the
@@ -134,8 +137,7 @@ describe('mermaid-js legacy docs corpus (271 examples, 12 families)', () => {
         if (!parsed.ok) continue
         const verify = verifyMermaid(parsed.value)
         for (const code of d.expectedWarningCodes) {
-          expect({ id: d.id, index, code, present: verify.warnings.some(w => w.code === code) })
-            .toEqual({ id: d.id, index, code, present: true })
+          expect({ id: d.id, index, code, present: verify.warnings.some(w => w.code === code) }).toEqual({ id: d.id, index, code, present: true })
         }
         const s1 = serializeMermaid(parsed.value)
         const reparsed = parseMermaid(s1)
@@ -175,14 +177,16 @@ describe('mermaid-js legacy docs corpus (271 examples, 12 families)', () => {
     const drops: Array<{ key: string; before: unknown; after: unknown }> = []
     for (const entry of corpus) {
       const p1 = parseMermaid(entry.source)
-      if (!p1.ok) continue  // parse-rate floors above own parse failures
+      if (!p1.ok) continue // parse-rate floors above own parse failures
       const before = countStructuralElements(p1.value)
-      if (!before) continue  // opaque — round-trip-stability gate owns it
+      if (!before) continue // opaque — round-trip-stability gate owns it
       let after: ReturnType<typeof countStructuralElements> = null
       try {
         const p2 = parseMermaid(serializeMermaid(p1.value))
         if (p2.ok) after = countStructuralElements(p2.value)
-      } catch { /* falls through to drop record */ }
+      } catch {
+        /* falls through to drop record */
+      }
       // Route through the one tested verdict (faithfulnessWarning) so all three
       // differential gates share identical drop semantics. `before` is non-null
       // here; a null `after` is reported as total loss by the helper.
@@ -209,9 +213,9 @@ describe('mermaid-js legacy docs corpus (271 examples, 12 families)', () => {
       const summary = {
         family,
         N,
-        parse: `${parseOk}/${N} (${(parseOk / N * 100).toFixed(0)}%)`,
-        verify: `${verifyOk}/${N} (${(verifyOk / N * 100).toFixed(0)}%)`,
-        roundTrip: `${roundTripOk}/${N} (${(roundTripOk / N * 100).toFixed(0)}%)`,
+        parse: `${parseOk}/${N} (${((parseOk / N) * 100).toFixed(0)}%)`,
+        verify: `${verifyOk}/${N} (${((verifyOk / N) * 100).toFixed(0)}%)`,
+        roundTrip: `${roundTripOk}/${N} (${((roundTripOk / N) * 100).toFixed(0)}%)`,
       }
       // Floor each rate at the expected minimum to catch regressions.
       const checks = {

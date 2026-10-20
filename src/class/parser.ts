@@ -1,12 +1,13 @@
-import { assertClassDiagramWork } from '../shared/diagram-limits.ts'
 import { decodeXML } from 'entities'
 import { normalizeBrTags } from '../multiline-utils.ts'
 import { isSafeActionHref } from '../output-security.ts'
 import { parseAccessibilityDirective, requireClosedAccessibility, scanAccessibilityDirectives } from '../shared/accessibility-directives.ts'
+import { assertClassDiagramWork } from '../shared/diagram-limits.ts'
 import { parseDirectionStatement } from '../shared/direction-statement.ts'
 import { observeParserMutation, observeParserStatement, parserObservationActive } from '../shared/parser-observation.ts'
 import { parseStyleProps } from '../shared/style-props.ts'
 import { syntaxError } from '../shared/syntax-error.ts'
+import { classInterfaceSide, createClassInterfaceAllocator } from './interface-occurrences.ts'
 import { classTextLabel, decodeClassText } from './text.ts'
 import type { ClassDiagram, ClassMember, ClassNamespace, ClassNode, ClassRelationship, RelationshipType } from './types.ts'
 
@@ -61,8 +62,10 @@ function scanInlineNamespaceStatement(line: string): ClassStatementFragment[] {
   for (let index = 0; index < tail.length; index++) {
     const character = tail[index]!
     if (quote) {
-      if (character === '\\' && quote === '"') { index++
-        continue }
+      if (character === '\\' && quote === '"') {
+        index++
+        continue
+      }
       if (character === quote) quote = undefined
     } else if (character === '"' || character === '`' || character === '~') quote = character
     else if (character === '{') braces++
@@ -87,17 +90,21 @@ function scanInlineNamespaceStatement(line: string): ClassStatementFragment[] {
 /** Split entity-created physical lines while retaining every other authored
  * entity for Class quote-boundary validation. */
 export function splitAuthoredClassLine(line: string): string[] {
-  return line.replace(/&(?:#(?:[xX][0-9a-fA-F]+|[0-9]+)|[A-Za-z][A-Za-z0-9]+);/g, token => {
-    const decoded = decodeXML(token)
-    return /[\r\n]/.test(decoded) ? decoded : token
-  }).split(/\r\n|\r|\n/)
+  return line
+    .replace(/&(?:#(?:[xX][0-9a-fA-F]+|[0-9]+)|[A-Za-z][A-Za-z0-9]+);/g, token => {
+      const decoded = decodeXML(token)
+      return /[\r\n]/.test(decoded) ? decoded : token
+    })
+    .split(/\r\n|\r|\n/)
 }
 
 /** Match decoded Class statements to authored bytes one statement at a time.
  * Entity-created comments/directives and compact namespace expansions must
  * never shift quote provenance for an unrelated later link. */
 function authoredClassStatements(lines: string[]): Array<string | undefined> {
-  const authored = lines.flatMap(splitAuthoredClassLine).map(line => line.trim())
+  const authored = lines
+    .flatMap(splitAuthoredClassLine)
+    .map(line => line.trim())
     .filter(line => {
       const semantic = decodeXML(line).trim()
       return semantic.length > 0 && !semantic.startsWith('%%')
@@ -107,8 +114,7 @@ function authoredClassStatements(lines: string[]): Array<string | undefined> {
   const add = (raw: string | undefined, decoded: string): void => {
     const decodedParts = expandInlineNamespaceStatement(decoded)
     const rawParts = raw === undefined ? [] : expandInlineNamespaceStatement(raw)
-    if (rawParts.length === decodedParts.length
-      && rawParts.every((part, index) => decodeXML(part) === decodedParts[index])) {
+    if (rawParts.length === decodedParts.length && rawParts.every((part, index) => decodeXML(part) === decodedParts[index])) {
       statements.push(...rawParts)
     } else {
       statements.push(...decodedParts.map(() => undefined))
@@ -135,8 +141,7 @@ function authoredClassStatements(lines: string[]): Array<string | undefined> {
         }
       }
       const candidate = braceEnd < 0 ? undefined : rawClosing.slice(braceEnd).trim()
-      add(candidate !== undefined && decodeXML(candidate).trim() === directive.suffixLine.trim()
-        ? candidate : undefined, directive.suffixLine.trim())
+      add(candidate !== undefined && decodeXML(candidate).trim() === directive.suffixLine.trim() ? candidate : undefined, directive.suffixLine.trim())
     }
     index = directive.endIndex
   }
@@ -219,22 +224,38 @@ function findClassAnnotationStart(text: string): number {
   let bracketDepth = 0
   for (let i = 0; i < text.length - 1; i++) {
     const char = text[i]!
-    if (inBacktick) { if (char === '`') inBacktick = false
-      continue }
-    if (inQuote) { if (char === '"') inQuote = false
-      continue }
-    if (inGeneric) { if (char === '~') inGeneric = false
-      continue }
-    if (char === '`') { inBacktick = true
-      continue }
-    if (char === '"') { inQuote = true
-      continue }
-    if (char === '~' && bracketDepth === 0) { inGeneric = true
-      continue }
-    if (char === '[') { bracketDepth++
-      continue }
-    if (char === ']') { bracketDepth = Math.max(0, bracketDepth - 1)
-      continue }
+    if (inBacktick) {
+      if (char === '`') inBacktick = false
+      continue
+    }
+    if (inQuote) {
+      if (char === '"') inQuote = false
+      continue
+    }
+    if (inGeneric) {
+      if (char === '~') inGeneric = false
+      continue
+    }
+    if (char === '`') {
+      inBacktick = true
+      continue
+    }
+    if (char === '"') {
+      inQuote = true
+      continue
+    }
+    if (char === '~' && bracketDepth === 0) {
+      inGeneric = true
+      continue
+    }
+    if (char === '[') {
+      bracketDepth++
+      continue
+    }
+    if (char === ']') {
+      bracketDepth = Math.max(0, bracketDepth - 1)
+      continue
+    }
     if (bracketDepth === 0 && char === '<' && text[i + 1] === '<') return i
   }
   return -1
@@ -269,9 +290,7 @@ export function parseClassAnnotationStatement(line: string): ParsedClassAnnotati
   const block = bodyInline ? undefined : annotationText.match(/\{\s*\}?$/)?.[0]
   if (block) annotationText = annotationText.slice(0, -block.length).trim()
   const declaration = parseClassDeclaration(`class ${declarationText}`)
-  const annotation = bodyInline
-    ? parseClassBodyAnnotationToken(annotationText)
-    : parseClassAnnotationToken(annotationText)
+  const annotation = bodyInline ? parseClassBodyAnnotationToken(annotationText) : parseClassAnnotationToken(annotationText)
   return declaration && !declaration.opensBody && annotation !== null
     ? {
         id: declaration.id,
@@ -420,9 +439,7 @@ function classifyClassStatement(text: string, authored: string | undefined): Cla
   if (interaction) return { kind: 'interaction', interaction }
   // These actions have an established inert sidecar surface. They remain
   // opaque to editing, but rendering their target is safe and intentional.
-  if (/^callback\s+(?:`[^`]+`|[\w$]+)(?:~[^~]+~)?\s+"[^"\r\n]+"(?:\s+"[^"\r\n]*")?\s*$/i.test(text)
-    || /^click\s+(?:`[^`]+`|[\w$]+)(?:~[^~]+~)?\s+call\s+.+$/i.test(text)
-    || /^(?:click|link)\s+(?:`[^`]+`|[\w$]+)(?:~[^~]+~)?\s+(?:href\s+)?"(?!(?:https?:\/\/|mailto:))[^"\r\n]*"(?:\s+"[^"\r\n]*")?\s*$/i.test(text)) {
+  if (/^callback\s+(?:`[^`]+`|[\w$]+)(?:~[^~]+~)?\s+"[^"\r\n]+"(?:\s+"[^"\r\n]*")?\s*$/i.test(text) || /^click\s+(?:`[^`]+`|[\w$]+)(?:~[^~]+~)?\s+call\s+.+$/i.test(text) || /^(?:click|link)\s+(?:`[^`]+`|[\w$]+)(?:~[^~]+~)?\s+(?:href\s+)?"(?!(?:https?:\/\/|mailto:))[^"\r\n]*"(?:\s+"[^"\r\n]*")?\s*$/i.test(text)) {
     return { kind: 'source-only', reason: 'Class callback or unsafe/relative link is retained as inert source-only action metadata' }
   }
   // Validate note delimiters against authored bytes, then decode content.
@@ -434,10 +451,13 @@ function classifyClassStatement(text: string, authored: string | undefined): Cla
   const note = plainNote ?? noteSource.match(/^note(?:\s+for\s+(\S+))?\s+"((?:\\.|[^"\\])*)"\s*$/i)
   if (note) {
     const reference = note[1] ? parseClassReference(decodeXML(note[1])) : undefined
-    if (!note[1] || reference) return {
-      kind: 'note', text: decodeXML(plainNote ? note[2]! : note[2]!.replace(/\\(["\\])/g, '$1')),
-      ...(reference ? { reference } : {}), ...(!plainNote ? { escapedQuotes: true } : {}),
-    }
+    if (!note[1] || reference)
+      return {
+        kind: 'note',
+        text: decodeXML(plainNote ? note[2]! : note[2]!.replace(/\\(["\\])/g, '$1')),
+        ...(reference ? { reference } : {}),
+        ...(!plainNote ? { escapedQuotes: true } : {}),
+      }
   }
   const title = text.match(/^title\s+(.+)$/i)
   if (title) return { kind: 'title', text: title[1]!.trim() }
@@ -446,7 +466,10 @@ function classifyClassStatement(text: string, authored: string | undefined): Cla
   const namespace = parseNamespaceHeader(text)
   if (namespace) return { kind: 'namespace', ...namespace }
   const references = (raw: string): ClassReference[] | null => {
-    const refs = raw.replace(/^"|"$/g, '').split(',').map(value => parseClassReference(value.trim()))
+    const refs = raw
+      .replace(/^"|"$/g, '')
+      .split(',')
+      .map(value => parseClassReference(value.trim()))
     return refs.every((ref): ref is ClassReference => ref !== null) ? refs : null
   }
   const classDef = text.match(/^classDef\s+([\w,-]+)\s+(.+)$/)
@@ -460,7 +483,10 @@ function classifyClassStatement(text: string, authored: string | undefined): Cla
     // too, parted by commas.
     const quoted = assignment[1] === 'cssClass' && /^"[^"]*"$/.test(assignment[2]!)
     const refs = quoted
-      ? assignment[2]!.slice(1, -1).split(',').map(value => parseClassReference(value.trim()) ?? (value.trim() ? { id: value.trim() } : null))
+      ? assignment[2]!
+          .slice(1, -1)
+          .split(',')
+          .map(value => parseClassReference(value.trim()) ?? (value.trim() ? { id: value.trim() } : null))
       : references(assignment[2]!)
     if (refs?.every((ref): ref is ClassReference => ref !== null)) {
       return { kind: 'assignment', references: refs, name: assignment[3]!, form: assignment[1] === 'class' ? 'class' : quoted ? 'cssClass' : 'cssClassUnquoted' }
@@ -492,9 +518,7 @@ function classifyClassStatement(text: string, authored: string | undefined): Cla
   }
   const relationship = parseClassRelationship(text)
   if (relationship) return { kind: 'relationship', relationship }
-  const form = text.includes('<<') || text.includes('>>') ? 'annotation'
-    : isBareClassRelationshipCandidate(text) || isMarkedClassRelationshipCandidate(text) || isEscapedMarkedClassRelationshipCandidate(text) ? 'relationship'
-    : /^(?:click|link)\b/i.test(text) ? 'link' : ''
+  const form = text.includes('<<') || text.includes('>>') ? 'annotation' : isBareClassRelationshipCandidate(text) || isMarkedClassRelationshipCandidate(text) || isEscapedMarkedClassRelationshipCandidate(text) ? 'relationship' : /^(?:click|link)\b/i.test(text) ? 'link' : ''
   return { kind: 'unknown', reason: `Unrecognized class${form ? ` ${form}` : ''} statement "${text}"` }
 }
 
@@ -534,8 +558,9 @@ function classBodyOpenAt(text: string): number {
   let quote: string | undefined
   for (let index = 0; index < text.length; index++) {
     const character = text[index]!
-    if (quote) { if (character === quote) quote = undefined }
-    else if (character === '"' || character === '`' || character === '~') quote = character
+    if (quote) {
+      if (character === quote) quote = undefined
+    } else if (character === '"' || character === '`' || character === '~') quote = character
     else if (character === '{') return index
   }
   return -1
@@ -584,15 +609,13 @@ function splitClassBlockStatement(text: string, inNamespace: boolean): string[] 
     // ours also reads a statement there, and verify reports it.
     const braces = /^[\s}]*/.exec(after)![0]
     const statement = after.slice(braces.length).trim()
-    return [head, ...splitBlockLineMembers(close < 0 ? rest : rest.slice(0, close)), ...braces.match(/\}/g) ?? [], ...(statement ? [statement] : [])]
+    return [head, ...splitBlockLineMembers(close < 0 ? rest : rest.slice(0, close)), ...(braces.match(/\}/g) ?? []), ...(statement ? [statement] : [])]
   }
   if (!inNamespace) return null
   let end = text.length
   while (end > 0 && /[\s}]/.test(text[end - 1]!)) end--
   const statement = text.slice(0, end)
-  return end < text.length && statement && classifyClassStatement(statement, undefined).kind !== 'unknown'
-    ? [statement, ...text.slice(end).match(/\}/g)!]
-    : null
+  return end < text.length && statement && classifyClassStatement(statement, undefined).kind !== 'unknown' ? [statement, ...text.slice(end).match(/\}/g)!] : null
 }
 
 /** Single owner of namespace and class-body boundaries, classification and
@@ -641,9 +664,7 @@ export function readClassStatements(lines: readonly string[], authoredLines?: re
     const authored = authoredLines ? authoredLines[lineIndex] : raw
     const scanned = scanInlineNamespaceStatement(raw.trim())
     const authoredParts = authored === undefined ? [] : expandInlineNamespaceStatement(authored.trim())
-    let fragments: Array<ClassStatementFragment & { authored?: string }> = scanned.map((fragment, index) => ({ ...fragment,
-      authored: authoredParts.length === scanned.length ? authoredParts[index] : undefined,
-    }))
+    let fragments: Array<ClassStatementFragment & { authored?: string }> = scanned.map((fragment, index) => ({ ...fragment, authored: authoredParts.length === scanned.length ? authoredParts[index] : undefined }))
     // Mermaid's string runs on across line breaks. Where it holds a note, a
     // cardinality or a label, read the lines it spans as one statement with
     // `<br>`, the label line break, for each break, as flowchart does for
@@ -711,9 +732,10 @@ export function readClassStatements(lines: readonly string[], authoredLines?: re
       if (value.kind === 'close' && owner) closedOnLine = inClass ? 'class' : 'namespace'
       if (fragment.compactSemicolon) node.compactSemicolon = true
       if (value.kind === 'close') {
-        if (owner) { owner.closing = node
-          stack.pop() }
-        else {
+        if (owner) {
+          owner.closing = node
+          stack.pop()
+        } else {
           tree.statements.push(node)
           tree.diagnostics.push({ reason: 'Unexpected closing brace in class diagram', source: span })
         }
@@ -728,9 +750,11 @@ export function readClassStatements(lines: readonly string[], authoredLines?: re
       }
     }
   }
-  for (const owner of stack) tree.diagnostics.push({
-    reason: `Unclosed ${owner.value.kind === 'namespace' ? 'namespace' : 'class'} block`, source: owner.source,
-  })
+  for (const owner of stack)
+    tree.diagnostics.push({
+      reason: `Unclosed ${owner.value.kind === 'namespace' ? 'namespace' : 'class'} block`,
+      source: owner.source,
+    })
   return tree
 }
 
@@ -833,9 +857,7 @@ export function parseClassInteraction(line: string): { id: string; generic?: str
   } else if (tail && !startsClassComment(tail)) return null
   const ref = parseClassReference(link[1]!)
   const href = (link[2] ?? link[3] ?? '').replace(/\\(["\\])/g, '$1')
-  return ref && /^(?:https?:|mailto:)/i.test(href) && isSafeActionHref(href) && !/[\u0000-\u0020\u007f-\u009f]/.test(href) && (tooltip === undefined || !/[\u0000-\u001f\u007f-\u009f]/.test(tooltip))
-    ? { id: ref.id, ...(ref.generic ? { generic: ref.generic } : {}), href, ...(tooltip ? { tooltip } : {}) }
-    : null
+  return ref && /^(?:https?:|mailto:)/i.test(href) && isSafeActionHref(href) && !/[\u0000-\u0020\u007f-\u009f]/.test(href) && (tooltip === undefined || !/[\u0000-\u001f\u007f-\u009f]/.test(tooltip)) ? { id: ref.id, ...(ref.generic ? { generic: ref.generic } : {}), href, ...(tooltip ? { tooltip } : {}) } : null
 }
 
 /** Decode authored syntax once while shielding entity-encoded quotes from the
@@ -862,8 +884,7 @@ export function parseClassInteractionWithAuthored(authoredLine: string): ReturnT
     if (parsed.href.includes(quoteMarker)) return null
     const href = parsed.href
     const tooltip = parsed.tooltip?.replaceAll(quoteMarker, '"')
-    if (!isSafeActionHref(href) || /[\u0000-\u0020\u007f-\u009f]/.test(href)
-      || (tooltip !== undefined && /[\u0000-\u001f\u007f-\u009f]/.test(tooltip))) return null
+    if (!isSafeActionHref(href) || /[\u0000-\u0020\u007f-\u009f]/.test(href) || (tooltip !== undefined && /[\u0000-\u001f\u007f-\u009f]/.test(tooltip))) return null
     return { ...parsed, href, ...(tooltip !== undefined ? { tooltip } : {}) }
   }
   const direct = parseProtected(protectedLine)
@@ -934,21 +955,26 @@ export function parseClassDiagram(lines: string[], authoredLines?: string[]): Cl
     })
   }
   const diagram: ClassDiagram = {
-    classes: [], classDefs: new Map(), relationships: [], notes: [], namespaces: [],
-    ...(accessibility.accessibility.title !== undefined
-      ? { accessibilityTitle: normalizeBrTags(accessibility.accessibility.title) } : {}),
-    ...(accessibility.accessibility.descr !== undefined
-      ? { accessibilityDescription: normalizeBrTags(accessibility.accessibility.descr) } : {}),
+    classes: [],
+    classDefs: new Map(),
+    relationships: [],
+    notes: [],
+    namespaces: [],
+    ...(accessibility.accessibility.title !== undefined ? { accessibilityTitle: normalizeBrTags(accessibility.accessibility.title) } : {}),
+    ...(accessibility.accessibility.descr !== undefined ? { accessibilityDescription: normalizeBrTags(accessibility.accessibility.descr) } : {}),
   }
   const classMap = new Map<string, ClassNode>()
+  const allocateInterface = createClassInterfaceAllocator(tree.statements)
   const namespaces = new Map<string, ClassNamespace>()
   const claimed = new Set<string>()
   // cssClass statements naming a class not declared yet: applied once it is.
   const laterCssClasses: Array<{ id: string; name: string }> = []
   const claim = (id: string, path: string): void => {
-    if (path && !claimed.has(id)) { namespaces.get(path)!.classIds.push(id)
+    if (path && !claimed.has(id)) {
+      namespaces.get(path)!.classIds.push(id)
       claimed.add(id)
-      if (parserObservationActive('class')) observeParserMutation('class', 'claim-member', { id, parent: path }) }
+      if (parserObservationActive('class')) observeParserMutation('class', 'claim-member', { id, parent: path })
+    }
   }
   const openNamespace = (path: string, segments: string[], label?: string): string => {
     let children = path ? namespaces.get(path)!.children : diagram.namespaces
@@ -989,19 +1015,29 @@ export function parseClassDiagram(lines: string[], authoredLines?: string[]): Cl
     const frames = [{ nodes, path, owner, index: 0 }]
     while (frames.length) {
       const frame = frames.at(-1)!
-      if (frame.index === frame.nodes.length) { frames.pop()
-        continue }
+      if (frame.index === frame.nodes.length) {
+        frames.pop()
+        continue
+      }
       const node = frame.nodes[frame.index++]!
       const { path, owner } = frame
       const value = node.value
       switch (value.kind) {
-        case 'header': case 'trivia': case 'close': case 'source-only': break
-        case 'namespace': frames.push({ nodes: node.children!, path: openNamespace(path, value.path, value.label), owner: undefined, index: 0 })
+        case 'header':
+        case 'trivia':
+        case 'close':
+        case 'source-only':
+          break
+        case 'namespace':
+          frames.push({ nodes: node.children!, path: openNamespace(path, value.path, value.label), owner: undefined, index: 0 })
           break
         case 'class': {
           const declaration = value.declaration
           const cls = ensureClass(classMap, declaration.id, declaration.generic)
-          if (declaration.label !== undefined) { delete cls.labelContent; Object.assign(cls, classTextLabel(declaration.label)) }
+          if (declaration.label !== undefined) {
+            delete cls.labelContent
+            Object.assign(cls, classTextLabel(declaration.label))
+          }
           if (declaration.className !== undefined) cls.className = declaration.className
           if (parserObservationActive('class')) observeParserMutation('class', 'declare-class', cls, { line: node.source.line, unit: 'normalized' })
           if (declaration.annotation !== undefined) {
@@ -1017,18 +1053,20 @@ export function parseClassDiagram(lines: string[], authoredLines?: string[]): Cl
           addMember(cls, value.text)
           break
         }
-        case 'body-annotation': applyClassAnnotation(owner!, value.text)
+        case 'body-annotation':
+          applyClassAnnotation(owner!, value.text)
           if (parserObservationActive('class')) observeParserMutation('class', 'set-annotation', { id: owner!.id, annotation: owner!.annotation })
           break
         case 'annotation': {
           const annotation = value.annotation
           if (annotation.placement === 'separate' && !classMap.has(annotation.id)) {
-            throw syntaxError({ what: `Annotation targets undeclared class "${annotation.id}"`,
-              expectedForm: 'declare the class before a separate annotation',
-              example: `class ${annotation.id}\n<<${annotation.annotation}>> ${annotation.id}` })
+            throw syntaxError({ what: `Annotation targets undeclared class "${annotation.id}"`, expectedForm: 'declare the class before a separate annotation', example: `class ${annotation.id}\n<<${annotation.annotation}>> ${annotation.id}` })
           }
           const cls = ensureClass(classMap, annotation.id, annotation.generic)
-          if (annotation.label !== undefined) { delete cls.labelContent; Object.assign(cls, classTextLabel(annotation.label)) }
+          if (annotation.label !== undefined) {
+            delete cls.labelContent
+            Object.assign(cls, classTextLabel(annotation.label))
+          }
           if (annotation.className !== undefined) cls.className = annotation.className
           applyClassAnnotation(cls, annotation.annotation)
           if (parserObservationActive('class')) observeParserMutation('class', 'set-annotation', { id: cls.id, annotation: cls.annotation, label: cls.label })
@@ -1051,26 +1089,43 @@ export function parseClassDiagram(lines: string[], authoredLines?: string[]): Cl
           }
           if (parserObservationActive('class')) observeParserMutation('class', 'add-note', diagram.notes.at(-1))
           break
-        case 'title': diagram.title = value.text
+        case 'title':
+          diagram.title = value.text
           if (parserObservationActive('class')) observeParserMutation('class', 'set-title', diagram.title)
           break
-        case 'direction': diagram.direction = value.direction
+        case 'direction':
+          diagram.direction = value.direction
           if (parserObservationActive('class')) observeParserMutation('class', 'set-direction', diagram.direction)
           break
         case 'relationship': {
           const { fromGeneric, toGeneric, ...relationship } = value.relationship
-          ensureClass(classMap, relationship.from, fromGeneric)
-          ensureClass(classMap, relationship.to, toGeneric)
+          const side = classInterfaceSide(relationship)
+          if (side) {
+            const generic = side === 'from' ? fromGeneric : toGeneric
+            const label = relationship[side] + (generic ? `~${generic}~` : '')
+            const id = allocateInterface()
+            const opposite = side === 'from' ? 'to' : 'from'
+            ensureClass(classMap, relationship[opposite], opposite === 'from' ? fromGeneric : toGeneric)
+            const occurrence: ClassNode = { id, label, ...(generic ? { generic } : {}), isInterface: true, attributes: [], methods: [] }
+            classMap.set(id, occurrence)
+            if (parserObservationActive('class')) observeParserMutation('class', 'add-class', occurrence)
+            relationship[side] = id
+          } else {
+            ensureClass(classMap, relationship.from, fromGeneric)
+            ensureClass(classMap, relationship.to, toGeneric)
+          }
           diagram.relationships.push(relationship)
           if (parserObservationActive('class')) observeParserMutation('class', 'add-relationship', relationship, { line: node.source.line, unit: 'normalized' })
           break
         }
-        case 'classDef': for (const name of value.names) {
+        case 'classDef':
+          for (const name of value.names) {
             diagram.classDefs.set(name, { ...value.props })
             if (parserObservationActive('class')) observeParserMutation('class', 'define-class', { name, props: value.props })
           }
           break
-        case 'assignment': case 'style':
+        case 'assignment':
+        case 'style':
           for (const reference of value.references) {
             // A cssClass styles a class declared elsewhere, before or after
             // it, and declares none.
@@ -1087,7 +1142,8 @@ export function parseClassDiagram(lines: string[], authoredLines?: string[]): Cl
             claim(cls.id, path)
           }
           break
-        case 'unknown': break // diagnostics above refuse partial rendering
+        case 'unknown':
+          break // diagnostics above refuse partial rendering
       }
     }
   }
@@ -1096,7 +1152,7 @@ export function parseClassDiagram(lines: string[], authoredLines?: string[]): Cl
     const cls = classMap.get(id)
     if (cls && cls.className === undefined) cls.className = name
   }
-  diagram.classes = [...classMap.values()]
+  diagram.classes = [...classMap.values()].filter(node => !node.isInterface).concat([...classMap.values()].filter(node => node.isInterface))
   assertClassDiagramWork(diagram)
   return diagram
 }
@@ -1204,10 +1260,7 @@ function parseMarkedClassRelationship(line: string): (ClassRelationship & { from
   if (fromToken === 'o' && /[\w$]/.test(before[before.length - 2] ?? '')) fromToken = undefined
   if (toToken === 'o' && /[\w$]/.test(after[1] ?? '')) toToken = undefined
   if (!fromToken && !toToken) return null
-  const endpoints = parseClassRelationEndpoints(
-    before.slice(0, before.length - (fromToken?.length ?? 0)),
-    after.slice(toToken?.length ?? 0),
-  )
+  const endpoints = parseClassRelationEndpoints(before.slice(0, before.length - (fromToken?.length ?? 0)), after.slice(toToken?.length ?? 0))
   if (!endpoints) return null
   const dashed = line[operator] === '.'
   const fromType = fromToken ? endpointRelationshipType(fromToken, dashed) : undefined
@@ -1216,7 +1269,9 @@ function parseMarkedClassRelationship(line: string): (ClassRelationship & { from
   const markerAt = fromType && toType ? 'both' : fromType ? 'from' : 'to'
   const inferredDashed = [fromType, toType].some(kind => kind === 'dependency' || kind === 'realization')
   return {
-    ...endpoints, type, markerAt,
+    ...endpoints,
+    type,
+    markerAt,
     ...(markerAt === 'both' ? { fromType, toType } : {}),
     ...(dashed && !inferredDashed ? { lineStyle: 'dashed' as const } : {}),
   }
@@ -1235,8 +1290,7 @@ function classRelationText(label?: string, fromCardinality?: string, toCardinali
 
 /** Endpoints, generics, cardinalities and labels share one bounded scanner for
  * one-ended and mixed relationships, including escaped IDs with spaces. */
-function parseClassRelationEndpoints(leftSource: string, rightSource: string):
-  (Omit<ClassRelationship, 'type' | 'markerAt'> & { fromGeneric?: string; toGeneric?: string }) | null {
+function parseClassRelationEndpoints(leftSource: string, rightSource: string): (Omit<ClassRelationship, 'type' | 'markerAt'> & { fromGeneric?: string; toGeneric?: string }) | null {
   let left = leftSource.trim()
   let right = rightSource.trim()
   let fromCardinality: string | undefined
@@ -1253,18 +1307,30 @@ function parseClassRelationEndpoints(leftSource: string, rightSource: string):
   let inGeneric = false
   for (let i = 0; i < right.length; i++) {
     const char = right[i]!
-    if (inBacktick) { if (char === '`') inBacktick = false
-      continue }
-    if (inQuote) { if (char === '"') inQuote = false
-      continue }
-    if (inGeneric) { if (char === '~') inGeneric = false
-      continue }
-    if (char === '`') { inBacktick = true
-      continue }
-    if (char === '"') { inQuote = true
-      continue }
-    if (char === '~') { inGeneric = true
-      continue }
+    if (inBacktick) {
+      if (char === '`') inBacktick = false
+      continue
+    }
+    if (inQuote) {
+      if (char === '"') inQuote = false
+      continue
+    }
+    if (inGeneric) {
+      if (char === '~') inGeneric = false
+      continue
+    }
+    if (char === '`') {
+      inBacktick = true
+      continue
+    }
+    if (char === '"') {
+      inQuote = true
+      continue
+    }
+    if (char === '~') {
+      inGeneric = true
+      continue
+    }
     if (char === ':') {
       const rawLabel = right.slice(i + 1).trim()
       if (!rawLabel || /[:;]/.test(rawLabel.replace(/(?<!&)#\w+;/g, ''))) return null
@@ -1284,7 +1350,8 @@ function parseClassRelationEndpoints(leftSource: string, rightSource: string):
   const toRef = parseClassReference(right)
   if (!fromRef || !toRef || !supportedRelationEndpoint(fromRef.id, left) || !supportedRelationEndpoint(toRef.id, right)) return null
   return {
-    from: fromRef.id, to: toRef.id,
+    from: fromRef.id,
+    to: toRef.id,
     ...classRelationText(label, fromCardinality, toCardinality),
     ...(fromRef.generic ? { fromGeneric: fromRef.generic } : {}),
     ...(toRef.generic ? { toGeneric: toRef.generic } : {}),
@@ -1319,18 +1386,30 @@ function parseMarkerlessClassRelationship(line: string): (ClassRelationship & { 
   let label: string | undefined
   for (let i = 0; i < right.length; i++) {
     const char = right[i]!
-    if (inBacktick) { if (char === '`') inBacktick = false
-      continue }
-    if (inQuote) { if (char === '"') inQuote = false
-      continue }
-    if (inGeneric) { if (char === '~') inGeneric = false
-      continue }
-    if (char === '`') { inBacktick = true
-      continue }
-    if (char === '"') { inQuote = true
-      continue }
-    if (char === '~') { inGeneric = true
-      continue }
+    if (inBacktick) {
+      if (char === '`') inBacktick = false
+      continue
+    }
+    if (inQuote) {
+      if (char === '"') inQuote = false
+      continue
+    }
+    if (inGeneric) {
+      if (char === '~') inGeneric = false
+      continue
+    }
+    if (char === '`') {
+      inBacktick = true
+      continue
+    }
+    if (char === '"') {
+      inQuote = true
+      continue
+    }
+    if (char === '~') {
+      inGeneric = true
+      continue
+    }
     if (char === ':') {
       const rawLabel = right.slice(i + 1).trim()
       // Mermaid requires non-empty Class label text and rejects a second
@@ -1363,17 +1442,14 @@ function parseMarkerlessClassRelationship(line: string): (ClassRelationship & { 
   }
 }
 
-const BARE_RELATION_RESERVED_IDS = new Set([
-  'o', 'class', 'note', 'namespace', 'click', 'link', 'style', 'classDef', 'cssClass'])
+const BARE_RELATION_RESERVED_IDS = new Set(['o', 'class', 'note', 'namespace', 'click', 'link', 'style', 'classDef', 'cssClass'])
 const BARE_RELATION_ESCAPED_RESERVED_IDS = new Set(['note', 'click', 'link', 'cssClass'])
 
 /** Mermaid's relationship endpoint lexer reserves keywords/`o` and rejects
  * unescaped dollar signs. Escaped IDs containing `~` denote a generic base
  * identity upstream, which this relationship model cannot yet preserve. */
 export function supportedRelationEndpoint(id: string, raw: string): boolean {
-  return raw.startsWith('`')
-    ? !BARE_RELATION_ESCAPED_RESERVED_IDS.has(id) && !id.includes('~')
-    : !id.includes('$') && !BARE_RELATION_RESERVED_IDS.has(id)
+  return raw.startsWith('`') ? !BARE_RELATION_ESCAPED_RESERVED_IDS.has(id) && !id.includes('~') : !id.includes('$') && !BARE_RELATION_RESERVED_IDS.has(id)
 }
 
 function findMarkerlessRelationshipOperator(line: string): number {
@@ -1382,18 +1458,30 @@ function findMarkerlessRelationshipOperator(line: string): number {
   let inGeneric = false
   for (let i = 0; i < line.length - 1; i++) {
     const char = line[i]!
-    if (inBacktick) { if (char === '`') inBacktick = false
-      continue }
-    if (inQuote) { if (char === '"') inQuote = false
-      continue }
-    if (inGeneric) { if (char === '~') inGeneric = false
-      continue }
-    if (char === '`') { inBacktick = true
-      continue }
-    if (char === '"') { inQuote = true
-      continue }
-    if (char === '~') { inGeneric = true
-      continue }
+    if (inBacktick) {
+      if (char === '`') inBacktick = false
+      continue
+    }
+    if (inQuote) {
+      if (char === '"') inQuote = false
+      continue
+    }
+    if (inGeneric) {
+      if (char === '~') inGeneric = false
+      continue
+    }
+    if (char === '`') {
+      inBacktick = true
+      continue
+    }
+    if (char === '"') {
+      inQuote = true
+      continue
+    }
+    if (char === '~') {
+      inGeneric = true
+      continue
+    }
     if ((char === '-' || char === '.') && line[i + 1] === char) return i
   }
   return -1
@@ -1407,11 +1495,8 @@ function isMarkedRelationshipOperator(line: string, operator: number): boolean {
   if (line[operator] === '.') {
     return /(?:<\||<)$/.test(before) || /^(?:>|\|>)/.test(after)
   }
-  const spacedPrefixO = before.endsWith('o')
-    && /\s/.test(before[before.length - 2] ?? '')
-    && before.slice(0, -2).trim().length > 0
-  return /(?:<\||<|\*|\(\))$/.test(before) || spacedPrefixO
-    || /^(?:>|\|>|\*|o\s+(?![:%])\S|\(\))/.test(after)
+  const spacedPrefixO = before.endsWith('o') && /\s/.test(before[before.length - 2] ?? '') && before.slice(0, -2).trim().length > 0
+  return /(?:<\||<|\*|\(\))$/.test(before) || spacedPrefixO || /^(?:>|\|>|\*|o\s+(?![:%])\S|\(\))/.test(after)
 }
 
 /** Only the shared parser may accept bare links. A failed bare-link parse must
@@ -1437,9 +1522,7 @@ export function isEscapedMarkedClassRelationshipCandidate(line: string): boolean
   const afterOperator = line.slice(operator + 2)
   // The bare-link discriminator predates two-ended dashed diamond/circle
   // markers. Such escaped links must not fall through to a solid two-way edge.
-  const dashedTwoEnded = line[operator] === '.'
-    && /(?:\*|o)$/.test(before)
-    && /^(?:\*|o|>|\|>|<)/.test(afterOperator)
+  const dashedTwoEnded = line[operator] === '.' && /(?:\*|o)$/.test(before) && /^(?:\*|o|>|\|>|<)/.test(afterOperator)
   if (!isMarkedRelationshipOperator(line, operator) && !dashedTwoEnded) return false
   if (line.slice(0, operator).trimStart().startsWith('`')) return true
   let after = line.slice(operator + 2).trimStart()
@@ -1451,7 +1534,7 @@ export function isEscapedMarkedClassRelationshipCandidate(line: string): boolean
 /** Marker meaning and shaft style are independent for diamonds and circles. */
 function endpointRelationshipType(token: string, dashed: boolean): RelationshipType {
   if (token === '()') return 'lollipop'
-  if (token === '*' ) return 'composition'
+  if (token === '*') return 'composition'
   if (token === 'o') return 'aggregation'
   if (token.includes('|')) return dashed ? 'realization' : 'inheritance'
   return dashed ? 'dependency' : 'association'
@@ -1459,6 +1542,5 @@ function endpointRelationshipType(token: string, dashed: boolean): RelationshipT
 
 /** Resolve old programmatic defaults while honoring an explicitly authored shaft. */
 export function classRelationshipLineStyle(relation: Pick<ClassRelationship, 'type' | 'fromType' | 'toType' | 'lineStyle'>): 'solid' | 'dashed' {
-  return relation.lineStyle ?? ([relation.type, relation.fromType, relation.toType]
-    .some(kind => kind === 'dependency' || kind === 'realization' || kind === 'link-dashed') ? 'dashed' : 'solid')
+  return relation.lineStyle ?? ([relation.type, relation.fromType, relation.toType].some(kind => kind === 'dependency' || kind === 'realization' || kind === 'link-dashed') ? 'dashed' : 'solid')
 }

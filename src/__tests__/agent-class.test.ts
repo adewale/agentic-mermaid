@@ -1,10 +1,10 @@
 // Phase C: structured class diagram support.
 
-import { describe, test, expect } from 'bun:test'
-import { parseRegisteredMermaid as parseMermaid, asClass, mutate, mutateChecked, applyOps, serializeMermaid, verifyMermaid, renderMermaidSVG } from '../agent/index.ts'
-import { parseClassDiagram } from '../class/parser.ts'
+import { describe, expect, test } from 'bun:test'
 import { classUnsupportedSyntaxWarnings } from '../agent/class-body.ts'
+import { applyOps, asClass, mutate, mutateChecked, parseRegisteredMermaid as parseMermaid, renderMermaidSVG, serializeMermaid, verifyMermaid } from '../agent/index.ts'
 import type { ClassMutationOp } from '../agent/types.ts'
+import { parseClassDiagram } from '../class/parser.ts'
 import { startUpstreamMermaid } from './helpers/upstream-mermaid.ts'
 
 const parse = (s: string) => {
@@ -21,23 +21,13 @@ describe('class — parse', () => {
     const diagram = parse(source)
     if (diagram.body.kind !== 'class') throw new Error('expected editable nested Class body')
     expect(diagram.body.namespaces).toHaveLength(depth)
-    expect(diagram.body.classes.map(node => ({ id: node.id, namespace: node.namespace }))).toEqual([
-      { id: 'A', namespace: `${'N.'.repeat(depth - 1)}N` },
-    ])
+    expect(diagram.body.classes.map(node => ({ id: node.id, namespace: node.namespace }))).toEqual([{ id: 'A', namespace: `${'N.'.repeat(depth - 1)}N` }])
     expect(diagram.source.nodes.get('A')).toEqual({ line: depth + 2, col: 7 })
     expect(() => parseClassDiagram(['classDiagram', ...lines])).toThrow(/DIAGRAM_WORK_LIMIT/)
     expect(classUnsupportedSyntaxWarnings(source)).toEqual([])
   })
 
-  test.each([
-    'class A\nfuture statement',
-    'class A {\n+String name',
-    'namespace Domain {\nclass A',
-    'class A\n}',
-    'class A\nclass A,bad-id hot',
-    'note "A &#10; B"',
-    'note for A "A &#13; B"',
-  ])('preserves source rather than exposing a partial editable model: %s', body => {
+  test.each(['class A\nfuture statement', 'class A {\n+String name', 'namespace Domain {\nclass A', 'class A\n}', 'class A\nclass A,bad-id hot', 'note "A &#10; B"', 'note for A "A &#13; B"'])('preserves source rather than exposing a partial editable model: %s', body => {
     const source = `classDiagram\n${body}`
     const diagram = parse(source)
     expect(diagram.body.kind).toBe('opaque')
@@ -57,10 +47,7 @@ describe('class — parse', () => {
     const changed = mutate(typed, { kind: 'add_member', class: 'A', text: '+String name' })
     if (!changed.ok) throw new Error(JSON.stringify(changed.error))
     const reloaded = asClass(parse(serializeMermaid(changed.value)))
-    expect(reloaded?.body.classes).toEqual([
-      expect.objectContaining({ id: 'A', label: 'Before; after', namespace: 'Domain', members: ['+String name'] }),
-      expect.objectContaining({ id: 'B', namespace: 'Domain', members: [] }),
-    ])
+    expect(reloaded?.body.classes).toEqual([expect.objectContaining({ id: 'A', label: 'Before; after', namespace: 'Domain', members: ['+String name'] }), expect.objectContaining({ id: 'B', namespace: 'Domain', members: [] })])
   })
 
   test('quoted notes create their target and survive escaping on reload', () => {
@@ -71,9 +58,13 @@ note for A "A \"quote\" and \\ path"`)
     if (!typed) throw new Error('expected editable Class body')
     expect(typed.body.classes.map(node => node.id)).toEqual(['A'])
     expect(typed.body.notes).toEqual([{ for: 'A', text: 'A "quote" and \\ path' }])
-    expect(verifyMermaid(diagram).warnings).toContainEqual(expect.objectContaining({
-      code: 'UNSUPPORTED_SYNTAX', syntax: 'class_escaped_note_quotes', line: 2,
-    }))
+    expect(verifyMermaid(diagram).warnings).toContainEqual(
+      expect.objectContaining({
+        code: 'UNSUPPORTED_SYNTAX',
+        syntax: 'class_escaped_note_quotes',
+        line: 2,
+      }),
+    )
     expect(asClass(parse(serializeMermaid(diagram)))?.body.notes).toEqual([{ for: 'A', text: 'A "quote" and \\ path' }])
   })
 
@@ -83,7 +74,8 @@ note for A "A \"quote\" and \\ path"`)
     expect(typed).not.toBeNull()
     if (!typed) throw new Error('expected editable Class body')
     const expected = [
-      { id: 'A', className: 'hot', members: [] }, { id: 'B', className: 'cold', members: ['+int count'] },
+      { id: 'A', className: 'hot', members: [] },
+      { id: 'B', className: 'cold', members: ['+int count'] },
     ]
     const facts = (body: typeof typed.body) => body.classes.map(node => ({ id: node.id, className: node.className, members: node.members }))
     expect(facts(typed.body)).toEqual(expected)
@@ -136,8 +128,13 @@ note for A "A \"quote\" and \\ path"`)
     const d = parse('classDiagram\n  Customer "1" --> "*" Ticket : buys')
     if (d.body.kind !== 'class') throw new Error()
     expect(d.body.relations[0]).toEqual({
-      from: 'Customer', to: 'Ticket', kind: 'association', markerAt: 'to',
-      label: 'buys', fromCardinality: '1', toCardinality: '*',
+      from: 'Customer',
+      to: 'Ticket',
+      kind: 'association',
+      markerAt: 'to',
+      label: 'buys',
+      fromCardinality: '1',
+      toCardinality: '*',
     })
   })
 
@@ -171,24 +168,32 @@ describe('class — mutate', () => {
       { kind: 'add_class', id: 'B', members: ['+valid()', text] },
     ] satisfies ClassMutationOp[]) {
       for (const apply of [mutate, mutateChecked]) {
-        expect(apply(original, op)).toEqual({ ok: false, error: {
-          code: 'INVALID_OP', message: 'Class members must be single lines; add each member separately',
-        } })
+        expect(apply(original, op)).toEqual({
+          ok: false,
+          error: {
+            code: 'INVALID_OP',
+            message: 'Class members must be single lines; add each member separately',
+          },
+        })
         expect(original.body.classes).toEqual([{ id: 'A', label: undefined, generic: undefined, members: [] }])
         expect(serializeMermaid(original)).toBe('classDiagram\n  class A\n')
       }
       expect(applyOps({ source: 'classDiagram\nclass A', ops: [op] })).toMatchObject({
-        ok: false, opIndex: 0, error: { code: 'INVALID_OP', message: 'Class members must be single lines; add each member separately' },
+        ok: false,
+        opIndex: 0,
+        error: { code: 'INVALID_OP', message: 'Class members must be single lines; add each member separately' },
       })
     }
   })
 
   test.each([
     ...['%% comment', ' \t%% comment', '%%{init: {"theme":"dark"}}%%', '&#37;&#37; comment', ' \t'].map(text => ({
-      text, message: 'Class members must contain text, not blank lines, comments or init directives',
+      text,
+      message: 'Class members must contain text, not blank lines, comments or init directives',
     })),
     ...['accTitle: lost', ' \tACCTITLE lost', 'accDescr: lost', 'accDescr { lost }', 'accDescr {}', 'accDescr { lost } +kept()', '&#97;ccDescr&#123;lost&#125;', 'accDescr {'].map(text => ({
-      text, message: 'Class members cannot be accessibility directives',
+      text,
+      message: 'Class members cannot be accessibility directives',
     })),
   ])('refuses member text that source preprocessing would remove: $text', ({ text, message }) => {
     const source = 'classDiagram\nclass A'
@@ -267,9 +272,13 @@ describe('class — mutate', () => {
     const typed = asClass(original)
     if (!typed) throw new Error('expected editable Class body')
     const result = mutate(typed, { kind: 'add_note', for: 'A', text: `Before${lineBreak}after` })
-    expect(result).toEqual({ ok: false, error: {
-      code: 'INVALID_OP', message: 'Class note text must be a single line; use <br/> for displayed line breaks',
-    } })
+    expect(result).toEqual({
+      ok: false,
+      error: {
+        code: 'INVALID_OP',
+        message: 'Class note text must be a single line; use <br/> for displayed line breaks',
+      },
+    })
     expect(typed.body.notes).toEqual([])
     expect(serializeMermaid(typed)).toBe('classDiagram\n  class A\n')
   })
@@ -387,9 +396,13 @@ describe('class — round-trip', () => {
   ])('keeps $lineBreak relation text and entities portable through edits of $arrow', async ({ arrow, lineBreak }) => {
     const source = `classDiagram\nA "&amp;amp;${lineBreak}one" ${arrow} "&amp;quot;${lineBreak}two" B : top & middle${lineBreak}bottom`
     const original = asClass(parse(source))!
-    expect(original.body.relations).toEqual([expect.objectContaining({
-      label: 'top & middle\nbottom', fromCardinality: '&amp;amp;\none', toCardinality: '&amp;quot;\ntwo',
-    })])
+    expect(original.body.relations).toEqual([
+      expect.objectContaining({
+        label: 'top & middle\nbottom',
+        fromCardinality: '&amp;amp;\none',
+        toCardinality: '&amp;quot;\ntwo',
+      }),
+    ])
     const upstream = startUpstreamMermaid()
     try {
       expect(await upstream.accepts(source)).toBe(true)
@@ -497,9 +510,11 @@ describe('class — round-trip', () => {
     const relationSource = kind === 'lollipop' ? `Person ${arrow} Animal : related` : `Person "one" ${arrow} "many" Animal : related`
     const source = `classDiagram\n${relationSource}`
     const original = asClass(parse(source))!
-    const expected = { from: 'Person', to: 'Animal', kind, markerAt, label: 'related', ...(kind === 'lollipop' ? {} : { fromCardinality: 'one', toCardinality: 'many' }) }
+    const from = kind === 'lollipop' && markerAt === 'from' ? 'interface0' : 'Person'
+    const to = kind === 'lollipop' && markerAt === 'to' ? 'interface0' : 'Animal'
+    const expected = { from, to, kind, markerAt, label: 'related', ...(kind === 'lollipop' ? {} : { fromCardinality: 'one', toCardinality: 'many' }) }
     expect(original.body.relations).toEqual([expect.objectContaining(expected)])
-    const edited = mutate(original, { kind: 'add_member', class: 'Person', text: '+name: String' })
+    const edited = mutate(original, { kind: 'add_member', class: from === 'interface0' ? 'Animal' : 'Person', text: '+name: String' })
     if (!edited.ok) throw new Error(JSON.stringify(edited.error))
     const exported = serializeMermaid(edited.value)
     expect(exported).toContain(relationSource)
@@ -511,7 +526,7 @@ describe('class — round-trip', () => {
       const svg = renderMermaidSVG(input)
       const relation = svg.match(/<polyline\b[^>]*class="class-relationship"[^>]*>/)?.[0]
       expect(relation).toBeDefined()
-      expect(relation).toContain('data-from="Person" data-to="Animal"')
+      expect(relation).toContain(`data-from="${from}" data-to="${to}"`)
       expect(relation!.match(/marker-start="url\(#([^)]*)\)"/)?.[1] ?? '').toBe(start)
       expect(relation!.match(/marker-end="url\(#([^)]*)\)"/)?.[1] ?? '').toBe(end)
     }
@@ -526,7 +541,8 @@ describe('class — round-trip', () => {
     expect(typed).not.toBeNull()
     if (!typed) throw new Error('round-trip lost the editable Class model')
     expect(typed.body.classes.map(node => ({ id: node.id, members: node.members }))).toEqual([
-      { id: 'Animal', members: ['+String name', '+eat()'] }, { id: 'Dog', members: [] },
+      { id: 'Animal', members: ['+String name', '+eat()'] },
+      { id: 'Dog', members: [] },
     ])
     expect(typed.body.relations).toEqual([{ from: 'Animal', to: 'Dog', kind: 'inheritance', markerAt: 'from' }])
     const out2 = serializeMermaid(reloaded)

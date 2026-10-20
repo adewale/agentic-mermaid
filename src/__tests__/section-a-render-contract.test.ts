@@ -46,6 +46,7 @@ const EXPECTED_BUILTIN_OPTION_APPLICABILITY = {
   interactive: ['xychart', 'pie', 'quadrant'],
   shadow: ['flowchart', 'state', 'sequence', 'timeline', 'class', 'er', 'journey', 'xychart', 'pie', 'quadrant', 'gantt', 'mindmap', 'gitgraph', 'sankey'],
   class: ['class'],
+  kanban: ['kanban'],
   architecture: ['architecture'],
   timeline: ['timeline'],
   journey: ['journey'],
@@ -62,6 +63,7 @@ const FAMILY_SCOPED_OPTION_VALUES = {
   interactive: true,
   shadow: true,
   class: { hierarchicalNamespaces: false },
+  kanban: { maxWidth: 600 },
   architecture: { visual: { groupCornerRadius: 12 } },
   timeline: { maxWidth: 300 },
   journey: { experienceCurve: false },
@@ -317,6 +319,7 @@ describe('Section A canonical render contracts', () => {
     expect(context).toEqual({
       renderOptions: request.renderOptions,
       styleFace: request.appearance.face,
+      paintBackendId: 'backend:default',
     })
     expect(Object.isFrozen(context)).toBe(true)
     expect(Object.getOwnPropertySymbols(request.renderOptions)).toEqual([])

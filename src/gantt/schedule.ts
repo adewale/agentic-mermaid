@@ -22,18 +22,12 @@
 //   - iteration counts are bounded (GANTT_SCHEDULE_OVERFLOW), never infinite.
 // ============================================================================
 
-import type {
-  GanttModel, GanttModelTask, GanttCalendar, GanttClock, GanttSchedule,
-  GanttScheduleAnalysis, ScheduledGanttTask, GanttCalendarToken, GanttWeekday,
-  EpochMs,
-} from './types.ts'
-import { GanttError } from './types.ts'
 import { GANTT_DURATION_RE } from './parser.ts'
-import { performanceExperimentEnabled } from '../experimental-performance.ts'
+import type { EpochMs, GanttCalendar, GanttCalendarToken, GanttClock, GanttModel, GanttModelTask, GanttSchedule, GanttScheduleAnalysis, GanttWeekday, ScheduledGanttTask } from './types.ts'
+import { GanttError } from './types.ts'
 
 export const DAY_MS = 86_400_000
 const MAX_CALENDAR_STEPS = 10_000
-const weeklyExcludedDays = new WeakMap<(dayStartMs: EpochMs) => boolean, number>()
 
 // ---- Pure date arithmetic ---------------------------------------------------
 
@@ -54,7 +48,13 @@ export function dayOfWeek(ms: EpochMs): number {
 }
 
 export const WEEKDAY_INDEX: Record<GanttWeekday, number> = {
-  sunday: 0, monday: 1, tuesday: 2, wednesday: 3, thursday: 4, friday: 5, saturday: 6,
+  sunday: 0,
+  monday: 1,
+  tuesday: 2,
+  wednesday: 3,
+  thursday: 4,
+  friday: 5,
+  saturday: 6,
 }
 
 function utcMs(year: number, month: number, day: number, hour = 0, minute = 0, second = 0, msec = 0): EpochMs | null {
@@ -67,8 +67,14 @@ function utcMs(year: number, month: number, day: number, hour = 0, minute = 0, s
   return t
 }
 
-interface DateFormatToken { kind: 'field'; field: string }
-interface LiteralToken { kind: 'literal'; text: string }
+interface DateFormatToken {
+  kind: 'field'
+  field: string
+}
+interface LiteralToken {
+  kind: 'literal'
+  text: string
+}
 
 const DATE_FIELD_TOKENS = ['YYYY', 'YY', 'MM', 'M', 'DD', 'D', 'HH', 'H', 'mm', 'm', 'ss', 's', 'SSS', 'X', 'x'] as const
 const TIME_FIELDS = new Set(['HH', 'H', 'mm', 'm', 'ss', 's', 'SSS', 'X', 'x'])
@@ -119,21 +125,96 @@ export function parseGanttDate(raw: string, format: string): EpochMs | null {
       continue
     }
     switch (t.field) {
-      case 'YYYY': { const n = readDigits(4, 4); if (n === null) return null; fields.year = n; break }
-      case 'YY': { const n = readDigits(2, 2); if (n === null) return null; fields.year = 2000 + n; break }
-      case 'MM': { const n = readDigits(2, 2); if (n === null) return null; fields.month = n; break }
-      case 'M': { const n = readDigits(1, 2); if (n === null) return null; fields.month = n; break }
-      case 'DD': { const n = readDigits(2, 2); if (n === null) return null; fields.day = n; break }
-      case 'D': { const n = readDigits(1, 2); if (n === null) return null; fields.day = n; break }
-      case 'HH': { const n = readDigits(2, 2); if (n === null) return null; fields.hour = n; break }
-      case 'H': { const n = readDigits(1, 2); if (n === null) return null; fields.hour = n; break }
-      case 'mm': { const n = readDigits(2, 2); if (n === null) return null; fields.minute = n; break }
-      case 'm': { const n = readDigits(1, 2); if (n === null) return null; fields.minute = n; break }
-      case 'ss': { const n = readDigits(2, 2); if (n === null) return null; fields.second = n; break }
-      case 's': { const n = readDigits(1, 2); if (n === null) return null; fields.second = n; break }
-      case 'SSS': { const n = readDigits(3, 3); if (n === null) return null; fields.msec = n; break }
-      case 'X': { const n = readDigits(1, 11); if (n === null) return null; fields.unix = n; break }
-      case 'x': { const n = readDigits(1, 14); if (n === null) return null; fields.unixMs = n; break }
+      case 'YYYY': {
+        const n = readDigits(4, 4)
+        if (n === null) return null
+        fields.year = n
+        break
+      }
+      case 'YY': {
+        const n = readDigits(2, 2)
+        if (n === null) return null
+        fields.year = 2000 + n
+        break
+      }
+      case 'MM': {
+        const n = readDigits(2, 2)
+        if (n === null) return null
+        fields.month = n
+        break
+      }
+      case 'M': {
+        const n = readDigits(1, 2)
+        if (n === null) return null
+        fields.month = n
+        break
+      }
+      case 'DD': {
+        const n = readDigits(2, 2)
+        if (n === null) return null
+        fields.day = n
+        break
+      }
+      case 'D': {
+        const n = readDigits(1, 2)
+        if (n === null) return null
+        fields.day = n
+        break
+      }
+      case 'HH': {
+        const n = readDigits(2, 2)
+        if (n === null) return null
+        fields.hour = n
+        break
+      }
+      case 'H': {
+        const n = readDigits(1, 2)
+        if (n === null) return null
+        fields.hour = n
+        break
+      }
+      case 'mm': {
+        const n = readDigits(2, 2)
+        if (n === null) return null
+        fields.minute = n
+        break
+      }
+      case 'm': {
+        const n = readDigits(1, 2)
+        if (n === null) return null
+        fields.minute = n
+        break
+      }
+      case 'ss': {
+        const n = readDigits(2, 2)
+        if (n === null) return null
+        fields.second = n
+        break
+      }
+      case 's': {
+        const n = readDigits(1, 2)
+        if (n === null) return null
+        fields.second = n
+        break
+      }
+      case 'SSS': {
+        const n = readDigits(3, 3)
+        if (n === null) return null
+        fields.msec = n
+        break
+      }
+      case 'X': {
+        const n = readDigits(1, 11)
+        if (n === null) return null
+        fields.unix = n
+        break
+      }
+      case 'x': {
+        const n = readDigits(1, 14)
+        if (n === null) return null
+        fields.unixMs = n
+        break
+      }
     }
   }
   if (pos !== raw.length) return null
@@ -147,7 +228,12 @@ export function parseGanttDate(raw: string, format: string): EpochMs | null {
 }
 
 const DURATION_UNIT_MS: Record<string, number> = {
-  ms: 1, s: 1000, m: 60_000, h: 3_600_000, d: DAY_MS, w: 7 * DAY_MS,
+  ms: 1,
+  s: 1000,
+  m: 60_000,
+  h: 3_600_000,
+  d: DAY_MS,
+  w: 7 * DAY_MS,
 }
 
 /**
@@ -195,8 +281,14 @@ function resolveCalendarDays(tokens: GanttCalendarToken[], calendar: GanttCalend
   const weekdays = new Set<number>()
   let weekends = false
   for (const tok of tokens) {
-    if (tok.kind === 'weekends') { weekends = true; continue }
-    if (tok.kind === 'weekday') { weekdays.add(WEEKDAY_INDEX[tok.day]); continue }
+    if (tok.kind === 'weekends') {
+      weekends = true
+      continue
+    }
+    if (tok.kind === 'weekday') {
+      weekdays.add(WEEKDAY_INDEX[tok.day])
+      continue
+    }
     const parsed = parseGanttDate(tok.raw, calendar.dateFormat) ?? parseGanttDate(tok.raw, 'YYYY-MM-DD')
     if (parsed === null) {
       throw new GanttError('GANTT_BAD_DATE', `Invalid calendar date "${tok.raw}" for dateFormat "${calendar.dateFormat}"`)
@@ -214,7 +306,7 @@ export function buildExclusionPredicate(calendar: GanttCalendar): (dayStartMs: E
   const ex = resolveCalendarDays(calendar.excludes, calendar)
   const inc = resolveCalendarDays(calendar.includes, calendar)
   const weekendDays: number[] = calendar.weekendStart === 'friday' ? [5, 6] : [6, 0]
-  const isExcluded = (dayStartMs: EpochMs): boolean => {
+  return (dayStartMs: EpochMs): boolean => {
     const day = epochDay(dayStartMs)
     const dow = dayOfWeek(dayStartMs)
     const included = inc.days.has(day) || inc.weekdays.has(dow) || (inc.weekends && weekendDays.includes(dow))
@@ -224,15 +316,6 @@ export function buildExclusionPredicate(calendar: GanttCalendar): (dayStartMs: E
     if (ex.weekends && weekendDays.includes(dow)) return true
     return false
   }
-  // Explicit dates break weekly periodicity, even when they are outside this
-  // task's interval. Derive the pattern from the resolved predicate so weekday
-  // includes and the Friday weekend policy retain their normal precedence.
-  if (performanceExperimentEnabled('gantt-intervals') && ex.days.size === 0 && inc.days.size === 0) {
-    let excluded = 0
-    for (let day = 0; day < 7; day++) if (isExcluded(day * DAY_MS)) excluded++
-    weeklyExcludedDays.set(isExcluded, excluded)
-  }
-  return isExcluded
 }
 
 /**
@@ -247,38 +330,13 @@ export function buildExclusionPredicate(calendar: GanttCalendar): (dayStartMs: E
  * Explicit (manual) end dates never pass through this. Bounded by
  * MAX_CALENDAR_STEPS.
  */
-function extendOverExcludedDays(
-  start: EpochMs,
-  end: EpochMs,
-  isExcluded: (d: EpochMs) => boolean,
-  line?: number,
-): { end: EpochMs; renderEnd: EpochMs } {
+function extendOverExcludedDays(start: EpochMs, end: EpochMs, isExcluded: (d: EpochMs) => boolean, line?: number): { end: EpochMs; renderEnd: EpochMs } {
   let cursor = start + DAY_MS
   let result = end
   let renderEnd = end
   let invalid = false
   let steps = 0
-  const excludedPerWeek = performanceExperimentEnabled('gantt-intervals') ? weeklyExcludedDays.get(isExcluded) : undefined
   while (cursor <= result) {
-    if (excludedPerWeek !== undefined && excludedPerWeek < 7) {
-      const remaining = Math.floor((result - cursor) / DAY_MS) + 1
-      const weeks = Math.floor((remaining - 7) / (7 - excludedPerWeek))
-      if (weeks > 0) {
-        const skipped = weeks * 7
-        if (skipped > MAX_CALENDAR_STEPS - steps) {
-          throw new GanttError('GANTT_SCHEDULE_OVERFLOW', `Calendar exclusion walk exceeded ${MAX_CALENDAR_STEPS} days (is every day excluded?)`, line)
-        }
-        // Each complete week advances seven cursor days and adds one day per
-        // exclusion to the result. Charge every skipped iteration to the same
-        // safety budget, and retain a full tail week to recover renderEnd's
-        // preceding-working-day semantics with the original exact walk.
-        cursor += skipped * DAY_MS
-        result += weeks * excludedPerWeek * DAY_MS
-        steps += skipped
-        invalid = isExcluded(cursor - DAY_MS)
-        continue
-      }
-    }
     if (++steps > MAX_CALENDAR_STEPS) {
       throw new GanttError('GANTT_SCHEDULE_OVERFLOW', `Calendar exclusion walk exceeded ${MAX_CALENDAR_STEPS} days (is every day excluded?)`, line)
     }
@@ -292,7 +350,10 @@ function extendOverExcludedDays(
 
 // ---- Resolver ---------------------------------------------------------------
 
-interface DependencyEdge { from: number; to: number }
+interface DependencyEdge {
+  from: number
+  to: number
+}
 
 function dependencyIndexes(task: GanttModelTask, byId: Map<string, GanttModelTask>, prev: GanttModelTask | undefined): number[] {
   const deps: number[] = []
@@ -400,7 +461,7 @@ export function resolveGanttSchedule(model: GanttModel, clock: GanttClock = {}):
     }
 
     let renderEnd = end
-    if (!manualEnd && (calendar.excludes.length > 0)) {
+    if (!manualEnd && calendar.excludes.length > 0) {
       const fixed = extendOverExcludedDays(start, end, isExcludedDay, task.line)
       end = fixed.end
       renderEnd = fixed.renderEnd
@@ -410,8 +471,16 @@ export function resolveGanttSchedule(model: GanttModel, clock: GanttClock = {}):
     if (renderEnd > end) renderEnd = end
 
     const scheduled: ScheduledGanttTask = {
-      index: task.index, id: task.id, label: task.label, tags: task.tags,
-      sectionIndex: task.sectionIndex, start, end, renderEnd, manualEnd, line: task.line,
+      index: task.index,
+      id: task.id,
+      label: task.label,
+      tags: task.tags,
+      sectionIndex: task.sectionIndex,
+      start,
+      end,
+      renderEnd,
+      manualEnd,
+      line: task.line,
     }
     resolved[task.index] = scheduled
     return scheduled
@@ -419,7 +488,9 @@ export function resolveGanttSchedule(model: GanttModel, clock: GanttClock = {}):
   for (const t of model.tasks) resolveTask(t)
   const tasks = resolved as ScheduledGanttTask[]
 
-  if (tasks.length === 0) throw new GanttError('GANTT_EMPTY', 'Gantt diagram has no tasks')
+  // An empty plan has no calendar extent. Layouts show an explicit empty
+  // state rather than inventing a start date or reading the wall clock.
+  if (tasks.length === 0) return { tasks, timeMin: 0, timeMax: 0, dateOnly, isExcludedDay }
 
   // The axis range covers every DRAWN extent (renderEnd) and every start.
   // A trailing-excluded chain end that nothing starts from would only pad the
@@ -433,7 +504,7 @@ export function resolveGanttSchedule(model: GanttModel, clock: GanttClock = {}):
   if (timeMax === timeMin) timeMax = timeMin + (dateOnly ? DAY_MS : 3_600_000)
 
   let today: EpochMs | undefined
-  if (clock.today !== undefined && !(model.todayMarker?.off)) {
+  if (clock.today !== undefined && !model.todayMarker?.off) {
     const parsed = parseGanttDate(clock.today, model.dateFormat) ?? parseGanttDate(clock.today, 'YYYY-MM-DD')
     if (parsed === null) {
       throw new GanttError('GANTT_BAD_DATE', `Invalid clock value "${clock.today}" for dateFormat "${model.dateFormat}"`)
@@ -442,7 +513,11 @@ export function resolveGanttSchedule(model: GanttModel, clock: GanttClock = {}):
   }
 
   return {
-    tasks, timeMin, timeMax, dateOnly, today,
+    tasks,
+    timeMin,
+    timeMax,
+    dateOnly,
+    today,
     analysis: analyzeSchedule(model, tasks, byId),
     isExcludedDay,
   }
@@ -494,11 +569,7 @@ export function ganttDependencyEdges(model: GanttModel): GanttDependencyEdgeRef[
 
 // ---- Analysis (critical path / slack over `after` edges) --------------------
 
-function analyzeSchedule(
-  model: GanttModel,
-  tasks: ScheduledGanttTask[],
-  byId: Map<string, GanttModelTask>,
-): GanttScheduleAnalysis | undefined {
+function analyzeSchedule(model: GanttModel, tasks: ScheduledGanttTask[], byId: Map<string, GanttModelTask>): GanttScheduleAnalysis | undefined {
   // Dependency edges considered for CPM: `after` references only. `until`
   // anchors an end to another task's start and has no forward slack
   // semantics; it still affects entry/sink classification below.
@@ -539,7 +610,10 @@ function analyzeSchedule(
 
   const slackByTaskId: Record<string, number> = {}
   const onAfterGraph = new Set<number>()
-  for (const e of afterEdges) { onAfterGraph.add(e.from); onAfterGraph.add(e.to) }
+  for (const e of afterEdges) {
+    onAfterGraph.add(e.from)
+    onAfterGraph.add(e.to)
+  }
   const criticalPathTaskIds: string[] = []
   for (const t of tasks) {
     const slack = latestFinish[t.index]! - t.end
@@ -583,29 +657,71 @@ export function formatGanttInstant(ms: EpochMs, format: string): string {
   let out = ''
   for (let i = 0; i < format.length; i++) {
     const ch = format[i]!
-    if (ch !== '%') { out += ch; continue }
+    if (ch !== '%') {
+      out += ch
+      continue
+    }
     const spec = format[++i]
     switch (spec) {
-      case 'Y': out += String(d.getUTCFullYear()); break
-      case 'y': out += pad(d.getUTCFullYear() % 100); break
-      case 'm': out += pad(d.getUTCMonth() + 1); break
-      case 'd': out += pad(d.getUTCDate()); break
-      case 'e': out += String(d.getUTCDate()).padStart(2, ' '); break
-      case 'b': out += MONTHS_SHORT[d.getUTCMonth()]!; break
-      case 'B': out += MONTHS_LONG[d.getUTCMonth()]!; break
-      case 'a': out += DAYS_SHORT[dayOfWeek(ms)]!; break
-      case 'A': out += DAYS_LONG[dayOfWeek(ms)]!; break
-      case 'H': out += pad(d.getUTCHours()); break
-      case 'I': out += pad(((d.getUTCHours() + 11) % 12) + 1); break
-      case 'M': out += pad(d.getUTCMinutes()); break
-      case 'S': out += pad(d.getUTCSeconds()); break
-      case 'L': out += pad(d.getUTCMilliseconds(), 3); break
-      case 'p': out += d.getUTCHours() < 12 ? 'AM' : 'PM'; break
-      case 'j': out += pad(dayOfYear(), 3); break
-      case 'U': out += pad(weekOfYear(0)); break
-      case 'W': out += pad(weekOfYear(1)); break
-      case '%': out += '%'; break
-      default: out += spec === undefined ? '%' : `%${spec}`
+      case 'Y':
+        out += String(d.getUTCFullYear())
+        break
+      case 'y':
+        out += pad(d.getUTCFullYear() % 100)
+        break
+      case 'm':
+        out += pad(d.getUTCMonth() + 1)
+        break
+      case 'd':
+        out += pad(d.getUTCDate())
+        break
+      case 'e':
+        out += String(d.getUTCDate()).padStart(2, ' ')
+        break
+      case 'b':
+        out += MONTHS_SHORT[d.getUTCMonth()]!
+        break
+      case 'B':
+        out += MONTHS_LONG[d.getUTCMonth()]!
+        break
+      case 'a':
+        out += DAYS_SHORT[dayOfWeek(ms)]!
+        break
+      case 'A':
+        out += DAYS_LONG[dayOfWeek(ms)]!
+        break
+      case 'H':
+        out += pad(d.getUTCHours())
+        break
+      case 'I':
+        out += pad(((d.getUTCHours() + 11) % 12) + 1)
+        break
+      case 'M':
+        out += pad(d.getUTCMinutes())
+        break
+      case 'S':
+        out += pad(d.getUTCSeconds())
+        break
+      case 'L':
+        out += pad(d.getUTCMilliseconds(), 3)
+        break
+      case 'p':
+        out += d.getUTCHours() < 12 ? 'AM' : 'PM'
+        break
+      case 'j':
+        out += pad(dayOfYear(), 3)
+        break
+      case 'U':
+        out += pad(weekOfYear(0))
+        break
+      case 'W':
+        out += pad(weekOfYear(1))
+        break
+      case '%':
+        out += '%'
+        break
+      default:
+        out += spec === undefined ? '%' : `%${spec}`
     }
   }
   return out

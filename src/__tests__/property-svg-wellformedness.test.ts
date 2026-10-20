@@ -7,11 +7,10 @@
 import { beforeAll, describe, expect, it } from 'bun:test'
 import { strict as assert } from 'node:assert'
 import fc from 'fast-check'
-import { fcParameters } from './helpers/fc-parameters.ts'
-
-import { renderMermaidSVG } from '../index.ts'
 import { BUILTIN_FAMILY_METADATA } from '../agent/families.ts'
 import type { DiagramKind } from '../agent/types.ts'
+import { renderMermaidSVG } from '../index.ts'
+import { fcParameters } from './helpers/fc-parameters.ts'
 import { expectWellFormedXml, svgXmlReady } from './helpers/svg-xml.ts'
 
 const PROPERTY_RUNS = 100
@@ -26,11 +25,7 @@ const LABEL_PIECES = ['a', 'Zed', '&', ' < ', ' > ', '<', '>', "'", 'ü', '😀'
 
 // Construct XML-valid non-ASCII scalars, not fast-check's default ASCII-only
 // strings. Family grammar delimiters are exercised by LABEL_PIECES separately.
-const unicodeArb = fc.oneof(
-  fc.integer({ min: 0xa0, max: 0xd7ff }),
-  fc.integer({ min: 0xe000, max: 0xfffd }),
-  fc.integer({ min: 0x10000, max: 0x10ffff }),
-).map(code => String.fromCodePoint(code))
+const unicodeArb = fc.oneof(fc.integer({ min: 0xa0, max: 0xd7ff }), fc.integer({ min: 0xe000, max: 0xfffd }), fc.integer({ min: 0x10000, max: 0x10ffff })).map(code => String.fromCodePoint(code))
 const labelArb = fc
   .array(fc.oneof(fc.constantFrom(...LABEL_PIECES), unicodeArb), { maxLength: 6 })
   // Every family's label context requires some content. Keep empty generated
@@ -45,6 +40,12 @@ const optionsArb = fc.record({
 })
 
 const FAMILY_SOURCES: Record<DiagramKind, (label: string) => string> = {
+  packet: label => `packet\n+16: ${JSON.stringify(label)}`,
+  kanban: label => `kanban\nTodo\n  task["${label}"]`,
+  requirement: label => `requirementDiagram\nrequirement r {\ntext: "${label}"\n}`,
+  treemap: label => `treemap\n"${label}": 10`,
+  ishikawa: label => `ishikawa\n  ${label}\n  Process\n    Cause`,
+  block: label => `block\nA["${label}"]`,
   c4: label => `C4Context\n  System(A, "${label}", "${label}")`,
   flowchart: label => `graph TD\n  A["${label}"] -->|${label}| B["${label}"]`,
   state: label => `stateDiagram-v2\n  state "${label}" as A\n  A --> B : ${label}`,
@@ -89,10 +90,13 @@ describe('SVG is well-formed XML for labels full of XML metacharacters', () => {
 
   it('refuses entities that would introduce terminal controls or non-XML scalars', () => {
     const forbiddenCodePoint = fc.oneof(fc.integer({ min: 1, max: 31 }), fc.constantFrom(0xfffe, 0xffff))
-    fc.assert(fc.property(forbiddenCodePoint, code => {
-      const source = `flowchart TD\n  A["#${code};"]`
-      expect(() => renderMermaidSVG(source)).toThrow(/terminal control|invalid SVG document envelope/)
-    }), fcParameters({ numRuns: 1000 }))
+    fc.assert(
+      fc.property(forbiddenCodePoint, code => {
+        const source = `flowchart TD\n  A["#${code};"]`
+        expect(() => renderMermaidSVG(source)).toThrow(/terminal control|invalid SVG document envelope/)
+      }),
+      fcParameters({ numRuns: 1000 }),
+    )
   })
 
   it('flowchart: a label with an unknown inline tag renders well-formed XML', () => {

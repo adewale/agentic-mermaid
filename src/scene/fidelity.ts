@@ -10,7 +10,7 @@ import { decodeXML } from 'entities'
 // instead of throwing, so one run reports every divergence in a lowering.
 // ============================================================================
 
-import type { Geometry, SceneDoc, SceneNode, TextMark } from './ir.ts'
+import type { Geometry, SceneDoc, SceneNode, SceneOwner, TextMark } from './ir.ts'
 import { hasDomSvgIdentityRole } from './identity.ts'
 import { sceneNodeSerialization } from './serialization.ts'
 import { breakLineTags, displayText } from '../multiline-utils.ts'
@@ -313,13 +313,14 @@ function preparedTextPlacementProblems(node: TextMark, serialized: string, path:
   })
 }
 
-export function nodeProblems(node: SceneNode, path: string, problems: string[]): void {
+export function nodeProblems(node: SceneNode, path: string, problems: string[], enclosing?: SceneOwner): void {
   const serialized = sceneNodeSerialization(node)
   if (node.kind !== 'document') {
     const first = topLevelElements(node.kind === 'group' ? node.open : serialized)[0]
     transformProblems(node, first?.attrs, path, problems)
     if (serialized !== '' && hasDomSvgIdentityRole(node.role)) {
-      if (!node.identity) problems.push(`${path}(${node.kind}:${node.id}): missing typed identity`)
+      const ownedSurface = node.kind === 'shape' && node.owner !== undefined && enclosing !== undefined && node.role === enclosing.role && node.owner.id === enclosing.id && node.owner.role === enclosing.role
+      if (!node.identity && !ownedSurface) problems.push(`${path}(${node.kind}:${node.id}): missing typed identity`)
       if (!first) problems.push(`${path}(${node.kind}:${node.id}): no SVG element for identity`)
       if (first && node.identity) {
         const domId = first.attrs.get('data-id') === undefined ? undefined : unescapeXml(first.attrs.get('data-id')!)
@@ -470,7 +471,8 @@ export function nodeProblems(node: SceneNode, path: string, problems: string[]):
     case 'group': {
       if (!serialized.startsWith(node.open)) problems.push(`${path}(group:${node.id}): crisp does not start with open tag`)
       if (!serialized.endsWith(node.close)) problems.push(`${path}(group:${node.id}): crisp does not end with close tag`)
-      node.children.forEach((child, i) => nodeProblems(child.node, `${path}/${i}`, problems))
+      const subject = hasDomSvgIdentityRole(node.role) ? node.identity?.role === node.role ? { id: node.identity.id, role: node.role } : undefined : enclosing
+      node.children.forEach((child, i) => nodeProblems(child.node, `${path}/${i}`, problems, subject))
       return
     }
     case 'document': {

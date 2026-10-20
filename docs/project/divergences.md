@@ -4,6 +4,52 @@ Current implementation decisions that differ from, or materially narrow, the bro
 
 ## What still matters
 
+### Stable-family semantic choices (Mermaid 12.2.0)
+
+Packet keeps each authored inclusive field once and derives row segments from
+its exact interval. Pinned Mermaid's internal split-block `bits` metadata can
+be off by one; our segment count is always `end - start + 1`. Its visual bit
+order and field endpoints remain compatible. The Packet bench records the
+specific source and independent reference result.
+
+Kanban retains duplicate authored IDs separately from collision-free public
+occurrence IDs, so two cards named `id3` remain independently editable. Icons
+without a bundled symbol show their authored name offline. Ticket navigation
+uses safe inert action metadata and is disabled under strict hosting; it never
+executes a callback or fetches a font/icon pack.
+
+Treemap accepts underscores as numeric separators without truncating the
+quantity and emits `UNSUPPORTED_SYNTAX`; canonical edits write plain numbers.
+Three upstream parser tests deliberately accept a recovery AST while ignoring
+errors for malformed class syntax. Such input remains opaque here rather than
+claiming structured support. Sections and leaf identities remain distinct from
+value-sorted placement; labels that cannot fit their quantitative cells are
+reported, not used to distort the value partition.
+
+Treemap terminal output represents hierarchy and exact values, and Ishikawa
+terminal output represents the cause/effect tree. Both advertise that projection
+explicitly; neither claims to reproduce the graphical area/fishbone geometry.
+Their SVG renderers retain those domain hallmarks.
+
+Generated occurrence IDs describe the current serialized artifact. Structural
+edits normalize the published typed body to the same IDs and order seen by a
+fresh parse, source map and renderer. Read the returned IDs before a subsequent
+edit; arbitrary durable IDs cannot be encoded by these families' source syntax.
+
+Requirement and Block use local occurrence IDs for generated relationships,
+escape editable authored text at rendering, and read request-local config.
+Mermaid's private generated-ID spelling, DOMPurify-transformed DB text,
+singleton-config timing and generated CSS are implementation details. The
+unchanged portable assertions and explicit internal exclusions are retained
+beside their exact-pin benches; our identities, safe output and geometry have
+separate owning tests.
+
+Requirement preserves whitespace between authored `stroke-dasharray` lengths.
+The pinned parser concatenates style tokens, changing a two-length `5 5`
+pattern into the single length `55`; preserving the authored border pattern
+keeps source, typed edits and Scene paint in agreement. Other style token
+spelling remains canonical, and the serializer still emits accepted syntax.
+
 ### Determinism is structural, not seeded
 
 - Removed the old `LayoutContext` / `SeededRNG` / `Clock` / `withSeededRandom` / font-metrics apparatus.
@@ -389,3 +435,9 @@ What it does **not** yet prove:
 - that a selected release model follows the intended loop from docs alone.
 
 Those validation items remain in `TODO.md`.
+
+## Community follow-up: empty plans and authored identities
+
+Valid empty Gantt templates render an explicit empty state while verification retains `EMPTY_DIAGRAM`. This deliberately differs from legacy imported no-task render-error expectations and does not fabricate a schedule. Repeated GitGraph commit labels retain all occurrences using separate public identities; source references resolve to the latest preceding occurrence, and an unexpressible typed cherry-pick is rejected. Explicit duplicate merge IDs remain errors. Strict rendering continues to reject raw Mermaid `themeCSS`, whose selectors can alter document geometry outside declarative Style and certified paint.
+
+State class/style assignments to undeclared targets remain pending authored directives and never create phantom nodes; later declarations and typed additions apply them. Lollipop Class endpoints retain independent interface occurrences and authored labels, distinct from ordinary classes with the same spelling. These repairs preserve source meaning rather than reproducing accidental data loss or inventing new diagram syntax.

@@ -92,6 +92,17 @@ diagram-family citizenship loop. For an agent-native product the docs, schemas, 
 help, and `llms.txt` *are* runtime surface (Loop 14), so they are tested
 like code, not treated as prose.
 
+Citizenship requires a small smoke input and a domain-rich scenario for every
+registered built-in family. Required witnesses in the existing closed
+`FAMILY_CONFORMANCE_PROFILES` record specify independent semantic expectations,
+visible labels and a meaningful typed edit. Those expectations must survive
+canonical export/reload and editing, alongside verification, graphical/terminal
+rendering, layout regions and uncached determinism. This closes the former gap
+where a minimal count fixture passed citizenship while richer inputs appeared
+only in the separate rendering portfolio. Source length and node counts do not
+establish representativeness; the interacting domain features do. See the
+[citizenship review contract](./contributing/diagram-family-citizenship.md#representative-examples-are-mandatory).
+
 **Runs:** every PR (`bun run test`, including the canonical 30-second per-test budget).
 **Does not prove:** that the diagram is *visually* good. `verify.ok` is
 structural only — stated repeatedly because it has burned us (the Auth

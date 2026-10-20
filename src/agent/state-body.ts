@@ -368,6 +368,7 @@ export function parseStateBody(lines: string[]): StateBody | null {
     // --- standalone class shorthand: `A:::hot` ---
     const shorthand = parseClassShorthandStatement(line)
     if (shorthand) {
+      if (!compositeIds.has(shorthand.id)) ensureState(scope, shorthand.id).declaredBare = true
       classAssignments.push({ id: shorthand.id, className: shorthand.className, scope })
       continue
     }
@@ -418,21 +419,18 @@ export function parseStateBody(lines: string[]): StateBody | null {
     }
   }
   indexStates(root.states)
-  const styledState = (scope: ParseScope, id: string): StateNode => {
-    const existing = stateById.get(id)
-    if (existing) return existing
-    const state = ensureState(scope, id)
-    state.declaredBare = true
-    stateById.set(id, state)
-    return state
-  }
+  const unresolvedClasses: NonNullable<StateBody['unresolvedClasses']> = []
+  const unresolvedStyles: NonNullable<StateBody['unresolvedStyles']> = []
   // A state takes every class assigned to it, in order, as in Mermaid.
-  for (const { id, className, scope } of classAssignments) {
-    const state = styledState(scope, id)
+  // Missing targets remain paint intent, never fabricated declarations.
+  for (const { id, className } of classAssignments) {
+    const state = stateById.get(id)
+    if (!state) { unresolvedClasses.push({ id, className }); continue }
     state.className = state.className === undefined ? className : `${state.className} ${className}`
   }
-  for (const { id, props, scope } of inlineStyles) {
-    const state = styledState(scope, id)
+  for (const { id, props } of inlineStyles) {
+    const state = stateById.get(id)
+    if (!state) { unresolvedStyles.push({ id, style: { ...props } }); continue }
     state.style = { ...state.style, ...props }
   }
   let defaultTransitionStyle: Record<string, string> | undefined
@@ -467,6 +465,8 @@ export function parseStateBody(lines: string[]): StateBody | null {
     ...(root.direction !== undefined ? { direction: root.direction } : {}),
     ...(Object.keys(classDefs).length > 0 ? { classDefs } : {}),
     ...(defaultTransitionStyle ? { defaultTransitionStyle } : {}),
+    ...(unresolvedClasses.length > 0 ? { unresolvedClasses } : {}),
+    ...(unresolvedStyles.length > 0 ? { unresolvedStyles } : {}),
   }
   return body
 }
@@ -580,6 +580,8 @@ export function renderState(body: StateBody): string {
     for (const className of graphClassNames(state.className)) out.push(`  class ${state.id} ${className}`)
     if (state.style) out.push(`  style ${state.id} ${styleText(state.style)}`)
   }
+  for (const { id, className } of body.unresolvedClasses ?? []) out.push(`  class ${id} ${className}`)
+  for (const { id, style } of body.unresolvedStyles ?? []) out.push(`  style ${id} ${styleText(style)}`)
   if (body.defaultTransitionStyle) out.push(`  linkStyle default ${styleText(body.defaultTransitionStyle)}`)
   transitions.forEach((transition, index) => {
     if (transition.style) out.push(`  linkStyle ${index} ${styleText(transition.style)}`)
@@ -636,6 +638,8 @@ function cloneStateBody(b: StateBody): StateBody {
     ...(b.direction !== undefined ? { direction: b.direction } : {}),
     ...(b.classDefs !== undefined ? { classDefs: Object.fromEntries(Object.entries(b.classDefs).map(([name, style]) => [name, { ...style }])) } : {}),
     ...(b.defaultTransitionStyle !== undefined ? { defaultTransitionStyle: { ...b.defaultTransitionStyle } } : {}),
+    ...(b.unresolvedClasses ? { unresolvedClasses: b.unresolvedClasses.map(item => ({ ...item })) } : {}),
+    ...(b.unresolvedStyles ? { unresolvedStyles: b.unresolvedStyles.map(item => ({ ...item, style: { ...item.style } })) } : {}),
   }
 }
 
@@ -1072,6 +1076,26 @@ export function mutateState(body: StateBody, op: StateMutationOp): Result<StateB
     }
   }
 
+  // A successful edit can declare a formerly missing paint target. Consume
+  // that intent in the same typed body the serializer will subsequently read.
+  if (next.unresolvedClasses) {
+    next.unresolvedClasses = next.unresolvedClasses.filter(item => {
+      const target = locate(next, item.id)?.node
+      if (!target) return true
+      target.className = target.className === undefined ? item.className : `${target.className} ${item.className}`
+      return false
+    })
+    if (next.unresolvedClasses.length === 0) delete next.unresolvedClasses
+  }
+  if (next.unresolvedStyles) {
+    next.unresolvedStyles = next.unresolvedStyles.filter(item => {
+      const target = locate(next, item.id)?.node
+      if (!target) return true
+      target.style = { ...target.style, ...item.style }
+      return false
+    })
+    if (next.unresolvedStyles.length === 0) delete next.unresolvedStyles
+  }
   preserveOrphanedImplicitStates(next)
   canonicalizeStateOrder(next.states)
   return ok(next)

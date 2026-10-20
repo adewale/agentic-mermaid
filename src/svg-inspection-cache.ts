@@ -7,16 +7,6 @@ const MAX_CHARACTERS = 512 * 1024
 const MAX_ENTRIES = 512
 let entries = 0
 
-export function retainedSvgInspection<T>(kind: string, source: string): T | undefined {
-  return active?.get(kind)?.get(source) as T | undefined
-}
-
-/** Check before constructing a derived lexical representation. Limits and
- * keys remain identical to ordinary inspection: exact immutable SVG bytes. */
-export function canRetainSvgInspection(source: string): boolean {
-  return active !== undefined && entries < MAX_ENTRIES && retainedCharacters + source.length <= MAX_CHARACTERS
-}
-
 export function withSvgInspectionCache<T>(run: () => T): T {
   const previous = active
   const previousCharacters = retainedCharacters

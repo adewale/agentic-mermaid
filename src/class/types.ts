@@ -8,7 +8,7 @@ import type { PixelTextBlock } from '../shared/prepared-text.ts'
 // ============================================================================
 
 import type { PositionedDiagramTitle } from '../styles.ts'
-import type { PositionedDiagram, Direction } from '../types.ts'
+import type { Direction, PositionedDiagram } from '../types.ts'
 
 /** Parsed class diagram — logical structure from mermaid text */
 export interface ClassDiagram {
@@ -33,6 +33,8 @@ export interface ClassDiagram {
 }
 
 export interface ClassNode {
+  /** Independent named lollipop endpoint, with no class compartments. */
+  isInterface?: boolean
   /** Stable bare identity; Mermaid `~T~` parameters are stored separately. */
   id: string
   label: string
@@ -82,15 +84,15 @@ export interface ClassNote {
 }
 
 export type RelationshipType =
-  | 'inheritance'   // A <|-- B   (solid line, hollow triangle)
-  | 'composition'   // A *-- B    (solid line, filled diamond)
-  | 'aggregation'   // A o-- B    (solid line, hollow diamond)
-  | 'association'   // A --> B    (solid line, open arrow)
-  | 'dependency'    // A ..> B    (dashed line, open arrow)
-  | 'realization'   // A ..|> B   (dashed line, hollow triangle)
-  | 'link-solid'    // A -- B    (solid line, no marker)
-  | 'link-dashed'   // A .. B    (dashed line, no marker)
-  | 'lollipop'      // Interface ()-- Class
+  | 'inheritance' // A <|-- B   (solid line, hollow triangle)
+  | 'composition' // A *-- B    (solid line, filled diamond)
+  | 'aggregation' // A o-- B    (solid line, hollow diamond)
+  | 'association' // A --> B    (solid line, open arrow)
+  | 'dependency' // A ..> B    (dashed line, open arrow)
+  | 'realization' // A ..|> B   (dashed line, hollow triangle)
+  | 'link-solid' // A -- B    (solid line, no marker)
+  | 'link-dashed' // A .. B    (dashed line, no marker)
+  | 'lollipop' // Interface ()-- Class
 
 export interface ClassRelationship {
   from: string
@@ -180,6 +182,9 @@ export interface PositionedClassNamespace {
 }
 
 export interface PositionedClassNode {
+  isInterface?: boolean
+  /** Circle geometry from the actual endpoint marker, excluding its stroke. */
+  interfaceBox?: { x: number; y: number; width: number; height: number }
   labelBlock?: PixelTextBlock
   annotationBlock?: PixelTextBlock
   attributeBlocks?: PixelTextBlock[]

@@ -1,4 +1,3 @@
-import { performanceExperimentEnabled } from '../experimental-performance.ts'
 import {
   sankey as createSankeyLayout,
   sankeyCenter,
@@ -108,7 +107,6 @@ function requiredCoordinate(value: number | undefined, name: string): number {
  * corridor at least nodeWidth × layers wide or its horizontal step becomes
  * smaller than a node (and can become negative when width < nodeWidth). */
 function sankeyLayerCount(diagram: SankeyDiagram): number {
-  if (performanceExperimentEnabled('sankey-csr')) return indexedSankeyLayers(diagram)
   const indegree = new Map(diagram.nodes.map(label => [label, 0]))
   const outgoing = new Map<string, string[]>()
   for (const link of diagram.links) {
@@ -127,27 +125,6 @@ function sankeyLayerCount(diagram: SankeyDiagram): number {
     }
   }
   return Math.max(1, ...depth.values()) + 1
-}
-
-/** Two-pass compressed adjacency avoids copying a high-degree source list. */
-function indexedSankeyLayers(diagram: SankeyDiagram): number {
-  const n = diagram.nodes.length, ids = new Map(diagram.nodes.map((label, index) => [label, index]))
-  const offsets = new Uint32Array(n + 1), indegree = new Uint32Array(n), depth = new Uint32Array(n)
-  for (const link of diagram.links) { offsets[ids.get(link.source)! + 1]!++; indegree[ids.get(link.target)!]!++ }
-  for (let i = 1; i <= n; i++) offsets[i]! += offsets[i - 1]!
-  const next = offsets.slice(), targets = new Uint32Array(diagram.links.length)
-  for (const link of diagram.links) targets[next[ids.get(link.source)!]!] = ids.get(link.target)!, next[ids.get(link.source)!]!++
-  const queue = new Uint32Array(n); let head = 0, tail = 0, maximum = 0
-  for (let i = 0; i < n; i++) if (!indegree[i]) queue[tail++] = i
-  while (head < tail) {
-    const source = queue[head++]!
-    for (let i = offsets[source]!; i < offsets[source + 1]!; i++) {
-      const target = targets[i]!
-      depth[target] = Math.max(depth[target]!, depth[source]! + 1); maximum = Math.max(maximum, depth[target]!)
-      if (--indegree[target]! === 0) queue[tail++] = target
-    }
-  }
-  return Math.max(1, maximum) + 1
 }
 
 function semanticNodeValues(diagram: SankeyDiagram): Map<string, number> {

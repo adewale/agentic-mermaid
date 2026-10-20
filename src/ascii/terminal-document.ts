@@ -1,5 +1,3 @@
-import { performanceExperimentEnabled } from '../experimental-performance.ts'
-import { AdaptiveTerminalRow } from '../experimental/terminal-row.ts'
 import type { RenderedRegionKind } from '../agent/types.ts'
 import type { TerminalProjectionDiagnostic } from '../terminal-style.ts'
 import { graphemes } from '../shared/graphemes.ts'
@@ -283,7 +281,7 @@ export class TerminalDocument {
   titleHandled = false
   readonly diagnostics: TerminalProjectionDiagnostic[] = []
   readonly metrics = { writes: 0, overlayVisits: 0, outputCells: 0 }
-  private rows = new Map<number, Map<number, TerminalCell> | AdaptiveTerminalRow<TerminalCell>>()
+  private rows = new Map<number, Map<number, TerminalCell>>()
   private elements = new Map<string, TerminalOwner>()
   private ownerSets = new Map<string, TerminalOwnerSet>()
   private singletonOwners = new WeakMap<TerminalOwner, TerminalOwnerSet>()
@@ -710,7 +708,7 @@ export class TerminalDocument {
     for (let offset = 0; offset < width; offset++) this.retire(x + offset, y)
     this.resize(x + width, y + 1)
     let row = this.rows.get(y)
-    if (!row) { row = performanceExperimentEnabled('terminal-tiles') ? new AdaptiveTerminalRow<TerminalCell>() : new Map<number, TerminalCell>(); this.rows.set(y, row) }
+    if (!row) { row = new Map(); this.rows.set(y, row) }
     // Store the cell contract, not call-only stroke settings or an imported
     // cell's old coordinates. In particular, ascii/style/rounded already live
     // on the immutable stroke and need not occupy every painted cell as well.
@@ -979,7 +977,7 @@ export class TerminalDocument {
       if (width > occupiedEnd) allocatedRows.set(this.height - 1 - y, width)
     }
     this.lineWidths = undefined
-    const next = new Map<number, Map<number, TerminalCell> | AdaptiveTerminalRow<TerminalCell>>()
+    const next = new Map<number, Map<number, TerminalCell>>()
     const blocks = new Map<TextBlock, TextBlock>()
     for (const block of this.retainedTextBlocks) blocks.set(block, this.movedTextBlock(block, horizontal ? this.width - block.x - block.width : block.x, vertical ? this.height - block.y - block.height : block.y))
     this.retainedTextBlocks = new Set(blocks.values())

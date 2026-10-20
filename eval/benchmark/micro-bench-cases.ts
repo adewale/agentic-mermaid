@@ -42,8 +42,15 @@ export const MICRO_WORKLOADS = {
   class80: release('class:80-classes'),
   er40: release('er:40-entities'),
   state80: release('state:80-states'),
+  packet240: release('packet:240-fields'),
+  kanban240: release('kanban:12-columns-240-cards'),
+  requirement100: release('requirement:100-requirements-99-relations'),
+  treemap260: release('treemap:20-groups-240-leaves'),
+  ishikawa133: release('ishikawa:12-categories-120-causes'),
+  block120: release('block:120-grid-blocks'),
 } as const
 type Workload = keyof typeof MICRO_WORKLOADS
+const STABLE_WORKLOADS = { packet240: 'packet', kanban240: 'kanban', requirement100: 'requirement', treemap260: 'treemap', ishikawa133: 'ishikawa', block120: 'block' } as const
 
 const ASCII_LABEL = 'Authenticate the incoming user request'
 const MIXED_LABEL = '東京 → 👩‍💻 café naïve Ελληνικά 한국어 👍🏽'
@@ -107,7 +114,7 @@ function renderCase(workload: Workload): MicroCase {
     description: `Public renderMermaidSVG, warm, ${workload}`,
     async setup() {
       const { renderMermaidSVG } = await src.index()
-      return () => renderMermaidSVG(MICRO_WORKLOADS[workload])
+      return { call: () => renderMermaidSVG(MICRO_WORKLOADS[workload]), input: MICRO_WORKLOADS[workload] }
     },
     check: isSvg,
   }
@@ -120,7 +127,7 @@ function asciiCase(workload: Workload): MicroCase {
     async setup() {
       const { renderMermaidASCII } = await src.index()
       // Explicit, so a TTY on the child's stdout cannot switch on ANSI colour.
-      return () => renderMermaidASCII(MICRO_WORKLOADS[workload], { colorMode: 'none' })
+      return { call: () => renderMermaidASCII(MICRO_WORKLOADS[workload], { colorMode: 'none' }), input: MICRO_WORKLOADS[workload] }
     },
     check: nonEmptyString,
   }
@@ -136,12 +143,13 @@ function consumedCase(workload: Workload, output: 'svg' | 'ascii'): MicroCase {
     async setup() {
       const api = await src.index()
       const encode = new TextEncoder()
-      return () => {
-        const result = output === 'svg'
-          ? api.renderMermaidSVGWithReceipt(MICRO_WORKLOADS[workload])
-          : api.renderMermaidASCIIWithReceipt(MICRO_WORKLOADS[workload], { colorMode: 'none' })
-        const text = 'svg' in result ? result.svg : result.text
-        return { bytes: encode.encode(text), receipt: JSON.stringify(result.receipt) }
+      return {
+        call: () => {
+          const result = output === 'svg' ? api.renderMermaidSVGWithReceipt(MICRO_WORKLOADS[workload]) : api.renderMermaidASCIIWithReceipt(MICRO_WORKLOADS[workload], { colorMode: 'none' })
+          const text = 'svg' in result ? result.svg : result.text
+          return { bytes: encode.encode(text), receipt: JSON.stringify(result.receipt) }
+        },
+        input: MICRO_WORKLOADS[workload],
       }
     },
     check: result => {
@@ -157,7 +165,7 @@ function parseCase(workload: Workload, kind: string): MicroCase {
     description: `parseRegisteredMermaid (typed agent body), ${workload}`,
     async setup() {
       const { parseRegisteredMermaid } = await src.agent()
-      return () => parseRegisteredMermaid(MICRO_WORKLOADS[workload])
+      return { call: () => parseRegisteredMermaid(MICRO_WORKLOADS[workload]), input: MICRO_WORKLOADS[workload] }
     },
     // A degraded parse (opaque or preserved body) also returns ok, much faster.
     check: result => {
@@ -174,7 +182,18 @@ function positionCase(workload: Workload): MicroCase {
     async setup() {
       const { request, plan } = await staged(workload)
       const { positionResolvedFamily } = await src.positioning()
-      return () => positionResolvedFamily(plan.family.id, request)
+      return { call: () => positionResolvedFamily(plan.family.id, request), input: inputText(request) }
+    },
+  }
+}
+
+function projectionCase(workload: Workload): MicroCase {
+  return {
+    id: `layout:project-${workload}`,
+    description: `Family positioned projection on retained geometry, ${workload}`,
+    async setup() {
+      const { plan, layout } = await staged(workload)
+      return { call: () => plan.family.projectPositioned!({ positioned: layout.positioned, options: {} }), input: inputText(layout.positioned) }
     },
   }
 }
@@ -402,6 +421,7 @@ export function microCases(): readonly MicroCase[] {
     positionCase('seq20'),
     positionCase('class80'),
     positionCase('er40'),
+    ...Object.entries(STABLE_WORKLOADS).flatMap(([workload, kind]) => [parseCase(workload as Workload, kind), positionCase(workload as Workload), projectionCase(workload as Workload), ...sceneCases(workload as Workload), asciiCase(workload as Workload), consumedCase(workload as Workload, 'ascii')]),
     ...sceneCases('seq20'),
     ...sceneCases('class80'),
     ...svgPassCases('class80'),

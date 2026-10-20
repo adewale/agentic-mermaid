@@ -19,7 +19,7 @@ import type {
 } from './ir.ts'
 import type { DiagramColors } from '../theme.ts'
 import type { SvgSemanticIdentity } from './identity.ts'
-import { ensureSvgIdentity, semanticIdentityForSvg } from './identity.ts'
+import { ensureSvgIdentity, semanticChildId, semanticIdentityForSvg } from './identity.ts'
 import { relationAccessibility } from './accessibility.ts'
 import { displayText, escapeAttr, escapeXml } from '../multiline-utils.ts'
 import { resolveLabelContent } from '../shared/display-text.ts'
@@ -95,7 +95,7 @@ function assertInertGroupOpen(id: string, open: string, transform: SceneTransfor
 
 /** Typed identity: the explicit public identity, or the mark id with its
  * class tokens, which is what the writer emits as data-id and class. */
-function typedIdentity(fields: { id: string; role: SceneRole; identity?: Omit<SvgSemanticIdentity, 'role'>; attributes?: MarkAttributes }): SvgSemanticIdentity {
+function typedIdentity(fields: { id: string; role: SceneRole; identity?: Omit<SvgSemanticIdentity, 'role'> | false; attributes?: MarkAttributes }): SvgSemanticIdentity {
   if (fields.identity) return { ...fields.identity, role: fields.role }
   const classNames = fields.attributes?.className?.split(' ')
   return { id: fields.id, role: fields.role, ...(classNames ? { classNames } : {}) }
@@ -104,8 +104,9 @@ function typedIdentity(fields: { id: string; role: SceneRole; identity?: Omit<Sv
 export function shape(fields: {
   id: string
   role: SceneRole
-  /** Optional public DOM identity when the bounded Scene key is internal. */
-  identity?: Omit<SvgSemanticIdentity, 'role'>
+  /** False only for artwork owned by an enclosing semantic group; the group
+   * retains the public identity while this shape retains its paint role. */
+  identity?: Omit<SvgSemanticIdentity, 'role'> | false
   owner?: SceneOwner
   visibility?: 'conditional'
   geometry: Geometry
@@ -121,14 +122,15 @@ export function shape(fields: {
   if (fields.childPaints && (fields.geometry.kind !== 'compound' || fields.childPaints.length !== fields.geometry.children.length)) {
     throw new TypeError(`Shape "${fields.id}" child paints must match its compound geometry`)
   }
-  const identity = typedIdentity(fields)
-  const accessibility = relationAccessibility(identity, fields.attributes?.data?.label)
+  if (fields.identity === false && fields.owner?.role !== fields.role) throw new TypeError(`Shape "${fields.id}" without DOM identity requires an explicit owner with the same role`)
+  const identity = fields.identity === false ? undefined : typedIdentity(fields)
+  const accessibility = identity ? relationAccessibility(identity, fields.attributes?.data?.label) : undefined
   if (accessibility && fields.attributes?.ariaLabel !== undefined) throw new TypeError(`Shape "${fields.id}" takes its aria-label from typed relation accessibility`)
   return admitWritableSceneNode({
     kind: 'shape',
     id: fields.id,
     role: fields.role,
-    identity,
+    ...(identity ? { identity } : {}),
     ...(fields.owner ? { owner: fields.owner } : {}),
     ...(fields.visibility ? { visibility: fields.visibility } : {}),
     ...(accessibility ? { accessibility } : {}),
@@ -674,4 +676,34 @@ export function documentOpen(fields: {
     id: fields.id,
     role: 'prelude',
   }, svg)
+}
+
+/** Lower bounded, source-owned icon paths without recovering geometry from SVG.
+ * Each path carries the paint; the group's open tag carries hooks and the
+ * transform only. */
+export function pathArtwork(fields: {
+  id: string
+  paths: readonly string[]
+  open: string
+  paint: MarkPaint
+  transform?: SceneTransform
+  owner?: SceneOwner
+  channels?: SemanticChannels
+  join?: string
+  indent?: number
+}): GroupMark {
+  return group({
+    id: fields.id, role: 'icon', open: fields.open, close: '</g>',
+    ...(fields.transform ? { transform: fields.transform } : {}),
+    ...(fields.owner ? { owner: fields.owner } : {}),
+    ...(fields.channels ? { channels: fields.channels } : {}),
+    join: fields.join ?? '',
+    children: fields.paths.map((path, index) => ({
+      indent: fields.indent ?? 0,
+      node: shape({ id: semanticChildId(fields.id, 'path', index), role: 'icon',
+        geometry: { kind: 'path', d: path }, paint: fields.paint,
+        ...(fields.owner ? { owner: fields.owner } : {}),
+      }),
+    })),
+  })
 }

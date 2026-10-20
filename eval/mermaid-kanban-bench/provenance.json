@@ -1,0 +1,27 @@
+{
+  "version": "12.2.0",
+  "commit": "1fb7869866dd619168d840291c9c54b4f129758b",
+  "license": "MIT",
+  "files": [
+    {
+      "path": "packages/mermaid/src/diagrams/kanban/kanban.spec.ts",
+      "sha256": "35c62e3fcbf381cc69451d7f2bbc8afb8e71de1fa28f9ff9ab5afb5c3d94dbac",
+      "blocks": 30
+    }
+  ],
+  "rendererAccounting": [],
+  "renderingFiles": [
+    "e2e/diagrams/kanban/nightly-check/7-should-handle-prioritization.mmd",
+    "e2e/diagrams/kanban/pr-check/1-should-render-a-kanban-with-a-single-section.mmd",
+    "e2e/diagrams/kanban/pr-check/10-full-example.mmd",
+    "e2e/diagrams/kanban/pr-check/2-should-render-a-kanban-with-multiple-sections.mmd",
+    "e2e/diagrams/kanban/pr-check/3-should-render-a-kanban-with-a-single-wrapping-node.mmd",
+    "e2e/diagrams/kanban/pr-check/4-should-handle-the-height-of-a-section-with-a-wrapping-node-at-the-end.mmd",
+    "e2e/diagrams/kanban/pr-check/5-should-handle-the-height-of-a-section-with-a-wrapping-node-at-the-top.mmd",
+    "e2e/diagrams/kanban/pr-check/6-should-handle-assignments.mmd",
+    "e2e/diagrams/kanban/pr-check/6-should-handle-the-height-of-a-section-with-a-wrapping-node-in-the-middle.mmd",
+    "e2e/diagrams/kanban/pr-check/7-should-handle-external-tickets.mmd",
+    "e2e/diagrams/kanban/pr-check/8-should-handle-assignments-prioritization-and-tickets-ids-in-the-same-item.mmd"
+  ],
+  "docs": "packages/mermaid/src/docs/syntax/kanban.md"
+}

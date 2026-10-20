@@ -1,4 +1,5 @@
-import { terminalArtifact, serializeTerminalArtifact, type TerminalArtifact } from './terminal-artifact.ts'
+import { serializeTerminalArtifact, type TerminalArtifact, terminalArtifact } from './terminal-artifact.ts'
+
 // ============================================================================
 // ASCII renderer — Gantt diagrams (docs/design/families/gantt.md §5).
 //
@@ -23,25 +24,20 @@ import { terminalArtifact, serializeTerminalArtifact, type TerminalArtifact } fr
 // via the shared visualWidth helpers.
 // ============================================================================
 
-import {
-  applyResolvedGanttFrontmatterConfig,
-  parseGanttModel,
-  resolveGanttFrontmatterConfig,
-  type ResolvedGanttFrontmatterConfig,
-} from '../gantt/parser.ts'
-import { resolveGanttSchedule, formatGanttInstant } from '../gantt/schedule.ts'
-import { resolveTicks, packCompactLanes } from '../gantt/layout.ts'
+import { packCompactLanes, resolveTicks } from '../gantt/layout.ts'
+import { applyResolvedGanttFrontmatterConfig, parseGanttModel, type ResolvedGanttFrontmatterConfig, resolveGanttFrontmatterConfig } from '../gantt/parser.ts'
+import { formatGanttInstant, resolveGanttSchedule } from '../gantt/schedule.ts'
 import { parseTodayMarkerStyle } from '../gantt/today-marker.ts'
-import type { GanttSchedule, ScheduledGanttTask, EpochMs } from '../gantt/types.ts'
+import type { EpochMs, GanttSchedule, ScheduledGanttTask } from '../gantt/types.ts'
 import type { MermaidFrontmatterMap } from '../mermaid-source.ts'
-import { DEFAULT_ASCII_THEME } from './ansi.ts'
-import { TerminalDocument, type TerminalOwner, type TerminalRun } from './terminal-document.ts'
-import { visualWidth } from './width.ts'
 import { breakLineTags, displayText } from '../multiline-utils.ts'
-import type { AsciiConfig, AsciiTheme, ColorMode } from './types.ts'
-import { resolveRoleStyle, type InternalStyleFace } from '../scene/style-registry.ts'
-import { wrapText } from './wrap.ts'
+import { type InternalStyleFace, resolveRoleStyle } from '../scene/style-registry.ts'
+import { DEFAULT_ASCII_THEME } from './ansi.ts'
 import { terminalIds } from './identity.ts'
+import { TerminalDocument, type TerminalOwner, type TerminalRun } from './terminal-document.ts'
+import type { AsciiConfig, AsciiTheme, ColorMode } from './types.ts'
+import { visualWidth } from './width.ts'
+import { wrapText } from './wrap.ts'
 
 type StyledSegment = TerminalRun
 
@@ -51,14 +47,18 @@ const SECTION_INDENT = '  '
 const TASK_INDENT = '    '
 
 interface GanttGlyphs {
-  bar: string; done: string; active: string; crit: string
-  milestone: string; vert: string; track: string; axis: string
+  bar: string
+  done: string
+  active: string
+  crit: string
+  milestone: string
+  vert: string
+  track: string
+  axis: string
 }
 
 function glyphsFor(useAscii: boolean): GanttGlyphs {
-  return useAscii
-    ? { bar: '#', done: '.', active: '=', crit: '!', milestone: '*', vert: ':', track: '-', axis: '-' }
-    : { bar: '█', done: '░', active: '▓', crit: '▒', milestone: '◆', vert: '┊', track: '─', axis: '─' }
+  return useAscii ? { bar: '#', done: '.', active: '=', crit: '!', milestone: '*', vert: ':', track: '-', axis: '-' } : { bar: '█', done: '░', active: '▓', crit: '▒', milestone: '◆', vert: '┊', track: '─', axis: '─' }
 }
 
 function fillGlyph(tags: readonly string[], g: GanttGlyphs): string {
@@ -91,12 +91,17 @@ export function renderGanttTerminal(
   options: { maxWidth?: number; today?: string; resolvedConfig?: ResolvedGanttFrontmatterConfig; styleFace?: InternalStyleFace } = {},
 ): TerminalArtifact {
   const widthBudget = options.maxWidth ?? config.maxWidth
-  const model = applyResolvedGanttFrontmatterConfig(
-    parseGanttModel(lines),
-    options.resolvedConfig ?? resolveGanttFrontmatterConfig(frontmatter),
-  )
+  const model = applyResolvedGanttFrontmatterConfig(parseGanttModel(lines), options.resolvedConfig ?? resolveGanttFrontmatterConfig(frontmatter))
   model.title ??= config.title
   const schedule = resolveGanttSchedule(model, { today: options.today })
+  if (schedule.tasks.length === 0) {
+    const document = new TerminalDocument()
+    document.titleHandled = true
+    for (const label of [model.title, ...model.sections.map(section => section.label), 'No tasks scheduled']) {
+      if (label) for (const line of wrapText(label, widthBudget)) document.line([{ text: line, role: 'text' }])
+    }
+    return terminalArtifact(document, { colorMode, theme, trimEnd: true })
+  }
   const g = glyphsFor(config.useAscii)
   const arrow = config.useAscii ? '->' : '→'
 
@@ -119,9 +124,13 @@ export function renderGanttTerminal(
     const lanes = lanesBySection.get(si) ?? sectionTasks.map((_, i) => i)
     const count = sectionTasks.length === 0 ? 0 : Math.max(...lanes) + 1
     return Array.from({ length: count }, (_, li) =>
-      sectionTasks.filter((_, i) => lanes[i] === li).map(t => t.label).join(', '))
+      sectionTasks
+        .filter((_, i) => lanes[i] === li)
+        .map(t => t.label)
+        .join(', '),
+    )
   }
-  const generated = terminalIds(schedule.tasks.flatMap(task => task.id === undefined ? [] : [task.id]))
+  const generated = terminalIds(schedule.tasks.flatMap(task => (task.id === undefined ? [] : [task.id])))
   const taskOwner = (task: Pick<ScheduledGanttTask, 'id' | 'index'>): TerminalOwner => ({ id: task.id ?? generated(`task-${task.index}`), kind: 'node' })
   const labelRows = (tasks: ScheduledGanttTask[], width: number): TerminalRun[][] => {
     const rows: TerminalRun[][] = [[]]
@@ -130,8 +139,14 @@ export function renderGanttTerminal(
       const chunks = wrapText(task.label, Math.max(1, width))
       chunks.forEach((text, lineIndex) => {
         const gap = index > 0 && lineIndex === 0 ? ', ' : ''
-        if (used > 0 && (lineIndex > 0 || used + visualWidth(gap + text) > width)) { rows.push([]); used = 0 }
-        if (used > 0 && gap) { rows.at(-1)!.push({ text: gap }); used += visualWidth(gap) }
+        if (used > 0 && (lineIndex > 0 || used + visualWidth(gap + text) > width)) {
+          rows.push([])
+          used = 0
+        }
+        if (used > 0 && gap) {
+          rows.at(-1)!.push({ text: gap })
+          used += visualWidth(gap)
+        }
         rows.at(-1)!.push({ text, role: 'text', owner: taskOwner(task) })
         used += visualWidth(text)
       })
@@ -180,9 +195,7 @@ export function renderGanttTerminal(
   }
 
   const vertCols = new Set(vertTasks.map(v => Math.min(plotWidth - 1, colOf(v.start + (v.renderEnd - v.start) / 2))))
-  const todayCol = schedule.today !== undefined && schedule.today >= schedule.timeMin && schedule.today <= schedule.timeMax
-    ? Math.min(plotWidth - 1, colOf(schedule.today))
-    : undefined
+  const todayCol = schedule.today !== undefined && schedule.today >= schedule.timeMin && schedule.today <= schedule.timeMax ? Math.min(plotWidth - 1, colOf(schedule.today)) : undefined
   const todayStyle = model.todayMarker?.style === undefined ? undefined : parseTodayMarkerStyle(model.todayMarker.style)
   const todayPaint = todayStyle?.applied.find(([property]) => property === 'stroke')?.[1]
   const todayOwner: TerminalOwner = { id: generated('today-marker'), kind: 'plot' }
@@ -190,16 +203,19 @@ export function renderGanttTerminal(
 
   const document = new TerminalDocument()
   document.titleHandled = true
-  if (model.barHeight !== undefined && rowTasks.length > 0) document.report({
-    code: 'TERMINAL_FAMILY_PROJECTION', feature: 'gantt.barHeight',
-    message: `gantt.barHeight=${model.barHeight}px is represented by one terminal bar row per task or compact lane; task labels, dates and interval ownership are retained.`,
-  })
+  if (model.barHeight !== undefined && rowTasks.length > 0)
+    document.report({
+      code: 'TERMINAL_FAMILY_PROJECTION',
+      feature: 'gantt.barHeight',
+      message: `gantt.barHeight=${model.barHeight}px is represented by one terminal bar row per task or compact lane; task labels, dates and interval ownership are retained.`,
+    })
   if (todayCol !== undefined && todayStyle !== undefined) {
     for (const [property, value] of todayStyle.applied) {
       if (property === 'stroke' || (property === 'opacity' && Number(value) === 1)) continue
       document.report({
-      code: 'TERMINAL_FAMILY_PROJECTION', feature: `gantt.todayMarker.${property}`,
-      message: `todayMarker ${property}=${JSON.stringify(value)} is represented by ${todayGlyph} at the resolved clock column; CSS opacity, dash lengths and pixel stroke widths are unavailable. The resolved stroke color is retained.`,
+        code: 'TERMINAL_FAMILY_PROJECTION',
+        feature: `gantt.todayMarker.${property}`,
+        message: `todayMarker ${property}=${JSON.stringify(value)} is represented by ${todayGlyph} at the resolved clock column; CSS opacity, dash lengths and pixel stroke widths are unavailable. The resolved stroke color is retained.`,
       })
     }
   }
@@ -215,7 +231,10 @@ export function renderGanttTerminal(
     document.scope(owner, () => {
       for (const text of wrapText(model.title!, widthBudget)) {
         const pad = Math.max(0, Math.floor((totalWidth - visualWidth(text)) / 2))
-        pushLine([{ text: ' '.repeat(pad), kind: 'surface' }, { text, role: 'text' }])
+        pushLine([
+          { text: ' '.repeat(pad), kind: 'surface' },
+          { text, role: 'text' },
+        ])
       }
     })
     pushLine()
@@ -224,26 +243,22 @@ export function renderGanttTerminal(
   // ---- track builder ------------------------------------------------------------
   const buildTrack = (task: ScheduledGanttTask): TerminalRun[] => {
     const cells: TerminalRun[] = Array.from({ length: plotWidth }, () => ({ text: g.track, role: 'line', kind: 'stroke' }))
-    const status = task.tags.includes('crit') ? 'crit'
-      : task.tags.includes('active') ? 'active'
-      : task.tags.includes('done') ? 'done'
-      : undefined
+    const status = task.tags.includes('crit') ? 'crit' : task.tags.includes('active') ? 'active' : task.tags.includes('done') ? 'done' : undefined
     const category = model.sections[task.sectionIndex]?.label
     const role = task.tags.includes('milestone') ? 'milestone' : 'task'
-    const roleStyle = resolveRoleStyle(options.styleFace, role, {
-      ...(status ? { status } : {}),
-      ...(category ? { category } : {}),
-    }, { includeFallback: false })
-    const cueFill = roleStyle?.cue === 'outline' ? (config.useAscii ? '+' : '◇')
-      : roleStyle?.cue === 'double-line' ? '='
-      : roleStyle?.cue === 'pattern' ? (config.useAscii ? '%' : '░')
-      : undefined
+    const roleStyle = resolveRoleStyle(
+      options.styleFace,
+      role,
+      {
+        ...(status ? { status } : {}),
+        ...(category ? { category } : {}),
+      },
+      { includeFallback: false },
+    )
+    const cueFill = roleStyle?.cue === 'outline' ? (config.useAscii ? '+' : '◇') : roleStyle?.cue === 'double-line' ? '=' : roleStyle?.cue === 'pattern' ? (config.useAscii ? '%' : '░') : undefined
     if (task.tags.includes('milestone')) {
       const c = Math.min(plotWidth - 1, colOf(task.start + (task.renderEnd - task.start) / 2))
-      const milestoneCue = roleStyle?.cue === 'outline' ? (config.useAscii ? '+' : '◇')
-        : roleStyle?.cue === 'double-line' ? (config.useAscii ? '#' : '◈')
-        : roleStyle?.cue === 'pattern' ? (config.useAscii ? '%' : '▣')
-        : undefined
+      const milestoneCue = roleStyle?.cue === 'outline' ? (config.useAscii ? '+' : '◇') : roleStyle?.cue === 'double-line' ? (config.useAscii ? '#' : '◈') : roleStyle?.cue === 'pattern' ? (config.useAscii ? '%' : '▣') : undefined
       cells[c] = { text: milestoneCue ?? g.milestone, role: 'line', kind: 'marker' }
     } else {
       // Bars draw to renderEnd — the same drawn extent the SVG bars use.
@@ -251,7 +266,7 @@ export function renderGanttTerminal(
       const to = Math.max(from + 1, colOf(task.renderEnd))
       // Critical emphasis remains family-owned; otherwise the semantic cue
       // receives a deterministic no-color glyph projection.
-      const fill = task.tags.includes('crit') ? g.crit : cueFill ?? fillGlyph(task.tags, g)
+      const fill = task.tags.includes('crit') ? g.crit : (cueFill ?? fillGlyph(task.tags, g))
       for (let c = from; c < to && c < plotWidth; c++) cells[c] = { text: fill, role: 'line', kind: 'mark' }
     }
     for (const vc of vertCols) if (cells[vc]!.text === g.track) cells[vc] = { text: g.vert, role: 'line', kind: 'stroke' }
@@ -260,32 +275,31 @@ export function renderGanttTerminal(
   }
 
   const emitAxis = (): void => {
-  owner = { id: generated('time-axis'), kind: 'label' }
-  const axisRow = document.height
-  pushLine([
-    { text: ' '.repeat(labelWidth + 2), role: null },
-    { text: g.axis.repeat(plotWidth), role: 'line' },
-  ])
-  // Keep the clock position visible even when task bars cover every track.
-  if (todayCol !== undefined) document.put(labelWidth + 2 + todayCol, axisRow, todayGlyph, { role: 'line', kind: 'marker', owner: todayOwner, color: todayPaint })
-  const ticks = resolveTicks(schedule, model, Math.max(2, Math.floor(plotWidth / 12)))
-  const axisCells = new Array<string>(plotWidth + 16).fill(' ')
-  for (const tick of ticks) {
-    const col = colOf(tick.time)
-    if (col >= plotWidth) continue
-    for (let i = 0; i < tick.label.length; i++) {
-      const at = col + i
-      if (at >= axisCells.length) break
-      // Keep one space between consecutive tick labels.
-      if (i === 0 && col > 0 && axisCells[col - 1] !== ' ') break
-      axisCells[at] = tick.label[i]!
+    owner = { id: generated('time-axis'), kind: 'label' }
+    const axisRow = document.height
+    pushLine([
+      { text: ' '.repeat(labelWidth + 2), role: null },
+      { text: g.axis.repeat(plotWidth), role: 'line' },
+    ])
+    // Keep the clock position visible even when task bars cover every track.
+    if (todayCol !== undefined) document.put(labelWidth + 2 + todayCol, axisRow, todayGlyph, { role: 'line', kind: 'marker', owner: todayOwner, color: todayPaint })
+    const ticks = resolveTicks(schedule, model, Math.max(2, Math.floor(plotWidth / 12)))
+    const axisCells = new Array<string>(plotWidth + 16).fill(' ')
+    for (const tick of ticks) {
+      const col = colOf(tick.time)
+      if (col >= plotWidth) continue
+      for (let i = 0; i < tick.label.length; i++) {
+        const at = col + i
+        if (at >= axisCells.length) break
+        // Keep one space between consecutive tick labels.
+        if (i === 0 && col > 0 && axisCells[col - 1] !== ' ') break
+        axisCells[at] = tick.label[i]!
+      }
     }
-  }
-  pushLine([
-    { text: ' '.repeat(labelWidth + 2), role: null },
-    { text: axisCells.join('').trimEnd(), role: 'text' },
-  ])
-
+    pushLine([
+      { text: ' '.repeat(labelWidth + 2), role: null },
+      { text: axisCells.join('').trimEnd(), role: 'text' },
+    ])
   }
 
   if (model.topAxis) emitAxis()
@@ -296,13 +310,16 @@ export function renderGanttTerminal(
       labelRows([v], Math.max(1, labelWidth - 4)).forEach((runs, index) => {
         const width = runs.reduce((sum, run) => sum + visualWidth(run.text), 0)
         pushLine([
-          { text: TASK_INDENT, kind: 'surface' }, ...runs,
-          ...(index === 0 ? [
-            { text: ' '.repeat(Math.max(0, labelWidth - 4 - width) + 2) },
-            { text: padForCol(Math.min(plotWidth - 1, colOf(v.start + (v.renderEnd - v.start) / 2)), g.vert), role: 'line' as const, kind: 'stroke' as const },
-            { text: '  ' },
-            { text: formatGanttInstant(v.start, schedule.dateOnly ? '%m-%d' : '%m-%d %H:%M'), role: 'text' as const, owner: { id: generated(`${taskOwner(v).id}:dates`), kind: 'label' as const, parent: { id: taskOwner(v).id, kind: 'node' as const } } },
-          ] : []),
+          { text: TASK_INDENT, kind: 'surface' },
+          ...runs,
+          ...(index === 0
+            ? [
+                { text: ' '.repeat(Math.max(0, labelWidth - 4 - width) + 2) },
+                { text: padForCol(Math.min(plotWidth - 1, colOf(v.start + (v.renderEnd - v.start) / 2)), g.vert), role: 'line' as const, kind: 'stroke' as const },
+                { text: '  ' },
+                { text: formatGanttInstant(v.start, schedule.dateOnly ? '%m-%d' : '%m-%d %H:%M'), role: 'text' as const, owner: { id: generated(`${taskOwner(v).id}:dates`), kind: 'label' as const, parent: { id: taskOwner(v).id, kind: 'node' as const } } },
+              ]
+            : []),
         ])
       })
     })
@@ -316,13 +333,20 @@ export function renderGanttTerminal(
     const sectionTasks = rowTasks.filter(t => t.sectionIndex === si)
     const sectionVertical = vertTasks.filter(task => task.sectionIndex === si)
     if (sectionTasks.length === 0 && sectionVertical.length === 0 && section.label === undefined) continue
-    if (sectionTasks.length === 0 && section.label === undefined) { sectionVertical.forEach(emitVertical); continue }
+    if (sectionTasks.length === 0 && section.label === undefined) {
+      sectionVertical.forEach(emitVertical)
+      continue
+    }
     const visibleSectionIndex = sectionIndex++
     owner = { id: generated(`section-label#${visibleSectionIndex}`), kind: 'label' }
     if (section.label !== undefined) {
       for (const line of sectionLines(section.label)) {
         document.scope(owner, () => {
-          for (const text of wrapText(line, Math.max(1, labelWidth - 2))) pushLine([{ text: SECTION_INDENT, kind: 'surface' }, { text, role: 'border', kind: 'text' }])
+          for (const text of wrapText(line, Math.max(1, labelWidth - 2)))
+            pushLine([
+              { text: SECTION_INDENT, kind: 'surface' },
+              { text, role: 'border', kind: 'text' },
+            ])
         })
       }
     }
@@ -342,13 +366,7 @@ export function renderGanttTerminal(
         const labels = labelRows(laneTasks, Math.max(1, labelWidth - 4))
         labels.forEach((runs, index) => {
           const width = runs.reduce((sum, run) => sum + visualWidth(run.text), 0)
-          pushLine([
-            { text: TASK_INDENT }, ...runs,
-            ...(index === 0 ? [
-              { text: ' '.repeat(Math.max(0, labelWidth - 4 - width) + 2) },
-              ...cells.map(cell => ({ ...cell, owner: cell.owner ?? owner })),
-            ] : []),
-          ])
+          pushLine([{ text: TASK_INDENT }, ...runs, ...(index === 0 ? [{ text: ' '.repeat(Math.max(0, labelWidth - 4 - width) + 2) }, ...cells.map(cell => ({ ...cell, owner: cell.owner ?? owner }))] : [])])
         })
       }
     } else {
@@ -358,21 +376,30 @@ export function renderGanttTerminal(
         labelRows([t], Math.max(1, labelWidth - 4)).forEach((runs, index) => {
           const width = runs.reduce((sum, run) => sum + visualWidth(run.text), 0)
           pushLine([
-            { text: TASK_INDENT }, ...runs,
-            ...(index === 0 ? [
-              { text: ' '.repeat(Math.max(0, labelWidth - 4 - width) + 2) },
-              ...buildTrack(t),
-              { text: '  ' },
-              { text: dateGutter(t, schedule).replace('→', arrow), role: 'text' as const, owner: { id: generated(`${currentOwner.id}:dates`), kind: 'label' as const, parent: { id: currentOwner.id, kind: 'node' as const } } },
-            ] : []),
+            { text: TASK_INDENT },
+            ...runs,
+            ...(index === 0
+              ? [
+                  { text: ' '.repeat(Math.max(0, labelWidth - 4 - width) + 2) },
+                  ...buildTrack(t),
+                  { text: '  ' },
+                  { text: dateGutter(t, schedule).replace('→', arrow), role: 'text' as const, owner: { id: generated(`${currentOwner.id}:dates`), kind: 'label' as const, parent: { id: currentOwner.id, kind: 'node' as const } } },
+                ]
+              : []),
           ])
         })
       }
     }
     sectionVertical.forEach(emitVertical)
-    document.region({ id: generated(`section#${visibleSectionIndex}`), kind: 'band', members: [...sectionTasks, ...sectionVertical].map(task => taskOwner(task).id) }, {
-      x: 0, y: sectionStart, width: document.width, height: document.height - sectionStart,
-    })
+    document.region(
+      { id: generated(`section#${visibleSectionIndex}`), kind: 'band', members: [...sectionTasks, ...sectionVertical].map(task => taskOwner(task).id) },
+      {
+        x: 0,
+        y: sectionStart,
+        width: document.width,
+        height: document.height - sectionStart,
+      },
+    )
   }
 
   if (!model.topAxis) emitAxis()
@@ -380,10 +407,7 @@ export function renderGanttTerminal(
   // Dates retain the resolved schedule, but equal dates cannot recover the
   // authored dependency graph. Keep that graph as owned, width-aware text.
   for (const task of model.tasks) {
-    const dependencies = [
-      ...(task.start?.kind === 'after' ? task.start.refs.map(ref => ({ ref, kind: 'after' as const })) : []),
-      ...(task.end.kind === 'until' ? task.end.refs.map(ref => ({ ref, kind: 'until' as const })) : []),
-    ]
+    const dependencies = [...(task.start?.kind === 'after' ? task.start.refs.map(ref => ({ ref, kind: 'after' as const })) : []), ...(task.end.kind === 'until' ? task.end.refs.map(ref => ({ ref, kind: 'until' as const })) : [])]
     for (const { ref, kind } of dependencies) {
       const ownId = taskOwner(task).id
       const relation = { id: generated(`dependency:${task.index}:${kind}:${ref}`), kind: 'edge' as const, from: kind === 'after' ? ref : ownId, to: kind === 'after' ? ownId : ref }

@@ -170,6 +170,9 @@ export interface PositionedDiagram {
 export interface ResolvedFamilyRenderContext {
   readonly renderOptions: Readonly<RenderOptions>
   readonly styleFace?: Readonly<InternalStyleFace>
+  /** Actual frozen graphical backend, or the nominal Style backend modeled
+   * by an unpainted layout projection. Graphical host policy wins. */
+  readonly paintBackendId?: string
   readonly familyConfig?: Readonly<Record<string, unknown>>
   readonly familyAppearance?: Readonly<Record<string, unknown>>
 }
@@ -549,6 +552,11 @@ export interface RenderOptions {
   class?: {
     /** Nest namespace compounds (default true); false lays them out compactly as siblings. */
     hierarchicalNamespaces?: boolean
+  }
+  /** Opt-in graphical Kanban layout controls; source order and card membership remain unchanged. */
+  kanban?: {
+    /** Wrap whole columns into rows within this best-effort pixel width, retaining readable column widths. */
+    maxWidth?: number
   }
   /** Family-specific SVG renderer options for architecture-beta diagrams. */
   architecture?: {

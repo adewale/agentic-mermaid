@@ -275,6 +275,15 @@ jobs:
         # One Playwright/server suite per process, with disjoint file shards.
         run: bun run test:browser --shard=${{ matrix.suite == 'browser' && '1/2' || '2/2' }}
 
+      - name: Retain Editor interaction review images
+        if: ${{ always() && matrix.suite == 'browser' }}
+        uses: actions/upload-artifact@v7
+        with:
+          name: editor-community-review-${{ github.event.pull_request.head.sha || github.sha }}
+          path: e2e/screenshots/current-*.png
+          retention-days: 7
+          if-no-files-found: warn
+
       - name: Verify website payload request graphs and budgets
         if: ${{ matrix.suite == 'payload' }}
         # This builds the site and its lazy bundle once, then captures requests.

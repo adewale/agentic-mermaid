@@ -59,8 +59,8 @@ export type {
 import type {
   BrandConstraint, RoleStyleSpec, RoleStyles, SemanticBinding, SemanticSlots,
 } from './style-spec.ts'
-import type { SemanticChannels } from './ir.ts'
 import { SCENE_ROLE_DESCRIPTORS, type BuiltinSceneRole } from './roles.ts'
+export { resolveRoleStyle, type SemanticBindingContext } from './roles.ts'
 import { isPlainRecord } from '../shared/plain-data.ts'
 
 /** Private renderer defaults for built-in looks. This is intentionally not
@@ -462,12 +462,6 @@ export function inferBackend(spec: StyleSpec): 'default' | 'rough' | 'hybrid' {
   return 'default'
 }
 
-type InternalRoleStyleLookup = Partial<Record<BuiltinSceneRole, Readonly<RoleStyleSpec>>>
-
-function roleStyleLookup(roles: RoleStyles | undefined): InternalRoleStyleLookup | undefined {
-  return roles as InternalRoleStyleLookup | undefined
-}
-
 function mergeRoleStyles(left: RoleStyles | undefined, right: RoleStyles | undefined): RoleStyles | undefined {
   if (!left && !right) return undefined
   const merged: RoleStyles = { ...left }
@@ -572,41 +566,6 @@ function internalStyleFace(spec: InternalStyleSpec): InternalStyleFace | undefin
     ...(Object.keys(edge).length ? { edge } : {}),
     ...(Object.keys(group).length ? { group } : {}),
   }
-}
-
-export type SemanticBindingContext = Readonly<SemanticChannels>
-
-function bindingMatches(binding: SemanticBinding, context: SemanticBindingContext): boolean {
-  const candidate = context[binding.channel]
-  return Array.isArray(candidate) ? candidate.includes(binding.value) : String(candidate ?? '') === binding.value
-}
-
-/** Shared pre-serialization resolver. Exact role leaves and ordered semantic
- * slots refine the deterministic fallback; family-authored values are applied
- * afterwards by the lowering and therefore remain authoritative. */
-export function resolveRoleStyle(
-  face: Readonly<InternalStyleFace> | undefined,
-  role: BuiltinSceneRole,
-  context: SemanticBindingContext = {},
-  options: { readonly includeFallback?: boolean } = {},
-): Readonly<RoleStyleSpec> | undefined {
-  const descriptor = SCENE_ROLE_DESCRIPTORS.find(candidate => candidate.role === role)
-  const roles = roleStyleLookup(face?.roles)
-  const fallback = options.includeFallback === false
-    ? undefined
-    : descriptor ? roles?.[descriptor.style.fallbackRole] : undefined
-  const exact = roles?.[role]
-  let merged: RoleStyleSpec | undefined = fallback || exact ? { ...fallback, ...exact } : undefined
-  const applicable: ReadonlySet<string> = new Set(descriptor?.style.applicableProperties ?? [])
-  for (const binding of face?.bindings ?? []) {
-    if (binding.role !== undefined && binding.role !== role) continue
-    if (!bindingMatches(binding, context)) continue
-    const slot = face?.semanticSlots?.[binding.slot]
-    if (!slot) continue // final-stack admission makes this unreachable
-    const projected = Object.fromEntries(Object.entries(slot).filter(([property]) => applicable.has(property))) as RoleStyleSpec
-    merged = { ...merged, ...projected }
-  }
-  return merged ? Object.freeze(merged) : undefined
 }
 
 /** Validate dependencies only after composition: a fragment may deliberately

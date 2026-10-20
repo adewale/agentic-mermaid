@@ -3,7 +3,33 @@ import { type CheckMermaidSpec, checkMermaidSource } from '../../src/agent/facts
 import { parseRegisteredMermaid as parseMermaid } from '../../src/agent/parse.ts'
 import { serializeMermaid } from '../../src/agent/serialize.ts'
 import { verifyMermaid } from '../../src/agent/verify.ts'
-import { asArchitecture, asC4, asClass, asEr, asFlowchart, asGantt, asGitGraph, asJourney, asMindmap, asPie, asQuadrant, asRadar, asSankey, asSequence, asState, asTimeline, asXyChart, type DiagramKind, type ParsedDiagram } from '../../src/agent/types.ts'
+import {
+  asArchitecture,
+  asPacket,
+  asKanban,
+  asRequirement,
+  asBlock,
+  asTreemap,
+  asIshikawa,
+  asC4,
+  asClass,
+  asEr,
+  asFlowchart,
+  asGantt,
+  asGitGraph,
+  asJourney,
+  asMindmap,
+  asPie,
+  asQuadrant,
+  asRadar,
+  asSankey,
+  asSequence,
+  asState,
+  asTimeline,
+  asXyChart,
+  type DiagramKind,
+  type ParsedDiagram,
+} from '../../src/agent/types.ts'
 import { executeInSandbox } from '../../src/mcp/sandbox.ts'
 import { type AntiPattern, lintAgentTrace, type SdkCall } from './harness.ts'
 import { buildHomepageAgentPromptTask } from './homepage-prompt.ts'
@@ -416,6 +442,126 @@ export const DEFAULT_CASES: AgentUsageEvalCase[] = [
       return { source }
     `,
   },
+  {
+    id: 'packet_add_checksum',
+    family: 'packet',
+    prompt: promptTask('Append an 8-bit Checksum field using structured mutation, verify, then serialize.', 'Preserve the existing Version and Payload fields, each 8 bits, and retain contiguous bit offsets.', 'packet\n+8: "Version"\n+8: "Payload"'),
+    input: 'packet\n+8: "Version"\n+8: "Payload"',
+    script: `
+      const parsed = mermaid.parseRegisteredMermaid("packet\\n+8: \\"Version\\"\\n+8: \\"Payload\\"")
+      if (!parsed.ok) return { error: 'parse' }
+      const body = mermaid.asPacket(parsed.value)
+      if (!body) return { error: 'not-packet' }
+      const r1 = mermaid.mutate(body, { kind: 'add_field', label: 'Checksum', bits: 8 })
+      if (!r1.ok) return { error: r1.error }
+      const verify = mermaid.verifyMermaid(r1.value)
+      if (!verify.ok) return { error: 'verify', warnings: verify.warnings }
+      return { source: mermaid.serializeMermaid(r1.value) }
+    `,
+  },
+  {
+    id: 'kanban_move_completed_task',
+    family: 'kanban',
+    prompt: promptTask(
+      'Move work into done after research using structured mutation, verify, then serialize.',
+      'Keep both columns, existing Research, and the moved task label, assignee Maya, priority High and ticket AM-1.',
+      'kanban\n  todo[To do]\n    work[Build parser]@{ assigned: Maya, priority: High, ticket: AM-1 }\n  done[Done]\n    research[Research]',
+    ),
+    input: 'kanban\n  todo[To do]\n    work[Build parser]@{ assigned: Maya, priority: High, ticket: AM-1 }\n  done[Done]\n    research[Research]',
+    script: `
+      const parsed = mermaid.parseRegisteredMermaid("kanban\\n  todo[To do]\\n    work[Build parser]@{ assigned: Maya, priority: High, ticket: AM-1 }\\n  done[Done]\\n    research[Research]")
+      if (!parsed.ok) return { error: 'parse' }
+      const body = mermaid.asKanban(parsed.value)
+      if (!body) return { error: 'not-kanban' }
+      const r1 = mermaid.mutate(body, { kind: 'move_task', id: 'work', column: 'done', index: 1 })
+      if (!r1.ok) return { error: r1.error }
+      const verify = mermaid.verifyMermaid(r1.value)
+      if (!verify.ok) return { error: 'verify', warnings: verify.warnings }
+      return { source: mermaid.serializeMermaid(r1.value) }
+    `,
+  },
+  {
+    id: 'requirement_rename_evidence',
+    family: 'requirement',
+    prompt: promptTask(
+      'Rename suite to evidence and change fast verification method to Analysis using structured mutation, verify, then serialize.',
+      'Preserve requirement R1, its text and High risk, the test suite element type, and both distinct verifies and traces relationships.',
+      'requirementDiagram\nrequirement fast {\nid: R1\ntext: "Respond within 100ms"\nrisk: high\nverifymethod: test\n}\nelement suite {\ntype: "test suite"\n}\nsuite - verifies -> fast\nsuite - traces -> fast',
+    ),
+    input: 'requirementDiagram\nrequirement fast {\nid: R1\ntext: "Respond within 100ms"\nrisk: high\nverifymethod: test\n}\nelement suite {\ntype: "test suite"\n}\nsuite - verifies -> fast\nsuite - traces -> fast',
+    script: `
+      const parsed = mermaid.parseRegisteredMermaid("requirementDiagram\\nrequirement fast {\\nid: R1\\ntext: \\"Respond within 100ms\\"\\nrisk: high\\nverifymethod: test\\n}\\nelement suite {\\ntype: \\"test suite\\"\\n}\\nsuite - verifies -> fast\\nsuite - traces -> fast")
+      if (!parsed.ok) return { error: 'parse' }
+      const body = mermaid.asRequirement(parsed.value)
+      if (!body) return { error: 'not-requirement' }
+      const r1 = mermaid.mutate(body, { kind: 'rename_node', from: 'suite', to: 'evidence' })
+      if (!r1.ok) return { error: r1.error }
+      const r2 = mermaid.mutate(r1.value, { kind: 'update_requirement', id: 'fast', changes: { verifyMethod: 'Analysis' } })
+      if (!r2.ok) return { error: r2.error }
+      const verify = mermaid.verifyMermaid(r2.value)
+      if (!verify.ok) return { error: 'verify', warnings: verify.warnings }
+      return { source: mermaid.serializeMermaid(r2.value) }
+    `,
+  },
+  {
+    id: 'block_rename_database',
+    family: 'block',
+    prompt: promptTask(
+      'Rename block db to store using structured mutation, verify, then serialize.',
+      'Preserve its DB label and cylinder shape, membership in services, the two-column authored grid, and the directed API connection.',
+      'block\ncolumns 2\nblock:services:2\ncolumns 2\napi["API"] db[("DB")]\nend\napi --> db',
+    ),
+    input: 'block\ncolumns 2\nblock:services:2\ncolumns 2\napi["API"] db[("DB")]\nend\napi --> db',
+    script: `
+      const parsed = mermaid.parseRegisteredMermaid("block\\ncolumns 2\\nblock:services:2\\ncolumns 2\\napi[\\"API\\"] db[(\\"DB\\")]\\nend\\napi --> db")
+      if (!parsed.ok) return { error: 'parse' }
+      const body = mermaid.asBlock(parsed.value)
+      if (!body) return { error: 'not-block' }
+      const r1 = mermaid.mutate(body, { kind: 'rename_block', from: 'db', to: 'store' })
+      if (!r1.ok) return { error: r1.error }
+      const verify = mermaid.verifyMermaid(r1.value)
+      if (!verify.ok) return { error: 'verify', warnings: verify.warnings }
+      return { source: mermaid.serializeMermaid(r1.value) }
+    `,
+  },
+  {
+    id: 'treemap_update_design_value',
+    family: 'treemap',
+    prompt: promptTask('Set the Design leaf value to 50 using structured mutation, verify, then serialize.', 'Keep Engineering at 60 and preserve both leaves under Product. Resolve the Design identity from the parsed body.', 'treemap\n"Product"\n  "Engineering": 60\n  "Design": 40'),
+    input: 'treemap\n"Product"\n  "Engineering": 60\n  "Design": 40',
+    script: `
+      const parsed = mermaid.parseRegisteredMermaid("treemap\\n\\"Product\\"\\n  \\"Engineering\\": 60\\n  \\"Design\\": 40")
+      if (!parsed.ok) return { error: 'parse' }
+      const body = mermaid.asTreemap(parsed.value)
+      if (!body) return { error: 'not-treemap' }
+      const design = body.body.nodes.find(node => node.label === 'Design')
+      if (!design) return { error: 'missing-design' }
+      const r1 = mermaid.mutate(body, { kind: 'set_value', id: design.id, value: 50 })
+      if (!r1.ok) return { error: r1.error }
+      const verify = mermaid.verifyMermaid(r1.value)
+      if (!verify.ok) return { error: 'verify', warnings: verify.warnings }
+      return { source: mermaid.serializeMermaid(r1.value) }
+    `,
+  },
+  {
+    id: 'ishikawa_add_cache_cause',
+    family: 'ishikawa',
+    prompt: promptTask('Add Cold caches beneath Tooling using structured mutation, verify, then serialize.', 'Preserve Slow release as effect and every existing cause, including Manual checks beneath Process and Slow builds beneath Tooling.', 'ishikawa\nSlow release\nProcess\n  Manual checks\nTooling\n  Slow builds'),
+    input: 'ishikawa\nSlow release\nProcess\n  Manual checks\nTooling\n  Slow builds',
+    script: `
+      const parsed = mermaid.parseRegisteredMermaid("ishikawa\\nSlow release\\nProcess\\n  Manual checks\\nTooling\\n  Slow builds")
+      if (!parsed.ok) return { error: 'parse' }
+      const body = mermaid.asIshikawa(parsed.value)
+      if (!body) return { error: 'not-ishikawa' }
+      const tooling = body.body.nodes.find(node => node.label === 'Tooling')
+      if (!tooling) return { error: 'missing-tooling' }
+      const r1 = mermaid.mutate(body, { kind: 'add_cause', parentId: tooling.id, label: 'Cold caches' })
+      if (!r1.ok) return { error: r1.error }
+      const verify = mermaid.verifyMermaid(r1.value)
+      if (!verify.ok) return { error: 'verify', warnings: verify.warnings }
+      return { source: mermaid.serializeMermaid(r1.value) }
+    `,
+  },
 ]
 
 // Knowledge-proof cases: the correct output depends on facts only the
@@ -559,14 +705,53 @@ export const CREATE_CASES: AgentUsageEvalCase[] = [
     'Show a Customer person described as Places orders, a Shop system described as Sells products, and an external Payments system described as Processes payments. Customer Uses Shop, and Shop Charges Payments. Keep the arrow directions and the external-system distinction.',
     'C4Context\nPerson(customer, "Customer", "Places orders")\nSystem(shop, "Shop", "Sells products")\nSystem_Ext(payments, "Payments", "Processes payments")\nRel(customer, shop, "Uses")\nRel(shop, payments, "Charges")',
   ),
+  authorCase(
+    'author_packet_source',
+    'packet',
+    'Create a new diagram as Mermaid source from this context, parse it, verify it, then return the source. There is no existing diagram to mutate.',
+    'A packet containing contiguous 8-bit Version, Payload and Checksum fields, in that order.',
+    'packet\n+8: "Version"\n+8: "Payload"\n+8: "Checksum"',
+  ),
+  authorCase(
+    'author_kanban_source',
+    'kanban',
+    'Create a new diagram as Mermaid source from this context, parse it, verify it, then return the source. There is no existing diagram to mutate.',
+    'A board with empty To do (todo) and Done (done). Done contains Research (research) followed by Build parser (work), assigned to Maya with High priority and ticket AM-1.',
+    'kanban\n  todo[To do]\n  done[Done]\n    research[Research]\n    work[Build parser]@{ assigned: Maya, priority: High, ticket: AM-1 }',
+  ),
+  authorCase(
+    'author_requirement_source',
+    'requirement',
+    'Create a new diagram as Mermaid source from this context, parse it, verify it, then return the source. There is no existing diagram to mutate.',
+    'A fast requirement R1 with text Respond within 100ms, High risk and Analysis verification. A test suite element evidence verifies and traces fast as two distinct relationships.',
+    'requirementDiagram\nrequirement fast {\nid: R1\ntext: "Respond within 100ms"\nrisk: high\nverifymethod: analysis\n}\nelement evidence {\ntype: "test suite"\n}\nevidence - verifies -> fast\nevidence - traces -> fast',
+  ),
+  authorCase(
+    'author_block_source',
+    'block',
+    'Create a new diagram as Mermaid source from this context, parse it, verify it, then return the source. There is no existing diagram to mutate.',
+    'A two-column services composite holding API (api) and a DB cylinder (store), connected from api to store. The composite spans two columns in a two-column root grid.',
+    'block\ncolumns 2\nblock:services:2\ncolumns 2\napi["API"] store[("DB")]\nend\napi --> store',
+  ),
+  authorCase(
+    'author_treemap_source',
+    'treemap',
+    'Create a new diagram as Mermaid source from this context, parse it, verify it, then return the source. There is no existing diagram to mutate.',
+    'A Product category containing Engineering valued 60 and Design valued 50.',
+    'treemap\n"Product"\n  "Engineering": 60\n  "Design": 50',
+  ),
+  authorCase(
+    'author_ishikawa_source',
+    'ishikawa',
+    'Create a new diagram as Mermaid source from this context, parse it, verify it, then return the source. There is no existing diagram to mutate.',
+    'A fishbone with effect Slow release; Process has Manual checks, and Tooling has Slow builds and Cold caches.',
+    'ishikawa\nSlow release\nProcess\n  Manual checks\nTooling\n  Slow builds\n  Cold caches',
+  ),
 ]
 
 /** The live-model suite: exactly one create and one mutate case per family. */
 export const MUTATE_CASES: AgentUsageEvalCase[] = DEFAULT_CASES.filter(c => c.input !== undefined)
-export const AUTHOR_CASES: AgentUsageEvalCase[] = [
-  ...DEFAULT_CASES.filter(c => c.input === undefined),
-  ...CREATE_CASES,
-]
+export const AUTHOR_CASES: AgentUsageEvalCase[] = [...DEFAULT_CASES.filter(c => c.input === undefined), ...CREATE_CASES]
 export const FULL_EVAL_CASES: AgentUsageEvalCase[] = [...MUTATE_CASES, ...AUTHOR_CASES]
 
 export const KNOWLEDGE_CASES: AgentUsageEvalCase[] = [
@@ -665,6 +850,12 @@ const STRUCTURED_CASES = new Set([
   'radar_add_beta_curve',
   'sankey_add_losses_flow',
   'c4_add_cache_container',
+  'packet_add_checksum',
+  'kanban_move_completed_task',
+  'requirement_rename_evidence',
+  'block_rename_database',
+  'treemap_update_design_value',
+  'ishikawa_add_cache_cause',
 ])
 
 type MutableFamily = Extract<SdkCall, { verb: 'narrow' }>['family']
@@ -771,6 +962,12 @@ function checkTrace(id: string, input: string | undefined, trace: SdkCall[]): bo
   if (id === 'radar_add_beta_curve') return checkMutationTrace(id, input, 'radar', trace) && hasMutationOps(trace, input, ['add_curve'])
   if (id === 'sankey_add_losses_flow') return checkMutationTrace(id, input, 'sankey', trace) && hasMutationOps(trace, input, ['add_link'])
   if (id === 'c4_add_cache_container') return checkMutationTrace(id, input, 'c4', trace) && hasMutationOps(trace, input, ['add_element', 'add_relationship'])
+  if (id === 'packet_add_checksum') return checkMutationTrace(id, input, 'packet', trace) && hasMutationOps(trace, input, ['add_field'])
+  if (id === 'kanban_move_completed_task') return checkMutationTrace(id, input, 'kanban', trace) && hasMutationOps(trace, input, ['move_task'])
+  if (id === 'requirement_rename_evidence') return checkMutationTrace(id, input, 'requirement', trace) && hasMutationOps(trace, input, ['rename_node', 'update_requirement'])
+  if (id === 'block_rename_database') return checkMutationTrace(id, input, 'block', trace) && hasMutationOps(trace, input, ['rename_block'])
+  if (id === 'treemap_update_design_value') return checkMutationTrace(id, input, 'treemap', trace) && hasMutationOps(trace, input, ['set_value'])
+  if (id === 'ishikawa_add_cache_cause') return checkMutationTrace(id, input, 'ishikawa', trace) && hasMutationOps(trace, input, ['add_cause'])
   return false
 }
 
@@ -867,6 +1064,79 @@ function narrow<T>(source: string, as: (d: ParsedDiagram) => T | null): T | null
   return parsed.ok ? as(parsed.value) : null
 }
 const dequote = (s: string) => s.replace(/^"|"$/g, '')
+
+function packetGoal(source: string): boolean {
+  const fields = narrow(source, asPacket)?.body.fields
+  return Boolean(fields?.length === 3 && fields.every((field, i) => field.start === i * 8 && field.end === i * 8 + 7 && field.label === ['Version', 'Payload', 'Checksum'][i]))
+}
+function kanbanGoal(source: string): boolean {
+  const columns = narrow(source, asKanban)?.body.columns,
+    todo = columns?.find(c => c.sourceId === 'todo'),
+    done = columns?.find(c => c.sourceId === 'done'),
+    work = done?.tasks[1]
+  return Boolean(
+    columns?.length === 2 &&
+      todo?.tasks.length === 0 &&
+      todo.label === 'To do' &&
+      done?.label === 'Done' &&
+      done.tasks.length === 2 &&
+      done.tasks[0]?.sourceId === 'research' &&
+      done.tasks[0]?.label === 'Research' &&
+      work?.sourceId === 'work' &&
+      work.label === 'Build parser' &&
+      work.metadata.assigned === 'Maya' &&
+      work.metadata.priority === 'High' &&
+      work.metadata.ticket === 'AM-1',
+  )
+}
+function requirementGoal(source: string): boolean {
+  const body = narrow(source, asRequirement)?.body,
+    requirement = body?.requirements.find(n => n.name === 'fast'),
+    evidence = body?.elements.find(n => n.name === 'evidence')
+  return Boolean(
+    body?.requirements.length === 1 &&
+      body.elements.length === 1 &&
+      requirement?.requirementId === 'R1' &&
+      requirement.text === 'Respond within 100ms' &&
+      requirement.risk === 'High' &&
+      requirement.verifyMethod === 'Analysis' &&
+      evidence?.type === 'test suite' &&
+      body.relations.length === 2 &&
+      ['verifies', 'traces'].every(type => body.relations.some(edge => edge.src === 'evidence' && edge.dst === 'fast' && edge.type === type)),
+  )
+}
+function blockGoal(source: string): boolean {
+  const body = narrow(source, asBlock)?.body,
+    services = body?.root.children?.find(n => n.id === 'services'),
+    api = services?.children?.find(n => n.id === 'api'),
+    store = services?.children?.find(n => n.id === 'store')
+  return Boolean(
+    body?.root.columns === 2 &&
+      body.root.children?.length === 1 &&
+      services?.columns === 2 &&
+      services.widthInColumns === 2 &&
+      services.children?.length === 2 &&
+      api?.label === 'API' &&
+      store?.label === 'DB' &&
+      store.type === 'cylinder' &&
+      body.edges.length === 1 &&
+      body.edges[0]?.start === 'api' &&
+      body.edges[0]?.end === 'store' &&
+      body.edges[0]?.arrowTypeEnd === 'arrow_point',
+  )
+}
+function treemapGoal(source: string): boolean {
+  const nodes = narrow(source, asTreemap)?.body.nodes,
+    product = nodes?.find(n => n.label === 'Product' && n.value === undefined)
+  return Boolean(nodes?.length === 3 && product && nodes.some(n => n.label === 'Engineering' && n.value === 60 && n.parentId === product.id) && nodes.some(n => n.label === 'Design' && n.value === 50 && n.parentId === product.id))
+}
+function ishikawaGoal(source: string): boolean {
+  const nodes = narrow(source, asIshikawa)?.body.nodes,
+    effect = nodes?.find(n => !n.parentId && n.label === 'Slow release'),
+    process = nodes?.find(n => n.label === 'Process' && n.parentId === effect?.id),
+    tooling = nodes?.find(n => n.label === 'Tooling' && n.parentId === effect?.id)
+  return Boolean(nodes?.length === 6 && effect && process && tooling && nodes.some(n => n.label === 'Manual checks' && n.parentId === process.id) && ['Slow builds', 'Cold caches'].every(label => nodes.some(n => n.label === label && n.parentId === tooling.id)))
+}
 const CREATE_ORACLES: Record<string, (source: string) => boolean> = {
   author_state_source: s => {
     const t = new Set(narrow(s, asState)?.body.transitions.map(x => `${x.from}->${x.to}`))
@@ -932,10 +1202,16 @@ const CREATE_ORACLES: Record<string, (source: string) => boolean> = {
     const customer = b?.elements.find(e => e.label === 'Customer' && e.kind === 'person' && !e.external && e.description === 'Places orders')
     const shop = b?.elements.find(e => e.label === 'Shop' && e.kind === 'system' && !e.external && e.description === 'Sells products')
     const payments = b?.elements.find(e => e.label === 'Payments' && e.kind === 'system' && e.external && e.description === 'Processes payments')
-    return Boolean(b?.variant === 'C4Context' && customer && shop && payments
-      && b.relationships.some(r => r.source === customer.id && r.target === shop.id && r.label === 'Uses' && !r.bidirectional)
-      && b.relationships.some(r => r.source === shop.id && r.target === payments.id && r.label === 'Charges' && !r.bidirectional))
+    return Boolean(
+      b?.variant === 'C4Context' && customer && shop && payments && b.relationships.some(r => r.source === customer.id && r.target === shop.id && r.label === 'Uses' && !r.bidirectional) && b.relationships.some(r => r.source === shop.id && r.target === payments.id && r.label === 'Charges' && !r.bidirectional),
+    )
   },
+  author_packet_source: packetGoal,
+  author_kanban_source: kanbanGoal,
+  author_requirement_source: requirementGoal,
+  author_block_source: blockGoal,
+  author_treemap_source: treemapGoal,
+  author_ishikawa_source: ishikawaGoal,
 }
 
 function checkTask(id: string, input: string | undefined, value: unknown, trace: SdkCall[], sourceOnly = false): boolean {
@@ -946,6 +1222,30 @@ function checkTask(id: string, input: string | undefined, value: unknown, trace:
   }
   if (id === 'author_auth_flow_source') return checkAuthFlowSourceTask(value)
   if (id === 'author_api_sequence_source') return checkApiSequenceSourceTask(value)
+  if (id === 'packet_add_checksum') {
+    const source = serializedSource(value, trace)
+    return Boolean(source && packetGoal(source))
+  }
+  if (id === 'kanban_move_completed_task') {
+    const source = serializedSource(value, trace)
+    return Boolean(source && kanbanGoal(source))
+  }
+  if (id === 'requirement_rename_evidence') {
+    const source = serializedSource(value, trace)
+    return Boolean(source && requirementGoal(source))
+  }
+  if (id === 'block_rename_database') {
+    const source = serializedSource(value, trace)
+    return Boolean(source && blockGoal(source))
+  }
+  if (id === 'treemap_update_design_value') {
+    const source = serializedSource(value, trace)
+    return Boolean(source && treemapGoal(source))
+  }
+  if (id === 'ishikawa_add_cache_cause') {
+    const source = serializedSource(value, trace)
+    return Boolean(source && ishikawaGoal(source))
+  }
   if (!input) return false
   if (id === 'cache_between_api_and_db') {
     const source = serializedSource(value, trace)
@@ -997,8 +1297,7 @@ function checkTask(id: string, input: string | undefined, value: unknown, trace:
     const warnings = (value as { warnings?: unknown }).warnings
     // Inspecting a failed verification internally does not inform the caller.
     // Require the returned response to carry its complete diagnostics too.
-    return !verified.ok && Array.isArray(warnings) && warnings.length === verified.warnings.length
-      && verified.warnings.every(expected => warnings.some(actual => isDeepStrictEqual(actual, expected)))
+    return !verified.ok && Array.isArray(warnings) && warnings.length === verified.warnings.length && verified.warnings.every(expected => warnings.some(actual => isDeepStrictEqual(actual, expected)))
   }
   if (id === 'timeline_add_event') {
     const source = serializedSource(value, trace)
@@ -1090,11 +1389,12 @@ function checkTask(id: string, input: string | undefined, value: unknown, trace:
       { id: 'db', label: 'DB', technology: 'PostgreSQL', description: 'Stores records', shape: 'database' },
       { id: 'cache', label: 'Cache', technology: 'Redis', description: 'Caches responses', shape: 'rectangle' },
     ]
-    return Boolean(platform && expectedElements.every(expected => body.elements.some(e => e.id === expected.id
-      && e.label === expected.label && e.technology === expected.technology && e.description === expected.description
-      && e.shape === expected.shape && e.kind === 'container' && !e.external && e.parentId === platform.id))
-      && body.relationships.some(r => r.source === 'api' && r.target === 'db' && r.label === 'Reads' && r.technology === 'SQL' && !r.bidirectional)
-      && body.relationships.some(r => r.source === 'api' && r.target === 'cache' && r.label === 'Reads cache' && r.technology === 'Redis' && !r.bidirectional))
+    return Boolean(
+      platform &&
+        expectedElements.every(expected => body.elements.some(e => e.id === expected.id && e.label === expected.label && e.technology === expected.technology && e.description === expected.description && e.shape === expected.shape && e.kind === 'container' && !e.external && e.parentId === platform.id)) &&
+        body.relationships.some(r => r.source === 'api' && r.target === 'db' && r.label === 'Reads' && r.technology === 'SQL' && !r.bidirectional) &&
+        body.relationships.some(r => r.source === 'api' && r.target === 'cache' && r.label === 'Reads cache' && r.technology === 'Redis' && !r.bidirectional),
+    )
   }
   if (id === 'sequence_alt_add_message') {
     const source = serializedSource(value, trace)

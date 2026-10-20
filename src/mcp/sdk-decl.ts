@@ -297,6 +297,7 @@ interface SourceMapSpans {
   readonly edges: ReadonlyMap<string, SourceSpan>
   readonly groups: ReadonlyMap<string, SourceSpan>
   readonly labels: ReadonlyMap<string, SourceSpan>
+  readonly metadata?: ReadonlyMap<string, ReadonlyMap<string, { readonly key: SourceSpan; readonly value: SourceSpan }>>
 }
 interface SourceMap {
   readonly nodes: ReadonlyMap<string, SourceLocation>
@@ -380,6 +381,212 @@ interface PreservedValidDiagram {
 
 type ParsedDiagram = ValidDiagram | ExtensionValidDiagram | PreservedValidDiagram
 
+interface PacketField { id: string; start: number; end: number; label: string }
+interface PacketBody {
+  kind: 'packet'
+  title?: string
+  accessibilityTitle?: string
+  accessibilityDescription?: string
+  fields: PacketField[]
+}
+type PacketMutationOp =
+  | { kind: 'set_title'; title?: string }
+  | { kind: 'set_accessibility_title'; title?: string }
+  | { kind: 'set_accessibility_description'; description?: string }
+  | { kind: 'add_field'; label: string; bits: number; index?: number }
+  | { kind: 'remove_field'; index: number }
+  | { kind: 'set_field_label'; index: number; label: string }
+  | { kind: 'set_field_bits'; index: number; bits: number }
+  | { kind: 'move_field'; from: number; to: number }
+interface KanbanItem {
+  /** Collision-free public identity; sourceId retains repeated authored IDs. */
+  id: string
+  sourceId: string
+  implicitId?: boolean
+  label: string
+  metadata: Record<string, unknown>
+  icon?: string
+  className?: string
+}
+interface KanbanColumn extends KanbanItem { tasks: KanbanItem[] }
+interface KanbanBody {
+  kind: 'kanban'
+  columns: KanbanColumn[]
+  /** Display-only title supplied by the universal frontmatter envelope. */
+  title?: string
+  accessibilityTitle?: string
+  accessibilityDescription?: string
+}
+type KanbanMutationOp =
+  | { kind: 'add_column'; id: string; label: string; index?: number }
+  | { kind: 'remove_column'; id: string; removeTasks?: boolean }
+  | { kind: 'set_column_label'; id: string; label: string }
+  | { kind: 'move_column'; id: string; index: number }
+  | { kind: 'add_task'; column: string; id: string; label: string; metadata?: Record<string, unknown>; index?: number }
+  | { kind: 'remove_task'; id: string }
+  | { kind: 'set_task_label'; id: string; label: string }
+  | { kind: 'set_task_metadata'; id: string; metadata: Record<string, unknown> | null }
+  | { kind: 'move_task'; id: string; column: string; index?: number }
+  | { kind: 'set_icon'; id: string; icon?: string }
+  | { kind: 'set_class'; id: string; className?: string }
+  | { kind: 'set_accessibility_title'; title?: string }
+  | { kind: 'set_accessibility_description'; description?: string }
+interface Requirement {
+  name: string;
+  type: string;
+  requirementId: string;
+  text: string;
+  risk: string;
+  verifyMethod: string;
+  cssStyles: string[];
+  classes: string[];
+  directStyles?: string[];
+}
+interface RequirementElement {
+  name: string;
+  type: string;
+  docRef: string;
+  cssStyles: string[];
+  classes: string[];
+  directStyles?: string[];
+}
+interface Relation {
+  type: string;
+  src: string;
+  dst: string;
+}
+interface RequirementClass {
+  id: string;
+  styles: string[];
+  textStyles: string[];
+}
+interface RequirementRelation extends Relation { id: string }
+interface RequirementBody {
+  kind: 'requirement'
+  direction: 'TB' | 'BT' | 'LR' | 'RL'
+  requirements: Requirement[]
+  elements: RequirementElement[]
+  relations: RequirementRelation[]
+  classDefs: RequirementClass[]
+  title?: string
+  accessibilityTitle?: string
+  accessibilityDescription?: string
+}
+type RequirementInput = Pick<Requirement, 'name'> & Partial<Omit<Requirement, 'name' | 'cssStyles'>>
+type RequirementElementInput = Pick<RequirementElement, 'name'> & Partial<Omit<RequirementElement, 'name' | 'cssStyles'>>
+type RequirementMutationOp =
+  | { kind: 'set_title'; title: string | null }
+  | { kind: 'set_direction'; direction: RequirementBody['direction'] }
+  | { kind: 'add_requirement'; requirement: RequirementInput }
+  | { kind: 'update_requirement'; id: string; changes: Partial<Omit<RequirementInput, 'name'>> }
+  | { kind: 'add_element'; element: RequirementElementInput }
+  | { kind: 'update_element'; id: string; changes: Partial<Omit<RequirementElementInput, 'name'>> }
+  | { kind: 'rename_node'; from: string; to: string }
+  | { kind: 'remove_node'; id: string; cascade?: boolean }
+  | { kind: 'add_relation'; relation: Omit<RequirementRelation, 'id'> & { id?: string } }
+  | { kind: 'remove_relation'; id: string }
+  | { kind: 'define_class'; name: string; style: string }
+  | { kind: 'set_node_class'; id: string; className: string | null }
+  | { kind: 'set_node_style'; id: string; style: string | null }
+interface Block {
+  id: string;
+  type?: string;
+  label?: string;
+  children?: Block[];
+  columns?: number;
+  widthInColumns?: number;
+  // Number of cells a \`space\` statement asked for.
+  width?: number;
+  directions?: string[];
+  classes?: string[];
+  styles?: string[];
+  colorIndex?: number;
+  start?: string;
+  end?: string;
+  arrowTypeStart?: string;
+  arrowTypeEnd?: string;
+  thickness?: string;
+  pattern?: string;
+  css?: string;
+  styleClass?: string;
+  stylesStr?: string;
+}
+type Statement = Block | Block[];
+interface BlockClassDef {
+  id: string;
+  styles: string[];
+  textStyles: string[];
+}
+interface BlockBody {
+  kind: 'block'
+  root: Block
+  edges: Block[]
+  classDefs: BlockClassDef[]
+  title?: string
+  accessibilityTitle?: string
+  accessibilityDescription?: string
+}
+interface BlockInput {
+  id: string; label?: string; type?: string; widthInColumns?: number
+  columns?: number; directions?: string[]; classes?: string[]; styles?: string[]
+  width?: number
+  children?: BlockInput[]
+}
+type BlockMutationOp =
+  | { kind: 'set_title'; title: string | null }
+  | { kind: 'set_columns'; columns: number; parentId?: string }
+  | { kind: 'add_block'; block: BlockInput; parentId?: string; index?: number }
+  | { kind: 'update_block'; id: string; changes: Partial<Omit<BlockInput, 'id'>> }
+  | { kind: 'rename_block'; from: string; to: string }
+  | { kind: 'remove_block'; id: string; cascade?: boolean }
+  | { kind: 'move_block'; id: string; parentId?: string; index?: number }
+  | { kind: 'add_edge'; from: string; to: string; label?: string; style?: 'solid' | 'dotted' | 'thick'; arrowStart?: string; arrowEnd?: string }
+  | { kind: 'remove_edge'; id: string }
+  | { kind: 'define_class'; name: string; style: string }
+  | { kind: 'set_node_class'; id: string; className: string | null }
+  | { kind: 'set_node_style'; id: string; style: string | null }
+interface TreemapNode {
+  id: string
+  label: string
+  parentId?: string
+  value?: number
+  className?: string
+}
+interface TreemapBody {
+  kind: 'treemap'
+  title?: string
+  accessibilityTitle?: string
+  accessibilityDescription?: string
+  nodes: TreemapNode[]
+  classDefs: Record<string, Record<string, string>>
+}
+type TreemapMutationOp =
+  | { kind: 'set_title'; title: string | null }
+  | { kind: 'add_node'; label: string; value?: number; parentId?: string; className?: string }
+  | { kind: 'remove_node'; id: string }
+  | { kind: 'set_label'; id: string; label: string }
+  | { kind: 'set_value'; id: string; value: number }
+  | { kind: 'move_node'; id: string; parentId?: string; index?: number }
+  | { kind: 'define_class'; name: string; style: string }
+  | { kind: 'set_node_class'; id: string; className: string | null }
+  | { kind: 'set_accessibility_title'; title: string | null }
+  | { kind: 'set_accessibility_description'; description: string | null }
+interface IshikawaNode { id: string; label: string; parentId?: string }
+interface IshikawaBody {
+  kind: 'ishikawa'
+  nodes: IshikawaNode[]
+  accessibilityTitle?: string
+  accessibilityDescription?: string
+}
+type IshikawaMutationOp =
+  | { kind: 'set_effect'; label: string }
+  | { kind: 'add_cause'; label: string; parentId?: string }
+  | { kind: 'remove_cause'; id: string }
+  | { kind: 'set_label'; id: string; label: string }
+  | { kind: 'move_cause'; id: string; parentId: string; index?: number }
+  | { kind: 'set_accessibility_title'; title: string | null }
+  | { kind: 'set_accessibility_description'; description: string | null }
+
 ${SDK_VALID_DIAGRAM_ALIASES}
 
 interface PixelTextBlock {
@@ -424,7 +631,7 @@ interface StateNode { id: string; label?: string; labelContent?: LabelContent; d
 interface StateRegion { states: StateNode[]; transitions: StateTransition[]; direction?: 'TD' | 'TB' | 'LR' | 'BT' | 'RL' }
 interface StateTransition { from: string; to: string; fromClass?: string; toClass?: string; label?: string; labelContent?: LabelContent; style?: Record<string, string> }   // from/to may be '[*]' or a history ref ('[H]', 'X[H*]'); fromClass/toClass class such an endpoint ('[*]:::c --> A')
 interface StateNote { target: string; side: 'left' | 'right'; text: string; textContent?: LabelContent }
-interface StateBody { kind: 'state'; states: StateNode[]; transitions: StateTransition[]; notes?: StateNote[]; direction?: 'TD' | 'TB' | 'LR' | 'BT' | 'RL'; classDefs?: Record<string, Record<string, string>>; defaultTransitionStyle?: Record<string, string> }
+interface StateBody { unresolvedClasses?: Array<{ id: string; className: string }>; unresolvedStyles?: Array<{ id: string; style: Record<string,string> }>; kind: 'state'; states: StateNode[]; transitions: StateTransition[]; notes?: StateNote[]; direction?: 'TD' | 'TB' | 'LR' | 'BT' | 'RL'; classDefs?: Record<string, Record<string, string>>; defaultTransitionStyle?: Record<string, string> }
 
 type SeqParticipantKind = 'participant' | 'actor' | 'boundary' | 'control' | 'entity' | 'database' | 'collections' | 'queue'
 interface SeqParticipant { id: string; label: string; labelContent?: LabelContent; kind: SeqParticipantKind; declaration?: 'participant' | 'actor'; links?: Record<string, string> }
@@ -449,7 +656,7 @@ interface TimelineSection { id: string; label?: string; periods: TimelinePeriod[
 // direction: explicit \`timeline TD\`/\`timeline LR\` header token (TD = vertical, upstream PR #7270); undefined = LR default.
 interface TimelineBody { kind: 'timeline'; direction?: 'LR' | 'TD'; title?: string; accessibilityTitle?: string; accessibilityDescription?: string; sections: TimelineSection[] }
 
-interface ClassNode { id: string; generic?: string; label?: string; labelContent?: LabelContent; members: string[]; namespace?: string; className?: string; style?: Record<string, string>; href?: string; tooltip?: string }
+interface ClassNode { isInterface?: boolean; id: string; generic?: string; label?: string; labelContent?: LabelContent; members: string[]; namespace?: string; className?: string; style?: Record<string, string>; href?: string; tooltip?: string }
 type ClassRelationKind = 'inheritance' | 'composition' | 'aggregation' | 'association' | 'dependency' | 'realization' | 'link-solid' | 'link-dashed' | 'lollipop'
 interface ClassRelation { from: string; to: string; kind: ClassRelationKind; label?: string; labelContent?: LabelContent; fromCardinality?: string; fromCardinalityContent?: LabelContent; toCardinality?: string; toCardinalityContent?: LabelContent; markerAt?: 'from' | 'to' | 'both' | 'none'; fromKind?: ClassRelationKind; toKind?: ClassRelationKind; lineStyle?: 'solid' | 'dashed' }
 interface ClassNote { text: string; textContent?: LabelContent; for?: string }
@@ -564,7 +771,7 @@ interface MindmapNode { id: string; label: string; shape: MindmapShape; markdown
 interface MindmapBody { kind: 'mindmap'; root: MindmapNode; accessibilityTitle?: string; accessibilityDescription?: string }
 
 type GitGraphCommitType = 'NORMAL' | 'REVERSE' | 'HIGHLIGHT' | 'MERGE' | 'CHERRY_PICK'
-interface GitGraphCommit { id: string; message?: string; type: GitGraphCommitType; customType?: 'NORMAL' | 'REVERSE' | 'HIGHLIGHT'; tags: string[]; parents: string[]; branch: string; sequence: number; source: 'commit' | 'merge' | 'cherry-pick'; mergeBranch?: string; cherrySource?: string; cherryParent?: string; syntheticCherryTag?: string; customId: boolean }
+interface GitGraphCommit { id: string; sourceId?: string; message?: string; type: GitGraphCommitType; customType?: 'NORMAL' | 'REVERSE' | 'HIGHLIGHT'; tags: string[]; parents: string[]; branch: string; sequence: number; source: 'commit' | 'merge' | 'cherry-pick'; mergeBranch?: string; cherrySource?: string; cherryParent?: string; syntheticCherryTag?: string; customId: boolean }
 interface GitGraphBranch { name: string; order: number; sequence: number; head?: string }
 type GitGraphStatement = { kind: 'commit'; ref: string } | { kind: 'branch'; name: string; order?: number } | { kind: 'checkout'; branch: string; keyword: 'checkout' | 'switch' } | { kind: 'merge'; ref: string; branch: string } | { kind: 'cherry-pick'; ref: string; source: string; parent?: string }
 interface GitGraphBody { kind: 'gitgraph'; direction: 'LR' | 'TB' | 'BT'; mainBranchName: string; title?: string; commits: GitGraphCommit[]; branches: GitGraphBranch[]; statements: GitGraphStatement[]; accessibilityTitle?: string; accessibilityDescription?: string }
@@ -650,6 +857,7 @@ type ClassMutationOp =
   | { kind: 'set_class_generic'; class: string; generic: string | null }
   | { kind: 'add_member'; class: string; text: string }
   | { kind: 'remove_member'; class: string; index: number }
+  | { kind: 'add_interface'; class: string; label: string; side?: 'from' | 'to'; relationLabel?: string; lineStyle?: 'solid' | 'dashed' }
   | { kind: 'add_relation'; from: string; to: string; relKind: ClassRelationKind; label?: string; markerAt?: ClassRelation['markerAt']; fromKind?: ClassRelationKind; toKind?: ClassRelationKind; lineStyle?: ClassRelation['lineStyle'] }
   | { kind: 'remove_relation'; index: number }
   | { kind: 'add_note'; text: string; for?: string }

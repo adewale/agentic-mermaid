@@ -1,5 +1,26 @@
 # Third-party notices
 
+## Pele parser and fishbone layout adaptations
+
+The native Block and Requirement parsers and Ishikawa layout adapt browserless
+implementations from Pele, with Agentic Mermaid's typed bodies, editing,
+measurement, Scene, styling and output contracts applied locally.
+
+- Source: <https://github.com/kepano/pele/tree/8603bf3313add9143cd417015d4a6bd6c522dada>
+- Copyright: © 2026 kepano
+- License: **MIT**, reproduced in [`LICENSES/pele-MIT.txt`](LICENSES/pele-MIT.txt).
+
+## Mermaid 12.2.0 stable-family tests
+
+The six new family compatibility benches preserve pinned Mermaid test cases and
+documented examples from source commit
+`1fb7869866dd619168d840291c9c54b4f129758b`. They are verification inputs, not
+runtime code, and are excluded from the npm package.
+
+- Source: <https://github.com/mermaid-js/mermaid/tree/1fb7869866dd619168d840291c9c54b4f129758b>
+- Copyright: © 2014–2022 Knut Sveidqvist
+- License: **MIT**, reproduced in `LICENSES/Mermaid-MIT.txt`.
+
 ## Material Design Icons (curated Architecture icon paths)
 
 A size-bounded subset of SVG path data in `src/architecture/icons.ts` is

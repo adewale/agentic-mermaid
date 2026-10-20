@@ -772,7 +772,8 @@ function parseStateDiagram(lines: string[]): MermaidGraph {
     const stateClassAssignment = matchStateClassAssignment(line)
     if (stateClassAssignment) {
       for (const id of stateClassAssignment.ids) {
-        if (!compositeStateIds.has(id)) ensureStateNode(graph, compositeStack, id)
+        // A paint assignment targets existing/future declarations; it does
+        // not introduce a state (including inside a composite scope).
         appendGraphClass(graph.classAssignments, id, stateClassAssignment.className)
         if (parserObservationActive('state')) observeParserMutation('state', 'assign-class', { id, name: stateClassAssignment.className })
       }
@@ -783,7 +784,6 @@ function parseStateDiagram(lines: string[]): MermaidGraph {
       const ids = stateInlineStyle[1]!.split(',').map(id => id.trim()).filter(Boolean)
       const props = parseStyleProps(stateInlineStyle[2]!)
       for (const id of ids) {
-        if (!compositeStateIds.has(id)) ensureStateNode(graph, compositeStack, id)
         graph.nodeStyles.set(id, { ...graph.nodeStyles.get(id), ...props })
         if (parserObservationActive('state')) observeParserMutation('state', 'set-node-style', { id, props: graph.nodeStyles.get(id) })
       }

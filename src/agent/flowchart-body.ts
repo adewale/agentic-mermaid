@@ -1,4 +1,3 @@
-import { persistentMutationDraft } from './performance-mutation.ts'
 // ============================================================================
 // Flowchart/state structured body: parse / serialize / mutate / source-map
 // (FamilyDescriptor hooks — BUILD-3 stage 2, removing the in-tree exception).
@@ -675,7 +674,7 @@ function styleProps(props: Record<string, string>): string {
 // upstream's flowchart DB does), so a typed edit stores the label that its
 // serialized source re-parses to.
 export function mutateFlowchart(body: FlowchartBody, op: FlowchartMutationOp): Result<FlowchartBody, MutationError> {
-  const graph = persistentMutationDraft(body.graph, op) ?? cloneGraph(body.graph)
+  const graph = cloneGraph(body.graph)
   const done = (): Result<FlowchartBody, MutationError> => ok({ kind: 'flowchart', graph })
   switch (op.kind) {
     case 'add_node': {

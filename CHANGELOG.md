@@ -296,8 +296,8 @@ This changelog tracks user-facing changes for **Agentic Mermaid**, a fork of `lu
 
 ### Added
 
-- Twelve internal performance experiments are available behind startup flags,
-  all disabled by default. Their mechanisms, limits and benchmark protocol are
+- Prepared-text reuse, certified forest layout and bounded positioned-result
+  reuse are enabled by default, with startup opt-outs. Their limits and selection are
   documented in `docs/project/flagged-performance-experiments.md`.
 - Added a `BELOW_READABLE_SIZE` raster-legibility warning: when `fitTo` or an
   explicit `scale` rasterizes the smallest configured text below the new
