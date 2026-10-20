@@ -175,8 +175,21 @@ const C4_READ_OTHERWISE: ReadonlyArray<readonly [string, string, string, number]
   ['text glued to a closing quote before another statement', 'C4Context\n  Person(a, "Ann"x)\n  Person(b, "Bob")', 'c4_argument_quoting', 2],
 ]
 
+// Mermaid's lexer reads a message's sender and receiver as one ID each. Where
+// that ID ends inside ours, arrow tokens follow where Mermaid wants message
+// text; what was meant is unclear, so, like any statement ours cannot read,
+// it is kept as source and the render refuses it. [construct, source, line]
+const SEQUENCE_UNREAD: ReadonlyArray<readonly [string, string, number]> = [
+  ['an arrow inside the receiver', 'sequenceDiagram\n  Alice->>Bob->>Carol: Hi', 2],
+  ['an arrow ending the receiver', 'sequenceDiagram\n  Alice->Bob->>: Hi', 2],
+  ['an arrow inside a central-connection receiver', 'sequenceDiagram\n  Alice()->>Bo->>Bob: Hi', 2],
+  ['a sender starting with an arrow', 'sequenceDiagram\n  accDescr {\n    About\n  }-xAlice->Bob: Hi', 4],
+  ['a dash before the arrow', 'sequenceDiagram\n  Alice--->>Bob: Hi', 2],
+  ['a comma in the receiver', 'sequenceDiagram\n  Alice->>Bob,Carol: Hi', 2],
+]
+
 // [family, construct, source]
-const ACCEPTED:ReadonlyArray<readonly [BuiltinFamilyId, string, string]> = [
+const ACCEPTED: ReadonlyArray<readonly [BuiltinFamilyId, string, string]> = [
   ['class', 'one class after the header', 'classDiagram\n  class Animal'],
   ['class', 'an accTitle after the header', 'classDiagram\n  accTitle: Pets'],
   ['class', 'a comment after the last relationship', 'classDiagram\n  class Cat\n  Animal <|-- Dog %% note'],
@@ -218,6 +231,7 @@ const ACCEPTED:ReadonlyArray<readonly [BuiltinFamilyId, string, string]> = [
   ['mindmap', 'delimiters Mermaid reads as shape text', 'mindmap\n  (a [b)\n    ["text (x)"]\n    c{{d [e}}'],
   // Mermaid removes a `%%` line with the blank lines before it.
   ['mindmap', 'a blank line before a comment after the header', 'mindmap\n\n%% c\n  root\n\n    a'],
+  ['sequence', 'dashes, slashes, parentheses and spaces around participant IDs', 'sequenceDiagram\n  A-B->>C/D: x\n  E(1)->>F: y\n  Alice ->> Bob: z'],
   ['c4', 'an unquoted argument before a comma', 'C4Context\n  Person(a, Ann Lee, "A customer")'],
   ['c4', 'an empty slot before the closing parenthesis', 'C4Context\n  Person(a, "Ann",)'],
   ['c4', 'spaces around a named argument\'s equals sign', 'C4Context\n  Person(a, "Ann", $descr = "A customer")\n  UpdateLayoutConfig($c4ShapeInRow="3")'],
@@ -270,6 +284,14 @@ describe('read generously what pinned Mermaid rejects, and warn', () => {
     expect(readGenerously(source, text)).toEqual({ typed: 'c4', draws: true, reported: [`${syntax}@${line}`] })
   })
 
+  test.each(SEQUENCE_UNREAD)('sequence: %s is kept as source and not drawn', async (_construct, source, line) => {
+    expect((await upstream.parse(source)).ok).toBe(false)
+    const { typed, error } = ours(source)
+    const reported = verifyMermaid(source).warnings.flatMap(warning => warning.code === 'UNSUPPORTED_SYNTAX' ? [`${warning.syntax}@${warning.line}`] : [])
+    expect({ typed, refused: error?.startsWith('SEQUENCE_UNSUPPORTED_STATEMENT'), reported })
+      .toEqual({ typed: 'sequence', refused: true, reported: expect.arrayContaining([`sequence_statement@${line}`]) })
+  })
+
   test.each(C4_UNREADABLE)('c4: %s is retained as source and not drawn', async (_construct, source, line) => {
     expect((await upstream.parse(source)).ok).toBe(false)
     const { typed, error } = ours(source)
@@ -305,7 +327,7 @@ describe('accept what pinned Mermaid accepts', () => {
   test.each(ACCEPTED)('%s: %s is accepted, as Mermaid accepts it', async (family, _construct, source) => {
     expect({ mermaid: (await upstream.parse(source)).ok, ...ours(source) })
       .toEqual({ mermaid: true, typed: family, error: undefined })
-    if (family === 'architecture' || family === 'quadrant' || family === 'xychart' || family === 'mindmap' || family === 'gitgraph' || family === 'c4') expect(verifyMermaid(source).warnings.filter(warning => warning.code === 'UNSUPPORTED_SYNTAX')).toEqual([])
+    if (family === 'architecture' || family === 'quadrant' || family === 'xychart' || family === 'mindmap' || family === 'gitgraph' || family === 'c4' || family === 'sequence') expect(verifyMermaid(source).warnings.filter(warning => warning.code === 'UNSUPPORTED_SYNTAX')).toEqual([])
   })
 
   test.each(C4_READ_OTHERWISE)('c4: %s is drawn and reported, as Mermaid reads it otherwise', async (_construct, source, syntax, line) => {

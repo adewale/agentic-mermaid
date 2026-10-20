@@ -53,6 +53,16 @@ const SEQUENCE_SPACED_CENTRAL_RESERVED_SENDERS = new Set([
 const SEQUENCE_SPACED_CENTRAL_RESERVED_RECEIVERS = new Set([
   ...SEQUENCE_SPACED_CENTRAL_RESERVED_SENDERS, 'acctitle', 'accdescr'])
 
+// Mermaid's ACTOR token (sequenceDiagram.jison, "final_4.11"): it stops at
+// `+`, `<`, `>`, `:`, `,`, `;` and at a dash that starts an arrow.
+const MERMAID_SEQUENCE_ACTOR_RE = /[^\/\\\+\()\+<\->\->:\n,;]+((?!(\-x|\-\-x|\-\)|\-\-\)|\-\|\\|\-\\|\-\/|\-\/\/|\-\|\/|\/\|\-|\\\|\-|\/\/\-|\\\\\-|\/\|\-|\-\-\|\\|\-\-|\(\)))[\-]*[^\+<\->\->:\n,;]+)*/iy
+
+/** The participant ID Mermaid's lexer reads at `index` in `line`, or ''. */
+function mermaidSequenceActorAt(line: string, index: number): string {
+  MERMAID_SEQUENCE_ACTOR_RE.lastIndex = index
+  return MERMAID_SEQUENCE_ACTOR_RE.exec(line)?.[0].trim() ?? ''
+}
+
 export interface ParsedSequenceMessageLine {
   from: string
   to: string
@@ -134,6 +144,13 @@ export function parseSequenceMessageLine(line: string): ParsedSequenceMessageLin
     || to.includes('()')
     || SEQUENCE_SPACED_CENTRAL_RESERVED_RECEIVERS.has(to.toLowerCase())
   )) return null
+  // Mermaid reads each participant ID as one lexer token. Where that token
+  // ends inside our sender or receiver (`A->>B->>C`, `-xA->B`, `A--->>B`),
+  // arrow tokens follow it where Mermaid expects text, so it rejects the
+  // line, and what was meant is unclear: leave the statement unread. Where
+  // Mermaid's sender runs on past our arrow, it reads another message.
+  const sender = mermaidSequenceActorAt(line, 0)
+  if (sender.length <= match[1]!.length && (sender !== match[1] || mermaidSequenceActorAt(line, line.length - tail.length) !== to)) return null
   return {
     from: match[1]!, arrow: match[3]!, activationMark,
     to, label, centralStart: Boolean(match[2]), centralEnd,
